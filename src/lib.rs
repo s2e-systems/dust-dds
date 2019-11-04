@@ -92,18 +92,18 @@ impl RTPSReader {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
 
-    #[test]
-    fn it_works() {
-        let discovery_locator = Udpv4Locator::new_udpv4(&[239,255,0,1],&7400);
-        let reader = RTPSReader::new(vec!(discovery_locator));
-        for _i in 1..=120 {
-            println!("Reading data");
-            reader.read_data();
-        }
-        assert_eq!(2 + 2, 4);
-    }
-}
+//     #[test]
+//     fn it_works() {
+//         let discovery_locator = Udpv4Locator::new_udpv4(&[239,255,0,1],&7400);
+//         let reader = RTPSReader::new(vec!(discovery_locator));
+//         for _i in 1..=120 {
+//             println!("Reading data");
+//             reader.read_data();
+//         }
+//         assert_eq!(2 + 2, 4);
+//     }
+// }
