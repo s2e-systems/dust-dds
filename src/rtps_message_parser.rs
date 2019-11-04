@@ -11,6 +11,25 @@ use cdr::{
     BigEndian, Bounded, CdrBe, CdrLe, Error, Infinite, LittleEndian, PlCdrBe, PlCdrLe,
 };
 
+#[derive(Debug)]
+pub enum ErrorMessage {
+    MessageTooSmall,
+    InvalidHeader,
+    RtpsMajorVersionUnsupported,
+    RtpsMinorVersionUnsupported,
+    InvalidSubmessageHeader,
+    InvalidSubmessage,
+    InvalidKeyAndDataFlagCombination,
+    CdrError(cdr::Error),
+    InvalidTypeConversion,
+}
+
+impl From<cdr::Error> for ErrorMessage {
+    fn from(error: cdr::Error) -> Self {
+        ErrorMessage::CdrError(error)
+    }
+}
+
 type Result<T> = std::result::Result< T, ErrorMessage>;
 
 fn deserialize<'de,T>(message: &[u8], start_index: &usize, end_index: &usize, endianess: &EndianessFlag) -> T 
@@ -110,18 +129,6 @@ pub enum SubMessageType {
     None,
 }
 
-#[derive(PartialEq, Debug)]
-pub enum ErrorMessage {
-    MessageTooSmall,
-    InvalidHeader,
-    RtpsMajorVersionUnsupported,
-    RtpsMinorVersionUnsupported,
-    InvalidSubmessageHeader,
-    InvalidSubmessage,
-    InvalidKeyAndDataFlagCombination,
-//    CdrError(cdr::Error),
-}
-
 fn is_valid(message: &[u8]) -> Result<()> {
     if message.len() < MINIMUM_RTPS_MESSAGE_SIZE {
         return Err(ErrorMessage::MessageTooSmall);
@@ -131,8 +138,7 @@ fn is_valid(message: &[u8]) -> Result<()> {
         return Err(ErrorMessage::InvalidHeader);
     }
 
-    // TODO: Map error
-    let message_header = cdr::de::deserialize_data::<MessageHeader, BigEndian>(&message[0..20]).unwrap();
+    let message_header = cdr::de::deserialize_data::<MessageHeader, BigEndian>(&message[0..20])?;
 
     if message_header.protocol_version.major != 2 {
         return Err(ErrorMessage::RtpsMajorVersionUnsupported);
@@ -166,10 +172,9 @@ pub fn parse_rtps_submessage(message: &[u8], submessage_index: &mut usize) -> Re
         return Err(ErrorMessage::InvalidSubmessageHeader);
     }
 
-    //TODO: Map error
-    let submessage_endianess : EndianessFlag = num::FromPrimitive::from_u8(message[submessage_header_start + 1] & 0x01).unwrap();
+    let submessage_endianess : EndianessFlag = 
+        num::FromPrimitive::from_u8(message[submessage_header_start + 1] & 0x01).ok_or(ErrorMessage::InvalidTypeConversion)?;
 
-    // TODO: Map error
     let submessage_header = deserialize::<SubmessageHeader>(message, &submessage_header_start, &submessage_header_end, &submessage_endianess);
 
     // Process the payload
@@ -206,8 +211,8 @@ fn parse_info_timestamp_submessage(submessage_header: &SubmessageHeader, message
         return Err(ErrorMessage::InvalidSubmessage);
     }
 
-    // TODO: Map error
-    let submessage_endianess : EndianessFlag = num::FromPrimitive::from_u8(submessage_header.flags & 0x01).unwrap();
+    let submessage_endianess : EndianessFlag =
+        num::FromPrimitive::from_u8(submessage_header.flags & 0x01).ok_or(ErrorMessage::InvalidTypeConversion)?;;
 
     let timestamp = if submessage_header.flags & 0x02 == 0x02 {
         None
@@ -229,12 +234,12 @@ fn parse_data_submessage(submessage_header: &SubmessageHeader, message: &[u8], s
         return Err(ErrorMessage::InvalidSubmessage);
     }
 
-    // TODO: Map error
-    let submessage_endianess : EndianessFlag = num::FromPrimitive::from_u8(submessage_header.flags & 0x01).unwrap();
+    let submessage_endianess : EndianessFlag =
+        num::FromPrimitive::from_u8(submessage_header.flags & 0x01).ok_or(ErrorMessage::InvalidTypeConversion)?;
     let inline_qos_flag = submessage_header.flags & 0x02 == 0x02;
     let data_flag = submessage_header.flags & 0x04 == 0x04;
     let key_flag = submessage_header.flags & 0x08 == 0x08;
-    let non_standard_payload_flag = submessage_header.flags & 0x10 == 0x10;
+    let _non_standard_payload_flag = submessage_header.flags & 0x10 == 0x10;
 
     let mut submessage_process_index = *submessage_payload_index;
 
@@ -292,9 +297,9 @@ mod tests{
 
         let serialized = cdr::ser::serialize_data::<_, _, BigEndian>(&message_example, Infinite).unwrap();
 
-        let parse_result = parse_rtps_message(&serialized);
+        let parse_result = parse_rtps_message(&serialized).unwrap();
         
-        assert_eq!(parse_result, Ok(vec!()));
+        assert_eq!(parse_result, vec!());
     }
 
     #[test]
@@ -302,8 +307,11 @@ mod tests{
         let serialized = [0, 1, 2, 3];
 
         let parse_result = parse_rtps_message(&serialized);
-        
-        assert_eq!(parse_result, Err(ErrorMessage::MessageTooSmall));
+
+        match parse_result {
+            Err(ErrorMessage::MessageTooSmall) => assert!(true),
+            _ => assert!(false),
+        };
     }
 
     #[test]
@@ -318,8 +326,11 @@ mod tests{
         let serialized = cdr::ser::serialize_data::<_, _, BigEndian>(&message_example, Infinite).unwrap();
 
         let parse_result = parse_rtps_message(&serialized);
-        
-        assert_eq!(parse_result, Err(ErrorMessage::RtpsMajorVersionUnsupported));
+
+        match parse_result {
+            Err(ErrorMessage::RtpsMajorVersionUnsupported) => assert!(true),
+            _ => assert!(false),
+        };
 
         // Unsupported minor version
         let message_example = MessageHeader{
@@ -332,7 +343,10 @@ mod tests{
 
         let parse_result = parse_rtps_message(&serialized);
 
-        assert_eq!(parse_result, Err(ErrorMessage::RtpsMinorVersionUnsupported));
+        match parse_result {
+            Err(ErrorMessage::RtpsMinorVersionUnsupported) => assert!(true),
+            _ => assert!(false),
+        };
 
         // Unsupported major and minor version
         let message_example = MessageHeader{
@@ -344,9 +358,10 @@ mod tests{
         let serialized = cdr::ser::serialize_data::<_, _, BigEndian>(&message_example, Infinite).unwrap();
 
         let parse_result = parse_rtps_message(&serialized);
-        
-        assert_eq!(parse_result, Err(ErrorMessage::RtpsMajorVersionUnsupported));
-
+        match parse_result {
+            Err(ErrorMessage::RtpsMajorVersionUnsupported) => assert!(true),
+            _ => assert!(false),
+        };
     }
 
     #[test]
