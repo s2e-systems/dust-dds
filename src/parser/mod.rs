@@ -11,6 +11,8 @@ use cdr::{
     LittleEndian, BigEndian, CdrLe, CdrBe, PlCdrLe, PlCdrBe, Error, Infinite,
 };
 
+use super::EntityIdT;
+
 #[derive(Debug)]
 pub enum ErrorMessage {
     MessageTooSmall,
@@ -91,6 +93,27 @@ struct TimeT {
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
+struct SequenceNumber {
+    high: i32,
+    low: u32,
+}
+
+impl From<i64> for SequenceNumber {
+    fn from(value: i64) -> Self {
+        SequenceNumber{
+            high: (value >> 32) as i32,
+            low: (value & 0x00000000FFFFFFFF) as u32,
+        }
+    }
+}
+
+impl From<SequenceNumber> for i64 {
+    fn from(value: SequenceNumber) -> Self {
+        ((value.high as i64) << 32) + value.low as i64
+    }
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
 struct SubmessageHeader {
     submessage_id: u8,
     flags: u8,
@@ -103,17 +126,7 @@ struct Submessage<T> {
     submessage: T,
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Debug)]
-pub struct InfoTs {
-    timestamp: Option<TimeT>, 
-}
 
-#[derive(Serialize, Deserialize, PartialEq, Debug)]
-pub struct InfoSrc {
-    protocol_version: ProtocolVersion,
-    vendor_id: [u8;2],
-    guid_prefix: [u8;12],
-}
 
 pub enum InlineQosPid {
     Pad = 0x0000, 
@@ -147,13 +160,6 @@ trait ParameterList {}
 
 impl ParameterList for InlineQosPid {}
 
-#[derive(PartialEq, Debug)]
-pub struct Data {
-    endianess: EndianessFlag,
-    inline_qos: Vec<u8>,
-    data: Vec<u8>,
-}
-
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 struct ProtocolVersion {
@@ -169,13 +175,90 @@ struct MessageHeader {
     guid_prefix: [u8;12],
 }
 
+type Count = i32;
+type SequenceNumberSet = Vec<(SequenceNumber, bool)>;
+
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+pub struct AckNack {
+    final_flag: bool,
+    reader_id: EntityIdT,
+    writer_id: EntityIdT,
+    reader_sn_state: SequenceNumberSet,
+    count: Count,
+}
+
+#[derive(PartialEq, Debug)]
+pub struct Data {
+    endianess: EndianessFlag,
+    inline_qos: Vec<u8>,
+    data: Vec<u8>,
+}
+
+#[derive(PartialEq, Debug)]
+pub struct DataFrag {
+    endianess: EndianessFlag,
+    inline_qos: Vec<u8>,
+    data: Vec<u8>,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+pub struct Gap {
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+pub struct Heartbeat {
+
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+pub struct HeartbeatFrag {
+
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+pub struct InfoDst {
+
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+pub struct InfoReply {
+
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+pub struct InfoSrc {
+    protocol_version: ProtocolVersion,
+    vendor_id: [u8;2],
+    guid_prefix: [u8;12],
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+pub struct InfoTs {
+    timestamp: Option<TimeT>, 
+}
+
+// Pad is contentless so it is skipped here
+
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+pub struct NackFrag {
+}
+
+//TODO: InfoReplyIP4
+
 #[derive(PartialEq, Debug)]
 pub enum SubMessageType {
-    InfoTsSubmessage(InfoTs),
+    AckNackSubmessage(AckNack),
     DataSubmessage(Data),
+    DataFragSubmessage(DataFrag),
+    GapSubmessage(Gap),
+    HeartbeatSubmessage(Heartbeat),
+    HeartbeatFragSubmessage(HeartbeatFrag),
+    InfoDstSubmessage(InfoDst),
+    InfoReplySubmessage(InfoReply),
     InfoSrcSubmessage(InfoSrc),
+    InfoTsSubmessage(InfoTs),
     PadSubmessage(()),
-    None,
+    NackFragSubmessage(NackFrag),
 }
 
 fn is_valid(message: &[u8]) -> Result<()> {
@@ -238,19 +321,19 @@ pub fn parse_rtps_message(message : &[u8]) -> Result< Vec<SubMessageType> >{
         }
 
         match num::FromPrimitive::from_u8(submessage_header.submessage_id).ok_or(ErrorMessage::InvalidSubmessageHeader)? {
-            SubmessageKind::Pad => SubMessageType::PadSubmessage(()),
-            SubmessageKind::AckNack => unimplemented!(),
-            SubmessageKind::Heartbeat => unimplemented!(),
-            SubmessageKind::Gap => unimplemented!(),
-            SubmessageKind::InfoTimestamp => SubMessageType::InfoTsSubmessage(parse_info_timestamp_submessage(&message[submessage_payload_first_index..=submessage_payload_last_index], &submessage_header.flags)?),
-            SubmessageKind::InfoSource => SubMessageType::InfoSrcSubmessage(parse_info_source_submessage(&message[submessage_payload_first_index..=submessage_payload_last_index], &submessage_header.flags)?),
-            SubmessageKind::InfoReplyIP4 => unimplemented!(),
-            SubmessageKind::InfoDestination => unimplemented!(),
-            SubmessageKind::InfoReply => unimplemented!(),
-            SubmessageKind::NackFrag => unimplemented!(),
-            SubmessageKind::HeartbeatFrag => unimplemented!(),
+            SubmessageKind::AckNack => SubMessageType::AckNackSubmessage(parse_ack_nack_submessage(&message[submessage_payload_first_index..=submessage_payload_last_index], &submessage_header.flags)?),
             SubmessageKind::Data => SubMessageType::DataSubmessage(parse_data_submessage(&message[submessage_payload_first_index..=submessage_payload_last_index], &submessage_header.flags)?),
-            SubmessageKind::DataFrag => unimplemented!(),
+            SubmessageKind::DataFrag => SubMessageType::DataFragSubmessage(parse_data_frag_submessage(&message[submessage_payload_first_index..=submessage_payload_last_index], &submessage_header.flags)?),
+            SubmessageKind::Gap => SubMessageType::GapSubmessage(parse_gap_submessage(&message[submessage_payload_first_index..=submessage_payload_last_index], &submessage_header.flags)?),
+            SubmessageKind::Heartbeat => SubMessageType::HeartbeatSubmessage(parse_heartbeat_submessage(&message[submessage_payload_first_index..=submessage_payload_last_index], &submessage_header.flags)?),
+            SubmessageKind::HeartbeatFrag => SubMessageType::HeartbeatFragSubmessage(parse_heartbeat_frag_submessage(&message[submessage_payload_first_index..=submessage_payload_last_index], &submessage_header.flags)?),
+            SubmessageKind::InfoDestination => SubMessageType::InfoDstSubmessage(parse_info_dst_submessage(&message[submessage_payload_first_index..=submessage_payload_last_index], &submessage_header.flags)?),
+            SubmessageKind::InfoReply => SubMessageType::InfoReplySubmessage(parse_info_reply_submessage(&message[submessage_payload_first_index..=submessage_payload_last_index], &submessage_header.flags)?),
+            SubmessageKind::InfoSource => SubMessageType::InfoSrcSubmessage(parse_info_source_submessage(&message[submessage_payload_first_index..=submessage_payload_last_index], &submessage_header.flags)?),
+            SubmessageKind::InfoTimestamp => SubMessageType::InfoTsSubmessage(parse_info_timestamp_submessage(&message[submessage_payload_first_index..=submessage_payload_last_index], &submessage_header.flags)?),
+            SubmessageKind::Pad => SubMessageType::PadSubmessage(()),
+            SubmessageKind::NackFrag => SubMessageType::NackFragSubmessage(parse_nack_frag_submessage(&message[submessage_payload_first_index..=submessage_payload_last_index], &submessage_header.flags)?),
+            SubmessageKind::InfoReplyIP4 => unimplemented!(),
         };
 
         submessage_first_index = submessage_first_index + submessage_header.submessage_length as usize;
@@ -259,27 +342,15 @@ pub fn parse_rtps_message(message : &[u8]) -> Result< Vec<SubMessageType> >{
     Ok(submessage_vector)
 }
 
-fn parse_info_timestamp_submessage(submessage: &[u8], submessage_flags: &u8) -> Result<InfoTs> {
-    const MESSAGE_PAYLOAD_FIRST_INDEX: usize = 0;
-    const MESSAGE_PAYLOAD_LAST_INDEX: usize = 7;
-
-    if MESSAGE_PAYLOAD_LAST_INDEX >= submessage.len() {
-        return Err(ErrorMessage::InvalidSubmessage);
-    }
-
+fn parse_ack_nack_submessage(submessage: &[u8], submessage_flags: &u8) -> Result<AckNack> {
+    const FINAL_FLAG_MASK: u8 = 0x02;
+    
     let submessage_endianess : EndianessFlag = endianess(submessage_flags)?;
+    let final_flag = (submessage_flags & FINAL_FLAG_MASK) == FINAL_FLAG_MASK;
 
-    let timestamp = if *submessage_flags & 0x02 == 0x02 {
-        None
-    }
-    else {
-        Some(deserialize::<TimeT>(submessage, &MESSAGE_PAYLOAD_FIRST_INDEX, &MESSAGE_PAYLOAD_LAST_INDEX, &submessage_endianess))
-    };
-
-    Ok(InfoTs{timestamp: timestamp})
-}
-
-fn parse_info_source_submessage(submessage: &[u8], submessage_flags: &u8) -> Result<InfoSrc> {
+    let reader_id = deserialize::<EntityIdT>(submessage, &0, &3, &submessage_endianess);
+    let writer_id = deserialize::<EntityIdT>(submessage, &4, &7, &submessage_endianess);
+    
     unimplemented!();
 }
 
@@ -342,6 +413,101 @@ fn parse_data_submessage(submessage: &[u8], submessage_flags: &u8) -> Result<Dat
 
     Err(ErrorMessage::InvalidSubmessage)
 }
+
+fn parse_data_frag_submessage(submessage: &[u8], submessage_flags: &u8) -> Result<DataFrag> {
+    unimplemented!();
+}
+
+fn parse_gap_submessage(submessage: &[u8], submessage_flags: &u8) -> Result<Gap> {
+    unimplemented!();
+}
+
+fn parse_heartbeat_submessage(submessage: &[u8], submessage_flags: &u8) -> Result<Heartbeat> {
+    unimplemented!();
+}
+
+fn parse_heartbeat_frag_submessage(submessage: &[u8], submessage_flags: &u8) -> Result<HeartbeatFrag> {
+    unimplemented!();
+}
+
+fn parse_info_dst_submessage(submessage: &[u8], submessage_flags: &u8) -> Result<InfoDst> {
+    unimplemented!();
+}
+
+fn parse_info_reply_submessage(submessage: &[u8], submessage_flags: &u8) -> Result<InfoReply> {
+    unimplemented!();
+}
+
+fn parse_info_source_submessage(submessage: &[u8], submessage_flags: &u8) -> Result<InfoSrc> {
+    unimplemented!();
+}
+
+fn parse_info_timestamp_submessage(submessage: &[u8], submessage_flags: &u8) -> Result<InfoTs> {
+    const MESSAGE_PAYLOAD_FIRST_INDEX: usize = 0;
+    const MESSAGE_PAYLOAD_LAST_INDEX: usize = 7;
+
+    if MESSAGE_PAYLOAD_LAST_INDEX >= submessage.len() {
+        return Err(ErrorMessage::InvalidSubmessage);
+    }
+
+    let submessage_endianess : EndianessFlag = endianess(submessage_flags)?;
+
+    let timestamp = if *submessage_flags & 0x02 == 0x02 {
+        None
+    }
+    else {
+        Some(deserialize::<TimeT>(submessage, &MESSAGE_PAYLOAD_FIRST_INDEX, &MESSAGE_PAYLOAD_LAST_INDEX, &submessage_endianess))
+    };
+
+    Ok(InfoTs{timestamp: timestamp})
+}
+
+fn parse_nack_frag_submessage(submessage: &[u8], submessage_flags: &u8) -> Result<NackFrag> {
+    unimplemented!();
+}
+
+fn parse_sequence_number_set(submessage: &[u8], sequence_number_set_first_index: &usize, endianess_flag: &EndianessFlag) -> Result<SequenceNumberSet> {
+    const SEQUENCE_NUMBER_TYPE_SIZE : usize = 8;
+    const NUM_BITS_TYPE_SIZE: usize = 4;
+    const BITMAP_FIELD_SIZE: usize = 4;
+
+    let bitmap_base_first_index = *sequence_number_set_first_index;
+    let bitmap_base_last_index = bitmap_base_first_index + SEQUENCE_NUMBER_TYPE_SIZE - 1;
+
+    let bitmap_base : i64 = deserialize::<SequenceNumber>(submessage, &bitmap_base_first_index, &bitmap_base_last_index, endianess_flag).into();
+    // if bitmap_base < 1 {
+    //     return Err(ErrorMessage::InvalidSubmessage);
+    // }
+
+    let num_bits_first_index = bitmap_base_last_index + 1;
+    let num_bits_last_index = num_bits_first_index + NUM_BITS_TYPE_SIZE - 1;
+
+    let num_bits = deserialize::<u32>(submessage, &num_bits_first_index, &num_bits_last_index, &endianess_flag);
+    if /*num_bits < 0 || */ num_bits > 256 {
+        return Err(ErrorMessage::InvalidSubmessage);
+    }
+
+    let num_bitmap_fields = ((num_bits + 31) >> 5) as usize;
+
+    let mut sequence_number_set = SequenceNumberSet::with_capacity(num_bitmap_fields);
+
+    for bitmap_field_index in 0..num_bitmap_fields {
+        let field_first_index = num_bits_last_index + 1 + bitmap_field_index * BITMAP_FIELD_SIZE;
+        let field_last_index = field_first_index + BITMAP_FIELD_SIZE - 1;
+        let bitmap_field = deserialize::<u32>(submessage, &field_first_index, &field_last_index, &endianess_flag);
+
+        let number_bits_in_field = num_bits as usize - (BITMAP_FIELD_SIZE * 8) * bitmap_field_index;
+        for sequence_number_index in 0..number_bits_in_field {
+            let sequence_number : i64 = bitmap_base + (sequence_number_index + (BITMAP_FIELD_SIZE * 8) * bitmap_field_index) as i64;
+            let sequence_bit_mask = 1 << sequence_number_index;
+            let sequence_bit = (bitmap_field & sequence_bit_mask) == sequence_bit_mask;
+            sequence_number_set.push( (SequenceNumber::from(sequence_number), sequence_bit) );
+        }
+    }
+    Ok(sequence_number_set)
+}
+
+
 
 #[cfg(test)]
 mod tests{
@@ -430,6 +596,51 @@ mod tests{
     }
 
     #[test]
+    fn test_parse_ack_nack_submessage() {
+        parse_ack_nack_submessage(&[0,0], &0);
+    }
+
+    #[test]
+    fn test_data_submessage() {
+        parse_data_submessage(&[0,0], &0);
+    }
+
+    #[test]
+    fn test_data_frag_submessage() {
+        parse_data_frag_submessage(&[0,0], &0);
+    }
+
+    #[test]
+    fn test_gap_submessage() {
+        parse_gap_submessage(&[0,0], &0);
+    }
+
+    #[test]
+    fn test_heartbeat_submessage() {
+        parse_heartbeat_submessage(&[0,0], &0);
+    }
+
+    #[test]
+    fn test_heartbeat_frag_submessage() {
+        parse_heartbeat_frag_submessage(&[0,0], &0);
+    }
+
+    #[test]
+    fn test_parse_info_dst_submessage() {
+        parse_info_dst_submessage(&[0,0], &0);
+    }
+
+    #[test]
+    fn test_parse_info_reply_submessage() {
+        parse_info_reply_submessage(&[0,0], &0);
+    }
+
+    #[test]
+    fn test_parse_info_source_submessage() {
+        parse_info_source_submessage(&[0,0], &0);
+    }
+
+    #[test]
     fn test_parse_info_timestamp_submessage() {
         const BIG_ENDIAN_FLAG: u8 = 0x00;
         const LITTLE_ENDIAN_FLAG: u8 = 0x01;
@@ -457,6 +668,12 @@ mod tests{
         let info_ts_none_little_endian = parse_info_timestamp_submessage(&timestamp_message_payload_little_endian, &(LITTLE_ENDIAN_FLAG+INVALID_FLAG)).unwrap();
         assert_eq!(None,info_ts_none_little_endian.timestamp);
     }
+
+    #[test]
+    fn test_parse_nack_frag_submessage() {
+        parse_nack_frag_submessage(&[0,0], &0);
+    }
+    
 
     #[test]
     fn test_parse_different_rtps_messages() {
