@@ -6,7 +6,7 @@ use std::net::AddrParseError;
 use std::net::SocketAddr;
 use std::net::SocketAddrV4;
 
-pub mod rtps_message_parser;
+pub mod parser;
 
 type TopicKindT = u32;
 type ReliabilityLevelT = u32;
