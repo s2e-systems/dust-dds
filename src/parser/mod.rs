@@ -3,6 +3,7 @@ extern crate serde_derive;
 extern crate num;
 extern crate num_derive;
 
+use std::cmp;
 use serde_derive::{Deserialize, Serialize};
 
 use num_derive::FromPrimitive;
@@ -93,22 +94,22 @@ struct TimeT {
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
-struct SequenceNumber {
+struct SequenceNumberSerialization {
     high: i32,
     low: u32,
 }
 
-impl From<i64> for SequenceNumber {
+impl From<i64> for SequenceNumberSerialization {
     fn from(value: i64) -> Self {
-        SequenceNumber{
+        SequenceNumberSerialization{
             high: (value >> 32) as i32,
             low: (value & 0x00000000FFFFFFFF) as u32,
         }
     }
 }
 
-impl From<SequenceNumber> for i64 {
-    fn from(value: SequenceNumber) -> Self {
+impl From<SequenceNumberSerialization> for i64 {
+    fn from(value: SequenceNumberSerialization) -> Self {
         ((value.high as i64) << 32) + value.low as i64
     }
 }
@@ -176,6 +177,7 @@ struct MessageHeader {
 }
 
 type Count = i32;
+type SequenceNumber = i64;
 type SequenceNumberSet = Vec<(SequenceNumber, bool)>;
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
@@ -349,13 +351,16 @@ fn parse_ack_nack_submessage(submessage: &[u8], submessage_flags: &u8) -> Result
     let final_flag = (submessage_flags & FINAL_FLAG_MASK) == FINAL_FLAG_MASK;
 
     let reader_id = deserialize::<EntityIdT>(submessage, &0, &3, &submessage_endianess);
+    
     let writer_id = deserialize::<EntityIdT>(submessage, &4, &7, &submessage_endianess);
     
-    unimplemented!();
+    parse_sequence_number_set(submessage, &8, &submessage_endianess);
+
+    unimplemented!()
 }
 
-fn parse_data_submessage(submessage: &[u8], submessage_flags: &u8) -> Result<Data> {
-    unimplemented!();
+fn parse_data_submessage(_submessage: &[u8], _submessage_flags: &u8) -> Result<Data> {
+    unimplemented!()
 
     // let submessage_payload_start = *submessage_payload_index;
     // let submessage_payload_end = submessage_payload_start + submessage_header.submessage_length as usize - 1;
@@ -411,35 +416,35 @@ fn parse_data_submessage(submessage: &[u8], submessage_flags: &u8) -> Result<Dat
     //     // TODO: Process the key
     // }
 
-    Err(ErrorMessage::InvalidSubmessage)
+    // Err(ErrorMessage::InvalidSubmessage)
 }
 
-fn parse_data_frag_submessage(submessage: &[u8], submessage_flags: &u8) -> Result<DataFrag> {
-    unimplemented!();
+fn parse_data_frag_submessage(_submessage: &[u8], _submessage_flags: &u8) -> Result<DataFrag> {
+    unimplemented!()
 }
 
-fn parse_gap_submessage(submessage: &[u8], submessage_flags: &u8) -> Result<Gap> {
-    unimplemented!();
+fn parse_gap_submessage(_submessage: &[u8], _submessage_flags: &u8) -> Result<Gap> {
+    unimplemented!()
 }
 
-fn parse_heartbeat_submessage(submessage: &[u8], submessage_flags: &u8) -> Result<Heartbeat> {
-    unimplemented!();
+fn parse_heartbeat_submessage(_submessage: &[u8], _submessage_flags: &u8) -> Result<Heartbeat> {
+    unimplemented!()
 }
 
-fn parse_heartbeat_frag_submessage(submessage: &[u8], submessage_flags: &u8) -> Result<HeartbeatFrag> {
-    unimplemented!();
+fn parse_heartbeat_frag_submessage(_submessage: &[u8], _submessage_flags: &u8) -> Result<HeartbeatFrag> {
+    unimplemented!()
 }
 
-fn parse_info_dst_submessage(submessage: &[u8], submessage_flags: &u8) -> Result<InfoDst> {
-    unimplemented!();
+fn parse_info_dst_submessage(_submessage: &[u8], _submessage_flags: &u8) -> Result<InfoDst> {
+    unimplemented!()
 }
 
-fn parse_info_reply_submessage(submessage: &[u8], submessage_flags: &u8) -> Result<InfoReply> {
-    unimplemented!();
+fn parse_info_reply_submessage(_submessage: &[u8], _submessage_flags: &u8) -> Result<InfoReply> {
+    unimplemented!()
 }
 
-fn parse_info_source_submessage(submessage: &[u8], submessage_flags: &u8) -> Result<InfoSrc> {
-    unimplemented!();
+fn parse_info_source_submessage(_submessage: &[u8], _submessage_flags: &u8) -> Result<InfoSrc> {
+    unimplemented!()
 }
 
 fn parse_info_timestamp_submessage(submessage: &[u8], submessage_flags: &u8) -> Result<InfoTs> {
@@ -462,8 +467,8 @@ fn parse_info_timestamp_submessage(submessage: &[u8], submessage_flags: &u8) -> 
     Ok(InfoTs{timestamp: timestamp})
 }
 
-fn parse_nack_frag_submessage(submessage: &[u8], submessage_flags: &u8) -> Result<NackFrag> {
-    unimplemented!();
+fn parse_nack_frag_submessage(_submessage: &[u8], _submessage_flags: &u8) -> Result<NackFrag> {
+    unimplemented!()
 }
 
 fn parse_sequence_number_set(submessage: &[u8], sequence_number_set_first_index: &usize, endianess_flag: &EndianessFlag) -> Result<SequenceNumberSet> {
@@ -474,10 +479,10 @@ fn parse_sequence_number_set(submessage: &[u8], sequence_number_set_first_index:
     let bitmap_base_first_index = *sequence_number_set_first_index;
     let bitmap_base_last_index = bitmap_base_first_index + SEQUENCE_NUMBER_TYPE_SIZE - 1;
 
-    let bitmap_base : i64 = deserialize::<SequenceNumber>(submessage, &bitmap_base_first_index, &bitmap_base_last_index, endianess_flag).into();
-    // if bitmap_base < 1 {
-    //     return Err(ErrorMessage::InvalidSubmessage);
-    // }
+    let bitmap_base : i64 = deserialize::<SequenceNumberSerialization>(submessage, &bitmap_base_first_index, &bitmap_base_last_index, endianess_flag).into();
+    if bitmap_base < 1 {
+        return Err(ErrorMessage::InvalidSubmessage);
+    }
 
     let num_bits_first_index = bitmap_base_last_index + 1;
     let num_bits_last_index = num_bits_first_index + NUM_BITS_TYPE_SIZE - 1;
@@ -496,7 +501,7 @@ fn parse_sequence_number_set(submessage: &[u8], sequence_number_set_first_index:
         let field_last_index = field_first_index + BITMAP_FIELD_SIZE - 1;
         let bitmap_field = deserialize::<u32>(submessage, &field_first_index, &field_last_index, &endianess_flag);
 
-        let number_bits_in_field = num_bits as usize - (BITMAP_FIELD_SIZE * 8) * bitmap_field_index;
+        let number_bits_in_field = cmp::min(num_bits as usize - (BITMAP_FIELD_SIZE * 8) * bitmap_field_index,32);
         for sequence_number_index in 0..number_bits_in_field {
             let sequence_number : i64 = bitmap_base + (sequence_number_index + (BITMAP_FIELD_SIZE * 8) * bitmap_field_index) as i64;
             let sequence_bit_mask = 1 << sequence_number_index;
@@ -504,6 +509,7 @@ fn parse_sequence_number_set(submessage: &[u8], sequence_number_set_first_index:
             sequence_number_set.push( (SequenceNumber::from(sequence_number), sequence_bit) );
         }
     }
+
     Ok(sequence_number_set)
 }
 
@@ -592,6 +598,147 @@ mod tests{
             assert!(true);
         } else {
             assert!(false);
+        }
+    }
+
+    #[test]
+    fn test_parse_sequence_number_set() {
+        {
+            // Test for example in standard "1234:/12:00110"
+            let submessage_test_1_big_endian = [
+                0x00,0x00,0x00,0x00,
+                0x00,0x00,0x04,0xD2,
+                0x00,0x00,0x00,0x0C,
+                0x00,0x00,0x00,0x0C];
+
+            let sequence_set_1 = parse_sequence_number_set(&submessage_test_1_big_endian, &0, &EndianessFlag::BigEndian).unwrap();
+            assert_eq!(sequence_set_1.len(),12);
+            for (index, item) in sequence_set_1.iter().enumerate() {
+                assert_eq!(item.0, 1234 + index as i64);
+                if item.0 == 1236 || item.0 == 1237 {
+                    assert_eq!(item.1, true);
+                } else {
+                    assert_eq!(item.1,false);
+                }
+            }
+        }
+        
+        {
+            // Test for example in standard "1234:/12:00110"
+            let submessage_test_1_little_endian = [
+                0x00,0x00,0x00,0x00,
+                0xD2,0x04,0x00,0x00,
+                0x0C,0x00,0x00,0x00,
+                0x0C,0x00,0x00,0x00];
+
+            let sequence_set_1 = parse_sequence_number_set(&submessage_test_1_little_endian, &0, &EndianessFlag::LittleEndian).unwrap();
+            assert_eq!(sequence_set_1.len(),12);
+            for (index, item) in sequence_set_1.iter().enumerate() {
+                assert_eq!(item.0, 1234 + index as i64);
+                if item.0 == 1236 || item.0 == 1237 {
+                    assert_eq!(item.1, true);
+                } else {
+                    assert_eq!(item.1,false);
+                }
+            }
+        }
+
+        {
+            // Test too high num bits
+            let submessage_test_high_num_bits = [
+                0x00,0x00,0x00,0x00,
+                0x00,0x00,0x04,0xD2,
+                0x00,0x00,0x02,0x00,
+                0x00,0x00,0x00,0x0C];
+
+            let sequence_set = parse_sequence_number_set(&submessage_test_high_num_bits, &0, &EndianessFlag::BigEndian);
+            if let Err(ErrorMessage::InvalidSubmessage) = sequence_set {
+                assert!(true);
+            } else {
+                assert!(false);
+            }
+        }
+
+        {
+            // Negative bitmap base
+            let submessage_test_negative_base = [
+                0x80,0x00,0x00,0x00,
+                0x00,0x00,0x04,0xD2,
+                0x00,0x00,0x00,0x0C,
+                0x00,0x00,0x00,0x0C];
+
+            let sequence_set = parse_sequence_number_set(&submessage_test_negative_base, &0, &EndianessFlag::BigEndian);
+            if let Err(ErrorMessage::InvalidSubmessage) = sequence_set {
+                assert!(true);
+            } else {
+                assert!(false);
+            }
+        }
+
+        {
+            // Zero bitmap base
+            let submessage_test_zero_base = [
+                0x00,0x00,0x00,0x00,
+                0x00,0x00,0x00,0x00,
+                0x00,0x00,0x00,0x0C,
+                0x00,0x00,0x00,0x0C];
+
+            let sequence_set = parse_sequence_number_set(&submessage_test_zero_base, &0, &EndianessFlag::BigEndian);
+            if let Err(ErrorMessage::InvalidSubmessage) = sequence_set {
+                assert!(true);
+            } else {
+                assert!(false);
+            }
+        }
+
+        {
+            // Full size bitmap with base > 32bit
+            let submessage_test_large = [
+                0x00,0x00,0x00,0x01,
+                0x00,0x00,0x04,0xD2,
+                0x00,0x00,0x01,0x00,
+                0xAA,0xAA,0xAA,0xAA,
+                0xAA,0xAA,0xAA,0xAA,
+                0xAA,0xAA,0xAA,0xAA,
+                0xAA,0xAA,0xAA,0xAA,
+                0xAA,0xAA,0xAA,0xAA,
+                0xAA,0xAA,0xAA,0xAA,
+                0xAA,0xAA,0xAA,0xAA,
+                0xAA,0xAA,0xAA,0xAA];
+
+            
+            let sequence_set = parse_sequence_number_set(&submessage_test_large, &0, &EndianessFlag::BigEndian).unwrap();
+            assert_eq!(sequence_set.len(),256);
+            for (index, item) in sequence_set.iter().enumerate() {
+                assert_eq!(item.0, 4294968530i64 + index as i64);
+                if (index + 1) % 2 == 0 {
+                    assert_eq!(item.1, true);
+                } else {
+                    assert_eq!(item.1,false);
+                }
+            }
+        }
+
+        {
+            // Middle size bitmap with base > 32bit
+            let submessage_test_middle = [
+                0x00,0x00,0x00,0x01,
+                0x00,0x00,0x04,0xD2,
+                0x00,0x00,0x00,0x28,
+                0xAA,0xAA,0xAA,0xAA,
+                0xFF,0x00,0xFF,0xAA];
+
+            
+            let sequence_set = parse_sequence_number_set(&submessage_test_middle, &0, &EndianessFlag::BigEndian).unwrap();
+            assert_eq!(sequence_set.len(),40);
+            for (index, item) in sequence_set.iter().enumerate() {
+                assert_eq!(item.0, 4294968530i64 + index as i64);
+                if (index + 1) % 2 == 0 {
+                    assert_eq!(item.1, true);
+                } else {
+                    assert_eq!(item.1,false);
+                }
+            }
         }
     }
 
