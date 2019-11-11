@@ -179,9 +179,10 @@ struct MessageHeader {
     protocol_name: [char;4],
     protocol_version: ProtocolVersion,
     vendor_id: [u8;2],
-    guid_prefix: [u8;12],
+    guid_prefix: GuidPrefix,
 }
 
+type GuidPrefix = [u8;12];
 type Count = i32;
 type SequenceNumber = i64;
 type SequenceNumberSet = Vec<(SequenceNumber, bool)>;
@@ -235,6 +236,7 @@ pub struct HeartbeatFrag {
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 pub struct InfoDst {
+    guid_prefix: GuidPrefix,
 
 }
 
@@ -542,8 +544,15 @@ fn parse_heartbeat_frag_submessage(_submessage: &[u8], _submessage_flags: &u8) -
     unimplemented!()
 }
 
-fn parse_info_dst_submessage(_submessage: &[u8], _submessage_flags: &u8) -> Result<InfoDst> {
-    unimplemented!()
+fn parse_info_dst_submessage(submessage: &[u8], submessage_flags: &u8) -> Result<InfoDst> {
+    const GUID_PREFIX_FIRST_INDEX: usize = 0;
+    const GUID_PREFIX_LAST_INDEX: usize = 11;
+    let submessage_endianess : EndianessFlag = endianess(submessage_flags)?;
+    let guid_prefix = deserialize::<GuidPrefix>(submessage, &GUID_PREFIX_FIRST_INDEX, &GUID_PREFIX_LAST_INDEX, &submessage_endianess)?;
+
+    Ok(InfoDst{
+        guid_prefix,
+    })
 }
 
 fn parse_info_reply_submessage(_submessage: &[u8], _submessage_flags: &u8) -> Result<InfoReply> {
@@ -1170,7 +1179,25 @@ mod tests{
 
     #[test]
     fn test_parse_info_dst_submessage() {
-        parse_info_dst_submessage(&[0,0], &0);
+        {
+            let submessage_big_endian = [
+                10,11,12,13,
+                14,15,16,17,
+                18,19,20,21,
+            ];
+            let info_dst_big_endian = parse_info_dst_submessage(&submessage_big_endian, &0).unwrap();
+            assert_eq!(info_dst_big_endian.guid_prefix,[10,11,12,13,14,15,16,17,18,19,20,21]);
+        }
+
+        {
+            let submessage_little_endian = [
+                10,11,12,13,
+                14,15,16,17,
+                18,19,20,21,
+            ];
+            let info_dst_little_endian = parse_info_dst_submessage(&submessage_little_endian, &1).unwrap();
+            assert_eq!(info_dst_little_endian.guid_prefix,[10,11,12,13,14,15,16,17,18,19,20,21]);
+        }
     }
 
     #[test]
