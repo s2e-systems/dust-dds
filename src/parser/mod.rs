@@ -133,8 +133,7 @@ struct Submessage<T> {
     submessage: T,
 }
 
-
-
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
 pub enum InlineQosPid {
     Pad = 0x0000, 
     Sentinel = 0x0001,
@@ -163,9 +162,13 @@ pub enum InlineQosPid {
     StatusInfo = 0x0071,
 }
 
-trait ParameterList {}
+type ParameterList = Vec<Parameter>;
 
-impl ParameterList for InlineQosPid {}
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+struct Parameter {
+    parameter_id: u16,
+    value: Vec<u8>,
+}
 
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
@@ -197,10 +200,21 @@ pub struct AckNack {
 }
 
 #[derive(PartialEq, Debug)]
+pub enum Payload {
+    None,
+    Data(Vec<u8>),
+    Key(Vec<u8>),
+    NonStandard(Vec<u8>),
+}
+
+#[derive(PartialEq, Debug)]
 pub struct Data {
     endianess: EndianessFlag,
-    inline_qos: Vec<u8>,
-    data: Vec<u8>,
+    reader_id: EntityIdT,
+    writer_id: EntityIdT,
+    writer_sn: SequenceNumber,
+    inline_qos: Option<ParameterList>,
+    serialized_payload: Payload,
 }
 
 #[derive(PartialEq, Debug)]
@@ -394,8 +408,81 @@ fn parse_ack_nack_submessage(submessage: &[u8], submessage_flags: &u8) -> Result
     })
 }
 
-fn parse_data_submessage(_submessage: &[u8], _submessage_flags: &u8) -> Result<Data> {
-    unimplemented!()
+fn parse_data_submessage(submessage: &[u8], submessage_flags: &u8) -> Result<Data> {
+
+    const INLINE_QOS_FLAG_MASK: u8 = 0x02;
+    const DATA_FLAG_MASK: u8 = 0x04;
+    const KEY_FLAG_MASK: u8 = 0x08;
+    const NON_STANDARD_PAYLOAD_FLAG_MASK: u8 = 0x10;
+
+    const EXTRA_FLAGS_FIRST_INDEX: usize = 0;
+    const EXTRA_FLAGS_LAST_INDEX: usize = 1;
+    const OCTETS_TO_INLINE_QOS_FIRST_INDEX: usize = 2;
+    const OCTETS_TO_INLINE_QOS_LAST_INDEX: usize = 3;
+    const READER_ID_FIRST_INDEX: usize = 4;
+    const READER_ID_LAST_INDEX: usize = 7;
+    const WRITER_ID_FIRST_INDEX: usize = 8;
+    const WRITER_ID_LAST_INDEX: usize = 11;
+    const WRITER_SN_FIRST_INDEX: usize = 12;
+    const WRITER_SN_LAST_INDEX: usize = 19;
+
+    let submessage_endianess : EndianessFlag = endianess(submessage_flags)?;
+    let inline_qos_flag = submessage_flags & INLINE_QOS_FLAG_MASK == INLINE_QOS_FLAG_MASK;
+    let data_flag = submessage_flags & DATA_FLAG_MASK == DATA_FLAG_MASK;
+    let key_flag = submessage_flags & KEY_FLAG_MASK == KEY_FLAG_MASK;
+
+    // TODO: Implement non-standard payload
+    let _non_standard_payload_flag = submessage_flags & NON_STANDARD_PAYLOAD_FLAG_MASK == NON_STANDARD_PAYLOAD_FLAG_MASK;
+
+    if data_flag == true && key_flag == true {
+        return Err(ErrorMessage::InvalidSubmessage);
+    }
+
+    let extra_flags = deserialize::<u16>(submessage, &EXTRA_FLAGS_FIRST_INDEX, &EXTRA_FLAGS_LAST_INDEX, &submessage_endianess)?;
+    if extra_flags != 0 {
+        return Err(ErrorMessage::InvalidSubmessage);
+    }
+
+    let octecs_to_inline_qos = deserialize::<u16>(submessage, &OCTETS_TO_INLINE_QOS_FIRST_INDEX, &OCTETS_TO_INLINE_QOS_LAST_INDEX, &submessage_endianess)? as usize;
+
+    let reader_id = deserialize::<EntityIdT>(submessage, &READER_ID_FIRST_INDEX, &READER_ID_LAST_INDEX, &submessage_endianess)?;
+    
+    let writer_id = deserialize::<EntityIdT>(submessage, &WRITER_ID_FIRST_INDEX, &WRITER_ID_LAST_INDEX, &submessage_endianess)?;
+
+    let writer_sn : i64 = deserialize::<SequenceNumberSerialization>(submessage, &WRITER_SN_FIRST_INDEX, &WRITER_SN_LAST_INDEX, &submessage_endianess)?.into();
+
+    // Octets to data is considered as having the same meaning as octets to inline qos,
+    // i.e. counting from the byte after the octets to inline qos field
+
+    let (inline_qos, octets_to_data) =
+        if inline_qos_flag == true {
+            let inline_qos_first_index = OCTETS_TO_INLINE_QOS_LAST_INDEX + octecs_to_inline_qos + 1;
+            let (parameter_list, parameter_list_size) = parse_parameter_list(submessage, &inline_qos_first_index, &submessage_endianess)?;
+            let octets_to_data = octecs_to_inline_qos + parameter_list_size;
+            (Some(parameter_list), octets_to_data)
+        } else {
+            (None, octecs_to_inline_qos)
+        };
+
+    let payload_first_index = OCTETS_TO_INLINE_QOS_LAST_INDEX + octets_to_data + 1;
+
+    let serialized_payload = 
+        if data_flag == true && key_flag == false {
+            Payload::Data(submessage[payload_first_index..].to_vec())
+        } else if data_flag == false && key_flag == true {
+            Payload::Key(submessage[payload_first_index..].to_vec())
+        } else {
+            Payload::None
+        };
+
+    Ok(Data{
+        endianess: submessage_endianess,
+        reader_id,
+        writer_id,
+        writer_sn,
+        inline_qos,
+        serialized_payload,
+    })
 
     // let submessage_payload_start = *submessage_payload_index;
     // let submessage_payload_end = submessage_payload_start + submessage_header.submessage_length as usize - 1;
@@ -627,6 +714,51 @@ fn parse_sequence_number_set(submessage: &[u8], sequence_number_set_first_index:
     }
 
     Ok( (sequence_number_set, SEQUENCE_NUMBER_TYPE_SIZE+NUM_BITS_TYPE_SIZE+BITMAP_FIELD_SIZE*num_bitmap_fields) )
+}
+
+fn parse_parameter_list(submessage: &[u8], parameter_list_first_index: &usize, endianess: &EndianessFlag) -> Result<(ParameterList, usize)>{
+    const MINIMUM_PARAMETER_VALUE_LENGTH: usize = 4;
+    const PARAMETER_ID_OFFSET: usize = 1;
+    const LENGTH_FIRST_OFFSET: usize = 2;
+    const LENGTH_LAST_OFFSET: usize = 3;
+    const VALUE_FIRST_OFFSET: usize = 4;
+
+    let mut parameter_id_first_index = *parameter_list_first_index;
+
+    let mut parameter_list = Vec::new();
+    let parameter_list_size: usize;
+
+    loop {
+        let parameter_id_last_index = parameter_id_first_index + PARAMETER_ID_OFFSET;
+        let length_first_index = parameter_id_first_index + LENGTH_FIRST_OFFSET;
+        let length_last_index = parameter_id_first_index + LENGTH_LAST_OFFSET;
+
+        let value_first_index = parameter_id_first_index + VALUE_FIRST_OFFSET;
+        let value_last_index;
+
+        let parameter_id = deserialize::<u16>(submessage, &parameter_id_first_index, &parameter_id_last_index, endianess)?;
+        if parameter_id == InlineQosPid::Sentinel as u16{
+            parameter_list_size = length_last_index - *parameter_list_first_index + 1;
+            break;
+        }
+
+        let length = deserialize::<u16>(submessage, &length_first_index, &length_last_index, endianess)? as usize;
+        if length < MINIMUM_PARAMETER_VALUE_LENGTH {
+            return Err(ErrorMessage::InvalidSubmessage);
+        }
+
+        value_last_index = value_first_index + length - 1;
+        if value_last_index >= submessage.len() {
+            return Err(ErrorMessage::InvalidSubmessage);
+        }
+
+        let value = submessage[value_first_index..=value_last_index].to_vec();
+        parameter_list.push(Parameter{parameter_id, value,});
+
+        parameter_id_first_index = value_last_index + 1;
+    }
+
+    Ok((parameter_list, parameter_list_size))
 }
 
 
@@ -900,6 +1032,84 @@ mod tests{
     }
 
     #[test]
+    fn test_parse_parameter_list() {
+        {
+            let submessage_big_endian = [
+                0x00, 0x05, 0x00, 0x04,
+                0x01, 0x02, 0x03, 0x04,
+                0x00, 0x10, 0x00, 0x08,
+                0x10, 0x11, 0x12, 0x13,
+                0x14, 0x15, 0x16, 0x17,
+                0x00, 0x01, 0x00, 0x00,
+            ];
+
+            let (param_list_big_endian, param_list_size) = parse_parameter_list(&submessage_big_endian, &0, &EndianessFlag::BigEndian).unwrap();
+            assert_eq!(param_list_size, 24);
+            assert_eq!(param_list_big_endian.len(), 2);
+            assert_eq!(param_list_big_endian[0].parameter_id, 5);
+            assert_eq!(param_list_big_endian[0].value, vec!(1,2,3,4));
+            assert_eq!(param_list_big_endian[1].parameter_id, 16);
+            assert_eq!(param_list_big_endian[1].value, vec!(16,17,18,19,20,21,22,23));
+        }
+
+        {
+            let submessage_little_endian = [
+                0x05, 0x00, 0x04, 0x00,
+                0x01, 0x02, 0x03, 0x04,
+                0x10, 0x00, 0x08, 0x00,
+                0x10, 0x11, 0x12, 0x13,
+                0x14, 0x15, 0x16, 0x17,
+                0x01, 0x00, 0x00, 0x00,
+            ];
+
+            let (param_list_little_endian, param_list_size) = parse_parameter_list(&submessage_little_endian, &0, &EndianessFlag::LittleEndian).unwrap();
+            assert_eq!(param_list_size, 24);
+            assert_eq!(param_list_little_endian.len(), 2);
+            assert_eq!(param_list_little_endian[0].parameter_id, 5);
+            assert_eq!(param_list_little_endian[0].value, vec!(1,2,3,4));
+            assert_eq!(param_list_little_endian[1].parameter_id, 16);
+            assert_eq!(param_list_little_endian[1].value, vec!(16,17,18,19,20,21,22,23));
+        }
+
+        {
+            // Test no sentinel message
+            let submessage = [
+                0x00, 0x05, 0x00, 0x04,
+                0x01, 0x02, 0x03, 0x04,
+                0x00, 0x10, 0x00, 0x08,
+                0x10, 0x11, 0x12, 0x13,
+                0x14, 0x15, 0x16, 0x17,
+                0x10, 0x11, 0x00, 0x00,
+            ];
+
+            let param_list = parse_parameter_list(&submessage, &0, &EndianessFlag::LittleEndian);
+            if let Err(ErrorMessage::InvalidSubmessage) = param_list {
+                assert!(true);
+            } else {
+                assert!(false);
+            }
+        }
+
+        {
+            // Test length below minimum
+            let submessage = [
+                0x00, 0x05, 0x00, 0x03,
+                0x01, 0x02, 0x03, 0x00, 0x10, 0x00, 0x08,
+                0x10, 0x11, 0x12, 0x13,
+                0x14, 0x15, 0x16, 0x17,
+                0x00, 0x01, 0x00, 0x00,
+            ];
+
+            let param_list = parse_parameter_list(&submessage, &0, &EndianessFlag::BigEndian);
+            if let Err(ErrorMessage::InvalidSubmessage) = param_list {
+                assert!(true);
+            } else {
+                assert!(false);
+            }
+        }
+    }
+
+    #[test]
     fn test_parse_ack_nack_submessage() {
         {
             let ack_nack_submessage_big_endian = [
@@ -967,7 +1177,114 @@ mod tests{
 
     #[test]
     fn test_parse_data_submessage() {
-        parse_data_submessage(&[0,0], &0);
+        {
+            // Test big endian
+            let submessage = [
+                0x00, 0x00, 0x00, 0x10,
+                0x10, 0x12, 0x14, 0x16,
+                0x26, 0x24, 0x22, 0x20,
+                0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x04, 0xD1,
+                0x00, 0x05, 0x00, 0x04,
+                0x01, 0x02, 0x03, 0x04,
+                0x00, 0x10, 0x00, 0x08,
+                0x10, 0x11, 0x12, 0x13,
+                0x14, 0x15, 0x16, 0x17,
+                0x00, 0x01, 0x00, 0x00,
+                0x20, 0x30, 0x40, 0x50,
+            ];
+
+            {
+                // Parse message without considering inline qos or data
+                let data = parse_data_submessage(&submessage, &0).unwrap();
+                assert_eq!(data.endianess, EndianessFlag::BigEndian);
+                assert_eq!(data.reader_id, 269620246);
+                assert_eq!(data.writer_id, 639902240);
+                assert_eq!(data.writer_sn, 1233);
+                assert_eq!(data.inline_qos, None);
+                assert_eq!(data.serialized_payload, Payload::None);
+            }
+
+            {
+                // Parse message considering inline qos but no data
+                let data = parse_data_submessage(&submessage, &2).unwrap();
+                assert_eq!(data.endianess, EndianessFlag::BigEndian);
+                assert_eq!(data.reader_id, 269620246);
+                assert_eq!(data.writer_id, 639902240);
+                assert_eq!(data.writer_sn, 1233);
+                assert_eq!(data.serialized_payload, Payload::None);
+                let inline_qos = data.inline_qos.unwrap();
+                assert_eq!(inline_qos.len(),2);
+                assert_eq!(inline_qos[0].parameter_id, 5);
+                assert_eq!(inline_qos[0].value, vec!(1,2,3,4));
+                assert_eq!(inline_qos[1].parameter_id, 16);
+                assert_eq!(inline_qos[1].value, vec!(16,17,18,19,20,21,22,23));
+            }
+
+            {
+                // Parse message considering serialized data and inline qos
+                let data = parse_data_submessage(&submessage, &6).unwrap();
+                assert_eq!(data.endianess, EndianessFlag::BigEndian);
+                assert_eq!(data.reader_id, 269620246);
+                assert_eq!(data.writer_id, 639902240);
+                assert_eq!(data.writer_sn, 1233);
+                let inline_qos = data.inline_qos.unwrap();
+                assert_eq!(inline_qos.len(),2);
+                assert_eq!(inline_qos[0].parameter_id, 5);
+                assert_eq!(inline_qos[0].value, vec!(1,2,3,4));
+                assert_eq!(inline_qos[1].parameter_id, 16);
+                assert_eq!(inline_qos[1].value, vec!(16,17,18,19,20,21,22,23));
+                if let Payload::Data(serialized_data) = data.serialized_payload {
+                    assert_eq!(serialized_data, vec!(0x20, 0x30, 0x40, 0x50,));
+
+                } else {
+                    assert!(false);
+                }
+            }
+
+            {
+                // Parse message considering serialized key and inline qos
+                let data = parse_data_submessage(&submessage, &10).unwrap();
+                assert_eq!(data.endianess, EndianessFlag::BigEndian);
+                assert_eq!(data.reader_id, 269620246);
+                assert_eq!(data.writer_id, 639902240);
+                assert_eq!(data.writer_sn, 1233);
+                let inline_qos = data.inline_qos.unwrap();
+                assert_eq!(inline_qos.len(),2);
+                assert_eq!(inline_qos[0].parameter_id, 5);
+                assert_eq!(inline_qos[0].value, vec!(1,2,3,4));
+                assert_eq!(inline_qos[1].parameter_id, 16);
+                assert_eq!(inline_qos[1].value, vec!(16,17,18,19,20,21,22,23));
+                if let Payload::Key(serialized_data) = data.serialized_payload {
+                    assert_eq!(serialized_data, vec!(0x20, 0x30, 0x40, 0x50,));
+
+                } else {
+                    assert!(false);
+                }
+            }
+
+            {
+                // Parse message considering serialized data and no inline qos
+                let data = parse_data_submessage(&submessage, &8).unwrap();
+                assert_eq!(data.endianess, EndianessFlag::BigEndian);
+                assert_eq!(data.reader_id, 269620246);
+                assert_eq!(data.writer_id, 639902240);
+                assert_eq!(data.writer_sn, 1233);
+                assert_eq!(data.inline_qos, None);
+                if let Payload::Key(serialized_data) = data.serialized_payload {
+                    assert_eq!(serialized_data, vec!(
+                                0x00, 0x05, 0x00, 0x04,
+                                0x01, 0x02, 0x03, 0x04,
+                                0x00, 0x10, 0x00, 0x08,
+                                0x10, 0x11, 0x12, 0x13,
+                                0x14, 0x15, 0x16, 0x17,
+                                0x00, 0x01, 0x00, 0x00,
+                                0x20, 0x30, 0x40, 0x50,));
+                } else {
+                    assert!(false);
+                }
+            }
+        }
     }
 
     #[test]
