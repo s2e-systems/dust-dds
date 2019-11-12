@@ -209,7 +209,6 @@ pub enum Payload {
 
 #[derive(PartialEq, Debug)]
 pub struct Data {
-    endianess: EndianessFlag,
     reader_id: EntityIdT,
     writer_id: EntityIdT,
     writer_sn: SequenceNumber,
@@ -476,7 +475,6 @@ fn parse_data_submessage(submessage: &[u8], submessage_flags: &u8) -> Result<Dat
         };
 
     Ok(Data{
-        endianess: submessage_endianess,
         reader_id,
         writer_id,
         writer_sn,
@@ -1197,7 +1195,6 @@ mod tests{
             {
                 // Parse message without considering inline qos or data
                 let data = parse_data_submessage(&submessage, &0).unwrap();
-                assert_eq!(data.endianess, EndianessFlag::BigEndian);
                 assert_eq!(data.reader_id, 269620246);
                 assert_eq!(data.writer_id, 639902240);
                 assert_eq!(data.writer_sn, 1233);
@@ -1208,7 +1205,6 @@ mod tests{
             {
                 // Parse message considering inline qos but no data
                 let data = parse_data_submessage(&submessage, &2).unwrap();
-                assert_eq!(data.endianess, EndianessFlag::BigEndian);
                 assert_eq!(data.reader_id, 269620246);
                 assert_eq!(data.writer_id, 639902240);
                 assert_eq!(data.writer_sn, 1233);
@@ -1224,7 +1220,6 @@ mod tests{
             {
                 // Parse message considering serialized data and inline qos
                 let data = parse_data_submessage(&submessage, &6).unwrap();
-                assert_eq!(data.endianess, EndianessFlag::BigEndian);
                 assert_eq!(data.reader_id, 269620246);
                 assert_eq!(data.writer_id, 639902240);
                 assert_eq!(data.writer_sn, 1233);
@@ -1245,7 +1240,6 @@ mod tests{
             {
                 // Parse message considering serialized key and inline qos
                 let data = parse_data_submessage(&submessage, &10).unwrap();
-                assert_eq!(data.endianess, EndianessFlag::BigEndian);
                 assert_eq!(data.reader_id, 269620246);
                 assert_eq!(data.writer_id, 639902240);
                 assert_eq!(data.writer_sn, 1233);
@@ -1266,7 +1260,6 @@ mod tests{
             {
                 // Parse message considering serialized data and no inline qos
                 let data = parse_data_submessage(&submessage, &8).unwrap();
-                assert_eq!(data.endianess, EndianessFlag::BigEndian);
                 assert_eq!(data.reader_id, 269620246);
                 assert_eq!(data.writer_id, 639902240);
                 assert_eq!(data.writer_sn, 1233);
