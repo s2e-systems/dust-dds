@@ -1,12 +1,32 @@
-use super::{Result, InfoSrc, deserialize, endianess};
+use crate::types::{ProtocolVersion, GuidPrefix, VendorId};
+
+use super::{Result, deserialize, endianess};
+
+#[derive(PartialEq, Debug)]
+pub struct InfoSrc {
+    protocol_version: ProtocolVersion,
+    vendor_id: VendorId,
+    guid_prefix: GuidPrefix,
+}
 
 pub fn parse_info_source_submessage(submessage: &[u8], submessage_flags: &u8) -> Result<InfoSrc> {
-    const INFO_SRC_FIRST_INDEX: usize = 4;
-    let info_src_last_index = submessage.len()-1;
+    const PROTOCOL_VERSION_FIRST_INDEX: usize = 4;
+    const PROTOCOL_VERSION_LAST_INDEX: usize = 5;
+    const VENDOR_ID_FIRST_INDEX: usize = 6;
+    const VENDOR_ID_LAST_INDEX: usize = 7;
+    const GUID_PREFIX_FIRST_INDEX: usize = 8;
+    const GUID_PREFIX_LAST_INDEX: usize = 19;
 
     let submessage_endianess = endianess(submessage_flags)?;
+    let protocol_version = deserialize::<ProtocolVersion>(submessage, &PROTOCOL_VERSION_FIRST_INDEX, &PROTOCOL_VERSION_LAST_INDEX, &submessage_endianess)?;
+    let vendor_id = deserialize::<VendorId>(submessage, &VENDOR_ID_FIRST_INDEX, &VENDOR_ID_LAST_INDEX, &submessage_endianess)?;
+    let guid_prefix = deserialize::<GuidPrefix>(submessage, &GUID_PREFIX_FIRST_INDEX, &GUID_PREFIX_LAST_INDEX, &submessage_endianess)?;
 
-    deserialize::<InfoSrc>(submessage, &INFO_SRC_FIRST_INDEX, &info_src_last_index, &submessage_endianess)
+    Ok(InfoSrc{
+        protocol_version,
+        vendor_id,
+        guid_prefix,
+    })
 }
 
 #[cfg(test)]

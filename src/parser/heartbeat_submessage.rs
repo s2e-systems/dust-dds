@@ -1,8 +1,19 @@
-use crate::types::{EntityId, Count};
+use crate::types::{EntityId, Count, SequenceNumber};
 
 use super::helpers::{deserialize, endianess, SequenceNumberSerialization};
 
-use super::{Result, Heartbeat, ErrorMessage};
+use super::{Result, ErrorMessage};
+
+#[derive(PartialEq, Debug)]
+pub struct Heartbeat {
+    reader_id: EntityId,
+    writer_id: EntityId,
+    first_sn: SequenceNumber,
+    last_sn: SequenceNumber,
+    count: Count,
+    final_flag: bool,
+    liveliness_flag: bool,
+}
 
 pub fn parse_heartbeat_submessage(submessage: &[u8], submessage_flags: &u8) -> Result<Heartbeat> {
     const READER_ID_FIRST_INDEX: usize = 0;

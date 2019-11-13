@@ -2,7 +2,16 @@ use crate::types::{EntityId,FragmentNumber,Count, SequenceNumber};
 
 use super::helpers::{deserialize, endianess, SequenceNumberSerialization};
 
-use super::{HeartbeatFrag,Result, ErrorMessage};
+use super::{Result, ErrorMessage};
+
+#[derive(PartialEq, Debug)]
+pub struct HeartbeatFrag {
+    reader_id: EntityId,
+    writer_id: EntityId,
+    writer_sn: SequenceNumber,
+    last_fragment_num: FragmentNumber,
+    count: Count,
+}
 
 pub fn parse_heartbeat_frag_submessage(submessage: &[u8], submessage_flags: &u8) -> Result<HeartbeatFrag> {
     const READER_ID_FIRST_INDEX: usize = 0;

@@ -1,8 +1,25 @@
-use crate::types::{EntityId};
+use crate::types::{EntityId, SequenceNumber, ParameterList};
 
 use super::helpers::{deserialize, endianess, parse_parameter_list, SequenceNumberSerialization};
 
-use super::{Data, Result, ErrorMessage,Payload};
+use super::{Result, ErrorMessage};
+
+#[derive(PartialEq, Debug)]
+pub enum Payload {
+    None,
+    Data(Vec<u8>),
+    Key(Vec<u8>),
+    NonStandard(Vec<u8>),
+}
+
+#[derive(PartialEq, Debug)]
+pub struct Data {
+    reader_id: EntityId,
+    writer_id: EntityId,
+    writer_sn: SequenceNumber,
+    inline_qos: Option<ParameterList>,
+    serialized_payload: Payload,
+}
 
 pub fn parse_data_submessage(submessage: &[u8], submessage_flags: &u8) -> Result<Data> {
 

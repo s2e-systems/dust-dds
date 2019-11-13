@@ -1,12 +1,23 @@
+use crate::types::{GuidPrefix};
+
 use super::helpers::{deserialize, endianess};
 
-use super::{Result, InfoDst};
+use super::{Result};
+
+#[derive(PartialEq, Debug)]
+pub struct InfoDst {
+    guid_prefix: GuidPrefix,
+}
 
 pub fn parse_info_dst_submessage(submessage: &[u8], submessage_flags: &u8) -> Result<InfoDst> {
     const GUID_PREFIX_FIRST_INDEX: usize = 0;
     const GUID_PREFIX_LAST_INDEX: usize = 11;
     let submessage_endianess = endianess(submessage_flags)?;
-    deserialize::<InfoDst>(submessage, &GUID_PREFIX_FIRST_INDEX, &GUID_PREFIX_LAST_INDEX, &submessage_endianess)
+    let guid_prefix = deserialize::<GuidPrefix>(submessage, &GUID_PREFIX_FIRST_INDEX, &GUID_PREFIX_LAST_INDEX, &submessage_endianess)?;
+
+    Ok (InfoDst{
+        guid_prefix,
+    })
 }
 
 #[cfg(test)]

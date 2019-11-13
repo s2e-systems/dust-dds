@@ -1,8 +1,16 @@
-use crate::types::EntityId;
+use crate::types::{EntityId, SequenceNumber, SequenceNumberSet};
 
 use super::helpers::{deserialize, endianess, parse_sequence_number_set, SequenceNumberSerialization};
 
-use super::{Result, Gap, ErrorMessage};
+use super::{Result, ErrorMessage};
+
+#[derive(PartialEq, Debug)]
+pub struct Gap {
+    reader_id: EntityId,
+    writer_id: EntityId,
+    gap_start: SequenceNumber,
+    gap_list: SequenceNumberSet,
+}
 
 pub fn parse_gap_submessage(submessage: &[u8], submessage_flags: &u8) -> Result<Gap> {
     const READER_ID_FIRST_INDEX: usize = 0;

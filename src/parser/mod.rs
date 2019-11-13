@@ -31,6 +31,17 @@ use info_source_submessage::parse_info_source_submessage;
 use info_timestamp_submessage::parse_info_timestamp_submessage;
 use nack_frag_submessage::parse_nack_frag_submessage;
 
+pub use ack_nack_submessage::AckNack;
+pub use data_submessage::{Payload, Data};
+pub use data_frag_submessage::DataFrag;
+pub use gap_submessage::Gap;
+pub use heartbeat_submessage::Heartbeat;
+pub use heartbeat_frag_submessage::HeartbeatFrag;
+pub use info_destination_submessage::InfoDst;
+pub use info_reply_submessage::InfoReply;
+pub use info_source_submessage::InfoSrc;
+pub use info_timestamp_submessage::InfoTs;
+pub use nack_frag_submessage::NackFrag;
 
 #[derive(Debug)]
 pub enum ErrorMessage {
@@ -96,12 +107,6 @@ struct SubmessageHeader {
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
-struct Submessage<T> {
-    header: SubmessageHeader,
-    submessage: T,
-}
-
-#[derive(Serialize, Deserialize, PartialEq, Debug)]
 pub enum InlineQosPid {
     Pad = 0x0000, 
     Sentinel = 0x0001,
@@ -135,98 +140,8 @@ pub enum InlineQosPid {
 struct MessageHeader {
     protocol_name: [char;4],
     protocol_version: ProtocolVersion,
-    vendor_id: [u8;2],
+    vendor_id: VendorId,
     guid_prefix: GuidPrefix,
-}
-
-#[derive(Serialize, Deserialize, PartialEq, Debug)]
-pub struct AckNack {
-    final_flag: bool,
-    reader_id: EntityId,
-    writer_id: EntityId,
-    reader_sn_state: SequenceNumberSet,
-    count: Count,
-}
-
-#[derive(PartialEq, Debug)]
-pub enum Payload {
-    None,
-    Data(Vec<u8>),
-    Key(Vec<u8>),
-    NonStandard(Vec<u8>),
-}
-
-#[derive(PartialEq, Debug)]
-pub struct Data {
-    reader_id: EntityId,
-    writer_id: EntityId,
-    writer_sn: SequenceNumber,
-    inline_qos: Option<ParameterList>,
-    serialized_payload: Payload,
-}
-
-#[derive(PartialEq, Debug)]
-pub struct DataFrag {
-    inline_qos: Vec<u8>,
-    data: Vec<u8>,
-}
-
-#[derive(Serialize, Deserialize, PartialEq, Debug)]
-pub struct Gap {
-    reader_id: EntityId,
-    writer_id: EntityId,
-    gap_start: SequenceNumber,
-    gap_list: SequenceNumberSet,
-}
-
-#[derive(Serialize, Deserialize, PartialEq, Debug)]
-pub struct Heartbeat {
-    reader_id: EntityId,
-    writer_id: EntityId,
-    first_sn: SequenceNumber,
-    last_sn: SequenceNumber,
-    count: Count,
-    final_flag: bool,
-    liveliness_flag: bool,
-}
-
-#[derive(Serialize, Deserialize, PartialEq, Debug)]
-pub struct HeartbeatFrag {
-    reader_id: EntityId,
-    writer_id: EntityId,
-    writer_sn: SequenceNumber,
-    last_fragment_num: FragmentNumber,
-    count: Count,
-}
-
-#[derive(Serialize, Deserialize, PartialEq, Debug)]
-pub struct InfoDst {
-    guid_prefix: GuidPrefix,
-
-}
-
-#[derive(Serialize, Deserialize, PartialEq, Debug)]
-pub struct InfoReply {
-    unicast_locator_list: LocatorList,
-    multicast_locator_list: Option<LocatorList>,
-}
-
-#[derive(Serialize, Deserialize, PartialEq, Debug)]
-pub struct InfoSrc {
-    protocol_version: ProtocolVersion,
-    vendor_id: [u8;2],
-    guid_prefix: GuidPrefix,
-}
-
-#[derive(Serialize, Deserialize, PartialEq, Debug)]
-pub struct InfoTs {
-    timestamp: Option<TimeT>, 
-}
-
-// Pad is contentless so it is skipped here
-
-#[derive(Serialize, Deserialize, PartialEq, Debug)]
-pub struct NackFrag {
 }
 
 //TODO: InfoReplyIP4

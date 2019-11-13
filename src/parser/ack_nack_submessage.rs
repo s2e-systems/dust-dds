@@ -1,8 +1,17 @@
-use crate::types::{EntityId,Count};
+use crate::types::{EntityId,Count, SequenceNumberSet};
 
 use super::helpers::{deserialize, endianess, parse_sequence_number_set};
 
-use super::{AckNack, Result};
+use super::{Result};
+
+#[derive(PartialEq, Debug)]
+pub struct AckNack {
+    final_flag: bool,
+    reader_id: EntityId,
+    writer_id: EntityId,
+    reader_sn_state: SequenceNumberSet,
+    count: Count,
+}
 
 pub fn parse_ack_nack_submessage(submessage: &[u8], submessage_flags: &u8) -> Result<AckNack> {
     const FINAL_FLAG_MASK: u8 = 0x02;

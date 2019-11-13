@@ -30,6 +30,7 @@ pub struct Locator {
     pub address: [u8;16],
 }
 
+pub type VendorId = [u8;2];
 pub type LocatorList = Vec<Locator>;
 pub type GuidPrefix = [u8;12];
 pub type Count = i32;

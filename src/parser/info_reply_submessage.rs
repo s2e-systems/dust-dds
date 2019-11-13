@@ -2,7 +2,13 @@ use crate::types::LocatorList;
 
 use super::helpers::{deserialize, endianess};
 
-use super::{Result, InfoReply};
+use super::{Result};
+
+#[derive(PartialEq, Debug)]
+pub struct InfoReply {
+    unicast_locator_list: LocatorList,
+    multicast_locator_list: Option<LocatorList>,
+}
 
 pub fn parse_info_reply_submessage(submessage: &[u8], submessage_flags: &u8) -> Result<InfoReply> {
     const MULTICAST_FLAG_MASK: u8 = 0x02;
