@@ -11,7 +11,7 @@ pub mod parser;
 type TopicKindT = u32;
 type ReliabilityLevelT = u32;
 type LocatorT = u32;
-type EntityIdT = u32;
+type EntityId = [u8;4];
 
 
 enum LocatorKind {
@@ -51,7 +51,7 @@ pub struct RTPSEndpoint{
     reliability_level: ReliabilityLevelT,
     unicast_locator_list: Vec<Udpv4Locator>, 
     multicast_locator_list: Vec<Udpv4Locator>,
-    endpoint_id: EntityIdT,
+    endpoint_id: EntityId,
 }
 
 pub struct RTPSReader {
@@ -78,7 +78,7 @@ impl RTPSReader {
                 reliability_level: 0,
                 unicast_locator_list: Vec::new(),
                 multicast_locator_list: Vec::new(),
-                endpoint_id: 0,},
+                endpoint_id: [0x00,0x00,0x00,0x00],},
             sockets: sockets,}
     }
 

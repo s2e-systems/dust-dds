@@ -13,7 +13,7 @@ use cdr::{
     LittleEndian, BigEndian, CdrLe, CdrBe, PlCdrLe, PlCdrBe, Error, Infinite,
 };
 
-use super::EntityIdT;
+use super::EntityId;
 
 #[derive(Debug)]
 pub enum ErrorMessage {
@@ -201,8 +201,8 @@ type SequenceNumberSet = Vec<(SequenceNumber, bool)>;
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 pub struct AckNack {
     final_flag: bool,
-    reader_id: EntityIdT,
-    writer_id: EntityIdT,
+    reader_id: EntityId,
+    writer_id: EntityId,
     reader_sn_state: SequenceNumberSet,
     count: Count,
 }
@@ -217,8 +217,8 @@ pub enum Payload {
 
 #[derive(PartialEq, Debug)]
 pub struct Data {
-    reader_id: EntityIdT,
-    writer_id: EntityIdT,
+    reader_id: EntityId,
+    writer_id: EntityId,
     writer_sn: SequenceNumber,
     inline_qos: Option<ParameterList>,
     serialized_payload: Payload,
@@ -233,16 +233,16 @@ pub struct DataFrag {
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 pub struct Gap {
-    reader_id: EntityIdT,
-    writer_id: EntityIdT,
+    reader_id: EntityId,
+    writer_id: EntityId,
     gap_start: SequenceNumber,
     gap_list: SequenceNumberSet,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 pub struct Heartbeat {
-    reader_id: EntityIdT,
-    writer_id: EntityIdT,
+    reader_id: EntityId,
+    writer_id: EntityId,
     first_sn: SequenceNumber,
     last_sn: SequenceNumber,
     count: Count,
@@ -396,9 +396,9 @@ fn parse_ack_nack_submessage(submessage: &[u8], submessage_flags: &u8) -> Result
     let submessage_endianess : EndianessFlag = endianess(submessage_flags)?;
     let final_flag = (submessage_flags & FINAL_FLAG_MASK) == FINAL_FLAG_MASK;
 
-    let reader_id = deserialize::<EntityIdT>(submessage, &READER_ID_FIRST_INDEX, &READER_ID_LAST_INDEX, &submessage_endianess)?;
+    let reader_id = deserialize::<EntityId>(submessage, &READER_ID_FIRST_INDEX, &READER_ID_LAST_INDEX, &submessage_endianess)?;
     
-    let writer_id = deserialize::<EntityIdT>(submessage, &WRITER_ID_FIRST_INDEX, &WRITER_ID_LAST_INDEX, &submessage_endianess)?;
+    let writer_id = deserialize::<EntityId>(submessage, &WRITER_ID_FIRST_INDEX, &WRITER_ID_LAST_INDEX, &submessage_endianess)?;
     
     let (reader_sn_state, sequence_number_set_size) = parse_sequence_number_set(submessage, &SEQUENCE_NUMBER_SET_FIRST_INDEX, &submessage_endianess)?;
 
@@ -453,9 +453,9 @@ fn parse_data_submessage(submessage: &[u8], submessage_flags: &u8) -> Result<Dat
 
     let octecs_to_inline_qos = deserialize::<u16>(submessage, &OCTETS_TO_INLINE_QOS_FIRST_INDEX, &OCTETS_TO_INLINE_QOS_LAST_INDEX, &submessage_endianess)? as usize;
 
-    let reader_id = deserialize::<EntityIdT>(submessage, &READER_ID_FIRST_INDEX, &READER_ID_LAST_INDEX, &submessage_endianess)?;
+    let reader_id = deserialize::<EntityId>(submessage, &READER_ID_FIRST_INDEX, &READER_ID_LAST_INDEX, &submessage_endianess)?;
     
-    let writer_id = deserialize::<EntityIdT>(submessage, &WRITER_ID_FIRST_INDEX, &WRITER_ID_LAST_INDEX, &submessage_endianess)?;
+    let writer_id = deserialize::<EntityId>(submessage, &WRITER_ID_FIRST_INDEX, &WRITER_ID_LAST_INDEX, &submessage_endianess)?;
 
     let writer_sn : i64 = deserialize::<SequenceNumberSerialization>(submessage, &WRITER_SN_FIRST_INDEX, &WRITER_SN_LAST_INDEX, &submessage_endianess)?.into();
 
@@ -563,9 +563,9 @@ fn parse_gap_submessage(submessage: &[u8], submessage_flags: &u8) -> Result<Gap>
 
     let submessage_endianess : EndianessFlag = endianess(submessage_flags)?;
 
-    let reader_id = deserialize::<EntityIdT>(submessage, &READER_ID_FIRST_INDEX, &READER_ID_LAST_INDEX, &submessage_endianess)?;
+    let reader_id = deserialize::<EntityId>(submessage, &READER_ID_FIRST_INDEX, &READER_ID_LAST_INDEX, &submessage_endianess)?;
     
-    let writer_id = deserialize::<EntityIdT>(submessage, &WRITER_ID_FIRST_INDEX, &WRITER_ID_LAST_INDEX, &submessage_endianess)?;
+    let writer_id = deserialize::<EntityId>(submessage, &WRITER_ID_FIRST_INDEX, &WRITER_ID_LAST_INDEX, &submessage_endianess)?;
 
     let gap_start : i64 = deserialize::<SequenceNumberSerialization>(submessage, &GAP_START_FIRST_INDEX, &GAP_START_LAST_INDEX, &submessage_endianess)?.into();
     if gap_start < 1 {
@@ -603,9 +603,9 @@ fn parse_heartbeat_submessage(submessage: &[u8], submessage_flags: &u8) -> Resul
     let final_flag = (submessage_flags & FINAL_FLAG_MASK) == FINAL_FLAG_MASK;
     let liveliness_flag = (submessage_flags & LIVELINESS_FLAG_MASK) == LIVELINESS_FLAG_MASK;
 
-    let reader_id = deserialize::<EntityIdT>(submessage, &READER_ID_FIRST_INDEX, &READER_ID_LAST_INDEX, &submessage_endianess)?;
+    let reader_id = deserialize::<EntityId>(submessage, &READER_ID_FIRST_INDEX, &READER_ID_LAST_INDEX, &submessage_endianess)?;
     
-    let writer_id = deserialize::<EntityIdT>(submessage, &WRITER_ID_FIRST_INDEX, &WRITER_ID_LAST_INDEX, &submessage_endianess)?;
+    let writer_id = deserialize::<EntityId>(submessage, &WRITER_ID_FIRST_INDEX, &WRITER_ID_LAST_INDEX, &submessage_endianess)?;
 
     let first_sn : i64 = deserialize::<SequenceNumberSerialization>(submessage, &FIRST_SN_FIRST_INDEX, &FIRST_SN_LAST_INDEX, &submessage_endianess)?.into();
     if first_sn < 1 {
@@ -642,11 +642,7 @@ fn parse_info_dst_submessage(submessage: &[u8], submessage_flags: &u8) -> Result
     const GUID_PREFIX_FIRST_INDEX: usize = 0;
     const GUID_PREFIX_LAST_INDEX: usize = 11;
     let submessage_endianess : EndianessFlag = endianess(submessage_flags)?;
-    let guid_prefix = deserialize::<GuidPrefix>(submessage, &GUID_PREFIX_FIRST_INDEX, &GUID_PREFIX_LAST_INDEX, &submessage_endianess)?;
-
-    Ok(InfoDst{
-        guid_prefix,
-    })
+    deserialize::<InfoDst>(submessage, &GUID_PREFIX_FIRST_INDEX, &GUID_PREFIX_LAST_INDEX, &submessage_endianess)
 }
 
 fn parse_info_reply_submessage(submessage: &[u8], submessage_flags: &u8) -> Result<InfoReply> {
@@ -1157,8 +1153,8 @@ mod tests{
 
             let ack_nack_big_endian = parse_ack_nack_submessage(&ack_nack_submessage_big_endian, &0).unwrap();
             assert_eq!(ack_nack_big_endian.final_flag, false);
-            assert_eq!(ack_nack_big_endian.reader_id, 269620246);
-            assert_eq!(ack_nack_big_endian.writer_id, 639902240);
+            assert_eq!(ack_nack_big_endian.reader_id, [0x10,0x12,0x14,0x16,]);
+            assert_eq!(ack_nack_big_endian.writer_id, [0x26,0x24,0x22,0x20,]);
             assert_eq!(ack_nack_big_endian.count, 15);
             assert_eq!(ack_nack_big_endian.reader_sn_state,
                 vec![(1234, false),(1235, false), (1236, true), (1237, true),
@@ -1166,8 +1162,8 @@ mod tests{
 
             let ack_nack_big_endian_final = parse_ack_nack_submessage(&ack_nack_submessage_big_endian, &2).unwrap();
             assert_eq!(ack_nack_big_endian_final.final_flag, true);
-            assert_eq!(ack_nack_big_endian_final.reader_id, 269620246);
-            assert_eq!(ack_nack_big_endian_final.writer_id, 639902240);
+            assert_eq!(ack_nack_big_endian_final.reader_id, [0x10,0x12,0x14,0x16,]);
+            assert_eq!(ack_nack_big_endian_final.writer_id, [0x26,0x24,0x22,0x20,]);
             assert_eq!(ack_nack_big_endian_final.count, 15);
             assert_eq!(ack_nack_big_endian_final.reader_sn_state,
                 vec![(1234, false),(1235, false), (1236, true), (1237, true),
@@ -1176,8 +1172,8 @@ mod tests{
 
         {
             let ack_nack_submessage_little_endian = [
-            0x16,0x14,0x12,0x10,
-            0x20,0x22,0x24,0x26,
+            0x10,0x12,0x14,0x16,
+            0x26,0x24,0x22,0x20,
             0x00,0x00,0x00,0x00,
             0xD2,0x04,0x00,0x00,
             0x08,0x00,0x00,0x00,
@@ -1187,8 +1183,8 @@ mod tests{
 
             let ack_nack_little_endian = parse_ack_nack_submessage(&ack_nack_submessage_little_endian, &1).unwrap();
             assert_eq!(ack_nack_little_endian.final_flag, false);
-            assert_eq!(ack_nack_little_endian.reader_id, 269620246);
-            assert_eq!(ack_nack_little_endian.writer_id, 639902240);
+            assert_eq!(ack_nack_little_endian.reader_id, [0x10,0x12,0x14,0x16,]);
+            assert_eq!(ack_nack_little_endian.writer_id, [0x26,0x24,0x22,0x20,]);
             assert_eq!(ack_nack_little_endian.count, 15);
             assert_eq!(ack_nack_little_endian.reader_sn_state,
                 vec![(1234, false),(1235, false), (1236, true), (1237, true),
@@ -1196,8 +1192,8 @@ mod tests{
 
             let ack_nack_little_endian_final = parse_ack_nack_submessage(&ack_nack_submessage_little_endian, &3).unwrap();
             assert_eq!(ack_nack_little_endian_final.final_flag, true);
-            assert_eq!(ack_nack_little_endian_final.reader_id, 269620246);
-            assert_eq!(ack_nack_little_endian_final.writer_id, 639902240);
+            assert_eq!(ack_nack_little_endian_final.reader_id, [0x10,0x12,0x14,0x16,]);
+            assert_eq!(ack_nack_little_endian_final.writer_id, [0x26,0x24,0x22,0x20,]);
             assert_eq!(ack_nack_little_endian_final.count, 15);
             assert_eq!(ack_nack_little_endian_final.reader_sn_state,
                 vec![(1234, false),(1235, false), (1236, true), (1237, true),
@@ -1230,8 +1226,8 @@ mod tests{
             {
                 // Parse message without considering inline qos or data
                 let data = parse_data_submessage(&submessage, &0).unwrap();
-                assert_eq!(data.reader_id, 269620246);
-                assert_eq!(data.writer_id, 639902240);
+                assert_eq!(data.reader_id, [0x10,0x12,0x14,0x16,]);
+                assert_eq!(data.writer_id, [0x26,0x24,0x22,0x20,]);
                 assert_eq!(data.writer_sn, 1233);
                 assert_eq!(data.inline_qos, None);
                 assert_eq!(data.serialized_payload, Payload::None);
@@ -1240,8 +1236,8 @@ mod tests{
             {
                 // Parse message considering inline qos but no data
                 let data = parse_data_submessage(&submessage, &2).unwrap();
-                assert_eq!(data.reader_id, 269620246);
-                assert_eq!(data.writer_id, 639902240);
+                assert_eq!(data.reader_id, [0x10,0x12,0x14,0x16,]);
+                assert_eq!(data.writer_id, [0x26,0x24,0x22,0x20,]);
                 assert_eq!(data.writer_sn, 1233);
                 assert_eq!(data.serialized_payload, Payload::None);
                 let inline_qos = data.inline_qos.unwrap();
@@ -1255,8 +1251,8 @@ mod tests{
             {
                 // Parse message considering serialized data and inline qos
                 let data = parse_data_submessage(&submessage, &6).unwrap();
-                assert_eq!(data.reader_id, 269620246);
-                assert_eq!(data.writer_id, 639902240);
+                assert_eq!(data.reader_id, [0x10,0x12,0x14,0x16,]);
+                assert_eq!(data.writer_id, [0x26,0x24,0x22,0x20,]);
                 assert_eq!(data.writer_sn, 1233);
                 let inline_qos = data.inline_qos.unwrap();
                 assert_eq!(inline_qos.len(),2);
@@ -1275,8 +1271,8 @@ mod tests{
             {
                 // Parse message considering serialized key and inline qos
                 let data = parse_data_submessage(&submessage, &10).unwrap();
-                assert_eq!(data.reader_id, 269620246);
-                assert_eq!(data.writer_id, 639902240);
+                assert_eq!(data.reader_id, [0x10,0x12,0x14,0x16,]);
+                assert_eq!(data.writer_id, [0x26,0x24,0x22,0x20,]);
                 assert_eq!(data.writer_sn, 1233);
                 let inline_qos = data.inline_qos.unwrap();
                 assert_eq!(inline_qos.len(),2);
@@ -1295,8 +1291,8 @@ mod tests{
             {
                 // Parse message considering serialized data and no inline qos
                 let data = parse_data_submessage(&submessage, &8).unwrap();
-                assert_eq!(data.reader_id, 269620246);
-                assert_eq!(data.writer_id, 639902240);
+                assert_eq!(data.reader_id, [0x10,0x12,0x14,0x16,]);
+                assert_eq!(data.writer_id, [0x26,0x24,0x22,0x20,]);
                 assert_eq!(data.writer_sn, 1233);
                 assert_eq!(data.inline_qos, None);
                 if let Payload::Key(serialized_data) = data.serialized_payload {
@@ -1336,8 +1332,8 @@ mod tests{
 
             let gap_big_endian = parse_gap_submessage(&submessage_big_endian, &0).unwrap(); 
 
-            assert_eq!(gap_big_endian.reader_id, 269620246);
-            assert_eq!(gap_big_endian.writer_id, 639902240);
+            assert_eq!(gap_big_endian.reader_id, [0x10,0x12,0x14,0x16,]);
+            assert_eq!(gap_big_endian.writer_id, [0x26,0x24,0x22,0x20,]);
             assert_eq!(gap_big_endian.gap_start, 1233);
             assert_eq!(gap_big_endian.gap_list.len(), 8);
             assert_eq!(gap_big_endian.gap_list, 
@@ -1347,8 +1343,8 @@ mod tests{
 
         {
             let submessage_little_endian = [ 
-                0x16,0x14,0x12,0x10,
-                0x20,0x22,0x24,0x26,
+                0x10,0x12,0x14,0x16,
+                0x26,0x24,0x22,0x20,
                 0x00,0x00,0x00,0x00,
                 0xD1,0x04,0x00,0x00,
                 0x00,0x00,0x00,0x00,
@@ -1359,8 +1355,8 @@ mod tests{
 
             let gap_little_endian = parse_gap_submessage(&submessage_little_endian, &1).unwrap(); 
 
-            assert_eq!(gap_little_endian.reader_id, 269620246);
-            assert_eq!(gap_little_endian.writer_id, 639902240);
+            assert_eq!(gap_little_endian.reader_id, [0x10,0x12,0x14,0x16,]);
+            assert_eq!(gap_little_endian.writer_id, [0x26,0x24,0x22,0x20,]);
             assert_eq!(gap_little_endian.gap_start, 1233);
             assert_eq!(gap_little_endian.gap_list.len(), 8);
             assert_eq!(gap_little_endian.gap_list, 
@@ -1404,8 +1400,8 @@ mod tests{
                 ];
 
             let heartbeat_big_endian = parse_heartbeat_submessage(&submessage_big_endian, &0).unwrap(); 
-            assert_eq!(heartbeat_big_endian.reader_id, 269620246);
-            assert_eq!(heartbeat_big_endian.writer_id, 639902240);
+            assert_eq!(heartbeat_big_endian.reader_id, [0x10,0x12,0x14,0x16,]);
+            assert_eq!(heartbeat_big_endian.writer_id, [0x26,0x24,0x22,0x20,]);
             assert_eq!(heartbeat_big_endian.first_sn, 1233);
             assert_eq!(heartbeat_big_endian.last_sn, 1237);
             assert_eq!(heartbeat_big_endian.count,8);
@@ -1415,8 +1411,8 @@ mod tests{
 
         {
             let submessage_little_endian = [ 
-                    0x16,0x14,0x12,0x10,
-                    0x20,0x22,0x24,0x26,
+                    0x10,0x12,0x14,0x16,
+                    0x26,0x24,0x22,0x20,
                     0x00,0x00,0x00,0x00,
                     0xD1,0x04,0x00,0x00,
                     0x00,0x00,0x00,0x00,
@@ -1425,8 +1421,8 @@ mod tests{
                 ];
 
             let heartbeat_little_endian = parse_heartbeat_submessage(&submessage_little_endian, &7).unwrap(); 
-            assert_eq!(heartbeat_little_endian.reader_id, 269620246);
-            assert_eq!(heartbeat_little_endian.writer_id, 639902240);
+            assert_eq!(heartbeat_little_endian.reader_id, [0x10,0x12,0x14,0x16,]);
+            assert_eq!(heartbeat_little_endian.writer_id, [0x26,0x24,0x22,0x20,]);
             assert_eq!(heartbeat_little_endian.first_sn, 1233);
             assert_eq!(heartbeat_little_endian.last_sn, 1237);
             assert_eq!(heartbeat_little_endian.count,8);
@@ -1447,8 +1443,8 @@ mod tests{
                 ];
 
             let heartbeat_big_endian = parse_heartbeat_submessage(&submessage_big_endian, &2).unwrap(); 
-            assert_eq!(heartbeat_big_endian.reader_id, 269620246);
-            assert_eq!(heartbeat_big_endian.writer_id, 639902240);
+            assert_eq!(heartbeat_big_endian.reader_id, [0x10,0x12,0x14,0x16,]);
+            assert_eq!(heartbeat_big_endian.writer_id, [0x26,0x24,0x22,0x20,]);
             assert_eq!(heartbeat_big_endian.first_sn, 1);
             assert_eq!(heartbeat_big_endian.last_sn, 0);
             assert_eq!(heartbeat_big_endian.count,8);
