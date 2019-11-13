@@ -6,12 +6,19 @@ use std::net::AddrParseError;
 use std::net::SocketAddr;
 use std::net::SocketAddrV4;
 
+extern crate serde;
+extern crate serde_derive;
+extern crate num;
+extern crate num_derive;
+
+mod types;
 pub mod parser;
+
+use types::EntityId;
 
 type TopicKindT = u32;
 type ReliabilityLevelT = u32;
 type LocatorT = u32;
-type EntityId = [u8;4];
 
 
 enum LocatorKind {
