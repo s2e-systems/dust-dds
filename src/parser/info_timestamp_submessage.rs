@@ -1,6 +1,6 @@
 use crate::types::TimeT;
 
-use super::{Result, InfoTs, ErrorMessage, deserialize, endianess, EndianessFlag};
+use super::{Result, InfoTs, ErrorMessage, deserialize, endianess};
 
 pub fn parse_info_timestamp_submessage(submessage: &[u8], submessage_flags: &u8) -> Result<InfoTs> {
     const MESSAGE_PAYLOAD_FIRST_INDEX: usize = 0;

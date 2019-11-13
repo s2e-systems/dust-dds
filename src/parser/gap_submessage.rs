@@ -22,7 +22,7 @@ pub fn parse_gap_submessage(submessage: &[u8], submessage_flags: &u8) -> Result<
         return Err(ErrorMessage::InvalidSubmessage);
     }
     
-    let (gap_list, sequence_number_set_size) = parse_sequence_number_set(submessage, &GAP_LIST_FIRST_INDEX, &submessage_endianess)?;
+    let (gap_list, _sequence_number_set_size) = parse_sequence_number_set(submessage, &GAP_LIST_FIRST_INDEX, &submessage_endianess)?;
 
     // TODO: The GAP message in the PSM is not matching the description given in the PIM. Have to check for that.
 

@@ -2,9 +2,9 @@ use std::net::UdpSocket;
 use std::net::Ipv4Addr;
 use std::time::Duration;
 use std::str::FromStr;
-use std::net::AddrParseError;
+// use std::net::AddrParseError;
 use std::net::SocketAddr;
-use std::net::SocketAddrV4;
+// use std::net::SocketAddrV4;
 
 extern crate serde;
 extern crate serde_derive;
@@ -18,10 +18,8 @@ use types::EntityId;
 
 type TopicKindT = u32;
 type ReliabilityLevelT = u32;
-type LocatorT = u32;
 
-
-enum LocatorKind {
+pub enum LocatorKind {
     LocatorInvalid,
     Invalid,
     Reserved,
@@ -36,9 +34,9 @@ trait Locator {
 }
 
 pub struct Udpv4Locator {
-    kind: LocatorKind,
-    address: [u8;4],
-    port: u16,
+    pub kind: LocatorKind,
+    pub address: [u8;4],
+    pub port: u16,
 }
 
 impl Udpv4Locator {
@@ -54,23 +52,23 @@ impl Udpv4Locator {
 impl Locator for Udpv4Locator{ }
 
 pub struct RTPSEndpoint{
-    topic_kind: TopicKindT,
-    reliability_level: ReliabilityLevelT,
-    unicast_locator_list: Vec<Udpv4Locator>, 
-    multicast_locator_list: Vec<Udpv4Locator>,
-    endpoint_id: EntityId,
+    pub topic_kind: TopicKindT,
+    pub reliability_level: ReliabilityLevelT,
+    pub unicast_locator_list: Vec<Udpv4Locator>, 
+    pub multicast_locator_list: Vec<Udpv4Locator>,
+    pub endpoint_id: EntityId,
 }
 
 pub struct RTPSReader {
-    endpoint: RTPSEndpoint,
-    sockets: Vec<UdpSocket>
+    pub endpoint: RTPSEndpoint,
+    pub sockets: Vec<UdpSocket>
 }
 
 impl RTPSReader {
     pub fn new(multicast_locator_list: Vec<Udpv4Locator>) -> RTPSReader {
         let mut sockets = Vec::with_capacity(1);
 
-        for i in &multicast_locator_list {
+        for _i in &multicast_locator_list {
             let socket = UdpSocket::bind(SocketAddr::from(([0, 0, 0, 0], 7400))).expect("couldn't bind to address");
             let multicast_addr = Ipv4Addr::from_str("239.255.0.1").unwrap();
             let multicast_interface = Ipv4Addr::from_str("192.168.2.5").expect("Error resolving multicast interface address");
@@ -93,7 +91,7 @@ impl RTPSReader {
         let mut buf = [0;512];
 
         for i in &self.sockets {
-            i.recv_from(&mut buf);
+            i.recv_from(&mut buf).unwrap();
             println!("Received {:?}", &buf[0 .. 30]);
         }
     }
