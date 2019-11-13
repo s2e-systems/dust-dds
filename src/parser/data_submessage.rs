@@ -1,6 +1,8 @@
 use crate::types::{EntityId};
 
-use super::{Data, endianess, EndianessFlag, Result, ErrorMessage, deserialize, SequenceNumberSerialization, Payload, parse_parameter_list};
+use super::helpers::{deserialize, endianess, parse_parameter_list, SequenceNumberSerialization};
+
+use super::{Data, Result, ErrorMessage,Payload};
 
 pub fn parse_data_submessage(submessage: &[u8], submessage_flags: &u8) -> Result<Data> {
 
@@ -20,7 +22,7 @@ pub fn parse_data_submessage(submessage: &[u8], submessage_flags: &u8) -> Result
     const WRITER_SN_FIRST_INDEX: usize = 12;
     const WRITER_SN_LAST_INDEX: usize = 19;
 
-    let submessage_endianess : EndianessFlag = endianess(submessage_flags)?;
+    let submessage_endianess = endianess(submessage_flags)?;
     let inline_qos_flag = submessage_flags & INLINE_QOS_FLAG_MASK == INLINE_QOS_FLAG_MASK;
     let data_flag = submessage_flags & DATA_FLAG_MASK == DATA_FLAG_MASK;
     let key_flag = submessage_flags & KEY_FLAG_MASK == KEY_FLAG_MASK;

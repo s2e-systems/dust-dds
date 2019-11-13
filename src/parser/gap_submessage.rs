@@ -1,6 +1,8 @@
 use crate::types::EntityId;
 
-use super::{Result, Gap, deserialize, SequenceNumberSerialization, EndianessFlag, endianess, ErrorMessage, parse_sequence_number_set};
+use super::helpers::{deserialize, endianess, parse_sequence_number_set, SequenceNumberSerialization};
+
+use super::{Result, Gap, ErrorMessage};
 
 pub fn parse_gap_submessage(submessage: &[u8], submessage_flags: &u8) -> Result<Gap> {
     const READER_ID_FIRST_INDEX: usize = 0;
@@ -11,7 +13,7 @@ pub fn parse_gap_submessage(submessage: &[u8], submessage_flags: &u8) -> Result<
     const GAP_START_LAST_INDEX: usize = 15;
     const GAP_LIST_FIRST_INDEX: usize = 16;
 
-    let submessage_endianess : EndianessFlag = endianess(submessage_flags)?;
+    let submessage_endianess = endianess(submessage_flags)?;
 
     let reader_id = deserialize::<EntityId>(submessage, &READER_ID_FIRST_INDEX, &READER_ID_LAST_INDEX, &submessage_endianess)?;
     

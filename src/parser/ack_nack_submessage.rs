@@ -1,6 +1,8 @@
 use crate::types::{EntityId,Count};
 
-use super::{AckNack, Result, deserialize, EndianessFlag, endianess, parse_sequence_number_set};
+use super::helpers::{deserialize, endianess, parse_sequence_number_set};
+
+use super::{AckNack, Result};
 
 pub fn parse_ack_nack_submessage(submessage: &[u8], submessage_flags: &u8) -> Result<AckNack> {
     const FINAL_FLAG_MASK: u8 = 0x02;
@@ -11,7 +13,7 @@ pub fn parse_ack_nack_submessage(submessage: &[u8], submessage_flags: &u8) -> Re
     const SEQUENCE_NUMBER_SET_FIRST_INDEX: usize = 8;
     const COUNT_SIZE: usize = 4;
 
-    let submessage_endianess : EndianessFlag = endianess(submessage_flags)?;
+    let submessage_endianess = endianess(submessage_flags)?;
     let final_flag = (submessage_flags & FINAL_FLAG_MASK) == FINAL_FLAG_MASK;
 
     let reader_id = deserialize::<EntityId>(submessage, &READER_ID_FIRST_INDEX, &READER_ID_LAST_INDEX, &submessage_endianess)?;

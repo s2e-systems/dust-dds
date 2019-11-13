@@ -1,6 +1,8 @@
 use crate::types::{EntityId, Count};
 
-use super::{Result, deserialize, Heartbeat, endianess, EndianessFlag, ErrorMessage, SequenceNumberSerialization };
+use super::helpers::{deserialize, endianess, SequenceNumberSerialization};
+
+use super::{Result, Heartbeat, ErrorMessage};
 
 pub fn parse_heartbeat_submessage(submessage: &[u8], submessage_flags: &u8) -> Result<Heartbeat> {
     const READER_ID_FIRST_INDEX: usize = 0;
@@ -17,7 +19,7 @@ pub fn parse_heartbeat_submessage(submessage: &[u8], submessage_flags: &u8) -> R
     const FINAL_FLAG_MASK: u8 = 0x02;
     const LIVELINESS_FLAG_MASK: u8 = 0x04;
 
-    let submessage_endianess : EndianessFlag = endianess(submessage_flags)?;
+    let submessage_endianess = endianess(submessage_flags)?;
     let final_flag = (submessage_flags & FINAL_FLAG_MASK) == FINAL_FLAG_MASK;
     let liveliness_flag = (submessage_flags & LIVELINESS_FLAG_MASK) == LIVELINESS_FLAG_MASK;
 

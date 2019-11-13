@@ -1,6 +1,8 @@
 use crate::types::{EntityId,FragmentNumber,Count, SequenceNumber};
 
-use super::{HeartbeatFrag,Result,endianess,EndianessFlag,SequenceNumberSerialization, deserialize, ErrorMessage};
+use super::helpers::{deserialize, endianess, SequenceNumberSerialization};
+
+use super::{HeartbeatFrag,Result, ErrorMessage};
 
 pub fn parse_heartbeat_frag_submessage(submessage: &[u8], submessage_flags: &u8) -> Result<HeartbeatFrag> {
     const READER_ID_FIRST_INDEX: usize = 0;
@@ -14,7 +16,7 @@ pub fn parse_heartbeat_frag_submessage(submessage: &[u8], submessage_flags: &u8)
     const COUNT_FIRST_INDEX: usize = 20;
     const COUNT_LAST_INDEX: usize = 23;
     
-    let submessage_endianess : EndianessFlag = endianess(submessage_flags)?;
+    let submessage_endianess = endianess(submessage_flags)?;
 
     let reader_id = deserialize::<EntityId>(submessage, &READER_ID_FIRST_INDEX, &READER_ID_LAST_INDEX, &submessage_endianess)?;
     

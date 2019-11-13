@@ -1,4 +1,8 @@
-use super::{Result, InfoReply, endianess, EndianessFlag, deserialize, LocatorList};
+use crate::types::LocatorList;
+
+use super::helpers::{deserialize, endianess};
+
+use super::{Result, InfoReply};
 
 pub fn parse_info_reply_submessage(submessage: &[u8], submessage_flags: &u8) -> Result<InfoReply> {
     const MULTICAST_FLAG_MASK: u8 = 0x02;
@@ -8,7 +12,7 @@ pub fn parse_info_reply_submessage(submessage: &[u8], submessage_flags: &u8) -> 
 
     let submessage_last_index = submessage.len()-1;
 
-    let submessage_endianess : EndianessFlag = endianess(submessage_flags)?;
+    let submessage_endianess = endianess(submessage_flags)?;
     let multicast_flag = submessage_flags & MULTICAST_FLAG_MASK == MULTICAST_FLAG_MASK;
 
     let unicast_locator_list = deserialize::<LocatorList>(submessage, &UNICAST_LOCATOR_LIST_FIRST_INDEX, &submessage_last_index, &submessage_endianess)?;
