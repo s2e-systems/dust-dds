@@ -62,7 +62,7 @@ pub fn parse_data_submessage(submessage: &[u8], submessage_flags: &u8) -> Result
     
     let writer_id = deserialize::<EntityId>(submessage, &WRITER_ID_FIRST_INDEX, &WRITER_ID_LAST_INDEX, &submessage_endianess)?;
 
-    let writer_sn : i64 = deserialize::<SequenceNumberSerialization>(submessage, &WRITER_SN_FIRST_INDEX, &WRITER_SN_LAST_INDEX, &submessage_endianess)?.into();
+    let writer_sn : SequenceNumber = deserialize::<SequenceNumberSerialization>(submessage, &WRITER_SN_FIRST_INDEX, &WRITER_SN_LAST_INDEX, &submessage_endianess)?.into();
 
     // Octets to data is considered as having the same meaning as octets to inline qos,
     // i.e. counting from the byte after the octets to inline qos field
