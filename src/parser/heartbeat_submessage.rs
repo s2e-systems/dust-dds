@@ -38,12 +38,12 @@ pub fn parse_heartbeat_submessage(submessage: &[u8], submessage_flags: &u8) -> R
     
     let writer_id = deserialize::<EntityId>(submessage, &WRITER_ID_FIRST_INDEX, &WRITER_ID_LAST_INDEX, &submessage_endianess)?;
 
-    let first_sn : i64 = deserialize::<SequenceNumberSerialization>(submessage, &FIRST_SN_FIRST_INDEX, &FIRST_SN_LAST_INDEX, &submessage_endianess)?.into();
+    let first_sn : SequenceNumber = deserialize::<SequenceNumberSerialization>(submessage, &FIRST_SN_FIRST_INDEX, &FIRST_SN_LAST_INDEX, &submessage_endianess)?.into();
     if first_sn < 1 {
         return Err(ErrorMessage::InvalidSubmessage);
     }
 
-    let last_sn : i64 = deserialize::<SequenceNumberSerialization>(submessage, &LAST_SN_FIRST_INDEX, &LAST_SN_LAST_INDEX, &submessage_endianess)?.into();
+    let last_sn : SequenceNumber = deserialize::<SequenceNumberSerialization>(submessage, &LAST_SN_FIRST_INDEX, &LAST_SN_LAST_INDEX, &submessage_endianess)?.into();
     if last_sn < 0 {
         return Err(ErrorMessage::InvalidSubmessage);
     }
