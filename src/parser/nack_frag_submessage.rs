@@ -65,8 +65,8 @@ mod tests{
             0x00, 0x00, 0x11, 0x22,
         ];
         let nack_frag_submessage = parse_nack_frag_submessage(&submessage, &0).unwrap();
-        assert_eq!(nack_frag_submessage.reader_id, [0x01, 0x02, 0x03, 0x04]);
-        assert_eq!(nack_frag_submessage.writer_id, [0x10, 0x11, 0x12, 0x13]);
+        assert_eq!(nack_frag_submessage.reader_id, EntityId::new(&[0x01, 0x02, 0x03], &0x04));
+        assert_eq!(nack_frag_submessage.writer_id, EntityId::new(&[0x10, 0x11, 0x12], &0x13));
         assert_eq!(nack_frag_submessage.writer_sn, 4294971682);
         assert_eq!(nack_frag_submessage.fragment_number_set.len(), 10);
         assert_eq!(nack_frag_submessage.fragment_number_set,
@@ -88,8 +88,8 @@ mod tests{
             0x22, 0x11, 0x00, 0x00,
         ];
         let nack_frag_submessage = parse_nack_frag_submessage(&submessage, &1).unwrap();
-        assert_eq!(nack_frag_submessage.reader_id, [0x01, 0x02, 0x03, 0x04]);
-        assert_eq!(nack_frag_submessage.writer_id, [0x10, 0x11, 0x12, 0x13]);
+        assert_eq!(nack_frag_submessage.reader_id, EntityId::new(&[0x01, 0x02, 0x03], &0x04));
+        assert_eq!(nack_frag_submessage.writer_id, EntityId::new(&[0x10, 0x11, 0x12], &0x13));
         assert_eq!(nack_frag_submessage.writer_sn, 4294971682);
         assert_eq!(nack_frag_submessage.fragment_number_set.len(), 10);
         assert_eq!(nack_frag_submessage.fragment_number_set,

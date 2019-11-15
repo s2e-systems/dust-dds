@@ -123,8 +123,8 @@ mod tests{
             {
                 // Parse message without considering inline qos or data
                 let data = parse_data_submessage(&submessage, &0).unwrap();
-                assert_eq!(data.reader_id, [0x10,0x12,0x14,0x16,]);
-                assert_eq!(data.writer_id, [0x26,0x24,0x22,0x20,]);
+                assert_eq!(data.reader_id, EntityId::new(&[0x10,0x12,0x14],&0x16));
+                assert_eq!(data.writer_id, EntityId::new(&[0x26,0x24,0x22],&0x20));
                 assert_eq!(data.writer_sn, 1233);
                 assert_eq!(data.inline_qos, None);
                 assert_eq!(data.serialized_payload, Payload::None);
@@ -133,8 +133,8 @@ mod tests{
             {
                 // Parse message considering inline qos but no data
                 let data = parse_data_submessage(&submessage, &2).unwrap();
-                assert_eq!(data.reader_id, [0x10,0x12,0x14,0x16,]);
-                assert_eq!(data.writer_id, [0x26,0x24,0x22,0x20,]);
+                assert_eq!(data.reader_id, EntityId::new(&[0x10,0x12,0x14],&0x16));
+                assert_eq!(data.writer_id, EntityId::new(&[0x26,0x24,0x22],&0x20));
                 assert_eq!(data.writer_sn, 1233);
                 assert_eq!(data.serialized_payload, Payload::None);
                 let inline_qos = data.inline_qos.unwrap();
@@ -148,8 +148,8 @@ mod tests{
             {
                 // Parse message considering serialized data and inline qos
                 let data = parse_data_submessage(&submessage, &6).unwrap();
-                assert_eq!(data.reader_id, [0x10,0x12,0x14,0x16,]);
-                assert_eq!(data.writer_id, [0x26,0x24,0x22,0x20,]);
+                assert_eq!(data.reader_id, EntityId::new(&[0x10,0x12,0x14],&0x16));
+                assert_eq!(data.writer_id, EntityId::new(&[0x26,0x24,0x22],&0x20));
                 assert_eq!(data.writer_sn, 1233);
                 let inline_qos = data.inline_qos.unwrap();
                 assert_eq!(inline_qos.len(),2);
@@ -168,8 +168,8 @@ mod tests{
             {
                 // Parse message considering serialized key and inline qos
                 let data = parse_data_submessage(&submessage, &10).unwrap();
-                assert_eq!(data.reader_id, [0x10,0x12,0x14,0x16,]);
-                assert_eq!(data.writer_id, [0x26,0x24,0x22,0x20,]);
+                assert_eq!(data.reader_id, EntityId::new(&[0x10,0x12,0x14],&0x16));
+                assert_eq!(data.writer_id, EntityId::new(&[0x26,0x24,0x22],&0x20));
                 assert_eq!(data.writer_sn, 1233);
                 let inline_qos = data.inline_qos.unwrap();
                 assert_eq!(inline_qos.len(),2);
@@ -188,8 +188,8 @@ mod tests{
             {
                 // Parse message considering serialized data and no inline qos
                 let data = parse_data_submessage(&submessage, &8).unwrap();
-                assert_eq!(data.reader_id, [0x10,0x12,0x14,0x16,]);
-                assert_eq!(data.writer_id, [0x26,0x24,0x22,0x20,]);
+                assert_eq!(data.reader_id, EntityId::new(&[0x10,0x12,0x14],&0x16));
+                assert_eq!(data.writer_id, EntityId::new(&[0x26,0x24,0x22],&0x20));
                 assert_eq!(data.writer_sn, 1233);
                 assert_eq!(data.inline_qos, None);
                 if let Payload::Key(serialized_data) = data.serialized_payload {

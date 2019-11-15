@@ -64,8 +64,8 @@ mod tests{
 
             let gap_big_endian = parse_gap_submessage(&submessage_big_endian, &0).unwrap(); 
 
-            assert_eq!(gap_big_endian.reader_id, [0x10,0x12,0x14,0x16,]);
-            assert_eq!(gap_big_endian.writer_id, [0x26,0x24,0x22,0x20,]);
+            assert_eq!(gap_big_endian.reader_id, EntityId::new(&[0x10,0x12,0x14],&0x16));
+            assert_eq!(gap_big_endian.writer_id, EntityId::new(&[0x26,0x24,0x22],&0x20));
             assert_eq!(gap_big_endian.gap_start, 1233);
             assert_eq!(gap_big_endian.gap_list.len(), 8);
             assert_eq!(gap_big_endian.gap_list, 
@@ -87,8 +87,8 @@ mod tests{
 
             let gap_little_endian = parse_gap_submessage(&submessage_little_endian, &1).unwrap(); 
 
-            assert_eq!(gap_little_endian.reader_id, [0x10,0x12,0x14,0x16,]);
-            assert_eq!(gap_little_endian.writer_id, [0x26,0x24,0x22,0x20,]);
+            assert_eq!(gap_little_endian.reader_id, EntityId::new(&[0x10,0x12,0x14],&0x16));
+            assert_eq!(gap_little_endian.writer_id, EntityId::new(&[0x26,0x24,0x22],&0x20));
             assert_eq!(gap_little_endian.gap_start, 1233);
             assert_eq!(gap_little_endian.gap_list.len(), 8);
             assert_eq!(gap_little_endian.gap_list, 

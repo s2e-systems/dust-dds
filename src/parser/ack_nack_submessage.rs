@@ -64,8 +64,8 @@ mod tests{
 
             let ack_nack_big_endian = parse_ack_nack_submessage(&ack_nack_submessage_big_endian, &0).unwrap();
             assert_eq!(ack_nack_big_endian.final_flag, false);
-            assert_eq!(ack_nack_big_endian.reader_id, [0x10,0x12,0x14,0x16,]);
-            assert_eq!(ack_nack_big_endian.writer_id, [0x26,0x24,0x22,0x20,]);
+            assert_eq!(ack_nack_big_endian.reader_id, EntityId::new(&[0x10,0x12,0x14],&0x16));
+            assert_eq!(ack_nack_big_endian.writer_id, EntityId::new(&[0x26,0x24,0x22],&0x20));
             assert_eq!(ack_nack_big_endian.count, 15);
             assert_eq!(ack_nack_big_endian.reader_sn_state,
                 vec![(1234, false),(1235, false), (1236, true), (1237, true),
@@ -73,8 +73,8 @@ mod tests{
 
             let ack_nack_big_endian_final = parse_ack_nack_submessage(&ack_nack_submessage_big_endian, &2).unwrap();
             assert_eq!(ack_nack_big_endian_final.final_flag, true);
-            assert_eq!(ack_nack_big_endian_final.reader_id, [0x10,0x12,0x14,0x16,]);
-            assert_eq!(ack_nack_big_endian_final.writer_id, [0x26,0x24,0x22,0x20,]);
+            assert_eq!(ack_nack_big_endian_final.reader_id, EntityId::new(&[0x10,0x12,0x14],&0x16));
+            assert_eq!(ack_nack_big_endian_final.writer_id, EntityId::new(&[0x26,0x24,0x22],&0x20));
             assert_eq!(ack_nack_big_endian_final.count, 15);
             assert_eq!(ack_nack_big_endian_final.reader_sn_state,
                 vec![(1234, false),(1235, false), (1236, true), (1237, true),
@@ -94,8 +94,8 @@ mod tests{
 
             let ack_nack_little_endian = parse_ack_nack_submessage(&ack_nack_submessage_little_endian, &1).unwrap();
             assert_eq!(ack_nack_little_endian.final_flag, false);
-            assert_eq!(ack_nack_little_endian.reader_id, [0x10,0x12,0x14,0x16,]);
-            assert_eq!(ack_nack_little_endian.writer_id, [0x26,0x24,0x22,0x20,]);
+            assert_eq!(ack_nack_little_endian.reader_id, EntityId::new(&[0x10,0x12,0x14],&0x16));
+            assert_eq!(ack_nack_little_endian.writer_id, EntityId::new(&[0x26,0x24,0x22],&0x20));
             assert_eq!(ack_nack_little_endian.count, 15);
             assert_eq!(ack_nack_little_endian.reader_sn_state,
                 vec![(1234, false),(1235, false), (1236, true), (1237, true),
@@ -103,8 +103,8 @@ mod tests{
 
             let ack_nack_little_endian_final = parse_ack_nack_submessage(&ack_nack_submessage_little_endian, &3).unwrap();
             assert_eq!(ack_nack_little_endian_final.final_flag, true);
-            assert_eq!(ack_nack_little_endian_final.reader_id, [0x10,0x12,0x14,0x16,]);
-            assert_eq!(ack_nack_little_endian_final.writer_id, [0x26,0x24,0x22,0x20,]);
+            assert_eq!(ack_nack_little_endian_final.reader_id, EntityId::new(&[0x10,0x12,0x14],&0x16));
+            assert_eq!(ack_nack_little_endian_final.writer_id, EntityId::new(&[0x26,0x24,0x22],&0x20));
             assert_eq!(ack_nack_little_endian_final.count, 15);
             assert_eq!(ack_nack_little_endian_final.reader_sn_state,
                 vec![(1234, false),(1235, false), (1236, true), (1237, true),
