@@ -23,7 +23,7 @@ struct RTPSEndpoint{
 impl Default for RTPSEndpoint{
     fn default() -> Self {
         RTPSEndpoint {
-            topic_kind: 0,
+            topic_kind: TopicKind::NoKey,
             reliability_level: 0,
             unicast_locator_list: Vec::new(),
             multicast_locator_list: Vec::new(),

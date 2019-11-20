@@ -18,7 +18,24 @@ impl EntityId{
     }
 }
 
-pub type TopicKind = u32;
+const ENTITYID_UNKNOWN : EntityId = EntityId{entity_key: [0,0,0], entity_kind: 0};
+
+pub enum TopicKind {
+    NoKey,
+    WithKey,
+}
+
+pub enum ReliabilityKind {
+    BestEffort,
+    Reliable,
+}
+
+pub enum ChangeKind {
+    Alive,
+    AliveFiltered,
+    NotAliveDisposed,
+    NotAliveUnregistered,
+}
 pub type ReliabilityLevel = u32;
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
