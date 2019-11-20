@@ -15,6 +15,7 @@ mod types;
 pub mod parser;
 mod cache;
 mod entity;
+mod guid;
 
 use types::EntityId;
 
