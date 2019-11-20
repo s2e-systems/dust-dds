@@ -15,7 +15,7 @@ mod nack_frag_submessage;
 use num_derive::FromPrimitive;
 use serde_derive::{Deserialize, Serialize};
 
-use helpers::{deserialize, endianess, is_valid_rtps_header, MINIMUM_RTPS_MESSAGE_SIZE};
+use helpers::{deserialize, endianess, EndianessFlag, MINIMUM_RTPS_MESSAGE_SIZE};
 
 use crate::types::*;
 
@@ -211,7 +211,25 @@ pub enum SubMessageType {
 }
 
 pub fn parse_rtps_message(message : &[u8]) -> Result< Vec<SubMessageType> >{
-    is_valid_rtps_header(message)?;
+    const PROTOCOL_VERSION_FIRST_INDEX : usize = 4;
+    const PROTOCOL_VERSION_LAST_INDEX : usize = 5;
+
+    if message.len() < MINIMUM_RTPS_MESSAGE_SIZE {
+        return Err(ErrorMessage::MessageTooSmall);
+    }
+
+    if message[0] != 'R' as u8 || message[1] != 'T' as u8 || message[2] != 'P' as u8 || message[3] != 'S' as u8 {
+        return Err(ErrorMessage::InvalidHeader);
+    }
+
+    let protocol_version = deserialize::<ProtocolVersion>(message, &PROTOCOL_VERSION_FIRST_INDEX, &PROTOCOL_VERSION_LAST_INDEX, &EndianessFlag::BigEndian)?;
+
+    if protocol_version.major != 2 {
+        return Err(ErrorMessage::RtpsMajorVersionUnsupported);
+    }
+    if protocol_version.minor > RTPS_MINOR_VERSION {
+        return Err(ErrorMessage::RtpsMinorVersionUnsupported);
+    }
 
     const RTPS_SUBMESSAGE_HEADER_SIZE: usize = 4;
 

@@ -37,30 +37,6 @@ impl From<SequenceNumberSerialization> for i64 {
     }
 }
 
-pub fn is_valid_rtps_header(message: &[u8]) -> Result<()> {
-    const PROTOCOL_VERSION_FIRST_INDEX : usize = 4;
-    const PROTOCOL_VERSION_LAST_INDEX : usize = 5;
-
-    if message.len() < MINIMUM_RTPS_MESSAGE_SIZE {
-        return Err(ErrorMessage::MessageTooSmall);
-    }
-
-    if message[0] != 'R' as u8 || message[1] != 'T' as u8 || message[2] != 'P' as u8 || message[3] != 'S' as u8 {
-        return Err(ErrorMessage::InvalidHeader);
-    }
-
-    let protocol_version = deserialize::<ProtocolVersion>(message, &PROTOCOL_VERSION_FIRST_INDEX, &PROTOCOL_VERSION_LAST_INDEX, &EndianessFlag::BigEndian)?;
-
-    if protocol_version.major != 2 {
-        return Err(ErrorMessage::RtpsMajorVersionUnsupported);
-    }
-    if protocol_version.minor > RTPS_MINOR_VERSION {
-        return Err(ErrorMessage::RtpsMinorVersionUnsupported);
-    }
-
-    Ok(())
-}
-
 pub fn endianess(flags: &u8) -> Result<EndianessFlag> {
     const ENDIANESS_FLAG_MASK : u8 = 0x01;
 
