@@ -21,6 +21,28 @@ pub struct Data {
     serialized_payload: Payload,
 }
 
+impl Data {
+    pub fn reader_id(&self) -> &EntityId {
+        &self.reader_id
+    }
+
+    pub fn writer_id(&self) -> &EntityId {
+        &self.writer_id
+    }
+
+    pub fn writer_sn(&self) -> &SequenceNumber {
+        &self.writer_sn
+    }
+
+    pub fn inline_qos(&self) -> &Option<ParameterList> {
+        &self.inline_qos
+    }
+
+    pub fn serialized_payload(&self) -> &Payload {
+        &self.serialized_payload
+    }
+}
+
 pub fn parse_data_submessage(submessage: &[u8], submessage_flags: &u8) -> Result<Data> {
 
     const INLINE_QOS_FLAG_MASK: u8 = 0x02;

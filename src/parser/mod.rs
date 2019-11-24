@@ -457,6 +457,25 @@ mod tests{
 
         let parse_result = parse_rtps_message(&rtps_message_info_ts_and_data).unwrap();
         assert_eq!(parse_result.len(),2);
+        if let SubMessageType::InfoTsSubmessage(ts_message) = &parse_result[0] {
+            assert_eq!(*ts_message.timestamp(), Some(TimeT{seconds: 1572635038, fraction: 642309783,}));
+        } else {
+            assert!(false);
+        }
+        
+        if let SubMessageType::DataSubmessage(data_message) = &parse_result[1] {
+            assert_eq!(*data_message.reader_id(), EntityId::new(&[0,0,0], &0));
+            assert_eq!(*data_message.writer_id(), EntityId::new(&[0,1,0], &0xc2)); //ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER = {{00,01,00},c2}
+            assert_eq!(*data_message.writer_sn(), 1);
+            assert_eq!(*data_message.inline_qos(), Some(vec!(Parameter{
+                parameter_id: 112,
+                value: vec!(127, 32, 247, 215, 0, 0, 1, 187, 0, 0, 0, 1, 0, 0, 1, 193),})) );
+            assert_eq!(*data_message.serialized_payload(),Payload::Data(vec!(0, 3, 0, 0, 21, 0, 4, 0, 2, 1, 0, 0, 22, 0, 4, 0, 1, 2, 0, 0, 49, 0, 24, 0, 1, 0, 0, 0, 243, 28, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 192, 168, 2, 4, 50, 0, 24, 0, 1, 0, 0, 0, 242, 28, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 192, 168, 2, 4, 2, 0, 8, 0, 11, 0, 0, 0, 0, 0, 0, 0, 80, 0, 16, 0, 127, 32, 247, 215, 0, 0, 1, 187, 0, 0, 0, 1, 0, 0, 1, 193, 88, 0, 4, 0, 21, 4, 0, 0, 0, 128, 4, 0, 21, 0, 0, 0, 7, 128, 92, 0, 0, 0, 0, 0, 47, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 80, 0, 0, 0, 66, 0, 0, 0, 68, 69, 83, 75, 84, 79, 80, 45, 79, 
+                82, 70, 68, 79, 83, 53, 47, 54, 46, 49, 48, 46, 50, 47, 99, 99, 54, 102, 98, 57, 97, 98, 51, 54, 47, 57, 48, 55, 101, 102, 102, 48, 50, 101, 51, 47, 34, 120, 56, 54, 95, 54, 52, 46, 119, 105, 110, 45, 118, 115, 50, 48, 49, 53, 34, 47, 0, 0, 0, 37, 128, 12, 0, 215, 247, 32, 127, 187, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)));
+
+        } else {
+            assert!(false);
+        }
     }
 
     // #[test]
