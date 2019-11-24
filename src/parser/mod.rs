@@ -210,7 +210,14 @@ pub enum SubMessageType {
     NackFragSubmessage(NackFrag),
 }
 
-pub fn parse_rtps_message(message : &[u8]) -> Result< Vec<SubMessageType> >{
+pub struct RtpsMessage {
+    guid_prefix: GuidPrefix,
+    submessages: Vec<SubMessageType>,
+}
+
+pub fn parse_rtps_message(message : &[u8]) -> Result< RtpsMessage >{
+    const MESSAGE_HEADER_FIRST_INDEX: usize = 0;
+    const MESSAGE_HEADER_LAST_INDEX: usize = 19;
     const PROTOCOL_VERSION_FIRST_INDEX : usize = 4;
     const PROTOCOL_VERSION_LAST_INDEX : usize = 5;
 
@@ -218,16 +225,19 @@ pub fn parse_rtps_message(message : &[u8]) -> Result< Vec<SubMessageType> >{
         return Err(ErrorMessage::MessageTooSmall);
     }
 
-    if message[0] != 'R' as u8 || message[1] != 'T' as u8 || message[2] != 'P' as u8 || message[3] != 'S' as u8 {
+    let message_header = deserialize::<MessageHeader>(message, &MESSAGE_HEADER_FIRST_INDEX, &MESSAGE_HEADER_LAST_INDEX, &EndianessFlag::BigEndian /* Endianness not relevant for the header. Only octets */)?;
+
+    if  message_header.protocol_name[0] != 'R' ||
+        message_header.protocol_name[1] != 'T' ||
+        message_header.protocol_name[2] != 'P' || 
+        message_header.protocol_name[3] != 'S' {
         return Err(ErrorMessage::InvalidHeader);
     }
 
-    let protocol_version = deserialize::<ProtocolVersion>(message, &PROTOCOL_VERSION_FIRST_INDEX, &PROTOCOL_VERSION_LAST_INDEX, &EndianessFlag::BigEndian)?;
-
-    if protocol_version.major != 2 {
+    if message_header.protocol_version.major != 2 {
         return Err(ErrorMessage::RtpsMajorVersionUnsupported);
     }
-    if protocol_version.minor > RTPS_MINOR_VERSION {
+    if message_header.protocol_version.minor > RTPS_MINOR_VERSION {
         return Err(ErrorMessage::RtpsMinorVersionUnsupported);
     }
 
@@ -279,7 +289,9 @@ pub fn parse_rtps_message(message : &[u8]) -> Result< Vec<SubMessageType> >{
         submessage_first_index = submessage_first_index + RTPS_SUBMESSAGE_HEADER_SIZE + submessage_header.submessage_length as usize;
     }
 
-    Ok(submessage_vector)
+    Ok( RtpsMessage {
+        guid_prefix: message_header.guid_prefix,
+        submessages: submessage_vector,})
 }
 
 
@@ -301,7 +313,8 @@ mod tests{
 
         let parse_result = parse_rtps_message(&serialized).unwrap();
         
-        assert_eq!(parse_result, vec!());
+        assert_eq!(parse_result.guid_prefix,  [10,11,12,13,14,15,16,17,18,19,20,21]);
+        assert_eq!(parse_result.submessages, vec!());
     }
 
     #[test]
@@ -456,14 +469,16 @@ mod tests{
             0x01, 0x00, 0x00, 0x00];
 
         let parse_result = parse_rtps_message(&rtps_message_info_ts_and_data).unwrap();
-        assert_eq!(parse_result.len(),2);
-        if let SubMessageType::InfoTsSubmessage(ts_message) = &parse_result[0] {
+
+        assert_eq!(parse_result.guid_prefix, [0x7f, 0x20, 0xf7, 0xd7, 0x00, 0x00, 0x01, 0xbb, 0x00, 0x00, 0x00, 0x01,]);
+        assert_eq!(parse_result.submessages.len(),2);
+        if let SubMessageType::InfoTsSubmessage(ts_message) = &parse_result.submessages[0] {
             assert_eq!(*ts_message.timestamp(), Some(TimeT{seconds: 1572635038, fraction: 642309783,}));
         } else {
             assert!(false);
         }
         
-        if let SubMessageType::DataSubmessage(data_message) = &parse_result[1] {
+        if let SubMessageType::DataSubmessage(data_message) = &parse_result.submessages[1] {
             assert_eq!(*data_message.reader_id(), EntityId::new(&[0,0,0], &0));
             assert_eq!(*data_message.writer_id(), EntityId::new(&[0,1,0], &0xc2)); //ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER = {{00,01,00},c2}
             assert_eq!(*data_message.writer_sn(), 1);
