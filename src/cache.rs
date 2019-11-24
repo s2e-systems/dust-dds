@@ -1,9 +1,10 @@
 use std::cmp::Ordering;
-use std::sync::Mutex;
+use std::sync::{RwLock,Mutex};
+use std::collections::HashMap;
 
 use crate::types::{GUID,SequenceNumber,ParameterList,InstanceHandle};
 
-#[derive(Eq)]
+#[derive(Eq, Default)]
 #[allow(dead_code)]
 pub struct CacheChange {
     // kind: ChangeKind,
@@ -12,6 +13,18 @@ pub struct CacheChange {
     sequence_number: SequenceNumber,
     data: Option<Vec<u8>>,
     inline_qos: ParameterList,
+}
+
+impl CacheChange {
+    pub fn new(writer_guid: GUID, instance_handle: InstanceHandle, sequence_number: SequenceNumber, data: Option<Vec<u8>>, inline_qos: ParameterList) -> CacheChange {
+        CacheChange {
+            writer_guid,
+            instance_handle,
+            sequence_number,
+            data,
+            inline_qos,
+        }
+    }
 }
 
 impl PartialEq for CacheChange {
@@ -36,32 +49,72 @@ impl PartialOrd for CacheChange {
 }
 
 pub struct HistoryCache {
-    changes: Mutex<Vec<CacheChange>>,
+    changes: RwLock<HashMap<InstanceHandle, Mutex<Vec<CacheChange>>>>,
 }
 
 impl HistoryCache {
     pub fn new() -> HistoryCache {
         HistoryCache {
-            changes: Mutex::new(Vec::new())
+            changes: RwLock::new(HashMap::with_capacity(1))
         }
     }
 
-    fn add_change(&self, change: CacheChange) {
-        self.changes.lock().unwrap().push(change);
-    }
-    
-    fn remove_change(&self) {
+    pub fn add_change(&self, change: CacheChange) -> Result<(),()>{
+        // If key doesn't exist then create a new entry for it
+        if !self.has_key(&change.instance_handle) {
+            let mut map_write_lock = self.changes.write().unwrap();
+            map_write_lock.insert(change.instance_handle, Mutex::new(Vec::new()));
+        }
 
+        self.changes.read().unwrap()[&change.instance_handle].lock().unwrap().push(change);
+
+        Ok(())
     }
     
-    fn get_change(&self) {
+    pub fn remove_change(&self, key: &InstanceHandle, sequence_number: &SequenceNumber) {
+        unimplemented!()
+    }
+    
+    pub fn get_change(&self, key: &InstanceHandle, sequence_number: &SequenceNumber) {
+        unimplemented!()
+    }
+
+    pub fn get_seq_num_min(&self, key: &InstanceHandle) -> Option<SequenceNumber>{
+        Some(self.changes.read().unwrap()[key].lock().unwrap().iter().max()?.sequence_number.clone())
+    }
+
+    pub fn get_seq_num_max(&self, key: &InstanceHandle) -> Option<SequenceNumber>{
+        Some(self.changes.read().unwrap()[key].lock().unwrap().iter().min()?.sequence_number.clone())
+    }
+
+    fn has_key(&self, key: &InstanceHandle) -> bool{
+        self.changes.read().unwrap().contains_key(key)
+    }
+}
+
+#[cfg(test)]
+mod tests{
+    use super::*;
+
+    #[test]
+    fn test_create_history_cache() {
+        let empty_history_cache = HistoryCache::new();
+
+        assert!(empty_history_cache.changes.read().unwrap().is_empty());
+    }
+
+    #[test]
+    fn test_add_cache_change() {
+        let history_cache = HistoryCache::new();
+        assert_eq!(history_cache.changes.read().unwrap().len(), 0);
+
+        let cache_change = CacheChange::default();
+
+        history_cache.add_change(cache_change).unwrap();
+
+        assert_eq!(history_cache.changes.read().unwrap().len(), 1);
         
     }
 
-    fn get_seq_num_min(&self) -> Option<SequenceNumber>{
-        Some(self.changes.lock().unwrap().iter().max()?.sequence_number.clone())
-    }
-    fn get_seq_num_max(&self) -> Option<SequenceNumber>{
-        Some(self.changes.lock().unwrap().iter().min()?.sequence_number.clone())
-    }
+
 }
