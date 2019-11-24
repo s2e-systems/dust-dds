@@ -492,29 +492,4 @@ mod tests{
             assert!(false);
         }
     }
-
-    // #[test]
-    // fn serialize_info_timestamp() {
-    //     let ts_submessage = Submessage::<InfoTsSubmessage> {
-    //         header: SubmessageHeader{
-    //             submessage_id: 0x09,
-    //             flags: 0x01,
-    //             submessage_length: 8,
-    //         },
-    //         submessage: InfoTsSubmessage {
-    //             timestamp: TimeT{
-    //                 seconds: 100000,
-    //                 fraction: 500,
-    //             },
-    //         }
-    //     };
-
-    //     let serialized = cdr::ser::serialize_data::<_, _, BigEndian>(&ts_submessage, Infinite).unwrap();
-
-    //     let serialized_message = [9, 1, 0, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 134, 160];
-
-    //     let timemsg = parse_info_ts_submessage(&serialized_message);
-
-    //     println!("{:?}", timemsg);
-    // }
 }

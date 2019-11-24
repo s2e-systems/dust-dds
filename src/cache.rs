@@ -3,26 +3,18 @@ use std::sync::Mutex;
 
 use crate::types::{GUID,SequenceNumber,ParameterList,InstanceHandle};
 
-trait HistoryCache<D> {
-    fn add_change(&self, change: CacheChange<D>);
-    fn remove_change(&self);
-    fn get_change(&self);
-    fn get_seq_num_min(&self) -> Option<SequenceNumber>;
-    fn get_seq_num_max(&self) -> Option<SequenceNumber>;
-}
-
 #[derive(Eq)]
 #[allow(dead_code)]
-pub struct CacheChange<D> {
+pub struct CacheChange {
     // kind: ChangeKind,
     writer_guid: GUID,
     instance_handle: InstanceHandle,
     sequence_number: SequenceNumber,
+    data: Option<Vec<u8>>,
     inline_qos: ParameterList,
-    data: Option<D>,
 }
 
-impl<D> PartialEq for CacheChange<D> {
+impl PartialEq for CacheChange {
     fn eq(&self, other: &Self) -> bool {
         self.writer_guid == other.writer_guid &&
         self.instance_handle == other.instance_handle &&
@@ -30,36 +22,31 @@ impl<D> PartialEq for CacheChange<D> {
     }
 }
 
-impl<D> Ord for CacheChange<D>  
-    where D: Eq
+impl Ord for CacheChange
 {
     fn cmp(&self, other: &Self) -> Ordering {
         self.sequence_number.cmp(&other.sequence_number)
     }
 }
 
-impl<D> PartialOrd for CacheChange<D> {
+impl PartialOrd for CacheChange {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.sequence_number.cmp(&other.sequence_number))
     }
 }
 
-pub struct Cache<D> {
-    changes: Mutex<Vec<CacheChange<D>>>,
+pub struct HistoryCache {
+    changes: Mutex<Vec<CacheChange>>,
 }
 
-impl<D> Cache<D> {
-    pub fn new() -> Cache<D> {
-        Cache::<D> {
+impl HistoryCache {
+    pub fn new() -> HistoryCache {
+        HistoryCache {
             changes: Mutex::new(Vec::new())
         }
     }
-}
 
-impl<D> HistoryCache<D> for Cache<D>
-   where D: Eq 
-{
-    fn add_change(&self, change: CacheChange<D>) {
+    fn add_change(&self, change: CacheChange) {
         self.changes.lock().unwrap().push(change);
     }
     

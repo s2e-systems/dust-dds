@@ -1,6 +1,6 @@
 use std::time::Duration;
 use crate::types::{GUID, TopicKind, ReliabilityLevel, EntityId};
-use crate::cache::Cache;
+use crate::cache::HistoryCache;
 use crate::Udpv4Locator;
 
 trait Entity {
@@ -32,30 +32,30 @@ impl Default for RTPSEndpoint{
     }
 }
 
-pub struct RTPSReader<D>{
+pub struct RTPSReader{
     rtps_entity: RTPSEntity,
     rtps_endpoint: RTPSEndpoint,
     expects_inline_qos: bool,
     heartbeat_response_delay: Duration,
     heartbeat_suppresion_duration: Duration,
-    reader_cache: Cache<D>
+    reader_cache: HistoryCache
 }
 
-impl<D> Entity for RTPSReader<D> {
+impl Entity for RTPSReader {
     fn get_guid(&self) -> &GUID {
         &self.rtps_entity.guid
     }
 }
 
-impl<D> RTPSReader<D> {
-    pub fn new() -> RTPSReader<D> {
-        RTPSReader::<D> {
+impl RTPSReader {
+    pub fn new() -> RTPSReader {
+        RTPSReader {
             rtps_entity: RTPSEntity::default(),
             rtps_endpoint: RTPSEndpoint::default(),
             expects_inline_qos: false,
             heartbeat_response_delay: Duration::new(0,0),
             heartbeat_suppresion_duration: Duration::new(0,0),
-            reader_cache: Cache::new(),
+            reader_cache: HistoryCache::new(),
         }
     }
 }
