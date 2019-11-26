@@ -1,4 +1,4 @@
-use crate::types::TimeT;
+use crate::types::Time;
 
 use super::helpers::{deserialize, endianess};
 
@@ -6,11 +6,11 @@ use super::{Result, ErrorMessage};
 
 #[derive(PartialEq, Debug)]
 pub struct InfoTs {
-    timestamp: Option<TimeT>, 
+    timestamp: Option<Time>, 
 }
 
 impl InfoTs {
-    pub fn timestamp(&self) -> &Option<TimeT> {
+    pub fn timestamp(&self) -> &Option<Time> {
         &self.timestamp
     } 
 }
@@ -29,7 +29,7 @@ pub fn parse_info_timestamp_submessage(submessage: &[u8], submessage_flags: &u8)
         None
     }
     else {
-        Some(deserialize::<TimeT>(submessage, &MESSAGE_PAYLOAD_FIRST_INDEX, &MESSAGE_PAYLOAD_LAST_INDEX, &submessage_endianess)?)
+        Some(deserialize::<Time>(submessage, &MESSAGE_PAYLOAD_FIRST_INDEX, &MESSAGE_PAYLOAD_LAST_INDEX, &submessage_endianess)?)
     };
 
     Ok(InfoTs{timestamp: timestamp})
@@ -48,7 +48,7 @@ mod tests{
         // Unix time: 1565525425=>0x5D5005B1
         // Is equivalent to: 08/11/2019 @ 12:10pm (UTC)
         // Seconds fraction: 0x10112243 => 269558339 => 0.0628
-        const TEST_TIME : TimeT = TimeT {
+        const TEST_TIME : Time = Time {
             seconds: 1565525425,
             fraction: 269558339,
         };

@@ -212,7 +212,27 @@ pub enum SubMessageType {
 
 pub struct RtpsMessage {
     guid_prefix: GuidPrefix,
+    vendor_id: VendorId,
+    protocol_version: ProtocolVersion,
     submessages: Vec<SubMessageType>,
+}
+
+impl RtpsMessage {
+    pub fn guid_prefix(&self) -> &GuidPrefix {
+        &self.guid_prefix
+    }
+
+    pub fn vendor_id(&self) -> &VendorId {
+        &self.vendor_id
+    }
+
+    pub fn protocol_version(&self) -> &ProtocolVersion {
+        &self.protocol_version
+    }
+
+    pub fn submessages(self) -> Vec<SubMessageType> {
+        self.submessages
+    }
 }
 
 pub fn parse_rtps_message(message : &[u8]) -> Result< RtpsMessage >{
@@ -291,6 +311,8 @@ pub fn parse_rtps_message(message : &[u8]) -> Result< RtpsMessage >{
 
     Ok( RtpsMessage {
         guid_prefix: message_header.guid_prefix,
+        vendor_id: message_header.vendor_id,
+        protocol_version: message_header.protocol_version,
         submessages: submessage_vector,})
 }
 
@@ -473,7 +495,7 @@ mod tests{
         assert_eq!(parse_result.guid_prefix, [0x7f, 0x20, 0xf7, 0xd7, 0x00, 0x00, 0x01, 0xbb, 0x00, 0x00, 0x00, 0x01,]);
         assert_eq!(parse_result.submessages.len(),2);
         if let SubMessageType::InfoTsSubmessage(ts_message) = &parse_result.submessages[0] {
-            assert_eq!(*ts_message.timestamp(), Some(TimeT{seconds: 1572635038, fraction: 642309783,}));
+            assert_eq!(*ts_message.timestamp(), Some(Time{seconds: 1572635038, fraction: 642309783,}));
         } else {
             assert!(false);
         }
