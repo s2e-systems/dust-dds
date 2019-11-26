@@ -2,7 +2,7 @@ use std::cmp::Ordering;
 use std::sync::{RwLock,Mutex};
 use std::collections::{HashMap,VecDeque};
 
-use crate::types::{GUID,SequenceNumber, ParameterList,InstanceHandle, Time, EntityId, Parameter, ProtocolVersion};
+use crate::types::{GUID,SequenceNumber, ParameterList, InstanceHandle, Time, EntityId, Parameter, ProtocolVersion};
 use crate::types::{ENTITYID_UNKNOWN, ENTITY_KIND_WRITER_WITH_KEY};
 use crate::parser::{RtpsMessage, SubMessageType, InfoTs, Data, Payload};
 

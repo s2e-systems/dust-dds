@@ -2,13 +2,8 @@
 #![allow(unused_variables)]
 #![allow(unused_imports)]
 
-use std::net::UdpSocket;
-use std::net::Ipv4Addr;
+
 use std::time::Duration;
-use std::str::FromStr;
-// use std::net::AddrParseError;
-use std::net::SocketAddr;
-// use std::net::SocketAddrV4;
 
 extern crate serde;
 extern crate serde_derive;
@@ -20,6 +15,7 @@ pub mod parser;
 mod cache;
 mod entity;
 mod guid;
+mod endpoint;
 
 use types::EntityId;
 
@@ -83,28 +79,7 @@ impl Locator for Udpv4Locator{ }
 //             sockets: sockets,}
 //     }
 
-//     pub fn read_data(&self) -> () {
-//         let mut buf = [0;512];
-
-//         for i in &self.sockets {
-//             i.recv_from(&mut buf).unwrap();
-//             println!("Received {:?}", &buf[0 .. 30]);
-//         }
-//     }
+//     
 // }
 
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
 
-//     #[test]
-//     fn it_works() {
-//         let discovery_locator = Udpv4Locator::new_udpv4(&[239,255,0,1],&7400);
-//         let reader = RTPSReader::new(vec!(discovery_locator));
-//         for _i in 1..=120 {
-//             println!("Reading data");
-//             reader.read_data();
-//         }
-//         assert_eq!(2 + 2, 4);
-//     }
-// }
