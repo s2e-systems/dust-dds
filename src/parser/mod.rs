@@ -86,20 +86,6 @@ enum SubmessageKind {
     DataFrag = 0x16,
 }
 
-// enum ProtocolVersionT {
-//     PROTOCOLVERSION_1_0,
-//     PROTOCOLVERSION_1_1,
-//     PROTOCOLVERSION_2_0,
-//     PROTOCOLVERSION_2_1,
-//     PROTOCOLVERSION_2_2,
-//     PROTOCOLVERSION_2_3,
-//     PROTOCOLVERSION_2_4,
-// }
-
-// TIME_ZERO: seconds = 0, fraction = 0
-// TIME_INVALID: seconds = 0xffffffff, fraction = 0xffffffff
-// TIME_INFINITE: seconds = 0xffffffff, fraction = 0xfffffffe
-
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 struct SubmessageHeader {
     submessage_id: u8,
@@ -300,7 +286,12 @@ pub fn parse_rtps_message(message : &[u8]) -> Result<RtpsMessage>{
         let submessage_header = deserialize::<SubmessageHeader>(message, &submessage_header_first_index, &submessage_header_last_index, &submessage_endianess)?;
 
         let submessage_payload_first_index = submessage_header_last_index + 1;
-        let submessage_payload_last_index = submessage_payload_first_index + submessage_header.submessage_length as usize - 1;
+        let submessage_payload_last_index = if submessage_header.submessage_length == 0 {
+            message.len() - 1
+        } else {
+            submessage_payload_first_index + submessage_header.submessage_length as usize - 1
+        };
+
         if submessage_payload_last_index >= message.len() {
             return Err(ErrorMessage::MessageTooSmall); // TODO: Replace error by invalid message
         }
@@ -324,7 +315,7 @@ pub fn parse_rtps_message(message : &[u8]) -> Result<RtpsMessage>{
         
         submessage_vector.push_back(submessage);
 
-        submessage_first_index = submessage_first_index + RTPS_SUBMESSAGE_HEADER_SIZE + submessage_header.submessage_length as usize;
+        submessage_first_index = submessage_payload_last_index + 1;
     }
 
     Ok( RtpsMessage {
