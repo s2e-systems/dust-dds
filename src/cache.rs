@@ -59,7 +59,7 @@ impl HistoryCache {
         }
     }
 
-    pub fn add_change(&self, change: CacheChange) -> Result<(),()>{
+    pub fn add_change(&self, change: CacheChange) -> Result<(),()> {
         // If key doesn't exist then create a new entry for it
         if !self.has_key(&change.instance_handle) {
             let mut map_write_lock = self.changes.write().unwrap();
@@ -72,11 +72,22 @@ impl HistoryCache {
     }
     
     pub fn remove_change(&self, key: &InstanceHandle, sequence_number: &SequenceNumber) {
-        unimplemented!()
+        if self.has_key(&key) {
+            let map_read_lock = &self.changes.read().unwrap()[key];
+            let mut vector_lock = map_read_lock.lock().unwrap();
+            vector_lock.retain(|x| x.sequence_number != *sequence_number);
+        }
     }
     
     pub fn get_change(&self, key: &InstanceHandle, sequence_number: &SequenceNumber) {
         unimplemented!()
+    }
+
+    pub fn remove_instance(&self, key: &InstanceHandle) {
+        if self.has_key(&key) {
+            let mut map_write_lock = self.changes.write().unwrap();
+            map_write_lock.remove(key);
+        }
     }
 
     pub fn get_seq_num_min(&self, key: &InstanceHandle) -> Option<SequenceNumber>{
@@ -104,17 +115,37 @@ mod tests{
     }
 
     #[test]
-    fn test_add_cache_change() {
+    fn test_add_and_remove_cache_change() {
         let history_cache = HistoryCache::new();
         assert_eq!(history_cache.changes.read().unwrap().len(), 0);
 
-        let cache_change = CacheChange::default();
+        let mut cache_change_sn1 = CacheChange::default();
+        cache_change_sn1.instance_handle = [1;16];
+        cache_change_sn1.sequence_number = 1;
 
-        history_cache.add_change(cache_change).unwrap();
+        history_cache.add_change(cache_change_sn1).unwrap();
 
         assert_eq!(history_cache.changes.read().unwrap().len(), 1);
-        
+        assert_eq!(history_cache.changes.read().unwrap()[&[1;16]].lock().unwrap().len(), 1);
+        assert_eq!(history_cache.changes.read().unwrap()[&[1;16]].lock().unwrap()[0].sequence_number, 1);
+
+        let mut cache_change_sn2 = CacheChange::default();
+        cache_change_sn2.instance_handle = [1;16];
+        cache_change_sn2.sequence_number = 2;
+
+        history_cache.add_change(cache_change_sn2).unwrap();
+        assert_eq!(history_cache.changes.read().unwrap().len(), 1);
+        assert_eq!(history_cache.changes.read().unwrap()[&[1;16]].lock().unwrap().len(), 2);
+        assert_eq!(history_cache.changes.read().unwrap()[&[1;16]].lock().unwrap()[0].sequence_number, 1);
+        assert_eq!(history_cache.changes.read().unwrap()[&[1;16]].lock().unwrap()[1].sequence_number, 2);
+
+        history_cache.remove_change(&[1;16], &1);
+        assert_eq!(history_cache.changes.read().unwrap().len(), 1);
+        assert_eq!(history_cache.changes.read().unwrap()[&[1;16]].lock().unwrap().len(), 1);
+        assert_eq!(history_cache.changes.read().unwrap()[&[1;16]].lock().unwrap()[0].sequence_number, 2);
+
+        history_cache.remove_instance(&[1;16]);
+
+        assert_eq!(history_cache.changes.read().unwrap().len(), 0);
     }
-
-
 }
