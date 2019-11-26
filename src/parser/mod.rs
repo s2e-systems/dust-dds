@@ -12,6 +12,7 @@ mod info_source_submessage;
 mod info_timestamp_submessage;
 mod nack_frag_submessage;
 
+use std::collections::VecDeque;
 use num_derive::FromPrimitive;
 use serde_derive::{Deserialize, Serialize};
 
@@ -214,28 +215,45 @@ pub struct RtpsMessage {
     guid_prefix: GuidPrefix,
     vendor_id: VendorId,
     protocol_version: ProtocolVersion,
-    submessages: Vec<SubMessageType>,
+    submessages: VecDeque<SubMessageType>,
 }
 
 impl RtpsMessage {
-    pub fn guid_prefix(&self) -> &GuidPrefix {
+    pub fn new(guid_prefix: GuidPrefix, vendor_id: VendorId, protocol_version: ProtocolVersion) -> RtpsMessage {
+        RtpsMessage {
+            guid_prefix,
+            vendor_id,
+            protocol_version,
+            submessages: VecDeque::new(),
+        }
+    }
+
+    pub fn add_submessage(&mut self, submessage: SubMessageType) {
+        self.submessages.push_back(submessage);
+    }
+
+    pub fn get_guid_prefix(&self) -> &GuidPrefix {
         &self.guid_prefix
     }
 
-    pub fn vendor_id(&self) -> &VendorId {
+    pub fn get_vendor_id(&self) -> &VendorId {
         &self.vendor_id
     }
 
-    pub fn protocol_version(&self) -> &ProtocolVersion {
+    pub fn get_protocol_version(&self) -> &ProtocolVersion {
         &self.protocol_version
     }
 
-    pub fn submessages(self) -> Vec<SubMessageType> {
-        self.submessages
+    pub fn get_submessages(&mut self) -> &mut VecDeque<SubMessageType> {
+        &mut self.submessages
+    }
+
+    pub fn take(self) -> (GuidPrefix, VendorId, ProtocolVersion, VecDeque<SubMessageType>) {
+        (self.guid_prefix, self.vendor_id, self.protocol_version, self.submessages)
     }
 }
 
-pub fn parse_rtps_message(message : &[u8]) -> Result< RtpsMessage >{
+pub fn parse_rtps_message(message : &[u8]) -> Result<RtpsMessage>{
     const MESSAGE_HEADER_FIRST_INDEX: usize = 0;
     const MESSAGE_HEADER_LAST_INDEX: usize = 19;
     const PROTOCOL_VERSION_FIRST_INDEX : usize = 4;
@@ -263,7 +281,7 @@ pub fn parse_rtps_message(message : &[u8]) -> Result< RtpsMessage >{
 
     const RTPS_SUBMESSAGE_HEADER_SIZE: usize = 4;
 
-    let mut submessage_vector = Vec::with_capacity(4);
+    let mut submessage_vector = VecDeque::with_capacity(4);
 
     let mut submessage_first_index = MINIMUM_RTPS_MESSAGE_SIZE;
     while submessage_first_index < message.len() {
@@ -304,7 +322,7 @@ pub fn parse_rtps_message(message : &[u8]) -> Result< RtpsMessage >{
             SubmessageKind::InfoReplyIP4 => unimplemented!(),
         };
         
-        submessage_vector.push(submessage);
+        submessage_vector.push_back(submessage);
 
         submessage_first_index = submessage_first_index + RTPS_SUBMESSAGE_HEADER_SIZE + submessage_header.submessage_length as usize;
     }
@@ -495,14 +513,14 @@ mod tests{
         assert_eq!(parse_result.guid_prefix, [0x7f, 0x20, 0xf7, 0xd7, 0x00, 0x00, 0x01, 0xbb, 0x00, 0x00, 0x00, 0x01,]);
         assert_eq!(parse_result.submessages.len(),2);
         if let SubMessageType::InfoTsSubmessage(ts_message) = &parse_result.submessages[0] {
-            assert_eq!(*ts_message.timestamp(), Some(Time{seconds: 1572635038, fraction: 642309783,}));
+            assert_eq!(*ts_message.get_timestamp(), Some(Time{seconds: 1572635038, fraction: 642309783,}));
         } else {
             assert!(false);
         }
         
         if let SubMessageType::DataSubmessage(data_message) = &parse_result.submessages[1] {
-            assert_eq!(*data_message.reader_id(), EntityId::new(&[0,0,0], &0));
-            assert_eq!(*data_message.writer_id(), EntityId::new(&[0,1,0], &0xc2)); //ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER = {{00,01,00},c2}
+            assert_eq!(*data_message.reader_id(), EntityId::new([0,0,0], 0));
+            assert_eq!(*data_message.writer_id(), EntityId::new([0,1,0], 0xc2)); //ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER = {{00,01,00},c2}
             assert_eq!(*data_message.writer_sn(), 1);
             assert_eq!(*data_message.inline_qos(), Some(vec!(Parameter{
                 parameter_id: 112,

@@ -9,10 +9,10 @@ pub struct EntityId {
 }
 
 impl EntityId{
-    pub fn new(entity_key: &[u8;3], entity_kind: &u8) -> EntityId {
+    pub fn new(entity_key: [u8;3], entity_kind: u8) -> EntityId {
         EntityId {
-            entity_key: *entity_key,
-            entity_kind: *entity_kind,
+            entity_key,
+            entity_kind,
         }
     }
 }
@@ -113,7 +113,7 @@ pub struct Parameter {
     pub value: Vec<u8>,
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Copy)]
 pub struct ProtocolVersion {
     pub major: u8,
     pub minor: u8,
@@ -133,7 +133,7 @@ pub struct GUID {
 }
 
 impl GUID {
-    fn new(prefix: GuidPrefix, entity_id: EntityId) -> GUID {
+    pub fn new(prefix: GuidPrefix, entity_id: EntityId) -> GUID {
         GUID {
             prefix,
             entity_id,

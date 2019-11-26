@@ -10,9 +10,19 @@ pub struct InfoTs {
 }
 
 impl InfoTs {
-    pub fn timestamp(&self) -> &Option<Time> {
+    pub fn new(timestamp: Option<Time>) -> InfoTs {
+        InfoTs {
+            timestamp,
+        }
+    }
+
+    pub fn get_timestamp(&self) -> &Option<Time> {
         &self.timestamp
-    } 
+    }
+
+    pub fn take(self) -> Option<Time> {
+        self.timestamp
+    }
 }
 
 pub fn parse_info_timestamp_submessage(submessage: &[u8], submessage_flags: &u8) -> Result<InfoTs> {

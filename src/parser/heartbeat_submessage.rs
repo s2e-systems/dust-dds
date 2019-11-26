@@ -84,8 +84,8 @@ mod tests{
                 ];
 
             let heartbeat_big_endian = parse_heartbeat_submessage(&submessage_big_endian, &0).unwrap(); 
-            assert_eq!(heartbeat_big_endian.reader_id, EntityId::new(&[0x10,0x12,0x14], &0x16));
-            assert_eq!(heartbeat_big_endian.writer_id, EntityId::new(&[0x26,0x24,0x22], &0x20));
+            assert_eq!(heartbeat_big_endian.reader_id, EntityId::new([0x10,0x12,0x14], 0x16));
+            assert_eq!(heartbeat_big_endian.writer_id, EntityId::new([0x26,0x24,0x22], 0x20));
             assert_eq!(heartbeat_big_endian.first_sn, 1233);
             assert_eq!(heartbeat_big_endian.last_sn, 1237);
             assert_eq!(heartbeat_big_endian.count,8);
@@ -105,8 +105,8 @@ mod tests{
                 ];
 
             let heartbeat_little_endian = parse_heartbeat_submessage(&submessage_little_endian, &7).unwrap(); 
-            assert_eq!(heartbeat_little_endian.reader_id, EntityId::new(&[0x10,0x12,0x14],&0x16));
-            assert_eq!(heartbeat_little_endian.writer_id, EntityId::new(&[0x26,0x24,0x22],&0x20));
+            assert_eq!(heartbeat_little_endian.reader_id, EntityId::new([0x10,0x12,0x14],0x16));
+            assert_eq!(heartbeat_little_endian.writer_id, EntityId::new([0x26,0x24,0x22],0x20));
             assert_eq!(heartbeat_little_endian.first_sn, 1233);
             assert_eq!(heartbeat_little_endian.last_sn, 1237);
             assert_eq!(heartbeat_little_endian.count,8);
@@ -127,8 +127,8 @@ mod tests{
                 ];
 
             let heartbeat_big_endian = parse_heartbeat_submessage(&submessage_big_endian, &2).unwrap(); 
-            assert_eq!(heartbeat_big_endian.reader_id, EntityId::new(&[0x10,0x12,0x14],&0x16));
-            assert_eq!(heartbeat_big_endian.writer_id, EntityId::new(&[0x26,0x24,0x22],&0x20));
+            assert_eq!(heartbeat_big_endian.reader_id, EntityId::new([0x10,0x12,0x14],0x16));
+            assert_eq!(heartbeat_big_endian.writer_id, EntityId::new([0x26,0x24,0x22],0x20));
             assert_eq!(heartbeat_big_endian.first_sn, 1);
             assert_eq!(heartbeat_big_endian.last_sn, 0);
             assert_eq!(heartbeat_big_endian.count,8);

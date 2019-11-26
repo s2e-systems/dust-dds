@@ -26,8 +26,7 @@ pub trait RTPSDeserializer {
     fn deserialize_data(serialized_data: Vec<u8>) -> Self;
 }
 
-pub struct RTPSReader<'a, D> where
-  D: RTPSDeserializer {
+pub struct RTPSReader {
     rtps_endpoint: Vec<RTPSEndpoint>,
     guid: GUID,
     topic_kind: TopicKind,
@@ -36,21 +35,18 @@ pub struct RTPSReader<'a, D> where
     heartbeat_response_delay: Duration,
     heartbeat_suppresion_duration: Duration,
     reader_cache: HistoryCache,
-    phantom: PhantomData<&'a D>,
 }
 
-impl<D> Entity for RTPSReader<'_, D> where
-    D: RTPSDeserializer {
+impl Entity for RTPSReader{
 
     fn get_guid(&self) -> &GUID {
         &self.guid
     }
 }
 
-impl<'a, D> RTPSReader<'a, D> where
-    D: RTPSDeserializer {
+impl RTPSReader{
 
-    pub fn new(guid: GUID, reliability_level: ReliabilityKind, topic_kind: TopicKind) -> RTPSReader<'a, D> {
+    pub fn new(guid: GUID, reliability_level: ReliabilityKind, topic_kind: TopicKind) -> RTPSReader {
         RTPSReader{
             guid,
             reliability_level,
@@ -60,31 +56,10 @@ impl<'a, D> RTPSReader<'a, D> where
             heartbeat_response_delay: Duration::new(0,0),
             heartbeat_suppresion_duration: Duration::new(0,0),
             reader_cache: HistoryCache::new(),
-            phantom: PhantomData,
         }
     }
 
     fn add_endpoint(&mut self, endpoint: RTPSEndpoint) {
         self.rtps_endpoint.push(endpoint);
-    }
-
-    fn process_message(&mut self, message: RtpsMessage) {
-        let source_guid_prefix = message.guid_prefix(); 
-        let source_version = message.protocol_version();
-        let source_vendor_id = message.vendor_id();
-
-        for submessage in message.submessages() {
-            if let SubMessageType::InfoTsSubmessage(info_ts) = submessage {
-                println!("Got info timestamp: {:?}", info_ts.timestamp() );
-            } else if let SubMessageType::DataSubmessage(data) = submessage {
-                println!("Got data submessage");
-            } else {
-                println!("Unsupported message received");
-            }
-        }
-    }
-
-    pub fn get_data(&self) -> &D {
-        unimplemented!()
     }
 }
