@@ -1,6 +1,6 @@
-use crate::types::{EntityId, SequenceNumber, ParameterList};
+use crate::types::{EntityId, SequenceNumber, InlineQosParameterList};
 
-use super::helpers::{deserialize, endianess, parse_parameter_list, SequenceNumberSerialization};
+use super::helpers::{deserialize, endianess, parse_inline_qos_parameter_list, SequenceNumberSerialization};
 
 use super::{Result, ErrorMessage};
 
@@ -17,12 +17,12 @@ pub struct Data {
     reader_id: EntityId,
     writer_id: EntityId,
     writer_sn: SequenceNumber,
-    inline_qos: Option<ParameterList>,
+    inline_qos: Option<InlineQosParameterList>,
     serialized_payload: Payload,
 }
 
 impl Data {
-    pub fn new( reader_id: EntityId, writer_id: EntityId,  writer_sn: SequenceNumber, inline_qos: Option<ParameterList>, serialized_payload: Payload) -> Data {
+    pub fn new( reader_id: EntityId, writer_id: EntityId,  writer_sn: SequenceNumber, inline_qos: Option<InlineQosParameterList>, serialized_payload: Payload) -> Data {
         Data {
             reader_id,
             writer_id,
@@ -44,7 +44,7 @@ impl Data {
         &self.writer_sn
     }
 
-    pub fn inline_qos(&self) -> &Option<ParameterList> {
+    pub fn inline_qos(&self) -> &Option<InlineQosParameterList> {
         &self.inline_qos
     }
 
@@ -52,7 +52,7 @@ impl Data {
         &self.serialized_payload
     }
 
-    pub fn take(self) -> (EntityId, EntityId, SequenceNumber, Option<ParameterList>, Payload) {
+    pub fn take(self) -> (EntityId, EntityId, SequenceNumber, Option<InlineQosParameterList>, Payload) {
         (self.reader_id, self.writer_id, self.writer_sn, self.inline_qos, self.serialized_payload)
     }
 }
@@ -106,7 +106,7 @@ pub fn parse_data_submessage(submessage: &[u8], submessage_flags: &u8) -> Result
     let (inline_qos, octets_to_data) =
         if inline_qos_flag == true {
             let inline_qos_first_index = OCTETS_TO_INLINE_QOS_LAST_INDEX + octecs_to_inline_qos + 1;
-            let (parameter_list, parameter_list_size) = parse_parameter_list(submessage, &inline_qos_first_index, &submessage_endianess)?;
+            let (parameter_list, parameter_list_size) = parse_inline_qos_parameter_list(submessage, &inline_qos_first_index, &submessage_endianess)?;
             let octets_to_data = octecs_to_inline_qos + parameter_list_size;
             (Some(parameter_list), octets_to_data)
         } else {
@@ -136,6 +136,7 @@ pub fn parse_data_submessage(submessage: &[u8], submessage_flags: &u8) -> Result
 #[cfg(test)]
 mod tests{
     use super::*;
+    use crate::parser::InlineQosParameter;
 
     #[test]
     fn test_parse_data_submessage() {
@@ -147,8 +148,11 @@ mod tests{
                 0x26, 0x24, 0x22, 0x20,
                 0x00, 0x00, 0x00, 0x00,
                 0x00, 0x00, 0x04, 0xD1,
-                0x00, 0x05, 0x00, 0x04,
+                0x00, 0x70, 0x00, 0x10,
                 0x01, 0x02, 0x03, 0x04,
+                0x05, 0x06, 0x07, 0x08,
+                0x09, 0x0A, 0x0B, 0x0C,
+                0x0D, 0x0E, 0x0F, 0x10,
                 0x00, 0x10, 0x00, 0x08,
                 0x10, 0x11, 0x12, 0x13,
                 0x14, 0x15, 0x16, 0x17,
@@ -174,11 +178,8 @@ mod tests{
                 assert_eq!(data.writer_sn, 1233);
                 assert_eq!(data.serialized_payload, Payload::None);
                 let inline_qos = data.inline_qos.unwrap();
-                assert_eq!(inline_qos.len(),2);
-                assert_eq!(inline_qos[0].parameter_id, 5);
-                assert_eq!(inline_qos[0].value, vec!(1,2,3,4));
-                assert_eq!(inline_qos[1].parameter_id, 16);
-                assert_eq!(inline_qos[1].value, vec!(16,17,18,19,20,21,22,23));
+                assert_eq!(inline_qos.len(),1);
+                assert_eq!(inline_qos[0], InlineQosParameter::KeyHash([0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10,]));
             }
 
             {
@@ -188,11 +189,8 @@ mod tests{
                 assert_eq!(data.writer_id, EntityId::new([0x26,0x24,0x22],0x20));
                 assert_eq!(data.writer_sn, 1233);
                 let inline_qos = data.inline_qos.unwrap();
-                assert_eq!(inline_qos.len(),2);
-                assert_eq!(inline_qos[0].parameter_id, 5);
-                assert_eq!(inline_qos[0].value, vec!(1,2,3,4));
-                assert_eq!(inline_qos[1].parameter_id, 16);
-                assert_eq!(inline_qos[1].value, vec!(16,17,18,19,20,21,22,23));
+                assert_eq!(inline_qos.len(),1);
+                assert_eq!(inline_qos[0], InlineQosParameter::KeyHash([0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10,]));
                 if let Payload::Data(serialized_data) = data.serialized_payload {
                     assert_eq!(serialized_data, vec!(0x20, 0x30, 0x40, 0x50,));
 
@@ -208,11 +206,8 @@ mod tests{
                 assert_eq!(data.writer_id, EntityId::new([0x26,0x24,0x22],0x20));
                 assert_eq!(data.writer_sn, 1233);
                 let inline_qos = data.inline_qos.unwrap();
-                assert_eq!(inline_qos.len(),2);
-                assert_eq!(inline_qos[0].parameter_id, 5);
-                assert_eq!(inline_qos[0].value, vec!(1,2,3,4));
-                assert_eq!(inline_qos[1].parameter_id, 16);
-                assert_eq!(inline_qos[1].value, vec!(16,17,18,19,20,21,22,23));
+                assert_eq!(inline_qos.len(),1);
+                assert_eq!(inline_qos[0], InlineQosParameter::KeyHash([0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10,]));
                 if let Payload::Key(serialized_data) = data.serialized_payload {
                     assert_eq!(serialized_data, vec!(0x20, 0x30, 0x40, 0x50,));
 
@@ -230,13 +225,16 @@ mod tests{
                 assert_eq!(data.inline_qos, None);
                 if let Payload::Key(serialized_data) = data.serialized_payload {
                     assert_eq!(serialized_data, vec!(
-                                0x00, 0x05, 0x00, 0x04,
-                                0x01, 0x02, 0x03, 0x04,
-                                0x00, 0x10, 0x00, 0x08,
-                                0x10, 0x11, 0x12, 0x13,
-                                0x14, 0x15, 0x16, 0x17,
-                                0x00, 0x01, 0x00, 0x00,
-                                0x20, 0x30, 0x40, 0x50,));
+                        0x00, 0x70, 0x00, 0x10,
+                        0x01, 0x02, 0x03, 0x04,
+                        0x05, 0x06, 0x07, 0x08,
+                        0x09, 0x0A, 0x0B, 0x0C,
+                        0x0D, 0x0E, 0x0F, 0x10,
+                        0x00, 0x10, 0x00, 0x08,
+                        0x10, 0x11, 0x12, 0x13,
+                        0x14, 0x15, 0x16, 0x17,
+                        0x00, 0x01, 0x00, 0x00,
+                        0x20, 0x30, 0x40, 0x50,));
                 } else {
                     assert!(false);
                 }

@@ -1,6 +1,6 @@
-use crate::types::{EntityId,SequenceNumber,FragmentNumber,ParameterList,};
+use crate::types::{EntityId,SequenceNumber,FragmentNumber,ParameterList,InlineQosParameterList};
 
-use super::helpers::{endianess, deserialize, SequenceNumberSerialization, parse_parameter_list};
+use super::helpers::{endianess, deserialize, SequenceNumberSerialization, parse_inline_qos_parameter_list};
 
 use super::{Result, Payload, ErrorMessage};
 
@@ -13,7 +13,7 @@ pub struct DataFrag {
     fragments_in_submessage: u16,
     fragment_size: u16,
     sample_size: u32,
-    inline_qos: Option<ParameterList>,
+    inline_qos: Option<InlineQosParameterList>,
     serialized_payload: Payload,
 }
 
@@ -75,7 +75,7 @@ pub fn parse_data_frag_submessage(submessage: &[u8], submessage_flags: &u8) -> R
     let (inline_qos, octets_to_data) =
         if inline_qos_flag == true {
             let inline_qos_first_index = OCTETS_TO_INLINE_QOS_LAST_INDEX + octecs_to_inline_qos + 1;
-            let (parameter_list, parameter_list_size) = parse_parameter_list(submessage, &inline_qos_first_index, &submessage_endianess)?;
+            let (parameter_list, parameter_list_size) = parse_inline_qos_parameter_list(submessage, &inline_qos_first_index, &submessage_endianess)?;
             let octets_to_data = octecs_to_inline_qos + parameter_list_size;
             (Some(parameter_list), octets_to_data)
         } else {

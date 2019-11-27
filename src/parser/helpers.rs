@@ -1,9 +1,11 @@
 use std::cmp;
 use num_derive::FromPrimitive;
 use serde_derive::{Deserialize, Serialize};
+use std::convert::TryInto;
 use cdr::{LittleEndian, BigEndian}; /*CdrLe, CdrBe, PlCdrLe, PlCdrBe, Error, Infinite,*/
           
-use crate::types::{FragmentNumber, FragmentNumberSet, SequenceNumber, SequenceNumberSet, Parameter, ParameterList};
+use crate::types::{FragmentNumber, FragmentNumberSet, SequenceNumber, SequenceNumberSet, Parameter, InlineQosParameterList};
+use crate::parser::{InlineQosParameter};
 
 use super::{ProtocolVersion, ErrorMessage, Result, InlineQosPid, RTPS_MINOR_VERSION};
 
@@ -99,7 +101,7 @@ pub fn parse_sequence_number_set(submessage: &[u8], sequence_number_set_first_in
     Ok( (sequence_number_set, SEQUENCE_NUMBER_TYPE_SIZE+NUM_BITS_TYPE_SIZE+BITMAP_FIELD_SIZE*num_bitmap_fields) )
 }
 
-pub fn parse_parameter_list(submessage: &[u8], parameter_list_first_index: &usize, endianess: &EndianessFlag) -> Result<(ParameterList, usize)>{
+pub fn parse_inline_qos_parameter_list(submessage: &[u8], parameter_list_first_index: &usize, endianess: &EndianessFlag) -> Result<(InlineQosParameterList, usize)>{
     const MINIMUM_PARAMETER_VALUE_LENGTH: usize = 4;
     const PARAMETER_ID_OFFSET: usize = 1;
     const LENGTH_FIRST_OFFSET: usize = 2;
@@ -135,8 +137,15 @@ pub fn parse_parameter_list(submessage: &[u8], parameter_list_first_index: &usiz
             return Err(ErrorMessage::InvalidSubmessage);
         }
 
-        let value = submessage[value_first_index..=value_last_index].to_vec();
-        parameter_list.push(Parameter{parameter_id, value,});
+        let value = match num::FromPrimitive::from_u16(parameter_id) {
+            Some(InlineQosPid::KeyHash) => Some(InlineQosParameter::KeyHash(submessage[value_first_index..=value_last_index].try_into().map_err(|_| ErrorMessage::InvalidSubmessageHeader)?)),
+            Some(InlineQosPid::StatusInfo) => Some(InlineQosParameter::StatusInfo(submessage[value_first_index..=value_last_index].try_into().map_err(|_| ErrorMessage::InvalidSubmessageHeader)?)),
+            _ => None,
+        };
+
+        if let Some(qos_parameter) = value {
+            parameter_list.push(qos_parameter);
+        }
 
         parameter_id_first_index = value_last_index + 1;
     }
@@ -372,43 +381,49 @@ mod tests{
     }
 
     #[test]
-    fn test_parse_parameter_list() {
+    fn test_parse_inline_qos_parameter_list() {
         {
             let submessage_big_endian = [
-                0x00, 0x05, 0x00, 0x04,
+                0x00, 0x70, 0x00, 0x10,
                 0x01, 0x02, 0x03, 0x04,
+                0x05, 0x06, 0x07, 0x08,
+                0x09, 0x0A, 0x0B, 0x0C,
+                0x0D, 0x0E, 0x0F, 0x10,
                 0x00, 0x10, 0x00, 0x08,
                 0x10, 0x11, 0x12, 0x13,
                 0x14, 0x15, 0x16, 0x17,
+                0x00, 0x71, 0x00, 0x04,
+                0x10, 0x20, 0x30, 0x40,
                 0x00, 0x01, 0x00, 0x00,
             ];
 
-            let (param_list_big_endian, param_list_size) = parse_parameter_list(&submessage_big_endian, &0, &EndianessFlag::BigEndian).unwrap();
-            assert_eq!(param_list_size, 24);
+            let (param_list_big_endian, param_list_size) = parse_inline_qos_parameter_list(&submessage_big_endian, &0, &EndianessFlag::BigEndian).unwrap();
+            assert_eq!(param_list_size, 44);
             assert_eq!(param_list_big_endian.len(), 2);
-            assert_eq!(param_list_big_endian[0].parameter_id, 5);
-            assert_eq!(param_list_big_endian[0].value, vec!(1,2,3,4));
-            assert_eq!(param_list_big_endian[1].parameter_id, 16);
-            assert_eq!(param_list_big_endian[1].value, vec!(16,17,18,19,20,21,22,23));
+            assert_eq!(param_list_big_endian[0], InlineQosParameter::KeyHash([ 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10,]));
+            assert_eq!(param_list_big_endian[1], InlineQosParameter::StatusInfo([0x10, 0x20, 0x30, 0x40,]));
         }
 
         {
             let submessage_little_endian = [
-                0x05, 0x00, 0x04, 0x00,
+                0x70, 0x00, 0x10, 0x00,
                 0x01, 0x02, 0x03, 0x04,
+                0x05, 0x06, 0x07, 0x08,
+                0x09, 0x0A, 0x0B, 0x0C,
+                0x0D, 0x0E, 0x0F, 0x10,
                 0x10, 0x00, 0x08, 0x00,
                 0x10, 0x11, 0x12, 0x13,
                 0x14, 0x15, 0x16, 0x17,
+                0x71, 0x00, 0x04, 0x00,
+                0x10, 0x20, 0x30, 0x40,
                 0x01, 0x00, 0x00, 0x00,
             ];
 
-            let (param_list_little_endian, param_list_size) = parse_parameter_list(&submessage_little_endian, &0, &EndianessFlag::LittleEndian).unwrap();
-            assert_eq!(param_list_size, 24);
+            let (param_list_little_endian, param_list_size) = parse_inline_qos_parameter_list(&submessage_little_endian, &0, &EndianessFlag::LittleEndian).unwrap();
+            assert_eq!(param_list_size, 44);
             assert_eq!(param_list_little_endian.len(), 2);
-            assert_eq!(param_list_little_endian[0].parameter_id, 5);
-            assert_eq!(param_list_little_endian[0].value, vec!(1,2,3,4));
-            assert_eq!(param_list_little_endian[1].parameter_id, 16);
-            assert_eq!(param_list_little_endian[1].value, vec!(16,17,18,19,20,21,22,23));
+            assert_eq!(param_list_little_endian[0], InlineQosParameter::KeyHash([ 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10,]));
+            assert_eq!(param_list_little_endian[1], InlineQosParameter::StatusInfo([0x10, 0x20, 0x30, 0x40,]));
         }
 
         {
@@ -422,7 +437,7 @@ mod tests{
                 0x10, 0x11, 0x00, 0x00,
             ];
 
-            let param_list = parse_parameter_list(&submessage, &0, &EndianessFlag::LittleEndian);
+            let param_list = parse_inline_qos_parameter_list(&submessage, &0, &EndianessFlag::LittleEndian);
             if let Err(ErrorMessage::InvalidSubmessage) = param_list {
                 assert!(true);
             } else {
@@ -440,7 +455,7 @@ mod tests{
                 0x00, 0x01, 0x00, 0x00,
             ];
 
-            let param_list = parse_parameter_list(&submessage, &0, &EndianessFlag::BigEndian);
+            let param_list = parse_inline_qos_parameter_list(&submessage, &0, &EndianessFlag::BigEndian);
             if let Err(ErrorMessage::InvalidSubmessage) = param_list {
                 assert!(true);
             } else {

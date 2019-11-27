@@ -93,7 +93,7 @@ struct SubmessageHeader {
     submessage_length: u16,
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[derive(Serialize, Deserialize, PartialEq, Debug, FromPrimitive)]
 pub enum InlineQosPid {
     Pad = 0x0000, 
     Sentinel = 0x0001,
@@ -120,6 +120,13 @@ pub enum InlineQosPid {
     SecureWriterGroupInfo = 0x0066,
     KeyHash = 0x0070,
     StatusInfo = 0x0071,
+}
+
+#[derive(PartialEq, Debug)]
+pub enum InlineQosParameter {
+    KeyHash(KeyHash),
+    StatusInfo(StatusInfo),
+    // TopicName([char;256]),
 }
 
 pub enum ParameterId {
@@ -230,7 +237,11 @@ impl RtpsMessage {
         &self.protocol_version
     }
 
-    pub fn get_submessages(&mut self) -> &mut VecDeque<SubMessageType> {
+    pub fn get_submessages(&self) -> &VecDeque<SubMessageType> {
+        &self.submessages
+    }
+
+    pub fn get_mut_submessages(&mut self) -> &mut VecDeque<SubMessageType> {
         &mut self.submessages
     }
 
@@ -513,9 +524,7 @@ mod tests{
             assert_eq!(*data_message.reader_id(), EntityId::new([0,0,0], 0));
             assert_eq!(*data_message.writer_id(), EntityId::new([0,1,0], 0xc2)); //ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER = {{00,01,00},c2}
             assert_eq!(*data_message.writer_sn(), 1);
-            assert_eq!(*data_message.inline_qos(), Some(vec!(Parameter{
-                parameter_id: 112,
-                value: vec!(127, 32, 247, 215, 0, 0, 1, 187, 0, 0, 0, 1, 0, 0, 1, 193),})) );
+            assert_eq!(data_message.inline_qos().as_ref().unwrap()[0], InlineQosParameter::KeyHash([127, 32, 247, 215, 0, 0, 1, 187, 0, 0, 0, 1, 0, 0, 1, 193]));
             assert_eq!(*data_message.serialized_payload(),Payload::Data(vec!(0, 3, 0, 0, 21, 0, 4, 0, 2, 1, 0, 0, 22, 0, 4, 0, 1, 2, 0, 0, 49, 0, 24, 0, 1, 0, 0, 0, 243, 28, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 192, 168, 2, 4, 50, 0, 24, 0, 1, 0, 0, 0, 242, 28, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 192, 168, 2, 4, 2, 0, 8, 0, 11, 0, 0, 0, 0, 0, 0, 0, 80, 0, 16, 0, 127, 32, 247, 215, 0, 0, 1, 187, 0, 0, 0, 1, 0, 0, 1, 193, 88, 0, 4, 0, 21, 4, 0, 0, 0, 128, 4, 0, 21, 0, 0, 0, 7, 128, 92, 0, 0, 0, 0, 0, 47, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 80, 0, 0, 0, 66, 0, 0, 0, 68, 69, 83, 75, 84, 79, 80, 45, 79, 
                 82, 70, 68, 79, 83, 53, 47, 54, 46, 49, 48, 46, 50, 47, 99, 99, 54, 102, 98, 57, 97, 98, 51, 54, 47, 57, 48, 55, 101, 102, 102, 48, 50, 101, 51, 47, 34, 120, 56, 54, 95, 54, 52, 46, 119, 105, 110, 45, 118, 115, 50, 48, 49, 53, 34, 47, 0, 0, 0, 37, 128, 12, 0, 215, 247, 32, 127, 187, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)));
 

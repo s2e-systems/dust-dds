@@ -1,6 +1,7 @@
 
 use serde_derive::{Deserialize, Serialize};
 use std::u32;
+use crate::parser::InlineQosParameter;
 
 #[derive(Deserialize, Eq, PartialEq, Default, Debug)]
 pub struct EntityId {
@@ -105,6 +106,8 @@ pub struct Time {
 
 const TIME_INVALID_SEC: Time = Time{seconds: -1, fraction: u32::MAX };
 
+pub type InlineQosParameterList = Vec<InlineQosParameter>;
+
 pub type ParameterList = Vec<Parameter>;
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]
@@ -173,3 +176,5 @@ pub type SequenceNumber = i64;
 pub type SequenceNumberSet = Vec<(SequenceNumber, bool)>;
 pub type FragmentNumber = u32;
 pub type FragmentNumberSet = Vec<(FragmentNumber, bool)>;
+pub type KeyHash = [u8;16];
+pub type StatusInfo = [u8;4];
