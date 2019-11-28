@@ -129,6 +129,22 @@ pub enum InlineQosParameter {
     // TopicName([char;256]),
 }
 
+impl InlineQosParameter {
+    pub fn is_key_hash(&self) -> bool{
+        match self {
+            InlineQosParameter::KeyHash(_) => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_status_info(&self) -> bool{
+        match self {
+            InlineQosParameter::StatusInfo(_) => true,
+            _ => false,
+        }
+    }
+}
+
 pub enum ParameterId {
     Pad = 0x0000, //N/A
     Sentinel = 0x0001, //N/A

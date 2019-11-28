@@ -9,6 +9,32 @@ pub struct InfoSrc {
     guid_prefix: GuidPrefix,
 }
 
+impl InfoSrc {
+    pub fn new(protocol_version: ProtocolVersion, vendor_id: VendorId, guid_prefix: GuidPrefix) -> InfoSrc {
+        InfoSrc {
+            protocol_version,
+            vendor_id,
+            guid_prefix,
+        }
+    }
+
+    pub fn get_protocol_version(&self) -> &ProtocolVersion {
+        &self.protocol_version
+    }
+
+    pub fn get_vendor_id(&self) -> &VendorId {
+        &self.vendor_id
+    }
+
+    pub fn get_guid_prefix(&self) -> &GuidPrefix {
+        &self.guid_prefix
+    }
+
+    pub fn take(self) -> (ProtocolVersion, VendorId, GuidPrefix) {
+        (self.protocol_version, self.vendor_id, self.guid_prefix)
+    }
+}
+
 pub fn parse_info_source_submessage(submessage: &[u8], submessage_flags: &u8) -> Result<InfoSrc> {
     const PROTOCOL_VERSION_FIRST_INDEX: usize = 4;
     const PROTOCOL_VERSION_LAST_INDEX: usize = 5;

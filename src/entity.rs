@@ -10,13 +10,17 @@ trait Entity {
     fn get_guid(&self) -> &GUID;
 }
 
-struct RTPSEndpoint{
-    pub topic_kind: TopicKind,
-    pub reliability_level: ReliabilityKind,
-    pub unicast_locator_list: Vec<Udpv4Locator>, 
-    pub multicast_locator_list: Vec<Udpv4Locator>,
-    pub endpoint_id: EntityId,
+pub trait RTPSEndpoint {
+    fn read_data(&mut self) -> Result<Option<RtpsMessage>, ()>;
 }
+
+// struct RTPSEndpoint{
+//     pub topic_kind: TopicKind,
+//     pub reliability_level: ReliabilityKind,
+//     pub unicast_locator_list: Vec<Udpv4Locator>, 
+//     pub multicast_locator_list: Vec<Udpv4Locator>,
+//     pub endpoint_id: EntityId,
+// }
 
 pub trait RTPSSerializer {
     fn serialize_data() -> Vec<u8>;
@@ -26,9 +30,10 @@ pub trait RTPSDeserializer {
     fn deserialize_data(serialized_data: Vec<u8>) -> Self;
 }
 
-pub struct RTPSReader<D> where
-D: RTPSSerializer {
-    rtps_endpoint: Vec<RTPSEndpoint>,
+pub struct RTPSReader<D, C> where
+D: RTPSDeserializer,
+C: RTPSEndpoint {
+    rtps_endpoint: Vec<C>,
     guid: GUID,
     topic_kind: TopicKind,
     reliability_level: ReliabilityKind,
@@ -39,17 +44,24 @@ D: RTPSSerializer {
     phantom: PhantomData<D>
 }
 
-impl<D> Entity for RTPSReader<D> where
-D: RTPSSerializer{
+impl<D, C> Entity for RTPSReader<D, C> where
+D: RTPSDeserializer,
+C: RTPSEndpoint{
     fn get_guid(&self) -> &GUID {
         &self.guid
     }
 }
 
-impl<D> RTPSReader<D> where
-D: RTPSSerializer{
+impl<D,C> RTPSReader<D,C> where
+D: RTPSDeserializer,
+C: RTPSEndpoint{
 
-    pub fn new(guid: GUID, reliability_level: ReliabilityKind, topic_kind: TopicKind, expects_inline_qos: bool) -> RTPSReader<D> {
+    pub fn new(
+            guid: GUID,
+            reliability_level: ReliabilityKind,
+            topic_kind: TopicKind,
+            expects_inline_qos: bool) -> RTPSReader<D,C>
+    {
         RTPSReader{
             guid,
             reliability_level,
@@ -63,11 +75,72 @@ D: RTPSSerializer{
         }
     }
 
-    fn add_endpoint(&mut self, endpoint: RTPSEndpoint) {
+    fn add_endpoint(&mut self, endpoint: C) {
         self.rtps_endpoint.push(endpoint);
+    }
+
+    fn read_data(&mut self) {
+        for endpoint in self.rtps_endpoint.iter_mut() {
+            endpoint.read_data().unwrap();
+        }
     }
 
     fn get_data(&self) -> D {
         unimplemented!()
     }
+}
+
+#[cfg(test)]
+mod tests{
+    use super::*;
+    use std::collections::VecDeque;
+    use crate::types::{ProtocolVersion, Time};
+
+    struct MockEndpoint {
+        message_buffer: VecDeque<RtpsMessage>,
+    }
+
+    impl MockEndpoint {
+        fn new() -> MockEndpoint {
+            MockEndpoint {
+                message_buffer: VecDeque::new(),
+            }
+        }
+
+        fn add_message(&mut self, message: RtpsMessage) {
+            self.message_buffer.push_back(message);
+        }
+    }
+
+    impl RTPSEndpoint for MockEndpoint {
+        fn read_data(&mut self) -> Result<Option<RtpsMessage>,()> {
+            Ok(self.message_buffer.pop_front())
+        }
+    }
+
+    struct SimpleType {
+        simple: u8,
+    }
+
+    impl RTPSDeserializer for SimpleType {
+        fn deserialize_data(serialized_data: Vec<u8>) -> Self {
+            SimpleType {
+                simple: serialized_data[0],
+            }
+        } 
+    }
+
+    // #[test]
+    // fn test_reader() {
+    //     let mut mock_endpoint = MockEndpoint::new();
+    //     let mut rtps_message = RtpsMessage::new([0,1,2,3,4,5,6,7,8,9,10,11], [99,99], ProtocolVersion{major:2,minor:4});
+
+    //     let time_submessage = SubMessageType::InfoTsSubmessage(InfoTs::new(Some(Time{seconds:10, fraction:1}))); 
+    //     rtps_message.add_submessage(time_submessage);
+
+    //     let data_submessage = SubMessageType::DataSubmessage(Data::new())
+
+    //     mock_endpoint.add_message(rtps_message)
+        
+    // }
 }

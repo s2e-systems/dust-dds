@@ -2,9 +2,9 @@ use std::cmp::Ordering;
 use std::sync::{RwLock,Mutex};
 use std::collections::{HashMap,VecDeque};
 
-use crate::types::{GUID,SequenceNumber, ParameterList, InstanceHandle, Time, EntityId, Parameter, ProtocolVersion};
+use crate::types::{GUID,GuidPrefix, SequenceNumber, ParameterList, InstanceHandle, Time, EntityId, Parameter, ProtocolVersion, VendorId};
 use crate::types::{ENTITYID_UNKNOWN, ENTITY_KIND_WRITER_WITH_KEY};
-use crate::parser::{RtpsMessage, SubMessageType, InfoTs, Data, Payload};
+use crate::parser::{RtpsMessage, SubMessageType, InfoTs, InfoSrc, Data, Payload, InlineQosParameter};
 
 #[derive(Eq, Default)]
 #[allow(dead_code)]
@@ -14,11 +14,11 @@ pub struct CacheChange {
     instance_handle: InstanceHandle,
     sequence_number: SequenceNumber,
     data: Option<Vec<u8>>,
-    inline_qos: ParameterList,
+    inline_qos: Option<ParameterList>,
 }
 
 impl CacheChange {
-    pub fn new(writer_guid: GUID, instance_handle: InstanceHandle, sequence_number: SequenceNumber, data: Option<Vec<u8>>, inline_qos: ParameterList) -> CacheChange {
+    pub fn new(writer_guid: GUID, instance_handle: InstanceHandle, sequence_number: SequenceNumber, data: Option<Vec<u8>>, inline_qos: Option<ParameterList>) -> CacheChange {
         CacheChange {
             writer_guid,
             instance_handle,
@@ -93,48 +93,71 @@ impl HistoryCache {
     }
 
     pub fn get_seq_num_min(&self, key: &InstanceHandle) -> Option<SequenceNumber>{
-        Some(self.changes.read().unwrap()[key].lock().unwrap().iter().max()?.sequence_number.clone())
+        Some(self.changes.read().unwrap()[key].lock().unwrap().iter().max()?.sequence_number)
     }
 
     pub fn get_seq_num_max(&self, key: &InstanceHandle) -> Option<SequenceNumber>{
-        Some(self.changes.read().unwrap()[key].lock().unwrap().iter().min()?.sequence_number.clone())
-    }
-
-    pub fn process_message(&self, message: RtpsMessage) {
-        let (source_guid_prefix, source_version, source_vendor_id, mut submessages) = message.take(); 
-        let mut message_timestamp : Option<Time> = None;
-
-        while let Some(submessage) = submessages.pop_front() {
-            if let SubMessageType::InfoTsSubmessage(info_ts) = submessage {
-                println!("Got time submessage");
-                message_timestamp = info_ts.take();
-            } else if let SubMessageType::DataSubmessage(data) = submessage {
-                println!("Got data submessage");
-                let mut instance_handle = [0 as u8; 16];
-                let (reader_id, writer_id, writer_sn, inline_qos, serialized_payload) = data.take();
-                if let Some(inline_qos_list) = inline_qos {
-                    // let key_hash_parameter = inline_qos_list.iter().find(|&x| x.parameter_id == 0x0070); // TODO: Replace by named identifier
-                    // if let Some(key_hash) = key_hash_parameter {
-                    //     println!("Found key hash {:?}", key_hash);
-                    //     instance_handle = [1 as u8;16];//key_hash.value; // TODO: Get the key hash
-                    // }
-                }
-
-                let writer_guid = GUID::new(source_guid_prefix.clone(), writer_id);
-                if let Payload::Data(data) = serialized_payload {
-                    let cache_change = CacheChange::new(writer_guid,instance_handle,writer_sn,Some(data),vec!());
-                    self.add_change(cache_change).unwrap();
-                }
-            } else {
-                println!("Unsupported message received");
-            }
-        }
+        Some(self.changes.read().unwrap()[key].lock().unwrap().iter().min()?.sequence_number)
     }
 
     fn has_key(&self, key: &InstanceHandle) -> bool{
         self.changes.read().unwrap().contains_key(key)
     }
+
+    pub fn process_message(&self, message: RtpsMessage) {
+        let (mut source_guid_prefix, mut source_vendor_id, mut source_protocol_version, mut submessages) = message.take(); 
+        let mut message_timestamp : Option<Time> = None;
+        
+        while let Some(submessage) = submessages.pop_front() {
+            match submessage {
+                SubMessageType::InfoTsSubmessage(info_ts) => self.process_infots(info_ts, &mut message_timestamp),
+                SubMessageType::DataSubmessage(data) => self.process_data(data, &source_guid_prefix),
+                SubMessageType::InfoSrcSubmessage(info_src) => self.process_infosrc(info_src, &mut source_protocol_version, &mut source_vendor_id, &mut source_guid_prefix),
+                _ => println!("Unimplemented message type"),
+            };   
+        }
+    }
+    
+    fn process_infots(&self, info_ts: InfoTs, time: &mut Option<Time>) {
+        println!("Processing time");
+        *time = info_ts.take();
+    }
+    
+    fn process_infosrc(&self, info_src: InfoSrc, protocol_version: &mut ProtocolVersion, vendor_id: &mut VendorId, guid_prefix: &mut GuidPrefix) {
+        println!("Processing info source");
+        let (new_protocol_version, new_vendor_id, new_guid_prefix)=info_src.take();
+        *protocol_version = new_protocol_version;
+        *vendor_id = new_vendor_id;
+        *guid_prefix = new_guid_prefix;
+    }
+    
+    fn process_data(&self, data: Data, source_guid_prefix: &GuidPrefix) {
+        println!("Processing data");
+        let (reader_id, writer_id, writer_sn, inline_qos, serialized_payload) = data.take();
+        let writer_guid = GUID::new(*source_guid_prefix, writer_id);
+        
+        if let Payload::Data(data) = serialized_payload {
+            if let Some(inline_qos_list) = inline_qos {
+                let key_hash_parameter = inline_qos_list.iter().find(|&x| x.is_key_hash());
+                if let Some(InlineQosParameter::KeyHash(instance_handle)) = key_hash_parameter {
+                    let cache_change = CacheChange::new(writer_guid,*instance_handle,writer_sn,Some(data),None);
+                    self.add_change(cache_change);
+                }
+            }
+        } else if let Payload::Key(key) = serialized_payload {
+            if let Some(inline_qos_list) = inline_qos {
+                let status_info_parameter = inline_qos_list.iter().find(|&x| x.is_status_info());
+                if let Some(InlineQosParameter::StatusInfo(status_info)) = status_info_parameter {
+                    // TODO: Check the liveliness changes to the entity
+                }
+            }
+        } else {
+            // TODO: Either no payload or non standardized payload. In either case, not implemented yet
+        }
+    }
+
 }
+
 
 #[cfg(test)]
 mod tests{
