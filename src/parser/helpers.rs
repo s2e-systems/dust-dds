@@ -28,7 +28,7 @@ impl From<i64> for SequenceNumberSerialization {
     fn from(value: i64) -> Self {
         SequenceNumberSerialization{
             high: (value >> 32) as i32,
-            low: (value & 0x00000000FFFFFFFF) as u32,
+            low: (value & 0x0000_0000_FFFF_FFFF) as u32,
         }
     }
 }
@@ -53,9 +53,9 @@ pub fn deserialize<'de,T>(message: &[u8], start_index: &usize, end_index: &usize
     }
 
     if *endianess == EndianessFlag::BigEndian {
-        cdr::de::deserialize_data::<T, BigEndian>(&message[*start_index..=*end_index]).map_err(|e|ErrorMessage::CdrError(e))
+        cdr::de::deserialize_data::<T, BigEndian>(&message[*start_index..=*end_index]).map_err(ErrorMessage::CdrError)
     } else {
-        cdr::de::deserialize_data::<T, LittleEndian>(&message[*start_index..=*end_index]).map_err(|e|ErrorMessage::CdrError(e))
+        cdr::de::deserialize_data::<T, LittleEndian>(&message[*start_index..=*end_index]).map_err(ErrorMessage::CdrError)
     }
 }
 
@@ -94,7 +94,7 @@ pub fn parse_sequence_number_set(submessage: &[u8], sequence_number_set_first_in
             let sequence_number : i64 = bitmap_base + (sequence_number_index + (BITMAP_FIELD_SIZE * 8) * bitmap_field_index) as i64;
             let sequence_bit_mask = 1 << sequence_number_index;
             let sequence_bit = (bitmap_field & sequence_bit_mask) == sequence_bit_mask;
-            sequence_number_set.push( (SequenceNumber::from(sequence_number), sequence_bit) );
+            sequence_number_set.push( (sequence_number, sequence_bit) );
         }
     }
 

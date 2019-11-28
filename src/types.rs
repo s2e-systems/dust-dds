@@ -153,14 +153,14 @@ impl GUID {
 
     fn new_participant_guid(prefix: GuidPrefix) -> GUID {
         GUID {
-            prefix: prefix,
+            prefix,
             entity_id: ENTITYID_PARTICIPANT,
         }
     }
 
     fn new_spdp_builtin_participant_reader_guid(prefix: GuidPrefix) -> GUID {
         GUID {
-            prefix: prefix,
+            prefix,
             entity_id: ENTITYID_SPDP_BUILT_IN_PARTICIPANT_READER,
         }
     }

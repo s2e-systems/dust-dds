@@ -10,9 +10,9 @@ pub fn generate_guid_prefix() -> GuidPrefix {
     let time_now = SystemTime::now();
 
     // TODO: Print a log message if result Error
-    let time_unix_epoch = time_now.duration_since(UNIX_EPOCH).unwrap_or(Duration::new(0,0));
+    let time_unix_epoch = time_now.duration_since(UNIX_EPOCH).unwrap_or_else(|_| Duration::new(0,0));
 
-    let timestamp = ((time_unix_epoch.as_secs() & 0xFFFFFFFF) as u32).to_be_bytes();
+    let timestamp = ((time_unix_epoch.as_secs() & 0xFFFF_FFFF) as u32).to_be_bytes();
 
     [process_id[0], process_id[1], process_id[2], process_id[3],
      timestamp[0], timestamp[1], timestamp[2], timestamp[3],

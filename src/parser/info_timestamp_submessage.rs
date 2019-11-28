@@ -42,7 +42,7 @@ pub fn parse_info_timestamp_submessage(submessage: &[u8], submessage_flags: &u8)
         Some(deserialize::<Time>(submessage, &MESSAGE_PAYLOAD_FIRST_INDEX, &MESSAGE_PAYLOAD_LAST_INDEX, &submessage_endianess)?)
     };
 
-    Ok(InfoTs{timestamp: timestamp})
+    Ok(InfoTs{timestamp})
 }
 
 #[cfg(test)]

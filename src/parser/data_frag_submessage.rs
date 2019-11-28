@@ -73,7 +73,7 @@ pub fn parse_data_frag_submessage(submessage: &[u8], submessage_flags: &u8) -> R
     // i.e. counting from the byte after the octets to inline qos field
 
     let (inline_qos, octets_to_data) =
-        if inline_qos_flag == true {
+        if inline_qos_flag {
             let inline_qos_first_index = OCTETS_TO_INLINE_QOS_LAST_INDEX + octecs_to_inline_qos + 1;
             let (parameter_list, parameter_list_size) = parse_inline_qos_parameter_list(submessage, &inline_qos_first_index, &submessage_endianess)?;
             let octets_to_data = octecs_to_inline_qos + parameter_list_size;
@@ -85,7 +85,7 @@ pub fn parse_data_frag_submessage(submessage: &[u8], submessage_flags: &u8) -> R
     let payload_first_index = OCTETS_TO_INLINE_QOS_LAST_INDEX + octets_to_data + 1;
 
     let serialized_payload = 
-        if key_flag == false {
+        if !key_flag {
             Payload::Data(submessage[payload_first_index..].to_vec())
         } else {
             Payload::Key(submessage[payload_first_index..].to_vec())

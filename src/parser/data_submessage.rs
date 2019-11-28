@@ -83,7 +83,7 @@ pub fn parse_data_submessage(submessage: &[u8], submessage_flags: &u8) -> Result
     // TODO: Implement non-standard payload
     let _non_standard_payload_flag = submessage_flags & NON_STANDARD_PAYLOAD_FLAG_MASK == NON_STANDARD_PAYLOAD_FLAG_MASK;
 
-    if data_flag == true && key_flag == true {
+    if data_flag && key_flag {
         return Err(ErrorMessage::InvalidSubmessage);
     }
 
@@ -104,7 +104,7 @@ pub fn parse_data_submessage(submessage: &[u8], submessage_flags: &u8) -> Result
     // i.e. counting from the byte after the octets to inline qos field
 
     let (inline_qos, octets_to_data) =
-        if inline_qos_flag == true {
+        if inline_qos_flag {
             let inline_qos_first_index = OCTETS_TO_INLINE_QOS_LAST_INDEX + octecs_to_inline_qos + 1;
             let (parameter_list, parameter_list_size) = parse_inline_qos_parameter_list(submessage, &inline_qos_first_index, &submessage_endianess)?;
             let octets_to_data = octecs_to_inline_qos + parameter_list_size;
@@ -116,9 +116,9 @@ pub fn parse_data_submessage(submessage: &[u8], submessage_flags: &u8) -> Result
     let payload_first_index = OCTETS_TO_INLINE_QOS_LAST_INDEX + octets_to_data + 1;
 
     let serialized_payload = 
-        if data_flag == true && key_flag == false {
+        if data_flag && !key_flag {
             Payload::Data(submessage[payload_first_index..].to_vec())
-        } else if data_flag == false && key_flag == true {
+        } else if !data_flag && key_flag {
             Payload::Key(submessage[payload_first_index..].to_vec())
         } else {
             Payload::None

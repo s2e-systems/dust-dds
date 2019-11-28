@@ -23,7 +23,7 @@ pub fn parse_info_reply_submessage(submessage: &[u8], submessage_flags: &u8) -> 
 
     let unicast_locator_list = deserialize::<LocatorList>(submessage, &UNICAST_LOCATOR_LIST_FIRST_INDEX, &submessage_last_index, &submessage_endianess)?;
 
-    let multicast_locator_list = if multicast_flag == true {
+    let multicast_locator_list = if multicast_flag {
         let multicast_locator_list_first_index = UNICAST_LOCATOR_LIST_FIRST_INDEX + (UNICAST_LOCATOR_SIZE * unicast_locator_list.len()) + UNICAST_LOCATOR_LIST_MINIMUM_SIZE;
         Some(deserialize::<LocatorList>(submessage, &multicast_locator_list_first_index, &submessage_last_index, &submessage_endianess)?)
     } else {
