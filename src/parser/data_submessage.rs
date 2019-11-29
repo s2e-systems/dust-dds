@@ -138,16 +138,93 @@ mod tests{
     use super::*;
     use crate::parser::InlineQosParameter;
 
+    const DATA_SUBMESSAGE_BIG_ENDIAN: [u8;60] =
+    [
+        0x00, 0x00, 0x00, 0x10,
+        0x10, 0x12, 0x14, 0x16,
+        0x26, 0x24, 0x22, 0x20,
+        0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x04, 0xD1,
+        0x00, 0x70, 0x00, 0x10,
+        0x01, 0x02, 0x03, 0x04,
+        0x05, 0x06, 0x07, 0x08,
+        0x09, 0x0A, 0x0B, 0x0C,
+        0x0D, 0x0E, 0x0F, 0x10,
+        0x00, 0x10, 0x00, 0x08,
+        0x10, 0x11, 0x12, 0x13,
+        0x14, 0x15, 0x16, 0x17,
+        0x00, 0x01, 0x00, 0x00,
+        0x20, 0x30, 0x40, 0x50,
+    ];
+
     #[test]
-    fn test_parse_data_submessage() {
-        {
-            // Test big endian
-            let submessage = [
-                0x00, 0x00, 0x00, 0x10,
-                0x10, 0x12, 0x14, 0x16,
-                0x26, 0x24, 0x22, 0x20,
-                0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x04, 0xD1,
+    fn test_parse_data_submessage_without_inline_qos_or_data() {
+        let data = parse_data_submessage(&DATA_SUBMESSAGE_BIG_ENDIAN, &0).unwrap();
+        assert_eq!(data.reader_id, EntityId::new([0x10,0x12,0x14],0x16));
+        assert_eq!(data.writer_id, EntityId::new([0x26,0x24,0x22],0x20));
+        assert_eq!(data.writer_sn, 1233);
+        assert_eq!(data.inline_qos, None);
+        assert_eq!(data.serialized_payload, Payload::None);
+    }
+
+    #[test]
+    fn test_parse_data_submessage_with_inline_qos_without_data() {
+        let data = parse_data_submessage(&DATA_SUBMESSAGE_BIG_ENDIAN, &2).unwrap();
+        assert_eq!(data.reader_id, EntityId::new([0x10,0x12,0x14],0x16));
+        assert_eq!(data.writer_id, EntityId::new([0x26,0x24,0x22],0x20));
+        assert_eq!(data.writer_sn, 1233);
+        assert_eq!(data.serialized_payload, Payload::None);
+        let inline_qos = data.inline_qos.unwrap();
+        assert_eq!(inline_qos.len(),1);
+        assert_eq!(inline_qos[0], InlineQosParameter::KeyHash([0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10,]));
+    }
+
+    #[test]
+    fn test_parse_data_submessage_with_inline_qos_and_data() {
+        let data = parse_data_submessage(&DATA_SUBMESSAGE_BIG_ENDIAN, &6).unwrap();
+        assert_eq!(data.reader_id, EntityId::new([0x10,0x12,0x14],0x16));
+        assert_eq!(data.writer_id, EntityId::new([0x26,0x24,0x22],0x20));
+        assert_eq!(data.writer_sn, 1233);
+        let inline_qos = data.inline_qos.unwrap();
+        assert_eq!(inline_qos.len(),1);
+        assert_eq!(inline_qos[0], InlineQosParameter::KeyHash([0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10,]));
+        if let Payload::Data(serialized_data) = data.serialized_payload {
+            assert_eq!(serialized_data, vec!(0x20, 0x30, 0x40, 0x50,));
+
+        } else {
+            assert!(false);
+        }
+    }
+
+    #[test]
+    fn test_parse_data_submessage_with_inline_qos_and_serialized_key()
+    {
+        let data = parse_data_submessage(&DATA_SUBMESSAGE_BIG_ENDIAN, &10).unwrap();
+        assert_eq!(data.reader_id, EntityId::new([0x10,0x12,0x14],0x16));
+        assert_eq!(data.writer_id, EntityId::new([0x26,0x24,0x22],0x20));
+        assert_eq!(data.writer_sn, 1233);
+        let inline_qos = data.inline_qos.unwrap();
+        assert_eq!(inline_qos.len(),1);
+        assert_eq!(inline_qos[0], InlineQosParameter::KeyHash([0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10,]));
+        if let Payload::Key(serialized_data) = data.serialized_payload {
+            assert_eq!(serialized_data, vec!(0x20, 0x30, 0x40, 0x50,));
+
+        } else {
+            assert!(false);
+        }
+    }
+
+    #[test]
+    fn test_parse_data_submessage_without_inline_qos_with_serialized_data()
+    {
+        // Parse message considering serialized data and no inline qos
+        let data = parse_data_submessage(&DATA_SUBMESSAGE_BIG_ENDIAN, &8).unwrap();
+        assert_eq!(data.reader_id, EntityId::new([0x10,0x12,0x14],0x16));
+        assert_eq!(data.writer_id, EntityId::new([0x26,0x24,0x22],0x20));
+        assert_eq!(data.writer_sn, 1233);
+        assert_eq!(data.inline_qos, None);
+        if let Payload::Key(serialized_data) = data.serialized_payload {
+            assert_eq!(serialized_data, vec!(
                 0x00, 0x70, 0x00, 0x10,
                 0x01, 0x02, 0x03, 0x04,
                 0x05, 0x06, 0x07, 0x08,
@@ -157,88 +234,9 @@ mod tests{
                 0x10, 0x11, 0x12, 0x13,
                 0x14, 0x15, 0x16, 0x17,
                 0x00, 0x01, 0x00, 0x00,
-                0x20, 0x30, 0x40, 0x50,
-            ];
-
-            {
-                // Parse message without considering inline qos or data
-                let data = parse_data_submessage(&submessage, &0).unwrap();
-                assert_eq!(data.reader_id, EntityId::new([0x10,0x12,0x14],0x16));
-                assert_eq!(data.writer_id, EntityId::new([0x26,0x24,0x22],0x20));
-                assert_eq!(data.writer_sn, 1233);
-                assert_eq!(data.inline_qos, None);
-                assert_eq!(data.serialized_payload, Payload::None);
-            }
-
-            {
-                // Parse message considering inline qos but no data
-                let data = parse_data_submessage(&submessage, &2).unwrap();
-                assert_eq!(data.reader_id, EntityId::new([0x10,0x12,0x14],0x16));
-                assert_eq!(data.writer_id, EntityId::new([0x26,0x24,0x22],0x20));
-                assert_eq!(data.writer_sn, 1233);
-                assert_eq!(data.serialized_payload, Payload::None);
-                let inline_qos = data.inline_qos.unwrap();
-                assert_eq!(inline_qos.len(),1);
-                assert_eq!(inline_qos[0], InlineQosParameter::KeyHash([0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10,]));
-            }
-
-            {
-                // Parse message considering serialized data and inline qos
-                let data = parse_data_submessage(&submessage, &6).unwrap();
-                assert_eq!(data.reader_id, EntityId::new([0x10,0x12,0x14],0x16));
-                assert_eq!(data.writer_id, EntityId::new([0x26,0x24,0x22],0x20));
-                assert_eq!(data.writer_sn, 1233);
-                let inline_qos = data.inline_qos.unwrap();
-                assert_eq!(inline_qos.len(),1);
-                assert_eq!(inline_qos[0], InlineQosParameter::KeyHash([0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10,]));
-                if let Payload::Data(serialized_data) = data.serialized_payload {
-                    assert_eq!(serialized_data, vec!(0x20, 0x30, 0x40, 0x50,));
-
-                } else {
-                    assert!(false);
-                }
-            }
-
-            {
-                // Parse message considering serialized key and inline qos
-                let data = parse_data_submessage(&submessage, &10).unwrap();
-                assert_eq!(data.reader_id, EntityId::new([0x10,0x12,0x14],0x16));
-                assert_eq!(data.writer_id, EntityId::new([0x26,0x24,0x22],0x20));
-                assert_eq!(data.writer_sn, 1233);
-                let inline_qos = data.inline_qos.unwrap();
-                assert_eq!(inline_qos.len(),1);
-                assert_eq!(inline_qos[0], InlineQosParameter::KeyHash([0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10,]));
-                if let Payload::Key(serialized_data) = data.serialized_payload {
-                    assert_eq!(serialized_data, vec!(0x20, 0x30, 0x40, 0x50,));
-
-                } else {
-                    assert!(false);
-                }
-            }
-
-            {
-                // Parse message considering serialized data and no inline qos
-                let data = parse_data_submessage(&submessage, &8).unwrap();
-                assert_eq!(data.reader_id, EntityId::new([0x10,0x12,0x14],0x16));
-                assert_eq!(data.writer_id, EntityId::new([0x26,0x24,0x22],0x20));
-                assert_eq!(data.writer_sn, 1233);
-                assert_eq!(data.inline_qos, None);
-                if let Payload::Key(serialized_data) = data.serialized_payload {
-                    assert_eq!(serialized_data, vec!(
-                        0x00, 0x70, 0x00, 0x10,
-                        0x01, 0x02, 0x03, 0x04,
-                        0x05, 0x06, 0x07, 0x08,
-                        0x09, 0x0A, 0x0B, 0x0C,
-                        0x0D, 0x0E, 0x0F, 0x10,
-                        0x00, 0x10, 0x00, 0x08,
-                        0x10, 0x11, 0x12, 0x13,
-                        0x14, 0x15, 0x16, 0x17,
-                        0x00, 0x01, 0x00, 0x00,
-                        0x20, 0x30, 0x40, 0x50,));
-                } else {
-                    assert!(false);
-                }
-            }
+                0x20, 0x30, 0x40, 0x50,));
+        } else {
+            assert!(false);
         }
     }
 }

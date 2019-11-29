@@ -71,30 +71,30 @@ mod tests{
     use super::*;
 
     #[test]
-    fn test_parse_heartbeat_submessage() {
-        {
-            let submessage_big_endian = [ 
-                    0x10,0x12,0x14,0x16,
-                    0x26,0x24,0x22,0x20,
-                    0x00,0x00,0x00,0x00,
-                    0x00,0x00,0x04,0xD1,
-                    0x00,0x00,0x00,0x00,
-                    0x00,0x00,0x04,0xD5,
-                    0x00,0x00,0x00,0x08,
-                ];
+    fn test_parse_heartbeat_submessage_big_endian() {
+        let submessage_big_endian = [ 
+                0x10,0x12,0x14,0x16,
+                0x26,0x24,0x22,0x20,
+                0x00,0x00,0x00,0x00,
+                0x00,0x00,0x04,0xD1,
+                0x00,0x00,0x00,0x00,
+                0x00,0x00,0x04,0xD5,
+                0x00,0x00,0x00,0x08,
+            ];
 
-            let heartbeat_big_endian = parse_heartbeat_submessage(&submessage_big_endian, &0).unwrap(); 
-            assert_eq!(heartbeat_big_endian.reader_id, EntityId::new([0x10,0x12,0x14], 0x16));
-            assert_eq!(heartbeat_big_endian.writer_id, EntityId::new([0x26,0x24,0x22], 0x20));
-            assert_eq!(heartbeat_big_endian.first_sn, 1233);
-            assert_eq!(heartbeat_big_endian.last_sn, 1237);
-            assert_eq!(heartbeat_big_endian.count,8);
-            assert_eq!(heartbeat_big_endian.final_flag, false);
-            assert_eq!(heartbeat_big_endian.liveliness_flag, false);
-        }
+        let heartbeat_big_endian = parse_heartbeat_submessage(&submessage_big_endian, &0).unwrap(); 
+        assert_eq!(heartbeat_big_endian.reader_id, EntityId::new([0x10,0x12,0x14], 0x16));
+        assert_eq!(heartbeat_big_endian.writer_id, EntityId::new([0x26,0x24,0x22], 0x20));
+        assert_eq!(heartbeat_big_endian.first_sn, 1233);
+        assert_eq!(heartbeat_big_endian.last_sn, 1237);
+        assert_eq!(heartbeat_big_endian.count,8);
+        assert_eq!(heartbeat_big_endian.final_flag, false);
+        assert_eq!(heartbeat_big_endian.liveliness_flag, false);
+    }
 
-        {
-            let submessage_little_endian = [ 
+    #[test]
+    fn test_parse_heartbeat_submessage_little_endian() {
+        let submessage_little_endian = [ 
                     0x10,0x12,0x14,0x16,
                     0x26,0x24,0x22,0x20,
                     0x00,0x00,0x00,0x00,
@@ -104,96 +104,99 @@ mod tests{
                     0x08,0x00,0x00,0x00,
                 ];
 
-            let heartbeat_little_endian = parse_heartbeat_submessage(&submessage_little_endian, &7).unwrap(); 
-            assert_eq!(heartbeat_little_endian.reader_id, EntityId::new([0x10,0x12,0x14],0x16));
-            assert_eq!(heartbeat_little_endian.writer_id, EntityId::new([0x26,0x24,0x22],0x20));
-            assert_eq!(heartbeat_little_endian.first_sn, 1233);
-            assert_eq!(heartbeat_little_endian.last_sn, 1237);
-            assert_eq!(heartbeat_little_endian.count,8);
-            assert_eq!(heartbeat_little_endian.final_flag, true);
-            assert_eq!(heartbeat_little_endian.liveliness_flag, true);
-        }
+        let heartbeat_little_endian = parse_heartbeat_submessage(&submessage_little_endian, &7).unwrap(); 
+        assert_eq!(heartbeat_little_endian.reader_id, EntityId::new([0x10,0x12,0x14],0x16));
+        assert_eq!(heartbeat_little_endian.writer_id, EntityId::new([0x26,0x24,0x22],0x20));
+        assert_eq!(heartbeat_little_endian.first_sn, 1233);
+        assert_eq!(heartbeat_little_endian.last_sn, 1237);
+        assert_eq!(heartbeat_little_endian.count,8);
+        assert_eq!(heartbeat_little_endian.final_flag, true);
+        assert_eq!(heartbeat_little_endian.liveliness_flag, true);
+    }
 
-        {
-            // Test first 
-            let submessage_big_endian = [ 
-                    0x10,0x12,0x14,0x16,
-                    0x26,0x24,0x22,0x20,
-                    0x00,0x00,0x00,0x00,
-                    0x00,0x00,0x00,0x01,
-                    0x00,0x00,0x00,0x00,
-                    0x00,0x00,0x00,0x00,
-                    0x00,0x00,0x00,0x08,
-                ];
+    #[test]
+    fn test_parse_heartbeat_submessage_first_sn_equal_one() {
+        // Test first 
+        let submessage_big_endian = [ 
+            0x10,0x12,0x14,0x16,
+            0x26,0x24,0x22,0x20,
+            0x00,0x00,0x00,0x00,
+            0x00,0x00,0x00,0x01,
+            0x00,0x00,0x00,0x00,
+            0x00,0x00,0x00,0x00,
+            0x00,0x00,0x00,0x08,
+        ];
 
-            let heartbeat_big_endian = parse_heartbeat_submessage(&submessage_big_endian, &2).unwrap(); 
-            assert_eq!(heartbeat_big_endian.reader_id, EntityId::new([0x10,0x12,0x14],0x16));
-            assert_eq!(heartbeat_big_endian.writer_id, EntityId::new([0x26,0x24,0x22],0x20));
-            assert_eq!(heartbeat_big_endian.first_sn, 1);
-            assert_eq!(heartbeat_big_endian.last_sn, 0);
-            assert_eq!(heartbeat_big_endian.count,8);
-            assert_eq!(heartbeat_big_endian.final_flag, true);
-            assert_eq!(heartbeat_big_endian.liveliness_flag, false);
-        }
+        let heartbeat_big_endian = parse_heartbeat_submessage(&submessage_big_endian, &2).unwrap(); 
+        assert_eq!(heartbeat_big_endian.reader_id, EntityId::new([0x10,0x12,0x14],0x16));
+        assert_eq!(heartbeat_big_endian.writer_id, EntityId::new([0x26,0x24,0x22],0x20));
+        assert_eq!(heartbeat_big_endian.first_sn, 1);
+        assert_eq!(heartbeat_big_endian.last_sn, 0);
+        assert_eq!(heartbeat_big_endian.count,8);
+        assert_eq!(heartbeat_big_endian.final_flag, true);
+        assert_eq!(heartbeat_big_endian.liveliness_flag, false);
+    }
 
-        {
-            // Test last_sn < first_sn - 1
-            let submessage_big_endian = [ 
-                    0x10,0x12,0x14,0x16,
-                    0x26,0x24,0x22,0x20,
-                    0x00,0x00,0x00,0x00,
-                    0x00,0x00,0x04,0xD1,
-                    0x00,0x00,0x00,0x00,
-                    0x00,0x00,0x04,0xCF,
-                    0x00,0x00,0x00,0x08,
-                ];
+    #[test]
+    fn test_parse_heartbeat_submessage_invalid_submessage_last_sn_below_first_sn() {
+        // Test last_sn < first_sn - 1
+        let submessage = [ 
+            0x10,0x12,0x14,0x16,
+            0x26,0x24,0x22,0x20,
+            0x00,0x00,0x00,0x00,
+            0x00,0x00,0x04,0xD1,
+            0x00,0x00,0x00,0x00,
+            0x00,0x00,0x04,0xCF,
+            0x00,0x00,0x00,0x08,
+        ];
 
-            let heartbeat_big_endian = parse_heartbeat_submessage(&submessage_big_endian, &0); 
-            if let Err(ErrorMessage::InvalidSubmessage) = heartbeat_big_endian {
-                assert!(true);
-            } else {
-                assert!(false);
-            }    
-        }
+        let heartbeat = parse_heartbeat_submessage(&submessage, &0); 
+        if let Err(ErrorMessage::InvalidSubmessage) = heartbeat {
+            assert!(true);
+        } else {
+            assert!(false);
+        } 
+    }
 
-        {
-            // Test first_sn = 0
-            let submessage_big_endian = [ 
-                    0x10,0x12,0x14,0x16,
-                    0x26,0x24,0x22,0x20,
-                    0x00,0x00,0x00,0x00,
-                    0x00,0x00,0x00,0x00,
-                    0x00,0x00,0x00,0x00,
-                    0x00,0x00,0x04,0xD5,
-                    0x00,0x00,0x00,0x08,
-                ];
+    #[test]
+    fn test_parse_heartbeat_submessage_invalid_submessage_first_sn_zero() {
+        // Test first_sn = 0
+        let submessage = [ 
+            0x10,0x12,0x14,0x16,
+            0x26,0x24,0x22,0x20,
+            0x00,0x00,0x00,0x00,
+            0x00,0x00,0x00,0x00,
+            0x00,0x00,0x00,0x00,
+            0x00,0x00,0x04,0xD5,
+            0x00,0x00,0x00,0x08,
+        ];
 
-            let heartbeat_big_endian = parse_heartbeat_submessage(&submessage_big_endian, &0); 
-            if let Err(ErrorMessage::InvalidSubmessage) = heartbeat_big_endian {
-                assert!(true);
-            } else {
-                assert!(false);
-            }    
-        }
+        let heartbeat = parse_heartbeat_submessage(&submessage, &0); 
+        if let Err(ErrorMessage::InvalidSubmessage) = heartbeat {
+            assert!(true);
+        } else {
+            assert!(false);
+        }   
+    }
 
-        {
-            // Test last_sn < 0
-            let submessage_big_endian = [ 
-                    0x10,0x12,0x14,0x16,
-                    0x26,0x24,0x22,0x20,
-                    0x00,0x00,0x00,0x00,
-                    0x00,0x00,0x04,0xD1,
-                    0x80,0x00,0x00,0x00,
-                    0x00,0x00,0x04,0xD5,
-                    0x00,0x00,0x00,0x08,
-                ];
+    #[test]
+    fn test_parse_heartbeat_submessage_invalid_submessage_last_sn_below_zero() {
+        // Test last_sn < 0
+        let submessage = [ 
+            0x10,0x12,0x14,0x16,
+            0x26,0x24,0x22,0x20,
+            0x00,0x00,0x00,0x00,
+            0x00,0x00,0x04,0xD1,
+            0x80,0x00,0x00,0x00,
+            0x00,0x00,0x04,0xD5,
+            0x00,0x00,0x00,0x08,
+        ];
 
-            let heartbeat_big_endian = parse_heartbeat_submessage(&submessage_big_endian, &0); 
-            if let Err(ErrorMessage::InvalidSubmessage) = heartbeat_big_endian {
-                assert!(true);
-            } else {
-                assert!(false);
-            }    
-        }
+        let heartbeat = parse_heartbeat_submessage(&submessage, &0); 
+        if let Err(ErrorMessage::InvalidSubmessage) = heartbeat {
+            assert!(true);
+        } else {
+            assert!(false);
+        }    
     }
 }

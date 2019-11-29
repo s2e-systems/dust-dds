@@ -25,25 +25,24 @@ mod tests{
     use super::*;
 
     #[test]
-    fn test_parse_info_dst_submessage() {
-        {
-            let submessage_big_endian = [
+    fn test_parse_info_dst_submessage_big_endian() {
+        let submessage_big_endian = [
                 10,11,12,13,
                 14,15,16,17,
                 18,19,20,21,
             ];
-            let info_dst_big_endian = parse_info_dst_submessage(&submessage_big_endian, &0).unwrap();
-            assert_eq!(info_dst_big_endian.guid_prefix,[10,11,12,13,14,15,16,17,18,19,20,21]);
-        }
+        let info_dst_big_endian = parse_info_dst_submessage(&submessage_big_endian, &0).unwrap();
+        assert_eq!(info_dst_big_endian.guid_prefix,[10,11,12,13,14,15,16,17,18,19,20,21]);
+    }
 
-        {
-            let submessage_little_endian = [
+    #[test]
+    fn test_parse_info_dst_submessage_little_endian() {
+        let submessage_little_endian = [
                 10,11,12,13,
                 14,15,16,17,
                 18,19,20,21,
             ];
-            let info_dst_little_endian = parse_info_dst_submessage(&submessage_little_endian, &1).unwrap();
-            assert_eq!(info_dst_little_endian.guid_prefix,[10,11,12,13,14,15,16,17,18,19,20,21]);
-        }
+        let info_dst_little_endian = parse_info_dst_submessage(&submessage_little_endian, &1).unwrap();
+        assert_eq!(info_dst_little_endian.guid_prefix,[10,11,12,13,14,15,16,17,18,19,20,21]);
     }
 }

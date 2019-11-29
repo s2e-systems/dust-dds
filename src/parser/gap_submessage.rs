@@ -49,9 +49,8 @@ mod tests{
     use super::*;
 
     #[test]
-    fn test_parse_gap_submessage() {
-        {
-            let submessage_big_endian = [ 
+    fn test_parse_gap_submessage_big_endian() {
+        let submessage_big_endian = [ 
                 0x10,0x12,0x14,0x16,
                 0x26,0x24,0x22,0x20,
                 0x00,0x00,0x00,0x00,
@@ -62,19 +61,20 @@ mod tests{
                 0x00,0x00,0x00,0x0C,
             ];
 
-            let gap_big_endian = parse_gap_submessage(&submessage_big_endian, &0).unwrap(); 
+        let gap_big_endian = parse_gap_submessage(&submessage_big_endian, &0).unwrap(); 
 
-            assert_eq!(gap_big_endian.reader_id, EntityId::new([0x10,0x12,0x14],0x16));
-            assert_eq!(gap_big_endian.writer_id, EntityId::new([0x26,0x24,0x22],0x20));
-            assert_eq!(gap_big_endian.gap_start, 1233);
-            assert_eq!(gap_big_endian.gap_list.len(), 8);
-            assert_eq!(gap_big_endian.gap_list, 
-                vec![(1234, false), (1235, false), (1236, true), (1237, true),
-                     (1238, false), (1239, false), (1240, false), (1241, false)])
-        }
+        assert_eq!(gap_big_endian.reader_id, EntityId::new([0x10,0x12,0x14],0x16));
+        assert_eq!(gap_big_endian.writer_id, EntityId::new([0x26,0x24,0x22],0x20));
+        assert_eq!(gap_big_endian.gap_start, 1233);
+        assert_eq!(gap_big_endian.gap_list.len(), 8);
+        assert_eq!(gap_big_endian.gap_list, 
+            vec![(1234, false), (1235, false), (1236, true), (1237, true),
+                    (1238, false), (1239, false), (1240, false), (1241, false)]);
+    }
 
-        {
-            let submessage_little_endian = [ 
+    #[test]
+    fn test_parse_gap_submessage_little_endian() {
+        let submessage_little_endian = [ 
                 0x10,0x12,0x14,0x16,
                 0x26,0x24,0x22,0x20,
                 0x00,0x00,0x00,0x00,
@@ -85,19 +85,21 @@ mod tests{
                 0x0C,0x00,0x00,0x00,
             ];
 
-            let gap_little_endian = parse_gap_submessage(&submessage_little_endian, &1).unwrap(); 
+        let gap_little_endian = parse_gap_submessage(&submessage_little_endian, &1).unwrap(); 
 
-            assert_eq!(gap_little_endian.reader_id, EntityId::new([0x10,0x12,0x14],0x16));
-            assert_eq!(gap_little_endian.writer_id, EntityId::new([0x26,0x24,0x22],0x20));
-            assert_eq!(gap_little_endian.gap_start, 1233);
-            assert_eq!(gap_little_endian.gap_list.len(), 8);
-            assert_eq!(gap_little_endian.gap_list, 
-                vec![(1234, false), (1235, false), (1236, true), (1237, true),
-                     (1238, false), (1239, false), (1240, false), (1241, false)])
-        }
+        assert_eq!(gap_little_endian.reader_id, EntityId::new([0x10,0x12,0x14],0x16));
+        assert_eq!(gap_little_endian.writer_id, EntityId::new([0x26,0x24,0x22],0x20));
+        assert_eq!(gap_little_endian.gap_start, 1233);
+        assert_eq!(gap_little_endian.gap_list.len(), 8);
+        assert_eq!(gap_little_endian.gap_list, 
+            vec![(1234, false), (1235, false), (1236, true), (1237, true),
+                    (1238, false), (1239, false), (1240, false), (1241, false)]);
 
-        {
-            let submessage_big_endian = [ 
+    }
+
+    #[test]
+    fn test_parse_gap_submessage_invalid() {
+        let submessage_big_endian = [ 
                 0x10,0x12,0x14,0x16,
                 0x26,0x24,0x22,0x20,
                 0x80,0x00,0x00,0x00,
@@ -108,13 +110,13 @@ mod tests{
                 0x00,0x00,0x00,0x0C,
             ];
 
-            let gap_big_endian = parse_gap_submessage(&submessage_big_endian, &0);
+        let gap_big_endian = parse_gap_submessage(&submessage_big_endian, &0);
 
-            if let Err(ErrorMessage::InvalidSubmessage) = gap_big_endian {
-                assert!(true);
-            } else {
-                assert!(false);
-            }
+        if let Err(ErrorMessage::InvalidSubmessage) = gap_big_endian {
+            assert!(true);
+        } else {
+            assert!(false);
         }
     }
+        
 }

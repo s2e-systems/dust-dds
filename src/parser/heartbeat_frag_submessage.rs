@@ -54,9 +54,8 @@ mod tests{
     use super::*;
 
     #[test]
-    fn test_parse_heartbeat_frag_submessage() {
-        {
-            let submessage_big_endian = [
+    fn test_parse_heartbeat_frag_submessage_big_endian() {
+        let submessage_big_endian = [
                 0x10,0x11,0x12,0x13,
                 0x26,0x25,0x24,0x23,
                 0x00,0x00,0x10,0x01,
@@ -65,33 +64,32 @@ mod tests{
                 0x00,0x00,0x00,0x05,
             ];
 
-            let heartbeat_frag = parse_heartbeat_frag_submessage(&submessage_big_endian, &0).unwrap();
+        let heartbeat_frag = parse_heartbeat_frag_submessage(&submessage_big_endian, &0).unwrap();
 
-            assert_eq!(heartbeat_frag.reader_id, EntityId::new([0x10,0x11,0x12],0x13));
-            assert_eq!(heartbeat_frag.writer_id, EntityId::new([0x26,0x25,0x24],0x23));
-            assert_eq!(heartbeat_frag.writer_sn, 17_596_497_920_772);
-            assert_eq!(heartbeat_frag.last_fragment_num, 356_368);
-            assert_eq!(heartbeat_frag.count, 5);
-        }
+        assert_eq!(heartbeat_frag.reader_id, EntityId::new([0x10,0x11,0x12],0x13));
+        assert_eq!(heartbeat_frag.writer_id, EntityId::new([0x26,0x25,0x24],0x23));
+        assert_eq!(heartbeat_frag.writer_sn, 17_596_497_920_772);
+        assert_eq!(heartbeat_frag.last_fragment_num, 356_368);
+        assert_eq!(heartbeat_frag.count, 5);
+    }
 
-        {
-            let submessage_little_endian = [
-                0x10,0x11,0x12,0x13,
-                0x26,0x25,0x24,0x23,
-                0x01,0x10,0x00,0x00,
-                0x04,0x03,0x02,0x01,
-                0x10,0x70,0x05,0x00,
-                0x05,0x00,0x00,0x00,
-            ];
+    #[test]
+    fn test_parse_heartbeat_frag_submessage_little_endian() {
+        let submessage_little_endian = [
+            0x10,0x11,0x12,0x13,
+            0x26,0x25,0x24,0x23,
+            0x01,0x10,0x00,0x00,
+            0x04,0x03,0x02,0x01,
+            0x10,0x70,0x05,0x00,
+            0x05,0x00,0x00,0x00,
+        ];
 
-            let heartbeat_frag = parse_heartbeat_frag_submessage(&submessage_little_endian, &1).unwrap();
+        let heartbeat_frag = parse_heartbeat_frag_submessage(&submessage_little_endian, &1).unwrap();
 
-            assert_eq!(heartbeat_frag.reader_id, EntityId::new([0x10,0x11,0x12],0x13));
-            assert_eq!(heartbeat_frag.writer_id, EntityId::new([0x26,0x25,0x24],0x23));
-            assert_eq!(heartbeat_frag.writer_sn, 17_596_497_920_772);
-            assert_eq!(heartbeat_frag.last_fragment_num, 356_368);
-            assert_eq!(heartbeat_frag.count, 5);
-        }
-        
+        assert_eq!(heartbeat_frag.reader_id, EntityId::new([0x10,0x11,0x12],0x13));
+        assert_eq!(heartbeat_frag.writer_id, EntityId::new([0x26,0x25,0x24],0x23));
+        assert_eq!(heartbeat_frag.writer_sn, 17_596_497_920_772);
+        assert_eq!(heartbeat_frag.last_fragment_num, 356_368);
+        assert_eq!(heartbeat_frag.count, 5);
     }
 }
