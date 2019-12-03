@@ -3,7 +3,7 @@ use serde_derive::{Deserialize, Serialize};
 use std::u32;
 use crate::parser::InlineQosParameter;
 
-#[derive(Deserialize, Eq, PartialEq, Default, Debug)]
+#[derive(Hash, Deserialize, Eq, PartialEq, Default, Debug)]
 pub struct EntityId {
     entity_key: [u8;3],
     entity_kind: EntityKind,
@@ -110,7 +110,7 @@ pub type InlineQosParameterList = Vec<InlineQosParameter>;
 
 pub type ParameterList = Vec<Parameter>;
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]
+#[derive(Hash, Serialize, Deserialize, PartialEq, Eq, Debug)]
 pub struct Parameter {
     pub parameter_id: u16,
     pub value: Vec<u8>,
@@ -129,7 +129,7 @@ pub struct Locator {
     pub address: [u8;16],
 }
 
-#[derive(PartialEq, Eq, Default)]
+#[derive(Hash, PartialEq, Eq, Default)]
 pub struct GUID {
     prefix: GuidPrefix,
     entity_id: EntityId,
