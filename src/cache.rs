@@ -6,10 +6,11 @@ use crate::types::{GUID,GuidPrefix, SequenceNumber, ParameterList, InstanceHandl
 use crate::types::{ENTITYID_UNKNOWN, ENTITY_KIND_WRITER_WITH_KEY};
 use crate::parser::{RtpsMessage, SubMessageType, InfoTs, InfoSrc, Data, Payload, InlineQosParameter};
 
-#[derive(Hash, Eq, Default)]
+#[derive(Hash, Eq)]
 #[allow(dead_code)]
 pub struct CacheChange {
-    // kind: ChangeKind,
+    change_kind: ChangeKind,
+    time: Option<Time>,
     writer_guid: GUID,
     instance_handle: InstanceHandle,
     sequence_number: SequenceNumber,
@@ -18,14 +19,24 @@ pub struct CacheChange {
 }
 
 impl CacheChange {
-    pub fn new(writer_guid: GUID, instance_handle: InstanceHandle, sequence_number: SequenceNumber, data: Option<Vec<u8>>, inline_qos: Option<ParameterList>) -> CacheChange {
+    pub fn new(change_kind: ChangeKind, time: Option<Time>, writer_guid: GUID, instance_handle: InstanceHandle, sequence_number: SequenceNumber, data: Option<Vec<u8>>, inline_qos: Option<ParameterList>) -> CacheChange {
         CacheChange {
+            change_kind,
+            time,
             writer_guid,
             instance_handle,
             sequence_number,
             data,
             inline_qos,
         }
+    }
+
+    pub fn get_change_kind(&self) -> &ChangeKind {
+        &self.change_kind
+    }
+
+    pub fn get_time(&self) -> &Option<Time> {
+        &self.time
     }
 
     pub fn get_writer_guid(&self) -> &GUID {

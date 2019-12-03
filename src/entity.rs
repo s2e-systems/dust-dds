@@ -5,6 +5,7 @@ use crate::types::{GUID, TopicKind, ReliabilityKind, EntityId};
 use crate::cache::HistoryCache;
 use crate::parser::{RtpsMessage,SubMessageType,InfoTs};
 use crate::Udpv4Locator;
+use crate::message;
 
 trait Entity {
     fn get_guid(&self) -> &GUID;
@@ -82,9 +83,12 @@ C: RTPSEndpoint{
     fn read_data(&mut self) {
         for endpoint in self.rtps_endpoint.iter_mut() {
             let data = endpoint.read_data().unwrap();
-            // if let Some(rtps_message) = data {
-            //     self.reader_cache.process_message(rtps_message);
-            // }
+            if let Some(rtps_message) = data {
+                let cache_changes = message::process_message(rtps_message);
+                for change in cache_changes {
+                    self.reader_cache.add_change(change).unwrap();
+                }
+            }
         }
     }
 

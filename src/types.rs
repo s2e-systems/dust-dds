@@ -91,6 +91,7 @@ pub enum ReliabilityKind {
     Reliable,
 }
 
+#[derive(Hash, PartialEq, Eq, Debug)]
 pub enum ChangeKind {
     Alive,
     AliveFiltered,
@@ -98,7 +99,7 @@ pub enum ChangeKind {
     NotAliveUnregistered,
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Hash, Debug, Clone)]
 pub struct Time {
     pub seconds: i32,
     pub fraction: u32,
