@@ -82,9 +82,9 @@ C: RTPSEndpoint{
     fn read_data(&mut self) {
         for endpoint in self.rtps_endpoint.iter_mut() {
             let data = endpoint.read_data().unwrap();
-            if let Some(rtps_message) = data {
-                self.reader_cache.process_message(rtps_message);
-            }
+            // if let Some(rtps_message) = data {
+            //     self.reader_cache.process_message(rtps_message);
+            // }
         }
     }
 
@@ -135,31 +135,19 @@ mod tests{
         } 
     }
 
-    #[test]
-    fn test_reader() {
-        let mut mock_endpoint = MockEndpoint::new();
-        let mut rtps_message = RtpsMessage::new([0,1,2,3,4,5,6,7,8,9,10,11], [99,99], ProtocolVersion{major:2,minor:4});
+    // #[test]
+    // fn test_reader() {
+    //     let mut mock_endpoint = MockEndpoint::new();
 
-        let time_submessage = SubMessageType::InfoTsSubmessage(InfoTs::new(Some(Time{seconds:10, fraction:1}))); 
-        rtps_message.add_submessage(time_submessage);
 
-        let data_submessage = SubMessageType::DataSubmessage(Data::new(
-            EntityId::new([0,0,0],0),
-            EntityId::new([0,1,0],1),
-            1,
-            Some(vec!(InlineQosParameter::KeyHash([0,1,2,3,4,5,6,7,8,9,10,11,0,1,0,1]))),
-            Payload::Data(vec!(1)),
-        ));
-        rtps_message.add_submessage(data_submessage);
+    //     mock_endpoint.add_message(rtps_message);
 
-        mock_endpoint.add_message(rtps_message);
+    //     let guid = GUID::new([1,2,3,4,5,6,7,8,9,10,11,12], EntityId::new([0,1,0], 0));
 
-        let guid = GUID::new([1,2,3,4,5,6,7,8,9,10,11,12], EntityId::new([0,1,0], 0));
+    //     let mut reader = RTPSReader::<SimpleType, MockEndpoint>::new(guid, ReliabilityKind::BestEffort, TopicKind::WithKey, false);
+    //     reader.add_endpoint(mock_endpoint);
 
-        let mut reader = RTPSReader::<SimpleType, MockEndpoint>::new(guid, ReliabilityKind::BestEffort, TopicKind::WithKey, false);
-        reader.add_endpoint(mock_endpoint);
-
-        reader.read_data();
+    //     reader.read_data();
         
-    }
+    // }
 }

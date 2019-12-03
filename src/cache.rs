@@ -27,6 +27,26 @@ impl CacheChange {
             inline_qos,
         }
     }
+
+    pub fn get_writer_guid(&self) -> &GUID {
+        &self.writer_guid
+    }
+
+    pub fn get_instance_handle(&self) -> &InstanceHandle {
+        &self.instance_handle
+    }
+
+    pub fn get_sequence_number(&self) -> &SequenceNumber {
+        &self.sequence_number
+    }
+
+    pub fn get_data(&self) -> &Option<Vec<u8>> {
+        &self.data
+    }
+
+    pub fn get_inline_qos(&self) -> &Option<ParameterList> {
+        &self.inline_qos
+    }
 }
 
 impl PartialEq for CacheChange {
@@ -102,59 +122,6 @@ impl HistoryCache {
         unimplemented!()
         // self.changes.read().unwrap().contains_key(key)
     }
-
-    pub fn process_message(&self, message: RtpsMessage) {
-        let (mut source_guid_prefix, mut source_vendor_id, mut source_protocol_version, mut submessages) = message.take(); 
-        let mut message_timestamp : Option<Time> = None;
-        
-        while let Some(submessage) = submessages.pop_front() {
-            match submessage {
-                SubMessageType::InfoTsSubmessage(info_ts) => self.process_infots(info_ts, &mut message_timestamp),
-                SubMessageType::DataSubmessage(data) => self.process_data(data, &source_guid_prefix),
-                SubMessageType::InfoSrcSubmessage(info_src) => self.process_infosrc(info_src, &mut source_protocol_version, &mut source_vendor_id, &mut source_guid_prefix),
-                _ => println!("Unimplemented message type"),
-            };   
-        }
-    }
-    
-    fn process_infots(&self, info_ts: InfoTs, time: &mut Option<Time>) {
-        println!("Processing time");
-        *time = info_ts.take();
-    }
-    
-    fn process_infosrc(&self, info_src: InfoSrc, protocol_version: &mut ProtocolVersion, vendor_id: &mut VendorId, guid_prefix: &mut GuidPrefix) {
-        println!("Processing info source");
-        let (new_protocol_version, new_vendor_id, new_guid_prefix)=info_src.take();
-        *protocol_version = new_protocol_version;
-        *vendor_id = new_vendor_id;
-        *guid_prefix = new_guid_prefix;
-    }
-    
-    fn process_data(&self, data: Data, source_guid_prefix: &GuidPrefix) {
-        println!("Processing data");
-        let (reader_id, writer_id, writer_sn, inline_qos, serialized_payload) = data.take();
-        let writer_guid = GUID::new(*source_guid_prefix, writer_id);
-        
-        if let Payload::Data(data) = serialized_payload {
-            if let Some(inline_qos_list) = inline_qos {
-                let key_hash_parameter = inline_qos_list.iter().find(|&x| x.is_key_hash());
-                if let Some(InlineQosParameter::KeyHash(instance_handle)) = key_hash_parameter {
-                    let cache_change = CacheChange::new(writer_guid,*instance_handle,writer_sn,Some(data),None);
-                    self.add_change(cache_change);
-                }
-            }
-        } else if let Payload::Key(key) = serialized_payload {
-            if let Some(inline_qos_list) = inline_qos {
-                let status_info_parameter = inline_qos_list.iter().find(|&x| x.is_status_info());
-                if let Some(InlineQosParameter::StatusInfo(status_info)) = status_info_parameter {
-                    // TODO: Check the liveliness changes to the entity
-                }
-            }
-        } else {
-            // TODO: Either no payload or non standardized payload. In either case, not implemented yet
-        }
-    }
-
 }
 
 

@@ -16,6 +16,7 @@ mod cache;
 mod entity;
 mod guid;
 mod endpoint;
+mod message;
 
 use types::EntityId;
 

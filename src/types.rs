@@ -129,7 +129,7 @@ pub struct Locator {
     pub address: [u8;16],
 }
 
-#[derive(Hash, PartialEq, Eq, Default)]
+#[derive(Hash, PartialEq, Eq, Default, Debug)]
 pub struct GUID {
     prefix: GuidPrefix,
     entity_id: EntityId,
