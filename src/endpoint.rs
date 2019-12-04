@@ -8,8 +8,12 @@ use std::time::Duration;
 
 use crate::parser::{RtpsMessage, parse_rtps_message, SubMessageType, Data, AckNack};
 
-struct Endpoint {
+pub struct Endpoint {
     socket: UdpSocket,
+}
+
+pub trait RTPSEndpoint {
+    fn read_data(&mut self) -> Result<Option<RtpsMessage>, ()>;
 }
 
 impl Endpoint {
@@ -27,7 +31,7 @@ impl Endpoint {
         }
     }
 
-    pub fn read_data(&self) -> () {
+    pub fn read(&self) -> () {
         let mut buf = [0;65536];
 
         let received = self.socket.recv_from(&mut buf);
@@ -46,6 +50,22 @@ impl Endpoint {
         }
     }
 
+}
+
+impl RTPSEndpoint for Endpoint {
+    fn read_data(&mut self) -> Result<Option<RtpsMessage>, ()> {
+        let mut buf = [0;65536];
+
+        let received = self.socket.recv_from(&mut buf);
+        if received.is_ok() {
+            let (bytes_received, _src) = received.unwrap();
+            let received_message = parse_rtps_message(&buf[0..bytes_received]).unwrap();
+            return Ok(Some(received_message));
+        } else {
+            println!("Didn't receive data within timeout");
+            return Ok(None);
+        }
+    }
 }
 
 

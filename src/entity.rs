@@ -6,13 +6,10 @@ use crate::cache::HistoryCache;
 use crate::parser::{RtpsMessage,SubMessageType,InfoTs};
 use crate::Udpv4Locator;
 use crate::message;
+use crate::endpoint::RTPSEndpoint;
 
 trait Entity {
     fn get_guid(&self) -> &GUID;
-}
-
-pub trait RTPSEndpoint {
-    fn read_data(&mut self) -> Result<Option<RtpsMessage>, ()>;
 }
 
 // struct RTPSEndpoint{
@@ -86,6 +83,7 @@ C: RTPSEndpoint{
             if let Some(rtps_message) = data {
                 let cache_changes = message::process_message(rtps_message);
                 for change in cache_changes {
+                    println!("Adding a cache change");
                     self.reader_cache.add_change(change).unwrap();
                 }
             }
@@ -103,6 +101,7 @@ mod tests{
     use std::collections::VecDeque;
     use crate::parser::{Data, InlineQosParameter, Payload};
     use crate::types::{ProtocolVersion, Time};
+    use crate::endpoint::Endpoint;
 
     struct MockEndpoint {
         message_buffer: VecDeque<RtpsMessage>,
@@ -154,4 +153,22 @@ mod tests{
     //     reader.read_data();
         
     // }
+
+    #[test]
+    fn test_reader_with_udp_endpoint() {
+        let guid = GUID::new([1,2,3,4,5,6,7,8,9,10,11,12], EntityId::new([0,1,0], 0));
+        let udp_discovery_endpoint = Endpoint::new();
+
+        let mut reader = RTPSReader::<SimpleType, Endpoint>::new(guid, ReliabilityKind::BestEffort, TopicKind::WithKey, false);
+        reader.add_endpoint(udp_discovery_endpoint);
+
+        for _ in 0..20 {
+            reader.read_data();
+        }
+
+        for change in reader.reader_cache.changes.lock().unwrap().iter()
+        {
+            println!("Change {:?}", change);
+        }
+    }
 }
