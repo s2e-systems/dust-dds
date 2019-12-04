@@ -155,23 +155,23 @@ mod tests{
         
     // }
 
-    #[test]
-    fn test_reader_with_udp_endpoint() {
-        let guid = GUID::new([1,2,3,4,5,6,7,8,9,10,11,12], EntityId::new([0,1,0], 0));
-        let udp_discovery_endpoint = Endpoint::new();
+    // #[test]
+    // fn test_reader_with_udp_endpoint() {
+    //     let guid = GUID::new([1,2,3,4,5,6,7,8,9,10,11,12], EntityId::new([0,1,0], 0));
+    //     let udp_discovery_endpoint = Endpoint::new();
 
-        let mut reader = RTPSReader::<SimpleType, Endpoint>::new(guid, ReliabilityKind::BestEffort, TopicKind::WithKey, false);
-        reader.add_endpoint(udp_discovery_endpoint);
+    //     let mut reader = RTPSReader::<SimpleType, Endpoint>::new(guid, ReliabilityKind::BestEffort, TopicKind::WithKey, false);
+    //     reader.add_endpoint(udp_discovery_endpoint);
 
-        for _ in 0..20 {
-            reader.read_data();
-        }
+    //     for _ in 0..20 {
+    //         reader.read_data();
+    //     }
 
-        for change in reader.reader_cache.changes.lock().unwrap().iter()
-        {
-            println!("Change {:?}", change);
-            let data = change.get_data().as_ref().unwrap();
-            println!("Change data {:?}", parse_spdp_parameter_list(&data).unwrap())
-        }
-    }
+    //     for change in reader.reader_cache.changes.lock().unwrap().iter()
+    //     {
+    //         println!("Change {:?}", change);
+    //         let data = change.get_data().as_ref().unwrap();
+    //         println!("Change data {:?}", parse_spdp_parameter_list(&data).unwrap())
+    //     }
+    // }
 }

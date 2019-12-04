@@ -1,6 +1,6 @@
 
 use serde_derive::{Deserialize, Serialize};
-use std::u32;
+use std::{u32, i32};
 use crate::parser::InlineQosParameter;
 
 #[derive(Serialize, Hash, Deserialize, Eq, PartialEq, Default, Debug)]
@@ -101,11 +101,22 @@ pub enum ChangeKind {
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Hash, Debug, Clone)]
 pub struct Time {
+    pub seconds: u32,
+    pub fraction: u32,
+}
+
+const TIME_ZERO: Time = Time{seconds: 0, fraction: 0 };
+const TIME_INFINITE: Time = Time{seconds: u32::MAX, fraction: u32::MAX-1 };
+const TIME_INVALID: Time = Time{seconds: u32::MAX, fraction: u32::MAX };
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Hash, Debug, Clone)]
+pub struct Duration {
     pub seconds: i32,
     pub fraction: u32,
 }
 
-const TIME_INVALID_SEC: Time = Time{seconds: -1, fraction: u32::MAX };
+const DURATION_ZERO: Duration = Duration{seconds: 0, fraction: 0 };
+const DURATION_INFINITE: Duration = Duration{seconds: i32::MAX, fraction: u32::MAX };
 
 pub type InlineQosParameterList = Vec<InlineQosParameter>;
 
