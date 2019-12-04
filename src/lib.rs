@@ -2,13 +2,7 @@
 #![allow(unused_variables)]
 #![allow(unused_imports)]
 
-
 use std::time::Duration;
-
-extern crate serde;
-extern crate serde_derive;
-extern crate num;
-extern crate num_derive;
 
 mod types;
 pub mod parser;
@@ -17,6 +11,7 @@ mod entity;
 mod guid;
 mod endpoint;
 mod message;
+mod spdp;
 
 use types::EntityId;
 

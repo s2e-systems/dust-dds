@@ -1,4 +1,4 @@
-mod helpers;
+pub mod helpers;
 
 mod data_submessage;
 mod ack_nack_submessage;
@@ -143,54 +143,6 @@ impl InlineQosParameter {
             _ => false,
         }
     }
-}
-
-pub enum ParameterId {
-    Pad = 0x0000, //N/A
-    Sentinel = 0x0001, //N/A
-    UserData = 0x002c, //UserDataQosPolicy
-    TopicName = 0x0005, //string<256>
-    TypeName = 0x0007, //string<256>
-    GroupData = 0x002d, //GroupDataQosPolicy
-    TopicData = 0x002e, //TopicDataQosPolicy
-    Durability = 0x001d, //DurabilityQosPolicy
-    DurabilityService = 0x001e, //DurabilityServiceQosPolicy
-    Deadline = 0x0023, //DeadlineQosPolicy
-    LatencyBudget = 0x0027, //LatencyBudgetQosPolicy
-    Liveliness = 0x001b, //LivelinessQosPolicy
-    Reliability = 0x001a, //ReliabilityQosPolicy
-    Lifespan = 0x002b, //LifespanQosPolicy
-    DestinationOrder = 0x0025, //DestinationOrderQosPolicy
-    History = 0x0040, //HistoryQosPolicy
-    ResourceLimits = 0x0041, //ResourceLimitsQosPolicy
-    Ownership = 0x001f, //OwnershipQosPolicy
-    OwnershipStrength = 0x0006, //OwnershipStrengthQosPolicy
-    Presentation = 0x0021, //PresentationQosPolicy
-    Partition = 0x0029, //PartitionQosPolicy
-    TimeBasedFilter = 0x0004, //TimeBasedFilterQosPolicy
-    TransportPriority = 0x0049, //TransportPriorityQoSPolicy
-    DomainId = 0x000f, //DomainId_t
-    DomainTag = 0x4014, //string<256>
-    ProtocolVersion = 0x0015, //ProtocolVersion_t
-    VendorId = 0x0016, //VendorId_t
-    UnicastLocator = 0x002f, //Locator_t
-    MulticastLocator = 0x0030, //Locator_t
-    DefaultUnicastLocator = 0x0031, //Locator_t
-    DefaultMulticastLocator = 0x0048, //Locator_t
-    MetatrafficUnicastLocator = 0x0032, //Locator_t
-    MetatrafficMulticastLocator = 0x0033, //Locator_t
-    ExpectsInlineQoS = 0x0043, //boolean
-    ParticipantManualLivelinessCount = 0x0034, //Count_t
-    ParticipantLeaseDuration = 0x0002, //Duration_t
-    ContentFilterProperty = 0x0035, //ContentFilterProperty_t
-    ParticipantGuid = 0x0050, //GUID_t
-    GroupGuid =  0x0052, //GUID_t
-    BuiltinEndpointSet = 0x0058, //BuiltinEndpointSet_t
-    BuiltinEndpointQoS = 0x0077, //BuiltinEndpointQos_t
-    PropertyList = 0x0059, //sequence<Property_t>
-    TypeMaxSizeSerialized = 0x0060, //long
-    EntityName = 0x0062, //EntityName_t
-    EndpointGuid = 0x005a, //GUID_t
 }
 
 
