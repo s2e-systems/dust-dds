@@ -3,7 +3,7 @@ use serde_derive::{Deserialize, Serialize};
 use std::u32;
 use crate::parser::InlineQosParameter;
 
-#[derive(Hash, Deserialize, Eq, PartialEq, Default, Debug)]
+#[derive(Serialize, Hash, Deserialize, Eq, PartialEq, Default, Debug)]
 pub struct EntityId {
     entity_key: [u8;3],
     entity_kind: EntityKind,
@@ -130,7 +130,7 @@ pub struct Locator {
     pub address: [u8;16],
 }
 
-#[derive(Hash, PartialEq, Eq, Default, Debug)]
+#[derive(Serialize, Deserialize, Hash, PartialEq, Eq, Default, Debug)]
 pub struct GUID {
     prefix: GuidPrefix,
     entity_id: EntityId,

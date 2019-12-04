@@ -1,7 +1,7 @@
 use std::convert::TryInto;
 use num_derive::FromPrimitive;
 
-use crate::types::{VendorId, ProtocolVersion};
+use crate::types::{VendorId, ProtocolVersion, Locator, LocatorList, Time, GUID};
 use crate::parser::helpers::{deserialize, EndianessFlag};
 
 #[derive(Debug)]
@@ -11,14 +11,7 @@ pub enum SpdpErrorMessage {
     ParameterLengthTooSmall,
     InvalidParameterLength,
     ParameterContentConversionFailed,
-    // RtpsMajorVersionUnsupported,
-    // RtpsMinorVersionUnsupported,
-    // InvalidSubmessageHeader,
-    // InvalidSubmessage,
-    // InvalidKeyAndDataFlagCombination,
     CdrError(cdr::Error),
-    // InvalidTypeConversion,
-    // DeserializationMessageSizeTooSmall,
 }
 
 impl From<cdr::Error> for SpdpErrorMessage {
@@ -82,19 +75,21 @@ pub enum SpdpParameterId {
 pub enum SpdpParameter {
     ProtocolVersion(ProtocolVersion),
     VendorId(VendorId),
-    // UnicastLocator<Vec<Locator>>
-    // MulticastLocator<Vec<Locator>>
-    // DefaultUnicastLocator<Vec<Locator>>,
-    // DefaultMulticastLocator<Vec<Locator>>,
-    // MetatrafficUnicastLocator<Vec<Locator>>,
-    // MetatrafficMulticastLocator<Vec<Locator>>,
-    // BuiltinEndpointSet<AvailableBuiltinEndpoints>,
+    UnicastLocator(Locator),
+    MulticastLocator(Locator),
+    DefaultUnicastLocator(Locator),
+    DefaultMulticastLocator(Locator),
+    MetatrafficUnicastLocator(Locator),
+    MetatrafficMulticastLocator(Locator),
+    ParticipantLeaseDuration(Time), //TODO: Replace time type by duration type
+    ParticipantGuid(GUID),
+    BuiltinEndpointSet(u32), // TODO: Create bitmask type with the position encoded
 }
 
 pub type SpdpParameterList = Vec<SpdpParameter>;
 
 // This function is very much similar to parse_inline_qos_parameter_list in the parser::helpers modules. Later some re-use could be considered
-fn parse_spdp_parameter_list(data: &[u8]) -> Result<SpdpParameterList>{
+pub fn parse_spdp_parameter_list(data: &[u8]) -> Result<SpdpParameterList>{
     const MINIMUM_DATA_LENGTH: usize = 12; // If a message has data it must have the encoding information, options and at least one parameter with minimum 4 length
     const MINIMUM_PARAMETER_VALUE_LENGTH: usize = 4;
     const FIRST_PARAMETER_LENGTH_OFFSET: usize = 4;
@@ -145,14 +140,24 @@ fn parse_spdp_parameter_list(data: &[u8]) -> Result<SpdpParameterList>{
         }
 
         let value = match num::FromPrimitive::from_u16(parameter_id) {
-            //Some(SpdpParameterId::ProtocolVersion) => Some(SpdpParameter::ProtocolVersion(data[value_first_index..=value_last_index].try_into().map_err(|_| SpdpErrorMessage::ParameterContentConversionFailed)?)),
+            Some(SpdpParameterId::ProtocolVersion) => Some(SpdpParameter::ProtocolVersion(deserialize::<ProtocolVersion>(&data, &value_first_index, &value_last_index, &endianess).unwrap())),
             Some(SpdpParameterId::VendorId) => Some(SpdpParameter::VendorId(data[value_first_index..=value_first_index+1].try_into().map_err(|_| SpdpErrorMessage::ParameterContentConversionFailed)?)),
+            Some(SpdpParameterId::UnicastLocator) => Some(SpdpParameter::UnicastLocator(deserialize::<Locator>(&data, &value_first_index, &value_last_index, &endianess).unwrap())),
+            Some(SpdpParameterId::MulticastLocator) => Some(SpdpParameter::MulticastLocator(deserialize::<Locator>(&data, &value_first_index, &value_last_index, &endianess).unwrap())),
+            Some(SpdpParameterId::DefaultUnicastLocator) => Some(SpdpParameter::DefaultUnicastLocator(deserialize::<Locator>(&data, &value_first_index, &value_last_index, &endianess).unwrap())),
+            Some(SpdpParameterId::DefaultMulticastLocator) => Some(SpdpParameter::DefaultMulticastLocator(deserialize::<Locator>(&data, &value_first_index, &value_last_index, &endianess).unwrap())),
+            Some(SpdpParameterId::MetatrafficUnicastLocator) => Some(SpdpParameter::MetatrafficUnicastLocator(deserialize::<Locator>(&data, &value_first_index, &value_last_index, &endianess).unwrap())),
+            Some(SpdpParameterId::MetatrafficMulticastLocator) => Some(SpdpParameter::MetatrafficMulticastLocator(deserialize::<Locator>(&data, &value_first_index, &value_last_index, &endianess).unwrap())),
+            Some(SpdpParameterId::ParticipantLeaseDuration) => Some(SpdpParameter::ParticipantLeaseDuration(deserialize::<Time>(&data, &value_first_index, &value_last_index, &endianess).unwrap())),
+            Some(SpdpParameterId::ParticipantGuid) => Some(SpdpParameter::ParticipantGuid(deserialize::<GUID>(&data, &value_first_index, &value_last_index, &endianess).unwrap())),
+            Some(SpdpParameterId::BuiltinEndpointSet) => Some(SpdpParameter::BuiltinEndpointSet(deserialize::<u32>(&data, &value_first_index, &value_last_index, &endianess).unwrap())),
             // Some(InlineQosPid::StatusInfo) => Some(InlineQosParameter::StatusInfo(submessage[value_first_index..=value_last_index].try_into().map_err(|_| ErrorMessage::InvalidSubmessageHeader)?)),
             _ => None,
         };
 
         if let Some(parameter) = value {
             parameter_list.push(parameter);
+        } else {
         }
 
         parameter_id_first_index = value_last_index + 1;
@@ -164,7 +169,6 @@ fn parse_spdp_parameter_list(data: &[u8]) -> Result<SpdpParameterList>{
 
 #[cfg(test)]
 mod tests {
-
     use super::*;
 
     #[test]

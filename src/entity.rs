@@ -102,6 +102,7 @@ mod tests{
     use crate::parser::{Data, InlineQosParameter, Payload};
     use crate::types::{ProtocolVersion, Time};
     use crate::endpoint::Endpoint;
+    use crate::spdp::parse_spdp_parameter_list;
 
     struct MockEndpoint {
         message_buffer: VecDeque<RtpsMessage>,
@@ -169,6 +170,8 @@ mod tests{
         for change in reader.reader_cache.changes.lock().unwrap().iter()
         {
             println!("Change {:?}", change);
+            let data = change.get_data().as_ref().unwrap();
+            println!("Change data {:?}", parse_spdp_parameter_list(&data).unwrap())
         }
     }
 }
