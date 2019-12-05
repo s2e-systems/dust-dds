@@ -141,7 +141,7 @@ pub fn parse_spdp_parameter_list(data: &[u8]) -> Result<SpdpParameterList>{
 
         let value = match num::FromPrimitive::from_u16(parameter_id) {
             Some(SpdpParameterId::ProtocolVersion) => Some(SpdpParameter::ProtocolVersion(deserialize::<ProtocolVersion>(&data, &value_first_index, &value_last_index, &endianess).unwrap())),
-            Some(SpdpParameterId::VendorId) => Some(SpdpParameter::VendorId(data[value_first_index..=value_first_index+1].try_into().map_err(|_| SpdpErrorMessage::ParameterContentConversionFailed)?)),
+            Some(SpdpParameterId::VendorId) => Some(SpdpParameter::VendorId(deserialize::<VendorId>(&data, &value_first_index, &value_last_index, &endianess).unwrap())),
             Some(SpdpParameterId::UnicastLocator) => Some(SpdpParameter::UnicastLocator(deserialize::<Locator>(&data, &value_first_index, &value_last_index, &endianess).unwrap())),
             Some(SpdpParameterId::MulticastLocator) => Some(SpdpParameter::MulticastLocator(deserialize::<Locator>(&data, &value_first_index, &value_last_index, &endianess).unwrap())),
             Some(SpdpParameterId::DefaultUnicastLocator) => Some(SpdpParameter::DefaultUnicastLocator(deserialize::<Locator>(&data, &value_first_index, &value_last_index, &endianess).unwrap())),
@@ -170,12 +170,22 @@ pub fn parse_spdp_parameter_list(data: &[u8]) -> Result<SpdpParameterList>{
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::types::{EntityId, ENTITY_KIND_BUILT_IN_PARTICIPANT};
 
     #[test]
     fn test_parse_example_spdp_data() {
         let data = [0, 3, 0, 0, 21, 0, 4, 0, 2, 1, 0, 0, 22, 0, 4, 0, 1, 2, 0, 0, 49, 0, 24, 0, 1, 0, 0, 0, 243, 28, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 192, 168, 1, 160, 72, 0, 24, 0, 1, 0, 0, 0, 233, 28, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 239, 255, 0, 1, 50, 0, 24, 0, 1, 0, 0, 0, 242, 28, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 192, 168, 1, 160, 51, 0, 24, 0, 1, 0, 0, 0, 232, 28, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 239, 255, 0, 1, 2, 0, 8, 0, 11, 0, 0, 0, 0, 0, 0, 0, 80, 0, 16, 0, 6, 85, 244, 87, 0, 0, 0, 4, 0, 0, 0, 1, 0, 0, 1, 193, 88, 0, 4, 0, 21, 4, 0, 0, 0, 128, 4, 0, 21, 0, 0, 0, 7, 128, 76, 0, 0, 0, 0, 0, 47, 0, 0, 0, 199, 0, 2, 0, 180, 180, 79, 117, 1, 0, 0, 0, 51, 0, 0, 0, 97, 114, 109, 116, 97, 114, 103, 101, 116, 51, 47, 54, 46, 57, 46, 49, 56, 49, 49, 50, 55, 79, 83, 83, 47, 52, 50, 99, 55, 99, 97, 102, 47, 52, 50, 99, 55, 99, 97, 102, 47, 47, 97, 114, 109, 118, 55, 108, 46, 49, 0, 0, 1, 0, 0, 0];
         let spdp_parameter_list = parse_spdp_parameter_list(&data).unwrap();
 
-        println!("{:?}", spdp_parameter_list);
+        assert_eq!(spdp_parameter_list.len(), 9);
+        assert_eq!(spdp_parameter_list[0], SpdpParameter::ProtocolVersion(ProtocolVersion{major:2, minor:1}));
+        assert_eq!(spdp_parameter_list[1], SpdpParameter::VendorId([1,2]));
+        assert_eq!(spdp_parameter_list[2], SpdpParameter::DefaultUnicastLocator(Locator::new(1,7411, [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 192, 168, 1, 160])));
+        assert_eq!(spdp_parameter_list[3], SpdpParameter::DefaultMulticastLocator(Locator::new(1,7401, [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 239, 255, 0, 1])));
+        assert_eq!(spdp_parameter_list[4], SpdpParameter::MetatrafficUnicastLocator(Locator::new(1,7410, [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 192, 168, 1, 160])));
+        assert_eq!(spdp_parameter_list[5], SpdpParameter::MetatrafficMulticastLocator(Locator::new(1,7400, [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 239, 255, 0, 1])));
+        assert_eq!(spdp_parameter_list[6], SpdpParameter::ParticipantLeaseDuration(Time{seconds:11,fraction:0}));
+        assert_eq!(spdp_parameter_list[7], SpdpParameter::ParticipantGuid(GUID::new([6, 85, 244, 87, 0, 0, 0, 4, 0, 0, 0, 1], EntityId::new([0, 0, 1], ENTITY_KIND_BUILT_IN_PARTICIPANT))));
+        assert_eq!(spdp_parameter_list[8], SpdpParameter::BuiltinEndpointSet(1045));
     }
 }

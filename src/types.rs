@@ -141,6 +141,16 @@ pub struct Locator {
     pub address: [u8;16],
 }
 
+impl Locator {
+    pub fn new(kind: i32, port: u32, address: [u8;16]) -> Locator {
+        Locator {
+            kind,
+            port,
+            address,
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Hash, PartialEq, Eq, Default, Debug)]
 pub struct GUID {
     prefix: GuidPrefix,
