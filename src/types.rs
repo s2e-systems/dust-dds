@@ -188,6 +188,95 @@ impl GUID {
     }
 }
 
+pub struct BuiltInEndPointSet {
+    value: u32,
+}
+
+impl BuiltInEndPointSet {
+    const DISC_BUILTIN_ENDPOINT_PARTICIPANT_ANNOUNCER_POSITION: u8 = 0;
+    const DISC_BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR_POSITION: u8 = 1;
+    const DISC_BUILTIN_ENDPOINT_PUBLICATIONS_ANNOUNCER_POSITION: u8 = 2;
+    const DISC_BUILTIN_ENDPOINT_PUBLICATIONS_DETECTOR_POSITION: u8 = 3;
+    const DISC_BUILTIN_ENDPOINT_SUBSCRIPTIONS_ANNOUNCER_POSITION: u8 = 4;
+    const DISC_BUILTIN_ENDPOINT_SUBSCRIPTIONS_DETECTOR_POSITION: u8 = 5;
+
+    /*
+    The following have been deprecated in version 2.4 of the
+    specification. These bits should not be used by versions of the
+    protocol equal to or newer than the deprecated version unless
+    they are used with the same meaning as in versions prior to the
+    deprecated version.
+    @position(6) DISC_BUILTIN_ENDPOINT_PARTICIPANT_PROXY_ANNOUNCER,
+    @position(7) DISC_BUILTIN_ENDPOINT_PARTICIPANT_PROXY_DETECTOR,
+    @position(8) DISC_BUILTIN_ENDPOINT_PARTICIPANT_STATE_ANNOUNCER,
+    @position(9) DISC_BUILTIN_ENDPOINT_PARTICIPANT_STATE_DETECTOR,
+    */
+
+    const BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_WRITER_POSITION: u8 = 10;
+    const BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_READER_POSITION: u8 = 11;
+
+    /* 
+    Bits 12-15 have been reserved by the DDS-Xtypes 1.2 Specification
+    and future revisions thereof.
+    Bits 16-27 have been reserved by the DDS-Security 1.1 Specification
+    and future revisions thereof.
+    */
+
+    const DISC_BUILTIN_ENDPOINT_TOPICS_ANNOUNCER_POSITION: u8 = 28;
+    const DISC_BUILTIN_ENDPOINT_TOPICS_DETECTOR_POSITION: u8 = 29;
+
+    pub fn new(value: u32) -> Self{
+        BuiltInEndPointSet {
+            value,
+        }
+    }
+
+    pub fn has_participant_announcer(&self) -> bool {
+        self.is_bit_set(BuiltInEndPointSet::DISC_BUILTIN_ENDPOINT_PARTICIPANT_ANNOUNCER_POSITION)
+    }
+
+    pub fn has_participant_detector(&self) -> bool {
+        self.is_bit_set(BuiltInEndPointSet::DISC_BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR_POSITION)
+    }
+
+    pub fn has_publications_announcer(&self) -> bool {
+        self.is_bit_set(BuiltInEndPointSet::DISC_BUILTIN_ENDPOINT_PUBLICATIONS_ANNOUNCER_POSITION)
+    }
+
+    pub fn has_publications_detector(&self) -> bool {
+        self.is_bit_set(BuiltInEndPointSet::DISC_BUILTIN_ENDPOINT_PUBLICATIONS_DETECTOR_POSITION)
+    }
+
+    pub fn has_subscriptions_announcer(&self) -> bool {
+        self.is_bit_set(BuiltInEndPointSet::DISC_BUILTIN_ENDPOINT_SUBSCRIPTIONS_ANNOUNCER_POSITION)
+    }
+
+    pub fn has_subscriptions_detector(&self) -> bool {
+        self.is_bit_set(BuiltInEndPointSet::DISC_BUILTIN_ENDPOINT_SUBSCRIPTIONS_DETECTOR_POSITION)
+    }
+
+    pub fn has_participant_message_data_writer(&self) -> bool {
+        self.is_bit_set(BuiltInEndPointSet::BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_WRITER_POSITION)
+    }
+
+    pub fn has_participant_message_data_reader(&self) -> bool {
+        self.is_bit_set(BuiltInEndPointSet::BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_READER_POSITION)
+    }
+
+    pub fn has_topics_announcer(&self) -> bool {
+        self.is_bit_set(BuiltInEndPointSet::DISC_BUILTIN_ENDPOINT_TOPICS_ANNOUNCER_POSITION)
+    }
+
+    pub fn has_topics_detector(&self) -> bool {
+        self.is_bit_set(BuiltInEndPointSet::DISC_BUILTIN_ENDPOINT_TOPICS_DETECTOR_POSITION)
+    }
+
+    fn is_bit_set(&self, bit_position: u8) -> bool {
+        let bitmask = 1 << bit_position;
+        (self.value & bitmask) >> bit_position == 1
+    }
+}
+
 pub type EntityKind = u8;
 pub type InstanceHandle = [u8;16];
 pub type VendorId = [u8;2];
@@ -200,3 +289,90 @@ pub type FragmentNumber = u32;
 pub type FragmentNumberSet = Vec<(FragmentNumber, bool)>;
 pub type KeyHash = [u8;16];
 pub type StatusInfo = [u8;4];
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_builtin_endpoint_set_participant_announcer() {
+        assert_eq!(BuiltInEndPointSet::new(0).has_participant_announcer(), false);
+        assert_eq!(BuiltInEndPointSet::new(1).has_participant_announcer(), true);
+        assert_eq!(BuiltInEndPointSet::new(16).has_participant_announcer(), false);
+        assert_eq!(BuiltInEndPointSet::new(15).has_participant_announcer(), true);
+    }
+
+    #[test]
+    fn test_builtin_endpoint_set_participant_detector() {
+        assert_eq!(BuiltInEndPointSet::new(0).has_participant_detector(), false);
+        assert_eq!(BuiltInEndPointSet::new(2).has_participant_detector(), true);
+        assert_eq!(BuiltInEndPointSet::new(16).has_participant_detector(), false);
+        assert_eq!(BuiltInEndPointSet::new(15).has_participant_detector(), true);
+    }
+
+    #[test]
+    fn test_builtin_endpoint_set_publications_announcer() {
+        assert_eq!(BuiltInEndPointSet::new(0).has_publications_announcer(), false);
+        assert_eq!(BuiltInEndPointSet::new(4).has_publications_announcer(), true);
+        assert_eq!(BuiltInEndPointSet::new(16).has_publications_announcer(), false);
+        assert_eq!(BuiltInEndPointSet::new(15).has_publications_announcer(), true);
+    }
+
+    #[test]
+    fn test_builtin_endpoint_set_publications_detector() {
+        assert_eq!(BuiltInEndPointSet::new(0).has_publications_detector(), false);
+        assert_eq!(BuiltInEndPointSet::new(8).has_publications_detector(), true);
+        assert_eq!(BuiltInEndPointSet::new(16).has_publications_detector(), false);
+        assert_eq!(BuiltInEndPointSet::new(15).has_publications_detector(), true);
+    }
+
+    #[test]
+    fn test_builtin_endpoint_set_subscriptions_announcer() {
+        assert_eq!(BuiltInEndPointSet::new(0).has_subscriptions_announcer(), false);
+        assert_eq!(BuiltInEndPointSet::new(16).has_subscriptions_announcer(), true);
+        assert_eq!(BuiltInEndPointSet::new(32).has_subscriptions_announcer(), false);
+        assert_eq!(BuiltInEndPointSet::new(31).has_subscriptions_announcer(), true);
+    }
+
+    #[test]
+    fn test_builtin_endpoint_set_subscriptions_detector() {
+        assert_eq!(BuiltInEndPointSet::new(0).has_subscriptions_detector(), false);
+        assert_eq!(BuiltInEndPointSet::new(32).has_subscriptions_detector(), true);
+        assert_eq!(BuiltInEndPointSet::new(31).has_subscriptions_detector(), false);
+        assert_eq!(BuiltInEndPointSet::new(63).has_subscriptions_detector(), true);
+    }
+
+    #[test]
+    fn test_builtin_endpoint_participant_message_data_writer() {
+        assert_eq!(BuiltInEndPointSet::new(0).has_participant_message_data_writer(), false);
+        assert_eq!(BuiltInEndPointSet::new(1024).has_participant_message_data_writer(), true);
+        assert_eq!(BuiltInEndPointSet::new(1023).has_participant_message_data_writer(), false);
+        assert_eq!(BuiltInEndPointSet::new(2047).has_participant_message_data_writer(), true);
+    }
+
+    #[test]
+    fn test_builtin_endpoint_participant_message_data_reader() {
+        assert_eq!(BuiltInEndPointSet::new(0).has_participant_message_data_reader(), false);
+        assert_eq!(BuiltInEndPointSet::new(2048).has_participant_message_data_reader(), true);
+        assert_eq!(BuiltInEndPointSet::new(2047).has_participant_message_data_reader(), false);
+        assert_eq!(BuiltInEndPointSet::new(4095).has_participant_message_data_reader(), true);
+    }
+
+    #[test]
+    fn test_builtin_endpoint_topics_announcer() {
+        assert_eq!(BuiltInEndPointSet::new(0).has_topics_announcer(), false);
+        assert_eq!(BuiltInEndPointSet::new(268435456).has_topics_announcer(), true);
+        assert_eq!(BuiltInEndPointSet::new(268435455).has_topics_announcer(), false);
+        assert_eq!(BuiltInEndPointSet::new(536870911).has_topics_announcer(), true);
+    }
+
+    #[test]
+    fn test_builtin_endpoint_topics_detector() {
+        assert_eq!(BuiltInEndPointSet::new(0).has_topics_detector(), false);
+        assert_eq!(BuiltInEndPointSet::new(536870912).has_topics_detector(), true);
+        assert_eq!(BuiltInEndPointSet::new(536870911).has_topics_detector(), false);
+        assert_eq!(BuiltInEndPointSet::new(1073741823).has_topics_detector(), true);
+    }
+
+
+}
