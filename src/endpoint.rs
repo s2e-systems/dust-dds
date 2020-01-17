@@ -1,10 +1,12 @@
 use std::net::UdpSocket;
-use std::net::Ipv4Addr;
+use std::net::{IpAddr, Ipv4Addr};
 use std::str::FromStr;
 use std::net::AddrParseError;
 use std::net::SocketAddr;
 use std::net::SocketAddrV4;
 use std::time::Duration;
+use ipconfig;
+use net2::UdpBuilder;
 
 use crate::parser::{RtpsMessage, parse_rtps_message, SubMessageType, Data, AckNack};
 
@@ -16,13 +18,31 @@ pub trait RTPSEndpoint {
     fn read_data(&mut self) -> Result<Option<RtpsMessage>, ()>;
 }
 
+fn get_wifi_adress() -> Option<Ipv4Addr> {
+    for adapter in ipconfig::get_adapters().unwrap() {
+        if adapter.friendly_name() == "Wi-Fi" {
+            for addr in adapter.ip_addresses() {
+                match *addr {
+                    IpAddr::V4(ip4) => return Some(ip4),
+                    _ => (),
+                }
+            }
+        }
+    }
+    
+    None
+}
+
 impl Endpoint {
     pub fn new(/*multicast_locator: Udpv4Locator*/) -> Endpoint {
 
-        let socket = UdpSocket::bind(SocketAddr::from(([0, 0, 0, 0], 7400))).expect("couldn't bind to address");
+        let socket_builder = UdpBuilder::new_v4().expect("Couldn't create socket");
+        socket_builder.reuse_address(true).expect("Error setting reuse address");
+        let socket = socket_builder.bind(SocketAddr::from(([0, 0, 0, 0], 7400))).expect("couldn't bind to address");
         socket.set_multicast_loop_v4(true).expect("Error setting multicast loop");
         let multicast_addr = Ipv4Addr::from_str("239.255.0.1").unwrap();
-        let multicast_interface = Ipv4Addr::from_str("192.168.1.185").expect("Error resolving multicast interface address");
+        let multicast_interface = get_wifi_adress().expect("Error retrieving multicast interface address");
+        println!("Wi-fi address {:?}", multicast_interface);
         socket.join_multicast_v4(&multicast_addr, &multicast_interface).expect("Error joining multicast group");
         socket.set_read_timeout(Some(Duration::new(1,0))).expect("Error setting timeout");
 
@@ -69,18 +89,18 @@ impl RTPSEndpoint for Endpoint {
 }
 
 
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-//     // #[test]
-//     // fn read_data_from_endpoint() {
-//     //     let udp_discovery_endpoint = Endpoint::new();
+    #[test]
+    fn read_data_from_endpoint() {
+        let mut udp_discovery_endpoint = Endpoint::new();
 
-//     //     for _i in 1..=120 {
-//     //         println!("Reading data");
-//     //         udp_discovery_endpoint.read_data();
-//     //     }
-//     // }
-// }
+        for _i in 1..=120 {
+            println!("Reading data");
+            udp_discovery_endpoint.read_data();
+        }
+    }
+}
 
