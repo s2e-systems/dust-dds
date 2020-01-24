@@ -188,6 +188,7 @@ impl GUID {
     }
 }
 
+#[derive(PartialEq, Deserialize, Debug)]
 pub struct BuiltInEndPointSet {
     value: u32,
 }

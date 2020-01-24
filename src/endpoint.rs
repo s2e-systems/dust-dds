@@ -20,7 +20,7 @@ pub trait RTPSEndpoint {
 
 fn get_wifi_adress() -> Option<Ipv4Addr> {
     for adapter in ipconfig::get_adapters().unwrap() {
-        if adapter.friendly_name() == "Wi-Fi" {
+        if adapter.friendly_name() == "Loopback Pseudo-Interface 1"/*"Wi-Fi"*/ {
             for addr in adapter.ip_addresses() {
                 match *addr {
                     IpAddr::V4(ip4) => return Some(ip4),
@@ -101,6 +101,14 @@ mod tests {
             println!("Reading data");
             udp_discovery_endpoint.read_data();
         }
+    }
+
+    #[test]
+    fn test_list_adapters() {
+        for adapter in ipconfig::get_adapters().unwrap() {
+            println!("Adapter: {:?}", adapter.friendly_name());
+        }
+
     }
 }
 

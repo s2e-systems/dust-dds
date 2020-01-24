@@ -1,7 +1,9 @@
 use std::convert::TryInto;
 use num_derive::FromPrimitive;
 
-use crate::types::{VendorId, ProtocolVersion, Locator, LocatorList, Time, GUID};
+use std::collections::HashMap;
+
+use crate::types::{VendorId, ProtocolVersion, Locator, LocatorList, Time, GUID, BuiltInEndPointSet};
 use crate::parser::helpers::{deserialize, EndianessFlag};
 
 #[derive(Debug)]
@@ -83,10 +85,10 @@ pub enum SpdpParameter {
     MetatrafficMulticastLocator(Locator),
     ParticipantLeaseDuration(Time), //TODO: Replace time type by duration type
     ParticipantGuid(GUID),
-    BuiltinEndpointSet(u32), // TODO: Create bitmask type with the position encoded
+    BuiltinEndpointSet(BuiltInEndPointSet),
 }
 
-pub type SpdpParameterList = Vec<SpdpParameter>;
+pub type SpdpParameterList = HashMap<SpdpParameterId, SpdpParameter>;
 
 // This function is very much similar to parse_inline_qos_parameter_list in the parser::helpers modules. Later some re-use could be considered
 pub fn parse_spdp_parameter_list(data: &[u8]) -> Result<SpdpParameterList>{
@@ -150,7 +152,7 @@ pub fn parse_spdp_parameter_list(data: &[u8]) -> Result<SpdpParameterList>{
             Some(SpdpParameterId::MetatrafficMulticastLocator) => Some(SpdpParameter::MetatrafficMulticastLocator(deserialize::<Locator>(&data, &value_first_index, &value_last_index, &endianess).unwrap())),
             Some(SpdpParameterId::ParticipantLeaseDuration) => Some(SpdpParameter::ParticipantLeaseDuration(deserialize::<Time>(&data, &value_first_index, &value_last_index, &endianess).unwrap())),
             Some(SpdpParameterId::ParticipantGuid) => Some(SpdpParameter::ParticipantGuid(deserialize::<GUID>(&data, &value_first_index, &value_last_index, &endianess).unwrap())),
-            Some(SpdpParameterId::BuiltinEndpointSet) => Some(SpdpParameter::BuiltinEndpointSet(deserialize::<u32>(&data, &value_first_index, &value_last_index, &endianess).unwrap())),
+            Some(SpdpParameterId::BuiltinEndpointSet) => Some(SpdpParameter::BuiltinEndpointSet(deserialize::<BuiltInEndPointSet>(&data, &value_first_index, &value_last_index, &endianess).unwrap())),
             // Some(InlineQosPid::StatusInfo) => Some(InlineQosParameter::StatusInfo(submessage[value_first_index..=value_last_index].try_into().map_err(|_| ErrorMessage::InvalidSubmessageHeader)?)),
             _ => None,
         };
@@ -186,6 +188,6 @@ mod tests {
         assert_eq!(spdp_parameter_list[5], SpdpParameter::MetatrafficMulticastLocator(Locator::new(1,7400, [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 239, 255, 0, 1])));
         assert_eq!(spdp_parameter_list[6], SpdpParameter::ParticipantLeaseDuration(Time{seconds:11,fraction:0}));
         assert_eq!(spdp_parameter_list[7], SpdpParameter::ParticipantGuid(GUID::new([6, 85, 244, 87, 0, 0, 0, 4, 0, 0, 0, 1], EntityId::new([0, 0, 1], ENTITY_KIND_BUILT_IN_PARTICIPANT))));
-        assert_eq!(spdp_parameter_list[8], SpdpParameter::BuiltinEndpointSet(1045));
+        assert_eq!(spdp_parameter_list[8], SpdpParameter::BuiltinEndpointSet(BuiltInEndPointSet::new(1045)));
     }
 }
