@@ -165,11 +165,11 @@ impl GUID {
         }
     }
 
-    fn prefix(&self) -> &GuidPrefix {
+    pub fn prefix(&self) -> &GuidPrefix {
         &self.prefix
     }
 
-    fn entity_id(&self) -> &EntityId {
+    pub fn entity_id(&self) -> &EntityId {
         &self.entity_id
     }
 

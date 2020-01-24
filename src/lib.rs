@@ -11,7 +11,7 @@ mod entity;
 mod guid;
 mod endpoint;
 mod message;
-mod spdp;
+mod participant_proxy;
 
 use types::EntityId;
 
