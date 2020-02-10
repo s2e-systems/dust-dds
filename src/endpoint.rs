@@ -93,22 +93,5 @@ impl RTPSEndpoint for Endpoint {
 mod tests {
     use super::*;
 
-    #[test]
-    fn read_data_from_endpoint() {
-        let mut udp_discovery_endpoint = Endpoint::new();
-
-        for _i in 1..=120 {
-            println!("Reading data");
-            udp_discovery_endpoint.read_data();
-        }
-    }
-
-    #[test]
-    fn test_list_adapters() {
-        for adapter in ipconfig::get_adapters().unwrap() {
-            println!("Adapter: {:?}", adapter.friendly_name());
-        }
-
-    }
 }
 
