@@ -14,6 +14,7 @@ use crate::{Udpv4Locator};
 #[derive(Debug)]
 pub enum TransportError {
     IoError(std::io::Error),
+    Other,
 }
 
 impl From<std::io::Error> for TransportError {
@@ -24,8 +25,11 @@ impl From<std::io::Error> for TransportError {
 
 type Result<T> = std::result::Result< T, TransportError>;
 
+const MAX_UDP_DATA_SIZE : usize = 65536;
+
 pub struct Transport {
     socket: UdpSocket,
+    buf: [u8; MAX_UDP_DATA_SIZE],
 }
 
 fn get_wifi_adress() -> Option<Ipv4Addr> {
@@ -58,10 +62,12 @@ impl Transport {
             socket.join_multicast_v4(&multicast_addr, &multicast_interface).expect("Error joining multicast group");
         }
 
-        socket.set_read_timeout(Some(Duration::new(1,0))).expect("Error setting timeout");
+        //socket.set_read_timeout(Some(Duration::new(0/*secs*/, 0/*nanos*/))).expect("Error setting timeout");
+        socket.set_nonblocking(true);
 
         Transport {
             socket,
+            buf : [0; MAX_UDP_DATA_SIZE],
         }
     }
 
@@ -69,14 +75,9 @@ impl Transport {
         self.socket.send_to(buf, SocketAddr::from((unicast_locator.address, unicast_locator.port))).unwrap();
     }
 
-    pub fn read(&self) -> Result<Vec<u8>> {
-        let mut buf : Vec<u8> = Vec::with_capacity(65536);
-        // Resizing to capacity required here since the recv_from() functions takes the size inforation rather 
-        // the capacity
-        buf.resize(buf.capacity(), 0);
-        let (number_of_bytes, src_addr) = self.socket.recv_from(buf.as_mut_slice()).expect("Didn't receive data");
-        buf.resize(number_of_bytes, 0);
-        Ok(buf)
+    pub fn read(&mut self) -> Result<& [u8]> {
+        let (number_of_bytes, src_addr) = self.socket.recv_from(&mut self.buf)?;
+        Ok(&self.buf[..number_of_bytes])
     }
 }
 
@@ -87,24 +88,67 @@ mod tests {
 
 
     #[test]
-    fn read_data_from_endpoint() {
+    fn read_udp_data() {
         let addr = [127,0,0,1];
         let multicast_group = [239,255,0,1];
         let port = 7400;
         let unicast_locator = Udpv4Locator::new_udpv4(&addr, &port);
         let multicast_locator = Udpv4Locator::new_udpv4(&multicast_group, &0);
 
-        let transport = Transport::new(unicast_locator, Some(multicast_locator));
+        let mut transport = Transport::new(unicast_locator, Some(multicast_locator));
 
-        let expected : Vec<u8> = vec![1, 2, 3];
-
+        let expected = [1, 2, 3];
+          
         let sender = std::net::UdpSocket::bind(SocketAddr::from((addr, 0))).unwrap();
         sender.send_to(&expected, SocketAddr::from((multicast_group, port))).unwrap();
 
         let result = transport.read().unwrap();
+
         assert_eq!(expected, result);
-        // println!("{:?}", result);
     }
+    
+    #[test]
+    fn read_udp_no_data() {
+        let addr = [127,0,0,1];
+        let multicast_group = [239,255,0,1];
+        let port = 7400;
+        let unicast_locator = Udpv4Locator::new_udpv4(&addr, &port);
+        let multicast_locator = Udpv4Locator::new_udpv4(&multicast_group, &0);
+
+        let mut transport = Transport::new(unicast_locator, Some(multicast_locator));
+
+        let expected = std::io::ErrorKind::WouldBlock;      
+        let result = transport.read();
+
+        match result {
+            Err(TransportError::IoError(io_err)) => assert_eq!(io_err.kind(), expected),
+            _ => assert!(false),
+        }        
+    }
+
+    #[test]
+    fn write_udp_data() {
+        let addr = [127,0,0,1];
+        let multicast_group = [239,255,0,1];
+        let port = 7500;
+        let unicast_locator = Udpv4Locator::new_udpv4(&addr, &0);
+        let multicast_locator = Udpv4Locator::new_udpv4(&multicast_group, &0);
+        let unicast_locator_sent_to = Udpv4Locator::new_udpv4(&addr, &port);
+
+        let transport = Transport::new(unicast_locator, Some(multicast_locator));
+
+        let expected = [1, 2, 3];
+          
+        let receiver = std::net::UdpSocket::bind(SocketAddr::from((addr, port))).unwrap();
+
+        transport.write(&expected, unicast_locator_sent_to);
+
+        let mut buf = [0;MAX_UDP_DATA_SIZE];
+        let (size, _) = receiver.recv_from(&mut buf).unwrap();
+        let result = &buf[..size];
+        assert_eq!(expected, result);
+    }
+
 
     #[test]
     fn test_list_adapters() {
