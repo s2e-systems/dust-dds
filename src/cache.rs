@@ -6,7 +6,7 @@ use crate::types::{GUID,GuidPrefix, SequenceNumber, ParameterList, InstanceHandl
 use crate::types::{ENTITYID_UNKNOWN, ENTITY_KIND_WRITER_WITH_KEY};
 use crate::parser::{RtpsMessage, SubMessageType, InfoTs, InfoSrc, Data, Payload, InlineQosParameter};
 
-#[derive(Hash, Eq, Debug)]
+#[derive(Hash, Eq, Debug, Clone)]
 #[allow(dead_code)]
 pub struct CacheChange {
     change_kind: ChangeKind,
@@ -75,6 +75,9 @@ impl PartialOrd for CacheChange {
     }
 }
 
+
+
+
 pub struct HistoryCache {
     pub changes: Mutex<HashSet<CacheChange>>,
 }
@@ -92,40 +95,20 @@ impl HistoryCache {
         Ok(())
     }
     
-    pub fn remove_change(&self, key: &InstanceHandle, sequence_number: &SequenceNumber) {
-        unimplemented!()
-        // if self.has_key(&key) {
-        //     let map_read_lock = &self.changes.read().unwrap()[key];
-        //     let mut vector_lock = map_read_lock.lock().unwrap();
-        //     vector_lock.retain(|x| x.sequence_number != *sequence_number);
-        // }
+    pub fn remove_change(&self, change: &CacheChange) {
+        self.changes.lock().unwrap().remove(change);
     }
     
-    pub fn get_change(&self, key: &InstanceHandle, sequence_number: &SequenceNumber) {
-        unimplemented!()
+    pub fn get_changes(&self) -> &Mutex<HashSet<CacheChange>> {
+        &self.changes
     }
 
-    pub fn remove_instance(&self, key: &InstanceHandle) {
-        unimplemented!()
-        // if self.has_key(&key) {
-        //     let mut map_write_lock = self.changes.write().unwrap();
-        //     map_write_lock.remove(key);
-        // }
+    pub fn get_seq_num_min(&self) -> Option<SequenceNumber>{
+        Some(self.changes.lock().unwrap().iter().min()?.sequence_number)
     }
 
-    pub fn get_seq_num_min(&self, key: &InstanceHandle) -> Option<SequenceNumber>{
-        unimplemented!()
-        // Some(self.changes.read().unwrap()[key].lock().unwrap().iter().max()?.sequence_number)
-    }
-
-    pub fn get_seq_num_max(&self, key: &InstanceHandle) -> Option<SequenceNumber>{
-        unimplemented!()
-        // Some(self.changes.read().unwrap()[key].lock().unwrap().iter().min()?.sequence_number)
-    }
-
-    fn has_key(&self, key: &InstanceHandle) -> bool{
-        unimplemented!()
-        // self.changes.read().unwrap().contains_key(key)
+    pub fn get_seq_num_max(&self) -> Option<SequenceNumber>{
+        Some(self.changes.lock().unwrap().iter().max()?.sequence_number)
     }
 }
 
@@ -133,6 +116,138 @@ impl HistoryCache {
 #[cfg(test)]
 mod tests{
     use super::*;
+
+    #[test]
+    fn cache_change_list() {
+        let guid_prefix  = [8; 12];
+        let entity_id = EntityId::new([1, 2, 3], 4);
+        let guid = GUID::new(guid_prefix, entity_id);
+        let instance_handle = [9; 16];
+        let sequence_number = 1;
+        let data = Some(vec!(4, 5, 6));
+        let cc = CacheChange::new(ChangeKind::Alive, guid, instance_handle, sequence_number, data, None);
+        let cc_clone = cc.clone();
+        let history_cache = HistoryCache::new();
+        let changes = history_cache.get_changes();
+        assert_eq!(changes.lock().unwrap().len(), 0);
+        history_cache.add_change(cc).unwrap();
+        assert_eq!(changes.lock().unwrap().len(), 1);
+        history_cache.remove_change(&cc_clone);
+        assert_eq!(changes.lock().unwrap().len(), 0);
+    }
+
+    #[test]
+    fn cache_change_sequence_number() {
+        let guid_prefix  = [8; 12];
+        let entity_id = EntityId::new([1, 2, 3], 4);
+        let guid = GUID::new(guid_prefix, entity_id);
+        let instance_handle = [9; 16];
+        let data = Some(vec!(4, 5, 6));
+        let sequence_number_min = 1;
+        let sequence_number_max = 2;
+        let cc1 = CacheChange::new(ChangeKind::Alive, guid.clone(), instance_handle, sequence_number_min, data.clone(), None);
+        let cc2 = CacheChange::new(ChangeKind::Alive, guid.clone(), instance_handle, sequence_number_max, data.clone(), None);
+       
+        let history_cache = HistoryCache::new();
+        assert_eq!(history_cache.get_seq_num_max(), None);
+        history_cache.add_change(cc1).unwrap();        
+        assert_eq!(history_cache.get_seq_num_min(), history_cache.get_seq_num_max());
+        history_cache.add_change(cc2).unwrap();
+        assert_eq!(history_cache.get_seq_num_min(), Some(sequence_number_min));
+        assert_eq!(history_cache.get_seq_num_max(), Some(sequence_number_max));
+    }
+
+    #[test]
+    fn cache_change_transport() {
+        let data = [0x52, 0x54, 0x50, 0x53,
+        0x02, 0x01, 0x01, 0x02,
+        0x7f, 0x20, 0xf7, 0xd7,
+        0x00, 0x00, 0x01, 0xbb,
+        0x00, 0x00, 0x00, 0x01,
+        0x09, 0x01, 0x08, 0x00,
+        0x9e, 0x81, 0xbc, 0x5d,
+        0x97, 0xde, 0x48, 0x26,
+        0x15, 0x07, 0x1c, 0x01,
+        0x00, 0x00, 0x10, 0x00,
+        0x00, 0x00, 0x00, 0x00,
+        0x00, 0x01, 0x00, 0xc2,
+        0x00, 0x00, 0x00, 0x00,
+        0x01, 0x00, 0x00, 0x00,
+        0x70, 0x00, 0x10, 0x00,
+        0x7f, 0x20, 0xf7, 0xd7,
+        0x00, 0x00, 0x01, 0xbb,
+        0x00, 0x00, 0x00, 0x01,
+        0x00, 0x00, 0x01, 0xc1,
+        0x01, 0x00, 0x00, 0x00,
+        0x00, 0x03, 0x00, 0x00,
+        0x15, 0x00, 0x04, 0x00,
+        0x02, 0x01, 0x00, 0x00,
+        0x16, 0x00, 0x04, 0x00,
+        0x01, 0x02, 0x00, 0x00,
+        0x31, 0x00, 0x18, 0x00,
+        0x01, 0x00, 0x00, 0x00,
+        0xf3, 0x1c, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00,
+        0xc0, 0xa8, 0x02, 0x04,
+        0x32, 0x00, 0x18, 0x00,
+        0x01, 0x00, 0x00, 0x00,
+        0xf2, 0x1c, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00,
+        0xc0, 0xa8, 0x02, 0x04,
+        0x02, 0x00, 0x08, 0x00,
+        0x0b, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00,
+        0x50, 0x00, 0x10, 0x00,
+        0x7f, 0x20, 0xf7, 0xd7,
+        0x00, 0x00, 0x01, 0xbb,
+        0x00, 0x00, 0x00, 0x01,
+        0x00, 0x00, 0x01, 0xc1,
+        0x58, 0x00, 0x04, 0x00,
+        0x15, 0x04, 0x00, 0x00,
+        0x00, 0x80, 0x04, 0x00,
+        0x15, 0x00, 0x00, 0x00,
+        0x07, 0x80, 0x5c, 0x00,
+        0x00, 0x00, 0x00, 0x00,
+        0x2f, 0x00, 0x00, 0x00,
+        0x05, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00,
+        0x50, 0x00, 0x00, 0x00,
+        0x42, 0x00, 0x00, 0x00,
+        0x44, 0x45, 0x53, 0x4b,
+        0x54, 0x4f, 0x50, 0x2d,
+        0x4f, 0x52, 0x46, 0x44,
+        0x4f, 0x53, 0x35, 0x2f,
+        0x36, 0x2e, 0x31, 0x30,
+        0x2e, 0x32, 0x2f, 0x63,
+        0x63, 0x36, 0x66, 0x62,
+        0x39, 0x61, 0x62, 0x33,
+        0x36, 0x2f, 0x39, 0x30,
+        0x37, 0x65, 0x66, 0x66,
+        0x30, 0x32, 0x65, 0x33,
+        0x2f, 0x22, 0x78, 0x38,
+        0x36, 0x5f, 0x36, 0x34,
+        0x2e, 0x77, 0x69, 0x6e,
+        0x2d, 0x76, 0x73, 0x32,
+        0x30, 0x31, 0x35, 0x22,
+        0x2f, 0x00, 0x00, 0x00,
+        0x25, 0x80, 0x0c, 0x00,
+        0xd7, 0xf7, 0x20, 0x7f,
+        0xbb, 0x01, 0x00, 0x00,
+        0x01, 0x00, 0x00, 0x00,
+        0x01, 0x00, 0x00, 0x00];
+
+        // let hc = HistoryCache::new();
+
+        // let sender = std::net::UdpSocket::bind(SocketAddr::from((addr, 0))).unwrap();
+        // sender.send_to(&data, SocketAddr::from((multicast_group, port))).unwrap();
+
+        //aasert!(hc.changes.size == 1);
+
+    }
 
     // #[test]
     // fn test_create_history_cache() {

@@ -3,7 +3,7 @@ use serde_derive::{Deserialize, Serialize};
 use std::{u32, i32};
 use crate::parser::InlineQosParameter;
 
-#[derive(Serialize, Hash, Deserialize, Eq, PartialEq, Default, Debug)]
+#[derive(Serialize, Hash, Deserialize, Eq, PartialEq, Default, Debug, Clone)]
 pub struct EntityId {
     entity_key: [u8;3],
     entity_kind: EntityKind,
@@ -91,7 +91,7 @@ pub enum ReliabilityKind {
     Reliable,
 }
 
-#[derive(Hash, PartialEq, Eq, Debug)]
+#[derive(Hash, PartialEq, Eq, Debug, Clone)]
 pub enum ChangeKind {
     Alive,
     AliveFiltered,
@@ -122,7 +122,7 @@ pub type InlineQosParameterList = Vec<InlineQosParameter>;
 
 pub type ParameterList = Vec<Parameter>;
 
-#[derive(Hash, Serialize, Deserialize, PartialEq, Eq, Debug)]
+#[derive(Hash, Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub struct Parameter {
     pub parameter_id: u16,
     pub value: Vec<u8>,
@@ -151,7 +151,7 @@ impl Locator {
     }
 }
 
-#[derive(Serialize, Deserialize, Hash, PartialEq, Eq, Default, Debug)]
+#[derive(Serialize, Deserialize, Hash, PartialEq, Eq, Default, Debug, Clone)]
 pub struct GUID {
     prefix: GuidPrefix,
     entity_id: EntityId,
