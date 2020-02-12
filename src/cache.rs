@@ -89,10 +89,8 @@ impl HistoryCache {
         }
     }
 
-    pub fn add_change(&self, change: CacheChange) -> Result<(),()> {
+    pub fn add_change(&self, change: CacheChange) {
         self.changes.lock().unwrap().insert(change);
-
-        Ok(())
     }
     
     pub fn remove_change(&self, change: &CacheChange) {
@@ -130,7 +128,7 @@ mod tests{
         let history_cache = HistoryCache::new();
         let changes = history_cache.get_changes();
         assert_eq!(changes.lock().unwrap().len(), 0);
-        history_cache.add_change(cc).unwrap();
+        history_cache.add_change(cc);
         assert_eq!(changes.lock().unwrap().len(), 1);
         history_cache.remove_change(&cc_clone);
         assert_eq!(changes.lock().unwrap().len(), 0);
@@ -150,9 +148,9 @@ mod tests{
        
         let history_cache = HistoryCache::new();
         assert_eq!(history_cache.get_seq_num_max(), None);
-        history_cache.add_change(cc1).unwrap();        
+        history_cache.add_change(cc1);        
         assert_eq!(history_cache.get_seq_num_min(), history_cache.get_seq_num_max());
-        history_cache.add_change(cc2).unwrap();
+        history_cache.add_change(cc2);
         assert_eq!(history_cache.get_seq_num_min(), Some(sequence_number_min));
         assert_eq!(history_cache.get_seq_num_max(), Some(sequence_number_max));
     }
