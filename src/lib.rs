@@ -14,6 +14,8 @@ mod message;
 mod participant_proxy;
 mod datareader;
 mod transport;
+mod receiver;
+mod proxy;
 
 use types::EntityId;
 
