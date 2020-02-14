@@ -29,7 +29,7 @@ pub struct Receiver {
         while let Some(submessage) = submessages.pop_front() {
             match submessage {
                 SubMessageType::InfoTsSubmessage(info_ts) => process_infots(info_ts, &mut message_timestamp),
-                SubMessageType::DataSubmessage(data) => history_cache.add_change(process_data(data, &source_guid_prefix).unwrap()).unwrap(),
+                SubMessageType::DataSubmessage(data) => history_cache.add_change(process_data(data, &source_guid_prefix).unwrap()),
                 SubMessageType::InfoSrcSubmessage(info_src) => process_infosrc(info_src, &mut source_protocol_version, &mut source_vendor_id, &mut source_guid_prefix),
                 _ => println!("Unimplemented message type"),
             };  

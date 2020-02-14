@@ -6,15 +6,33 @@ use crate::types::{GUID,GuidPrefix, SequenceNumber, ParameterList, InstanceHandl
 use crate::types::{ENTITYID_UNKNOWN, ENTITY_KIND_WRITER_WITH_KEY};
 use crate::parser::{RtpsMessage, SubMessageType, InfoTs, InfoSrc, Data, Payload, InlineQosParameter};
 
+#[derive(Hash, Eq, PartialEq, Debug, Clone)]
+enum ChangeFromWriterStatusKind
+{
+    Lost,
+    Missing,
+    Received,
+    Unknown,
+}
+
+#[derive(Hash, Eq, PartialEq, Debug, Clone)]
+pub struct ChangeFromWriter
+{
+    status : ChangeFromWriterStatusKind,
+    is_relevant : bool,
+}
+
+
 #[derive(Hash, Eq, Debug, Clone)]
 #[allow(dead_code)]
 pub struct CacheChange {
     change_kind: ChangeKind,
-    writer_guid: GUID,
+    pub writer_guid: GUID,
     instance_handle: InstanceHandle,
-    sequence_number: SequenceNumber,
+    pub sequence_number: SequenceNumber,
     data: Option<Vec<u8>>,
     inline_qos: Option<ParameterList>,
+    change_from_writer : Option<ChangeFromWriter>,
 }
 
 impl CacheChange {
@@ -26,6 +44,7 @@ impl CacheChange {
             sequence_number,
             data,
             inline_qos,
+            change_from_writer : None
         }
     }
 
@@ -74,8 +93,6 @@ impl PartialOrd for CacheChange {
         Some(self.sequence_number.cmp(&other.sequence_number))
     }
 }
-
-
 
 
 pub struct HistoryCache {
