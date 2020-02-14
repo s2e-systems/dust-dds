@@ -1,13 +1,15 @@
+use std::hash::Hasher;
+use core::hash::Hash;
 use std::cmp::Ordering;
 use std::sync::{Mutex};
-use std::collections::{HashSet,VecDeque};
+use std::collections::{HashSet,VecDeque, HashMap};
 
 use crate::types::{GUID,GuidPrefix, SequenceNumber, ParameterList, InstanceHandle, Time, EntityId, Parameter, ProtocolVersion, VendorId, ChangeKind};
 use crate::types::{ENTITYID_UNKNOWN, ENTITY_KIND_WRITER_WITH_KEY};
 use crate::parser::{RtpsMessage, SubMessageType, InfoTs, InfoSrc, Data, Payload, InlineQosParameter};
 
 #[derive(Hash, Eq, PartialEq, Debug, Clone)]
-enum ChangeFromWriterStatusKind
+pub enum ChangeFromWriterStatusKind
 {
     Lost,
     Missing,
@@ -18,10 +20,18 @@ enum ChangeFromWriterStatusKind
 #[derive(Hash, Eq, PartialEq, Debug, Clone)]
 pub struct ChangeFromWriter
 {
-    status : ChangeFromWriterStatusKind,
+    pub status : ChangeFromWriterStatusKind,
     is_relevant : bool,
 }
 
+impl Default for ChangeFromWriter
+{
+    fn default() -> Self {
+        ChangeFromWriter {
+            status : ChangeFromWriterStatusKind::Unknown, is_relevant : false
+        }
+    }
+}
 
 #[derive(Hash, Eq, Debug, Clone)]
 #[allow(dead_code)]
@@ -30,19 +40,17 @@ pub struct CacheChange {
     pub writer_guid: GUID,
     instance_handle: InstanceHandle,
     pub sequence_number: SequenceNumber,
-    data: Option<Vec<u8>>,
     inline_qos: Option<ParameterList>,
-    change_from_writer : Option<ChangeFromWriter>,
+    pub change_from_writer : Option<ChangeFromWriter>,
 }
 
 impl CacheChange {
-    pub fn new(change_kind: ChangeKind, writer_guid: GUID, instance_handle: InstanceHandle, sequence_number: SequenceNumber, data: Option<Vec<u8>>, inline_qos: Option<ParameterList>) -> CacheChange {
+    pub fn new(change_kind: ChangeKind, writer_guid: GUID, instance_handle: InstanceHandle, sequence_number: SequenceNumber, inline_qos: Option<ParameterList>) -> CacheChange {
         CacheChange {
             change_kind,
             writer_guid,
             instance_handle,
             sequence_number,
-            data,
             inline_qos,
             change_from_writer : None
         }
@@ -64,12 +72,18 @@ impl CacheChange {
         &self.sequence_number
     }
 
-    pub fn get_data(&self) -> &Option<Vec<u8>> {
-        &self.data
-    }
-
     pub fn get_inline_qos(&self) -> &Option<ParameterList> {
         &self.inline_qos
+    }
+
+    pub fn is_status(&self, status : ChangeFromWriterStatusKind) -> bool
+    {
+        if let Some(change_from_writer) = &self.change_from_writer{
+            if change_from_writer.status == status {
+                return true;
+            }
+        }
+        return false;
     }
 }
 
@@ -95,35 +109,87 @@ impl PartialOrd for CacheChange {
 }
 
 
-pub struct HistoryCache {
-    pub changes: Mutex<HashSet<CacheChange>>,
+
+// pub struct WriterHistoryCache {
+//     pub changes: Mutex<HashSet<(CacheChange, ChangeForReader)>>,
+// }
+
+#[derive(Eq, Clone)]
+pub struct ReaderCacheChange {
+    pub cache_change : CacheChange,
+    data: Option<Vec<u8>>,
+    pub change_from_writer : ChangeFromWriter,
 }
 
-impl HistoryCache {
-    pub fn new() -> HistoryCache {
-        HistoryCache {
-            changes: Mutex::new(HashSet::with_capacity(1)),
+impl ReaderCacheChange 
+{
+    pub fn new(change_kind: ChangeKind, writer_guid: GUID, instance_handle: InstanceHandle, sequence_number: SequenceNumber, inline_qos: Option<ParameterList>,  data: Option<Vec<u8>>) -> Self
+    {
+        ReaderCacheChange{
+            cache_change : CacheChange::new(change_kind, writer_guid, instance_handle, sequence_number, inline_qos), 
+            data, 
+            change_from_writer : Default::default()
+        } 
+    }
+}
+
+impl Hash for ReaderCacheChange {
+    fn hash<H>(&self, state: &mut H) where H: Hasher {
+        self.cache_change.hash(state)
+    }
+}
+
+
+impl PartialEq for ReaderCacheChange {
+    fn eq(&self, other: &Self) -> bool {
+        self.cache_change == other.cache_change
+    }
+}
+
+impl Ord for ReaderCacheChange {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.cache_change.cmp(&other.cache_change)
+    }
+}
+
+
+impl PartialOrd for ReaderCacheChange {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cache_change.cmp(&other.cache_change))
+    }
+}
+
+
+
+pub struct ReaderHistoryCache {
+    pub changes: Mutex<HashSet<ReaderCacheChange>>,
+}
+
+impl ReaderHistoryCache {
+    pub fn new() -> ReaderHistoryCache {
+        ReaderHistoryCache {
+            changes: Mutex::new(HashSet::new()),
         }
     }
 
-    pub fn add_change(&self, change: CacheChange) {
+    pub fn add_change(&self, change: ReaderCacheChange) {
         self.changes.lock().unwrap().insert(change);
     }
     
-    pub fn remove_change(&self, change: &CacheChange) {
+    pub fn remove_change(&self, change: &ReaderCacheChange) {
         self.changes.lock().unwrap().remove(change);
     }
     
-    pub fn get_changes(&self) -> &Mutex<HashSet<CacheChange>> {
+    pub fn get_changes(&self) -> &Mutex<HashSet<ReaderCacheChange>> {
         &self.changes
     }
 
     pub fn get_seq_num_min(&self) -> Option<SequenceNumber>{
-        Some(self.changes.lock().unwrap().iter().min()?.sequence_number)
+        Some(self.changes.lock().unwrap().iter().min()?.cache_change.sequence_number)
     }
 
     pub fn get_seq_num_max(&self) -> Option<SequenceNumber>{
-        Some(self.changes.lock().unwrap().iter().max()?.sequence_number)
+        Some(self.changes.lock().unwrap().iter().max()?.cache_change.sequence_number)
     }
 }
 
@@ -140,9 +206,9 @@ mod tests{
         let instance_handle = [9; 16];
         let sequence_number = 1;
         let data = Some(vec!(4, 5, 6));
-        let cc = CacheChange::new(ChangeKind::Alive, guid, instance_handle, sequence_number, data, None);
+        let cc = ReaderCacheChange::new(ChangeKind::Alive, guid, instance_handle, sequence_number, None, data);
         let cc_clone = cc.clone();
-        let history_cache = HistoryCache::new();
+        let history_cache = ReaderHistoryCache::new();
         let changes = history_cache.get_changes();
         assert_eq!(changes.lock().unwrap().len(), 0);
         history_cache.add_change(cc);
@@ -160,10 +226,10 @@ mod tests{
         let data = Some(vec!(4, 5, 6));
         let sequence_number_min = 1;
         let sequence_number_max = 2;
-        let cc1 = CacheChange::new(ChangeKind::Alive, guid.clone(), instance_handle, sequence_number_min, data.clone(), None);
-        let cc2 = CacheChange::new(ChangeKind::Alive, guid.clone(), instance_handle, sequence_number_max, data.clone(), None);
+        let cc1 = ReaderCacheChange::new(ChangeKind::Alive, guid.clone(), instance_handle, sequence_number_min, None, data.clone());
+        let cc2 = ReaderCacheChange::new(ChangeKind::Alive, guid.clone(), instance_handle, sequence_number_max, None, data.clone());
        
-        let history_cache = HistoryCache::new();
+        let history_cache = ReaderHistoryCache::new();
         assert_eq!(history_cache.get_seq_num_max(), None);
         history_cache.add_change(cc1);        
         assert_eq!(history_cache.get_seq_num_min(), history_cache.get_seq_num_max());
@@ -255,7 +321,7 @@ mod tests{
         0x01, 0x00, 0x00, 0x00,
         0x01, 0x00, 0x00, 0x00];
 
-        // let hc = HistoryCache::new();
+        // let hc = ReaderHistoryCache::new();
 
         // let sender = std::net::UdpSocket::bind(SocketAddr::from((addr, 0))).unwrap();
         // sender.send_to(&data, SocketAddr::from((multicast_group, port))).unwrap();
@@ -266,14 +332,14 @@ mod tests{
 
     // #[test]
     // fn test_create_history_cache() {
-    //     let empty_history_cache = HistoryCache::new();
+    //     let empty_history_cache = ReaderHistoryCache::new();
 
     //     assert!(empty_history_cache.changes.read().unwrap().is_empty());
     // }
 
     // #[test]
     // fn test_add_and_remove_cache_change() {
-    //     let history_cache = HistoryCache::new();
+    //     let history_cache = ReaderHistoryCache::new();
     //     assert_eq!(history_cache.changes.read().unwrap().len(), 0);
 
     //     let mut cache_change_sn1 = CacheChange::default();
@@ -326,7 +392,7 @@ mod tests{
     //     message.add_submessage(time_submessage);
     //     message.add_submessage(data_submessage);
 
-    //     let history_cache = HistoryCache::new();
+    //     let history_cache = ReaderHistoryCache::new();
     //     assert_eq!(history_cache.changes.read().unwrap().len(),0);
 
     //     history_cache.process_message(message);

@@ -1,4 +1,4 @@
-use crate::cache::{HistoryCache};
+use crate::cache::{ReaderHistoryCache};
 use crate::types::{LocatorList};
 use std::collections::VecDeque;
 
@@ -22,14 +22,14 @@ pub struct Receiver {
 
 // impl Receiver
 // {
-    pub fn process_message(message: RtpsMessage, history_cache : &mut HistoryCache) {
+    pub fn process_message(message: RtpsMessage, history_cache : &mut ReaderHistoryCache) {
         let (mut source_guid_prefix, mut source_vendor_id, mut source_protocol_version, mut submessages) = message.take(); 
         let mut message_timestamp : Option<Time> = None;
 
         while let Some(submessage) = submessages.pop_front() {
             match submessage {
                 SubMessageType::InfoTsSubmessage(info_ts) => process_infots(info_ts, &mut message_timestamp),
-                SubMessageType::DataSubmessage(data) => history_cache.add_change(process_data(data, &source_guid_prefix).unwrap()),
+                //SubMessageType::DataSubmessage(data) => history_cache.add_change(process_data(data, &source_guid_prefix).unwrap()),
                 SubMessageType::InfoSrcSubmessage(info_src) => process_infosrc(info_src, &mut source_protocol_version, &mut source_vendor_id, &mut source_guid_prefix),
                 _ => println!("Unimplemented message type"),
             };  
@@ -55,7 +55,7 @@ pub struct Receiver {
             if let Some(inline_qos_list) = inline_qos {
                 let key_hash_parameter = inline_qos_list.iter().find(|&x| x.is_key_hash());
                 if let Some(InlineQosParameter::KeyHash(instance_handle)) = key_hash_parameter {
-                    let cache_change = CacheChange::new(ChangeKind::Alive, writer_guid,*instance_handle,writer_sn,Some(data),None);
+                    let cache_change = CacheChange::new(ChangeKind::Alive, writer_guid,*instance_handle,writer_sn,None);
                     return Some(cache_change);
                 }
             }
@@ -82,7 +82,7 @@ mod tests{
     
     #[test]
     fn test_fill_history_cache(){
-        let mut hc = HistoryCache::new();
+        let mut hc = ReaderHistoryCache::new();
 
         // Construct RTPS message with 1 info and 1 data submessage
         let mut rtps_message = RtpsMessage::new([0,1,2,3,4,5,6,7,8,9,10,11], [99,99], ProtocolVersion{major:2,minor:4});
@@ -103,12 +103,11 @@ mod tests{
 
         let lock = hc.get_changes().lock().unwrap();
         let cache_change = lock.iter().next().unwrap();
-        assert_eq!(cache_change.get_change_kind(), &ChangeKind::Alive);
-        assert_eq!(cache_change.get_writer_guid(), &GUID::new([0,1,2,3,4,5,6,7,8,9,10,11], EntityId::new([0,1,0],1)));
-        assert_eq!(cache_change.get_instance_handle(), &[0,1,2,3,4,5,6,7,8,9,10,11,0,1,0,1]);
-        assert_eq!(cache_change.get_sequence_number(), &1);
-        assert_eq!(cache_change.get_data(), &Some(vec!(1)));
-        assert_eq!(cache_change.get_inline_qos(), &None);
+        assert_eq!(cache_change.cache_change.get_change_kind(), &ChangeKind::Alive);
+        assert_eq!(cache_change.cache_change.get_writer_guid(), &GUID::new([0,1,2,3,4,5,6,7,8,9,10,11], EntityId::new([0,1,0],1)));
+        assert_eq!(cache_change.cache_change.get_instance_handle(), &[0,1,2,3,4,5,6,7,8,9,10,11,0,1,0,1]);
+        assert_eq!(cache_change.cache_change.get_sequence_number(), &1);
+        assert_eq!(cache_change.cache_change.get_inline_qos(), &None);
     }
 
 

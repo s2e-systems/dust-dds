@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::cache::{HistoryCache};
+use crate::cache::{ReaderHistoryCache};
 use crate::types::{LocatorList, GUID, TopicKind, ReliabilityKind, EntityId, Duration};
 use crate::proxy::{WriterProxy};
 use crate::endpoint::{Endpoint};
@@ -44,7 +44,7 @@ pub struct Reader {
     endpoint : Endpoint,
     pub heartbeat_response_delay: Duration,
     pub heartbeat_suppression_duration : Duration,
-    pub reader_cache: HistoryCache,
+    pub reader_cache: ReaderHistoryCache,
     expects_inline_qos: bool,
 }
 
@@ -55,7 +55,7 @@ impl Reader
         heartbeat_suppression_duration : Duration,
         expects_inline_qos: bool) -> Self {
             Reader{
-                endpoint, heartbeat_response_delay, heartbeat_suppression_duration, reader_cache : HistoryCache::new(), expects_inline_qos
+                endpoint, heartbeat_response_delay, heartbeat_suppression_duration, reader_cache : ReaderHistoryCache::new(), expects_inline_qos
             }
     }
 }

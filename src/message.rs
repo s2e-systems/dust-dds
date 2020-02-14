@@ -41,7 +41,7 @@ fn process_data(data_submessage: Data, source_guid_prefix: &GuidPrefix, cache_ch
         if let Some(inline_qos_list) = inline_qos {
             let key_hash_parameter = inline_qos_list.iter().find(|&x| x.is_key_hash());
             if let Some(InlineQosParameter::KeyHash(instance_handle)) = key_hash_parameter {
-                let cache_change = CacheChange::new(ChangeKind::Alive, writer_guid,*instance_handle,writer_sn,Some(data),None);
+                let cache_change = CacheChange::new(ChangeKind::Alive, writer_guid,*instance_handle,writer_sn,None);
                 cache_changes.push_back(cache_change);
             }
         }
@@ -85,7 +85,6 @@ mod tests{
         assert_eq!(cache_changes[0].get_writer_guid(), &GUID::new([0,1,2,3,4,5,6,7,8,9,10,11], EntityId::new([0,1,0],1)));
         assert_eq!(cache_changes[0].get_instance_handle(), &[0,1,2,3,4,5,6,7,8,9,10,11,0,1,0,1]);
         assert_eq!(cache_changes[0].get_sequence_number(), &1);
-        assert_eq!(cache_changes[0].get_data(),&Some(vec!(1)));
         assert_eq!(cache_changes[0].get_inline_qos(), &None);
     }
 
