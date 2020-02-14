@@ -23,7 +23,7 @@ impl From<std::io::Error> for TransportError {
     }
 }
 
-type Result<T> = std::result::Result< T, TransportError>;
+type Result<T> = std::result::Result<T, TransportError>;
 
 const MAX_UDP_DATA_SIZE : usize = 65536;
 
@@ -49,26 +49,26 @@ fn get_wifi_adress() -> Option<Ipv4Addr> {
 
 impl Transport {
 
-    pub fn new(unicast_locator: Udpv4Locator, multicast_locator: Option<Udpv4Locator>) -> Self {
+    pub fn new(unicast_locator: Udpv4Locator, multicast_locator: Option<Udpv4Locator>) -> Result<Self> {
 
-        let socket_builder = UdpBuilder::new_v4().expect("Couldn't create socket");
-        socket_builder.reuse_address(true).expect("Error setting reuse address");
-        let socket = socket_builder.bind(SocketAddr::from((unicast_locator.address, unicast_locator.port))).expect("couldn't bind to address");
+        let socket_builder = UdpBuilder::new_v4()?;
+        socket_builder.reuse_address(true)?;
+        let socket = socket_builder.bind(SocketAddr::from((unicast_locator.address, unicast_locator.port)))?;
 
         if let Some(multicast_locator) = multicast_locator {            
-            socket.set_multicast_loop_v4(true).expect("Error setting multicast loop");
+            socket.set_multicast_loop_v4(true)?;
             let multicast_addr = Ipv4Addr::from(multicast_locator.address);
             let multicast_interface = Ipv4Addr::from(unicast_locator.address);
-            socket.join_multicast_v4(&multicast_addr, &multicast_interface).expect("Error joining multicast group");
+            socket.join_multicast_v4(&multicast_addr, &multicast_interface)?;
         }
 
         //socket.set_read_timeout(Some(Duration::new(0/*secs*/, 0/*nanos*/))).expect("Error setting timeout");
-        socket.set_nonblocking(true);
+        socket.set_nonblocking(true)?;
 
-        Transport {
+        Ok( Transport {
             socket,
             buf : [0; MAX_UDP_DATA_SIZE],
-        }
+        } )
     }
 
     pub fn write(&self, buf: &[u8], unicast_locator: Udpv4Locator) -> () {
@@ -95,7 +95,7 @@ mod tests {
         let unicast_locator = Udpv4Locator::new_udpv4(&addr, &port);
         let multicast_locator = Udpv4Locator::new_udpv4(&multicast_group, &0);
 
-        let mut transport = Transport::new(unicast_locator, Some(multicast_locator));
+        let mut transport = Transport::new(unicast_locator, Some(multicast_locator)).unwrap();
 
         let expected = [1, 2, 3];
           
@@ -115,7 +115,7 @@ mod tests {
         let unicast_locator = Udpv4Locator::new_udpv4(&addr, &port);
         let multicast_locator = Udpv4Locator::new_udpv4(&multicast_group, &0);
 
-        let mut transport = Transport::new(unicast_locator, Some(multicast_locator));
+        let mut transport = Transport::new(unicast_locator, Some(multicast_locator)).unwrap();
 
         let expected = std::io::ErrorKind::WouldBlock;      
         let result = transport.read();
@@ -135,7 +135,7 @@ mod tests {
         let multicast_locator = Udpv4Locator::new_udpv4(&multicast_group, &0);
         let unicast_locator_sent_to = Udpv4Locator::new_udpv4(&addr, &port);
 
-        let transport = Transport::new(unicast_locator, Some(multicast_locator));
+        let transport = Transport::new(unicast_locator, Some(multicast_locator)).unwrap();
 
         let expected = [1, 2, 3];
           
