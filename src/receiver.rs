@@ -102,7 +102,7 @@ mod tests{
         assert_eq!(hc.get_changes().lock().unwrap().len(), 1);
 
         let lock = hc.get_changes().lock().unwrap();
-        let cache_change = lock.iter().next().unwrap();
+        let cache_change = lock.iter().next().unwrap().1;
         assert_eq!(cache_change.cache_change.get_change_kind(), &ChangeKind::Alive);
         assert_eq!(cache_change.cache_change.get_writer_guid(), &GUID::new([0,1,2,3,4,5,6,7,8,9,10,11], EntityId::new([0,1,0],1)));
         assert_eq!(cache_change.cache_change.get_instance_handle(), &[0,1,2,3,4,5,6,7,8,9,10,11,0,1,0,1]);

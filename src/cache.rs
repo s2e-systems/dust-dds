@@ -133,13 +133,6 @@ impl ReaderCacheChange
     }
 }
 
-impl Hash for ReaderCacheChange {
-    fn hash<H>(&self, state: &mut H) where H: Hasher {
-        self.cache_change.hash(state)
-    }
-}
-
-
 impl PartialEq for ReaderCacheChange {
     fn eq(&self, other: &Self) -> bool {
         self.cache_change == other.cache_change
@@ -162,34 +155,34 @@ impl PartialOrd for ReaderCacheChange {
 
 
 pub struct ReaderHistoryCache {
-    pub changes: Mutex<HashSet<ReaderCacheChange>>,
+    pub changes: Mutex<HashMap<CacheChange, ReaderCacheChange>>,
 }
 
 impl ReaderHistoryCache {
     pub fn new() -> ReaderHistoryCache {
         ReaderHistoryCache {
-            changes: Mutex::new(HashSet::new()),
+            changes: Mutex::new(HashMap::new()),
         }
     }
 
     pub fn add_change(&self, change: ReaderCacheChange) {
-        self.changes.lock().unwrap().insert(change);
+        self.changes.lock().unwrap().insert(change.cache_change.clone(), change);
     }
     
     pub fn remove_change(&self, change: &ReaderCacheChange) {
-        self.changes.lock().unwrap().remove(change);
+        self.changes.lock().unwrap().remove(&change.cache_change);
     }
     
-    pub fn get_changes(&self) -> &Mutex<HashSet<ReaderCacheChange>> {
+    pub fn get_changes(&self) -> &Mutex<HashMap<CacheChange, ReaderCacheChange>> {
         &self.changes
     }
 
     pub fn get_seq_num_min(&self) -> Option<SequenceNumber>{
-        Some(self.changes.lock().unwrap().iter().min()?.cache_change.sequence_number)
+        Some(self.changes.lock().unwrap().iter().min()?.1.cache_change.sequence_number)
     }
 
     pub fn get_seq_num_max(&self) -> Option<SequenceNumber>{
-        Some(self.changes.lock().unwrap().iter().max()?.cache_change.sequence_number)
+        Some(self.changes.lock().unwrap().iter().max()?.1.cache_change.sequence_number)
     }
 }
 

@@ -39,13 +39,13 @@ impl WriterProxy<'_>
         let cache_changes_lock = self.changes_from_writer.changes.lock().unwrap();
 
         let cache_change = cache_changes_lock.iter()
-            .filter(|&rcc|rcc.cache_change.writer_guid == self.remote_writer_guid)
-            .filter(|&rcc|rcc.cache_change.is_status(ChangeFromWriterStatusKind::Lost) || rcc.cache_change.is_status(ChangeFromWriterStatusKind::Missing))
+            .filter(|&rcc|rcc.1.cache_change.writer_guid == self.remote_writer_guid)
+            .filter(|&rcc|rcc.1.cache_change.is_status(ChangeFromWriterStatusKind::Lost) || rcc.1.cache_change.is_status(ChangeFromWriterStatusKind::Missing))
             .max();
         match cache_change 
         {
             None => None,
-            Some(a) => Some(a.cache_change.sequence_number),
+            Some(a) => Some(a.1.cache_change.sequence_number),
         }
     }
 
@@ -73,9 +73,9 @@ impl WriterProxy<'_>
     {
         let mut cache_changes_lock = self.changes_from_writer.changes.lock().unwrap();
         let mut reader_cache_change = cache_changes_lock.iter_mut()
-        .filter(|&rcc|rcc.cache_change.writer_guid == self.remote_writer_guid)
-        .find(|&rcc|rcc.cache_change.sequence_number == a_seq_num).unwrap();
-        reader_cache_change.change_from_writer.status = ChangeFromWriterStatusKind::Received;
+        .filter(|rcc|rcc.1.cache_change.writer_guid == self.remote_writer_guid)
+        .find(|rcc|rcc.1.cache_change.sequence_number == a_seq_num).unwrap();
+        reader_cache_change.1.change_from_writer.status = ChangeFromWriterStatusKind::Received;
     }
 }
 
