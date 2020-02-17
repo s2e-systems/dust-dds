@@ -17,6 +17,7 @@ mod writer;
 mod transport;
 mod receiver;
 mod proxy;
+mod participant;
 
 use types::EntityId;
 

@@ -16,62 +16,11 @@ pub struct Receiver {
     // haveTimestamp
     // timestamp
     // messageLength
-
-
 }
 
 // impl Receiver
 // {
-    pub fn process_message(message: RtpsMessage, history_cache : &mut ReaderHistoryCache) {
-        let (mut source_guid_prefix, mut source_vendor_id, mut source_protocol_version, mut submessages) = message.take(); 
-        let mut message_timestamp : Option<Time> = None;
-
-        while let Some(submessage) = submessages.pop_front() {
-            match submessage {
-                SubMessageType::InfoTsSubmessage(info_ts) => process_infots(info_ts, &mut message_timestamp),
-                //SubMessageType::DataSubmessage(data) => history_cache.add_change(process_data(data, &source_guid_prefix).unwrap()),
-                SubMessageType::InfoSrcSubmessage(info_src) => process_infosrc(info_src, &mut source_protocol_version, &mut source_vendor_id, &mut source_guid_prefix),
-                _ => println!("Unimplemented message type"),
-            };  
-        }
-    }
-
-    fn process_infots(info_ts: InfoTs, time: &mut Option<Time>) {
-        *time = info_ts.take();
-    }
-
-    fn process_infosrc(info_src: InfoSrc, protocol_version: &mut ProtocolVersion, vendor_id: &mut VendorId, guid_prefix: &mut GuidPrefix) {
-        let (new_protocol_version, new_vendor_id, new_guid_prefix)=info_src.take();
-        *protocol_version = new_protocol_version;
-        *vendor_id = new_vendor_id;
-        *guid_prefix = new_guid_prefix;
-    }
-
-    fn process_data(data_submessage: Data, source_guid_prefix: &GuidPrefix) -> Option<CacheChange> {
-        let (reader_id, writer_id, writer_sn, inline_qos, serialized_payload) = data_submessage.take();
-        let writer_guid = GUID::new(*source_guid_prefix, writer_id);
-        
-        if let Payload::Data(data) = serialized_payload {
-            if let Some(inline_qos_list) = inline_qos {
-                let key_hash_parameter = inline_qos_list.iter().find(|&x| x.is_key_hash());
-                if let Some(InlineQosParameter::KeyHash(instance_handle)) = key_hash_parameter {
-                    let cache_change = CacheChange::new(ChangeKind::Alive, writer_guid,*instance_handle,writer_sn,None);
-                    return Some(cache_change);
-                }
-            }
-        } else if let Payload::Key(key) = serialized_payload {
-            if let Some(inline_qos_list) = inline_qos {
-                let status_info_parameter = inline_qos_list.iter().find(|&x| x.is_status_info());
-                if let Some(InlineQosParameter::StatusInfo(status_info)) = status_info_parameter {
-                    // TODO: Check the liveliness changes to the entity
-                }
-            }
-        } else {
-            // TODO: Either no payload or non standardized payload. In either case, not implemented yet
-        }
-
-        return None;
-    }
+    
 // }
 
 #[cfg(test)]

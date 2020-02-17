@@ -115,8 +115,8 @@ pub struct Duration {
     pub fraction: u32,
 }
 
-const DURATION_ZERO: Duration = Duration{seconds: 0, fraction: 0 };
-const DURATION_INFINITE: Duration = Duration{seconds: i32::MAX, fraction: u32::MAX };
+pub const DURATION_ZERO: Duration = Duration{seconds: 0, fraction: 0 };
+pub const DURATION_INFINITE: Duration = Duration{seconds: i32::MAX, fraction: u32::MAX };
 
 pub type InlineQosParameterList = Vec<InlineQosParameter>;
 
@@ -134,7 +134,7 @@ pub struct ProtocolVersion {
     pub minor: u8,
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Hash, Eq, Debug)]
+#[derive(Serialize, Deserialize, PartialEq, Hash, Eq, Debug, Copy, Clone)]
 pub struct Locator {
     pub kind: i32,
     pub port: u32,

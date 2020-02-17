@@ -1,9 +1,10 @@
 use std::collections::HashMap;
 
-use crate::cache::{ReaderHistoryCache};
-use crate::types::{LocatorList, GUID, TopicKind, ReliabilityKind, EntityId, Duration};
+use crate::cache::{ReaderHistoryCache, HistoryCache, ReaderCacheChange};
+use crate::types::{LocatorList, GUID, TopicKind, ReliabilityKind, EntityId, Duration, SequenceNumber, ParameterList, InlineQosParameterList, ChangeKind};
 use crate::proxy::{WriterProxy};
 use crate::endpoint::{Endpoint};
+use crate::parser::{Payload, InlineQosParameter};
 
 pub struct StatefulReader<'a> {
     reader : Reader,
@@ -57,5 +58,29 @@ impl Reader
             Reader{
                 endpoint, heartbeat_response_delay, heartbeat_suppression_duration, reader_cache : ReaderHistoryCache::new(), expects_inline_qos
             }
+    }
+
+    pub fn read_data(&self, writer_guid: GUID, sequence_number: SequenceNumber, inline_qos: Option<InlineQosParameterList>,  serialized_payload: Payload) {
+        println!("Reader is processing data");
+
+        if let Payload::Data(data) = serialized_payload {
+            if let Some(inline_qos_list) = inline_qos {
+                let key_hash_parameter = inline_qos_list.iter().find(|&x| x.is_key_hash());
+                if let Some(InlineQosParameter::KeyHash(instance_handle)) = key_hash_parameter {
+                    let rcc = ReaderCacheChange::new(ChangeKind::Alive, writer_guid, *instance_handle, sequence_number, None/*inline_qos*/,  Some(data));
+                    self.reader_cache.add_change(rcc);
+                }
+            }
+        } else if let Payload::Key(key) = serialized_payload {
+            if let Some(inline_qos_list) = inline_qos {
+                let status_info_parameter = inline_qos_list.iter().find(|&x| x.is_status_info());
+                if let Some(InlineQosParameter::StatusInfo(status_info)) = status_info_parameter {
+                    // TODO: Check the liveliness changes to the entity
+                }
+            }
+        }
+        else {
+            // TODO: Either no payload or non standardized payload. In either case, not implemented yet
+        }
     }
 }

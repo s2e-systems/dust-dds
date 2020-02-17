@@ -172,6 +172,7 @@ pub enum SubMessageType {
     NackFragSubmessage(NackFrag),
 }
 
+#[derive(Debug)]
 pub struct RtpsMessage {
     guid_prefix: GuidPrefix,
     vendor_id: VendorId,
