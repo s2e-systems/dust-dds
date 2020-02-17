@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 use crate::types::{LocatorList, GUID, EntityId, SequenceNumber, SequenceNumberSet};
-use crate::cache::{ReaderCacheChange, ReaderHistoryCache, ChangeFromWriterStatusKind};
+use crate::cache::{HistoryCache, ReaderCacheChange, ReaderHistoryCache, ChangeFromWriterStatusKind};
 
 
 pub struct WriterProxy<'a>

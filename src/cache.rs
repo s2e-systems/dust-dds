@@ -18,6 +18,16 @@ pub enum ChangeFromWriterStatusKind
 }
 
 #[derive(Hash, Eq, PartialEq, Debug, Clone)]
+pub enum ChangeForReaderStatusKind
+{
+    Unsent,
+    Unacknowledged,
+    Requested,
+    Acknowledged,
+    Underway,
+}
+
+#[derive(Hash, Eq, PartialEq, Debug, Clone)]
 pub struct ChangeFromWriter
 {
     pub status : ChangeFromWriterStatusKind,
@@ -32,6 +42,23 @@ impl Default for ChangeFromWriter
         }
     }
 }
+
+#[derive(Hash, Eq, PartialEq, Debug, Clone)]
+pub struct ChangeForReader
+{
+    pub status : ChangeForReaderStatusKind,
+    pub is_relevant : bool,
+}
+
+impl Default for ChangeForReader
+{
+    fn default() -> Self {
+        ChangeForReader {
+            status : ChangeForReaderStatusKind::Unsent, is_relevant : false
+        }
+    }
+}
+
 
 #[derive(Hash, Eq, Debug, Clone)]
 #[allow(dead_code)]
@@ -96,11 +123,10 @@ impl PartialOrd for CacheChange {
     }
 }
 
+pub trait CacheChangeOperations {
+    fn cache_change(&self) -> &CacheChange;
+}
 
-
-// pub struct WriterHistoryCache {
-//     pub changes: Mutex<HashSet<(CacheChange, ChangeForReader)>>,
-// }
 
 #[derive(Eq, Clone)]
 pub struct ReaderCacheChange {
@@ -148,7 +174,31 @@ impl PartialOrd for ReaderCacheChange {
     }
 }
 
+impl CacheChangeOperations for ReaderCacheChange {
+    fn cache_change(&self) -> &CacheChange {
+        &self.cache_change
+    }
+}
 
+pub trait HistoryCache<Cache: CacheChangeOperations + Ord> {
+    fn add_change(&self, change: Cache) {
+        self.get_changes().lock().unwrap().insert(change.cache_change().clone(), change);
+    }
+    
+    fn remove_change(&self, change: &Cache) {
+        self.get_changes().lock().unwrap().remove(&change.cache_change());
+    }
+    
+    fn get_changes(&self) -> &Mutex<HashMap<CacheChange, Cache>>;
+
+    fn get_seq_num_min(&self) -> Option<SequenceNumber>{
+        Some(self.get_changes().lock().unwrap().iter().min()?.1.cache_change().sequence_number)
+    }
+
+    fn get_seq_num_max(&self) -> Option<SequenceNumber>{
+        Some(self.get_changes().lock().unwrap().iter().max()?.1.cache_change().sequence_number)
+    }
+}
 
 pub struct ReaderHistoryCache {
     pub changes: Mutex<HashMap<CacheChange, ReaderCacheChange>>,
@@ -160,28 +210,75 @@ impl ReaderHistoryCache {
             changes: Mutex::new(HashMap::new()),
         }
     }
+}
 
-    pub fn add_change(&self, change: ReaderCacheChange) {
-        self.changes.lock().unwrap().insert(change.cache_change.clone(), change);
-    }
-    
-    pub fn remove_change(&self, change: &ReaderCacheChange) {
-        self.changes.lock().unwrap().remove(&change.cache_change);
-    }
-    
-    pub fn get_changes(&self) -> &Mutex<HashMap<CacheChange, ReaderCacheChange>> {
+impl HistoryCache<ReaderCacheChange> for ReaderHistoryCache{
+    fn get_changes(&self) -> &Mutex<HashMap<CacheChange, ReaderCacheChange>>{
         &self.changes
-    }
-
-    pub fn get_seq_num_min(&self) -> Option<SequenceNumber>{
-        Some(self.changes.lock().unwrap().iter().min()?.1.cache_change.sequence_number)
-    }
-
-    pub fn get_seq_num_max(&self) -> Option<SequenceNumber>{
-        Some(self.changes.lock().unwrap().iter().max()?.1.cache_change.sequence_number)
     }
 }
 
+pub struct WriterHistoryCache {
+    pub changes: Mutex<HashMap<CacheChange, WriterCacheChange>>,
+}
+
+#[derive(Eq, Clone)]
+pub struct WriterCacheChange {
+    pub cache_change : CacheChange,
+    data: Option<Vec<u8>>,
+    pub changes_for_reader : ChangeForReader,
+}
+
+impl WriterCacheChange 
+{
+    pub fn new(change_kind: ChangeKind, writer_guid: GUID, instance_handle: InstanceHandle, sequence_number: SequenceNumber, inline_qos: Option<ParameterList>,  data: Option<Vec<u8>>) -> Self
+    {
+        WriterCacheChange{
+            cache_change : CacheChange::new(change_kind, writer_guid, instance_handle, sequence_number, inline_qos), 
+            data, 
+            changes_for_reader : Default::default()
+        } 
+    }
+
+    pub fn is_status(&self, status : ChangeForReaderStatusKind) -> bool
+    {
+        if self.changes_for_reader.status == status {
+            return true;
+        }
+        return false;
+    }
+}
+
+impl PartialEq for WriterCacheChange {
+    fn eq(&self, other: &Self) -> bool {
+        self.cache_change == other.cache_change
+    }
+}
+
+impl Ord for WriterCacheChange {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.cache_change.cmp(&other.cache_change)
+    }
+}
+
+
+impl PartialOrd for WriterCacheChange {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cache_change.cmp(&other.cache_change))
+    }
+}
+
+impl HistoryCache<WriterCacheChange> for WriterHistoryCache{
+    fn get_changes(&self) -> &Mutex<HashMap<CacheChange, WriterCacheChange>>{
+        &self.changes
+    }
+}
+
+impl CacheChangeOperations for WriterCacheChange {
+    fn cache_change(&self) -> &CacheChange {
+        &self.cache_change
+    }
+}
 
 #[cfg(test)]
 mod tests{
