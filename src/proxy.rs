@@ -39,9 +39,10 @@ impl WriterProxy<'_>
         let cache_changes_lock = self.changes_from_writer.changes.lock().unwrap();
 
         let cache_change = cache_changes_lock.iter()
-            .filter(|&rcc|rcc.1.cache_change.writer_guid == self.remote_writer_guid)
-            .filter(|&rcc|rcc.1.cache_change.is_status(ChangeFromWriterStatusKind::Lost) || rcc.1.cache_change.is_status(ChangeFromWriterStatusKind::Missing))
+            .filter(|&rcc|(rcc.1.cache_change.writer_guid == self.remote_writer_guid))
+            .filter(|&rcc|(rcc.1.is_status(ChangeFromWriterStatusKind::Received) || rcc.1.is_status(ChangeFromWriterStatusKind::Lost)))
             .max();
+
         match cache_change 
         {
             None => None,
@@ -75,6 +76,7 @@ impl WriterProxy<'_>
         let mut reader_cache_change = cache_changes_lock.iter_mut()
         .filter(|rcc|rcc.1.cache_change.writer_guid == self.remote_writer_guid)
         .find(|rcc|rcc.1.cache_change.sequence_number == a_seq_num).unwrap();
+
         reader_cache_change.1.change_from_writer.status = ChangeFromWriterStatusKind::Received;
     }
 }
@@ -101,8 +103,15 @@ mod tests{
         hc.add_change(other_cc);
         hc.add_change(yet_other_cc);
 
+        assert_eq!(hc.changes.lock().unwrap().len(),3);
+
         let remote_group_entity_id = EntityId::new([0,1,0], 2);
         let writer_proxy = WriterProxy::new(writer_guid, Vec::new(), Vec::new(), None, &hc, remote_group_entity_id);
+
+        let cc = ReaderCacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, sequence_number, None, None);
+        assert_eq!(hc.changes.lock().unwrap()[&cc.cache_change].is_status(ChangeFromWriterStatusKind::Received),false);
+        writer_proxy.received_change_set(sequence_number);
+        assert_eq!(hc.changes.lock().unwrap()[&cc.cache_change].is_status(ChangeFromWriterStatusKind::Received),true);
 
         let result = writer_proxy.available_changes_max();
         assert_eq!(result, Some(sequence_number));
@@ -110,11 +119,8 @@ mod tests{
         let cc = ReaderCacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, sequence_number+1, None, None);
         hc.add_change(cc);
 
+        writer_proxy.received_change_set(sequence_number+1);
         let result = writer_proxy.available_changes_max();
         assert_eq!(result, Some(sequence_number+1));
-
-
-
-
     }
 }

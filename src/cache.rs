@@ -41,7 +41,6 @@ pub struct CacheChange {
     instance_handle: InstanceHandle,
     pub sequence_number: SequenceNumber,
     inline_qos: Option<ParameterList>,
-    pub change_from_writer : Option<ChangeFromWriter>,
 }
 
 impl CacheChange {
@@ -52,7 +51,6 @@ impl CacheChange {
             instance_handle,
             sequence_number,
             inline_qos,
-            change_from_writer : None
         }
     }
 
@@ -74,16 +72,6 @@ impl CacheChange {
 
     pub fn get_inline_qos(&self) -> &Option<ParameterList> {
         &self.inline_qos
-    }
-
-    pub fn is_status(&self, status : ChangeFromWriterStatusKind) -> bool
-    {
-        if let Some(change_from_writer) = &self.change_from_writer{
-            if change_from_writer.status == status {
-                return true;
-            }
-        }
-        return false;
     }
 }
 
@@ -130,6 +118,14 @@ impl ReaderCacheChange
             data, 
             change_from_writer : Default::default()
         } 
+    }
+
+    pub fn is_status(&self, status : ChangeFromWriterStatusKind) -> bool
+    {
+        if self.change_from_writer.status == status {
+            return true;
+        }
+        return false;
     }
 }
 
