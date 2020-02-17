@@ -205,7 +205,7 @@ pub struct ReaderHistoryCache {
 }
 
 impl ReaderHistoryCache {
-    pub fn new() -> ReaderHistoryCache {
+    pub fn new() -> Self {
         ReaderHistoryCache {
             changes: Mutex::new(HashMap::new()),
         }
@@ -220,6 +220,14 @@ impl HistoryCache<ReaderCacheChange> for ReaderHistoryCache{
 
 pub struct WriterHistoryCache {
     pub changes: Mutex<HashMap<CacheChange, WriterCacheChange>>,
+}
+
+impl WriterHistoryCache {
+    pub fn new() -> Self {
+        WriterHistoryCache {
+            changes: Mutex::new(HashMap::new()),
+        }
+    }
 }
 
 #[derive(Eq, Clone)]

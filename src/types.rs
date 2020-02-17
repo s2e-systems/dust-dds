@@ -134,7 +134,7 @@ pub struct ProtocolVersion {
     pub minor: u8,
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[derive(Serialize, Deserialize, PartialEq, Hash, Eq, Debug)]
 pub struct Locator {
     pub kind: i32,
     pub port: u32,
