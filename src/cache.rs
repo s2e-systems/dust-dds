@@ -21,7 +21,7 @@ pub enum ChangeFromWriterStatusKind
 pub struct ChangeFromWriter
 {
     pub status : ChangeFromWriterStatusKind,
-    is_relevant : bool,
+    pub is_relevant : bool,
 }
 
 impl Default for ChangeFromWriter
