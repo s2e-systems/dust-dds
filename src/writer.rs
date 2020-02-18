@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 use crate::endpoint::{Endpoint};
-use crate::cache::{WriterHistoryCache, WriterCacheChange, CacheChange, HistoryCache};
+use crate::cache::{WriterHistoryCache, WriterCacheChange, CacheChange, HistoryCache, CacheChangeOperations};
 use crate::types::{Duration, SequenceNumber, ParameterList, InstanceHandle, ChangeKind, Locator, LocatorList};
 
 pub struct ReaderLocator<'a> {
@@ -16,7 +16,7 @@ impl<'a> ReaderLocator<'a> {
         let mut unsent_changes = HashSet::new();
 
         for (_,change) in cache_changes.get_changes().iter() {
-            unsent_changes.insert(change.cache_change.clone());
+            unsent_changes.insert(change.cache_change().clone());
         }    
 
         ReaderLocator {

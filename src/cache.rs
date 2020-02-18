@@ -232,9 +232,9 @@ impl WriterHistoryCache {
 
 #[derive(Eq, Clone)]
 pub struct WriterCacheChange {
-    pub cache_change : CacheChange,
+    cache_change : CacheChange,
     data: Option<Vec<u8>>,
-    pub changes_for_reader : ChangeForReader,
+    changes_for_reader : ChangeForReader,
 }
 
 impl WriterCacheChange 
