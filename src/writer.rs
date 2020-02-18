@@ -15,7 +15,7 @@ impl<'a> ReaderLocator<'a> {
     pub fn new(locator: Locator, expects_inline_qos: bool, cache_changes: &'a WriterHistoryCache) -> Self {
         let mut unsent_changes = HashSet::new();
 
-        for (_,change) in cache_changes.get_changes().lock().unwrap().iter() {
+        for (_,change) in cache_changes.get_changes().iter() {
             unsent_changes.insert(change.cache_change.clone());
         }    
 

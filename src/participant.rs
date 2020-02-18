@@ -59,6 +59,8 @@ impl Participant{
             Ok(message) => self.process_message(message),
             _ => (),
         }
+
+        // TODO: Check if there are changes between participant proxy list and spdp_builtin_participant_reader history cache
         
 
     }
@@ -94,6 +96,7 @@ impl Participant{
 
         match writer_id {
             ENTITYID_SPDP_BUILT_IN_PARTICIPANT_WRITER => self.spdp_builtin_participant_reader.read_data(writer_guid, writer_sn, inline_qos, serialized_payload),
+            
             _ => println!("Unknown data destination"),
         };
     }
@@ -103,6 +106,7 @@ impl Participant{
 mod tests{
     use super::*;
     use std::net::SocketAddr;
+    use crate::cache::HistoryCache;
 
     #[test]
     fn test_participant() {
@@ -197,10 +201,10 @@ mod tests{
         0x01, 0x00, 0x00, 0x00];
         sender.send_to(&data, SocketAddr::from((multicast_group, port))).unwrap();
 
-        assert_eq!(participant.spdp_builtin_participant_reader.reader_cache.changes.lock().unwrap().len(),0);
+        assert_eq!(participant.spdp_builtin_participant_reader.reader_cache.get_changes().len(),0);
 
         participant.receive_data();
         
-        assert_eq!(participant.spdp_builtin_participant_reader.reader_cache.changes.lock().unwrap().len(),1);
+        assert_eq!(participant.spdp_builtin_participant_reader.reader_cache.get_changes().len(),1);
     }
 }

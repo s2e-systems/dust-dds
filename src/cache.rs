@@ -1,7 +1,7 @@
 use std::hash::Hasher;
 use core::hash::Hash;
 use std::cmp::Ordering;
-use std::sync::{Mutex};
+use std::sync::{Mutex,MutexGuard};
 use std::collections::{HashSet,VecDeque, HashMap};
 
 use crate::types::{GUID,GuidPrefix, SequenceNumber, ParameterList, InstanceHandle, Time, EntityId, Parameter, ProtocolVersion, VendorId, ChangeKind};
@@ -182,26 +182,26 @@ impl CacheChangeOperations for ReaderCacheChange {
 
 pub trait HistoryCache<Cache: CacheChangeOperations + Ord> {
     fn add_change(&self, change: Cache) {
-        self.get_changes().lock().unwrap().insert(change.cache_change().clone(), change);
+        self.get_changes().insert(change.cache_change().clone(), change);
     }
     
     fn remove_change(&self, change: &Cache) {
-        self.get_changes().lock().unwrap().remove(&change.cache_change());
+        self.get_changes().remove(&change.cache_change());
     }
     
-    fn get_changes(&self) -> &Mutex<HashMap<CacheChange, Cache>>;
+    fn get_changes(&self) -> MutexGuard<HashMap<CacheChange, Cache>>;
 
     fn get_seq_num_min(&self) -> Option<SequenceNumber>{
-        Some(self.get_changes().lock().unwrap().iter().min()?.1.cache_change().sequence_number)
+        Some(self.get_changes().iter().min()?.1.cache_change().sequence_number)
     }
 
     fn get_seq_num_max(&self) -> Option<SequenceNumber>{
-        Some(self.get_changes().lock().unwrap().iter().max()?.1.cache_change().sequence_number)
+        Some(self.get_changes().iter().max()?.1.cache_change().sequence_number)
     }
 }
 
 pub struct ReaderHistoryCache {
-    pub changes: Mutex<HashMap<CacheChange, ReaderCacheChange>>,
+    changes: Mutex<HashMap<CacheChange, ReaderCacheChange>>,
 }
 
 impl ReaderHistoryCache {
@@ -213,13 +213,13 @@ impl ReaderHistoryCache {
 }
 
 impl HistoryCache<ReaderCacheChange> for ReaderHistoryCache{
-    fn get_changes(&self) -> &Mutex<HashMap<CacheChange, ReaderCacheChange>>{
-        &self.changes
+    fn get_changes(&self) -> MutexGuard<HashMap<CacheChange, ReaderCacheChange>>{
+        self.changes.lock().unwrap()
     }
 }
 
 pub struct WriterHistoryCache {
-    pub changes: Mutex<HashMap<CacheChange, WriterCacheChange>>,
+    changes: Mutex<HashMap<CacheChange, WriterCacheChange>>,
 }
 
 impl WriterHistoryCache {
@@ -277,8 +277,8 @@ impl PartialOrd for WriterCacheChange {
 }
 
 impl HistoryCache<WriterCacheChange> for WriterHistoryCache{
-    fn get_changes(&self) -> &Mutex<HashMap<CacheChange, WriterCacheChange>>{
-        &self.changes
+    fn get_changes(&self) -> MutexGuard<HashMap<CacheChange, WriterCacheChange>>{
+        self.changes.lock().unwrap()
     }
 }
 
@@ -303,12 +303,11 @@ mod tests{
         let cc = ReaderCacheChange::new(ChangeKind::Alive, guid, instance_handle, sequence_number, None, data);
         let cc_clone = cc.clone();
         let history_cache = ReaderHistoryCache::new();
-        let changes = history_cache.get_changes();
-        assert_eq!(changes.lock().unwrap().len(), 0);
+        assert_eq!(history_cache.get_changes().len(), 0);
         history_cache.add_change(cc);
-        assert_eq!(changes.lock().unwrap().len(), 1);
+        assert_eq!(history_cache.get_changes().len(), 1);
         history_cache.remove_change(&cc_clone);
-        assert_eq!(changes.lock().unwrap().len(), 0);
+        assert_eq!(history_cache.get_changes().len(), 0);
     }
 
     #[test]
