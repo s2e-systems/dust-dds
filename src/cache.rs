@@ -130,9 +130,9 @@ pub trait CacheChangeOperations {
 
 #[derive(Eq, Clone)]
 pub struct ReaderCacheChange {
-    pub cache_change : CacheChange,
+    cache_change : CacheChange,
     data: Option<Vec<u8>>,
-    pub change_from_writer : ChangeFromWriter,
+    change_from_writer : ChangeFromWriter,
 }
 
 impl ReaderCacheChange 
@@ -152,6 +152,14 @@ impl ReaderCacheChange
             return true;
         }
         return false;
+    }
+
+    pub fn change_from_writer(&self) -> &ChangeFromWriter {
+        &self.change_from_writer
+    }
+
+    pub fn change_from_writer_mut(&mut self) -> &mut ChangeFromWriter {
+        &mut self.change_from_writer
     }
 }
 
@@ -179,6 +187,7 @@ impl CacheChangeOperations for ReaderCacheChange {
         &self.cache_change
     }
 }
+
 
 pub trait HistoryCache<Cache: CacheChangeOperations + Ord> {
     fn add_change(&self, change: Cache) {
