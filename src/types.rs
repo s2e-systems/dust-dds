@@ -1,16 +1,15 @@
-
-use serde_derive::{Deserialize, Serialize};
-use std::{u32, i32};
 use crate::parser::InlineQosParameter;
+use serde_derive::{Deserialize, Serialize};
+use std::{i32, u32};
 
 #[derive(Serialize, Hash, Deserialize, Eq, PartialEq, Default, Debug, Clone, Copy)]
 pub struct EntityId {
-    entity_key: [u8;3],
+    entity_key: [u8; 3],
     entity_kind: EntityKind,
 }
 
-impl EntityId{
-    pub fn new(entity_key: [u8;3], entity_kind: u8) -> EntityId {
+impl EntityId {
+    pub fn new(entity_key: [u8; 3], entity_kind: u8) -> EntityId {
         EntityId {
             entity_key,
             entity_kind,
@@ -33,53 +32,65 @@ pub const ENTITY_KIND_BUILT_IN_WRITER_GROUP: EntityKind = 0xc8;
 pub const ENTITY_KIND_READER_GROUP: EntityKind = 0x09;
 pub const ENTITY_KIND_BUILT_IN_READER_GROUP: EntityKind = 0xc9;
 
-pub const ENTITYID_UNKNOWN: EntityId = EntityId{
-    entity_key: [0,0,0x00], 
-    entity_kind: 0};
+pub const ENTITYID_UNKNOWN: EntityId = EntityId {
+    entity_key: [0, 0, 0x00],
+    entity_kind: 0,
+};
 
-pub const ENTITYID_PARTICIPANT: EntityId = EntityId{
-    entity_key: [0,0,0x01],
-    entity_kind: ENTITY_KIND_BUILT_IN_PARTICIPANT};
+pub const ENTITYID_PARTICIPANT: EntityId = EntityId {
+    entity_key: [0, 0, 0x01],
+    entity_kind: ENTITY_KIND_BUILT_IN_PARTICIPANT,
+};
 
-pub const ENTITYID_SEDP_BUILT_IN_TOPIC_WRITER: EntityId = EntityId{
-    entity_key: [0,0,0x02],
-    entity_kind: ENTITY_KIND_BUILT_IN_WRITER_WITH_KEY};
+pub const ENTITYID_SEDP_BUILT_IN_TOPIC_WRITER: EntityId = EntityId {
+    entity_key: [0, 0, 0x02],
+    entity_kind: ENTITY_KIND_BUILT_IN_WRITER_WITH_KEY,
+};
 
-pub const ENTITYID_SEDP_BUILT_IN_TOPIC_READER: EntityId = EntityId{
-    entity_key: [0,0,0x02],
-    entity_kind: ENTITY_KIND_BUILT_IN_READER_WITH_KEY};
+pub const ENTITYID_SEDP_BUILT_IN_TOPIC_READER: EntityId = EntityId {
+    entity_key: [0, 0, 0x02],
+    entity_kind: ENTITY_KIND_BUILT_IN_READER_WITH_KEY,
+};
 
-pub const ENTITYID_SEDP_BUILT_IN_PUBLICATIONS_WRITER: EntityId = EntityId{
-    entity_key: [0,0,0x03],
-    entity_kind: ENTITY_KIND_BUILT_IN_WRITER_WITH_KEY};
+pub const ENTITYID_SEDP_BUILT_IN_PUBLICATIONS_WRITER: EntityId = EntityId {
+    entity_key: [0, 0, 0x03],
+    entity_kind: ENTITY_KIND_BUILT_IN_WRITER_WITH_KEY,
+};
 
-pub const ENTITYID_SEDP_BUILT_IN_PUBLICATIONS_READER: EntityId = EntityId{
-    entity_key: [0,0,0x03],
-    entity_kind: ENTITY_KIND_BUILT_IN_READER_WITH_KEY};
+pub const ENTITYID_SEDP_BUILT_IN_PUBLICATIONS_READER: EntityId = EntityId {
+    entity_key: [0, 0, 0x03],
+    entity_kind: ENTITY_KIND_BUILT_IN_READER_WITH_KEY,
+};
 
-pub const ENTITYID_SEDP_BUILT_IN_SUBSCRIPTIONS_WRITER: EntityId = EntityId{
-    entity_key: [0,0,0x04],
-    entity_kind: ENTITY_KIND_BUILT_IN_WRITER_WITH_KEY};
+pub const ENTITYID_SEDP_BUILT_IN_SUBSCRIPTIONS_WRITER: EntityId = EntityId {
+    entity_key: [0, 0, 0x04],
+    entity_kind: ENTITY_KIND_BUILT_IN_WRITER_WITH_KEY,
+};
 
-pub const ENTITYID_SEDP_BUILT_IN_SUBSCRIPTIONS_READER: EntityId = EntityId{
-    entity_key: [0,0,0x04],
-    entity_kind: ENTITY_KIND_BUILT_IN_READER_WITH_KEY};
+pub const ENTITYID_SEDP_BUILT_IN_SUBSCRIPTIONS_READER: EntityId = EntityId {
+    entity_key: [0, 0, 0x04],
+    entity_kind: ENTITY_KIND_BUILT_IN_READER_WITH_KEY,
+};
 
-pub const ENTITYID_SPDP_BUILT_IN_PARTICIPANT_WRITER: EntityId = EntityId{
-    entity_key: [0,0x01,0x00],
-    entity_kind: ENTITY_KIND_BUILT_IN_WRITER_WITH_KEY};
+pub const ENTITYID_SPDP_BUILT_IN_PARTICIPANT_WRITER: EntityId = EntityId {
+    entity_key: [0, 0x01, 0x00],
+    entity_kind: ENTITY_KIND_BUILT_IN_WRITER_WITH_KEY,
+};
 
-pub const ENTITYID_SPDP_BUILT_IN_PARTICIPANT_READER: EntityId = EntityId{
-    entity_key: [0,0x01,0x00],
-    entity_kind: ENTITY_KIND_BUILT_IN_READER_WITH_KEY};
+pub const ENTITYID_SPDP_BUILT_IN_PARTICIPANT_READER: EntityId = EntityId {
+    entity_key: [0, 0x01, 0x00],
+    entity_kind: ENTITY_KIND_BUILT_IN_READER_WITH_KEY,
+};
 
-pub const ENTITYID_BUILT_IN_PARTICIPANT_MESSAGE_WRITER: EntityId = EntityId{
-    entity_key: [0,0x02,0x00],
-    entity_kind: ENTITY_KIND_BUILT_IN_WRITER_WITH_KEY};
+pub const ENTITYID_BUILT_IN_PARTICIPANT_MESSAGE_WRITER: EntityId = EntityId {
+    entity_key: [0, 0x02, 0x00],
+    entity_kind: ENTITY_KIND_BUILT_IN_WRITER_WITH_KEY,
+};
 
-pub const ENTITYID_BUILT_IN_PARTICIPANT_MESSAGE_READER: EntityId = EntityId{
-    entity_key: [0,0x02,0x00],
-    entity_kind: ENTITY_KIND_BUILT_IN_READER_WITH_KEY};
+pub const ENTITYID_BUILT_IN_PARTICIPANT_MESSAGE_READER: EntityId = EntityId {
+    entity_key: [0, 0x02, 0x00],
+    entity_kind: ENTITY_KIND_BUILT_IN_READER_WITH_KEY,
+};
 
 pub enum TopicKind {
     NoKey,
@@ -105,9 +116,18 @@ pub struct Time {
     pub fraction: u32,
 }
 
-const TIME_ZERO: Time = Time{seconds: 0, fraction: 0 };
-const TIME_INFINITE: Time = Time{seconds: u32::MAX, fraction: u32::MAX-1 };
-const TIME_INVALID: Time = Time{seconds: u32::MAX, fraction: u32::MAX };
+const TIME_ZERO: Time = Time {
+    seconds: 0,
+    fraction: 0,
+};
+const TIME_INFINITE: Time = Time {
+    seconds: u32::MAX,
+    fraction: u32::MAX - 1,
+};
+const TIME_INVALID: Time = Time {
+    seconds: u32::MAX,
+    fraction: u32::MAX,
+};
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Hash, Debug, Clone)]
 pub struct Duration {
@@ -115,8 +135,14 @@ pub struct Duration {
     pub fraction: u32,
 }
 
-pub const DURATION_ZERO: Duration = Duration{seconds: 0, fraction: 0 };
-pub const DURATION_INFINITE: Duration = Duration{seconds: i32::MAX, fraction: u32::MAX };
+pub const DURATION_ZERO: Duration = Duration {
+    seconds: 0,
+    fraction: 0,
+};
+pub const DURATION_INFINITE: Duration = Duration {
+    seconds: i32::MAX,
+    fraction: u32::MAX,
+};
 
 pub type InlineQosParameterList = Vec<InlineQosParameter>;
 
@@ -138,11 +164,11 @@ pub struct ProtocolVersion {
 pub struct Locator {
     pub kind: i32,
     pub port: u32,
-    pub address: [u8;16],
+    pub address: [u8; 16],
 }
 
 impl Locator {
-    pub fn new(kind: i32, port: u32, address: [u8;16]) -> Locator {
+    pub fn new(kind: i32, port: u32, address: [u8; 16]) -> Locator {
         Locator {
             kind,
             port,
@@ -159,10 +185,7 @@ pub struct GUID {
 
 impl GUID {
     pub fn new(prefix: GuidPrefix, entity_id: EntityId) -> GUID {
-        GUID {
-            prefix,
-            entity_id,
-        }
+        GUID { prefix, entity_id }
     }
 
     pub fn prefix(&self) -> &GuidPrefix {
@@ -212,26 +235,22 @@ pub enum BuiltInEndPoints {
     @position(8) DISC_BUILTIN_ENDPOINT_PARTICIPANT_STATE_ANNOUNCER,
     @position(9) DISC_BUILTIN_ENDPOINT_PARTICIPANT_STATE_DETECTOR,
     */
-
     ParticipantMessageDataWriter = 10,
     ParticipantMessageDataReader = 11,
 
-    /* 
+    /*
     Bits 12-15 have been reserved by the DDS-Xtypes 1.2 Specification
     and future revisions thereof.
     Bits 16-27 have been reserved by the DDS-Security 1.1 Specification
     and future revisions thereof.
     */
-
     TopicsAnnouncer = 28,
     TopicsDetector = 29,
 }
 
 impl BuiltInEndPointSet {
-    pub fn new(value: u32) -> Self{
-        BuiltInEndPointSet {
-            value,
-        }
+    pub fn new(value: u32) -> Self {
+        BuiltInEndPointSet { value }
     }
 
     pub fn has(&self, endpoint: BuiltInEndPoints) -> bool {
@@ -242,17 +261,17 @@ impl BuiltInEndPointSet {
 }
 
 pub type EntityKind = u8;
-pub type InstanceHandle = [u8;16];
-pub type VendorId = [u8;2];
+pub type InstanceHandle = [u8; 16];
+pub type VendorId = [u8; 2];
 pub type LocatorList = Vec<Locator>;
-pub type GuidPrefix = [u8;12];
+pub type GuidPrefix = [u8; 12];
 pub type Count = i32;
 pub type SequenceNumber = i64;
 pub type SequenceNumberSet = Vec<(SequenceNumber, bool)>;
 pub type FragmentNumber = u32;
 pub type FragmentNumberSet = Vec<(FragmentNumber, bool)>;
-pub type KeyHash = [u8;16];
-pub type StatusInfo = [u8;4];
+pub type KeyHash = [u8; 16];
+pub type StatusInfo = [u8; 4];
 
 #[cfg(test)]
 mod tests {
@@ -260,81 +279,201 @@ mod tests {
 
     #[test]
     fn test_builtin_endpoint_set_participant_announcer() {
-        assert_eq!(BuiltInEndPointSet::new(0).has(BuiltInEndPoints::ParticipantAnnouncer), false);
-        assert_eq!(BuiltInEndPointSet::new(1).has(BuiltInEndPoints::ParticipantAnnouncer), true);
-        assert_eq!(BuiltInEndPointSet::new(16).has(BuiltInEndPoints::ParticipantAnnouncer), false);
-        assert_eq!(BuiltInEndPointSet::new(15).has(BuiltInEndPoints::ParticipantAnnouncer), true);
+        assert_eq!(
+            BuiltInEndPointSet::new(0).has(BuiltInEndPoints::ParticipantAnnouncer),
+            false
+        );
+        assert_eq!(
+            BuiltInEndPointSet::new(1).has(BuiltInEndPoints::ParticipantAnnouncer),
+            true
+        );
+        assert_eq!(
+            BuiltInEndPointSet::new(16).has(BuiltInEndPoints::ParticipantAnnouncer),
+            false
+        );
+        assert_eq!(
+            BuiltInEndPointSet::new(15).has(BuiltInEndPoints::ParticipantAnnouncer),
+            true
+        );
     }
 
     #[test]
     fn test_builtin_endpoint_set_participant_detector() {
-        assert_eq!(BuiltInEndPointSet::new(0).has(BuiltInEndPoints::ParticipantDetector), false);
-        assert_eq!(BuiltInEndPointSet::new(2).has(BuiltInEndPoints::ParticipantDetector), true);
-        assert_eq!(BuiltInEndPointSet::new(16).has(BuiltInEndPoints::ParticipantDetector), false);
-        assert_eq!(BuiltInEndPointSet::new(15).has(BuiltInEndPoints::ParticipantDetector), true);
+        assert_eq!(
+            BuiltInEndPointSet::new(0).has(BuiltInEndPoints::ParticipantDetector),
+            false
+        );
+        assert_eq!(
+            BuiltInEndPointSet::new(2).has(BuiltInEndPoints::ParticipantDetector),
+            true
+        );
+        assert_eq!(
+            BuiltInEndPointSet::new(16).has(BuiltInEndPoints::ParticipantDetector),
+            false
+        );
+        assert_eq!(
+            BuiltInEndPointSet::new(15).has(BuiltInEndPoints::ParticipantDetector),
+            true
+        );
     }
 
     #[test]
     fn test_builtin_endpoint_set_publications_announcer() {
-        assert_eq!(BuiltInEndPointSet::new(0).has(BuiltInEndPoints::PublicationsAnnouncer), false);
-        assert_eq!(BuiltInEndPointSet::new(4).has(BuiltInEndPoints::PublicationsAnnouncer), true);
-        assert_eq!(BuiltInEndPointSet::new(16).has(BuiltInEndPoints::PublicationsAnnouncer), false);
-        assert_eq!(BuiltInEndPointSet::new(15).has(BuiltInEndPoints::PublicationsAnnouncer), true);
+        assert_eq!(
+            BuiltInEndPointSet::new(0).has(BuiltInEndPoints::PublicationsAnnouncer),
+            false
+        );
+        assert_eq!(
+            BuiltInEndPointSet::new(4).has(BuiltInEndPoints::PublicationsAnnouncer),
+            true
+        );
+        assert_eq!(
+            BuiltInEndPointSet::new(16).has(BuiltInEndPoints::PublicationsAnnouncer),
+            false
+        );
+        assert_eq!(
+            BuiltInEndPointSet::new(15).has(BuiltInEndPoints::PublicationsAnnouncer),
+            true
+        );
     }
 
     #[test]
     fn test_builtin_endpoint_set_publications_detector() {
-        assert_eq!(BuiltInEndPointSet::new(0).has(BuiltInEndPoints::PublicationsDetector), false);
-        assert_eq!(BuiltInEndPointSet::new(8).has(BuiltInEndPoints::PublicationsDetector), true);
-        assert_eq!(BuiltInEndPointSet::new(16).has(BuiltInEndPoints::PublicationsDetector), false);
-        assert_eq!(BuiltInEndPointSet::new(15).has(BuiltInEndPoints::PublicationsDetector), true);
+        assert_eq!(
+            BuiltInEndPointSet::new(0).has(BuiltInEndPoints::PublicationsDetector),
+            false
+        );
+        assert_eq!(
+            BuiltInEndPointSet::new(8).has(BuiltInEndPoints::PublicationsDetector),
+            true
+        );
+        assert_eq!(
+            BuiltInEndPointSet::new(16).has(BuiltInEndPoints::PublicationsDetector),
+            false
+        );
+        assert_eq!(
+            BuiltInEndPointSet::new(15).has(BuiltInEndPoints::PublicationsDetector),
+            true
+        );
     }
 
     #[test]
     fn test_builtin_endpoint_set_subscriptions_announcer() {
-        assert_eq!(BuiltInEndPointSet::new(0).has(BuiltInEndPoints::SubscriptionsAnnouncer), false);
-        assert_eq!(BuiltInEndPointSet::new(16).has(BuiltInEndPoints::SubscriptionsAnnouncer), true);
-        assert_eq!(BuiltInEndPointSet::new(32).has(BuiltInEndPoints::SubscriptionsAnnouncer), false);
-        assert_eq!(BuiltInEndPointSet::new(31).has(BuiltInEndPoints::SubscriptionsAnnouncer), true);
+        assert_eq!(
+            BuiltInEndPointSet::new(0).has(BuiltInEndPoints::SubscriptionsAnnouncer),
+            false
+        );
+        assert_eq!(
+            BuiltInEndPointSet::new(16).has(BuiltInEndPoints::SubscriptionsAnnouncer),
+            true
+        );
+        assert_eq!(
+            BuiltInEndPointSet::new(32).has(BuiltInEndPoints::SubscriptionsAnnouncer),
+            false
+        );
+        assert_eq!(
+            BuiltInEndPointSet::new(31).has(BuiltInEndPoints::SubscriptionsAnnouncer),
+            true
+        );
     }
 
     #[test]
     fn test_builtin_endpoint_set_subscriptions_detector() {
-        assert_eq!(BuiltInEndPointSet::new(0).has(BuiltInEndPoints::SubscriptionsDetector), false);
-        assert_eq!(BuiltInEndPointSet::new(32).has(BuiltInEndPoints::SubscriptionsDetector), true);
-        assert_eq!(BuiltInEndPointSet::new(31).has(BuiltInEndPoints::SubscriptionsDetector), false);
-        assert_eq!(BuiltInEndPointSet::new(63).has(BuiltInEndPoints::SubscriptionsDetector), true);
+        assert_eq!(
+            BuiltInEndPointSet::new(0).has(BuiltInEndPoints::SubscriptionsDetector),
+            false
+        );
+        assert_eq!(
+            BuiltInEndPointSet::new(32).has(BuiltInEndPoints::SubscriptionsDetector),
+            true
+        );
+        assert_eq!(
+            BuiltInEndPointSet::new(31).has(BuiltInEndPoints::SubscriptionsDetector),
+            false
+        );
+        assert_eq!(
+            BuiltInEndPointSet::new(63).has(BuiltInEndPoints::SubscriptionsDetector),
+            true
+        );
     }
 
     #[test]
     fn test_builtin_endpoint_participant_message_data_writer() {
-        assert_eq!(BuiltInEndPointSet::new(0).has(BuiltInEndPoints::ParticipantMessageDataWriter), false);
-        assert_eq!(BuiltInEndPointSet::new(1024).has(BuiltInEndPoints::ParticipantMessageDataWriter), true);
-        assert_eq!(BuiltInEndPointSet::new(1023).has(BuiltInEndPoints::ParticipantMessageDataWriter), false);
-        assert_eq!(BuiltInEndPointSet::new(2047).has(BuiltInEndPoints::ParticipantMessageDataWriter), true);
+        assert_eq!(
+            BuiltInEndPointSet::new(0).has(BuiltInEndPoints::ParticipantMessageDataWriter),
+            false
+        );
+        assert_eq!(
+            BuiltInEndPointSet::new(1024).has(BuiltInEndPoints::ParticipantMessageDataWriter),
+            true
+        );
+        assert_eq!(
+            BuiltInEndPointSet::new(1023).has(BuiltInEndPoints::ParticipantMessageDataWriter),
+            false
+        );
+        assert_eq!(
+            BuiltInEndPointSet::new(2047).has(BuiltInEndPoints::ParticipantMessageDataWriter),
+            true
+        );
     }
 
     #[test]
     fn test_builtin_endpoint_participant_message_data_reader() {
-        assert_eq!(BuiltInEndPointSet::new(0).has(BuiltInEndPoints::ParticipantMessageDataReader), false);
-        assert_eq!(BuiltInEndPointSet::new(2048).has(BuiltInEndPoints::ParticipantMessageDataReader), true);
-        assert_eq!(BuiltInEndPointSet::new(2047).has(BuiltInEndPoints::ParticipantMessageDataReader), false);
-        assert_eq!(BuiltInEndPointSet::new(4095).has(BuiltInEndPoints::ParticipantMessageDataReader), true);
+        assert_eq!(
+            BuiltInEndPointSet::new(0).has(BuiltInEndPoints::ParticipantMessageDataReader),
+            false
+        );
+        assert_eq!(
+            BuiltInEndPointSet::new(2048).has(BuiltInEndPoints::ParticipantMessageDataReader),
+            true
+        );
+        assert_eq!(
+            BuiltInEndPointSet::new(2047).has(BuiltInEndPoints::ParticipantMessageDataReader),
+            false
+        );
+        assert_eq!(
+            BuiltInEndPointSet::new(4095).has(BuiltInEndPoints::ParticipantMessageDataReader),
+            true
+        );
     }
 
     #[test]
     fn test_builtin_endpoint_topics_announcer() {
-        assert_eq!(BuiltInEndPointSet::new(0).has(BuiltInEndPoints::TopicsAnnouncer), false);
-        assert_eq!(BuiltInEndPointSet::new(268435456).has(BuiltInEndPoints::TopicsAnnouncer), true);
-        assert_eq!(BuiltInEndPointSet::new(268435455).has(BuiltInEndPoints::TopicsAnnouncer), false);
-        assert_eq!(BuiltInEndPointSet::new(536870911).has(BuiltInEndPoints::TopicsAnnouncer), true);
+        assert_eq!(
+            BuiltInEndPointSet::new(0).has(BuiltInEndPoints::TopicsAnnouncer),
+            false
+        );
+        assert_eq!(
+            BuiltInEndPointSet::new(268435456).has(BuiltInEndPoints::TopicsAnnouncer),
+            true
+        );
+        assert_eq!(
+            BuiltInEndPointSet::new(268435455).has(BuiltInEndPoints::TopicsAnnouncer),
+            false
+        );
+        assert_eq!(
+            BuiltInEndPointSet::new(536870911).has(BuiltInEndPoints::TopicsAnnouncer),
+            true
+        );
     }
 
     #[test]
     fn test_builtin_endpoint_topics_detector() {
-        assert_eq!(BuiltInEndPointSet::new(0).has(BuiltInEndPoints::TopicsDetector), false);
-        assert_eq!(BuiltInEndPointSet::new(536870912).has(BuiltInEndPoints::TopicsDetector), true);
-        assert_eq!(BuiltInEndPointSet::new(536870911).has(BuiltInEndPoints::TopicsDetector), false);
-        assert_eq!(BuiltInEndPointSet::new(1073741823).has(BuiltInEndPoints::TopicsDetector), true);
+        assert_eq!(
+            BuiltInEndPointSet::new(0).has(BuiltInEndPoints::TopicsDetector),
+            false
+        );
+        assert_eq!(
+            BuiltInEndPointSet::new(536870912).has(BuiltInEndPoints::TopicsDetector),
+            true
+        );
+        assert_eq!(
+            BuiltInEndPointSet::new(536870911).has(BuiltInEndPoints::TopicsDetector),
+            false
+        );
+        assert_eq!(
+            BuiltInEndPointSet::new(1073741823).has(BuiltInEndPoints::TopicsDetector),
+            true
+        );
     }
 }

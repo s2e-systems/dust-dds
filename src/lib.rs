@@ -4,20 +4,20 @@
 
 use std::time::Duration;
 
-mod types;
-pub mod parser;
 mod cache;
+mod endpoint;
 mod entity;
 mod guid;
-mod endpoint;
 mod message;
-mod participant_proxy;
-mod reader;
-mod writer;
-mod transport;
-mod receiver;
-mod proxy;
+pub mod parser;
 mod participant;
+mod participant_proxy;
+mod proxy;
+mod reader;
+mod receiver;
+mod transport;
+mod types;
+mod writer;
 
 use types::EntityId;
 
@@ -31,19 +31,17 @@ pub enum LocatorKind {
     LocatorPortInvalid,
 }
 
-trait Locator {
-
-}
+trait Locator {}
 
 pub struct Udpv4Locator {
     pub kind: LocatorKind,
-    pub address: [u8;4],
+    pub address: [u8; 4],
     pub port: u16,
 }
 
 impl Udpv4Locator {
-    pub fn new_udpv4(address: &[u8;4], port: &u16 ) -> Udpv4Locator {
-        Udpv4Locator{
+    pub fn new_udpv4(address: &[u8; 4], port: &u16) -> Udpv4Locator {
+        Udpv4Locator {
             kind: LocatorKind::Udpv4,
             address: *address,
             port: *port,
@@ -51,7 +49,7 @@ impl Udpv4Locator {
     }
 }
 
-impl Locator for Udpv4Locator{ }
+impl Locator for Udpv4Locator {}
 
 // pub struct RTPSReader {
 //     pub endpoint: RTPSEndpoint,
@@ -71,7 +69,7 @@ impl Locator for Udpv4Locator{ }
 //             sockets.push(socket);
 //         }
 
-//         RTPSReader{ 
+//         RTPSReader{
 //             endpoint: RTPSEndpoint{
 //                 topic_kind: 0,
 //                 reliability_level: 0,
@@ -81,7 +79,5 @@ impl Locator for Udpv4Locator{ }
 //             sockets: sockets,}
 //     }
 
-//     
+//
 // }
-
-

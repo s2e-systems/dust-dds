@@ -1,8 +1,7 @@
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
-use std::process;
-use rand;
 use crate::types::GuidPrefix;
-
+use rand;
+use std::process;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 pub fn generate_guid_prefix() -> GuidPrefix {
     let process_id = process::id().to_be_bytes();
@@ -10,13 +9,26 @@ pub fn generate_guid_prefix() -> GuidPrefix {
     let time_now = SystemTime::now();
 
     // TODO: Print a log message if result Error
-    let time_unix_epoch = time_now.duration_since(UNIX_EPOCH).unwrap_or_else(|_| Duration::new(0,0));
+    let time_unix_epoch = time_now
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_else(|_| Duration::new(0, 0));
 
     let timestamp = ((time_unix_epoch.as_secs() & 0xFFFF_FFFF) as u32).to_be_bytes();
 
-    [process_id[0], process_id[1], process_id[2], process_id[3],
-     timestamp[0], timestamp[1], timestamp[2], timestamp[3],
-     random[0], random[1], random[2], random[3]]
+    [
+        process_id[0],
+        process_id[1],
+        process_id[2],
+        process_id[3],
+        timestamp[0],
+        timestamp[1],
+        timestamp[2],
+        timestamp[3],
+        random[0],
+        random[1],
+        random[2],
+        random[3],
+    ]
 }
 
 #[cfg(test)]

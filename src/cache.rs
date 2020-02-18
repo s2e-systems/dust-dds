@@ -1,16 +1,20 @@
-use std::hash::Hasher;
 use core::hash::Hash;
 use std::cmp::Ordering;
-use std::sync::{Mutex,MutexGuard};
-use std::collections::{HashSet,VecDeque, HashMap};
+use std::collections::{HashMap, HashSet, VecDeque};
+use std::hash::Hasher;
+use std::sync::{Mutex, MutexGuard};
 
-use crate::types::{GUID,GuidPrefix, SequenceNumber, ParameterList, InstanceHandle, Time, EntityId, Parameter, ProtocolVersion, VendorId, ChangeKind};
+use crate::parser::{
+    Data, InfoSrc, InfoTs, InlineQosParameter, Payload, RtpsMessage, SubMessageType,
+};
+use crate::types::{
+    ChangeKind, EntityId, GuidPrefix, InstanceHandle, Parameter, ParameterList, ProtocolVersion,
+    SequenceNumber, Time, VendorId, GUID,
+};
 use crate::types::{ENTITYID_UNKNOWN, ENTITY_KIND_WRITER_WITH_KEY};
-use crate::parser::{RtpsMessage, SubMessageType, InfoTs, InfoSrc, Data, Payload, InlineQosParameter};
 
 #[derive(Hash, Eq, PartialEq, Debug, Clone)]
-pub enum ChangeFromWriterStatusKind
-{
+pub enum ChangeFromWriterStatusKind {
     Lost,
     Missing,
     Received,
@@ -18,8 +22,7 @@ pub enum ChangeFromWriterStatusKind
 }
 
 #[derive(Hash, Eq, PartialEq, Debug, Clone)]
-pub enum ChangeForReaderStatusKind
-{
+pub enum ChangeForReaderStatusKind {
     Unsent,
     Unacknowledged,
     Requested,
@@ -28,37 +31,34 @@ pub enum ChangeForReaderStatusKind
 }
 
 #[derive(Hash, Eq, PartialEq, Debug, Clone)]
-pub struct ChangeFromWriter
-{
-    pub status : ChangeFromWriterStatusKind,
-    pub is_relevant : bool,
+pub struct ChangeFromWriter {
+    pub status: ChangeFromWriterStatusKind,
+    pub is_relevant: bool,
 }
 
-impl Default for ChangeFromWriter
-{
+impl Default for ChangeFromWriter {
     fn default() -> Self {
         ChangeFromWriter {
-            status : ChangeFromWriterStatusKind::Unknown, is_relevant : false
+            status: ChangeFromWriterStatusKind::Unknown,
+            is_relevant: false,
         }
     }
 }
 
 #[derive(Hash, Eq, PartialEq, Debug, Clone)]
-pub struct ChangeForReader
-{
-    pub status : ChangeForReaderStatusKind,
-    pub is_relevant : bool,
+pub struct ChangeForReader {
+    pub status: ChangeForReaderStatusKind,
+    pub is_relevant: bool,
 }
 
-impl Default for ChangeForReader
-{
+impl Default for ChangeForReader {
     fn default() -> Self {
         ChangeForReader {
-            status : ChangeForReaderStatusKind::Unsent, is_relevant : false
+            status: ChangeForReaderStatusKind::Unsent,
+            is_relevant: false,
         }
     }
 }
-
 
 #[derive(Hash, Eq, Debug, Clone)]
 #[allow(dead_code)]
@@ -71,7 +71,13 @@ pub struct CacheChange {
 }
 
 impl CacheChange {
-    pub fn new(change_kind: ChangeKind, writer_guid: GUID, instance_handle: InstanceHandle, sequence_number: SequenceNumber, inline_qos: Option<ParameterList>) -> CacheChange {
+    pub fn new(
+        change_kind: ChangeKind,
+        writer_guid: GUID,
+        instance_handle: InstanceHandle,
+        sequence_number: SequenceNumber,
+        inline_qos: Option<ParameterList>,
+    ) -> CacheChange {
         CacheChange {
             change_kind,
             writer_guid,
@@ -104,14 +110,13 @@ impl CacheChange {
 
 impl PartialEq for CacheChange {
     fn eq(&self, other: &Self) -> bool {
-        self.writer_guid == other.writer_guid &&
-        self.instance_handle == other.instance_handle &&
-        self.sequence_number == other.sequence_number
+        self.writer_guid == other.writer_guid
+            && self.instance_handle == other.instance_handle
+            && self.sequence_number == other.sequence_number
     }
 }
 
-impl Ord for CacheChange
-{
+impl Ord for CacheChange {
     fn cmp(&self, other: &Self) -> Ordering {
         self.sequence_number.cmp(&other.sequence_number)
     }
@@ -127,27 +132,36 @@ pub trait CacheChangeOperations {
     fn cache_change(&self) -> &CacheChange;
 }
 
-
 #[derive(Eq, Clone)]
 pub struct ReaderCacheChange {
-    cache_change : CacheChange,
+    cache_change: CacheChange,
     data: Option<Vec<u8>>,
-    change_from_writer : ChangeFromWriter,
+    change_from_writer: ChangeFromWriter,
 }
 
-impl ReaderCacheChange 
-{
-    pub fn new(change_kind: ChangeKind, writer_guid: GUID, instance_handle: InstanceHandle, sequence_number: SequenceNumber, inline_qos: Option<ParameterList>,  data: Option<Vec<u8>>) -> Self
-    {
-        ReaderCacheChange{
-            cache_change : CacheChange::new(change_kind, writer_guid, instance_handle, sequence_number, inline_qos), 
-            data, 
-            change_from_writer : Default::default()
-        } 
+impl ReaderCacheChange {
+    pub fn new(
+        change_kind: ChangeKind,
+        writer_guid: GUID,
+        instance_handle: InstanceHandle,
+        sequence_number: SequenceNumber,
+        inline_qos: Option<ParameterList>,
+        data: Option<Vec<u8>>,
+    ) -> Self {
+        ReaderCacheChange {
+            cache_change: CacheChange::new(
+                change_kind,
+                writer_guid,
+                instance_handle,
+                sequence_number,
+                inline_qos,
+            ),
+            data,
+            change_from_writer: Default::default(),
+        }
     }
 
-    pub fn is_status(&self, status : ChangeFromWriterStatusKind) -> bool
-    {
+    pub fn is_status(&self, status: ChangeFromWriterStatusKind) -> bool {
         if self.change_from_writer.status == status {
             return true;
         }
@@ -175,7 +189,6 @@ impl Ord for ReaderCacheChange {
     }
 }
 
-
 impl PartialOrd for ReaderCacheChange {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cache_change.cmp(&other.cache_change))
@@ -188,24 +201,38 @@ impl CacheChangeOperations for ReaderCacheChange {
     }
 }
 
-
 pub trait HistoryCache<Cache: CacheChangeOperations + Ord> {
     fn add_change(&self, change: Cache) {
-        self.get_changes().insert(change.cache_change().clone(), change);
+        self.get_changes()
+            .insert(change.cache_change().clone(), change);
     }
-    
+
     fn remove_change(&self, change: &Cache) {
         self.get_changes().remove(&change.cache_change());
     }
-    
+
     fn get_changes(&self) -> MutexGuard<HashMap<CacheChange, Cache>>;
 
-    fn get_seq_num_min(&self) -> Option<SequenceNumber>{
-        Some(self.get_changes().iter().min()?.1.cache_change().sequence_number)
+    fn get_seq_num_min(&self) -> Option<SequenceNumber> {
+        Some(
+            self.get_changes()
+                .iter()
+                .min()?
+                .1
+                .cache_change()
+                .sequence_number,
+        )
     }
 
-    fn get_seq_num_max(&self) -> Option<SequenceNumber>{
-        Some(self.get_changes().iter().max()?.1.cache_change().sequence_number)
+    fn get_seq_num_max(&self) -> Option<SequenceNumber> {
+        Some(
+            self.get_changes()
+                .iter()
+                .max()?
+                .1
+                .cache_change()
+                .sequence_number,
+        )
     }
 }
 
@@ -221,8 +248,8 @@ impl ReaderHistoryCache {
     }
 }
 
-impl HistoryCache<ReaderCacheChange> for ReaderHistoryCache{
-    fn get_changes(&self) -> MutexGuard<HashMap<CacheChange, ReaderCacheChange>>{
+impl HistoryCache<ReaderCacheChange> for ReaderHistoryCache {
+    fn get_changes(&self) -> MutexGuard<HashMap<CacheChange, ReaderCacheChange>> {
         self.changes.lock().unwrap()
     }
 }
@@ -241,24 +268,34 @@ impl WriterHistoryCache {
 
 #[derive(Eq, Clone)]
 pub struct WriterCacheChange {
-    cache_change : CacheChange,
+    cache_change: CacheChange,
     data: Option<Vec<u8>>,
-    changes_for_reader : ChangeForReader,
+    changes_for_reader: ChangeForReader,
 }
 
-impl WriterCacheChange 
-{
-    pub fn new(change_kind: ChangeKind, writer_guid: GUID, instance_handle: InstanceHandle, sequence_number: SequenceNumber, inline_qos: Option<ParameterList>,  data: Option<Vec<u8>>) -> Self
-    {
-        WriterCacheChange{
-            cache_change : CacheChange::new(change_kind, writer_guid, instance_handle, sequence_number, inline_qos), 
-            data, 
-            changes_for_reader : Default::default()
-        } 
+impl WriterCacheChange {
+    pub fn new(
+        change_kind: ChangeKind,
+        writer_guid: GUID,
+        instance_handle: InstanceHandle,
+        sequence_number: SequenceNumber,
+        inline_qos: Option<ParameterList>,
+        data: Option<Vec<u8>>,
+    ) -> Self {
+        WriterCacheChange {
+            cache_change: CacheChange::new(
+                change_kind,
+                writer_guid,
+                instance_handle,
+                sequence_number,
+                inline_qos,
+            ),
+            data,
+            changes_for_reader: Default::default(),
+        }
     }
 
-    pub fn is_status(&self, status : ChangeForReaderStatusKind) -> bool
-    {
+    pub fn is_status(&self, status: ChangeForReaderStatusKind) -> bool {
         if self.changes_for_reader.status == status {
             return true;
         }
@@ -278,15 +315,14 @@ impl Ord for WriterCacheChange {
     }
 }
 
-
 impl PartialOrd for WriterCacheChange {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cache_change.cmp(&other.cache_change))
     }
 }
 
-impl HistoryCache<WriterCacheChange> for WriterHistoryCache{
-    fn get_changes(&self) -> MutexGuard<HashMap<CacheChange, WriterCacheChange>>{
+impl HistoryCache<WriterCacheChange> for WriterHistoryCache {
+    fn get_changes(&self) -> MutexGuard<HashMap<CacheChange, WriterCacheChange>> {
         self.changes.lock().unwrap()
     }
 }
@@ -298,18 +334,25 @@ impl CacheChangeOperations for WriterCacheChange {
 }
 
 #[cfg(test)]
-mod tests{
+mod tests {
     use super::*;
 
     #[test]
     fn cache_change_list() {
-        let guid_prefix  = [8; 12];
+        let guid_prefix = [8; 12];
         let entity_id = EntityId::new([1, 2, 3], 4);
         let guid = GUID::new(guid_prefix, entity_id);
         let instance_handle = [9; 16];
         let sequence_number = 1;
-        let data = Some(vec!(4, 5, 6));
-        let cc = ReaderCacheChange::new(ChangeKind::Alive, guid, instance_handle, sequence_number, None, data);
+        let data = Some(vec![4, 5, 6]);
+        let cc = ReaderCacheChange::new(
+            ChangeKind::Alive,
+            guid,
+            instance_handle,
+            sequence_number,
+            None,
+            data,
+        );
         let cc_clone = cc.clone();
         let history_cache = ReaderHistoryCache::new();
         assert_eq!(history_cache.get_changes().len(), 0);
@@ -321,20 +364,37 @@ mod tests{
 
     #[test]
     fn cache_change_sequence_number() {
-        let guid_prefix  = [8; 12];
+        let guid_prefix = [8; 12];
         let entity_id = EntityId::new([1, 2, 3], 4);
         let guid = GUID::new(guid_prefix, entity_id);
         let instance_handle = [9; 16];
-        let data = Some(vec!(4, 5, 6));
+        let data = Some(vec![4, 5, 6]);
         let sequence_number_min = 1;
         let sequence_number_max = 2;
-        let cc1 = ReaderCacheChange::new(ChangeKind::Alive, guid.clone(), instance_handle, sequence_number_min, None, data.clone());
-        let cc2 = ReaderCacheChange::new(ChangeKind::Alive, guid.clone(), instance_handle, sequence_number_max, None, data.clone());
-       
+        let cc1 = ReaderCacheChange::new(
+            ChangeKind::Alive,
+            guid.clone(),
+            instance_handle,
+            sequence_number_min,
+            None,
+            data.clone(),
+        );
+        let cc2 = ReaderCacheChange::new(
+            ChangeKind::Alive,
+            guid.clone(),
+            instance_handle,
+            sequence_number_max,
+            None,
+            data.clone(),
+        );
+
         let history_cache = ReaderHistoryCache::new();
         assert_eq!(history_cache.get_seq_num_max(), None);
-        history_cache.add_change(cc1);        
-        assert_eq!(history_cache.get_seq_num_min(), history_cache.get_seq_num_max());
+        history_cache.add_change(cc1);
+        assert_eq!(
+            history_cache.get_seq_num_min(),
+            history_cache.get_seq_num_max()
+        );
         history_cache.add_change(cc2);
         assert_eq!(history_cache.get_seq_num_min(), Some(sequence_number_min));
         assert_eq!(history_cache.get_seq_num_max(), Some(sequence_number_max));
@@ -342,86 +402,31 @@ mod tests{
 
     #[test]
     fn cache_change_transport() {
-        let data = [0x52, 0x54, 0x50, 0x53,
-        0x02, 0x01, 0x01, 0x02,
-        0x7f, 0x20, 0xf7, 0xd7,
-        0x00, 0x00, 0x01, 0xbb,
-        0x00, 0x00, 0x00, 0x01,
-        0x09, 0x01, 0x08, 0x00,
-        0x9e, 0x81, 0xbc, 0x5d,
-        0x97, 0xde, 0x48, 0x26,
-        0x15, 0x07, 0x1c, 0x01,
-        0x00, 0x00, 0x10, 0x00,
-        0x00, 0x00, 0x00, 0x00,
-        0x00, 0x01, 0x00, 0xc2,
-        0x00, 0x00, 0x00, 0x00,
-        0x01, 0x00, 0x00, 0x00,
-        0x70, 0x00, 0x10, 0x00,
-        0x7f, 0x20, 0xf7, 0xd7,
-        0x00, 0x00, 0x01, 0xbb,
-        0x00, 0x00, 0x00, 0x01,
-        0x00, 0x00, 0x01, 0xc1,
-        0x01, 0x00, 0x00, 0x00,
-        0x00, 0x03, 0x00, 0x00,
-        0x15, 0x00, 0x04, 0x00,
-        0x02, 0x01, 0x00, 0x00,
-        0x16, 0x00, 0x04, 0x00,
-        0x01, 0x02, 0x00, 0x00,
-        0x31, 0x00, 0x18, 0x00,
-        0x01, 0x00, 0x00, 0x00,
-        0xf3, 0x1c, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00,
-        0xc0, 0xa8, 0x02, 0x04,
-        0x32, 0x00, 0x18, 0x00,
-        0x01, 0x00, 0x00, 0x00,
-        0xf2, 0x1c, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00,
-        0xc0, 0xa8, 0x02, 0x04,
-        0x02, 0x00, 0x08, 0x00,
-        0x0b, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00,
-        0x50, 0x00, 0x10, 0x00,
-        0x7f, 0x20, 0xf7, 0xd7,
-        0x00, 0x00, 0x01, 0xbb,
-        0x00, 0x00, 0x00, 0x01,
-        0x00, 0x00, 0x01, 0xc1,
-        0x58, 0x00, 0x04, 0x00,
-        0x15, 0x04, 0x00, 0x00,
-        0x00, 0x80, 0x04, 0x00,
-        0x15, 0x00, 0x00, 0x00,
-        0x07, 0x80, 0x5c, 0x00,
-        0x00, 0x00, 0x00, 0x00,
-        0x2f, 0x00, 0x00, 0x00,
-        0x05, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00,
-        0x50, 0x00, 0x00, 0x00,
-        0x42, 0x00, 0x00, 0x00,
-        0x44, 0x45, 0x53, 0x4b,
-        0x54, 0x4f, 0x50, 0x2d,
-        0x4f, 0x52, 0x46, 0x44,
-        0x4f, 0x53, 0x35, 0x2f,
-        0x36, 0x2e, 0x31, 0x30,
-        0x2e, 0x32, 0x2f, 0x63,
-        0x63, 0x36, 0x66, 0x62,
-        0x39, 0x61, 0x62, 0x33,
-        0x36, 0x2f, 0x39, 0x30,
-        0x37, 0x65, 0x66, 0x66,
-        0x30, 0x32, 0x65, 0x33,
-        0x2f, 0x22, 0x78, 0x38,
-        0x36, 0x5f, 0x36, 0x34,
-        0x2e, 0x77, 0x69, 0x6e,
-        0x2d, 0x76, 0x73, 0x32,
-        0x30, 0x31, 0x35, 0x22,
-        0x2f, 0x00, 0x00, 0x00,
-        0x25, 0x80, 0x0c, 0x00,
-        0xd7, 0xf7, 0x20, 0x7f,
-        0xbb, 0x01, 0x00, 0x00,
-        0x01, 0x00, 0x00, 0x00,
-        0x01, 0x00, 0x00, 0x00];
+        let data = [
+            0x52, 0x54, 0x50, 0x53, 0x02, 0x01, 0x01, 0x02, 0x7f, 0x20, 0xf7, 0xd7, 0x00, 0x00,
+            0x01, 0xbb, 0x00, 0x00, 0x00, 0x01, 0x09, 0x01, 0x08, 0x00, 0x9e, 0x81, 0xbc, 0x5d,
+            0x97, 0xde, 0x48, 0x26, 0x15, 0x07, 0x1c, 0x01, 0x00, 0x00, 0x10, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x01, 0x00, 0xc2, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,
+            0x70, 0x00, 0x10, 0x00, 0x7f, 0x20, 0xf7, 0xd7, 0x00, 0x00, 0x01, 0xbb, 0x00, 0x00,
+            0x00, 0x01, 0x00, 0x00, 0x01, 0xc1, 0x01, 0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00,
+            0x15, 0x00, 0x04, 0x00, 0x02, 0x01, 0x00, 0x00, 0x16, 0x00, 0x04, 0x00, 0x01, 0x02,
+            0x00, 0x00, 0x31, 0x00, 0x18, 0x00, 0x01, 0x00, 0x00, 0x00, 0xf3, 0x1c, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xc0, 0xa8,
+            0x02, 0x04, 0x32, 0x00, 0x18, 0x00, 0x01, 0x00, 0x00, 0x00, 0xf2, 0x1c, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xc0, 0xa8,
+            0x02, 0x04, 0x02, 0x00, 0x08, 0x00, 0x0b, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x50, 0x00, 0x10, 0x00, 0x7f, 0x20, 0xf7, 0xd7, 0x00, 0x00, 0x01, 0xbb, 0x00, 0x00,
+            0x00, 0x01, 0x00, 0x00, 0x01, 0xc1, 0x58, 0x00, 0x04, 0x00, 0x15, 0x04, 0x00, 0x00,
+            0x00, 0x80, 0x04, 0x00, 0x15, 0x00, 0x00, 0x00, 0x07, 0x80, 0x5c, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x2f, 0x00, 0x00, 0x00, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x50, 0x00, 0x00, 0x00, 0x42, 0x00, 0x00, 0x00, 0x44, 0x45, 0x53, 0x4b, 0x54, 0x4f,
+            0x50, 0x2d, 0x4f, 0x52, 0x46, 0x44, 0x4f, 0x53, 0x35, 0x2f, 0x36, 0x2e, 0x31, 0x30,
+            0x2e, 0x32, 0x2f, 0x63, 0x63, 0x36, 0x66, 0x62, 0x39, 0x61, 0x62, 0x33, 0x36, 0x2f,
+            0x39, 0x30, 0x37, 0x65, 0x66, 0x66, 0x30, 0x32, 0x65, 0x33, 0x2f, 0x22, 0x78, 0x38,
+            0x36, 0x5f, 0x36, 0x34, 0x2e, 0x77, 0x69, 0x6e, 0x2d, 0x76, 0x73, 0x32, 0x30, 0x31,
+            0x35, 0x22, 0x2f, 0x00, 0x00, 0x00, 0x25, 0x80, 0x0c, 0x00, 0xd7, 0xf7, 0x20, 0x7f,
+            0xbb, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,
+        ];
 
         // let hc = ReaderHistoryCache::new();
 
@@ -429,7 +434,6 @@ mod tests{
         // sender.send_to(&data, SocketAddr::from((multicast_group, port))).unwrap();
 
         //aasert!(hc.changes.size == 1);
-
     }
 
     // #[test]
