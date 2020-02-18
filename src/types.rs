@@ -173,7 +173,7 @@ impl GUID {
         &self.entity_id
     }
 
-    fn new_participant_guid(prefix: GuidPrefix) -> GUID {
+    pub fn new_participant_guid(prefix: GuidPrefix) -> GUID {
         GUID {
             prefix,
             entity_id: ENTITYID_PARTICIPANT,

@@ -1,5 +1,5 @@
 use crate::types::{Locator, LocatorList, ProtocolVersion, VendorId, ReliabilityKind, TopicKind, GUID, GuidPrefix, Duration, Time};
-use crate::types::{ENTITYID_SPDP_BUILT_IN_PARTICIPANT_READER, DURATION_ZERO};
+use crate::types::{ENTITYID_SPDP_BUILT_IN_PARTICIPANT_READER, DURATION_ZERO, ENTITYID_PARTICIPANT};
 use crate::entity::Entity;
 use crate::endpoint::{Endpoint};
 use crate::reader::{Reader};
@@ -8,6 +8,7 @@ use crate::{Udpv4Locator};
 use crate::parser::{RtpsMessage, parse_rtps_message, SubMessageType, InfoTs, InfoSrc, Data, Payload};
 
 struct Participant{
+    entity: Entity,
     default_unicast_locator_list: LocatorList,
     default_multicast_locator_list: LocatorList,
     protocol_version: ProtocolVersion,
@@ -21,16 +22,17 @@ impl Participant{
 
     fn new(default_unicast_locator_list: LocatorList, default_multicast_locator_list: LocatorList, protocol_version: ProtocolVersion, vendor_id: VendorId,) -> Self {
         let guid_prefix = [5,6,7,8,9,5,1,2,3,4,10,11];
+        let participant_guid = GUID::new_participant_guid(guid_prefix);
 
         let socket = Transport::new(Udpv4Locator::new_udpv4(&[127,0,0,1], &7400), Some(Udpv4Locator::new_udpv4(&[239,255,0,1], &7400))).unwrap();
 
-        let endpoint = Endpoint {
-            entity: Entity{guid: GUID::new(guid_prefix, ENTITYID_SPDP_BUILT_IN_PARTICIPANT_READER)},
-            topic_kind: TopicKind::WithKey,
-            reliability_level: ReliabilityKind::BestEffort,
-            unicast_locator_list: default_unicast_locator_list.clone(),
-            multicast_locator_list: default_multicast_locator_list.clone(),
-        };
+        let endpoint = Endpoint::new(
+            Entity{guid: GUID::new(guid_prefix, ENTITYID_SPDP_BUILT_IN_PARTICIPANT_READER)},
+            TopicKind::WithKey,
+            ReliabilityKind::BestEffort,
+            default_unicast_locator_list.clone(),
+            default_multicast_locator_list.clone(),
+        );
 
         let heartbeat_response_delay = DURATION_ZERO;
         let heartbeat_suppression_duration = DURATION_ZERO;
@@ -39,6 +41,7 @@ impl Participant{
         let spdp_builtin_participant_reader = Reader::new(endpoint, heartbeat_response_delay, heartbeat_suppression_duration, expects_inline_qos);
 
         Participant{
+            entity: Entity{guid: participant_guid},
             default_unicast_locator_list,
             default_multicast_locator_list,
             protocol_version,
@@ -96,7 +99,6 @@ impl Participant{
 
         match writer_id {
             ENTITYID_SPDP_BUILT_IN_PARTICIPANT_WRITER => self.spdp_builtin_participant_reader.read_data(writer_guid, writer_sn, inline_qos, serialized_payload),
-            
             _ => println!("Unknown data destination"),
         };
     }

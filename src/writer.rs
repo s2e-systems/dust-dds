@@ -43,13 +43,13 @@ impl<'a> ReaderLocator<'a> {
 
 pub struct Writer {
     endpoint : Endpoint,
-    pub push_mode: bool,
-    pub heartbeat_period: Duration,
-    pub nack_response_delay: Duration,
-    pub nack_suppression_duration : Duration,
-    pub last_change_sequence_number: SequenceNumber,
-    pub writer_cache: WriterHistoryCache,
-    pub data_max_sized_serialized : Option<i32>,
+    push_mode: bool,
+    heartbeat_period: Duration,
+    nack_response_delay: Duration,
+    nack_suppression_duration : Duration,
+    last_change_sequence_number: SequenceNumber,
+    writer_cache: WriterHistoryCache,
+    data_max_sized_serialized : Option<i32>,
 }
 
 impl Writer {
@@ -68,7 +68,7 @@ impl Writer {
 
     pub fn new_change(&mut self, kind: ChangeKind, data: Option<Vec<u8>>, inline_qos: Option<ParameterList>, handle: InstanceHandle) -> WriterCacheChange {
         self.last_change_sequence_number = self.last_change_sequence_number + 1;
-        WriterCacheChange::new(kind, self.endpoint.entity.guid, handle, self.last_change_sequence_number, inline_qos, data)
+        WriterCacheChange::new(kind, *self.endpoint.guid(), handle, self.last_change_sequence_number, inline_qos, data)
     }
 }
 
@@ -93,5 +93,14 @@ impl StatelessWriter {
     pub fn reader_locator_remove(&mut self, a_locator: &Locator) {
         self.reader_locators.remove(a_locator);
     }
+}
 
+#[cfg(test)]
+mod tests{
+    use super::*;
+
+    #[test]
+    fn test_writer_new_change() {
+        // let endpoint = Endpoint::new()
+    }
 }
