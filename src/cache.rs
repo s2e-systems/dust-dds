@@ -45,6 +45,22 @@ impl Default for ChangeFromWriter {
     }
 }
 
+impl ChangeFromWriter {
+    pub fn new(status: ChangeFromWriterStatusKind, is_relevant: bool) -> Self {
+        ChangeFromWriter {
+            status,
+            is_relevant,
+        }
+    }
+
+    pub fn is_status(&self, status: ChangeFromWriterStatusKind) -> bool {
+        if self.status == status {
+            return true;
+        }
+        return false;
+    }
+}
+
 #[derive(Hash, Eq, PartialEq, Debug, Clone)]
 pub struct ChangeForReader {
     pub status: ChangeForReaderStatusKind,
@@ -60,13 +76,13 @@ impl Default for ChangeForReader {
     }
 }
 
-#[derive(Hash, Eq, Debug, Clone)]
+#[derive(Eq, Debug, Clone)]
 #[allow(dead_code)]
 pub struct CacheChange {
     change_kind: ChangeKind,
-    pub writer_guid: GUID,
+    writer_guid: GUID,
     instance_handle: InstanceHandle,
-    pub sequence_number: SequenceNumber,
+    sequence_number: SequenceNumber,
     inline_qos: Option<ParameterList>,
     data: Option<Vec<u8>>,
 }
@@ -86,7 +102,7 @@ impl CacheChange {
             instance_handle,
             sequence_number,
             inline_qos,
-            data
+            data,
         }
     }
 
@@ -109,12 +125,11 @@ impl CacheChange {
     pub fn get_inline_qos(&self) -> &Option<ParameterList> {
         &self.inline_qos
     }
-    
+
     pub fn data(&self) -> Option<&Vec<u8>> {
-        if let Some(data) = &self.data {
-            Some(&data)
-        } else {
-            None
+        match &self.data {
+            Some(data) => Some(data),
+            None => None,
         }
     }
 }
@@ -139,16 +154,37 @@ impl PartialOrd for CacheChange {
     }
 }
 
-pub struct HistoryCache
-{
-    changes :  Mutex<HashSet<CacheChange>>,
+impl ::core::hash::Hash for CacheChange {
+    fn hash<__H: ::core::hash::Hasher>(&self, state: &mut __H) -> () {
+        match *self {
+            CacheChange {
+                change_kind: ref __self_0_0,
+                writer_guid: ref __self_0_1,
+                instance_handle: ref __self_0_2,
+                sequence_number: ref __self_0_3,
+                inline_qos: ref __self_0_4,
+                data: ref __self_0_5,
+            } => {
+                ::core::hash::Hash::hash(&(*__self_0_0), state);
+                ::core::hash::Hash::hash(&(*__self_0_1), state);
+                ::core::hash::Hash::hash(&(*__self_0_2), state);
+                ::core::hash::Hash::hash(&(*__self_0_3), state);
+                ::core::hash::Hash::hash(&(*__self_0_4), state)
+                // Explicitly ignore the data field
+                // ::core::hash::Hash::hash(&(*__self_0_5), state)
+            }
+        }
+    }
+}
+
+pub struct HistoryCache {
+    changes: Mutex<HashSet<CacheChange>>,
 }
 
 impl HistoryCache {
-
     pub fn new() -> Self {
         HistoryCache {
-            changes : Mutex::new(HashSet::new()),
+            changes: Mutex::new(HashSet::new()),
         }
     }
 
@@ -160,26 +196,16 @@ impl HistoryCache {
         self.get_changes().remove(change);
     }
 
-    pub fn get_changes(&self) -> MutexGuard<HashSet<CacheChange>>{
+    pub fn get_changes(&self) -> MutexGuard<HashSet<CacheChange>> {
         self.changes.lock().unwrap()
     }
 
     pub fn get_seq_num_min(&self) -> Option<SequenceNumber> {
-        Some(
-            self.get_changes()
-                .iter()
-                .min()?
-                .sequence_number,
-        )
+        Some(self.get_changes().iter().min()?.sequence_number)
     }
 
     pub fn get_seq_num_max(&self) -> Option<SequenceNumber> {
-        Some(
-            self.get_changes()
-                .iter()
-                .max()?
-                .sequence_number,
-        )
+        Some(self.get_changes().iter().max()?.sequence_number)
     }
 }
 
@@ -189,13 +215,14 @@ mod tests {
 
     #[test]
     fn cache_change_list() {
+        let history_cache = HistoryCache::new();
         let guid_prefix = [8; 12];
         let entity_id = EntityId::new([1, 2, 3], 4);
         let guid = GUID::new(guid_prefix, entity_id);
         let instance_handle = [9; 16];
         let sequence_number = 1;
         let data = Some(vec![4, 5, 6]);
-        let cc = ReaderCacheChange::new(
+        let cc = CacheChange::new(
             ChangeKind::Alive,
             guid,
             instance_handle,
@@ -203,10 +230,14 @@ mod tests {
             None,
             data,
         );
+        let mut cc_clone_no_data = cc.clone();
+        cc_clone_no_data.data = None;
         let cc_clone = cc.clone();
-        let history_cache = ReaderHistoryCache::new();
+
         assert_eq!(history_cache.get_changes().len(), 0);
         history_cache.add_change(cc);
+        assert_eq!(history_cache.get_changes().len(), 1);
+        history_cache.add_change(cc_clone_no_data);
         assert_eq!(history_cache.get_changes().len(), 1);
         history_cache.remove_change(&cc_clone);
         assert_eq!(history_cache.get_changes().len(), 0);
@@ -214,6 +245,8 @@ mod tests {
 
     #[test]
     fn cache_change_sequence_number() {
+        let history_cache = HistoryCache::new();
+
         let guid_prefix = [8; 12];
         let entity_id = EntityId::new([1, 2, 3], 4);
         let guid = GUID::new(guid_prefix, entity_id);
@@ -221,7 +254,7 @@ mod tests {
         let data = Some(vec![4, 5, 6]);
         let sequence_number_min = 1;
         let sequence_number_max = 2;
-        let cc1 = ReaderCacheChange::new(
+        let cc1 = CacheChange::new(
             ChangeKind::Alive,
             guid.clone(),
             instance_handle,
@@ -229,7 +262,7 @@ mod tests {
             None,
             data.clone(),
         );
-        let cc2 = ReaderCacheChange::new(
+        let cc2 = CacheChange::new(
             ChangeKind::Alive,
             guid.clone(),
             instance_handle,
@@ -238,7 +271,6 @@ mod tests {
             data.clone(),
         );
 
-        let history_cache = ReaderHistoryCache::new();
         assert_eq!(history_cache.get_seq_num_max(), None);
         history_cache.add_change(cc1);
         assert_eq!(
