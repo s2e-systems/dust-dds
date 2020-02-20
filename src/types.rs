@@ -42,52 +42,52 @@ pub const ENTITYID_PARTICIPANT: EntityId = EntityId {
     entity_kind: ENTITY_KIND_BUILT_IN_PARTICIPANT,
 };
 
-pub const ENTITYID_SEDP_BUILT_IN_TOPIC_WRITER: EntityId = EntityId {
+pub const ENTITYID_SEDP_BUILTIN_TOPIC_ANNOUNCER: EntityId = EntityId {
     entity_key: [0, 0, 0x02],
     entity_kind: ENTITY_KIND_BUILT_IN_WRITER_WITH_KEY,
 };
 
-pub const ENTITYID_SEDP_BUILT_IN_TOPIC_READER: EntityId = EntityId {
+pub const ENTITYID_SEDP_BUILTIN_TOPIC_DETECTOR: EntityId = EntityId {
     entity_key: [0, 0, 0x02],
     entity_kind: ENTITY_KIND_BUILT_IN_READER_WITH_KEY,
 };
 
-pub const ENTITYID_SEDP_BUILT_IN_PUBLICATIONS_WRITER: EntityId = EntityId {
+pub const ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER: EntityId = EntityId {
     entity_key: [0, 0, 0x03],
     entity_kind: ENTITY_KIND_BUILT_IN_WRITER_WITH_KEY,
 };
 
-pub const ENTITYID_SEDP_BUILT_IN_PUBLICATIONS_READER: EntityId = EntityId {
+pub const ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR: EntityId = EntityId {
     entity_key: [0, 0, 0x03],
     entity_kind: ENTITY_KIND_BUILT_IN_READER_WITH_KEY,
 };
 
-pub const ENTITYID_SEDP_BUILT_IN_SUBSCRIPTIONS_WRITER: EntityId = EntityId {
+pub const ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER: EntityId = EntityId {
     entity_key: [0, 0, 0x04],
     entity_kind: ENTITY_KIND_BUILT_IN_WRITER_WITH_KEY,
 };
 
-pub const ENTITYID_SEDP_BUILT_IN_SUBSCRIPTIONS_READER: EntityId = EntityId {
+pub const ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR: EntityId = EntityId {
     entity_key: [0, 0, 0x04],
     entity_kind: ENTITY_KIND_BUILT_IN_READER_WITH_KEY,
 };
 
-pub const ENTITYID_SPDP_BUILT_IN_PARTICIPANT_WRITER: EntityId = EntityId {
+pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER: EntityId = EntityId {
     entity_key: [0, 0x01, 0x00],
     entity_kind: ENTITY_KIND_BUILT_IN_WRITER_WITH_KEY,
 };
 
-pub const ENTITYID_SPDP_BUILT_IN_PARTICIPANT_READER: EntityId = EntityId {
+pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_DETECTOR: EntityId = EntityId {
     entity_key: [0, 0x01, 0x00],
     entity_kind: ENTITY_KIND_BUILT_IN_READER_WITH_KEY,
 };
 
-pub const ENTITYID_BUILT_IN_PARTICIPANT_MESSAGE_WRITER: EntityId = EntityId {
+pub const ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER: EntityId = EntityId {
     entity_key: [0, 0x02, 0x00],
     entity_kind: ENTITY_KIND_BUILT_IN_WRITER_WITH_KEY,
 };
 
-pub const ENTITYID_BUILT_IN_PARTICIPANT_MESSAGE_READER: EntityId = EntityId {
+pub const ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER: EntityId = EntityId {
     entity_key: [0, 0x02, 0x00],
     entity_kind: ENTITY_KIND_BUILT_IN_READER_WITH_KEY,
 };
@@ -206,7 +206,7 @@ impl GUID {
     fn new_spdp_builtin_participant_reader_guid(prefix: GuidPrefix) -> GUID {
         GUID {
             prefix,
-            entity_id: ENTITYID_SPDP_BUILT_IN_PARTICIPANT_READER,
+            entity_id: ENTITYID_SPDP_BUILTIN_PARTICIPANT_DETECTOR,
         }
     }
 }

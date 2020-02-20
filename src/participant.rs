@@ -1,20 +1,20 @@
 use std::collections::HashSet;
 
 use crate::cache::{CacheChangeOperations, HistoryCache};
-use crate::endpoint::Endpoint;
+use crate::endpoint::{Endpoint};
 use crate::entity::Entity;
 use crate::parser::{
     parse_rtps_message, Data, InfoSrc, InfoTs, Payload, RtpsMessage, SubMessageType,
 };
-use crate::participant_proxy::ParticipantProxy;
+use crate::participant_proxy::{ParticipantProxy};
 use crate::reader::Reader;
 use crate::transport::Transport;
 use crate::types::{
     Duration, GuidPrefix, InlineQosParameterList, Locator, LocatorList, ProtocolVersion,
-    ReliabilityKind, SequenceNumber, Time, TopicKind, VendorId, GUID,
+    ReliabilityKind, SequenceNumber, Time, TopicKind, VendorId, GUID, BuiltInEndPoints,
 };
 use crate::types::{
-    DURATION_ZERO, ENTITYID_PARTICIPANT, ENTITYID_SPDP_BUILT_IN_PARTICIPANT_READER,
+    DURATION_ZERO, ENTITYID_PARTICIPANT, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, ENTITYID_SPDP_BUILTIN_PARTICIPANT_DETECTOR, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, 
 };
 use crate::Udpv4Locator;
 
@@ -48,7 +48,7 @@ impl Participant {
 
         let endpoint = Endpoint::new(
             Entity {
-                guid: GUID::new(guid_prefix, ENTITYID_SPDP_BUILT_IN_PARTICIPANT_READER),
+                guid: GUID::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_DETECTOR),
             },
             TopicKind::WithKey,
             ReliabilityKind::BestEffort,
@@ -146,7 +146,7 @@ impl Participant {
         let writer_guid = GUID::new(*source_guid_prefix, writer_id);
 
         match writer_id {
-            ENTITYID_SPDP_BUILT_IN_PARTICIPANT_WRITER => {
+            ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER => {
                 self.process_spdp(writer_guid, writer_sn, inline_qos, serialized_payload)
             }
             _ => println!("Unknown data destination"),
@@ -175,6 +175,15 @@ impl Participant {
         {
             self.participant_proxy_list
                 .insert(ParticipantProxy::new(change.1.data().unwrap()).unwrap());
+        }
+    }
+
+    fn create_sedp_readers_writers(&self, participant_proxy: &ParticipantProxy)
+    {
+        if participant_proxy.available_builtin_endpoints().has(BuiltInEndPoints::PublicationsDetector)
+        {
+            let guid = GUID::new(*participant_proxy.guid_prefix(), ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR);
+            //let reader_proxy = ReaderProxy
         }
     }
 }
@@ -249,9 +258,9 @@ mod tests {
 
         assert_eq!(participant.participant_proxy_list.len(), 1);
 
-        // Change the source GUID prefix
+        // Change the source GUID prefix:
+        // This should result in no new participant proxy
         data[9] = 99;
-        data[10] = 99;
         sender
             .send_to(&data, SocketAddr::from((multicast_group, port)))
             .unwrap();
@@ -268,5 +277,43 @@ mod tests {
         );
 
         assert_eq!(participant.participant_proxy_list.len(), 1);
+
+        // Change the InstanceHandle (GUID prefix of the KeyHash):
+        data[61] = 99;
+        sender
+            .send_to(&data, SocketAddr::from((multicast_group, port)))
+            .unwrap();
+
+        participant.receive_data();
+
+        assert_eq!(
+            participant
+                .spdp_builtin_participant_reader
+                .reader_cache
+                .get_changes()
+                .len(),
+            3
+        );
+
+        assert_eq!(participant.participant_proxy_list.len(), 1);
+
+         // Change the InstanceHandle (GUID prefix of the KeyHash):
+         data[173] = 99;
+         sender
+             .send_to(&data, SocketAddr::from((multicast_group, port)))
+             .unwrap();
+ 
+         participant.receive_data();
+ 
+         assert_eq!(
+             participant
+                 .spdp_builtin_participant_reader
+                 .reader_cache
+                 .get_changes()
+                 .len(),
+             3
+         );
+ 
+         assert_eq!(participant.participant_proxy_list.len(), 2);
     }
 }

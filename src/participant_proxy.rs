@@ -283,6 +283,16 @@ impl ParticipantProxy {
             lease_duration,
         })
     }
+
+    pub fn available_builtin_endpoints(&self) -> &BuiltInEndPointSet
+    {
+        &self.available_builtin_endpoints
+    }
+
+    pub fn guid_prefix(&self) -> &GuidPrefix
+    {
+        &self.guid_prefix
+    }
 }
 
 #[cfg(test)]

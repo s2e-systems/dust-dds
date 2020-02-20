@@ -1,6 +1,6 @@
 use crate::cache::{
     CacheChangeOperations, ChangeFromWriterStatusKind, HistoryCache, ReaderCacheChange,
-    ReaderHistoryCache,
+    ReaderHistoryCache, WriterHistoryCache
 };
 use crate::types::{EntityId, LocatorList, SequenceNumber, SequenceNumberSet, GUID};
 use std::collections::HashSet;
@@ -126,6 +126,70 @@ impl WriterProxy<'_> {
     }
 }
 
+pub struct ReaderProxy<'a> {
+    remote_reader_guid: GUID,
+    remote_group_entity_id: EntityId,
+    unicast_locator_list: LocatorList,
+    multicast_locator_list: LocatorList,
+    changes_for_reader: &'a WriterHistoryCache,
+    expects_inline_qos: bool,
+    is_active: bool,
+}
+
+impl<'a> ReaderProxy<'a>
+{
+    pub fn new( remote_reader_guid: GUID,
+        remote_group_entity_id: EntityId,
+        unicast_locator_list: LocatorList,
+        multicast_locator_list: LocatorList,
+        changes_for_reader: &'a WriterHistoryCache,
+        expects_inline_qos: bool,
+        is_active: bool) -> Self
+    {
+        //IF ( DDS_FILTER(this, change) ) THEN change.is_relevant := FALSE;
+        //ELSE change.is_relevant := TRUE;
+        ReaderProxy
+        {
+            remote_reader_guid,
+            remote_group_entity_id,
+            unicast_locator_list,
+            multicast_locator_list,
+            changes_for_reader,
+            expects_inline_qos,
+            is_active
+        }
+    }
+
+    pub fn acked_changes_set()
+    {
+        unimplemented!()
+    }
+    pub fn next_requested_change()
+    {
+        unimplemented!()
+    }
+    pub fn next_unsent_change()
+    {
+        unimplemented!()
+    }
+    pub fn unsent_changes()
+    {
+        unimplemented!()
+    }
+    pub fn requested_changes()
+    {
+        unimplemented!()
+    }
+    pub fn requested_changes_set()
+    {
+        unimplemented!()
+    }
+    pub fn unacked_changes()
+    {
+        unimplemented!()
+    }
+}
+
 #[cfg(test)]
 mod tests {
 
@@ -170,7 +234,7 @@ mod tests {
             None,
             None,
         );
-
+        
         hc.add_change(cc);
         hc.add_change(other_cc);
         hc.add_change(yet_other_cc);
