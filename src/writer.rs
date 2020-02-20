@@ -1,5 +1,5 @@
 use crate::cache::{
-    CacheChange, CacheChangeOperations, HistoryCache, WriterCacheChange, WriterHistoryCache,
+    CacheChange, HistoryCache,
 };
 use crate::endpoint::Endpoint;
 use crate::types::{
@@ -12,19 +12,19 @@ pub struct ReaderLocator<'a> {
     unsent_changes: SequenceNumber,
     locator: Locator,
     expects_inline_qos: bool,
-    cache_changes: &'a WriterHistoryCache,
+    cache_changes: &'a HistoryCache,
 }
 
 impl<'a> ReaderLocator<'a> {
     pub fn new(
         locator: Locator,
         expects_inline_qos: bool,
-        cache_changes: &'a WriterHistoryCache,
+        cache_changes: &'a HistoryCache,
     ) -> Self {
         let mut unsent_changes = HashSet::new();
 
-        for (_, change) in cache_changes.get_changes().iter() {
-            unsent_changes.insert(change.cache_change().clone());
+        for change in cache_changes.get_changes().iter() {
+            unsent_changes.insert(change.clone());
         }
 
         ReaderLocator {
@@ -56,7 +56,7 @@ pub struct Writer {
     nack_response_delay: Duration,
     nack_suppression_duration: Duration,
     last_change_sequence_number: SequenceNumber,
-    writer_cache: WriterHistoryCache,
+    writer_cache: HistoryCache,
     data_max_sized_serialized: Option<i32>,
 }
 
@@ -75,7 +75,7 @@ impl Writer {
             nack_response_delay,
             nack_suppression_duration,
             last_change_sequence_number: 0,
-            writer_cache: WriterHistoryCache::new(),
+            writer_cache: HistoryCache::new(),
             data_max_sized_serialized: None,
         }
     }
@@ -86,9 +86,9 @@ impl Writer {
         data: Option<Vec<u8>>,
         inline_qos: Option<ParameterList>,
         handle: InstanceHandle,
-    ) -> WriterCacheChange {
+    ) -> CacheChange {
         self.last_change_sequence_number = self.last_change_sequence_number + 1;
-        WriterCacheChange::new(
+        CacheChange::new(
             kind,
             *self.endpoint.guid(),
             handle,

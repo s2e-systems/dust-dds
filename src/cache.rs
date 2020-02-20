@@ -68,6 +68,7 @@ pub struct CacheChange {
     instance_handle: InstanceHandle,
     pub sequence_number: SequenceNumber,
     inline_qos: Option<ParameterList>,
+    data: Option<Vec<u8>>,
 }
 
 impl CacheChange {
@@ -77,6 +78,7 @@ impl CacheChange {
         instance_handle: InstanceHandle,
         sequence_number: SequenceNumber,
         inline_qos: Option<ParameterList>,
+        data: Option<Vec<u8>>,
     ) -> CacheChange {
         CacheChange {
             change_kind,
@@ -84,6 +86,7 @@ impl CacheChange {
             instance_handle,
             sequence_number,
             inline_qos,
+            data
         }
     }
 
@@ -105,6 +108,14 @@ impl CacheChange {
 
     pub fn get_inline_qos(&self) -> &Option<ParameterList> {
         &self.inline_qos
+    }
+    
+    pub fn data(&self) -> Option<&Vec<u8>> {
+        if let Some(data) = &self.data {
+            Some(&data)
+        } else {
+            None
+        }
     }
 }
 
@@ -128,226 +139,47 @@ impl PartialOrd for CacheChange {
     }
 }
 
-pub trait CacheChangeOperations {
-    fn cache_change(&self) -> &CacheChange;
-
-    fn data(&self) -> Option<&Vec<u8>>;
+pub struct HistoryCache
+{
+    changes :  Mutex<HashSet<CacheChange>>,
 }
 
-#[derive(Eq, Clone)]
-pub struct ReaderCacheChange {
-    cache_change: CacheChange,
-    data: Option<Vec<u8>>,
-    change_from_writer: ChangeFromWriter,
-}
+impl HistoryCache {
 
-impl ReaderCacheChange {
-    pub fn new(
-        change_kind: ChangeKind,
-        writer_guid: GUID,
-        instance_handle: InstanceHandle,
-        sequence_number: SequenceNumber,
-        inline_qos: Option<ParameterList>,
-        data: Option<Vec<u8>>,
-    ) -> Self {
-        ReaderCacheChange {
-            cache_change: CacheChange::new(
-                change_kind,
-                writer_guid,
-                instance_handle,
-                sequence_number,
-                inline_qos,
-            ),
-            data,
-            change_from_writer: Default::default(),
+    pub fn new() -> Self {
+        HistoryCache {
+            changes : Mutex::new(HashSet::new()),
         }
     }
 
-    pub fn is_status(&self, status: ChangeFromWriterStatusKind) -> bool {
-        if self.change_from_writer.status == status {
-            return true;
-        }
-        return false;
+    pub fn add_change(&self, change: CacheChange) {
+        self.get_changes().insert(change);
     }
 
-    pub fn change_from_writer(&self) -> &ChangeFromWriter {
-        &self.change_from_writer
+    pub fn remove_change(&self, change: &CacheChange) {
+        self.get_changes().remove(change);
     }
 
-    pub fn change_from_writer_mut(&mut self) -> &mut ChangeFromWriter {
-        &mut self.change_from_writer
-    }
-}
-
-impl PartialEq for ReaderCacheChange {
-    fn eq(&self, other: &Self) -> bool {
-        self.cache_change == other.cache_change
-    }
-}
-
-impl Ord for ReaderCacheChange {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.cache_change.cmp(&other.cache_change)
-    }
-}
-
-impl PartialOrd for ReaderCacheChange {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cache_change.cmp(&other.cache_change))
-    }
-}
-
-impl CacheChangeOperations for ReaderCacheChange {
-    fn cache_change(&self) -> &CacheChange {
-        &self.cache_change
+    pub fn get_changes(&self) -> MutexGuard<HashSet<CacheChange>>{
+        self.changes.lock().unwrap()
     }
 
-    fn data(&self) -> Option<&Vec<u8>> {
-        if let Some(data) = &self.data {
-            Some(&data)
-        } else {
-            None
-        }
-    }
-}
-
-pub trait HistoryCache<Cache: CacheChangeOperations + Ord> {
-    fn add_change(&self, change: Cache) {
-        self.get_changes()
-            .insert(change.cache_change().clone(), change);
-    }
-
-    fn remove_change(&self, change: &Cache) {
-        self.get_changes().remove(&change.cache_change());
-    }
-
-    fn get_changes(&self) -> MutexGuard<HashMap<CacheChange, Cache>>;
-
-    fn get_seq_num_min(&self) -> Option<SequenceNumber> {
+    pub fn get_seq_num_min(&self) -> Option<SequenceNumber> {
         Some(
             self.get_changes()
                 .iter()
                 .min()?
-                .1
-                .cache_change()
                 .sequence_number,
         )
     }
 
-    fn get_seq_num_max(&self) -> Option<SequenceNumber> {
+    pub fn get_seq_num_max(&self) -> Option<SequenceNumber> {
         Some(
             self.get_changes()
                 .iter()
                 .max()?
-                .1
-                .cache_change()
                 .sequence_number,
         )
-    }
-}
-
-pub struct ReaderHistoryCache {
-    changes: Mutex<HashMap<CacheChange, ReaderCacheChange>>,
-}
-
-impl ReaderHistoryCache {
-    pub fn new() -> Self {
-        ReaderHistoryCache {
-            changes: Mutex::new(HashMap::new()),
-        }
-    }
-}
-
-impl HistoryCache<ReaderCacheChange> for ReaderHistoryCache {
-    fn get_changes(&self) -> MutexGuard<HashMap<CacheChange, ReaderCacheChange>> {
-        self.changes.lock().unwrap()
-    }
-}
-
-pub struct WriterHistoryCache {
-    changes: Mutex<HashMap<CacheChange, WriterCacheChange>>,
-}
-
-impl WriterHistoryCache {
-    pub fn new() -> Self {
-        WriterHistoryCache {
-            changes: Mutex::new(HashMap::new()),
-        }
-    }
-}
-
-#[derive(Eq, Clone)]
-pub struct WriterCacheChange {
-    cache_change: CacheChange,
-    data: Option<Vec<u8>>,
-    changes_for_reader: ChangeForReader,
-}
-
-impl WriterCacheChange {
-    pub fn new(
-        change_kind: ChangeKind,
-        writer_guid: GUID,
-        instance_handle: InstanceHandle,
-        sequence_number: SequenceNumber,
-        inline_qos: Option<ParameterList>,
-        data: Option<Vec<u8>>,
-    ) -> Self {
-        WriterCacheChange {
-            cache_change: CacheChange::new(
-                change_kind,
-                writer_guid,
-                instance_handle,
-                sequence_number,
-                inline_qos,
-            ),
-            data,
-            changes_for_reader: Default::default(),
-        }
-    }
-
-    pub fn is_status(&self, status: ChangeForReaderStatusKind) -> bool {
-        if self.changes_for_reader.status == status {
-            return true;
-        }
-        return false;
-    }
-}
-
-impl PartialEq for WriterCacheChange {
-    fn eq(&self, other: &Self) -> bool {
-        self.cache_change == other.cache_change
-    }
-}
-
-impl Ord for WriterCacheChange {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.cache_change.cmp(&other.cache_change)
-    }
-}
-
-impl PartialOrd for WriterCacheChange {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cache_change.cmp(&other.cache_change))
-    }
-}
-
-impl HistoryCache<WriterCacheChange> for WriterHistoryCache {
-    fn get_changes(&self) -> MutexGuard<HashMap<CacheChange, WriterCacheChange>> {
-        self.changes.lock().unwrap()
-    }
-}
-
-impl CacheChangeOperations for WriterCacheChange {
-    fn cache_change(&self) -> &CacheChange {
-        &self.cache_change
-    }
-
-    fn data(&self) -> Option<&Vec<u8>> {
-        if let Some(data) = &self.data {
-            Some(&data)
-        } else {
-            None
-        }
     }
 }
 

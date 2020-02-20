@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::cache::{HistoryCache, ReaderCacheChange, ReaderHistoryCache};
+use crate::cache::{HistoryCache, CacheChange};
 use crate::endpoint::Endpoint;
 use crate::parser::{InlineQosParameter, Payload};
 use crate::proxy::WriterProxy;
@@ -59,7 +59,7 @@ pub struct Reader {
     endpoint: Endpoint,
     pub heartbeat_response_delay: Duration,
     pub heartbeat_suppression_duration: Duration,
-    pub reader_cache: ReaderHistoryCache,
+    pub reader_cache: HistoryCache,
     expects_inline_qos: bool,
 }
 
@@ -74,7 +74,7 @@ impl Reader {
             endpoint,
             heartbeat_response_delay,
             heartbeat_suppression_duration,
-            reader_cache: ReaderHistoryCache::new(),
+            reader_cache: HistoryCache::new(),
             expects_inline_qos,
         }
     }
@@ -92,7 +92,7 @@ impl Reader {
             if let Some(inline_qos_list) = inline_qos {
                 let key_hash_parameter = inline_qos_list.iter().find(|&x| x.is_key_hash());
                 if let Some(InlineQosParameter::KeyHash(instance_handle)) = key_hash_parameter {
-                    let rcc = ReaderCacheChange::new(
+                    let rcc = CacheChange::new(
                         ChangeKind::Alive,
                         writer_guid,
                         *instance_handle,

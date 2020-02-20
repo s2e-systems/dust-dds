@@ -1,4 +1,3 @@
-use crate::cache::ReaderHistoryCache;
 use crate::types::LocatorList;
 use std::collections::VecDeque;
 

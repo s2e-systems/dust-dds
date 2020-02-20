@@ -72,6 +72,7 @@ fn process_data(
                     *instance_handle,
                     writer_sn,
                     None,
+                    Some(data)
                 );
                 cache_changes.push_back(cache_change);
             }

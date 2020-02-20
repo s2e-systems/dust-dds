@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use crate::cache::{CacheChangeOperations, HistoryCache};
+use crate::cache::{HistoryCache};
 use crate::endpoint::{Endpoint};
 use crate::entity::Entity;
 use crate::parser::{
@@ -174,7 +174,7 @@ impl Participant {
             .iter()
         {
             self.participant_proxy_list
-                .insert(ParticipantProxy::new(change.1.data().unwrap()).unwrap());
+                .insert(ParticipantProxy::new(change.data().unwrap()).unwrap());
         }
     }
 
