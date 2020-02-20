@@ -17,6 +17,8 @@ pub struct StatefulReader<'a> {
 }
 
 impl<'a> StatefulReader<'a> {
+    /// This operation creates a new RTPS StatefulReader. The newly-created stateful reader is initialized with
+    /// an empty list of matched writers
     pub fn new(
         endpoint: Endpoint,
         heartbeat_response_delay: Duration,
@@ -34,16 +36,20 @@ impl<'a> StatefulReader<'a> {
         }
     }
 
+    /// This operation adds the WriterProxy a_writer_proxy to the StatefulReader::matched_writers.
     pub fn matched_writer_add(&mut self, a_writer_proxy: WriterProxy<'a>) {
         self.matched_writers
             .insert(a_writer_proxy.remote_writer_guid(), a_writer_proxy);
     }
 
+    /// This operation removes the WriterProxy a_writer_proxy from the set StatefulReader::matched_writers.
     pub fn matched_writer_remove(&mut self, a_writer_proxy: WriterProxy) {
         self.matched_writers
             .remove(&a_writer_proxy.remote_writer_guid());
     }
 
+    /// This operation finds the WriterProxy with GUID_t a_writer_guid from the set StatefulReader::matched_writers.
+    /// If the writer GUID does not exist in the list of matched writers returns None
     pub fn matched_writer_lookup(&self, a_writer_guid: GUID) -> Option<&WriterProxy> {
         self.matched_writers.get(&a_writer_guid)
     }

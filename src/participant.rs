@@ -1,13 +1,17 @@
+use std::collections::HashSet;
+
+use crate::cache::{CacheChangeOperations, HistoryCache};
 use crate::endpoint::Endpoint;
 use crate::entity::Entity;
 use crate::parser::{
     parse_rtps_message, Data, InfoSrc, InfoTs, Payload, RtpsMessage, SubMessageType,
 };
+use crate::participant_proxy::ParticipantProxy;
 use crate::reader::Reader;
 use crate::transport::Transport;
 use crate::types::{
-    Duration, GuidPrefix, Locator, LocatorList, ProtocolVersion, ReliabilityKind, Time, TopicKind,
-    VendorId, GUID,
+    Duration, GuidPrefix, InlineQosParameterList, Locator, LocatorList, ProtocolVersion,
+    ReliabilityKind, SequenceNumber, Time, TopicKind, VendorId, GUID,
 };
 use crate::types::{
     DURATION_ZERO, ENTITYID_PARTICIPANT, ENTITYID_SPDP_BUILT_IN_PARTICIPANT_READER,
@@ -22,6 +26,7 @@ struct Participant {
     vendor_id: VendorId,
     socket: Transport,
     spdp_builtin_participant_reader: Reader,
+    participant_proxy_list: HashSet<ParticipantProxy>,
     // SPDPbuiltinParticipantWriter,
 }
 
@@ -72,6 +77,7 @@ impl Participant {
             vendor_id,
             socket,
             spdp_builtin_participant_reader,
+            participant_proxy_list: HashSet::new(),
         }
     }
 
@@ -140,11 +146,36 @@ impl Participant {
         let writer_guid = GUID::new(*source_guid_prefix, writer_id);
 
         match writer_id {
-            ENTITYID_SPDP_BUILT_IN_PARTICIPANT_WRITER => self
-                .spdp_builtin_participant_reader
-                .read_data(writer_guid, writer_sn, inline_qos, serialized_payload),
+            ENTITYID_SPDP_BUILT_IN_PARTICIPANT_WRITER => {
+                self.process_spdp(writer_guid, writer_sn, inline_qos, serialized_payload)
+            }
             _ => println!("Unknown data destination"),
         };
+    }
+
+    fn process_spdp(
+        &mut self,
+        writer_guid: GUID,
+        sequence_number: SequenceNumber,
+        inline_qos: Option<InlineQosParameterList>,
+        serialized_payload: Payload,
+    ) {
+        self.spdp_builtin_participant_reader.read_data(
+            writer_guid,
+            sequence_number,
+            inline_qos,
+            serialized_payload,
+        );
+
+        for change in self
+            .spdp_builtin_participant_reader
+            .reader_cache
+            .get_changes()
+            .iter()
+        {
+            self.participant_proxy_list
+                .insert(ParticipantProxy::new(change.1.data().unwrap()).unwrap());
+        }
     }
 }
 
@@ -165,7 +196,7 @@ mod tests {
         let protocol_version = ProtocolVersion { major: 2, minor: 4 };
         let mut participant = Participant::new(vec![], vec![], protocol_version, vendor_id);
 
-        let data = [
+        let mut data = [
             0x52, 0x54, 0x50, 0x53, 0x02, 0x01, 0x01, 0x02, 0x7f, 0x20, 0xf7, 0xd7, 0x00, 0x00,
             0x01, 0xbb, 0x00, 0x00, 0x00, 0x01, 0x09, 0x01, 0x08, 0x00, 0x9e, 0x81, 0xbc, 0x5d,
             0x97, 0xde, 0x48, 0x26, 0x15, 0x07, 0x1c, 0x01, 0x00, 0x00, 0x10, 0x00, 0x00, 0x00,
@@ -203,6 +234,8 @@ mod tests {
             0
         );
 
+        assert_eq!(participant.participant_proxy_list.len(), 0);
+
         participant.receive_data();
 
         assert_eq!(
@@ -213,5 +246,27 @@ mod tests {
                 .len(),
             1
         );
+
+        assert_eq!(participant.participant_proxy_list.len(), 1);
+
+        // Change the source GUID prefix
+        data[9] = 99;
+        data[10] = 99;
+        sender
+            .send_to(&data, SocketAddr::from((multicast_group, port)))
+            .unwrap();
+
+        participant.receive_data();
+
+        assert_eq!(
+            participant
+                .spdp_builtin_participant_reader
+                .reader_cache
+                .get_changes()
+                .len(),
+            2
+        );
+
+        assert_eq!(participant.participant_proxy_list.len(), 1);
     }
 }

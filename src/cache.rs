@@ -130,6 +130,8 @@ impl PartialOrd for CacheChange {
 
 pub trait CacheChangeOperations {
     fn cache_change(&self) -> &CacheChange;
+
+    fn data(&self) -> Option<&Vec<u8>>;
 }
 
 #[derive(Eq, Clone)]
@@ -198,6 +200,14 @@ impl PartialOrd for ReaderCacheChange {
 impl CacheChangeOperations for ReaderCacheChange {
     fn cache_change(&self) -> &CacheChange {
         &self.cache_change
+    }
+
+    fn data(&self) -> Option<&Vec<u8>> {
+        if let Some(data) = &self.data {
+            Some(&data)
+        } else {
+            None
+        }
     }
 }
 
@@ -330,6 +340,14 @@ impl HistoryCache<WriterCacheChange> for WriterHistoryCache {
 impl CacheChangeOperations for WriterCacheChange {
     fn cache_change(&self) -> &CacheChange {
         &self.cache_change
+    }
+
+    fn data(&self) -> Option<&Vec<u8>> {
+        if let Some(data) = &self.data {
+            Some(&data)
+        } else {
+            None
+        }
     }
 }
 

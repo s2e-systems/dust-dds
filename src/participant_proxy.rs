@@ -76,6 +76,7 @@ pub enum SpdpParameterId {
 
 type Result<T> = std::result::Result<T, SpdpErrorMessage>;
 
+#[derive(PartialEq, Eq, Hash)]
 pub struct ParticipantProxy {
     domain_id: u32, // TODO: Create DomainId type
     domain_tag: String,

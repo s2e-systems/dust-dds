@@ -154,7 +154,7 @@ pub struct Parameter {
     pub value: Vec<u8>,
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Copy)]
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Copy, Hash, Eq)]
 pub struct ProtocolVersion {
     pub major: u8,
     pub minor: u8,
@@ -211,7 +211,7 @@ impl GUID {
     }
 }
 
-#[derive(PartialEq, Deserialize, Debug)]
+#[derive(PartialEq, Deserialize, Debug, Eq, Hash)]
 pub struct BuiltInEndPointSet {
     value: u32,
 }
