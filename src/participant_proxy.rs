@@ -83,13 +83,13 @@ pub struct ParticipantProxy {
     protocol_version: ProtocolVersion,
     guid_prefix: GuidPrefix,
     vendor_id: VendorId,
-    expects_inline_qos: bool,
+    pub expects_inline_qos: bool,
     available_builtin_endpoints: BuiltInEndPointSet,
     //TODO: Built-in endpoints qos
-    metatraffic_unicast_locator_list: LocatorList,
-    metatraffic_multicast_locator_list: LocatorList,
-    default_multicast_locator_list: LocatorList,
-    default_unicast_locator_list: LocatorList,
+    pub metatraffic_unicast_locator_list: LocatorList,
+    pub metatraffic_multicast_locator_list: LocatorList,
+    pub default_multicast_locator_list: LocatorList,
+    pub default_unicast_locator_list: LocatorList,
     //TODO: manual liveliness count
     lease_duration: Time,
 }

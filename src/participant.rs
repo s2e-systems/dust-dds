@@ -1,21 +1,25 @@
 use std::collections::HashSet;
 
-use crate::cache::{HistoryCache};
-use crate::endpoint::{Endpoint};
+use crate::cache::HistoryCache;
+use crate::endpoint::Endpoint;
 use crate::entity::Entity;
 use crate::parser::{
     parse_rtps_message, Data, InfoSrc, InfoTs, Payload, RtpsMessage, SubMessageType,
 };
-use crate::participant_proxy::{ParticipantProxy};
+use crate::participant_proxy::ParticipantProxy;
+use crate::proxy::ReaderProxy;
 use crate::reader::Reader;
 use crate::transport::Transport;
 use crate::types::{
-    Duration, GuidPrefix, InlineQosParameterList, Locator, LocatorList, ProtocolVersion,
-    ReliabilityKind, SequenceNumber, Time, TopicKind, VendorId, GUID, BuiltInEndPoints,
+    BuiltInEndPoints, Duration, GuidPrefix, InlineQosParameterList, Locator, LocatorList,
+    ProtocolVersion, ReliabilityKind, SequenceNumber, Time, TopicKind, VendorId, GUID,
 };
 use crate::types::{
-    DURATION_ZERO, ENTITYID_PARTICIPANT, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, ENTITYID_SPDP_BUILTIN_PARTICIPANT_DETECTOR, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, 
+    DURATION_ZERO, ENTITYID_PARTICIPANT, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
+    ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
+    ENTITYID_SPDP_BUILTIN_PARTICIPANT_DETECTOR, ENTITYID_UNKNOWN,
 };
+use crate::writer::StatefulWriter;
 use crate::Udpv4Locator;
 
 struct Participant {
@@ -26,8 +30,9 @@ struct Participant {
     vendor_id: VendorId,
     socket: Transport,
     spdp_builtin_participant_reader: Reader,
+    // spdp_builtin_participant_writer: StatelessWriter,
+    sedp_builtin_publications_writer: StatefulWriter,
     participant_proxy_list: HashSet<ParticipantProxy>,
-    // SPDPbuiltinParticipantWriter,
 }
 
 impl Participant {
@@ -67,6 +72,22 @@ impl Participant {
             expects_inline_qos,
         );
 
+        let writer_endpoint = Endpoint::new(
+            Entity {
+                guid: GUID::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER),
+            },
+            TopicKind::WithKey,
+            ReliabilityKind::Reliable,
+            default_unicast_locator_list.clone(),
+            default_multicast_locator_list.clone(),
+        );
+        let sedp_builtin_publications_writer = StatefulWriter::new(
+            writer_endpoint,
+            true,          /*push_mode*/
+            DURATION_ZERO, /*heartbeat_period*/
+            DURATION_ZERO, /*nack_response_delay*/
+            DURATION_ZERO, /*nack_suppression_duration*/
+        );
         Participant {
             entity: Entity {
                 guid: participant_guid,
@@ -77,6 +98,8 @@ impl Participant {
             vendor_id,
             socket,
             spdp_builtin_participant_reader,
+            sedp_builtin_publications_writer,
+            // sedp_builtin_publications_reader,
             participant_proxy_list: HashSet::new(),
         }
     }
@@ -166,24 +189,43 @@ impl Participant {
             inline_qos,
             serialized_payload,
         );
-
+        let mut participant_proxy_list = HashSet::new();
         for change in self
             .spdp_builtin_participant_reader
             .reader_cache
             .get_changes()
             .iter()
         {
-            self.participant_proxy_list
-                .insert(ParticipantProxy::new(change.data().unwrap()).unwrap());
+            let participant_proxy = ParticipantProxy::new(change.data().unwrap()).unwrap();
+            
+            participant_proxy_list
+                .insert(participant_proxy);
         }
+        for participant_proxy in participant_proxy_list.iter() {
+            self.add_reader_proxy_for_sedp(&participant_proxy);
+        }
+
+        self.participant_proxy_list = participant_proxy_list;
     }
 
-    fn create_sedp_readers_writers(&self, participant_proxy: &ParticipantProxy)
-    {
-        if participant_proxy.available_builtin_endpoints().has(BuiltInEndPoints::PublicationsDetector)
+    fn add_reader_proxy_for_sedp(&mut self, participant_proxy: &ParticipantProxy) {
+        if participant_proxy
+            .available_builtin_endpoints()
+            .has(BuiltInEndPoints::PublicationsDetector)
         {
-            let guid = GUID::new(*participant_proxy.guid_prefix(), ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR);
-            //let reader_proxy = ReaderProxy
+            let guid = GUID::new(
+                *participant_proxy.guid_prefix(),
+                ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
+            );
+            let reader_proxy = ReaderProxy::new(
+                guid,
+                ENTITYID_UNKNOWN,
+                participant_proxy.metatraffic_unicast_locator_list.clone(),
+                participant_proxy.metatraffic_multicast_locator_list.clone(),
+                participant_proxy.expects_inline_qos,
+                true, /*is_active*/
+            );
+            self.sedp_builtin_publications_writer.matched_reader_add(reader_proxy);
         }
     }
 }
@@ -297,23 +339,23 @@ mod tests {
 
         assert_eq!(participant.participant_proxy_list.len(), 1);
 
-         // Change the InstanceHandle (GUID prefix of the KeyHash):
-         data[173] = 99;
-         sender
-             .send_to(&data, SocketAddr::from((multicast_group, port)))
-             .unwrap();
- 
-         participant.receive_data();
- 
-         assert_eq!(
-             participant
-                 .spdp_builtin_participant_reader
-                 .reader_cache
-                 .get_changes()
-                 .len(),
-             3
-         );
- 
-         assert_eq!(participant.participant_proxy_list.len(), 2);
+        // Change the InstanceHandle (GUID prefix of the KeyHash):
+        data[173] = 99;
+        sender
+            .send_to(&data, SocketAddr::from((multicast_group, port)))
+            .unwrap();
+
+        participant.receive_data();
+
+        assert_eq!(
+            participant
+                .spdp_builtin_participant_reader
+                .reader_cache
+                .get_changes()
+                .len(),
+            3
+        );
+
+        assert_eq!(participant.participant_proxy_list.len(), 2);
     }
 }

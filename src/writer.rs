@@ -175,7 +175,7 @@ impl StatelessWriter {
     }
 }
 
-struct StatefulWriter {
+pub struct StatefulWriter {
     writer: Writer,
     matched_readers: HashMap<GUID, ReaderProxy>,
 }
