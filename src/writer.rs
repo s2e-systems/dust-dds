@@ -1,51 +1,80 @@
-use crate::cache::{
-    CacheChange, HistoryCache,
-};
+use crate::cache::{CacheChange, HistoryCache};
 use crate::endpoint::Endpoint;
 use crate::types::{
     ChangeKind, Duration, InstanceHandle, Locator, LocatorList, ParameterList, SequenceNumber,
 };
 use std::collections::HashSet;
 
-pub struct ReaderLocator<'a> {
-    requested_changes: HashSet<CacheChange>,
-    unsent_changes: SequenceNumber,
+pub struct ReaderLocator {
+    //requested_changes: HashSet<CacheChange>,
+    // unsent_changes: SequenceNumber,
     locator: Locator,
     expects_inline_qos: bool,
-    cache_changes: &'a HistoryCache,
+    highest_sequence_number_sent: SequenceNumber,
+    sequence_numbers_requested: HashSet<SequenceNumber>,
 }
 
-impl<'a> ReaderLocator<'a> {
-    pub fn new(
-        locator: Locator,
-        expects_inline_qos: bool,
-        cache_changes: &'a HistoryCache,
-    ) -> Self {
-        let mut unsent_changes = HashSet::new();
-
-        for change in cache_changes.get_changes().iter() {
-            unsent_changes.insert(change.clone());
-        }
-
+impl ReaderLocator {
+    pub fn new(locator: Locator, expects_inline_qos: bool) -> Self {
         ReaderLocator {
-            requested_changes: HashSet::new(),
-            unsent_changes: 0,
             locator,
             expects_inline_qos,
-            cache_changes,
+            highest_sequence_number_sent: 0,
+            sequence_numbers_requested: HashSet::new(),
         }
     }
 
-    pub fn next_unsent_change(&self) -> Option<SequenceNumber> {
-        unimplemented!();
-        // let cache_change_lock = self.cache_changes.get_changes().lock().unwrap();
-        // let min_unsent_cache_change = cache_change_lock.iter()
-        //     .filter(|x| x.1.cache_change.sequence_number > self.unsent_changes).min();
+    pub fn next_unsent_change<'a>(
+        &self,
+        history_cache: &'a HistoryCache,
+    ) -> Option<&'a CacheChange> {
+        history_cache
+            .get_changes()
+            .iter()
+            .filter(|cc| cc.get_sequence_number() > &self.highest_sequence_number_sent)
+            .min()
+    }
+    
+    pub fn next_requested_change<'a>(
+        &self,
+        history_cache: &'a HistoryCache,
+    ) -> Option<&'a CacheChange> {
+        let min_requested_sequence_number = self.sequence_numbers_requested.iter().min()?;
+        history_cache
+            .get_changes()
+            .iter()
+            .find(|cc| cc.get_sequence_number() == min_requested_sequence_number)
+    }
+    
+    pub fn unsent_changes<'a>(&self, history_cache: &'a HistoryCache) -> HashSet<&'a CacheChange> {
+        history_cache
+            .get_changes()
+            .iter()
+            .filter(|cc| cc.get_sequence_number() > &self.highest_sequence_number_sent)
+            .collect()
+    }
 
-        // match min_unsent_cache_change {
-        //     Some((_,cache_change)) => Some(cache_change.cache_change.sequence_number),
-        //     None => None,
-        // }
+    pub fn requested_changes<'a>(
+        &self,
+        history_cache: &'a HistoryCache,
+    ) -> HashSet<&'a CacheChange> {
+        let mut requested_changes = HashSet::new();
+        for rsn in self.sequence_numbers_requested.iter() {
+            if let Some(cc) = history_cache
+                .get_changes()
+                .iter()
+                .find(|cc| cc.get_sequence_number() == rsn)
+            {
+                requested_changes.insert(cc);
+            }
+        }
+        requested_changes
+    }
+
+    pub fn requested_changes_set(&mut self, req_seq_num_set: HashSet<SequenceNumber>) {
+        for rsn in req_seq_num_set.iter() {
+            self.sequence_numbers_requested.insert(*rsn);
+        }
     }
 }
 
