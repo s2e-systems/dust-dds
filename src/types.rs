@@ -102,7 +102,7 @@ pub enum ReliabilityKind {
     Reliable,
 }
 
-#[derive(Hash, PartialEq, Eq, Debug, Clone)]
+#[derive(Hash, PartialEq, Eq, Debug, Clone, Copy)]
 pub enum ChangeKind {
     Alive,
     AliveFiltered,

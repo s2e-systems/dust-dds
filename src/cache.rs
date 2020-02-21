@@ -13,69 +13,6 @@ use crate::types::{
 };
 use crate::types::{ENTITYID_UNKNOWN, ENTITY_KIND_WRITER_WITH_KEY};
 
-#[derive(Hash, Eq, PartialEq, Debug, Clone)]
-pub enum ChangeFromWriterStatusKind {
-    Lost,
-    Missing,
-    Received,
-    Unknown,
-}
-
-#[derive(Hash, Eq, PartialEq, Debug, Clone)]
-pub enum ChangeForReaderStatusKind {
-    Unsent,
-    Unacknowledged,
-    Requested,
-    Acknowledged,
-    Underway,
-}
-
-#[derive(Hash, Eq, PartialEq, Debug, Clone)]
-pub struct ChangeFromWriter {
-    pub status: ChangeFromWriterStatusKind,
-    pub is_relevant: bool,
-}
-
-impl Default for ChangeFromWriter {
-    fn default() -> Self {
-        ChangeFromWriter {
-            status: ChangeFromWriterStatusKind::Unknown,
-            is_relevant: false,
-        }
-    }
-}
-
-impl ChangeFromWriter {
-    pub fn new(status: ChangeFromWriterStatusKind, is_relevant: bool) -> Self {
-        ChangeFromWriter {
-            status,
-            is_relevant,
-        }
-    }
-
-    pub fn is_status(&self, status: ChangeFromWriterStatusKind) -> bool {
-        if self.status == status {
-            return true;
-        }
-        return false;
-    }
-}
-
-#[derive(Hash, Eq, PartialEq, Debug, Clone)]
-pub struct ChangeForReader {
-    pub status: ChangeForReaderStatusKind,
-    pub is_relevant: bool,
-}
-
-impl Default for ChangeForReader {
-    fn default() -> Self {
-        ChangeForReader {
-            status: ChangeForReaderStatusKind::Unsent,
-            is_relevant: false,
-        }
-    }
-}
-
 #[derive(Eq, Debug, Clone)]
 #[allow(dead_code)]
 pub struct CacheChange {
@@ -132,10 +69,32 @@ impl CacheChange {
             None => None,
         }
     }
+
+    pub fn clone_without_data(&self) -> Self {
+        match *self {
+            CacheChange {
+                change_kind: ref __self_0_0,
+                writer_guid: ref __self_0_1,
+                instance_handle: ref __self_0_2,
+                sequence_number: ref __self_0_3,
+                inline_qos: ref __self_0_4,
+                data: ref __self_0_5,
+            } => {
+        CacheChange {
+            change_kind: *__self_0_0,
+            writer_guid: * __self_0_1,
+            instance_handle: * __self_0_2,
+            sequence_number: * __self_0_3,
+            inline_qos: __self_0_4.clone(),
+            data: None,
+        }}}
+    }
 }
+
 
 impl PartialEq for CacheChange {
     fn eq(&self, other: &Self) -> bool {
+
         self.writer_guid == other.writer_guid
             && self.instance_handle == other.instance_handle
             && self.sequence_number == other.sequence_number
@@ -230,8 +189,8 @@ mod tests {
             None,
             data,
         );
-        let mut cc_clone_no_data = cc.clone();
-        cc_clone_no_data.data = None;
+        let cc_clone_no_data = cc.clone_without_data();
+        // cc_clone_no_data.data = None;
         let cc_clone = cc.clone();
 
         assert_eq!(history_cache.get_changes().len(), 0);

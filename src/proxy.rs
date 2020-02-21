@@ -1,6 +1,58 @@
-use crate::cache::{CacheChange, ChangeFromWriter, ChangeFromWriterStatusKind, HistoryCache};
+use crate::cache::{CacheChange, HistoryCache};
 use crate::types::{EntityId, LocatorList, SequenceNumber, SequenceNumberSet, GUID};
 use std::collections::{HashMap, HashSet};
+
+#[derive(Hash, Eq, PartialEq, Debug, Clone)]
+pub enum ChangeFromWriterStatusKind {
+    Lost,
+    Missing,
+    Received,
+    Unknown,
+}
+
+#[derive(Hash, Eq, PartialEq, Debug, Clone)]
+pub enum ChangeForReaderStatusKind {
+    Unsent,
+    Unacknowledged,
+    Requested,
+    Acknowledged,
+    Underway,
+}
+
+#[derive(Hash, Eq, PartialEq, Debug, Clone)]
+pub struct ChangeFromWriter {
+    pub status: ChangeFromWriterStatusKind,
+    pub is_relevant: bool,
+}
+
+impl Default for ChangeFromWriter {
+    fn default() -> Self {
+        ChangeFromWriter {
+            status: ChangeFromWriterStatusKind::Unknown,
+            is_relevant: false,
+        }
+    }
+}
+
+impl ChangeFromWriter {
+    pub fn new(status: ChangeFromWriterStatusKind, is_relevant: bool) -> Self {
+        ChangeFromWriter {
+            status,
+            is_relevant,
+        }
+    }
+
+    pub fn is_status(&self, status: ChangeFromWriterStatusKind) -> bool {
+        if self.status == status {
+            return true;
+        }
+        return false;
+    }
+
+    pub fn is_relevant(&self) -> bool {
+        self.is_relevant
+    }
+}
 
 pub struct WriterProxy<'a> {
     remote_writer_guid: GUID,
@@ -38,79 +90,81 @@ impl<'a> WriterProxy<'a> {
     }
 
     pub fn available_changes_max(&self) -> Option<SequenceNumber> {
-        let cache_changes_lock = self.history_cache.get_changes();
-
-        let cache_change = cache_changes_lock
+        self.history_cache
+            .get_changes()
             .iter()
             .filter(|&cc| cc.get_writer_guid() == &self.remote_writer_guid)
             .filter(|&cc| {
                 self.is_change_status(cc, ChangeFromWriterStatusKind::Received)
                     || self.is_change_status(cc, ChangeFromWriterStatusKind::Lost)
             })
-            .max();
+            .max()
+            .map(|cc| *cc.get_sequence_number())
+    }
 
-        match cache_change {
-            None => None,
-            Some(a) => Some(*a.get_sequence_number()),
+    pub fn irrelevant_change_set(&mut self, a_seq_num: SequenceNumber) {
+        self.history_cache
+            .get_changes()
+            .iter()
+            .filter(|cc| cc.get_writer_guid() == &self.remote_writer_guid)
+            .find(|cc| cc.get_sequence_number() == &a_seq_num)
+            .map(|cc| {
+                self.changes_from_writer.insert(
+                    cc.clone(),
+                    ChangeFromWriter::new(ChangeFromWriterStatusKind::Received, false),
+                )
+            });
+    }
+
+    pub fn lost_changes_update(&mut self, first_available_seq_num: &SequenceNumber) {
+        let history_cache_changes_lock = self.history_cache.get_changes();
+
+        let mut lost_change_set = history_cache_changes_lock
+            .iter()
+            .filter(|cc| cc.get_writer_guid() == &self.remote_writer_guid)
+            .filter(|cc| {
+                (self.is_change_status(cc, ChangeFromWriterStatusKind::Unknown)
+                    || self.is_change_status(cc, ChangeFromWriterStatusKind::Missing))
+            })
+            .map(|cc| cc.clone_without_data())
+            .collect::<Vec<CacheChange>>();
+
+        for lost_change in lost_change_set.drain(..) {
+            self.changes_from_writer.insert(
+                lost_change,
+                ChangeFromWriter::new(ChangeFromWriterStatusKind::Lost, true),
+            );
         }
-    }
-
-    pub fn irrelevant_change_set(&self, a_seq_num: SequenceNumber) {
-        let cache_changes_lock = self.history_cache.get_changes();
-        // let reader_cache_change = cache_changes_lock
-        //     .iter_mut()
-        //     .filter(|rcc| rcc.1.cache_change().writer_guid == self.remote_writer_guid)
-        //     .find(|rcc| rcc.1.cache_change().sequence_number == a_seq_num)
-        //     .unwrap();
-
-        // reader_cache_change.1.change_from_writer_mut().status =
-        //     ChangeFromWriterStatusKind::Received;
-        // reader_cache_change.1.change_from_writer_mut().is_relevant = false;
-    }
-
-    pub fn lost_changes_update(&self, first_available_seq_num: SequenceNumber) {
-        let mut cache_changes_lock = self.history_cache.get_changes();
-        // for reader_cache_change in cache_changes_lock
-        //     .iter_mut()
-        //     .filter(|rcc| rcc.1.cache_change().writer_guid == self.remote_writer_guid)
-        //     .filter(|rcc| {
-        //         (rcc.1.is_status(ChangeFromWriterStatusKind::Unknown)
-        //             || rcc.1.is_status(ChangeFromWriterStatusKind::Missing))
-        //     })
-        //     .filter(|rcc| rcc.1.cache_change().sequence_number < first_available_seq_num)
-        // {
-        //     reader_cache_change.1.change_from_writer_mut().status =
-        //         ChangeFromWriterStatusKind::Lost;
-        // }
     }
 
     pub fn missing_changes(&self) -> HashSet<SequenceNumber> //TODO: Check this return type (should be SequenceNumberSet)
     {
-        let mut missing_sequence_number = HashSet::new();
-
-        let cache_changes_lock = self.history_cache.get_changes();
-        for reader_cache_change in cache_changes_lock
+        self.history_cache
+            .get_changes()
             .iter()
             .filter(|cc| cc.get_writer_guid() == &self.remote_writer_guid)
-            .filter(|cc| self.is_change_status(cc,ChangeFromWriterStatusKind::Missing))
-        {
-            missing_sequence_number.insert(*reader_cache_change.get_sequence_number());
-        }
-
-        missing_sequence_number
+            .filter(|cc| self.is_change_status(cc, ChangeFromWriterStatusKind::Missing))
+            .map(|cc| *cc.get_sequence_number())
+            .collect()
     }
 
-    pub fn missing_changes_update(&self, last_available_seq_num: SequenceNumber) {
-        let mut cache_changes_lock = self.history_cache.get_changes();
-        // for reader_cache_change in cache_changes_lock
-        // .iter_mut()
-        // .filter(|rcc| rcc.1.cache_change().writer_guid == self.remote_writer_guid)
-        // .filter(|rcc| rcc.1.is_status(ChangeFromWriterStatusKind::Unknown))
-        // .filter(|rcc| rcc.1.cache_change().sequence_number <= last_available_seq_num)
-        // {
-        //     reader_cache_change.1.change_from_writer_mut().status =
-        //         ChangeFromWriterStatusKind::Missing;
-        // }
+    pub fn missing_changes_update(&mut self, last_available_seq_num: SequenceNumber) {
+        let history_cache_changes_lock = self.history_cache.get_changes();
+
+        let mut missing_change_set = history_cache_changes_lock
+            .iter()
+            .filter(|cc| cc.get_writer_guid() == &self.remote_writer_guid)
+            .filter(|cc| self.is_change_status(cc, ChangeFromWriterStatusKind::Unknown))
+            .filter(|cc| cc.get_sequence_number() <= &last_available_seq_num)
+            .map(|cc| cc.clone_without_data())
+            .collect::<Vec<CacheChange>>();
+
+        for missing_change in missing_change_set.drain(..) {
+            self.changes_from_writer.insert(
+                missing_change,
+                ChangeFromWriter::new(ChangeFromWriterStatusKind::Missing, true),
+            );
+        }
     }
 
     pub fn received_change_set(&mut self, a_seq_num: SequenceNumber) {
@@ -119,22 +173,42 @@ impl<'a> WriterProxy<'a> {
             .iter()
             .filter(|cc| cc.get_writer_guid() == &self.remote_writer_guid)
             .find(|cc| cc.get_sequence_number() == &a_seq_num)
-            .unwrap();
-
-        self.changes_from_writer.insert(
-            reader_cache_change.clone(),
-            ChangeFromWriter::new(ChangeFromWriterStatusKind::Received, true),
-        );
-
-        // reader_cache_change.1.change_from_writer_mut().status =
-        //     ChangeFromWriterStatusKind::Received;
+            .map(|cc| {
+                self.changes_from_writer.insert(
+                    cc.clone(),
+                    ChangeFromWriter::new(ChangeFromWriterStatusKind::Received, true),
+                )
+            });
     }
 
     fn is_change_status(&self, cc: &CacheChange, status: ChangeFromWriterStatusKind) -> bool {
         let cfw = self.changes_from_writer.get(cc);
         match cfw {
             Some(cfw) => cfw.is_status(status),
+            None => ChangeFromWriter::default().is_status(status),
+        }
+    }
+
+    fn is_change_relevant(&self, cc: &CacheChange) -> bool {
+        let cfw = self.changes_from_writer.get(cc);
+        match cfw {
+            Some(cfw) => cfw.is_relevant(),
             None => false,
+        }
+    }
+}
+
+#[derive(Hash, Eq, PartialEq, Debug, Clone)]
+pub struct ChangeForReader {
+    pub status: ChangeForReaderStatusKind,
+    pub is_relevant: bool,
+}
+
+impl Default for ChangeForReader {
+    fn default() -> Self {
+        ChangeForReader {
+            status: ChangeForReaderStatusKind::Unsent,
+            is_relevant: false,
         }
     }
 }
@@ -255,16 +329,6 @@ mod tests {
 
         assert_eq!(hc.get_changes().len(), 3);
 
-        // let remote_group_entity_id = EntityId::new([0, 1, 0], 2);
-        // let writer_proxy = WriterProxy::new(
-        //     writer_guid,
-        //     Vec::new(),
-        //     Vec::new(),
-        //     None,
-        //     &hc,
-        //     remote_group_entity_id,
-        // );
-
         let cc = CacheChange::new(
             ChangeKind::Alive,
             writer_guid,
@@ -274,12 +338,15 @@ mod tests {
             None,
         );
 
-        assert_eq!(writer_proxy.changes_from_writer.get(&cc), None);
+        assert_eq!(
+            writer_proxy.is_change_status(&cc, ChangeFromWriterStatusKind::Received),
+            false
+        );
 
         writer_proxy.received_change_set(sequence_number);
 
         assert_eq!(
-            writer_proxy.changes_from_writer[&cc].is_status(ChangeFromWriterStatusKind::Received),
+            writer_proxy.is_change_status(&cc, ChangeFromWriterStatusKind::Received),
             true
         );
 
@@ -347,7 +414,7 @@ mod tests {
         assert_eq!(hc.get_changes().len(), 3);
 
         let remote_group_entity_id = EntityId::new([0, 1, 0], 2);
-        let writer_proxy = WriterProxy::new(
+        let mut writer_proxy = WriterProxy::new(
             writer_guid,
             Vec::new(),
             Vec::new(),
@@ -364,21 +431,18 @@ mod tests {
             None,
             None,
         );
-        // assert_eq!(
-        //     hc.get_changes()[&cc.cache_change()].is_status(ChangeFromWriterStatusKind::Received),
-        //     false
-        // );
-        // writer_proxy.irrelevant_change_set(sequence_number);
-        // assert_eq!(
-        //     hc.get_changes()[&cc.cache_change()].is_status(ChangeFromWriterStatusKind::Received),
-        //     true
-        // );
-        // assert_eq!(
-        //     hc.get_changes()[&cc.cache_change()]
-        //         .change_from_writer()
-        //         .is_relevant,
-        //     false
-        // );
+
+        assert_eq!(
+            writer_proxy.is_change_status(&cc, ChangeFromWriterStatusKind::Received),
+            false
+        );
+        writer_proxy.irrelevant_change_set(sequence_number);
+
+        assert_eq!(
+            writer_proxy.is_change_status(&cc, ChangeFromWriterStatusKind::Received),
+            true
+        );
+        assert_eq!(writer_proxy.is_change_relevant(&cc), false);
     }
 
     #[test]
@@ -445,7 +509,7 @@ mod tests {
         assert_eq!(hc.get_changes().len(), 5);
 
         let remote_group_entity_id = EntityId::new([0, 1, 0], 2);
-        let writer_proxy = WriterProxy::new(
+        let mut writer_proxy = WriterProxy::new(
             writer_guid,
             Vec::new(),
             Vec::new(),
@@ -471,25 +535,25 @@ mod tests {
             None,
         );
 
-        // assert_ne!(
-        //     hc.get_changes()[&cc.cache_change()].is_status(ChangeFromWriterStatusKind::Lost),
-        //     true
-        // );
-        // assert_ne!(
-        //     hc.get_changes()[&cc2.cache_change()].is_status(ChangeFromWriterStatusKind::Lost),
-        //     true
-        // );
+        assert_eq!(
+            writer_proxy.is_change_status(&cc, ChangeFromWriterStatusKind::Lost),
+            false
+        );
+        assert_eq!(
+            writer_proxy.is_change_status(&cc2, ChangeFromWriterStatusKind::Lost),
+            false
+        );
 
-        writer_proxy.lost_changes_update(sequence_number + 2);
+        writer_proxy.lost_changes_update(&(sequence_number + 2));
 
-        // assert_eq!(
-        //     hc.get_changes()[&cc.cache_change()].is_status(ChangeFromWriterStatusKind::Lost),
-        //     true
-        // );
-        // assert_eq!(
-        //     hc.get_changes()[&cc2.cache_change()].is_status(ChangeFromWriterStatusKind::Lost),
-        //     true
-        // );
+        assert_eq!(
+            writer_proxy.is_change_status(&cc, ChangeFromWriterStatusKind::Lost),
+            true
+        );
+        assert_eq!(
+            writer_proxy.is_change_status(&cc2, ChangeFromWriterStatusKind::Lost),
+            true
+        );
     }
 
     #[test]
@@ -556,7 +620,7 @@ mod tests {
         assert_eq!(hc.get_changes().len(), 5);
 
         let remote_group_entity_id = EntityId::new([0, 1, 0], 2);
-        let writer_proxy = WriterProxy::new(
+        let mut writer_proxy = WriterProxy::new(
             writer_guid,
             Vec::new(),
             Vec::new(),
@@ -582,25 +646,15 @@ mod tests {
             None,
         );
 
-        // assert_ne!(
-        //     hc.get_changes()[&cc.cache_change()].is_status(ChangeFromWriterStatusKind::Missing),
-        //     true
-        // );
-        // assert_ne!(
-        //     hc.get_changes()[&cc2.cache_change()].is_status(ChangeFromWriterStatusKind::Missing),
-        //     true
-        // );
+        assert_eq!(writer_proxy.is_change_status(&cc, ChangeFromWriterStatusKind::Missing), false);
+        
+        assert_eq!(writer_proxy.is_change_status(&cc2, ChangeFromWriterStatusKind::Missing), false);
 
         writer_proxy.missing_changes_update(sequence_number + 1);
 
-        // assert_eq!(
-        //     hc.get_changes()[&cc.cache_change()].is_status(ChangeFromWriterStatusKind::Missing),
-        //     true
-        // );
-        // assert_eq!(
-        //     hc.get_changes()[&cc2.cache_change()].is_status(ChangeFromWriterStatusKind::Missing),
-        //     true
-        // );
+        assert_eq!(writer_proxy.is_change_status(&cc, ChangeFromWriterStatusKind::Missing), true);
+        
+        assert_eq!(writer_proxy.is_change_status(&cc2, ChangeFromWriterStatusKind::Missing), true);
 
         let missing_changes_sequence_set = writer_proxy.missing_changes();
         assert_eq!(missing_changes_sequence_set.len(), 2);
