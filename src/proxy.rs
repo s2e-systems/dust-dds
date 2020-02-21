@@ -331,6 +331,15 @@ impl ReaderProxy {
             .filter(|cc| cc.get_sequence_number() > &self.highest_sequence_number_acked)
             .collect()
     }
+
+    pub fn is_acked(&self, sequence_number : SequenceNumber) -> bool
+    {
+        sequence_number <= self.highest_sequence_number_acked
+    }
+
+    pub fn remote_reader_guid(&self) -> &GUID{
+        &self.remote_reader_guid
+    }
 }
 
 #[cfg(test)]
