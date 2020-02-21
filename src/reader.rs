@@ -11,12 +11,12 @@ use crate::types::{
 
 /// Specialization of RTPS Reader. The RTPS StatefulReader keeps state on each matched RTPS Writer.
 /// The state kept on each writer is maintained in the RTPS WriterProxy class.
-pub struct StatefulReader<'a> {
+pub struct StatefulReader {
     reader: Reader,
-    matched_writers: HashMap<GUID, WriterProxy<'a>>,
+    matched_writers: HashMap<GUID, WriterProxy>,
 }
 
-impl<'a> StatefulReader<'a> {
+impl StatefulReader {
     /// This operation creates a new RTPS StatefulReader. The newly-created stateful reader is initialized with
     /// an empty list of matched writers
     pub fn new(
@@ -37,7 +37,7 @@ impl<'a> StatefulReader<'a> {
     }
 
     /// This operation adds the WriterProxy a_writer_proxy to the StatefulReader::matched_writers.
-    pub fn matched_writer_add(&mut self, a_writer_proxy: WriterProxy<'a>) {
+    pub fn matched_writer_add(&mut self, a_writer_proxy: WriterProxy) {
         self.matched_writers
             .insert(a_writer_proxy.remote_writer_guid(), a_writer_proxy);
     }
@@ -80,7 +80,7 @@ impl Reader {
     }
 
     pub fn read_data(
-        &self,
+        &mut self,
         writer_guid: GUID,
         sequence_number: SequenceNumber,
         inline_qos: Option<InlineQosParameterList>,

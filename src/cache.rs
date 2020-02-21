@@ -137,34 +137,34 @@ impl ::core::hash::Hash for CacheChange {
 }
 
 pub struct HistoryCache {
-    changes: Mutex<HashSet<CacheChange>>,
+    changes: HashSet<CacheChange>,
 }
 
 impl HistoryCache {
     pub fn new() -> Self {
         HistoryCache {
-            changes: Mutex::new(HashSet::new()),
+            changes: HashSet::new(),
         }
     }
 
-    pub fn add_change(&self, change: CacheChange) {
-        self.get_changes().insert(change);
+    pub fn add_change(&mut self, change: CacheChange) {
+        self.changes.insert(change);
     }
 
-    pub fn remove_change(&self, change: &CacheChange) {
-        self.get_changes().remove(change);
+    pub fn remove_change(&mut self, change: &CacheChange) {
+        self.changes.remove(change);
     }
 
-    pub fn get_changes(&self) -> MutexGuard<HashSet<CacheChange>> {
-        self.changes.lock().unwrap()
+    pub fn get_changes(&self) -> &HashSet<CacheChange> {
+        &self.changes
     }
 
     pub fn get_seq_num_min(&self) -> Option<SequenceNumber> {
-        Some(self.get_changes().iter().min()?.sequence_number)
+        Some(self.changes.iter().min()?.sequence_number)
     }
 
     pub fn get_seq_num_max(&self) -> Option<SequenceNumber> {
-        Some(self.get_changes().iter().max()?.sequence_number)
+        Some(self.changes.iter().max()?.sequence_number)
     }
 }
 
@@ -174,7 +174,7 @@ mod tests {
 
     #[test]
     fn cache_change_list() {
-        let history_cache = HistoryCache::new();
+        let mut history_cache = HistoryCache::new();
         let guid_prefix = [8; 12];
         let entity_id = EntityId::new([1, 2, 3], 4);
         let guid = GUID::new(guid_prefix, entity_id);
@@ -204,7 +204,7 @@ mod tests {
 
     #[test]
     fn cache_change_sequence_number() {
-        let history_cache = HistoryCache::new();
+        let mut history_cache = HistoryCache::new();
 
         let guid_prefix = [8; 12];
         let entity_id = EntityId::new([1, 2, 3], 4);

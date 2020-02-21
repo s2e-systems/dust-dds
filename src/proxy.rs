@@ -54,23 +54,21 @@ impl ChangeFromWriter {
     }
 }
 
-pub struct WriterProxy<'a> {
+pub struct WriterProxy {
     remote_writer_guid: GUID,
     unicast_locator_list: LocatorList,
     multicast_locator_list: LocatorList,
     data_max_size_serialized: Option<i32>,
-    history_cache: &'a HistoryCache,
     remote_group_entity_id: EntityId,
     changes_from_writer: HashMap<CacheChange, ChangeFromWriter>,
 }
 
-impl<'a> WriterProxy<'a> {
+impl WriterProxy {
     pub fn new(
         remote_writer_guid: GUID,
         unicast_locator_list: LocatorList,
         multicast_locator_list: LocatorList,
         data_max_size_serialized: Option<i32>,
-        history_cache: &'a HistoryCache,
         remote_group_entity_id: EntityId,
     ) -> Self {
         let changes_from_writer = HashMap::new();
@@ -80,7 +78,6 @@ impl<'a> WriterProxy<'a> {
             multicast_locator_list,
             data_max_size_serialized,
             remote_group_entity_id,
-            history_cache,
             changes_from_writer,
         }
     }
@@ -89,8 +86,8 @@ impl<'a> WriterProxy<'a> {
         self.remote_writer_guid
     }
 
-    pub fn available_changes_max(&self) -> Option<SequenceNumber> {
-        self.history_cache
+    pub fn available_changes_max(&self, history_cache: &HistoryCache) -> Option<SequenceNumber> {
+        history_cache
             .get_changes()
             .iter()
             .filter(|&cc| cc.get_writer_guid() == &self.remote_writer_guid)
@@ -102,8 +99,8 @@ impl<'a> WriterProxy<'a> {
             .map(|cc| *cc.get_sequence_number())
     }
 
-    pub fn irrelevant_change_set(&mut self, a_seq_num: SequenceNumber) {
-        self.history_cache
+    pub fn irrelevant_change_set(&mut self, history_cache: &HistoryCache, a_seq_num: SequenceNumber) {
+        history_cache
             .get_changes()
             .iter()
             .filter(|cc| cc.get_writer_guid() == &self.remote_writer_guid)
@@ -116,8 +113,8 @@ impl<'a> WriterProxy<'a> {
             });
     }
 
-    pub fn lost_changes_update(&mut self, first_available_seq_num: &SequenceNumber) {
-        let history_cache_changes_lock = self.history_cache.get_changes();
+    pub fn lost_changes_update(&mut self, history_cache: &HistoryCache, first_available_seq_num: &SequenceNumber) {
+        let history_cache_changes_lock = history_cache.get_changes();
 
         let mut lost_change_set = history_cache_changes_lock
             .iter()
@@ -137,9 +134,9 @@ impl<'a> WriterProxy<'a> {
         }
     }
 
-    pub fn missing_changes(&self) -> HashSet<SequenceNumber> //TODO: Check this return type (should be SequenceNumberSet)
+    pub fn missing_changes(&self, history_cache: &HistoryCache) -> HashSet<SequenceNumber> //TODO: Check this return type (should be SequenceNumberSet)
     {
-        self.history_cache
+        history_cache
             .get_changes()
             .iter()
             .filter(|cc| cc.get_writer_guid() == &self.remote_writer_guid)
@@ -148,8 +145,8 @@ impl<'a> WriterProxy<'a> {
             .collect()
     }
 
-    pub fn missing_changes_update(&mut self, last_available_seq_num: SequenceNumber) {
-        let history_cache_changes_lock = self.history_cache.get_changes();
+    pub fn missing_changes_update(&mut self, history_cache: &HistoryCache, last_available_seq_num: SequenceNumber) {
+        let history_cache_changes_lock = history_cache.get_changes();
 
         let mut missing_change_set = history_cache_changes_lock
             .iter()
@@ -167,8 +164,8 @@ impl<'a> WriterProxy<'a> {
         }
     }
 
-    pub fn received_change_set(&mut self, a_seq_num: SequenceNumber) {
-        let cache_changes_lock = self.history_cache.get_changes();
+    pub fn received_change_set(&mut self, history_cache: &HistoryCache, a_seq_num: SequenceNumber) {
+        let cache_changes_lock = history_cache.get_changes();
         let reader_cache_change = cache_changes_lock
             .iter()
             .filter(|cc| cc.get_writer_guid() == &self.remote_writer_guid)
@@ -213,23 +210,33 @@ impl Default for ChangeForReader {
     }
 }
 
-pub struct ReaderProxy<'a> {
+impl ChangeForReader {
+    pub fn new(status: ChangeForReaderStatusKind, is_relevant: bool) -> Self {
+        ChangeForReader {
+            status,
+            is_relevant,
+        }
+    }
+}
+
+pub struct ReaderProxy {
     remote_reader_guid: GUID,
     remote_group_entity_id: EntityId,
     unicast_locator_list: LocatorList,
     multicast_locator_list: LocatorList,
-    changes_for_reader: &'a HistoryCache,
     expects_inline_qos: bool,
     is_active: bool,
+    highest_sequence_number_sent: SequenceNumber,
+    highest_sequence_number_acked: SequenceNumber,
+    sequence_numbers_requested: HashSet<SequenceNumber>,
 }
 
-impl<'a> ReaderProxy<'a> {
+impl ReaderProxy {
     pub fn new(
         remote_reader_guid: GUID,
         remote_group_entity_id: EntityId,
         unicast_locator_list: LocatorList,
         multicast_locator_list: LocatorList,
-        changes_for_reader: &'a HistoryCache,
         expects_inline_qos: bool,
         is_active: bool,
     ) -> Self {
@@ -240,32 +247,68 @@ impl<'a> ReaderProxy<'a> {
             remote_group_entity_id,
             unicast_locator_list,
             multicast_locator_list,
-            changes_for_reader,
             expects_inline_qos,
             is_active,
+            highest_sequence_number_sent: 0,
+            highest_sequence_number_acked: 0,
+            sequence_numbers_requested: HashSet::new(),
         }
     }
 
-    pub fn acked_changes_set() {
-        unimplemented!()
+    pub fn acked_changes_set(&mut self, committed_seq_num: SequenceNumber) {
+        self.highest_sequence_number_acked = committed_seq_num;
     }
-    pub fn next_requested_change() {
-        unimplemented!()
+
+    pub fn next_requested_change<'a>(&self, history_cache: &'a HistoryCache) -> Option<&'a CacheChange> {
+        let min_requested_sequence_number = self.sequence_numbers_requested.iter().min()?;
+        history_cache
+            .get_changes()
+            .iter()
+            .find(|cc| cc.get_sequence_number() == min_requested_sequence_number)
     }
-    pub fn next_unsent_change() {
-        unimplemented!()
+
+    pub fn next_unsent_change<'a>(&self, history_cache: &'a HistoryCache) -> Option<&'a CacheChange> {
+        history_cache
+            .get_changes()
+            .iter()
+            .filter(|cc| cc.get_sequence_number() > &self.highest_sequence_number_sent)
+            .min()
     }
-    pub fn unsent_changes() {
-        unimplemented!()
+
+    pub fn unsent_changes<'a>(&self, history_cache: &'a HistoryCache) -> HashSet<&'a CacheChange> {
+        history_cache
+            .get_changes()
+            .iter()
+            .filter(|cc| cc.get_sequence_number() > &self.highest_sequence_number_sent)
+            .collect()
     }
-    pub fn requested_changes() {
-        unimplemented!()
+
+    pub fn requested_changes<'a>(&self, history_cache: &'a HistoryCache) -> HashSet<&'a CacheChange> {
+        let mut requested_changes = HashSet::new();
+        for rsn in self.sequence_numbers_requested.iter() {
+            if let Some(cc) = history_cache
+                .get_changes()
+                .iter()
+                .find(|cc| cc.get_sequence_number() == rsn)
+            {
+                requested_changes.insert(cc);
+            }
+        }
+        requested_changes
     }
-    pub fn requested_changes_set() {
-        unimplemented!()
+
+    pub fn requested_changes_set(&mut self, req_seq_num_set: HashSet<SequenceNumber>) {
+        for rsn in req_seq_num_set.iter() {
+            self.sequence_numbers_requested.insert(*rsn);
+        }
     }
-    pub fn unacked_changes() {
-        unimplemented!()
+
+    pub fn unacked_changes<'a>(&self, history_cache: &'a HistoryCache) -> HashSet<&'a CacheChange>{
+        history_cache
+            .get_changes()
+            .iter()
+            .filter(|cc| cc.get_sequence_number() > &self.highest_sequence_number_acked)
+            .collect()
     }
 }
 
@@ -277,7 +320,7 @@ mod tests {
 
     #[test]
     fn test_writer_proxy_available_changes_max() {
-        let hc = HistoryCache::new();
+        let mut hc = HistoryCache::new();
 
         let writer_guid = GUID::new(
             [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
@@ -289,7 +332,6 @@ mod tests {
             vec![],
             vec![],
             None,
-            &hc,
             ENTITYID_UNKNOWN,
         );
 
@@ -343,14 +385,14 @@ mod tests {
             false
         );
 
-        writer_proxy.received_change_set(sequence_number);
+        writer_proxy.received_change_set(&hc, sequence_number);
 
         assert_eq!(
             writer_proxy.is_change_status(&cc, ChangeFromWriterStatusKind::Received),
             true
         );
 
-        let result = writer_proxy.available_changes_max();
+        let result = writer_proxy.available_changes_max(&hc);
         assert_eq!(result, Some(sequence_number));
 
         let cc = CacheChange::new(
@@ -363,14 +405,14 @@ mod tests {
         );
         hc.add_change(cc);
 
-        writer_proxy.received_change_set(sequence_number + 1);
-        let result = writer_proxy.available_changes_max();
+        writer_proxy.received_change_set(&hc, sequence_number + 1);
+        let result = writer_proxy.available_changes_max(&hc);
         assert_eq!(result, Some(sequence_number + 1));
     }
 
     #[test]
     fn test_writer_proxy_irrelevant_change_set() {
-        let hc = HistoryCache::new();
+        let mut hc = HistoryCache::new();
 
         let writer_guid = GUID::new(
             [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
@@ -419,7 +461,6 @@ mod tests {
             Vec::new(),
             Vec::new(),
             None,
-            &hc,
             remote_group_entity_id,
         );
 
@@ -436,7 +477,7 @@ mod tests {
             writer_proxy.is_change_status(&cc, ChangeFromWriterStatusKind::Received),
             false
         );
-        writer_proxy.irrelevant_change_set(sequence_number);
+        writer_proxy.irrelevant_change_set(&hc, sequence_number);
 
         assert_eq!(
             writer_proxy.is_change_status(&cc, ChangeFromWriterStatusKind::Received),
@@ -447,7 +488,7 @@ mod tests {
 
     #[test]
     fn test_writer_proxy_lost_changes_update() {
-        let hc = HistoryCache::new();
+        let mut hc = HistoryCache::new();
 
         let writer_guid = GUID::new(
             [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
@@ -514,7 +555,6 @@ mod tests {
             Vec::new(),
             Vec::new(),
             None,
-            &hc,
             remote_group_entity_id,
         );
 
@@ -544,7 +584,7 @@ mod tests {
             false
         );
 
-        writer_proxy.lost_changes_update(&(sequence_number + 2));
+        writer_proxy.lost_changes_update(&hc, &(sequence_number + 2));
 
         assert_eq!(
             writer_proxy.is_change_status(&cc, ChangeFromWriterStatusKind::Lost),
@@ -558,7 +598,7 @@ mod tests {
 
     #[test]
     fn test_writer_proxy_missing_changes() {
-        let hc = HistoryCache::new();
+        let mut hc = HistoryCache::new();
 
         let writer_guid = GUID::new(
             [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
@@ -625,7 +665,6 @@ mod tests {
             Vec::new(),
             Vec::new(),
             None,
-            &hc,
             remote_group_entity_id,
         );
 
@@ -646,17 +685,28 @@ mod tests {
             None,
         );
 
-        assert_eq!(writer_proxy.is_change_status(&cc, ChangeFromWriterStatusKind::Missing), false);
-        
-        assert_eq!(writer_proxy.is_change_status(&cc2, ChangeFromWriterStatusKind::Missing), false);
+        assert_eq!(
+            writer_proxy.is_change_status(&cc, ChangeFromWriterStatusKind::Missing),
+            false
+        );
 
-        writer_proxy.missing_changes_update(sequence_number + 1);
+        assert_eq!(
+            writer_proxy.is_change_status(&cc2, ChangeFromWriterStatusKind::Missing),
+            false
+        );
+        writer_proxy.missing_changes_update(&hc, sequence_number + 1);
 
-        assert_eq!(writer_proxy.is_change_status(&cc, ChangeFromWriterStatusKind::Missing), true);
-        
-        assert_eq!(writer_proxy.is_change_status(&cc2, ChangeFromWriterStatusKind::Missing), true);
+        assert_eq!(
+            writer_proxy.is_change_status(&cc, ChangeFromWriterStatusKind::Missing),
+            true
+        );
 
-        let missing_changes_sequence_set = writer_proxy.missing_changes();
+        assert_eq!(
+            writer_proxy.is_change_status(&cc2, ChangeFromWriterStatusKind::Missing),
+            true
+        );
+
+        let missing_changes_sequence_set = writer_proxy.missing_changes(&hc);
         assert_eq!(missing_changes_sequence_set.len(), 2);
         assert_eq!(
             missing_changes_sequence_set.contains(&sequence_number),
