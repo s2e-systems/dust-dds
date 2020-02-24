@@ -12,7 +12,7 @@ use crate::types::{
 /// Specialization of RTPS Reader. The RTPS StatefulReader keeps state on each matched RTPS Writer.
 /// The state kept on each writer is maintained in the RTPS WriterProxy class.
 pub struct StatefulReader {
-    reader: Reader,
+    reader: StatelessReader,
     matched_writers: HashMap<GUID, WriterProxy>,
 }
 
@@ -26,7 +26,7 @@ impl StatefulReader {
         expects_inline_qos: bool,
     ) -> Self {
         StatefulReader {
-            reader: Reader::new(
+            reader: StatelessReader::new(
                 endpoint,
                 heartbeat_response_delay,
                 heartbeat_suppression_duration,
@@ -55,7 +55,7 @@ impl StatefulReader {
     }
 }
 
-pub struct Reader {
+pub struct StatelessReader {
     endpoint: Endpoint,
     pub heartbeat_response_delay: Duration,
     pub heartbeat_suppression_duration: Duration,
@@ -63,14 +63,14 @@ pub struct Reader {
     expects_inline_qos: bool,
 }
 
-impl Reader {
+impl StatelessReader {
     pub fn new(
         endpoint: Endpoint,
         heartbeat_response_delay: Duration,
         heartbeat_suppression_duration: Duration,
         expects_inline_qos: bool,
     ) -> Self {
-        Reader {
+        StatelessReader {
             endpoint,
             heartbeat_response_delay,
             heartbeat_suppression_duration,

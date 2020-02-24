@@ -8,7 +8,7 @@ use crate::parser::{
 };
 use crate::participant_proxy::ParticipantProxy;
 use crate::proxy::ReaderProxy;
-use crate::reader::{Reader,StatefulReader};
+use crate::reader::{StatelessReader,StatefulReader};
 use crate::transport::Transport;
 use crate::types::{
     BuiltInEndPoints, Duration, GuidPrefix, InlineQosParameterList, Locator, LocatorList,
@@ -29,14 +29,14 @@ struct Participant {
     protocol_version: ProtocolVersion,
     vendor_id: VendorId,
     socket: Transport,
-    spdp_builtin_participant_reader: Reader,
-    spdp_builtin_participant_writer: StatelessWriter,
-    sedp_builtin_publications_reader: StatefulReader,
+    spdp_builtin_participant_reader: StatelessReader,
+    // spdp_builtin_participant_writer: StatelessWriter,
+    // sedp_builtin_publications_reader: StatefulReader,
     sedp_builtin_publications_writer: StatefulWriter,
-    sedp_builtin_subscriptions_reader: StatefulReader,
-    sedp_builtin_subscriptions_writer: StatefulWriter,
-    sedp_builtin_topics_reader: StatefulReader,
-    sedp_builtin_topics_writer: StatefulWriter,
+    // sedp_builtin_subscriptions_reader: StatefulReader,
+    // sedp_builtin_subscriptions_writer: StatefulWriter,
+    // sedp_builtin_topics_reader: StatefulReader,
+    // sedp_builtin_topics_writer: StatefulWriter,
     participant_proxy_list: HashSet<ParticipantProxy>,
 }
 
@@ -70,7 +70,7 @@ impl Participant {
         let heartbeat_suppression_duration = DURATION_ZERO;
         let expects_inline_qos = false;
 
-        let spdp_builtin_participant_reader = Reader::new(
+        let spdp_builtin_participant_reader = StatelessReader::new(
             endpoint,
             heartbeat_response_delay,
             heartbeat_suppression_duration,
@@ -104,13 +104,13 @@ impl Participant {
             vendor_id,
             socket,
             spdp_builtin_participant_reader,
-            spdp_builtin_participant_writer,
-            sedp_builtin_publications_reader,
+            // spdp_builtin_participant_writer,
+            // sedp_builtin_publications_reader,
             sedp_builtin_publications_writer,
-            sedp_builtin_subscriptions_reader,
-            sedp_builtin_subscriptions_writer,
-            sedp_builtin_topics_reader,
-            sedp_builtin_topics_writer,
+            // sedp_builtin_subscriptions_reader,
+            // sedp_builtin_subscriptions_writer,
+            // sedp_builtin_topics_reader,
+            // sedp_builtin_topics_writer,
             participant_proxy_list: HashSet::new(),
         }
     }
