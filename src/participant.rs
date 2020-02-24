@@ -266,7 +266,7 @@ impl Participant {
             .get_changes()
             .iter()
         {
-            let participant_proxy = ParticipantProxy::new(change.data().unwrap()).unwrap();
+            let participant_proxy = ParticipantProxy::new_from_data(change.data().unwrap()).unwrap();
 
             participant_proxy_list.insert(participant_proxy);
         }

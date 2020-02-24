@@ -6,6 +6,7 @@ use std::convert::TryInto;
 
 use std::collections::HashMap;
 
+use crate::parser;
 use crate::parser::helpers::{deserialize, EndianessFlag};
 use crate::types::{BuiltInEndPointSet, Locator, Time, GUID};
 
@@ -17,11 +18,18 @@ pub enum SpdpErrorMessage {
     InvalidParameterLength,
     ParameterContentConversionFailed,
     CdrError(cdr::Error),
+    ParserError(parser::ErrorMessage),
 }
 
 impl From<cdr::Error> for SpdpErrorMessage {
     fn from(error: cdr::Error) -> Self {
         SpdpErrorMessage::CdrError(error)
+    }
+}
+
+impl From<parser::ErrorMessage> for SpdpErrorMessage {
+    fn from(error: parser::ErrorMessage) -> Self {
+        SpdpErrorMessage::ParserError(error)
     }
 }
 
@@ -95,7 +103,41 @@ pub struct ParticipantProxy {
 }
 
 impl ParticipantProxy {
-    pub fn new(data: &[u8]) -> Result<Self> {
+    pub fn new(
+        domain_id: u32, // TODO: Create DomainId type
+        domain_tag: String,
+        protocol_version: ProtocolVersion,
+        guid_prefix: GuidPrefix,
+        vendor_id: VendorId,
+        expects_inline_qos: bool,
+        available_builtin_endpoints: BuiltInEndPointSet,
+        //TODO: Built-in endpoints qos
+        metatraffic_unicast_locator_list: LocatorList,
+        metatraffic_multicast_locator_list: LocatorList,
+        default_multicast_locator_list: LocatorList,
+        default_unicast_locator_list: LocatorList,
+        //TODO: manual liveliness count
+        lease_duration: Time,
+    ) -> Self {
+        ParticipantProxy {
+            domain_id,
+            domain_tag,
+            protocol_version,
+            guid_prefix,
+            vendor_id,
+            expects_inline_qos,
+            available_builtin_endpoints,
+            //TODO: Built-in endpoints qos
+            metatraffic_unicast_locator_list,
+            metatraffic_multicast_locator_list,
+            default_multicast_locator_list,
+            default_unicast_locator_list,
+            //TODO: manual liveliness count
+            lease_duration,
+        }
+    }
+
+    pub fn new_from_data(data: &[u8]) -> Result<Self> {
         const MINIMUM_DATA_LENGTH: usize = 12; // If a message has data it must have the encoding information, options and at least one parameter with minimum 4 length
         const MINIMUM_PARAMETER_VALUE_LENGTH: usize = 4;
         const FIRST_PARAMETER_LENGTH_OFFSET: usize = 4;
@@ -147,15 +189,15 @@ impl ParticipantProxy {
                 &parameter_id_first_index,
                 &parameter_id_last_index,
                 &endianess,
-            )
-            .unwrap(); //TODO: Remove unwrap
+            )?;
+
             if parameter_id == SpdpParameterId::Sentinel as u16 {
                 break;
             }
 
             let length =
-                deserialize::<u16>(data, &length_first_index, &length_last_index, &endianess)
-                    .unwrap() as usize; //TODO: Remove unwrap
+                deserialize::<u16>(data, &length_first_index, &length_last_index, &endianess)?
+                    as usize;
             if length < MINIMUM_PARAMETER_VALUE_LENGTH {
                 return Err(SpdpErrorMessage::ParameterLengthTooSmall);
             }
@@ -172,8 +214,7 @@ impl ParticipantProxy {
                         &value_first_index,
                         &value_last_index,
                         &endianess,
-                    )
-                    .unwrap()
+                    )?
                 }
                 Some(SpdpParameterId::VendorId) => {
                     vendor_id = deserialize::<VendorId>(
@@ -181,49 +222,38 @@ impl ParticipantProxy {
                         &value_first_index,
                         &value_last_index,
                         &endianess,
-                    )
-                    .unwrap()
+                    )?
                 }
-                Some(SpdpParameterId::DefaultUnicastLocator) => default_unicast_locator_list.push(
-                    deserialize::<Locator>(
+                Some(SpdpParameterId::DefaultUnicastLocator) => {
+                    default_unicast_locator_list.push(deserialize::<Locator>(
                         &data,
                         &value_first_index,
                         &value_last_index,
                         &endianess,
-                    )
-                    .unwrap(),
-                ),
+                    )?)
+                }
                 Some(SpdpParameterId::DefaultMulticastLocator) => default_multicast_locator_list
-                    .push(
-                        deserialize::<Locator>(
-                            &data,
-                            &value_first_index,
-                            &value_last_index,
-                            &endianess,
-                        )
-                        .unwrap(),
-                    ),
+                    .push(deserialize::<Locator>(
+                        &data,
+                        &value_first_index,
+                        &value_last_index,
+                        &endianess,
+                    )?),
                 Some(SpdpParameterId::MetatrafficUnicastLocator) => {
-                    metatraffic_unicast_locator_list.push(
-                        deserialize::<Locator>(
-                            &data,
-                            &value_first_index,
-                            &value_last_index,
-                            &endianess,
-                        )
-                        .unwrap(),
-                    )
+                    metatraffic_unicast_locator_list.push(deserialize::<Locator>(
+                        &data,
+                        &value_first_index,
+                        &value_last_index,
+                        &endianess,
+                    )?)
                 }
                 Some(SpdpParameterId::MetatrafficMulticastLocator) => {
-                    metatraffic_multicast_locator_list.push(
-                        deserialize::<Locator>(
-                            &data,
-                            &value_first_index,
-                            &value_last_index,
-                            &endianess,
-                        )
-                        .unwrap(),
-                    )
+                    metatraffic_multicast_locator_list.push(deserialize::<Locator>(
+                        &data,
+                        &value_first_index,
+                        &value_last_index,
+                        &endianess,
+                    )?)
                 }
                 Some(SpdpParameterId::ParticipantLeaseDuration) => {
                     lease_duration = deserialize::<Time>(
@@ -231,8 +261,7 @@ impl ParticipantProxy {
                         &value_first_index,
                         &value_last_index,
                         &endianess,
-                    )
-                    .unwrap()
+                    )?
                 }
                 Some(SpdpParameterId::ParticipantGuid) => {
                     guid_prefix = *deserialize::<GUID>(
@@ -240,8 +269,7 @@ impl ParticipantProxy {
                         &value_first_index,
                         &value_last_index,
                         &endianess,
-                    )
-                    .unwrap()
+                    )?
                     .prefix()
                 }
                 Some(SpdpParameterId::BuiltinEndpointSet) => {
@@ -250,8 +278,7 @@ impl ParticipantProxy {
                         &value_first_index,
                         &value_last_index,
                         &endianess,
-                    )
-                    .unwrap()
+                    )?
                 }
                 Some(SpdpParameterId::ExpectsInlineQoS) => {
                     expects_inline_qos = deserialize::<bool>(
@@ -259,8 +286,7 @@ impl ParticipantProxy {
                         &value_first_index,
                         &value_last_index,
                         &endianess,
-                    )
-                    .unwrap()
+                    )?
                 }
                 _ => (),
             };
@@ -333,7 +359,7 @@ mod tests {
             79, 83, 83, 47, 52, 50, 99, 55, 99, 97, 102, 47, 52, 50, 99, 55, 99, 97, 102, 47, 47,
             97, 114, 109, 118, 55, 108, 46, 49, 0, 0, 1, 0, 0, 0,
         ];
-        let participant_proxy = ParticipantProxy::new(&data).unwrap();
+        let participant_proxy = ParticipantProxy::new_from_data(&data).unwrap();
 
         assert_eq!(
             participant_proxy.protocol_version,
