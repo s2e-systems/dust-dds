@@ -83,13 +83,13 @@ pub struct ParticipantProxy {
     protocol_version: ProtocolVersion,
     guid_prefix: GuidPrefix,
     vendor_id: VendorId,
-    pub expects_inline_qos: bool,
+    expects_inline_qos: bool,
     available_builtin_endpoints: BuiltInEndPointSet,
     //TODO: Built-in endpoints qos
-    pub metatraffic_unicast_locator_list: LocatorList,
-    pub metatraffic_multicast_locator_list: LocatorList,
-    pub default_multicast_locator_list: LocatorList,
-    pub default_unicast_locator_list: LocatorList,
+    metatraffic_unicast_locator_list: LocatorList,
+    metatraffic_multicast_locator_list: LocatorList,
+    default_multicast_locator_list: LocatorList,
+    default_unicast_locator_list: LocatorList,
     //TODO: manual liveliness count
     lease_duration: Time,
 }
@@ -284,14 +284,32 @@ impl ParticipantProxy {
         })
     }
 
-    pub fn available_builtin_endpoints(&self) -> &BuiltInEndPointSet
-    {
+    pub fn available_builtin_endpoints(&self) -> &BuiltInEndPointSet {
         &self.available_builtin_endpoints
     }
 
-    pub fn guid_prefix(&self) -> &GuidPrefix
-    {
+    pub fn guid_prefix(&self) -> &GuidPrefix {
         &self.guid_prefix
+    }
+
+    pub fn expects_inline_qos(&self) -> bool {
+        self.expects_inline_qos
+    }
+
+    pub fn metatraffic_unicast_locator_list(&self) -> &LocatorList {
+        &self.metatraffic_unicast_locator_list
+    }
+
+    pub fn metatraffic_multicast_locator_list(&self) -> &LocatorList {
+        &self.metatraffic_multicast_locator_list
+    }
+
+    pub fn default_unicast_locator_list(&self) -> &LocatorList {
+        &self.default_unicast_locator_list
+    }
+
+    pub fn default_multicast_locator_list(&self) -> &LocatorList {
+        &self.default_multicast_locator_list
     }
 }
 

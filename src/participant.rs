@@ -291,9 +291,9 @@ impl Participant {
                     ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
                 ),
                 ENTITYID_UNKNOWN,
-                participant_proxy.metatraffic_unicast_locator_list.clone(),
-                participant_proxy.metatraffic_multicast_locator_list.clone(),
-                participant_proxy.expects_inline_qos,
+                participant_proxy.metatraffic_unicast_locator_list().clone(),
+                participant_proxy.metatraffic_multicast_locator_list().clone(),
+                participant_proxy.expects_inline_qos(),
                 true, /*is_active*/
             );
             self.sedp_builtin_publications_writer
@@ -309,8 +309,8 @@ impl Participant {
                     *participant_proxy.guid_prefix(),
                     ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
                 ),
-                participant_proxy.metatraffic_unicast_locator_list.clone(),
-                participant_proxy.metatraffic_multicast_locator_list.clone(),
+                participant_proxy.metatraffic_unicast_locator_list().clone(),
+                participant_proxy.metatraffic_multicast_locator_list().clone(),
                 None,             /*data_max_size_serialized*/
                 ENTITYID_UNKNOWN, /*remote_group_entity_id*/
             );
@@ -331,9 +331,9 @@ impl Participant {
                     ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
                 ),
                 ENTITYID_UNKNOWN,
-                participant_proxy.metatraffic_unicast_locator_list.clone(),
-                participant_proxy.metatraffic_multicast_locator_list.clone(),
-                participant_proxy.expects_inline_qos,
+                participant_proxy.metatraffic_unicast_locator_list().clone(),
+                participant_proxy.metatraffic_multicast_locator_list().clone(),
+                participant_proxy.expects_inline_qos(),
                 true, /*is_active*/
             );
             self.sedp_builtin_subscriptions_writer
@@ -350,8 +350,8 @@ impl Participant {
                     *participant_proxy.guid_prefix(),
                     ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
                 ),
-                participant_proxy.metatraffic_unicast_locator_list.clone(),
-                participant_proxy.metatraffic_multicast_locator_list.clone(),
+                participant_proxy.metatraffic_unicast_locator_list().clone(),
+                participant_proxy.metatraffic_multicast_locator_list().clone(),
                 None,             /*data_max_size_serialized*/
                 ENTITYID_UNKNOWN, /*remote_group_entity_id*/
             );
@@ -371,9 +371,9 @@ impl Participant {
                     ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR
                 ),
                 ENTITYID_UNKNOWN,
-                participant_proxy.metatraffic_unicast_locator_list.clone(),
-                participant_proxy.metatraffic_multicast_locator_list.clone(),
-                participant_proxy.expects_inline_qos,
+                participant_proxy.metatraffic_unicast_locator_list().clone(),
+                participant_proxy.metatraffic_multicast_locator_list().clone(),
+                participant_proxy.expects_inline_qos(),
                 true, /*is_active*/
             );
             self.sedp_builtin_topics_writer
@@ -389,8 +389,8 @@ impl Participant {
                     *participant_proxy.guid_prefix(),
                     ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
                 ),
-                participant_proxy.metatraffic_unicast_locator_list.clone(),
-                participant_proxy.metatraffic_multicast_locator_list.clone(),
+                participant_proxy.metatraffic_unicast_locator_list().clone(),
+                participant_proxy.metatraffic_multicast_locator_list().clone(),
                 None,             /*data_max_size_serialized*/
                 ENTITYID_UNKNOWN, /*remote_group_entity_id*/
             );
