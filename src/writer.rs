@@ -85,10 +85,25 @@ impl ReaderLocator {
     }
 }
 
+trait WriterOperations {
+    fn writer(&mut self) -> &mut Writer;
+    
+    fn new_change(
+        &mut self,
+        kind: ChangeKind,
+        data: Option<Vec<u8>>,
+        inline_qos: Option<ParameterList>,
+        handle: InstanceHandle,
+    ) -> CacheChange {
+        self.writer().new_change(kind, data, inline_qos, handle)
+    }
+}
+
 struct Writer {
-    // Endpoint data:
     /// Entity base class (contains the GUID)
     entity: Entity,
+
+    // Endpoint base class:
     /// Used to indicate whether the Endpoint supports instance lifecycle management operations. Indicates whether the Endpoint is associated with a DataType that has defined some fields as containing the DDS key.
     topic_kind: TopicKind,
     /// The level of reliability supported by the Endpoint.
@@ -97,7 +112,8 @@ struct Writer {
     unicast_locator_list: LocatorList,
     /// List of multicast locators (transport, address, port combinations) that can be used to send messages to the Endpoint. The list may be empty.
     multicast_locator_list: LocatorList,
-    //Writer data:
+
+    //Writer class:
     push_mode: bool,
     heartbeat_period: Duration,
     nack_response_delay: Duration,
@@ -205,6 +221,12 @@ impl StatelessWriter {
     }
 }
 
+impl WriterOperations for StatelessWriter {
+    fn writer(&mut self) -> &mut Writer {
+        &mut self.writer
+    }
+}
+
 pub struct StatefulWriter {
     writer: Writer,
     matched_readers: HashMap<GUID, ReaderProxy>,
@@ -256,6 +278,12 @@ impl StatefulWriter {
         self.matched_readers
             .iter()
             .all(|(_, reader)| reader.is_acked(*a_change.get_sequence_number()))
+    }
+}
+
+impl WriterOperations for StatefulWriter {
+    fn writer(&mut self) -> &mut Writer {
+        &mut self.writer
     }
 }
 

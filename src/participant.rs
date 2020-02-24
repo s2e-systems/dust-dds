@@ -7,7 +7,7 @@ use crate::parser::{
     parse_rtps_message, Data, InfoSrc, InfoTs, Payload, RtpsMessage, SubMessageType,
 };
 use crate::participant_proxy::ParticipantProxy;
-use crate::proxy::ReaderProxy;
+use crate::proxy::{ReaderProxy, WriterProxy};
 use crate::reader::{StatefulReader, StatelessReader};
 use crate::transport::Transport;
 use crate::types::{
@@ -15,12 +15,11 @@ use crate::types::{
     ProtocolVersion, ReliabilityKind, SequenceNumber, Time, TopicKind, VendorId, GUID,
 };
 use crate::types::{
-    DURATION_ZERO, ENTITYID_PARTICIPANT, 
-    ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
-    ENTITYID_SPDP_BUILTIN_PARTICIPANT_DETECTOR, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
-    ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
-    ENTITYID_SEDP_BUILTIN_TOPIC_DETECTOR, ENTITYID_SEDP_BUILTIN_TOPIC_ANNOUNCER,
-    ENTITYID_UNKNOWN,
+    DURATION_ZERO, ENTITYID_PARTICIPANT, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
+    ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
+    ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
+    ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
+    ENTITYID_SPDP_BUILTIN_PARTICIPANT_DETECTOR, ENTITYID_UNKNOWN,
 };
 use crate::writer::{StatefulWriter, StatelessWriter};
 use crate::Udpv4Locator;
@@ -86,14 +85,14 @@ impl Participant {
         );
 
         let sedp_builtin_publications_reader = StatefulReader::new(
-            GUID::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR), 
+            GUID::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR),
             TopicKind::WithKey,
             ReliabilityKind::Reliable,
             default_unicast_locator_list.clone(),
             default_multicast_locator_list.clone(),
-            heartbeat_response_delay.clone(), 
-            heartbeat_suppression_duration.clone(), 
-            expects_inline_qos
+            heartbeat_response_delay.clone(),
+            heartbeat_suppression_duration.clone(),
+            expects_inline_qos,
         );
 
         let sedp_builtin_publications_writer = StatefulWriter::new(
@@ -109,14 +108,14 @@ impl Participant {
         );
 
         let sedp_builtin_subscriptions_reader = StatefulReader::new(
-            GUID::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR), 
+            GUID::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR),
             TopicKind::WithKey,
             ReliabilityKind::Reliable,
             default_unicast_locator_list.clone(),
             default_multicast_locator_list.clone(),
-            heartbeat_response_delay.clone(), 
-            heartbeat_suppression_duration.clone(), 
-            expects_inline_qos
+            heartbeat_response_delay.clone(),
+            heartbeat_suppression_duration.clone(),
+            expects_inline_qos,
         );
 
         let sedp_builtin_subscriptions_writer = StatefulWriter::new(
@@ -132,18 +131,18 @@ impl Participant {
         );
 
         let sedp_builtin_topics_reader = StatefulReader::new(
-            GUID::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPIC_DETECTOR), 
+            GUID::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR),
             TopicKind::WithKey,
             ReliabilityKind::Reliable,
             default_unicast_locator_list.clone(),
             default_multicast_locator_list.clone(),
-            heartbeat_response_delay.clone(), 
-            heartbeat_suppression_duration.clone(), 
-            expects_inline_qos
+            heartbeat_response_delay.clone(),
+            heartbeat_suppression_duration.clone(),
+            expects_inline_qos,
         );
 
         let sedp_builtin_topics_writer = StatefulWriter::new(
-            GUID::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPIC_ANNOUNCER),
+            GUID::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER),
             TopicKind::WithKey,
             ReliabilityKind::Reliable,
             default_unicast_locator_list.clone(),
@@ -272,23 +271,25 @@ impl Participant {
             participant_proxy_list.insert(participant_proxy);
         }
         for participant_proxy in participant_proxy_list.iter() {
-            self.add_reader_proxy_for_sedp(&participant_proxy);
+            self.add_sedp_proxies(&participant_proxy);
         }
 
         self.participant_proxy_list = participant_proxy_list;
     }
 
-    fn add_reader_proxy_for_sedp(&mut self, participant_proxy: &ParticipantProxy) {
+    fn add_sedp_proxies(&mut self, participant_proxy: &ParticipantProxy) {
+
+        // Publications
+
         if participant_proxy
             .available_builtin_endpoints()
             .has(BuiltInEndPoints::PublicationsDetector)
         {
-            let guid = GUID::new(
-                *participant_proxy.guid_prefix(),
-                ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
-            );
-            let reader_proxy = ReaderProxy::new(
-                guid,
+            let proxy = ReaderProxy::new(
+                GUID::new(
+                    *participant_proxy.guid_prefix(),
+                    ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
+                ),
                 ENTITYID_UNKNOWN,
                 participant_proxy.metatraffic_unicast_locator_list.clone(),
                 participant_proxy.metatraffic_multicast_locator_list.clone(),
@@ -296,7 +297,105 @@ impl Participant {
                 true, /*is_active*/
             );
             self.sedp_builtin_publications_writer
-                .matched_reader_add(reader_proxy);
+                .matched_reader_add(proxy);
+        }
+
+        if participant_proxy
+            .available_builtin_endpoints()
+            .has(BuiltInEndPoints::PublicationsAnnouncer)
+        {
+            let proxy = WriterProxy::new(
+                GUID::new(
+                    *participant_proxy.guid_prefix(),
+                    ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
+                ),
+                participant_proxy.metatraffic_unicast_locator_list.clone(),
+                participant_proxy.metatraffic_multicast_locator_list.clone(),
+                None,             /*data_max_size_serialized*/
+                ENTITYID_UNKNOWN, /*remote_group_entity_id*/
+            );
+            self.sedp_builtin_publications_reader
+                .matched_writer_add(proxy);
+        }
+
+        
+        // Subscribtions
+
+        if participant_proxy
+            .available_builtin_endpoints()
+            .has(BuiltInEndPoints::SubscriptionsDetector)
+        {
+            let proxy = ReaderProxy::new(
+                GUID::new(
+                    *participant_proxy.guid_prefix(),
+                    ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
+                ),
+                ENTITYID_UNKNOWN,
+                participant_proxy.metatraffic_unicast_locator_list.clone(),
+                participant_proxy.metatraffic_multicast_locator_list.clone(),
+                participant_proxy.expects_inline_qos,
+                true, /*is_active*/
+            );
+            self.sedp_builtin_subscriptions_writer
+                .matched_reader_add(proxy);
+        }
+
+        
+        if participant_proxy
+            .available_builtin_endpoints()
+            .has(BuiltInEndPoints::SubscriptionsAnnouncer)
+        {
+            let proxy = WriterProxy::new(
+                GUID::new(
+                    *participant_proxy.guid_prefix(),
+                    ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
+                ),
+                participant_proxy.metatraffic_unicast_locator_list.clone(),
+                participant_proxy.metatraffic_multicast_locator_list.clone(),
+                None,             /*data_max_size_serialized*/
+                ENTITYID_UNKNOWN, /*remote_group_entity_id*/
+            );
+            self.sedp_builtin_subscriptions_reader
+                .matched_writer_add(proxy);
+        }
+
+        // Topics
+
+        if participant_proxy
+            .available_builtin_endpoints()
+            .has(BuiltInEndPoints::TopicsDetector)
+        {
+            let proxy = ReaderProxy::new(
+                GUID::new(
+                    *participant_proxy.guid_prefix(),
+                    ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR
+                ),
+                ENTITYID_UNKNOWN,
+                participant_proxy.metatraffic_unicast_locator_list.clone(),
+                participant_proxy.metatraffic_multicast_locator_list.clone(),
+                participant_proxy.expects_inline_qos,
+                true, /*is_active*/
+            );
+            self.sedp_builtin_topics_writer
+                .matched_reader_add(proxy);
+        }
+        
+        if participant_proxy
+            .available_builtin_endpoints()
+            .has(BuiltInEndPoints::TopicsAnnouncer)
+        {
+            let proxy = WriterProxy::new(
+                GUID::new(
+                    *participant_proxy.guid_prefix(),
+                    ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
+                ),
+                participant_proxy.metatraffic_unicast_locator_list.clone(),
+                participant_proxy.metatraffic_multicast_locator_list.clone(),
+                None,             /*data_max_size_serialized*/
+                ENTITYID_UNKNOWN, /*remote_group_entity_id*/
+            );
+            self.sedp_builtin_topics_reader
+                .matched_writer_add(proxy);
         }
     }
 }

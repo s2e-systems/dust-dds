@@ -42,12 +42,12 @@ pub const ENTITYID_PARTICIPANT: EntityId = EntityId {
     entity_kind: ENTITY_KIND_BUILT_IN_PARTICIPANT,
 };
 
-pub const ENTITYID_SEDP_BUILTIN_TOPIC_ANNOUNCER: EntityId = EntityId {
+pub const ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER: EntityId = EntityId {
     entity_key: [0, 0, 0x02],
     entity_kind: ENTITY_KIND_BUILT_IN_WRITER_WITH_KEY,
 };
 
-pub const ENTITYID_SEDP_BUILTIN_TOPIC_DETECTOR: EntityId = EntityId {
+pub const ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR: EntityId = EntityId {
     entity_key: [0, 0, 0x02],
     entity_kind: ENTITY_KIND_BUILT_IN_READER_WITH_KEY,
 };
