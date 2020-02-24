@@ -195,20 +195,6 @@ impl GUID {
     pub fn entity_id(&self) -> &EntityId {
         &self.entity_id
     }
-
-    pub fn new_participant_guid(prefix: GuidPrefix) -> GUID {
-        GUID {
-            prefix,
-            entity_id: ENTITYID_PARTICIPANT,
-        }
-    }
-
-    fn new_spdp_builtin_participant_reader_guid(prefix: GuidPrefix) -> GUID {
-        GUID {
-            prefix,
-            entity_id: ENTITYID_SPDP_BUILTIN_PARTICIPANT_DETECTOR,
-        }
-    }
 }
 
 #[derive(PartialEq, Deserialize, Debug, Eq, Hash)]

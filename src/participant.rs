@@ -8,18 +8,21 @@ use crate::parser::{
 };
 use crate::participant_proxy::ParticipantProxy;
 use crate::proxy::ReaderProxy;
-use crate::reader::{StatelessReader,StatefulReader};
+use crate::reader::{StatefulReader, StatelessReader};
 use crate::transport::Transport;
 use crate::types::{
     BuiltInEndPoints, Duration, GuidPrefix, InlineQosParameterList, Locator, LocatorList,
     ProtocolVersion, ReliabilityKind, SequenceNumber, Time, TopicKind, VendorId, GUID,
 };
 use crate::types::{
-    DURATION_ZERO, ENTITYID_PARTICIPANT, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
-    ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
-    ENTITYID_SPDP_BUILTIN_PARTICIPANT_DETECTOR, ENTITYID_UNKNOWN,
+    DURATION_ZERO, ENTITYID_PARTICIPANT, 
+    ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
+    ENTITYID_SPDP_BUILTIN_PARTICIPANT_DETECTOR, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
+    ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
+    ENTITYID_SEDP_BUILTIN_TOPIC_DETECTOR, ENTITYID_SEDP_BUILTIN_TOPIC_ANNOUNCER,
+    ENTITYID_UNKNOWN,
 };
-use crate::writer::{StatefulWriter,StatelessWriter};
+use crate::writer::{StatefulWriter, StatelessWriter};
 use crate::Udpv4Locator;
 
 struct Participant {
@@ -30,13 +33,13 @@ struct Participant {
     vendor_id: VendorId,
     socket: Transport,
     spdp_builtin_participant_reader: StatelessReader,
-    // spdp_builtin_participant_writer: StatelessWriter,
-    // sedp_builtin_publications_reader: StatefulReader,
+    spdp_builtin_participant_writer: StatelessWriter,
+    sedp_builtin_publications_reader: StatefulReader,
     sedp_builtin_publications_writer: StatefulWriter,
-    // sedp_builtin_subscriptions_reader: StatefulReader,
-    // sedp_builtin_subscriptions_writer: StatefulWriter,
-    // sedp_builtin_topics_reader: StatefulReader,
-    // sedp_builtin_topics_writer: StatefulWriter,
+    sedp_builtin_subscriptions_reader: StatefulReader,
+    sedp_builtin_subscriptions_writer: StatefulWriter,
+    sedp_builtin_topics_reader: StatefulReader,
+    sedp_builtin_topics_writer: StatefulWriter,
     participant_proxy_list: HashSet<ParticipantProxy>,
 }
 
@@ -48,7 +51,6 @@ impl Participant {
         vendor_id: VendorId,
     ) -> Self {
         let guid_prefix = [5, 6, 7, 8, 9, 5, 1, 2, 3, 4, 10, 11];
-        let participant_guid = GUID::new_participant_guid(guid_prefix);
 
         let socket = Transport::new(
             Udpv4Locator::new_udpv4(&[127, 0, 0, 1], &7400),
@@ -56,38 +58,96 @@ impl Participant {
         )
         .unwrap();
 
-        let endpoint = Endpoint::new(
-            Entity {
-                guid: GUID::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_DETECTOR),
-            },
-            TopicKind::WithKey,
-            ReliabilityKind::BestEffort,
-            default_unicast_locator_list.clone(),
-            default_multicast_locator_list.clone(),
-        );
-
         let heartbeat_response_delay = DURATION_ZERO;
         let heartbeat_suppression_duration = DURATION_ZERO;
         let expects_inline_qos = false;
 
         let spdp_builtin_participant_reader = StatelessReader::new(
-            endpoint,
-            heartbeat_response_delay,
-            heartbeat_suppression_duration,
+            GUID::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_DETECTOR),
+            TopicKind::WithKey,
+            ReliabilityKind::BestEffort,
+            default_unicast_locator_list.clone(),
+            default_multicast_locator_list.clone(),
+            heartbeat_response_delay.clone(),
+            heartbeat_suppression_duration.clone(),
             expects_inline_qos,
         );
 
-        let writer_endpoint = Endpoint::new(
-            Entity {
-                guid: GUID::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER),
-            },
+        let spdp_builtin_participant_writer = StatelessWriter::new(
+            GUID::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER),
+            TopicKind::WithKey,
+            ReliabilityKind::BestEffort,
+            default_unicast_locator_list.clone(),
+            default_multicast_locator_list.clone(),
+            true,          /*push_mode*/
+            DURATION_ZERO, /*heartbeat_period*/
+            DURATION_ZERO, /*nack_response_delay*/
+            DURATION_ZERO, /*nack_suppression_duration*/
+        );
+
+        let sedp_builtin_publications_reader = StatefulReader::new(
+            GUID::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR), 
             TopicKind::WithKey,
             ReliabilityKind::Reliable,
             default_unicast_locator_list.clone(),
             default_multicast_locator_list.clone(),
+            heartbeat_response_delay.clone(), 
+            heartbeat_suppression_duration.clone(), 
+            expects_inline_qos
         );
+
         let sedp_builtin_publications_writer = StatefulWriter::new(
-            writer_endpoint,
+            GUID::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER),
+            TopicKind::WithKey,
+            ReliabilityKind::Reliable,
+            default_unicast_locator_list.clone(),
+            default_multicast_locator_list.clone(),
+            true,          /*push_mode*/
+            DURATION_ZERO, /*heartbeat_period*/
+            DURATION_ZERO, /*nack_response_delay*/
+            DURATION_ZERO, /*nack_suppression_duration*/
+        );
+
+        let sedp_builtin_subscriptions_reader = StatefulReader::new(
+            GUID::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR), 
+            TopicKind::WithKey,
+            ReliabilityKind::Reliable,
+            default_unicast_locator_list.clone(),
+            default_multicast_locator_list.clone(),
+            heartbeat_response_delay.clone(), 
+            heartbeat_suppression_duration.clone(), 
+            expects_inline_qos
+        );
+
+        let sedp_builtin_subscriptions_writer = StatefulWriter::new(
+            GUID::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER),
+            TopicKind::WithKey,
+            ReliabilityKind::Reliable,
+            default_unicast_locator_list.clone(),
+            default_multicast_locator_list.clone(),
+            true,          /*push_mode*/
+            DURATION_ZERO, /*heartbeat_period*/
+            DURATION_ZERO, /*nack_response_delay*/
+            DURATION_ZERO, /*nack_suppression_duration*/
+        );
+
+        let sedp_builtin_topics_reader = StatefulReader::new(
+            GUID::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPIC_DETECTOR), 
+            TopicKind::WithKey,
+            ReliabilityKind::Reliable,
+            default_unicast_locator_list.clone(),
+            default_multicast_locator_list.clone(),
+            heartbeat_response_delay.clone(), 
+            heartbeat_suppression_duration.clone(), 
+            expects_inline_qos
+        );
+
+        let sedp_builtin_topics_writer = StatefulWriter::new(
+            GUID::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPIC_ANNOUNCER),
+            TopicKind::WithKey,
+            ReliabilityKind::Reliable,
+            default_unicast_locator_list.clone(),
+            default_multicast_locator_list.clone(),
             true,          /*push_mode*/
             DURATION_ZERO, /*heartbeat_period*/
             DURATION_ZERO, /*nack_response_delay*/
@@ -96,7 +156,7 @@ impl Participant {
 
         Participant {
             entity: Entity {
-                guid: participant_guid,
+                guid: GUID::new(guid_prefix, ENTITYID_PARTICIPANT),
             },
             default_unicast_locator_list,
             default_multicast_locator_list,
@@ -104,13 +164,13 @@ impl Participant {
             vendor_id,
             socket,
             spdp_builtin_participant_reader,
-            // spdp_builtin_participant_writer,
-            // sedp_builtin_publications_reader,
+            spdp_builtin_participant_writer,
+            sedp_builtin_publications_reader,
             sedp_builtin_publications_writer,
-            // sedp_builtin_subscriptions_reader,
-            // sedp_builtin_subscriptions_writer,
-            // sedp_builtin_topics_reader,
-            // sedp_builtin_topics_writer,
+            sedp_builtin_subscriptions_reader,
+            sedp_builtin_subscriptions_writer,
+            sedp_builtin_topics_reader,
+            sedp_builtin_topics_writer,
             participant_proxy_list: HashSet::new(),
         }
     }
@@ -208,9 +268,8 @@ impl Participant {
             .iter()
         {
             let participant_proxy = ParticipantProxy::new(change.data().unwrap()).unwrap();
-            
-            participant_proxy_list
-                .insert(participant_proxy);
+
+            participant_proxy_list.insert(participant_proxy);
         }
         for participant_proxy in participant_proxy_list.iter() {
             self.add_reader_proxy_for_sedp(&participant_proxy);
@@ -236,7 +295,8 @@ impl Participant {
                 participant_proxy.expects_inline_qos,
                 true, /*is_active*/
             );
-            self.sedp_builtin_publications_writer.matched_reader_add(reader_proxy);
+            self.sedp_builtin_publications_writer
+                .matched_reader_add(reader_proxy);
         }
     }
 }

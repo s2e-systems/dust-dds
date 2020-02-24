@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 
-use crate::cache::{HistoryCache, CacheChange};
+use crate::cache::{CacheChange, HistoryCache};
 use crate::endpoint::Endpoint;
+use crate::entity::Entity;
 use crate::parser::{InlineQosParameter, Payload};
 use crate::proxy::WriterProxy;
 use crate::types::{
@@ -20,14 +21,22 @@ impl StatefulReader {
     /// This operation creates a new RTPS StatefulReader. The newly-created stateful reader is initialized with
     /// an empty list of matched writers
     pub fn new(
-        endpoint: Endpoint,
+        guid: GUID,
+        topic_kind: TopicKind,
+        reliability_level: ReliabilityKind,
+        unicast_locator_list: LocatorList,
+        multicast_locator_list: LocatorList,
         heartbeat_response_delay: Duration,
         heartbeat_suppression_duration: Duration,
         expects_inline_qos: bool,
     ) -> Self {
         StatefulReader {
             reader: StatelessReader::new(
-                endpoint,
+                guid,
+                topic_kind,
+                reliability_level,
+                unicast_locator_list,
+                multicast_locator_list,
                 heartbeat_response_delay,
                 heartbeat_suppression_duration,
                 expects_inline_qos,
@@ -56,22 +65,40 @@ impl StatefulReader {
 }
 
 pub struct StatelessReader {
-    endpoint: Endpoint,
     pub heartbeat_response_delay: Duration,
     pub heartbeat_suppression_duration: Duration,
     pub reader_cache: HistoryCache,
     expects_inline_qos: bool,
+    // Enpoint members:
+    /// Entity base class (contains the GUID)
+    entity: Entity,
+    /// Used to indicate whether the Endpoint supports instance lifecycle management operations. Indicates whether the Endpoint is associated with a DataType that has defined some fields as containing the DDS key.
+    topic_kind: TopicKind,
+    /// The level of reliability supported by the Endpoint.
+    reliability_level: ReliabilityKind,
+    /// List of unicast locators (transport, address, port combinations) that can be used to send messages to the Endpoint. The list may be empty
+    unicast_locator_list: LocatorList,
+    /// List of multicast locators (transport, address, port combinations) that can be used to send messages to the Endpoint. The list may be empty.
+    multicast_locator_list: LocatorList,
 }
 
 impl StatelessReader {
     pub fn new(
-        endpoint: Endpoint,
+        guid: GUID,
+        topic_kind: TopicKind,
+        reliability_level: ReliabilityKind,
+        unicast_locator_list: LocatorList,
+        multicast_locator_list: LocatorList,
         heartbeat_response_delay: Duration,
         heartbeat_suppression_duration: Duration,
         expects_inline_qos: bool,
     ) -> Self {
         StatelessReader {
-            endpoint,
+            entity : Entity{ guid: guid},
+            topic_kind,
+            reliability_level,
+            unicast_locator_list,
+            multicast_locator_list,
             heartbeat_response_delay,
             heartbeat_suppression_duration,
             reader_cache: HistoryCache::new(),
