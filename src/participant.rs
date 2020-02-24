@@ -8,7 +8,7 @@ use crate::parser::{
 };
 use crate::participant_proxy::ParticipantProxy;
 use crate::proxy::ReaderProxy;
-use crate::reader::Reader;
+use crate::reader::{Reader,StatefulReader};
 use crate::transport::Transport;
 use crate::types::{
     BuiltInEndPoints, Duration, GuidPrefix, InlineQosParameterList, Locator, LocatorList,
@@ -19,7 +19,7 @@ use crate::types::{
     ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
     ENTITYID_SPDP_BUILTIN_PARTICIPANT_DETECTOR, ENTITYID_UNKNOWN,
 };
-use crate::writer::StatefulWriter;
+use crate::writer::{StatefulWriter,StatelessWriter};
 use crate::Udpv4Locator;
 
 struct Participant {
@@ -30,8 +30,13 @@ struct Participant {
     vendor_id: VendorId,
     socket: Transport,
     spdp_builtin_participant_reader: Reader,
-    // spdp_builtin_participant_writer: StatelessWriter,
+    spdp_builtin_participant_writer: StatelessWriter,
+    sedp_builtin_publications_reader: StatefulReader,
     sedp_builtin_publications_writer: StatefulWriter,
+    sedp_builtin_subscriptions_reader: StatefulReader,
+    sedp_builtin_subscriptions_writer: StatefulWriter,
+    sedp_builtin_topics_reader: StatefulReader,
+    sedp_builtin_topics_writer: StatefulWriter,
     participant_proxy_list: HashSet<ParticipantProxy>,
 }
 
@@ -88,6 +93,7 @@ impl Participant {
             DURATION_ZERO, /*nack_response_delay*/
             DURATION_ZERO, /*nack_suppression_duration*/
         );
+
         Participant {
             entity: Entity {
                 guid: participant_guid,
@@ -98,8 +104,13 @@ impl Participant {
             vendor_id,
             socket,
             spdp_builtin_participant_reader,
+            spdp_builtin_participant_writer,
+            sedp_builtin_publications_reader,
             sedp_builtin_publications_writer,
-            // sedp_builtin_publications_reader,
+            sedp_builtin_subscriptions_reader,
+            sedp_builtin_subscriptions_writer,
+            sedp_builtin_topics_reader,
+            sedp_builtin_topics_writer,
             participant_proxy_list: HashSet::new(),
         }
     }

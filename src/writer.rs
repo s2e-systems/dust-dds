@@ -132,7 +132,7 @@ impl Writer {
     }
 }
 
-struct StatelessWriter {
+pub struct StatelessWriter {
     writer: Writer,
     reader_locators: HashMap<Locator, ReaderLocator>,
 }
