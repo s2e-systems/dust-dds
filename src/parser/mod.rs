@@ -13,6 +13,7 @@ mod info_timestamp_submessage;
 mod nack_frag_submessage;
 
 use num_derive::FromPrimitive;
+use serde::ser;
 use serde_derive::{Deserialize, Serialize};
 use std::collections::VecDeque;
 
@@ -84,6 +85,27 @@ enum SubmessageKind {
     HeartbeatFrag = 0x13,
     Data = 0x15,
     DataFrag = 0x16,
+}
+
+#[derive(Serialize)]
+pub struct SerializedPayloadParameter<T> {
+    param_id: u16,
+    parameter_length: u16,
+    value: T,
+}
+
+impl<T> SerializedPayloadParameter<T>
+where
+    T: ser::Serialize,
+{
+    pub fn new(param_id: u16, value: T) -> Self {
+        let parameter_length = cdr::size::calc_serialized_data_size(&value) as u16;
+        SerializedPayloadParameter {
+            param_id,
+            parameter_length,
+            value,
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
@@ -390,7 +412,51 @@ pub fn parse_rtps_message(message: &[u8]) -> Result<RtpsMessage> {
 mod tests {
     use super::*;
 
-    use cdr::{BigEndian, Infinite};
+    use cdr::{BigEndian, LittleEndian, Infinite};
+    use crate::participant_proxy::SpdpParameterId;
+    use crate::types::Duration;
+
+    #[test]
+    fn test_serialize_pid(){
+        // Deadline = 0x0023, //DeadlineQosPolicy
+        let pid = SpdpParameterId::Deadline;
+        let value = Duration{seconds: 3, fraction: 0};
+        let expected = vec![
+            0x00, 0x01, 0x00, 0x00,
+            0x23, 0x00, 0x08, 0x00, 
+            0x03, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00];
+        let parameter = SerializedPayloadParameter::new(pid as u16, value);        
+        let result = cdr::serialize::<_,_,cdr::CdrLe>(&parameter, Infinite).unwrap();
+        assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn test_serialize_pids(){
+        // PID_DESTINATION_ORDER = 0x0025
+        let pid1 = SpdpParameterId::DestinationOrder;
+        let value1: u8 = 1;        
+        // PID_DEADLINE = 0x0023,
+        let pid2 = SpdpParameterId::Deadline;
+        let value2 = Duration{seconds: 3, fraction: 0};
+
+        let expected = vec![
+            0x00, 0x01, 0x00, 0x00, // Header
+            0x25, 0x00, 0x04, 0x00, // DESTINATION_ORDER
+            0x01, 0x00, 0x00, 0x00,                        
+            0x23, 0x00, 0x08, 0x00, // DEADLINE
+            0x03, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00];
+        let par1 = SerializedPayloadParameter::new(pid1 as u16, value1);
+        let par2 = SerializedPayloadParameter::new(pid2 as u16, value2);
+        let parameters = vec![
+            par1,     
+            /*par2, NEEDS TO BE SOLVED*/
+        ];
+        let result = cdr::serialize::<_,_,cdr::CdrLe>(&parameters, Infinite).unwrap();
+        assert_eq!(expected, result);
+    }
+
 
     #[test]
     fn test_parse_valid_message_header_only() {
