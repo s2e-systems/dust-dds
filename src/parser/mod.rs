@@ -92,6 +92,7 @@ pub struct SerializedPayloadParameter<T> {
     param_id: u16,
     parameter_length: u16,
     value: T,
+    padding: [Option<u8>;3],
 }
 
 impl<T> SerializedPayloadParameter<T>
@@ -99,11 +100,28 @@ where
     T: ser::Serialize,
 {
     pub fn new(param_id: u16, value: T) -> Self {
-        let parameter_length = cdr::size::calc_serialized_data_size(&value) as u16;
+        let value_length = cdr::size::calc_serialized_data_size(&value) as u16;
+
+        println!("Value length: {}", value_length);
+        
+        let padding_bytes = 4 - (value_length % 4);
+
+        let (padding, padding_length) = match padding_bytes {
+            3 => ([Some(0);3] , 3),
+            2 => ([Some(0), Some(0), None], 2),
+            1 => ([Some(0), None, None], 1),
+            _ => ([None;3], 0),
+        };
+
+        let parameter_length = value_length + padding_length;
+
+        println!("Value length: {}   Padding: {}   Parameter length: {}", value_length, padding_bytes, parameter_length);
+
         SerializedPayloadParameter {
             param_id,
             parameter_length,
             value,
+            padding,
         }
     }
 }
@@ -416,6 +434,13 @@ mod tests {
     use crate::participant_proxy::SpdpParameterId;
     use crate::types::Duration;
 
+    #[derive(Serialize)]
+    pub enum SpdpParameter {
+        DestinationOrder(SerializedPayloadParameter<u8>),
+        SomeVector(SerializedPayloadParameter<Vec<u8>>),        
+        ParticipantLeaseDuration(SerializedPayloadParameter<Duration>),
+    }
+
     #[test]
     fn test_serialize_pid(){
         // Deadline = 0x0023, //DeadlineQosPolicy
@@ -432,13 +457,16 @@ mod tests {
     }
 
     #[test]
-    fn test_serialize_pids(){
+    fn test_multiple_serialize_pids(){
         // PID_DESTINATION_ORDER = 0x0025
         let pid1 = SpdpParameterId::DestinationOrder;
         let value1: u8 = 1;        
         // PID_DEADLINE = 0x0023,
         let pid2 = SpdpParameterId::Deadline;
         let value2 = Duration{seconds: 3, fraction: 0};
+
+        let pid3 = SpdpParameterId::VendorId;
+        let value3 = vec![100u8,99,98,46,50];
 
         let expected = vec![
             0x00, 0x01, 0x00, 0x00, // Header
@@ -447,12 +475,9 @@ mod tests {
             0x23, 0x00, 0x08, 0x00, // DEADLINE
             0x03, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00];
-        let par1 = SerializedPayloadParameter::new(pid1 as u16, value1);
-        let par2 = SerializedPayloadParameter::new(pid2 as u16, value2);
-        let parameters = vec![
-            par1,     
-            /*par2, NEEDS TO BE SOLVED*/
-        ];
+        let par1 = SpdpParameter::DestinationOrder(SerializedPayloadParameter::new(pid1 as u16, value1));
+        let par2 = SpdpParameter::ParticipantLeaseDuration(SerializedPayloadParameter::new(pid2 as u16, value2));
+        let parameters = [par1,par2];
         let result = cdr::serialize::<_,_,cdr::CdrLe>(&parameters, Infinite).unwrap();
         assert_eq!(expected, result);
     }

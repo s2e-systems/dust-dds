@@ -8,7 +8,7 @@ use std::collections::HashMap;
 
 use crate::parser;
 use crate::parser::helpers::{deserialize, EndianessFlag};
-use crate::types::{BuiltInEndPointSet, Locator, Time, GUID};
+use crate::types::{BuiltInEndPointSet, Locator, Time, GUID, Duration};
 
 #[derive(Debug)]
 pub enum SpdpErrorMessage {
