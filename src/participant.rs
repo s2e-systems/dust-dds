@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashSet, HashMap};
 
 use crate::cache::HistoryCache;
 use crate::endpoint::Endpoint;
@@ -6,7 +6,7 @@ use crate::entity::Entity;
 use crate::parser::{
     parse_rtps_message, Data, InfoSrc, InfoTs, Payload, RtpsMessage, SubMessageType,
 };
-use crate::participant_proxy::ParticipantProxy;
+use crate::participant_proxy::{ParticipantProxy, SpdpParameterId};
 use crate::proxy::{ReaderProxy, WriterProxy};
 use crate::reader::{StatefulReader, StatelessReader};
 use crate::transport::Transport;
@@ -23,6 +23,10 @@ use crate::types::{
 };
 use crate::writer::{StatefulWriter, StatelessWriter};
 use crate::Udpv4Locator;
+use cdr::{PlCdrLe, Infinite};
+use serde::{Serialize, Serializer};
+use serde::ser::{SerializeMap};
+use serde_derive::{Serialize};
 
 struct Participant {
     entity: Entity,
@@ -40,6 +44,42 @@ struct Participant {
     sedp_builtin_topics_reader: StatefulReader,
     sedp_builtin_topics_writer: StatefulWriter,
     participant_proxy_list: HashSet<ParticipantProxy>,
+}
+
+#[derive(Serialize)]
+enum ParticipantElements {
+    ProtocolVersion(ProtocolVersion),
+    VendorId(VendorId),
+    DefaultUnicastLocator(Locator),
+    MetatrafficUnicastLocator(Locator),
+    ParticipantLeaseDuration(Duration),
+    ParticipantGuid(GUID),
+    BuiltinEndpointSet(u32),
+    Sentinel(u16),
+}
+
+impl Serialize for Participant {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: Serializer
+    {
+        let mut map = serializer.serialize_map(None)?;
+
+        map.serialize_entry(&(SpdpParameterId::ProtocolVersion as u16), &ParticipantElements::ProtocolVersion(self.protocol_version))?;
+        map.serialize_entry(&(SpdpParameterId::VendorId as u16), &ParticipantElements::VendorId(self.vendor_id))?;
+        map.serialize_entry(&(SpdpParameterId::DefaultUnicastLocator as u16), &ParticipantElements::DefaultUnicastLocator(self.default_unicast_locator_list[0]))?;
+        map.serialize_entry(&(SpdpParameterId::MetatrafficUnicastLocator as u16), &ParticipantElements::MetatrafficUnicastLocator(self.default_multicast_locator_list[0]))?;
+
+        let lease_duration = Duration{seconds:11,fraction:0};
+        map.serialize_entry(&(SpdpParameterId::ParticipantLeaseDuration as u16), &ParticipantElements::ParticipantLeaseDuration(lease_duration))?;
+
+        map.serialize_entry(&(SpdpParameterId::ParticipantGuid as u16), &ParticipantElements::ParticipantGuid(self.entity.guid))?;
+
+        let builint_set = 0x0415;
+        map.serialize_entry(&(SpdpParameterId::BuiltinEndpointSet as u16), &ParticipantElements::BuiltinEndpointSet(builint_set))?;
+
+        map.end()
+    }
 }
 
 impl Participant {
@@ -281,7 +321,6 @@ impl Participant {
     fn add_sedp_proxies(&mut self, participant_proxy: &ParticipantProxy) {
 
         // Publications
-
         if participant_proxy
             .available_builtin_endpoints()
             .has(BuiltInEndPoints::PublicationsDetector)
@@ -527,63 +566,49 @@ mod tests {
         );
 
         assert_eq!(participant.participant_proxy_list.len(), 1);
+    }
 
-        // // Change the source GUID prefix:
-        // // This should result in no new participant proxy
-        // data[9] = 99;
-        // sender
-        //     .send_to(&data, SocketAddr::from((multicast_group, port)))
-        //     .unwrap();
-
-        // participant.receive_data();
-
-        // assert_eq!(
-        //     participant
-        //         .spdp_builtin_participant_reader
-        //         .reader_cache
-        //         .get_changes()
-        //         .len(),
-        //     2
-        // );
-
-        // assert_eq!(participant.participant_proxy_list.len(), 1);
-
-        // // Change the InstanceHandle (GUID prefix of the KeyHash):
-        // data[61] = 99;
-        // sender
-        //     .send_to(&data, SocketAddr::from((multicast_group, port)))
-        //     .unwrap();
-
-        // participant.receive_data();
-
-        // assert_eq!(
-        //     participant
-        //         .spdp_builtin_participant_reader
-        //         .reader_cache
-        //         .get_changes()
-        //         .len(),
-        //     3
-        // );
-
-        // assert_eq!(participant.participant_proxy_list.len(), 1);
-
-        // // Change the InstanceHandle (GUID prefix of the KeyHash):
-        // data[173] = 99;
-        // sender
-        //     .send_to(&data, SocketAddr::from((multicast_group, port)))
-        //     .unwrap();
-
-        // participant.receive_data();
-
-        // assert_eq!(
-        //     participant
-        //         .spdp_builtin_participant_reader
-        //         .reader_cache
-        //         .get_changes()
-        //         .len(),
-        //     3
-        // );
-
-        // assert_eq!(participant.participant_proxy_list.len(), 2);
+    #[test]
+    fn create_participant_proxy_data() {
+        let vendor_id = [0x01, 0x42];
+        let protocol_version = ProtocolVersion { major: 2, minor: 1 };
+        let default_unicast_address = [0,0,0,0,0,0,0,0,0,0,0,0,192,168,2,4];
+        let metatraffic_multicast_address = [0,0,0,0,0,0,0,0,0,0,0,0,192,168,2,4];
+        let participant = Participant::new(vec![Locator::new(1,7411,default_unicast_address)], vec![Locator::new(1,7410,metatraffic_multicast_address)], protocol_version, vendor_id);
+        let data = vec![
+            0x00, 0x03, 0x00, 0x00, // [Data Submessage: SerializedPayload]   representation_identifier: octet[2] => PL_CDR_LE | representation_options: octet[2] => none
+            0x15, 0x00, 0x04, 0x00, // [Data Submessage: SerializedPayload]   parameterId_1: short => PID_PROTOCOL_VERSION | length: short => 4
+            0x02, 0x01, 0x00, 0x00, // [Data Submessage: SerializedPayload: PID_PROTOCOL_VERSION]  major: octet => 2 | minor: octet =>1 | padding 
+            0x16, 0x00, 0x04, 0x00, // [Data Submessage: SerializedPayload]  parameterId_1: short => PID_VENDORID  | length: short => 4
+            0x01, 0x42, 0x00, 0x00, // [Data Submessage: SerializedPayload: PID_VENDORID] vendorId: octet[2] => 12
+            0x31, 0x00, 0x18, 0x00, // [Data Submessage: SerializedPayload]  parameterId_1: short =>  PID_DEFAULT_UNICAST_LOCATOR | length: short => 24
+            0x01, 0x00, 0x00, 0x00, // [Data Submessage: SerializedPayload: PID_DEFAULT_UNICAST_LOCATOR]   
+            0xf3, 0x1c, 0x00, 0x00, // [Data Submessage: SerializedPayload: PID_DEFAULT_UNICAST_LOCATOR]   
+            0x00, 0x00, 0x00, 0x00, // [Data Submessage: SerializedPayload: PID_DEFAULT_UNICAST_LOCATOR]   
+            0x00, 0x00, 0x00, 0x00, // [Data Submessage: SerializedPayload: PID_DEFAULT_UNICAST_LOCATOR]  
+            0x00, 0x00, 0x00, 0x00, // [Data Submessage: SerializedPayload: PID_DEFAULT_UNICAST_LOCATOR]   
+            0xc0, 0xa8, 0x02, 0x04, // [Data Submessage: SerializedPayload: PID_DEFAULT_UNICAST_LOCATOR]
+            0x32, 0x00, 0x18, 0x00, // [Data Submessage: SerializedPayload] parameterId_1: short => PID_METATRAFFIC_UNICAST_LOCATOR | length: short => 24
+            0x01, 0x00, 0x00, 0x00, // [Data Submessage: SerializedPayload: PID_DEFAULT_UNICAST_LOCATOR]   
+            0xf2, 0x1c, 0x00, 0x00, // [Data Submessage: SerializedPayload: PID_DEFAULT_UNICAST_LOCATOR]   
+            0x00, 0x00, 0x00, 0x00, // [Data Submessage: SerializedPayload: PID_DEFAULT_UNICAST_LOCATOR]   
+            0x00, 0x00, 0x00, 0x00, // [Data Submessage: SerializedPayload: PID_DEFAULT_UNICAST_LOCATOR]  
+            0x00, 0x00, 0x00, 0x00, // [Data Submessage: SerializedPayload: PID_DEFAULT_UNICAST_LOCATOR]   
+            0xc0, 0xa8, 0x02, 0x04, // [Data Submessage: SerializedPayload: PID_DEFAULT_UNICAST_LOCATOR]   
+            0x02, 0x00, 0x08, 0x00, // [Data Submessage: SerializedPayload] parameterId_1: short => PID_PARTICIPANT_LEASE_DURATION | length: short => 8
+            0x0b, 0x00, 0x00, 0x00, // [Data Submessage: SerializedPayload: PID_PARTICIPANT_LEASE_DURATION] seconds: long => 11 
+            0x00, 0x00, 0x00, 0x00, // [Data Submessage: SerializedPayload: PID_PARTICIPANT_LEASE_DURATION] fraction: ulong => 0    
+            0x50, 0x00, 0x10, 0x00, // [Data Submessage: SerializedPayload] parameterId_1: short => PID_PARTICIPANT_GUID | length: short => 16
+            0x05, 0x06, 0x07, 0x08, // [Data Submessage: SerializedPayload: PID_PARTICIPANT_GUID] 
+            0x09, 0x05, 0x01, 0x02, // [Data Submessage: SerializedPayload: PID_PARTICIPANT_GUID]   
+            0x03, 0x04, 0x0a, 0x0b, // [Data Submessage: SerializedPayload: PID_PARTICIPANT_GUID]   
+            0x00, 0x00, 0x01, 0xc1, // [Data Submessage: SerializedPayload: PID_PARTICIPANT_GUID]   
+            0x58, 0x00, 0x04, 0x00, // [Data Submessage: SerializedPayload] parameterId_1: short => PID_BUILTIN_ENDPOINT_SET | length: short => 4
+            0x15, 0x04, 0x00, 0x00, // [Data Submessage: SerializedPayload: PID_BUILTIN_ENDPOINT_SET] BuiltinEndpointSet: bitmask => (0100 0001 0101‬) PARTICIPANT_ANNOUNCER && PUBLICATIONS_ANNOUNCER && SUBSCRIPTIONS_ANNOUNCER && PARTICIPANT_MESSAGE_DATA_WRITER
+            0x01, 0x00, 0x00, 0x00, // [Data Submessage: SerializedPayload] parameterId_1: short => PID_SENTINEL |  length: short => 0
+        ];
+        assert_eq!(
+            cdr::serialize::<_,_,PlCdrLe>(&participant, Infinite).unwrap(),
+            data);
     }
 }
