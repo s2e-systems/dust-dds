@@ -12,8 +12,8 @@ use crate::reader::{StatefulReader, StatelessReader};
 use crate::transport::Transport;
 use crate::types::{
     BuiltInEndPoints, Duration, GuidPrefix, InlineQosParameterList, Locator, LocatorList,
-    ProtocolVersion, ReliabilityKind, SequenceNumber, Time, TopicKind, VendorId, GUID,
-};
+    ProtocolVersion, ReliabilityKind, SequenceNumber, Time, TopicKind, VendorId, GUID, ChangeKind};
+
 use crate::types::{
     DURATION_ZERO, ENTITYID_PARTICIPANT, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
     ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
@@ -21,7 +21,7 @@ use crate::types::{
     ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
     ENTITYID_SPDP_BUILTIN_PARTICIPANT_DETECTOR, ENTITYID_UNKNOWN,
 };
-use crate::writer::{StatefulWriter, StatelessWriter};
+use crate::writer::{StatefulWriter, StatelessWriter, WriterOperations};
 use crate::Udpv4Locator;
 use cdr::{PlCdrLe, Infinite};
 use serde::{Serialize, Serializer};
@@ -67,8 +67,13 @@ impl Serialize for Participant {
 
         map.serialize_entry(&(SpdpParameterId::ProtocolVersion as u16), &ParticipantElements::ProtocolVersion(self.protocol_version))?;
         map.serialize_entry(&(SpdpParameterId::VendorId as u16), &ParticipantElements::VendorId(self.vendor_id))?;
-        map.serialize_entry(&(SpdpParameterId::DefaultUnicastLocator as u16), &ParticipantElements::DefaultUnicastLocator(self.default_unicast_locator_list[0]))?;
-        map.serialize_entry(&(SpdpParameterId::MetatrafficUnicastLocator as u16), &ParticipantElements::MetatrafficUnicastLocator(self.default_multicast_locator_list[0]))?;
+        for unicast_locator in &self.default_unicast_locator_list {
+            map.serialize_entry(&(SpdpParameterId::DefaultUnicastLocator as u16), &ParticipantElements::DefaultUnicastLocator(*unicast_locator))?;
+        }
+
+        for multicast_locator in &self.default_multicast_locator_list {
+            map.serialize_entry(&(SpdpParameterId::MetatrafficUnicastLocator as u16), &ParticipantElements::MetatrafficUnicastLocator(*multicast_locator))?;
+        }        
 
         let lease_duration = Duration{seconds:11,fraction:0};
         map.serialize_entry(&(SpdpParameterId::ParticipantLeaseDuration as u16), &ParticipantElements::ParticipantLeaseDuration(lease_duration))?;
@@ -193,7 +198,7 @@ impl Participant {
             DURATION_ZERO, /*nack_suppression_duration*/
         );
 
-        Participant {
+        let mut new_participant = Participant {
             entity: Entity {
                 guid: GUID::new(guid_prefix, ENTITYID_PARTICIPANT),
             },
@@ -211,7 +216,17 @@ impl Participant {
             sedp_builtin_topics_reader,
             sedp_builtin_topics_writer,
             participant_proxy_list: HashSet::new(),
-        }
+        };
+
+        new_participant.add_participant_to_spdp_writer();
+
+        new_participant
+    }
+
+    fn add_participant_to_spdp_writer(&mut self) {
+        let participant_data = cdr::serialize::<_,_,PlCdrLe>(self, Infinite).unwrap();
+        let change = self.spdp_builtin_participant_writer.writer().new_change(ChangeKind::Alive, Some(participant_data), None, [0;16]);
+        self.spdp_builtin_participant_writer.writer().history_cache().add_change(change);
     }
 
     fn receive_data(&mut self) {

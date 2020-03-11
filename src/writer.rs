@@ -85,7 +85,7 @@ impl ReaderLocator {
     }
 }
 
-trait WriterOperations {
+pub trait WriterOperations {
     fn writer(&mut self) -> &mut Writer;
     
     fn new_change(
@@ -99,7 +99,7 @@ trait WriterOperations {
     }
 }
 
-struct Writer {
+pub struct Writer {
     /// Entity base class (contains the GUID)
     entity: Entity,
 
@@ -167,6 +167,10 @@ impl Writer {
             inline_qos,
             data,
         )
+    }
+
+    pub fn history_cache(&mut self) -> &mut HistoryCache {
+        &mut self.writer_cache
     }
 }
 
