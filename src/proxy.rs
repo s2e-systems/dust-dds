@@ -128,8 +128,8 @@ impl WriterProxy {
             .iter()
             .filter(|cc| cc.get_writer_guid() == &self.remote_writer_guid)
             .filter(|cc| {
-                (self.is_change_status(cc, ChangeFromWriterStatusKind::Unknown)
-                    || self.is_change_status(cc, ChangeFromWriterStatusKind::Missing))
+                self.is_change_status(cc, ChangeFromWriterStatusKind::Unknown)
+                    || self.is_change_status(cc, ChangeFromWriterStatusKind::Missing)
             })
             .map(|cc| cc.clone_without_data())
             .collect::<Vec<CacheChange>>();
