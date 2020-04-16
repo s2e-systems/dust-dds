@@ -17,6 +17,16 @@ pub struct ReaderLocator {
     sequence_numbers_requested: HashSet<SequenceNumber>,
 }
 
+impl ReaderLocator {
+    pub fn new(expects_inline_qos: bool) -> Self {
+        ReaderLocator {
+            expects_inline_qos,
+            highest_sequence_number_sent: 0,
+            sequence_numbers_requested: HashSet::new(),
+        }
+    }
+}
+
 pub trait WriterOperations {
     fn writer(&mut self) -> &mut Writer;
     
@@ -156,12 +166,6 @@ impl StatelessWriter {
         }
     }
 
-    pub fn send_data(&mut self) {
-        // for (_, rl) in self.reader_locators.iter() {
-        //     rl.next_requested_change(&self.writer().history_cache());
-        // }
-    }
-
     pub fn next_unsent_change(&mut self, a_locator: Locator) -> Option<SequenceNumber>
     {
         let reader_locator = self.reader_locators.get_mut(&a_locator)?;
@@ -203,46 +207,12 @@ impl StatelessWriter {
     //         .filter(|cc| cc.get_sequence_number() > &reader_locator.highest_sequence_number_sent)
     //         .min()
     // }
-    
-    pub fn next_requested_change<'a, 'b>(
-        reader_locator: &'b ReaderLocator,
-        history_cache: &'a HistoryCache,
-    ) -> Option<&'a CacheChange> {
-        let min_requested_sequence_number = reader_locator.sequence_numbers_requested.iter().min()?;
-        history_cache
-            .get_changes()
-            .iter()
-            .find(|cc| cc.get_sequence_number() == min_requested_sequence_number)
-    }
-    
-    pub fn requested_changes<'a, 'b>(
-        reader_locator: &'b ReaderLocator,
-        history_cache: &'a HistoryCache,
-    ) -> HashSet<&'a CacheChange> {
-        let mut requested_changes = HashSet::new();
-        for rsn in reader_locator.sequence_numbers_requested.iter() {
-            if let Some(cc) = history_cache
-                .get_changes()
-                .iter()
-                .find(|cc| cc.get_sequence_number() == rsn)
-            {
-                requested_changes.insert(cc);
-            }
-        }
-        requested_changes
+
+    pub fn get_data_to_send(&mut self, a_locator: Locator) /*Vec of data */{
+        unimplemented!();
     }
 }
 
-
-impl ReaderLocator {
-    pub fn new(expects_inline_qos: bool) -> Self {
-        ReaderLocator {
-            expects_inline_qos,
-            highest_sequence_number_sent: 0,
-            sequence_numbers_requested: HashSet::new(),
-        }
-    }
-}
 
 impl WriterOperations for StatelessWriter {
     fn writer(&mut self) -> &mut Writer {
@@ -355,47 +325,6 @@ mod tests {
     }
 
     #[test]
-    fn test_stateless_writer_next_unsent_change() {
-        let mut writer = StatelessWriter::new(
-             GUID::new([0;12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
-             TopicKind::WithKey,
-             ReliabilityKind::BestEffort,
-             vec![Locator::new(0, 7400, [0;16])], /*unicast_locator_list*/
-             vec![], /*multicast_locator_list*/
-             false, /*push_mode*/
-             DURATION_ZERO,  /* heartbeat_period */
-             DURATION_ZERO, /* nack_response_delay */
-             DURATION_ZERO, /* nack_suppression_duration */
-            );
-
-        let locator = Locator::new(0, 7400, [1;16]);
-
-        writer.reader_locator_add(locator);
-
-        // Verify next unsent change without any changes created
-        assert_eq!(writer.next_unsent_change(locator), None);
-
-        let cache_change_seq1 = writer.new_change(
-            ChangeKind::Alive,
-            Some(vec![1,2,3]), /*data*/
-            None, /*inline_qos*/
-            [1;16], /*handle*/
-        );
-        
-        let cache_change_seq2 = writer.new_change(
-            ChangeKind::NotAliveUnregistered,
-            None, /*data*/
-            None, /*inline_qos*/
-            [1;16], /*handle*/
-        );
-
-        assert_eq!(writer.next_unsent_change(locator), Some(1));
-        assert_eq!(writer.next_unsent_change(locator), Some(2));
-        assert_eq!(writer.next_unsent_change(locator), None);
-        assert_eq!(writer.next_unsent_change(locator), None);        
-    }
-
-    #[test]
     fn test_stateless_writer_unsent_changes() {
         let mut writer = StatelessWriter::new(
              GUID::new([0;12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
@@ -415,6 +344,7 @@ mod tests {
 
         // Verify next unsent change without any changes created
         assert_eq!(writer.unsent_changes(locator), HashSet::new());
+        assert_eq!(writer.next_unsent_change(locator), None);
 
         let cache_change_seq1 = writer.new_change(
             ChangeKind::Alive,
@@ -432,13 +362,23 @@ mod tests {
 
         let hash_set_2_changes : HashSet<SequenceNumber> = [1,2].iter().cloned().collect();
         assert_eq!(writer.unsent_changes(locator), hash_set_2_changes);
-        writer.next_unsent_change(locator);
+        assert_eq!(writer.next_unsent_change(locator), Some(1));
 
         let hash_set_1_change : HashSet<SequenceNumber> = [2].iter().cloned().collect();
         assert_eq!(writer.unsent_changes(locator), hash_set_1_change);
-        writer.next_unsent_change(locator);
+        assert_eq!(writer.next_unsent_change(locator), Some(2));
 
-        assert_eq!(writer.unsent_changes(locator), HashSet::new());        
+        assert_eq!(writer.unsent_changes(locator), HashSet::new());    
+        assert_eq!(writer.next_unsent_change(locator), None);
+        assert_eq!(writer.next_unsent_change(locator), None);        
+
+        let cache_change_seq3 = writer.new_change(
+            ChangeKind::Alive,
+            Some(vec![1,2,3]), /*data*/
+            None, /*inline_qos*/
+            [1;16], /*handle*/
+        );
+
+        assert_eq!(writer.next_unsent_change(locator), Some(3));
     }
-
 }

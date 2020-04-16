@@ -220,6 +220,8 @@ impl Participant {
 
         new_participant.add_participant_to_spdp_writer();
 
+        new_participant.spdp_builtin_participant_writer.reader_locator_add(Locator::new(0 /*UDP_V4_KIND*/,7400, [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 239, 255, 0, 1]));
+
         new_participant
     }
 
@@ -242,6 +244,12 @@ impl Participant {
         }
 
         // TODO: Check if there are changes between participant proxy list and spdp_builtin_participant_reader history cache
+    }
+
+    fn send_data(&mut self) {
+        let multicast_locator = Locator::new(0 /*UDP_V4_KIND*/,7400, [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 239, 255, 0, 1]);
+        //self.spdp_builtin_participant_writer.get_data_to_send(); // Returns a vec of [Data(1) Data(2)]
+
     }
 
     pub fn process_message(&mut self, message: RtpsMessage) {
