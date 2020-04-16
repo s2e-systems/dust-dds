@@ -8,10 +8,10 @@ use super::{ErrorMessage, Result};
 
 #[derive(PartialEq, Debug)]
 pub struct Gap {
-    reader_id: EntityId,
-    writer_id: EntityId,
-    gap_start: SequenceNumber,
-    gap_list: SequenceNumberSet,
+    pub reader_id: EntityId,
+    pub writer_id: EntityId,
+    pub gap_start: SequenceNumber,
+    pub gap_list: SequenceNumberSet,
 }
 
 pub fn parse_gap_submessage(submessage: &[u8], submessage_flags: &u8) -> Result<Gap> {

@@ -4,8 +4,9 @@ use crate::entity::Entity;
 use crate::proxy::ReaderProxy;
 use crate::types::{
     ChangeKind, Duration, InstanceHandle, Locator, LocatorList, ParameterList, ReliabilityKind,
-    SequenceNumber, TopicKind, GUID,
+    SequenceNumber, TopicKind, GUID,ENTITYID_UNKNOWN,
 };
+use crate::parser::{Data, Gap};
 
 use std::collections::{HashMap, HashSet};
 
@@ -25,6 +26,11 @@ impl ReaderLocator {
             sequence_numbers_requested: HashSet::new(),
         }
     }
+}
+
+pub enum StatelessWriterData {
+    Data(Data),
+    Gap(Gap),
 }
 
 pub trait WriterOperations {
@@ -208,8 +214,26 @@ impl StatelessWriter {
     //         .min()
     // }
 
-    pub fn get_data_to_send(&mut self, a_locator: Locator) /*Vec of data */{
-        unimplemented!();
+    pub fn get_data_to_send(&mut self, a_locator: Locator) -> Vec<StatelessWriterData> {
+        let mut data = Vec::new();
+        
+        let next_unsent_seq_num = self.next_unsent_change(a_locator);
+        if let Some(unsent_seq_num) = next_unsent_seq_num {
+                // Get the sequence number change from the history cache
+                // If it is available send a data message,
+                // otherwise send a gap message
+                let gap = Gap {
+                    reader_id: ENTITYID_UNKNOWN,
+                    writer_id: ENTITYID_UNKNOWN,
+                    gap_start: 0,
+                    gap_list: Vec::new(),
+                };
+
+                data.push(StatelessWriterData::Gap(gap));
+            
+
+            }
+        data
     }
 }
 
@@ -380,5 +404,46 @@ mod tests {
         );
 
         assert_eq!(writer.next_unsent_change(locator), Some(3));
+    }
+
+    #[test]
+    fn test_stateless_writer_get_data_to_send() {
+        let mut writer = StatelessWriter::new(
+            GUID::new([0;12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
+            TopicKind::WithKey,
+            ReliabilityKind::BestEffort,
+            vec![Locator::new(0, 7400, [0;16])], /*unicast_locator_list*/
+            vec![], /*multicast_locator_list*/
+            false, /*push_mode*/
+            DURATION_ZERO,  /* heartbeat_period */
+            DURATION_ZERO, /* nack_response_delay */
+            DURATION_ZERO, /* nack_suppression_duration */
+           );
+
+       let locator = Locator::new(0, 7400, [1;16]);
+
+       writer.reader_locator_add(locator);
+
+       // Verify next unsent change without any changes created
+       assert_eq!(writer.unsent_changes(locator), HashSet::new());
+       assert_eq!(writer.next_unsent_change(locator), None);
+
+       let cache_change_seq1 = writer.new_change(
+           ChangeKind::Alive,
+           Some(vec![1,2,3]), /*data*/
+           None, /*inline_qos*/
+           [1;16], /*handle*/
+       );
+       
+       let cache_change_seq2 = writer.new_change(
+           ChangeKind::NotAliveUnregistered,
+           None, /*data*/
+           None, /*inline_qos*/
+           [1;16], /*handle*/
+       );
+
+       let writer_data = writer.get_data_to_send(locator);
+       assert_eq!(writer_data.len(), 2);
+
     }
 }
