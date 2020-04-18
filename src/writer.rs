@@ -6,7 +6,7 @@ use crate::types::{
     ChangeKind, Duration, InstanceHandle, Locator, LocatorList, ParameterList, ReliabilityKind,
     SequenceNumber, TopicKind, GUID,ENTITYID_UNKNOWN,
 };
-use crate::parser::{Data, Gap};
+use crate::parser::{Data, Gap, Payload};
 
 use std::collections::{HashMap, HashSet, BTreeMap};
 
@@ -216,12 +216,21 @@ impl StatelessWriter {
 
     pub fn get_data_to_send(&mut self, a_locator: Locator) -> Vec<StatelessWriterData> {
         let mut data = Vec::new();
-        
-        let next_unsent_seq_num = self.next_unsent_change(a_locator);
-        if let Some(unsent_seq_num) = next_unsent_seq_num {
-                // Get the sequence number change from the history cache
-                // If it is available send a data message,
-                // otherwise send a gap message
+
+        while let Some(next_unsent_seq_num) = self.next_unsent_change(a_locator)
+        {
+            let whc = self.writer.history_cache().get_changes();
+            if let Some(cache_change) = whc.iter().find(|cc| cc.get_sequence_number() == &next_unsent_seq_num) {
+                let payload_data = Data::new(
+                    ENTITYID_UNKNOWN, /*reader_id*/
+                    ENTITYID_UNKNOWN, /*writer_id*/
+                    *cache_change.get_sequence_number(), /*writer_sn*/
+                    None, /*inline_qos*/
+                    Payload::Data(cache_change.data().unwrap().to_vec()) /*serialized_payload*/);
+
+                data.push(StatelessWriterData::Data(payload_data));
+
+            } else {
                 let gap = Gap {
                     reader_id: ENTITYID_UNKNOWN,
                     writer_id: ENTITYID_UNKNOWN,
@@ -230,9 +239,9 @@ impl StatelessWriter {
                 };
 
                 data.push(StatelessWriterData::Gap(gap));
-            
-
             }
+        }
+        
         data
     }
 }
@@ -436,14 +445,30 @@ mod tests {
        );
        
        let cache_change_seq2 = writer.new_change(
-           ChangeKind::NotAliveUnregistered,
-           None, /*data*/
+           ChangeKind::Alive,
+           Some(vec!(4,5,6)), /*data*/
            None, /*inline_qos*/
            [1;16], /*handle*/
        );
 
+       writer.writer().history_cache().add_change(cache_change_seq1);
+       writer.writer().history_cache().add_change(cache_change_seq2);
+
        let writer_data = writer.get_data_to_send(locator);
        assert_eq!(writer_data.len(), 2);
+       if let StatelessWriterData::Data(message_1) = &writer_data[0] {
+           
+       }
+       else {
+           panic!("Wrong message type");
+       };
+
+       if let StatelessWriterData::Data(message_2) = &writer_data[1] {
+           
+        }
+        else {
+            panic!("Wrong message type");
+        };
 
     }
 }
