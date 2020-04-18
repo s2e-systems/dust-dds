@@ -109,7 +109,7 @@ pub fn parse_sequence_number_set(
 
     let num_bitmap_fields = ((num_bits + 31) >> 5) as usize;
 
-    let mut sequence_number_set = SequenceNumberSet::with_capacity(num_bitmap_fields);
+    let mut sequence_number_set = SequenceNumberSet::new();
 
     for bitmap_field_index in 0..num_bitmap_fields {
         let field_first_index = num_bits_last_index + 1 + bitmap_field_index * BITMAP_FIELD_SIZE;
@@ -130,7 +130,7 @@ pub fn parse_sequence_number_set(
                 + (sequence_number_index + (BITMAP_FIELD_SIZE * 8) * bitmap_field_index) as i64;
             let sequence_bit_mask = 1 << sequence_number_index;
             let sequence_bit = (bitmap_field & sequence_bit_mask) == sequence_bit_mask;
-            sequence_number_set.push((sequence_number, sequence_bit));
+            sequence_number_set.insert(sequence_number, sequence_bit);
         }
     }
 
@@ -303,11 +303,11 @@ mod tests {
             assert_eq!(sequence_set_1.len(), 12);
             assert_eq!(sequence_set_size, 16);
             for (index, item) in sequence_set_1.iter().enumerate() {
-                assert_eq!(item.0, 1234 + index as i64);
-                if item.0 == 1236 || item.0 == 1237 {
-                    assert_eq!(item.1, true);
+                assert_eq!(item.0, &(1234 + index as i64));
+                if item.0 == &1236 || item.0 == &1237 {
+                    assert_eq!(item.1, &true);
                 } else {
-                    assert_eq!(item.1, false);
+                    assert_eq!(item.1, &false);
                 }
             }
         }
@@ -328,11 +328,11 @@ mod tests {
             assert_eq!(sequence_set_1.len(), 12);
             assert_eq!(sequence_set_size, 16);
             for (index, item) in sequence_set_1.iter().enumerate() {
-                assert_eq!(item.0, 1234 + index as i64);
-                if item.0 == 1236 || item.0 == 1237 {
-                    assert_eq!(item.1, true);
+                assert_eq!(item.0, &(1234 + index as i64));
+                if item.0 == &1236 || item.0 == &1237 {
+                    assert_eq!(item.1, &true);
                 } else {
-                    assert_eq!(item.1, false);
+                    assert_eq!(item.1, &false);
                 }
             }
         }
@@ -409,11 +409,11 @@ mod tests {
             assert_eq!(sequence_set.len(), 256);
             assert_eq!(sequence_set_size, 44);
             for (index, item) in sequence_set.iter().enumerate() {
-                assert_eq!(item.0, 4294968530i64 + index as i64);
+                assert_eq!(item.0, &(4294968530i64 + index as i64));
                 if (index + 1) % 2 == 0 {
-                    assert_eq!(item.1, true);
+                    assert_eq!(item.1, &true);
                 } else {
-                    assert_eq!(item.1, false);
+                    assert_eq!(item.1, &false);
                 }
             }
         }
@@ -431,11 +431,11 @@ mod tests {
             assert_eq!(sequence_set.len(), 40);
             assert_eq!(sequence_set_size, 20);
             for (index, item) in sequence_set.iter().enumerate() {
-                assert_eq!(item.0, 4294968530i64 + index as i64);
+                assert_eq!(item.0, &(4294968530i64 + index as i64));
                 if (index + 1) % 2 == 0 {
-                    assert_eq!(item.1, true);
+                    assert_eq!(item.1, &true);
                 } else {
-                    assert_eq!(item.1, false);
+                    assert_eq!(item.1, &false);
                 }
             }
         }
@@ -453,11 +453,11 @@ mod tests {
             assert_eq!(sequence_set.len(), 40);
             assert_eq!(sequence_set_size, 20);
             for (index, item) in sequence_set.iter().enumerate() {
-                assert_eq!(item.0, 1103806596306i64 + index as i64);
+                assert_eq!(item.0, &(1103806596306i64 + index as i64));
                 if (index + 1) % 2 == 0 {
-                    assert_eq!(item.1, true);
+                    assert_eq!(item.1, &true);
                 } else {
-                    assert_eq!(item.1, false);
+                    assert_eq!(item.1, &false);
                 }
             }
         }

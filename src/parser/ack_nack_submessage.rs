@@ -89,7 +89,7 @@ mod tests {
         assert_eq!(ack_nack_big_endian.count, 15);
         assert_eq!(
             ack_nack_big_endian.reader_sn_state,
-            vec![
+            [
                 (1234, false),
                 (1235, false),
                 (1236, true),
@@ -98,7 +98,7 @@ mod tests {
                 (1239, false),
                 (1240, false),
                 (1241, false),
-            ]
+            ].iter().cloned().collect()
         );
 
         let ack_nack_big_endian_final =
@@ -115,7 +115,7 @@ mod tests {
         assert_eq!(ack_nack_big_endian_final.count, 15);
         assert_eq!(
             ack_nack_big_endian_final.reader_sn_state,
-            vec![
+            [
                 (1234, false),
                 (1235, false),
                 (1236, true),
@@ -124,7 +124,7 @@ mod tests {
                 (1239, false),
                 (1240, false),
                 (1241, false),
-            ]
+            ].iter().cloned().collect()
         );
     }
 
@@ -149,7 +149,7 @@ mod tests {
         assert_eq!(ack_nack_little_endian.count, 15);
         assert_eq!(
             ack_nack_little_endian.reader_sn_state,
-            vec![
+            [
                 (1234, false),
                 (1235, false),
                 (1236, true),
@@ -158,7 +158,7 @@ mod tests {
                 (1239, false),
                 (1240, false),
                 (1241, false),
-            ]
+            ].iter().cloned().collect()
         );
 
         let ack_nack_little_endian_final =
@@ -175,7 +175,7 @@ mod tests {
         assert_eq!(ack_nack_little_endian_final.count, 15);
         assert_eq!(
             ack_nack_little_endian_final.reader_sn_state,
-            vec![
+            [
                 (1234, false),
                 (1235, false),
                 (1236, true),
@@ -184,7 +184,7 @@ mod tests {
                 (1239, false),
                 (1240, false),
                 (1241, false),
-            ]
+            ].iter().cloned().collect()
         );
     }
 }

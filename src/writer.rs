@@ -8,7 +8,7 @@ use crate::types::{
 };
 use crate::parser::{Data, Gap};
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, BTreeMap};
 
 pub struct ReaderLocator {
     //requested_changes: HashSet<CacheChange>,
@@ -226,7 +226,7 @@ impl StatelessWriter {
                     reader_id: ENTITYID_UNKNOWN,
                     writer_id: ENTITYID_UNKNOWN,
                     gap_start: 0,
-                    gap_list: Vec::new(),
+                    gap_list: BTreeMap::new(),
                 };
 
                 data.push(StatelessWriterData::Gap(gap));

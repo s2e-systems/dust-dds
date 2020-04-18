@@ -1,6 +1,7 @@
 use crate::parser::InlineQosParameter;
 use serde_derive::{Deserialize, Serialize};
 use std::{i32, u32};
+use std::collections::BTreeMap;
 
 #[derive(Serialize, Hash, Deserialize, Eq, PartialEq, Default, Debug, Clone, Copy)]
 pub struct EntityId {
@@ -253,7 +254,7 @@ pub type LocatorList = Vec<Locator>;
 pub type GuidPrefix = [u8; 12];
 pub type Count = i32;
 pub type SequenceNumber = i64;
-pub type SequenceNumberSet = Vec<(SequenceNumber, bool)>;
+pub type SequenceNumberSet = BTreeMap<SequenceNumber, bool>;
 pub type FragmentNumber = u32;
 pub type FragmentNumberSet = Vec<(FragmentNumber, bool)>;
 pub type KeyHash = [u8; 16];
