@@ -83,12 +83,13 @@ impl Data {
     }
 }
 
-pub fn parse_data_submessage(submessage: &[u8], submessage_flags: &u8) -> Result<Data> {
-    const INLINE_QOS_FLAG_MASK: u8 = 0x02;
-    const DATA_FLAG_MASK: u8 = 0x04;
-    const KEY_FLAG_MASK: u8 = 0x08;
-    const NON_STANDARD_PAYLOAD_FLAG_MASK: u8 = 0x10;
+const INLINE_QOS_FLAG_MASK: u8 = 0x02;
+const DATA_FLAG_MASK: u8 = 0x04;
+const KEY_FLAG_MASK: u8 = 0x08;
+const NON_STANDARD_PAYLOAD_FLAG_MASK: u8 = 0x10;
 
+pub fn parse_data_submessage(submessage: &[u8], submessage_flags: &u8) -> Result<Data> {
+    
     const EXTRA_FLAGS_FIRST_INDEX: usize = 0;
     const EXTRA_FLAGS_LAST_INDEX: usize = 1;
     const OCTETS_TO_INLINE_QOS_FIRST_INDEX: usize = 2;
@@ -192,11 +193,29 @@ impl Serialize for Data {
     where
         S: Serializer
     {
-        let flags : u8 = 7;
+        let mut flags : u8 = 1; // Fixed Little Endian endianness
 
-        let octets_to_next_header : u16 = 284;
-        let extra_flags : u16 = 0;
-        let octets_to_inline_qos: u16 = 16;
+        if self.inline_qos.is_some() {
+            flags |= INLINE_QOS_FLAG_MASK;
+        }
+
+        match self.serialized_payload {
+            Payload::Data(_) => flags |= DATA_FLAG_MASK,
+            Payload::Key(_) => flags |= KEY_FLAG_MASK,
+            Payload::NonStandard(_) => flags |= NON_STANDARD_PAYLOAD_FLAG_MASK,
+            _ => (),
+        }
+
+        let payload_size = match &self.serialized_payload {
+            Payload::Data(data) | Payload::Key(data) | Payload::NonStandard(data)  => data.len(),
+            _ => 0,
+        };
+
+        println!("Payload size {:?}", payload_size);
+
+        let octets_to_next_header = (24 + payload_size + 20) as u16; /*TODO: inline_qos_size is fixed at 20 for now */
+        const EXTRA_FLAGS : u16 = 0;
+        const OCTETS_TO_INLINE_QOS: u16 = 16;
 
         let writer_sn_msb = ((*self.writer_sn() as u64 & 0xFFFFFFFF00000000) >> 32 ) as i32;
         let writer_sn_lsb = (*self.writer_sn() as u64 & 0x00000000FFFFFFFF) as i32;
@@ -205,8 +224,8 @@ impl Serialize for Data {
         state.serialize_field("Header",&(SubmessageKind::Data as u8))?;
         state.serialize_field("Flags",&flags)?;
         state.serialize_field("OctetsToNextHeader",&octets_to_next_header)?;
-        state.serialize_field("OctetsToNextHeader",&extra_flags)?;
-        state.serialize_field("OctetsToNextHeader",&octets_to_inline_qos)?;
+        state.serialize_field("ExtraFlags",&EXTRA_FLAGS)?;
+        state.serialize_field("OctetsToInlineQos",&OCTETS_TO_INLINE_QOS)?;
         state.serialize_field("ReaderId",self.reader_id())?;
         state.serialize_field("WriterId",self.writer_id())?;
 
