@@ -8,6 +8,7 @@ use super::{ErrorMessage, Result, SubmessageKind};
 use serde::ser::{Serialize, Serializer, SerializeStruct};
 use cdr::{PlCdrLe, Infinite, LittleEndian};
 use cdr::ser::serialize_data;
+use serde_bytes::ByteBuf;
 
 #[derive(PartialEq, Debug)]
 pub enum Payload {
@@ -215,23 +216,14 @@ impl Serialize for Data {
         if let Some(inline_qos) = self.inline_qos() {
             state.serialize_field("InlineQoS", inline_qos)?;
         }
-
         
-        // Where serialization is needed it is done as a slice to avoid having the size representation
-        // of the vector in the output
+        // Use the serde bytebuf wrapper to ensure that the data is interpreted as a byte array rather than a sequence
         match self.serialized_payload() {
-            Payload::Data(data) | Payload::NonStandard(data) | Payload::Key(data) => {
-                for data_element in data.iter() {
-                    state.serialize_field("Serialized Payload Data", data_element)?;
-                }
-                Ok(())
-            },
+            Payload::Data(data) | Payload::NonStandard(data) | Payload::Key(data) => state.serialize_field("Serialized Payload Data",  &ByteBuf::from(data.as_slice())),
             Payload::None => Ok(()),
         }?;
 
         state.end()
-
-        
     }
 }
 
