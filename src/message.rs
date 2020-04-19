@@ -93,7 +93,7 @@ fn process_data(
 mod tests {
 
     use super::*;
-    use crate::types::EntityId;
+    use crate::types::{EntityId, InlineQosParameterList};
 
     #[test]
     fn test_process_info_ts_and_data_rtps_message() {
@@ -113,9 +113,9 @@ mod tests {
             EntityId::new([0, 0, 0], 0),
             EntityId::new([0, 1, 0], 1),
             1,
-            Some(vec![InlineQosParameter::KeyHash([
+            Some(InlineQosParameterList::new_from_vec(vec![InlineQosParameter::KeyHash([
                 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 0, 1, 0, 1,
-            ])]),
+            ])])),
             Payload::Data(vec![1]),
         ));
         rtps_message.add_submessage(data_submessage);

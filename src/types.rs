@@ -1,7 +1,11 @@
 use crate::parser::InlineQosParameter;
+use serde::{Serialize, Serializer};
+use serde::ser::{SerializeMap};
 use serde_derive::{Deserialize, Serialize};
 use std::{i32, u32};
+use std::slice::Iter;
 use std::collections::BTreeMap;
+use std::ops::Index;
 
 #[derive(Serialize, Hash, Deserialize, Eq, PartialEq, Default, Debug, Clone, Copy)]
 pub struct EntityId {
@@ -145,14 +149,58 @@ pub const DURATION_INFINITE: Duration = Duration {
     fraction: u32::MAX,
 };
 
-pub type InlineQosParameterList = Vec<InlineQosParameter>;
+pub type InlineQosParameterList = ParameterList<InlineQosParameter>;
 
-pub type ParameterList = Vec<Parameter>;
+pub trait Parameter {
+    fn parameter_id(&self) -> u16;
+}
 
-#[derive(Hash, Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
-pub struct Parameter {
-    pub parameter_id: u16,
-    pub value: Vec<u8>,
+#[derive(Hash, Clone, Debug, PartialEq, Eq)]
+pub struct ParameterList<T: Parameter>(Vec<T>);
+
+impl<T: Parameter> ParameterList<T> {
+    pub fn new() -> Self {
+        ParameterList(Vec::new())
+    }
+
+    pub fn new_from_vec(value: Vec<T>) -> Self {
+        ParameterList(value)
+    }
+
+    pub fn iter(&self) -> Iter<'_,T>{
+        self.0.iter()
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn push(&mut self, value: T) {
+        self.0.push(value);
+    }
+}
+
+impl<T: Parameter> Index<usize> for ParameterList<T> {
+    type Output = T;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        self.0.index(index)
+    }
+}
+
+impl<T: Parameter + Serialize> Serialize for ParameterList<T> {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: Serializer
+    {
+        let mut map = serializer.serialize_map(None)?;
+
+        for item in self.0.iter() {
+            map.serialize_entry(&item.parameter_id(),item)?;
+        }
+
+        map.end()
+    }
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Copy, Hash, Eq)]

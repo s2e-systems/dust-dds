@@ -6,7 +6,7 @@ use crate::types::{
     ChangeKind, Duration, InstanceHandle, Locator, LocatorList, ParameterList, ReliabilityKind,
     SequenceNumber, TopicKind, GUID,ENTITYID_UNKNOWN,
 };
-use crate::parser::{Data, Gap, Payload};
+use crate::parser::{Data, Gap, Payload, InlineQosParameter};
 
 use std::collections::{HashMap, HashSet, BTreeMap};
 
@@ -40,7 +40,7 @@ pub trait WriterOperations {
         &mut self,
         kind: ChangeKind,
         data: Option<Vec<u8>>,
-        inline_qos: Option<ParameterList>,
+        inline_qos: Option<ParameterList<InlineQosParameter>>,
         handle: InstanceHandle,
     ) -> CacheChange {
         self.writer().new_change(kind, data, inline_qos, handle)
@@ -103,7 +103,7 @@ impl Writer {
         &mut self,
         kind: ChangeKind,
         data: Option<Vec<u8>>,
-        inline_qos: Option<ParameterList>,
+        inline_qos: Option<ParameterList<InlineQosParameter>>,
         handle: InstanceHandle,
     ) -> CacheChange {
         self.last_change_sequence_number = self.last_change_sequence_number + 1;

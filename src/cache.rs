@@ -8,7 +8,7 @@ use crate::parser::{
     Data, InfoSrc, InfoTs, InlineQosParameter, Payload, RtpsMessage, SubMessageType,
 };
 use crate::types::{
-    ChangeKind, EntityId, GuidPrefix, InstanceHandle, Parameter, ParameterList, ProtocolVersion,
+    ChangeKind, EntityId, GuidPrefix, InstanceHandle, ParameterList, ProtocolVersion,
     SequenceNumber, Time, VendorId, GUID,
 };
 use crate::types::{ENTITYID_UNKNOWN, ENTITY_KIND_WRITER_WITH_KEY};
@@ -20,7 +20,7 @@ pub struct CacheChange {
     writer_guid: GUID,
     instance_handle: InstanceHandle,
     sequence_number: SequenceNumber,
-    inline_qos: Option<ParameterList>,
+    inline_qos: Option<ParameterList<InlineQosParameter>>,
     data: Option<Vec<u8>>,
 }
 
@@ -30,7 +30,7 @@ impl CacheChange {
         writer_guid: GUID,
         instance_handle: InstanceHandle,
         sequence_number: SequenceNumber,
-        inline_qos: Option<ParameterList>,
+        inline_qos: Option<ParameterList<InlineQosParameter>>,
         data: Option<Vec<u8>>,
     ) -> CacheChange {
         CacheChange {
@@ -59,7 +59,7 @@ impl CacheChange {
         &self.sequence_number
     }
 
-    pub fn get_inline_qos(&self) -> &Option<ParameterList> {
+    pub fn get_inline_qos(&self) -> &Option<ParameterList<InlineQosParameter>> {
         &self.inline_qos
     }
 

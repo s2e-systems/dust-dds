@@ -123,11 +123,20 @@ pub enum InlineQosPid {
     StatusInfo = 0x0071,
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Eq, Hash, Clone, Serialize)]
 pub enum InlineQosParameter {
     KeyHash(KeyHash),
     StatusInfo(StatusInfo),
     // TopicName([char;256]),
+}
+
+impl Parameter for InlineQosParameter {
+    fn parameter_id(&self) -> u16 {
+        match self {
+            InlineQosParameter::KeyHash(_) => 0x0070,
+            InlineQosParameter::StatusInfo(_) => 0x0071,
+        }
+    }
 }
 
 impl InlineQosParameter {

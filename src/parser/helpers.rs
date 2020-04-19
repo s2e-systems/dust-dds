@@ -6,8 +6,8 @@ use std::convert::TryInto; /*CdrLe, CdrBe, PlCdrLe, PlCdrBe, Error, Infinite,*/
 
 use crate::parser::InlineQosParameter;
 use crate::types::{
-    FragmentNumber, FragmentNumberSet, InlineQosParameterList, Parameter, SequenceNumber,
-    SequenceNumberSet,
+    FragmentNumber, FragmentNumberSet, InlineQosParameterList, SequenceNumber,
+    SequenceNumberSet, ParameterList,
 };
 
 use super::{ErrorMessage, InlineQosPid, ProtocolVersion, Result, RTPS_MINOR_VERSION};
@@ -153,7 +153,7 @@ pub fn parse_inline_qos_parameter_list(
 
     let mut parameter_id_first_index = *parameter_list_first_index;
 
-    let mut parameter_list = Vec::new();
+    let mut parameter_list = ParameterList::<InlineQosParameter>::new();
     let parameter_list_size: usize;
 
     loop {
