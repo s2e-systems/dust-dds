@@ -27,6 +27,10 @@ impl ReaderLocator {
             sequence_numbers_requested: HashSet::new(),
         }
     }
+
+    fn unsent_changes_reset(&mut self) {
+        self.highest_sequence_number_sent = 0;
+    }
 }
 
 pub struct StatelessWriter {
@@ -119,7 +123,7 @@ impl StatelessWriter {
 
     pub fn unsent_changes_reset(&mut self) {
         for (_, rl) in self.reader_locators.iter_mut() {
-            // rl.set_highest_sequence_number_sent(0);
+            rl.unsent_changes_reset();
         }
     }
 
@@ -152,18 +156,6 @@ impl StatelessWriter {
         let reader_locator = self.reader_locators.get_mut(&a_locator).unwrap();
         reader_locator.sequence_numbers_requested = req_seq_num_set;
     }
-
-    // pub fn set_highest_sequence_number_sent(&mut self, n: SequenceNumber) {
-    //     self.highest_sequence_number_sent = n;
-    // }
-
-    // fn next_unsent_change<'a, 'b>(reader_locator: &'b ReaderLocator, history_cache: &'a HistoryCache) -> Option<&'a CacheChange> {
-    //     history_cache
-    //         .get_changes()
-    //         .iter()
-    //         .filter(|cc| cc.get_sequence_number() > &reader_locator.highest_sequence_number_sent)
-    //         .min()
-    // }
 
     pub fn get_data_to_send(&mut self, a_locator: Locator) -> Vec<StatelessWriterData> {
         let mut data = Vec::new();
@@ -297,6 +289,11 @@ mod tests {
         );
 
         assert_eq!(writer.next_unsent_change(locator), Some(3));
+
+        writer.unsent_changes_reset();
+        let hash_set_3_changes : HashSet<SequenceNumber> = [1,2,3].iter().cloned().collect();
+        assert_eq!(writer.unsent_changes(locator), hash_set_3_changes);
+
     }
 
     #[test]
