@@ -21,7 +21,8 @@ use crate::types::{
     ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
     ENTITYID_SPDP_BUILTIN_PARTICIPANT_DETECTOR, ENTITYID_UNKNOWN,
 };
-use crate::writer::{StatefulWriter, StatelessWriter, WriterOperations};
+use crate::stateless_writer::StatelessWriter;
+use crate::writer::{StatefulWriter, WriterOperations};
 use crate::Udpv4Locator;
 use cdr::{PlCdrLe, Infinite};
 use serde::{Serialize, Serializer};
@@ -227,8 +228,8 @@ impl Participant {
 
     fn add_participant_to_spdp_writer(&mut self) {
         let participant_data = cdr::serialize::<_,_,PlCdrLe>(self, Infinite).unwrap();
-        let change = self.spdp_builtin_participant_writer.writer().new_change(ChangeKind::Alive, Some(participant_data), None, [0;16]);
-        self.spdp_builtin_participant_writer.writer().history_cache().add_change(change);
+        let change = self.spdp_builtin_participant_writer.new_change(ChangeKind::Alive, Some(participant_data), None, [0;16]);
+        self.spdp_builtin_participant_writer.history_cache().add_change(change);
     }
 
     fn receive_data(&mut self) {
