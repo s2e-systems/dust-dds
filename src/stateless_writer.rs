@@ -332,8 +332,8 @@ mod tests {
            [1;16], /*handle*/
        );
 
-       writer.writer_cache.add_change(cache_change_seq1);
-       writer.writer_cache.add_change(cache_change_seq2);
+       writer.history_cache().add_change(cache_change_seq1);
+       writer.history_cache().add_change(cache_change_seq2);
 
        let writer_data = writer.get_data_to_send(locator);
        assert_eq!(writer_data.len(), 2);

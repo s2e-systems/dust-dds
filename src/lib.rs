@@ -18,6 +18,7 @@ mod receiver;
 mod transport;
 mod types;
 mod writer;
+mod stateless_reader;
 mod stateless_writer;
 
 use types::EntityId;
