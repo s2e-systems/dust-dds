@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::cache::{CacheChange, HistoryCache};
 use crate::endpoint::Endpoint;
 use crate::entity::Entity;
-use crate::parser::{InlineQosParameter, Payload};
+use crate::messages::{InlineQosParameter, Payload};
 use crate::proxy::WriterProxy;
 use crate::types::{
     ChangeKind, Duration, EntityId, InlineQosParameterList, LocatorList, ParameterList,

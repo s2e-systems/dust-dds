@@ -4,7 +4,7 @@ use serde_derive::{Deserialize, Serialize};
 use std::cmp;
 use std::convert::TryInto; /*CdrLe, CdrBe, PlCdrLe, PlCdrBe, Error, Infinite,*/
 
-use crate::parser::InlineQosParameter;
+use crate::messages::InlineQosParameter;
 use crate::types::{
     FragmentNumber, FragmentNumberSet, InlineQosParameterList, SequenceNumber,
     SequenceNumberSet, ParameterList,

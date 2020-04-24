@@ -2,7 +2,7 @@ use crate::types::LocatorList;
 use std::collections::VecDeque;
 
 use crate::cache::{CacheChange, HistoryCache};
-use crate::parser::{
+use crate::messages::{
     Data, InfoSrc, InfoTs, InlineQosParameter, Payload, RtpsMessage, SubMessageType,
 };
 use crate::types::{ChangeKind, GuidPrefix, ProtocolVersion, Time, VendorId, GUID};

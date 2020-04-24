@@ -3,7 +3,7 @@ use std::collections::{HashSet, HashMap};
 use crate::cache::HistoryCache;
 use crate::endpoint::Endpoint;
 use crate::entity::Entity;
-use crate::parser::{
+use crate::messages::{
     parse_rtps_message, Data, InfoSrc, InfoTs, Payload, RtpsMessage, SubMessageType,
 };
 use crate::participant_proxy::{ParticipantProxy, SpdpParameterId};

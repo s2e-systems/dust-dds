@@ -4,7 +4,7 @@ use std::collections::{HashMap, HashSet, BTreeMap};
 use crate::types::{SequenceNumber, Locator, GUID, TopicKind, LocatorList, ReliabilityKind, Duration, ChangeKind, InstanceHandle, ParameterList, ENTITYID_UNKNOWN};
 use crate::entity::Entity;
 use crate::cache::{CacheChange, HistoryCache};
-use crate::parser::{Data, Gap, Payload, InlineQosParameter};
+use crate::messages::{Data, Gap, Payload, InlineQosParameter};
 
 pub enum StatelessWriterData {
     Data(Data),

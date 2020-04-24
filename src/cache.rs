@@ -4,7 +4,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use std::hash::Hasher;
 use std::sync::{Mutex, MutexGuard};
 
-use crate::parser::{
+use crate::messages::{
     Data, InfoSrc, InfoTs, InlineQosParameter, Payload, RtpsMessage, SubMessageType,
 };
 use crate::types::{

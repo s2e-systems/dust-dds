@@ -1,4 +1,4 @@
-use crate::parser::InlineQosParameter;
+use crate::messages::InlineQosParameter;
 use serde::{Serialize, Serializer};
 use serde::ser::{SerializeMap};
 use serde_derive::{Deserialize, Serialize};

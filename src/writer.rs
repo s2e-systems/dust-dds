@@ -6,7 +6,7 @@ use crate::types::{
     ChangeKind, Duration, InstanceHandle, Locator, LocatorList, ParameterList, ReliabilityKind,
     SequenceNumber, TopicKind, GUID,ENTITYID_UNKNOWN,
 };
-use crate::parser::{Data, Gap, Payload, InlineQosParameter};
+use crate::messages::{Data, Gap, Payload, InlineQosParameter};
 
 use std::collections::{HashMap, HashSet, BTreeMap};
 

@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::cache::{CacheChange, HistoryCache};
 use crate::endpoint::Endpoint;
 use crate::entity::Entity;
-use crate::parser::{InlineQosParameter, Payload};
+use crate::messages::{InlineQosParameter, Payload};
 use crate::proxy::WriterProxy;
 use crate::types::{
     ChangeKind, Duration, EntityId, InlineQosParameterList, LocatorList, ParameterList,
@@ -53,13 +53,12 @@ impl StatelessReader {
         }
     }
 
-    pub fn process_data(&mut self, msg: Vec<StatelessWriterData>) {
+    pub fn process_data(&mut self, msg: &Vec<StatelessWriterData>) {
         for item in msg.iter() {
             if let StatelessWriterData::Data(data) = item {
                 println!("Data message found");
             }
         }
-
     }
 
     pub fn read_data(
@@ -103,7 +102,7 @@ impl StatelessReader {
 mod tests {
     use super::*;
     use crate::types::*;
-    use crate::parser::{Data, Payload};
+    use crate::messages::{Data, Payload};
 
     #[test]
     fn test_reader_process_data() {
@@ -129,6 +128,6 @@ mod tests {
             false,
            );
 
-        writer.process_data(message);
+        writer.process_data(&message);
     }
 }

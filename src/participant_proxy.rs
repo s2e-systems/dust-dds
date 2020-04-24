@@ -6,8 +6,8 @@ use std::convert::TryInto;
 
 use std::collections::HashMap;
 
-use crate::parser;
-use crate::parser::helpers::{deserialize, EndianessFlag};
+use crate::messages;
+use crate::messages::helpers::{deserialize, EndianessFlag};
 use crate::types::{BuiltInEndPointSet, Locator, Time, GUID, Duration};
 
 #[derive(Debug)]
@@ -18,7 +18,7 @@ pub enum SpdpErrorMessage {
     InvalidParameterLength,
     ParameterContentConversionFailed,
     CdrError(cdr::Error),
-    ParserError(parser::ErrorMessage),
+    ParserError(messages::ErrorMessage),
 }
 
 impl From<cdr::Error> for SpdpErrorMessage {
@@ -27,8 +27,8 @@ impl From<cdr::Error> for SpdpErrorMessage {
     }
 }
 
-impl From<parser::ErrorMessage> for SpdpErrorMessage {
-    fn from(error: parser::ErrorMessage) -> Self {
+impl From<messages::ErrorMessage> for SpdpErrorMessage {
+    fn from(error: messages::ErrorMessage) -> Self {
         SpdpErrorMessage::ParserError(error)
     }
 }

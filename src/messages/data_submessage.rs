@@ -249,7 +249,7 @@ impl Serialize for Data {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::parser::InlineQosParameter;
+    use crate::messages::InlineQosParameter;
     use crate::types::{ENTITYID_UNKNOWN, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER};
 
     const DATA_SUBMESSAGE_BIG_ENDIAN: [u8; 60] = [
