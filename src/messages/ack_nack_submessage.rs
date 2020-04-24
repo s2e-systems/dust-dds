@@ -6,11 +6,25 @@ use super::Result;
 
 #[derive(PartialEq, Debug)]
 pub struct AckNack {
-    final_flag: bool,
     reader_id: EntityId,
     writer_id: EntityId,
     reader_sn_state: SequenceNumberSet,
     count: Count,
+    final_flag: bool,
+}
+
+impl AckNack {
+    const FINAL_FLAG_MASK: u8 = 0x02;
+
+    pub fn new(reader_id: EntityId, writer_id: EntityId, reader_sn_state: SequenceNumberSet, count: Count, final_flag: bool) -> Self {
+        AckNack {
+            reader_id,
+            writer_id,
+            reader_sn_state,
+            count,
+            final_flag,
+        }
+    }
 }
 
 pub fn parse_ack_nack_submessage(submessage: &[u8], submessage_flags: &u8) -> Result<AckNack> {

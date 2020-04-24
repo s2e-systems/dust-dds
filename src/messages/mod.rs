@@ -70,6 +70,20 @@ type Result<T> = std::result::Result<T, ErrorMessage>;
 pub const RTPS_MAJOR_VERSION: u8 = 2;
 pub const RTPS_MINOR_VERSION: u8 = 4;
 
+pub enum RtpsSubmessage {
+    AckNack(AckNack),
+    Data(Data),
+    DataFrag(DataFrag),
+    Gap(Gap),
+    Heartbeat(Heartbeat),
+    HeartbeatFrag(HeartbeatFrag),
+    InfoDst(InfoDst),
+    InfoReply(InfoReply),
+    InfoSrc(InfoSrc),
+    InfoTs(InfoTs),
+    NackFrag(NackFrag),
+}
+
 #[derive(FromPrimitive)]
 enum SubmessageKind {
     Pad = 0x01,

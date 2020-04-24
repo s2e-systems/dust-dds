@@ -4,12 +4,7 @@ use std::collections::{HashMap, HashSet, BTreeMap};
 use crate::types::{SequenceNumber, Locator, GUID, TopicKind, LocatorList, ReliabilityKind, Duration, ChangeKind, InstanceHandle, ParameterList, ENTITYID_UNKNOWN};
 use crate::entity::Entity;
 use crate::cache::{CacheChange, HistoryCache};
-use crate::messages::{Data, Gap, Payload, InlineQosParameter};
-
-pub enum StatelessWriterData {
-    Data(Data),
-    Gap(Gap),
-}
+use crate::messages::{RtpsSubmessage, Data, Gap, Payload, InlineQosParameter};
 
 pub struct ReaderLocator {
     //requested_changes: HashSet<CacheChange>,
@@ -157,7 +152,7 @@ impl StatelessWriter {
         reader_locator.sequence_numbers_requested = req_seq_num_set;
     }
 
-    pub fn get_data_to_send(&mut self, a_locator: Locator) -> Vec<StatelessWriterData> {
+    pub fn get_data_to_send(&mut self, a_locator: Locator) -> Vec<RtpsSubmessage> {
         let mut data = Vec::new();
 
         while let Some(next_unsent_seq_num) = self.next_unsent_change(a_locator)
@@ -171,17 +166,12 @@ impl StatelessWriter {
                     None, /*inline_qos*/
                     Payload::Data(cache_change.data().unwrap().to_vec()) /*serialized_payload*/);
 
-                data.push(StatelessWriterData::Data(payload_data));
+                data.push(RtpsSubmessage::Data(payload_data));
 
             } else {
-                let gap = Gap {
-                    reader_id: ENTITYID_UNKNOWN,
-                    writer_id: ENTITYID_UNKNOWN,
-                    gap_start: 0,
-                    gap_list: BTreeMap::new(),
-                };
+                let gap = Gap::new(ENTITYID_UNKNOWN /*reader_id*/,ENTITYID_UNKNOWN /*writer_id*/, 0 /*gap_start*/, BTreeMap::new() /*gap_list*/);
 
-                data.push(StatelessWriterData::Gap(gap));
+                data.push(RtpsSubmessage::Gap(gap));
             }
         }
         
@@ -337,14 +327,14 @@ mod tests {
 
        let writer_data = writer.get_data_to_send(locator);
        assert_eq!(writer_data.len(), 2);
-       if let StatelessWriterData::Data(message_1) = &writer_data[0] {
+       if let RtpsSubmessage::Data(message_1) = &writer_data[0] {
            
        }
        else {
            panic!("Wrong message type");
        };
 
-       if let StatelessWriterData::Data(message_2) = &writer_data[1] {
+       if let RtpsSubmessage::Data(message_2) = &writer_data[1] {
            
         }
         else {

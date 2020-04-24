@@ -3,13 +3,12 @@ use std::collections::HashMap;
 use crate::cache::{CacheChange, HistoryCache};
 use crate::endpoint::Endpoint;
 use crate::entity::Entity;
-use crate::messages::{InlineQosParameter, Payload};
+use crate::messages::{RtpsSubmessage, InlineQosParameter, Payload};
 use crate::proxy::WriterProxy;
 use crate::types::{
     ChangeKind, Duration, EntityId, InlineQosParameterList, LocatorList, ParameterList,
     ReliabilityKind, SequenceNumber, TopicKind, GUID,
 };
-use crate::stateless_writer::StatelessWriterData;
 
 pub struct StatelessReader {
     pub heartbeat_response_delay: Duration,
@@ -53,9 +52,9 @@ impl StatelessReader {
         }
     }
 
-    pub fn process_data(&mut self, msg: &Vec<StatelessWriterData>) {
+    pub fn process_data(&mut self, msg: &Vec<RtpsSubmessage>) {
         for item in msg.iter() {
-            if let StatelessWriterData::Data(data) = item {
+            if let RtpsSubmessage::Data(data) = item {
                 println!("Data message found");
             }
         }
@@ -115,7 +114,7 @@ mod tests {
         );
 
         let mut message = Vec::new();
-        message.push(StatelessWriterData::Data(data1));
+        message.push(RtpsSubmessage::Data(data1));
 
         let mut writer = StatelessReader::new(
             GUID::new([0;12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER),
