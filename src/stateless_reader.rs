@@ -3,11 +3,11 @@ use std::collections::HashMap;
 use crate::cache::{CacheChange, HistoryCache};
 use crate::endpoint::Endpoint;
 use crate::entity::Entity;
-use crate::messages::{RtpsSubmessage, InlineQosParameter, Payload};
+use crate::messages::{RtpsMessage, RtpsSubmessage, InlineQosParameter, Payload};
 use crate::proxy::WriterProxy;
 use crate::types::{
     ChangeKind, Duration, EntityId, InlineQosParameterList, LocatorList, ParameterList,
-    ReliabilityKind, SequenceNumber, TopicKind, GUID,
+    ReliabilityKind, SequenceNumber, TopicKind, GUID, ENTITYID_UNKNOWN, InstanceHandle, GuidPrefix,
 };
 
 pub struct StatelessReader {
@@ -56,10 +56,22 @@ impl StatelessReader {
         &self.reader_cache
     }
 
-    pub fn process_data(&mut self, msg: &Vec<RtpsSubmessage>) {
-        for item in msg.iter() {
-            if let RtpsSubmessage::Data(data) = item {
-                println!("Data message found");
+    pub fn process_data(&mut self, msg: &RtpsMessage) {
+        for submessage in msg.get_submessages().iter() {
+            if let RtpsSubmessage::Data(data) = submessage {
+                // Check if the message is for this reader and process it if that is the case
+                if data.reader_id() == &ENTITYID_UNKNOWN {
+                    let cache_change = CacheChange::new(
+                        ChangeKind::Alive, /*change_kind*/
+                        GUID::new([1;12] /*prefix*/, *data.writer_id() /* entity_id*/) /*writer_guid*/,
+                        [2;16], /*instance_handle*/
+                        *data.writer_sn(), /*sequence_number*/
+                        None, /* inline_qos*/
+                        None, /*data*/
+                    );
+
+                    self.reader_cache.add_change(cache_change);
+                }
             }
         }
     }
@@ -117,7 +129,11 @@ mod tests {
             Payload::Data(vec![0,1,2]),
         );
 
-        let mut message = Vec::new();
+        let mut message = RtpsMessage::new([2;12] /*guid_prefix*/,  [99,99] /*vendor_id*/, ProtocolVersion {
+            major: 2,
+            minor: 4,
+        }, /*protocol_version*/);
+
         message.push(RtpsSubmessage::Data(data1));
 
         let mut reader = StatelessReader::new(

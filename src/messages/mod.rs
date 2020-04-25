@@ -70,6 +70,8 @@ type Result<T> = std::result::Result<T, ErrorMessage>;
 pub const RTPS_MAJOR_VERSION: u8 = 2;
 pub const RTPS_MINOR_VERSION: u8 = 4;
 
+
+#[derive(Debug, PartialEq)]
 pub enum RtpsSubmessage {
     AckNack(AckNack),
     Data(Data),
@@ -179,28 +181,28 @@ struct MessageHeader {
 
 //TODO: InfoReplyIP4
 
-#[derive(PartialEq, Debug)]
-pub enum SubMessageType {
-    AckNackSubmessage(AckNack),
-    DataSubmessage(Data),
-    DataFragSubmessage(DataFrag),
-    GapSubmessage(Gap),
-    HeartbeatSubmessage(Heartbeat),
-    HeartbeatFragSubmessage(HeartbeatFrag),
-    InfoDstSubmessage(InfoDst),
-    InfoReplySubmessage(InfoReply),
-    InfoSrcSubmessage(InfoSrc),
-    InfoTsSubmessage(InfoTs),
-    PadSubmessage(()),
-    NackFragSubmessage(NackFrag),
-}
+// #[derive(PartialEq, Debug)]
+// pub enum SubMessageType {
+//     AckNackSubmessage(AckNack),
+//     DataSubmessage(Data),
+//     DataFragSubmessage(DataFrag),
+//     GapSubmessage(Gap),
+//     HeartbeatSubmessage(Heartbeat),
+//     HeartbeatFragSubmessage(HeartbeatFrag),
+//     InfoDstSubmessage(InfoDst),
+//     InfoReplySubmessage(InfoReply),
+//     InfoSrcSubmessage(InfoSrc),
+//     InfoTsSubmessage(InfoTs),
+//     PadSubmessage(()),
+//     NackFragSubmessage(NackFrag),
+// }
 
 #[derive(Debug)]
 pub struct RtpsMessage {
     guid_prefix: GuidPrefix,
     vendor_id: VendorId,
     protocol_version: ProtocolVersion,
-    submessages: VecDeque<SubMessageType>,
+    submessages: Vec<RtpsSubmessage>,
 }
 
 impl RtpsMessage {
@@ -213,12 +215,8 @@ impl RtpsMessage {
             guid_prefix,
             vendor_id,
             protocol_version,
-            submessages: VecDeque::new(),
+            submessages: Vec::new(),
         }
-    }
-
-    pub fn add_submessage(&mut self, submessage: SubMessageType) {
-        self.submessages.push_back(submessage);
     }
 
     pub fn get_guid_prefix(&self) -> &GuidPrefix {
@@ -233,11 +231,15 @@ impl RtpsMessage {
         &self.protocol_version
     }
 
-    pub fn get_submessages(&self) -> &VecDeque<SubMessageType> {
+    pub fn push(&mut self, submessage: RtpsSubmessage) {
+        self.submessages.push(submessage);
+    }
+
+    pub fn get_submessages(&self) -> &Vec<RtpsSubmessage> {
         &self.submessages
     }
 
-    pub fn get_mut_submessages(&mut self) -> &mut VecDeque<SubMessageType> {
+    pub fn get_mut_submessages(&mut self) -> &mut Vec<RtpsSubmessage> {
         &mut self.submessages
     }
 
@@ -247,7 +249,7 @@ impl RtpsMessage {
         GuidPrefix,
         VendorId,
         ProtocolVersion,
-        VecDeque<SubMessageType>,
+        Vec<RtpsSubmessage>,
     ) {
         (
             self.guid_prefix,
@@ -292,7 +294,7 @@ pub fn parse_rtps_message(message: &[u8]) -> Result<RtpsMessage> {
 
     const RTPS_SUBMESSAGE_HEADER_SIZE: usize = 4;
 
-    let mut submessage_vector = VecDeque::with_capacity(4);
+    let mut submessage_vector = Vec::with_capacity(4);
 
     let mut submessage_first_index = MINIMUM_RTPS_MESSAGE_SIZE;
     while submessage_first_index < message.len() {
@@ -332,64 +334,64 @@ pub fn parse_rtps_message(message: &[u8]) -> Result<RtpsMessage> {
             .ok_or(ErrorMessage::InvalidSubmessageHeader)?
         {
             SubmessageKind::AckNack => {
-                SubMessageType::AckNackSubmessage(parse_ack_nack_submessage(
+                RtpsSubmessage::AckNack(parse_ack_nack_submessage(
                     &message[submessage_payload_first_index..=submessage_payload_last_index],
                     &submessage_header.flags,
                 )?)
             }
-            SubmessageKind::Data => SubMessageType::DataSubmessage(parse_data_submessage(
+            SubmessageKind::Data => RtpsSubmessage::Data(parse_data_submessage(
                 &message[submessage_payload_first_index..=submessage_payload_last_index],
                 &submessage_header.flags,
             )?),
             SubmessageKind::DataFrag => {
-                SubMessageType::DataFragSubmessage(parse_data_frag_submessage(
+                RtpsSubmessage::DataFrag(parse_data_frag_submessage(
                     &message[submessage_payload_first_index..=submessage_payload_last_index],
                     &submessage_header.flags,
                 )?)
             }
-            SubmessageKind::Gap => SubMessageType::GapSubmessage(parse_gap_submessage(
+            SubmessageKind::Gap => RtpsSubmessage::Gap(parse_gap_submessage(
                 &message[submessage_payload_first_index..=submessage_payload_last_index],
                 &submessage_header.flags,
             )?),
             SubmessageKind::Heartbeat => {
-                SubMessageType::HeartbeatSubmessage(parse_heartbeat_submessage(
+                RtpsSubmessage::Heartbeat(parse_heartbeat_submessage(
                     &message[submessage_payload_first_index..=submessage_payload_last_index],
                     &submessage_header.flags,
                 )?)
             }
             SubmessageKind::HeartbeatFrag => {
-                SubMessageType::HeartbeatFragSubmessage(parse_heartbeat_frag_submessage(
+                RtpsSubmessage::HeartbeatFrag(parse_heartbeat_frag_submessage(
                     &message[submessage_payload_first_index..=submessage_payload_last_index],
                     &submessage_header.flags,
                 )?)
             }
             SubmessageKind::InfoDestination => {
-                SubMessageType::InfoDstSubmessage(parse_info_dst_submessage(
+                RtpsSubmessage::InfoDst(parse_info_dst_submessage(
                     &message[submessage_payload_first_index..=submessage_payload_last_index],
                     &submessage_header.flags,
                 )?)
             }
             SubmessageKind::InfoReply => {
-                SubMessageType::InfoReplySubmessage(parse_info_reply_submessage(
+                RtpsSubmessage::InfoReply(parse_info_reply_submessage(
                     &message[submessage_payload_first_index..=submessage_payload_last_index],
                     &submessage_header.flags,
                 )?)
             }
             SubmessageKind::InfoSource => {
-                SubMessageType::InfoSrcSubmessage(parse_info_source_submessage(
+                RtpsSubmessage::InfoSrc(parse_info_source_submessage(
                     &message[submessage_payload_first_index..=submessage_payload_last_index],
                     &submessage_header.flags,
                 )?)
             }
             SubmessageKind::InfoTimestamp => {
-                SubMessageType::InfoTsSubmessage(parse_info_timestamp_submessage(
+                RtpsSubmessage::InfoTs(parse_info_timestamp_submessage(
                     &message[submessage_payload_first_index..=submessage_payload_last_index],
                     &submessage_header.flags,
                 )?)
             }
-            SubmessageKind::Pad => SubMessageType::PadSubmessage(()),
+            SubmessageKind::Pad => unimplemented!(),
             SubmessageKind::NackFrag => {
-                SubMessageType::NackFragSubmessage(parse_nack_frag_submessage(
+                RtpsSubmessage::NackFrag(parse_nack_frag_submessage(
                     &message[submessage_payload_first_index..=submessage_payload_last_index],
                     &submessage_header.flags,
                 )?)
@@ -397,7 +399,7 @@ pub fn parse_rtps_message(message: &[u8]) -> Result<RtpsMessage> {
             SubmessageKind::InfoReplyIP4 => unimplemented!(),
         };
 
-        submessage_vector.push_back(submessage);
+        submessage_vector.push(submessage);
 
         submessage_first_index = submessage_payload_last_index + 1;
     }
@@ -550,7 +552,7 @@ mod tests {
             [0x7f, 0x20, 0xf7, 0xd7, 0x00, 0x00, 0x01, 0xbb, 0x00, 0x00, 0x00, 0x01,]
         );
         assert_eq!(parse_result.submessages.len(), 2);
-        if let SubMessageType::InfoTsSubmessage(ts_message) = &parse_result.submessages[0] {
+        if let RtpsSubmessage::InfoTs(ts_message) = &parse_result.submessages[0] {
             assert_eq!(
                 *ts_message.get_timestamp(),
                 Some(Time {
@@ -562,7 +564,7 @@ mod tests {
             assert!(false);
         }
 
-        if let SubMessageType::DataSubmessage(data_message) = &parse_result.submessages[1] {
+        if let RtpsSubmessage::Data(data_message) = &parse_result.submessages[1] {
             assert_eq!(*data_message.reader_id(), EntityId::new([0, 0, 0], 0));
             assert_eq!(*data_message.writer_id(), EntityId::new([0, 1, 0], 0xc2)); //ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER = {{00,01,00},c2}
             assert_eq!(*data_message.writer_sn(), 1);

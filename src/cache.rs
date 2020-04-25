@@ -5,7 +5,7 @@ use std::hash::Hasher;
 use std::sync::{Mutex, MutexGuard};
 
 use crate::messages::{
-    Data, InfoSrc, InfoTs, InlineQosParameter, Payload, RtpsMessage, SubMessageType,
+    Data, InfoSrc, InfoTs, InlineQosParameter, Payload, RtpsMessage,
 };
 use crate::types::{
     ChangeKind, EntityId, GuidPrefix, InstanceHandle, ParameterList, ProtocolVersion,

@@ -1,10 +1,10 @@
 use std::collections::{HashMap, HashSet, BTreeMap};
 use std::time::SystemTime;
 
-use crate::types::{SequenceNumber, Locator, GUID, TopicKind, LocatorList, ReliabilityKind, Duration, ChangeKind, InstanceHandle, ParameterList, ENTITYID_UNKNOWN, Time};
+use crate::types::{ProtocolVersion, SequenceNumber, Locator, GUID, TopicKind, LocatorList, ReliabilityKind, Duration, ChangeKind, InstanceHandle, ParameterList, ENTITYID_UNKNOWN, Time};
 use crate::entity::Entity;
 use crate::cache::{CacheChange, HistoryCache};
-use crate::messages::{RtpsSubmessage, Data, Gap, Payload, InlineQosParameter, InfoTs};
+use crate::messages::{RtpsMessage, RtpsSubmessage, Data, Gap, Payload, InlineQosParameter, InfoTs};
 
 pub struct ReaderLocator {
     //requested_changes: HashSet<CacheChange>,
@@ -162,8 +162,8 @@ impl StatelessWriter {
         reader_locator.sequence_numbers_requested = req_seq_num_set;
     }
 
-    pub fn get_data_to_send(&mut self, a_locator: Locator) -> Vec<RtpsSubmessage> {
-        let mut message = Vec::new();
+    pub fn get_data_to_send(&mut self, a_locator: Locator) -> RtpsMessage {
+        let mut message = RtpsMessage::new([2;12] /*guid_prefix*/, [99,99]/*vendor_id*/, ProtocolVersion{major:2, minor: 4} /*protocol_version*/);
 
         if self.has_unsent_changes(a_locator) {
             let current_time = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap();
@@ -346,20 +346,20 @@ mod tests {
        writer.history_cache().add_change(cache_change_seq2);
 
        let writer_data = writer.get_data_to_send(locator);
-       assert_eq!(writer_data.len(), 3);
-       if let RtpsSubmessage::InfoTs(message_1) = &writer_data[0] {
+       assert_eq!(writer_data.get_submessages().len(), 3);
+       if let RtpsSubmessage::InfoTs(message_1) = &writer_data.get_submessages()[0] {
            println!("{:?}", message_1);
        } else {
            panic!("Wrong message type");
        }
-       if let RtpsSubmessage::Data(message_2) = &writer_data[1] {
+       if let RtpsSubmessage::Data(message_2) = &writer_data.get_submessages()[1] {
            
        }
        else {
            panic!("Wrong message type");
        };
 
-       if let RtpsSubmessage::Data(message_3) = &writer_data[2] {
+       if let RtpsSubmessage::Data(message_3) = &writer_data.get_submessages()[2] {
            
         }
         else {

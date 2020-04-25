@@ -4,7 +4,7 @@ use crate::cache::HistoryCache;
 use crate::endpoint::Endpoint;
 use crate::entity::Entity;
 use crate::messages::{
-    parse_rtps_message, Data, InfoSrc, InfoTs, Payload, RtpsMessage, SubMessageType,
+    parse_rtps_message, Data, InfoSrc, InfoTs, Payload, RtpsMessage, RtpsSubmessage
 };
 use crate::participant_proxy::{ParticipantProxy, SpdpParameterId};
 use crate::proxy::{ReaderProxy, WriterProxy};
@@ -265,15 +265,15 @@ impl Participant {
         ) = message.take();
         let mut message_timestamp: Option<Time> = None;
 
-        while let Some(submessage) = submessages.pop_front() {
+        while let Some(submessage) = submessages.pop() {
             match submessage {
-                SubMessageType::InfoTsSubmessage(info_ts) => {
+                RtpsSubmessage::InfoTs(info_ts) => {
                     Self::process_infots(info_ts, &mut message_timestamp)
                 }
-                SubMessageType::DataSubmessage(data) => {
+                RtpsSubmessage::Data(data) => {
                     self.process_data(data, &source_guid_prefix)
                 }
-                SubMessageType::InfoSrcSubmessage(info_src) => Self::process_infosrc(
+                RtpsSubmessage::InfoSrc(info_src) => Self::process_infosrc(
                     info_src,
                     &mut source_protocol_version,
                     &mut source_vendor_id,

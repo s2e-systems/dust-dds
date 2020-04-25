@@ -3,7 +3,7 @@ use std::collections::VecDeque;
 
 use crate::cache::{CacheChange, HistoryCache};
 use crate::messages::{
-    Data, InfoSrc, InfoTs, InlineQosParameter, Payload, RtpsMessage, SubMessageType,
+    Data, InfoSrc, InfoTs, InlineQosParameter, Payload, RtpsMessage,
 };
 use crate::types::{ChangeKind, GuidPrefix, ProtocolVersion, Time, VendorId, GUID};
 

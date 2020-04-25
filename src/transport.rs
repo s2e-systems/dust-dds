@@ -8,7 +8,7 @@ use std::net::{IpAddr, Ipv4Addr};
 use std::str::FromStr;
 use std::time::Duration;
 
-use crate::messages::{parse_rtps_message, AckNack, Data, RtpsMessage, SubMessageType};
+use crate::messages::{parse_rtps_message, AckNack, Data, RtpsMessage};
 use crate::Udpv4Locator;
 
 #[derive(Debug)]

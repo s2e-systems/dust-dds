@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 use rust_rtps::{StatelessWriter, StatelessReader};
 use rust_rtps::types::{ChangeKind, TopicKind, ReliabilityKind, DURATION_ZERO, Locator, GUID, ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER, ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER};
 
