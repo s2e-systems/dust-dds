@@ -15,12 +15,15 @@ mod proxy;
 mod reader;
 mod receiver;
 mod transport;
-mod types;
+pub mod types;
 mod writer;
 mod stateless_reader;
 mod stateless_writer;
 
 use types::EntityId;
+
+pub use stateless_reader::StatelessReader;
+pub use stateless_writer::StatelessWriter;
 
 pub enum LocatorKind {
     LocatorInvalid,
@@ -51,34 +54,3 @@ impl Udpv4Locator {
 }
 
 impl Locator for Udpv4Locator {}
-
-// pub struct RTPSReader {
-//     pub endpoint: RTPSEndpoint,
-//     pub sockets: Vec<UdpSocket>
-// }
-
-// impl RTPSReader {
-//     pub fn new(multicast_locator_list: Vec<Udpv4Locator>) -> RTPSReader {
-//         let mut sockets = Vec::with_capacity(1);
-
-//         for _i in &multicast_locator_list {
-//             let socket = UdpSocket::bind(SocketAddr::from(([0, 0, 0, 0], 7400))).expect("couldn't bind to address");
-//             let multicast_addr = Ipv4Addr::from_str("239.255.0.1").unwrap();
-//             let multicast_interface = Ipv4Addr::from_str("192.168.2.5").expect("Error resolving multicast interface address");
-//             socket.join_multicast_v4(&multicast_addr, &multicast_interface).expect("Error joining multicast group");
-//             socket.set_read_timeout(Some(Duration::new(1,0))).expect("Error setting timeout");
-//             sockets.push(socket);
-//         }
-
-//         RTPSReader{
-//             endpoint: RTPSEndpoint{
-//                 topic_kind: 0,
-//                 reliability_level: 0,
-//                 unicast_locator_list: Vec::new(),
-//                 multicast_locator_list: Vec::new(),
-//                 endpoint_id: [0x00,0x00,0x00,0x00],},
-//             sockets: sockets,}
-//     }
-
-//
-// }

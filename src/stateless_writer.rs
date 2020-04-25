@@ -171,25 +171,27 @@ impl StatelessWriter {
             let infots = InfoTs::new(Some(time));
 
             message.push(RtpsSubmessage::InfoTs(infots));
-        }
+        
 
-        while let Some(next_unsent_seq_num) = self.next_unsent_change(a_locator)
-        {
-            let whc = self.writer_cache.get_changes();
-            if let Some(cache_change) = whc.iter().find(|cc| cc.get_sequence_number() == &next_unsent_seq_num) {
-                let payload_data = Data::new(
-                    ENTITYID_UNKNOWN, /*reader_id*/
-                    *self.entity.guid.entity_id(), /*writer_id*/
-                    *cache_change.get_sequence_number(), /*writer_sn*/
-                    None, /*inline_qos*/
-                    Payload::Data(cache_change.data().unwrap().to_vec()) /*serialized_payload*/);
+            while let Some(next_unsent_seq_num) = self.next_unsent_change(a_locator)
+            {
+                let whc = self.writer_cache.get_changes();
+                if let Some(cache_change) = whc.iter().find(|cc| cc.get_sequence_number() == &next_unsent_seq_num) {
+                    let payload_data = Data::new(
+                        ENTITYID_UNKNOWN, /*reader_id*/
+                        *self.entity.guid.entity_id(), /*writer_id*/
+                        *cache_change.get_sequence_number(), /*writer_sn*/
+                        None, /*inline_qos*/
+                        Payload::Data(cache_change.data().unwrap().to_vec()) /*serialized_payload*/);
 
-                message.push(RtpsSubmessage::Data(payload_data));
+                    message.push(RtpsSubmessage::Data(payload_data));
 
-            } else {
-                let gap = Gap::new(ENTITYID_UNKNOWN /*reader_id*/,ENTITYID_UNKNOWN /*writer_id*/, 0 /*gap_start*/, BTreeMap::new() /*gap_list*/);
+                } else {
+                    panic!("GAP not implemented yet");
+                    // let gap = Gap::new(ENTITYID_UNKNOWN /*reader_id*/,ENTITYID_UNKNOWN /*writer_id*/, 0 /*gap_start*/, BTreeMap::new() /*gap_list*/);
 
-                message.push(RtpsSubmessage::Gap(gap));
+                    // message.push(RtpsSubmessage::Gap(gap));
+                }
             }
         }
         

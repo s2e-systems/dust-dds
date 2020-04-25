@@ -11,9 +11,9 @@ use crate::types::{
 };
 
 pub struct StatelessReader {
-    pub heartbeat_response_delay: Duration,
-    pub heartbeat_suppression_duration: Duration,
-    pub reader_cache: HistoryCache,
+    heartbeat_response_delay: Duration,
+    heartbeat_suppression_duration: Duration,
+    reader_cache: HistoryCache,
     expects_inline_qos: bool,
     // Enpoint members:
     /// Entity base class (contains the GUID)
@@ -50,6 +50,10 @@ impl StatelessReader {
             reader_cache: HistoryCache::new(),
             expects_inline_qos,
         }
+    }
+
+    pub fn history_cache(&self) -> &HistoryCache {
+        &self.reader_cache
     }
 
     pub fn process_data(&mut self, msg: &Vec<RtpsSubmessage>) {
@@ -116,7 +120,7 @@ mod tests {
         let mut message = Vec::new();
         message.push(RtpsSubmessage::Data(data1));
 
-        let mut writer = StatelessReader::new(
+        let mut reader = StatelessReader::new(
             GUID::new([0;12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER),
             TopicKind::WithKey,
             ReliabilityKind::BestEffort,
@@ -127,6 +131,6 @@ mod tests {
             false,
            );
 
-        writer.process_data(&message);
+        reader.process_data(&message);
     }
 }
