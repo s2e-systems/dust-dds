@@ -1,5 +1,4 @@
 use crate::cache::{CacheChange, HistoryCache};
-use crate::endpoint::Endpoint;
 use crate::entity::Entity;
 use crate::proxy::ReaderProxy;
 use crate::types::{

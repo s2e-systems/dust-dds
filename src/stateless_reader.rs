@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
 use crate::cache::{CacheChange, HistoryCache};
-use crate::endpoint::Endpoint;
 use crate::entity::Entity;
 use crate::messages::{RtpsMessage, RtpsSubmessage, InlineQosParameter, Payload};
 use crate::proxy::WriterProxy;
@@ -57,13 +56,16 @@ impl StatelessReader {
     }
 
     pub fn process_data(&mut self, msg: &RtpsMessage) {
+
+        let guid_prefix = *msg.get_guid_prefix();
+
         for submessage in msg.get_submessages().iter() {
             if let RtpsSubmessage::Data(data) = submessage {
                 // Check if the message is for this reader and process it if that is the case
                 if data.reader_id() == &ENTITYID_UNKNOWN {
                     let cache_change = CacheChange::new(
                         ChangeKind::Alive, /*change_kind*/
-                        GUID::new([1;12] /*prefix*/, *data.writer_id() /* entity_id*/) /*writer_guid*/,
+                        GUID::new(guid_prefix /*prefix*/, *data.writer_id() /* entity_id*/) /*writer_guid*/,
                         [2;16], /*instance_handle*/
                         *data.writer_sn(), /*sequence_number*/
                         None, /* inline_qos*/

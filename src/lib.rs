@@ -5,7 +5,6 @@
 use std::time::Duration;
 
 mod cache;
-mod endpoint;
 mod entity;
 mod guid;
 mod messages;

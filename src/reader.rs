@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
 use crate::cache::{CacheChange, HistoryCache};
-use crate::endpoint::Endpoint;
 use crate::entity::Entity;
 use crate::messages::{InlineQosParameter, Payload};
 use crate::proxy::WriterProxy;
