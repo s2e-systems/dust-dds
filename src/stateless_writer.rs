@@ -1,10 +1,10 @@
 use std::collections::{HashMap, HashSet, BTreeMap};
+use std::time::SystemTime;
 
-
-use crate::types::{SequenceNumber, Locator, GUID, TopicKind, LocatorList, ReliabilityKind, Duration, ChangeKind, InstanceHandle, ParameterList, ENTITYID_UNKNOWN};
+use crate::types::{SequenceNumber, Locator, GUID, TopicKind, LocatorList, ReliabilityKind, Duration, ChangeKind, InstanceHandle, ParameterList, ENTITYID_UNKNOWN, Time};
 use crate::entity::Entity;
 use crate::cache::{CacheChange, HistoryCache};
-use crate::messages::{RtpsSubmessage, Data, Gap, Payload, InlineQosParameter};
+use crate::messages::{RtpsSubmessage, Data, Gap, Payload, InlineQosParameter, InfoTs};
 
 pub struct ReaderLocator {
     //requested_changes: HashSet<CacheChange>,
@@ -147,13 +147,31 @@ impl StatelessWriter {
         unsent_changes_set
     }
 
+    pub fn has_unsent_changes(&self, a_locator: Locator) -> bool {
+        let reader_locator = self.reader_locators.get(&a_locator).unwrap();
+
+        if reader_locator.highest_sequence_number_sent + 1 >= self.last_change_sequence_number {
+            false
+        } else {
+            true
+        }
+    }
+
     pub fn requested_changes_set(&mut self, a_locator: Locator, req_seq_num_set: HashSet<SequenceNumber>) {
         let reader_locator = self.reader_locators.get_mut(&a_locator).unwrap();
         reader_locator.sequence_numbers_requested = req_seq_num_set;
     }
 
     pub fn get_data_to_send(&mut self, a_locator: Locator) -> Vec<RtpsSubmessage> {
-        let mut data = Vec::new();
+        let mut message = Vec::new();
+
+        if self.has_unsent_changes(a_locator) {
+            let current_time = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap();
+            let time = Time{seconds: current_time.as_secs() as u32 , fraction: current_time.as_nanos() as u32};
+            let infots = InfoTs::new(Some(time));
+
+            message.push(RtpsSubmessage::InfoTs(infots));
+        }
 
         while let Some(next_unsent_seq_num) = self.next_unsent_change(a_locator)
         {
@@ -161,21 +179,21 @@ impl StatelessWriter {
             if let Some(cache_change) = whc.iter().find(|cc| cc.get_sequence_number() == &next_unsent_seq_num) {
                 let payload_data = Data::new(
                     ENTITYID_UNKNOWN, /*reader_id*/
-                    ENTITYID_UNKNOWN, /*writer_id*/
+                    *self.entity.guid.entity_id(), /*writer_id*/
                     *cache_change.get_sequence_number(), /*writer_sn*/
                     None, /*inline_qos*/
                     Payload::Data(cache_change.data().unwrap().to_vec()) /*serialized_payload*/);
 
-                data.push(RtpsSubmessage::Data(payload_data));
+                message.push(RtpsSubmessage::Data(payload_data));
 
             } else {
                 let gap = Gap::new(ENTITYID_UNKNOWN /*reader_id*/,ENTITYID_UNKNOWN /*writer_id*/, 0 /*gap_start*/, BTreeMap::new() /*gap_list*/);
 
-                data.push(RtpsSubmessage::Gap(gap));
+                message.push(RtpsSubmessage::Gap(gap));
             }
         }
         
-        data
+        message
     }
 }
 
@@ -326,15 +344,20 @@ mod tests {
        writer.history_cache().add_change(cache_change_seq2);
 
        let writer_data = writer.get_data_to_send(locator);
-       assert_eq!(writer_data.len(), 2);
-       if let RtpsSubmessage::Data(message_1) = &writer_data[0] {
+       assert_eq!(writer_data.len(), 3);
+       if let RtpsSubmessage::InfoTs(message_1) = &writer_data[0] {
+           println!("{:?}", message_1);
+       } else {
+           panic!("Wrong message type");
+       }
+       if let RtpsSubmessage::Data(message_2) = &writer_data[1] {
            
        }
        else {
            panic!("Wrong message type");
        };
 
-       if let RtpsSubmessage::Data(message_2) = &writer_data[1] {
+       if let RtpsSubmessage::Data(message_3) = &writer_data[2] {
            
         }
         else {
