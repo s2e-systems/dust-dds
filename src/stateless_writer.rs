@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet, BTreeMap};
 use std::time::SystemTime;
 
-use crate::types::{ProtocolVersion, SequenceNumber, Locator, GUID, TopicKind, LocatorList, ReliabilityKind, Duration, ChangeKind, InstanceHandle, ParameterList, ENTITYID_UNKNOWN, Time};
+use crate::types::{ProtocolVersion, SequenceNumber, Locator, GUID, TopicKind, LocatorList, ReliabilityKind, Duration, ChangeKind, InstanceHandle, ParameterList, ENTITYID_UNKNOWN, Time, VENDOR_ID};
 use crate::entity::Entity;
 use crate::cache::{CacheChange, HistoryCache};
 use crate::messages::{RtpsMessage, RtpsSubmessage, Data, Gap, Payload, InlineQosParameter, InfoTs};
@@ -163,7 +163,10 @@ impl StatelessWriter {
     }
 
     pub fn get_data_to_send(&mut self, a_locator: Locator) -> RtpsMessage {
-        let mut message = RtpsMessage::new([2;12] /*guid_prefix*/, [99,99]/*vendor_id*/, ProtocolVersion{major:2, minor: 4} /*protocol_version*/);
+        let mut message = RtpsMessage::new(
+            *self.entity.guid.prefix(),
+            VENDOR_ID,
+            ProtocolVersion{major:2, minor: 4});
 
         if self.has_unsent_changes(a_locator) {
             let current_time = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap();
@@ -171,15 +174,14 @@ impl StatelessWriter {
             let infots = InfoTs::new(Some(time));
 
             message.push(RtpsSubmessage::InfoTs(infots));
-        
 
             while let Some(next_unsent_seq_num) = self.next_unsent_change(a_locator)
             {
-                let whc = self.writer_cache.get_changes();
-                if let Some(cache_change) = whc.iter().find(|cc| cc.get_sequence_number() == &next_unsent_seq_num) {
+                if let Some(cache_change) = self.writer_cache.get_change_with_sequence_number(&next_unsent_seq_num) {
                     let payload_data = Data::new(
                         ENTITYID_UNKNOWN, /*reader_id*/
                         *self.entity.guid.entity_id(), /*writer_id*/
+                        *cache_change.get_instance_handle(), /*key_hash*/
                         *cache_change.get_sequence_number(), /*writer_sn*/
                         None, /*inline_qos*/
                         Payload::Data(cache_change.data().unwrap().to_vec()) /*serialized_payload*/);

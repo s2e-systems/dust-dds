@@ -159,6 +159,10 @@ impl HistoryCache {
         &self.changes
     }
 
+    pub fn get_change_with_sequence_number(&self, sequence_number: &SequenceNumber) -> Option<&CacheChange> {
+        self.changes.iter().find(|cc| cc.get_sequence_number() == sequence_number)
+    }
+
     pub fn get_seq_num_min(&self) -> Option<SequenceNumber> {
         Some(self.changes.iter().min()?.sequence_number)
     }

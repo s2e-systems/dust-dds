@@ -44,13 +44,18 @@ fn test_stateless_writer_stateless_reader_integration() {
        [1;16], /*handle*/
    );
 
-   writer.history_cache().add_change(cache_change_seq1);
-   writer.history_cache().add_change(cache_change_seq2);
+   writer.history_cache().add_change(cache_change_seq1.clone());
+   writer.history_cache().add_change(cache_change_seq2.clone());
 
    let writer_data = writer.get_data_to_send(locator);
 
-   reader.process_data(&writer_data);
+   reader.process_message(&writer_data);
 
-   assert_eq!(reader.history_cache().get_changes().len(), 2);
-
+   let reader_changes = reader.history_cache().get_changes();
+   assert_eq!(reader_changes.len(), 2);
+   for i in reader_changes {
+       println!("Reader change {:?}", i);
+   }
+   assert!(reader_changes.contains(&cache_change_seq1));
+   assert!(reader_changes.contains(&cache_change_seq2));
 }

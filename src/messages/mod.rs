@@ -181,22 +181,6 @@ struct MessageHeader {
 
 //TODO: InfoReplyIP4
 
-// #[derive(PartialEq, Debug)]
-// pub enum SubMessageType {
-//     AckNackSubmessage(AckNack),
-//     DataSubmessage(Data),
-//     DataFragSubmessage(DataFrag),
-//     GapSubmessage(Gap),
-//     HeartbeatSubmessage(Heartbeat),
-//     HeartbeatFragSubmessage(HeartbeatFrag),
-//     InfoDstSubmessage(InfoDst),
-//     InfoReplySubmessage(InfoReply),
-//     InfoSrcSubmessage(InfoSrc),
-//     InfoTsSubmessage(InfoTs),
-//     PadSubmessage(()),
-//     NackFragSubmessage(NackFrag),
-// }
-
 #[derive(Debug)]
 pub struct RtpsMessage {
     guid_prefix: GuidPrefix,

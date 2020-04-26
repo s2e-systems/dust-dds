@@ -1,4 +1,4 @@
-use crate::types::{EntityId, InlineQosParameterList, SequenceNumber};
+use crate::types::{EntityId, InlineQosParameterList, SequenceNumber, KeyHash};
 
 use super::helpers::{
     deserialize, endianess, parse_inline_qos_parameter_list, SequenceNumberSerialization,
@@ -20,8 +20,10 @@ pub enum Payload {
 
 #[derive(PartialEq, Debug)]
 pub struct Data {
+    // status_info: StatusInfo,
     reader_id: EntityId,
     writer_id: EntityId,
+    key_hash: KeyHash,
     writer_sn: SequenceNumber,
     inline_qos: Option<InlineQosParameterList>,
     serialized_payload: Payload,
@@ -31,6 +33,7 @@ impl Data {
     pub fn new(
         reader_id: EntityId,
         writer_id: EntityId,
+        key_hash: KeyHash,
         writer_sn: SequenceNumber,
         inline_qos: Option<InlineQosParameterList>,
         serialized_payload: Payload,
@@ -38,6 +41,7 @@ impl Data {
         Data {
             reader_id,
             writer_id,
+            key_hash,
             writer_sn,
             inline_qos,
             serialized_payload,
@@ -50,6 +54,10 @@ impl Data {
 
     pub fn writer_id(&self) -> &EntityId {
         &self.writer_id
+    }
+
+    pub fn key_hash(&self) -> &KeyHash {
+        &self.key_hash
     }
 
     pub fn writer_sn(&self) -> &SequenceNumber {
@@ -182,6 +190,7 @@ pub fn parse_data_submessage(submessage: &[u8], submessage_flags: &u8) -> Result
     Ok(Data {
         reader_id,
         writer_id,
+        key_hash: [0;16], /*TODO: key_hash*/
         writer_sn,
         inline_qos,
         serialized_payload,
@@ -495,6 +504,7 @@ mod tests {
         let data = Data::new(
             ENTITYID_UNKNOWN, /*reader_id*/
             ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, /*writer_id*/
+            [0;16], /*key_hash*/
             1, /*writer_sn*/
             Some(InlineQosParameterList::new_from_vec(vec![InlineQosParameter::KeyHash([0x7f, 0x20, 0xf7, 0xd7, 0x00, 0x00, 0x01, 0xbb,0x00, 0x00, 0x00, 0x01,0x00, 0x00, 0x01, 0xc1])])), /*inline_qos*/
             Payload::Data(payload) /*serialized_payload*/);

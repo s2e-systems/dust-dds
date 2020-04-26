@@ -22,6 +22,8 @@ impl EntityId {
     }
 }
 
+pub const VENDOR_ID: VendorId = [99,99];
+
 pub const ENTITY_KIND_BUILT_IN_UNKNOWN: EntityKind = 0xc0;
 pub const ENTITY_KIND_BUILT_IN_PARTICIPANT: EntityKind = 0xc1;
 pub const ENTITY_KIND_WRITER_WITH_KEY: EntityKind = 0x02;

@@ -55,7 +55,7 @@ impl StatelessReader {
         &self.reader_cache
     }
 
-    pub fn process_data(&mut self, msg: &RtpsMessage) {
+    pub fn process_message(&mut self, msg: &RtpsMessage) {
 
         let guid_prefix = *msg.get_guid_prefix();
 
@@ -66,7 +66,7 @@ impl StatelessReader {
                     let cache_change = CacheChange::new(
                         ChangeKind::Alive, /*change_kind*/
                         GUID::new(guid_prefix /*prefix*/, *data.writer_id() /* entity_id*/) /*writer_guid*/,
-                        [2;16], /*instance_handle*/
+                        *data.key_hash(), /*instance_handle*/
                         *data.writer_sn(), /*sequence_number*/
                         None, /* inline_qos*/
                         None, /*data*/
@@ -126,12 +126,13 @@ mod tests {
         let data1 = Data::new(
             ENTITYID_UNKNOWN, /*reader_id*/
             ENTITYID_UNKNOWN,/*writer_id*/
+            [0;16], /*key_hash*/
             1, /*writer_sn*/
             None, /*inline_qos*/
             Payload::Data(vec![0,1,2]),
         );
 
-        let mut message = RtpsMessage::new([2;12] /*guid_prefix*/,  [99,99] /*vendor_id*/, ProtocolVersion {
+        let mut message = RtpsMessage::new([2;12] /*guid_prefix*/,  VENDOR_ID /*vendor_id*/, ProtocolVersion {
             major: 2,
             minor: 4,
         }, /*protocol_version*/);
@@ -149,6 +150,6 @@ mod tests {
             false,
            );
 
-        reader.process_data(&message);
+        reader.process_message(&message);
     }
 }
