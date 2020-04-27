@@ -1,5 +1,5 @@
 use crate::types::{
-    EntityId, FragmentNumber, InlineQosParameterList, ParameterList, SequenceNumber,
+    EntityId, FragmentNumber, InlineQosParameterList, SequenceNumber,
 };
 
 use super::helpers::{

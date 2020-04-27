@@ -6,8 +6,3 @@ pub struct Entity {
     /// Maps to the value of the DDS BuiltinTopicKey_t used to describe the corresponding DDS Entity.
     pub guid: GUID,
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-}

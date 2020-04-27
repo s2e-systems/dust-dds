@@ -6,8 +6,6 @@ use super::helpers::{
 
 use super::{RtpsMessageError, RtpsMessageResult, SubmessageKind};
 use serde::ser::{Serialize, Serializer, SerializeStruct};
-use cdr::{PlCdrLe, Infinite, LittleEndian};
-use cdr::ser::serialize_data;
 use serde_bytes::ByteBuf;
 
 #[derive(PartialEq, Debug)]
@@ -242,6 +240,7 @@ mod tests {
     use super::*;
     use crate::messages::InlineQosParameter;
     use crate::types::{ENTITYID_UNKNOWN, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER};
+    use cdr::{Infinite, LittleEndian};
 
     const DATA_SUBMESSAGE_BIG_ENDIAN: [u8; 60] = [
         0x00, 0x00, 0x00, 0x10, 0x10, 0x12, 0x14, 0x16, 0x26, 0x24, 0x22, 0x20, 0x00, 0x00, 0x00,

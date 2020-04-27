@@ -1,17 +1,13 @@
-use core::hash::Hash;
 use std::cmp::Ordering;
-use std::collections::{HashMap, HashSet, VecDeque};
-use std::hash::Hasher;
-use std::sync::{Mutex, MutexGuard};
+use std::collections::{HashSet};
 
 use crate::messages::{
-    Data, InfoSrc, InfoTs, InlineQosParameter, Payload, RtpsMessage,
+     InlineQosParameter,
 };
 use crate::types::{
-    ChangeKind, EntityId, GuidPrefix, InstanceHandle, ParameterList, ProtocolVersion,
-    SequenceNumber, Time, VendorId, GUID,
+    ChangeKind, InstanceHandle, ParameterList,
+    SequenceNumber, GUID,
 };
-use crate::types::{ENTITYID_UNKNOWN, ENTITY_KIND_WRITER_WITH_KEY};
 
 #[derive(Eq, Debug, Clone)]
 #[allow(dead_code)]
@@ -175,6 +171,7 @@ impl HistoryCache {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::types::EntityId;
 
     #[test]
     fn cache_change_list() {

@@ -5,7 +5,7 @@ use crate::entity::Entity;
 use crate::messages::{InlineQosParameter, Payload};
 use crate::proxy::WriterProxy;
 use crate::types::{
-    ChangeKind, Duration, EntityId, InlineQosParameterList, LocatorList, ParameterList,
+    ChangeKind, Duration, InlineQosParameterList, LocatorList,
     ReliabilityKind, SequenceNumber, TopicKind, GUID,
 };
 

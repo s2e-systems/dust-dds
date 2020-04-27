@@ -1,5 +1,5 @@
 use crate::cache::{CacheChange, HistoryCache};
-use crate::types::{EntityId, LocatorList, SequenceNumber, SequenceNumberSet, GUID};
+use crate::types::{EntityId, LocatorList, SequenceNumber, GUID};
 use std::collections::{HashMap, HashSet};
 
 #[derive(Hash, Eq, PartialEq, Debug, Clone)]
@@ -346,7 +346,7 @@ impl ReaderProxy {
 mod tests {
 
     use super::*;
-    use crate::types::{ChangeKind, EntityId, InstanceHandle, ENTITYID_UNKNOWN};
+    use crate::types::{ChangeKind, EntityId, ENTITYID_UNKNOWN};
 
     #[test]
     fn test_writer_proxy_available_changes_max() {

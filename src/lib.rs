@@ -1,8 +1,5 @@
 #![allow(dead_code)]
 #![allow(unused_variables)]
-#![allow(unused_imports)]
-
-use std::time::Duration;
 
 mod cache;
 mod entity;
@@ -12,14 +9,11 @@ mod participant;
 mod participant_proxy;
 mod proxy;
 mod reader;
-mod receiver;
 mod transport;
 pub mod types;
 mod writer;
 mod stateless_reader;
 mod stateless_writer;
-
-use types::EntityId;
 
 pub use stateless_reader::StatelessReader;
 pub use stateless_writer::StatelessWriter;

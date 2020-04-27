@@ -1,10 +1,10 @@
-use std::collections::{HashMap, HashSet, BTreeMap};
+use std::collections::{HashMap, HashSet};
 use std::time::SystemTime;
 
 use crate::types::{ProtocolVersion, SequenceNumber, Locator, GUID, TopicKind, LocatorList, ReliabilityKind, Duration, ChangeKind, InstanceHandle, ParameterList, ENTITYID_UNKNOWN, Time, VENDOR_ID};
 use crate::entity::Entity;
 use crate::cache::{CacheChange, HistoryCache};
-use crate::messages::{RtpsMessage, RtpsSubmessage, Data, Gap, Payload, InlineQosParameter, InfoTs};
+use crate::messages::{RtpsMessage, RtpsSubmessage, Data, Payload, InlineQosParameter, InfoTs};
 
 pub struct ReaderLocator {
     //requested_changes: HashSet<CacheChange>,

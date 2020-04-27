@@ -5,12 +5,11 @@ use std::cmp;
 use std::convert::TryInto; /*CdrLe, CdrBe, PlCdrLe, PlCdrBe, Error, Infinite,*/
 
 use crate::messages::InlineQosParameter;
-use crate::types::{
-    FragmentNumber, FragmentNumberSet, InlineQosParameterList, SequenceNumber,
-    SequenceNumberSet, ParameterList,
+use crate::types::
+    {FragmentNumber, FragmentNumberSet, InlineQosParameterList, SequenceNumberSet, ParameterList
 };
 
-use super::{RtpsMessageError, InlineQosPid, ProtocolVersion, RtpsMessageResult, RTPS_MINOR_VERSION};
+use super::{RtpsMessageError, InlineQosPid, RtpsMessageResult};
 
 // All sizes are in octets
 pub const MINIMUM_RTPS_MESSAGE_SIZE: usize = 20;

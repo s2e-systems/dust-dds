@@ -1,8 +1,7 @@
 use crate::types::Time;
-use std::io::Write;
 use super::helpers::{deserialize, endianess};
 
-use super::{SubmessageKind, RtpsMessageError, EndianessFlag, ENDIANNESS_FLAG_MASK, RtpsMessageResult, RtpsSerialize, OctetsToNextHeader};
+use super::{SubmessageKind, RtpsMessageError, EndianessFlag, RtpsMessageResult, RtpsSerialize, OctetsToNextHeader};
 
 #[derive(PartialEq, Debug)]
 pub struct InfoTs {

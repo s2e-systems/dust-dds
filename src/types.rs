@@ -1,4 +1,4 @@
-use crate::messages::{RtpsMessageResult, InlineQosParameter, RtpsSerialize, RtpsDeserialize, EndianessFlag, serialize_u32};
+use crate::messages::{RtpsMessageResult, InlineQosParameter, RtpsSerialize, EndianessFlag, serialize_u32};
 use serde::{Serialize, Serializer};
 use serde::ser::{SerializeMap};
 use serde_derive::{Deserialize, Serialize};

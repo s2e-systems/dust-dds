@@ -2,12 +2,12 @@ use crate::cache::{CacheChange, HistoryCache};
 use crate::entity::Entity;
 use crate::proxy::ReaderProxy;
 use crate::types::{
-    ChangeKind, Duration, InstanceHandle, Locator, LocatorList, ParameterList, ReliabilityKind,
-    SequenceNumber, TopicKind, GUID,ENTITYID_UNKNOWN,
+    ChangeKind, Duration, InstanceHandle, LocatorList, ParameterList, ReliabilityKind,
+    SequenceNumber, TopicKind, GUID,
 };
-use crate::messages::{Data, Gap, Payload, InlineQosParameter};
+use crate::messages::{InlineQosParameter};
 
-use std::collections::{HashMap, HashSet, BTreeMap};
+use std::collections::{HashMap};
 
 pub trait WriterOperations {
     fn writer(&mut self) -> &mut Writer;

@@ -13,9 +13,7 @@ mod info_timestamp_submessage;
 mod nack_frag_submessage;
 
 use num_derive::FromPrimitive;
-use serde::ser;
 use serde_derive::{Deserialize, Serialize};
-use std::collections::VecDeque;
 
 use helpers::{deserialize, endianess, MINIMUM_RTPS_MESSAGE_SIZE};
 
@@ -450,9 +448,7 @@ pub fn parse_rtps_message(message: &[u8]) -> RtpsMessageResult<RtpsMessage> {
 mod tests {
     use super::*;
 
-    use cdr::{BigEndian, LittleEndian, Infinite};
-    use crate::participant_proxy::SpdpParameterId;
-    use crate::types::Duration;
+    use cdr::{BigEndian, Infinite};
 
     #[test]
     fn test_parse_valid_message_header_only() {

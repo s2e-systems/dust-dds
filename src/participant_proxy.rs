@@ -2,13 +2,10 @@ use crate::types::{GuidPrefix, LocatorList, ProtocolVersion, VendorId};
 // use crate::spdp::{SpdpParameter,SpdpParameterList, SpdpParameterId};
 
 use num_derive::FromPrimitive;
-use std::convert::TryInto;
-
-use std::collections::HashMap;
 
 use crate::messages;
 use crate::messages::helpers::{deserialize, EndianessFlag};
-use crate::types::{BuiltInEndPointSet, Locator, Time, GUID, Duration};
+use crate::types::{BuiltInEndPointSet, Locator, Time, GUID};
 
 #[derive(Debug)]
 pub enum SpdpErrorMessage {
@@ -342,7 +339,7 @@ impl ParticipantProxy {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{BuiltInEndPoints, EntityId, ENTITY_KIND_BUILT_IN_PARTICIPANT};
+    use crate::types::{BuiltInEndPoints};
 
     #[test]
     fn test_parse_example_spdp_data() {

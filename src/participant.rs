@@ -1,17 +1,15 @@
-use std::collections::{HashSet, HashMap};
+use std::collections::{HashSet};
 
-use crate::cache::HistoryCache;
 use crate::entity::Entity;
 use crate::messages::{
-    parse_rtps_message, Data, InfoSrc, InfoTs, Payload, RtpsMessage, RtpsSubmessage
-};
+    parse_rtps_message, Payload};
 use crate::participant_proxy::{ParticipantProxy, SpdpParameterId};
 use crate::proxy::{ReaderProxy, WriterProxy};
 use crate::reader::{StatefulReader, StatelessReader};
 use crate::transport::Transport;
 use crate::types::{
-    BuiltInEndPoints, Duration, GuidPrefix, InlineQosParameterList, Locator, LocatorList,
-    ProtocolVersion, ReliabilityKind, SequenceNumber, Time, TopicKind, VendorId, GUID, ChangeKind};
+    BuiltInEndPoints, Duration, InlineQosParameterList, Locator, LocatorList,
+    ProtocolVersion, ReliabilityKind, SequenceNumber, TopicKind, VendorId, GUID, ChangeKind};
 
 use crate::types::{
     DURATION_ZERO, ENTITYID_PARTICIPANT, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
@@ -21,7 +19,7 @@ use crate::types::{
     ENTITYID_SPDP_BUILTIN_PARTICIPANT_DETECTOR, ENTITYID_UNKNOWN,
 };
 use crate::stateless_writer::StatelessWriter;
-use crate::writer::{StatefulWriter, WriterOperations};
+use crate::writer::{StatefulWriter};
 use crate::Udpv4Locator;
 use cdr::{PlCdrLe, Infinite};
 use serde::{Serialize, Serializer};
@@ -406,9 +404,9 @@ impl Participant {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::cache::HistoryCache;
-    use std::net::SocketAddr;
+    // use super::*;
+    // use crate::cache::HistoryCache;
+    // use std::net::SocketAddr;
 
     // #[test]
     // fn test_participant() {

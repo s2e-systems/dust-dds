@@ -1,13 +1,8 @@
-use std::collections::HashMap;
-
 use crate::cache::{CacheChange, HistoryCache};
 use crate::entity::Entity;
 use crate::messages::{RtpsMessage, RtpsSubmessage, InlineQosParameter, Payload};
-use crate::proxy::WriterProxy;
 use crate::types::{
-    ChangeKind, Duration, EntityId, InlineQosParameterList, LocatorList, ParameterList,
-    ReliabilityKind, SequenceNumber, TopicKind, GUID, ENTITYID_UNKNOWN, InstanceHandle, GuidPrefix,
-};
+    ChangeKind, Duration, InlineQosParameterList, LocatorList, ReliabilityKind, SequenceNumber, TopicKind, GUID, ENTITYID_UNKNOWN,};
 
 pub struct StatelessReader {
     heartbeat_response_delay: Duration,
