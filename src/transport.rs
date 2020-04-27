@@ -97,7 +97,7 @@ mod tests {
     fn read_udp_data() {
         let addr = [127, 0, 0, 1];
         let multicast_group = [239, 255, 0, 1];
-        let port = 7400;
+        let port = 7405;
         let unicast_locator = Udpv4Locator::new_udpv4(&addr, &port);
         let multicast_locator = Udpv4Locator::new_udpv4(&multicast_group, &0);
 
