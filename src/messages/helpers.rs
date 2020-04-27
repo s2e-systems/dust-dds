@@ -10,15 +10,43 @@ use crate::types::{
     SequenceNumberSet, ParameterList,
 };
 
-use super::{ErrorMessage, InlineQosPid, ProtocolVersion, Result, RTPS_MINOR_VERSION};
+use super::{RtpsMessageError, InlineQosPid, ProtocolVersion, RtpsMessageResult, RTPS_MINOR_VERSION};
 
 // All sizes are in octets
 pub const MINIMUM_RTPS_MESSAGE_SIZE: usize = 20;
 
-#[derive(FromPrimitive, PartialEq, Debug)]
+#[derive(FromPrimitive, PartialEq, Debug, Clone, Copy)]
 pub enum EndianessFlag {
     BigEndian = 0,
     LittleEndian = 1,
+}
+
+pub fn serialize_u32(value: u32, endi: EndianessFlag) -> [u8;4] {
+    match endi {
+        EndianessFlag::BigEndian => value.to_be_bytes(),
+        EndianessFlag::LittleEndian => value.to_le_bytes(),
+    }
+}
+
+pub fn serialize_i32(value: i32, endi: EndianessFlag) -> [u8;4] {
+    match endi {
+        EndianessFlag::BigEndian => value.to_be_bytes(),
+        EndianessFlag::LittleEndian => value.to_le_bytes(),
+    }
+}
+
+pub fn serialize_u16(value: u16, endi: EndianessFlag) -> [u8;2] {
+    match endi {
+        EndianessFlag::BigEndian => value.to_be_bytes(),
+        EndianessFlag::LittleEndian => value.to_le_bytes(),
+    }
+}
+
+pub fn serialize_i16(value: i16, endi: EndianessFlag) -> [u8;2] {
+    match endi {
+        EndianessFlag::BigEndian => value.to_be_bytes(),
+        EndianessFlag::LittleEndian => value.to_le_bytes(),
+    }
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
@@ -42,11 +70,11 @@ impl From<SequenceNumberSerialization> for i64 {
     }
 }
 
-pub fn endianess(flags: &u8) -> Result<EndianessFlag> {
+pub fn endianess(flags: &u8) -> RtpsMessageResult<EndianessFlag> {
     const ENDIANESS_FLAG_MASK: u8 = 0x01;
 
     num::FromPrimitive::from_u8((*flags) & ENDIANESS_FLAG_MASK)
-        .ok_or(ErrorMessage::InvalidTypeConversion)
+        .ok_or(RtpsMessageError::InvalidTypeConversion)
 }
 
 pub fn deserialize<'de, T>(
@@ -54,20 +82,20 @@ pub fn deserialize<'de, T>(
     start_index: &usize,
     end_index: &usize,
     endianess: &EndianessFlag,
-) -> Result<T>
+) -> RtpsMessageResult<T>
 where
     T: serde::de::Deserialize<'de>,
 {
     if message.len() <= *end_index {
-        return Err(ErrorMessage::DeserializationMessageSizeTooSmall);
+        return Err(RtpsMessageError::DeserializationMessageSizeTooSmall);
     }
 
     if *endianess == EndianessFlag::BigEndian {
         cdr::de::deserialize_data::<T, BigEndian>(&message[*start_index..=*end_index])
-            .map_err(ErrorMessage::CdrError)
+            .map_err(RtpsMessageError::CdrError)
     } else {
         cdr::de::deserialize_data::<T, LittleEndian>(&message[*start_index..=*end_index])
-            .map_err(ErrorMessage::CdrError)
+            .map_err(RtpsMessageError::CdrError)
     }
 }
 
@@ -75,7 +103,7 @@ pub fn parse_sequence_number_set(
     submessage: &[u8],
     sequence_number_set_first_index: &usize,
     endianess_flag: &EndianessFlag,
-) -> Result<(SequenceNumberSet, usize)> {
+) -> RtpsMessageResult<(SequenceNumberSet, usize)> {
     const SEQUENCE_NUMBER_TYPE_SIZE: usize = 8;
     const NUM_BITS_TYPE_SIZE: usize = 4;
     const BITMAP_FIELD_SIZE: usize = 4;
@@ -91,7 +119,7 @@ pub fn parse_sequence_number_set(
     )?
     .into();
     if bitmap_base < 1 {
-        return Err(ErrorMessage::InvalidSubmessage);
+        return Err(RtpsMessageError::InvalidSubmessage);
     }
 
     let num_bits_first_index = bitmap_base_last_index + 1;
@@ -104,7 +132,7 @@ pub fn parse_sequence_number_set(
         &endianess_flag,
     )?;
     if num_bits < 1 || num_bits > 256 {
-        return Err(ErrorMessage::InvalidSubmessage);
+        return Err(RtpsMessageError::InvalidSubmessage);
     }
 
     let num_bitmap_fields = ((num_bits + 31) >> 5) as usize;
@@ -144,7 +172,7 @@ pub fn parse_inline_qos_parameter_list(
     submessage: &[u8],
     parameter_list_first_index: &usize,
     endianess: &EndianessFlag,
-) -> Result<(InlineQosParameterList, usize)> {
+) -> RtpsMessageResult<(InlineQosParameterList, usize)> {
     const MINIMUM_PARAMETER_VALUE_LENGTH: usize = 4;
     const PARAMETER_ID_OFFSET: usize = 1;
     const LENGTH_FIRST_OFFSET: usize = 2;
@@ -182,24 +210,24 @@ pub fn parse_inline_qos_parameter_list(
             endianess,
         )? as usize;
         if length < MINIMUM_PARAMETER_VALUE_LENGTH {
-            return Err(ErrorMessage::InvalidSubmessage);
+            return Err(RtpsMessageError::InvalidSubmessage);
         }
 
         value_last_index = value_first_index + length - 1;
         if value_last_index >= submessage.len() {
-            return Err(ErrorMessage::InvalidSubmessage);
+            return Err(RtpsMessageError::InvalidSubmessage);
         }
 
         let value = match num::FromPrimitive::from_u16(parameter_id) {
             Some(InlineQosPid::KeyHash) => Some(InlineQosParameter::KeyHash(
                 submessage[value_first_index..=value_last_index]
                     .try_into()
-                    .map_err(|_| ErrorMessage::InvalidSubmessageHeader)?,
+                    .map_err(|_| RtpsMessageError::InvalidSubmessageHeader)?,
             )),
             Some(InlineQosPid::StatusInfo) => Some(InlineQosParameter::StatusInfo(
                 submessage[value_first_index..=value_last_index]
                     .try_into()
-                    .map_err(|_| ErrorMessage::InvalidSubmessageHeader)?,
+                    .map_err(|_| RtpsMessageError::InvalidSubmessageHeader)?,
             )),
             _ => None,
         };
@@ -218,7 +246,7 @@ pub fn parse_fragment_number_set(
     submessage: &[u8],
     sequence_number_set_first_index: &usize,
     endianess_flag: &EndianessFlag,
-) -> Result<(FragmentNumberSet, usize)> {
+) -> RtpsMessageResult<(FragmentNumberSet, usize)> {
     const FRAGMENT_NUMBER_TYPE_SIZE: usize = 4;
     const NUM_BITS_TYPE_SIZE: usize = 4;
     const BITMAP_FIELD_SIZE: usize = 4;
@@ -233,7 +261,7 @@ pub fn parse_fragment_number_set(
         endianess_flag,
     )?;
     if bitmap_base < 1 {
-        return Err(ErrorMessage::InvalidSubmessage);
+        return Err(RtpsMessageError::InvalidSubmessage);
     }
 
     let num_bits_first_index = bitmap_base_last_index + 1;
@@ -246,7 +274,7 @@ pub fn parse_fragment_number_set(
         &endianess_flag,
     )?;
     if num_bits < 1 || num_bits > 256 {
-        return Err(ErrorMessage::InvalidSubmessage);
+        return Err(RtpsMessageError::InvalidSubmessage);
     }
 
     let num_bitmap_fields = ((num_bits + 31) >> 5) as usize;
@@ -349,7 +377,7 @@ mod tests {
                 &0,
                 &EndianessFlag::BigEndian,
             );
-            if let Err(ErrorMessage::InvalidSubmessage) = sequence_set_result {
+            if let Err(RtpsMessageError::InvalidSubmessage) = sequence_set_result {
                 assert!(true);
             } else {
                 assert!(false);
@@ -368,7 +396,7 @@ mod tests {
                 &0,
                 &EndianessFlag::BigEndian,
             );
-            if let Err(ErrorMessage::InvalidSubmessage) = sequence_set_result {
+            if let Err(RtpsMessageError::InvalidSubmessage) = sequence_set_result {
                 assert!(true);
             } else {
                 assert!(false);
@@ -387,7 +415,7 @@ mod tests {
                 &0,
                 &EndianessFlag::BigEndian,
             );
-            if let Err(ErrorMessage::InvalidSubmessage) = sequence_set_result {
+            if let Err(RtpsMessageError::InvalidSubmessage) = sequence_set_result {
                 assert!(true);
             } else {
                 assert!(false);
@@ -468,7 +496,7 @@ mod tests {
             let sequence_set_result =
                 parse_sequence_number_set(&wrong_submessage_test, &0, &EndianessFlag::BigEndian);
 
-            if let Err(ErrorMessage::DeserializationMessageSizeTooSmall) = sequence_set_result {
+            if let Err(RtpsMessageError::DeserializationMessageSizeTooSmall) = sequence_set_result {
                 assert!(true);
             } else {
                 assert!(false);
@@ -545,7 +573,7 @@ mod tests {
 
             let param_list =
                 parse_inline_qos_parameter_list(&submessage, &0, &EndianessFlag::LittleEndian);
-            if let Err(ErrorMessage::InvalidSubmessage) = param_list {
+            if let Err(RtpsMessageError::InvalidSubmessage) = param_list {
                 assert!(true);
             } else {
                 assert!(false);
@@ -561,7 +589,7 @@ mod tests {
 
             let param_list =
                 parse_inline_qos_parameter_list(&submessage, &0, &EndianessFlag::BigEndian);
-            if let Err(ErrorMessage::InvalidSubmessage) = param_list {
+            if let Err(RtpsMessageError::InvalidSubmessage) = param_list {
                 assert!(true);
             } else {
                 assert!(false);
@@ -630,7 +658,7 @@ mod tests {
                 &0,
                 &EndianessFlag::BigEndian,
             );
-            if let Err(ErrorMessage::InvalidSubmessage) = fragment_number_set_result {
+            if let Err(RtpsMessageError::InvalidSubmessage) = fragment_number_set_result {
                 assert!(true);
             } else {
                 assert!(false);
@@ -648,7 +676,7 @@ mod tests {
                 &0,
                 &EndianessFlag::BigEndian,
             );
-            if let Err(ErrorMessage::InvalidSubmessage) = fragment_number_set_result {
+            if let Err(RtpsMessageError::InvalidSubmessage) = fragment_number_set_result {
                 assert!(true);
             } else {
                 assert!(false);
@@ -728,7 +756,7 @@ mod tests {
             let fragment_number_set_result =
                 parse_fragment_number_set(&wrong_submessage_test, &0, &EndianessFlag::BigEndian);
 
-            if let Err(ErrorMessage::DeserializationMessageSizeTooSmall) =
+            if let Err(RtpsMessageError::DeserializationMessageSizeTooSmall) =
                 fragment_number_set_result
             {
                 assert!(true);

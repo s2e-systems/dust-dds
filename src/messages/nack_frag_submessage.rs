@@ -2,7 +2,7 @@ use crate::types::{Count, EntityId, FragmentNumberSet, SequenceNumber};
 
 use super::helpers::{parse_fragment_number_set, SequenceNumberSerialization};
 
-use super::{deserialize, endianess, Result};
+use super::{deserialize, endianess, RtpsMessageResult};
 
 #[derive(PartialEq, Debug)]
 pub struct NackFrag {
@@ -13,7 +13,7 @@ pub struct NackFrag {
     count: Count,
 }
 
-pub fn parse_nack_frag_submessage(submessage: &[u8], submessage_flags: &u8) -> Result<NackFrag> {
+pub fn parse_nack_frag_submessage(submessage: &[u8], submessage_flags: &u8) -> RtpsMessageResult<NackFrag> {
     const READER_ID_FIRST_INDEX: usize = 0;
     const READER_ID_LAST_INDEX: usize = 3;
     const WRITER_ID_FIRST_INDEX: usize = 4;

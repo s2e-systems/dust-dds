@@ -18,7 +18,7 @@ pub enum SpdpErrorMessage {
     InvalidParameterLength,
     ParameterContentConversionFailed,
     CdrError(cdr::Error),
-    ParserError(messages::ErrorMessage),
+    ParserError(messages::RtpsMessageError),
 }
 
 impl From<cdr::Error> for SpdpErrorMessage {
@@ -27,8 +27,8 @@ impl From<cdr::Error> for SpdpErrorMessage {
     }
 }
 
-impl From<messages::ErrorMessage> for SpdpErrorMessage {
-    fn from(error: messages::ErrorMessage) -> Self {
+impl From<messages::RtpsMessageError> for SpdpErrorMessage {
+    fn from(error: messages::RtpsMessageError) -> Self {
         SpdpErrorMessage::ParserError(error)
     }
 }

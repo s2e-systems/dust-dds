@@ -2,7 +2,7 @@ use crate::types::{Count, EntityId, SequenceNumber};
 
 use super::helpers::{deserialize, endianess, SequenceNumberSerialization};
 
-use super::{ErrorMessage, Result};
+use super::{RtpsMessageError, RtpsMessageResult};
 
 #[derive(PartialEq, Debug)]
 pub struct Heartbeat {
@@ -15,7 +15,7 @@ pub struct Heartbeat {
     liveliness_flag: bool,
 }
 
-pub fn parse_heartbeat_submessage(submessage: &[u8], submessage_flags: &u8) -> Result<Heartbeat> {
+pub fn parse_heartbeat_submessage(submessage: &[u8], submessage_flags: &u8) -> RtpsMessageResult<Heartbeat> {
     const READER_ID_FIRST_INDEX: usize = 0;
     const READER_ID_LAST_INDEX: usize = 3;
     const WRITER_ID_FIRST_INDEX: usize = 4;
@@ -56,7 +56,7 @@ pub fn parse_heartbeat_submessage(submessage: &[u8], submessage_flags: &u8) -> R
     )?
     .into();
     if first_sn < 1 {
-        return Err(ErrorMessage::InvalidSubmessage);
+        return Err(RtpsMessageError::InvalidSubmessage);
     }
 
     let last_sn: SequenceNumber = deserialize::<SequenceNumberSerialization>(
@@ -67,11 +67,11 @@ pub fn parse_heartbeat_submessage(submessage: &[u8], submessage_flags: &u8) -> R
     )?
     .into();
     if last_sn < 0 {
-        return Err(ErrorMessage::InvalidSubmessage);
+        return Err(RtpsMessageError::InvalidSubmessage);
     }
 
     if last_sn < first_sn - 1 {
-        return Err(ErrorMessage::InvalidSubmessage);
+        return Err(RtpsMessageError::InvalidSubmessage);
     }
 
     let count = deserialize::<Count>(
@@ -176,7 +176,7 @@ mod tests {
         ];
 
         let heartbeat = parse_heartbeat_submessage(&submessage, &0);
-        if let Err(ErrorMessage::InvalidSubmessage) = heartbeat {
+        if let Err(RtpsMessageError::InvalidSubmessage) = heartbeat {
             assert!(true);
         } else {
             assert!(false);
@@ -192,7 +192,7 @@ mod tests {
         ];
 
         let heartbeat = parse_heartbeat_submessage(&submessage, &0);
-        if let Err(ErrorMessage::InvalidSubmessage) = heartbeat {
+        if let Err(RtpsMessageError::InvalidSubmessage) = heartbeat {
             assert!(true);
         } else {
             assert!(false);
@@ -208,7 +208,7 @@ mod tests {
         ];
 
         let heartbeat = parse_heartbeat_submessage(&submessage, &0);
-        if let Err(ErrorMessage::InvalidSubmessage) = heartbeat {
+        if let Err(RtpsMessageError::InvalidSubmessage) = heartbeat {
             assert!(true);
         } else {
             assert!(false);

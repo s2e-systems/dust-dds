@@ -17,7 +17,7 @@ use serde::ser;
 use serde_derive::{Deserialize, Serialize};
 use std::collections::VecDeque;
 
-use helpers::{deserialize, endianess, EndianessFlag, MINIMUM_RTPS_MESSAGE_SIZE};
+use helpers::{deserialize, endianess, MINIMUM_RTPS_MESSAGE_SIZE};
 
 use crate::types::*;
 
@@ -44,9 +44,10 @@ pub use info_reply_submessage::InfoReply;
 pub use info_source_submessage::InfoSrc;
 pub use info_timestamp_submessage::InfoTs;
 pub use nack_frag_submessage::NackFrag;
+pub use helpers::{EndianessFlag, serialize_u16, serialize_u32};
 
 #[derive(Debug)]
-pub enum ErrorMessage {
+pub enum RtpsMessageError {
     MessageTooSmall,
     InvalidHeader,
     RtpsMajorVersionUnsupported,
@@ -55,17 +56,24 @@ pub enum ErrorMessage {
     InvalidSubmessage,
     InvalidKeyAndDataFlagCombination,
     CdrError(cdr::Error),
+    IoError(std::io::Error),
     InvalidTypeConversion,
     DeserializationMessageSizeTooSmall,
 }
 
-impl From<cdr::Error> for ErrorMessage {
+impl From<cdr::Error> for RtpsMessageError {
     fn from(error: cdr::Error) -> Self {
-        ErrorMessage::CdrError(error)
+        RtpsMessageError::CdrError(error)
     }
 }
 
-type Result<T> = std::result::Result<T, ErrorMessage>;
+impl From<std::io::Error> for RtpsMessageError {
+    fn from(error: std::io::Error) -> Self {
+        RtpsMessageError::IoError(error)
+    }
+}
+
+pub type RtpsMessageResult<T> = std::result::Result<T, RtpsMessageError>;
 
 pub const RTPS_MAJOR_VERSION: u8 = 2;
 pub const RTPS_MINOR_VERSION: u8 = 4;
@@ -86,7 +94,7 @@ pub enum RtpsSubmessage {
     NackFrag(NackFrag),
 }
 
-#[derive(FromPrimitive)]
+#[derive(FromPrimitive, Copy, Clone)]
 enum SubmessageKind {
     Pad = 0x01,
     AckNack = 0x06,
@@ -103,12 +111,54 @@ enum SubmessageKind {
     DataFrag = 0x16,
 }
 
+impl<W> RtpsSerialize<W> for SubmessageKind
+where
+    W: std::io::Write
+{
+    fn serialize(&self, writer: &mut W, endi: EndianessFlag) -> RtpsMessageResult<()>{
+        let submessage_kind_u8 = *self as u8;
+        writer.write(&submessage_kind_u8.to_ne_bytes()).unwrap();
+
+        Ok(())
+        
+    }
+}
+
+
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 struct SubmessageHeader {
     submessage_id: u8,
     flags: u8,
     submessage_length: u16,
 }
+
+pub trait RtpsSerialize<W> where 
+    W: std::io::Write
+{
+    fn serialize(&self, writer: &mut W, endi: EndianessFlag) -> RtpsMessageResult<()>;
+}
+
+pub trait RtpsDeserialize {
+    type Output;
+
+    fn deserialize(bytes: &[u8]) -> RtpsMessageResult<Self::Output>;
+}
+
+const ENDIANNESS_FLAG_MASK: u8 = 1;
+
+struct OctetsToNextHeader(u16);
+
+impl<W> RtpsSerialize<W> for OctetsToNextHeader
+where 
+    W: std::io::Write
+{
+    fn serialize(&self, writer: &mut W, endi: EndianessFlag) -> RtpsMessageResult<()> {
+        writer.write(&serialize_u16(self.0, endi))?;
+
+        Ok(())
+    }
+}
+
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, FromPrimitive)]
 pub enum InlineQosPid {
@@ -244,14 +294,14 @@ impl RtpsMessage {
     }
 }
 
-pub fn parse_rtps_message(message: &[u8]) -> Result<RtpsMessage> {
+pub fn parse_rtps_message(message: &[u8]) -> RtpsMessageResult<RtpsMessage> {
     const MESSAGE_HEADER_FIRST_INDEX: usize = 0;
     const MESSAGE_HEADER_LAST_INDEX: usize = 19;
     const PROTOCOL_VERSION_FIRST_INDEX: usize = 4;
     const PROTOCOL_VERSION_LAST_INDEX: usize = 5;
 
     if message.len() < MINIMUM_RTPS_MESSAGE_SIZE {
-        return Err(ErrorMessage::MessageTooSmall);
+        return Err(RtpsMessageError::MessageTooSmall);
     }
 
     let message_header = deserialize::<MessageHeader>(
@@ -266,14 +316,14 @@ pub fn parse_rtps_message(message: &[u8]) -> Result<RtpsMessage> {
         || message_header.protocol_name[2] != 'P'
         || message_header.protocol_name[3] != 'S'
     {
-        return Err(ErrorMessage::InvalidHeader);
+        return Err(RtpsMessageError::InvalidHeader);
     }
 
     if message_header.protocol_version.major != 2 {
-        return Err(ErrorMessage::RtpsMajorVersionUnsupported);
+        return Err(RtpsMessageError::RtpsMajorVersionUnsupported);
     }
     if message_header.protocol_version.minor > RTPS_MINOR_VERSION {
-        return Err(ErrorMessage::RtpsMinorVersionUnsupported);
+        return Err(RtpsMessageError::RtpsMinorVersionUnsupported);
     }
 
     const RTPS_SUBMESSAGE_HEADER_SIZE: usize = 4;
@@ -290,7 +340,7 @@ pub fn parse_rtps_message(message: &[u8]) -> Result<RtpsMessage> {
             submessage_header_first_index + RTPS_SUBMESSAGE_HEADER_SIZE - 1;
 
         if submessage_header_last_index >= message.len() {
-            return Err(ErrorMessage::InvalidSubmessageHeader);
+            return Err(RtpsMessageError::InvalidSubmessageHeader);
         }
 
         let submessage_endianess =
@@ -311,11 +361,11 @@ pub fn parse_rtps_message(message: &[u8]) -> Result<RtpsMessage> {
         };
 
         if submessage_payload_last_index >= message.len() {
-            return Err(ErrorMessage::MessageTooSmall); // TODO: Replace error by invalid message
+            return Err(RtpsMessageError::MessageTooSmall); // TODO: Replace error by invalid message
         }
 
         let submessage = match num::FromPrimitive::from_u8(submessage_header.submessage_id)
-            .ok_or(ErrorMessage::InvalidSubmessageHeader)?
+            .ok_or(RtpsMessageError::InvalidSubmessageHeader)?
         {
             SubmessageKind::AckNack => {
                 RtpsSubmessage::AckNack(parse_ack_nack_submessage(
@@ -431,7 +481,7 @@ mod tests {
 
         let parse_result = parse_rtps_message(&serialized);
 
-        if let Err(ErrorMessage::MessageTooSmall) = parse_result {
+        if let Err(RtpsMessageError::MessageTooSmall) = parse_result {
             assert!(true);
         } else {
             assert!(false);
@@ -453,7 +503,7 @@ mod tests {
 
         let parse_result = parse_rtps_message(&serialized);
 
-        if let Err(ErrorMessage::RtpsMajorVersionUnsupported) = parse_result {
+        if let Err(RtpsMessageError::RtpsMajorVersionUnsupported) = parse_result {
             assert!(true);
         } else {
             assert!(false);
@@ -472,7 +522,7 @@ mod tests {
 
         let parse_result = parse_rtps_message(&serialized);
 
-        if let Err(ErrorMessage::RtpsMinorVersionUnsupported) = parse_result {
+        if let Err(RtpsMessageError::RtpsMinorVersionUnsupported) = parse_result {
             assert!(true);
         } else {
             assert!(false);
@@ -494,7 +544,7 @@ mod tests {
 
         let parse_result = parse_rtps_message(&serialized);
 
-        if let Err(ErrorMessage::RtpsMajorVersionUnsupported) = parse_result {
+        if let Err(RtpsMessageError::RtpsMajorVersionUnsupported) = parse_result {
             assert!(true);
         } else {
             assert!(false);

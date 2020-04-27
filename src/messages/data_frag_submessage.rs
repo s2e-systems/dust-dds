@@ -6,7 +6,7 @@ use super::helpers::{
     deserialize, endianess, parse_inline_qos_parameter_list, SequenceNumberSerialization,
 };
 
-use super::{ErrorMessage, Payload, Result};
+use super::{RtpsMessageError, Payload, RtpsMessageResult};
 
 #[derive(PartialEq, Debug)]
 pub struct DataFrag {
@@ -21,7 +21,7 @@ pub struct DataFrag {
     serialized_payload: Payload,
 }
 
-pub fn parse_data_frag_submessage(submessage: &[u8], submessage_flags: &u8) -> Result<DataFrag> {
+pub fn parse_data_frag_submessage(submessage: &[u8], submessage_flags: &u8) -> RtpsMessageResult<DataFrag> {
     const INLINE_QOS_FLAG_MASK: u8 = 0x02;
     const KEY_FLAG_MASK: u8 = 0x04;
     const NON_STANDARD_PAYLOAD_FLAG_MASK: u8 = 0x08;
@@ -60,7 +60,7 @@ pub fn parse_data_frag_submessage(submessage: &[u8], submessage_flags: &u8) -> R
         &submessage_endianess,
     )?;
     if extra_flags != 0 {
-        return Err(ErrorMessage::InvalidSubmessage);
+        return Err(RtpsMessageError::InvalidSubmessage);
     }
 
     let octecs_to_inline_qos = deserialize::<u16>(

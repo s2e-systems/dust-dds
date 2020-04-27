@@ -2,7 +2,7 @@ use crate::types::{Count, EntityId, FragmentNumber, SequenceNumber};
 
 use super::helpers::{deserialize, endianess, SequenceNumberSerialization};
 
-use super::{ErrorMessage, Result};
+use super::{RtpsMessageError, RtpsMessageResult};
 
 #[derive(PartialEq, Debug)]
 pub struct HeartbeatFrag {
@@ -16,7 +16,7 @@ pub struct HeartbeatFrag {
 pub fn parse_heartbeat_frag_submessage(
     submessage: &[u8],
     submessage_flags: &u8,
-) -> Result<HeartbeatFrag> {
+) -> RtpsMessageResult<HeartbeatFrag> {
     const READER_ID_FIRST_INDEX: usize = 0;
     const READER_ID_LAST_INDEX: usize = 3;
     const WRITER_ID_FIRST_INDEX: usize = 4;
@@ -52,7 +52,7 @@ pub fn parse_heartbeat_frag_submessage(
     )?
     .into();
     if writer_sn < 1 {
-        return Err(ErrorMessage::InvalidSubmessage);
+        return Err(RtpsMessageError::InvalidSubmessage);
     }
 
     let last_fragment_num = deserialize::<FragmentNumber>(

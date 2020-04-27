@@ -4,7 +4,7 @@ use super::helpers::{
     deserialize, endianess, parse_sequence_number_set, SequenceNumberSerialization,
 };
 
-use super::{ErrorMessage, Result};
+use super::{RtpsMessageError, RtpsMessageResult};
 
 #[derive(PartialEq, Debug)]
 pub struct Gap {
@@ -29,7 +29,7 @@ impl Gap {
         }
 }
 
-pub fn parse_gap_submessage(submessage: &[u8], submessage_flags: &u8) -> Result<Gap> {
+pub fn parse_gap_submessage(submessage: &[u8], submessage_flags: &u8) -> RtpsMessageResult<Gap> {
     const READER_ID_FIRST_INDEX: usize = 0;
     const READER_ID_LAST_INDEX: usize = 3;
     const WRITER_ID_FIRST_INDEX: usize = 4;
@@ -62,7 +62,7 @@ pub fn parse_gap_submessage(submessage: &[u8], submessage_flags: &u8) -> Result<
     )?
     .into();
     if gap_start < 1 {
-        return Err(ErrorMessage::InvalidSubmessage);
+        return Err(RtpsMessageError::InvalidSubmessage);
     }
 
     let (gap_list, _sequence_number_set_size) =
@@ -162,7 +162,7 @@ mod tests {
 
         let gap_big_endian = parse_gap_submessage(&submessage_big_endian, &0);
 
-        if let Err(ErrorMessage::InvalidSubmessage) = gap_big_endian {
+        if let Err(RtpsMessageError::InvalidSubmessage) = gap_big_endian {
             assert!(true);
         } else {
             assert!(false);

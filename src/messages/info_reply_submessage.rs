@@ -2,7 +2,7 @@ use crate::types::LocatorList;
 
 use super::helpers::{deserialize, endianess};
 
-use super::Result;
+use super::RtpsMessageResult;
 
 #[derive(PartialEq, Debug)]
 pub struct InfoReply {
@@ -10,7 +10,7 @@ pub struct InfoReply {
     multicast_locator_list: Option<LocatorList>,
 }
 
-pub fn parse_info_reply_submessage(submessage: &[u8], submessage_flags: &u8) -> Result<InfoReply> {
+pub fn parse_info_reply_submessage(submessage: &[u8], submessage_flags: &u8) -> RtpsMessageResult<InfoReply> {
     const MULTICAST_FLAG_MASK: u8 = 0x02;
     const UNICAST_LOCATOR_LIST_FIRST_INDEX: usize = 0;
     const UNICAST_LOCATOR_LIST_MINIMUM_SIZE: usize = 4;

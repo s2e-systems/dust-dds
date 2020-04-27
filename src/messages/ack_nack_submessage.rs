@@ -2,7 +2,7 @@ use crate::types::{Count, EntityId, SequenceNumberSet};
 
 use super::helpers::{deserialize, endianess, parse_sequence_number_set};
 
-use super::Result;
+use super::RtpsMessageResult;
 
 #[derive(PartialEq, Debug)]
 pub struct AckNack {
@@ -27,7 +27,7 @@ impl AckNack {
     }
 }
 
-pub fn parse_ack_nack_submessage(submessage: &[u8], submessage_flags: &u8) -> Result<AckNack> {
+pub fn parse_ack_nack_submessage(submessage: &[u8], submessage_flags: &u8) -> RtpsMessageResult<AckNack> {
     const FINAL_FLAG_MASK: u8 = 0x02;
     const READER_ID_FIRST_INDEX: usize = 0;
     const READER_ID_LAST_INDEX: usize = 3;

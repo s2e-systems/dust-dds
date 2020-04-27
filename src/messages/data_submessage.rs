@@ -4,7 +4,7 @@ use super::helpers::{
     deserialize, endianess, parse_inline_qos_parameter_list, SequenceNumberSerialization,
 };
 
-use super::{ErrorMessage, Result, SubmessageKind};
+use super::{RtpsMessageError, RtpsMessageResult, SubmessageKind};
 use serde::ser::{Serialize, Serializer, SerializeStruct};
 use cdr::{PlCdrLe, Infinite, LittleEndian};
 use cdr::ser::serialize_data;
@@ -71,24 +71,6 @@ impl Data {
     pub fn serialized_payload(&self) -> &Payload {
         &self.serialized_payload
     }
-
-    pub fn take(
-        self,
-    ) -> (
-        EntityId,
-        EntityId,
-        SequenceNumber,
-        Option<InlineQosParameterList>,
-        Payload,
-    ) {
-        (
-            self.reader_id,
-            self.writer_id,
-            self.writer_sn,
-            self.inline_qos,
-            self.serialized_payload,
-        )
-    }
 }
 
 const INLINE_QOS_FLAG_MASK: u8 = 0x02;
@@ -96,7 +78,7 @@ const DATA_FLAG_MASK: u8 = 0x04;
 const KEY_FLAG_MASK: u8 = 0x08;
 const NON_STANDARD_PAYLOAD_FLAG_MASK: u8 = 0x10;
 
-pub fn parse_data_submessage(submessage: &[u8], submessage_flags: &u8) -> Result<Data> {
+pub fn parse_data_submessage(submessage: &[u8], submessage_flags: &u8) -> RtpsMessageResult<Data> {
     
     const EXTRA_FLAGS_FIRST_INDEX: usize = 0;
     const EXTRA_FLAGS_LAST_INDEX: usize = 1;
@@ -119,7 +101,7 @@ pub fn parse_data_submessage(submessage: &[u8], submessage_flags: &u8) -> Result
         submessage_flags & NON_STANDARD_PAYLOAD_FLAG_MASK == NON_STANDARD_PAYLOAD_FLAG_MASK;
 
     if data_flag && key_flag {
-        return Err(ErrorMessage::InvalidSubmessage);
+        return Err(RtpsMessageError::InvalidSubmessage);
     }
 
     let extra_flags = deserialize::<u16>(
@@ -129,7 +111,7 @@ pub fn parse_data_submessage(submessage: &[u8], submessage_flags: &u8) -> Result
         &submessage_endianess,
     )?;
     if extra_flags != 0 {
-        return Err(ErrorMessage::InvalidSubmessage);
+        return Err(RtpsMessageError::InvalidSubmessage);
     }
 
     let octecs_to_inline_qos = deserialize::<u16>(

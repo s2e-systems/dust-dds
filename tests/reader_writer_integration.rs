@@ -34,14 +34,14 @@ fn test_stateless_writer_stateless_reader_integration() {
        ChangeKind::Alive,
        Some(vec![1,2,3]), /*data*/
        None, /*inline_qos*/
-       [1;16], /*handle*/
+       [0;16], /*handle*/
    );
    
    let cache_change_seq2 = writer.new_change(
        ChangeKind::Alive,
        Some(vec!(4,5,6)), /*data*/
        None, /*inline_qos*/
-       [1;16], /*handle*/
+       [0;16], /*handle*/
    );
 
    writer.history_cache().add_change(cache_change_seq1.clone());
@@ -53,9 +53,6 @@ fn test_stateless_writer_stateless_reader_integration() {
 
    let reader_changes = reader.history_cache().get_changes();
    assert_eq!(reader_changes.len(), 2);
-   for i in reader_changes {
-       println!("Reader change {:?}", i);
-   }
    assert!(reader_changes.contains(&cache_change_seq1));
    assert!(reader_changes.contains(&cache_change_seq2));
 }

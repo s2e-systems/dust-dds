@@ -1,4 +1,4 @@
-use crate::messages::InlineQosParameter;
+use crate::messages::{RtpsMessageResult, InlineQosParameter, RtpsSerialize, RtpsDeserialize, EndianessFlag, serialize_u32};
 use serde::{Serialize, Serializer};
 use serde::ser::{SerializeMap};
 use serde_derive::{Deserialize, Serialize};
@@ -121,6 +121,20 @@ pub enum ChangeKind {
 pub struct Time {
     pub seconds: u32,
     pub fraction: u32,
+}
+ 
+impl<W> RtpsSerialize<W> for Time 
+    where W: std::io::Write
+{
+    fn serialize(&self, writer: &mut W, endi: EndianessFlag) -> RtpsMessageResult<()>{
+        let seconds_bytes = serialize_u32(self.seconds, endi);
+        let fraction_bytes = serialize_u32(self.fraction, endi);
+
+        writer.write(&seconds_bytes).unwrap();
+        writer.write(&fraction_bytes).unwrap();
+
+        Ok(())
+    }
 }
 
 const TIME_ZERO: Time = Time {

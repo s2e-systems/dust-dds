@@ -1,6 +1,6 @@
 use crate::types::{GuidPrefix, ProtocolVersion, VendorId};
 
-use super::{deserialize, endianess, Result};
+use super::{deserialize, endianess, RtpsMessageResult};
 
 #[derive(PartialEq, Debug)]
 pub struct InfoSrc {
@@ -39,7 +39,7 @@ impl InfoSrc {
     }
 }
 
-pub fn parse_info_source_submessage(submessage: &[u8], submessage_flags: &u8) -> Result<InfoSrc> {
+pub fn parse_info_source_submessage(submessage: &[u8], submessage_flags: &u8) -> RtpsMessageResult<InfoSrc> {
     const PROTOCOL_VERSION_FIRST_INDEX: usize = 4;
     const PROTOCOL_VERSION_LAST_INDEX: usize = 5;
     const VENDOR_ID_FIRST_INDEX: usize = 6;
