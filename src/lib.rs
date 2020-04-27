@@ -13,6 +13,7 @@ pub mod types;
 mod writer;
 mod stateless_reader;
 mod stateless_writer;
+mod serdes;
 
 pub use stateless_reader::StatelessReader;
 pub use stateless_writer::StatelessWriter;

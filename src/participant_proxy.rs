@@ -4,7 +4,8 @@ use crate::types::{GuidPrefix, LocatorList, ProtocolVersion, VendorId};
 use num_derive::FromPrimitive;
 
 use crate::messages;
-use crate::messages::helpers::{deserialize, EndianessFlag};
+use crate::serdes::{RtpsSerialize, EndianessFlag};
+use crate::messages::helpers::{deserialize,};
 use crate::types::{BuiltInEndPointSet, Locator, Time, GUID};
 
 #[derive(Debug)]

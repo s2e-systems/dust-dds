@@ -4,6 +4,7 @@ use serde_derive::{Deserialize, Serialize};
 use std::cmp;
 use std::convert::TryInto; /*CdrLe, CdrBe, PlCdrLe, PlCdrBe, Error, Infinite,*/
 
+use crate::serdes::EndianessFlag;
 use crate::messages::InlineQosParameter;
 use crate::types::
     {FragmentNumber, FragmentNumberSet, InlineQosParameterList, SequenceNumberSet, ParameterList
@@ -13,40 +14,6 @@ use super::{RtpsMessageError, InlineQosPid, RtpsMessageResult};
 
 // All sizes are in octets
 pub const MINIMUM_RTPS_MESSAGE_SIZE: usize = 20;
-
-#[derive(FromPrimitive, PartialEq, Debug, Clone, Copy)]
-pub enum EndianessFlag {
-    BigEndian = 0,
-    LittleEndian = 1,
-}
-
-pub fn serialize_u32(value: u32, endi: EndianessFlag) -> [u8;4] {
-    match endi {
-        EndianessFlag::BigEndian => value.to_be_bytes(),
-        EndianessFlag::LittleEndian => value.to_le_bytes(),
-    }
-}
-
-pub fn serialize_i32(value: i32, endi: EndianessFlag) -> [u8;4] {
-    match endi {
-        EndianessFlag::BigEndian => value.to_be_bytes(),
-        EndianessFlag::LittleEndian => value.to_le_bytes(),
-    }
-}
-
-pub fn serialize_u16(value: u16, endi: EndianessFlag) -> [u8;2] {
-    match endi {
-        EndianessFlag::BigEndian => value.to_be_bytes(),
-        EndianessFlag::LittleEndian => value.to_le_bytes(),
-    }
-}
-
-pub fn serialize_i16(value: i16, endi: EndianessFlag) -> [u8;2] {
-    match endi {
-        EndianessFlag::BigEndian => value.to_be_bytes(),
-        EndianessFlag::LittleEndian => value.to_le_bytes(),
-    }
-}
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 pub struct SequenceNumberSerialization {
@@ -72,8 +39,9 @@ impl From<SequenceNumberSerialization> for i64 {
 pub fn endianess(flags: &u8) -> RtpsMessageResult<EndianessFlag> {
     const ENDIANESS_FLAG_MASK: u8 = 0x01;
 
-    num::FromPrimitive::from_u8((*flags) & ENDIANESS_FLAG_MASK)
-        .ok_or(RtpsMessageError::InvalidTypeConversion)
+    Ok(EndianessFlag::LittleEndian)
+    // num::FromPrimitive::from_u8((*flags) & ENDIANESS_FLAG_MASK)
+        // .ok_or(RtpsMessageError::InvalidTypeConversion)
 }
 
 pub fn deserialize<'de, T>(

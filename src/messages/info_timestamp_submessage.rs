@@ -1,7 +1,8 @@
 use crate::types::Time;
+use crate::serdes::{RtpsSerialize, EndianessFlag, RtpsSerdesResult};
 use super::helpers::{deserialize, endianess};
 
-use super::{SubmessageKind, RtpsMessageError, EndianessFlag, RtpsMessageResult, RtpsSerialize, OctetsToNextHeader};
+use super::{SubmessageKind, RtpsMessageError, RtpsMessageResult, OctetsToNextHeader};
 
 #[derive(PartialEq, Debug)]
 pub struct InfoTs {
@@ -75,10 +76,10 @@ impl<W> RtpsSerialize<W> for InfoTs
 where 
     W: std::io::Write
 {
-    fn serialize(&self, writer: &mut W, endi: EndianessFlag) -> RtpsMessageResult<()>{
-        SubmessageKind::InfoTimestamp.serialize(writer, endi)?;
+    fn serialize(&self, writer: &mut W, endianness: EndianessFlag) -> RtpsSerdesResult<()>{
+        SubmessageKind::InfoTimestamp.serialize(writer, endianness)?;
 
-        let mut flags = endi as u8;
+        let mut flags = endianness as u8;
         if self.timestamp.is_none() {
             flags |= InfoTs::INVALID_TIME_FLAG_MASK;
         }
@@ -88,10 +89,10 @@ where
             OctetsToNextHeader(8)
         } else {
             OctetsToNextHeader(0)
-        }.serialize(writer, endi)?;
+        }.serialize(writer, endianness)?;
 
         if let Some(time) = &self.timestamp {
-            time.serialize(writer, endi)?;
+            time.serialize(writer, endianness)?;
         }
 
         Ok(())

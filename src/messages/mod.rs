@@ -15,6 +15,7 @@ mod nack_frag_submessage;
 use num_derive::FromPrimitive;
 use serde_derive::{Deserialize, Serialize};
 
+use crate::serdes::{RtpsSerialize, EndianessFlag, RtpsSerdesResult, RtpsSerdesError, PrimitiveSerdes};
 use helpers::{deserialize, endianess, MINIMUM_RTPS_MESSAGE_SIZE};
 
 use crate::types::*;
@@ -42,7 +43,6 @@ pub use info_reply_submessage::InfoReply;
 pub use info_source_submessage::InfoSrc;
 pub use info_timestamp_submessage::InfoTs;
 pub use nack_frag_submessage::NackFrag;
-pub use helpers::{EndianessFlag, serialize_u16, serialize_u32};
 
 #[derive(Debug)]
 pub enum RtpsMessageError {
@@ -55,6 +55,7 @@ pub enum RtpsMessageError {
     InvalidKeyAndDataFlagCombination,
     CdrError(cdr::Error),
     IoError(std::io::Error),
+    SerdesError(RtpsSerdesError),
     InvalidTypeConversion,
     DeserializationMessageSizeTooSmall,
 }
@@ -65,9 +66,9 @@ impl From<cdr::Error> for RtpsMessageError {
     }
 }
 
-impl From<std::io::Error> for RtpsMessageError {
-    fn from(error: std::io::Error) -> Self {
-        RtpsMessageError::IoError(error)
+impl From<RtpsSerdesError> for RtpsMessageError {
+    fn from(error: RtpsSerdesError) -> Self {
+        RtpsMessageError::SerdesError(error)
     }
 }
 
@@ -113,9 +114,9 @@ impl<W> RtpsSerialize<W> for SubmessageKind
 where
     W: std::io::Write
 {
-    fn serialize(&self, writer: &mut W, _endi: EndianessFlag) -> RtpsMessageResult<()>{
+    fn serialize(&self, writer: &mut W, _endi: EndianessFlag) -> RtpsSerdesResult<()>{
         let submessage_kind_u8 = *self as u8;
-        writer.write(&submessage_kind_u8.to_ne_bytes()).unwrap();
+        writer.write(&[submessage_kind_u8]).unwrap();
 
         Ok(())
         
@@ -130,18 +131,6 @@ struct SubmessageHeader {
     submessage_length: u16,
 }
 
-pub trait RtpsSerialize<W> where 
-    W: std::io::Write
-{
-    fn serialize(&self, writer: &mut W, endi: EndianessFlag) -> RtpsMessageResult<()>;
-}
-
-pub trait RtpsDeserialize {
-    type Output;
-
-    fn deserialize(bytes: &[u8]) -> RtpsMessageResult<Self::Output>;
-}
-
 const ENDIANNESS_FLAG_MASK: u8 = 1;
 
 struct OctetsToNextHeader(u16);
@@ -150,8 +139,8 @@ impl<W> RtpsSerialize<W> for OctetsToNextHeader
 where 
     W: std::io::Write
 {
-    fn serialize(&self, writer: &mut W, endi: EndianessFlag) -> RtpsMessageResult<()> {
-        writer.write(&serialize_u16(self.0, endi))?;
+    fn serialize(&self, writer: &mut W, endi: EndianessFlag) -> RtpsSerdesResult<()> {
+        writer.write(&PrimitiveSerdes::serialize_u16(self.0, endi))?;
 
         Ok(())
     }

@@ -1,4 +1,6 @@
-use crate::messages::{RtpsMessageResult, InlineQosParameter, RtpsSerialize, EndianessFlag, serialize_u32};
+use std::convert::TryInto;
+
+use crate::messages::{InlineQosParameter};
 use serde::{Serialize, Serializer};
 use serde::ser::{SerializeMap};
 use serde_derive::{Deserialize, Serialize};
@@ -6,6 +8,7 @@ use std::{i32, u32};
 use std::slice::Iter;
 use std::collections::BTreeMap;
 use std::ops::Index;
+use crate::serdes::{RtpsSerialize, RtpsDeserializeWithEndianess, EndianessFlag, RtpsSerdesResult, RtpsSerdesError, PrimitiveSerdes, SizeCheckers};
 
 #[derive(Serialize, Hash, Deserialize, Eq, PartialEq, Default, Debug, Clone, Copy)]
 pub struct EntityId {
@@ -117,23 +120,45 @@ pub enum ChangeKind {
     NotAliveUnregistered,
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, Hash, Debug, Clone)]
+#[derive(Deserialize, PartialEq, Eq, Hash, Debug, Clone)]
 pub struct Time {
     pub seconds: u32,
     pub fraction: u32,
+}
+
+impl Time {
+    fn new (seconds: u32, fraction: u32) -> Self {
+        Time {
+            seconds,
+            fraction,
+        }
+    }
 }
  
 impl<W> RtpsSerialize<W> for Time 
     where W: std::io::Write
 {
-    fn serialize(&self, writer: &mut W, endi: EndianessFlag) -> RtpsMessageResult<()>{
-        let seconds_bytes = serialize_u32(self.seconds, endi);
-        let fraction_bytes = serialize_u32(self.fraction, endi);
+    fn serialize(&self, writer: &mut W, endianness: EndianessFlag) -> RtpsSerdesResult<()>{
+        let seconds_bytes = PrimitiveSerdes::serialize_u32(self.seconds, endianness);
+        let fraction_bytes = PrimitiveSerdes::serialize_u32(self.fraction, endianness);
 
         writer.write(&seconds_bytes).unwrap();
         writer.write(&fraction_bytes).unwrap();
 
         Ok(())
+    }
+}
+
+impl RtpsDeserializeWithEndianess for Time {
+    type Output = Time;
+
+    fn deserialize_with_endianness(bytes: &[u8], endianness: EndianessFlag) -> RtpsSerdesResult<Self::Output> {
+        SizeCheckers::check_size_equal(bytes, 8)?;
+
+        let seconds = PrimitiveSerdes::deserialize_u32(bytes[0..4].try_into()?, endianness);
+        let fraction = PrimitiveSerdes::deserialize_u32(bytes[4..8].try_into()?, endianness);
+
+        Ok(Time::new(seconds, fraction))
     }
 }
 
@@ -327,6 +352,41 @@ pub type StatusInfo = [u8; 4];
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_time_serialization_deserialization_big_endian() {
+        let mut vec = Vec::new();
+        let test_time = Time::new(1234567, 98765432);
+
+        
+        const TEST_TIME_BIG_ENDIAN : [u8;8] = [0x00, 0x12, 0xD6, 0x87, 0x05, 0xE3, 0x0A, 0x78];
+        test_time.serialize(&mut vec, EndianessFlag::BigEndian).unwrap();
+        assert_eq!(vec, TEST_TIME_BIG_ENDIAN);
+        assert_eq!(Time::deserialize_with_endianness(&vec, EndianessFlag::BigEndian).unwrap(), test_time);
+    }
+
+    #[test]
+    fn test_time_serialization_deserialization_little_endian() {
+        let mut vec = Vec::new();
+        let test_time = Time::new(1234567, 98765432);
+        
+        const TEST_TIME_LITTLE_ENDIAN : [u8;8] = [0x87, 0xD6, 0x12, 0x00, 0x78, 0x0A, 0xE3, 0x05];
+        test_time.serialize(&mut vec, EndianessFlag::LittleEndian).unwrap();
+        assert_eq!(vec, TEST_TIME_LITTLE_ENDIAN);
+        assert_eq!(Time::deserialize_with_endianness(&vec, EndianessFlag::LittleEndian).unwrap(), test_time);
+    }
+
+    #[test]
+    fn test_invalid_time_deserialization() {
+        let wrong_vec = vec![1,2,3,4];
+
+        let expected_error = Time::deserialize_with_endianness(&wrong_vec, EndianessFlag::LittleEndian);
+        match expected_error {
+            Err(RtpsSerdesError::WrongSize) => assert!(true),
+            _ => assert!(false),
+        };
+
+    }
 
     #[test]
     fn test_builtin_endpoint_set_participant_announcer() {
