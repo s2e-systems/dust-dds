@@ -4,6 +4,7 @@ use num_derive::FromPrimitive;
 pub enum RtpsSerdesError {
     WrongSize,
     MessageTooSmall,
+    InvalidEnumRepresentation,
     InvalidHeader,
     InvalidSubmessageHeader,
     InvalidSubmessage,
@@ -32,6 +33,19 @@ pub type RtpsSerdesResult<T> = std::result::Result<T, RtpsSerdesError>;
 pub enum EndianessFlag {
     BigEndian = 0,
     LittleEndian = 1,
+}
+
+impl From<u8> for EndianessFlag {
+    fn from(value: u8) -> Self {
+        const ENDIANNESS_FLAG_MASK: u8 = 1;
+
+        let flag_u8 = value & ENDIANNESS_FLAG_MASK;
+        if flag_u8 == 0 {
+            EndianessFlag::BigEndian
+        } else {
+            EndianessFlag::LittleEndian
+        }
+    }
 }
 
 pub trait RtpsSerialize<W> where 
@@ -116,17 +130,17 @@ pub struct SizeCheckers{}
 impl SizeCheckers {
     pub fn check_size_equal(bytes: &[u8], expected_size: usize) -> RtpsSerdesResult<()> {
         if bytes.len() != expected_size {
-            return Err(RtpsSerdesError::WrongSize);
+            Err(RtpsSerdesError::WrongSize)
         } else {
             Ok(())
         }
     }
     
-    pub fn check_size_bigger_than(bytes: &[u8], expected_size: usize) -> RtpsSerdesResult<()> {
-        if bytes.len() > expected_size {
-            return Err(RtpsSerdesError::MessageTooSmall);
-        } else {
+    pub fn check_size_bigger_equal_than(bytes: &[u8], expected_size: usize) -> RtpsSerdesResult<()> {
+        if bytes.len() >= expected_size {
             Ok(())
+        } else {
+            Err(RtpsSerdesError::MessageTooSmall)
         }
     }
 }

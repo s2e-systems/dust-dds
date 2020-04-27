@@ -2,7 +2,7 @@ use std::collections::{HashSet};
 
 use crate::entity::Entity;
 use crate::messages::{
-    parse_rtps_message, Payload};
+    /*parse_rtps_message,*/ Payload};
 use crate::participant_proxy::{ParticipantProxy, SpdpParameterId};
 use crate::proxy::{ReaderProxy, WriterProxy};
 use crate::reader::{StatefulReader, StatelessReader};
@@ -230,11 +230,11 @@ impl Participant {
     }
 
     fn receive_data(&mut self) {
-        let received_data = self.socket.read().unwrap_or(&[]);
-        println!("Data: {:?}", received_data);
+        // let received_data = self.socket.read().unwrap_or(&[]);
+        // println!("Data: {:?}", received_data);
 
-        let rtps_message = parse_rtps_message(received_data);
-        println!("RTPS message: {:?}", rtps_message);
+        // let rtps_message = parse_rtps_message(received_data);
+        // println!("RTPS message: {:?}", rtps_message);
 
         // TODO: Check if there are changes between participant proxy list and spdp_builtin_participant_reader history cache
     }
