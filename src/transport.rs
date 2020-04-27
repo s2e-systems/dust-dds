@@ -84,7 +84,7 @@ impl Transport {
     }
 
     pub fn read(&mut self) -> Result<&[u8]> {
-        let (number_of_bytes, src_addr) = self.socket.recv_from(&mut self.buf)?;
+        let (number_of_bytes, _src_addr) = self.socket.recv_from(&mut self.buf)?;
         Ok(&self.buf[..number_of_bytes])
     }
 }

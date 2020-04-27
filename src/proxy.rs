@@ -120,7 +120,7 @@ impl WriterProxy {
     pub fn lost_changes_update(
         &mut self,
         history_cache: &HistoryCache,
-        first_available_seq_num: &SequenceNumber,
+        _first_available_seq_num: &SequenceNumber,
     ) {
         let history_cache_changes_lock = history_cache.get_changes();
 
@@ -178,7 +178,7 @@ impl WriterProxy {
 
     pub fn received_change_set(&mut self, history_cache: &HistoryCache, a_seq_num: SequenceNumber) {
         let cache_changes_lock = history_cache.get_changes();
-        let reader_cache_change = cache_changes_lock
+        let _reader_cache_change = cache_changes_lock
             .iter()
             .filter(|cc| cc.get_writer_guid() == &self.remote_writer_guid)
             .find(|cc| cc.get_sequence_number() == &a_seq_num)

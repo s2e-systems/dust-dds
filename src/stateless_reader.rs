@@ -97,10 +97,10 @@ impl StatelessReader {
                     self.reader_cache.add_change(rcc);
                 }
             }
-        } else if let Payload::Key(key) = serialized_payload {
+        } else if let Payload::Key(_key) = serialized_payload {
             if let Some(inline_qos_list) = inline_qos {
                 let status_info_parameter = inline_qos_list.iter().find(|&x| x.is_status_info());
-                if let Some(InlineQosParameter::StatusInfo(status_info)) = status_info_parameter {
+                if let Some(InlineQosParameter::StatusInfo(_status_info)) = status_info_parameter {
                     // TODO: Check the liveliness changes to the entity
                 }
             }

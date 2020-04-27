@@ -113,7 +113,7 @@ impl<W> RtpsSerialize<W> for SubmessageKind
 where
     W: std::io::Write
 {
-    fn serialize(&self, writer: &mut W, endi: EndianessFlag) -> RtpsMessageResult<()>{
+    fn serialize(&self, writer: &mut W, _endi: EndianessFlag) -> RtpsMessageResult<()>{
         let submessage_kind_u8 = *self as u8;
         writer.write(&submessage_kind_u8.to_ne_bytes()).unwrap();
 

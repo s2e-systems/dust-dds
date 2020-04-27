@@ -267,14 +267,14 @@ mod tests {
         assert_eq!(writer.unsent_changes(locator), HashSet::new());
         assert_eq!(writer.next_unsent_change(locator), None);
 
-        let cache_change_seq1 = writer.new_change(
+        writer.new_change(
             ChangeKind::Alive,
             Some(vec![1,2,3]), /*data*/
             None, /*inline_qos*/
             [1;16], /*handle*/
         );
         
-        let cache_change_seq2 = writer.new_change(
+        writer.new_change(
             ChangeKind::NotAliveUnregistered,
             None, /*data*/
             None, /*inline_qos*/
@@ -293,7 +293,7 @@ mod tests {
         assert_eq!(writer.next_unsent_change(locator), None);
         assert_eq!(writer.next_unsent_change(locator), None);        
 
-        let cache_change_seq3 = writer.new_change(
+        writer.new_change(
             ChangeKind::Alive,
             Some(vec![1,2,3]), /*data*/
             None, /*inline_qos*/
@@ -354,14 +354,14 @@ mod tests {
        } else {
            panic!("Wrong message type");
        }
-       if let RtpsSubmessage::Data(message_2) = &writer_data.get_submessages()[1] {
-           
+       if let RtpsSubmessage::Data(_) = &writer_data.get_submessages()[1] {
+
        }
        else {
            panic!("Wrong message type");
        };
 
-       if let RtpsSubmessage::Data(message_3) = &writer_data.get_submessages()[2] {
+       if let RtpsSubmessage::Data(_) = &writer_data.get_submessages()[2] {
            
         }
         else {

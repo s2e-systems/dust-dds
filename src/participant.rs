@@ -241,7 +241,7 @@ impl Participant {
 
     fn send_data(&mut self) {
         let multicast_locator = Locator::new(0 /*UDP_V4_KIND*/,7400, [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 239, 255, 0, 1]);
-        let spdp_data = self.spdp_builtin_participant_writer.get_data_to_send(multicast_locator); // Returns a vec of [Data(1) Data(2)]
+        let _spdp_data = self.spdp_builtin_participant_writer.get_data_to_send(multicast_locator); // Returns a vec of [Data(1) Data(2)]
 
         // let buf = serialize(spdp_data);
         // self.socket.write(buf, unicast_locator: Udpv4Locator)
