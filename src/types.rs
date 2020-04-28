@@ -1,16 +1,10 @@
 use std::convert::TryInto;
+use std::slice::Iter;
+use std::collections::BTreeMap;
 use num_derive::FromPrimitive;
 
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsDeserializeWithEndianess, EndianessFlag, RtpsSerdesResult, RtpsSerdesError, PrimitiveSerdes, SizeCheckers};
 
-// use crate::messages::{InlineQosParameter};
-use serde::{Serialize, Serializer};
-use serde::ser::{SerializeMap};
-use serde_derive::{Deserialize, Serialize};
-use std::{i32, u32};
-use std::slice::Iter;
-use std::collections::BTreeMap;
-use std::ops::Index;
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
 pub struct EntityKey([u8;3]);
@@ -81,7 +75,6 @@ pub struct EntityId {
     entity_key: EntityKey,
     entity_kind: EntityKind,
 }
-
 
 impl EntityId {
     pub fn new(entity_key: EntityKey, entity_kind: EntityKind) -> EntityId {
@@ -171,7 +164,7 @@ pub enum ChangeKind {
     NotAliveUnregistered,
 }
 
-#[derive(Deserialize, PartialEq, Eq, Hash, Debug, Clone)]
+#[derive(PartialEq, Eq, Hash, Debug, Clone)]
 pub struct Time {
     pub seconds: u32,
     pub fraction: u32,
@@ -226,7 +219,7 @@ const TIME_INVALID: Time = Time {
     fraction: u32::MAX,
 };
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, Hash, Debug, Clone)]
+#[derive(PartialEq, Eq, Hash, Debug, Clone)]
 pub struct Duration {
     pub seconds: i32,
     pub fraction: u32,
@@ -272,36 +265,36 @@ impl<T: Parameter> ParameterList<T> {
     }
 }
 
-impl<T: Parameter> Index<usize> for ParameterList<T> {
-    type Output = T;
+// impl<T: Parameter> Index<usize> for ParameterList<T> {
+//     type Output = T;
 
-    fn index(&self, index: usize) -> &Self::Output {
-        self.0.index(index)
-    }
-}
+//     fn index(&self, index: usize) -> &Self::Output {
+//         self.0.index(index)
+//     }
+// }
 
-impl<T: Parameter + Serialize> Serialize for ParameterList<T> {
-    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
-    where
-        S: Serializer
-    {
-        let mut map = serializer.serialize_map(None)?;
+// impl<T: Parameter + Serialize> Serialize for ParameterList<T> {
+//     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+//     where
+//         S: Serializer
+//     {
+//         let mut map = serializer.serialize_map(None)?;
 
-        for item in self.0.iter() {
-            map.serialize_entry(&item.parameter_id(),item)?;
-        }
+//         for item in self.0.iter() {
+//             map.serialize_entry(&item.parameter_id(),item)?;
+//         }
 
-        map.end()
-    }
-}
+//         map.end()
+//     }
+// }
 
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone, Copy, Hash, Eq)]
+#[derive(PartialEq, Debug, Clone, Copy, Hash, Eq)]
 pub struct ProtocolVersion {
     pub major: u8,
     pub minor: u8,
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Hash, Eq, Debug, Copy, Clone)]
+#[derive(PartialEq, Hash, Eq, Debug, Copy, Clone)]
 pub struct Locator {
     pub kind: i32,
     pub port: u32,
@@ -338,7 +331,7 @@ impl GUID {
     }
 }
 
-#[derive(PartialEq, Deserialize, Debug, Eq, Hash)]
+#[derive(PartialEq, Debug, Eq, Hash)]
 pub struct BuiltInEndPointSet {
     value: u32,
 }

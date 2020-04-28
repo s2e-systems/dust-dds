@@ -1,47 +1,37 @@
-pub mod helpers;
+// pub mod helpers;
 
-mod ack_nack_submessage;
-mod data_frag_submessage;
-mod data_submessage;
-mod gap_submessage;
-mod heartbeat_frag_submessage;
-mod heartbeat_submessage;
-mod info_destination_submessage;
-mod info_reply_submessage;
-mod info_source_submessage;
+// mod ack_nack_submessage;
+// mod data_frag_submessage;
+// mod data_submessage;
+// mod gap_submessage;
+// mod heartbeat_frag_submessage;
+// mod heartbeat_submessage;
+// mod info_destination_submessage;
+// mod info_reply_submessage;
+// mod info_source_submessage;
 mod info_timestamp_submessage;
-mod nack_frag_submessage;
+// mod nack_frag_submessage;
 
 use num_derive::FromPrimitive;
 use serde_derive::{Deserialize, Serialize};
 
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, EndianessFlag, RtpsSerdesResult, RtpsSerdesError, PrimitiveSerdes, SizeCheckers};
-use helpers::{deserialize, endianess, MINIMUM_RTPS_MESSAGE_SIZE};
+// use helpers::{deserialize, MINIMUM_RTPS_MESSAGE_SIZE};
 
 use crate::types::*;
 
-use ack_nack_submessage::parse_ack_nack_submessage;
-use data_frag_submessage::parse_data_frag_submessage;
-use data_submessage::parse_data_submessage;
-use gap_submessage::parse_gap_submessage;
-use heartbeat_frag_submessage::parse_heartbeat_frag_submessage;
-use heartbeat_submessage::parse_heartbeat_submessage;
-use info_destination_submessage::parse_info_dst_submessage;
-use info_reply_submessage::parse_info_reply_submessage;
-use info_source_submessage::parse_info_source_submessage;
-use nack_frag_submessage::parse_nack_frag_submessage;
 
-pub use ack_nack_submessage::AckNack;
-pub use data_frag_submessage::DataFrag;
-pub use data_submessage::{Data, Payload};
-pub use gap_submessage::Gap;
-pub use heartbeat_frag_submessage::HeartbeatFrag;
-pub use heartbeat_submessage::Heartbeat;
-pub use info_destination_submessage::InfoDst;
-pub use info_reply_submessage::InfoReply;
-pub use info_source_submessage::InfoSrc;
+// pub use ack_nack_submessage::AckNack;
+// pub use data_frag_submessage::DataFrag;
+// pub use data_submessage::{Data, Payload};
+// pub use gap_submessage::Gap;
+// pub use heartbeat_frag_submessage::HeartbeatFrag;
+// pub use heartbeat_submessage::Heartbeat;
+// pub use info_destination_submessage::InfoDst;
+// pub use info_reply_submessage::InfoReply;
+// pub use info_source_submessage::InfoSrc;
 pub use info_timestamp_submessage::InfoTs;
-pub use nack_frag_submessage::NackFrag;
+// pub use nack_frag_submessage::NackFrag;
 
 #[derive(Debug)]
 pub enum RtpsMessageError {
@@ -79,17 +69,17 @@ pub const RTPS_MINOR_VERSION: u8 = 4;
 
 #[derive(Debug, PartialEq)]
 pub enum RtpsSubmessage {
-    AckNack(AckNack),
-    Data(Data),
-    DataFrag(DataFrag),
-    Gap(Gap),
-    Heartbeat(Heartbeat),
-    HeartbeatFrag(HeartbeatFrag),
-    InfoDst(InfoDst),
-    InfoReply(InfoReply),
-    InfoSrc(InfoSrc),
+    // AckNack(AckNack),
+    // Data(Data),
+    // DataFrag(DataFrag),
+    // Gap(Gap),
+    // Heartbeat(Heartbeat),
+    // HeartbeatFrag(HeartbeatFrag),
+    // InfoDst(InfoDst),
+    // InfoReply(InfoReply),
+    // InfoSrc(InfoSrc),
     InfoTs(InfoTs),
-    NackFrag(NackFrag),
+    // NackFrag(NackFrag),
 }
 
 #[derive(FromPrimitive, PartialEq, Copy, Clone)]
@@ -129,18 +119,6 @@ impl RtpsDeserialize for SubmessageKind {
         Ok(num::FromPrimitive::from_u8(bytes[0]).ok_or(RtpsSerdesError::InvalidEnumRepresentation)?)
     }
 }
-
-
-
-
-#[derive(Serialize, Deserialize, PartialEq, Debug)]
-struct SubmessageHeader {
-    submessage_id: u8,
-    flags: u8,
-    submessage_length: u16,
-}
-
-const ENDIANNESS_FLAG_MASK: u8 = 1;
 
 struct OctetsToNextHeader(u16);
 
@@ -217,13 +195,13 @@ impl InlineQosParameter {
     }
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Debug)]
-struct MessageHeader {
-    protocol_name: [char; 4],
-    protocol_version: ProtocolVersion,
-    vendor_id: VendorId,
-    guid_prefix: GuidPrefix,
-}
+// #[derive(Serialize, Deserialize, PartialEq, Debug)]
+// struct MessageHeader {
+//     protocol_name: [char; 4],
+//     protocol_version: ProtocolVersion,
+//     vendor_id: VendorId,
+//     guid_prefix: GuidPrefix,
+// }
 
 //TODO: InfoReplyIP4
 
