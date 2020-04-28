@@ -107,7 +107,7 @@ impl RtpsDeserialize for EntityId{
     fn deserialize(bytes: &[u8]) -> RtpsSerdesResult<Self::Output> {
         SizeCheckers::check_size_equal(bytes, 4 /*expected_size*/)?;
         let entity_key = EntityKey::deserialize(&bytes[0..3])?;
-        let entity_kind = EntityKind::deserialize(&[bytes[4]])?;
+        let entity_kind = EntityKind::deserialize(&[bytes[3]])?;
 
         Ok(EntityId::new(entity_key, entity_kind))
     }
@@ -428,6 +428,7 @@ pub type StatusInfo = [u8; 4];
 mod tests {
     use super::*;
 
+    ///////////////////////// Entity Key Tests ////////////////////////
     #[test]
     fn test_entity_key_serialization_deserialization_big_endian() {
         let mut vec = Vec::new();
@@ -470,6 +471,9 @@ mod tests {
             _ => assert!(false),
         };
     }
+
+
+    ///////////////////////// Entity Kind Tests ////////////////////////
 
     #[test]
     fn test_entity_kind_serialization_deserialization_big_endian() {
@@ -514,7 +518,50 @@ mod tests {
         };
     }
 
+    ///////////////////////// Entity Id Tests ////////////////////////
+    #[test]
+    fn test_entity_id_serialization_deserialization_big_endian() {
+        let mut vec = Vec::new();
+        let test_entity_id = ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER;
 
+        const TEST_ENTITY_ID_BIG_ENDIAN : [u8;4] = [0, 0x02, 0x00, 0xc4];
+        test_entity_id.serialize(&mut vec, EndianessFlag::BigEndian).unwrap();
+        assert_eq!(vec, TEST_ENTITY_ID_BIG_ENDIAN);
+        assert_eq!(EntityId::deserialize(&vec).unwrap(), test_entity_id);
+    }
+
+    #[test]
+    fn test_entity_id_serialization_deserialization_little_endian() {
+        let mut vec = Vec::new();
+        let test_entity_id = ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER;
+
+        const TEST_ENTITY_ID_LITTLE_ENDIAN : [u8;4] = [0, 0x02, 0x00, 0xc4];
+        test_entity_id.serialize(&mut vec, EndianessFlag::LittleEndian).unwrap();
+        assert_eq!(vec, TEST_ENTITY_ID_LITTLE_ENDIAN);
+        assert_eq!(EntityId::deserialize(&vec).unwrap(), test_entity_id);
+    }
+
+    #[test]
+    fn test_invalid_entity_id_deserialization() {
+        let too_big_vec = vec![1,2,3,4,5,5];
+
+        let expected_error = EntityId::deserialize(&too_big_vec);
+        match expected_error {
+            Err(RtpsSerdesError::WrongSize) => assert!(true),
+            _ => assert!(false),
+        };
+
+        let wrong_vec = vec![1,2,3,0xf3];
+
+        let expected_error = EntityId::deserialize(&wrong_vec);
+        match expected_error {
+            Err(RtpsSerdesError::InvalidEnumRepresentation) => assert!(true),
+            _ => assert!(false),
+        };
+    }
+
+
+    ///////////////////////// Time Tests ////////////////////////
     #[test]
     fn test_time_serialization_deserialization_big_endian() {
         let mut vec = Vec::new();
