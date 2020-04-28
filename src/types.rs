@@ -1,6 +1,8 @@
 use std::convert::TryInto;
 use num_derive::FromPrimitive;
 
+use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsDeserializeWithEndianess, EndianessFlag, RtpsSerdesResult, RtpsSerdesError, PrimitiveSerdes, SizeCheckers};
+
 // use crate::messages::{InlineQosParameter};
 use serde::{Serialize, Serializer};
 use serde::ser::{SerializeMap};
@@ -9,7 +11,6 @@ use std::{i32, u32};
 use std::slice::Iter;
 use std::collections::BTreeMap;
 use std::ops::Index;
-use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsDeserializeWithEndianess, EndianessFlag, RtpsSerdesResult, RtpsSerdesError, PrimitiveSerdes, SizeCheckers};
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
 pub struct EntityKey([u8;3]);
@@ -113,70 +114,44 @@ impl RtpsDeserialize for EntityId{
     }
 }
 
+#[derive(Debug, PartialEq)]
+pub struct SequenceNumber(i64);
 
+impl SequenceNumber {
+    pub fn new(value: i64) -> Self {
+        SequenceNumber(value)
+    }
+}
 
-pub const VENDOR_ID: VendorId = [99,99];
+impl<W> RtpsSerialize<W> for SequenceNumber
+where 
+    W: std::io::Write
+{
+    fn serialize(&self, writer: &mut W, endianness: EndianessFlag) -> RtpsSerdesResult<()>{
+        let msb = PrimitiveSerdes::serialize_i32((self.0 >> 32) as i32, endianness);
+        let lsb = PrimitiveSerdes::serialize_u32((self.0 & 0x0000_0000_FFFF_FFFF) as u32, endianness);
 
+        writer.write(&msb)?;
+        writer.write(&lsb)?;
 
-pub const ENTITYID_UNKNOWN: EntityId = EntityId {
-    entity_key: EntityKey([0, 0, 0x00]),
-    entity_kind: EntityKind::UserDefinedUnknown,
-};
+        Ok(())
+    }
+}
 
-pub const ENTITYID_PARTICIPANT: EntityId = EntityId {
-    entity_key: EntityKey([0, 0, 0x01]),
-    entity_kind: EntityKind::BuiltInParticipant,
-};
+impl RtpsDeserializeWithEndianess for SequenceNumber {
+    type Output = SequenceNumber;
 
-pub const ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER: EntityId = EntityId {
-    entity_key: EntityKey([0, 0, 0x02]),
-    entity_kind: EntityKind::BuiltInWriterWithKey,
-};
+    fn deserialize_with_endianness(bytes: &[u8], endianness: EndianessFlag) -> RtpsSerdesResult<Self::Output> {
+        SizeCheckers::check_size_equal(bytes, 8)?;
 
-pub const ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR: EntityId = EntityId {
-    entity_key: EntityKey([0, 0, 0x02]),
-    entity_kind: EntityKind::BuiltInReaderWithKey,
-};
+        let msb = PrimitiveSerdes::deserialize_i32(bytes[0..4].try_into()?, endianness);
+        let lsb = PrimitiveSerdes::deserialize_u32(bytes[4..8].try_into()?, endianness);
 
-pub const ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER: EntityId = EntityId {
-    entity_key: EntityKey([0, 0, 0x03]),
-    entity_kind: EntityKind::BuiltInWriterWithKey,
-};
+        let sequence_number = ((msb as i64) << 32) + lsb as i64;
 
-pub const ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR: EntityId = EntityId {
-    entity_key: EntityKey([0, 0, 0x03]),
-    entity_kind: EntityKind::BuiltInReaderWithKey,
-};
-
-pub const ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER: EntityId = EntityId {
-    entity_key: EntityKey([0, 0, 0x04]),
-    entity_kind: EntityKind::BuiltInWriterWithKey,
-};
-
-pub const ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR: EntityId = EntityId {
-    entity_key: EntityKey([0, 0, 0x04]),
-    entity_kind: EntityKind::BuiltInReaderWithKey,
-};
-
-pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER: EntityId = EntityId {
-    entity_key: EntityKey([0, 0x01, 0x00]),
-    entity_kind: EntityKind::BuiltInWriterWithKey,
-};
-
-pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_DETECTOR: EntityId = EntityId {
-    entity_key: EntityKey([0, 0x01, 0x00]),
-    entity_kind: EntityKind::BuiltInReaderWithKey,
-};
-
-pub const ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER: EntityId = EntityId {
-    entity_key: EntityKey([0, 0x02, 0x00]),
-    entity_kind: EntityKind::BuiltInWriterWithKey,
-};
-
-pub const ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER: EntityId = EntityId {
-    entity_key: EntityKey([0, 0x02, 0x00]),
-    entity_kind: EntityKind::BuiltInReaderWithKey,
-};
+        Ok(SequenceNumber(sequence_number))
+    }
+}
 
 pub enum TopicKind {
     NoKey,
@@ -417,7 +392,7 @@ pub type VendorId = [u8; 2];
 pub type LocatorList = Vec<Locator>;
 pub type GuidPrefix = [u8; 12];
 pub type Count = i32;
-pub type SequenceNumber = i64;
+
 pub type SequenceNumberSet = BTreeMap<SequenceNumber, bool>;
 pub type FragmentNumber = u32;
 pub type FragmentNumberSet = Vec<(FragmentNumber, bool)>;
@@ -522,7 +497,7 @@ mod tests {
     #[test]
     fn test_entity_id_serialization_deserialization_big_endian() {
         let mut vec = Vec::new();
-        let test_entity_id = ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER;
+        let test_entity_id = constants::ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER;
 
         const TEST_ENTITY_ID_BIG_ENDIAN : [u8;4] = [0, 0x02, 0x00, 0xc4];
         test_entity_id.serialize(&mut vec, EndianessFlag::BigEndian).unwrap();
@@ -533,7 +508,7 @@ mod tests {
     #[test]
     fn test_entity_id_serialization_deserialization_little_endian() {
         let mut vec = Vec::new();
-        let test_entity_id = ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER;
+        let test_entity_id = constants::ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER;
 
         const TEST_ENTITY_ID_LITTLE_ENDIAN : [u8;4] = [0, 0x02, 0x00, 0xc4];
         test_entity_id.serialize(&mut vec, EndianessFlag::LittleEndian).unwrap();
@@ -594,7 +569,80 @@ mod tests {
             Err(RtpsSerdesError::WrongSize) => assert!(true),
             _ => assert!(false),
         };
+    }
 
+    ///////////////////////// Sequence Number Tests ////////////////////////
+    #[test]
+    fn test_sequence_number_serialization_deserialization_big_endian() {
+        let mut vec = Vec::new();
+        let test_sequence_number = SequenceNumber(1987612345679);
+
+        
+        const TEST_SEQUENCE_NUMBER_BIG_ENDIAN : [u8;8] = [0x00, 0x00, 0x01, 0xCE, 0xC6, 0xED, 0x85, 0x4F];
+        test_sequence_number.serialize(&mut vec, EndianessFlag::BigEndian).unwrap();
+        assert_eq!(vec, TEST_SEQUENCE_NUMBER_BIG_ENDIAN);
+        assert_eq!(SequenceNumber::deserialize_with_endianness(&vec, EndianessFlag::BigEndian).unwrap(), test_sequence_number);
+    }
+
+    #[test]
+    fn test_sequence_number_serialization_deserialization_little_endian() {
+        let mut vec = Vec::new();
+        let test_sequence_number = SequenceNumber(1987612345679);
+
+        
+        const TEST_SEQUENCE_NUMBER_LITTLE_ENDIAN : [u8;8] = [0xCE, 0x01, 0x00, 0x00, 0x4F, 0x85, 0xED, 0xC6];
+        test_sequence_number.serialize(&mut vec, EndianessFlag::LittleEndian).unwrap();
+        assert_eq!(vec, TEST_SEQUENCE_NUMBER_LITTLE_ENDIAN);
+        assert_eq!(SequenceNumber::deserialize_with_endianness(&vec, EndianessFlag::LittleEndian).unwrap(), test_sequence_number);
+    }
+
+    #[test]
+    fn test_sequence_number_serialization_deserialization_multiple_combinations() {
+        let mut vec = Vec::new();
+        
+        {
+            let test_sequence_number_i64_max = SequenceNumber(i64::MAX);
+            test_sequence_number_i64_max.serialize(&mut vec, EndianessFlag::LittleEndian).unwrap();
+            assert_eq!(SequenceNumber::deserialize_with_endianness(&vec, EndianessFlag::LittleEndian).unwrap(), test_sequence_number_i64_max);
+            vec.clear();
+
+            test_sequence_number_i64_max.serialize(&mut vec, EndianessFlag::BigEndian).unwrap();
+            assert_eq!(SequenceNumber::deserialize_with_endianness(&vec, EndianessFlag::BigEndian).unwrap(), test_sequence_number_i64_max);
+            vec.clear();
+        }
+
+        {
+            let test_sequence_number_i64_min = SequenceNumber(i64::MIN);
+            test_sequence_number_i64_min.serialize(&mut vec, EndianessFlag::LittleEndian).unwrap();
+            assert_eq!(SequenceNumber::deserialize_with_endianness(&vec, EndianessFlag::LittleEndian).unwrap(), test_sequence_number_i64_min);
+            vec.clear();
+
+            test_sequence_number_i64_min.serialize(&mut vec, EndianessFlag::BigEndian).unwrap();
+            assert_eq!(SequenceNumber::deserialize_with_endianness(&vec, EndianessFlag::BigEndian).unwrap(), test_sequence_number_i64_min);
+            vec.clear();
+        }
+
+        {
+            let test_sequence_number_zero = SequenceNumber(0);
+            test_sequence_number_zero.serialize(&mut vec, EndianessFlag::LittleEndian).unwrap();
+            assert_eq!(SequenceNumber::deserialize_with_endianness(&vec, EndianessFlag::LittleEndian).unwrap(), test_sequence_number_zero);
+            vec.clear();
+
+            test_sequence_number_zero.serialize(&mut vec, EndianessFlag::BigEndian).unwrap();
+            assert_eq!(SequenceNumber::deserialize_with_endianness(&vec, EndianessFlag::BigEndian).unwrap(), test_sequence_number_zero);
+            vec.clear();
+        }
+    }
+
+    #[test]
+    fn test_invalid_sequence_number_deserialization() {
+        let wrong_vec = vec![1,2,3,4];
+
+        let expected_error = SequenceNumber::deserialize_with_endianness(&wrong_vec, EndianessFlag::LittleEndian);
+        match expected_error {
+            Err(RtpsSerdesError::WrongSize) => assert!(true),
+            _ => assert!(false),
+        };
     }
 
     #[test]
@@ -796,4 +844,71 @@ mod tests {
             true
         );
     }
+}
+
+pub mod constants {
+    use super::{VendorId, EntityId, EntityKey, EntityKind};
+
+    pub const VENDOR_ID: VendorId = [99,99];
+
+
+    pub const ENTITYID_UNKNOWN: EntityId = EntityId {
+        entity_key: EntityKey([0, 0, 0x00]),
+        entity_kind: EntityKind::UserDefinedUnknown,
+    };
+
+    pub const ENTITYID_PARTICIPANT: EntityId = EntityId {
+        entity_key: EntityKey([0, 0, 0x01]),
+        entity_kind: EntityKind::BuiltInParticipant,
+    };
+
+    pub const ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER: EntityId = EntityId {
+        entity_key: EntityKey([0, 0, 0x02]),
+        entity_kind: EntityKind::BuiltInWriterWithKey,
+    };
+
+    pub const ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR: EntityId = EntityId {
+        entity_key: EntityKey([0, 0, 0x02]),
+        entity_kind: EntityKind::BuiltInReaderWithKey,
+    };
+
+    pub const ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER: EntityId = EntityId {
+        entity_key: EntityKey([0, 0, 0x03]),
+        entity_kind: EntityKind::BuiltInWriterWithKey,
+    };
+
+    pub const ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR: EntityId = EntityId {
+        entity_key: EntityKey([0, 0, 0x03]),
+        entity_kind: EntityKind::BuiltInReaderWithKey,
+    };
+
+    pub const ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER: EntityId = EntityId {
+        entity_key: EntityKey([0, 0, 0x04]),
+        entity_kind: EntityKind::BuiltInWriterWithKey,
+    };
+
+    pub const ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR: EntityId = EntityId {
+        entity_key: EntityKey([0, 0, 0x04]),
+        entity_kind: EntityKind::BuiltInReaderWithKey,
+    };
+
+    pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER: EntityId = EntityId {
+        entity_key: EntityKey([0, 0x01, 0x00]),
+        entity_kind: EntityKind::BuiltInWriterWithKey,
+    };
+
+    pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_DETECTOR: EntityId = EntityId {
+        entity_key: EntityKey([0, 0x01, 0x00]),
+        entity_kind: EntityKind::BuiltInReaderWithKey,
+    };
+
+    pub const ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER: EntityId = EntityId {
+        entity_key: EntityKey([0, 0x02, 0x00]),
+        entity_kind: EntityKind::BuiltInWriterWithKey,
+    };
+
+    pub const ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER: EntityId = EntityId {
+        entity_key: EntityKey([0, 0x02, 0x00]),
+        entity_kind: EntityKind::BuiltInReaderWithKey,
+    };
 }

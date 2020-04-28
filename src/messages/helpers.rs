@@ -15,35 +15,6 @@ use super::{RtpsMessageError, InlineQosPid, RtpsMessageResult};
 // All sizes are in octets
 pub const MINIMUM_RTPS_MESSAGE_SIZE: usize = 20;
 
-#[derive(Serialize, Deserialize, PartialEq, Debug)]
-pub struct SequenceNumberSerialization {
-    high: i32,
-    low: u32,
-}
-
-impl From<i64> for SequenceNumberSerialization {
-    fn from(value: i64) -> Self {
-        SequenceNumberSerialization {
-            high: (value >> 32) as i32,
-            low: (value & 0x0000_0000_FFFF_FFFF) as u32,
-        }
-    }
-}
-
-impl From<SequenceNumberSerialization> for i64 {
-    fn from(value: SequenceNumberSerialization) -> Self {
-        ((value.high as i64) << 32) + value.low as i64
-    }
-}
-
-pub fn endianess(flags: &u8) -> RtpsMessageResult<EndianessFlag> {
-    const ENDIANESS_FLAG_MASK: u8 = 0x01;
-
-    Ok(EndianessFlag::LittleEndian)
-    // num::FromPrimitive::from_u8((*flags) & ENDIANESS_FLAG_MASK)
-        // .ok_or(RtpsMessageError::InvalidTypeConversion)
-}
-
 pub fn deserialize<'de, T>(
     message: &[u8],
     start_index: &usize,
