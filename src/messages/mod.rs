@@ -115,7 +115,7 @@ where
 {
     fn serialize(&self, writer: &mut W, _endi: EndianessFlag) -> RtpsSerdesResult<()>{
         let submessage_kind_u8 = *self as u8;
-        writer.write(&[submessage_kind_u8]).unwrap();
+        writer.write(&[submessage_kind_u8])?;
 
         Ok(())
     }

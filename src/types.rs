@@ -1,6 +1,7 @@
 use std::convert::TryInto;
+use num_derive::FromPrimitive;
 
-use crate::messages::{InlineQosParameter};
+// use crate::messages::{InlineQosParameter};
 use serde::{Serialize, Serializer};
 use serde::ser::{SerializeMap};
 use serde_derive::{Deserialize, Serialize};
@@ -8,16 +9,81 @@ use std::{i32, u32};
 use std::slice::Iter;
 use std::collections::BTreeMap;
 use std::ops::Index;
-use crate::serdes::{RtpsSerialize, RtpsDeserializeWithEndianess, EndianessFlag, RtpsSerdesResult, RtpsSerdesError, PrimitiveSerdes, SizeCheckers};
+use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsDeserializeWithEndianess, EndianessFlag, RtpsSerdesResult, RtpsSerdesError, PrimitiveSerdes, SizeCheckers};
 
-#[derive(Serialize, Hash, Deserialize, Eq, PartialEq, Default, Debug, Clone, Copy)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
+pub struct EntityKey([u8;3]);
+
+impl<W> RtpsSerialize<W> for EntityKey
+where 
+    W: std::io::Write
+{
+    fn serialize(&self, writer: &mut W, _endianness: EndianessFlag) -> RtpsSerdesResult<()>{
+        writer.write(&self.0)?;
+
+        Ok(())
+    }
+}
+
+impl RtpsDeserialize for EntityKey{
+    type Output = EntityKey;
+
+    fn deserialize(bytes: &[u8]) -> RtpsSerdesResult<Self::Output> {
+        SizeCheckers::check_size_equal(bytes, 3)?;
+
+        Ok(EntityKey(bytes[0..3].try_into()?))
+    }
+}
+
+#[derive(FromPrimitive, Debug, Hash, PartialEq, Eq, Clone, Copy)]
+pub enum EntityKind {
+    UserDefinedUnknown = 0x00,
+    UserDefinedWriterWithKey = 0x02,
+    UserDefinedWriterNoKey = 0x03,
+    UserDefinedReaderWithKey = 0x04,
+    UserDefinedReaderNoKey = 0x07,
+    UserDefinedWriterGroup = 0x08,
+    UserDefinedReaderGroup = 0x09,
+    BuiltInUnknown = 0xc0,
+    BuiltInParticipant = 0xc1,
+    BuiltInWriterWithKey = 0xc2,
+    BuiltInWriterNoKey = 0xc3,
+    BuiltInReaderWithKey = 0xc4,
+    BuiltInReaderNoKey = 0xc7,
+    BuiltInWriterGroup = 0xc8,
+    BuiltInReaderGroup = 0xc9,
+}
+
+impl<W> RtpsSerialize<W> for EntityKind
+where 
+    W: std::io::Write
+{
+    fn serialize(&self, writer: &mut W, _endianness: EndianessFlag) -> RtpsSerdesResult<()>{
+        let entity_kind_u8 = *self as u8;
+        writer.write(&[entity_kind_u8])?;
+
+        Ok(())
+    }
+}
+
+impl RtpsDeserialize for EntityKind{
+    type Output = EntityKind;
+
+    fn deserialize(bytes: &[u8]) -> RtpsSerdesResult<Self::Output> {
+        SizeCheckers::check_size_equal(bytes, 1 /*expected_size*/)?;
+        Ok(num::FromPrimitive::from_u8(bytes[0]).ok_or(RtpsSerdesError::InvalidEnumRepresentation)?)
+    }
+}
+
+#[derive(Hash, Eq, PartialEq, Debug, Clone, Copy)]
 pub struct EntityId {
-    entity_key: [u8; 3],
+    entity_key: EntityKey,
     entity_kind: EntityKind,
 }
 
+
 impl EntityId {
-    pub fn new(entity_key: [u8; 3], entity_kind: u8) -> EntityId {
+    pub fn new(entity_key: EntityKey, entity_kind: EntityKind) -> EntityId {
         EntityId {
             entity_key,
             entity_kind,
@@ -25,81 +91,91 @@ impl EntityId {
     }
 }
 
+impl<W> RtpsSerialize<W> for EntityId
+where 
+    W: std::io::Write
+{
+    fn serialize(&self, writer: &mut W, endianness: EndianessFlag) -> RtpsSerdesResult<()>{
+        self.entity_key.serialize(writer, endianness)?;
+        self.entity_kind.serialize(writer, endianness)
+    }
+}
+
+impl RtpsDeserialize for EntityId{
+    type Output = EntityId;
+
+    fn deserialize(bytes: &[u8]) -> RtpsSerdesResult<Self::Output> {
+        SizeCheckers::check_size_equal(bytes, 4 /*expected_size*/)?;
+        let entity_key = EntityKey::deserialize(&bytes[0..3])?;
+        let entity_kind = EntityKind::deserialize(&[bytes[4]])?;
+
+        Ok(EntityId::new(entity_key, entity_kind))
+    }
+}
+
+
+
 pub const VENDOR_ID: VendorId = [99,99];
 
-pub const ENTITY_KIND_BUILT_IN_UNKNOWN: EntityKind = 0xc0;
-pub const ENTITY_KIND_BUILT_IN_PARTICIPANT: EntityKind = 0xc1;
-pub const ENTITY_KIND_WRITER_WITH_KEY: EntityKind = 0x02;
-pub const ENTITY_KIND_BUILT_IN_WRITER_WITH_KEY: EntityKind = 0xc2;
-pub const ENTITY_KIND_WRITER_NO_KEY: EntityKind = 0x03;
-pub const ENTITY_KIND_BUILT_IN_WRITER_NO_KEY: EntityKind = 0xc3;
-pub const ENTITY_KIND_READER_NO_KEY: EntityKind = 0x04;
-pub const ENTITY_KIND_BUILT_IN_READER_NO_KEY: EntityKind = 0xc4;
-pub const ENTITY_KIND_READER_WITH_KEY: EntityKind = 0x07;
-pub const ENTITY_KIND_BUILT_IN_READER_WITH_KEY: EntityKind = 0xc7;
-pub const ENTITY_KIND_WRITER_GROUP: EntityKind = 0x08;
-pub const ENTITY_KIND_BUILT_IN_WRITER_GROUP: EntityKind = 0xc8;
-pub const ENTITY_KIND_READER_GROUP: EntityKind = 0x09;
-pub const ENTITY_KIND_BUILT_IN_READER_GROUP: EntityKind = 0xc9;
 
 pub const ENTITYID_UNKNOWN: EntityId = EntityId {
-    entity_key: [0, 0, 0x00],
-    entity_kind: 0,
+    entity_key: EntityKey([0, 0, 0x00]),
+    entity_kind: EntityKind::UserDefinedUnknown,
 };
 
 pub const ENTITYID_PARTICIPANT: EntityId = EntityId {
-    entity_key: [0, 0, 0x01],
-    entity_kind: ENTITY_KIND_BUILT_IN_PARTICIPANT,
+    entity_key: EntityKey([0, 0, 0x01]),
+    entity_kind: EntityKind::BuiltInParticipant,
 };
 
 pub const ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER: EntityId = EntityId {
-    entity_key: [0, 0, 0x02],
-    entity_kind: ENTITY_KIND_BUILT_IN_WRITER_WITH_KEY,
+    entity_key: EntityKey([0, 0, 0x02]),
+    entity_kind: EntityKind::BuiltInWriterWithKey,
 };
 
 pub const ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR: EntityId = EntityId {
-    entity_key: [0, 0, 0x02],
-    entity_kind: ENTITY_KIND_BUILT_IN_READER_WITH_KEY,
+    entity_key: EntityKey([0, 0, 0x02]),
+    entity_kind: EntityKind::BuiltInReaderWithKey,
 };
 
 pub const ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER: EntityId = EntityId {
-    entity_key: [0, 0, 0x03],
-    entity_kind: ENTITY_KIND_BUILT_IN_WRITER_WITH_KEY,
+    entity_key: EntityKey([0, 0, 0x03]),
+    entity_kind: EntityKind::BuiltInWriterWithKey,
 };
 
 pub const ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR: EntityId = EntityId {
-    entity_key: [0, 0, 0x03],
-    entity_kind: ENTITY_KIND_BUILT_IN_READER_WITH_KEY,
+    entity_key: EntityKey([0, 0, 0x03]),
+    entity_kind: EntityKind::BuiltInReaderWithKey,
 };
 
 pub const ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER: EntityId = EntityId {
-    entity_key: [0, 0, 0x04],
-    entity_kind: ENTITY_KIND_BUILT_IN_WRITER_WITH_KEY,
+    entity_key: EntityKey([0, 0, 0x04]),
+    entity_kind: EntityKind::BuiltInWriterWithKey,
 };
 
 pub const ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR: EntityId = EntityId {
-    entity_key: [0, 0, 0x04],
-    entity_kind: ENTITY_KIND_BUILT_IN_READER_WITH_KEY,
+    entity_key: EntityKey([0, 0, 0x04]),
+    entity_kind: EntityKind::BuiltInReaderWithKey,
 };
 
 pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER: EntityId = EntityId {
-    entity_key: [0, 0x01, 0x00],
-    entity_kind: ENTITY_KIND_BUILT_IN_WRITER_WITH_KEY,
+    entity_key: EntityKey([0, 0x01, 0x00]),
+    entity_kind: EntityKind::BuiltInWriterWithKey,
 };
 
 pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_DETECTOR: EntityId = EntityId {
-    entity_key: [0, 0x01, 0x00],
-    entity_kind: ENTITY_KIND_BUILT_IN_READER_WITH_KEY,
+    entity_key: EntityKey([0, 0x01, 0x00]),
+    entity_kind: EntityKind::BuiltInReaderWithKey,
 };
 
 pub const ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER: EntityId = EntityId {
-    entity_key: [0, 0x02, 0x00],
-    entity_kind: ENTITY_KIND_BUILT_IN_WRITER_WITH_KEY,
+    entity_key: EntityKey([0, 0x02, 0x00]),
+    entity_kind: EntityKind::BuiltInWriterWithKey,
 };
 
 pub const ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER: EntityId = EntityId {
-    entity_key: [0, 0x02, 0x00],
-    entity_kind: ENTITY_KIND_BUILT_IN_READER_WITH_KEY,
+    entity_key: EntityKey([0, 0x02, 0x00]),
+    entity_kind: EntityKind::BuiltInReaderWithKey,
 };
 
 pub enum TopicKind {
@@ -190,7 +266,7 @@ pub const DURATION_INFINITE: Duration = Duration {
     fraction: u32::MAX,
 };
 
-pub type InlineQosParameterList = ParameterList<InlineQosParameter>;
+// pub type InlineQosParameterList = ParameterList<InlineQosParameter>;
 
 pub trait Parameter {
     fn parameter_id(&self) -> u16;
@@ -267,7 +343,7 @@ impl Locator {
     }
 }
 
-#[derive(Serialize, Deserialize, Hash, PartialEq, Eq, Default, Debug, Clone, Copy)]
+#[derive(Hash, PartialEq, Eq, Debug, Clone, Copy)]
 pub struct GUID {
     prefix: GuidPrefix,
     entity_id: EntityId,
@@ -336,7 +412,6 @@ impl BuiltInEndPointSet {
     }
 }
 
-pub type EntityKind = u8;
 pub type InstanceHandle = [u8; 16];
 pub type VendorId = [u8; 2];
 pub type LocatorList = Vec<Locator>;
@@ -352,6 +427,93 @@ pub type StatusInfo = [u8; 4];
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_entity_key_serialization_deserialization_big_endian() {
+        let mut vec = Vec::new();
+        let test_entity_key = EntityKey([5,20,250]);
+
+        
+        const TEST_ENTITY_KEY_BIG_ENDIAN : [u8;3] = [5,20,250];
+        test_entity_key.serialize(&mut vec, EndianessFlag::BigEndian).unwrap();
+        assert_eq!(vec, TEST_ENTITY_KEY_BIG_ENDIAN);
+        assert_eq!(EntityKey::deserialize(&vec).unwrap(), test_entity_key);
+    }
+
+    #[test]
+    fn test_entity_key_serialization_deserialization_little_endian() {
+        let mut vec = Vec::new();
+        let test_entity_key = EntityKey([5,20,250]);
+
+        
+        const TEST_ENTITY_KEY_BIG_ENDIAN : [u8;3] = [5,20,250];
+        test_entity_key.serialize(&mut vec, EndianessFlag::LittleEndian).unwrap();
+        assert_eq!(vec, TEST_ENTITY_KEY_BIG_ENDIAN);
+        assert_eq!(EntityKey::deserialize(&vec).unwrap(), test_entity_key);
+    }
+
+    #[test]
+    fn test_invalid_entity_key_deserialization() {
+        let too_big_vec = vec![1,2,3,4];
+
+        let expected_error = EntityKey::deserialize(&too_big_vec);
+        match expected_error {
+            Err(RtpsSerdesError::WrongSize) => assert!(true),
+            _ => assert!(false),
+        };
+
+        let too_small_vec = vec![1,2,3,4];
+
+        let expected_error = EntityKey::deserialize(&too_small_vec);
+        match expected_error {
+            Err(RtpsSerdesError::WrongSize) => assert!(true),
+            _ => assert!(false),
+        };
+    }
+
+    #[test]
+    fn test_entity_kind_serialization_deserialization_big_endian() {
+        let mut vec = Vec::new();
+        let test_entity_kind = EntityKind::BuiltInWriterWithKey;
+
+        
+        const TEST_ENTITY_KIND_BIG_ENDIAN : [u8;1] = [0xc2];
+        test_entity_kind.serialize(&mut vec, EndianessFlag::BigEndian).unwrap();
+        assert_eq!(vec, TEST_ENTITY_KIND_BIG_ENDIAN);
+        assert_eq!(EntityKind::deserialize(&vec).unwrap(), test_entity_kind);
+    }
+
+    #[test]
+    fn test_entity_kind_serialization_deserialization_little_endian() {
+        let mut vec = Vec::new();
+        let test_entity_kind = EntityKind::BuiltInWriterWithKey;
+
+        
+        const TEST_ENTITY_KIND_LITTLE_ENDIAN : [u8;1] = [0xc2];
+        test_entity_kind.serialize(&mut vec, EndianessFlag::LittleEndian).unwrap();
+        assert_eq!(vec, TEST_ENTITY_KIND_LITTLE_ENDIAN);
+        assert_eq!(EntityKind::deserialize(&vec).unwrap(), test_entity_kind);
+    }
+
+    #[test]
+    fn test_invalid_entity_kind_deserialization() {
+        let too_big_vec = vec![1,2,3,4];
+
+        let expected_error = EntityKind::deserialize(&too_big_vec);
+        match expected_error {
+            Err(RtpsSerdesError::WrongSize) => assert!(true),
+            _ => assert!(false),
+        };
+
+        let wrong_vec = vec![0xf3];
+
+        let expected_error = EntityKind::deserialize(&wrong_vec);
+        match expected_error {
+            Err(RtpsSerdesError::InvalidEnumRepresentation) => assert!(true),
+            _ => assert!(false),
+        };
+    }
+
 
     #[test]
     fn test_time_serialization_deserialization_big_endian() {

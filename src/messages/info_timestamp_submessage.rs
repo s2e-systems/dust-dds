@@ -1,8 +1,7 @@
 use crate::types::Time;
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsDeserializeWithEndianess, EndianessFlag, RtpsSerdesResult, RtpsSerdesError, SizeCheckers};
-use super::helpers::{deserialize, endianess};
 
-use super::{SubmessageKind, RtpsMessageError, RtpsMessageResult, OctetsToNextHeader};
+use super::{SubmessageKind, OctetsToNextHeader};
 
 #[derive(PartialEq, Debug)]
 pub struct InfoTs {
@@ -19,57 +18,6 @@ impl InfoTs {
     pub fn get_timestamp(&self) -> &Option<Time> {
         &self.timestamp
     }
-
-    // pub fn serialize(&self, endi: EndianessFlag) -> Vec<u8> {
-    //     let mut serialized_infots = Vec::new();
-    //     serialized_infots.push(SubmessageKind::InfoTimestamp as u8);
-
-    //     let mut flags = endi as u8;
-
-    //     let octets_to_next_header = if self.timestamp.is_some() {
-    //         OctetsToNextHeader(8)
-    //     } else {
-    //         flags |= InfoTs::INVALID_TIME_FLAG_MASK;
-    //         OctetsToNextHeader(0)
-    //     };
-
-    //     serialized_infots.push(flags);
-    //     serialized_infots.extend_from_slice(&octets_to_next_header.to_bytes(endi));
-
-    //     if let Some(time) = &self.timestamp {
-    //         serialized_infots.extend_from_slice(&time.to_bytes());
-    //     }
-
-    //     serialized_infots
-    // }
-
-    // pub fn deserialize(submessage: &[u8]) -> RtpsMessageResult<InfoTs> {
-    //     const MESSAGE_PAYLOAD_FIRST_INDEX: usize = 4;
-    //     const MESSAGE_PAYLOAD_LAST_INDEX: usize = 11;
-
-    //     if MESSAGE_PAYLOAD_LAST_INDEX >= submessage.len() {
-    //         return Err(RtpsMessageError::InvalidSubmessage);
-    //     }
-
-    //     let submessage_flags = submessage[1];
-
-    //     let submessage_endianess = endianess(&submessage_flags)?;
-
-    //     let timestamp = if submessage_flags & 0x02 == 0x02 {
-    //         None
-    //     } else {
-    //         Some(deserialize::<Time>(
-    //             submessage,
-    //             &MESSAGE_PAYLOAD_FIRST_INDEX,
-    //             &MESSAGE_PAYLOAD_LAST_INDEX,
-    //             &submessage_endianess,
-    //         )?)
-    //     };
-
-    //     Ok(InfoTs { timestamp })
-
-
-    // }
 }
 
 impl<W> RtpsSerialize<W> for InfoTs
@@ -104,6 +52,7 @@ impl RtpsDeserialize for InfoTs {
 
     fn deserialize(bytes: &[u8]) -> RtpsSerdesResult<Self::Output> {
         const SERIALIZED_INFOTS_MINIMUM_SIZE: usize = 4;
+        const SERIALIZED_INFOTS_WITH_TIMESTAMP_MINIMUM_SIZE: usize = 12;
         const SUBMESSAGE_ID_INDEX: usize = 0;
         const FLAGS_INDEX: usize = 1;
         SizeCheckers::check_size_bigger_equal_than(bytes, SERIALIZED_INFOTS_MINIMUM_SIZE)?;
@@ -119,7 +68,7 @@ impl RtpsDeserialize for InfoTs {
         if invalid_time_flag {
             Ok(InfoTs::new(None))
         } else {
-            SizeCheckers::check_size_bigger_equal_than(bytes, 12)?;
+            SizeCheckers::check_size_bigger_equal_than(bytes, SERIALIZED_INFOTS_WITH_TIMESTAMP_MINIMUM_SIZE)?;
             
             let time = Time::deserialize_with_endianness(&bytes[4..12], flags.into())?;
 
