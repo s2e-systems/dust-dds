@@ -1,11 +1,8 @@
-use crate::types::{EntityId, SequenceNumber, KeyHash, StatusInfo};
+use crate::types::{EntityId, SequenceNumber};
 use crate::inline_qos::InlineQosParameterList;
+use crate::serdes::{RtpsSerialize, EndianessFlag, RtpsSerdesResult};
 
-// use super::helpers::{
-//     deserialize, endianess, parse_inline_qos_parameter_list, SequenceNumberSerialization,
-// };
-
-// use super::{RtpsMessageError, RtpsMessageResult, SubmessageKind};
+use super::SubmessageKind;
 
 #[derive(PartialEq, Debug)]
 pub enum Payload {
@@ -17,16 +14,22 @@ pub enum Payload {
 
 #[derive(PartialEq, Debug)]
 pub struct Data {
-    status_info: StatusInfo,
+    // StatusInfo and KeyHash information are stored
+    // inside the InlineQosParameterList
+    // status_info: StatusInfo,
+    // key_hash: KeyHash,
     reader_id: EntityId,
     writer_id: EntityId,
-    key_hash: KeyHash,
     writer_sn: SequenceNumber,
-    inline_qos: Option<InlineQosParameterList>,
+    inline_qos: InlineQosParameterList,
     serialized_payload: Payload,
 }
 
-// impl Data {
+impl Data {
+    const INLINE_QOS_FLAG_MASK: u8 = 0x02;
+    const DATA_FLAG_MASK: u8 = 0x04;
+    const KEY_FLAG_MASK: u8 = 0x08;
+    const NON_STANDARD_PAYLOAD_FLAG_MASK: u8 = 0x10;
 //     pub fn new(
 //         reader_id: EntityId,
 //         writer_id: EntityId,
@@ -68,12 +71,15 @@ pub struct Data {
 //     pub fn serialized_payload(&self) -> &Payload {
 //         &self.serialized_payload
 //     }
-// }
+}
 
-// const INLINE_QOS_FLAG_MASK: u8 = 0x02;
-// const DATA_FLAG_MASK: u8 = 0x04;
-// const KEY_FLAG_MASK: u8 = 0x08;
-// const NON_STANDARD_PAYLOAD_FLAG_MASK: u8 = 0x10;
+impl RtpsSerialize for Data {
+    fn serialize(&self, writer: &mut impl std::io::Write, endianness: EndianessFlag) -> RtpsSerdesResult<()> {
+        SubmessageKind::Data.serialize(writer, endianness)?;
+
+        Ok(())
+    }
+}
 
 // pub fn parse_data_submessage(submessage: &[u8], submessage_flags: &u8) -> RtpsMessageResult<Data> {
     

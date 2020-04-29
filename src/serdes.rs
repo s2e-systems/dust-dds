@@ -10,7 +10,6 @@ pub enum RtpsSerdesError {
     InvalidSubmessageHeader,
     InvalidSubmessage,
     InvalidKeyAndDataFlagCombination,
-    // CdrError(cdr::Error),
     IoError(std::io::Error),
     InvalidTypeConversion,
     DeserializationMessageSizeTooSmall,

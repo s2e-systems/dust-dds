@@ -256,6 +256,9 @@ pub trait Parameter {
 pub struct ParameterList<T: Parameter>(Vec<T>);
 
 impl<T: Parameter> ParameterList<T> {
+    const PID_PAD: u16 = 0x0000;
+    const PID_SENTINEL: u16 = 0x0001;
+
     pub fn new() -> Self {
         ParameterList(Vec::new())
     }
@@ -298,11 +301,15 @@ where
 
             writer.write(&PrimitiveSerdes::serialize_u16(item.parameter_id(), endianness))?;
             
+            //TODO: The size needs to be rounded to multiples of 4 and include padding
             item.serialize(&mut size_serializer, endianness)?;
             writer.write(&PrimitiveSerdes::serialize_u16(size_serializer.get_size() as u16, endianness))?;
 
             item.serialize(writer, endianness)?;
         }
+
+        writer.write(&PrimitiveSerdes::serialize_u16(Self::PID_SENTINEL, endianness))?;
+        writer.write(&[0,0])?;
 
         Ok(())
     }
