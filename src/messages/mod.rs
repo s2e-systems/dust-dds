@@ -15,7 +15,7 @@ mod info_timestamp_submessage;
 use num_derive::FromPrimitive;
 use serde_derive::{Deserialize, Serialize};
 
-use crate::serdes::{RtpsSerialize, RtpsDeserialize, EndianessFlag, RtpsSerdesResult, RtpsSerdesError, PrimitiveSerdes, SizeCheckers};
+use crate::serdes::{RtpsSerialize, RtpsParse, EndianessFlag, RtpsSerdesResult, RtpsSerdesError, PrimitiveSerdes, SizeCheckers};
 // use helpers::{deserialize, MINIMUM_RTPS_MESSAGE_SIZE};
 
 use crate::types::*;
@@ -111,10 +111,10 @@ where
     }
 }
 
-impl RtpsDeserialize for SubmessageKind {
+impl RtpsParse for SubmessageKind {
     type Output = SubmessageKind;
 
-    fn deserialize(bytes: &[u8]) -> RtpsSerdesResult<Self::Output> {
+    fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self::Output> {
         SizeCheckers::check_size_equal(bytes, 1 /*expected_size*/)?;
         Ok(num::FromPrimitive::from_u8(bytes[0]).ok_or(RtpsSerdesError::InvalidEnumRepresentation)?)
     }

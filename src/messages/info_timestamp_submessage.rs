@@ -1,5 +1,5 @@
 use crate::types::Time;
-use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsDeserializeWithEndianess, EndianessFlag, RtpsSerdesResult, RtpsSerdesError, SizeCheckers, SizeSerializer};
+use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, EndianessFlag, RtpsSerdesResult, RtpsSerdesError, SizeCheckers, SizeSerializer};
 
 use super::{SubmessageKind, OctetsToNextHeader};
 
@@ -45,17 +45,17 @@ where
     }
 }
 
-impl RtpsDeserialize for InfoTs {
+impl RtpsParse for InfoTs {
     type Output = InfoTs;
 
-    fn deserialize(bytes: &[u8]) -> RtpsSerdesResult<Self::Output> {
+    fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self::Output> {
         const SERIALIZED_INFOTS_MINIMUM_SIZE: usize = 4;
         const SERIALIZED_INFOTS_WITH_TIMESTAMP_MINIMUM_SIZE: usize = 12;
         const SUBMESSAGE_ID_INDEX: usize = 0;
         const FLAGS_INDEX: usize = 1;
         SizeCheckers::check_size_bigger_equal_than(bytes, SERIALIZED_INFOTS_MINIMUM_SIZE)?;
 
-        let submessage_kind = SubmessageKind::deserialize(&[bytes[0]])?;
+        let submessage_kind = SubmessageKind::parse(&[bytes[0]])?;
         if submessage_kind != SubmessageKind::InfoTimestamp {
             return Err(RtpsSerdesError::InvalidSubmessageHeader);
         }
@@ -68,7 +68,7 @@ impl RtpsDeserialize for InfoTs {
         } else {
             SizeCheckers::check_size_bigger_equal_than(bytes, SERIALIZED_INFOTS_WITH_TIMESTAMP_MINIMUM_SIZE)?;
             
-            let time = Time::deserialize_with_endianness(&bytes[4..12], flags.into())?;
+            let time = Time::deserialize(&bytes[4..12], flags.into())?;
 
             Ok(InfoTs::new(Some(time)))
         }
@@ -99,7 +99,7 @@ mod tests {
 
         assert_eq!(writer_le, info_timestamp_message_little_endian);
         assert_eq!(writer_be, info_timestamp_message_big_endian);
-        assert_eq!(InfoTs::deserialize(&writer_le).unwrap(), infots);
-        assert_eq!(InfoTs::deserialize(&writer_be).unwrap(), infots);
+        assert_eq!(InfoTs::parse(&writer_le).unwrap(), infots);
+        assert_eq!(InfoTs::parse(&writer_be).unwrap(), infots);
     }
 }

@@ -83,16 +83,16 @@ pub trait RtpsSerialize<W> where
     fn serialize(&self, writer: &mut W, endianess: EndianessFlag) -> RtpsSerdesResult<()>;
 }
 
+pub trait RtpsParse {
+    type Output;
+
+    fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self::Output>;
+}
+
 pub trait RtpsDeserialize {
     type Output;
 
-    fn deserialize(bytes: &[u8]) -> RtpsSerdesResult<Self::Output>;
-}
-
-pub trait RtpsDeserializeWithEndianess {
-    type Output;
-
-    fn deserialize_with_endianness(bytes: &[u8], endianness: EndianessFlag) -> RtpsSerdesResult<Self::Output>;
+    fn deserialize(bytes: &[u8], endianness: EndianessFlag) -> RtpsSerdesResult<Self::Output>;
 }
 
 impl<W,T> RtpsSerialize<W> for Option<T> 
