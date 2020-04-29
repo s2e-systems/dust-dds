@@ -3,6 +3,7 @@
 // mod cache;
 // mod entity;
 // mod guid;
+mod inline_qos;
 mod messages;
 // mod participant;
 // mod participant_proxy;

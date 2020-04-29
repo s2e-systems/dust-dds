@@ -77,10 +77,9 @@ impl std::io::Write for SizeSerializer {
     }
 }
 
-pub trait RtpsSerialize<W> where 
-    W: std::io::Write
+pub trait RtpsSerialize where 
 {
-    fn serialize(&self, writer: &mut W, endianess: EndianessFlag) -> RtpsSerdesResult<()>;
+    fn serialize(&self, writer: &mut impl std::io::Write, endianness: EndianessFlag) -> RtpsSerdesResult<()>;
 }
 
 pub trait RtpsParse {
@@ -95,12 +94,11 @@ pub trait RtpsDeserialize {
     fn deserialize(bytes: &[u8], endianness: EndianessFlag) -> RtpsSerdesResult<Self::Output>;
 }
 
-impl<W,T> RtpsSerialize<W> for Option<T> 
+impl<T> RtpsSerialize for Option<T> 
 where 
-    W: std::io::Write,
-    T: RtpsSerialize<W>
+    T: RtpsSerialize
 {
-    fn serialize(&self, writer: &mut W, endianess: EndianessFlag) -> RtpsSerdesResult<()> {
+    fn serialize(&self, writer: &mut impl std::io::Write, endianess: EndianessFlag) -> RtpsSerdesResult<()> {
         if let Some(value) = self {
             value.serialize(writer, endianess)
         } else {

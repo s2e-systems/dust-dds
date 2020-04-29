@@ -4,17 +4,15 @@ use std::ops::Index;
 use std::collections::BTreeMap;
 use num_derive::FromPrimitive;
 
-use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, EndianessFlag, RtpsSerdesResult, RtpsSerdesError, PrimitiveSerdes, SizeCheckers};
+use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, EndianessFlag, RtpsSerdesResult, RtpsSerdesError, PrimitiveSerdes, SizeCheckers, SizeSerializer};
 
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
 pub struct EntityKey([u8;3]);
 
-impl<W> RtpsSerialize<W> for EntityKey
-where 
-    W: std::io::Write
+impl RtpsSerialize for EntityKey
 {
-    fn serialize(&self, writer: &mut W, _endianness: EndianessFlag) -> RtpsSerdesResult<()>{
+    fn serialize(&self, writer: &mut impl std::io::Write, _endianness: EndianessFlag) -> RtpsSerdesResult<()>{
         writer.write(&self.0)?;
 
         Ok(())
@@ -50,11 +48,9 @@ pub enum EntityKind {
     BuiltInReaderGroup = 0xc9,
 }
 
-impl<W> RtpsSerialize<W> for EntityKind
-where 
-    W: std::io::Write
+impl RtpsSerialize for EntityKind
 {
-    fn serialize(&self, writer: &mut W, _endianness: EndianessFlag) -> RtpsSerdesResult<()>{
+    fn serialize(&self, writer: &mut impl std::io::Write, _endianness: EndianessFlag) -> RtpsSerdesResult<()>{
         let entity_kind_u8 = *self as u8;
         writer.write(&[entity_kind_u8])?;
 
@@ -86,11 +82,9 @@ impl EntityId {
     }
 }
 
-impl<W> RtpsSerialize<W> for EntityId
-where 
-    W: std::io::Write
+impl RtpsSerialize for EntityId
 {
-    fn serialize(&self, writer: &mut W, endianness: EndianessFlag) -> RtpsSerdesResult<()>{
+    fn serialize(&self, writer: &mut impl std::io::Write, endianness: EndianessFlag) -> RtpsSerdesResult<()>{
         self.entity_key.serialize(writer, endianness)?;
         self.entity_kind.serialize(writer, endianness)
     }
@@ -117,11 +111,9 @@ impl SequenceNumber {
     }
 }
 
-impl<W> RtpsSerialize<W> for SequenceNumber
-where 
-    W: std::io::Write
+impl RtpsSerialize for SequenceNumber
 {
-    fn serialize(&self, writer: &mut W, endianness: EndianessFlag) -> RtpsSerdesResult<()>{
+    fn serialize(&self, writer: &mut impl std::io::Write, endianness: EndianessFlag) -> RtpsSerdesResult<()>{
         let msb = PrimitiveSerdes::serialize_i32((self.0 >> 32) as i32, endianness);
         let lsb = PrimitiveSerdes::serialize_u32((self.0 & 0x0000_0000_FFFF_FFFF) as u32, endianness);
 
@@ -180,10 +172,9 @@ impl Time {
     }
 }
  
-impl<W> RtpsSerialize<W> for Time 
-    where W: std::io::Write
+impl RtpsSerialize for Time 
 {
-    fn serialize(&self, writer: &mut W, endianness: EndianessFlag) -> RtpsSerdesResult<()>{
+    fn serialize(&self, writer: &mut impl std::io::Write, endianness: EndianessFlag) -> RtpsSerdesResult<()>{
         let seconds_bytes = PrimitiveSerdes::serialize_u32(self.seconds, endianness);
         let fraction_bytes = PrimitiveSerdes::serialize_u32(self.fraction, endianness);
 
@@ -207,35 +198,55 @@ impl RtpsDeserialize for Time {
     }
 }
 
-const TIME_ZERO: Time = Time {
-    seconds: 0,
-    fraction: 0,
-};
-const TIME_INFINITE: Time = Time {
-    seconds: u32::MAX,
-    fraction: u32::MAX - 1,
-};
-const TIME_INVALID: Time = Time {
-    seconds: u32::MAX,
-    fraction: u32::MAX,
-};
-
 #[derive(PartialEq, Eq, Hash, Debug, Clone)]
 pub struct Duration {
     pub seconds: i32,
     pub fraction: u32,
 }
 
-pub const DURATION_ZERO: Duration = Duration {
-    seconds: 0,
-    fraction: 0,
-};
-pub const DURATION_INFINITE: Duration = Duration {
-    seconds: i32::MAX,
-    fraction: u32::MAX,
-};
+#[derive(Debug, PartialEq)]
+pub struct KeyHash([u8; 16]);
 
-// pub type InlineQosParameterList = ParameterList<InlineQosParameter>;
+impl KeyHash {
+    pub fn new(value: [u8;16]) -> Self {
+        KeyHash(value)
+    }
+
+    pub fn get_value(&self) -> &[u8;16] {
+        &self.0
+    }
+}
+
+impl RtpsSerialize for KeyHash 
+{
+    fn serialize(&self, writer: &mut impl std::io::Write, _endianess: EndianessFlag) -> RtpsSerdesResult<()> {
+        writer.write(&self.0)?;
+
+        Ok(())
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub struct StatusInfo([u8;4]);
+
+impl StatusInfo {
+    pub fn new(value: [u8;4]) -> Self {
+        StatusInfo(value)
+    }
+
+    pub fn get_value(&self) -> &[u8;4] {
+        &self.0
+    }
+}
+
+impl RtpsSerialize for StatusInfo 
+{
+    fn serialize(&self, writer: &mut impl std::io::Write, _endianess: EndianessFlag) -> RtpsSerdesResult<()> {
+        writer.write(&self.0)?;
+
+        Ok(())
+    }
+}
 
 pub trait Parameter {
     fn parameter_id(&self) -> u16;
@@ -277,20 +288,23 @@ where
     }
 }
 
-impl<T, W> RtpsSerialize<W> for ParameterList<T> 
+impl<T> RtpsSerialize for ParameterList<T> 
 where
-    T: Parameter + RtpsSerialize<W>,
-    W: std::io::Write,
+    T: RtpsSerialize + Parameter,
 {
-    fn serialize(&self, _writer: &mut W, _endianness: EndianessFlag) -> RtpsSerdesResult<()> {
-        unimplemented!()
-        // let mut map = serializer.serialize_map(None)?;
+    fn serialize(&self, writer: &mut impl std::io::Write, endianness: EndianessFlag) -> RtpsSerdesResult<()> {
+        for item in self.iter() {
+            let mut size_serializer =  SizeSerializer::new();
 
-        // for item in self.0.iter() {
-        //     map.serialize_entry(&item.parameter_id(),item)?;
-        // }
+            writer.write(&PrimitiveSerdes::serialize_u16(item.parameter_id(), endianness))?;
+            
+            item.serialize(&mut size_serializer, endianness)?;
+            writer.write(&PrimitiveSerdes::serialize_u16(size_serializer.get_size() as u16, endianness))?;
 
-        // map.end()
+            item.serialize(writer, endianness)?;
+        }
+
+        Ok(())
     }
 }
 
@@ -395,8 +409,6 @@ pub type Count = i32;
 pub type SequenceNumberSet = BTreeMap<SequenceNumber, bool>;
 pub type FragmentNumber = u32;
 pub type FragmentNumberSet = Vec<(FragmentNumber, bool)>;
-pub type KeyHash = [u8; 16];
-pub type StatusInfo = [u8; 4];
 
 #[cfg(test)]
 mod tests {
@@ -846,7 +858,7 @@ mod tests {
 }
 
 pub mod constants {
-    use super::{VendorId, EntityId, EntityKey, EntityKind};
+    use super::{VendorId, EntityId, EntityKey, EntityKind, Time, Duration};
 
     pub const VENDOR_ID: VendorId = [99,99];
 
@@ -909,5 +921,30 @@ pub mod constants {
     pub const ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER: EntityId = EntityId {
         entity_key: EntityKey([0, 0x02, 0x00]),
         entity_kind: EntityKind::BuiltInReaderWithKey,
+    };
+
+    pub const DURATION_ZERO: Duration = Duration {
+        seconds: 0,
+        fraction: 0,
+    };
+
+    pub const DURATION_INFINITE: Duration = Duration {
+        seconds: i32::MAX,
+        fraction: u32::MAX,
+    };
+
+    const TIME_ZERO: Time = Time {
+        seconds: 0,
+        fraction: 0,
+    };
+
+    const TIME_INFINITE: Time = Time {
+        seconds: u32::MAX,
+        fraction: u32::MAX - 1,
+    };
+
+    const TIME_INVALID: Time = Time {
+        seconds: u32::MAX,
+        fraction: u32::MAX,
     };
 }

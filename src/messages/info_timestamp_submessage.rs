@@ -21,11 +21,9 @@ impl InfoTs {
 }
 
 
-impl<W> RtpsSerialize<W> for InfoTs
-where 
-    W: std::io::Write
+impl RtpsSerialize for InfoTs
 {
-    fn serialize(&self, writer: &mut W, endianness: EndianessFlag) -> RtpsSerdesResult<()>{
+    fn serialize(&self, writer: &mut impl std::io::Write, endianness: EndianessFlag) -> RtpsSerdesResult<()>{
         SubmessageKind::InfoTimestamp.serialize(writer, endianness)?;
 
         let mut size_serializer = SizeSerializer::new();

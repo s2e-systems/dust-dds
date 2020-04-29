@@ -1,4 +1,5 @@
-use crate::types::{EntityId, /*InlineQosParameterList,*/ SequenceNumber, KeyHash};
+use crate::types::{EntityId, SequenceNumber, KeyHash, StatusInfo};
+use crate::inline_qos::InlineQosParameterList;
 
 // use super::helpers::{
 //     deserialize, endianess, parse_inline_qos_parameter_list, SequenceNumberSerialization,
@@ -16,12 +17,12 @@ pub enum Payload {
 
 #[derive(PartialEq, Debug)]
 pub struct Data {
-    // status_info: StatusInfo,
+    status_info: StatusInfo,
     reader_id: EntityId,
     writer_id: EntityId,
     key_hash: KeyHash,
     writer_sn: SequenceNumber,
-    //inline_qos: Option<InlineQosParameterList>,
+    inline_qos: Option<InlineQosParameterList>,
     serialized_payload: Payload,
 }
 
