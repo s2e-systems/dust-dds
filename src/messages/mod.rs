@@ -2,7 +2,7 @@
 
 // mod ack_nack_submessage;
 // mod data_frag_submessage;
-// mod data_submessage;
+mod data_submessage;
 // mod gap_submessage;
 // mod heartbeat_frag_submessage;
 // mod heartbeat_submessage;
@@ -23,7 +23,7 @@ use crate::types::*;
 
 // pub use ack_nack_submessage::AckNack;
 // pub use data_frag_submessage::DataFrag;
-// pub use data_submessage::{Data, Payload};
+pub use data_submessage::{Data, Payload};
 // pub use gap_submessage::Gap;
 // pub use heartbeat_frag_submessage::HeartbeatFrag;
 // pub use heartbeat_submessage::Heartbeat;
@@ -70,7 +70,7 @@ pub const RTPS_MINOR_VERSION: u8 = 4;
 #[derive(Debug, PartialEq)]
 pub enum RtpsSubmessage {
     // AckNack(AckNack),
-    // Data(Data),
+    Data(Data),
     // DataFrag(DataFrag),
     // Gap(Gap),
     // Heartbeat(Heartbeat),
@@ -103,7 +103,7 @@ impl<W> RtpsSerialize<W> for SubmessageKind
 where
     W: std::io::Write
 {
-    fn serialize(&self, writer: &mut W, _endi: EndianessFlag) -> RtpsSerdesResult<()>{
+    fn serialize(&self, writer: &mut W, _endianness: EndianessFlag) -> RtpsSerdesResult<()>{
         let submessage_kind_u8 = *self as u8;
         writer.write(&[submessage_kind_u8])?;
 
@@ -422,9 +422,7 @@ impl RtpsMessage {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
-    use cdr::{BigEndian, Infinite};
+    // use super::*;
 
     // #[test]
     // fn test_parse_valid_message_header_only() {

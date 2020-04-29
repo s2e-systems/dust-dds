@@ -1,5 +1,5 @@
 use crate::types::Time;
-use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsDeserializeWithEndianess, EndianessFlag, RtpsSerdesResult, RtpsSerdesError, SizeCheckers};
+use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsDeserializeWithEndianess, EndianessFlag, RtpsSerdesResult, RtpsSerdesError, SizeCheckers, SizeSerializer};
 
 use super::{SubmessageKind, OctetsToNextHeader};
 
@@ -20,6 +20,7 @@ impl InfoTs {
     }
 }
 
+
 impl<W> RtpsSerialize<W> for InfoTs
 where 
     W: std::io::Write
@@ -27,21 +28,18 @@ where
     fn serialize(&self, writer: &mut W, endianness: EndianessFlag) -> RtpsSerdesResult<()>{
         SubmessageKind::InfoTimestamp.serialize(writer, endianness)?;
 
+        let mut size_serializer = SizeSerializer::new();
+
         let mut flags = endianness as u8;
         if self.timestamp.is_none() {
             flags |= InfoTs::INVALID_TIME_FLAG_MASK;
         }
         writer.write(&[flags])?;
 
-        if self.timestamp.is_some() {
-            OctetsToNextHeader(8)
-        } else {
-            OctetsToNextHeader(0)
-        }.serialize(writer, endianness)?;
-
-        if let Some(time) = &self.timestamp {
-            time.serialize(writer, endianness)?;
-        }
+        self.timestamp.serialize(&mut size_serializer, endianness)?;
+        OctetsToNextHeader(size_serializer.get_size() as u16).serialize(writer, endianness)?;
+       
+        self.timestamp.serialize(writer, endianness)?;
 
         Ok(())
     }

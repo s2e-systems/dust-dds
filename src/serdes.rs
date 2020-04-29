@@ -1,4 +1,5 @@
 use num_derive::FromPrimitive;
+use std::io;
 
 #[derive(Debug)]
 pub enum RtpsSerdesError {
@@ -48,6 +49,34 @@ impl From<u8> for EndianessFlag {
     }
 }
 
+pub struct SizeSerializer {
+    size: usize,
+}
+
+impl SizeSerializer {
+    pub fn new() -> Self {
+        SizeSerializer {
+            size: 0,
+        }
+    }
+
+    pub fn get_size(&self) -> usize {
+        self.size
+    }
+}
+
+impl std::io::Write for SizeSerializer {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize>{
+        let size = buf.len();
+        self.size += size;
+        Ok(size)
+    }
+
+    fn flush(&mut self) -> io::Result<()>{
+        Ok(())
+    }
+}
+
 pub trait RtpsSerialize<W> where 
     W: std::io::Write
 {
@@ -64,6 +93,20 @@ pub trait RtpsDeserializeWithEndianess {
     type Output;
 
     fn deserialize_with_endianness(bytes: &[u8], endianness: EndianessFlag) -> RtpsSerdesResult<Self::Output>;
+}
+
+impl<W,T> RtpsSerialize<W> for Option<T> 
+where 
+    W: std::io::Write,
+    T: RtpsSerialize<W>
+{
+    fn serialize(&self, writer: &mut W, endianess: EndianessFlag) -> RtpsSerdesResult<()> {
+        if let Some(value) = self {
+            value.serialize(writer, endianess)
+        } else {
+            Ok(())
+        }
+    }
 }
 
 pub struct PrimitiveSerdes{}

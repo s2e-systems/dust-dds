@@ -1,5 +1,6 @@
 use std::convert::TryInto;
 use std::slice::Iter;
+use std::ops::Index;
 use std::collections::BTreeMap;
 use num_derive::FromPrimitive;
 
@@ -186,8 +187,8 @@ impl<W> RtpsSerialize<W> for Time
         let seconds_bytes = PrimitiveSerdes::serialize_u32(self.seconds, endianness);
         let fraction_bytes = PrimitiveSerdes::serialize_u32(self.fraction, endianness);
 
-        writer.write(&seconds_bytes).unwrap();
-        writer.write(&fraction_bytes).unwrap();
+        writer.write(&seconds_bytes)?;
+        writer.write(&fraction_bytes)?;
 
         Ok(())
     }
@@ -265,28 +266,33 @@ impl<T: Parameter> ParameterList<T> {
     }
 }
 
-// impl<T: Parameter> Index<usize> for ParameterList<T> {
-//     type Output = T;
+impl<T> Index<usize> for ParameterList<T> 
+where
+    T: Parameter
+{
+    type Output = T;
 
-//     fn index(&self, index: usize) -> &Self::Output {
-//         self.0.index(index)
-//     }
-// }
+    fn index(&self, index: usize) -> &Self::Output {
+        self.0.index(index)
+    }
+}
 
-// impl<T: Parameter + Serialize> Serialize for ParameterList<T> {
-//     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
-//     where
-//         S: Serializer
-//     {
-//         let mut map = serializer.serialize_map(None)?;
+impl<T, W> RtpsSerialize<W> for ParameterList<T> 
+where
+    T: Parameter + RtpsSerialize<W>,
+    W: std::io::Write,
+{
+    fn serialize(&self, _writer: &mut W, _endianness: EndianessFlag) -> RtpsSerdesResult<()> {
+        unimplemented!()
+        // let mut map = serializer.serialize_map(None)?;
 
-//         for item in self.0.iter() {
-//             map.serialize_entry(&item.parameter_id(),item)?;
-//         }
+        // for item in self.0.iter() {
+        //     map.serialize_entry(&item.parameter_id(),item)?;
+        // }
 
-//         map.end()
-//     }
-// }
+        // map.end()
+    }
+}
 
 #[derive(PartialEq, Debug, Clone, Copy, Hash, Eq)]
 pub struct ProtocolVersion {
