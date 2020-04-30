@@ -1,5 +1,5 @@
+use std::convert::TryInto;
 use crate::types::{Parameter, ParameterList, KeyHash, StatusInfo};
-use crate::serdes::{RtpsSerialize, EndianessFlag, RtpsSerdesResult};
 
 pub type InlineQosParameterList = ParameterList<InlineQosParameter>;
 
@@ -40,10 +40,30 @@ pub enum InlineQosParameter {
 }
 
 impl Parameter for InlineQosParameter {
+
+    fn new_from(parameter_id: u16, value: &[u8]) -> Option<Self> {
+        match parameter_id {
+            0x0070 => {
+                Some(InlineQosParameter::KeyHash(KeyHash::new(value.try_into().ok()?)))
+            }
+            0x0071 => {
+                Some(InlineQosParameter::StatusInfo(StatusInfo::new(value.try_into().ok()?)))
+            }
+            _ => None,
+        }
+    }
+
     fn parameter_id(&self) -> u16 {
         match self {
             InlineQosParameter::KeyHash(_) => 0x0070,
             InlineQosParameter::StatusInfo(_) => 0x0071,
+        }
+    }
+
+    fn value(&self) -> &[u8] {
+        match self {
+            InlineQosParameter::KeyHash(key_hash) => key_hash.get_value(),
+            InlineQosParameter::StatusInfo(status_info) => status_info.get_value(),
         }
     }
 }
@@ -64,19 +84,11 @@ impl InlineQosParameter {
     }
 }
 
-impl RtpsSerialize for InlineQosParameter 
-{
-    fn serialize(&self, writer: &mut impl std::io::Write, endianess: EndianessFlag) -> RtpsSerdesResult<()> {
-        match self {
-            InlineQosParameter::KeyHash(value) => value.serialize(writer, endianess),
-            InlineQosParameter::StatusInfo(value) => value.serialize(writer, endianess),
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    use crate::serdes::{RtpsSerialize, EndianessFlag};
 
     #[test]
     fn test_inline_qos_parameter_list_serialization() {

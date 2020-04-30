@@ -2,6 +2,7 @@ use std::convert::TryInto;
 use std::slice::Iter;
 use std::ops::Index;
 use std::collections::BTreeMap;
+use std::io::Write;
 use num_derive::FromPrimitive;
 
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, EndianessFlag, RtpsSerdesResult, RtpsSerdesError, PrimitiveSerdes, SizeCheckers, SizeSerializer};
@@ -125,9 +126,7 @@ impl RtpsSerialize for SequenceNumber
 }
 
 impl RtpsDeserialize for SequenceNumber {
-    type Output = SequenceNumber;
-
-    fn deserialize(bytes: &[u8], endianness: EndianessFlag) -> RtpsSerdesResult<Self::Output> {
+    fn deserialize(bytes: &[u8], endianness: EndianessFlag) -> RtpsSerdesResult<Self> {
         SizeCheckers::check_size_equal(bytes, 8)?;
 
         let msb = PrimitiveSerdes::deserialize_i32(bytes[0..4].try_into()?, endianness);
@@ -186,9 +185,7 @@ impl RtpsSerialize for Time
 }
 
 impl RtpsDeserialize for Time {
-    type Output = Time;
-
-    fn deserialize(bytes: &[u8], endianness: EndianessFlag) -> RtpsSerdesResult<Self::Output> {
+    fn deserialize(bytes: &[u8], endianness: EndianessFlag) -> RtpsSerdesResult<Self> {
         SizeCheckers::check_size_equal(bytes, 8)?;
 
         let seconds = PrimitiveSerdes::deserialize_u32(bytes[0..4].try_into()?, endianness);
@@ -248,8 +245,15 @@ impl RtpsSerialize for StatusInfo
     }
 }
 
-pub trait Parameter {
+pub trait Parameter
+where
+    Self: std::marker::Sized
+{
+    fn new_from(parameter_id: u16, value: &[u8]) -> Option<Self>;
+
     fn parameter_id(&self) -> u16;
+
+    fn value(&self) -> &[u8];
 }
 
 #[derive(Hash, Clone, Debug, PartialEq, Eq)]
@@ -297,14 +301,6 @@ where
 {
     fn serialize(&self, writer: &mut impl std::io::Write, endianness: EndianessFlag) -> RtpsSerdesResult<()> {
         for item in self.iter() {
-            let mut size_serializer =  SizeSerializer::new();
-
-            writer.write(&PrimitiveSerdes::serialize_u16(item.parameter_id(), endianness))?;
-            
-            //TODO: The size needs to be rounded to multiples of 4 and include padding
-            item.serialize(&mut size_serializer, endianness)?;
-            writer.write(&PrimitiveSerdes::serialize_u16(size_serializer.get_size() as u16, endianness))?;
-
             item.serialize(writer, endianness)?;
         }
 
@@ -312,6 +308,64 @@ where
         writer.write(&[0,0])?;
 
         Ok(())
+    }
+}
+
+impl<T> RtpsSerialize for T 
+where
+    T: Parameter
+{
+    fn serialize(&self, writer: &mut impl std::io::Write, endianness: EndianessFlag) -> RtpsSerdesResult<()> {
+        let mut size_serializer =  SizeSerializer::new();
+
+        writer.write(&PrimitiveSerdes::serialize_u16(self.parameter_id(), endianness))?;
+        
+        //TODO: The size needs to be rounded to multiples of 4 and include padding
+        size_serializer.write(self.value())?;
+        writer.write(&PrimitiveSerdes::serialize_u16(size_serializer.get_size() as u16, endianness))?;
+
+        writer.write(self.value())?;
+
+        Ok(())
+    }
+}
+
+impl<T: Parameter> RtpsDeserialize for ParameterList<T> 
+{
+    fn deserialize(bytes: &[u8], endianness: EndianessFlag) -> RtpsSerdesResult<Self> {
+        SizeCheckers::check_size_bigger_equal_than(bytes, 4)?;
+
+        let mut parameter_start_index: usize = 0;
+        let mut parameter_list = ParameterList::<T>::new();
+
+        loop {
+            let parameter_id_first_index = parameter_start_index + 0;
+            let parameter_id_last_index = parameter_start_index + 1;
+            let parameter_size_first_index = parameter_start_index + 2;
+            let parameter_size_last_index = parameter_start_index + 3;
+ 
+            let parameter_id_u16 = PrimitiveSerdes::deserialize_u16(bytes[parameter_id_first_index..=parameter_id_last_index].try_into()?, endianness);
+            let parameter_size = PrimitiveSerdes::deserialize_u16(bytes[parameter_size_first_index..=parameter_size_last_index].try_into()?, endianness) as usize;
+
+            if parameter_id_u16 == Self::PID_SENTINEL {
+                break;
+            }
+
+            let parameter_value_first_index = parameter_start_index + 4;
+            let parameter_value_last_index = parameter_value_first_index + parameter_size - 1;
+
+            SizeCheckers::check_size_bigger_equal_than(bytes,parameter_value_last_index)?;
+
+            // For the new_from do a non_inclusive retrieval of the bytes
+            if let Some(parameter) = T::new_from(parameter_id_u16, &bytes[parameter_value_first_index..parameter_value_last_index]) {
+                parameter_list.push(parameter);
+            }
+
+            parameter_start_index = parameter_value_last_index;
+
+        }
+
+        Ok(parameter_list)
     }
 }
 

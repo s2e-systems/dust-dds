@@ -87,10 +87,11 @@ pub trait RtpsParse {
     fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self::Output>;
 }
 
-pub trait RtpsDeserialize {
-    type Output;
-
-    fn deserialize(bytes: &[u8], endianness: EndianessFlag) -> RtpsSerdesResult<Self::Output>;
+pub trait RtpsDeserialize
+where
+    Self: std::marker::Sized
+{
+    fn deserialize(bytes: &[u8], endianness: EndianessFlag) -> RtpsSerdesResult<Self>;
 }
 
 impl<T> RtpsSerialize for Option<T> 
