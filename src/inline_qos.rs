@@ -73,3 +73,20 @@ impl RtpsSerialize for InlineQosParameter
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_inline_qos_parameter_list_serialization() {
+        let mut writer = Vec::new();
+        let mut inline_qos_parameter_list = InlineQosParameterList::new();
+
+
+        let serialized_inline_qos_parameter_list = [0x00, 0x70, 0x00, 0x10, 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16, 0x00, 0x01, 0x00, 0x00];
+        inline_qos_parameter_list.push(InlineQosParameter::KeyHash(KeyHash::new([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16])));
+        inline_qos_parameter_list.serialize(&mut writer, EndianessFlag::BigEndian).unwrap();
+        assert_eq!(writer, serialized_inline_qos_parameter_list);
+    }
+}
