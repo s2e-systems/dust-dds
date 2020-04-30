@@ -5,8 +5,6 @@ pub type InlineQosParameterList = ParameterList<InlineQosParameter>;
 
 // #[derive(PartialEq, Debug)]
 // pub enum InlineQosPid {
-//     Pad = 0x0000,
-//     Sentinel = 0x0001,
 //     TopicName = 0x0005,
 //     Durability = 0x001d,
 //     Presentation = 0x0021,
@@ -88,10 +86,10 @@ impl InlineQosParameter {
 mod tests {
     use super::*;
 
-    use crate::serdes::{RtpsSerialize, EndianessFlag};
+    use crate::serdes::{RtpsSerialize, RtpsDeserialize, EndianessFlag};
 
     #[test]
-    fn test_inline_qos_parameter_list_serialization() {
+    fn test_inline_qos_parameter_list_serialization_deserialization_big_endian() {
         let mut writer = Vec::new();
         let mut inline_qos_parameter_list = InlineQosParameterList::new();
 
@@ -100,5 +98,37 @@ mod tests {
         inline_qos_parameter_list.push(InlineQosParameter::KeyHash(KeyHash::new([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16])));
         inline_qos_parameter_list.serialize(&mut writer, EndianessFlag::BigEndian).unwrap();
         assert_eq!(writer, serialized_inline_qos_parameter_list);
+        assert_eq!(InlineQosParameterList::deserialize(&writer, EndianessFlag::BigEndian).unwrap(), inline_qos_parameter_list);
+    }
+
+    #[test]
+    fn test_inline_qos_parameter_list_serialization_deserialization_little_endian() {
+        let mut writer = Vec::new();
+        let mut inline_qos_parameter_list = InlineQosParameterList::new();
+
+
+        let serialized_inline_qos_parameter_list = [0x70,0x00, 0x10, 0x00,  1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16, 0x01, 0x00, 0x00, 0x00];
+        inline_qos_parameter_list.push(InlineQosParameter::KeyHash(KeyHash::new([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16])));
+        inline_qos_parameter_list.serialize(&mut writer, EndianessFlag::LittleEndian).unwrap();
+        assert_eq!(writer, serialized_inline_qos_parameter_list);
+        assert_eq!(InlineQosParameterList::deserialize(&writer, EndianessFlag::LittleEndian).unwrap(), inline_qos_parameter_list);
+    }
+
+    #[test]
+    fn test_inline_qos_empty_parameter_list_serialization_deserialization() {
+        let mut writer = Vec::new();
+        let inline_qos_parameter_list = InlineQosParameterList::new();
+
+        let serialized_inline_qos_parameter_list_little_endian = [0x01, 0x00, 0x00, 0x00];
+        inline_qos_parameter_list.serialize(&mut writer, EndianessFlag::LittleEndian).unwrap();
+        assert_eq!(writer, serialized_inline_qos_parameter_list_little_endian);
+        assert_eq!(InlineQosParameterList::deserialize(&writer, EndianessFlag::LittleEndian).unwrap(), inline_qos_parameter_list);
+
+        writer.clear();
+
+        let serialized_inline_qos_parameter_list_big_endian = [0x00, 0x01, 0x00, 0x00];
+        inline_qos_parameter_list.serialize(&mut writer, EndianessFlag::BigEndian).unwrap();
+        assert_eq!(writer, serialized_inline_qos_parameter_list_big_endian);
+        assert_eq!(InlineQosParameterList::deserialize(&writer, EndianessFlag::BigEndian).unwrap(), inline_qos_parameter_list);
     }
 }

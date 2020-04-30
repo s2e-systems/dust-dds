@@ -352,7 +352,7 @@ impl<T: Parameter> RtpsDeserialize for ParameterList<T>
             }
 
             let parameter_value_first_index = parameter_start_index + 4;
-            let parameter_value_last_index = parameter_value_first_index + parameter_size - 1;
+            let parameter_value_last_index = parameter_value_first_index + parameter_size;
 
             SizeCheckers::check_size_bigger_equal_than(bytes,parameter_value_last_index)?;
 
