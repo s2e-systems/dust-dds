@@ -673,7 +673,7 @@ mod tests {
         let mut vec = Vec::new();
         
         {
-            let test_sequence_number_i64_max = SequenceNumber(i64::MAX);
+            let test_sequence_number_i64_max = SequenceNumber(std::i64::MAX);
             test_sequence_number_i64_max.serialize(&mut vec, EndianessFlag::LittleEndian).unwrap();
             assert_eq!(SequenceNumber::deserialize(&vec, EndianessFlag::LittleEndian).unwrap(), test_sequence_number_i64_max);
             vec.clear();
@@ -684,7 +684,7 @@ mod tests {
         }
 
         {
-            let test_sequence_number_i64_min = SequenceNumber(i64::MIN);
+            let test_sequence_number_i64_min = SequenceNumber(std::i64::MIN);
             test_sequence_number_i64_min.serialize(&mut vec, EndianessFlag::LittleEndian).unwrap();
             assert_eq!(SequenceNumber::deserialize(&vec, EndianessFlag::LittleEndian).unwrap(), test_sequence_number_i64_min);
             vec.clear();
@@ -990,8 +990,8 @@ pub mod constants {
     };
 
     pub const DURATION_INFINITE: Duration = Duration {
-        seconds: i32::MAX,
-        fraction: u32::MAX,
+        seconds: std::i32::MAX,
+        fraction: std::u32::MAX,
     };
 
     const TIME_ZERO: Time = Time {
@@ -1000,12 +1000,12 @@ pub mod constants {
     };
 
     const TIME_INFINITE: Time = Time {
-        seconds: u32::MAX,
-        fraction: u32::MAX - 1,
+        seconds: std::u32::MAX,
+        fraction: std::u32::MAX - 1,
     };
 
     const TIME_INVALID: Time = Time {
-        seconds: u32::MAX,
-        fraction: u32::MAX,
+        seconds: std::u32::MAX,
+        fraction: std::u32::MAX,
     };
 }
