@@ -27,9 +27,7 @@ impl RtpsSerialize for EntityKey
 }
 
 impl RtpsParse for EntityKey{
-    type Output = EntityKey;
-
-    fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self::Output> {
+    fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> {
         SizeCheckers::check_size_equal(bytes, 3)?;
 
         Ok(EntityKey(bytes[0..3].try_into()?))
@@ -66,9 +64,8 @@ impl RtpsSerialize for EntityKind
 }
 
 impl RtpsParse for EntityKind{
-    type Output = EntityKind;
 
-    fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self::Output> {
+    fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> {
         SizeCheckers::check_size_equal(bytes, 1 /*expected_size*/)?;
         Ok(num::FromPrimitive::from_u8(bytes[0]).ok_or(RtpsSerdesError::InvalidEnumRepresentation)?)
     }
@@ -98,9 +95,7 @@ impl RtpsSerialize for EntityId
 }
 
 impl RtpsParse for EntityId{
-    type Output = EntityId;
-
-    fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self::Output> {
+    fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> {
         SizeCheckers::check_size_equal(bytes, 4 /*expected_size*/)?;
         let entity_key = EntityKey::parse(&bytes[0..3])?;
         let entity_kind = EntityKind::parse(&[bytes[3]])?;

@@ -109,9 +109,7 @@ impl RtpsSerialize for SubmessageKind
 }
 
 impl RtpsParse for SubmessageKind {
-    type Output = SubmessageKind;
-
-    fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self::Output> {
+    fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> {
         SizeCheckers::check_size_equal(bytes, 1 /*expected_size*/)?;
         Ok(num::FromPrimitive::from_u8(bytes[0]).ok_or(RtpsSerdesError::InvalidEnumRepresentation)?)
     }

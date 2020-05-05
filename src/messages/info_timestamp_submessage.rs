@@ -44,9 +44,7 @@ impl RtpsSerialize for InfoTs
 }
 
 impl RtpsParse for InfoTs {
-    type Output = InfoTs;
-
-    fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self::Output> {
+    fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> {
         const SERIALIZED_INFOTS_MINIMUM_SIZE: usize = 4;
         const SERIALIZED_INFOTS_WITH_TIMESTAMP_MINIMUM_SIZE: usize = 12;
         const SUBMESSAGE_ID_INDEX: usize = 0;

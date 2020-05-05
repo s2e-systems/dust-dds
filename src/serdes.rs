@@ -81,10 +81,11 @@ pub trait RtpsSerialize where
     fn serialize(&self, writer: &mut impl std::io::Write, endianness: EndianessFlag) -> RtpsSerdesResult<()>;
 }
 
-pub trait RtpsParse {
-    type Output;
-
-    fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self::Output>;
+pub trait RtpsParse
+where
+    Self: std::marker::Sized
+{
+    fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self>;
 }
 
 pub trait RtpsDeserialize

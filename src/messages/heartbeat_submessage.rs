@@ -67,6 +67,8 @@ impl RtpsSerialize for Heartbeat {
         self.serialize_message_body(writer, endianness)
     }
 }
+
+
 // pub fn parse_heartbeat_submessage(submessage: &[u8], submessage_flags: &u8) -> RtpsMessageResult<Heartbeat> {
 //     const READER_ID_FIRST_INDEX: usize = 0;
 //     const READER_ID_LAST_INDEX: usize = 3;
