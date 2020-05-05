@@ -77,6 +77,8 @@ impl RtpsSerialize for Data {
     fn serialize(&self, writer: &mut impl std::io::Write, endianness: EndianessFlag) -> RtpsSerdesResult<()> {
         SubmessageKind::Data.serialize(writer, endianness)?;
 
+        const EXTRA_FLAGS: u16 = 0;
+        
         Ok(())
     }
 }

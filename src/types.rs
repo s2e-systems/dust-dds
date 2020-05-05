@@ -11,6 +11,12 @@ use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, EndianessFlag, Rt
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
 pub struct EntityKey([u8;3]);
 
+impl EntityKey {
+    pub fn new(value: [u8;3]) -> Self {
+        EntityKey(value)
+    }
+}
+
 impl RtpsSerialize for EntityKey
 {
     fn serialize(&self, writer: &mut impl std::io::Write, _endianness: EndianessFlag) -> RtpsSerdesResult<()>{
@@ -192,6 +198,22 @@ impl RtpsDeserialize for Time {
         let fraction = PrimitiveSerdes::deserialize_u32(bytes[4..8].try_into()?, endianness);
 
         Ok(Time::new(seconds, fraction))
+    }
+}
+#[derive(Debug, PartialEq)]
+pub struct Count(i32);
+
+impl Count {
+    pub fn new(value: i32) -> Self {
+        Count(value)
+    }
+}
+
+impl RtpsSerialize for Count {
+    fn serialize(&self, writer: &mut impl std::io::Write, endianness: EndianessFlag) -> RtpsSerdesResult<()> {
+        writer.write(&PrimitiveSerdes::serialize_i32(self.0, endianness))?;
+
+        Ok(())
     }
 }
 
@@ -465,7 +487,7 @@ pub type InstanceHandle = [u8; 16];
 pub type VendorId = [u8; 2];
 pub type LocatorList = Vec<Locator>;
 pub type GuidPrefix = [u8; 12];
-pub type Count = i32;
+
 
 pub type SequenceNumberSet = BTreeMap<SequenceNumber, bool>;
 pub type FragmentNumber = u32;

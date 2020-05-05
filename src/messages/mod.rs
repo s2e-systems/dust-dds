@@ -3,9 +3,9 @@
 // mod ack_nack_submessage;
 // mod data_frag_submessage;
 mod data_submessage;
-// mod gap_submessage;
+mod gap_submessage;
 // mod heartbeat_frag_submessage;
-// mod heartbeat_submessage;
+mod heartbeat_submessage;
 // mod info_destination_submessage;
 // mod info_reply_submessage;
 // mod info_source_submessage;
@@ -23,9 +23,9 @@ use crate::types::*;
 // pub use ack_nack_submessage::AckNack;
 // pub use data_frag_submessage::DataFrag;
 pub use data_submessage::{Data, Payload};
-// pub use gap_submessage::Gap;
+pub use gap_submessage::Gap;
 // pub use heartbeat_frag_submessage::HeartbeatFrag;
-// pub use heartbeat_submessage::Heartbeat;
+pub use heartbeat_submessage::Heartbeat;
 // pub use info_destination_submessage::InfoDst;
 // pub use info_reply_submessage::InfoReply;
 // pub use info_source_submessage::InfoSrc;
@@ -71,8 +71,8 @@ pub enum RtpsSubmessage {
     // AckNack(AckNack),
     Data(Data),
     // DataFrag(DataFrag),
-    // Gap(Gap),
-    // Heartbeat(Heartbeat),
+    Gap(Gap),
+    Heartbeat(Heartbeat),
     // HeartbeatFrag(HeartbeatFrag),
     // InfoDst(InfoDst),
     // InfoReply(InfoReply),
