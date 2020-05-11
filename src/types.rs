@@ -7,6 +7,19 @@ use num_derive::FromPrimitive;
 
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, EndianessFlag, RtpsSerdesResult, RtpsSerdesError, PrimitiveSerdes, SizeCheckers, SizeSerializer};
 
+#[derive(Debug, Clone, Copy)]
+pub struct Ushort(pub u16);
+
+impl RtpsSerialize for Ushort
+{
+    fn serialize(&self, writer: &mut impl std::io::Write, endianness: EndianessFlag) -> RtpsSerdesResult<()>{
+        let value = self.0;
+        writer.write(&PrimitiveSerdes::serialize_u16(value, endianness))?;
+        Ok(())
+    }
+    
+    fn octets(&self) -> usize { 2 }
+}
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
 pub struct EntityKey([u8;3]);
@@ -18,6 +31,8 @@ impl RtpsSerialize for EntityKey
 
         Ok(())
     }
+    
+    fn octets(&self) -> usize { todo!() }
 }
 
 impl RtpsParse for EntityKey{
@@ -57,6 +72,8 @@ impl RtpsSerialize for EntityKind
 
         Ok(())
     }
+    
+    fn octets(&self) -> usize { todo!() }
 }
 
 impl RtpsParse for EntityKind{
@@ -89,6 +106,8 @@ impl RtpsSerialize for EntityId
         self.entity_key.serialize(writer, endianness)?;
         self.entity_kind.serialize(writer, endianness)
     }
+    
+    fn octets(&self) -> usize { 4 }
 }
 
 impl RtpsParse for EntityId{
@@ -103,7 +122,7 @@ impl RtpsParse for EntityId{
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, PartialOrd)] 
 pub struct SequenceNumber(i64);
 
 impl SequenceNumber {
@@ -123,6 +142,8 @@ impl RtpsSerialize for SequenceNumber
 
         Ok(())
     }
+    
+    fn octets(&self) -> usize { 8 }
 }
 
 impl RtpsDeserialize for SequenceNumber {
@@ -182,6 +203,8 @@ impl RtpsSerialize for Time
 
         Ok(())
     }
+    
+    fn octets(&self) -> usize { todo!() }
 }
 
 impl RtpsDeserialize for Time {
@@ -221,6 +244,8 @@ impl RtpsSerialize for KeyHash
 
         Ok(())
     }
+
+    fn octets(&self) -> usize { todo!() }
 }
 
 #[derive(Debug, PartialEq)]
@@ -243,6 +268,8 @@ impl RtpsSerialize for StatusInfo
 
         Ok(())
     }
+
+    fn octets(&self) -> usize { todo!() }
 }
 
 pub trait Parameter
@@ -282,6 +309,10 @@ impl<T: Parameter> ParameterList<T> {
     pub fn push(&mut self, value: T) {
         self.0.push(value);
     }
+
+    pub fn is_valid(&self) -> bool {
+        todo!()
+    }
 }
 
 impl<T> Index<usize> for ParameterList<T> 
@@ -309,6 +340,7 @@ where
 
         Ok(())
     }
+    fn octets(&self) -> usize { todo!() }
 }
 
 impl<T> RtpsSerialize for T 
@@ -328,6 +360,8 @@ where
 
         Ok(())
     }
+    
+    fn octets(&self) -> usize { todo!() }
 }
 
 impl<T: Parameter> RtpsDeserialize for ParameterList<T> 

@@ -106,6 +106,7 @@ impl RtpsSerialize for SubmessageKind
 
         Ok(())
     }
+    fn octets(&self) -> usize { todo!() }
 }
 
 impl RtpsParse for SubmessageKind {
@@ -126,6 +127,8 @@ impl RtpsSerialize for OctetsToNextHeader
 
         Ok(())
     }
+    
+    fn octets(&self) -> usize { todo!() }
 }
 
 // #[derive(Serialize, Deserialize, PartialEq, Debug)]

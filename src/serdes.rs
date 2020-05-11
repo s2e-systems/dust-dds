@@ -1,3 +1,4 @@
+use crate::types::Ushort;
 use num_derive::FromPrimitive;
 use std::io;
 
@@ -79,6 +80,7 @@ impl std::io::Write for SizeSerializer {
 pub trait RtpsSerialize where 
 {
     fn serialize(&self, writer: &mut impl std::io::Write, endianness: EndianessFlag) -> RtpsSerdesResult<()>;
+    fn octets(&self) -> usize;
 }
 
 pub trait RtpsParse {
@@ -105,6 +107,8 @@ where
             Ok(())
         }
     }
+
+    fn octets(&self) -> usize { todo!() }    
 }
 
 pub struct PrimitiveSerdes{}
