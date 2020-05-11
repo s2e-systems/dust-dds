@@ -51,7 +51,7 @@ impl RtpsParse for InfoTs {
         const FLAGS_INDEX: usize = 1;
         SizeCheckers::check_size_bigger_equal_than(bytes, SERIALIZED_INFOTS_MINIMUM_SIZE)?;
 
-        let submessage_kind = SubmessageKind::parse(&[bytes[0]])?;
+        let submessage_kind = SubmessageKind::parse(&[bytes[SUBMESSAGE_ID_INDEX]])?;
         if submessage_kind != SubmessageKind::InfoTimestamp {
             return Err(RtpsSerdesError::InvalidSubmessageHeader);
         }

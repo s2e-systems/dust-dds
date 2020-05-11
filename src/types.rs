@@ -104,12 +104,20 @@ impl RtpsParse for EntityId{
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, PartialOrd, Clone, Copy)]
 pub struct SequenceNumber(i64);
 
 impl SequenceNumber {
     pub fn new(value: i64) -> Self {
         SequenceNumber(value)
+    }
+}
+
+impl std::ops::Sub<i64> for SequenceNumber {
+    type Output = SequenceNumber;
+
+    fn sub(self, rhs: i64) -> Self::Output {
+        SequenceNumber(self.0 - rhs)
     }
 }
 
@@ -209,6 +217,14 @@ impl RtpsSerialize for Count {
         writer.write(&PrimitiveSerdes::serialize_i32(self.0, endianness))?;
 
         Ok(())
+    }
+}
+
+impl RtpsDeserialize for Count {
+    fn deserialize(bytes: &[u8], endianness: EndianessFlag) -> RtpsSerdesResult<Self> {
+        let value = PrimitiveSerdes::deserialize_i32(bytes.try_into()?, endianness);
+
+        Ok(Count(value))
     }
 }
 
