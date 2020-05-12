@@ -7,7 +7,7 @@ use num_derive::FromPrimitive;
 
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, EndianessFlag, RtpsSerdesResult, RtpsSerdesError, PrimitiveSerdes, SizeCheckers, SizeSerializer};
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Ushort(pub u16);
 
 impl RtpsSerialize for Ushort
@@ -19,6 +19,10 @@ impl RtpsSerialize for Ushort
     }
     
     fn octets(&self) -> usize { 2 }
+}
+
+impl RtpsDeserialize for Ushort {
+    fn deserialize(_bytes: &[u8], _endianness: EndianessFlag) -> RtpsSerdesResult<Self> { todo!() }
 }
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]

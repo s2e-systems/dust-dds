@@ -1,4 +1,3 @@
-use crate::types::Ushort;
 use num_derive::FromPrimitive;
 use std::io;
 
