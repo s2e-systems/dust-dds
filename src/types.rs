@@ -10,6 +10,12 @@ use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, EndianessFlag, Rt
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Ushort(pub u16);
 
+impl Ushort {
+    pub fn as_usize(&self) -> usize {
+        self.0 as usize
+    }
+}
+
 impl RtpsSerialize for Ushort
 {
     fn serialize(&self, writer: &mut impl std::io::Write, endianness: EndianessFlag) -> RtpsSerdesResult<()>{
@@ -22,7 +28,10 @@ impl RtpsSerialize for Ushort
 }
 
 impl RtpsDeserialize for Ushort {
-    fn deserialize(_bytes: &[u8], _endianness: EndianessFlag) -> RtpsSerdesResult<Self> { todo!() }
+    fn deserialize(bytes: &[u8], endianness: EndianessFlag) -> RtpsSerdesResult<Self> { 
+        let value = PrimitiveSerdes::deserialize_u16(bytes[0..2].try_into()?, endianness);
+        Ok(Ushort(value))
+    }
 }
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
@@ -104,8 +113,7 @@ impl EntityId {
     }
 }
 
-impl RtpsSerialize for EntityId
-{
+impl RtpsSerialize for EntityId {
     fn serialize(&self, writer: &mut impl std::io::Write, endianness: EndianessFlag) -> RtpsSerdesResult<()>{
         self.entity_key.serialize(writer, endianness)?;
         self.entity_kind.serialize(writer, endianness)
@@ -113,6 +121,11 @@ impl RtpsSerialize for EntityId
     
     fn octets(&self) -> usize { 4 }
 }
+
+impl RtpsDeserialize for EntityId {
+    fn deserialize(bytes: &[u8], endianness: EndianessFlag) -> RtpsSerdesResult<Self> { todo!() }
+}
+
 
 impl RtpsParse for EntityId{
     type Output = EntityId;

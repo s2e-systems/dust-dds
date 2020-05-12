@@ -97,6 +97,11 @@ impl RtpsSerialize for Payload {
     fn octets(&self) -> usize { todo!() }
 }
 
+impl RtpsDeserialize for Payload {
+    fn deserialize(bytes: &[u8], endianness: EndianessFlag) -> RtpsSerdesResult<Self> { 
+        todo!() 
+    }
+}
 
 #[derive(PartialEq, Debug)]
 struct SubmessageHeader {
@@ -105,11 +110,11 @@ struct SubmessageHeader {
     submessage_length: Ushort,
 }
 
-impl SubmessageHeader {
-    pub fn submessage_id(&self) -> SubmessageKind {self.submessage_id}
-    pub fn flags(&self) -> &[SubmessageFlag; 8] {&self.flags}
-    pub fn submessage_length(&self) -> Ushort {self.submessage_length}
-}
+// impl SubmessageHeader {
+//     pub fn submessage_id(&self) -> SubmessageKind {self.submessage_id}
+//     pub fn flags(&self) -> &[SubmessageFlag; 8] {&self.flags}
+//     pub fn submessage_length(&self) -> Ushort {self.submessage_length}
+// }
 
 impl RtpsSerialize for SubmessageHeader {
     fn serialize(&self, writer: &mut impl std::io::Write, endianness: EndianessFlag) -> RtpsSerdesResult<()> {
@@ -124,9 +129,9 @@ impl RtpsSerialize for SubmessageHeader {
 
 impl RtpsDeserialize for SubmessageHeader {
     fn deserialize(bytes: &[u8], endianness: EndianessFlag) -> RtpsSerdesResult<Self> {
-        let submessage_id = SubmessageKind::deserialize(bytes, endianness)?;
-        let flags = <[SubmessageFlag; 8]>::deserialize(&[bytes[1]], endianness)?;
-        let submessage_length = Ushort::deserialize(bytes, endianness)?;
+        let submessage_id = SubmessageKind::deserialize(&bytes[0..1], endianness)?;
+        let flags = <[SubmessageFlag; 8]>::deserialize(&bytes[1..2], endianness)?;
+        let submessage_length = Ushort::deserialize(&bytes[2..4], endianness)?;
         Ok(SubmessageHeader {
             submessage_id, 
             flags,
@@ -139,7 +144,7 @@ impl RtpsDeserialize for SubmessageHeader {
 fn test_deserialize_submessage_header_simple() {
     let bytes = [0x15_u8, 0b00000001, 20, 0x0];
     let f = SubmessageFlag(false);
-    let flags: [SubmessageFlag; 8] = [f, f, f, f, f, f, f, SubmessageFlag(true)];
+    let flags: [SubmessageFlag; 8] = [SubmessageFlag(true), f, f, f, f, f, f, f];
     let expected = SubmessageHeader {
         submessage_id : SubmessageKind::Data, 
         flags,
@@ -189,7 +194,7 @@ impl Data {
         let k = self.key_flag; //Indicates to the Reader that the dataPayload submessage element contains the serialized value of the key of the data-object. 
         let n = self.non_standard_payload_flag; //Indicates to the Reader that the serializedPayload submessage element is not formatted according to Section 10.
         // X|X|X|N|K|D|Q|E
-        let flags = [x, x, x, n, k, d, q, e];
+        let flags = [e, q, d, k, n, x, x, x];
 
         let mut octets_to_next_header = 4 /*extra_flags and octetsToInlineQos*/  + self.reader_id.octets() + self.writer_id.octets() + self.writer_sn.octets();
         if let Some(inline_qos) = &self.inline_qos {
@@ -246,23 +251,58 @@ impl RtpsSerialize for Data {
     fn octets(&self) -> usize { todo!() }
 }
 
-// impl RtpsDeserialize for Data {
-//     const INLINE_QOS_FLAG_MASK: u8 = 0x02;
-//     const DATA_FLAG_MASK: u8 = 0x04;
-//     const KEY_FLAG_MASK: u8 = 0x08;
-//     const NON_STANDARD_PAYLOAD_FLAG_MASK: u8 = 0x10;
-// }
+impl RtpsDeserialize for Data {
+    fn deserialize(bytes: &[u8], endianness: EndianessFlag) -> RtpsSerdesResult<Self> { 
+        let header = SubmessageHeader::deserialize(bytes, endianness)?;
+        let flags = header.flags();
+        // X|X|X|N|K|D|Q|E
+        /*E*/ let endianness_flag = flags[0];
+        /*Q*/ let inline_qos_flag = flags[1];
+        /*D*/ let data_flag = flags[2];
+        /*K*/ let key_flag = flags[3];
+        /*N*/ let non_standard_payload_flag = flags[4];
+        let octets_to_inline_qos = Ushort::deserialize(&bytes[6..8], endianness).unwrap().as_usize();        
+        let writer_id = EntityId::deserialize(&bytes[8..12], endianness)?;
+        let reader_id = EntityId::deserialize(&bytes[12..16], endianness)?;
+        let writer_sn = SequenceNumber::deserialize(&bytes[16..24], endianness)?;
+        let inline_qos = if inline_qos_flag.is_set() {
+            Some(InlineQosParameterList::deserialize(&bytes[octets_to_inline_qos..], endianness)?)
+        } else { 
+            None
+        };
+        let inline_qos_octets = if let Some(inline_qos) = &inline_qos {
+            inline_qos.octets()
+        } else {
+            0
+        };
+        let serialized_payload = if data_flag.is_set() || key_flag.is_set() {
+            let octets_to_serialized_payload = octets_to_inline_qos + inline_qos_octets;
+            Payload::deserialize(&bytes[octets_to_serialized_payload..], endianness).ok()
+        } else {
+            None
+        };
+
+
+        Ok(Data {
+            endianness_flag,
+            inline_qos_flag,
+            data_flag,
+            key_flag,
+            non_standard_payload_flag,
+            writer_id,
+            reader_id,
+            writer_sn,
+            inline_qos, 
+            serialized_payload, 
+        })
+    }
+}
 
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    // use crate::messages::InlineQosParameter;
     use crate::types::constants::{ENTITYID_UNKNOWN, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER};
-    // use cdr::{Infinite, LittleEndian};
-
-    #[test]
-    fn test_serialize_whole_simple_data_message() {
 
         // E: EndiannessFlag - Indicates endianness.
         // Q: InlineQosFlag - Indicates to the Reader the presence of a ParameterList containing QoS parameters that should be used to interpret the message.
@@ -271,6 +311,8 @@ mod tests {
         // N: NonStandardPayloadFlag  -Indicates to the Reader that the serializedPayload submessage element is not formatted according to Section 10.
         // X|X|X|N|K|D|Q|E
 
+    #[test]
+    fn test_serialize_whole_simple_data_message() {
         let data = Data {
             endianness_flag: SubmessageFlag(true),
             inline_qos_flag: SubmessageFlag(false),
