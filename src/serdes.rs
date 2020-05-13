@@ -35,6 +35,16 @@ pub enum EndianessFlag {
     LittleEndian = 1,
 }
 
+impl From<bool> for EndianessFlag {
+    fn from(value: bool) -> Self {
+        if value {
+            EndianessFlag::LittleEndian
+        } else {
+            EndianessFlag::BigEndian
+        }
+    }
+}
+
 impl From<u8> for EndianessFlag {
     fn from(value: u8) -> Self {
         const ENDIANNESS_FLAG_MASK: u8 = 1;
