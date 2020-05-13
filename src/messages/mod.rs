@@ -22,7 +22,7 @@ use crate::types::*;
 
 // pub use ack_nack_submessage::AckNack;
 // pub use data_frag_submessage::DataFrag;
-pub use data_submessage::{Data, Payload};
+pub use data_submessage::{Data};
 // pub use gap_submessage::Gap;
 // pub use heartbeat_frag_submessage::HeartbeatFrag;
 // pub use heartbeat_submessage::Heartbeat;
