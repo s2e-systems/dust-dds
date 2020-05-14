@@ -92,6 +92,12 @@ pub trait RtpsSerialize where
     fn octets(&self) -> usize;
 }
 
+pub trait RtpsCompose where 
+{
+    fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()>;
+    fn octets(&self) -> usize;
+}
+
 pub trait RtpsParse {
     type Output;
 

@@ -1,6 +1,6 @@
 use crate::types::{EntityId, SequenceNumber, Ushort};
 use crate::inline_qos::InlineQosParameterList;
-use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, EndianessFlag, RtpsSerdesResult};
+use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, EndianessFlag, RtpsSerdesResult};
 
 use super::SubmessageKind;
 
@@ -148,8 +148,9 @@ impl SubmessageHeader {
     pub fn submessage_length(&self) -> Ushort {self.submessage_length}
 }
 
-impl RtpsSerialize for SubmessageHeader {
-    fn serialize(&self, writer: &mut impl std::io::Write, endianness: EndianessFlag) -> RtpsSerdesResult<()> {
+impl RtpsCompose for SubmessageHeader {
+    fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
+        let endianness = EndianessFlag::from(self.flags[0].is_set());
         self.submessage_id.serialize(writer, endianness)?;
         self.flags.serialize(writer, endianness)?;
         self.submessage_length.serialize(writer, endianness)?;
@@ -197,11 +198,11 @@ fn test_rtps_serialize_for_submessage_header() {
     let t = SubmessageFlag(true);
     let header = SubmessageHeader {
         submessage_id: SubmessageKind::Data,
-        flags: [f, t, f, f, f, f, f, f],
+        flags: [t, t, f, f, f, f, f, f],
         submessage_length: Ushort(16),
     };
-    let expected = vec![0x15, 0b00000010, 16, 0x0];
-    header.serialize(&mut result, EndianessFlag::LittleEndian).unwrap();
+    let expected = vec![0x15, 0b00000011, 16, 0x0];
+    header.compose(&mut result).unwrap();
     assert_eq!(result, expected);
 }
 
@@ -257,13 +258,13 @@ impl Data {
     }
 }
 
-impl RtpsSerialize for Data {
-    fn serialize(&self, writer: &mut impl std::io::Write, _endianness: EndianessFlag) -> RtpsSerdesResult<()> {
+impl RtpsCompose for Data {
+    fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
         let endianness = EndianessFlag::from(self.endianness_flag.is_set());
         let extra_flags = Ushort(0);
         let octecs_to_inline_qos_size = self.reader_id.octets() + self.writer_id.octets() + self.writer_sn.octets();
         let octecs_to_inline_qos = Ushort(octecs_to_inline_qos_size as u16);
-        self.submessage_header().serialize(writer, endianness)?;
+        self.submessage_header().compose(writer)?;
         extra_flags.serialize(writer, endianness)?;
         octecs_to_inline_qos.serialize(writer, endianness)?;
         self.reader_id.serialize(writer, endianness)?;
@@ -349,7 +350,6 @@ mod tests {
 
     #[test]
     fn test_serialize_whole_simple_data_message() {
-        let fake = EndianessFlag::BigEndian;
         let data = Data {
             endianness_flag: SubmessageFlag(true),
             inline_qos_flag: SubmessageFlag(false),
@@ -363,7 +363,7 @@ mod tests {
             serialized_payload: None, 
         };
         let expected = vec![
-            0x15, 0b00000001, 20, 0x0, // Submessgae Header
+            0x15_u8, 0b00000001, 20, 0x0, // Submessgae Header
             0x00, 0x00,  16, 0x0, // ExtraFlags, octetsToInlineQos (liitle indian)
             0x00, 0x00, 0x00, 0x00, // [Data Submessage] EntityId readerId => ENTITYID_UNKNOWN
             0x00, 0x01, 0x00, 0xc2, // [Data Submessage] EntityId writerId
@@ -371,7 +371,7 @@ mod tests {
             0x01, 0x00, 0x00, 0x00, // [Data Submessage] SequenceNumber writerSN => 1
         ];
         let mut result = Vec::new();
-        data.serialize(&mut result, fake).unwrap();
+        data.compose(&mut result).unwrap();
         assert_eq!(expected, result);
     }
 
