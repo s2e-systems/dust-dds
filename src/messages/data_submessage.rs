@@ -1,5 +1,5 @@
-use crate::types::{EntityId, SequenceNumber, Ushort};
-use crate::inline_qos::InlineQosParameterList;
+use crate::types::{EntityId, SequenceNumber, Ushort, KeyHash};
+use crate::inline_qos::{InlineQosParameter, InlineQosParameterList};
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, EndianessFlag, RtpsSerdesResult};
 
 use super::SubmessageKind;
@@ -38,8 +38,8 @@ impl RtpsParse for [SubmessageFlag; 8] {
         for i in 0..8 {
             if (flags & mask) > 0 {
                 submessage_flags[i] = SubmessageFlag(true);
-                mask = mask << 1;
             }
+            mask <<= 1;
         };
         Ok(submessage_flags)
     }
@@ -51,9 +51,24 @@ impl RtpsParse for [SubmessageFlag; 8] {
 fn test_rtps_deserialize_for_submessage_flags() {
     let f = SubmessageFlag(false);
     let t = SubmessageFlag(true);
+
     let expected: [SubmessageFlag; 8] = [t, f, f, f, f, f, f, f];
-    let bytes = [0b00000001_u8];
-    
+    let bytes = [0b00000001_u8];    
+    let result = <[SubmessageFlag; 8]>::parse(&bytes).unwrap();
+    assert_eq!(expected, result);
+
+    let expected: [SubmessageFlag; 8] = [t, t, f, t, f, f, f, f];
+    let bytes = [0b00001011_u8];    
+    let result = <[SubmessageFlag; 8]>::parse(&bytes).unwrap();
+    assert_eq!(expected, result);
+
+    let expected: [SubmessageFlag; 8] = [t, t, t, t, t, t, t, t];
+    let bytes = [0b11111111_u8];    
+    let result = <[SubmessageFlag; 8]>::parse(&bytes).unwrap();
+    assert_eq!(expected, result);
+
+    let expected: [SubmessageFlag; 8] = [f, f, f, f, f, f, f, f];
+    let bytes = [0b00000000_u8];    
     let result = <[SubmessageFlag; 8]>::parse(&bytes).unwrap();
     assert_eq!(expected, result);
 }
@@ -116,22 +131,36 @@ struct SerializedPayloadHeader {
 // }
 
 #[derive(PartialEq, Debug)]
-pub struct SerializedPayload(Vec<u8>);
+pub struct SerializedPayload(pub Vec<u8>);
 
-impl RtpsSerialize for SerializedPayload {
-    fn serialize(&self, writer: &mut impl std::io::Write, endianness: EndianessFlag) -> RtpsSerdesResult<()> { todo!() }
-    fn octets(&self) -> usize { todo!() }
-}
-
-impl RtpsDeserialize for SerializedPayload {
-    fn deserialize(bytes: &[u8], endianness: EndianessFlag) -> RtpsSerdesResult<Self> { 
-        todo!() 
+impl RtpsCompose for SerializedPayload {
+    fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> { 
+        writer.write(self.0.as_slice())?;
+        Ok(())
     }
+    
+    fn octets(&self) -> usize { self.0.len() }
 }
+
+// impl RtpsSerialize for SerializedPayload {
+//     fn serialize(&self, writer: &mut impl std::io::Write, _endianness: EndianessFlag) -> RtpsSerdesResult<()> { 
+//         writer.write(self.0.as_slice())?;
+//         Ok(())
+//     }
+    
+//     fn octets(&self) -> usize { self.0.len() }
+// }
+
+// impl RtpsDeserialize for SerializedPayload {
+//     fn deserialize(bytes: &[u8], _endianness: EndianessFlag) -> RtpsSerdesResult<Self> { 
+//         Ok(SerializedPayload(Vec::from(bytes)))
+//     }
+// }
+
 impl RtpsParse for SerializedPayload {
     type Output = Self;
     fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self::Output> {
-        todo!()
+        Ok(SerializedPayload(Vec::from(bytes)))
     }
 }
 
@@ -213,8 +242,8 @@ pub struct Data {
     data_flag: SubmessageFlag, 
     key_flag: SubmessageFlag,
     non_standard_payload_flag: SubmessageFlag,
-    writer_id: EntityId,
     reader_id: EntityId,
+    writer_id: EntityId,
     writer_sn: SequenceNumber,
     inline_qos: Option<InlineQosParameterList>,
     serialized_payload: Option<SerializedPayload>,
@@ -275,7 +304,7 @@ impl RtpsCompose for Data {
             self.inline_qos.as_ref().unwrap().serialize(writer, endianness)?;
         }
         if self.data_flag.is_set() || self.key_flag.is_set() {
-            self.serialized_payload.as_ref().unwrap().serialize(writer, endianness)?;
+            self.serialized_payload.as_ref().unwrap().compose(writer)?;
         }
 
         Ok(())
@@ -298,9 +327,9 @@ impl RtpsParse for Data {
 
         let endianness = EndianessFlag::from(endianness_flag.is_set());
 
-        let octets_to_inline_qos = Ushort::deserialize(&bytes[6..8], endianness).unwrap().as_usize();        
-        let writer_id = EntityId::deserialize(&bytes[8..12], endianness)?;
-        let reader_id = EntityId::deserialize(&bytes[12..16], endianness)?;
+        let octets_to_inline_qos = Ushort::deserialize(&bytes[6..8], endianness).unwrap().as_usize() + 8 /* header and extra flags*/;
+        let reader_id = EntityId::parse(&bytes[8..12])?;        
+        let writer_id = EntityId::parse(&bytes[12..16])?;
         let writer_sn = SequenceNumber::deserialize(&bytes[16..24], endianness)?;
         let inline_qos = if inline_qos_flag.is_set() {
             Some(InlineQosParameterList::deserialize(&bytes[octets_to_inline_qos..], endianness)?)
@@ -312,9 +341,9 @@ impl RtpsParse for Data {
         } else {
             0
         };
-        let serialized_payload = if data_flag.is_set() || key_flag.is_set() {
+        let serialized_payload = if data_flag.is_set() || key_flag.is_set() || non_standard_payload_flag.is_set() {
             let octets_to_serialized_payload = octets_to_inline_qos + inline_qos_octets;
-            SerializedPayload::deserialize(&bytes[octets_to_serialized_payload..], endianness).ok()
+            SerializedPayload::parse(&bytes[octets_to_serialized_payload..]).ok()
         } else {
             None
         };
@@ -326,8 +355,8 @@ impl RtpsParse for Data {
             data_flag,
             key_flag,
             non_standard_payload_flag,
-            writer_id,
             reader_id,
+            writer_id,
             writer_sn,
             inline_qos, 
             serialized_payload, 
@@ -349,15 +378,15 @@ mod tests {
         // X|X|X|N|K|D|Q|E
 
     #[test]
-    fn test_serialize_whole_simple_data_message() {
+    fn test_compose_data_submessage_without_inline_qos_without_data() {
         let data = Data {
             endianness_flag: SubmessageFlag(true),
             inline_qos_flag: SubmessageFlag(false),
             data_flag: SubmessageFlag(false),
             key_flag: SubmessageFlag(false),
             non_standard_payload_flag: SubmessageFlag(false),
-            writer_id: ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
             reader_id: ENTITYID_UNKNOWN,
+            writer_id: ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
             writer_sn: SequenceNumber::new(1),
             inline_qos: None, 
             serialized_payload: None, 
@@ -375,258 +404,172 @@ mod tests {
         assert_eq!(expected, result);
     }
 
-
-    // const DATA_SUBMESSAGE_BIG_ENDIAN: [u8; 60] = [
-    //     0x00, 0x00, 0x00, 0x10, 0x10, 0x12, 0x14, 0x16, 0x26, 0x24, 0x22, 0x20, 0x00, 0x00, 0x00,
-    //     0x00, 0x00, 0x00, 0x04, 0xD1, 0x00, 0x70, 0x00, 0x10, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06,
-    //     0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10, 0x00, 0x10, 0x00, 0x08, 0x10,
-    //     0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x00, 0x01, 0x00, 0x00, 0x20, 0x30, 0x40, 0x50,
-    // ];
-
-    // #[test]
-    // fn test_parse_data_submessage_without_inline_qos_or_data() {
-    //     let data = parse_data_submessage(&DATA_SUBMESSAGE_BIG_ENDIAN, &0).unwrap();
-    //     assert_eq!(data.reader_id, EntityId::new([0x10, 0x12, 0x14], 0x16));
-    //     assert_eq!(data.writer_id, EntityId::new([0x26, 0x24, 0x22], 0x20));
-    //     assert_eq!(data.writer_sn, 1233);
-    //     assert_eq!(data.inline_qos, None);
-    //     assert_eq!(data.serialized_payload, Payload::None);
-    // }
-
-    // #[test]
-    // fn test_parse_data_submessage_with_inline_qos_without_data() {
-    //     let data = parse_data_submessage(&DATA_SUBMESSAGE_BIG_ENDIAN, &2).unwrap();
-    //     assert_eq!(data.reader_id, EntityId::new([0x10, 0x12, 0x14], 0x16));
-    //     assert_eq!(data.writer_id, EntityId::new([0x26, 0x24, 0x22], 0x20));
-    //     assert_eq!(data.writer_sn, 1233);
-    //     assert_eq!(data.serialized_payload, Payload::None);
-    //     let inline_qos = data.inline_qos.unwrap();
-    //     assert_eq!(inline_qos.len(), 1);
-    //     assert_eq!(
-    //         inline_qos[0],
-    //         InlineQosParameter::KeyHash([
-    //             0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E,
-    //             0x0F, 0x10,
-    //         ])
-    //     );
-    // }
-
-    // #[test]
-    // fn test_parse_data_submessage_with_inline_qos_and_data() {
-    //     let data = parse_data_submessage(&DATA_SUBMESSAGE_BIG_ENDIAN, &6).unwrap();
-    //     assert_eq!(data.reader_id, EntityId::new([0x10, 0x12, 0x14], 0x16));
-    //     assert_eq!(data.writer_id, EntityId::new([0x26, 0x24, 0x22], 0x20));
-    //     assert_eq!(data.writer_sn, 1233);
-    //     let inline_qos = data.inline_qos.unwrap();
-    //     assert_eq!(inline_qos.len(), 1);
-    //     assert_eq!(
-    //         inline_qos[0],
-    //         InlineQosParameter::KeyHash([
-    //             0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E,
-    //             0x0F, 0x10,
-    //         ])
-    //     );
-    //     if let Payload::Data(serialized_data) = data.serialized_payload {
-    //         assert_eq!(serialized_data, vec!(0x20, 0x30, 0x40, 0x50,));
-    //     } else {
-    //         assert!(false);
-    //     }
-    // }
-
-    // #[test]
-    // fn test_parse_data_submessage_with_inline_qos_and_serialized_key() {
-    //     let data = parse_data_submessage(&DATA_SUBMESSAGE_BIG_ENDIAN, &10).unwrap();
-    //     assert_eq!(data.reader_id, EntityId::new([0x10, 0x12, 0x14], 0x16));
-    //     assert_eq!(data.writer_id, EntityId::new([0x26, 0x24, 0x22], 0x20));
-    //     assert_eq!(data.writer_sn, 1233);
-    //     let inline_qos = data.inline_qos.unwrap();
-    //     assert_eq!(inline_qos.len(), 1);
-    //     assert_eq!(
-    //         inline_qos[0],
-    //         InlineQosParameter::KeyHash([
-    //             0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E,
-    //             0x0F, 0x10,
-    //         ])
-    //     );
-    //     if let Payload::Key(serialized_data) = data.serialized_payload {
-    //         assert_eq!(serialized_data, vec!(0x20, 0x30, 0x40, 0x50,));
-    //     } else {
-    //         assert!(false);
-    //     }
-    // }
-
-    // #[test]
-    // fn test_parse_data_submessage_without_inline_qos_with_serialized_data() {
-    //     // Parse message considering serialized data and no inline qos
-    //     let data = parse_data_submessage(&DATA_SUBMESSAGE_BIG_ENDIAN, &8).unwrap();
-    //     assert_eq!(data.reader_id, EntityId::new([0x10, 0x12, 0x14], 0x16));
-    //     assert_eq!(data.writer_id, EntityId::new([0x26, 0x24, 0x22], 0x20));
-    //     assert_eq!(data.writer_sn, 1233);
-    //     assert_eq!(data.inline_qos, None);
-    //     if let Payload::Key(serialized_data) = data.serialized_payload {
-    //         assert_eq!(
-    //             serialized_data,
-    //             vec!(
-    //                 0x00, 0x70, 0x00, 0x10, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
-    //                 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10, 0x00, 0x10, 0x00, 0x08, 0x10, 0x11,
-    //                 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x00, 0x01, 0x00, 0x00, 0x20, 0x30, 0x40,
-    //                 0x50,
-    //             )
-    //         );
-    //     } else {
-    //         assert!(false);
-    //     }
-    // }
-    
-    // #[test]
-    // fn test_serialize_data_message() {
-    //     let expected_serialized_data = 
-    //     vec![0x15, 0x07, 0x1c, 0x01, //032 submessageId: SubmessageKind => DATA | flags: SubmessageFlag[8] => N=0|K=0|D=1|Q=1|E=1 Endianess=little && InlineQosFlag && serializedPayload contains data | submessageLength (octetsToNextHeader): ushort => 284
-    //         0x00, 0x00, 0x10, 0x00, //036  [Data Submessage] Flags: extraFlags | octetsToInlineQos: ushort => 16
-    //         0x00, 0x00, 0x00, 0x00, //040  [Data Submessage] EntityId readerId => ENTITYID_UNKNOWN
-    //         0x00, 0x01, 0x00, 0xc2, //044  [Data Submessage] EntityId writerId => ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER ([0, 0x01, 0x00], ENTITY_KIND_BUILT_IN_WRITER_WITH_KEY)
-    //         0x00, 0x00, 0x00, 0x00, //048  [Data Submessage] SequenceNumber writerSN 
-    //         0x01, 0x00, 0x00, 0x00, //052  [Data Submessage] SequenceNumber writerSN => 1
-    //         0x70, 0x00, 0x10, 0x00, //056  [Data Submessage: inLineQos] parameterId_1: short => PID_KEY_HASH | length: short => 16
-    //         0x7f, 0x20, 0xf7, 0xd7, //060  [Data Submessage: inLineQos: KEY_HASH] 
-    //         0x00, 0x00, 0x01, 0xbb, //064  [Data Submessage: inLineQos: KEY_HASH] 
-    //         0x00, 0x00, 0x00, 0x01, //068  [Data Submessage: inLineQos: KEY_HASH]  
-    //         0x00, 0x00, 0x01, 0xc1, //072  [Data Submessage: inLineQos: KEY_HASH]  
-    //         0x01, 0x00, 0x00, 0x00, //076  [Data Submessage]  parameterId_1: short => PID_SENTINEL | 0
-    //         0x00, 0x03, 0x00, 0x00, //080  [Data Submessage: SerializedPayload]   representation_identifier: octet[2] => PL_CDR_LE | representation_options: octet[2] => none
-    //         0x15, 0x00, 0x04, 0x00, //084  [Data Submessage: SerializedPayload]   parameterId_1: short => PID_PROTOCOL_VERSION | length: short => 4
-    //         0x02, 0x01, 0x00, 0x00, //088  [Data Submessage: SerializedPayload: PID_PROTOCOL_VERSION]  major: octet => 2 | minor: octet =>1 | padding 
-    //         0x16, 0x00, 0x04, 0x00, //092  [Data Submessage: SerializedPayload]  parameterId_1: short => PID_VENDORID  | length: short => 4
-    //         0x01, 0x02, 0x00, 0x00, //096  [Data Submessage: SerializedPayload: PID_VENDORID] vendorId: octet[2] => 12
-    //         0x31, 0x00, 0x18, 0x00, //100  [Data Submessage: SerializedPayload]  parameterId_1: short =>  PID_DEFAULT_UNICAST_LOCATOR | length: short => 24
-    //         0x01, 0x00, 0x00, 0x00, //104  [Data Submessage: SerializedPayload: PID_DEFAULT_UNICAST_LOCATOR]   
-    //         0xf3, 0x1c, 0x00, 0x00, //108  [Data Submessage: SerializedPayload: PID_DEFAULT_UNICAST_LOCATOR]   
-    //         0x00, 0x00, 0x00, 0x00, //112  [Data Submessage: SerializedPayload: PID_DEFAULT_UNICAST_LOCATOR]   
-    //         0x00, 0x00, 0x00, 0x00, //116  [Data Submessage: SerializedPayload: PID_DEFAULT_UNICAST_LOCATOR]  
-    //         0x00, 0x00, 0x00, 0x00, //120  [Data Submessage: SerializedPayload: PID_DEFAULT_UNICAST_LOCATOR]   
-    //         0xc0, 0xa8, 0x02, 0x04, //124  [Data Submessage: SerializedPayload: PID_DEFAULT_UNICAST_LOCATOR]
-    //         0x32, 0x00, 0x18, 0x00, //128  [Data Submessage: SerializedPayload] parameterId_1: short => PID_METATRAFFIC_UNICAST_LOCATOR | length: short => 24
-    //         0x01, 0x00, 0x00, 0x00, //132  [Data Submessage: SerializedPayload: PID_DEFAULT_UNICAST_LOCATOR]   
-    //         0xf2, 0x1c, 0x00, 0x00, //136  [Data Submessage: SerializedPayload: PID_DEFAULT_UNICAST_LOCATOR]   
-    //         0x00, 0x00, 0x00, 0x00, //140  [Data Submessage: SerializedPayload: PID_DEFAULT_UNICAST_LOCATOR]   
-    //         0x00, 0x00, 0x00, 0x00, //144  [Data Submessage: SerializedPayload: PID_DEFAULT_UNICAST_LOCATOR]  
-    //         0x00, 0x00, 0x00, 0x00, //148  [Data Submessage: SerializedPayload: PID_DEFAULT_UNICAST_LOCATOR]   
-    //         0xc0, 0xa8, 0x02, 0x04, //152  [Data Submessage: SerializedPayload: PID_DEFAULT_UNICAST_LOCATOR]   
-    //         0x02, 0x00, 0x08, 0x00, //156  [Data Submessage: SerializedPayload] parameterId_1: short => PID_PARTICIPANT_LEASE_DURATION | length: short => 8
-    //         0x0b, 0x00, 0x00, 0x00, //160  [Data Submessage: SerializedPayload: PID_PARTICIPANT_LEASE_DURATION] seconds: long => 11 
-    //         0x00, 0x00, 0x00, 0x00, //164  [Data Submessage: SerializedPayload: PID_PARTICIPANT_LEASE_DURATION] fraction: ulong => 0    
-    //         0x50, 0x00, 0x10, 0x00, //168  [Data Submessage: SerializedPayload] parameterId_1: short => PID_PARTICIPANT_GUID | length: short => 16
-    //         0x7f, 0x20, 0xf7, 0xd7, //172  [Data Submessage: SerializedPayload: PID_PARTICIPANT_GUID] 
-    //         0x00, 0x00, 0x01, 0xbb, //176  [Data Submessage: SerializedPayload: PID_PARTICIPANT_GUID]   
-    //         0x00, 0x00, 0x00, 0x01, //180  [Data Submessage: SerializedPayload: PID_PARTICIPANT_GUID]   
-    //         0x00, 0x00, 0x01, 0xc1, //184  [Data Submessage: SerializedPayload: PID_PARTICIPANT_GUID]   
-    //         0x58, 0x00, 0x04, 0x00, //188  [Data Submessage: SerializedPayload] parameterId_1: short => PID_BUILTIN_ENDPOINT_SET | length: short => 4
-    //         0x15, 0x04, 0x00, 0x00, //192  [Data Submessage: SerializedPayload: PID_BUILTIN_ENDPOINT_SET] BuiltinEndpointSet: bitmask => (0100 0001 0101‬) PARTICIPANT_ANNOUNCER && PUBLICATIONS_ANNOUNCER && SUBSCRIPTIONS_ANNOUNCER && PARTICIPANT_MESSAGE_DATA_WRITER
-    //         0x00, 0x80, 0x04, 0x00, //196  [Data Submessage: SerializedPayload] parameterId_1: short => Vendor-specific ParameterId (0x8000) | length: short => 4   
-    //         0x15, 0x00, 0x00, 0x00, //200  [Data Submessage: SerializedPayload: Vendor-specific 0x0]  
-    //         0x07, 0x80, 0x5c, 0x00, //204  [Data Submessage: SerializedPayload] parameterId_1: short => Vendor-specific ParameterId (0x8007) | length: short => 92     
-    //         0x00, 0x00, 0x00, 0x00, //208  [Data Submessage: SerializedPayload: Vendor-specific 0x7]   
-    //         0x2f, 0x00, 0x00, 0x00, //212  [Data Submessage: SerializedPayload: Vendor-specific 0x7]   
-    //         0x05, 0x00, 0x00, 0x00, //216  [Data Submessage: SerializedPayload: Vendor-specific 0x7]   
-    //         0x00, 0x00, 0x00, 0x00, //220  [Data Submessage: SerializedPayload: Vendor-specific 0x7]   
-    //         0x50, 0x00, 0x00, 0x00, //224  [Data Submessage: SerializedPayload: Vendor-specific 0x7]   
-    //         0x42, 0x00, 0x00, 0x00, //228  [Data Submessage: SerializedPayload: Vendor-specific 0x7]  
-    //         0x44, 0x45, 0x53, 0x4b, //232  [Data Submessage: SerializedPayload: Vendor-specific 0x7]   
-    //         0x54, 0x4f, 0x50, 0x2d, //236  [Data Submessage: SerializedPayload: Vendor-specific 0x7]   
-    //         0x4f, 0x52, 0x46, 0x44, //240  [Data Submessage: SerializedPayload: Vendor-specific 0x7]   
-    //         0x4f, 0x53, 0x35, 0x2f, //244  [Data Submessage: SerializedPayload: Vendor-specific 0x7]   
-    //         0x36, 0x2e, 0x31, 0x30, //248  [Data Submessage: SerializedPayload: Vendor-specific 0x7]   
-    //         0x2e, 0x32, 0x2f, 0x63, //252  [Data Submessage: SerializedPayload: Vendor-specific 0x7]  
-    //         0x63, 0x36, 0x66, 0x62, //256  [Data Submessage: SerializedPayload: Vendor-specific 0x7]   
-    //         0x39, 0x61, 0x62, 0x33, //260  [Data Submessage: SerializedPayload: Vendor-specific 0x7]   
-    //         0x36, 0x2f, 0x39, 0x30, //264  [Data Submessage: SerializedPayload: Vendor-specific 0x7]   
-    //         0x37, 0x65, 0x66, 0x66, //268  [Data Submessage: SerializedPayload: Vendor-specific 0x7]   
-    //         0x30, 0x32, 0x65, 0x33, //272  [Data Submessage: SerializedPayload: Vendor-specific 0x7]   
-    //         0x2f, 0x22, 0x78, 0x38, //276  [Data Submessage: SerializedPayload: Vendor-specific 0x7]   
-    //         0x36, 0x5f, 0x36, 0x34, //280  [Data Submessage: SerializedPayload: Vendor-specific 0x7]   
-    //         0x2e, 0x77, 0x69, 0x6e, //284  [Data Submessage: SerializedPayload: Vendor-specific 0x7]  
-    //         0x2d, 0x76, 0x73, 0x32, //288  [Data Submessage: SerializedPayload: Vendor-specific 0x7]   
-    //         0x30, 0x31, 0x35, 0x22, //292  [Data Submessage: SerializedPayload: Vendor-specific 0x7]   
-    //         0x2f, 0x00, 0x00, 0x00, //296  [Data Submessage: SerializedPayload: Vendor-specific 0x7]   
-    //         0x25, 0x80, 0x0c, 0x00, //300  [Data Submessage: SerializedPayload] parameterId_1: short => Vendor-specific ParameterId (0x8025) | length: short => 12       
-    //         0xd7, 0xf7, 0x20, 0x7f, //304  [Data Submessage: SerializedPayload: Vendor-specific ParameterId 0x25]   
-    //         0xbb, 0x01, 0x00, 0x00, //308  [Data Submessage: SerializedPayload: Vendor-specific ParameterId 0x25]   
-    //         0x01, 0x00, 0x00, 0x00, //312  [Data Submessage: SerializedPayload: Vendor-specific ParameterId 0x25]  
-    //         0x01, 0x00, 0x00, 0x00, //316  [Data Submessage: SerializedPayload] parameterId_1: short => PID_SENTINEL |  length: short => 0
-    //     ];
-
-    //     let payload = vec![0x00, 0x03, 0x00, 0x00,
-    //     0x15, 0x00, 0x04, 0x00,
-    //     0x02, 0x01, 0x00, 0x00,
-    //     0x16, 0x00, 0x04, 0x00,
-    //     0x01, 0x02, 0x00, 0x00,
-    //     0x31, 0x00, 0x18, 0x00,
-    //     0x01, 0x00, 0x00, 0x00,
-    //     0xf3, 0x1c, 0x00, 0x00,
-    //     0x00, 0x00, 0x00, 0x00,
-    //     0x00, 0x00, 0x00, 0x00,
-    //     0x00, 0x00, 0x00, 0x00,
-    //     0xc0, 0xa8, 0x02, 0x04,
-    //     0x32, 0x00, 0x18, 0x00,
-    //     0x01, 0x00, 0x00, 0x00,
-    //     0xf2, 0x1c, 0x00, 0x00,
-    //     0x00, 0x00, 0x00, 0x00,
-    //     0x00, 0x00, 0x00, 0x00,
-    //     0x00, 0x00, 0x00, 0x00,
-    //     0xc0, 0xa8, 0x02, 0x04,
-    //     0x02, 0x00, 0x08, 0x00,
-    //     0x0b, 0x00, 0x00, 0x00,
-    //     0x00, 0x00, 0x00, 0x00,
-    //     0x50, 0x00, 0x10, 0x00,
-    //     0x7f, 0x20, 0xf7, 0xd7,
-    //     0x00, 0x00, 0x01, 0xbb,
-    //     0x00, 0x00, 0x00, 0x01,
-    //     0x00, 0x00, 0x01, 0xc1,
-    //     0x58, 0x00, 0x04, 0x00,
-    //     0x15, 0x04, 0x00, 0x00,
-    //     0x00, 0x80, 0x04, 0x00,
-    //     0x15, 0x00, 0x00, 0x00,
-    //     0x07, 0x80, 0x5c, 0x00,
-    //     0x00, 0x00, 0x00, 0x00,
-    //     0x2f, 0x00, 0x00, 0x00,
-    //     0x05, 0x00, 0x00, 0x00,
-    //     0x00, 0x00, 0x00, 0x00,
-    //     0x50, 0x00, 0x00, 0x00,
-    //     0x42, 0x00, 0x00, 0x00,
-    //     0x44, 0x45, 0x53, 0x4b,
-    //     0x54, 0x4f, 0x50, 0x2d,
-    //     0x4f, 0x52, 0x46, 0x44,
-    //     0x4f, 0x53, 0x35, 0x2f,
-    //     0x36, 0x2e, 0x31, 0x30,
-    //     0x2e, 0x32, 0x2f, 0x63,
-    //     0x63, 0x36, 0x66, 0x62,
-    //     0x39, 0x61, 0x62, 0x33,
-    //     0x36, 0x2f, 0x39, 0x30,
-    //     0x37, 0x65, 0x66, 0x66,
-    //     0x30, 0x32, 0x65, 0x33,
-    //     0x2f, 0x22, 0x78, 0x38,
-    //     0x36, 0x5f, 0x36, 0x34,
-    //     0x2e, 0x77, 0x69, 0x6e,
-    //     0x2d, 0x76, 0x73, 0x32,
-    //     0x30, 0x31, 0x35, 0x22,
-    //     0x2f, 0x00, 0x00, 0x00,
-    //     0x25, 0x80, 0x0c, 0x00,
-    //     0xd7, 0xf7, 0x20, 0x7f,
-    //     0xbb, 0x01, 0x00, 0x00,
-    //     0x01, 0x00, 0x00, 0x00,
-    //     0x01, 0x00, 0x00, 0x00,];
-
-    //     let data = Data::new(
-    //         ENTITYID_UNKNOWN, /*reader_id*/
-    //         ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, /*writer_id*/
-    //         [0;16], /*key_hash*/
-    //         1, /*writer_sn*/
-    //         Some(InlineQosParameterList::new_from_vec(vec![InlineQosParameter::KeyHash([0x7f, 0x20, 0xf7, 0xd7, 0x00, 0x00, 0x01, 0xbb,0x00, 0x00, 0x00, 0x01,0x00, 0x00, 0x01, 0xc1])])), /*inline_qos*/
-    //         Payload::Data(payload) /*serialized_payload*/);
+    #[test]
+    fn test_compose_data_submessage_with_inline_qos_without_data() {
+        let mut inline_qos = InlineQosParameterList::new();
+        inline_qos.push(InlineQosParameter::KeyHash(KeyHash::new([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16])));
         
-    //     let serialized_data = cdr::ser::serialize_data::<_,_,LittleEndian>(&data, Infinite).unwrap();
-    //     println!("Data: {:x?}", serialized_data);
+        let data = Data {
+            endianness_flag: SubmessageFlag(true),
+            inline_qos_flag: SubmessageFlag(true),
+            data_flag: SubmessageFlag(false),
+            key_flag: SubmessageFlag(false),
+            non_standard_payload_flag: SubmessageFlag(false),
+            reader_id: ENTITYID_UNKNOWN,
+            writer_id: ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
+            writer_sn: SequenceNumber::new(1),
+            inline_qos: Some(inline_qos), 
+            serialized_payload: None, 
+        };
+        let expected = vec![
+            0x15_u8, 0b00000011, 44, 0x0, // Submessgae Header
+            0x00, 0x00,  16, 0x0, // ExtraFlags, octetsToInlineQos (liitle indian)
+            0x00, 0x00, 0x00, 0x00, // [Data Submessage] EntityId readerId => ENTITYID_UNKNOWN
+            0x00, 0x01, 0x00, 0xc2, // [Data Submessage] EntityId writerId
+            0x00, 0x00, 0x00, 0x00, // [Data Submessage] SequenceNumber writerSN
+            0x01, 0x00, 0x00, 0x00, // [Data Submessage] SequenceNumber writerSN => 1
+            0x70, 0x00, 0x10, 0x00, // [Inline QoS] parameterId, length
+            1, 2, 3, 4,             // [Inline QoS] Key hash
+            5, 6, 7, 8,             // [Inline QoS] Key hash
+            9, 10, 11, 12,          // [Inline QoS] Key hash
+            13, 14, 15, 16,         // [Inline QoS] Key hash
+            0x01, 0x00, 0x00, 0x00  // [Inline QoS] PID_SENTINEL
+        ];
+        let mut result = Vec::new();
+        data.compose(&mut result).unwrap();
+        assert_eq!(expected, result);
+    }
 
-    //     assert_eq!(serialized_data, expected_serialized_data);
-    // }
+    #[test]
+    fn test_compose_data_submessage_with_inline_qos_with_data() {
+        let mut inline_qos = InlineQosParameterList::new();
+        inline_qos.push(InlineQosParameter::KeyHash(KeyHash::new([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16])));
+        
+        let serialized_payload = SerializedPayload(vec![1_u8, 2, 3, 4]);
+
+        let data = Data {
+            endianness_flag: SubmessageFlag(true),
+            inline_qos_flag: SubmessageFlag(true),
+            data_flag: SubmessageFlag(true),
+            key_flag: SubmessageFlag(false),
+            non_standard_payload_flag: SubmessageFlag(false),
+            reader_id: ENTITYID_UNKNOWN,
+            writer_id: ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
+            writer_sn: SequenceNumber::new(1),
+            inline_qos: Some(inline_qos), 
+            serialized_payload: Some(serialized_payload), 
+        };
+        let expected = vec![
+            0x15_u8, 0b00000111, 48, 0x0, // Submessgae Header
+            0x00, 0x00,  16, 0x0, // ExtraFlags, octetsToInlineQos (liitle indian)
+            0x00, 0x00, 0x00, 0x00, // [Data Submessage] EntityId readerId => ENTITYID_UNKNOWN
+            0x00, 0x01, 0x00, 0xc2, // [Data Submessage] EntityId writerId
+            0x00, 0x00, 0x00, 0x00, // [Data Submessage] SequenceNumber writerSN
+            0x01, 0x00, 0x00, 0x00, // [Data Submessage] SequenceNumber writerSN => 1
+            0x70, 0x00, 0x10, 0x00, // [Inline QoS] parameterId, length
+            1, 2, 3, 4,             // [Inline QoS] Key hash
+            5, 6, 7, 8,             // [Inline QoS] Key hash
+            9, 10, 11, 12,          // [Inline QoS] Key hash
+            13, 14, 15, 16,         // [Inline QoS] Key hash
+            0x01, 0x00, 0x00, 0x00, // [Inline QoS] PID_SENTINEL
+            1, 2, 3, 4,             // [Serialized Payload]
+        ];
+        let mut result = Vec::new();
+        data.compose(&mut result).unwrap();
+        assert_eq!(expected, result);
+    }
+
+
+    #[test]
+    fn test_parse_data_submessage_without_inline_qos_without_data() {
+        let expected = Data {
+            endianness_flag: SubmessageFlag(true),
+            inline_qos_flag: SubmessageFlag(false),
+            data_flag: SubmessageFlag(false),
+            key_flag: SubmessageFlag(false),
+            non_standard_payload_flag: SubmessageFlag(false),
+            reader_id: ENTITYID_UNKNOWN,
+            writer_id: ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
+            writer_sn: SequenceNumber::new(1),
+            inline_qos: None, 
+            serialized_payload: None, 
+        };
+        let bytes = vec![
+            0x15_u8, 0b00000001, 20, 0x0, // Submessgae Header
+            0x00, 0x00,  16, 0x0, // ExtraFlags, octetsToInlineQos (liitle indian)
+            0x00, 0x00, 0x00, 0x00, // [Data Submessage] EntityId readerId => ENTITYID_UNKNOWN
+            0x00, 0x01, 0x00, 0xc2, // [Data Submessage] EntityId writerId
+            0x00, 0x00, 0x00, 0x00, // [Data Submessage] SequenceNumber writerSN
+            0x01, 0x00, 0x00, 0x00, // [Data Submessage] SequenceNumber writerSN => 1
+        ];
+        let result = Data::parse(&bytes).unwrap();
+        assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn test_parse_data_submessage_without_inline_qos_with_non_standard_payload() {       
+        let serialized_payload = SerializedPayload(vec![1_u8, 2, 3, 4]);
+
+        let expected = Data {
+            endianness_flag: SubmessageFlag(true),
+            inline_qos_flag: SubmessageFlag(false),
+            data_flag: SubmessageFlag(false),
+            key_flag: SubmessageFlag(false),
+            non_standard_payload_flag: SubmessageFlag(true),
+            reader_id: ENTITYID_UNKNOWN,
+            writer_id: ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
+            writer_sn: SequenceNumber::new(1),
+            inline_qos: None, 
+            serialized_payload: Some(serialized_payload), 
+        };
+        let bytes = vec![
+            0x15_u8, 0b00010001, 24, 0x0, // Submessgae Header
+            0x00, 0x00,  16, 0x0, // ExtraFlags, octetsToInlineQos (liitle indian)
+            0x00, 0x00, 0x00, 0x00, // [Data Submessage] EntityId readerId => ENTITYID_UNKNOWN
+            0x00, 0x01, 0x00, 0xc2, // [Data Submessage] EntityId writerId
+            0x00, 0x00, 0x00, 0x00, // [Data Submessage] SequenceNumber writerSN
+            0x01, 0x00, 0x00, 0x00, // [Data Submessage] SequenceNumber writerSN => 1
+            1, 2, 3, 4,             // [Serialized Payload]
+        ];
+        let result = Data::parse(&bytes).unwrap();
+        assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn test_parse_data_submessage_with_inline_qos_with_data() {
+        let mut inline_qos = InlineQosParameterList::new();
+        inline_qos.push(InlineQosParameter::KeyHash(KeyHash::new([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16])));
+        
+        let serialized_payload = SerializedPayload(vec![1_u8, 2, 3, 4]);
+
+        let expected = Data {
+            endianness_flag: SubmessageFlag(true),
+            inline_qos_flag: SubmessageFlag(true),
+            data_flag: SubmessageFlag(false),
+            key_flag: SubmessageFlag(true),
+            non_standard_payload_flag: SubmessageFlag(false),
+            reader_id: ENTITYID_UNKNOWN,
+            writer_id: ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
+            writer_sn: SequenceNumber::new(1),
+            inline_qos: Some(inline_qos), 
+            serialized_payload: Some(serialized_payload), 
+        };
+        let bytes = vec![
+            0x15_u8, 0b00001011, 48, 0x0, // Submessgae Header
+            0x00, 0x00,  16, 0x0, // ExtraFlags, octetsToInlineQos (liitle indian)
+            0x00, 0x00, 0x00, 0x00, // [Data Submessage] EntityId readerId => ENTITYID_UNKNOWN
+            0x00, 0x01, 0x00, 0xc2, // [Data Submessage] EntityId writerId
+            0x00, 0x00, 0x00, 0x00, // [Data Submessage] SequenceNumber writerSN
+            0x01, 0x00, 0x00, 0x00, // [Data Submessage] SequenceNumber writerSN => 1
+            0x70, 0x00, 0x10, 0x00, // [Inline QoS] parameterId, length
+            1, 2, 3, 4,             // [Inline QoS] Key hash
+            5, 6, 7, 8,             // [Inline QoS] Key hash
+            9, 10, 11, 12,          // [Inline QoS] Key hash
+            13, 14, 15, 16,         // [Inline QoS] Key hash
+            0x01, 0x00, 0x00, 0x00, // [Inline QoS] PID_SENTINEL
+            1, 2, 3, 4,             // [Serialized Payload]
+        ];
+        let result = Data::parse(&bytes).unwrap();
+        assert_eq!(expected, result);
+    }
 }

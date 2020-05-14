@@ -122,10 +122,6 @@ impl RtpsSerialize for EntityId {
     fn octets(&self) -> usize { 4 }
 }
 
-impl RtpsDeserialize for EntityId {
-    fn deserialize(bytes: &[u8], endianness: EndianessFlag) -> RtpsSerdesResult<Self> { todo!() }
-}
-
 
 impl RtpsParse for EntityId{
     type Output = EntityId;
@@ -357,7 +353,14 @@ where
 
         Ok(())
     }
-    fn octets(&self) -> usize { todo!() }
+    fn octets(&self) -> usize {
+        let mut s = 4; //sentinel
+        for item in self.iter() {
+            s += 4;
+            s += item.value().len();
+        };
+        s
+    }
 }
 
 impl<T> RtpsSerialize for T 
