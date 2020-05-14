@@ -1,6 +1,6 @@
 use crate::types::{EntityId, SequenceNumber, Ushort};
 use crate::inline_qos::InlineQosParameterList;
-use crate::serdes::{RtpsSerialize, RtpsDeserialize, EndianessFlag, RtpsSerdesResult};
+use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, EndianessFlag, RtpsSerdesResult};
 
 use super::SubmessageKind;
 
@@ -28,8 +28,9 @@ impl RtpsSerialize for [SubmessageFlag; 8] {
     fn octets(&self) -> usize { todo!() }
 }
 
-impl RtpsDeserialize for [SubmessageFlag; 8] {
-    fn deserialize(bytes: &[u8], _endianness: EndianessFlag) -> RtpsSerdesResult<Self> { 
+impl RtpsParse for [SubmessageFlag; 8] {
+    type Output = Self;
+    fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> { 
         // SizeCheckers::check_size_equal(bytes, 1)?;
         let flags: u8 = bytes[0];        
         let mut mask = 0b00000001_u8;
@@ -53,7 +54,7 @@ fn test_rtps_deserialize_for_submessage_flags() {
     let expected: [SubmessageFlag; 8] = [t, f, f, f, f, f, f, f];
     let bytes = [0b00000001_u8];
     
-    let result = <[SubmessageFlag; 8]>::deserialize(&bytes, EndianessFlag::LittleEndian).unwrap();
+    let result = <[SubmessageFlag; 8]>::parse(&bytes).unwrap();
     assert_eq!(expected, result);
 }
 
@@ -127,6 +128,12 @@ impl RtpsDeserialize for SerializedPayload {
         todo!() 
     }
 }
+impl RtpsParse for SerializedPayload {
+    type Output = Self;
+    fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self::Output> {
+        todo!()
+    }
+}
 
 #[derive(PartialEq, Debug)]
 struct SubmessageHeader {
@@ -152,11 +159,11 @@ impl RtpsSerialize for SubmessageHeader {
     fn octets(&self) -> usize { todo!() }
 }
 
-impl RtpsDeserialize for SubmessageHeader {
-    fn deserialize(bytes: &[u8], _endianness: EndianessFlag) -> RtpsSerdesResult<Self> {
-        let _fake = EndianessFlag::LittleEndian;        
-        let submessage_id = SubmessageKind::deserialize(&bytes[0..1], _fake)?;
-        let flags = <[SubmessageFlag; 8]>::deserialize(&bytes[1..2], _fake)?;
+impl RtpsParse for SubmessageHeader {
+    type Output = Self;
+    fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> {   
+        let submessage_id = SubmessageKind::parse(&bytes[0..1])?;
+        let flags = <[SubmessageFlag; 8]>::parse(&bytes[1..2])?;
         let endianness = EndianessFlag::from(flags[0].is_set());
         let submessage_length = Ushort::deserialize(&bytes[2..4], endianness)?;
         Ok(SubmessageHeader {
@@ -177,7 +184,7 @@ fn test_deserialize_submessage_header_simple() {
         flags,
         submessage_length: Ushort(20),
     };
-    let result = SubmessageHeader::deserialize(&bytes, EndianessFlag::LittleEndian);
+    let result = SubmessageHeader::parse(&bytes);
   
     assert_eq!(expected, result.unwrap());
 }
@@ -276,10 +283,10 @@ impl RtpsSerialize for Data {
     fn octets(&self) -> usize { todo!() }
 }
 
-impl RtpsDeserialize for Data {
-    fn deserialize(bytes: &[u8], _endianness: EndianessFlag) -> RtpsSerdesResult<Self> { 
-        let fake = EndianessFlag::LittleEndian;
-        let header = SubmessageHeader::deserialize(bytes, fake)?;
+impl RtpsParse for Data {
+    type Output = Self;
+    fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> { 
+        let header = SubmessageHeader::parse(bytes)?;
         let flags = header.flags();
         // X|X|X|N|K|D|Q|E
         /*E*/ let endianness_flag = flags[0];
