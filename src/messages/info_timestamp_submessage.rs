@@ -41,6 +41,8 @@ impl RtpsSerialize for InfoTs
 
         Ok(())
     }
+    
+    fn octets(&self) -> usize { todo!() }
 }
 
 impl RtpsParse for InfoTs {

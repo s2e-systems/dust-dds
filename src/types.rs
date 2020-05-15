@@ -86,13 +86,13 @@ impl EntityId {
     }
 }
 
-impl RtpsSerialize for EntityId
-{
+impl RtpsSerialize for EntityId {
     fn serialize(&self, writer: &mut impl std::io::Write, endianness: EndianessFlag) -> RtpsSerdesResult<()>{
         self.entity_key.serialize(writer, endianness)?;
         self.entity_kind.serialize(writer, endianness)
     }
 }
+
 
 impl RtpsParse for EntityId{
     fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> {
@@ -254,6 +254,8 @@ impl RtpsSerialize for KeyHash
 
         Ok(())
     }
+
+
 }
 
 #[derive(Debug, PartialEq)]
@@ -276,6 +278,8 @@ impl RtpsSerialize for StatusInfo
 
         Ok(())
     }
+
+
 }
 
 pub trait Parameter
@@ -314,6 +318,10 @@ impl<T: Parameter> ParameterList<T> {
 
     pub fn push(&mut self, value: T) {
         self.0.push(value);
+    }
+
+    pub fn is_valid(&self) -> bool {
+        todo!()
     }
 }
 
@@ -706,7 +714,7 @@ mod tests {
         let mut vec = Vec::new();
         
         {
-            let test_sequence_number_i64_max = SequenceNumber(i64::MAX);
+            let test_sequence_number_i64_max = SequenceNumber(std::i64::MAX);
             test_sequence_number_i64_max.serialize(&mut vec, EndianessFlag::LittleEndian).unwrap();
             assert_eq!(SequenceNumber::deserialize(&vec, EndianessFlag::LittleEndian).unwrap(), test_sequence_number_i64_max);
             vec.clear();
@@ -717,7 +725,7 @@ mod tests {
         }
 
         {
-            let test_sequence_number_i64_min = SequenceNumber(i64::MIN);
+            let test_sequence_number_i64_min = SequenceNumber(std::i64::MIN);
             test_sequence_number_i64_min.serialize(&mut vec, EndianessFlag::LittleEndian).unwrap();
             assert_eq!(SequenceNumber::deserialize(&vec, EndianessFlag::LittleEndian).unwrap(), test_sequence_number_i64_min);
             vec.clear();
@@ -1023,8 +1031,8 @@ pub mod constants {
     };
 
     pub const DURATION_INFINITE: Duration = Duration {
-        seconds: i32::MAX,
-        fraction: u32::MAX,
+        seconds: std::i32::MAX,
+        fraction: std::u32::MAX,
     };
 
     const TIME_ZERO: Time = Time {
@@ -1033,12 +1041,12 @@ pub mod constants {
     };
 
     const TIME_INFINITE: Time = Time {
-        seconds: u32::MAX,
-        fraction: u32::MAX - 1,
+        seconds: std::u32::MAX,
+        fraction: std::u32::MAX - 1,
     };
 
     const TIME_INVALID: Time = Time {
-        seconds: u32::MAX,
-        fraction: u32::MAX,
+        seconds: std::u32::MAX,
+        fraction: std::u32::MAX,
     };
 }

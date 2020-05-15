@@ -14,7 +14,7 @@ mod info_timestamp_submessage;
 
 use num_derive::FromPrimitive;
 
-use crate::serdes::{RtpsSerialize, RtpsParse, EndianessFlag, RtpsSerdesResult, RtpsSerdesError, PrimitiveSerdes, SizeCheckers};
+use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, EndianessFlag, RtpsSerdesResult, RtpsSerdesError, PrimitiveSerdes, SizeCheckers};
 // use helpers::{deserialize, MINIMUM_RTPS_MESSAGE_SIZE};
 
 use crate::types::*;
@@ -22,7 +22,7 @@ use crate::types::*;
 
 // pub use ack_nack_submessage::AckNack;
 // pub use data_frag_submessage::DataFrag;
-pub use data_submessage::{Data, Payload};
+pub use data_submessage::{Data};
 pub use gap_submessage::Gap;
 // pub use heartbeat_frag_submessage::HeartbeatFrag;
 pub use heartbeat_submessage::Heartbeat;
@@ -81,7 +81,7 @@ pub enum RtpsSubmessage {
     // NackFrag(NackFrag),
 }
 
-#[derive(FromPrimitive, PartialEq, Copy, Clone)]
+#[derive(FromPrimitive, PartialEq, Copy, Clone, Debug)]
 enum SubmessageKind {
     Pad = 0x01,
     AckNack = 0x06,
@@ -105,6 +105,15 @@ impl RtpsSerialize for SubmessageKind
         writer.write(&[submessage_kind_u8])?;
 
         Ok(())
+    }
+    fn octets(&self) -> usize { todo!() }
+}
+
+impl RtpsDeserialize for SubmessageKind
+{
+    fn deserialize(bytes: &[u8], _endianness: EndianessFlag) -> RtpsSerdesResult<Self> { 
+        SizeCheckers::check_size_equal(bytes, 1 /*expected_size*/)?;
+        Ok(num::FromPrimitive::from_u8(bytes[0]).ok_or(RtpsSerdesError::InvalidEnumRepresentation)?)
     }
 }
 

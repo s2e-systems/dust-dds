@@ -64,6 +64,7 @@ impl Parameter for InlineQosParameter {
             InlineQosParameter::StatusInfo(status_info) => status_info.get_value(),
         }
     }
+
 }
 
 impl InlineQosParameter {
@@ -79,6 +80,10 @@ impl InlineQosParameter {
             InlineQosParameter::StatusInfo(_) => true,
             _ => false,
         }
+    }
+    
+    pub fn is_valid(&self) -> bool {
+        todo!()
     }
 }
 

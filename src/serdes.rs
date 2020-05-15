@@ -35,6 +35,16 @@ pub enum EndianessFlag {
     LittleEndian = 1,
 }
 
+impl From<bool> for EndianessFlag {
+    fn from(value: bool) -> Self {
+        if value {
+            EndianessFlag::LittleEndian
+        } else {
+            EndianessFlag::BigEndian
+        }
+    }
+}
+
 impl From<u8> for EndianessFlag {
     fn from(value: u8) -> Self {
         const ENDIANNESS_FLAG_MASK: u8 = 1;
@@ -79,6 +89,13 @@ impl std::io::Write for SizeSerializer {
 pub trait RtpsSerialize where 
 {
     fn serialize(&self, writer: &mut impl std::io::Write, endianness: EndianessFlag) -> RtpsSerdesResult<()>;
+    fn octets(&self) -> usize;
+}
+
+pub trait RtpsCompose where 
+{
+    fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()>;
+    fn octets(&self) -> usize;
 }
 
 pub trait RtpsParse
@@ -106,6 +123,8 @@ where
             Ok(())
         }
     }
+
+    fn octets(&self) -> usize { todo!() }    
 }
 
 pub struct PrimitiveSerdes{}
