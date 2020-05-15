@@ -275,6 +275,52 @@ impl Data {
         }
     }
 
+    fn new(endianness_flag: SubmessageFlag,
+        inline_qos_flag: SubmessageFlag,    
+        data_flag: SubmessageFlag, 
+        key_flag: SubmessageFlag,
+        non_standard_payload_flag: SubmessageFlag,
+        reader_id: EntityId,
+        writer_id: EntityId,
+        writer_sn: SequenceNumber,
+        inline_qos: Option<InlineQosParameterList>,
+        serialized_payload: Option<SerializedPayload>,) -> Self {
+            if inline_qos_flag.is_set() && inline_qos.is_none() {
+                panic!()
+            }
+            if !inline_qos_flag.is_set() && inline_qos.is_some() {
+                panic!()
+            }
+            let must_be_payload = data_flag.is_set() || key_flag.is_set() || non_standard_payload_flag.is_set();
+            if must_be_payload && serialized_payload.is_none() {
+                panic!()
+            }
+            if !must_be_payload && serialized_payload.is_some() {
+                panic!()
+            }
+            if key_flag.is_set() && data_flag.is_set() {
+                panic!()
+            }
+            if (key_flag.is_set() || data_flag.is_set()) && non_standard_payload_flag.is_set() {
+                panic!()
+            }
+
+
+            Data {
+                endianness_flag,
+                inline_qos_flag,
+                data_flag,
+                key_flag,
+                non_standard_payload_flag,
+                reader_id,
+                writer_id,
+                writer_sn,
+                inline_qos, 
+                serialized_payload, 
+            }
+    }
+
+    // TODO: this is probably a private function for the parsing of the message only
     fn is_valid(&self) -> bool { 
         let sequencenumber_unknown: SequenceNumber = SequenceNumber::new(-1); // Todo: should be "global" constant      
         let submessage_header_is_too_small = false; //self.submessage_header().submessage_length() < self.length(); // Todo!
@@ -299,7 +345,7 @@ impl RtpsCompose for Data {
         self.reader_id.serialize(writer, endianness)?;
         self.writer_id.serialize(writer, endianness)?;
         self.writer_sn.serialize(writer, endianness)?;
-        // Note: No check is "Some" needed here since this is enforced by the invariant
+        // Note: No check for "Some" is needed here since this is enforced by the invariant
         if self.inline_qos_flag.is_set() {
             self.inline_qos.as_ref().unwrap().serialize(writer, endianness)?;
         }
@@ -315,6 +361,7 @@ impl RtpsCompose for Data {
 
 impl RtpsParse for Data {
     type Output = Self;
+
     fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> { 
         let header = SubmessageHeader::parse(bytes)?;
         let flags = header.flags();
