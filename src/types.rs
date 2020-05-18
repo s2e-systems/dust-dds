@@ -19,9 +19,9 @@ impl RtpsSerialize for Ushort
     }
 }
 
-impl Ushort {
-    pub fn as_usize(&self) -> usize {
-        self.0 as usize
+impl From<Ushort> for usize {
+    fn from(value: Ushort) -> Self {
+        value.0 as usize
     }
 }
 

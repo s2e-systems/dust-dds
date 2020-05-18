@@ -1,3 +1,4 @@
+use std::convert::From;
 use crate::types::{EntityId, SequenceNumber, KeyHash, Ushort};
 use crate::inline_qos::{InlineQosParameter, InlineQosParameterList};
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, EndianessFlag, RtpsSerdesResult};
@@ -364,7 +365,8 @@ impl RtpsParse for Data {
 
         let endianness = EndianessFlag::from(endianness_flag.is_set());
 
-        let octets_to_inline_qos = Ushort::deserialize(&bytes[6..8], endianness).unwrap().as_usize() + 8 /* header and extra flags*/;
+        const HEADER_SIZE : usize = 8;
+        let octets_to_inline_qos = usize::from(Ushort::deserialize(&bytes[6..8], endianness)?) + HEADER_SIZE /* header and extra flags*/;
         let reader_id = EntityId::parse(&bytes[8..12])?;        
         let writer_id = EntityId::parse(&bytes[12..16])?;
         let writer_sn = SequenceNumber::deserialize(&bytes[16..24], endianness)?;
