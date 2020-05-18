@@ -1,4 +1,4 @@
-use crate::types::{EntityId, SequenceNumber, Ushort, KeyHash};
+use crate::types::{EntityId, SequenceNumber, KeyHash, Ushort};
 use crate::inline_qos::{InlineQosParameter, InlineQosParameterList};
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, EndianessFlag, RtpsSerdesResult};
 
@@ -25,11 +25,9 @@ impl RtpsSerialize for [SubmessageFlag; 8] {
         writer.write(&[flags])?;
         Ok(())
     }
-    fn octets(&self) -> usize { todo!() }
 }
 
 impl RtpsParse for [SubmessageFlag; 8] {
-    type Output = Self;
     fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> { 
         // SizeCheckers::check_size_equal(bytes, 1)?;
         let flags: u8 = bytes[0];        
@@ -139,7 +137,6 @@ impl RtpsCompose for SerializedPayload {
         Ok(())
     }
     
-    fn octets(&self) -> usize { self.0.len() }
 }
 
 // impl RtpsSerialize for SerializedPayload {
@@ -158,8 +155,7 @@ impl RtpsCompose for SerializedPayload {
 // }
 
 impl RtpsParse for SerializedPayload {
-    type Output = Self;
-    fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self::Output> {
+    fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> {
         Ok(SerializedPayload(Vec::from(bytes)))
     }
 }
@@ -185,12 +181,9 @@ impl RtpsCompose for SubmessageHeader {
         self.submessage_length.serialize(writer, endianness)?;
         Ok(())
     }
-    
-    fn octets(&self) -> usize { todo!() }
 }
 
 impl RtpsParse for SubmessageHeader {
-    type Output = Self;
     fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> {   
         let submessage_id = SubmessageKind::parse(&bytes[0..1])?;
         let flags = <[SubmessageFlag; 8]>::parse(&bytes[1..2])?;
@@ -260,7 +253,7 @@ impl Data {
         // X|X|X|N|K|D|Q|E
         let flags = [e, q, d, k, n, x, x, x];
 
-        let mut octets_to_next_header = 4 /*extra_flags and octetsToInlineQos*/  + self.reader_id.octets() + self.writer_id.octets() + self.writer_sn.octets();
+        let mut octets_to_next_header = 4 /*extra_flags and octetsToInlineQos*/ + self.reader_id.octets() + self.writer_id.octets() + self.writer_sn.octets();
         if let Some(inline_qos) = &self.inline_qos {
             octets_to_next_header += inline_qos.octets();
         }
@@ -356,12 +349,9 @@ impl RtpsCompose for Data {
         Ok(())
     }
     
-    fn octets(&self) -> usize { todo!() }
 }
 
 impl RtpsParse for Data {
-    type Output = Self;
-
     fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> { 
         let header = SubmessageHeader::parse(bytes)?;
         let flags = header.flags();

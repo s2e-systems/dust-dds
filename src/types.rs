@@ -7,6 +7,31 @@ use num_derive::FromPrimitive;
 
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, EndianessFlag, RtpsSerdesResult, RtpsSerdesError, PrimitiveSerdes, SizeCheckers, SizeSerializer};
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Ushort(pub u16);
+
+impl RtpsSerialize for Ushort
+{
+    fn serialize(&self, writer: &mut impl std::io::Write, endianness: EndianessFlag) -> RtpsSerdesResult<()>{
+        let value = self.0;
+        writer.write(&PrimitiveSerdes::serialize_u16(value, endianness))?;
+        Ok(())
+    }
+}
+
+impl Ushort {
+    pub fn as_usize(&self) -> usize {
+        self.0 as usize
+    }
+}
+
+impl RtpsDeserialize for Ushort {
+    fn deserialize(bytes: &[u8], endianness: EndianessFlag) -> RtpsSerdesResult<Self> { 
+        let value = PrimitiveSerdes::deserialize_u16(bytes[0..2].try_into()?, endianness);
+        Ok(Ushort(value))
+    }
+}
+
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
 pub struct EntityKey([u8;3]);

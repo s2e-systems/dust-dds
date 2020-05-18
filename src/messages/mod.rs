@@ -106,7 +106,6 @@ impl RtpsSerialize for SubmessageKind
 
         Ok(())
     }
-    fn octets(&self) -> usize { todo!() }
 }
 
 impl RtpsDeserialize for SubmessageKind

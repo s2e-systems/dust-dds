@@ -86,16 +86,24 @@ impl std::io::Write for SizeSerializer {
     }
 }
 
-pub trait RtpsSerialize where 
+pub trait RtpsSerialize 
 {
     fn serialize(&self, writer: &mut impl std::io::Write, endianness: EndianessFlag) -> RtpsSerdesResult<()>;
-    fn octets(&self) -> usize;
+    fn octets(&self) -> usize {
+        let mut size_serializer = SizeSerializer::new();
+        self.serialize(&mut size_serializer, EndianessFlag::LittleEndian /*No impact on size*/ ).unwrap(); // Should panic on failure
+        size_serializer.get_size()
+    }
 }
 
-pub trait RtpsCompose where 
+pub trait RtpsCompose 
 {
     fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()>;
-    fn octets(&self) -> usize;
+    fn octets(&self) -> usize {
+        let mut size_serializer = SizeSerializer::new();
+        self.compose(&mut size_serializer).unwrap(); // Should panic on failure
+        size_serializer.get_size()
+    }
 }
 
 pub trait RtpsParse
@@ -122,9 +130,7 @@ where
         } else {
             Ok(())
         }
-    }
-
-    fn octets(&self) -> usize { todo!() }    
+    } 
 }
 
 pub struct PrimitiveSerdes{}
