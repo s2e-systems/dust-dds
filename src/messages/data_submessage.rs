@@ -3,7 +3,7 @@ use crate::types::{EntityId, SequenceNumber, Ushort};
 use crate::inline_qos::InlineQosParameterList;
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, EndianessFlag, RtpsSerdesResult};
 
-use super::{SubmessageKind, SubmessageFlag};
+use super::{SubmessageKind, SubmessageFlag, SubmessageHeader};
 
 
 #[derive(PartialEq, Debug)]
@@ -65,74 +65,6 @@ impl RtpsParse for SerializedPayload {
     fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> {
         Ok(SerializedPayload(Vec::from(bytes)))
     }
-}
-
-#[derive(PartialEq, Debug)]
-struct SubmessageHeader {
-    submessage_id: SubmessageKind,
-    flags: [SubmessageFlag; 8],
-    submessage_length: Ushort,
-}
-
-impl SubmessageHeader {
-    pub fn submessage_id(&self) -> SubmessageKind {self.submessage_id}
-    pub fn flags(&self) -> &[SubmessageFlag; 8] {&self.flags}
-    pub fn submessage_length(&self) -> Ushort {self.submessage_length}
-}
-
-impl RtpsCompose for SubmessageHeader {
-    fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
-        let endianness = EndianessFlag::from(self.flags[0].is_set());
-        self.submessage_id.serialize(writer, endianness)?;
-        self.flags.serialize(writer, endianness)?;
-        self.submessage_length.serialize(writer, endianness)?;
-        Ok(())
-    }
-}
-
-impl RtpsParse for SubmessageHeader {
-    fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> {   
-        let submessage_id = SubmessageKind::parse(&bytes[0..1])?;
-        let flags = <[SubmessageFlag; 8]>::parse(&bytes[1..2])?;
-        let endianness = EndianessFlag::from(flags[0].is_set());
-        let submessage_length = Ushort::deserialize(&bytes[2..4], endianness)?;
-        Ok(SubmessageHeader {
-            submessage_id, 
-            flags,
-            submessage_length,
-        })
-    }
-}
-
-#[test]
-fn test_deserialize_submessage_header_simple() {
-    let bytes = [0x15_u8, 0b00000001, 20, 0x0];
-    let f = SubmessageFlag(false);
-    let flags: [SubmessageFlag; 8] = [SubmessageFlag(true), f, f, f, f, f, f, f];
-    let expected = SubmessageHeader {
-        submessage_id : SubmessageKind::Data, 
-        flags,
-        submessage_length: Ushort(20),
-    };
-    let result = SubmessageHeader::parse(&bytes);
-  
-    assert_eq!(expected, result.unwrap());
-}
-
-#[test]
-fn test_rtps_serialize_for_submessage_header() {
-    let mut result = Vec::new();
-
-    let f = SubmessageFlag(false);
-    let t = SubmessageFlag(true);
-    let header = SubmessageHeader {
-        submessage_id: SubmessageKind::Data,
-        flags: [t, t, f, f, f, f, f, f],
-        submessage_length: Ushort(16),
-    };
-    let expected = vec![0x15, 0b00000011, 16, 0x0];
-    header.compose(&mut result).unwrap();
-    assert_eq!(result, expected);
 }
 
 #[derive(PartialEq, Debug)]
