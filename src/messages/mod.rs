@@ -134,6 +134,44 @@ impl RtpsSerialize for OctetsToNextHeader
     }
 }
 
+#[derive(PartialEq, Debug, Clone, Copy)]
+struct SubmessageFlag(pub bool);
+
+impl SubmessageFlag {
+    pub fn is_set(&self) -> bool {
+         self.0
+    }
+}
+
+impl RtpsSerialize for [SubmessageFlag; 8] {
+    fn serialize(&self, writer: &mut impl std::io::Write, _endianness: EndianessFlag) -> RtpsSerdesResult<()>{
+        let mut flags = 0u8;
+        for i in 0..8 {
+            if self[i].0 {
+                flags |= 0b00000001 << i;
+            }
+        }
+        writer.write(&[flags])?;
+        Ok(())
+    }
+}
+
+impl RtpsParse for [SubmessageFlag; 8] {
+    fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> { 
+        // SizeCheckers::check_size_equal(bytes, 1)?;
+        let flags: u8 = bytes[0];        
+        let mut mask = 0b00000001_u8;
+        let mut submessage_flags = [SubmessageFlag(false); 8];
+        for i in 0..8 {
+            if (flags & mask) > 0 {
+                submessage_flags[i] = SubmessageFlag(true);
+            }
+            mask <<= 1;
+        };
+        Ok(submessage_flags)
+    }
+}
+
 // #[derive(Serialize, Deserialize, PartialEq, Debug)]
 // struct MessageHeader {
 //     protocol_name: [char; 4],
@@ -141,8 +179,6 @@ impl RtpsSerialize for OctetsToNextHeader
 //     vendor_id: VendorId,
 //     guid_prefix: GuidPrefix,
 // }
-
-//TODO: InfoReplyIP4
 
 #[derive(Debug)]
 pub struct RtpsMessage {
@@ -361,7 +397,60 @@ impl RtpsMessage {
 
 #[cfg(test)]
 mod tests {
-    // use super::*;
+    use super::*;
+
+    #[test]
+    fn test_rtps_deserialize_for_submessage_flags() {
+        let f = SubmessageFlag(false);
+        let t = SubmessageFlag(true);
+
+        let expected: [SubmessageFlag; 8] = [t, f, f, f, f, f, f, f];
+        let bytes = [0b00000001_u8];    
+        let result = <[SubmessageFlag; 8]>::parse(&bytes).unwrap();
+        assert_eq!(expected, result);
+
+        let expected: [SubmessageFlag; 8] = [t, t, f, t, f, f, f, f];
+        let bytes = [0b00001011_u8];    
+        let result = <[SubmessageFlag; 8]>::parse(&bytes).unwrap();
+        assert_eq!(expected, result);
+
+        let expected: [SubmessageFlag; 8] = [t, t, t, t, t, t, t, t];
+        let bytes = [0b11111111_u8];    
+        let result = <[SubmessageFlag; 8]>::parse(&bytes).unwrap();
+        assert_eq!(expected, result);
+
+        let expected: [SubmessageFlag; 8] = [f, f, f, f, f, f, f, f];
+        let bytes = [0b00000000_u8];    
+        let result = <[SubmessageFlag; 8]>::parse(&bytes).unwrap();
+        assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn test_rtps_serialize_for_submessage_flags() {
+        let f = SubmessageFlag(false);
+        let t = SubmessageFlag(true);
+        let mut writer = Vec::new();
+
+        writer.clear();
+        let flags: [SubmessageFlag; 8] = [t, f, f, f, f, f, f, f];
+        flags.serialize(&mut writer, EndianessFlag::LittleEndian).unwrap();
+        assert_eq!(writer, vec![0b00000001]);
+        
+        writer.clear();
+        let flags: [SubmessageFlag; 8] = [f; 8];
+        flags.serialize(&mut writer, EndianessFlag::LittleEndian).unwrap();
+        assert_eq!(writer, vec![0b00000000]);
+        
+        writer.clear();
+        let flags: [SubmessageFlag; 8] = [t; 8];
+        flags.serialize(&mut writer, EndianessFlag::LittleEndian).unwrap();
+        assert_eq!(writer, vec![0b11111111]);
+        
+        writer.clear();
+        let flags: [SubmessageFlag; 8] = [f, t, f, f, t, t, f, t];
+        flags.serialize(&mut writer, EndianessFlag::LittleEndian).unwrap();
+        assert_eq!(writer, vec![0b10110010]);
+    }
 
     // #[test]
     // fn test_parse_valid_message_header_only() {
