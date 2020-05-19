@@ -37,10 +37,18 @@ pub enum EndianessFlag {
 
 impl From<bool> for EndianessFlag {
     fn from(value: bool) -> Self {
-        if value {
-            EndianessFlag::LittleEndian
-        } else {
-            EndianessFlag::BigEndian
+        match value {
+            true => EndianessFlag::LittleEndian,
+            false => EndianessFlag::BigEndian,
+        }
+    }
+}
+
+impl From<EndianessFlag> for bool {
+    fn from(value: EndianessFlag) -> Self {
+        match value {
+            EndianessFlag::LittleEndian => true,
+            EndianessFlag::BigEndian => false,
         }
     }
 }

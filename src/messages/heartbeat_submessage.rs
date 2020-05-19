@@ -1,16 +1,23 @@
 use crate::types::{Count, EntityId, SequenceNumber};
-use crate::serdes::{RtpsSerialize, RtpsParse, RtpsDeserialize, EndianessFlag, RtpsSerdesResult, SizeSerializer, PrimitiveSerdes, SizeCheckers, RtpsSerdesError};
-use super::SubmessageKind;
+use crate::serdes::{RtpsSerialize, RtpsCompose, RtpsParse, RtpsDeserialize, EndianessFlag, RtpsSerdesResult, SizeSerializer, PrimitiveSerdes, SizeCheckers, RtpsSerdesError};
+use super::{SubmessageKind, SubmessageFlag};
 
 #[derive(PartialEq, Debug)]
 pub struct Heartbeat {
+    endianess_flag: SubmessageFlag,
+    final_flag: SubmessageFlag,
+    liveliness_flag: SubmessageFlag,
+    // group_info_flag: SubmessageFlag,
     reader_id: EntityId,
     writer_id: EntityId,
     first_sn: SequenceNumber,
     last_sn: SequenceNumber,
     count: Count,
-    final_flag: bool,
-    liveliness_flag: bool,
+    // current_gsn: SequenceNumber,
+    // first_gsn: SequenceNumber,
+    // last_gsn: SequenceNumber,
+    // writer_set: GroupDigest,
+    // secure_writer_set: GroupDigest,
 }
 
 impl Heartbeat {
@@ -22,8 +29,9 @@ impl Heartbeat {
         first_sn: SequenceNumber,
         last_sn: SequenceNumber,
         count: Count,
-        final_flag: bool,
-        liveliness_flag: bool) -> Self {
+        final_flag: SubmessageFlag,
+        liveliness_flag: SubmessageFlag,
+        endianess_flag: SubmessageFlag) -> Self {
             Heartbeat {
                 reader_id,
                 writer_id,
@@ -32,6 +40,7 @@ impl Heartbeat {
                 count,
                 final_flag,
                 liveliness_flag,
+                endianess_flag,
             }
         }
 
@@ -60,67 +69,73 @@ impl Heartbeat {
     }
 }
 
-impl RtpsSerialize for Heartbeat {
-    fn serialize(&self, writer: &mut impl std::io::Write, endianness: EndianessFlag) -> RtpsSerdesResult<()> {
-        SubmessageKind::Heartbeat.serialize(writer, endianness)?;
+impl RtpsCompose for Heartbeat {
+    fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
+        todo!()
+    }
+}
 
-        let mut flags = endianness as u8;
-        if self.final_flag {
-            flags |= Heartbeat::FINAL_FLAG_MASK;
-        }
+// impl RtpsSerialize for Heartbeat {
+//     fn serialize(&self, writer: &mut impl std::io::Write, endianness: EndianessFlag) -> RtpsSerdesResult<()> {
+//         SubmessageKind::Heartbeat.serialize(writer, endianness)?;
 
-        if self.liveliness_flag {
-            flags |= Heartbeat::LIVELINESS_FLAG_MASK;
-        }
+//         let mut flags = endianness as u8;
+//         if self.final_flag {
+//             flags |= Heartbeat::FINAL_FLAG_MASK;
+//         }
 
-        writer.write(&[flags])?;
+//         if self.liveliness_flag {
+//             flags |= Heartbeat::LIVELINESS_FLAG_MASK;
+//         }
+
+//         writer.write(&[flags])?;
         
-        let mut size_serializer = SizeSerializer::new();
-        self.serialize_message_body(&mut size_serializer, endianness)?;
+//         let mut size_serializer = SizeSerializer::new();
+//         self.serialize_message_body(&mut size_serializer, endianness)?;
 
-        writer.write(&PrimitiveSerdes::serialize_u16(size_serializer.get_size() as u16, endianness))?;
+//         writer.write(&PrimitiveSerdes::serialize_u16(size_serializer.get_size() as u16, endianness))?;
 
-        self.serialize_message_body(writer, endianness)
-    }
-}
+//         self.serialize_message_body(writer, endianness)
+//     }
+// }
 
-impl RtpsParse for Heartbeat {
-    fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> {
-        const SERIALIZED_HEARTBEAT_SIZE: usize = 32;
-        const SUBMESSAGE_ID_INDEX: usize = 0;
-        const FLAGS_INDEX: usize = 1;
-        const READER_ID_FIRST_INDEX: usize = 4;
-        const READER_ID_LAST_INDEX: usize = 7;
-        const WRITER_ID_FIRST_INDEX: usize = 8;
-        const WRITER_ID_LAST_INDEX: usize = 11;
-        const FIRST_SN_FIRST_INDEX: usize = 12;
-        const FIRST_SN_LAST_INDEX: usize = 19;
-        const LAST_SN_FIRST_INDEX: usize = 20;
-        const LAST_SN_LAST_INDEX: usize = 27;
-        const COUNT_FIRST_INDEX: usize = 28;
-        const COUNT_LAST_INDEX: usize = 31;
+// impl RtpsParse for Heartbeat {
+//     fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> {
+//         const SERIALIZED_HEARTBEAT_SIZE: usize = 32;
+//         const SUBMESSAGE_ID_INDEX: usize = 0;
+//         const FLAGS_INDEX: usize = 1;
+//         const READER_ID_FIRST_INDEX: usize = 4;
+//         const READER_ID_LAST_INDEX: usize = 7;
+//         const WRITER_ID_FIRST_INDEX: usize = 8;
+//         const WRITER_ID_LAST_INDEX: usize = 11;
+//         const FIRST_SN_FIRST_INDEX: usize = 12;
+//         const FIRST_SN_LAST_INDEX: usize = 19;
+//         const LAST_SN_FIRST_INDEX: usize = 20;
+//         const LAST_SN_LAST_INDEX: usize = 27;
+//         const COUNT_FIRST_INDEX: usize = 28;
+//         const COUNT_LAST_INDEX: usize = 31;
 
-        SizeCheckers::check_size_equal(bytes, SERIALIZED_HEARTBEAT_SIZE)?;
+//         SizeCheckers::check_size_equal(bytes, SERIALIZED_HEARTBEAT_SIZE)?;
 
-        let submessage_kind = SubmessageKind::parse(&[bytes[SUBMESSAGE_ID_INDEX]])?;
-        if submessage_kind != SubmessageKind::Heartbeat {
-            return Err(RtpsSerdesError::InvalidSubmessageHeader);
-        }
+//         let submessage_kind = SubmessageKind::parse(&[bytes[SUBMESSAGE_ID_INDEX]])?;
+//         if submessage_kind != SubmessageKind::Heartbeat {
+//             return Err(RtpsSerdesError::InvalidSubmessageHeader);
+//         }
 
-        let flags = bytes[FLAGS_INDEX];
-        let endianness : EndianessFlag = flags.into();
-        let final_flag = flags & Heartbeat::FINAL_FLAG_MASK == Heartbeat::FINAL_FLAG_MASK;
-        let liveliness_flag = flags & Heartbeat::LIVELINESS_FLAG_MASK == Heartbeat::LIVELINESS_FLAG_MASK;
+//         let flags = bytes[FLAGS_INDEX];
+//         let endianness : EndianessFlag = flags.into();
+//         let final_flag = flags & Heartbeat::FINAL_FLAG_MASK == Heartbeat::FINAL_FLAG_MASK;
+//         let liveliness_flag = flags & Heartbeat::LIVELINESS_FLAG_MASK == Heartbeat::LIVELINESS_FLAG_MASK;
 
-        let reader_id = EntityId::parse(&bytes[READER_ID_FIRST_INDEX..=READER_ID_LAST_INDEX])?;
-        let writer_id = EntityId::parse(&bytes[WRITER_ID_FIRST_INDEX..=WRITER_ID_LAST_INDEX])?;
-        let first_sn = SequenceNumber::deserialize(&bytes[FIRST_SN_FIRST_INDEX..=FIRST_SN_LAST_INDEX], endianness)?;
-        let last_sn = SequenceNumber::deserialize(&bytes[LAST_SN_FIRST_INDEX..=LAST_SN_LAST_INDEX], endianness)?;
-        let count = Count::deserialize(&bytes[COUNT_FIRST_INDEX..=COUNT_LAST_INDEX], endianness)?;
+//         let reader_id = EntityId::parse(&bytes[READER_ID_FIRST_INDEX..=READER_ID_LAST_INDEX])?;
+//         let writer_id = EntityId::parse(&bytes[WRITER_ID_FIRST_INDEX..=WRITER_ID_LAST_INDEX])?;
+//         let first_sn = SequenceNumber::deserialize(&bytes[FIRST_SN_FIRST_INDEX..=FIRST_SN_LAST_INDEX], endianness)?;
+//         let last_sn = SequenceNumber::deserialize(&bytes[LAST_SN_FIRST_INDEX..=LAST_SN_LAST_INDEX], endianness)?;
+//         let count = Count::deserialize(&bytes[COUNT_FIRST_INDEX..=COUNT_LAST_INDEX], endianness)?;
 
-        Ok(Heartbeat::new(reader_id, writer_id, first_sn, last_sn, count, final_flag, liveliness_flag))
-    }
-}
+//         Ok(Heartbeat::new(reader_id, writer_id, first_sn, last_sn, count, final_flag, liveliness_flag))
+//     }
+// }
 
 #[cfg(test)]
 mod tests {
@@ -136,8 +151,9 @@ mod tests {
             first_sn: SequenceNumber::new(2),
             last_sn: SequenceNumber::new(5), 
             count: Count::new(0),
-            final_flag: true,
-            liveliness_flag: true,
+            final_flag: SubmessageFlag(true),
+            liveliness_flag: SubmessageFlag(true),
+            endianess_flag: EndianessFlag::LittleEndian.into(),
         };
 
         assert_eq!(valid_heartbeat.is_valid(), true);
@@ -148,8 +164,9 @@ mod tests {
             first_sn: SequenceNumber::new(1),
             last_sn: SequenceNumber::new(0), 
             count: Count::new(2),
-            final_flag: true,
-            liveliness_flag: true,
+            final_flag: SubmessageFlag(true),
+            liveliness_flag: SubmessageFlag(true),
+            endianess_flag: EndianessFlag::LittleEndian.into(),
         };
 
         assert_eq!(valid_heartbeat_first_message.is_valid(), true);
@@ -160,8 +177,9 @@ mod tests {
             first_sn: SequenceNumber::new(0),
             last_sn: SequenceNumber::new(1), 
             count: Count::new(2),
-            final_flag: true,
-            liveliness_flag: true,
+            final_flag: SubmessageFlag(true),
+            liveliness_flag: SubmessageFlag(true),
+            endianess_flag: EndianessFlag::LittleEndian.into(),
         };
 
         assert_eq!(invalid_heartbeat_zero_first_value.is_valid(), false);
@@ -172,8 +190,9 @@ mod tests {
             first_sn: SequenceNumber::new(5),
             last_sn: SequenceNumber::new(-6), 
             count: Count::new(2),
-            final_flag: true,
-            liveliness_flag: true,
+            final_flag: SubmessageFlag(true),
+            liveliness_flag: SubmessageFlag(true),
+            endianess_flag: EndianessFlag::LittleEndian.into(),
         };
 
         assert_eq!(invalid_heartbeat_negative_last_value.is_valid(), false);
@@ -184,53 +203,54 @@ mod tests {
             first_sn: SequenceNumber::new(6),
             last_sn: SequenceNumber::new(4), 
             count: Count::new(2),
-            final_flag: true,
-            liveliness_flag: true,
+            final_flag: SubmessageFlag(true),
+            liveliness_flag: SubmessageFlag(true),
+            endianess_flag: EndianessFlag::LittleEndian.into(),
         };
 
         assert_eq!(invalid_heartbeat_wrong_first_last_value.is_valid(), false);
     }
-    #[test]
-    fn test_serialize_deserialize_heartbeat() {
-        let mut writer = Vec::new();
+    // #[test]
+    // fn test_serialize_deserialize_heartbeat() {
+    //     let mut writer = Vec::new();
 
-        let reader_id = EntityId::new(EntityKey::new([0x10, 0x12, 0x14]), EntityKind::UserDefinedReaderWithKey);
-        let writer_id = EntityId::new(EntityKey::new([0x26, 0x24, 0x22]), EntityKind::UserDefinedWriterWithKey);
-        let first_sn = SequenceNumber::new(1233);
-        let last_sn = SequenceNumber::new(1237);
-        let count = Count::new(8);
-        let final_flag = true;
-        let liveliness_flag = false;
+    //     let reader_id = EntityId::new(EntityKey::new([0x10, 0x12, 0x14]), EntityKind::UserDefinedReaderWithKey);
+    //     let writer_id = EntityId::new(EntityKey::new([0x26, 0x24, 0x22]), EntityKind::UserDefinedWriterWithKey);
+    //     let first_sn = SequenceNumber::new(1233);
+    //     let last_sn = SequenceNumber::new(1237);
+    //     let count = Count::new(8);
+    //     let final_flag = true;
+    //     let liveliness_flag = false;
 
-        let heartbeat = Heartbeat::new(reader_id, writer_id, first_sn, last_sn, count, final_flag, liveliness_flag);
-        heartbeat.serialize(&mut writer, EndianessFlag::BigEndian).unwrap();
-        let submessage_big_endian = [
-            0x07, 0x02, 0x00, 0x1C, // Submessage Header
-            0x10, 0x12, 0x14, 0x04, // Reader ID
-            0x26, 0x24, 0x22, 0x02, // Writer ID
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0xD1, // First Sequence Number
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0xD5, // Last Sequence Number
-            0x00, 0x00, 0x00, 0x08, // Count
-        ];
+    //     let heartbeat = Heartbeat::new(reader_id, writer_id, first_sn, last_sn, count, final_flag, liveliness_flag);
+    //     heartbeat.serialize(&mut writer, EndianessFlag::BigEndian).unwrap();
+    //     let submessage_big_endian = [
+    //         0x07, 0x02, 0x00, 0x1C, // Submessage Header
+    //         0x10, 0x12, 0x14, 0x04, // Reader ID
+    //         0x26, 0x24, 0x22, 0x02, // Writer ID
+    //         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0xD1, // First Sequence Number
+    //         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0xD5, // Last Sequence Number
+    //         0x00, 0x00, 0x00, 0x08, // Count
+    //     ];
 
-        assert_eq!(writer, submessage_big_endian);
-        assert_eq!(Heartbeat::parse(&writer).unwrap(), heartbeat);
+    //     assert_eq!(writer, submessage_big_endian);
+    //     assert_eq!(Heartbeat::parse(&writer).unwrap(), heartbeat);
 
-        writer.clear();
+    //     writer.clear();
 
-        heartbeat.serialize(&mut writer, EndianessFlag::LittleEndian).unwrap();
-        let submessage_little_endian = [
-            0x07, 0x03, 0x1C, 0x00, // Submessage Header
-            0x10, 0x12, 0x14, 0x04, // Reader ID
-            0x26, 0x24, 0x22, 0x02, // Writer ID
-            0x00, 0x00, 0x00, 0x00, 0xD1, 0x04, 0x00, 0x00, // First Sequence Number
-            0x00, 0x00, 0x00, 0x00, 0xD5, 0x04, 0x00, 0x00, // Last Sequence Number
-            0x08, 0x00, 0x00, 0x00, // Count
-        ];
-        assert_eq!(writer, submessage_little_endian);
-        assert_eq!(Heartbeat::parse(&writer).unwrap(), heartbeat);
+    //     heartbeat.serialize(&mut writer, EndianessFlag::LittleEndian).unwrap();
+    //     let submessage_little_endian = [
+    //         0x07, 0x03, 0x1C, 0x00, // Submessage Header
+    //         0x10, 0x12, 0x14, 0x04, // Reader ID
+    //         0x26, 0x24, 0x22, 0x02, // Writer ID
+    //         0x00, 0x00, 0x00, 0x00, 0xD1, 0x04, 0x00, 0x00, // First Sequence Number
+    //         0x00, 0x00, 0x00, 0x00, 0xD5, 0x04, 0x00, 0x00, // Last Sequence Number
+    //         0x08, 0x00, 0x00, 0x00, // Count
+    //     ];
+    //     assert_eq!(writer, submessage_little_endian);
+    //     assert_eq!(Heartbeat::parse(&writer).unwrap(), heartbeat);
 
-    }
+    // }
 //     fn test_parse_heartbeat_submessage_big_endian() {
 //         let submessage_big_endian = [
 //             0x10, 0x12, 0x14, 0x16, 0x26, 0x24, 0x22, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,

@@ -3,7 +3,7 @@ use crate::types::{EntityId, SequenceNumber, Ushort, SerializedPayload};
 use crate::inline_qos::InlineQosParameterList;
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, EndianessFlag, RtpsSerdesResult};
 
-use super::{SubmessageKind, SubmessageFlag, SubmessageHeader};
+use super::{SubmessageKind, SubmessageFlag, SubmessageHeader, Submessage};
 
 
 #[derive(PartialEq, Debug)]
@@ -30,31 +30,6 @@ pub enum Payload {
 
 
 impl Data {
-    fn submessage_header(&self) -> SubmessageHeader {
-        let x = SubmessageFlag(false);
-        let e = self.endianness_flag; // Indicates endianness.
-        let q = self.inline_qos_flag; //Indicates to the Reader the presence of a ParameterList containing QoS parameters that should be used to interpret the message.
-        let d = self.data_flag; //Indicates to the Reader that the dataPayload submessage element contains the serialized value of the data-object.
-        let k = self.key_flag; //Indicates to the Reader that the dataPayload submessage element contains the serialized value of the key of the data-object. 
-        let n = self.non_standard_payload_flag; //Indicates to the Reader that the serializedPayload submessage element is not formatted according to Section 10.
-        // X|X|X|N|K|D|Q|E
-        let flags = [e, q, d, k, n, x, x, x];
-
-        let mut octets_to_next_header = 4 /*extra_flags and octetsToInlineQos*/ + self.reader_id.octets() + self.writer_id.octets() + self.writer_sn.octets();
-        if let Some(inline_qos) = &self.inline_qos {
-            octets_to_next_header += inline_qos.octets();
-        }
-        if let Some(serialized_payload) = &self.serialized_payload {
-            octets_to_next_header += serialized_payload.octets();
-        }
-
-        SubmessageHeader { 
-            submessage_id: SubmessageKind::Data,
-            flags,
-            submessage_length: Ushort(octets_to_next_header as u16), //todo
-        }
-    }
-
     /// Inline_qos_flag is inferred from option of inline_qos
     /// data_flag, key_flag and non_standard_payload_flag are inferred from the kind of payload
     fn new(endianness_flag: SubmessageFlag,
@@ -106,9 +81,36 @@ impl Data {
     }
 }
 
+impl Submessage for Data {
+    fn submessage_header(&self) -> SubmessageHeader {
+        let x = SubmessageFlag(false);
+        let e = self.endianness_flag; // Indicates endianness.
+        let q = self.inline_qos_flag; //Indicates to the Reader the presence of a ParameterList containing QoS parameters that should be used to interpret the message.
+        let d = self.data_flag; //Indicates to the Reader that the dataPayload submessage element contains the serialized value of the data-object.
+        let k = self.key_flag; //Indicates to the Reader that the dataPayload submessage element contains the serialized value of the key of the data-object. 
+        let n = self.non_standard_payload_flag; //Indicates to the Reader that the serializedPayload submessage element is not formatted according to Section 10.
+        // X|X|X|N|K|D|Q|E
+        let flags = [e, q, d, k, n, x, x, x];
+
+        let mut octets_to_next_header = 4 /*extra_flags and octetsToInlineQos*/ + self.reader_id.octets() + self.writer_id.octets() + self.writer_sn.octets();
+        if let Some(inline_qos) = &self.inline_qos {
+            octets_to_next_header += inline_qos.octets();
+        }
+        if let Some(serialized_payload) = &self.serialized_payload {
+            octets_to_next_header += serialized_payload.octets();
+        }
+
+        SubmessageHeader { 
+            submessage_id: SubmessageKind::Data,
+            flags,
+            submessage_length: Ushort(octets_to_next_header as u16), //todo
+        }
+    }
+}
+
 impl RtpsCompose for Data {
     fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
-        let endianness = EndianessFlag::from(self.endianness_flag.is_set());
+        let endianness = EndianessFlag::from(self.endianness_flag);
         let extra_flags = Ushort(0);
         let octecs_to_inline_qos_size = self.reader_id.octets() + self.writer_id.octets() + self.writer_sn.octets();
         let octecs_to_inline_qos = Ushort(octecs_to_inline_qos_size as u16);

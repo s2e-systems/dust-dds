@@ -1,3 +1,5 @@
+use std::convert::Into;
+
 // pub mod helpers;
 
 // mod ack_nack_submessage;
@@ -82,7 +84,7 @@ pub enum RtpsSubmessage {
 }
 
 #[derive(FromPrimitive, PartialEq, Copy, Clone, Debug)]
-enum SubmessageKind {
+pub enum SubmessageKind {
     Pad = 0x01,
     AckNack = 0x06,
     Heartbeat = 0x07,
@@ -135,11 +137,23 @@ impl RtpsSerialize for OctetsToNextHeader
 }
 
 #[derive(PartialEq, Debug, Clone, Copy)]
-struct SubmessageFlag(pub bool);
+pub struct SubmessageFlag(pub bool);
 
 impl SubmessageFlag {
     pub fn is_set(&self) -> bool {
          self.0
+    }
+}
+
+impl From<EndianessFlag> for SubmessageFlag {
+    fn from(value: EndianessFlag) -> Self {
+        SubmessageFlag(value.into())
+    }
+}
+
+impl From<SubmessageFlag> for EndianessFlag {
+    fn from(value: SubmessageFlag) -> Self {
+        EndianessFlag::from(value.is_set())
     }
 }
 
@@ -173,7 +187,7 @@ impl RtpsParse for [SubmessageFlag; 8] {
 }
 
 #[derive(PartialEq, Debug)]
-struct SubmessageHeader {
+pub struct SubmessageHeader {
     submessage_id: SubmessageKind,
     flags: [SubmessageFlag; 8],
     submessage_length: Ushort,
@@ -207,6 +221,10 @@ impl RtpsParse for SubmessageHeader {
             submessage_length,
         })
     }
+}
+
+pub trait Submessage {
+    fn submessage_header(&self) -> SubmessageHeader;
 }
 
 // #[derive(Serialize, Deserialize, PartialEq, Debug)]
