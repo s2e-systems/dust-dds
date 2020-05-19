@@ -20,6 +20,15 @@ pub struct Data {
     serialized_payload: Option<SerializedPayload>,
 }
 
+#[derive(PartialEq, Debug)]
+pub enum Payload {
+    None,
+    Data(SerializedPayload),
+    Key(SerializedPayload),
+    NonStandard(SerializedPayload),
+}
+
+
 impl Data {
     fn submessage_header(&self) -> SubmessageHeader {
         let x = SubmessageFlag(false);
@@ -46,36 +55,29 @@ impl Data {
         }
     }
 
+    /// Inline_qos_flag is inferred from option of inline_qos
+    /// data_flag, key_flag and non_standard_payload_flag are inferred from the kind of payload
     fn new(endianness_flag: SubmessageFlag,
-        inline_qos_flag: SubmessageFlag,    
-        data_flag: SubmessageFlag, 
-        key_flag: SubmessageFlag,
-        non_standard_payload_flag: SubmessageFlag,
         reader_id: EntityId,
         writer_id: EntityId,
         writer_sn: SequenceNumber,
         inline_qos: Option<InlineQosParameterList>,
-        serialized_payload: Option<SerializedPayload>,) -> Self {
-            if inline_qos_flag.is_set() && inline_qos.is_none() {
-                panic!()
-            }
-            if !inline_qos_flag.is_set() && inline_qos.is_some() {
-                panic!()
-            }
-            let must_be_payload = data_flag.is_set() || key_flag.is_set() || non_standard_payload_flag.is_set();
-            if must_be_payload && serialized_payload.is_none() {
-                panic!()
-            }
-            if !must_be_payload && serialized_payload.is_some() {
-                panic!()
-            }
-            if key_flag.is_set() && data_flag.is_set() {
-                panic!()
-            }
-            if (key_flag.is_set() || data_flag.is_set()) && non_standard_payload_flag.is_set() {
-                panic!()
-            }
-
+        payload: Payload,) -> Self {
+            let inline_qos_flag =
+            if inline_qos.is_some() {
+                SubmessageFlag(true)
+            } else {
+                SubmessageFlag(false)
+            };
+            let mut data_flag = SubmessageFlag(false);
+            let mut key_flag = SubmessageFlag(false);
+            let mut non_standard_payload_flag = SubmessageFlag(false);
+            let serialized_payload = match  payload {
+                Payload::Data(serialized_payload) => {data_flag = SubmessageFlag(true); Some(serialized_payload)},
+                Payload::Key(serialized_payload) => {key_flag = SubmessageFlag(true); Some(serialized_payload)},
+                Payload::NonStandard(serialized_payload) => {non_standard_payload_flag = SubmessageFlag(true); Some(serialized_payload)},
+                Payload::None => {None}
+            };
 
             Data {
                 endianness_flag,
@@ -193,7 +195,22 @@ mod tests {
         // K: KeyFlag - Indicates to the Reader that the dataPayload submessage element contains the serialized value of the key of the data-object. 
         // N: NonStandardPayloadFlag  -Indicates to the Reader that the serializedPayload submessage element is not formatted according to Section 10.
         // X|X|X|N|K|D|Q|E
-
+    #[test]
+    fn test_data_contructor() {
+        let data = Data::new(
+            SubmessageFlag(true), 
+            ENTITYID_UNKNOWN, 
+            ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, 
+            SequenceNumber::new(1), 
+            Some(InlineQosParameterList::new()),
+            Payload::Data(SerializedPayload(vec![]))
+        );
+        assert_eq!(data.endianness_flag, SubmessageFlag(true));
+        assert_eq!(data.inline_qos_flag, SubmessageFlag(true));
+        assert_eq!(data.data_flag, SubmessageFlag(true));
+        assert_eq!(data.key_flag, SubmessageFlag(false));
+        assert_eq!(data.non_standard_payload_flag, SubmessageFlag(false));
+    }
     #[test]
     fn test_compose_data_submessage_without_inline_qos_without_data() {
         let data = Data {
