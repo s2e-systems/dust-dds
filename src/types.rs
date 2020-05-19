@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 use std::io::Write;
 use num_derive::FromPrimitive;
 
-use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, EndianessFlag, RtpsSerdesResult, RtpsSerdesError, PrimitiveSerdes, SizeCheckers, SizeSerializer};
+use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, EndianessFlag, RtpsSerdesResult, RtpsSerdesError, PrimitiveSerdes, SizeCheckers, SizeSerializer};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Ushort(pub u16);
@@ -432,6 +432,52 @@ impl<T: Parameter> RtpsDeserialize for ParameterList<T>
         }
 
         Ok(parameter_list)
+    }
+}
+
+#[derive(PartialEq, Debug)]
+struct RepresentationIdentifier([u8; 2]);
+
+#[derive(PartialEq, Debug)]
+struct RepresentationOptions([u8; 2]);
+
+#[derive(PartialEq, Debug)]
+struct SerializedPayloadHeader {
+    representation_identifier: RepresentationIdentifier,
+    representation_options: RepresentationOptions,
+}
+
+#[derive(PartialEq, Debug)]
+struct StandardSerializedPayload {
+    header: SerializedPayloadHeader,
+    data: Vec<u8>,
+}
+
+impl RtpsSerialize for StandardSerializedPayload {
+    fn serialize(&self, writer: &mut impl std::io::Write, endianness: EndianessFlag) -> RtpsSerdesResult<()> { todo!() }
+    fn octets(&self) -> usize { todo!() }
+}
+
+impl RtpsDeserialize for StandardSerializedPayload {
+    fn deserialize(bytes: &[u8], endianness: EndianessFlag) -> RtpsSerdesResult<Self> { 
+        todo!() 
+    }
+}
+
+
+#[derive(PartialEq, Debug)]
+pub struct SerializedPayload(pub Vec<u8>);
+
+impl RtpsCompose for SerializedPayload {
+    fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> { 
+        writer.write(self.0.as_slice())?;
+        Ok(())
+    }
+}
+
+impl RtpsParse for SerializedPayload {
+    fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> {
+        Ok(SerializedPayload(Vec::from(bytes)))
     }
 }
 

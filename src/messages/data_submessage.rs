@@ -1,71 +1,10 @@
 use std::convert::From;
-use crate::types::{EntityId, SequenceNumber, Ushort};
+use crate::types::{EntityId, SequenceNumber, Ushort, SerializedPayload};
 use crate::inline_qos::InlineQosParameterList;
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, EndianessFlag, RtpsSerdesResult};
 
 use super::{SubmessageKind, SubmessageFlag, SubmessageHeader};
 
-
-#[derive(PartialEq, Debug)]
-struct RepresentationIdentifier([u8; 2]);
-
-#[derive(PartialEq, Debug)]
-struct RepresentationOptions([u8; 2]);
-
-#[derive(PartialEq, Debug)]
-struct SerializedPayloadHeader {
-    representation_identifier: RepresentationIdentifier,
-    representation_options: RepresentationOptions,
-}
-
-// #[derive(PartialEq, Debug)]
-// struct SerializedPayload {
-//     header: SerializedPayloadHeader,
-//     data: Vec<u8>,
-// }
-
-// impl RtpsSerialize for SerializedPayload {
-//     fn serialize(&self, writer: &mut impl std::io::Write, endianness: EndianessFlag) -> RtpsSerdesResult<()> { todo!() }
-//     fn octets(&self) -> usize { todo!() }
-// }
-
-// impl RtpsDeserialize for SerializedPayload {
-//     fn deserialize(bytes: &[u8], endianness: EndianessFlag) -> RtpsSerdesResult<Self> { 
-//         todo!() 
-//     }
-// }
-
-#[derive(PartialEq, Debug)]
-pub struct SerializedPayload(pub Vec<u8>);
-
-impl RtpsCompose for SerializedPayload {
-    fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> { 
-        writer.write(self.0.as_slice())?;
-        Ok(())
-    }
-    
-}
-
-// impl RtpsSerialize for SerializedPayload {
-//     fn serialize(&self, writer: &mut impl std::io::Write, _endianness: EndianessFlag) -> RtpsSerdesResult<()> { 
-//         writer.write(self.0.as_slice())?;
-//         Ok(())
-//     }
-    
-//     fn octets(&self) -> usize { self.0.len() }
-// }
-
-// impl RtpsDeserialize for SerializedPayload {
-//     fn deserialize(bytes: &[u8], _endianness: EndianessFlag) -> RtpsSerdesResult<Self> { 
-//         Ok(SerializedPayload(Vec::from(bytes)))
-//     }
-// }
-
-impl RtpsParse for SerializedPayload {
-    fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> {
-        Ok(SerializedPayload(Vec::from(bytes)))
-    }
-}
 
 #[derive(PartialEq, Debug)]
 pub struct Data {
@@ -186,8 +125,7 @@ impl RtpsCompose for Data {
         }
 
         Ok(())
-    }
-    
+    }    
 }
 
 impl RtpsParse for Data {
