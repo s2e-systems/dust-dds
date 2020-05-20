@@ -103,7 +103,7 @@ impl Submessage for Data {
         SubmessageHeader { 
             submessage_id: SubmessageKind::Data,
             flags,
-            submessage_length: Ushort(octets_to_next_header as u16), //todo
+            submessage_length: Ushort(octets_to_next_header as u16), // This cast could fail in weird ways by truncation
         }
     }
 }
@@ -143,7 +143,7 @@ impl RtpsParse for Data {
         /*K*/ let key_flag = flags[3];
         /*N*/ let non_standard_payload_flag = flags[4];
 
-        let endianness = EndianessFlag::from(endianness_flag.is_set());
+        let endianness = EndianessFlag::from(endianness_flag);
 
         const HEADER_SIZE : usize = 8;
         let octets_to_inline_qos = usize::from(Ushort::deserialize(&bytes[6..8], endianness)?) + HEADER_SIZE /* header and extra flags*/;

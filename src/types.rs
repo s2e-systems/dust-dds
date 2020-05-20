@@ -228,7 +228,7 @@ impl RtpsDeserialize for Time {
         Ok(Time::new(seconds, fraction))
     }
 }
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub struct Count(i32);
 
 impl Count {
@@ -454,12 +454,12 @@ struct StandardSerializedPayload {
 }
 
 impl RtpsSerialize for StandardSerializedPayload {
-    fn serialize(&self, writer: &mut impl std::io::Write, endianness: EndianessFlag) -> RtpsSerdesResult<()> { todo!() }
+    fn serialize(&self, _writer: &mut impl std::io::Write, _endianness: EndianessFlag) -> RtpsSerdesResult<()> { todo!() }
     fn octets(&self) -> usize { todo!() }
 }
 
 impl RtpsDeserialize for StandardSerializedPayload {
-    fn deserialize(bytes: &[u8], endianness: EndianessFlag) -> RtpsSerdesResult<Self> { 
+    fn deserialize(_bytes: &[u8], _endianness: EndianessFlag) -> RtpsSerdesResult<Self> { 
         todo!() 
     }
 }
