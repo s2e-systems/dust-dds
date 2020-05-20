@@ -125,7 +125,7 @@ impl RtpsCompose for Data {
             self.inline_qos.as_ref().unwrap().serialize(writer, endianness)?;
         }
         if self.data_flag.is_set() || self.key_flag.is_set() {
-            self.serialized_payload.as_ref().unwrap().compose(writer)?;
+            self.serialized_payload.as_ref().unwrap().serialize(writer, endianness)?;
         }
 
         Ok(())
@@ -147,8 +147,8 @@ impl RtpsParse for Data {
 
         const HEADER_SIZE : usize = 8;
         let octets_to_inline_qos = usize::from(Ushort::deserialize(&bytes[6..8], endianness)?) + HEADER_SIZE /* header and extra flags*/;
-        let reader_id = EntityId::parse(&bytes[8..12])?;        
-        let writer_id = EntityId::parse(&bytes[12..16])?;
+        let reader_id = EntityId::deserialize(&bytes[8..12], endianness)?;        
+        let writer_id = EntityId::deserialize(&bytes[12..16], endianness)?;
         let writer_sn = SequenceNumber::deserialize(&bytes[16..24], endianness)?;
         let inline_qos = if inline_qos_flag.is_set() {
             Some(InlineQosParameterList::deserialize(&bytes[octets_to_inline_qos..], endianness)?)
@@ -162,7 +162,7 @@ impl RtpsParse for Data {
         };
         let serialized_payload = if data_flag.is_set() || key_flag.is_set() || non_standard_payload_flag.is_set() {
             let octets_to_serialized_payload = octets_to_inline_qos + inline_qos_octets;
-            SerializedPayload::parse(&bytes[octets_to_serialized_payload..]).ok()
+            SerializedPayload::deserialize(&bytes[octets_to_serialized_payload..], endianness).ok()
         } else {
             None
         };

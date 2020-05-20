@@ -110,8 +110,8 @@ impl RtpsParse for Heartbeat {
         let endianness = EndianessFlag::from(endianness_flag);
 
         const HEADER_SIZE : usize = 8;
-        let reader_id = EntityId::parse(&bytes[4..8])?;
-        let writer_id = EntityId::parse(&bytes[8..12])?;
+        let reader_id = EntityId::deserialize(&bytes[4..8], endianness)?;
+        let writer_id = EntityId::deserialize(&bytes[8..12], endianness)?;
         let first_sn = SequenceNumber::deserialize(&bytes[12..20], endianness)?;
         let last_sn = SequenceNumber::deserialize(&bytes[20..28], endianness)?;
         let count = Count::deserialize(&bytes[28..32], endianness)?;
