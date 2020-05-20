@@ -70,9 +70,9 @@ impl Data {
 
     // TODO: this is probably a private function for the parsing of the message only
     fn is_valid(&self) -> bool { 
-        let sequencenumber_unknown: SequenceNumber = SequenceNumber::new(-1); // Todo: should be "global" constant      
+        let sequencenumber_unknown: SequenceNumber = SequenceNumber(-1); // Todo: should be "global" constant      
         let submessage_header_is_too_small = false; //self.submessage_header().submessage_length() < self.length(); // Todo!
-        let writer_sn_value_is_not_strictly_positive = self.writer_sn < SequenceNumber::new(1) || self.writer_sn == sequencenumber_unknown;
+        let writer_sn_value_is_not_strictly_positive = self.writer_sn < SequenceNumber(1) || self.writer_sn == sequencenumber_unknown;
         let inline_qos_is_invalid = match &self.inline_qos {
             None => false,
             Some(inline_qos) => inline_qos.is_valid()
@@ -203,7 +203,7 @@ mod tests {
             SubmessageFlag(true), 
             ENTITYID_UNKNOWN, 
             ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, 
-            SequenceNumber::new(1), 
+            SequenceNumber(1), 
             Some(InlineQosParameterList::new()),
             Payload::Data(SerializedPayload(vec![]))
         );
@@ -223,7 +223,7 @@ mod tests {
             non_standard_payload_flag: SubmessageFlag(false),
             reader_id: ENTITYID_UNKNOWN,
             writer_id: ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
-            writer_sn: SequenceNumber::new(1),
+            writer_sn: SequenceNumber(1),
             inline_qos: None, 
             serialized_payload: None, 
         };
@@ -253,7 +253,7 @@ mod tests {
             non_standard_payload_flag: SubmessageFlag(false),
             reader_id: ENTITYID_UNKNOWN,
             writer_id: ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
-            writer_sn: SequenceNumber::new(1),
+            writer_sn: SequenceNumber(1),
             inline_qos: Some(inline_qos), 
             serialized_payload: None, 
         };
@@ -291,7 +291,7 @@ mod tests {
             non_standard_payload_flag: SubmessageFlag(false),
             reader_id: ENTITYID_UNKNOWN,
             writer_id: ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
-            writer_sn: SequenceNumber::new(1),
+            writer_sn: SequenceNumber(1),
             inline_qos: Some(inline_qos), 
             serialized_payload: Some(serialized_payload), 
         };
@@ -326,7 +326,7 @@ mod tests {
             non_standard_payload_flag: SubmessageFlag(false),
             reader_id: ENTITYID_UNKNOWN,
             writer_id: ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
-            writer_sn: SequenceNumber::new(1),
+            writer_sn: SequenceNumber(1),
             inline_qos: None, 
             serialized_payload: None, 
         };
@@ -354,7 +354,7 @@ mod tests {
             non_standard_payload_flag: SubmessageFlag(true),
             reader_id: ENTITYID_UNKNOWN,
             writer_id: ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
-            writer_sn: SequenceNumber::new(1),
+            writer_sn: SequenceNumber(1),
             inline_qos: None, 
             serialized_payload: Some(serialized_payload), 
         };
@@ -386,7 +386,7 @@ mod tests {
             non_standard_payload_flag: SubmessageFlag(false),
             reader_id: ENTITYID_UNKNOWN,
             writer_id: ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
-            writer_sn: SequenceNumber::new(1),
+            writer_sn: SequenceNumber(1),
             inline_qos: Some(inline_qos), 
             serialized_payload: Some(serialized_payload), 
         };

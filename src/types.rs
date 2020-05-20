@@ -130,13 +130,7 @@ impl RtpsParse for EntityId{
 }
 
 #[derive(Debug, PartialEq, PartialOrd, Clone, Copy)]
-pub struct SequenceNumber(i64);
-
-impl SequenceNumber {
-    pub fn new(value: i64) -> Self {
-        SequenceNumber(value)
-    }
-}
+pub struct SequenceNumber(pub i64);
 
 impl std::ops::Sub<i64> for SequenceNumber {
     type Output = SequenceNumber;

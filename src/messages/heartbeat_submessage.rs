@@ -45,11 +45,11 @@ impl Heartbeat {
         }
 
     pub fn is_valid(&self) -> bool{
-        if self.first_sn < SequenceNumber::new(1) {
+        if self.first_sn < SequenceNumber(1) {
             return false;
         };
 
-        if self.last_sn < SequenceNumber::new(0) {
+        if self.last_sn < SequenceNumber(0) {
             return false;
         }
 
@@ -141,8 +141,8 @@ mod tests {
         let valid_heartbeat = Heartbeat {
             reader_id: ENTITYID_UNKNOWN,
             writer_id: ENTITYID_UNKNOWN,
-            first_sn: SequenceNumber::new(2),
-            last_sn: SequenceNumber::new(5), 
+            first_sn: SequenceNumber(2),
+            last_sn: SequenceNumber(5), 
             count: Count(0),
             final_flag: SubmessageFlag(true),
             liveliness_flag: SubmessageFlag(true),
@@ -154,8 +154,8 @@ mod tests {
         let valid_heartbeat_first_message = Heartbeat {
             reader_id: ENTITYID_UNKNOWN,
             writer_id: ENTITYID_UNKNOWN,
-            first_sn: SequenceNumber::new(1),
-            last_sn: SequenceNumber::new(0), 
+            first_sn: SequenceNumber(1),
+            last_sn: SequenceNumber(0), 
             count: Count(2),
             final_flag: SubmessageFlag(true),
             liveliness_flag: SubmessageFlag(true),
@@ -167,8 +167,8 @@ mod tests {
         let invalid_heartbeat_zero_first_value = Heartbeat {
             reader_id: ENTITYID_UNKNOWN,
             writer_id: ENTITYID_UNKNOWN,
-            first_sn: SequenceNumber::new(0),
-            last_sn: SequenceNumber::new(1), 
+            first_sn: SequenceNumber(0),
+            last_sn: SequenceNumber(1), 
             count: Count(2),
             final_flag: SubmessageFlag(true),
             liveliness_flag: SubmessageFlag(true),
@@ -180,8 +180,8 @@ mod tests {
         let invalid_heartbeat_negative_last_value = Heartbeat {
             reader_id: ENTITYID_UNKNOWN,
             writer_id: ENTITYID_UNKNOWN,
-            first_sn: SequenceNumber::new(5),
-            last_sn: SequenceNumber::new(-6), 
+            first_sn: SequenceNumber(5),
+            last_sn: SequenceNumber(-6), 
             count: Count(2),
             final_flag: SubmessageFlag(true),
             liveliness_flag: SubmessageFlag(true),
@@ -193,8 +193,8 @@ mod tests {
         let invalid_heartbeat_wrong_first_last_value = Heartbeat {
             reader_id: ENTITYID_UNKNOWN,
             writer_id: ENTITYID_UNKNOWN,
-            first_sn: SequenceNumber::new(6),
-            last_sn: SequenceNumber::new(4), 
+            first_sn: SequenceNumber(6),
+            last_sn: SequenceNumber(4), 
             count: Count(2),
             final_flag: SubmessageFlag(true),
             liveliness_flag: SubmessageFlag(true),
@@ -210,8 +210,8 @@ mod tests {
 
         let reader_id = EntityId::new(EntityKey::new([0x10, 0x12, 0x14]), EntityKind::UserDefinedReaderWithKey);
         let writer_id = EntityId::new(EntityKey::new([0x26, 0x24, 0x22]), EntityKind::UserDefinedWriterWithKey);
-        let first_sn = SequenceNumber::new(1233);
-        let last_sn = SequenceNumber::new(1237);
+        let first_sn = SequenceNumber(1233);
+        let last_sn = SequenceNumber(1237);
         let count = Count(8);
         let final_flag = SubmessageFlag(true);
         let liveliness_flag = SubmessageFlag(false);
