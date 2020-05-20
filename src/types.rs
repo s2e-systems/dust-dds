@@ -123,7 +123,7 @@ impl RtpsDeserialize for EntityId{
     }
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Clone, Copy, Hash)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Hash)]
 pub struct SequenceNumber(pub i64);
 
 impl std::ops::Sub<i64> for SequenceNumber {
@@ -241,7 +241,7 @@ pub struct Duration {
     pub fraction: u32,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Eq)]
 pub struct KeyHash([u8; 16]);
 
 impl KeyHash {
@@ -265,7 +265,7 @@ impl RtpsSerialize for KeyHash
 
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Eq)]
 pub struct StatusInfo([u8;4]);
 
 impl StatusInfo {

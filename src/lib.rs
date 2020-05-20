@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-// mod cache;
+mod cache;
 // mod entity;
 // mod guid;
 mod inline_qos;

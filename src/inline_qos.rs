@@ -30,7 +30,7 @@ pub type InlineQosParameterList = ParameterList<InlineQosParameter>;
 //     StatusInfo = 0x0071,
 // }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone, Eq)]
 pub enum InlineQosParameter {
     KeyHash(KeyHash),
     StatusInfo(StatusInfo),

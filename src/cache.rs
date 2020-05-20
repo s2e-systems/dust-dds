@@ -1,9 +1,8 @@
 use std::cmp::Ordering;
 use std::collections::{HashSet};
 
-use crate::messages::{
-     InlineQosParameter,
-};
+use crate::inline_qos::InlineQosParameterList;
+
 use crate::types::{
     ChangeKind, InstanceHandle, ParameterList,
     SequenceNumber, GUID,
@@ -16,7 +15,7 @@ pub struct CacheChange {
     writer_guid: GUID,
     instance_handle: InstanceHandle,
     sequence_number: SequenceNumber,
-    inline_qos: Option<ParameterList<InlineQosParameter>>,
+    inline_qos: Option<InlineQosParameterList>,
     data: Option<Vec<u8>>,
 }
 
@@ -26,7 +25,7 @@ impl CacheChange {
         writer_guid: GUID,
         instance_handle: InstanceHandle,
         sequence_number: SequenceNumber,
-        inline_qos: Option<ParameterList<InlineQosParameter>>,
+        inline_qos: Option<InlineQosParameterList>,
         data: Option<Vec<u8>>,
     ) -> CacheChange {
         CacheChange {
@@ -55,7 +54,7 @@ impl CacheChange {
         &self.sequence_number
     }
 
-    pub fn get_inline_qos(&self) -> &Option<ParameterList<InlineQosParameter>> {
+    pub fn get_inline_qos(&self) -> &Option<InlineQosParameterList> {
         &self.inline_qos
     }
 
@@ -124,7 +123,7 @@ impl ::core::hash::Hash for CacheChange {
                 ::core::hash::Hash::hash(&(*__self_0_1), state);
                 ::core::hash::Hash::hash(&(*__self_0_2), state);
                 ::core::hash::Hash::hash(&(*__self_0_3), state);
-                ::core::hash::Hash::hash(&(*__self_0_4), state)
+                // ::core::hash::Hash::hash(&(*__self_0_4), state)
                 // Explicitly ignore the data field
                 // ::core::hash::Hash::hash(&(*__self_0_5), state)
             }
@@ -171,16 +170,16 @@ impl HistoryCache {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::EntityId;
+    use crate::types::{EntityId, EntityKey, EntityKind, SequenceNumber};
 
     #[test]
     fn cache_change_list() {
         let mut history_cache = HistoryCache::new();
         let guid_prefix = [8; 12];
-        let entity_id = EntityId::new([1, 2, 3], 4);
+        let entity_id = EntityId::new(EntityKey([1, 2, 3]), EntityKind::BuiltInWriterWithKey);
         let guid = GUID::new(guid_prefix, entity_id);
         let instance_handle = [9; 16];
-        let sequence_number = 1;
+        let sequence_number = SequenceNumber(1);
         let data = Some(vec![4, 5, 6]);
         let cc = CacheChange::new(
             ChangeKind::Alive,
@@ -208,12 +207,12 @@ mod tests {
         let mut history_cache = HistoryCache::new();
 
         let guid_prefix = [8; 12];
-        let entity_id = EntityId::new([1, 2, 3], 4);
+        let entity_id = EntityId::new(EntityKey([1, 2, 3]), EntityKind::BuiltInWriterWithKey);
         let guid = GUID::new(guid_prefix, entity_id);
         let instance_handle = [9; 16];
         let data = Some(vec![4, 5, 6]);
-        let sequence_number_min = 1;
-        let sequence_number_max = 2;
+        let sequence_number_min = SequenceNumber(1);
+        let sequence_number_max = SequenceNumber(2);
         let cc1 = CacheChange::new(
             ChangeKind::Alive,
             guid.clone(),
