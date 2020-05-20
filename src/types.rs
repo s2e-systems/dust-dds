@@ -34,13 +34,7 @@ impl RtpsDeserialize for Ushort {
 
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
-pub struct EntityKey([u8;3]);
-
-impl EntityKey {
-    pub fn new(value: [u8;3]) -> Self {
-        EntityKey(value)
-    }
-}
+pub struct EntityKey(pub [u8;3]);
 
 impl RtpsSerialize for EntityKey
 {

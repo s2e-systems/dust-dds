@@ -208,8 +208,8 @@ mod tests {
     fn test_serialize_deserialize_heartbeat() {
         let mut writer = Vec::new();
 
-        let reader_id = EntityId::new(EntityKey::new([0x10, 0x12, 0x14]), EntityKind::UserDefinedReaderWithKey);
-        let writer_id = EntityId::new(EntityKey::new([0x26, 0x24, 0x22]), EntityKind::UserDefinedWriterWithKey);
+        let reader_id = EntityId::new(EntityKey([0x10, 0x12, 0x14]), EntityKind::UserDefinedReaderWithKey);
+        let writer_id = EntityId::new(EntityKey([0x26, 0x24, 0x22]), EntityKind::UserDefinedWriterWithKey);
         let first_sn = SequenceNumber(1233);
         let last_sn = SequenceNumber(1237);
         let count = Count(8);
