@@ -1,18 +1,32 @@
-use crate::types::Time;
-use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, EndianessFlag, RtpsSerdesResult, RtpsSerdesError, SizeCheckers, SizeSerializer};
+use crate::types::{Time, Ushort};
+use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsCompose, RtpsParse, EndianessFlag, RtpsSerdesResult, RtpsSerdesError, SizeCheckers};
 
-use super::{SubmessageKind, OctetsToNextHeader};
+use super::{SubmessageKind, SubmessageFlag, Submessage, SubmessageHeader};
 
 #[derive(PartialEq, Debug)]
 pub struct InfoTs {
+    endianness_flag: SubmessageFlag,
+    invalidate_flag: SubmessageFlag,
     timestamp: Option<Time>,
 }
 
 impl InfoTs {
     const INVALID_TIME_FLAG_MASK: u8 = 0x02;
 
-    pub fn new(timestamp: Option<Time>) -> InfoTs {
-        InfoTs { timestamp }
+    pub fn new(timestamp: Option<Time>, endianness: EndianessFlag) -> InfoTs {
+        let endianness_flag = endianness.into();
+        let invalidate_flag =
+        if timestamp.is_some() {
+            SubmessageFlag(false)
+        } else {
+            SubmessageFlag(true)
+        };
+
+        InfoTs {
+            endianness_flag,
+            invalidate_flag,
+            timestamp
+        }
     }
 
     pub fn get_timestamp(&self) -> &Option<Time> {
@@ -20,23 +34,34 @@ impl InfoTs {
     }
 }
 
+impl Submessage for InfoTs {
+    fn submessage_header(&self) -> SubmessageHeader {
+        let x = SubmessageFlag(false);
+        let e = self.endianness_flag; // Indicates endianness.
+        let i = self.invalidate_flag; // Indicates whether subsequent Submessages should be considered as having a timestamp or not.
+        // X|X|X|X|X|X|I|E
+        let flags = [e, i, x, x, x, x, x, x];
 
-impl RtpsSerialize for InfoTs
-{
-    fn serialize(&self, writer: &mut impl std::io::Write, endianness: EndianessFlag) -> RtpsSerdesResult<()>{
-        SubmessageKind::InfoTimestamp.serialize(writer, endianness)?;
-
-        let mut size_serializer = SizeSerializer::new();
-
-        let mut flags = endianness as u8;
-        if self.timestamp.is_none() {
-            flags |= InfoTs::INVALID_TIME_FLAG_MASK;
+        let octets_to_next_header = if self.invalidate_flag.is_set() {
+            0
+        } else {
+            self.timestamp.octets()
+        };
+            
+        SubmessageHeader { 
+            submessage_id: SubmessageKind::InfoTimestamp,
+            flags,
+            submessage_length: Ushort(octets_to_next_header as u16), // This cast could fail in weird ways by truncation
         }
-        writer.write(&[flags])?;
+    }
+}
 
-        self.timestamp.serialize(&mut size_serializer, endianness)?;
-        OctetsToNextHeader(size_serializer.get_size() as u16).serialize(writer, endianness)?;
-       
+
+impl RtpsCompose for InfoTs
+{
+    fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
+        let endianness = EndianessFlag::from(self.endianness_flag);
+        self.submessage_header().compose(writer)?;
         self.timestamp.serialize(writer, endianness)?;
 
         Ok(())
@@ -46,28 +71,29 @@ impl RtpsSerialize for InfoTs
 
 impl RtpsParse for InfoTs {
     fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> {
-        const SERIALIZED_INFOTS_MINIMUM_SIZE: usize = 4;
-        const SERIALIZED_INFOTS_WITH_TIMESTAMP_MINIMUM_SIZE: usize = 12;
-        const SUBMESSAGE_ID_INDEX: usize = 0;
-        const FLAGS_INDEX: usize = 1;
-        SizeCheckers::check_size_bigger_equal_than(bytes, SERIALIZED_INFOTS_MINIMUM_SIZE)?;
+        let header = SubmessageHeader::parse(bytes)?;
+        let flags = header.flags();
+        // X|X|X|X|X|X|I|E
+        /*E*/ let endianness_flag = flags[0];
+        /*I*/ let invalidate_flag = flags[1];
 
-        let submessage_kind = SubmessageKind::parse(&[bytes[SUBMESSAGE_ID_INDEX]])?;
-        if submessage_kind != SubmessageKind::InfoTimestamp {
-            return Err(RtpsSerdesError::InvalidSubmessageHeader);
-        }
+        let endianness = endianness_flag.into();
 
-        let flags = bytes[FLAGS_INDEX];
-        let invalid_time_flag = flags & InfoTs::INVALID_TIME_FLAG_MASK == InfoTs::INVALID_TIME_FLAG_MASK;
+//         const SERIALIZED_INFOTS_MINIMUM_SIZE: usize = 4;
+//         const SERIALIZED_INFOTS_WITH_TIMESTAMP_MINIMUM_SIZE: usize = 12;
+//         const SUBMESSAGE_ID_INDEX: usize = 0;
+//         const FLAGS_INDEX: usize = 1;
+//         SizeCheckers::check_size_bigger_equal_than(bytes, SERIALIZED_INFOTS_MINIMUM_SIZE)?;
 
-        if invalid_time_flag {
-            Ok(InfoTs::new(None))
+
+        if invalidate_flag.is_set() {
+            Ok(InfoTs::new(None, endianness))
         } else {
-            SizeCheckers::check_size_bigger_equal_than(bytes, SERIALIZED_INFOTS_WITH_TIMESTAMP_MINIMUM_SIZE)?;
+            // SizeCheckers::check_size_bigger_equal_than(bytes, SERIALIZED_INFOTS_WITH_TIMESTAMP_MINIMUM_SIZE)?;
             
-            let time = Time::deserialize(&bytes[4..12], flags.into())?;
+            let time = Time::deserialize(&bytes[4..12], endianness)?;
 
-            Ok(InfoTs::new(Some(time)))
+            Ok(InfoTs::new(Some(time), endianness))
         }
     }
 }
@@ -78,8 +104,8 @@ mod tests {
 
     #[test]
     fn test_serialize_deserialize_infots() {
-        let mut writer_le = Vec::new();
-        let mut writer_be = Vec::new();
+        // let mut writer_le = Vec::new();
+        let mut writer = Vec::new();
         let info_timestamp_message_little_endian =
             [0x09, 0x01, 0x08, 0x00, 0xB1, 0x05, 0x50, 0x5D, 0x43, 0x22, 0x11, 0x10];
         let info_timestamp_message_big_endian = 
@@ -90,13 +116,17 @@ mod tests {
             fraction: 269558339,
         };
 
-        let infots = InfoTs::new(Some(TEST_TIME));
-        infots.serialize(&mut writer_le, EndianessFlag::LittleEndian).unwrap();
-        infots.serialize(&mut writer_be, EndianessFlag::BigEndian).unwrap();
+        let infots_big_endian = InfoTs::new(Some(TEST_TIME), EndianessFlag::BigEndian);
+        // infots.compose(&mut writer_le, EndianessFlag::LittleEndian).unwrap();
+        infots_big_endian.compose(&mut writer).unwrap();
+        assert_eq!(writer, info_timestamp_message_big_endian);
+        assert_eq!(InfoTs::parse(&writer).unwrap(), infots_big_endian);
 
-        assert_eq!(writer_le, info_timestamp_message_little_endian);
-        assert_eq!(writer_be, info_timestamp_message_big_endian);
-        assert_eq!(InfoTs::parse(&writer_le).unwrap(), infots);
-        assert_eq!(InfoTs::parse(&writer_be).unwrap(), infots);
+        writer.clear();
+
+        let infots_little_endian = InfoTs::new(Some(TEST_TIME), EndianessFlag::LittleEndian);
+        infots_little_endian.compose(&mut writer).unwrap();
+        assert_eq!(writer, info_timestamp_message_little_endian);
+        assert_eq!(InfoTs::parse(&writer).unwrap(), infots_little_endian);
     }
 }
