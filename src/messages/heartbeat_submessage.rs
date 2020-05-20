@@ -143,7 +143,7 @@ mod tests {
             writer_id: ENTITYID_UNKNOWN,
             first_sn: SequenceNumber::new(2),
             last_sn: SequenceNumber::new(5), 
-            count: Count::new(0),
+            count: Count(0),
             final_flag: SubmessageFlag(true),
             liveliness_flag: SubmessageFlag(true),
             endianness_flag: EndianessFlag::LittleEndian.into(),
@@ -156,7 +156,7 @@ mod tests {
             writer_id: ENTITYID_UNKNOWN,
             first_sn: SequenceNumber::new(1),
             last_sn: SequenceNumber::new(0), 
-            count: Count::new(2),
+            count: Count(2),
             final_flag: SubmessageFlag(true),
             liveliness_flag: SubmessageFlag(true),
             endianness_flag: EndianessFlag::LittleEndian.into(),
@@ -169,7 +169,7 @@ mod tests {
             writer_id: ENTITYID_UNKNOWN,
             first_sn: SequenceNumber::new(0),
             last_sn: SequenceNumber::new(1), 
-            count: Count::new(2),
+            count: Count(2),
             final_flag: SubmessageFlag(true),
             liveliness_flag: SubmessageFlag(true),
             endianness_flag: EndianessFlag::LittleEndian.into(),
@@ -182,7 +182,7 @@ mod tests {
             writer_id: ENTITYID_UNKNOWN,
             first_sn: SequenceNumber::new(5),
             last_sn: SequenceNumber::new(-6), 
-            count: Count::new(2),
+            count: Count(2),
             final_flag: SubmessageFlag(true),
             liveliness_flag: SubmessageFlag(true),
             endianness_flag: EndianessFlag::LittleEndian.into(),
@@ -195,7 +195,7 @@ mod tests {
             writer_id: ENTITYID_UNKNOWN,
             first_sn: SequenceNumber::new(6),
             last_sn: SequenceNumber::new(4), 
-            count: Count::new(2),
+            count: Count(2),
             final_flag: SubmessageFlag(true),
             liveliness_flag: SubmessageFlag(true),
             endianness_flag: EndianessFlag::LittleEndian.into(),
@@ -212,7 +212,7 @@ mod tests {
         let writer_id = EntityId::new(EntityKey::new([0x26, 0x24, 0x22]), EntityKind::UserDefinedWriterWithKey);
         let first_sn = SequenceNumber::new(1233);
         let last_sn = SequenceNumber::new(1237);
-        let count = Count::new(8);
+        let count = Count(8);
         let final_flag = SubmessageFlag(true);
         let liveliness_flag = SubmessageFlag(false);
 

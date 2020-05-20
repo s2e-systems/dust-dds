@@ -229,13 +229,7 @@ impl RtpsDeserialize for Time {
     }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]
-pub struct Count(i32);
-
-impl Count {
-    pub fn new(value: i32) -> Self {
-        Count(value)
-    }
-}
+pub struct Count(pub i32);
 
 impl RtpsSerialize for Count {
     fn serialize(&self, writer: &mut impl std::io::Write, endianness: EndianessFlag) -> RtpsSerdesResult<()> {
