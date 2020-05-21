@@ -32,7 +32,7 @@ pub enum Payload {
 impl Data {
     /// Inline_qos_flag is inferred from option of inline_qos
     /// data_flag, key_flag and non_standard_payload_flag are inferred from the kind of payload
-    fn new(endianness_flag: SubmessageFlag,
+    pub fn new(endianness_flag: SubmessageFlag,
         reader_id: EntityId,
         writer_id: EntityId,
         writer_sn: SequenceNumber,

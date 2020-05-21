@@ -134,6 +134,14 @@ impl std::ops::Sub<i64> for SequenceNumber {
     }
 }
 
+impl std::ops::Add<i64> for SequenceNumber {
+    type Output = SequenceNumber;
+
+    fn add(self, rhs: i64) -> Self::Output {
+        SequenceNumber(self.0 + rhs)
+    }
+}
+
 impl RtpsSerialize for SequenceNumber
 {
     fn serialize(&self, writer: &mut impl std::io::Write, endianness: EndianessFlag) -> RtpsSerdesResult<()>{
