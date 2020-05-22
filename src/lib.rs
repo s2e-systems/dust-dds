@@ -12,7 +12,7 @@ mod messages;
 // mod transport;
 pub mod types;
 // mod writer;
-// mod stateless_reader;
+mod stateless_reader;
 mod stateless_writer;
 mod serdes;
 

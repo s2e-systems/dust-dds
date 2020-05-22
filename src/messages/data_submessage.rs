@@ -79,6 +79,10 @@ impl Data {
         };
         submessage_header_is_too_small && writer_sn_value_is_not_strictly_positive && inline_qos_is_invalid
     }
+
+    pub fn reader_id(&self) -> &EntityId {
+        &self.reader_id
+    }
 }
 
 impl Submessage for Data {
