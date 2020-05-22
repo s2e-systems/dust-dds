@@ -44,17 +44,10 @@ pub enum RtpsMessageError {
     InvalidSubmessageHeader,
     InvalidSubmessage,
     InvalidKeyAndDataFlagCombination,
-    CdrError(cdr::Error),
     IoError(std::io::Error),
     SerdesError(RtpsSerdesError),
     InvalidTypeConversion,
     DeserializationMessageSizeTooSmall,
-}
-
-impl From<cdr::Error> for RtpsMessageError {
-    fn from(error: cdr::Error) -> Self {
-        RtpsMessageError::CdrError(error)
-    }
 }
 
 impl From<RtpsSerdesError> for RtpsMessageError {

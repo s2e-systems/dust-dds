@@ -3,8 +3,6 @@ use crate::messages::{RtpsMessage, RtpsSubmessage, Payload, Data};
 use crate::types::{
     ChangeKind, Duration, LocatorList, ReliabilityKind, SequenceNumber, TopicKind, GUID};
 
-use crate::types::constants::ENTITYID_UNKNOWN;
-
 pub struct StatelessReader {
     heartbeat_response_delay: Duration,
     heartbeat_suppression_duration: Duration,
