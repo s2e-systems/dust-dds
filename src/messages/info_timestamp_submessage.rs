@@ -1,5 +1,5 @@
 use crate::types::{Time, Ushort};
-use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsCompose, RtpsParse, EndianessFlag, RtpsSerdesResult, RtpsSerdesError, SizeCheckers};
+use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsCompose, RtpsParse, EndianessFlag, RtpsSerdesResult};
 
 use super::{SubmessageKind, SubmessageFlag, Submessage, SubmessageHeader};
 
@@ -111,12 +111,9 @@ mod tests {
         let info_timestamp_message_big_endian = 
             [0x09, 0x00, 0x00, 0x08, 0x5D, 0x50, 0x05, 0xB1, 0x10, 0x11, 0x22, 0x43];
 
-        const TEST_TIME: Time = Time {
-            seconds: 1565525425,
-            fraction: 269558339,
-        };
+        let test_time = Time::new(1565525425, 269558339);
 
-        let infots_big_endian = InfoTs::new(Some(TEST_TIME), EndianessFlag::BigEndian);
+        let infots_big_endian = InfoTs::new(Some(test_time), EndianessFlag::BigEndian);
         // infots.compose(&mut writer_le, EndianessFlag::LittleEndian).unwrap();
         infots_big_endian.compose(&mut writer).unwrap();
         assert_eq!(writer, info_timestamp_message_big_endian);
@@ -124,7 +121,7 @@ mod tests {
 
         writer.clear();
 
-        let infots_little_endian = InfoTs::new(Some(TEST_TIME), EndianessFlag::LittleEndian);
+        let infots_little_endian = InfoTs::new(Some(test_time), EndianessFlag::LittleEndian);
         infots_little_endian.compose(&mut writer).unwrap();
         assert_eq!(writer, info_timestamp_message_little_endian);
         assert_eq!(InfoTs::parse(&writer).unwrap(), infots_little_endian);

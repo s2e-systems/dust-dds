@@ -1,8 +1,7 @@
 use std::collections::{HashMap, HashSet};
-use std::time::SystemTime;
 
-use crate::types::{ProtocolVersion, SequenceNumber, Locator, GUID, TopicKind, LocatorList, ReliabilityKind, Duration, ChangeKind, InstanceHandle, SerializedPayload, Time};
-use crate::types::constants::{VENDOR_ID, ENTITYID_UNKNOWN};
+use crate::types::{SequenceNumber, Locator, GUID, TopicKind, LocatorList, ReliabilityKind, Duration, ChangeKind, InstanceHandle, SerializedPayload, Time};
+use crate::types::constants::{VENDOR_ID, ENTITYID_UNKNOWN, PROTOCOL_VERSION_2_4};
 use crate::cache::{CacheChange, HistoryCache};
 use crate::messages::{RtpsMessage, RtpsSubmessage, Data, InfoTs, Payload};
 use crate::inline_qos::InlineQosParameterList;
@@ -55,7 +54,7 @@ pub struct StatelessWriter {
     writer_cache: HistoryCache,
     data_max_sized_serialized: Option<i32>,
 
-    pub reader_locators: HashMap<Locator, ReaderLocator>,
+    reader_locators: HashMap<Locator, ReaderLocator>,
 }
 
 impl StatelessWriter {
@@ -171,11 +170,10 @@ impl StatelessWriter {
         let mut message = RtpsMessage::new(
             *self.guid.prefix(),
             VENDOR_ID,
-            ProtocolVersion{major:2, minor: 4});
+            PROTOCOL_VERSION_2_4);
 
         if self.has_unsent_changes(a_locator) {
-            let current_time = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap();
-            let time = Time{seconds: current_time.as_secs() as u32 , fraction: current_time.as_nanos() as u32};
+            let time = Time::now();
             let infots = InfoTs::new(Some(time), EndianessFlag::LittleEndian);
 
             message.push(RtpsSubmessage::InfoTs(infots));
@@ -183,7 +181,7 @@ impl StatelessWriter {
             while let Some(next_unsent_seq_num) = self.next_unsent_change(a_locator)
             {
                 if let Some(cache_change) = self.writer_cache.get_change_with_sequence_number(&next_unsent_seq_num) {
-                    let payload_data = Data::new(
+                    let data = Data::new(
                         EndianessFlag::LittleEndian.into(),
                         ENTITYID_UNKNOWN,
                         *self.guid.entity_id(), 
@@ -191,7 +189,7 @@ impl StatelessWriter {
                         None, /*inline_qos*/
                         Payload::Data(SerializedPayload(cache_change.data().unwrap().to_vec())) /*serialized_payload*/);
 
-                    message.push(RtpsSubmessage::Data(payload_data));
+                    message.push(RtpsSubmessage::Data(data));
 
                 } else {
                     panic!("GAP not implemented yet");

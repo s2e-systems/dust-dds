@@ -3,6 +3,7 @@ use std::slice::Iter;
 use std::ops::Index;
 use std::collections::BTreeMap;
 use std::io::Write;
+use std::time::SystemTime;
 use num_derive::FromPrimitive;
 
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, EndianessFlag, RtpsSerdesResult, RtpsSerdesError, PrimitiveSerdes, SizeCheckers, SizeSerializer};
@@ -186,18 +187,23 @@ pub enum ChangeKind {
     NotAliveUnregistered,
 }
 
-#[derive(PartialEq, Eq, Hash, Debug, Clone)]
+#[derive(PartialEq, Eq, Hash, Debug, Clone, Copy)]
 pub struct Time {
-    pub seconds: u32,
-    pub fraction: u32,
+    seconds: u32,
+    fraction: u32,
 }
 
 impl Time {
-    fn new (seconds: u32, fraction: u32) -> Self {
+    pub fn new (seconds: u32, fraction: u32) -> Self {
         Time {
             seconds,
             fraction,
         }
+    }
+
+    pub fn now() -> Self {
+        let current_time = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap();
+        Time{seconds: current_time.as_secs() as u32 , fraction: current_time.as_nanos() as u32}
     }
 }
  
@@ -1021,10 +1027,13 @@ mod tests {
 }
 
 pub mod constants {
-    use super::{VendorId, EntityId, EntityKey, EntityKind, Time, Duration};
+    use super::{VendorId, EntityId, EntityKey, EntityKind, Time, Duration, ProtocolVersion};
 
     pub const VENDOR_ID: VendorId = [99,99];
 
+    pub const PROTOCOL_VERSION_2_1 : ProtocolVersion = ProtocolVersion{major: 2, minor: 1};
+    pub const PROTOCOL_VERSION_2_2 : ProtocolVersion = ProtocolVersion{major: 2, minor: 2};
+    pub const PROTOCOL_VERSION_2_4 : ProtocolVersion = ProtocolVersion{major: 2, minor: 4};
 
     pub const ENTITYID_UNKNOWN: EntityId = EntityId {
         entity_key: EntityKey([0, 0, 0x00]),

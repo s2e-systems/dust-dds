@@ -4,8 +4,7 @@ use std::collections::{HashSet};
 use crate::inline_qos::InlineQosParameterList;
 
 use crate::types::{
-    ChangeKind, InstanceHandle, ParameterList,
-    SequenceNumber, GUID,
+    ChangeKind, InstanceHandle, SequenceNumber, GUID,
 };
 
 #[derive(Eq, Debug, Clone)]
