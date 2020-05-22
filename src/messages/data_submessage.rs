@@ -32,7 +32,8 @@ pub enum Payload {
 impl Data {
     /// Inline_qos_flag is inferred from option of inline_qos
     /// data_flag, key_flag and non_standard_payload_flag are inferred from the kind of payload
-    pub fn new(endianness_flag: SubmessageFlag,
+    pub fn new(
+        endianness_flag: EndianessFlag,
         reader_id: EntityId,
         writer_id: EntityId,
         writer_sn: SequenceNumber,
@@ -55,7 +56,7 @@ impl Data {
             };
 
             Data {
-                endianness_flag,
+                endianness_flag: endianness_flag.into(),
                 inline_qos_flag,
                 data_flag,
                 key_flag,
@@ -82,6 +83,14 @@ impl Data {
 
     pub fn reader_id(&self) -> &EntityId {
         &self.reader_id
+    }
+
+    pub fn writer_id(&self) -> &EntityId {
+        &self.writer_id
+    }
+
+    pub fn writer_sn(&self) -> &SequenceNumber {
+        &self.writer_sn
     }
 }
 
@@ -204,7 +213,7 @@ mod tests {
     #[test]
     fn test_data_contructor() {
         let data = Data::new(
-            SubmessageFlag(true), 
+            EndianessFlag::LittleEndian, 
             ENTITYID_UNKNOWN, 
             ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, 
             SequenceNumber(1), 

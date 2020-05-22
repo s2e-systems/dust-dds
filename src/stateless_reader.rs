@@ -1,5 +1,7 @@
-use crate::cache::{HistoryCache};
-use crate::types::{Duration, LocatorList, ReliabilityKind, TopicKind, GUID};
+use crate::cache::{HistoryCache, CacheChange};
+use crate::types::{Duration, LocatorList, ReliabilityKind, TopicKind, GUID, ChangeKind};
+use crate::types::constants::ENTITYID_UNKNOWN;
+use crate::messages::{RtpsMessage, RtpsSubmessage};
 
 pub struct StatelessReader {
     heartbeat_response_delay: Duration,
@@ -47,102 +49,68 @@ impl StatelessReader {
         &self.reader_cache
     }
 
-    // pub fn process_message(&mut self, msg: &RtpsMessage) {
+    pub fn process_message(&mut self, msg: &RtpsMessage) {
 
-    //     let guid_prefix = *msg.get_guid_prefix();
+        let guid_prefix = *msg.get_guid_prefix();
 
-    //     for submessage in msg.get_submessages().iter() {
-    //         if let RtpsSubmessage::Data(data) = submessage {
-    //             // Check if the message is for this reader and process it if that is the case
-    //             if data.reader_id() == &ENTITYID_UNKNOWN {
-    //                 let cache_change = CacheChange::new(
-    //                     ChangeKind::Alive, /*change_kind*/
-    //                     GUID::new(guid_prefix /*prefix*/, *data.writer_id() /* entity_id*/) /*writer_guid*/,
-    //                     *data.key_hash(), /*instance_handle*/
-    //                     *data.writer_sn(), /*sequence_number*/
-    //                     None, /* inline_qos*/
-    //                     None, /*data*/
-    //                 );
+        for submessage in msg.get_submessages().iter() {
+            if let RtpsSubmessage::Data(data) = submessage {
+                // Check if the message is for this reader and process it if that is the case
+                if data.reader_id() == &ENTITYID_UNKNOWN {
+                    let cache_change = CacheChange::new(
+                        ChangeKind::Alive, /*change_kind*/
+                        GUID::new(guid_prefix /*prefix*/, *data.writer_id() /* entity_id*/) /*writer_guid*/,
+                        [0;16], /*instance_handle*/ /*TODO: *data.key_hash() */
+                        *data.writer_sn(), /*sequence_number*/
+                        None, /* inline_qos*/
+                        None, /*data*/
+                    );
 
-    //                 self.reader_cache.add_change(cache_change);
-    //             }
-    //         }
-    //     }
-    // }
-
-    // pub fn read_data(
-    //     &mut self,
-    //     writer_guid: GUID,
-    //     sequence_number: SequenceNumber,
-    //     inline_qos: Option<InlineQosParameterList>,
-    //     serialized_payload: Payload,
-    // ) {
-    //     println!("Reader is processing data");
-
-    //     if let Payload::Data(data) = serialized_payload {
-    //         if let Some(inline_qos_list) = inline_qos {
-    //             let key_hash_parameter = inline_qos_list.iter().find(|&x| x.is_key_hash());
-    //             if let Some(InlineQosParameter::KeyHash(instance_handle)) = key_hash_parameter {
-    //                 let rcc = CacheChange::new(
-    //                     ChangeKind::Alive,
-    //                     writer_guid,
-    //                     *instance_handle,
-    //                     sequence_number,
-    //                     None, /*inline_qos*/
-    //                     Some(data),
-    //                 );
-    //                 self.reader_cache.add_change(rcc);
-    //             }
-    //         }
-    //     } else if let Payload::Key(_key) = serialized_payload {
-    //         if let Some(inline_qos_list) = inline_qos {
-    //             let status_info_parameter = inline_qos_list.iter().find(|&x| x.is_status_info());
-    //             if let Some(InlineQosParameter::StatusInfo(_status_info)) = status_info_parameter {
-    //                 // TODO: Check the liveliness changes to the entity
-    //             }
-    //         }
-    //     } else {
-    //         // TODO: Either no payload or non standardized payload. In either case, not implemented yet
-    //     }
-    // }
+                    self.reader_cache.add_change(cache_change);
+                }
+            }
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    // use super::*;
-    // use crate::types::*;
-    // use crate::messages::{Data, Payload};
-    // use crate::serdes::EndianessFlag;
+    use super::*;
+    use crate::types::*;
+    use crate::types::constants::*;
+    use crate::messages::{Data, Payload};
+    use crate::serdes::EndianessFlag;
 
-    // #[test]
-    // fn test_reader_process_data() {
-    //     let data1 = Data::new(
-    //         EndianessFlag::LittleEndian,
-    //         ENTITYID_UNKNOWN, /*reader_id*/
-    //         ENTITYID_UNKNOWN,/*writer_id*/
-    //         SequenceNumber(1), /*writer_sn*/
-    //         None, /*inline_qos*/
-    //         Payload::Data(vec![0,1,2]),
-    //     );
+    #[test]
+    fn test_reader_process_data() {
+        let data1 = Data::new(
+            EndianessFlag::LittleEndian,
+            ENTITYID_UNKNOWN, /*reader_id*/
+            ENTITYID_UNKNOWN,/*writer_id*/
+            SequenceNumber(1), /*writer_sn*/
+            None, /*inline_qos*/
+            Payload::Data(SerializedPayload(vec![0,1,2])),
+        );
 
-    //     let mut message = RtpsMessage::new([2;12] /*guid_prefix*/,  VENDOR_ID /*vendor_id*/, ProtocolVersion {
-    //         major: 2,
-    //         minor: 4,
-    //     }, /*protocol_version*/);
+        let mut message = RtpsMessage::new([2;12] /*guid_prefix*/,  VENDOR_ID /*vendor_id*/, PROTOCOL_VERSION_2_4, /*protocol_version*/);
 
-    //     message.push(RtpsSubmessage::Data(data1));
+        message.push(RtpsSubmessage::Data(data1));
 
-    //     let mut reader = StatelessReader::new(
-    //         GUID::new([0;12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER),
-    //         TopicKind::WithKey,
-    //         ReliabilityKind::BestEffort,
-    //         vec![Locator::new(0, 7400, [0;16])], /*unicast_locator_list*/
-    //         vec![], /*multicast_locator_list*/
-    //         DURATION_ZERO, /*heartbeat_response_delay */
-    //         DURATION_ZERO, /* heartbeat_response_delay */
-    //         false,
-    //        );
+        let mut reader = StatelessReader::new(
+            GUID::new([0;12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER),
+            TopicKind::WithKey,
+            ReliabilityKind::BestEffort,
+            vec![Locator::new(0, 7400, [0;16])], /*unicast_locator_list*/
+            vec![], /*multicast_locator_list*/
+            DURATION_ZERO, /*heartbeat_response_delay */
+            DURATION_ZERO, /* heartbeat_response_delay */
+            false,
+           );
 
-    //     reader.process_message(&message);
-    // }
+        assert_eq!(reader.history_cache().get_changes().len(), 0);
+        
+        reader.process_message(&message);
+
+        assert_eq!(reader.history_cache().get_changes().len(), 1);
+    }
 }
