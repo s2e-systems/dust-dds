@@ -92,6 +92,11 @@ impl Data {
     pub fn writer_sn(&self) -> &SequenceNumber {
         &self.writer_sn
     }
+
+    pub fn serialized_payload(&self) -> &Option<SerializedPayload> {
+        //TODO: It is a problem for the outer world to know what this payload represents
+        &self.serialized_payload
+    }
 }
 
 impl Submessage for Data {

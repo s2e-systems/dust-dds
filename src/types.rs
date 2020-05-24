@@ -174,6 +174,7 @@ pub enum TopicKind {
     WithKey,
 }
 
+#[derive(PartialEq)]
 pub enum ReliabilityKind {
     BestEffort,
     Reliable,
