@@ -318,6 +318,12 @@ impl RtpsCompose for RtpsMessage {
     }
 }
 
+impl RtpsParse for RtpsMessage {
+    fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> {
+        todo!()
+    }
+}
+
 // pub fn parse_rtps_message(message: &[u8]) -> RtpsMessageResult<RtpsMessage> {
 //     const MESSAGE_HEADER_FIRST_INDEX: usize = 0;
 //     const MESSAGE_HEADER_LAST_INDEX: usize = 19;

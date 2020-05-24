@@ -1,4 +1,4 @@
-use rust_rtps::{StatelessWriter, StatelessReader, RtpsCompose, RtpsParse};
+use rust_rtps::{StatelessWriter, StatelessReader, RtpsMessage, RtpsCompose, RtpsParse};
 use rust_rtps::types::{ChangeKind, TopicKind, ReliabilityKind, Locator, GUID, GuidPrefix};
 use rust_rtps::types::constants::{DURATION_ZERO, ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER, ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER};
 
@@ -109,8 +109,9 @@ fn test_stateless_writer_stateless_reader_serialized_communication_integration()
    let mut buf  = Vec::new();
    writer_data.compose(&mut buf).unwrap();
    println!("Sending: {:?}", buf);
+   let received_message = RtpsMessage::parse(&buf).unwrap();
 
-   reader.process_message(&writer_data);
+   reader.process_message(&received_message);
 
    let reader_changes = reader.history_cache().get_changes();
    assert_eq!(reader_changes.len(), 2);

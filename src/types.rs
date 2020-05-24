@@ -485,7 +485,7 @@ pub struct ProtocolVersion {
 }
 
 impl RtpsSerialize for ProtocolVersion {
-    fn serialize(&self, writer: &mut impl std::io::Write, endianness: EndianessFlag) -> RtpsSerdesResult<()> {
+    fn serialize(&self, writer: &mut impl std::io::Write, _endianness: EndianessFlag) -> RtpsSerdesResult<()> {
         writer.write(&[self.major])?;
         writer.write(&[self.minor])?;
         Ok(())

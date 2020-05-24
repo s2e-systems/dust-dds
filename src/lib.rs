@@ -17,4 +17,5 @@ mod stateless_writer;
 
 pub use stateless_reader::StatelessReader;
 pub use stateless_writer::StatelessWriter;
+pub use messages::RtpsMessage;
 pub use serdes::{RtpsCompose, RtpsParse};
