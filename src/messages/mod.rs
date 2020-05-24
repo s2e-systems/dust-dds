@@ -77,6 +77,17 @@ pub enum RtpsSubmessage {
     // NackFrag(NackFrag),
 }
 
+impl RtpsCompose for RtpsSubmessage {
+    fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
+        match self {
+            RtpsSubmessage::Data(data) => data.compose(writer),
+            RtpsSubmessage::Gap(_gap) => Ok(()), //gap.compose(writer)?,
+            RtpsSubmessage::Heartbeat(_heartbeat) => Ok(()), //heartbeat.compose(writer)?,
+            RtpsSubmessage::InfoTs(infots) => infots.compose(writer),
+        }
+    }
+}
+
 #[derive(FromPrimitive, PartialEq, Copy, Clone, Debug)]
 pub enum SubmessageKind {
     Pad = 0x01,
@@ -289,6 +300,21 @@ impl RtpsMessage {
             self.protocol_version,
             self.submessages,
         )
+    }
+}
+
+impl RtpsCompose for RtpsMessage {
+    fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
+        writer.write(&['R' as u8,'T' as u8,'P' as u8,'S' as u8])?;
+        self.protocol_version.serialize(writer, EndianessFlag::LittleEndian)?;
+        self.vendor_id.serialize(writer, EndianessFlag::LittleEndian)?;
+        self.guid_prefix.serialize(writer, EndianessFlag::LittleEndian)?;
+
+        for submessage in &self.submessages {
+            submessage.compose(writer)?;
+        }
+
+        Ok(())
     }
 }
 

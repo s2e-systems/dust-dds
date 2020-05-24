@@ -96,12 +96,12 @@ mod tests {
             Payload::Data(SerializedPayload(vec![0,1,2])),
         );
 
-        let mut message = RtpsMessage::new([2;12] /*guid_prefix*/,  VENDOR_ID /*vendor_id*/, PROTOCOL_VERSION_2_4, /*protocol_version*/);
+        let mut message = RtpsMessage::new(GuidPrefix([2;12]) /*guid_prefix*/,  VENDOR_ID /*vendor_id*/, PROTOCOL_VERSION_2_4, /*protocol_version*/);
 
         message.push(RtpsSubmessage::Data(data1));
 
         let mut reader = StatelessReader::new(
-            GUID::new([0;12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER),
+            GUID::new(GuidPrefix([0;12]), ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER),
             TopicKind::WithKey,
             ReliabilityKind::BestEffort,
             vec![Locator::new(0, 7400, [0;16])], /*unicast_locator_list*/

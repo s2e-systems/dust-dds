@@ -221,7 +221,7 @@ mod tests {
     #[test]
     fn test_writer_new_change() {
         let mut writer = StatelessWriter::new(
-            GUID::new([0; 12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
+            GUID::new(GuidPrefix([0; 12]), ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
             TopicKind::WithKey,
             ReliabilityKind::BestEffort,
             vec![Locator::new(0, 7400, [0; 16])], /*unicast_locator_list*/
@@ -263,7 +263,7 @@ mod tests {
     #[test]
     fn test_stateless_writer_unsent_changes() {
         let mut writer = StatelessWriter::new(
-            GUID::new([0; 12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
+            GUID::new(GuidPrefix([0; 12]), ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
             TopicKind::WithKey,
             ReliabilityKind::BestEffort,
             vec![Locator::new(0, 7400, [0; 16])], /*unicast_locator_list*/
@@ -325,7 +325,7 @@ mod tests {
     #[test]
     fn test_best_effort_stateless_writer_get_data_to_send() {
         let mut writer = StatelessWriter::new(
-            GUID::new([0; 12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
+            GUID::new(GuidPrefix([0; 12]), ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
             TopicKind::WithKey,
             ReliabilityKind::BestEffort,
             vec![Locator::new(0, 7400, [0; 16])], 

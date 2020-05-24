@@ -484,6 +484,14 @@ pub struct ProtocolVersion {
     pub minor: u8,
 }
 
+impl RtpsSerialize for ProtocolVersion {
+    fn serialize(&self, writer: &mut impl std::io::Write, endianness: EndianessFlag) -> RtpsSerdesResult<()> {
+        writer.write(&[self.major])?;
+        writer.write(&[self.minor])?;
+        Ok(())
+    }
+}
+
 #[derive(PartialEq, Hash, Eq, Debug, Copy, Clone)]
 pub struct Locator {
     pub kind: i32,
@@ -569,11 +577,30 @@ impl BuiltInEndPointSet {
         (self.value & bitmask) >> bit_position == 1
     }
 }
+#[derive(Debug, PartialEq, Copy, Clone)]
+pub struct VendorId(pub [u8; 2]);
+
+impl RtpsSerialize for VendorId {
+    fn serialize(&self, writer: &mut impl std::io::Write, _endianness: EndianessFlag) -> RtpsSerdesResult<()> {
+        writer.write(&self.0)?;
+        Ok(())
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
+pub struct GuidPrefix(pub[u8; 12]);
+
+impl RtpsSerialize for GuidPrefix {
+    fn serialize(&self, writer: &mut impl std::io::Write, _endianness: EndianessFlag) -> RtpsSerdesResult<()> {
+        writer.write(&self.0)?;
+        Ok(())
+    }
+}
+
+
 
 pub type InstanceHandle = [u8; 16];
-pub type VendorId = [u8; 2];
 pub type LocatorList = Vec<Locator>;
-pub type GuidPrefix = [u8; 12];
 
 
 pub type SequenceNumberSet = BTreeMap<SequenceNumber, bool>;
@@ -1030,7 +1057,7 @@ mod tests {
 pub mod constants {
     use super::{VendorId, EntityId, EntityKey, EntityKind, Time, Duration, ProtocolVersion};
 
-    pub const VENDOR_ID: VendorId = [99,99];
+    pub const VENDOR_ID: VendorId = VendorId([99,99]);
 
     pub const PROTOCOL_VERSION_2_1 : ProtocolVersion = ProtocolVersion{major: 2, minor: 1};
     pub const PROTOCOL_VERSION_2_2 : ProtocolVersion = ProtocolVersion{major: 2, minor: 2};
