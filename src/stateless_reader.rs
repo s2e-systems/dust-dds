@@ -52,6 +52,7 @@ impl StatelessReader {
     pub fn process_message(&mut self, msg: &RtpsMessage) {
 
         let guid_prefix = *msg.get_guid_prefix();
+        let mut _source_time = None;
 
         for submessage in msg.get_submessages().iter() {
             if let RtpsSubmessage::Data(data) = submessage {
@@ -68,6 +69,9 @@ impl StatelessReader {
 
                     self.reader_cache.add_change(cache_change);
                 }
+            }
+            else if let RtpsSubmessage::InfoTs(infots) = submessage {
+                _source_time = *infots.get_timestamp();
             }
         }
     }
@@ -108,7 +112,7 @@ mod tests {
            );
 
         assert_eq!(reader.history_cache().get_changes().len(), 0);
-        
+
         reader.process_message(&message);
 
         assert_eq!(reader.history_cache().get_changes().len(), 1);
