@@ -603,7 +603,21 @@ pub type InstanceHandle = [u8; 16];
 pub type LocatorList = Vec<Locator>;
 
 
-pub type SequenceNumberSet = BTreeMap<SequenceNumber, bool>;
+#[derive(PartialEq, Debug)]
+pub struct SequenceNumberSet(pub BTreeMap<SequenceNumber, bool>);
+
+impl RtpsSerialize for SequenceNumberSet {
+    fn serialize(&self, writer: &mut impl Write, endianness: EndianessFlag) -> RtpsSerdesResult<()> {
+        todo!()
+    }
+}
+impl RtpsDeserialize for SequenceNumberSet {
+    fn deserialize(bytes: &[u8], endianness: EndianessFlag) -> RtpsSerdesResult<Self> {
+        todo!()
+    }    
+}
+
+
 pub type FragmentNumber = u32;
 pub type FragmentNumberSet = Vec<(FragmentNumber, bool)>;
 
