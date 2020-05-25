@@ -21,6 +21,7 @@ use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsCompose, RtpsParse, Endi
 use crate::types::*;
 
 
+
 // pub use ack_nack_submessage::AckNack;
 // pub use data_frag_submessage::DataFrag;
 pub use data_submessage::Data;
@@ -255,12 +256,28 @@ const PROTOCOL_RTPS: ProtocolId = ProtocolId([b'R', b'T', b'P', b'S']);
 
 
 #[derive(PartialEq, Debug)]
-struct Header {
+pub struct Header {
     protocol: ProtocolId,
     version: ProtocolVersion,
     vendor_id: VendorId,
     guid_prefix: GuidPrefix,
 }
+
+impl Header {
+    pub fn new(guid_prefix: GuidPrefix) -> Self { 
+        Self { 
+            protocol: PROTOCOL_RTPS, 
+            version: constants::PROTOCOL_VERSION_2_4, 
+            vendor_id: constants::VENDOR_ID, 
+            guid_prefix, 
+        } 
+    }
+    pub fn guid_prefix(&self) -> &GuidPrefix {
+        &self.guid_prefix
+    }
+}
+
+
 
 impl RtpsCompose for Header {
     fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
@@ -282,87 +299,58 @@ impl RtpsParse for Header {
     }
 }
 
-#[derive(Debug)]
+#[derive(PartialEq, Debug)]
 pub struct RtpsMessage {
-    guid_prefix: GuidPrefix,
-    vendor_id: VendorId,
-    protocol_version: ProtocolVersion,
+    header: Header,
     submessages: Vec<RtpsSubmessage>,
 }
 
 impl RtpsMessage {
     pub fn new(
-        guid_prefix: GuidPrefix,
-        vendor_id: VendorId,
-        protocol_version: ProtocolVersion,
+        header: Header,
+        submessages: Vec<RtpsSubmessage>
     ) -> RtpsMessage {
+        // TODO: should panic since the stamdard says: 1 to many messages
+        // if submessages.is_empty() {
+        //     panic!("At least one submessage is required");
+        // };
         RtpsMessage {
-            guid_prefix,
-            vendor_id,
-            protocol_version,
-            submessages: Vec::new(),
+            header,
+            submessages,
         }
     }
 
-    pub fn get_guid_prefix(&self) -> &GuidPrefix {
-        &self.guid_prefix
-    }
-
-    pub fn get_vendor_id(&self) -> &VendorId {
-        &self.vendor_id
-    }
-
-    pub fn get_protocol_version(&self) -> &ProtocolVersion {
-        &self.protocol_version
+    pub fn header(&self) -> &Header {
+        &self.header
     }
 
     pub fn push(&mut self, submessage: RtpsSubmessage) {
         self.submessages.push(submessage);
     }
 
-    pub fn get_submessages(&self) -> &Vec<RtpsSubmessage> {
+    pub fn submessages(&self) -> &Vec<RtpsSubmessage> {
         &self.submessages
-    }
-
-    pub fn get_mut_submessages(&mut self) -> &mut Vec<RtpsSubmessage> {
-        &mut self.submessages
-    }
-
-    pub fn take(
-        self,
-    ) -> (
-        GuidPrefix,
-        VendorId,
-        ProtocolVersion,
-        Vec<RtpsSubmessage>,
-    ) {
-        (
-            self.guid_prefix,
-            self.vendor_id,
-            self.protocol_version,
-            self.submessages,
-        )
     }
 }
 
 impl RtpsCompose for RtpsMessage {
     fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
-        writer.write(&['R' as u8,'T' as u8,'P' as u8,'S' as u8])?;
-        self.protocol_version.serialize(writer, EndianessFlag::LittleEndian)?;
-        self.vendor_id.serialize(writer, EndianessFlag::LittleEndian)?;
-        self.guid_prefix.serialize(writer, EndianessFlag::LittleEndian)?;
-
+        &self.header.compose(writer)?;
         for submessage in &self.submessages {
             submessage.compose(writer)?;
         }
-
         Ok(())
     }
 }
 
 impl RtpsParse for RtpsMessage {
     fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> {
-        todo!()
+        let header = Header::parse(bytes)?;
+        let submessages = Vec::new();
+        Ok(RtpsMessage {
+            header,
+            submessages, 
+        })
     }
 }
 
@@ -523,7 +511,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_rtps_deserialize_for_submessage_flags() {
+    fn test_parse_submessage_flags() {
         let f = SubmessageFlag(false);
         let t = SubmessageFlag(true);
 
@@ -549,7 +537,7 @@ mod tests {
     }
 
     #[test]
-    fn test_rtps_serialize_for_submessage_flags() {
+    fn test_serialize_submessage_flags() {
         let f = SubmessageFlag(false);
         let t = SubmessageFlag(true);
         let mut writer = Vec::new();
@@ -622,7 +610,7 @@ mod tests {
 
 
     #[test]
-    fn test_deserialize_submessage_header_simple() {
+    fn test_parse_submessage_header() {
         let bytes = [0x15_u8, 0b00000001, 20, 0x0];
         let f = SubmessageFlag(false);
         let flags: [SubmessageFlag; 8] = [SubmessageFlag(true), f, f, f, f, f, f, f];
@@ -637,7 +625,7 @@ mod tests {
     }
 
     #[test]
-    fn test_rtps_serialize_for_submessage_header() {
+    fn test_compose_submessage_header() {
         let mut result = Vec::new();
 
         let f = SubmessageFlag(false);
@@ -652,26 +640,95 @@ mod tests {
         assert_eq!(result, expected);
     }
 
-    // #[test]
-    // fn test_parse_valid_message_header_only() {
-    //     let message_example = MessageHeader {
-    //         protocol_name: ['R', 'T', 'P', 'S'],
-    //         protocol_version: ProtocolVersion { major: 2, minor: 4 },
-    //         vendor_id: [100, 210],
-    //         guid_prefix: [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21],
-    //     };
+    #[test]
+    fn test_compose_submessage() {
+        
+        let submessage = RtpsSubmessage::Data ( Data::new(
+            EndianessFlag::LittleEndian, 
+            constants::ENTITYID_UNKNOWN, 
+            constants::ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, 
+            SequenceNumber(1),
+            None, 
+            Payload::None
+            )
+        );
 
-    //     let serialized =
-    //         cdr::ser::serialize_data::<_, _, BigEndian>(&message_example, Infinite).unwrap();
+        let expected = vec![
+            0x15_u8, 0b00000001, 20, 0x0, // Submessgae Header
+            0x00, 0x00,  16, 0x0, // ExtraFlags, octetsToInlineQos (liitle indian)
+            0x00, 0x00, 0x00, 0x00, // [Data Submessage] EntityId readerId => ENTITYID_UNKNOWN
+            0x00, 0x01, 0x00, 0xc2, // [Data Submessage] EntityId writerId
+            0x00, 0x00, 0x00, 0x00, // [Data Submessage] SequenceNumber writerSN
+            0x01, 0x00, 0x00, 0x00, // [Data Submessage] SequenceNumber writerSN => 1
+        ];  
+  
+        let mut writer = Vec::new();
+        submessage.compose(&mut writer).unwrap();
+        assert_eq!(expected, writer);        
+    }
 
-    //     let parse_result = parse_rtps_message(&serialized).unwrap();
 
-    //     assert_eq!(
-    //         parse_result.guid_prefix,
-    //         [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21]
-    //     );
-    //     assert_eq!(parse_result.submessages, vec!());
-    // }
+    #[test]
+    fn test_compose_message() {
+        let submessage = RtpsSubmessage::Data ( Data::new(
+            EndianessFlag::LittleEndian, 
+            constants::ENTITYID_UNKNOWN, 
+            constants::ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, 
+            SequenceNumber(1),
+            None, 
+            Payload::None
+            )
+        );
+        let message = RtpsMessage { 
+                header : Header {
+                    protocol: ProtocolId([b'R', b'T', b'P', b'S']),
+                    version: ProtocolVersion{major: 2, minor: 1},
+                    vendor_id: VendorId([1, 2]),
+                    guid_prefix: GuidPrefix([127, 32, 247, 215, 0, 0, 1, 187, 0, 0, 0, 1]),
+                },
+                submessages : vec![submessage],                
+        };
+
+        let expected = vec![
+            0x52, 0x54, 0x50, 0x53, //000 protocol: ProtocolId_t => 'R', 'T', 'P', 'S',
+            0x02, 0x01, 0x01, 0x02, //004 version: ProtocolVersion_t => 2.1 | vendorId: VendorId_t => 1,2
+            0x7f, 0x20, 0xf7, 0xd7, //008 guidPrefix: GuidPrefix_t => 127, 32, 247, 215
+            0x00, 0x00, 0x01, 0xbb, //012 guidPrefix: GuidPrefix_t => 0, 0, 1, 187
+            0x00, 0x00, 0x00, 0x01, //016 guidPrefix: GuidPrefix_t => 0, 0, 0, 1
+            0x15_u8, 0b00000001, 20, 0x0, // Submessgae Header
+            0x00, 0x00,  16, 0x0, // ExtraFlags, octetsToInlineQos (liitle indian)
+            0x00, 0x00, 0x00, 0x00, // [Data Submessage] EntityId readerId => ENTITYID_UNKNOWN
+            0x00, 0x01, 0x00, 0xc2, // [Data Submessage] EntityId writerId
+            0x00, 0x00, 0x00, 0x00, // [Data Submessage] SequenceNumber writerSN
+            0x01, 0x00, 0x00, 0x00, // [Data Submessage] SequenceNumber writerSN => 1
+        ];  
+        let mut writer = Vec::new();
+        message.compose(&mut writer).unwrap();
+        assert_eq!(expected, writer);        
+    }
+
+    #[test]
+    fn test_parse_message() {
+        let expected = RtpsMessage { 
+                header : Header {
+                    protocol: ProtocolId([b'R', b'T', b'P', b'S']),
+                    version: ProtocolVersion{major: 2, minor: 1},
+                    vendor_id: VendorId([1, 2]),
+                    guid_prefix: GuidPrefix([127, 32, 247, 215, 0, 0, 1, 187, 0, 0, 0, 1]),
+                },
+                submessages : vec![],                
+        };
+
+        let bytes = [
+            0x52, 0x54, 0x50, 0x53, //000 protocol: ProtocolId_t => 'R', 'T', 'P', 'S',
+            0x02, 0x01, 0x01, 0x02, //004 version: ProtocolVersion_t => 2.1 | vendorId: VendorId_t => 1,2
+            0x7f, 0x20, 0xf7, 0xd7, //008 guidPrefix: GuidPrefix_t => 127, 32, 247, 215
+            0x00, 0x00, 0x01, 0xbb, //012 guidPrefix: GuidPrefix_t => 0, 0, 1, 187
+            0x00, 0x00, 0x00, 0x01, //016 guidPrefix: GuidPrefix_t => 0, 0, 0, 1
+        ];    
+        let result = RtpsMessage::parse(&bytes).unwrap();
+        assert_eq!(expected, result);        
+    }
 
     // #[test]
     // fn test_parse_too_small_message() {
