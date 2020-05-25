@@ -1,5 +1,4 @@
-use std::convert::Into;
-
+use std::convert::{Into, TryInto};
 // pub mod helpers;
 
 // mod ack_nack_submessage;
@@ -232,13 +231,56 @@ pub trait Submessage {
     fn submessage_header(&self) -> SubmessageHeader;
 }
 
-// #[derive(Serialize, Deserialize, PartialEq, Debug)]
-// struct MessageHeader {
-//     protocol_name: [char; 4],
-//     protocol_version: ProtocolVersion,
-//     vendor_id: VendorId,
-//     guid_prefix: GuidPrefix,
-// }
+#[derive(PartialEq, Debug)]
+struct ProtocolId([u8; 4]);
+
+impl RtpsCompose for ProtocolId {
+    fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
+        writer.write(&self.0)?;
+        Ok(())
+    }    
+}
+
+impl RtpsParse for ProtocolId {
+    fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> {
+        if bytes == PROTOCOL_RTPS.0 {
+            Ok(ProtocolId(bytes[0..4].try_into()?))
+        } else {
+            Err(RtpsSerdesError::InvalidEnumRepresentation)
+        }
+    }    
+}
+
+const PROTOCOL_RTPS: ProtocolId = ProtocolId([b'R', b'T', b'P', b'S']);
+
+
+#[derive(PartialEq, Debug)]
+struct Header {
+    protocol: ProtocolId,
+    version: ProtocolVersion,
+    vendor_id: VendorId,
+    guid_prefix: GuidPrefix,
+}
+
+impl RtpsCompose for Header {
+    fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
+        &self.protocol.compose(writer)?;
+        &self.version.compose(writer)?;
+        &self.vendor_id.compose(writer)?;
+        &self.guid_prefix.compose(writer)?;
+        Ok(())
+    }
+}
+
+impl RtpsParse for Header {
+    fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> {
+        let protocol = ProtocolId::parse(&bytes[0..4])?;
+        let version = ProtocolVersion::parse(&bytes[4..6])?;
+        let vendor_id = VendorId::parse(&bytes[6..8])?;
+        let guid_prefix = GuidPrefix::parse(&bytes[8..20])?;
+        Ok(Header {protocol, version, vendor_id, guid_prefix})
+    }
+}
 
 #[derive(Debug)]
 pub struct RtpsMessage {
@@ -532,6 +574,52 @@ mod tests {
         flags.serialize(&mut writer, EndianessFlag::LittleEndian).unwrap();
         assert_eq!(writer, vec![0b10110010]);
     }
+
+        
+    #[test]
+    fn test_compose_protocol_id() {
+        let mut writer = Vec::new();
+        PROTOCOL_RTPS.compose(&mut writer).unwrap();
+        assert_eq!(writer, vec![0x52, 0x54, 0x50, 0x53]);
+    }
+
+    #[test]
+    fn test_parse_protocol_id() {
+        let expected = ProtocolId([b'R', b'T', b'P', b'S']);
+        let bytes = [0x52_u8, 0x54, 0x50, 0x53];    
+        let result = ProtocolId::parse(&bytes).unwrap();
+        assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn test_parse_invalid_protocol_id() {
+        let bytes = [0x52_u8, 0x54, 0x50, 0x99];    
+        assert!(ProtocolId::parse(&bytes).is_err());
+
+        let bytes = [0x52_u8];    
+        assert!(ProtocolId::parse(&bytes).is_err());
+    }
+
+    #[test]
+    fn test_parse_message_header() {
+        let expected = Header {
+            protocol: ProtocolId([b'R', b'T', b'P', b'S']),
+            version: ProtocolVersion{major: 2, minor: 1},
+            vendor_id: VendorId([1, 2]),
+            guid_prefix: GuidPrefix([127, 32, 247, 215, 0, 0, 1, 187, 0, 0, 0, 1]),
+        };
+        
+        let bytes = [
+            0x52, 0x54, 0x50, 0x53, //000 protocol: ProtocolId_t => 'R', 'T', 'P', 'S',
+            0x02, 0x01, 0x01, 0x02, //004 version: ProtocolVersion_t => 2.1 | vendorId: VendorId_t => 1,2
+            0x7f, 0x20, 0xf7, 0xd7, //008 guidPrefix: GuidPrefix_t => 127, 32, 247, 215
+            0x00, 0x00, 0x01, 0xbb, //012 guidPrefix: GuidPrefix_t => 0, 0, 1, 187
+            0x00, 0x00, 0x00, 0x01, //016 guidPrefix: GuidPrefix_t => 0, 0, 0, 1
+        ];    
+        let result = Header::parse(&bytes).unwrap();
+        assert_eq!(expected, result);
+    }
+
 
     #[test]
     fn test_deserialize_submessage_header_simple() {

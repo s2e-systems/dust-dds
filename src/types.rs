@@ -6,7 +6,7 @@ use std::io::Write;
 use std::time::SystemTime;
 use num_derive::FromPrimitive;
 
-use crate::serdes::{RtpsSerialize, RtpsDeserialize, EndianessFlag, RtpsSerdesResult, RtpsSerdesError, PrimitiveSerdes, SizeCheckers, SizeSerializer};
+use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsCompose, RtpsParse, EndianessFlag, RtpsSerdesResult, RtpsSerdesError, PrimitiveSerdes, SizeCheckers, SizeSerializer};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Ushort(pub u16);
@@ -492,6 +492,22 @@ impl RtpsSerialize for ProtocolVersion {
     }
 }
 
+impl RtpsCompose for ProtocolVersion {
+    fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
+        writer.write(&[self.major])?;
+        writer.write(&[self.minor])?;
+        Ok(())
+    }
+}
+
+impl RtpsParse for ProtocolVersion {
+    fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> {
+        let major = bytes[0];
+        let minor = bytes[1];
+        Ok(ProtocolVersion{major, minor})
+    }
+}
+
 #[derive(PartialEq, Hash, Eq, Debug, Copy, Clone)]
 pub struct Locator {
     pub kind: i32,
@@ -587,14 +603,40 @@ impl RtpsSerialize for VendorId {
     }
 }
 
+impl RtpsCompose for VendorId {
+    fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
+        writer.write(&self.0)?;
+        Ok(())
+    }
+}
+
+impl RtpsParse for VendorId {
+    fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> {
+        Ok(VendorId(bytes[0..2].try_into()?))
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
-pub struct GuidPrefix(pub[u8; 12]);
+pub struct GuidPrefix(pub [u8; 12]);
 
 impl RtpsSerialize for GuidPrefix {
     fn serialize(&self, writer: &mut impl std::io::Write, _endianness: EndianessFlag) -> RtpsSerdesResult<()> {
         writer.write(&self.0)?;
         Ok(())
     }
+}
+
+impl RtpsCompose for GuidPrefix {
+    fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
+        writer.write(&self.0)?;
+        Ok(())
+    }
+}
+
+impl RtpsParse for GuidPrefix {
+    fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> {
+        Ok(GuidPrefix(bytes[0..12].try_into()?))
+    }    
 }
 
 
