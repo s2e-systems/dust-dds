@@ -82,10 +82,31 @@ impl RtpsCompose for RtpsSubmessage {
         match self {
             RtpsSubmessage::Data(data) => data.compose(writer),
             RtpsSubmessage::Gap(_gap) => Ok(()), //gap.compose(writer)?,
-            RtpsSubmessage::Heartbeat(_heartbeat) => Ok(()), //heartbeat.compose(writer)?,
+            RtpsSubmessage::Heartbeat(heartbeat) => heartbeat.compose(writer),
             RtpsSubmessage::InfoTs(infots) => infots.compose(writer),
         }
     }
+}
+
+impl RtpsParse for RtpsSubmessage {
+    fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> {
+        let submessage_id = SubmessageKind::parse(bytes)?;
+        match submessage_id {
+            SubmessageKind::Data => Ok( RtpsSubmessage::Data(Data::parse(bytes)?) ),
+            SubmessageKind::Pad => Err(RtpsSerdesError::InvalidSubmessageHeader),
+            SubmessageKind::AckNack => Err(RtpsSerdesError::InvalidSubmessageHeader),
+            SubmessageKind::Heartbeat => Ok( RtpsSubmessage::Heartbeat(Heartbeat::parse(bytes)?) ),
+            SubmessageKind::Gap => Err(RtpsSerdesError::InvalidSubmessageHeader),
+            SubmessageKind::InfoTimestamp => Ok( RtpsSubmessage::InfoTs(InfoTs::parse(bytes)?) ),
+            SubmessageKind::InfoSource => Err(RtpsSerdesError::InvalidSubmessageHeader),
+            SubmessageKind::InfoReplyIP4 => Err(RtpsSerdesError::InvalidSubmessageHeader),
+            SubmessageKind::InfoDestination => Err(RtpsSerdesError::InvalidSubmessageHeader),
+            SubmessageKind::InfoReply => Err(RtpsSerdesError::InvalidSubmessageHeader),
+            SubmessageKind::NackFrag => Err(RtpsSerdesError::InvalidSubmessageHeader),
+            SubmessageKind::HeartbeatFrag => Err(RtpsSerdesError::InvalidSubmessageHeader),
+            SubmessageKind::DataFrag => Err(RtpsSerdesError::InvalidSubmessageHeader),
+        }   
+    }    
 }
 
 #[derive(FromPrimitive, PartialEq, Copy, Clone, Debug)]
@@ -125,7 +146,7 @@ impl RtpsDeserialize for SubmessageKind
 
 impl RtpsParse for SubmessageKind {
     fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> {
-        SizeCheckers::check_size_equal(bytes, 1 /*expected_size*/)?;
+        SizeCheckers::check_size_bigger_equal_than(bytes, 1)?;
         Ok(num::FromPrimitive::from_u8(bytes[0]).ok_or(RtpsSerdesError::InvalidEnumRepresentation)?)
     }
 }
@@ -338,173 +359,31 @@ impl RtpsCompose for RtpsMessage {
         &self.header.compose(writer)?;
         for submessage in &self.submessages {
             submessage.compose(writer)?;
-        }
+        };
         Ok(())
     }
 }
 
 impl RtpsParse for RtpsMessage {
     fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> {
+        let size = bytes.len();
         let header = Header::parse(bytes)?;
-        let submessages = Vec::new();
+
+        let mut submessage_start_index: usize = header.octets();
+        let mut submessages = Vec::<RtpsSubmessage>::new();
+
+        while submessage_start_index < size {
+            let submessage = RtpsSubmessage::parse(&bytes[submessage_start_index..])?;          
+                     
+            submessage_start_index += submessage.octets();
+            submessages.push(submessage);
+        };
         Ok(RtpsMessage {
             header,
             submessages, 
         })
     }
 }
-
-// pub fn parse_rtps_message(message: &[u8]) -> RtpsMessageResult<RtpsMessage> {
-//     const MESSAGE_HEADER_FIRST_INDEX: usize = 0;
-//     const MESSAGE_HEADER_LAST_INDEX: usize = 19;
-//     const PROTOCOL_VERSION_FIRST_INDEX: usize = 4;
-//     const PROTOCOL_VERSION_LAST_INDEX: usize = 5;
-
-//     if message.len() < MINIMUM_RTPS_MESSAGE_SIZE {
-//         return Err(RtpsMessageError::MessageTooSmall);
-//     }
-
-//     let message_header = deserialize::<MessageHeader>(
-//         message,
-//         &MESSAGE_HEADER_FIRST_INDEX,
-//         &MESSAGE_HEADER_LAST_INDEX,
-//         &EndianessFlag::BigEndian, /* Endianness not relevant for the header. Only octets */
-//     )?;
-
-//     if message_header.protocol_name[0] != 'R'
-//         || message_header.protocol_name[1] != 'T'
-//         || message_header.protocol_name[2] != 'P'
-//         || message_header.protocol_name[3] != 'S'
-//     {
-//         return Err(RtpsMessageError::InvalidHeader);
-//     }
-
-//     if message_header.protocol_version.major != 2 {
-//         return Err(RtpsMessageError::RtpsMajorVersionUnsupported);
-//     }
-//     if message_header.protocol_version.minor > RTPS_MINOR_VERSION {
-//         return Err(RtpsMessageError::RtpsMinorVersionUnsupported);
-//     }
-
-//     const RTPS_SUBMESSAGE_HEADER_SIZE: usize = 4;
-
-//     let mut submessage_vector = Vec::with_capacity(4);
-
-//     let mut submessage_first_index = MINIMUM_RTPS_MESSAGE_SIZE;
-//     while submessage_first_index < message.len() {
-//         const SUBMESSAGE_FLAGS_INDEX_OFFSET: usize = 1;
-
-//         let submessage_header_first_index = submessage_first_index;
-//         //In the deserialize library the comparisons are always inclusive of last element (-1 is required)
-//         let submessage_header_last_index =
-//             submessage_header_first_index + RTPS_SUBMESSAGE_HEADER_SIZE - 1;
-
-//         if submessage_header_last_index >= message.len() {
-//             return Err(RtpsMessageError::InvalidSubmessageHeader);
-//         }
-
-//         let submessage_endianess =
-//             endianess(&message[submessage_header_first_index + SUBMESSAGE_FLAGS_INDEX_OFFSET])?;
-
-//         let submessage_header = deserialize::<SubmessageHeader>(
-//             message,
-//             &submessage_header_first_index,
-//             &submessage_header_last_index,
-//             &submessage_endianess,
-//         )?;
-
-//         let submessage_payload_first_index = submessage_header_last_index + 1;
-//         let submessage_payload_last_index = if submessage_header.submessage_length == 0 {
-//             message.len() - 1
-//         } else {
-//             submessage_payload_first_index + submessage_header.submessage_length as usize - 1
-//         };
-
-//         if submessage_payload_last_index >= message.len() {
-//             return Err(RtpsMessageError::MessageTooSmall); // TODO: Replace error by invalid message
-//         }
-
-//         let submessage = match num::FromPrimitive::from_u8(submessage_header.submessage_id)
-//             .ok_or(RtpsMessageError::InvalidSubmessageHeader)?
-//         {
-//             SubmessageKind::AckNack => {
-//                 RtpsSubmessage::AckNack(parse_ack_nack_submessage(
-//                     &message[submessage_payload_first_index..=submessage_payload_last_index],
-//                     &submessage_header.flags,
-//                 )?)
-//             }
-//             SubmessageKind::Data => RtpsSubmessage::Data(parse_data_submessage(
-//                 &message[submessage_payload_first_index..=submessage_payload_last_index],
-//                 &submessage_header.flags,
-//             )?),
-//             SubmessageKind::DataFrag => {
-//                 RtpsSubmessage::DataFrag(parse_data_frag_submessage(
-//                     &message[submessage_payload_first_index..=submessage_payload_last_index],
-//                     &submessage_header.flags,
-//                 )?)
-//             }
-//             SubmessageKind::Gap => RtpsSubmessage::Gap(parse_gap_submessage(
-//                 &message[submessage_payload_first_index..=submessage_payload_last_index],
-//                 &submessage_header.flags,
-//             )?),
-//             SubmessageKind::Heartbeat => {
-//                 RtpsSubmessage::Heartbeat(parse_heartbeat_submessage(
-//                     &message[submessage_payload_first_index..=submessage_payload_last_index],
-//                     &submessage_header.flags,
-//                 )?)
-//             }
-//             SubmessageKind::HeartbeatFrag => {
-//                 RtpsSubmessage::HeartbeatFrag(parse_heartbeat_frag_submessage(
-//                     &message[submessage_payload_first_index..=submessage_payload_last_index],
-//                     &submessage_header.flags,
-//                 )?)
-//             }
-//             SubmessageKind::InfoDestination => {
-//                 RtpsSubmessage::InfoDst(parse_info_dst_submessage(
-//                     &message[submessage_payload_first_index..=submessage_payload_last_index],
-//                     &submessage_header.flags,
-//                 )?)
-//             }
-//             SubmessageKind::InfoReply => {
-//                 RtpsSubmessage::InfoReply(parse_info_reply_submessage(
-//                     &message[submessage_payload_first_index..=submessage_payload_last_index],
-//                     &submessage_header.flags,
-//                 )?)
-//             }
-//             SubmessageKind::InfoSource => {
-//                 RtpsSubmessage::InfoSrc(parse_info_source_submessage(
-//                     &message[submessage_payload_first_index..=submessage_payload_last_index],
-//                     &submessage_header.flags,
-//                 )?)
-//             }
-//             SubmessageKind::InfoTimestamp => {
-//                 RtpsSubmessage::InfoTs(parse_info_timestamp_submessage(
-//                     &message[submessage_payload_first_index..=submessage_payload_last_index],
-//                     &submessage_header.flags,
-//                 )?)
-//             }
-//             SubmessageKind::Pad => unimplemented!(),
-//             SubmessageKind::NackFrag => {
-//                 RtpsSubmessage::NackFrag(parse_nack_frag_submessage(
-//                     &message[submessage_payload_first_index..=submessage_payload_last_index],
-//                     &submessage_header.flags,
-//                 )?)
-//             }
-//             SubmessageKind::InfoReplyIP4 => unimplemented!(),
-//         };
-
-//         submessage_vector.push(submessage);
-
-//         submessage_first_index = submessage_payload_last_index + 1;
-//     }
-
-//     Ok(RtpsMessage {
-//         guid_prefix: message_header.guid_prefix,
-//         vendor_id: message_header.vendor_id,
-//         protocol_version: message_header.protocol_version,
-//         submessages: submessage_vector,
-//     })
-// }
 
 #[cfg(test)]
 mod tests {
@@ -667,6 +546,28 @@ mod tests {
         assert_eq!(expected, writer);        
     }
 
+    #[test]
+    fn test_parse_submessage() {
+        let bytes = vec![
+            0x15_u8, 0b00000001, 20, 0x0, // Submessgae Header
+            0x00, 0x00,  16, 0x0, // ExtraFlags, octetsToInlineQos (liitle indian)
+            0x00, 0x00, 0x00, 0x00, // [Data Submessage] EntityId readerId => ENTITYID_UNKNOWN
+            0x00, 0x01, 0x00, 0xc2, // [Data Submessage] EntityId writerId
+            0x00, 0x00, 0x00, 0x00, // [Data Submessage] SequenceNumber writerSN
+            0x01, 0x00, 0x00, 0x00, // [Data Submessage] SequenceNumber writerSN => 1
+        ];
+        let expected = RtpsSubmessage::Data ( Data::new(
+            EndianessFlag::LittleEndian, 
+            constants::ENTITYID_UNKNOWN, 
+            constants::ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, 
+            SequenceNumber(1),
+            None, 
+            Payload::None
+            )
+        );
+        let result = RtpsSubmessage::parse(&bytes).unwrap();
+        assert_eq!(expected, result);
+    }
 
     #[test]
     fn test_compose_message() {
@@ -709,6 +610,15 @@ mod tests {
 
     #[test]
     fn test_parse_message() {
+        let submessage = RtpsSubmessage::Data ( Data::new(
+            EndianessFlag::LittleEndian, 
+            constants::ENTITYID_UNKNOWN, 
+            constants::ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, 
+            SequenceNumber(1),
+            None, 
+            Payload::None
+            )
+        );
         let expected = RtpsMessage { 
                 header : Header {
                     protocol: ProtocolId([b'R', b'T', b'P', b'S']),
@@ -716,7 +626,7 @@ mod tests {
                     vendor_id: VendorId([1, 2]),
                     guid_prefix: GuidPrefix([127, 32, 247, 215, 0, 0, 1, 187, 0, 0, 0, 1]),
                 },
-                submessages : vec![],                
+                submessages : vec![submessage],                
         };
 
         let bytes = [
@@ -725,163 +635,68 @@ mod tests {
             0x7f, 0x20, 0xf7, 0xd7, //008 guidPrefix: GuidPrefix_t => 127, 32, 247, 215
             0x00, 0x00, 0x01, 0xbb, //012 guidPrefix: GuidPrefix_t => 0, 0, 1, 187
             0x00, 0x00, 0x00, 0x01, //016 guidPrefix: GuidPrefix_t => 0, 0, 0, 1
+            0x15, 0b00000001, 20, 0x0, // Submessgae Header
+            0x00, 0x00,  16, 0x0,   // [Data Submessage] ExtraFlags, octetsToInlineQos (liitle indian)
+            0x00, 0x00, 0x00, 0x00, // [Data Submessage] EntityId readerId => ENTITYID_UNKNOWN
+            0x00, 0x01, 0x00, 0xc2, // [Data Submessage] EntityId writerId
+            0x00, 0x00, 0x00, 0x00, // [Data Submessage] SequenceNumber writerSN
+            0x01, 0x00, 0x00, 0x00, // [Data Submessage] SequenceNumber writerSN => 1
         ];    
         let result = RtpsMessage::parse(&bytes).unwrap();
         assert_eq!(expected, result);        
+
+
+        let submessage1 = RtpsSubmessage::Data ( Data::new(
+            EndianessFlag::LittleEndian, 
+            constants::ENTITYID_UNKNOWN, 
+            constants::ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, 
+            SequenceNumber(1),
+            None, 
+            Payload::None
+            )
+        );
+        let reader_id = EntityId::new(EntityKey([0x10, 0x12, 0x14]), EntityKind::UserDefinedReaderWithKey);
+        let writer_id = EntityId::new(EntityKey([0x26, 0x24, 0x22]), EntityKind::UserDefinedWriterWithKey);
+        let first_sn = SequenceNumber(1233);
+        let last_sn = SequenceNumber(1237);
+        let count = Count(8);
+        let final_flag = SubmessageFlag(true);
+        let liveliness_flag = SubmessageFlag(false);
+
+        let submessage2 = RtpsSubmessage::Heartbeat ( Heartbeat::new(
+            reader_id, writer_id, first_sn, last_sn, count, final_flag, liveliness_flag, EndianessFlag::BigEndian)
+        );
+        let expected = RtpsMessage { 
+                header : Header {
+                    protocol: ProtocolId([b'R', b'T', b'P', b'S']),
+                    version: ProtocolVersion{major: 2, minor: 1},
+                    vendor_id: VendorId([1, 2]),
+                    guid_prefix: GuidPrefix([127, 32, 247, 215, 0, 0, 1, 187, 0, 0, 0, 1]),
+                },
+                submessages : vec![submessage1, submessage2],                
+        };
+        let bytes = [
+            0x52, 0x54, 0x50, 0x53, // protocol: ProtocolId_t => 'R', 'T', 'P', 'S',
+            0x02, 0x01, 0x01, 0x02, // version: ProtocolVersion_t => 2.1 | vendorId: VendorId_t => 1,2
+            0x7f, 0x20, 0xf7, 0xd7, // guidPrefix: GuidPrefix_t => 127, 32, 247, 215
+            0x00, 0x00, 0x01, 0xbb, // guidPrefix: GuidPrefix_t => 0, 0, 1, 187
+            0x00, 0x00, 0x00, 0x01, // guidPrefix: GuidPrefix_t => 0, 0, 0, 1
+            0x15, 0b00000001, 20, 0x0, // Submessgae Header => Data
+            0x00, 0x00,  16, 0x0,   // [Data Submessage] ExtraFlags, octetsToInlineQos (liitle indian)
+            0x00, 0x00, 0x00, 0x00, // [Data Submessage] EntityId readerId => ENTITYID_UNKNOWN
+            0x00, 0x01, 0x00, 0xc2, // [Data Submessage] EntityId writerId
+            0x00, 0x00, 0x00, 0x00, // [Data Submessage] SequenceNumber writerSN
+            0x01, 0x00, 0x00, 0x00, // [Data Submessage] SequenceNumber writerSN => 1
+            0x07, 0b00000010, 0x00, 28, // Submessage Header => Heartbeat
+            0x10, 0x12, 0x14, 0x04, // [Heartbeat Submessage] Reader ID
+            0x26, 0x24, 0x22, 0x02, // [Heartbeat Submessage] Writer ID
+            0x00, 0x00, 0x00, 0x00, // [Heartbeat Submessage] First Sequence Number
+            0x00, 0x00, 0x04, 0xD1, // [Heartbeat Submessage] First Sequence Number
+            0x00, 0x00, 0x00, 0x00, // [Heartbeat Submessage] Last Sequence Number
+            0x00, 0x00, 0x04, 0xD5, // [Heartbeat Submessage] Last Sequence Number
+            0x00, 0x00, 0x00, 0x08, // [Heartbeat Submessage] Count
+        ];
+        let result = RtpsMessage::parse(&bytes).unwrap();
+        assert_eq!(expected, result);  
     }
-
-    // #[test]
-    // fn test_parse_too_small_message() {
-    //     let serialized = [0, 1, 2, 3];
-
-    //     let parse_result = parse_rtps_message(&serialized);
-
-    //     if let Err(RtpsMessageError::MessageTooSmall) = parse_result {
-    //         assert!(true);
-    //     } else {
-    //         assert!(false);
-    //     }
-    // }
-
-    // #[test]
-    // fn test_parse_unsupported_version_header() {
-    //     // Unsupported major version
-    //     let message_example = MessageHeader {
-    //         protocol_name: ['R', 'T', 'P', 'S'],
-    //         protocol_version: ProtocolVersion { major: 1, minor: 4 },
-    //         vendor_id: [100, 210],
-    //         guid_prefix: [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21],
-    //     };
-
-    //     let serialized =
-    //         cdr::ser::serialize_data::<_, _, BigEndian>(&message_example, Infinite).unwrap();
-
-    //     let parse_result = parse_rtps_message(&serialized);
-
-    //     if let Err(RtpsMessageError::RtpsMajorVersionUnsupported) = parse_result {
-    //         assert!(true);
-    //     } else {
-    //         assert!(false);
-    //     }
-
-    //     // Unsupported minor version
-    //     let message_example = MessageHeader {
-    //         protocol_name: ['R', 'T', 'P', 'S'],
-    //         protocol_version: ProtocolVersion { major: 2, minor: 5 },
-    //         vendor_id: [100, 210],
-    //         guid_prefix: [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21],
-    //     };
-
-    //     let serialized =
-    //         cdr::ser::serialize_data::<_, _, BigEndian>(&message_example, Infinite).unwrap();
-
-    //     let parse_result = parse_rtps_message(&serialized);
-
-    //     if let Err(RtpsMessageError::RtpsMinorVersionUnsupported) = parse_result {
-    //         assert!(true);
-    //     } else {
-    //         assert!(false);
-    //     }
-
-    //     // Unsupported major and minor version
-    //     let message_example = MessageHeader {
-    //         protocol_name: ['R', 'T', 'P', 'S'],
-    //         protocol_version: ProtocolVersion {
-    //             major: 3,
-    //             minor: 10,
-    //         },
-    //         vendor_id: [100, 210],
-    //         guid_prefix: [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21],
-    //     };
-
-    //     let serialized =
-    //         cdr::ser::serialize_data::<_, _, BigEndian>(&message_example, Infinite).unwrap();
-
-    //     let parse_result = parse_rtps_message(&serialized);
-
-    //     if let Err(RtpsMessageError::RtpsMajorVersionUnsupported) = parse_result {
-    //         assert!(true);
-    //     } else {
-    //         assert!(false);
-    //     }
-        
-    // }
-
-    // #[test]
-    // fn test_parse_different_rtps_messages() {
-    //     let rtps_message_info_ts_and_data = [
-    //         0x52, 0x54, 0x50, 0x53, 0x02, 0x01, 0x01, 0x02, 0x7f, 0x20, 0xf7, 0xd7, 0x00, 0x00,
-    //         0x01, 0xbb, 0x00, 0x00, 0x00, 0x01, 0x09, 0x01, 0x08, 0x00, 0x9e, 0x81, 0xbc, 0x5d,
-    //         0x97, 0xde, 0x48, 0x26, 0x15, 0x07, 0x1c, 0x01, 0x00, 0x00, 0x10, 0x00, 0x00, 0x00,
-    //         0x00, 0x00, 0x00, 0x01, 0x00, 0xc2, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,
-    //         0x70, 0x00, 0x10, 0x00, 0x7f, 0x20, 0xf7, 0xd7, 0x00, 0x00, 0x01, 0xbb, 0x00, 0x00,
-    //         0x00, 0x01, 0x00, 0x00, 0x01, 0xc1, 0x01, 0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00,
-    //         0x15, 0x00, 0x04, 0x00, 0x02, 0x01, 0x00, 0x00, 0x16, 0x00, 0x04, 0x00, 0x01, 0x02,
-    //         0x00, 0x00, 0x31, 0x00, 0x18, 0x00, 0x01, 0x00, 0x00, 0x00, 0xf3, 0x1c, 0x00, 0x00,
-    //         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xc0, 0xa8,
-    //         0x02, 0x04, 0x32, 0x00, 0x18, 0x00, 0x01, 0x00, 0x00, 0x00, 0xf2, 0x1c, 0x00, 0x00,
-    //         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xc0, 0xa8,
-    //         0x02, 0x04, 0x02, 0x00, 0x08, 0x00, 0x0b, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    //         0x50, 0x00, 0x10, 0x00, 0x7f, 0x20, 0xf7, 0xd7, 0x00, 0x00, 0x01, 0xbb, 0x00, 0x00,
-    //         0x00, 0x01, 0x00, 0x00, 0x01, 0xc1, 0x58, 0x00, 0x04, 0x00, 0x15, 0x04, 0x00, 0x00,
-    //         0x00, 0x80, 0x04, 0x00, 0x15, 0x00, 0x00, 0x00, 0x07, 0x80, 0x5c, 0x00, 0x00, 0x00,
-    //         0x00, 0x00, 0x2f, 0x00, 0x00, 0x00, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    //         0x50, 0x00, 0x00, 0x00, 0x42, 0x00, 0x00, 0x00, 0x44, 0x45, 0x53, 0x4b, 0x54, 0x4f,
-    //         0x50, 0x2d, 0x4f, 0x52, 0x46, 0x44, 0x4f, 0x53, 0x35, 0x2f, 0x36, 0x2e, 0x31, 0x30,
-    //         0x2e, 0x32, 0x2f, 0x63, 0x63, 0x36, 0x66, 0x62, 0x39, 0x61, 0x62, 0x33, 0x36, 0x2f,
-    //         0x39, 0x30, 0x37, 0x65, 0x66, 0x66, 0x30, 0x32, 0x65, 0x33, 0x2f, 0x22, 0x78, 0x38,
-    //         0x36, 0x5f, 0x36, 0x34, 0x2e, 0x77, 0x69, 0x6e, 0x2d, 0x76, 0x73, 0x32, 0x30, 0x31,
-    //         0x35, 0x22, 0x2f, 0x00, 0x00, 0x00, 0x25, 0x80, 0x0c, 0x00, 0xd7, 0xf7, 0x20, 0x7f,
-    //         0xbb, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,
-    //     ];
-
-    //     let parse_result = parse_rtps_message(&rtps_message_info_ts_and_data).unwrap();
-
-    //     assert_eq!(
-    //         parse_result.guid_prefix,
-    //         [0x7f, 0x20, 0xf7, 0xd7, 0x00, 0x00, 0x01, 0xbb, 0x00, 0x00, 0x00, 0x01,]
-    //     );
-    //     assert_eq!(parse_result.submessages.len(), 2);
-    //     if let RtpsSubmessage::InfoTs(ts_message) = &parse_result.submessages[0] {
-    //         assert_eq!(
-    //             *ts_message.get_timestamp(),
-    //             Some(Time {
-    //                 seconds: 1572635038,
-    //                 fraction: 642309783,
-    //             })
-    //         );
-    //     } else {
-    //         assert!(false);
-    //     }
-
-    //     if let RtpsSubmessage::Data(data_message) = &parse_result.submessages[1] {
-    //         assert_eq!(*data_message.reader_id(), EntityId::new([0, 0, 0], 0));
-    //         assert_eq!(*data_message.writer_id(), EntityId::new([0, 1, 0], 0xc2)); //ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER = {{00,01,00},c2}
-    //         assert_eq!(*data_message.writer_sn(), 1);
-    //         assert_eq!(
-    //             data_message.inline_qos().as_ref().unwrap()[0],
-    //             InlineQosParameter::KeyHash([
-    //                 127, 32, 247, 215, 0, 0, 1, 187, 0, 0, 0, 1, 0, 0, 1, 193
-    //             ])
-    //         );
-    //         assert_eq!(
-    //             *data_message.serialized_payload(),
-    //             Payload::Data(vec!(
-    //                 0, 3, 0, 0, 21, 0, 4, 0, 2, 1, 0, 0, 22, 0, 4, 0, 1, 2, 0, 0, 49, 0, 24, 0, 1,
-    //                 0, 0, 0, 243, 28, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 192, 168, 2, 4, 50,
-    //                 0, 24, 0, 1, 0, 0, 0, 242, 28, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 192,
-    //                 168, 2, 4, 2, 0, 8, 0, 11, 0, 0, 0, 0, 0, 0, 0, 80, 0, 16, 0, 127, 32, 247,
-    //                 215, 0, 0, 1, 187, 0, 0, 0, 1, 0, 0, 1, 193, 88, 0, 4, 0, 21, 4, 0, 0, 0, 128,
-    //                 4, 0, 21, 0, 0, 0, 7, 128, 92, 0, 0, 0, 0, 0, 47, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0,
-    //                 0, 80, 0, 0, 0, 66, 0, 0, 0, 68, 69, 83, 75, 84, 79, 80, 45, 79, 82, 70, 68,
-    //                 79, 83, 53, 47, 54, 46, 49, 48, 46, 50, 47, 99, 99, 54, 102, 98, 57, 97, 98,
-    //                 51, 54, 47, 57, 48, 55, 101, 102, 102, 48, 50, 101, 51, 47, 34, 120, 56, 54,
-    //                 95, 54, 52, 46, 119, 105, 110, 45, 118, 115, 50, 48, 49, 53, 34, 47, 0, 0, 0,
-    //                 37, 128, 12, 0, 215, 247, 32, 127, 187, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0
-    //             ))
-    //         );
-    //     } else {
-    //         assert!(false);
-    //     }
-    // }
 }
