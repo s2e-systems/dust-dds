@@ -1,7 +1,7 @@
 use std::convert::TryInto;
 use std::slice::Iter;
 use std::ops::Index;
-use std::collections::BTreeMap;
+use std::collections::BTreeSet;
 use std::io::Write;
 use std::time::SystemTime;
 use num_derive::FromPrimitive;
@@ -33,6 +33,59 @@ impl RtpsDeserialize for Ushort {
     }
 }
 
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Long(pub i32);
+
+impl RtpsSerialize for Long
+{
+    fn serialize(&self, writer: &mut impl std::io::Write, endianness: EndianessFlag) -> RtpsSerdesResult<()>{
+        writer.write(&PrimitiveSerdes::serialize_i32(self.0, endianness))?;
+        Ok(())
+    }
+}
+
+impl From<Long> for usize {
+    fn from(value: Long) -> Self {
+        value.0 as usize
+    }
+}
+
+impl RtpsDeserialize for Long {
+    fn deserialize(bytes: &[u8], endianness: EndianessFlag) -> RtpsSerdesResult<Self> { 
+        let value = PrimitiveSerdes::deserialize_i32(bytes[0..4].try_into()?, endianness);
+        Ok(Self(value))
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ULong(pub u32);
+
+impl RtpsSerialize for ULong {
+    fn serialize(&self, writer: &mut impl std::io::Write, endianness: EndianessFlag) -> RtpsSerdesResult<()> {
+        writer.write(&PrimitiveSerdes::serialize_u32(self.0, endianness))?;
+        Ok(())
+    }
+}
+
+impl From<ULong> for usize {
+    fn from(value: ULong) -> Self {
+        value.0 as usize
+    }
+}
+
+impl From<usize> for ULong {
+    fn from(value: usize) -> Self {
+        Self(value as u32)
+    }
+}
+
+impl RtpsDeserialize for ULong {
+    fn deserialize(bytes: &[u8], endianness: EndianessFlag) -> RtpsSerdesResult<Self> { 
+        let value = PrimitiveSerdes::deserialize_u32(bytes[0..4].try_into()?, endianness);
+        Ok(Self(value))
+    }
+}
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
 pub struct EntityKey(pub [u8;3]);
@@ -168,6 +221,97 @@ impl RtpsDeserialize for SequenceNumber {
         Ok(SequenceNumber(sequence_number))
     }
 }
+
+
+#[derive(PartialEq, Debug)]
+pub struct SequenceNumberSet{
+    base: SequenceNumber,
+    set: BTreeSet<SequenceNumber>,
+}
+
+impl RtpsSerialize for SequenceNumberSet {
+    fn serialize(&self, writer: &mut impl Write, endianness: EndianessFlag) -> RtpsSerdesResult<()> {
+        let num_bits = (self.set.iter().last().unwrap().0 - self.base.0) as usize;
+        let m = (num_bits + 31) / 32;
+        let mut bitmaps = vec![0_u32; m];
+        self.base.serialize(writer, endianness)?;
+        ULong::from(num_bits).serialize(writer, endianness)?;
+        for n in &self.set {
+            let delta_n = (n.0 - self.base.0) as usize;
+            let bitmap_n = delta_n / 32;
+            let bit = 1 << 31 - delta_n % 32;
+            bitmaps[bitmap_n] |= bit;
+        };
+        for bitmap in bitmaps {
+            ULong(bitmap).serialize(writer, endianness)?;
+        }
+        Ok(())
+    }
+}
+impl RtpsDeserialize for SequenceNumberSet {
+    fn deserialize(bytes: &[u8], endianness: EndianessFlag) -> RtpsSerdesResult<Self> {
+        todo!()
+    }    
+}
+
+#[test]
+fn serialize_sequence_number_set() {
+    let set = SequenceNumberSet{
+        base: SequenceNumber(3),
+        set: [SequenceNumber(3), SequenceNumber(4)].iter().cloned().collect()
+    };
+    let mut writer = Vec::new();
+    set.serialize(&mut writer, EndianessFlag::BigEndian).unwrap();
+    let expected = vec![
+        0, 0, 0, 0, // base
+        0, 0, 0, 3, // base
+        0, 0, 0, 1, // num bits
+        0b_11000000, 0b_00000000, 0b_00000000, 0b_00000000, 
+    ];
+    assert_eq!(expected, writer);
+
+
+    let set = SequenceNumberSet{
+        base: SequenceNumber(1),
+        set: [SequenceNumber(3), SequenceNumber(4)].iter().cloned().collect()
+    };
+    let mut writer = Vec::new();
+    set.serialize(&mut writer, EndianessFlag::LittleEndian).unwrap();
+    let expected = vec![
+        0, 0, 0, 0, // base
+        1, 0, 0, 0, // base
+        3, 0, 0, 0, // num bits
+        0b_00000000, 0b_00000000, 0b_00000000, 0b_00110000, 
+    ];
+    assert_eq!(expected, writer);
+
+    let mut writer = Vec::new();
+    set.serialize(&mut writer, EndianessFlag::BigEndian).unwrap();
+    let expected = vec![
+        0, 0, 0, 0, // base
+        0, 0, 0, 1, // base
+        0, 0, 0, 3, // num bits
+        0b_00110000, 0b_00000000, 0b_00000000, 0b_00000000,  
+    ];
+    assert_eq!(expected, writer);
+
+
+    let set = SequenceNumberSet{
+        base: SequenceNumber(1000),
+        set: [SequenceNumber(1001), SequenceNumber(1003), SequenceNumber(1032), SequenceNumber(1033)].iter().cloned().collect()
+    };
+    let mut writer = Vec::new();
+    set.serialize(&mut writer, EndianessFlag::BigEndian).unwrap();
+    let expected = vec![
+        0, 0, 0, 0, // base
+        0, 0, 3, 232, // base
+        0, 0, 0, 33, // num bits
+        0b_01010000, 0b_00000000, 0b_00000000, 0b_00000000, 
+        0b_11000000, 0b_00000000, 0b_00000000, 0b_00000000, 
+    ];
+    assert_eq!(expected, writer);
+}
+
 
 pub enum TopicKind {
     NoKey,
@@ -601,22 +745,6 @@ impl RtpsSerialize for GuidPrefix {
 
 pub type InstanceHandle = [u8; 16];
 pub type LocatorList = Vec<Locator>;
-
-
-#[derive(PartialEq, Debug)]
-pub struct SequenceNumberSet(pub BTreeMap<SequenceNumber, bool>);
-
-impl RtpsSerialize for SequenceNumberSet {
-    fn serialize(&self, writer: &mut impl Write, endianness: EndianessFlag) -> RtpsSerdesResult<()> {
-        todo!()
-    }
-}
-impl RtpsDeserialize for SequenceNumberSet {
-    fn deserialize(bytes: &[u8], endianness: EndianessFlag) -> RtpsSerdesResult<Self> {
-        todo!()
-    }    
-}
-
 
 pub type FragmentNumber = u32;
 pub type FragmentNumberSet = Vec<(FragmentNumber, bool)>;

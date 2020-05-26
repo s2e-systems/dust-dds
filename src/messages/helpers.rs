@@ -37,74 +37,74 @@ where
     }
 }
 
-pub fn parse_sequence_number_set(
-    submessage: &[u8],
-    sequence_number_set_first_index: &usize,
-    endianess_flag: &EndianessFlag,
-) -> RtpsMessageResult<(SequenceNumberSet, usize)> {
-    const SEQUENCE_NUMBER_TYPE_SIZE: usize = 8;
-    const NUM_BITS_TYPE_SIZE: usize = 4;
-    const BITMAP_FIELD_SIZE: usize = 4;
+// pub fn parse_sequence_number_set(
+//     submessage: &[u8],
+//     sequence_number_set_first_index: &usize,
+//     endianess_flag: &EndianessFlag,
+// ) -> RtpsMessageResult<(SequenceNumberSet, usize)> {
+//     const SEQUENCE_NUMBER_TYPE_SIZE: usize = 8;
+//     const NUM_BITS_TYPE_SIZE: usize = 4;
+//     const BITMAP_FIELD_SIZE: usize = 4;
 
-    let bitmap_base_first_index = *sequence_number_set_first_index;
-    let bitmap_base_last_index = bitmap_base_first_index + SEQUENCE_NUMBER_TYPE_SIZE - 1;
+//     let bitmap_base_first_index = *sequence_number_set_first_index;
+//     let bitmap_base_last_index = bitmap_base_first_index + SEQUENCE_NUMBER_TYPE_SIZE - 1;
 
-    let bitmap_base: i64 = deserialize::<SequenceNumberSerialization>(
-        submessage,
-        &bitmap_base_first_index,
-        &bitmap_base_last_index,
-        endianess_flag,
-    )?
-    .into();
-    if bitmap_base < 1 {
-        return Err(RtpsMessageError::InvalidSubmessage);
-    }
+//     let bitmap_base: i64 = deserialize::<SequenceNumberSerialization>(
+//         submessage,
+//         &bitmap_base_first_index,
+//         &bitmap_base_last_index,
+//         endianess_flag,
+//     )?
+//     .into();
+//     if bitmap_base < 1 {
+//         return Err(RtpsMessageError::InvalidSubmessage);
+//     }
 
-    let num_bits_first_index = bitmap_base_last_index + 1;
-    let num_bits_last_index = num_bits_first_index + NUM_BITS_TYPE_SIZE - 1;
+//     let num_bits_first_index = bitmap_base_last_index + 1;
+//     let num_bits_last_index = num_bits_first_index + NUM_BITS_TYPE_SIZE - 1;
 
-    let num_bits = deserialize::<u32>(
-        submessage,
-        &num_bits_first_index,
-        &num_bits_last_index,
-        &endianess_flag,
-    )?;
-    if num_bits < 1 || num_bits > 256 {
-        return Err(RtpsMessageError::InvalidSubmessage);
-    }
+//     let num_bits = deserialize::<u32>(
+//         submessage,
+//         &num_bits_first_index,
+//         &num_bits_last_index,
+//         &endianess_flag,
+//     )?;
+//     if num_bits < 1 || num_bits > 256 {
+//         return Err(RtpsMessageError::InvalidSubmessage);
+//     }
 
-    let num_bitmap_fields = ((num_bits + 31) >> 5) as usize;
+//     let num_bitmap_fields = ((num_bits + 31) >> 5) as usize;
 
-    let mut sequence_number_set = SequenceNumberSet::new();
+//     let mut sequence_number_set = SequenceNumberSet::new();
 
-    for bitmap_field_index in 0..num_bitmap_fields {
-        let field_first_index = num_bits_last_index + 1 + bitmap_field_index * BITMAP_FIELD_SIZE;
-        let field_last_index = field_first_index + BITMAP_FIELD_SIZE - 1;
-        let bitmap_field = deserialize::<u32>(
-            submessage,
-            &field_first_index,
-            &field_last_index,
-            &endianess_flag,
-        )?;
+//     for bitmap_field_index in 0..num_bitmap_fields {
+//         let field_first_index = num_bits_last_index + 1 + bitmap_field_index * BITMAP_FIELD_SIZE;
+//         let field_last_index = field_first_index + BITMAP_FIELD_SIZE - 1;
+//         let bitmap_field = deserialize::<u32>(
+//             submessage,
+//             &field_first_index,
+//             &field_last_index,
+//             &endianess_flag,
+//         )?;
 
-        let number_bits_in_field = cmp::min(
-            num_bits as usize - (BITMAP_FIELD_SIZE * 8) * bitmap_field_index,
-            32,
-        );
-        for sequence_number_index in 0..number_bits_in_field {
-            let sequence_number: i64 = bitmap_base
-                + (sequence_number_index + (BITMAP_FIELD_SIZE * 8) * bitmap_field_index) as i64;
-            let sequence_bit_mask = 1 << sequence_number_index;
-            let sequence_bit = (bitmap_field & sequence_bit_mask) == sequence_bit_mask;
-            sequence_number_set.insert(sequence_number, sequence_bit);
-        }
-    }
+//         let number_bits_in_field = cmp::min(
+//             num_bits as usize - (BITMAP_FIELD_SIZE * 8) * bitmap_field_index,
+//             32,
+//         );
+//         for sequence_number_index in 0..number_bits_in_field {
+//             let sequence_number: i64 = bitmap_base
+//                 + (sequence_number_index + (BITMAP_FIELD_SIZE * 8) * bitmap_field_index) as i64;
+//             let sequence_bit_mask = 1 << sequence_number_index;
+//             let sequence_bit = (bitmap_field & sequence_bit_mask) == sequence_bit_mask;
+//             sequence_number_set.insert(sequence_number, sequence_bit);
+//         }
+//     }
 
-    Ok((
-        sequence_number_set,
-        SEQUENCE_NUMBER_TYPE_SIZE + NUM_BITS_TYPE_SIZE + BITMAP_FIELD_SIZE * num_bitmap_fields,
-    ))
-}
+//     Ok((
+//         sequence_number_set,
+//         SEQUENCE_NUMBER_TYPE_SIZE + NUM_BITS_TYPE_SIZE + BITMAP_FIELD_SIZE * num_bitmap_fields,
+//     ))
+// }
 
 pub fn parse_inline_qos_parameter_list(
     submessage: &[u8],
