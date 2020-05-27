@@ -256,13 +256,18 @@ impl RtpsDeserialize for SequenceNumberSet {
     fn deserialize(bytes: &[u8], endianness: EndianessFlag) -> RtpsSerdesResult<Self> {
         let base = SequenceNumber::deserialize(&bytes[0..8], endianness)?;
         let num_bits = ULong::deserialize(&bytes[8..12], endianness)?.0 as usize;
+
+        // Get bitmaps from "long"s that follow the numBits field in the message
+        // Note that the amount of bitmaps that are included in the message are 
+        // determined by the number of bits (32 max per bitmap, and a max of 256 in 
+        // total which means max 8 bitmap "long"s)
         let m = (num_bits + 31) / 32;        
         let mut bitmaps = Vec::with_capacity(m);
         for i in 0..m {
             let index_of_byte_current_bitmap = 12 + i * 4;
             bitmaps.push(Long::deserialize(&bytes[index_of_byte_current_bitmap..], endianness)?.0);
         };
-        
+        // Interpet the bitmaps and insert the sequence numbers if they are encode in the bitmaps
         let mut set = BTreeSet::new(); 
         for delta_n in 0..num_bits {
             let bitmask = 1 << (31 - delta_n % 32);
@@ -276,7 +281,22 @@ impl RtpsDeserialize for SequenceNumberSet {
 }
 
 #[test]
-fn deserialize_sequence_number_set() {
+fn deserialize_sequence_number_set_empty() {
+    let expected = SequenceNumberSet{
+        base: SequenceNumber(3),
+        set: [].iter().cloned().collect()
+    };
+    let bytes = vec![
+        0, 0, 0, 0, // base
+        0, 0, 0, 3, // base
+        0, 0, 0, 0, // num bits
+    ];
+    let result = SequenceNumberSet::deserialize(&bytes, EndianessFlag::BigEndian).unwrap();
+    assert_eq!(expected, result);
+}
+
+#[test]
+fn deserialize_sequence_number_set_one_bitmap_be() {
     let expected = SequenceNumberSet{
         base: SequenceNumber(3),
         set: [SequenceNumber(3), SequenceNumber(4)].iter().cloned().collect()
@@ -289,8 +309,10 @@ fn deserialize_sequence_number_set() {
     ];
     let result = SequenceNumberSet::deserialize(&bytes, EndianessFlag::BigEndian).unwrap();
     assert_eq!(expected, result);
+}
 
-
+#[test]
+    fn deserialize_sequence_number_set_one_bitmap_le() {
     let expected = SequenceNumberSet{
         base: SequenceNumber(3),
         set: [SequenceNumber(3), SequenceNumber(4)].iter().cloned().collect()
@@ -304,6 +326,62 @@ fn deserialize_sequence_number_set() {
     let result = SequenceNumberSet::deserialize(&bytes, EndianessFlag::LittleEndian).unwrap();
     assert_eq!(expected, result);
 }
+
+#[test]
+fn deserialize_sequence_number_set_multiple_bitmaps() {
+    let expected = SequenceNumberSet{
+        base: SequenceNumber(1000),
+        set: [SequenceNumber(1001), SequenceNumber(1003), SequenceNumber(1032), SequenceNumber(1033)].iter().cloned().collect()
+    };
+    let bytes = vec![
+        0, 0, 0, 0, // base
+        0, 0, 3, 232, // base
+        0, 0, 0, 34, // num bits
+        0b_01010000, 0b_00000000, 0b_00000000, 0b_00000000, 
+        0b_11000000, 0b_00000000, 0b_00000000, 0b_00000000, 
+    ];
+    let result = SequenceNumberSet::deserialize(&bytes, EndianessFlag::LittleEndian).unwrap();
+    assert_eq!(expected, result);
+}
+
+#[test]
+fn deserialize_sequence_number_set_as_of_example_in_standard_be() {
+    // Example in standard "1234:/12:00110"
+    let bytes = [
+        0x00, 0x00, 0x00, 0x00, 
+        0x00, 0x00, 0x04, 0xD2, 
+        0x00, 0x00, 0x00, 0x0C, 
+        0x30, 0x00, 0x00, 0x00, 
+    ];
+    let set = SequenceNumberSet::deserialize(&bytes, EndianessFlag::BigEndian).unwrap().set;
+    assert!(!set.contains(&SequenceNumber(1234)));
+    assert!(!set.contains(&SequenceNumber(1235)));
+    assert!(set.contains(&SequenceNumber(1236)));
+    assert!(set.contains(&SequenceNumber(1237)));
+    for seq_num in 1238..1245 {
+        assert!(!set.contains(&SequenceNumber(seq_num)));
+    }
+}
+
+#[test]
+fn deserialize_sequence_number_set_as_of_example_in_standard_le() {
+    // Example in standard "1234:/12:00110"
+    let bytes = [
+        0x00, 0x00, 0x00, 0x00, 
+        0xD2, 0x04, 0x00, 0x00, 
+        0x0C, 0x00, 0x00, 0x00, 
+        0x00, 0x00, 0x00, 0x30, 
+    ];
+    let set = SequenceNumberSet::deserialize(&bytes, EndianessFlag::LittleEndian).unwrap().set;
+    assert!(!set.contains(&SequenceNumber(1234)));
+    assert!(!set.contains(&SequenceNumber(1235)));
+    assert!(set.contains(&SequenceNumber(1236)));
+    assert!(set.contains(&SequenceNumber(1237)));
+    for seq_num in 1238..1245 {
+        assert!(!set.contains(&SequenceNumber(seq_num)));
+    }
+}
+    
 
 #[test]
 fn serialize_sequence_number_set() {
