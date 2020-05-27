@@ -77,95 +77,37 @@ mod tests {
     use super::*;
     use crate::types::{EntityKey, EntityKind};
     
-    // #[test]
-    // fn test_serialize_gap_submessage_big_endian() {
-    //     let expected = vec![
-    //         0x08, 0b00000000, 0, 32, // Header 
-    //         0x10, 0x12, 0x14, 0x04, // readerId
-    //         0x26, 0x24, 0x22, 0x02, // writerId
-    //         0x00, 0x00, 0x00, 0x00, // gapStart
-    //         0x00, 0x00, 0x04, 0xD1, // gapStart
-    //         0x00, 0x00, 0x00, 0x00, // gapList 1
-    //         0x00, 0x00, 0x04, 0xD2, // gapList 1
-    //         0x00, 0x00, 0x00, 0x08, // gapList 2
-    //         0x00, 0x00, 0x00, 0x0C, // gapList 2
-    //     ];
-    //     let endianness_flag = EndianessFlag::BigEndian.into();
-    //     let reader_id = EntityId::new(EntityKey([0x10, 0x12, 0x14]), EntityKind::UserDefinedReaderWithKey);
-    //     let writer_id = EntityId::new(EntityKey([0x26, 0x24, 0x22]), EntityKind::UserDefinedWriterWithKey);
-    //     let gap_start = SequenceNumber(1233);
-    //     let gap_list = SequenceNumberSet([
-    //         (SequenceNumber(1234), false),
-    //         (SequenceNumber(1235), false),
-    //         (SequenceNumber(1236), true),
-    //         (SequenceNumber(1237), true),
-    //         (SequenceNumber(1238), false),
-    //         (SequenceNumber(1239), false),
-    //         (SequenceNumber(1240), false),
-    //         (SequenceNumber(1241), false)
-    //     ].iter().cloned().collect());
+    #[test]
+    fn test_serialize_gap_submessage_big_endian() {
+        let expected = vec![
+            0x08, 0b00000000, 0, 32, // Header 
+            0x10, 0x12, 0x14, 0x04, // readerId
+            0x26, 0x24, 0x22, 0x02, // writerId
+            0x00, 0x00, 0x00, 0x00, // gapStart
+            0x00, 0x00, 0x04, 0xB0, // gapStart
+            0x00, 0x00, 0x00, 0x00, // gapList base
+            0x00, 0x00, 0x04, 0xD2, // gapList base
+            0x00, 0x00, 0x00,    2, // gapList numBits
+            0b11000000, 0x00, 0x00, 0x00, // gapList bitmap
+        ];
+        let endianness_flag = EndianessFlag::BigEndian.into();
+        let reader_id = EntityId::new(EntityKey([0x10, 0x12, 0x14]), EntityKind::UserDefinedReaderWithKey);
+        let writer_id = EntityId::new(EntityKey([0x26, 0x24, 0x22]), EntityKind::UserDefinedWriterWithKey);
+        let gap_start = SequenceNumber(1200);
+        let gap_list = SequenceNumberSet::new([
+            SequenceNumber(1234),
+            SequenceNumber(1235),
+        ].iter().cloned().collect());
 
-    //     let message = Gap {
-    //         endianness_flag,
-    //         reader_id,
-    //         writer_id,
-    //         gap_start,
-    //         gap_list,
-    //     };
-    //     let mut writer = Vec::new();
-    //     message.compose(&mut writer).unwrap();
-    //     assert_eq!(expected, writer);        
-    // }
-
-//     #[test]
-//     fn test_parse_gap_submessage_little_endian() {
-//         let submessage_little_endian = [
-//             0x10, 0x12, 0x14, 0x16, 0x26, 0x24, 0x22, 0x20, 0x00, 0x00, 0x00, 0x00, 0xD1, 0x04,
-//             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xD2, 0x04, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00,
-//             0x0C, 0x00, 0x00, 0x00,
-//         ];
-
-//         let gap_little_endian = parse_gap_submessage(&submessage_little_endian, &1).unwrap();
-
-//         assert_eq!(
-//             gap_little_endian.reader_id,
-//             EntityId::new([0x10, 0x12, 0x14], 0x16)
-//         );
-//         assert_eq!(
-//             gap_little_endian.writer_id,
-//             EntityId::new([0x26, 0x24, 0x22], 0x20)
-//         );
-//         assert_eq!(gap_little_endian.gap_start, 1233);
-//         assert_eq!(gap_little_endian.gap_list.len(), 8);
-//         assert_eq!(
-//             gap_little_endian.gap_list,
-//             [
-//                 (1234, false),
-//                 (1235, false),
-//                 (1236, true),
-//                 (1237, true),
-//                 (1238, false),
-//                 (1239, false),
-//                 (1240, false),
-//                 (1241, false)
-//             ].iter().cloned().collect()
-//         );
-//     }
-
-//     #[test]
-//     fn test_parse_gap_submessage_invalid() {
-//         let submessage_big_endian = [
-//             0x10, 0x12, 0x14, 0x16, 0x26, 0x24, 0x22, 0x20, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00,
-//             0x04, 0xD1, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0xD2, 0x00, 0x00, 0x00, 0x08,
-//             0x00, 0x00, 0x00, 0x0C,
-//         ];
-
-//         let gap_big_endian = parse_gap_submessage(&submessage_big_endian, &0);
-
-//         if let Err(RtpsMessageError::InvalidSubmessage) = gap_big_endian {
-//             assert!(true);
-//         } else {
-//             assert!(false);
-//         }
-//     }
+        let message = Gap {
+            endianness_flag,
+            reader_id,
+            writer_id,
+            gap_start,
+            gap_list,
+        };
+        let mut writer = Vec::new();
+        message.compose(&mut writer).unwrap();
+        assert_eq!(expected, writer);        
+    }
 }
