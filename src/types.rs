@@ -229,6 +229,14 @@ pub struct SequenceNumberSet{
     set: BTreeSet<SequenceNumber>,
 }
 
+impl SequenceNumberSet {
+    pub fn new(set: BTreeSet<SequenceNumber>) -> Self { 
+        let base = *set.iter().next().unwrap_or(&SequenceNumber(0));
+        Self {base, set } 
+    }
+}
+
+
 impl RtpsSerialize for SequenceNumberSet {
     fn serialize(&self, writer: &mut impl Write, endianness: EndianessFlag) -> RtpsSerdesResult<()> {
         let num_bits = if self.set.is_empty() {
@@ -966,6 +974,16 @@ mod tests {
 
     ///////////////////////// SequenceNumberSet Tests ////////////////////////
 
+    #[test]
+    fn sequence_number_set_constructor() {
+        let expected = SequenceNumberSet{
+            base: SequenceNumber(1001),
+            set:  [SequenceNumber(1001), SequenceNumber(1003)].iter().cloned().collect(),
+        };
+        let result = SequenceNumberSet::new([SequenceNumber(1001), SequenceNumber(1003)].iter().cloned().collect());
+        assert_eq!(expected, result);
+    }
+    
     #[test]
     fn deserialize_sequence_number_set_empty() {
         let expected = SequenceNumberSet{
