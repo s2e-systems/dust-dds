@@ -78,7 +78,7 @@ mod tests {
     use crate::types::{EntityKey, EntityKind};
     
     #[test]
-    fn test_serialize_gap_submessage_big_endian() {
+    fn serialize_gap_submessage_big_endian() {
         let expected = vec![
             0x08, 0b00000000, 0, 32, // Header 
             0x10, 0x12, 0x14, 0x04, // readerId
@@ -109,5 +109,109 @@ mod tests {
         let mut writer = Vec::new();
         message.compose(&mut writer).unwrap();
         assert_eq!(expected, writer);        
+    }
+
+    #[test]
+    fn serialize_gap_submessage_little_endian() {
+        let expected = vec![
+            0x08, 0b00000001, 32, 0, // Header 
+            0x10, 0x12, 0x14, 0x04, // readerId
+            0x26, 0x24, 0x22, 0x02, // writerId
+            0x00, 0x00, 0x00, 0x00, // gapStart
+            0xB0, 0x04, 0x00, 0x00, // gapStart
+            0x00, 0x00, 0x00, 0x00, // gapList base
+            0xD2, 0x04, 0x00, 0x00, // gapList base
+               2, 0x00, 0x00, 0x00, // gapList numBits
+            0x00, 0x00, 0x00, 0b11000000, // gapList bitmap
+        ];
+        let endianness_flag = EndianessFlag::LittleEndian.into();
+        let reader_id = EntityId::new(EntityKey([0x10, 0x12, 0x14]), EntityKind::UserDefinedReaderWithKey);
+        let writer_id = EntityId::new(EntityKey([0x26, 0x24, 0x22]), EntityKind::UserDefinedWriterWithKey);
+        let gap_start = SequenceNumber(1200);
+        let gap_list = SequenceNumberSet::new([
+            SequenceNumber(1234),
+            SequenceNumber(1235),
+        ].iter().cloned().collect());
+
+        let message = Gap {
+            endianness_flag,
+            reader_id,
+            writer_id,
+            gap_start,
+            gap_list,
+        };
+        let mut writer = Vec::new();
+        message.compose(&mut writer).unwrap();
+        assert_eq!(expected, writer);        
+    }
+
+    #[test]
+    fn deserialize_gap_submessage_big_endian() {
+        let bytes = vec![
+            0x08, 0b00000000, 0, 32, // Header 
+            0x10, 0x12, 0x14, 0x04, // readerId
+            0x26, 0x24, 0x22, 0x02, // writerId
+            0x00, 0x00, 0x00, 0x00, // gapStart
+            0x00, 0x00, 0x04, 0xB0, // gapStart
+            0x00, 0x00, 0x00, 0x00, // gapList base
+            0x00, 0x00, 0x04, 0xD2, // gapList base
+            0x00, 0x00, 0x00,    2, // gapList numBits
+            0b11000000, 0x00, 0x00, 0x00, // gapList bitmap
+        ];
+
+        let endianness_flag = EndianessFlag::BigEndian.into();
+        let reader_id = EntityId::new(EntityKey([0x10, 0x12, 0x14]), EntityKind::UserDefinedReaderWithKey);
+        let writer_id = EntityId::new(EntityKey([0x26, 0x24, 0x22]), EntityKind::UserDefinedWriterWithKey);
+        let gap_start = SequenceNumber(1200);
+        let gap_list = SequenceNumberSet::new([
+            SequenceNumber(1234),
+            SequenceNumber(1235),
+        ].iter().cloned().collect());
+
+        let expected = Gap {
+            endianness_flag,
+            reader_id,
+            writer_id,
+            gap_start,
+            gap_list,
+        };
+
+        let result = Gap::parse(&bytes).unwrap();
+        assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn deserialize_gap_submessage_little_endian() {
+        let bytes = vec![
+            0x08, 0b00000001, 32, 0, // Header 
+            0x10, 0x12, 0x14, 0x04, // readerId
+            0x26, 0x24, 0x22, 0x02, // writerId
+            0x00, 0x00, 0x00, 0x00, // gapStart
+            0xB0, 0x04, 0x00, 0x00, // gapStart
+            0x00, 0x00, 0x00, 0x00, // gapList base
+            0xD2, 0x04, 0x00, 0x00, // gapList base
+               2, 0x00, 0x00, 0x00, // gapList numBits
+            0x00, 0x00, 0x00, 0b11000000, // gapList bitmap
+        ];
+
+        let endianness_flag = EndianessFlag::LittleEndian.into();
+        let reader_id = EntityId::new(EntityKey([0x10, 0x12, 0x14]), EntityKind::UserDefinedReaderWithKey);
+        let writer_id = EntityId::new(EntityKey([0x26, 0x24, 0x22]), EntityKind::UserDefinedWriterWithKey);
+        let gap_start = SequenceNumber(1200);
+        let gap_list = SequenceNumberSet::new([
+            SequenceNumber(1234),
+            SequenceNumber(1235),
+        ].iter().cloned().collect());
+
+        let expected = Gap {
+            endianness_flag,
+            reader_id,
+            writer_id,
+            gap_start,
+            gap_list,
+        };
+
+        let result = Gap::parse(&bytes).unwrap();
+        assert_eq!(expected, result);
     }
 }
