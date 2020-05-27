@@ -90,7 +90,7 @@ impl RtpsCompose for RtpsSubmessage {
 
 impl RtpsParse for RtpsSubmessage {
     fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> {
-        let submessage_id = SubmessageKind::parse(bytes)?;
+        let submessage_id = SubmessageKind::deserialize(bytes, EndianessFlag::LittleEndian /*irrelevant*/)?;
         match submessage_id {
             SubmessageKind::Data => Ok( RtpsSubmessage::Data(Data::parse(bytes)?) ),
             SubmessageKind::Pad => Err(RtpsSerdesError::InvalidSubmessageHeader),
@@ -126,27 +126,16 @@ pub enum SubmessageKind {
     DataFrag = 0x16,
 }
 
-impl RtpsSerialize for SubmessageKind
-{
+impl RtpsSerialize for SubmessageKind {
     fn serialize(&self, writer: &mut impl std::io::Write, _endianness: EndianessFlag) -> RtpsSerdesResult<()>{
         let submessage_kind_u8 = *self as u8;
         writer.write(&[submessage_kind_u8])?;
-
         Ok(())
     }
 }
 
-impl RtpsDeserialize for SubmessageKind
-{
+impl RtpsDeserialize for SubmessageKind {
     fn deserialize(bytes: &[u8], _endianness: EndianessFlag) -> RtpsSerdesResult<Self> { 
-        SizeCheckers::check_size_equal(bytes, 1 /*expected_size*/)?;
-        Ok(num::FromPrimitive::from_u8(bytes[0]).ok_or(RtpsSerdesError::InvalidEnumRepresentation)?)
-    }
-}
-
-impl RtpsParse for SubmessageKind {
-    fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> {
-        SizeCheckers::check_size_bigger_equal_than(bytes, 1)?;
         Ok(num::FromPrimitive::from_u8(bytes[0]).ok_or(RtpsSerdesError::InvalidEnumRepresentation)?)
     }
 }
@@ -196,8 +185,8 @@ impl RtpsSerialize for [SubmessageFlag; 8] {
     }
 }
 
-impl RtpsParse for [SubmessageFlag; 8] {
-    fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> { 
+impl RtpsDeserialize for [SubmessageFlag; 8] {
+    fn deserialize(bytes: &[u8], _endianness: EndianessFlag) -> RtpsSerdesResult<Self> { 
         // SizeCheckers::check_size_equal(bytes, 1)?;
         let flags: u8 = bytes[0];        
         let mut mask = 0b00000001_u8;
@@ -237,8 +226,8 @@ impl RtpsCompose for SubmessageHeader {
 
 impl RtpsParse for SubmessageHeader {
     fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> {   
-        let submessage_id = SubmessageKind::parse(&bytes[0..1])?;
-        let flags = <[SubmessageFlag; 8]>::parse(&bytes[1..2])?;
+        let submessage_id = SubmessageKind::deserialize(&bytes[0..1], EndianessFlag::LittleEndian /*irrelevant*/)?;
+        let flags = <[SubmessageFlag; 8]>::deserialize(&bytes[1..2], EndianessFlag::LittleEndian /*irrelevant*/)?;
         let endianness = EndianessFlag::from(flags[0].is_set());
         let submessage_length = Ushort::deserialize(&bytes[2..4], endianness)?;
         Ok(SubmessageHeader {
@@ -256,15 +245,15 @@ pub trait Submessage {
 #[derive(PartialEq, Debug)]
 struct ProtocolId([u8; 4]);
 
-impl RtpsCompose for ProtocolId {
-    fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
+impl RtpsSerialize for ProtocolId {
+    fn serialize(&self, writer: &mut impl std::io::Write, _endianness: EndianessFlag) -> RtpsSerdesResult<()> {
         writer.write(&self.0)?;
         Ok(())
     }    
 }
 
-impl RtpsParse for ProtocolId {
-    fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> {
+impl RtpsDeserialize for ProtocolId {
+    fn deserialize(bytes: &[u8], _endianness: EndianessFlag) -> RtpsSerdesResult<Self> {
         if bytes == PROTOCOL_RTPS.0 {
             Ok(ProtocolId(bytes[0..4].try_into()?))
         } else {
@@ -302,20 +291,20 @@ impl Header {
 
 impl RtpsCompose for Header {
     fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
-        &self.protocol.compose(writer)?;
-        &self.version.compose(writer)?;
-        &self.vendor_id.compose(writer)?;
-        &self.guid_prefix.compose(writer)?;
+        &self.protocol.serialize(writer, EndianessFlag::LittleEndian /*irrelevant*/)?;
+        &self.version.serialize(writer, EndianessFlag::LittleEndian /*irrelevant*/)?;
+        &self.vendor_id.serialize(writer, EndianessFlag::LittleEndian /*irrelevant*/)?;
+        &self.guid_prefix.serialize(writer, EndianessFlag::LittleEndian /*irrelevant*/)?;
         Ok(())
     }
 }
 
 impl RtpsParse for Header {
     fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> {
-        let protocol = ProtocolId::parse(&bytes[0..4])?;
-        let version = ProtocolVersion::parse(&bytes[4..6])?;
-        let vendor_id = VendorId::parse(&bytes[6..8])?;
-        let guid_prefix = GuidPrefix::parse(&bytes[8..20])?;
+        let protocol = ProtocolId::deserialize(&bytes[0..4], EndianessFlag::LittleEndian /*irrelevant*/)?;
+        let version = ProtocolVersion::deserialize(&bytes[4..6], EndianessFlag::LittleEndian /*irrelevant*/)?;
+        let vendor_id = VendorId::deserialize(&bytes[6..8], EndianessFlag::LittleEndian /*irrelevant*/)?;
+        let guid_prefix = GuidPrefix::deserialize(&bytes[8..20], EndianessFlag::LittleEndian /*irrelevant*/)?;
         Ok(Header {protocol, version, vendor_id, guid_prefix})
     }
 }
@@ -390,28 +379,28 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_parse_submessage_flags() {
+    fn test_deserialize_submessage_flags() {
         let f = SubmessageFlag(false);
         let t = SubmessageFlag(true);
 
         let expected: [SubmessageFlag; 8] = [t, f, f, f, f, f, f, f];
         let bytes = [0b00000001_u8];    
-        let result = <[SubmessageFlag; 8]>::parse(&bytes).unwrap();
+        let result = <[SubmessageFlag; 8]>::deserialize(&bytes, EndianessFlag::LittleEndian /*irrelevant*/).unwrap();
         assert_eq!(expected, result);
 
         let expected: [SubmessageFlag; 8] = [t, t, f, t, f, f, f, f];
         let bytes = [0b00001011_u8];    
-        let result = <[SubmessageFlag; 8]>::parse(&bytes).unwrap();
+        let result = <[SubmessageFlag; 8]>::deserialize(&bytes, EndianessFlag::LittleEndian /*irrelevant*/).unwrap();
         assert_eq!(expected, result);
 
         let expected: [SubmessageFlag; 8] = [t, t, t, t, t, t, t, t];
         let bytes = [0b11111111_u8];    
-        let result = <[SubmessageFlag; 8]>::parse(&bytes).unwrap();
+        let result = <[SubmessageFlag; 8]>::deserialize(&bytes, EndianessFlag::LittleEndian /*irrelevant*/).unwrap();
         assert_eq!(expected, result);
 
         let expected: [SubmessageFlag; 8] = [f, f, f, f, f, f, f, f];
         let bytes = [0b00000000_u8];    
-        let result = <[SubmessageFlag; 8]>::parse(&bytes).unwrap();
+        let result = <[SubmessageFlag; 8]>::deserialize(&bytes, EndianessFlag::LittleEndian /*irrelevant*/).unwrap();
         assert_eq!(expected, result);
     }
 
@@ -423,48 +412,48 @@ mod tests {
 
         writer.clear();
         let flags: [SubmessageFlag; 8] = [t, f, f, f, f, f, f, f];
-        flags.serialize(&mut writer, EndianessFlag::LittleEndian).unwrap();
+        flags.serialize(&mut writer, EndianessFlag::LittleEndian /*irrelevant*/).unwrap();
         assert_eq!(writer, vec![0b00000001]);
         
         writer.clear();
         let flags: [SubmessageFlag; 8] = [f; 8];
-        flags.serialize(&mut writer, EndianessFlag::LittleEndian).unwrap();
+        flags.serialize(&mut writer, EndianessFlag::LittleEndian /*irrelevant*/).unwrap();
         assert_eq!(writer, vec![0b00000000]);
         
         writer.clear();
         let flags: [SubmessageFlag; 8] = [t; 8];
-        flags.serialize(&mut writer, EndianessFlag::LittleEndian).unwrap();
+        flags.serialize(&mut writer, EndianessFlag::LittleEndian /*irrelevant*/).unwrap();
         assert_eq!(writer, vec![0b11111111]);
         
         writer.clear();
         let flags: [SubmessageFlag; 8] = [f, t, f, f, t, t, f, t];
-        flags.serialize(&mut writer, EndianessFlag::LittleEndian).unwrap();
+        flags.serialize(&mut writer, EndianessFlag::LittleEndian /*irrelevant*/).unwrap();
         assert_eq!(writer, vec![0b10110010]);
     }
 
         
     #[test]
-    fn test_compose_protocol_id() {
+    fn test_serialize_protocol_id() {
         let mut writer = Vec::new();
-        PROTOCOL_RTPS.compose(&mut writer).unwrap();
+        PROTOCOL_RTPS.serialize(&mut writer, EndianessFlag::LittleEndian /*irrelevant*/).unwrap();
         assert_eq!(writer, vec![0x52, 0x54, 0x50, 0x53]);
     }
 
     #[test]
-    fn test_parse_protocol_id() {
+    fn test_deserialize_protocol_id() {
         let expected = ProtocolId([b'R', b'T', b'P', b'S']);
         let bytes = [0x52_u8, 0x54, 0x50, 0x53];    
-        let result = ProtocolId::parse(&bytes).unwrap();
+        let result = ProtocolId::deserialize(&bytes, EndianessFlag::LittleEndian /*irrelevant*/).unwrap();
         assert_eq!(expected, result);
     }
 
     #[test]
-    fn test_parse_invalid_protocol_id() {
+    fn test_deserialize_invalid_protocol_id() {
         let bytes = [0x52_u8, 0x54, 0x50, 0x99];    
-        assert!(ProtocolId::parse(&bytes).is_err());
+        assert!(ProtocolId::deserialize(&bytes, EndianessFlag::LittleEndian /*irrelevant*/).is_err());
 
         let bytes = [0x52_u8];    
-        assert!(ProtocolId::parse(&bytes).is_err());
+        assert!(ProtocolId::deserialize(&bytes, EndianessFlag::LittleEndian /*irrelevant*/).is_err());
     }
 
     #[test]
