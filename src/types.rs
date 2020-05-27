@@ -280,166 +280,6 @@ impl RtpsDeserialize for SequenceNumberSet {
     }    
 }
 
-#[test]
-fn deserialize_sequence_number_set_empty() {
-    let expected = SequenceNumberSet{
-        base: SequenceNumber(3),
-        set: [].iter().cloned().collect()
-    };
-    let bytes = vec![
-        0, 0, 0, 0, // base
-        0, 0, 0, 3, // base
-        0, 0, 0, 0, // num bits
-    ];
-    let result = SequenceNumberSet::deserialize(&bytes, EndianessFlag::BigEndian).unwrap();
-    assert_eq!(expected, result);
-}
-
-#[test]
-fn deserialize_sequence_number_set_one_bitmap_be() {
-    let expected = SequenceNumberSet{
-        base: SequenceNumber(3),
-        set: [SequenceNumber(3), SequenceNumber(4)].iter().cloned().collect()
-    };
-    let bytes = vec![
-        0, 0, 0, 0, // base
-        0, 0, 0, 3, // base
-        0, 0, 0, 2, // num bits
-        0b_11000000, 0b_00000000, 0b_00000000, 0b_00000000, 
-    ];
-    let result = SequenceNumberSet::deserialize(&bytes, EndianessFlag::BigEndian).unwrap();
-    assert_eq!(expected, result);
-}
-
-#[test]
-    fn deserialize_sequence_number_set_one_bitmap_le() {
-    let expected = SequenceNumberSet{
-        base: SequenceNumber(3),
-        set: [SequenceNumber(3), SequenceNumber(4)].iter().cloned().collect()
-    };
-    let bytes = vec![
-        0, 0, 0, 0, // base
-        3, 0, 0, 0, // base
-        2, 0, 0, 0, // num bits
-        0b_00000000, 0b_00000000, 0b_00000000, 0b_11000000, 
-    ];
-    let result = SequenceNumberSet::deserialize(&bytes, EndianessFlag::LittleEndian).unwrap();
-    assert_eq!(expected, result);
-}
-
-#[test]
-fn deserialize_sequence_number_set_multiple_bitmaps() {
-    let expected = SequenceNumberSet{
-        base: SequenceNumber(1000),
-        set: [SequenceNumber(1001), SequenceNumber(1003), SequenceNumber(1032), SequenceNumber(1033)].iter().cloned().collect()
-    };
-    let bytes = vec![
-        0, 0, 0, 0, // base
-        0, 0, 3, 232, // base
-        0, 0, 0, 34, // num bits
-        0b_01010000, 0b_00000000, 0b_00000000, 0b_00000000, 
-        0b_11000000, 0b_00000000, 0b_00000000, 0b_00000000, 
-    ];
-    let result = SequenceNumberSet::deserialize(&bytes, EndianessFlag::LittleEndian).unwrap();
-    assert_eq!(expected, result);
-}
-
-#[test]
-fn deserialize_sequence_number_set_as_of_example_in_standard_be() {
-    // Example in standard "1234:/12:00110"
-    let bytes = [
-        0x00, 0x00, 0x00, 0x00, 
-        0x00, 0x00, 0x04, 0xD2, 
-        0x00, 0x00, 0x00, 0x0C, 
-        0x30, 0x00, 0x00, 0x00, 
-    ];
-    let set = SequenceNumberSet::deserialize(&bytes, EndianessFlag::BigEndian).unwrap().set;
-    assert!(!set.contains(&SequenceNumber(1234)));
-    assert!(!set.contains(&SequenceNumber(1235)));
-    assert!(set.contains(&SequenceNumber(1236)));
-    assert!(set.contains(&SequenceNumber(1237)));
-    for seq_num in 1238..1245 {
-        assert!(!set.contains(&SequenceNumber(seq_num)));
-    }
-}
-
-#[test]
-fn deserialize_sequence_number_set_as_of_example_in_standard_le() {
-    // Example in standard "1234:/12:00110"
-    let bytes = [
-        0x00, 0x00, 0x00, 0x00, 
-        0xD2, 0x04, 0x00, 0x00, 
-        0x0C, 0x00, 0x00, 0x00, 
-        0x00, 0x00, 0x00, 0x30, 
-    ];
-    let set = SequenceNumberSet::deserialize(&bytes, EndianessFlag::LittleEndian).unwrap().set;
-    assert!(!set.contains(&SequenceNumber(1234)));
-    assert!(!set.contains(&SequenceNumber(1235)));
-    assert!(set.contains(&SequenceNumber(1236)));
-    assert!(set.contains(&SequenceNumber(1237)));
-    for seq_num in 1238..1245 {
-        assert!(!set.contains(&SequenceNumber(seq_num)));
-    }
-}
-    
-
-#[test]
-fn serialize_sequence_number_set() {
-    let set = SequenceNumberSet{
-        base: SequenceNumber(3),
-        set: [SequenceNumber(3), SequenceNumber(4)].iter().cloned().collect()
-    };
-    let mut writer = Vec::new();
-    set.serialize(&mut writer, EndianessFlag::BigEndian).unwrap();
-    let expected = vec![
-        0, 0, 0, 0, // base
-        0, 0, 0, 3, // base
-        0, 0, 0, 2, // num bits
-        0b_11000000, 0b_00000000, 0b_00000000, 0b_00000000, 
-    ];
-    assert_eq!(expected, writer);
-
-
-    let set = SequenceNumberSet{
-        base: SequenceNumber(1),
-        set: [SequenceNumber(3), SequenceNumber(4)].iter().cloned().collect()
-    };
-    let mut writer = Vec::new();
-    set.serialize(&mut writer, EndianessFlag::LittleEndian).unwrap();
-    let expected = vec![
-        0, 0, 0, 0, // base
-        1, 0, 0, 0, // base
-        4, 0, 0, 0, // num bits
-        0b_00000000, 0b_00000000, 0b_00000000, 0b_00110000, 
-    ];
-    assert_eq!(expected, writer);
-
-    let mut writer = Vec::new();
-    set.serialize(&mut writer, EndianessFlag::BigEndian).unwrap();
-    let expected = vec![
-        0, 0, 0, 0, // base
-        0, 0, 0, 1, // base
-        0, 0, 0, 4, // num bits
-        0b_00110000, 0b_00000000, 0b_00000000, 0b_00000000,  
-    ];
-    assert_eq!(expected, writer);
-
-
-    let set = SequenceNumberSet{
-        base: SequenceNumber(1000),
-        set: [SequenceNumber(1001), SequenceNumber(1003), SequenceNumber(1032), SequenceNumber(1033)].iter().cloned().collect()
-    };
-    let mut writer = Vec::new();
-    set.serialize(&mut writer, EndianessFlag::BigEndian).unwrap();
-    let expected = vec![
-        0, 0, 0, 0, // base
-        0, 0, 3, 232, // base
-        0, 0, 0, 34, // num bits
-        0b_01010000, 0b_00000000, 0b_00000000, 0b_00000000, 
-        0b_11000000, 0b_00000000, 0b_00000000, 0b_00000000, 
-    ];
-    assert_eq!(expected, writer);
-}
 
 
 pub enum TopicKind {
@@ -1123,6 +963,171 @@ mod tests {
             _ => assert!(false),
         };
     }
+
+    ///////////////////////// SequenceNumberSet Tests ////////////////////////
+
+    #[test]
+    fn deserialize_sequence_number_set_empty() {
+        let expected = SequenceNumberSet{
+            base: SequenceNumber(3),
+            set: [].iter().cloned().collect()
+        };
+        let bytes = vec![
+            0, 0, 0, 0, // base
+            0, 0, 0, 3, // base
+            0, 0, 0, 0, // num bits
+        ];
+        let result = SequenceNumberSet::deserialize(&bytes, EndianessFlag::BigEndian).unwrap();
+        assert_eq!(expected, result);
+    }
+    
+    #[test]
+    fn deserialize_sequence_number_set_one_bitmap_be() {
+        let expected = SequenceNumberSet{
+            base: SequenceNumber(3),
+            set: [SequenceNumber(3), SequenceNumber(4)].iter().cloned().collect()
+        };
+        let bytes = vec![
+            0, 0, 0, 0, // base
+            0, 0, 0, 3, // base
+            0, 0, 0, 2, // num bits
+            0b_11000000, 0b_00000000, 0b_00000000, 0b_00000000, 
+        ];
+        let result = SequenceNumberSet::deserialize(&bytes, EndianessFlag::BigEndian).unwrap();
+        assert_eq!(expected, result);
+    }
+    
+    #[test]
+        fn deserialize_sequence_number_set_one_bitmap_le() {
+        let expected = SequenceNumberSet{
+            base: SequenceNumber(3),
+            set: [SequenceNumber(3), SequenceNumber(4)].iter().cloned().collect()
+        };
+        let bytes = vec![
+            0, 0, 0, 0, // base
+            3, 0, 0, 0, // base
+            2, 0, 0, 0, // num bits
+            0b_00000000, 0b_00000000, 0b_00000000, 0b_11000000, 
+        ];
+        let result = SequenceNumberSet::deserialize(&bytes, EndianessFlag::LittleEndian).unwrap();
+        assert_eq!(expected, result);
+    }
+    
+    #[test]
+    fn deserialize_sequence_number_set_multiple_bitmaps() {
+        let expected = SequenceNumberSet{
+            base: SequenceNumber(1000),
+            set: [SequenceNumber(1001), SequenceNumber(1003), SequenceNumber(1032), SequenceNumber(1033)].iter().cloned().collect()
+        };
+        let bytes = vec![
+            0, 0, 0, 0, // base
+            0, 0, 3, 232, // base
+            0, 0, 0, 34, // num bits
+            0b_01010000, 0b_00000000, 0b_00000000, 0b_00000000, 
+            0b_11000000, 0b_00000000, 0b_00000000, 0b_00000000, 
+        ];
+        let result = SequenceNumberSet::deserialize(&bytes, EndianessFlag::LittleEndian).unwrap();
+        assert_eq!(expected, result);
+    }
+    
+    #[test]
+    fn deserialize_sequence_number_set_as_of_example_in_standard_be() {
+        // Example in standard "1234:/12:00110"
+        let bytes = [
+            0x00, 0x00, 0x00, 0x00, 
+            0x00, 0x00, 0x04, 0xD2, 
+            0x00, 0x00, 0x00, 0x0C, 
+            0x30, 0x00, 0x00, 0x00, 
+        ];
+        let set = SequenceNumberSet::deserialize(&bytes, EndianessFlag::BigEndian).unwrap().set;
+        assert!(!set.contains(&SequenceNumber(1234)));
+        assert!(!set.contains(&SequenceNumber(1235)));
+        assert!(set.contains(&SequenceNumber(1236)));
+        assert!(set.contains(&SequenceNumber(1237)));
+        for seq_num in 1238..1245 {
+            assert!(!set.contains(&SequenceNumber(seq_num)));
+        }
+    }
+    
+    #[test]
+    fn deserialize_sequence_number_set_as_of_example_in_standard_le() {
+        // Example in standard "1234:/12:00110"
+        let bytes = [
+            0x00, 0x00, 0x00, 0x00, 
+            0xD2, 0x04, 0x00, 0x00, 
+            0x0C, 0x00, 0x00, 0x00, 
+            0x00, 0x00, 0x00, 0x30, 
+        ];
+        let set = SequenceNumberSet::deserialize(&bytes, EndianessFlag::LittleEndian).unwrap().set;
+        assert!(!set.contains(&SequenceNumber(1234)));
+        assert!(!set.contains(&SequenceNumber(1235)));
+        assert!(set.contains(&SequenceNumber(1236)));
+        assert!(set.contains(&SequenceNumber(1237)));
+        for seq_num in 1238..1245 {
+            assert!(!set.contains(&SequenceNumber(seq_num)));
+        }
+    }
+        
+    
+    #[test]
+    fn serialize_sequence_number_set() {
+        let set = SequenceNumberSet{
+            base: SequenceNumber(3),
+            set: [SequenceNumber(3), SequenceNumber(4)].iter().cloned().collect()
+        };
+        let mut writer = Vec::new();
+        set.serialize(&mut writer, EndianessFlag::BigEndian).unwrap();
+        let expected = vec![
+            0, 0, 0, 0, // base
+            0, 0, 0, 3, // base
+            0, 0, 0, 2, // num bits
+            0b_11000000, 0b_00000000, 0b_00000000, 0b_00000000, 
+        ];
+        assert_eq!(expected, writer);
+    
+    
+        let set = SequenceNumberSet{
+            base: SequenceNumber(1),
+            set: [SequenceNumber(3), SequenceNumber(4)].iter().cloned().collect()
+        };
+        let mut writer = Vec::new();
+        set.serialize(&mut writer, EndianessFlag::LittleEndian).unwrap();
+        let expected = vec![
+            0, 0, 0, 0, // base
+            1, 0, 0, 0, // base
+            4, 0, 0, 0, // num bits
+            0b_00000000, 0b_00000000, 0b_00000000, 0b_00110000, 
+        ];
+        assert_eq!(expected, writer);
+    
+        let mut writer = Vec::new();
+        set.serialize(&mut writer, EndianessFlag::BigEndian).unwrap();
+        let expected = vec![
+            0, 0, 0, 0, // base
+            0, 0, 0, 1, // base
+            0, 0, 0, 4, // num bits
+            0b_00110000, 0b_00000000, 0b_00000000, 0b_00000000,  
+        ];
+        assert_eq!(expected, writer);
+    
+    
+        let set = SequenceNumberSet{
+            base: SequenceNumber(1000),
+            set: [SequenceNumber(1001), SequenceNumber(1003), SequenceNumber(1032), SequenceNumber(1033)].iter().cloned().collect()
+        };
+        let mut writer = Vec::new();
+        set.serialize(&mut writer, EndianessFlag::BigEndian).unwrap();
+        let expected = vec![
+            0, 0, 0, 0, // base
+            0, 0, 3, 232, // base
+            0, 0, 0, 34, // num bits
+            0b_01010000, 0b_00000000, 0b_00000000, 0b_00000000, 
+            0b_11000000, 0b_00000000, 0b_00000000, 0b_00000000, 
+        ];
+        assert_eq!(expected, writer);
+    }
+
+    ///////////////////////// BuiltInEndPointSet Tests ////////////////////////
 
     #[test]
     fn test_builtin_endpoint_set_participant_announcer() {
