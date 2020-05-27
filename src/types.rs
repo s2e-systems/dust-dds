@@ -231,16 +231,20 @@ pub struct SequenceNumberSet{
 
 impl RtpsSerialize for SequenceNumberSet {
     fn serialize(&self, writer: &mut impl Write, endianness: EndianessFlag) -> RtpsSerdesResult<()> {
-        let num_bits = (self.set.iter().last().unwrap().0 - self.base.0) as usize;
+        let num_bits = if self.set.is_empty() {
+            0 
+        } else {
+            (self.set.iter().last().unwrap().0 - self.base.0) as usize + 1
+        };
         let m = (num_bits + 31) / 32;
         let mut bitmaps = vec![0_u32; m];
         self.base.serialize(writer, endianness)?;
         ULong::from(num_bits).serialize(writer, endianness)?;
-        for n in &self.set {
-            let delta_n = (n.0 - self.base.0) as usize;
-            let bitmap_n = delta_n / 32;
-            let bit = 1 << 31 - delta_n % 32;
-            bitmaps[bitmap_n] |= bit;
+        for seq_num in &self.set {
+            let delta_n = (seq_num.0 - self.base.0) as usize;
+            let bitmap_i = delta_n / 32;
+            let bitmask = 1 << (31 - delta_n % 32);
+            bitmaps[bitmap_i] |= bitmask;
         };
         for bitmap in bitmaps {
             ULong(bitmap).serialize(writer, endianness)?;
@@ -250,8 +254,55 @@ impl RtpsSerialize for SequenceNumberSet {
 }
 impl RtpsDeserialize for SequenceNumberSet {
     fn deserialize(bytes: &[u8], endianness: EndianessFlag) -> RtpsSerdesResult<Self> {
-        todo!()
+        let base = SequenceNumber::deserialize(&bytes[0..8], endianness)?;
+        let num_bits = ULong::deserialize(&bytes[8..12], endianness)?.0 as usize;
+        let m = (num_bits + 31) / 32;        
+        let mut bitmaps = Vec::with_capacity(m);
+        for i in 0..m {
+            let index_of_byte_current_bitmap = 12 + i * 4;
+            bitmaps.push(Long::deserialize(&bytes[index_of_byte_current_bitmap..], endianness)?.0);
+        };
+        
+        let mut set = BTreeSet::new(); 
+        for delta_n in 0..num_bits {
+            let bitmask = 1 << (31 - delta_n % 32);
+            if  bitmaps[delta_n / 32] & bitmask == bitmask {               
+                let seq_num = SequenceNumber(delta_n as i64 + base.0);
+                set.insert(seq_num);
+            }
+        }
+        Ok(Self {base, set})
     }    
+}
+
+#[test]
+fn deserialize_sequence_number_set() {
+    let expected = SequenceNumberSet{
+        base: SequenceNumber(3),
+        set: [SequenceNumber(3), SequenceNumber(4)].iter().cloned().collect()
+    };
+    let bytes = vec![
+        0, 0, 0, 0, // base
+        0, 0, 0, 3, // base
+        0, 0, 0, 2, // num bits
+        0b_11000000, 0b_00000000, 0b_00000000, 0b_00000000, 
+    ];
+    let result = SequenceNumberSet::deserialize(&bytes, EndianessFlag::BigEndian).unwrap();
+    assert_eq!(expected, result);
+
+
+    let expected = SequenceNumberSet{
+        base: SequenceNumber(3),
+        set: [SequenceNumber(3), SequenceNumber(4)].iter().cloned().collect()
+    };
+    let bytes = vec![
+        0, 0, 0, 0, // base
+        3, 0, 0, 0, // base
+        2, 0, 0, 0, // num bits
+        0b_00000000, 0b_00000000, 0b_00000000, 0b_11000000, 
+    ];
+    let result = SequenceNumberSet::deserialize(&bytes, EndianessFlag::LittleEndian).unwrap();
+    assert_eq!(expected, result);
 }
 
 #[test]
@@ -265,7 +316,7 @@ fn serialize_sequence_number_set() {
     let expected = vec![
         0, 0, 0, 0, // base
         0, 0, 0, 3, // base
-        0, 0, 0, 1, // num bits
+        0, 0, 0, 2, // num bits
         0b_11000000, 0b_00000000, 0b_00000000, 0b_00000000, 
     ];
     assert_eq!(expected, writer);
@@ -280,7 +331,7 @@ fn serialize_sequence_number_set() {
     let expected = vec![
         0, 0, 0, 0, // base
         1, 0, 0, 0, // base
-        3, 0, 0, 0, // num bits
+        4, 0, 0, 0, // num bits
         0b_00000000, 0b_00000000, 0b_00000000, 0b_00110000, 
     ];
     assert_eq!(expected, writer);
@@ -290,7 +341,7 @@ fn serialize_sequence_number_set() {
     let expected = vec![
         0, 0, 0, 0, // base
         0, 0, 0, 1, // base
-        0, 0, 0, 3, // num bits
+        0, 0, 0, 4, // num bits
         0b_00110000, 0b_00000000, 0b_00000000, 0b_00000000,  
     ];
     assert_eq!(expected, writer);
@@ -305,7 +356,7 @@ fn serialize_sequence_number_set() {
     let expected = vec![
         0, 0, 0, 0, // base
         0, 0, 3, 232, // base
-        0, 0, 0, 33, // num bits
+        0, 0, 0, 34, // num bits
         0b_01010000, 0b_00000000, 0b_00000000, 0b_00000000, 
         0b_11000000, 0b_00000000, 0b_00000000, 0b_00000000, 
     ];
