@@ -104,13 +104,11 @@ fn test_stateless_writer_stateless_reader_serialized_communication_integration()
    writer.history_cache().add_change(cache_change_seq1.clone());
    writer.history_cache().add_change(cache_change_seq2.clone());
 
-   let writer_data = writer.get_data_to_send(locator);
-
+   let writer_message = writer.get_data_to_send(locator);
    let mut buf  = Vec::new();
-   writer_data.compose(&mut buf).unwrap();
-   println!("Sending: {:?}", buf);
+   writer_message.compose(&mut buf).unwrap();
+  
    let received_message = RtpsMessage::parse(&buf).unwrap();
-
    reader.process_message(&received_message);
 
    let reader_changes = reader.history_cache().get_changes();

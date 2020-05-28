@@ -598,8 +598,11 @@ mod tests {
     }
 
     #[test]
-    fn test_compose_message_two_data_submessages() {
-        let submessage1 = RtpsSubmessage::Data ( Data::new(
+    fn test_compose_message_three_data_submessages() {
+        let test_time = Time::new(1565525425, 269558339);
+        let submessage1 = RtpsSubmessage::InfoTs ( InfoTs::new(Some(test_time), EndianessFlag::LittleEndian)
+        );
+        let submessage2 = RtpsSubmessage::Data ( Data::new(
             EndianessFlag::LittleEndian, 
             constants::ENTITYID_UNKNOWN, 
             constants::ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, 
@@ -608,7 +611,7 @@ mod tests {
             Payload::None
             )
         );
-        let submessage2 = RtpsSubmessage::Data ( Data::new(
+        let submessage3 = RtpsSubmessage::Data ( Data::new(
             EndianessFlag::LittleEndian, 
             constants::ENTITYID_UNKNOWN, 
             constants::ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, 
@@ -624,7 +627,7 @@ mod tests {
                     vendor_id: VendorId([1, 2]),
                     guid_prefix: GuidPrefix([127, 32, 247, 215, 0, 0, 1, 187, 0, 0, 0, 1]),
                 },
-                submessages : vec![submessage1, submessage2],                
+                submessages : vec![submessage1, submessage2, submessage3],                
         };
 
         let expected = vec![
@@ -633,6 +636,9 @@ mod tests {
             0x7f, 0x20, 0xf7, 0xd7, //008 guidPrefix: GuidPrefix_t => 127, 32, 247, 215
             0x00, 0x00, 0x01, 0xbb, //012 guidPrefix: GuidPrefix_t => 0, 0, 1, 187
             0x00, 0x00, 0x00, 0x01, //016 guidPrefix: GuidPrefix_t => 0, 0, 0, 1
+            0x09, 0x01, 0x08, 0x00,  // [Info Timestamp] Submessgae Header
+            0xB1, 0x05, 0x50, 0x5D, // [Info Timestamp]
+            0x43, 0x22, 0x11, 0x10, // [Info Timestamp]
             0x15_u8, 0b00000001, 20, 0x0, // Submessgae Header
             0x00, 0x00,  16, 0x0, // ExtraFlags, octetsToInlineQos (liitle indian)
             0x00, 0x00, 0x00, 0x00, // [Data Submessage] EntityId readerId => ENTITYID_UNKNOWN
@@ -746,7 +752,10 @@ mod tests {
 
     #[test]
     fn test_parse_message_two_data_submessages() {
-        let submessage1 = RtpsSubmessage::Data ( Data::new(
+        let test_time = Time::new(1565525425, 269558339);
+        let submessage1 = RtpsSubmessage::InfoTs ( InfoTs::new(Some(test_time), EndianessFlag::LittleEndian)
+        );
+        let submessage2 = RtpsSubmessage::Data ( Data::new(
             EndianessFlag::LittleEndian, 
             constants::ENTITYID_UNKNOWN, 
             constants::ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, 
@@ -755,7 +764,7 @@ mod tests {
             Payload::None
             )
         );
-        let submessage2 = RtpsSubmessage::Data ( Data::new(
+        let submessage3 = RtpsSubmessage::Data ( Data::new(
             EndianessFlag::LittleEndian, 
             constants::ENTITYID_UNKNOWN, 
             constants::ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, 
@@ -771,22 +780,25 @@ mod tests {
                     vendor_id: VendorId([1, 2]),
                     guid_prefix: GuidPrefix([127, 32, 247, 215, 0, 0, 1, 187, 0, 0, 0, 1]),
                 },
-                submessages : vec![submessage1, submessage2],                
+                submessages : vec![submessage1, submessage2, submessage3],                
         };
 
         let bytes = [
-            0x52, 0x54, 0x50, 0x53, //000 protocol: ProtocolId_t => 'R', 'T', 'P', 'S',
-            0x02, 0x01, 0x01, 0x02, //004 version: ProtocolVersion_t => 2.1 | vendorId: VendorId_t => 1,2
-            0x7f, 0x20, 0xf7, 0xd7, //008 guidPrefix: GuidPrefix_t => 127, 32, 247, 215
-            0x00, 0x00, 0x01, 0xbb, //012 guidPrefix: GuidPrefix_t => 0, 0, 1, 187
-            0x00, 0x00, 0x00, 0x01, //016 guidPrefix: GuidPrefix_t => 0, 0, 0, 1
-            0x15, 0b00000001, 20, 0x0, // Submessgae Header
+            0x52, 0x54, 0x50, 0x53, // protocol: ProtocolId_t => 'R', 'T', 'P', 'S',
+            0x02, 0x01, 0x01, 0x02, // version: ProtocolVersion_t => 2.1 | vendorId: VendorId_t => 1,2
+            0x7f, 0x20, 0xf7, 0xd7, // guidPrefix: GuidPrefix_t => 127, 32, 247, 215
+            0x00, 0x00, 0x01, 0xbb, // guidPrefix: GuidPrefix_t => 0, 0, 1, 187
+            0x00, 0x00, 0x00, 0x01, // guidPrefix: GuidPrefix_t => 0, 0, 0, 1
+            0x09, 0x01, 0x08, 0x00,  // [Info Timestamp] Submessgae Header
+            0xB1, 0x05, 0x50, 0x5D, // [Info Timestamp]
+            0x43, 0x22, 0x11, 0x10, // [Info Timestamp]
+            0x15, 0b00000001, 20, 0x0, // [Data Submessage] Submessgae Header
             0x00, 0x00,  16, 0x0,   // [Data Submessage] ExtraFlags, octetsToInlineQos (liitle indian)
             0x00, 0x00, 0x00, 0x00, // [Data Submessage] EntityId readerId => ENTITYID_UNKNOWN
             0x00, 0x01, 0x00, 0xc2, // [Data Submessage] EntityId writerId
             0x00, 0x00, 0x00, 0x00, // [Data Submessage] SequenceNumber writerSN
             0x01, 0x00, 0x00, 0x00, // [Data Submessage] SequenceNumber writerSN => 1
-            0x15, 0b00000001, 20, 0x0, // Submessgae Header
+            0x15, 0b00000001, 20, 0x0, // [Data Submessage] Submessgae Header
             0x00, 0x00,  16, 0x0,   // [Data Submessage] ExtraFlags, octetsToInlineQos (liitle indian)
             0x00, 0x00, 0x00, 0x00, // [Data Submessage] EntityId readerId => ENTITYID_UNKNOWN
             0x00, 0x01, 0x00, 0xc2, // [Data Submessage] EntityId writerId

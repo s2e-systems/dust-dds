@@ -178,9 +178,10 @@ impl RtpsParse for Data {
         } else {
             0
         };
+        let end_of_submessage = usize::from(header.submessage_length()) + header.octets();
         let serialized_payload = if data_flag.is_set() || key_flag.is_set() || non_standard_payload_flag.is_set() {
             let octets_to_serialized_payload = octets_to_inline_qos + inline_qos_octets;
-            SerializedPayload::deserialize(&bytes[octets_to_serialized_payload..], endianness).ok()
+            SerializedPayload::deserialize(&bytes[octets_to_serialized_payload..end_of_submessage], endianness).ok()
         } else {
             None
         };
@@ -299,7 +300,7 @@ mod tests {
         let mut inline_qos = InlineQosParameterList::new();
         inline_qos.push(InlineQosParameter::KeyHash(KeyHash::new([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16])));
         
-        let serialized_payload = SerializedPayload(vec![1_u8, 2, 3, 4]);
+        let serialized_payload = SerializedPayload(vec![1_u8, 2, 3]);
 
         let data = Data {
             endianness_flag: SubmessageFlag(true),
@@ -314,7 +315,7 @@ mod tests {
             serialized_payload: Some(serialized_payload), 
         };
         let expected = vec![
-            0x15_u8, 0b00000111, 48, 0x0, // Submessgae Header
+            0x15_u8, 0b00000111, 47, 0x0, // Submessgae Header
             0x00, 0x00,  16, 0x0, // ExtraFlags, octetsToInlineQos (liitle indian)
             0x00, 0x00, 0x00, 0x00, // [Data Submessage] EntityId readerId => ENTITYID_UNKNOWN
             0x00, 0x01, 0x00, 0xc2, // [Data Submessage] EntityId writerId
@@ -326,7 +327,7 @@ mod tests {
             9, 10, 11, 12,          // [Inline QoS] Key hash
             13, 14, 15, 16,         // [Inline QoS] Key hash
             0x01, 0x00, 0x00, 0x00, // [Inline QoS] PID_SENTINEL
-            1, 2, 3, 4,             // [Serialized Payload]
+            1, 2, 3,             // [Serialized Payload]
         ];
         let mut result = Vec::new();
         data.compose(&mut result).unwrap();
@@ -394,7 +395,7 @@ mod tests {
         let mut inline_qos = InlineQosParameterList::new();
         inline_qos.push(InlineQosParameter::KeyHash(KeyHash::new([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16])));
         
-        let serialized_payload = SerializedPayload(vec![1_u8, 2, 3, 4]);
+        let serialized_payload = SerializedPayload(vec![1_u8, 2, 3]);
 
         let expected = Data {
             endianness_flag: SubmessageFlag(true),
@@ -409,7 +410,7 @@ mod tests {
             serialized_payload: Some(serialized_payload), 
         };
         let bytes = vec![
-            0x15_u8, 0b00001011, 48, 0x0, // Submessgae Header
+            0x15_u8, 0b00001011, 47, 0x0, // Submessgae Header
             0x00, 0x00,  16, 0x0, // ExtraFlags, octetsToInlineQos (liitle indian)
             0x00, 0x00, 0x00, 0x00, // [Data Submessage] EntityId readerId => ENTITYID_UNKNOWN
             0x00, 0x01, 0x00, 0xc2, // [Data Submessage] EntityId writerId
@@ -421,7 +422,8 @@ mod tests {
             9, 10, 11, 12,          // [Inline QoS] Key hash
             13, 14, 15, 16,         // [Inline QoS] Key hash
             0x01, 0x00, 0x00, 0x00, // [Inline QoS] PID_SENTINEL
-            1, 2, 3, 4,             // [Serialized Payload]
+            1, 2, 3,              // [Serialized Payload]            
+            99, 99, 99, 99          // Rubbish Data
         ];
         let result = Data::parse(&bytes).unwrap();
         assert_eq!(expected, result);
