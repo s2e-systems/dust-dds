@@ -1003,6 +1003,16 @@ mod tests {
         let result = SequenceNumberSet::new([SequenceNumber(1001), SequenceNumber(1003)].iter().cloned().collect());
         assert_eq!(expected, result);
     }
+
+    #[test]
+    fn sequence_number_set_constructor_empty_set() {        
+        let expected = SequenceNumberSet{
+            base: SequenceNumber(0),
+            set:  [].iter().cloned().collect(),
+        };
+        let result = SequenceNumberSet::new([].iter().cloned().collect());
+        assert_eq!(expected, result);
+    }
     
     #[test]
     fn deserialize_sequence_number_set_empty() {
@@ -1064,10 +1074,56 @@ mod tests {
             0b_01010000, 0b_00000000, 0b_00000000, 0b_00000000, 
             0b_11000000, 0b_00000000, 0b_00000000, 0b_00000000, 
         ];
-        let result = SequenceNumberSet::deserialize(&bytes, EndianessFlag::LittleEndian).unwrap();
+        let result = SequenceNumberSet::deserialize(&bytes, EndianessFlag::BigEndian).unwrap();
         assert_eq!(expected, result);
     }
     
+    #[test]
+    fn deserialize_sequence_number_max_bitmaps_big_endian() {
+        let expected = SequenceNumberSet{
+            base: SequenceNumber(1000),
+            set: [SequenceNumber(1000), SequenceNumber(1255)].iter().cloned().collect()
+        };
+        let bytes = vec![
+            0, 0, 0, 0, // base
+            0, 0, 0x03, 0xE8, // base
+            0, 0, 0x01, 0x00, // num bits
+            0b_10000000, 0b_00000000, 0b_00000000, 0b_00000000, 
+            0b_00000000, 0b_00000000, 0b_00000000, 0b_00000000, 
+            0b_00000000, 0b_00000000, 0b_00000000, 0b_00000000,
+            0b_00000000, 0b_00000000, 0b_00000000, 0b_00000000,
+            0b_00000000, 0b_00000000, 0b_00000000, 0b_00000000,
+            0b_00000000, 0b_00000000, 0b_00000000, 0b_00000000,
+            0b_00000000, 0b_00000000, 0b_00000000, 0b_00000000,
+            0b_00000000, 0b_00000000, 0b_00000000, 0b_00000001,
+        ];
+        let result = SequenceNumberSet::deserialize(&bytes, EndianessFlag::BigEndian).unwrap();
+        assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn deserialize_sequence_number_max_bitmaps_little_endian() {
+        let expected = SequenceNumberSet{
+            base: SequenceNumber(1000),
+            set: [SequenceNumber(1000), SequenceNumber(1255)].iter().cloned().collect()
+        };
+        let bytes = vec![
+            0, 0, 0, 0, // base
+            0xE8, 0x03, 0, 0, // base
+            0x00, 0x01, 0, 0, // num bits
+            0b_00000000, 0b_00000000, 0b_00000000, 0b_10000000, 
+            0b_00000000, 0b_00000000, 0b_00000000, 0b_00000000, 
+            0b_00000000, 0b_00000000, 0b_00000000, 0b_00000000,
+            0b_00000000, 0b_00000000, 0b_00000000, 0b_00000000,
+            0b_00000000, 0b_00000000, 0b_00000000, 0b_00000000,
+            0b_00000000, 0b_00000000, 0b_00000000, 0b_00000000,
+            0b_00000000, 0b_00000000, 0b_00000000, 0b_00000000,
+            0b_00000001, 0b_00000000, 0b_00000000, 0b_00000000, 
+        ];
+        let result = SequenceNumberSet::deserialize(&bytes, EndianessFlag::LittleEndian).unwrap();
+        assert_eq!(expected, result);
+    }
+
     #[test]
     fn deserialize_sequence_number_set_as_of_example_in_standard_be() {
         // Example in standard "1234:/12:00110"
