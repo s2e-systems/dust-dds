@@ -51,10 +51,10 @@ impl StatelessReader {
 
     pub fn process_message(&mut self, msg: &RtpsMessage) {
 
-        let guid_prefix = *msg.get_guid_prefix();
+        let guid_prefix = *msg.header().guid_prefix();
         let mut _source_time = None;
 
-        for submessage in msg.get_submessages().iter() {
+        for submessage in msg.submessages().iter() {
             if let RtpsSubmessage::Data(data) = submessage {
                 // Check if the message is for this reader and process it if that is the case
                 if data.reader_id() == &ENTITYID_UNKNOWN {
@@ -82,7 +82,7 @@ mod tests {
     use super::*;
     use crate::types::*;
     use crate::types::constants::*;
-    use crate::messages::{Data, Payload};
+    use crate::messages::{Data, Payload, Header};
     use crate::serdes::EndianessFlag;
 
     #[test]
@@ -96,7 +96,7 @@ mod tests {
             Payload::Data(SerializedPayload(vec![0,1,2])),
         );
 
-        let mut message = RtpsMessage::new(GuidPrefix([2;12]) /*guid_prefix*/,  VENDOR_ID /*vendor_id*/, PROTOCOL_VERSION_2_4, /*protocol_version*/);
+        let mut message = RtpsMessage::new(Header::new(GuidPrefix([2;12])), Vec::new());
 
         message.push(RtpsSubmessage::Data(data1));
 
