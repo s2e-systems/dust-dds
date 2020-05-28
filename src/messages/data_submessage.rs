@@ -97,6 +97,22 @@ impl Data {
         //TODO: It is a problem for the outer world to know what this payload represents
         &self.serialized_payload
     }
+
+    pub fn inline_qos(&self) -> &Option<InlineQosParameterList> {
+        &self.inline_qos
+    }
+    
+    pub fn data_flag(&self) -> bool {
+        self.data_flag.is_set()
+    }
+
+    pub fn key_flag(&self) -> bool {
+        self.key_flag.is_set()
+    }
+
+    pub fn non_standard_payload_flag(&self) -> bool {
+        self.non_standard_payload_flag.is_set()
+    }
 }
 
 impl Submessage for Data {
