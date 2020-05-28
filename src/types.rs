@@ -1,4 +1,4 @@
-use std::convert::TryInto;
+use std::convert::{TryInto, TryFrom, From};
 use std::slice::Iter;
 use std::ops::Index;
 use std::collections::BTreeSet;
@@ -401,16 +401,52 @@ impl RtpsSerialize for KeyHash
 
 }
 
-#[derive(Debug, PartialEq, Clone, Eq)]
-pub struct StatusInfo([u8;4]);
+#[derive(Debug, PartialEq, Clone, Copy, Eq)]
+pub struct StatusInfo(pub [u8;4]);
 
 impl StatusInfo {
-    pub fn new(value: [u8;4]) -> Self {
-        StatusInfo(value)
+    pub fn disposed_flag(&self) -> bool {
+        const DISPOSED_FLAG_MASK : u8 = 0x80;
+        self.0[3] & DISPOSED_FLAG_MASK == DISPOSED_FLAG_MASK
     }
 
-    pub fn get_value(&self) -> &[u8;4] {
-        &self.0
+    pub fn unregistered_flag(&self) -> bool {
+        const UNREGISTERED_FLAG_MASK : u8 = 0x40;
+        self.0[3] & UNREGISTERED_FLAG_MASK == UNREGISTERED_FLAG_MASK
+    }
+
+    pub fn filtered_flag(&self) -> bool {
+        const FILTERED_FLAG_MASK : u8 = 0x20;
+        self.0[3] & FILTERED_FLAG_MASK == FILTERED_FLAG_MASK
+    }
+}
+
+impl TryFrom<StatusInfo> for ChangeKind {
+    type Error = &'static str;
+
+    fn try_from(status_info: StatusInfo) -> Result<Self, Self::Error> {
+        if status_info.disposed_flag() && !status_info.unregistered_flag() && !status_info.filtered_flag() {
+            Ok(ChangeKind::NotAliveDisposed)
+        } else if !status_info.disposed_flag() && status_info.unregistered_flag() && !status_info.filtered_flag() {
+            Ok(ChangeKind::NotAliveUnregistered)
+        } else if !status_info.disposed_flag() && !status_info.unregistered_flag() && status_info.filtered_flag() {
+                Ok(ChangeKind::AliveFiltered)
+        } else if !status_info.disposed_flag() && !status_info.unregistered_flag() && !status_info.filtered_flag() {
+                Ok(ChangeKind::Alive)
+        } else {
+            Err("Combination should not occur")
+        }
+    }
+}
+
+impl From<ChangeKind> for StatusInfo {
+    fn from(change_kind: ChangeKind) -> Self {
+        match change_kind {
+            ChangeKind::Alive => StatusInfo([0,0,0,0]),
+            ChangeKind::NotAliveDisposed => StatusInfo([0,0,0,0x80]),
+            ChangeKind::NotAliveUnregistered => StatusInfo([0,0,0,0x40]),
+            ChangeKind::AliveFiltered => StatusInfo([0,0,0,0x20]),
+        }
     }
 }
 
@@ -421,8 +457,12 @@ impl RtpsSerialize for StatusInfo
 
         Ok(())
     }
+}
 
-
+impl RtpsDeserialize for StatusInfo {
+    fn deserialize(bytes: &[u8], _endianness: EndianessFlag) -> RtpsSerdesResult<Self> {
+        Ok(StatusInfo(bytes[0..3].try_into()?))
+    }
 }
 
 pub trait Parameter
@@ -1258,6 +1298,17 @@ mod tests {
         let partial_list = ParameterList(vec![SampleParameter::Parameter1]);
         assert_eq!(partial_list.find_parameter(SampleParameter::Parameter2.parameter_id()), None);
     }
+
+     ///////////////////////// StatusInfo Tests ////////////////////////
+     #[test]
+     fn test_status_info_change_kind_conversions() {
+        assert_eq!(ChangeKind::try_from(StatusInfo::from(ChangeKind::Alive)).unwrap(), ChangeKind::Alive);
+        assert_eq!(ChangeKind::try_from(StatusInfo::from(ChangeKind::AliveFiltered)).unwrap(), ChangeKind::AliveFiltered);
+        assert_eq!(ChangeKind::try_from(StatusInfo::from(ChangeKind::NotAliveUnregistered)).unwrap(), ChangeKind::NotAliveUnregistered);
+        assert_eq!(ChangeKind::try_from(StatusInfo::from(ChangeKind::NotAliveDisposed)).unwrap(), ChangeKind::NotAliveDisposed);
+     }
+
+
 
     ///////////////////////// BuiltInEndPointSet Tests ////////////////////////
 

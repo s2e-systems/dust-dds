@@ -41,12 +41,8 @@ impl Parameter for InlineQosParameter {
 
     fn new_from(parameter_id: u16, value: &[u8]) -> Option<Self> {
         match parameter_id {
-            0x0070 => {
-                Some(InlineQosParameter::KeyHash(KeyHash::new(value.try_into().ok()?)))
-            }
-            0x0071 => {
-                Some(InlineQosParameter::StatusInfo(StatusInfo::new(value.try_into().ok()?)))
-            }
+            0x0070 => Some(InlineQosParameter::KeyHash(KeyHash::new(value.try_into().ok()?))),
+            0x0071 => Some(InlineQosParameter::StatusInfo(StatusInfo(value.try_into().ok()?))),
             _ => None,
         }
     }
@@ -61,7 +57,7 @@ impl Parameter for InlineQosParameter {
     fn value(&self) -> &[u8] {
         match self {
             InlineQosParameter::KeyHash(key_hash) => key_hash.get_value(),
-            InlineQosParameter::StatusInfo(status_info) => status_info.get_value(),
+            InlineQosParameter::StatusInfo(status_info) => &status_info.0,
         }
     }
 

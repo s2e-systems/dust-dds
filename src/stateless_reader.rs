@@ -1,7 +1,9 @@
+use std::convert::TryFrom;
 use crate::cache::{HistoryCache, CacheChange};
-use crate::types::{Duration, LocatorList, ReliabilityKind, TopicKind, GUID, ChangeKind};
+use crate::types::{Duration, LocatorList, ReliabilityKind, TopicKind, GUID, ChangeKind, StatusInfo, Parameter};
 use crate::types::constants::ENTITYID_UNKNOWN;
 use crate::messages::{RtpsMessage, RtpsSubmessage};
+use crate::inline_qos::InlineQosParameter;
 
 pub struct StatelessReader {
     // Heartbeats are not relevant to stateless readers (only to readers),
@@ -58,13 +60,27 @@ impl StatelessReader {
             if let RtpsSubmessage::Data(data) = submessage {
                 // Check if the message is for this reader and process it if that is the case
                 if data.reader_id() == &ENTITYID_UNKNOWN {
+                    let change_kind = if data.data_flag() && !data.key_flag() {
+                        ChangeKind::Alive
+                    } else if !data.data_flag() && data.key_flag() {
+                        let status_info_qos_parameter = data.inline_qos().as_ref().unwrap().find_parameter(InlineQosParameter::StatusInfo(StatusInfo([0;4])).parameter_id()).unwrap();
+                        if let InlineQosParameter::StatusInfo(status_info) = status_info_qos_parameter {
+                            ChangeKind::try_from(*status_info).unwrap()
+                        } else {
+                            panic!("Status info not present");
+                        }
+                    }
+                    else {
+                        panic!("Combination should not occur");
+                    };
+                    
                     let cache_change = CacheChange::new(
-                        ChangeKind::Alive, /*change_kind*/
-                        GUID::new(guid_prefix /*prefix*/, *data.writer_id() /* entity_id*/) /*writer_guid*/,
-                        [0;16], /*instance_handle*/ /*TODO: *data.key_hash() */
-                        *data.writer_sn(), /*sequence_number*/
-                        None, /* inline_qos*/
-                        None, /*data*/
+                        change_kind,
+                        GUID::new(guid_prefix, *data.writer_id() ),
+                        [0;16],/*TODO: *data.key_hash() */
+                        *data.writer_sn(),
+                        None,
+                        None,
                     );
 
                     self.reader_cache.add_change(cache_change);
