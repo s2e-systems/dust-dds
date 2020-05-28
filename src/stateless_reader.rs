@@ -4,8 +4,10 @@ use crate::types::constants::ENTITYID_UNKNOWN;
 use crate::messages::{RtpsMessage, RtpsSubmessage};
 
 pub struct StatelessReader {
-    heartbeat_response_delay: Duration,
-    heartbeat_suppression_duration: Duration,
+    // Heartbeats are not relevant to stateless readers (only to readers),
+    // hence the heartbeat_ members are not included here
+    // heartbeat_response_delay: Duration,
+    // heartbeat_suppression_duration: Duration,
     reader_cache: HistoryCache,
     expects_inline_qos: bool,
     // Enpoint members:
@@ -22,24 +24,22 @@ pub struct StatelessReader {
 }
 
 impl StatelessReader {
+
     pub fn new(
         guid: GUID,
         topic_kind: TopicKind,
         reliability_level: ReliabilityKind,
         unicast_locator_list: LocatorList,
         multicast_locator_list: LocatorList,
-        heartbeat_response_delay: Duration,
-        heartbeat_suppression_duration: Duration,
         expects_inline_qos: bool,
     ) -> Self {
+        assert!(reliability_level == ReliabilityKind::BestEffort);
         StatelessReader {
             guid,
             topic_kind,
             reliability_level,
             unicast_locator_list,
             multicast_locator_list,
-            heartbeat_response_delay,
-            heartbeat_suppression_duration,
             reader_cache: HistoryCache::new(),
             expects_inline_qos,
         }
