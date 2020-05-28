@@ -613,6 +613,14 @@ impl RtpsSerialize for ProtocolVersion {
     }
 }
 
+impl RtpsDeserialize for ProtocolVersion {
+    fn deserialize(bytes: &[u8], _endianness: EndianessFlag) -> RtpsSerdesResult<Self> {
+        let major = bytes[0];
+        let minor = bytes[1];
+        Ok(ProtocolVersion{major, minor})
+    }
+}
+
 #[derive(PartialEq, Hash, Eq, Debug, Copy, Clone)]
 pub struct Locator {
     pub kind: i32,
@@ -708,14 +716,26 @@ impl RtpsSerialize for VendorId {
     }
 }
 
+impl RtpsDeserialize for VendorId {
+    fn deserialize(bytes: &[u8], _endianness: EndianessFlag) -> RtpsSerdesResult<Self> {
+        Ok(VendorId(bytes[0..2].try_into()?))
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
-pub struct GuidPrefix(pub[u8; 12]);
+pub struct GuidPrefix(pub [u8; 12]);
 
 impl RtpsSerialize for GuidPrefix {
     fn serialize(&self, writer: &mut impl std::io::Write, _endianness: EndianessFlag) -> RtpsSerdesResult<()> {
         writer.write(&self.0)?;
         Ok(())
     }
+}
+
+impl RtpsDeserialize for GuidPrefix {
+    fn deserialize(bytes: &[u8], _endianness: EndianessFlag) -> RtpsSerdesResult<Self> {
+        Ok(GuidPrefix(bytes[0..12].try_into()?))
+    }    
 }
 
 

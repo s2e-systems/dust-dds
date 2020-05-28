@@ -2,9 +2,9 @@ use std::collections::{HashMap, HashSet};
 
 use crate::cache::{CacheChange, HistoryCache};
 use crate::inline_qos::InlineQosParameterList;
-use crate::messages::{Data, InfoTs, Payload, RtpsMessage, RtpsSubmessage};
+use crate::messages::{Data, InfoTs, Payload, RtpsMessage, RtpsSubmessage, Header};
 use crate::serdes::EndianessFlag;
-use crate::types::constants::{ENTITYID_UNKNOWN, PROTOCOL_VERSION_2_4, VENDOR_ID};
+use crate::types::constants::{ENTITYID_UNKNOWN};
 use crate::types::{
     ChangeKind, Duration, InstanceHandle, Locator, LocatorList, ReliabilityKind, SequenceNumber,
     SerializedPayload, Time, TopicKind, GUID,
@@ -172,7 +172,9 @@ impl StatelessWriter {
     }
 
     pub fn get_data_to_send(&mut self, a_locator: Locator) -> RtpsMessage {
-        let mut message = RtpsMessage::new(*self.guid.prefix(), VENDOR_ID, PROTOCOL_VERSION_2_4);
+        let mut message = RtpsMessage::new(
+            Header::new(*self.guid.prefix()), 
+            Vec::new() );
 
         if self.has_unsent_changes(a_locator) {
             let time = Time::now();
@@ -362,13 +364,13 @@ mod tests {
         writer.history_cache().add_change(cache_change_seq2);
 
         let writer_data = writer.get_data_to_send(locator);
-        assert_eq!(writer_data.get_submessages().len(), 3);
-        if let RtpsSubmessage::InfoTs(message_1) = &writer_data.get_submessages()[0] {
+        assert_eq!(writer_data.submessages().len(), 3);
+        if let RtpsSubmessage::InfoTs(message_1) = &writer_data.submessages()[0] {
             println!("{:?}", message_1);
         } else {
             panic!("Wrong message type");
         }
-        if let RtpsSubmessage::Data(data_message_1) = &writer_data.get_submessages()[1] {
+        if let RtpsSubmessage::Data(data_message_1) = &writer_data.submessages()[1] {
             assert_eq!(data_message_1.reader_id(), &ENTITYID_UNKNOWN);
             assert_eq!(data_message_1.writer_id(), &ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER);
             assert_eq!(data_message_1.writer_sn(), &SequenceNumber(1));
@@ -378,7 +380,7 @@ mod tests {
             panic!("Wrong message type");
         };
 
-        if let RtpsSubmessage::Data(data_message_2) = &writer_data.get_submessages()[2] {
+        if let RtpsSubmessage::Data(data_message_2) = &writer_data.submessages()[2] {
             assert_eq!(data_message_2.reader_id(), &ENTITYID_UNKNOWN);
             assert_eq!(data_message_2.writer_id(), &ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER);
             assert_eq!(data_message_2.writer_sn(), &SequenceNumber(2));
@@ -389,6 +391,6 @@ mod tests {
 
         // Test that nothing more is sent after the first time
         let writer_data = writer.get_data_to_send(locator);
-        assert_eq!(writer_data.get_submessages().len(), 0);
+        assert_eq!(writer_data.submessages().len(), 0);
     }
 }
