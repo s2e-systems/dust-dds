@@ -463,6 +463,10 @@ impl<T: Parameter> ParameterList<T> {
         self.0.push(value);
     }
 
+    pub fn find_parameter(&self, id: u16) -> Option<&T> {
+        self.0.iter().find(|&value| value.parameter_id() == id)
+    }
+
     pub fn is_valid(&self) -> bool {
         todo!()
     }
@@ -1219,6 +1223,40 @@ mod tests {
             0b_11000000, 0b_00000000, 0b_00000000, 0b_00000000, 
         ];
         assert_eq!(expected, writer);
+    }
+
+    
+    ///////////////////////// Parameter List Tests ////////////////////////
+    #[test]
+    fn test_paramter_list_find() {
+        #[derive(Debug,PartialEq)]
+        enum SampleParameter {
+            Parameter1,
+            Parameter2,
+        }
+
+        impl Parameter for SampleParameter {
+            fn new_from(_parameter_id: u16, _value: &[u8]) -> Option<Self> {
+                unimplemented!()
+            }
+
+            fn parameter_id(&self) -> u16 {
+                match self {
+                    SampleParameter::Parameter1 => 0x0070,
+                    SampleParameter::Parameter2 => 0x0071,
+                }
+            }
+
+            fn value(&self) -> &[u8] {
+                unimplemented!()
+            }
+        }
+
+        let complete_list = ParameterList(vec![SampleParameter::Parameter1, SampleParameter::Parameter2]);
+        assert_eq!(complete_list.find_parameter(SampleParameter::Parameter1.parameter_id()), Some(&SampleParameter::Parameter1));
+
+        let partial_list = ParameterList(vec![SampleParameter::Parameter1]);
+        assert_eq!(partial_list.find_parameter(SampleParameter::Parameter2.parameter_id()), None);
     }
 
     ///////////////////////// BuiltInEndPointSet Tests ////////////////////////
