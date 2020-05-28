@@ -598,6 +598,60 @@ mod tests {
     }
 
     #[test]
+    fn test_compose_message_two_data_submessages() {
+        let submessage1 = RtpsSubmessage::Data ( Data::new(
+            EndianessFlag::LittleEndian, 
+            constants::ENTITYID_UNKNOWN, 
+            constants::ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, 
+            SequenceNumber(1),
+            None, 
+            Payload::None
+            )
+        );
+        let submessage2 = RtpsSubmessage::Data ( Data::new(
+            EndianessFlag::LittleEndian, 
+            constants::ENTITYID_UNKNOWN, 
+            constants::ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, 
+            SequenceNumber(2),
+            None, 
+            Payload::None
+            )
+        );
+        let message = RtpsMessage { 
+                header : Header {
+                    protocol: ProtocolId([b'R', b'T', b'P', b'S']),
+                    version: ProtocolVersion{major: 2, minor: 1},
+                    vendor_id: VendorId([1, 2]),
+                    guid_prefix: GuidPrefix([127, 32, 247, 215, 0, 0, 1, 187, 0, 0, 0, 1]),
+                },
+                submessages : vec![submessage1, submessage2],                
+        };
+
+        let expected = vec![
+            0x52, 0x54, 0x50, 0x53, //000 protocol: ProtocolId_t => 'R', 'T', 'P', 'S',
+            0x02, 0x01, 0x01, 0x02, //004 version: ProtocolVersion_t => 2.1 | vendorId: VendorId_t => 1,2
+            0x7f, 0x20, 0xf7, 0xd7, //008 guidPrefix: GuidPrefix_t => 127, 32, 247, 215
+            0x00, 0x00, 0x01, 0xbb, //012 guidPrefix: GuidPrefix_t => 0, 0, 1, 187
+            0x00, 0x00, 0x00, 0x01, //016 guidPrefix: GuidPrefix_t => 0, 0, 0, 1
+            0x15_u8, 0b00000001, 20, 0x0, // Submessgae Header
+            0x00, 0x00,  16, 0x0, // ExtraFlags, octetsToInlineQos (liitle indian)
+            0x00, 0x00, 0x00, 0x00, // [Data Submessage] EntityId readerId => ENTITYID_UNKNOWN
+            0x00, 0x01, 0x00, 0xc2, // [Data Submessage] EntityId writerId
+            0x00, 0x00, 0x00, 0x00, // [Data Submessage] SequenceNumber writerSN
+            0x01, 0x00, 0x00, 0x00, // [Data Submessage] SequenceNumber writerSN => 1
+            0x15_u8, 0b00000001, 20, 0x0, // Submessgae Header
+            0x00, 0x00,  16, 0x0, // ExtraFlags, octetsToInlineQos (liitle indian)
+            0x00, 0x00, 0x00, 0x00, // [Data Submessage] EntityId readerId => ENTITYID_UNKNOWN
+            0x00, 0x01, 0x00, 0xc2, // [Data Submessage] EntityId writerId
+            0x00, 0x00, 0x00, 0x00, // [Data Submessage] SequenceNumber writerSN
+            0x02, 0x00, 0x00, 0x00, // [Data Submessage] SequenceNumber writerSN => 2
+        ];  
+        let mut writer = Vec::new();
+        message.compose(&mut writer).unwrap();
+        assert_eq!(expected, writer);        
+    }
+
+    #[test]
     fn test_parse_message() {
         let submessage = RtpsSubmessage::Data ( Data::new(
             EndianessFlag::LittleEndian, 
@@ -685,6 +739,60 @@ mod tests {
             0x00, 0x00, 0x04, 0xD5, // [Heartbeat Submessage] Last Sequence Number
             0x00, 0x00, 0x00, 0x08, // [Heartbeat Submessage] Count
         ];
+        let result = RtpsMessage::parse(&bytes).unwrap();
+        assert_eq!(expected, result);  
+    }
+
+
+    #[test]
+    fn test_parse_message_two_data_submessages() {
+        let submessage1 = RtpsSubmessage::Data ( Data::new(
+            EndianessFlag::LittleEndian, 
+            constants::ENTITYID_UNKNOWN, 
+            constants::ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, 
+            SequenceNumber(1),
+            None, 
+            Payload::None
+            )
+        );
+        let submessage2 = RtpsSubmessage::Data ( Data::new(
+            EndianessFlag::LittleEndian, 
+            constants::ENTITYID_UNKNOWN, 
+            constants::ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, 
+            SequenceNumber(2),
+            None, 
+            Payload::None
+            )
+        );
+        let expected = RtpsMessage { 
+                header : Header {
+                    protocol: ProtocolId([b'R', b'T', b'P', b'S']),
+                    version: ProtocolVersion{major: 2, minor: 1},
+                    vendor_id: VendorId([1, 2]),
+                    guid_prefix: GuidPrefix([127, 32, 247, 215, 0, 0, 1, 187, 0, 0, 0, 1]),
+                },
+                submessages : vec![submessage1, submessage2],                
+        };
+
+        let bytes = [
+            0x52, 0x54, 0x50, 0x53, //000 protocol: ProtocolId_t => 'R', 'T', 'P', 'S',
+            0x02, 0x01, 0x01, 0x02, //004 version: ProtocolVersion_t => 2.1 | vendorId: VendorId_t => 1,2
+            0x7f, 0x20, 0xf7, 0xd7, //008 guidPrefix: GuidPrefix_t => 127, 32, 247, 215
+            0x00, 0x00, 0x01, 0xbb, //012 guidPrefix: GuidPrefix_t => 0, 0, 1, 187
+            0x00, 0x00, 0x00, 0x01, //016 guidPrefix: GuidPrefix_t => 0, 0, 0, 1
+            0x15, 0b00000001, 20, 0x0, // Submessgae Header
+            0x00, 0x00,  16, 0x0,   // [Data Submessage] ExtraFlags, octetsToInlineQos (liitle indian)
+            0x00, 0x00, 0x00, 0x00, // [Data Submessage] EntityId readerId => ENTITYID_UNKNOWN
+            0x00, 0x01, 0x00, 0xc2, // [Data Submessage] EntityId writerId
+            0x00, 0x00, 0x00, 0x00, // [Data Submessage] SequenceNumber writerSN
+            0x01, 0x00, 0x00, 0x00, // [Data Submessage] SequenceNumber writerSN => 1
+            0x15, 0b00000001, 20, 0x0, // Submessgae Header
+            0x00, 0x00,  16, 0x0,   // [Data Submessage] ExtraFlags, octetsToInlineQos (liitle indian)
+            0x00, 0x00, 0x00, 0x00, // [Data Submessage] EntityId readerId => ENTITYID_UNKNOWN
+            0x00, 0x01, 0x00, 0xc2, // [Data Submessage] EntityId writerId
+            0x00, 0x00, 0x00, 0x00, // [Data Submessage] SequenceNumber writerSN
+            0x02, 0x00, 0x00, 0x00, // [Data Submessage] SequenceNumber writerSN => 1
+        ];    
         let result = RtpsMessage::parse(&bytes).unwrap();
         assert_eq!(expected, result);  
     }
