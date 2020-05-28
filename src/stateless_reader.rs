@@ -104,10 +104,8 @@ mod tests {
             GUID::new(GuidPrefix([0;12]), ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER),
             TopicKind::WithKey,
             ReliabilityKind::BestEffort,
-            vec![Locator::new(0, 7400, [0;16])], /*unicast_locator_list*/
-            vec![], /*multicast_locator_list*/
-            DURATION_ZERO, /*heartbeat_response_delay */
-            DURATION_ZERO, /* heartbeat_response_delay */
+            vec![Locator::new(0, 7400, [0;16])],
+            vec![],
             false,
            );
 
