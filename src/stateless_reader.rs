@@ -81,7 +81,7 @@ impl StatelessReader {
                     let cache_change = CacheChange::new(
                         change_kind,
                         GUID::new(guid_prefix, *data.writer_id() ),
-                        [0;16],/*TODO: *data.key_hash() */
+                        key_hash.0,
                         *data.writer_sn(),
                         None,
                         None,
@@ -138,7 +138,7 @@ impl StatelessReader {
         } else if !data_submessage.data_flag() && data_submessage.key_flag() {
             match data_submessage.serialized_payload() {
                 Some(payload) => {
-                    let key_hash_value : [u8;16] = payload.0[0..16].try_into().unwrap();
+                    let key_hash_value : [u8;16] = payload.0[0..16].try_into().map_err(|_| StatelessReaderError::InvalidKeyHashPayload)?;
                     KeyHash(key_hash_value)
                 },
                 None => return Err(StatelessReaderError::KeyHashNotFound),
