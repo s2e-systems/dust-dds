@@ -1,34 +1,43 @@
 use std::convert::TryInto;
+use num_traits::FromPrimitive;
+use num_derive::{FromPrimitive};
+
 use crate::types::{Parameter, ParameterList, KeyHash, StatusInfo};
 
 pub type InlineQosParameterList = ParameterList<InlineQosParameter>;
 
-// #[derive(PartialEq, Debug)]
-// pub enum InlineQosPid {
-//     TopicName = 0x0005,
-//     Durability = 0x001d,
-//     Presentation = 0x0021,
-//     Deadline = 0x0023,
-//     LatencyBudget = 0x0027,
-//     Ownership = 0x001f,
-//     OwnershipStrength = 0x0006,
-//     Liveliness = 0x001b,
-//     Partition = 0x0029,
-//     Reliability = 0x001a,
-//     TransportPriority = 0x0049,
-//     Lifespan = 0x002b,
-//     DestinationOrder = 0x0025,
-//     ContentFilterInfo = 0x0055,
-//     CoherentSet = 0x0056,
-//     DirectedWrite = 0x0057,
-//     OriginalWriterInfo = 0x0061,
-//     GroupCoherentSet = 0x0063,
-//     GroupSeqNum = 0x0064,
-//     WriterGroupInfo = 0x0065,
-//     SecureWriterGroupInfo = 0x0066,
-//     KeyHash = 0x0070,
-//     StatusInfo = 0x0071,
-// }
+#[derive(FromPrimitive)]
+pub enum InlineQosPid {
+    TopicName = 0x0005,
+    Durability = 0x001d,
+    Presentation = 0x0021,
+    Deadline = 0x0023,
+    LatencyBudget = 0x0027,
+    Ownership = 0x001f,
+    OwnershipStrength = 0x0006,
+    Liveliness = 0x001b,
+    Partition = 0x0029,
+    Reliability = 0x001a,
+    TransportPriority = 0x0049,
+    Lifespan = 0x002b,
+    DestinationOrder = 0x0025,
+    ContentFilterInfo = 0x0055,
+    CoherentSet = 0x0056,
+    DirectedWrite = 0x0057,
+    OriginalWriterInfo = 0x0061,
+    GroupCoherentSet = 0x0063,
+    GroupSeqNum = 0x0064,
+    WriterGroupInfo = 0x0065,
+    SecureWriterGroupInfo = 0x0066,
+    KeyHash = 0x0070,
+    StatusInfo = 0x0071,
+}
+
+impl From<InlineQosPid> for u16 {
+    fn from(value: InlineQosPid) -> Self {
+        value as u16
+    }
+}
 
 #[derive(PartialEq, Debug, Clone, Eq)]
 pub enum InlineQosParameter {
@@ -38,19 +47,19 @@ pub enum InlineQosParameter {
 }
 
 impl Parameter for InlineQosParameter {
-
     fn new_from(parameter_id: u16, value: &[u8]) -> Option<Self> {
-        match parameter_id {
-            0x0070 => Some(InlineQosParameter::KeyHash(KeyHash::new(value.try_into().ok()?))),
-            0x0071 => Some(InlineQosParameter::StatusInfo(StatusInfo(value.try_into().ok()?))),
+        let inline_qos_parameter_id = InlineQosPid::from_u16(parameter_id)?;
+        match inline_qos_parameter_id {
+            InlineQosPid::KeyHash => Some(InlineQosParameter::KeyHash(KeyHash::new(value.try_into().ok()?))),
+            InlineQosPid::StatusInfo => Some(InlineQosParameter::StatusInfo(StatusInfo(value.try_into().ok()?))),
             _ => None,
         }
     }
 
     fn parameter_id(&self) -> u16 {
         match self {
-            InlineQosParameter::KeyHash(_) => 0x0070,
-            InlineQosParameter::StatusInfo(_) => 0x0071,
+            InlineQosParameter::KeyHash(_) => InlineQosPid::KeyHash.into(),
+            InlineQosParameter::StatusInfo(_) => InlineQosPid::StatusInfo.into(),
         }
     }
 

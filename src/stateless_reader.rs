@@ -3,7 +3,7 @@ use crate::cache::{HistoryCache, CacheChange};
 use crate::types::{Duration, LocatorList, ReliabilityKind, TopicKind, GUID, ChangeKind, StatusInfo, Parameter};
 use crate::types::constants::ENTITYID_UNKNOWN;
 use crate::messages::{RtpsMessage, RtpsSubmessage};
-use crate::inline_qos::InlineQosParameter;
+use crate::inline_qos::{InlineQosParameter, InlineQosPid};
 
 pub struct StatelessReader {
     // Heartbeats are not relevant to stateless readers (only to readers),
@@ -63,7 +63,7 @@ impl StatelessReader {
                     let change_kind = if data.data_flag() && !data.key_flag() {
                         ChangeKind::Alive
                     } else if !data.data_flag() && data.key_flag() {
-                        let status_info_qos_parameter = data.inline_qos().as_ref().unwrap().find_parameter(InlineQosParameter::StatusInfo(StatusInfo([0;4])).parameter_id()).unwrap();
+                        let status_info_qos_parameter = data.inline_qos().as_ref().unwrap().find_parameter(InlineQosPid::StatusInfo.into()).unwrap();
                         if let InlineQosParameter::StatusInfo(status_info) = status_info_qos_parameter {
                             ChangeKind::try_from(*status_info).unwrap()
                         } else {
