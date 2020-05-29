@@ -1,6 +1,6 @@
-use std::convert::TryFrom;
+use std::convert::{TryFrom, TryInto};
 use crate::cache::{HistoryCache, CacheChange};
-use crate::types::{Duration, LocatorList, ReliabilityKind, TopicKind, GUID, ChangeKind, StatusInfo, Parameter};
+use crate::types::{Duration, LocatorList, ReliabilityKind, TopicKind, GUID, ChangeKind, StatusInfo, Parameter, KeyHash};
 use crate::types::constants::ENTITYID_UNKNOWN;
 use crate::messages::{RtpsMessage, RtpsSubmessage, Data};
 use crate::inline_qos::{InlineQosParameter, InlineQosPid};
@@ -10,8 +10,10 @@ use crate::inline_qos::{InlineQosParameter, InlineQosPid};
 pub enum StatelessReaderError {
     InlineQosNotFound,
     StatusInfoNotFound,
+    KeyHashNotFound,
     InvalidStatusInfo,
     InvalidDataKeyFlagCombination,
+    InvalidKeyHashPayload,
 }
 
 pub type StatelessReaderResult<T> = std::result::Result<T, StatelessReaderError>;
@@ -73,6 +75,8 @@ impl StatelessReader {
                 if data.reader_id() == &ENTITYID_UNKNOWN {
 
                     let change_kind = StatelessReader::change_kind(&data)?;
+
+                    let key_hash = StatelessReader::key_hash(&data)?;
                     
                     let cache_change = CacheChange::new(
                         change_kind,
@@ -119,6 +123,32 @@ impl StatelessReader {
 
         Ok(change_kind)
     }
+
+    fn key_hash(data_submessage: &Data) -> StatelessReaderResult<KeyHash> {
+        let key_hash = if data_submessage.data_flag() && !data_submessage.key_flag() {
+            let inline_qos = match data_submessage.inline_qos().as_ref() {
+                Some(inline_qos) => inline_qos,
+                None => return Err(StatelessReaderError::InlineQosNotFound),
+            };
+
+            match inline_qos.find_parameter(InlineQosPid::KeyHash.into()) {
+                Some(InlineQosParameter::KeyHash(key_hash)) => *key_hash,
+                _ => return Err(StatelessReaderError::KeyHashNotFound),
+            }
+        } else if !data_submessage.data_flag() && data_submessage.key_flag() {
+            match data_submessage.serialized_payload() {
+                Some(payload) => {
+                    let key_hash_value : [u8;16] = payload.0[0..16].try_into().unwrap();
+                    KeyHash(key_hash_value)
+                },
+                None => return Err(StatelessReaderError::KeyHashNotFound),
+            }
+        } else {
+            return Err(StatelessReaderError::InvalidDataKeyFlagCombination);
+        };
+
+        Ok(key_hash)
+    }
 }
 
 #[cfg(test)]
@@ -133,10 +163,10 @@ mod tests {
     fn test_reader_process_data() {
         let data1 = Data::new(
             EndianessFlag::LittleEndian,
-            ENTITYID_UNKNOWN, /*reader_id*/
-            ENTITYID_UNKNOWN,/*writer_id*/
-            SequenceNumber(1), /*writer_sn*/
-            None, /*inline_qos*/
+            ENTITYID_UNKNOWN,
+            ENTITYID_UNKNOWN,
+            SequenceNumber(1),
+            Some(ParameterList::new_from_vec(vec![InlineQosParameter::KeyHash(KeyHash([1;16]))])),
             Payload::Data(SerializedPayload(vec![0,1,2])),
         );
 
@@ -155,7 +185,7 @@ mod tests {
 
         assert_eq!(reader.history_cache().get_changes().len(), 0);
 
-        reader.process_message(&message);
+        reader.process_message(&message).unwrap();
 
         assert_eq!(reader.history_cache().get_changes().len(), 1);
     }

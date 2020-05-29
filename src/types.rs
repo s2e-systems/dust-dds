@@ -377,8 +377,8 @@ pub struct Duration {
     pub fraction: u32,
 }
 
-#[derive(Debug, PartialEq, Clone, Eq)]
-pub struct KeyHash([u8; 16]);
+#[derive(Debug, PartialEq, Clone, Copy, Eq)]
+pub struct KeyHash(pub [u8; 16]);
 
 impl KeyHash {
     pub fn new(value: [u8;16]) -> Self {
