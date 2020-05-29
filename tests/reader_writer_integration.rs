@@ -43,17 +43,36 @@ fn test_stateless_writer_stateless_reader_direct_communication_integration() {
        [0;16], /*handle*/
    );
 
+   let cache_change_seq3 = writer.new_change(
+    ChangeKind::NotAliveUnregistered,
+    None, /*data*/
+    None, /*inline_qos*/
+    [0;16], /*handle*/
+    );
+
+    let cache_change_seq4 = writer.new_change(
+        ChangeKind::NotAliveDisposed,
+        None, /*data*/
+        None, /*inline_qos*/
+        [0;16], /*handle*/
+    );
+
+
    writer.history_cache().add_change(cache_change_seq1.clone());
    writer.history_cache().add_change(cache_change_seq2.clone());
+   writer.history_cache().add_change(cache_change_seq3.clone());
+   writer.history_cache().add_change(cache_change_seq4.clone());
 
    let writer_data = writer.get_data_to_send(locator);
 
    reader.process_message(&writer_data).unwrap();
 
    let reader_changes = reader.history_cache().get_changes();
-   assert_eq!(reader_changes.len(), 2);
+   assert_eq!(reader_changes.len(), 4);
    assert!(reader_changes.contains(&cache_change_seq1));
    assert!(reader_changes.contains(&cache_change_seq2));
+   assert!(reader_changes.contains(&cache_change_seq3));
+   assert!(reader_changes.contains(&cache_change_seq4));
 }
 
 #[test]
@@ -97,8 +116,24 @@ fn test_stateless_writer_stateless_reader_serialized_communication_integration()
        [0;16], /*handle*/
    );
 
+   let cache_change_seq3 = writer.new_change(
+    ChangeKind::NotAliveUnregistered,
+    None, /*data*/
+    None, /*inline_qos*/
+    [0;16], /*handle*/
+    );
+
+    let cache_change_seq4 = writer.new_change(
+        ChangeKind::NotAliveDisposed,
+        None, /*data*/
+        None, /*inline_qos*/
+        [0;16], /*handle*/
+    );
+
    writer.history_cache().add_change(cache_change_seq1.clone());
    writer.history_cache().add_change(cache_change_seq2.clone());
+   writer.history_cache().add_change(cache_change_seq3.clone());
+   writer.history_cache().add_change(cache_change_seq4.clone());
 
    let writer_message = writer.get_data_to_send(locator);
    let mut buf  = Vec::new();
@@ -108,7 +143,9 @@ fn test_stateless_writer_stateless_reader_serialized_communication_integration()
    reader.process_message(&received_message).unwrap();
 
    let reader_changes = reader.history_cache().get_changes();
-   assert_eq!(reader_changes.len(), 2);
+   assert_eq!(reader_changes.len(), 4);
    assert!(reader_changes.contains(&cache_change_seq1));
    assert!(reader_changes.contains(&cache_change_seq2));
+   assert!(reader_changes.contains(&cache_change_seq3));
+   assert!(reader_changes.contains(&cache_change_seq4));
 }
