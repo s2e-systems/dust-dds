@@ -1,13 +1,13 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::cache::{CacheChange, HistoryCache};
-use crate::inline_qos::InlineQosParameterList;
+use crate::inline_qos::{InlineQosParameter, InlineQosParameterList};
 use crate::messages::{Data, InfoTs, Payload, RtpsMessage, RtpsSubmessage, Header};
 use crate::serdes::EndianessFlag;
 use crate::types::constants::{ENTITYID_UNKNOWN};
 use crate::types::{
     ChangeKind, Duration, InstanceHandle, Locator, LocatorList, ReliabilityKind, SequenceNumber,
-    SerializedPayload, Time, TopicKind, GUID,
+    SerializedPayload, Time, TopicKind, GUID, ParameterList, StatusInfo, KeyHash
 };
 
 pub struct ReaderLocator {
@@ -187,13 +187,29 @@ impl StatelessWriter {
                     .writer_cache
                     .get_change_with_sequence_number(&next_unsent_seq_num)
                 {
+                    let change_kind = *cache_change.change_kind();
+
+                    let mut inline_qos_parameter_list : InlineQosParameterList = ParameterList::new();
+
+                    let payload = match change_kind {
+                        ChangeKind::Alive => {
+                            inline_qos_parameter_list.push(InlineQosParameter::StatusInfo(StatusInfo::from(change_kind)));
+                            inline_qos_parameter_list.push(InlineQosParameter::KeyHash(KeyHash(*cache_change.instance_handle())));
+                            Payload::Data(SerializedPayload(cache_change.data().unwrap().to_vec()))
+                        },
+                        ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered | ChangeKind::AliveFiltered => {
+                            inline_qos_parameter_list.push(InlineQosParameter::StatusInfo(StatusInfo::from(change_kind)));
+                            Payload::Key(SerializedPayload(cache_change.instance_handle().to_vec()))
+                        }
+                    };
+
                     let data = Data::new(
                         EndianessFlag::LittleEndian.into(),
                         ENTITYID_UNKNOWN,
                         *self.guid.entity_id(),
-                        *cache_change.sequence_number(), /*writer_sn*/
-                        None,                                /*inline_qos*/
-                        Payload::Data(SerializedPayload(cache_change.data().unwrap().to_vec())), /*serialized_payload*/
+                        *cache_change.sequence_number(),
+                        Some(inline_qos_parameter_list), 
+                        payload,
                     );
 
                     message.push(RtpsSubmessage::Data(data));
