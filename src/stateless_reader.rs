@@ -1,6 +1,6 @@
 use std::convert::{TryFrom, TryInto};
 use crate::cache::{HistoryCache, CacheChange};
-use crate::types::{Duration, LocatorList, ReliabilityKind, TopicKind, GUID, ChangeKind, StatusInfo, Parameter, KeyHash};
+use crate::types::{LocatorList, ReliabilityKind, TopicKind, GUID, ChangeKind, KeyHash};
 use crate::types::constants::ENTITYID_UNKNOWN;
 use crate::messages::{RtpsMessage, RtpsSubmessage, Data};
 use crate::inline_qos::{InlineQosParameter, InlineQosPid, InlineQosParameterList};

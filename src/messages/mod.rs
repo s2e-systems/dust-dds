@@ -15,7 +15,7 @@ mod info_timestamp_submessage;
 
 use num_derive::FromPrimitive;
 
-use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsCompose, RtpsParse, EndianessFlag, RtpsSerdesResult, RtpsSerdesError, PrimitiveSerdes, SizeCheckers};
+use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsCompose, RtpsParse, EndianessFlag, RtpsSerdesResult, RtpsSerdesError, PrimitiveSerdes};
 // use helpers::{deserialize, MINIMUM_RTPS_MESSAGE_SIZE};
 
 use crate::types::*;

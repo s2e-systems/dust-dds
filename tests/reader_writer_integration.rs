@@ -48,7 +48,7 @@ fn test_stateless_writer_stateless_reader_direct_communication_integration() {
 
    let writer_data = writer.get_data_to_send(locator);
 
-   reader.process_message(&writer_data);
+   reader.process_message(&writer_data).unwrap();
 
    let reader_changes = reader.history_cache().get_changes();
    assert_eq!(reader_changes.len(), 2);
@@ -105,7 +105,7 @@ fn test_stateless_writer_stateless_reader_serialized_communication_integration()
    writer_message.compose(&mut buf).unwrap();
   
    let received_message = RtpsMessage::parse(&buf).unwrap();
-   reader.process_message(&received_message);
+   reader.process_message(&received_message).unwrap();
 
    let reader_changes = reader.history_cache().get_changes();
    assert_eq!(reader_changes.len(), 2);
