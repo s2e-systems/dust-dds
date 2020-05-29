@@ -3,7 +3,7 @@ use crate::cache::{HistoryCache, CacheChange};
 use crate::types::{Duration, LocatorList, ReliabilityKind, TopicKind, GUID, ChangeKind, StatusInfo, Parameter, KeyHash};
 use crate::types::constants::ENTITYID_UNKNOWN;
 use crate::messages::{RtpsMessage, RtpsSubmessage, Data};
-use crate::inline_qos::{InlineQosParameter, InlineQosPid};
+use crate::inline_qos::{InlineQosParameter, InlineQosPid, InlineQosParameterList};
 
 
 #[derive(Debug)]
@@ -102,20 +102,15 @@ impl StatelessReader {
         let change_kind = if data_submessage.data_flag() && !data_submessage.key_flag() {
             ChangeKind::Alive
         } else if !data_submessage.data_flag() && data_submessage.key_flag() {
-            let inline_qos = match data_submessage.inline_qos().as_ref() {
-                Some(inline_qos) => inline_qos,
-                None => return Err(StatelessReaderError::InlineQosNotFound),
-            };
+            let inline_qos = StatelessReader::inline_qos(&data_submessage)?;
 
-            let status_info = match inline_qos.find_parameter(InlineQosPid::StatusInfo.into()) {
-                Some(InlineQosParameter::StatusInfo(status_info)) => *status_info,
-                _ => return Err(StatelessReaderError::StatusInfoNotFound),
-            };
+            let status_info_parameter = inline_qos.find_parameter(InlineQosPid::StatusInfo.into()).ok_or(StatelessReaderError::StatusInfoNotFound)?;
+            let status_info = match status_info_parameter {
+                InlineQosParameter::StatusInfo(status_info) => Ok(*status_info),
+                _ => Err(StatelessReaderError::InvalidStatusInfo),
+            }?;
 
-            match ChangeKind::try_from(status_info) {
-                Ok(change_kind) => change_kind,
-                _ => return Err(StatelessReaderError::InvalidStatusInfo),
-            }
+            ChangeKind::try_from(status_info).map_err(|_| StatelessReaderError::InvalidStatusInfo)?
         }
         else {
             return Err(StatelessReaderError::InvalidDataKeyFlagCombination);
@@ -126,21 +121,17 @@ impl StatelessReader {
 
     fn key_hash(data_submessage: &Data) -> StatelessReaderResult<KeyHash> {
         let key_hash = if data_submessage.data_flag() && !data_submessage.key_flag() {
-            let inline_qos = match data_submessage.inline_qos().as_ref() {
-                Some(inline_qos) => inline_qos,
-                None => return Err(StatelessReaderError::InlineQosNotFound),
-            };
+            let inline_qos = StatelessReader::inline_qos(&data_submessage)?;
 
-            match inline_qos.find_parameter(InlineQosPid::KeyHash.into()) {
-                Some(InlineQosParameter::KeyHash(key_hash)) => *key_hash,
+            let key_hash_parameter = inline_qos.find_parameter(InlineQosPid::KeyHash.into()).ok_or(StatelessReaderError::KeyHashNotFound)?;
+            match key_hash_parameter {
+                InlineQosParameter::KeyHash(key_hash) => *key_hash,
                 _ => return Err(StatelessReaderError::KeyHashNotFound),
             }
+
         } else if !data_submessage.data_flag() && data_submessage.key_flag() {
             match data_submessage.serialized_payload() {
-                Some(payload) => {
-                    let key_hash_value : [u8;16] = payload.0[0..16].try_into().map_err(|_| StatelessReaderError::InvalidKeyHashPayload)?;
-                    KeyHash(key_hash_value)
-                },
+                Some(payload) => KeyHash(payload.0[0..16].try_into().map_err(|_| StatelessReaderError::InvalidKeyHashPayload)?),
                 None => return Err(StatelessReaderError::KeyHashNotFound),
             }
         } else {
@@ -148,6 +139,13 @@ impl StatelessReader {
         };
 
         Ok(key_hash)
+    }
+
+    fn inline_qos(data_submessage: &Data) -> StatelessReaderResult<&InlineQosParameterList> {
+        match data_submessage.inline_qos().as_ref() {
+            Some(inline_qos) => Ok(inline_qos),
+            None => return Err(StatelessReaderError::InlineQosNotFound),
+        }
     }
 }
 
