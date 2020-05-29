@@ -2,8 +2,19 @@ use std::convert::TryFrom;
 use crate::cache::{HistoryCache, CacheChange};
 use crate::types::{Duration, LocatorList, ReliabilityKind, TopicKind, GUID, ChangeKind, StatusInfo, Parameter};
 use crate::types::constants::ENTITYID_UNKNOWN;
-use crate::messages::{RtpsMessage, RtpsSubmessage};
+use crate::messages::{RtpsMessage, RtpsSubmessage, Data};
 use crate::inline_qos::{InlineQosParameter, InlineQosPid};
+
+
+#[derive(Debug)]
+pub enum StatelessReaderError {
+    InlineQosNotFound,
+    StatusInfoNotFound,
+    InvalidStatusInfo,
+    InvalidDataKeyFlagCombination,
+}
+
+pub type StatelessReaderResult<T> = std::result::Result<T, StatelessReaderError>;
 
 pub struct StatelessReader {
     // Heartbeats are not relevant to stateless readers (only to readers),
@@ -51,7 +62,7 @@ impl StatelessReader {
         &self.reader_cache
     }
 
-    pub fn process_message(&mut self, msg: &RtpsMessage) {
+    pub fn process_message(&mut self, msg: &RtpsMessage) -> StatelessReaderResult<()>{
 
         let guid_prefix = *msg.header().guid_prefix();
         let mut _source_time = None;
@@ -60,19 +71,8 @@ impl StatelessReader {
             if let RtpsSubmessage::Data(data) = submessage {
                 // Check if the message is for this reader and process it if that is the case
                 if data.reader_id() == &ENTITYID_UNKNOWN {
-                    let change_kind = if data.data_flag() && !data.key_flag() {
-                        ChangeKind::Alive
-                    } else if !data.data_flag() && data.key_flag() {
-                        let status_info_qos_parameter = data.inline_qos().as_ref().unwrap().find_parameter(InlineQosPid::StatusInfo.into()).unwrap();
-                        if let InlineQosParameter::StatusInfo(status_info) = status_info_qos_parameter {
-                            ChangeKind::try_from(*status_info).unwrap()
-                        } else {
-                            panic!("Status info not present");
-                        }
-                    }
-                    else {
-                        panic!("Combination should not occur");
-                    };
+
+                    let change_kind = StatelessReader::change_kind(&data)?;
                     
                     let cache_change = CacheChange::new(
                         change_kind,
@@ -90,6 +90,34 @@ impl StatelessReader {
                 _source_time = *infots.get_timestamp();
             }
         }
+
+        Ok(())
+    }
+
+    fn change_kind(data_submessage: &Data) -> StatelessReaderResult<ChangeKind>{
+        let change_kind = if data_submessage.data_flag() && !data_submessage.key_flag() {
+            ChangeKind::Alive
+        } else if !data_submessage.data_flag() && data_submessage.key_flag() {
+            let inline_qos = match data_submessage.inline_qos().as_ref() {
+                Some(inline_qos) => inline_qos,
+                None => return Err(StatelessReaderError::InlineQosNotFound),
+            };
+
+            let status_info = match inline_qos.find_parameter(InlineQosPid::StatusInfo.into()) {
+                Some(InlineQosParameter::StatusInfo(status_info)) => *status_info,
+                _ => return Err(StatelessReaderError::StatusInfoNotFound),
+            };
+
+            match ChangeKind::try_from(status_info) {
+                Ok(change_kind) => change_kind,
+                _ => return Err(StatelessReaderError::InvalidStatusInfo),
+            }
+        }
+        else {
+            return Err(StatelessReaderError::InvalidDataKeyFlagCombination);
+        };
+
+        Ok(change_kind)
     }
 }
 
