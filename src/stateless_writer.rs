@@ -191,7 +191,7 @@ impl StatelessWriter {
                         EndianessFlag::LittleEndian.into(),
                         ENTITYID_UNKNOWN,
                         *self.guid.entity_id(),
-                        *cache_change.get_sequence_number(), /*writer_sn*/
+                        *cache_change.sequence_number(), /*writer_sn*/
                         None,                                /*inline_qos*/
                         Payload::Data(SerializedPayload(cache_change.data().unwrap().to_vec())), /*serialized_payload*/
                     );
@@ -248,18 +248,18 @@ mod tests {
             [1; 16], /*handle*/
         );
 
-        assert_eq!(cache_change_seq1.get_sequence_number(), &SequenceNumber(1));
-        assert_eq!(cache_change_seq1.get_change_kind(), &ChangeKind::Alive);
-        assert_eq!(cache_change_seq1.get_inline_qos(), &None);
-        assert_eq!(cache_change_seq1.get_instance_handle(), &[1; 16]);
+        assert_eq!(cache_change_seq1.sequence_number(), &SequenceNumber(1));
+        assert_eq!(cache_change_seq1.change_kind(), &ChangeKind::Alive);
+        assert_eq!(cache_change_seq1.inline_qos(), &None);
+        assert_eq!(cache_change_seq1.instance_handle(), &[1; 16]);
 
-        assert_eq!(cache_change_seq2.get_sequence_number(), &SequenceNumber(2));
+        assert_eq!(cache_change_seq2.sequence_number(), &SequenceNumber(2));
         assert_eq!(
-            cache_change_seq2.get_change_kind(),
+            cache_change_seq2.change_kind(),
             &ChangeKind::NotAliveUnregistered
         );
-        assert_eq!(cache_change_seq2.get_inline_qos(), &None);
-        assert_eq!(cache_change_seq2.get_instance_handle(), &[1; 16]);
+        assert_eq!(cache_change_seq2.inline_qos(), &None);
+        assert_eq!(cache_change_seq2.instance_handle(), &[1; 16]);
     }
 
     #[test]

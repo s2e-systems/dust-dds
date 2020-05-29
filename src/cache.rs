@@ -37,23 +37,23 @@ impl CacheChange {
         }
     }
 
-    pub fn get_change_kind(&self) -> &ChangeKind {
+    pub fn change_kind(&self) -> &ChangeKind {
         &self.change_kind
     }
 
-    pub fn get_writer_guid(&self) -> &GUID {
+    pub fn writer_guid(&self) -> &GUID {
         &self.writer_guid
     }
 
-    pub fn get_instance_handle(&self) -> &InstanceHandle {
+    pub fn instance_handle(&self) -> &InstanceHandle {
         &self.instance_handle
     }
 
-    pub fn get_sequence_number(&self) -> &SequenceNumber {
+    pub fn sequence_number(&self) -> &SequenceNumber {
         &self.sequence_number
     }
 
-    pub fn get_inline_qos(&self) -> &Option<InlineQosParameterList> {
+    pub fn inline_qos(&self) -> &Option<InlineQosParameterList> {
         &self.inline_qos
     }
 
@@ -154,7 +154,7 @@ impl HistoryCache {
     }
 
     pub fn get_change_with_sequence_number(&self, sequence_number: &SequenceNumber) -> Option<&CacheChange> {
-        self.changes.iter().find(|cc| cc.get_sequence_number() == sequence_number)
+        self.changes.iter().find(|cc| cc.sequence_number() == sequence_number)
     }
 
     pub fn get_seq_num_min(&self) -> Option<SequenceNumber> {
