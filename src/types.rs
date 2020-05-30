@@ -405,19 +405,20 @@ impl RtpsSerialize for KeyHash
 pub struct StatusInfo(pub [u8;4]);
 
 impl StatusInfo {
+    const DISPOSED_FLAG_MASK : u8 = 0b0000_0001;
+    const UNREGISTERED_FLAG_MASK : u8 = 0b0000_0010;
+    const FILTERED_FLAG_MASK : u8 = 0b0000_0100;
+
     pub fn disposed_flag(&self) -> bool {
-        const DISPOSED_FLAG_MASK : u8 = 0x80;
-        self.0[3] & DISPOSED_FLAG_MASK == DISPOSED_FLAG_MASK
+        self.0[3] & StatusInfo::DISPOSED_FLAG_MASK == StatusInfo::DISPOSED_FLAG_MASK
     }
 
     pub fn unregistered_flag(&self) -> bool {
-        const UNREGISTERED_FLAG_MASK : u8 = 0x40;
-        self.0[3] & UNREGISTERED_FLAG_MASK == UNREGISTERED_FLAG_MASK
+        self.0[3] & StatusInfo::UNREGISTERED_FLAG_MASK == StatusInfo::UNREGISTERED_FLAG_MASK
     }
 
     pub fn filtered_flag(&self) -> bool {
-        const FILTERED_FLAG_MASK : u8 = 0x20;
-        self.0[3] & FILTERED_FLAG_MASK == FILTERED_FLAG_MASK
+        self.0[3] & StatusInfo::FILTERED_FLAG_MASK == StatusInfo::FILTERED_FLAG_MASK
     }
 }
 
@@ -443,9 +444,9 @@ impl From<ChangeKind> for StatusInfo {
     fn from(change_kind: ChangeKind) -> Self {
         match change_kind {
             ChangeKind::Alive => StatusInfo([0,0,0,0]),
-            ChangeKind::NotAliveDisposed => StatusInfo([0,0,0,0x80]),
-            ChangeKind::NotAliveUnregistered => StatusInfo([0,0,0,0x40]),
-            ChangeKind::AliveFiltered => StatusInfo([0,0,0,0x20]),
+            ChangeKind::NotAliveDisposed => StatusInfo([0,0,0,StatusInfo::DISPOSED_FLAG_MASK]),
+            ChangeKind::NotAliveUnregistered => StatusInfo([0,0,0,StatusInfo::UNREGISTERED_FLAG_MASK]),
+            ChangeKind::AliveFiltered => StatusInfo([0,0,0,StatusInfo::FILTERED_FLAG_MASK]),
         }
     }
 }
