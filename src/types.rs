@@ -26,6 +26,12 @@ impl From<Ushort> for usize {
     }
 }
 
+impl From<usize> for Ushort {
+    fn from(value: usize) -> Self {
+        Self(value as u16)
+    }    
+}
+
 impl RtpsDeserialize for Ushort {
     fn deserialize(bytes: &[u8], endianness: EndianessFlag) -> RtpsSerdesResult<Self> { 
         let value = PrimitiveSerdes::deserialize_u16(bytes[0..2].try_into()?, endianness);

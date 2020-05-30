@@ -7,7 +7,7 @@ mod data_submessage;
 mod gap_submessage;
 // mod heartbeat_frag_submessage;
 mod heartbeat_submessage;
-// mod info_destination_submessage;
+mod info_destination_submessage;
 // mod info_reply_submessage;
 // mod info_source_submessage;
 mod info_timestamp_submessage;
