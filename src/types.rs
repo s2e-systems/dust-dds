@@ -40,7 +40,7 @@ impl RtpsDeserialize for Ushort {
 }
 
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Long(pub i32);
 
 impl RtpsSerialize for Long
@@ -64,7 +64,7 @@ impl RtpsDeserialize for Long {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Hash, Eq)]
 pub struct ULong(pub u32);
 
 impl RtpsSerialize for ULong {
@@ -673,19 +673,68 @@ impl RtpsDeserialize for ProtocolVersion {
 
 #[derive(PartialEq, Hash, Eq, Debug, Copy, Clone)]
 pub struct Locator {
-    pub kind: i32,
-    pub port: u32,
+    pub kind: Long,
+    pub port: ULong,
     pub address: [u8; 16],
 }
 
 impl Locator {
     pub fn new(kind: i32, port: u32, address: [u8; 16]) -> Locator {
         Locator {
-            kind,
-            port,
+            kind: Long(kind),
+            port: ULong(port),
             address,
         }
     }
+}
+
+impl RtpsSerialize for Locator {
+    fn serialize(&self, writer: &mut impl std::io::Write, endianness: EndianessFlag) -> RtpsSerdesResult<()> {
+        self.kind.serialize(writer, endianness)?;
+        self.port.serialize(writer, endianness)?;
+        writer.write(&self.address)?;
+        Ok(())
+    }
+}
+
+impl RtpsDeserialize for Locator {
+    fn deserialize(bytes: &[u8], endianness: EndianessFlag) -> RtpsSerdesResult<Self> {
+        let kind = Long::deserialize(&bytes[0..4], endianness)?;
+        let port = ULong::deserialize(&bytes[4..8], endianness)?;
+        let address = bytes[8..24].try_into()?;
+        Ok(Self {kind, port, address})
+    }
+}
+
+#[test]
+fn serialize_locator() {
+    let locator = Locator::new(100, 200, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
+    let expected = vec![
+        100, 0, 0, 0, // kind
+        200, 0, 0, 0, // port
+         1,  2,  3,  4, // address
+         5,  6,  7,  8, // address
+         9, 10, 11, 12, // address
+        13, 14, 15, 16, // address
+    ];
+    let mut writer = Vec::new();
+    locator.serialize(&mut writer, EndianessFlag::LittleEndian).unwrap();
+    assert_eq!(expected, writer);
+}
+
+#[test]
+fn deserialize_locator() {
+    let expected = Locator::new(100, 200, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
+    let bytes = vec![
+        100, 0, 0, 0, // kind
+        200, 0, 0, 0, // port
+         1,  2,  3,  4, // address
+         5,  6,  7,  8, // address
+         9, 10, 11, 12, // address
+        13, 14, 15, 16, // address
+    ];
+    let result = Locator::deserialize(&bytes, EndianessFlag::LittleEndian).unwrap();
+    assert_eq!(expected, result);
 }
 
 #[derive(Hash, PartialEq, Eq, Debug, Clone, Copy)]
@@ -791,10 +840,92 @@ impl RtpsDeserialize for GuidPrefix {
 
 
 pub type InstanceHandle = [u8; 16];
-pub type LocatorList = Vec<Locator>;
 
 pub type FragmentNumber = u32;
 pub type FragmentNumberSet = Vec<(FragmentNumber, bool)>;
+
+#[derive(Debug, PartialEq)]
+pub struct LocatorList(pub Vec<Locator>);
+
+impl RtpsSerialize for LocatorList {
+    fn serialize(&self, writer: &mut impl std::io::Write, endianness: EndianessFlag) -> RtpsSerdesResult<()> {
+        let num_locators = ULong::from(self.0.len());
+        num_locators.serialize(writer, endianness)?;
+        for locator in &self.0 {
+            locator.serialize(writer, endianness)?;
+        };
+        Ok(())
+    }
+}
+
+impl RtpsDeserialize for LocatorList {
+    fn deserialize(bytes: &[u8], endianness: EndianessFlag) -> RtpsSerdesResult<Self> {
+        let size = bytes.len();
+        let num_locators = ULong::deserialize(&bytes[0..4], endianness)?;
+        let mut locators = Vec::<Locator>::new();
+        let mut index = 4;
+        while index < size && locators.len() < usize::from(num_locators) {
+            let locator = Locator::deserialize( &bytes[index..], endianness)?;
+            index += locator.octets();
+            locators.push(locator);
+        };
+        Ok(Self(locators))
+    }
+}
+
+
+#[test]
+fn serialize_locator_list() {
+    let address = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
+    let locator_list = LocatorList(vec![
+        Locator::new(100, 200, address),
+        Locator::new(101, 201, address),
+    ]);
+    let expected = vec![
+        2, 0, 0, 0, // numLocators
+        100, 0, 0, 0, // Locator 1: kind
+        200, 0, 0, 0, // Locator 1: port
+         1,  2,  3,  4, // Locator 1: address
+         5,  6,  7,  8, // Locator 1: address
+         9, 10, 11, 12, // Locator 1: address
+        13, 14, 15, 16, // Locator 1: address
+        101, 0, 0, 0, // Locator 2: kind
+        201, 0, 0, 0, // Locator 2: port
+         1,  2,  3,  4, // Locator 2: address
+         5,  6,  7,  8, // Locator 2: address
+         9, 10, 11, 12, // Locator 2: address
+        13, 14, 15, 16, // Locator 2: address
+    ];
+    let mut writer = Vec::new();
+    locator_list.serialize(&mut writer, EndianessFlag::LittleEndian).unwrap();
+    assert_eq!(expected, writer);
+}
+
+#[test]
+fn deserialize_locator_list() {
+    let bytes = vec![
+        2, 0, 0, 0,   // numLocators
+        100, 0, 0, 0, // Locator 1: kind
+        200, 0, 0, 0, // Locator 1: port
+         1,  2,  3,  4, // Locator 1: address
+         5,  6,  7,  8, // Locator 1: address
+         9, 10, 11, 12, // Locator 1: address
+        13, 14, 15, 16, // Locator 1: address
+        101, 0, 0, 0, // Locator 2: kind
+        201, 0, 0, 0, // Locator 2: port
+         1,  2,  3,  4, // Locator 2: address
+         5,  6,  7,  8, // Locator 2: address
+         9, 10, 11, 12, // Locator 2: address
+        13, 14, 15, 16, // Locator 2: address
+    ];
+    let address = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
+    let expected = LocatorList(vec![
+        Locator::new(100, 200, address),
+        Locator::new(101, 201, address),
+    ]);
+    let result = LocatorList::deserialize(&bytes, EndianessFlag::LittleEndian).unwrap();
+    assert_eq!(expected, result);
+}
 
 #[cfg(test)]
 mod tests {

@@ -176,8 +176,8 @@ mod tests {
             GUID::new(GuidPrefix([0;12]), ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER),
             TopicKind::WithKey,
             ReliabilityKind::BestEffort,
-            vec![Locator::new(0, 7400, [0;16])],
-            vec![],
+            LocatorList(vec![Locator::new(0, 7400, [0;16])]),
+            LocatorList(vec![]),
             false,
            );
 
