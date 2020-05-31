@@ -841,8 +841,25 @@ impl RtpsDeserialize for GuidPrefix {
 
 pub type InstanceHandle = [u8; 16];
 
-pub type FragmentNumber = u32;
 pub type FragmentNumberSet = Vec<(FragmentNumber, bool)>;
+
+#[derive(PartialEq, Debug)]
+pub struct FragmentNumber(pub ULong);
+
+impl RtpsSerialize for FragmentNumber {
+    fn serialize(&self, writer: &mut impl Write, endianness: EndianessFlag) -> RtpsSerdesResult<()> {
+        self.0.serialize(writer, endianness)?;
+        Ok(())
+    }    
+}
+
+impl RtpsDeserialize for FragmentNumber {
+    fn deserialize(bytes: &[u8], endianness: EndianessFlag) -> RtpsSerdesResult<Self> {
+        Ok(Self(ULong::deserialize(&bytes, endianness)?))
+    }    
+}
+
+
 
 #[derive(Debug, PartialEq)]
 pub struct LocatorList(pub Vec<Locator>);
@@ -1400,6 +1417,29 @@ mod tests {
             0b_11000000, 0b_00000000, 0b_00000000, 0b_00000000, 
         ];
         assert_eq!(expected, writer);
+    }
+
+    ////////////////////////// Fragment Number Tests ///////////////////////
+     
+    #[test]
+    fn serialize_fragment_number() {
+        let fragment_number = FragmentNumber(ULong(100));
+        let expected = vec![
+            100, 0, 0, 0,
+        ];
+        let mut writer = Vec::new();
+        fragment_number.serialize(&mut writer, EndianessFlag::LittleEndian).unwrap();
+        assert_eq!(expected, writer);
+    }
+
+    #[test]
+    fn deserialize_fragment_number() {
+        let expected = FragmentNumber(ULong(100));
+        let bytes = vec![
+            100, 0, 0, 0,
+        ];
+        let result = FragmentNumber::deserialize(&bytes, EndianessFlag::LittleEndian).unwrap();
+        assert_eq!(expected, result);
     }
 
     
