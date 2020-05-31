@@ -62,9 +62,9 @@ mod tests {
     use crate::types::{Locator};
 
     #[test]
-    fn test_parse_info_reply_submessagewithout_multicast() {
+    fn test_parse_info_reply_submessage_without_multicast() {
         let bytes = [
-            0x0f, 0b00000001, 0, 28,
+            0x0f, 0b00000001, 28, 0, 
             1, 0, 0, 0,   // numLocators
             100, 0, 0, 0, // Locator 1: kind
             200, 0, 0, 0, // Locator 1: port
@@ -114,204 +114,35 @@ mod tests {
         assert_eq!(expected, result);
     }
 
-
+    #[test]
+    fn test_compose_info_reply_submessage_with_multicast() {
+        let expected = vec![
+            0x0f, 0b00000011, 56, 0, 
+            1, 0, 0, 0,   // numLocators
+            100, 0, 0, 0, // Locator 1: kind
+            200, 0, 0, 0, // Locator 1: port
+             1,  2,  3,  4, // Locator 1: address
+             5,  6,  7,  8, // Locator 1: address
+             9, 10, 11, 12, // Locator 1: address
+            13, 14, 15, 16, // Locator 1: address
+            1, 0, 0, 0,   // numLocators
+            101, 0, 0, 0, // Locator 1: kind
+            201, 0, 0, 0, // Locator 1: port
+             1,  2,  3,  4, // Locator 1: address
+             5,  6,  7,  8, // Locator 1: address
+             9, 10, 11, 12, // Locator 1: address
+            13, 14, 15, 16, // Locator 1: address
+        ];
+        let address = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
+        let message = InfoReply {
+            endianness_flag: EndianessFlag::LittleEndian.into(),
+            multicast_flag: SubmessageFlag(true),
+            unicast_locator_list: LocatorList(vec![Locator::new(100, 200, address)]),
+            multicast_locator_list: LocatorList(vec![Locator::new(101, 201, address)])
+        };
+        let mut writer = Vec::new();
+        message.compose(&mut writer).unwrap();
+        assert_eq!(expected, writer);
+    }
 
 }
-
-
-
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-
-//     const SUBMESSAGE_BIG_ENDIAN: [u8; 80] = [
-//         0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x10, 0x20, 0x01, 0x02, 0x03,
-//         0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10, 0x00, 0x00,
-//         0x00, 0x02, 0x00, 0x00, 0x11, 0x21, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10, 0x01,
-//         0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x05,
-//         0x00, 0x10, 0x15, 0x25, 0x01, 0x02, 0x03, 0x04, 0x09, 0x0A, 0x0B, 0x0C, 0x05, 0x06, 0x07,
-//         0x08, 0x0D, 0x0E, 0x0F, 0x10,
-//     ];
-
-//     const SUBMESSAGE_LITTLE_ENDIAN: [u8; 80] = [
-//         0x02, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x20, 0x10, 0x00, 0x00, 0x01, 0x02, 0x03,
-//         0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10, 0x02, 0x00,
-//         0x00, 0x00, 0x21, 0x11, 0x00, 0x00, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10, 0x01,
-//         0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x01, 0x00, 0x00, 0x00, 0x05, 0x00, 0x00, 0x00,
-//         0x25, 0x15, 0x10, 0x00, 0x01, 0x02, 0x03, 0x04, 0x09, 0x0A, 0x0B, 0x0C, 0x05, 0x06, 0x07,
-//         0x08, 0x0D, 0x0E, 0x0F, 0x10,
-//     ];
-
-//     #[test]
-//     fn test_parse_info_reply_submessage_multicast_and_unicast_big_endian() {
-//         let info_reply_big_endian =
-//             parse_info_reply_submessage(&SUBMESSAGE_BIG_ENDIAN, &2).unwrap();
-//         assert_eq!(info_reply_big_endian.unicast_locator_list.len(), 2);
-
-//         assert_eq!(info_reply_big_endian.unicast_locator_list[0].kind, 1);
-//         assert_eq!(info_reply_big_endian.unicast_locator_list[0].port, 4128);
-//         assert_eq!(
-//             info_reply_big_endian.unicast_locator_list[0].address,
-//             [
-//                 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E,
-//                 0x0F, 0x10,
-//             ]
-//         );
-
-//         assert_eq!(info_reply_big_endian.unicast_locator_list[1].kind, 2);
-//         assert_eq!(info_reply_big_endian.unicast_locator_list[1].port, 4385);
-//         assert_eq!(
-//             info_reply_big_endian.unicast_locator_list[1].address,
-//             [
-//                 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06,
-//                 0x07, 0x08,
-//             ]
-//         );
-
-//         let multicast_locator_list = info_reply_big_endian.multicast_locator_list.unwrap();
-//         assert_eq!(multicast_locator_list.len(), 1);
-
-//         assert_eq!(multicast_locator_list[0].kind, 5);
-//         assert_eq!(multicast_locator_list[0].port, 1053989);
-//         assert_eq!(
-//             multicast_locator_list[0].address,
-//             [
-//                 0x01, 0x02, 0x03, 0x04, 0x09, 0x0A, 0x0B, 0x0C, 0x05, 0x06, 0x07, 0x08, 0x0D, 0x0E,
-//                 0x0F, 0x10,
-//             ]
-//         );
-//     }
-
-//     #[test]
-//     fn test_parse_info_reply_submessage_unicast_big_endian() {
-//         let info_reply_big_endian =
-//             parse_info_reply_submessage(&SUBMESSAGE_BIG_ENDIAN, &0).unwrap();
-//         assert_eq!(info_reply_big_endian.unicast_locator_list.len(), 2);
-
-//         assert_eq!(info_reply_big_endian.unicast_locator_list[0].kind, 1);
-//         assert_eq!(info_reply_big_endian.unicast_locator_list[0].port, 4128);
-//         assert_eq!(
-//             info_reply_big_endian.unicast_locator_list[0].address,
-//             [
-//                 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E,
-//                 0x0F, 0x10,
-//             ]
-//         );
-
-//         assert_eq!(info_reply_big_endian.unicast_locator_list[1].kind, 2);
-//         assert_eq!(info_reply_big_endian.unicast_locator_list[1].port, 4385);
-//         assert_eq!(
-//             info_reply_big_endian.unicast_locator_list[1].address,
-//             [
-//                 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06,
-//                 0x07, 0x08,
-//             ]
-//         );
-
-//         assert!(info_reply_big_endian.multicast_locator_list.is_none());
-//     }
-
-//     #[test]
-//     fn test_parse_info_reply_submessage_multicast_and_unicast_little_endian() {
-//         let info_reply_little_endian =
-//             parse_info_reply_submessage(&SUBMESSAGE_LITTLE_ENDIAN, &3).unwrap();
-//         assert_eq!(info_reply_little_endian.unicast_locator_list.len(), 2);
-
-//         assert_eq!(info_reply_little_endian.unicast_locator_list[0].kind, 1);
-//         assert_eq!(info_reply_little_endian.unicast_locator_list[0].port, 4128);
-//         assert_eq!(
-//             info_reply_little_endian.unicast_locator_list[0].address,
-//             [
-//                 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E,
-//                 0x0F, 0x10,
-//             ]
-//         );
-
-//         assert_eq!(info_reply_little_endian.unicast_locator_list[1].kind, 2);
-//         assert_eq!(info_reply_little_endian.unicast_locator_list[1].port, 4385);
-//         assert_eq!(
-//             info_reply_little_endian.unicast_locator_list[1].address,
-//             [
-//                 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06,
-//                 0x07, 0x08,
-//             ]
-//         );
-
-//         let multicast_locator_list = info_reply_little_endian.multicast_locator_list.unwrap();
-//         assert_eq!(multicast_locator_list.len(), 1);
-
-//         assert_eq!(multicast_locator_list[0].kind, 5);
-//         assert_eq!(multicast_locator_list[0].port, 1053989);
-//         assert_eq!(
-//             multicast_locator_list[0].address,
-//             [
-//                 0x01, 0x02, 0x03, 0x04, 0x09, 0x0A, 0x0B, 0x0C, 0x05, 0x06, 0x07, 0x08, 0x0D, 0x0E,
-//                 0x0F, 0x10,
-//             ]
-//         );
-//     }
-
-//     #[test]
-//     fn test_parse_info_reply_submessage_unicast_little_endian() {
-//         let info_reply_little_endian =
-//             parse_info_reply_submessage(&SUBMESSAGE_LITTLE_ENDIAN, &1).unwrap();
-//         assert_eq!(info_reply_little_endian.unicast_locator_list.len(), 2);
-
-//         assert_eq!(info_reply_little_endian.unicast_locator_list[0].kind, 1);
-//         assert_eq!(info_reply_little_endian.unicast_locator_list[0].port, 4128);
-//         assert_eq!(
-//             info_reply_little_endian.unicast_locator_list[0].address,
-//             [
-//                 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E,
-//                 0x0F, 0x10,
-//             ]
-//         );
-
-//         assert_eq!(info_reply_little_endian.unicast_locator_list[1].kind, 2);
-//         assert_eq!(info_reply_little_endian.unicast_locator_list[1].port, 4385);
-//         assert_eq!(
-//             info_reply_little_endian.unicast_locator_list[1].address,
-//             [
-//                 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06,
-//                 0x07, 0x08,
-//             ]
-//         );
-
-//         assert!(info_reply_little_endian.multicast_locator_list.is_none());
-//     }
-
-//     #[test]
-//     fn test_parse_info_reply_submessage_unicast_and_multicast() {
-//         // Test complete message with multicast and unicast
-//         let submessage = [
-//             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x05, 0x00, 0x10,
-//             0x15, 0x25, 0x01, 0x02, 0x03, 0x04, 0x09, 0x0A, 0x0B, 0x0C, 0x05, 0x06, 0x07, 0x08,
-//             0x0D, 0x0E, 0x0F, 0x10,
-//         ];
-
-//         {
-//             let info_reply = parse_info_reply_submessage(&submessage, &2).unwrap();
-//             assert_eq!(info_reply.unicast_locator_list.len(), 0);
-
-//             let multicast_locator_list = info_reply.multicast_locator_list.unwrap();
-//             assert_eq!(multicast_locator_list.len(), 1);
-
-//             assert_eq!(multicast_locator_list[0].kind, 5);
-//             assert_eq!(multicast_locator_list[0].port, 1053989);
-//             assert_eq!(
-//                 multicast_locator_list[0].address,
-//                 [
-//                     0x01, 0x02, 0x03, 0x04, 0x09, 0x0A, 0x0B, 0x0C, 0x05, 0x06, 0x07, 0x08, 0x0D,
-//                     0x0E, 0x0F, 0x10,
-//                 ]
-//             );
-//         }
-
-//         {
-//             let info_reply = parse_info_reply_submessage(&submessage, &0).unwrap();
-//             assert_eq!(info_reply.unicast_locator_list.len(), 0);
-
-//             assert!(info_reply.multicast_locator_list.is_none());
-//         }
-//     }
-// }
