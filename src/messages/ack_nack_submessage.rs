@@ -1,204 +1,117 @@
-use crate::types::{Count, EntityId, SequenceNumberSet};
+use crate::types::{Ushort, EntityId, SequenceNumberSet, Count};
+use super::{SubmessageKind, SubmessageFlag, SubmessageHeader, Submessage};
+use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, EndianessFlag, RtpsSerdesResult};
 
-use super::helpers::{deserialize, endianess, parse_sequence_number_set};
-
-use super::RtpsMessageResult;
 
 #[derive(PartialEq, Debug)]
 pub struct AckNack {
+    endianness_flag: SubmessageFlag,
+    final_flag: SubmessageFlag,
     reader_id: EntityId,
     writer_id: EntityId,
     reader_sn_state: SequenceNumberSet,
     count: Count,
-    final_flag: bool,
 }
 
-impl AckNack {
-    const FINAL_FLAG_MASK: u8 = 0x02;
-
-    pub fn new(reader_id: EntityId, writer_id: EntityId, reader_sn_state: SequenceNumberSet, count: Count, final_flag: bool) -> Self {
-        AckNack {
-            reader_id,
-            writer_id,
-            reader_sn_state,
-            count,
-            final_flag,
+impl Submessage for AckNack {
+    fn submessage_header(&self) -> SubmessageHeader {
+        const X : SubmessageFlag = SubmessageFlag(false);
+        let e = self.endianness_flag; 
+        let f = self.final_flag; 
+        let flags = [e, f, X, X, X, X, X, X];     
+        let submessage_length = self.reader_id.octets() + self.writer_id.octets() + self.reader_sn_state.octets() + self.count.octets();
+        SubmessageHeader { 
+            submessage_id: SubmessageKind::InfoReply,
+            flags,
+            submessage_length: Ushort::from(submessage_length),
         }
+    }    
+}
+
+impl RtpsCompose for AckNack {
+    fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
+        let endianness = EndianessFlag::from(self.endianness_flag);       
+        self.submessage_header().compose(writer)?;
+        self.reader_id.serialize(writer, endianness)?;
+        self.writer_id.serialize(writer, endianness)?;
+        self.reader_sn_state.serialize(writer, endianness)?;
+        self.count.serialize(writer, endianness)?;        
+        Ok(())
     }
 }
 
-pub fn parse_ack_nack_submessage(submessage: &[u8], submessage_flags: &u8) -> RtpsMessageResult<AckNack> {
-    const FINAL_FLAG_MASK: u8 = 0x02;
-    const READER_ID_FIRST_INDEX: usize = 0;
-    const READER_ID_LAST_INDEX: usize = 3;
-    const WRITER_ID_FIRST_INDEX: usize = 4;
-    const WRITER_ID_LAST_INDEX: usize = 7;
-    const SEQUENCE_NUMBER_SET_FIRST_INDEX: usize = 8;
-    const COUNT_SIZE: usize = 4;
-
-    let submessage_endianess = endianess(submessage_flags)?;
-    let final_flag = (submessage_flags & FINAL_FLAG_MASK) == FINAL_FLAG_MASK;
-
-    let reader_id = deserialize::<EntityId>(
-        submessage,
-        &READER_ID_FIRST_INDEX,
-        &READER_ID_LAST_INDEX,
-        &submessage_endianess,
-    )?;
-
-    let writer_id = deserialize::<EntityId>(
-        submessage,
-        &WRITER_ID_FIRST_INDEX,
-        &WRITER_ID_LAST_INDEX,
-        &submessage_endianess,
-    )?;
-
-    let (reader_sn_state, sequence_number_set_size) = parse_sequence_number_set(
-        submessage,
-        &SEQUENCE_NUMBER_SET_FIRST_INDEX,
-        &submessage_endianess,
-    )?;
-
-    let count_first_index = SEQUENCE_NUMBER_SET_FIRST_INDEX + sequence_number_set_size;
-    let count_last_index = count_first_index + COUNT_SIZE - 1;
-
-    let count = deserialize::<Count>(
-        submessage,
-        &count_first_index,
-        &count_last_index,
-        &submessage_endianess,
-    )?;
-
-    Ok(AckNack {
-        final_flag,
-        reader_id,
-        writer_id,
-        reader_sn_state,
-        count,
-    })
+impl RtpsParse for AckNack {
+    fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> {
+        let header = SubmessageHeader::parse(bytes)?;
+        let endianness_flag = header.flags()[0];
+        let final_flag = header.flags()[1];
+        let endianness = endianness_flag.into();
+        let end_of_message = usize::from(header.submessage_length()) + header.octets();
+        let index_count = end_of_message - 4;
+        let reader_id = EntityId::deserialize(&bytes[4..8], endianness)?;
+        let writer_id = EntityId::deserialize(&bytes[8..12], endianness)?;
+        let reader_sn_state = SequenceNumberSet::deserialize(&bytes[12..index_count], endianness)?;
+        let count = Count::deserialize(&bytes[index_count..end_of_message], endianness)?;
+        
+        Ok(Self{endianness_flag, final_flag, reader_id, writer_id, reader_sn_state, count})
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
+    use crate::types::constants::{ENTITYID_UNKNOWN, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER};
+    use crate::types::SequenceNumber;
+    
     #[test]
-    fn test_parse_ack_nack_submessage_big_endian() {
-        let ack_nack_submessage_big_endian = [
-            0x10, 0x12, 0x14, 0x16, 0x26, 0x24, 0x22, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x04, 0xD2, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00, 0x0C, 0x00, 0x00, 0x00, 0x0F,
+    fn test_parse_ack_nack_submessage() {
+        let bytes = [
+            0x0f, 0b00000011, 28, 0, 
+            0x00, 0x00, 0x00, 0x00, // readerId 
+            0x00, 0x01, 0x00, 0xc2, // writerId
+            0, 0, 0, 0, // reader_sn_state: base
+            2, 0, 0, 0, // reader_sn_state: base
+            2, 0, 0, 0, // reader_sn_state: num bits
+            0b_00000000, 0b_00000000, 0b_00000000, 0b_11000000, // reader_sn_state: bitmap
+            2, 0, 0, 0, // Count
         ];
-
-        let ack_nack_big_endian =
-            parse_ack_nack_submessage(&ack_nack_submessage_big_endian, &0).unwrap();
-        assert_eq!(ack_nack_big_endian.final_flag, false);
-        assert_eq!(
-            ack_nack_big_endian.reader_id,
-            EntityId::new([0x10, 0x12, 0x14], 0x16)
-        );
-        assert_eq!(
-            ack_nack_big_endian.writer_id,
-            EntityId::new([0x26, 0x24, 0x22], 0x20)
-        );
-        assert_eq!(ack_nack_big_endian.count, 15);
-        assert_eq!(
-            ack_nack_big_endian.reader_sn_state,
-            [
-                (1234, false),
-                (1235, false),
-                (1236, true),
-                (1237, true),
-                (1238, false),
-                (1239, false),
-                (1240, false),
-                (1241, false),
-            ].iter().cloned().collect()
-        );
-
-        let ack_nack_big_endian_final =
-            parse_ack_nack_submessage(&ack_nack_submessage_big_endian, &2).unwrap();
-        assert_eq!(ack_nack_big_endian_final.final_flag, true);
-        assert_eq!(
-            ack_nack_big_endian_final.reader_id,
-            EntityId::new([0x10, 0x12, 0x14], 0x16)
-        );
-        assert_eq!(
-            ack_nack_big_endian_final.writer_id,
-            EntityId::new([0x26, 0x24, 0x22], 0x20)
-        );
-        assert_eq!(ack_nack_big_endian_final.count, 15);
-        assert_eq!(
-            ack_nack_big_endian_final.reader_sn_state,
-            [
-                (1234, false),
-                (1235, false),
-                (1236, true),
-                (1237, true),
-                (1238, false),
-                (1239, false),
-                (1240, false),
-                (1241, false),
-            ].iter().cloned().collect()
-        );
+        
+        let expected = AckNack {
+            endianness_flag: EndianessFlag::LittleEndian.into(),
+            final_flag: SubmessageFlag(true),
+            reader_id: ENTITYID_UNKNOWN,
+            writer_id: ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
+            reader_sn_state: SequenceNumberSet::new([SequenceNumber(2), SequenceNumber(3)].iter().cloned().collect()),
+            count: Count(2),
+        };
+        let result = AckNack::parse(&bytes).unwrap();
+        assert_eq!(expected, result);
     }
 
     #[test]
-    fn test_parse_ack_nack_submessage_little_endian() {
-        let ack_nack_submessage_little_endian = [
-            0x10, 0x12, 0x14, 0x16, 0x26, 0x24, 0x22, 0x20, 0x00, 0x00, 0x00, 0x00, 0xD2, 0x04,
-            0x00, 0x00, 0x08, 0x00, 0x00, 0x00, 0x0C, 0x00, 0x00, 0x00, 0x0F, 0x00, 0x00, 0x00,
+    fn compose_gap_submessage() {
+        let expected = vec![
+            0x0f, 0b00000011, 28, 0, 
+            0x00, 0x00, 0x00, 0x00, // readerId 
+            0x00, 0x01, 0x00, 0xc2, // writerId
+            0, 0, 0, 0, // reader_sn_state: base
+            2, 0, 0, 0, // reader_sn_state: base
+            2, 0, 0, 0, // reader_sn_state: num bits
+            0b_00000000, 0b_00000000, 0b_00000000, 0b_11000000, // reader_sn_state: bitmap
+            2, 0, 0, 0, // Count
         ];
 
-        let ack_nack_little_endian =
-            parse_ack_nack_submessage(&ack_nack_submessage_little_endian, &1).unwrap();
-        assert_eq!(ack_nack_little_endian.final_flag, false);
-        assert_eq!(
-            ack_nack_little_endian.reader_id,
-            EntityId::new([0x10, 0x12, 0x14], 0x16)
-        );
-        assert_eq!(
-            ack_nack_little_endian.writer_id,
-            EntityId::new([0x26, 0x24, 0x22], 0x20)
-        );
-        assert_eq!(ack_nack_little_endian.count, 15);
-        assert_eq!(
-            ack_nack_little_endian.reader_sn_state,
-            [
-                (1234, false),
-                (1235, false),
-                (1236, true),
-                (1237, true),
-                (1238, false),
-                (1239, false),
-                (1240, false),
-                (1241, false),
-            ].iter().cloned().collect()
-        );
+        let message = AckNack {
+            endianness_flag: EndianessFlag::LittleEndian.into(),
+            final_flag: SubmessageFlag(true),
+            reader_id: ENTITYID_UNKNOWN,
+            writer_id: ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
+            reader_sn_state: SequenceNumberSet::new([SequenceNumber(2), SequenceNumber(3)].iter().cloned().collect()),
+            count: Count(2),
+        };
 
-        let ack_nack_little_endian_final =
-            parse_ack_nack_submessage(&ack_nack_submessage_little_endian, &3).unwrap();
-        assert_eq!(ack_nack_little_endian_final.final_flag, true);
-        assert_eq!(
-            ack_nack_little_endian_final.reader_id,
-            EntityId::new([0x10, 0x12, 0x14], 0x16)
-        );
-        assert_eq!(
-            ack_nack_little_endian_final.writer_id,
-            EntityId::new([0x26, 0x24, 0x22], 0x20)
-        );
-        assert_eq!(ack_nack_little_endian_final.count, 15);
-        assert_eq!(
-            ack_nack_little_endian_final.reader_sn_state,
-            [
-                (1234, false),
-                (1235, false),
-                (1236, true),
-                (1237, true),
-                (1238, false),
-                (1239, false),
-                (1240, false),
-                (1241, false),
-            ].iter().cloned().collect()
-        );
+        let mut writer = Vec::new();
+        message.compose(&mut writer).unwrap();
+        assert_eq!(expected, writer);        
     }
 }
