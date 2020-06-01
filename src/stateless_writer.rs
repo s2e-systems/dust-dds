@@ -10,25 +10,31 @@ use crate::types::{
     SerializedPayload, Time, TopicKind, GUID, ParameterList, StatusInfo, KeyHash
 };
 
-pub struct ReaderLocator {
+struct ReaderLocator {
     //requested_changes: HashSet<CacheChange>,
     // unsent_changes: SequenceNumber,
     expects_inline_qos: bool,
     highest_sequence_number_sent: SequenceNumber,
     sequence_numbers_requested: HashSet<SequenceNumber>,
+    time_last_sent_data: Time,
 }
 
 impl ReaderLocator {
-    pub fn new(expects_inline_qos: bool) -> Self {
+    fn new(expects_inline_qos: bool) -> Self {
         ReaderLocator {
             expects_inline_qos,
             highest_sequence_number_sent: SequenceNumber(0),
             sequence_numbers_requested: HashSet::new(),
+            time_last_sent_data: Time::now(),
         }
     }
 
     fn unsent_changes_reset(&mut self) {
         self.highest_sequence_number_sent = SequenceNumber(0);
+    }
+
+    fn time_last_sent_data_reset(&mut self) {
+        self.time_last_sent_data = Time::now();
     }
 }
 
@@ -171,6 +177,16 @@ impl StatelessWriter {
         reader_locator.sequence_numbers_requested = req_seq_num_set;
     }
 
+    fn time_since_last_data_sent(&self, a_locator: Locator) -> Duration {
+        let reader_locator = self.reader_locators.get(&a_locator).unwrap();
+        Time::now() - reader_locator.time_last_sent_data
+    }
+
+    fn time_last_sent_data_reset(&mut self, a_locator: Locator) {
+        let reader_locator = self.reader_locators.get_mut(&a_locator).unwrap();
+        reader_locator.time_last_sent_data_reset();
+    }
+
     pub fn get_data_to_send(&mut self, a_locator: Locator) -> RtpsMessage {
         let mut message = RtpsMessage::new(
             Header::new(*self.guid.prefix()), 
@@ -220,10 +236,20 @@ impl StatelessWriter {
                     // message.push(RtpsSubmessage::Gap(gap));
                 }
             }
-        }
 
-        if self.reliability_level == ReliabilityKind::Reliable {
-            todo!()
+            self.time_last_sent_data_reset(a_locator);
+        } else {
+            if self.reliability_level == ReliabilityKind::Reliable {
+                if self.time_since_last_data_sent(a_locator) >= self.heartbeat_period {
+                    let time = Time::now();
+                    let infots = InfoTs::new(Some(time), EndianessFlag::LittleEndian);
+
+                    message.push(RtpsSubmessage::InfoTs(infots));
+                }
+
+
+                todo!()
+            }
         }
 
         message
@@ -346,6 +372,76 @@ mod tests {
             GUID::new(GuidPrefix([0; 12]), ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
             TopicKind::WithKey,
             ReliabilityKind::BestEffort,
+            vec![Locator::new(0, 7400, [0; 16])], 
+            vec![],                               
+            false,                                
+            DURATION_ZERO,                        
+            DURATION_ZERO,                        
+            DURATION_ZERO,                        
+        );
+
+        let locator = Locator::new(0, 7400, [1; 16]);
+
+        writer.reader_locator_add(locator);
+
+        // Verify next unsent change without any changes created
+        assert_eq!(writer.unsent_changes(locator), HashSet::new());
+        assert_eq!(writer.next_unsent_change(locator), None);
+
+        let cache_change_seq1 = writer.new_change(
+            ChangeKind::Alive,
+            Some(vec![1, 2, 3]), 
+            None,                
+            [1; 16],             
+        );
+
+        let cache_change_seq2 = writer.new_change(
+            ChangeKind::Alive,
+            Some(vec![4, 5, 6]), 
+            None,                
+            [1; 16],             
+        );
+
+        writer.history_cache().add_change(cache_change_seq1);
+        writer.history_cache().add_change(cache_change_seq2);
+
+        let writer_data = writer.get_data_to_send(locator);
+        assert_eq!(writer_data.submessages().len(), 3);
+        if let RtpsSubmessage::InfoTs(message_1) = &writer_data.submessages()[0] {
+            println!("{:?}", message_1);
+        } else {
+            panic!("Wrong message type");
+        }
+        if let RtpsSubmessage::Data(data_message_1) = &writer_data.submessages()[1] {
+            assert_eq!(data_message_1.reader_id(), &ENTITYID_UNKNOWN);
+            assert_eq!(data_message_1.writer_id(), &ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER);
+            assert_eq!(data_message_1.writer_sn(), &SequenceNumber(1));
+            assert_eq!(data_message_1.serialized_payload(), &Some(SerializedPayload(vec![1, 2, 3])));
+
+        } else {
+            panic!("Wrong message type");
+        };
+
+        if let RtpsSubmessage::Data(data_message_2) = &writer_data.submessages()[2] {
+            assert_eq!(data_message_2.reader_id(), &ENTITYID_UNKNOWN);
+            assert_eq!(data_message_2.writer_id(), &ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER);
+            assert_eq!(data_message_2.writer_sn(), &SequenceNumber(2));
+            assert_eq!(data_message_2.serialized_payload(), &Some(SerializedPayload(vec![4, 5, 6])));
+        } else {
+            panic!("Wrong message type");
+        };
+
+        // Test that nothing more is sent after the first time
+        let writer_data = writer.get_data_to_send(locator);
+        assert_eq!(writer_data.submessages().len(), 0);
+    }
+
+    #[test]
+    fn test_reliable_stateless_writer_get_data_to_send() {
+        let mut writer = StatelessWriter::new(
+            GUID::new(GuidPrefix([0; 12]), ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
+            TopicKind::WithKey,
+            ReliabilityKind::Reliable,
             vec![Locator::new(0, 7400, [0; 16])], 
             vec![],                               
             false,                                
