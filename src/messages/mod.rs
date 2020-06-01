@@ -11,7 +11,7 @@ mod info_destination_submessage;
 mod info_reply_submessage;
 mod info_source_submessage;
 mod info_timestamp_submessage;
-// mod nack_frag_submessage;
+mod nack_frag_submessage;
 
 use num_derive::FromPrimitive;
 
