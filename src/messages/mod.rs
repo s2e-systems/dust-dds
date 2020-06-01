@@ -5,7 +5,7 @@ mod ack_nack_submessage;
 mod data_frag_submessage;
 mod data_submessage;
 mod gap_submessage;
-// mod heartbeat_frag_submessage;
+mod heartbeat_frag_submessage;
 mod heartbeat_submessage;
 mod info_destination_submessage;
 mod info_reply_submessage;
