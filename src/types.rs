@@ -64,7 +64,7 @@ impl RtpsDeserialize for Long {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Hash, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Hash, Eq, PartialOrd, Ord)]
 pub struct ULong(pub u32);
 
 impl RtpsSerialize for ULong {
@@ -837,13 +837,10 @@ impl RtpsDeserialize for GuidPrefix {
     }    
 }
 
-
-
 pub type InstanceHandle = [u8; 16];
 
-pub type FragmentNumberSet = Vec<(FragmentNumber, bool)>;
 
-#[derive(PartialEq, Debug)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)] //Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Hash
 pub struct FragmentNumber(pub ULong);
 
 impl RtpsSerialize for FragmentNumber {
@@ -856,6 +853,71 @@ impl RtpsSerialize for FragmentNumber {
 impl RtpsDeserialize for FragmentNumber {
     fn deserialize(bytes: &[u8], endianness: EndianessFlag) -> RtpsSerdesResult<Self> {
         Ok(Self(ULong::deserialize(&bytes, endianness)?))
+    }    
+}
+
+
+#[derive(PartialEq, Debug)]
+pub struct FragmentNumberSet {
+    base: FragmentNumber,
+    set: BTreeSet<FragmentNumber>,
+}
+
+impl FragmentNumberSet {
+    pub fn new(set: BTreeSet<FragmentNumber>) -> Self { 
+        let base = *set.iter().next().unwrap_or(&FragmentNumber(ULong(0)));
+        Self {base, set } 
+    }
+}
+
+impl RtpsSerialize for FragmentNumberSet {
+    fn serialize(&self, writer: &mut impl Write, endianness: EndianessFlag) -> RtpsSerdesResult<()> {
+        let num_bits = if self.set.is_empty() {
+            0 
+        } else {
+            (usize::from(self.set.iter().last().unwrap().0) - usize::from(self.base.0)) + 1
+        };
+        let m = (num_bits + 31) / 32;
+        let mut bitmaps = vec![0_u32; m];
+        self.base.serialize(writer, endianness)?;
+        ULong::from(num_bits).serialize(writer, endianness)?;
+        for seq_num in &self.set {
+            let delta_n = (usize::from(seq_num.0) - usize::from(self.base.0)) as usize;
+            let bitmap_i = delta_n / 32;
+            let bitmask = 1 << (31 - delta_n % 32);
+            bitmaps[bitmap_i] |= bitmask;
+        };
+        for bitmap in bitmaps {
+            ULong(bitmap).serialize(writer, endianness)?;
+        }
+        Ok(())
+    }
+}
+impl RtpsDeserialize for FragmentNumberSet {
+    fn deserialize(bytes: &[u8], endianness: EndianessFlag) -> RtpsSerdesResult<Self> {
+        let base = FragmentNumber::deserialize(&bytes[0..4], endianness)?;
+        let num_bits = ULong::deserialize(&bytes[4..8], endianness)?.0 as usize;
+
+        // Get bitmaps from "long"s that follow the numBits field in the message
+        // Note that the amount of bitmaps that are included in the message are 
+        // determined by the number of bits (32 max per bitmap, and a max of 256 in 
+        // total which means max 8 bitmap "long"s)
+        let m = (num_bits + 31) / 32;        
+        let mut bitmaps = Vec::with_capacity(m);
+        for i in 0..m {
+            let index_of_byte_current_bitmap = 8 + i * 4;
+            bitmaps.push(Long::deserialize(&bytes[index_of_byte_current_bitmap..], endianness)?.0);
+        };
+        // Interpet the bitmaps and insert the sequence numbers if they are encode in the bitmaps
+        let mut set = BTreeSet::new(); 
+        for delta_n in 0..num_bits {
+            let bitmask = 1 << (31 - delta_n % 32);
+            if  bitmaps[delta_n / 32] & bitmask == bitmask {               
+                let frag_num = FragmentNumber(ULong::from(delta_n + usize::from(base.0)));
+                set.insert(frag_num);
+            }
+        }
+        Ok(Self {base, set})
     }    
 }
 
@@ -1277,7 +1339,7 @@ mod tests {
     }
     
     #[test]
-    fn deserialize_sequence_number_max_bitmaps_big_endian() {
+    fn deserialize_sequence_number_set_max_bitmaps_big_endian() {
         let expected = SequenceNumberSet{
             base: SequenceNumber(1000),
             set: [SequenceNumber(1000), SequenceNumber(1255)].iter().cloned().collect()
@@ -1300,7 +1362,7 @@ mod tests {
     }
 
     #[test]
-    fn deserialize_sequence_number_max_bitmaps_little_endian() {
+    fn deserialize_sequence_number_set_max_bitmaps_little_endian() {
         let expected = SequenceNumberSet{
             base: SequenceNumber(1000),
             set: [SequenceNumber(1000), SequenceNumber(1255)].iter().cloned().collect()
@@ -1440,6 +1502,49 @@ mod tests {
         ];
         let result = FragmentNumber::deserialize(&bytes, EndianessFlag::LittleEndian).unwrap();
         assert_eq!(expected, result);
+    }
+
+    ///////////////////////// FragmentNumberSet Tests ////////////////////////
+
+    #[test]
+    fn fragment_number_set_constructor() {
+        let expected = FragmentNumberSet{
+            base: FragmentNumber(ULong(1001)),
+            set:  [FragmentNumber(ULong(1001)), FragmentNumber(ULong(1003))].iter().cloned().collect(),
+        };
+        let result = FragmentNumberSet::new([FragmentNumber(ULong(1001)), FragmentNumber(ULong(1003))].iter().cloned().collect());
+        assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn deserialize_fragment_number_set() {
+        let expected = FragmentNumberSet{
+            base: FragmentNumber(ULong(3)),
+            set: [FragmentNumber(ULong(3)), FragmentNumber(ULong(4))].iter().cloned().collect()
+        };
+        let bytes = vec![
+            3, 0, 0, 0, // base
+            2, 0, 0, 0, // num bits
+            0b_00000000, 0b_00000000, 0b_00000000, 0b_11000000, 
+        ];
+        let result = FragmentNumberSet::deserialize(&bytes, EndianessFlag::LittleEndian).unwrap();
+        assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn serialize_fragment_number_set() {
+        let set = FragmentNumberSet{
+            base: FragmentNumber(ULong(3)),
+            set: [FragmentNumber(ULong(3)), FragmentNumber(ULong(4))].iter().cloned().collect()
+        };
+        let mut writer = Vec::new();
+        set.serialize(&mut writer, EndianessFlag::BigEndian).unwrap();
+        let expected = vec![
+            0, 0, 0, 3, // base
+            0, 0, 0, 2, // num bits
+            0b_11000000, 0b_00000000, 0b_00000000, 0b_00000000, 
+        ];
+        assert_eq!(expected, writer);
     }
 
     
