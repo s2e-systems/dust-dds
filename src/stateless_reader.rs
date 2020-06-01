@@ -99,9 +99,9 @@ impl StatelessReader {
     }
 
     fn change_kind(data_submessage: &Data) -> StatelessReaderResult<ChangeKind>{
-        let change_kind = if data_submessage.data_flag() && !data_submessage.key_flag() {
+        let change_kind = if data_submessage.data_flag().is_set() && !data_submessage.key_flag().is_set() {
             ChangeKind::Alive
-        } else if !data_submessage.data_flag() && data_submessage.key_flag() {
+        } else if !data_submessage.data_flag().is_set() && data_submessage.key_flag().is_set() {
             let inline_qos = StatelessReader::inline_qos(&data_submessage)?;
 
             let status_info_parameter = inline_qos.find_parameter(InlineQosPid::StatusInfo.into()).ok_or(StatelessReaderError::StatusInfoNotFound)?;
@@ -120,7 +120,7 @@ impl StatelessReader {
     }
 
     fn key_hash(data_submessage: &Data) -> StatelessReaderResult<KeyHash> {
-        let key_hash = if data_submessage.data_flag() && !data_submessage.key_flag() {
+        let key_hash = if data_submessage.data_flag().is_set() && !data_submessage.key_flag().is_set() {
             let inline_qos = StatelessReader::inline_qos(&data_submessage)?;
 
             let key_hash_parameter = inline_qos.find_parameter(InlineQosPid::KeyHash.into()).ok_or(StatelessReaderError::KeyHashNotFound)?;
@@ -129,7 +129,7 @@ impl StatelessReader {
                 _ => return Err(StatelessReaderError::KeyHashNotFound),
             }
 
-        } else if !data_submessage.data_flag() && data_submessage.key_flag() {
+        } else if !data_submessage.data_flag().is_set() && data_submessage.key_flag().is_set() {
             match data_submessage.serialized_payload() {
                 Some(payload) => KeyHash(payload.0[0..16].try_into().map_err(|_| StatelessReaderError::InvalidKeyHashPayload)?),
                 None => return Err(StatelessReaderError::KeyHashNotFound),

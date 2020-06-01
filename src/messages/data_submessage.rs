@@ -102,16 +102,16 @@ impl Data {
         &self.inline_qos
     }
     
-    pub fn data_flag(&self) -> bool {
-        self.data_flag.is_set()
+    pub fn data_flag(&self) -> SubmessageFlag {
+        self.data_flag
     }
 
-    pub fn key_flag(&self) -> bool {
-        self.key_flag.is_set()
+    pub fn key_flag(&self) -> SubmessageFlag {
+        self.key_flag
     }
 
-    pub fn non_standard_payload_flag(&self) -> bool {
-        self.non_standard_payload_flag.is_set()
+    pub fn non_standard_payload_flag(&self) -> SubmessageFlag {
+        self.non_standard_payload_flag
     }
 }
 
