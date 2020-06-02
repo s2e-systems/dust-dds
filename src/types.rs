@@ -325,7 +325,7 @@ impl Time {
 
     pub fn now() -> Self {
         let current_time = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap();
-        Time{seconds: current_time.as_secs() as u32 , fraction: current_time.as_nanos() as u32}
+        Time{seconds: current_time.as_secs() as u32 , fraction: current_time.subsec_nanos() as u32}
     }
 }
  
@@ -371,10 +371,45 @@ impl RtpsDeserialize for Count {
     }
 }
 
-#[derive(PartialEq, Eq, Hash, Debug, Clone)]
+#[derive(PartialEq, Eq, PartialOrd, Hash, Debug, Clone, Copy)]
 pub struct Duration {
-    pub seconds: i32,
-    pub fraction: u32,
+    seconds: i32,
+    fraction: u32,
+}
+
+impl Duration {
+    const SCALING_FACTOR: f32 = 4_294_967_295_f32 /*2^32-1*/ / 999_999_999_f32;
+    
+    pub fn new(seconds: i32, nanoseconds: u32) -> Self{
+        assert!(nanoseconds < 1_000_000_000);
+
+        let fraction = (nanoseconds as f32 * Duration::SCALING_FACTOR) as u32;
+
+        Duration{
+            seconds,
+            fraction,
+        }
+    }
+
+    pub fn seconds(&self) -> i32 {
+        self.seconds
+    }
+
+    pub fn nanoseconds(&self) -> u32 {
+        (self.fraction as f32 / Duration::SCALING_FACTOR) as u32
+    }
+}
+
+impl From<std::time::Duration> for Duration {
+    fn from(value: std::time::Duration) -> Self {
+        Duration::new(value.as_secs() as i32, value.subsec_nanos())
+    }
+}
+
+impl From<Duration> for std::time::Duration {
+    fn from(value: Duration) -> Self {
+        std::time::Duration::new(value.seconds() as u64, value.nanoseconds())
+    }
 }
 
 #[derive(Debug, PartialEq, Clone, Copy, Eq)]

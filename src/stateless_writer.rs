@@ -1,13 +1,14 @@
 use std::collections::{HashMap, HashSet};
+use std::time::Instant;
 
 use crate::cache::{CacheChange, HistoryCache};
 use crate::inline_qos::{InlineQosParameter, InlineQosParameterList};
-use crate::messages::{Data, InfoTs, Payload, RtpsMessage, RtpsSubmessage, Header};
+use crate::messages::{Data, Heartbeat, InfoTs, Payload, RtpsMessage, RtpsSubmessage, Header};
 use crate::serdes::EndianessFlag;
 use crate::types::constants::{ENTITYID_UNKNOWN};
 use crate::types::{
     ChangeKind, Duration, InstanceHandle, Locator, LocatorList, ReliabilityKind, SequenceNumber,
-    SerializedPayload, Time, TopicKind, GUID, ParameterList, StatusInfo, KeyHash
+    SerializedPayload, Time, TopicKind, GUID, ParameterList, StatusInfo, KeyHash, Count,
 };
 
 struct ReaderLocator {
@@ -16,7 +17,7 @@ struct ReaderLocator {
     expects_inline_qos: bool,
     highest_sequence_number_sent: SequenceNumber,
     sequence_numbers_requested: HashSet<SequenceNumber>,
-    time_last_sent_data: Time,
+    time_last_sent_data: Instant,
 }
 
 impl ReaderLocator {
@@ -25,7 +26,7 @@ impl ReaderLocator {
             expects_inline_qos,
             highest_sequence_number_sent: SequenceNumber(0),
             sequence_numbers_requested: HashSet::new(),
-            time_last_sent_data: Time::now(),
+            time_last_sent_data: Instant::now(),
         }
     }
 
@@ -34,7 +35,12 @@ impl ReaderLocator {
     }
 
     fn time_last_sent_data_reset(&mut self) {
-        self.time_last_sent_data = Time::now();
+        self.time_last_sent_data = Instant::now();
+    }
+
+    fn duration_since_last_sent_data(&self) -> Duration {
+        let elapsed = self.time_last_sent_data.elapsed();
+        Duration::new(elapsed.as_secs() as i32, elapsed.subsec_nanos())
     }
 }
 
@@ -179,7 +185,7 @@ impl StatelessWriter {
 
     fn time_since_last_data_sent(&self, a_locator: Locator) -> Duration {
         let reader_locator = self.reader_locators.get(&a_locator).unwrap();
-        Time::now() - reader_locator.time_last_sent_data
+        reader_locator.duration_since_last_sent_data()
     }
 
     fn time_last_sent_data_reset(&mut self, a_locator: Locator) {
@@ -245,10 +251,28 @@ impl StatelessWriter {
                     let infots = InfoTs::new(Some(time), EndianessFlag::LittleEndian);
 
                     message.push(RtpsSubmessage::InfoTs(infots));
+
+                    let first_sn = if let Some(seq_num) = self.writer_cache.get_seq_num_min() {
+                        seq_num
+                    } else {
+                        self.last_change_sequence_number + 1
+                    };
+
+                    let heartbeat = Heartbeat::new(
+                        ENTITYID_UNKNOWN,
+                        *self.guid.entity_id(),
+                        first_sn,
+                        self.last_change_sequence_number,
+                        Count(1),
+                        true,
+                        false,
+                        EndianessFlag::LittleEndian,
+                    );
+
+                    message.push(RtpsSubmessage::Heartbeat(heartbeat));
+
+                    self.time_last_sent_data_reset(a_locator);
                 }
-
-
-                todo!()
             }
         }
 
@@ -261,6 +285,7 @@ mod tests {
     use super::*;
     use crate::types::constants::*;
     use crate::types::*;
+    use std::thread::sleep;
 
     #[test]
     fn test_writer_new_change() {
@@ -438,6 +463,8 @@ mod tests {
 
     #[test]
     fn test_reliable_stateless_writer_get_data_to_send() {
+        let heartbeat_period = Duration::new( 0, 500_000_000);
+
         let mut writer = StatelessWriter::new(
             GUID::new(GuidPrefix([0; 12]), ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
             TopicKind::WithKey,
@@ -445,7 +472,7 @@ mod tests {
             vec![Locator::new(0, 7400, [0; 16])], 
             vec![],                               
             false,                                
-            DURATION_ZERO,                        
+            heartbeat_period,                        
             DURATION_ZERO,                        
             DURATION_ZERO,                        
         );
@@ -504,5 +531,10 @@ mod tests {
         // Test that nothing more is sent after the first time
         let writer_data = writer.get_data_to_send(locator);
         assert_eq!(writer_data.submessages().len(), 0);
+
+        sleep(heartbeat_period.into());
+
+        let writer_data = writer.get_data_to_send(locator);
+        assert_eq!(writer_data.submessages().len(), 2);
     }
 }
