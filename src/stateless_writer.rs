@@ -19,6 +19,7 @@ struct ReaderLocator {
     highest_sequence_number_sent: SequenceNumber,
     sequence_numbers_requested: HashSet<SequenceNumber>,
     time_last_sent_data: Instant,
+    heartbeat_count: Count,
 }
 
 impl ReaderLocator {
@@ -28,6 +29,7 @@ impl ReaderLocator {
             highest_sequence_number_sent: SequenceNumber(0),
             sequence_numbers_requested: HashSet::new(),
             time_last_sent_data: Instant::now(),
+            heartbeat_count: Count(1),
         }
     }
 
@@ -41,6 +43,14 @@ impl ReaderLocator {
 
     fn duration_since_last_sent_data(&self) -> Duration {
         self.time_last_sent_data.elapsed().try_into().unwrap()
+    }
+
+    fn increment_heartbeat_count(&mut self) {
+        self.heartbeat_count += 1;
+    }
+
+    fn heartbeat_count(&self) -> Count {
+        self.heartbeat_count
     }
 }
 
@@ -193,6 +203,16 @@ impl StatelessWriter {
         reader_locator.time_last_sent_data_reset();
     }
 
+    fn heartbeat_count(&self, a_locator: Locator) -> Count {
+        let reader_locator = self.reader_locators.get(&a_locator).unwrap();
+        reader_locator.heartbeat_count()
+    }
+
+    fn increment_heartbeat_count(&mut self, a_locator: Locator) {
+        let reader_locator = self.reader_locators.get_mut(&a_locator).unwrap();
+        reader_locator.increment_heartbeat_count();
+    }
+
     pub fn get_data_to_send(&mut self, a_locator: Locator) -> RtpsMessage {
         let mut message = RtpsMessage::new(
             Header::new(*self.guid.prefix()), 
@@ -263,7 +283,7 @@ impl StatelessWriter {
                         *self.guid.entity_id(),
                         first_sn,
                         self.last_change_sequence_number,
-                        Count(1),
+                        self.heartbeat_count(a_locator),
                         true,
                         false,
                         EndianessFlag::LittleEndian,
@@ -271,6 +291,7 @@ impl StatelessWriter {
 
                     message.push(RtpsSubmessage::Heartbeat(heartbeat));
 
+                    self.increment_heartbeat_count(a_locator);
                     self.time_last_sent_data_reset(a_locator);
                 }
             }

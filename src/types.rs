@@ -355,6 +355,12 @@ impl RtpsDeserialize for Time {
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub struct Count(pub i32);
 
+impl std::ops::AddAssign<i32> for Count {
+    fn add_assign(&mut self, rhs: i32) {
+        *self = Count(self.0+rhs)
+    }
+}
+
 impl RtpsSerialize for Count {
     fn serialize(&self, writer: &mut impl std::io::Write, endianness: EndianessFlag) -> RtpsSerdesResult<()> {
         writer.write(&PrimitiveSerdes::serialize_i32(self.0, endianness))?;
@@ -385,6 +391,7 @@ impl Duration {
 
 impl TryFrom<std::time::Duration> for Duration {
     type Error = core::num::TryFromIntError;
+
     fn try_from(value: std::time::Duration) -> Result<Self, Self::Error> {
         let seconds: i32 = value.as_secs().try_into()?;
         let fraction = ((value.as_secs_f64() - value.as_secs() as f64) * 2_f64.powi(32)) as u32;
