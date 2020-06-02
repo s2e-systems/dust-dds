@@ -1,27 +1,44 @@
-use crate::types::GuidPrefix;
-
-use super::helpers::{deserialize, endianess};
-
-use super::RtpsMessageResult;
+use crate::types::{Ushort, GuidPrefix};
+use super::{SubmessageKind, SubmessageFlag, SubmessageHeader, Submessage};
+use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, EndianessFlag, RtpsSerdesResult};
 
 #[derive(PartialEq, Debug)]
-pub struct InfoDst {
+pub struct InfoDestination {
+    endianness_flag: SubmessageFlag,
     guid_prefix: GuidPrefix,
 }
 
-pub fn parse_info_dst_submessage(submessage: &[u8], submessage_flags: &u8) -> RtpsMessageResult<InfoDst> {
-    const GUID_PREFIX_FIRST_INDEX: usize = 0;
-    const GUID_PREFIX_LAST_INDEX: usize = 11;
-    let submessage_endianess = endianess(submessage_flags)?;
-    let guid_prefix = deserialize::<GuidPrefix>(
-        submessage,
-        &GUID_PREFIX_FIRST_INDEX,
-        &GUID_PREFIX_LAST_INDEX,
-        &submessage_endianess,
-    )?;
-
-    Ok(InfoDst { guid_prefix })
+impl Submessage for InfoDestination {
+    fn submessage_header(&self) -> SubmessageHeader {
+        const X : SubmessageFlag = SubmessageFlag(false);
+        let e = self.endianness_flag; // Indicates endianness.
+        let flags = [e, X, X, X, X, X, X, X];        
+        SubmessageHeader { 
+            submessage_id: SubmessageKind::InfoDestination,
+            flags,
+            submessage_length: Ushort::from(self.guid_prefix.octets()),
+        }
+    }
 }
+
+impl RtpsCompose for InfoDestination {
+    fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
+        let endianness = EndianessFlag::from(self.endianness_flag);       
+        self.submessage_header().compose(writer)?;
+        self.guid_prefix.serialize(writer, endianness)?;
+        Ok(())
+    }
+}
+
+impl RtpsParse for InfoDestination {
+    fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> {
+        let header = SubmessageHeader::parse(bytes)?;
+        let endianness_flag = header.flags()[0];
+        let guid_prefix = GuidPrefix::deserialize(&bytes[header.octets()..], endianness_flag.into())?;
+        Ok(Self {endianness_flag, guid_prefix })
+    }
+}
+
 
 #[cfg(test)]
 mod tests {
@@ -29,22 +46,34 @@ mod tests {
 
     #[test]
     fn test_parse_info_dst_submessage_big_endian() {
-        let submessage_big_endian = [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21];
-        let info_dst_big_endian = parse_info_dst_submessage(&submessage_big_endian, &0).unwrap();
-        assert_eq!(
-            info_dst_big_endian.guid_prefix,
-            [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21]
-        );
+        let bytes = [
+            0x0E, 0b00000000, 0, 12,
+            10, 11, 12, 13, // guidPrefix
+            14, 15, 16, 17, // guidPrefix
+            18, 19, 20, 21, // guidPrefix
+        ];
+        let expected = InfoDestination {
+            endianness_flag: EndianessFlag::BigEndian.into(),
+            guid_prefix: GuidPrefix([10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,]),
+        };
+        let result = InfoDestination::parse(&bytes).unwrap();
+        assert_eq!(expected, result);
     }
 
     #[test]
     fn test_parse_info_dst_submessage_little_endian() {
-        let submessage_little_endian = [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21];
-        let info_dst_little_endian =
-            parse_info_dst_submessage(&submessage_little_endian, &1).unwrap();
-        assert_eq!(
-            info_dst_little_endian.guid_prefix,
-            [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21]
-        );
+        let bytes = [
+            0x0E, 0b00000001, 12, 0,
+            10, 11, 12, 13, // guidPrefix
+            14, 15, 16, 17, // guidPrefix
+            18, 19, 20, 21, // guidPrefix
+        ];
+        let expected = InfoDestination {
+            endianness_flag: EndianessFlag::LittleEndian.into(),
+            guid_prefix: GuidPrefix([10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,]),
+        };
+        let result = InfoDestination::parse(&bytes).unwrap();
+        assert_eq!(expected, result);
     }
+
 }

@@ -1,11 +1,10 @@
-use crate::types::{Count, EntityId, FragmentNumber, SequenceNumber};
-
-use super::helpers::{deserialize, endianess, SequenceNumberSerialization};
-
-use super::{RtpsMessageError, RtpsMessageResult};
+use crate::types::{EntityId, SequenceNumber, Count, FragmentNumber, Ushort};
+use super::{SubmessageKind, SubmessageFlag, SubmessageHeader, Submessage};
+use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, EndianessFlag, RtpsSerdesResult};
 
 #[derive(PartialEq, Debug)]
 pub struct HeartbeatFrag {
+    endianness_flag: SubmessageFlag,
     reader_id: EntityId,
     writer_id: EntityId,
     writer_sn: SequenceNumber,
@@ -13,117 +12,116 @@ pub struct HeartbeatFrag {
     count: Count,
 }
 
-pub fn parse_heartbeat_frag_submessage(
-    submessage: &[u8],
-    submessage_flags: &u8,
-) -> RtpsMessageResult<HeartbeatFrag> {
-    const READER_ID_FIRST_INDEX: usize = 0;
-    const READER_ID_LAST_INDEX: usize = 3;
-    const WRITER_ID_FIRST_INDEX: usize = 4;
-    const WRITER_ID_LAST_INDEX: usize = 7;
-    const WRITER_SN_FIRST_INDEX: usize = 8;
-    const WRITER_SN_LAST_INDEX: usize = 15;
-    const FRAGMENT_NUMBER_FIRST_INDEX: usize = 16;
-    const FRAGMENT_NUMBER_LAST_INDEX: usize = 19;
-    const COUNT_FIRST_INDEX: usize = 20;
-    const COUNT_LAST_INDEX: usize = 23;
+impl Submessage for HeartbeatFrag {
+    fn submessage_header(&self) -> SubmessageHeader {
+        const X: SubmessageFlag = SubmessageFlag(false);
+        let e = self.endianness_flag;
+        let flags = [e, X, X, X, X, X, X, X];
 
-    let submessage_endianess = endianess(submessage_flags)?;
+        let octets_to_next_header = 
+            self.reader_id.octets() + 
+            self.writer_id.octets() +
+            self.writer_sn.octets() +
+            self.last_fragment_num.octets() +
+            self.count.octets();
 
-    let reader_id = deserialize::<EntityId>(
-        submessage,
-        &READER_ID_FIRST_INDEX,
-        &READER_ID_LAST_INDEX,
-        &submessage_endianess,
-    )?;
-
-    let writer_id = deserialize::<EntityId>(
-        submessage,
-        &WRITER_ID_FIRST_INDEX,
-        &WRITER_ID_LAST_INDEX,
-        &submessage_endianess,
-    )?;
-
-    let writer_sn: SequenceNumber = deserialize::<SequenceNumberSerialization>(
-        submessage,
-        &WRITER_SN_FIRST_INDEX,
-        &WRITER_SN_LAST_INDEX,
-        &submessage_endianess,
-    )?
-    .into();
-    if writer_sn < 1 {
-        return Err(RtpsMessageError::InvalidSubmessage);
+        SubmessageHeader { 
+            submessage_id: SubmessageKind::HeartbeatFrag,
+            flags,
+            submessage_length: Ushort::from(octets_to_next_header),
+        }
     }
-
-    let last_fragment_num = deserialize::<FragmentNumber>(
-        submessage,
-        &FRAGMENT_NUMBER_FIRST_INDEX,
-        &FRAGMENT_NUMBER_LAST_INDEX,
-        &submessage_endianess,
-    )?;
-
-    let count = deserialize::<Count>(
-        submessage,
-        &COUNT_FIRST_INDEX,
-        &COUNT_LAST_INDEX,
-        &submessage_endianess,
-    )?;
-
-    Ok(HeartbeatFrag {
-        reader_id,
-        writer_id,
-        writer_sn,
-        last_fragment_num,
-        count,
-    })
 }
+
+impl RtpsCompose for HeartbeatFrag {
+    fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
+        let endianness = self.endianness_flag.into();
+        self.submessage_header().compose(writer)?;
+        self.reader_id.serialize(writer, endianness)?;
+        self.writer_id.serialize(writer, endianness)?;
+        self.writer_sn.serialize(writer, endianness)?;
+        self.last_fragment_num.serialize(writer, endianness)?;
+        self.count.serialize(writer, endianness)?;
+        Ok(())
+    }    
+}
+
+impl RtpsParse for HeartbeatFrag {
+    fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> {
+        let header = SubmessageHeader::parse(bytes)?;
+        let endianness_flag = header.flags()[0];
+        let endianness = EndianessFlag::from(endianness_flag);
+
+        let reader_id = EntityId::deserialize(&bytes[4..8], endianness)?;
+        let writer_id = EntityId::deserialize(&bytes[8..12], endianness)?;
+        let writer_sn = SequenceNumber::deserialize(&bytes[12..20], endianness)?;
+        let last_fragment_num = FragmentNumber::deserialize(&bytes[20..24], endianness)?;
+        let count = Count::deserialize(&bytes[24..28], endianness)?;        
+
+        Ok(HeartbeatFrag {
+            endianness_flag,
+            reader_id,
+            writer_id,
+            writer_sn,
+            last_fragment_num,
+            count,
+        })
+    }
+}
+
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::types::constants::{ENTITYID_UNKNOWN, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER};
+    use crate::types::ULong;
 
     #[test]
-    fn test_parse_heartbeat_frag_submessage_big_endian() {
-        let submessage_big_endian = [
-            0x10, 0x11, 0x12, 0x13, 0x26, 0x25, 0x24, 0x23, 0x00, 0x00, 0x10, 0x01, 0x01, 0x02,
-            0x03, 0x04, 0x00, 0x05, 0x70, 0x10, 0x00, 0x00, 0x00, 0x05,
+    fn parse_heartbeat_frag_submessage() {
+        let expected = HeartbeatFrag {
+            endianness_flag: SubmessageFlag(true),    
+            reader_id: ENTITYID_UNKNOWN,
+            writer_id: ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
+            writer_sn: SequenceNumber(1),
+            last_fragment_num: FragmentNumber(ULong(2)),
+            count: Count(3),
+        };
+        let bytes = vec![
+            0x13, 0b00000001, 24, 0x0, // Submessgae Header
+            0x00, 0x00, 0x00, 0x00, // readerId 
+            0x00, 0x01, 0x00, 0xc2, // writerId
+            0x00, 0x00, 0x00, 0x00, // writerSN
+            0x01, 0x00, 0x00, 0x00, // writerSN 
+            0x02, 0x00, 0x00, 0x00, // lastFragmentNum
+            0x03, 0x00, 0x00, 0x00, // count
         ];
-
-        let heartbeat_frag = parse_heartbeat_frag_submessage(&submessage_big_endian, &0).unwrap();
-
-        assert_eq!(
-            heartbeat_frag.reader_id,
-            EntityId::new([0x10, 0x11, 0x12], 0x13)
-        );
-        assert_eq!(
-            heartbeat_frag.writer_id,
-            EntityId::new([0x26, 0x25, 0x24], 0x23)
-        );
-        assert_eq!(heartbeat_frag.writer_sn, 17_596_497_920_772);
-        assert_eq!(heartbeat_frag.last_fragment_num, 356_368);
-        assert_eq!(heartbeat_frag.count, 5);
+        let result = HeartbeatFrag::parse(&bytes).unwrap();
+        assert_eq!(expected, result);
     }
 
+    
     #[test]
-    fn test_parse_heartbeat_frag_submessage_little_endian() {
-        let submessage_little_endian = [
-            0x10, 0x11, 0x12, 0x13, 0x26, 0x25, 0x24, 0x23, 0x01, 0x10, 0x00, 0x00, 0x04, 0x03,
-            0x02, 0x01, 0x10, 0x70, 0x05, 0x00, 0x05, 0x00, 0x00, 0x00,
+    fn compose_heartbeat_frag_submessage() {
+        let message = HeartbeatFrag {
+            endianness_flag: SubmessageFlag(true),    
+            reader_id: ENTITYID_UNKNOWN,
+            writer_id: ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
+            writer_sn: SequenceNumber(1),
+            last_fragment_num: FragmentNumber(ULong(2)),
+            count: Count(3),
+        };
+        let expected = vec![
+            0x13, 0b00000001, 24, 0x0, // Submessgae Header
+            0x00, 0x00, 0x00, 0x00, // readerId 
+            0x00, 0x01, 0x00, 0xc2, // writerId
+            0x00, 0x00, 0x00, 0x00, // writerSN
+            0x01, 0x00, 0x00, 0x00, // writerSN 
+            0x02, 0x00, 0x00, 0x00, // lastFragmentNum
+            0x03, 0x00, 0x00, 0x00, // count
         ];
-
-        let heartbeat_frag =
-            parse_heartbeat_frag_submessage(&submessage_little_endian, &1).unwrap();
-
-        assert_eq!(
-            heartbeat_frag.reader_id,
-            EntityId::new([0x10, 0x11, 0x12], 0x13)
-        );
-        assert_eq!(
-            heartbeat_frag.writer_id,
-            EntityId::new([0x26, 0x25, 0x24], 0x23)
-        );
-        assert_eq!(heartbeat_frag.writer_sn, 17_596_497_920_772);
-        assert_eq!(heartbeat_frag.last_fragment_num, 356_368);
-        assert_eq!(heartbeat_frag.count, 5);
+        let mut writer = Vec::new();
+        message.compose(&mut writer).unwrap();
+        assert_eq!(expected, writer);
     }
+
 }

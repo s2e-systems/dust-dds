@@ -1,150 +1,134 @@
-use crate::types::{Count, EntityId, FragmentNumberSet, SequenceNumber};
-
-use super::helpers::{parse_fragment_number_set, SequenceNumberSerialization};
-
-use super::{deserialize, endianess, RtpsMessageResult};
+use crate::types::{Ushort, EntityId, SequenceNumber, FragmentNumberSet, Count};
+use super::{SubmessageKind, SubmessageFlag, SubmessageHeader, Submessage};
+use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, EndianessFlag, RtpsSerdesResult};
 
 #[derive(PartialEq, Debug)]
 pub struct NackFrag {
+    endianness_flag: SubmessageFlag,
     reader_id: EntityId,
     writer_id: EntityId,
     writer_sn: SequenceNumber,
-    fragment_number_set: FragmentNumberSet,
+    fragment_number_state: FragmentNumberSet,
     count: Count,
 }
 
-pub fn parse_nack_frag_submessage(submessage: &[u8], submessage_flags: &u8) -> RtpsMessageResult<NackFrag> {
-    const READER_ID_FIRST_INDEX: usize = 0;
-    const READER_ID_LAST_INDEX: usize = 3;
-    const WRITER_ID_FIRST_INDEX: usize = 4;
-    const WRITER_ID_LAST_INDEX: usize = 7;
-    const SEQUENCE_NUMBER_FIRST_INDEX: usize = 8;
-    const SEQUENCE_NUMBER_LAST_INDEX: usize = 15;
-    const FRAGMENT_NUMBER_SET_FIRST_INDEX: usize = 16;
-    const COUNT_SIZE: usize = 4;
 
-    let submessage_endianess = endianess(submessage_flags)?;
+impl Submessage for NackFrag {
+    fn submessage_header(&self) -> SubmessageHeader {
+        const X: SubmessageFlag = SubmessageFlag(false);
+        let e = self.endianness_flag; 
+        let flags = [e, X, X, X, X, X, X, X];
 
-    let reader_id = deserialize::<EntityId>(
-        submessage,
-        &READER_ID_FIRST_INDEX,
-        &READER_ID_LAST_INDEX,
-        &submessage_endianess,
-    )?;
+        let octets_to_next_header =  
+            self.reader_id.octets() + 
+            self.writer_id.octets() + 
+            self.writer_sn.octets() + 
+            self.fragment_number_state.octets() + 
+            self.count.octets();
 
-    let writer_id = deserialize::<EntityId>(
-        submessage,
-        &WRITER_ID_FIRST_INDEX,
-        &WRITER_ID_LAST_INDEX,
-        &submessage_endianess,
-    )?;
+        SubmessageHeader { 
+            submessage_id: SubmessageKind::NackFrag,
+            flags,
+            submessage_length: Ushort::from(octets_to_next_header),
+        }
+    }
+}
 
-    let writer_sn: SequenceNumber = deserialize::<SequenceNumberSerialization>(
-        submessage,
-        &SEQUENCE_NUMBER_FIRST_INDEX,
-        &SEQUENCE_NUMBER_LAST_INDEX,
-        &submessage_endianess,
-    )?
-    .into();
+impl RtpsCompose for NackFrag {
+    fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
+        let endianness = EndianessFlag::from(self.endianness_flag);
+       
+        self.submessage_header().compose(writer)?;
+        
+        self.reader_id.serialize(writer, endianness)?;
+        self.writer_id.serialize(writer, endianness)?;
+        self.writer_sn.serialize(writer, endianness)?;
+        self.fragment_number_state.serialize(writer, endianness)?;
+        self.count.serialize(writer, endianness)?;
+        Ok(())
+    }    
+}
 
-    let (fragment_number_set, fragment_number_set_size) = parse_fragment_number_set(
-        submessage,
-        &FRAGMENT_NUMBER_SET_FIRST_INDEX,
-        &submessage_endianess,
-    )?;
-
-    let count_first_index = FRAGMENT_NUMBER_SET_FIRST_INDEX + fragment_number_set_size;
-    let count_last_index = count_first_index + COUNT_SIZE - 1;
-
-    let count = deserialize::<Count>(
-        submessage,
-        &count_first_index,
-        &count_last_index,
-        &submessage_endianess,
-    )?;
-
-    Ok(NackFrag {
-        reader_id,
-        writer_id,
-        writer_sn,
-        fragment_number_set,
-        count,
-    })
+impl RtpsParse for NackFrag {
+    fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> { 
+        let header = SubmessageHeader::parse(bytes)?;
+        let endianness_flag = header.flags()[0];
+        let endianness = EndianessFlag::from(endianness_flag);       
+        let end_of_message = usize::from(header.submessage_length()) + header.octets();
+        let index_count = end_of_message - 4;
+        
+        let reader_id = EntityId::deserialize(&bytes[4..8], endianness)?;        
+        let writer_id = EntityId::deserialize(&bytes[8..12], endianness)?;
+        let writer_sn = SequenceNumber::deserialize(&bytes[12..20], endianness)?;
+        let fragment_number_state = FragmentNumberSet::deserialize(&bytes[20..index_count], endianness)?;
+        let count = Count::deserialize(&bytes[index_count..end_of_message], endianness)?;
+  
+        Ok(Self {
+            endianness_flag,
+            reader_id,
+            writer_id,
+            writer_sn,
+            fragment_number_state,
+            count,
+        })
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::types::constants::{ENTITYID_UNKNOWN, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER};
+    use crate::types::{FragmentNumber, ULong};
 
     #[test]
-    fn test_parse_nack_frag_submessage_big_endian() {
-        let submessage = [
-            0x01, 0x02, 0x03, 0x04, 0x10, 0x11, 0x12, 0x13, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00,
-            0x11, 0x22, 0x00, 0x00, 0x10, 0x11, 0x00, 0x00, 0x00, 0x0A, 0x00, 0x00, 0x03, 0x0F,
-            0x00, 0x00, 0x11, 0x22,
+    fn parse_nack_frag_submessage() {
+        let bytes = [
+            0x12, 0b00000001, 32, 0, 
+            0x00, 0x00, 0x00, 0x00, // readerId 
+            0x00, 0x01, 0x00, 0xc2, // writerId
+            0x00, 0x00, 0x00, 0x00, // writerSN
+            0x01, 0x00, 0x00, 0x00, // writerSN
+            2, 0, 0, 0, // fragmentNumberState: base
+            2, 0, 0, 0, // fragmentNumberState: num bits
+            0b_00000000, 0b_00000000, 0b_00000000, 0b_11000000, // fragmentNumberState: bitmap
+            2, 0, 0, 0, // Count
         ];
-        let nack_frag_submessage = parse_nack_frag_submessage(&submessage, &0).unwrap();
-        assert_eq!(
-            nack_frag_submessage.reader_id,
-            EntityId::new([0x01, 0x02, 0x03], 0x04)
-        );
-        assert_eq!(
-            nack_frag_submessage.writer_id,
-            EntityId::new([0x10, 0x11, 0x12], 0x13)
-        );
-        assert_eq!(nack_frag_submessage.writer_sn, 4294971682);
-        assert_eq!(nack_frag_submessage.fragment_number_set.len(), 10);
-        assert_eq!(
-            nack_frag_submessage.fragment_number_set,
-            vec!(
-                (4113, true),
-                (4114, true),
-                (4115, true),
-                (4116, true),
-                (4117, false),
-                (4118, false),
-                (4119, false),
-                (4120, false),
-                (4121, true),
-                (4122, true)
-            )
-        );
-        assert_eq!(nack_frag_submessage.count, 4386);
+        
+        let expected = NackFrag {
+            endianness_flag: EndianessFlag::LittleEndian.into(),
+            reader_id: ENTITYID_UNKNOWN,
+            writer_id: ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
+            writer_sn: SequenceNumber(1), 
+            fragment_number_state: FragmentNumberSet::new([FragmentNumber(ULong(2)), FragmentNumber(ULong(3))].iter().cloned().collect()),
+            count: Count(2),
+        };
+        let result = NackFrag::parse(&bytes).unwrap();
+        assert_eq!(expected, result);
     }
-
     #[test]
-    fn test_parse_nack_frag_submessage_little_endian() {
-        let submessage = [
-            0x01, 0x02, 0x03, 0x04, 0x10, 0x11, 0x12, 0x13, 0x01, 0x00, 0x00, 0x00, 0x22, 0x11,
-            0x00, 0x00, 0x11, 0x10, 0x00, 0x00, 0x0A, 0x00, 0x00, 0x00, 0x0F, 0x03, 0x00, 0x00,
-            0x22, 0x11, 0x00, 0x00,
+    fn compose_nack_frag_submessage() {
+        let expected = vec![
+            0x12, 0b00000001, 32, 0, 
+            0x00, 0x00, 0x00, 0x00, // readerId 
+            0x00, 0x01, 0x00, 0xc2, // writerId
+            0x00, 0x00, 0x00, 0x00, // writerSN
+            0x01, 0x00, 0x00, 0x00, // writerSN
+            2, 0, 0, 0, // fragmentNumberState: base
+            2, 0, 0, 0, // fragmentNumberState: num bits
+            0b_00000000, 0b_00000000, 0b_00000000, 0b_11000000, // fragmentNumberState: bitmap
+            2, 0, 0, 0, // Count
         ];
-        let nack_frag_submessage = parse_nack_frag_submessage(&submessage, &1).unwrap();
-        assert_eq!(
-            nack_frag_submessage.reader_id,
-            EntityId::new([0x01, 0x02, 0x03], 0x04)
-        );
-        assert_eq!(
-            nack_frag_submessage.writer_id,
-            EntityId::new([0x10, 0x11, 0x12], 0x13)
-        );
-        assert_eq!(nack_frag_submessage.writer_sn, 4294971682);
-        assert_eq!(nack_frag_submessage.fragment_number_set.len(), 10);
-        assert_eq!(
-            nack_frag_submessage.fragment_number_set,
-            vec!(
-                (4113, true),
-                (4114, true),
-                (4115, true),
-                (4116, true),
-                (4117, false),
-                (4118, false),
-                (4119, false),
-                (4120, false),
-                (4121, true),
-                (4122, true)
-            )
-        );
-        assert_eq!(nack_frag_submessage.count, 4386);
+        
+        let message = NackFrag {
+            endianness_flag: EndianessFlag::LittleEndian.into(),
+            reader_id: ENTITYID_UNKNOWN,
+            writer_id: ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
+            writer_sn: SequenceNumber(1), 
+            fragment_number_state: FragmentNumberSet::new([FragmentNumber(ULong(2)), FragmentNumber(ULong(3))].iter().cloned().collect()),
+            count: Count(2),
+        };
+        let mut writer = Vec::new();
+        message.compose(&mut writer).unwrap();
+        assert_eq!(expected, writer);
     }
 }
