@@ -378,37 +378,24 @@ pub struct Duration {
 }
 
 impl Duration {
-    const SCALING_FACTOR: f32 = 4_294_967_295_f32 /*2^32-1*/ / 999_999_999_f32;
-    
-    pub fn new(seconds: i32, nanoseconds: u32) -> Self{
-        assert!(nanoseconds < 1_000_000_000);
-
-        let fraction = (nanoseconds as f32 * Duration::SCALING_FACTOR) as u32;
-
-        Duration{
-            seconds,
-            fraction,
-        }
-    }
-
-    pub fn seconds(&self) -> i32 {
-        self.seconds
-    }
-
-    pub fn nanoseconds(&self) -> u32 {
-        (self.fraction as f32 / Duration::SCALING_FACTOR) as u32
+    pub fn from_millis(millis: u64) -> Self { 
+        std::time::Duration::from_millis(millis).try_into().unwrap()
     }
 }
 
-impl From<std::time::Duration> for Duration {
-    fn from(value: std::time::Duration) -> Self {
-        Duration::new(value.as_secs() as i32, value.subsec_nanos())
+impl TryFrom<std::time::Duration> for Duration {
+    type Error = core::num::TryFromIntError;
+    fn try_from(value: std::time::Duration) -> Result<Self, Self::Error> {
+        let seconds: i32 = value.as_secs().try_into()?;
+        let fraction = ((value.as_secs_f64() - value.as_secs() as f64) * 2_f64.powi(32)) as u32;
+        Ok(Duration {seconds, fraction})
     }
 }
 
 impl From<Duration> for std::time::Duration {
     fn from(value: Duration) -> Self {
-        std::time::Duration::new(value.seconds() as u64, value.nanoseconds())
+        let nanoseconds = (value.fraction as f64 * 1_000_000_000_f64 / 2_f64.powi(32)) as u32;
+        std::time::Duration::new(value.seconds as u64, nanoseconds)
     }
 }
 
@@ -1547,6 +1534,27 @@ mod tests {
             true
         );
     }
+
+        
+    #[test]
+    fn duration_construction() {
+        let result = Duration::try_from(std::time::Duration::new(2, 1)).unwrap();
+        assert_eq!(result.seconds, 2);
+        assert_eq!(result.fraction, 4);
+
+        let result = Duration::try_from(std::time::Duration::from_millis(500)).unwrap();
+        assert_eq!(result.seconds, 0);
+        assert_eq!(result.fraction, 2_u32.pow(31));
+
+        let result = Duration::try_from(std::time::Duration::from_secs(2_u64.pow(40)));
+        assert!(result.is_err());  
+    }
+
+    #[test] #[should_panic]
+    fn duration_from_invalid() {
+        Duration::from_millis(2_u64.pow(32) * 1000 + 1);
+    }
+
 }
 
 pub mod constants {
@@ -1624,8 +1632,8 @@ pub mod constants {
     };
 
     pub const DURATION_INFINITE: Duration = Duration {
-        seconds: std::i32::MAX,
-        fraction: std::u32::MAX,
+        seconds: 0x7fffffff,
+        fraction: 0xffffffff,
     };
 
     const TIME_ZERO: Time = Time {

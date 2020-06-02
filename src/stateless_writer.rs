@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::time::Instant;
+use std::convert::TryInto;
 
 use crate::cache::{CacheChange, HistoryCache};
 use crate::inline_qos::{InlineQosParameter, InlineQosParameterList};
@@ -39,8 +40,7 @@ impl ReaderLocator {
     }
 
     fn duration_since_last_sent_data(&self) -> Duration {
-        let elapsed = self.time_last_sent_data.elapsed();
-        Duration::new(elapsed.as_secs() as i32, elapsed.subsec_nanos())
+        self.time_last_sent_data.elapsed().try_into().unwrap()
     }
 }
 
@@ -463,7 +463,7 @@ mod tests {
 
     #[test]
     fn test_reliable_stateless_writer_get_data_to_send() {
-        let heartbeat_period = Duration::new( 0, 500_000_000);
+        let heartbeat_period = Duration::from_millis(500);
 
         let mut writer = StatelessWriter::new(
             GUID::new(GuidPrefix([0; 12]), ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
