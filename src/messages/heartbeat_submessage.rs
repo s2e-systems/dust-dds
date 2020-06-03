@@ -240,7 +240,7 @@ mod tests {
         let is_final = true;
         let manual_liveliness = false;
 
-        let heartbeat_big_endian = Heartbeat::new(reader_id, writer_id, first_sn, last_sn, count, final_flag, liveliness_flag, EndianessFlag::BigEndian);
+        let heartbeat_big_endian = Heartbeat::new(reader_id, writer_id, first_sn, last_sn, count, is_final, manual_liveliness, EndianessFlag::BigEndian);
         heartbeat_big_endian.compose(&mut writer).unwrap();
         let submessage_big_endian = [
             0x07, 0x02, 0x00, 0x1C, // Submessage Header
@@ -256,7 +256,7 @@ mod tests {
 
         writer.clear();
 
-        let heartbeat_little_endian = Heartbeat::new(reader_id, writer_id, first_sn, last_sn, count, final_flag, liveliness_flag, EndianessFlag::LittleEndian);
+        let heartbeat_little_endian = Heartbeat::new(reader_id, writer_id, first_sn, last_sn, count, is_final, manual_liveliness, EndianessFlag::LittleEndian);
         heartbeat_little_endian.compose(&mut writer).unwrap();
         let submessage_little_endian = [
             0x07, 0x03, 0x1C, 0x00, // Submessage Header
