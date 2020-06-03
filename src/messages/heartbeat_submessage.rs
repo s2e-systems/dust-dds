@@ -59,6 +59,30 @@ impl Heartbeat {
 
         true
     }
+
+    pub fn reader_id(&self) -> &EntityId {
+        &self.reader_id
+    }
+
+    pub fn writer_id(&self) -> &EntityId {
+        &self.writer_id
+    }
+
+    pub fn first_sn(&self) -> &SequenceNumber {
+        &self.first_sn
+    }
+
+    pub fn last_sn(&self) -> &SequenceNumber {
+        &self.last_sn
+    }
+
+    pub fn count(&self) -> &Count {
+        &self.count
+    }
+
+    pub fn is_final(&self) -> bool {
+        self.final_flag.is_set()
+    }
 }
 
 impl Submessage for Heartbeat {

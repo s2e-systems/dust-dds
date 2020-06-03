@@ -557,5 +557,17 @@ mod tests {
 
         let writer_data = writer.get_data_to_send(locator);
         assert_eq!(writer_data.submessages().len(), 2);
+        if let RtpsSubmessage::Heartbeat(heartbeat_message) = &writer_data.submessages()[1] {
+            assert_eq!(heartbeat_message.reader_id(), &ENTITYID_UNKNOWN);
+            assert_eq!(heartbeat_message.writer_id(), &ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER);
+            assert_eq!(heartbeat_message.first_sn(), &SequenceNumber(1));
+            assert_eq!(heartbeat_message.last_sn(), &SequenceNumber(2));
+            assert_eq!(heartbeat_message.count(), &Count(1));
+            assert_eq!(heartbeat_message.is_final(), true);
+
+        } else {
+            panic!("Wrong message type");
+        };
+
     }
 }
