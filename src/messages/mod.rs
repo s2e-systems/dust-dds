@@ -1,6 +1,4 @@
-use std::convert::{Into, TryInto};
-// pub mod helpers;
-
+pub mod types;
 mod ack_nack_submessage;
 mod data_frag_submessage;
 mod data_submessage;
@@ -13,12 +11,13 @@ mod info_source_submessage;
 mod info_timestamp_submessage;
 mod nack_frag_submessage;
 
-use num_derive::FromPrimitive;
 
-use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsCompose, RtpsParse, EndianessFlag, RtpsSerdesResult, RtpsSerdesError, PrimitiveSerdes};
-// use helpers::{deserialize, MINIMUM_RTPS_MESSAGE_SIZE};
-
-use crate::types::*;
+use crate::types_primitives::Ushort;
+use crate::types::{GuidPrefix, ProtocolVersion, VendorId, };
+use crate::types::constants::{PROTOCOL_VERSION_2_4, VENDOR_ID, };
+use self::types::{SubmessageKind, SubmessageFlag, ProtocolId, };
+use self::types::constants::PROTOCOL_RTPS;
+use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsCompose, RtpsParse, EndianessFlag, RtpsSerdesResult, RtpsSerdesError, PrimitiveSerdes, };
 
 
 
@@ -109,36 +108,7 @@ impl RtpsParse for RtpsSubmessage {
     }    
 }
 
-#[derive(FromPrimitive, PartialEq, Copy, Clone, Debug)]
-pub enum SubmessageKind {
-    Pad = 0x01,
-    AckNack = 0x06,
-    Heartbeat = 0x07,
-    Gap = 0x08,
-    InfoTimestamp = 0x09,
-    InfoSource = 0x0c,
-    InfoReplyIP4 = 0x0d,
-    InfoDestination = 0x0e,
-    InfoReply = 0x0f,
-    NackFrag = 0x12,
-    HeartbeatFrag = 0x13,
-    Data = 0x15,
-    DataFrag = 0x16,
-}
 
-impl RtpsSerialize for SubmessageKind {
-    fn serialize(&self, writer: &mut impl std::io::Write, _endianness: EndianessFlag) -> RtpsSerdesResult<()>{
-        let submessage_kind_u8 = *self as u8;
-        writer.write(&[submessage_kind_u8])?;
-        Ok(())
-    }
-}
-
-impl RtpsDeserialize for SubmessageKind {
-    fn deserialize(bytes: &[u8], _endianness: EndianessFlag) -> RtpsSerdesResult<Self> { 
-        Ok(num::FromPrimitive::from_u8(bytes[0]).ok_or(RtpsSerdesError::InvalidEnumRepresentation)?)
-    }
-}
 
 struct OctetsToNextHeader(u16);
 
@@ -151,55 +121,7 @@ impl RtpsSerialize for OctetsToNextHeader
     }
 }
 
-#[derive(PartialEq, Debug, Clone, Copy)]
-pub struct SubmessageFlag(pub bool);
 
-impl SubmessageFlag {
-    pub fn is_set(&self) -> bool {
-         self.0
-    }
-}
-
-impl From<EndianessFlag> for SubmessageFlag {
-    fn from(value: EndianessFlag) -> Self {
-        SubmessageFlag(value.into())
-    }
-}
-
-impl From<SubmessageFlag> for EndianessFlag {
-    fn from(value: SubmessageFlag) -> Self {
-        EndianessFlag::from(value.is_set())
-    }
-}
-
-impl RtpsSerialize for [SubmessageFlag; 8] {
-    fn serialize(&self, writer: &mut impl std::io::Write, _endianness: EndianessFlag) -> RtpsSerdesResult<()>{
-        let mut flags = 0u8;
-        for i in 0..8 {
-            if self[i].0 {
-                flags |= 0b00000001 << i;
-            }
-        }
-        writer.write(&[flags])?;
-        Ok(())
-    }
-}
-
-impl RtpsDeserialize for [SubmessageFlag; 8] {
-    fn deserialize(bytes: &[u8], _endianness: EndianessFlag) -> RtpsSerdesResult<Self> { 
-        // SizeCheckers::check_size_equal(bytes, 1)?;
-        let flags: u8 = bytes[0];        
-        let mut mask = 0b00000001_u8;
-        let mut submessage_flags = [SubmessageFlag(false); 8];
-        for i in 0..8 {
-            if (flags & mask) > 0 {
-                submessage_flags[i] = SubmessageFlag(true);
-            }
-            mask <<= 1;
-        };
-        Ok(submessage_flags)
-    }
-}
 
 #[derive(PartialEq, Debug)]
 pub struct SubmessageHeader {
@@ -242,28 +164,6 @@ pub trait Submessage {
     fn submessage_header(&self) -> SubmessageHeader;
 }
 
-#[derive(PartialEq, Debug)]
-struct ProtocolId([u8; 4]);
-
-impl RtpsSerialize for ProtocolId {
-    fn serialize(&self, writer: &mut impl std::io::Write, _endianness: EndianessFlag) -> RtpsSerdesResult<()> {
-        writer.write(&self.0)?;
-        Ok(())
-    }    
-}
-
-impl RtpsDeserialize for ProtocolId {
-    fn deserialize(bytes: &[u8], _endianness: EndianessFlag) -> RtpsSerdesResult<Self> {
-        if bytes == PROTOCOL_RTPS.0 {
-            Ok(ProtocolId(bytes[0..4].try_into()?))
-        } else {
-            Err(RtpsSerdesError::InvalidEnumRepresentation)
-        }
-    }    
-}
-
-const PROTOCOL_RTPS: ProtocolId = ProtocolId([b'R', b'T', b'P', b'S']);
-
 
 #[derive(PartialEq, Debug)]
 pub struct Header {
@@ -277,8 +177,8 @@ impl Header {
     pub fn new(guid_prefix: GuidPrefix) -> Self { 
         Self { 
             protocol: PROTOCOL_RTPS, 
-            version: constants::PROTOCOL_VERSION_2_4, 
-            vendor_id: constants::VENDOR_ID, 
+            version: PROTOCOL_VERSION_2_4, 
+            vendor_id: VENDOR_ID, 
             guid_prefix, 
         } 
     }
@@ -377,84 +277,10 @@ impl RtpsParse for RtpsMessage {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_deserialize_submessage_flags() {
-        let f = SubmessageFlag(false);
-        let t = SubmessageFlag(true);
-
-        let expected: [SubmessageFlag; 8] = [t, f, f, f, f, f, f, f];
-        let bytes = [0b00000001_u8];    
-        let result = <[SubmessageFlag; 8]>::deserialize(&bytes, EndianessFlag::LittleEndian /*irrelevant*/).unwrap();
-        assert_eq!(expected, result);
-
-        let expected: [SubmessageFlag; 8] = [t, t, f, t, f, f, f, f];
-        let bytes = [0b00001011_u8];    
-        let result = <[SubmessageFlag; 8]>::deserialize(&bytes, EndianessFlag::LittleEndian /*irrelevant*/).unwrap();
-        assert_eq!(expected, result);
-
-        let expected: [SubmessageFlag; 8] = [t, t, t, t, t, t, t, t];
-        let bytes = [0b11111111_u8];    
-        let result = <[SubmessageFlag; 8]>::deserialize(&bytes, EndianessFlag::LittleEndian /*irrelevant*/).unwrap();
-        assert_eq!(expected, result);
-
-        let expected: [SubmessageFlag; 8] = [f, f, f, f, f, f, f, f];
-        let bytes = [0b00000000_u8];    
-        let result = <[SubmessageFlag; 8]>::deserialize(&bytes, EndianessFlag::LittleEndian /*irrelevant*/).unwrap();
-        assert_eq!(expected, result);
-    }
-
-    #[test]
-    fn test_serialize_submessage_flags() {
-        let f = SubmessageFlag(false);
-        let t = SubmessageFlag(true);
-        let mut writer = Vec::new();
-
-        writer.clear();
-        let flags: [SubmessageFlag; 8] = [t, f, f, f, f, f, f, f];
-        flags.serialize(&mut writer, EndianessFlag::LittleEndian /*irrelevant*/).unwrap();
-        assert_eq!(writer, vec![0b00000001]);
-        
-        writer.clear();
-        let flags: [SubmessageFlag; 8] = [f; 8];
-        flags.serialize(&mut writer, EndianessFlag::LittleEndian /*irrelevant*/).unwrap();
-        assert_eq!(writer, vec![0b00000000]);
-        
-        writer.clear();
-        let flags: [SubmessageFlag; 8] = [t; 8];
-        flags.serialize(&mut writer, EndianessFlag::LittleEndian /*irrelevant*/).unwrap();
-        assert_eq!(writer, vec![0b11111111]);
-        
-        writer.clear();
-        let flags: [SubmessageFlag; 8] = [f, t, f, f, t, t, f, t];
-        flags.serialize(&mut writer, EndianessFlag::LittleEndian /*irrelevant*/).unwrap();
-        assert_eq!(writer, vec![0b10110010]);
-    }
-
-        
-    #[test]
-    fn test_serialize_protocol_id() {
-        let mut writer = Vec::new();
-        PROTOCOL_RTPS.serialize(&mut writer, EndianessFlag::LittleEndian /*irrelevant*/).unwrap();
-        assert_eq!(writer, vec![0x52, 0x54, 0x50, 0x53]);
-    }
-
-    #[test]
-    fn test_deserialize_protocol_id() {
-        let expected = ProtocolId([b'R', b'T', b'P', b'S']);
-        let bytes = [0x52_u8, 0x54, 0x50, 0x53];    
-        let result = ProtocolId::deserialize(&bytes, EndianessFlag::LittleEndian /*irrelevant*/).unwrap();
-        assert_eq!(expected, result);
-    }
-
-    #[test]
-    fn test_deserialize_invalid_protocol_id() {
-        let bytes = [0x52_u8, 0x54, 0x50, 0x99];    
-        assert!(ProtocolId::deserialize(&bytes, EndianessFlag::LittleEndian /*irrelevant*/).is_err());
-
-        let bytes = [0x52_u8];    
-        assert!(ProtocolId::deserialize(&bytes, EndianessFlag::LittleEndian /*irrelevant*/).is_err());
-    }
+    use super::types::{Time, Count, };
+    use crate::types::{SequenceNumber, EntityId, EntityKey, EntityKind, };
+    use crate::types::constants::{ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, ENTITYID_UNKNOWN, };
+    
 
     #[test]
     fn test_parse_message_header() {
@@ -513,8 +339,8 @@ mod tests {
         
         let submessage = RtpsSubmessage::Data ( Data::new(
             EndianessFlag::LittleEndian, 
-            constants::ENTITYID_UNKNOWN, 
-            constants::ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, 
+            ENTITYID_UNKNOWN, 
+            ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, 
             SequenceNumber(1),
             None, 
             Payload::None
@@ -547,8 +373,8 @@ mod tests {
         ];
         let expected = RtpsSubmessage::Data ( Data::new(
             EndianessFlag::LittleEndian, 
-            constants::ENTITYID_UNKNOWN, 
-            constants::ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, 
+            ENTITYID_UNKNOWN, 
+            ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, 
             SequenceNumber(1),
             None, 
             Payload::None
@@ -562,8 +388,8 @@ mod tests {
     fn test_compose_message() {
         let submessage = RtpsSubmessage::Data ( Data::new(
             EndianessFlag::LittleEndian, 
-            constants::ENTITYID_UNKNOWN, 
-            constants::ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, 
+            ENTITYID_UNKNOWN, 
+            ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, 
             SequenceNumber(1),
             None, 
             Payload::None
@@ -604,8 +430,8 @@ mod tests {
         );
         let submessage2 = RtpsSubmessage::Data ( Data::new(
             EndianessFlag::LittleEndian, 
-            constants::ENTITYID_UNKNOWN, 
-            constants::ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, 
+            ENTITYID_UNKNOWN, 
+            ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, 
             SequenceNumber(1),
             None, 
             Payload::None
@@ -613,8 +439,8 @@ mod tests {
         );
         let submessage3 = RtpsSubmessage::Data ( Data::new(
             EndianessFlag::LittleEndian, 
-            constants::ENTITYID_UNKNOWN, 
-            constants::ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, 
+            ENTITYID_UNKNOWN, 
+            ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, 
             SequenceNumber(2),
             None, 
             Payload::None
@@ -661,8 +487,8 @@ mod tests {
     fn test_parse_message() {
         let submessage = RtpsSubmessage::Data ( Data::new(
             EndianessFlag::LittleEndian, 
-            constants::ENTITYID_UNKNOWN, 
-            constants::ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, 
+            ENTITYID_UNKNOWN, 
+            ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, 
             SequenceNumber(1),
             None, 
             Payload::None
@@ -697,8 +523,8 @@ mod tests {
 
         let submessage1 = RtpsSubmessage::Data ( Data::new(
             EndianessFlag::LittleEndian, 
-            constants::ENTITYID_UNKNOWN, 
-            constants::ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, 
+            ENTITYID_UNKNOWN, 
+            ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, 
             SequenceNumber(1),
             None, 
             Payload::None
@@ -757,8 +583,8 @@ mod tests {
         );
         let submessage2 = RtpsSubmessage::Data ( Data::new(
             EndianessFlag::LittleEndian, 
-            constants::ENTITYID_UNKNOWN, 
-            constants::ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, 
+            ENTITYID_UNKNOWN, 
+            ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, 
             SequenceNumber(1),
             None, 
             Payload::None
@@ -766,8 +592,8 @@ mod tests {
         );
         let submessage3 = RtpsSubmessage::Data ( Data::new(
             EndianessFlag::LittleEndian, 
-            constants::ENTITYID_UNKNOWN, 
-            constants::ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, 
+            ENTITYID_UNKNOWN, 
+            ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, 
             SequenceNumber(2),
             None, 
             Payload::None

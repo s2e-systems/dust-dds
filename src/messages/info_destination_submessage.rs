@@ -1,6 +1,9 @@
-use crate::types::{Ushort, GuidPrefix};
-use super::{SubmessageKind, SubmessageFlag, SubmessageHeader, Submessage};
-use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, EndianessFlag, RtpsSerdesResult};
+use crate::types_primitives::Ushort;
+use crate::types::GuidPrefix;
+use crate::messages::types::{SubmessageKind, SubmessageFlag, };
+use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, EndianessFlag, RtpsSerdesResult, };
+use super::{SubmessageHeader, Submessage, };
+
 
 #[derive(PartialEq, Debug)]
 pub struct InfoDestination {

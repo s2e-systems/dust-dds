@@ -1,7 +1,7 @@
-use crate::types::{Time, Ushort};
-use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsCompose, RtpsParse, EndianessFlag, RtpsSerdesResult};
-
-use super::{SubmessageKind, SubmessageFlag, Submessage, SubmessageHeader};
+use crate::types_primitives::Ushort;
+use crate::messages::types::Time;
+use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsCompose, RtpsParse, EndianessFlag, RtpsSerdesResult, };
+use super::{SubmessageKind, SubmessageFlag, Submessage, SubmessageHeader, };
 
 #[derive(PartialEq, Debug)]
 pub struct InfoTs {

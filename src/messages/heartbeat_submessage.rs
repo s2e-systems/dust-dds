@@ -1,6 +1,8 @@
-use crate::types::{Count, EntityId, SequenceNumber, Ushort};
-use crate::serdes::{RtpsSerialize, RtpsCompose, RtpsParse, RtpsDeserialize, EndianessFlag, RtpsSerdesResult};
-use super::{SubmessageKind, SubmessageFlag, Submessage, SubmessageHeader};
+use crate::types_primitives::Ushort;
+use crate::types::{EntityId, SequenceNumber, };
+use crate::messages::types::{SubmessageKind, SubmessageFlag, Count, };
+use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, EndianessFlag, RtpsSerdesResult, };
+use super::{SubmessageHeader, Submessage, };
 
 #[derive(PartialEq, Debug)]
 pub struct Heartbeat {
@@ -133,7 +135,7 @@ impl RtpsParse for Heartbeat {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{EntityKind, EntityKey};
+    use crate::types::{EntityKind, EntityKey, };
     use crate::types::constants::ENTITYID_UNKNOWN;
 
     #[test]

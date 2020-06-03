@@ -1,183 +1,183 @@
-use cdr::{BigEndian, LittleEndian};
-use num_derive::FromPrimitive;
-use serde_derive::{Deserialize, Serialize};
-use std::cmp;
-use std::convert::TryInto; /*CdrLe, CdrBe, PlCdrLe, PlCdrBe, Error, Infinite,*/
+// use cdr::{BigEndian, LittleEndian};
+// use num_derive::FromPrimitive;
+// use serde_derive::{Deserialize, Serialize};
+// use std::cmp;
+// use std::convert::TryInto; /*CdrLe, CdrBe, PlCdrLe, PlCdrBe, Error, Infinite,*/
 
-use crate::serdes::EndianessFlag;
-use crate::messages::InlineQosParameter;
-use crate::types::
-    {FragmentNumber, FragmentNumberSet, InlineQosParameterList, SequenceNumberSet, ParameterList
-};
+// use crate::serdes::EndianessFlag;
+// use crate::messages::InlineQosParameter;
+// use crate::types::
+//     {FragmentNumber, FragmentNumberSet, InlineQosParameterList, SequenceNumberSet, ParameterList
+// };
 
-use super::{RtpsMessageError, InlineQosPid, RtpsMessageResult};
+// use super::{RtpsMessageError, InlineQosPid, RtpsMessageResult};
 
-// All sizes are in octets
-pub const MINIMUM_RTPS_MESSAGE_SIZE: usize = 20;
+// // All sizes are in octets
+// pub const MINIMUM_RTPS_MESSAGE_SIZE: usize = 20;
 
-pub fn deserialize<'de, T>(
-    message: &[u8],
-    start_index: &usize,
-    end_index: &usize,
-    endianess: &EndianessFlag,
-) -> RtpsMessageResult<T>
-where
-    T: serde::de::Deserialize<'de>,
-{
-    if message.len() <= *end_index {
-        return Err(RtpsMessageError::DeserializationMessageSizeTooSmall);
-    }
+// pub fn deserialize<'de, T>(
+//     message: &[u8],
+//     start_index: &usize,
+//     end_index: &usize,
+//     endianess: &EndianessFlag,
+// ) -> RtpsMessageResult<T>
+// where
+//     T: serde::de::Deserialize<'de>,
+// {
+//     if message.len() <= *end_index {
+//         return Err(RtpsMessageError::DeserializationMessageSizeTooSmall);
+//     }
 
-    if *endianess == EndianessFlag::BigEndian {
-        cdr::de::deserialize_data::<T, BigEndian>(&message[*start_index..=*end_index])
-            .map_err(RtpsMessageError::CdrError)
-    } else {
-        cdr::de::deserialize_data::<T, LittleEndian>(&message[*start_index..=*end_index])
-            .map_err(RtpsMessageError::CdrError)
-    }
-}
+//     if *endianess == EndianessFlag::BigEndian {
+//         cdr::de::deserialize_data::<T, BigEndian>(&message[*start_index..=*end_index])
+//             .map_err(RtpsMessageError::CdrError)
+//     } else {
+//         cdr::de::deserialize_data::<T, LittleEndian>(&message[*start_index..=*end_index])
+//             .map_err(RtpsMessageError::CdrError)
+//     }
+// }
 
-pub fn parse_inline_qos_parameter_list(
-    submessage: &[u8],
-    parameter_list_first_index: &usize,
-    endianess: &EndianessFlag,
-) -> RtpsMessageResult<(InlineQosParameterList, usize)> {
-    const MINIMUM_PARAMETER_VALUE_LENGTH: usize = 4;
-    const PARAMETER_ID_OFFSET: usize = 1;
-    const LENGTH_FIRST_OFFSET: usize = 2;
-    const LENGTH_LAST_OFFSET: usize = 3;
-    const VALUE_FIRST_OFFSET: usize = 4;
+// pub fn parse_inline_qos_parameter_list(
+//     submessage: &[u8],
+//     parameter_list_first_index: &usize,
+//     endianess: &EndianessFlag,
+// ) -> RtpsMessageResult<(InlineQosParameterList, usize)> {
+//     const MINIMUM_PARAMETER_VALUE_LENGTH: usize = 4;
+//     const PARAMETER_ID_OFFSET: usize = 1;
+//     const LENGTH_FIRST_OFFSET: usize = 2;
+//     const LENGTH_LAST_OFFSET: usize = 3;
+//     const VALUE_FIRST_OFFSET: usize = 4;
 
-    let mut parameter_id_first_index = *parameter_list_first_index;
+//     let mut parameter_id_first_index = *parameter_list_first_index;
 
-    let mut parameter_list = ParameterList::<InlineQosParameter>::new();
-    let parameter_list_size: usize;
+//     let mut parameter_list = ParameterList::<InlineQosParameter>::new();
+//     let parameter_list_size: usize;
 
-    loop {
-        let parameter_id_last_index = parameter_id_first_index + PARAMETER_ID_OFFSET;
-        let length_first_index = parameter_id_first_index + LENGTH_FIRST_OFFSET;
-        let length_last_index = parameter_id_first_index + LENGTH_LAST_OFFSET;
+//     loop {
+//         let parameter_id_last_index = parameter_id_first_index + PARAMETER_ID_OFFSET;
+//         let length_first_index = parameter_id_first_index + LENGTH_FIRST_OFFSET;
+//         let length_last_index = parameter_id_first_index + LENGTH_LAST_OFFSET;
 
-        let value_first_index = parameter_id_first_index + VALUE_FIRST_OFFSET;
-        let value_last_index;
+//         let value_first_index = parameter_id_first_index + VALUE_FIRST_OFFSET;
+//         let value_last_index;
 
-        let parameter_id = deserialize::<u16>(
-            submessage,
-            &parameter_id_first_index,
-            &parameter_id_last_index,
-            endianess,
-        )?;
-        if parameter_id == InlineQosPid::Sentinel as u16 {
-            parameter_list_size = length_last_index - *parameter_list_first_index + 1;
-            break;
-        }
+//         let parameter_id = deserialize::<u16>(
+//             submessage,
+//             &parameter_id_first_index,
+//             &parameter_id_last_index,
+//             endianess,
+//         )?;
+//         if parameter_id == InlineQosPid::Sentinel as u16 {
+//             parameter_list_size = length_last_index - *parameter_list_first_index + 1;
+//             break;
+//         }
 
-        let length = deserialize::<u16>(
-            submessage,
-            &length_first_index,
-            &length_last_index,
-            endianess,
-        )? as usize;
-        if length < MINIMUM_PARAMETER_VALUE_LENGTH {
-            return Err(RtpsMessageError::InvalidSubmessage);
-        }
+//         let length = deserialize::<u16>(
+//             submessage,
+//             &length_first_index,
+//             &length_last_index,
+//             endianess,
+//         )? as usize;
+//         if length < MINIMUM_PARAMETER_VALUE_LENGTH {
+//             return Err(RtpsMessageError::InvalidSubmessage);
+//         }
 
-        value_last_index = value_first_index + length - 1;
-        if value_last_index >= submessage.len() {
-            return Err(RtpsMessageError::InvalidSubmessage);
-        }
+//         value_last_index = value_first_index + length - 1;
+//         if value_last_index >= submessage.len() {
+//             return Err(RtpsMessageError::InvalidSubmessage);
+//         }
 
-        let value = match num::FromPrimitive::from_u16(parameter_id) {
-            Some(InlineQosPid::KeyHash) => Some(InlineQosParameter::KeyHash(
-                submessage[value_first_index..=value_last_index]
-                    .try_into()
-                    .map_err(|_| RtpsMessageError::InvalidSubmessageHeader)?,
-            )),
-            Some(InlineQosPid::StatusInfo) => Some(InlineQosParameter::StatusInfo(
-                submessage[value_first_index..=value_last_index]
-                    .try_into()
-                    .map_err(|_| RtpsMessageError::InvalidSubmessageHeader)?,
-            )),
-            _ => None,
-        };
+//         let value = match num::FromPrimitive::from_u16(parameter_id) {
+//             Some(InlineQosPid::KeyHash) => Some(InlineQosParameter::KeyHash(
+//                 submessage[value_first_index..=value_last_index]
+//                     .try_into()
+//                     .map_err(|_| RtpsMessageError::InvalidSubmessageHeader)?,
+//             )),
+//             Some(InlineQosPid::StatusInfo) => Some(InlineQosParameter::StatusInfo(
+//                 submessage[value_first_index..=value_last_index]
+//                     .try_into()
+//                     .map_err(|_| RtpsMessageError::InvalidSubmessageHeader)?,
+//             )),
+//             _ => None,
+//         };
 
-        if let Some(qos_parameter) = value {
-            parameter_list.push(qos_parameter);
-        }
+//         if let Some(qos_parameter) = value {
+//             parameter_list.push(qos_parameter);
+//         }
 
-        parameter_id_first_index = value_last_index + 1;
-    }
+//         parameter_id_first_index = value_last_index + 1;
+//     }
 
-    Ok((parameter_list, parameter_list_size))
-}
+//     Ok((parameter_list, parameter_list_size))
+// }
 
-pub fn parse_fragment_number_set(
-    submessage: &[u8],
-    sequence_number_set_first_index: &usize,
-    endianess_flag: &EndianessFlag,
-) -> RtpsMessageResult<(FragmentNumberSet, usize)> {
-    const FRAGMENT_NUMBER_TYPE_SIZE: usize = 4;
-    const NUM_BITS_TYPE_SIZE: usize = 4;
-    const BITMAP_FIELD_SIZE: usize = 4;
+// pub fn parse_fragment_number_set(
+//     submessage: &[u8],
+//     sequence_number_set_first_index: &usize,
+//     endianess_flag: &EndianessFlag,
+// ) -> RtpsMessageResult<(FragmentNumberSet, usize)> {
+//     const FRAGMENT_NUMBER_TYPE_SIZE: usize = 4;
+//     const NUM_BITS_TYPE_SIZE: usize = 4;
+//     const BITMAP_FIELD_SIZE: usize = 4;
 
-    let bitmap_base_first_index = *sequence_number_set_first_index;
-    let bitmap_base_last_index = bitmap_base_first_index + FRAGMENT_NUMBER_TYPE_SIZE - 1;
+//     let bitmap_base_first_index = *sequence_number_set_first_index;
+//     let bitmap_base_last_index = bitmap_base_first_index + FRAGMENT_NUMBER_TYPE_SIZE - 1;
 
-    let bitmap_base = deserialize::<FragmentNumber>(
-        submessage,
-        &bitmap_base_first_index,
-        &bitmap_base_last_index,
-        endianess_flag,
-    )?;
-    if bitmap_base < 1 {
-        return Err(RtpsMessageError::InvalidSubmessage);
-    }
+//     let bitmap_base = deserialize::<FragmentNumber>(
+//         submessage,
+//         &bitmap_base_first_index,
+//         &bitmap_base_last_index,
+//         endianess_flag,
+//     )?;
+//     if bitmap_base < 1 {
+//         return Err(RtpsMessageError::InvalidSubmessage);
+//     }
 
-    let num_bits_first_index = bitmap_base_last_index + 1;
-    let num_bits_last_index = num_bits_first_index + NUM_BITS_TYPE_SIZE - 1;
+//     let num_bits_first_index = bitmap_base_last_index + 1;
+//     let num_bits_last_index = num_bits_first_index + NUM_BITS_TYPE_SIZE - 1;
 
-    let num_bits = deserialize::<u32>(
-        submessage,
-        &num_bits_first_index,
-        &num_bits_last_index,
-        &endianess_flag,
-    )?;
-    if num_bits < 1 || num_bits > 256 {
-        return Err(RtpsMessageError::InvalidSubmessage);
-    }
+//     let num_bits = deserialize::<u32>(
+//         submessage,
+//         &num_bits_first_index,
+//         &num_bits_last_index,
+//         &endianess_flag,
+//     )?;
+//     if num_bits < 1 || num_bits > 256 {
+//         return Err(RtpsMessageError::InvalidSubmessage);
+//     }
 
-    let num_bitmap_fields = ((num_bits + 31) >> 5) as usize;
+//     let num_bitmap_fields = ((num_bits + 31) >> 5) as usize;
 
-    let mut fragment_number_set = FragmentNumberSet::with_capacity(num_bitmap_fields);
+//     let mut fragment_number_set = FragmentNumberSet::with_capacity(num_bitmap_fields);
 
-    for bitmap_field_index in 0..num_bitmap_fields {
-        let field_first_index = num_bits_last_index + 1 + bitmap_field_index * BITMAP_FIELD_SIZE;
-        let field_last_index = field_first_index + BITMAP_FIELD_SIZE - 1;
-        let bitmap_field = deserialize::<u32>(
-            submessage,
-            &field_first_index,
-            &field_last_index,
-            &endianess_flag,
-        )?;
+//     for bitmap_field_index in 0..num_bitmap_fields {
+//         let field_first_index = num_bits_last_index + 1 + bitmap_field_index * BITMAP_FIELD_SIZE;
+//         let field_last_index = field_first_index + BITMAP_FIELD_SIZE - 1;
+//         let bitmap_field = deserialize::<u32>(
+//             submessage,
+//             &field_first_index,
+//             &field_last_index,
+//             &endianess_flag,
+//         )?;
 
-        let number_bits_in_field = cmp::min(
-            num_bits as usize - (BITMAP_FIELD_SIZE * 8) * bitmap_field_index,
-            32,
-        );
-        for fragment_number_index in 0..number_bits_in_field {
-            let fragment_number = bitmap_base
-                + (fragment_number_index + (BITMAP_FIELD_SIZE * 8) * bitmap_field_index) as u32;
-            let sequence_bit_mask = 1 << fragment_number_index;
-            let sequence_bit = (bitmap_field & sequence_bit_mask) == sequence_bit_mask;
-            fragment_number_set.push((fragment_number, sequence_bit));
-        }
-    }
+//         let number_bits_in_field = cmp::min(
+//             num_bits as usize - (BITMAP_FIELD_SIZE * 8) * bitmap_field_index,
+//             32,
+//         );
+//         for fragment_number_index in 0..number_bits_in_field {
+//             let fragment_number = bitmap_base
+//                 + (fragment_number_index + (BITMAP_FIELD_SIZE * 8) * bitmap_field_index) as u32;
+//             let sequence_bit_mask = 1 << fragment_number_index;
+//             let sequence_bit = (bitmap_field & sequence_bit_mask) == sequence_bit_mask;
+//             fragment_number_set.push((fragment_number, sequence_bit));
+//         }
+//     }
 
-    Ok((
-        fragment_number_set,
-        FRAGMENT_NUMBER_TYPE_SIZE + NUM_BITS_TYPE_SIZE + BITMAP_FIELD_SIZE * num_bitmap_fields,
-    ))
-}
+//     Ok((
+//         fragment_number_set,
+//         FRAGMENT_NUMBER_TYPE_SIZE + NUM_BITS_TYPE_SIZE + BITMAP_FIELD_SIZE * num_bitmap_fields,
+//     ))
+// }
 
 // #[cfg(test)]
 // mod tests {

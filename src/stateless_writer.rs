@@ -7,8 +7,9 @@ use crate::serdes::EndianessFlag;
 use crate::types::constants::{ENTITYID_UNKNOWN};
 use crate::types::{
     ChangeKind, Duration, InstanceHandle, Locator, LocatorList, ReliabilityKind, SequenceNumber,
-    SerializedPayload, Time, TopicKind, GUID, ParameterList, StatusInfo, KeyHash
+    SerializedPayload, TopicKind, GUID, ParameterList, StatusInfo, KeyHash
 };
+use crate::messages::types::Time;
 
 pub struct ReaderLocator {
     //requested_changes: HashSet<CacheChange>,

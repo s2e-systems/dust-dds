@@ -3,109 +3,24 @@ use std::slice::Iter;
 use std::ops::Index;
 use std::collections::BTreeSet;
 use std::io::Write;
-use std::time::SystemTime;
 use num_derive::FromPrimitive;
 
-use crate::serdes::{RtpsSerialize, RtpsDeserialize, EndianessFlag, RtpsSerdesResult, RtpsSerdesError, PrimitiveSerdes, SizeCheckers, SizeSerializer};
+use crate::serdes::{RtpsSerialize, RtpsDeserialize, EndianessFlag, RtpsSerdesResult, RtpsSerdesError, PrimitiveSerdes, SizeCheckers, SizeSerializer, };
+use crate::types_primitives::{Long, ULong};
+use crate::messages::types::FragmentNumber;
 
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Ushort(pub u16);
-
-impl RtpsSerialize for Ushort
-{
-    fn serialize(&self, writer: &mut impl std::io::Write, endianness: EndianessFlag) -> RtpsSerdesResult<()>{
-        let value = self.0;
-        writer.write(&PrimitiveSerdes::serialize_u16(value, endianness))?;
-        Ok(())
-    }
-}
-
-impl From<Ushort> for usize {
-    fn from(value: Ushort) -> Self {
-        value.0 as usize
-    }
-}
-
-impl From<usize> for Ushort {
-    fn from(value: usize) -> Self {
-        Self(value as u16)
-    }    
-}
-
-impl RtpsDeserialize for Ushort {
-    fn deserialize(bytes: &[u8], endianness: EndianessFlag) -> RtpsSerdesResult<Self> { 
-        let value = PrimitiveSerdes::deserialize_u16(bytes[0..2].try_into()?, endianness);
-        Ok(Ushort(value))
-    }
-}
-
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct Long(pub i32);
-
-impl RtpsSerialize for Long
-{
-    fn serialize(&self, writer: &mut impl std::io::Write, endianness: EndianessFlag) -> RtpsSerdesResult<()>{
-        writer.write(&PrimitiveSerdes::serialize_i32(self.0, endianness))?;
-        Ok(())
-    }
-}
-
-impl From<Long> for usize {
-    fn from(value: Long) -> Self {
-        value.0 as usize
-    }
-}
-
-impl RtpsDeserialize for Long {
-    fn deserialize(bytes: &[u8], endianness: EndianessFlag) -> RtpsSerdesResult<Self> { 
-        let value = PrimitiveSerdes::deserialize_i32(bytes[0..4].try_into()?, endianness);
-        Ok(Self(value))
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Hash, Eq, PartialOrd, Ord)]
-pub struct ULong(pub u32);
-
-impl RtpsSerialize for ULong {
-    fn serialize(&self, writer: &mut impl std::io::Write, endianness: EndianessFlag) -> RtpsSerdesResult<()> {
-        writer.write(&PrimitiveSerdes::serialize_u32(self.0, endianness))?;
-        Ok(())
-    }
-}
-
-impl From<ULong> for usize {
-    fn from(value: ULong) -> Self {
-        value.0 as usize
-    }
-}
-
-impl From<usize> for ULong {
-    fn from(value: usize) -> Self {
-        Self(value as u32)
-    }
-}
-
-impl RtpsDeserialize for ULong {
-    fn deserialize(bytes: &[u8], endianness: EndianessFlag) -> RtpsSerdesResult<Self> { 
-        let value = PrimitiveSerdes::deserialize_u32(bytes[0..4].try_into()?, endianness);
-        Ok(Self(value))
-    }
-}
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
 pub struct EntityKey(pub [u8;3]);
 
-impl RtpsSerialize for EntityKey
-{
+impl RtpsSerialize for EntityKey {
     fn serialize(&self, writer: &mut impl std::io::Write, _endianness: EndianessFlag) -> RtpsSerdesResult<()>{
         writer.write(&self.0)?;
-
         Ok(())
     }
 }
 
-impl RtpsDeserialize for EntityKey{
+impl RtpsDeserialize for EntityKey {
     fn deserialize(bytes: &[u8], _endianness: EndianessFlag) -> RtpsSerdesResult<Self> {
         SizeCheckers::check_size_equal(bytes, 3)?;
 
@@ -132,23 +47,21 @@ pub enum EntityKind {
     BuiltInReaderGroup = 0xc9,
 }
 
-impl RtpsSerialize for EntityKind
-{
+impl RtpsSerialize for EntityKind {
     fn serialize(&self, writer: &mut impl std::io::Write, _endianness: EndianessFlag) -> RtpsSerdesResult<()>{
         let entity_kind_u8 = *self as u8;
         writer.write(&[entity_kind_u8])?;
-
         Ok(())
     }
 }
 
-impl RtpsDeserialize for EntityKind{
-
+impl RtpsDeserialize for EntityKind {
     fn deserialize(bytes: &[u8], _endianness: EndianessFlag) -> RtpsSerdesResult<Self> {
         SizeCheckers::check_size_equal(bytes, 1 /*expected_size*/)?;
         Ok(num::FromPrimitive::from_u8(bytes[0]).ok_or(RtpsSerdesError::InvalidEnumRepresentation)?)
     }
 }
+
 
 #[derive(Hash, Eq, PartialEq, Debug, Clone, Copy)]
 pub struct EntityId {
@@ -172,7 +85,6 @@ impl RtpsSerialize for EntityId {
     }
 }
 
-
 impl RtpsDeserialize for EntityId{
     fn deserialize(bytes: &[u8], endianness: EndianessFlag) -> RtpsSerdesResult<Self> {
         SizeCheckers::check_size_equal(bytes, 4 /*expected_size*/)?;
@@ -182,6 +94,7 @@ impl RtpsDeserialize for EntityId{
         Ok(EntityId::new(entity_key, entity_kind))
     }
 }
+
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Hash)]
 pub struct SequenceNumber(pub i64);
@@ -202,8 +115,7 @@ impl std::ops::Add<i64> for SequenceNumber {
     }
 }
 
-impl RtpsSerialize for SequenceNumber
-{
+impl RtpsSerialize for SequenceNumber {
     fn serialize(&self, writer: &mut impl std::io::Write, endianness: EndianessFlag) -> RtpsSerdesResult<()>{
         let msb = PrimitiveSerdes::serialize_i32((self.0 >> 32) as i32, endianness);
         let lsb = PrimitiveSerdes::serialize_u32((self.0 & 0x0000_0000_FFFF_FFFF) as u32, endianness);
@@ -230,7 +142,7 @@ impl RtpsDeserialize for SequenceNumber {
 
 
 #[derive(PartialEq, Debug)]
-pub struct SequenceNumberSet{
+pub struct SequenceNumberSet {
     base: SequenceNumber,
     set: BTreeSet<SequenceNumber>,
 }
@@ -241,7 +153,6 @@ impl SequenceNumberSet {
         Self {base, set } 
     }
 }
-
 
 impl RtpsSerialize for SequenceNumberSet {
     fn serialize(&self, writer: &mut impl Write, endianness: EndianessFlag) -> RtpsSerdesResult<()> {
@@ -266,6 +177,7 @@ impl RtpsSerialize for SequenceNumberSet {
         Ok(())
     }
 }
+
 impl RtpsDeserialize for SequenceNumberSet {
     fn deserialize(bytes: &[u8], endianness: EndianessFlag) -> RtpsSerdesResult<Self> {
         let base = SequenceNumber::deserialize(&bytes[0..8], endianness)?;
@@ -315,67 +227,8 @@ pub enum ChangeKind {
     NotAliveUnregistered,
 }
 
-#[derive(PartialEq, Eq, Hash, Debug, Clone, Copy)]
-pub struct Time {
-    seconds: u32,
-    fraction: u32,
-}
 
-impl Time {
-    pub fn new (seconds: u32, fraction: u32) -> Self {
-        Time {
-            seconds,
-            fraction,
-        }
-    }
 
-    pub fn now() -> Self {
-        let current_time = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap();
-        Time{seconds: current_time.as_secs() as u32 , fraction: current_time.as_nanos() as u32}
-    }
-}
- 
-impl RtpsSerialize for Time 
-{
-    fn serialize(&self, writer: &mut impl std::io::Write, endianness: EndianessFlag) -> RtpsSerdesResult<()>{
-        let seconds_bytes = PrimitiveSerdes::serialize_u32(self.seconds, endianness);
-        let fraction_bytes = PrimitiveSerdes::serialize_u32(self.fraction, endianness);
-
-        writer.write(&seconds_bytes)?;
-        writer.write(&fraction_bytes)?;
-
-        Ok(())
-    }
-}
-
-impl RtpsDeserialize for Time {
-    fn deserialize(bytes: &[u8], endianness: EndianessFlag) -> RtpsSerdesResult<Self> {
-        SizeCheckers::check_size_equal(bytes, 8)?;
-
-        let seconds = PrimitiveSerdes::deserialize_u32(bytes[0..4].try_into()?, endianness);
-        let fraction = PrimitiveSerdes::deserialize_u32(bytes[4..8].try_into()?, endianness);
-
-        Ok(Time::new(seconds, fraction))
-    }
-}
-#[derive(Debug, PartialEq, Copy, Clone)]
-pub struct Count(pub i32);
-
-impl RtpsSerialize for Count {
-    fn serialize(&self, writer: &mut impl std::io::Write, endianness: EndianessFlag) -> RtpsSerdesResult<()> {
-        writer.write(&PrimitiveSerdes::serialize_i32(self.0, endianness))?;
-
-        Ok(())
-    }
-}
-
-impl RtpsDeserialize for Count {
-    fn deserialize(bytes: &[u8], endianness: EndianessFlag) -> RtpsSerdesResult<Self> {
-        let value = PrimitiveSerdes::deserialize_i32(bytes.try_into()?, endianness);
-
-        Ok(Count(value))
-    }
-}
 
 #[derive(PartialEq, Eq, Hash, Debug, Clone)]
 pub struct Duration {
@@ -396,16 +249,13 @@ impl KeyHash {
     }
 }
 
-impl RtpsSerialize for KeyHash 
-{
+impl RtpsSerialize for KeyHash {
     fn serialize(&self, writer: &mut impl std::io::Write, _endianess: EndianessFlag) -> RtpsSerdesResult<()> {
         writer.write(&self.0)?;
-
         Ok(())
     }
-
-
 }
+
 
 #[derive(Debug, PartialEq, Clone, Copy, Eq)]
 pub struct StatusInfo(pub [u8;4]);
@@ -457,11 +307,9 @@ impl From<ChangeKind> for StatusInfo {
     }
 }
 
-impl RtpsSerialize for StatusInfo 
-{
+impl RtpsSerialize for StatusInfo {
     fn serialize(&self, writer: &mut impl std::io::Write, _endianess: EndianessFlag) -> RtpsSerdesResult<()> {
         writer.write(&self.0)?;
-
         Ok(())
     }
 }
@@ -841,21 +689,6 @@ impl RtpsDeserialize for GuidPrefix {
 pub type InstanceHandle = [u8; 16];
 
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)] //Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Hash
-pub struct FragmentNumber(pub ULong);
-
-impl RtpsSerialize for FragmentNumber {
-    fn serialize(&self, writer: &mut impl Write, endianness: EndianessFlag) -> RtpsSerdesResult<()> {
-        self.0.serialize(writer, endianness)?;
-        Ok(())
-    }    
-}
-
-impl RtpsDeserialize for FragmentNumber {
-    fn deserialize(bytes: &[u8], endianness: EndianessFlag) -> RtpsSerdesResult<Self> {
-        Ok(Self(ULong::deserialize(&bytes, endianness)?))
-    }    
-}
 
 
 #[derive(PartialEq, Debug)]
@@ -1144,40 +977,7 @@ mod tests {
     }
 
 
-    ///////////////////////// Time Tests ////////////////////////
-    #[test]
-    fn test_time_serialization_deserialization_big_endian() {
-        let mut vec = Vec::new();
-        let test_time = Time::new(1234567, 98765432);
-
-        
-        const TEST_TIME_BIG_ENDIAN : [u8;8] = [0x00, 0x12, 0xD6, 0x87, 0x05, 0xE3, 0x0A, 0x78];
-        test_time.serialize(&mut vec, EndianessFlag::BigEndian).unwrap();
-        assert_eq!(vec, TEST_TIME_BIG_ENDIAN);
-        assert_eq!(Time::deserialize(&vec, EndianessFlag::BigEndian).unwrap(), test_time);
-    }
-
-    #[test]
-    fn test_time_serialization_deserialization_little_endian() {
-        let mut vec = Vec::new();
-        let test_time = Time::new(1234567, 98765432);
-        
-        const TEST_TIME_LITTLE_ENDIAN : [u8;8] = [0x87, 0xD6, 0x12, 0x00, 0x78, 0x0A, 0xE3, 0x05];
-        test_time.serialize(&mut vec, EndianessFlag::LittleEndian).unwrap();
-        assert_eq!(vec, TEST_TIME_LITTLE_ENDIAN);
-        assert_eq!(Time::deserialize(&vec, EndianessFlag::LittleEndian).unwrap(), test_time);
-    }
-
-    #[test]
-    fn test_invalid_time_deserialization() {
-        let wrong_vec = vec![1,2,3,4];
-
-        let expected_error = Time::deserialize(&wrong_vec, EndianessFlag::LittleEndian);
-        match expected_error {
-            Err(RtpsSerdesError::WrongSize) => assert!(true),
-            _ => assert!(false),
-        };
-    }
+    
 
     ///////////////////////// Sequence Number Tests ////////////////////////
     #[test]
@@ -1482,28 +1282,7 @@ mod tests {
         assert_eq!(expected, writer);
     }
 
-    ////////////////////////// Fragment Number Tests ///////////////////////
-     
-    #[test]
-    fn serialize_fragment_number() {
-        let fragment_number = FragmentNumber(ULong(100));
-        let expected = vec![
-            100, 0, 0, 0,
-        ];
-        let mut writer = Vec::new();
-        fragment_number.serialize(&mut writer, EndianessFlag::LittleEndian).unwrap();
-        assert_eq!(expected, writer);
-    }
-
-    #[test]
-    fn deserialize_fragment_number() {
-        let expected = FragmentNumber(ULong(100));
-        let bytes = vec![
-            100, 0, 0, 0,
-        ];
-        let result = FragmentNumber::deserialize(&bytes, EndianessFlag::LittleEndian).unwrap();
-        assert_eq!(expected, result);
-    }
+    
 
     ///////////////////////// FragmentNumberSet Tests ////////////////////////
 
@@ -1797,7 +1576,7 @@ mod tests {
 }
 
 pub mod constants {
-    use super::{VendorId, EntityId, EntityKey, EntityKind, Time, Duration, ProtocolVersion};
+    use super::{VendorId, EntityId, EntityKey, EntityKind, Duration, ProtocolVersion};
 
     pub const VENDOR_ID: VendorId = VendorId([99,99]);
 
@@ -1872,21 +1651,6 @@ pub mod constants {
 
     pub const DURATION_INFINITE: Duration = Duration {
         seconds: std::i32::MAX,
-        fraction: std::u32::MAX,
-    };
-
-    const TIME_ZERO: Time = Time {
-        seconds: 0,
-        fraction: 0,
-    };
-
-    const TIME_INFINITE: Time = Time {
-        seconds: std::u32::MAX,
-        fraction: std::u32::MAX - 1,
-    };
-
-    const TIME_INVALID: Time = Time {
-        seconds: std::u32::MAX,
         fraction: std::u32::MAX,
     };
 }

@@ -1,6 +1,8 @@
-use crate::types::{Long, ProtocolVersion, VendorId, GuidPrefix, Ushort};
-use super::{SubmessageKind, SubmessageFlag, SubmessageHeader, Submessage};
-use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, EndianessFlag, RtpsSerdesResult};
+use crate::types_primitives::{Long, Ushort, };
+use crate::types::{ProtocolVersion, VendorId, GuidPrefix, };
+use crate::messages::types::{SubmessageKind, SubmessageFlag, };
+use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, EndianessFlag, RtpsSerdesResult, };
+use super::{SubmessageHeader, Submessage, };
 
 #[derive(PartialEq, Debug)]
 pub struct InfoSource {

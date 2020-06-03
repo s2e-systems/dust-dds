@@ -1,6 +1,8 @@
-use crate::types::{Ushort, LocatorList};
-use super::{SubmessageKind, SubmessageFlag, SubmessageHeader, Submessage};
-use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, EndianessFlag, RtpsSerdesResult};
+use crate::types_primitives::Ushort;
+use crate::types::LocatorList;
+use crate::messages::types::{SubmessageKind, SubmessageFlag, };
+use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, EndianessFlag, RtpsSerdesResult, };
+use super::{SubmessageHeader, Submessage, };
 
 #[derive(PartialEq, Debug)]
 pub struct InfoReply {
@@ -59,7 +61,7 @@ impl RtpsParse for InfoReply {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{Locator};
+    use crate::types::Locator;
 
     #[test]
     fn test_parse_info_reply_submessage_without_multicast() {

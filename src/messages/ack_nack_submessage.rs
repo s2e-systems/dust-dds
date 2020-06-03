@@ -1,7 +1,8 @@
-use crate::types::{Ushort, EntityId, SequenceNumberSet, Count};
-use super::{SubmessageKind, SubmessageFlag, SubmessageHeader, Submessage};
-use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, EndianessFlag, RtpsSerdesResult};
-
+use crate::types_primitives::Ushort;
+use crate::types::{EntityId, SequenceNumberSet, };
+use crate::messages::types::{Count, SubmessageKind, SubmessageFlag, };
+use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, EndianessFlag, RtpsSerdesResult, };
+use super::{SubmessageHeader, Submessage, };
 
 #[derive(PartialEq, Debug)]
 pub struct AckNack {
@@ -60,7 +61,7 @@ impl RtpsParse for AckNack {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::constants::{ENTITYID_UNKNOWN, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER};
+    use crate::types::constants::{ENTITYID_UNKNOWN, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, };
     use crate::types::SequenceNumber;
     
     #[test]

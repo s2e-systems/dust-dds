@@ -1,8 +1,9 @@
-use crate::types::{EntityId, SequenceNumber, FragmentNumber, Ushort, ULong, SerializedPayload};
+use crate::types_primitives::{Ushort, ULong, };
+use crate::types::{EntityId, SequenceNumber, SerializedPayload, };
+use crate::messages::types::{FragmentNumber, SubmessageKind, SubmessageFlag, };
+use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, EndianessFlag, RtpsSerdesResult, };
 use crate::inline_qos::InlineQosParameterList;
-use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, EndianessFlag, RtpsSerdesResult};
-
-use super::{SubmessageKind, SubmessageFlag, SubmessageHeader, Submessage};
+use super::{SubmessageHeader, Submessage, };
 
 #[derive(PartialEq, Debug)]
 pub struct DataFrag {
@@ -137,7 +138,7 @@ mod tests{
     use super::*;
     use crate::inline_qos::InlineQosParameter;
     use crate::types::KeyHash;
-    use crate::types::constants::{ENTITYID_UNKNOWN, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER};
+    use crate::types::constants::{ENTITYID_UNKNOWN, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, };
 
     #[test]
     fn parse_data_frag_submessage() {

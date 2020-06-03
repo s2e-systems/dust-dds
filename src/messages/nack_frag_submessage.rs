@@ -1,6 +1,9 @@
-use crate::types::{Ushort, EntityId, SequenceNumber, FragmentNumberSet, Count};
-use super::{SubmessageKind, SubmessageFlag, SubmessageHeader, Submessage};
-use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, EndianessFlag, RtpsSerdesResult};
+use crate::types_primitives::Ushort;
+use crate::types::{EntityId, SequenceNumber, FragmentNumberSet, };
+use crate::messages::types::Count;
+use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsCompose, RtpsParse, EndianessFlag, RtpsSerdesResult, };
+use super::{SubmessageKind, SubmessageFlag, Submessage, SubmessageHeader, };
+
 
 #[derive(PartialEq, Debug)]
 pub struct NackFrag {
@@ -78,7 +81,8 @@ impl RtpsParse for NackFrag {
 mod tests {
     use super::*;
     use crate::types::constants::{ENTITYID_UNKNOWN, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER};
-    use crate::types::{FragmentNumber, ULong};
+    use crate::messages::types::{FragmentNumber, };
+    use crate::types_primitives::{ULong, };
 
     #[test]
     fn parse_nack_frag_submessage() {

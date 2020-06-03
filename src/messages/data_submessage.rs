@@ -1,10 +1,10 @@
 use std::convert::From;
-use crate::types::{EntityId, SequenceNumber, Ushort, SerializedPayload};
+use crate::types_primitives::Ushort;
+use crate::types::{SequenceNumber ,EntityId, SerializedPayload, };
+use crate::messages::types::{SubmessageKind, SubmessageFlag, };
+use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, EndianessFlag, RtpsSerdesResult, };
 use crate::inline_qos::InlineQosParameterList;
-use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, EndianessFlag, RtpsSerdesResult};
-
-use super::{SubmessageKind, SubmessageFlag, SubmessageHeader, Submessage};
-
+use super::{SubmessageHeader, Submessage, };
 
 #[derive(PartialEq, Debug)]
 pub struct Data {
@@ -223,8 +223,8 @@ impl RtpsParse for Data {
 mod tests {
     use super::*;
     use crate::inline_qos::InlineQosParameter;
-    use crate::types::{KeyHash};
-    use crate::types::constants::{ENTITYID_UNKNOWN, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER};
+    use crate::types::KeyHash;
+    use crate::types::constants::{ENTITYID_UNKNOWN, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, };
 
         // E: EndiannessFlag - Indicates endianness.
         // Q: InlineQosFlag - Indicates to the Reader the presence of a ParameterList containing QoS parameters that should be used to interpret the message.
