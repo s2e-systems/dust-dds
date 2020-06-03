@@ -1,6 +1,8 @@
 use rust_rtps::{StatelessWriter, StatelessReader, RtpsMessage, RtpsCompose, RtpsParse, };
-use rust_rtps::types::{ChangeKind, TopicKind, ReliabilityKind, Locator, LocatorList, GUID, GuidPrefix, };
-use rust_rtps::types::constants::{DURATION_ZERO, ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER, ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER, };
+use rust_rtps::types::{ChangeKind, TopicKind, ReliabilityKind, Locator, GUID, GuidPrefix, };
+use rust_rtps::types::constants::{ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER, ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER, };
+use rust_rtps::types_other::LocatorList;
+use rust_rtps::types_other::constants::DURATION_ZERO;
 
 #[test]
 fn test_stateless_writer_stateless_reader_direct_communication_integration() {
