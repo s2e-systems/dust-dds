@@ -502,6 +502,23 @@ mod tests {
 
         writer.reader_locator_add(locator);
 
+        // Test for heartbeat message before any data is added
+        sleep(heartbeat_period.into());
+
+        let writer_data = writer.get_data_to_send(locator);
+        assert_eq!(writer_data.submessages().len(), 2);
+        if let RtpsSubmessage::Heartbeat(heartbeat_message) = &writer_data.submessages()[1] {
+            assert_eq!(heartbeat_message.reader_id(), &ENTITYID_UNKNOWN);
+            assert_eq!(heartbeat_message.writer_id(), &ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER);
+            assert_eq!(heartbeat_message.first_sn(), &SequenceNumber(1));
+            assert_eq!(heartbeat_message.last_sn(), &SequenceNumber(0));
+            assert_eq!(heartbeat_message.count(), &Count(1));
+            assert_eq!(heartbeat_message.is_final(), true);
+
+        } else {
+            panic!("Wrong message type");
+        };
+
         // Verify next unsent change without any changes created
         assert_eq!(writer.unsent_changes(locator), HashSet::new());
         assert_eq!(writer.next_unsent_change(locator), None);
@@ -562,7 +579,7 @@ mod tests {
             assert_eq!(heartbeat_message.writer_id(), &ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER);
             assert_eq!(heartbeat_message.first_sn(), &SequenceNumber(1));
             assert_eq!(heartbeat_message.last_sn(), &SequenceNumber(2));
-            assert_eq!(heartbeat_message.count(), &Count(1));
+            assert_eq!(heartbeat_message.count(), &Count(2));
             assert_eq!(heartbeat_message.is_final(), true);
 
         } else {
@@ -572,6 +589,22 @@ mod tests {
         // Test that nothing more is sent after the heartbeat
         let writer_data = writer.get_data_to_send(locator);
         assert_eq!(writer_data.submessages().len(), 0);
+
+        sleep(heartbeat_period.into());
+
+        let writer_data = writer.get_data_to_send(locator);
+        assert_eq!(writer_data.submessages().len(), 2);
+        if let RtpsSubmessage::Heartbeat(heartbeat_message) = &writer_data.submessages()[1] {
+            assert_eq!(heartbeat_message.reader_id(), &ENTITYID_UNKNOWN);
+            assert_eq!(heartbeat_message.writer_id(), &ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER);
+            assert_eq!(heartbeat_message.first_sn(), &SequenceNumber(1));
+            assert_eq!(heartbeat_message.last_sn(), &SequenceNumber(2));
+            assert_eq!(heartbeat_message.count(), &Count(3));
+            assert_eq!(heartbeat_message.is_final(), true);
+
+        } else {
+            panic!("Wrong message type");
+        };
 
     }
 }
