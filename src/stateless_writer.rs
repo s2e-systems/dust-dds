@@ -314,8 +314,8 @@ mod tests {
             GUID::new(GuidPrefix([0; 12]), ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
             TopicKind::WithKey,
             ReliabilityKind::BestEffort,
-            vec![Locator::new(0, 7400, [0; 16])], /*unicast_locator_list*/
-            vec![],                               /*multicast_locator_list*/
+            LocatorList(vec![Locator::new(0, 7400, [0; 16])]), /*unicast_locator_list*/
+            LocatorList(vec![]),                               /*multicast_locator_list*/
             false,                                /*push_mode*/
             DURATION_ZERO,                        /* heartbeat_period */
             DURATION_ZERO,                        /* nack_response_delay */
@@ -356,8 +356,8 @@ mod tests {
             GUID::new(GuidPrefix([0; 12]), ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
             TopicKind::WithKey,
             ReliabilityKind::BestEffort,
-            vec![Locator::new(0, 7400, [0; 16])], /*unicast_locator_list*/
-            vec![],                               /*multicast_locator_list*/
+            LocatorList(vec![Locator::new(0, 7400, [0; 16])]), /*unicast_locator_list*/
+            LocatorList(vec![]),                               /*multicast_locator_list*/
             false,                                /*push_mode*/
             DURATION_ZERO,                        /* heartbeat_period */
             DURATION_ZERO,                        /* nack_response_delay */
@@ -418,8 +418,8 @@ mod tests {
             GUID::new(GuidPrefix([0; 12]), ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
             TopicKind::WithKey,
             ReliabilityKind::BestEffort,
-            vec![Locator::new(0, 7400, [0; 16])], 
-            vec![],                               
+            LocatorList(vec![Locator::new(0, 7400, [0; 16])]), 
+            LocatorList(vec![]),                               
             false,                                
             DURATION_ZERO,                        
             DURATION_ZERO,                        
