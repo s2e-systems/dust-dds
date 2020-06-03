@@ -430,10 +430,6 @@ mod tests {
 
         writer.reader_locator_add(locator);
 
-        // Verify next unsent change without any changes created
-        assert_eq!(writer.unsent_changes(locator), HashSet::new());
-        assert_eq!(writer.next_unsent_change(locator), None);
-
         let cache_change_seq1 = writer.new_change(
             ChangeKind::Alive,
             Some(vec![1, 2, 3]), 
@@ -518,10 +514,6 @@ mod tests {
         } else {
             panic!("Wrong message type");
         };
-
-        // Verify next unsent change without any changes created
-        assert_eq!(writer.unsent_changes(locator), HashSet::new());
-        assert_eq!(writer.next_unsent_change(locator), None);
 
         let cache_change_seq1 = writer.new_change(
             ChangeKind::Alive,
