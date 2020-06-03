@@ -15,6 +15,25 @@ pub struct AckNack {
     count: Count,
 }
 
+impl AckNack {
+    pub fn new(
+        reader_id: EntityId,
+        writer_id: EntityId,
+        reader_sn_state: SequenceNumberSet,
+        count: Count,
+        final_flag: bool,
+        endianness_flag: EndianessFlag) -> Self {
+            AckNack {
+                reader_id,
+                writer_id,
+                reader_sn_state,
+                count,
+                final_flag: SubmessageFlag(final_flag),
+                endianness_flag: endianness_flag.into(),
+            }
+        }
+}
+
 impl Submessage for AckNack {
     fn submessage_header(&self) -> SubmessageHeader {
         const X : SubmessageFlag = SubmessageFlag(false);
