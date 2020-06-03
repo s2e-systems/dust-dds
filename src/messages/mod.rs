@@ -709,8 +709,8 @@ mod tests {
         let first_sn = SequenceNumber(1233);
         let last_sn = SequenceNumber(1237);
         let count = Count(8);
-        let final_flag = SubmessageFlag(true);
-        let liveliness_flag = SubmessageFlag(false);
+        let final_flag = true;
+        let liveliness_flag = false;
 
         let submessage2 = RtpsSubmessage::Heartbeat ( Heartbeat::new(
             reader_id, writer_id, first_sn, last_sn, count, final_flag, liveliness_flag, EndianessFlag::BigEndian)
@@ -809,3 +809,5 @@ mod tests {
         assert_eq!(expected, result);  
     }
 }
+
+

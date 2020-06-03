@@ -331,7 +331,7 @@ impl Time {
 
     pub fn now() -> Self {
         let current_time = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap();
-        Time{seconds: current_time.as_secs() as u32 , fraction: current_time.as_nanos() as u32}
+        Time{seconds: current_time.as_secs() as u32 , fraction: current_time.subsec_nanos() as u32}
     }
 }
  
@@ -361,6 +361,12 @@ impl RtpsDeserialize for Time {
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub struct Count(pub i32);
 
+impl std::ops::AddAssign<i32> for Count {
+    fn add_assign(&mut self, rhs: i32) {
+        *self = Count(self.0+rhs)
+    }
+}
+
 impl RtpsSerialize for Count {
     fn serialize(&self, writer: &mut impl std::io::Write, endianness: EndianessFlag) -> RtpsSerdesResult<()> {
         writer.write(&PrimitiveSerdes::serialize_i32(self.0, endianness))?;
@@ -377,10 +383,33 @@ impl RtpsDeserialize for Count {
     }
 }
 
-#[derive(PartialEq, Eq, Hash, Debug, Clone)]
+#[derive(PartialEq, Eq, PartialOrd, Hash, Debug, Clone, Copy)]
 pub struct Duration {
-    pub seconds: i32,
-    pub fraction: u32,
+    seconds: i32,
+    fraction: u32,
+}
+
+impl Duration {
+    pub fn from_millis(millis: u64) -> Self { 
+        std::time::Duration::from_millis(millis).try_into().unwrap()
+    }
+}
+
+impl TryFrom<std::time::Duration> for Duration {
+    type Error = core::num::TryFromIntError;
+
+    fn try_from(value: std::time::Duration) -> Result<Self, Self::Error> {
+        let seconds: i32 = value.as_secs().try_into()?;
+        let fraction = ((value.as_secs_f64() - value.as_secs() as f64) * 2_f64.powi(32)) as u32;
+        Ok(Duration {seconds, fraction})
+    }
+}
+
+impl From<Duration> for std::time::Duration {
+    fn from(value: Duration) -> Self {
+        let nanoseconds = (value.fraction as f64 * 1_000_000_000_f64 / 2_f64.powi(32)) as u32;
+        std::time::Duration::new(value.seconds as u64, nanoseconds)
+    }
 }
 
 #[derive(Debug, PartialEq, Clone, Copy, Eq)]
@@ -1794,6 +1823,27 @@ mod tests {
             true
         );
     }
+
+        
+    #[test]
+    fn duration_construction() {
+        let result = Duration::try_from(std::time::Duration::new(2, 1)).unwrap();
+        assert_eq!(result.seconds, 2);
+        assert_eq!(result.fraction, 4);
+
+        let result = Duration::try_from(std::time::Duration::from_millis(500)).unwrap();
+        assert_eq!(result.seconds, 0);
+        assert_eq!(result.fraction, 2_u32.pow(31));
+
+        let result = Duration::try_from(std::time::Duration::from_secs(2_u64.pow(40)));
+        assert!(result.is_err());  
+    }
+
+    #[test] #[should_panic]
+    fn duration_from_invalid() {
+        Duration::from_millis(2_u64.pow(32) * 1000 + 1);
+    }
+
 }
 
 pub mod constants {
@@ -1871,8 +1921,8 @@ pub mod constants {
     };
 
     pub const DURATION_INFINITE: Duration = Duration {
-        seconds: std::i32::MAX,
-        fraction: std::u32::MAX,
+        seconds: 0x7fffffff,
+        fraction: 0xffffffff,
     };
 
     const TIME_ZERO: Time = Time {
