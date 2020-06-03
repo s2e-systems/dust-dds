@@ -32,6 +32,18 @@ impl AckNack {
                 endianness_flag: endianness_flag.into(),
             }
         }
+
+        pub fn reader_id(&self) -> &EntityId {
+            &self.reader_id
+        }
+
+        pub fn writer_id(&self) -> &EntityId {
+            &self.writer_id
+        }
+
+        pub fn reader_sn_state(&self) -> &SequenceNumberSet {
+            &self.reader_sn_state
+        }
 }
 
 impl Submessage for AckNack {
