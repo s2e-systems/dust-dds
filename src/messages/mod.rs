@@ -21,7 +21,7 @@ use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsCompose, RtpsParse, Endi
 
 
 
-// pub use ack_nack_submessage::AckNack;
+pub use ack_nack_submessage::AckNack;
 // pub use data_frag_submessage::DataFrag;
 pub use data_submessage::Data;
 pub use data_submessage::Payload;
@@ -63,7 +63,7 @@ pub const RTPS_MINOR_VERSION: u8 = 4;
 
 #[derive(Debug, PartialEq)]
 pub enum RtpsSubmessage {
-    // AckNack(AckNack),
+    AckNack(AckNack),
     Data(Data),
     // DataFrag(DataFrag),
     Gap(Gap),
@@ -79,6 +79,7 @@ pub enum RtpsSubmessage {
 impl RtpsCompose for RtpsSubmessage {
     fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
         match self {
+            RtpsSubmessage::AckNack(acknack) => acknack.compose(writer),
             RtpsSubmessage::Data(data) => data.compose(writer),
             RtpsSubmessage::Gap(_gap) => Ok(()), //gap.compose(writer)?,
             RtpsSubmessage::Heartbeat(heartbeat) => heartbeat.compose(writer),
