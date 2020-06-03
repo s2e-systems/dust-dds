@@ -31,8 +31,8 @@ impl Heartbeat {
         first_sn: SequenceNumber,
         last_sn: SequenceNumber,
         count: Count,
-        final_flag: SubmessageFlag,
-        liveliness_flag: SubmessageFlag,
+        final_flag: bool,
+        manual_liveliness: bool,
         endianness_flag: EndianessFlag) -> Self {
             Heartbeat {
                 reader_id,
@@ -40,8 +40,8 @@ impl Heartbeat {
                 first_sn,
                 last_sn,
                 count,
-                final_flag,
-                liveliness_flag,
+                final_flag: SubmessageFlag(final_flag),
+                liveliness_flag: SubmessageFlag(manual_liveliness),
                 endianness_flag: endianness_flag.into(),
             }
         }
@@ -60,6 +60,30 @@ impl Heartbeat {
         }
 
         true
+    }
+
+    pub fn reader_id(&self) -> &EntityId {
+        &self.reader_id
+    }
+
+    pub fn writer_id(&self) -> &EntityId {
+        &self.writer_id
+    }
+
+    pub fn first_sn(&self) -> &SequenceNumber {
+        &self.first_sn
+    }
+
+    pub fn last_sn(&self) -> &SequenceNumber {
+        &self.last_sn
+    }
+
+    pub fn count(&self) -> &Count {
+        &self.count
+    }
+
+    pub fn is_final(&self) -> bool {
+        self.final_flag.is_set()
     }
 }
 
@@ -215,10 +239,10 @@ mod tests {
         let first_sn = SequenceNumber(1233);
         let last_sn = SequenceNumber(1237);
         let count = Count(8);
-        let final_flag = SubmessageFlag(true);
-        let liveliness_flag = SubmessageFlag(false);
+        let is_final = true;
+        let manual_liveliness = false;
 
-        let heartbeat_big_endian = Heartbeat::new(reader_id, writer_id, first_sn, last_sn, count, final_flag, liveliness_flag, EndianessFlag::BigEndian);
+        let heartbeat_big_endian = Heartbeat::new(reader_id, writer_id, first_sn, last_sn, count, is_final, manual_liveliness, EndianessFlag::BigEndian);
         heartbeat_big_endian.compose(&mut writer).unwrap();
         let submessage_big_endian = [
             0x07, 0x02, 0x00, 0x1C, // Submessage Header
@@ -234,7 +258,7 @@ mod tests {
 
         writer.clear();
 
-        let heartbeat_little_endian = Heartbeat::new(reader_id, writer_id, first_sn, last_sn, count, final_flag, liveliness_flag, EndianessFlag::LittleEndian);
+        let heartbeat_little_endian = Heartbeat::new(reader_id, writer_id, first_sn, last_sn, count, is_final, manual_liveliness, EndianessFlag::LittleEndian);
         heartbeat_little_endian.compose(&mut writer).unwrap();
         let submessage_little_endian = [
             0x07, 0x03, 0x1C, 0x00, // Submessage Header

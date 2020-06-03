@@ -155,7 +155,7 @@ impl Time {
 
     pub fn now() -> Self {
         let current_time = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap();
-        Time{seconds: current_time.as_secs() as u32 , fraction: current_time.as_nanos() as u32}
+        Time{seconds: current_time.as_secs() as u32 , fraction: current_time.subsec_nanos() as u32}
     }
 }
  
@@ -185,6 +185,12 @@ impl RtpsDeserialize for Time {
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub struct Count(pub i32);
+
+impl std::ops::AddAssign<i32> for Count {
+    fn add_assign(&mut self, rhs: i32) {
+        *self = Count(self.0+rhs)
+    }
+}
 
 impl RtpsSerialize for Count {
     fn serialize(&self, writer: &mut impl std::io::Write, endianness: EndianessFlag) -> RtpsSerdesResult<()> {
