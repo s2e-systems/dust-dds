@@ -569,5 +569,9 @@ mod tests {
             panic!("Wrong message type");
         };
 
+        // Test that nothing more is sent after the heartbeat
+        let writer_data = writer.get_data_to_send(locator);
+        assert_eq!(writer_data.submessages().len(), 0);
+
     }
 }
