@@ -1,6 +1,7 @@
 use std::convert::{TryFrom, TryInto};
 use crate::cache::{HistoryCache, CacheChange};
-use crate::types::{LocatorList, ReliabilityKind, TopicKind, GUID, ChangeKind, KeyHash};
+use crate::types::{ReliabilityKind, TopicKind, GUID, ChangeKind, };
+use crate::types_other::{LocatorList, KeyHash, };
 use crate::types::constants::ENTITYID_UNKNOWN;
 use crate::messages::{RtpsMessage, RtpsSubmessage, Data};
 use crate::inline_qos::{InlineQosParameter, InlineQosPid, InlineQosParameterList};
@@ -154,6 +155,7 @@ mod tests {
     use super::*;
     use crate::types::*;
     use crate::types::constants::*;
+    use crate::types_other::{ParameterList, SerializedPayload, };
     use crate::messages::{Data, Payload, Header};
     use crate::serdes::EndianessFlag;
 

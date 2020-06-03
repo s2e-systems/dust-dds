@@ -1,5 +1,5 @@
 use crate::types_primitives::Ushort;
-use crate::types::LocatorList;
+use crate::types_other::LocatorList;
 use crate::messages::types::{SubmessageKind, SubmessageFlag, };
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, EndianessFlag, RtpsSerdesResult, };
 use super::{SubmessageHeader, Submessage, };

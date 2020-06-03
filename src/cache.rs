@@ -169,7 +169,8 @@ impl HistoryCache {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{EntityId, EntityKey, EntityKind, SequenceNumber, GuidPrefix};
+    use crate::types::{EntityId, SequenceNumber, GuidPrefix, };
+    use crate::types_other::{EntityKey, EntityKind, };
 
     #[test]
     fn cache_change_list() {

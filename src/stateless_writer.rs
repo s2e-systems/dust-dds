@@ -7,10 +7,9 @@ use crate::inline_qos::{InlineQosParameter, InlineQosParameterList};
 use crate::messages::{Data, Heartbeat, InfoTs, Payload, RtpsMessage, RtpsSubmessage, Header};
 use crate::serdes::EndianessFlag;
 use crate::types::constants::{ENTITYID_UNKNOWN};
-use crate::types::{
-    ChangeKind, Duration, InstanceHandle, Locator, LocatorList, ReliabilityKind, SequenceNumber,
-    SerializedPayload, TopicKind, GUID, ParameterList, StatusInfo, KeyHash
-};
+use crate::types::{ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID, };
+use crate::types_other::{Duration, LocatorList, ParameterList, KeyHash, SerializedPayload, StatusInfo, };
+
 use crate::messages::types::{Time, Count, };
 
 struct ReaderLocator {
@@ -302,10 +301,13 @@ impl StatelessWriter {
     }
 }
 
+
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::types::constants::*;
+    use crate::types_other::constants::DURATION_ZERO;
     use crate::types::*;
     use std::thread::sleep;
 

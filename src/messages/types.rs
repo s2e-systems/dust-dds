@@ -1,3 +1,8 @@
+/// 
+/// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
+/// Table 8.13 - Types used to define RTPS messages
+///  
+/// 
 use crate::serdes::{SizeCheckers, PrimitiveSerdes, RtpsSerialize, RtpsDeserialize, RtpsSerdesResult, RtpsSerdesError, EndianessFlag, };
 use num_derive::FromPrimitive;
 use std::time::SystemTime;

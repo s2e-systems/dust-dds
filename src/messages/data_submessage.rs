@@ -1,6 +1,7 @@
 use std::convert::From;
 use crate::types_primitives::Ushort;
-use crate::types::{SequenceNumber ,EntityId, SerializedPayload, };
+use crate::types::{SequenceNumber ,EntityId, };
+use crate::types_other::SerializedPayload;
 use crate::messages::types::{SubmessageKind, SubmessageFlag, };
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, EndianessFlag, RtpsSerdesResult, };
 use crate::inline_qos::InlineQosParameterList;
@@ -223,7 +224,7 @@ impl RtpsParse for Data {
 mod tests {
     use super::*;
     use crate::inline_qos::InlineQosParameter;
-    use crate::types::KeyHash;
+    use crate::types_other::KeyHash;
     use crate::types::constants::{ENTITYID_UNKNOWN, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, };
 
         // E: EndiannessFlag - Indicates endianness.

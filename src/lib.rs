@@ -2,6 +2,7 @@
 
 pub mod types;
 pub mod types_primitives;
+pub mod types_other;
 mod messages;
 mod cache;
 mod inline_qos;

@@ -1,9 +1,8 @@
 use std::convert::TryInto;
 use num_traits::FromPrimitive;
-use num_derive::{FromPrimitive};
+use num_derive::FromPrimitive;
 
-use crate::types::{Parameter, ParameterList, KeyHash, StatusInfo};
-
+use crate::types_other::{Parameter, ParameterList, KeyHash, StatusInfo, };
 pub type InlineQosParameterList = ParameterList<InlineQosParameter>;
 
 #[derive(FromPrimitive)]

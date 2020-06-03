@@ -1,5 +1,6 @@
 use crate::types_primitives::{Ushort, ULong, };
-use crate::types::{EntityId, SequenceNumber, SerializedPayload, };
+use crate::types::{EntityId, SequenceNumber, };
+use crate::types_other::SerializedPayload;
 use crate::messages::types::{FragmentNumber, SubmessageKind, SubmessageFlag, };
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, EndianessFlag, RtpsSerdesResult, };
 use crate::inline_qos::InlineQosParameterList;
@@ -137,7 +138,7 @@ impl RtpsParse for DataFrag {
 mod tests{
     use super::*;
     use crate::inline_qos::InlineQosParameter;
-    use crate::types::KeyHash;
+    use crate::types_other::KeyHash;
     use crate::types::constants::{ENTITYID_UNKNOWN, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, };
 
     #[test]

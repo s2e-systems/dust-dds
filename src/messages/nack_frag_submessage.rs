@@ -1,5 +1,6 @@
 use crate::types_primitives::Ushort;
-use crate::types::{EntityId, SequenceNumber, FragmentNumberSet, };
+use crate::types::{EntityId, SequenceNumber, };
+use crate::types_other::FragmentNumberSet;
 use crate::messages::types::Count;
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsCompose, RtpsParse, EndianessFlag, RtpsSerdesResult, };
 use super::{SubmessageKind, SubmessageFlag, Submessage, SubmessageHeader, };
