@@ -78,7 +78,7 @@ impl RtpsParse for Gap {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types_other::{EntityKey, EntityKind, };
+    use crate::types::{EntityKey, EntityKind, };
     
     #[test]
     fn serialize_gap_submessage_big_endian() {

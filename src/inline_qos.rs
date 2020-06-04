@@ -2,7 +2,7 @@ use std::convert::TryInto;
 use num_traits::FromPrimitive;
 use num_derive::FromPrimitive;
 
-use crate::types_other::{KeyHash, StatusInfo, };
+use crate::inline_qos_types::{KeyHash, StatusInfo, };
 use crate::messages::submessage_elements::{Parameter, ParameterList, };
 
 pub type InlineQosParameterList = ParameterList<InlineQosParameter>;

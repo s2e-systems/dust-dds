@@ -8,7 +8,8 @@ use crate::messages::{Data, Heartbeat, InfoTs, Payload, RtpsMessage, RtpsSubmess
 use crate::serdes::EndianessFlag;
 use crate::types::constants::ENTITYID_UNKNOWN;
 use crate::types::{ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID, };
-use crate::types_other::{KeyHash, SerializedPayload, StatusInfo, };
+use crate::inline_qos_types::{KeyHash, StatusInfo, };
+use crate::serialized_payload::SerializedPayload;
 use crate::behavior_types::Duration;
 use crate::messages::types::{Time, Count, };
 use crate::messages::submessage_elements::ParameterList;

@@ -279,7 +279,7 @@ mod tests {
     use super::*;
     use super::types::{Time, Count, };
     use crate::types::{SequenceNumber, EntityId, };
-    use crate::types_other::{EntityKey, EntityKind, };
+    use crate::types::{EntityKey, EntityKind, };
     use crate::types::constants::{ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, ENTITYID_UNKNOWN, };
     
 

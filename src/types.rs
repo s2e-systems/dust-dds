@@ -4,15 +4,14 @@
 ///  
 
 use std::convert::{TryInto, TryFrom, };
-use crate::serdes::{RtpsSerialize, RtpsDeserialize, EndianessFlag, RtpsSerdesResult, PrimitiveSerdes, SizeCheckers };
-use crate::types_primitives::{Long, ULong};
-
-use crate::types_other::{EntityKey, EntityKind, StatusInfo};
+use num_derive::FromPrimitive;
+use crate::serdes::{RtpsSerialize, RtpsDeserialize, EndianessFlag, RtpsSerdesResult, PrimitiveSerdes, SizeCheckers,RtpsSerdesError, };
+use crate::types_primitives::{Long, ULong, };
+use crate::inline_qos_types::StatusInfo;
 
 
 pub mod constants {
-    use super::{VendorId, EntityId, ProtocolVersion};
-    use crate::types_other::{EntityKey, EntityKind};
+    use super::{VendorId, EntityId, ProtocolVersion, EntityKey, EntityKind};
 
     pub const VENDOR_ID: VendorId = VendorId([99,99]);
 
@@ -121,6 +120,58 @@ impl RtpsDeserialize for GuidPrefix {
 }
 
 
+
+#[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
+pub struct EntityKey(pub [u8;3]);
+
+impl RtpsSerialize for EntityKey {
+    fn serialize(&self, writer: &mut impl std::io::Write, _endianness: EndianessFlag) -> RtpsSerdesResult<()>{
+        writer.write(&self.0)?;
+        Ok(())
+    }
+}
+
+impl RtpsDeserialize for EntityKey {
+    fn deserialize(bytes: &[u8], _endianness: EndianessFlag) -> RtpsSerdesResult<Self> {
+        SizeCheckers::check_size_equal(bytes, 3)?;
+
+        Ok(EntityKey(bytes[0..3].try_into()?))
+    }
+}
+
+#[derive(FromPrimitive, Debug, Hash, PartialEq, Eq, Clone, Copy)]
+pub enum EntityKind {
+    UserDefinedUnknown = 0x00,
+    UserDefinedWriterWithKey = 0x02,
+    UserDefinedWriterNoKey = 0x03,
+    UserDefinedReaderWithKey = 0x04,
+    UserDefinedReaderNoKey = 0x07,
+    UserDefinedWriterGroup = 0x08,
+    UserDefinedReaderGroup = 0x09,
+    BuiltInUnknown = 0xc0,
+    BuiltInParticipant = 0xc1,
+    BuiltInWriterWithKey = 0xc2,
+    BuiltInWriterNoKey = 0xc3,
+    BuiltInReaderWithKey = 0xc4,
+    BuiltInReaderNoKey = 0xc7,
+    BuiltInWriterGroup = 0xc8,
+    BuiltInReaderGroup = 0xc9,
+}
+
+impl RtpsSerialize for EntityKind {
+    fn serialize(&self, writer: &mut impl std::io::Write, _endianness: EndianessFlag) -> RtpsSerdesResult<()>{
+        let entity_kind_u8 = *self as u8;
+        writer.write(&[entity_kind_u8])?;
+        Ok(())
+    }
+}
+
+impl RtpsDeserialize for EntityKind {
+    fn deserialize(bytes: &[u8], _endianness: EndianessFlag) -> RtpsSerdesResult<Self> {
+        SizeCheckers::check_size_equal(bytes, 1 /*expected_size*/)?;
+        Ok(num::FromPrimitive::from_u8(bytes[0]).ok_or(RtpsSerdesError::InvalidEnumRepresentation)?)
+    }
+}
 
 #[derive(Hash, Eq, PartialEq, Debug, Clone, Copy)]
 pub struct EntityId {
@@ -343,6 +394,96 @@ mod tests {
 
     ///////////////////////// Entity Id Tests ////////////////////////
 
+    #[test]
+    fn test_entity_key_serialization_deserialization_big_endian() {
+        let mut vec = Vec::new();
+        let test_entity_key = EntityKey([5,20,250]);
+
+        
+        const TEST_ENTITY_KEY_BIG_ENDIAN : [u8;3] = [5,20,250];
+        test_entity_key.serialize(&mut vec, EndianessFlag::BigEndian).unwrap();
+        assert_eq!(vec, TEST_ENTITY_KEY_BIG_ENDIAN);
+        assert_eq!(EntityKey::deserialize(&vec, EndianessFlag::LittleEndian).unwrap(), test_entity_key);
+    }
+
+    #[test]
+    fn test_entity_key_serialization_deserialization_little_endian() {
+        let mut vec = Vec::new();
+        let test_entity_key = EntityKey([5,20,250]);
+
+        
+        const TEST_ENTITY_KEY_BIG_ENDIAN : [u8;3] = [5,20,250];
+        test_entity_key.serialize(&mut vec, EndianessFlag::LittleEndian).unwrap();
+        assert_eq!(vec, TEST_ENTITY_KEY_BIG_ENDIAN);
+        assert_eq!(EntityKey::deserialize(&vec, EndianessFlag::LittleEndian).unwrap(), test_entity_key);
+    }
+
+    #[test]
+    fn test_invalid_entity_key_deserialization() {
+        let too_big_vec = vec![1,2,3,4];
+
+        let expected_error = EntityKey::deserialize(&too_big_vec, EndianessFlag::LittleEndian);
+        match expected_error {
+            Err(RtpsSerdesError::WrongSize) => assert!(true),
+            _ => assert!(false),
+        };
+
+        let too_small_vec = vec![1,2,3,4];
+
+        let expected_error = EntityKey::deserialize(&too_small_vec, EndianessFlag::LittleEndian);
+        match expected_error {
+            Err(RtpsSerdesError::WrongSize) => assert!(true),
+            _ => assert!(false),
+        };
+    }
+
+
+
+
+    #[test]
+    fn test_entity_kind_serialization_deserialization_big_endian() {
+        let mut vec = Vec::new();
+        let test_entity_kind = EntityKind::BuiltInWriterWithKey;
+
+        
+        const TEST_ENTITY_KIND_BIG_ENDIAN : [u8;1] = [0xc2];
+        test_entity_kind.serialize(&mut vec, EndianessFlag::BigEndian).unwrap();
+        assert_eq!(vec, TEST_ENTITY_KIND_BIG_ENDIAN);
+        assert_eq!(EntityKind::deserialize(&vec, EndianessFlag::BigEndian).unwrap(), test_entity_kind);
+    }
+
+    #[test]
+    fn test_entity_kind_serialization_deserialization_little_endian() {
+        let mut vec = Vec::new();
+        let test_entity_kind = EntityKind::BuiltInWriterWithKey;
+
+        
+        const TEST_ENTITY_KIND_LITTLE_ENDIAN : [u8;1] = [0xc2];
+        test_entity_kind.serialize(&mut vec, EndianessFlag::LittleEndian).unwrap();
+        assert_eq!(vec, TEST_ENTITY_KIND_LITTLE_ENDIAN);
+        assert_eq!(EntityKind::deserialize(&vec, EndianessFlag::LittleEndian).unwrap(), test_entity_kind);
+    }
+
+    #[test]
+    fn test_invalid_entity_kind_deserialization() {
+        let too_big_vec = vec![1,2,3,4];
+
+        let expected_error = EntityKind::deserialize(&too_big_vec, EndianessFlag::LittleEndian);
+        match expected_error {
+            Err(RtpsSerdesError::WrongSize) => assert!(true),
+            _ => assert!(false),
+        };
+
+        let wrong_vec = vec![0xf3];
+
+        let expected_error = EntityKind::deserialize(&wrong_vec, EndianessFlag::LittleEndian);
+        match expected_error {
+            Err(RtpsSerdesError::InvalidEnumRepresentation) => assert!(true),
+            _ => assert!(false),
+        };
+    }
+   
+        
     #[test]
     fn entity_id_serialization_deserialization_big_endian() {
         let mut vec = Vec::new();

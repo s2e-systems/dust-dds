@@ -1,11 +1,10 @@
 use std::convert::{TryFrom, TryInto};
 use crate::cache::{HistoryCache, CacheChange};
 use crate::types::{ReliabilityKind, TopicKind, GUID, ChangeKind, Locator, };
-use crate::types_other::KeyHash;
 use crate::types::constants::ENTITYID_UNKNOWN;
 use crate::messages::{RtpsMessage, RtpsSubmessage, Data};
 use crate::inline_qos::{InlineQosParameter, InlineQosPid, InlineQosParameterList};
-
+use crate::inline_qos_types::KeyHash;
 
 #[derive(Debug)]
 pub enum StatelessReaderError {
@@ -155,7 +154,7 @@ mod tests {
     use super::*;
     use crate::types::*;
     use crate::types::constants::*;
-    use crate::types_other::SerializedPayload;
+    use crate::serialized_payload::SerializedPayload;
     use crate::messages::submessage_elements::ParameterList;
     use crate::messages::{Data, Payload, Header};
     use crate::serdes::EndianessFlag;
