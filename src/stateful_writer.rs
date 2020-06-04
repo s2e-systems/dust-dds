@@ -1,4 +1,4 @@
-use std::collections::{HashSet, HashMap};
+use std::collections::{BTreeSet, HashMap};
 
 use crate::types::{ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID, };
 use crate::behavior_types::Duration;
@@ -17,7 +17,7 @@ pub struct ReaderProxy {
     // unsent_changes: SequenceNumber,
     highest_sequence_number_sent: SequenceNumber,
     highest_sequence_number_acknowledged: SequenceNumber,
-    sequence_numbers_requested: HashSet<SequenceNumber>,
+    sequence_numbers_requested: BTreeSet<SequenceNumber>,
     heartbeat_count: Count,
 }
 
@@ -44,19 +44,9 @@ impl ReaderProxy {
                 is_active,
                 highest_sequence_number_sent: SequenceNumber(0),
                 highest_sequence_number_acknowledged: SequenceNumber(0),
-                sequence_numbers_requested: HashSet::new(),
+                sequence_numbers_requested: BTreeSet::new(),
                 heartbeat_count: Count(0),
         }
-    }
-
-    pub fn acked_changes_set(&mut self, committed_seq_num: SequenceNumber) {
-        self.highest_sequence_number_acknowledged = committed_seq_num;
-    }
-}
-
-impl ::core::hash::Hash for ReaderProxy {
-    fn hash<__H: ::core::hash::Hasher>(&self, state: &mut __H) -> () {
-        ::core::hash::Hash::hash(&self.remote_reader_guid, state);
     }
 }
 
@@ -153,8 +143,8 @@ impl StatefulWriter {
         todo!()
     }
 
-    pub fn next_unsent_change(&mut self, a_reader_guid: &GUID) -> Option<SequenceNumber> {
-        let reader_proxy = self.matched_readers.get_mut(a_reader_guid).unwrap();
+    pub fn next_unsent_change(&mut self, a_reader_proxy: &ReaderProxy) -> Option<SequenceNumber> {
+        let reader_proxy = self.matched_readers.get_mut(&a_reader_proxy.remote_reader_guid).unwrap();
 
         let next_unsent_sequence_number = reader_proxy.highest_sequence_number_sent + 1;
         if next_unsent_sequence_number > self.last_change_sequence_number {
@@ -165,10 +155,10 @@ impl StatefulWriter {
         }
     }
 
-    pub fn unsent_changes(&self, a_reader_guid: &GUID) -> HashSet<SequenceNumber> {
-        let reader_proxy = self.matched_readers.get(a_reader_guid).unwrap();
+    pub fn unsent_changes(&self, a_reader_proxy: &ReaderProxy) -> BTreeSet<SequenceNumber> {
+        let reader_proxy = self.matched_readers.get(&a_reader_proxy.remote_reader_guid).unwrap();
 
-        let mut unsent_changes_set = HashSet::new();
+        let mut unsent_changes_set = BTreeSet::new();
 
         // The for loop is made with the underlying sequence number type because it is not possible to implement the Step trait on Stable yet
         for unsent_sequence_number in
@@ -180,6 +170,47 @@ impl StatefulWriter {
         unsent_changes_set
     }
 
-    
+    pub fn acked_changes_set(&mut self, a_reader_proxy: &ReaderProxy, committed_seq_num: SequenceNumber) {
+        let reader_proxy = self.matched_readers.get_mut(&a_reader_proxy.remote_reader_guid).unwrap();
+
+        reader_proxy.highest_sequence_number_acknowledged = committed_seq_num;
+    }
+
+    pub fn unacked_changes(&self, a_reader_proxy: &ReaderProxy) -> BTreeSet<SequenceNumber> {
+        let reader_proxy = self.matched_readers.get(&a_reader_proxy.remote_reader_guid).unwrap();
+
+        let mut unacked_changes_set = BTreeSet::new();
+
+        // The for loop is made with the underlying sequence number type because it is not possible to implement the Step trait on Stable yet
+        for unsent_sequence_number in
+            reader_proxy.highest_sequence_number_acknowledged.0 + 1..=self.last_change_sequence_number.0
+        {
+            unacked_changes_set.insert(SequenceNumber(unsent_sequence_number));
+        }
+
+        unacked_changes_set
+    }
+
+    pub fn requested_changes_set(&mut self, a_reader_proxy: &ReaderProxy, req_seq_num_set: BTreeSet<SequenceNumber>) {
+        let reader_proxy = self.matched_readers.get_mut(&a_reader_proxy.remote_reader_guid).unwrap();
+
+        reader_proxy.sequence_numbers_requested = req_seq_num_set;
+    }
+
+    pub fn requested_changes(&self, a_reader_proxy: &ReaderProxy) -> BTreeSet<SequenceNumber> {
+        let reader_proxy = self.matched_readers.get(&a_reader_proxy.remote_reader_guid).unwrap();
+
+        reader_proxy.sequence_numbers_requested.clone()
+    }
+
+    pub fn next_requested_change(&mut self, a_reader_proxy: &ReaderProxy) -> Option<SequenceNumber> {
+        let reader_proxy = self.matched_readers.get_mut(&a_reader_proxy.remote_reader_guid).unwrap();
+
+        let next_requested_change = *reader_proxy.sequence_numbers_requested.iter().next()?;
+
+        reader_proxy.sequence_numbers_requested.remove(&next_requested_change);
+
+        Some(next_requested_change)
+    }
 }
 
