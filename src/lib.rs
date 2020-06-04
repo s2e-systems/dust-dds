@@ -11,6 +11,7 @@ mod serdes;
 // mod writer;
 mod stateless_reader;
 mod stateless_writer;
+mod stateful_writer;
 
 // mod participant;
 // mod participant_proxy;
