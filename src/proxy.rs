@@ -1,23 +1,8 @@
 use crate::cache::{CacheChange, HistoryCache};
 use crate::types::{EntityId, LocatorList, SequenceNumber, GUID};
 use std::collections::{HashMap, HashSet};
+use crate::behavior_types::{ChangeForReaderStatusKind, ChangeFromWriterStatusKind, };
 
-#[derive(Hash, Eq, PartialEq, Debug, Clone)]
-pub enum ChangeFromWriterStatusKind {
-    Lost,
-    Missing,
-    Received,
-    Unknown,
-}
-
-#[derive(Hash, Eq, PartialEq, Debug, Clone)]
-pub enum ChangeForReaderStatusKind {
-    Unsent,
-    Unacknowledged,
-    Requested,
-    Acknowledged,
-    Underway,
-}
 
 #[derive(Hash, Eq, PartialEq, Debug, Clone)]
 pub struct ChangeFromWriter {

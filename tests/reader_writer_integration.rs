@@ -2,7 +2,7 @@ use rust_rtps::{StatelessWriter, StatelessReader, RtpsMessage, RtpsCompose, Rtps
 use rust_rtps::types::{ChangeKind, TopicKind, ReliabilityKind, Locator, GUID, GuidPrefix, };
 use rust_rtps::types::constants::{ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER, ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER, };
 use rust_rtps::types_other::LocatorList;
-use rust_rtps::types_other::constants::DURATION_ZERO;
+use rust_rtps::behavior_types::constants::DURATION_ZERO;
 
 #[test]
 fn test_stateless_writer_stateless_reader_direct_communication_integration() {

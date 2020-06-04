@@ -8,7 +8,8 @@ use crate::messages::{Data, Heartbeat, InfoTs, Payload, RtpsMessage, RtpsSubmess
 use crate::serdes::EndianessFlag;
 use crate::types::constants::{ENTITYID_UNKNOWN};
 use crate::types::{ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID, };
-use crate::types_other::{Duration, LocatorList, ParameterList, KeyHash, SerializedPayload, StatusInfo, };
+use crate::types_other::{LocatorList, ParameterList, KeyHash, SerializedPayload, StatusInfo, };
+use crate::behavior_types::Duration;
 
 use crate::messages::types::{Time, Count, };
 
@@ -307,7 +308,7 @@ impl StatelessWriter {
 mod tests {
     use super::*;
     use crate::types::constants::*;
-    use crate::types_other::constants::DURATION_ZERO;
+    use crate::behavior_types::constants::DURATION_ZERO;
     use crate::types::*;
     use std::thread::sleep;
 

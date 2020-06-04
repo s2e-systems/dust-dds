@@ -3,6 +3,8 @@
 pub mod types;
 pub mod types_primitives;
 pub mod types_other;
+pub mod behavior_types;
+
 mod messages;
 mod cache;
 mod inline_qos;
