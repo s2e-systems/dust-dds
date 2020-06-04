@@ -9,7 +9,7 @@ use std::collections::BTreeSet;
 use std::io::Write;
 use std::convert::TryInto;
 use crate::types::Locator;
-use crate::types_primitives::{Long, ULong, };
+use crate::primitive_types::{Long, ULong, };
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, EndianessFlag, RtpsSerdesResult, PrimitiveSerdes, SizeCheckers, SizeSerializer};
 use crate::types::{SequenceNumber, };
 

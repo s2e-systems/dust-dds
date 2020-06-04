@@ -1,4 +1,4 @@
-use crate::types_primitives::{Long, Ushort, };
+use crate::primitive_types::{Long, Ushort, };
 use crate::types::{ProtocolVersion, VendorId, GuidPrefix, };
 use crate::messages::types::{SubmessageKind, SubmessageFlag, };
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, EndianessFlag, RtpsSerdesResult, };

@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
 pub mod types;
-pub mod types_primitives;
+pub mod primitive_types;
 pub mod behavior_types;
 
 mod messages;

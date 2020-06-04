@@ -12,7 +12,7 @@ mod info_timestamp_submessage;
 mod nack_frag_submessage;
 pub mod submessage_elements;
 
-use crate::types_primitives::Ushort;
+use crate::primitive_types::Ushort;
 use crate::types::{GuidPrefix, ProtocolVersion, VendorId, };
 use crate::types::constants::{PROTOCOL_VERSION_2_4, VENDOR_ID, };
 use self::types::{SubmessageKind, SubmessageFlag, ProtocolId, };

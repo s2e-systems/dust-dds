@@ -1,5 +1,5 @@
 use std::convert::From;
-use crate::types_primitives::Ushort;
+use crate::primitive_types::Ushort;
 use crate::types::{SequenceNumber ,EntityId, };
 use crate::serialized_payload::SerializedPayload;
 use crate::messages::types::{SubmessageKind, SubmessageFlag, };

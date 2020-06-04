@@ -1,4 +1,4 @@
-use crate::types_primitives::Ushort;
+use crate::primitive_types::Ushort;
 use crate::types::{EntityId, SequenceNumber, };
 use crate::messages::types::Count;
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsCompose, RtpsParse, EndianessFlag, RtpsSerdesResult, };
@@ -82,7 +82,7 @@ impl RtpsParse for NackFrag {
 mod tests {
     use super::*;
     use crate::types::constants::{ENTITYID_UNKNOWN, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER};
-    use crate::types_primitives::{ULong, };
+    use crate::primitive_types::{ULong, };
     use super::super::submessage_elements::FragmentNumber;
 
     #[test]

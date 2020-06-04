@@ -6,7 +6,7 @@
 use std::convert::{TryInto, TryFrom, };
 use num_derive::FromPrimitive;
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, EndianessFlag, RtpsSerdesResult, PrimitiveSerdes, SizeCheckers,RtpsSerdesError, };
-use crate::types_primitives::{Long, ULong, };
+use crate::primitive_types::{Long, ULong, };
 use crate::inline_qos_types::StatusInfo;
 
 
