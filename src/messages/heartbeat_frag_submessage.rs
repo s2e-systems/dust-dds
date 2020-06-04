@@ -1,8 +1,9 @@
 use crate::types_primitives::Ushort;
 use crate::types::{SequenceNumber, EntityId, };
-use crate::messages::types::{FragmentNumber, SubmessageKind, SubmessageFlag, Count, };
+use crate::messages::types::{SubmessageKind, SubmessageFlag, Count, };
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, EndianessFlag, RtpsSerdesResult, };
 use super::{SubmessageHeader, Submessage, };
+use super::submessage_elements::FragmentNumber;
 
 #[derive(PartialEq, Debug)]
 pub struct HeartbeatFrag {

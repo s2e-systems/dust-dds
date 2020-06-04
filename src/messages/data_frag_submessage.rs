@@ -1,10 +1,11 @@
 use crate::types_primitives::{Ushort, ULong, };
 use crate::types::{EntityId, SequenceNumber, };
 use crate::types_other::SerializedPayload;
-use crate::messages::types::{FragmentNumber, SubmessageKind, SubmessageFlag, };
+use crate::messages::types::{SubmessageKind, SubmessageFlag, };
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, EndianessFlag, RtpsSerdesResult, };
 use crate::inline_qos::InlineQosParameterList;
 use super::{SubmessageHeader, Submessage, };
+use super::submessage_elements::FragmentNumber;
 
 #[derive(PartialEq, Debug)]
 pub struct DataFrag {

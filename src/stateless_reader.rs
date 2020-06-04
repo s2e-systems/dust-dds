@@ -1,7 +1,7 @@
 use std::convert::{TryFrom, TryInto};
 use crate::cache::{HistoryCache, CacheChange};
-use crate::types::{ReliabilityKind, TopicKind, GUID, ChangeKind, };
-use crate::types_other::{LocatorList, KeyHash, };
+use crate::types::{ReliabilityKind, TopicKind, GUID, ChangeKind, Locator, };
+use crate::types_other::KeyHash;
 use crate::types::constants::ENTITYID_UNKNOWN;
 use crate::messages::{RtpsMessage, RtpsSubmessage, Data};
 use crate::inline_qos::{InlineQosParameter, InlineQosPid, InlineQosParameterList};
@@ -34,9 +34,9 @@ pub struct StatelessReader {
     /// The level of reliability supported by the Endpoint.
     reliability_level: ReliabilityKind,
     /// List of unicast locators (transport, address, port combinations) that can be used to send messages to the Endpoint. The list may be empty
-    unicast_locator_list: LocatorList,
+    unicast_locator_list: Vec<Locator>,
     /// List of multicast locators (transport, address, port combinations) that can be used to send messages to the Endpoint. The list may be empty.
-    multicast_locator_list: LocatorList,
+    multicast_locator_list: Vec<Locator>,
 }
 
 impl StatelessReader {
@@ -45,8 +45,8 @@ impl StatelessReader {
         guid: GUID,
         topic_kind: TopicKind,
         reliability_level: ReliabilityKind,
-        unicast_locator_list: LocatorList,
-        multicast_locator_list: LocatorList,
+        unicast_locator_list: Vec<Locator>,
+        multicast_locator_list: Vec<Locator>,
         expects_inline_qos: bool,
     ) -> Self {
         assert!(reliability_level == ReliabilityKind::BestEffort);
@@ -155,7 +155,8 @@ mod tests {
     use super::*;
     use crate::types::*;
     use crate::types::constants::*;
-    use crate::types_other::{ParameterList, SerializedPayload, };
+    use crate::types_other::SerializedPayload;
+    use crate::messages::submessage_elements::ParameterList;
     use crate::messages::{Data, Payload, Header};
     use crate::serdes::EndianessFlag;
 
@@ -178,8 +179,8 @@ mod tests {
             GUID::new(GuidPrefix([0;12]), ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER),
             TopicKind::WithKey,
             ReliabilityKind::BestEffort,
-            LocatorList(vec![Locator::new(0, 7400, [0;16])]),
-            LocatorList(vec![]),
+            vec![Locator::new(0, 7400, [0;16])],
+            vec![],
             false,
            );
 

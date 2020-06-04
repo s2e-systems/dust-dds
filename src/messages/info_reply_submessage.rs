@@ -1,8 +1,8 @@
 use crate::types_primitives::Ushort;
-use crate::types_other::LocatorList;
 use crate::messages::types::{SubmessageKind, SubmessageFlag, };
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, EndianessFlag, RtpsSerdesResult, };
 use super::{SubmessageHeader, Submessage, };
+use super::submessage_elements::LocatorList;
 
 #[derive(PartialEq, Debug)]
 pub struct InfoReply {

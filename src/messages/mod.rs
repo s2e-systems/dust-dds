@@ -10,7 +10,7 @@ mod info_reply_submessage;
 mod info_source_submessage;
 mod info_timestamp_submessage;
 mod nack_frag_submessage;
-
+pub mod submessage_elements;
 
 use crate::types_primitives::Ushort;
 use crate::types::{GuidPrefix, ProtocolVersion, VendorId, };

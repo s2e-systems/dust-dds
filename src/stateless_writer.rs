@@ -1,17 +1,17 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, };
 use std::time::Instant;
 use std::convert::TryInto;
 
 use crate::cache::{CacheChange, HistoryCache};
-use crate::inline_qos::{InlineQosParameter, InlineQosParameterList};
-use crate::messages::{Data, Heartbeat, InfoTs, Payload, RtpsMessage, RtpsSubmessage, Header};
+use crate::inline_qos::{InlineQosParameter, InlineQosParameterList, };
+use crate::messages::{Data, Heartbeat, InfoTs, Payload, RtpsMessage, RtpsSubmessage, Header, };
 use crate::serdes::EndianessFlag;
-use crate::types::constants::{ENTITYID_UNKNOWN};
+use crate::types::constants::ENTITYID_UNKNOWN;
 use crate::types::{ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID, };
-use crate::types_other::{LocatorList, ParameterList, KeyHash, SerializedPayload, StatusInfo, };
+use crate::types_other::{KeyHash, SerializedPayload, StatusInfo, };
 use crate::behavior_types::Duration;
-
 use crate::messages::types::{Time, Count, };
+use crate::messages::submessage_elements::ParameterList;
 
 struct ReaderLocator {
     //requested_changes: HashSet<CacheChange>,
@@ -66,9 +66,9 @@ pub struct StatelessWriter {
     /// The level of reliability supported by the Endpoint.
     reliability_level: ReliabilityKind,
     /// List of unicast locators (transport, address, port combinations) that can be used to send messages to the Endpoint. The list may be empty
-    unicast_locator_list: LocatorList,
+    unicast_locator_list: Vec<Locator>,
     /// List of multicast locators (transport, address, port combinations) that can be used to send messages to the Endpoint. The list may be empty.
-    multicast_locator_list: LocatorList,
+    multicast_locator_list: Vec<Locator>,
 
     //Writer class:
     push_mode: bool,
@@ -87,8 +87,8 @@ impl StatelessWriter {
         guid: GUID,
         topic_kind: TopicKind,
         reliability_level: ReliabilityKind,
-        unicast_locator_list: LocatorList,
-        multicast_locator_list: LocatorList,
+        unicast_locator_list: Vec<Locator>,
+        multicast_locator_list: Vec<Locator>,
         push_mode: bool,
         heartbeat_period: Duration,
         nack_response_delay: Duration,
@@ -318,8 +318,8 @@ mod tests {
             GUID::new(GuidPrefix([0; 12]), ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
             TopicKind::WithKey,
             ReliabilityKind::BestEffort,
-            LocatorList(vec![Locator::new(0, 7400, [0; 16])]), /*unicast_locator_list*/
-            LocatorList(vec![]),                               /*multicast_locator_list*/
+            vec![Locator::new(0, 7400, [0; 16])], /*unicast_locator_list*/
+            vec![],                               /*multicast_locator_list*/
             false,                                /*push_mode*/
             DURATION_ZERO,                        /* heartbeat_period */
             DURATION_ZERO,                        /* nack_response_delay */
@@ -360,8 +360,8 @@ mod tests {
             GUID::new(GuidPrefix([0; 12]), ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
             TopicKind::WithKey,
             ReliabilityKind::BestEffort,
-            LocatorList(vec![Locator::new(0, 7400, [0; 16])]), /*unicast_locator_list*/
-            LocatorList(vec![]),                               /*multicast_locator_list*/
+            vec![Locator::new(0, 7400, [0; 16])], /*unicast_locator_list*/
+            vec![],                               /*multicast_locator_list*/
             false,                                /*push_mode*/
             DURATION_ZERO,                        /* heartbeat_period */
             DURATION_ZERO,                        /* nack_response_delay */
@@ -422,8 +422,8 @@ mod tests {
             GUID::new(GuidPrefix([0; 12]), ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
             TopicKind::WithKey,
             ReliabilityKind::BestEffort,
-            LocatorList(vec![Locator::new(0, 7400, [0; 16])]), 
-            LocatorList(vec![]),                               
+            vec![Locator::new(0, 7400, [0; 16])], 
+            vec![],                               
             false,                                
             DURATION_ZERO,                        
             DURATION_ZERO,                        
@@ -490,8 +490,8 @@ mod tests {
             GUID::new(GuidPrefix([0; 12]), ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
             TopicKind::WithKey,
             ReliabilityKind::Reliable,
-            LocatorList(vec![Locator::new(0, 7400, [0; 16])]), 
-            LocatorList(vec![]),
+            vec![Locator::new(0, 7400, [0; 16])], 
+            vec![],
             false,                                
             heartbeat_period,                        
             DURATION_ZERO,                        
