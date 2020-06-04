@@ -55,6 +55,106 @@ impl ReaderProxy {
                 heartbeat_count: Count(0),
         }
     }
+
+    fn next_unsent_change(&mut self, last_change_sequence_number: SequenceNumber) -> Option<SequenceNumber> {
+        let next_unsent_sequence_number = self.highest_sequence_number_sent + 1;
+        if next_unsent_sequence_number > last_change_sequence_number {
+            None
+        } else {
+            self.highest_sequence_number_sent = next_unsent_sequence_number;
+            Some(next_unsent_sequence_number)
+        }
+    }
+
+    pub fn unsent_changes(&self, last_change_sequence_number: SequenceNumber) -> BTreeSet<SequenceNumber> {
+        let mut unsent_changes_set = BTreeSet::new();
+
+        // The for loop is made with the underlying sequence number type because it is not possible to implement the Step trait on Stable yet
+        for unsent_sequence_number in
+            self.highest_sequence_number_sent.0 + 1..=last_change_sequence_number.0
+        {
+            unsent_changes_set.insert(SequenceNumber(unsent_sequence_number));
+        }
+
+        unsent_changes_set
+    }
+
+    pub fn acked_changes_set(&mut self, committed_seq_num: SequenceNumber) {
+        self.highest_sequence_number_acknowledged = committed_seq_num;
+    }
+
+    pub fn unacked_changes(&self, last_change_sequence_number: SequenceNumber) -> BTreeSet<SequenceNumber> {
+        let mut unacked_changes_set = BTreeSet::new();
+
+        // The for loop is made with the underlying sequence number type because it is not possible to implement the Step trait on Stable yet
+        for unsent_sequence_number in
+            self.highest_sequence_number_acknowledged.0 + 1..=last_change_sequence_number.0
+        {
+            unacked_changes_set.insert(SequenceNumber(unsent_sequence_number));
+        }
+
+        unacked_changes_set
+    }
+
+    pub fn requested_changes_set(&mut self, req_seq_num_set: BTreeSet<SequenceNumber>) {
+        self.sequence_numbers_requested = req_seq_num_set;
+    }
+
+    pub fn requested_changes(&self) -> BTreeSet<SequenceNumber> {
+        self.sequence_numbers_requested.clone()
+    }
+
+    pub fn next_requested_change(&mut self) -> Option<SequenceNumber> {
+        let next_requested_change = *self.sequence_numbers_requested.iter().next()?;
+
+        self.sequence_numbers_requested.remove(&next_requested_change);
+
+        Some(next_requested_change)
+    }
+
+    fn pushing_state(writer_guid: &GUID, a_reader_proxy: &mut ReaderProxy, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber, message: &mut RtpsMessage) {
+        let time = Time::now();
+        let infots = InfoTs::new(Some(time), EndianessFlag::LittleEndian);
+        message.push(RtpsSubmessage::InfoTs(infots));
+
+        while let Some(next_unsent_seq_num) = a_reader_proxy.next_unsent_change(last_change_sequence_number) {
+            if let Some(cache_change) = history_cache
+                .get_change_with_sequence_number(&next_unsent_seq_num)
+            {
+                let change_kind = *cache_change.change_kind();
+
+                let mut inline_qos_parameter_list : InlineQosParameterList = ParameterList::new();
+
+                let payload = match change_kind {
+                    ChangeKind::Alive => {
+                        inline_qos_parameter_list.push(InlineQosParameter::StatusInfo(StatusInfo::from(change_kind)));
+                        inline_qos_parameter_list.push(InlineQosParameter::KeyHash(KeyHash(*cache_change.instance_handle())));
+                        Payload::Data(SerializedPayload(cache_change.data().unwrap().to_vec()))
+                    },
+                    ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered | ChangeKind::AliveFiltered => {
+                        inline_qos_parameter_list.push(InlineQosParameter::StatusInfo(StatusInfo::from(change_kind)));
+                        Payload::Key(SerializedPayload(cache_change.instance_handle().to_vec()))
+                    }
+                };
+
+                let data = Data::new(
+                    EndianessFlag::LittleEndian.into(),
+                    ENTITYID_UNKNOWN,
+                    *writer_guid.entity_id(),
+                    *cache_change.sequence_number(),
+                    Some(inline_qos_parameter_list), 
+                    payload,
+                );
+
+                message.push(RtpsSubmessage::Data(data));
+            } else {
+                panic!("GAP not implemented yet");
+                // let gap = Gap::new(ENTITYID_UNKNOWN /*reader_id*/,ENTITYID_UNKNOWN /*writer_id*/, 0 /*gap_start*/, BTreeMap::new() /*gap_list*/);
+
+                // message.push(RtpsSubmessage::Gap(gap));
+            }
+        }
+    }
 }
 
 pub struct StatefulWriter {
@@ -150,138 +250,28 @@ impl StatefulWriter {
         todo!()
     }
 
-    pub fn next_unsent_change(&mut self, a_reader_guid: &GUID) -> Option<SequenceNumber> {
+    pub fn run(&mut self, a_reader_guid: &GUID, _received_message: Option<&RtpsMessage>) -> RtpsMessage {
         let reader_proxy = self.matched_readers.get_mut(a_reader_guid).unwrap();
-
-        let next_unsent_sequence_number = reader_proxy.highest_sequence_number_sent + 1;
-        if next_unsent_sequence_number > self.last_change_sequence_number {
-            None
-        } else {
-            reader_proxy.highest_sequence_number_sent = next_unsent_sequence_number;
-            Some(next_unsent_sequence_number)
-        }
-    }
-
-    pub fn unsent_changes(&self, a_reader_proxy: &ReaderProxy) -> BTreeSet<SequenceNumber> {
-        let reader_proxy = self.matched_readers.get(&a_reader_proxy.remote_reader_guid).unwrap();
-
-        let mut unsent_changes_set = BTreeSet::new();
-
-        // The for loop is made with the underlying sequence number type because it is not possible to implement the Step trait on Stable yet
-        for unsent_sequence_number in
-            reader_proxy.highest_sequence_number_sent.0 + 1..=self.last_change_sequence_number.0
-        {
-            unsent_changes_set.insert(SequenceNumber(unsent_sequence_number));
-        }
-
-        unsent_changes_set
-    }
-
-    pub fn acked_changes_set(&mut self, a_reader_proxy: &ReaderProxy, committed_seq_num: SequenceNumber) {
-        let reader_proxy = self.matched_readers.get_mut(&a_reader_proxy.remote_reader_guid).unwrap();
-
-        reader_proxy.highest_sequence_number_acknowledged = committed_seq_num;
-    }
-
-    pub fn unacked_changes(&self, a_reader_proxy: &ReaderProxy) -> BTreeSet<SequenceNumber> {
-        let reader_proxy = self.matched_readers.get(&a_reader_proxy.remote_reader_guid).unwrap();
-
-        let mut unacked_changes_set = BTreeSet::new();
-
-        // The for loop is made with the underlying sequence number type because it is not possible to implement the Step trait on Stable yet
-        for unsent_sequence_number in
-            reader_proxy.highest_sequence_number_acknowledged.0 + 1..=self.last_change_sequence_number.0
-        {
-            unacked_changes_set.insert(SequenceNumber(unsent_sequence_number));
-        }
-
-        unacked_changes_set
-    }
-
-    pub fn requested_changes_set(&mut self, a_reader_proxy: &ReaderProxy, req_seq_num_set: BTreeSet<SequenceNumber>) {
-        let reader_proxy = self.matched_readers.get_mut(&a_reader_proxy.remote_reader_guid).unwrap();
-
-        reader_proxy.sequence_numbers_requested = req_seq_num_set;
-    }
-
-    pub fn requested_changes(&self, a_reader_proxy: &ReaderProxy) -> BTreeSet<SequenceNumber> {
-        let reader_proxy = self.matched_readers.get(&a_reader_proxy.remote_reader_guid).unwrap();
-
-        reader_proxy.sequence_numbers_requested.clone()
-    }
-
-    pub fn next_requested_change(&mut self, a_reader_proxy: &ReaderProxy) -> Option<SequenceNumber> {
-        let reader_proxy = self.matched_readers.get_mut(&a_reader_proxy.remote_reader_guid).unwrap();
-
-        let next_requested_change = *reader_proxy.sequence_numbers_requested.iter().next()?;
-
-        reader_proxy.sequence_numbers_requested.remove(&next_requested_change);
-
-        Some(next_requested_change)
-    }
-
-    fn has_unsent_changes(&self, a_reader_guid: &GUID) -> bool {
-        let reader_proxy = self.matched_readers.get(a_reader_guid).unwrap();
-
-        if reader_proxy.highest_sequence_number_sent + 1 >= self.last_change_sequence_number {
-            false
-        } else {
-            true
-        }
-    }
-
-    pub fn get_data_to_send(&mut self, a_reader_guid: &GUID) -> RtpsMessage {
         let mut message = RtpsMessage::new(
             Header::new(*self.guid.prefix()), 
             Vec::new() );
 
-        if self.has_unsent_changes(a_reader_guid) {
-            let time = Time::now();
-            let infots = InfoTs::new(Some(time), EndianessFlag::LittleEndian);
-
-            message.push(RtpsSubmessage::InfoTs(infots));
-
-            while let Some(next_unsent_seq_num) = self.next_unsent_change(a_reader_guid) {
-                if let Some(cache_change) = self
-                    .writer_cache
-                    .get_change_with_sequence_number(&next_unsent_seq_num)
-                {
-                    let change_kind = *cache_change.change_kind();
-
-                    let mut inline_qos_parameter_list : InlineQosParameterList = ParameterList::new();
-
-                    let payload = match change_kind {
-                        ChangeKind::Alive => {
-                            inline_qos_parameter_list.push(InlineQosParameter::StatusInfo(StatusInfo::from(change_kind)));
-                            inline_qos_parameter_list.push(InlineQosParameter::KeyHash(KeyHash(*cache_change.instance_handle())));
-                            Payload::Data(SerializedPayload(cache_change.data().unwrap().to_vec()))
-                        },
-                        ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered | ChangeKind::AliveFiltered => {
-                            inline_qos_parameter_list.push(InlineQosParameter::StatusInfo(StatusInfo::from(change_kind)));
-                            Payload::Key(SerializedPayload(cache_change.instance_handle().to_vec()))
-                        }
-                    };
-
-                    let data = Data::new(
-                        EndianessFlag::LittleEndian.into(),
-                        ENTITYID_UNKNOWN,
-                        *self.guid.entity_id(),
-                        *cache_change.sequence_number(),
-                        Some(inline_qos_parameter_list), 
-                        payload,
-                    );
-
-                    message.push(RtpsSubmessage::Data(data));
-                } else {
-                    panic!("GAP not implemented yet");
-                    // let gap = Gap::new(ENTITYID_UNKNOWN /*reader_id*/,ENTITYID_UNKNOWN /*writer_id*/, 0 /*gap_start*/, BTreeMap::new() /*gap_list*/);
-
-                    // message.push(RtpsSubmessage::Gap(gap));
-                }
-            }
+        match self.reliability_level {
+            ReliabilityKind::BestEffort => StatefulWriter::run_best_effort(&self.guid, reader_proxy, &self.writer_cache, self.last_change_sequence_number, &mut message),
+            ReliabilityKind::Reliable => StatefulWriter::run_reliable(),
         }
 
         message
+    }
+
+    fn run_best_effort(writer_guid: &GUID, a_reader_proxy: &mut ReaderProxy, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber, message: &mut RtpsMessage) {
+        if !a_reader_proxy.unsent_changes(last_change_sequence_number).is_empty() {
+            ReaderProxy::pushing_state(writer_guid, a_reader_proxy, history_cache, last_change_sequence_number, message)
+        }
+    }
+
+    fn run_reliable() {
+        todo!()
     }
 }
 
@@ -372,7 +362,7 @@ mod tests {
         writer.history_cache().add_change(cache_change_seq2);
 
         // let reader_proxy = writer.matched_reader_lookup(& reader_guid).unwrap();
-        let writer_data = writer.get_data_to_send(&reader_guid);
+        let writer_data = writer.run(&reader_guid, None);
         assert_eq!(writer_data.submessages().len(), 3);
         if let RtpsSubmessage::InfoTs(message_1) = &writer_data.submessages()[0] {
             println!("{:?}", message_1);
@@ -399,7 +389,7 @@ mod tests {
         };
 
         // Test that nothing more is sent after the first time
-        let writer_data = writer.get_data_to_send(&reader_guid);
+        let writer_data = writer.run(&reader_guid, None);
         assert_eq!(writer_data.submessages().len(), 0);
     }
 
