@@ -176,7 +176,7 @@ impl StatelessWriter {
         unsent_changes_set
     }
 
-    pub fn has_unsent_changes(&self, a_locator: Locator) -> bool {
+    fn has_unsent_changes(&self, a_locator: Locator) -> bool {
         let reader_locator = self.reader_locators.get(&a_locator).unwrap();
 
         if reader_locator.highest_sequence_number_sent + 1 >= self.last_change_sequence_number {
