@@ -1,18 +1,20 @@
 #![allow(dead_code)]
 
 pub mod types;
-pub mod types_primitives;
-pub mod types_other;
+pub mod primitive_types;
+pub mod behavior_types;
+
 mod messages;
 mod cache;
+mod inline_qos_types;
 mod inline_qos;
 mod serdes;
 // mod reader;
 // mod writer;
+mod serialized_payload;
 mod stateless_reader;
 mod stateless_writer;
 mod stateful_writer;
-
 // mod participant;
 // mod participant_proxy;
 // mod proxy;

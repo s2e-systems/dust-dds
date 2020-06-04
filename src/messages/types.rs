@@ -2,11 +2,10 @@
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
 /// Table 8.13 - Types used to define RTPS messages
 ///  
-/// 
+ 
 use crate::serdes::{SizeCheckers, PrimitiveSerdes, RtpsSerialize, RtpsDeserialize, RtpsSerdesResult, RtpsSerdesError, EndianessFlag, };
 use num_derive::FromPrimitive;
 use std::time::SystemTime;
-use crate::types_primitives::ULong;
 use std::convert::TryInto;
 
 
@@ -213,21 +212,6 @@ impl RtpsDeserialize for Count {
 
 
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)] //Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Hash
-pub struct FragmentNumber(pub ULong);
-
-impl RtpsSerialize for FragmentNumber {
-    fn serialize(&self, writer: &mut impl std::io::Write, endianness: EndianessFlag) -> RtpsSerdesResult<()> {
-        self.0.serialize(writer, endianness)?;
-        Ok(())
-    }    
-}
-
-impl RtpsDeserialize for FragmentNumber {
-    fn deserialize(bytes: &[u8], endianness: EndianessFlag) -> RtpsSerdesResult<Self> {
-        Ok(Self(ULong::deserialize(&bytes, endianness)?))
-    }    
-}
 
 
 
@@ -363,28 +347,7 @@ mod tests {
     ///////////////////////// ParameterId Tests //////////////////
 
     
-    ////////////////////////// FragmentNumber Tests ///////////////////////
-     
-    #[test]
-    fn serialize_fragment_number() {
-        let fragment_number = FragmentNumber(ULong(100));
-        let expected = vec![
-            100, 0, 0, 0,
-        ];
-        let mut writer = Vec::new();
-        fragment_number.serialize(&mut writer, EndianessFlag::LittleEndian).unwrap();
-        assert_eq!(expected, writer);
-    }
 
-    #[test]
-    fn deserialize_fragment_number() {
-        let expected = FragmentNumber(ULong(100));
-        let bytes = vec![
-            100, 0, 0, 0,
-        ];
-        let result = FragmentNumber::deserialize(&bytes, EndianessFlag::LittleEndian).unwrap();
-        assert_eq!(expected, result);
-    }
 
 
     ////////////////////////// GroupDigest Tests ///////////////////////

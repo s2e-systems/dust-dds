@@ -1,9 +1,9 @@
-use crate::types_primitives::Ushort;
+use crate::primitive_types::Ushort;
 use crate::types::{EntityId, SequenceNumber, };
-use crate::types_other::SequenceNumberSet;
 use crate::messages::types::{SubmessageKind, SubmessageFlag, };
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, EndianessFlag, RtpsSerdesResult, };
 use super::{SubmessageHeader, Submessage, };
+use super::submessage_elements::SequenceNumberSet;
 
 #[derive(PartialEq, Debug)]
 pub struct Gap {
@@ -78,7 +78,7 @@ impl RtpsParse for Gap {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types_other::{EntityKey, EntityKind, };
+    use crate::types::{EntityKey, EntityKind, };
     
     #[test]
     fn serialize_gap_submessage_big_endian() {

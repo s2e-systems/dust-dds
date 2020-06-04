@@ -1,13 +1,12 @@
 use std::collections::HashSet;
 
-use crate::types::{SequenceNumber, GUID,};
-use crate::types_other::{LocatorList};
+use crate::types::{SequenceNumber, GUID, Locator};
 use crate::messages::types::Count;
 
 pub struct ReaderProxy {
     remote_reader_guid: GUID,
-    unicast_locator_list: LocatorList,
-    multicast_locator_list: LocatorList,
+    unicast_locator_list: Vec<Locator>,
+    multicast_locator_list: Vec<Locator>,
     expects_inline_qos: bool,
     is_active: bool,
 
@@ -30,8 +29,8 @@ impl Eq for ReaderProxy {}
 impl ReaderProxy {
     pub fn new(
         remote_reader_guid: GUID,
-        unicast_locator_list: LocatorList,
-        multicast_locator_list: LocatorList,
+        unicast_locator_list: Vec<Locator>,
+        multicast_locator_list: Vec<Locator>,
         expects_inline_qos: bool,
         is_active: bool) -> Self {
             ReaderProxy {

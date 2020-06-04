@@ -1,8 +1,9 @@
-use crate::types_primitives::Ushort;
+use crate::primitive_types::Ushort;
 use crate::types::{SequenceNumber, EntityId, };
-use crate::messages::types::{FragmentNumber, SubmessageKind, SubmessageFlag, Count, };
+use crate::messages::types::{SubmessageKind, SubmessageFlag, Count, };
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, EndianessFlag, RtpsSerdesResult, };
 use super::{SubmessageHeader, Submessage, };
+use super::submessage_elements::FragmentNumber;
 
 #[derive(PartialEq, Debug)]
 pub struct HeartbeatFrag {
@@ -76,7 +77,7 @@ impl RtpsParse for HeartbeatFrag {
 mod tests {
     use super::*;
     use crate::types::constants::{ENTITYID_UNKNOWN, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, };
-    use crate::types_primitives::ULong;
+    use crate::primitive_types::ULong;
 
     #[test]
     fn parse_heartbeat_frag_submessage() {

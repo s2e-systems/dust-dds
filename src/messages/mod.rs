@@ -10,9 +10,9 @@ mod info_reply_submessage;
 mod info_source_submessage;
 mod info_timestamp_submessage;
 mod nack_frag_submessage;
+pub mod submessage_elements;
 
-
-use crate::types_primitives::Ushort;
+use crate::primitive_types::Ushort;
 use crate::types::{GuidPrefix, ProtocolVersion, VendorId, };
 use crate::types::constants::{PROTOCOL_VERSION_2_4, VENDOR_ID, };
 use self::types::{SubmessageKind, SubmessageFlag, ProtocolId, };
@@ -280,7 +280,7 @@ mod tests {
     use super::*;
     use super::types::{Time, Count, };
     use crate::types::{SequenceNumber, EntityId, };
-    use crate::types_other::{EntityKey, EntityKind, };
+    use crate::types::{EntityKey, EntityKind, };
     use crate::types::constants::{ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, ENTITYID_UNKNOWN, };
     
 

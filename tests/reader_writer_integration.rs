@@ -1,8 +1,7 @@
 use rust_rtps::{StatelessWriter, StatelessReader, RtpsMessage, RtpsCompose, RtpsParse, };
 use rust_rtps::types::{ChangeKind, TopicKind, ReliabilityKind, Locator, GUID, GuidPrefix, };
 use rust_rtps::types::constants::{ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER, ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER, };
-use rust_rtps::types_other::LocatorList;
-use rust_rtps::types_other::constants::DURATION_ZERO;
+use rust_rtps::behavior_types::constants::DURATION_ZERO;
 
 #[test]
 fn test_stateless_writer_stateless_reader_direct_communication_integration() {
@@ -10,8 +9,8 @@ fn test_stateless_writer_stateless_reader_direct_communication_integration() {
         GUID::new(GuidPrefix([0;12]), ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
         TopicKind::WithKey,
         ReliabilityKind::BestEffort,
-        LocatorList(vec![Locator::new(0, 7400, [0;16])]), /*unicast_locator_list*/
-        LocatorList(vec![]), /*multicast_locator_list*/
+        vec![Locator::new(0, 7400, [0;16])], /*unicast_locator_list*/
+        vec![], /*multicast_locator_list*/
         false, /*push_mode*/
         DURATION_ZERO,  /* heartbeat_period */
         DURATION_ZERO, /* nack_response_delay */
@@ -22,8 +21,8 @@ fn test_stateless_writer_stateless_reader_direct_communication_integration() {
         GUID::new(GuidPrefix([0;12]), ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER),
         TopicKind::WithKey,
         ReliabilityKind::BestEffort,
-        LocatorList(vec![Locator::new(0, 7400, [0;16])]),
-        LocatorList(vec![]),
+        vec![Locator::new(0, 7400, [0;16])],
+        vec![],
         false,
        );
 
@@ -83,8 +82,8 @@ fn test_stateless_writer_stateless_reader_serialized_communication_integration()
         GUID::new(GuidPrefix([0;12]), ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
         TopicKind::WithKey,
         ReliabilityKind::BestEffort,
-        LocatorList(vec![Locator::new(0, 7400, [0;16])]), /*unicast_locator_list*/
-        LocatorList(vec![]), /*multicast_locator_list*/
+        vec![Locator::new(0, 7400, [0;16])], /*unicast_locator_list*/
+        vec![], /*multicast_locator_list*/
         false, /*push_mode*/
         DURATION_ZERO,  /* heartbeat_period */
         DURATION_ZERO, /* nack_response_delay */
@@ -95,8 +94,8 @@ fn test_stateless_writer_stateless_reader_serialized_communication_integration()
         GUID::new(GuidPrefix([0;12]), ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER),
         TopicKind::WithKey,
         ReliabilityKind::BestEffort,
-        LocatorList(vec![Locator::new(0, 7400, [0;16])]),
-        LocatorList(vec![]),
+        vec![Locator::new(0, 7400, [0;16])],
+        vec![],
         false,
        );
 

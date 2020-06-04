@@ -1,4 +1,4 @@
-use crate::types_primitives::Ushort;
+use crate::primitive_types::Ushort;
 use crate::types::{EntityId, SequenceNumber, };
 use crate::messages::types::{SubmessageKind, SubmessageFlag, Count, };
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, EndianessFlag, RtpsSerdesResult, };
@@ -159,7 +159,7 @@ impl RtpsParse for Heartbeat {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types_other::{EntityKind, EntityKey, };
+    use crate::types::{EntityKind, EntityKey, };
     use crate::types::constants::ENTITYID_UNKNOWN;
 
     #[test]
