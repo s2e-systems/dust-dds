@@ -220,21 +220,22 @@ impl ReaderProxy {
             } else {
                 last_change_sequence_number + 1
             };
+            self.increment_heartbeat_count();
 
             let heartbeat = Heartbeat::new(
-                ENTITYID_UNKNOWN,
+                *self.remote_reader_guid.entity_id(),
                 *writer_guid.entity_id(),
                 first_sn,
                 last_change_sequence_number,
                 self.heartbeat_count,
-                true,
+                false,
                 false,
                 EndianessFlag::LittleEndian,
             );
 
             message.push(RtpsSubmessage::Heartbeat(heartbeat));
 
-            self.increment_heartbeat_count();
+            
             self.time_last_sent_data_reset();
             
             Some(message)
@@ -367,6 +368,7 @@ impl StatefulWriter {
 mod tests {
     use super::*;
     use crate::types::constants::*;
+    use crate::behavior_types::Duration;
     use crate::behavior_types::constants::DURATION_ZERO;
     use crate::types::*;
     use std::thread::sleep;
@@ -559,7 +561,6 @@ mod tests {
         // Don't add any change to the history cache so that gap message has to be sent
         // let instance_handle = [1;16];
 
-
         // let cache_change_seq1 = CacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, SequenceNumber(1), None, Some(vec![1,2,3]));
         // let cache_change_seq2 = CacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, SequenceNumber(2), None, Some(vec![2,3,4]));
         // history_cache.add_change(cache_change_seq1);
@@ -591,10 +592,95 @@ mod tests {
         } else {
             panic!("Wrong message type");
         };
+    }
 
-       
+    #[test]
+    fn run_pushing_state_gap_and_data_message() {
+        let writer_guid = GUID::new(GuidPrefix([2;12]), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
+        let mut history_cache = HistoryCache::new();
+
+        // Add one change to the history cache so that data and gap messages have to be sent
+        let instance_handle = [1;16];
+
+        // let cache_change_seq1 = CacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, SequenceNumber(1), None, Some(vec![1,2,3]));
+        let cache_change_seq2 = CacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, SequenceNumber(2), None, Some(vec![2,3,4]));
+        // history_cache.add_change(cache_change_seq1);
+        history_cache.add_change(cache_change_seq2);
+
+        let last_change_sequence_number  = SequenceNumber(2);
+
+        let remote_reader_guid = GUID::new(GuidPrefix([1,2,3,4,5,6,7,8,9,10,11,12]), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
+        let mut reader_proxy = ReaderProxy::new(remote_reader_guid, vec![], vec![], false, true);
+
+        let message = reader_proxy.run_pushing_state(&writer_guid, &history_cache, last_change_sequence_number);
+        assert_eq!(message.submessages().len(), 3);
+        if let RtpsSubmessage::InfoTs(message_1) = &message.submessages()[0] {
+            println!("{:?}", message_1);
+        } else {
+            panic!("Wrong message type");
+        }
+        if let RtpsSubmessage::Gap(gap_message) = &message.submessages()[1] {
+            assert_eq!(gap_message.reader_id(), &ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
+            assert_eq!(gap_message.writer_id(), &ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
+            assert_eq!(gap_message.gap_start(), &SequenceNumber(1));
+        } else {
+            panic!("Wrong message type");
+        };
+        if let RtpsSubmessage::Data(data_message) = &message.submessages()[2] {
+            assert_eq!(data_message.reader_id(), &ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
+            assert_eq!(data_message.writer_id(), &ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
+            assert_eq!(data_message.writer_sn(), &SequenceNumber(2));
+            assert_eq!(data_message.serialized_payload(), &Some(SerializedPayload(vec![2, 3, 4])));
+        } else {
+            panic!("Wrong message type");
+        };
     }
     
+    #[test]
+    fn run_announcing_state() {
+        let writer_guid = GUID::new(GuidPrefix([2;12]), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
+        let mut history_cache = HistoryCache::new();
+
+        let instance_handle = [1;16];
+
+        let cache_change_seq1 = CacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, SequenceNumber(1), None, Some(vec![1,2,3]));
+        let cache_change_seq2 = CacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, SequenceNumber(2), None, Some(vec![2,3,4]));
+        history_cache.add_change(cache_change_seq1);
+        history_cache.add_change(cache_change_seq2);
+        let last_change_sequence_number  = SequenceNumber(2);
+
+        let remote_reader_guid = GUID::new(GuidPrefix([1,2,3,4,5,6,7,8,9,10,11,12]), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
+        let mut reader_proxy = ReaderProxy::new(remote_reader_guid, vec![], vec![], false, true);
+
+        let heartbeat_period = Duration::from_millis(200);
+
+        // Reset time and check that no heartbeat is sent immediatelly after
+        reader_proxy.time_last_sent_data_reset();
+        let message = reader_proxy.run_announcing_state(&writer_guid, &history_cache, last_change_sequence_number, heartbeat_period);
+        assert_eq!(message, None);
+
+        // Wait for heaartbeat period and check the heartbeat message
+        sleep(heartbeat_period.into());
+        let message = reader_proxy.run_announcing_state(&writer_guid, &history_cache, last_change_sequence_number, heartbeat_period).unwrap();
+
+        assert_eq!(message.submessages().len(), 2);
+        if let RtpsSubmessage::InfoTs(message_1) = &message.submessages()[0] {
+            println!("{:?}", message_1);
+        } else {
+            panic!("Wrong message type");
+        }
+        if let RtpsSubmessage::Heartbeat(heartbeat_message) = &message.submessages()[1] {
+            assert_eq!(heartbeat_message.reader_id(), &ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
+            assert_eq!(heartbeat_message.writer_id(), &ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
+            assert_eq!(heartbeat_message.first_sn(), &SequenceNumber(1));
+            assert_eq!(heartbeat_message.last_sn(), &SequenceNumber(2));
+            assert_eq!(heartbeat_message.count(), &Count(1));
+            assert_eq!(heartbeat_message.is_final(), false);
+        } else {
+            panic!("Wrong message type");
+        };
+    }
+
     #[test]
     fn best_effort_stateful_writer_run() {
         let mut writer = StatefulWriter::new(
