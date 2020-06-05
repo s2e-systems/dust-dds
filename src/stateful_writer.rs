@@ -1,4 +1,6 @@
 use std::collections::{BTreeSet, HashMap};
+use std::time::{Instant};
+use std::convert::TryInto;
 
 use crate::types::{ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID, };
 use crate::behavior_types::Duration;
@@ -7,7 +9,7 @@ use crate::serdes::EndianessFlag;
 use crate::cache::{CacheChange, HistoryCache};
 use crate::inline_qos::{InlineQosParameter, InlineQosParameterList, };
 use crate::inline_qos_types::{KeyHash, StatusInfo, };
-use crate::messages::{Data, InfoTs, Payload, RtpsMessage, RtpsSubmessage, Header, };
+use crate::messages::{Data, InfoTs, Heartbeat, Payload, RtpsMessage, RtpsSubmessage, Header, };
 use crate::types::constants::ENTITYID_UNKNOWN;
 use crate::messages::types::{Time, };
 use crate::serialized_payload::SerializedPayload;
@@ -26,6 +28,9 @@ pub struct ReaderProxy {
     highest_sequence_number_acknowledged: SequenceNumber,
     sequence_numbers_requested: BTreeSet<SequenceNumber>,
     heartbeat_count: Count,
+
+    time_last_sent_data: Instant,
+    time_nack_received: Instant,
 }
 
 impl PartialEq for ReaderProxy {
@@ -53,6 +58,8 @@ impl ReaderProxy {
                 highest_sequence_number_acknowledged: SequenceNumber(0),
                 sequence_numbers_requested: BTreeSet::new(),
                 heartbeat_count: Count(0),
+                time_last_sent_data: Instant::now(),
+                time_nack_received: Instant::now(),
         }
     }
 
@@ -112,12 +119,36 @@ impl ReaderProxy {
         Some(next_requested_change)
     }
 
-    fn pushing_state(writer_guid: &GUID, a_reader_proxy: &mut ReaderProxy, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber, message: &mut RtpsMessage) {
+
+    fn run_best_effort(&mut self, writer_guid: &GUID, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber, message: &mut RtpsMessage) {
+        if !self.unsent_changes(last_change_sequence_number).is_empty() {
+            self.run_pushing_state(writer_guid, history_cache, last_change_sequence_number, message)
+        }
+    }
+
+    fn run_reliable(&mut self, writer_guid: &GUID, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber, message: &mut RtpsMessage, heartbeat_period: Duration, nack_response_delay: Duration) {
+        if self.unacked_changes(last_change_sequence_number).is_empty() {
+            // Idle
+        } else if !self.unsent_changes(last_change_sequence_number).is_empty() {
+            self.run_pushing_state(writer_guid, history_cache, last_change_sequence_number, message)
+        } else if !self.unacked_changes(last_change_sequence_number).is_empty() {
+            self.run_announcing_state(writer_guid, history_cache, last_change_sequence_number, message, heartbeat_period)
+        }
+
+        //TODO: Process the received message for setting the acknack
+        if !self.requested_changes().is_empty() {
+            if self.duration_since_nack_received() > nack_response_delay {
+                // self.run_repairing_state()
+            }
+        }
+    }
+
+    fn run_pushing_state(&mut self, writer_guid: &GUID, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber, message: &mut RtpsMessage) {
         let time = Time::now();
         let infots = InfoTs::new(Some(time), EndianessFlag::LittleEndian);
         message.push(RtpsSubmessage::InfoTs(infots));
 
-        while let Some(next_unsent_seq_num) = a_reader_proxy.next_unsent_change(last_change_sequence_number) {
+        while let Some(next_unsent_seq_num) = self.next_unsent_change(last_change_sequence_number) {
             if let Some(cache_change) = history_cache
                 .get_change_with_sequence_number(&next_unsent_seq_num)
             {
@@ -154,6 +185,56 @@ impl ReaderProxy {
                 // message.push(RtpsSubmessage::Gap(gap));
             }
         }
+
+        self.time_last_sent_data_reset();
+    }
+
+    fn run_announcing_state(&mut self, writer_guid: &GUID, history_cache: &HistoryCache,  last_change_sequence_number: SequenceNumber,  message: &mut RtpsMessage, heartbeat_period: Duration) {
+        if self.duration_since_last_sent_data() > heartbeat_period {
+            let time = Time::now();
+            let infots = InfoTs::new(Some(time), EndianessFlag::LittleEndian);
+
+            message.push(RtpsSubmessage::InfoTs(infots));
+
+            let first_sn = if let Some(seq_num) = history_cache.get_seq_num_min() {
+                seq_num
+            } else {
+                last_change_sequence_number + 1
+            };
+
+            let heartbeat = Heartbeat::new(
+                ENTITYID_UNKNOWN,
+                *writer_guid.entity_id(),
+                first_sn,
+                last_change_sequence_number,
+                self.heartbeat_count,
+                true,
+                false,
+                EndianessFlag::LittleEndian,
+            );
+
+            message.push(RtpsSubmessage::Heartbeat(heartbeat));
+
+            self.increment_heartbeat_count();
+            self.time_last_sent_data_reset();
+        }
+
+    }
+
+    fn time_last_sent_data_reset(&mut self) {
+        self.time_last_sent_data = Instant::now();
+    }
+
+    fn duration_since_last_sent_data(&self) -> Duration {
+        self.time_last_sent_data.elapsed().try_into().unwrap()
+    }
+
+    fn duration_since_nack_received(&self) -> Duration {
+        self.time_nack_received.elapsed().try_into().unwrap()
+    }
+
+    fn increment_heartbeat_count(&mut self) {
+        self.heartbeat_count += 1;
     }
 }
 
@@ -257,21 +338,11 @@ impl StatefulWriter {
             Vec::new() );
 
         match self.reliability_level {
-            ReliabilityKind::BestEffort => StatefulWriter::run_best_effort(&self.guid, reader_proxy, &self.writer_cache, self.last_change_sequence_number, &mut message),
-            ReliabilityKind::Reliable => StatefulWriter::run_reliable(),
+            ReliabilityKind::BestEffort => reader_proxy.run_best_effort(&self.guid, &self.writer_cache, self.last_change_sequence_number, &mut message),
+            ReliabilityKind::Reliable => reader_proxy.run_reliable(&self.guid, &self.writer_cache, self.last_change_sequence_number, &mut message, self.heartbeat_period, self.nack_response_delay),
         }
 
         message
-    }
-
-    fn run_best_effort(writer_guid: &GUID, a_reader_proxy: &mut ReaderProxy, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber, message: &mut RtpsMessage) {
-        if !a_reader_proxy.unsent_changes(last_change_sequence_number).is_empty() {
-            ReaderProxy::pushing_state(writer_guid, a_reader_proxy, history_cache, last_change_sequence_number, message)
-        }
-    }
-
-    fn run_reliable() {
-        todo!()
     }
 }
 
@@ -284,7 +355,7 @@ mod tests {
     use std::thread::sleep;
 
     #[test]
-    fn test_writer_new_change() {
+    fn stateful_writer_new_change() {
         let mut writer = StatefulWriter::new(
             GUID::new(GuidPrefix([0; 12]), ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
             TopicKind::WithKey,
