@@ -170,7 +170,7 @@ mod tests {
             Payload::Data(SerializedPayload(vec![0,1,2])),
         );
 
-        let mut message = RtpsMessage::new(Header::new(GuidPrefix([2;12])), Vec::new());
+        let mut message = RtpsMessage::new(GuidPrefix([2;12]));
 
         message.push(RtpsSubmessage::Data(data1));
 

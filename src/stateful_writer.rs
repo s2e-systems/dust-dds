@@ -333,9 +333,7 @@ impl StatefulWriter {
 
     pub fn run(&mut self, a_reader_guid: &GUID, _received_message: Option<&RtpsMessage>) -> RtpsMessage {
         let reader_proxy = self.matched_readers.get_mut(a_reader_guid).unwrap();
-        let mut message = RtpsMessage::new(
-            Header::new(*self.guid.prefix()), 
-            Vec::new() );
+        let mut message = RtpsMessage::new(*self.guid.prefix());
 
         match self.reliability_level {
             ReliabilityKind::BestEffort => reader_proxy.run_best_effort(&self.guid, &self.writer_cache, self.last_change_sequence_number, &mut message),

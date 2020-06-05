@@ -216,9 +216,7 @@ impl StatelessWriter {
     }
 
     pub fn get_data_to_send(&mut self, a_locator: Locator) -> RtpsMessage {
-        let mut message = RtpsMessage::new(
-            Header::new(*self.guid.prefix()), 
-            Vec::new() );
+        let mut message = RtpsMessage::new(*self.guid.prefix());
 
         if self.has_unsent_changes(a_locator) {
             let time = Time::now();

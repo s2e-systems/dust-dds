@@ -217,17 +217,14 @@ pub struct RtpsMessage {
 }
 
 impl RtpsMessage {
-    pub fn new(
-        header: Header,
-        submessages: Vec<RtpsSubmessage>
-    ) -> RtpsMessage {
+    pub fn new(guid_prefix: GuidPrefix) -> Self {
         // TODO: should panic since the stamdard says: 1 to many messages
         // if submessages.is_empty() {
         //     panic!("At least one submessage is required");
         // };
         RtpsMessage {
-            header,
-            submessages,
+            header: Header::new(guid_prefix),
+            submessages: Vec::with_capacity(1),
         }
     }
 
