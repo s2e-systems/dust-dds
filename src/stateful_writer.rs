@@ -9,7 +9,7 @@ use crate::serdes::EndianessFlag;
 use crate::cache::{CacheChange, HistoryCache};
 use crate::inline_qos::{InlineQosParameter, InlineQosParameterList, };
 use crate::inline_qos_types::{KeyHash, StatusInfo, };
-use crate::messages::{Data, InfoTs, Heartbeat, Payload, RtpsMessage, RtpsSubmessage, };
+use crate::messages::{Data, Gap, InfoTs, Heartbeat, Payload, RtpsMessage, RtpsSubmessage, };
 use crate::types::constants::ENTITYID_UNKNOWN;
 use crate::messages::types::{Time, };
 use crate::serialized_payload::SerializedPayload;
@@ -149,6 +149,10 @@ impl ReaderProxy {
     }
 
     fn run_pushing_state(&mut self, writer_guid: &GUID, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber) -> RtpsMessage {
+
+        // This state is only valid if there are unsent changes
+        assert!(!self.unsent_changes(last_change_sequence_number).is_empty());
+
         let mut message = RtpsMessage::new(*writer_guid.prefix());
 
         let time = Time::now();
@@ -186,10 +190,13 @@ impl ReaderProxy {
 
                 message.push(RtpsSubmessage::Data(data));
             } else {
-                panic!("GAP not implemented yet");
-                // let gap = Gap::new(ENTITYID_UNKNOWN /*reader_id*/,ENTITYID_UNKNOWN /*writer_id*/, 0 /*gap_start*/, BTreeMap::new() /*gap_list*/);
+                let gap = Gap::new(
+                    *self.remote_reader_guid.entity_id(), 
+                    *writer_guid.entity_id(),
+                    next_unsent_seq_num,
+                    EndianessFlag::LittleEndian);
 
-                // message.push(RtpsSubmessage::Gap(gap));
+                message.push(RtpsSubmessage::Gap(gap));
             }
         }
 
@@ -564,14 +571,23 @@ mod tests {
         let mut reader_proxy = ReaderProxy::new(remote_reader_guid, vec![], vec![], false, true);
 
         let message = reader_proxy.run_pushing_state(&writer_guid, &history_cache, last_change_sequence_number);
-        assert_eq!(message.submessages().len(), 2);
+        assert_eq!(message.submessages().len(), 3);
         if let RtpsSubmessage::InfoTs(message_1) = &message.submessages()[0] {
             println!("{:?}", message_1);
         } else {
             panic!("Wrong message type");
         }
-        if let RtpsSubmessage::Gap(_gap_message) = &message.submessages()[1] {
-
+        if let RtpsSubmessage::Gap(gap_message_1) = &message.submessages()[1] {
+            assert_eq!(gap_message_1.reader_id(), &ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
+            assert_eq!(gap_message_1.writer_id(), &ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
+            assert_eq!(gap_message_1.gap_start(), &SequenceNumber(1));
+        } else {
+            panic!("Wrong message type");
+        };
+        if let RtpsSubmessage::Gap(gap_message_2) = &message.submessages()[2] {
+            assert_eq!(gap_message_2.reader_id(), &ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
+            assert_eq!(gap_message_2.writer_id(), &ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
+            assert_eq!(gap_message_2.gap_start(), &SequenceNumber(2));
         } else {
             panic!("Wrong message type");
         };

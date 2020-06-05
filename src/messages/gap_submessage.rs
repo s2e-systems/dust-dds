@@ -1,3 +1,5 @@
+use std::collections::BTreeSet;
+
 use crate::primitive_types::Ushort;
 use crate::types::{EntityId, SequenceNumber, };
 use crate::messages::types::{SubmessageKind, SubmessageFlag, };
@@ -15,6 +17,38 @@ pub struct Gap {
     gap_list: SequenceNumberSet,    
     // gap_start_gsn: SequenceNumber,
     // gap_end_gsn: SequenceNumber,
+}
+
+impl Gap {
+    pub fn new(
+        reader_id: EntityId,
+        writer_id: EntityId,
+        gap_start: SequenceNumber,
+        endianness: EndianessFlag,) -> Self {
+
+            let mut gap_list_set = BTreeSet::new();
+            gap_list_set.insert(gap_start);
+
+            Gap {
+                reader_id,
+                writer_id,
+                gap_start,
+                gap_list: SequenceNumberSet::new(gap_list_set),
+                endianness_flag: endianness.into(),
+            }
+    }
+
+    pub fn reader_id(&self) -> &EntityId {
+        &self.reader_id
+    }
+
+    pub fn writer_id(&self) -> &EntityId {
+        &self.writer_id
+    }
+
+    pub fn gap_start(&self) -> &SequenceNumber {
+        &self.gap_start
+    }
 }
 
 impl Submessage for Gap {
