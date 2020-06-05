@@ -543,6 +543,41 @@ mod tests {
         };
 
     }
+
+    #[test]
+    fn run_pushing_state_only_gap_message() {
+        let writer_guid = GUID::new(GuidPrefix([2;12]), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
+        let history_cache = HistoryCache::new();
+
+        // Don't add any change to the history cache so that gap message has to be sent
+        // let instance_handle = [1;16];
+
+
+        // let cache_change_seq1 = CacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, SequenceNumber(1), None, Some(vec![1,2,3]));
+        // let cache_change_seq2 = CacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, SequenceNumber(2), None, Some(vec![2,3,4]));
+        // history_cache.add_change(cache_change_seq1);
+        // history_cache.add_change(cache_change_seq2);
+
+        let last_change_sequence_number  = SequenceNumber(2);
+
+        let remote_reader_guid = GUID::new(GuidPrefix([1,2,3,4,5,6,7,8,9,10,11,12]), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
+        let mut reader_proxy = ReaderProxy::new(remote_reader_guid, vec![], vec![], false, true);
+
+        let message = reader_proxy.run_pushing_state(&writer_guid, &history_cache, last_change_sequence_number);
+        assert_eq!(message.submessages().len(), 2);
+        if let RtpsSubmessage::InfoTs(message_1) = &message.submessages()[0] {
+            println!("{:?}", message_1);
+        } else {
+            panic!("Wrong message type");
+        }
+        if let RtpsSubmessage::Gap(_gap_message) = &message.submessages()[1] {
+
+        } else {
+            panic!("Wrong message type");
+        };
+
+       
+    }
     
     #[test]
     fn best_effort_stateful_writer_run() {
@@ -589,7 +624,7 @@ mod tests {
             panic!("Wrong message type");
         }
         if let RtpsSubmessage::Data(data_message_1) = &writer_data.submessages()[1] {
-            assert_eq!(data_message_1.reader_id(), &ENTITYID_UNKNOWN);
+            assert_eq!(data_message_1.reader_id(), &ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR);
             assert_eq!(data_message_1.writer_id(), &ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER);
             assert_eq!(data_message_1.writer_sn(), &SequenceNumber(1));
             assert_eq!(data_message_1.serialized_payload(), &Some(SerializedPayload(vec![1, 2, 3])));
@@ -599,7 +634,7 @@ mod tests {
         };
 
         if let RtpsSubmessage::Data(data_message_2) = &writer_data.submessages()[2] {
-            assert_eq!(data_message_2.reader_id(), &ENTITYID_UNKNOWN);
+            assert_eq!(data_message_2.reader_id(), &ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR);
             assert_eq!(data_message_2.writer_id(), &ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER);
             assert_eq!(data_message_2.writer_sn(), &SequenceNumber(2));
             assert_eq!(data_message_2.serialized_payload(), &Some(SerializedPayload(vec![4, 5, 6])));
