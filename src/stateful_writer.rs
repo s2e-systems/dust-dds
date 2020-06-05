@@ -104,7 +104,8 @@ impl ReaderProxy {
     }
 
     pub fn requested_changes_set(&mut self, req_seq_num_set: BTreeSet<SequenceNumber>) {
-        self.sequence_numbers_requested = req_seq_num_set;
+        let mut new_set = req_seq_num_set;
+        self.sequence_numbers_requested.append(&mut new_set);
     }
 
     pub fn requested_changes(&self) -> BTreeSet<SequenceNumber> {
@@ -407,7 +408,86 @@ mod tests {
     }
 
     #[test]
-    fn test_best_effort_statefult_writer_get_data_to_send() {
+    fn reader_proxy_unsent_changes_operations() {
+        let remote_reader_guid = GUID::new(GuidPrefix([1,2,3,4,5,6,7,8,9,10,11,12]), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
+        let mut reader_proxy = ReaderProxy::new(remote_reader_guid, vec![], vec![], false, true);
+
+        // Check that a reader proxy that has no changes marked as sent doesn't reports no changes
+        let no_change_in_writer_sequence_number = SequenceNumber(0);
+        assert_eq!(reader_proxy.next_unsent_change(no_change_in_writer_sequence_number), None);
+        assert!(reader_proxy.unsent_changes(no_change_in_writer_sequence_number).is_empty());
+
+        // Check the behaviour for a reader proxy starting with no changes sent and two changes in writer
+        let two_changes_in_writer_sequence_number = SequenceNumber(2);
+        assert_eq!(reader_proxy.unsent_changes(two_changes_in_writer_sequence_number).len(), 2);
+        assert!(reader_proxy.unsent_changes(two_changes_in_writer_sequence_number).contains(&SequenceNumber(1)));
+        assert!(reader_proxy.unsent_changes(two_changes_in_writer_sequence_number).contains(&SequenceNumber(2)));
+
+        assert_eq!(reader_proxy.next_unsent_change(two_changes_in_writer_sequence_number), Some(SequenceNumber(1)));
+        assert_eq!(reader_proxy.unsent_changes(two_changes_in_writer_sequence_number).len(), 1);
+        assert!(reader_proxy.unsent_changes(two_changes_in_writer_sequence_number).contains(&SequenceNumber(2)));
+
+        assert_eq!(reader_proxy.next_unsent_change(two_changes_in_writer_sequence_number), Some(SequenceNumber(2)));
+        assert!(reader_proxy.unsent_changes(two_changes_in_writer_sequence_number).is_empty());
+
+        assert_eq!(reader_proxy.next_unsent_change(two_changes_in_writer_sequence_number), None);
+    }
+
+    #[test]
+    fn reader_proxy_requested_changes_operations() {
+        let remote_reader_guid = GUID::new(GuidPrefix([1,2,3,4,5,6,7,8,9,10,11,12]), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
+        let mut reader_proxy = ReaderProxy::new(remote_reader_guid, vec![], vec![], false, true);
+
+        // Check that a reader proxy that has no changes marked as sent doesn't reports no changes
+        assert!(reader_proxy.requested_changes().is_empty());
+        assert_eq!(reader_proxy.next_requested_change(), None);
+
+        // Insert some requested changes
+        let mut requested_changes = BTreeSet::new();
+        requested_changes.insert(SequenceNumber(2));
+        requested_changes.insert(SequenceNumber(3));
+        requested_changes.insert(SequenceNumber(6));
+        reader_proxy.requested_changes_set(requested_changes);
+
+        // Verify that the changes were correctly inserted and are removed in the correct order
+        assert_eq!(reader_proxy.requested_changes().len(), 3);
+        assert!(reader_proxy.requested_changes().contains(&SequenceNumber(2)));
+        assert!(reader_proxy.requested_changes().contains(&SequenceNumber(3)));
+        assert!(reader_proxy.requested_changes().contains(&SequenceNumber(6)));
+
+        assert_eq!(reader_proxy.next_requested_change(), Some(SequenceNumber(2)));
+        assert_eq!(reader_proxy.next_requested_change(), Some(SequenceNumber(3)));
+        assert_eq!(reader_proxy.requested_changes().len(), 1);
+        assert!(reader_proxy.requested_changes().contains(&SequenceNumber(6)));
+        assert_eq!(reader_proxy.next_requested_change(), Some(SequenceNumber(6)));
+        assert_eq!(reader_proxy.next_requested_change(), None);
+
+
+        // Verify that if requested changes are inserted when there are already requested changes
+        // that the sets are not replaced
+        let mut requested_changes_1 = BTreeSet::new();
+        requested_changes_1.insert(SequenceNumber(2));
+        requested_changes_1.insert(SequenceNumber(3));
+        reader_proxy.requested_changes_set(requested_changes_1);
+
+        let mut requested_changes_2 = BTreeSet::new();
+        requested_changes_2.insert(SequenceNumber(2)); // Repeated number
+        requested_changes_2.insert(SequenceNumber(7));
+        requested_changes_2.insert(SequenceNumber(9));
+        reader_proxy.requested_changes_set(requested_changes_2);
+        
+        assert_eq!(reader_proxy.requested_changes().len(), 4);
+        assert!(reader_proxy.requested_changes().contains(&SequenceNumber(2)));
+        assert!(reader_proxy.requested_changes().contains(&SequenceNumber(3)));
+        assert!(reader_proxy.requested_changes().contains(&SequenceNumber(7)));
+        assert!(reader_proxy.requested_changes().contains(&SequenceNumber(9)));
+
+
+    }
+
+
+    #[test]
+    fn best_effort_statefult_writer_run() {
         let mut writer = StatefulWriter::new(
             GUID::new(GuidPrefix([0; 12]), ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
             TopicKind::WithKey,
@@ -474,4 +554,5 @@ mod tests {
         assert_eq!(writer_data.is_none(), true);
     }
 
+    
 }
