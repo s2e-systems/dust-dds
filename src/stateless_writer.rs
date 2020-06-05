@@ -4,7 +4,7 @@ use std::convert::TryInto;
 
 use crate::cache::{CacheChange, HistoryCache};
 use crate::inline_qos::{InlineQosParameter, InlineQosParameterList, };
-use crate::messages::{Data, Heartbeat, InfoTs, Payload, RtpsMessage, RtpsSubmessage, Header, };
+use crate::messages::{Data, Heartbeat, InfoTs, Payload, RtpsMessage, RtpsSubmessage,};
 use crate::serdes::EndianessFlag;
 use crate::types::constants::ENTITYID_UNKNOWN;
 use crate::types::{ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID, };

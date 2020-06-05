@@ -9,7 +9,7 @@ use crate::serdes::EndianessFlag;
 use crate::cache::{CacheChange, HistoryCache};
 use crate::inline_qos::{InlineQosParameter, InlineQosParameterList, };
 use crate::inline_qos_types::{KeyHash, StatusInfo, };
-use crate::messages::{Data, InfoTs, Heartbeat, Payload, RtpsMessage, RtpsSubmessage, Header, };
+use crate::messages::{Data, InfoTs, Heartbeat, Payload, RtpsMessage, RtpsSubmessage, };
 use crate::types::constants::ENTITYID_UNKNOWN;
 use crate::messages::types::{Time, };
 use crate::serialized_payload::SerializedPayload;
@@ -120,30 +120,37 @@ impl ReaderProxy {
     }
 
 
-    fn run_best_effort(&mut self, writer_guid: &GUID, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber, message: &mut RtpsMessage) {
+    fn run_best_effort(&mut self, writer_guid: &GUID, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber) -> Option<RtpsMessage> {
         if !self.unsent_changes(last_change_sequence_number).is_empty() {
-            self.run_pushing_state(writer_guid, history_cache, last_change_sequence_number, message)
+            Some(self.run_pushing_state(writer_guid, history_cache, last_change_sequence_number))
+        } else {
+            None
         }
     }
 
-    fn run_reliable(&mut self, writer_guid: &GUID, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber, message: &mut RtpsMessage, heartbeat_period: Duration, nack_response_delay: Duration) {
+    fn run_reliable(&mut self, writer_guid: &GUID, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber, heartbeat_period: Duration, _nack_response_delay: Duration) -> Option<RtpsMessage> {
         if self.unacked_changes(last_change_sequence_number).is_empty() {
             // Idle
+            None
         } else if !self.unsent_changes(last_change_sequence_number).is_empty() {
-            self.run_pushing_state(writer_guid, history_cache, last_change_sequence_number, message)
+            Some(self.run_pushing_state(writer_guid, history_cache, last_change_sequence_number))
         } else if !self.unacked_changes(last_change_sequence_number).is_empty() {
-            self.run_announcing_state(writer_guid, history_cache, last_change_sequence_number, message, heartbeat_period)
+            self.run_announcing_state(writer_guid, history_cache, last_change_sequence_number, heartbeat_period)
+        } else {
+            None
         }
 
         //TODO: Process the received message for setting the acknack
-        if !self.requested_changes().is_empty() {
-            if self.duration_since_nack_received() > nack_response_delay {
-                // self.run_repairing_state()
-            }
-        }
+        // if !self.requested_changes().is_empty() {
+        //     if self.duration_since_nack_received() > nack_response_delay {
+        //         // self.run_repairing_state()
+        //     }
+        // }
     }
 
-    fn run_pushing_state(&mut self, writer_guid: &GUID, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber, message: &mut RtpsMessage) {
+    fn run_pushing_state(&mut self, writer_guid: &GUID, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber) -> RtpsMessage {
+        let mut message = RtpsMessage::new(*writer_guid.prefix());
+
         let time = Time::now();
         let infots = InfoTs::new(Some(time), EndianessFlag::LittleEndian);
         message.push(RtpsSubmessage::InfoTs(infots));
@@ -187,10 +194,15 @@ impl ReaderProxy {
         }
 
         self.time_last_sent_data_reset();
+
+        message
     }
 
-    fn run_announcing_state(&mut self, writer_guid: &GUID, history_cache: &HistoryCache,  last_change_sequence_number: SequenceNumber,  message: &mut RtpsMessage, heartbeat_period: Duration) {
+    fn run_announcing_state(&mut self, writer_guid: &GUID, history_cache: &HistoryCache,  last_change_sequence_number: SequenceNumber, heartbeat_period: Duration) -> Option<RtpsMessage> {
+
         if self.duration_since_last_sent_data() > heartbeat_period {
+            let mut message = RtpsMessage::new(*writer_guid.prefix());
+
             let time = Time::now();
             let infots = InfoTs::new(Some(time), EndianessFlag::LittleEndian);
 
@@ -217,8 +229,11 @@ impl ReaderProxy {
 
             self.increment_heartbeat_count();
             self.time_last_sent_data_reset();
+            
+            Some(message)
+        } else {
+            None
         }
-
     }
 
     fn time_last_sent_data_reset(&mut self) {
@@ -331,16 +346,13 @@ impl StatefulWriter {
         todo!()
     }
 
-    pub fn run(&mut self, a_reader_guid: &GUID, _received_message: Option<&RtpsMessage>) -> RtpsMessage {
+    pub fn run(&mut self, a_reader_guid: &GUID, _received_message: Option<&RtpsMessage>) -> Option<RtpsMessage> {
         let reader_proxy = self.matched_readers.get_mut(a_reader_guid).unwrap();
-        let mut message = RtpsMessage::new(*self.guid.prefix());
 
         match self.reliability_level {
-            ReliabilityKind::BestEffort => reader_proxy.run_best_effort(&self.guid, &self.writer_cache, self.last_change_sequence_number, &mut message),
-            ReliabilityKind::Reliable => reader_proxy.run_reliable(&self.guid, &self.writer_cache, self.last_change_sequence_number, &mut message, self.heartbeat_period, self.nack_response_delay),
+            ReliabilityKind::BestEffort => reader_proxy.run_best_effort(&self.guid, &self.writer_cache, self.last_change_sequence_number),
+            ReliabilityKind::Reliable => reader_proxy.run_reliable(&self.guid, &self.writer_cache, self.last_change_sequence_number, self.heartbeat_period, self.nack_response_delay),
         }
-
-        message
     }
 }
 
@@ -431,7 +443,7 @@ mod tests {
         writer.history_cache().add_change(cache_change_seq2);
 
         // let reader_proxy = writer.matched_reader_lookup(& reader_guid).unwrap();
-        let writer_data = writer.run(&reader_guid, None);
+        let writer_data = writer.run(&reader_guid, None).unwrap();
         assert_eq!(writer_data.submessages().len(), 3);
         if let RtpsSubmessage::InfoTs(message_1) = &writer_data.submessages()[0] {
             println!("{:?}", message_1);
@@ -459,7 +471,7 @@ mod tests {
 
         // Test that nothing more is sent after the first time
         let writer_data = writer.run(&reader_guid, None);
-        assert_eq!(writer_data.submessages().len(), 0);
+        assert_eq!(writer_data.is_none(), true);
     }
 
 }

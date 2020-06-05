@@ -156,7 +156,7 @@ mod tests {
     use crate::types::constants::*;
     use crate::serialized_payload::SerializedPayload;
     use crate::messages::submessage_elements::ParameterList;
-    use crate::messages::{Data, Payload, Header};
+    use crate::messages::{Data, Payload,};
     use crate::serdes::EndianessFlag;
 
     #[test]
