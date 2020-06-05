@@ -481,13 +481,28 @@ mod tests {
         assert!(reader_proxy.requested_changes().contains(&SequenceNumber(3)));
         assert!(reader_proxy.requested_changes().contains(&SequenceNumber(7)));
         assert!(reader_proxy.requested_changes().contains(&SequenceNumber(9)));
-
-
     }
 
+    #[test]
+    fn reader_proxy_unacked_changes_operations() {
+        let remote_reader_guid = GUID::new(GuidPrefix([1,2,3,4,5,6,7,8,9,10,11,12]), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
+        let mut reader_proxy = ReaderProxy::new(remote_reader_guid, vec![], vec![], false, true);
+
+        let no_change_in_writer = SequenceNumber(0);
+        assert!(reader_proxy.unacked_changes(no_change_in_writer).is_empty());
+
+        let two_changes_in_writer = SequenceNumber(2);
+        assert_eq!(reader_proxy.unacked_changes(two_changes_in_writer).len(), 2);
+        assert!(reader_proxy.unacked_changes(two_changes_in_writer).contains(&SequenceNumber(1)));
+        assert!(reader_proxy.unacked_changes(two_changes_in_writer).contains(&SequenceNumber(2)));
+
+        reader_proxy.acked_changes_set(SequenceNumber(1));
+        assert_eq!(reader_proxy.unacked_changes(two_changes_in_writer).len(), 1);
+        assert!(reader_proxy.unacked_changes(two_changes_in_writer).contains(&SequenceNumber(2)));
+    }
 
     #[test]
-    fn best_effort_statefult_writer_run() {
+    fn best_effort_stateful_writer_run() {
         let mut writer = StatefulWriter::new(
             GUID::new(GuidPrefix([0; 12]), ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
             TopicKind::WithKey,
