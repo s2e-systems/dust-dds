@@ -682,6 +682,64 @@ mod tests {
     }
 
     #[test]
+    fn run_announcing_state_multiple_data_combinations() {
+        let writer_guid = GUID::new(GuidPrefix([2;12]), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
+        let mut history_cache = HistoryCache::new();
+
+        let remote_reader_guid = GUID::new(GuidPrefix([1,2,3,4,5,6,7,8,9,10,11,12]), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
+        let mut reader_proxy = ReaderProxy::new(remote_reader_guid, vec![], vec![], false, true);
+
+        let heartbeat_period = DURATION_ZERO;
+        
+        // Test no data in the history cache and no changes written
+        let no_change_sequence_number = SequenceNumber(0);
+        let message = reader_proxy.run_announcing_state(&writer_guid, &history_cache, no_change_sequence_number, heartbeat_period).unwrap();
+        if let RtpsSubmessage::Heartbeat(heartbeat) = &message.submessages()[1] {
+            assert_eq!(heartbeat.reader_id(), &ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
+            assert_eq!(heartbeat.writer_id(), &ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
+            assert_eq!(heartbeat.first_sn(), &SequenceNumber(1));
+            assert_eq!(heartbeat.last_sn(), &SequenceNumber(0));
+            assert_eq!(heartbeat.count(), &Count(1));
+            assert_eq!(heartbeat.is_final(), false);
+        } else {
+            assert!(false);
+        }
+
+        // Test no data in the history cache and two changes written
+        let two_changes_sequence_number = SequenceNumber(2);
+        let message = reader_proxy.run_announcing_state(&writer_guid, &history_cache, two_changes_sequence_number, heartbeat_period).unwrap();
+        if let RtpsSubmessage::Heartbeat(heartbeat) = &message.submessages()[1] {
+            assert_eq!(heartbeat.reader_id(), &ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
+            assert_eq!(heartbeat.writer_id(), &ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
+            assert_eq!(heartbeat.first_sn(), &SequenceNumber(3));
+            assert_eq!(heartbeat.last_sn(), &SequenceNumber(2));
+            assert_eq!(heartbeat.count(), &Count(2));
+            assert_eq!(heartbeat.is_final(), false);
+        } else {
+            assert!(false);
+        }
+
+        // Test two changes in the history cache and two changes written
+        let instance_handle = [1;16];
+        let cache_change_seq1 = CacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, SequenceNumber(1), None, Some(vec![1,2,3]));
+        let cache_change_seq2 = CacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, SequenceNumber(2), None, Some(vec![2,3,4]));
+        history_cache.add_change(cache_change_seq1);
+        history_cache.add_change(cache_change_seq2);
+
+        let message = reader_proxy.run_announcing_state(&writer_guid, &history_cache, two_changes_sequence_number, heartbeat_period).unwrap();
+        if let RtpsSubmessage::Heartbeat(heartbeat) = &message.submessages()[1] {
+            assert_eq!(heartbeat.reader_id(), &ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
+            assert_eq!(heartbeat.writer_id(), &ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
+            assert_eq!(heartbeat.first_sn(), &SequenceNumber(1));
+            assert_eq!(heartbeat.last_sn(), &SequenceNumber(2));
+            assert_eq!(heartbeat.count(), &Count(3));
+            assert_eq!(heartbeat.is_final(), false);
+        } else {
+            assert!(false);
+        }
+    }
+
+    #[test]
     fn best_effort_stateful_writer_run() {
         let mut writer = StatefulWriter::new(
             GUID::new(GuidPrefix([0; 12]), ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
