@@ -33,7 +33,7 @@ impl Gap {
                 reader_id,
                 writer_id,
                 gap_start,
-                gap_list: SequenceNumberSet::new(gap_list_set),
+                gap_list: SequenceNumberSet::from_set(gap_list_set),
                 endianness_flag: endianness.into(),
             }
     }
@@ -131,7 +131,7 @@ mod tests {
         let reader_id = EntityId::new(EntityKey([0x10, 0x12, 0x14]), EntityKind::UserDefinedReaderWithKey);
         let writer_id = EntityId::new(EntityKey([0x26, 0x24, 0x22]), EntityKind::UserDefinedWriterWithKey);
         let gap_start = SequenceNumber(1200);
-        let gap_list = SequenceNumberSet::new([
+        let gap_list = SequenceNumberSet::from_set([
             SequenceNumber(1234),
             SequenceNumber(1235),
         ].iter().cloned().collect());
@@ -165,7 +165,7 @@ mod tests {
         let reader_id = EntityId::new(EntityKey([0x10, 0x12, 0x14]), EntityKind::UserDefinedReaderWithKey);
         let writer_id = EntityId::new(EntityKey([0x26, 0x24, 0x22]), EntityKind::UserDefinedWriterWithKey);
         let gap_start = SequenceNumber(1200);
-        let gap_list = SequenceNumberSet::new([
+        let gap_list = SequenceNumberSet::from_set([
             SequenceNumber(1234),
             SequenceNumber(1235),
         ].iter().cloned().collect());
@@ -200,7 +200,7 @@ mod tests {
         let reader_id = EntityId::new(EntityKey([0x10, 0x12, 0x14]), EntityKind::UserDefinedReaderWithKey);
         let writer_id = EntityId::new(EntityKey([0x26, 0x24, 0x22]), EntityKind::UserDefinedWriterWithKey);
         let gap_start = SequenceNumber(1200);
-        let gap_list = SequenceNumberSet::new([
+        let gap_list = SequenceNumberSet::from_set([
             SequenceNumber(1234),
             SequenceNumber(1235),
         ].iter().cloned().collect());
@@ -235,7 +235,7 @@ mod tests {
         let reader_id = EntityId::new(EntityKey([0x10, 0x12, 0x14]), EntityKind::UserDefinedReaderWithKey);
         let writer_id = EntityId::new(EntityKey([0x26, 0x24, 0x22]), EntityKind::UserDefinedWriterWithKey);
         let gap_start = SequenceNumber(1200);
-        let gap_list = SequenceNumberSet::new([
+        let gap_list = SequenceNumberSet::from_set([
             SequenceNumber(1234),
             SequenceNumber(1235),
         ].iter().cloned().collect());

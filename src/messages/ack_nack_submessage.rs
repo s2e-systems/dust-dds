@@ -44,6 +44,10 @@ impl AckNack {
         pub fn reader_sn_state(&self) -> &SequenceNumberSet {
             &self.reader_sn_state
         }
+
+        pub fn count(&self) -> &Count {
+            &self.count
+        }
 }
 
 impl Submessage for AckNack {
@@ -114,7 +118,7 @@ mod tests {
             final_flag: SubmessageFlag(true),
             reader_id: ENTITYID_UNKNOWN,
             writer_id: ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
-            reader_sn_state: SequenceNumberSet::new([SequenceNumber(2), SequenceNumber(3)].iter().cloned().collect()),
+            reader_sn_state: SequenceNumberSet::from_set([SequenceNumber(2), SequenceNumber(3)].iter().cloned().collect()),
             count: Count(2),
         };
         let result = AckNack::parse(&bytes).unwrap();
@@ -139,7 +143,7 @@ mod tests {
             final_flag: SubmessageFlag(true),
             reader_id: ENTITYID_UNKNOWN,
             writer_id: ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
-            reader_sn_state: SequenceNumberSet::new([SequenceNumber(2), SequenceNumber(3)].iter().cloned().collect()),
+            reader_sn_state: SequenceNumberSet::from_set([SequenceNumber(2), SequenceNumber(3)].iter().cloned().collect()),
             count: Count(2),
         };
 

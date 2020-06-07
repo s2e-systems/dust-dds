@@ -34,9 +34,24 @@ pub struct SequenceNumberSet {
 }
 
 impl SequenceNumberSet {
-    pub fn new(set: BTreeSet<SequenceNumber>) -> Self { 
+    pub fn new(base: SequenceNumber, set: BTreeSet<SequenceNumber>) -> Self {
+        SequenceNumberSet {
+            base,
+            set,
+        }
+    }
+
+    pub fn from_set(set: BTreeSet<SequenceNumber>) -> Self { 
         let base = *set.iter().next().unwrap_or(&SequenceNumber(0));
         Self {base, set } 
+    }
+
+    pub fn base(&self) -> &SequenceNumber {
+        &self.base
+    }
+
+    pub fn set(&self) -> &BTreeSet<SequenceNumber> {
+        &self.set
     }
 }
 
@@ -384,7 +399,7 @@ mod tests {
             base: SequenceNumber(1001),
             set:  [SequenceNumber(1001), SequenceNumber(1003)].iter().cloned().collect(),
         };
-        let result = SequenceNumberSet::new([SequenceNumber(1001), SequenceNumber(1003)].iter().cloned().collect());
+        let result = SequenceNumberSet::from_set([SequenceNumber(1001), SequenceNumber(1003)].iter().cloned().collect());
         assert_eq!(expected, result);
     }
 
@@ -394,7 +409,7 @@ mod tests {
             base: SequenceNumber(0),
             set:  [].iter().cloned().collect(),
         };
-        let result = SequenceNumberSet::new([].iter().cloned().collect());
+        let result = SequenceNumberSet::from_set([].iter().cloned().collect());
         assert_eq!(expected, result);
     }
     

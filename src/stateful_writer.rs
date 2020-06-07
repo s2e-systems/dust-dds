@@ -10,7 +10,6 @@ use crate::cache::{CacheChange, HistoryCache};
 use crate::inline_qos::{InlineQosParameter, InlineQosParameterList, };
 use crate::inline_qos_types::{KeyHash, StatusInfo, };
 use crate::messages::{Data, Gap, InfoTs, Heartbeat, Payload, RtpsMessage, RtpsSubmessage, };
-use crate::types::constants::ENTITYID_UNKNOWN;
 use crate::messages::types::{Time, };
 use crate::serialized_payload::SerializedPayload;
 use crate::messages::submessage_elements::ParameterList;
@@ -31,6 +30,7 @@ pub struct ReaderProxy {
 
     time_last_sent_data: Instant,
     time_nack_received: Instant,
+    highest_nack_count_received: Count,
 }
 
 impl PartialEq for ReaderProxy {
@@ -60,6 +60,7 @@ impl ReaderProxy {
                 heartbeat_count: Count(0),
                 time_last_sent_data: Instant::now(),
                 time_nack_received: Instant::now(),
+                highest_nack_count_received: Count(0),
         }
     }
 
@@ -128,7 +129,8 @@ impl ReaderProxy {
         }
     }
 
-    fn run_reliable(&mut self, writer_guid: &GUID, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber, heartbeat_period: Duration, _nack_response_delay: Duration) -> Option<RtpsMessage> {
+    fn run_reliable(&mut self, writer_guid: &GUID, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber, heartbeat_period: Duration, nack_response_delay: Duration, received_message: Option<&RtpsMessage>) -> Option<RtpsMessage> {
+        let sending_message =
         if self.unacked_changes(last_change_sequence_number).is_empty() {
             // Idle
             None
@@ -138,14 +140,29 @@ impl ReaderProxy {
             self.run_announcing_state(writer_guid, history_cache, last_change_sequence_number, heartbeat_period)
         } else {
             None
-        }
+        };
 
-        //TODO: Process the received message for setting the acknack
-        // if !self.requested_changes().is_empty() {
-        //     if self.duration_since_nack_received() > nack_response_delay {
-        //         // self.run_repairing_state()
-        //     }
-        // }
+        let repairing_message = if self.requested_changes().is_empty() {
+            self.run_waiting_state(writer_guid, received_message);
+            None // No data is sent by the waiting state
+        } else {
+            self.run_must_repair_state(writer_guid, received_message);
+            if self.duration_since_nack_received() > nack_response_delay {
+                self.run_repairing_state()
+            } else {
+                None
+            }
+        };
+
+        match (sending_message, repairing_message) {
+            (Some(mut sending_message), Some(repairing_message)) => {
+                sending_message.merge(repairing_message);
+                Some(sending_message)
+            },
+            (Some(sending_message), None) => Some(sending_message),
+            (None, Some(repairing_message)) => Some(repairing_message),
+            (None, None) => None,
+        }
     }
 
     fn run_pushing_state(&mut self, writer_guid: &GUID, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber) -> RtpsMessage {
@@ -244,8 +261,46 @@ impl ReaderProxy {
         }
     }
 
+    fn run_waiting_state(&mut self, writer_guid: &GUID, received_message: Option<&RtpsMessage>) {
+        if let Some(received_message) = received_message {
+            self.process_repair_message(writer_guid, received_message);
+            self.time_nack_received_reset();
+        }
+    }
+
+    fn run_must_repair_state(&mut self, writer_guid: &GUID, received_message: Option<&RtpsMessage>) {
+        if let Some(received_message) = received_message {
+            self.process_repair_message(writer_guid, received_message);
+        }
+    }
+
+    fn run_repairing_state(&mut self) -> Option<RtpsMessage> {
+        todo!()
+    }
+
+    fn process_repair_message(&mut self, writer_guid: &GUID, received_message: &RtpsMessage) {
+        let guid_prefix = *received_message.header().guid_prefix();
+
+        for submessage in received_message.submessages().iter() {
+            if let RtpsSubmessage::AckNack(acknack) = submessage {
+                let reader_guid = GUID::new(guid_prefix, *acknack.reader_id());
+                if reader_guid == self.remote_reader_guid &&
+                   writer_guid.entity_id() == acknack.writer_id() &&
+                   *acknack.count() > self.highest_nack_count_received {
+                    self.acked_changes_set(*acknack.reader_sn_state().base() - 1);
+                    self.requested_changes_set(acknack.reader_sn_state().set().clone());
+                    self.highest_nack_count_received = *acknack.count();
+                }
+            }
+        }
+    }
+
     fn time_last_sent_data_reset(&mut self) {
         self.time_last_sent_data = Instant::now();
+    }
+
+    fn time_nack_received_reset(&mut self) {
+        self.time_nack_received = Instant::now();
     }
 
     fn duration_since_last_sent_data(&self) -> Duration {
@@ -354,12 +409,12 @@ impl StatefulWriter {
         todo!()
     }
 
-    pub fn run(&mut self, a_reader_guid: &GUID, _received_message: Option<&RtpsMessage>) -> Option<RtpsMessage> {
+    pub fn run(&mut self, a_reader_guid: &GUID, received_message: Option<&RtpsMessage>) -> Option<RtpsMessage> {
         let reader_proxy = self.matched_readers.get_mut(a_reader_guid).unwrap();
 
         match self.reliability_level {
             ReliabilityKind::BestEffort => reader_proxy.run_best_effort(&self.guid, &self.writer_cache, self.last_change_sequence_number),
-            ReliabilityKind::Reliable => reader_proxy.run_reliable(&self.guid, &self.writer_cache, self.last_change_sequence_number, self.heartbeat_period, self.nack_response_delay),
+            ReliabilityKind::Reliable => reader_proxy.run_reliable(&self.guid, &self.writer_cache, self.last_change_sequence_number, self.heartbeat_period, self.nack_response_delay, received_message),
         }
     }
 }
@@ -371,6 +426,8 @@ mod tests {
     use crate::behavior_types::Duration;
     use crate::behavior_types::constants::DURATION_ZERO;
     use crate::types::*;
+    use crate::messages::{AckNack};
+    use crate::messages::submessage_elements::SequenceNumberSet;
     use std::thread::sleep;
 
     #[test]
@@ -737,6 +794,53 @@ mod tests {
         } else {
             assert!(false);
         }
+    }
+
+    #[test]
+    fn process_repair_message_acknowledged_and_requests() {
+        let remote_reader_guid = GUID::new(GuidPrefix([1,2,3,4,5,6,7,8,9,10,11,12]), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
+        let mut reader_proxy = ReaderProxy::new(remote_reader_guid, vec![], vec![], false, true);
+
+        let writer_guid = GUID::new(GuidPrefix([2;12]), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
+
+        
+        let mut received_message = RtpsMessage::new(*remote_reader_guid.prefix());
+        let acknack = AckNack::new(
+           *remote_reader_guid.entity_id(),
+           *writer_guid.entity_id(),
+           SequenceNumberSet::from_set(vec![SequenceNumber(3), SequenceNumber(5), SequenceNumber(6)].iter().cloned().collect()),
+           Count(1),
+            true,
+            EndianessFlag::LittleEndian);
+        received_message.push(RtpsSubmessage::AckNack(acknack));
+
+        reader_proxy.process_repair_message(&writer_guid, &received_message);
+
+        assert_eq!(reader_proxy.highest_sequence_number_acknowledged, SequenceNumber(2));
+        assert_eq!(reader_proxy.sequence_numbers_requested,vec![SequenceNumber(3), SequenceNumber(5), SequenceNumber(6)].iter().cloned().collect());
+    }
+
+    #[test]
+    fn process_repair_message_only_acknowledged() {
+        let remote_reader_guid = GUID::new(GuidPrefix([1,2,3,4,5,6,7,8,9,10,11,12]), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
+        let mut reader_proxy = ReaderProxy::new(remote_reader_guid, vec![], vec![], false, true);
+
+        let writer_guid = GUID::new(GuidPrefix([2;12]), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
+
+        let mut received_message = RtpsMessage::new(*remote_reader_guid.prefix());
+        let acknack = AckNack::new(
+           *remote_reader_guid.entity_id(),
+           *writer_guid.entity_id(),
+           SequenceNumberSet::new(SequenceNumber(5), vec![].iter().cloned().collect()),
+           Count(1),
+            true,
+            EndianessFlag::LittleEndian);
+        received_message.push(RtpsSubmessage::AckNack(acknack));
+
+        reader_proxy.process_repair_message(&writer_guid, &received_message);
+
+        assert_eq!(reader_proxy.highest_sequence_number_acknowledged, SequenceNumber(4));
+        assert_eq!(reader_proxy.sequence_numbers_requested,vec![].iter().cloned().collect());
     }
 
     #[test]
