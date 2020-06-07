@@ -821,6 +821,74 @@ mod tests {
     }
 
     #[test]
+    fn process_repair_message_different_conditions() {
+        let remote_reader_guid = GUID::new(GuidPrefix([1,2,3,4,5,6,7,8,9,10,11,12]), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
+        let mut reader_proxy = ReaderProxy::new(remote_reader_guid, vec![], vec![], false, true);
+
+        let writer_guid = GUID::new(GuidPrefix([2;12]), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
+
+        // Test message with different reader guid
+        let other_reader_guid = GUID::new(GuidPrefix([9;12]), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
+        let mut received_message = RtpsMessage::new(*other_reader_guid.prefix());
+        let acknack = AckNack::new(
+           *other_reader_guid.entity_id(),
+           *writer_guid.entity_id(),
+           SequenceNumberSet::from_set(vec![SequenceNumber(3), SequenceNumber(5), SequenceNumber(6)].iter().cloned().collect()),
+           Count(1),
+            true,
+            EndianessFlag::LittleEndian);
+        received_message.push(RtpsSubmessage::AckNack(acknack));
+
+        reader_proxy.process_repair_message(&writer_guid, &received_message);
+        
+        // Verify that message was ignored
+        assert_eq!(reader_proxy.highest_sequence_number_acknowledged, SequenceNumber(0));
+        assert!(reader_proxy.sequence_numbers_requested.is_empty());
+
+        // Test message with different writer guid
+        let mut received_message = RtpsMessage::new(*remote_reader_guid.prefix());
+        let acknack = AckNack::new(
+           *remote_reader_guid.entity_id(),
+           ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
+           SequenceNumberSet::from_set(vec![SequenceNumber(3), SequenceNumber(5), SequenceNumber(6)].iter().cloned().collect()),
+           Count(1),
+            true,
+            EndianessFlag::LittleEndian);
+        received_message.push(RtpsSubmessage::AckNack(acknack));
+
+        reader_proxy.process_repair_message(&writer_guid, &received_message);
+
+        // Verify that message was ignored
+        assert_eq!(reader_proxy.highest_sequence_number_acknowledged, SequenceNumber(0));
+        assert!(reader_proxy.sequence_numbers_requested.is_empty());
+
+
+        // Test duplicate acknack message
+        let mut received_message = RtpsMessage::new(*remote_reader_guid.prefix());
+        let acknack = AckNack::new(
+           *remote_reader_guid.entity_id(),
+           *writer_guid.entity_id(),
+           SequenceNumberSet::from_set(vec![SequenceNumber(3), SequenceNumber(5), SequenceNumber(6)].iter().cloned().collect()),
+           Count(1),
+            true,
+            EndianessFlag::LittleEndian);
+        received_message.push(RtpsSubmessage::AckNack(acknack));
+
+        reader_proxy.process_repair_message(&writer_guid, &received_message);
+
+        // Verify message was correctly processed
+        assert_eq!(reader_proxy.highest_sequence_number_acknowledged, SequenceNumber(2));
+        assert_eq!(reader_proxy.sequence_numbers_requested,vec![SequenceNumber(3), SequenceNumber(5), SequenceNumber(6)].iter().cloned().collect());
+
+        // Clear the requested sequence numbers and reprocess the message
+        reader_proxy.sequence_numbers_requested.clear();
+        reader_proxy.process_repair_message(&writer_guid, &received_message);
+
+        // Verify that the requested sequence numbers remain empty
+        assert!(reader_proxy.sequence_numbers_requested.is_empty());
+    }
+
+    #[test]
     fn process_repair_message_only_acknowledged() {
         let remote_reader_guid = GUID::new(GuidPrefix([1,2,3,4,5,6,7,8,9,10,11,12]), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
         let mut reader_proxy = ReaderProxy::new(remote_reader_guid, vec![], vec![], false, true);
