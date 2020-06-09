@@ -3,7 +3,6 @@ use std::time::Instant;
 use std::convert::TryInto;
 
 use crate::cache::{CacheChange, HistoryCache};
-use crate::inline_qos::{InlineQosParameter, InlineQosParameterList, };
 use crate::messages::{Data, Heartbeat, InfoTs, Payload, RtpsMessage, RtpsSubmessage,};
 use crate::serdes::EndianessFlag;
 use crate::types::constants::ENTITYID_UNKNOWN;
@@ -116,7 +115,7 @@ impl StatelessWriter {
         &mut self,
         kind: ChangeKind,
         data: Option<Vec<u8>>,
-        inline_qos: Option<InlineQosParameterList>,
+        inline_qos: Option<ParameterList>,
         handle: InstanceHandle,
     ) -> CacheChange {
         self.last_change_sequence_number = self.last_change_sequence_number + 1;
@@ -231,30 +230,31 @@ impl StatelessWriter {
                 {
                     let change_kind = *cache_change.change_kind();
 
-                    let mut inline_qos_parameter_list : InlineQosParameterList = ParameterList::new();
+                    // let mut inline_qos_parameter_list : InlineQosParameterList = ParameterList::new();
 
-                    let payload = match change_kind {
-                        ChangeKind::Alive => {
-                            inline_qos_parameter_list.push(InlineQosParameter::StatusInfo(StatusInfo::from(change_kind)));
-                            inline_qos_parameter_list.push(InlineQosParameter::KeyHash(KeyHash(*cache_change.instance_handle())));
-                            Payload::Data(SerializedPayload(cache_change.data().unwrap().to_vec()))
-                        },
-                        ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered | ChangeKind::AliveFiltered => {
-                            inline_qos_parameter_list.push(InlineQosParameter::StatusInfo(StatusInfo::from(change_kind)));
-                            Payload::Key(SerializedPayload(cache_change.instance_handle().to_vec()))
-                        }
-                    };
+                    // let payload = match change_kind {
+                    //     ChangeKind::Alive => {
+                    //         inline_qos_parameter_list.push(InlineQosParameter::StatusInfo(StatusInfo::from(change_kind)));
+                    //         inline_qos_parameter_list.push(InlineQosParameter::KeyHash(KeyHash(*cache_change.instance_handle())));
+                    //         Payload::Data(SerializedPayload(cache_change.data().unwrap().to_vec()))
+                    //     },
+                    //     ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered | ChangeKind::AliveFiltered => {
+                    //         inline_qos_parameter_list.push(InlineQosParameter::StatusInfo(StatusInfo::from(change_kind)));
+                    //         Payload::Key(SerializedPayload(cache_change.instance_handle().to_vec()))
+                    //     }
+                    // };
 
-                    let data = Data::new(
-                        EndianessFlag::LittleEndian.into(),
-                        ENTITYID_UNKNOWN,
-                        *self.guid.entity_id(),
-                        *cache_change.sequence_number(),
-                        Some(inline_qos_parameter_list), 
-                        payload,
-                    );
+                    // let data = Data::new(
+                    //     EndianessFlag::LittleEndian.into(),
+                    //     ENTITYID_UNKNOWN,
+                    //     *self.guid.entity_id(),
+                    //     *cache_change.sequence_number(),
+                    //     Some(inline_qos_parameter_list), 
+                    //     payload,
+                    // );
 
-                    message.push(RtpsSubmessage::Data(data));
+                    // message.push(RtpsSubmessage::Data(data));
+                    todo!()
                 } else {
                     panic!("GAP not implemented yet");
                     // let gap = Gap::new(ENTITYID_UNKNOWN /*reader_id*/,ENTITYID_UNKNOWN /*writer_id*/, 0 /*gap_start*/, BTreeMap::new() /*gap_list*/);

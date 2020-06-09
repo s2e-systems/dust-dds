@@ -7,7 +7,6 @@ use crate::behavior_types::Duration;
 use crate::messages::types::Count;
 use crate::serdes::EndianessFlag;
 use crate::cache::{CacheChange, HistoryCache};
-use crate::inline_qos::{InlineQosParameter, InlineQosParameterList, };
 use crate::inline_qos_types::{KeyHash, StatusInfo, };
 use crate::messages::{Data, Gap, InfoTs, Heartbeat, Payload, RtpsMessage, RtpsSubmessage, };
 use crate::messages::types::{Time, };
@@ -182,30 +181,31 @@ impl ReaderProxy {
             {
                 let change_kind = *cache_change.change_kind();
 
-                let mut inline_qos_parameter_list : InlineQosParameterList = ParameterList::new();
+                // let mut inline_qos_parameter_list : InlineQosParameterList = ParameterList::new();
 
-                let payload = match change_kind {
-                    ChangeKind::Alive => {
-                        inline_qos_parameter_list.push(InlineQosParameter::StatusInfo(StatusInfo::from(change_kind)));
-                        inline_qos_parameter_list.push(InlineQosParameter::KeyHash(KeyHash(*cache_change.instance_handle())));
-                        Payload::Data(SerializedPayload(cache_change.data().unwrap().to_vec()))
-                    },
-                    ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered | ChangeKind::AliveFiltered => {
-                        inline_qos_parameter_list.push(InlineQosParameter::StatusInfo(StatusInfo::from(change_kind)));
-                        Payload::Key(SerializedPayload(cache_change.instance_handle().to_vec()))
-                    }
-                };
+                // let payload = match change_kind {
+                //     ChangeKind::Alive => {
+                //         inline_qos_parameter_list.push(InlineQosParameter::StatusInfo(StatusInfo::from(change_kind)));
+                //         inline_qos_parameter_list.push(InlineQosParameter::KeyHash(KeyHash(*cache_change.instance_handle())));
+                //         Payload::Data(SerializedPayload(cache_change.data().unwrap().to_vec()))
+                //     },
+                //     ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered | ChangeKind::AliveFiltered => {
+                //         inline_qos_parameter_list.push(InlineQosParameter::StatusInfo(StatusInfo::from(change_kind)));
+                //         Payload::Key(SerializedPayload(cache_change.instance_handle().to_vec()))
+                //     }
+                // };
 
-                let data = Data::new(
-                    EndianessFlag::LittleEndian.into(),
-                    *self.remote_reader_guid.entity_id(),
-                    *writer_guid.entity_id(),
-                    *cache_change.sequence_number(),
-                    Some(inline_qos_parameter_list), 
-                    payload,
-                );
+                // let data = Data::new(
+                //     EndianessFlag::LittleEndian.into(),
+                //     *self.remote_reader_guid.entity_id(),
+                //     *writer_guid.entity_id(),
+                //     *cache_change.sequence_number(),
+                //     Some(inline_qos_parameter_list), 
+                //     payload,
+                // );
 
-                message.push(RtpsSubmessage::Data(data));
+                // message.push(RtpsSubmessage::Data(data));
+                todo!()
             } else {
                 let gap = Gap::new(
                     *self.remote_reader_guid.entity_id(), 
@@ -290,30 +290,31 @@ impl ReaderProxy {
             {
                 let change_kind = *cache_change.change_kind();
 
-                let mut inline_qos_parameter_list : InlineQosParameterList = ParameterList::new();
+                // let mut inline_qos_parameter_list : InlineQosParameterList = ParameterList::new();
 
-                let payload = match change_kind {
-                    ChangeKind::Alive => {
-                        inline_qos_parameter_list.push(InlineQosParameter::StatusInfo(StatusInfo::from(change_kind)));
-                        inline_qos_parameter_list.push(InlineQosParameter::KeyHash(KeyHash(*cache_change.instance_handle())));
-                        Payload::Data(SerializedPayload(cache_change.data().unwrap().to_vec()))
-                    },
-                    ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered | ChangeKind::AliveFiltered => {
-                        inline_qos_parameter_list.push(InlineQosParameter::StatusInfo(StatusInfo::from(change_kind)));
-                        Payload::Key(SerializedPayload(cache_change.instance_handle().to_vec()))
-                    }
-                };
+                // let payload = match change_kind {
+                //     ChangeKind::Alive => {
+                //         inline_qos_parameter_list.push(InlineQosParameter::StatusInfo(StatusInfo::from(change_kind)));
+                //         inline_qos_parameter_list.push(InlineQosParameter::KeyHash(KeyHash(*cache_change.instance_handle())));
+                //         Payload::Data(SerializedPayload(cache_change.data().unwrap().to_vec()))
+                //     },
+                //     ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered | ChangeKind::AliveFiltered => {
+                //         inline_qos_parameter_list.push(InlineQosParameter::StatusInfo(StatusInfo::from(change_kind)));
+                //         Payload::Key(SerializedPayload(cache_change.instance_handle().to_vec()))
+                //     }
+                // };
 
-                let data = Data::new(
-                    EndianessFlag::LittleEndian.into(),
-                    *self.remote_reader_guid.entity_id(),
-                    *writer_guid.entity_id(),
-                    *cache_change.sequence_number(),
-                    Some(inline_qos_parameter_list), 
-                    payload,
-                );
+                // let data = Data::new(
+                //     EndianessFlag::LittleEndian.into(),
+                //     *self.remote_reader_guid.entity_id(),
+                //     *writer_guid.entity_id(),
+                //     *cache_change.sequence_number(),
+                //     Some(inline_qos_parameter_list), 
+                //     payload,
+                // );
 
-                message.push(RtpsSubmessage::Data(data));
+                // message.push(RtpsSubmessage::Data(data));
+                todo!()
             } else {
                 let gap = Gap::new(
                     *self.remote_reader_guid.entity_id(), 
@@ -425,7 +426,7 @@ impl StatefulWriter {
         &mut self,
         kind: ChangeKind,
         data: Option<Vec<u8>>,
-        inline_qos: Option<InlineQosParameterList>,
+        inline_qos: Option<ParameterList>,
         handle: InstanceHandle,
     ) -> CacheChange {
         self.last_change_sequence_number = self.last_change_sequence_number + 1;

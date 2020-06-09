@@ -59,6 +59,39 @@ impl RtpsDeserialize for ULong {
 
 
 
+#[derive(Debug, Copy, PartialEq, Eq, Clone)]
+pub struct Short(pub i16);
+
+impl RtpsSerialize for Short
+{
+    fn serialize(&self, writer: &mut impl std::io::Write, endianness: EndianessFlag) -> RtpsSerdesResult<()>{
+        let value = self.0;
+        writer.write(&PrimitiveSerdes::serialize_i16(value, endianness))?;
+        Ok(())
+    }
+}
+
+impl From<Short> for usize {
+    fn from(value: Short) -> Self {
+        value.0 as usize
+    }
+}
+
+impl From<usize> for Short {
+    fn from(value: usize) -> Self {
+        Self(value as i16)
+    }    
+}
+
+impl RtpsDeserialize for Short {
+    fn deserialize(bytes: &[u8], endianness: EndianessFlag) -> RtpsSerdesResult<Self> { 
+        let value = PrimitiveSerdes::deserialize_i16(bytes[0..2].try_into()?, endianness);
+        Ok(Short(value))
+    }
+}
+
+
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Ushort(pub u16);
 

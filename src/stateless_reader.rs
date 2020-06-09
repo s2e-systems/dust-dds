@@ -3,8 +3,8 @@ use crate::cache::{HistoryCache, CacheChange};
 use crate::types::{ReliabilityKind, TopicKind, GUID, ChangeKind, Locator, };
 use crate::types::constants::ENTITYID_UNKNOWN;
 use crate::messages::{RtpsMessage, RtpsSubmessage, Data};
-use crate::inline_qos::{InlineQosParameter, InlineQosPid, InlineQosParameterList};
 use crate::inline_qos_types::KeyHash;
+use crate::messages::submessage_elements::ParameterList;
 
 #[derive(Debug)]
 pub enum StatelessReaderError {
@@ -99,53 +99,56 @@ impl StatelessReader {
     }
 
     fn change_kind(data_submessage: &Data) -> StatelessReaderResult<ChangeKind>{
-        let change_kind = if data_submessage.data_flag().is_set() && !data_submessage.key_flag().is_set() {
-            ChangeKind::Alive
-        } else if !data_submessage.data_flag().is_set() && data_submessage.key_flag().is_set() {
-            let inline_qos = StatelessReader::inline_qos(&data_submessage)?;
+        // let change_kind = if data_submessage.data_flag().is_set() && !data_submessage.key_flag().is_set() {
+        //     ChangeKind::Alive
+        // } else if !data_submessage.data_flag().is_set() && data_submessage.key_flag().is_set() {
+        //     let inline_qos = StatelessReader::inline_qos(&data_submessage)?;
 
-            let status_info_parameter = inline_qos.find_parameter(InlineQosPid::StatusInfo.into()).ok_or(StatelessReaderError::StatusInfoNotFound)?;
-            let status_info = match status_info_parameter {
-                InlineQosParameter::StatusInfo(status_info) => Ok(*status_info),
-                _ => Err(StatelessReaderError::InvalidStatusInfo),
-            }?;
+        //     let status_info_parameter = inline_qos.find_parameter(InlineQosPid::StatusInfo.into()).ok_or(StatelessReaderError::StatusInfoNotFound)?;
+        //     let status_info = match status_info_parameter {
+        //         InlineQosParameter::StatusInfo(status_info) => Ok(*status_info),
+        //         _ => Err(StatelessReaderError::InvalidStatusInfo),
+        //     }?;
 
-            ChangeKind::try_from(status_info).map_err(|_| StatelessReaderError::InvalidStatusInfo)?
-        }
-        else {
-            return Err(StatelessReaderError::InvalidDataKeyFlagCombination);
-        };
+        //     ChangeKind::try_from(status_info).map_err(|_| StatelessReaderError::InvalidStatusInfo)?
+        // }
+        // else {
+        //     return Err(StatelessReaderError::InvalidDataKeyFlagCombination);
+        // };
 
-        Ok(change_kind)
+        // Ok(change_kind)
+        todo!()
     }
 
     fn key_hash(data_submessage: &Data) -> StatelessReaderResult<KeyHash> {
-        let key_hash = if data_submessage.data_flag().is_set() && !data_submessage.key_flag().is_set() {
-            let inline_qos = StatelessReader::inline_qos(&data_submessage)?;
+        // let key_hash = if data_submessage.data_flag().is_set() && !data_submessage.key_flag().is_set() {
+        //     let inline_qos = StatelessReader::inline_qos(&data_submessage)?;
 
-            let key_hash_parameter = inline_qos.find_parameter(InlineQosPid::KeyHash.into()).ok_or(StatelessReaderError::KeyHashNotFound)?;
-            match key_hash_parameter {
-                InlineQosParameter::KeyHash(key_hash) => *key_hash,
-                _ => return Err(StatelessReaderError::KeyHashNotFound),
-            }
+        //     let key_hash_parameter = inline_qos.find_parameter(InlineQosPid::KeyHash.into()).ok_or(StatelessReaderError::KeyHashNotFound)?;
+        //     match key_hash_parameter {
+        //         InlineQosParameter::KeyHash(key_hash) => *key_hash,
+        //         _ => return Err(StatelessReaderError::KeyHashNotFound),
+        //     }
 
-        } else if !data_submessage.data_flag().is_set() && data_submessage.key_flag().is_set() {
-            match data_submessage.serialized_payload() {
-                Some(payload) => KeyHash(payload.0[0..16].try_into().map_err(|_| StatelessReaderError::InvalidKeyHashPayload)?),
-                None => return Err(StatelessReaderError::KeyHashNotFound),
-            }
-        } else {
-            return Err(StatelessReaderError::InvalidDataKeyFlagCombination);
-        };
+        // } else if !data_submessage.data_flag().is_set() && data_submessage.key_flag().is_set() {
+        //     match data_submessage.serialized_payload() {
+        //         Some(payload) => KeyHash(payload.0[0..16].try_into().map_err(|_| StatelessReaderError::InvalidKeyHashPayload)?),
+        //         None => return Err(StatelessReaderError::KeyHashNotFound),
+        //     }
+        // } else {
+        //     return Err(StatelessReaderError::InvalidDataKeyFlagCombination);
+        // };
 
-        Ok(key_hash)
+        // Ok(key_hash)
+        todo!()
     }
 
-    fn inline_qos(data_submessage: &Data) -> StatelessReaderResult<&InlineQosParameterList> {
-        match data_submessage.inline_qos().as_ref() {
-            Some(inline_qos) => Ok(inline_qos),
-            None => return Err(StatelessReaderError::InlineQosNotFound),
-        }
+    fn inline_qos(data_submessage: &Data) -> StatelessReaderResult<&ParameterList> {
+        // match data_submessage.inline_qos().as_ref() {
+        //     Some(inline_qos) => Ok(inline_qos),
+        //     None => return Err(StatelessReaderError::InlineQosNotFound),
+        // }
+        todo!()
     }
 }
 
@@ -155,8 +158,8 @@ mod tests {
     use crate::types::*;
     use crate::types::constants::*;
     use crate::serialized_payload::SerializedPayload;
-    use crate::messages::submessage_elements::ParameterList;
-    use crate::messages::{Data, Payload,};
+    use crate::messages::submessage_elements::{Parameter, ParameterList, };
+    use crate::messages::{Data, Payload, };
     use crate::serdes::EndianessFlag;
 
     #[test]
@@ -166,7 +169,7 @@ mod tests {
             ENTITYID_UNKNOWN,
             ENTITYID_UNKNOWN,
             SequenceNumber(1),
-            Some(ParameterList::new_from_vec(vec![InlineQosParameter::KeyHash(KeyHash([1;16]))])),
+            Some(ParameterList::new(vec![Parameter::new(KeyHash([1;16]), EndianessFlag::LittleEndian)])),
             Payload::Data(SerializedPayload(vec![0,1,2])),
         );
 

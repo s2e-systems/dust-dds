@@ -4,11 +4,10 @@
 ///  
  
 use crate::serdes::{SizeCheckers, PrimitiveSerdes, RtpsSerialize, RtpsDeserialize, RtpsSerdesResult, RtpsSerdesError, EndianessFlag, };
-use num_derive::FromPrimitive;
+use num_derive::{FromPrimitive, ToPrimitive, };
+use num_traits::{FromPrimitive, ToPrimitive, };
 use std::time::SystemTime;
 use std::convert::TryInto;
-
-
 
 pub mod constants {
     use super::Time;
@@ -34,7 +33,12 @@ pub mod constants {
 }
 
 
+pub trait Pid {
+    fn pid() -> ParameterIdT;
+}
 
+
+// /////////// ProtocolId_t //////////
 
 #[derive(PartialEq, Debug)]
 pub struct ProtocolId(pub [u8; 4]);
@@ -56,6 +60,9 @@ impl RtpsDeserialize for ProtocolId {
     }    
 }
 
+
+
+// /////////// SubmessageFlag ////////
 
 #[derive(PartialEq, Debug, Clone, Copy)]
 pub struct SubmessageFlag(pub bool);
@@ -109,6 +116,7 @@ impl RtpsDeserialize for [SubmessageFlag; 8] {
 
 
 
+// /////////// SubmessageKind ////////
 
 #[derive(FromPrimitive, PartialEq, Copy, Clone, Debug)]
 pub enum SubmessageKind {
@@ -142,6 +150,8 @@ impl RtpsDeserialize for SubmessageKind {
 }
 
 
+
+// /////////// Time_t ////////////////
 
 #[derive(PartialEq, Eq, Hash, Debug, Clone, Copy)]
 pub struct Time {
@@ -187,6 +197,9 @@ impl RtpsDeserialize for Time {
 }
 
 
+
+// /////////// Count_t ///////////////
+
 #[derive(Debug, PartialEq, Copy, Clone, PartialOrd)]
 pub struct Count(pub i32);
 
@@ -212,7 +225,63 @@ impl RtpsDeserialize for Count {
 
 
 
+// /////////// ParameterId_t /////////
 
+#[derive(Debug, PartialEq, FromPrimitive, ToPrimitive, Eq, Clone)]
+pub enum ParameterIdT {
+    TopicName = 0x0005,
+    Durability = 0x001d,
+    Presentation = 0x0021,
+    Deadline = 0x0023,
+    LatencyBudget = 0x0027,
+    Ownership = 0x001f,
+    OwnershipStrength = 0x0006,
+    Liveliness = 0x001b,
+    Partition = 0x0029,
+    Reliability = 0x001a,
+    TransportPriority = 0x0049,
+    Lifespan = 0x002b,
+    DestinationOrder = 0x0025,
+    ContentFilterInfo = 0x0055,
+    CoherentSet = 0x0056,
+    DirectedWrite = 0x0057,
+    OriginalWriterInfo = 0x0061,
+    GroupCoherentSet = 0x0063,
+    GroupSeqNum = 0x0064,
+    WriterGroupInfo = 0x0065,
+    SecureWriterGroupInfo = 0x0066,
+    KeyHash = 0x0070,
+    StatusInfo = 0x0071,
+    Sentinel = 0x0001,
+    VendorTest0 = 0x0000 | 0x8000,
+    VendorTest1 = 0x0001 | 0x8000,
+    VendorTest3 = 0x0003 | 0x8000,
+    VendorTest4 = 0x0004 | 0x8000,
+    VendorTest5 = 0x0005 | 0x8000,
+    VendorTestShort = 0x0006 | 0x8000,
+}
+
+impl RtpsSerialize for ParameterIdT {
+    fn serialize(&self, writer: &mut impl std::io::Write, endianness: EndianessFlag) -> RtpsSerdesResult<()> {
+        writer.write(&PrimitiveSerdes::serialize_u16(self.to_u16().unwrap(), endianness))?;
+        Ok(())
+    }
+}
+
+impl RtpsDeserialize for ParameterIdT {
+    fn deserialize(bytes: &[u8], endianness: EndianessFlag) -> RtpsSerdesResult<Self> {
+        let value = PrimitiveSerdes::deserialize_u16(bytes.try_into()?, endianness);
+        Ok(ParameterIdT::from_u16(value).unwrap())
+    }
+}
+
+
+
+// /////////// FragmentNumber_t //////
+// Same as in self::submessage_elements
+
+// /////////// GroupDigest_t /////////
+//  todo
 
 
 
@@ -222,7 +291,7 @@ impl RtpsDeserialize for Count {
 mod tests {
     use super::*;
 
-    ///////////////////////// ProtocolId Tests ////////////////////////
+    // /////////////////////// ProtocolId_t Tests ////////////////////////
         
     #[test]
     fn test_serialize_protocol_id() {
@@ -249,7 +318,7 @@ mod tests {
     }
 
 
-    ///////////////////////// SubmessageFlag Tests ////////////////////////
+    // /////////////////////// SubmessageFlag Tests ////////////////////////
     
     #[test]
     fn test_deserialize_submessage_flags() {
@@ -305,7 +374,13 @@ mod tests {
     }
 
 
-    ///////////////////////// Time Tests ////////////////////////
+
+    // /////////////////////// SubmessageKind Tests ////////////////////////
+
+
+
+    // /////////////////////// Time_t Tests ////////////////////////
+     
     #[test]
     fn test_time_serialization_deserialization_big_endian() {
         let mut vec = Vec::new();
@@ -341,14 +416,59 @@ mod tests {
     }
 
 
-    ///////////////////////// Count Tests ////////////////////////
-     
-     
-    ///////////////////////// ParameterId Tests //////////////////
 
+    // /////////////////////// Count_t Tests ////////////////////////
+     
+
+     
+    // /////////////////////// ParameterId_t Tests //////////////////
+    #[test]
+    fn serialize_parameter_id_t() {
+        let mut writer = Vec::new();
+
+        writer.clear();
+        let parameter = ParameterIdT::KeyHash;
+        parameter.serialize(&mut writer, EndianessFlag::LittleEndian).unwrap();
+        assert_eq!(writer, vec![0x70, 0x00]);
+
+        writer.clear();
+        parameter.serialize(&mut writer, EndianessFlag::BigEndian).unwrap();
+        assert_eq!(writer, vec![0x00, 0x70]);
+        
+        writer.clear();
+        let parameter = ParameterIdT::VendorTest1;
+        parameter.serialize(&mut writer, EndianessFlag::LittleEndian).unwrap();
+        assert_eq!(writer, vec![0x01, 0x80]);
+
+        writer.clear();
+        let parameter = ParameterIdT::VendorTest1;
+        parameter.serialize(&mut writer, EndianessFlag::BigEndian).unwrap();
+        assert_eq!(writer, vec![0x80, 0x01]);
+    }
+
+    #[test]
+    fn deserialize_parameter_id_t() {
+        let bytes = [0x70, 0x00];    
+        let result = ParameterIdT::deserialize(&bytes, EndianessFlag::LittleEndian).unwrap();
+        assert_eq!(ParameterIdT::KeyHash, result);
+        
+        let bytes = [0x00, 0x70];    
+        let result = ParameterIdT::deserialize(&bytes, EndianessFlag::BigEndian).unwrap();
+        assert_eq!(ParameterIdT::KeyHash, result);
+
+        let bytes = [0x01, 0x80];    
+        let result = ParameterIdT::deserialize(&bytes, EndianessFlag::LittleEndian).unwrap();
+        assert_eq!(ParameterIdT::VendorTest1, result);
+
+        let bytes = [0x80, 0x01];    
+        let result = ParameterIdT::deserialize(&bytes, EndianessFlag::BigEndian).unwrap();
+        assert_eq!(ParameterIdT::VendorTest1, result);
+    }
     
 
+    ////////////////////////// FragmentNumber_t Tests ///////////////////////
 
 
-    ////////////////////////// GroupDigest Tests ///////////////////////
+
+    ////////////////////////// GroupDigest_t Tests ///////////////////////
 }
