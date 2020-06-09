@@ -4,32 +4,31 @@
 ///  
  
 use std::convert::{TryInto, From};
+use serde::{Serialize, Deserialize};
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, EndianessFlag, RtpsSerdesResult, };
 use crate::types::{ChangeKind, };
+use crate::messages::types::{Pid, ParameterIdT, };
 
 
-#[derive(Debug, PartialEq, Clone, Copy, Eq)]
+#[derive(Debug, PartialEq, Clone, Eq, Serialize, Deserialize)]
+pub struct TopicName(pub Vec<u8>);
+impl Pid for TopicName {
+    fn pid() -> ParameterIdT {
+        ParameterIdT::TopicName
+    }
+}
+
+#[derive(Debug, PartialEq, Clone, Copy, Eq, Serialize, Deserialize)]
 pub struct KeyHash(pub [u8; 16]);
 
-impl KeyHash {
-    pub fn new(value: [u8;16]) -> Self {
-        KeyHash(value)
-    }
-
-    pub fn get_value(&self) -> &[u8;16] {
-        &self.0
-    }
-}
-
-impl RtpsSerialize for KeyHash {
-    fn serialize(&self, writer: &mut impl std::io::Write, _endianess: EndianessFlag) -> RtpsSerdesResult<()> {
-        writer.write(&self.0)?;
-        Ok(())
+impl Pid for KeyHash {
+    fn pid() -> ParameterIdT {
+        ParameterIdT::KeyHash
     }
 }
 
 
-#[derive(Debug, PartialEq, Clone, Copy, Eq)]
+#[derive(Debug, PartialEq, Clone, Copy, Eq, Serialize, Deserialize)]
 pub struct StatusInfo(pub [u8;4]);
 
 impl StatusInfo {
@@ -47,6 +46,12 @@ impl StatusInfo {
 
     pub fn filtered_flag(&self) -> bool {
         self.0[3] & StatusInfo::FILTERED_FLAG_MASK == StatusInfo::FILTERED_FLAG_MASK
+    }
+}
+
+impl Pid for StatusInfo {
+    fn pid() -> ParameterIdT {
+        ParameterIdT::StatusInfo
     }
 }
 

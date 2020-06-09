@@ -2,9 +2,8 @@ use crate::primitive_types::{Ushort, ULong, };
 use crate::types::{EntityId, SequenceNumber, };
 use crate::messages::types::{SubmessageKind, SubmessageFlag, };
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, EndianessFlag, RtpsSerdesResult, };
-use crate::inline_qos::InlineQosParameterList;
 use super::{SubmessageHeader, Submessage, };
-use super::submessage_elements::FragmentNumber;
+use super::submessage_elements::{FragmentNumber, ParameterList, };
 use crate::serialized_payload::SerializedPayload;
 
 #[derive(PartialEq, Debug)]
@@ -20,7 +19,7 @@ pub struct DataFrag {
     fragments_in_submessage: Ushort,
     data_size: ULong,
     fragment_size: Ushort,
-    inline_qos: Option<InlineQosParameterList>,
+    inline_qos: Option<ParameterList>,
     serialized_payload: Option<SerializedPayload>,
 }
 
@@ -108,7 +107,7 @@ impl RtpsParse for DataFrag {
 
 
         let inline_qos = if inline_qos_flag.is_set() {
-            Some(InlineQosParameterList::deserialize(&bytes[octets_to_inline_qos..], endianness)?)
+            Some(ParameterList::deserialize(&bytes[octets_to_inline_qos..], endianness)?)
         } else { 
             None
         };
@@ -138,17 +137,18 @@ impl RtpsParse for DataFrag {
 #[cfg(test)]
 mod tests{
     use super::*;
-    use crate::inline_qos::InlineQosParameter;
     use crate::inline_qos_types::KeyHash;
     use crate::types::constants::{ENTITYID_UNKNOWN, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, };
+    use crate::messages::submessage_elements::{Parameter, ParameterList, };
 
     #[test]
     fn parse_data_frag_submessage() {
-        let mut inline_qos = InlineQosParameterList::new();
-        inline_qos.push(InlineQosParameter::KeyHash(KeyHash::new([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16])));
+        let endianness = EndianessFlag::LittleEndian;
+        let key_hash = KeyHash([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]);
+        let inline_qos = ParameterList::new(vec![Parameter::new(key_hash, endianness)]);
         
         let expected = DataFrag {
-            endianness_flag: EndianessFlag::LittleEndian.into(),
+            endianness_flag: endianness.into(),
             inline_qos_flag: SubmessageFlag(true),
             key_flag: SubmessageFlag(true),
             non_standard_payload_flag: SubmessageFlag(false),
@@ -187,8 +187,10 @@ mod tests{
 
     #[test]
     fn compose_data_frag_submessage() {
-        let mut inline_qos = InlineQosParameterList::new();
-        inline_qos.push(InlineQosParameter::KeyHash(KeyHash::new([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16])));        
+        let endianness = EndianessFlag::LittleEndian;
+        let key_hash = KeyHash([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]);
+        let inline_qos = ParameterList::new(vec![Parameter::new(key_hash, endianness)]);
+
         let message = DataFrag {
             endianness_flag: EndianessFlag::LittleEndian.into(),
             inline_qos_flag: SubmessageFlag(true),

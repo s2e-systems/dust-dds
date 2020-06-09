@@ -1,11 +1,7 @@
 use std::cmp::Ordering;
 use std::collections::{HashSet};
-
-use crate::inline_qos::InlineQosParameterList;
-
-use crate::types::{
-    ChangeKind, InstanceHandle, SequenceNumber, GUID,
-};
+use crate::types::{ChangeKind, InstanceHandle, SequenceNumber, GUID, };
+use crate::messages::submessage_elements::ParameterList;
 
 #[derive(Eq, Debug, Clone)]
 #[allow(dead_code)]
@@ -14,7 +10,7 @@ pub struct CacheChange {
     writer_guid: GUID,
     instance_handle: InstanceHandle,
     sequence_number: SequenceNumber,
-    inline_qos: Option<InlineQosParameterList>,
+    inline_qos: Option<ParameterList>,
     data: Option<Vec<u8>>,
 }
 
@@ -24,7 +20,7 @@ impl CacheChange {
         writer_guid: GUID,
         instance_handle: InstanceHandle,
         sequence_number: SequenceNumber,
-        inline_qos: Option<InlineQosParameterList>,
+        inline_qos: Option<ParameterList>,
         data: Option<Vec<u8>>,
     ) -> CacheChange {
         CacheChange {
@@ -53,7 +49,7 @@ impl CacheChange {
         &self.sequence_number
     }
 
-    pub fn inline_qos(&self) -> &Option<InlineQosParameterList> {
+    pub fn inline_qos(&self) -> &Option<ParameterList> {
         &self.inline_qos
     }
 

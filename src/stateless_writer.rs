@@ -3,7 +3,6 @@ use std::time::Instant;
 use std::convert::TryInto;
 
 use crate::cache::{CacheChange, HistoryCache};
-use crate::inline_qos::{InlineQosParameter, InlineQosParameterList, };
 use crate::messages::{Data, Heartbeat, InfoTs, Payload, RtpsMessage, RtpsSubmessage,};
 use crate::serdes::EndianessFlag;
 use crate::types::constants::ENTITYID_UNKNOWN;
@@ -12,7 +11,7 @@ use crate::inline_qos_types::{KeyHash, StatusInfo, };
 use crate::serialized_payload::SerializedPayload;
 use crate::behavior_types::Duration;
 use crate::messages::types::{Time, Count, };
-use crate::messages::submessage_elements::ParameterList;
+use crate::messages::submessage_elements::{Parameter, ParameterList, };
 
 struct ReaderLocator {
     //requested_changes: HashSet<CacheChange>,
@@ -116,7 +115,7 @@ impl StatelessWriter {
         &mut self,
         kind: ChangeKind,
         data: Option<Vec<u8>>,
-        inline_qos: Option<InlineQosParameterList>,
+        inline_qos: Option<ParameterList>,
         handle: InstanceHandle,
     ) -> CacheChange {
         self.last_change_sequence_number = self.last_change_sequence_number + 1;
@@ -219,8 +218,9 @@ impl StatelessWriter {
         let mut message = RtpsMessage::new(*self.guid.prefix());
 
         if self.has_unsent_changes(a_locator) {
+            let endianness = EndianessFlag::LittleEndian;
             let time = Time::now();
-            let infots = InfoTs::new(Some(time), EndianessFlag::LittleEndian);
+            let infots = InfoTs::new(Some(time), endianness);
 
             message.push(RtpsSubmessage::InfoTs(infots));
 
@@ -231,20 +231,20 @@ impl StatelessWriter {
                 {
                     let change_kind = *cache_change.change_kind();
 
-                    let mut inline_qos_parameter_list : InlineQosParameterList = ParameterList::new();
+                    let mut parameter = Vec::new();
 
                     let payload = match change_kind {
                         ChangeKind::Alive => {
-                            inline_qos_parameter_list.push(InlineQosParameter::StatusInfo(StatusInfo::from(change_kind)));
-                            inline_qos_parameter_list.push(InlineQosParameter::KeyHash(KeyHash(*cache_change.instance_handle())));
+                            parameter.push(Parameter::new(StatusInfo::from(change_kind), endianness));
+                        parameter.push(Parameter::new(KeyHash(*cache_change.instance_handle()), endianness));
                             Payload::Data(SerializedPayload(cache_change.data().unwrap().to_vec()))
                         },
                         ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered | ChangeKind::AliveFiltered => {
-                            inline_qos_parameter_list.push(InlineQosParameter::StatusInfo(StatusInfo::from(change_kind)));
+                            parameter.push(Parameter::new(StatusInfo::from(change_kind), endianness));
                             Payload::Key(SerializedPayload(cache_change.instance_handle().to_vec()))
                         }
                     };
-
+                    let inline_qos_parameter_list = ParameterList::new(parameter);
                     let data = Data::new(
                         EndianessFlag::LittleEndian.into(),
                         ENTITYID_UNKNOWN,
