@@ -187,7 +187,7 @@ impl RtpsDeserialize for Time {
 }
 
 
-#[derive(Debug, PartialEq, Copy, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone, PartialOrd)]
 pub struct Count(pub i32);
 
 impl std::ops::AddAssign<i32> for Count {

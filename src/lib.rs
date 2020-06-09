@@ -14,6 +14,7 @@ mod serdes;
 mod serialized_payload;
 mod stateless_reader;
 mod stateless_writer;
+mod stateful_writer;
 // mod participant;
 // mod participant_proxy;
 // mod proxy;

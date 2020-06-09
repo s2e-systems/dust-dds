@@ -15,6 +15,41 @@ pub struct AckNack {
     count: Count,
 }
 
+impl AckNack {
+    pub fn new(
+        reader_id: EntityId,
+        writer_id: EntityId,
+        reader_sn_state: SequenceNumberSet,
+        count: Count,
+        final_flag: bool,
+        endianness_flag: EndianessFlag) -> Self {
+            AckNack {
+                reader_id,
+                writer_id,
+                reader_sn_state,
+                count,
+                final_flag: SubmessageFlag(final_flag),
+                endianness_flag: endianness_flag.into(),
+            }
+        }
+
+        pub fn reader_id(&self) -> &EntityId {
+            &self.reader_id
+        }
+
+        pub fn writer_id(&self) -> &EntityId {
+            &self.writer_id
+        }
+
+        pub fn reader_sn_state(&self) -> &SequenceNumberSet {
+            &self.reader_sn_state
+        }
+
+        pub fn count(&self) -> &Count {
+            &self.count
+        }
+}
+
 impl Submessage for AckNack {
     fn submessage_header(&self) -> SubmessageHeader {
         const X : SubmessageFlag = SubmessageFlag(false);
@@ -83,7 +118,7 @@ mod tests {
             final_flag: SubmessageFlag(true),
             reader_id: ENTITYID_UNKNOWN,
             writer_id: ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
-            reader_sn_state: SequenceNumberSet::new([SequenceNumber(2), SequenceNumber(3)].iter().cloned().collect()),
+            reader_sn_state: SequenceNumberSet::from_set([SequenceNumber(2), SequenceNumber(3)].iter().cloned().collect()),
             count: Count(2),
         };
         let result = AckNack::parse(&bytes).unwrap();
@@ -108,7 +143,7 @@ mod tests {
             final_flag: SubmessageFlag(true),
             reader_id: ENTITYID_UNKNOWN,
             writer_id: ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
-            reader_sn_state: SequenceNumberSet::new([SequenceNumber(2), SequenceNumber(3)].iter().cloned().collect()),
+            reader_sn_state: SequenceNumberSet::from_set([SequenceNumber(2), SequenceNumber(3)].iter().cloned().collect()),
             count: Count(2),
         };
 

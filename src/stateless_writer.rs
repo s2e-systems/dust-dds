@@ -4,7 +4,7 @@ use std::convert::TryInto;
 
 use crate::cache::{CacheChange, HistoryCache};
 use crate::inline_qos::{InlineQosParameter, InlineQosParameterList, };
-use crate::messages::{Data, Heartbeat, InfoTs, Payload, RtpsMessage, RtpsSubmessage, Header, };
+use crate::messages::{Data, Heartbeat, InfoTs, Payload, RtpsMessage, RtpsSubmessage,};
 use crate::serdes::EndianessFlag;
 use crate::types::constants::ENTITYID_UNKNOWN;
 use crate::types::{ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID, };
@@ -176,7 +176,7 @@ impl StatelessWriter {
         unsent_changes_set
     }
 
-    pub fn has_unsent_changes(&self, a_locator: Locator) -> bool {
+    fn has_unsent_changes(&self, a_locator: Locator) -> bool {
         let reader_locator = self.reader_locators.get(&a_locator).unwrap();
 
         if reader_locator.highest_sequence_number_sent + 1 >= self.last_change_sequence_number {
@@ -216,9 +216,7 @@ impl StatelessWriter {
     }
 
     pub fn get_data_to_send(&mut self, a_locator: Locator) -> RtpsMessage {
-        let mut message = RtpsMessage::new(
-            Header::new(*self.guid.prefix()), 
-            Vec::new() );
+        let mut message = RtpsMessage::new(*self.guid.prefix());
 
         if self.has_unsent_changes(a_locator) {
             let time = Time::now();

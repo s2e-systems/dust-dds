@@ -21,7 +21,7 @@ use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsCompose, RtpsParse, Endi
 
 
 
-// pub use ack_nack_submessage::AckNack;
+pub use ack_nack_submessage::AckNack;
 // pub use data_frag_submessage::DataFrag;
 pub use data_submessage::Data;
 pub use data_submessage::Payload;
@@ -63,7 +63,7 @@ pub const RTPS_MINOR_VERSION: u8 = 4;
 
 #[derive(Debug, PartialEq)]
 pub enum RtpsSubmessage {
-    // AckNack(AckNack),
+    AckNack(AckNack),
     Data(Data),
     // DataFrag(DataFrag),
     Gap(Gap),
@@ -79,6 +79,7 @@ pub enum RtpsSubmessage {
 impl RtpsCompose for RtpsSubmessage {
     fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
         match self {
+            RtpsSubmessage::AckNack(acknack) => acknack.compose(writer),
             RtpsSubmessage::Data(data) => data.compose(writer),
             RtpsSubmessage::Gap(_gap) => Ok(()), //gap.compose(writer)?,
             RtpsSubmessage::Heartbeat(heartbeat) => heartbeat.compose(writer),
@@ -216,17 +217,14 @@ pub struct RtpsMessage {
 }
 
 impl RtpsMessage {
-    pub fn new(
-        header: Header,
-        submessages: Vec<RtpsSubmessage>
-    ) -> RtpsMessage {
+    pub fn new(guid_prefix: GuidPrefix) -> Self {
         // TODO: should panic since the stamdard says: 1 to many messages
         // if submessages.is_empty() {
         //     panic!("At least one submessage is required");
         // };
         RtpsMessage {
-            header,
-            submessages,
+            header: Header::new(guid_prefix),
+            submessages: Vec::with_capacity(1),
         }
     }
 
@@ -240,6 +238,10 @@ impl RtpsMessage {
 
     pub fn submessages(&self) -> &Vec<RtpsSubmessage> {
         &self.submessages
+    }
+
+    pub fn merge(&mut self, mut other: RtpsMessage) {
+        self.submessages.append(&mut other.submessages);
     }
 }
 
@@ -282,6 +284,33 @@ mod tests {
     use crate::types::{EntityKey, EntityKind, };
     use crate::types::constants::{ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, ENTITYID_UNKNOWN, };
     
+    #[test]
+    fn merge() {
+        let guid_prefix = GuidPrefix([1;12]);
+        let mut message1 = RtpsMessage::new(guid_prefix);
+        message1.push(
+            RtpsSubmessage::InfoTs(InfoTs::new(None, EndianessFlag::LittleEndian)));
+
+        let mut message2 = RtpsMessage::new(guid_prefix);
+        message2.push(RtpsSubmessage::Data(
+            Data::new(EndianessFlag::LittleEndian, ENTITYID_UNKNOWN, ENTITYID_UNKNOWN, SequenceNumber(0), None, Payload::None)));
+
+        message1.merge(message2);
+
+        assert_eq!(message1.submessages().len(),2);
+        if let RtpsSubmessage::InfoTs(_) = message1.submessages()[0] {
+            assert!(true);
+        } else {
+            assert!(false);
+        };
+
+        if let RtpsSubmessage::Data(_) = message1.submessages()[1] {
+            assert!(true);
+        } else {
+            assert!(false);
+        };
+
+    }
 
     #[test]
     fn test_parse_message_header() {
