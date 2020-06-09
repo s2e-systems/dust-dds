@@ -5,7 +5,7 @@
 
 use std::convert::{TryInto, TryFrom, };
 use num_derive::FromPrimitive;
-use crate::serdes::{RtpsSerialize, RtpsDeserialize, EndianessFlag, RtpsSerdesResult, PrimitiveSerdes, SizeCheckers,RtpsSerdesError, };
+use crate::serdes::{RtpsSerialize, RtpsDeserialize, EndianessFlag, RtpsSerdesResult, SizeCheckers, RtpsSerdesError, };
 use crate::primitive_types::{Long, ULong, };
 use crate::inline_qos_types::StatusInfo;
 
@@ -228,12 +228,10 @@ impl std::ops::Add<i64> for SequenceNumber {
 
 impl RtpsSerialize for SequenceNumber {
     fn serialize(&self, writer: &mut impl std::io::Write, endianness: EndianessFlag) -> RtpsSerdesResult<()>{
-        let msb = PrimitiveSerdes::serialize_i32((self.0 >> 32) as i32, endianness);
-        let lsb = PrimitiveSerdes::serialize_u32((self.0 & 0x0000_0000_FFFF_FFFF) as u32, endianness);
-
-        writer.write(&msb)?;
-        writer.write(&lsb)?;
-
+        let msb = self.0 >> 32;
+        let lsb = self.0 & 0x0000_0000_FFFF_FFFF;
+        (msb as Long).serialize(writer, endianness)?;
+        (lsb as ULong).serialize(writer, endianness)?;
         Ok(())
     }
 }
@@ -242,8 +240,8 @@ impl RtpsDeserialize for SequenceNumber {
     fn deserialize(bytes: &[u8], endianness: EndianessFlag) -> RtpsSerdesResult<Self> {
         SizeCheckers::check_size_equal(bytes, 8)?;
 
-        let msb = PrimitiveSerdes::deserialize_i32(bytes[0..4].try_into()?, endianness);
-        let lsb = PrimitiveSerdes::deserialize_u32(bytes[4..8].try_into()?, endianness);
+        let msb = Long::deserialize(&bytes[0..4], endianness)?;
+        let lsb = ULong::deserialize(&bytes[4..8], endianness)?;
 
         let sequence_number = ((msb as i64) << 32) + lsb as i64;
 

@@ -17,7 +17,7 @@ use crate::types::{GuidPrefix, ProtocolVersion, VendorId, };
 use crate::types::constants::{PROTOCOL_VERSION_2_4, VENDOR_ID, };
 use self::types::{SubmessageKind, SubmessageFlag, ProtocolId, };
 use self::types::constants::PROTOCOL_RTPS;
-use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsCompose, RtpsParse, EndianessFlag, RtpsSerdesResult, RtpsSerdesError, PrimitiveSerdes, };
+use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsCompose, RtpsParse, EndianessFlag, RtpsSerdesResult, RtpsSerdesError, };
 
 
 
@@ -108,20 +108,6 @@ impl RtpsParse for RtpsSubmessage {
         }   
     }    
 }
-
-
-
-struct OctetsToNextHeader(u16);
-
-impl RtpsSerialize for OctetsToNextHeader
-{
-    fn serialize(&self, writer: &mut impl std::io::Write, endianness: EndianessFlag) -> RtpsSerdesResult<()> {
-        writer.write(&PrimitiveSerdes::serialize_u16(self.0, endianness))?;
-
-        Ok(())
-    }
-}
-
 
 
 #[derive(PartialEq, Debug)]
