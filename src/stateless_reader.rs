@@ -161,9 +161,8 @@ mod tests {
             Payload::Data(SerializedPayload(vec![0,1,2])),
         );
 
-        let mut message = RtpsMessage::new(GuidPrefix([2;12]));
-
-        message.push(RtpsSubmessage::Data(data1));
+        let mut submessages = Vec::new();
+        submessages.push(RtpsSubmessage::Data(data1));
 
         let mut reader = StatelessReader::new(
             GUID::new(GuidPrefix([0;12]), ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER),
@@ -175,7 +174,8 @@ mod tests {
            );
 
         assert_eq!(reader.history_cache().get_changes().len(), 0);
-
+        let message = RtpsMessage::new(GuidPrefix([2;12]), submessages);
+        
         reader.process_message(&message).unwrap();
 
         assert_eq!(reader.history_cache().get_changes().len(), 1);

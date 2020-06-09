@@ -203,14 +203,14 @@ pub struct RtpsMessage {
 }
 
 impl RtpsMessage {
-    pub fn new(guid_prefix: GuidPrefix) -> Self {
-        // TODO: should panic since the stamdard says: 1 to many messages
-        // if submessages.is_empty() {
-        //     panic!("At least one submessage is required");
-        // };
+    pub fn new(guid_prefix: GuidPrefix, submessages: Vec<RtpsSubmessage>) -> Self {
+        if submessages.is_empty() {
+            panic!("At least one submessage is required");
+        };
+
         RtpsMessage {
             header: Header::new(guid_prefix),
-            submessages: Vec::with_capacity(1),
+            submessages,
         }
     }
 
@@ -218,16 +218,8 @@ impl RtpsMessage {
         &self.header
     }
 
-    pub fn push(&mut self, submessage: RtpsSubmessage) {
-        self.submessages.push(submessage);
-    }
-
     pub fn submessages(&self) -> &Vec<RtpsSubmessage> {
         &self.submessages
-    }
-
-    pub fn merge(&mut self, mut other: RtpsMessage) {
-        self.submessages.append(&mut other.submessages);
     }
 }
 
@@ -269,34 +261,6 @@ mod tests {
     use crate::types::{SequenceNumber, EntityId, };
     use crate::types::{EntityKey, EntityKind, };
     use crate::types::constants::{ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, ENTITYID_UNKNOWN, };
-    
-    #[test]
-    fn merge() {
-        let guid_prefix = GuidPrefix([1;12]);
-        let mut message1 = RtpsMessage::new(guid_prefix);
-        message1.push(
-            RtpsSubmessage::InfoTs(InfoTs::new(None, EndianessFlag::LittleEndian)));
-
-        let mut message2 = RtpsMessage::new(guid_prefix);
-        message2.push(RtpsSubmessage::Data(
-            Data::new(EndianessFlag::LittleEndian, ENTITYID_UNKNOWN, ENTITYID_UNKNOWN, SequenceNumber(0), None, Payload::None)));
-
-        message1.merge(message2);
-
-        assert_eq!(message1.submessages().len(),2);
-        if let RtpsSubmessage::InfoTs(_) = message1.submessages()[0] {
-            assert!(true);
-        } else {
-            assert!(false);
-        };
-
-        if let RtpsSubmessage::Data(_) = message1.submessages()[1] {
-            assert!(true);
-        } else {
-            assert!(false);
-        };
-
-    }
 
     #[test]
     fn test_parse_message_header() {

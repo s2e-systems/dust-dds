@@ -214,15 +214,15 @@ impl StatelessWriter {
         reader_locator.increment_heartbeat_count();
     }
 
-    pub fn get_data_to_send(&mut self, a_locator: Locator) -> RtpsMessage {
-        let mut message = RtpsMessage::new(*self.guid.prefix());
+    pub fn get_data_to_send(&mut self, a_locator: Locator) -> Option<RtpsMessage> {
+        let mut submessages = Vec::new();
 
         if self.has_unsent_changes(a_locator) {
             let endianness = EndianessFlag::LittleEndian;
             let time = Time::now();
             let infots = InfoTs::new(Some(time), endianness);
 
-            message.push(RtpsSubmessage::InfoTs(infots));
+            submessages.push(RtpsSubmessage::InfoTs(infots));
 
             while let Some(next_unsent_seq_num) = self.next_unsent_change(a_locator) {
                 if let Some(cache_change) = self
@@ -254,7 +254,7 @@ impl StatelessWriter {
                         payload,
                     );
 
-                    message.push(RtpsSubmessage::Data(data));
+                    submessages.push(RtpsSubmessage::Data(data));
                 } else {
                     panic!("GAP not implemented yet");
                     // let gap = Gap::new(ENTITYID_UNKNOWN /*reader_id*/,ENTITYID_UNKNOWN /*writer_id*/, 0 /*gap_start*/, BTreeMap::new() /*gap_list*/);
@@ -270,7 +270,7 @@ impl StatelessWriter {
                     let time = Time::now();
                     let infots = InfoTs::new(Some(time), EndianessFlag::LittleEndian);
 
-                    message.push(RtpsSubmessage::InfoTs(infots));
+                    submessages.push(RtpsSubmessage::InfoTs(infots));
 
                     let first_sn = if let Some(seq_num) = self.writer_cache.get_seq_num_min() {
                         seq_num
@@ -289,7 +289,7 @@ impl StatelessWriter {
                         EndianessFlag::LittleEndian,
                     );
 
-                    message.push(RtpsSubmessage::Heartbeat(heartbeat));
+                    submessages.push(RtpsSubmessage::Heartbeat(heartbeat));
 
                     self.increment_heartbeat_count(a_locator);
                     self.time_last_sent_data_reset(a_locator);
@@ -297,7 +297,11 @@ impl StatelessWriter {
             }
         }
 
-        message
+        if submessages.len() > 0 {
+            Some(RtpsMessage::new(*self.guid.prefix(), submessages))
+        } else {
+            None
+        }
     }
 }
 
@@ -309,7 +313,6 @@ mod tests {
     use crate::types::constants::*;
     use crate::behavior_types::constants::DURATION_ZERO;
     use crate::types::*;
-    use std::thread::sleep;
 
     #[test]
     fn test_writer_new_change() {
@@ -450,7 +453,7 @@ mod tests {
         writer.history_cache().add_change(cache_change_seq1);
         writer.history_cache().add_change(cache_change_seq2);
 
-        let writer_data = writer.get_data_to_send(locator);
+        let writer_data = writer.get_data_to_send(locator).unwrap();
         assert_eq!(writer_data.submessages().len(), 3);
         if let RtpsSubmessage::InfoTs(message_1) = &writer_data.submessages()[0] {
             println!("{:?}", message_1);
@@ -478,128 +481,6 @@ mod tests {
 
         // Test that nothing more is sent after the first time
         let writer_data = writer.get_data_to_send(locator);
-        assert_eq!(writer_data.submessages().len(), 0);
-    }
-
-    #[test]
-    fn test_reliable_stateless_writer_get_data_to_send() {
-        let heartbeat_period = Duration::from_millis(500);
-
-        let mut writer = StatelessWriter::new(
-            GUID::new(GuidPrefix([0; 12]), ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
-            TopicKind::WithKey,
-            ReliabilityKind::Reliable,
-            vec![Locator::new(0, 7400, [0; 16])], 
-            vec![],
-            false,                                
-            heartbeat_period,                        
-            DURATION_ZERO,                        
-            DURATION_ZERO,                        
-        );
-
-        let locator = Locator::new(0, 7400, [1; 16]);
-
-        writer.reader_locator_add(locator);
-
-        // Test for heartbeat message before any data is added
-        sleep(heartbeat_period.into());
-
-        let writer_data = writer.get_data_to_send(locator);
-        assert_eq!(writer_data.submessages().len(), 2);
-        if let RtpsSubmessage::Heartbeat(heartbeat_message) = &writer_data.submessages()[1] {
-            assert_eq!(heartbeat_message.reader_id(), &ENTITYID_UNKNOWN);
-            assert_eq!(heartbeat_message.writer_id(), &ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER);
-            assert_eq!(heartbeat_message.first_sn(), &SequenceNumber(1));
-            assert_eq!(heartbeat_message.last_sn(), &SequenceNumber(0));
-            assert_eq!(heartbeat_message.count(), &Count(1));
-            assert_eq!(heartbeat_message.is_final(), true);
-
-        } else {
-            panic!("Wrong message type");
-        };
-
-        let cache_change_seq1 = writer.new_change(
-            ChangeKind::Alive,
-            Some(vec![1, 2, 3]), 
-            None,                
-            [1; 16],             
-        );
-
-        let cache_change_seq2 = writer.new_change(
-            ChangeKind::Alive,
-            Some(vec![4, 5, 6]), 
-            None,                
-            [1; 16],             
-        );
-
-        writer.history_cache().add_change(cache_change_seq1);
-        writer.history_cache().add_change(cache_change_seq2);
-
-        let writer_data = writer.get_data_to_send(locator);
-        assert_eq!(writer_data.submessages().len(), 3);
-        if let RtpsSubmessage::InfoTs(message_1) = &writer_data.submessages()[0] {
-            println!("{:?}", message_1);
-        } else {
-            panic!("Wrong message type");
-        }
-        if let RtpsSubmessage::Data(data_message_1) = &writer_data.submessages()[1] {
-            assert_eq!(data_message_1.reader_id(), &ENTITYID_UNKNOWN);
-            assert_eq!(data_message_1.writer_id(), &ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER);
-            assert_eq!(data_message_1.writer_sn(), &SequenceNumber(1));
-            assert_eq!(data_message_1.serialized_payload(), &Some(SerializedPayload(vec![1, 2, 3])));
-
-        } else {
-            panic!("Wrong message type");
-        };
-
-        if let RtpsSubmessage::Data(data_message_2) = &writer_data.submessages()[2] {
-            assert_eq!(data_message_2.reader_id(), &ENTITYID_UNKNOWN);
-            assert_eq!(data_message_2.writer_id(), &ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER);
-            assert_eq!(data_message_2.writer_sn(), &SequenceNumber(2));
-            assert_eq!(data_message_2.serialized_payload(), &Some(SerializedPayload(vec![4, 5, 6])));
-        } else {
-            panic!("Wrong message type");
-        };
-
-        // Test that nothing more is sent after the first time
-        let writer_data = writer.get_data_to_send(locator);
-        assert_eq!(writer_data.submessages().len(), 0);
-
-        sleep(heartbeat_period.into());
-
-        let writer_data = writer.get_data_to_send(locator);
-        assert_eq!(writer_data.submessages().len(), 2);
-        if let RtpsSubmessage::Heartbeat(heartbeat_message) = &writer_data.submessages()[1] {
-            assert_eq!(heartbeat_message.reader_id(), &ENTITYID_UNKNOWN);
-            assert_eq!(heartbeat_message.writer_id(), &ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER);
-            assert_eq!(heartbeat_message.first_sn(), &SequenceNumber(1));
-            assert_eq!(heartbeat_message.last_sn(), &SequenceNumber(2));
-            assert_eq!(heartbeat_message.count(), &Count(2));
-            assert_eq!(heartbeat_message.is_final(), true);
-
-        } else {
-            panic!("Wrong message type");
-        };
-
-        // Test that nothing more is sent after the heartbeat
-        let writer_data = writer.get_data_to_send(locator);
-        assert_eq!(writer_data.submessages().len(), 0);
-
-        sleep(heartbeat_period.into());
-
-        let writer_data = writer.get_data_to_send(locator);
-        assert_eq!(writer_data.submessages().len(), 2);
-        if let RtpsSubmessage::Heartbeat(heartbeat_message) = &writer_data.submessages()[1] {
-            assert_eq!(heartbeat_message.reader_id(), &ENTITYID_UNKNOWN);
-            assert_eq!(heartbeat_message.writer_id(), &ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER);
-            assert_eq!(heartbeat_message.first_sn(), &SequenceNumber(1));
-            assert_eq!(heartbeat_message.last_sn(), &SequenceNumber(2));
-            assert_eq!(heartbeat_message.count(), &Count(3));
-            assert_eq!(heartbeat_message.is_final(), true);
-
-        } else {
-            panic!("Wrong message type");
-        };
-
+        assert!(writer_data.is_none());
     }
 }
