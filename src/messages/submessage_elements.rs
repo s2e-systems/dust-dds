@@ -7,10 +7,10 @@ use std::collections::BTreeSet;
 use std::io::Write;
 use crate::types::Locator;
 use crate::primitive_types::{Long, ULong, Short, };
-use crate::serdes::{RtpsSerialize, RtpsDeserialize, EndianessFlag, RtpsSerdesResult, };
+use crate::serdes::{RtpsSerialize, RtpsDeserialize, EndianessFlag, RtpsSerdesResult};
 use crate::types::{SequenceNumber, };
 use super::types::{Pid, ParameterIdT, };
-use cdr::{CdrBe, CdrLe, Encapsulation, Infinite, };
+use cdr::{LittleEndian, BigEndian, Infinite, };
 
 
 
@@ -209,11 +209,10 @@ pub struct Parameter {
 
 impl Parameter {
     pub fn new<T: Pid + serde::Serialize>(parameter: T, endianness: EndianessFlag) -> Self {
-        let value_with_header = match endianness {
-            EndianessFlag::LittleEndian => cdr::serialize::<_,_,CdrLe>(&parameter, Infinite).unwrap(), 
-            EndianessFlag::BigEndian => cdr::serialize::<_,_,CdrBe>(&parameter, Infinite).unwrap(), 
-        };       
-        let value: Vec<u8> = value_with_header[4..].into();
+        let value = match endianness {
+            EndianessFlag::LittleEndian => cdr::ser::serialize_data::<_,_,LittleEndian>(&parameter, Infinite).unwrap(), 
+            EndianessFlag::BigEndian => cdr::ser::serialize_data::<_,_,BigEndian>(&parameter, Infinite).unwrap(), 
+        };
         let parameter_id = T::pid();
         // rounded up to multple of 4 (that is besides the length of the value may not be a multiple of 4)
         let length = (value.len() + 3 & !3) as Short;
@@ -227,11 +226,10 @@ impl Parameter {
     pub fn get<'de, T>(&self, endianness: EndianessFlag) -> T 
         where T: serde::Deserialize<'de>
     {
-        let cdr_header = match endianness {
-            EndianessFlag::LittleEndian => [CdrLe::id(), CdrLe::option()].concat(), 
-            EndianessFlag::BigEndian => [CdrBe::id(), CdrBe::option()].concat(), 
-        };
-        cdr::deserialize::<T>(&[&cdr_header, &self.value[0..]].concat()).unwrap()
+        match endianness {
+            EndianessFlag::LittleEndian => cdr::de::deserialize_data::<T, LittleEndian>(&self.value).unwrap(),
+            EndianessFlag::BigEndian => cdr::de::deserialize_data::<T, BigEndian>(&self.value).unwrap(),
+        }
     }
 }
 
