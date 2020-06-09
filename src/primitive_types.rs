@@ -1,59 +1,49 @@
 use std::convert::TryInto;
 use crate::serdes::{PrimitiveSerdes, RtpsSerialize, RtpsDeserialize, RtpsSerdesResult, EndianessFlag, };
 
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct Long(pub i32);
+pub type Long = i32;
 
 impl RtpsSerialize for Long
 {
     fn serialize(&self, writer: &mut impl std::io::Write, endianness: EndianessFlag) -> RtpsSerdesResult<()>{
-        writer.write(&PrimitiveSerdes::serialize_i32(self.0, endianness))?;
+        writer.write(&PrimitiveSerdes::serialize_i32(*self, endianness))?;
         Ok(())
-    }
-}
-
-impl From<Long> for usize {
-    fn from(value: Long) -> Self {
-        value.0 as usize
     }
 }
 
 impl RtpsDeserialize for Long {
     fn deserialize(bytes: &[u8], endianness: EndianessFlag) -> RtpsSerdesResult<Self> { 
         let value = PrimitiveSerdes::deserialize_i32(bytes[0..4].try_into()?, endianness);
-        Ok(Self(value))
+        Ok(value)
     }
 }
 
 
-
-#[derive(Debug, Clone, Copy, PartialEq, Hash, Eq, PartialOrd, Ord)]
-pub struct ULong(pub u32);
+pub type ULong = u32;
 
 impl RtpsSerialize for ULong {
     fn serialize(&self, writer: &mut impl std::io::Write, endianness: EndianessFlag) -> RtpsSerdesResult<()> {
-        writer.write(&PrimitiveSerdes::serialize_u32(self.0, endianness))?;
+        writer.write(&PrimitiveSerdes::serialize_u32(*self, endianness))?;
         Ok(())
     }
 }
 
-impl From<ULong> for usize {
-    fn from(value: ULong) -> Self {
-        value.0 as usize
-    }
-}
+// impl From<ULong> for usize {
+//     fn from(value: ULong) -> Self {
+//         value.0 as usize
+//     }
+// }
 
-impl From<usize> for ULong {
-    fn from(value: usize) -> Self {
-        Self(value as u32)
-    }
-}
+// impl From<usize> for ULong {
+//     fn from(value: usize) -> Self {
+//         Self(value as u32)
+//     }
+// }
 
 impl RtpsDeserialize for ULong {
     fn deserialize(bytes: &[u8], endianness: EndianessFlag) -> RtpsSerdesResult<Self> { 
         let value = PrimitiveSerdes::deserialize_u32(bytes[0..4].try_into()?, endianness);
-        Ok(Self(value))
+        Ok(value)
     }
 }
 

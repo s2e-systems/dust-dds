@@ -7,7 +7,7 @@ use std::collections::BTreeSet;
 use std::io::Write;
 use crate::types::Locator;
 use crate::primitive_types::{Long, ULong, Short, };
-use crate::serdes::{RtpsSerialize, RtpsDeserialize, EndianessFlag, RtpsSerdesResult, PrimitiveSerdes, SizeCheckers, SizeSerializer};
+use crate::serdes::{RtpsSerialize, RtpsDeserialize, EndianessFlag, RtpsSerdesResult, };
 use crate::types::{SequenceNumber, };
 use super::types::{Pid, ParameterIdT, };
 use cdr::{CdrBe, CdrLe, Encapsulation, Infinite, };
@@ -63,10 +63,10 @@ impl RtpsSerialize for SequenceNumberSet {
         } else {
             (self.set.iter().last().unwrap().0 - self.base.0) as usize + 1
         };
-        let m = (num_bits + 31) / 32;
+        let m = ((num_bits + 31) / 32) as usize;
         let mut bitmaps = vec![0_u32; m];
         self.base.serialize(writer, endianness)?;
-        ULong::from(num_bits).serialize(writer, endianness)?;
+        (num_bits as ULong).serialize(writer, endianness)?;
         for seq_num in &self.set {
             let delta_n = (seq_num.0 - self.base.0) as usize;
             let bitmap_i = delta_n / 32;
@@ -74,7 +74,7 @@ impl RtpsSerialize for SequenceNumberSet {
             bitmaps[bitmap_i] |= bitmask;
         };
         for bitmap in bitmaps {
-            ULong(bitmap).serialize(writer, endianness)?;
+            (bitmap as ULong).serialize(writer, endianness)?;
         }
         Ok(())
     }
@@ -83,7 +83,7 @@ impl RtpsSerialize for SequenceNumberSet {
 impl RtpsDeserialize for SequenceNumberSet {
     fn deserialize(bytes: &[u8], endianness: EndianessFlag) -> RtpsSerdesResult<Self> {
         let base = SequenceNumber::deserialize(&bytes[0..8], endianness)?;
-        let num_bits = ULong::deserialize(&bytes[8..12], endianness)?.0 as usize;
+        let num_bits = ULong::deserialize(&bytes[8..12], endianness)? as usize;
 
         // Get bitmaps from "long"s that follow the numBits field in the message
         // Note that the amount of bitmaps that are included in the message are 
@@ -93,7 +93,7 @@ impl RtpsDeserialize for SequenceNumberSet {
         let mut bitmaps = Vec::with_capacity(m);
         for i in 0..m {
             let index_of_byte_current_bitmap = 12 + i * 4;
-            bitmaps.push(Long::deserialize(&bytes[index_of_byte_current_bitmap..], endianness)?.0);
+            bitmaps.push(Long::deserialize(&bytes[index_of_byte_current_bitmap..], endianness)?);
         };
         // Interpet the bitmaps and insert the sequence numbers if they are encode in the bitmaps
         let mut set = BTreeSet::new(); 
@@ -140,7 +140,7 @@ pub struct FragmentNumberSet {
 
 impl FragmentNumberSet {
     pub fn new(set: BTreeSet<FragmentNumber>) -> Self { 
-        let base = *set.iter().next().unwrap_or(&FragmentNumber(ULong(0)));
+        let base = *set.iter().next().unwrap_or(&FragmentNumber(0));
         Self {base, set } 
     }
 }
@@ -150,20 +150,20 @@ impl RtpsSerialize for FragmentNumberSet {
         let num_bits = if self.set.is_empty() {
             0 
         } else {
-            (usize::from(self.set.iter().last().unwrap().0) - usize::from(self.base.0)) + 1
+            self.set.iter().last().unwrap().0 - self.base.0 + 1
         };
-        let m = (num_bits + 31) / 32;
+        let m = ((num_bits + 31) / 32) as usize;
         let mut bitmaps = vec![0_u32; m];
         self.base.serialize(writer, endianness)?;
-        ULong::from(num_bits).serialize(writer, endianness)?;
+        (num_bits as ULong).serialize(writer, endianness)?;
         for seq_num in &self.set {
-            let delta_n = (usize::from(seq_num.0) - usize::from(self.base.0)) as usize;
+            let delta_n = (seq_num.0 - self.base.0) as usize;
             let bitmap_i = delta_n / 32;
             let bitmask = 1 << (31 - delta_n % 32);
             bitmaps[bitmap_i] |= bitmask;
         };
         for bitmap in bitmaps {
-            ULong(bitmap).serialize(writer, endianness)?;
+            (bitmap as ULong).serialize(writer, endianness)?;
         }
         Ok(())
     }
@@ -171,7 +171,7 @@ impl RtpsSerialize for FragmentNumberSet {
 impl RtpsDeserialize for FragmentNumberSet {
     fn deserialize(bytes: &[u8], endianness: EndianessFlag) -> RtpsSerdesResult<Self> {
         let base = FragmentNumber::deserialize(&bytes[0..4], endianness)?;
-        let num_bits = ULong::deserialize(&bytes[4..8], endianness)?.0 as usize;
+        let num_bits = ULong::deserialize(&bytes[4..8], endianness)? as usize;
 
         // Get bitmaps from "long"s that follow the numBits field in the message
         // Note that the amount of bitmaps that are included in the message are 
@@ -181,14 +181,14 @@ impl RtpsDeserialize for FragmentNumberSet {
         let mut bitmaps = Vec::with_capacity(m);
         for i in 0..m {
             let index_of_byte_current_bitmap = 8 + i * 4;
-            bitmaps.push(Long::deserialize(&bytes[index_of_byte_current_bitmap..], endianness)?.0);
+            bitmaps.push(Long::deserialize(&bytes[index_of_byte_current_bitmap..], endianness)?);
         };
         // Interpet the bitmaps and insert the sequence numbers if they are encode in the bitmaps
         let mut set = BTreeSet::new(); 
         for delta_n in 0..num_bits {
             let bitmask = 1 << (31 - delta_n % 32);
             if  bitmaps[delta_n / 32] & bitmask == bitmask {               
-                let frag_num = FragmentNumber(ULong::from(delta_n + usize::from(base.0)));
+                let frag_num = FragmentNumber(delta_n as u32 + base.0);
                 set.insert(frag_num);
             }
         }
@@ -332,7 +332,7 @@ pub struct LocatorList(pub Vec<Locator>);
 
 impl RtpsSerialize for LocatorList {
     fn serialize(&self, writer: &mut impl std::io::Write, endianness: EndianessFlag) -> RtpsSerdesResult<()> {
-        let num_locators = ULong::from(self.0.len());
+        let num_locators = self.0.len() as ULong;
         num_locators.serialize(writer, endianness)?;
         for locator in &self.0 {
             locator.serialize(writer, endianness)?;
@@ -347,7 +347,7 @@ impl RtpsDeserialize for LocatorList {
         let num_locators = ULong::deserialize(&bytes[0..4], endianness)?;
         let mut locators = Vec::<Locator>::new();
         let mut index = 4;
-        while index < size && locators.len() < usize::from(num_locators) {
+        while index < size && locators.len() < num_locators as usize {
             let locator = Locator::deserialize( &bytes[index..], endianness)?;
             index += locator.octets();
             locators.push(locator);
@@ -617,7 +617,7 @@ mod tests {
     
     #[test]
     fn serialize_fragment_number() {
-        let fragment_number = FragmentNumber(ULong(100));
+        let fragment_number = FragmentNumber(100);
         let expected = vec![
             100, 0, 0, 0,
         ];
@@ -628,7 +628,7 @@ mod tests {
 
     #[test]
     fn deserialize_fragment_number() {
-        let expected = FragmentNumber(ULong(100));
+        let expected = FragmentNumber(100);
         let bytes = vec![
             100, 0, 0, 0,
         ];
@@ -642,18 +642,18 @@ mod tests {
     #[test]
     fn fragment_number_set_constructor() {
         let expected = FragmentNumberSet{
-            base: FragmentNumber(ULong(1001)),
-            set:  [FragmentNumber(ULong(1001)), FragmentNumber(ULong(1003))].iter().cloned().collect(),
+            base: FragmentNumber(1001),
+            set:  [FragmentNumber(1001), FragmentNumber(1003)].iter().cloned().collect(),
         };
-        let result = FragmentNumberSet::new([FragmentNumber(ULong(1001)), FragmentNumber(ULong(1003))].iter().cloned().collect());
+        let result = FragmentNumberSet::new([FragmentNumber(1001), FragmentNumber(1003)].iter().cloned().collect());
         assert_eq!(expected, result);
     }
 
     #[test]
     fn deserialize_fragment_number_set() {
         let expected = FragmentNumberSet{
-            base: FragmentNumber(ULong(3)),
-            set: [FragmentNumber(ULong(3)), FragmentNumber(ULong(4))].iter().cloned().collect()
+            base: FragmentNumber(3),
+            set: [FragmentNumber(3), FragmentNumber(4)].iter().cloned().collect()
         };
         let bytes = vec![
             3, 0, 0, 0, // base
@@ -667,8 +667,8 @@ mod tests {
     #[test]
     fn serialize_fragment_number_set() {
         let set = FragmentNumberSet{
-            base: FragmentNumber(ULong(3)),
-            set: [FragmentNumber(ULong(3)), FragmentNumber(ULong(4))].iter().cloned().collect()
+            base: FragmentNumber(3),
+            set: [FragmentNumber(3), FragmentNumber(4)].iter().cloned().collect()
         };
         let mut writer = Vec::new();
         set.serialize(&mut writer, EndianessFlag::BigEndian).unwrap();

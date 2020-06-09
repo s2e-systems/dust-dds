@@ -263,8 +263,8 @@ pub struct Locator {
 impl Locator {
     pub fn new(kind: i32, port: u32, address: [u8; 16]) -> Locator {
         Locator {
-            kind: Long(kind),
-            port: ULong(port),
+            kind,
+            port,
             address,
         }
     }
