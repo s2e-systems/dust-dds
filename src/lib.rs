@@ -8,6 +8,7 @@ mod messages;
 mod cache;
 mod inline_qos_types;
 mod serdes;
+mod behavior;
 // mod reader;
 // mod writer;
 mod serialized_payload;
