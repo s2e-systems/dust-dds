@@ -1,4 +1,4 @@
-use crate::primitive_types::{Long, Ushort, };
+use crate::primitive_types::{Long, UShort, };
 use crate::types::{ProtocolVersion, VendorId, GuidPrefix, };
 use crate::messages::types::{SubmessageKind, SubmessageFlag, };
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, EndianessFlag, RtpsSerdesResult, };
@@ -18,7 +18,7 @@ impl Submessage for InfoSource {
         const X: SubmessageFlag = SubmessageFlag(false);
         let e = self.endianness_flag;
         let flags = [e, X, X, X, X, X, X, X];
-        let unused = Long(0);
+        let unused: Long = 0;
         
         let octets_to_next_header = 
             unused.octets() +
@@ -29,7 +29,7 @@ impl Submessage for InfoSource {
         SubmessageHeader { 
             submessage_id: SubmessageKind::InfoSource,
             flags,
-            submessage_length: Ushort::from(octets_to_next_header),
+            submessage_length: octets_to_next_header as UShort,
         }
     }
 }
@@ -37,7 +37,7 @@ impl Submessage for InfoSource {
 impl RtpsCompose for InfoSource {
     fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
         let endianness = self.endianness_flag.into();
-        let unused = Long(0);
+        let unused: Long = 0;
         self.submessage_header().compose(writer)?;
         unused.serialize(writer, endianness)?;
         self.protocol_version.serialize(writer, endianness)?;

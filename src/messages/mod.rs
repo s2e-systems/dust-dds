@@ -12,12 +12,12 @@ mod info_timestamp_submessage;
 mod nack_frag_submessage;
 pub mod submessage_elements;
 
-use crate::primitive_types::Ushort;
+use crate::primitive_types::UShort;
 use crate::types::{GuidPrefix, ProtocolVersion, VendorId, };
 use crate::types::constants::{PROTOCOL_VERSION_2_4, VENDOR_ID, };
 use self::types::{SubmessageKind, SubmessageFlag, ProtocolId, };
 use self::types::constants::PROTOCOL_RTPS;
-use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsCompose, RtpsParse, EndianessFlag, RtpsSerdesResult, RtpsSerdesError, PrimitiveSerdes, };
+use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsCompose, RtpsParse, EndianessFlag, RtpsSerdesResult, RtpsSerdesError, };
 
 
 
@@ -110,31 +110,17 @@ impl RtpsParse for RtpsSubmessage {
 }
 
 
-
-struct OctetsToNextHeader(u16);
-
-impl RtpsSerialize for OctetsToNextHeader
-{
-    fn serialize(&self, writer: &mut impl std::io::Write, endianness: EndianessFlag) -> RtpsSerdesResult<()> {
-        writer.write(&PrimitiveSerdes::serialize_u16(self.0, endianness))?;
-
-        Ok(())
-    }
-}
-
-
-
 #[derive(PartialEq, Debug)]
 pub struct SubmessageHeader {
     submessage_id: SubmessageKind,
     flags: [SubmessageFlag; 8],
-    submessage_length: Ushort,
+    submessage_length: UShort,
 }
 
 impl SubmessageHeader {
     pub fn submessage_id(&self) -> SubmessageKind {self.submessage_id}
     pub fn flags(&self) -> &[SubmessageFlag; 8] {&self.flags}
-    pub fn submessage_length(&self) -> Ushort {self.submessage_length}
+    pub fn submessage_length(&self) -> UShort {self.submessage_length}
 }
 
 impl RtpsCompose for SubmessageHeader {
@@ -152,7 +138,7 @@ impl RtpsParse for SubmessageHeader {
         let submessage_id = SubmessageKind::deserialize(&bytes[0..1], EndianessFlag::LittleEndian /*irrelevant*/)?;
         let flags = <[SubmessageFlag; 8]>::deserialize(&bytes[1..2], EndianessFlag::LittleEndian /*irrelevant*/)?;
         let endianness = EndianessFlag::from(flags[0].is_set());
-        let submessage_length = Ushort::deserialize(&bytes[2..4], endianness)?;
+        let submessage_length = UShort::deserialize(&bytes[2..4], endianness)?;
         Ok(SubmessageHeader {
             submessage_id, 
             flags,
@@ -341,7 +327,7 @@ mod tests {
         let expected = SubmessageHeader {
             submessage_id : SubmessageKind::Data, 
             flags,
-            submessage_length: Ushort(20),
+            submessage_length: 20,
         };
         let result = SubmessageHeader::parse(&bytes);
     
@@ -357,7 +343,7 @@ mod tests {
         let header = SubmessageHeader {
             submessage_id: SubmessageKind::Data,
             flags: [t, t, f, f, f, f, f, f],
-            submessage_length: Ushort(16),
+            submessage_length: 16,
         };
         let expected = vec![0x15, 0b00000011, 16, 0x0];
         header.compose(&mut result).unwrap();

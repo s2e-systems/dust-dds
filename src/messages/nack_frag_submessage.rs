@@ -1,4 +1,4 @@
-use crate::primitive_types::Ushort;
+use crate::primitive_types::UShort;
 use crate::types::{EntityId, SequenceNumber, };
 use crate::messages::types::Count;
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsCompose, RtpsParse, EndianessFlag, RtpsSerdesResult, };
@@ -33,7 +33,7 @@ impl Submessage for NackFrag {
         SubmessageHeader { 
             submessage_id: SubmessageKind::NackFrag,
             flags,
-            submessage_length: Ushort::from(octets_to_next_header),
+            submessage_length: octets_to_next_header as UShort,
         }
     }
 }
@@ -82,7 +82,6 @@ impl RtpsParse for NackFrag {
 mod tests {
     use super::*;
     use crate::types::constants::{ENTITYID_UNKNOWN, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER};
-    use crate::primitive_types::{ULong, };
     use super::super::submessage_elements::FragmentNumber;
 
     #[test]
@@ -104,7 +103,7 @@ mod tests {
             reader_id: ENTITYID_UNKNOWN,
             writer_id: ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
             writer_sn: SequenceNumber(1), 
-            fragment_number_state: FragmentNumberSet::new([FragmentNumber(ULong(2)), FragmentNumber(ULong(3))].iter().cloned().collect()),
+            fragment_number_state: FragmentNumberSet::new([FragmentNumber(2), FragmentNumber(3)].iter().cloned().collect()),
             count: Count(2),
         };
         let result = NackFrag::parse(&bytes).unwrap();
@@ -129,7 +128,7 @@ mod tests {
             reader_id: ENTITYID_UNKNOWN,
             writer_id: ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
             writer_sn: SequenceNumber(1), 
-            fragment_number_state: FragmentNumberSet::new([FragmentNumber(ULong(2)), FragmentNumber(ULong(3))].iter().cloned().collect()),
+            fragment_number_state: FragmentNumberSet::new([FragmentNumber(2), FragmentNumber(3)].iter().cloned().collect()),
             count: Count(2),
         };
         let mut writer = Vec::new();

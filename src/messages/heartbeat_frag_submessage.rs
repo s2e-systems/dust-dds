@@ -1,4 +1,4 @@
-use crate::primitive_types::Ushort;
+use crate::primitive_types::UShort;
 use crate::types::{SequenceNumber, EntityId, };
 use crate::messages::types::{SubmessageKind, SubmessageFlag, Count, };
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, EndianessFlag, RtpsSerdesResult, };
@@ -31,7 +31,7 @@ impl Submessage for HeartbeatFrag {
         SubmessageHeader { 
             submessage_id: SubmessageKind::HeartbeatFrag,
             flags,
-            submessage_length: Ushort::from(octets_to_next_header),
+            submessage_length: octets_to_next_header as UShort,
         }
     }
 }
@@ -77,7 +77,6 @@ impl RtpsParse for HeartbeatFrag {
 mod tests {
     use super::*;
     use crate::types::constants::{ENTITYID_UNKNOWN, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, };
-    use crate::primitive_types::ULong;
 
     #[test]
     fn parse_heartbeat_frag_submessage() {
@@ -86,7 +85,7 @@ mod tests {
             reader_id: ENTITYID_UNKNOWN,
             writer_id: ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
             writer_sn: SequenceNumber(1),
-            last_fragment_num: FragmentNumber(ULong(2)),
+            last_fragment_num: FragmentNumber(2),
             count: Count(3),
         };
         let bytes = vec![
@@ -110,7 +109,7 @@ mod tests {
             reader_id: ENTITYID_UNKNOWN,
             writer_id: ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
             writer_sn: SequenceNumber(1),
-            last_fragment_num: FragmentNumber(ULong(2)),
+            last_fragment_num: FragmentNumber(2),
             count: Count(3),
         };
         let expected = vec![

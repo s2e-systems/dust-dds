@@ -3,11 +3,12 @@
 /// Table 8.13 - Types used to define RTPS messages
 ///  
  
-use crate::serdes::{SizeCheckers, PrimitiveSerdes, RtpsSerialize, RtpsDeserialize, RtpsSerdesResult, RtpsSerdesError, EndianessFlag, };
+use crate::serdes::{SizeCheckers, RtpsSerialize, RtpsDeserialize, RtpsSerdesResult, RtpsSerdesError, EndianessFlag, };
 use num_derive::{FromPrimitive, ToPrimitive, };
-use num_traits::{FromPrimitive, ToPrimitive, };
+use num_traits::{FromPrimitive, };
 use std::time::SystemTime;
 use std::convert::TryInto;
+use crate::primitive_types::{UShort, Long, ULong, };
 
 pub mod constants {
     use super::Time;
@@ -175,12 +176,8 @@ impl Time {
  
 impl RtpsSerialize for Time {
     fn serialize(&self, writer: &mut impl std::io::Write, endianness: EndianessFlag) -> RtpsSerdesResult<()>{
-        let seconds_bytes = PrimitiveSerdes::serialize_u32(self.seconds, endianness);
-        let fraction_bytes = PrimitiveSerdes::serialize_u32(self.fraction, endianness);
-
-        writer.write(&seconds_bytes)?;
-        writer.write(&fraction_bytes)?;
-
+        self.seconds.serialize(writer, endianness)?;
+        self.fraction.serialize(writer, endianness)?;
         Ok(())
     }
 }
@@ -189,8 +186,8 @@ impl RtpsDeserialize for Time {
     fn deserialize(bytes: &[u8], endianness: EndianessFlag) -> RtpsSerdesResult<Self> {
         SizeCheckers::check_size_equal(bytes, 8)?;
 
-        let seconds = PrimitiveSerdes::deserialize_u32(bytes[0..4].try_into()?, endianness);
-        let fraction = PrimitiveSerdes::deserialize_u32(bytes[4..8].try_into()?, endianness);
+        let seconds = ULong::deserialize(&bytes[0..4], endianness)?;
+        let fraction = ULong::deserialize(&bytes[4..8], endianness)?;
 
         Ok(Time::new(seconds, fraction))
     }
@@ -211,14 +208,14 @@ impl std::ops::AddAssign<i32> for Count {
 
 impl RtpsSerialize for Count {
     fn serialize(&self, writer: &mut impl std::io::Write, endianness: EndianessFlag) -> RtpsSerdesResult<()> {
-        writer.write(&PrimitiveSerdes::serialize_i32(self.0, endianness))?;
+        (self.0 as Long).serialize(writer, endianness)?;
         Ok(())
     }
 }
 
 impl RtpsDeserialize for Count {
     fn deserialize(bytes: &[u8], endianness: EndianessFlag) -> RtpsSerdesResult<Self> {
-        let value = PrimitiveSerdes::deserialize_i32(bytes.try_into()?, endianness);
+        let value = Long::deserialize(bytes, endianness)?;
         Ok(Count(value))
     }
 }
@@ -227,7 +224,8 @@ impl RtpsDeserialize for Count {
 
 // /////////// ParameterId_t /////////
 
-#[derive(Debug, PartialEq, FromPrimitive, ToPrimitive, Eq, Clone)]
+#[derive(Debug, PartialEq, FromPrimitive, ToPrimitive, Eq, Clone, Copy)]
+#[repr(u16)]
 pub enum ParameterIdT {
     TopicName = 0x0005,
     Durability = 0x001d,
@@ -263,14 +261,14 @@ pub enum ParameterIdT {
 
 impl RtpsSerialize for ParameterIdT {
     fn serialize(&self, writer: &mut impl std::io::Write, endianness: EndianessFlag) -> RtpsSerdesResult<()> {
-        writer.write(&PrimitiveSerdes::serialize_u16(self.to_u16().unwrap(), endianness))?;
+        (*self as UShort).serialize(writer, endianness)?;
         Ok(())
     }
 }
 
 impl RtpsDeserialize for ParameterIdT {
     fn deserialize(bytes: &[u8], endianness: EndianessFlag) -> RtpsSerdesResult<Self> {
-        let value = PrimitiveSerdes::deserialize_u16(bytes.try_into()?, endianness);
+        let value = UShort::deserialize(bytes, endianness)?;
         Ok(ParameterIdT::from_u16(value).unwrap())
     }
 }
