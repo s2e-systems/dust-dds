@@ -1,4 +1,4 @@
-use crate::primitive_types::Ushort;
+use crate::primitive_types::UShort;
 use crate::messages::types::Time;
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsCompose, RtpsParse, EndianessFlag, RtpsSerdesResult, };
 use super::{SubmessageKind, SubmessageFlag, Submessage, SubmessageHeader, };
@@ -51,7 +51,7 @@ impl Submessage for InfoTs {
         SubmessageHeader { 
             submessage_id: SubmessageKind::InfoTimestamp,
             flags,
-            submessage_length: Ushort(octets_to_next_header as u16), // This cast could fail in weird ways by truncation
+            submessage_length: octets_to_next_header as UShort, 
         }
     }
 }

@@ -28,18 +28,6 @@ impl RtpsSerialize for ULong {
     }
 }
 
-// impl From<ULong> for usize {
-//     fn from(value: ULong) -> Self {
-//         value.0 as usize
-//     }
-// }
-
-// impl From<usize> for ULong {
-//     fn from(value: usize) -> Self {
-//         Self(value as u32)
-//     }
-// }
-
 impl RtpsDeserialize for ULong {
     fn deserialize(bytes: &[u8], endianness: EndianessFlag) -> RtpsSerdesResult<Self> { 
         let value = PrimitiveSerdes::deserialize_u32(bytes[0..4].try_into()?, endianness);
@@ -49,66 +37,35 @@ impl RtpsDeserialize for ULong {
 
 
 
-#[derive(Debug, Copy, PartialEq, Eq, Clone)]
-pub struct Short(pub i16);
+pub type Short = i16;
 
-impl RtpsSerialize for Short
-{
+impl RtpsSerialize for Short {
     fn serialize(&self, writer: &mut impl std::io::Write, endianness: EndianessFlag) -> RtpsSerdesResult<()>{
-        let value = self.0;
-        writer.write(&PrimitiveSerdes::serialize_i16(value, endianness))?;
+        writer.write(&PrimitiveSerdes::serialize_i16(*self, endianness))?;
         Ok(())
     }
-}
-
-impl From<Short> for usize {
-    fn from(value: Short) -> Self {
-        value.0 as usize
-    }
-}
-
-impl From<usize> for Short {
-    fn from(value: usize) -> Self {
-        Self(value as i16)
-    }    
 }
 
 impl RtpsDeserialize for Short {
     fn deserialize(bytes: &[u8], endianness: EndianessFlag) -> RtpsSerdesResult<Self> { 
         let value = PrimitiveSerdes::deserialize_i16(bytes[0..2].try_into()?, endianness);
-        Ok(Short(value))
+        Ok(value)
     }
 }
 
 
 
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Ushort(pub u16);
+pub type UShort = u16;
 
-impl RtpsSerialize for Ushort
-{
+impl RtpsSerialize for UShort {
     fn serialize(&self, writer: &mut impl std::io::Write, endianness: EndianessFlag) -> RtpsSerdesResult<()>{
-        let value = self.0;
-        writer.write(&PrimitiveSerdes::serialize_u16(value, endianness))?;
+        writer.write(&PrimitiveSerdes::serialize_u16(*self, endianness))?;
         Ok(())
     }
 }
-
-impl From<Ushort> for usize {
-    fn from(value: Ushort) -> Self {
-        value.0 as usize
-    }
-}
-
-impl From<usize> for Ushort {
-    fn from(value: usize) -> Self {
-        Self(value as u16)
-    }    
-}
-
-impl RtpsDeserialize for Ushort {
+impl RtpsDeserialize for UShort {
     fn deserialize(bytes: &[u8], endianness: EndianessFlag) -> RtpsSerdesResult<Self> { 
         let value = PrimitiveSerdes::deserialize_u16(bytes[0..2].try_into()?, endianness);
-        Ok(Ushort(value))
+        Ok(value)
     }
 }

@@ -1,4 +1,4 @@
-use crate::primitive_types::Ushort;
+use crate::primitive_types::UShort;
 use crate::types::GuidPrefix;
 use crate::messages::types::{SubmessageKind, SubmessageFlag, };
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, EndianessFlag, RtpsSerdesResult, };
@@ -19,7 +19,7 @@ impl Submessage for InfoDestination {
         SubmessageHeader { 
             submessage_id: SubmessageKind::InfoDestination,
             flags,
-            submessage_length: Ushort::from(self.guid_prefix.octets()),
+            submessage_length: self.guid_prefix.octets() as UShort,
         }
     }
 }

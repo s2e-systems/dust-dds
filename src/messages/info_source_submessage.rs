@@ -1,4 +1,4 @@
-use crate::primitive_types::{Long, Ushort, };
+use crate::primitive_types::{Long, UShort, };
 use crate::types::{ProtocolVersion, VendorId, GuidPrefix, };
 use crate::messages::types::{SubmessageKind, SubmessageFlag, };
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, EndianessFlag, RtpsSerdesResult, };
@@ -29,7 +29,7 @@ impl Submessage for InfoSource {
         SubmessageHeader { 
             submessage_id: SubmessageKind::InfoSource,
             flags,
-            submessage_length: Ushort::from(octets_to_next_header),
+            submessage_length: octets_to_next_header as UShort,
         }
     }
 }

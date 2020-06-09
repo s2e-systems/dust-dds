@@ -1,4 +1,4 @@
-use crate::primitive_types::Ushort;
+use crate::primitive_types::UShort;
 use crate::types::{SequenceNumber, EntityId, };
 use crate::messages::types::{SubmessageKind, SubmessageFlag, Count, };
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, EndianessFlag, RtpsSerdesResult, };
@@ -31,7 +31,7 @@ impl Submessage for HeartbeatFrag {
         SubmessageHeader { 
             submessage_id: SubmessageKind::HeartbeatFrag,
             flags,
-            submessage_length: Ushort::from(octets_to_next_header),
+            submessage_length: octets_to_next_header as UShort,
         }
     }
 }

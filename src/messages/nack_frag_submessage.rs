@@ -1,4 +1,4 @@
-use crate::primitive_types::Ushort;
+use crate::primitive_types::UShort;
 use crate::types::{EntityId, SequenceNumber, };
 use crate::messages::types::Count;
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsCompose, RtpsParse, EndianessFlag, RtpsSerdesResult, };
@@ -33,7 +33,7 @@ impl Submessage for NackFrag {
         SubmessageHeader { 
             submessage_id: SubmessageKind::NackFrag,
             flags,
-            submessage_length: Ushort::from(octets_to_next_header),
+            submessage_length: octets_to_next_header as UShort,
         }
     }
 }

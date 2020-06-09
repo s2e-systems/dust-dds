@@ -1,5 +1,5 @@
 use std::convert::From;
-use crate::primitive_types::Ushort;
+use crate::primitive_types::UShort;
 use crate::types::{SequenceNumber ,EntityId, };
 use crate::serialized_payload::SerializedPayload;
 use crate::messages::types::{SubmessageKind, SubmessageFlag, };
@@ -129,7 +129,7 @@ impl Submessage for Data {
         SubmessageHeader { 
             submessage_id: SubmessageKind::Data,
             flags,
-            submessage_length: Ushort(octets_to_next_header as u16), // This cast could fail in weird ways by truncation
+            submessage_length: octets_to_next_header as UShort, 
         }
     }
 }
@@ -137,9 +137,9 @@ impl Submessage for Data {
 impl RtpsCompose for Data {
     fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
         let endianness = EndianessFlag::from(self.endianness_flag);
-        let extra_flags = Ushort(0);
+        let extra_flags: UShort = 0;
         let octecs_to_inline_qos_size = self.reader_id.octets() + self.writer_id.octets() + self.writer_sn.octets();
-        let octecs_to_inline_qos = Ushort(octecs_to_inline_qos_size as u16);
+        let octecs_to_inline_qos = octecs_to_inline_qos_size as UShort;
         self.submessage_header().compose(writer)?;
         extra_flags.serialize(writer, endianness)?;
         octecs_to_inline_qos.serialize(writer, endianness)?;
@@ -172,7 +172,7 @@ impl RtpsParse for Data {
         let endianness = EndianessFlag::from(endianness_flag);
 
         const HEADER_SIZE : usize = 8;
-        let octets_to_inline_qos = usize::from(Ushort::deserialize(&bytes[6..8], endianness)?) + HEADER_SIZE /* header and extra flags*/;
+        let octets_to_inline_qos = usize::from(UShort::deserialize(&bytes[6..8], endianness)?) + HEADER_SIZE /* header and extra flags*/;
         let reader_id = EntityId::deserialize(&bytes[8..12], endianness)?;        
         let writer_id = EntityId::deserialize(&bytes[12..16], endianness)?;
         let writer_sn = SequenceNumber::deserialize(&bytes[16..24], endianness)?;

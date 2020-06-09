@@ -1,4 +1,4 @@
-use crate::primitive_types::Ushort;
+use crate::primitive_types::UShort;
 use crate::messages::types::{SubmessageKind, SubmessageFlag, };
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, EndianessFlag, RtpsSerdesResult, };
 use super::{SubmessageHeader, Submessage, };
@@ -25,7 +25,7 @@ impl Submessage for InfoReply {
         SubmessageHeader { 
             submessage_id: SubmessageKind::InfoReply,
             flags,
-            submessage_length: Ushort::from(submessage_length),
+            submessage_length: submessage_length as UShort,
         }
     }
 }

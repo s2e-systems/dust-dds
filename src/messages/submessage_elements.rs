@@ -216,7 +216,7 @@ impl Parameter {
         let value: Vec<u8> = value_with_header[4..].into();
         let parameter_id = T::pid();
         // rounded up to multple of 4 (that is besides the length of the value may not be a multiple of 4)
-        let length = Short((value.len() + 3 & !3) as i16);
+        let length = (value.len() + 3 & !3) as Short;
         Parameter {
             parameter_id, 
             length,
@@ -240,7 +240,7 @@ impl  RtpsSerialize for Parameter {
         self.parameter_id.serialize(writer, endianness)?;
         self.length.serialize(writer, endianness)?;
         writer.write(self.value.as_slice())?;
-        let padding = (self.length.0 as usize) - self.value.len();
+        let padding = self.length as usize - self.value.len();
         for _ in 0..padding {
             writer.write(&[0_u8])?;
         }
@@ -248,7 +248,7 @@ impl  RtpsSerialize for Parameter {
     }
 
     fn octets(&self) -> usize {       
-        4 + usize::from(self.length)
+        4 + self.length as usize
     }    
 }
 
@@ -256,7 +256,7 @@ impl RtpsDeserialize for Parameter {
     fn deserialize(bytes: &[u8], endianness: EndianessFlag) -> RtpsSerdesResult<Self> {
         let parameter_id = ParameterIdT::deserialize(&bytes[0..2], endianness)?;
         let length = Short::deserialize(&bytes[2..4], endianness)?;
-        let bytes_end = usize::from(length) + 4;
+        let bytes_end = (length + 4) as usize;
         let value = Vec::from(&bytes[4..bytes_end]);
         Ok(Parameter {
             parameter_id, 
@@ -761,11 +761,11 @@ mod tests {
     #[test]
     fn test_parameter_round_up_to_multiples_of_four() {
         let e= EndianessFlag::LittleEndian;
-        assert_eq!(0, Parameter::new(VendorTest0([]), e).length.0);
-        assert_eq!(4, Parameter::new(VendorTest1([b'X']), e).length.0);
-        assert_eq!(4, Parameter::new(VendorTest3([b'X'; 3]), e).length.0);
-        assert_eq!(4, Parameter::new(VendorTest4([b'X'; 4]), e).length.0);
-        assert_eq!(8, Parameter::new(VendorTest5([b'X'; 5]), e).length.0);
+        assert_eq!(0, Parameter::new(VendorTest0([]), e).length);
+        assert_eq!(4, Parameter::new(VendorTest1([b'X']), e).length);
+        assert_eq!(4, Parameter::new(VendorTest3([b'X'; 3]), e).length);
+        assert_eq!(4, Parameter::new(VendorTest4([b'X'; 4]), e).length);
+        assert_eq!(8, Parameter::new(VendorTest5([b'X'; 5]), e).length);
     }
 
     #[test]

@@ -1,4 +1,4 @@
-use crate::primitive_types::{Ushort, ULong, };
+use crate::primitive_types::{UShort, ULong, };
 use crate::types::{EntityId, SequenceNumber, };
 use crate::messages::types::{SubmessageKind, SubmessageFlag, };
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, EndianessFlag, RtpsSerdesResult, };
@@ -16,9 +16,9 @@ pub struct DataFrag {
     writer_id: EntityId,
     writer_sn: SequenceNumber,
     fragment_starting_num: FragmentNumber,
-    fragments_in_submessage: Ushort,
+    fragments_in_submessage: UShort,
     data_size: ULong,
-    fragment_size: Ushort,
+    fragment_size: UShort,
     inline_qos: Option<ParameterList>,
     serialized_payload: Option<SerializedPayload>,
 }
@@ -46,7 +46,7 @@ impl Submessage for DataFrag {
         SubmessageHeader { 
             submessage_id: SubmessageKind::Data,
             flags,
-            submessage_length: Ushort::from(octets_to_next_header),
+            submessage_length: octets_to_next_header as UShort,
         }
     }
 }
@@ -55,15 +55,15 @@ impl RtpsCompose for DataFrag {
     fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
         // let sample_size = ULong(0); // TODO: what is sample_size? It is in PSM but nut in PIM. Probably: data_size
         let endianness = EndianessFlag::from(self.endianness_flag);
-        let extra_flags = Ushort(0);
-        let octecs_to_inline_qos = Ushort::from(
+        let extra_flags: UShort = 0;
+        let octecs_to_inline_qos = (
             self.reader_id.octets() + 
             self.writer_id.octets() + 
             self.writer_sn.octets() + 
             self.fragment_starting_num.octets() + 
             self.fragments_in_submessage.octets() + 
             self.fragment_size.octets() + 
-            self.data_size.octets());
+            self.data_size.octets()) as UShort;
         
         self.submessage_header().compose(writer)?;
         extra_flags.serialize(writer, endianness)?;
@@ -96,13 +96,13 @@ impl RtpsParse for DataFrag {
         let endianness = EndianessFlag::from(endianness_flag);
 
         const HEADER_SIZE : usize = 8;
-        let octets_to_inline_qos = usize::from(Ushort::deserialize(&bytes[6..8], endianness)?) + HEADER_SIZE /* header and extra flags*/;
+        let octets_to_inline_qos = usize::from(UShort::deserialize(&bytes[6..8], endianness)?) + HEADER_SIZE /* header and extra flags*/;
         let reader_id = EntityId::deserialize(&bytes[8..12], endianness)?;        
         let writer_id = EntityId::deserialize(&bytes[12..16], endianness)?;
         let writer_sn = SequenceNumber::deserialize(&bytes[16..24], endianness)?;
         let fragment_starting_num = FragmentNumber::deserialize(&bytes[24..28], endianness)?;
-        let fragments_in_submessage = Ushort::deserialize(&bytes[28..30], endianness)?;
-        let fragment_size = Ushort::deserialize(&bytes[30..32], endianness)?;
+        let fragments_in_submessage = UShort::deserialize(&bytes[28..30], endianness)?;
+        let fragment_size = UShort::deserialize(&bytes[30..32], endianness)?;
         let data_size = ULong::deserialize(&bytes[32..36], endianness)?;
 
 
@@ -156,8 +156,8 @@ mod tests{
             writer_id: ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
             writer_sn: SequenceNumber(1),
             fragment_starting_num: FragmentNumber(1), 
-            fragments_in_submessage: Ushort(2),
-            fragment_size: Ushort(3),
+            fragments_in_submessage: 2,
+            fragment_size: 3,
             data_size: 4,
             inline_qos: Some(inline_qos), 
             serialized_payload: Some(SerializedPayload(vec![1, 2, 3])), 
@@ -200,8 +200,8 @@ mod tests{
             writer_id: ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
             writer_sn: SequenceNumber(1),
             fragment_starting_num: FragmentNumber(1), 
-            fragments_in_submessage: Ushort(2),
-            fragment_size: Ushort(3),
+            fragments_in_submessage: 2,
+            fragment_size: 3,
             data_size: 4,
             inline_qos: Some(inline_qos), 
             serialized_payload: Some(SerializedPayload(vec![1, 2, 3])), 
