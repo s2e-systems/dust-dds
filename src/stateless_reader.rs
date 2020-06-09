@@ -3,7 +3,7 @@ use crate::cache::{HistoryCache, CacheChange};
 use crate::types::{ReliabilityKind, TopicKind, GUID, ChangeKind, Locator, };
 use crate::types::constants::ENTITYID_UNKNOWN;
 use crate::messages::{RtpsMessage, RtpsSubmessage, Data};
-use crate::inline_qos_types::KeyHash;
+use crate::inline_qos_types::{KeyHash, StatusInfo, };
 use crate::messages::submessage_elements::ParameterList;
 
 #[derive(Debug)]
@@ -99,56 +99,44 @@ impl StatelessReader {
     }
 
     fn change_kind(data_submessage: &Data) -> StatelessReaderResult<ChangeKind>{
-        // let change_kind = if data_submessage.data_flag().is_set() && !data_submessage.key_flag().is_set() {
-        //     ChangeKind::Alive
-        // } else if !data_submessage.data_flag().is_set() && data_submessage.key_flag().is_set() {
-        //     let inline_qos = StatelessReader::inline_qos(&data_submessage)?;
+        let change_kind = if data_submessage.data_flag().is_set() && !data_submessage.key_flag().is_set() {
+            ChangeKind::Alive
+        } else if !data_submessage.data_flag().is_set() && data_submessage.key_flag().is_set() {
+            let inline_qos = StatelessReader::inline_qos(&data_submessage)?;
+            let endianness = data_submessage.endianness_flag().into();
+            let status_info = inline_qos.find::<StatusInfo>(endianness);           
 
-        //     let status_info_parameter = inline_qos.find_parameter(InlineQosPid::StatusInfo.into()).ok_or(StatelessReaderError::StatusInfoNotFound)?;
-        //     let status_info = match status_info_parameter {
-        //         InlineQosParameter::StatusInfo(status_info) => Ok(*status_info),
-        //         _ => Err(StatelessReaderError::InvalidStatusInfo),
-        //     }?;
+            ChangeKind::try_from(status_info).map_err(|_| StatelessReaderError::InvalidStatusInfo)?
+        }
+        else {
+            return Err(StatelessReaderError::InvalidDataKeyFlagCombination);
+        };
 
-        //     ChangeKind::try_from(status_info).map_err(|_| StatelessReaderError::InvalidStatusInfo)?
-        // }
-        // else {
-        //     return Err(StatelessReaderError::InvalidDataKeyFlagCombination);
-        // };
-
-        // Ok(change_kind)
-        todo!()
+        Ok(change_kind)
     }
 
     fn key_hash(data_submessage: &Data) -> StatelessReaderResult<KeyHash> {
-        // let key_hash = if data_submessage.data_flag().is_set() && !data_submessage.key_flag().is_set() {
-        //     let inline_qos = StatelessReader::inline_qos(&data_submessage)?;
+        let key_hash = if data_submessage.data_flag().is_set() && !data_submessage.key_flag().is_set() {
+            let inline_qos = StatelessReader::inline_qos(&data_submessage)?;
+            let endianness = data_submessage.endianness_flag().into();
+            inline_qos.find::<KeyHash>(endianness)
+        } else if !data_submessage.data_flag().is_set() && data_submessage.key_flag().is_set() {
+            match data_submessage.serialized_payload() {
+                Some(payload) => KeyHash(payload.0[0..16].try_into().map_err(|_| StatelessReaderError::InvalidKeyHashPayload)?),
+                None => return Err(StatelessReaderError::KeyHashNotFound),
+            }
+        } else {
+            return Err(StatelessReaderError::InvalidDataKeyFlagCombination);
+        };
 
-        //     let key_hash_parameter = inline_qos.find_parameter(InlineQosPid::KeyHash.into()).ok_or(StatelessReaderError::KeyHashNotFound)?;
-        //     match key_hash_parameter {
-        //         InlineQosParameter::KeyHash(key_hash) => *key_hash,
-        //         _ => return Err(StatelessReaderError::KeyHashNotFound),
-        //     }
-
-        // } else if !data_submessage.data_flag().is_set() && data_submessage.key_flag().is_set() {
-        //     match data_submessage.serialized_payload() {
-        //         Some(payload) => KeyHash(payload.0[0..16].try_into().map_err(|_| StatelessReaderError::InvalidKeyHashPayload)?),
-        //         None => return Err(StatelessReaderError::KeyHashNotFound),
-        //     }
-        // } else {
-        //     return Err(StatelessReaderError::InvalidDataKeyFlagCombination);
-        // };
-
-        // Ok(key_hash)
-        todo!()
+        Ok(key_hash)
     }
 
     fn inline_qos(data_submessage: &Data) -> StatelessReaderResult<&ParameterList> {
-        // match data_submessage.inline_qos().as_ref() {
-        //     Some(inline_qos) => Ok(inline_qos),
-        //     None => return Err(StatelessReaderError::InlineQosNotFound),
-        // }
-        todo!()
+        match data_submessage.inline_qos().as_ref() {
+            Some(inline_qos) => Ok(inline_qos),
+            None => return Err(StatelessReaderError::InlineQosNotFound),
+        }
     }
 }
 

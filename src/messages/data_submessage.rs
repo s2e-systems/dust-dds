@@ -85,11 +85,15 @@ impl Data {
         //TODO: It is a problem for the outer world to know what this payload represents
         &self.serialized_payload
     }
-
+    
     pub fn inline_qos(&self) -> &Option<ParameterList> {
         &self.inline_qos
     }
-    
+
+    pub fn endianness_flag(&self) -> SubmessageFlag {
+        self.endianness_flag
+    }
+
     pub fn data_flag(&self) -> SubmessageFlag {
         self.data_flag
     }
