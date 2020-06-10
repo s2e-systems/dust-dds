@@ -4,25 +4,22 @@ use std::convert::TryInto;
 
 use crate::types::{ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID, };
 use crate::behavior_types::Duration;
-use crate::behavior::{run_reliable, run_best_effort, run_waiting_state, run_must_repair_state};
+use crate::behavior::{run_reliable, run_best_effort, };
 use crate::messages::types::Count;
-use crate::serdes::EndianessFlag;
-use crate::cache::{CacheChange, HistoryCache};
-use crate::inline_qos_types::{KeyHash, StatusInfo, };
-use crate::messages::{Data, Gap, InfoTs, Heartbeat, Payload, RtpsMessage, RtpsSubmessage, };
-use crate::messages::types::{Time, };
-use crate::serialized_payload::SerializedPayload;
-use crate::messages::submessage_elements::{Parameter, ParameterList, };
+use crate::cache::{CacheChange, HistoryCache, };
+use crate::messages::RtpsMessage;
+use crate::messages::submessage_elements::ParameterList;
 
 pub struct ReaderProxy {
     remote_reader_guid: GUID,
+    // remoteGroupEntityId: EntityId_t,
     unicast_locator_list: Vec<Locator>,
     multicast_locator_list: Vec<Locator>,
+    // changes_for_reader: CacheChange[*], 
     expects_inline_qos: bool,
     is_active: bool,
 
-    //requested_changes: HashSet<CacheChange>,
-    // unsent_changes: SequenceNumber,
+    // Additional fields:
     highest_sequence_number_sent: SequenceNumber,
     highest_sequence_number_acknowledged: SequenceNumber,
     sequence_numbers_requested: BTreeSet<SequenceNumber>,
@@ -269,13 +266,9 @@ impl StatefulWriter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::constants::*;
-    use crate::behavior_types::Duration;
+    use crate::types::constants::{ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, };
     use crate::behavior_types::constants::DURATION_ZERO;
-    use crate::types::*;
-    use crate::messages::{AckNack};
-    use crate::messages::submessage_elements::SequenceNumberSet;
-    use std::thread::sleep;
+    use crate::types::GuidPrefix;
 
     #[test]
     fn stateful_writer_new_change() {
@@ -283,26 +276,26 @@ mod tests {
             GUID::new(GuidPrefix([0; 12]), ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
             TopicKind::WithKey,
             ReliabilityKind::BestEffort,
-            vec![Locator::new(0, 7400, [0; 16])], /*unicast_locator_list*/
-            vec![],                               /*multicast_locator_list*/
-            false,                                /*push_mode*/
-            DURATION_ZERO,                        /* heartbeat_period */
-            DURATION_ZERO,                        /* nack_response_delay */
-            DURATION_ZERO,                        /* nack_suppression_duration */
+            vec![Locator::new(0, 7400, [0; 16])],
+            vec![],
+            false,
+            DURATION_ZERO,
+            DURATION_ZERO,
+            DURATION_ZERO,
         );
 
         let cache_change_seq1 = writer.new_change(
             ChangeKind::Alive,
-            Some(vec![1, 2, 3]), /*data*/
-            None,                /*inline_qos*/
-            [1; 16],             /*handle*/
+            Some(vec![1, 2, 3]),
+            None,
+            [1; 16],
         );
 
         let cache_change_seq2 = writer.new_change(
             ChangeKind::NotAliveUnregistered,
-            None,    /*data*/
-            None,    /*inline_qos*/
-            [1; 16], /*handle*/
+            None, 
+            None,
+            [1; 16],
         );
 
         assert_eq!(cache_change_seq1.sequence_number(), &SequenceNumber(1));
