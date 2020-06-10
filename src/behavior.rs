@@ -373,9 +373,8 @@ mod tests {
 
         process_repair_message(&mut reader_proxy, &writer_guid, &received_message);
 
-        // assert_eq!(reader_proxy.highest_sequence_number_acknowledged SequenceNumber(2));
-        // assert_eq!(reader_proxy.sequence_numbers_requested, vec![SequenceNumber(3), SequenceNumber(5), SequenceNumber(6)].iter().cloned().collect());
-        todo!("members of reader_proxy are private, what to do?")
+        assert_eq!(reader_proxy.acked_changes(), SequenceNumber(2));
+        assert_eq!(reader_proxy.requested_changes(), vec![SequenceNumber(3), SequenceNumber(5), SequenceNumber(6)].iter().cloned().collect());
     }
 
     #[test]
@@ -401,7 +400,7 @@ mod tests {
         
         // Verify that message was ignored
         // assert_eq!(reader_proxy.highest_sequence_number_acknowledged, SequenceNumber(0));
-        // assert!(reader_proxy.sequence_numbers_requested.is_empty());
+        assert!(reader_proxy.requested_changes().is_empty());
 
         // Test message with different writer guid
         let mut submessages = Vec::new();
@@ -418,8 +417,8 @@ mod tests {
         process_repair_message(&mut reader_proxy, &writer_guid, &received_message);
 
         // Verify that message was ignored
-        // assert_eq!(reader_proxy.highest_sequence_number_acknowledged, SequenceNumber(0));
-        // assert!(reader_proxy.sequence_numbers_requested.is_empty());
+        assert_eq!(reader_proxy.acked_changes(), SequenceNumber(0));
+        assert!(reader_proxy.requested_changes().is_empty());
 
 
         // Test duplicate acknack message
@@ -437,17 +436,17 @@ mod tests {
         process_repair_message(&mut reader_proxy, &writer_guid, &received_message);
 
         // Verify message was correctly processed
-        // assert_eq!(reader_proxy.highest_sequence_number_acknowledged, SequenceNumber(2));
-        // assert_eq!(reader_proxy.sequence_numbers_requested, vec![SequenceNumber(3), SequenceNumber(5), SequenceNumber(6)].iter().cloned().collect());
+        assert_eq!(reader_proxy.acked_changes(), SequenceNumber(2));
+        assert_eq!(reader_proxy.requested_changes(), vec![SequenceNumber(3), SequenceNumber(5), SequenceNumber(6)].iter().cloned().collect());
 
         // Clear the requested sequence numbers and reprocess the message
-        // reader_proxy.sequence_numbers_requested.clear();
+        while  reader_proxy.next_requested_change() != None {
+            // do nothing
+        }
         process_repair_message(&mut reader_proxy, &writer_guid, &received_message);
 
         // Verify that the requested sequence numbers remain empty
-        // assert!(reader_proxy.sequence_numbers_requested.is_empty());
-
-        todo!("members of reader_proxy are private, what to do?")
+        assert!(reader_proxy.requested_changes().is_empty());
     }
 
     #[test]
@@ -470,9 +469,8 @@ mod tests {
         let received_message = RtpsMessage::new(*remote_reader_guid.prefix(), submessages);
         process_repair_message(&mut reader_proxy, &writer_guid, &received_message);
 
-        // assert_eq!(reader_proxy.highest_sequence_number_acknowledged, SequenceNumber(4));
-        // assert_eq!(reader_proxy.sequence_numbers_requested, vec![].iter().cloned().collect());
-        todo!("members of reader_proxy are private, what to do?")
+        assert_eq!(reader_proxy.acked_changes(), SequenceNumber(4));
+        assert!(reader_proxy.requested_changes().is_empty());
     }
 
     // #[test]

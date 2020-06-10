@@ -92,6 +92,10 @@ impl ReaderProxy {
         unsent_changes_set
     }
 
+    pub fn acked_changes(&self) -> SequenceNumber {
+        self.highest_sequence_number_acknowledged
+    }
+
     pub fn acked_changes_set(&mut self, committed_seq_num: SequenceNumber) {
         self.highest_sequence_number_acknowledged = committed_seq_num;
     }
