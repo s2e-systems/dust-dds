@@ -1,10 +1,7 @@
-use std::convert::{TryFrom, TryInto};
-use crate::cache::{HistoryCache, CacheChange};
-use crate::types::{ReliabilityKind, TopicKind, GUID, ChangeKind, Locator, };
-use crate::types::constants::ENTITYID_UNKNOWN;
-use crate::messages::{RtpsMessage, RtpsSubmessage, Data};
-use crate::inline_qos_types::{KeyHash, StatusInfo, };
-use crate::messages::submessage_elements::ParameterList;
+use crate::cache::HistoryCache;
+use crate::types::{ReliabilityKind, TopicKind, GUID, Locator, };
+use crate::messages::RtpsMessage;
+use crate::behavior::StatelessReaderBehavior;
 
 #[derive(Debug)]
 pub enum StatelessReaderError {
@@ -64,78 +61,10 @@ impl StatelessReader {
         &self.reader_cache
     }
 
-    pub fn process_message(&mut self, msg: &RtpsMessage) -> StatelessReaderResult<()>{
-
-        let guid_prefix = *msg.header().guid_prefix();
-        let mut _source_time = None;
-
-        for submessage in msg.submessages().iter() {
-            if let RtpsSubmessage::Data(data) = submessage {
-                // Check if the message is for this reader and process it if that is the case
-                if data.reader_id() == &ENTITYID_UNKNOWN {
-
-                    let change_kind = StatelessReader::change_kind(&data)?;
-
-                    let key_hash = StatelessReader::key_hash(&data)?;
-                    
-                    let cache_change = CacheChange::new(
-                        change_kind,
-                        GUID::new(guid_prefix, *data.writer_id() ),
-                        key_hash.0,
-                        *data.writer_sn(),
-                        None,
-                        None,
-                    );
-
-                    self.reader_cache.add_change(cache_change);
-                }
-            }
-            else if let RtpsSubmessage::InfoTs(infots) = submessage {
-                _source_time = *infots.get_timestamp();
-            }
-        }
-
-        Ok(())
-    }
-
-    fn change_kind(data_submessage: &Data) -> StatelessReaderResult<ChangeKind>{
-        let change_kind = if data_submessage.data_flag().is_set() && !data_submessage.key_flag().is_set() {
-            ChangeKind::Alive
-        } else if !data_submessage.data_flag().is_set() && data_submessage.key_flag().is_set() {
-            let inline_qos = StatelessReader::inline_qos(&data_submessage)?;
-            let endianness = data_submessage.endianness_flag().into();
-            let status_info = inline_qos.find::<StatusInfo>(endianness);           
-
-            ChangeKind::try_from(status_info).map_err(|_| StatelessReaderError::InvalidStatusInfo)?
-        }
-        else {
-            return Err(StatelessReaderError::InvalidDataKeyFlagCombination);
-        };
-
-        Ok(change_kind)
-    }
-
-    fn key_hash(data_submessage: &Data) -> StatelessReaderResult<KeyHash> {
-        let key_hash = if data_submessage.data_flag().is_set() && !data_submessage.key_flag().is_set() {
-            let inline_qos = StatelessReader::inline_qos(&data_submessage)?;
-            let endianness = data_submessage.endianness_flag().into();
-            inline_qos.find::<KeyHash>(endianness)
-        } else if !data_submessage.data_flag().is_set() && data_submessage.key_flag().is_set() {
-            match data_submessage.serialized_payload() {
-                Some(payload) => KeyHash(payload.0[0..16].try_into().map_err(|_| StatelessReaderError::InvalidKeyHashPayload)?),
-                None => return Err(StatelessReaderError::KeyHashNotFound),
-            }
-        } else {
-            return Err(StatelessReaderError::InvalidDataKeyFlagCombination);
-        };
-
-        Ok(key_hash)
-    }
-
-    fn inline_qos(data_submessage: &Data) -> StatelessReaderResult<&ParameterList> {
-        match data_submessage.inline_qos().as_ref() {
-            Some(inline_qos) => Ok(inline_qos),
-            None => return Err(StatelessReaderError::InlineQosNotFound),
+    pub fn run(&mut self, received_message: Option<&RtpsMessage>) {
+        match self.reliability_level {
+            ReliabilityKind::BestEffort => StatelessReaderBehavior::run_best_effort(&mut self.reader_cache, received_message),
+            ReliabilityKind::Reliable => panic!("Reliable stateless reader not allowed!"),
         }
     }
 }
@@ -147,11 +76,12 @@ mod tests {
     use crate::types::constants::*;
     use crate::serialized_payload::SerializedPayload;
     use crate::messages::submessage_elements::{Parameter, ParameterList, };
-    use crate::messages::{Data, Payload, };
+    use crate::messages::{Data, Payload, RtpsSubmessage };
     use crate::serdes::EndianessFlag;
+    use crate::inline_qos_types::{KeyHash};
 
     #[test]
-    fn test_reader_process_data() {
+    fn best_effort_stateless_reader_run() {
         let data1 = Data::new(
             EndianessFlag::LittleEndian,
             ENTITYID_UNKNOWN,
@@ -176,7 +106,7 @@ mod tests {
         assert_eq!(reader.history_cache().get_changes().len(), 0);
         let message = RtpsMessage::new(GuidPrefix([2;12]), submessages);
         
-        reader.process_message(&message).unwrap();
+        reader.run(Some(&message));
 
         assert_eq!(reader.history_cache().get_changes().len(), 1);
     }

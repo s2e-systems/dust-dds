@@ -1,6 +1,8 @@
+use std::convert::{TryInto, TryFrom};
+
 use crate::types::{GUID, SequenceNumber, ChangeKind};
 use crate::behavior_types::Duration;
-use crate::cache::HistoryCache;
+use crate::cache::{HistoryCache, CacheChange};
 use crate::serdes::EndianessFlag;
 use crate::messages::submessage_elements::{Parameter, ParameterList};
 use crate::messages::{RtpsMessage, RtpsSubmessage, Heartbeat, InfoTs, Data, Gap, Payload};
@@ -307,6 +309,74 @@ impl StatelessWriterBehavior{
     }
 
 
+}
+
+pub struct StatelessReaderBehavior {}
+
+impl StatelessReaderBehavior {
+    pub fn run_best_effort(history_cache: &mut HistoryCache, received_message: Option<&RtpsMessage>){
+        StatelessReaderBehavior::run_waiting_state(history_cache, received_message);
+    }
+
+    pub fn run_waiting_state(history_cache: &mut HistoryCache, received_message: Option<&RtpsMessage>) {
+
+        if let Some(received_message) = received_message {
+            let guid_prefix = *received_message.header().guid_prefix();
+            let mut _source_time = None;
+
+            for submessage in received_message.submessages().iter() {
+                if let RtpsSubmessage::Data(data) = submessage {
+                    // Check if the message is for this reader and process it if that is the case
+                    if data.reader_id() == &ENTITYID_UNKNOWN {
+
+                        let change_kind = StatelessReaderBehavior::change_kind(&data);
+
+                        let key_hash = StatelessReaderBehavior::key_hash(&data).unwrap();
+                        
+                        let cache_change = CacheChange::new(
+                            change_kind,
+                            GUID::new(guid_prefix, *data.writer_id() ),
+                            key_hash.0,
+                            *data.writer_sn(),
+                            None,
+                            None,
+                        );
+
+                        history_cache.add_change(cache_change);
+                    }
+                }
+                else if let RtpsSubmessage::InfoTs(infots) = submessage {
+                    _source_time = *infots.get_timestamp();
+                }
+            }
+        }
+    }
+
+    fn change_kind(data_submessage: &Data) -> ChangeKind{
+        if data_submessage.data_flag().is_set() && !data_submessage.key_flag().is_set() {
+            ChangeKind::Alive
+        } else if !data_submessage.data_flag().is_set() && data_submessage.key_flag().is_set() {
+            let inline_qos = data_submessage.inline_qos().as_ref().unwrap();
+            let endianness = data_submessage.endianness_flag().into();
+            let status_info = inline_qos.find::<StatusInfo>(endianness).unwrap();           
+
+            ChangeKind::try_from(status_info).unwrap()
+        }
+        else {
+            panic!("Invalid change kind combination")
+        }
+    }
+
+    fn key_hash(data_submessage: &Data) -> Option<KeyHash> {
+        if data_submessage.data_flag().is_set() && !data_submessage.key_flag().is_set() {
+            data_submessage.inline_qos().as_ref()?.find::<KeyHash>(data_submessage.endianness_flag().into())
+        } else if !data_submessage.data_flag().is_set() && data_submessage.key_flag().is_set() {
+            let payload = data_submessage.serialized_payload().as_ref()?; 
+            Some(KeyHash(payload.0[0..16].try_into().ok()?))
+        } else {
+            None
+        }
+    }
 }
 
 #[cfg(test)]
