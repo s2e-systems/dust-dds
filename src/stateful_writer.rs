@@ -4,7 +4,7 @@ use std::convert::TryInto;
 
 use crate::types::{ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID, };
 use crate::behavior_types::Duration;
-use crate::behavior::{run_reliable, run_best_effort, };
+use crate::behavior::StatefulWriterBehaviour;
 use crate::messages::types::Count;
 use crate::cache::{CacheChange, HistoryCache, };
 use crate::messages::RtpsMessage;
@@ -256,8 +256,8 @@ impl StatefulWriter {
         let reader_proxy = self.matched_readers.get_mut(a_reader_guid).unwrap();
 
         let submessages = match self.reliability_level {
-            ReliabilityKind::BestEffort => run_best_effort(reader_proxy, &self.guid, &self.writer_cache, self.last_change_sequence_number),
-            ReliabilityKind::Reliable => run_reliable(reader_proxy, &self.guid, &self.writer_cache, self.last_change_sequence_number, self.heartbeat_period, self.nack_response_delay, received_message),
+            ReliabilityKind::BestEffort => StatefulWriterBehaviour::run_best_effort(reader_proxy, &self.guid, &self.writer_cache, self.last_change_sequence_number),
+            ReliabilityKind::Reliable => StatefulWriterBehaviour::run_reliable(reader_proxy, &self.guid, &self.writer_cache, self.last_change_sequence_number, self.heartbeat_period, self.nack_response_delay, received_message),
         };
 
         match submessages {

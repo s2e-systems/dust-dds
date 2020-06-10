@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet, };
+use std::collections::{HashMap, HashSet, BTreeSet};
 use std::time::Instant;
 use std::convert::TryInto;
 
@@ -13,7 +13,7 @@ use crate::behavior_types::Duration;
 use crate::messages::types::{Time, Count, };
 use crate::messages::submessage_elements::{Parameter, ParameterList, };
 
-struct ReaderLocator {
+pub struct ReaderLocator {
     //requested_changes: HashSet<CacheChange>,
     // unsent_changes: SequenceNumber,
     expects_inline_qos: bool,
@@ -38,7 +38,30 @@ impl ReaderLocator {
         self.highest_sequence_number_sent = SequenceNumber(0);
     }
 
-    fn time_last_sent_data_reset(&mut self) {
+    pub fn unsent_changes(&self, last_change_sequence_number: SequenceNumber) -> BTreeSet<SequenceNumber> {
+        let mut unsent_changes_set = BTreeSet::new();
+
+        // The for loop is made with the underlying sequence number type because it is not possible to implement the Step trait on Stable yet
+        for unsent_sequence_number in
+            self.highest_sequence_number_sent.0 + 1..=last_change_sequence_number.0
+        {
+            unsent_changes_set.insert(SequenceNumber(unsent_sequence_number));
+        }
+
+        unsent_changes_set
+    }
+
+    pub fn next_unsent_change(&mut self, last_change_sequence_number: SequenceNumber) -> Option<SequenceNumber> {
+        let next_unsent_sequence_number = self.highest_sequence_number_sent + 1;
+        if next_unsent_sequence_number > last_change_sequence_number {
+            None
+        } else {
+            self.highest_sequence_number_sent = next_unsent_sequence_number;
+            Some(next_unsent_sequence_number)
+        }
+    }
+
+    pub fn time_last_sent_data_reset(&mut self) {
         self.time_last_sent_data = Instant::now();
     }
 
