@@ -42,7 +42,7 @@ impl ReaderLocator {
         self.time_last_sent_data = Instant::now();
     }
 
-    fn duration_since_last_sent_data(&self) -> Duration {
+    pub fn duration_since_last_sent_data(&self) -> Duration {
         self.time_last_sent_data.elapsed().try_into().unwrap()
     }
 
