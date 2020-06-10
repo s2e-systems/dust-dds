@@ -179,8 +179,6 @@ impl StatelessWriterBehavior{
             }
         }
     
-        reader_locator.time_last_sent_data_reset();
-    
         submessages
     }
 

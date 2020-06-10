@@ -1,26 +1,17 @@
-use std::collections::{HashMap, HashSet, BTreeSet};
-use std::time::Instant;
-use std::convert::TryInto;
+use std::collections::{HashMap, BTreeSet};
 
 use crate::cache::{CacheChange, HistoryCache};
-use crate::messages::{Data, Heartbeat, InfoTs, Payload, RtpsMessage, RtpsSubmessage,};
-use crate::serdes::EndianessFlag;
-use crate::types::constants::ENTITYID_UNKNOWN;
+use crate::messages::RtpsMessage;
 use crate::types::{ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID, };
-use crate::inline_qos_types::{KeyHash, StatusInfo, };
-use crate::serialized_payload::SerializedPayload;
 use crate::behavior_types::Duration;
-use crate::messages::types::{Time, Count, };
-use crate::messages::submessage_elements::{Parameter, ParameterList, };
+use crate::messages::submessage_elements::{ParameterList, };
+use crate::behavior::StatelessWriterBehavior;
 
 pub struct ReaderLocator {
     //requested_changes: HashSet<CacheChange>,
     // unsent_changes: SequenceNumber,
     expects_inline_qos: bool,
     highest_sequence_number_sent: SequenceNumber,
-    sequence_numbers_requested: HashSet<SequenceNumber>,
-    time_last_sent_data: Instant,
-    heartbeat_count: Count,
 }
 
 impl ReaderLocator {
@@ -28,9 +19,6 @@ impl ReaderLocator {
         ReaderLocator {
             expects_inline_qos,
             highest_sequence_number_sent: SequenceNumber(0),
-            sequence_numbers_requested: HashSet::new(),
-            time_last_sent_data: Instant::now(),
-            heartbeat_count: Count(1),
         }
     }
 
@@ -59,22 +47,6 @@ impl ReaderLocator {
             self.highest_sequence_number_sent = next_unsent_sequence_number;
             Some(next_unsent_sequence_number)
         }
-    }
-
-    pub fn time_last_sent_data_reset(&mut self) {
-        self.time_last_sent_data = Instant::now();
-    }
-
-    pub fn duration_since_last_sent_data(&self) -> Duration {
-        self.time_last_sent_data.elapsed().try_into().unwrap()
-    }
-
-    fn increment_heartbeat_count(&mut self) {
-        self.heartbeat_count += 1;
-    }
-
-    fn heartbeat_count(&self) -> Count {
-        self.heartbeat_count
     }
 }
 
@@ -171,159 +143,17 @@ impl StatelessWriter {
         }
     }
 
-    pub fn next_unsent_change(&mut self, a_locator: Locator) -> Option<SequenceNumber> {
-        let reader_locator = self.reader_locators.get_mut(&a_locator)?;
+    pub fn run(&mut self, a_locator: &Locator) -> Option<RtpsMessage> {
+        let reader_locator = self.reader_locators.get_mut(a_locator).unwrap();
 
-        let next_unsent_sequence_number = reader_locator.highest_sequence_number_sent + 1;
-        if next_unsent_sequence_number > self.last_change_sequence_number {
-            None
-        } else {
-            reader_locator.highest_sequence_number_sent = next_unsent_sequence_number;
-            Some(next_unsent_sequence_number)
-        }
-    }
+        let submessages = match self.reliability_level {
+            ReliabilityKind::BestEffort => StatelessWriterBehavior::run_best_effort(reader_locator, &self.guid, &self.writer_cache, self.last_change_sequence_number),
+            ReliabilityKind::Reliable => panic!("Reliable StatelessWriter not implemented!"),
+        };
 
-    pub fn unsent_changes(&self, a_locator: Locator) -> HashSet<SequenceNumber> {
-        let reader_locator = self.reader_locators.get(&a_locator).unwrap();
-
-        let mut unsent_changes_set = HashSet::new();
-
-        // The for loop is made with the underlying sequence number type because it is not possible to implement the Step trait on Stable yet
-        for unsent_sequence_number in
-            reader_locator.highest_sequence_number_sent.0 + 1..=self.last_change_sequence_number.0
-        {
-            unsent_changes_set.insert(SequenceNumber(unsent_sequence_number));
-        }
-
-        unsent_changes_set
-    }
-
-    fn has_unsent_changes(&self, a_locator: Locator) -> bool {
-        let reader_locator = self.reader_locators.get(&a_locator).unwrap();
-
-        if reader_locator.highest_sequence_number_sent + 1 >= self.last_change_sequence_number {
-            false
-        } else {
-            true
-        }
-    }
-
-    pub fn requested_changes_set(
-        &mut self,
-        a_locator: Locator,
-        req_seq_num_set: HashSet<SequenceNumber>,
-    ) {
-        let reader_locator = self.reader_locators.get_mut(&a_locator).unwrap();
-        reader_locator.sequence_numbers_requested = req_seq_num_set;
-    }
-
-    fn time_since_last_data_sent(&self, a_locator: Locator) -> Duration {
-        let reader_locator = self.reader_locators.get(&a_locator).unwrap();
-        reader_locator.duration_since_last_sent_data()
-    }
-
-    fn time_last_sent_data_reset(&mut self, a_locator: Locator) {
-        let reader_locator = self.reader_locators.get_mut(&a_locator).unwrap();
-        reader_locator.time_last_sent_data_reset();
-    }
-
-    fn heartbeat_count(&self, a_locator: Locator) -> Count {
-        let reader_locator = self.reader_locators.get(&a_locator).unwrap();
-        reader_locator.heartbeat_count()
-    }
-
-    fn increment_heartbeat_count(&mut self, a_locator: Locator) {
-        let reader_locator = self.reader_locators.get_mut(&a_locator).unwrap();
-        reader_locator.increment_heartbeat_count();
-    }
-
-    pub fn get_data_to_send(&mut self, a_locator: Locator) -> Option<RtpsMessage> {
-        let mut submessages = Vec::new();
-
-        if self.has_unsent_changes(a_locator) {
-            let endianness = EndianessFlag::LittleEndian;
-            let time = Time::now();
-            let infots = InfoTs::new(Some(time), endianness);
-
-            submessages.push(RtpsSubmessage::InfoTs(infots));
-
-            while let Some(next_unsent_seq_num) = self.next_unsent_change(a_locator) {
-                if let Some(cache_change) = self
-                    .writer_cache
-                    .get_change_with_sequence_number(&next_unsent_seq_num)
-                {
-                    let change_kind = *cache_change.change_kind();
-
-                    let mut parameter = Vec::new();
-
-                    let payload = match change_kind {
-                        ChangeKind::Alive => {
-                            parameter.push(Parameter::new(StatusInfo::from(change_kind), endianness));
-                        parameter.push(Parameter::new(KeyHash(*cache_change.instance_handle()), endianness));
-                            Payload::Data(SerializedPayload(cache_change.data().unwrap().to_vec()))
-                        },
-                        ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered | ChangeKind::AliveFiltered => {
-                            parameter.push(Parameter::new(StatusInfo::from(change_kind), endianness));
-                            Payload::Key(SerializedPayload(cache_change.instance_handle().to_vec()))
-                        }
-                    };
-                    let inline_qos_parameter_list = ParameterList::new(parameter);
-                    let data = Data::new(
-                        EndianessFlag::LittleEndian.into(),
-                        ENTITYID_UNKNOWN,
-                        *self.guid.entity_id(),
-                        *cache_change.sequence_number(),
-                        Some(inline_qos_parameter_list), 
-                        payload,
-                    );
-
-                    submessages.push(RtpsSubmessage::Data(data));
-                } else {
-                    panic!("GAP not implemented yet");
-                    // let gap = Gap::new(ENTITYID_UNKNOWN /*reader_id*/,ENTITYID_UNKNOWN /*writer_id*/, 0 /*gap_start*/, BTreeMap::new() /*gap_list*/);
-
-                    // message.push(RtpsSubmessage::Gap(gap));
-                }
-            }
-
-            self.time_last_sent_data_reset(a_locator);
-        } else {
-            if self.reliability_level == ReliabilityKind::Reliable {
-                if self.time_since_last_data_sent(a_locator) >= self.heartbeat_period {
-                    let time = Time::now();
-                    let infots = InfoTs::new(Some(time), EndianessFlag::LittleEndian);
-
-                    submessages.push(RtpsSubmessage::InfoTs(infots));
-
-                    let first_sn = if let Some(seq_num) = self.writer_cache.get_seq_num_min() {
-                        seq_num
-                    } else {
-                        self.last_change_sequence_number + 1
-                    };
-
-                    let heartbeat = Heartbeat::new(
-                        ENTITYID_UNKNOWN,
-                        *self.guid.entity_id(),
-                        first_sn,
-                        self.last_change_sequence_number,
-                        self.heartbeat_count(a_locator),
-                        true,
-                        false,
-                        EndianessFlag::LittleEndian,
-                    );
-
-                    submessages.push(RtpsSubmessage::Heartbeat(heartbeat));
-
-                    self.increment_heartbeat_count(a_locator);
-                    self.time_last_sent_data_reset(a_locator);
-                }
-            }
-        }
-
-        if submessages.len() > 0 {
-            Some(RtpsMessage::new(*self.guid.prefix(), submessages))
-        } else {
-            None
+        match submessages {
+            Some(submessages) => Some(RtpsMessage::new(*self.guid.prefix(), submessages)),
+            None => None,
         }
     }
 }
@@ -335,6 +165,8 @@ mod tests {
     use super::*;
     use crate::types::constants::*;
     use crate::behavior_types::constants::DURATION_ZERO;
+    use crate::serialized_payload::SerializedPayload;
+    use crate::messages::RtpsSubmessage;
     use crate::types::*;
 
     #[test]
@@ -380,69 +212,7 @@ mod tests {
     }
 
     #[test]
-    fn test_stateless_writer_unsent_changes() {
-        let mut writer = StatelessWriter::new(
-            GUID::new(GuidPrefix([0; 12]), ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
-            TopicKind::WithKey,
-            ReliabilityKind::BestEffort,
-            vec![Locator::new(0, 7400, [0; 16])], /*unicast_locator_list*/
-            vec![],                               /*multicast_locator_list*/
-            false,                                /*push_mode*/
-            DURATION_ZERO,                        /* heartbeat_period */
-            DURATION_ZERO,                        /* nack_response_delay */
-            DURATION_ZERO,                        /* nack_suppression_duration */
-        );
-
-        let locator = Locator::new(0, 7400, [1; 16]);
-
-        writer.reader_locator_add(locator);
-
-        // Verify next unsent change without any changes created
-        assert_eq!(writer.unsent_changes(locator), HashSet::new());
-        assert_eq!(writer.next_unsent_change(locator), None);
-
-        writer.new_change(
-            ChangeKind::Alive,
-            Some(vec![1, 2, 3]), /*data*/
-            None,                /*inline_qos*/
-            [1; 16],             /*handle*/
-        );
-
-        writer.new_change(
-            ChangeKind::NotAliveUnregistered,
-            None,    /*data*/
-            None,    /*inline_qos*/
-            [1; 16], /*handle*/
-        );
-
-        // let hash_set_2_changes : HashSet<SequenceNumber> = [1,2].iter().cloned().collect();
-        // assert_eq!(writer.unsent_changes(locator), hash_set_2_changes);
-        assert_eq!(writer.next_unsent_change(locator), Some(SequenceNumber(1)));
-
-        // let hash_set_1_change : HashSet<SequenceNumber> = [2].iter().cloned().collect();
-        // assert_eq!(writer.unsent_changes(locator), hash_set_1_change);
-        assert_eq!(writer.next_unsent_change(locator), Some(SequenceNumber(2)));
-
-        assert_eq!(writer.unsent_changes(locator), HashSet::new());
-        assert_eq!(writer.next_unsent_change(locator), None);
-        assert_eq!(writer.next_unsent_change(locator), None);
-
-        writer.new_change(
-            ChangeKind::Alive,
-            Some(vec![1, 2, 3]), 
-            None,                
-            [1; 16],             
-        );
-
-        assert_eq!(writer.next_unsent_change(locator), Some(SequenceNumber(3)));
-
-        writer.unsent_changes_reset();
-        // let hash_set_3_changes : HashSet<SequenceNumber> = [1,2,3].iter().cloned().collect();
-        // assert_eq!(writer.unsent_changes(locator), hash_set_3_changes);
-    }
-
-    #[test]
-    fn test_best_effort_stateless_writer_get_data_to_send() {
+    fn test_best_effort_stateless_writer_run() {
         let mut writer = StatelessWriter::new(
             GUID::new(GuidPrefix([0; 12]), ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
             TopicKind::WithKey,
@@ -476,7 +246,7 @@ mod tests {
         writer.history_cache().add_change(cache_change_seq1);
         writer.history_cache().add_change(cache_change_seq2);
 
-        let writer_data = writer.get_data_to_send(locator).unwrap();
+        let writer_data = writer.run(&locator).unwrap();
         assert_eq!(writer_data.submessages().len(), 3);
         if let RtpsSubmessage::InfoTs(message_1) = &writer_data.submessages()[0] {
             println!("{:?}", message_1);
@@ -503,7 +273,7 @@ mod tests {
         };
 
         // Test that nothing more is sent after the first time
-        let writer_data = writer.get_data_to_send(locator);
+        let writer_data = writer.run(&locator);
         assert!(writer_data.is_none());
     }
 }
