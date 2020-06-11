@@ -3,7 +3,7 @@ use std::time::{Instant};
 use std::convert::TryInto;
 
 use crate::types::{ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID, };
-use crate::behavior_types::Duration;
+use crate::behavior::types::Duration;
 use crate::behavior::StatefulWriterBehaviour;
 use crate::messages::types::Count;
 use crate::cache::{CacheChange, HistoryCache, };
@@ -264,7 +264,7 @@ impl StatefulWriter {
 mod tests {
     use super::*;
     use crate::types::constants::{ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, };
-    use crate::behavior_types::constants::DURATION_ZERO;
+    use crate::behavior::types::constants::DURATION_ZERO;
     use crate::types::GuidPrefix;
 
     #[test]

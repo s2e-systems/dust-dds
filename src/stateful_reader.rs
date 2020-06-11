@@ -1,6 +1,6 @@
 use std::collections::{BTreeSet, HashMap, };
 use crate::types::{Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID, };
-use crate::behavior_types::Duration;
+use crate::behavior::types::Duration;
 
 pub struct WriterProxy {
     remote_writer_guid: GUID,
@@ -28,11 +28,11 @@ impl WriterProxy {
         todo!()
     }
 
-    pub fn irrelevant_change_set(&mut self, a_seq_num: SequenceNumber) {
+    pub fn irrelevant_change_set(&mut self, _a_seq_num: SequenceNumber) {
         todo!()
     }
 
-    pub fn lost_changes_update(&mut self, first_available_seq_num: SequenceNumber) {
+    pub fn lost_changes_update(&mut self, _first_available_seq_num: SequenceNumber) {
         todo!()
     }
 
@@ -40,11 +40,11 @@ impl WriterProxy {
         todo!()
     }
 
-    pub fn missing_changes_update(&mut self, last_available_seq_num: SequenceNumber) {
+    pub fn missing_changes_update(&mut self, _last_available_seq_num: SequenceNumber) {
         todo!()
     }
 
-    pub fn received_change_set(&mut self, a_seq_num: SequenceNumber) {
+    pub fn received_change_set(&mut self, _a_seq_num: SequenceNumber) {
         todo!()
     }
 }

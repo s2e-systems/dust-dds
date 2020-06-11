@@ -2,13 +2,12 @@
 
 pub mod types;
 pub mod primitive_types;
-pub mod behavior_types;
 
 mod messages;
 mod cache;
 mod inline_qos_types;
 mod serdes;
-mod behavior;
+pub mod behavior;
 // mod reader;
 // mod writer;
 mod serialized_payload;

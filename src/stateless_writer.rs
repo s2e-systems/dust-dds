@@ -3,7 +3,7 @@ use std::collections::{HashMap, BTreeSet};
 use crate::cache::{CacheChange, HistoryCache};
 use crate::messages::RtpsMessage;
 use crate::types::{ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID, };
-use crate::behavior_types::Duration;
+use crate::behavior::types::Duration;
 use crate::messages::submessage_elements::{ParameterList, };
 use crate::behavior::StatelessWriterBehavior;
 
@@ -164,7 +164,7 @@ impl StatelessWriter {
 mod tests {
     use super::*;
     use crate::types::constants::*;
-    use crate::behavior_types::constants::DURATION_ZERO;
+    use crate::behavior::types::constants::DURATION_ZERO;
     use crate::serialized_payload::SerializedPayload;
     use crate::messages::RtpsSubmessage;
     use crate::types::*;
