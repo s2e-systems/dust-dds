@@ -141,65 +141,7 @@ where
     } 
 }
 
-// pub struct PrimitiveSerdes{}
-// impl PrimitiveSerdes{
 
-//     pub fn serialize_u32(value: u32, endianness: Endianness) -> [u8;4] {
-//         match endianness {
-//             Endianness::BigEndian => value.to_be_bytes(),
-//             Endianness::LittleEndian => value.to_le_bytes(),
-//         }
-//     }
-
-//     pub fn deserialize_u32(bytes: [u8; 4], endianness: Endianness) -> u32 {
-//         match endianness {
-//             Endianness::BigEndian => u32::from_be_bytes(bytes),
-//             Endianness::LittleEndian => u32::from_le_bytes(bytes),
-//         }
-//     }
-
-//     pub fn serialize_i32(value: i32, endianness: Endianness) -> [u8;4] {
-//         match endianness {
-//             Endianness::BigEndian => value.to_be_bytes(),
-//             Endianness::LittleEndian => value.to_le_bytes(),
-//         }
-//     }
-
-//     pub fn deserialize_i32(bytes: [u8; 4], endianness: Endianness) -> i32 {
-//         match endianness {
-//             Endianness::BigEndian => i32::from_be_bytes(bytes),
-//             Endianness::LittleEndian => i32::from_le_bytes(bytes),
-//         }
-//     }
-
-//     pub fn serialize_u16(value: u16, endianness: Endianness) -> [u8;2] {
-//         match endianness {
-//             Endianness::BigEndian => value.to_be_bytes(),
-//             Endianness::LittleEndian => value.to_le_bytes(),
-//         }
-//     }
-
-//     pub fn deserialize_u16(bytes: [u8; 2], endianness: Endianness) -> u16 {
-//         match endianness {
-//             Endianness::BigEndian => u16::from_be_bytes(bytes),
-//             Endianness::LittleEndian => u16::from_le_bytes(bytes),
-//         }
-//     }
-
-//     pub fn serialize_i16(value: i16, endianness: Endianness) -> [u8;2] {
-//         match endianness {
-//             Endianness::BigEndian => value.to_be_bytes(),
-//             Endianness::LittleEndian => value.to_le_bytes(),
-//         }
-//     }
-
-//     pub fn deserialize_i16(bytes: [u8; 2], endianness: Endianness) -> i16 {
-//         match endianness {
-//             Endianness::BigEndian => i16::from_be_bytes(bytes),
-//             Endianness::LittleEndian => i16::from_le_bytes(bytes),
-//         }
-//     }
-// }
 
 pub struct SizeCheckers{}
 impl SizeCheckers {
