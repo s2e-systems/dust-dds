@@ -30,13 +30,6 @@ pub struct ReaderProxy {
     highest_nack_count_received: Count,
 }
 
-impl PartialEq for ReaderProxy {
-    fn eq(&self, other: &Self) -> bool {
-        self.remote_reader_guid == other.remote_reader_guid
-    }
-}
-
-impl Eq for ReaderProxy {}
 
 impl ReaderProxy {
     pub fn new(
