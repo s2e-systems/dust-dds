@@ -367,7 +367,7 @@ impl StatelessReaderBehavior {
     pub fn run_waiting_state(history_cache: &mut HistoryCache, received_message: Option<&RtpsMessage>) {
 
         if let Some(received_message) = received_message {
-            let guid_prefix = *received_message.header().guid_prefix();
+            let guid_prefix = received_message.header().guid_prefix();
             let mut _source_time = None;
 
             for submessage in received_message.submessages().iter() {
@@ -375,19 +375,7 @@ impl StatelessReaderBehavior {
                     // Check if the message is for this reader and process it if that is the case
                     if data.reader_id() == &ENTITYID_UNKNOWN {
 
-                        let change_kind = StatelessReaderBehavior::change_kind(&data);
-
-                        let key_hash = StatelessReaderBehavior::key_hash(&data).unwrap();
-                        
-                        let cache_change = CacheChange::new(
-                            change_kind,
-                            GUID::new(guid_prefix, *data.writer_id() ),
-                            key_hash.0,
-                            *data.writer_sn(),
-                            None,
-                            None,
-                        );
-
+                        let cache_change = cache_change_from_data(data, guid_prefix);
                         history_cache.add_change(cache_change);
                     }
                 }
