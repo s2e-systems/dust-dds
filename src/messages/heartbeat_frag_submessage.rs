@@ -1,7 +1,7 @@
 use crate::primitive_types::UShort;
 use crate::types::{SequenceNumber, EntityId, };
 use crate::messages::types::{SubmessageKind, SubmessageFlag, Count, };
-use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, EndianessFlag, RtpsSerdesResult, };
+use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, Endianness, RtpsSerdesResult, };
 use super::{SubmessageHeader, Submessage, };
 use super::submessage_elements::FragmentNumber;
 
@@ -17,7 +17,7 @@ pub struct HeartbeatFrag {
 
 impl Submessage for HeartbeatFrag {
     fn submessage_header(&self) -> SubmessageHeader {
-        const X: SubmessageFlag = SubmessageFlag(false);
+        const X: SubmessageFlag = false;
         let e = self.endianness_flag;
         let flags = [e, X, X, X, X, X, X, X];
 
@@ -53,7 +53,7 @@ impl RtpsParse for HeartbeatFrag {
     fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> {
         let header = SubmessageHeader::parse(bytes)?;
         let endianness_flag = header.flags()[0];
-        let endianness = EndianessFlag::from(endianness_flag);
+        let endianness = Endianness::from(endianness_flag);
 
         let reader_id = EntityId::deserialize(&bytes[4..8], endianness)?;
         let writer_id = EntityId::deserialize(&bytes[8..12], endianness)?;
@@ -81,7 +81,7 @@ mod tests {
     #[test]
     fn parse_heartbeat_frag_submessage() {
         let expected = HeartbeatFrag {
-            endianness_flag: SubmessageFlag(true),    
+            endianness_flag: true,    
             reader_id: ENTITYID_UNKNOWN,
             writer_id: ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
             writer_sn: SequenceNumber(1),
@@ -105,7 +105,7 @@ mod tests {
     #[test]
     fn compose_heartbeat_frag_submessage() {
         let message = HeartbeatFrag {
-            endianness_flag: SubmessageFlag(true),    
+            endianness_flag: true,    
             reader_id: ENTITYID_UNKNOWN,
             writer_id: ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
             writer_sn: SequenceNumber(1),

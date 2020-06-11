@@ -1,7 +1,7 @@
 use crate::primitive_types::UShort;
 use crate::types::EntityId;
 use crate::messages::types::{Count, SubmessageKind, SubmessageFlag, };
-use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, EndianessFlag, RtpsSerdesResult, };
+use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, Endianness, RtpsSerdesResult, };
 use super::{SubmessageHeader, Submessage, };
 use super::submessage_elements::SequenceNumberSet;
 
@@ -22,13 +22,13 @@ impl AckNack {
         reader_sn_state: SequenceNumberSet,
         count: Count,
         final_flag: bool,
-        endianness_flag: EndianessFlag) -> Self {
+        endianness_flag: Endianness) -> Self {
             AckNack {
                 reader_id,
                 writer_id,
                 reader_sn_state,
                 count,
-                final_flag: SubmessageFlag(final_flag),
+                final_flag,
                 endianness_flag: endianness_flag.into(),
             }
         }
@@ -52,7 +52,7 @@ impl AckNack {
 
 impl Submessage for AckNack {
     fn submessage_header(&self) -> SubmessageHeader {
-        const X : SubmessageFlag = SubmessageFlag(false);
+        const X : SubmessageFlag = false;
         let e = self.endianness_flag; 
         let f = self.final_flag; 
         let flags = [e, f, X, X, X, X, X, X];     
@@ -67,7 +67,7 @@ impl Submessage for AckNack {
 
 impl RtpsCompose for AckNack {
     fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
-        let endianness = EndianessFlag::from(self.endianness_flag);       
+        let endianness = Endianness::from(self.endianness_flag);       
         self.submessage_header().compose(writer)?;
         self.reader_id.serialize(writer, endianness)?;
         self.writer_id.serialize(writer, endianness)?;
@@ -114,8 +114,8 @@ mod tests {
         ];
         
         let expected = AckNack {
-            endianness_flag: EndianessFlag::LittleEndian.into(),
-            final_flag: SubmessageFlag(true),
+            endianness_flag: Endianness::LittleEndian.into(),
+            final_flag: true,
             reader_id: ENTITYID_UNKNOWN,
             writer_id: ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
             reader_sn_state: SequenceNumberSet::from_set([SequenceNumber(2), SequenceNumber(3)].iter().cloned().collect()),
@@ -139,8 +139,8 @@ mod tests {
         ];
 
         let message = AckNack {
-            endianness_flag: EndianessFlag::LittleEndian.into(),
-            final_flag: SubmessageFlag(true),
+            endianness_flag: Endianness::LittleEndian.into(),
+            final_flag: true,
             reader_id: ENTITYID_UNKNOWN,
             writer_id: ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
             reader_sn_state: SequenceNumberSet::from_set([SequenceNumber(2), SequenceNumber(3)].iter().cloned().collect()),

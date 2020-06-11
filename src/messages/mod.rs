@@ -17,7 +17,7 @@ use crate::types::{GuidPrefix, ProtocolVersion, VendorId, };
 use crate::types::constants::{PROTOCOL_VERSION_2_4, VENDOR_ID, };
 use self::types::{SubmessageKind, SubmessageFlag, ProtocolId, };
 use self::types::constants::PROTOCOL_RTPS;
-use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsCompose, RtpsParse, EndianessFlag, RtpsSerdesResult, RtpsSerdesError, };
+use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsCompose, RtpsParse, Endianness, RtpsSerdesResult, RtpsSerdesError, };
 
 
 
@@ -90,7 +90,7 @@ impl RtpsCompose for RtpsSubmessage {
 
 impl RtpsParse for RtpsSubmessage {
     fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> {
-        let submessage_id = SubmessageKind::deserialize(bytes, EndianessFlag::LittleEndian /*irrelevant*/)?;
+        let submessage_id = SubmessageKind::deserialize(bytes, Endianness::LittleEndian /*irrelevant*/)?;
         match submessage_id {
             SubmessageKind::Data => Ok( RtpsSubmessage::Data(Data::parse(bytes)?) ),
             SubmessageKind::Pad => Err(RtpsSerdesError::InvalidSubmessageHeader),
@@ -125,7 +125,7 @@ impl SubmessageHeader {
 
 impl RtpsCompose for SubmessageHeader {
     fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
-        let endianness = EndianessFlag::from(self.flags[0].is_set());
+        let endianness = Endianness::from(self.flags[0]);
         self.submessage_id.serialize(writer, endianness)?;
         self.flags.serialize(writer, endianness)?;
         self.submessage_length.serialize(writer, endianness)?;
@@ -135,9 +135,9 @@ impl RtpsCompose for SubmessageHeader {
 
 impl RtpsParse for SubmessageHeader {
     fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> {   
-        let submessage_id = SubmessageKind::deserialize(&bytes[0..1], EndianessFlag::LittleEndian /*irrelevant*/)?;
-        let flags = <[SubmessageFlag; 8]>::deserialize(&bytes[1..2], EndianessFlag::LittleEndian /*irrelevant*/)?;
-        let endianness = EndianessFlag::from(flags[0].is_set());
+        let submessage_id = SubmessageKind::deserialize(&bytes[0..1], Endianness::LittleEndian /*irrelevant*/)?;
+        let flags = <[SubmessageFlag; 8]>::deserialize(&bytes[1..2], Endianness::LittleEndian /*irrelevant*/)?;
+        let endianness = Endianness::from(flags[0]);
         let submessage_length = UShort::deserialize(&bytes[2..4], endianness)?;
         Ok(SubmessageHeader {
             submessage_id, 
@@ -178,20 +178,20 @@ impl Header {
 
 impl RtpsCompose for Header {
     fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
-        &self.protocol.serialize(writer, EndianessFlag::LittleEndian /*irrelevant*/)?;
-        &self.version.serialize(writer, EndianessFlag::LittleEndian /*irrelevant*/)?;
-        &self.vendor_id.serialize(writer, EndianessFlag::LittleEndian /*irrelevant*/)?;
-        &self.guid_prefix.serialize(writer, EndianessFlag::LittleEndian /*irrelevant*/)?;
+        &self.protocol.serialize(writer, Endianness::LittleEndian /*irrelevant*/)?;
+        &self.version.serialize(writer, Endianness::LittleEndian /*irrelevant*/)?;
+        &self.vendor_id.serialize(writer, Endianness::LittleEndian /*irrelevant*/)?;
+        &self.guid_prefix.serialize(writer, Endianness::LittleEndian /*irrelevant*/)?;
         Ok(())
     }
 }
 
 impl RtpsParse for Header {
     fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> {
-        let protocol = ProtocolId::deserialize(&bytes[0..4], EndianessFlag::LittleEndian /*irrelevant*/)?;
-        let version = ProtocolVersion::deserialize(&bytes[4..6], EndianessFlag::LittleEndian /*irrelevant*/)?;
-        let vendor_id = VendorId::deserialize(&bytes[6..8], EndianessFlag::LittleEndian /*irrelevant*/)?;
-        let guid_prefix = GuidPrefix::deserialize(&bytes[8..20], EndianessFlag::LittleEndian /*irrelevant*/)?;
+        let protocol = ProtocolId::deserialize(&bytes[0..4], Endianness::LittleEndian /*irrelevant*/)?;
+        let version = ProtocolVersion::deserialize(&bytes[4..6], Endianness::LittleEndian /*irrelevant*/)?;
+        let vendor_id = VendorId::deserialize(&bytes[6..8], Endianness::LittleEndian /*irrelevant*/)?;
+        let guid_prefix = GuidPrefix::deserialize(&bytes[8..20], Endianness::LittleEndian /*irrelevant*/)?;
         Ok(Header {protocol, version, vendor_id, guid_prefix})
     }
 }
@@ -286,8 +286,8 @@ mod tests {
     #[test]
     fn test_parse_submessage_header() {
         let bytes = [0x15_u8, 0b00000001, 20, 0x0];
-        let f = SubmessageFlag(false);
-        let flags: [SubmessageFlag; 8] = [SubmessageFlag(true), f, f, f, f, f, f, f];
+        let f = false;
+        let flags: [SubmessageFlag; 8] = [true, f, f, f, f, f, f, f];
         let expected = SubmessageHeader {
             submessage_id : SubmessageKind::Data, 
             flags,
@@ -302,8 +302,8 @@ mod tests {
     fn test_compose_submessage_header() {
         let mut result = Vec::new();
 
-        let f = SubmessageFlag(false);
-        let t = SubmessageFlag(true);
+        let f = false;
+        let t = true;
         let header = SubmessageHeader {
             submessage_id: SubmessageKind::Data,
             flags: [t, t, f, f, f, f, f, f],
@@ -318,7 +318,7 @@ mod tests {
     fn test_compose_submessage() {
         
         let submessage = RtpsSubmessage::Data ( Data::new(
-            EndianessFlag::LittleEndian, 
+            Endianness::LittleEndian, 
             ENTITYID_UNKNOWN, 
             ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, 
             SequenceNumber(1),
@@ -352,7 +352,7 @@ mod tests {
             0x01, 0x00, 0x00, 0x00, // [Data Submessage] SequenceNumber writerSN => 1
         ];
         let expected = RtpsSubmessage::Data ( Data::new(
-            EndianessFlag::LittleEndian, 
+            Endianness::LittleEndian, 
             ENTITYID_UNKNOWN, 
             ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, 
             SequenceNumber(1),
@@ -367,7 +367,7 @@ mod tests {
     #[test]
     fn test_compose_message() {
         let submessage = RtpsSubmessage::Data ( Data::new(
-            EndianessFlag::LittleEndian, 
+            Endianness::LittleEndian, 
             ENTITYID_UNKNOWN, 
             ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, 
             SequenceNumber(1),
@@ -406,10 +406,10 @@ mod tests {
     #[test]
     fn test_compose_message_three_data_submessages() {
         let test_time = Time::new(1565525425, 269558339);
-        let submessage1 = RtpsSubmessage::InfoTs ( InfoTs::new(Some(test_time), EndianessFlag::LittleEndian)
+        let submessage1 = RtpsSubmessage::InfoTs ( InfoTs::new(Some(test_time), Endianness::LittleEndian)
         );
         let submessage2 = RtpsSubmessage::Data ( Data::new(
-            EndianessFlag::LittleEndian, 
+            Endianness::LittleEndian, 
             ENTITYID_UNKNOWN, 
             ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, 
             SequenceNumber(1),
@@ -418,7 +418,7 @@ mod tests {
             )
         );
         let submessage3 = RtpsSubmessage::Data ( Data::new(
-            EndianessFlag::LittleEndian, 
+            Endianness::LittleEndian, 
             ENTITYID_UNKNOWN, 
             ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, 
             SequenceNumber(2),
@@ -466,7 +466,7 @@ mod tests {
     #[test]
     fn test_parse_message() {
         let submessage = RtpsSubmessage::Data ( Data::new(
-            EndianessFlag::LittleEndian, 
+            Endianness::LittleEndian, 
             ENTITYID_UNKNOWN, 
             ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, 
             SequenceNumber(1),
@@ -502,7 +502,7 @@ mod tests {
 
 
         let submessage1 = RtpsSubmessage::Data ( Data::new(
-            EndianessFlag::LittleEndian, 
+            Endianness::LittleEndian, 
             ENTITYID_UNKNOWN, 
             ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, 
             SequenceNumber(1),
@@ -519,7 +519,7 @@ mod tests {
         let liveliness_flag = false;
 
         let submessage2 = RtpsSubmessage::Heartbeat ( Heartbeat::new(
-            reader_id, writer_id, first_sn, last_sn, count, final_flag, liveliness_flag, EndianessFlag::BigEndian)
+            reader_id, writer_id, first_sn, last_sn, count, final_flag, liveliness_flag, Endianness::BigEndian)
         );
         let expected = RtpsMessage { 
                 header : Header {
@@ -559,10 +559,10 @@ mod tests {
     #[test]
     fn test_parse_message_two_data_submessages() {
         let test_time = Time::new(1565525425, 269558339);
-        let submessage1 = RtpsSubmessage::InfoTs ( InfoTs::new(Some(test_time), EndianessFlag::LittleEndian)
+        let submessage1 = RtpsSubmessage::InfoTs ( InfoTs::new(Some(test_time), Endianness::LittleEndian)
         );
         let submessage2 = RtpsSubmessage::Data ( Data::new(
-            EndianessFlag::LittleEndian, 
+            Endianness::LittleEndian, 
             ENTITYID_UNKNOWN, 
             ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, 
             SequenceNumber(1),
@@ -571,7 +571,7 @@ mod tests {
             )
         );
         let submessage3 = RtpsSubmessage::Data ( Data::new(
-            EndianessFlag::LittleEndian, 
+            Endianness::LittleEndian, 
             ENTITYID_UNKNOWN, 
             ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, 
             SequenceNumber(2),

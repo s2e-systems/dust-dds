@@ -1,7 +1,7 @@
 use crate::primitive_types::{Long, UShort, };
 use crate::types::{ProtocolVersion, VendorId, GuidPrefix, };
 use crate::messages::types::{SubmessageKind, SubmessageFlag, };
-use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, EndianessFlag, RtpsSerdesResult, };
+use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, Endianness, RtpsSerdesResult, };
 use super::{SubmessageHeader, Submessage, };
 
 #[derive(PartialEq, Debug)]
@@ -15,7 +15,7 @@ pub struct InfoSource {
 
 impl Submessage for InfoSource {
     fn submessage_header(&self) -> SubmessageHeader {
-        const X: SubmessageFlag = SubmessageFlag(false);
+        const X: SubmessageFlag = false;
         let e = self.endianness_flag;
         let flags = [e, X, X, X, X, X, X, X];
         let unused: Long = 0;
@@ -51,7 +51,7 @@ impl RtpsParse for InfoSource {
     fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> {
         let header = SubmessageHeader::parse(bytes)?;
         let endianness_flag = header.flags()[0];
-        let endianness = EndianessFlag::from(endianness_flag);
+        let endianness = Endianness::from(endianness_flag);
         // let unused = Long::deserialize(&bytes[4..8], endianness)?;
         let protocol_version = ProtocolVersion::deserialize(&bytes[8..10], endianness)?;
         let vendor_id = VendorId::deserialize(&bytes[10..12], endianness)?;
@@ -74,7 +74,7 @@ mod tests {
     #[test]
     fn parse_heartbeat_frag_submessage() {
         let expected = InfoSource {
-            endianness_flag: SubmessageFlag(true),    
+            endianness_flag: true,    
             protocol_version: constants::PROTOCOL_VERSION_2_4,
             vendor_id: constants::VENDOR_ID,
             guid_prefix: GuidPrefix([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]),
@@ -95,7 +95,7 @@ mod tests {
     #[test]
     fn compose_heartbeat_frag_submessage() {
         let message = InfoSource {
-            endianness_flag: SubmessageFlag(true),    
+            endianness_flag: true,    
             protocol_version: constants::PROTOCOL_VERSION_2_4,
             vendor_id: constants::VENDOR_ID,
             guid_prefix: GuidPrefix([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]),

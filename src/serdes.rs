@@ -30,38 +30,38 @@ impl From<std::array::TryFromSliceError> for RtpsSerdesError {
 pub type RtpsSerdesResult<T> = std::result::Result<T, RtpsSerdesError>;
 
 #[derive(FromPrimitive, PartialEq, Debug, Clone, Copy)]
-pub enum EndianessFlag {
+pub enum Endianness {
     BigEndian = 0,
     LittleEndian = 1,
 }
 
-impl From<bool> for EndianessFlag {
+impl From<bool> for Endianness {
     fn from(value: bool) -> Self {
         match value {
-            true => EndianessFlag::LittleEndian,
-            false => EndianessFlag::BigEndian,
+            true => Endianness::LittleEndian,
+            false => Endianness::BigEndian,
         }
     }
 }
 
-impl From<EndianessFlag> for bool {
-    fn from(value: EndianessFlag) -> Self {
+impl From<Endianness> for bool {
+    fn from(value: Endianness) -> Self {
         match value {
-            EndianessFlag::LittleEndian => true,
-            EndianessFlag::BigEndian => false,
+            Endianness::LittleEndian => true,
+            Endianness::BigEndian => false,
         }
     }
 }
 
-impl From<u8> for EndianessFlag {
+impl From<u8> for Endianness {
     fn from(value: u8) -> Self {
         const ENDIANNESS_FLAG_MASK: u8 = 1;
 
         let flag_u8 = value & ENDIANNESS_FLAG_MASK;
         if flag_u8 == 0 {
-            EndianessFlag::BigEndian
+            Endianness::BigEndian
         } else {
-            EndianessFlag::LittleEndian
+            Endianness::LittleEndian
         }
     }
 }
@@ -96,10 +96,10 @@ impl std::io::Write for SizeSerializer {
 
 pub trait RtpsSerialize 
 {
-    fn serialize(&self, writer: &mut impl std::io::Write, endianness: EndianessFlag) -> RtpsSerdesResult<()>;
+    fn serialize(&self, writer: &mut impl std::io::Write, endianness: Endianness) -> RtpsSerdesResult<()>;
     fn octets(&self) -> usize {
         let mut size_serializer = SizeSerializer::new();
-        self.serialize(&mut size_serializer, EndianessFlag::LittleEndian /*No impact on size*/ ).unwrap(); // Should panic on failure
+        self.serialize(&mut size_serializer, Endianness::LittleEndian /*No impact on size*/ ).unwrap(); // Should panic on failure
         size_serializer.get_size()
     }
 }
@@ -125,14 +125,14 @@ pub trait RtpsDeserialize
 where
     Self: std::marker::Sized
 {
-    fn deserialize(bytes: &[u8], endianness: EndianessFlag) -> RtpsSerdesResult<Self>;
+    fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self>;
 }
 
 impl<T> RtpsSerialize for Option<T> 
 where 
     T: RtpsSerialize
 {
-    fn serialize(&self, writer: &mut impl std::io::Write, endianess: EndianessFlag) -> RtpsSerdesResult<()> {
+    fn serialize(&self, writer: &mut impl std::io::Write, endianess: Endianness) -> RtpsSerdesResult<()> {
         if let Some(value) = self {
             value.serialize(writer, endianess)
         } else {
@@ -141,65 +141,7 @@ where
     } 
 }
 
-// pub struct PrimitiveSerdes{}
-// impl PrimitiveSerdes{
 
-//     pub fn serialize_u32(value: u32, endianness: EndianessFlag) -> [u8;4] {
-//         match endianness {
-//             EndianessFlag::BigEndian => value.to_be_bytes(),
-//             EndianessFlag::LittleEndian => value.to_le_bytes(),
-//         }
-//     }
-
-//     pub fn deserialize_u32(bytes: [u8; 4], endianness: EndianessFlag) -> u32 {
-//         match endianness {
-//             EndianessFlag::BigEndian => u32::from_be_bytes(bytes),
-//             EndianessFlag::LittleEndian => u32::from_le_bytes(bytes),
-//         }
-//     }
-
-//     pub fn serialize_i32(value: i32, endianness: EndianessFlag) -> [u8;4] {
-//         match endianness {
-//             EndianessFlag::BigEndian => value.to_be_bytes(),
-//             EndianessFlag::LittleEndian => value.to_le_bytes(),
-//         }
-//     }
-
-//     pub fn deserialize_i32(bytes: [u8; 4], endianness: EndianessFlag) -> i32 {
-//         match endianness {
-//             EndianessFlag::BigEndian => i32::from_be_bytes(bytes),
-//             EndianessFlag::LittleEndian => i32::from_le_bytes(bytes),
-//         }
-//     }
-
-//     pub fn serialize_u16(value: u16, endianness: EndianessFlag) -> [u8;2] {
-//         match endianness {
-//             EndianessFlag::BigEndian => value.to_be_bytes(),
-//             EndianessFlag::LittleEndian => value.to_le_bytes(),
-//         }
-//     }
-
-//     pub fn deserialize_u16(bytes: [u8; 2], endianness: EndianessFlag) -> u16 {
-//         match endianness {
-//             EndianessFlag::BigEndian => u16::from_be_bytes(bytes),
-//             EndianessFlag::LittleEndian => u16::from_le_bytes(bytes),
-//         }
-//     }
-
-//     pub fn serialize_i16(value: i16, endianness: EndianessFlag) -> [u8;2] {
-//         match endianness {
-//             EndianessFlag::BigEndian => value.to_be_bytes(),
-//             EndianessFlag::LittleEndian => value.to_le_bytes(),
-//         }
-//     }
-
-//     pub fn deserialize_i16(bytes: [u8; 2], endianness: EndianessFlag) -> i16 {
-//         match endianness {
-//             EndianessFlag::BigEndian => i16::from_be_bytes(bytes),
-//             EndianessFlag::LittleEndian => i16::from_le_bytes(bytes),
-//         }
-//     }
-// }
 
 pub struct SizeCheckers{}
 impl SizeCheckers {

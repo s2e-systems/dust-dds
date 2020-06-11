@@ -5,7 +5,7 @@
 
 use std::convert::{TryInto, TryFrom, };
 use num_derive::FromPrimitive;
-use crate::serdes::{RtpsSerialize, RtpsDeserialize, EndianessFlag, RtpsSerdesResult, SizeCheckers, RtpsSerdesError, };
+use crate::serdes::{RtpsSerialize, RtpsDeserialize, Endianness, RtpsSerdesResult, SizeCheckers, RtpsSerdesError, };
 use crate::primitive_types::{Long, ULong, };
 use crate::inline_qos_types::StatusInfo;
 
@@ -107,14 +107,14 @@ impl GUID {
 pub struct GuidPrefix(pub [u8; 12]);
 
 impl RtpsSerialize for GuidPrefix {
-    fn serialize(&self, writer: &mut impl std::io::Write, _endianness: EndianessFlag) -> RtpsSerdesResult<()> {
+    fn serialize(&self, writer: &mut impl std::io::Write, _endianness: Endianness) -> RtpsSerdesResult<()> {
         writer.write(&self.0)?;
         Ok(())
     }
 }
 
 impl RtpsDeserialize for GuidPrefix {
-    fn deserialize(bytes: &[u8], _endianness: EndianessFlag) -> RtpsSerdesResult<Self> {
+    fn deserialize(bytes: &[u8], _endianness: Endianness) -> RtpsSerdesResult<Self> {
         Ok(GuidPrefix(bytes[0..12].try_into()?))
     }    
 }
@@ -125,14 +125,14 @@ impl RtpsDeserialize for GuidPrefix {
 pub struct EntityKey(pub [u8;3]);
 
 impl RtpsSerialize for EntityKey {
-    fn serialize(&self, writer: &mut impl std::io::Write, _endianness: EndianessFlag) -> RtpsSerdesResult<()>{
+    fn serialize(&self, writer: &mut impl std::io::Write, _endianness: Endianness) -> RtpsSerdesResult<()>{
         writer.write(&self.0)?;
         Ok(())
     }
 }
 
 impl RtpsDeserialize for EntityKey {
-    fn deserialize(bytes: &[u8], _endianness: EndianessFlag) -> RtpsSerdesResult<Self> {
+    fn deserialize(bytes: &[u8], _endianness: Endianness) -> RtpsSerdesResult<Self> {
         SizeCheckers::check_size_equal(bytes, 3)?;
 
         Ok(EntityKey(bytes[0..3].try_into()?))
@@ -159,7 +159,7 @@ pub enum EntityKind {
 }
 
 impl RtpsSerialize for EntityKind {
-    fn serialize(&self, writer: &mut impl std::io::Write, _endianness: EndianessFlag) -> RtpsSerdesResult<()>{
+    fn serialize(&self, writer: &mut impl std::io::Write, _endianness: Endianness) -> RtpsSerdesResult<()>{
         let entity_kind_u8 = *self as u8;
         writer.write(&[entity_kind_u8])?;
         Ok(())
@@ -167,7 +167,7 @@ impl RtpsSerialize for EntityKind {
 }
 
 impl RtpsDeserialize for EntityKind {
-    fn deserialize(bytes: &[u8], _endianness: EndianessFlag) -> RtpsSerdesResult<Self> {
+    fn deserialize(bytes: &[u8], _endianness: Endianness) -> RtpsSerdesResult<Self> {
         SizeCheckers::check_size_equal(bytes, 1 /*expected_size*/)?;
         Ok(num::FromPrimitive::from_u8(bytes[0]).ok_or(RtpsSerdesError::InvalidEnumRepresentation)?)
     }
@@ -189,14 +189,14 @@ impl EntityId {
 }
 
 impl RtpsSerialize for EntityId {
-    fn serialize(&self, writer: &mut impl std::io::Write, endianness: EndianessFlag) -> RtpsSerdesResult<()>{
+    fn serialize(&self, writer: &mut impl std::io::Write, endianness: Endianness) -> RtpsSerdesResult<()>{
         self.entity_key.serialize(writer, endianness)?;
         self.entity_kind.serialize(writer, endianness)
     }
 }
 
 impl RtpsDeserialize for EntityId{
-    fn deserialize(bytes: &[u8], endianness: EndianessFlag) -> RtpsSerdesResult<Self> {
+    fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> {
         SizeCheckers::check_size_equal(bytes, 4 /*expected_size*/)?;
         let entity_key = EntityKey::deserialize(&bytes[0..3], endianness)?;
         let entity_kind = EntityKind::deserialize(&[bytes[3]], endianness)?;
@@ -227,7 +227,7 @@ impl std::ops::Add<i64> for SequenceNumber {
 }
 
 impl RtpsSerialize for SequenceNumber {
-    fn serialize(&self, writer: &mut impl std::io::Write, endianness: EndianessFlag) -> RtpsSerdesResult<()>{
+    fn serialize(&self, writer: &mut impl std::io::Write, endianness: Endianness) -> RtpsSerdesResult<()>{
         let msb = self.0 >> 32;
         let lsb = self.0 & 0x0000_0000_FFFF_FFFF;
         (msb as Long).serialize(writer, endianness)?;
@@ -237,7 +237,7 @@ impl RtpsSerialize for SequenceNumber {
 }
 
 impl RtpsDeserialize for SequenceNumber {
-    fn deserialize(bytes: &[u8], endianness: EndianessFlag) -> RtpsSerdesResult<Self> {
+    fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> {
         SizeCheckers::check_size_equal(bytes, 8)?;
 
         let msb = Long::deserialize(&bytes[0..4], endianness)?;
@@ -269,7 +269,7 @@ impl Locator {
 }
 
 impl RtpsSerialize for Locator {
-    fn serialize(&self, writer: &mut impl std::io::Write, endianness: EndianessFlag) -> RtpsSerdesResult<()> {
+    fn serialize(&self, writer: &mut impl std::io::Write, endianness: Endianness) -> RtpsSerdesResult<()> {
         self.kind.serialize(writer, endianness)?;
         self.port.serialize(writer, endianness)?;
         writer.write(&self.address)?;
@@ -278,7 +278,7 @@ impl RtpsSerialize for Locator {
 }
 
 impl RtpsDeserialize for Locator {
-    fn deserialize(bytes: &[u8], endianness: EndianessFlag) -> RtpsSerdesResult<Self> {
+    fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> {
         let kind = Long::deserialize(&bytes[0..4], endianness)?;
         let port = ULong::deserialize(&bytes[4..8], endianness)?;
         let address = bytes[8..24].try_into()?;
@@ -342,7 +342,7 @@ pub struct ProtocolVersion {
 }
 
 impl RtpsSerialize for ProtocolVersion {
-    fn serialize(&self, writer: &mut impl std::io::Write, _endianness: EndianessFlag) -> RtpsSerdesResult<()> {
+    fn serialize(&self, writer: &mut impl std::io::Write, _endianness: Endianness) -> RtpsSerdesResult<()> {
         writer.write(&[self.major])?;
         writer.write(&[self.minor])?;
         Ok(())
@@ -350,7 +350,7 @@ impl RtpsSerialize for ProtocolVersion {
 }
 
 impl RtpsDeserialize for ProtocolVersion {
-    fn deserialize(bytes: &[u8], _endianness: EndianessFlag) -> RtpsSerdesResult<Self> {
+    fn deserialize(bytes: &[u8], _endianness: Endianness) -> RtpsSerdesResult<Self> {
         let major = bytes[0];
         let minor = bytes[1];
         Ok(ProtocolVersion{major, minor})
@@ -363,14 +363,14 @@ impl RtpsDeserialize for ProtocolVersion {
 pub struct VendorId(pub [u8; 2]);
 
 impl RtpsSerialize for VendorId {
-    fn serialize(&self, writer: &mut impl std::io::Write, _endianness: EndianessFlag) -> RtpsSerdesResult<()> {
+    fn serialize(&self, writer: &mut impl std::io::Write, _endianness: Endianness) -> RtpsSerdesResult<()> {
         writer.write(&self.0)?;
         Ok(())
     }
 }
 
 impl RtpsDeserialize for VendorId {
-    fn deserialize(bytes: &[u8], _endianness: EndianessFlag) -> RtpsSerdesResult<Self> {
+    fn deserialize(bytes: &[u8], _endianness: Endianness) -> RtpsSerdesResult<Self> {
         Ok(VendorId(bytes[0..2].try_into()?))
     }
 }
@@ -399,9 +399,9 @@ mod tests {
 
         
         const TEST_ENTITY_KEY_BIG_ENDIAN : [u8;3] = [5,20,250];
-        test_entity_key.serialize(&mut vec, EndianessFlag::BigEndian).unwrap();
+        test_entity_key.serialize(&mut vec, Endianness::BigEndian).unwrap();
         assert_eq!(vec, TEST_ENTITY_KEY_BIG_ENDIAN);
-        assert_eq!(EntityKey::deserialize(&vec, EndianessFlag::LittleEndian).unwrap(), test_entity_key);
+        assert_eq!(EntityKey::deserialize(&vec, Endianness::LittleEndian).unwrap(), test_entity_key);
     }
 
     #[test]
@@ -411,16 +411,16 @@ mod tests {
 
         
         const TEST_ENTITY_KEY_BIG_ENDIAN : [u8;3] = [5,20,250];
-        test_entity_key.serialize(&mut vec, EndianessFlag::LittleEndian).unwrap();
+        test_entity_key.serialize(&mut vec, Endianness::LittleEndian).unwrap();
         assert_eq!(vec, TEST_ENTITY_KEY_BIG_ENDIAN);
-        assert_eq!(EntityKey::deserialize(&vec, EndianessFlag::LittleEndian).unwrap(), test_entity_key);
+        assert_eq!(EntityKey::deserialize(&vec, Endianness::LittleEndian).unwrap(), test_entity_key);
     }
 
     #[test]
     fn test_invalid_entity_key_deserialization() {
         let too_big_vec = vec![1,2,3,4];
 
-        let expected_error = EntityKey::deserialize(&too_big_vec, EndianessFlag::LittleEndian);
+        let expected_error = EntityKey::deserialize(&too_big_vec, Endianness::LittleEndian);
         match expected_error {
             Err(RtpsSerdesError::WrongSize) => assert!(true),
             _ => assert!(false),
@@ -428,7 +428,7 @@ mod tests {
 
         let too_small_vec = vec![1,2,3,4];
 
-        let expected_error = EntityKey::deserialize(&too_small_vec, EndianessFlag::LittleEndian);
+        let expected_error = EntityKey::deserialize(&too_small_vec, Endianness::LittleEndian);
         match expected_error {
             Err(RtpsSerdesError::WrongSize) => assert!(true),
             _ => assert!(false),
@@ -445,9 +445,9 @@ mod tests {
 
         
         const TEST_ENTITY_KIND_BIG_ENDIAN : [u8;1] = [0xc2];
-        test_entity_kind.serialize(&mut vec, EndianessFlag::BigEndian).unwrap();
+        test_entity_kind.serialize(&mut vec, Endianness::BigEndian).unwrap();
         assert_eq!(vec, TEST_ENTITY_KIND_BIG_ENDIAN);
-        assert_eq!(EntityKind::deserialize(&vec, EndianessFlag::BigEndian).unwrap(), test_entity_kind);
+        assert_eq!(EntityKind::deserialize(&vec, Endianness::BigEndian).unwrap(), test_entity_kind);
     }
 
     #[test]
@@ -457,16 +457,16 @@ mod tests {
 
         
         const TEST_ENTITY_KIND_LITTLE_ENDIAN : [u8;1] = [0xc2];
-        test_entity_kind.serialize(&mut vec, EndianessFlag::LittleEndian).unwrap();
+        test_entity_kind.serialize(&mut vec, Endianness::LittleEndian).unwrap();
         assert_eq!(vec, TEST_ENTITY_KIND_LITTLE_ENDIAN);
-        assert_eq!(EntityKind::deserialize(&vec, EndianessFlag::LittleEndian).unwrap(), test_entity_kind);
+        assert_eq!(EntityKind::deserialize(&vec, Endianness::LittleEndian).unwrap(), test_entity_kind);
     }
 
     #[test]
     fn test_invalid_entity_kind_deserialization() {
         let too_big_vec = vec![1,2,3,4];
 
-        let expected_error = EntityKind::deserialize(&too_big_vec, EndianessFlag::LittleEndian);
+        let expected_error = EntityKind::deserialize(&too_big_vec, Endianness::LittleEndian);
         match expected_error {
             Err(RtpsSerdesError::WrongSize) => assert!(true),
             _ => assert!(false),
@@ -474,7 +474,7 @@ mod tests {
 
         let wrong_vec = vec![0xf3];
 
-        let expected_error = EntityKind::deserialize(&wrong_vec, EndianessFlag::LittleEndian);
+        let expected_error = EntityKind::deserialize(&wrong_vec, Endianness::LittleEndian);
         match expected_error {
             Err(RtpsSerdesError::InvalidEnumRepresentation) => assert!(true),
             _ => assert!(false),
@@ -488,9 +488,9 @@ mod tests {
         let test_entity_id = constants::ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER;
 
         const TEST_ENTITY_ID_BIG_ENDIAN : [u8;4] = [0, 0x02, 0x00, 0xc4];
-        test_entity_id.serialize(&mut vec, EndianessFlag::BigEndian).unwrap();
+        test_entity_id.serialize(&mut vec, Endianness::BigEndian).unwrap();
         assert_eq!(vec, TEST_ENTITY_ID_BIG_ENDIAN);
-        assert_eq!(EntityId::deserialize(&vec, EndianessFlag::BigEndian).unwrap(), test_entity_id);
+        assert_eq!(EntityId::deserialize(&vec, Endianness::BigEndian).unwrap(), test_entity_id);
     }
 
     #[test]
@@ -499,16 +499,16 @@ mod tests {
         let test_entity_id = constants::ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER;
 
         const TEST_ENTITY_ID_LITTLE_ENDIAN : [u8;4] = [0, 0x02, 0x00, 0xc4];
-        test_entity_id.serialize(&mut vec, EndianessFlag::LittleEndian).unwrap();
+        test_entity_id.serialize(&mut vec, Endianness::LittleEndian).unwrap();
         assert_eq!(vec, TEST_ENTITY_ID_LITTLE_ENDIAN);
-        assert_eq!(EntityId::deserialize(&vec, EndianessFlag::LittleEndian).unwrap(), test_entity_id);
+        assert_eq!(EntityId::deserialize(&vec, Endianness::LittleEndian).unwrap(), test_entity_id);
     }
 
     #[test]
     fn invalid_entity_id_deserialization() {
         let too_big_vec = vec![1,2,3,4,5,5];
 
-        let expected_error = EntityId::deserialize(&too_big_vec, EndianessFlag::LittleEndian);
+        let expected_error = EntityId::deserialize(&too_big_vec, Endianness::LittleEndian);
         match expected_error {
             Err(RtpsSerdesError::WrongSize) => assert!(true),
             _ => assert!(false),
@@ -516,7 +516,7 @@ mod tests {
 
         let wrong_vec = vec![1,2,3,0xf3];
 
-        let expected_error = EntityId::deserialize(&wrong_vec, EndianessFlag::LittleEndian);
+        let expected_error = EntityId::deserialize(&wrong_vec, Endianness::LittleEndian);
         match expected_error {
             Err(RtpsSerdesError::InvalidEnumRepresentation) => assert!(true),
             _ => assert!(false),
@@ -534,9 +534,9 @@ mod tests {
 
         
         const TEST_SEQUENCE_NUMBER_BIG_ENDIAN : [u8;8] = [0x00, 0x00, 0x01, 0xCE, 0xC6, 0xED, 0x85, 0x4F];
-        test_sequence_number.serialize(&mut vec, EndianessFlag::BigEndian).unwrap();
+        test_sequence_number.serialize(&mut vec, Endianness::BigEndian).unwrap();
         assert_eq!(vec, TEST_SEQUENCE_NUMBER_BIG_ENDIAN);
-        assert_eq!(SequenceNumber::deserialize(&vec, EndianessFlag::BigEndian).unwrap(), test_sequence_number);
+        assert_eq!(SequenceNumber::deserialize(&vec, Endianness::BigEndian).unwrap(), test_sequence_number);
     }
 
     #[test]
@@ -546,9 +546,9 @@ mod tests {
 
         
         const TEST_SEQUENCE_NUMBER_LITTLE_ENDIAN : [u8;8] = [0xCE, 0x01, 0x00, 0x00, 0x4F, 0x85, 0xED, 0xC6];
-        test_sequence_number.serialize(&mut vec, EndianessFlag::LittleEndian).unwrap();
+        test_sequence_number.serialize(&mut vec, Endianness::LittleEndian).unwrap();
         assert_eq!(vec, TEST_SEQUENCE_NUMBER_LITTLE_ENDIAN);
-        assert_eq!(SequenceNumber::deserialize(&vec, EndianessFlag::LittleEndian).unwrap(), test_sequence_number);
+        assert_eq!(SequenceNumber::deserialize(&vec, Endianness::LittleEndian).unwrap(), test_sequence_number);
     }
 
     #[test]
@@ -557,34 +557,34 @@ mod tests {
         
         {
             let test_sequence_number_i64_max = SequenceNumber(std::i64::MAX);
-            test_sequence_number_i64_max.serialize(&mut vec, EndianessFlag::LittleEndian).unwrap();
-            assert_eq!(SequenceNumber::deserialize(&vec, EndianessFlag::LittleEndian).unwrap(), test_sequence_number_i64_max);
+            test_sequence_number_i64_max.serialize(&mut vec, Endianness::LittleEndian).unwrap();
+            assert_eq!(SequenceNumber::deserialize(&vec, Endianness::LittleEndian).unwrap(), test_sequence_number_i64_max);
             vec.clear();
 
-            test_sequence_number_i64_max.serialize(&mut vec, EndianessFlag::BigEndian).unwrap();
-            assert_eq!(SequenceNumber::deserialize(&vec, EndianessFlag::BigEndian).unwrap(), test_sequence_number_i64_max);
+            test_sequence_number_i64_max.serialize(&mut vec, Endianness::BigEndian).unwrap();
+            assert_eq!(SequenceNumber::deserialize(&vec, Endianness::BigEndian).unwrap(), test_sequence_number_i64_max);
             vec.clear();
         }
 
         {
             let test_sequence_number_i64_min = SequenceNumber(std::i64::MIN);
-            test_sequence_number_i64_min.serialize(&mut vec, EndianessFlag::LittleEndian).unwrap();
-            assert_eq!(SequenceNumber::deserialize(&vec, EndianessFlag::LittleEndian).unwrap(), test_sequence_number_i64_min);
+            test_sequence_number_i64_min.serialize(&mut vec, Endianness::LittleEndian).unwrap();
+            assert_eq!(SequenceNumber::deserialize(&vec, Endianness::LittleEndian).unwrap(), test_sequence_number_i64_min);
             vec.clear();
 
-            test_sequence_number_i64_min.serialize(&mut vec, EndianessFlag::BigEndian).unwrap();
-            assert_eq!(SequenceNumber::deserialize(&vec, EndianessFlag::BigEndian).unwrap(), test_sequence_number_i64_min);
+            test_sequence_number_i64_min.serialize(&mut vec, Endianness::BigEndian).unwrap();
+            assert_eq!(SequenceNumber::deserialize(&vec, Endianness::BigEndian).unwrap(), test_sequence_number_i64_min);
             vec.clear();
         }
 
         {
             let test_sequence_number_zero = SequenceNumber(0);
-            test_sequence_number_zero.serialize(&mut vec, EndianessFlag::LittleEndian).unwrap();
-            assert_eq!(SequenceNumber::deserialize(&vec, EndianessFlag::LittleEndian).unwrap(), test_sequence_number_zero);
+            test_sequence_number_zero.serialize(&mut vec, Endianness::LittleEndian).unwrap();
+            assert_eq!(SequenceNumber::deserialize(&vec, Endianness::LittleEndian).unwrap(), test_sequence_number_zero);
             vec.clear();
 
-            test_sequence_number_zero.serialize(&mut vec, EndianessFlag::BigEndian).unwrap();
-            assert_eq!(SequenceNumber::deserialize(&vec, EndianessFlag::BigEndian).unwrap(), test_sequence_number_zero);
+            test_sequence_number_zero.serialize(&mut vec, Endianness::BigEndian).unwrap();
+            assert_eq!(SequenceNumber::deserialize(&vec, Endianness::BigEndian).unwrap(), test_sequence_number_zero);
             vec.clear();
         }
     }
@@ -593,7 +593,7 @@ mod tests {
     fn invalid_sequence_number_deserialization() {
         let wrong_vec = vec![1,2,3,4];
 
-        let expected_error = SequenceNumber::deserialize(&wrong_vec, EndianessFlag::LittleEndian);
+        let expected_error = SequenceNumber::deserialize(&wrong_vec, Endianness::LittleEndian);
         match expected_error {
             Err(RtpsSerdesError::WrongSize) => assert!(true),
             _ => assert!(false),
@@ -616,7 +616,7 @@ mod tests {
             13, 14, 15, 16, // address
         ];
         let mut writer = Vec::new();
-        locator.serialize(&mut writer, EndianessFlag::LittleEndian).unwrap();
+        locator.serialize(&mut writer, Endianness::LittleEndian).unwrap();
         assert_eq!(expected, writer);
     }
     
@@ -631,7 +631,7 @@ mod tests {
              9, 10, 11, 12, // address
             13, 14, 15, 16, // address
         ];
-        let result = Locator::deserialize(&bytes, EndianessFlag::LittleEndian).unwrap();
+        let result = Locator::deserialize(&bytes, Endianness::LittleEndian).unwrap();
         assert_eq!(expected, result);
     }
 

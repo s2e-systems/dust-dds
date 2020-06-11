@@ -3,7 +3,7 @@
 /// Table 8.13 - Types used to define RTPS messages
 ///  
  
-use crate::serdes::{SizeCheckers, RtpsSerialize, RtpsDeserialize, RtpsSerdesResult, RtpsSerdesError, EndianessFlag, };
+use crate::serdes::{SizeCheckers, RtpsSerialize, RtpsDeserialize, RtpsSerdesResult, RtpsSerdesError, Endianness, };
 use num_derive::{FromPrimitive, ToPrimitive, };
 use num_traits::{FromPrimitive, };
 use std::time::SystemTime;
@@ -45,14 +45,14 @@ pub trait Pid {
 pub struct ProtocolId(pub [u8; 4]);
 
 impl RtpsSerialize for ProtocolId {
-    fn serialize(&self, writer: &mut impl std::io::Write, _endianness: EndianessFlag) -> RtpsSerdesResult<()> {
+    fn serialize(&self, writer: &mut impl std::io::Write, _endianness: Endianness) -> RtpsSerdesResult<()> {
         writer.write(&self.0)?;
         Ok(())
     }    
 }
 
 impl RtpsDeserialize for ProtocolId {
-    fn deserialize(bytes: &[u8], _endianness: EndianessFlag) -> RtpsSerdesResult<Self> {
+    fn deserialize(bytes: &[u8], _endianness: Endianness) -> RtpsSerdesResult<Self> {
         if bytes == self::constants::PROTOCOL_RTPS.0 {
             Ok(ProtocolId(bytes[0..4].try_into()?))
         } else {
@@ -65,32 +65,13 @@ impl RtpsDeserialize for ProtocolId {
 
 // /////////// SubmessageFlag ////////
 
-#[derive(PartialEq, Debug, Clone, Copy)]
-pub struct SubmessageFlag(pub bool);
-
-impl SubmessageFlag {
-    pub fn is_set(&self) -> bool {
-         self.0
-    }
-}
-
-impl From<EndianessFlag> for SubmessageFlag {
-    fn from(value: EndianessFlag) -> Self {
-        SubmessageFlag(value.into())
-    }
-}
-
-impl From<SubmessageFlag> for EndianessFlag {
-    fn from(value: SubmessageFlag) -> Self {
-        EndianessFlag::from(value.is_set())
-    }
-}
+pub type SubmessageFlag = bool;
 
 impl RtpsSerialize for [SubmessageFlag; 8] {
-    fn serialize(&self, writer: &mut impl std::io::Write, _endianness: EndianessFlag) -> RtpsSerdesResult<()>{
+    fn serialize(&self, writer: &mut impl std::io::Write, _endianness: Endianness) -> RtpsSerdesResult<()>{
         let mut flags = 0u8;
         for i in 0..8 {
-            if self[i].0 {
+            if self[i] {
                 flags |= 0b00000001 << i;
             }
         }
@@ -100,14 +81,14 @@ impl RtpsSerialize for [SubmessageFlag; 8] {
 }
 
 impl RtpsDeserialize for [SubmessageFlag; 8] {
-    fn deserialize(bytes: &[u8], _endianness: EndianessFlag) -> RtpsSerdesResult<Self> { 
+    fn deserialize(bytes: &[u8], _endianness: Endianness) -> RtpsSerdesResult<Self> { 
         // SizeCheckers::check_size_equal(bytes, 1)?;
         let flags: u8 = bytes[0];        
         let mut mask = 0b00000001_u8;
-        let mut submessage_flags = [SubmessageFlag(false); 8];
+        let mut submessage_flags = [false; 8];
         for i in 0..8 {
             if (flags & mask) > 0 {
-                submessage_flags[i] = SubmessageFlag(true);
+                submessage_flags[i] = true;
             }
             mask <<= 1;
         };
@@ -137,7 +118,7 @@ pub enum SubmessageKind {
 }
 
 impl RtpsSerialize for SubmessageKind {
-    fn serialize(&self, writer: &mut impl std::io::Write, _endianness: EndianessFlag) -> RtpsSerdesResult<()>{
+    fn serialize(&self, writer: &mut impl std::io::Write, _endianness: Endianness) -> RtpsSerdesResult<()>{
         let submessage_kind_u8 = *self as u8;
         writer.write(&[submessage_kind_u8])?;
         Ok(())
@@ -145,7 +126,7 @@ impl RtpsSerialize for SubmessageKind {
 }
 
 impl RtpsDeserialize for SubmessageKind {
-    fn deserialize(bytes: &[u8], _endianness: EndianessFlag) -> RtpsSerdesResult<Self> { 
+    fn deserialize(bytes: &[u8], _endianness: Endianness) -> RtpsSerdesResult<Self> { 
         Ok(num::FromPrimitive::from_u8(bytes[0]).ok_or(RtpsSerdesError::InvalidEnumRepresentation)?)
     }
 }
@@ -175,7 +156,7 @@ impl Time {
 }
  
 impl RtpsSerialize for Time {
-    fn serialize(&self, writer: &mut impl std::io::Write, endianness: EndianessFlag) -> RtpsSerdesResult<()>{
+    fn serialize(&self, writer: &mut impl std::io::Write, endianness: Endianness) -> RtpsSerdesResult<()>{
         self.seconds.serialize(writer, endianness)?;
         self.fraction.serialize(writer, endianness)?;
         Ok(())
@@ -183,7 +164,7 @@ impl RtpsSerialize for Time {
 }
 
 impl RtpsDeserialize for Time {
-    fn deserialize(bytes: &[u8], endianness: EndianessFlag) -> RtpsSerdesResult<Self> {
+    fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> {
         SizeCheckers::check_size_equal(bytes, 8)?;
 
         let seconds = ULong::deserialize(&bytes[0..4], endianness)?;
@@ -207,14 +188,14 @@ impl std::ops::AddAssign<i32> for Count {
 }
 
 impl RtpsSerialize for Count {
-    fn serialize(&self, writer: &mut impl std::io::Write, endianness: EndianessFlag) -> RtpsSerdesResult<()> {
+    fn serialize(&self, writer: &mut impl std::io::Write, endianness: Endianness) -> RtpsSerdesResult<()> {
         (self.0 as Long).serialize(writer, endianness)?;
         Ok(())
     }
 }
 
 impl RtpsDeserialize for Count {
-    fn deserialize(bytes: &[u8], endianness: EndianessFlag) -> RtpsSerdesResult<Self> {
+    fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> {
         let value = Long::deserialize(bytes, endianness)?;
         Ok(Count(value))
     }
@@ -260,14 +241,14 @@ pub enum ParameterIdT {
 }
 
 impl RtpsSerialize for ParameterIdT {
-    fn serialize(&self, writer: &mut impl std::io::Write, endianness: EndianessFlag) -> RtpsSerdesResult<()> {
+    fn serialize(&self, writer: &mut impl std::io::Write, endianness: Endianness) -> RtpsSerdesResult<()> {
         (*self as UShort).serialize(writer, endianness)?;
         Ok(())
     }
 }
 
 impl RtpsDeserialize for ParameterIdT {
-    fn deserialize(bytes: &[u8], endianness: EndianessFlag) -> RtpsSerdesResult<Self> {
+    fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> {
         let value = UShort::deserialize(bytes, endianness)?;
         Ok(ParameterIdT::from_u16(value).unwrap())
     }
@@ -294,7 +275,7 @@ mod tests {
     #[test]
     fn test_serialize_protocol_id() {
         let mut writer = Vec::new();
-        self::constants::PROTOCOL_RTPS.serialize(&mut writer, EndianessFlag::LittleEndian /*irrelevant*/).unwrap();
+        self::constants::PROTOCOL_RTPS.serialize(&mut writer, Endianness::LittleEndian /*irrelevant*/).unwrap();
         assert_eq!(writer, vec![0x52, 0x54, 0x50, 0x53]);
     }
 
@@ -302,17 +283,17 @@ mod tests {
     fn test_deserialize_protocol_id() {
         let expected = ProtocolId([b'R', b'T', b'P', b'S']);
         let bytes = [0x52_u8, 0x54, 0x50, 0x53];    
-        let result = ProtocolId::deserialize(&bytes, EndianessFlag::LittleEndian /*irrelevant*/).unwrap();
+        let result = ProtocolId::deserialize(&bytes, Endianness::LittleEndian /*irrelevant*/).unwrap();
         assert_eq!(expected, result);
     }
 
     #[test]
     fn test_deserialize_invalid_protocol_id() {
         let bytes = [0x52_u8, 0x54, 0x50, 0x99];    
-        assert!(ProtocolId::deserialize(&bytes, EndianessFlag::LittleEndian /*irrelevant*/).is_err());
+        assert!(ProtocolId::deserialize(&bytes, Endianness::LittleEndian /*irrelevant*/).is_err());
 
         let bytes = [0x52_u8];    
-        assert!(ProtocolId::deserialize(&bytes, EndianessFlag::LittleEndian /*irrelevant*/).is_err());
+        assert!(ProtocolId::deserialize(&bytes, Endianness::LittleEndian /*irrelevant*/).is_err());
     }
 
 
@@ -320,54 +301,54 @@ mod tests {
     
     #[test]
     fn test_deserialize_submessage_flags() {
-        let f = SubmessageFlag(false);
-        let t = SubmessageFlag(true);
+        let f = false;
+        let t = true;
 
         let expected: [SubmessageFlag; 8] = [t, f, f, f, f, f, f, f];
         let bytes = [0b00000001_u8];    
-        let result = <[SubmessageFlag; 8]>::deserialize(&bytes, EndianessFlag::LittleEndian /*irrelevant*/).unwrap();
+        let result = <[SubmessageFlag; 8]>::deserialize(&bytes, Endianness::LittleEndian /*irrelevant*/).unwrap();
         assert_eq!(expected, result);
 
         let expected: [SubmessageFlag; 8] = [t, t, f, t, f, f, f, f];
         let bytes = [0b00001011_u8];    
-        let result = <[SubmessageFlag; 8]>::deserialize(&bytes, EndianessFlag::LittleEndian /*irrelevant*/).unwrap();
+        let result = <[SubmessageFlag; 8]>::deserialize(&bytes, Endianness::LittleEndian /*irrelevant*/).unwrap();
         assert_eq!(expected, result);
 
         let expected: [SubmessageFlag; 8] = [t, t, t, t, t, t, t, t];
         let bytes = [0b11111111_u8];    
-        let result = <[SubmessageFlag; 8]>::deserialize(&bytes, EndianessFlag::LittleEndian /*irrelevant*/).unwrap();
+        let result = <[SubmessageFlag; 8]>::deserialize(&bytes, Endianness::LittleEndian /*irrelevant*/).unwrap();
         assert_eq!(expected, result);
 
         let expected: [SubmessageFlag; 8] = [f, f, f, f, f, f, f, f];
         let bytes = [0b00000000_u8];    
-        let result = <[SubmessageFlag; 8]>::deserialize(&bytes, EndianessFlag::LittleEndian /*irrelevant*/).unwrap();
+        let result = <[SubmessageFlag; 8]>::deserialize(&bytes, Endianness::LittleEndian /*irrelevant*/).unwrap();
         assert_eq!(expected, result);
     }
    
     #[test]
     fn test_serialize_submessage_flags() {
-        let f = SubmessageFlag(false);
-        let t = SubmessageFlag(true);
+        let f = false;
+        let t = true;
         let mut writer = Vec::new();
 
         writer.clear();
         let flags: [SubmessageFlag; 8] = [t, f, f, f, f, f, f, f];
-        flags.serialize(&mut writer, EndianessFlag::LittleEndian /*irrelevant*/).unwrap();
+        flags.serialize(&mut writer, Endianness::LittleEndian /*irrelevant*/).unwrap();
         assert_eq!(writer, vec![0b00000001]);
         
         writer.clear();
         let flags: [SubmessageFlag; 8] = [f; 8];
-        flags.serialize(&mut writer, EndianessFlag::LittleEndian /*irrelevant*/).unwrap();
+        flags.serialize(&mut writer, Endianness::LittleEndian /*irrelevant*/).unwrap();
         assert_eq!(writer, vec![0b00000000]);
         
         writer.clear();
         let flags: [SubmessageFlag; 8] = [t; 8];
-        flags.serialize(&mut writer, EndianessFlag::LittleEndian /*irrelevant*/).unwrap();
+        flags.serialize(&mut writer, Endianness::LittleEndian /*irrelevant*/).unwrap();
         assert_eq!(writer, vec![0b11111111]);
         
         writer.clear();
         let flags: [SubmessageFlag; 8] = [f, t, f, f, t, t, f, t];
-        flags.serialize(&mut writer, EndianessFlag::LittleEndian /*irrelevant*/).unwrap();
+        flags.serialize(&mut writer, Endianness::LittleEndian /*irrelevant*/).unwrap();
         assert_eq!(writer, vec![0b10110010]);
     }
 
@@ -386,9 +367,9 @@ mod tests {
 
         
         const TEST_TIME_BIG_ENDIAN : [u8;8] = [0x00, 0x12, 0xD6, 0x87, 0x05, 0xE3, 0x0A, 0x78];
-        test_time.serialize(&mut vec, EndianessFlag::BigEndian).unwrap();
+        test_time.serialize(&mut vec, Endianness::BigEndian).unwrap();
         assert_eq!(vec, TEST_TIME_BIG_ENDIAN);
-        assert_eq!(Time::deserialize(&vec, EndianessFlag::BigEndian).unwrap(), test_time);
+        assert_eq!(Time::deserialize(&vec, Endianness::BigEndian).unwrap(), test_time);
     }
 
     #[test]
@@ -397,16 +378,16 @@ mod tests {
         let test_time = Time::new(1234567, 98765432);
         
         const TEST_TIME_LITTLE_ENDIAN : [u8;8] = [0x87, 0xD6, 0x12, 0x00, 0x78, 0x0A, 0xE3, 0x05];
-        test_time.serialize(&mut vec, EndianessFlag::LittleEndian).unwrap();
+        test_time.serialize(&mut vec, Endianness::LittleEndian).unwrap();
         assert_eq!(vec, TEST_TIME_LITTLE_ENDIAN);
-        assert_eq!(Time::deserialize(&vec, EndianessFlag::LittleEndian).unwrap(), test_time);
+        assert_eq!(Time::deserialize(&vec, Endianness::LittleEndian).unwrap(), test_time);
     }
 
     #[test]
     fn test_invalid_time_deserialization() {
         let wrong_vec = vec![1,2,3,4];
 
-        let expected_error = Time::deserialize(&wrong_vec, EndianessFlag::LittleEndian);
+        let expected_error = Time::deserialize(&wrong_vec, Endianness::LittleEndian);
         match expected_error {
             Err(RtpsSerdesError::WrongSize) => assert!(true),
             _ => assert!(false),
@@ -426,40 +407,40 @@ mod tests {
 
         writer.clear();
         let parameter = ParameterIdT::KeyHash;
-        parameter.serialize(&mut writer, EndianessFlag::LittleEndian).unwrap();
+        parameter.serialize(&mut writer, Endianness::LittleEndian).unwrap();
         assert_eq!(writer, vec![0x70, 0x00]);
 
         writer.clear();
-        parameter.serialize(&mut writer, EndianessFlag::BigEndian).unwrap();
+        parameter.serialize(&mut writer, Endianness::BigEndian).unwrap();
         assert_eq!(writer, vec![0x00, 0x70]);
         
         writer.clear();
         let parameter = ParameterIdT::VendorTest1;
-        parameter.serialize(&mut writer, EndianessFlag::LittleEndian).unwrap();
+        parameter.serialize(&mut writer, Endianness::LittleEndian).unwrap();
         assert_eq!(writer, vec![0x01, 0x80]);
 
         writer.clear();
         let parameter = ParameterIdT::VendorTest1;
-        parameter.serialize(&mut writer, EndianessFlag::BigEndian).unwrap();
+        parameter.serialize(&mut writer, Endianness::BigEndian).unwrap();
         assert_eq!(writer, vec![0x80, 0x01]);
     }
 
     #[test]
     fn deserialize_parameter_id_t() {
         let bytes = [0x70, 0x00];    
-        let result = ParameterIdT::deserialize(&bytes, EndianessFlag::LittleEndian).unwrap();
+        let result = ParameterIdT::deserialize(&bytes, Endianness::LittleEndian).unwrap();
         assert_eq!(ParameterIdT::KeyHash, result);
         
         let bytes = [0x00, 0x70];    
-        let result = ParameterIdT::deserialize(&bytes, EndianessFlag::BigEndian).unwrap();
+        let result = ParameterIdT::deserialize(&bytes, Endianness::BigEndian).unwrap();
         assert_eq!(ParameterIdT::KeyHash, result);
 
         let bytes = [0x01, 0x80];    
-        let result = ParameterIdT::deserialize(&bytes, EndianessFlag::LittleEndian).unwrap();
+        let result = ParameterIdT::deserialize(&bytes, Endianness::LittleEndian).unwrap();
         assert_eq!(ParameterIdT::VendorTest1, result);
 
         let bytes = [0x80, 0x01];    
-        let result = ParameterIdT::deserialize(&bytes, EndianessFlag::BigEndian).unwrap();
+        let result = ParameterIdT::deserialize(&bytes, Endianness::BigEndian).unwrap();
         assert_eq!(ParameterIdT::VendorTest1, result);
     }
     
