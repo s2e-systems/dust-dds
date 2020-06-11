@@ -65,32 +65,13 @@ impl RtpsDeserialize for ProtocolId {
 
 // /////////// SubmessageFlag ////////
 
-#[derive(PartialEq, Debug, Clone, Copy)]
-pub struct SubmessageFlag(pub bool);
-
-impl SubmessageFlag {
-    pub fn is_set(&self) -> bool {
-         self.0
-    }
-}
-
-impl From<EndianessFlag> for SubmessageFlag {
-    fn from(value: EndianessFlag) -> Self {
-        SubmessageFlag(value.into())
-    }
-}
-
-impl From<SubmessageFlag> for EndianessFlag {
-    fn from(value: SubmessageFlag) -> Self {
-        EndianessFlag::from(value.is_set())
-    }
-}
+pub type SubmessageFlag = bool;
 
 impl RtpsSerialize for [SubmessageFlag; 8] {
     fn serialize(&self, writer: &mut impl std::io::Write, _endianness: EndianessFlag) -> RtpsSerdesResult<()>{
         let mut flags = 0u8;
         for i in 0..8 {
-            if self[i].0 {
+            if self[i] {
                 flags |= 0b00000001 << i;
             }
         }
@@ -104,10 +85,10 @@ impl RtpsDeserialize for [SubmessageFlag; 8] {
         // SizeCheckers::check_size_equal(bytes, 1)?;
         let flags: u8 = bytes[0];        
         let mut mask = 0b00000001_u8;
-        let mut submessage_flags = [SubmessageFlag(false); 8];
+        let mut submessage_flags = [false; 8];
         for i in 0..8 {
             if (flags & mask) > 0 {
-                submessage_flags[i] = SubmessageFlag(true);
+                submessage_flags[i] = true;
             }
             mask <<= 1;
         };
@@ -320,8 +301,8 @@ mod tests {
     
     #[test]
     fn test_deserialize_submessage_flags() {
-        let f = SubmessageFlag(false);
-        let t = SubmessageFlag(true);
+        let f = false;
+        let t = true;
 
         let expected: [SubmessageFlag; 8] = [t, f, f, f, f, f, f, f];
         let bytes = [0b00000001_u8];    
@@ -346,8 +327,8 @@ mod tests {
    
     #[test]
     fn test_serialize_submessage_flags() {
-        let f = SubmessageFlag(false);
-        let t = SubmessageFlag(true);
+        let f = false;
+        let t = true;
         let mut writer = Vec::new();
 
         writer.clear();

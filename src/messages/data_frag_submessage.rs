@@ -26,7 +26,7 @@ pub struct DataFrag {
 
 impl Submessage for DataFrag {
     fn submessage_header(&self) -> SubmessageHeader {
-        const X: SubmessageFlag = SubmessageFlag(false);
+        const X: SubmessageFlag = false;
         let e = self.endianness_flag; 
         let q = self.inline_qos_flag;
         let k = self.key_flag; 
@@ -75,7 +75,7 @@ impl RtpsCompose for DataFrag {
         self.fragments_in_submessage.serialize(writer, endianness)?;
         self.fragment_size.serialize(writer, endianness)?;
         self.data_size.serialize(writer, endianness)?;
-        if self.inline_qos_flag.is_set() {
+        if self.inline_qos_flag {
             self.inline_qos.as_ref().unwrap().serialize(writer, endianness)?;
         };
         self.serialized_payload.serialize(writer, endianness)?;
@@ -106,7 +106,7 @@ impl RtpsParse for DataFrag {
         let data_size = ULong::deserialize(&bytes[32..36], endianness)?;
 
 
-        let inline_qos = if inline_qos_flag.is_set() {
+        let inline_qos = if inline_qos_flag {
             Some(ParameterList::deserialize(&bytes[octets_to_inline_qos..], endianness)?)
         } else { 
             None
@@ -149,9 +149,9 @@ mod tests{
         
         let expected = DataFrag {
             endianness_flag: endianness.into(),
-            inline_qos_flag: SubmessageFlag(true),
-            key_flag: SubmessageFlag(true),
-            non_standard_payload_flag: SubmessageFlag(false),
+            inline_qos_flag: true,
+            key_flag: true,
+            non_standard_payload_flag: false,
             reader_id: ENTITYID_UNKNOWN,
             writer_id: ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
             writer_sn: SequenceNumber(1),
@@ -193,9 +193,9 @@ mod tests{
 
         let message = DataFrag {
             endianness_flag: EndianessFlag::LittleEndian.into(),
-            inline_qos_flag: SubmessageFlag(true),
-            key_flag: SubmessageFlag(true),
-            non_standard_payload_flag: SubmessageFlag(false),
+            inline_qos_flag: true,
+            key_flag: true,
+            non_standard_payload_flag: false,
             reader_id: ENTITYID_UNKNOWN,
             writer_id: ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
             writer_sn: SequenceNumber(1),

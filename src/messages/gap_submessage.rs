@@ -53,7 +53,7 @@ impl Gap {
 
 impl Submessage for Gap {
     fn submessage_header(&self) -> SubmessageHeader {
-        let x = SubmessageFlag(false);
+        let x = false;
         let e = self.endianness_flag; // Indicates endianness.
         // X|X|X|X|X|X|X|E
         let flags = [e, x, x, x, x, x, x, x];

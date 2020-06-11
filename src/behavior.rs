@@ -353,9 +353,9 @@ impl StatelessReaderBehavior {
     }
 
     fn change_kind(data_submessage: &Data) -> ChangeKind{
-        if data_submessage.data_flag().is_set() && !data_submessage.key_flag().is_set() {
+        if data_submessage.data_flag() && !data_submessage.key_flag() {
             ChangeKind::Alive
-        } else if !data_submessage.data_flag().is_set() && data_submessage.key_flag().is_set() {
+        } else if !data_submessage.data_flag() && data_submessage.key_flag() {
             let inline_qos = data_submessage.inline_qos().as_ref().unwrap();
             let endianness = data_submessage.endianness_flag().into();
             let status_info = inline_qos.find::<StatusInfo>(endianness).unwrap();           
@@ -368,9 +368,9 @@ impl StatelessReaderBehavior {
     }
 
     fn key_hash(data_submessage: &Data) -> Option<KeyHash> {
-        if data_submessage.data_flag().is_set() && !data_submessage.key_flag().is_set() {
+        if data_submessage.data_flag() && !data_submessage.key_flag() {
             data_submessage.inline_qos().as_ref()?.find::<KeyHash>(data_submessage.endianness_flag().into())
-        } else if !data_submessage.data_flag().is_set() && data_submessage.key_flag().is_set() {
+        } else if !data_submessage.data_flag() && data_submessage.key_flag() {
             let payload = data_submessage.serialized_payload().as_ref()?; 
             Some(KeyHash(payload.0[0..16].try_into().ok()?))
         } else {

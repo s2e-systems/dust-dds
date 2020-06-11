@@ -19,7 +19,7 @@ pub struct NackFrag {
 
 impl Submessage for NackFrag {
     fn submessage_header(&self) -> SubmessageHeader {
-        const X: SubmessageFlag = SubmessageFlag(false);
+        const X: SubmessageFlag = false;
         let e = self.endianness_flag; 
         let flags = [e, X, X, X, X, X, X, X];
 

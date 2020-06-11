@@ -28,7 +28,7 @@ impl AckNack {
                 writer_id,
                 reader_sn_state,
                 count,
-                final_flag: SubmessageFlag(final_flag),
+                final_flag,
                 endianness_flag: endianness_flag.into(),
             }
         }
@@ -52,7 +52,7 @@ impl AckNack {
 
 impl Submessage for AckNack {
     fn submessage_header(&self) -> SubmessageHeader {
-        const X : SubmessageFlag = SubmessageFlag(false);
+        const X : SubmessageFlag = false;
         let e = self.endianness_flag; 
         let f = self.final_flag; 
         let flags = [e, f, X, X, X, X, X, X];     
@@ -115,7 +115,7 @@ mod tests {
         
         let expected = AckNack {
             endianness_flag: EndianessFlag::LittleEndian.into(),
-            final_flag: SubmessageFlag(true),
+            final_flag: true,
             reader_id: ENTITYID_UNKNOWN,
             writer_id: ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
             reader_sn_state: SequenceNumberSet::from_set([SequenceNumber(2), SequenceNumber(3)].iter().cloned().collect()),
@@ -140,7 +140,7 @@ mod tests {
 
         let message = AckNack {
             endianness_flag: EndianessFlag::LittleEndian.into(),
-            final_flag: SubmessageFlag(true),
+            final_flag: true,
             reader_id: ENTITYID_UNKNOWN,
             writer_id: ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
             reader_sn_state: SequenceNumberSet::from_set([SequenceNumber(2), SequenceNumber(3)].iter().cloned().collect()),

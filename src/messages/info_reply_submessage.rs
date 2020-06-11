@@ -14,12 +14,12 @@ pub struct InfoReply {
 
 impl Submessage for InfoReply {
     fn submessage_header(&self) -> SubmessageHeader {
-        const X : SubmessageFlag = SubmessageFlag(false);
+        const X : SubmessageFlag = false;
         let e = self.endianness_flag; 
         let m = self.multicast_flag; 
         let flags = [e, m, X, X, X, X, X, X];     
         let mut submessage_length = self.unicast_locator_list.octets();
-        if self.multicast_flag.is_set() {
+        if self.multicast_flag {
             submessage_length += self.multicast_locator_list.octets();
         }
         SubmessageHeader { 
@@ -35,7 +35,7 @@ impl RtpsCompose for InfoReply {
         let endianness = EndianessFlag::from(self.endianness_flag);       
         self.submessage_header().compose(writer)?;
         self.unicast_locator_list.serialize(writer, endianness)?;
-        if self.multicast_flag.is_set() {
+        if self.multicast_flag {
             self.multicast_locator_list.serialize(writer, endianness)?;
         }
         Ok(())
@@ -48,7 +48,7 @@ impl RtpsParse for InfoReply {
         let endianness_flag = header.flags()[0];
         let multicast_flag = header.flags()[1];
         let unicast_locator_list = LocatorList::deserialize(&bytes[header.octets()..], endianness_flag.into())?;
-        let multicast_locator_list = if multicast_flag.is_set() {
+        let multicast_locator_list = if multicast_flag {
             LocatorList::deserialize(&bytes[header.octets() + unicast_locator_list.octets()..], endianness_flag.into())?
         } else {
             LocatorList(Vec::new())
@@ -78,7 +78,7 @@ mod tests {
         let address = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
         let expected = InfoReply {
             endianness_flag: EndianessFlag::LittleEndian.into(),
-            multicast_flag: SubmessageFlag(false),
+            multicast_flag: false,
             unicast_locator_list: LocatorList(vec![Locator::new(100, 200, address)]),
             multicast_locator_list: LocatorList(vec![])
         };
@@ -108,7 +108,7 @@ mod tests {
         let address = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
         let expected = InfoReply {
             endianness_flag: EndianessFlag::LittleEndian.into(),
-            multicast_flag: SubmessageFlag(true),
+            multicast_flag: true,
             unicast_locator_list: LocatorList(vec![Locator::new(100, 200, address)]),
             multicast_locator_list: LocatorList(vec![Locator::new(101, 201, address)])
         };
@@ -138,7 +138,7 @@ mod tests {
         let address = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
         let message = InfoReply {
             endianness_flag: EndianessFlag::LittleEndian.into(),
-            multicast_flag: SubmessageFlag(true),
+            multicast_flag: true,
             unicast_locator_list: LocatorList(vec![Locator::new(100, 200, address)]),
             multicast_locator_list: LocatorList(vec![Locator::new(101, 201, address)])
         };

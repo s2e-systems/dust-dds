@@ -40,8 +40,8 @@ impl Heartbeat {
                 first_sn,
                 last_sn,
                 count,
-                final_flag: SubmessageFlag(final_flag),
-                liveliness_flag: SubmessageFlag(manual_liveliness),
+                final_flag,
+                liveliness_flag: manual_liveliness,
                 endianness_flag: endianness_flag.into(),
             }
         }
@@ -83,13 +83,13 @@ impl Heartbeat {
     }
 
     pub fn is_final(&self) -> bool {
-        self.final_flag.is_set()
+        self.final_flag
     }
 }
 
 impl Submessage for Heartbeat {
     fn submessage_header(&self) -> SubmessageHeader {
-        let x = SubmessageFlag(false);
+        let x = false;
         let e = self.endianness_flag; // Indicates endianness.
         let f = self.final_flag; //Indicates to the Reader the presence of a ParameterList containing QoS parameters that should be used to interpret the message.
         let l = self.liveliness_flag; //Indicates to the Reader that the dataPayload submessage element contains the serialized value of the data-object.
@@ -170,8 +170,8 @@ mod tests {
             first_sn: SequenceNumber(2),
             last_sn: SequenceNumber(5), 
             count: Count(0),
-            final_flag: SubmessageFlag(true),
-            liveliness_flag: SubmessageFlag(true),
+            final_flag: true,
+            liveliness_flag: true,
             endianness_flag: EndianessFlag::LittleEndian.into(),
         };
 
@@ -183,8 +183,8 @@ mod tests {
             first_sn: SequenceNumber(1),
             last_sn: SequenceNumber(0), 
             count: Count(2),
-            final_flag: SubmessageFlag(true),
-            liveliness_flag: SubmessageFlag(true),
+            final_flag: true,
+            liveliness_flag: true,
             endianness_flag: EndianessFlag::LittleEndian.into(),
         };
 
@@ -196,8 +196,8 @@ mod tests {
             first_sn: SequenceNumber(0),
             last_sn: SequenceNumber(1), 
             count: Count(2),
-            final_flag: SubmessageFlag(true),
-            liveliness_flag: SubmessageFlag(true),
+            final_flag: true,
+            liveliness_flag: true,
             endianness_flag: EndianessFlag::LittleEndian.into(),
         };
 
@@ -209,8 +209,8 @@ mod tests {
             first_sn: SequenceNumber(5),
             last_sn: SequenceNumber(-6), 
             count: Count(2),
-            final_flag: SubmessageFlag(true),
-            liveliness_flag: SubmessageFlag(true),
+            final_flag: true,
+            liveliness_flag: true,
             endianness_flag: EndianessFlag::LittleEndian.into(),
         };
 
@@ -222,8 +222,8 @@ mod tests {
             first_sn: SequenceNumber(6),
             last_sn: SequenceNumber(4), 
             count: Count(2),
-            final_flag: SubmessageFlag(true),
-            liveliness_flag: SubmessageFlag(true),
+            final_flag: true,
+            liveliness_flag: true,
             endianness_flag: EndianessFlag::LittleEndian.into(),
         };
 

@@ -17,7 +17,7 @@ pub struct HeartbeatFrag {
 
 impl Submessage for HeartbeatFrag {
     fn submessage_header(&self) -> SubmessageHeader {
-        const X: SubmessageFlag = SubmessageFlag(false);
+        const X: SubmessageFlag = false;
         let e = self.endianness_flag;
         let flags = [e, X, X, X, X, X, X, X];
 
@@ -81,7 +81,7 @@ mod tests {
     #[test]
     fn parse_heartbeat_frag_submessage() {
         let expected = HeartbeatFrag {
-            endianness_flag: SubmessageFlag(true),    
+            endianness_flag: true,    
             reader_id: ENTITYID_UNKNOWN,
             writer_id: ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
             writer_sn: SequenceNumber(1),
@@ -105,7 +105,7 @@ mod tests {
     #[test]
     fn compose_heartbeat_frag_submessage() {
         let message = HeartbeatFrag {
-            endianness_flag: SubmessageFlag(true),    
+            endianness_flag: true,    
             reader_id: ENTITYID_UNKNOWN,
             writer_id: ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
             writer_sn: SequenceNumber(1),

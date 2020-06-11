@@ -13,7 +13,7 @@ pub struct InfoDestination {
 
 impl Submessage for InfoDestination {
     fn submessage_header(&self) -> SubmessageHeader {
-        const X : SubmessageFlag = SubmessageFlag(false);
+        const X : SubmessageFlag = false;
         let e = self.endianness_flag; // Indicates endianness.
         let flags = [e, X, X, X, X, X, X, X];        
         SubmessageHeader { 

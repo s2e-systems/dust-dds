@@ -15,13 +15,7 @@ impl InfoTs {
 
     pub fn new(timestamp: Option<Time>, endianness: EndianessFlag) -> InfoTs {
         let endianness_flag = endianness.into();
-        let invalidate_flag =
-        if timestamp.is_some() {
-            SubmessageFlag(false)
-        } else {
-            SubmessageFlag(true)
-        };
-
+        let invalidate_flag = !timestamp.is_some();
         InfoTs {
             endianness_flag,
             invalidate_flag,
@@ -36,13 +30,13 @@ impl InfoTs {
 
 impl Submessage for InfoTs {
     fn submessage_header(&self) -> SubmessageHeader {
-        let x = SubmessageFlag(false);
+        let x = false;
         let e = self.endianness_flag; // Indicates endianness.
         let i = self.invalidate_flag; // Indicates whether subsequent Submessages should be considered as having a timestamp or not.
         // X|X|X|X|X|X|I|E
         let flags = [e, i, x, x, x, x, x, x];
 
-        let octets_to_next_header = if self.invalidate_flag.is_set() {
+        let octets_to_next_header = if self.invalidate_flag {
             0
         } else {
             self.timestamp.octets()
@@ -86,7 +80,7 @@ impl RtpsParse for InfoTs {
 //         SizeCheckers::check_size_bigger_equal_than(bytes, SERIALIZED_INFOTS_MINIMUM_SIZE)?;
 
 
-        if invalidate_flag.is_set() {
+        if invalidate_flag {
             Ok(InfoTs::new(None, endianness))
         } else {
             // SizeCheckers::check_size_bigger_equal_than(bytes, SERIALIZED_INFOTS_WITH_TIMESTAMP_MINIMUM_SIZE)?;

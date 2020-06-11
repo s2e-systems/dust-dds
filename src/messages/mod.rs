@@ -125,7 +125,7 @@ impl SubmessageHeader {
 
 impl RtpsCompose for SubmessageHeader {
     fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
-        let endianness = EndianessFlag::from(self.flags[0].is_set());
+        let endianness = EndianessFlag::from(self.flags[0]);
         self.submessage_id.serialize(writer, endianness)?;
         self.flags.serialize(writer, endianness)?;
         self.submessage_length.serialize(writer, endianness)?;
@@ -137,7 +137,7 @@ impl RtpsParse for SubmessageHeader {
     fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> {   
         let submessage_id = SubmessageKind::deserialize(&bytes[0..1], EndianessFlag::LittleEndian /*irrelevant*/)?;
         let flags = <[SubmessageFlag; 8]>::deserialize(&bytes[1..2], EndianessFlag::LittleEndian /*irrelevant*/)?;
-        let endianness = EndianessFlag::from(flags[0].is_set());
+        let endianness = EndianessFlag::from(flags[0]);
         let submessage_length = UShort::deserialize(&bytes[2..4], endianness)?;
         Ok(SubmessageHeader {
             submessage_id, 
@@ -286,8 +286,8 @@ mod tests {
     #[test]
     fn test_parse_submessage_header() {
         let bytes = [0x15_u8, 0b00000001, 20, 0x0];
-        let f = SubmessageFlag(false);
-        let flags: [SubmessageFlag; 8] = [SubmessageFlag(true), f, f, f, f, f, f, f];
+        let f = false;
+        let flags: [SubmessageFlag; 8] = [true, f, f, f, f, f, f, f];
         let expected = SubmessageHeader {
             submessage_id : SubmessageKind::Data, 
             flags,
@@ -302,8 +302,8 @@ mod tests {
     fn test_compose_submessage_header() {
         let mut result = Vec::new();
 
-        let f = SubmessageFlag(false);
-        let t = SubmessageFlag(true);
+        let f = false;
+        let t = true;
         let header = SubmessageHeader {
             submessage_id: SubmessageKind::Data,
             flags: [t, t, f, f, f, f, f, f],
