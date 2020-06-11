@@ -28,11 +28,11 @@ impl WriterProxy {
         todo!()
     }
 
-    pub fn irrelevant_change_set(&mut self) {
+    pub fn irrelevant_change_set(&mut self, a_seq_num: SequenceNumber) {
         todo!()
     }
 
-    pub fn lost_changes_update(&mut self) {
+    pub fn lost_changes_update(&mut self, first_available_seq_num: SequenceNumber) {
         todo!()
     }
 
@@ -40,11 +40,11 @@ impl WriterProxy {
         todo!()
     }
 
-    pub fn missing_changes_update(&mut self) {
+    pub fn missing_changes_update(&mut self, last_available_seq_num: SequenceNumber) {
         todo!()
     }
 
-    pub fn received_change_set(&mut self) {
+    pub fn received_change_set(&mut self, a_seq_num: SequenceNumber) {
         todo!()
     }
 }

@@ -1,17 +1,63 @@
 use std::convert::{TryInto, TryFrom};
 
-use crate::types::{GUID, SequenceNumber, ChangeKind};
+use crate::types::{GUID, SequenceNumber, ChangeKind, GuidPrefix, };
 use crate::behavior_types::Duration;
 use crate::cache::{HistoryCache, CacheChange};
 use crate::serdes::Endianness;
 use crate::messages::submessage_elements::{Parameter, ParameterList};
 use crate::messages::{RtpsMessage, RtpsSubmessage, Heartbeat, InfoTs, Data, Gap, Payload};
 use crate::messages::types::Time;
+use crate::stateful_reader::WriterProxy;
 use crate::stateless_writer::ReaderLocator;
 use crate::stateful_writer::ReaderProxy;
 use crate::serialized_payload::SerializedPayload;
 use crate::inline_qos_types::{KeyHash, StatusInfo};
 use crate::types::constants::ENTITYID_UNKNOWN;
+
+
+fn cache_change_from_data(message: &Data, guid_prefix: &GuidPrefix) -> CacheChange {
+    let change_kind = StatelessReaderBehavior::change_kind(&message);
+    let key_hash = StatelessReaderBehavior::key_hash(&message).unwrap();
+    
+    CacheChange::new(
+        change_kind,
+        GUID::new(*guid_prefix, *message.writer_id() ),
+        key_hash.0,
+        *message.writer_sn(),
+        None,
+        None,
+    )
+}
+
+pub struct StatefulReaderBehaviour {}
+
+impl StatefulReaderBehaviour {
+    pub fn run_best_effort(writer_proxy: &mut WriterProxy, reader_guid: &GUID, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber) -> Option<Vec<RtpsSubmessage>> {
+        todo!()
+    }
+
+    pub fn run_waiting_state(writer_proxy: &mut WriterProxy, history_cache: &mut HistoryCache, received_message: Option<&RtpsMessage>) {
+        if let Some(received_message) = received_message {
+            let guid_prefix = received_message.header().guid_prefix();
+            for submessage in received_message.submessages().iter() {                
+                if let RtpsSubmessage::Data(data) = submessage {
+                    let expected_seq_number = *writer_proxy.available_changes_max() + 1;
+                    if data.writer_sn() >= &expected_seq_number {
+                        let cache_change = cache_change_from_data(data, guid_prefix);
+                        history_cache.add_change(cache_change);
+                        writer_proxy.received_change_set(*data.writer_sn());
+                        writer_proxy.lost_changes_update(*data.writer_sn());
+                    }
+                } else if let RtpsSubmessage::Gap(gap) = submessage {
+                    let expected_seq_number = *writer_proxy.available_changes_max() + 1;
+                    todo!()
+                }
+            }
+        }
+
+        todo!()
+    }
+}
 
 pub struct StatefulWriterBehaviour {}
 
