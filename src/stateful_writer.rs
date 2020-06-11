@@ -4,24 +4,22 @@ use std::convert::TryInto;
 
 use crate::types::{ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID, };
 use crate::behavior_types::Duration;
+use crate::behavior::StatefulWriterBehaviour;
 use crate::messages::types::Count;
-use crate::serdes::EndianessFlag;
-use crate::cache::{CacheChange, HistoryCache};
-use crate::inline_qos_types::{KeyHash, StatusInfo, };
-use crate::messages::{Data, Gap, InfoTs, Heartbeat, Payload, RtpsMessage, RtpsSubmessage, };
-use crate::messages::types::{Time, };
-use crate::serialized_payload::SerializedPayload;
-use crate::messages::submessage_elements::{Parameter, ParameterList, };
+use crate::cache::{CacheChange, HistoryCache, };
+use crate::messages::RtpsMessage;
+use crate::messages::submessage_elements::ParameterList;
 
 pub struct ReaderProxy {
     remote_reader_guid: GUID,
+    // remoteGroupEntityId: EntityId_t,
     unicast_locator_list: Vec<Locator>,
     multicast_locator_list: Vec<Locator>,
+    // changes_for_reader: CacheChange[*], 
     expects_inline_qos: bool,
     is_active: bool,
 
-    //requested_changes: HashSet<CacheChange>,
-    // unsent_changes: SequenceNumber,
+    // Additional fields:
     highest_sequence_number_sent: SequenceNumber,
     highest_sequence_number_acknowledged: SequenceNumber,
     sequence_numbers_requested: BTreeSet<SequenceNumber>,
@@ -63,7 +61,15 @@ impl ReaderProxy {
         }
     }
 
-    fn next_unsent_change(&mut self, last_change_sequence_number: SequenceNumber) -> Option<SequenceNumber> {
+    pub fn remote_reader_guid(&self) -> &GUID {
+        &self.remote_reader_guid
+    }
+
+    pub fn heartbeat_count(&self) -> &Count {
+        &self.heartbeat_count
+    }
+
+    pub fn next_unsent_change(&mut self, last_change_sequence_number: SequenceNumber) -> Option<SequenceNumber> {
         let next_unsent_sequence_number = self.highest_sequence_number_sent + 1;
         if next_unsent_sequence_number > last_change_sequence_number {
             None
@@ -84,6 +90,10 @@ impl ReaderProxy {
         }
 
         unsent_changes_set
+    }
+
+    pub fn acked_changes(&self) -> SequenceNumber {
+        self.highest_sequence_number_acknowledged
     }
 
     pub fn acked_changes_set(&mut self, committed_seq_num: SequenceNumber) {
@@ -120,248 +130,31 @@ impl ReaderProxy {
         Some(next_requested_change)
     }
 
-    fn run_best_effort(&mut self, writer_guid: &GUID, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber) -> Option<RtpsMessage> {
-        if !self.unsent_changes(last_change_sequence_number).is_empty() {
-            Some(self.run_pushing_state(writer_guid, history_cache, last_change_sequence_number))
-        } else {
-            None
-        }
+    pub fn nack_received(&self) -> &Count {
+        &self.highest_nack_count_received
     }
 
-    fn run_reliable(&mut self, writer_guid: &GUID, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber, heartbeat_period: Duration, nack_response_delay: Duration, received_message: Option<&RtpsMessage>) -> Option<RtpsMessage> {
-        let sending_message =
-        if self.unacked_changes(last_change_sequence_number).is_empty() {
-            // Idle
-            None
-        } else if !self.unsent_changes(last_change_sequence_number).is_empty() {
-            Some(self.run_pushing_state(writer_guid, history_cache, last_change_sequence_number))
-        } else if !self.unacked_changes(last_change_sequence_number).is_empty() {
-            self.run_announcing_state(writer_guid, history_cache, last_change_sequence_number, heartbeat_period)
-        } else {
-            None
-        };
-
-        let repairing_message = if self.requested_changes().is_empty() {
-            self.run_waiting_state(writer_guid, received_message);
-            None // No data is sent by the waiting state
-        } else {
-            self.run_must_repair_state(writer_guid, received_message);
-            if self.duration_since_nack_received() > nack_response_delay {
-                Some(self.run_repairing_state(writer_guid, history_cache))
-            } else {
-                None
-            }
-        };
-
-        match (sending_message, repairing_message) {
-            (Some(mut sending_message), Some(repairing_message)) => {
-                sending_message.merge(repairing_message);
-                Some(sending_message)
-            },
-            (Some(sending_message), None) => Some(sending_message),
-            (None, Some(repairing_message)) => Some(repairing_message),
-            (None, None) => None,
-        }
+    pub fn nack_received_set(&mut self, highest_nack_count_received: Count) {
+        self.highest_nack_count_received = highest_nack_count_received;
     }
 
-    fn run_pushing_state(&mut self, writer_guid: &GUID, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber) -> RtpsMessage {
-
-        // This state is only valid if there are unsent changes
-        assert!(!self.unsent_changes(last_change_sequence_number).is_empty());
-
-        let endianness = EndianessFlag::LittleEndian;
-        let mut message = RtpsMessage::new(*writer_guid.prefix());
-
-        let time = Time::now();
-        let infots = InfoTs::new(Some(time), endianness);
-        message.push(RtpsSubmessage::InfoTs(infots));
-
-        while let Some(next_unsent_seq_num) = self.next_unsent_change(last_change_sequence_number) {
-            if let Some(cache_change) = history_cache
-                .get_change_with_sequence_number(&next_unsent_seq_num)
-            {
-                let change_kind = *cache_change.change_kind();
-
-                let mut parameter = Vec::new();
-
-                let payload = match change_kind {
-                    ChangeKind::Alive => {
-                        parameter.push(Parameter::new(StatusInfo::from(change_kind), endianness));
-                        parameter.push(Parameter::new(KeyHash(*cache_change.instance_handle()), endianness));
-                        Payload::Data(SerializedPayload(cache_change.data().unwrap().to_vec()))
-                    },
-                    ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered | ChangeKind::AliveFiltered => {
-                        parameter.push(Parameter::new(StatusInfo::from(change_kind), endianness));
-                        Payload::Key(SerializedPayload(cache_change.instance_handle().to_vec()))
-                    }
-                };
-                let inline_qos_parameter_list = ParameterList::new(parameter);
-                let data = Data::new(
-                    EndianessFlag::LittleEndian.into(),
-                    *self.remote_reader_guid.entity_id(),
-                    *writer_guid.entity_id(),
-                    *cache_change.sequence_number(),
-                    Some(inline_qos_parameter_list), 
-                    payload,
-                );
-
-                message.push(RtpsSubmessage::Data(data));
-            } else {
-                let gap = Gap::new(
-                    *self.remote_reader_guid.entity_id(), 
-                    *writer_guid.entity_id(),
-                    next_unsent_seq_num,
-                    EndianessFlag::LittleEndian);
-
-                message.push(RtpsSubmessage::Gap(gap));
-            }
-        }
-
-        self.time_last_sent_data_reset();
-
-        message
-    }
-
-    fn run_announcing_state(&mut self, writer_guid: &GUID, history_cache: &HistoryCache,  last_change_sequence_number: SequenceNumber, heartbeat_period: Duration) -> Option<RtpsMessage> {
-
-        if self.duration_since_last_sent_data() > heartbeat_period {
-            let mut message = RtpsMessage::new(*writer_guid.prefix());
-
-            let time = Time::now();
-            let infots = InfoTs::new(Some(time), EndianessFlag::LittleEndian);
-
-            message.push(RtpsSubmessage::InfoTs(infots));
-
-            let first_sn = if let Some(seq_num) = history_cache.get_seq_num_min() {
-                seq_num
-            } else {
-                last_change_sequence_number + 1
-            };
-            self.increment_heartbeat_count();
-
-            let heartbeat = Heartbeat::new(
-                *self.remote_reader_guid.entity_id(),
-                *writer_guid.entity_id(),
-                first_sn,
-                last_change_sequence_number,
-                self.heartbeat_count,
-                false,
-                false,
-                EndianessFlag::LittleEndian,
-            );
-
-            message.push(RtpsSubmessage::Heartbeat(heartbeat));
-
-            
-            self.time_last_sent_data_reset();
-            
-            Some(message)
-        } else {
-            None
-        }
-    }
-
-    fn run_waiting_state(&mut self, writer_guid: &GUID, received_message: Option<&RtpsMessage>) {
-        if let Some(received_message) = received_message {
-            self.process_repair_message(writer_guid, received_message);
-            self.time_nack_received_reset();
-        }
-    }
-
-    fn run_must_repair_state(&mut self, writer_guid: &GUID, received_message: Option<&RtpsMessage>) {
-        if let Some(received_message) = received_message {
-            self.process_repair_message(writer_guid, received_message);
-        }
-    }
-
-    fn run_repairing_state(&mut self, writer_guid: &GUID, history_cache: &HistoryCache) -> RtpsMessage {
-        // This state is only valid if there are requested changes
-        assert!(!self.requested_changes().is_empty());
-
-        let mut message = RtpsMessage::new(*writer_guid.prefix());
-        let endianness = EndianessFlag::LittleEndian;
-        let time = Time::now();
-        let infots = InfoTs::new(Some(time), endianness);
-        message.push(RtpsSubmessage::InfoTs(infots));
-
-        while let Some(next_requested_seq_num) = self.next_requested_change() {
-            if let Some(cache_change) = history_cache
-                .get_change_with_sequence_number(&next_requested_seq_num)
-            {
-                let change_kind = *cache_change.change_kind();
-
-                let mut parameter = Vec::new();
-
-                let payload = match change_kind {
-                    ChangeKind::Alive => {
-                        parameter.push(Parameter::new(StatusInfo::from(change_kind), endianness));
-                        parameter.push(Parameter::new(KeyHash(*cache_change.instance_handle()), endianness));
-                        Payload::Data(SerializedPayload(cache_change.data().unwrap().to_vec()))
-                    },
-                    ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered | ChangeKind::AliveFiltered => {
-                        parameter.push(Parameter::new(StatusInfo::from(change_kind), endianness));
-                        Payload::Key(SerializedPayload(cache_change.instance_handle().to_vec()))
-                    }
-                };
-                let inline_qos_parameter_list = ParameterList::new(parameter);
-                let data = Data::new(
-                    EndianessFlag::LittleEndian.into(),
-                    *self.remote_reader_guid.entity_id(),
-                    *writer_guid.entity_id(),
-                    *cache_change.sequence_number(),
-                    Some(inline_qos_parameter_list), 
-                    payload,
-                );
-
-                message.push(RtpsSubmessage::Data(data));
-            } else {
-                let gap = Gap::new(
-                    *self.remote_reader_guid.entity_id(), 
-                    *writer_guid.entity_id(),
-                    next_requested_seq_num,
-                    EndianessFlag::LittleEndian);
-
-                message.push(RtpsSubmessage::Gap(gap));
-            }
-        }
-
-        message
-    }
-
-    fn process_repair_message(&mut self, writer_guid: &GUID, received_message: &RtpsMessage) {
-        let guid_prefix = *received_message.header().guid_prefix();
-
-        for submessage in received_message.submessages().iter() {
-            if let RtpsSubmessage::AckNack(acknack) = submessage {
-                let reader_guid = GUID::new(guid_prefix, *acknack.reader_id());
-                if reader_guid == self.remote_reader_guid &&
-                   writer_guid.entity_id() == acknack.writer_id() &&
-                   *acknack.count() > self.highest_nack_count_received {
-                    self.acked_changes_set(*acknack.reader_sn_state().base() - 1);
-                    self.requested_changes_set(acknack.reader_sn_state().set().clone());
-                    self.highest_nack_count_received = *acknack.count();
-                }
-            }
-        }
-    }
-
-    fn time_last_sent_data_reset(&mut self) {
+    pub fn time_last_sent_data_reset(&mut self) {
         self.time_last_sent_data = Instant::now();
     }
 
-    fn time_nack_received_reset(&mut self) {
+    pub fn time_nack_received_reset(&mut self) {
         self.time_nack_received = Instant::now();
     }
 
-    fn duration_since_last_sent_data(&self) -> Duration {
+    pub fn duration_since_last_sent_data(&self) -> Duration {
         self.time_last_sent_data.elapsed().try_into().unwrap()
     }
 
-    fn duration_since_nack_received(&self) -> Duration {
+    pub fn duration_since_nack_received(&self) -> Duration {
         self.time_nack_received.elapsed().try_into().unwrap()
     }
 
-    fn increment_heartbeat_count(&mut self) {
+    pub fn increment_heartbeat_count(&mut self) {
         self.heartbeat_count += 1;
     }
 }
@@ -462,9 +255,14 @@ impl StatefulWriter {
     pub fn run(&mut self, a_reader_guid: &GUID, received_message: Option<&RtpsMessage>) -> Option<RtpsMessage> {
         let reader_proxy = self.matched_readers.get_mut(a_reader_guid).unwrap();
 
-        match self.reliability_level {
-            ReliabilityKind::BestEffort => reader_proxy.run_best_effort(&self.guid, &self.writer_cache, self.last_change_sequence_number),
-            ReliabilityKind::Reliable => reader_proxy.run_reliable(&self.guid, &self.writer_cache, self.last_change_sequence_number, self.heartbeat_period, self.nack_response_delay, received_message),
+        let submessages = match self.reliability_level {
+            ReliabilityKind::BestEffort => StatefulWriterBehaviour::run_best_effort(reader_proxy, &self.guid, &self.writer_cache, self.last_change_sequence_number),
+            ReliabilityKind::Reliable => StatefulWriterBehaviour::run_reliable(reader_proxy, &self.guid, &self.writer_cache, self.last_change_sequence_number, self.heartbeat_period, self.nack_response_delay, received_message),
+        };
+
+        match submessages {
+            Some(submessages) => Some(RtpsMessage::new(*self.guid.prefix(), submessages)),
+            None => None,
         }
     }
 }
@@ -472,13 +270,9 @@ impl StatefulWriter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::constants::*;
-    use crate::behavior_types::Duration;
+    use crate::types::constants::{ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, };
     use crate::behavior_types::constants::DURATION_ZERO;
-    use crate::types::*;
-    use crate::messages::{AckNack};
-    use crate::messages::submessage_elements::SequenceNumberSet;
-    use std::thread::sleep;
+    use crate::types::GuidPrefix;
 
     #[test]
     fn stateful_writer_new_change() {
@@ -486,26 +280,26 @@ mod tests {
             GUID::new(GuidPrefix([0; 12]), ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
             TopicKind::WithKey,
             ReliabilityKind::BestEffort,
-            vec![Locator::new(0, 7400, [0; 16])], /*unicast_locator_list*/
-            vec![],                               /*multicast_locator_list*/
-            false,                                /*push_mode*/
-            DURATION_ZERO,                        /* heartbeat_period */
-            DURATION_ZERO,                        /* nack_response_delay */
-            DURATION_ZERO,                        /* nack_suppression_duration */
+            vec![Locator::new(0, 7400, [0; 16])],
+            vec![],
+            false,
+            DURATION_ZERO,
+            DURATION_ZERO,
+            DURATION_ZERO,
         );
 
         let cache_change_seq1 = writer.new_change(
             ChangeKind::Alive,
-            Some(vec![1, 2, 3]), /*data*/
-            None,                /*inline_qos*/
-            [1; 16],             /*handle*/
+            Some(vec![1, 2, 3]),
+            None,
+            [1; 16],
         );
 
         let cache_change_seq2 = writer.new_change(
             ChangeKind::NotAliveUnregistered,
-            None,    /*data*/
-            None,    /*inline_qos*/
-            [1; 16], /*handle*/
+            None, 
+            None,
+            [1; 16],
         );
 
         assert_eq!(cache_change_seq1.sequence_number(), &SequenceNumber(1));
@@ -615,664 +409,5 @@ mod tests {
         assert_eq!(reader_proxy.unacked_changes(two_changes_in_writer).len(), 1);
         assert!(reader_proxy.unacked_changes(two_changes_in_writer).contains(&SequenceNumber(2)));
     }
-
-    #[test]
-    fn run_pushing_state_only_data_messages() {
-        let writer_guid = GUID::new(GuidPrefix([2;12]), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-        let mut history_cache = HistoryCache::new();
-
-        let instance_handle = [1;16];
-
-        let cache_change_seq1 = CacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, SequenceNumber(1), None, Some(vec![1,2,3]));
-        let cache_change_seq2 = CacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, SequenceNumber(2), None, Some(vec![2,3,4]));
-        history_cache.add_change(cache_change_seq1);
-        history_cache.add_change(cache_change_seq2);
-        let last_change_sequence_number  = SequenceNumber(2);
-
-        let remote_reader_guid = GUID::new(GuidPrefix([1,2,3,4,5,6,7,8,9,10,11,12]), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-        let mut reader_proxy = ReaderProxy::new(remote_reader_guid, vec![], vec![], false, true);
-
-        let message = reader_proxy.run_pushing_state(&writer_guid, &history_cache, last_change_sequence_number);
-        assert_eq!(message.submessages().len(), 3);
-        if let RtpsSubmessage::InfoTs(message_1) = &message.submessages()[0] {
-            println!("{:?}", message_1);
-        } else {
-            panic!("Wrong message type");
-        }
-        if let RtpsSubmessage::Data(data_message_1) = &message.submessages()[1] {
-            assert_eq!(data_message_1.reader_id(), &ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-            assert_eq!(data_message_1.writer_id(), &ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-            assert_eq!(data_message_1.writer_sn(), &SequenceNumber(1));
-            assert_eq!(data_message_1.serialized_payload(), &Some(SerializedPayload(vec![1, 2, 3])));
-
-        } else {
-            panic!("Wrong message type");
-        };
-
-        if let RtpsSubmessage::Data(data_message_2) = &message.submessages()[2] {
-            assert_eq!(data_message_2.reader_id(), &ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-            assert_eq!(data_message_2.writer_id(), &ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-            assert_eq!(data_message_2.writer_sn(), &SequenceNumber(2));
-            assert_eq!(data_message_2.serialized_payload(), &Some(SerializedPayload(vec![2, 3, 4])));
-        } else {
-            panic!("Wrong message type");
-        };
-    }
-
-    #[test]
-    fn run_pushing_state_only_gap_message() {
-        let writer_guid = GUID::new(GuidPrefix([2;12]), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-        let history_cache = HistoryCache::new();
-
-        // Don't add any change to the history cache so that gap message has to be sent
-        // let instance_handle = [1;16];
-
-        // let cache_change_seq1 = CacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, SequenceNumber(1), None, Some(vec![1,2,3]));
-        // let cache_change_seq2 = CacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, SequenceNumber(2), None, Some(vec![2,3,4]));
-        // history_cache.add_change(cache_change_seq1);
-        // history_cache.add_change(cache_change_seq2);
-
-        let last_change_sequence_number  = SequenceNumber(2);
-
-        let remote_reader_guid = GUID::new(GuidPrefix([1,2,3,4,5,6,7,8,9,10,11,12]), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-        let mut reader_proxy = ReaderProxy::new(remote_reader_guid, vec![], vec![], false, true);
-
-        let message = reader_proxy.run_pushing_state(&writer_guid, &history_cache, last_change_sequence_number);
-        assert_eq!(message.submessages().len(), 3);
-        if let RtpsSubmessage::InfoTs(message_1) = &message.submessages()[0] {
-            println!("{:?}", message_1);
-        } else {
-            panic!("Wrong message type");
-        }
-        if let RtpsSubmessage::Gap(gap_message_1) = &message.submessages()[1] {
-            assert_eq!(gap_message_1.reader_id(), &ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-            assert_eq!(gap_message_1.writer_id(), &ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-            assert_eq!(gap_message_1.gap_start(), &SequenceNumber(1));
-        } else {
-            panic!("Wrong message type");
-        };
-        if let RtpsSubmessage::Gap(gap_message_2) = &message.submessages()[2] {
-            assert_eq!(gap_message_2.reader_id(), &ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-            assert_eq!(gap_message_2.writer_id(), &ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-            assert_eq!(gap_message_2.gap_start(), &SequenceNumber(2));
-        } else {
-            panic!("Wrong message type");
-        };
-    }
-
-    #[test]
-    fn run_pushing_state_gap_and_data_message() {
-        let writer_guid = GUID::new(GuidPrefix([2;12]), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-        let mut history_cache = HistoryCache::new();
-
-        // Add one change to the history cache so that data and gap messages have to be sent
-        let instance_handle = [1;16];
-
-        // let cache_change_seq1 = CacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, SequenceNumber(1), None, Some(vec![1,2,3]));
-        let cache_change_seq2 = CacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, SequenceNumber(2), None, Some(vec![2,3,4]));
-        // history_cache.add_change(cache_change_seq1);
-        history_cache.add_change(cache_change_seq2);
-
-        let last_change_sequence_number  = SequenceNumber(2);
-
-        let remote_reader_guid = GUID::new(GuidPrefix([1,2,3,4,5,6,7,8,9,10,11,12]), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-        let mut reader_proxy = ReaderProxy::new(remote_reader_guid, vec![], vec![], false, true);
-
-        let message = reader_proxy.run_pushing_state(&writer_guid, &history_cache, last_change_sequence_number);
-        assert_eq!(message.submessages().len(), 3);
-        if let RtpsSubmessage::InfoTs(message_1) = &message.submessages()[0] {
-            println!("{:?}", message_1);
-        } else {
-            panic!("Wrong message type");
-        }
-        if let RtpsSubmessage::Gap(gap_message) = &message.submessages()[1] {
-            assert_eq!(gap_message.reader_id(), &ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-            assert_eq!(gap_message.writer_id(), &ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-            assert_eq!(gap_message.gap_start(), &SequenceNumber(1));
-        } else {
-            panic!("Wrong message type");
-        };
-        if let RtpsSubmessage::Data(data_message) = &message.submessages()[2] {
-            assert_eq!(data_message.reader_id(), &ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-            assert_eq!(data_message.writer_id(), &ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-            assert_eq!(data_message.writer_sn(), &SequenceNumber(2));
-            assert_eq!(data_message.serialized_payload(), &Some(SerializedPayload(vec![2, 3, 4])));
-        } else {
-            panic!("Wrong message type");
-        };
-    }
-    
-    #[test]
-    fn run_announcing_state() {
-        let writer_guid = GUID::new(GuidPrefix([2;12]), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-        let mut history_cache = HistoryCache::new();
-
-        let instance_handle = [1;16];
-
-        let cache_change_seq1 = CacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, SequenceNumber(1), None, Some(vec![1,2,3]));
-        let cache_change_seq2 = CacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, SequenceNumber(2), None, Some(vec![2,3,4]));
-        history_cache.add_change(cache_change_seq1);
-        history_cache.add_change(cache_change_seq2);
-        let last_change_sequence_number  = SequenceNumber(2);
-
-        let remote_reader_guid = GUID::new(GuidPrefix([1,2,3,4,5,6,7,8,9,10,11,12]), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-        let mut reader_proxy = ReaderProxy::new(remote_reader_guid, vec![], vec![], false, true);
-
-        let heartbeat_period = Duration::from_millis(200);
-
-        // Reset time and check that no heartbeat is sent immediatelly after
-        reader_proxy.time_last_sent_data_reset();
-        let message = reader_proxy.run_announcing_state(&writer_guid, &history_cache, last_change_sequence_number, heartbeat_period);
-        assert_eq!(message, None);
-
-        // Wait for heaartbeat period and check the heartbeat message
-        sleep(heartbeat_period.into());
-        let message = reader_proxy.run_announcing_state(&writer_guid, &history_cache, last_change_sequence_number, heartbeat_period).unwrap();
-
-        assert_eq!(message.submessages().len(), 2);
-        if let RtpsSubmessage::InfoTs(message_1) = &message.submessages()[0] {
-            println!("{:?}", message_1);
-        } else {
-            panic!("Wrong message type");
-        }
-        if let RtpsSubmessage::Heartbeat(heartbeat_message) = &message.submessages()[1] {
-            assert_eq!(heartbeat_message.reader_id(), &ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-            assert_eq!(heartbeat_message.writer_id(), &ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-            assert_eq!(heartbeat_message.first_sn(), &SequenceNumber(1));
-            assert_eq!(heartbeat_message.last_sn(), &SequenceNumber(2));
-            assert_eq!(heartbeat_message.count(), &Count(1));
-            assert_eq!(heartbeat_message.is_final(), false);
-        } else {
-            panic!("Wrong message type");
-        };
-    }
-
-    #[test]
-    fn run_announcing_state_multiple_data_combinations() {
-        let writer_guid = GUID::new(GuidPrefix([2;12]), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-        let mut history_cache = HistoryCache::new();
-
-        let remote_reader_guid = GUID::new(GuidPrefix([1,2,3,4,5,6,7,8,9,10,11,12]), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-        let mut reader_proxy = ReaderProxy::new(remote_reader_guid, vec![], vec![], false, true);
-
-        let heartbeat_period = DURATION_ZERO;
-        
-        // Test no data in the history cache and no changes written
-        let no_change_sequence_number = SequenceNumber(0);
-        let message = reader_proxy.run_announcing_state(&writer_guid, &history_cache, no_change_sequence_number, heartbeat_period).unwrap();
-        if let RtpsSubmessage::Heartbeat(heartbeat) = &message.submessages()[1] {
-            assert_eq!(heartbeat.reader_id(), &ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-            assert_eq!(heartbeat.writer_id(), &ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-            assert_eq!(heartbeat.first_sn(), &SequenceNumber(1));
-            assert_eq!(heartbeat.last_sn(), &SequenceNumber(0));
-            assert_eq!(heartbeat.count(), &Count(1));
-            assert_eq!(heartbeat.is_final(), false);
-        } else {
-            assert!(false);
-        }
-
-        // Test no data in the history cache and two changes written
-        let two_changes_sequence_number = SequenceNumber(2);
-        let message = reader_proxy.run_announcing_state(&writer_guid, &history_cache, two_changes_sequence_number, heartbeat_period).unwrap();
-        if let RtpsSubmessage::Heartbeat(heartbeat) = &message.submessages()[1] {
-            assert_eq!(heartbeat.reader_id(), &ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-            assert_eq!(heartbeat.writer_id(), &ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-            assert_eq!(heartbeat.first_sn(), &SequenceNumber(3));
-            assert_eq!(heartbeat.last_sn(), &SequenceNumber(2));
-            assert_eq!(heartbeat.count(), &Count(2));
-            assert_eq!(heartbeat.is_final(), false);
-        } else {
-            assert!(false);
-        }
-
-        // Test two changes in the history cache and two changes written
-        let instance_handle = [1;16];
-        let cache_change_seq1 = CacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, SequenceNumber(1), None, Some(vec![1,2,3]));
-        let cache_change_seq2 = CacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, SequenceNumber(2), None, Some(vec![2,3,4]));
-        history_cache.add_change(cache_change_seq1);
-        history_cache.add_change(cache_change_seq2);
-
-        let message = reader_proxy.run_announcing_state(&writer_guid, &history_cache, two_changes_sequence_number, heartbeat_period).unwrap();
-        if let RtpsSubmessage::Heartbeat(heartbeat) = &message.submessages()[1] {
-            assert_eq!(heartbeat.reader_id(), &ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-            assert_eq!(heartbeat.writer_id(), &ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-            assert_eq!(heartbeat.first_sn(), &SequenceNumber(1));
-            assert_eq!(heartbeat.last_sn(), &SequenceNumber(2));
-            assert_eq!(heartbeat.count(), &Count(3));
-            assert_eq!(heartbeat.is_final(), false);
-        } else {
-            assert!(false);
-        }
-    }
-
-    #[test]
-    fn process_repair_message_acknowledged_and_requests() {
-        let remote_reader_guid = GUID::new(GuidPrefix([1,2,3,4,5,6,7,8,9,10,11,12]), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-        let mut reader_proxy = ReaderProxy::new(remote_reader_guid, vec![], vec![], false, true);
-
-        let writer_guid = GUID::new(GuidPrefix([2;12]), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-
-        
-        let mut received_message = RtpsMessage::new(*remote_reader_guid.prefix());
-        let acknack = AckNack::new(
-           *remote_reader_guid.entity_id(),
-           *writer_guid.entity_id(),
-           SequenceNumberSet::from_set(vec![SequenceNumber(3), SequenceNumber(5), SequenceNumber(6)].iter().cloned().collect()),
-           Count(1),
-            true,
-            EndianessFlag::LittleEndian);
-        received_message.push(RtpsSubmessage::AckNack(acknack));
-
-        reader_proxy.process_repair_message(&writer_guid, &received_message);
-
-        assert_eq!(reader_proxy.highest_sequence_number_acknowledged, SequenceNumber(2));
-        assert_eq!(reader_proxy.sequence_numbers_requested,vec![SequenceNumber(3), SequenceNumber(5), SequenceNumber(6)].iter().cloned().collect());
-    }
-
-    #[test]
-    fn process_repair_message_different_conditions() {
-        let remote_reader_guid = GUID::new(GuidPrefix([1,2,3,4,5,6,7,8,9,10,11,12]), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-        let mut reader_proxy = ReaderProxy::new(remote_reader_guid, vec![], vec![], false, true);
-
-        let writer_guid = GUID::new(GuidPrefix([2;12]), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-
-        // Test message with different reader guid
-        let other_reader_guid = GUID::new(GuidPrefix([9;12]), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-        let mut received_message = RtpsMessage::new(*other_reader_guid.prefix());
-        let acknack = AckNack::new(
-           *other_reader_guid.entity_id(),
-           *writer_guid.entity_id(),
-           SequenceNumberSet::from_set(vec![SequenceNumber(3), SequenceNumber(5), SequenceNumber(6)].iter().cloned().collect()),
-           Count(1),
-            true,
-            EndianessFlag::LittleEndian);
-        received_message.push(RtpsSubmessage::AckNack(acknack));
-
-        reader_proxy.process_repair_message(&writer_guid, &received_message);
-        
-        // Verify that message was ignored
-        assert_eq!(reader_proxy.highest_sequence_number_acknowledged, SequenceNumber(0));
-        assert!(reader_proxy.sequence_numbers_requested.is_empty());
-
-        // Test message with different writer guid
-        let mut received_message = RtpsMessage::new(*remote_reader_guid.prefix());
-        let acknack = AckNack::new(
-           *remote_reader_guid.entity_id(),
-           ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
-           SequenceNumberSet::from_set(vec![SequenceNumber(3), SequenceNumber(5), SequenceNumber(6)].iter().cloned().collect()),
-           Count(1),
-            true,
-            EndianessFlag::LittleEndian);
-        received_message.push(RtpsSubmessage::AckNack(acknack));
-
-        reader_proxy.process_repair_message(&writer_guid, &received_message);
-
-        // Verify that message was ignored
-        assert_eq!(reader_proxy.highest_sequence_number_acknowledged, SequenceNumber(0));
-        assert!(reader_proxy.sequence_numbers_requested.is_empty());
-
-
-        // Test duplicate acknack message
-        let mut received_message = RtpsMessage::new(*remote_reader_guid.prefix());
-        let acknack = AckNack::new(
-           *remote_reader_guid.entity_id(),
-           *writer_guid.entity_id(),
-           SequenceNumberSet::from_set(vec![SequenceNumber(3), SequenceNumber(5), SequenceNumber(6)].iter().cloned().collect()),
-           Count(1),
-            true,
-            EndianessFlag::LittleEndian);
-        received_message.push(RtpsSubmessage::AckNack(acknack));
-
-        reader_proxy.process_repair_message(&writer_guid, &received_message);
-
-        // Verify message was correctly processed
-        assert_eq!(reader_proxy.highest_sequence_number_acknowledged, SequenceNumber(2));
-        assert_eq!(reader_proxy.sequence_numbers_requested,vec![SequenceNumber(3), SequenceNumber(5), SequenceNumber(6)].iter().cloned().collect());
-
-        // Clear the requested sequence numbers and reprocess the message
-        reader_proxy.sequence_numbers_requested.clear();
-        reader_proxy.process_repair_message(&writer_guid, &received_message);
-
-        // Verify that the requested sequence numbers remain empty
-        assert!(reader_proxy.sequence_numbers_requested.is_empty());
-    }
-
-    #[test]
-    fn process_repair_message_only_acknowledged() {
-        let remote_reader_guid = GUID::new(GuidPrefix([1,2,3,4,5,6,7,8,9,10,11,12]), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-        let mut reader_proxy = ReaderProxy::new(remote_reader_guid, vec![], vec![], false, true);
-
-        let writer_guid = GUID::new(GuidPrefix([2;12]), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-
-        let mut received_message = RtpsMessage::new(*remote_reader_guid.prefix());
-        let acknack = AckNack::new(
-           *remote_reader_guid.entity_id(),
-           *writer_guid.entity_id(),
-           SequenceNumberSet::new(SequenceNumber(5), vec![].iter().cloned().collect()),
-           Count(1),
-            true,
-            EndianessFlag::LittleEndian);
-        received_message.push(RtpsSubmessage::AckNack(acknack));
-
-        reader_proxy.process_repair_message(&writer_guid, &received_message);
-
-        assert_eq!(reader_proxy.highest_sequence_number_acknowledged, SequenceNumber(4));
-        assert_eq!(reader_proxy.sequence_numbers_requested,vec![].iter().cloned().collect());
-    }
-
-    #[test]
-    fn run_repairing_state_only_data_messages() {
-        let writer_guid = GUID::new(GuidPrefix([2;12]), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-        let mut history_cache = HistoryCache::new();
-
-        let instance_handle = [1;16];
-
-        let cache_change_seq1 = CacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, SequenceNumber(1), None, Some(vec![1,2,3]));
-        let cache_change_seq2 = CacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, SequenceNumber(2), None, Some(vec![2,3,4]));
-        history_cache.add_change(cache_change_seq1);
-        history_cache.add_change(cache_change_seq2);
-
-        let remote_reader_guid = GUID::new(GuidPrefix([1,2,3,4,5,6,7,8,9,10,11,12]), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-        let mut reader_proxy = ReaderProxy::new(remote_reader_guid, vec![], vec![], false, true);
-        reader_proxy.requested_changes_set(vec![SequenceNumber(1), SequenceNumber(2)].iter().cloned().collect());
-
-        let message = reader_proxy.run_repairing_state(&writer_guid, &history_cache);
-        assert_eq!(message.submessages().len(), 3);
-        if let RtpsSubmessage::InfoTs(message_1) = &message.submessages()[0] {
-            println!("{:?}", message_1);
-        } else {
-            panic!("Wrong message type");
-        }
-        if let RtpsSubmessage::Data(data_message_1) = &message.submessages()[1] {
-            assert_eq!(data_message_1.reader_id(), &ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-            assert_eq!(data_message_1.writer_id(), &ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-            assert_eq!(data_message_1.writer_sn(), &SequenceNumber(1));
-            assert_eq!(data_message_1.serialized_payload(), &Some(SerializedPayload(vec![1, 2, 3])));
-
-        } else {
-            panic!("Wrong message type");
-        };
-
-        if let RtpsSubmessage::Data(data_message_2) = &message.submessages()[2] {
-            assert_eq!(data_message_2.reader_id(), &ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-            assert_eq!(data_message_2.writer_id(), &ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-            assert_eq!(data_message_2.writer_sn(), &SequenceNumber(2));
-            assert_eq!(data_message_2.serialized_payload(), &Some(SerializedPayload(vec![2, 3, 4])));
-        } else {
-            panic!("Wrong message type");
-        };
-    }
-
-    #[test]
-    fn run_repairing_state_only_gap_messages() {
-        let writer_guid = GUID::new(GuidPrefix([2;12]), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-        let history_cache = HistoryCache::new();
-
-        let remote_reader_guid = GUID::new(GuidPrefix([1,2,3,4,5,6,7,8,9,10,11,12]), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-        let mut reader_proxy = ReaderProxy::new(remote_reader_guid, vec![], vec![], false, true);
-        reader_proxy.requested_changes_set(vec![SequenceNumber(1), SequenceNumber(2)].iter().cloned().collect());
-
-        let message = reader_proxy.run_repairing_state(&writer_guid, &history_cache);
-        assert_eq!(message.submessages().len(), 3);
-        if let RtpsSubmessage::InfoTs(message_1) = &message.submessages()[0] {
-            println!("{:?}", message_1);
-        } else {
-            panic!("Wrong message type");
-        }
-        if let RtpsSubmessage::Gap(gap_message_1) = &message.submessages()[1] {
-            assert_eq!(gap_message_1.reader_id(), &ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-            assert_eq!(gap_message_1.writer_id(), &ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-            assert_eq!(gap_message_1.gap_start(), &SequenceNumber(1));
-        } else {
-            panic!("Wrong message type");
-        };
-        if let RtpsSubmessage::Gap(gap_message_2) = &message.submessages()[2] {
-            assert_eq!(gap_message_2.reader_id(), &ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-            assert_eq!(gap_message_2.writer_id(), &ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-            assert_eq!(gap_message_2.gap_start(), &SequenceNumber(2));
-        } else {
-            panic!("Wrong message type");
-        };
-    }
-
-    #[test]
-    fn run_best_effort() {
-        let writer_guid = GUID::new(GuidPrefix([2;12]), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-        let mut history_cache = HistoryCache::new();
-
-        let remote_reader_guid = GUID::new(GuidPrefix([1;12]), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-        let mut reader_proxy = ReaderProxy::new(remote_reader_guid, vec![], vec![], false, true);
-        let last_change_sequence_number = SequenceNumber(0);
-
-        assert!(reader_proxy.run_best_effort(&writer_guid, &history_cache, last_change_sequence_number).is_none());
-
-        let instance_handle = [1;16];
-
-        let cache_change_seq1 = CacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, SequenceNumber(1), None, Some(vec![1,2,3]));
-        let cache_change_seq2 = CacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, SequenceNumber(2), None, Some(vec![2,3,4]));
-        history_cache.add_change(cache_change_seq1);
-        history_cache.add_change(cache_change_seq2);
-        let last_change_sequence_number = SequenceNumber(2);
-
-        let message = reader_proxy.run_best_effort(&writer_guid, &history_cache, last_change_sequence_number).unwrap();
-        assert_eq!(message.submessages().len(), 3);
-        if let RtpsSubmessage::InfoTs(message_1) = &message.submessages()[0] {
-            println!("{:?}", message_1);
-        } else {
-            panic!("Wrong message type");
-        }
-        if let RtpsSubmessage::Data(data_message_1) = &message.submessages()[1] {
-            assert_eq!(data_message_1.reader_id(), &ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-            assert_eq!(data_message_1.writer_id(), &ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-            assert_eq!(data_message_1.writer_sn(), &SequenceNumber(1));
-            assert_eq!(data_message_1.serialized_payload(), &Some(SerializedPayload(vec![1, 2, 3])));
-
-        } else {
-            panic!("Wrong message type");
-        };
-
-        if let RtpsSubmessage::Data(data_message_2) = &message.submessages()[2] {
-            assert_eq!(data_message_2.reader_id(), &ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-            assert_eq!(data_message_2.writer_id(), &ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-            assert_eq!(data_message_2.writer_sn(), &SequenceNumber(2));
-            assert_eq!(data_message_2.serialized_payload(), &Some(SerializedPayload(vec![2, 3, 4])));
-        } else {
-            panic!("Wrong message type");
-        };
-
-        assert!(reader_proxy.run_best_effort(&writer_guid, &history_cache, last_change_sequence_number).is_none());
-    }
-
-    #[test]
-    fn run_reliable() {
-        let heartbeat_period = Duration::from_millis(200);
-        let nack_response_delay = Duration::from_millis(200);
-        let writer_guid = GUID::new(GuidPrefix([2;12]), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-        let mut history_cache = HistoryCache::new();
-
-        let remote_reader_guid = GUID::new(GuidPrefix([1;12]), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-        let mut reader_proxy = ReaderProxy::new(remote_reader_guid, vec![], vec![], false, true);
-        let last_change_sequence_number = SequenceNumber(0);
-
-        // Check that immediately after creation no message is sent
-        assert!(reader_proxy.run_reliable(&writer_guid, &history_cache, last_change_sequence_number, heartbeat_period, nack_response_delay, None).is_none());
-
-        // Add two changes to the history cache and check that two data messages are sent
-        let instance_handle = [1;16];
-
-        let cache_change_seq1 = CacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, SequenceNumber(1), None, Some(vec![1,2,3]));
-        let cache_change_seq2 = CacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, SequenceNumber(2), None, Some(vec![2,3,4]));
-        history_cache.add_change(cache_change_seq1);
-        history_cache.add_change(cache_change_seq2);
-        let last_change_sequence_number = SequenceNumber(2);
-
-        let message = reader_proxy.run_reliable(&writer_guid, &history_cache, last_change_sequence_number, heartbeat_period, nack_response_delay, None).unwrap();
-        assert_eq!(message.submessages().len(), 3);
-        if let RtpsSubmessage::InfoTs(message_1) = &message.submessages()[0] {
-            println!("{:?}", message_1);
-        } else {
-            panic!("Wrong message type");
-        }
-        if let RtpsSubmessage::Data(data_message_1) = &message.submessages()[1] {
-            assert_eq!(data_message_1.reader_id(), &ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-            assert_eq!(data_message_1.writer_id(), &ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-            assert_eq!(data_message_1.writer_sn(), &SequenceNumber(1));
-            assert_eq!(data_message_1.serialized_payload(), &Some(SerializedPayload(vec![1, 2, 3])));
-
-        } else {
-            panic!("Wrong message type");
-        };
-
-        if let RtpsSubmessage::Data(data_message_2) = &message.submessages()[2] {
-            assert_eq!(data_message_2.reader_id(), &ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-            assert_eq!(data_message_2.writer_id(), &ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-            assert_eq!(data_message_2.writer_sn(), &SequenceNumber(2));
-            assert_eq!(data_message_2.serialized_payload(), &Some(SerializedPayload(vec![2, 3, 4])));
-        } else {
-            panic!("Wrong message type");
-        };
-
-        // Check that immediately after sending the data nothing else is sent
-        assert!(reader_proxy.run_reliable(&writer_guid, &history_cache, last_change_sequence_number, heartbeat_period, nack_response_delay, None).is_none());
-
-        // Check that a heartbeat is sent after the heartbeat period
-        sleep(heartbeat_period.into());
-
-        let message = reader_proxy.run_reliable(&writer_guid, &history_cache, last_change_sequence_number, heartbeat_period, nack_response_delay, None).unwrap();
-        assert_eq!(message.submessages().len(), 2);
-        if let RtpsSubmessage::InfoTs(message_1) = &message.submessages()[0] {
-            println!("{:?}", message_1);
-        } else {
-            panic!("Wrong message type");
-        }
-        if let RtpsSubmessage::Heartbeat(heartbeat_message) = &message.submessages()[1] {
-            assert_eq!(heartbeat_message.reader_id(), &ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-            assert_eq!(heartbeat_message.writer_id(), &ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-            assert_eq!(heartbeat_message.first_sn(), &SequenceNumber(1));
-            assert_eq!(heartbeat_message.last_sn(), &SequenceNumber(2));
-            assert_eq!(heartbeat_message.count(), &Count(1));
-            assert_eq!(heartbeat_message.is_final(), false);
-
-        } else {
-            panic!("Wrong message type");
-        };
-
-        // Check that if a sample is requested it gets sent after the nack_response_delay. In this case it comes together with a heartbeat
-        let mut received_message = RtpsMessage::new(*remote_reader_guid.prefix());
-        let acknack = AckNack::new(
-           *remote_reader_guid.entity_id(),
-           *writer_guid.entity_id(),
-           SequenceNumberSet::new(SequenceNumber(1), vec![SequenceNumber(2)].iter().cloned().collect()),
-           Count(1),
-           true,
-           EndianessFlag::LittleEndian);
-        received_message.push(RtpsSubmessage::AckNack(acknack));
-
-        let message = reader_proxy.run_reliable(&writer_guid, &history_cache, last_change_sequence_number, heartbeat_period, nack_response_delay, Some(&received_message));
-        assert!(message.is_none());
-
-        sleep(nack_response_delay.into());
-
-        let message = reader_proxy.run_reliable(&writer_guid, &history_cache, last_change_sequence_number, heartbeat_period, nack_response_delay, Some(&received_message)).unwrap();
-        assert_eq!(message.submessages().len(), 4);
-        if let RtpsSubmessage::InfoTs(message_1) = &message.submessages()[0] {
-            println!("{:?}", message_1);
-        } else {
-            panic!("Wrong message type");
-        }
-        if let RtpsSubmessage::Heartbeat(heartbeat_message) = &message.submessages()[1] {
-            assert_eq!(heartbeat_message.reader_id(), &ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-            assert_eq!(heartbeat_message.writer_id(), &ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-            assert_eq!(heartbeat_message.first_sn(), &SequenceNumber(1));
-            assert_eq!(heartbeat_message.last_sn(), &SequenceNumber(2));
-            assert_eq!(heartbeat_message.count(), &Count(2));
-            assert_eq!(heartbeat_message.is_final(), false);
-        }
-        if let RtpsSubmessage::InfoTs(message_1) = &message.submessages()[2] {
-            println!("{:?}", message_1);
-        } else {
-            panic!("Wrong message type");
-        }
-        if let RtpsSubmessage::Data(data_message_1) = &message.submessages()[3] {
-            assert_eq!(data_message_1.reader_id(), &ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-            assert_eq!(data_message_1.writer_id(), &ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-            assert_eq!(data_message_1.writer_sn(), &SequenceNumber(2));
-            assert_eq!(data_message_1.serialized_payload(), &Some(SerializedPayload(vec![2, 3, 4])));
-
-        } else {
-            panic!("Wrong message type");
-        };
-
-    }
-
-
-    #[test]
-    fn best_effort_stateful_writer_run() {
-        let mut writer = StatefulWriter::new(
-            GUID::new(GuidPrefix([0; 12]), ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
-            TopicKind::WithKey,
-            ReliabilityKind::BestEffort,
-            vec![Locator::new(0, 7400, [0; 16])], 
-            vec![],                               
-            false,                                
-            DURATION_ZERO,                        
-            DURATION_ZERO,                        
-            DURATION_ZERO,                        
-        );
-
-        let reader_guid = GUID::new(GuidPrefix([1;12]), ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR);
-        let reader_proxy = ReaderProxy::new(reader_guid, vec![], vec![], false, true);
-
-        writer.matched_reader_add(reader_proxy);
-
-        let cache_change_seq1 = writer.new_change(
-            ChangeKind::Alive,
-            Some(vec![1, 2, 3]), 
-            None,                
-            [1; 16],             
-        );
-
-        let cache_change_seq2 = writer.new_change(
-            ChangeKind::Alive,
-            Some(vec![4, 5, 6]), 
-            None,                
-            [1; 16],             
-        );
-
-        writer.history_cache().add_change(cache_change_seq1);
-        writer.history_cache().add_change(cache_change_seq2);
-
-        // let reader_proxy = writer.matched_reader_lookup(& reader_guid).unwrap();
-        let writer_data = writer.run(&reader_guid, None).unwrap();
-        assert_eq!(writer_data.submessages().len(), 3);
-        if let RtpsSubmessage::InfoTs(message_1) = &writer_data.submessages()[0] {
-            println!("{:?}", message_1);
-        } else {
-            panic!("Wrong message type");
-        }
-        if let RtpsSubmessage::Data(data_message_1) = &writer_data.submessages()[1] {
-            assert_eq!(data_message_1.reader_id(), &ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR);
-            assert_eq!(data_message_1.writer_id(), &ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER);
-            assert_eq!(data_message_1.writer_sn(), &SequenceNumber(1));
-            assert_eq!(data_message_1.serialized_payload(), &Some(SerializedPayload(vec![1, 2, 3])));
-
-        } else {
-            panic!("Wrong message type");
-        };
-
-        if let RtpsSubmessage::Data(data_message_2) = &writer_data.submessages()[2] {
-            assert_eq!(data_message_2.reader_id(), &ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR);
-            assert_eq!(data_message_2.writer_id(), &ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER);
-            assert_eq!(data_message_2.writer_sn(), &SequenceNumber(2));
-            assert_eq!(data_message_2.serialized_payload(), &Some(SerializedPayload(vec![4, 5, 6])));
-        } else {
-            panic!("Wrong message type");
-        };
-
-        // Test that nothing more is sent after the first time
-        let writer_data = writer.run(&reader_guid, None);
-        assert_eq!(writer_data.is_none(), true);
-    }
-
     
 }

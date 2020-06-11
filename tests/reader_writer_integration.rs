@@ -64,9 +64,9 @@ fn test_stateless_writer_stateless_reader_direct_communication_integration() {
    writer.history_cache().add_change(cache_change_seq3.clone());
    writer.history_cache().add_change(cache_change_seq4.clone());
 
-   let writer_data = writer.get_data_to_send(locator);
+   let writer_data = writer.run(&locator).unwrap();
 
-   reader.process_message(&writer_data).unwrap();
+   reader.run(Some(&writer_data));
 
    let reader_changes = reader.history_cache().get_changes();
    assert_eq!(reader_changes.len(), 4);
@@ -136,12 +136,12 @@ fn test_stateless_writer_stateless_reader_serialized_communication_integration()
    writer.history_cache().add_change(cache_change_seq3.clone());
    writer.history_cache().add_change(cache_change_seq4.clone());
 
-   let writer_message = writer.get_data_to_send(locator);
+   let writer_message = writer.run(&locator).unwrap();
    let mut buf  = Vec::new();
    writer_message.compose(&mut buf).unwrap();
   
    let received_message = RtpsMessage::parse(&buf).unwrap();
-   reader.process_message(&received_message).unwrap();
+   reader.run(Some(&received_message));
 
    let reader_changes = reader.history_cache().get_changes();
    assert_eq!(reader_changes.len(), 4);

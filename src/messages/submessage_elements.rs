@@ -274,11 +274,11 @@ impl ParameterList {
         Self {parameter}
     }
 
-    pub fn find<'de, T>(&self, endianness: EndianessFlag) -> T 
+    pub fn find<'de, T>(&self, endianness: EndianessFlag) -> Option<T>
         where T: Pid + serde::Deserialize<'de>
     {
-        let parameter = self.parameter.iter().find(|&x| x.parameter_id == T::pid()).unwrap();
-        parameter.get::<T>(endianness)
+        let parameter = self.parameter.iter().find(|&x| x.parameter_id == T::pid())?;
+        Some(parameter.get::<T>(endianness))
     }
 }
 
@@ -871,7 +871,7 @@ mod tests {
             Parameter::new(expected, endianness),
             Parameter::new(StatusInfo([8; 4]), endianness),
         ]};
-        let result = parameter_list.find::<KeyHash>(endianness);
+        let result = parameter_list.find::<KeyHash>(endianness).unwrap();
         assert_eq!(expected, result);
     }
 
