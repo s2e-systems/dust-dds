@@ -7,7 +7,7 @@ use std::collections::BTreeSet;
 use std::io::Write;
 use crate::types::Locator;
 use crate::primitive_types::{Long, ULong, Short, };
-use crate::serdes::{RtpsSerialize, RtpsDeserialize, EndianessFlag, RtpsSerdesResult};
+use crate::serdes::{RtpsSerialize, RtpsDeserialize, Endianness, RtpsSerdesResult};
 use crate::types::{SequenceNumber, };
 use super::types::{Pid, ParameterIdT, };
 use cdr::{LittleEndian, BigEndian, Infinite, };
@@ -57,7 +57,7 @@ impl SequenceNumberSet {
 }
 
 impl RtpsSerialize for SequenceNumberSet {
-    fn serialize(&self, writer: &mut impl Write, endianness: EndianessFlag) -> RtpsSerdesResult<()> {
+    fn serialize(&self, writer: &mut impl Write, endianness: Endianness) -> RtpsSerdesResult<()> {
         let num_bits = if self.set.is_empty() {
             0 
         } else {
@@ -81,7 +81,7 @@ impl RtpsSerialize for SequenceNumberSet {
 }
 
 impl RtpsDeserialize for SequenceNumberSet {
-    fn deserialize(bytes: &[u8], endianness: EndianessFlag) -> RtpsSerdesResult<Self> {
+    fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> {
         let base = SequenceNumber::deserialize(&bytes[0..8], endianness)?;
         let num_bits = ULong::deserialize(&bytes[8..12], endianness)? as usize;
 
@@ -116,14 +116,14 @@ impl RtpsDeserialize for SequenceNumberSet {
 pub struct FragmentNumber(pub ULong);
 
 impl RtpsSerialize for FragmentNumber {
-    fn serialize(&self, writer: &mut impl std::io::Write, endianness: EndianessFlag) -> RtpsSerdesResult<()> {
+    fn serialize(&self, writer: &mut impl std::io::Write, endianness: Endianness) -> RtpsSerdesResult<()> {
         self.0.serialize(writer, endianness)?;
         Ok(())
     }    
 }
 
 impl RtpsDeserialize for FragmentNumber {
-    fn deserialize(bytes: &[u8], endianness: EndianessFlag) -> RtpsSerdesResult<Self> {
+    fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> {
         Ok(Self(ULong::deserialize(&bytes, endianness)?))
     }    
 }
@@ -146,7 +146,7 @@ impl FragmentNumberSet {
 }
 
 impl RtpsSerialize for FragmentNumberSet {
-    fn serialize(&self, writer: &mut impl Write, endianness: EndianessFlag) -> RtpsSerdesResult<()> {
+    fn serialize(&self, writer: &mut impl Write, endianness: Endianness) -> RtpsSerdesResult<()> {
         let num_bits = if self.set.is_empty() {
             0 
         } else {
@@ -169,7 +169,7 @@ impl RtpsSerialize for FragmentNumberSet {
     }
 }
 impl RtpsDeserialize for FragmentNumberSet {
-    fn deserialize(bytes: &[u8], endianness: EndianessFlag) -> RtpsSerdesResult<Self> {
+    fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> {
         let base = FragmentNumber::deserialize(&bytes[0..4], endianness)?;
         let num_bits = ULong::deserialize(&bytes[4..8], endianness)? as usize;
 
@@ -208,10 +208,10 @@ pub struct Parameter {
 }
 
 impl Parameter {
-    pub fn new<T: Pid + serde::Serialize>(parameter: T, endianness: EndianessFlag) -> Self {
+    pub fn new<T: Pid + serde::Serialize>(parameter: T, endianness: Endianness) -> Self {
         let value = match endianness {
-            EndianessFlag::LittleEndian => cdr::ser::serialize_data::<_,_,LittleEndian>(&parameter, Infinite).unwrap(), 
-            EndianessFlag::BigEndian => cdr::ser::serialize_data::<_,_,BigEndian>(&parameter, Infinite).unwrap(), 
+            Endianness::LittleEndian => cdr::ser::serialize_data::<_,_,LittleEndian>(&parameter, Infinite).unwrap(), 
+            Endianness::BigEndian => cdr::ser::serialize_data::<_,_,BigEndian>(&parameter, Infinite).unwrap(), 
         };
         let parameter_id = T::pid();
         // rounded up to multple of 4 (that is besides the length of the value may not be a multiple of 4)
@@ -223,18 +223,18 @@ impl Parameter {
         }
     }
 
-    pub fn get<'de, T>(&self, endianness: EndianessFlag) -> T 
+    pub fn get<'de, T>(&self, endianness: Endianness) -> T 
         where T: serde::Deserialize<'de>
     {
         match endianness {
-            EndianessFlag::LittleEndian => cdr::de::deserialize_data::<T, LittleEndian>(&self.value).unwrap(),
-            EndianessFlag::BigEndian => cdr::de::deserialize_data::<T, BigEndian>(&self.value).unwrap(),
+            Endianness::LittleEndian => cdr::de::deserialize_data::<T, LittleEndian>(&self.value).unwrap(),
+            Endianness::BigEndian => cdr::de::deserialize_data::<T, BigEndian>(&self.value).unwrap(),
         }
     }
 }
 
 impl  RtpsSerialize for Parameter {
-    fn serialize(&self, writer: &mut impl Write, endianness: EndianessFlag) -> RtpsSerdesResult<()> {
+    fn serialize(&self, writer: &mut impl Write, endianness: Endianness) -> RtpsSerdesResult<()> {
         self.parameter_id.serialize(writer, endianness)?;
         self.length.serialize(writer, endianness)?;
         writer.write(self.value.as_slice())?;
@@ -251,7 +251,7 @@ impl  RtpsSerialize for Parameter {
 }
 
 impl RtpsDeserialize for Parameter {
-    fn deserialize(bytes: &[u8], endianness: EndianessFlag) -> RtpsSerdesResult<Self> {
+    fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> {
         let parameter_id = ParameterIdT::deserialize(&bytes[0..2], endianness)?;
         let length = Short::deserialize(&bytes[2..4], endianness)?;
         let bytes_end = (length + 4) as usize;
@@ -274,7 +274,7 @@ impl ParameterList {
         Self {parameter}
     }
 
-    pub fn find<'de, T>(&self, endianness: EndianessFlag) -> Option<T>
+    pub fn find<'de, T>(&self, endianness: Endianness) -> Option<T>
         where T: Pid + serde::Deserialize<'de>
     {
         let parameter = self.parameter.iter().find(|&x| x.parameter_id == T::pid())?;
@@ -285,7 +285,7 @@ impl ParameterList {
 
 
 impl RtpsSerialize for ParameterList {
-    fn serialize(&self, writer: &mut impl Write, endianness: EndianessFlag) -> RtpsSerdesResult<()> {
+    fn serialize(&self, writer: &mut impl Write, endianness: Endianness) -> RtpsSerdesResult<()> {
          for param in self.parameter.iter() {
             param.serialize(writer, endianness)?;        
         }       
@@ -301,7 +301,7 @@ impl RtpsSerialize for ParameterList {
 }
 
 impl RtpsDeserialize for ParameterList {
-    fn deserialize(bytes: &[u8], endianness: EndianessFlag) -> RtpsSerdesResult<Self> {
+    fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> {
         let mut parameter_start_index: usize = 0;
         let mut parameters = Vec::<Parameter>::new();
         loop {
@@ -329,7 +329,7 @@ impl RtpsDeserialize for ParameterList {
 pub struct LocatorList(pub Vec<Locator>);
 
 impl RtpsSerialize for LocatorList {
-    fn serialize(&self, writer: &mut impl std::io::Write, endianness: EndianessFlag) -> RtpsSerdesResult<()> {
+    fn serialize(&self, writer: &mut impl std::io::Write, endianness: Endianness) -> RtpsSerdesResult<()> {
         let num_locators = self.0.len() as ULong;
         num_locators.serialize(writer, endianness)?;
         for locator in &self.0 {
@@ -340,7 +340,7 @@ impl RtpsSerialize for LocatorList {
 }
 
 impl RtpsDeserialize for LocatorList {
-    fn deserialize(bytes: &[u8], endianness: EndianessFlag) -> RtpsSerdesResult<Self> {
+    fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> {
         let size = bytes.len();
         let num_locators = ULong::deserialize(&bytes[0..4], endianness)?;
         let mut locators = Vec::<Locator>::new();
@@ -413,7 +413,7 @@ mod tests {
             0, 0, 0, 3, // base
             0, 0, 0, 0, // num bits
         ];
-        let result = SequenceNumberSet::deserialize(&bytes, EndianessFlag::BigEndian).unwrap();
+        let result = SequenceNumberSet::deserialize(&bytes, Endianness::BigEndian).unwrap();
         assert_eq!(expected, result);
     }
     
@@ -429,7 +429,7 @@ mod tests {
             0, 0, 0, 2, // num bits
             0b_11000000, 0b_00000000, 0b_00000000, 0b_00000000, 
         ];
-        let result = SequenceNumberSet::deserialize(&bytes, EndianessFlag::BigEndian).unwrap();
+        let result = SequenceNumberSet::deserialize(&bytes, Endianness::BigEndian).unwrap();
         assert_eq!(expected, result);
     }
     
@@ -445,7 +445,7 @@ mod tests {
             2, 0, 0, 0, // num bits
             0b_00000000, 0b_00000000, 0b_00000000, 0b_11000000, 
         ];
-        let result = SequenceNumberSet::deserialize(&bytes, EndianessFlag::LittleEndian).unwrap();
+        let result = SequenceNumberSet::deserialize(&bytes, Endianness::LittleEndian).unwrap();
         assert_eq!(expected, result);
     }
     
@@ -462,7 +462,7 @@ mod tests {
             0b_01010000, 0b_00000000, 0b_00000000, 0b_00000000, 
             0b_11000000, 0b_00000000, 0b_00000000, 0b_00000000, 
         ];
-        let result = SequenceNumberSet::deserialize(&bytes, EndianessFlag::BigEndian).unwrap();
+        let result = SequenceNumberSet::deserialize(&bytes, Endianness::BigEndian).unwrap();
         assert_eq!(expected, result);
     }
     
@@ -485,7 +485,7 @@ mod tests {
             0b_00000000, 0b_00000000, 0b_00000000, 0b_00000000,
             0b_00000000, 0b_00000000, 0b_00000000, 0b_00000001,
         ];
-        let result = SequenceNumberSet::deserialize(&bytes, EndianessFlag::BigEndian).unwrap();
+        let result = SequenceNumberSet::deserialize(&bytes, Endianness::BigEndian).unwrap();
         assert_eq!(expected, result);
     }
 
@@ -508,7 +508,7 @@ mod tests {
             0b_00000000, 0b_00000000, 0b_00000000, 0b_00000000,
             0b_00000001, 0b_00000000, 0b_00000000, 0b_00000000, 
         ];
-        let result = SequenceNumberSet::deserialize(&bytes, EndianessFlag::LittleEndian).unwrap();
+        let result = SequenceNumberSet::deserialize(&bytes, Endianness::LittleEndian).unwrap();
         assert_eq!(expected, result);
     }
 
@@ -521,7 +521,7 @@ mod tests {
             0x00, 0x00, 0x00, 0x0C, 
             0x30, 0x00, 0x00, 0x00, 
         ];
-        let set = SequenceNumberSet::deserialize(&bytes, EndianessFlag::BigEndian).unwrap().set;
+        let set = SequenceNumberSet::deserialize(&bytes, Endianness::BigEndian).unwrap().set;
         assert!(!set.contains(&SequenceNumber(1234)));
         assert!(!set.contains(&SequenceNumber(1235)));
         assert!(set.contains(&SequenceNumber(1236)));
@@ -540,7 +540,7 @@ mod tests {
             0x0C, 0x00, 0x00, 0x00, 
             0x00, 0x00, 0x00, 0x30, 
         ];
-        let set = SequenceNumberSet::deserialize(&bytes, EndianessFlag::LittleEndian).unwrap().set;
+        let set = SequenceNumberSet::deserialize(&bytes, Endianness::LittleEndian).unwrap().set;
         assert!(!set.contains(&SequenceNumber(1234)));
         assert!(!set.contains(&SequenceNumber(1235)));
         assert!(set.contains(&SequenceNumber(1236)));
@@ -558,7 +558,7 @@ mod tests {
             set: [SequenceNumber(3), SequenceNumber(4)].iter().cloned().collect()
         };
         let mut writer = Vec::new();
-        set.serialize(&mut writer, EndianessFlag::BigEndian).unwrap();
+        set.serialize(&mut writer, Endianness::BigEndian).unwrap();
         let expected = vec![
             0, 0, 0, 0, // base
             0, 0, 0, 3, // base
@@ -573,7 +573,7 @@ mod tests {
             set: [SequenceNumber(3), SequenceNumber(4)].iter().cloned().collect()
         };
         let mut writer = Vec::new();
-        set.serialize(&mut writer, EndianessFlag::LittleEndian).unwrap();
+        set.serialize(&mut writer, Endianness::LittleEndian).unwrap();
         let expected = vec![
             0, 0, 0, 0, // base
             1, 0, 0, 0, // base
@@ -583,7 +583,7 @@ mod tests {
         assert_eq!(expected, writer);
     
         let mut writer = Vec::new();
-        set.serialize(&mut writer, EndianessFlag::BigEndian).unwrap();
+        set.serialize(&mut writer, Endianness::BigEndian).unwrap();
         let expected = vec![
             0, 0, 0, 0, // base
             0, 0, 0, 1, // base
@@ -598,7 +598,7 @@ mod tests {
             set: [SequenceNumber(1001), SequenceNumber(1003), SequenceNumber(1032), SequenceNumber(1033)].iter().cloned().collect()
         };
         let mut writer = Vec::new();
-        set.serialize(&mut writer, EndianessFlag::BigEndian).unwrap();
+        set.serialize(&mut writer, Endianness::BigEndian).unwrap();
         let expected = vec![
             0, 0, 0, 0, // base
             0, 0, 3, 232, // base
@@ -620,7 +620,7 @@ mod tests {
             100, 0, 0, 0,
         ];
         let mut writer = Vec::new();
-        fragment_number.serialize(&mut writer, EndianessFlag::LittleEndian).unwrap();
+        fragment_number.serialize(&mut writer, Endianness::LittleEndian).unwrap();
         assert_eq!(expected, writer);
     }
 
@@ -630,7 +630,7 @@ mod tests {
         let bytes = vec![
             100, 0, 0, 0,
         ];
-        let result = FragmentNumber::deserialize(&bytes, EndianessFlag::LittleEndian).unwrap();
+        let result = FragmentNumber::deserialize(&bytes, Endianness::LittleEndian).unwrap();
         assert_eq!(expected, result);
     }
 
@@ -658,7 +658,7 @@ mod tests {
             2, 0, 0, 0, // num bits
             0b_00000000, 0b_00000000, 0b_00000000, 0b_11000000, 
         ];
-        let result = FragmentNumberSet::deserialize(&bytes, EndianessFlag::LittleEndian).unwrap();
+        let result = FragmentNumberSet::deserialize(&bytes, Endianness::LittleEndian).unwrap();
         assert_eq!(expected, result);
     }
 
@@ -669,7 +669,7 @@ mod tests {
             set: [FragmentNumber(3), FragmentNumber(4)].iter().cloned().collect()
         };
         let mut writer = Vec::new();
-        set.serialize(&mut writer, EndianessFlag::BigEndian).unwrap();
+        set.serialize(&mut writer, Endianness::BigEndian).unwrap();
         let expected = vec![
             0, 0, 0, 3, // base
             0, 0, 0, 2, // num bits
@@ -720,14 +720,14 @@ mod tests {
 
     #[test]
     fn serialize_parameter() {
-        let parameter = Parameter::new(VendorTest3([1, 2, 3]), EndianessFlag::LittleEndian);
+        let parameter = Parameter::new(VendorTest3([1, 2, 3]), Endianness::LittleEndian);
     
         let expected = vec![
             0x03, 0x80, 4, 0, //ParameterID, length
             1, 2, 3, 0, //VendorTest value       
         ];
         let mut writer = Vec::new();
-        parameter.serialize(&mut writer, EndianessFlag::LittleEndian).unwrap();
+        parameter.serialize(&mut writer, Endianness::LittleEndian).unwrap();
         assert_eq!(expected, writer);
     }
     
@@ -738,15 +738,15 @@ mod tests {
             1, 2, 3, 0, //VendorTest value       
         ];    
         let expected = VendorTest3([1, 2, 3]);    
-        let parameter = Parameter::deserialize(&bytes, EndianessFlag::LittleEndian).unwrap();
-        let result = parameter.get(EndianessFlag::LittleEndian);
+        let parameter = Parameter::deserialize(&bytes, Endianness::LittleEndian).unwrap();
+        let result = parameter.get(Endianness::LittleEndian);
     
         assert_eq!(expected, result);
     }    
     
     #[test]
     fn deserialize_parameter_liitle_endian() {
-        let endianness = EndianessFlag::LittleEndian;    
+        let endianness = Endianness::LittleEndian;    
         let bytes = vec![
             0x71, 0x0, 4, 0, 
             1, 2, 3, 4,
@@ -758,7 +758,7 @@ mod tests {
     
     #[test]
     fn test_parameter_round_up_to_multiples_of_four() {
-        let e= EndianessFlag::LittleEndian;
+        let e= Endianness::LittleEndian;
         assert_eq!(0, Parameter::new(VendorTest0([]), e).length);
         assert_eq!(4, Parameter::new(VendorTest1([b'X']), e).length);
         assert_eq!(4, Parameter::new(VendorTest3([b'X'; 3]), e).length);
@@ -768,7 +768,7 @@ mod tests {
 
     #[test]
     fn serialize_parameter_short() {
-        let endianness = EndianessFlag::LittleEndian;
+        let endianness = Endianness::LittleEndian;
         let parameter = Parameter::new(VendorTestShort(-1000), endianness);
         let expected = vec![
             0x06, 0x80, 4, 0, 
@@ -778,7 +778,7 @@ mod tests {
         parameter.serialize(&mut writer, endianness).unwrap();
         assert_eq!(expected, writer);
 
-        let endianness = EndianessFlag::BigEndian;
+        let endianness = Endianness::BigEndian;
         let parameter = Parameter::new(VendorTestShort(-1000), endianness);
         let expected = vec![
             0x80, 0x06, 0, 4, 
@@ -791,7 +791,7 @@ mod tests {
 
     #[test]
     fn deserialize_parameter_short() {
-        let endianness = EndianessFlag::LittleEndian;
+        let endianness = Endianness::LittleEndian;
         let expected = VendorTestShort(-1000);
         let bytes = vec![
             0x06, 0x80, 4, 0, 
@@ -801,7 +801,7 @@ mod tests {
         let result = parameter.get(endianness);
         assert_eq!(expected, result);
 
-        let endianness = EndianessFlag::BigEndian;
+        let endianness = Endianness::BigEndian;
         let expected = VendorTestShort(-1000);
         let bytes = vec![
             0x80, 0x06, 0, 4, 
@@ -814,9 +814,9 @@ mod tests {
 
     #[test]
     fn parameter_serialize_little_endian() {
-        let endianness = EndianessFlag::LittleEndian;
+        let endianness = Endianness::LittleEndian;
         
-        let parameter = Parameter::new(VendorTest3([1, 2, 3]), EndianessFlag::LittleEndian);
+        let parameter = Parameter::new(VendorTest3([1, 2, 3]), Endianness::LittleEndian);
         let expected_bytes = vec![
             0x03, 0x80, 4, 0, 
             1, 2, 3, 0,
@@ -828,7 +828,7 @@ mod tests {
         assert_eq!(expected_bytes, result_bytes);
         assert_eq!(expected_octets, result_octets);
     
-        let parameter = Parameter::new(VendorTest0([]), EndianessFlag::LittleEndian);
+        let parameter = Parameter::new(VendorTest0([]), Endianness::LittleEndian);
         let expected_bytes = vec![0x00, 0x80, 0, 0, ];
         let expected_octets = expected_bytes.len();
         let mut result_bytes = Vec::new();
@@ -837,7 +837,7 @@ mod tests {
         assert_eq!(expected_bytes, result_bytes);
         assert_eq!(expected_octets, result_octets);
     
-        let parameter = Parameter::new(VendorTest4([1,2,3,4]), EndianessFlag::LittleEndian);
+        let parameter = Parameter::new(VendorTest4([1,2,3,4]), Endianness::LittleEndian);
         let expected_bytes = vec![
             0x04, 0x80, 4, 0, 
             1, 2, 3, 4,
@@ -849,7 +849,7 @@ mod tests {
         assert_eq!(expected_bytes, result_bytes);
         assert_eq!(expected_octets, result_octets);
     
-        let parameter = Parameter::new(VendorTest5([1,2,3,4,5]), EndianessFlag::LittleEndian);
+        let parameter = Parameter::new(VendorTest5([1,2,3,4,5]), Endianness::LittleEndian);
         let expected_bytes = vec![
             0x05, 0x80, 8, 0, 
             1, 2, 3, 4,
@@ -865,7 +865,7 @@ mod tests {
         
     #[test]
     fn find_parameter_list() {
-        let endianness = EndianessFlag::LittleEndian;
+        let endianness = Endianness::LittleEndian;
         let expected = KeyHash([9; 16]);
         let parameter_list = ParameterList{parameter: vec![
             Parameter::new(expected, endianness),
@@ -877,7 +877,7 @@ mod tests {
 
     #[test]
     fn parameter_list_deserialize_liitle_endian() {
-        let endianness = EndianessFlag::LittleEndian;
+        let endianness = Endianness::LittleEndian;
     
         let bytes = vec![
             0x03, 0x80, 4, 0, // ParameterID, length 
@@ -902,7 +902,7 @@ mod tests {
 
     #[test]
     fn serialize_parameter_list() {
-        let endianness = EndianessFlag::LittleEndian;
+        let endianness = Endianness::LittleEndian;
         use crate::inline_qos_types::KeyHash;
         let key_hash = KeyHash([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
         let status_info = StatusInfo([101, 102, 103, 104]);
@@ -929,7 +929,7 @@ mod tests {
     
     #[test]
     fn deserialize_parameter_list() {
-        let endianness = EndianessFlag::LittleEndian;
+        let endianness = Endianness::LittleEndian;
         use crate::inline_qos_types::KeyHash;
         let key_hash = KeyHash([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
         let status_info = StatusInfo([101, 102, 103, 104]);
@@ -980,7 +980,7 @@ mod tests {
             13, 14, 15, 16, // Locator 2: address
         ];
         let mut writer = Vec::new();
-        locator_list.serialize(&mut writer, EndianessFlag::LittleEndian).unwrap();
+        locator_list.serialize(&mut writer, Endianness::LittleEndian).unwrap();
         assert_eq!(expected, writer);
     }
 
@@ -1007,7 +1007,7 @@ mod tests {
             Locator::new(100, 200, address),
             Locator::new(101, 201, address),
         ]);
-        let result = LocatorList::deserialize(&bytes, EndianessFlag::LittleEndian).unwrap();
+        let result = LocatorList::deserialize(&bytes, Endianness::LittleEndian).unwrap();
         assert_eq!(expected, result);
     }
 }

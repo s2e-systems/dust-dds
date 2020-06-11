@@ -1,7 +1,7 @@
 use crate::primitive_types::UShort;
 use crate::types::{EntityId, SequenceNumber, };
 use crate::messages::types::Count;
-use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsCompose, RtpsParse, EndianessFlag, RtpsSerdesResult, };
+use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsCompose, RtpsParse, Endianness, RtpsSerdesResult, };
 use super::{SubmessageKind, SubmessageFlag, Submessage, SubmessageHeader, };
 use super::submessage_elements::FragmentNumberSet;
 
@@ -40,7 +40,7 @@ impl Submessage for NackFrag {
 
 impl RtpsCompose for NackFrag {
     fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
-        let endianness = EndianessFlag::from(self.endianness_flag);
+        let endianness = Endianness::from(self.endianness_flag);
        
         self.submessage_header().compose(writer)?;
         
@@ -57,7 +57,7 @@ impl RtpsParse for NackFrag {
     fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> { 
         let header = SubmessageHeader::parse(bytes)?;
         let endianness_flag = header.flags()[0];
-        let endianness = EndianessFlag::from(endianness_flag);       
+        let endianness = Endianness::from(endianness_flag);       
         let end_of_message = usize::from(header.submessage_length()) + header.octets();
         let index_count = end_of_message - 4;
         
@@ -99,7 +99,7 @@ mod tests {
         ];
         
         let expected = NackFrag {
-            endianness_flag: EndianessFlag::LittleEndian.into(),
+            endianness_flag: Endianness::LittleEndian.into(),
             reader_id: ENTITYID_UNKNOWN,
             writer_id: ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
             writer_sn: SequenceNumber(1), 
@@ -124,7 +124,7 @@ mod tests {
         ];
         
         let message = NackFrag {
-            endianness_flag: EndianessFlag::LittleEndian.into(),
+            endianness_flag: Endianness::LittleEndian.into(),
             reader_id: ENTITYID_UNKNOWN,
             writer_id: ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
             writer_sn: SequenceNumber(1), 

@@ -1,7 +1,7 @@
 use crate::primitive_types::{UShort, ULong, };
 use crate::types::{EntityId, SequenceNumber, };
 use crate::messages::types::{SubmessageKind, SubmessageFlag, };
-use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, EndianessFlag, RtpsSerdesResult, };
+use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, Endianness, RtpsSerdesResult, };
 use super::{SubmessageHeader, Submessage, };
 use super::submessage_elements::{FragmentNumber, ParameterList, };
 use crate::serialized_payload::SerializedPayload;
@@ -54,7 +54,7 @@ impl Submessage for DataFrag {
 impl RtpsCompose for DataFrag {
     fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
         // let sample_size = ULong(0); // TODO: what is sample_size? It is in PSM but nut in PIM. Probably: data_size
-        let endianness = EndianessFlag::from(self.endianness_flag);
+        let endianness = Endianness::from(self.endianness_flag);
         let extra_flags: UShort = 0;
         let octecs_to_inline_qos = (
             self.reader_id.octets() + 
@@ -93,7 +93,7 @@ impl RtpsParse for DataFrag {
         /*K*/ let key_flag = flags[2];
         /*N*/ let non_standard_payload_flag = flags[3];
 
-        let endianness = EndianessFlag::from(endianness_flag);
+        let endianness = Endianness::from(endianness_flag);
 
         const HEADER_SIZE : usize = 8;
         let octets_to_inline_qos = usize::from(UShort::deserialize(&bytes[6..8], endianness)?) + HEADER_SIZE /* header and extra flags*/;
@@ -143,7 +143,7 @@ mod tests{
 
     #[test]
     fn parse_data_frag_submessage() {
-        let endianness = EndianessFlag::LittleEndian;
+        let endianness = Endianness::LittleEndian;
         let key_hash = KeyHash([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]);
         let inline_qos = ParameterList::new(vec![Parameter::new(key_hash, endianness)]);
         
@@ -187,12 +187,12 @@ mod tests{
 
     #[test]
     fn compose_data_frag_submessage() {
-        let endianness = EndianessFlag::LittleEndian;
+        let endianness = Endianness::LittleEndian;
         let key_hash = KeyHash([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]);
         let inline_qos = ParameterList::new(vec![Parameter::new(key_hash, endianness)]);
 
         let message = DataFrag {
-            endianness_flag: EndianessFlag::LittleEndian.into(),
+            endianness_flag: Endianness::LittleEndian.into(),
             inline_qos_flag: true,
             key_flag: true,
             non_standard_payload_flag: false,

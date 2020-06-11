@@ -3,7 +3,7 @@ use crate::primitive_types::UShort;
 use crate::types::{SequenceNumber ,EntityId, };
 use crate::serialized_payload::SerializedPayload;
 use crate::messages::types::{SubmessageKind, SubmessageFlag, };
-use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, EndianessFlag, RtpsSerdesResult, };
+use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, Endianness, RtpsSerdesResult, };
 use super::{SubmessageHeader, Submessage, };
 use super::submessage_elements::ParameterList;
 #[derive(PartialEq, Debug)]
@@ -33,7 +33,7 @@ impl Data {
     /// Inline_qos_flag is inferred from option of inline_qos
     /// data_flag, key_flag and non_standard_payload_flag are inferred from the kind of payload
     pub fn new(
-        endianness_flag: EndianessFlag,
+        endianness_flag: Endianness,
         reader_id: EntityId,
         writer_id: EntityId,
         writer_sn: SequenceNumber,
@@ -131,7 +131,7 @@ impl Submessage for Data {
 
 impl RtpsCompose for Data {
     fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
-        let endianness = EndianessFlag::from(self.endianness_flag);
+        let endianness = Endianness::from(self.endianness_flag);
         let extra_flags: UShort = 0;
         let octecs_to_inline_qos_size = self.reader_id.octets() + self.writer_id.octets() + self.writer_sn.octets();
         let octecs_to_inline_qos = octecs_to_inline_qos_size as UShort;
@@ -164,7 +164,7 @@ impl RtpsParse for Data {
         /*K*/ let key_flag = flags[3];
         /*N*/ let non_standard_payload_flag = flags[4];
 
-        let endianness = EndianessFlag::from(endianness_flag);
+        let endianness = Endianness::from(endianness_flag);
 
         const HEADER_SIZE : usize = 8;
         let octets_to_inline_qos = usize::from(UShort::deserialize(&bytes[6..8], endianness)?) + HEADER_SIZE /* header and extra flags*/;
@@ -222,7 +222,7 @@ mod tests {
     #[test]
     fn test_data_contructor() {
         let data = Data::new(
-            EndianessFlag::LittleEndian, 
+            Endianness::LittleEndian, 
             ENTITYID_UNKNOWN, 
             ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, 
             SequenceNumber(1), 
@@ -264,7 +264,7 @@ mod tests {
 
     #[test]
     fn test_compose_data_submessage_with_inline_qos_without_data() {
-        let endianness = EndianessFlag::LittleEndian;
+        let endianness = Endianness::LittleEndian;
         let key_hash = KeyHash([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]);
         let inline_qos = ParameterList::new(vec![Parameter::new(key_hash, endianness)]);
         
@@ -301,7 +301,7 @@ mod tests {
 
     #[test]
     fn test_compose_data_submessage_with_inline_qos_with_data() {
-        let endianness = EndianessFlag::LittleEndian;
+        let endianness = Endianness::LittleEndian;
         let key_hash = KeyHash([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]);
         let inline_qos = ParameterList::new(vec![Parameter::new(key_hash, endianness)]);
         
@@ -397,7 +397,7 @@ mod tests {
 
     #[test]
     fn test_parse_data_submessage_with_inline_qos_with_data() {
-        let endianness = EndianessFlag::LittleEndian;
+        let endianness = Endianness::LittleEndian;
         let key_hash = KeyHash([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]);
         let inline_qos = ParameterList::new(vec![Parameter::new(key_hash, endianness)]);
         

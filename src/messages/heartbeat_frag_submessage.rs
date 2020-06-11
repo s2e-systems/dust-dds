@@ -1,7 +1,7 @@
 use crate::primitive_types::UShort;
 use crate::types::{SequenceNumber, EntityId, };
 use crate::messages::types::{SubmessageKind, SubmessageFlag, Count, };
-use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, EndianessFlag, RtpsSerdesResult, };
+use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, Endianness, RtpsSerdesResult, };
 use super::{SubmessageHeader, Submessage, };
 use super::submessage_elements::FragmentNumber;
 
@@ -53,7 +53,7 @@ impl RtpsParse for HeartbeatFrag {
     fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> {
         let header = SubmessageHeader::parse(bytes)?;
         let endianness_flag = header.flags()[0];
-        let endianness = EndianessFlag::from(endianness_flag);
+        let endianness = Endianness::from(endianness_flag);
 
         let reader_id = EntityId::deserialize(&bytes[4..8], endianness)?;
         let writer_id = EntityId::deserialize(&bytes[8..12], endianness)?;

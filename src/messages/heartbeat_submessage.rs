@@ -1,7 +1,7 @@
 use crate::primitive_types::UShort;
 use crate::types::{EntityId, SequenceNumber, };
 use crate::messages::types::{SubmessageKind, SubmessageFlag, Count, };
-use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, EndianessFlag, RtpsSerdesResult, };
+use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, Endianness, RtpsSerdesResult, };
 use super::{SubmessageHeader, Submessage, };
 
 #[derive(PartialEq, Debug)]
@@ -33,7 +33,7 @@ impl Heartbeat {
         count: Count,
         final_flag: bool,
         manual_liveliness: bool,
-        endianness_flag: EndianessFlag) -> Self {
+        endianness_flag: Endianness) -> Self {
             Heartbeat {
                 reader_id,
                 writer_id,
@@ -133,7 +133,7 @@ impl RtpsParse for Heartbeat {
         /*F*/ let final_flag = flags[1];
         /*L*/ let liveliness_flag = flags[2];
 
-        let endianness = EndianessFlag::from(endianness_flag);
+        let endianness = Endianness::from(endianness_flag);
 
         const HEADER_SIZE : usize = 8;
         let reader_id = EntityId::deserialize(&bytes[4..8], endianness)?;
@@ -172,7 +172,7 @@ mod tests {
             count: Count(0),
             final_flag: true,
             liveliness_flag: true,
-            endianness_flag: EndianessFlag::LittleEndian.into(),
+            endianness_flag: Endianness::LittleEndian.into(),
         };
 
         assert_eq!(valid_heartbeat.is_valid(), true);
@@ -185,7 +185,7 @@ mod tests {
             count: Count(2),
             final_flag: true,
             liveliness_flag: true,
-            endianness_flag: EndianessFlag::LittleEndian.into(),
+            endianness_flag: Endianness::LittleEndian.into(),
         };
 
         assert_eq!(valid_heartbeat_first_message.is_valid(), true);
@@ -198,7 +198,7 @@ mod tests {
             count: Count(2),
             final_flag: true,
             liveliness_flag: true,
-            endianness_flag: EndianessFlag::LittleEndian.into(),
+            endianness_flag: Endianness::LittleEndian.into(),
         };
 
         assert_eq!(invalid_heartbeat_zero_first_value.is_valid(), false);
@@ -211,7 +211,7 @@ mod tests {
             count: Count(2),
             final_flag: true,
             liveliness_flag: true,
-            endianness_flag: EndianessFlag::LittleEndian.into(),
+            endianness_flag: Endianness::LittleEndian.into(),
         };
 
         assert_eq!(invalid_heartbeat_negative_last_value.is_valid(), false);
@@ -224,7 +224,7 @@ mod tests {
             count: Count(2),
             final_flag: true,
             liveliness_flag: true,
-            endianness_flag: EndianessFlag::LittleEndian.into(),
+            endianness_flag: Endianness::LittleEndian.into(),
         };
 
         assert_eq!(invalid_heartbeat_wrong_first_last_value.is_valid(), false);
@@ -242,7 +242,7 @@ mod tests {
         let is_final = true;
         let manual_liveliness = false;
 
-        let heartbeat_big_endian = Heartbeat::new(reader_id, writer_id, first_sn, last_sn, count, is_final, manual_liveliness, EndianessFlag::BigEndian);
+        let heartbeat_big_endian = Heartbeat::new(reader_id, writer_id, first_sn, last_sn, count, is_final, manual_liveliness, Endianness::BigEndian);
         heartbeat_big_endian.compose(&mut writer).unwrap();
         let submessage_big_endian = [
             0x07, 0x02, 0x00, 0x1C, // Submessage Header
@@ -258,7 +258,7 @@ mod tests {
 
         writer.clear();
 
-        let heartbeat_little_endian = Heartbeat::new(reader_id, writer_id, first_sn, last_sn, count, is_final, manual_liveliness, EndianessFlag::LittleEndian);
+        let heartbeat_little_endian = Heartbeat::new(reader_id, writer_id, first_sn, last_sn, count, is_final, manual_liveliness, Endianness::LittleEndian);
         heartbeat_little_endian.compose(&mut writer).unwrap();
         let submessage_little_endian = [
             0x07, 0x03, 0x1C, 0x00, // Submessage Header

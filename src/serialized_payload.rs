@@ -1,4 +1,4 @@
-use crate::serdes::{RtpsSerialize, RtpsDeserialize, EndianessFlag, RtpsSerdesResult, };
+use crate::serdes::{RtpsSerialize, RtpsDeserialize, Endianness, RtpsSerdesResult, };
 
 #[derive(PartialEq, Debug)]
 struct RepresentationIdentifier([u8; 2]);
@@ -21,12 +21,12 @@ struct StandardSerializedPayload {
 }
 
 impl RtpsSerialize for StandardSerializedPayload {
-    fn serialize(&self, _writer: &mut impl std::io::Write, _endianness: EndianessFlag) -> RtpsSerdesResult<()> { todo!() }
+    fn serialize(&self, _writer: &mut impl std::io::Write, _endianness: Endianness) -> RtpsSerdesResult<()> { todo!() }
     fn octets(&self) -> usize { todo!() }
 }
 
 impl RtpsDeserialize for StandardSerializedPayload {
-    fn deserialize(_bytes: &[u8], _endianness: EndianessFlag) -> RtpsSerdesResult<Self> { 
+    fn deserialize(_bytes: &[u8], _endianness: Endianness) -> RtpsSerdesResult<Self> { 
         todo!() 
     }
 }
@@ -37,14 +37,14 @@ impl RtpsDeserialize for StandardSerializedPayload {
 pub struct SerializedPayload(pub Vec<u8>);
 
 impl RtpsSerialize for SerializedPayload {
-    fn serialize(&self, writer: &mut impl std::io::Write, _endianness: EndianessFlag) -> RtpsSerdesResult<()> {
+    fn serialize(&self, writer: &mut impl std::io::Write, _endianness: Endianness) -> RtpsSerdesResult<()> {
         writer.write(self.0.as_slice())?;
         Ok(())
     }
 }
 
 impl RtpsDeserialize for SerializedPayload {
-    fn deserialize(bytes: &[u8], _endianness: EndianessFlag) -> RtpsSerdesResult<Self> {
+    fn deserialize(bytes: &[u8], _endianness: Endianness) -> RtpsSerdesResult<Self> {
         Ok(SerializedPayload(Vec::from(bytes)))
     }
 }

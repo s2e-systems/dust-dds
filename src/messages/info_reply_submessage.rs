@@ -1,6 +1,6 @@
 use crate::primitive_types::UShort;
 use crate::messages::types::{SubmessageKind, SubmessageFlag, };
-use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, EndianessFlag, RtpsSerdesResult, };
+use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, Endianness, RtpsSerdesResult, };
 use super::{SubmessageHeader, Submessage, };
 use super::submessage_elements::LocatorList;
 
@@ -32,7 +32,7 @@ impl Submessage for InfoReply {
 
 impl RtpsCompose for InfoReply {
     fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
-        let endianness = EndianessFlag::from(self.endianness_flag);       
+        let endianness = Endianness::from(self.endianness_flag);       
         self.submessage_header().compose(writer)?;
         self.unicast_locator_list.serialize(writer, endianness)?;
         if self.multicast_flag {
@@ -77,7 +77,7 @@ mod tests {
         ];
         let address = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
         let expected = InfoReply {
-            endianness_flag: EndianessFlag::LittleEndian.into(),
+            endianness_flag: Endianness::LittleEndian.into(),
             multicast_flag: false,
             unicast_locator_list: LocatorList(vec![Locator::new(100, 200, address)]),
             multicast_locator_list: LocatorList(vec![])
@@ -107,7 +107,7 @@ mod tests {
         ];
         let address = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
         let expected = InfoReply {
-            endianness_flag: EndianessFlag::LittleEndian.into(),
+            endianness_flag: Endianness::LittleEndian.into(),
             multicast_flag: true,
             unicast_locator_list: LocatorList(vec![Locator::new(100, 200, address)]),
             multicast_locator_list: LocatorList(vec![Locator::new(101, 201, address)])
@@ -137,7 +137,7 @@ mod tests {
         ];
         let address = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
         let message = InfoReply {
-            endianness_flag: EndianessFlag::LittleEndian.into(),
+            endianness_flag: Endianness::LittleEndian.into(),
             multicast_flag: true,
             unicast_locator_list: LocatorList(vec![Locator::new(100, 200, address)]),
             multicast_locator_list: LocatorList(vec![Locator::new(101, 201, address)])

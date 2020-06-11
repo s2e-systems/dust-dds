@@ -3,7 +3,7 @@ use std::convert::{TryInto, TryFrom};
 use crate::types::{GUID, SequenceNumber, ChangeKind};
 use crate::behavior_types::Duration;
 use crate::cache::{HistoryCache, CacheChange};
-use crate::serdes::EndianessFlag;
+use crate::serdes::Endianness;
 use crate::messages::submessage_elements::{Parameter, ParameterList};
 use crate::messages::{RtpsMessage, RtpsSubmessage, Heartbeat, InfoTs, Data, Gap, Payload};
 use crate::messages::types::Time;
@@ -65,7 +65,7 @@ impl StatefulWriterBehaviour {
         // This state is only valid if there are unsent changes
         assert!(!reader_proxy.unsent_changes(last_change_sequence_number).is_empty());
     
-        let endianness = EndianessFlag::LittleEndian;
+        let endianness = Endianness::LittleEndian;
         let mut submessages = Vec::with_capacity(2); // TODO: Probably can be preallocated with the correct size
     
         let time = Time::now();
@@ -93,7 +93,7 @@ impl StatefulWriterBehaviour {
                 };
                 let inline_qos_parameter_list = ParameterList::new(parameter);
                 let data = Data::new(
-                    EndianessFlag::LittleEndian.into(),
+                    Endianness::LittleEndian.into(),
                     *reader_proxy.remote_reader_guid().entity_id(),
                     *writer_guid.entity_id(),
                     *cache_change.sequence_number(),
@@ -107,7 +107,7 @@ impl StatefulWriterBehaviour {
                     *reader_proxy.remote_reader_guid().entity_id(), 
                     *writer_guid.entity_id(),
                     next_unsent_seq_num,
-                    EndianessFlag::LittleEndian);
+                    Endianness::LittleEndian);
     
                 submessages.push(RtpsSubmessage::Gap(gap));
             }
@@ -122,7 +122,7 @@ impl StatefulWriterBehaviour {
             let mut submessages = Vec::new();
     
             let time = Time::now();
-            let infots = InfoTs::new(Some(time), EndianessFlag::LittleEndian);
+            let infots = InfoTs::new(Some(time), Endianness::LittleEndian);
     
             submessages.push(RtpsSubmessage::InfoTs(infots));
     
@@ -141,7 +141,7 @@ impl StatefulWriterBehaviour {
                 *reader_proxy.heartbeat_count(),
                 false,
                 false,
-                EndianessFlag::LittleEndian,
+                Endianness::LittleEndian,
             );
     
             submessages.push(RtpsSubmessage::Heartbeat(heartbeat));
@@ -191,7 +191,7 @@ impl StatefulWriterBehaviour {
     
         let mut submessages = Vec::with_capacity(2); // TODO: Pre-allocate with right size
     
-        let endianness = EndianessFlag::LittleEndian;
+        let endianness = Endianness::LittleEndian;
         let time = Time::now();
         let infots = InfoTs::new(Some(time), endianness);
         submessages.push(RtpsSubmessage::InfoTs(infots));
@@ -217,7 +217,7 @@ impl StatefulWriterBehaviour {
                 };
                 let inline_qos_parameter_list = ParameterList::new(parameter);
                 let data = Data::new(
-                    EndianessFlag::LittleEndian.into(),
+                    Endianness::LittleEndian.into(),
                     *reader_proxy.remote_reader_guid().entity_id(),
                     *writer_guid.entity_id(),
                     *cache_change.sequence_number(),
@@ -231,7 +231,7 @@ impl StatefulWriterBehaviour {
                     *reader_proxy.remote_reader_guid().entity_id(), 
                     *writer_guid.entity_id(),
                     next_requested_seq_num,
-                    EndianessFlag::LittleEndian);
+                    Endianness::LittleEndian);
     
                 submessages.push(RtpsSubmessage::Gap(gap));
             }
@@ -257,7 +257,7 @@ impl StatelessWriterBehavior{
         // This state is only valid if there are unsent changes
         assert!(!reader_locator.unsent_changes(last_change_sequence_number).is_empty());
     
-        let endianness = EndianessFlag::LittleEndian;
+        let endianness = Endianness::LittleEndian;
         let mut submessages = Vec::with_capacity(2); // TODO: Probably can be preallocated with the correct size
     
         let time = Time::now();
@@ -285,7 +285,7 @@ impl StatelessWriterBehavior{
                 };
                 let inline_qos_parameter_list = ParameterList::new(parameter);
                 let data = Data::new(
-                    EndianessFlag::LittleEndian.into(),
+                    Endianness::LittleEndian.into(),
                     ENTITYID_UNKNOWN,
                     *writer_guid.entity_id(),
                     *cache_change.sequence_number(),
@@ -299,7 +299,7 @@ impl StatelessWriterBehavior{
                     ENTITYID_UNKNOWN, 
                     *writer_guid.entity_id(),
                     next_unsent_seq_num,
-                    EndianessFlag::LittleEndian);
+                    Endianness::LittleEndian);
     
                 submessages.push(RtpsSubmessage::Gap(gap));
             }
@@ -511,7 +511,7 @@ mod tests {
            SequenceNumberSet::from_set(vec![SequenceNumber(3), SequenceNumber(5), SequenceNumber(6)].iter().cloned().collect()),
            Count(1),
             true,
-            EndianessFlag::LittleEndian);
+            Endianness::LittleEndian);
         let received_message = RtpsMessage::new(*remote_reader_guid.prefix(), vec![RtpsSubmessage::AckNack(acknack)]);
 
         StatefulWriterBehaviour::process_repair_message(&mut reader_proxy, &writer_guid, &received_message);
@@ -536,7 +536,7 @@ mod tests {
            SequenceNumberSet::from_set(vec![SequenceNumber(3), SequenceNumber(5), SequenceNumber(6)].iter().cloned().collect()),
            Count(1),
             true,
-            EndianessFlag::LittleEndian);
+            Endianness::LittleEndian);
         submessages.push(RtpsSubmessage::AckNack(acknack));
         let received_message = RtpsMessage::new(*other_reader_guid.prefix(), submessages);
         StatefulWriterBehaviour::process_repair_message(&mut reader_proxy, &writer_guid, &received_message);
@@ -553,7 +553,7 @@ mod tests {
            SequenceNumberSet::from_set(vec![SequenceNumber(3), SequenceNumber(5), SequenceNumber(6)].iter().cloned().collect()),
            Count(1),
             true,
-            EndianessFlag::LittleEndian);
+            Endianness::LittleEndian);
         submessages.push(RtpsSubmessage::AckNack(acknack));
         let received_message = RtpsMessage::new(*remote_reader_guid.prefix(), submessages);
 
@@ -572,7 +572,7 @@ mod tests {
            SequenceNumberSet::from_set(vec![SequenceNumber(3), SequenceNumber(5), SequenceNumber(6)].iter().cloned().collect()),
            Count(1),
             true,
-            EndianessFlag::LittleEndian);
+            Endianness::LittleEndian);
         submessages.push(RtpsSubmessage::AckNack(acknack));
         let received_message = RtpsMessage::new(*remote_reader_guid.prefix(), submessages);
 
@@ -606,7 +606,7 @@ mod tests {
            SequenceNumberSet::new(SequenceNumber(5), vec![].iter().cloned().collect()),
            Count(1),
             true,
-            EndianessFlag::LittleEndian);
+            Endianness::LittleEndian);
         submessages.push(RtpsSubmessage::AckNack(acknack));
 
         let received_message = RtpsMessage::new(*remote_reader_guid.prefix(), submessages);
@@ -948,7 +948,7 @@ mod tests {
            SequenceNumberSet::new(SequenceNumber(1), vec![SequenceNumber(2)].iter().cloned().collect()),
            Count(1),
            true,
-           EndianessFlag::LittleEndian);
+           Endianness::LittleEndian);
         let received_message = RtpsMessage::new(*remote_reader_guid.prefix(), vec![RtpsSubmessage::AckNack(acknack)]);
 
         let submessages = StatefulWriterBehaviour::run_reliable(&mut reader_proxy, &writer_guid, &history_cache, last_change_sequence_number, heartbeat_period, nack_response_delay, Some(&received_message));

@@ -3,7 +3,7 @@ use std::collections::BTreeSet;
 use crate::primitive_types::UShort;
 use crate::types::{EntityId, SequenceNumber, };
 use crate::messages::types::{SubmessageKind, SubmessageFlag, };
-use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, EndianessFlag, RtpsSerdesResult, };
+use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, Endianness, RtpsSerdesResult, };
 use super::{SubmessageHeader, Submessage, };
 use super::submessage_elements::SequenceNumberSet;
 
@@ -24,7 +24,7 @@ impl Gap {
         reader_id: EntityId,
         writer_id: EntityId,
         gap_start: SequenceNumber,
-        endianness: EndianessFlag,) -> Self {
+        endianness: Endianness,) -> Self {
 
             let mut gap_list_set = BTreeSet::new();
             gap_list_set.insert(gap_start);
@@ -91,7 +91,7 @@ impl RtpsParse for Gap {
         let flags = header.flags();
         // X|X|X|X|X|X|X|E
         /*E*/ let endianness_flag = flags[0];
-        let endianness = EndianessFlag::from(endianness_flag);
+        let endianness = Endianness::from(endianness_flag);
 
         let reader_id = EntityId::deserialize(&bytes[4..8], endianness)?;
         let writer_id = EntityId::deserialize(&bytes[8..12], endianness)?;
@@ -127,7 +127,7 @@ mod tests {
             0x00, 0x00, 0x00,    2, // gapList numBits
             0b11000000, 0x00, 0x00, 0x00, // gapList bitmap
         ];
-        let endianness_flag = EndianessFlag::BigEndian.into();
+        let endianness_flag = Endianness::BigEndian.into();
         let reader_id = EntityId::new(EntityKey([0x10, 0x12, 0x14]), EntityKind::UserDefinedReaderWithKey);
         let writer_id = EntityId::new(EntityKey([0x26, 0x24, 0x22]), EntityKind::UserDefinedWriterWithKey);
         let gap_start = SequenceNumber(1200);
@@ -161,7 +161,7 @@ mod tests {
                2, 0x00, 0x00, 0x00, // gapList numBits
             0x00, 0x00, 0x00, 0b11000000, // gapList bitmap
         ];
-        let endianness_flag = EndianessFlag::LittleEndian.into();
+        let endianness_flag = Endianness::LittleEndian.into();
         let reader_id = EntityId::new(EntityKey([0x10, 0x12, 0x14]), EntityKind::UserDefinedReaderWithKey);
         let writer_id = EntityId::new(EntityKey([0x26, 0x24, 0x22]), EntityKind::UserDefinedWriterWithKey);
         let gap_start = SequenceNumber(1200);
@@ -196,7 +196,7 @@ mod tests {
             0b11000000, 0x00, 0x00, 0x00, // gapList bitmap
         ];
 
-        let endianness_flag = EndianessFlag::BigEndian.into();
+        let endianness_flag = Endianness::BigEndian.into();
         let reader_id = EntityId::new(EntityKey([0x10, 0x12, 0x14]), EntityKind::UserDefinedReaderWithKey);
         let writer_id = EntityId::new(EntityKey([0x26, 0x24, 0x22]), EntityKind::UserDefinedWriterWithKey);
         let gap_start = SequenceNumber(1200);
@@ -231,7 +231,7 @@ mod tests {
             0x00, 0x00, 0x00, 0b11000000, // gapList bitmap
         ];
 
-        let endianness_flag = EndianessFlag::LittleEndian.into();
+        let endianness_flag = Endianness::LittleEndian.into();
         let reader_id = EntityId::new(EntityKey([0x10, 0x12, 0x14]), EntityKind::UserDefinedReaderWithKey);
         let writer_id = EntityId::new(EntityKey([0x26, 0x24, 0x22]), EntityKind::UserDefinedWriterWithKey);
         let gap_start = SequenceNumber(1200);

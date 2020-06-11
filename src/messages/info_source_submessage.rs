@@ -1,7 +1,7 @@
 use crate::primitive_types::{Long, UShort, };
 use crate::types::{ProtocolVersion, VendorId, GuidPrefix, };
 use crate::messages::types::{SubmessageKind, SubmessageFlag, };
-use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, EndianessFlag, RtpsSerdesResult, };
+use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, Endianness, RtpsSerdesResult, };
 use super::{SubmessageHeader, Submessage, };
 
 #[derive(PartialEq, Debug)]
@@ -51,7 +51,7 @@ impl RtpsParse for InfoSource {
     fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> {
         let header = SubmessageHeader::parse(bytes)?;
         let endianness_flag = header.flags()[0];
-        let endianness = EndianessFlag::from(endianness_flag);
+        let endianness = Endianness::from(endianness_flag);
         // let unused = Long::deserialize(&bytes[4..8], endianness)?;
         let protocol_version = ProtocolVersion::deserialize(&bytes[8..10], endianness)?;
         let vendor_id = VendorId::deserialize(&bytes[10..12], endianness)?;

@@ -1,7 +1,7 @@
 use crate::primitive_types::UShort;
 use crate::types::GuidPrefix;
 use crate::messages::types::{SubmessageKind, SubmessageFlag, };
-use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, EndianessFlag, RtpsSerdesResult, };
+use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, Endianness, RtpsSerdesResult, };
 use super::{SubmessageHeader, Submessage, };
 
 
@@ -26,7 +26,7 @@ impl Submessage for InfoDestination {
 
 impl RtpsCompose for InfoDestination {
     fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
-        let endianness = EndianessFlag::from(self.endianness_flag);       
+        let endianness = Endianness::from(self.endianness_flag);       
         self.submessage_header().compose(writer)?;
         self.guid_prefix.serialize(writer, endianness)?;
         Ok(())
@@ -56,7 +56,7 @@ mod tests {
             18, 19, 20, 21, // guidPrefix
         ];
         let expected = InfoDestination {
-            endianness_flag: EndianessFlag::BigEndian.into(),
+            endianness_flag: Endianness::BigEndian.into(),
             guid_prefix: GuidPrefix([10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,]),
         };
         let result = InfoDestination::parse(&bytes).unwrap();
@@ -72,7 +72,7 @@ mod tests {
             18, 19, 20, 21, // guidPrefix
         ];
         let expected = InfoDestination {
-            endianness_flag: EndianessFlag::LittleEndian.into(),
+            endianness_flag: Endianness::LittleEndian.into(),
             guid_prefix: GuidPrefix([10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,]),
         };
         let result = InfoDestination::parse(&bytes).unwrap();

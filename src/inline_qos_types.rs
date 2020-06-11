@@ -5,7 +5,7 @@
  
 use std::convert::{TryInto, From};
 use serde::{Serialize, Deserialize};
-use crate::serdes::{RtpsSerialize, RtpsDeserialize, EndianessFlag, RtpsSerdesResult, };
+use crate::serdes::{RtpsSerialize, RtpsDeserialize, Endianness, RtpsSerdesResult, };
 use crate::types::{ChangeKind, };
 use crate::messages::types::{Pid, ParameterIdT, };
 
@@ -67,14 +67,14 @@ impl From<ChangeKind> for StatusInfo {
 }
 
 impl RtpsSerialize for StatusInfo {
-    fn serialize(&self, writer: &mut impl std::io::Write, _endianess: EndianessFlag) -> RtpsSerdesResult<()> {
+    fn serialize(&self, writer: &mut impl std::io::Write, _endianess: Endianness) -> RtpsSerdesResult<()> {
         writer.write(&self.0)?;
         Ok(())
     }
 }
 
 impl RtpsDeserialize for StatusInfo {
-    fn deserialize(bytes: &[u8], _endianness: EndianessFlag) -> RtpsSerdesResult<Self> {
+    fn deserialize(bytes: &[u8], _endianness: Endianness) -> RtpsSerdesResult<Self> {
         Ok(StatusInfo(bytes[0..3].try_into()?))
     }
 }
