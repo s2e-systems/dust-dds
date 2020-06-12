@@ -2,6 +2,7 @@ use crate::types::{GUID, SequenceNumber};
 use crate::messages::{RtpsMessage, RtpsSubmessage};
 use crate::cache::{HistoryCache};
 use crate::stateful_reader::WriterProxy;
+use crate::inline_qos_types::{KeyHash, StatusInfo, };
 use super::cache_change_from_data;
 
 pub struct StatefulReaderBehaviour {}
@@ -43,7 +44,7 @@ mod tests {
         ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, };
     use crate::cache::CacheChange;
     use crate::messages::{Data, Payload};
-    use crate::messages::submessage_elements::SequenceNumberSet;
+    use crate::messages::submessage_elements::{SequenceNumberSet, Parameter, ParameterList};
     use crate::serdes::Endianness;
     use crate::stateful_writer::StatefulWriter;
     use crate::serialized_payload::SerializedPayload;
@@ -56,12 +57,16 @@ mod tests {
         let mut writer_proxy = WriterProxy::new(remote_writer_guid, vec![], vec![]);
 
         let mut submessages = Vec::new();
+        let inline_qos_parameters = vec![
+            Parameter::new(StatusInfo::from(ChangeKind::Alive), Endianness::LittleEndian),
+            Parameter::new(KeyHash([1;16]), Endianness::LittleEndian)];
+
         let data1 = Data::new(
             Endianness::LittleEndian, 
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, 
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER, 
             SequenceNumber(1),
-            None,
+            Some(ParameterList::new(inline_qos_parameters)),
             Payload::Data(SerializedPayload(vec![1,2,3])));
         submessages.push(RtpsSubmessage::Data(data1));
 
