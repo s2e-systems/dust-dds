@@ -8,8 +8,13 @@ use super::cache_change_from_data;
 pub struct StatefulReaderBehaviour {}
 
 impl StatefulReaderBehaviour {
-    pub fn run_best_effort(writer_proxy: &mut WriterProxy, _reader_guid: &GUID, history_cache: &mut HistoryCache, received_message: Option<&RtpsMessage>) {
+    pub fn run_best_effort(writer_proxy: &mut WriterProxy, _reader_guid: &GUID, history_cache: &mut HistoryCache, received_message: Option<&RtpsMessage>) -> Option<Vec<RtpsSubmessage>> {
         StatefulReaderBehaviour::run_waiting_state(writer_proxy, history_cache, received_message);
+        None
+    }
+
+    pub fn run_reliable() -> Option<Vec<RtpsSubmessage>>{
+        todo!()
     }
 
     pub fn run_waiting_state(writer_proxy: &mut WriterProxy, history_cache: &mut HistoryCache, received_message: Option<&RtpsMessage>) {
@@ -30,6 +35,14 @@ impl StatefulReaderBehaviour {
                 }
             }
         }
+    }
+
+    pub fn run_waiting_heartbeat_state() {
+        todo!()
+    }
+
+    pub fn run_must_send_ack_state() {
+        todo!()
     }
 }
 
