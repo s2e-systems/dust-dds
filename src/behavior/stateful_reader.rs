@@ -8,8 +8,8 @@ use super::cache_change_from_data;
 pub struct StatefulReaderBehaviour {}
 
 impl StatefulReaderBehaviour {
-    pub fn run_best_effort(_writer_proxy: &mut WriterProxy, _reader_guid: &GUID, _history_cache: &HistoryCache, _last_change_sequence_number: SequenceNumber) -> Option<Vec<RtpsSubmessage>> {
-        todo!()
+    pub fn run_best_effort(writer_proxy: &mut WriterProxy, _reader_guid: &GUID, history_cache: &mut HistoryCache, received_message: Option<&RtpsMessage>) {
+        StatefulReaderBehaviour::run_waiting_state(writer_proxy, history_cache, received_message);
     }
 
     pub fn run_waiting_state(writer_proxy: &mut WriterProxy, history_cache: &mut HistoryCache, received_message: Option<&RtpsMessage>) {
