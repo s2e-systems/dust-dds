@@ -17,7 +17,7 @@ impl StatefulReaderBehaviour {
             let guid_prefix = received_message.header().guid_prefix();
             for submessage in received_message.submessages().iter() {                
                 if let RtpsSubmessage::Data(data) = submessage {
-                    let expected_seq_number = *writer_proxy.available_changes_max() + 1;
+                    let expected_seq_number = writer_proxy.available_changes_max() + 1;
                     if data.writer_sn() >= &expected_seq_number {
                         let cache_change = cache_change_from_data(data, guid_prefix);
                         history_cache.add_change(cache_change);
@@ -25,7 +25,7 @@ impl StatefulReaderBehaviour {
                         writer_proxy.lost_changes_update(*data.writer_sn());
                     }
                 } else if let RtpsSubmessage::Gap(_gap) = submessage {
-                    let _expected_seq_number = *writer_proxy.available_changes_max() + 1;
+                    let _expected_seq_number = writer_proxy.available_changes_max() + 1;
                     todo!()
                 }
             }
