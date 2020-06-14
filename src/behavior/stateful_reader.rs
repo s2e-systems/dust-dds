@@ -65,7 +65,7 @@ mod tests {
             Endianness::LittleEndian, 
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, 
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER, 
-            SequenceNumber(1),
+            SequenceNumber(3),
             Some(ParameterList::new(inline_qos_parameters)),
             Payload::Data(SerializedPayload(vec![1,2,3])));
         submessages.push(RtpsSubmessage::Data(data1));
@@ -73,5 +73,23 @@ mod tests {
         let received_message = RtpsMessage::new(*remote_writer_guid.prefix(), submessages);
 
         StatefulReaderBehaviour::run_waiting_state(&mut writer_proxy, &mut history_cache, Some(&received_message));
+
+        let expected_change_1 = CacheChange::new(
+            ChangeKind::Alive,
+            remote_writer_guid,
+            [1;16],
+            SequenceNumber(3),
+            None,
+            Some(vec![1,2,3]),
+        );
+
+        assert_eq!(history_cache.get_changes().len(), 1);
+        assert!(history_cache.get_changes().contains(&expected_change_1));
+        assert_eq!(writer_proxy.available_changes_max(), SequenceNumber(3));
+
+        // Run waiting state without any received message and verify nothing changes
+        StatefulReaderBehaviour::run_waiting_state(&mut writer_proxy, &mut history_cache, None);
+        assert_eq!(history_cache.get_changes().len(), 1);
+        assert_eq!(writer_proxy.available_changes_max(), SequenceNumber(3));
     }
 }
