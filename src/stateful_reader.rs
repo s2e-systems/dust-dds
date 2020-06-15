@@ -121,6 +121,10 @@ impl WriterProxy {
             self.missing_changes.remove(&a_seq_num);
         }
     }
+
+    pub fn remote_writer_guid(&self) -> &GUID {
+        &self.remote_writer_guid
+    }
 }
 
 pub struct StatefulReader {
