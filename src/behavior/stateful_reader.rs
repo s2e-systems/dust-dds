@@ -1,14 +1,14 @@
 use std::time::Instant;
-use std::convert::{TryFrom, TryInto};
+use std::convert::TryFrom;
 
-use crate::types::{GUID, SequenceNumber};
+use crate::types::GUID;
 use crate::behavior::types::Duration;
 use crate::messages::{RtpsMessage, RtpsSubmessage, AckNack};
 use crate::messages::submessage_elements::SequenceNumberSet;
 use crate::messages::types::Count;
 use crate::cache::{HistoryCache};
 use crate::stateful_reader::WriterProxy;
-use crate::inline_qos_types::{KeyHash, StatusInfo, };
+
 use crate::serdes::Endianness;
 use super::cache_change_from_data;
 
@@ -88,7 +88,7 @@ impl StatefulReaderBehaviour {
 
     fn run_waiting_heartbeat_state(&mut self, writer_proxy: &mut WriterProxy, received_message: Option<&RtpsMessage>) {
         if let Some(received_message) = received_message {
-            let guid_prefix = received_message.header().guid_prefix();
+            let _guid_prefix = received_message.header().guid_prefix();
             for submessage in received_message.submessages().iter() {                
                 if let RtpsSubmessage::Heartbeat(heartbeat) = submessage {
                     writer_proxy.missing_changes_update(*heartbeat.last_sn());
@@ -129,19 +129,16 @@ impl StatefulReaderBehaviour {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{SequenceNumber, ChangeKind, GuidPrefix, TopicKind, ReliabilityKind, Locator};
-    use crate::behavior::types::constants::DURATION_ZERO;
+    use crate::types::{SequenceNumber, ChangeKind, GuidPrefix};
     use crate::messages::types::Count;
     use crate::types::constants::{
-        ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER, 
-        ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, };
+        ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, };
     use crate::cache::CacheChange;
     use crate::messages::{Data, Payload, Heartbeat};
-    use crate::messages::submessage_elements::{SequenceNumberSet, Parameter, ParameterList};
+    use crate::messages::submessage_elements::{Parameter, ParameterList};
     use crate::serdes::Endianness;
-    use crate::stateful_writer::StatefulWriter;
     use crate::serialized_payload::SerializedPayload;
-    use std::thread::sleep;
+    use crate::inline_qos_types::{KeyHash, StatusInfo, };
 
     #[test]
     fn run_waiting_state_data_only() {
