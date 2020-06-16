@@ -3,7 +3,7 @@ use std::time::{Instant};
 use std::convert::TryInto;
 
 use crate::types::{ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID, };
-use crate::behavior_types::Duration;
+use crate::behavior::types::Duration;
 use crate::behavior::StatefulWriterBehaviour;
 use crate::messages::types::Count;
 use crate::cache::{CacheChange, HistoryCache, };
@@ -30,13 +30,6 @@ pub struct ReaderProxy {
     highest_nack_count_received: Count,
 }
 
-impl PartialEq for ReaderProxy {
-    fn eq(&self, other: &Self) -> bool {
-        self.remote_reader_guid == other.remote_reader_guid
-    }
-}
-
-impl Eq for ReaderProxy {}
 
 impl ReaderProxy {
     pub fn new(
@@ -271,7 +264,7 @@ impl StatefulWriter {
 mod tests {
     use super::*;
     use crate::types::constants::{ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, };
-    use crate::behavior_types::constants::DURATION_ZERO;
+    use crate::behavior::types::constants::DURATION_ZERO;
     use crate::types::GuidPrefix;
 
     #[test]

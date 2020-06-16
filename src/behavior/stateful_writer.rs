@@ -1,17 +1,13 @@
-use std::convert::{TryInto, TryFrom};
-
 use crate::types::{GUID, SequenceNumber, ChangeKind};
-use crate::behavior_types::Duration;
-use crate::cache::{HistoryCache, CacheChange};
-use crate::serdes::Endianness;
-use crate::messages::submessage_elements::{Parameter, ParameterList};
-use crate::messages::{RtpsMessage, RtpsSubmessage, Heartbeat, InfoTs, Data, Gap, Payload};
-use crate::messages::types::Time;
-use crate::stateless_writer::ReaderLocator;
+use crate::messages::{RtpsMessage, RtpsSubmessage, InfoTs, Data, Payload, Gap, Heartbeat};
+use crate::cache::{HistoryCache};
 use crate::stateful_writer::ReaderProxy;
-use crate::serialized_payload::SerializedPayload;
+use crate::behavior::types::Duration;
+use crate::serdes::Endianness;
+use crate::messages::types::{Time};
 use crate::inline_qos_types::{KeyHash, StatusInfo};
-use crate::types::constants::ENTITYID_UNKNOWN;
+use crate::messages::submessage_elements::{Parameter, ParameterList};
+use crate::serialized_payload::SerializedPayload;
 
 pub struct StatefulWriterBehaviour {}
 
@@ -241,149 +237,11 @@ impl StatefulWriterBehaviour {
     }
 }
 
-pub struct StatelessWriterBehavior {}
-
-impl StatelessWriterBehavior{
-    pub fn run_best_effort(reader_locator: &mut ReaderLocator, writer_guid: &GUID, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber) -> Option<Vec<RtpsSubmessage>> {
-        if !reader_locator.unsent_changes(last_change_sequence_number).is_empty() {
-            Some(StatelessWriterBehavior::run_pushing_state(reader_locator, writer_guid, history_cache, last_change_sequence_number))
-        } else {
-            None
-        }
-    }
-
-    fn run_pushing_state(reader_locator: &mut ReaderLocator, writer_guid: &GUID, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber) -> Vec<RtpsSubmessage> {
-
-        // This state is only valid if there are unsent changes
-        assert!(!reader_locator.unsent_changes(last_change_sequence_number).is_empty());
-    
-        let endianness = Endianness::LittleEndian;
-        let mut submessages = Vec::with_capacity(2); // TODO: Probably can be preallocated with the correct size
-    
-        let time = Time::now();
-        let infots = InfoTs::new(Some(time), endianness);
-        submessages.push(RtpsSubmessage::InfoTs(infots));
-    
-        while let Some(next_unsent_seq_num) = reader_locator.next_unsent_change(last_change_sequence_number) {
-            if let Some(cache_change) = history_cache
-                .get_change_with_sequence_number(&next_unsent_seq_num)
-            {
-                let change_kind = *cache_change.change_kind();
-    
-                let mut parameter = Vec::new();
-    
-                let payload = match change_kind {
-                    ChangeKind::Alive => {
-                        parameter.push(Parameter::new(StatusInfo::from(change_kind), endianness));
-                        parameter.push(Parameter::new(KeyHash(*cache_change.instance_handle()), endianness));
-                        Payload::Data(SerializedPayload(cache_change.data().unwrap().to_vec()))
-                    },
-                    ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered | ChangeKind::AliveFiltered => {
-                        parameter.push(Parameter::new(StatusInfo::from(change_kind), endianness));
-                        Payload::Key(SerializedPayload(cache_change.instance_handle().to_vec()))
-                    }
-                };
-                let inline_qos_parameter_list = ParameterList::new(parameter);
-                let data = Data::new(
-                    Endianness::LittleEndian.into(),
-                    ENTITYID_UNKNOWN,
-                    *writer_guid.entity_id(),
-                    *cache_change.sequence_number(),
-                    Some(inline_qos_parameter_list), 
-                    payload,
-                );
-    
-                submessages.push(RtpsSubmessage::Data(data));
-            } else {
-                let gap = Gap::new(
-                    ENTITYID_UNKNOWN, 
-                    *writer_guid.entity_id(),
-                    next_unsent_seq_num,
-                    Endianness::LittleEndian);
-    
-                submessages.push(RtpsSubmessage::Gap(gap));
-            }
-        }
-    
-        submessages
-    }
-
-
-}
-
-pub struct StatelessReaderBehavior {}
-
-impl StatelessReaderBehavior {
-    pub fn run_best_effort(history_cache: &mut HistoryCache, received_message: Option<&RtpsMessage>){
-        StatelessReaderBehavior::run_waiting_state(history_cache, received_message);
-    }
-
-    pub fn run_waiting_state(history_cache: &mut HistoryCache, received_message: Option<&RtpsMessage>) {
-
-        if let Some(received_message) = received_message {
-            let guid_prefix = *received_message.header().guid_prefix();
-            let mut _source_time = None;
-
-            for submessage in received_message.submessages().iter() {
-                if let RtpsSubmessage::Data(data) = submessage {
-                    // Check if the message is for this reader and process it if that is the case
-                    if data.reader_id() == &ENTITYID_UNKNOWN {
-
-                        let change_kind = StatelessReaderBehavior::change_kind(&data);
-
-                        let key_hash = StatelessReaderBehavior::key_hash(&data).unwrap();
-                        
-                        let cache_change = CacheChange::new(
-                            change_kind,
-                            GUID::new(guid_prefix, *data.writer_id() ),
-                            key_hash.0,
-                            *data.writer_sn(),
-                            None,
-                            None,
-                        );
-
-                        history_cache.add_change(cache_change);
-                    }
-                }
-                else if let RtpsSubmessage::InfoTs(infots) = submessage {
-                    _source_time = *infots.get_timestamp();
-                }
-            }
-        }
-    }
-
-    fn change_kind(data_submessage: &Data) -> ChangeKind{
-        if data_submessage.data_flag() && !data_submessage.key_flag() {
-            ChangeKind::Alive
-        } else if !data_submessage.data_flag() && data_submessage.key_flag() {
-            let inline_qos = data_submessage.inline_qos().as_ref().unwrap();
-            let endianness = data_submessage.endianness_flag().into();
-            let status_info = inline_qos.find::<StatusInfo>(endianness).unwrap();           
-
-            ChangeKind::try_from(status_info).unwrap()
-        }
-        else {
-            panic!("Invalid change kind combination")
-        }
-    }
-
-    fn key_hash(data_submessage: &Data) -> Option<KeyHash> {
-        if data_submessage.data_flag() && !data_submessage.key_flag() {
-            data_submessage.inline_qos().as_ref()?.find::<KeyHash>(data_submessage.endianness_flag().into())
-        } else if !data_submessage.data_flag() && data_submessage.key_flag() {
-            let payload = data_submessage.serialized_payload().as_ref()?; 
-            Some(KeyHash(payload.0[0..16].try_into().ok()?))
-        } else {
-            None
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::types::{SequenceNumber, ChangeKind, GuidPrefix, TopicKind, ReliabilityKind, Locator};
-    use crate::behavior_types::constants::DURATION_ZERO;
+    use crate::behavior::types::constants::DURATION_ZERO;
     use crate::messages::types::Count;
     use crate::types::constants::{
         ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER, 
