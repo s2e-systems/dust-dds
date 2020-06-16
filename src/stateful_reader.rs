@@ -6,10 +6,18 @@ pub struct WriterProxy {
     remote_writer_guid: GUID,
     unicast_locator_list: Vec<Locator>,
     multicast_locator_list: Vec<Locator>,
+    
+    // Optional atribute:
     // data_max_size_serialized: Long,
+    
+    // The cache changes may be left within the reader itself to avoid unneccesray referencing (or pointing)
+    // rather the additional fields are used here
     // changes_from_writer: CacheChange[*],     
+    
+    // Groups are not supported yet:
     // remoteGroupEntityId: EntityId_t,
 
+    // Additional fields (somewhat acording 8.4.15.1 Implementation of ReaderProxy and WriterProxy)
     highest_processed_sequence_number: SequenceNumber,
     unknown_changes: BTreeSet<SequenceNumber>,
     lost_changes: BTreeSet<SequenceNumber>,
