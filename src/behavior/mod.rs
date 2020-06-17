@@ -33,7 +33,7 @@ fn cache_change_from_data(message: &Data, guid_prefix: &GuidPrefix) -> CacheChan
     )
 }
 
-fn data_from_cache_change(cache_change: &CacheChange, endianness: Endianness, reader_id: EntityId, additional_inline_qos: Option<ParameterList>) -> Data {
+fn data_from_cache_change(cache_change: &CacheChange, endianness: Endianness, reader_id: EntityId, inline_qos: Option<ParameterList>) -> Data {
     let writer_id: EntityId = *cache_change.writer_guid().entity_id();
     let writer_sn = *cache_change.sequence_number();
 
@@ -51,20 +51,18 @@ fn data_from_cache_change(cache_change: &CacheChange, endianness: Endianness, re
             Payload::Key(SerializedPayload(cache_change.instance_handle().to_vec()))
         }
     };
-    let mut inline_qos = ParameterList::new(parameter);
+    let mut data_inline_qos = ParameterList::new(parameter);
 
-    if let Some(cache_change_inline_qos) = cache_change.inline_qos() {
-        inline_qos += cache_change_inline_qos.clone();
+    if let Some(inline_qos) = inline_qos {
+        data_inline_qos += inline_qos.clone();
     }
-    if let Some(additional_inline_qos) = additional_inline_qos {
-        inline_qos += additional_inline_qos;
-    }
+
     Data::new(
         endianness,
         reader_id,
         writer_id,
         writer_sn,
-        Some(inline_qos),
+        Some(data_inline_qos),
         payload,
     )
 }
