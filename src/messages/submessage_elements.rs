@@ -5,6 +5,7 @@
 
 use std::collections::BTreeSet;
 use std::io::Write;
+use std::ops::AddAssign;
 use crate::types::Locator;
 use crate::primitive_types::{Long, ULong, Short, };
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, Endianness, RtpsSerdesResult};
@@ -282,7 +283,11 @@ impl ParameterList {
     }
 }
 
-
+impl AddAssign for ParameterList {
+    fn add_assign(&mut self, other: Self) {
+        self.parameter.extend(other.parameter);
+    }
+}
 
 impl RtpsSerialize for ParameterList {
     fn serialize(&self, writer: &mut impl Write, endianness: Endianness) -> RtpsSerdesResult<()> {

@@ -1,13 +1,11 @@
-use crate::types::{GUID, SequenceNumber, ChangeKind};
+use crate::types::{GUID, SequenceNumber, };
 use crate::types::constants::ENTITYID_UNKNOWN;
-use crate::messages::{RtpsSubmessage, InfoTs, Data, Payload, Gap};
+use crate::messages::{RtpsSubmessage, InfoTs, Gap};
 use crate::cache::{HistoryCache};
 use crate::stateless_writer::ReaderLocator;
 use crate::serdes::Endianness;
 use crate::messages::types::{Time};
-use crate::inline_qos_types::{KeyHash, StatusInfo};
-use crate::messages::submessage_elements::{Parameter, ParameterList};
-use crate::serialized_payload::SerializedPayload;
+use super::data_from_cache_change;
 
 pub struct StatelessWriterBehavior {}
 
@@ -36,31 +34,7 @@ impl StatelessWriterBehavior{
             if let Some(cache_change) = history_cache
                 .get_change_with_sequence_number(&next_unsent_seq_num)
             {
-                let change_kind = *cache_change.change_kind();
-    
-                let mut parameter = Vec::new();
-    
-                let payload = match change_kind {
-                    ChangeKind::Alive => {
-                        parameter.push(Parameter::new(StatusInfo::from(change_kind), endianness));
-                        parameter.push(Parameter::new(KeyHash(*cache_change.instance_handle()), endianness));
-                        Payload::Data(SerializedPayload(cache_change.data_value().unwrap().to_vec()))
-                    },
-                    ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered | ChangeKind::AliveFiltered => {
-                        parameter.push(Parameter::new(StatusInfo::from(change_kind), endianness));
-                        Payload::Key(SerializedPayload(cache_change.instance_handle().to_vec()))
-                    }
-                };
-                let inline_qos_parameter_list = ParameterList::new(parameter);
-                let data = Data::new(
-                    Endianness::LittleEndian.into(),
-                    ENTITYID_UNKNOWN,
-                    *writer_guid.entity_id(),
-                    *cache_change.sequence_number(),
-                    Some(inline_qos_parameter_list), 
-                    payload,
-                );
-    
+                let data = data_from_cache_change(cache_change, endianness, ENTITYID_UNKNOWN, None);    
                 submessages.push(RtpsSubmessage::Data(data));
             } else {
                 let gap = Gap::new(

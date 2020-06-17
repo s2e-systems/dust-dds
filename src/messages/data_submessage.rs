@@ -6,6 +6,7 @@ use crate::messages::types::{SubmessageKind, SubmessageFlag, };
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, Endianness, RtpsSerdesResult, };
 use super::{SubmessageHeader, Submessage, };
 use super::submessage_elements::ParameterList;
+
 #[derive(PartialEq, Debug)]
 pub struct Data {
     endianness_flag: SubmessageFlag,

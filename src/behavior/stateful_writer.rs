@@ -8,6 +8,7 @@ use crate::messages::types::{Time};
 use crate::inline_qos_types::{KeyHash, StatusInfo};
 use crate::messages::submessage_elements::{Parameter, ParameterList};
 use crate::serialized_payload::SerializedPayload;
+use super::data_from_cache_change;
 
 pub struct StatefulWriterBehaviour {}
 
@@ -72,31 +73,8 @@ impl StatefulWriterBehaviour {
             if let Some(cache_change) = history_cache
                 .get_change_with_sequence_number(&next_unsent_seq_num)
             {
-                let change_kind = *cache_change.change_kind();
-    
-                let mut parameter = Vec::new();
-    
-                let payload = match change_kind {
-                    ChangeKind::Alive => {
-                        parameter.push(Parameter::new(StatusInfo::from(change_kind), endianness));
-                        parameter.push(Parameter::new(KeyHash(*cache_change.instance_handle()), endianness));
-                        Payload::Data(SerializedPayload(cache_change.data_value().unwrap().to_vec()))
-                    },
-                    ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered | ChangeKind::AliveFiltered => {
-                        parameter.push(Parameter::new(StatusInfo::from(change_kind), endianness));
-                        Payload::Key(SerializedPayload(cache_change.instance_handle().to_vec()))
-                    }
-                };
-                let inline_qos_parameter_list = ParameterList::new(parameter);
-                let data = Data::new(
-                    Endianness::LittleEndian.into(),
-                    *reader_proxy.remote_reader_guid().entity_id(),
-                    *writer_guid.entity_id(),
-                    *cache_change.sequence_number(),
-                    Some(inline_qos_parameter_list), 
-                    payload,
-                );
-    
+                let reader_id = *reader_proxy.remote_reader_guid().entity_id();
+                let data = data_from_cache_change(cache_change, endianness, reader_id, None);       
                 submessages.push(RtpsSubmessage::Data(data));
             } else {
                 let gap = Gap::new(
