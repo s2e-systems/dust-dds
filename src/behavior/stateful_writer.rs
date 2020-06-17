@@ -80,7 +80,7 @@ impl StatefulWriterBehaviour {
                     ChangeKind::Alive => {
                         parameter.push(Parameter::new(StatusInfo::from(change_kind), endianness));
                         parameter.push(Parameter::new(KeyHash(*cache_change.instance_handle()), endianness));
-                        Payload::Data(SerializedPayload(cache_change.data().unwrap().to_vec()))
+                        Payload::Data(SerializedPayload(cache_change.data_value().unwrap().to_vec()))
                     },
                     ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered | ChangeKind::AliveFiltered => {
                         parameter.push(Parameter::new(StatusInfo::from(change_kind), endianness));
@@ -204,7 +204,7 @@ impl StatefulWriterBehaviour {
                     ChangeKind::Alive => {
                         parameter.push(Parameter::new(StatusInfo::from(change_kind), endianness));
                         parameter.push(Parameter::new(KeyHash(*cache_change.instance_handle()), endianness));
-                        Payload::Data(SerializedPayload(cache_change.data().unwrap().to_vec()))
+                        Payload::Data(SerializedPayload(cache_change.data_value().unwrap().to_vec()))
                     },
                     ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered | ChangeKind::AliveFiltered => {
                         parameter.push(Parameter::new(StatusInfo::from(change_kind), endianness));
@@ -260,8 +260,8 @@ mod tests {
 
         let instance_handle = [1;16];
 
-        let cache_change_seq1 = CacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, SequenceNumber(1), None, Some(vec![1,2,3]));
-        let cache_change_seq2 = CacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, SequenceNumber(2), None, Some(vec![2,3,4]));
+        let cache_change_seq1 = CacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, SequenceNumber(1), Some(vec![1,2,3]), None);
+        let cache_change_seq2 = CacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, SequenceNumber(2), Some(vec![2,3,4]), None);
         history_cache.add_change(cache_change_seq1);
         history_cache.add_change(cache_change_seq2);
         let last_change_sequence_number  = SequenceNumber(2);
@@ -338,8 +338,8 @@ mod tests {
 
         // Test two changes in the history cache and two changes written
         let instance_handle = [1;16];
-        let cache_change_seq1 = CacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, SequenceNumber(1), None, Some(vec![1,2,3]));
-        let cache_change_seq2 = CacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, SequenceNumber(2), None, Some(vec![2,3,4]));
+        let cache_change_seq1 = CacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, SequenceNumber(1), Some(vec![1,2,3]), None);
+        let cache_change_seq2 = CacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, SequenceNumber(2), Some(vec![2,3,4]), None);
         history_cache.add_change(cache_change_seq1);
         history_cache.add_change(cache_change_seq2);
 
@@ -481,8 +481,8 @@ mod tests {
 
         let instance_handle = [1;16];
 
-        let cache_change_seq1 = CacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, SequenceNumber(1), None, Some(vec![1,2,3]));
-        let cache_change_seq2 = CacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, SequenceNumber(2), None, Some(vec![2,3,4]));
+        let cache_change_seq1 = CacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, SequenceNumber(1), Some(vec![1,2,3]), None);
+        let cache_change_seq2 = CacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, SequenceNumber(2), Some(vec![2,3,4]), None);
         history_cache.add_change(cache_change_seq1);
         history_cache.add_change(cache_change_seq2);
         let last_change_sequence_number  = SequenceNumber(2);
@@ -567,7 +567,7 @@ mod tests {
         let instance_handle = [1;16];
 
         // let cache_change_seq1 = CacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, SequenceNumber(1), None, Some(vec![1,2,3]));
-        let cache_change_seq2 = CacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, SequenceNumber(2), None, Some(vec![2,3,4]));
+        let cache_change_seq2 = CacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, SequenceNumber(2), Some(vec![2,3,4]), None);
         // history_cache.add_change(cache_change_seq1);
         history_cache.add_change(cache_change_seq2);
 
@@ -609,8 +609,8 @@ mod tests {
 
         let instance_handle = [1;16];
 
-        let cache_change_seq1 = CacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, SequenceNumber(1), None, Some(vec![1,2,3]));
-        let cache_change_seq2 = CacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, SequenceNumber(2), None, Some(vec![2,3,4]));
+        let cache_change_seq1 = CacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, SequenceNumber(1), Some(vec![1,2,3]), None);
+        let cache_change_seq2 = CacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, SequenceNumber(2), Some(vec![2,3,4]), None);
         history_cache.add_change(cache_change_seq1);
         history_cache.add_change(cache_change_seq2);
 
@@ -690,8 +690,8 @@ mod tests {
 
         let instance_handle = [1;16];
 
-        let cache_change_seq1 = CacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, SequenceNumber(1), None, Some(vec![1,2,3]));
-        let cache_change_seq2 = CacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, SequenceNumber(2), None, Some(vec![2,3,4]));
+        let cache_change_seq1 = CacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, SequenceNumber(1), Some(vec![1,2,3]), None);
+        let cache_change_seq2 = CacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, SequenceNumber(2), Some(vec![2,3,4]), None);
         history_cache.add_change(cache_change_seq1);
         history_cache.add_change(cache_change_seq2);
         let last_change_sequence_number = SequenceNumber(2);
@@ -742,8 +742,8 @@ mod tests {
         // Add two changes to the history cache and check that two data messages are sent
         let instance_handle = [1;16];
 
-        let cache_change_seq1 = CacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, SequenceNumber(1), None, Some(vec![1,2,3]));
-        let cache_change_seq2 = CacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, SequenceNumber(2), None, Some(vec![2,3,4]));
+        let cache_change_seq1 = CacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, SequenceNumber(1), Some(vec![1,2,3]), None);
+        let cache_change_seq2 = CacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, SequenceNumber(2), Some(vec![2,3,4]), None);
         history_cache.add_change(cache_change_seq1);
         history_cache.add_change(cache_change_seq2);
         let last_change_sequence_number = SequenceNumber(2);

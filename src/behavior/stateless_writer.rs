@@ -44,7 +44,7 @@ impl StatelessWriterBehavior{
                     ChangeKind::Alive => {
                         parameter.push(Parameter::new(StatusInfo::from(change_kind), endianness));
                         parameter.push(Parameter::new(KeyHash(*cache_change.instance_handle()), endianness));
-                        Payload::Data(SerializedPayload(cache_change.data().unwrap().to_vec()))
+                        Payload::Data(SerializedPayload(cache_change.data_value().unwrap().to_vec()))
                     },
                     ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered | ChangeKind::AliveFiltered => {
                         parameter.push(Parameter::new(StatusInfo::from(change_kind), endianness));

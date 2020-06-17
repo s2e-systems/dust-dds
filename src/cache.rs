@@ -4,37 +4,36 @@ use crate::types::{ChangeKind, InstanceHandle, SequenceNumber, GUID, };
 use crate::messages::submessage_elements::ParameterList;
 
 #[derive(Eq, Debug, Clone)]
-#[allow(dead_code)]
 pub struct CacheChange {
-    change_kind: ChangeKind,
+    kind: ChangeKind,
     writer_guid: GUID,
     instance_handle: InstanceHandle,
     sequence_number: SequenceNumber,
+    data_value: Option<Vec<u8>>,
     inline_qos: Option<ParameterList>,
-    data: Option<Vec<u8>>,
 }
 
 impl CacheChange {
     pub fn new(
-        change_kind: ChangeKind,
+        kind: ChangeKind,
         writer_guid: GUID,
         instance_handle: InstanceHandle,
         sequence_number: SequenceNumber,
+        data_value: Option<Vec<u8>>,
         inline_qos: Option<ParameterList>,
-        data: Option<Vec<u8>>,
     ) -> CacheChange {
         CacheChange {
-            change_kind,
+            kind,
             writer_guid,
             instance_handle,
             sequence_number,
             inline_qos,
-            data,
+            data_value,
         }
     }
 
     pub fn change_kind(&self) -> &ChangeKind {
-        &self.change_kind
+        &self.kind
     }
 
     pub fn writer_guid(&self) -> &GUID {
@@ -53,9 +52,9 @@ impl CacheChange {
         &self.inline_qos
     }
 
-    pub fn data(&self) -> Option<&Vec<u8>> {
-        match &self.data {
-            Some(data) => Some(data),
+    pub fn data_value(&self) -> Option<&Vec<u8>> {
+        match &self.data_value {
+            Some(data_value) => Some(data_value),
             None => None,
         }
     }
@@ -63,20 +62,20 @@ impl CacheChange {
     pub fn clone_without_data(&self) -> Self {
         match *self {
             CacheChange {
-                change_kind: ref __self_0_0,
+                kind: ref __self_0_0,
                 writer_guid: ref __self_0_1,
                 instance_handle: ref __self_0_2,
                 sequence_number: ref __self_0_3,
+                data_value: ref __self_0_5,
                 inline_qos: ref __self_0_4,
-                data: ref __self_0_5,
             } => {
         CacheChange {
-            change_kind: *__self_0_0,
+           kind: *__self_0_0,
             writer_guid: * __self_0_1,
             instance_handle: * __self_0_2,
             sequence_number: * __self_0_3,
+            data_value: None,
             inline_qos: __self_0_4.clone(),
-            data: None,
         }}}
     }
 }
@@ -107,19 +106,19 @@ impl ::core::hash::Hash for CacheChange {
     fn hash<__H: ::core::hash::Hasher>(&self, state: &mut __H) -> () {
         match *self {
             CacheChange {
-                change_kind: ref __self_0_0,
+                kind: ref __self_0_0,
                 writer_guid: ref __self_0_1,
                 instance_handle: ref __self_0_2,
                 sequence_number: ref __self_0_3,
+                data_value: ref __self_0_5,
                 inline_qos: ref __self_0_4,
-                data: ref __self_0_5,
             } => {
                 ::core::hash::Hash::hash(&(*__self_0_0), state);
                 ::core::hash::Hash::hash(&(*__self_0_1), state);
                 ::core::hash::Hash::hash(&(*__self_0_2), state);
                 ::core::hash::Hash::hash(&(*__self_0_3), state);
                 // ::core::hash::Hash::hash(&(*__self_0_4), state)
-                // Explicitly ignore the data field
+                // Explicitly ignore the data_value field
                 // ::core::hash::Hash::hash(&(*__self_0_5), state)
             }
         }
@@ -175,17 +174,17 @@ mod tests {
         let guid = GUID::new(GuidPrefix(guid_prefix), entity_id);
         let instance_handle = [9; 16];
         let sequence_number = SequenceNumber(1);
-        let data = Some(vec![4, 5, 6]);
+        let data_value = Some(vec![4, 5, 6]);
         let cc = CacheChange::new(
             ChangeKind::Alive,
             guid,
             instance_handle,
             sequence_number,
+            data_value,
             None,
-            data,
         );
         let cc_clone_no_data = cc.clone_without_data();
-        // cc_clone_no_data.data = None;
+        // cc_clone_no_data.data_value = None;
         let cc_clone = cc.clone();
 
         assert_eq!(history_cache.get_changes().len(), 0);
@@ -205,7 +204,7 @@ mod tests {
         let entity_id = EntityId::new(EntityKey([1, 2, 3]), EntityKind::BuiltInWriterWithKey);
         let guid = GUID::new(GuidPrefix(guid_prefix), entity_id);
         let instance_handle = [9; 16];
-        let data = Some(vec![4, 5, 6]);
+        let data_value = Some(vec![4, 5, 6]);
         let sequence_number_min = SequenceNumber(1);
         let sequence_number_max = SequenceNumber(2);
         let cc1 = CacheChange::new(
@@ -213,16 +212,16 @@ mod tests {
             guid.clone(),
             instance_handle,
             sequence_number_min,
+            data_value.clone(),
             None,
-            data.clone(),
         );
         let cc2 = CacheChange::new(
             ChangeKind::Alive,
             guid.clone(),
             instance_handle,
             sequence_number_max,
+            data_value.clone(),
             None,
-            data.clone(),
         );
 
         assert_eq!(history_cache.get_seq_num_max(), None);
@@ -238,7 +237,7 @@ mod tests {
 
     #[test]
     fn cache_change_transport() {
-        // let data = [
+        // let data_value = [
         //     0x52, 0x54, 0x50, 0x53, 0x02, 0x01, 0x01, 0x02, 0x7f, 0x20, 0xf7, 0xd7, 0x00, 0x00,
         //     0x01, 0xbb, 0x00, 0x00, 0x00, 0x01, 0x09, 0x01, 0x08, 0x00, 0x9e, 0x81, 0xbc, 0x5d,
         //     0x97, 0xde, 0x48, 0x26, 0x15, 0x07, 0x1c, 0x01, 0x00, 0x00, 0x10, 0x00, 0x00, 0x00,
@@ -267,7 +266,7 @@ mod tests {
         // let hc = ReaderHistoryCache::new();
 
         // let sender = std::net::UdpSocket::bind(SocketAddr::from((addr, 0))).unwrap();
-        // sender.send_to(&data, SocketAddr::from((multicast_group, port))).unwrap();
+        // sender.send_to(&data_value, SocketAddr::from((multicast_group, port))).unwrap();
 
         //aasert!(hc.changes.size == 1);
     }
