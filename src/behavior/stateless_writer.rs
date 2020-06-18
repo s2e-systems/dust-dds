@@ -34,7 +34,7 @@ impl StatelessWriterBehavior{
             if let Some(cache_change) = history_cache
                 .get_change_with_sequence_number(&next_unsent_seq_num)
             {
-                let data = data_from_cache_change(cache_change, endianness, ENTITYID_UNKNOWN, None);    
+                let data = data_from_cache_change(cache_change, endianness, ENTITYID_UNKNOWN);    
                 submessages.push(RtpsSubmessage::Data(data));
             } else {
                 let gap = Gap::new(

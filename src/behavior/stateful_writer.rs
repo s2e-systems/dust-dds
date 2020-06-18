@@ -74,7 +74,7 @@ impl StatefulWriterBehaviour {
                 .get_change_with_sequence_number(&next_unsent_seq_num)
             {
                 let reader_id = *reader_proxy.remote_reader_guid().entity_id();
-                let data = data_from_cache_change(cache_change, endianness, reader_id, None);       
+                let data = data_from_cache_change(cache_change, endianness, reader_id);       
                 submessages.push(RtpsSubmessage::Data(data));
             } else {
                 let gap = Gap::new(

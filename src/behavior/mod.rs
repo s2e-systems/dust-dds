@@ -33,7 +33,7 @@ fn cache_change_from_data(message: &Data, guid_prefix: &GuidPrefix) -> CacheChan
     )
 }
 
-fn data_from_cache_change(cache_change: &CacheChange, endianness: Endianness, reader_id: EntityId, inline_qos: Option<&Vec<Parameter>>) -> Data {
+fn data_from_cache_change(cache_change: &CacheChange, endianness: Endianness, reader_id: EntityId) -> Data {
     let writer_id: EntityId = *cache_change.writer_guid().entity_id();
     let writer_sn = *cache_change.sequence_number();
 
@@ -52,8 +52,8 @@ fn data_from_cache_change(cache_change: &CacheChange, endianness: Endianness, re
         }
     };
 
-    if let Some(inline_qos) = inline_qos {
-        parameter.extend(inline_qos.to_vec());
+    if let Some(inline_qos) = cache_change.inline_qos() {
+        parameter.extend(inline_qos.parameter().to_vec());
     };
 
     Data::new(
