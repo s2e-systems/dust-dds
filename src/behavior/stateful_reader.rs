@@ -17,9 +17,8 @@ impl StatefulReaderBehavior {
     }
 
     pub fn run_reliable(writer_proxy: &mut WriterProxy, reader_guid: &GUID, history_cache: &mut HistoryCache, heartbeat_response_delay: Duration, received_message: Option<&RtpsMessage>) -> Option<Vec<RtpsSubmessage>>{
-        let must_send_ack = false;
         StatefulReaderBehavior::run_ready_state(writer_proxy, history_cache, received_message);
-        if must_send_ack {
+        if writer_proxy.must_send_ack() {
             // This is the only case in which a message is sent by the stateful reader
             StatefulReaderBehavior::run_must_send_ack_state(writer_proxy, reader_guid, heartbeat_response_delay)
         } else {
