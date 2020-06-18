@@ -5,7 +5,6 @@
 
 use std::collections::BTreeSet;
 use std::io::Write;
-use std::ops::AddAssign;
 use crate::types::Locator;
 use crate::primitive_types::{Long, ULong, Short, };
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, Endianness, RtpsSerdesResult};
@@ -280,12 +279,6 @@ impl ParameterList {
     {
         let parameter = self.parameter.iter().find(|&x| x.parameter_id == T::pid())?;
         Some(parameter.get::<T>(endianness))
-    }
-}
-
-impl AddAssign for ParameterList {
-    fn add_assign(&mut self, other: Self) {
-        self.parameter.extend(other.parameter);
     }
 }
 
