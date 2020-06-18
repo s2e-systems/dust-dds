@@ -22,5 +22,7 @@ mod stateful_writer;
 
 pub use stateless_reader::StatelessReader;
 pub use stateless_writer::StatelessWriter;
+pub use stateful_reader::{StatefulReader, WriterProxy, };
+pub use stateful_writer::{StatefulWriter, ReaderProxy, };
 pub use messages::RtpsMessage;
 pub use serdes::{RtpsCompose, RtpsParse};

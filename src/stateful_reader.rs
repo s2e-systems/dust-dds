@@ -246,6 +246,10 @@ impl StatefulReader {
 
     }
 
+    pub fn reader_cache(&self) -> &HistoryCache {
+        &self.reader_cache
+    }
+
 }
 
 #[cfg(test)]
