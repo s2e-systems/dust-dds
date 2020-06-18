@@ -8,7 +8,7 @@ use rust_rtps::{
 };
 
 #[test]
-fn stateful_writer_stateful_reader_direct_communication_integration() {
+fn best_effort_stateful_writer_stateful_reader_data_only() {
     let writer_guid = GUID::new(
         GuidPrefix([0; 12]),
         ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER,
@@ -17,12 +17,12 @@ fn stateful_writer_stateful_reader_direct_communication_integration() {
         writer_guid,
         TopicKind::WithKey,
         ReliabilityKind::BestEffort,
-        vec![Locator::new(0, 7400, [0; 16])], /*unicast_locator_list*/
-        vec![],                               /*multicast_locator_list*/
-        false,                                /*push_mode*/
-        DURATION_ZERO,                        /* heartbeat_period */
-        DURATION_ZERO,                        /* nack_response_delay */
-        DURATION_ZERO,                        /* nack_suppression_duration */
+        vec![Locator::new(0, 7400, [0; 16])],
+        vec![],
+        false,
+        DURATION_ZERO,
+        DURATION_ZERO,
+        DURATION_ZERO,
     );
     let reader_guid = GUID::new(
         GuidPrefix([0; 12]),
@@ -65,202 +65,12 @@ fn stateful_writer_stateful_reader_direct_communication_integration() {
         [0; 16], /*handle*/
     );
 
-    let cache_change_seq4 = writer.new_change(
-        ChangeKind::NotAliveDisposed,
-        None,    /*data*/
-        None,    /*inline_qos*/
-        [0; 16], /*handle*/
-    );
-
     writer.writer_cache().add_change(cache_change_seq1.clone());
     writer.writer_cache().add_change(cache_change_seq2.clone());
     writer.writer_cache().add_change(cache_change_seq3.clone());
-    writer.writer_cache().add_change(cache_change_seq4.clone());
 
-    let writer_data = writer.run(&reader_guid, None).unwrap();
-
-    reader.run(&writer_guid, Some(&writer_data));
-
-    let reader_changes = reader.reader_cache().get_changes();
-    assert_eq!(reader_changes.len(), 4);
-    assert!(reader_changes.contains(&cache_change_seq1));
-    assert!(reader_changes.contains(&cache_change_seq2));
-    assert!(reader_changes.contains(&cache_change_seq3));
-    assert!(reader_changes.contains(&cache_change_seq4));
-}
-
-#[test]
-fn stateful_writer_stateful_reader_serialized_communication_integration() {
-    let writer_guid = GUID::new(
-        GuidPrefix([0; 12]),
-        ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER,
-    );
-    let mut writer = StatefulWriter::new(
-        writer_guid,
-        TopicKind::WithKey,
-        ReliabilityKind::BestEffort,
-        vec![Locator::new(0, 7400, [0; 16])], /*unicast_locator_list*/
-        vec![],                               /*multicast_locator_list*/
-        false,                                /*push_mode*/
-        DURATION_ZERO,                        /* heartbeat_period */
-        DURATION_ZERO,                        /* nack_response_delay */
-        DURATION_ZERO,                        /* nack_suppression_duration */
-    );
-    let reader_guid = GUID::new(
-        GuidPrefix([0; 12]),
-        ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER,
-    );
-    let mut reader = StatefulReader::new(
-        reader_guid,
-        TopicKind::WithKey,
-        ReliabilityKind::BestEffort,
-        vec![Locator::new(0, 7400, [0; 16])],
-        vec![],
-        false,
-        DURATION_ZERO,
-    );
-
-    let reader_proxy = ReaderProxy::new(reader_guid, vec![], vec![], false, true);
-    let writer_proxy = WriterProxy::new(writer_guid, vec![], vec![]);
-
-    writer.matched_reader_add(reader_proxy);
-    reader.matched_writer_add(writer_proxy);
-
-    let cache_change_seq1 = writer.new_change(
-        ChangeKind::Alive,
-        Some(vec![1, 2, 3]), /*data*/
-        None,                /*inline_qos*/
-        [0; 16],             /*handle*/
-    );
-
-    let cache_change_seq2 = writer.new_change(
-        ChangeKind::Alive,
-        Some(vec![4, 5, 6]), /*data*/
-        None,                /*inline_qos*/
-        [0; 16],             /*handle*/
-    );
-
-    let cache_change_seq3 = writer.new_change(
-        ChangeKind::NotAliveUnregistered,
-        None,    /*data*/
-        None,    /*inline_qos*/
-        [0; 16], /*handle*/
-    );
-
-    let cache_change_seq4 = writer.new_change(
-        ChangeKind::NotAliveDisposed,
-        None,    /*data*/
-        None,    /*inline_qos*/
-        [0; 16], /*handle*/
-    );
-
-    writer.writer_cache().add_change(cache_change_seq1.clone());
-    writer.writer_cache().add_change(cache_change_seq2.clone());
-    // writer.writer_cache().add_change(cache_change_seq3.clone());
-    writer.writer_cache().add_change(cache_change_seq4.clone());
-
+    // Verify that the writer transmits all the cache changes to the reader
     let writer_message = writer.run(&reader_guid, None).unwrap();
-
-    let mut buf = Vec::new();
-    writer_message.compose(&mut buf).unwrap();
-
-    let received_message = RtpsMessage::parse(&buf).unwrap();
-    println!("{:?}", received_message);
-
-    reader.run(&writer_guid, Some(&received_message));
-
-    let reader_changes = reader.reader_cache().get_changes();
-    assert_eq!(reader_changes.len(), 3);
-    assert!(reader_changes.contains(&cache_change_seq1));
-    assert!(reader_changes.contains(&cache_change_seq2));
-    assert!(!reader_changes.contains(&cache_change_seq3));
-    assert!(reader_changes.contains(&cache_change_seq4));
-}
-
-#[test]
-fn reliable_stateful_writer_stateful_reader_direct_communication_integration() {
-    let writer_guid = GUID::new(
-        GuidPrefix([0; 12]),
-        ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER,
-    );
-    let mut writer = StatefulWriter::new(
-        writer_guid,
-        TopicKind::WithKey,
-        ReliabilityKind::Reliable,
-        vec![Locator::new(0, 7400, [0; 16])], 
-        vec![],                               
-        false,                               
-        DURATION_ZERO,                       
-        DURATION_ZERO,                     
-        DURATION_ZERO,                     
-    );
-    let reader_guid = GUID::new(
-        GuidPrefix([0; 12]),
-        ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER,
-    );
-    let mut reader = StatefulReader::new(
-        reader_guid,
-        TopicKind::WithKey,
-        ReliabilityKind::Reliable,
-        vec![Locator::new(0, 7400, [0; 16])],
-        vec![],
-        false,
-        DURATION_ZERO,
-    );
-
-    let reader_proxy = ReaderProxy::new(reader_guid, vec![], vec![], false, true);
-    let writer_proxy = WriterProxy::new(writer_guid, vec![], vec![]);
-
-    writer.matched_reader_add(reader_proxy);
-    reader.matched_writer_add(writer_proxy);
-
-    let cache_change_seq1 = writer.new_change(
-        ChangeKind::Alive,
-        Some(vec![1, 2, 3]),
-        None,               
-        [0; 16],            
-    );
-
-    let cache_change_seq2 = writer.new_change(
-        ChangeKind::Alive,
-        Some(vec![4, 5, 6]), /*data*/
-        None,                /*inline_qos*/
-        [0; 16],             /*handle*/
-    );
-
-    let cache_change_seq3 = writer.new_change(
-        ChangeKind::NotAliveUnregistered,
-        None,    /*data*/
-        None,    /*inline_qos*/
-        [0; 16], /*handle*/
-    );
-
-    let cache_change_seq4 = writer.new_change(
-        ChangeKind::NotAliveDisposed,
-        None,    /*data*/
-        None,    /*inline_qos*/
-        [0; 16], /*handle*/
-    );
-
-    writer.writer_cache().add_change(cache_change_seq1.clone());
-    writer.writer_cache().add_change(cache_change_seq2.clone());
-    writer.writer_cache().add_change(cache_change_seq3.clone());
-    writer.writer_cache().add_change(cache_change_seq4.clone());
-
-    let writer_message = writer.run(&reader_guid, None).unwrap();   
-    let reader_message = reader.run(&writer_guid, None);
-
-    let writer_message = writer.run(&reader_guid, None).unwrap();
-
-    let reader_message = reader.run(&writer_guid, Some(&writer_message));
-
-    let reader_message = reader.run(&writer_guid, Some(&writer_message)).unwrap();
-
-    let writer_message = writer.run(&reader_guid, Some(&reader_message));
-    println!("{:?}", writer_message);
-    let writer_message = writer.run(&reader_guid, Some(&reader_message)).unwrap();
-    println!("{:?}", writer_message);
-
     let reader_message = reader.run(&writer_guid, Some(&writer_message));
 
     let reader_changes = reader.reader_cache().get_changes();
@@ -268,5 +78,155 @@ fn reliable_stateful_writer_stateful_reader_direct_communication_integration() {
     assert!(reader_changes.contains(&cache_change_seq1));
     assert!(reader_changes.contains(&cache_change_seq2));
     assert!(reader_changes.contains(&cache_change_seq3));
-    assert!(reader_changes.contains(&cache_change_seq4));
+}
+
+#[test]
+fn best_effort_stateful_writer_stateful_reader_data_and_gap() {
+    let writer_guid = GUID::new(
+        GuidPrefix([0; 12]),
+        ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER,
+    );
+    let mut writer = StatefulWriter::new(
+        writer_guid,
+        TopicKind::WithKey,
+        ReliabilityKind::BestEffort,
+        vec![Locator::new(0, 7400, [0; 16])],
+        vec![],
+        false,
+        DURATION_ZERO,
+        DURATION_ZERO,
+        DURATION_ZERO,
+    );
+    let reader_guid = GUID::new(
+        GuidPrefix([0; 12]),
+        ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER,
+    );
+    let mut reader = StatefulReader::new(
+        reader_guid,
+        TopicKind::WithKey,
+        ReliabilityKind::BestEffort,
+        vec![Locator::new(0, 7400, [0; 16])],
+        vec![],
+        false,
+        DURATION_ZERO,
+    );
+
+    let reader_proxy = ReaderProxy::new(reader_guid, vec![], vec![], false, true);
+    let writer_proxy = WriterProxy::new(writer_guid, vec![], vec![]);
+
+    writer.matched_reader_add(reader_proxy);
+    reader.matched_writer_add(writer_proxy);
+
+    let cache_change_seq1 = writer.new_change(
+        ChangeKind::Alive,
+        Some(vec![1, 2, 3]), /*data*/
+        None,                /*inline_qos*/
+        [0; 16],             /*handle*/
+    );
+
+    let cache_change_seq2 = writer.new_change(
+        ChangeKind::Alive,
+        Some(vec![4, 5, 6]), /*data*/
+        None,                /*inline_qos*/
+        [0; 16],             /*handle*/
+    );
+
+    let cache_change_seq3 = writer.new_change(
+        ChangeKind::NotAliveUnregistered,
+        None,    /*data*/
+        None,    /*inline_qos*/
+        [0; 16], /*handle*/
+    );
+
+    writer.writer_cache().add_change(cache_change_seq1.clone());
+    // writer.writer_cache().add_change(cache_change_seq2.clone());
+    writer.writer_cache().add_change(cache_change_seq3.clone());
+
+    // Verify that the writer transmits all the cache changes to the reader
+    let writer_message = writer.run(&reader_guid, None).unwrap();
+    let reader_message = reader.run(&writer_guid, Some(&writer_message));
+
+    let reader_changes = reader.reader_cache().get_changes();
+    assert_eq!(reader_changes.len(), writer.writer_cache().get_changes().len());
+    assert!(reader_changes.contains(&cache_change_seq1));
+    assert!(!reader_changes.contains(&cache_change_seq2));
+    assert!(reader_changes.contains(&cache_change_seq3));
+}
+
+#[test]
+fn best_effort_stateful_writer_stateful_reader_reordered_data() {
+    let writer_guid = GUID::new(
+        GuidPrefix([0; 12]),
+        ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER,
+    );
+    let mut writer = StatefulWriter::new(
+        writer_guid,
+        TopicKind::WithKey,
+        ReliabilityKind::BestEffort,
+        vec![Locator::new(0, 7400, [0; 16])],
+        vec![],
+        false,
+        DURATION_ZERO,
+        DURATION_ZERO,
+        DURATION_ZERO,
+    );
+    let reader_guid = GUID::new(
+        GuidPrefix([0; 12]),
+        ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER,
+    );
+    let mut reader = StatefulReader::new(
+        reader_guid,
+        TopicKind::WithKey,
+        ReliabilityKind::BestEffort,
+        vec![Locator::new(0, 7400, [0; 16])],
+        vec![],
+        false,
+        DURATION_ZERO,
+    );
+
+    let reader_proxy = ReaderProxy::new(reader_guid, vec![], vec![], false, true);
+    let writer_proxy = WriterProxy::new(writer_guid, vec![], vec![]);
+
+    writer.matched_reader_add(reader_proxy);
+    reader.matched_writer_add(writer_proxy);
+
+    let cache_change_seq1 = writer.new_change(
+        ChangeKind::Alive,
+        Some(vec![1, 2, 3]), /*data*/
+        None,                /*inline_qos*/
+        [0; 16],             /*handle*/
+    );
+
+    let cache_change_seq2 = writer.new_change(
+        ChangeKind::Alive,
+        Some(vec![4, 5, 6]), /*data*/
+        None,                /*inline_qos*/
+        [0; 16],             /*handle*/
+    );
+
+    writer.writer_cache().add_change(cache_change_seq1.clone());
+    writer.writer_cache().add_change(cache_change_seq2.clone());
+    
+    let writer_message_1 = writer.run(&reader_guid, None).unwrap();
+
+    let cache_change_seq3 = writer.new_change(
+        ChangeKind::NotAliveUnregistered,
+        None,    /*data*/
+        None,    /*inline_qos*/
+        [0; 16], /*handle*/
+    );
+    
+    writer.writer_cache().add_change(cache_change_seq3.clone());
+
+    let writer_message_2 = writer.run(&reader_guid, None).unwrap();
+
+
+    reader.run(&writer_guid, Some(&writer_message_2));
+    reader.run(&writer_guid, Some(&writer_message_1));
+
+    let reader_changes = reader.reader_cache().get_changes();
+    assert_eq!(reader_changes.len(), 1);
+    assert!(!reader_changes.contains(&cache_change_seq1));
+    assert!(!reader_changes.contains(&cache_change_seq2));
+    assert!(reader_changes.contains(&cache_change_seq3));
 }
