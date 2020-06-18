@@ -6,10 +6,13 @@ pub mod stateless_reader;
 
 use std::convert::{TryFrom, TryInto};
 
-use crate::types::{GUID, GuidPrefix, ChangeKind};
+use crate::types::{GUID, GuidPrefix, EntityId, ChangeKind};
 use crate::cache::CacheChange;
-use crate::messages::Data;
+use crate::messages::{Data, Payload};
+use crate::messages::submessage_elements::{Parameter, ParameterList};
 use crate::inline_qos_types::{KeyHash, StatusInfo};
+use crate::serdes::Endianness;
+use crate::serialized_payload::SerializedPayload;
 
 pub use stateful_writer::StatefulWriterBehavior;
 pub use stateful_reader::StatefulReaderBehavior;
@@ -27,6 +30,39 @@ fn cache_change_from_data(message: &Data, guid_prefix: &GuidPrefix) -> CacheChan
         *message.writer_sn(),
         None,
         None,
+    )
+}
+
+fn data_from_cache_change(cache_change: &CacheChange, endianness: Endianness, reader_id: EntityId) -> Data {
+    let writer_id: EntityId = *cache_change.writer_guid().entity_id();
+    let writer_sn = *cache_change.sequence_number();
+
+    let change_kind = *cache_change.change_kind();
+    
+    let mut parameter = Vec::new();
+    parameter.push(Parameter::new(StatusInfo::from(change_kind), endianness));
+
+    let payload = match change_kind {
+        ChangeKind::Alive => {
+            parameter.push(Parameter::new(KeyHash(*cache_change.instance_handle()), endianness));
+            Payload::Data(SerializedPayload(cache_change.data_value().unwrap().to_vec()))
+        },
+        ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered | ChangeKind::AliveFiltered => {
+            Payload::Key(SerializedPayload(cache_change.instance_handle().to_vec()))
+        }
+    };
+
+    if let Some(inline_qos) = cache_change.inline_qos() {
+        parameter.extend(inline_qos.parameter().to_vec());
+    };
+
+    Data::new(
+        endianness,
+        reader_id,
+        writer_id,
+        writer_sn,
+        Some(ParameterList::new(parameter)),
+        payload,
     )
 }
 

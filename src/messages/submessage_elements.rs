@@ -269,9 +269,15 @@ pub struct ParameterList {
     parameter: Vec<Parameter>,
 }
 
+
+
 impl ParameterList {
     pub fn new(parameter: Vec<Parameter>) -> Self {
         Self {parameter}
+    }
+
+    pub fn parameter(&self) -> &Vec<Parameter> {
+        &self.parameter
     }
 
     pub fn find<'de, T>(&self, endianness: Endianness) -> Option<T>
@@ -281,8 +287,6 @@ impl ParameterList {
         Some(parameter.get::<T>(endianness))
     }
 }
-
-
 
 impl RtpsSerialize for ParameterList {
     fn serialize(&self, writer: &mut impl Write, endianness: Endianness) -> RtpsSerdesResult<()> {

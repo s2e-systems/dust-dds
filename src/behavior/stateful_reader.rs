@@ -150,8 +150,8 @@ mod tests {
             remote_writer_guid,
             [1;16],
             SequenceNumber(3),
-            None,
             Some(vec![1,2,3]),
+            None,
         );
 
         assert_eq!(history_cache.get_changes().len(), 1);
@@ -193,8 +193,8 @@ mod tests {
             remote_writer_guid,
             [1;16],
             SequenceNumber(3),
-            None,
             Some(vec![1,2,3]),
+            None,
         );
 
         assert_eq!(history_cache.get_changes().len(), 1);

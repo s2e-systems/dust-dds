@@ -119,8 +119,8 @@ impl StatelessWriter {
             self.guid,
             handle,
             self.last_change_sequence_number,
-            inline_qos,
             data,
+            inline_qos,
         )
     }
 
