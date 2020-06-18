@@ -225,7 +225,7 @@ impl StatefulWriter {
         )
     }
 
-    pub fn history_cache(&mut self) -> &mut HistoryCache {
+    pub fn writer_cache(&mut self) -> &mut HistoryCache {
         &mut self.writer_cache
     }
 

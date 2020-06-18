@@ -857,8 +857,8 @@ mod tests {
             [1; 16],             
         );
 
-        writer.history_cache().add_change(cache_change_seq1);
-        writer.history_cache().add_change(cache_change_seq2);
+        writer.writer_cache().add_change(cache_change_seq1);
+        writer.writer_cache().add_change(cache_change_seq2);
 
         // let reader_proxy = writer.matched_reader_lookup(& reader_guid).unwrap();
         let writer_data = writer.run(&reader_guid, None).unwrap();
