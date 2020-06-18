@@ -11,8 +11,8 @@ use crate::cache::CacheChange;
 use crate::messages::Data;
 use crate::inline_qos_types::{KeyHash, StatusInfo};
 
-pub use stateful_writer::StatefulWriterBehaviour;
-pub use stateful_reader::StatefulReaderBehaviour;
+pub use stateful_writer::StatefulWriterBehavior;
+pub use stateful_reader::StatefulReaderBehavior;
 pub use stateless_reader::StatelessReaderBehavior;
 pub use stateless_writer::StatelessWriterBehavior;
 

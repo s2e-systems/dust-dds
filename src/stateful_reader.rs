@@ -1,6 +1,13 @@
 use std::collections::{BTreeSet, HashMap, };
+use std::convert::TryInto;
+use std::time::Instant;
+
+use crate::cache::HistoryCache;
 use crate::types::{Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID, };
+use crate::messages::RtpsMessage;
 use crate::behavior::types::Duration;
+use crate::behavior::StatefulReaderBehavior;
+use crate::messages::types::Count;
 
 pub struct WriterProxy {
     remote_writer_guid: GUID,
@@ -22,6 +29,11 @@ pub struct WriterProxy {
     unknown_changes: BTreeSet<SequenceNumber>,
     lost_changes: BTreeSet<SequenceNumber>,
     missing_changes: BTreeSet<SequenceNumber>,
+
+    must_send_ack: bool,
+    time_heartbeat_received: Instant,
+    ackanck_count: Count,
+    highest_received_heartbeat_count: Count,
 }
 
 impl WriterProxy {
@@ -38,6 +50,10 @@ impl WriterProxy {
                 unknown_changes: BTreeSet::new(),
                 lost_changes: BTreeSet::new(),
                 missing_changes: BTreeSet::new(),
+                must_send_ack: false,
+                time_heartbeat_received: Instant::now(),
+                ackanck_count: Count(0),
+                highest_received_heartbeat_count: Count(0),
         }
     }
 
@@ -133,6 +149,30 @@ impl WriterProxy {
     pub fn remote_writer_guid(&self) -> &GUID {
         &self.remote_writer_guid
     }
+
+    pub fn must_send_ack(&self) -> bool {
+        self.must_send_ack
+    }
+
+    pub fn set_must_send_ack(&mut self, value: bool) {
+        self.must_send_ack = value;
+    }
+
+    pub fn time_heartbeat_received_reset(&mut self) {
+        self.time_heartbeat_received  = Instant::now();
+    }
+
+    pub fn duration_since_heartbeat_received(&self) -> Duration {
+        self.time_heartbeat_received.elapsed().try_into().unwrap()
+    }
+
+    pub fn ackanck_count(&self) -> &Count {
+        &self.ackanck_count
+    }
+
+    pub fn increment_acknack_count(&mut self) {
+        self.ackanck_count += 1;
+    }
 }
 
 pub struct StatefulReader {
@@ -149,6 +189,8 @@ pub struct StatefulReader {
     // From Reader base class:
     expects_inline_qos: bool,
     heartbeat_response_delay: Duration,
+
+    reader_cache: HistoryCache,
 
     // Fields
     matched_writers: HashMap<GUID, WriterProxy>,
@@ -172,6 +214,7 @@ impl StatefulReader {
             multicast_locator_list,
             expects_inline_qos,
             heartbeat_response_delay,       
+            reader_cache: HistoryCache::new(),
             matched_writers: HashMap::new(),
         }
     }
@@ -186,6 +229,21 @@ impl StatefulReader {
     
     pub fn matched_writer_lookup(&self, a_writer_guid: &GUID) -> Option<&WriterProxy> {
         self.matched_writers.get(a_writer_guid)
+    }
+
+    pub fn run(&mut self, a_writer_guid: &GUID, received_message: Option<&RtpsMessage>) -> Option<RtpsMessage> {
+        let writer_proxy =  self.matched_writers.get_mut(a_writer_guid).unwrap();
+
+        let submessages = match self.reliability_level {
+            ReliabilityKind::BestEffort => StatefulReaderBehavior::run_best_effort(writer_proxy, &self.guid, &mut self.reader_cache, received_message),
+            ReliabilityKind::Reliable => StatefulReaderBehavior::run_reliable(writer_proxy,  &self.guid, &mut self.reader_cache, self.heartbeat_response_delay, received_message),
+        };
+
+        match submessages {
+            None => None,
+            Some(submessages) => Some(RtpsMessage::new(*self.guid.prefix(), submessages)),
+        }
+
     }
 
 }
