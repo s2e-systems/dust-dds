@@ -6,7 +6,7 @@ use crate::cache::HistoryCache;
 use crate::types::{Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID, };
 use crate::messages::RtpsMessage;
 use crate::behavior::types::Duration;
-use crate::behavior::StatefulReaderBehaviour;
+use crate::behavior::StatefulReaderBehavior;
 use crate::messages::types::Count;
 
 pub struct WriterProxy {
@@ -235,8 +235,8 @@ impl StatefulReader {
         let writer_proxy =  self.matched_writers.get_mut(a_writer_guid).unwrap();
 
         let submessages = match self.reliability_level {
-            ReliabilityKind::BestEffort => StatefulReaderBehaviour::run_best_effort(writer_proxy, &self.guid, &mut self.reader_cache, received_message),
-            ReliabilityKind::Reliable => StatefulReaderBehaviour::run_reliable(writer_proxy,  &self.guid, &mut self.reader_cache, self.heartbeat_response_delay, received_message),
+            ReliabilityKind::BestEffort => StatefulReaderBehavior::run_best_effort(writer_proxy, &self.guid, &mut self.reader_cache, received_message),
+            ReliabilityKind::Reliable => StatefulReaderBehavior::run_reliable(writer_proxy,  &self.guid, &mut self.reader_cache, self.heartbeat_response_delay, received_message),
         };
 
         match submessages {

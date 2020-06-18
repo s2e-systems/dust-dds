@@ -8,22 +8,22 @@ use crate::stateful_reader::WriterProxy;
 use crate::serdes::Endianness;
 use super::cache_change_from_data;
 
-pub struct StatefulReaderBehaviour {}
+pub struct StatefulReaderBehavior {}
 
-impl StatefulReaderBehaviour {
+impl StatefulReaderBehavior {
     pub fn run_best_effort(writer_proxy: &mut WriterProxy, _reader_guid: &GUID, history_cache: &mut HistoryCache, received_message: Option<&RtpsMessage>) -> Option<Vec<RtpsSubmessage>> {
-        StatefulReaderBehaviour::run_waiting_state(writer_proxy, history_cache, received_message);
+        StatefulReaderBehavior::run_waiting_state(writer_proxy, history_cache, received_message);
         None
     }
 
     pub fn run_reliable(writer_proxy: &mut WriterProxy, reader_guid: &GUID, history_cache: &mut HistoryCache, heartbeat_response_delay: Duration, received_message: Option<&RtpsMessage>) -> Option<Vec<RtpsSubmessage>>{
         let must_send_ack = false;
-        StatefulReaderBehaviour::run_ready_state(writer_proxy, history_cache, received_message);
+        StatefulReaderBehavior::run_ready_state(writer_proxy, history_cache, received_message);
         if must_send_ack {
             // This is the only case in which a message is sent by the stateful reader
-            StatefulReaderBehaviour::run_must_send_ack_state(writer_proxy, reader_guid, heartbeat_response_delay)
+            StatefulReaderBehavior::run_must_send_ack_state(writer_proxy, reader_guid, heartbeat_response_delay)
         } else {
-            StatefulReaderBehaviour::run_waiting_heartbeat_state(writer_proxy, received_message);
+            StatefulReaderBehavior::run_waiting_heartbeat_state(writer_proxy, received_message);
             None
         }
     }
@@ -144,7 +144,7 @@ mod tests {
 
         let received_message = RtpsMessage::new(*remote_writer_guid.prefix(), submessages);
 
-        StatefulReaderBehaviour::run_waiting_state(&mut writer_proxy, &mut history_cache, Some(&received_message));
+        StatefulReaderBehavior::run_waiting_state(&mut writer_proxy, &mut history_cache, Some(&received_message));
 
         let expected_change_1 = CacheChange::new(
             ChangeKind::Alive,
@@ -160,7 +160,7 @@ mod tests {
         assert_eq!(writer_proxy.available_changes_max(), SequenceNumber(3));
 
         // Run waiting state without any received message and verify nothing changes
-        StatefulReaderBehaviour::run_waiting_state(&mut writer_proxy, &mut history_cache, None);
+        StatefulReaderBehavior::run_waiting_state(&mut writer_proxy, &mut history_cache, None);
         assert_eq!(history_cache.get_changes().len(), 1);
         assert_eq!(writer_proxy.available_changes_max(), SequenceNumber(3));
     }
@@ -187,7 +187,7 @@ mod tests {
 
         let received_message = RtpsMessage::new(*remote_writer_guid.prefix(), submessages);
 
-        StatefulReaderBehaviour::run_ready_state(&mut writer_proxy, &mut history_cache, Some(&received_message));
+        StatefulReaderBehavior::run_ready_state(&mut writer_proxy, &mut history_cache, Some(&received_message));
 
         let expected_change_1 = CacheChange::new(
             ChangeKind::Alive,
@@ -203,7 +203,7 @@ mod tests {
         assert_eq!(writer_proxy.available_changes_max(), SequenceNumber(0));
 
         // Run waiting state without any received message and verify nothing changes
-        StatefulReaderBehaviour::run_waiting_state(&mut writer_proxy, &mut history_cache, None);
+        StatefulReaderBehavior::run_waiting_state(&mut writer_proxy, &mut history_cache, None);
         assert_eq!(history_cache.get_changes().len(), 1);
         assert_eq!(writer_proxy.available_changes_max(), SequenceNumber(0));
     }
@@ -227,7 +227,7 @@ mod tests {
         submessages.push(RtpsSubmessage::Heartbeat(heartbeat));
         let received_message = RtpsMessage::new(*remote_writer_guid.prefix(), submessages);       
 
-        StatefulReaderBehaviour::run_waiting_heartbeat_state(&mut writer_proxy, Some(&received_message));
+        StatefulReaderBehavior::run_waiting_heartbeat_state(&mut writer_proxy, Some(&received_message));
         assert_eq!(writer_proxy.missing_changes(), &[SequenceNumber(3), SequenceNumber(4), SequenceNumber(5), SequenceNumber(6)].iter().cloned().collect());
         assert_eq!(writer_proxy.must_send_ack(), true);
     }
@@ -251,7 +251,7 @@ mod tests {
         submessages.push(RtpsSubmessage::Heartbeat(heartbeat));
         let received_message = RtpsMessage::new(*remote_writer_guid.prefix(), submessages);       
 
-        StatefulReaderBehaviour::run_waiting_heartbeat_state(&mut writer_proxy, Some(&received_message));
+        StatefulReaderBehavior::run_waiting_heartbeat_state(&mut writer_proxy, Some(&received_message));
         assert_eq!(writer_proxy.missing_changes(), &[SequenceNumber(2), SequenceNumber(3)].iter().cloned().collect());
         assert_eq!(writer_proxy.must_send_ack(), true);
     }
@@ -275,7 +275,7 @@ mod tests {
         submessages.push(RtpsSubmessage::Heartbeat(heartbeat));
         let received_message = RtpsMessage::new(*remote_writer_guid.prefix(), submessages);       
 
-        StatefulReaderBehaviour::run_waiting_heartbeat_state(&mut writer_proxy, Some(&received_message));
+        StatefulReaderBehavior::run_waiting_heartbeat_state(&mut writer_proxy, Some(&received_message));
         assert_eq!(writer_proxy.missing_changes(), &[].iter().cloned().collect());
         assert_eq!(writer_proxy.must_send_ack(), false);
     }
@@ -301,17 +301,17 @@ mod tests {
         submessages.push(RtpsSubmessage::Heartbeat(heartbeat));
         let received_message = RtpsMessage::new(*remote_writer_guid.prefix(), submessages);       
 
-        StatefulReaderBehaviour::run_waiting_heartbeat_state(&mut writer_proxy, Some(&received_message));
+        StatefulReaderBehavior::run_waiting_heartbeat_state(&mut writer_proxy, Some(&received_message));
         assert_eq!(writer_proxy.missing_changes(), &[SequenceNumber(3), SequenceNumber(4), SequenceNumber(5), SequenceNumber(6)].iter().cloned().collect());
         assert_eq!(writer_proxy.must_send_ack(), true);
 
         let heartbeat_response_delay = Duration::from_millis(300);
-        let message = StatefulReaderBehaviour::run_must_send_ack_state(&mut writer_proxy, &reader_guid, heartbeat_response_delay);
+        let message = StatefulReaderBehavior::run_must_send_ack_state(&mut writer_proxy, &reader_guid, heartbeat_response_delay);
         assert!(message.is_none());
 
         std::thread::sleep(heartbeat_response_delay.into());
 
-        let message = StatefulReaderBehaviour::run_must_send_ack_state(&mut writer_proxy, &reader_guid, heartbeat_response_delay).unwrap();
+        let message = StatefulReaderBehavior::run_must_send_ack_state(&mut writer_proxy, &reader_guid, heartbeat_response_delay).unwrap();
         assert_eq!(message.len(), 1);
         if let RtpsSubmessage::AckNack(acknack) = &message[0] {
             assert_eq!(acknack.writer_id(), remote_writer_guid.entity_id());
