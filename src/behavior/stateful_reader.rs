@@ -1,4 +1,4 @@
-use crate::types::GUID;
+use crate::types::{GUID, SequenceNumber};
 use crate::behavior::types::Duration;
 use crate::messages::{RtpsMessage, RtpsSubmessage, AckNack};
 use crate::messages::submessage_elements::SequenceNumberSet;
@@ -39,9 +39,14 @@ impl StatefulReaderBehavior {
                         writer_proxy.received_change_set(*data.writer_sn());
                         writer_proxy.lost_changes_update(*data.writer_sn());
                     }
-                } else if let RtpsSubmessage::Gap(_gap) = submessage {
-                    let _expected_seq_number = writer_proxy.available_changes_max() + 1;
-                    todo!()
+                } else if let RtpsSubmessage::Gap(gap) = submessage {
+                    for seq_num in gap.gap_start().0 .. gap.gap_list().base().0 - 1 {
+                        writer_proxy.irrelevant_change_set(SequenceNumber(seq_num));
+                    }
+
+                    for &seq_num in gap.gap_list().set() {
+                        writer_proxy.irrelevant_change_set(seq_num);
+                    }
                 }
             }
         }
@@ -58,9 +63,14 @@ impl StatefulReaderBehavior {
                         history_cache.add_change(cache_change);
                         writer_proxy.received_change_set(*data.writer_sn());
                     }
-                } else if let RtpsSubmessage::Gap(_gap) = submessage {
-                    let _expected_seq_number = writer_proxy.available_changes_max() + 1;
-                    todo!()
+                } else if let RtpsSubmessage::Gap(gap) = submessage {
+                    for seq_num in gap.gap_start().0 .. gap.gap_list().base().0 - 1 {
+                        writer_proxy.irrelevant_change_set(SequenceNumber(seq_num));
+                    }
+
+                    for &seq_num in gap.gap_list().set() {
+                        writer_proxy.irrelevant_change_set(seq_num);
+                    }
                 } 
                 // The heartbeat reception is moved to the waiting state since it has to be read there anyway
             }

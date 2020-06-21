@@ -49,6 +49,10 @@ impl Gap {
     pub fn gap_start(&self) -> &SequenceNumber {
         &self.gap_start
     }
+
+    pub fn gap_list(&self) -> &SequenceNumberSet {
+        &self.gap_list
+    }
 }
 
 impl Submessage for Gap {
