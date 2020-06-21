@@ -4,7 +4,7 @@ use rust_rtps::types::constants::{
 };
 use rust_rtps::types::{ChangeKind, GuidPrefix, Locator, ReliabilityKind, TopicKind, GUID};
 use rust_rtps::{
-    ReaderProxy, RtpsCompose, RtpsMessage, RtpsParse, StatefulReader, StatefulWriter, WriterProxy,
+    ReaderProxy, StatefulReader, StatefulWriter, WriterProxy,
 };
 
 #[test]
@@ -71,7 +71,7 @@ fn best_effort_stateful_writer_stateful_reader_data_only() {
 
     // Verify that the writer transmits all the cache changes to the reader
     let writer_message = writer.run(&reader_guid, None).unwrap();
-    let reader_message = reader.run(&writer_guid, Some(&writer_message));
+    let _reader_message = reader.run(&writer_guid, Some(&writer_message));
 
     let reader_changes = reader.reader_cache().get_changes();
     assert_eq!(reader_changes.len(), writer.writer_cache().get_changes().len());
@@ -144,7 +144,7 @@ fn best_effort_stateful_writer_stateful_reader_data_and_gap() {
 
     // Verify that the writer transmits all the cache changes to the reader
     let writer_message = writer.run(&reader_guid, None).unwrap();
-    let reader_message = reader.run(&writer_guid, Some(&writer_message));
+    let _reader_message = reader.run(&writer_guid, Some(&writer_message));
 
     let reader_changes = reader.reader_cache().get_changes();
     assert_eq!(reader_changes.len(), writer.writer_cache().get_changes().len());

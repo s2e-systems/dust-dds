@@ -29,6 +29,7 @@ pub struct WriterProxy {
     unknown_changes: BTreeSet<SequenceNumber>,
     lost_changes: BTreeSet<SequenceNumber>,
     missing_changes: BTreeSet<SequenceNumber>,
+    irrelevant_changes: BTreeSet<SequenceNumber>,
 
     must_send_ack: bool,
     time_heartbeat_received: Instant,
@@ -50,6 +51,7 @@ impl WriterProxy {
                 unknown_changes: BTreeSet::new(),
                 lost_changes: BTreeSet::new(),
                 missing_changes: BTreeSet::new(),
+                irrelevant_changes: BTreeSet::new(),
                 must_send_ack: false,
                 time_heartbeat_received: Instant::now(),
                 ackanck_count: Count(0),
@@ -83,8 +85,11 @@ impl WriterProxy {
         self.highest_processed_sequence_number.min(lowest_unknown).min(lowest_before_missing)
     }
 
-    pub fn irrelevant_change_set(&mut self, _a_seq_num: SequenceNumber) {
-        todo!()
+    /// This operation modifies the status of a ChangeFromWriter to indicate that the CacheChange with the
+    /// SequenceNumber_t ‘a_seq_num’ is irrelevant to the RTPS Reader.
+    pub fn irrelevant_change_set(&mut self, a_seq_num: SequenceNumber) {
+        self.received_change_set(a_seq_num);
+        self.irrelevant_changes.insert(a_seq_num);
     }
 
     /// This operation modifies the status stored in ChangeFromWriter for any changes in the WriterProxy whose 

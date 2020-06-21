@@ -4,7 +4,7 @@ use rust_rtps::types::constants::{
 };
 use rust_rtps::types::{ChangeKind, GuidPrefix, Locator, ReliabilityKind, TopicKind, GUID};
 use rust_rtps::{
-    ReaderProxy, RtpsCompose, RtpsMessage, RtpsParse, StatefulReader, StatefulWriter, WriterProxy,
+    ReaderProxy, StatefulReader, StatefulWriter, WriterProxy,
 };
 
 #[test]
