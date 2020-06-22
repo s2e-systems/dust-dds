@@ -131,11 +131,11 @@ impl Submessage for Data {
     }
 
     fn is_valid(&self) -> bool {
-        if self.writer_sn > SequenceNumber(0) || self.writer_sn == SEQUENCE_NUMBER_UNKNOWN {
+        if self.writer_sn < SequenceNumber(1) || self.writer_sn == SEQUENCE_NUMBER_UNKNOWN {
             //TODO: Check validity of inline_qos
-            true
-        } else {
             false
+        } else {
+            true
         }
     }
 }

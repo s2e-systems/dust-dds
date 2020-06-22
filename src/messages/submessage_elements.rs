@@ -154,6 +154,17 @@ impl FragmentNumberSet {
         let base = *set.iter().next().unwrap_or(&FragmentNumber(0));
         Self {base, set } 
     }
+
+    pub fn is_valid(&self) -> bool {
+        let min = *self.set.iter().next().unwrap(); // First element. Must exist by the invariant
+        let max = *self.set.iter().next_back().unwrap(); // Last element. Must exist by the invariant
+
+        if min >= FragmentNumber(1) && max.0 - min.0 < 256 {
+            true
+        } else {
+            false
+        }
+    }
 }
 
 impl RtpsSerialize for FragmentNumberSet {

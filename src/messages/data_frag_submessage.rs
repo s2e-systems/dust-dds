@@ -1,5 +1,6 @@
 use crate::primitive_types::{UShort, ULong, };
 use crate::types::{EntityId, SequenceNumber, };
+use crate::types::constants::SEQUENCE_NUMBER_UNKNOWN;
 use crate::messages::types::{SubmessageKind, SubmessageFlag, };
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, Endianness, RtpsSerdesResult, };
 use super::{SubmessageHeader, Submessage, };
@@ -47,6 +48,25 @@ impl Submessage for DataFrag {
             submessage_id: SubmessageKind::Data,
             flags,
             submessage_length: octets_to_next_header as UShort,
+        }
+    }
+
+    fn is_valid(&self) -> bool {
+        let serialized_data_size = match self.serialized_payload {
+            Some(data) => data.0.len(),
+            None => 0,
+        };
+
+        if (self.writer_sn < SequenceNumber(1) || self.writer_sn == SEQUENCE_NUMBER_UNKNOWN) ||
+           (self.fragment_starting_num < FragmentNumber(1)) ||
+           (self.fragment_size as u32 > self.data_size) ||
+           (serialized_data_size > self.fragments_in_submessage as usize * self.fragment_size as usize)
+        {
+            // TODO: Check total number of fragments
+            // TODO: Check validity of inline_qos
+            false
+        } else {
+            false
         }
     }
 }

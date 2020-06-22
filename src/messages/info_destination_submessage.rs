@@ -22,6 +22,10 @@ impl Submessage for InfoDestination {
             submessage_length: self.guid_prefix.octets() as UShort,
         }
     }
+
+    fn is_valid(&self) -> bool {
+        true    
+    }
 }
 
 impl RtpsCompose for InfoDestination {

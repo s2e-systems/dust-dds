@@ -74,6 +74,16 @@ impl Submessage for Gap {
             submessage_length: octets_to_next_header as UShort, 
         }
     }
+
+    fn is_valid(&self) -> bool {
+        if self.gap_start <= SequenceNumber(0) ||
+           !self.gap_list.is_valid()
+        {
+            false
+        } else {
+            true
+        }
+    }
 }
 
 

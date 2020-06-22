@@ -32,6 +32,10 @@ impl Submessage for InfoSource {
             submessage_length: octets_to_next_header as UShort,
         }
     }
+
+    fn is_valid(&self) -> bool {
+        true
+    }
 }
 
 impl RtpsCompose for InfoSource {

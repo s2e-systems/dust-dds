@@ -28,6 +28,10 @@ impl Submessage for InfoReply {
             submessage_length: submessage_length as UShort,
         }
     }
+
+    fn is_valid(&self) -> bool {
+        true
+    }
 }
 
 impl RtpsCompose for InfoReply {
