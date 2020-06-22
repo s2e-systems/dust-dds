@@ -52,7 +52,7 @@ impl Submessage for DataFrag {
     }
 
     fn is_valid(&self) -> bool {
-        let serialized_data_size = match self.serialized_payload {
+        let serialized_data_size = match &self.serialized_payload {
             Some(data) => data.0.len(),
             None => 0,
         };

@@ -15,7 +15,7 @@ pub mod constants {
 
     pub const VENDOR_ID: VendorId = VendorId([99,99]);
 
-    pub const SEQUENCE_NUMBER_UNKNOWN = SequenceNumber(i64::MIN);
+    pub const SEQUENCE_NUMBER_UNKNOWN : SequenceNumber = SequenceNumber(i64::MIN);
 
     pub const PROTOCOL_VERSION_2_1 : ProtocolVersion = ProtocolVersion{major: 2, minor: 1};
     pub const PROTOCOL_VERSION_2_2 : ProtocolVersion = ProtocolVersion{major: 2, minor: 2};
