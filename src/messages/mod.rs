@@ -81,7 +81,7 @@ impl RtpsCompose for RtpsSubmessage {
         match self {
             RtpsSubmessage::AckNack(acknack) => acknack.compose(writer),
             RtpsSubmessage::Data(data) => data.compose(writer),
-            RtpsSubmessage::Gap(_gap) => Ok(()), //gap.compose(writer)?,
+            RtpsSubmessage::Gap(gap) => gap.compose(writer),
             RtpsSubmessage::Heartbeat(heartbeat) => heartbeat.compose(writer),
             RtpsSubmessage::InfoTs(infots) => infots.compose(writer),
         }
