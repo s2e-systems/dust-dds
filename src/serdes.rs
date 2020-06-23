@@ -143,11 +143,15 @@ where
 
 
 
-pub struct SizeCheckers{}
-impl SizeCheckers {
+pub trait SizeCheck {
+    fn check_size_equal(&self, expected_size: usize) -> RtpsSerdesResult<()>;
+    fn check_size_bigger_equal_than(&self, expected_size: usize) -> RtpsSerdesResult<()>;
+}
+
+impl SizeCheck for &[u8] {
     #[inline]
-    pub fn check_size_equal(bytes: &[u8], expected_size: usize) -> RtpsSerdesResult<()> {
-        if bytes.len() != expected_size {
+    fn check_size_equal(&self, expected_size: usize) -> RtpsSerdesResult<()> {
+        if self.len() != expected_size {
             Err(RtpsSerdesError::WrongSize)
         } else {
             Ok(())
@@ -155,8 +159,8 @@ impl SizeCheckers {
     }
     
     #[inline]
-    pub fn check_size_bigger_equal_than(bytes: &[u8], expected_size: usize) -> RtpsSerdesResult<()> {
-        if bytes.len() >= expected_size {
+    fn check_size_bigger_equal_than(&self, expected_size: usize) -> RtpsSerdesResult<()> {
+        if self.len() >= expected_size {
             Ok(())
         } else {
             Err(RtpsSerdesError::MessageTooSmall)

@@ -3,7 +3,7 @@
 /// Table 8.13 - Types used to define RTPS messages
 ///  
  
-use crate::serdes::{SizeCheckers, RtpsSerialize, RtpsDeserialize, RtpsSerdesResult, RtpsSerdesError, Endianness, };
+use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsSerdesResult, RtpsSerdesError, Endianness, SizeCheck };
 use num_derive::{FromPrimitive, ToPrimitive, };
 use num_traits::{FromPrimitive, };
 use std::time::SystemTime;
@@ -165,7 +165,7 @@ impl RtpsSerialize for Time {
 
 impl RtpsDeserialize for Time {
     fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> {
-        SizeCheckers::check_size_equal(bytes, 8)?;
+        bytes.check_size_equal(8)?;
 
         let seconds = ULong::deserialize(&bytes[0..4], endianness)?;
         let fraction = ULong::deserialize(&bytes[4..8], endianness)?;

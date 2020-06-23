@@ -5,7 +5,7 @@
 
 use std::convert::{TryInto, TryFrom, };
 use num_derive::FromPrimitive;
-use crate::serdes::{RtpsSerialize, RtpsDeserialize, Endianness, RtpsSerdesResult, SizeCheckers, RtpsSerdesError, };
+use crate::serdes::{RtpsSerialize, RtpsDeserialize, Endianness, RtpsSerdesResult, SizeCheck, RtpsSerdesError, };
 use crate::primitive_types::{Long, ULong, };
 use crate::inline_qos_types::StatusInfo;
 
@@ -133,7 +133,7 @@ impl RtpsSerialize for EntityKey {
 
 impl RtpsDeserialize for EntityKey {
     fn deserialize(bytes: &[u8], _endianness: Endianness) -> RtpsSerdesResult<Self> {
-        SizeCheckers::check_size_equal(bytes, 3)?;
+        bytes.check_size_equal(3)?;
 
         Ok(EntityKey(bytes[0..3].try_into()?))
     }
@@ -168,7 +168,7 @@ impl RtpsSerialize for EntityKind {
 
 impl RtpsDeserialize for EntityKind {
     fn deserialize(bytes: &[u8], _endianness: Endianness) -> RtpsSerdesResult<Self> {
-        SizeCheckers::check_size_equal(bytes, 1 /*expected_size*/)?;
+        bytes.check_size_equal(1)?;
         Ok(num::FromPrimitive::from_u8(bytes[0]).ok_or(RtpsSerdesError::InvalidEnumRepresentation)?)
     }
 }
@@ -178,7 +178,7 @@ pub struct EntityId {
     entity_key: EntityKey,
     entity_kind: EntityKind,
 }
-
+ 
 impl EntityId {
     pub fn new(entity_key: EntityKey, entity_kind: EntityKind) -> EntityId {
         EntityId {
@@ -197,7 +197,7 @@ impl RtpsSerialize for EntityId {
 
 impl RtpsDeserialize for EntityId{
     fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> {
-        SizeCheckers::check_size_equal(bytes, 4 /*expected_size*/)?;
+        bytes.check_size_equal( 4)?;
         let entity_key = EntityKey::deserialize(&bytes[0..3], endianness)?;
         let entity_kind = EntityKind::deserialize(&[bytes[3]], endianness)?;
 
@@ -238,7 +238,7 @@ impl RtpsSerialize for SequenceNumber {
 
 impl RtpsDeserialize for SequenceNumber {
     fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> {
-        SizeCheckers::check_size_equal(bytes, 8)?;
+        bytes.check_size_equal(8)?;
 
         let msb = Long::deserialize(&bytes[0..4], endianness)?;
         let lsb = ULong::deserialize(&bytes[4..8], endianness)?;

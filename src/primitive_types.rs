@@ -1,5 +1,5 @@
 use std::convert::TryInto;
-use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsSerdesResult, Endianness, SizeCheckers};
+use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsSerdesResult, Endianness, SizeCheck};
 
 pub type Long = i32;
 
@@ -16,7 +16,7 @@ impl RtpsSerialize for Long {
 
 impl RtpsDeserialize for Long {
     fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> {
-        SizeCheckers::check_size_bigger_equal_than(bytes, 4)?;
+        bytes.check_size_bigger_equal_than(4)?;
 
         let value = match endianness {
             Endianness::BigEndian => i32::from_be_bytes(bytes[0..4].try_into()?),
@@ -42,7 +42,7 @@ impl RtpsSerialize for ULong {
 
 impl RtpsDeserialize for ULong {
     fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> {
-        SizeCheckers::check_size_bigger_equal_than(bytes, 4)?;
+        bytes.check_size_bigger_equal_than(4)?;
 
         let value = match endianness {
             Endianness::BigEndian => u32::from_be_bytes(bytes[0..4].try_into()?),
@@ -69,7 +69,7 @@ impl RtpsSerialize for Short {
 
 impl RtpsDeserialize for Short {
     fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> { 
-        SizeCheckers::check_size_bigger_equal_than(bytes, 2)?;
+        bytes.check_size_bigger_equal_than(2)?;
 
         let value = match endianness {
             Endianness::BigEndian => i16::from_be_bytes(bytes[0..2].try_into()?),
@@ -97,7 +97,7 @@ impl RtpsSerialize for UShort {
 
 impl RtpsDeserialize for UShort {
     fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> { 
-        SizeCheckers::check_size_bigger_equal_than(bytes, 2)?;
+        bytes.check_size_bigger_equal_than(2)?;
 
         let value = match endianness {
             Endianness::BigEndian => u16::from_be_bytes(bytes[0..2].try_into()?),
