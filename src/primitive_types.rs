@@ -15,7 +15,9 @@ impl RtpsSerialize for Long {
 }
 
 impl RtpsDeserialize for Long {
-    fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> { 
+    fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> {
+        SizeCheckers::check_size_bigger_equal_than(bytes, 4)?;
+
         let value = match endianness {
             Endianness::BigEndian => i32::from_be_bytes(bytes[0..4].try_into()?),
             Endianness::LittleEndian => i32::from_le_bytes(bytes[0..4].try_into()?),
@@ -39,7 +41,9 @@ impl RtpsSerialize for ULong {
 }
 
 impl RtpsDeserialize for ULong {
-    fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> { 
+    fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> {
+        SizeCheckers::check_size_bigger_equal_than(bytes, 4)?;
+
         let value = match endianness {
             Endianness::BigEndian => u32::from_be_bytes(bytes[0..4].try_into()?),
             Endianness::LittleEndian => u32::from_le_bytes(bytes[0..4].try_into()?),
@@ -66,7 +70,7 @@ impl RtpsSerialize for Short {
 impl RtpsDeserialize for Short {
     fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> { 
         SizeCheckers::check_size_bigger_equal_than(bytes, 2)?;
-        
+
         let value = match endianness {
             Endianness::BigEndian => i16::from_be_bytes(bytes[0..2].try_into()?),
             Endianness::LittleEndian => i16::from_le_bytes(bytes[0..2].try_into()?),
@@ -112,41 +116,41 @@ mod tests {
     fn serialize_deserialize_ushort(){
         let mut buf = Vec::new();
 
-        let ushort_val: UShort = 123;
+        let val: UShort = 123;
 
-        ushort_val.serialize(&mut buf, Endianness::LittleEndian).unwrap();
+        val.serialize(&mut buf, Endianness::LittleEndian).unwrap();
         assert_eq!(buf, [123, 0]);
-        assert_eq!(UShort::deserialize(&buf, Endianness::LittleEndian).unwrap(), ushort_val);
+        assert_eq!(UShort::deserialize(&buf, Endianness::LittleEndian).unwrap(), val);
         buf.clear();
 
-        ushort_val.serialize(&mut buf, Endianness::BigEndian).unwrap();
+        val.serialize(&mut buf, Endianness::BigEndian).unwrap();
         assert_eq!(buf, [0, 123]);
-        assert_eq!(UShort::deserialize(&buf, Endianness::BigEndian).unwrap(), ushort_val);
+        assert_eq!(UShort::deserialize(&buf, Endianness::BigEndian).unwrap(), val);
         buf.clear();
 
 
-        let ushort_max: UShort = u16::MAX;
+        let max: UShort = UShort::MAX;
 
-        ushort_max.serialize(&mut buf, Endianness::LittleEndian).unwrap();
+        max.serialize(&mut buf, Endianness::LittleEndian).unwrap();
         assert_eq!(buf, [0xFF, 0xFF]);
-        assert_eq!(UShort::deserialize(&buf, Endianness::LittleEndian).unwrap(), ushort_max);
+        assert_eq!(UShort::deserialize(&buf, Endianness::LittleEndian).unwrap(), max);
         buf.clear();
 
-        ushort_max.serialize(&mut buf, Endianness::BigEndian).unwrap();
+        max.serialize(&mut buf, Endianness::BigEndian).unwrap();
         assert_eq!(buf, [0xFF, 0xFF]);
-        assert_eq!(UShort::deserialize(&buf, Endianness::BigEndian).unwrap(), ushort_max);
+        assert_eq!(UShort::deserialize(&buf, Endianness::BigEndian).unwrap(), max);
         buf.clear();
 
-        let ushort_min: UShort = u16::MIN;
+        let min: UShort = UShort::MIN;
 
-        ushort_min.serialize(&mut buf, Endianness::LittleEndian).unwrap();
+        min.serialize(&mut buf, Endianness::LittleEndian).unwrap();
         assert_eq!(buf, [0x00, 0x00]);
-        assert_eq!(UShort::deserialize(&buf, Endianness::LittleEndian).unwrap(), ushort_min);
+        assert_eq!(UShort::deserialize(&buf, Endianness::LittleEndian).unwrap(), min);
         buf.clear();
 
-        ushort_min.serialize(&mut buf, Endianness::BigEndian).unwrap();
+        min.serialize(&mut buf, Endianness::BigEndian).unwrap();
         assert_eq!(buf, [0x00, 0x00]);
-        assert_eq!(UShort::deserialize(&buf, Endianness::BigEndian).unwrap(), ushort_min);
+        assert_eq!(UShort::deserialize(&buf, Endianness::BigEndian).unwrap(), min);
         buf.clear();
     }
 
@@ -164,41 +168,41 @@ mod tests {
     fn serialize_deserialize_short(){
         let mut buf = Vec::new();
 
-        let ushort_val: Short = 123;
+        let val: Short = 123;
 
-        ushort_val.serialize(&mut buf, Endianness::LittleEndian).unwrap();
+        val.serialize(&mut buf, Endianness::LittleEndian).unwrap();
         assert_eq!(buf, [123, 0]);
-        assert_eq!(Short::deserialize(&buf, Endianness::LittleEndian).unwrap(), ushort_val);
+        assert_eq!(Short::deserialize(&buf, Endianness::LittleEndian).unwrap(), val);
         buf.clear();
 
-        ushort_val.serialize(&mut buf, Endianness::BigEndian).unwrap();
+        val.serialize(&mut buf, Endianness::BigEndian).unwrap();
         assert_eq!(buf, [0, 123]);
-        assert_eq!(Short::deserialize(&buf, Endianness::BigEndian).unwrap(), ushort_val);
+        assert_eq!(Short::deserialize(&buf, Endianness::BigEndian).unwrap(), val);
         buf.clear();
 
 
-        let ushort_max: Short = i16::MAX;
+        let max: Short = Short::MAX;
 
-        ushort_max.serialize(&mut buf, Endianness::LittleEndian).unwrap();
+        max.serialize(&mut buf, Endianness::LittleEndian).unwrap();
         assert_eq!(buf, [0xFF, 0x7F]);
-        assert_eq!(Short::deserialize(&buf, Endianness::LittleEndian).unwrap(), ushort_max);
+        assert_eq!(Short::deserialize(&buf, Endianness::LittleEndian).unwrap(), max);
         buf.clear();
 
-        ushort_max.serialize(&mut buf, Endianness::BigEndian).unwrap();
+        max.serialize(&mut buf, Endianness::BigEndian).unwrap();
         assert_eq!(buf, [0x7F, 0xFF]);
-        assert_eq!(Short::deserialize(&buf, Endianness::BigEndian).unwrap(), ushort_max);
+        assert_eq!(Short::deserialize(&buf, Endianness::BigEndian).unwrap(), max);
         buf.clear();
 
-        let ushort_min: Short = i16::MIN;
+        let min: Short = Short::MIN;
 
-        ushort_min.serialize(&mut buf, Endianness::LittleEndian).unwrap();
+        min.serialize(&mut buf, Endianness::LittleEndian).unwrap();
         assert_eq!(buf, [0x00, 0x80]);
-        assert_eq!(Short::deserialize(&buf, Endianness::LittleEndian).unwrap(), ushort_min);
+        assert_eq!(Short::deserialize(&buf, Endianness::LittleEndian).unwrap(), min);
         buf.clear();
 
-        ushort_min.serialize(&mut buf, Endianness::BigEndian).unwrap();
+        min.serialize(&mut buf, Endianness::BigEndian).unwrap();
         assert_eq!(buf, [0x80, 0x00]);
-        assert_eq!(Short::deserialize(&buf, Endianness::BigEndian).unwrap(), ushort_min);
+        assert_eq!(Short::deserialize(&buf, Endianness::BigEndian).unwrap(), min);
         buf.clear();
     }
 
@@ -206,6 +210,110 @@ mod tests {
     fn short_invalid_deserialize() {
         let buf: [u8; 1] = [1];
         let result = Short::deserialize(&buf, Endianness::BigEndian);
+        match result {
+            Err(RtpsSerdesError::MessageTooSmall) => assert!(true),
+            _ => assert!(false),
+        }
+    }
+
+    #[test]
+    fn serialize_deserialize_long(){
+        let mut buf = Vec::new();
+
+        let val: Long = 1230;
+
+        val.serialize(&mut buf, Endianness::LittleEndian).unwrap();
+        assert_eq!(buf, [0xCE, 0x04, 0, 0]);
+        assert_eq!(Long::deserialize(&buf, Endianness::LittleEndian).unwrap(), val);
+        buf.clear();
+
+        val.serialize(&mut buf, Endianness::BigEndian).unwrap();
+        assert_eq!(buf, [0, 0, 0x04, 0xCE]);
+        assert_eq!(Long::deserialize(&buf, Endianness::BigEndian).unwrap(), val);
+        buf.clear();
+
+
+        let max: Long = Long::MAX;
+
+        max.serialize(&mut buf, Endianness::LittleEndian).unwrap();
+        assert_eq!(buf, [0xFF, 0xFF, 0xFF, 0x7F]);
+        assert_eq!(Long::deserialize(&buf, Endianness::LittleEndian).unwrap(), max);
+        buf.clear();
+
+        max.serialize(&mut buf, Endianness::BigEndian).unwrap();
+        assert_eq!(buf, [0x7F, 0xFF, 0xFF, 0xFF]);
+        assert_eq!(Long::deserialize(&buf, Endianness::BigEndian).unwrap(), max);
+        buf.clear();
+
+        let min: Long = Long::MIN;
+
+        min.serialize(&mut buf, Endianness::LittleEndian).unwrap();
+        assert_eq!(buf, [0x00, 0x00, 0x00, 0x80]);
+        assert_eq!(Long::deserialize(&buf, Endianness::LittleEndian).unwrap(), min);
+        buf.clear();
+
+        min.serialize(&mut buf, Endianness::BigEndian).unwrap();
+        assert_eq!(buf, [0x80, 0x00, 0x00, 0x00]);
+        assert_eq!(Long::deserialize(&buf, Endianness::BigEndian).unwrap(), min);
+        buf.clear();
+    }
+
+    #[test]
+    fn long_invalid_deserialize() {
+        let buf: [u8; 3] = [1, 2, 3];
+        let result = Long::deserialize(&buf, Endianness::BigEndian);
+        match result {
+            Err(RtpsSerdesError::MessageTooSmall) => assert!(true),
+            _ => assert!(false),
+        }
+    }
+
+    #[test]
+    fn serialize_deserialize_ulong(){
+        let mut buf = Vec::new();
+
+        let val: ULong = 1230;
+
+        val.serialize(&mut buf, Endianness::LittleEndian).unwrap();
+        assert_eq!(buf, [0xCE, 0x04, 0, 0]);
+        assert_eq!(ULong::deserialize(&buf, Endianness::LittleEndian).unwrap(), val);
+        buf.clear();
+
+        val.serialize(&mut buf, Endianness::BigEndian).unwrap();
+        assert_eq!(buf, [0, 0, 0x04, 0xCE]);
+        assert_eq!(ULong::deserialize(&buf, Endianness::BigEndian).unwrap(), val);
+        buf.clear();
+
+
+        let max: ULong = ULong::MAX;
+
+        max.serialize(&mut buf, Endianness::LittleEndian).unwrap();
+        assert_eq!(buf, [0xFF, 0xFF, 0xFF, 0xFF]);
+        assert_eq!(ULong::deserialize(&buf, Endianness::LittleEndian).unwrap(), max);
+        buf.clear();
+
+        max.serialize(&mut buf, Endianness::BigEndian).unwrap();
+        assert_eq!(buf, [0xFF, 0xFF, 0xFF, 0xFF]);
+        assert_eq!(ULong::deserialize(&buf, Endianness::BigEndian).unwrap(), max);
+        buf.clear();
+
+        let min: ULong = ULong::MIN;
+
+        min.serialize(&mut buf, Endianness::LittleEndian).unwrap();
+        assert_eq!(buf, [0x00, 0x00, 0x00, 0x00]);
+        assert_eq!(ULong::deserialize(&buf, Endianness::LittleEndian).unwrap(), min);
+        buf.clear();
+
+        min.serialize(&mut buf, Endianness::BigEndian).unwrap();
+        assert_eq!(buf, [0x00, 0x00, 0x00, 0x00]);
+        assert_eq!(ULong::deserialize(&buf, Endianness::BigEndian).unwrap(), min);
+        buf.clear();
+    }
+
+    #[test]
+    fn ulong_invalid_deserialize() {
+        let buf: [u8; 3] = [1, 2, 3];
+        let result = ULong::deserialize(&buf, Endianness::BigEndian);
         match result {
             Err(RtpsSerdesError::MessageTooSmall) => assert!(true),
             _ => assert!(false),
