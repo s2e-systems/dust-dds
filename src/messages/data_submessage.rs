@@ -1,6 +1,7 @@
 use std::convert::From;
 use crate::primitive_types::UShort;
 use crate::types::{SequenceNumber ,EntityId, };
+use crate::types::constants::SEQUENCE_NUMBER_UNKNOWN;
 use crate::serialized_payload::SerializedPayload;
 use crate::messages::types::{SubmessageKind, SubmessageFlag, };
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, Endianness, RtpsSerdesResult, };
@@ -126,6 +127,15 @@ impl Submessage for Data {
             submessage_id: SubmessageKind::Data,
             flags,
             submessage_length: octets_to_next_header as UShort, 
+        }
+    }
+
+    fn is_valid(&self) -> bool {
+        if self.writer_sn < SequenceNumber(1) || self.writer_sn == SEQUENCE_NUMBER_UNKNOWN {
+            //TODO: Check validity of inline_qos
+            false
+        } else {
+            true
         }
     }
 }

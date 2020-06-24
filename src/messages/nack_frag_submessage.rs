@@ -36,6 +36,15 @@ impl Submessage for NackFrag {
             submessage_length: octets_to_next_header as UShort,
         }
     }
+
+    fn is_valid(&self) -> bool {
+        if self.writer_sn <= SequenceNumber(0) ||
+        !self.fragment_number_state.is_valid() {
+            false
+        } else {
+            true
+        }
+    }
 }
 
 impl RtpsCompose for NackFrag {

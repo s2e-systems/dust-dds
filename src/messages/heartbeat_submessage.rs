@@ -109,6 +109,16 @@ impl Submessage for Heartbeat {
             submessage_length: octets_to_next_header as UShort,
         }
     }
+
+    fn is_valid(&self) -> bool {
+        if self.first_sn <= SequenceNumber(0) ||
+           self.last_sn < SequenceNumber(0) ||
+           self.last_sn < self.first_sn - 1 {
+            false
+        } else {
+            true
+        }
+    }
 }
 
 impl RtpsCompose for Heartbeat {
