@@ -81,8 +81,8 @@ impl RtpsSerialize for [SubmessageFlag; 8] {
 }
 
 impl RtpsDeserialize for [SubmessageFlag; 8] {
-    fn deserialize(bytes: &[u8], _endianness: Endianness) -> RtpsSerdesResult<Self> { 
-        // SizeCheckers::check_size_equal(bytes, 1)?;
+    fn deserialize(bytes: &[u8], _endianness: Endianness) -> RtpsSerdesResult<Self> {
+        bytes.check_size_equal(1)?;
         let flags: u8 = bytes[0];        
         let mut mask = 0b00000001_u8;
         let mut submessage_flags = [false; 8];
@@ -127,6 +127,7 @@ impl RtpsSerialize for SubmessageKind {
 
 impl RtpsDeserialize for SubmessageKind {
     fn deserialize(bytes: &[u8], _endianness: Endianness) -> RtpsSerdesResult<Self> { 
+        bytes.check_size_equal(1)?;
         Ok(num::FromPrimitive::from_u8(bytes[0]).ok_or(RtpsSerdesError::InvalidEnumRepresentation)?)
     }
 }
@@ -250,7 +251,7 @@ impl RtpsSerialize for ParameterIdT {
 impl RtpsDeserialize for ParameterIdT {
     fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> {
         let value = UShort::deserialize(bytes, endianness)?;
-        Ok(ParameterIdT::from_u16(value).unwrap())
+        Ok(ParameterIdT::from_u16(value).ok_or(RtpsSerdesError::InvalidEnumRepresentation)?)
     }
 }
 

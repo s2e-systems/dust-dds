@@ -353,6 +353,7 @@ impl RtpsSerialize for ProtocolVersion {
 
 impl RtpsDeserialize for ProtocolVersion {
     fn deserialize(bytes: &[u8], _endianness: Endianness) -> RtpsSerdesResult<Self> {
+        bytes.check_size_equal(2)?;
         let major = bytes[0];
         let minor = bytes[1];
         Ok(ProtocolVersion{major, minor})
@@ -373,6 +374,7 @@ impl RtpsSerialize for VendorId {
 
 impl RtpsDeserialize for VendorId {
     fn deserialize(bytes: &[u8], _endianness: Endianness) -> RtpsSerdesResult<Self> {
+        bytes.check_size_equal(2)?;
         Ok(VendorId(bytes[0..2].try_into()?))
     }
 }
@@ -391,7 +393,7 @@ mod tests {
     ///////////////////////// GuidPrefix Tests ////////////////////////
     #[test]
     fn invalid_guid_prefix_deserialization() {
-        let too_big_vec = vec![1,2,3,4,5,6,7,8,9,10,11,12,13,14];
+        let too_big_vec = [1,2,3,4,5,6,7,8,9,10,11,12,13,14];
 
         let expected_error = GuidPrefix::deserialize(&too_big_vec, Endianness::LittleEndian);
         match expected_error {
@@ -399,7 +401,7 @@ mod tests {
             _ => assert!(false),
         };
 
-        let too_small_vec = vec![1,2];
+        let too_small_vec = [1,2];
 
         let expected_error = GuidPrefix::deserialize(&too_small_vec, Endianness::BigEndian);
         match expected_error {
@@ -437,7 +439,7 @@ mod tests {
 
     #[test]
     fn invalid_entity_key_deserialization() {
-        let too_big_vec = vec![1,2,3,4];
+        let too_big_vec = [1,2,3,4];
 
         let expected_error = EntityKey::deserialize(&too_big_vec, Endianness::LittleEndian);
         match expected_error {
@@ -445,7 +447,7 @@ mod tests {
             _ => assert!(false),
         };
 
-        let too_small_vec = vec![1,2,3,4];
+        let too_small_vec = [1,2,3,4];
 
         let expected_error = EntityKey::deserialize(&too_small_vec, Endianness::LittleEndian);
         match expected_error {
@@ -483,7 +485,7 @@ mod tests {
 
     #[test]
     fn invalid_entity_kind_deserialization() {
-        let too_big_vec = vec![1,2,3,4];
+        let too_big_vec = [1,2,3,4];
 
         let expected_error = EntityKind::deserialize(&too_big_vec, Endianness::LittleEndian);
         match expected_error {
@@ -491,7 +493,7 @@ mod tests {
             _ => assert!(false),
         };
 
-        let wrong_vec = vec![0xf3];
+        let wrong_vec = [0xf3];
 
         let expected_error = EntityKind::deserialize(&wrong_vec, Endianness::LittleEndian);
         match expected_error {
@@ -525,7 +527,7 @@ mod tests {
 
     #[test]
     fn invalid_entity_id_deserialization() {
-        let too_big_vec = vec![1,2,3,4,5,5];
+        let too_big_vec = [1,2,3,4,5,5];
 
         let expected_error = EntityId::deserialize(&too_big_vec, Endianness::LittleEndian);
         match expected_error {
@@ -533,7 +535,7 @@ mod tests {
             _ => assert!(false),
         };
 
-        let wrong_vec = vec![1,2,3,0xf3];
+        let wrong_vec = [1,2,3,0xf3];
 
         let expected_error = EntityId::deserialize(&wrong_vec, Endianness::LittleEndian);
         match expected_error {
@@ -610,7 +612,7 @@ mod tests {
 
     #[test]
     fn invalid_sequence_number_deserialization() {
-        let wrong_vec = vec![1,2,3,4];
+        let wrong_vec = [1,2,3,4];
 
         let expected_error = SequenceNumber::deserialize(&wrong_vec, Endianness::LittleEndian);
         match expected_error {
@@ -656,7 +658,7 @@ mod tests {
 
     #[test]
     fn invalid_locator_deserialization() {
-        let too_big_vec = vec![1,2,3,4,5,6,7,8,9,10,11,12,13,14,1,2,3,4,5,6,7,8,9,10,11,12,13,14,1,2,3,4,5,6,7,8,9,10,11,12,13,14,];
+        let too_big_vec = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,1,2,3,4,5,6,7,8,9,10,11,12,13,14,1,2,3,4,5,6,7,8,9,10,11,12,13,14,];
 
         let expected_error = Locator::deserialize(&too_big_vec, Endianness::LittleEndian);
         match expected_error {
@@ -664,7 +666,7 @@ mod tests {
             _ => assert!(false),
         };
 
-        let too_small_vec = vec![1,2];
+        let too_small_vec = [1,2];
 
         let expected_error = Locator::deserialize(&too_small_vec, Endianness::BigEndian);
         match expected_error {
@@ -688,9 +690,43 @@ mod tests {
     // n/a
 
     ///////////////////////// ProtocolVersion Tests /////////////////
-    // n/a
+    #[test]
+    fn invalid_protocol_version_deserialization() {
+        let too_big_vec = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,1,2,3,4,5,6,7,8,9,10,11,12,13,14,1,2,3,4,5,6,7,8,9,10,11,12,13,14,];
+
+        let expected_error = ProtocolVersion::deserialize(&too_big_vec, Endianness::LittleEndian);
+        match expected_error {
+            Err(RtpsSerdesError::WrongSize) => assert!(true),
+            _ => assert!(false),
+        };
+
+        let too_small_vec = [1];
+
+        let expected_error = ProtocolVersion::deserialize(&too_small_vec, Endianness::BigEndian);
+        match expected_error {
+            Err(RtpsSerdesError::WrongSize) => assert!(true),
+            _ => assert!(false),
+        };
+    }
     
     ///////////////////////// VendorId Tests ////////////////////////
-    // n/a
+    #[test]
+    fn invalid_vendor_id_deserialization() {
+        let too_big_vec = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,1,2,3,4,5,6,7,8,9,10,11,12,13,14,1,2,3,4,5,6,7,8,9,10,11,12,13,14,];
+
+        let expected_error = VendorId::deserialize(&too_big_vec, Endianness::LittleEndian);
+        match expected_error {
+            Err(RtpsSerdesError::WrongSize) => assert!(true),
+            _ => assert!(false),
+        };
+
+        let too_small_vec = [1];
+
+        let expected_error = VendorId::deserialize(&too_small_vec, Endianness::BigEndian);
+        match expected_error {
+            Err(RtpsSerdesError::WrongSize) => assert!(true),
+            _ => assert!(false),
+        };
+    }
 
 }

@@ -90,7 +90,7 @@ impl RtpsCompose for RtpsSubmessage {
 
 impl RtpsParse for RtpsSubmessage {
     fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> {
-        let submessage_id = SubmessageKind::deserialize(bytes, Endianness::LittleEndian /*irrelevant*/)?;
+        let submessage_id = SubmessageKind::deserialize(&[bytes[0]], Endianness::LittleEndian /*irrelevant*/)?;
         match submessage_id {
             SubmessageKind::Data => Ok( RtpsSubmessage::Data(Data::parse(bytes)?) ),
             SubmessageKind::Pad => Err(RtpsSerdesError::InvalidSubmessageHeader),

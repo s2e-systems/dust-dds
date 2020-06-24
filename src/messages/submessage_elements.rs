@@ -124,7 +124,7 @@ impl RtpsSerialize for FragmentNumber {
 
 impl RtpsDeserialize for FragmentNumber {
     fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> {
-        Ok(Self(ULong::deserialize(&bytes, endianness)?))
+        Ok(Self(ULong::deserialize(bytes, endianness)?))
     }    
 }
 
