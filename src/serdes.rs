@@ -6,13 +6,7 @@ pub enum RtpsSerdesError {
     WrongSize,
     MessageTooSmall,
     InvalidEnumRepresentation,
-    InvalidHeader,
-    InvalidSubmessageHeader,
-    InvalidSubmessage,
-    InvalidKeyAndDataFlagCombination,
     IoError(std::io::Error),
-    InvalidTypeConversion,
-    DeserializationMessageSizeTooSmall,
 }
 
 impl From<std::io::Error> for RtpsSerdesError {
