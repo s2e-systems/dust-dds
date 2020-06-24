@@ -16,7 +16,7 @@ impl RtpsSerialize for Long {
 
 impl RtpsDeserialize for Long {
     fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> {
-        bytes.check_size_bigger_equal_than(4)?;
+        bytes.check_size_equal(4)?;
 
         let value = match endianness {
             Endianness::BigEndian => i32::from_be_bytes(bytes[0..4].try_into()?),
@@ -42,7 +42,7 @@ impl RtpsSerialize for ULong {
 
 impl RtpsDeserialize for ULong {
     fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> {
-        bytes.check_size_bigger_equal_than(4)?;
+        bytes.check_size_equal(4)?;
 
         let value = match endianness {
             Endianness::BigEndian => u32::from_be_bytes(bytes[0..4].try_into()?),
@@ -69,7 +69,7 @@ impl RtpsSerialize for Short {
 
 impl RtpsDeserialize for Short {
     fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> { 
-        bytes.check_size_bigger_equal_than(2)?;
+        bytes.check_size_equal(2)?;
 
         let value = match endianness {
             Endianness::BigEndian => i16::from_be_bytes(bytes[0..2].try_into()?),
@@ -97,7 +97,7 @@ impl RtpsSerialize for UShort {
 
 impl RtpsDeserialize for UShort {
     fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> { 
-        bytes.check_size_bigger_equal_than(2)?;
+        bytes.check_size_equal(2)?;
 
         let value = match endianness {
             Endianness::BigEndian => u16::from_be_bytes(bytes[0..2].try_into()?),
@@ -155,11 +155,11 @@ mod tests {
     }
 
     #[test]
-    fn ushort_invalid_deserialize() {
+    fn invalid_ushort_deserialize() {
         let buf: [u8; 1] = [1];
         let result = UShort::deserialize(&buf, Endianness::BigEndian);
         match result {
-            Err(RtpsSerdesError::MessageTooSmall) => assert!(true),
+            Err(RtpsSerdesError::WrongSize) => assert!(true),
             _ => assert!(false),
         }
     }
@@ -207,11 +207,11 @@ mod tests {
     }
 
     #[test]
-    fn short_invalid_deserialize() {
+    fn invalid_short_deserialize() {
         let buf: [u8; 1] = [1];
         let result = Short::deserialize(&buf, Endianness::BigEndian);
         match result {
-            Err(RtpsSerdesError::MessageTooSmall) => assert!(true),
+            Err(RtpsSerdesError::WrongSize) => assert!(true),
             _ => assert!(false),
         }
     }
@@ -259,11 +259,11 @@ mod tests {
     }
 
     #[test]
-    fn long_invalid_deserialize() {
+    fn invalid_long_deserialize() {
         let buf: [u8; 3] = [1, 2, 3];
         let result = Long::deserialize(&buf, Endianness::BigEndian);
         match result {
-            Err(RtpsSerdesError::MessageTooSmall) => assert!(true),
+            Err(RtpsSerdesError::WrongSize) => assert!(true),
             _ => assert!(false),
         }
     }
@@ -311,11 +311,11 @@ mod tests {
     }
 
     #[test]
-    fn ulong_invalid_deserialize() {
+    fn invalid_ulong_deserialize() {
         let buf: [u8; 3] = [1, 2, 3];
         let result = ULong::deserialize(&buf, Endianness::BigEndian);
         match result {
-            Err(RtpsSerdesError::MessageTooSmall) => assert!(true),
+            Err(RtpsSerdesError::WrongSize) => assert!(true),
             _ => assert!(false),
         }
     }

@@ -145,7 +145,6 @@ where
 
 pub trait SizeCheck {
     fn check_size_equal(&self, expected_size: usize) -> RtpsSerdesResult<()>;
-    fn check_size_bigger_equal_than(&self, expected_size: usize) -> RtpsSerdesResult<()>;
 }
 
 impl SizeCheck for &[u8] {
@@ -155,15 +154,6 @@ impl SizeCheck for &[u8] {
             Err(RtpsSerdesError::WrongSize)
         } else {
             Ok(())
-        }
-    }
-    
-    #[inline]
-    fn check_size_bigger_equal_than(&self, expected_size: usize) -> RtpsSerdesResult<()> {
-        if self.len() >= expected_size {
-            Ok(())
-        } else {
-            Err(RtpsSerdesError::MessageTooSmall)
         }
     }
 }

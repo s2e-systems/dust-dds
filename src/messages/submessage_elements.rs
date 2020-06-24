@@ -93,7 +93,7 @@ impl RtpsDeserialize for SequenceNumberSet {
         let mut bitmaps = Vec::with_capacity(m);
         for i in 0..m {
             let index_of_byte_current_bitmap = 12 + i * 4;
-            bitmaps.push(Long::deserialize(&bytes[index_of_byte_current_bitmap..], endianness)?);
+            bitmaps.push(Long::deserialize(&bytes[index_of_byte_current_bitmap..index_of_byte_current_bitmap+4], endianness)?);
         };
         // Interpet the bitmaps and insert the sequence numbers if they are encode in the bitmaps
         let mut set = BTreeSet::new(); 
