@@ -393,7 +393,7 @@ mod tests {
     ///////////////////////// Entity Id Tests ////////////////////////
 
     #[test]
-    fn test_entity_key_serialization_deserialization_big_endian() {
+    fn entity_key_serialization_deserialization_big_endian() {
         let mut vec = Vec::new();
         let test_entity_key = EntityKey([5,20,250]);
 
@@ -405,7 +405,7 @@ mod tests {
     }
 
     #[test]
-    fn test_entity_key_serialization_deserialization_little_endian() {
+    fn entity_key_serialization_deserialization_little_endian() {
         let mut vec = Vec::new();
         let test_entity_key = EntityKey([5,20,250]);
 
@@ -417,7 +417,7 @@ mod tests {
     }
 
     #[test]
-    fn test_invalid_entity_key_deserialization() {
+    fn invalid_entity_key_deserialization() {
         let too_big_vec = vec![1,2,3,4];
 
         let expected_error = EntityKey::deserialize(&too_big_vec, Endianness::LittleEndian);
@@ -439,7 +439,7 @@ mod tests {
 
 
     #[test]
-    fn test_entity_kind_serialization_deserialization_big_endian() {
+    fn entity_kind_serialization_deserialization_big_endian() {
         let mut vec = Vec::new();
         let test_entity_kind = EntityKind::BuiltInWriterWithKey;
 
@@ -451,7 +451,7 @@ mod tests {
     }
 
     #[test]
-    fn test_entity_kind_serialization_deserialization_little_endian() {
+    fn entity_kind_serialization_deserialization_little_endian() {
         let mut vec = Vec::new();
         let test_entity_kind = EntityKind::BuiltInWriterWithKey;
 
@@ -463,7 +463,7 @@ mod tests {
     }
 
     #[test]
-    fn test_invalid_entity_kind_deserialization() {
+    fn invalid_entity_kind_deserialization() {
         let too_big_vec = vec![1,2,3,4];
 
         let expected_error = EntityKind::deserialize(&too_big_vec, Endianness::LittleEndian);
