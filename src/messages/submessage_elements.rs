@@ -350,7 +350,7 @@ impl RtpsDeserialize for LocatorList {
         let mut locators = Vec::<Locator>::new();
         let mut index = 4;
         while index < size && locators.len() < num_locators as usize {
-            let locator = Locator::deserialize( &bytes[index..], endianness)?;
+            let locator = Locator::deserialize( &bytes[index..index+24], endianness)?;
             index += locator.octets();
             locators.push(locator);
         };

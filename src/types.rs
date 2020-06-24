@@ -115,6 +115,7 @@ impl RtpsSerialize for GuidPrefix {
 
 impl RtpsDeserialize for GuidPrefix {
     fn deserialize(bytes: &[u8], _endianness: Endianness) -> RtpsSerdesResult<Self> {
+        bytes.check_size_equal(12)?;
         Ok(GuidPrefix(bytes[0..12].try_into()?))
     }    
 }
@@ -279,6 +280,7 @@ impl RtpsSerialize for Locator {
 
 impl RtpsDeserialize for Locator {
     fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> {
+        bytes.check_size_equal(24)?;
         let kind = Long::deserialize(&bytes[0..4], endianness)?;
         let port = ULong::deserialize(&bytes[4..8], endianness)?;
         let address = bytes[8..24].try_into()?;
@@ -387,7 +389,24 @@ mod tests {
 
 
     ///////////////////////// GuidPrefix Tests ////////////////////////
-    // n/a
+    #[test]
+    fn invalid_guid_prefix_deserialization() {
+        let too_big_vec = vec![1,2,3,4,5,6,7,8,9,10,11,12,13,14];
+
+        let expected_error = GuidPrefix::deserialize(&too_big_vec, Endianness::LittleEndian);
+        match expected_error {
+            Err(RtpsSerdesError::WrongSize) => assert!(true),
+            _ => assert!(false),
+        };
+
+        let too_small_vec = vec![1,2];
+
+        let expected_error = GuidPrefix::deserialize(&too_small_vec, Endianness::BigEndian);
+        match expected_error {
+            Err(RtpsSerdesError::WrongSize) => assert!(true),
+            _ => assert!(false),
+        };
+    }
 
 
     ///////////////////////// Entity Id Tests ////////////////////////
@@ -633,6 +652,25 @@ mod tests {
         ];
         let result = Locator::deserialize(&bytes, Endianness::LittleEndian).unwrap();
         assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn invalid_locator_deserialization() {
+        let too_big_vec = vec![1,2,3,4,5,6,7,8,9,10,11,12,13,14,1,2,3,4,5,6,7,8,9,10,11,12,13,14,1,2,3,4,5,6,7,8,9,10,11,12,13,14,];
+
+        let expected_error = Locator::deserialize(&too_big_vec, Endianness::LittleEndian);
+        match expected_error {
+            Err(RtpsSerdesError::WrongSize) => assert!(true),
+            _ => assert!(false),
+        };
+
+        let too_small_vec = vec![1,2];
+
+        let expected_error = Locator::deserialize(&too_small_vec, Endianness::BigEndian);
+        match expected_error {
+            Err(RtpsSerdesError::WrongSize) => assert!(true),
+            _ => assert!(false),
+        };
     }
 
 
