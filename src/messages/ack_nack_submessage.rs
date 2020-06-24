@@ -1,7 +1,8 @@
 use crate::primitive_types::UShort;
 use crate::types::EntityId;
-use crate::messages::types::{Count, SubmessageKind, SubmessageFlag, };
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, Endianness, RtpsSerdesResult, };
+
+use super::types::{Count, SubmessageKind, SubmessageFlag, };
 use super::{SubmessageHeader, Submessage, };
 use super::submessage_elements::SequenceNumberSet;
 

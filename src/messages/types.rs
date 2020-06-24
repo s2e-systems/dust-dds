@@ -2,12 +2,13 @@
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
 /// Table 8.13 - Types used to define RTPS messages
 ///  
- 
-use crate::serdes::{SizeCheckers, RtpsSerialize, RtpsDeserialize, RtpsSerdesResult, RtpsSerdesError, Endianness, };
+use std::time::SystemTime;
+use std::convert::TryInto; 
+
 use num_derive::{FromPrimitive, ToPrimitive, };
 use num_traits::{FromPrimitive, };
-use std::time::SystemTime;
-use std::convert::TryInto;
+
+use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsSerdesResult, RtpsSerdesError, Endianness, SizeCheck };
 use crate::primitive_types::{UShort, Long, ULong, };
 
 pub mod constants {
@@ -81,8 +82,8 @@ impl RtpsSerialize for [SubmessageFlag; 8] {
 }
 
 impl RtpsDeserialize for [SubmessageFlag; 8] {
-    fn deserialize(bytes: &[u8], _endianness: Endianness) -> RtpsSerdesResult<Self> { 
-        // SizeCheckers::check_size_equal(bytes, 1)?;
+    fn deserialize(bytes: &[u8], _endianness: Endianness) -> RtpsSerdesResult<Self> {
+        bytes.check_size_equal(1)?;
         let flags: u8 = bytes[0];        
         let mut mask = 0b00000001_u8;
         let mut submessage_flags = [false; 8];
@@ -127,6 +128,7 @@ impl RtpsSerialize for SubmessageKind {
 
 impl RtpsDeserialize for SubmessageKind {
     fn deserialize(bytes: &[u8], _endianness: Endianness) -> RtpsSerdesResult<Self> { 
+        bytes.check_size_equal(1)?;
         Ok(num::FromPrimitive::from_u8(bytes[0]).ok_or(RtpsSerdesError::InvalidEnumRepresentation)?)
     }
 }
@@ -165,7 +167,7 @@ impl RtpsSerialize for Time {
 
 impl RtpsDeserialize for Time {
     fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> {
-        SizeCheckers::check_size_equal(bytes, 8)?;
+        bytes.check_size_equal(8)?;
 
         let seconds = ULong::deserialize(&bytes[0..4], endianness)?;
         let fraction = ULong::deserialize(&bytes[4..8], endianness)?;
@@ -250,7 +252,7 @@ impl RtpsSerialize for ParameterIdT {
 impl RtpsDeserialize for ParameterIdT {
     fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> {
         let value = UShort::deserialize(bytes, endianness)?;
-        Ok(ParameterIdT::from_u16(value).unwrap())
+        Ok(ParameterIdT::from_u16(value).ok_or(RtpsSerdesError::InvalidEnumRepresentation)?)
     }
 }
 

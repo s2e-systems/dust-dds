@@ -2,8 +2,9 @@ use std::collections::BTreeSet;
 
 use crate::primitive_types::UShort;
 use crate::types::{EntityId, SequenceNumber, };
-use crate::messages::types::{SubmessageKind, SubmessageFlag, };
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, Endianness, RtpsSerdesResult, };
+
+use super::types::{SubmessageKind, SubmessageFlag, };
 use super::{SubmessageHeader, Submessage, };
 use super::submessage_elements::SequenceNumberSet;
 

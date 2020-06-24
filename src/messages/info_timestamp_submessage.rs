@@ -1,6 +1,7 @@
 use crate::primitive_types::UShort;
-use crate::messages::types::Time;
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsCompose, RtpsParse, Endianness, RtpsSerdesResult, };
+
+use super::types::Time;
 use super::{SubmessageKind, SubmessageFlag, Submessage, SubmessageHeader, };
 
 #[derive(PartialEq, Debug)]

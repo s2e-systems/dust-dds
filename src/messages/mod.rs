@@ -1,3 +1,11 @@
+use crate::primitive_types::UShort;
+use crate::types::{GuidPrefix, ProtocolVersion, VendorId, };
+use crate::types::constants::{PROTOCOL_VERSION_2_4, VENDOR_ID, };
+use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsCompose, RtpsParse, Endianness, RtpsSerdesResult, };
+
+use self::types::{SubmessageKind, SubmessageFlag, ProtocolId, };
+use self::types::constants::PROTOCOL_RTPS;
+
 pub mod types;
 mod ack_nack_submessage;
 mod data_frag_submessage;
@@ -12,15 +20,6 @@ mod info_timestamp_submessage;
 mod nack_frag_submessage;
 pub mod submessage_elements;
 
-use crate::primitive_types::UShort;
-use crate::types::{GuidPrefix, ProtocolVersion, VendorId, };
-use crate::types::constants::{PROTOCOL_VERSION_2_4, VENDOR_ID, };
-use self::types::{SubmessageKind, SubmessageFlag, ProtocolId, };
-use self::types::constants::PROTOCOL_RTPS;
-use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsCompose, RtpsParse, Endianness, RtpsSerdesResult, RtpsSerdesError, };
-
-
-
 pub use ack_nack_submessage::AckNack;
 // pub use data_frag_submessage::DataFrag;
 pub use data_submessage::Data;
@@ -33,29 +32,6 @@ pub use heartbeat_submessage::Heartbeat;
 // pub use info_source_submessage::InfoSrc;
 pub use info_timestamp_submessage::InfoTs;
 // pub use nack_frag_submessage::NackFrag;
-
-#[derive(Debug)]
-pub enum RtpsMessageError {
-    MessageTooSmall,
-    InvalidHeader,
-    RtpsMajorVersionUnsupported,
-    RtpsMinorVersionUnsupported,
-    InvalidSubmessageHeader,
-    InvalidSubmessage,
-    InvalidKeyAndDataFlagCombination,
-    IoError(std::io::Error),
-    SerdesError(RtpsSerdesError),
-    InvalidTypeConversion,
-    DeserializationMessageSizeTooSmall,
-}
-
-impl From<RtpsSerdesError> for RtpsMessageError {
-    fn from(error: RtpsSerdesError) -> Self {
-        RtpsMessageError::SerdesError(error)
-    }
-}
-
-pub type RtpsMessageResult<T> = std::result::Result<T, RtpsMessageError>;
 
 pub const RTPS_MAJOR_VERSION: u8 = 2;
 pub const RTPS_MINOR_VERSION: u8 = 4;
@@ -90,21 +66,21 @@ impl RtpsCompose for RtpsSubmessage {
 
 impl RtpsParse for RtpsSubmessage {
     fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> {
-        let submessage_id = SubmessageKind::deserialize(bytes, Endianness::LittleEndian /*irrelevant*/)?;
+        let submessage_id = SubmessageKind::deserialize(&[bytes[0]], Endianness::LittleEndian /*irrelevant*/)?;
         match submessage_id {
             SubmessageKind::Data => Ok( RtpsSubmessage::Data(Data::parse(bytes)?) ),
-            SubmessageKind::Pad => Err(RtpsSerdesError::InvalidSubmessageHeader),
-            SubmessageKind::AckNack => Err(RtpsSerdesError::InvalidSubmessageHeader),
+            SubmessageKind::Pad => todo!(),
+            SubmessageKind::AckNack => Ok( RtpsSubmessage::AckNack(AckNack::parse(bytes)?) ),
             SubmessageKind::Heartbeat => Ok( RtpsSubmessage::Heartbeat(Heartbeat::parse(bytes)?) ),
-            SubmessageKind::Gap => Err(RtpsSerdesError::InvalidSubmessageHeader),
+            SubmessageKind::Gap => Ok (RtpsSubmessage::Gap(Gap::parse(bytes)?) ),
             SubmessageKind::InfoTimestamp => Ok( RtpsSubmessage::InfoTs(InfoTs::parse(bytes)?) ),
-            SubmessageKind::InfoSource => Err(RtpsSerdesError::InvalidSubmessageHeader),
-            SubmessageKind::InfoReplyIP4 => Err(RtpsSerdesError::InvalidSubmessageHeader),
-            SubmessageKind::InfoDestination => Err(RtpsSerdesError::InvalidSubmessageHeader),
-            SubmessageKind::InfoReply => Err(RtpsSerdesError::InvalidSubmessageHeader),
-            SubmessageKind::NackFrag => Err(RtpsSerdesError::InvalidSubmessageHeader),
-            SubmessageKind::HeartbeatFrag => Err(RtpsSerdesError::InvalidSubmessageHeader),
-            SubmessageKind::DataFrag => Err(RtpsSerdesError::InvalidSubmessageHeader),
+            SubmessageKind::InfoSource => todo!(),
+            SubmessageKind::InfoReplyIP4 => todo!(),
+            SubmessageKind::InfoDestination => todo!(),
+            SubmessageKind::InfoReply => todo!(),
+            SubmessageKind::NackFrag => todo!(),
+            SubmessageKind::HeartbeatFrag => todo!(),
+            SubmessageKind::DataFrag => todo!(),
         }   
     }    
 }

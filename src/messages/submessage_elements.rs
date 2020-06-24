@@ -5,14 +5,14 @@
 
 use std::collections::BTreeSet;
 use std::io::Write;
-use crate::types::Locator;
-use crate::primitive_types::{Long, ULong, Short, };
-use crate::serdes::{RtpsSerialize, RtpsDeserialize, Endianness, RtpsSerdesResult};
-use crate::types::{SequenceNumber, };
-use super::types::{Pid, ParameterIdT, };
+
 use cdr::{LittleEndian, BigEndian, Infinite, };
 
+use crate::types::{SequenceNumber, Locator};
+use crate::primitive_types::{Long, ULong, Short, };
+use crate::serdes::{RtpsSerialize, RtpsDeserialize, Endianness, RtpsSerdesResult, SizeCheck};
 
+use super::types::{Pid, ParameterIdT, };
 
 //  /////////   The GuidPrefix, and EntityId
 // Same as in crate::types
@@ -93,6 +93,8 @@ impl RtpsSerialize for SequenceNumberSet {
 
 impl RtpsDeserialize for SequenceNumberSet {
     fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> {
+        bytes.check_size_bigger_equal_than(12)?;
+
         let base = SequenceNumber::deserialize(&bytes[0..8], endianness)?;
         let num_bits = ULong::deserialize(&bytes[8..12], endianness)? as usize;
 
@@ -104,7 +106,8 @@ impl RtpsDeserialize for SequenceNumberSet {
         let mut bitmaps = Vec::with_capacity(m);
         for i in 0..m {
             let index_of_byte_current_bitmap = 12 + i * 4;
-            bitmaps.push(Long::deserialize(&bytes[index_of_byte_current_bitmap..], endianness)?);
+            bytes.check_size_bigger_equal_than(index_of_byte_current_bitmap+4)?;
+            bitmaps.push(Long::deserialize(&bytes[index_of_byte_current_bitmap..index_of_byte_current_bitmap+4], endianness)?);
         };
         // Interpet the bitmaps and insert the sequence numbers if they are encode in the bitmaps
         let mut set = BTreeSet::new(); 
@@ -135,7 +138,7 @@ impl RtpsSerialize for FragmentNumber {
 
 impl RtpsDeserialize for FragmentNumber {
     fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> {
-        Ok(Self(ULong::deserialize(&bytes, endianness)?))
+        Ok(Self(ULong::deserialize(bytes, endianness)?))
     }    
 }
 
@@ -192,6 +195,7 @@ impl RtpsSerialize for FragmentNumberSet {
 }
 impl RtpsDeserialize for FragmentNumberSet {
     fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> {
+        bytes.check_size_bigger_equal_than(8)?;
         let base = FragmentNumber::deserialize(&bytes[0..4], endianness)?;
         let num_bits = ULong::deserialize(&bytes[4..8], endianness)? as usize;
 
@@ -203,7 +207,8 @@ impl RtpsDeserialize for FragmentNumberSet {
         let mut bitmaps = Vec::with_capacity(m);
         for i in 0..m {
             let index_of_byte_current_bitmap = 8 + i * 4;
-            bitmaps.push(Long::deserialize(&bytes[index_of_byte_current_bitmap..], endianness)?);
+            bytes.check_size_bigger_equal_than(index_of_byte_current_bitmap+4)?;
+            bitmaps.push(Long::deserialize(&bytes[index_of_byte_current_bitmap..index_of_byte_current_bitmap+4], endianness)?);
         };
         // Interpet the bitmaps and insert the sequence numbers if they are encode in the bitmaps
         let mut set = BTreeSet::new(); 
@@ -274,9 +279,11 @@ impl  RtpsSerialize for Parameter {
 
 impl RtpsDeserialize for Parameter {
     fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> {
+        bytes.check_size_bigger_equal_than(4)?;
         let parameter_id = ParameterIdT::deserialize(&bytes[0..2], endianness)?;
         let length = Short::deserialize(&bytes[2..4], endianness)?;
         let bytes_end = (length + 4) as usize;
+        bytes.check_size_bigger_equal_than(bytes_end)?;
         let value = Vec::from(&bytes[4..bytes_end]);
         Ok(Parameter {
             parameter_id, 
@@ -328,6 +335,7 @@ impl RtpsSerialize for ParameterList {
 
 impl RtpsDeserialize for ParameterList {
     fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> {
+        bytes.check_size_bigger_equal_than(2)?;
         let mut parameter_start_index: usize = 0;
         let mut parameters = Vec::<Parameter>::new();
         loop {
@@ -367,12 +375,14 @@ impl RtpsSerialize for LocatorList {
 
 impl RtpsDeserialize for LocatorList {
     fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> {
+        bytes.check_size_bigger_equal_than(4)?;
         let size = bytes.len();
         let num_locators = ULong::deserialize(&bytes[0..4], endianness)?;
         let mut locators = Vec::<Locator>::new();
         let mut index = 4;
         while index < size && locators.len() < num_locators as usize {
-            let locator = Locator::deserialize( &bytes[index..], endianness)?;
+            bytes.check_size_bigger_equal_than(index+24)?;
+            let locator = Locator::deserialize( &bytes[index..index+24], endianness)?;
             index += locator.octets();
             locators.push(locator);
         };

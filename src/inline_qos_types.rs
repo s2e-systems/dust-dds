@@ -5,7 +5,7 @@
  
 use std::convert::{TryInto, From};
 use serde::{Serialize, Deserialize};
-use crate::serdes::{RtpsSerialize, RtpsDeserialize, Endianness, RtpsSerdesResult, };
+use crate::serdes::{RtpsSerialize, RtpsDeserialize, Endianness, RtpsSerdesResult, SizeCheck};
 use crate::types::{ChangeKind, };
 use crate::messages::types::{Pid, ParameterIdT, };
 
@@ -75,6 +75,7 @@ impl RtpsSerialize for StatusInfo {
 
 impl RtpsDeserialize for StatusInfo {
     fn deserialize(bytes: &[u8], _endianness: Endianness) -> RtpsSerdesResult<Self> {
+        bytes.check_size_equal(3)?;
         Ok(StatusInfo(bytes[0..3].try_into()?))
     }
 }
