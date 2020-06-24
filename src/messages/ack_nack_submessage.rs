@@ -63,7 +63,11 @@ impl Submessage for AckNack {
             flags,
             submessage_length: submessage_length as UShort,
         }
-    }    
+    }
+
+    fn is_valid(&self) -> bool {
+        self.reader_sn_state.is_valid()
+    }
 }
 
 impl RtpsCompose for AckNack {

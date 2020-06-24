@@ -125,6 +125,8 @@ impl RtpsParse for SubmessageHeader {
 
 pub trait Submessage {
     fn submessage_header(&self) -> SubmessageHeader;
+
+    fn is_valid(&self) -> bool;
 }
 
 

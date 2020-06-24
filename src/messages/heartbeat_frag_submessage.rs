@@ -35,6 +35,15 @@ impl Submessage for HeartbeatFrag {
             submessage_length: octets_to_next_header as UShort,
         }
     }
+
+    fn is_valid(&self) -> bool {
+        if self.writer_sn <= SequenceNumber(0) ||
+        self.last_fragment_num <= FragmentNumber(0) {
+            false
+        } else {
+            true
+        }
+    }
 }
 
 impl RtpsCompose for HeartbeatFrag {

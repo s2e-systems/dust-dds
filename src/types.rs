@@ -11,9 +11,11 @@ use crate::inline_qos_types::StatusInfo;
 
 
 pub mod constants {
-    use super::{VendorId, EntityId, ProtocolVersion, EntityKey, EntityKind};
+    use super::{VendorId, EntityId, ProtocolVersion, EntityKey, EntityKind, SequenceNumber};
 
     pub const VENDOR_ID: VendorId = VendorId([99,99]);
+
+    pub const SEQUENCE_NUMBER_UNKNOWN : SequenceNumber = SequenceNumber(i64::MIN);
 
     pub const PROTOCOL_VERSION_2_1 : ProtocolVersion = ProtocolVersion{major: 2, minor: 1};
     pub const PROTOCOL_VERSION_2_2 : ProtocolVersion = ProtocolVersion{major: 2, minor: 2};
