@@ -1,7 +1,8 @@
 use crate::primitive_types::{Long, UShort, };
 use crate::types::{ProtocolVersion, VendorId, GuidPrefix, };
-use crate::messages::types::{SubmessageKind, SubmessageFlag, };
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, Endianness, RtpsSerdesResult, };
+
+use super::types::{SubmessageKind, SubmessageFlag, };
 use super::{SubmessageHeader, Submessage, };
 
 #[derive(PartialEq, Debug)]

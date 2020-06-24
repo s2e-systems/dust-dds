@@ -1,3 +1,11 @@
+use crate::primitive_types::UShort;
+use crate::types::{GuidPrefix, ProtocolVersion, VendorId, };
+use crate::types::constants::{PROTOCOL_VERSION_2_4, VENDOR_ID, };
+use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsCompose, RtpsParse, Endianness, RtpsSerdesResult, RtpsSerdesError, };
+
+use self::types::{SubmessageKind, SubmessageFlag, ProtocolId, };
+use self::types::constants::PROTOCOL_RTPS;
+
 pub mod types;
 mod ack_nack_submessage;
 mod data_frag_submessage;
@@ -11,15 +19,6 @@ mod info_source_submessage;
 mod info_timestamp_submessage;
 mod nack_frag_submessage;
 pub mod submessage_elements;
-
-use crate::primitive_types::UShort;
-use crate::types::{GuidPrefix, ProtocolVersion, VendorId, };
-use crate::types::constants::{PROTOCOL_VERSION_2_4, VENDOR_ID, };
-use self::types::{SubmessageKind, SubmessageFlag, ProtocolId, };
-use self::types::constants::PROTOCOL_RTPS;
-use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsCompose, RtpsParse, Endianness, RtpsSerdesResult, RtpsSerdesError, };
-
-
 
 pub use ack_nack_submessage::AckNack;
 // pub use data_frag_submessage::DataFrag;

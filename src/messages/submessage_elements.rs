@@ -5,14 +5,14 @@
 
 use std::collections::BTreeSet;
 use std::io::Write;
-use crate::types::Locator;
-use crate::primitive_types::{Long, ULong, Short, };
-use crate::serdes::{RtpsSerialize, RtpsDeserialize, Endianness, RtpsSerdesResult, SizeCheck};
-use crate::types::{SequenceNumber, };
-use super::types::{Pid, ParameterIdT, };
+
 use cdr::{LittleEndian, BigEndian, Infinite, };
 
+use crate::types::{SequenceNumber, Locator};
+use crate::primitive_types::{Long, ULong, Short, };
+use crate::serdes::{RtpsSerialize, RtpsDeserialize, Endianness, RtpsSerdesResult, SizeCheck};
 
+use super::types::{Pid, ParameterIdT, };
 
 //  /////////   The GuidPrefix, and EntityId
 // Same as in crate::types

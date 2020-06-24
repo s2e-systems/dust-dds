@@ -2,12 +2,13 @@
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
 /// Table 8.13 - Types used to define RTPS messages
 ///  
- 
-use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsSerdesResult, RtpsSerdesError, Endianness, SizeCheck };
+use std::time::SystemTime;
+use std::convert::TryInto; 
+
 use num_derive::{FromPrimitive, ToPrimitive, };
 use num_traits::{FromPrimitive, };
-use std::time::SystemTime;
-use std::convert::TryInto;
+
+use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsSerdesResult, RtpsSerdesError, Endianness, SizeCheck };
 use crate::primitive_types::{UShort, Long, ULong, };
 
 pub mod constants {
