@@ -226,6 +226,11 @@ impl RtpsDeserialize for FragmentNumberSet {
 
 
 //  /////////// ParameterList ///////////
+pub trait ParameterOps{
+    fn parameter_id(&self) -> ParameterIdT;
+    fn length(&self) -> Short;
+    fn value(&self) -> Vec<u8>;
+}
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Parameter {
@@ -257,6 +262,20 @@ impl Parameter {
             Endianness::LittleEndian => cdr::de::deserialize_data::<T, LittleEndian>(&self.value).unwrap(),
             Endianness::BigEndian => cdr::de::deserialize_data::<T, BigEndian>(&self.value).unwrap(),
         }
+    }
+}
+
+impl ParameterOps for Parameter {
+    fn parameter_id(&self) -> ParameterIdT {
+        self.parameter_id
+    }
+
+    fn length(&self) -> Short {
+        self.length
+    }
+
+    fn value(&self) -> Vec<u8> {
+        self.value.clone()
     }
 }
 
