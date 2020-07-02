@@ -88,8 +88,8 @@ impl RtpsSerialize for StatusInfo {
 
 impl RtpsDeserialize for StatusInfo {
     fn deserialize(bytes: &[u8], _endianness: Endianness) -> RtpsSerdesResult<Self> {
-        bytes.check_size_bigger_equal_than(3)?;
-        Ok(StatusInfo(bytes[0..3].try_into()?))
+        bytes.check_size_bigger_equal_than(4)?;
+        Ok(StatusInfo(bytes[0..4].try_into()?))
     }
 }
 
