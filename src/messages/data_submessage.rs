@@ -6,9 +6,9 @@ use crate::types::constants::SEQUENCE_NUMBER_UNKNOWN;
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, Endianness, RtpsSerdesResult, };
 use crate::serialized_payload::SerializedPayload;
 
-use super::types::{SubmessageKind, SubmessageFlag, };
+use super::types::{SubmessageKind, SubmessageFlag,  };
 use super::{SubmessageHeader, Submessage, };
-use super::submessage_elements::ParameterList;
+use super::submessage_elements::{ParameterList, ParameterOps, Parameter};
 
 #[derive(PartialEq, Debug)]
 pub struct Data {
@@ -41,7 +41,7 @@ impl Data {
         reader_id: EntityId,
         writer_id: EntityId,
         writer_sn: SequenceNumber,
-        inline_qos: Option<ParameterList>,
+        inline_qos: Option<&[&dyn ParameterOps]>,
         payload: Payload,) -> Self {
             let inline_qos_flag = inline_qos.is_some();
             let mut data_flag = false;
@@ -54,18 +54,23 @@ impl Data {
                 Payload::None => {None}
             };
 
-            Data {
-                endianness_flag: endianness_flag.into(),
-                inline_qos_flag,
-                data_flag,
-                key_flag,
-                non_standard_payload_flag,
-                reader_id,
-                writer_id,
-                writer_sn,
-                inline_qos, 
-                serialized_payload, 
-            }
+        let inline_qos = match inline_qos {
+            Some(params) => Some(ParameterList::new(params.iter().map(|&p| Parameter::new_raw(p.parameter_id(), p.value())).collect())),
+            None => None,
+        };
+
+        Data {
+            endianness_flag: endianness_flag.into(),
+            inline_qos_flag,
+            data_flag,
+            key_flag,
+            non_standard_payload_flag,
+            reader_id,
+            writer_id,
+            writer_sn,
+            inline_qos, 
+            serialized_payload, 
+        }
     }
 
     pub fn reader_id(&self) -> &EntityId {
@@ -239,7 +244,7 @@ mod tests {
             ENTITYID_UNKNOWN, 
             ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, 
             SequenceNumber(1), 
-            Some(ParameterList::new(vec![])),
+            Some(&[]),
             Payload::Data(SerializedPayload(vec![]))
         );
         assert_eq!(data.endianness_flag, true);

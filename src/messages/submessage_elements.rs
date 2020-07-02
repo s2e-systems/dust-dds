@@ -226,6 +226,7 @@ impl RtpsDeserialize for FragmentNumberSet {
 
 
 //  /////////// ParameterList ///////////
+
 pub trait ParameterOps{
     fn parameter_id(&self) -> ParameterIdT;
     fn length(&self) -> Short;
@@ -252,6 +253,16 @@ impl Parameter {
             parameter_id, 
             length,
             value
+        }
+    }
+
+    pub fn new_raw(parameter_id: ParameterIdT, value: Vec<u8>) -> Self {
+        let length = value.len() as Short;
+
+        Self {
+            parameter_id,
+            length,
+            value,
         }
     }
 

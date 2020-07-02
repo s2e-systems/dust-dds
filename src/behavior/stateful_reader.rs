@@ -126,7 +126,7 @@ mod tests {
         ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, };
     use crate::cache::CacheChange;
     use crate::messages::{Data, Payload, Heartbeat};
-    use crate::messages::submessage_elements::{Parameter, ParameterList};
+    use crate::messages::submessage_elements::{Parameter, ParameterOps};
     use crate::serdes::Endianness;
     use crate::serialized_payload::SerializedPayload;
     use crate::inline_qos_types::{KeyHash, StatusInfo, };
@@ -138,16 +138,18 @@ mod tests {
         let mut writer_proxy = WriterProxy::new(remote_writer_guid, vec![], vec![]);
 
         let mut submessages = Vec::new();
-        let inline_qos_parameters = vec![
+        let inline_qos = vec![
             Parameter::new(StatusInfo::from(ChangeKind::Alive), Endianness::LittleEndian),
             Parameter::new(KeyHash([1;16]), Endianness::LittleEndian)];
+        
+        let inline_qos_parameters: Vec<&dyn ParameterOps> = inline_qos.iter().map(|x| x as &dyn ParameterOps).collect();
 
         let data1 = Data::new(
             Endianness::LittleEndian, 
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, 
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER, 
             SequenceNumber(3),
-            Some(ParameterList::new(inline_qos_parameters)),
+            Some(&inline_qos_parameters),
             Payload::Data(SerializedPayload(vec![1,2,3])));
         submessages.push(RtpsSubmessage::Data(data1));
 
@@ -181,16 +183,19 @@ mod tests {
         let mut writer_proxy = WriterProxy::new(remote_writer_guid, vec![], vec![]);
 
         let mut submessages = Vec::new();
-        let inline_qos_parameters = vec![
+        let inline_qos = vec![
             Parameter::new(StatusInfo::from(ChangeKind::Alive), Endianness::LittleEndian),
             Parameter::new(KeyHash([1;16]), Endianness::LittleEndian)];
+
+        
+        let inline_qos_parameters: Vec<&dyn ParameterOps> = inline_qos.iter().map(|x| x as &dyn ParameterOps).collect();
 
         let data1 = Data::new(
             Endianness::LittleEndian, 
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, 
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER, 
             SequenceNumber(3),
-            Some(ParameterList::new(inline_qos_parameters)),
+            Some(&inline_qos_parameters),
             Payload::Data(SerializedPayload(vec![1,2,3])));
         submessages.push(RtpsSubmessage::Data(data1));
 
