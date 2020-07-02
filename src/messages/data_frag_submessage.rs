@@ -166,7 +166,7 @@ mod tests{
     fn parse_data_frag_submessage() {
         let endianness = Endianness::LittleEndian;
         let key_hash = KeyHash([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]);
-        let inline_qos = ParameterList::new(vec![Parameter::new(key_hash, endianness)]);
+        let inline_qos = ParameterList::new(vec![Parameter::new(&key_hash, endianness)]);
         
         let expected = DataFrag {
             endianness_flag: endianness.into(),
@@ -210,7 +210,7 @@ mod tests{
     fn compose_data_frag_submessage() {
         let endianness = Endianness::LittleEndian;
         let key_hash = KeyHash([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]);
-        let inline_qos = ParameterList::new(vec![Parameter::new(key_hash, endianness)]);
+        let inline_qos = ParameterList::new(vec![Parameter::new(&key_hash, endianness)]);
 
         let message = DataFrag {
             endianness_flag: Endianness::LittleEndian.into(),

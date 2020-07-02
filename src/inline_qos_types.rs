@@ -4,13 +4,12 @@
 ///  
  
 use std::convert::{TryInto, From};
-use serde::{Serialize, Deserialize};
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, Endianness, RtpsSerdesResult, SizeCheck};
 use crate::types::{ChangeKind, };
 use crate::messages::types::{Pid, ParameterIdT, };
 
 
-#[derive(Debug, PartialEq, Clone, Eq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Clone, Eq)]
 pub struct TopicName(pub Vec<u8>);
 impl Pid for TopicName {
     fn pid() -> ParameterIdT {
@@ -18,7 +17,7 @@ impl Pid for TopicName {
     }
 }
 
-#[derive(Debug, PartialEq, Clone, Copy, Eq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Clone, Copy, Eq)]
 pub struct KeyHash(pub [u8; 16]);
 
 impl Pid for KeyHash {
@@ -27,8 +26,22 @@ impl Pid for KeyHash {
     }
 }
 
+impl RtpsSerialize for KeyHash {
+    fn serialize(&self, writer: &mut impl std::io::Write, _endianness: Endianness) -> RtpsSerdesResult<()> {
+        writer.write(&self.0)?;
+        Ok(())
+    }
+}
 
-#[derive(Debug, PartialEq, Clone, Copy, Eq, Serialize, Deserialize)]
+impl RtpsDeserialize for KeyHash {
+    fn deserialize(bytes: &[u8], _endianness: Endianness) -> RtpsSerdesResult<Self> {
+        bytes.check_size_bigger_equal_than(16)?;
+        Ok(KeyHash(bytes[0..16].try_into()?))
+    }
+}
+
+
+#[derive(Debug, PartialEq, Clone, Copy, Eq)]
 pub struct StatusInfo(pub [u8;4]);
 
 impl StatusInfo {
@@ -75,7 +88,7 @@ impl RtpsSerialize for StatusInfo {
 
 impl RtpsDeserialize for StatusInfo {
     fn deserialize(bytes: &[u8], _endianness: Endianness) -> RtpsSerdesResult<Self> {
-        bytes.check_size_equal(3)?;
+        bytes.check_size_bigger_equal_than(3)?;
         Ok(StatusInfo(bytes[0..3].try_into()?))
     }
 }

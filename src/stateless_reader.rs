@@ -82,15 +82,14 @@ mod tests {
 
     #[test]
     fn best_effort_stateless_reader_run() {
-        let inline_qos = vec![Parameter::new(KeyHash([1;16]), Endianness::LittleEndian)];
-        let inline_qos_parameters: Vec<&dyn ParameterOps> = inline_qos.iter().map(|x| x as &dyn ParameterOps).collect();
+        let key_hash = KeyHash([1;16]);
 
         let data1 = Data::new(
             Endianness::LittleEndian,
             ENTITYID_UNKNOWN,
             ENTITYID_UNKNOWN,
             SequenceNumber(1),
-            Some(&inline_qos_parameters),
+            Some(&[&key_hash]),
             Payload::Data(SerializedPayload(vec![0,1,2])),
         );
 

@@ -6,8 +6,6 @@
 use std::collections::BTreeSet;
 use std::io::Write;
 
-use cdr::{LittleEndian, BigEndian, Infinite, };
-
 use crate::types::{SequenceNumber, Locator};
 use crate::primitive_types::{Long, ULong, Short, };
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, Endianness, RtpsSerdesResult, SizeCheck};
@@ -227,7 +225,7 @@ impl RtpsDeserialize for FragmentNumberSet {
 
 //  /////////// ParameterList ///////////
 
-pub trait ParameterOps{
+pub trait ParameterOps {
     fn parameter_id(&self) -> ParameterIdT;
     fn length(&self) -> Short;
     fn value(&self, endianness: Endianness) -> Vec<u8>;
@@ -241,52 +239,18 @@ pub struct Parameter {
 }
 
 impl Parameter {
-    pub fn new<T: Pid + serde::Serialize>(parameter: T, endianness: Endianness) -> Self {
-        let value = match endianness {
-            Endianness::LittleEndian => cdr::ser::serialize_data::<_,_,LittleEndian>(&parameter, Infinite).unwrap(), 
-            Endianness::BigEndian => cdr::ser::serialize_data::<_,_,BigEndian>(&parameter, Infinite).unwrap(), 
-        };
-        let parameter_id = T::pid();
-        // rounded up to multple of 4 (that is besides the length of the value may not be a multiple of 4)
-        let length = (value.len() + 3 & !3) as Short;
-        Parameter {
-            parameter_id, 
-            length,
-            value
-        }
-    }
-
-    pub fn new_raw(parameter_id: ParameterIdT, value: Vec<u8>) -> Self {
-        let length = value.len() as Short;
-
+    pub fn new(input: &(impl ParameterOps + ?Sized) , endianness: Endianness) -> Self {
         Self {
-            parameter_id,
-            length,
-            value,
+            parameter_id: input.parameter_id(),
+            length: input.length(),
+            value: input.value(endianness),
         }
     }
 
-    pub fn get<'de, T>(&self, endianness: Endianness) -> T 
-        where T: serde::Deserialize<'de>
+    pub fn get<T>(&self, endianness: Endianness) -> T 
+        where T: RtpsDeserialize
     {
-        match endianness {
-            Endianness::LittleEndian => cdr::de::deserialize_data::<T, LittleEndian>(&self.value).unwrap(),
-            Endianness::BigEndian => cdr::de::deserialize_data::<T, BigEndian>(&self.value).unwrap(),
-        }
-    }
-}
-
-impl ParameterOps for Parameter {
-    fn parameter_id(&self) -> ParameterIdT {
-        self.parameter_id
-    }
-
-    fn length(&self) -> Short {
-        self.length
-    }
-
-    fn value(&self, _endianness: Endianness) -> Vec<u8> {
-        self.value.clone()
+        T::deserialize(&self.value, endianness).unwrap()
     }
 }
 
@@ -307,7 +271,6 @@ impl<T> ParameterOps for T
         self.serialize(&mut writer, endianness).unwrap();
         writer
     }
-
 }
 
 impl  RtpsSerialize for Parameter {
@@ -359,8 +322,8 @@ impl ParameterList {
         &self.parameter
     }
 
-    pub fn find<'de, T>(&self, endianness: Endianness) -> Option<T>
-        where T: Pid + serde::Deserialize<'de>
+    pub fn find<T>(&self, endianness: Endianness) -> Option<T>
+        where T: Pid + RtpsDeserialize
     {
         let parameter = self.parameter.iter().find(|&x| x.parameter_id == T::pid())?;
         Some(parameter.get::<T>(endianness))
@@ -463,8 +426,8 @@ impl RtpsDeserialize for LocatorList {
 mod tests {
     use super::*;
     use super::super::types::ParameterIdT;
-    use serde::{Serialize, Deserialize, };
     use crate::inline_qos_types::{StatusInfo, KeyHash, };
+    use std::convert::TryInto;
 
     // /////////////////////// SequenceNumberSet Tests ////////////////////////
 
@@ -768,45 +731,121 @@ mod tests {
 
     // /////////////////////// ParameterList Tests ////////////////////////
     
-    #[derive(Debug, PartialEq, Serialize, Deserialize)]
+    #[derive(Debug, PartialEq)]
     pub struct VendorTest0(pub [u8; 0]);
     impl Pid for VendorTest0 {
         fn pid() -> ParameterIdT { ParameterIdT::VendorTest0}
     }
+
+    impl RtpsSerialize for VendorTest0 {
+        fn serialize(&self, writer: &mut impl std::io::Write, endianness: Endianness) -> RtpsSerdesResult<()> {
+            writer.write(&self.0)?;
+            Ok(())
+        }
+    }
+
+    impl RtpsDeserialize for VendorTest0 {
+        fn deserialize(bytes: &[u8], _endianness: Endianness) -> RtpsSerdesResult<Self> {
+            bytes.check_size_bigger_equal_than(0)?;
+            Ok(VendorTest0(bytes[0..0].try_into()?))
+        }
+    }
     
-    #[derive(Debug, PartialEq, Serialize, Deserialize)]
+    #[derive(Debug, PartialEq)]
     pub struct VendorTest1(pub [u8; 1]);
     impl Pid for VendorTest1 {
         fn pid() -> ParameterIdT { ParameterIdT::VendorTest1}
     }
+
+    impl RtpsSerialize for VendorTest1 {
+        fn serialize(&self, writer: &mut impl std::io::Write, endianness: Endianness) -> RtpsSerdesResult<()> {
+            writer.write(&self.0)?;
+            Ok(())
+        }
+    }
+
+    impl RtpsDeserialize for VendorTest1 {
+        fn deserialize(bytes: &[u8], _endianness: Endianness) -> RtpsSerdesResult<Self> {
+            bytes.check_size_bigger_equal_than(1)?;
+            Ok(VendorTest1(bytes[0..1].try_into()?))
+        }
+    }
     
-    #[derive(Debug, PartialEq, Serialize, Deserialize)]
+    #[derive(Debug, PartialEq)]
     pub struct VendorTest3(pub [u8; 3]);
     impl Pid for VendorTest3 {
         fn pid() -> ParameterIdT { ParameterIdT::VendorTest3}
     }
+
+    impl RtpsSerialize for VendorTest3 {
+        fn serialize(&self, writer: &mut impl std::io::Write, endianness: Endianness) -> RtpsSerdesResult<()> {
+            writer.write(&self.0)?;
+            Ok(())
+        }
+    }
+
+    impl RtpsDeserialize for VendorTest3 {
+        fn deserialize(bytes: &[u8], _endianness: Endianness) -> RtpsSerdesResult<Self> {
+            bytes.check_size_bigger_equal_than(3)?;
+            Ok(VendorTest3(bytes[0..3].try_into()?))
+        }
+    }
     
-    #[derive(Debug, PartialEq, Serialize, Deserialize)]
+    #[derive(Debug, PartialEq)]
     pub struct VendorTest4(pub [u8; 4]);
     impl Pid for VendorTest4 {
         fn pid() -> ParameterIdT { ParameterIdT::VendorTest4}
     }
+
+    impl RtpsSerialize for VendorTest4 {
+        fn serialize(&self, writer: &mut impl std::io::Write, endianness: Endianness) -> RtpsSerdesResult<()> {
+            writer.write(&self.0)?;
+            Ok(())
+        }
+    }
     
-    #[derive(Debug, PartialEq, Serialize, Deserialize)]
+    #[derive(Debug, PartialEq)]
     pub struct VendorTest5(pub [u8; 5]);
     impl Pid for VendorTest5 {
         fn pid() -> ParameterIdT { ParameterIdT::VendorTest5}
     }
 
-    #[derive(Debug, PartialEq, Serialize, Deserialize)]
+    impl RtpsSerialize for VendorTest5 {
+        fn serialize(&self, writer: &mut impl std::io::Write, endianness: Endianness) -> RtpsSerdesResult<()> {
+            writer.write(&self.0)?;
+            Ok(())
+        }
+    }
+
+    impl RtpsDeserialize for VendorTest5 {
+        fn deserialize(bytes: &[u8], _endianness: Endianness) -> RtpsSerdesResult<Self> {
+            bytes.check_size_bigger_equal_than(5)?;
+            Ok(VendorTest5(bytes[0..5].try_into()?))
+        }
+    }
+
+    #[derive(Debug, PartialEq)]
     pub struct VendorTestShort(pub i16);
     impl Pid for VendorTestShort {
         fn pid() -> ParameterIdT { ParameterIdT::VendorTestShort}
     }
 
+    impl RtpsSerialize for VendorTestShort {
+        fn serialize(&self, writer: &mut impl std::io::Write, endianness: Endianness) -> RtpsSerdesResult<()> {
+            self.0.serialize(writer, endianness)
+        }
+    }
+
+    impl RtpsDeserialize for VendorTestShort {
+        fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> {
+            bytes.check_size_bigger_equal_than(2)?;
+            Ok(VendorTestShort(Short::deserialize(&bytes[0..2], endianness)?))
+        }
+    }
+
     #[test]
     fn serialize_parameter() {
-        let parameter = Parameter::new(VendorTest3([1, 2, 3]), Endianness::LittleEndian);
+        let parameter = Parameter::new(&VendorTest3([1, 2, 3]), Endianness::LittleEndian);
     
         let expected = vec![
             0x03, 0x80, 4, 0, //ParameterID, length
@@ -837,7 +876,7 @@ mod tests {
             0x71, 0x0, 4, 0, 
             1, 2, 3, 4,
         ];
-        let expected = Parameter::new(StatusInfo([1, 2, 3, 4]), endianness);
+        let expected = Parameter::new(&StatusInfo([1, 2, 3, 4]), endianness);
         let result = Parameter::deserialize(&bytes, endianness).unwrap();   
         assert_eq!(expected, result);
     }    
@@ -845,17 +884,17 @@ mod tests {
     #[test]
     fn test_parameter_round_up_to_multiples_of_four() {
         let e= Endianness::LittleEndian;
-        assert_eq!(0, Parameter::new(VendorTest0([]), e).length);
-        assert_eq!(4, Parameter::new(VendorTest1([b'X']), e).length);
-        assert_eq!(4, Parameter::new(VendorTest3([b'X'; 3]), e).length);
-        assert_eq!(4, Parameter::new(VendorTest4([b'X'; 4]), e).length);
-        assert_eq!(8, Parameter::new(VendorTest5([b'X'; 5]), e).length);
+        assert_eq!(0, Parameter::new(&VendorTest0([]), e).length);
+        assert_eq!(4, Parameter::new(&VendorTest1([b'X']), e).length);
+        assert_eq!(4, Parameter::new(&VendorTest3([b'X'; 3]), e).length);
+        assert_eq!(4, Parameter::new(&VendorTest4([b'X'; 4]), e).length);
+        assert_eq!(8, Parameter::new(&VendorTest5([b'X'; 5]), e).length);
     }
 
     #[test]
     fn serialize_parameter_short() {
         let endianness = Endianness::LittleEndian;
-        let parameter = Parameter::new(VendorTestShort(-1000), endianness);
+        let parameter = Parameter::new(&VendorTestShort(-1000), endianness);
         let expected = vec![
             0x06, 0x80, 4, 0, 
             0x18, 0xFC, 0, 0,
@@ -865,7 +904,7 @@ mod tests {
         assert_eq!(expected, writer);
 
         let endianness = Endianness::BigEndian;
-        let parameter = Parameter::new(VendorTestShort(-1000), endianness);
+        let parameter = Parameter::new(&VendorTestShort(-1000), endianness);
         let expected = vec![
             0x80, 0x06, 0, 4, 
             0xFC, 0x18, 0, 0,
@@ -902,7 +941,7 @@ mod tests {
     fn parameter_serialize_little_endian() {
         let endianness = Endianness::LittleEndian;
         
-        let parameter = Parameter::new(VendorTest3([1, 2, 3]), Endianness::LittleEndian);
+        let parameter = Parameter::new(&VendorTest3([1, 2, 3]), Endianness::LittleEndian);
         let expected_bytes = vec![
             0x03, 0x80, 4, 0, 
             1, 2, 3, 0,
@@ -914,7 +953,7 @@ mod tests {
         assert_eq!(expected_bytes, result_bytes);
         assert_eq!(expected_octets, result_octets);
     
-        let parameter = Parameter::new(VendorTest0([]), Endianness::LittleEndian);
+        let parameter = Parameter::new(&VendorTest0([]), Endianness::LittleEndian);
         let expected_bytes = vec![0x00, 0x80, 0, 0, ];
         let expected_octets = expected_bytes.len();
         let mut result_bytes = Vec::new();
@@ -923,7 +962,7 @@ mod tests {
         assert_eq!(expected_bytes, result_bytes);
         assert_eq!(expected_octets, result_octets);
     
-        let parameter = Parameter::new(VendorTest4([1,2,3,4]), Endianness::LittleEndian);
+        let parameter = Parameter::new(&VendorTest4([1,2,3,4]), Endianness::LittleEndian);
         let expected_bytes = vec![
             0x04, 0x80, 4, 0, 
             1, 2, 3, 4,
@@ -935,7 +974,7 @@ mod tests {
         assert_eq!(expected_bytes, result_bytes);
         assert_eq!(expected_octets, result_octets);
     
-        let parameter = Parameter::new(VendorTest5([1,2,3,4,5]), Endianness::LittleEndian);
+        let parameter = Parameter::new(&VendorTest5([1,2,3,4,5]), Endianness::LittleEndian);
         let expected_bytes = vec![
             0x05, 0x80, 8, 0, 
             1, 2, 3, 4,
@@ -954,8 +993,8 @@ mod tests {
         let endianness = Endianness::LittleEndian;
         let expected = KeyHash([9; 16]);
         let parameter_list = ParameterList{parameter: vec![
-            Parameter::new(expected, endianness),
-            Parameter::new(StatusInfo([8; 4]), endianness),
+            Parameter::new(&expected, endianness),
+            Parameter::new(&StatusInfo([8; 4]), endianness),
         ]};
         let result = parameter_list.find::<KeyHash>(endianness).unwrap();
         assert_eq!(expected, result);
@@ -993,8 +1032,8 @@ mod tests {
         let key_hash = KeyHash([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
         let status_info = StatusInfo([101, 102, 103, 104]);
         let parameter_list = ParameterList{parameter: vec![
-            Parameter::new(key_hash, endianness), 
-            Parameter::new(status_info, endianness),
+            Parameter::new(&key_hash, endianness), 
+            Parameter::new(&status_info, endianness),
         ]};
     
         let mut writer = Vec::new();
@@ -1021,8 +1060,8 @@ mod tests {
         let status_info = StatusInfo([101, 102, 103, 104]);
     
         let expected = ParameterList{parameter: vec![
-            Parameter::new(key_hash, endianness), 
-            Parameter::new(status_info, endianness),
+            Parameter::new(&key_hash, endianness), 
+            Parameter::new(&status_info, endianness),
         ]};
         let bytes = vec![
             0x70, 0x00, 16, 0, //ParameterID, length

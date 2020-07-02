@@ -9,7 +9,6 @@ use std::convert::{TryFrom, TryInto};
 use crate::types::{GUID, GuidPrefix, EntityId, ChangeKind};
 use crate::cache::CacheChange;
 use crate::messages::{Data, Payload};
-use crate::messages::submessage_elements::{Parameter, ParameterOps};
 use crate::inline_qos_types::{KeyHash, StatusInfo};
 use crate::serdes::Endianness;
 use crate::serialized_payload::SerializedPayload;
@@ -38,34 +37,41 @@ fn data_from_cache_change(cache_change: &CacheChange, endianness: Endianness, re
     let writer_sn = *cache_change.sequence_number();
 
     let change_kind = *cache_change.change_kind();
-    
-    let mut parameter = Vec::new();
-    parameter.push(Parameter::new(StatusInfo::from(change_kind), endianness));
+    let status_info = StatusInfo::from(change_kind);
 
-    let payload = match change_kind {
+    // TODO: Bring inline_qos of cache change to the data message
+    // if let Some(inline_qos) = cache_change.inline_qos() {
+    //     parameter.extend(inline_qos.parameter().to_vec());
+    // };
+
+    // let inline_qos_parameters: Vec<&dyn ParameterOps> = parameter.iter().map(|x| x as &dyn ParameterOps).collect();
+
+    match change_kind {
         ChangeKind::Alive => {
-            parameter.push(Parameter::new(KeyHash(*cache_change.instance_handle()), endianness));
-            Payload::Data(SerializedPayload(cache_change.data_value().unwrap().to_vec()))
+            let key_hash = KeyHash(*cache_change.instance_handle());
+            let payload = Payload::Data(SerializedPayload(cache_change.data_value().unwrap().to_vec()));
+
+            Data::new(
+                endianness,
+                reader_id,
+                writer_id,
+                writer_sn,
+                Some(&[&status_info, &key_hash]),
+                payload,
+            )
         },
         ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered | ChangeKind::AliveFiltered => {
-            Payload::Key(SerializedPayload(cache_change.instance_handle().to_vec()))
+            let payload = Payload::Key(SerializedPayload(cache_change.instance_handle().to_vec()));
+            Data::new(
+                endianness,
+                reader_id,
+                writer_id,
+                writer_sn,
+                Some(&[&status_info]),
+                payload,
+            )
         }
-    };
-
-    if let Some(inline_qos) = cache_change.inline_qos() {
-        parameter.extend(inline_qos.parameter().to_vec());
-    };
-
-    let inline_qos_parameters: Vec<&dyn ParameterOps> = parameter.iter().map(|x| x as &dyn ParameterOps).collect();
-
-    Data::new(
-        endianness,
-        reader_id,
-        writer_id,
-        writer_sn,
-        Some(&inline_qos_parameters),
-        payload,
-    )
+    }
 }
 
 fn change_kind(data_submessage: &Data) -> ChangeKind{
