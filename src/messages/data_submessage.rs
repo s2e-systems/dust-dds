@@ -55,7 +55,7 @@ impl Data {
             };
 
         let inline_qos = match inline_qos {
-            Some(params) => Some(ParameterList::new(params.iter().map(|&p| Parameter::new_raw(p.parameter_id(), p.value())).collect())),
+            Some(params) => Some(ParameterList::new(params.iter().map(|&p| Parameter::new_raw(p.parameter_id(), p.value(endianness_flag))).collect())),
             None => None,
         };
 

@@ -230,7 +230,7 @@ impl RtpsDeserialize for FragmentNumberSet {
 pub trait ParameterOps{
     fn parameter_id(&self) -> ParameterIdT;
     fn length(&self) -> Short;
-    fn value(&self) -> Vec<u8>;
+    fn value(&self, endianness: Endianness) -> Vec<u8>;
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -285,9 +285,29 @@ impl ParameterOps for Parameter {
         self.length
     }
 
-    fn value(&self) -> Vec<u8> {
+    fn value(&self, _endianness: Endianness) -> Vec<u8> {
         self.value.clone()
     }
+}
+
+impl<T> ParameterOps for T
+    where T: Pid + RtpsSerialize
+{
+    fn parameter_id(&self) -> ParameterIdT {
+        T::pid()
+    }
+
+    fn length(&self) -> Short {
+        // rounded up to multple of 4 (that is besides the length of the value may not be a multiple of 4)
+        (self.octets() + 3 & !3) as Short
+    }
+
+    fn value(&self, endianness: Endianness) -> Vec<u8> {
+        let mut writer = Vec::new();
+        self.serialize(&mut writer, endianness).unwrap();
+        writer
+    }
+
 }
 
 impl  RtpsSerialize for Parameter {
