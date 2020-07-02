@@ -738,7 +738,7 @@ mod tests {
     }
 
     impl RtpsSerialize for VendorTest0 {
-        fn serialize(&self, writer: &mut impl std::io::Write, endianness: Endianness) -> RtpsSerdesResult<()> {
+        fn serialize(&self, writer: &mut impl std::io::Write, _endianness: Endianness) -> RtpsSerdesResult<()> {
             writer.write(&self.0)?;
             Ok(())
         }
@@ -758,7 +758,7 @@ mod tests {
     }
 
     impl RtpsSerialize for VendorTest1 {
-        fn serialize(&self, writer: &mut impl std::io::Write, endianness: Endianness) -> RtpsSerdesResult<()> {
+        fn serialize(&self, writer: &mut impl std::io::Write, _endianness: Endianness) -> RtpsSerdesResult<()> {
             writer.write(&self.0)?;
             Ok(())
         }
@@ -778,7 +778,7 @@ mod tests {
     }
 
     impl RtpsSerialize for VendorTest3 {
-        fn serialize(&self, writer: &mut impl std::io::Write, endianness: Endianness) -> RtpsSerdesResult<()> {
+        fn serialize(&self, writer: &mut impl std::io::Write, _endianness: Endianness) -> RtpsSerdesResult<()> {
             writer.write(&self.0)?;
             Ok(())
         }
@@ -798,7 +798,7 @@ mod tests {
     }
 
     impl RtpsSerialize for VendorTest4 {
-        fn serialize(&self, writer: &mut impl std::io::Write, endianness: Endianness) -> RtpsSerdesResult<()> {
+        fn serialize(&self, writer: &mut impl std::io::Write, _endianness: Endianness) -> RtpsSerdesResult<()> {
             writer.write(&self.0)?;
             Ok(())
         }
@@ -811,7 +811,7 @@ mod tests {
     }
 
     impl RtpsSerialize for VendorTest5 {
-        fn serialize(&self, writer: &mut impl std::io::Write, endianness: Endianness) -> RtpsSerdesResult<()> {
+        fn serialize(&self, writer: &mut impl std::io::Write, _endianness: Endianness) -> RtpsSerdesResult<()> {
             writer.write(&self.0)?;
             Ok(())
         }

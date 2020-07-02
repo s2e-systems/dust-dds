@@ -75,7 +75,6 @@ mod tests {
     use crate::types::*;
     use crate::types::constants::*;
     use crate::serialized_payload::SerializedPayload;
-    use crate::messages::submessage_elements::{Parameter, ParameterOps};
     use crate::messages::{Data, Payload, RtpsSubmessage };
     use crate::serdes::Endianness;
     use crate::inline_qos_types::{KeyHash};
