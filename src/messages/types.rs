@@ -5,11 +5,10 @@
 use std::time::SystemTime;
 use std::convert::TryInto; 
 
-use num_derive::{FromPrimitive, ToPrimitive, };
-use num_traits::{FromPrimitive, };
+use num_derive::{FromPrimitive, };
 
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsSerdesResult, RtpsSerdesError, Endianness, SizeCheck };
-use crate::primitive_types::{UShort, Long, ULong, };
+use crate::primitive_types::{Short, Long, ULong, };
 
 pub mod constants {
     use super::Time;
@@ -36,7 +35,7 @@ pub mod constants {
 
 
 pub trait Pid {
-    fn pid() -> ParameterIdT;
+    fn pid() -> ParameterId;
 }
 
 
@@ -207,65 +206,13 @@ impl RtpsDeserialize for Count {
 
 // /////////// ParameterId_t /////////
 
-#[derive(Debug, PartialEq, FromPrimitive, ToPrimitive, Eq, Clone, Copy)]
-#[repr(u16)]
-pub enum ParameterIdT {
-    TopicName = 0x0005,
-    Durability = 0x001d,
-    Presentation = 0x0021,
-    Deadline = 0x0023,
-    LatencyBudget = 0x0027,
-    Ownership = 0x001f,
-    OwnershipStrength = 0x0006,
-    Liveliness = 0x001b,
-    Partition = 0x0029,
-    Reliability = 0x001a,
-    TransportPriority = 0x0049,
-    Lifespan = 0x002b,
-    DestinationOrder = 0x0025,
-    ContentFilterInfo = 0x0055,
-    CoherentSet = 0x0056,
-    DirectedWrite = 0x0057,
-    OriginalWriterInfo = 0x0061,
-    GroupCoherentSet = 0x0063,
-    GroupSeqNum = 0x0064,
-    WriterGroupInfo = 0x0065,
-    SecureWriterGroupInfo = 0x0066,
-    KeyHash = 0x0070,
-    StatusInfo = 0x0071,
-    Sentinel = 0x0001,
-    VendorTest0 = 0x0000 | 0x8000,
-    VendorTest1 = 0x0001 | 0x8000,
-    VendorTest3 = 0x0003 | 0x8000,
-    VendorTest4 = 0x0004 | 0x8000,
-    VendorTest5 = 0x0005 | 0x8000,
-    VendorTestShort = 0x0006 | 0x8000,
-}
-
-impl RtpsSerialize for ParameterIdT {
-    fn serialize(&self, writer: &mut impl std::io::Write, endianness: Endianness) -> RtpsSerdesResult<()> {
-        (*self as UShort).serialize(writer, endianness)?;
-        Ok(())
-    }
-}
-
-impl RtpsDeserialize for ParameterIdT {
-    fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> {
-        let value = UShort::deserialize(bytes, endianness)?;
-        Ok(ParameterIdT::from_u16(value).ok_or(RtpsSerdesError::InvalidEnumRepresentation)?)
-    }
-}
-
-
+pub type ParameterId = Short;
 
 // /////////// FragmentNumber_t //////
 // Same as in self::submessage_elements
 
 // /////////// GroupDigest_t /////////
 //  todo
-
-
-
 
 
 #[cfg(test)]
@@ -399,52 +346,6 @@ mod tests {
 
 
     // /////////////////////// Count_t Tests ////////////////////////
-     
-
-     
-    // /////////////////////// ParameterId_t Tests //////////////////
-    #[test]
-    fn serialize_parameter_id_t() {
-        let mut writer = Vec::new();
-
-        writer.clear();
-        let parameter = ParameterIdT::KeyHash;
-        parameter.serialize(&mut writer, Endianness::LittleEndian).unwrap();
-        assert_eq!(writer, vec![0x70, 0x00]);
-
-        writer.clear();
-        parameter.serialize(&mut writer, Endianness::BigEndian).unwrap();
-        assert_eq!(writer, vec![0x00, 0x70]);
-        
-        writer.clear();
-        let parameter = ParameterIdT::VendorTest1;
-        parameter.serialize(&mut writer, Endianness::LittleEndian).unwrap();
-        assert_eq!(writer, vec![0x01, 0x80]);
-
-        writer.clear();
-        let parameter = ParameterIdT::VendorTest1;
-        parameter.serialize(&mut writer, Endianness::BigEndian).unwrap();
-        assert_eq!(writer, vec![0x80, 0x01]);
-    }
-
-    #[test]
-    fn deserialize_parameter_id_t() {
-        let bytes = [0x70, 0x00];    
-        let result = ParameterIdT::deserialize(&bytes, Endianness::LittleEndian).unwrap();
-        assert_eq!(ParameterIdT::KeyHash, result);
-        
-        let bytes = [0x00, 0x70];    
-        let result = ParameterIdT::deserialize(&bytes, Endianness::BigEndian).unwrap();
-        assert_eq!(ParameterIdT::KeyHash, result);
-
-        let bytes = [0x01, 0x80];    
-        let result = ParameterIdT::deserialize(&bytes, Endianness::LittleEndian).unwrap();
-        assert_eq!(ParameterIdT::VendorTest1, result);
-
-        let bytes = [0x80, 0x01];    
-        let result = ParameterIdT::deserialize(&bytes, Endianness::BigEndian).unwrap();
-        assert_eq!(ParameterIdT::VendorTest1, result);
-    }
     
 
     ////////////////////////// FragmentNumber_t Tests ///////////////////////

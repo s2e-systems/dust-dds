@@ -10,7 +10,7 @@ use crate::types::{SequenceNumber, Locator};
 use crate::primitive_types::{Long, ULong, Short, };
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, Endianness, RtpsSerdesResult, SizeCheck};
 
-use super::types::{Pid, ParameterIdT, };
+use super::types::{Pid, ParameterId };
 
 //  /////////   The GuidPrefix, and EntityId
 // Same as in crate::types
@@ -226,14 +226,14 @@ impl RtpsDeserialize for FragmentNumberSet {
 //  /////////// ParameterList ///////////
 
 pub trait ParameterOps {
-    fn parameter_id(&self) -> ParameterIdT;
+    fn parameter_id(&self) -> ParameterId;
     fn length(&self) -> Short;
     fn value(&self, endianness: Endianness) -> Vec<u8>;
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Parameter {
-    parameter_id: ParameterIdT,
+    parameter_id: ParameterId,
     length: Short, // length is rounded up to multple of 4
     value: Vec<u8>,
 }
@@ -257,7 +257,7 @@ impl Parameter {
 impl<T> ParameterOps for T
     where T: Pid + RtpsSerialize
 {
-    fn parameter_id(&self) -> ParameterIdT {
+    fn parameter_id(&self) -> ParameterId {
         T::pid()
     }
 
@@ -293,7 +293,7 @@ impl  RtpsSerialize for Parameter {
 impl RtpsDeserialize for Parameter {
     fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> {
         bytes.check_size_bigger_equal_than(4)?;
-        let parameter_id = ParameterIdT::deserialize(&bytes[0..2], endianness)?;
+        let parameter_id = ParameterId::deserialize(&bytes[0..2], endianness)?;
         let length = Short::deserialize(&bytes[2..4], endianness)?;
         let bytes_end = (length + 4) as usize;
         bytes.check_size_bigger_equal_than(bytes_end)?;
@@ -314,6 +314,9 @@ pub struct ParameterList {
 
 
 impl ParameterList {
+
+    const PID_SENTINEL : ParameterId = 0x0001;
+
     pub fn new(parameter: Vec<Parameter>) -> Self {
         Self {parameter}
     }
@@ -335,7 +338,8 @@ impl RtpsSerialize for ParameterList {
          for param in self.parameter.iter() {
             param.serialize(writer, endianness)?;        
         }       
-        writer.write(&[1, 0, 0, 0])?; //sentinel
+        ParameterList::PID_SENTINEL.serialize(writer, endianness)?;
+        writer.write(&[0,0])?; // Sentinel length 0
         Ok(())
     }
 
@@ -353,7 +357,7 @@ impl RtpsDeserialize for ParameterList {
         let mut parameters = Vec::<Parameter>::new();
         loop {
             let parameter = Parameter::deserialize(&bytes[parameter_start_index..], endianness)?;          
-            if &parameter.parameter_id == &ParameterIdT::Sentinel {
+            if &parameter.parameter_id == &ParameterList::PID_SENTINEL {
                 break;
             }            
             parameter_start_index += parameter.octets();
@@ -425,9 +429,22 @@ impl RtpsDeserialize for LocatorList {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use super::super::types::ParameterIdT;
     use crate::inline_qos_types::{StatusInfo, KeyHash, };
+    use crate::messages::types::ParameterId;
     use std::convert::TryInto;
+
+    #[allow(overflowing_literals)]
+    const PID_VENDOR_TEST_0 : ParameterId = 0x0000 | 0x8000;
+    #[allow(overflowing_literals)]
+    const PID_VENDOR_TEST_1 : ParameterId = 0x0001 | 0x8000;
+    #[allow(overflowing_literals)]
+    const PID_VENDOR_TEST_3 : ParameterId = 0x0003 | 0x8000;
+    #[allow(overflowing_literals)]
+    const PID_VENDOR_TEST_4 : ParameterId = 0x0004 | 0x8000;
+    #[allow(overflowing_literals)]
+    const PID_VENDOR_TEST_5 : ParameterId = 0x0005 | 0x8000;
+    #[allow(overflowing_literals)]
+    const PID_VENDOR_TEST_SHORT : ParameterId = 0x0006 | 0x8000;
 
     // /////////////////////// SequenceNumberSet Tests ////////////////////////
 
@@ -734,7 +751,7 @@ mod tests {
     #[derive(Debug, PartialEq)]
     pub struct VendorTest0(pub [u8; 0]);
     impl Pid for VendorTest0 {
-        fn pid() -> ParameterIdT { ParameterIdT::VendorTest0}
+        fn pid() -> ParameterId { PID_VENDOR_TEST_0}
     }
 
     impl RtpsSerialize for VendorTest0 {
@@ -754,7 +771,7 @@ mod tests {
     #[derive(Debug, PartialEq)]
     pub struct VendorTest1(pub [u8; 1]);
     impl Pid for VendorTest1 {
-        fn pid() -> ParameterIdT { ParameterIdT::VendorTest1}
+        fn pid() -> ParameterId { PID_VENDOR_TEST_1}
     }
 
     impl RtpsSerialize for VendorTest1 {
@@ -774,7 +791,7 @@ mod tests {
     #[derive(Debug, PartialEq)]
     pub struct VendorTest3(pub [u8; 3]);
     impl Pid for VendorTest3 {
-        fn pid() -> ParameterIdT { ParameterIdT::VendorTest3}
+        fn pid() -> ParameterId { PID_VENDOR_TEST_3}
     }
 
     impl RtpsSerialize for VendorTest3 {
@@ -794,7 +811,7 @@ mod tests {
     #[derive(Debug, PartialEq)]
     pub struct VendorTest4(pub [u8; 4]);
     impl Pid for VendorTest4 {
-        fn pid() -> ParameterIdT { ParameterIdT::VendorTest4}
+        fn pid() -> ParameterId { PID_VENDOR_TEST_4}
     }
 
     impl RtpsSerialize for VendorTest4 {
@@ -807,7 +824,7 @@ mod tests {
     #[derive(Debug, PartialEq)]
     pub struct VendorTest5(pub [u8; 5]);
     impl Pid for VendorTest5 {
-        fn pid() -> ParameterIdT { ParameterIdT::VendorTest5}
+        fn pid() -> ParameterId { PID_VENDOR_TEST_5}
     }
 
     impl RtpsSerialize for VendorTest5 {
@@ -827,7 +844,7 @@ mod tests {
     #[derive(Debug, PartialEq)]
     pub struct VendorTestShort(pub i16);
     impl Pid for VendorTestShort {
-        fn pid() -> ParameterIdT { ParameterIdT::VendorTestShort}
+        fn pid() -> ParameterId { PID_VENDOR_TEST_SHORT}
     }
 
     impl RtpsSerialize for VendorTestShort {
