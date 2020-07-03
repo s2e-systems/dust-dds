@@ -4,56 +4,50 @@
 ///  
  
 use std::convert::{TryInto, From};
+use crate::primitive_types::Short;
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, Endianness, RtpsSerdesResult, SizeCheck};
 use crate::types::{ChangeKind, };
-use crate::messages::types::{Pid, ParameterId};
+use crate::messages::types::ParameterId;
 
 const PID_TOPIC_NAME : ParameterId = 0x0005;
 const PID_KEY_HASH : ParameterId = 0x0070;
 const PID_STATUS_INFO : ParameterId = 0x0071;
+
+pub trait InlineQosParameterId : std::fmt::Debug {
+    fn id() -> ParameterId where Self: Sized;
+}
+
+pub trait InlineQosParameter : std::fmt::Debug{
+    fn parameter_id(&self) -> ParameterId;
+
+    fn length(&self) -> Short;
+
+    fn value(&self, endianness: Endianness) -> Vec<u8>;
+}
+
+impl<T> InlineQosParameter for T
+    where T: InlineQosParameterId + RtpsSerialize
+{
+    fn parameter_id(&self) -> ParameterId where Self: Sized {
+        T::id()
+    }
+
+    fn length(&self) -> Short {
+        // rounded up to multple of 4 (that is besides the length of the value may not be a multiple of 4)
+        (self.octets() + 3 & !3) as Short
+    }
+
+    fn value(&self, endianness: Endianness) -> Vec<u8> {
+        let mut writer = Vec::new();
+        self.serialize(&mut writer, endianness).unwrap();
+        writer
+    }
+}
   
-
-    //     #[derive(Debug, PartialEq, FromPrimitive, ToPrimitive, Eq, Clone, Copy)]
-    // #[repr(u16)]
-    // pub enum ParameterIdT {
-    //     TopicName = 0x0005,
-    //     Durability = 0x001d,
-    //     Presentation = 0x0021,
-    //     Deadline = 0x0023,
-    //     LatencyBudget = 0x0027,
-    //     Ownership = 0x001f,
-    //     OwnershipStrength = 0x0006,
-    //     Liveliness = 0x001b,
-    //     Partition = 0x0029,
-    //     Reliability = 0x001a,
-    //     TransportPriority = 0x0049,
-    //     Lifespan = 0x002b,
-    //     DestinationOrder = 0x0025,
-    //     ContentFilterInfo = 0x0055,
-    //     CoherentSet = 0x0056,
-    //     DirectedWrite = 0x0057,
-    //     OriginalWriterInfo = 0x0061,
-    //     GroupCoherentSet = 0x0063,
-    //     GroupSeqNum = 0x0064,
-    //     WriterGroupInfo = 0x0065,
-    //     SecureWriterGroupInfo = 0x0066,
-    //     KeyHash = 0x0070,
-    //     StatusInfo = 0x0071,
-    //     Sentinel = 0x0001,
-    //     VendorTest0 = 0x0000 | 0x8000,
-    //     VendorTest1 = 0x0001 | 0x8000,
-    //     VendorTest3 = 0x0003 | 0x8000,
-    //     VendorTest4 = 0x0004 | 0x8000,
-    //     VendorTest5 = 0x0005 | 0x8000,
-    //     VendorTestShort = 0x0006 | 0x8000,
-    // }
-    // const 
-// }
-
 #[derive(Debug, PartialEq, Clone, Eq)]
 pub struct TopicName(pub Vec<u8>);
-impl Pid for TopicName {
-    fn pid() -> ParameterId {
+impl InlineQosParameterId for TopicName {
+    fn id() -> ParameterId where Self: Sized {
         PID_TOPIC_NAME
     }
 }
@@ -61,8 +55,8 @@ impl Pid for TopicName {
 #[derive(Debug, PartialEq, Clone, Copy, Eq)]
 pub struct KeyHash(pub [u8; 16]);
 
-impl Pid for KeyHash {
-    fn pid() -> ParameterId {
+impl InlineQosParameterId for KeyHash {
+    fn id() -> ParameterId where Self: Sized {
         PID_KEY_HASH
     }
 }
@@ -103,8 +97,9 @@ impl StatusInfo {
     }
 }
 
-impl Pid for StatusInfo {
-    fn pid() -> ParameterId {
+impl InlineQosParameterId for StatusInfo {
+    fn id() -> ParameterId
+    where Self: Sized {
         PID_STATUS_INFO
     }
 }

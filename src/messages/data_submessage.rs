@@ -5,10 +5,11 @@ use crate::types::{SequenceNumber ,EntityId, };
 use crate::types::constants::SEQUENCE_NUMBER_UNKNOWN;
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, Endianness, RtpsSerdesResult, };
 use crate::serialized_payload::SerializedPayload;
+use crate::inline_qos_types::InlineQosParameter;
 
 use super::types::{SubmessageKind, SubmessageFlag,  };
 use super::{SubmessageHeader, Submessage, };
-use super::submessage_elements::{ParameterList, ParameterOps, Parameter};
+use super::submessage_elements::{ParameterList, Parameter};
 
 #[derive(PartialEq, Debug)]
 pub struct Data {
@@ -41,7 +42,7 @@ impl Data {
         reader_id: EntityId,
         writer_id: EntityId,
         writer_sn: SequenceNumber,
-        inline_qos: Option<&[&dyn ParameterOps]>,
+        inline_qos: Option<&[&dyn InlineQosParameter]>,
         payload: Payload,) -> Self {
             let inline_qos_flag = inline_qos.is_some();
             let mut data_flag = false;

@@ -9,8 +9,9 @@ use std::io::Write;
 use crate::types::{SequenceNumber, Locator};
 use crate::primitive_types::{Long, ULong, Short, };
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, Endianness, RtpsSerdesResult, SizeCheck};
+use crate::inline_qos_types::{InlineQosParameter, InlineQosParameterId};
 
-use super::types::{Pid, ParameterId };
+use super::types::ParameterId;
 
 //  /////////   The GuidPrefix, and EntityId
 // Same as in crate::types
@@ -225,12 +226,6 @@ impl RtpsDeserialize for FragmentNumberSet {
 
 //  /////////// ParameterList ///////////
 
-pub trait ParameterOps {
-    fn parameter_id(&self) -> ParameterId;
-    fn length(&self) -> Short;
-    fn value(&self, endianness: Endianness) -> Vec<u8>;
-}
-
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Parameter {
     parameter_id: ParameterId,
@@ -239,7 +234,7 @@ pub struct Parameter {
 }
 
 impl Parameter {
-    pub fn new(input: &(impl ParameterOps + ?Sized) , endianness: Endianness) -> Self {
+    pub fn new(input: &(impl InlineQosParameter + ?Sized) , endianness: Endianness) -> Self {
         Self {
             parameter_id: input.parameter_id(),
             length: input.length(),
@@ -251,25 +246,6 @@ impl Parameter {
         where T: RtpsDeserialize
     {
         T::deserialize(&self.value, endianness).unwrap()
-    }
-}
-
-impl<T> ParameterOps for T
-    where T: Pid + RtpsSerialize
-{
-    fn parameter_id(&self) -> ParameterId {
-        T::pid()
-    }
-
-    fn length(&self) -> Short {
-        // rounded up to multple of 4 (that is besides the length of the value may not be a multiple of 4)
-        (self.octets() + 3 & !3) as Short
-    }
-
-    fn value(&self, endianness: Endianness) -> Vec<u8> {
-        let mut writer = Vec::new();
-        self.serialize(&mut writer, endianness).unwrap();
-        writer
     }
 }
 
@@ -326,9 +302,9 @@ impl ParameterList {
     }
 
     pub fn find<T>(&self, endianness: Endianness) -> Option<T>
-        where T: Pid + RtpsDeserialize
+        where T: InlineQosParameterId + RtpsDeserialize
     {
-        let parameter = self.parameter.iter().find(|&x| x.parameter_id == T::pid())?;
+        let parameter = self.parameter.iter().find(|&x| x.parameter_id == T::id())?;
         Some(parameter.get::<T>(endianness))
     }
 }
@@ -429,7 +405,7 @@ impl RtpsDeserialize for LocatorList {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::inline_qos_types::{StatusInfo, KeyHash, };
+    use crate::inline_qos_types::{StatusInfo, KeyHash, InlineQosParameterId};
     use crate::messages::types::ParameterId;
     use std::convert::TryInto;
 
@@ -750,8 +726,11 @@ mod tests {
     
     #[derive(Debug, PartialEq)]
     pub struct VendorTest0(pub [u8; 0]);
-    impl Pid for VendorTest0 {
-        fn pid() -> ParameterId { PID_VENDOR_TEST_0}
+    impl InlineQosParameterId for VendorTest0 {
+        fn id() -> ParameterId
+        where Self: Sized {
+            PID_VENDOR_TEST_0
+        }
     }
 
     impl RtpsSerialize for VendorTest0 {
@@ -770,8 +749,11 @@ mod tests {
     
     #[derive(Debug, PartialEq)]
     pub struct VendorTest1(pub [u8; 1]);
-    impl Pid for VendorTest1 {
-        fn pid() -> ParameterId { PID_VENDOR_TEST_1}
+    impl InlineQosParameterId for VendorTest1 {
+        fn id() -> ParameterId
+        where Self: Sized {
+            PID_VENDOR_TEST_1
+        }
     }
 
     impl RtpsSerialize for VendorTest1 {
@@ -790,8 +772,11 @@ mod tests {
     
     #[derive(Debug, PartialEq)]
     pub struct VendorTest3(pub [u8; 3]);
-    impl Pid for VendorTest3 {
-        fn pid() -> ParameterId { PID_VENDOR_TEST_3}
+    impl InlineQosParameterId for VendorTest3 {
+        fn id() -> ParameterId
+        where Self: Sized {
+            PID_VENDOR_TEST_3
+        }
     }
 
     impl RtpsSerialize for VendorTest3 {
@@ -810,8 +795,11 @@ mod tests {
     
     #[derive(Debug, PartialEq)]
     pub struct VendorTest4(pub [u8; 4]);
-    impl Pid for VendorTest4 {
-        fn pid() -> ParameterId { PID_VENDOR_TEST_4}
+    impl InlineQosParameterId for VendorTest4 {
+        fn id() -> ParameterId
+        where Self: Sized {
+            PID_VENDOR_TEST_4
+        }
     }
 
     impl RtpsSerialize for VendorTest4 {
@@ -823,8 +811,11 @@ mod tests {
     
     #[derive(Debug, PartialEq)]
     pub struct VendorTest5(pub [u8; 5]);
-    impl Pid for VendorTest5 {
-        fn pid() -> ParameterId { PID_VENDOR_TEST_5}
+    impl InlineQosParameterId for VendorTest5 {
+        fn id() -> ParameterId
+        where Self: Sized {
+            PID_VENDOR_TEST_5
+        }
     }
 
     impl RtpsSerialize for VendorTest5 {
@@ -843,8 +834,11 @@ mod tests {
 
     #[derive(Debug, PartialEq)]
     pub struct VendorTestShort(pub i16);
-    impl Pid for VendorTestShort {
-        fn pid() -> ParameterId { PID_VENDOR_TEST_SHORT}
+    impl InlineQosParameterId for VendorTestShort {
+        fn id() -> ParameterId
+        where Self: Sized {
+            PID_VENDOR_TEST_SHORT
+        }
     }
 
     impl RtpsSerialize for VendorTestShort {

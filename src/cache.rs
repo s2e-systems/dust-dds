@@ -1,16 +1,16 @@
 use std::cmp::Ordering;
 use std::collections::{HashSet};
 use crate::types::{ChangeKind, InstanceHandle, SequenceNumber, GUID, };
-use crate::messages::submessage_elements::ParameterList;
+use crate::inline_qos_types::InlineQosParameter;
 
-#[derive(Eq, Debug, Clone)]
+#[derive(Debug,)]
 pub struct CacheChange {
     kind: ChangeKind,
     writer_guid: GUID,
     instance_handle: InstanceHandle,
     sequence_number: SequenceNumber,
     data_value: Option<Vec<u8>>,
-    inline_qos: Option<ParameterList>,
+    inline_qos: Option<Vec<Box<dyn InlineQosParameter>>>,
 }
 
 impl CacheChange {
@@ -20,7 +20,7 @@ impl CacheChange {
         instance_handle: InstanceHandle,
         sequence_number: SequenceNumber,
         data_value: Option<Vec<u8>>,
-        inline_qos: Option<ParameterList>,
+        inline_qos: Option<Vec<Box<dyn InlineQosParameter>>>,
     ) -> CacheChange {
         CacheChange {
             kind,
@@ -48,7 +48,7 @@ impl CacheChange {
         &self.sequence_number
     }
 
-    pub fn inline_qos(&self) -> &Option<ParameterList> {
+    pub fn inline_qos(&self) -> &Option<Vec<Box<dyn InlineQosParameter>>> {
         &self.inline_qos
     }
 
@@ -75,7 +75,7 @@ impl CacheChange {
             instance_handle: * __self_0_2,
             sequence_number: * __self_0_3,
             data_value: None,
-            inline_qos: __self_0_4.clone(),
+            inline_qos: None,
         }}}
     }
 }
@@ -83,12 +83,13 @@ impl CacheChange {
 
 impl PartialEq for CacheChange {
     fn eq(&self, other: &Self) -> bool {
-
         self.writer_guid == other.writer_guid
             && self.instance_handle == other.instance_handle
             && self.sequence_number == other.sequence_number
     }
 }
+
+impl Eq for CacheChange {}
 
 impl Ord for CacheChange {
     fn cmp(&self, other: &Self) -> Ordering {
@@ -185,7 +186,7 @@ mod tests {
         );
         let cc_clone_no_data = cc.clone_without_data();
         // cc_clone_no_data.data_value = None;
-        let cc_clone = cc.clone();
+        let cc_clone = cc.clone_without_data();
 
         assert_eq!(history_cache.get_changes().len(), 0);
         history_cache.add_change(cc);

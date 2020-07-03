@@ -8,7 +8,7 @@ use crate::behavior::StatefulWriterBehavior;
 use crate::messages::types::Count;
 use crate::cache::{CacheChange, HistoryCache, };
 use crate::messages::RtpsMessage;
-use crate::messages::submessage_elements::ParameterList;
+use crate::inline_qos_types::InlineQosParameter;
 
 pub struct ReaderProxy {
     remote_reader_guid: GUID,
@@ -211,7 +211,7 @@ impl StatefulWriter {
         &mut self,
         kind: ChangeKind,
         data: Option<Vec<u8>>,
-        inline_qos: Option<ParameterList>,
+        inline_qos: Option<Vec<Box<dyn InlineQosParameter>>>,
         handle: InstanceHandle,
     ) -> CacheChange {
         self.last_change_sequence_number = self.last_change_sequence_number + 1;
@@ -297,7 +297,7 @@ mod tests {
 
         assert_eq!(cache_change_seq1.sequence_number(), &SequenceNumber(1));
         assert_eq!(cache_change_seq1.change_kind(), &ChangeKind::Alive);
-        assert_eq!(cache_change_seq1.inline_qos(), &None);
+        assert!(cache_change_seq1.inline_qos().is_none());
         assert_eq!(cache_change_seq1.instance_handle(), &[1; 16]);
 
         assert_eq!(cache_change_seq2.sequence_number(), &SequenceNumber(2));
@@ -305,7 +305,7 @@ mod tests {
             cache_change_seq2.change_kind(),
             &ChangeKind::NotAliveUnregistered
         );
-        assert_eq!(cache_change_seq2.inline_qos(), &None);
+        assert!(cache_change_seq2.inline_qos().is_none());
         assert_eq!(cache_change_seq2.instance_handle(), &[1; 16]);
     }
 
