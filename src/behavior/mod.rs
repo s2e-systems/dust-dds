@@ -22,16 +22,13 @@ fn cache_change_from_data(message: &Data, guid_prefix: &GuidPrefix) -> CacheChan
     let change_kind = change_kind(&message);
     let key_hash = key_hash(&message).unwrap();
 
-    let my_inline_qos: Option<InlineQosParameterList> = match message.inline_qos() {
+    let inline_qos: Option<InlineQosParameterList> = match message.inline_qos() {
         Some(inline_qos_parameter_list) => {
-        let mut mylist = Vec::new();
-        for parameter in inline_qos_parameter_list.parameter() {
-            let my_box: Box<dyn InlineQosParameter> = Box::new(parameter.clone());
-            // let my_par = *gen_par.clone();
-            mylist.push(my_box);
-        };
-            Some(mylist)
-        
+            let mut inline_qos: InlineQosParameterList = Vec::new();
+            for parameter in inline_qos_parameter_list.parameter() {
+                inline_qos.push(Box::new(parameter.clone()));
+            };
+            Some(inline_qos)
         },
         None => None,
     };    
@@ -42,7 +39,7 @@ fn cache_change_from_data(message: &Data, guid_prefix: &GuidPrefix) -> CacheChan
         key_hash.0,
         *message.writer_sn(),
         None,
-        my_inline_qos,
+        inline_qos,
     )
 }
 
@@ -60,8 +57,6 @@ fn data_from_cache_change(cache_change: &CacheChange, endianness: Endianness, re
     let status_info = StatusInfo::from(change_kind);
 
     inline_qos_parameters.push(&status_info);
-
-    // let inline_qos_parameters: Vec<&dyn ParameterOps> = parameter.iter().map(|x| x as &dyn ParameterOps).collect();
 
     match change_kind {
         ChangeKind::Alive => {
