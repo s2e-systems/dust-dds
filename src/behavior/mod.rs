@@ -9,7 +9,7 @@ use std::convert::{TryFrom, TryInto};
 use crate::types::{GUID, GuidPrefix, EntityId, ChangeKind};
 use crate::cache::CacheChange;
 use crate::messages::{Data, Payload};
-use crate::inline_qos_types::{KeyHash, StatusInfo};
+use crate::inline_qos_types::{KeyHash, StatusInfo, InlineQosParameter};
 use crate::serdes::Endianness;
 use crate::serialized_payload::SerializedPayload;
 
@@ -21,14 +21,28 @@ pub use stateless_writer::StatelessWriterBehavior;
 fn cache_change_from_data(message: &Data, guid_prefix: &GuidPrefix) -> CacheChange {
     let change_kind = change_kind(&message);
     let key_hash = key_hash(&message).unwrap();
-    
+
+    let my_inline_qos: Option<Vec<Box<dyn InlineQosParameter>>> = match message.inline_qos() {
+        Some(inline_qos_parameter_list) => {
+        let mut mylist = Vec::new();
+        for parameter in inline_qos_parameter_list.parameter() {
+            let my_box: Box<dyn InlineQosParameter> = Box::new(parameter.clone());
+            // let my_par = *gen_par.clone();
+            mylist.push(my_box);
+        };
+            Some(mylist)
+        
+        },
+        None => None,
+    };    
+
     CacheChange::new(
         change_kind,
         GUID::new(*guid_prefix, *message.writer_id() ),
         key_hash.0,
         *message.writer_sn(),
         None,
-        None,
+        my_inline_qos,
     )
 }
 
@@ -36,13 +50,16 @@ fn data_from_cache_change(cache_change: &CacheChange, endianness: Endianness, re
     let writer_id: EntityId = *cache_change.writer_guid().entity_id();
     let writer_sn = *cache_change.sequence_number();
 
+    let mut inline_qos_parameters : Vec<&dyn InlineQosParameter> = if let Some(inline_qos) = cache_change.inline_qos() {
+        inline_qos.iter().map(|x| x.as_ref()).collect()
+    } else {
+        Vec::new()
+    };
+
     let change_kind = *cache_change.change_kind();
     let status_info = StatusInfo::from(change_kind);
 
-    // TODO: Bring inline_qos of cache change to the data message
-    // if let Some(inline_qos) = cache_change.inline_qos() {
-    //     parameter.extend(inline_qos.parameter().to_vec());
-    // };
+    inline_qos_parameters.push(&status_info);
 
     // let inline_qos_parameters: Vec<&dyn ParameterOps> = parameter.iter().map(|x| x as &dyn ParameterOps).collect();
 
@@ -51,12 +68,14 @@ fn data_from_cache_change(cache_change: &CacheChange, endianness: Endianness, re
             let key_hash = KeyHash(*cache_change.instance_handle());
             let payload = Payload::Data(SerializedPayload(cache_change.data_value().unwrap().to_vec()));
 
+            inline_qos_parameters.push(&key_hash);
+
             Data::new(
                 endianness,
                 reader_id,
                 writer_id,
                 writer_sn,
-                Some(&[&status_info, &key_hash]),
+                Some(&inline_qos_parameters),
                 payload,
             )
         },
