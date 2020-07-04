@@ -9,7 +9,7 @@ use std::convert::{TryFrom, TryInto};
 use crate::types::{GUID, GuidPrefix, EntityId, ChangeKind};
 use crate::cache::CacheChange;
 use crate::messages::{Data, Payload};
-use crate::inline_qos_types::{KeyHash, StatusInfo, InlineQosParameter};
+use crate::inline_qos_types::{KeyHash, StatusInfo, InlineQosParameter, InlineQosParameterList};
 use crate::serdes::Endianness;
 use crate::serialized_payload::SerializedPayload;
 
@@ -22,7 +22,7 @@ fn cache_change_from_data(message: &Data, guid_prefix: &GuidPrefix) -> CacheChan
     let change_kind = change_kind(&message);
     let key_hash = key_hash(&message).unwrap();
 
-    let my_inline_qos: Option<Vec<Box<dyn InlineQosParameter>>> = match message.inline_qos() {
+    let my_inline_qos: Option<InlineQosParameterList> = match message.inline_qos() {
         Some(inline_qos_parameter_list) => {
         let mut mylist = Vec::new();
         for parameter in inline_qos_parameter_list.parameter() {
