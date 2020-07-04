@@ -5,6 +5,7 @@ pub mod stateless_writer;
 pub mod stateless_reader;
 
 use std::convert::{TryFrom, TryInto};
+use std::rc::Rc;
 
 use crate::types::{GUID, GuidPrefix, EntityId, ChangeKind};
 use crate::cache::CacheChange;
@@ -26,7 +27,7 @@ fn cache_change_from_data(message: &Data, guid_prefix: &GuidPrefix) -> CacheChan
         Some(inline_qos_parameter_list) => {
             let mut inline_qos: InlineQosParameterList = Vec::new();
             for parameter in inline_qos_parameter_list.parameter() {
-                inline_qos.push(Box::new(parameter.clone()));
+                inline_qos.push(Rc::new(parameter.clone()));
             };
             Some(inline_qos)
         },

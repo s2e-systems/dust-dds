@@ -65,9 +65,9 @@ fn best_effort_stateful_writer_stateful_reader_data_only() {
         [0; 16], /*handle*/
     );
 
-    writer.writer_cache().add_change(cache_change_seq1);
-    writer.writer_cache().add_change(cache_change_seq2);
-    writer.writer_cache().add_change(cache_change_seq3);
+    writer.writer_cache().add_change(cache_change_seq1.clone());
+    writer.writer_cache().add_change(cache_change_seq2.clone());
+    writer.writer_cache().add_change(cache_change_seq3.clone());
 
     // Verify that the writer transmits all the cache changes to the reader
     let writer_message = writer.run(&reader_guid, None).unwrap();
@@ -75,9 +75,9 @@ fn best_effort_stateful_writer_stateful_reader_data_only() {
 
     let reader_changes = reader.reader_cache().get_changes();
     assert_eq!(reader_changes.len(), writer.writer_cache().get_changes().len());
-    // assert!(reader_changes.contains(&cache_change_seq1));
-    // assert!(reader_changes.contains(&cache_change_seq2));
-    // assert!(reader_changes.contains(&cache_change_seq3));
+    assert!(reader_changes.contains(&cache_change_seq1));
+    assert!(reader_changes.contains(&cache_change_seq2));
+    assert!(reader_changes.contains(&cache_change_seq3));
 }
 
 #[test]
@@ -124,7 +124,7 @@ fn best_effort_stateful_writer_stateful_reader_data_and_gap() {
         [0; 16],             /*handle*/
     );
 
-    let _cache_change_seq2 = writer.new_change(
+    let cache_change_seq2 = writer.new_change(
         ChangeKind::Alive,
         Some(vec![4, 5, 6]), /*data*/
         None,                /*inline_qos*/
@@ -138,9 +138,9 @@ fn best_effort_stateful_writer_stateful_reader_data_and_gap() {
         [0; 16], /*handle*/
     );
 
-    writer.writer_cache().add_change(cache_change_seq1);
+    writer.writer_cache().add_change(cache_change_seq1.clone());
     // writer.writer_cache().add_change(cache_change_seq2.clone());
-    writer.writer_cache().add_change(cache_change_seq3);
+    writer.writer_cache().add_change(cache_change_seq3.clone());
 
     // Verify that the writer transmits all the cache changes to the reader
     let writer_message = writer.run(&reader_guid, None).unwrap();
@@ -148,9 +148,9 @@ fn best_effort_stateful_writer_stateful_reader_data_and_gap() {
 
     let reader_changes = reader.reader_cache().get_changes();
     assert_eq!(reader_changes.len(), writer.writer_cache().get_changes().len());
-    // assert!(reader_changes.contains(&cache_change_seq1));
-    // assert!(!reader_changes.contains(&cache_change_seq2));
-    // assert!(reader_changes.contains(&cache_change_seq3));
+    assert!(reader_changes.contains(&cache_change_seq1));
+    assert!(!reader_changes.contains(&cache_change_seq2));
+    assert!(reader_changes.contains(&cache_change_seq3));
 }
 
 #[test]
@@ -204,8 +204,8 @@ fn best_effort_stateful_writer_stateful_reader_reordered_data() {
         [0; 16],             /*handle*/
     );
 
-    writer.writer_cache().add_change(cache_change_seq1);
-    writer.writer_cache().add_change(cache_change_seq2);
+    writer.writer_cache().add_change(cache_change_seq1.clone());
+    writer.writer_cache().add_change(cache_change_seq2.clone());
     
     let writer_message_1 = writer.run(&reader_guid, None).unwrap();
 
@@ -216,7 +216,7 @@ fn best_effort_stateful_writer_stateful_reader_reordered_data() {
         [0; 16], /*handle*/
     );
     
-    writer.writer_cache().add_change(cache_change_seq3);
+    writer.writer_cache().add_change(cache_change_seq3.clone());
 
     let writer_message_2 = writer.run(&reader_guid, None).unwrap();
 
@@ -226,7 +226,7 @@ fn best_effort_stateful_writer_stateful_reader_reordered_data() {
 
     let reader_changes = reader.reader_cache().get_changes();
     assert_eq!(reader_changes.len(), 1);
-    // assert!(!reader_changes.contains(&cache_change_seq1));
-    // assert!(!reader_changes.contains(&cache_change_seq2));
-    // assert!(reader_changes.contains(&cache_change_seq3));
+    assert!(!reader_changes.contains(&cache_change_seq1));
+    assert!(!reader_changes.contains(&cache_change_seq2));
+    assert!(reader_changes.contains(&cache_change_seq3));
 }

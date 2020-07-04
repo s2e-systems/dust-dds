@@ -3,7 +3,7 @@ use std::collections::{HashSet};
 use crate::types::{ChangeKind, InstanceHandle, SequenceNumber, GUID, };
 use crate::inline_qos_types::InlineQosParameterList;
 
-#[derive(Debug,)]
+#[derive(Debug, Clone)]
 pub struct CacheChange {
     kind: ChangeKind,
     writer_guid: GUID,

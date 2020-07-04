@@ -4,12 +4,13 @@
 ///  
  
 use std::convert::{TryInto, From};
+use std::rc::Rc;
 use crate::primitive_types::Short;
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, Endianness, RtpsSerdesResult, SizeCheck};
 use crate::types::{ChangeKind, };
 use crate::messages::types::ParameterId;
 
-pub type InlineQosParameterList = Vec<Box<dyn InlineQosParameter>>;
+pub type InlineQosParameterList = Vec<Rc<dyn InlineQosParameter>>;
 
 const PID_TOPIC_NAME : ParameterId = 0x0005;
 const PID_KEY_HASH : ParameterId = 0x0070;
