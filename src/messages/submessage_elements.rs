@@ -736,7 +736,7 @@ mod tests {
 
     // /////////////////////// ParameterList Tests ////////////////////////
     
-    #[derive(Debug, PartialEq, Clone)]
+    #[derive(Debug, PartialEq)]
     pub struct VendorTest0(pub [u8; 0]);
     impl InlineQosParameterId for VendorTest0 {
         fn id() -> ParameterId
@@ -759,7 +759,7 @@ mod tests {
         }
     }
     
-    #[derive(Debug, PartialEq, Clone)]
+    #[derive(Debug, PartialEq)]
     pub struct VendorTest1(pub [u8; 1]);
     impl InlineQosParameterId for VendorTest1 {
         fn id() -> ParameterId
@@ -782,7 +782,7 @@ mod tests {
         }
     }
     
-    #[derive(Debug, PartialEq, Clone)]
+    #[derive(Debug, PartialEq)]
     pub struct VendorTest3(pub [u8; 3]);
     impl InlineQosParameterId for VendorTest3 {
         fn id() -> ParameterId
@@ -805,7 +805,7 @@ mod tests {
         }
     }
     
-    #[derive(Debug, PartialEq, Clone)]
+    #[derive(Debug, PartialEq)]
     pub struct VendorTest4(pub [u8; 4]);
     impl InlineQosParameterId for VendorTest4 {
         fn id() -> ParameterId
@@ -821,7 +821,7 @@ mod tests {
         }
     }
     
-    #[derive(Debug, PartialEq, Clone)]
+    #[derive(Debug, PartialEq)]
     pub struct VendorTest5(pub [u8; 5]);
     impl InlineQosParameterId for VendorTest5 {
         fn id() -> ParameterId
@@ -844,7 +844,7 @@ mod tests {
         }
     }
 
-    #[derive(Debug, PartialEq, Clone)]
+    #[derive(Debug, PartialEq)]
     pub struct VendorTestShort(pub i16);
     impl InlineQosParameterId for VendorTestShort {
         fn id() -> ParameterId

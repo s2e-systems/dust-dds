@@ -26,7 +26,7 @@ pub trait InlineQosParameter : std::fmt::Debug{
 }
 
 impl<T> InlineQosParameter for T
-    where T: InlineQosParameterId + RtpsSerialize + Clone
+    where T: InlineQosParameterId + RtpsSerialize
 {
     fn parameter_id(&self) -> ParameterId where Self: Sized {
         T::id()
