@@ -1,7 +1,7 @@
 use crate::types::{GUID, SequenceNumber};
 use crate::behavior::types::Duration;
 use crate::messages::{RtpsMessage, RtpsSubmessage, AckNack};
-use crate::messages::submessage_elements::SequenceNumberSet;
+use crate::messages::submessage_elements::{SequenceNumberSet, ParameterList};
 use crate::cache::{HistoryCache};
 use crate::stateful_reader::WriterProxy;
 
@@ -137,15 +137,16 @@ mod tests {
         let mut writer_proxy = WriterProxy::new(remote_writer_guid, vec![], vec![]);
 
         let mut submessages = Vec::new();
-        let status_info = StatusInfo::from(ChangeKind::Alive);
-        let key_hash = KeyHash([1;16]);
+        let mut inline_qos = ParameterList::new();
+        inline_qos.push(StatusInfo::from(ChangeKind::Alive));
+        inline_qos.push(KeyHash([1;16]));
 
         let data1 = Data::new(
             Endianness::LittleEndian, 
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, 
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER, 
             SequenceNumber(3),
-            Some(&[&status_info, &key_hash]),
+            Some(inline_qos),
             Payload::Data(SerializedPayload(vec![1,2,3])));
         submessages.push(RtpsSubmessage::Data(data1));
 
@@ -179,15 +180,16 @@ mod tests {
         let mut writer_proxy = WriterProxy::new(remote_writer_guid, vec![], vec![]);
 
         let mut submessages = Vec::new();
-        let status_info = StatusInfo::from(ChangeKind::Alive);
-        let key_hash = KeyHash([1;16]);
+        let mut inline_qos = ParameterList::new();
+        inline_qos.push(StatusInfo::from(ChangeKind::Alive));
+        inline_qos.push(KeyHash([1;16]));
 
         let data1 = Data::new(
             Endianness::LittleEndian, 
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, 
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER, 
             SequenceNumber(3),
-            Some(&[&status_info, &key_hash]),
+            Some(inline_qos),
             Payload::Data(SerializedPayload(vec![1,2,3])));
         submessages.push(RtpsSubmessage::Data(data1));
 

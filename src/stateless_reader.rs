@@ -76,19 +76,21 @@ mod tests {
     use crate::types::constants::*;
     use crate::serialized_payload::SerializedPayload;
     use crate::messages::{Data, Payload, RtpsSubmessage };
+    use crate::messages::submessage_elements::ParameterList;
     use crate::serdes::Endianness;
     use crate::inline_qos_types::{KeyHash};
 
     #[test]
     fn best_effort_stateless_reader_run() {
-        let key_hash = KeyHash([1;16]);
+        let mut inline_qos = ParameterList::new();
+        inline_qos.push(KeyHash([1;16]));
 
         let data1 = Data::new(
             Endianness::LittleEndian,
             ENTITYID_UNKNOWN,
             ENTITYID_UNKNOWN,
             SequenceNumber(1),
-            Some(&[&key_hash]),
+            Some(inline_qos),
             Payload::Data(SerializedPayload(vec![0,1,2])),
         );
 

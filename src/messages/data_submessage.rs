@@ -5,7 +5,6 @@ use crate::types::{SequenceNumber ,EntityId, };
 use crate::types::constants::SEQUENCE_NUMBER_UNKNOWN;
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, Endianness, RtpsSerdesResult, };
 use crate::serialized_payload::SerializedPayload;
-use crate::inline_qos_types::InlineQosParameter;
 
 use super::types::{SubmessageKind, SubmessageFlag,  };
 use super::{SubmessageHeader, Submessage, };
@@ -42,7 +41,7 @@ impl Data {
         reader_id: EntityId,
         writer_id: EntityId,
         writer_sn: SequenceNumber,
-        inline_qos: Option<&[&dyn InlineQosParameter]>,
+        inline_qos: Option<ParameterList>,
         payload: Payload,) -> Self {
             let inline_qos_flag = inline_qos.is_some();
             let mut data_flag = false;
@@ -54,12 +53,7 @@ impl Data {
                 Payload::NonStandard(serialized_payload) => {non_standard_payload_flag = true; Some(serialized_payload)},
                 Payload::None => {None}
             };
-
-        let inline_qos = match inline_qos {
-            Some(params) => Some(ParameterList::new(params.iter().map(|&p| Parameter::new(p, endianness_flag)).collect())),
-            None => None,
-        };
-
+        
         Data {
             endianness_flag: endianness_flag.into(),
             inline_qos_flag,
@@ -245,7 +239,7 @@ mod tests {
             ENTITYID_UNKNOWN, 
             ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, 
             SequenceNumber(1), 
-            Some(&[]),
+            Some(ParameterList::new()),
             Payload::Data(SerializedPayload(vec![]))
         );
         assert_eq!(data.endianness_flag, true);
@@ -285,7 +279,8 @@ mod tests {
     fn test_compose_data_submessage_with_inline_qos_without_data() {
         let endianness = Endianness::LittleEndian;
         let key_hash = KeyHash([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]);
-        let inline_qos = ParameterList::new(vec![Parameter::new(&key_hash, endianness)]);
+        let mut inline_qos = ParameterList::new();
+        inline_qos.push(key_hash);
         
         let data = Data {
             endianness_flag: true,
@@ -322,7 +317,8 @@ mod tests {
     fn test_compose_data_submessage_with_inline_qos_with_data() {
         let endianness = Endianness::LittleEndian;
         let key_hash = KeyHash([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]);
-        let inline_qos = ParameterList::new(vec![Parameter::new(&key_hash, endianness)]);
+        let mut inline_qos = ParameterList::new();
+        inline_qos.push(key_hash);
         
         let serialized_payload = SerializedPayload(vec![1_u8, 2, 3]);
 
@@ -418,7 +414,9 @@ mod tests {
     fn test_parse_data_submessage_with_inline_qos_with_data() {
         let endianness = Endianness::LittleEndian;
         let key_hash = KeyHash([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]);
-        let inline_qos = ParameterList::new(vec![Parameter::new(&key_hash, endianness)]);
+        let mut inline_qos = ParameterList::new();
+        inline_qos.push(key_hash);
+
         
         let serialized_payload = SerializedPayload(vec![1_u8, 2, 3]);
 

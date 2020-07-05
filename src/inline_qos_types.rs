@@ -4,53 +4,18 @@
 ///  
  
 use std::convert::{TryInto, From};
-use std::rc::Rc;
-use crate::primitive_types::Short;
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, Endianness, RtpsSerdesResult, SizeCheck};
 use crate::types::{ChangeKind, };
-use crate::messages::types::ParameterId;
-
-pub type InlineQosParameterList = Vec<Rc<dyn InlineQosParameter>>;
+use crate::messages::types::{ParameterId, Pid};
 
 const PID_TOPIC_NAME : ParameterId = 0x0005;
 const PID_KEY_HASH : ParameterId = 0x0070;
 const PID_STATUS_INFO : ParameterId = 0x0071;
-
-pub trait InlineQosParameterId : std::fmt::Debug {
-    fn id() -> ParameterId where Self: Sized;
-}
-
-pub trait InlineQosParameter : std::fmt::Debug{
-    fn parameter_id(&self) -> ParameterId;
-
-    fn length(&self) -> Short;
-
-    fn value(&self, endianness: Endianness) -> Vec<u8>;
-}
-
-impl<T> InlineQosParameter for T
-    where T: InlineQosParameterId + RtpsSerialize
-{
-    fn parameter_id(&self) -> ParameterId where Self: Sized {
-        T::id()
-    }
-
-    fn length(&self) -> Short {
-        // rounded up to multple of 4 (that is besides the length of the value may not be a multiple of 4)
-        (self.octets() + 3 & !3) as Short
-    }
-
-    fn value(&self, endianness: Endianness) -> Vec<u8> {
-        let mut writer = Vec::new();
-        self.serialize(&mut writer, endianness).unwrap();
-        writer
-    }
-}
   
 #[derive(Debug, PartialEq, Clone, Eq)]
 pub struct TopicName(pub Vec<u8>);
-impl InlineQosParameterId for TopicName {
-    fn id() -> ParameterId where Self: Sized {
+impl Pid for TopicName {
+    fn pid() -> ParameterId where Self: Sized {
         PID_TOPIC_NAME
     }
 }
@@ -58,8 +23,8 @@ impl InlineQosParameterId for TopicName {
 #[derive(Debug, PartialEq, Clone, Copy, Eq)]
 pub struct KeyHash(pub [u8; 16]);
 
-impl InlineQosParameterId for KeyHash {
-    fn id() -> ParameterId where Self: Sized {
+impl Pid for KeyHash {
+    fn pid() -> ParameterId where Self: Sized {
         PID_KEY_HASH
     }
 }
@@ -100,8 +65,8 @@ impl StatusInfo {
     }
 }
 
-impl InlineQosParameterId for StatusInfo {
-    fn id() -> ParameterId
+impl Pid for StatusInfo {
+    fn pid() -> ParameterId
     where Self: Sized {
         PID_STATUS_INFO
     }

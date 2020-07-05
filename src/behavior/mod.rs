@@ -5,14 +5,14 @@ pub mod stateless_writer;
 pub mod stateless_reader;
 
 use std::convert::{TryFrom, TryInto};
-use std::rc::Rc;
 
 use crate::types::{GUID, GuidPrefix, EntityId, ChangeKind};
 use crate::cache::CacheChange;
 use crate::messages::{Data, Payload};
-use crate::inline_qos_types::{KeyHash, StatusInfo, InlineQosParameter, InlineQosParameterList};
+use crate::inline_qos_types::{KeyHash, StatusInfo};
 use crate::serdes::Endianness;
 use crate::serialized_payload::SerializedPayload;
+use crate::messages::submessage_elements::ParameterList;
 
 pub use stateful_writer::StatefulWriterBehavior;
 pub use stateful_reader::StatefulReaderBehavior;
@@ -23,16 +23,23 @@ fn cache_change_from_data(message: &Data, guid_prefix: &GuidPrefix) -> CacheChan
     let change_kind = change_kind(&message);
     let key_hash = key_hash(&message).unwrap();
 
-    let inline_qos: Option<InlineQosParameterList> = match message.inline_qos() {
-        Some(inline_qos_parameter_list) => {
-            let mut inline_qos: InlineQosParameterList = Vec::new();
-            for parameter in inline_qos_parameter_list.parameter() {
-                inline_qos.push(Rc::new(parameter.clone()));
-            };
-            Some(inline_qos)
-        },
-        None => None,
-    };    
+    // let inline_qos: Option<InlineQosParameterList> = match message.inline_qos() {
+    //     Some(inline_qos_parameter_list) => {
+    //         let mut inline_qos = InlineQosParameterList::new();
+    //         for parameter in inline_qos_parameter_list.parameter() {
+    //             // Remove change kind and key_hash parameters which do not belong 
+    //             // to the inline_qos and are only added by convenience
+    //             if parameter.parameter_id() != StatusInfo::id() || parameter.parameter_id() != KeyHash::id()
+    //             {
+    //                 inline_qos.push(parameter.clone());
+    //             }
+    //         };
+    //         Some(inline_qos)
+    //     },
+    //     None => None,
+    // };    
+
+    let inline_qos = Some(ParameterList::new());
 
     CacheChange::new(
         change_kind,
@@ -48,45 +55,35 @@ fn data_from_cache_change(cache_change: &CacheChange, endianness: Endianness, re
     let writer_id: EntityId = *cache_change.writer_guid().entity_id();
     let writer_sn = *cache_change.sequence_number();
 
-    let mut inline_qos_parameters : Vec<&dyn InlineQosParameter> = if let Some(inline_qos) = cache_change.inline_qos() {
-        inline_qos.iter().map(|x| x.as_ref()).collect()
-    } else {
-        Vec::new()
-    };
+    // let mut inline_qos_parameters : Vec<&dyn ParameterList> = if let Some(inline_qos) = cache_change.inline_qos() {
+    //     inline_qos.list().iter().map(|x| x.as_ref()).collect()
+    // } else {
+    //     Vec::new()
+    // };
+
+    let mut inline_qos_parameters = ParameterList::new();
 
     let change_kind = *cache_change.change_kind();
-    let status_info = StatusInfo::from(change_kind);
+    inline_qos_parameters.push(StatusInfo::from(change_kind));
 
-    inline_qos_parameters.push(&status_info);
-
-    match change_kind {
+    let payload = match change_kind {
         ChangeKind::Alive => {
-            let key_hash = KeyHash(*cache_change.instance_handle());
-            let payload = Payload::Data(SerializedPayload(cache_change.data_value().unwrap().to_vec()));
-
-            inline_qos_parameters.push(&key_hash);
-
-            Data::new(
-                endianness,
-                reader_id,
-                writer_id,
-                writer_sn,
-                Some(&inline_qos_parameters),
-                payload,
-            )
+            inline_qos_parameters.push(KeyHash(*cache_change.instance_handle()));
+            Payload::Data(SerializedPayload(cache_change.data_value().unwrap().to_vec()))
         },
         ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered | ChangeKind::AliveFiltered => {
-            let payload = Payload::Key(SerializedPayload(cache_change.instance_handle().to_vec()));
-            Data::new(
-                endianness,
-                reader_id,
-                writer_id,
-                writer_sn,
-                Some(&[&status_info]),
-                payload,
-            )
+            Payload::Key(SerializedPayload(cache_change.instance_handle().to_vec()))
         }
-    }
+    };
+
+    Data::new(
+        endianness,
+        reader_id,
+        writer_id,
+        writer_sn,
+        Some(inline_qos_parameters),
+        payload,
+    )
 }
 
 fn change_kind(data_submessage: &Data) -> ChangeKind{

@@ -1,7 +1,48 @@
-use rust_rtps::{StatelessWriter, StatelessReader, RtpsMessage, RtpsCompose, RtpsParse, };
+use rust_rtps::{StatelessWriter, StatelessReader, RtpsMessage, RtpsCompose, RtpsParse, RtpsSerialize};
 use rust_rtps::types::{ChangeKind, TopicKind, ReliabilityKind, Locator, GUID, GuidPrefix, };
 use rust_rtps::types::constants::{ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER, ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER, };
 use rust_rtps::behavior::types::constants::DURATION_ZERO;
+use rust_rtps::{ParameterId, Endianness, RtpsSerdesResult, ParameterList, Pid};
+
+#[derive(Debug)]
+struct SpecialQos(u16);
+
+impl Pid for SpecialQos{
+    fn pid() -> ParameterId where Self: Sized {
+        0x0AA0
+    }
+}
+
+impl RtpsSerialize for SpecialQos {
+    fn serialize(&self, writer: &mut impl std::io::Write, endianness: Endianness) -> RtpsSerdesResult<()> {
+        match endianness {
+            Endianness::BigEndian => writer.write(&self.0.to_be_bytes())?,
+            Endianness::LittleEndian => writer.write(&self.0.to_le_bytes())?,
+        };
+
+        Ok(())
+    }
+}
+
+#[derive(Debug)]
+struct OtherQos(i32);
+
+impl Pid for OtherQos{
+    fn pid() -> ParameterId where Self: Sized {
+        0x0AA1
+    }
+}
+
+impl RtpsSerialize for OtherQos {
+    fn serialize(&self, writer: &mut impl std::io::Write, endianness: Endianness) -> RtpsSerdesResult<()> {
+        match endianness {
+            Endianness::BigEndian => writer.write(&self.0.to_be_bytes())?,
+            Endianness::LittleEndian => writer.write(&self.0.to_le_bytes())?,
+        };
+
+        Ok(())
+    }
+}
 
 #[test]
 fn test_stateless_writer_stateless_reader_direct_communication_integration() {
@@ -30,10 +71,13 @@ fn test_stateless_writer_stateless_reader_direct_communication_integration() {
 
    writer.reader_locator_add(locator);
 
+   let mut inline_qos = ParameterList::new();
+   inline_qos.push(SpecialQos(10));
+
    let cache_change_seq1 = writer.new_change(
        ChangeKind::Alive,
        Some(vec![1,2,3]), /*data*/
-       None, /*inline_qos*/
+       Some(inline_qos), /*inline_qos*/
        [0;16], /*handle*/
    );
    

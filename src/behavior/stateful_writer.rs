@@ -5,6 +5,7 @@ use crate::stateful_writer::ReaderProxy;
 use crate::behavior::types::Duration;
 use crate::serdes::Endianness;
 use crate::messages::types::{Time};
+use crate::messages::submessage_elements::ParameterList;
 use crate::inline_qos_types::{KeyHash, StatusInfo};
 use crate::serialized_payload::SerializedPayload;
 use super::data_from_cache_change;
@@ -174,36 +175,27 @@ impl StatefulWriterBehavior {
                 .get_change_with_sequence_number(&next_requested_seq_num)
             {
                 let change_kind = *cache_change.change_kind();
+                let mut inline_qos = ParameterList::new();
+                inline_qos.push(StatusInfo::from(change_kind));
     
-                let data = match change_kind {
+                let payload = match change_kind {
                     ChangeKind::Alive => {
-                        let status_info = StatusInfo::from(change_kind);
-                        let key_hash = KeyHash(*cache_change.instance_handle());
-                        let payload = Payload::Data(SerializedPayload(cache_change.data_value().unwrap().to_vec()));
-
-                        Data::new(
-                            Endianness::LittleEndian.into(),
-                            *reader_proxy.remote_reader_guid().entity_id(),
-                            *writer_guid.entity_id(),
-                            *cache_change.sequence_number(),
-                            Some(&[&status_info, &key_hash]), 
-                            payload,
-                        )
+                        inline_qos.push(KeyHash(*cache_change.instance_handle()));
+                        Payload::Data(SerializedPayload(cache_change.data_value().unwrap().to_vec()))
                     },
                     ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered | ChangeKind::AliveFiltered => {
-                        let status_info = StatusInfo::from(change_kind);
-                        let payload = Payload::Key(SerializedPayload(cache_change.instance_handle().to_vec()));
-
-                        Data::new(
-                            Endianness::LittleEndian.into(),
-                            *reader_proxy.remote_reader_guid().entity_id(),
-                            *writer_guid.entity_id(),
-                            *cache_change.sequence_number(),
-                            Some(&[&status_info]), 
-                            payload,
-                        )
+                        Payload::Key(SerializedPayload(cache_change.instance_handle().to_vec()))
                     }
                 };
+
+                let data = Data::new(
+                    Endianness::LittleEndian.into(),
+                    *reader_proxy.remote_reader_guid().entity_id(),
+                    *writer_guid.entity_id(),
+                    *cache_change.sequence_number(),
+                    Some(inline_qos), 
+                    payload,
+                );
     
                 submessages.push(RtpsSubmessage::Data(data));
             } else {

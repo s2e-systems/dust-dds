@@ -5,7 +5,7 @@ use crate::messages::RtpsMessage;
 use crate::types::{ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID, };
 use crate::behavior::types::Duration;
 use crate::behavior::StatelessWriterBehavior;
-use crate::inline_qos_types::InlineQosParameterList;
+use crate::messages::submessage_elements::ParameterList;
 
 pub struct ReaderLocator {
     //requested_changes: HashSet<CacheChange>,
@@ -110,10 +110,11 @@ impl StatelessWriter {
         &mut self,
         kind: ChangeKind,
         data: Option<Vec<u8>>,
-        inline_qos: Option<InlineQosParameterList>,
+        inline_qos: Option<ParameterList>,
         handle: InstanceHandle,
     ) -> CacheChange {
         self.last_change_sequence_number = self.last_change_sequence_number + 1;
+
         CacheChange::new(
             kind,
             self.guid,
