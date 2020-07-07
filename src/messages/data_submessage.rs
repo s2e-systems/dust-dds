@@ -8,7 +8,7 @@ use crate::serialized_payload::SerializedPayload;
 
 use super::types::{SubmessageKind, SubmessageFlag,  };
 use super::{SubmessageHeader, Submessage, };
-use super::submessage_elements::{ParameterList, Parameter};
+use super::submessage_elements::{ParameterList};
 
 #[derive(PartialEq, Debug)]
 pub struct Data {
@@ -224,14 +224,13 @@ mod tests {
     use super::*;
     use crate::inline_qos_types::KeyHash;
     use crate::types::constants::{ENTITYID_UNKNOWN, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, };
-    use crate::messages::submessage_elements::Parameter;
 
-        // E: EndiannessFlag - Indicates endianness.
-        // Q: InlineQosFlag - Indicates to the Reader the presence of a ParameterList containing QoS parameters that should be used to interpret the message.
-        // D: DataFlag - Indicates to the Reader that the dataPayload submessage element contains the serialized value of the data-object.
-        // K: KeyFlag - Indicates to the Reader that the dataPayload submessage element contains the serialized value of the key of the data-object. 
-        // N: NonStandardPayloadFlag  -Indicates to the Reader that the serializedPayload submessage element is not formatted according to Section 10.
-        // X|X|X|N|K|D|Q|E
+    // E: EndiannessFlag - Indicates endianness.
+    // Q: InlineQosFlag - Indicates to the Reader the presence of a ParameterList containing QoS parameters that should be used to interpret the message.
+    // D: DataFlag - Indicates to the Reader that the dataPayload submessage element contains the serialized value of the data-object.
+    // K: KeyFlag - Indicates to the Reader that the dataPayload submessage element contains the serialized value of the key of the data-object. 
+    // N: NonStandardPayloadFlag  -Indicates to the Reader that the serializedPayload submessage element is not formatted according to Section 10.
+    // X|X|X|N|K|D|Q|E
     #[test]
     fn test_data_contructor() {
         let data = Data::new(
@@ -283,7 +282,7 @@ mod tests {
         inline_qos.push(key_hash);
         
         let data = Data {
-            endianness_flag: true,
+            endianness_flag: endianness.into(),
             inline_qos_flag: true,
             data_flag: false,
             key_flag: false,

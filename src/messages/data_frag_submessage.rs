@@ -160,7 +160,7 @@ mod tests{
     use super::*;
     use crate::inline_qos_types::KeyHash;
     use crate::types::constants::{ENTITYID_UNKNOWN, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, };
-    use crate::messages::submessage_elements::{Parameter, ParameterList, };
+    use crate::messages::submessage_elements::{ParameterList, };
 
     #[test]
     fn parse_data_frag_submessage() {
@@ -216,7 +216,7 @@ mod tests{
         inline_qos.push(key_hash);
 
         let message = DataFrag {
-            endianness_flag: Endianness::LittleEndian.into(),
+            endianness_flag: endianness.into(),
             inline_qos_flag: true,
             key_flag: true,
             non_standard_payload_flag: false,

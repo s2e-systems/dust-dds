@@ -1,7 +1,7 @@
 use crate::types::{GUID, SequenceNumber};
 use crate::behavior::types::Duration;
 use crate::messages::{RtpsMessage, RtpsSubmessage, AckNack};
-use crate::messages::submessage_elements::{SequenceNumberSet, ParameterList};
+use crate::messages::submessage_elements::{SequenceNumberSet, };
 use crate::cache::{HistoryCache};
 use crate::stateful_reader::WriterProxy;
 
@@ -126,6 +126,7 @@ mod tests {
         ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, };
     use crate::cache::CacheChange;
     use crate::messages::{Data, Payload, Heartbeat};
+    use crate::messages::submessage_elements::ParameterList;
     use crate::serdes::Endianness;
     use crate::serialized_payload::SerializedPayload;
     use crate::inline_qos_types::{KeyHash, StatusInfo, };
