@@ -22,7 +22,6 @@ impl CacheChange {
         data_value: Option<Vec<u8>>,
         inline_qos: Option<ParameterList>,
     ) -> CacheChange {
-
         CacheChange {
             kind,
             writer_guid,

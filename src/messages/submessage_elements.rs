@@ -362,6 +362,12 @@ impl ParameterList {
         let parameter = self.parameter.iter().find(|&x| x.parameter_id() == T::pid())?;
         T::deserialize(&parameter.value(endianness), endianness).ok()
     }
+
+    pub fn remove<T>(&mut self) 
+        where T: Pid + ParameterOps
+    {
+        self.parameter.retain(|x| x.parameter_id() != T::pid());
+    }
 }
 
 impl RtpsSerialize for ParameterList {
@@ -1056,6 +1062,14 @@ mod tests {
         let parameter_list = ParameterList{parameter: vec![Rc::new(expected), Rc::new(StatusInfo([8; 4]))]};
         let result = parameter_list.find::<KeyHash>(endianness).unwrap();
         assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn remove_from_parameter_list() {
+        let expected = ParameterList{parameter: vec![Rc::new(StatusInfo([8; 4]))]};
+        let mut parameter_list = ParameterList{parameter: vec![Rc::new(KeyHash([9; 16])), Rc::new(StatusInfo([8; 4]))]};
+        parameter_list.remove::<KeyHash>();
+        assert_eq!(parameter_list, expected);
     }
 
     #[test]

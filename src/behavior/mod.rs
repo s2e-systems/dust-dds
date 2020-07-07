@@ -23,24 +23,15 @@ fn cache_change_from_data(message: &Data, guid_prefix: &GuidPrefix) -> CacheChan
     let change_kind = change_kind(&message);
     let key_hash = key_hash(&message).unwrap();
 
-    // let inline_qos: Option<InlineQosParameterList> = match message.inline_qos() {
-    //     Some(inline_qos_parameter_list) => {
-    //         let mut inline_qos = InlineQosParameterList::new();
-    //         for parameter in inline_qos_parameter_list.parameter() {
-    //             // Remove change kind and key_hash parameters which do not belong 
-    //             // to the inline_qos and are only added by convenience
-    //             if parameter.parameter_id() != StatusInfo::id() || parameter.parameter_id() != KeyHash::id()
-    //             {
-    //                 inline_qos.push(parameter.clone());
-    //             }
-    //         };
-    //         Some(inline_qos)
-    //     },
-    //     None => None,
-    // };    
-
-    let inline_qos = Some(ParameterList::new());
-
+    let inline_qos = match message.inline_qos() {
+        Some(inline_qos_parameter_list) => {
+            let mut inline_qos = inline_qos_parameter_list.clone();
+            inline_qos.remove::<KeyHash>();
+            inline_qos.remove::<StatusInfo>();
+            Some(inline_qos)
+        },
+        None => None,
+    };    
     CacheChange::new(
         change_kind,
         GUID::new(*guid_prefix, *message.writer_id() ),
@@ -55,13 +46,10 @@ fn data_from_cache_change(cache_change: &CacheChange, endianness: Endianness, re
     let writer_id: EntityId = *cache_change.writer_guid().entity_id();
     let writer_sn = *cache_change.sequence_number();
 
-    // let mut inline_qos_parameters : Vec<&dyn ParameterList> = if let Some(inline_qos) = cache_change.inline_qos() {
-    //     inline_qos.list().iter().map(|x| x.as_ref()).collect()
-    // } else {
-    //     Vec::new()
-    // };
-
-    let mut inline_qos_parameters = ParameterList::new();
+    let mut inline_qos_parameters = match cache_change.inline_qos() {
+        Some(inline_qos) => inline_qos.clone(),
+        None => ParameterList::new(),
+    };
 
     let change_kind = *cache_change.change_kind();
     inline_qos_parameters.push(StatusInfo::from(change_kind));

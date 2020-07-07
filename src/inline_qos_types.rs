@@ -66,8 +66,7 @@ impl StatusInfo {
 }
 
 impl Pid for StatusInfo {
-    fn pid() -> ParameterId
-    where Self: Sized {
+    fn pid() -> ParameterId {
         PID_STATUS_INFO
     }
 }
