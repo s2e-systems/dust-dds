@@ -3,16 +3,17 @@
 /// in the sub clauses of 9.6.3 ParameterId Definitions used to Represent In-line QoS
 ///  
  
-use std::convert::{TryInto, From};
-use crate::serdes::{RtpsSerialize, RtpsDeserialize, Endianness, RtpsSerdesResult, SizeCheck};
+use std::convert::From;
 use crate::types::{ChangeKind, };
 use crate::messages::types::{ParameterId, Pid};
+
+use serde::{Serialize, Deserialize};
 
 const PID_TOPIC_NAME : ParameterId = 0x0005;
 const PID_KEY_HASH : ParameterId = 0x0070;
 const PID_STATUS_INFO : ParameterId = 0x0071;
   
-#[derive(Debug, PartialEq, Clone, Eq)]
+#[derive(Debug, PartialEq, Clone, Eq, Serialize, Deserialize)]
 pub struct TopicName(pub Vec<u8>);
 impl Pid for TopicName {
     fn pid() -> ParameterId where Self: Sized {
@@ -20,7 +21,7 @@ impl Pid for TopicName {
     }
 }
 
-#[derive(Debug, PartialEq, Clone, Copy, Eq)]
+#[derive(Debug, PartialEq, Clone, Copy, Eq, Serialize, Deserialize)]
 pub struct KeyHash(pub [u8; 16]);
 
 impl Pid for KeyHash {
@@ -29,22 +30,8 @@ impl Pid for KeyHash {
     }
 }
 
-impl RtpsSerialize for KeyHash {
-    fn serialize(&self, writer: &mut impl std::io::Write, _endianness: Endianness) -> RtpsSerdesResult<()> {
-        writer.write(&self.0)?;
-        Ok(())
-    }
-}
 
-impl RtpsDeserialize for KeyHash {
-    fn deserialize(bytes: &[u8], _endianness: Endianness) -> RtpsSerdesResult<Self> {
-        bytes.check_size_bigger_equal_than(16)?;
-        Ok(KeyHash(bytes[0..16].try_into()?))
-    }
-}
-
-
-#[derive(Debug, PartialEq, Clone, Copy, Eq)]
+#[derive(Debug, PartialEq, Clone, Copy, Eq, Serialize, Deserialize)]
 pub struct StatusInfo(pub [u8;4]);
 
 impl StatusInfo {
@@ -81,22 +68,6 @@ impl From<ChangeKind> for StatusInfo {
         }
     }
 }
-
-impl RtpsSerialize for StatusInfo {
-    fn serialize(&self, writer: &mut impl std::io::Write, _endianess: Endianness) -> RtpsSerdesResult<()> {
-        writer.write(&self.0)?;
-        Ok(())
-    }
-}
-
-impl RtpsDeserialize for StatusInfo {
-    fn deserialize(bytes: &[u8], _endianness: Endianness) -> RtpsSerdesResult<Self> {
-        bytes.check_size_bigger_equal_than(4)?;
-        Ok(StatusInfo(bytes[0..4].try_into()?))
-    }
-}
-
-
 
 
 #[cfg(test)]

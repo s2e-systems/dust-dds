@@ -1,10 +1,12 @@
-use rust_rtps::{StatelessWriter, StatelessReader, RtpsMessage, RtpsCompose, RtpsParse, RtpsSerialize};
+use rust_rtps::{StatelessWriter, StatelessReader, RtpsMessage, RtpsCompose, RtpsParse,};
 use rust_rtps::types::{ChangeKind, TopicKind, ReliabilityKind, Locator, GUID, GuidPrefix, };
 use rust_rtps::types::constants::{ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER, ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER, };
 use rust_rtps::behavior::types::constants::DURATION_ZERO;
-use rust_rtps::{ParameterId, Endianness, RtpsSerdesResult, ParameterList, Pid};
+use rust_rtps::{ParameterId, ParameterList, Pid};
 
-#[derive(Debug)]
+use serde::{Serialize, };
+
+#[derive(Debug, Serialize)]
 struct SpecialQos(u16);
 
 impl Pid for SpecialQos{
@@ -13,34 +15,12 @@ impl Pid for SpecialQos{
     }
 }
 
-impl RtpsSerialize for SpecialQos {
-    fn serialize(&self, writer: &mut impl std::io::Write, endianness: Endianness) -> RtpsSerdesResult<()> {
-        match endianness {
-            Endianness::BigEndian => writer.write(&self.0.to_be_bytes())?,
-            Endianness::LittleEndian => writer.write(&self.0.to_le_bytes())?,
-        };
-
-        Ok(())
-    }
-}
-
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 struct OtherQos(i32);
 
 impl Pid for OtherQos{
     fn pid() -> ParameterId where Self: Sized {
         0x0AA1
-    }
-}
-
-impl RtpsSerialize for OtherQos {
-    fn serialize(&self, writer: &mut impl std::io::Write, endianness: Endianness) -> RtpsSerdesResult<()> {
-        match endianness {
-            Endianness::BigEndian => writer.write(&self.0.to_be_bytes())?,
-            Endianness::LittleEndian => writer.write(&self.0.to_le_bytes())?,
-        };
-
-        Ok(())
     }
 }
 

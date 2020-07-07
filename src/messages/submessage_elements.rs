@@ -7,6 +7,8 @@ use std::collections::BTreeSet;
 use std::rc::Rc;
 use std::io::Write;
 
+use cdr::{LittleEndian, BigEndian, Infinite};
+
 use crate::types::{SequenceNumber, Locator};
 use crate::primitive_types::{Long, ULong, Short, };
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, Endianness, RtpsSerdesResult, SizeCheck};
@@ -234,7 +236,7 @@ pub trait ParameterOps : std::fmt::Debug{
 }
 
 impl<T> ParameterOps for T
-    where T: Pid + RtpsSerialize + std::fmt::Debug
+    where T: Pid + serde::Serialize + std::fmt::Debug
 {
     fn parameter_id(&self) -> ParameterId where Self: Sized {
         T::pid()
@@ -242,13 +244,14 @@ impl<T> ParameterOps for T
 
     fn length(&self) -> Short {
         // rounded up to multple of 4 (that is besides the length of the value may not be a multiple of 4)
-        (self.octets() + 3 & !3) as Short
+        (cdr::size::calc_serialized_data_size(self) + 3 & !3) as Short
     }
 
     fn value(&self, endianness: Endianness) -> Vec<u8> {
-        let mut writer = Vec::new();
-        self.serialize(&mut writer, endianness).unwrap();
-        writer
+        match endianness {
+            Endianness::LittleEndian => cdr::ser::serialize_data::<_,_,LittleEndian>(&self, Infinite).unwrap(),       
+            Endianness::BigEndian => cdr::ser::serialize_data::<_,_,BigEndian>(&self, Infinite).unwrap(),
+        }
     }
 }
 
@@ -268,9 +271,12 @@ impl Parameter {
         }
     }
 
-    pub fn get<T: Pid + RtpsDeserialize>(&self, endianness: Endianness) -> Option<T> {
+    pub fn get<'de, T: Pid + serde::Deserialize<'de>>(&self, endianness: Endianness) -> Option<T> {
         if self.parameter_id() == T::pid() {
-            T::deserialize(&self.value, endianness).ok()
+            Some(match endianness {
+                Endianness::LittleEndian => cdr::de::deserialize_data::<T, LittleEndian>(&self.value).ok()?,
+                Endianness::BigEndian => cdr::de::deserialize_data::<T, BigEndian>(&self.value).ok()?,
+            })
         } else {
             None
         }
@@ -356,11 +362,14 @@ impl ParameterList {
         &self.parameter
     }
 
-    pub fn find<T>(&self, endianness: Endianness) -> Option<T>
-        where T: Pid + ParameterOps + RtpsDeserialize
+    pub fn find<'de, T>(&self, endianness: Endianness) -> Option<T>
+        where T: Pid + ParameterOps + serde::Deserialize<'de>
     {
         let parameter = self.parameter.iter().find(|&x| x.parameter_id() == T::pid())?;
-        T::deserialize(&parameter.value(endianness), endianness).ok()
+        Some(match endianness {
+            Endianness::LittleEndian => cdr::de::deserialize_data::<T, LittleEndian>(&parameter.value(endianness)).ok()?,
+            Endianness::BigEndian => cdr::de::deserialize_data::<T, BigEndian>(&parameter.value(endianness)).ok()?,
+        })
     }
 
     pub fn remove<T>(&mut self) 
@@ -463,7 +472,7 @@ mod tests {
     use super::*;
     use crate::inline_qos_types::{StatusInfo, KeyHash};
     use crate::messages::types::ParameterId;
-    use std::convert::TryInto;
+    use serde::{Serialize, Deserialize};
 
     #[allow(overflowing_literals)]
     const PID_VENDOR_TEST_0 : ParameterId = 0x0000 | 0x8000;
@@ -780,7 +789,7 @@ mod tests {
 
     // /////////////////////// ParameterList Tests ////////////////////////
     
-    #[derive(Debug, PartialEq)]
+    #[derive(Debug, PartialEq, Serialize, Deserialize)]
     pub struct VendorTest0(pub [u8; 0]);
     impl Pid for VendorTest0 {
         fn pid() -> ParameterId
@@ -788,22 +797,8 @@ mod tests {
             PID_VENDOR_TEST_0
         }
     }
-
-    impl RtpsSerialize for VendorTest0 {
-        fn serialize(&self, writer: &mut impl std::io::Write, _endianness: Endianness) -> RtpsSerdesResult<()> {
-            writer.write(&self.0)?;
-            Ok(())
-        }
-    }
-
-    impl RtpsDeserialize for VendorTest0 {
-        fn deserialize(bytes: &[u8], _endianness: Endianness) -> RtpsSerdesResult<Self> {
-            bytes.check_size_bigger_equal_than(0)?;
-            Ok(VendorTest0(bytes[0..0].try_into()?))
-        }
-    }
     
-    #[derive(Debug, PartialEq)]
+    #[derive(Debug, PartialEq, Serialize, Deserialize)]
     pub struct VendorTest1(pub [u8; 1]);
     impl Pid for VendorTest1 {
         fn pid() -> ParameterId
@@ -811,22 +806,8 @@ mod tests {
             PID_VENDOR_TEST_1
         }
     }
-
-    impl RtpsSerialize for VendorTest1 {
-        fn serialize(&self, writer: &mut impl std::io::Write, _endianness: Endianness) -> RtpsSerdesResult<()> {
-            writer.write(&self.0)?;
-            Ok(())
-        }
-    }
-
-    impl RtpsDeserialize for VendorTest1 {
-        fn deserialize(bytes: &[u8], _endianness: Endianness) -> RtpsSerdesResult<Self> {
-            bytes.check_size_bigger_equal_than(1)?;
-            Ok(VendorTest1(bytes[0..1].try_into()?))
-        }
-    }
     
-    #[derive(Debug, PartialEq)]
+    #[derive(Debug, PartialEq, Serialize, Deserialize)]
     pub struct VendorTest3(pub [u8; 3]);
     impl Pid for VendorTest3 {
         fn pid() -> ParameterId
@@ -834,22 +815,8 @@ mod tests {
             PID_VENDOR_TEST_3
         }
     }
-
-    impl RtpsSerialize for VendorTest3 {
-        fn serialize(&self, writer: &mut impl std::io::Write, _endianness: Endianness) -> RtpsSerdesResult<()> {
-            writer.write(&self.0)?;
-            Ok(())
-        }
-    }
-
-    impl RtpsDeserialize for VendorTest3 {
-        fn deserialize(bytes: &[u8], _endianness: Endianness) -> RtpsSerdesResult<Self> {
-            bytes.check_size_bigger_equal_than(3)?;
-            Ok(VendorTest3(bytes[0..3].try_into()?))
-        }
-    }
     
-    #[derive(Debug, PartialEq)]
+    #[derive(Debug, PartialEq, Serialize)]
     pub struct VendorTest4(pub [u8; 4]);
     impl Pid for VendorTest4 {
         fn pid() -> ParameterId
@@ -857,15 +824,8 @@ mod tests {
             PID_VENDOR_TEST_4
         }
     }
-
-    impl RtpsSerialize for VendorTest4 {
-        fn serialize(&self, writer: &mut impl std::io::Write, _endianness: Endianness) -> RtpsSerdesResult<()> {
-            writer.write(&self.0)?;
-            Ok(())
-        }
-    }
     
-    #[derive(Debug, PartialEq)]
+    #[derive(Debug, PartialEq, Serialize, Deserialize)]
     pub struct VendorTest5(pub [u8; 5]);
     impl Pid for VendorTest5 {
         fn pid() -> ParameterId
@@ -874,39 +834,12 @@ mod tests {
         }
     }
 
-    impl RtpsSerialize for VendorTest5 {
-        fn serialize(&self, writer: &mut impl std::io::Write, _endianness: Endianness) -> RtpsSerdesResult<()> {
-            writer.write(&self.0)?;
-            Ok(())
-        }
-    }
-
-    impl RtpsDeserialize for VendorTest5 {
-        fn deserialize(bytes: &[u8], _endianness: Endianness) -> RtpsSerdesResult<Self> {
-            bytes.check_size_bigger_equal_than(5)?;
-            Ok(VendorTest5(bytes[0..5].try_into()?))
-        }
-    }
-
-    #[derive(Debug, PartialEq)]
+    #[derive(Debug, PartialEq, Serialize, Deserialize)]
     pub struct VendorTestShort(pub i16);
     impl Pid for VendorTestShort {
         fn pid() -> ParameterId
         where Self: Sized {
             PID_VENDOR_TEST_SHORT
-        }
-    }
-
-    impl RtpsSerialize for VendorTestShort {
-        fn serialize(&self, writer: &mut impl std::io::Write, endianness: Endianness) -> RtpsSerdesResult<()> {
-            self.0.serialize(writer, endianness)
-        }
-    }
-
-    impl RtpsDeserialize for VendorTestShort {
-        fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> {
-            bytes.check_size_bigger_equal_than(2)?;
-            Ok(VendorTestShort(Short::deserialize(&bytes[0..2], endianness)?))
         }
     }
 
