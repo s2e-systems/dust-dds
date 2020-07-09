@@ -236,18 +236,17 @@ impl RtpsParse for RtpsMessage {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use super::types::{Time, Count, };
-    use crate::types::{SequenceNumber, EntityId, };
-    use crate::types::{EntityKey, EntityKind, };
+    use super::types::{Time, };
+    use crate::types::constants;
     use crate::types::constants::{ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, ENTITYID_UNKNOWN, };
 
     #[test]
     fn test_parse_message_header() {
         let expected = Header {
-            protocol: ProtocolId([b'R', b'T', b'P', b'S']),
+            protocol: [b'R', b'T', b'P', b'S'],
             version: ProtocolVersion{major: 2, minor: 1},
-            vendor_id: VendorId([1, 2]),
-            guid_prefix: GuidPrefix([127, 32, 247, 215, 0, 0, 1, 187, 0, 0, 0, 1]),
+            vendor_id: [1, 2],
+            guid_prefix: [127, 32, 247, 215, 0, 0, 1, 187, 0, 0, 0, 1],
         };
         
         let bytes = [
@@ -298,9 +297,9 @@ mod tests {
         
         let submessage = RtpsSubmessage::Data ( Data::new(
             Endianness::LittleEndian, 
-            ENTITYID_UNKNOWN, 
-            ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, 
-            SequenceNumber(1),
+            submessage_elements::EntityId(ENTITYID_UNKNOWN), 
+            submessage_elements::EntityId(ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER), 
+            submessage_elements::SequenceNumber(1),
             None, 
             Payload::None
             )
@@ -332,9 +331,9 @@ mod tests {
         ];
         let expected = RtpsSubmessage::Data ( Data::new(
             Endianness::LittleEndian, 
-            ENTITYID_UNKNOWN, 
-            ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, 
-            SequenceNumber(1),
+            submessage_elements::EntityId(ENTITYID_UNKNOWN), 
+            submessage_elements::EntityId(ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER), 
+            submessage_elements::SequenceNumber(1),
             None, 
             Payload::None
             )
@@ -347,19 +346,19 @@ mod tests {
     fn test_compose_message() {
         let submessage = RtpsSubmessage::Data ( Data::new(
             Endianness::LittleEndian, 
-            ENTITYID_UNKNOWN, 
-            ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, 
-            SequenceNumber(1),
+            submessage_elements::EntityId(ENTITYID_UNKNOWN), 
+            submessage_elements::EntityId(ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER), 
+            submessage_elements::SequenceNumber(1),
             None, 
             Payload::None
             )
         );
         let message = RtpsMessage { 
                 header : Header {
-                    protocol: ProtocolId([b'R', b'T', b'P', b'S']),
+                    protocol: [b'R', b'T', b'P', b'S'],
                     version: ProtocolVersion{major: 2, minor: 1},
-                    vendor_id: VendorId([1, 2]),
-                    guid_prefix: GuidPrefix([127, 32, 247, 215, 0, 0, 1, 187, 0, 0, 0, 1]),
+                    vendor_id: [1, 2],
+                    guid_prefix: [127, 32, 247, 215, 0, 0, 1, 187, 0, 0, 0, 1],
                 },
                 submessages : vec![submessage],                
         };
@@ -384,33 +383,33 @@ mod tests {
 
     #[test]
     fn test_compose_message_three_data_submessages() {
-        let test_time = Time::new(1565525425, 269558339);
+        let test_time = submessage_elements::Timestamp(Time::new(1565525425, 269558339));
         let submessage1 = RtpsSubmessage::InfoTs ( InfoTs::new(Some(test_time), Endianness::LittleEndian)
         );
         let submessage2 = RtpsSubmessage::Data ( Data::new(
             Endianness::LittleEndian, 
-            ENTITYID_UNKNOWN, 
-            ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, 
-            SequenceNumber(1),
+            submessage_elements::EntityId(ENTITYID_UNKNOWN), 
+            submessage_elements::EntityId(ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER), 
+            submessage_elements::SequenceNumber(1),
             None, 
             Payload::None
             )
         );
         let submessage3 = RtpsSubmessage::Data ( Data::new(
             Endianness::LittleEndian, 
-            ENTITYID_UNKNOWN, 
-            ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, 
-            SequenceNumber(2),
+            submessage_elements::EntityId(ENTITYID_UNKNOWN), 
+            submessage_elements::EntityId(ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER), 
+            submessage_elements::SequenceNumber(2),
             None, 
             Payload::None
             )
         );
         let message = RtpsMessage { 
                 header : Header {
-                    protocol: ProtocolId([b'R', b'T', b'P', b'S']),
+                    protocol: [b'R', b'T', b'P', b'S'],
                     version: ProtocolVersion{major: 2, minor: 1},
-                    vendor_id: VendorId([1, 2]),
-                    guid_prefix: GuidPrefix([127, 32, 247, 215, 0, 0, 1, 187, 0, 0, 0, 1]),
+                    vendor_id: [1, 2],
+                    guid_prefix: [127, 32, 247, 215, 0, 0, 1, 187, 0, 0, 0, 1],
                 },
                 submessages : vec![submessage1, submessage2, submessage3],                
         };
@@ -446,19 +445,19 @@ mod tests {
     fn test_parse_message() {
         let submessage = RtpsSubmessage::Data ( Data::new(
             Endianness::LittleEndian, 
-            ENTITYID_UNKNOWN, 
-            ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, 
-            SequenceNumber(1),
+            submessage_elements::EntityId(ENTITYID_UNKNOWN), 
+            submessage_elements::EntityId(ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER), 
+            submessage_elements::SequenceNumber(1),
             None, 
             Payload::None
             )
         );
         let expected = RtpsMessage { 
                 header : Header {
-                    protocol: ProtocolId([b'R', b'T', b'P', b'S']),
+                    protocol: [b'R', b'T', b'P', b'S'],
                     version: ProtocolVersion{major: 2, minor: 1},
-                    vendor_id: VendorId([1, 2]),
-                    guid_prefix: GuidPrefix([127, 32, 247, 215, 0, 0, 1, 187, 0, 0, 0, 1]),
+                    vendor_id: [1, 2],
+                    guid_prefix: [127, 32, 247, 215, 0, 0, 1, 187, 0, 0, 0, 1],
                 },
                 submessages : vec![submessage],                
         };
@@ -482,18 +481,18 @@ mod tests {
 
         let submessage1 = RtpsSubmessage::Data ( Data::new(
             Endianness::LittleEndian, 
-            ENTITYID_UNKNOWN, 
-            ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, 
-            SequenceNumber(1),
+            submessage_elements::EntityId(ENTITYID_UNKNOWN), 
+            submessage_elements::EntityId(ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER), 
+            submessage_elements::SequenceNumber(1),
             None, 
             Payload::None
             )
         );
-        let reader_id = EntityId::new(EntityKey([0x10, 0x12, 0x14]), EntityKind::UserDefinedReaderWithKey);
-        let writer_id = EntityId::new(EntityKey([0x26, 0x24, 0x22]), EntityKind::UserDefinedWriterWithKey);
-        let first_sn = SequenceNumber(1233);
-        let last_sn = SequenceNumber(1237);
-        let count = Count(8);
+        let reader_id = submessage_elements::EntityId(crate::types::EntityId::new([0x10, 0x12, 0x14], constants::USER_DEFINED_READER_WITH_KEY));
+        let writer_id = submessage_elements::EntityId(crate::types::EntityId::new([0x26, 0x24, 0x22], constants::USER_DEFINED_WRITER_WITH_KEY));
+        let first_sn = submessage_elements::SequenceNumber(1233);
+        let last_sn = submessage_elements::SequenceNumber(1237);
+        let count = submessage_elements::Count(8);
         let final_flag = true;
         let liveliness_flag = false;
 
@@ -502,10 +501,10 @@ mod tests {
         );
         let expected = RtpsMessage { 
                 header : Header {
-                    protocol: ProtocolId([b'R', b'T', b'P', b'S']),
+                    protocol: [b'R', b'T', b'P', b'S'],
                     version: ProtocolVersion{major: 2, minor: 1},
-                    vendor_id: VendorId([1, 2]),
-                    guid_prefix: GuidPrefix([127, 32, 247, 215, 0, 0, 1, 187, 0, 0, 0, 1]),
+                    vendor_id: [1, 2],
+                    guid_prefix: [127, 32, 247, 215, 0, 0, 1, 187, 0, 0, 0, 1],
                 },
                 submessages : vec![submessage1, submessage2],                
         };
@@ -537,33 +536,33 @@ mod tests {
 
     #[test]
     fn test_parse_message_two_data_submessages() {
-        let test_time = Time::new(1565525425, 269558339);
+        let test_time = submessage_elements::Timestamp(Time::new(1565525425, 269558339));
         let submessage1 = RtpsSubmessage::InfoTs ( InfoTs::new(Some(test_time), Endianness::LittleEndian)
         );
         let submessage2 = RtpsSubmessage::Data ( Data::new(
             Endianness::LittleEndian, 
-            ENTITYID_UNKNOWN, 
-            ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, 
-            SequenceNumber(1),
+            submessage_elements::EntityId(ENTITYID_UNKNOWN), 
+            submessage_elements::EntityId(ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER), 
+            submessage_elements::SequenceNumber(1),
             None, 
             Payload::None
             )
         );
         let submessage3 = RtpsSubmessage::Data ( Data::new(
             Endianness::LittleEndian, 
-            ENTITYID_UNKNOWN, 
-            ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, 
-            SequenceNumber(2),
+            submessage_elements::EntityId(ENTITYID_UNKNOWN), 
+            submessage_elements::EntityId(ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER), 
+            submessage_elements::SequenceNumber(1),
             None, 
             Payload::None
             )
         );
         let expected = RtpsMessage { 
                 header : Header {
-                    protocol: ProtocolId([b'R', b'T', b'P', b'S']),
+                    protocol: [b'R', b'T', b'P', b'S'],
                     version: ProtocolVersion{major: 2, minor: 1},
-                    vendor_id: VendorId([1, 2]),
-                    guid_prefix: GuidPrefix([127, 32, 247, 215, 0, 0, 1, 187, 0, 0, 0, 1]),
+                    vendor_id: [1, 2],
+                    guid_prefix: [127, 32, 247, 215, 0, 0, 1, 187, 0, 0, 0, 1],
                 },
                 submessages : vec![submessage1, submessage2, submessage3],                
         };

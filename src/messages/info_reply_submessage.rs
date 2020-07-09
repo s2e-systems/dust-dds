@@ -84,8 +84,8 @@ mod tests {
         let expected = InfoReply {
             endianness_flag: Endianness::LittleEndian.into(),
             multicast_flag: false,
-            unicast_locator_list: LocatorList(vec![Locator::new(100, 200, address)]),
-            multicast_locator_list: LocatorList(vec![])
+            unicast_locator_list: submessage_elements::LocatorList(vec![Locator::new(100, 200, address)]),
+            multicast_locator_list: submessage_elements::LocatorList(vec![])
         };
         let result = InfoReply::parse(&bytes).unwrap();
         assert_eq!(expected, result);
@@ -114,8 +114,8 @@ mod tests {
         let expected = InfoReply {
             endianness_flag: Endianness::LittleEndian.into(),
             multicast_flag: true,
-            unicast_locator_list: LocatorList(vec![Locator::new(100, 200, address)]),
-            multicast_locator_list: LocatorList(vec![Locator::new(101, 201, address)])
+            unicast_locator_list: submessage_elements::LocatorList(vec![Locator::new(100, 200, address)]),
+            multicast_locator_list: submessage_elements::LocatorList(vec![Locator::new(101, 201, address)])
         };
         let result = InfoReply::parse(&bytes).unwrap();
         assert_eq!(expected, result);
@@ -144,8 +144,8 @@ mod tests {
         let message = InfoReply {
             endianness_flag: Endianness::LittleEndian.into(),
             multicast_flag: true,
-            unicast_locator_list: LocatorList(vec![Locator::new(100, 200, address)]),
-            multicast_locator_list: LocatorList(vec![Locator::new(101, 201, address)])
+            unicast_locator_list: submessage_elements::LocatorList(vec![Locator::new(100, 200, address)]),
+            multicast_locator_list: submessage_elements::LocatorList(vec![Locator::new(101, 201, address)])
         };
         let mut writer = Vec::new();
         message.compose(&mut writer).unwrap();

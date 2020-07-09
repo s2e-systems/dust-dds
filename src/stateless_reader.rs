@@ -76,20 +76,20 @@ mod tests {
     use crate::types::constants::*;
     use crate::serialized_payload::SerializedPayload;
     use crate::messages::{Data, Payload, RtpsSubmessage };
-    use crate::messages::submessage_elements::ParameterList;
+    use crate::messages::submessage_elements;
     use crate::serdes::Endianness;
     use crate::inline_qos_types::{KeyHash};
 
     #[test]
     fn best_effort_stateless_reader_run() {
-        let mut inline_qos = ParameterList::new();
+        let mut inline_qos = submessage_elements::ParameterList::new();
         inline_qos.push(KeyHash([1;16]));
 
         let data1 = Data::new(
             Endianness::LittleEndian,
-            ENTITYID_UNKNOWN,
-            ENTITYID_UNKNOWN,
-            SequenceNumber(1),
+            submessage_elements::EntityId(ENTITYID_UNKNOWN),
+            submessage_elements::EntityId(ENTITYID_UNKNOWN),
+            submessage_elements::SequenceNumber(1),
             Some(inline_qos),
             Payload::Data(SerializedPayload(vec![0,1,2])),
         );
@@ -98,7 +98,7 @@ mod tests {
         submessages.push(RtpsSubmessage::Data(data1));
 
         let mut reader = StatelessReader::new(
-            GUID::new(GuidPrefix([0;12]), ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER),
+            GUID::new([0;12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER),
             TopicKind::WithKey,
             ReliabilityKind::BestEffort,
             vec![Locator::new(0, 7400, [0;16])],
@@ -107,7 +107,7 @@ mod tests {
            );
 
         assert_eq!(reader.history_cache().get_changes().len(), 0);
-        let message = RtpsMessage::new(GuidPrefix([2;12]), submessages);
+        let message = RtpsMessage::new([2;12], submessages);
         
         reader.run(Some(&message));
 

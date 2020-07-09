@@ -61,7 +61,7 @@ mod tests {
         ];
         let expected = InfoDestination {
             endianness_flag: Endianness::BigEndian.into(),
-            guid_prefix: GuidPrefix([10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,]),
+            guid_prefix: submessage_elements::GuidPrefix([10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,]),
         };
         let result = InfoDestination::parse(&bytes).unwrap();
         assert_eq!(expected, result);
@@ -77,7 +77,7 @@ mod tests {
         ];
         let expected = InfoDestination {
             endianness_flag: Endianness::LittleEndian.into(),
-            guid_prefix: GuidPrefix([10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,]),
+            guid_prefix: submessage_elements::GuidPrefix([10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,]),
         };
         let result = InfoDestination::parse(&bytes).unwrap();
         assert_eq!(expected, result);

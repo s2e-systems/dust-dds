@@ -102,7 +102,6 @@ impl RtpsParse for AckNack {
 mod tests {
     use super::*;
     use crate::types::constants::{ENTITYID_UNKNOWN, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, };
-    use crate::types::SequenceNumber;
     
     #[test]
     fn test_parse_ack_nack_submessage() {
@@ -120,10 +119,10 @@ mod tests {
         let expected = AckNack {
             endianness_flag: Endianness::LittleEndian.into(),
             final_flag: true,
-            reader_id: ENTITYID_UNKNOWN,
-            writer_id: ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
-            reader_sn_state: SequenceNumberSet::from_set([SequenceNumber(2), SequenceNumber(3)].iter().cloned().collect()),
-            count: Count(2),
+            reader_id: submessage_elements::EntityId(ENTITYID_UNKNOWN),
+            writer_id: submessage_elements::EntityId(ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER),
+            reader_sn_state: submessage_elements::SequenceNumberSet::from_set([2,3].iter().cloned().collect()),
+            count: submessage_elements::Count(2),
         };
         let result = AckNack::parse(&bytes).unwrap();
         assert_eq!(expected, result);
@@ -145,10 +144,10 @@ mod tests {
         let message = AckNack {
             endianness_flag: Endianness::LittleEndian.into(),
             final_flag: true,
-            reader_id: ENTITYID_UNKNOWN,
-            writer_id: ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
-            reader_sn_state: SequenceNumberSet::from_set([SequenceNumber(2), SequenceNumber(3)].iter().cloned().collect()),
-            count: Count(2),
+            reader_id: submessage_elements::EntityId(ENTITYID_UNKNOWN),
+            writer_id: submessage_elements::EntityId(ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER),
+            reader_sn_state: submessage_elements::SequenceNumberSet::from_set([2, 3].iter().cloned().collect()),
+            count: submessage_elements::Count(2),
         };
 
         let mut writer = Vec::new();

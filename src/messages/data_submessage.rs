@@ -233,10 +233,10 @@ mod tests {
     fn test_data_contructor() {
         let data = Data::new(
             Endianness::LittleEndian, 
-            ENTITYID_UNKNOWN, 
-            ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, 
-            SequenceNumber(1), 
-            Some(ParameterList::new()),
+            submessage_elements::EntityId(ENTITYID_UNKNOWN), 
+            submessage_elements::EntityId(ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER), 
+            submessage_elements::SequenceNumber(1), 
+            Some(submessage_elements::ParameterList::new()),
             Payload::Data(SerializedPayload(vec![]))
         );
         assert_eq!(data.endianness_flag, true);
@@ -253,9 +253,9 @@ mod tests {
             data_flag: false,
             key_flag: false,
             non_standard_payload_flag: false,
-            reader_id: ENTITYID_UNKNOWN,
-            writer_id: ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
-            writer_sn: SequenceNumber(1),
+            reader_id: submessage_elements::EntityId(ENTITYID_UNKNOWN),
+            writer_id: submessage_elements::EntityId(ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER),
+            writer_sn: submessage_elements::SequenceNumber(1),
             inline_qos: None, 
             serialized_payload: None, 
         };
@@ -276,7 +276,7 @@ mod tests {
     fn test_compose_data_submessage_with_inline_qos_without_data() {
         let endianness = Endianness::LittleEndian;
         let key_hash = KeyHash([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]);
-        let mut inline_qos = ParameterList::new();
+        let mut inline_qos = submessage_elements::ParameterList::new();
         inline_qos.push(key_hash);
         
         let data = Data {
@@ -285,9 +285,9 @@ mod tests {
             data_flag: false,
             key_flag: false,
             non_standard_payload_flag: false,
-            reader_id: ENTITYID_UNKNOWN,
-            writer_id: ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
-            writer_sn: SequenceNumber(1),
+            reader_id: submessage_elements::EntityId(ENTITYID_UNKNOWN),
+            writer_id: submessage_elements::EntityId(ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER),
+            writer_sn: submessage_elements::SequenceNumber(1),
             inline_qos: Some(inline_qos), 
             serialized_payload: None, 
         };
@@ -314,7 +314,7 @@ mod tests {
     fn test_compose_data_submessage_with_inline_qos_with_data() {
         let endianness = Endianness::LittleEndian;
         let key_hash = KeyHash([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]);
-        let mut inline_qos = ParameterList::new();
+        let mut inline_qos = submessage_elements::ParameterList::new();
         inline_qos.push(key_hash);
         
         let serialized_payload = SerializedPayload(vec![1_u8, 2, 3]);
@@ -325,9 +325,9 @@ mod tests {
             data_flag: true,
             key_flag: false,
             non_standard_payload_flag: false,
-            reader_id: ENTITYID_UNKNOWN,
-            writer_id: ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
-            writer_sn: SequenceNumber(1),
+            reader_id: submessage_elements::EntityId(ENTITYID_UNKNOWN),
+            writer_id: submessage_elements::EntityId(ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER),
+            writer_sn: submessage_elements::SequenceNumber(1),
             inline_qos: Some(inline_qos), 
             serialized_payload: Some(serialized_payload), 
         };
@@ -360,9 +360,9 @@ mod tests {
             data_flag: false,
             key_flag: false,
             non_standard_payload_flag: false,
-            reader_id: ENTITYID_UNKNOWN,
-            writer_id: ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
-            writer_sn: SequenceNumber(1),
+            reader_id: submessage_elements::EntityId(ENTITYID_UNKNOWN),
+            writer_id: submessage_elements::EntityId(ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER),
+            writer_sn: submessage_elements::SequenceNumber(1),
             inline_qos: None, 
             serialized_payload: None, 
         };
@@ -388,9 +388,9 @@ mod tests {
             data_flag: false,
             key_flag: false,
             non_standard_payload_flag: true,
-            reader_id: ENTITYID_UNKNOWN,
-            writer_id: ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
-            writer_sn: SequenceNumber(1),
+            reader_id: submessage_elements::EntityId(ENTITYID_UNKNOWN),
+            writer_id: submessage_elements::EntityId(ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER),
+            writer_sn: submessage_elements::SequenceNumber(1),
             inline_qos: None, 
             serialized_payload: Some(serialized_payload), 
         };
@@ -411,7 +411,7 @@ mod tests {
     fn test_parse_data_submessage_with_inline_qos_with_data() {
         let endianness = Endianness::LittleEndian;
         let key_hash = KeyHash([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]);
-        let mut inline_qos = ParameterList::new();
+        let mut inline_qos = submessage_elements::ParameterList::new();
         inline_qos.push(key_hash);
 
         
@@ -423,9 +423,9 @@ mod tests {
             data_flag: false,
             key_flag: true,
             non_standard_payload_flag: false,
-            reader_id: ENTITYID_UNKNOWN,
-            writer_id: ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
-            writer_sn: SequenceNumber(1),
+            reader_id: submessage_elements::EntityId(ENTITYID_UNKNOWN),
+            writer_id: submessage_elements::EntityId(ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER),
+            writer_sn: submessage_elements::SequenceNumber(1),
             inline_qos: Some(inline_qos), 
             serialized_payload: Some(serialized_payload), 
         };

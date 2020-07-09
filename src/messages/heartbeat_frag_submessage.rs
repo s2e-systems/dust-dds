@@ -90,11 +90,11 @@ mod tests {
     fn parse_heartbeat_frag_submessage() {
         let expected = HeartbeatFrag {
             endianness_flag: true,    
-            reader_id: ENTITYID_UNKNOWN,
-            writer_id: ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
-            writer_sn: SequenceNumber(1),
-            last_fragment_num: FragmentNumber(2),
-            count: Count(3),
+            reader_id: submessage_elements::EntityId(ENTITYID_UNKNOWN),
+            writer_id: submessage_elements::EntityId(ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER),
+            writer_sn: submessage_elements::SequenceNumber(1),
+            last_fragment_num: submessage_elements::FragmentNumber(2),
+            count: submessage_elements::Count(3),
         };
         let bytes = vec![
             0x13, 0b00000001, 24, 0x0, // Submessgae Header
@@ -114,11 +114,11 @@ mod tests {
     fn compose_heartbeat_frag_submessage() {
         let message = HeartbeatFrag {
             endianness_flag: true,    
-            reader_id: ENTITYID_UNKNOWN,
-            writer_id: ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
-            writer_sn: SequenceNumber(1),
-            last_fragment_num: FragmentNumber(2),
-            count: Count(3),
+            reader_id: submessage_elements::EntityId(ENTITYID_UNKNOWN),
+            writer_id: submessage_elements::EntityId(ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER),
+            writer_sn: submessage_elements::SequenceNumber(1),
+            last_fragment_num: submessage_elements::FragmentNumber(2),
+            count: submessage_elements::Count(3),
         };
         let expected = vec![
             0x13, 0b00000001, 24, 0x0, // Submessgae Header

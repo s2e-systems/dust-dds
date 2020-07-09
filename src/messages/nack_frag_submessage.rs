@@ -107,11 +107,11 @@ mod tests {
         
         let expected = NackFrag {
             endianness_flag: Endianness::LittleEndian.into(),
-            reader_id: ENTITYID_UNKNOWN,
-            writer_id: ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
-            writer_sn: SequenceNumber(1), 
-            fragment_number_state: FragmentNumberSet::new([FragmentNumber(2), FragmentNumber(3)].iter().cloned().collect()),
-            count: Count(2),
+            reader_id: submessage_elements::EntityId(ENTITYID_UNKNOWN), 
+            writer_id: submessage_elements::EntityId(ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER), 
+            writer_sn: submessage_elements::SequenceNumber(1),
+            fragment_number_state: submessage_elements::FragmentNumberSet::new([FragmentNumber(2), FragmentNumber(3)].iter().cloned().collect()),
+            count: submessage_elements::Count(2),
         };
         let result = NackFrag::parse(&bytes).unwrap();
         assert_eq!(expected, result);
@@ -132,11 +132,11 @@ mod tests {
         
         let message = NackFrag {
             endianness_flag: Endianness::LittleEndian.into(),
-            reader_id: ENTITYID_UNKNOWN,
-            writer_id: ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
-            writer_sn: SequenceNumber(1), 
-            fragment_number_state: FragmentNumberSet::new([FragmentNumber(2), FragmentNumber(3)].iter().cloned().collect()),
-            count: Count(2),
+            reader_id: submessage_elements::EntityId(ENTITYID_UNKNOWN), 
+            writer_id: submessage_elements::EntityId(ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER), 
+            writer_sn: submessage_elements::SequenceNumber(1),
+            fragment_number_state: submessage_elements::FragmentNumberSet::new([FragmentNumber(2), FragmentNumber(3)].iter().cloned().collect()),
+            count: submessage_elements::Count(2),
         };
         let mut writer = Vec::new();
         message.compose(&mut writer).unwrap();

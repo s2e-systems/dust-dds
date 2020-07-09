@@ -5,7 +5,7 @@ use crate::messages::RtpsMessage;
 use crate::types::{ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID, };
 use crate::behavior::types::Duration;
 use crate::behavior::StatelessWriterBehavior;
-use crate::messages::submessage_elements::ParameterList;
+use crate::messages::submessage_elements;
 
 pub struct ReaderLocator {
     //requested_changes: HashSet<CacheChange>,
@@ -110,7 +110,7 @@ impl StatelessWriter {
         &mut self,
         kind: ChangeKind,
         data: Option<Vec<u8>>,
-        inline_qos: Option<ParameterList>,
+        inline_qos: Option<submessage_elements::ParameterList>,
         handle: InstanceHandle,
     ) -> CacheChange {
         self.last_change_sequence_number = self.last_change_sequence_number + 1;
@@ -173,7 +173,7 @@ mod tests {
     #[test]
     fn test_writer_new_change() {
         let mut writer = StatelessWriter::new(
-            GUID::new(GuidPrefix([0; 12]), ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
+            GUID::new([0; 12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
             TopicKind::WithKey,
             ReliabilityKind::BestEffort,
             vec![Locator::new(0, 7400, [0; 16])], /*unicast_locator_list*/
@@ -186,16 +186,16 @@ mod tests {
 
         let cache_change_seq1 = writer.new_change(
             ChangeKind::Alive,
-            Some(vec![1, 2, 3]), /*data*/
-            None,                /*inline_qos*/
-            [1; 16],             /*handle*/
+            Some(vec![1, 2, 3]), 
+            None,                
+            [1; 16],             
         );
 
         let cache_change_seq2 = writer.new_change(
             ChangeKind::NotAliveUnregistered,
-            None,    /*data*/
-            None,    /*inline_qos*/
-            [1; 16], /*handle*/
+            None,    
+            None,    
+            [1; 16], 
         );
 
         assert_eq!(cache_change_seq1.sequence_number(), &1);
@@ -215,7 +215,7 @@ mod tests {
     #[test]
     fn test_best_effort_stateless_writer_run() {
         let mut writer = StatelessWriter::new(
-            GUID::new(GuidPrefix([0; 12]), ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
+            GUID::new([0; 12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
             TopicKind::WithKey,
             ReliabilityKind::BestEffort,
             vec![Locator::new(0, 7400, [0; 16])], 
@@ -255,9 +255,9 @@ mod tests {
             panic!("Wrong message type");
         }
         if let RtpsSubmessage::Data(data_message_1) = &writer_data.submessages()[1] {
-            assert_eq!(data_message_1.reader_id(), &ENTITYID_UNKNOWN);
-            assert_eq!(data_message_1.writer_id(), &ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER);
-            assert_eq!(data_message_1.writer_sn(), &1);
+            assert_eq!(data_message_1.reader_id(), &submessage_elements::EntityId(ENTITYID_UNKNOWN));
+            assert_eq!(data_message_1.writer_id(), &submessage_elements::EntityId(ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER));
+            assert_eq!(data_message_1.writer_sn(), &submessage_elements::SequenceNumber(1));
             assert_eq!(data_message_1.serialized_payload(), &Some(SerializedPayload(vec![1, 2, 3])));
 
         } else {
@@ -265,9 +265,9 @@ mod tests {
         };
 
         if let RtpsSubmessage::Data(data_message_2) = &writer_data.submessages()[2] {
-            assert_eq!(data_message_2.reader_id(), &ENTITYID_UNKNOWN);
-            assert_eq!(data_message_2.writer_id(), &ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER);
-            assert_eq!(data_message_2.writer_sn(), &2);
+            assert_eq!(data_message_2.reader_id(), &submessage_elements::EntityId(ENTITYID_UNKNOWN));
+            assert_eq!(data_message_2.writer_id(), &submessage_elements::EntityId(ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER));
+            assert_eq!(data_message_2.writer_sn(), &submessage_elements::SequenceNumber(2));
             assert_eq!(data_message_2.serialized_payload(), &Some(SerializedPayload(vec![4, 5, 6])));
         } else {
             panic!("Wrong message type");

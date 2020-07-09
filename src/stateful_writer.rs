@@ -270,7 +270,7 @@ mod tests {
     #[test]
     fn stateful_writer_new_change() {
         let mut writer = StatefulWriter::new(
-            GUID::new(GuidPrefix([0; 12]), ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
+            GUID::new([0; 12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
             TopicKind::WithKey,
             ReliabilityKind::BestEffort,
             vec![Locator::new(0, 7400, [0; 16])],
@@ -311,7 +311,7 @@ mod tests {
 
     #[test]
     fn reader_proxy_unsent_changes_operations() {
-        let remote_reader_guid = GUID::new(GuidPrefix([1,2,3,4,5,6,7,8,9,10,11,12]), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
+        let remote_reader_guid = GUID::new([1,2,3,4,5,6,7,8,9,10,11,12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
         let mut reader_proxy = ReaderProxy::new(remote_reader_guid, vec![], vec![], false, true);
 
         // Check that a reader proxy that has no changes marked as sent doesn't reports no changes
@@ -337,7 +337,7 @@ mod tests {
 
     #[test]
     fn reader_proxy_requested_changes_operations() {
-        let remote_reader_guid = GUID::new(GuidPrefix([1,2,3,4,5,6,7,8,9,10,11,12]), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
+        let remote_reader_guid = GUID::new([1,2,3,4,5,6,7,8,9,10,11,12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
         let mut reader_proxy = ReaderProxy::new(remote_reader_guid, vec![], vec![], false, true);
 
         // Check that a reader proxy that has no changes marked as sent doesn't reports no changes
@@ -387,7 +387,7 @@ mod tests {
 
     #[test]
     fn reader_proxy_unacked_changes_operations() {
-        let remote_reader_guid = GUID::new(GuidPrefix([1,2,3,4,5,6,7,8,9,10,11,12]), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
+        let remote_reader_guid = GUID::new([1,2,3,4,5,6,7,8,9,10,11,12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
         let mut reader_proxy = ReaderProxy::new(remote_reader_guid, vec![], vec![], false, true);
 
         let no_change_in_writer = 0;

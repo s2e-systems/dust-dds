@@ -80,9 +80,9 @@ mod tests {
     fn parse_heartbeat_frag_submessage() {
         let expected = InfoSource {
             endianness_flag: true,    
-            protocol_version: constants::PROTOCOL_VERSION_2_4,
-            vendor_id: constants::VENDOR_ID,
-            guid_prefix: GuidPrefix([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]),
+            protocol_version: submessage_elements::ProtocolVersion(constants::PROTOCOL_VERSION_2_4),
+            vendor_id: submessage_elements::VendorId(constants::VENDOR_ID),
+            guid_prefix: submessage_elements::GuidPrefix([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]),
         };
         let bytes = vec![
             0x0c, 0b00000001, 20, 0x0, // Submessgae Header
@@ -101,9 +101,9 @@ mod tests {
     fn compose_heartbeat_frag_submessage() {
         let message = InfoSource {
             endianness_flag: true,    
-            protocol_version: constants::PROTOCOL_VERSION_2_4,
-            vendor_id: constants::VENDOR_ID,
-            guid_prefix: GuidPrefix([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]),
+            protocol_version: submessage_elements::ProtocolVersion(constants::PROTOCOL_VERSION_2_4),
+            vendor_id: submessage_elements::VendorId(constants::VENDOR_ID),
+            guid_prefix: submessage_elements::GuidPrefix([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]),
         };
         let expected = vec![
             0x0c, 0b00000001, 20, 0x0, // Submessgae Header

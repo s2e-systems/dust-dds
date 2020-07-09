@@ -59,7 +59,7 @@ impl RtpsDeserialize for EntityId {
 
 //  /////////   VendorId
 #[derive(Debug, PartialEq, Copy, Clone)]
-pub struct VendorId(types::VendorId);
+pub struct VendorId(pub types::VendorId);
 
 impl RtpsSerialize for VendorId {
     fn serialize(&self, writer: &mut impl std::io::Write, _endianness: Endianness) -> RtpsSerdesResult<()> {
@@ -79,7 +79,7 @@ impl RtpsDeserialize for VendorId {
 //  /////////   ProtocolVersion
 
 #[derive(Debug, PartialEq, Copy, Clone)]
-pub struct ProtocolVersion(types::ProtocolVersion);
+pub struct ProtocolVersion(pub types::ProtocolVersion);
 
 impl RtpsSerialize for ProtocolVersion {
     fn serialize(&self, writer: &mut impl std::io::Write, _endianness: Endianness) -> RtpsSerdesResult<()> {
@@ -715,10 +715,11 @@ mod tests {
         let wrong_vec = [1,2,3,4];
 
         let expected_error = SequenceNumber::deserialize(&wrong_vec, Endianness::LittleEndian);
-        match expected_error {
-            Err(RtpsSerdesError::WrongSize) => assert!(true),
-            _ => assert!(false),
-        };
+        todo!()
+        // match expected_error {
+        //     Err(RtpsSerdesError::WrongSize) => assert!(true),
+        //     _ => assert!(false),
+        // };
     }
 
     // /////////////////////// SequenceNumberSet Tests ////////////////////////
@@ -726,17 +727,17 @@ mod tests {
     #[test]
     fn sequence_number_set_constructor() {
         let expected = SequenceNumberSet{
-            base: SequenceNumber(1001),
-            set:  [SequenceNumber(1001), SequenceNumber(1003)].iter().cloned().collect(),
+            base: 1001,
+            set:  [1001, 1003].iter().cloned().collect(),
         };
-        let result = SequenceNumberSet::from_set([SequenceNumber(1001), SequenceNumber(1003)].iter().cloned().collect());
+        let result = SequenceNumberSet::from_set([1001, 1003].iter().cloned().collect());
         assert_eq!(expected, result);
     }
 
     #[test]
     fn sequence_number_set_constructor_empty_set() {        
         let expected = SequenceNumberSet{
-            base: SequenceNumber(0),
+            base: 0,
             set:  [].iter().cloned().collect(),
         };
         let result = SequenceNumberSet::from_set([].iter().cloned().collect());
@@ -746,7 +747,7 @@ mod tests {
     #[test]
     fn deserialize_sequence_number_set_empty() {
         let expected = SequenceNumberSet{
-            base: SequenceNumber(3),
+            base: 3,
             set: [].iter().cloned().collect()
         };
         let bytes = vec![
@@ -761,8 +762,8 @@ mod tests {
     #[test]
     fn deserialize_sequence_number_set_one_bitmap_be() {
         let expected = SequenceNumberSet{
-            base: SequenceNumber(3),
-            set: [SequenceNumber(3), SequenceNumber(4)].iter().cloned().collect()
+            base: 3,
+            set: [3, 4].iter().cloned().collect()
         };
         let bytes = vec![
             0, 0, 0, 0, // base
@@ -777,8 +778,8 @@ mod tests {
     #[test]
         fn deserialize_sequence_number_set_one_bitmap_le() {
         let expected = SequenceNumberSet{
-            base: SequenceNumber(3),
-            set: [SequenceNumber(3), SequenceNumber(4)].iter().cloned().collect()
+            base: 3,
+            set: [3, 4].iter().cloned().collect()
         };
         let bytes = vec![
             0, 0, 0, 0, // base
@@ -793,8 +794,8 @@ mod tests {
     #[test]
     fn deserialize_sequence_number_set_multiple_bitmaps() {
         let expected = SequenceNumberSet{
-            base: SequenceNumber(1000),
-            set: [SequenceNumber(1001), SequenceNumber(1003), SequenceNumber(1032), SequenceNumber(1033)].iter().cloned().collect()
+            base: 1000,
+            set: [1001, 1003, 1032, 1033].iter().cloned().collect()
         };
         let bytes = vec![
             0, 0, 0, 0, // base
@@ -810,8 +811,8 @@ mod tests {
     #[test]
     fn deserialize_sequence_number_set_max_bitmaps_big_endian() {
         let expected = SequenceNumberSet{
-            base: SequenceNumber(1000),
-            set: [SequenceNumber(1000), SequenceNumber(1255)].iter().cloned().collect()
+            base: 1000,
+            set: [1000, 1255].iter().cloned().collect()
         };
         let bytes = vec![
             0, 0, 0, 0, // base
@@ -833,8 +834,8 @@ mod tests {
     #[test]
     fn deserialize_sequence_number_set_max_bitmaps_little_endian() {
         let expected = SequenceNumberSet{
-            base: SequenceNumber(1000),
-            set: [SequenceNumber(1000), SequenceNumber(1255)].iter().cloned().collect()
+            base: 1000,
+            set: [1000, 1255].iter().cloned().collect()
         };
         let bytes = vec![
             0, 0, 0, 0, // base
@@ -863,12 +864,12 @@ mod tests {
             0x30, 0x00, 0x00, 0x00, 
         ];
         let set = SequenceNumberSet::deserialize(&bytes, Endianness::BigEndian).unwrap().set;
-        assert!(!set.contains(&SequenceNumber(1234)));
-        assert!(!set.contains(&SequenceNumber(1235)));
-        assert!(set.contains(&SequenceNumber(1236)));
-        assert!(set.contains(&SequenceNumber(1237)));
+        assert!(!set.contains(&1234));
+        assert!(!set.contains(&1235));
+        assert!(set.contains(&1236));
+        assert!(set.contains(&1237));
         for seq_num in 1238..1245 {
-            assert!(!set.contains(&SequenceNumber(seq_num)));
+            assert!(!set.contains(&seq_num));
         }
     }
     
@@ -882,12 +883,12 @@ mod tests {
             0x00, 0x00, 0x00, 0x30, 
         ];
         let set = SequenceNumberSet::deserialize(&bytes, Endianness::LittleEndian).unwrap().set;
-        assert!(!set.contains(&SequenceNumber(1234)));
-        assert!(!set.contains(&SequenceNumber(1235)));
-        assert!(set.contains(&SequenceNumber(1236)));
-        assert!(set.contains(&SequenceNumber(1237)));
+        assert!(!set.contains(&1234));
+        assert!(!set.contains(&1235));
+        assert!(set.contains(&1236));
+        assert!(set.contains(&1237));
         for seq_num in 1238..1245 {
-            assert!(!set.contains(&SequenceNumber(seq_num)));
+            assert!(!set.contains(&seq_num));
         }
     }
         
@@ -895,8 +896,8 @@ mod tests {
     #[test]
     fn serialize_sequence_number_set() {
         let set = SequenceNumberSet{
-            base: SequenceNumber(3),
-            set: [SequenceNumber(3), SequenceNumber(4)].iter().cloned().collect()
+            base: 3,
+            set: [3, 4].iter().cloned().collect()
         };
         let mut writer = Vec::new();
         set.serialize(&mut writer, Endianness::BigEndian).unwrap();
@@ -910,8 +911,8 @@ mod tests {
     
     
         let set = SequenceNumberSet{
-            base: SequenceNumber(1),
-            set: [SequenceNumber(3), SequenceNumber(4)].iter().cloned().collect()
+            base: 1,
+            set: [3, 4].iter().cloned().collect()
         };
         let mut writer = Vec::new();
         set.serialize(&mut writer, Endianness::LittleEndian).unwrap();
@@ -935,8 +936,8 @@ mod tests {
     
     
         let set = SequenceNumberSet{
-            base: SequenceNumber(1000),
-            set: [SequenceNumber(1001), SequenceNumber(1003), SequenceNumber(1032), SequenceNumber(1033)].iter().cloned().collect()
+            base: 1000,
+            set: [1001, 1003, 1032, 1033].iter().cloned().collect()
         };
         let mut writer = Vec::new();
         set.serialize(&mut writer, Endianness::BigEndian).unwrap();

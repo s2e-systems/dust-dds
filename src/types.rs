@@ -231,267 +231,267 @@ mod tests {
 
 
     ///////////////////////// GuidPrefix Tests ////////////////////////
-    #[test]
-    fn invalid_guid_prefix_deserialization() {
-        let too_big_vec = [1,2,3,4,5,6,7,8,9,10,11,12,13,14];
+    // #[test]
+    // fn invalid_guid_prefix_deserialization() {
+    //     let too_big_vec = [1,2,3,4,5,6,7,8,9,10,11,12,13,14];
 
-        let expected_error = GuidPrefix::deserialize(&too_big_vec, Endianness::LittleEndian);
-        match expected_error {
-            Err(RtpsSerdesError::WrongSize) => assert!(true),
-            _ => assert!(false),
-        };
+    //     let expected_error = GuidPrefix::deserialize(&too_big_vec, Endianness::LittleEndian);
+    //     match expected_error {
+    //         Err(RtpsSerdesError::WrongSize) => assert!(true),
+    //         _ => assert!(false),
+    //     };
 
-        let too_small_vec = [1,2];
+    //     let too_small_vec = [1,2];
 
-        let expected_error = GuidPrefix::deserialize(&too_small_vec, Endianness::BigEndian);
-        match expected_error {
-            Err(RtpsSerdesError::WrongSize) => assert!(true),
-            _ => assert!(false),
-        };
-    }
+    //     let expected_error = GuidPrefix::deserialize(&too_small_vec, Endianness::BigEndian);
+    //     match expected_error {
+    //         Err(RtpsSerdesError::WrongSize) => assert!(true),
+    //         _ => assert!(false),
+    //     };
+    // }
 
 
-    ///////////////////////// Entity Id Tests ////////////////////////
+    // ///////////////////////// Entity Id Tests ////////////////////////
 
-    #[test]
-    fn entity_key_serialization_deserialization_big_endian() {
-        let mut vec = Vec::new();
-        let test_entity_key = EntityKey([5,20,250]);
-
-        
-        const TEST_ENTITY_KEY_BIG_ENDIAN : [u8;3] = [5,20,250];
-        test_entity_key.serialize(&mut vec, Endianness::BigEndian).unwrap();
-        assert_eq!(vec, TEST_ENTITY_KEY_BIG_ENDIAN);
-        assert_eq!(EntityKey::deserialize(&vec, Endianness::LittleEndian).unwrap(), test_entity_key);
-    }
-
-    #[test]
-    fn entity_key_serialization_deserialization_little_endian() {
-        let mut vec = Vec::new();
-        let test_entity_key = EntityKey([5,20,250]);
+    // #[test]
+    // fn entity_key_serialization_deserialization_big_endian() {
+    //     let mut vec = Vec::new();
+    //     let test_entity_key = EntityKey([5,20,250]);
 
         
-        const TEST_ENTITY_KEY_BIG_ENDIAN : [u8;3] = [5,20,250];
-        test_entity_key.serialize(&mut vec, Endianness::LittleEndian).unwrap();
-        assert_eq!(vec, TEST_ENTITY_KEY_BIG_ENDIAN);
-        assert_eq!(EntityKey::deserialize(&vec, Endianness::LittleEndian).unwrap(), test_entity_key);
-    }
+    //     const TEST_ENTITY_KEY_BIG_ENDIAN : [u8;3] = [5,20,250];
+    //     test_entity_key.serialize(&mut vec, Endianness::BigEndian).unwrap();
+    //     assert_eq!(vec, TEST_ENTITY_KEY_BIG_ENDIAN);
+    //     assert_eq!(EntityKey::deserialize(&vec, Endianness::LittleEndian).unwrap(), test_entity_key);
+    // }
 
-    #[test]
-    fn invalid_entity_key_deserialization() {
-        let too_big_vec = [1,2,3,4];
-
-        let expected_error = EntityKey::deserialize(&too_big_vec, Endianness::LittleEndian);
-        match expected_error {
-            Err(RtpsSerdesError::WrongSize) => assert!(true),
-            _ => assert!(false),
-        };
-
-        let too_small_vec = [1,2,3,4];
-
-        let expected_error = EntityKey::deserialize(&too_small_vec, Endianness::LittleEndian);
-        match expected_error {
-            Err(RtpsSerdesError::WrongSize) => assert!(true),
-            _ => assert!(false),
-        };
-    }
-
-
-
-
-    #[test]
-    fn entity_kind_serialization_deserialization_big_endian() {
-        let mut vec = Vec::new();
-        let test_entity_kind = EntityKind::BuiltIn_Writer_With_Key;
+    // #[test]
+    // fn entity_key_serialization_deserialization_little_endian() {
+    //     let mut vec = Vec::new();
+    //     let test_entity_key = EntityKey([5,20,250]);
 
         
-        const TEST_ENTITY_KIND_BIG_ENDIAN : [u8;1] = [0xc2];
-        test_entity_kind.serialize(&mut vec, Endianness::BigEndian).unwrap();
-        assert_eq!(vec, TEST_ENTITY_KIND_BIG_ENDIAN);
-        assert_eq!(EntityKind::deserialize(&vec, Endianness::BigEndian).unwrap(), test_entity_kind);
-    }
+    //     const TEST_ENTITY_KEY_BIG_ENDIAN : [u8;3] = [5,20,250];
+    //     test_entity_key.serialize(&mut vec, Endianness::LittleEndian).unwrap();
+    //     assert_eq!(vec, TEST_ENTITY_KEY_BIG_ENDIAN);
+    //     assert_eq!(EntityKey::deserialize(&vec, Endianness::LittleEndian).unwrap(), test_entity_key);
+    // }
 
-    #[test]
-    fn entity_kind_serialization_deserialization_little_endian() {
-        let mut vec = Vec::new();
-        let test_entity_kind = EntityKind::BuiltIn_Writer_With_Key;
+    // #[test]
+    // fn invalid_entity_key_deserialization() {
+    //     let too_big_vec = [1,2,3,4];
+
+    //     let expected_error = EntityKey::deserialize(&too_big_vec, Endianness::LittleEndian);
+    //     match expected_error {
+    //         Err(RtpsSerdesError::WrongSize) => assert!(true),
+    //         _ => assert!(false),
+    //     };
+
+    //     let too_small_vec = [1,2,3,4];
+
+    //     let expected_error = EntityKey::deserialize(&too_small_vec, Endianness::LittleEndian);
+    //     match expected_error {
+    //         Err(RtpsSerdesError::WrongSize) => assert!(true),
+    //         _ => assert!(false),
+    //     };
+    // }
+
+
+
+
+    // #[test]
+    // fn entity_kind_serialization_deserialization_big_endian() {
+    //     let mut vec = Vec::new();
+    //     let test_entity_kind = EntityKind::BuiltIn_Writer_With_Key;
 
         
-        const TEST_ENTITY_KIND_LITTLE_ENDIAN : [u8;1] = [0xc2];
-        test_entity_kind.serialize(&mut vec, Endianness::LittleEndian).unwrap();
-        assert_eq!(vec, TEST_ENTITY_KIND_LITTLE_ENDIAN);
-        assert_eq!(EntityKind::deserialize(&vec, Endianness::LittleEndian).unwrap(), test_entity_kind);
-    }
+    //     const TEST_ENTITY_KIND_BIG_ENDIAN : [u8;1] = [0xc2];
+    //     test_entity_kind.serialize(&mut vec, Endianness::BigEndian).unwrap();
+    //     assert_eq!(vec, TEST_ENTITY_KIND_BIG_ENDIAN);
+    //     assert_eq!(EntityKind::deserialize(&vec, Endianness::BigEndian).unwrap(), test_entity_kind);
+    // }
 
-    #[test]
-    fn invalid_entity_kind_deserialization() {
-        let too_big_vec = [1,2,3,4];
+    // #[test]
+    // fn entity_kind_serialization_deserialization_little_endian() {
+    //     let mut vec = Vec::new();
+    //     let test_entity_kind = EntityKind::BuiltIn_Writer_With_Key;
 
-        let expected_error = EntityKind::deserialize(&too_big_vec, Endianness::LittleEndian);
-        match expected_error {
-            Err(RtpsSerdesError::WrongSize) => assert!(true),
-            _ => assert!(false),
-        };
+        
+    //     const TEST_ENTITY_KIND_LITTLE_ENDIAN : [u8;1] = [0xc2];
+    //     test_entity_kind.serialize(&mut vec, Endianness::LittleEndian).unwrap();
+    //     assert_eq!(vec, TEST_ENTITY_KIND_LITTLE_ENDIAN);
+    //     assert_eq!(EntityKind::deserialize(&vec, Endianness::LittleEndian).unwrap(), test_entity_kind);
+    // }
 
-        let wrong_vec = [0xf3];
+    // #[test]
+    // fn invalid_entity_kind_deserialization() {
+    //     let too_big_vec = [1,2,3,4];
 
-        let expected_error = EntityKind::deserialize(&wrong_vec, Endianness::LittleEndian);
-        match expected_error {
-            Err(RtpsSerdesError::InvalidEnumRepresentation) => assert!(true),
-            _ => assert!(false),
-        };
-    }
+    //     let expected_error = EntityKind::deserialize(&too_big_vec, Endianness::LittleEndian);
+    //     match expected_error {
+    //         Err(RtpsSerdesError::WrongSize) => assert!(true),
+    //         _ => assert!(false),
+    //     };
+
+    //     let wrong_vec = [0xf3];
+
+    //     let expected_error = EntityKind::deserialize(&wrong_vec, Endianness::LittleEndian);
+    //     match expected_error {
+    //         Err(RtpsSerdesError::InvalidEnumRepresentation) => assert!(true),
+    //         _ => assert!(false),
+    //     };
+    // }
    
         
-    #[test]
-    fn entity_id_serialization_deserialization_big_endian() {
-        let mut vec = Vec::new();
-        let test_entity_id = constants::ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER;
+    // #[test]
+    // fn entity_id_serialization_deserialization_big_endian() {
+    //     let mut vec = Vec::new();
+    //     let test_entity_id = constants::ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER;
 
-        const TEST_ENTITY_ID_BIG_ENDIAN : [u8;4] = [0, 0x02, 0x00, 0xc4];
-        test_entity_id.serialize(&mut vec, Endianness::BigEndian).unwrap();
-        assert_eq!(vec, TEST_ENTITY_ID_BIG_ENDIAN);
-        assert_eq!(EntityId::deserialize(&vec, Endianness::BigEndian).unwrap(), test_entity_id);
-    }
+    //     const TEST_ENTITY_ID_BIG_ENDIAN : [u8;4] = [0, 0x02, 0x00, 0xc4];
+    //     test_entity_id.serialize(&mut vec, Endianness::BigEndian).unwrap();
+    //     assert_eq!(vec, TEST_ENTITY_ID_BIG_ENDIAN);
+    //     assert_eq!(EntityId::deserialize(&vec, Endianness::BigEndian).unwrap(), test_entity_id);
+    // }
 
-    #[test]
-    fn entity_id_serialization_deserialization_little_endian() {
-        let mut vec = Vec::new();
-        let test_entity_id = constants::ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER;
+    // #[test]
+    // fn entity_id_serialization_deserialization_little_endian() {
+    //     let mut vec = Vec::new();
+    //     let test_entity_id = constants::ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER;
 
-        const TEST_ENTITY_ID_LITTLE_ENDIAN : [u8;4] = [0, 0x02, 0x00, 0xc4];
-        test_entity_id.serialize(&mut vec, Endianness::LittleEndian).unwrap();
-        assert_eq!(vec, TEST_ENTITY_ID_LITTLE_ENDIAN);
-        assert_eq!(EntityId::deserialize(&vec, Endianness::LittleEndian).unwrap(), test_entity_id);
-    }
+    //     const TEST_ENTITY_ID_LITTLE_ENDIAN : [u8;4] = [0, 0x02, 0x00, 0xc4];
+    //     test_entity_id.serialize(&mut vec, Endianness::LittleEndian).unwrap();
+    //     assert_eq!(vec, TEST_ENTITY_ID_LITTLE_ENDIAN);
+    //     assert_eq!(EntityId::deserialize(&vec, Endianness::LittleEndian).unwrap(), test_entity_id);
+    // }
 
-    #[test]
-    fn invalid_entity_id_deserialization() {
-        let too_big_vec = [1,2,3,4,5,5];
+    // #[test]
+    // fn invalid_entity_id_deserialization() {
+    //     let too_big_vec = [1,2,3,4,5,5];
 
-        let expected_error = EntityId::deserialize(&too_big_vec, Endianness::LittleEndian);
-        match expected_error {
-            Err(RtpsSerdesError::WrongSize) => assert!(true),
-            _ => assert!(false),
-        };
+    //     let expected_error = EntityId::deserialize(&too_big_vec, Endianness::LittleEndian);
+    //     match expected_error {
+    //         Err(RtpsSerdesError::WrongSize) => assert!(true),
+    //         _ => assert!(false),
+    //     };
 
-        let wrong_vec = [1,2,3,0xf3];
+    //     let wrong_vec = [1,2,3,0xf3];
 
-        let expected_error = EntityId::deserialize(&wrong_vec, Endianness::LittleEndian);
-        match expected_error {
-            Err(RtpsSerdesError::InvalidEnumRepresentation) => assert!(true),
-            _ => assert!(false),
-        };
-    }
-
-
+    //     let expected_error = EntityId::deserialize(&wrong_vec, Endianness::LittleEndian);
+    //     match expected_error {
+    //         Err(RtpsSerdesError::InvalidEnumRepresentation) => assert!(true),
+    //         _ => assert!(false),
+    //     };
+    // }
 
 
 
-    ///////////////////////// Locator Tests ////////////////////////
 
-    #[test]
-    fn serialize_locator() {
-        let locator = Locator::new(100, 200, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
-        let expected = vec![
-            100, 0, 0, 0, // kind
-            200, 0, 0, 0, // port
-             1,  2,  3,  4, // address
-             5,  6,  7,  8, // address
-             9, 10, 11, 12, // address
-            13, 14, 15, 16, // address
-        ];
-        let mut writer = Vec::new();
-        locator.serialize(&mut writer, Endianness::LittleEndian).unwrap();
-        assert_eq!(expected, writer);
-    }
+
+    // ///////////////////////// Locator Tests ////////////////////////
+
+    // #[test]
+    // fn serialize_locator() {
+    //     let locator = Locator::new(100, 200, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
+    //     let expected = vec![
+    //         100, 0, 0, 0, // kind
+    //         200, 0, 0, 0, // port
+    //          1,  2,  3,  4, // address
+    //          5,  6,  7,  8, // address
+    //          9, 10, 11, 12, // address
+    //         13, 14, 15, 16, // address
+    //     ];
+    //     let mut writer = Vec::new();
+    //     locator.serialize(&mut writer, Endianness::LittleEndian).unwrap();
+    //     assert_eq!(expected, writer);
+    // }
     
-    #[test]
-    fn deserialize_locator() {
-        let expected = Locator::new(100, 200, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
-        let bytes = vec![
-            100, 0, 0, 0, // kind
-            200, 0, 0, 0, // port
-             1,  2,  3,  4, // address
-             5,  6,  7,  8, // address
-             9, 10, 11, 12, // address
-            13, 14, 15, 16, // address
-        ];
-        let result = Locator::deserialize(&bytes, Endianness::LittleEndian).unwrap();
-        assert_eq!(expected, result);
-    }
+    // #[test]
+    // fn deserialize_locator() {
+    //     let expected = Locator::new(100, 200, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
+    //     let bytes = vec![
+    //         100, 0, 0, 0, // kind
+    //         200, 0, 0, 0, // port
+    //          1,  2,  3,  4, // address
+    //          5,  6,  7,  8, // address
+    //          9, 10, 11, 12, // address
+    //         13, 14, 15, 16, // address
+    //     ];
+    //     let result = Locator::deserialize(&bytes, Endianness::LittleEndian).unwrap();
+    //     assert_eq!(expected, result);
+    // }
 
-    #[test]
-    fn invalid_locator_deserialization() {
-        let too_big_vec = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,1,2,3,4,5,6,7,8,9,10,11,12,13,14,1,2,3,4,5,6,7,8,9,10,11,12,13,14,];
+    // #[test]
+    // fn invalid_locator_deserialization() {
+    //     let too_big_vec = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,1,2,3,4,5,6,7,8,9,10,11,12,13,14,1,2,3,4,5,6,7,8,9,10,11,12,13,14,];
 
-        let expected_error = Locator::deserialize(&too_big_vec, Endianness::LittleEndian);
-        match expected_error {
-            Err(RtpsSerdesError::WrongSize) => assert!(true),
-            _ => assert!(false),
-        };
+    //     let expected_error = Locator::deserialize(&too_big_vec, Endianness::LittleEndian);
+    //     match expected_error {
+    //         Err(RtpsSerdesError::WrongSize) => assert!(true),
+    //         _ => assert!(false),
+    //     };
 
-        let too_small_vec = [1,2];
+    //     let too_small_vec = [1,2];
 
-        let expected_error = Locator::deserialize(&too_small_vec, Endianness::BigEndian);
-        match expected_error {
-            Err(RtpsSerdesError::WrongSize) => assert!(true),
-            _ => assert!(false),
-        };
-    }
+    //     let expected_error = Locator::deserialize(&too_small_vec, Endianness::BigEndian);
+    //     match expected_error {
+    //         Err(RtpsSerdesError::WrongSize) => assert!(true),
+    //         _ => assert!(false),
+    //     };
+    // }
 
 
 
-    ///////////////////////// TopicKind Tests ///////////////////////
-    // n/a
+    // ///////////////////////// TopicKind Tests ///////////////////////
+    // // n/a
 
-    ///////////////////////// ChangeKind Tests //////////////////////
-    // n/a
+    // ///////////////////////// ChangeKind Tests //////////////////////
+    // // n/a
 
-    ///////////////////////// ReliabilityKind Tests /////////////////
-    // n/a
+    // ///////////////////////// ReliabilityKind Tests /////////////////
+    // // n/a
 
-    ///////////////////////// InstanceHandle Tests //////////////////
-    // n/a
+    // ///////////////////////// InstanceHandle Tests //////////////////
+    // // n/a
 
-    ///////////////////////// ProtocolVersion Tests /////////////////
-    #[test]
-    fn invalid_protocol_version_deserialization() {
-        let too_big_vec = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,1,2,3,4,5,6,7,8,9,10,11,12,13,14,1,2,3,4,5,6,7,8,9,10,11,12,13,14,];
+    // ///////////////////////// ProtocolVersion Tests /////////////////
+    // #[test]
+    // fn invalid_protocol_version_deserialization() {
+    //     let too_big_vec = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,1,2,3,4,5,6,7,8,9,10,11,12,13,14,1,2,3,4,5,6,7,8,9,10,11,12,13,14,];
 
-        let expected_error = ProtocolVersion::deserialize(&too_big_vec, Endianness::LittleEndian);
-        match expected_error {
-            Err(RtpsSerdesError::WrongSize) => assert!(true),
-            _ => assert!(false),
-        };
+    //     let expected_error = ProtocolVersion::deserialize(&too_big_vec, Endianness::LittleEndian);
+    //     match expected_error {
+    //         Err(RtpsSerdesError::WrongSize) => assert!(true),
+    //         _ => assert!(false),
+    //     };
 
-        let too_small_vec = [1];
+    //     let too_small_vec = [1];
 
-        let expected_error = ProtocolVersion::deserialize(&too_small_vec, Endianness::BigEndian);
-        match expected_error {
-            Err(RtpsSerdesError::WrongSize) => assert!(true),
-            _ => assert!(false),
-        };
-    }
+    //     let expected_error = ProtocolVersion::deserialize(&too_small_vec, Endianness::BigEndian);
+    //     match expected_error {
+    //         Err(RtpsSerdesError::WrongSize) => assert!(true),
+    //         _ => assert!(false),
+    //     };
+    // }
     
-    ///////////////////////// VendorId Tests ////////////////////////
-    #[test]
-    fn invalid_vendor_id_deserialization() {
-        let too_big_vec = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,1,2,3,4,5,6,7,8,9,10,11,12,13,14,1,2,3,4,5,6,7,8,9,10,11,12,13,14,];
+    // ///////////////////////// VendorId Tests ////////////////////////
+    // #[test]
+    // fn invalid_vendor_id_deserialization() {
+    //     let too_big_vec = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,1,2,3,4,5,6,7,8,9,10,11,12,13,14,1,2,3,4,5,6,7,8,9,10,11,12,13,14,];
 
-        let expected_error = VendorId::deserialize(&too_big_vec, Endianness::LittleEndian);
-        match expected_error {
-            Err(RtpsSerdesError::WrongSize) => assert!(true),
-            _ => assert!(false),
-        };
+    //     let expected_error = VendorId::deserialize(&too_big_vec, Endianness::LittleEndian);
+    //     match expected_error {
+    //         Err(RtpsSerdesError::WrongSize) => assert!(true),
+    //         _ => assert!(false),
+    //     };
 
-        let too_small_vec = [1];
+    //     let too_small_vec = [1];
 
-        let expected_error = VendorId::deserialize(&too_small_vec, Endianness::BigEndian);
-        match expected_error {
-            Err(RtpsSerdesError::WrongSize) => assert!(true),
-            _ => assert!(false),
-        };
-    }
+    //     let expected_error = VendorId::deserialize(&too_small_vec, Endianness::BigEndian);
+    //     match expected_error {
+    //         Err(RtpsSerdesError::WrongSize) => assert!(true),
+    //         _ => assert!(false),
+    //     };
+    // }
 
 }

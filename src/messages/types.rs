@@ -33,30 +33,9 @@ pub mod constants {
 
 
 // /////////// ProtocolId_t //////////
-
 pub type ProtocolId = [u8; 4];
 
-// impl RtpsSerialize for ProtocolId {
-//     fn serialize(&self, writer: &mut impl std::io::Write, _endianness: Endianness) -> RtpsSerdesResult<()> {
-//         writer.write(&self.0)?;
-//         Ok(())
-//     }    
-// }
-
-// impl RtpsDeserialize for ProtocolId {
-//     fn deserialize(bytes: &[u8], _endianness: Endianness) -> RtpsSerdesResult<Self> {
-//         if bytes == self::constants::PROTOCOL_RTPS.0 {
-//             Ok(ProtocolId(bytes[0..4].try_into()?))
-//         } else {
-//             Err(RtpsSerdesError::InvalidEnumRepresentation)
-//         }
-//     }    
-// }
-
-
-
 // /////////// SubmessageFlag ////////
-
 pub type SubmessageFlag = bool;
 
 impl RtpsSerialize for [SubmessageFlag; 8] {
@@ -158,29 +137,29 @@ mod tests {
 
     // /////////////////////// ProtocolId_t Tests ////////////////////////
         
-    #[test]
-    fn test_serialize_protocol_id() {
-        let mut writer = Vec::new();
-        self::constants::PROTOCOL_RTPS.serialize(&mut writer, Endianness::LittleEndian /*irrelevant*/).unwrap();
-        assert_eq!(writer, vec![0x52, 0x54, 0x50, 0x53]);
-    }
+    // #[test]
+    // fn test_serialize_protocol_id() {
+    //     let mut writer = Vec::new();
+    //     self::constants::PROTOCOL_RTPS.serialize(&mut writer, Endianness::LittleEndian /*irrelevant*/).unwrap();
+    //     assert_eq!(writer, vec![0x52, 0x54, 0x50, 0x53]);
+    // }
 
-    #[test]
-    fn test_deserialize_protocol_id() {
-        let expected = ProtocolId([b'R', b'T', b'P', b'S']);
-        let bytes = [0x52_u8, 0x54, 0x50, 0x53];    
-        let result = ProtocolId::deserialize(&bytes, Endianness::LittleEndian /*irrelevant*/).unwrap();
-        assert_eq!(expected, result);
-    }
+    // #[test]
+    // fn test_deserialize_protocol_id() {
+    //     let expected = ProtocolId([b'R', b'T', b'P', b'S']);
+    //     let bytes = [0x52_u8, 0x54, 0x50, 0x53];    
+    //     let result = ProtocolId::deserialize(&bytes, Endianness::LittleEndian /*irrelevant*/).unwrap();
+    //     assert_eq!(expected, result);
+    // }
 
-    #[test]
-    fn test_deserialize_invalid_protocol_id() {
-        let bytes = [0x52_u8, 0x54, 0x50, 0x99];    
-        assert!(ProtocolId::deserialize(&bytes, Endianness::LittleEndian /*irrelevant*/).is_err());
+    // #[test]
+    // fn test_deserialize_invalid_protocol_id() {
+    //     let bytes = [0x52_u8, 0x54, 0x50, 0x99];    
+    //     assert!(ProtocolId::deserialize(&bytes, Endianness::LittleEndian /*irrelevant*/).is_err());
 
-        let bytes = [0x52_u8];    
-        assert!(ProtocolId::deserialize(&bytes, Endianness::LittleEndian /*irrelevant*/).is_err());
-    }
+    //     let bytes = [0x52_u8];    
+    //     assert!(ProtocolId::deserialize(&bytes, Endianness::LittleEndian /*irrelevant*/).is_err());
+    // }
 
 
     // /////////////////////// SubmessageFlag Tests ////////////////////////
@@ -246,39 +225,39 @@ mod tests {
 
     // /////////////////////// Time_t Tests ////////////////////////
      
-    #[test]
-    fn test_time_serialization_deserialization_big_endian() {
-        let mut vec = Vec::new();
-        let test_time = Time::new(1234567, 98765432);
+    // #[test]
+    // fn test_time_serialization_deserialization_big_endian() {
+    //     let mut vec = Vec::new();
+    //     let test_time = Time::new(1234567, 98765432);
 
         
-        const TEST_TIME_BIG_ENDIAN : [u8;8] = [0x00, 0x12, 0xD6, 0x87, 0x05, 0xE3, 0x0A, 0x78];
-        test_time.serialize(&mut vec, Endianness::BigEndian).unwrap();
-        assert_eq!(vec, TEST_TIME_BIG_ENDIAN);
-        assert_eq!(Time::deserialize(&vec, Endianness::BigEndian).unwrap(), test_time);
-    }
+    //     const TEST_TIME_BIG_ENDIAN : [u8;8] = [0x00, 0x12, 0xD6, 0x87, 0x05, 0xE3, 0x0A, 0x78];
+    //     test_time.serialize(&mut vec, Endianness::BigEndian).unwrap();
+    //     assert_eq!(vec, TEST_TIME_BIG_ENDIAN);
+    //     assert_eq!(Time::deserialize(&vec, Endianness::BigEndian).unwrap(), test_time);
+    // }
 
-    #[test]
-    fn test_time_serialization_deserialization_little_endian() {
-        let mut vec = Vec::new();
-        let test_time = Time::new(1234567, 98765432);
+    // #[test]
+    // fn test_time_serialization_deserialization_little_endian() {
+    //     let mut vec = Vec::new();
+    //     let test_time = Time::new(1234567, 98765432);
         
-        const TEST_TIME_LITTLE_ENDIAN : [u8;8] = [0x87, 0xD6, 0x12, 0x00, 0x78, 0x0A, 0xE3, 0x05];
-        test_time.serialize(&mut vec, Endianness::LittleEndian).unwrap();
-        assert_eq!(vec, TEST_TIME_LITTLE_ENDIAN);
-        assert_eq!(Time::deserialize(&vec, Endianness::LittleEndian).unwrap(), test_time);
-    }
+    //     const TEST_TIME_LITTLE_ENDIAN : [u8;8] = [0x87, 0xD6, 0x12, 0x00, 0x78, 0x0A, 0xE3, 0x05];
+    //     test_time.serialize(&mut vec, Endianness::LittleEndian).unwrap();
+    //     assert_eq!(vec, TEST_TIME_LITTLE_ENDIAN);
+    //     assert_eq!(Time::deserialize(&vec, Endianness::LittleEndian).unwrap(), test_time);
+    // }
 
-    #[test]
-    fn test_invalid_time_deserialization() {
-        let wrong_vec = vec![1,2,3,4];
+    // #[test]
+    // fn test_invalid_time_deserialization() {
+    //     let wrong_vec = vec![1,2,3,4];
 
-        let expected_error = Time::deserialize(&wrong_vec, Endianness::LittleEndian);
-        match expected_error {
-            Err(RtpsSerdesError::WrongSize) => assert!(true),
-            _ => assert!(false),
-        };
-    }
+    //     let expected_error = Time::deserialize(&wrong_vec, Endianness::LittleEndian);
+    //     match expected_error {
+    //         Err(RtpsSerdesError::WrongSize) => assert!(true),
+    //         _ => assert!(false),
+    //     };
+    // }
 
 
 
