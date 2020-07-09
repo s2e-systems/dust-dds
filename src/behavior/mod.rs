@@ -12,7 +12,7 @@ use crate::messages::{Data, Payload};
 use crate::inline_qos_types::{KeyHash, StatusInfo};
 use crate::serdes::Endianness;
 use crate::serialized_payload::SerializedPayload;
-use crate::messages::submessage_elements::ParameterList;
+use crate::messages::submessage_elements;
 
 pub use stateful_writer::StatefulWriterBehavior;
 pub use stateful_reader::StatefulReaderBehavior;
@@ -34,9 +34,9 @@ fn cache_change_from_data(message: &Data, guid_prefix: &GuidPrefix) -> CacheChan
     };    
     CacheChange::new(
         change_kind,
-        GUID::new(*guid_prefix, *message.writer_id() ),
+        GUID::new(*guid_prefix, message.writer_id().0 ),
         key_hash.0,
-        *message.writer_sn(),
+        message.writer_sn().0,
         None,
         inline_qos,
     )
@@ -48,7 +48,7 @@ fn data_from_cache_change(cache_change: &CacheChange, endianness: Endianness, re
 
     let mut inline_qos_parameters = match cache_change.inline_qos() {
         Some(inline_qos) => inline_qos.clone(),
-        None => ParameterList::new(),
+        None => submessage_elements::ParameterList::new(),
     };
 
     let change_kind = *cache_change.change_kind();
@@ -66,9 +66,9 @@ fn data_from_cache_change(cache_change: &CacheChange, endianness: Endianness, re
 
     Data::new(
         endianness,
-        reader_id,
-        writer_id,
-        writer_sn,
+        submessage_elements::EntityId(reader_id),
+        submessage_elements::EntityId(writer_id),
+        submessage_elements::SequenceNumber(writer_sn),
         Some(inline_qos_parameters),
         payload,
     )

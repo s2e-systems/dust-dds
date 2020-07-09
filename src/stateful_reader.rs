@@ -47,15 +47,15 @@ impl WriterProxy {
                 remote_writer_guid,
                 unicast_locator_list,
                 multicast_locator_list,
-                highest_processed_sequence_number: SequenceNumber(0),
+                highest_processed_sequence_number: 0,
                 unknown_changes: BTreeSet::new(),
                 lost_changes: BTreeSet::new(),
                 missing_changes: BTreeSet::new(),
                 irrelevant_changes: BTreeSet::new(),
                 must_send_ack: false,
                 time_heartbeat_received: Instant::now(),
-                ackanck_count: Count(0),
-                highest_received_heartbeat_count: Count(0),
+                ackanck_count: 0,
+                highest_received_heartbeat_count: 0,
         }
     }
 
@@ -106,8 +106,8 @@ impl WriterProxy {
         self.missing_changes = remaining_missing;
 
         if first_available_seq_num > self.highest_processed_sequence_number {
-            for seq_num in self.highest_processed_sequence_number.0+1 .. first_available_seq_num.0 {
-                self.lost_changes.insert(SequenceNumber(seq_num));
+            for seq_num in self.highest_processed_sequence_number+1 .. first_available_seq_num {
+                self.lost_changes.insert(seq_num);
             }
             self.highest_processed_sequence_number = first_available_seq_num - 1;
         }
@@ -130,8 +130,8 @@ impl WriterProxy {
         self.unknown_changes = remaining_unknown;
 
         if last_available_seq_num > self.highest_processed_sequence_number {
-            for seq_num in self.highest_processed_sequence_number.0+1 ..= last_available_seq_num.0 {
-                self.missing_changes.insert(SequenceNumber(seq_num));
+            for seq_num in self.highest_processed_sequence_number+1 ..= last_available_seq_num {
+                self.missing_changes.insert(seq_num);
             }
             self.highest_processed_sequence_number = last_available_seq_num;
         }
@@ -141,8 +141,8 @@ impl WriterProxy {
     /// SequenceNumber_t ‘a_seq_num.’ The status of the change is set to ‘RECEIVED,’ indicating it has been received.
     pub fn received_change_set(&mut self, a_seq_num: SequenceNumber) {
         if a_seq_num > self.highest_processed_sequence_number {
-            for seq_num in  self.highest_processed_sequence_number.0+1 .. a_seq_num.0 {
-                self.unknown_changes.insert(SequenceNumber(seq_num));
+            for seq_num in  self.highest_processed_sequence_number+1 .. a_seq_num {
+                self.unknown_changes.insert(seq_num);
             }
             self.highest_processed_sequence_number = a_seq_num;
         } else {

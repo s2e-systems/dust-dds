@@ -6,53 +6,152 @@
 use std::collections::BTreeSet;
 use std::rc::Rc;
 use std::io::Write;
+use std::convert::TryInto;
 
 use cdr::{LittleEndian, BigEndian, Infinite};
 
-use crate::types::{SequenceNumber, Locator};
+use crate::types::{Locator};
 use crate::primitive_types::{Long, ULong, Short, };
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, Endianness, RtpsSerdesResult, SizeCheck};
+use crate::types;
 
-use super::types::{ParameterId, Pid};
+
+pub trait Pid {
+    fn pid() -> super::types::ParameterId;
+}
 
 //  /////////   The GuidPrefix, and EntityId
-// Same as in crate::types
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Hash)]
+pub struct GuidPrefix(pub types::GuidPrefix);
+impl RtpsSerialize for GuidPrefix {
+    fn serialize(&self, writer: &mut impl std::io::Write, _endianness: Endianness) -> RtpsSerdesResult<()> {
+        writer.write(&self.0)?;
+        Ok(())
+    }
+}
+impl RtpsDeserialize for GuidPrefix {
+    fn deserialize(bytes: &[u8], _endianness: Endianness) -> RtpsSerdesResult<Self> {
+        bytes.check_size_equal(12)?;
+        Ok(GuidPrefix(bytes[0..12].try_into()?))
+    }    
+}
+
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
+pub struct EntityId(pub types::EntityId);
+
+impl RtpsSerialize for EntityId {
+    fn serialize(&self, writer: &mut impl std::io::Write, _endianness: Endianness) -> RtpsSerdesResult<()>{
+        writer.write(&self.0.entity_key())?;
+        writer.write(&[self.0.entity_kind()])?;
+        Ok(())
+    }
+}
+
+impl RtpsDeserialize for EntityId {
+    fn deserialize(bytes: &[u8], _endianness: Endianness) -> RtpsSerdesResult<Self> {
+        bytes.check_size_equal( 4)?;
+        let entity_key = bytes[0..3].try_into()?;
+        let entity_kind = bytes[3];
+        Ok(EntityId(types::EntityId::new(entity_key, entity_kind)))
+    }
+}
 
 //  /////////   VendorId
-// Same as in crate::types
+#[derive(Debug, PartialEq, Copy, Clone)]
+pub struct VendorId(types::VendorId);
+
+impl RtpsSerialize for VendorId {
+    fn serialize(&self, writer: &mut impl std::io::Write, _endianness: Endianness) -> RtpsSerdesResult<()> {
+        writer.write(&self.0)?;
+        Ok(())
+    }
+}
+
+impl RtpsDeserialize for VendorId {
+    fn deserialize(bytes: &[u8], _endianness: Endianness) -> RtpsSerdesResult<Self> {
+        bytes.check_size_equal(2)?;
+        Ok(VendorId(bytes[0..2].try_into()?))
+    }
+}
+
 
 //  /////////   ProtocolVersion
-// Same as in crate::types
+
+#[derive(Debug, PartialEq, Copy, Clone)]
+pub struct ProtocolVersion(types::ProtocolVersion);
+
+impl RtpsSerialize for ProtocolVersion {
+    fn serialize(&self, writer: &mut impl std::io::Write, _endianness: Endianness) -> RtpsSerdesResult<()> {
+        writer.write(&[self.0.major])?;
+        writer.write(&[self.0.minor])?;
+        Ok(())
+    }
+}
+
+impl RtpsDeserialize for ProtocolVersion {
+    fn deserialize(bytes: &[u8], _endianness: Endianness) -> RtpsSerdesResult<Self> {
+        bytes.check_size_equal(2)?;
+        let major = bytes[0];
+        let minor = bytes[1];
+        Ok(Self(types::ProtocolVersion{major, minor}))
+    }
+}
 
 //  /////////   SequenceNumber
-// Same as in crate::types
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Hash)]
+pub struct SequenceNumber(pub types::SequenceNumber);
+
+impl RtpsSerialize for SequenceNumber {
+    fn serialize(&self, writer: &mut impl std::io::Write, endianness: Endianness) -> RtpsSerdesResult<()>{
+        let msb = self.0 >> 32;
+        let lsb = self.0 & 0x0000_0000_FFFF_FFFF;
+        (msb as Long).serialize(writer, endianness)?;
+        (lsb as ULong).serialize(writer, endianness)?;
+        Ok(())
+    }
+}
+
+impl RtpsDeserialize for SequenceNumber {
+    fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> {
+        bytes.check_size_equal(8)?;
+
+        let msb = Long::deserialize(&bytes[0..4], endianness)?;
+        let lsb = ULong::deserialize(&bytes[4..8], endianness)?;
+
+        let sequence_number = ((msb as i64) << 32) + lsb as i64;
+
+        Ok(SequenceNumber(sequence_number))
+    }
+}
+
 
 //  /////////   SequenceNumberSet
 
 #[derive(PartialEq, Debug)]
 pub struct SequenceNumberSet {
-    base: SequenceNumber,
-    set: BTreeSet<SequenceNumber>,
+    base: types::SequenceNumber,
+    set: BTreeSet<types::SequenceNumber>,
 }
 
 impl SequenceNumberSet {
-    pub fn new(base: SequenceNumber, set: BTreeSet<SequenceNumber>) -> Self {
+    pub fn new(base: types::SequenceNumber, set: BTreeSet<types::SequenceNumber>) -> Self {
         SequenceNumberSet {
             base,
             set,
         }
     }
 
-    pub fn from_set(set: BTreeSet<SequenceNumber>) -> Self { 
-        let base = *set.iter().next().unwrap_or(&SequenceNumber(0));
+    pub fn from_set(set: BTreeSet<types::SequenceNumber>) -> Self { 
+        let base = *set.iter().next().unwrap_or(&0);
         Self {base, set } 
     }
 
-    pub fn base(&self) -> &SequenceNumber {
+    pub fn base(&self) -> &types::SequenceNumber {
         &self.base
     }
 
-    pub fn set(&self) -> &BTreeSet<SequenceNumber> {
+    pub fn set(&self) -> &BTreeSet<types::SequenceNumber> {
         &self.set
     }
 
@@ -60,7 +159,7 @@ impl SequenceNumberSet {
         let min = *self.set.iter().next().unwrap(); // First element. Must exist by the invariant
         let max = *self.set.iter().next_back().unwrap(); // Last element. Must exist by the invariant
 
-        if min >= SequenceNumber(1) && max.0 - min.0 < 256 {
+        if min >= 1 && max - min < 256 {
             true
         } else {
             false
@@ -73,14 +172,14 @@ impl RtpsSerialize for SequenceNumberSet {
         let num_bits = if self.set.is_empty() {
             0 
         } else {
-            (self.set.iter().last().unwrap().0 - self.base.0) as usize + 1
+            (self.set.iter().last().unwrap() - self.base) as usize + 1
         };
         let m = ((num_bits + 31) / 32) as usize;
         let mut bitmaps = vec![0_u32; m];
-        self.base.serialize(writer, endianness)?;
+        SequenceNumber(self.base).serialize(writer, endianness)?;
         (num_bits as ULong).serialize(writer, endianness)?;
         for seq_num in &self.set {
-            let delta_n = (seq_num.0 - self.base.0) as usize;
+            let delta_n = (seq_num - self.base) as usize;
             let bitmap_i = delta_n / 32;
             let bitmask = 1 << (31 - delta_n % 32);
             bitmaps[bitmap_i] |= bitmask;
@@ -96,7 +195,7 @@ impl RtpsDeserialize for SequenceNumberSet {
     fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> {
         bytes.check_size_bigger_equal_than(12)?;
 
-        let base = SequenceNumber::deserialize(&bytes[0..8], endianness)?;
+        let base = SequenceNumber::deserialize(&bytes[0..8], endianness)?.0;
         let num_bits = ULong::deserialize(&bytes[8..12], endianness)? as usize;
 
         // Get bitmaps from "long"s that follow the numBits field in the message
@@ -115,7 +214,7 @@ impl RtpsDeserialize for SequenceNumberSet {
         for delta_n in 0..num_bits {
             let bitmask = 1 << (31 - delta_n % 32);
             if  bitmaps[delta_n / 32] & bitmask == bitmask {               
-                let seq_num = SequenceNumber(delta_n as i64 + base.0);
+                let seq_num = delta_n as i64 + base;
                 set.insert(seq_num);
             }
         }
@@ -128,7 +227,7 @@ impl RtpsDeserialize for SequenceNumberSet {
 //  /////////   FragmentNumber
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)] //Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Hash
-pub struct FragmentNumber(pub ULong);
+pub struct FragmentNumber(pub super::types::FragmentNumber);
 
 impl RtpsSerialize for FragmentNumber {
     fn serialize(&self, writer: &mut impl std::io::Write, endianness: Endianness) -> RtpsSerdesResult<()> {
@@ -224,11 +323,32 @@ impl RtpsDeserialize for FragmentNumberSet {
     }    
 }
 
+// //////////// Timestamp ////////////////
+#[derive(PartialEq, Debug)]
+pub struct Timestamp(pub super::types::Time);
 
+impl RtpsSerialize for Timestamp {
+    fn serialize(&self, writer: &mut impl std::io::Write, endianness: Endianness) -> RtpsSerdesResult<()>{
+        self.0.seconds().serialize(writer, endianness)?;
+        self.0.fraction().serialize(writer, endianness)?;
+        Ok(())
+    }
+}
+
+impl RtpsDeserialize for Timestamp {
+    fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> {
+        bytes.check_size_equal(8)?;
+
+        let seconds = ULong::deserialize(&bytes[0..4], endianness)?;
+        let fraction = ULong::deserialize(&bytes[4..8], endianness)?;
+
+        Ok(Self(super::types::Time::new(seconds, fraction)))
+    }
+}
 
 //  /////////// ParameterList ///////////
 pub trait ParameterOps : std::fmt::Debug{
-    fn parameter_id(&self) -> ParameterId;
+    fn parameter_id(&self) -> super::types::ParameterId;
 
     fn length(&self) -> Short;
 
@@ -238,7 +358,7 @@ pub trait ParameterOps : std::fmt::Debug{
 impl<T> ParameterOps for T
     where T: Pid + serde::Serialize + std::fmt::Debug
 {
-    fn parameter_id(&self) -> ParameterId {
+    fn parameter_id(&self) -> super::types::ParameterId {
         T::pid()
     }
 
@@ -257,7 +377,7 @@ impl<T> ParameterOps for T
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Parameter {
-    parameter_id: ParameterId,
+    parameter_id: super::types::ParameterId,
     length: Short, // length is rounded up to multple of 4
     value: Vec<u8>,
 }
@@ -303,7 +423,7 @@ impl  RtpsSerialize for Parameter {
 impl RtpsDeserialize for Parameter {
     fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> {
         bytes.check_size_bigger_equal_than(4)?;
-        let parameter_id = ParameterId::deserialize(&bytes[0..2], endianness)?;
+        let parameter_id = super::types::ParameterId::deserialize(&bytes[0..2], endianness)?;
         let length = Short::deserialize(&bytes[2..4], endianness)?;
         let bytes_end = (length + 4) as usize;
         bytes.check_size_bigger_equal_than(bytes_end)?;
@@ -317,7 +437,7 @@ impl RtpsDeserialize for Parameter {
 }
 
 impl ParameterOps for Parameter {
-    fn parameter_id(&self) -> ParameterId {
+    fn parameter_id(&self) -> super::types::ParameterId {
         self.parameter_id
     }
 
@@ -348,7 +468,7 @@ impl PartialEq for ParameterList{
 
 impl ParameterList {
 
-    const PID_SENTINEL : ParameterId = 0x0001;
+    const PID_SENTINEL : super::types::ParameterId = 0x0001;
 
     pub fn new() -> Self {
         Self {parameter: Vec::new()}
@@ -416,7 +536,29 @@ impl RtpsDeserialize for ParameterList {
 
 
 //  /////////// Count ///////////
-// same as in super::types
+
+#[derive(Debug, PartialEq, Copy, Clone, PartialOrd)]
+pub struct Count(pub super::types::Count);
+
+impl std::ops::AddAssign<i32> for Count {
+    fn add_assign(&mut self, rhs: i32) {
+        *self = Count(self.0+rhs)
+    }
+}
+
+impl RtpsSerialize for Count {
+    fn serialize(&self, writer: &mut impl std::io::Write, endianness: Endianness) -> RtpsSerdesResult<()> {
+        (self.0 as Long).serialize(writer, endianness)?;
+        Ok(())
+    }
+}
+
+impl RtpsDeserialize for Count {
+    fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> {
+        let value = Long::deserialize(bytes, endianness)?;
+        Ok(Count(value))
+    }
+}
 
 
 
@@ -425,6 +567,24 @@ impl RtpsDeserialize for ParameterList {
 #[derive(Debug, PartialEq)]
 pub struct LocatorList(pub Vec<Locator>);
 
+impl RtpsSerialize for Locator {
+    fn serialize(&self, writer: &mut impl std::io::Write, endianness: Endianness) -> RtpsSerdesResult<()> {
+        self.kind.serialize(writer, endianness)?;
+        self.port.serialize(writer, endianness)?;
+        writer.write(&self.address)?;
+        Ok(())
+    }
+}
+
+impl RtpsDeserialize for Locator {
+    fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> {
+        bytes.check_size_equal(24)?;
+        let kind = Long::deserialize(&bytes[0..4], endianness)?;
+        let port = ULong::deserialize(&bytes[4..8], endianness)?;
+        let address = bytes[8..24].try_into()?;
+        Ok(Self {kind, port, address})
+    }
+}
 impl RtpsSerialize for LocatorList {
     fn serialize(&self, writer: &mut impl std::io::Write, endianness: Endianness) -> RtpsSerdesResult<()> {
         let num_locators = self.0.len() as ULong;
@@ -484,6 +644,82 @@ mod tests {
     const PID_VENDOR_TEST_5 : ParameterId = 0x0005 | 0x8000;
     #[allow(overflowing_literals)]
     const PID_VENDOR_TEST_SHORT : ParameterId = 0x0006 | 0x8000;
+
+    
+    ///////////////////////// Sequence Number Tests ////////////////////////
+    
+    #[test]
+    fn sequence_number_serialization_deserialization_big_endian() {
+        let mut vec = Vec::new();
+        let test_sequence_number = SequenceNumber(1987612345679);
+
+        
+        const TEST_SEQUENCE_NUMBER_BIG_ENDIAN : [u8;8] = [0x00, 0x00, 0x01, 0xCE, 0xC6, 0xED, 0x85, 0x4F];
+        test_sequence_number.serialize(&mut vec, Endianness::BigEndian).unwrap();
+        assert_eq!(vec, TEST_SEQUENCE_NUMBER_BIG_ENDIAN);
+        assert_eq!(SequenceNumber::deserialize(&vec, Endianness::BigEndian).unwrap(), test_sequence_number);
+    }
+
+    #[test]
+    fn sequence_number_serialization_deserialization_little_endian() {
+        let mut vec = Vec::new();
+        let test_sequence_number = SequenceNumber(1987612345679);
+
+        
+        const TEST_SEQUENCE_NUMBER_LITTLE_ENDIAN : [u8;8] = [0xCE, 0x01, 0x00, 0x00, 0x4F, 0x85, 0xED, 0xC6];
+        test_sequence_number.serialize(&mut vec, Endianness::LittleEndian).unwrap();
+        assert_eq!(vec, TEST_SEQUENCE_NUMBER_LITTLE_ENDIAN);
+        assert_eq!(SequenceNumber::deserialize(&vec, Endianness::LittleEndian).unwrap(), test_sequence_number);
+    }
+
+    #[test]
+    fn sequence_number_serialization_deserialization_multiple_combinations() {
+        let mut vec = Vec::new();
+        
+        {
+            let test_sequence_number_i64_max = SequenceNumber(std::i64::MAX);
+            test_sequence_number_i64_max.serialize(&mut vec, Endianness::LittleEndian).unwrap();
+            assert_eq!(SequenceNumber::deserialize(&vec, Endianness::LittleEndian).unwrap(), test_sequence_number_i64_max);
+            vec.clear();
+
+            test_sequence_number_i64_max.serialize(&mut vec, Endianness::BigEndian).unwrap();
+            assert_eq!(SequenceNumber::deserialize(&vec, Endianness::BigEndian).unwrap(), test_sequence_number_i64_max);
+            vec.clear();
+        }
+
+        {
+            let test_sequence_number_i64_min = SequenceNumber(std::i64::MIN);
+            test_sequence_number_i64_min.serialize(&mut vec, Endianness::LittleEndian).unwrap();
+            assert_eq!(SequenceNumber::deserialize(&vec, Endianness::LittleEndian).unwrap(), test_sequence_number_i64_min);
+            vec.clear();
+
+            test_sequence_number_i64_min.serialize(&mut vec, Endianness::BigEndian).unwrap();
+            assert_eq!(SequenceNumber::deserialize(&vec, Endianness::BigEndian).unwrap(), test_sequence_number_i64_min);
+            vec.clear();
+        }
+
+        {
+            let test_sequence_number_zero = SequenceNumber(0);
+            test_sequence_number_zero.serialize(&mut vec, Endianness::LittleEndian).unwrap();
+            assert_eq!(SequenceNumber::deserialize(&vec, Endianness::LittleEndian).unwrap(), test_sequence_number_zero);
+            vec.clear();
+
+            test_sequence_number_zero.serialize(&mut vec, Endianness::BigEndian).unwrap();
+            assert_eq!(SequenceNumber::deserialize(&vec, Endianness::BigEndian).unwrap(), test_sequence_number_zero);
+            vec.clear();
+        }
+    }
+
+    #[test]
+    fn invalid_sequence_number_deserialization() {
+        let wrong_vec = [1,2,3,4];
+
+        let expected_error = SequenceNumber::deserialize(&wrong_vec, Endianness::LittleEndian);
+        match expected_error {
+            Err(RtpsSerdesError::WrongSize) => assert!(true),
+            _ => assert!(false),
+        };
+    }
 
     // /////////////////////// SequenceNumberSet Tests ////////////////////////
 

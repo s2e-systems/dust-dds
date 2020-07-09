@@ -1,19 +1,17 @@
 use crate::primitive_types::UShort;
-use crate::types::{EntityId, SequenceNumber, };
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsCompose, RtpsParse, Endianness, RtpsSerdesResult, };
-use super::types::Count;
 use super::{SubmessageKind, SubmessageFlag, Submessage, SubmessageHeader, };
-use super::submessage_elements::FragmentNumberSet;
+use super::submessage_elements;
 
 
 #[derive(PartialEq, Debug)]
 pub struct NackFrag {
     endianness_flag: SubmessageFlag,
-    reader_id: EntityId,
-    writer_id: EntityId,
-    writer_sn: SequenceNumber,
-    fragment_number_state: FragmentNumberSet,
-    count: Count,
+    reader_id: submessage_elements::EntityId,
+    writer_id: submessage_elements::EntityId,
+    writer_sn: submessage_elements::SequenceNumber,
+    fragment_number_state: submessage_elements::FragmentNumberSet,
+    count: submessage_elements::Count,
 }
 
 
@@ -38,7 +36,7 @@ impl Submessage for NackFrag {
     }
 
     fn is_valid(&self) -> bool {
-        if self.writer_sn <= SequenceNumber(0) ||
+        if self.writer_sn.0 <= 0 ||
         !self.fragment_number_state.is_valid() {
             false
         } else {
@@ -70,11 +68,11 @@ impl RtpsParse for NackFrag {
         let end_of_message = usize::from(header.submessage_length()) + header.octets();
         let index_count = end_of_message - 4;
         
-        let reader_id = EntityId::deserialize(&bytes[4..8], endianness)?;        
-        let writer_id = EntityId::deserialize(&bytes[8..12], endianness)?;
-        let writer_sn = SequenceNumber::deserialize(&bytes[12..20], endianness)?;
-        let fragment_number_state = FragmentNumberSet::deserialize(&bytes[20..index_count], endianness)?;
-        let count = Count::deserialize(&bytes[index_count..end_of_message], endianness)?;
+        let reader_id = submessage_elements::EntityId::deserialize(&bytes[4..8], endianness)?;        
+        let writer_id = submessage_elements::EntityId::deserialize(&bytes[8..12], endianness)?;
+        let writer_sn = submessage_elements::SequenceNumber::deserialize(&bytes[12..20], endianness)?;
+        let fragment_number_state = submessage_elements::FragmentNumberSet::deserialize(&bytes[20..index_count], endianness)?;
+        let count = submessage_elements::Count::deserialize(&bytes[index_count..end_of_message], endianness)?;
   
         Ok(Self {
             endianness_flag,

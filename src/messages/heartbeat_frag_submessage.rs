@@ -1,19 +1,17 @@
 use crate::primitive_types::UShort;
-use crate::types::{SequenceNumber, EntityId, };
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, Endianness, RtpsSerdesResult, };
-
-use super::types::{SubmessageKind, SubmessageFlag, Count, };
 use super::{SubmessageHeader, Submessage, };
-use super::submessage_elements::FragmentNumber;
+use super::types::{SubmessageKind, SubmessageFlag, };
+use super::submessage_elements;
 
 #[derive(PartialEq, Debug)]
 pub struct HeartbeatFrag {
     endianness_flag: SubmessageFlag,
-    reader_id: EntityId,
-    writer_id: EntityId,
-    writer_sn: SequenceNumber,
-    last_fragment_num: FragmentNumber,
-    count: Count,
+    reader_id: submessage_elements::EntityId,
+    writer_id: submessage_elements::EntityId,
+    writer_sn: submessage_elements::SequenceNumber,
+    last_fragment_num: submessage_elements::FragmentNumber,
+    count: submessage_elements::Count,
 }
 
 impl Submessage for HeartbeatFrag {
@@ -37,8 +35,8 @@ impl Submessage for HeartbeatFrag {
     }
 
     fn is_valid(&self) -> bool {
-        if self.writer_sn <= SequenceNumber(0) ||
-        self.last_fragment_num <= FragmentNumber(0) {
+        if self.writer_sn.0 <= 0 ||
+        self.last_fragment_num.0 <= 0 {
             false
         } else {
             true
@@ -65,11 +63,11 @@ impl RtpsParse for HeartbeatFrag {
         let endianness_flag = header.flags()[0];
         let endianness = Endianness::from(endianness_flag);
 
-        let reader_id = EntityId::deserialize(&bytes[4..8], endianness)?;
-        let writer_id = EntityId::deserialize(&bytes[8..12], endianness)?;
-        let writer_sn = SequenceNumber::deserialize(&bytes[12..20], endianness)?;
-        let last_fragment_num = FragmentNumber::deserialize(&bytes[20..24], endianness)?;
-        let count = Count::deserialize(&bytes[24..28], endianness)?;        
+        let reader_id = submessage_elements::EntityId::deserialize(&bytes[4..8], endianness)?;
+        let writer_id = submessage_elements::EntityId::deserialize(&bytes[8..12], endianness)?;
+        let writer_sn = submessage_elements::SequenceNumber::deserialize(&bytes[12..20], endianness)?;
+        let last_fragment_num = submessage_elements::FragmentNumber::deserialize(&bytes[20..24], endianness)?;
+        let count = submessage_elements::Count::deserialize(&bytes[24..28], endianness)?;        
 
         Ok(HeartbeatFrag {
             endianness_flag,

@@ -1,8 +1,7 @@
 use crate::primitive_types::UShort;
-use crate::types::{EntityId, SequenceNumber, };
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, Endianness, RtpsSerdesResult, };
-
-use super::types::{SubmessageKind, SubmessageFlag, Count, };
+use super::submessage_elements;
+use super::types::{SubmessageKind, SubmessageFlag, };
 use super::{SubmessageHeader, Submessage, };
 
 #[derive(PartialEq, Debug)]
@@ -11,27 +10,28 @@ pub struct Heartbeat {
     final_flag: SubmessageFlag,
     liveliness_flag: SubmessageFlag,
     // group_info_flag: SubmessageFlag,
-    reader_id: EntityId,
-    writer_id: EntityId,
-    first_sn: SequenceNumber,
-    last_sn: SequenceNumber,
-    count: Count,
-    // current_gsn: SequenceNumber,
-    // first_gsn: SequenceNumber,
-    // last_gsn: SequenceNumber,
-    // writer_set: GroupDigest,
-    // secure_writer_set: GroupDigest,
+    reader_id: submessage_elements::EntityId,
+    writer_id: submessage_elements::EntityId,
+    first_sn: submessage_elements::SequenceNumber,
+    last_sn: submessage_elements::SequenceNumber,
+    count: submessage_elements::Count,
+    // current_gsn: submessage_elements::SequenceNumber,
+    // first_gsn: submessage_elements::SequenceNumber,
+    // last_gsn: submessage_elements::SequenceNumber,
+    // writer_set: submessage_elements::GroupDigest,
+    // secure_writer_set: submessage_elements::GroupDigest,
 }
 
 impl Heartbeat {
     const FINAL_FLAG_MASK: u8 = 0x02;
     const LIVELINESS_FLAG_MASK: u8 = 0x04;
 
-    pub fn new(reader_id: EntityId,
-        writer_id: EntityId,
-        first_sn: SequenceNumber,
-        last_sn: SequenceNumber,
-        count: Count,
+    pub fn new(
+        reader_id: submessage_elements::EntityId,
+        writer_id: submessage_elements::EntityId,
+        first_sn: submessage_elements::SequenceNumber,
+        last_sn: submessage_elements::SequenceNumber,
+        count: submessage_elements::Count,
         final_flag: bool,
         manual_liveliness: bool,
         endianness_flag: Endianness) -> Self {
@@ -48,38 +48,38 @@ impl Heartbeat {
         }
 
     pub fn is_valid(&self) -> bool{
-        if self.first_sn < SequenceNumber(1) {
+        if self.first_sn.0 < 1 {
             return false;
         };
 
-        if self.last_sn < SequenceNumber(0) {
+        if self.last_sn.0 < 0 {
             return false;
         }
 
-        if self.last_sn < self.first_sn - 1 {
+        if self.last_sn.0 < self.first_sn.0 - 1 {
             return false;
         }
 
         true
     }
 
-    pub fn reader_id(&self) -> &EntityId {
+    pub fn reader_id(&self) -> &submessage_elements::EntityId {
         &self.reader_id
     }
 
-    pub fn writer_id(&self) -> &EntityId {
+    pub fn writer_id(&self) -> &submessage_elements::EntityId {
         &self.writer_id
     }
 
-    pub fn first_sn(&self) -> &SequenceNumber {
+    pub fn first_sn(&self) -> &submessage_elements::SequenceNumber {
         &self.first_sn
     }
 
-    pub fn last_sn(&self) -> &SequenceNumber {
+    pub fn last_sn(&self) -> &submessage_elements::SequenceNumber {
         &self.last_sn
     }
 
-    pub fn count(&self) -> &Count {
+    pub fn count(&self) -> &submessage_elements::Count {
         &self.count
     }
 
@@ -112,9 +112,9 @@ impl Submessage for Heartbeat {
     }
 
     fn is_valid(&self) -> bool {
-        if self.first_sn <= SequenceNumber(0) ||
-           self.last_sn < SequenceNumber(0) ||
-           self.last_sn < self.first_sn - 1 {
+        if self.first_sn.0 <= 0 ||
+           self.last_sn.0 < 0 ||
+           self.last_sn.0 < self.first_sn.0 - 1 {
             false
         } else {
             true
@@ -147,11 +147,11 @@ impl RtpsParse for Heartbeat {
         let endianness = Endianness::from(endianness_flag);
 
         const HEADER_SIZE : usize = 8;
-        let reader_id = EntityId::deserialize(&bytes[4..8], endianness)?;
-        let writer_id = EntityId::deserialize(&bytes[8..12], endianness)?;
-        let first_sn = SequenceNumber::deserialize(&bytes[12..20], endianness)?;
-        let last_sn = SequenceNumber::deserialize(&bytes[20..28], endianness)?;
-        let count = Count::deserialize(&bytes[28..32], endianness)?;
+        let reader_id = submessage_elements::EntityId::deserialize(&bytes[4..8], endianness)?;
+        let writer_id = submessage_elements::EntityId::deserialize(&bytes[8..12], endianness)?;
+        let first_sn = submessage_elements::SequenceNumber::deserialize(&bytes[12..20], endianness)?;
+        let last_sn = submessage_elements::SequenceNumber::deserialize(&bytes[20..28], endianness)?;
+        let count = submessage_elements::Count::deserialize(&bytes[28..32], endianness)?;
         
 
         Ok(Heartbeat {

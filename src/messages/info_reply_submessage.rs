@@ -3,14 +3,14 @@ use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, Endi
 
 use super::types::{SubmessageKind, SubmessageFlag, };
 use super::{SubmessageHeader, Submessage, };
-use super::submessage_elements::LocatorList;
+use super::submessage_elements;
 
 #[derive(PartialEq, Debug)]
 pub struct InfoReply {
     endianness_flag: SubmessageFlag,
     multicast_flag: SubmessageFlag,
-    unicast_locator_list: LocatorList,
-    multicast_locator_list: LocatorList,
+    unicast_locator_list: submessage_elements::LocatorList,
+    multicast_locator_list: submessage_elements::LocatorList,
 }
 
 impl Submessage for InfoReply {
@@ -52,11 +52,11 @@ impl RtpsParse for InfoReply {
         let header = SubmessageHeader::parse(bytes)?;
         let endianness_flag = header.flags()[0];
         let multicast_flag = header.flags()[1];
-        let unicast_locator_list = LocatorList::deserialize(&bytes[header.octets()..], endianness_flag.into())?;
+        let unicast_locator_list = submessage_elements::LocatorList::deserialize(&bytes[header.octets()..], endianness_flag.into())?;
         let multicast_locator_list = if multicast_flag {
-            LocatorList::deserialize(&bytes[header.octets() + unicast_locator_list.octets()..], endianness_flag.into())?
+            submessage_elements::LocatorList::deserialize(&bytes[header.octets() + unicast_locator_list.octets()..], endianness_flag.into())?
         } else {
-            LocatorList(Vec::new())
+            submessage_elements::LocatorList(Vec::new())
         };
         Ok(Self {endianness_flag, multicast_flag, unicast_locator_list, multicast_locator_list})
     }

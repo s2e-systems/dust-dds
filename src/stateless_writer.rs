@@ -18,12 +18,12 @@ impl ReaderLocator {
     fn new(expects_inline_qos: bool) -> Self {
         ReaderLocator {
             expects_inline_qos,
-            highest_sequence_number_sent: SequenceNumber(0),
+            highest_sequence_number_sent: 0,
         }
     }
 
     fn unsent_changes_reset(&mut self) {
-        self.highest_sequence_number_sent = SequenceNumber(0);
+        self.highest_sequence_number_sent = 0;
     }
 
     pub fn unsent_changes(&self, last_change_sequence_number: SequenceNumber) -> BTreeSet<SequenceNumber> {
@@ -31,9 +31,9 @@ impl ReaderLocator {
 
         // The for loop is made with the underlying sequence number type because it is not possible to implement the Step trait on Stable yet
         for unsent_sequence_number in
-            self.highest_sequence_number_sent.0 + 1..=last_change_sequence_number.0
+            self.highest_sequence_number_sent + 1..=last_change_sequence_number
         {
-            unsent_changes_set.insert(SequenceNumber(unsent_sequence_number));
+            unsent_changes_set.insert(unsent_sequence_number);
         }
 
         unsent_changes_set
@@ -99,7 +99,7 @@ impl StatelessWriter {
             heartbeat_period,
             nack_response_delay,
             nack_suppression_duration,
-            last_change_sequence_number: SequenceNumber(0),
+            last_change_sequence_number: 0,
             writer_cache: HistoryCache::new(),
             data_max_sized_serialized: None,
             reader_locators: HashMap::new(),
@@ -198,12 +198,12 @@ mod tests {
             [1; 16], /*handle*/
         );
 
-        assert_eq!(cache_change_seq1.sequence_number(), &SequenceNumber(1));
+        assert_eq!(cache_change_seq1.sequence_number(), &1);
         assert_eq!(cache_change_seq1.change_kind(), &ChangeKind::Alive);
         assert!(cache_change_seq1.inline_qos().is_none());
         assert_eq!(cache_change_seq1.instance_handle(), &[1; 16]);
 
-        assert_eq!(cache_change_seq2.sequence_number(), &SequenceNumber(2));
+        assert_eq!(cache_change_seq2.sequence_number(), &2);
         assert_eq!(
             cache_change_seq2.change_kind(),
             &ChangeKind::NotAliveUnregistered
@@ -257,7 +257,7 @@ mod tests {
         if let RtpsSubmessage::Data(data_message_1) = &writer_data.submessages()[1] {
             assert_eq!(data_message_1.reader_id(), &ENTITYID_UNKNOWN);
             assert_eq!(data_message_1.writer_id(), &ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER);
-            assert_eq!(data_message_1.writer_sn(), &SequenceNumber(1));
+            assert_eq!(data_message_1.writer_sn(), &1);
             assert_eq!(data_message_1.serialized_payload(), &Some(SerializedPayload(vec![1, 2, 3])));
 
         } else {
@@ -267,7 +267,7 @@ mod tests {
         if let RtpsSubmessage::Data(data_message_2) = &writer_data.submessages()[2] {
             assert_eq!(data_message_2.reader_id(), &ENTITYID_UNKNOWN);
             assert_eq!(data_message_2.writer_id(), &ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER);
-            assert_eq!(data_message_2.writer_sn(), &SequenceNumber(2));
+            assert_eq!(data_message_2.writer_sn(), &2);
             assert_eq!(data_message_2.serialized_payload(), &Some(SerializedPayload(vec![4, 5, 6])));
         } else {
             panic!("Wrong message type");

@@ -1,15 +1,14 @@
 use crate::primitive_types::UShort;
-use crate::types::GuidPrefix;
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, Endianness, RtpsSerdesResult, };
 
 use super::types::{SubmessageKind, SubmessageFlag, };
 use super::{SubmessageHeader, Submessage, };
-
+use super::submessage_elements;
 
 #[derive(PartialEq, Debug)]
 pub struct InfoDestination {
     endianness_flag: SubmessageFlag,
-    guid_prefix: GuidPrefix,
+    guid_prefix: submessage_elements::GuidPrefix,
 }
 
 impl Submessage for InfoDestination {
@@ -42,7 +41,7 @@ impl RtpsParse for InfoDestination {
     fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> {
         let header = SubmessageHeader::parse(bytes)?;
         let endianness_flag = header.flags()[0];
-        let guid_prefix = GuidPrefix::deserialize(&bytes[header.octets()..], endianness_flag.into())?;
+        let guid_prefix = submessage_elements::GuidPrefix::deserialize(&bytes[header.octets()..], endianness_flag.into())?;
         Ok(Self {endianness_flag, guid_prefix })
     }
 }

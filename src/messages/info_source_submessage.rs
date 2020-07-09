@@ -1,16 +1,16 @@
 use crate::primitive_types::{Long, UShort, };
-use crate::types::{ProtocolVersion, VendorId, GuidPrefix, };
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, Endianness, RtpsSerdesResult, };
 
 use super::types::{SubmessageKind, SubmessageFlag, };
 use super::{SubmessageHeader, Submessage, };
+use super::submessage_elements;
 
 #[derive(PartialEq, Debug)]
 pub struct InfoSource {
     endianness_flag: SubmessageFlag,
-    protocol_version: ProtocolVersion,
-    vendor_id: VendorId,
-    guid_prefix: GuidPrefix,
+    protocol_version: submessage_elements::ProtocolVersion,
+    vendor_id: submessage_elements::VendorId,
+    guid_prefix: submessage_elements::GuidPrefix,
 }
 
 
@@ -58,9 +58,9 @@ impl RtpsParse for InfoSource {
         let endianness_flag = header.flags()[0];
         let endianness = Endianness::from(endianness_flag);
         // let unused = Long::deserialize(&bytes[4..8], endianness)?;
-        let protocol_version = ProtocolVersion::deserialize(&bytes[8..10], endianness)?;
-        let vendor_id = VendorId::deserialize(&bytes[10..12], endianness)?;
-        let guid_prefix = GuidPrefix::deserialize(&bytes[12..24], endianness)?;        
+        let protocol_version = submessage_elements::ProtocolVersion::deserialize(&bytes[8..10], endianness)?;
+        let vendor_id = submessage_elements::VendorId::deserialize(&bytes[10..12], endianness)?;
+        let guid_prefix = submessage_elements::GuidPrefix::deserialize(&bytes[12..24], endianness)?;        
 
         Ok(InfoSource {
             endianness_flag,

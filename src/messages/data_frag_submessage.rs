@@ -1,12 +1,11 @@
 use crate::primitive_types::{UShort, ULong, };
-use crate::types::{EntityId, SequenceNumber, };
 use crate::types::constants::SEQUENCE_NUMBER_UNKNOWN;
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, Endianness, RtpsSerdesResult, };
 use crate::serialized_payload::SerializedPayload;
 
 use super::types::{SubmessageKind, SubmessageFlag, };
 use super::{SubmessageHeader, Submessage, };
-use super::submessage_elements::{FragmentNumber, ParameterList, };
+use super::submessage_elements;
 
 #[derive(PartialEq, Debug)]
 pub struct DataFrag {
@@ -14,14 +13,14 @@ pub struct DataFrag {
     inline_qos_flag: SubmessageFlag,   
     non_standard_payload_flag: SubmessageFlag, 
     key_flag: SubmessageFlag,
-    reader_id: EntityId,
-    writer_id: EntityId,
-    writer_sn: SequenceNumber,
-    fragment_starting_num: FragmentNumber,
+    reader_id: submessage_elements::EntityId,
+    writer_id: submessage_elements::EntityId,
+    writer_sn: submessage_elements::SequenceNumber,
+    fragment_starting_num: submessage_elements::FragmentNumber,
     fragments_in_submessage: UShort,
     data_size: ULong,
     fragment_size: UShort,
-    inline_qos: Option<ParameterList>,
+    inline_qos: Option<submessage_elements::ParameterList>,
     serialized_payload: Option<SerializedPayload>,
 }
 
@@ -58,8 +57,8 @@ impl Submessage for DataFrag {
             None => 0,
         };
 
-        if (self.writer_sn < SequenceNumber(1) || self.writer_sn == SEQUENCE_NUMBER_UNKNOWN) ||
-           (self.fragment_starting_num < FragmentNumber(1)) ||
+        if (self.writer_sn.0 < 1 || self.writer_sn.0 == SEQUENCE_NUMBER_UNKNOWN) ||
+           (self.fragment_starting_num.0 < 1) ||
            (self.fragment_size as u32 > self.data_size) ||
            (serialized_data_size > self.fragments_in_submessage as usize * self.fragment_size as usize)
         {
@@ -118,17 +117,17 @@ impl RtpsParse for DataFrag {
 
         const HEADER_SIZE : usize = 8;
         let octets_to_inline_qos = usize::from(UShort::deserialize(&bytes[6..8], endianness)?) + HEADER_SIZE /* header and extra flags*/;
-        let reader_id = EntityId::deserialize(&bytes[8..12], endianness)?;        
-        let writer_id = EntityId::deserialize(&bytes[12..16], endianness)?;
-        let writer_sn = SequenceNumber::deserialize(&bytes[16..24], endianness)?;
-        let fragment_starting_num = FragmentNumber::deserialize(&bytes[24..28], endianness)?;
+        let reader_id = submessage_elements::EntityId::deserialize(&bytes[8..12], endianness)?;        
+        let writer_id = submessage_elements::EntityId::deserialize(&bytes[12..16], endianness)?;
+        let writer_sn = submessage_elements::SequenceNumber::deserialize(&bytes[16..24], endianness)?;
+        let fragment_starting_num = submessage_elements::FragmentNumber::deserialize(&bytes[24..28], endianness)?;
         let fragments_in_submessage = UShort::deserialize(&bytes[28..30], endianness)?;
         let fragment_size = UShort::deserialize(&bytes[30..32], endianness)?;
         let data_size = ULong::deserialize(&bytes[32..36], endianness)?;
 
 
         let inline_qos = if inline_qos_flag {
-            Some(ParameterList::deserialize(&bytes[octets_to_inline_qos..], endianness)?)
+            Some(submessage_elements::ParameterList::deserialize(&bytes[octets_to_inline_qos..], endianness)?)
         } else { 
             None
         };

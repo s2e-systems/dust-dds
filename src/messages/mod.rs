@@ -1,8 +1,8 @@
+use std::convert::TryInto;
 use crate::primitive_types::UShort;
 use crate::types::{GuidPrefix, ProtocolVersion, VendorId, };
 use crate::types::constants::{PROTOCOL_VERSION_2_4, VENDOR_ID, };
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsCompose, RtpsParse, Endianness, RtpsSerdesResult, };
-
 use self::types::{SubmessageKind, SubmessageFlag, ProtocolId, };
 use self::types::constants::PROTOCOL_RTPS;
 
@@ -156,20 +156,21 @@ impl Header {
 
 impl RtpsCompose for Header {
     fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
-        &self.protocol.serialize(writer, Endianness::LittleEndian /*irrelevant*/)?;
-        &self.version.serialize(writer, Endianness::LittleEndian /*irrelevant*/)?;
-        &self.vendor_id.serialize(writer, Endianness::LittleEndian /*irrelevant*/)?;
-        &self.guid_prefix.serialize(writer, Endianness::LittleEndian /*irrelevant*/)?;
+        writer.write(&self.protocol)?;
+        writer.write(&[self.version.major])?;        
+        writer.write(&[self.version.minor])?;
+        writer.write(&self.vendor_id)?;
+        writer.write(&self.guid_prefix)?;
         Ok(())
     }
 }
 
 impl RtpsParse for Header {
     fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> {
-        let protocol = ProtocolId::deserialize(&bytes[0..4], Endianness::LittleEndian /*irrelevant*/)?;
-        let version = ProtocolVersion::deserialize(&bytes[4..6], Endianness::LittleEndian /*irrelevant*/)?;
-        let vendor_id = VendorId::deserialize(&bytes[6..8], Endianness::LittleEndian /*irrelevant*/)?;
-        let guid_prefix = GuidPrefix::deserialize(&bytes[8..20], Endianness::LittleEndian /*irrelevant*/)?;
+        let protocol = bytes[0..4].try_into()?;
+        let version = ProtocolVersion{major: bytes[4], minor: bytes[5]};
+        let vendor_id = bytes[6..8].try_into()?;
+        let guid_prefix = bytes[8..20].try_into()?;
         Ok(Header {protocol, version, vendor_id, guid_prefix})
     }
 }

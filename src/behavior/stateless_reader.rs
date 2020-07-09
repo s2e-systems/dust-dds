@@ -15,19 +15,19 @@ impl StatelessReaderBehavior {
 
         if let Some(received_message) = received_message {
             let guid_prefix = received_message.header().guid_prefix();
-            let mut _source_time = None;
+            // let mut _source_time = None;
 
             for submessage in received_message.submessages().iter() {
                 if let RtpsSubmessage::Data(data) = submessage {
                     // Check if the message is for this reader and process it if that is the case
-                    if data.reader_id() == &ENTITYID_UNKNOWN {
+                    if data.reader_id().0 == ENTITYID_UNKNOWN {
 
                         let cache_change = cache_change_from_data(data, guid_prefix);
                         history_cache.add_change(cache_change);
                     }
                 }
-                else if let RtpsSubmessage::InfoTs(infots) = submessage {
-                    _source_time = *infots.get_timestamp();
+                else if let RtpsSubmessage::InfoTs(_infots) = submessage {
+                    // todo:_source_time = infots.get_timestamp();
                 }
             }
         }

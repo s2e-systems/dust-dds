@@ -1,27 +1,26 @@
 use crate::primitive_types::UShort;
-use crate::types::EntityId;
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, Endianness, RtpsSerdesResult, };
 
-use super::types::{Count, SubmessageKind, SubmessageFlag, };
+use super::types::{SubmessageKind, SubmessageFlag, };
 use super::{SubmessageHeader, Submessage, };
-use super::submessage_elements::SequenceNumberSet;
+use super::submessage_elements;
 
 #[derive(PartialEq, Debug)]
 pub struct AckNack {
     endianness_flag: SubmessageFlag,
     final_flag: SubmessageFlag,
-    reader_id: EntityId,
-    writer_id: EntityId,
-    reader_sn_state: SequenceNumberSet,
-    count: Count,
+    reader_id: submessage_elements::EntityId,
+    writer_id: submessage_elements::EntityId,
+    reader_sn_state: submessage_elements::SequenceNumberSet,
+    count: submessage_elements::Count,
 }
 
 impl AckNack {
     pub fn new(
-        reader_id: EntityId,
-        writer_id: EntityId,
-        reader_sn_state: SequenceNumberSet,
-        count: Count,
+        reader_id: submessage_elements::EntityId,
+        writer_id: submessage_elements::EntityId,
+        reader_sn_state: submessage_elements::SequenceNumberSet,
+        count: submessage_elements::Count,
         final_flag: bool,
         endianness_flag: Endianness) -> Self {
             AckNack {
@@ -34,19 +33,19 @@ impl AckNack {
             }
         }
 
-        pub fn reader_id(&self) -> &EntityId {
+        pub fn reader_id(&self) -> &submessage_elements::EntityId {
             &self.reader_id
         }
 
-        pub fn writer_id(&self) -> &EntityId {
+        pub fn writer_id(&self) -> &submessage_elements::EntityId {
             &self.writer_id
         }
 
-        pub fn reader_sn_state(&self) -> &SequenceNumberSet {
+        pub fn reader_sn_state(&self) -> &submessage_elements::SequenceNumberSet {
             &self.reader_sn_state
         }
 
-        pub fn count(&self) -> &Count {
+        pub fn count(&self) -> &submessage_elements::Count {
             &self.count
         }
 }
@@ -90,10 +89,10 @@ impl RtpsParse for AckNack {
         let endianness = endianness_flag.into();
         let end_of_message = usize::from(header.submessage_length()) + header.octets();
         let index_count = end_of_message - 4;
-        let reader_id = EntityId::deserialize(&bytes[4..8], endianness)?;
-        let writer_id = EntityId::deserialize(&bytes[8..12], endianness)?;
-        let reader_sn_state = SequenceNumberSet::deserialize(&bytes[12..index_count], endianness)?;
-        let count = Count::deserialize(&bytes[index_count..end_of_message], endianness)?;
+        let reader_id = submessage_elements::EntityId::deserialize(&bytes[4..8], endianness)?;
+        let writer_id = submessage_elements::EntityId::deserialize(&bytes[8..12], endianness)?;
+        let reader_sn_state = submessage_elements::SequenceNumberSet::deserialize(&bytes[12..index_count], endianness)?;
+        let count = submessage_elements::Count::deserialize(&bytes[index_count..end_of_message], endianness)?;
         
         Ok(Self{endianness_flag, final_flag, reader_id, writer_id, reader_sn_state, count})
     }

@@ -3,12 +3,10 @@
 /// Table 8.13 - Types used to define RTPS messages
 ///  
 use std::time::SystemTime;
-use std::convert::TryInto; 
-
 use num_derive::{FromPrimitive, };
 
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsSerdesResult, RtpsSerdesError, Endianness, SizeCheck };
-use crate::primitive_types::{Short, Long, ULong, };
+use crate::primitive_types::{Short, ULong, };
 
 pub mod constants {
     use super::Time;
@@ -30,36 +28,30 @@ pub mod constants {
     };
 
     
-    pub const PROTOCOL_RTPS: ProtocolId = ProtocolId([b'R', b'T', b'P', b'S']);
-}
-
-
-pub trait Pid {
-    fn pid() -> ParameterId;
+    pub const PROTOCOL_RTPS: ProtocolId = [b'R', b'T', b'P', b'S'];
 }
 
 
 // /////////// ProtocolId_t //////////
 
-#[derive(PartialEq, Debug)]
-pub struct ProtocolId(pub [u8; 4]);
+pub type ProtocolId = [u8; 4];
 
-impl RtpsSerialize for ProtocolId {
-    fn serialize(&self, writer: &mut impl std::io::Write, _endianness: Endianness) -> RtpsSerdesResult<()> {
-        writer.write(&self.0)?;
-        Ok(())
-    }    
-}
+// impl RtpsSerialize for ProtocolId {
+//     fn serialize(&self, writer: &mut impl std::io::Write, _endianness: Endianness) -> RtpsSerdesResult<()> {
+//         writer.write(&self.0)?;
+//         Ok(())
+//     }    
+// }
 
-impl RtpsDeserialize for ProtocolId {
-    fn deserialize(bytes: &[u8], _endianness: Endianness) -> RtpsSerdesResult<Self> {
-        if bytes == self::constants::PROTOCOL_RTPS.0 {
-            Ok(ProtocolId(bytes[0..4].try_into()?))
-        } else {
-            Err(RtpsSerdesError::InvalidEnumRepresentation)
-        }
-    }    
-}
+// impl RtpsDeserialize for ProtocolId {
+//     fn deserialize(bytes: &[u8], _endianness: Endianness) -> RtpsSerdesResult<Self> {
+//         if bytes == self::constants::PROTOCOL_RTPS.0 {
+//             Ok(ProtocolId(bytes[0..4].try_into()?))
+//         } else {
+//             Err(RtpsSerdesError::InvalidEnumRepresentation)
+//         }
+//     }    
+// }
 
 
 
@@ -143,73 +135,18 @@ pub struct Time {
 }
 
 impl Time {
-    pub fn new (seconds: u32, fraction: u32) -> Self {
-        Time {
-            seconds,
-            fraction,
-        }
-    }
-
+    pub fn new (seconds: u32, fraction: u32) -> Self { Self {seconds, fraction, } }
+    pub fn seconds(&self) -> u32 {self.seconds}
+    pub fn fraction(&self) -> u32 {self.fraction}
     pub fn now() -> Self {
         let current_time = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap();
         Time{seconds: current_time.as_secs() as u32 , fraction: current_time.subsec_nanos() as u32}
     }
 }
- 
-impl RtpsSerialize for Time {
-    fn serialize(&self, writer: &mut impl std::io::Write, endianness: Endianness) -> RtpsSerdesResult<()>{
-        self.seconds.serialize(writer, endianness)?;
-        self.fraction.serialize(writer, endianness)?;
-        Ok(())
-    }
-}
 
-impl RtpsDeserialize for Time {
-    fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> {
-        bytes.check_size_equal(8)?;
-
-        let seconds = ULong::deserialize(&bytes[0..4], endianness)?;
-        let fraction = ULong::deserialize(&bytes[4..8], endianness)?;
-
-        Ok(Time::new(seconds, fraction))
-    }
-}
-
-
-
-// /////////// Count_t ///////////////
-
-#[derive(Debug, PartialEq, Copy, Clone, PartialOrd)]
-pub struct Count(pub i32);
-
-impl std::ops::AddAssign<i32> for Count {
-    fn add_assign(&mut self, rhs: i32) {
-        *self = Count(self.0+rhs)
-    }
-}
-
-impl RtpsSerialize for Count {
-    fn serialize(&self, writer: &mut impl std::io::Write, endianness: Endianness) -> RtpsSerdesResult<()> {
-        (self.0 as Long).serialize(writer, endianness)?;
-        Ok(())
-    }
-}
-
-impl RtpsDeserialize for Count {
-    fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> {
-        let value = Long::deserialize(bytes, endianness)?;
-        Ok(Count(value))
-    }
-}
-
-
-
-// /////////// ParameterId_t /////////
-
+pub type Count = i32;
 pub type ParameterId = Short;
-
-// /////////// FragmentNumber_t //////
-// Same as in self::submessage_elements
+pub type FragmentNumber = ULong;
 
 // /////////// GroupDigest_t /////////
 //  todo

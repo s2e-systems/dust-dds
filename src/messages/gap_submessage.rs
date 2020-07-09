@@ -1,57 +1,57 @@
 use std::collections::BTreeSet;
 
 use crate::primitive_types::UShort;
-use crate::types::{EntityId, SequenceNumber, };
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, Endianness, RtpsSerdesResult, };
 
 use super::types::{SubmessageKind, SubmessageFlag, };
 use super::{SubmessageHeader, Submessage, };
-use super::submessage_elements::SequenceNumberSet;
+use super::submessage_elements;
+// use super::submessage_elements::SequenceNumberSet;
 
 #[derive(PartialEq, Debug)]
 pub struct Gap {
     endianness_flag: SubmessageFlag,
     // group_info_flag: SubmessageFlag,
-    reader_id: EntityId,
-    writer_id: EntityId,
-    gap_start: SequenceNumber,
-    gap_list: SequenceNumberSet,    
-    // gap_start_gsn: SequenceNumber,
-    // gap_end_gsn: SequenceNumber,
+    reader_id: submessage_elements::EntityId,
+    writer_id: submessage_elements::EntityId,
+    gap_start: submessage_elements::SequenceNumber,
+    gap_list: submessage_elements::SequenceNumberSet,    
+    // gap_start_gsn: submessage_elements::SequenceNumber,
+    // gap_end_gsn: submessage_elements::SequenceNumber,
 }
 
 impl Gap {
     pub fn new(
-        reader_id: EntityId,
-        writer_id: EntityId,
-        gap_start: SequenceNumber,
+        reader_id: submessage_elements::EntityId,
+        writer_id: submessage_elements::EntityId,
+        gap_start: submessage_elements::SequenceNumber,
         endianness: Endianness,) -> Self {
 
             let mut gap_list_set = BTreeSet::new();
-            gap_list_set.insert(gap_start);
+            gap_list_set.insert(gap_start.0);
 
             Gap {
                 reader_id,
                 writer_id,
                 gap_start,
-                gap_list: SequenceNumberSet::from_set(gap_list_set),
+                gap_list: submessage_elements::SequenceNumberSet::from_set(gap_list_set),
                 endianness_flag: endianness.into(),
             }
     }
 
-    pub fn reader_id(&self) -> &EntityId {
+    pub fn reader_id(&self) -> &submessage_elements::EntityId {
         &self.reader_id
     }
 
-    pub fn writer_id(&self) -> &EntityId {
+    pub fn writer_id(&self) -> &submessage_elements::EntityId {
         &self.writer_id
     }
 
-    pub fn gap_start(&self) -> &SequenceNumber {
+    pub fn gap_start(&self) -> &submessage_elements::SequenceNumber {
         &self.gap_start
     }
 
-    pub fn gap_list(&self) -> &SequenceNumberSet {
+    pub fn gap_list(&self) -> &submessage_elements::SequenceNumberSet {
         &self.gap_list
     }
 }
@@ -77,7 +77,7 @@ impl Submessage for Gap {
     }
 
     fn is_valid(&self) -> bool {
-        if self.gap_start <= SequenceNumber(0) ||
+        if self.gap_start.0 <= 0 ||
            !self.gap_list.is_valid()
         {
             false
@@ -108,10 +108,10 @@ impl RtpsParse for Gap {
         /*E*/ let endianness_flag = flags[0];
         let endianness = Endianness::from(endianness_flag);
 
-        let reader_id = EntityId::deserialize(&bytes[4..8], endianness)?;
-        let writer_id = EntityId::deserialize(&bytes[8..12], endianness)?;
-        let gap_start = SequenceNumber::deserialize(&bytes[12..20], endianness)?;
-        let gap_list = SequenceNumberSet::deserialize(&bytes[20..], endianness)?;
+        let reader_id = submessage_elements::EntityId::deserialize(&bytes[4..8], endianness)?;
+        let writer_id = submessage_elements::EntityId::deserialize(&bytes[8..12], endianness)?;
+        let gap_start = submessage_elements::SequenceNumber::deserialize(&bytes[12..20], endianness)?;
+        let gap_list = submessage_elements::SequenceNumberSet::deserialize(&bytes[20..], endianness)?;
          
 
         Ok(Gap {

@@ -1,7 +1,7 @@
-use crate::types::{GUID, SequenceNumber};
+use crate::types::{GUID, };
 use crate::behavior::types::Duration;
 use crate::messages::{RtpsMessage, RtpsSubmessage, AckNack};
-use crate::messages::submessage_elements::{SequenceNumberSet, };
+use crate::messages::submessage_elements;
 use crate::cache::{HistoryCache};
 use crate::stateful_reader::WriterProxy;
 
@@ -33,15 +33,15 @@ impl StatefulReaderBehavior {
             for submessage in received_message.submessages().iter() {                
                 if let RtpsSubmessage::Data(data) = submessage {
                     let expected_seq_number = writer_proxy.available_changes_max() + 1;
-                    if data.writer_sn() >= &expected_seq_number {
+                    if data.writer_sn().0 >= expected_seq_number {
                         let cache_change = cache_change_from_data(data, guid_prefix);
                         history_cache.add_change(cache_change);
-                        writer_proxy.received_change_set(*data.writer_sn());
-                        writer_proxy.lost_changes_update(*data.writer_sn());
+                        writer_proxy.received_change_set(data.writer_sn().0);
+                        writer_proxy.lost_changes_update(data.writer_sn().0);
                     }
                 } else if let RtpsSubmessage::Gap(gap) = submessage {
-                    for seq_num in gap.gap_start().0 .. gap.gap_list().base().0 - 1 {
-                        writer_proxy.irrelevant_change_set(SequenceNumber(seq_num));
+                    for seq_num in gap.gap_start().0 .. gap.gap_list().base() - 1 {
+                        writer_proxy.irrelevant_change_set(seq_num);
                     }
 
                     for &seq_num in gap.gap_list().set() {
@@ -58,15 +58,15 @@ impl StatefulReaderBehavior {
             for submessage in received_message.submessages().iter() {                
                 if let RtpsSubmessage::Data(data) = submessage {
                     let expected_seq_number = writer_proxy.available_changes_max() + 1;
-                    if data.writer_sn() >= &expected_seq_number {
+                    if data.writer_sn().0 >= expected_seq_number {
                         let cache_change = cache_change_from_data(data, guid_prefix);
                         history_cache.add_change(cache_change);
-                        writer_proxy.received_change_set(*data.writer_sn());
+                        writer_proxy.received_change_set(data.writer_sn().0);
                     }
                 } else if let RtpsSubmessage::Gap(gap) = submessage {
-                    for seq_num in gap.gap_start().0 .. gap.gap_list().base().0 - 1 {
-                        writer_proxy.irrelevant_change_set(SequenceNumber(seq_num));
-                    }
+                    // for seq_num in gap.gap_start() .. gap.gap_list().base() - 1 {
+                    //     writer_proxy.irrelevant_change_set(seq_num);
+                    // }
 
                     for &seq_num in gap.gap_list().set() {
                         writer_proxy.irrelevant_change_set(seq_num);
@@ -82,8 +82,8 @@ impl StatefulReaderBehavior {
             let _guid_prefix = received_message.header().guid_prefix();
             for submessage in received_message.submessages().iter() {                
                 if let RtpsSubmessage::Heartbeat(heartbeat) = submessage {
-                    writer_proxy.missing_changes_update(*heartbeat.last_sn());
-                    writer_proxy.lost_changes_update(*heartbeat.first_sn());
+                    writer_proxy.missing_changes_update(heartbeat.last_sn().0);
+                    writer_proxy.lost_changes_update(heartbeat.first_sn().0);
                     if !heartbeat.is_final() || 
                         (heartbeat.is_final() && !writer_proxy.missing_changes().is_empty()) {
                         writer_proxy.set_must_send_ack(true);
@@ -97,16 +97,16 @@ impl StatefulReaderBehavior {
     fn run_must_send_ack_state(writer_proxy: &mut WriterProxy, reader_guid: &GUID, heartbeat_response_delay: Duration) -> Option<Vec<RtpsSubmessage>> {
         if writer_proxy.duration_since_heartbeat_received() >  heartbeat_response_delay {
             writer_proxy.set_must_send_ack(false);
-            let reader_sn_state = SequenceNumberSet::new(
+            let reader_sn_state = submessage_elements::SequenceNumberSet::new(
                 writer_proxy.available_changes_max(),
                 writer_proxy.missing_changes().clone()
             );
             writer_proxy.increment_acknack_count();
             let acknack = AckNack::new(
-                *reader_guid.entity_id(), 
-                *writer_proxy.remote_writer_guid().entity_id(),
+                submessage_elements::EntityId(*reader_guid.entity_id()), 
+                submessage_elements::EntityId(*writer_proxy.remote_writer_guid().entity_id()),
                 reader_sn_state,
-                *writer_proxy.ackanck_count(),
+                submessage_elements::Count(*writer_proxy.ackanck_count()),
                 true,
                 Endianness::LittleEndian);
 

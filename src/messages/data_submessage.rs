@@ -1,14 +1,13 @@
 use std::convert::From;
 
 use crate::primitive_types::UShort;
-use crate::types::{SequenceNumber ,EntityId, };
 use crate::types::constants::SEQUENCE_NUMBER_UNKNOWN;
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, Endianness, RtpsSerdesResult, };
 use crate::serialized_payload::SerializedPayload;
 
 use super::types::{SubmessageKind, SubmessageFlag,  };
 use super::{SubmessageHeader, Submessage, };
-use super::submessage_elements::{ParameterList};
+use super::submessage_elements;
 
 #[derive(PartialEq, Debug)]
 pub struct Data {
@@ -17,10 +16,10 @@ pub struct Data {
     data_flag: SubmessageFlag, 
     key_flag: SubmessageFlag,
     non_standard_payload_flag: SubmessageFlag,
-    reader_id: EntityId,
-    writer_id: EntityId,
-    writer_sn: SequenceNumber,
-    inline_qos: Option<ParameterList>,
+    reader_id: submessage_elements::EntityId,
+    writer_id: submessage_elements::EntityId,
+    writer_sn: submessage_elements::SequenceNumber,
+    inline_qos: Option<submessage_elements::ParameterList>,
     serialized_payload: Option<SerializedPayload>,
 }
 
@@ -38,10 +37,10 @@ impl Data {
     /// data_flag, key_flag and non_standard_payload_flag are inferred from the kind of payload
     pub fn new(
         endianness_flag: Endianness,
-        reader_id: EntityId,
-        writer_id: EntityId,
-        writer_sn: SequenceNumber,
-        inline_qos: Option<ParameterList>,
+        reader_id: submessage_elements::EntityId,
+        writer_id: submessage_elements::EntityId,
+        writer_sn: submessage_elements::SequenceNumber,
+        inline_qos: Option<submessage_elements::ParameterList>,
         payload: Payload,) -> Self {
             let inline_qos_flag = inline_qos.is_some();
             let mut data_flag = false;
@@ -68,24 +67,23 @@ impl Data {
         }
     }
 
-    pub fn reader_id(&self) -> &EntityId {
+    pub fn reader_id(&self) -> &submessage_elements::EntityId {
         &self.reader_id
     }
 
-    pub fn writer_id(&self) -> &EntityId {
+    pub fn writer_id(&self) -> &submessage_elements::EntityId {
         &self.writer_id
     }
 
-    pub fn writer_sn(&self) -> &SequenceNumber {
+    pub fn writer_sn(&self) -> &submessage_elements::SequenceNumber {
         &self.writer_sn
     }
 
     pub fn serialized_payload(&self) -> &Option<SerializedPayload> {
-        //TODO: It is a problem for the outer world to know what this payload represents
         &self.serialized_payload
     }
     
-    pub fn inline_qos(&self) -> &Option<ParameterList> {
+    pub fn inline_qos(&self) -> &Option<submessage_elements::ParameterList> {
         &self.inline_qos
     }
 
@@ -133,7 +131,7 @@ impl Submessage for Data {
     }
 
     fn is_valid(&self) -> bool {
-        if self.writer_sn < SequenceNumber(1) || self.writer_sn == SEQUENCE_NUMBER_UNKNOWN {
+        if self.writer_sn.0 < 1 || self.writer_sn.0 == SEQUENCE_NUMBER_UNKNOWN {
             //TODO: Check validity of inline_qos
             false
         } else {
@@ -181,11 +179,11 @@ impl RtpsParse for Data {
 
         const HEADER_SIZE : usize = 8;
         let octets_to_inline_qos = usize::from(UShort::deserialize(&bytes[6..8], endianness)?) + HEADER_SIZE /* header and extra flags*/;
-        let reader_id = EntityId::deserialize(&bytes[8..12], endianness)?;        
-        let writer_id = EntityId::deserialize(&bytes[12..16], endianness)?;
-        let writer_sn = SequenceNumber::deserialize(&bytes[16..24], endianness)?;
+        let reader_id = submessage_elements::EntityId::deserialize(&bytes[8..12], endianness)?;        
+        let writer_id = submessage_elements::EntityId::deserialize(&bytes[12..16], endianness)?;
+        let writer_sn = submessage_elements::SequenceNumber::deserialize(&bytes[16..24], endianness)?;
         let inline_qos = if inline_qos_flag {
-            Some(ParameterList::deserialize(&bytes[octets_to_inline_qos..], endianness)?)
+            Some(submessage_elements::ParameterList::deserialize(&bytes[octets_to_inline_qos..], endianness)?)
         } else { 
             None
         };

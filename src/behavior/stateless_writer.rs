@@ -6,7 +6,7 @@ use crate::stateless_writer::ReaderLocator;
 use crate::serdes::Endianness;
 use crate::messages::types::{Time};
 use super::data_from_cache_change;
-
+use crate::messages::submessage_elements;
 pub struct StatelessWriterBehavior {}
 
 impl StatelessWriterBehavior{
@@ -27,7 +27,7 @@ impl StatelessWriterBehavior{
         let mut submessages = Vec::with_capacity(2); // TODO: Probably can be preallocated with the correct size
     
         let time = Time::now();
-        let infots = InfoTs::new(Some(time), endianness);
+        let infots = InfoTs::new(Some(submessage_elements::Timestamp(time)), endianness);
         submessages.push(RtpsSubmessage::InfoTs(infots));
     
         while let Some(next_unsent_seq_num) = reader_locator.next_unsent_change(last_change_sequence_number) {
@@ -38,9 +38,9 @@ impl StatelessWriterBehavior{
                 submessages.push(RtpsSubmessage::Data(data));
             } else {
                 let gap = Gap::new(
-                    ENTITYID_UNKNOWN, 
-                    *writer_guid.entity_id(),
-                    next_unsent_seq_num,
+                    submessage_elements::EntityId(ENTITYID_UNKNOWN), 
+                    submessage_elements::EntityId(*writer_guid.entity_id()),
+                    submessage_elements::SequenceNumber(next_unsent_seq_num),
                     Endianness::LittleEndian);
     
                 submessages.push(RtpsSubmessage::Gap(gap));

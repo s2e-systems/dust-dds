@@ -1,20 +1,19 @@
 use crate::primitive_types::UShort;
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsCompose, RtpsParse, Endianness, RtpsSerdesResult, };
-
-use super::types::Time;
 use super::{SubmessageKind, SubmessageFlag, Submessage, SubmessageHeader, };
+use super::submessage_elements;
 
 #[derive(PartialEq, Debug)]
 pub struct InfoTs {
     endianness_flag: SubmessageFlag,
     invalidate_flag: SubmessageFlag,
-    timestamp: Option<Time>,
+    timestamp: Option<submessage_elements::Timestamp>,
 }
 
 impl InfoTs {
     const INVALID_TIME_FLAG_MASK: u8 = 0x02;
 
-    pub fn new(timestamp: Option<Time>, endianness: Endianness) -> InfoTs {
+    pub fn new(timestamp: Option<submessage_elements::Timestamp>, endianness: Endianness) -> InfoTs {
         let endianness_flag = endianness.into();
         let invalidate_flag = !timestamp.is_some();
         InfoTs {
@@ -24,7 +23,7 @@ impl InfoTs {
         }
     }
 
-    pub fn get_timestamp(&self) -> &Option<Time> {
+    pub fn get_timestamp(&self) -> &Option<submessage_elements::Timestamp> {
         &self.timestamp
     }
 }
@@ -77,21 +76,10 @@ impl RtpsParse for InfoTs {
         /*I*/ let invalidate_flag = flags[1];
 
         let endianness = endianness_flag.into();
-
-//         const SERIALIZED_INFOTS_MINIMUM_SIZE: usize = 4;
-//         const SERIALIZED_INFOTS_WITH_TIMESTAMP_MINIMUM_SIZE: usize = 12;
-//         const SUBMESSAGE_ID_INDEX: usize = 0;
-//         const FLAGS_INDEX: usize = 1;
-//         SizeCheckers::check_size_bigger_equal_than(bytes, SERIALIZED_INFOTS_MINIMUM_SIZE)?;
-
-
         if invalidate_flag {
             Ok(InfoTs::new(None, endianness))
-        } else {
-            // SizeCheckers::check_size_bigger_equal_than(bytes, SERIALIZED_INFOTS_WITH_TIMESTAMP_MINIMUM_SIZE)?;
-            
-            let time = Time::deserialize(&bytes[4..12], endianness)?;
-
+        } else {            
+            let time = submessage_elements::Timestamp::deserialize(&bytes[4..12], endianness)?;
             Ok(InfoTs::new(Some(time), endianness))
         }
     }
