@@ -10,7 +10,7 @@ use serde::{Serialize, };
 struct SpecialQos(u16);
 
 impl Pid for SpecialQos{
-    fn pid() -> ParameterId where Self: Sized {
+    fn pid() -> ParameterId {
         0x0AA0
     }
 }
@@ -19,7 +19,7 @@ impl Pid for SpecialQos{
 struct OtherQos(i32);
 
 impl Pid for OtherQos{
-    fn pid() -> ParameterId where Self: Sized {
+    fn pid() -> ParameterId {
         0x0AA1
     }
 }

@@ -238,7 +238,7 @@ pub trait ParameterOps : std::fmt::Debug{
 impl<T> ParameterOps for T
     where T: Pid + serde::Serialize + std::fmt::Debug
 {
-    fn parameter_id(&self) -> ParameterId where Self: Sized {
+    fn parameter_id(&self) -> ParameterId {
         T::pid()
     }
 
@@ -382,9 +382,7 @@ impl ParameterList {
 impl RtpsSerialize for ParameterList {
     fn serialize(&self, writer: &mut impl Write, endianness: Endianness) -> RtpsSerdesResult<()> {
          for param in self.parameter.iter() {
-            param.parameter_id().serialize(writer, endianness)?;
-            param.length().serialize(writer, endianness)?;
-            writer.write(param.value(endianness).as_slice())?;
+            Parameter{parameter_id: param.parameter_id(), length: param.length(), value: param.value(endianness)}.serialize(writer, endianness)?;
         }       
         ParameterList::PID_SENTINEL.serialize(writer, endianness)?;
         writer.write(&[0,0])?; // Sentinel length 0
@@ -792,8 +790,7 @@ mod tests {
     #[derive(Debug, PartialEq, Serialize, Deserialize)]
     pub struct VendorTest0(pub [u8; 0]);
     impl Pid for VendorTest0 {
-        fn pid() -> ParameterId
-        where Self: Sized {
+        fn pid() -> ParameterId {
             PID_VENDOR_TEST_0
         }
     }
@@ -801,8 +798,7 @@ mod tests {
     #[derive(Debug, PartialEq, Serialize, Deserialize)]
     pub struct VendorTest1(pub [u8; 1]);
     impl Pid for VendorTest1 {
-        fn pid() -> ParameterId
-        where Self: Sized {
+        fn pid() -> ParameterId {
             PID_VENDOR_TEST_1
         }
     }
@@ -810,8 +806,7 @@ mod tests {
     #[derive(Debug, PartialEq, Serialize, Deserialize)]
     pub struct VendorTest3(pub [u8; 3]);
     impl Pid for VendorTest3 {
-        fn pid() -> ParameterId
-        where Self: Sized {
+        fn pid() -> ParameterId {
             PID_VENDOR_TEST_3
         }
     }
@@ -819,8 +814,7 @@ mod tests {
     #[derive(Debug, PartialEq, Serialize)]
     pub struct VendorTest4(pub [u8; 4]);
     impl Pid for VendorTest4 {
-        fn pid() -> ParameterId
-        where Self: Sized {
+        fn pid() -> ParameterId {
             PID_VENDOR_TEST_4
         }
     }
@@ -828,8 +822,7 @@ mod tests {
     #[derive(Debug, PartialEq, Serialize, Deserialize)]
     pub struct VendorTest5(pub [u8; 5]);
     impl Pid for VendorTest5 {
-        fn pid() -> ParameterId
-        where Self: Sized {
+        fn pid() -> ParameterId {
             PID_VENDOR_TEST_5
         }
     }
@@ -837,8 +830,7 @@ mod tests {
     #[derive(Debug, PartialEq, Serialize, Deserialize)]
     pub struct VendorTestShort(pub i16);
     impl Pid for VendorTestShort {
-        fn pid() -> ParameterId
-        where Self: Sized {
+        fn pid() -> ParameterId {
             PID_VENDOR_TEST_SHORT
         }
     }

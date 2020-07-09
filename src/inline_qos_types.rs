@@ -16,7 +16,7 @@ const PID_STATUS_INFO : ParameterId = 0x0071;
 #[derive(Debug, PartialEq, Clone, Eq, Serialize, Deserialize)]
 pub struct TopicName(pub Vec<u8>);
 impl Pid for TopicName {
-    fn pid() -> ParameterId where Self: Sized {
+    fn pid() -> ParameterId {
         PID_TOPIC_NAME
     }
 }
@@ -25,7 +25,7 @@ impl Pid for TopicName {
 pub struct KeyHash(pub [u8; 16]);
 
 impl Pid for KeyHash {
-    fn pid() -> ParameterId where Self: Sized {
+    fn pid() -> ParameterId {
         PID_KEY_HASH
     }
 }
