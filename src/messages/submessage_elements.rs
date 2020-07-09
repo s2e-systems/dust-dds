@@ -1000,7 +1000,6 @@ mod tests {
     #[test]
     fn parameter_list_deserialize_liitle_endian() {
         let endianness = Endianness::LittleEndian;
-    
         let bytes = vec![
             0x03, 0x80, 4, 0, // ParameterID, length 
             1, 2, 3, 0, // value
@@ -1028,7 +1027,9 @@ mod tests {
         use crate::inline_qos_types::KeyHash;
         let key_hash = KeyHash([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
         let status_info = StatusInfo([101, 102, 103, 104]);
-        let parameter_list = ParameterList{parameter: vec![Rc::new(key_hash), Rc::new(status_info)]};
+        let vendor1 = VendorTest1([b'X']);
+        let vendor5 = VendorTest5([2;5]);
+        let parameter_list = ParameterList{parameter: vec![Rc::new(key_hash), Rc::new(status_info), Rc::new(vendor1), Rc::new(vendor5)]};
     
         let mut writer = Vec::new();
         parameter_list.serialize(&mut writer, endianness).unwrap();
@@ -1041,6 +1042,11 @@ mod tests {
             13, 14, 15, 16, //key_hash
             0x71, 0x00, 4, 0, //ParameterID, length
             101, 102, 103, 104, //status_info
+            0x01, 0x80, 4, 0, //ParameterID, length
+            b'X', 0, 0, 0, //vendor1
+            0x05, 0x80, 8, 0, //ParameterID, length
+            2, 2, 2, 2, //vendor5
+            2, 0, 0, 0, //vendor5
             1, 0, 0, 0 // Sentinel
         ];
         assert_eq!(expected, writer);
