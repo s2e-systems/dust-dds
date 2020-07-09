@@ -9,10 +9,10 @@ use std::convert::{TryFrom, TryInto};
 use crate::types::{GUID, GuidPrefix, EntityId, ChangeKind};
 use crate::cache::CacheChange;
 use crate::messages::{Data, Payload};
-use crate::messages::submessage_elements::{Parameter, ParameterList};
 use crate::inline_qos_types::{KeyHash, StatusInfo};
 use crate::serdes::Endianness;
 use crate::serialized_payload::SerializedPayload;
+use crate::messages::submessage_elements::ParameterList;
 
 pub use stateful_writer::StatefulWriterBehavior;
 pub use stateful_reader::StatefulReaderBehavior;
@@ -22,14 +22,23 @@ pub use stateless_writer::StatelessWriterBehavior;
 fn cache_change_from_data(message: &Data, guid_prefix: &GuidPrefix) -> CacheChange {
     let change_kind = change_kind(&message);
     let key_hash = key_hash(&message).unwrap();
-    
+
+    let inline_qos = match message.inline_qos() {
+        Some(inline_qos_parameter_list) => {
+            let mut inline_qos = inline_qos_parameter_list.clone();
+            inline_qos.remove::<KeyHash>();
+            inline_qos.remove::<StatusInfo>();
+            Some(inline_qos)
+        },
+        None => None,
+    };    
     CacheChange::new(
         change_kind,
         GUID::new(*guid_prefix, *message.writer_id() ),
         key_hash.0,
         *message.writer_sn(),
         None,
-        None,
+        inline_qos,
     )
 }
 
@@ -37,14 +46,17 @@ fn data_from_cache_change(cache_change: &CacheChange, endianness: Endianness, re
     let writer_id: EntityId = *cache_change.writer_guid().entity_id();
     let writer_sn = *cache_change.sequence_number();
 
+    let mut inline_qos_parameters = match cache_change.inline_qos() {
+        Some(inline_qos) => inline_qos.clone(),
+        None => ParameterList::new(),
+    };
+
     let change_kind = *cache_change.change_kind();
-    
-    let mut parameter = Vec::new();
-    parameter.push(Parameter::new(StatusInfo::from(change_kind), endianness));
+    inline_qos_parameters.push(StatusInfo::from(change_kind));
 
     let payload = match change_kind {
         ChangeKind::Alive => {
-            parameter.push(Parameter::new(KeyHash(*cache_change.instance_handle()), endianness));
+            inline_qos_parameters.push(KeyHash(*cache_change.instance_handle()));
             Payload::Data(SerializedPayload(cache_change.data_value().unwrap().to_vec()))
         },
         ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered | ChangeKind::AliveFiltered => {
@@ -52,16 +64,12 @@ fn data_from_cache_change(cache_change: &CacheChange, endianness: Endianness, re
         }
     };
 
-    if let Some(inline_qos) = cache_change.inline_qos() {
-        parameter.extend(inline_qos.parameter().to_vec());
-    };
-
     Data::new(
         endianness,
         reader_id,
         writer_id,
         writer_sn,
-        Some(ParameterList::new(parameter)),
+        Some(inline_qos_parameters),
         payload,
     )
 }

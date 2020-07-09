@@ -306,6 +306,7 @@ fn reliable_stateful_writer_stateful_reader_reordered_data() {
     reader.run(&writer_guid, Some(&writer_message_1));
 
     let reader_changes = reader.reader_cache().get_changes();
+
     assert_eq!(reader_changes.len(), writer.writer_cache().get_changes().len());
     assert!(reader_changes.contains(&cache_change_seq1));
     assert!(reader_changes.contains(&cache_change_seq2));

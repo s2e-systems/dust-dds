@@ -3,18 +3,21 @@
 /// in the sub clauses of 9.6.3 ParameterId Definitions used to Represent In-line QoS
 ///  
  
-use std::convert::{TryInto, From};
-use serde::{Serialize, Deserialize};
-use crate::serdes::{RtpsSerialize, RtpsDeserialize, Endianness, RtpsSerdesResult, SizeCheck};
+use std::convert::From;
 use crate::types::{ChangeKind, };
-use crate::messages::types::{Pid, ParameterIdT, };
+use crate::messages::types::{ParameterId, Pid};
 
+use serde::{Serialize, Deserialize};
 
+const PID_TOPIC_NAME : ParameterId = 0x0005;
+const PID_KEY_HASH : ParameterId = 0x0070;
+const PID_STATUS_INFO : ParameterId = 0x0071;
+  
 #[derive(Debug, PartialEq, Clone, Eq, Serialize, Deserialize)]
 pub struct TopicName(pub Vec<u8>);
 impl Pid for TopicName {
-    fn pid() -> ParameterIdT {
-        ParameterIdT::TopicName
+    fn pid() -> ParameterId {
+        PID_TOPIC_NAME
     }
 }
 
@@ -22,8 +25,8 @@ impl Pid for TopicName {
 pub struct KeyHash(pub [u8; 16]);
 
 impl Pid for KeyHash {
-    fn pid() -> ParameterIdT {
-        ParameterIdT::KeyHash
+    fn pid() -> ParameterId {
+        PID_KEY_HASH
     }
 }
 
@@ -50,8 +53,8 @@ impl StatusInfo {
 }
 
 impl Pid for StatusInfo {
-    fn pid() -> ParameterIdT {
-        ParameterIdT::StatusInfo
+    fn pid() -> ParameterId {
+        PID_STATUS_INFO
     }
 }
 
@@ -65,22 +68,6 @@ impl From<ChangeKind> for StatusInfo {
         }
     }
 }
-
-impl RtpsSerialize for StatusInfo {
-    fn serialize(&self, writer: &mut impl std::io::Write, _endianess: Endianness) -> RtpsSerdesResult<()> {
-        writer.write(&self.0)?;
-        Ok(())
-    }
-}
-
-impl RtpsDeserialize for StatusInfo {
-    fn deserialize(bytes: &[u8], _endianness: Endianness) -> RtpsSerdesResult<Self> {
-        bytes.check_size_equal(3)?;
-        Ok(StatusInfo(bytes[0..3].try_into()?))
-    }
-}
-
-
 
 
 #[cfg(test)]

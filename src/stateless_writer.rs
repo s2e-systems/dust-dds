@@ -4,8 +4,8 @@ use crate::cache::{CacheChange, HistoryCache};
 use crate::messages::RtpsMessage;
 use crate::types::{ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID, };
 use crate::behavior::types::Duration;
-use crate::messages::submessage_elements::{ParameterList, };
 use crate::behavior::StatelessWriterBehavior;
+use crate::messages::submessage_elements::ParameterList;
 
 pub struct ReaderLocator {
     //requested_changes: HashSet<CacheChange>,
@@ -114,6 +114,7 @@ impl StatelessWriter {
         handle: InstanceHandle,
     ) -> CacheChange {
         self.last_change_sequence_number = self.last_change_sequence_number + 1;
+
         CacheChange::new(
             kind,
             self.guid,
@@ -199,7 +200,7 @@ mod tests {
 
         assert_eq!(cache_change_seq1.sequence_number(), &SequenceNumber(1));
         assert_eq!(cache_change_seq1.change_kind(), &ChangeKind::Alive);
-        assert_eq!(cache_change_seq1.inline_qos(), &None);
+        assert!(cache_change_seq1.inline_qos().is_none());
         assert_eq!(cache_change_seq1.instance_handle(), &[1; 16]);
 
         assert_eq!(cache_change_seq2.sequence_number(), &SequenceNumber(2));
@@ -207,7 +208,7 @@ mod tests {
             cache_change_seq2.change_kind(),
             &ChangeKind::NotAliveUnregistered
         );
-        assert_eq!(cache_change_seq2.inline_qos(), &None);
+        assert!(cache_change_seq2.inline_qos().is_none());
         assert_eq!(cache_change_seq2.instance_handle(), &[1; 16]);
     }
 

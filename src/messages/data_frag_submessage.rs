@@ -160,13 +160,14 @@ mod tests{
     use super::*;
     use crate::inline_qos_types::KeyHash;
     use crate::types::constants::{ENTITYID_UNKNOWN, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, };
-    use crate::messages::submessage_elements::{Parameter, ParameterList, };
+    use crate::messages::submessage_elements::{ParameterList, };
 
     #[test]
     fn parse_data_frag_submessage() {
         let endianness = Endianness::LittleEndian;
         let key_hash = KeyHash([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]);
-        let inline_qos = ParameterList::new(vec![Parameter::new(key_hash, endianness)]);
+        let mut inline_qos = ParameterList::new();
+        inline_qos.push(key_hash);
         
         let expected = DataFrag {
             endianness_flag: endianness.into(),
@@ -210,10 +211,12 @@ mod tests{
     fn compose_data_frag_submessage() {
         let endianness = Endianness::LittleEndian;
         let key_hash = KeyHash([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]);
-        let inline_qos = ParameterList::new(vec![Parameter::new(key_hash, endianness)]);
+        
+        let mut inline_qos = ParameterList::new();
+        inline_qos.push(key_hash);
 
         let message = DataFrag {
-            endianness_flag: Endianness::LittleEndian.into(),
+            endianness_flag: endianness.into(),
             inline_qos_flag: true,
             key_flag: true,
             non_standard_payload_flag: false,

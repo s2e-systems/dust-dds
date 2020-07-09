@@ -1,7 +1,28 @@
-use rust_rtps::{StatelessWriter, StatelessReader, RtpsMessage, RtpsCompose, RtpsParse, };
+use rust_rtps::{StatelessWriter, StatelessReader, RtpsMessage, RtpsCompose, RtpsParse,};
 use rust_rtps::types::{ChangeKind, TopicKind, ReliabilityKind, Locator, GUID, GuidPrefix, };
 use rust_rtps::types::constants::{ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER, ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER, };
 use rust_rtps::behavior::types::constants::DURATION_ZERO;
+use rust_rtps::{ParameterId, ParameterList, Pid};
+
+use serde::{Serialize, };
+
+#[derive(Debug, Serialize)]
+struct SpecialQos(u16);
+
+impl Pid for SpecialQos{
+    fn pid() -> ParameterId {
+        0x0AA0
+    }
+}
+
+#[derive(Debug, Serialize)]
+struct OtherQos(i32);
+
+impl Pid for OtherQos{
+    fn pid() -> ParameterId {
+        0x0AA1
+    }
+}
 
 #[test]
 fn test_stateless_writer_stateless_reader_direct_communication_integration() {
@@ -30,10 +51,13 @@ fn test_stateless_writer_stateless_reader_direct_communication_integration() {
 
    writer.reader_locator_add(locator);
 
+   let mut inline_qos = ParameterList::new();
+   inline_qos.push(SpecialQos(10));
+
    let cache_change_seq1 = writer.new_change(
        ChangeKind::Alive,
        Some(vec![1,2,3]), /*data*/
-       None, /*inline_qos*/
+       Some(inline_qos), /*inline_qos*/
        [0;16], /*handle*/
    );
    

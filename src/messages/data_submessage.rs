@@ -6,9 +6,9 @@ use crate::types::constants::SEQUENCE_NUMBER_UNKNOWN;
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, Endianness, RtpsSerdesResult, };
 use crate::serialized_payload::SerializedPayload;
 
-use super::types::{SubmessageKind, SubmessageFlag, };
+use super::types::{SubmessageKind, SubmessageFlag,  };
 use super::{SubmessageHeader, Submessage, };
-use super::submessage_elements::ParameterList;
+use super::submessage_elements::{ParameterList};
 
 #[derive(PartialEq, Debug)]
 pub struct Data {
@@ -53,19 +53,19 @@ impl Data {
                 Payload::NonStandard(serialized_payload) => {non_standard_payload_flag = true; Some(serialized_payload)},
                 Payload::None => {None}
             };
-
-            Data {
-                endianness_flag: endianness_flag.into(),
-                inline_qos_flag,
-                data_flag,
-                key_flag,
-                non_standard_payload_flag,
-                reader_id,
-                writer_id,
-                writer_sn,
-                inline_qos, 
-                serialized_payload, 
-            }
+        
+        Data {
+            endianness_flag: endianness_flag.into(),
+            inline_qos_flag,
+            data_flag,
+            key_flag,
+            non_standard_payload_flag,
+            reader_id,
+            writer_id,
+            writer_sn,
+            inline_qos, 
+            serialized_payload, 
+        }
     }
 
     pub fn reader_id(&self) -> &EntityId {
@@ -224,14 +224,13 @@ mod tests {
     use super::*;
     use crate::inline_qos_types::KeyHash;
     use crate::types::constants::{ENTITYID_UNKNOWN, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, };
-    use crate::messages::submessage_elements::Parameter;
 
-        // E: EndiannessFlag - Indicates endianness.
-        // Q: InlineQosFlag - Indicates to the Reader the presence of a ParameterList containing QoS parameters that should be used to interpret the message.
-        // D: DataFlag - Indicates to the Reader that the dataPayload submessage element contains the serialized value of the data-object.
-        // K: KeyFlag - Indicates to the Reader that the dataPayload submessage element contains the serialized value of the key of the data-object. 
-        // N: NonStandardPayloadFlag  -Indicates to the Reader that the serializedPayload submessage element is not formatted according to Section 10.
-        // X|X|X|N|K|D|Q|E
+    // E: EndiannessFlag - Indicates endianness.
+    // Q: InlineQosFlag - Indicates to the Reader the presence of a ParameterList containing QoS parameters that should be used to interpret the message.
+    // D: DataFlag - Indicates to the Reader that the dataPayload submessage element contains the serialized value of the data-object.
+    // K: KeyFlag - Indicates to the Reader that the dataPayload submessage element contains the serialized value of the key of the data-object. 
+    // N: NonStandardPayloadFlag  -Indicates to the Reader that the serializedPayload submessage element is not formatted according to Section 10.
+    // X|X|X|N|K|D|Q|E
     #[test]
     fn test_data_contructor() {
         let data = Data::new(
@@ -239,7 +238,7 @@ mod tests {
             ENTITYID_UNKNOWN, 
             ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, 
             SequenceNumber(1), 
-            Some(ParameterList::new(vec![])),
+            Some(ParameterList::new()),
             Payload::Data(SerializedPayload(vec![]))
         );
         assert_eq!(data.endianness_flag, true);
@@ -279,10 +278,11 @@ mod tests {
     fn test_compose_data_submessage_with_inline_qos_without_data() {
         let endianness = Endianness::LittleEndian;
         let key_hash = KeyHash([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]);
-        let inline_qos = ParameterList::new(vec![Parameter::new(key_hash, endianness)]);
+        let mut inline_qos = ParameterList::new();
+        inline_qos.push(key_hash);
         
         let data = Data {
-            endianness_flag: true,
+            endianness_flag: endianness.into(),
             inline_qos_flag: true,
             data_flag: false,
             key_flag: false,
@@ -316,7 +316,8 @@ mod tests {
     fn test_compose_data_submessage_with_inline_qos_with_data() {
         let endianness = Endianness::LittleEndian;
         let key_hash = KeyHash([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]);
-        let inline_qos = ParameterList::new(vec![Parameter::new(key_hash, endianness)]);
+        let mut inline_qos = ParameterList::new();
+        inline_qos.push(key_hash);
         
         let serialized_payload = SerializedPayload(vec![1_u8, 2, 3]);
 
@@ -412,7 +413,9 @@ mod tests {
     fn test_parse_data_submessage_with_inline_qos_with_data() {
         let endianness = Endianness::LittleEndian;
         let key_hash = KeyHash([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]);
-        let inline_qos = ParameterList::new(vec![Parameter::new(key_hash, endianness)]);
+        let mut inline_qos = ParameterList::new();
+        inline_qos.push(key_hash);
+
         
         let serialized_payload = SerializedPayload(vec![1_u8, 2, 3]);
 
