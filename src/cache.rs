@@ -1,7 +1,7 @@
 use std::cmp::Ordering;
 use std::collections::{HashSet};
 use crate::types::{ChangeKind, InstanceHandle, SequenceNumber, GUID, };
-use crate::messages::submessage_elements::ParameterList;
+use crate::messages::ParameterList;
 
 #[derive(Debug, Clone)]
 pub struct CacheChange {

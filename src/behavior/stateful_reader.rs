@@ -32,14 +32,14 @@ impl StatefulReaderBehavior {
             for submessage in received_message.submessages().iter() {                
                 if let RtpsSubmessage::Data(data) = submessage {
                     let expected_seq_number = writer_proxy.available_changes_max() + 1;
-                    if data.writer_sn().0 >= expected_seq_number {
+                    if data.writer_sn() >= expected_seq_number {
                         let cache_change = cache_change_from_data(data, guid_prefix);
                         history_cache.add_change(cache_change);
-                        writer_proxy.received_change_set(data.writer_sn().0);
-                        writer_proxy.lost_changes_update(data.writer_sn().0);
+                        writer_proxy.received_change_set(data.writer_sn());
+                        writer_proxy.lost_changes_update(data.writer_sn());
                     }
                 } else if let RtpsSubmessage::Gap(gap) = submessage {
-                    for seq_num in gap.gap_start().0 .. gap.gap_list().base() - 1 {
+                    for seq_num in gap.gap_start() .. gap.gap_list().base() - 1 {
                         writer_proxy.irrelevant_change_set(seq_num);
                     }
 
@@ -57,10 +57,10 @@ impl StatefulReaderBehavior {
             for submessage in received_message.submessages().iter() {                
                 if let RtpsSubmessage::Data(data) = submessage {
                     let expected_seq_number = writer_proxy.available_changes_max() + 1;
-                    if data.writer_sn().0 >= expected_seq_number {
+                    if data.writer_sn() >= expected_seq_number {
                         let cache_change = cache_change_from_data(data, guid_prefix);
                         history_cache.add_change(cache_change);
-                        writer_proxy.received_change_set(data.writer_sn().0);
+                        writer_proxy.received_change_set(data.writer_sn());
                     }
                 } else if let RtpsSubmessage::Gap(gap) = submessage {
                     // for seq_num in gap.gap_start() .. gap.gap_list().base() - 1 {
@@ -81,8 +81,8 @@ impl StatefulReaderBehavior {
             let _guid_prefix = received_message.header().guid_prefix();
             for submessage in received_message.submessages().iter() {                
                 if let RtpsSubmessage::Heartbeat(heartbeat) = submessage {
-                    writer_proxy.missing_changes_update(heartbeat.last_sn().0);
-                    writer_proxy.lost_changes_update(heartbeat.first_sn().0);
+                    writer_proxy.missing_changes_update(heartbeat.last_sn());
+                    writer_proxy.lost_changes_update(heartbeat.first_sn());
                     if !heartbeat.is_final() || 
                         (heartbeat.is_final() && !writer_proxy.missing_changes().is_empty()) {
                         writer_proxy.set_must_send_ack(true);
@@ -121,8 +121,7 @@ mod tests {
     use crate::types::constants::{
         ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, };
     use crate::cache::CacheChange;
-    use crate::messages::{Data, Payload, Heartbeat};
-    use crate::messages::submessage_elements::ParameterList;
+    use crate::messages::{Data, Payload, Heartbeat, ParameterList};
     use crate::messages::Endianness;
     use crate::inline_qos_types::{KeyHash, StatusInfo, };
 

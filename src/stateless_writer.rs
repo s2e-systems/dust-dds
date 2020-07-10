@@ -1,11 +1,10 @@
 use std::collections::{HashMap, BTreeSet};
 
 use crate::cache::{CacheChange, HistoryCache};
-use crate::messages::RtpsMessage;
+use crate::messages::{RtpsMessage, ParameterList};
 use crate::types::{ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID, };
 use crate::behavior::types::Duration;
 use crate::behavior::StatelessWriterBehavior;
-use crate::messages::submessage_elements;
 
 pub struct ReaderLocator {
     //requested_changes: HashSet<CacheChange>,
@@ -110,7 +109,7 @@ impl StatelessWriter {
         &mut self,
         kind: ChangeKind,
         data: Option<Vec<u8>>,
-        inline_qos: Option<submessage_elements::ParameterList>,
+        inline_qos: Option<ParameterList>,
         handle: InstanceHandle,
     ) -> CacheChange {
         self.last_change_sequence_number = self.last_change_sequence_number + 1;
@@ -254,20 +253,20 @@ mod tests {
             panic!("Wrong message type");
         }
         if let RtpsSubmessage::Data(data_message_1) = &writer_data.submessages()[1] {
-            assert_eq!(data_message_1.reader_id(), &submessage_elements::EntityId(ENTITYID_UNKNOWN));
-            assert_eq!(data_message_1.writer_id(), &submessage_elements::EntityId(ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER));
-            assert_eq!(data_message_1.writer_sn(), &submessage_elements::SequenceNumber(1));
-            assert_eq!(data_message_1.serialized_payload(), &Some(submessage_elements::SerializedData(vec![1, 2, 3])));
+            assert_eq!(data_message_1.reader_id(), ENTITYID_UNKNOWN);
+            assert_eq!(data_message_1.writer_id(), ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER);
+            assert_eq!(data_message_1.writer_sn(), 1);
+            assert_eq!(data_message_1.serialized_payload(), Some(&vec![1, 2, 3]));
 
         } else {
             panic!("Wrong message type");
         };
 
         if let RtpsSubmessage::Data(data_message_2) = &writer_data.submessages()[2] {
-            assert_eq!(data_message_2.reader_id(), &submessage_elements::EntityId(ENTITYID_UNKNOWN));
-            assert_eq!(data_message_2.writer_id(), &submessage_elements::EntityId(ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER));
-            assert_eq!(data_message_2.writer_sn(), &submessage_elements::SequenceNumber(2));
-            assert_eq!(data_message_2.serialized_payload(), &Some(submessage_elements::SerializedData(vec![4, 5, 6])));
+            assert_eq!(data_message_2.reader_id(), ENTITYID_UNKNOWN);
+            assert_eq!(data_message_2.writer_id(), ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER);
+            assert_eq!(data_message_2.writer_sn(), 2);
+            assert_eq!(data_message_2.serialized_payload(), Some(&vec![4, 5, 6]));
         } else {
             panic!("Wrong message type");
         };

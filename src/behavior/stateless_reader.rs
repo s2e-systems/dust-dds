@@ -20,7 +20,7 @@ impl StatelessReaderBehavior {
             for submessage in received_message.submessages().iter() {
                 if let RtpsSubmessage::Data(data) = submessage {
                     // Check if the message is for this reader and process it if that is the case
-                    if data.reader_id().0 == ENTITYID_UNKNOWN {
+                    if data.reader_id() == ENTITYID_UNKNOWN {
 
                         let cache_change = cache_change_from_data(data, guid_prefix);
                         history_cache.add_change(cache_change);

@@ -19,7 +19,7 @@ mod info_source_submessage;
 mod info_timestamp_submessage;
 mod nack_frag_submessage;
 mod serdes;
-pub mod submessage_elements;
+mod submessage_elements;
 pub mod types;
 
 pub use ack_nack_submessage::AckNack;
@@ -35,6 +35,7 @@ pub use heartbeat_submessage::Heartbeat;
 pub use info_timestamp_submessage::InfoTs;
 // pub use nack_frag_submessage::NackFrag;
 pub use serdes::Endianness;
+pub use submessage_elements::ParameterList;
 
 pub const RTPS_MAJOR_VERSION: u8 = 2;
 pub const RTPS_MINOR_VERSION: u8 = 4;

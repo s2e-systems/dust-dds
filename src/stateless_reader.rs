@@ -74,14 +74,12 @@ mod tests {
     use super::*;
     use crate::types::*;
     use crate::types::constants::*;
-    use crate::messages::{Data, Payload, RtpsSubmessage };
-    use crate::messages::submessage_elements;
-    use crate::messages::Endianness;
+    use crate::messages::{Data, Payload, RtpsSubmessage, Endianness, ParameterList };
     use crate::inline_qos_types::{KeyHash};
 
     #[test]
     fn best_effort_stateless_reader_run() {
-        let mut inline_qos = submessage_elements::ParameterList::new();
+        let mut inline_qos = ParameterList::new();
         inline_qos.push(KeyHash([1;16]));
 
         let data1 = Data::new(

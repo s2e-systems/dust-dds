@@ -1,11 +1,9 @@
 use crate::types::{GUID, SequenceNumber, ChangeKind};
-use crate::messages::{RtpsMessage, RtpsSubmessage, InfoTs, Data, Payload, Gap, Heartbeat};
+use crate::messages::{RtpsMessage, RtpsSubmessage, InfoTs, Data, Payload, Gap, Heartbeat, Endianness, ParameterList};
 use crate::cache::{HistoryCache};
 use crate::stateful_writer::ReaderProxy;
 use crate::behavior::types::Duration;
-use crate::messages::Endianness;
 use crate::messages::types::{Time};
-use crate::messages::submessage_elements;
 use crate::inline_qos_types::{KeyHash, StatusInfo};
 use super::data_from_cache_change;
 
@@ -174,7 +172,7 @@ impl StatefulWriterBehavior {
                 .get_change_with_sequence_number(&next_requested_seq_num)
             {
                 let change_kind = *cache_change.change_kind();
-                let mut inline_qos = submessage_elements::ParameterList::new();
+                let mut inline_qos = ParameterList::new();
                 inline_qos.push(StatusInfo::from(change_kind));
     
                 let payload = match change_kind {
@@ -260,11 +258,11 @@ mod tests {
             panic!("Wrong message type");
         }
         if let RtpsSubmessage::Heartbeat(heartbeat_message) = &submessages[1] {
-            assert_eq!(heartbeat_message.reader_id().0, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-            assert_eq!(heartbeat_message.writer_id().0, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-            assert_eq!(heartbeat_message.first_sn().0, 1);
-            assert_eq!(heartbeat_message.last_sn().0, 2);
-            assert_eq!(heartbeat_message.count().0, 1);
+            assert_eq!(heartbeat_message.reader_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
+            assert_eq!(heartbeat_message.writer_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
+            assert_eq!(heartbeat_message.first_sn(), 1);
+            assert_eq!(heartbeat_message.last_sn(), 2);
+            assert_eq!(heartbeat_message.count(), 1);
             assert_eq!(heartbeat_message.is_final(), false);
         } else {
             panic!("Wrong message type");
@@ -285,11 +283,11 @@ mod tests {
         let no_change_sequence_number = 0;
         let submessages = StatefulWriterBehavior::run_announcing_state(&mut reader_proxy, &writer_guid, &history_cache, no_change_sequence_number, heartbeat_period).unwrap();
         if let RtpsSubmessage::Heartbeat(heartbeat) = &submessages[1] {
-            assert_eq!(heartbeat.reader_id().0, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-            assert_eq!(heartbeat.writer_id().0, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-            assert_eq!(heartbeat.first_sn().0, 1);
-            assert_eq!(heartbeat.last_sn().0, 0);
-            assert_eq!(heartbeat.count().0, 1);
+            assert_eq!(heartbeat.reader_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
+            assert_eq!(heartbeat.writer_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
+            assert_eq!(heartbeat.first_sn(), 1);
+            assert_eq!(heartbeat.last_sn(), 0);
+            assert_eq!(heartbeat.count(), 1);
             assert_eq!(heartbeat.is_final(), false);
         } else {
             assert!(false);
@@ -299,11 +297,11 @@ mod tests {
         let two_changes_sequence_number = 2;
         let submessages = StatefulWriterBehavior::run_announcing_state(&mut reader_proxy, &writer_guid, &history_cache, two_changes_sequence_number, heartbeat_period).unwrap();
         if let RtpsSubmessage::Heartbeat(heartbeat) = &submessages[1] {
-            assert_eq!(heartbeat.reader_id().0, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-            assert_eq!(heartbeat.writer_id().0, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-            assert_eq!(heartbeat.first_sn().0, 3);
-            assert_eq!(heartbeat.last_sn().0, 2);
-            assert_eq!(heartbeat.count().0, 2);
+            assert_eq!(heartbeat.reader_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
+            assert_eq!(heartbeat.writer_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
+            assert_eq!(heartbeat.first_sn(), 3);
+            assert_eq!(heartbeat.last_sn(), 2);
+            assert_eq!(heartbeat.count(), 2);
             assert_eq!(heartbeat.is_final(), false);
         } else {
             assert!(false);
@@ -318,11 +316,11 @@ mod tests {
 
         let submessages = StatefulWriterBehavior::run_announcing_state(&mut reader_proxy, &writer_guid, &history_cache, two_changes_sequence_number, heartbeat_period).unwrap();
         if let RtpsSubmessage::Heartbeat(heartbeat) = &submessages[1] {
-            assert_eq!(heartbeat.reader_id().0, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-            assert_eq!(heartbeat.writer_id().0, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-            assert_eq!(heartbeat.first_sn().0, 1);
-            assert_eq!(heartbeat.last_sn().0, 2);
-            assert_eq!(heartbeat.count().0, 3);
+            assert_eq!(heartbeat.reader_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
+            assert_eq!(heartbeat.writer_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
+            assert_eq!(heartbeat.first_sn(), 1);
+            assert_eq!(heartbeat.last_sn(), 2);
+            assert_eq!(heartbeat.count(), 3);
             assert_eq!(heartbeat.is_final(), false);
         } else {
             assert!(false);
@@ -476,20 +474,20 @@ mod tests {
             panic!("Wrong message type");
         }
         if let RtpsSubmessage::Data(data_message_1) = &submessages[1] {
-            assert_eq!(data_message_1.reader_id().0, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-            assert_eq!(data_message_1.writer_id().0, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-            assert_eq!(data_message_1.writer_sn().0, 1);
-            assert_eq!(data_message_1.serialized_payload(), &Some(submessage_elements::SerializedData(vec![1, 2, 3])));
+            assert_eq!(data_message_1.reader_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
+            assert_eq!(data_message_1.writer_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
+            assert_eq!(data_message_1.writer_sn(), 1);
+            assert_eq!(data_message_1.serialized_payload(), Some(&vec![1, 2, 3]));
 
         } else {
             panic!("Wrong message type");
         };
 
         if let RtpsSubmessage::Data(data_message_2) = &submessages[2] {
-            assert_eq!(data_message_2.reader_id().0, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-            assert_eq!(data_message_2.writer_id().0, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-            assert_eq!(data_message_2.writer_sn().0, 2);
-            assert_eq!(data_message_2.serialized_payload(), &Some(submessage_elements::SerializedData(vec![2, 3, 4])));
+            assert_eq!(data_message_2.reader_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
+            assert_eq!(data_message_2.writer_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
+            assert_eq!(data_message_2.writer_sn(), 2);
+            assert_eq!(data_message_2.serialized_payload(), Some(&vec![2, 3, 4]));
         } else {
             panic!("Wrong message type");
         };
@@ -521,16 +519,16 @@ mod tests {
             panic!("Wrong message type");
         }
         if let RtpsSubmessage::Gap(gap_message_1) = &submessages[1] {
-            assert_eq!(gap_message_1.reader_id().0, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-            assert_eq!(gap_message_1.writer_id().0, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-            assert_eq!(gap_message_1.gap_start().0, 1);
+            assert_eq!(gap_message_1.reader_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
+            assert_eq!(gap_message_1.writer_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
+            assert_eq!(gap_message_1.gap_start(), 1);
         } else {
             panic!("Wrong message type");
         };
         if let RtpsSubmessage::Gap(gap_message_2) = &submessages[2] {
-            assert_eq!(gap_message_2.reader_id().0, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-            assert_eq!(gap_message_2.writer_id().0, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-            assert_eq!(gap_message_2.gap_start().0, 2);
+            assert_eq!(gap_message_2.reader_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
+            assert_eq!(gap_message_2.writer_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
+            assert_eq!(gap_message_2.gap_start(), 2);
         } else {
             panic!("Wrong message type");
         };
@@ -562,17 +560,17 @@ mod tests {
             panic!("Wrong message type");
         }
         if let RtpsSubmessage::Gap(gap_message) = &submessages[1] {
-            assert_eq!(gap_message.reader_id().0, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-            assert_eq!(gap_message.writer_id().0, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-            assert_eq!(gap_message.gap_start().0, 1);
+            assert_eq!(gap_message.reader_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
+            assert_eq!(gap_message.writer_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
+            assert_eq!(gap_message.gap_start(), 1);
         } else {
             panic!("Wrong message type");
         };
         if let RtpsSubmessage::Data(data_message) = &submessages[2] {
-            assert_eq!(data_message.reader_id().0, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-            assert_eq!(data_message.writer_id().0, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-            assert_eq!(data_message.writer_sn().0, 2);
-            assert_eq!(data_message.serialized_payload(), &Some(submessage_elements::SerializedData(vec![2, 3, 4])));
+            assert_eq!(data_message.reader_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
+            assert_eq!(data_message.writer_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
+            assert_eq!(data_message.writer_sn(), 2);
+            assert_eq!(data_message.serialized_payload(), Some(&vec![2, 3, 4]));
         } else {
             panic!("Wrong message type");
         };
@@ -604,20 +602,20 @@ mod tests {
             panic!("Wrong message type");
         }
         if let RtpsSubmessage::Data(data_message_1) = &submessages[1] {
-            assert_eq!(data_message_1.reader_id().0, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-            assert_eq!(data_message_1.writer_id().0, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-            assert_eq!(data_message_1.writer_sn().0, 1);
-            assert_eq!(data_message_1.serialized_payload(), &Some(submessage_elements::SerializedData(vec![1, 2, 3])));
+            assert_eq!(data_message_1.reader_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
+            assert_eq!(data_message_1.writer_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
+            assert_eq!(data_message_1.writer_sn(), 1);
+            assert_eq!(data_message_1.serialized_payload(), Some(&vec![1, 2, 3]));
 
         } else {
             panic!("Wrong message type");
         };
 
         if let RtpsSubmessage::Data(data_message_2) = &submessages[2] {
-            assert_eq!(data_message_2.reader_id().0, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-            assert_eq!(data_message_2.writer_id().0, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-            assert_eq!(data_message_2.writer_sn().0, 2);
-            assert_eq!(data_message_2.serialized_payload(), &Some(submessage_elements::SerializedData(vec![2, 3, 4])));
+            assert_eq!(data_message_2.reader_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
+            assert_eq!(data_message_2.writer_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
+            assert_eq!(data_message_2.writer_sn(), 2);
+            assert_eq!(data_message_2.serialized_payload(), Some(&vec![2, 3, 4]));
         } else {
             panic!("Wrong message type");
         };
@@ -640,16 +638,16 @@ mod tests {
             panic!("Wrong message type");
         }
         if let RtpsSubmessage::Gap(gap_message_1) = &submessages[1] {
-            assert_eq!(gap_message_1.reader_id().0, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-            assert_eq!(gap_message_1.writer_id().0, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-            assert_eq!(gap_message_1.gap_start().0, 1);
+            assert_eq!(gap_message_1.reader_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
+            assert_eq!(gap_message_1.writer_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
+            assert_eq!(gap_message_1.gap_start(), 1);
         } else {
             panic!("Wrong message type");
         };
         if let RtpsSubmessage::Gap(gap_message_2) = &submessages[2] {
-            assert_eq!(gap_message_2.reader_id().0, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-            assert_eq!(gap_message_2.writer_id().0, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-            assert_eq!(gap_message_2.gap_start().0, 2);
+            assert_eq!(gap_message_2.reader_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
+            assert_eq!(gap_message_2.writer_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
+            assert_eq!(gap_message_2.gap_start(), 2);
         } else {
             panic!("Wrong message type");
         };
@@ -682,20 +680,20 @@ mod tests {
             panic!("Wrong message type");
         }
         if let RtpsSubmessage::Data(data_message_1) = &submessages[1] {
-            assert_eq!(data_message_1.reader_id().0, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-            assert_eq!(data_message_1.writer_id().0, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-            assert_eq!(data_message_1.writer_sn().0, 1);
-            assert_eq!(data_message_1.serialized_payload(), &Some(submessage_elements::SerializedData(vec![1, 2, 3])));
+            assert_eq!(data_message_1.reader_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
+            assert_eq!(data_message_1.writer_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
+            assert_eq!(data_message_1.writer_sn(), 1);
+            assert_eq!(data_message_1.serialized_payload(), Some(&vec![1, 2, 3]));
 
         } else {
             panic!("Wrong message type");
         };
 
         if let RtpsSubmessage::Data(data_message_2) = &submessages[2] {
-            assert_eq!(data_message_2.reader_id().0, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-            assert_eq!(data_message_2.writer_id().0, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-            assert_eq!(data_message_2.writer_sn().0, 2);
-            assert_eq!(data_message_2.serialized_payload(), &Some(submessage_elements::SerializedData(vec![2, 3, 4])));
+            assert_eq!(data_message_2.reader_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
+            assert_eq!(data_message_2.writer_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
+            assert_eq!(data_message_2.writer_sn(), 2);
+            assert_eq!(data_message_2.serialized_payload(), Some(&vec![2, 3, 4]));
         } else {
             panic!("Wrong message type");
         };
@@ -734,20 +732,20 @@ mod tests {
             panic!("Wrong message type");
         }
         if let RtpsSubmessage::Data(data_message_1) = &submessages[1] {
-            assert_eq!(data_message_1.reader_id().0, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-            assert_eq!(data_message_1.writer_id().0, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-            assert_eq!(data_message_1.writer_sn().0, 1);
-            assert_eq!(data_message_1.serialized_payload(), &Some(submessage_elements::SerializedData(vec![1, 2, 3])));
+            assert_eq!(data_message_1.reader_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
+            assert_eq!(data_message_1.writer_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
+            assert_eq!(data_message_1.writer_sn(), 1);
+            assert_eq!(data_message_1.serialized_payload(), Some(&vec![1, 2, 3]));
 
         } else {
             panic!("Wrong message type");
         };
 
         if let RtpsSubmessage::Data(data_message_2) = &submessages[2] {
-            assert_eq!(data_message_2.reader_id().0, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-            assert_eq!(data_message_2.writer_id().0, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-            assert_eq!(data_message_2.writer_sn().0, 2);
-            assert_eq!(data_message_2.serialized_payload(), &Some(submessage_elements::SerializedData(vec![2, 3, 4])));
+            assert_eq!(data_message_2.reader_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
+            assert_eq!(data_message_2.writer_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
+            assert_eq!(data_message_2.writer_sn(), 2);
+            assert_eq!(data_message_2.serialized_payload(), Some(&vec![2, 3, 4]));
         } else {
             panic!("Wrong message type");
         };
@@ -766,11 +764,11 @@ mod tests {
             panic!("Wrong message type");
         }
         if let RtpsSubmessage::Heartbeat(heartbeat_message) = &submessages[1] {
-            assert_eq!(heartbeat_message.reader_id().0, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-            assert_eq!(heartbeat_message.writer_id().0, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-            assert_eq!(heartbeat_message.first_sn().0, 1);
-            assert_eq!(heartbeat_message.last_sn().0, 2);
-            assert_eq!(heartbeat_message.count().0, 1);
+            assert_eq!(heartbeat_message.reader_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
+            assert_eq!(heartbeat_message.writer_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
+            assert_eq!(heartbeat_message.first_sn(), 1);
+            assert_eq!(heartbeat_message.last_sn(), 2);
+            assert_eq!(heartbeat_message.count(), 1);
             assert_eq!(heartbeat_message.is_final(), false);
 
         } else {
@@ -801,11 +799,11 @@ mod tests {
             panic!("Wrong message type");
         }
         if let RtpsSubmessage::Heartbeat(heartbeat_message) = &submessages[1] {
-            assert_eq!(heartbeat_message.reader_id().0, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-            assert_eq!(heartbeat_message.writer_id().0, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-            assert_eq!(heartbeat_message.first_sn().0, 1);
-            assert_eq!(heartbeat_message.last_sn().0, 2);
-            assert_eq!(heartbeat_message.count().0, 2);
+            assert_eq!(heartbeat_message.reader_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
+            assert_eq!(heartbeat_message.writer_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
+            assert_eq!(heartbeat_message.first_sn(), 1);
+            assert_eq!(heartbeat_message.last_sn(), 2);
+            assert_eq!(heartbeat_message.count(), 2);
             assert_eq!(heartbeat_message.is_final(), false);
         }
         if let RtpsSubmessage::InfoTs(message_1) = &submessages[2] {
@@ -814,10 +812,10 @@ mod tests {
             panic!("Wrong message type");
         }
         if let RtpsSubmessage::Data(data_message_1) = &submessages[3] {
-            assert_eq!(data_message_1.reader_id().0, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-            assert_eq!(data_message_1.writer_id().0, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-            assert_eq!(data_message_1.writer_sn().0, 2);
-            assert_eq!(data_message_1.serialized_payload(), &Some(submessage_elements::SerializedData(vec![2, 3, 4])));
+            assert_eq!(data_message_1.reader_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
+            assert_eq!(data_message_1.writer_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
+            assert_eq!(data_message_1.writer_sn(), 2);
+            assert_eq!(data_message_1.serialized_payload(), Some(&vec![2, 3, 4]));
 
         } else {
             panic!("Wrong message type");
@@ -870,20 +868,20 @@ mod tests {
             panic!("Wrong message type");
         }
         if let RtpsSubmessage::Data(data_message_1) = &writer_data.submessages()[1] {
-            assert_eq!(data_message_1.reader_id().0, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR);
-            assert_eq!(data_message_1.writer_id().0, ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER);
-            assert_eq!(data_message_1.writer_sn().0, 1);
-            assert_eq!(data_message_1.serialized_payload(), &Some(submessage_elements::SerializedData(vec![1, 2, 3])));
+            assert_eq!(data_message_1.reader_id(), ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR);
+            assert_eq!(data_message_1.writer_id(), ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER);
+            assert_eq!(data_message_1.writer_sn(), 1);
+            assert_eq!(data_message_1.serialized_payload(), Some(&vec![1, 2, 3]));
 
         } else {
             panic!("Wrong message type");
         };
 
         if let RtpsSubmessage::Data(data_message_2) = &writer_data.submessages()[2] {
-            assert_eq!(data_message_2.reader_id().0, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR);
-            assert_eq!(data_message_2.writer_id().0, ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER);
-            assert_eq!(data_message_2.writer_sn().0, 2);
-            assert_eq!(data_message_2.serialized_payload(), &Some(submessage_elements::SerializedData(vec![4, 5, 6])));
+            assert_eq!(data_message_2.reader_id(), ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR);
+            assert_eq!(data_message_2.writer_id(), ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER);
+            assert_eq!(data_message_2.writer_sn(), 2);
+            assert_eq!(data_message_2.serialized_payload(), Some(&vec![4, 5, 6]));
         } else {
             panic!("Wrong message type");
         };

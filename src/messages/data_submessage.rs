@@ -65,20 +65,23 @@ impl Data {
         }
     }
 
-    pub fn reader_id(&self) -> &submessage_elements::EntityId {
-        &self.reader_id
+    pub fn reader_id(&self) -> types::EntityId {
+        self.reader_id.0
     }
 
-    pub fn writer_id(&self) -> &submessage_elements::EntityId {
-        &self.writer_id
+    pub fn writer_id(&self) -> types::EntityId {
+        self.writer_id.0
     }
 
-    pub fn writer_sn(&self) -> &submessage_elements::SequenceNumber {
-        &self.writer_sn
+    pub fn writer_sn(&self) -> types::SequenceNumber {
+        self.writer_sn.0
     }
 
-    pub fn serialized_payload(&self) -> &Option<submessage_elements::SerializedData> {
-        &self.serialized_payload
+    pub fn serialized_payload(&self) -> Option<&Vec<u8>> {
+        match &self.serialized_payload {
+            Some(data) => Some(&data.0),
+            None => None,
+        }
     }
     
     pub fn inline_qos(&self) -> &Option<submessage_elements::ParameterList> {

@@ -8,10 +8,8 @@ use std::convert::{TryFrom, TryInto};
 
 use crate::types::{GUID, GuidPrefix, EntityId, ChangeKind};
 use crate::cache::CacheChange;
-use crate::messages::{Data, Payload};
+use crate::messages::{Data, Payload, Endianness, ParameterList};
 use crate::inline_qos_types::{KeyHash, StatusInfo};
-use crate::messages::Endianness;
-use crate::messages::submessage_elements;
 
 pub use stateful_writer::StatefulWriterBehavior;
 pub use stateful_reader::StatefulReaderBehavior;
@@ -33,9 +31,9 @@ fn cache_change_from_data(message: &Data, guid_prefix: &GuidPrefix) -> CacheChan
     };    
     CacheChange::new(
         change_kind,
-        GUID::new(*guid_prefix, message.writer_id().0 ),
+        GUID::new(*guid_prefix, message.writer_id() ),
         key_hash.0,
-        message.writer_sn().0,
+        message.writer_sn(),
         None,
         inline_qos,
     )
@@ -47,7 +45,7 @@ fn data_from_cache_change(cache_change: &CacheChange, endianness: Endianness, re
 
     let mut inline_qos_parameters = match cache_change.inline_qos() {
         Some(inline_qos) => inline_qos.clone(),
-        None => submessage_elements::ParameterList::new(),
+        None => ParameterList::new(),
     };
 
     let change_kind = *cache_change.change_kind();
@@ -92,8 +90,8 @@ fn key_hash(data_submessage: &Data) -> Option<KeyHash> {
     if data_submessage.data_flag() && !data_submessage.key_flag() {
         data_submessage.inline_qos().as_ref()?.find::<KeyHash>(data_submessage.endianness_flag().into())
     } else if !data_submessage.data_flag() && data_submessage.key_flag() {
-        let payload = data_submessage.serialized_payload().as_ref()?; 
-        Some(KeyHash(payload.0[0..16].try_into().ok()?))
+        let payload = data_submessage.serialized_payload()?; 
+        Some(KeyHash(payload[0..16].try_into().ok()?))
     } else {
         None
     }

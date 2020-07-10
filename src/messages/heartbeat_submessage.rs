@@ -64,24 +64,24 @@ impl Heartbeat {
         true
     }
 
-    pub fn reader_id(&self) -> &submessage_elements::EntityId {
-        &self.reader_id
+    pub fn reader_id(&self) -> types::EntityId {
+        self.reader_id.0
     }
 
-    pub fn writer_id(&self) -> &submessage_elements::EntityId {
-        &self.writer_id
+    pub fn writer_id(&self) -> types::EntityId {
+        self.writer_id.0
     }
 
-    pub fn first_sn(&self) -> &submessage_elements::SequenceNumber {
-        &self.first_sn
+    pub fn first_sn(&self) -> types::SequenceNumber {
+        self.first_sn.0
     }
 
-    pub fn last_sn(&self) -> &submessage_elements::SequenceNumber {
-        &self.last_sn
+    pub fn last_sn(&self) -> types::SequenceNumber {
+        self.last_sn.0
     }
 
-    pub fn count(&self) -> &submessage_elements::Count {
-        &self.count
+    pub fn count(&self) -> messages::types::Count {
+        self.count.0
     }
 
     pub fn is_final(&self) -> bool {

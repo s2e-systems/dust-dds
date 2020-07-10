@@ -38,16 +38,16 @@ impl Gap {
             }
     }
 
-    pub fn reader_id(&self) -> &submessage_elements::EntityId {
-        &self.reader_id
+    pub fn reader_id(&self) -> types::EntityId {
+        self.reader_id.0
     }
 
-    pub fn writer_id(&self) -> &submessage_elements::EntityId {
-        &self.writer_id
+    pub fn writer_id(&self) -> types::EntityId {
+        self.writer_id.0
     }
 
-    pub fn gap_start(&self) -> &submessage_elements::SequenceNumber {
-        &self.gap_start
+    pub fn gap_start(&self) -> types::SequenceNumber {
+        self.gap_start.0
     }
 
     pub fn gap_list(&self) -> &submessage_elements::SequenceNumberSet {
