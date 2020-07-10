@@ -7,7 +7,6 @@ use crate::serdes::Endianness;
 use crate::messages::types::{Time};
 use crate::messages::submessage_elements;
 use crate::inline_qos_types::{KeyHash, StatusInfo};
-use crate::serialized_payload::SerializedPayload;
 use super::data_from_cache_change;
 
 pub struct StatefulWriterBehavior {}

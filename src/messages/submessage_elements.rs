@@ -746,7 +746,7 @@ where
         }
     }
 
-    fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> {
+    fn deserialize(_bytes: &[u8], _endianness: Endianness) -> RtpsSerdesResult<Self> {
         todo!()
     }
 }

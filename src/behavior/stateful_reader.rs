@@ -127,7 +127,6 @@ mod tests {
     use crate::messages::{Data, Payload, Heartbeat};
     use crate::messages::submessage_elements::ParameterList;
     use crate::serdes::Endianness;
-    use crate::serialized_payload::SerializedPayload;
     use crate::inline_qos_types::{KeyHash, StatusInfo, };
 
     #[test]

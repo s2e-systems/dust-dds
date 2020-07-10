@@ -74,7 +74,6 @@ mod tests {
     use super::*;
     use crate::types::*;
     use crate::types::constants::*;
-    use crate::serialized_payload::SerializedPayload;
     use crate::messages::{Data, Payload, RtpsSubmessage };
     use crate::messages::submessage_elements;
     use crate::serdes::Endianness;

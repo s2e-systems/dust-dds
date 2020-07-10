@@ -1,6 +1,5 @@
 use crate::types::constants::SEQUENCE_NUMBER_UNKNOWN;
 use crate::serdes::{SubmessageElement, RtpsParse, RtpsCompose, Endianness, RtpsSerdesResult, };
-use crate::serialized_payload::SerializedPayload;
 
 use super::types::{SubmessageKind, SubmessageFlag, };
 use super::{SubmessageHeader, Submessage, };

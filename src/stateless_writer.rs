@@ -166,7 +166,6 @@ mod tests {
     use super::*;
     use crate::types::constants::*;
     use crate::behavior::types::constants::DURATION_ZERO;
-    use crate::serialized_payload::SerializedPayload;
     use crate::messages::RtpsSubmessage;
     use crate::types::*;
 
