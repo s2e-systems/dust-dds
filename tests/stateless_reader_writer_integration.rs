@@ -1,5 +1,5 @@
 use rust_rtps::{StatelessWriter, StatelessReader, RtpsMessage, RtpsCompose, RtpsParse,};
-use rust_rtps::types::{ChangeKind, TopicKind, ReliabilityKind, Locator, GUID, GuidPrefix, };
+use rust_rtps::types::{ChangeKind, TopicKind, ReliabilityKind, Locator, GUID, };
 use rust_rtps::types::constants::{ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER, ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER, };
 use rust_rtps::behavior::types::constants::DURATION_ZERO;
 use rust_rtps::{ParameterId, ParameterList, Pid};

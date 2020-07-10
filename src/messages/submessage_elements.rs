@@ -631,6 +631,7 @@ mod tests {
     use crate::inline_qos_types::{StatusInfo, KeyHash};
     use crate::messages::types::ParameterId;
     use serde::{Serialize, Deserialize};
+    use crate::serdes::RtpsSerdesError;
 
     #[allow(overflowing_literals)]
     const PID_VENDOR_TEST_0 : ParameterId = 0x0000 | 0x8000;
@@ -715,11 +716,10 @@ mod tests {
         let wrong_vec = [1,2,3,4];
 
         let expected_error = SequenceNumber::deserialize(&wrong_vec, Endianness::LittleEndian);
-        todo!()
-        // match expected_error {
-        //     Err(RtpsSerdesError::WrongSize) => assert!(true),
-        //     _ => assert!(false),
-        // };
+        match expected_error {
+            Err(RtpsSerdesError::WrongSize) => assert!(true),
+            _ => assert!(false),
+        };
     }
 
     // /////////////////////// SequenceNumberSet Tests ////////////////////////

@@ -127,7 +127,6 @@ impl RtpsParse for Gap {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{EntityKey, EntityKind, };
     use crate::types::constants;
     
     #[test]

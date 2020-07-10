@@ -552,7 +552,7 @@ mod tests {
             Endianness::LittleEndian, 
             submessage_elements::EntityId(ENTITYID_UNKNOWN), 
             submessage_elements::EntityId(ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER), 
-            submessage_elements::SequenceNumber(1),
+            submessage_elements::SequenceNumber(2),
             None, 
             Payload::None
             )

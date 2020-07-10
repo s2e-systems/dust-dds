@@ -265,7 +265,6 @@ mod tests {
     use super::*;
     use crate::types::constants::{ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, };
     use crate::behavior::types::constants::DURATION_ZERO;
-    use crate::types::GuidPrefix;
 
     #[test]
     fn stateful_writer_new_change() {

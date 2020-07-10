@@ -260,7 +260,6 @@ impl StatefulReader {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::GuidPrefix;
     use crate::types::constants::ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER;
 
     #[test]
