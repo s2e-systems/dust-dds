@@ -91,7 +91,7 @@ mod tests {
             submessage_elements::EntityId(ENTITYID_UNKNOWN),
             submessage_elements::SequenceNumber(1),
             Some(inline_qos),
-            Payload::Data(SerializedPayload(vec![0,1,2])),
+            Payload::Data(vec![0,1,2]),
         );
 
         let mut submessages = Vec::new();

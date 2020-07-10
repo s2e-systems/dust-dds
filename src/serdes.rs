@@ -88,7 +88,8 @@ impl std::io::Write for SizeSerializer {
     }
 }
 
-pub trait RtpsSerialize 
+pub trait SubmessageElement 
+    where Self: std::marker::Sized 
 {
     fn serialize(&self, writer: &mut impl std::io::Write, endianness: Endianness) -> RtpsSerdesResult<()>;
     fn octets(&self) -> usize {
@@ -96,7 +97,10 @@ pub trait RtpsSerialize
         self.serialize(&mut size_serializer, Endianness::LittleEndian /*No impact on size*/ ).unwrap(); // Should panic on failure
         size_serializer.get_size()
     }
+
+    fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self>;   
 }
+
 
 pub trait RtpsCompose 
 {
@@ -113,26 +117,6 @@ where
     Self: std::marker::Sized
 {
     fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self>;
-}
-
-pub trait RtpsDeserialize
-where
-    Self: std::marker::Sized
-{
-    fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self>;
-}
-
-impl<T> RtpsSerialize for Option<T> 
-where 
-    T: RtpsSerialize
-{
-    fn serialize(&self, writer: &mut impl std::io::Write, endianess: Endianness) -> RtpsSerdesResult<()> {
-        if let Some(value) = self {
-            value.serialize(writer, endianess)
-        } else {
-            Ok(())
-        }
-    } 
 }
 
 

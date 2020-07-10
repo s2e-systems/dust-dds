@@ -11,7 +11,7 @@ use std::convert::TryInto;
 use cdr::{LittleEndian, BigEndian, Infinite};
 
 use crate::types::{Locator};
-use crate::serdes::{RtpsSerialize, RtpsDeserialize, Endianness, RtpsSerdesResult, SizeCheck, RtpsSerdesError};
+use crate::serdes::{SubmessageElement, Endianness, RtpsSerdesResult, SizeCheck, RtpsSerdesError};
 use crate::types;
 
 pub trait Pid {
@@ -21,7 +21,7 @@ pub trait Pid {
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct Long(pub i32);
 
-impl RtpsSerialize for Long {
+impl SubmessageElement for Long {
     fn serialize(
         &self,
         writer: &mut impl std::io::Write,
@@ -34,9 +34,7 @@ impl RtpsSerialize for Long {
         writer.write(&value)?;
         Ok(())
     }
-}
 
-impl RtpsDeserialize for Long {
     fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> {
         bytes.check_size_equal(4)?;
     
@@ -51,7 +49,7 @@ impl RtpsDeserialize for Long {
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct ULong(pub u32);
 
-impl RtpsSerialize for ULong {
+impl SubmessageElement for ULong {
     fn serialize(
         &self,
         writer: &mut impl std::io::Write,
@@ -64,9 +62,7 @@ impl RtpsSerialize for ULong {
         writer.write(&value)?;
         Ok(())
     }
-}
 
-impl RtpsDeserialize for ULong {
     fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> {
         bytes.check_size_equal(4)?;
 
@@ -78,11 +74,10 @@ impl RtpsDeserialize for ULong {
     }   
 }
 
-
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct Short(pub i16);
 
-impl RtpsSerialize for Short {
+impl SubmessageElement for Short {
     fn serialize(
         &self,
         writer: &mut impl std::io::Write,
@@ -95,9 +90,7 @@ impl RtpsSerialize for Short {
         writer.write(&value)?;
         Ok(())
     }
-}
 
-impl RtpsDeserialize for Short {
     fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> {
         bytes.check_size_equal(2)?;
 
@@ -112,7 +105,7 @@ impl RtpsDeserialize for Short {
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct UShort(pub u16);
 
-impl RtpsSerialize for UShort {
+impl SubmessageElement for UShort {
     fn serialize(
         &self,
         writer: &mut impl std::io::Write,
@@ -125,9 +118,7 @@ impl RtpsSerialize for UShort {
         writer.write(&value)?;
         Ok(())
     }
-}
 
-impl RtpsDeserialize for UShort {
     fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> {
         bytes.check_size_equal(2)?;
     
@@ -143,13 +134,13 @@ impl RtpsDeserialize for UShort {
 // ///////// The GuidPrefix, and EntityId  ////////////////////////////////////
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Hash)]
 pub struct GuidPrefix(pub types::GuidPrefix);
-impl RtpsSerialize for GuidPrefix {
+
+impl SubmessageElement for GuidPrefix {
     fn serialize(&self, writer: &mut impl std::io::Write, _endianness: Endianness) -> RtpsSerdesResult<()> {
         writer.write(&self.0)?;
         Ok(())
     }
-}
-impl RtpsDeserialize for GuidPrefix {
+
     fn deserialize(bytes: &[u8], _endianness: Endianness) -> RtpsSerdesResult<Self> {
         bytes.check_size_equal(12)?;
         Ok(GuidPrefix(bytes[0..12].try_into()?))
@@ -160,15 +151,13 @@ impl RtpsDeserialize for GuidPrefix {
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub struct EntityId(pub types::EntityId);
 
-impl RtpsSerialize for EntityId {
+impl SubmessageElement for EntityId {
     fn serialize(&self, writer: &mut impl std::io::Write, _endianness: Endianness) -> RtpsSerdesResult<()>{
         writer.write(&self.0.entity_key())?;
         writer.write(&[self.0.entity_kind() as u8])?;
         Ok(())
     }
-}
 
-impl RtpsDeserialize for EntityId {
     fn deserialize(bytes: &[u8], _endianness: Endianness) -> RtpsSerdesResult<Self> {
         bytes.check_size_equal( 4)?;
         let entity_key = bytes[0..3].try_into()?;
@@ -181,14 +170,12 @@ impl RtpsDeserialize for EntityId {
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub struct VendorId(pub types::VendorId);
 
-impl RtpsSerialize for VendorId {
+impl SubmessageElement for VendorId {
     fn serialize(&self, writer: &mut impl std::io::Write, _endianness: Endianness) -> RtpsSerdesResult<()> {
         writer.write(&self.0)?;
         Ok(())
     }
-}
 
-impl RtpsDeserialize for VendorId {
     fn deserialize(bytes: &[u8], _endianness: Endianness) -> RtpsSerdesResult<Self> {
         bytes.check_size_equal(2)?;
         Ok(VendorId(bytes[0..2].try_into()?))
@@ -201,15 +188,13 @@ impl RtpsDeserialize for VendorId {
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub struct ProtocolVersion(pub types::ProtocolVersion);
 
-impl RtpsSerialize for ProtocolVersion {
+impl SubmessageElement for ProtocolVersion {
     fn serialize(&self, writer: &mut impl std::io::Write, _endianness: Endianness) -> RtpsSerdesResult<()> {
         writer.write(&[self.0.major])?;
         writer.write(&[self.0.minor])?;
         Ok(())
     }
-}
 
-impl RtpsDeserialize for ProtocolVersion {
     fn deserialize(bytes: &[u8], _endianness: Endianness) -> RtpsSerdesResult<Self> {
         bytes.check_size_equal(2)?;
         let major = bytes[0];
@@ -223,7 +208,7 @@ impl RtpsDeserialize for ProtocolVersion {
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Hash)]
 pub struct SequenceNumber(pub types::SequenceNumber);
 
-impl RtpsSerialize for SequenceNumber {
+impl SubmessageElement for SequenceNumber {
     fn serialize(&self, writer: &mut impl std::io::Write, endianness: Endianness) -> RtpsSerdesResult<()>{
         let msb = Long((self.0 >> 32) as i32);
         let lsb = ULong((self.0 & 0x0000_0000_FFFF_FFFF) as u32);
@@ -231,9 +216,7 @@ impl RtpsSerialize for SequenceNumber {
         lsb.serialize(writer, endianness)?;
         Ok(())
     }
-}
 
-impl RtpsDeserialize for SequenceNumber {
     fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> {
         bytes.check_size_equal(8)?;
 
@@ -288,7 +271,7 @@ impl SequenceNumberSet {
     }
 }
 
-impl RtpsSerialize for SequenceNumberSet {
+impl SubmessageElement for SequenceNumberSet {
     fn serialize(&self, writer: &mut impl Write, endianness: Endianness) -> RtpsSerdesResult<()> {
         let num_bits = ULong(if self.set.is_empty() {
             0 
@@ -310,9 +293,7 @@ impl RtpsSerialize for SequenceNumberSet {
         }
         Ok(())
     }
-}
 
-impl RtpsDeserialize for SequenceNumberSet {
     fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> {
         bytes.check_size_bigger_equal_than(12)?;
 
@@ -350,14 +331,12 @@ impl RtpsDeserialize for SequenceNumberSet {
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)] //Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Hash
 pub struct FragmentNumber(pub super::types::FragmentNumber);
 
-impl RtpsSerialize for FragmentNumber {
+impl SubmessageElement for FragmentNumber {
     fn serialize(&self, writer: &mut impl std::io::Write, endianness: Endianness) -> RtpsSerdesResult<()> {
         ULong(self.0).serialize(writer, endianness)?;
         Ok(())
     }    
-}
 
-impl RtpsDeserialize for FragmentNumber {
     fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> {
         Ok(Self(ULong::deserialize(bytes, endianness)?.0))
     }    
@@ -391,7 +370,7 @@ impl FragmentNumberSet {
     }
 }
 
-impl RtpsSerialize for FragmentNumberSet {
+impl SubmessageElement for FragmentNumberSet {
     fn serialize(&self, writer: &mut impl Write, endianness: Endianness) -> RtpsSerdesResult<()> {
         let num_bits = ULong(if self.set.is_empty() {
             0 
@@ -413,8 +392,7 @@ impl RtpsSerialize for FragmentNumberSet {
         }
         Ok(())
     }
-}
-impl RtpsDeserialize for FragmentNumberSet {
+
     fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> {
         bytes.check_size_bigger_equal_than(8)?;
         let base = FragmentNumber::deserialize(&bytes[0..4], endianness)?;
@@ -448,15 +426,13 @@ impl RtpsDeserialize for FragmentNumberSet {
 #[derive(PartialEq, Debug)]
 pub struct Timestamp(pub super::types::Time);
 
-impl RtpsSerialize for Timestamp {
+impl SubmessageElement for Timestamp {
     fn serialize(&self, writer: &mut impl std::io::Write, endianness: Endianness) -> RtpsSerdesResult<()>{
         ULong(self.0.seconds()).serialize(writer, endianness)?;
         ULong(self.0.fraction()).serialize(writer, endianness)?;
         Ok(())
     }
-}
 
-impl RtpsDeserialize for Timestamp {
     fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> {
         bytes.check_size_equal(8)?;
 
@@ -524,7 +500,7 @@ impl Parameter {
     }
 }
 
-impl  RtpsSerialize for Parameter {
+impl SubmessageElement for Parameter {
     fn serialize(&self, writer: &mut impl Write, endianness: Endianness) -> RtpsSerdesResult<()> {
         Short(self.parameter_id).serialize(writer, endianness)?;
         self.length.serialize(writer, endianness)?;
@@ -539,9 +515,7 @@ impl  RtpsSerialize for Parameter {
     fn octets(&self) -> usize {       
         4 + self.length.0 as usize
     }    
-}
 
-impl RtpsDeserialize for Parameter {
     fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> {
         bytes.check_size_bigger_equal_than(4)?;
         let parameter_id = Short::deserialize(&bytes[0..2], endianness)?.0;
@@ -620,7 +594,7 @@ impl ParameterList {
     }
 }
 
-impl RtpsSerialize for ParameterList {
+impl SubmessageElement for ParameterList {
     fn serialize(&self, writer: &mut impl Write, endianness: Endianness) -> RtpsSerdesResult<()> {
          for param in self.parameter.iter() {
             Parameter{parameter_id: param.parameter_id(), length: param.length(), value: param.value(endianness)}.serialize(writer, endianness)?;
@@ -635,9 +609,7 @@ impl RtpsSerialize for ParameterList {
         self.parameter.iter().for_each(|param| {s += 2 /*param.parameter_id().octets()*/ + 2 /*param.length().octets()*/ + (param.length().0 as usize) });
         s
     }   
-}
 
-impl RtpsDeserialize for ParameterList {
     fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> {
         bytes.check_size_bigger_equal_than(2)?;
         let mut parameter_start_index: usize = 0;
@@ -667,14 +639,12 @@ impl std::ops::AddAssign<i32> for Count {
     }
 }
 
-impl RtpsSerialize for Count {
+impl SubmessageElement for Count {
     fn serialize(&self, writer: &mut impl std::io::Write, endianness: Endianness) -> RtpsSerdesResult<()> {
         Long(self.0).serialize(writer, endianness)?;
         Ok(())
     }
-}
 
-impl RtpsDeserialize for Count {
     fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> {
         let value = Long::deserialize(bytes, endianness)?.0;
         Ok(Count(value))
@@ -703,7 +673,7 @@ fn deserialize_locator(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult
     Ok(Locator {kind, port, address})
 }
 
-impl RtpsSerialize for LocatorList {
+impl SubmessageElement for LocatorList {
     fn serialize(&self, writer: &mut impl std::io::Write, endianness: Endianness) -> RtpsSerdesResult<()> {
         ULong(self.0.len() as u32).serialize(writer, endianness)?;
         for locator in &self.0 {
@@ -711,9 +681,7 @@ impl RtpsSerialize for LocatorList {
         };
         Ok(())
     }
-}
 
-impl RtpsDeserialize for LocatorList {
     fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> {
         bytes.check_size_bigger_equal_than(4)?;
         let size = bytes.len();
@@ -733,14 +701,55 @@ impl RtpsDeserialize for LocatorList {
 
 
 //  ///////////   SerializedData   //////////////////
-// todo
+#[derive(PartialEq, Debug)]
+pub struct SerializedData(pub Vec<u8>);
+
+impl SubmessageElement for SerializedData {
+    fn serialize(&self, writer: &mut impl std::io::Write, _endianness: Endianness) -> RtpsSerdesResult<()> {
+        writer.write(self.0.as_slice())?;
+        Ok(())
+    }
+
+    fn deserialize(bytes: &[u8], _endianness: Endianness) -> RtpsSerdesResult<Self> {
+        Ok(SerializedData(Vec::from(bytes)))
+    }
+}
 
 //  ///////////   SerializedDataFragment  ///////////
-// todo
+#[derive(PartialEq, Debug)]
+pub struct SerializedDataFragment(pub Vec<u8>);
+
+impl SubmessageElement for SerializedDataFragment {
+    fn serialize(&self, writer: &mut impl std::io::Write, _endianness: Endianness) -> RtpsSerdesResult<()> {
+        writer.write(self.0.as_slice())?;
+        Ok(())
+    }
+
+    fn deserialize(bytes: &[u8], _endianness: Endianness) -> RtpsSerdesResult<Self> {
+        Ok(SerializedDataFragment(Vec::from(bytes)))
+    }
+}
 
 //  ///////////   GroupDigest   //////////////////////
 // todo
 
+
+impl<T> SubmessageElement for Option<T> 
+where 
+    T: SubmessageElement
+{
+    fn serialize(&self, writer: &mut impl std::io::Write, endianess: Endianness) -> RtpsSerdesResult<()> {
+        if let Some(value) = self {
+            value.serialize(writer, endianess)
+        } else {
+            Ok(())
+        }
+    }
+
+    fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> {
+        todo!()
+    }
+}
 
 #[cfg(test)]
 mod tests {

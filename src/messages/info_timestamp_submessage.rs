@@ -1,4 +1,4 @@
-use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsCompose, RtpsParse, Endianness, RtpsSerdesResult, };
+use crate::serdes::{SubmessageElement, RtpsCompose, RtpsParse, Endianness, RtpsSerdesResult, };
 use super::{SubmessageKind, SubmessageFlag, Submessage, SubmessageHeader, };
 use super::submessage_elements;
 
@@ -59,7 +59,10 @@ impl RtpsCompose for InfoTs
     fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
         let endianness = Endianness::from(self.endianness_flag);
         self.submessage_header().compose(writer)?;
-        self.timestamp.serialize(writer, endianness)?;
+        match &self.timestamp {
+            Some(timestamp) => timestamp.serialize(writer, endianness)?,
+            None => (),
+        };
 
         Ok(())
     }

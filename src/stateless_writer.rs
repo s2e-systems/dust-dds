@@ -258,7 +258,7 @@ mod tests {
             assert_eq!(data_message_1.reader_id(), &submessage_elements::EntityId(ENTITYID_UNKNOWN));
             assert_eq!(data_message_1.writer_id(), &submessage_elements::EntityId(ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER));
             assert_eq!(data_message_1.writer_sn(), &submessage_elements::SequenceNumber(1));
-            assert_eq!(data_message_1.serialized_payload(), &Some(SerializedPayload(vec![1, 2, 3])));
+            assert_eq!(data_message_1.serialized_payload(), &Some(submessage_elements::SerializedData(vec![1, 2, 3])));
 
         } else {
             panic!("Wrong message type");
@@ -268,7 +268,7 @@ mod tests {
             assert_eq!(data_message_2.reader_id(), &submessage_elements::EntityId(ENTITYID_UNKNOWN));
             assert_eq!(data_message_2.writer_id(), &submessage_elements::EntityId(ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER));
             assert_eq!(data_message_2.writer_sn(), &submessage_elements::SequenceNumber(2));
-            assert_eq!(data_message_2.serialized_payload(), &Some(SerializedPayload(vec![4, 5, 6])));
+            assert_eq!(data_message_2.serialized_payload(), &Some(submessage_elements::SerializedData(vec![4, 5, 6])));
         } else {
             panic!("Wrong message type");
         };

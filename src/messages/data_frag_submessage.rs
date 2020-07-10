@@ -1,5 +1,5 @@
 use crate::types::constants::SEQUENCE_NUMBER_UNKNOWN;
-use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, Endianness, RtpsSerdesResult, };
+use crate::serdes::{SubmessageElement, RtpsParse, RtpsCompose, Endianness, RtpsSerdesResult, };
 use crate::serialized_payload::SerializedPayload;
 
 use super::types::{SubmessageKind, SubmessageFlag, };
@@ -21,7 +21,7 @@ pub struct DataFrag {
     data_size: ULong,
     fragment_size: UShort,
     inline_qos: Option<submessage_elements::ParameterList>,
-    serialized_payload: Option<SerializedPayload>,
+    serialized_payload: Option<submessage_elements::SerializedDataFragment>,
 }
 
 
@@ -133,7 +133,7 @@ impl RtpsParse for DataFrag {
         };
         let end_of_submessage = usize::from(header.submessage_length()) + header.octets();
         let octets_to_serialized_payload = octets_to_inline_qos + inline_qos.octets();
-        let serialized_payload = SerializedPayload::deserialize(&bytes[octets_to_serialized_payload..end_of_submessage], endianness).ok();
+        let serialized_payload = submessage_elements::SerializedDataFragment::deserialize(&bytes[octets_to_serialized_payload..end_of_submessage], endianness).ok();
   
         Ok(DataFrag {
             endianness_flag,
@@ -181,7 +181,7 @@ mod tests{
             fragment_size: UShort(3),
             data_size: ULong(4),
             inline_qos: Some(inline_qos), 
-            serialized_payload: Some(SerializedPayload(vec![1, 2, 3])), 
+            serialized_payload: Some(submessage_elements::SerializedDataFragment(vec![1, 2, 3])), 
         };
 
         let bytes = vec![
@@ -227,7 +227,7 @@ mod tests{
             fragment_size: UShort(3),
             data_size: ULong(4),
             inline_qos: Some(inline_qos), 
-            serialized_payload: Some(SerializedPayload(vec![1, 2, 3])), 
+            serialized_payload: Some(submessage_elements::SerializedDataFragment(vec![1, 2, 3])), 
         };
 
         let expected = vec![

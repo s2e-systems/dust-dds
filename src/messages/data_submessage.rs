@@ -1,8 +1,7 @@
 use std::convert::From;
 
 use crate::types::constants::SEQUENCE_NUMBER_UNKNOWN;
-use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, Endianness, RtpsSerdesResult, };
-use crate::serialized_payload::SerializedPayload;
+use crate::serdes::{SubmessageElement, RtpsParse, RtpsCompose, Endianness, RtpsSerdesResult, };
 
 use super::types::{SubmessageKind, SubmessageFlag,  };
 use super::{SubmessageHeader, Submessage, };
@@ -20,15 +19,15 @@ pub struct Data {
     writer_id: submessage_elements::EntityId,
     writer_sn: submessage_elements::SequenceNumber,
     inline_qos: Option<submessage_elements::ParameterList>,
-    serialized_payload: Option<SerializedPayload>,
+    serialized_payload: Option<submessage_elements::SerializedData>,
 }
 
 #[derive(PartialEq, Debug)]
 pub enum Payload {
     None,
-    Data(SerializedPayload),
-    Key(SerializedPayload),
-    NonStandard(SerializedPayload),
+    Data(Vec<u8>),
+    Key(Vec<u8>),
+    NonStandard(Vec<u8>),
 }
 
 
@@ -47,9 +46,9 @@ impl Data {
             let mut key_flag = false;
             let mut non_standard_payload_flag = false;
             let serialized_payload = match  payload {
-                Payload::Data(serialized_payload) => {data_flag = true; Some(serialized_payload)},
-                Payload::Key(serialized_payload) => {key_flag = true; Some(serialized_payload)},
-                Payload::NonStandard(serialized_payload) => {non_standard_payload_flag = true; Some(serialized_payload)},
+                Payload::Data(serialized_payload) => {data_flag = true; Some(submessage_elements::SerializedData(serialized_payload))},
+                Payload::Key(serialized_payload) => {key_flag = true; Some(submessage_elements::SerializedData(serialized_payload))},
+                Payload::NonStandard(serialized_payload) => {non_standard_payload_flag = true; Some(submessage_elements::SerializedData(serialized_payload))},
                 Payload::None => {None}
             };
         
@@ -79,7 +78,7 @@ impl Data {
         &self.writer_sn
     }
 
-    pub fn serialized_payload(&self) -> &Option<SerializedPayload> {
+    pub fn serialized_payload(&self) -> &Option<submessage_elements::SerializedData> {
         &self.serialized_payload
     }
     
@@ -195,7 +194,7 @@ impl RtpsParse for Data {
         let end_of_submessage = usize::from(header.submessage_length()) + header.octets();
         let serialized_payload = if data_flag || key_flag || non_standard_payload_flag {
             let octets_to_serialized_payload = octets_to_inline_qos + inline_qos_octets;
-            SerializedPayload::deserialize(&bytes[octets_to_serialized_payload..end_of_submessage], endianness).ok()
+            submessage_elements::SerializedData::deserialize(&bytes[octets_to_serialized_payload..end_of_submessage], endianness).ok()
         } else {
             None
         };
@@ -237,7 +236,7 @@ mod tests {
             submessage_elements::EntityId(ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER), 
             submessage_elements::SequenceNumber(1), 
             Some(submessage_elements::ParameterList::new()),
-            Payload::Data(SerializedPayload(vec![]))
+            Payload::Data(vec![])
         );
         assert_eq!(data.endianness_flag, true);
         assert_eq!(data.inline_qos_flag, true);
@@ -317,7 +316,7 @@ mod tests {
         let mut inline_qos = submessage_elements::ParameterList::new();
         inline_qos.push(key_hash);
         
-        let serialized_payload = SerializedPayload(vec![1_u8, 2, 3]);
+        let serialized_payload = submessage_elements::SerializedData(vec![1_u8, 2, 3]);
 
         let data = Data {
             endianness_flag: endianness.into(),
@@ -380,7 +379,7 @@ mod tests {
 
     #[test]
     fn test_parse_data_submessage_without_inline_qos_with_non_standard_payload() {       
-        let serialized_payload = SerializedPayload(vec![1_u8, 2, 3, 4]);
+        let serialized_payload = submessage_elements::SerializedData(vec![1_u8, 2, 3, 4]);
 
         let expected = Data {
             endianness_flag: true,
@@ -415,7 +414,7 @@ mod tests {
         inline_qos.push(key_hash);
 
         
-        let serialized_payload = SerializedPayload(vec![1_u8, 2, 3]);
+        let serialized_payload = submessage_elements::SerializedData(vec![1_u8, 2, 3]);
 
         let expected = Data {
             endianness_flag: endianness.into(),

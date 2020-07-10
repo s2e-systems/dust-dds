@@ -1,7 +1,7 @@
 use self::types::constants::PROTOCOL_RTPS;
 use self::types::{ProtocolId, SubmessageFlag, SubmessageKind};
 use crate::serdes::{
-    Endianness, RtpsCompose, RtpsDeserialize, RtpsParse, RtpsSerdesResult, RtpsSerialize,
+    Endianness, RtpsCompose, SubmessageElement, RtpsParse, RtpsSerdesResult,
 };
 use crate::types::constants::{PROTOCOL_VERSION_2_4, VENDOR_ID};
 use crate::types::{GuidPrefix, ProtocolVersion, VendorId};

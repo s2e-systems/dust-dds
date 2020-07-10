@@ -147,7 +147,7 @@ mod tests {
             submessage_elements::EntityId(ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER), 
             submessage_elements::SequenceNumber(3),
             Some(inline_qos),
-            Payload::Data(SerializedPayload(vec![1,2,3])));
+            Payload::Data(vec![1,2,3]));
         submessages.push(RtpsSubmessage::Data(data1));
 
         let received_message = RtpsMessage::new(*remote_writer_guid.prefix(), submessages);
@@ -190,7 +190,7 @@ mod tests {
             submessage_elements::EntityId(ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER), 
             submessage_elements::SequenceNumber(3),
             Some(inline_qos),
-            Payload::Data(SerializedPayload(vec![1,2,3])));
+            Payload::Data(vec![1,2,3]));
         submessages.push(RtpsSubmessage::Data(data1));
 
         let received_message = RtpsMessage::new(*remote_writer_guid.prefix(), submessages);

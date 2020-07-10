@@ -57,10 +57,10 @@ fn data_from_cache_change(cache_change: &CacheChange, endianness: Endianness, re
     let payload = match change_kind {
         ChangeKind::Alive => {
             inline_qos_parameters.push(KeyHash(*cache_change.instance_handle()));
-            Payload::Data(SerializedPayload(cache_change.data_value().unwrap().to_vec()))
+            Payload::Data(cache_change.data_value().unwrap().to_vec())
         },
         ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered | ChangeKind::AliveFiltered => {
-            Payload::Key(SerializedPayload(cache_change.instance_handle().to_vec()))
+            Payload::Key(cache_change.instance_handle().to_vec())
         }
     };
 

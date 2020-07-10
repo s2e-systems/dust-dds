@@ -5,7 +5,7 @@
 use std::time::SystemTime;
 use num_derive::{FromPrimitive, };
 
-use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsSerdesResult, RtpsSerdesError, Endianness, SizeCheck };
+use crate::serdes::{SubmessageElement, RtpsSerdesResult, RtpsSerdesError, Endianness, SizeCheck };
 
 pub mod constants {
     use super::Time;
@@ -37,7 +37,8 @@ pub type ProtocolId = [u8; 4];
 // /////////// SubmessageFlag ////////
 pub type SubmessageFlag = bool;
 
-impl RtpsSerialize for [SubmessageFlag; 8] {
+
+impl SubmessageElement for [SubmessageFlag; 8] {
     fn serialize(&self, writer: &mut impl std::io::Write, _endianness: Endianness) -> RtpsSerdesResult<()>{
         let mut flags = 0u8;
         for i in 0..8 {
@@ -48,9 +49,7 @@ impl RtpsSerialize for [SubmessageFlag; 8] {
         writer.write(&[flags])?;
         Ok(())
     }
-}
 
-impl RtpsDeserialize for [SubmessageFlag; 8] {
     fn deserialize(bytes: &[u8], _endianness: Endianness) -> RtpsSerdesResult<Self> {
         bytes.check_size_equal(1)?;
         let flags: u8 = bytes[0];        
@@ -87,15 +86,13 @@ pub enum SubmessageKind {
     DataFrag = 0x16,
 }
 
-impl RtpsSerialize for SubmessageKind {
+impl SubmessageElement for SubmessageKind {
     fn serialize(&self, writer: &mut impl std::io::Write, _endianness: Endianness) -> RtpsSerdesResult<()>{
         let submessage_kind_u8 = *self as u8;
         writer.write(&[submessage_kind_u8])?;
         Ok(())
     }
-}
 
-impl RtpsDeserialize for SubmessageKind {
     fn deserialize(bytes: &[u8], _endianness: Endianness) -> RtpsSerdesResult<Self> { 
         bytes.check_size_equal(1)?;
         Ok(num::FromPrimitive::from_u8(bytes[0]).ok_or(RtpsSerdesError::InvalidEnumRepresentation)?)
