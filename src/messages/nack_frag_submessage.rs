@@ -42,9 +42,7 @@ impl Submessage for NackFrag {
             true
         }
     }
-}
 
-impl RtpsCompose for NackFrag {
     fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
         let endianness = Endianness::from(self.endianness_flag);
        
@@ -56,10 +54,8 @@ impl RtpsCompose for NackFrag {
         self.fragment_number_state.serialize(writer, endianness)?;
         self.count.serialize(writer, endianness)?;
         Ok(())
-    }    
-}
+    }
 
-impl RtpsParse for NackFrag {
     fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> { 
         let header = SubmessageHeader::parse(bytes)?;
         let endianness_flag = header.flags()[0];
@@ -82,6 +78,7 @@ impl RtpsParse for NackFrag {
             count,
         })
     }
+
 }
 
 #[cfg(test)]

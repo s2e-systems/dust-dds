@@ -66,9 +66,7 @@ impl Submessage for AckNack {
     fn is_valid(&self) -> bool {
         self.reader_sn_state.is_valid()
     }
-}
 
-impl RtpsCompose for AckNack {
     fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
         let endianness = Endianness::from(self.endianness_flag);       
         self.submessage_header().compose(writer)?;
@@ -78,9 +76,7 @@ impl RtpsCompose for AckNack {
         self.count.serialize(writer, endianness)?;        
         Ok(())
     }
-}
 
-impl RtpsParse for AckNack {
     fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> {
         let header = SubmessageHeader::parse(bytes)?;
         let endianness_flag = header.flags()[0];

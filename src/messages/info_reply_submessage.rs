@@ -32,9 +32,7 @@ impl Submessage for InfoReply {
     fn is_valid(&self) -> bool {
         true
     }
-}
 
-impl RtpsCompose for InfoReply {
     fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
         let endianness = Endianness::from(self.endianness_flag);       
         self.submessage_header().compose(writer)?;
@@ -44,9 +42,7 @@ impl RtpsCompose for InfoReply {
         }
         Ok(())
     }
-}
 
-impl RtpsParse for InfoReply {
     fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> {
         let header = SubmessageHeader::parse(bytes)?;
         let endianness_flag = header.flags()[0];

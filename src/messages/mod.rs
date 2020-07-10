@@ -1,7 +1,7 @@
 use self::types::constants::PROTOCOL_RTPS;
 use self::types::{ProtocolId, SubmessageFlag, SubmessageKind};
 use crate::serdes::{
-    Endianness, RtpsCompose, SubmessageElement, RtpsParse, RtpsSerdesResult,
+    Endianness, RtpsCompose, SubmessageElement, RtpsParse, RtpsSerdesResult, SizeSerializer
 };
 use crate::types::constants::{PROTOCOL_VERSION_2_4, VENDOR_ID};
 use crate::types::{GuidPrefix, ProtocolVersion, VendorId};
@@ -141,10 +141,21 @@ impl RtpsParse for SubmessageHeader {
     }
 }
 
-pub trait Submessage {
+pub trait Submessage 
+    where Self: std::marker::Sized
+{
     fn submessage_header(&self) -> SubmessageHeader;
 
     fn is_valid(&self) -> bool;
+
+    fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()>;
+    fn octets(&self) -> usize {
+        let mut size_serializer = SizeSerializer::new();
+        self.compose(&mut size_serializer).unwrap(); // Should panic on failure
+        size_serializer.get_size()
+    }
+
+    fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self>;
 }
 
 #[derive(PartialEq, Debug)]

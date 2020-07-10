@@ -68,9 +68,7 @@ impl Submessage for DataFrag {
             false
         }
     }
-}
 
-impl RtpsCompose for DataFrag {
     fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
         // let sample_size = ULong(0); // TODO: what is sample_size? It is in PSM but nut in PIM. Probably: data_size
         let endianness = Endianness::from(self.endianness_flag);
@@ -99,10 +97,8 @@ impl RtpsCompose for DataFrag {
         };
         self.serialized_payload.serialize(writer, endianness)?;
         Ok(())
-    }    
-}
+    }
 
-impl RtpsParse for DataFrag {
     fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> { 
         let header = SubmessageHeader::parse(bytes)?;
         let flags = header.flags();

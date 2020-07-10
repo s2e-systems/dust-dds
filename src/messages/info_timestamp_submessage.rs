@@ -51,11 +51,7 @@ impl Submessage for InfoTs {
     fn is_valid(&self) -> bool {
         true
     }
-}
 
-
-impl RtpsCompose for InfoTs
-{
     fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
         let endianness = Endianness::from(self.endianness_flag);
         self.submessage_header().compose(writer)?;
@@ -66,10 +62,7 @@ impl RtpsCompose for InfoTs
 
         Ok(())
     }
-    
-}
 
-impl RtpsParse for InfoTs {
     fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> {
         let header = SubmessageHeader::parse(bytes)?;
         let flags = header.flags();

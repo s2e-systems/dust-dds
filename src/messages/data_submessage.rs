@@ -137,9 +137,7 @@ impl Submessage for Data {
             true
         }
     }
-}
 
-impl RtpsCompose for Data {
     fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
         let endianness = Endianness::from(self.endianness_flag);
         let extra_flags = UShort(0);
@@ -160,10 +158,8 @@ impl RtpsCompose for Data {
         }
 
         Ok(())
-    }    
-}
+    }
 
-impl RtpsParse for Data {
     fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> { 
         let header = SubmessageHeader::parse(bytes)?;
         let flags = header.flags();
@@ -214,7 +210,6 @@ impl RtpsParse for Data {
         })
     }
 }
-
 
 #[cfg(test)]
 mod tests {

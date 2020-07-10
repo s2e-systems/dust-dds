@@ -36,9 +36,7 @@ impl Submessage for InfoSource {
     fn is_valid(&self) -> bool {
         true
     }
-}
 
-impl RtpsCompose for InfoSource {
     fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
         let endianness = self.endianness_flag.into();
         let unused = Long(0);
@@ -48,10 +46,8 @@ impl RtpsCompose for InfoSource {
         self.vendor_id.serialize(writer, endianness)?;
         self.guid_prefix.serialize(writer, endianness)?;
         Ok(())
-    }    
-}
+    }
 
-impl RtpsParse for InfoSource {
     fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> {
         let header = SubmessageHeader::parse(bytes)?;
         let endianness_flag = header.flags()[0];

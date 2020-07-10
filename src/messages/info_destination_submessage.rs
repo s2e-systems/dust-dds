@@ -25,18 +25,14 @@ impl Submessage for InfoDestination {
     fn is_valid(&self) -> bool {
         true    
     }
-}
 
-impl RtpsCompose for InfoDestination {
     fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
         let endianness = Endianness::from(self.endianness_flag);       
         self.submessage_header().compose(writer)?;
         self.guid_prefix.serialize(writer, endianness)?;
         Ok(())
     }
-}
 
-impl RtpsParse for InfoDestination {
     fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> {
         let header = SubmessageHeader::parse(bytes)?;
         let endianness_flag = header.flags()[0];
@@ -44,7 +40,6 @@ impl RtpsParse for InfoDestination {
         Ok(Self {endianness_flag, guid_prefix })
     }
 }
-
 
 #[cfg(test)]
 mod tests {

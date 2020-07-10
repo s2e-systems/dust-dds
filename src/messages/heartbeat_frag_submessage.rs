@@ -41,9 +41,7 @@ impl Submessage for HeartbeatFrag {
             true
         }
     }
-}
 
-impl RtpsCompose for HeartbeatFrag {
     fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
         let endianness = self.endianness_flag.into();
         self.submessage_header().compose(writer)?;
@@ -53,10 +51,8 @@ impl RtpsCompose for HeartbeatFrag {
         self.last_fragment_num.serialize(writer, endianness)?;
         self.count.serialize(writer, endianness)?;
         Ok(())
-    }    
-}
+    }
 
-impl RtpsParse for HeartbeatFrag {
     fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> {
         let header = SubmessageHeader::parse(bytes)?;
         let endianness_flag = header.flags()[0];
