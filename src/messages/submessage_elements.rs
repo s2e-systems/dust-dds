@@ -20,7 +20,7 @@ pub trait Pid {
     fn pid() -> super::types::ParameterId;
 }
 
-//  /////////   The GuidPrefix, and EntityId
+// ///////// The GuidPrefix, and EntityId  ////////////////////////////////////
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Hash)]
 pub struct GuidPrefix(pub types::GuidPrefix);
 impl RtpsSerialize for GuidPrefix {
@@ -57,7 +57,7 @@ impl RtpsDeserialize for EntityId {
     }
 }
 
-//  /////////   VendorId
+// /////////  VendorId ////////////////////////////////////////////////////////
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub struct VendorId(pub types::VendorId);
 
@@ -76,7 +76,7 @@ impl RtpsDeserialize for VendorId {
 }
 
 
-//  /////////   ProtocolVersion
+// ///////// ProtocolVersion //////////////////////////////////////////////////
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub struct ProtocolVersion(pub types::ProtocolVersion);
@@ -562,35 +562,32 @@ impl RtpsDeserialize for Count {
 
 
 
-//  ///////////   LocatorList
+// /////////// LocatorList ////////////////////////////////////////////////////
 
 #[derive(Debug, PartialEq)]
 pub struct LocatorList(pub Vec<Locator>);
 
-impl RtpsSerialize for Locator {
-    fn serialize(&self, writer: &mut impl std::io::Write, endianness: Endianness) -> RtpsSerdesResult<()> {
-        self.kind.serialize(writer, endianness)?;
-        self.port.serialize(writer, endianness)?;
-        writer.write(&self.address)?;
-        Ok(())
-    }
+fn serialize_locator(locator: &Locator, writer: &mut impl std::io::Write, endianness: Endianness) -> RtpsSerdesResult<()> {
+    locator.kind.serialize(writer, endianness)?;
+    locator.port.serialize(writer, endianness)?;
+    writer.write(&locator.address)?;
+    Ok(())
 }
 
-impl RtpsDeserialize for Locator {
-    fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> {
-        bytes.check_size_equal(24)?;
-        let kind = Long::deserialize(&bytes[0..4], endianness)?;
-        let port = ULong::deserialize(&bytes[4..8], endianness)?;
-        let address = bytes[8..24].try_into()?;
-        Ok(Self {kind, port, address})
-    }
+fn deserialize_locator(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Locator> {
+    bytes.check_size_equal(24)?;
+    let kind = Long::deserialize(&bytes[0..4], endianness)?;
+    let port = ULong::deserialize(&bytes[4..8], endianness)?;
+    let address = bytes[8..24].try_into()?;
+    Ok(Locator {kind, port, address})
 }
+
 impl RtpsSerialize for LocatorList {
     fn serialize(&self, writer: &mut impl std::io::Write, endianness: Endianness) -> RtpsSerdesResult<()> {
         let num_locators = self.0.len() as ULong;
         num_locators.serialize(writer, endianness)?;
         for locator in &self.0 {
-            locator.serialize(writer, endianness)?;
+            serialize_locator(locator, writer, endianness)?;
         };
         Ok(())
     }
@@ -605,8 +602,8 @@ impl RtpsDeserialize for LocatorList {
         let mut index = 4;
         while index < size && locators.len() < num_locators as usize {
             bytes.check_size_bigger_equal_than(index+24)?;
-            let locator = Locator::deserialize( &bytes[index..index+24], endianness)?;
-            index += locator.octets();
+            let locator = deserialize_locator(&bytes[index..index+24], endianness)?;
+            index += 24;
             locators.push(locator);
         };
         Ok(Self(locators))
@@ -632,6 +629,7 @@ mod tests {
     use crate::messages::types::ParameterId;
     use serde::{Serialize, Deserialize};
     use crate::serdes::RtpsSerdesError;
+    use crate::types::constants;
 
     #[allow(overflowing_literals)]
     const PID_VENDOR_TEST_0 : ParameterId = 0x0000 | 0x8000;
@@ -646,9 +644,109 @@ mod tests {
     #[allow(overflowing_literals)]
     const PID_VENDOR_TEST_SHORT : ParameterId = 0x0006 | 0x8000;
 
-    
-    ///////////////////////// Sequence Number Tests ////////////////////////
-    
+    // ///////// The GuidPrefix, and EntityId Tests ///////////////////////////
+    #[test]
+    fn invalid_guid_prefix_deserialization() {
+        let too_big_vec = [1,2,3,4,5,6,7,8,9,10,11,12,13,14];
+
+        let expected_error = GuidPrefix::deserialize(&too_big_vec, Endianness::LittleEndian);
+        match expected_error {
+            Err(RtpsSerdesError::WrongSize) => assert!(true),
+            _ => assert!(false),
+        };
+
+        let too_small_vec = [1,2];
+
+        let expected_error = GuidPrefix::deserialize(&too_small_vec, Endianness::BigEndian);
+        match expected_error {
+            Err(RtpsSerdesError::WrongSize) => assert!(true),
+            _ => assert!(false),
+        };
+    }
+       
+    #[test]
+    fn entity_id_serialization_deserialization_big_endian() {
+        let mut vec = Vec::new();
+        let test_entity_id = EntityId(constants::ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER);
+
+        const TEST_ENTITY_ID_BIG_ENDIAN : [u8;4] = [0, 0x02, 0x00, 0xc4];
+        test_entity_id.serialize(&mut vec, Endianness::BigEndian).unwrap();
+        assert_eq!(vec, TEST_ENTITY_ID_BIG_ENDIAN);
+        assert_eq!(EntityId::deserialize(&vec, Endianness::BigEndian).unwrap(), test_entity_id);
+    }
+
+    #[test]
+    fn entity_id_serialization_deserialization_little_endian() {
+        let mut vec = Vec::new();
+        let test_entity_id = EntityId(constants::ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER);
+
+        const TEST_ENTITY_ID_LITTLE_ENDIAN : [u8;4] = [0, 0x02, 0x00, 0xc4];
+        test_entity_id.serialize(&mut vec, Endianness::LittleEndian).unwrap();
+        assert_eq!(vec, TEST_ENTITY_ID_LITTLE_ENDIAN);
+        assert_eq!(EntityId::deserialize(&vec, Endianness::LittleEndian).unwrap(), test_entity_id);
+    }
+
+    #[test]
+    fn invalid_entity_id_deserialization() {
+        let too_big_vec = [1,2,3,4,5,5];
+
+        let expected_error = EntityId::deserialize(&too_big_vec, Endianness::LittleEndian);
+        match expected_error {
+            Err(RtpsSerdesError::WrongSize) => assert!(true),
+            _ => assert!(false),
+        };
+
+        let wrong_vec = [1,2,3,0xf3];
+
+        let expected_error = EntityId::deserialize(&wrong_vec, Endianness::LittleEndian);
+        match expected_error {
+            Err(RtpsSerdesError::InvalidEnumRepresentation) => assert!(true),
+            _ => assert!(false),
+        };
+    }
+
+    // ///////// VendorId Tests ///////////////////////////////////////////////
+    #[test]
+    fn invalid_vendor_id_deserialization() {
+        let too_big_vec = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,1,2,3,4,5,6,7,8,9,10,11,12,13,14,1,2,3,4,5,6,7,8,9,10,11,12,13,14,];
+
+        let expected_error = VendorId::deserialize(&too_big_vec, Endianness::LittleEndian);
+        match expected_error {
+            Err(RtpsSerdesError::WrongSize) => assert!(true),
+            _ => assert!(false),
+        };
+
+        let too_small_vec = [1];
+
+        let expected_error = VendorId::deserialize(&too_small_vec, Endianness::BigEndian);
+        match expected_error {
+            Err(RtpsSerdesError::WrongSize) => assert!(true),
+            _ => assert!(false),
+        };
+    }
+
+    // ///////// ProtocolVersion Tests ////////////////////////////////////////
+    #[test]
+    fn invalid_protocol_version_deserialization() {
+        let too_big_vec = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,1,2,3,4,5,6,7,8,9,10,11,12,13,14,1,2,3,4,5,6,7,8,9,10,11,12,13,14,];
+
+        let expected_error = ProtocolVersion::deserialize(&too_big_vec, Endianness::LittleEndian);
+        match expected_error {
+            Err(RtpsSerdesError::WrongSize) => assert!(true),
+            _ => assert!(false),
+        };
+
+        let too_small_vec = [1];
+
+        let expected_error = ProtocolVersion::deserialize(&too_small_vec, Endianness::BigEndian);
+        match expected_error {
+            Err(RtpsSerdesError::WrongSize) => assert!(true),
+            _ => assert!(false),
+        };
+    }
+
+    // ///////// SequenceNumber Tests /////////////////////////////////////////
+ 
     #[test]
     fn sequence_number_serialization_deserialization_big_endian() {
         let mut vec = Vec::new();
@@ -721,6 +819,7 @@ mod tests {
             _ => assert!(false),
         };
     }
+
 
     // /////////////////////// SequenceNumberSet Tests ////////////////////////
 
@@ -953,7 +1052,7 @@ mod tests {
 
         
 
-    // //////////////////////// FragmentNumber Tests ///////////////////////
+    // //////////////////////// FragmentNumber Tests //////////////////////////
     
     #[test]
     fn serialize_fragment_number() {
@@ -1020,7 +1119,8 @@ mod tests {
         assert_eq!(expected, writer);
     }
 
-
+    // /////////////////////// Timestamp Tests ////////////////////////////////
+    // todo
 
     // /////////////////////// ParameterList Tests ////////////////////////
     
@@ -1315,10 +1415,61 @@ mod tests {
         assert_eq!(expected, result);
     }
 
-
+    // /////////////////////// Count Tests ////////////////////////////////////
+    // todo!  
 
     // /////////////////////// LocatorList Tests ////////////////////////
-      
+     
+     #[test]
+    fn serialize_locator_simple() {
+        let locator = Locator::new(100, 200, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
+        let expected = vec![
+            100, 0, 0, 0, // kind
+            200, 0, 0, 0, // port
+             1,  2,  3,  4, // address
+             5,  6,  7,  8, // address
+             9, 10, 11, 12, // address
+            13, 14, 15, 16, // address
+        ];
+        let mut writer = Vec::new();
+        serialize_locator(&locator, &mut writer, Endianness::LittleEndian).unwrap();
+        assert_eq!(expected, writer);
+    }
+    
+    #[test]
+    fn deserialize_locator_simple() {
+        let expected = Locator::new(100, 200, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
+        let bytes = vec![
+            100, 0, 0, 0, // kind
+            200, 0, 0, 0, // port
+             1,  2,  3,  4, // address
+             5,  6,  7,  8, // address
+             9, 10, 11, 12, // address
+            13, 14, 15, 16, // address
+        ];
+        let result = deserialize_locator(&bytes, Endianness::LittleEndian).unwrap();
+        assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn invalid_locator_deserialization() {
+        let too_big_vec = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,1,2,3,4,5,6,7,8,9,10,11,12,13,14,1,2,3,4,5,6,7,8,9,10,11,12,13,14,];
+
+        let expected_error = deserialize_locator(&too_big_vec, Endianness::LittleEndian);
+        match expected_error {
+            Err(RtpsSerdesError::WrongSize) => assert!(true),
+            _ => assert!(false),
+        };
+
+        let too_small_vec = [1,2];
+
+        let expected_error = deserialize_locator(&too_small_vec, Endianness::BigEndian);
+        match expected_error {
+            Err(RtpsSerdesError::WrongSize) => assert!(true),
+            _ => assert!(false),
+        };
+    }
+
     #[test]
     fn serialize_locator_list() {
         let address = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
