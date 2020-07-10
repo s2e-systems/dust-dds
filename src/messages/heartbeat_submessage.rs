@@ -170,7 +170,6 @@ impl RtpsParse for Heartbeat {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{EntityKind, EntityKey, };
     use crate::types::constants::ENTITYID_UNKNOWN;
     use crate::types::constants;
 

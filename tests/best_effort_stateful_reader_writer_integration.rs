@@ -2,7 +2,7 @@ use rust_rtps::behavior::types::constants::DURATION_ZERO;
 use rust_rtps::types::constants::{
     ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER, ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER,
 };
-use rust_rtps::types::{ChangeKind, GuidPrefix, Locator, ReliabilityKind, TopicKind, GUID};
+use rust_rtps::types::{ChangeKind, Locator, ReliabilityKind, TopicKind, GUID};
 use rust_rtps::{
     ReaderProxy, StatefulReader, StatefulWriter, WriterProxy,
 };

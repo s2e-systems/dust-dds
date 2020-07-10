@@ -686,25 +686,6 @@ mod tests {
         assert_eq!(EntityId::deserialize(&vec, Endianness::LittleEndian).unwrap(), test_entity_id);
     }
 
-    #[test]
-    fn invalid_entity_id_deserialization() {
-        let too_big_vec = [1,2,3,4,5,5];
-
-        let expected_error = EntityId::deserialize(&too_big_vec, Endianness::LittleEndian);
-        match expected_error {
-            Err(RtpsSerdesError::WrongSize) => assert!(true),
-            _ => assert!(false),
-        };
-
-        let wrong_vec = [1,2,3,0xf3];
-
-        let expected_error = EntityId::deserialize(&wrong_vec, Endianness::LittleEndian);
-        match expected_error {
-            Err(RtpsSerdesError::InvalidEnumRepresentation) => assert!(true),
-            _ => assert!(false),
-        };
-    }
-
     // ///////// VendorId Tests ///////////////////////////////////////////////
     #[test]
     fn invalid_vendor_id_deserialization() {
