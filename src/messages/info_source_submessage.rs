@@ -23,12 +23,10 @@ impl Submessage for InfoSource {
             self.protocol_version.octets() + 
             self.vendor_id.octets() +
             self.guid_prefix.octets();
-
-        SubmessageHeader { 
-            submessage_id: SubmessageKind::InfoSource,
+        SubmessageHeader::new( 
+            SubmessageKind::InfoSource,
             flags,
-            submessage_length: octets_to_next_header as u16,
-        }
+            octets_to_next_header)
     }
 
     fn is_valid(&self) -> bool {

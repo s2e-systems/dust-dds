@@ -13,12 +13,11 @@ impl Submessage for InfoDestination {
     fn submessage_header(&self) -> SubmessageHeader {
         const X : SubmessageFlag = false;
         let e = self.endianness_flag; // Indicates endianness.
-        let flags = [e, X, X, X, X, X, X, X];        
-        SubmessageHeader { 
-            submessage_id: SubmessageKind::InfoDestination,
+        let flags = [e, X, X, X, X, X, X, X];   
+        SubmessageHeader::new( 
+            SubmessageKind::InfoDestination,
             flags,
-            submessage_length: self.guid_prefix.octets() as u16,
-        }
+            self.guid_prefix.octets())     
     }
 
     fn is_valid(&self) -> bool {

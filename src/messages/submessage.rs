@@ -1,8 +1,8 @@
-use std::convert::TryInto;
 use super::types::{SubmessageKind, SubmessageFlag};
-use super::serdes::{RtpsSerdesResult, RtpsSerdesError, SizeCheck};
+use super::serdes::{SubmessageElement, RtpsSerdesResult, RtpsSerdesError, SizeCheck};
 use super::{UdpPsmMapping, Endianness};
 use super::{AckNack, Data, Gap, Heartbeat, InfoTs};
+use super::submessage_elements;
 
 fn serialize_submessage_kind(kind: SubmessageKind, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()>{
     let submessage_kind_u8 = kind as u8;
@@ -43,12 +43,19 @@ fn deserialize_submessage_flags(bytes: &[u8]) -> RtpsSerdesResult<[SubmessageFla
 
 #[derive(PartialEq, Debug)]
 pub struct SubmessageHeader {
-    pub submessage_id: SubmessageKind,
-    pub flags: [SubmessageFlag; 8],
-    pub submessage_length: u16,
+    submessage_id: SubmessageKind,
+    flags: [SubmessageFlag; 8],
+    submessage_length: submessage_elements::UShort,
 }
 
 impl SubmessageHeader {
+    pub fn new(submessage_id: SubmessageKind, flags: [SubmessageFlag; 8], submessage_length: usize) -> Self {
+        Self {
+            submessage_id, 
+            flags,
+            submessage_length: submessage_elements::UShort(submessage_length as u16),
+        }
+    }
     pub fn submessage_id(&self) -> SubmessageKind {
         self.submessage_id
     }
@@ -56,7 +63,7 @@ impl SubmessageHeader {
         &self.flags
     }
     pub fn submessage_length(&self) -> u16 {
-        self.submessage_length
+        self.submessage_length.0
     }
 }
 
@@ -65,10 +72,7 @@ impl UdpPsmMapping for SubmessageHeader {
         let endianness = Endianness::from(self.flags[0]);
         serialize_submessage_kind(self.submessage_id, writer)?;
         serialize_submessage_flags(&self.flags, writer)?;
-        match endianness {
-            Endianness::LittleEndian => writer.write(&self.submessage_length.to_le_bytes())?,
-            Endianness::BigEndian => writer.write(&self.submessage_length.to_be_bytes())?,
-        };
+        self.submessage_length.serialize(writer, endianness)?;
         Ok(())
     }
 
@@ -76,10 +80,7 @@ impl UdpPsmMapping for SubmessageHeader {
         let submessage_id = deserialize_submessage_kind(&bytes[0..1])?;
         let flags = deserialize_submessage_flags(&bytes[1..2])?;
         let endianness = Endianness::from(flags[0]);
-        let submessage_length = match endianness {
-            Endianness::LittleEndian => u16::from_le_bytes(bytes[2..4].try_into()?),
-            Endianness::BigEndian => u16::from_be_bytes(bytes[2..4].try_into()?),
-        };
+        let submessage_length = submessage_elements::UShort::deserialize(&bytes[2..4], endianness)?;
         Ok(SubmessageHeader {
             submessage_id,
             flags,
@@ -162,7 +163,7 @@ mod tests {
         let expected = SubmessageHeader {
             submessage_id: SubmessageKind::Data,
             flags,
-            submessage_length: 20,
+            submessage_length: submessage_elements::UShort(20),
         };
         let result = SubmessageHeader::parse(&bytes);
 
@@ -178,7 +179,7 @@ mod tests {
         let header = SubmessageHeader {
             submessage_id: SubmessageKind::Data,
             flags: [t, t, f, f, f, f, f, f],
-            submessage_length: 16,
+            submessage_length: submessage_elements::UShort(16),
         };
         let expected = vec![0x15, 0b00000011, 16, 0x0];
         header.compose(&mut result).unwrap();

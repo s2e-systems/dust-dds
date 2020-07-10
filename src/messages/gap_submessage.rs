@@ -67,12 +67,10 @@ impl Submessage for Gap {
             self.writer_id.octets() +
             self.gap_start.octets() +
             self.gap_list.octets();
-
-        SubmessageHeader { 
-            submessage_id: SubmessageKind::Gap,
+        SubmessageHeader::new( 
+            SubmessageKind::Gap,
             flags,
-            submessage_length: octets_to_next_header as u16, 
-        }
+            octets_to_next_header)
     }
 
     fn is_valid(&self) -> bool {

@@ -21,11 +21,10 @@ impl Submessage for InfoReply {
         if self.multicast_flag {
             submessage_length += self.multicast_locator_list.octets();
         }
-        SubmessageHeader { 
-            submessage_id: SubmessageKind::InfoReply,
+        SubmessageHeader::new( 
+            SubmessageKind::InfoReply,
             flags,
-            submessage_length: submessage_length as u16,
-        }
+            submessage_length)
     }
 
     fn is_valid(&self) -> bool {

@@ -123,12 +123,11 @@ impl Submessage for Data {
         if let Some(serialized_payload) = &self.serialized_payload {
             octets_to_next_header += serialized_payload.octets();
         }
-
-        SubmessageHeader { 
-            submessage_id: SubmessageKind::Data,
+        SubmessageHeader::new( 
+            SubmessageKind::Data,
             flags,
-            submessage_length: octets_to_next_header as u16, 
-        }
+            octets_to_next_header)
+
     }
 
     fn is_valid(&self) -> bool {

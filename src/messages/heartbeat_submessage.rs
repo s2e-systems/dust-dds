@@ -104,12 +104,10 @@ impl Submessage for Heartbeat {
             self.first_sn.octets() +
             self.last_sn.octets() +
             self.count.octets();
-
-        SubmessageHeader { 
-            submessage_id: SubmessageKind::Heartbeat,
+        SubmessageHeader::new( 
+            SubmessageKind::Heartbeat,
             flags,
-            submessage_length: octets_to_next_header as u16,
-        }
+            octets_to_next_header)
     }
 
     fn is_valid(&self) -> bool {

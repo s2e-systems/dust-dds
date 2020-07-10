@@ -25,12 +25,10 @@ impl Submessage for HeartbeatFrag {
             self.writer_sn.octets() +
             self.last_fragment_num.octets() +
             self.count.octets();
-
-        SubmessageHeader { 
-            submessage_id: SubmessageKind::HeartbeatFrag,
+        SubmessageHeader::new( 
+            SubmessageKind::HeartbeatFrag,
             flags,
-            submessage_length: octets_to_next_header as u16,
-        }
+            octets_to_next_header)
     }
 
     fn is_valid(&self) -> bool {

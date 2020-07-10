@@ -60,11 +60,10 @@ impl Submessage for AckNack {
         let f = self.final_flag; 
         let flags = [e, f, X, X, X, X, X, X];     
         let submessage_length = self.reader_id.octets() + self.writer_id.octets() + self.reader_sn_state.octets() + self.count.octets();
-        SubmessageHeader { 
-            submessage_id: SubmessageKind::InfoReply,
+        SubmessageHeader::new( 
+            SubmessageKind::InfoReply,
             flags,
-            submessage_length: submessage_length as u16,
-        }
+            submessage_length)
     }
 
     fn is_valid(&self) -> bool {

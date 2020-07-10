@@ -28,11 +28,10 @@ impl Submessage for NackFrag {
             self.fragment_number_state.octets() + 
             self.count.octets();
 
-        SubmessageHeader { 
-            submessage_id: SubmessageKind::NackFrag,
+        SubmessageHeader::new( 
+            SubmessageKind::NackFrag,
             flags,
-            submessage_length: octets_to_next_header as u16,
-        }
+            octets_to_next_header)
     }
 
     fn is_valid(&self) -> bool {

@@ -40,12 +40,10 @@ impl Submessage for DataFrag {
         if let Some(inline_qos) = &self.inline_qos {
             octets_to_next_header += inline_qos.octets();
         }
-
-        SubmessageHeader { 
-            submessage_id: SubmessageKind::Data,
+        SubmessageHeader::new( 
+            SubmessageKind::Data,
             flags,
-            submessage_length: octets_to_next_header as u16,
-        }
+            octets_to_next_header)
     }
 
     fn is_valid(&self) -> bool {
