@@ -625,9 +625,9 @@ impl RtpsDeserialize for LocatorList {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::inline_qos_types::{StatusInfo, KeyHash};
-    use crate::messages::types::ParameterId;
-    use serde::{Serialize, Deserialize};
+    use crate::inline_qos_types::{StatusInfo, KeyHash, };
+    use crate::messages::types::{ParameterId, Time, };
+    use serde::{Serialize, Deserialize, };
     use crate::serdes::RtpsSerdesError;
     use crate::types::constants;
 
@@ -1120,7 +1120,39 @@ mod tests {
     }
 
     // /////////////////////// Timestamp Tests ////////////////////////////////
-    // todo
+    #[test]
+    fn test_time_serialization_deserialization_big_endian() {
+        let mut vec = Vec::new();
+        let test_time = Timestamp(Time::new(1234567, 98765432));
+
+        
+        const TEST_TIME_BIG_ENDIAN : [u8;8] = [0x00, 0x12, 0xD6, 0x87, 0x05, 0xE3, 0x0A, 0x78];
+        test_time.serialize(&mut vec, Endianness::BigEndian).unwrap();
+        assert_eq!(vec, TEST_TIME_BIG_ENDIAN);
+        assert_eq!(Timestamp::deserialize(&vec, Endianness::BigEndian).unwrap().0, test_time.0);
+    }
+
+    #[test]
+    fn test_time_serialization_deserialization_little_endian() {
+        let mut vec = Vec::new();
+        let test_time = Timestamp(Time::new(1234567, 98765432));
+        
+        const TEST_TIME_LITTLE_ENDIAN : [u8;8] = [0x87, 0xD6, 0x12, 0x00, 0x78, 0x0A, 0xE3, 0x05];
+        test_time.serialize(&mut vec, Endianness::LittleEndian).unwrap();
+        assert_eq!(vec, TEST_TIME_LITTLE_ENDIAN);
+        assert_eq!(Timestamp::deserialize(&vec, Endianness::LittleEndian).unwrap().0, test_time.0);
+    }
+
+    #[test]
+    fn test_invalid_time_deserialization() {
+        let wrong_vec = vec![1,2,3,4];
+
+        let expected_error = Timestamp::deserialize(&wrong_vec, Endianness::LittleEndian);
+        match expected_error {
+            Err(RtpsSerdesError::WrongSize) => assert!(true),
+            _ => assert!(false),
+        };
+    }
 
     // /////////////////////// ParameterList Tests ////////////////////////
     
