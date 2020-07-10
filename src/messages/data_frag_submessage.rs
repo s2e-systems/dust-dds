@@ -1,5 +1,5 @@
 use crate::types::constants::SEQUENCE_NUMBER_UNKNOWN;
-use crate::serdes::{SubmessageElement, Endianness, RtpsSerdesResult, };
+use super::serdes::{SubmessageElement, Endianness, RtpsSerdesResult, };
 
 use super::types::{SubmessageKind, SubmessageFlag, };
 use super::{SubmessageHeader, Submessage, UdpPsmMapping};

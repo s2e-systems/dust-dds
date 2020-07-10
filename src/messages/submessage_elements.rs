@@ -11,7 +11,7 @@ use std::convert::TryInto;
 use cdr::{LittleEndian, BigEndian, Infinite};
 
 use crate::types::{Locator};
-use crate::serdes::{SubmessageElement, Endianness, RtpsSerdesResult, SizeCheck, RtpsSerdesError};
+use super::serdes::{SubmessageElement, Endianness, RtpsSerdesResult, SizeCheck, RtpsSerdesError};
 use crate::types;
 
 pub trait Pid {
@@ -757,7 +757,7 @@ mod tests {
     use crate::inline_qos_types::{StatusInfo, KeyHash, };
     use crate::messages::types::{ParameterId, Time, };
     use serde::{Serialize, Deserialize, };
-    use crate::serdes::RtpsSerdesError;
+    use super::super::serdes::RtpsSerdesError;
     use crate::types::constants;
 
     #[allow(overflowing_literals)]

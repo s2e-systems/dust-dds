@@ -5,7 +5,7 @@ use crate::messages::submessage_elements;
 use crate::cache::{HistoryCache};
 use crate::stateful_reader::WriterProxy;
 
-use crate::serdes::Endianness;
+use crate::messages::Endianness;
 use super::cache_change_from_data;
 
 pub struct StatefulReaderBehavior {}
@@ -126,7 +126,7 @@ mod tests {
     use crate::cache::CacheChange;
     use crate::messages::{Data, Payload, Heartbeat};
     use crate::messages::submessage_elements::ParameterList;
-    use crate::serdes::Endianness;
+    use crate::messages::Endianness;
     use crate::inline_qos_types::{KeyHash, StatusInfo, };
 
     #[test]

@@ -5,7 +5,6 @@ pub mod types;
 mod messages;
 mod cache;
 mod inline_qos_types;
-mod serdes;
 pub mod behavior;
 // mod reader;
 // mod writer;

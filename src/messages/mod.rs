@@ -1,7 +1,7 @@
 use self::types::constants::PROTOCOL_RTPS;
 use self::types::{ProtocolId, SubmessageFlag, SubmessageKind};
-use crate::serdes::{
-    Endianness, SubmessageElement, RtpsSerdesResult, SizeSerializer
+use serdes::{
+    SubmessageElement, RtpsSerdesResult, SizeSerializer
 };
 use crate::types::constants::{PROTOCOL_VERSION_2_4, VENDOR_ID};
 use crate::types::{GuidPrefix, ProtocolVersion, VendorId};
@@ -18,6 +18,7 @@ mod info_reply_submessage;
 mod info_source_submessage;
 mod info_timestamp_submessage;
 mod nack_frag_submessage;
+mod serdes;
 pub mod submessage_elements;
 pub mod types;
 
@@ -33,6 +34,7 @@ pub use heartbeat_submessage::Heartbeat;
 // pub use info_source_submessage::InfoSrc;
 pub use info_timestamp_submessage::InfoTs;
 // pub use nack_frag_submessage::NackFrag;
+pub use serdes::Endianness;
 
 pub const RTPS_MAJOR_VERSION: u8 = 2;
 pub const RTPS_MINOR_VERSION: u8 = 4;

@@ -10,7 +10,7 @@ use crate::types::{GUID, GuidPrefix, EntityId, ChangeKind};
 use crate::cache::CacheChange;
 use crate::messages::{Data, Payload};
 use crate::inline_qos_types::{KeyHash, StatusInfo};
-use crate::serdes::Endianness;
+use crate::messages::Endianness;
 use crate::messages::submessage_elements;
 
 pub use stateful_writer::StatefulWriterBehavior;

@@ -5,7 +5,7 @@
 use std::time::SystemTime;
 use num_derive::{FromPrimitive, };
 
-use crate::serdes::{SubmessageElement, RtpsSerdesResult, RtpsSerdesError, Endianness, SizeCheck };
+use super::serdes::{SubmessageElement, RtpsSerdesResult, RtpsSerdesError, Endianness, SizeCheck };
 
 pub mod constants {
     use super::Time;

@@ -76,7 +76,7 @@ mod tests {
     use crate::types::constants::*;
     use crate::messages::{Data, Payload, RtpsSubmessage };
     use crate::messages::submessage_elements;
-    use crate::serdes::Endianness;
+    use crate::messages::Endianness;
     use crate::inline_qos_types::{KeyHash};
 
     #[test]

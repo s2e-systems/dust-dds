@@ -3,7 +3,7 @@ use crate::messages::{RtpsMessage, RtpsSubmessage, InfoTs, Data, Payload, Gap, H
 use crate::cache::{HistoryCache};
 use crate::stateful_writer::ReaderProxy;
 use crate::behavior::types::Duration;
-use crate::serdes::Endianness;
+use crate::messages::Endianness;
 use crate::messages::types::{Time};
 use crate::messages::submessage_elements;
 use crate::inline_qos_types::{KeyHash, StatusInfo};
