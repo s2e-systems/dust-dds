@@ -1,4 +1,4 @@
-use crate::serdes::{SubmessageElement, RtpsCompose, RtpsParse, Endianness, RtpsSerdesResult, };
+use crate::serdes::{SubmessageElement, Endianness, RtpsSerdesResult, };
 use super::{SubmessageKind, SubmessageFlag, Submessage, SubmessageHeader, };
 use super::submessage_elements;
 

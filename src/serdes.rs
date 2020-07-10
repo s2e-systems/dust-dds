@@ -102,25 +102,6 @@ pub trait SubmessageElement
 }
 
 
-pub trait RtpsCompose 
-{
-    fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()>;
-    fn octets(&self) -> usize {
-        let mut size_serializer = SizeSerializer::new();
-        self.compose(&mut size_serializer).unwrap(); // Should panic on failure
-        size_serializer.get_size()
-    }
-}
-
-pub trait RtpsParse
-where
-    Self: std::marker::Sized
-{
-    fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self>;
-}
-
-
-
 pub trait SizeCheck {
     fn check_size_equal(&self, expected_size: usize) -> RtpsSerdesResult<()>;
     fn check_size_bigger_equal_than(&self, expected_size: usize) -> RtpsSerdesResult<()>;

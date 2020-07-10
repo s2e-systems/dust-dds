@@ -26,4 +26,3 @@ pub use stateful_writer::{StatefulWriter, ReaderProxy, };
 pub use messages::RtpsMessage;
 pub use messages::types::{ParameterId};
 pub use messages::submessage_elements::{Pid, ParameterList,};
-pub use serdes::{RtpsCompose, RtpsParse, };

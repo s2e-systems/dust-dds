@@ -1,7 +1,7 @@
 use self::types::constants::PROTOCOL_RTPS;
 use self::types::{ProtocolId, SubmessageFlag, SubmessageKind};
 use crate::serdes::{
-    Endianness, RtpsCompose, SubmessageElement, RtpsParse, RtpsSerdesResult, SizeSerializer
+    Endianness, SubmessageElement, RtpsSerdesResult, SizeSerializer
 };
 use crate::types::constants::{PROTOCOL_VERSION_2_4, VENDOR_ID};
 use crate::types::{GuidPrefix, ProtocolVersion, VendorId};
@@ -52,7 +52,7 @@ pub enum RtpsSubmessage {
     // NackFrag(NackFrag),
 }
 
-impl RtpsCompose for RtpsSubmessage {
+impl RtpsSubmessage {
     fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
         match self {
             RtpsSubmessage::AckNack(acknack) => acknack.compose(writer),
@@ -62,9 +62,7 @@ impl RtpsCompose for RtpsSubmessage {
             RtpsSubmessage::InfoTs(infots) => infots.compose(writer),
         }
     }
-}
 
-impl RtpsParse for RtpsSubmessage {
     fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> {
         let submessage_id =
             SubmessageKind::deserialize(&[bytes[0]], Endianness::LittleEndian /*irrelevant*/)?;
@@ -83,6 +81,18 @@ impl RtpsParse for RtpsSubmessage {
             SubmessageKind::HeartbeatFrag => todo!(),
             SubmessageKind::DataFrag => todo!(),
         }
+    }
+
+    fn is_valid(&self) -> bool {
+        todo!()
+    }
+
+    fn octets(&self) -> usize {
+        todo!()
+    }
+
+    fn submessage_header(&self) -> SubmessageHeader {
+        todo!()
     }
 }
 
@@ -178,10 +188,8 @@ impl Header {
     pub fn guid_prefix(&self) -> &GuidPrefix {
         &self.guid_prefix
     }
-}
 
-impl RtpsCompose for Header {
-    fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
+    pub fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
         writer.write(&self.protocol)?;
         writer.write(&[self.version.major])?;
         writer.write(&[self.version.minor])?;
@@ -189,10 +197,8 @@ impl RtpsCompose for Header {
         writer.write(&self.guid_prefix)?;
         Ok(())
     }
-}
 
-impl RtpsParse for Header {
-    fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> {
+    pub fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> {
         let protocol = bytes[0..4].try_into()?;
         let version = ProtocolVersion {
             major: bytes[4],
@@ -206,6 +212,10 @@ impl RtpsParse for Header {
             vendor_id,
             guid_prefix,
         })
+    }
+
+    fn octets(&self) -> usize {
+        20
     }
 }
 
@@ -234,20 +244,16 @@ impl RtpsMessage {
     pub fn submessages(&self) -> &Vec<RtpsSubmessage> {
         &self.submessages
     }
-}
 
-impl RtpsCompose for RtpsMessage {
-    fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
+    pub fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
         &self.header.compose(writer)?;
         for submessage in &self.submessages {
             submessage.compose(writer)?;
         }
         Ok(())
     }
-}
 
-impl RtpsParse for RtpsMessage {
-    fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> {
+    pub fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> {
         let size = bytes.len();
         let header = Header::parse(bytes)?;
 

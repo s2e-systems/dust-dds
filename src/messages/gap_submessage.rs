@@ -1,6 +1,6 @@
 use std::collections::BTreeSet;
 
-use crate::serdes::{SubmessageElement, RtpsParse, RtpsCompose, Endianness, RtpsSerdesResult, };
+use crate::serdes::{SubmessageElement, Endianness, RtpsSerdesResult, };
 
 use super::types::{SubmessageKind, SubmessageFlag, };
 use super::{SubmessageHeader, Submessage, };
