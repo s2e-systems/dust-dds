@@ -103,10 +103,8 @@ impl SubmessageHeader {
     pub fn submessage_length(&self) -> u16 {
         self.submessage_length
     }
-}
 
-impl RtpsCompose for SubmessageHeader {
-    fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
+    pub fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
         let endianness = Endianness::from(self.flags[0]);
         self.submessage_id.serialize(writer, endianness)?;
         self.flags.serialize(writer, endianness)?;
@@ -116,10 +114,8 @@ impl RtpsCompose for SubmessageHeader {
         };
         Ok(())
     }
-}
 
-impl RtpsParse for SubmessageHeader {
-    fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> {
+    pub fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> {
         let submessage_id = SubmessageKind::deserialize(
             &bytes[0..1],
             Endianness::LittleEndian, /*irrelevant*/
@@ -138,6 +134,10 @@ impl RtpsParse for SubmessageHeader {
             flags,
             submessage_length,
         })
+    }
+
+    pub fn octets(&self) -> usize {
+        4
     }
 }
 
