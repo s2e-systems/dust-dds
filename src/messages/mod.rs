@@ -1,8 +1,6 @@
 use self::types::constants::PROTOCOL_RTPS;
 use self::types::{ProtocolId, SubmessageFlag, SubmessageKind};
-use serdes::{
-    SubmessageElement, RtpsSerdesResult, SizeSerializer
-};
+use serdes::{RtpsSerdesResult, SizeSerializer, RtpsSerdesError, SizeCheck, };
 use crate::types::constants::{PROTOCOL_VERSION_2_4, VENDOR_ID};
 use crate::types::{GuidPrefix, ProtocolVersion, VendorId};
 use std::convert::TryInto;
@@ -72,7 +70,7 @@ impl UdpPsmMapping for RtpsSubmessage {
 
     fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> {
         let submessage_id =
-            SubmessageKind::deserialize(&[bytes[0]], Endianness::LittleEndian /*irrelevant*/)?;
+            deserialize_submessage_kind(&[bytes[0]])?;
         match submessage_id {
             SubmessageKind::Data => Ok(RtpsSubmessage::Data(Data::parse(bytes)?)),
             SubmessageKind::Pad => todo!(),
@@ -90,6 +88,45 @@ impl UdpPsmMapping for RtpsSubmessage {
         }
     }
 }
+
+
+
+fn serialize_submessage_kind(kind: SubmessageKind, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()>{
+    let submessage_kind_u8 = kind as u8;
+    writer.write(&[submessage_kind_u8])?;
+    Ok(())
+}
+
+fn deserialize_submessage_kind(bytes: &[u8]) -> RtpsSerdesResult<SubmessageKind> { 
+    bytes.check_size_equal(1)?;
+    Ok(num::FromPrimitive::from_u8(bytes[0]).ok_or(RtpsSerdesError::InvalidEnumRepresentation)?)
+}
+
+fn serialize_submessage_flags(submessage_flags: &[SubmessageFlag; 8], writer: &mut impl std::io::Write) -> RtpsSerdesResult<()>{
+    let mut flags = 0u8;
+    for i in 0..8 {
+        if submessage_flags[i] {
+            flags |= 0b00000001 << i;
+        }
+    }
+    writer.write(&[flags])?;
+    Ok(())
+}
+
+fn deserialize_submessage_flags(bytes: &[u8]) -> RtpsSerdesResult<[SubmessageFlag; 8]> {
+    bytes.check_size_equal(1)?;
+    let flags: u8 = bytes[0];        
+    let mut mask = 0b00000001_u8;
+    let mut submessage_flags = [false; 8];
+    for i in 0..8 {
+        if (flags & mask) > 0 {
+            submessage_flags[i] = true;
+        }
+        mask <<= 1;
+    };
+    Ok(submessage_flags)
+}
+
 
 #[derive(PartialEq, Debug)]
 pub struct SubmessageHeader {
@@ -113,8 +150,8 @@ impl SubmessageHeader {
 impl UdpPsmMapping for SubmessageHeader {
     fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
         let endianness = Endianness::from(self.flags[0]);
-        self.submessage_id.serialize(writer, endianness)?;
-        self.flags.serialize(writer, endianness)?;
+        serialize_submessage_kind(self.submessage_id, writer)?;
+        serialize_submessage_flags(&self.flags, writer)?;
         match endianness {
             Endianness::LittleEndian => writer.write(&self.submessage_length.to_le_bytes())?,
             Endianness::BigEndian => writer.write(&self.submessage_length.to_be_bytes())?,
@@ -123,14 +160,8 @@ impl UdpPsmMapping for SubmessageHeader {
     }
 
     fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> {
-        let submessage_id = SubmessageKind::deserialize(
-            &bytes[0..1],
-            Endianness::LittleEndian, /*irrelevant*/
-        )?;
-        let flags = <[SubmessageFlag; 8]>::deserialize(
-            &bytes[1..2],
-            Endianness::LittleEndian, /*irrelevant*/
-        )?;
+        let submessage_id = deserialize_submessage_kind(&bytes[0..1])?;
+        let flags = deserialize_submessage_flags(&bytes[1..2])?;
         let endianness = Endianness::from(flags[0]);
         let submessage_length = match endianness {
             Endianness::LittleEndian => u16::from_le_bytes(bytes[2..4].try_into()?),
@@ -641,5 +672,59 @@ mod tests {
         ];
         let result = RtpsMessage::parse(&bytes).unwrap();
         assert_eq!(expected, result);
+    }
+
+
+    #[test]
+    fn test_deserialize_submessage_flags() {
+        let f = false;
+        let t = true;
+
+        let expected: [SubmessageFlag; 8] = [t, f, f, f, f, f, f, f];
+        let bytes = [0b00000001_u8];    
+        let result = deserialize_submessage_flags(&bytes).unwrap();
+        assert_eq!(expected, result);
+
+        let expected: [SubmessageFlag; 8] = [t, t, f, t, f, f, f, f];
+        let bytes = [0b00001011_u8];    
+        let result = deserialize_submessage_flags(&bytes).unwrap();
+        assert_eq!(expected, result);
+
+        let expected: [SubmessageFlag; 8] = [t, t, t, t, t, t, t, t];
+        let bytes = [0b11111111_u8];    
+        let result = deserialize_submessage_flags(&bytes).unwrap();
+        assert_eq!(expected, result);
+
+        let expected: [SubmessageFlag; 8] = [f, f, f, f, f, f, f, f];
+        let bytes = [0b00000000_u8];    
+        let result = deserialize_submessage_flags(&bytes).unwrap();
+        assert_eq!(expected, result);
+    }
+   
+    #[test]
+    fn test_serialize_submessage_flags() {
+        let f = false;
+        let t = true;
+        let mut writer = Vec::new();
+
+        writer.clear();
+        let flags: [SubmessageFlag; 8] = [t, f, f, f, f, f, f, f];
+        serialize_submessage_flags(&flags, &mut writer).unwrap();
+        assert_eq!(writer, vec![0b00000001]);
+        
+        writer.clear();
+        let flags: [SubmessageFlag; 8] = [f; 8];
+        serialize_submessage_flags(&flags, &mut writer).unwrap();
+        assert_eq!(writer, vec![0b00000000]);
+        
+        writer.clear();
+        let flags: [SubmessageFlag; 8] = [t; 8];
+        serialize_submessage_flags(&flags, &mut writer).unwrap();
+        assert_eq!(writer, vec![0b11111111]);
+        
+        writer.clear();
+        let flags: [SubmessageFlag; 8] = [f, t, f, f, t, t, f, t];
+        serialize_submessage_flags(&flags, &mut writer).unwrap();
+        assert_eq!(writer, vec![0b10110010]);
     }
 }

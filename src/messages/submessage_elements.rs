@@ -754,7 +754,7 @@ mod tests {
     use crate::inline_qos_types::{StatusInfo, KeyHash, };
     use crate::messages::types::{ParameterId, Time, };
     use serde::{Serialize, Deserialize, };
-    use super::super::serdes::RtpsSerdesError;
+    // use super::super::serdes::RtpsSerdesError;
     use crate::types::constants;
 
     #[allow(overflowing_literals)]
