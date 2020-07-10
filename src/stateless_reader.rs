@@ -74,10 +74,7 @@ mod tests {
     use super::*;
     use crate::types::*;
     use crate::types::constants::*;
-    use crate::serialized_payload::SerializedPayload;
-    use crate::messages::{Data, Payload, RtpsSubmessage };
-    use crate::messages::submessage_elements::ParameterList;
-    use crate::serdes::Endianness;
+    use crate::messages::{Data, Payload, RtpsSubmessage, Endianness, ParameterList };
     use crate::inline_qos_types::{KeyHash};
 
     #[test]
@@ -89,16 +86,16 @@ mod tests {
             Endianness::LittleEndian,
             ENTITYID_UNKNOWN,
             ENTITYID_UNKNOWN,
-            SequenceNumber(1),
+            1,
             Some(inline_qos),
-            Payload::Data(SerializedPayload(vec![0,1,2])),
+            Payload::Data(vec![0,1,2]),
         );
 
         let mut submessages = Vec::new();
         submessages.push(RtpsSubmessage::Data(data1));
 
         let mut reader = StatelessReader::new(
-            GUID::new(GuidPrefix([0;12]), ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER),
+            GUID::new([0;12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER),
             TopicKind::WithKey,
             ReliabilityKind::BestEffort,
             vec![Locator::new(0, 7400, [0;16])],
@@ -107,7 +104,7 @@ mod tests {
            );
 
         assert_eq!(reader.history_cache().get_changes().len(), 0);
-        let message = RtpsMessage::new(GuidPrefix([2;12]), submessages);
+        let message = RtpsMessage::new([2;12], submessages);
         
         reader.run(Some(&message));
 

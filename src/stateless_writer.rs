@@ -1,11 +1,10 @@
 use std::collections::{HashMap, BTreeSet};
 
 use crate::cache::{CacheChange, HistoryCache};
-use crate::messages::RtpsMessage;
+use crate::messages::{RtpsMessage, ParameterList};
 use crate::types::{ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID, };
 use crate::behavior::types::Duration;
 use crate::behavior::StatelessWriterBehavior;
-use crate::messages::submessage_elements::ParameterList;
 
 pub struct ReaderLocator {
     //requested_changes: HashSet<CacheChange>,
@@ -18,12 +17,12 @@ impl ReaderLocator {
     fn new(expects_inline_qos: bool) -> Self {
         ReaderLocator {
             expects_inline_qos,
-            highest_sequence_number_sent: SequenceNumber(0),
+            highest_sequence_number_sent: 0,
         }
     }
 
     fn unsent_changes_reset(&mut self) {
-        self.highest_sequence_number_sent = SequenceNumber(0);
+        self.highest_sequence_number_sent = 0;
     }
 
     pub fn unsent_changes(&self, last_change_sequence_number: SequenceNumber) -> BTreeSet<SequenceNumber> {
@@ -31,9 +30,9 @@ impl ReaderLocator {
 
         // The for loop is made with the underlying sequence number type because it is not possible to implement the Step trait on Stable yet
         for unsent_sequence_number in
-            self.highest_sequence_number_sent.0 + 1..=last_change_sequence_number.0
+            self.highest_sequence_number_sent + 1..=last_change_sequence_number
         {
-            unsent_changes_set.insert(SequenceNumber(unsent_sequence_number));
+            unsent_changes_set.insert(unsent_sequence_number);
         }
 
         unsent_changes_set
@@ -99,7 +98,7 @@ impl StatelessWriter {
             heartbeat_period,
             nack_response_delay,
             nack_suppression_duration,
-            last_change_sequence_number: SequenceNumber(0),
+            last_change_sequence_number: 0,
             writer_cache: HistoryCache::new(),
             data_max_sized_serialized: None,
             reader_locators: HashMap::new(),
@@ -166,14 +165,13 @@ mod tests {
     use super::*;
     use crate::types::constants::*;
     use crate::behavior::types::constants::DURATION_ZERO;
-    use crate::serialized_payload::SerializedPayload;
     use crate::messages::RtpsSubmessage;
     use crate::types::*;
 
     #[test]
     fn test_writer_new_change() {
         let mut writer = StatelessWriter::new(
-            GUID::new(GuidPrefix([0; 12]), ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
+            GUID::new([0; 12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
             TopicKind::WithKey,
             ReliabilityKind::BestEffort,
             vec![Locator::new(0, 7400, [0; 16])], /*unicast_locator_list*/
@@ -186,24 +184,24 @@ mod tests {
 
         let cache_change_seq1 = writer.new_change(
             ChangeKind::Alive,
-            Some(vec![1, 2, 3]), /*data*/
-            None,                /*inline_qos*/
-            [1; 16],             /*handle*/
+            Some(vec![1, 2, 3]), 
+            None,                
+            [1; 16],             
         );
 
         let cache_change_seq2 = writer.new_change(
             ChangeKind::NotAliveUnregistered,
-            None,    /*data*/
-            None,    /*inline_qos*/
-            [1; 16], /*handle*/
+            None,    
+            None,    
+            [1; 16], 
         );
 
-        assert_eq!(cache_change_seq1.sequence_number(), &SequenceNumber(1));
+        assert_eq!(cache_change_seq1.sequence_number(), &1);
         assert_eq!(cache_change_seq1.change_kind(), &ChangeKind::Alive);
         assert!(cache_change_seq1.inline_qos().is_none());
         assert_eq!(cache_change_seq1.instance_handle(), &[1; 16]);
 
-        assert_eq!(cache_change_seq2.sequence_number(), &SequenceNumber(2));
+        assert_eq!(cache_change_seq2.sequence_number(), &2);
         assert_eq!(
             cache_change_seq2.change_kind(),
             &ChangeKind::NotAliveUnregistered
@@ -215,7 +213,7 @@ mod tests {
     #[test]
     fn test_best_effort_stateless_writer_run() {
         let mut writer = StatelessWriter::new(
-            GUID::new(GuidPrefix([0; 12]), ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
+            GUID::new([0; 12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
             TopicKind::WithKey,
             ReliabilityKind::BestEffort,
             vec![Locator::new(0, 7400, [0; 16])], 
@@ -255,20 +253,20 @@ mod tests {
             panic!("Wrong message type");
         }
         if let RtpsSubmessage::Data(data_message_1) = &writer_data.submessages()[1] {
-            assert_eq!(data_message_1.reader_id(), &ENTITYID_UNKNOWN);
-            assert_eq!(data_message_1.writer_id(), &ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER);
-            assert_eq!(data_message_1.writer_sn(), &SequenceNumber(1));
-            assert_eq!(data_message_1.serialized_payload(), &Some(SerializedPayload(vec![1, 2, 3])));
+            assert_eq!(data_message_1.reader_id(), ENTITYID_UNKNOWN);
+            assert_eq!(data_message_1.writer_id(), ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER);
+            assert_eq!(data_message_1.writer_sn(), 1);
+            assert_eq!(data_message_1.serialized_payload(), Some(&vec![1, 2, 3]));
 
         } else {
             panic!("Wrong message type");
         };
 
         if let RtpsSubmessage::Data(data_message_2) = &writer_data.submessages()[2] {
-            assert_eq!(data_message_2.reader_id(), &ENTITYID_UNKNOWN);
-            assert_eq!(data_message_2.writer_id(), &ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER);
-            assert_eq!(data_message_2.writer_sn(), &SequenceNumber(2));
-            assert_eq!(data_message_2.serialized_payload(), &Some(SerializedPayload(vec![4, 5, 6])));
+            assert_eq!(data_message_2.reader_id(), ENTITYID_UNKNOWN);
+            assert_eq!(data_message_2.writer_id(), ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER);
+            assert_eq!(data_message_2.writer_sn(), 2);
+            assert_eq!(data_message_2.serialized_payload(), Some(&vec![4, 5, 6]));
         } else {
             panic!("Wrong message type");
         };

@@ -1,16 +1,14 @@
-use crate::primitive_types::{Long, UShort, };
-use crate::types::{ProtocolVersion, VendorId, GuidPrefix, };
-use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, Endianness, RtpsSerdesResult, };
-
-use super::types::{SubmessageKind, SubmessageFlag, };
-use super::{SubmessageHeader, Submessage, };
+use super::serdes::{SubmessageElement, Endianness, RtpsSerdesResult, };
+use super::{SubmessageKind, SubmessageFlag, UdpPsmMapping, };
+use super::submessage::{Submessage, SubmessageHeader, };
+use super::submessage_elements;
 
 #[derive(PartialEq, Debug)]
 pub struct InfoSource {
     endianness_flag: SubmessageFlag,
-    protocol_version: ProtocolVersion,
-    vendor_id: VendorId,
-    guid_prefix: GuidPrefix,
+    protocol_version: submessage_elements::ProtocolVersion,
+    vendor_id: submessage_elements::VendorId,
+    guid_prefix: submessage_elements::GuidPrefix,
 }
 
 
@@ -19,19 +17,16 @@ impl Submessage for InfoSource {
         const X: SubmessageFlag = false;
         let e = self.endianness_flag;
         let flags = [e, X, X, X, X, X, X, X];
-        let unused: Long = 0;
         
         let octets_to_next_header = 
-            unused.octets() +
+            4 /*unused.octets()*/ +
             self.protocol_version.octets() + 
             self.vendor_id.octets() +
             self.guid_prefix.octets();
-
-        SubmessageHeader { 
-            submessage_id: SubmessageKind::InfoSource,
+        SubmessageHeader::new( 
+            SubmessageKind::InfoSource,
             flags,
-            submessage_length: octets_to_next_header as UShort,
-        }
+            octets_to_next_header)
     }
 
     fn is_valid(&self) -> bool {
@@ -39,28 +34,26 @@ impl Submessage for InfoSource {
     }
 }
 
-impl RtpsCompose for InfoSource {
+impl UdpPsmMapping for InfoSource {
     fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
         let endianness = self.endianness_flag.into();
-        let unused: Long = 0;
+        let unused = submessage_elements::Long(0);
         self.submessage_header().compose(writer)?;
         unused.serialize(writer, endianness)?;
         self.protocol_version.serialize(writer, endianness)?;
         self.vendor_id.serialize(writer, endianness)?;
         self.guid_prefix.serialize(writer, endianness)?;
         Ok(())
-    }    
-}
+    }
 
-impl RtpsParse for InfoSource {
     fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> {
         let header = SubmessageHeader::parse(bytes)?;
         let endianness_flag = header.flags()[0];
         let endianness = Endianness::from(endianness_flag);
-        // let unused = Long::deserialize(&bytes[4..8], endianness)?;
-        let protocol_version = ProtocolVersion::deserialize(&bytes[8..10], endianness)?;
-        let vendor_id = VendorId::deserialize(&bytes[10..12], endianness)?;
-        let guid_prefix = GuidPrefix::deserialize(&bytes[12..24], endianness)?;        
+        let _unused = submessage_elements::ULong::deserialize(&bytes[4..8], endianness)?;
+        let protocol_version = submessage_elements::ProtocolVersion::deserialize(&bytes[8..10], endianness)?;
+        let vendor_id = submessage_elements::VendorId::deserialize(&bytes[10..12], endianness)?;
+        let guid_prefix = submessage_elements::GuidPrefix::deserialize(&bytes[12..24], endianness)?;        
 
         Ok(InfoSource {
             endianness_flag,
@@ -71,6 +64,7 @@ impl RtpsParse for InfoSource {
     }
 }
 
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -80,9 +74,9 @@ mod tests {
     fn parse_heartbeat_frag_submessage() {
         let expected = InfoSource {
             endianness_flag: true,    
-            protocol_version: constants::PROTOCOL_VERSION_2_4,
-            vendor_id: constants::VENDOR_ID,
-            guid_prefix: GuidPrefix([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]),
+            protocol_version: submessage_elements::ProtocolVersion(constants::PROTOCOL_VERSION_2_4),
+            vendor_id: submessage_elements::VendorId(constants::VENDOR_ID),
+            guid_prefix: submessage_elements::GuidPrefix([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]),
         };
         let bytes = vec![
             0x0c, 0b00000001, 20, 0x0, // Submessgae Header
@@ -101,9 +95,9 @@ mod tests {
     fn compose_heartbeat_frag_submessage() {
         let message = InfoSource {
             endianness_flag: true,    
-            protocol_version: constants::PROTOCOL_VERSION_2_4,
-            vendor_id: constants::VENDOR_ID,
-            guid_prefix: GuidPrefix([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]),
+            protocol_version: submessage_elements::ProtocolVersion(constants::PROTOCOL_VERSION_2_4),
+            vendor_id: submessage_elements::VendorId(constants::VENDOR_ID),
+            guid_prefix: submessage_elements::GuidPrefix([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]),
         };
         let expected = vec![
             0x0c, 0b00000001, 20, 0x0, // Submessgae Header

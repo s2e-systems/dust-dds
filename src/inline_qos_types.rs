@@ -5,7 +5,8 @@
  
 use std::convert::From;
 use crate::types::{ChangeKind, };
-use crate::messages::types::{ParameterId, Pid};
+use crate::messages::types::{ParameterId, };
+use crate::messages::Pid;
 
 use serde::{Serialize, Deserialize};
 

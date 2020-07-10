@@ -3,10 +3,9 @@ use crate::types::constants::ENTITYID_UNKNOWN;
 use crate::messages::{RtpsSubmessage, InfoTs, Gap};
 use crate::cache::{HistoryCache};
 use crate::stateless_writer::ReaderLocator;
-use crate::serdes::Endianness;
+use crate::messages::Endianness;
 use crate::messages::types::{Time};
 use super::data_from_cache_change;
-
 pub struct StatelessWriterBehavior {}
 
 impl StatelessWriterBehavior{

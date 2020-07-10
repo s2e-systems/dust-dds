@@ -8,11 +8,8 @@ use std::convert::{TryFrom, TryInto};
 
 use crate::types::{GUID, GuidPrefix, EntityId, ChangeKind};
 use crate::cache::CacheChange;
-use crate::messages::{Data, Payload};
+use crate::messages::{Data, Payload, Endianness, ParameterList};
 use crate::inline_qos_types::{KeyHash, StatusInfo};
-use crate::serdes::Endianness;
-use crate::serialized_payload::SerializedPayload;
-use crate::messages::submessage_elements::ParameterList;
 
 pub use stateful_writer::StatefulWriterBehavior;
 pub use stateful_reader::StatefulReaderBehavior;
@@ -34,9 +31,9 @@ fn cache_change_from_data(message: &Data, guid_prefix: &GuidPrefix) -> CacheChan
     };    
     CacheChange::new(
         change_kind,
-        GUID::new(*guid_prefix, *message.writer_id() ),
+        GUID::new(*guid_prefix, message.writer_id() ),
         key_hash.0,
-        *message.writer_sn(),
+        message.writer_sn(),
         None,
         inline_qos,
     )
@@ -57,10 +54,10 @@ fn data_from_cache_change(cache_change: &CacheChange, endianness: Endianness, re
     let payload = match change_kind {
         ChangeKind::Alive => {
             inline_qos_parameters.push(KeyHash(*cache_change.instance_handle()));
-            Payload::Data(SerializedPayload(cache_change.data_value().unwrap().to_vec()))
+            Payload::Data(cache_change.data_value().unwrap().to_vec())
         },
         ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered | ChangeKind::AliveFiltered => {
-            Payload::Key(SerializedPayload(cache_change.instance_handle().to_vec()))
+            Payload::Key(cache_change.instance_handle().to_vec())
         }
     };
 
@@ -93,8 +90,8 @@ fn key_hash(data_submessage: &Data) -> Option<KeyHash> {
     if data_submessage.data_flag() && !data_submessage.key_flag() {
         data_submessage.inline_qos().as_ref()?.find::<KeyHash>(data_submessage.endianness_flag().into())
     } else if !data_submessage.data_flag() && data_submessage.key_flag() {
-        let payload = data_submessage.serialized_payload().as_ref()?; 
-        Some(KeyHash(payload.0[0..16].try_into().ok()?))
+        let payload = data_submessage.serialized_payload()?; 
+        Some(KeyHash(payload[0..16].try_into().ok()?))
     } else {
         None
     }

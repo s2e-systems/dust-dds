@@ -1,11 +1,10 @@
-use crate::types::{GUID, SequenceNumber};
+use crate::types::{GUID, };
 use crate::behavior::types::Duration;
 use crate::messages::{RtpsMessage, RtpsSubmessage, AckNack};
-use crate::messages::submessage_elements::{SequenceNumberSet, };
 use crate::cache::{HistoryCache};
 use crate::stateful_reader::WriterProxy;
 
-use crate::serdes::Endianness;
+use crate::messages::Endianness;
 use super::cache_change_from_data;
 
 pub struct StatefulReaderBehavior {}
@@ -33,15 +32,15 @@ impl StatefulReaderBehavior {
             for submessage in received_message.submessages().iter() {                
                 if let RtpsSubmessage::Data(data) = submessage {
                     let expected_seq_number = writer_proxy.available_changes_max() + 1;
-                    if data.writer_sn() >= &expected_seq_number {
+                    if data.writer_sn() >= expected_seq_number {
                         let cache_change = cache_change_from_data(data, guid_prefix);
                         history_cache.add_change(cache_change);
-                        writer_proxy.received_change_set(*data.writer_sn());
-                        writer_proxy.lost_changes_update(*data.writer_sn());
+                        writer_proxy.received_change_set(data.writer_sn());
+                        writer_proxy.lost_changes_update(data.writer_sn());
                     }
                 } else if let RtpsSubmessage::Gap(gap) = submessage {
-                    for seq_num in gap.gap_start().0 .. gap.gap_list().base().0 - 1 {
-                        writer_proxy.irrelevant_change_set(SequenceNumber(seq_num));
+                    for seq_num in gap.gap_start() .. gap.gap_list().base() - 1 {
+                        writer_proxy.irrelevant_change_set(seq_num);
                     }
 
                     for &seq_num in gap.gap_list().set() {
@@ -58,15 +57,15 @@ impl StatefulReaderBehavior {
             for submessage in received_message.submessages().iter() {                
                 if let RtpsSubmessage::Data(data) = submessage {
                     let expected_seq_number = writer_proxy.available_changes_max() + 1;
-                    if data.writer_sn() >= &expected_seq_number {
+                    if data.writer_sn() >= expected_seq_number {
                         let cache_change = cache_change_from_data(data, guid_prefix);
                         history_cache.add_change(cache_change);
-                        writer_proxy.received_change_set(*data.writer_sn());
+                        writer_proxy.received_change_set(data.writer_sn());
                     }
                 } else if let RtpsSubmessage::Gap(gap) = submessage {
-                    for seq_num in gap.gap_start().0 .. gap.gap_list().base().0 - 1 {
-                        writer_proxy.irrelevant_change_set(SequenceNumber(seq_num));
-                    }
+                    // for seq_num in gap.gap_start() .. gap.gap_list().base() - 1 {
+                    //     writer_proxy.irrelevant_change_set(seq_num);
+                    // }
 
                     for &seq_num in gap.gap_list().set() {
                         writer_proxy.irrelevant_change_set(seq_num);
@@ -82,8 +81,8 @@ impl StatefulReaderBehavior {
             let _guid_prefix = received_message.header().guid_prefix();
             for submessage in received_message.submessages().iter() {                
                 if let RtpsSubmessage::Heartbeat(heartbeat) = submessage {
-                    writer_proxy.missing_changes_update(*heartbeat.last_sn());
-                    writer_proxy.lost_changes_update(*heartbeat.first_sn());
+                    writer_proxy.missing_changes_update(heartbeat.last_sn());
+                    writer_proxy.lost_changes_update(heartbeat.first_sn());
                     if !heartbeat.is_final() || 
                         (heartbeat.is_final() && !writer_proxy.missing_changes().is_empty()) {
                         writer_proxy.set_must_send_ack(true);
@@ -97,15 +96,13 @@ impl StatefulReaderBehavior {
     fn run_must_send_ack_state(writer_proxy: &mut WriterProxy, reader_guid: &GUID, heartbeat_response_delay: Duration) -> Option<Vec<RtpsSubmessage>> {
         if writer_proxy.duration_since_heartbeat_received() >  heartbeat_response_delay {
             writer_proxy.set_must_send_ack(false);
-            let reader_sn_state = SequenceNumberSet::new(
-                writer_proxy.available_changes_max(),
-                writer_proxy.missing_changes().clone()
-            );
+ 
             writer_proxy.increment_acknack_count();
             let acknack = AckNack::new(
                 *reader_guid.entity_id(), 
                 *writer_proxy.remote_writer_guid().entity_id(),
-                reader_sn_state,
+                writer_proxy.available_changes_max(),
+                writer_proxy.missing_changes().clone(),
                 *writer_proxy.ackanck_count(),
                 true,
                 Endianness::LittleEndian);
@@ -120,21 +117,18 @@ impl StatefulReaderBehavior {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{SequenceNumber, ChangeKind, GuidPrefix};
-    use crate::messages::types::Count;
+    use crate::types::{ChangeKind, };
     use crate::types::constants::{
         ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, };
     use crate::cache::CacheChange;
-    use crate::messages::{Data, Payload, Heartbeat};
-    use crate::messages::submessage_elements::ParameterList;
-    use crate::serdes::Endianness;
-    use crate::serialized_payload::SerializedPayload;
+    use crate::messages::{Data, Payload, Heartbeat, ParameterList};
+    use crate::messages::Endianness;
     use crate::inline_qos_types::{KeyHash, StatusInfo, };
 
     #[test]
     fn run_waiting_state_data_only() {
         let mut history_cache = HistoryCache::new();
-        let remote_writer_guid = GUID::new(GuidPrefix([1;12]), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
+        let remote_writer_guid = GUID::new([1;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
         let mut writer_proxy = WriterProxy::new(remote_writer_guid, vec![], vec![]);
 
         let mut submessages = Vec::new();
@@ -146,9 +140,9 @@ mod tests {
             Endianness::LittleEndian, 
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, 
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER, 
-            SequenceNumber(3),
+            3,
             Some(inline_qos),
-            Payload::Data(SerializedPayload(vec![1,2,3])));
+            Payload::Data(vec![1,2,3]));
         submessages.push(RtpsSubmessage::Data(data1));
 
         let received_message = RtpsMessage::new(*remote_writer_guid.prefix(), submessages);
@@ -159,25 +153,25 @@ mod tests {
             ChangeKind::Alive,
             remote_writer_guid,
             [1;16],
-            SequenceNumber(3),
+            3,
             Some(vec![1,2,3]),
             None,
         );
 
         assert_eq!(history_cache.get_changes().len(), 1);
         assert!(history_cache.get_changes().contains(&expected_change_1));
-        assert_eq!(writer_proxy.available_changes_max(), SequenceNumber(3));
+        assert_eq!(writer_proxy.available_changes_max(), 3);
 
         // Run waiting state without any received message and verify nothing changes
         StatefulReaderBehavior::run_waiting_state(&mut writer_proxy, &mut history_cache, None);
         assert_eq!(history_cache.get_changes().len(), 1);
-        assert_eq!(writer_proxy.available_changes_max(), SequenceNumber(3));
+        assert_eq!(writer_proxy.available_changes_max(), 3);
     }
 
     #[test]
     fn run_ready_state_data_only() {
         let mut history_cache = HistoryCache::new();
-        let remote_writer_guid = GUID::new(GuidPrefix([1;12]), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
+        let remote_writer_guid = GUID::new([1;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
         let mut writer_proxy = WriterProxy::new(remote_writer_guid, vec![], vec![]);
 
         let mut submessages = Vec::new();
@@ -189,9 +183,9 @@ mod tests {
             Endianness::LittleEndian, 
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, 
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER, 
-            SequenceNumber(3),
+            3,
             Some(inline_qos),
-            Payload::Data(SerializedPayload(vec![1,2,3])));
+            Payload::Data(vec![1,2,3]));
         submessages.push(RtpsSubmessage::Data(data1));
 
         let received_message = RtpsMessage::new(*remote_writer_guid.prefix(), submessages);
@@ -202,33 +196,33 @@ mod tests {
             ChangeKind::Alive,
             remote_writer_guid,
             [1;16],
-            SequenceNumber(3),
+            3,
             Some(vec![1,2,3]),
             None,
         );
 
         assert_eq!(history_cache.get_changes().len(), 1);
         assert!(history_cache.get_changes().contains(&expected_change_1));
-        assert_eq!(writer_proxy.available_changes_max(), SequenceNumber(0));
+        assert_eq!(writer_proxy.available_changes_max(), 0);
 
         // Run waiting state without any received message and verify nothing changes
         StatefulReaderBehavior::run_waiting_state(&mut writer_proxy, &mut history_cache, None);
         assert_eq!(history_cache.get_changes().len(), 1);
-        assert_eq!(writer_proxy.available_changes_max(), SequenceNumber(0));
+        assert_eq!(writer_proxy.available_changes_max(), 0);
     }
 
     #[test]
     fn run_waiting_heartbeat_state_non_final_heartbeat() {
-        let remote_writer_guid = GUID::new(GuidPrefix([1;12]), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
+        let remote_writer_guid = GUID::new([1;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
         let mut writer_proxy = WriterProxy::new(remote_writer_guid, vec![], vec![]);
 
         let mut submessages = Vec::new();
         let heartbeat = Heartbeat::new(
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
             *remote_writer_guid.entity_id(),
-            SequenceNumber(3),
-            SequenceNumber(6),
-            Count(1),
+            3,
+            6,
+            1,
             false,
             false,
             Endianness::LittleEndian,
@@ -237,22 +231,22 @@ mod tests {
         let received_message = RtpsMessage::new(*remote_writer_guid.prefix(), submessages);       
 
         StatefulReaderBehavior::run_waiting_heartbeat_state(&mut writer_proxy, Some(&received_message));
-        assert_eq!(writer_proxy.missing_changes(), &[SequenceNumber(3), SequenceNumber(4), SequenceNumber(5), SequenceNumber(6)].iter().cloned().collect());
+        assert_eq!(writer_proxy.missing_changes(), &[3, 4, 5, 6].iter().cloned().collect());
         assert_eq!(writer_proxy.must_send_ack(), true);
     }
     
     #[test]
     fn run_waiting_heartbeat_state_final_heartbeat_with_missing_changes() {
-        let remote_writer_guid = GUID::new(GuidPrefix([1;12]), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
+        let remote_writer_guid = GUID::new([1;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
         let mut writer_proxy = WriterProxy::new(remote_writer_guid, vec![], vec![]);
 
         let mut submessages = Vec::new();
         let heartbeat = Heartbeat::new(
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
             *remote_writer_guid.entity_id(),
-            SequenceNumber(2),
-            SequenceNumber(3),
-            Count(1),
+            2,
+            3,
+            1,
             true,
             false,
             Endianness::LittleEndian,
@@ -261,22 +255,22 @@ mod tests {
         let received_message = RtpsMessage::new(*remote_writer_guid.prefix(), submessages);       
 
         StatefulReaderBehavior::run_waiting_heartbeat_state(&mut writer_proxy, Some(&received_message));
-        assert_eq!(writer_proxy.missing_changes(), &[SequenceNumber(2), SequenceNumber(3)].iter().cloned().collect());
+        assert_eq!(writer_proxy.missing_changes(), &[2, 3].iter().cloned().collect());
         assert_eq!(writer_proxy.must_send_ack(), true);
     }
 
     #[test]
     fn run_waiting_heartbeat_state_final_heartbeat_without_missing_changes() {
-        let remote_writer_guid = GUID::new(GuidPrefix([1;12]), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
+        let remote_writer_guid = GUID::new([1;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
         let mut writer_proxy = WriterProxy::new(remote_writer_guid, vec![], vec![]);
 
         let mut submessages = Vec::new();
         let heartbeat = Heartbeat::new(
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
             *remote_writer_guid.entity_id(),
-            SequenceNumber(1),
-            SequenceNumber(0),
-            Count(1),
+            1,
+            0,
+            1,
             true,
             false,
             Endianness::LittleEndian,
@@ -292,17 +286,17 @@ mod tests {
     #[test]
     fn run_waiting_heartbeat_state_and_must_send_ack_state() {
 
-        let reader_guid = GUID::new(GuidPrefix([2;12]), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-        let remote_writer_guid = GUID::new(GuidPrefix([1;12]), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
+        let reader_guid = GUID::new([2;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
+        let remote_writer_guid = GUID::new([1;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
         let mut writer_proxy = WriterProxy::new(remote_writer_guid, vec![], vec![]);
 
         let mut submessages = Vec::new();
         let heartbeat = Heartbeat::new(
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
             *remote_writer_guid.entity_id(),
-            SequenceNumber(3),
-            SequenceNumber(6),
-            Count(1),
+            3,
+            6,
+            1,
             false,
             false,
             Endianness::LittleEndian,
@@ -311,7 +305,7 @@ mod tests {
         let received_message = RtpsMessage::new(*remote_writer_guid.prefix(), submessages);       
 
         StatefulReaderBehavior::run_waiting_heartbeat_state(&mut writer_proxy, Some(&received_message));
-        assert_eq!(writer_proxy.missing_changes(), &[SequenceNumber(3), SequenceNumber(4), SequenceNumber(5), SequenceNumber(6)].iter().cloned().collect());
+        assert_eq!(writer_proxy.missing_changes(), &[3, 4, 5, 6].iter().cloned().collect());
         assert_eq!(writer_proxy.must_send_ack(), true);
 
         let heartbeat_response_delay = Duration::from_millis(300);
@@ -323,10 +317,10 @@ mod tests {
         let message = StatefulReaderBehavior::run_must_send_ack_state(&mut writer_proxy, &reader_guid, heartbeat_response_delay).unwrap();
         assert_eq!(message.len(), 1);
         if let RtpsSubmessage::AckNack(acknack) = &message[0] {
-            assert_eq!(acknack.writer_id(), remote_writer_guid.entity_id());
-            assert_eq!(acknack.reader_id(), reader_guid.entity_id());
-            assert_eq!(acknack.count(), &Count(1));
-            assert_eq!(acknack.reader_sn_state().base(), &SequenceNumber(2));
+            assert_eq!(acknack.writer_id().0, *remote_writer_guid.entity_id());
+            assert_eq!(acknack.reader_id().0, *reader_guid.entity_id());
+            assert_eq!(acknack.count().0, 1);
+            assert_eq!(acknack.reader_sn_state().base(), &2);
             assert_eq!(acknack.reader_sn_state().set(), writer_proxy.missing_changes());
         } else {
             panic!("Wrong message type");

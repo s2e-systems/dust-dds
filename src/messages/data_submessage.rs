@@ -1,14 +1,11 @@
 use std::convert::From;
 
-use crate::primitive_types::UShort;
-use crate::types::{SequenceNumber ,EntityId, };
+use super::serdes::{SubmessageElement, Endianness, RtpsSerdesResult, };
+use super::{SubmessageKind, SubmessageFlag, UdpPsmMapping, };
+use super::submessage::{Submessage, SubmessageHeader, };
+use super::submessage_elements;
+use crate::types;
 use crate::types::constants::SEQUENCE_NUMBER_UNKNOWN;
-use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, Endianness, RtpsSerdesResult, };
-use crate::serialized_payload::SerializedPayload;
-
-use super::types::{SubmessageKind, SubmessageFlag,  };
-use super::{SubmessageHeader, Submessage, };
-use super::submessage_elements::{ParameterList};
 
 #[derive(PartialEq, Debug)]
 pub struct Data {
@@ -17,19 +14,19 @@ pub struct Data {
     data_flag: SubmessageFlag, 
     key_flag: SubmessageFlag,
     non_standard_payload_flag: SubmessageFlag,
-    reader_id: EntityId,
-    writer_id: EntityId,
-    writer_sn: SequenceNumber,
-    inline_qos: Option<ParameterList>,
-    serialized_payload: Option<SerializedPayload>,
+    reader_id: submessage_elements::EntityId,
+    writer_id: submessage_elements::EntityId,
+    writer_sn: submessage_elements::SequenceNumber,
+    inline_qos: Option<submessage_elements::ParameterList>,
+    serialized_payload: Option<submessage_elements::SerializedData>,
 }
 
 #[derive(PartialEq, Debug)]
 pub enum Payload {
     None,
-    Data(SerializedPayload),
-    Key(SerializedPayload),
-    NonStandard(SerializedPayload),
+    Data(Vec<u8>),
+    Key(Vec<u8>),
+    NonStandard(Vec<u8>),
 }
 
 
@@ -38,19 +35,19 @@ impl Data {
     /// data_flag, key_flag and non_standard_payload_flag are inferred from the kind of payload
     pub fn new(
         endianness_flag: Endianness,
-        reader_id: EntityId,
-        writer_id: EntityId,
-        writer_sn: SequenceNumber,
-        inline_qos: Option<ParameterList>,
+        reader_id: types::EntityId,
+        writer_id: types::EntityId,
+        writer_sn: types::SequenceNumber,
+        inline_qos: Option<submessage_elements::ParameterList>,
         payload: Payload,) -> Self {
             let inline_qos_flag = inline_qos.is_some();
             let mut data_flag = false;
             let mut key_flag = false;
             let mut non_standard_payload_flag = false;
             let serialized_payload = match  payload {
-                Payload::Data(serialized_payload) => {data_flag = true; Some(serialized_payload)},
-                Payload::Key(serialized_payload) => {key_flag = true; Some(serialized_payload)},
-                Payload::NonStandard(serialized_payload) => {non_standard_payload_flag = true; Some(serialized_payload)},
+                Payload::Data(serialized_payload) => {data_flag = true; Some(submessage_elements::SerializedData(serialized_payload))},
+                Payload::Key(serialized_payload) => {key_flag = true; Some(submessage_elements::SerializedData(serialized_payload))},
+                Payload::NonStandard(serialized_payload) => {non_standard_payload_flag = true; Some(submessage_elements::SerializedData(serialized_payload))},
                 Payload::None => {None}
             };
         
@@ -60,32 +57,34 @@ impl Data {
             data_flag,
             key_flag,
             non_standard_payload_flag,
-            reader_id,
-            writer_id,
-            writer_sn,
+            reader_id: submessage_elements::EntityId(reader_id),
+            writer_id: submessage_elements::EntityId(writer_id),
+            writer_sn: submessage_elements::SequenceNumber(writer_sn),
             inline_qos, 
             serialized_payload, 
         }
     }
 
-    pub fn reader_id(&self) -> &EntityId {
-        &self.reader_id
+    pub fn reader_id(&self) -> types::EntityId {
+        self.reader_id.0
     }
 
-    pub fn writer_id(&self) -> &EntityId {
-        &self.writer_id
+    pub fn writer_id(&self) -> types::EntityId {
+        self.writer_id.0
     }
 
-    pub fn writer_sn(&self) -> &SequenceNumber {
-        &self.writer_sn
+    pub fn writer_sn(&self) -> types::SequenceNumber {
+        self.writer_sn.0
     }
 
-    pub fn serialized_payload(&self) -> &Option<SerializedPayload> {
-        //TODO: It is a problem for the outer world to know what this payload represents
-        &self.serialized_payload
+    pub fn serialized_payload(&self) -> Option<&Vec<u8>> {
+        match &self.serialized_payload {
+            Some(data) => Some(&data.0),
+            None => None,
+        }
     }
     
-    pub fn inline_qos(&self) -> &Option<ParameterList> {
+    pub fn inline_qos(&self) -> &Option<submessage_elements::ParameterList> {
         &self.inline_qos
     }
 
@@ -124,16 +123,15 @@ impl Submessage for Data {
         if let Some(serialized_payload) = &self.serialized_payload {
             octets_to_next_header += serialized_payload.octets();
         }
-
-        SubmessageHeader { 
-            submessage_id: SubmessageKind::Data,
+        SubmessageHeader::new( 
+            SubmessageKind::Data,
             flags,
-            submessage_length: octets_to_next_header as UShort, 
-        }
+            octets_to_next_header)
+
     }
 
     fn is_valid(&self) -> bool {
-        if self.writer_sn < SequenceNumber(1) || self.writer_sn == SEQUENCE_NUMBER_UNKNOWN {
+        if self.writer_sn.0 < 1 || self.writer_sn.0 == SEQUENCE_NUMBER_UNKNOWN {
             //TODO: Check validity of inline_qos
             false
         } else {
@@ -142,12 +140,12 @@ impl Submessage for Data {
     }
 }
 
-impl RtpsCompose for Data {
+impl UdpPsmMapping for Data {
     fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
         let endianness = Endianness::from(self.endianness_flag);
-        let extra_flags: UShort = 0;
+        let extra_flags = submessage_elements::UShort(0);
         let octecs_to_inline_qos_size = self.reader_id.octets() + self.writer_id.octets() + self.writer_sn.octets();
-        let octecs_to_inline_qos = octecs_to_inline_qos_size as UShort;
+        let octecs_to_inline_qos = submessage_elements::UShort(octecs_to_inline_qos_size as u16);
         self.submessage_header().compose(writer)?;
         extra_flags.serialize(writer, endianness)?;
         octecs_to_inline_qos.serialize(writer, endianness)?;
@@ -163,10 +161,8 @@ impl RtpsCompose for Data {
         }
 
         Ok(())
-    }    
-}
+    }
 
-impl RtpsParse for Data {
     fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> { 
         let header = SubmessageHeader::parse(bytes)?;
         let flags = header.flags();
@@ -180,12 +176,12 @@ impl RtpsParse for Data {
         let endianness = Endianness::from(endianness_flag);
 
         const HEADER_SIZE : usize = 8;
-        let octets_to_inline_qos = usize::from(UShort::deserialize(&bytes[6..8], endianness)?) + HEADER_SIZE /* header and extra flags*/;
-        let reader_id = EntityId::deserialize(&bytes[8..12], endianness)?;        
-        let writer_id = EntityId::deserialize(&bytes[12..16], endianness)?;
-        let writer_sn = SequenceNumber::deserialize(&bytes[16..24], endianness)?;
+        let octets_to_inline_qos = usize::from(submessage_elements::UShort::deserialize(&bytes[6..8], endianness)?.0) + HEADER_SIZE /* header and extra flags*/;
+        let reader_id = submessage_elements::EntityId::deserialize(&bytes[8..12], endianness)?;        
+        let writer_id = submessage_elements::EntityId::deserialize(&bytes[12..16], endianness)?;
+        let writer_sn = submessage_elements::SequenceNumber::deserialize(&bytes[16..24], endianness)?;
         let inline_qos = if inline_qos_flag {
-            Some(ParameterList::deserialize(&bytes[octets_to_inline_qos..], endianness)?)
+            Some(submessage_elements::ParameterList::deserialize(&bytes[octets_to_inline_qos..], endianness)?)
         } else { 
             None
         };
@@ -197,7 +193,7 @@ impl RtpsParse for Data {
         let end_of_submessage = usize::from(header.submessage_length()) + header.octets();
         let serialized_payload = if data_flag || key_flag || non_standard_payload_flag {
             let octets_to_serialized_payload = octets_to_inline_qos + inline_qos_octets;
-            SerializedPayload::deserialize(&bytes[octets_to_serialized_payload..end_of_submessage], endianness).ok()
+            submessage_elements::SerializedData::deserialize(&bytes[octets_to_serialized_payload..end_of_submessage], endianness).ok()
         } else {
             None
         };
@@ -218,7 +214,6 @@ impl RtpsParse for Data {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -237,9 +232,9 @@ mod tests {
             Endianness::LittleEndian, 
             ENTITYID_UNKNOWN, 
             ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, 
-            SequenceNumber(1), 
-            Some(ParameterList::new()),
-            Payload::Data(SerializedPayload(vec![]))
+            1, 
+            Some(submessage_elements::ParameterList::new()),
+            Payload::Data(vec![])
         );
         assert_eq!(data.endianness_flag, true);
         assert_eq!(data.inline_qos_flag, true);
@@ -255,9 +250,9 @@ mod tests {
             data_flag: false,
             key_flag: false,
             non_standard_payload_flag: false,
-            reader_id: ENTITYID_UNKNOWN,
-            writer_id: ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
-            writer_sn: SequenceNumber(1),
+            reader_id: submessage_elements::EntityId(ENTITYID_UNKNOWN),
+            writer_id: submessage_elements::EntityId(ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER),
+            writer_sn: submessage_elements::SequenceNumber(1),
             inline_qos: None, 
             serialized_payload: None, 
         };
@@ -278,7 +273,7 @@ mod tests {
     fn test_compose_data_submessage_with_inline_qos_without_data() {
         let endianness = Endianness::LittleEndian;
         let key_hash = KeyHash([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]);
-        let mut inline_qos = ParameterList::new();
+        let mut inline_qos = submessage_elements::ParameterList::new();
         inline_qos.push(key_hash);
         
         let data = Data {
@@ -287,9 +282,9 @@ mod tests {
             data_flag: false,
             key_flag: false,
             non_standard_payload_flag: false,
-            reader_id: ENTITYID_UNKNOWN,
-            writer_id: ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
-            writer_sn: SequenceNumber(1),
+            reader_id: submessage_elements::EntityId(ENTITYID_UNKNOWN),
+            writer_id: submessage_elements::EntityId(ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER),
+            writer_sn: submessage_elements::SequenceNumber(1),
             inline_qos: Some(inline_qos), 
             serialized_payload: None, 
         };
@@ -316,10 +311,10 @@ mod tests {
     fn test_compose_data_submessage_with_inline_qos_with_data() {
         let endianness = Endianness::LittleEndian;
         let key_hash = KeyHash([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]);
-        let mut inline_qos = ParameterList::new();
+        let mut inline_qos = submessage_elements::ParameterList::new();
         inline_qos.push(key_hash);
         
-        let serialized_payload = SerializedPayload(vec![1_u8, 2, 3]);
+        let serialized_payload = submessage_elements::SerializedData(vec![1_u8, 2, 3]);
 
         let data = Data {
             endianness_flag: endianness.into(),
@@ -327,9 +322,9 @@ mod tests {
             data_flag: true,
             key_flag: false,
             non_standard_payload_flag: false,
-            reader_id: ENTITYID_UNKNOWN,
-            writer_id: ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
-            writer_sn: SequenceNumber(1),
+            reader_id: submessage_elements::EntityId(ENTITYID_UNKNOWN),
+            writer_id: submessage_elements::EntityId(ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER),
+            writer_sn: submessage_elements::SequenceNumber(1),
             inline_qos: Some(inline_qos), 
             serialized_payload: Some(serialized_payload), 
         };
@@ -362,9 +357,9 @@ mod tests {
             data_flag: false,
             key_flag: false,
             non_standard_payload_flag: false,
-            reader_id: ENTITYID_UNKNOWN,
-            writer_id: ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
-            writer_sn: SequenceNumber(1),
+            reader_id: submessage_elements::EntityId(ENTITYID_UNKNOWN),
+            writer_id: submessage_elements::EntityId(ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER),
+            writer_sn: submessage_elements::SequenceNumber(1),
             inline_qos: None, 
             serialized_payload: None, 
         };
@@ -382,7 +377,7 @@ mod tests {
 
     #[test]
     fn test_parse_data_submessage_without_inline_qos_with_non_standard_payload() {       
-        let serialized_payload = SerializedPayload(vec![1_u8, 2, 3, 4]);
+        let serialized_payload = submessage_elements::SerializedData(vec![1_u8, 2, 3, 4]);
 
         let expected = Data {
             endianness_flag: true,
@@ -390,9 +385,9 @@ mod tests {
             data_flag: false,
             key_flag: false,
             non_standard_payload_flag: true,
-            reader_id: ENTITYID_UNKNOWN,
-            writer_id: ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
-            writer_sn: SequenceNumber(1),
+            reader_id: submessage_elements::EntityId(ENTITYID_UNKNOWN),
+            writer_id: submessage_elements::EntityId(ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER),
+            writer_sn: submessage_elements::SequenceNumber(1),
             inline_qos: None, 
             serialized_payload: Some(serialized_payload), 
         };
@@ -413,11 +408,11 @@ mod tests {
     fn test_parse_data_submessage_with_inline_qos_with_data() {
         let endianness = Endianness::LittleEndian;
         let key_hash = KeyHash([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]);
-        let mut inline_qos = ParameterList::new();
+        let mut inline_qos = submessage_elements::ParameterList::new();
         inline_qos.push(key_hash);
 
         
-        let serialized_payload = SerializedPayload(vec![1_u8, 2, 3]);
+        let serialized_payload = submessage_elements::SerializedData(vec![1_u8, 2, 3]);
 
         let expected = Data {
             endianness_flag: endianness.into(),
@@ -425,9 +420,9 @@ mod tests {
             data_flag: false,
             key_flag: true,
             non_standard_payload_flag: false,
-            reader_id: ENTITYID_UNKNOWN,
-            writer_id: ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
-            writer_sn: SequenceNumber(1),
+            reader_id: submessage_elements::EntityId(ENTITYID_UNKNOWN),
+            writer_id: submessage_elements::EntityId(ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER),
+            writer_sn: submessage_elements::SequenceNumber(1),
             inline_qos: Some(inline_qos), 
             serialized_payload: Some(serialized_payload), 
         };

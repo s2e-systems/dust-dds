@@ -1,5 +1,5 @@
-use rust_rtps::{StatelessWriter, StatelessReader, RtpsMessage, RtpsCompose, RtpsParse,};
-use rust_rtps::types::{ChangeKind, TopicKind, ReliabilityKind, Locator, GUID, GuidPrefix, };
+use rust_rtps::{StatelessWriter, StatelessReader, RtpsMessage, UdpPsmMapping};
+use rust_rtps::types::{ChangeKind, TopicKind, ReliabilityKind, Locator, GUID, };
 use rust_rtps::types::constants::{ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER, ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER, };
 use rust_rtps::behavior::types::constants::DURATION_ZERO;
 use rust_rtps::{ParameterId, ParameterList, Pid};
@@ -27,7 +27,7 @@ impl Pid for OtherQos{
 #[test]
 fn test_stateless_writer_stateless_reader_direct_communication_integration() {
     let mut writer = StatelessWriter::new(
-        GUID::new(GuidPrefix([0;12]), ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
+        GUID::new([0;12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
         TopicKind::WithKey,
         ReliabilityKind::BestEffort,
         vec![Locator::new(0, 7400, [0;16])], /*unicast_locator_list*/
@@ -39,7 +39,7 @@ fn test_stateless_writer_stateless_reader_direct_communication_integration() {
        );
 
     let mut reader = StatelessReader::new(
-        GUID::new(GuidPrefix([0;12]), ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER),
+        GUID::new([0;12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER),
         TopicKind::WithKey,
         ReliabilityKind::BestEffort,
         vec![Locator::new(0, 7400, [0;16])],
@@ -103,7 +103,7 @@ fn test_stateless_writer_stateless_reader_direct_communication_integration() {
 #[test]
 fn test_stateless_writer_stateless_reader_serialized_communication_integration() {
     let mut writer = StatelessWriter::new(
-        GUID::new(GuidPrefix([0;12]), ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
+        GUID::new([0;12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
         TopicKind::WithKey,
         ReliabilityKind::BestEffort,
         vec![Locator::new(0, 7400, [0;16])], /*unicast_locator_list*/
@@ -115,7 +115,7 @@ fn test_stateless_writer_stateless_reader_serialized_communication_integration()
        );
 
     let mut reader = StatelessReader::new(
-        GUID::new(GuidPrefix([0;12]), ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER),
+        GUID::new([0;12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER),
         TopicKind::WithKey,
         ReliabilityKind::BestEffort,
         vec![Locator::new(0, 7400, [0;16])],

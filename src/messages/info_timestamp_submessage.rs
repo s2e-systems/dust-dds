@@ -1,30 +1,34 @@
-use crate::primitive_types::UShort;
-use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsCompose, RtpsParse, Endianness, RtpsSerdesResult, };
-
-use super::types::Time;
-use super::{SubmessageKind, SubmessageFlag, Submessage, SubmessageHeader, };
+use super::serdes::{SubmessageElement, Endianness, RtpsSerdesResult, };
+use super::{SubmessageKind, SubmessageFlag, UdpPsmMapping, };
+use super::submessage::{Submessage, SubmessageHeader, };
+use super::submessage_elements;
+use crate::messages;
 
 #[derive(PartialEq, Debug)]
 pub struct InfoTs {
     endianness_flag: SubmessageFlag,
     invalidate_flag: SubmessageFlag,
-    timestamp: Option<Time>,
+    timestamp: Option<submessage_elements::Timestamp>,
 }
 
 impl InfoTs {
     const INVALID_TIME_FLAG_MASK: u8 = 0x02;
 
-    pub fn new(timestamp: Option<Time>, endianness: Endianness) -> InfoTs {
+    pub fn new(timestamp: Option<messages::types::Time>, endianness: Endianness) -> InfoTs {
         let endianness_flag = endianness.into();
         let invalidate_flag = !timestamp.is_some();
+        let timestamp = match timestamp {
+            Some(time) => Some(submessage_elements::Timestamp(time)),
+            None => None,
+        };
         InfoTs {
             endianness_flag,
             invalidate_flag,
-            timestamp
+            timestamp,
         }
     }
 
-    pub fn get_timestamp(&self) -> &Option<Time> {
+    pub fn get_timestamp(&self) -> &Option<submessage_elements::Timestamp> {
         &self.timestamp
     }
 }
@@ -43,11 +47,10 @@ impl Submessage for InfoTs {
             self.timestamp.octets()
         };
             
-        SubmessageHeader { 
-            submessage_id: SubmessageKind::InfoTimestamp,
+        SubmessageHeader::new( 
+            SubmessageKind::InfoTimestamp,
             flags,
-            submessage_length: octets_to_next_header as UShort, 
-        }
+            octets_to_next_header)
     }
     
     fn is_valid(&self) -> bool {
@@ -55,20 +58,18 @@ impl Submessage for InfoTs {
     }
 }
 
-
-impl RtpsCompose for InfoTs
-{
+impl UdpPsmMapping for InfoTs {
     fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
         let endianness = Endianness::from(self.endianness_flag);
         self.submessage_header().compose(writer)?;
-        self.timestamp.serialize(writer, endianness)?;
+        match &self.timestamp {
+            Some(timestamp) => timestamp.serialize(writer, endianness)?,
+            None => (),
+        };
 
         Ok(())
     }
-    
-}
 
-impl RtpsParse for InfoTs {
     fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> {
         let header = SubmessageHeader::parse(bytes)?;
         let flags = header.flags();
@@ -77,22 +78,11 @@ impl RtpsParse for InfoTs {
         /*I*/ let invalidate_flag = flags[1];
 
         let endianness = endianness_flag.into();
-
-//         const SERIALIZED_INFOTS_MINIMUM_SIZE: usize = 4;
-//         const SERIALIZED_INFOTS_WITH_TIMESTAMP_MINIMUM_SIZE: usize = 12;
-//         const SUBMESSAGE_ID_INDEX: usize = 0;
-//         const FLAGS_INDEX: usize = 1;
-//         SizeCheckers::check_size_bigger_equal_than(bytes, SERIALIZED_INFOTS_MINIMUM_SIZE)?;
-
-
         if invalidate_flag {
-            Ok(InfoTs::new(None, endianness))
-        } else {
-            // SizeCheckers::check_size_bigger_equal_than(bytes, SERIALIZED_INFOTS_WITH_TIMESTAMP_MINIMUM_SIZE)?;
-            
-            let time = Time::deserialize(&bytes[4..12], endianness)?;
-
-            Ok(InfoTs::new(Some(time), endianness))
+            Ok(InfoTs{ invalidate_flag, endianness_flag, timestamp: None})
+        } else {            
+            let timestamp = Some(submessage_elements::Timestamp::deserialize(&bytes[4..12], endianness)?);
+            Ok(InfoTs{invalidate_flag, endianness_flag, timestamp})
         }
     }
 }
@@ -110,7 +100,7 @@ mod tests {
         let info_timestamp_message_big_endian = 
             [0x09, 0x00, 0x00, 0x08, 0x5D, 0x50, 0x05, 0xB1, 0x10, 0x11, 0x22, 0x43];
 
-        let test_time = Time::new(1565525425, 269558339);
+        let test_time = super::super::types::Time::new(1565525425, 269558339);
 
         let infots_big_endian = InfoTs::new(Some(test_time), Endianness::BigEndian);
         // infots.compose(&mut writer_le, Endianness::LittleEndian).unwrap();

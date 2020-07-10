@@ -1,16 +1,14 @@
-use crate::primitive_types::UShort;
-use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, Endianness, RtpsSerdesResult, };
-
-use super::types::{SubmessageKind, SubmessageFlag, };
-use super::{SubmessageHeader, Submessage, };
-use super::submessage_elements::LocatorList;
+use super::serdes::{SubmessageElement, Endianness, RtpsSerdesResult, };
+use super::{SubmessageKind, SubmessageFlag, UdpPsmMapping, };
+use super::submessage::{Submessage, SubmessageHeader, };
+use super::submessage_elements;
 
 #[derive(PartialEq, Debug)]
 pub struct InfoReply {
     endianness_flag: SubmessageFlag,
     multicast_flag: SubmessageFlag,
-    unicast_locator_list: LocatorList,
-    multicast_locator_list: LocatorList,
+    unicast_locator_list: submessage_elements::LocatorList,
+    multicast_locator_list: submessage_elements::LocatorList,
 }
 
 impl Submessage for InfoReply {
@@ -23,19 +21,20 @@ impl Submessage for InfoReply {
         if self.multicast_flag {
             submessage_length += self.multicast_locator_list.octets();
         }
-        SubmessageHeader { 
-            submessage_id: SubmessageKind::InfoReply,
+        SubmessageHeader::new( 
+            SubmessageKind::InfoReply,
             flags,
-            submessage_length: submessage_length as UShort,
-        }
+            submessage_length)
     }
 
     fn is_valid(&self) -> bool {
         true
     }
+
+    
 }
 
-impl RtpsCompose for InfoReply {
+impl UdpPsmMapping for InfoReply {
     fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
         let endianness = Endianness::from(self.endianness_flag);       
         self.submessage_header().compose(writer)?;
@@ -45,23 +44,20 @@ impl RtpsCompose for InfoReply {
         }
         Ok(())
     }
-}
 
-impl RtpsParse for InfoReply {
     fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> {
         let header = SubmessageHeader::parse(bytes)?;
         let endianness_flag = header.flags()[0];
         let multicast_flag = header.flags()[1];
-        let unicast_locator_list = LocatorList::deserialize(&bytes[header.octets()..], endianness_flag.into())?;
+        let unicast_locator_list = submessage_elements::LocatorList::deserialize(&bytes[header.octets()..], endianness_flag.into())?;
         let multicast_locator_list = if multicast_flag {
-            LocatorList::deserialize(&bytes[header.octets() + unicast_locator_list.octets()..], endianness_flag.into())?
+            submessage_elements::LocatorList::deserialize(&bytes[header.octets() + unicast_locator_list.octets()..], endianness_flag.into())?
         } else {
-            LocatorList(Vec::new())
+            submessage_elements::LocatorList(Vec::new())
         };
         Ok(Self {endianness_flag, multicast_flag, unicast_locator_list, multicast_locator_list})
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -84,8 +80,8 @@ mod tests {
         let expected = InfoReply {
             endianness_flag: Endianness::LittleEndian.into(),
             multicast_flag: false,
-            unicast_locator_list: LocatorList(vec![Locator::new(100, 200, address)]),
-            multicast_locator_list: LocatorList(vec![])
+            unicast_locator_list: submessage_elements::LocatorList(vec![Locator::new(100, 200, address)]),
+            multicast_locator_list: submessage_elements::LocatorList(vec![])
         };
         let result = InfoReply::parse(&bytes).unwrap();
         assert_eq!(expected, result);
@@ -114,8 +110,8 @@ mod tests {
         let expected = InfoReply {
             endianness_flag: Endianness::LittleEndian.into(),
             multicast_flag: true,
-            unicast_locator_list: LocatorList(vec![Locator::new(100, 200, address)]),
-            multicast_locator_list: LocatorList(vec![Locator::new(101, 201, address)])
+            unicast_locator_list: submessage_elements::LocatorList(vec![Locator::new(100, 200, address)]),
+            multicast_locator_list: submessage_elements::LocatorList(vec![Locator::new(101, 201, address)])
         };
         let result = InfoReply::parse(&bytes).unwrap();
         assert_eq!(expected, result);
@@ -144,8 +140,8 @@ mod tests {
         let message = InfoReply {
             endianness_flag: Endianness::LittleEndian.into(),
             multicast_flag: true,
-            unicast_locator_list: LocatorList(vec![Locator::new(100, 200, address)]),
-            multicast_locator_list: LocatorList(vec![Locator::new(101, 201, address)])
+            unicast_locator_list: submessage_elements::LocatorList(vec![Locator::new(100, 200, address)]),
+            multicast_locator_list: submessage_elements::LocatorList(vec![Locator::new(101, 201, address)])
         };
         let mut writer = Vec::new();
         message.compose(&mut writer).unwrap();

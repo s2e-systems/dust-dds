@@ -1,52 +1,47 @@
-use crate::primitive_types::UShort;
-use crate::types::GuidPrefix;
-use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, Endianness, RtpsSerdesResult, };
-
-use super::types::{SubmessageKind, SubmessageFlag, };
-use super::{SubmessageHeader, Submessage, };
-
+use super::serdes::{SubmessageElement, Endianness, RtpsSerdesResult, };
+use super::{SubmessageKind, SubmessageFlag, UdpPsmMapping, };
+use super::submessage::{Submessage, SubmessageHeader, };
+use super::submessage_elements;
 
 #[derive(PartialEq, Debug)]
 pub struct InfoDestination {
     endianness_flag: SubmessageFlag,
-    guid_prefix: GuidPrefix,
+    guid_prefix: submessage_elements::GuidPrefix,
 }
 
 impl Submessage for InfoDestination {
     fn submessage_header(&self) -> SubmessageHeader {
         const X : SubmessageFlag = false;
         let e = self.endianness_flag; // Indicates endianness.
-        let flags = [e, X, X, X, X, X, X, X];        
-        SubmessageHeader { 
-            submessage_id: SubmessageKind::InfoDestination,
+        let flags = [e, X, X, X, X, X, X, X];   
+        SubmessageHeader::new( 
+            SubmessageKind::InfoDestination,
             flags,
-            submessage_length: self.guid_prefix.octets() as UShort,
-        }
+            self.guid_prefix.octets())     
     }
 
     fn is_valid(&self) -> bool {
         true    
     }
+
+    
 }
 
-impl RtpsCompose for InfoDestination {
+impl UdpPsmMapping for InfoDestination {
     fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
         let endianness = Endianness::from(self.endianness_flag);       
         self.submessage_header().compose(writer)?;
         self.guid_prefix.serialize(writer, endianness)?;
         Ok(())
     }
-}
 
-impl RtpsParse for InfoDestination {
     fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> {
         let header = SubmessageHeader::parse(bytes)?;
         let endianness_flag = header.flags()[0];
-        let guid_prefix = GuidPrefix::deserialize(&bytes[header.octets()..], endianness_flag.into())?;
+        let guid_prefix = submessage_elements::GuidPrefix::deserialize(&bytes[header.octets()..], endianness_flag.into())?;
         Ok(Self {endianness_flag, guid_prefix })
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -62,7 +57,7 @@ mod tests {
         ];
         let expected = InfoDestination {
             endianness_flag: Endianness::BigEndian.into(),
-            guid_prefix: GuidPrefix([10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,]),
+            guid_prefix: submessage_elements::GuidPrefix([10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,]),
         };
         let result = InfoDestination::parse(&bytes).unwrap();
         assert_eq!(expected, result);
@@ -78,7 +73,7 @@ mod tests {
         ];
         let expected = InfoDestination {
             endianness_flag: Endianness::LittleEndian.into(),
-            guid_prefix: GuidPrefix([10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,]),
+            guid_prefix: submessage_elements::GuidPrefix([10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,]),
         };
         let result = InfoDestination::parse(&bytes).unwrap();
         assert_eq!(expected, result);

@@ -2,7 +2,7 @@ use rust_rtps::behavior::types::constants::DURATION_ZERO;
 use rust_rtps::types::constants::{
     ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER, ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER,
 };
-use rust_rtps::types::{ChangeKind, GuidPrefix, Locator, ReliabilityKind, TopicKind, GUID};
+use rust_rtps::types::{ChangeKind, Locator, ReliabilityKind, TopicKind, GUID};
 use rust_rtps::{
     ReaderProxy, StatefulReader, StatefulWriter, WriterProxy,
 };
@@ -10,7 +10,7 @@ use rust_rtps::{
 #[test]
 fn reliable_stateful_writer_stateful_reader_data_only() {
     let writer_guid = GUID::new(
-        GuidPrefix([0; 12]),
+        [0; 12],
         ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER,
     );
     let mut writer = StatefulWriter::new(
@@ -25,7 +25,7 @@ fn reliable_stateful_writer_stateful_reader_data_only() {
         DURATION_ZERO,                        /* nack_suppression_duration */
     );
     let reader_guid = GUID::new(
-        GuidPrefix([0; 12]),
+        [0; 12],
         ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER,
     );
     let mut reader = StatefulReader::new(
@@ -82,7 +82,7 @@ fn reliable_stateful_writer_stateful_reader_data_only() {
 #[test]
 fn reliable_stateful_writer_stateful_reader_data_and_gap() {
     let writer_guid = GUID::new(
-        GuidPrefix([0; 12]),
+        [0; 12],
         ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER,
     );
     let mut writer = StatefulWriter::new(
@@ -97,7 +97,7 @@ fn reliable_stateful_writer_stateful_reader_data_and_gap() {
         DURATION_ZERO,                        /* nack_suppression_duration */
     );
     let reader_guid = GUID::new(
-        GuidPrefix([0; 12]),
+        [0; 12],
         ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER,
     );
     let mut reader = StatefulReader::new(
@@ -154,7 +154,7 @@ fn reliable_stateful_writer_stateful_reader_data_and_gap() {
 #[test]
 fn reliable_stateful_writer_stateful_reader_dropped_messages() {
     let writer_guid = GUID::new(
-        GuidPrefix([0; 12]),
+        [0; 12],
         ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER,
     );
     let mut writer = StatefulWriter::new(
@@ -169,7 +169,7 @@ fn reliable_stateful_writer_stateful_reader_dropped_messages() {
         DURATION_ZERO,                     
     );
     let reader_guid = GUID::new(
-        GuidPrefix([0; 12]),
+        [0; 12],
         ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER,
     );
     let mut reader = StatefulReader::new(
@@ -238,7 +238,7 @@ fn reliable_stateful_writer_stateful_reader_dropped_messages() {
 #[test]
 fn reliable_stateful_writer_stateful_reader_reordered_data() {
     let writer_guid = GUID::new(
-        GuidPrefix([0; 12]),
+        [0; 12],
         ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER,
     );
     let mut writer = StatefulWriter::new(
@@ -253,7 +253,7 @@ fn reliable_stateful_writer_stateful_reader_reordered_data() {
         DURATION_ZERO,                        /* nack_suppression_duration */
     );
     let reader_guid = GUID::new(
-        GuidPrefix([0; 12]),
+        [0; 12],
         ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER,
     );
     let mut reader = StatefulReader::new(

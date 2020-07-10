@@ -1,19 +1,16 @@
-use crate::primitive_types::UShort;
-use crate::types::{SequenceNumber, EntityId, };
-use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, Endianness, RtpsSerdesResult, };
-
-use super::types::{SubmessageKind, SubmessageFlag, Count, };
-use super::{SubmessageHeader, Submessage, };
-use super::submessage_elements::FragmentNumber;
+use super::serdes::{SubmessageElement, Endianness, RtpsSerdesResult, };
+use super::{SubmessageKind, SubmessageFlag, UdpPsmMapping, };
+use super::submessage::{Submessage, SubmessageHeader, };
+use super::submessage_elements;
 
 #[derive(PartialEq, Debug)]
 pub struct HeartbeatFrag {
     endianness_flag: SubmessageFlag,
-    reader_id: EntityId,
-    writer_id: EntityId,
-    writer_sn: SequenceNumber,
-    last_fragment_num: FragmentNumber,
-    count: Count,
+    reader_id: submessage_elements::EntityId,
+    writer_id: submessage_elements::EntityId,
+    writer_sn: submessage_elements::SequenceNumber,
+    last_fragment_num: submessage_elements::FragmentNumber,
+    count: submessage_elements::Count,
 }
 
 impl Submessage for HeartbeatFrag {
@@ -28,17 +25,15 @@ impl Submessage for HeartbeatFrag {
             self.writer_sn.octets() +
             self.last_fragment_num.octets() +
             self.count.octets();
-
-        SubmessageHeader { 
-            submessage_id: SubmessageKind::HeartbeatFrag,
+        SubmessageHeader::new( 
+            SubmessageKind::HeartbeatFrag,
             flags,
-            submessage_length: octets_to_next_header as UShort,
-        }
+            octets_to_next_header)
     }
 
     fn is_valid(&self) -> bool {
-        if self.writer_sn <= SequenceNumber(0) ||
-        self.last_fragment_num <= FragmentNumber(0) {
+        if self.writer_sn.0 <= 0 ||
+        self.last_fragment_num.0 <= 0 {
             false
         } else {
             true
@@ -46,7 +41,7 @@ impl Submessage for HeartbeatFrag {
     }
 }
 
-impl RtpsCompose for HeartbeatFrag {
+impl UdpPsmMapping for HeartbeatFrag {
     fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
         let endianness = self.endianness_flag.into();
         self.submessage_header().compose(writer)?;
@@ -56,20 +51,18 @@ impl RtpsCompose for HeartbeatFrag {
         self.last_fragment_num.serialize(writer, endianness)?;
         self.count.serialize(writer, endianness)?;
         Ok(())
-    }    
-}
+    }
 
-impl RtpsParse for HeartbeatFrag {
     fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> {
         let header = SubmessageHeader::parse(bytes)?;
         let endianness_flag = header.flags()[0];
         let endianness = Endianness::from(endianness_flag);
 
-        let reader_id = EntityId::deserialize(&bytes[4..8], endianness)?;
-        let writer_id = EntityId::deserialize(&bytes[8..12], endianness)?;
-        let writer_sn = SequenceNumber::deserialize(&bytes[12..20], endianness)?;
-        let last_fragment_num = FragmentNumber::deserialize(&bytes[20..24], endianness)?;
-        let count = Count::deserialize(&bytes[24..28], endianness)?;        
+        let reader_id = submessage_elements::EntityId::deserialize(&bytes[4..8], endianness)?;
+        let writer_id = submessage_elements::EntityId::deserialize(&bytes[8..12], endianness)?;
+        let writer_sn = submessage_elements::SequenceNumber::deserialize(&bytes[12..20], endianness)?;
+        let last_fragment_num = submessage_elements::FragmentNumber::deserialize(&bytes[20..24], endianness)?;
+        let count = submessage_elements::Count::deserialize(&bytes[24..28], endianness)?;        
 
         Ok(HeartbeatFrag {
             endianness_flag,
@@ -92,11 +85,11 @@ mod tests {
     fn parse_heartbeat_frag_submessage() {
         let expected = HeartbeatFrag {
             endianness_flag: true,    
-            reader_id: ENTITYID_UNKNOWN,
-            writer_id: ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
-            writer_sn: SequenceNumber(1),
-            last_fragment_num: FragmentNumber(2),
-            count: Count(3),
+            reader_id: submessage_elements::EntityId(ENTITYID_UNKNOWN),
+            writer_id: submessage_elements::EntityId(ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER),
+            writer_sn: submessage_elements::SequenceNumber(1),
+            last_fragment_num: submessage_elements::FragmentNumber(2),
+            count: submessage_elements::Count(3),
         };
         let bytes = vec![
             0x13, 0b00000001, 24, 0x0, // Submessgae Header
@@ -116,11 +109,11 @@ mod tests {
     fn compose_heartbeat_frag_submessage() {
         let message = HeartbeatFrag {
             endianness_flag: true,    
-            reader_id: ENTITYID_UNKNOWN,
-            writer_id: ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
-            writer_sn: SequenceNumber(1),
-            last_fragment_num: FragmentNumber(2),
-            count: Count(3),
+            reader_id: submessage_elements::EntityId(ENTITYID_UNKNOWN),
+            writer_id: submessage_elements::EntityId(ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER),
+            writer_sn: submessage_elements::SequenceNumber(1),
+            last_fragment_num: submessage_elements::FragmentNumber(2),
+            count: submessage_elements::Count(3),
         };
         let expected = vec![
             0x13, 0b00000001, 24, 0x0, // Submessgae Header

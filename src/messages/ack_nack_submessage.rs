@@ -1,52 +1,54 @@
-use crate::primitive_types::UShort;
-use crate::types::EntityId;
-use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, Endianness, RtpsSerdesResult, };
+use std::collections::BTreeSet;
 
-use super::types::{Count, SubmessageKind, SubmessageFlag, };
-use super::{SubmessageHeader, Submessage, };
-use super::submessage_elements::SequenceNumberSet;
+use super::serdes::{SubmessageElement, Endianness, RtpsSerdesResult, };
+use super::{SubmessageKind, SubmessageFlag, UdpPsmMapping, };
+use super::submessage::{Submessage, SubmessageHeader, };
+use super::submessage_elements;
+use crate::types;
+use crate::messages;
 
 #[derive(PartialEq, Debug)]
 pub struct AckNack {
     endianness_flag: SubmessageFlag,
     final_flag: SubmessageFlag,
-    reader_id: EntityId,
-    writer_id: EntityId,
-    reader_sn_state: SequenceNumberSet,
-    count: Count,
+    reader_id: submessage_elements::EntityId,
+    writer_id: submessage_elements::EntityId,
+    reader_sn_state: submessage_elements::SequenceNumberSet,
+    count: submessage_elements::Count,
 }
 
 impl AckNack {
     pub fn new(
-        reader_id: EntityId,
-        writer_id: EntityId,
-        reader_sn_state: SequenceNumberSet,
-        count: Count,
+        reader_id: types::EntityId,
+        writer_id: types::EntityId,
+        available_changes_max: types::SequenceNumber,
+        missing_changes: BTreeSet<types::SequenceNumber>,
+        count: messages::types::Count,
         final_flag: bool,
         endianness_flag: Endianness) -> Self {
             AckNack {
-                reader_id,
-                writer_id,
-                reader_sn_state,
-                count,
+                reader_id: submessage_elements::EntityId(reader_id),
+                writer_id: submessage_elements::EntityId(writer_id),
+                reader_sn_state: submessage_elements::SequenceNumberSet::new(available_changes_max, missing_changes),
+                count: submessage_elements::Count(count),
                 final_flag,
                 endianness_flag: endianness_flag.into(),
             }
         }
 
-        pub fn reader_id(&self) -> &EntityId {
+        pub fn reader_id(&self) -> &submessage_elements::EntityId {
             &self.reader_id
         }
 
-        pub fn writer_id(&self) -> &EntityId {
+        pub fn writer_id(&self) -> &submessage_elements::EntityId {
             &self.writer_id
         }
 
-        pub fn reader_sn_state(&self) -> &SequenceNumberSet {
+        pub fn reader_sn_state(&self) -> &submessage_elements::SequenceNumberSet {
             &self.reader_sn_state
         }
 
-        pub fn count(&self) -> &Count {
+        pub fn count(&self) -> &submessage_elements::Count {
             &self.count
         }
 }
@@ -58,11 +60,10 @@ impl Submessage for AckNack {
         let f = self.final_flag; 
         let flags = [e, f, X, X, X, X, X, X];     
         let submessage_length = self.reader_id.octets() + self.writer_id.octets() + self.reader_sn_state.octets() + self.count.octets();
-        SubmessageHeader { 
-            submessage_id: SubmessageKind::InfoReply,
+        SubmessageHeader::new( 
+            SubmessageKind::InfoReply,
             flags,
-            submessage_length: submessage_length as UShort,
-        }
+            submessage_length)
     }
 
     fn is_valid(&self) -> bool {
@@ -70,7 +71,7 @@ impl Submessage for AckNack {
     }
 }
 
-impl RtpsCompose for AckNack {
+impl UdpPsmMapping for AckNack {
     fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
         let endianness = Endianness::from(self.endianness_flag);       
         self.submessage_header().compose(writer)?;
@@ -80,9 +81,7 @@ impl RtpsCompose for AckNack {
         self.count.serialize(writer, endianness)?;        
         Ok(())
     }
-}
 
-impl RtpsParse for AckNack {
     fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> {
         let header = SubmessageHeader::parse(bytes)?;
         let endianness_flag = header.flags()[0];
@@ -90,10 +89,10 @@ impl RtpsParse for AckNack {
         let endianness = endianness_flag.into();
         let end_of_message = usize::from(header.submessage_length()) + header.octets();
         let index_count = end_of_message - 4;
-        let reader_id = EntityId::deserialize(&bytes[4..8], endianness)?;
-        let writer_id = EntityId::deserialize(&bytes[8..12], endianness)?;
-        let reader_sn_state = SequenceNumberSet::deserialize(&bytes[12..index_count], endianness)?;
-        let count = Count::deserialize(&bytes[index_count..end_of_message], endianness)?;
+        let reader_id = submessage_elements::EntityId::deserialize(&bytes[4..8], endianness)?;
+        let writer_id = submessage_elements::EntityId::deserialize(&bytes[8..12], endianness)?;
+        let reader_sn_state = submessage_elements::SequenceNumberSet::deserialize(&bytes[12..index_count], endianness)?;
+        let count = submessage_elements::Count::deserialize(&bytes[index_count..end_of_message], endianness)?;
         
         Ok(Self{endianness_flag, final_flag, reader_id, writer_id, reader_sn_state, count})
     }
@@ -103,7 +102,6 @@ impl RtpsParse for AckNack {
 mod tests {
     use super::*;
     use crate::types::constants::{ENTITYID_UNKNOWN, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, };
-    use crate::types::SequenceNumber;
     
     #[test]
     fn test_parse_ack_nack_submessage() {
@@ -121,10 +119,10 @@ mod tests {
         let expected = AckNack {
             endianness_flag: Endianness::LittleEndian.into(),
             final_flag: true,
-            reader_id: ENTITYID_UNKNOWN,
-            writer_id: ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
-            reader_sn_state: SequenceNumberSet::from_set([SequenceNumber(2), SequenceNumber(3)].iter().cloned().collect()),
-            count: Count(2),
+            reader_id: submessage_elements::EntityId(ENTITYID_UNKNOWN),
+            writer_id: submessage_elements::EntityId(ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER),
+            reader_sn_state: submessage_elements::SequenceNumberSet::from_set([2,3].iter().cloned().collect()),
+            count: submessage_elements::Count(2),
         };
         let result = AckNack::parse(&bytes).unwrap();
         assert_eq!(expected, result);
@@ -146,10 +144,10 @@ mod tests {
         let message = AckNack {
             endianness_flag: Endianness::LittleEndian.into(),
             final_flag: true,
-            reader_id: ENTITYID_UNKNOWN,
-            writer_id: ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
-            reader_sn_state: SequenceNumberSet::from_set([SequenceNumber(2), SequenceNumber(3)].iter().cloned().collect()),
-            count: Count(2),
+            reader_id: submessage_elements::EntityId(ENTITYID_UNKNOWN),
+            writer_id: submessage_elements::EntityId(ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER),
+            reader_sn_state: submessage_elements::SequenceNumberSet::from_set([2, 3].iter().cloned().collect()),
+            count: submessage_elements::Count(2),
         };
 
         let mut writer = Vec::new();

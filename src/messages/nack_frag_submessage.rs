@@ -1,19 +1,17 @@
-use crate::primitive_types::UShort;
-use crate::types::{EntityId, SequenceNumber, };
-use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsCompose, RtpsParse, Endianness, RtpsSerdesResult, };
-use super::types::Count;
-use super::{SubmessageKind, SubmessageFlag, Submessage, SubmessageHeader, };
-use super::submessage_elements::FragmentNumberSet;
+use super::serdes::{SubmessageElement, Endianness, RtpsSerdesResult, };
+use super::{SubmessageKind, SubmessageFlag, UdpPsmMapping, };
+use super::submessage::{Submessage, SubmessageHeader, };
+use super::submessage_elements;
 
 
 #[derive(PartialEq, Debug)]
 pub struct NackFrag {
     endianness_flag: SubmessageFlag,
-    reader_id: EntityId,
-    writer_id: EntityId,
-    writer_sn: SequenceNumber,
-    fragment_number_state: FragmentNumberSet,
-    count: Count,
+    reader_id: submessage_elements::EntityId,
+    writer_id: submessage_elements::EntityId,
+    writer_sn: submessage_elements::SequenceNumber,
+    fragment_number_state: submessage_elements::FragmentNumberSet,
+    count: submessage_elements::Count,
 }
 
 
@@ -30,24 +28,26 @@ impl Submessage for NackFrag {
             self.fragment_number_state.octets() + 
             self.count.octets();
 
-        SubmessageHeader { 
-            submessage_id: SubmessageKind::NackFrag,
+        SubmessageHeader::new( 
+            SubmessageKind::NackFrag,
             flags,
-            submessage_length: octets_to_next_header as UShort,
-        }
+            octets_to_next_header)
     }
 
     fn is_valid(&self) -> bool {
-        if self.writer_sn <= SequenceNumber(0) ||
+        if self.writer_sn.0 <= 0 ||
         !self.fragment_number_state.is_valid() {
             false
         } else {
             true
         }
     }
+
+    
+
 }
 
-impl RtpsCompose for NackFrag {
+impl UdpPsmMapping for NackFrag {
     fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
         let endianness = Endianness::from(self.endianness_flag);
        
@@ -59,10 +59,8 @@ impl RtpsCompose for NackFrag {
         self.fragment_number_state.serialize(writer, endianness)?;
         self.count.serialize(writer, endianness)?;
         Ok(())
-    }    
-}
+    }
 
-impl RtpsParse for NackFrag {
     fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> { 
         let header = SubmessageHeader::parse(bytes)?;
         let endianness_flag = header.flags()[0];
@@ -70,11 +68,11 @@ impl RtpsParse for NackFrag {
         let end_of_message = usize::from(header.submessage_length()) + header.octets();
         let index_count = end_of_message - 4;
         
-        let reader_id = EntityId::deserialize(&bytes[4..8], endianness)?;        
-        let writer_id = EntityId::deserialize(&bytes[8..12], endianness)?;
-        let writer_sn = SequenceNumber::deserialize(&bytes[12..20], endianness)?;
-        let fragment_number_state = FragmentNumberSet::deserialize(&bytes[20..index_count], endianness)?;
-        let count = Count::deserialize(&bytes[index_count..end_of_message], endianness)?;
+        let reader_id = submessage_elements::EntityId::deserialize(&bytes[4..8], endianness)?;        
+        let writer_id = submessage_elements::EntityId::deserialize(&bytes[8..12], endianness)?;
+        let writer_sn = submessage_elements::SequenceNumber::deserialize(&bytes[12..20], endianness)?;
+        let fragment_number_state = submessage_elements::FragmentNumberSet::deserialize(&bytes[20..index_count], endianness)?;
+        let count = submessage_elements::Count::deserialize(&bytes[index_count..end_of_message], endianness)?;
   
         Ok(Self {
             endianness_flag,
@@ -109,11 +107,11 @@ mod tests {
         
         let expected = NackFrag {
             endianness_flag: Endianness::LittleEndian.into(),
-            reader_id: ENTITYID_UNKNOWN,
-            writer_id: ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
-            writer_sn: SequenceNumber(1), 
-            fragment_number_state: FragmentNumberSet::new([FragmentNumber(2), FragmentNumber(3)].iter().cloned().collect()),
-            count: Count(2),
+            reader_id: submessage_elements::EntityId(ENTITYID_UNKNOWN), 
+            writer_id: submessage_elements::EntityId(ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER), 
+            writer_sn: submessage_elements::SequenceNumber(1),
+            fragment_number_state: submessage_elements::FragmentNumberSet::new([FragmentNumber(2), FragmentNumber(3)].iter().cloned().collect()),
+            count: submessage_elements::Count(2),
         };
         let result = NackFrag::parse(&bytes).unwrap();
         assert_eq!(expected, result);
@@ -134,11 +132,11 @@ mod tests {
         
         let message = NackFrag {
             endianness_flag: Endianness::LittleEndian.into(),
-            reader_id: ENTITYID_UNKNOWN,
-            writer_id: ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
-            writer_sn: SequenceNumber(1), 
-            fragment_number_state: FragmentNumberSet::new([FragmentNumber(2), FragmentNumber(3)].iter().cloned().collect()),
-            count: Count(2),
+            reader_id: submessage_elements::EntityId(ENTITYID_UNKNOWN), 
+            writer_id: submessage_elements::EntityId(ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER), 
+            writer_sn: submessage_elements::SequenceNumber(1),
+            fragment_number_state: submessage_elements::FragmentNumberSet::new([FragmentNumber(2), FragmentNumber(3)].iter().cloned().collect()),
+            count: submessage_elements::Count(2),
         };
         let mut writer = Vec::new();
         message.compose(&mut writer).unwrap();
