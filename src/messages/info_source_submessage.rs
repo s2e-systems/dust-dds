@@ -3,7 +3,7 @@ use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, Endi
 
 use super::types::{SubmessageKind, SubmessageFlag, };
 use super::{SubmessageHeader, Submessage, };
-use super::{submessage_elements, serialize_long, deserialize_long};
+use super::{submessage_elements, serialize_long};
 
 #[derive(PartialEq, Debug)]
 pub struct InfoSource {
