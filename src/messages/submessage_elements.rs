@@ -11,12 +11,9 @@ use std::convert::TryInto;
 use cdr::{LittleEndian, BigEndian, Infinite};
 
 use crate::types::{Locator};
+use super::Pid;
 use super::serdes::{SubmessageElement, Endianness, RtpsSerdesResult, SizeCheck, RtpsSerdesError};
 use crate::types;
-
-pub trait Pid {
-    fn pid() -> super::types::ParameterId;
-}
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct Long(pub i32);

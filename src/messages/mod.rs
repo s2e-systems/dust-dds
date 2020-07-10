@@ -39,6 +39,10 @@ pub use serdes::Endianness;
 pub const RTPS_MAJOR_VERSION: u8 = 2;
 pub const RTPS_MINOR_VERSION: u8 = 4;
 
+pub trait Pid {
+    fn pid() -> types::ParameterId;
+}
+
 #[derive(Debug, PartialEq)]
 pub enum RtpsSubmessage {
     AckNack(AckNack),

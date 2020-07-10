@@ -22,6 +22,6 @@ pub use stateless_reader::StatelessReader;
 pub use stateless_writer::StatelessWriter;
 pub use stateful_reader::{StatefulReader, WriterProxy, };
 pub use stateful_writer::{StatefulWriter, ReaderProxy, };
-pub use messages::{RtpsMessage, UdpPsmMapping};
+pub use messages::{RtpsMessage, UdpPsmMapping, Pid};
 pub use messages::types::{ParameterId};
-pub use messages::submessage_elements::{Pid, ParameterList,};
+pub use messages::submessage_elements::{ParameterList,};
