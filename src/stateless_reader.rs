@@ -86,9 +86,9 @@ mod tests {
 
         let data1 = Data::new(
             Endianness::LittleEndian,
-            submessage_elements::EntityId(ENTITYID_UNKNOWN),
-            submessage_elements::EntityId(ENTITYID_UNKNOWN),
-            submessage_elements::SequenceNumber(1),
+            ENTITYID_UNKNOWN,
+            ENTITYID_UNKNOWN,
+            1,
             Some(inline_qos),
             Payload::Data(vec![0,1,2]),
         );

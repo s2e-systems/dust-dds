@@ -2,6 +2,8 @@ use super::serdes::{SubmessageElement, Endianness, RtpsSerdesResult, };
 use super::submessage_elements;
 use super::types::{SubmessageKind, SubmessageFlag, };
 use super::{SubmessageHeader, Submessage, UdpPsmMapping};
+use crate::messages;
+use crate::types;
 
 #[derive(PartialEq, Debug)]
 pub struct Heartbeat {
@@ -26,20 +28,20 @@ impl Heartbeat {
     const LIVELINESS_FLAG_MASK: u8 = 0x04;
 
     pub fn new(
-        reader_id: submessage_elements::EntityId,
-        writer_id: submessage_elements::EntityId,
-        first_sn: submessage_elements::SequenceNumber,
-        last_sn: submessage_elements::SequenceNumber,
-        count: submessage_elements::Count,
+        reader_id: types::EntityId,
+        writer_id: types::EntityId,
+        first_sn: types::SequenceNumber,
+        last_sn: types::SequenceNumber,
+        count: messages::types::Count,
         final_flag: bool,
         manual_liveliness: bool,
         endianness_flag: Endianness) -> Self {
             Heartbeat {
-                reader_id,
-                writer_id,
-                first_sn,
-                last_sn,
-                count,
+                reader_id: submessage_elements::EntityId(reader_id),
+                writer_id: submessage_elements::EntityId(writer_id),
+                first_sn: submessage_elements::SequenceNumber(first_sn),
+                last_sn: submessage_elements::SequenceNumber(last_sn),
+                count: submessage_elements::Count(count),
                 final_flag,
                 liveliness_flag: manual_liveliness,
                 endianness_flag: endianness_flag.into(),
@@ -242,11 +244,11 @@ mod tests {
     fn test_serialize_deserialize_heartbeat() {
         let mut writer = Vec::new();
 
-        let reader_id = submessage_elements::EntityId(crate::types::EntityId::new([0x10, 0x12, 0x14], EntityKind::UserDefinedReaderWithKey));
-        let writer_id = submessage_elements::EntityId(crate::types::EntityId::new([0x26, 0x24, 0x22], EntityKind::UserDefinedWriterWithKey));
-        let first_sn = submessage_elements::SequenceNumber(1233);
-        let last_sn = submessage_elements::SequenceNumber(1237);
-        let count = submessage_elements::Count(8);
+        let reader_id = types::EntityId::new([0x10, 0x12, 0x14], EntityKind::UserDefinedReaderWithKey);
+        let writer_id = types::EntityId::new([0x26, 0x24, 0x22], EntityKind::UserDefinedWriterWithKey);
+        let first_sn = 1233;
+        let last_sn = 1237;
+        let count = 8;
         let is_final = true;
         let manual_liveliness = false;
 

@@ -277,6 +277,7 @@ mod tests {
     use super::*;
     use crate::types::constants::{ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, ENTITYID_UNKNOWN};
     use crate::types::EntityKind;
+    use crate::types;
     
     #[test]
     fn test_parse_message_header() {
@@ -334,9 +335,9 @@ mod tests {
     fn test_compose_submessage() {
         let submessage = RtpsSubmessage::Data(Data::new(
             Endianness::LittleEndian,
-            submessage_elements::EntityId(ENTITYID_UNKNOWN),
-            submessage_elements::EntityId(ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER),
-            submessage_elements::SequenceNumber(1),
+            ENTITYID_UNKNOWN,
+            ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
+            1,
             None,
             Payload::None,
         ));
@@ -367,9 +368,9 @@ mod tests {
         ];
         let expected = RtpsSubmessage::Data(Data::new(
             Endianness::LittleEndian,
-            submessage_elements::EntityId(ENTITYID_UNKNOWN),
-            submessage_elements::EntityId(ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER),
-            submessage_elements::SequenceNumber(1),
+            ENTITYID_UNKNOWN,
+            ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
+            1,
             None,
             Payload::None,
         ));
@@ -381,9 +382,9 @@ mod tests {
     fn test_compose_message() {
         let submessage = RtpsSubmessage::Data(Data::new(
             Endianness::LittleEndian,
-            submessage_elements::EntityId(ENTITYID_UNKNOWN),
-            submessage_elements::EntityId(ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER),
-            submessage_elements::SequenceNumber(1),
+            ENTITYID_UNKNOWN,
+            ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
+            1,
             None,
             Payload::None,
         ));
@@ -418,22 +419,22 @@ mod tests {
 
     #[test]
     fn test_compose_message_three_data_submessages() {
-        let test_time = submessage_elements::Timestamp(Time::new(1565525425, 269558339));
+        let test_time = Time::new(1565525425, 269558339);
         let submessage1 =
             RtpsSubmessage::InfoTs(InfoTs::new(Some(test_time), Endianness::LittleEndian));
         let submessage2 = RtpsSubmessage::Data(Data::new(
             Endianness::LittleEndian,
-            submessage_elements::EntityId(ENTITYID_UNKNOWN),
-            submessage_elements::EntityId(ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER),
-            submessage_elements::SequenceNumber(1),
+            ENTITYID_UNKNOWN,
+            ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
+            1,
             None,
             Payload::None,
         ));
         let submessage3 = RtpsSubmessage::Data(Data::new(
             Endianness::LittleEndian,
-            submessage_elements::EntityId(ENTITYID_UNKNOWN),
-            submessage_elements::EntityId(ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER),
-            submessage_elements::SequenceNumber(2),
+            ENTITYID_UNKNOWN,
+            ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
+            2,
             None,
             Payload::None,
         ));
@@ -479,9 +480,9 @@ mod tests {
     fn test_parse_message() {
         let submessage = RtpsSubmessage::Data(Data::new(
             Endianness::LittleEndian,
-            submessage_elements::EntityId(ENTITYID_UNKNOWN),
-            submessage_elements::EntityId(ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER),
-            submessage_elements::SequenceNumber(1),
+            ENTITYID_UNKNOWN,
+            ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
+            1,
             None,
             Payload::None,
         ));
@@ -515,23 +516,23 @@ mod tests {
 
         let submessage1 = RtpsSubmessage::Data(Data::new(
             Endianness::LittleEndian,
-            submessage_elements::EntityId(ENTITYID_UNKNOWN),
-            submessage_elements::EntityId(ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER),
-            submessage_elements::SequenceNumber(1),
+            ENTITYID_UNKNOWN,
+            ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
+            1,
             None,
             Payload::None,
         ));
-        let reader_id = submessage_elements::EntityId(crate::types::EntityId::new(
+        let reader_id = types::EntityId::new(
             [0x10, 0x12, 0x14],
             EntityKind::UserDefinedReaderWithKey,
-        ));
-        let writer_id = submessage_elements::EntityId(crate::types::EntityId::new(
+        );
+        let writer_id = types::EntityId::new(
             [0x26, 0x24, 0x22],
             EntityKind::UserDefinedWriterWithKey,
-        ));
-        let first_sn = submessage_elements::SequenceNumber(1233);
-        let last_sn = submessage_elements::SequenceNumber(1237);
-        let count = submessage_elements::Count(8);
+        );
+        let first_sn = 1233;
+        let last_sn = 1237;
+        let count = 8;
         let final_flag = true;
         let liveliness_flag = false;
 
@@ -583,22 +584,22 @@ mod tests {
 
     #[test]
     fn test_parse_message_two_data_submessages() {
-        let test_time = submessage_elements::Timestamp(Time::new(1565525425, 269558339));
+        let test_time = Time::new(1565525425, 269558339);
         let submessage1 =
             RtpsSubmessage::InfoTs(InfoTs::new(Some(test_time), Endianness::LittleEndian));
         let submessage2 = RtpsSubmessage::Data(Data::new(
             Endianness::LittleEndian,
-            submessage_elements::EntityId(ENTITYID_UNKNOWN),
-            submessage_elements::EntityId(ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER),
-            submessage_elements::SequenceNumber(1),
+            ENTITYID_UNKNOWN,
+            ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
+            1,
             None,
             Payload::None,
         ));
         let submessage3 = RtpsSubmessage::Data(Data::new(
             Endianness::LittleEndian,
-            submessage_elements::EntityId(ENTITYID_UNKNOWN),
-            submessage_elements::EntityId(ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER),
-            submessage_elements::SequenceNumber(2),
+            ENTITYID_UNKNOWN,
+            ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
+            2,
             None,
             Payload::None,
         ));

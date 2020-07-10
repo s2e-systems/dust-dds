@@ -65,9 +65,9 @@ fn data_from_cache_change(cache_change: &CacheChange, endianness: Endianness, re
 
     Data::new(
         endianness,
-        submessage_elements::EntityId(reader_id),
-        submessage_elements::EntityId(writer_id),
-        submessage_elements::SequenceNumber(writer_sn),
+        reader_id,
+        writer_id,
+        writer_sn,
         Some(inline_qos_parameters),
         payload,
     )

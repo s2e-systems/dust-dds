@@ -1,6 +1,7 @@
 use super::serdes::{SubmessageElement, Endianness, RtpsSerdesResult, };
 use super::{SubmessageKind, SubmessageFlag, Submessage, SubmessageHeader, UdpPsmMapping};
 use super::submessage_elements;
+use crate::messages;
 
 #[derive(PartialEq, Debug)]
 pub struct InfoTs {
@@ -12,13 +13,17 @@ pub struct InfoTs {
 impl InfoTs {
     const INVALID_TIME_FLAG_MASK: u8 = 0x02;
 
-    pub fn new(timestamp: Option<submessage_elements::Timestamp>, endianness: Endianness) -> InfoTs {
+    pub fn new(timestamp: Option<messages::types::Time>, endianness: Endianness) -> InfoTs {
         let endianness_flag = endianness.into();
         let invalidate_flag = !timestamp.is_some();
+        let timestamp = match timestamp {
+            Some(time) => Some(submessage_elements::Timestamp(time)),
+            None => None,
+        };
         InfoTs {
             endianness_flag,
             invalidate_flag,
-            timestamp
+            timestamp,
         }
     }
 
@@ -74,10 +79,10 @@ impl UdpPsmMapping for InfoTs {
 
         let endianness = endianness_flag.into();
         if invalidate_flag {
-            Ok(InfoTs::new(None, endianness))
+            Ok(InfoTs{ invalidate_flag, endianness_flag, timestamp: None})
         } else {            
-            let time = submessage_elements::Timestamp::deserialize(&bytes[4..12], endianness)?;
-            Ok(InfoTs::new(Some(time), endianness))
+            let timestamp = Some(submessage_elements::Timestamp::deserialize(&bytes[4..12], endianness)?);
+            Ok(InfoTs{invalidate_flag, endianness_flag, timestamp})
         }
     }
 }
@@ -97,7 +102,7 @@ mod tests {
 
         let test_time = super::super::types::Time::new(1565525425, 269558339);
 
-        let infots_big_endian = InfoTs::new(Some(submessage_elements::Timestamp(test_time)), Endianness::BigEndian);
+        let infots_big_endian = InfoTs::new(Some(test_time), Endianness::BigEndian);
         // infots.compose(&mut writer_le, Endianness::LittleEndian).unwrap();
         infots_big_endian.compose(&mut writer).unwrap();
         assert_eq!(writer, info_timestamp_message_big_endian);
@@ -105,7 +110,7 @@ mod tests {
 
         writer.clear();
 
-        let infots_little_endian = InfoTs::new(Some(submessage_elements::Timestamp(test_time)), Endianness::LittleEndian);
+        let infots_little_endian = InfoTs::new(Some(test_time), Endianness::LittleEndian);
         infots_little_endian.compose(&mut writer).unwrap();
         assert_eq!(writer, info_timestamp_message_little_endian);
         assert_eq!(InfoTs::parse(&writer).unwrap(), infots_little_endian);

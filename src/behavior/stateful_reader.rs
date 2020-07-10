@@ -1,7 +1,6 @@
 use crate::types::{GUID, };
 use crate::behavior::types::Duration;
 use crate::messages::{RtpsMessage, RtpsSubmessage, AckNack};
-use crate::messages::submessage_elements;
 use crate::cache::{HistoryCache};
 use crate::stateful_reader::WriterProxy;
 
@@ -97,16 +96,14 @@ impl StatefulReaderBehavior {
     fn run_must_send_ack_state(writer_proxy: &mut WriterProxy, reader_guid: &GUID, heartbeat_response_delay: Duration) -> Option<Vec<RtpsSubmessage>> {
         if writer_proxy.duration_since_heartbeat_received() >  heartbeat_response_delay {
             writer_proxy.set_must_send_ack(false);
-            let reader_sn_state = submessage_elements::SequenceNumberSet::new(
-                writer_proxy.available_changes_max(),
-                writer_proxy.missing_changes().clone()
-            );
+ 
             writer_proxy.increment_acknack_count();
             let acknack = AckNack::new(
-                submessage_elements::EntityId(*reader_guid.entity_id()), 
-                submessage_elements::EntityId(*writer_proxy.remote_writer_guid().entity_id()),
-                reader_sn_state,
-                submessage_elements::Count(*writer_proxy.ackanck_count()),
+                *reader_guid.entity_id(), 
+                *writer_proxy.remote_writer_guid().entity_id(),
+                writer_proxy.available_changes_max(),
+                writer_proxy.missing_changes().clone(),
+                *writer_proxy.ackanck_count(),
                 true,
                 Endianness::LittleEndian);
 
@@ -142,9 +139,9 @@ mod tests {
 
         let data1 = Data::new(
             Endianness::LittleEndian, 
-            submessage_elements::EntityId(ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR), 
-            submessage_elements::EntityId(ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER), 
-            submessage_elements::SequenceNumber(3),
+            ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, 
+            ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER, 
+            3,
             Some(inline_qos),
             Payload::Data(vec![1,2,3]));
         submessages.push(RtpsSubmessage::Data(data1));
@@ -185,9 +182,9 @@ mod tests {
 
         let data1 = Data::new(
             Endianness::LittleEndian, 
-            submessage_elements::EntityId(ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR), 
-            submessage_elements::EntityId(ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER), 
-            submessage_elements::SequenceNumber(3),
+            ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, 
+            ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER, 
+            3,
             Some(inline_qos),
             Payload::Data(vec![1,2,3]));
         submessages.push(RtpsSubmessage::Data(data1));
@@ -222,11 +219,11 @@ mod tests {
 
         let mut submessages = Vec::new();
         let heartbeat = Heartbeat::new(
-            submessage_elements::EntityId(ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR),
-            submessage_elements::EntityId(*remote_writer_guid.entity_id()),
-            submessage_elements::SequenceNumber(3),
-            submessage_elements::SequenceNumber(6),
-            submessage_elements::Count(1),
+            ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
+            *remote_writer_guid.entity_id(),
+            3,
+            6,
+            1,
             false,
             false,
             Endianness::LittleEndian,
@@ -246,11 +243,11 @@ mod tests {
 
         let mut submessages = Vec::new();
         let heartbeat = Heartbeat::new(
-            submessage_elements::EntityId(ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR),
-            submessage_elements::EntityId(*remote_writer_guid.entity_id()),
-            submessage_elements::SequenceNumber(2),
-            submessage_elements::SequenceNumber(3),
-            submessage_elements::Count(1),
+            ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
+            *remote_writer_guid.entity_id(),
+            2,
+            3,
+            1,
             true,
             false,
             Endianness::LittleEndian,
@@ -270,11 +267,11 @@ mod tests {
 
         let mut submessages = Vec::new();
         let heartbeat = Heartbeat::new(
-            submessage_elements::EntityId(ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR),
-            submessage_elements::EntityId(*remote_writer_guid.entity_id()),
-            submessage_elements::SequenceNumber(1),
-            submessage_elements::SequenceNumber(0),
-            submessage_elements::Count(1),
+            ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
+            *remote_writer_guid.entity_id(),
+            1,
+            0,
+            1,
             true,
             false,
             Endianness::LittleEndian,
@@ -296,11 +293,11 @@ mod tests {
 
         let mut submessages = Vec::new();
         let heartbeat = Heartbeat::new(
-            submessage_elements::EntityId(ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR),
-            submessage_elements::EntityId(*remote_writer_guid.entity_id()),
-            submessage_elements::SequenceNumber(3),
-            submessage_elements::SequenceNumber(6),
-            submessage_elements::Count(1),
+            ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
+            *remote_writer_guid.entity_id(),
+            3,
+            6,
+            1,
             false,
             false,
             Endianness::LittleEndian,

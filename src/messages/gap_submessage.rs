@@ -1,7 +1,7 @@
 use std::collections::BTreeSet;
 
 use super::serdes::{SubmessageElement, Endianness, RtpsSerdesResult, };
-
+use crate::types;
 use super::types::{SubmessageKind, SubmessageFlag, };
 use super::{SubmessageHeader, Submessage, UdpPsmMapping};
 use super::submessage_elements;
@@ -21,18 +21,18 @@ pub struct Gap {
 
 impl Gap {
     pub fn new(
-        reader_id: submessage_elements::EntityId,
-        writer_id: submessage_elements::EntityId,
-        gap_start: submessage_elements::SequenceNumber,
+        reader_id: types::EntityId,
+        writer_id: types::EntityId,
+        gap_start: types::SequenceNumber,
         endianness: Endianness,) -> Self {
 
             let mut gap_list_set = BTreeSet::new();
-            gap_list_set.insert(gap_start.0);
+            gap_list_set.insert(gap_start);
 
             Gap {
-                reader_id,
-                writer_id,
-                gap_start,
+                reader_id: submessage_elements::EntityId(reader_id),
+                writer_id: submessage_elements::EntityId(writer_id),
+                gap_start: submessage_elements::SequenceNumber(gap_start),
                 gap_list: submessage_elements::SequenceNumberSet::from_set(gap_list_set),
                 endianness_flag: endianness.into(),
             }

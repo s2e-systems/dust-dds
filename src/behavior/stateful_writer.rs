@@ -65,7 +65,7 @@ impl StatefulWriterBehavior {
         let mut submessages = Vec::with_capacity(2); // TODO: Probably can be preallocated with the correct size
     
         let time = Time::now();
-        let infots = InfoTs::new(Some(submessage_elements::Timestamp(time)), endianness);
+        let infots = InfoTs::new(Some(time), endianness);
         submessages.push(RtpsSubmessage::InfoTs(infots));
     
         while let Some(next_unsent_seq_num) = reader_proxy.next_unsent_change(last_change_sequence_number) {
@@ -77,9 +77,9 @@ impl StatefulWriterBehavior {
                 submessages.push(RtpsSubmessage::Data(data));
             } else {
                 let gap = Gap::new(
-                    submessage_elements::EntityId(*reader_proxy.remote_reader_guid().entity_id()), 
-                    submessage_elements::EntityId(*writer_guid.entity_id()),
-                    submessage_elements::SequenceNumber(next_unsent_seq_num),
+                    *reader_proxy.remote_reader_guid().entity_id(), 
+                    *writer_guid.entity_id(),
+                    next_unsent_seq_num,
                     Endianness::LittleEndian);
     
                 submessages.push(RtpsSubmessage::Gap(gap));
@@ -95,7 +95,7 @@ impl StatefulWriterBehavior {
             let mut submessages = Vec::new();
     
             let time = Time::now();
-            let infots = InfoTs::new(Some(submessage_elements::Timestamp(time)), Endianness::LittleEndian);
+            let infots = InfoTs::new(Some(time), Endianness::LittleEndian);
     
             submessages.push(RtpsSubmessage::InfoTs(infots));
     
@@ -107,11 +107,11 @@ impl StatefulWriterBehavior {
             reader_proxy.increment_heartbeat_count();
     
             let heartbeat = Heartbeat::new(
-                submessage_elements::EntityId(*reader_proxy.remote_reader_guid().entity_id()),
-                submessage_elements::EntityId(*writer_guid.entity_id()),
-                submessage_elements::SequenceNumber(first_sn),
-                submessage_elements::SequenceNumber(last_change_sequence_number),
-                submessage_elements::Count(*reader_proxy.heartbeat_count()),
+                *reader_proxy.remote_reader_guid().entity_id(),
+                *writer_guid.entity_id(),
+                first_sn,
+                last_change_sequence_number,
+                *reader_proxy.heartbeat_count(),
                 false,
                 false,
                 Endianness::LittleEndian,
@@ -166,7 +166,7 @@ impl StatefulWriterBehavior {
     
         let endianness = Endianness::LittleEndian;
         let time = Time::now();
-        let infots = InfoTs::new(Some(submessage_elements::Timestamp(time)), endianness);
+        let infots = InfoTs::new(Some(time), endianness);
         submessages.push(RtpsSubmessage::InfoTs(infots));
     
         while let Some(next_requested_seq_num) = reader_proxy.next_requested_change() {
@@ -189,9 +189,9 @@ impl StatefulWriterBehavior {
 
                 let data = Data::new(
                     Endianness::LittleEndian.into(),
-                    submessage_elements::EntityId(*reader_proxy.remote_reader_guid().entity_id()),
-                    submessage_elements::EntityId(*writer_guid.entity_id()),
-                    submessage_elements::SequenceNumber(*cache_change.sequence_number()),
+                    *reader_proxy.remote_reader_guid().entity_id(),
+                    *writer_guid.entity_id(),
+                    *cache_change.sequence_number(),
                     Some(inline_qos), 
                     payload,
                 );
@@ -199,9 +199,9 @@ impl StatefulWriterBehavior {
                 submessages.push(RtpsSubmessage::Data(data));
             } else {
                 let gap = Gap::new(
-                    submessage_elements::EntityId(*reader_proxy.remote_reader_guid().entity_id()), 
-                    submessage_elements::EntityId(*writer_guid.entity_id()),
-                    submessage_elements::SequenceNumber(next_requested_seq_num),
+                    *reader_proxy.remote_reader_guid().entity_id(), 
+                    *writer_guid.entity_id(),
+                    next_requested_seq_num,
                     Endianness::LittleEndian);
     
                 submessages.push(RtpsSubmessage::Gap(gap));
@@ -222,7 +222,6 @@ mod tests {
         ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, };
     use crate::cache::CacheChange;
     use crate::messages::{AckNack};
-    use crate::messages::submessage_elements::SequenceNumberSet;
     use crate::stateful_writer::StatefulWriter;
 
     use std::thread::sleep;
@@ -338,10 +337,11 @@ mod tests {
         let writer_guid = GUID::new([2;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
         
         let acknack = AckNack::new(
-            submessage_elements::EntityId(*remote_reader_guid.entity_id()),
-           submessage_elements::EntityId(*writer_guid.entity_id()),
-           submessage_elements::SequenceNumberSet::from_set(vec![3, 5, 6].iter().cloned().collect()),
-           submessage_elements::Count(1),
+            *remote_reader_guid.entity_id(),
+           *writer_guid.entity_id(),
+           3,
+            vec![3, 5, 6].iter().cloned().collect(),
+           1,
             true,
             Endianness::LittleEndian);
         let received_message = RtpsMessage::new(*remote_reader_guid.prefix(), vec![RtpsSubmessage::AckNack(acknack)]);
@@ -363,10 +363,11 @@ mod tests {
         let mut submessages = Vec::new();
         let other_reader_guid = GUID::new([9;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
         let acknack = AckNack::new(
-            submessage_elements::EntityId(*other_reader_guid.entity_id()),
-           submessage_elements::EntityId(*writer_guid.entity_id()),
-           submessage_elements::SequenceNumberSet::from_set(vec![3, 5, 6].iter().cloned().collect()),
-           submessage_elements::Count(1),
+            *other_reader_guid.entity_id(),
+           *writer_guid.entity_id(),
+           3,
+            vec![3, 5, 6].iter().cloned().collect(),
+           1,
             true,
             Endianness::LittleEndian);
         submessages.push(RtpsSubmessage::AckNack(acknack));
@@ -380,10 +381,11 @@ mod tests {
         // Test message with different writer guid
         let mut submessages = Vec::new();
         let acknack = AckNack::new(
-            submessage_elements::EntityId(*remote_reader_guid.entity_id()),
-            submessage_elements::EntityId(ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER),
-           SequenceNumberSet::from_set(vec![3, 5, 6].iter().cloned().collect()),
-           submessage_elements::Count(1),
+            *remote_reader_guid.entity_id(),
+            ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
+           3, 
+           vec![5, 6].iter().cloned().collect(),
+           1,
             true,
             Endianness::LittleEndian);
         submessages.push(RtpsSubmessage::AckNack(acknack));
@@ -399,10 +401,11 @@ mod tests {
         // Test duplicate acknack message
         let mut submessages = Vec::new();
         let acknack = AckNack::new(
-            submessage_elements::EntityId(*remote_reader_guid.entity_id()),
-            submessage_elements::EntityId(*writer_guid.entity_id()),
-           SequenceNumberSet::from_set(vec![3, 5, 6].iter().cloned().collect()),
-           submessage_elements::Count(1),
+            *remote_reader_guid.entity_id(),
+            *writer_guid.entity_id(),
+           3, 
+            vec![3, 5, 6].iter().cloned().collect(),
+           1,
             true,
             Endianness::LittleEndian);
         submessages.push(RtpsSubmessage::AckNack(acknack));
@@ -433,10 +436,11 @@ mod tests {
 
         let mut submessages = Vec::new();
         let acknack = AckNack::new(
-            submessage_elements::EntityId(*remote_reader_guid.entity_id()),
-            submessage_elements::EntityId(*writer_guid.entity_id()),
-           SequenceNumberSet::new(5, vec![].iter().cloned().collect()),
-           submessage_elements::Count(1),
+            *remote_reader_guid.entity_id(),
+            *writer_guid.entity_id(),
+           5, 
+           vec![].iter().cloned().collect(),
+           1,
             true,
             Endianness::LittleEndian);
         submessages.push(RtpsSubmessage::AckNack(acknack));
@@ -775,10 +779,11 @@ mod tests {
 
         // Check that if a sample is requested it gets sent after the nack_response_delay. In this case it comes together with a heartbeat
         let acknack = AckNack::new(
-            submessage_elements::EntityId(*remote_reader_guid.entity_id()),
-            submessage_elements::EntityId(*writer_guid.entity_id()),
-           SequenceNumberSet::new(1, vec![2].iter().cloned().collect()),
-           submessage_elements::Count(1),
+            *remote_reader_guid.entity_id(),
+            *writer_guid.entity_id(),
+           1, 
+           vec![2].iter().cloned().collect(),
+           1,
            true,
            Endianness::LittleEndian);
         let received_message = RtpsMessage::new(*remote_reader_guid.prefix(), vec![RtpsSubmessage::AckNack(acknack)]);

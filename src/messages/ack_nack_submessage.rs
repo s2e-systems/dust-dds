@@ -1,8 +1,12 @@
+use std::collections::BTreeSet;
+
 use super::serdes::{SubmessageElement, Endianness, RtpsSerdesResult, };
 
 use super::types::{SubmessageKind, SubmessageFlag, };
 use super::{SubmessageHeader, Submessage, UdpPsmMapping};
 use super::submessage_elements;
+use crate::types;
+use crate::messages;
 
 #[derive(PartialEq, Debug)]
 pub struct AckNack {
@@ -16,17 +20,18 @@ pub struct AckNack {
 
 impl AckNack {
     pub fn new(
-        reader_id: submessage_elements::EntityId,
-        writer_id: submessage_elements::EntityId,
-        reader_sn_state: submessage_elements::SequenceNumberSet,
-        count: submessage_elements::Count,
+        reader_id: types::EntityId,
+        writer_id: types::EntityId,
+        available_changes_max: types::SequenceNumber,
+        missing_changes: BTreeSet<types::SequenceNumber>,
+        count: messages::types::Count,
         final_flag: bool,
         endianness_flag: Endianness) -> Self {
             AckNack {
-                reader_id,
-                writer_id,
-                reader_sn_state,
-                count,
+                reader_id: submessage_elements::EntityId(reader_id),
+                writer_id: submessage_elements::EntityId(writer_id),
+                reader_sn_state: submessage_elements::SequenceNumberSet::new(available_changes_max, missing_changes),
+                count: submessage_elements::Count(count),
                 final_flag,
                 endianness_flag: endianness_flag.into(),
             }

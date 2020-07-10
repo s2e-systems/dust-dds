@@ -1,12 +1,11 @@
 use std::convert::From;
 
 use crate::types::constants::SEQUENCE_NUMBER_UNKNOWN;
-use super::serdes::{SubmessageElement, Endianness, RtpsSerdesResult, };
-
-use super::types::{SubmessageKind, SubmessageFlag,  };
+use crate::types;
+use super::submessage_elements;
 use super::{SubmessageHeader, Submessage, UdpPsmMapping};
-use super::{submessage_elements,};
-use super::submessage_elements::UShort;
+use super::serdes::{SubmessageElement, Endianness, RtpsSerdesResult, };
+use super::types::{SubmessageKind, SubmessageFlag,  };
 
 #[derive(PartialEq, Debug)]
 pub struct Data {
@@ -36,9 +35,9 @@ impl Data {
     /// data_flag, key_flag and non_standard_payload_flag are inferred from the kind of payload
     pub fn new(
         endianness_flag: Endianness,
-        reader_id: submessage_elements::EntityId,
-        writer_id: submessage_elements::EntityId,
-        writer_sn: submessage_elements::SequenceNumber,
+        reader_id: types::EntityId,
+        writer_id: types::EntityId,
+        writer_sn: types::SequenceNumber,
         inline_qos: Option<submessage_elements::ParameterList>,
         payload: Payload,) -> Self {
             let inline_qos_flag = inline_qos.is_some();
@@ -58,9 +57,9 @@ impl Data {
             data_flag,
             key_flag,
             non_standard_payload_flag,
-            reader_id,
-            writer_id,
-            writer_sn,
+            reader_id: submessage_elements::EntityId(reader_id),
+            writer_id: submessage_elements::EntityId(writer_id),
+            writer_sn: submessage_elements::SequenceNumber(writer_sn),
             inline_qos, 
             serialized_payload, 
         }
@@ -142,9 +141,9 @@ impl Submessage for Data {
 impl UdpPsmMapping for Data {
     fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
         let endianness = Endianness::from(self.endianness_flag);
-        let extra_flags = UShort(0);
+        let extra_flags = submessage_elements::UShort(0);
         let octecs_to_inline_qos_size = self.reader_id.octets() + self.writer_id.octets() + self.writer_sn.octets();
-        let octecs_to_inline_qos = UShort(octecs_to_inline_qos_size as u16);
+        let octecs_to_inline_qos = submessage_elements::UShort(octecs_to_inline_qos_size as u16);
         self.submessage_header().compose(writer)?;
         extra_flags.serialize(writer, endianness)?;
         octecs_to_inline_qos.serialize(writer, endianness)?;
@@ -175,7 +174,7 @@ impl UdpPsmMapping for Data {
         let endianness = Endianness::from(endianness_flag);
 
         const HEADER_SIZE : usize = 8;
-        let octets_to_inline_qos = usize::from(UShort::deserialize(&bytes[6..8], endianness)?.0) + HEADER_SIZE /* header and extra flags*/;
+        let octets_to_inline_qos = usize::from(submessage_elements::UShort::deserialize(&bytes[6..8], endianness)?.0) + HEADER_SIZE /* header and extra flags*/;
         let reader_id = submessage_elements::EntityId::deserialize(&bytes[8..12], endianness)?;        
         let writer_id = submessage_elements::EntityId::deserialize(&bytes[12..16], endianness)?;
         let writer_sn = submessage_elements::SequenceNumber::deserialize(&bytes[16..24], endianness)?;
@@ -229,9 +228,9 @@ mod tests {
     fn test_data_contructor() {
         let data = Data::new(
             Endianness::LittleEndian, 
-            submessage_elements::EntityId(ENTITYID_UNKNOWN), 
-            submessage_elements::EntityId(ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER), 
-            submessage_elements::SequenceNumber(1), 
+            ENTITYID_UNKNOWN, 
+            ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, 
+            1, 
             Some(submessage_elements::ParameterList::new()),
             Payload::Data(vec![])
         );
