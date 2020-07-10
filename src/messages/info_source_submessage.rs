@@ -3,7 +3,7 @@ use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, Endi
 
 use super::types::{SubmessageKind, SubmessageFlag, };
 use super::{SubmessageHeader, Submessage, };
-use super::submessage_elements;
+use super::{submessage_elements, serialize_long, deserialize_long};
 
 #[derive(PartialEq, Debug)]
 pub struct InfoSource {
@@ -19,10 +19,9 @@ impl Submessage for InfoSource {
         const X: SubmessageFlag = false;
         let e = self.endianness_flag;
         let flags = [e, X, X, X, X, X, X, X];
-        let unused: Long = 0;
         
         let octets_to_next_header = 
-            unused.octets() +
+            4 /*unused.octets()*/ +
             self.protocol_version.octets() + 
             self.vendor_id.octets() +
             self.guid_prefix.octets();
@@ -44,7 +43,7 @@ impl RtpsCompose for InfoSource {
         let endianness = self.endianness_flag.into();
         let unused: Long = 0;
         self.submessage_header().compose(writer)?;
-        unused.serialize(writer, endianness)?;
+        serialize_long(unused, writer, endianness)?;
         self.protocol_version.serialize(writer, endianness)?;
         self.vendor_id.serialize(writer, endianness)?;
         self.guid_prefix.serialize(writer, endianness)?;

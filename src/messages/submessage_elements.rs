@@ -11,10 +11,11 @@ use std::convert::TryInto;
 use cdr::{LittleEndian, BigEndian, Infinite};
 
 use crate::types::{Locator};
-use crate::primitive_types::{Long, ULong, Short, };
+use crate::primitive_types::{Long, ULong, Short};
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, Endianness, RtpsSerdesResult, SizeCheck};
 use crate::types;
 
+use super::{serialize_long, serialize_ulong, serialize_short, deserialize_long, deserialize_ulong, deserialize_short};
 
 pub trait Pid {
     fn pid() -> super::types::ParameterId;
@@ -98,16 +99,17 @@ impl RtpsDeserialize for ProtocolVersion {
     }
 }
 
+
 //  /////////   SequenceNumber
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Hash)]
 pub struct SequenceNumber(pub types::SequenceNumber);
 
 impl RtpsSerialize for SequenceNumber {
     fn serialize(&self, writer: &mut impl std::io::Write, endianness: Endianness) -> RtpsSerdesResult<()>{
-        let msb = self.0 >> 32;
-        let lsb = self.0 & 0x0000_0000_FFFF_FFFF;
-        (msb as Long).serialize(writer, endianness)?;
-        (lsb as ULong).serialize(writer, endianness)?;
+        let msb = (self.0 >> 32) as Long;
+        let lsb = (self.0 & 0x0000_0000_FFFF_FFFF) as ULong;
+        serialize_long(msb, writer, endianness)?;
+        serialize_ulong(lsb, writer, endianness)?;
         Ok(())
     }
 }
@@ -116,8 +118,8 @@ impl RtpsDeserialize for SequenceNumber {
     fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> {
         bytes.check_size_equal(8)?;
 
-        let msb = Long::deserialize(&bytes[0..4], endianness)?;
-        let lsb = ULong::deserialize(&bytes[4..8], endianness)?;
+        let msb = deserialize_long(&bytes[0..4], endianness)?;
+        let lsb = deserialize_ulong(&bytes[4..8], endianness)?;
 
         let sequence_number = ((msb as i64) << 32) + lsb as i64;
 
@@ -177,7 +179,7 @@ impl RtpsSerialize for SequenceNumberSet {
         let m = ((num_bits + 31) / 32) as usize;
         let mut bitmaps = vec![0_u32; m];
         SequenceNumber(self.base).serialize(writer, endianness)?;
-        (num_bits as ULong).serialize(writer, endianness)?;
+        serialize_ulong(num_bits as ULong, writer, endianness)?;
         for seq_num in &self.set {
             let delta_n = (seq_num - self.base) as usize;
             let bitmap_i = delta_n / 32;
@@ -185,7 +187,7 @@ impl RtpsSerialize for SequenceNumberSet {
             bitmaps[bitmap_i] |= bitmask;
         };
         for bitmap in bitmaps {
-            (bitmap as ULong).serialize(writer, endianness)?;
+            serialize_ulong(bitmap as ULong, writer, endianness)?;
         }
         Ok(())
     }
@@ -196,7 +198,7 @@ impl RtpsDeserialize for SequenceNumberSet {
         bytes.check_size_bigger_equal_than(12)?;
 
         let base = SequenceNumber::deserialize(&bytes[0..8], endianness)?.0;
-        let num_bits = ULong::deserialize(&bytes[8..12], endianness)? as usize;
+        let num_bits = deserialize_ulong(&bytes[8..12], endianness)? as usize;
 
         // Get bitmaps from "long"s that follow the numBits field in the message
         // Note that the amount of bitmaps that are included in the message are 
@@ -207,7 +209,7 @@ impl RtpsDeserialize for SequenceNumberSet {
         for i in 0..m {
             let index_of_byte_current_bitmap = 12 + i * 4;
             bytes.check_size_bigger_equal_than(index_of_byte_current_bitmap+4)?;
-            bitmaps.push(Long::deserialize(&bytes[index_of_byte_current_bitmap..index_of_byte_current_bitmap+4], endianness)?);
+            bitmaps.push(deserialize_long(&bytes[index_of_byte_current_bitmap..index_of_byte_current_bitmap+4], endianness)?);
         };
         // Interpet the bitmaps and insert the sequence numbers if they are encode in the bitmaps
         let mut set = BTreeSet::new(); 
@@ -231,14 +233,14 @@ pub struct FragmentNumber(pub super::types::FragmentNumber);
 
 impl RtpsSerialize for FragmentNumber {
     fn serialize(&self, writer: &mut impl std::io::Write, endianness: Endianness) -> RtpsSerdesResult<()> {
-        self.0.serialize(writer, endianness)?;
+        serialize_ulong(self.0, writer, endianness)?;
         Ok(())
     }    
 }
 
 impl RtpsDeserialize for FragmentNumber {
     fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> {
-        Ok(Self(ULong::deserialize(bytes, endianness)?))
+        Ok(Self(deserialize_ulong(bytes, endianness)?))
     }    
 }
 
@@ -278,9 +280,9 @@ impl RtpsSerialize for FragmentNumberSet {
             self.set.iter().last().unwrap().0 - self.base.0 + 1
         };
         let m = ((num_bits + 31) / 32) as usize;
-        let mut bitmaps = vec![0_u32; m];
+        let mut bitmaps = vec![0_i32; m];
         self.base.serialize(writer, endianness)?;
-        (num_bits as ULong).serialize(writer, endianness)?;
+        serialize_ulong(num_bits as ULong, writer, endianness)?;
         for seq_num in &self.set {
             let delta_n = (seq_num.0 - self.base.0) as usize;
             let bitmap_i = delta_n / 32;
@@ -288,7 +290,7 @@ impl RtpsSerialize for FragmentNumberSet {
             bitmaps[bitmap_i] |= bitmask;
         };
         for bitmap in bitmaps {
-            (bitmap as ULong).serialize(writer, endianness)?;
+            serialize_long(bitmap, writer, endianness)?;
         }
         Ok(())
     }
@@ -297,7 +299,7 @@ impl RtpsDeserialize for FragmentNumberSet {
     fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> {
         bytes.check_size_bigger_equal_than(8)?;
         let base = FragmentNumber::deserialize(&bytes[0..4], endianness)?;
-        let num_bits = ULong::deserialize(&bytes[4..8], endianness)? as usize;
+        let num_bits = deserialize_ulong(&bytes[4..8], endianness)? as usize;
 
         // Get bitmaps from "long"s that follow the numBits field in the message
         // Note that the amount of bitmaps that are included in the message are 
@@ -308,7 +310,7 @@ impl RtpsDeserialize for FragmentNumberSet {
         for i in 0..m {
             let index_of_byte_current_bitmap = 8 + i * 4;
             bytes.check_size_bigger_equal_than(index_of_byte_current_bitmap+4)?;
-            bitmaps.push(Long::deserialize(&bytes[index_of_byte_current_bitmap..index_of_byte_current_bitmap+4], endianness)?);
+            bitmaps.push(deserialize_long(&bytes[index_of_byte_current_bitmap..index_of_byte_current_bitmap+4], endianness)?);
         };
         // Interpet the bitmaps and insert the sequence numbers if they are encode in the bitmaps
         let mut set = BTreeSet::new(); 
@@ -329,8 +331,8 @@ pub struct Timestamp(pub super::types::Time);
 
 impl RtpsSerialize for Timestamp {
     fn serialize(&self, writer: &mut impl std::io::Write, endianness: Endianness) -> RtpsSerdesResult<()>{
-        self.0.seconds().serialize(writer, endianness)?;
-        self.0.fraction().serialize(writer, endianness)?;
+        serialize_ulong(self.0.seconds(), writer, endianness)?;
+        serialize_ulong(self.0.fraction(), writer, endianness)?;
         Ok(())
     }
 }
@@ -339,8 +341,8 @@ impl RtpsDeserialize for Timestamp {
     fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> {
         bytes.check_size_equal(8)?;
 
-        let seconds = ULong::deserialize(&bytes[0..4], endianness)?;
-        let fraction = ULong::deserialize(&bytes[4..8], endianness)?;
+        let seconds = deserialize_ulong(&bytes[0..4], endianness)?;
+        let fraction = deserialize_ulong(&bytes[4..8], endianness)?;
 
         Ok(Self(super::types::Time::new(seconds, fraction)))
     }
@@ -405,8 +407,8 @@ impl Parameter {
 
 impl  RtpsSerialize for Parameter {
     fn serialize(&self, writer: &mut impl Write, endianness: Endianness) -> RtpsSerdesResult<()> {
-        self.parameter_id.serialize(writer, endianness)?;
-        self.length.serialize(writer, endianness)?;
+        serialize_short(self.parameter_id, writer, endianness)?;
+        serialize_short(self.length, writer, endianness)?;
         writer.write(self.value.as_slice())?;
         let padding = self.length as usize - self.value.len();
         for _ in 0..padding {
@@ -423,8 +425,8 @@ impl  RtpsSerialize for Parameter {
 impl RtpsDeserialize for Parameter {
     fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> {
         bytes.check_size_bigger_equal_than(4)?;
-        let parameter_id = super::types::ParameterId::deserialize(&bytes[0..2], endianness)?;
-        let length = Short::deserialize(&bytes[2..4], endianness)?;
+        let parameter_id = deserialize_short(&bytes[0..2], endianness)?;
+        let length = deserialize_short(&bytes[2..4], endianness)?;
         let bytes_end = (length + 4) as usize;
         bytes.check_size_bigger_equal_than(bytes_end)?;
         let value = Vec::from(&bytes[4..bytes_end]);
@@ -504,14 +506,14 @@ impl RtpsSerialize for ParameterList {
          for param in self.parameter.iter() {
             Parameter{parameter_id: param.parameter_id(), length: param.length(), value: param.value(endianness)}.serialize(writer, endianness)?;
         }       
-        ParameterList::PID_SENTINEL.serialize(writer, endianness)?;
+        serialize_short(ParameterList::PID_SENTINEL, writer, endianness)?;
         writer.write(&[0,0])?; // Sentinel length 0
         Ok(())
     }
 
     fn octets(&self) -> usize {
         let mut s = 4; //sentinel
-        self.parameter.iter().for_each(|param| {s += param.parameter_id().octets() + param.length().octets() + (param.length() as usize) });
+        self.parameter.iter().for_each(|param| {s += 2 /*param.parameter_id().octets()*/ + 2 /*param.length().octets()*/ + (param.length() as usize) });
         s
     }   
 }
@@ -548,14 +550,14 @@ impl std::ops::AddAssign<i32> for Count {
 
 impl RtpsSerialize for Count {
     fn serialize(&self, writer: &mut impl std::io::Write, endianness: Endianness) -> RtpsSerdesResult<()> {
-        (self.0 as Long).serialize(writer, endianness)?;
+        serialize_long(self.0 as Long, writer, endianness)?;
         Ok(())
     }
 }
 
 impl RtpsDeserialize for Count {
     fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> {
-        let value = Long::deserialize(bytes, endianness)?;
+        let value = deserialize_long(bytes, endianness)?;
         Ok(Count(value))
     }
 }
@@ -568,16 +570,16 @@ impl RtpsDeserialize for Count {
 pub struct LocatorList(pub Vec<Locator>);
 
 fn serialize_locator(locator: &Locator, writer: &mut impl std::io::Write, endianness: Endianness) -> RtpsSerdesResult<()> {
-    locator.kind.serialize(writer, endianness)?;
-    locator.port.serialize(writer, endianness)?;
+    serialize_long(locator.kind, writer, endianness)?;
+    serialize_ulong(locator.port, writer, endianness)?;
     writer.write(&locator.address)?;
     Ok(())
 }
 
 fn deserialize_locator(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Locator> {
     bytes.check_size_equal(24)?;
-    let kind = Long::deserialize(&bytes[0..4], endianness)?;
-    let port = ULong::deserialize(&bytes[4..8], endianness)?;
+    let kind = deserialize_long(&bytes[0..4], endianness)?;
+    let port = deserialize_ulong(&bytes[4..8], endianness)?;
     let address = bytes[8..24].try_into()?;
     Ok(Locator {kind, port, address})
 }
@@ -585,7 +587,7 @@ fn deserialize_locator(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult
 impl RtpsSerialize for LocatorList {
     fn serialize(&self, writer: &mut impl std::io::Write, endianness: Endianness) -> RtpsSerdesResult<()> {
         let num_locators = self.0.len() as ULong;
-        num_locators.serialize(writer, endianness)?;
+        serialize_ulong(num_locators, writer, endianness)?;
         for locator in &self.0 {
             serialize_locator(locator, writer, endianness)?;
         };
@@ -597,7 +599,7 @@ impl RtpsDeserialize for LocatorList {
     fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> {
         bytes.check_size_bigger_equal_than(4)?;
         let size = bytes.len();
-        let num_locators = ULong::deserialize(&bytes[0..4], endianness)?;
+        let num_locators = deserialize_ulong(&bytes[0..4], endianness)?;
         let mut locators = Vec::<Locator>::new();
         let mut index = 4;
         while index < size && locators.len() < num_locators as usize {
