@@ -1,9 +1,8 @@
 use std::collections::BTreeSet;
 
 use super::serdes::{SubmessageElement, Endianness, RtpsSerdesResult, };
-
-use super::types::{SubmessageKind, SubmessageFlag, };
-use super::{SubmessageHeader, Submessage, UdpPsmMapping};
+use super::{SubmessageKind, SubmessageFlag, UdpPsmMapping, };
+use super::submessage::{Submessage, SubmessageHeader, };
 use super::submessage_elements;
 use crate::types;
 use crate::messages;

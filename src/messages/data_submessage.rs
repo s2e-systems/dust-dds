@@ -1,11 +1,11 @@
 use std::convert::From;
 
-use crate::types::constants::SEQUENCE_NUMBER_UNKNOWN;
-use crate::types;
-use super::submessage_elements;
-use super::{SubmessageHeader, Submessage, UdpPsmMapping};
 use super::serdes::{SubmessageElement, Endianness, RtpsSerdesResult, };
-use super::types::{SubmessageKind, SubmessageFlag,  };
+use super::{SubmessageKind, SubmessageFlag, UdpPsmMapping, };
+use super::submessage::{Submessage, SubmessageHeader, };
+use super::submessage_elements;
+use crate::types;
+use crate::types::constants::SEQUENCE_NUMBER_UNKNOWN;
 
 #[derive(PartialEq, Debug)]
 pub struct Data {

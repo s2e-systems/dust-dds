@@ -1,9 +1,7 @@
 use super::serdes::{SubmessageElement, Endianness, RtpsSerdesResult, };
-
-use super::types::{SubmessageKind, SubmessageFlag, };
-use super::{SubmessageHeader, Submessage, UdpPsmMapping};
-use super::{submessage_elements,};
-use super::submessage_elements::Long;
+use super::{SubmessageKind, SubmessageFlag, UdpPsmMapping, };
+use super::submessage::{Submessage, SubmessageHeader, };
+use super::submessage_elements;
 
 #[derive(PartialEq, Debug)]
 pub struct InfoSource {
@@ -41,7 +39,7 @@ impl Submessage for InfoSource {
 impl UdpPsmMapping for InfoSource {
     fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
         let endianness = self.endianness_flag.into();
-        let unused = Long(0);
+        let unused = submessage_elements::Long(0);
         self.submessage_header().compose(writer)?;
         unused.serialize(writer, endianness)?;
         self.protocol_version.serialize(writer, endianness)?;
@@ -54,7 +52,7 @@ impl UdpPsmMapping for InfoSource {
         let header = SubmessageHeader::parse(bytes)?;
         let endianness_flag = header.flags()[0];
         let endianness = Endianness::from(endianness_flag);
-        let _unused = Long::deserialize(&bytes[4..8], endianness)?;
+        let _unused = submessage_elements::ULong::deserialize(&bytes[4..8], endianness)?;
         let protocol_version = submessage_elements::ProtocolVersion::deserialize(&bytes[8..10], endianness)?;
         let vendor_id = submessage_elements::VendorId::deserialize(&bytes[10..12], endianness)?;
         let guid_prefix = submessage_elements::GuidPrefix::deserialize(&bytes[12..24], endianness)?;        

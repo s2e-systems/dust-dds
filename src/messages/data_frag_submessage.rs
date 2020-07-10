@@ -1,10 +1,8 @@
-use crate::types::constants::SEQUENCE_NUMBER_UNKNOWN;
 use super::serdes::{SubmessageElement, Endianness, RtpsSerdesResult, };
-
-use super::types::{SubmessageKind, SubmessageFlag, };
-use super::{SubmessageHeader, Submessage, UdpPsmMapping};
-use super::{submessage_elements};
-use super::submessage_elements::{UShort, ULong};
+use super::{SubmessageKind, SubmessageFlag, UdpPsmMapping, };
+use super::submessage::{Submessage, SubmessageHeader, };
+use super::submessage_elements;
+use crate::types::constants::SEQUENCE_NUMBER_UNKNOWN;
 
 #[derive(PartialEq, Debug)]
 pub struct DataFrag {
@@ -16,9 +14,9 @@ pub struct DataFrag {
     writer_id: submessage_elements::EntityId,
     writer_sn: submessage_elements::SequenceNumber,
     fragment_starting_num: submessage_elements::FragmentNumber,
-    fragments_in_submessage: UShort,
-    data_size: ULong,
-    fragment_size: UShort,
+    fragments_in_submessage: submessage_elements::UShort,
+    data_size: submessage_elements::ULong,
+    fragment_size: submessage_elements::UShort,
     inline_qos: Option<submessage_elements::ParameterList>,
     serialized_payload: Option<submessage_elements::SerializedDataFragment>,
 }
@@ -74,8 +72,8 @@ impl UdpPsmMapping for DataFrag {
     fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
         // let sample_size = ULong(0); // TODO: what is sample_size? It is in PSM but nut in PIM. Probably: data_size
         let endianness = Endianness::from(self.endianness_flag);
-        let extra_flags = UShort(0);
-        let octecs_to_inline_qos = UShort((
+        let extra_flags = submessage_elements::UShort(0);
+        let octecs_to_inline_qos = submessage_elements::UShort((
             self.reader_id.octets() + 
             self.writer_id.octets() + 
             self.writer_sn.octets() + 
@@ -113,14 +111,14 @@ impl UdpPsmMapping for DataFrag {
         let endianness = Endianness::from(endianness_flag);
 
         const HEADER_SIZE : usize = 8;
-        let octets_to_inline_qos = usize::from(UShort::deserialize(&bytes[6..8], endianness)?.0) + HEADER_SIZE /* header and extra flags*/;
+        let octets_to_inline_qos = usize::from(submessage_elements::UShort::deserialize(&bytes[6..8], endianness)?.0) + HEADER_SIZE /* header and extra flags*/;
         let reader_id = submessage_elements::EntityId::deserialize(&bytes[8..12], endianness)?;        
         let writer_id = submessage_elements::EntityId::deserialize(&bytes[12..16], endianness)?;
         let writer_sn = submessage_elements::SequenceNumber::deserialize(&bytes[16..24], endianness)?;
         let fragment_starting_num = submessage_elements::FragmentNumber::deserialize(&bytes[24..28], endianness)?;
-        let fragments_in_submessage = UShort::deserialize(&bytes[28..30], endianness)?;
-        let fragment_size = UShort::deserialize(&bytes[30..32], endianness)?;
-        let data_size = ULong::deserialize(&bytes[32..36], endianness)?;
+        let fragments_in_submessage = submessage_elements::UShort::deserialize(&bytes[28..30], endianness)?;
+        let fragment_size = submessage_elements::UShort::deserialize(&bytes[30..32], endianness)?;
+        let data_size = submessage_elements::ULong::deserialize(&bytes[32..36], endianness)?;
 
 
         let inline_qos = if inline_qos_flag {
@@ -173,9 +171,9 @@ mod tests{
             writer_id: submessage_elements::EntityId(ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER),
             writer_sn: submessage_elements::SequenceNumber(1),
             fragment_starting_num: submessage_elements::FragmentNumber(1), 
-            fragments_in_submessage: UShort(2),
-            fragment_size: UShort(3),
-            data_size: ULong(4),
+            fragments_in_submessage: submessage_elements::UShort(2),
+            fragment_size: submessage_elements::UShort(3),
+            data_size: submessage_elements::ULong(4),
             inline_qos: Some(inline_qos), 
             serialized_payload: Some(submessage_elements::SerializedDataFragment(vec![1, 2, 3])), 
         };
@@ -219,9 +217,9 @@ mod tests{
             writer_id: submessage_elements::EntityId(ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER),
             writer_sn: submessage_elements::SequenceNumber(1),
             fragment_starting_num: submessage_elements::FragmentNumber(1), 
-            fragments_in_submessage: UShort(2),
-            fragment_size: UShort(3),
-            data_size: ULong(4),
+            fragments_in_submessage: submessage_elements::UShort(2),
+            fragment_size: submessage_elements::UShort(3),
+            data_size: submessage_elements::ULong(4),
             inline_qos: Some(inline_qos), 
             serialized_payload: Some(submessage_elements::SerializedDataFragment(vec![1, 2, 3])), 
         };

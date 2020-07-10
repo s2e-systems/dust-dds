@@ -1,7 +1,7 @@
 use super::serdes::{SubmessageElement, Endianness, RtpsSerdesResult, };
 use super::submessage_elements;
-use super::types::{SubmessageKind, SubmessageFlag, };
-use super::{SubmessageHeader, Submessage, UdpPsmMapping};
+use super::{SubmessageKind, SubmessageFlag, UdpPsmMapping, };
+use super::submessage::{Submessage, SubmessageHeader, };
 use crate::messages;
 use crate::types;
 

@@ -1,10 +1,10 @@
 use std::collections::BTreeSet;
 
 use super::serdes::{SubmessageElement, Endianness, RtpsSerdesResult, };
-use crate::types;
-use super::types::{SubmessageKind, SubmessageFlag, };
-use super::{SubmessageHeader, Submessage, UdpPsmMapping};
+use super::{SubmessageKind, SubmessageFlag, UdpPsmMapping, };
+use super::submessage::{Submessage, SubmessageHeader, };
 use super::submessage_elements;
+use crate::types;
 // use super::submessage_elements::SequenceNumberSet;
 
 #[derive(PartialEq, Debug)]
