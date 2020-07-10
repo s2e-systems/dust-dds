@@ -4,6 +4,7 @@
 ///  
 
 use std::convert::TryFrom;
+use num_derive::FromPrimitive;
 use crate::inline_qos_types::StatusInfo;
 
 
@@ -18,80 +19,64 @@ pub mod constants {
     pub const PROTOCOL_VERSION_2_2 : ProtocolVersion = ProtocolVersion{major: 2, minor: 2};
     pub const PROTOCOL_VERSION_2_4 : ProtocolVersion = ProtocolVersion{major: 2, minor: 4};
 
-    pub const USER_DEFINED_UNKNOWN: EntityKind = 0x00;
-    pub const USER_DEFINED_WRITER_WITH_KEY: EntityKind = 0x02;
-    pub const USER_DEFINED_WRITER_NO_KEY: EntityKind = 0x03;
-    pub const USER_DEFINED_READER_WITH_KEY: EntityKind = 0x04;
-    pub const USER_DEFINED_READER_NO_KEY: EntityKind = 0x07;
-    pub const USER_DEFINED_WRITER_GROUP: EntityKind = 0x08;
-    pub const USER_DEFINED_READER_GROUP: EntityKind = 0x09;
-    pub const BUILTIN_UNKNOWN: EntityKind = 0xc0;
-    pub const BUILTIN_PARTICIPANT: EntityKind = 0xc1;
-    pub const BUILTIN_WRITER_WITH_KEY: EntityKind = 0xc2;
-    pub const BUILTIN_WRITER_NO_KEY: EntityKind = 0xc3;
-    pub const BUILTIN_READER_WITH_KEY: EntityKind = 0xc4;
-    pub const BUILTIN_READER_NO_KEY: EntityKind = 0xc7;
-    pub const BUILTIN_WRITER_GROUP: EntityKind = 0xc8;
-    pub const BUILTIN_READER_GROUP: EntityKind = 0xc9;
-
     pub const ENTITYID_UNKNOWN: EntityId = EntityId {
         entity_key: [0, 0, 0x00],
-        entity_kind: USER_DEFINED_UNKNOWN,
+        entity_kind: EntityKind::UserDefinedUnknown,
     };
 
     pub const ENTITYID_PARTICIPANT: EntityId = EntityId {
         entity_key: [0, 0, 0x01],
-        entity_kind: BUILTIN_PARTICIPANT,
+        entity_kind: EntityKind::BuiltInParticipant,
     };
 
     pub const ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER: EntityId = EntityId {
         entity_key: [0, 0, 0x02],
-        entity_kind: BUILTIN_WRITER_WITH_KEY,
+        entity_kind: EntityKind::BuiltInWriterWithKey,
     };
 
     pub const ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR: EntityId = EntityId {
         entity_key: [0, 0, 0x02],
-        entity_kind: BUILTIN_READER_WITH_KEY,
+        entity_kind:EntityKind::BuiltInReaderWithKey,
     };
 
     pub const ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER: EntityId = EntityId {
         entity_key: [0, 0, 0x03],
-        entity_kind: BUILTIN_WRITER_WITH_KEY,
+        entity_kind: EntityKind::BuiltInWriterWithKey,
     };
 
     pub const ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR: EntityId = EntityId {
         entity_key: [0, 0, 0x03],
-        entity_kind: BUILTIN_READER_WITH_KEY,
+        entity_kind: EntityKind::BuiltInReaderWithKey,
     };
 
     pub const ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER: EntityId = EntityId {
         entity_key: [0, 0, 0x04],
-        entity_kind: BUILTIN_WRITER_WITH_KEY,
+        entity_kind: EntityKind::BuiltInWriterWithKey,
     };
 
     pub const ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR: EntityId = EntityId {
         entity_key: [0, 0, 0x04],
-        entity_kind: BUILTIN_READER_WITH_KEY,
+        entity_kind: EntityKind::BuiltInReaderWithKey,
     };
 
     pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER: EntityId = EntityId {
         entity_key: [0, 0x01, 0x00],
-        entity_kind: BUILTIN_WRITER_WITH_KEY,
+        entity_kind: EntityKind::BuiltInWriterWithKey,
     };
 
     pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_DETECTOR: EntityId = EntityId {
         entity_key: [0, 0x01, 0x00],
-        entity_kind: BUILTIN_READER_WITH_KEY,
+        entity_kind: EntityKind::BuiltInReaderWithKey,
     };
 
     pub const ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER: EntityId = EntityId {
         entity_key: [0, 0x02, 0x00],
-        entity_kind: BUILTIN_WRITER_WITH_KEY,
+        entity_kind: EntityKind::BuiltInWriterWithKey,
     };
 
     pub const ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER: EntityId = EntityId {
         entity_key: [0, 0x02, 0x00],
-        entity_kind: BUILTIN_READER_WITH_KEY,
+        entity_kind: EntityKind::BuiltInReaderWithKey,
     };
 }
 
@@ -118,7 +103,25 @@ impl GUID {
 pub type GuidPrefix = [u8; 12];
 
 pub type EntityKey = [u8; 3];
-pub type EntityKind = u8;
+#[derive(FromPrimitive, Debug, Hash, PartialEq, Eq, Clone, Copy)]
+pub enum EntityKind {
+    UserDefinedUnknown = 0x00,
+    UserDefinedWriterWithKey = 0x02,
+    UserDefinedWriterNoKey = 0x03,
+    UserDefinedReaderWithKey = 0x04,
+    UserDefinedReaderNoKey = 0x07,
+    UserDefinedWriterGroup = 0x08,
+    UserDefinedReaderGroup = 0x09,
+    BuiltInUnknown = 0xc0,
+    BuiltInParticipant = 0xc1,
+    BuiltInWriterWithKey = 0xc2,
+    BuiltInWriterNoKey = 0xc3,
+    BuiltInReaderWithKey = 0xc4,
+    BuiltInReaderNoKey = 0xc7,
+    BuiltInWriterGroup = 0xc8,
+    BuiltInReaderGroup = 0xc9,
+}
+
 #[derive(Hash, Eq, PartialEq, Debug, Clone, Copy)]
 pub struct EntityId {
     entity_key: EntityKey,

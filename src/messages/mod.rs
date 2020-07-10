@@ -260,9 +260,9 @@ impl RtpsParse for RtpsMessage {
 mod tests {
     use super::types::Time;
     use super::*;
-    use crate::types::constants;
     use crate::types::constants::{ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, ENTITYID_UNKNOWN};
-
+    use crate::types::EntityKind;
+    
     #[test]
     fn test_parse_message_header() {
         let expected = Header {
@@ -508,11 +508,11 @@ mod tests {
         ));
         let reader_id = submessage_elements::EntityId(crate::types::EntityId::new(
             [0x10, 0x12, 0x14],
-            constants::USER_DEFINED_READER_WITH_KEY,
+            EntityKind::UserDefinedReaderWithKey,
         ));
         let writer_id = submessage_elements::EntityId(crate::types::EntityId::new(
             [0x26, 0x24, 0x22],
-            constants::USER_DEFINED_WRITER_WITH_KEY,
+            EntityKind::UserDefinedWriterWithKey,
         ));
         let first_sn = submessage_elements::SequenceNumber(1233);
         let last_sn = submessage_elements::SequenceNumber(1237);

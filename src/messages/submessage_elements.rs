@@ -11,7 +11,7 @@ use std::convert::TryInto;
 use cdr::{LittleEndian, BigEndian, Infinite};
 
 use crate::types::{Locator};
-use crate::serdes::{RtpsSerialize, RtpsDeserialize, Endianness, RtpsSerdesResult, SizeCheck};
+use crate::serdes::{RtpsSerialize, RtpsDeserialize, Endianness, RtpsSerdesResult, SizeCheck, RtpsSerdesError};
 use crate::types;
 
 pub trait Pid {
@@ -163,7 +163,7 @@ pub struct EntityId(pub types::EntityId);
 impl RtpsSerialize for EntityId {
     fn serialize(&self, writer: &mut impl std::io::Write, _endianness: Endianness) -> RtpsSerdesResult<()>{
         writer.write(&self.0.entity_key())?;
-        writer.write(&[self.0.entity_kind()])?;
+        writer.write(&[self.0.entity_kind() as u8])?;
         Ok(())
     }
 }
@@ -172,7 +172,7 @@ impl RtpsDeserialize for EntityId {
     fn deserialize(bytes: &[u8], _endianness: Endianness) -> RtpsSerdesResult<Self> {
         bytes.check_size_equal( 4)?;
         let entity_key = bytes[0..3].try_into()?;
-        let entity_kind = bytes[3];
+        let entity_kind = num::FromPrimitive::from_u8(bytes[3]).ok_or(RtpsSerdesError::InvalidEnumRepresentation)?;
         Ok(EntityId(types::EntityId::new(entity_key, entity_kind)))
     }
 }

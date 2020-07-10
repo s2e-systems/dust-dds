@@ -170,7 +170,7 @@ impl RtpsParse for Heartbeat {
 mod tests {
     use super::*;
     use crate::types::constants::ENTITYID_UNKNOWN;
-    use crate::types::constants;
+    use crate::types::EntityKind;
 
     #[test]
     fn test_heartbeat_validity_function() {
@@ -244,8 +244,8 @@ mod tests {
     fn test_serialize_deserialize_heartbeat() {
         let mut writer = Vec::new();
 
-        let reader_id = submessage_elements::EntityId(crate::types::EntityId::new([0x10, 0x12, 0x14], constants::USER_DEFINED_READER_WITH_KEY));
-        let writer_id = submessage_elements::EntityId(crate::types::EntityId::new([0x26, 0x24, 0x22], constants::USER_DEFINED_WRITER_WITH_KEY));
+        let reader_id = submessage_elements::EntityId(crate::types::EntityId::new([0x10, 0x12, 0x14], EntityKind::UserDefinedReaderWithKey));
+        let writer_id = submessage_elements::EntityId(crate::types::EntityId::new([0x26, 0x24, 0x22], EntityKind::UserDefinedWriterWithKey));
         let first_sn = submessage_elements::SequenceNumber(1233);
         let last_sn = submessage_elements::SequenceNumber(1237);
         let count = submessage_elements::Count(8);

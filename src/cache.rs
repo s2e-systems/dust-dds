@@ -165,14 +165,13 @@ impl HistoryCache {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::EntityId;
-    use crate::types::constants;
+    use crate::types::{EntityId, EntityKind};
 
     #[test]
     fn cache_change_list() {
         let mut history_cache = HistoryCache::new();
         let guid_prefix = [8; 12];
-        let entity_id = EntityId::new([1, 2, 3], constants::BUILTIN_READER_WITH_KEY);
+        let entity_id = EntityId::new([1, 2, 3], EntityKind::BuiltInReaderWithKey);
         let guid = GUID::new(guid_prefix, entity_id);
         let instance_handle = [9; 16];
         let sequence_number = 1;
@@ -203,7 +202,7 @@ mod tests {
         let mut history_cache = HistoryCache::new();
 
         let guid_prefix = [8; 12];
-        let entity_id = EntityId::new([1, 2, 3], constants::BUILTIN_READER_WITH_KEY);
+        let entity_id = EntityId::new([1, 2, 3], EntityKind::BuiltInReaderWithKey);
         let guid = GUID::new(guid_prefix, entity_id);
         let instance_handle = [9; 16];
         let data_value = Some(vec![4, 5, 6]);

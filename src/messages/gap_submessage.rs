@@ -126,7 +126,7 @@ impl RtpsParse for Gap {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::constants;
+    use crate::types::EntityKind;
     
     #[test]
     fn serialize_gap_submessage_big_endian() {
@@ -142,8 +142,8 @@ mod tests {
             0b11000000, 0x00, 0x00, 0x00, // gapList bitmap
         ];
         let endianness_flag = Endianness::BigEndian.into();
-        let reader_id = submessage_elements::EntityId(crate::types::EntityId::new([0x10, 0x12, 0x14], constants::USER_DEFINED_READER_WITH_KEY));
-        let writer_id = submessage_elements::EntityId(crate::types::EntityId::new([0x26, 0x24, 0x22], constants::USER_DEFINED_WRITER_WITH_KEY));
+        let reader_id = submessage_elements::EntityId(crate::types::EntityId::new([0x10, 0x12, 0x14], EntityKind::UserDefinedReaderWithKey));
+        let writer_id = submessage_elements::EntityId(crate::types::EntityId::new([0x26, 0x24, 0x22], EntityKind::UserDefinedWriterWithKey));
         let gap_start = submessage_elements::SequenceNumber(1200);
         let gap_list = submessage_elements::SequenceNumberSet::from_set([
             1234,
@@ -176,8 +176,8 @@ mod tests {
             0x00, 0x00, 0x00, 0b11000000, // gapList bitmap
         ];
         let endianness_flag = Endianness::LittleEndian.into();
-        let reader_id = submessage_elements::EntityId(crate::types::EntityId::new([0x10, 0x12, 0x14], constants::USER_DEFINED_READER_WITH_KEY));
-        let writer_id = submessage_elements::EntityId(crate::types::EntityId::new([0x26, 0x24, 0x22], constants::USER_DEFINED_WRITER_WITH_KEY));
+        let reader_id = submessage_elements::EntityId(crate::types::EntityId::new([0x10, 0x12, 0x14], EntityKind::UserDefinedReaderWithKey));
+        let writer_id = submessage_elements::EntityId(crate::types::EntityId::new([0x26, 0x24, 0x22], EntityKind::UserDefinedWriterWithKey));
         let gap_start = submessage_elements::SequenceNumber(1200);
         let gap_list = submessage_elements::SequenceNumberSet::from_set([
             1234,
@@ -211,8 +211,8 @@ mod tests {
         ];
 
         let endianness_flag = Endianness::BigEndian.into();
-        let reader_id = submessage_elements::EntityId(crate::types::EntityId::new([0x10, 0x12, 0x14], constants::USER_DEFINED_READER_WITH_KEY));
-        let writer_id = submessage_elements::EntityId(crate::types::EntityId::new([0x26, 0x24, 0x22], constants::USER_DEFINED_WRITER_WITH_KEY));
+        let reader_id = submessage_elements::EntityId(crate::types::EntityId::new([0x10, 0x12, 0x14], EntityKind::UserDefinedReaderWithKey));
+        let writer_id = submessage_elements::EntityId(crate::types::EntityId::new([0x26, 0x24, 0x22], EntityKind::UserDefinedWriterWithKey));
         let gap_start = submessage_elements::SequenceNumber(1200);
         let gap_list = submessage_elements::SequenceNumberSet::from_set([
             1234,
@@ -246,8 +246,8 @@ mod tests {
         ];
 
         let endianness_flag = Endianness::LittleEndian.into();
-        let reader_id = submessage_elements::EntityId(crate::types::EntityId::new([0x10, 0x12, 0x14], constants::USER_DEFINED_READER_WITH_KEY));
-        let writer_id = submessage_elements::EntityId(crate::types::EntityId::new([0x26, 0x24, 0x22], constants::USER_DEFINED_WRITER_WITH_KEY));
+        let reader_id = submessage_elements::EntityId(crate::types::EntityId::new([0x10, 0x12, 0x14], EntityKind::UserDefinedReaderWithKey));
+        let writer_id = submessage_elements::EntityId(crate::types::EntityId::new([0x26, 0x24, 0x22], EntityKind::UserDefinedWriterWithKey));
         let gap_start = submessage_elements::SequenceNumber(1200);
         let gap_list = submessage_elements::SequenceNumberSet::from_set([
             1234,
