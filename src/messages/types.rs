@@ -6,7 +6,6 @@ use std::time::SystemTime;
 use num_derive::{FromPrimitive, };
 
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsSerdesResult, RtpsSerdesError, Endianness, SizeCheck };
-use crate::primitive_types::{Short, ULong, };
 
 pub mod constants {
     use super::Time;
@@ -124,8 +123,8 @@ impl Time {
 }
 
 pub type Count = i32;
-pub type ParameterId = Short;
-pub type FragmentNumber = ULong;
+pub type ParameterId = i16;
+pub type FragmentNumber = u32;
 
 // /////////// GroupDigest_t /////////
 //  todo

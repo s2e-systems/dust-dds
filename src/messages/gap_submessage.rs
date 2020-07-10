@@ -1,6 +1,5 @@
 use std::collections::BTreeSet;
 
-use crate::primitive_types::UShort;
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, Endianness, RtpsSerdesResult, };
 
 use super::types::{SubmessageKind, SubmessageFlag, };
@@ -72,7 +71,7 @@ impl Submessage for Gap {
         SubmessageHeader { 
             submessage_id: SubmessageKind::Gap,
             flags,
-            submessage_length: octets_to_next_header as UShort, 
+            submessage_length: octets_to_next_header as u16, 
         }
     }
 

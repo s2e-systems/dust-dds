@@ -1,7 +1,6 @@
 #![allow(dead_code)]
 
 pub mod types;
-pub mod primitive_types;
 
 mod messages;
 mod cache;

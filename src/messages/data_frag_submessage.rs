@@ -1,11 +1,11 @@
-use crate::primitive_types::{UShort, ULong, };
 use crate::types::constants::SEQUENCE_NUMBER_UNKNOWN;
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, Endianness, RtpsSerdesResult, };
 use crate::serialized_payload::SerializedPayload;
 
 use super::types::{SubmessageKind, SubmessageFlag, };
 use super::{SubmessageHeader, Submessage, };
-use super::{submessage_elements, serialize_ulong, serialize_ushort, deserialize_ulong, deserialize_ushort};
+use super::{submessage_elements};
+use super::submessage_elements::{UShort, ULong};
 
 #[derive(PartialEq, Debug)]
 pub struct DataFrag {
@@ -47,7 +47,7 @@ impl Submessage for DataFrag {
         SubmessageHeader { 
             submessage_id: SubmessageKind::Data,
             flags,
-            submessage_length: octets_to_next_header as UShort,
+            submessage_length: octets_to_next_header as u16,
         }
     }
 
@@ -59,8 +59,8 @@ impl Submessage for DataFrag {
 
         if (self.writer_sn.0 < 1 || self.writer_sn.0 == SEQUENCE_NUMBER_UNKNOWN) ||
            (self.fragment_starting_num.0 < 1) ||
-           (self.fragment_size as u32 > self.data_size) ||
-           (serialized_data_size > self.fragments_in_submessage as usize * self.fragment_size as usize)
+           (self.fragment_size.0 as u32 > self.data_size.0) ||
+           (serialized_data_size > self.fragments_in_submessage.0 as usize * self.fragment_size.0 as usize)
         {
             // TODO: Check total number of fragments
             // TODO: Check validity of inline_qos
@@ -75,26 +75,26 @@ impl RtpsCompose for DataFrag {
     fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
         // let sample_size = ULong(0); // TODO: what is sample_size? It is in PSM but nut in PIM. Probably: data_size
         let endianness = Endianness::from(self.endianness_flag);
-        let extra_flags: UShort = 0;
-        let octecs_to_inline_qos = 
+        let extra_flags = UShort(0);
+        let octecs_to_inline_qos = UShort((
             self.reader_id.octets() + 
             self.writer_id.octets() + 
             self.writer_sn.octets() + 
             self.fragment_starting_num.octets() + 
             2 /*self.fragments_in_submessage.octets() */+ 
             2 /*self.fragment_size.octets() */+ 
-            4 /*self.data_size.octets()) as UShort*/;
+            4 /*self.data_size.octets()) as UShort*/) as u16);
         
         self.submessage_header().compose(writer)?;
-        serialize_ushort(extra_flags, writer, endianness)?;
-        serialize_ushort(octecs_to_inline_qos as UShort, writer, endianness)?;
+        extra_flags.serialize(writer, endianness)?;
+        octecs_to_inline_qos.serialize(writer, endianness)?;
         self.reader_id.serialize(writer, endianness)?;
         self.writer_id.serialize(writer, endianness)?;
         self.writer_sn.serialize(writer, endianness)?;
         self.fragment_starting_num.serialize(writer, endianness)?;
-        serialize_ushort(self.fragments_in_submessage, writer, endianness)?;
-        serialize_ushort(self.fragment_size, writer, endianness)?;
-        serialize_ulong(self.data_size, writer, endianness)?;
+        self.fragments_in_submessage.serialize(writer, endianness)?;
+        self.fragment_size.serialize(writer, endianness)?;
+        self.data_size.serialize(writer, endianness)?;
         if self.inline_qos_flag {
             self.inline_qos.as_ref().unwrap().serialize(writer, endianness)?;
         };
@@ -116,14 +116,14 @@ impl RtpsParse for DataFrag {
         let endianness = Endianness::from(endianness_flag);
 
         const HEADER_SIZE : usize = 8;
-        let octets_to_inline_qos = usize::from(deserialize_ushort(&bytes[6..8], endianness)?) + HEADER_SIZE /* header and extra flags*/;
+        let octets_to_inline_qos = usize::from(UShort::deserialize(&bytes[6..8], endianness)?.0) + HEADER_SIZE /* header and extra flags*/;
         let reader_id = submessage_elements::EntityId::deserialize(&bytes[8..12], endianness)?;        
         let writer_id = submessage_elements::EntityId::deserialize(&bytes[12..16], endianness)?;
         let writer_sn = submessage_elements::SequenceNumber::deserialize(&bytes[16..24], endianness)?;
         let fragment_starting_num = submessage_elements::FragmentNumber::deserialize(&bytes[24..28], endianness)?;
-        let fragments_in_submessage = deserialize_ushort(&bytes[28..30], endianness)?;
-        let fragment_size = deserialize_ushort(&bytes[30..32], endianness)?;
-        let data_size = deserialize_ulong(&bytes[32..36], endianness)?;
+        let fragments_in_submessage = UShort::deserialize(&bytes[28..30], endianness)?;
+        let fragment_size = UShort::deserialize(&bytes[30..32], endianness)?;
+        let data_size = ULong::deserialize(&bytes[32..36], endianness)?;
 
 
         let inline_qos = if inline_qos_flag {
@@ -177,9 +177,9 @@ mod tests{
             writer_id: submessage_elements::EntityId(ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER),
             writer_sn: submessage_elements::SequenceNumber(1),
             fragment_starting_num: submessage_elements::FragmentNumber(1), 
-            fragments_in_submessage: 2,
-            fragment_size: 3,
-            data_size: 4,
+            fragments_in_submessage: UShort(2),
+            fragment_size: UShort(3),
+            data_size: ULong(4),
             inline_qos: Some(inline_qos), 
             serialized_payload: Some(SerializedPayload(vec![1, 2, 3])), 
         };
@@ -223,9 +223,9 @@ mod tests{
             writer_id: submessage_elements::EntityId(ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER),
             writer_sn: submessage_elements::SequenceNumber(1),
             fragment_starting_num: submessage_elements::FragmentNumber(1), 
-            fragments_in_submessage: 2,
-            fragment_size: 3,
-            data_size: 4,
+            fragments_in_submessage: UShort(2),
+            fragment_size: UShort(3),
+            data_size: ULong(4),
             inline_qos: Some(inline_qos), 
             serialized_payload: Some(SerializedPayload(vec![1, 2, 3])), 
         };

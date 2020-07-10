@@ -1,4 +1,3 @@
-use crate::primitive_types::UShort;
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, Endianness, RtpsSerdesResult, };
 
 use super::types::{SubmessageKind, SubmessageFlag, };
@@ -60,7 +59,7 @@ impl Submessage for AckNack {
         SubmessageHeader { 
             submessage_id: SubmessageKind::InfoReply,
             flags,
-            submessage_length: submessage_length as UShort,
+            submessage_length: submessage_length as u16,
         }
     }
 

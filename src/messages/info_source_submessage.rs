@@ -1,9 +1,9 @@
-use crate::primitive_types::{Long, UShort, };
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, Endianness, RtpsSerdesResult, };
 
 use super::types::{SubmessageKind, SubmessageFlag, };
 use super::{SubmessageHeader, Submessage, };
-use super::{submessage_elements, serialize_long};
+use super::{submessage_elements,};
+use super::submessage_elements::Long;
 
 #[derive(PartialEq, Debug)]
 pub struct InfoSource {
@@ -29,7 +29,7 @@ impl Submessage for InfoSource {
         SubmessageHeader { 
             submessage_id: SubmessageKind::InfoSource,
             flags,
-            submessage_length: octets_to_next_header as UShort,
+            submessage_length: octets_to_next_header as u16,
         }
     }
 
@@ -41,9 +41,9 @@ impl Submessage for InfoSource {
 impl RtpsCompose for InfoSource {
     fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
         let endianness = self.endianness_flag.into();
-        let unused: Long = 0;
+        let unused = Long(0);
         self.submessage_header().compose(writer)?;
-        serialize_long(unused, writer, endianness)?;
+        unused.serialize(writer, endianness)?;
         self.protocol_version.serialize(writer, endianness)?;
         self.vendor_id.serialize(writer, endianness)?;
         self.guid_prefix.serialize(writer, endianness)?;
@@ -56,7 +56,7 @@ impl RtpsParse for InfoSource {
         let header = SubmessageHeader::parse(bytes)?;
         let endianness_flag = header.flags()[0];
         let endianness = Endianness::from(endianness_flag);
-        // let unused = Long::deserialize(&bytes[4..8], endianness)?;
+        let _unused = Long::deserialize(&bytes[4..8], endianness)?;
         let protocol_version = submessage_elements::ProtocolVersion::deserialize(&bytes[8..10], endianness)?;
         let vendor_id = submessage_elements::VendorId::deserialize(&bytes[10..12], endianness)?;
         let guid_prefix = submessage_elements::GuidPrefix::deserialize(&bytes[12..24], endianness)?;        

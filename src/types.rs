@@ -4,7 +4,6 @@
 ///  
 
 use std::convert::TryFrom;
-use crate::primitive_types::{Long, ULong, };
 use crate::inline_qos_types::StatusInfo;
 
 
@@ -145,8 +144,8 @@ pub type SequenceNumber = i64;
 
 #[derive(PartialEq, Hash, Eq, Debug, Copy, Clone)]
 pub struct Locator {
-    pub kind: Long,
-    pub port: ULong,
+    pub kind: i32,
+    pub port: u32,
     pub address: [u8; 16],
 }
 

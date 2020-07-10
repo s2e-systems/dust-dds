@@ -1,4 +1,3 @@
-use crate::primitive_types::UShort;
 use crate::serdes::{RtpsSerialize, RtpsDeserialize, RtpsParse, RtpsCompose, Endianness, RtpsSerdesResult, };
 use super::submessage_elements;
 use super::types::{SubmessageKind, SubmessageFlag, };
@@ -107,7 +106,7 @@ impl Submessage for Heartbeat {
         SubmessageHeader { 
             submessage_id: SubmessageKind::Heartbeat,
             flags,
-            submessage_length: octets_to_next_header as UShort,
+            submessage_length: octets_to_next_header as u16,
         }
     }
 
