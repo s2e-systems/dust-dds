@@ -1,5 +1,5 @@
 use crate::serdes::{SubmessageElement, Endianness, RtpsSerdesResult, };
-use super::{SubmessageHeader, Submessage, };
+use super::{SubmessageHeader, Submessage, UdpPsmMapping};
 use super::types::{SubmessageKind, SubmessageFlag, };
 use super::submessage_elements;
 
@@ -41,7 +41,9 @@ impl Submessage for HeartbeatFrag {
             true
         }
     }
+}
 
+impl UdpPsmMapping for HeartbeatFrag {
     fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
         let endianness = self.endianness_flag.into();
         self.submessage_header().compose(writer)?;

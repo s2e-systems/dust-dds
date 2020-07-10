@@ -1,7 +1,7 @@
 use crate::serdes::{SubmessageElement, Endianness, RtpsSerdesResult, };
 
 use super::types::{SubmessageKind, SubmessageFlag, };
-use super::{SubmessageHeader, Submessage, };
+use super::{SubmessageHeader, Submessage, UdpPsmMapping};
 use super::{submessage_elements,};
 use super::submessage_elements::Long;
 
@@ -36,7 +36,9 @@ impl Submessage for InfoSource {
     fn is_valid(&self) -> bool {
         true
     }
+}
 
+impl UdpPsmMapping for InfoSource {
     fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
         let endianness = self.endianness_flag.into();
         let unused = Long(0);
@@ -65,6 +67,7 @@ impl Submessage for InfoSource {
         })
     }
 }
+
 
 #[cfg(test)]
 mod tests {

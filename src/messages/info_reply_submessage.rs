@@ -1,7 +1,7 @@
 use crate::serdes::{SubmessageElement, Endianness, RtpsSerdesResult, };
 
 use super::types::{SubmessageKind, SubmessageFlag, };
-use super::{SubmessageHeader, Submessage, };
+use super::{SubmessageHeader, Submessage, UdpPsmMapping };
 use super::submessage_elements;
 
 #[derive(PartialEq, Debug)]
@@ -33,6 +33,10 @@ impl Submessage for InfoReply {
         true
     }
 
+    
+}
+
+impl UdpPsmMapping for InfoReply {
     fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
         let endianness = Endianness::from(self.endianness_flag);       
         self.submessage_header().compose(writer)?;
@@ -56,7 +60,6 @@ impl Submessage for InfoReply {
         Ok(Self {endianness_flag, multicast_flag, unicast_locator_list, multicast_locator_list})
     }
 }
-
 
 #[cfg(test)]
 mod tests {

@@ -1,5 +1,5 @@
 use crate::serdes::{SubmessageElement, Endianness, RtpsSerdesResult, };
-use super::{SubmessageKind, SubmessageFlag, Submessage, SubmessageHeader, };
+use super::{SubmessageKind, SubmessageFlag, Submessage, SubmessageHeader, UdpPsmMapping};
 use super::submessage_elements;
 
 
@@ -43,6 +43,11 @@ impl Submessage for NackFrag {
         }
     }
 
+    
+
+}
+
+impl UdpPsmMapping for NackFrag {
     fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
         let endianness = Endianness::from(self.endianness_flag);
        
@@ -78,7 +83,6 @@ impl Submessage for NackFrag {
             count,
         })
     }
-
 }
 
 #[cfg(test)]

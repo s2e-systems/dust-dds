@@ -52,7 +52,7 @@ pub enum RtpsSubmessage {
     // NackFrag(NackFrag),
 }
 
-impl RtpsSubmessage {
+impl UdpPsmMapping for RtpsSubmessage {
     fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
         match self {
             RtpsSubmessage::AckNack(acknack) => acknack.compose(writer),
@@ -82,18 +82,6 @@ impl RtpsSubmessage {
             SubmessageKind::DataFrag => todo!(),
         }
     }
-
-    fn is_valid(&self) -> bool {
-        todo!()
-    }
-
-    fn octets(&self) -> usize {
-        todo!()
-    }
-
-    fn submessage_header(&self) -> SubmessageHeader {
-        todo!()
-    }
 }
 
 #[derive(PartialEq, Debug)]
@@ -113,8 +101,10 @@ impl SubmessageHeader {
     pub fn submessage_length(&self) -> u16 {
         self.submessage_length
     }
+}
 
-    pub fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
+impl UdpPsmMapping for SubmessageHeader {
+    fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
         let endianness = Endianness::from(self.flags[0]);
         self.submessage_id.serialize(writer, endianness)?;
         self.flags.serialize(writer, endianness)?;
@@ -125,7 +115,7 @@ impl SubmessageHeader {
         Ok(())
     }
 
-    pub fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> {
+    fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> {
         let submessage_id = SubmessageKind::deserialize(
             &bytes[0..1],
             Endianness::LittleEndian, /*irrelevant*/
@@ -145,20 +135,20 @@ impl SubmessageHeader {
             submessage_length,
         })
     }
-
-    pub fn octets(&self) -> usize {
-        4
-    }
 }
 
 pub trait Submessage 
-    where Self: std::marker::Sized
 {
     fn submessage_header(&self) -> SubmessageHeader;
 
     fn is_valid(&self) -> bool;
+}
 
+pub trait UdpPsmMapping
+    where Self: std::marker::Sized {
+    
     fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()>;
+    
     fn octets(&self) -> usize {
         let mut size_serializer = SizeSerializer::new();
         self.compose(&mut size_serializer).unwrap(); // Should panic on failure
@@ -188,8 +178,11 @@ impl Header {
     pub fn guid_prefix(&self) -> &GuidPrefix {
         &self.guid_prefix
     }
+    
+}
 
-    pub fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
+impl UdpPsmMapping for Header {
+    fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
         writer.write(&self.protocol)?;
         writer.write(&[self.version.major])?;
         writer.write(&[self.version.minor])?;
@@ -198,7 +191,7 @@ impl Header {
         Ok(())
     }
 
-    pub fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> {
+    fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> {
         let protocol = bytes[0..4].try_into()?;
         let version = ProtocolVersion {
             major: bytes[4],
@@ -214,9 +207,6 @@ impl Header {
         })
     }
 
-    fn octets(&self) -> usize {
-        20
-    }
 }
 
 #[derive(PartialEq, Debug)]
@@ -244,8 +234,10 @@ impl RtpsMessage {
     pub fn submessages(&self) -> &Vec<RtpsSubmessage> {
         &self.submessages
     }
+}
 
-    pub fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
+impl UdpPsmMapping for RtpsMessage {
+    fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
         &self.header.compose(writer)?;
         for submessage in &self.submessages {
             submessage.compose(writer)?;
@@ -253,7 +245,7 @@ impl RtpsMessage {
         Ok(())
     }
 
-    pub fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> {
+    fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> {
         let size = bytes.len();
         let header = Header::parse(bytes)?;
 

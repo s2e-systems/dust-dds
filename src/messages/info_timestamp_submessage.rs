@@ -1,5 +1,5 @@
 use crate::serdes::{SubmessageElement, Endianness, RtpsSerdesResult, };
-use super::{SubmessageKind, SubmessageFlag, Submessage, SubmessageHeader, };
+use super::{SubmessageKind, SubmessageFlag, Submessage, SubmessageHeader, UdpPsmMapping};
 use super::submessage_elements;
 
 #[derive(PartialEq, Debug)]
@@ -51,7 +51,9 @@ impl Submessage for InfoTs {
     fn is_valid(&self) -> bool {
         true
     }
+}
 
+impl UdpPsmMapping for InfoTs {
     fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
         let endianness = Endianness::from(self.endianness_flag);
         self.submessage_header().compose(writer)?;

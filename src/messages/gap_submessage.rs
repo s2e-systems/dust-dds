@@ -3,7 +3,7 @@ use std::collections::BTreeSet;
 use crate::serdes::{SubmessageElement, Endianness, RtpsSerdesResult, };
 
 use super::types::{SubmessageKind, SubmessageFlag, };
-use super::{SubmessageHeader, Submessage, };
+use super::{SubmessageHeader, Submessage, UdpPsmMapping};
 use super::submessage_elements;
 // use super::submessage_elements::SequenceNumberSet;
 
@@ -84,7 +84,9 @@ impl Submessage for Gap {
             true
         }
     }
+}
 
+impl UdpPsmMapping for Gap {
     fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
         let endianness = self.endianness_flag.into();
         self.submessage_header().compose(writer)?;

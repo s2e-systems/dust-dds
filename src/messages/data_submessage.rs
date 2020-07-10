@@ -4,7 +4,7 @@ use crate::types::constants::SEQUENCE_NUMBER_UNKNOWN;
 use crate::serdes::{SubmessageElement, Endianness, RtpsSerdesResult, };
 
 use super::types::{SubmessageKind, SubmessageFlag,  };
-use super::{SubmessageHeader, Submessage, };
+use super::{SubmessageHeader, Submessage, UdpPsmMapping};
 use super::{submessage_elements,};
 use super::submessage_elements::UShort;
 
@@ -137,7 +137,9 @@ impl Submessage for Data {
             true
         }
     }
+}
 
+impl UdpPsmMapping for Data {
     fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
         let endianness = Endianness::from(self.endianness_flag);
         let extra_flags = UShort(0);

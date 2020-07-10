@@ -2,7 +2,7 @@ use crate::types::constants::SEQUENCE_NUMBER_UNKNOWN;
 use crate::serdes::{SubmessageElement, Endianness, RtpsSerdesResult, };
 
 use super::types::{SubmessageKind, SubmessageFlag, };
-use super::{SubmessageHeader, Submessage, };
+use super::{SubmessageHeader, Submessage, UdpPsmMapping};
 use super::{submessage_elements};
 use super::submessage_elements::{UShort, ULong};
 
@@ -68,7 +68,9 @@ impl Submessage for DataFrag {
             false
         }
     }
+}
 
+impl UdpPsmMapping for DataFrag {
     fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
         // let sample_size = ULong(0); // TODO: what is sample_size? It is in PSM but nut in PIM. Probably: data_size
         let endianness = Endianness::from(self.endianness_flag);
@@ -147,7 +149,6 @@ impl Submessage for DataFrag {
         })
     }
 }
-
 
 #[cfg(test)]
 mod tests{
