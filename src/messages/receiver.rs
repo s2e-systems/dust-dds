@@ -32,7 +32,7 @@ impl<'a> RtpsMessageReceiver<'a> {
         
         for submessage in message.submessages() {
             match submessage {
-                RtpsSubmessage::AckNack(ack_nack) => todo!(),
+                // Writer to reader messages
                 RtpsSubmessage::Data(data) => {
                     let writer_guid = GUID::new(source_guid_prefix, data.writer_id());
                     let _reader_guid = GUID::new(dest_guid_prefix, data.reader_id());
@@ -48,8 +48,29 @@ impl<'a> RtpsMessageReceiver<'a> {
                         }
                     }
                 },
-                RtpsSubmessage::Gap(gap) => todo!(),
-                RtpsSubmessage::Heartbeat(heartbeat) => todo!(),
+                RtpsSubmessage::Gap(gap) => {
+                    let writer_guid = GUID::new(source_guid_prefix, gap.writer_id());
+                    for reader in &self.stateful_reader_list {
+                        if reader.matched_writer_lookup(&writer_guid).is_some() {
+                            todo!();
+                            break;
+                        }
+                    }
+                },
+                RtpsSubmessage::Heartbeat(heartbeat) => {
+                    let writer_guid = GUID::new(source_guid_prefix, heartbeat.writer_id());
+                    for reader in &self.stateful_reader_list {
+                        if reader.matched_writer_lookup(&writer_guid).is_some() {
+                            todo!();
+                            break;
+                        }
+                    }
+                },
+                // Reader to writer messages
+                RtpsSubmessage::AckNack(ack_nack) => {
+                    todo!()
+                },
+                // Receiver status messages
                 RtpsSubmessage::InfoTs(info_ts) => timestamp = info_ts.time(),
             }
         }
