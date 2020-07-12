@@ -9,15 +9,15 @@ pub mod constants {
     use super::Time;
     use super::ProtocolId;
 
-    const TIME_ZERO: Time = Time {
+    pub const TIME_ZERO: Time = Time {
         seconds: 0,
         fraction: 0,
     };
-    const TIME_INFINITE: Time = Time {
+    pub const TIME_INFINITE: Time = Time {
         seconds: std::u32::MAX,
         fraction: std::u32::MAX - 1,
     };
-    const TIME_INVALID: Time = Time {
+    pub const TIME_INVALID: Time = Time {
         seconds: std::u32::MAX,
         fraction: std::u32::MAX,
     };    
