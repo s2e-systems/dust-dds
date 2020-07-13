@@ -1,6 +1,7 @@
 use crate::types::{GUID, GuidPrefix, Locator};
 use crate::stateless_reader::StatelessReader;
 use crate::stateful_reader::StatefulReader;
+use crate::stateful_writer::StatefulWriter;
 use super::types::constants::TIME_INVALID;
 use super::submessage::RtpsSubmessage;
 use super::message::RtpsMessage;
@@ -9,14 +10,16 @@ pub struct RtpsMessageReceiver<'a>{
     participant_guid_prefix: GuidPrefix,
     // spdp_stateless_reader: &'a StatelessReader,
     stateful_reader_list: Vec<&'a StatefulReader>,
+    stateful_writer_list: Vec<&'a StatefulWriter>,
 
 }
 
 impl<'a> RtpsMessageReceiver<'a> {
-    pub fn new(participant_guid_prefix: GuidPrefix, stateful_reader_list: &[&'a StatefulReader]) -> Self {
+    pub fn new(participant_guid_prefix: GuidPrefix, stateful_reader_list: &[&'a StatefulReader], stateful_writer_list: &[&'a StatefulWriter]) -> Self {
         Self {
             participant_guid_prefix,
             stateful_reader_list: stateful_reader_list.to_vec(),
+            stateful_writer_list: stateful_writer_list.to_vec(),
         }
     }
 
@@ -68,7 +71,13 @@ impl<'a> RtpsMessageReceiver<'a> {
                 },
                 // Reader to writer messages
                 RtpsSubmessage::AckNack(ack_nack) => {
-                    todo!()
+                    let reader_guid = GUID::new(source_guid_prefix, ack_nack.reader_id());
+                    for writer in &self.stateful_writer_list {
+                        if writer.matched_reader_lookup(&reader_guid).is_some() {
+                            todo!();
+                            break;
+                        }
+                    }
                 },
                 // Receiver status messages
                 RtpsSubmessage::InfoTs(info_ts) => timestamp = info_ts.time(),
@@ -109,7 +118,7 @@ mod tests {
 
         reader1.matched_writer_add(proxy1);
 
-        let receiver = RtpsMessageReceiver::new(guid_prefix, &[&reader1]);
+        let receiver = RtpsMessageReceiver::new(guid_prefix, &[&reader1], &[]);
 
         let info_ts = InfoTs::new(Some(Time::new(100,100)), Endianness::LittleEndian);
         let data = Data::new(Endianness::LittleEndian,

@@ -144,13 +144,13 @@ impl StatefulWriterBehavior {
     
         for submessage in received_message.submessages().iter() {
             if let RtpsSubmessage::AckNack(acknack) = submessage {
-                let reader_guid = GUID::new(guid_prefix, acknack.reader_id().0);
+                let reader_guid = GUID::new(guid_prefix, acknack.reader_id());
                 if reader_guid == *reader_proxy.remote_reader_guid() &&
-                   writer_guid.entity_id() == &acknack.writer_id().0 &&
-                   &acknack.count().0 > reader_proxy.nack_received() {
+                   writer_guid.entity_id() == &acknack.writer_id() &&
+                   &acknack.count() > reader_proxy.nack_received() {
                     reader_proxy.acked_changes_set(*acknack.reader_sn_state().base() - 1);
                     reader_proxy.requested_changes_set(acknack.reader_sn_state().set().clone());
-                    reader_proxy.nack_received_set(acknack.count().0);
+                    reader_proxy.nack_received_set(acknack.count());
                 }
             }
         }
