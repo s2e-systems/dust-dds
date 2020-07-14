@@ -8,6 +8,7 @@ use crate::messages::RtpsMessage;
 use crate::behavior::types::Duration;
 use crate::behavior::StatefulReaderBehavior;
 use crate::messages::types::Count;
+use crate::messages::receiver::ReaderReceiveMessage;
 
 pub struct WriterProxy {
     remote_writer_guid: GUID,
@@ -177,6 +178,10 @@ impl WriterProxy {
 
     pub fn increment_acknack_count(&mut self) {
         self.ackanck_count += 1;
+    }
+
+    pub fn received_message(&self, message: ReaderReceiveMessage) {
+        todo!()
     }
 }
 

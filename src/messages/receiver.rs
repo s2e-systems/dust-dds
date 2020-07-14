@@ -5,7 +5,7 @@ use crate::stateful_reader::StatefulReader;
 use crate::stateful_writer::StatefulWriter;
 use super::types::constants::TIME_INVALID;
 use super::submessage::RtpsSubmessage;
-use super::{Data, Gap, Heartbeat};
+use super::{Data, Gap, Heartbeat, AckNack};
 use super::message::RtpsMessage;
 
 pub enum Reader<'a> {
@@ -18,10 +18,16 @@ pub enum Writer<'a> {
     StatefulWriter(&'a StatefulWriter),
 }
 
-enum ReaderReceiveMessage {
+// Mesages received by the reader. Which are the same as the ones sent by the writer
+pub enum ReaderReceiveMessage {
     Data(Data),
     Gap(Gap),
     Heartbeat(Heartbeat),
+}
+
+// Messages received by the writer. Which are the same as the ones sent by the reader
+pub enum WriterReceiveMessage {
+    AckNack(AckNack)
 }
 
 pub struct RtpsMessageReceiver<'a>{
@@ -57,18 +63,18 @@ impl<'a> RtpsMessageReceiver<'a> {
         for submessage in message.take_submessages() {
             match submessage {
                 // Writer to reader messages
-                RtpsSubmessage::Data(data) => self.receive_reader_message(&source_locator, source_guid_prefix, ReaderReceiveMessage::Data(data)),
-                RtpsSubmessage::Gap(gap) => self.receive_reader_message(&source_locator, source_guid_prefix, ReaderReceiveMessage::Gap(gap)),
-                RtpsSubmessage::Heartbeat(heartbeat) => self.receive_reader_message(&source_locator, source_guid_prefix, ReaderReceiveMessage::Heartbeat(heartbeat)),
+                RtpsSubmessage::Data(data) => self.receive_reader_submessage(&source_locator, source_guid_prefix, ReaderReceiveMessage::Data(data)),
+                RtpsSubmessage::Gap(gap) => self.receive_reader_submessage(&source_locator, source_guid_prefix, ReaderReceiveMessage::Gap(gap)),
+                RtpsSubmessage::Heartbeat(heartbeat) => self.receive_reader_submessage(&source_locator, source_guid_prefix, ReaderReceiveMessage::Heartbeat(heartbeat)),
                 // Reader to writer messages
-                RtpsSubmessage::AckNack(_ack_nack) => todo!(),
+                RtpsSubmessage::AckNack(ack_nack) => self.receive_writer_submessage(source_guid_prefix, WriterReceiveMessage::AckNack(ack_nack)),
                 // Receiver status messages
                 RtpsSubmessage::InfoTs(info_ts) => timestamp = info_ts.time(),
             }
         }
     }
 
-    fn receive_reader_message(&self, source_locator: &Locator, source_guid_prefix: GuidPrefix, message: ReaderReceiveMessage) {
+    fn receive_reader_submessage(&self, source_locator: &Locator, source_guid_prefix: GuidPrefix, message: ReaderReceiveMessage) {
         let writer_guid = match &message {
             ReaderReceiveMessage::Data(data) => GUID::new(source_guid_prefix, data.writer_id()),
             ReaderReceiveMessage::Gap(gap) => GUID::new(source_guid_prefix, gap.writer_id()),
@@ -80,18 +86,39 @@ impl<'a> RtpsMessageReceiver<'a> {
                 Reader::StatelessReader(stateless_reader) => {
                     if stateless_reader.unicast_locator_list().iter().find(|&loc| loc == source_locator).is_some() ||
                        stateless_reader.multicast_locator_list().iter().find(|&loc| loc == source_locator).is_some() {
-                        todo!();
+                        stateless_reader.received_message(message);
                         break;
                     }
                 },
                 Reader::StatefulReader(stateful_reader) => {
-                    if let Some(_writer_proxy) = stateful_reader.matched_writer_lookup(&writer_guid) {
-                        todo!();
+                    if let Some(writer_proxy) = stateful_reader.matched_writer_lookup(&writer_guid) {
+                        writer_proxy.received_message(message);
                         break;
                     }
                 },
             }
         }
+    }
+
+    fn receive_writer_submessage(&self, source_guid_prefix: GuidPrefix, message: WriterReceiveMessage) {
+        let reader_guid = match &message {
+            WriterReceiveMessage::AckNack(ack_nack) =>  GUID::new(source_guid_prefix, ack_nack.reader_id()),
+        };
+
+        for writer in &self.writer_list {
+            match writer {
+                Writer::StatelessWriter(_stateless_writer) => {
+                    // Stateless writers do not receive any message because they are only best effort
+                },
+                Writer::StatefulWriter(stateful_writer) => {
+                    if let Some(reader_proxy) = stateful_writer.matched_reader_lookup(&reader_guid) {
+                        reader_proxy.received_message(message);
+                        break;
+                    }
+                },
+            }
+        }
+
     }
 }
 
@@ -103,7 +130,6 @@ mod tests {
     use crate::messages::types::Time;
     use crate::messages::data_submessage::Payload;
     use crate::types::{GUID, EntityId, EntityKind, TopicKind, ReliabilityKind};
-    use crate::stateless_reader::StatelessReader;
     use crate::stateful_reader::WriterProxy;
     use crate::behavior::types::Duration;
 

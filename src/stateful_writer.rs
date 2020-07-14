@@ -8,6 +8,7 @@ use crate::behavior::StatefulWriterBehavior;
 use crate::messages::types::Count;
 use crate::cache::{CacheChange, HistoryCache, };
 use crate::messages::{RtpsMessage, ParameterList};
+use crate::messages::receiver::WriterReceiveMessage;
 
 pub struct ReaderProxy {
     remote_reader_guid: GUID,
@@ -148,6 +149,10 @@ impl ReaderProxy {
 
     pub fn increment_heartbeat_count(&mut self) {
         self.heartbeat_count += 1;
+    }
+
+    pub fn received_message(&self, message: WriterReceiveMessage) {
+        todo!()
     }
 }
 

@@ -1,6 +1,7 @@
 use crate::cache::HistoryCache;
 use crate::types::{ReliabilityKind, TopicKind, GUID, Locator, };
-use crate::messages::RtpsMessage;
+use crate::messages::{RtpsMessage};
+use crate::messages::receiver::ReaderReceiveMessage;
 use crate::behavior::StatelessReaderBehavior;
 
 #[derive(Debug)]
@@ -67,6 +68,10 @@ impl StatelessReader {
 
     pub fn multicast_locator_list(&self) -> &Vec<Locator> {
         &self.multicast_locator_list
+    }
+
+    pub fn received_message(&self, message: ReaderReceiveMessage) {
+        todo!()
     }
 
     pub fn run(&mut self, received_message: Option<&RtpsMessage>) {
