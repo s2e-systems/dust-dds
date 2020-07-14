@@ -61,6 +61,14 @@ impl StatelessReader {
         &self.reader_cache
     }
 
+    pub fn unicast_locator_list(&self) -> &Vec<Locator> {
+        &self.unicast_locator_list
+    }
+
+    pub fn multicast_locator_list(&self) -> &Vec<Locator> {
+        &self.multicast_locator_list
+    }
+
     pub fn run(&mut self, received_message: Option<&RtpsMessage>) {
         match self.reliability_level {
             ReliabilityKind::BestEffort => StatelessReaderBehavior::run_best_effort(&mut self.reader_cache, received_message),
