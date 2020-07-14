@@ -93,6 +93,10 @@ impl RtpsMessage {
     pub fn submessages(&self) -> &Vec<RtpsSubmessage> {
         &self.submessages
     }
+
+    pub fn take_submessages(self) -> Vec<RtpsSubmessage> {
+        self.submessages
+    }
 }
 
 impl UdpPsmMapping for RtpsMessage {
