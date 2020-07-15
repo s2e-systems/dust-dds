@@ -150,10 +150,6 @@ impl ReaderProxy {
     pub fn increment_heartbeat_count(&mut self) {
         self.heartbeat_count += 1;
     }
-
-    pub fn received_message(&self, message: WriterReceiveMessage) {
-        todo!()
-    }
 }
 
 pub struct StatefulWriter {

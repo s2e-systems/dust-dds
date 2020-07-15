@@ -179,10 +179,6 @@ impl WriterProxy {
     pub fn increment_acknack_count(&mut self) {
         self.ackanck_count += 1;
     }
-
-    pub fn received_message(&self, message: ReaderReceiveMessage) {
-        todo!()
-    }
 }
 
 pub struct StatefulReader {

@@ -1,8 +1,8 @@
 use crate::types::{GUID, GuidPrefix, Locator};
 use crate::stateless_reader::StatelessReader;
 use crate::stateless_writer::StatelessWriter;
-use crate::stateful_reader::StatefulReader;
-use crate::stateful_writer::StatefulWriter;
+use crate::stateful_reader::{StatefulReader, WriterProxy};
+use crate::stateful_writer::{StatefulWriter, ReaderProxy};
 use super::types::constants::TIME_INVALID;
 use super::submessage::RtpsSubmessage;
 use super::{Data, Gap, Heartbeat, AckNack};
@@ -18,7 +18,7 @@ pub enum Writer<'a> {
     StatefulWriter(&'a StatefulWriter),
 }
 
-// Mesages received by the reader. Which are the same as the ones sent by the writer
+// Messages received by the reader. Which are the same as the ones sent by the writer
 pub enum ReaderReceiveMessage {
     Data(Data),
     Gap(Gap),
@@ -86,13 +86,13 @@ impl<'a> RtpsMessageReceiver<'a> {
                 Reader::StatelessReader(stateless_reader) => {
                     if stateless_reader.unicast_locator_list().iter().find(|&loc| loc == source_locator).is_some() ||
                        stateless_reader.multicast_locator_list().iter().find(|&loc| loc == source_locator).is_some() {
-                        stateless_reader.received_message(message);
+                        RtpsMessageReceiver::stateless_reader_received_message(stateless_reader, message);
                         break;
                     }
                 },
                 Reader::StatefulReader(stateful_reader) => {
                     if let Some(writer_proxy) = stateful_reader.matched_writer_lookup(&writer_guid) {
-                        writer_proxy.received_message(message);
+                        RtpsMessageReceiver::writer_proxy_received_message(writer_proxy, message);
                         break;
                     }
                 },
@@ -112,13 +112,25 @@ impl<'a> RtpsMessageReceiver<'a> {
                 },
                 Writer::StatefulWriter(stateful_writer) => {
                     if let Some(reader_proxy) = stateful_writer.matched_reader_lookup(&reader_guid) {
-                        reader_proxy.received_message(message);
+                        RtpsMessageReceiver::reader_proxy_received_message(reader_proxy, message);
                         break;
                     }
                 },
             }
         }
 
+    }
+
+    fn reader_proxy_received_message(reader_proxy: &ReaderProxy, message: WriterReceiveMessage) {
+        todo!()
+    }
+
+    fn writer_proxy_received_message(writer_proxy: &WriterProxy, message: ReaderReceiveMessage) {
+        todo!()
+    }
+
+    fn stateless_reader_received_message(stateless_reader: &StatelessReader, message: ReaderReceiveMessage) {
+        todo!()
     }
 }
 
