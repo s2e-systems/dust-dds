@@ -24,9 +24,19 @@ impl Header {
             guid_prefix,
         }
     }
+
+    pub fn version(&self) -> ProtocolVersion {
+        self.version
+    }
+
+    pub fn vendor_id(&self) -> VendorId {
+        self.vendor_id
+    }
+
     pub fn guid_prefix(&self) -> &GuidPrefix {
         &self.guid_prefix
     }
+
     
 }
 
@@ -82,6 +92,10 @@ impl RtpsMessage {
 
     pub fn submessages(&self) -> &Vec<RtpsSubmessage> {
         &self.submessages
+    }
+
+    pub fn take_submessages(self) -> Vec<RtpsSubmessage> {
+        self.submessages
     }
 }
 

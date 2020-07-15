@@ -317,9 +317,9 @@ mod tests {
         let message = StatefulReaderBehavior::run_must_send_ack_state(&mut writer_proxy, &reader_guid, heartbeat_response_delay).unwrap();
         assert_eq!(message.len(), 1);
         if let RtpsSubmessage::AckNack(acknack) = &message[0] {
-            assert_eq!(acknack.writer_id().0, *remote_writer_guid.entity_id());
-            assert_eq!(acknack.reader_id().0, *reader_guid.entity_id());
-            assert_eq!(acknack.count().0, 1);
+            assert_eq!(acknack.writer_id(), *remote_writer_guid.entity_id());
+            assert_eq!(acknack.reader_id(), *reader_guid.entity_id());
+            assert_eq!(acknack.count(), 1);
             assert_eq!(acknack.reader_sn_state().base(), &2);
             assert_eq!(acknack.reader_sn_state().set(), writer_proxy.missing_changes());
         } else {

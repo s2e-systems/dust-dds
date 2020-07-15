@@ -6,8 +6,6 @@ mod messages;
 mod cache;
 mod inline_qos_types;
 pub mod behavior;
-// mod reader;
-// mod writer;
 mod serialized_payload;
 mod stateless_reader;
 mod stateless_writer;

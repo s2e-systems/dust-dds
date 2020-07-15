@@ -14,10 +14,10 @@ pub struct InfoTs {
 impl InfoTs {
     const INVALID_TIME_FLAG_MASK: u8 = 0x02;
 
-    pub fn new(timestamp: Option<messages::types::Time>, endianness: Endianness) -> InfoTs {
+    pub fn new(time: Option<messages::types::Time>, endianness: Endianness) -> InfoTs {
         let endianness_flag = endianness.into();
-        let invalidate_flag = !timestamp.is_some();
-        let timestamp = match timestamp {
+        let invalidate_flag = !time.is_some();
+        let timestamp = match time {
             Some(time) => Some(submessage_elements::Timestamp(time)),
             None => None,
         };
@@ -28,8 +28,11 @@ impl InfoTs {
         }
     }
 
-    pub fn get_timestamp(&self) -> &Option<submessage_elements::Timestamp> {
-        &self.timestamp
+    pub fn time(&self) -> Option<messages::types::Time> {
+        match self.invalidate_flag {
+            true => None,
+            false => Some((&self.timestamp).as_ref().unwrap().0),
+        }
     }
 }
 
