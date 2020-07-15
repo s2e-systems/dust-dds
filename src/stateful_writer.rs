@@ -8,7 +8,6 @@ use crate::behavior::StatefulWriterBehavior;
 use crate::messages::types::Count;
 use crate::cache::{CacheChange, HistoryCache, };
 use crate::messages::{RtpsMessage, ParameterList};
-use crate::messages::receiver::WriterReceiveMessage;
 
 pub struct ReaderProxy {
     remote_reader_guid: GUID,

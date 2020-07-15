@@ -1,7 +1,6 @@
 use crate::cache::HistoryCache;
 use crate::types::{ReliabilityKind, TopicKind, GUID, Locator, };
 use crate::messages::{RtpsMessage};
-use crate::messages::receiver::ReaderReceiveMessage;
 use crate::behavior::StatelessReaderBehavior;
 
 #[derive(Debug)]

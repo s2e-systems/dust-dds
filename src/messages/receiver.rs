@@ -118,7 +118,6 @@ impl<'a> RtpsMessageReceiver<'a> {
                 },
             }
         }
-
     }
 
     fn reader_proxy_received_message(reader_proxy: &ReaderProxy, message: WriterReceiveMessage) {
