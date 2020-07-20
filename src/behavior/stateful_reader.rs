@@ -16,19 +16,19 @@ impl BestEfforStatefulReaderBehavior {
     }
 
     fn waiting_state(writer_proxy: &mut WriterProxy, history_cache: &mut HistoryCache) {
-        if let Some((source_guid_prefix, received_message)) = writer_proxy.pop_received_message() {
+        if let Some(received_message) = writer_proxy.pop_received_message() {
             match received_message {
-                ReaderReceiveMessage::Data(data) => Self::transition_t2(writer_proxy, history_cache, &data, &source_guid_prefix),
+                ReaderReceiveMessage::Data(data) => Self::transition_t2(writer_proxy, history_cache, &data),
                 ReaderReceiveMessage::Gap(gap) => Self::transition_t4(writer_proxy, &gap),
                 ReaderReceiveMessage::Heartbeat(_) => (),
             }
         }
     }
 
-    fn transition_t2(writer_proxy: &mut WriterProxy, history_cache: &mut HistoryCache, data: &Data, source_guid_prefix: &GuidPrefix ) {
+    fn transition_t2(writer_proxy: &mut WriterProxy, history_cache: &mut HistoryCache, data: &Data) {
         let expected_seq_number = writer_proxy.available_changes_max() + 1;
         if data.writer_sn() >= expected_seq_number {
-            let cache_change = cache_change_from_data(data, source_guid_prefix);
+            let cache_change = cache_change_from_data(data, writer_proxy.remote_writer_guid().prefix());
             history_cache.add_change(cache_change);
             writer_proxy.received_change_set(data.writer_sn());
             writer_proxy.lost_changes_update(data.writer_sn());
@@ -58,10 +58,10 @@ impl ReliableStatefulReaderBehavior {
     }
 
     fn ready_state(writer_proxy: &mut WriterProxy, history_cache: &mut HistoryCache) -> Option<Heartbeat>{
-        if let Some((source_guid_prefix, received_message)) = writer_proxy.pop_received_message() {
+        if let Some(received_message) = writer_proxy.pop_received_message() {
             match received_message {
                 ReaderReceiveMessage::Data(data) => {
-                    Self::transition_t8(writer_proxy, history_cache, &data, &source_guid_prefix);
+                    Self::transition_t8(writer_proxy, history_cache, &data);
                     None
                 },
                 ReaderReceiveMessage::Gap(gap) => {
@@ -78,10 +78,10 @@ impl ReliableStatefulReaderBehavior {
         }
     }
 
-    fn transition_t8(writer_proxy: &mut WriterProxy, history_cache: &mut HistoryCache, data: &Data, source_guid_prefix: &GuidPrefix) {
+    fn transition_t8(writer_proxy: &mut WriterProxy, history_cache: &mut HistoryCache, data: &Data) {
         let expected_seq_number = writer_proxy.available_changes_max() + 1;
         if data.writer_sn() >= expected_seq_number {
-            let cache_change = cache_change_from_data(data, source_guid_prefix);
+            let cache_change = cache_change_from_data(data, writer_proxy.remote_writer_guid().prefix());
             history_cache.add_change(cache_change);
             writer_proxy.received_change_set(data.writer_sn());
         }
@@ -163,7 +163,7 @@ mod tests {
             3,
             Some(inline_qos),
             Payload::Data(vec![1,2,3]));
-        writer_proxy.push_received_message(*remote_writer_guid.prefix(), ReaderReceiveMessage::Data(data1));
+        writer_proxy.push_received_message(ReaderReceiveMessage::Data(data1));
 
         BestEfforStatefulReaderBehavior::run(&mut writer_proxy, &mut history_cache);
 
@@ -205,7 +205,7 @@ mod tests {
             Some(inline_qos),
             Payload::Data(vec![1,2,3]));
 
-        writer_proxy.push_received_message(*remote_writer_guid.prefix(), ReaderReceiveMessage::Data(data1));
+        writer_proxy.push_received_message(ReaderReceiveMessage::Data(data1));
 
         ReliableStatefulReaderBehavior::run(&mut writer_proxy, &reader_guid, &mut history_cache, Duration::from_millis(300));
 
@@ -246,7 +246,7 @@ mod tests {
             Endianness::LittleEndian,
         );
     
-        writer_proxy.push_received_message(*remote_writer_guid.prefix(), ReaderReceiveMessage::Heartbeat(heartbeat));
+        writer_proxy.push_received_message(ReaderReceiveMessage::Heartbeat(heartbeat));
 
         ReliableStatefulReaderBehavior::run(&mut writer_proxy, &reader_guid, &mut history_cache, Duration::from_millis(300));
         assert_eq!(writer_proxy.missing_changes(), &[3, 4, 5, 6].iter().cloned().collect());
@@ -272,7 +272,7 @@ mod tests {
             false,
             Endianness::LittleEndian,
         );
-        writer_proxy.push_received_message(*remote_writer_guid.prefix(), ReaderReceiveMessage::Heartbeat(heartbeat));
+        writer_proxy.push_received_message(ReaderReceiveMessage::Heartbeat(heartbeat));
 
         let heartbeat_response_delay = Duration::from_millis(300);
         ReliableStatefulReaderBehavior::run(&mut writer_proxy, &reader_guid, &mut history_cache, heartbeat_response_delay);
@@ -304,7 +304,7 @@ mod tests {
             false,
             Endianness::LittleEndian,
         );
-        writer_proxy.push_received_message(*remote_writer_guid.prefix(), ReaderReceiveMessage::Heartbeat(heartbeat));
+        writer_proxy.push_received_message(ReaderReceiveMessage::Heartbeat(heartbeat));
 
         ReliableStatefulReaderBehavior::run(&mut writer_proxy, &reader_guid, &mut history_cache, Duration::from_millis(300));
         assert_eq!(writer_proxy.missing_changes(), &[].iter().cloned().collect());

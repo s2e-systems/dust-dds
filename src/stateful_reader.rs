@@ -38,7 +38,7 @@ pub struct WriterProxy {
     ackanck_count: Count,
     highest_received_heartbeat_count: Count,
 
-    received_messages: Mutex<VecDeque<(GuidPrefix, ReaderReceiveMessage)>>,
+    received_messages: Mutex<VecDeque<ReaderReceiveMessage>>,
 }
 
 impl WriterProxy {
@@ -184,11 +184,11 @@ impl WriterProxy {
         self.ackanck_count += 1;
     }
 
-    pub fn push_received_message(&self, source_guid_prefix: GuidPrefix, message: ReaderReceiveMessage) {
-        self.received_messages.lock().unwrap().push_back((source_guid_prefix, message));
+    pub fn push_received_message(&self, message: ReaderReceiveMessage) {
+        self.received_messages.lock().unwrap().push_back(message);
     }
 
-    pub fn pop_received_message(&self) -> Option<(GuidPrefix, ReaderReceiveMessage)> {
+    pub fn pop_received_message(&self) -> Option<ReaderReceiveMessage> {
         self.received_messages.lock().unwrap().pop_front()
     }
 }
