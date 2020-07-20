@@ -6,10 +6,10 @@ use crate::stateless_reader::StatelessReader;
 
 use super::cache_change_from_data;
 
-pub struct StatelessReaderBehavior {}
+pub struct BestEffortStatelessReaderBehavior {}
 
-impl StatelessReaderBehavior {
-    pub fn run_best_effort(reader: &mut StatelessReader){
+impl BestEffortStatelessReaderBehavior {
+    pub fn run(reader: &mut StatelessReader){
         Self::waiting_state(reader);
     }
 

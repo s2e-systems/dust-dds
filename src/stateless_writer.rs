@@ -4,7 +4,7 @@ use crate::cache::{CacheChange, HistoryCache};
 use crate::messages::{RtpsMessage, ParameterList};
 use crate::types::{ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID, };
 use crate::behavior::types::Duration;
-use crate::behavior::StatelessWriterBehavior;
+use crate::behavior::stateless_writer::StatelessWriterBehavior;
 
 pub struct ReaderLocator {
     //requested_changes: HashSet<CacheChange>,

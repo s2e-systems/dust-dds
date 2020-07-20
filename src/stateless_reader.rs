@@ -4,7 +4,7 @@ use std::sync::Mutex;
 use crate::cache::HistoryCache;
 use crate::types::{ReliabilityKind, TopicKind, GUID, Locator, GuidPrefix };
 use crate::messages::receiver::ReaderReceiveMessage;
-use crate::behavior::stateless_reader::StatelessReaderBehavior;
+use crate::behavior::stateless_reader::BestEffortStatelessReaderBehavior;
 
 pub struct StatelessReader {
     // Heartbeats are not relevant to stateless readers (only to readers),
@@ -69,7 +69,7 @@ impl StatelessReader {
 
     pub fn run(&mut self) {
         match self.reliability_level {
-            ReliabilityKind::BestEffort => StatelessReaderBehavior::run_best_effort(self),
+            ReliabilityKind::BestEffort => BestEffortStatelessReaderBehavior::run(self),
             ReliabilityKind::Reliable => panic!("Reliable stateless reader not allowed!"),
         }
     }

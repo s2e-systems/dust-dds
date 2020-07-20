@@ -11,11 +11,6 @@ use crate::cache::CacheChange;
 use crate::messages::{Data, Payload, Endianness, ParameterList};
 use crate::inline_qos_types::{KeyHash, StatusInfo};
 
-pub use stateful_writer::StatefulWriterBehavior;
-pub use stateful_reader::StatefulReaderBehavior;
-pub use stateless_reader::StatelessReaderBehavior;
-pub use stateless_writer::StatelessWriterBehavior;
-
 fn cache_change_from_data(message: &Data, guid_prefix: &GuidPrefix) -> CacheChange {
     let change_kind = change_kind(&message);
     let key_hash = key_hash(&message).unwrap();

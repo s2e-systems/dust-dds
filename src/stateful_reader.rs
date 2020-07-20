@@ -6,7 +6,7 @@ use crate::cache::HistoryCache;
 use crate::types::{Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID, };
 use crate::messages::RtpsMessage;
 use crate::behavior::types::Duration;
-use crate::behavior::StatefulReaderBehavior;
+use crate::behavior::stateful_reader::StatefulReaderBehavior;
 use crate::messages::types::Count;
 
 pub struct WriterProxy {
