@@ -1,13 +1,15 @@
-use std::collections::{BTreeSet, HashMap, };
+use std::collections::{BTreeSet, HashMap, VecDeque};
+use std::sync::Mutex;
 use std::convert::TryInto;
 use std::time::Instant;
 
 use crate::cache::HistoryCache;
-use crate::types::{Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID, };
+use crate::types::{Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID, GuidPrefix};
 use crate::messages::RtpsMessage;
 use crate::behavior::types::Duration;
-use crate::behavior::stateful_reader::StatefulReaderBehavior;
+use crate::behavior::stateful_reader::{BestEfforStatefulReaderBehavior, ReliableStatefulReaderBehavior};
 use crate::messages::types::Count;
+use crate::messages::receiver::ReaderReceiveMessage;
 
 pub struct WriterProxy {
     remote_writer_guid: GUID,
@@ -35,6 +37,8 @@ pub struct WriterProxy {
     time_heartbeat_received: Instant,
     ackanck_count: Count,
     highest_received_heartbeat_count: Count,
+
+    received_messages: Mutex<VecDeque<(GuidPrefix, ReaderReceiveMessage)>>,
 }
 
 impl WriterProxy {
@@ -56,6 +60,7 @@ impl WriterProxy {
                 time_heartbeat_received: Instant::now(),
                 ackanck_count: 0,
                 highest_received_heartbeat_count: 0,
+                received_messages: Mutex::new(VecDeque::new()),
         }
     }
 
@@ -178,6 +183,14 @@ impl WriterProxy {
     pub fn increment_acknack_count(&mut self) {
         self.ackanck_count += 1;
     }
+
+    pub fn push_received_message(&self, source_guid_prefix: GuidPrefix, message: ReaderReceiveMessage) {
+        self.received_messages.lock().unwrap().push_back((source_guid_prefix, message));
+    }
+
+    pub fn pop_received_message(&self) -> Option<(GuidPrefix, ReaderReceiveMessage)> {
+        self.received_messages.lock().unwrap().pop_front()
+    }
 }
 
 pub struct StatefulReader {
@@ -236,19 +249,13 @@ impl StatefulReader {
         self.matched_writers.get(a_writer_guid)
     }
 
-    pub fn run(&mut self, a_writer_guid: &GUID, received_message: Option<&RtpsMessage>) -> Option<RtpsMessage> {
+    pub fn run(&mut self, a_writer_guid: &GUID) {
         let writer_proxy =  self.matched_writers.get_mut(a_writer_guid).unwrap();
 
-        let submessages = match self.reliability_level {
-            ReliabilityKind::BestEffort => StatefulReaderBehavior::run_best_effort(writer_proxy, &self.guid, &mut self.reader_cache, received_message),
-            ReliabilityKind::Reliable => StatefulReaderBehavior::run_reliable(writer_proxy,  &self.guid, &mut self.reader_cache, self.heartbeat_response_delay, received_message),
+         match self.reliability_level {
+            ReliabilityKind::BestEffort => BestEfforStatefulReaderBehavior::run(writer_proxy, &mut self.reader_cache),
+            ReliabilityKind::Reliable => ReliableStatefulReaderBehavior::run(writer_proxy,  &self.guid, &mut self.reader_cache, self.heartbeat_response_delay),
         };
-
-        match submessages {
-            None => None,
-            Some(submessages) => Some(RtpsMessage::new(*self.guid.prefix(), submessages)),
-        }
-
     }
 
     pub fn reader_cache(&self) -> &HistoryCache {
