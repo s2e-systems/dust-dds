@@ -1,21 +1,68 @@
+use std::convert::TryInto;
+use std::time::Instant;
+
 use crate::types::{GUID};
 use crate::behavior::types::Duration;
 use crate::messages::{AckNack, Data, Gap, Heartbeat};
 use crate::cache::{HistoryCache};
 use crate::stateful_reader::WriterProxy;
 use crate::messages::receiver::ReaderReceiveMessage;
+use crate::messages::types::Count;
 
 use crate::messages::Endianness;
 use super::cache_change_from_data;
 
+pub struct StatefulReaderBehavior {
+    must_send_ack: bool,
+    time_heartbeat_received: Instant,
+    ackanck_count: Count,
+    highest_received_heartbeat_count: Count,
+}
+
+impl StatefulReaderBehavior {
+    pub fn new() -> Self {
+        Self {
+            must_send_ack: false,
+            time_heartbeat_received: Instant::now(),
+            ackanck_count: 0,
+            highest_received_heartbeat_count: 0,
+        }
+    }
+
+    fn must_send_ack(&self) -> bool {
+        self.must_send_ack
+    }
+
+    fn set_must_send_ack(&mut self, value: bool) {
+        self.must_send_ack = value;
+    }
+
+    fn time_heartbeat_received_reset(&mut self) {
+        self.time_heartbeat_received  = Instant::now();
+    }
+
+    fn duration_since_heartbeat_received(&self) -> Duration {
+        self.time_heartbeat_received.elapsed().try_into().unwrap()
+    }
+
+    fn ackanck_count(&self) -> &Count {
+        &self.ackanck_count
+    }
+
+    pub fn increment_acknack_count(&mut self) {
+        self.ackanck_count += 1;
+    }
+
+}
+
 pub struct BestEfforStatefulReaderBehavior {}
 
 impl BestEfforStatefulReaderBehavior {
-    pub fn run(writer_proxy: &mut WriterProxy, history_cache: &HistoryCache) {
+    pub fn run(writer_proxy: &WriterProxy, history_cache: &HistoryCache) {
         Self::waiting_state(writer_proxy, history_cache);
     }
 
-    fn waiting_state(writer_proxy: &mut WriterProxy, history_cache: &HistoryCache) {
+    fn waiting_state(writer_proxy: &WriterProxy, history_cache: &HistoryCache) {
         if let Some(received_message) = writer_proxy.pop_received_message() {
             match received_message {
                 ReaderReceiveMessage::Data(data) => Self::transition_t2(writer_proxy, history_cache, &data),
@@ -25,7 +72,7 @@ impl BestEfforStatefulReaderBehavior {
         }
     }
 
-    fn transition_t2(writer_proxy: &mut WriterProxy, history_cache: &HistoryCache, data: &Data) {
+    fn transition_t2(writer_proxy: &WriterProxy, history_cache: &HistoryCache, data: &Data) {
         let expected_seq_number = writer_proxy.available_changes_max() + 1;
         if data.writer_sn() >= expected_seq_number {
             let cache_change = cache_change_from_data(data, writer_proxy.remote_writer_guid().prefix());
@@ -35,7 +82,7 @@ impl BestEfforStatefulReaderBehavior {
         }
     }
 
-    fn transition_t4(writer_proxy: &mut WriterProxy, gap: &Gap) {
+    fn transition_t4(writer_proxy: &WriterProxy, gap: &Gap) {
         for seq_num in gap.gap_start() .. gap.gap_list().base() - 1 {
             writer_proxy.irrelevant_change_set(seq_num);
         }
@@ -48,16 +95,16 @@ impl BestEfforStatefulReaderBehavior {
 pub struct ReliableStatefulReaderBehavior {}
 
 impl ReliableStatefulReaderBehavior {
-    pub fn run(writer_proxy: &mut WriterProxy, reader_guid: &GUID, history_cache: &mut HistoryCache, heartbeat_response_delay: Duration) {
+    pub fn run(writer_proxy: &WriterProxy, reader_guid: &GUID, history_cache: &HistoryCache, heartbeat_response_delay: Duration) {
         let heartbeat = Self::ready_state(writer_proxy, history_cache);
-        if writer_proxy.must_send_ack() {
+        if writer_proxy.behavior().must_send_ack() {
             Self::must_send_ack_state(writer_proxy, reader_guid, heartbeat_response_delay)
         } else {
             Self::waiting_heartbeat_state(writer_proxy, heartbeat);
         }
     }
 
-    fn ready_state(writer_proxy: &mut WriterProxy, history_cache: &mut HistoryCache) -> Option<Heartbeat>{
+    fn ready_state(writer_proxy: &WriterProxy, history_cache: &HistoryCache) -> Option<Heartbeat>{
         if let Some(received_message) = writer_proxy.pop_received_message() {
             match received_message {
                 ReaderReceiveMessage::Data(data) => {
@@ -78,7 +125,7 @@ impl ReliableStatefulReaderBehavior {
         }
     }
 
-    fn transition_t8(writer_proxy: &mut WriterProxy, history_cache: &mut HistoryCache, data: &Data) {
+    fn transition_t8(writer_proxy: &WriterProxy, history_cache: &HistoryCache, data: &Data) {
         let expected_seq_number = writer_proxy.available_changes_max() + 1;
         if data.writer_sn() >= expected_seq_number {
             let cache_change = cache_change_from_data(data, writer_proxy.remote_writer_guid().prefix());
@@ -87,7 +134,7 @@ impl ReliableStatefulReaderBehavior {
         }
     }
 
-    fn transition_t9(writer_proxy: &mut WriterProxy, gap: &Gap) {
+    fn transition_t9(writer_proxy: &WriterProxy, gap: &Gap) {
         for seq_num in gap.gap_start() .. gap.gap_list().base() - 1 {
             writer_proxy.irrelevant_change_set(seq_num);
         }
@@ -97,39 +144,39 @@ impl ReliableStatefulReaderBehavior {
         }
     }
 
-    fn transition_t7(writer_proxy: &mut WriterProxy, heartbeat: &Heartbeat) {
+    fn transition_t7(writer_proxy: &WriterProxy, heartbeat: &Heartbeat) {
         writer_proxy.missing_changes_update(heartbeat.last_sn());
         writer_proxy.lost_changes_update(heartbeat.first_sn());
     }
 
-    fn waiting_heartbeat_state(writer_proxy: &mut WriterProxy, heartbeat_message: Option<Heartbeat>) {            
+    fn waiting_heartbeat_state(writer_proxy: &WriterProxy, heartbeat_message: Option<Heartbeat>) {            
         if let Some(heartbeat) = heartbeat_message {
             writer_proxy.missing_changes_update(heartbeat.last_sn());
             writer_proxy.lost_changes_update(heartbeat.first_sn());
             if !heartbeat.is_final() || 
                 (heartbeat.is_final() && !writer_proxy.missing_changes().is_empty()) {
-                writer_proxy.set_must_send_ack(true);
-                writer_proxy.time_heartbeat_received_reset();
+                writer_proxy.behavior().set_must_send_ack(true);
+                writer_proxy.behavior().time_heartbeat_received_reset();
             } 
         }
     }
 
-    fn must_send_ack_state(writer_proxy: &mut WriterProxy, reader_guid: &GUID, heartbeat_response_delay: Duration) {
-        if writer_proxy.duration_since_heartbeat_received() >  heartbeat_response_delay {
+    fn must_send_ack_state(writer_proxy: &WriterProxy, reader_guid: &GUID, heartbeat_response_delay: Duration) {
+        if writer_proxy.behavior().duration_since_heartbeat_received() >  heartbeat_response_delay {
             Self::transition_t5(writer_proxy, reader_guid)
         }
     }
 
-    fn transition_t5(writer_proxy: &mut WriterProxy, reader_guid: &GUID) {
-        writer_proxy.set_must_send_ack(false);
+    fn transition_t5(writer_proxy: &WriterProxy, reader_guid: &GUID) {
+        writer_proxy.behavior().set_must_send_ack(false);
  
-        writer_proxy.increment_acknack_count();
+        writer_proxy.behavior().increment_acknack_count();
         let _acknack = AckNack::new(
             *reader_guid.entity_id(), 
             *writer_proxy.remote_writer_guid().entity_id(),
             writer_proxy.available_changes_max(),
             writer_proxy.missing_changes().clone(),
-            *writer_proxy.ackanck_count(),
+            *writer_proxy.behavior().ackanck_count(),
             true,
             Endianness::LittleEndian);
     }
@@ -148,9 +195,9 @@ mod tests {
 
     #[test]
     fn run_best_effort_data_only() {
-        let mut history_cache = HistoryCache::new();
+        let history_cache = HistoryCache::new();
         let remote_writer_guid = GUID::new([1;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-        let mut writer_proxy = WriterProxy::new(remote_writer_guid, vec![], vec![]);
+        let writer_proxy = WriterProxy::new(remote_writer_guid, vec![], vec![]);
 
         let mut inline_qos = ParameterList::new();
         inline_qos.push(StatusInfo::from(ChangeKind::Alive));
@@ -165,7 +212,7 @@ mod tests {
             Payload::Data(vec![1,2,3]));
         writer_proxy.push_received_message(ReaderReceiveMessage::Data(data1));
 
-        BestEfforStatefulReaderBehavior::run(&mut writer_proxy, &mut history_cache);
+        BestEfforStatefulReaderBehavior::run(&writer_proxy, &history_cache);
 
         let expected_change_1 = CacheChange::new(
             ChangeKind::Alive,
@@ -181,7 +228,7 @@ mod tests {
         assert_eq!(writer_proxy.available_changes_max(), 3);
 
         // Run waiting state without any received message and verify nothing changes
-        BestEfforStatefulReaderBehavior::run(&mut writer_proxy, &mut history_cache);
+        BestEfforStatefulReaderBehavior::run(&writer_proxy, &history_cache);
         assert_eq!(history_cache.changes().len(), 1);
         assert_eq!(writer_proxy.available_changes_max(), 3);
     }
@@ -189,9 +236,9 @@ mod tests {
     #[test]
     fn run_reliable_data_only() {
         let reader_guid = GUID::new([2;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-        let mut history_cache = HistoryCache::new();
+        let history_cache = HistoryCache::new();
         let remote_writer_guid = GUID::new([1;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-        let mut writer_proxy = WriterProxy::new(remote_writer_guid, vec![], vec![]);
+        let writer_proxy = WriterProxy::new(remote_writer_guid, vec![], vec![]);
 
         let mut inline_qos = ParameterList::new();
         inline_qos.push(StatusInfo::from(ChangeKind::Alive));
@@ -207,7 +254,7 @@ mod tests {
 
         writer_proxy.push_received_message(ReaderReceiveMessage::Data(data1));
 
-        ReliableStatefulReaderBehavior::run(&mut writer_proxy, &reader_guid, &mut history_cache, Duration::from_millis(300));
+        ReliableStatefulReaderBehavior::run(&writer_proxy, &reader_guid, &history_cache, Duration::from_millis(300));
 
         let expected_change_1 = CacheChange::new(
             ChangeKind::Alive,
@@ -223,7 +270,7 @@ mod tests {
         assert_eq!(writer_proxy.available_changes_max(), 0);
 
         // Run ready state without any received message and verify nothing changes
-        ReliableStatefulReaderBehavior::ready_state(&mut writer_proxy, &mut history_cache);
+        ReliableStatefulReaderBehavior::ready_state(&writer_proxy, &history_cache);
         assert_eq!(history_cache.changes().len(), 1);
         assert_eq!(writer_proxy.available_changes_max(), 0);
     }
@@ -231,9 +278,9 @@ mod tests {
     #[test]
     fn run_reliable_non_final_heartbeat() {
         let reader_guid = GUID::new([2;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-        let mut history_cache = HistoryCache::new();
+        let history_cache = HistoryCache::new();
         let remote_writer_guid = GUID::new([1;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-        let mut writer_proxy = WriterProxy::new(remote_writer_guid, vec![], vec![]);
+        let writer_proxy = WriterProxy::new(remote_writer_guid, vec![], vec![]);
 
         let heartbeat = Heartbeat::new(
             *reader_guid.entity_id(),
@@ -248,9 +295,9 @@ mod tests {
     
         writer_proxy.push_received_message(ReaderReceiveMessage::Heartbeat(heartbeat));
 
-        ReliableStatefulReaderBehavior::run(&mut writer_proxy, &reader_guid, &mut history_cache, Duration::from_millis(300));
-        assert_eq!(writer_proxy.missing_changes(), &[3, 4, 5, 6].iter().cloned().collect());
-        assert_eq!(writer_proxy.must_send_ack(), true);
+        ReliableStatefulReaderBehavior::run(&writer_proxy, &reader_guid, &history_cache, Duration::from_millis(300));
+        assert_eq!(writer_proxy.missing_changes(), [3, 4, 5, 6].iter().cloned().collect());
+        assert_eq!(writer_proxy.behavior().must_send_ack(), true);
 
         // TODO: Test that AckNack is sent after heartbeat_response_delay
     }
@@ -258,9 +305,9 @@ mod tests {
     #[test]
     fn run_reliable_final_heartbeat_with_missing_changes() {
         let reader_guid = GUID::new([2;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-        let mut history_cache = HistoryCache::new();
+        let history_cache = HistoryCache::new();
         let remote_writer_guid = GUID::new([1;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-        let mut writer_proxy = WriterProxy::new(remote_writer_guid, vec![], vec![]);
+        let writer_proxy = WriterProxy::new(remote_writer_guid, vec![], vec![]);
 
         let heartbeat = Heartbeat::new(
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
@@ -275,14 +322,14 @@ mod tests {
         writer_proxy.push_received_message(ReaderReceiveMessage::Heartbeat(heartbeat));
 
         let heartbeat_response_delay = Duration::from_millis(300);
-        ReliableStatefulReaderBehavior::run(&mut writer_proxy, &reader_guid, &mut history_cache, heartbeat_response_delay);
-        assert_eq!(writer_proxy.missing_changes(), &[2, 3].iter().cloned().collect());
-        assert_eq!(writer_proxy.must_send_ack(), true);
+        ReliableStatefulReaderBehavior::run(&writer_proxy, &reader_guid, &history_cache, heartbeat_response_delay);
+        assert_eq!(writer_proxy.missing_changes(), [2, 3].iter().cloned().collect());
+        assert_eq!(writer_proxy.behavior().must_send_ack(), true);
 
         std::thread::sleep(heartbeat_response_delay.into());
 
-        ReliableStatefulReaderBehavior::run(&mut writer_proxy, &reader_guid, &mut history_cache, heartbeat_response_delay);
-        assert_eq!(writer_proxy.must_send_ack(), false);
+        ReliableStatefulReaderBehavior::run(&writer_proxy, &reader_guid, &history_cache, heartbeat_response_delay);
+        assert_eq!(writer_proxy.behavior().must_send_ack(), false);
 
         // TODO: Test that AckNack is sent after duration
     }
@@ -290,9 +337,9 @@ mod tests {
     #[test]
     fn run_reliable_final_heartbeat_without_missing_changes() {
         let reader_guid = GUID::new([2;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-        let mut history_cache = HistoryCache::new();
+        let history_cache = HistoryCache::new();
         let remote_writer_guid = GUID::new([1;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-        let mut writer_proxy = WriterProxy::new(remote_writer_guid, vec![], vec![]);
+        let writer_proxy = WriterProxy::new(remote_writer_guid, vec![], vec![]);
 
         let heartbeat = Heartbeat::new(
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
@@ -306,8 +353,8 @@ mod tests {
         );
         writer_proxy.push_received_message(ReaderReceiveMessage::Heartbeat(heartbeat));
 
-        ReliableStatefulReaderBehavior::run(&mut writer_proxy, &reader_guid, &mut history_cache, Duration::from_millis(300));
-        assert_eq!(writer_proxy.missing_changes(), &[].iter().cloned().collect());
-        assert_eq!(writer_proxy.must_send_ack(), false);
+        ReliableStatefulReaderBehavior::run(&writer_proxy, &reader_guid, &history_cache, Duration::from_millis(300));
+        assert_eq!(writer_proxy.missing_changes(), [].iter().cloned().collect());
+        assert_eq!(writer_proxy.behavior().must_send_ack(), false);
     }
 }
