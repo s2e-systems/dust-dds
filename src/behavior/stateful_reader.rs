@@ -1,4 +1,4 @@
-use crate::types::{GUID, GuidPrefix};
+use crate::types::{GUID};
 use crate::behavior::types::Duration;
 use crate::messages::{AckNack, Data, Gap, Heartbeat};
 use crate::cache::{HistoryCache};
@@ -11,11 +11,11 @@ use super::cache_change_from_data;
 pub struct BestEfforStatefulReaderBehavior {}
 
 impl BestEfforStatefulReaderBehavior {
-    pub fn run(writer_proxy: &mut WriterProxy, history_cache: &mut HistoryCache) {
+    pub fn run(writer_proxy: &mut WriterProxy, history_cache: &HistoryCache) {
         Self::waiting_state(writer_proxy, history_cache);
     }
 
-    fn waiting_state(writer_proxy: &mut WriterProxy, history_cache: &mut HistoryCache) {
+    fn waiting_state(writer_proxy: &mut WriterProxy, history_cache: &HistoryCache) {
         if let Some(received_message) = writer_proxy.pop_received_message() {
             match received_message {
                 ReaderReceiveMessage::Data(data) => Self::transition_t2(writer_proxy, history_cache, &data),
@@ -25,7 +25,7 @@ impl BestEfforStatefulReaderBehavior {
         }
     }
 
-    fn transition_t2(writer_proxy: &mut WriterProxy, history_cache: &mut HistoryCache, data: &Data) {
+    fn transition_t2(writer_proxy: &mut WriterProxy, history_cache: &HistoryCache, data: &Data) {
         let expected_seq_number = writer_proxy.available_changes_max() + 1;
         if data.writer_sn() >= expected_seq_number {
             let cache_change = cache_change_from_data(data, writer_proxy.remote_writer_guid().prefix());
@@ -176,13 +176,13 @@ mod tests {
             None,
         );
 
-        assert_eq!(history_cache.get_changes().len(), 1);
-        assert!(history_cache.get_changes().contains(&expected_change_1));
+        assert_eq!(history_cache.changes().len(), 1);
+        assert!(history_cache.changes().contains(&expected_change_1));
         assert_eq!(writer_proxy.available_changes_max(), 3);
 
         // Run waiting state without any received message and verify nothing changes
         BestEfforStatefulReaderBehavior::run(&mut writer_proxy, &mut history_cache);
-        assert_eq!(history_cache.get_changes().len(), 1);
+        assert_eq!(history_cache.changes().len(), 1);
         assert_eq!(writer_proxy.available_changes_max(), 3);
     }
 
@@ -218,13 +218,13 @@ mod tests {
             None,
         );
 
-        assert_eq!(history_cache.get_changes().len(), 1);
-        assert!(history_cache.get_changes().contains(&expected_change_1));
+        assert_eq!(history_cache.changes().len(), 1);
+        assert!(history_cache.changes().contains(&expected_change_1));
         assert_eq!(writer_proxy.available_changes_max(), 0);
 
         // Run ready state without any received message and verify nothing changes
         ReliableStatefulReaderBehavior::ready_state(&mut writer_proxy, &mut history_cache);
-        assert_eq!(history_cache.get_changes().len(), 1);
+        assert_eq!(history_cache.changes().len(), 1);
         assert_eq!(writer_proxy.available_changes_max(), 0);
     }
 

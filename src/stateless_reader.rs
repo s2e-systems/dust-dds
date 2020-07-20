@@ -116,11 +116,11 @@ mod tests {
 
         reader.push_received_message([2;12], ReaderReceiveMessage::Data(data1));
 
-        assert_eq!(reader.history_cache().get_changes().len(), 0);
+        assert_eq!(reader.history_cache().changes().len(), 0);
         // let message = RtpsMessage::new(, submessages);
         
         reader.run();
 
-        assert_eq!(reader.history_cache().get_changes().len(), 1);
+        assert_eq!(reader.history_cache().changes().len(), 1);
     }
 }

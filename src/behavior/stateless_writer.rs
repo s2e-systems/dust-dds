@@ -31,7 +31,7 @@ impl StatelessWriterBehavior{
     
         while let Some(next_unsent_seq_num) = reader_locator.next_unsent_change(last_change_sequence_number) {
             if let Some(cache_change) = history_cache
-                .get_change_with_sequence_number(&next_unsent_seq_num)
+                .changes().iter().find(|cc| cc.sequence_number() == &next_unsent_seq_num)
             {
                 let data = data_from_cache_change(cache_change, endianness, ENTITYID_UNKNOWN);    
                 submessages.push(RtpsSubmessage::Data(data));

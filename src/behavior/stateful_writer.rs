@@ -68,7 +68,7 @@ impl StatefulWriterBehavior {
     
         while let Some(next_unsent_seq_num) = reader_proxy.next_unsent_change(last_change_sequence_number) {
             if let Some(cache_change) = history_cache
-                .get_change_with_sequence_number(&next_unsent_seq_num)
+            .changes().iter().find(|cc| cc.sequence_number() == &next_unsent_seq_num)
             {
                 let reader_id = *reader_proxy.remote_reader_guid().entity_id();
                 let data = data_from_cache_change(cache_change, endianness, reader_id);       
@@ -169,7 +169,7 @@ impl StatefulWriterBehavior {
     
         while let Some(next_requested_seq_num) = reader_proxy.next_requested_change() {
             if let Some(cache_change) = history_cache
-                .get_change_with_sequence_number(&next_requested_seq_num)
+            .changes().iter().find(|cc| cc.sequence_number() == &next_requested_seq_num)
             {
                 let change_kind = *cache_change.change_kind();
                 let mut inline_qos = ParameterList::new();
@@ -227,7 +227,7 @@ mod tests {
     #[test]
     fn run_announcing_state_valid_data() {
         let writer_guid = GUID::new([2;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-        let mut history_cache = HistoryCache::new();
+        let history_cache = HistoryCache::new();
 
         let instance_handle = [1;16];
 
@@ -272,7 +272,7 @@ mod tests {
     #[test]
     fn run_announcing_state_multiple_data_combinations() {
         let writer_guid = GUID::new([2;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-        let mut history_cache = HistoryCache::new();
+        let history_cache = HistoryCache::new();
 
         let remote_reader_guid = GUID::new([1,2,3,4,5,6,7,8,9,10,11,12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
         let mut reader_proxy = ReaderProxy::new(remote_reader_guid, vec![], vec![], false, true);
@@ -453,7 +453,7 @@ mod tests {
     // #[test]
     fn run_pushing_state_only_data_messages() {
         let writer_guid = GUID::new([2;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-        let mut history_cache = HistoryCache::new();
+        let history_cache = HistoryCache::new();
 
         let instance_handle = [1;16];
 
@@ -537,7 +537,7 @@ mod tests {
     #[test]
     fn run_pushing_state_gap_and_data_message() {
         let writer_guid = GUID::new([2;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-        let mut history_cache = HistoryCache::new();
+        let history_cache = HistoryCache::new();
 
         // Add one change to the history cache so that data and gap messages have to be sent
         let instance_handle = [1;16];
@@ -581,7 +581,7 @@ mod tests {
     #[test]
     fn run_repairing_state_only_data_messages() {
         let writer_guid = GUID::new([2;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-        let mut history_cache = HistoryCache::new();
+        let history_cache = HistoryCache::new();
 
         let instance_handle = [1;16];
 
@@ -656,7 +656,7 @@ mod tests {
     #[test]
     fn run_best_effort_reader_proxy() {
         let writer_guid = GUID::new([2;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-        let mut history_cache = HistoryCache::new();
+        let history_cache = HistoryCache::new();
 
         let remote_reader_guid = GUID::new([1;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
         let mut reader_proxy = ReaderProxy::new(remote_reader_guid, vec![], vec![], false, true);
@@ -706,7 +706,7 @@ mod tests {
         let heartbeat_period = Duration::from_millis(200);
         let nack_response_delay = Duration::from_millis(200);
         let writer_guid = GUID::new([2;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-        let mut history_cache = HistoryCache::new();
+        let history_cache = HistoryCache::new();
 
         let remote_reader_guid = GUID::new([1;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
         let mut reader_proxy = ReaderProxy::new(remote_reader_guid, vec![], vec![], false, true);
