@@ -51,7 +51,7 @@ impl<'a> RtpsMessageReceiver<'a> {
         let _source_version = message.header().version();
         let _source_vendor_id = message.header().vendor_id();
         let source_guid_prefix = *message.header().guid_prefix();
-        let dest_guid_prefix = self.participant_guid_prefix;
+        let _dest_guid_prefix = self.participant_guid_prefix;
         let _unicast_reply_locator_list = vec![Locator::new(0,0,[0;16])];
         let _multicast_reply_locator_list = vec![Locator::new(0,0,[0;16])];
         let mut timestamp = None;
@@ -119,7 +119,7 @@ impl<'a> RtpsMessageReceiver<'a> {
         }
     }
 
-    fn reader_proxy_received_message(reader_proxy: &ReaderProxy, message: WriterReceiveMessage) {
+    fn reader_proxy_received_message(_reader_proxy: &ReaderProxy, _message: WriterReceiveMessage) {
         todo!()
     }
 

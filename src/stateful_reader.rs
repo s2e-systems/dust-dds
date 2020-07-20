@@ -4,8 +4,7 @@ use std::convert::TryInto;
 use std::time::Instant;
 
 use crate::cache::HistoryCache;
-use crate::types::{Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID, GuidPrefix};
-use crate::messages::RtpsMessage;
+use crate::types::{Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID};
 use crate::behavior::types::Duration;
 use crate::behavior::stateful_reader::{BestEfforStatefulReaderBehavior, ReliableStatefulReaderBehavior};
 use crate::messages::types::Count;
