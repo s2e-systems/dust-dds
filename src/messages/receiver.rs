@@ -3,7 +3,6 @@ use crate::stateless_reader::StatelessReader;
 use crate::stateless_writer::StatelessWriter;
 use crate::stateful_reader::{StatefulReader, WriterProxy};
 use crate::stateful_writer::{StatefulWriter, ReaderProxy};
-use super::types::constants::TIME_INVALID;
 use super::submessage::RtpsSubmessage;
 use super::{Data, Gap, Heartbeat, AckNack};
 use super::message::RtpsMessage;
@@ -86,7 +85,7 @@ impl<'a> RtpsMessageReceiver<'a> {
                 Reader::StatelessReader(stateless_reader) => {
                     if stateless_reader.unicast_locator_list().iter().find(|&loc| loc == source_locator).is_some() ||
                        stateless_reader.multicast_locator_list().iter().find(|&loc| loc == source_locator).is_some() {
-                        RtpsMessageReceiver::stateless_reader_received_message(stateless_reader, message);
+                        RtpsMessageReceiver::stateless_reader_received_message(stateless_reader, source_guid_prefix, message);
                         break;
                     }
                 },
@@ -128,8 +127,8 @@ impl<'a> RtpsMessageReceiver<'a> {
         todo!()
     }
 
-    fn stateless_reader_received_message(stateless_reader: &StatelessReader, message: ReaderReceiveMessage) {
-        todo!()
+    fn stateless_reader_received_message(stateless_reader: &StatelessReader, source_guid_prefix: GuidPrefix, message: ReaderReceiveMessage) {
+        stateless_reader.push_received_message(source_guid_prefix, message);
     }
 }
 
