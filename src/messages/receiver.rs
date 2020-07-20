@@ -31,6 +31,8 @@ pub enum WriterReceiveMessage {
     AckNack(AckNack)
 }
 
+pub type ReaderSendMessage = WriterReceiveMessage;
+
 pub struct RtpsMessageReceiver<'a>{
     participant_guid_prefix: GuidPrefix,
     locator: Locator,
@@ -92,7 +94,7 @@ impl<'a> RtpsMessageReceiver<'a> {
                     }
                 },
                 Reader::StatefulReader(stateful_reader) => {
-                    if let Some(writer_proxy) = stateful_reader.matched_writer_lookup(&writer_guid) {
+                    if let Some(writer_proxy) = stateful_reader.matched_writers().get(&writer_guid) {
                         RtpsMessageReceiver::writer_proxy_received_message(writer_proxy, message);
                         break;
                     }

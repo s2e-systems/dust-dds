@@ -1,5 +1,5 @@
 use std::collections::{BTreeSet, HashMap, VecDeque};
-use std::sync::{Mutex, MutexGuard};
+use std::sync::{RwLock, RwLockReadGuard, Mutex, MutexGuard};
 
 use crate::cache::HistoryCache;
 use crate::types::{Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID};
@@ -240,7 +240,7 @@ pub struct StatefulReader {
     reader_cache: HistoryCache,
 
     // Fields
-    matched_writers: HashMap<GUID, WriterProxy>,
+    matched_writers: RwLock<HashMap<GUID, WriterProxy>>,
 }
 
 impl StatefulReader {
@@ -262,26 +262,24 @@ impl StatefulReader {
             expects_inline_qos,
             heartbeat_response_delay,       
             reader_cache: HistoryCache::new(),
-            matched_writers: HashMap::new(),
+            matched_writers: RwLock::new(HashMap::new()),
         }
     }
 
     pub fn matched_writer_add(&mut self, a_writer_proxy: WriterProxy) {
-        self.matched_writers.insert(a_writer_proxy.remote_writer_guid, a_writer_proxy);
+        self.matched_writers.write().unwrap().insert(a_writer_proxy.remote_writer_guid, a_writer_proxy);
     }
 
     pub fn matched_writer_remove(&mut self, a_writer_proxy: &WriterProxy) {
-        self.matched_writers.remove(&a_writer_proxy.remote_writer_guid);
+        self.matched_writers.write().unwrap().remove(&a_writer_proxy.remote_writer_guid);
     }
     
-    pub fn matched_writer_lookup(&self, a_writer_guid: &GUID) -> Option<&WriterProxy> {
-        self.matched_writers.get(a_writer_guid)
+    pub fn matched_writers(&self) -> RwLockReadGuard<HashMap<GUID, WriterProxy>> {
+        self.matched_writers.read().unwrap()
     }
 
     pub fn run(&self) {
-        // let writer_proxy =  self.matched_writers.get_mut(a_writer_guid).unwrap();
-
-        for (_writer_guid, writer_proxy) in self.matched_writers.iter() {
+        for (_writer_guid, writer_proxy) in self.matched_writers().iter() {
             match self.reliability_level {
                 ReliabilityKind::BestEffort => BestEfforStatefulReaderBehavior::run(writer_proxy, &self.reader_cache),
                 ReliabilityKind::Reliable => ReliableStatefulReaderBehavior::run(writer_proxy,  &self.guid, &self.reader_cache, self.heartbeat_response_delay),
