@@ -1,4 +1,5 @@
 use std::collections::{HashMap, BTreeSet};
+use std::sync::{Mutex, MutexGuard};
 
 use crate::cache::{CacheChange, HistoryCache};
 use crate::messages::{RtpsMessage, ParameterList};
@@ -10,19 +11,23 @@ pub struct ReaderLocator {
     //requested_changes: HashSet<CacheChange>,
     // unsent_changes: SequenceNumber,
     expects_inline_qos: bool,
-    highest_sequence_number_sent: SequenceNumber,
+    highest_sequence_number_sent: Mutex<SequenceNumber>,
 }
 
 impl ReaderLocator {
     fn new(expects_inline_qos: bool) -> Self {
         ReaderLocator {
             expects_inline_qos,
-            highest_sequence_number_sent: 0,
+            highest_sequence_number_sent: Mutex::new(0),
         }
     }
 
-    fn unsent_changes_reset(&mut self) {
-        self.highest_sequence_number_sent = 0;
+    fn highest_sequence_number_sent(&self) -> MutexGuard<SequenceNumber> {
+        self.highest_sequence_number_sent.lock().unwrap()
+    }
+
+    fn unsent_changes_reset(&self) {
+        *self.highest_sequence_number_sent() = 0;
     }
 
     pub fn unsent_changes(&self, last_change_sequence_number: SequenceNumber) -> BTreeSet<SequenceNumber> {
@@ -30,7 +35,7 @@ impl ReaderLocator {
 
         // The for loop is made with the underlying sequence number type because it is not possible to implement the Step trait on Stable yet
         for unsent_sequence_number in
-            self.highest_sequence_number_sent + 1..=last_change_sequence_number
+            *self.highest_sequence_number_sent() + 1..=last_change_sequence_number
         {
             unsent_changes_set.insert(unsent_sequence_number);
         }
@@ -38,12 +43,12 @@ impl ReaderLocator {
         unsent_changes_set
     }
 
-    pub fn next_unsent_change(&mut self, last_change_sequence_number: SequenceNumber) -> Option<SequenceNumber> {
-        let next_unsent_sequence_number = self.highest_sequence_number_sent + 1;
+    pub fn next_unsent_change(&self, last_change_sequence_number: SequenceNumber) -> Option<SequenceNumber> {
+        let next_unsent_sequence_number = *self.highest_sequence_number_sent() + 1;
         if next_unsent_sequence_number > last_change_sequence_number {
             None
         } else {
-            self.highest_sequence_number_sent = next_unsent_sequence_number;
+            *self.highest_sequence_number_sent() = next_unsent_sequence_number;
             Some(next_unsent_sequence_number)
         }
     }
@@ -69,7 +74,7 @@ pub struct StatelessWriter {
     heartbeat_period: Duration,
     nack_response_delay: Duration,
     nack_suppression_duration: Duration,
-    last_change_sequence_number: SequenceNumber,
+    last_change_sequence_number: Mutex<SequenceNumber>,
     writer_cache: HistoryCache,
     data_max_sized_serialized: Option<i32>,
 
@@ -98,27 +103,31 @@ impl StatelessWriter {
             heartbeat_period,
             nack_response_delay,
             nack_suppression_duration,
-            last_change_sequence_number: 0,
+            last_change_sequence_number: Mutex::new(0),
             writer_cache: HistoryCache::new(),
             data_max_sized_serialized: None,
             reader_locators: HashMap::new(),
         }
     }
 
+    fn last_change_sequence_number(&self) -> MutexGuard<SequenceNumber> {
+        self.last_change_sequence_number.lock().unwrap()
+    }
+
     pub fn new_change(
-        &mut self,
+        &self,
         kind: ChangeKind,
         data: Option<Vec<u8>>,
         inline_qos: Option<ParameterList>,
         handle: InstanceHandle,
     ) -> CacheChange {
-        self.last_change_sequence_number = self.last_change_sequence_number + 1;
+        *self.last_change_sequence_number() += 1;
 
         CacheChange::new(
             kind,
             self.guid,
             handle,
-            self.last_change_sequence_number,
+            *self.last_change_sequence_number(),
             data,
             inline_qos,
         )
@@ -144,10 +153,11 @@ impl StatelessWriter {
     }
 
     pub fn run(&mut self, a_locator: &Locator) -> Option<RtpsMessage> {
+        let last_change_sequence_number = *self.last_change_sequence_number();
         let reader_locator = self.reader_locators.get_mut(a_locator).unwrap();
 
         let submessages = match self.reliability_level {
-            ReliabilityKind::BestEffort => StatelessWriterBehavior::run_best_effort(reader_locator, &self.guid, &self.writer_cache, self.last_change_sequence_number),
+            ReliabilityKind::BestEffort => StatelessWriterBehavior::run_best_effort(reader_locator, &self.guid, &self.writer_cache, last_change_sequence_number),
             ReliabilityKind::Reliable => panic!("Reliable StatelessWriter not implemented!"),
         };
 
@@ -170,7 +180,7 @@ mod tests {
 
     #[test]
     fn test_writer_new_change() {
-        let mut writer = StatelessWriter::new(
+        let writer = StatelessWriter::new(
             GUID::new([0; 12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
             TopicKind::WithKey,
             ReliabilityKind::BestEffort,
