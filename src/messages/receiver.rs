@@ -24,6 +24,8 @@ pub enum ReaderReceiveMessage {
     Heartbeat(Heartbeat),
 }
 
+pub type WriterSendMessage = ReaderReceiveMessage;
+
 // Messages received by the writer. Which are the same as the ones sent by the reader
 pub enum WriterReceiveMessage {
     AckNack(AckNack)

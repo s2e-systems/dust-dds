@@ -1,23 +1,27 @@
-use std::collections::{HashMap, BTreeSet};
-use std::sync::{Mutex, MutexGuard};
+use std::collections::{HashMap, BTreeSet, VecDeque};
+use std::sync::{RwLock, RwLockReadGuard, Mutex, MutexGuard};
 
 use crate::cache::{CacheChange, HistoryCache};
-use crate::messages::{RtpsMessage, ParameterList};
+use crate::messages::{ParameterList};
 use crate::types::{ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID, };
-use crate::behavior::stateless_writer::StatelessWriterBehavior;
+use crate::behavior::stateless_writer::BestEffortStatelessWriterBehavior;
+use crate::messages::receiver::WriterSendMessage;
 
 pub struct ReaderLocator {
     //requested_changes: HashSet<CacheChange>,
     // unsent_changes: SequenceNumber,
     expects_inline_qos: bool,
     highest_sequence_number_sent: Mutex<SequenceNumber>,
+
+    send_messages: Mutex<VecDeque<WriterSendMessage>>,
 }
 
 impl ReaderLocator {
     fn new(expects_inline_qos: bool) -> Self {
-        ReaderLocator {
+        Self {
             expects_inline_qos,
             highest_sequence_number_sent: Mutex::new(0),
+            send_messages: Mutex::new(VecDeque::new()),
         }
     }
 
@@ -51,6 +55,14 @@ impl ReaderLocator {
             Some(next_unsent_sequence_number)
         }
     }
+
+    pub fn push_send_message(&self, message: WriterSendMessage) {
+        self.send_messages.lock().unwrap().push_back(message);
+    }
+
+    pub fn pop_send_message(&self) -> Option<WriterSendMessage> {
+        self.send_messages.lock().unwrap().pop_front()
+    }
 }
 
 pub struct StatelessWriter {
@@ -68,14 +80,12 @@ pub struct StatelessWriter {
     /// List of multicast locators (transport, address, port combinations) that can be used to send messages to the Endpoint. The list may be empty.
     multicast_locator_list: Vec<Locator>,
 
-    //Writer class:
-    push_mode: bool,
     
     last_change_sequence_number: Mutex<SequenceNumber>,
     writer_cache: HistoryCache,
     data_max_sized_serialized: Option<i32>,
 
-    reader_locators: HashMap<Locator, ReaderLocator>,
+    reader_locators: RwLock<HashMap<Locator, ReaderLocator>>,
 }
 
 impl StatelessWriter {
@@ -85,7 +95,6 @@ impl StatelessWriter {
         reliability_level: ReliabilityKind,
         unicast_locator_list: Vec<Locator>,
         multicast_locator_list: Vec<Locator>,
-        push_mode: bool,
     ) -> Self {
         StatelessWriter {
             guid,
@@ -93,11 +102,10 @@ impl StatelessWriter {
             reliability_level,
             unicast_locator_list,
             multicast_locator_list,
-            push_mode,
             last_change_sequence_number: Mutex::new(0),
             writer_cache: HistoryCache::new(),
             data_max_sized_serialized: None,
-            reader_locators: HashMap::new(),
+            reader_locators: RwLock::new(HashMap::new()),
         }
     }
 
@@ -128,33 +136,31 @@ impl StatelessWriter {
         &mut self.writer_cache
     }
 
-    pub fn reader_locator_add(&mut self, a_locator: Locator) {
-        self.reader_locators
+    pub fn reader_locator_add(&self, a_locator: Locator) {
+        self.reader_locators.write().unwrap()
             .insert(a_locator, ReaderLocator::new(false /*expects_inline_qos*/));
     }
 
-    pub fn reader_locator_remove(&mut self, a_locator: &Locator) {
-        self.reader_locators.remove(a_locator);
+    pub fn reader_locator_remove(&self, a_locator: &Locator) {
+        self.reader_locators.write().unwrap().remove(a_locator);
     }
 
-    pub fn unsent_changes_reset(&mut self) {
-        for (_, rl) in self.reader_locators.iter_mut() {
+    pub fn reader_locators(&self) -> RwLockReadGuard<HashMap<Locator, ReaderLocator>>{
+        self.reader_locators.read().unwrap()
+    }
+
+    pub fn unsent_changes_reset(&self) {
+        for (_, rl) in self.reader_locators.read().unwrap().iter() {
             rl.unsent_changes_reset();
         }
     }
 
-    pub fn run(&mut self, a_locator: &Locator) -> Option<RtpsMessage> {
-        let last_change_sequence_number = *self.last_change_sequence_number();
-        let reader_locator = self.reader_locators.get_mut(a_locator).unwrap();
-
-        let submessages = match self.reliability_level {
-            ReliabilityKind::BestEffort => StatelessWriterBehavior::run_best_effort(reader_locator, &self.guid, &self.writer_cache, last_change_sequence_number),
-            ReliabilityKind::Reliable => panic!("Reliable StatelessWriter not implemented!"),
-        };
-
-        match submessages {
-            Some(submessages) => Some(RtpsMessage::new(*self.guid.prefix(), submessages)),
-            None => None,
+    pub fn run(&self) {
+        for (_, reader_locator) in self.reader_locators.read().unwrap().iter() {
+            match self.reliability_level {
+                ReliabilityKind::BestEffort => BestEffortStatelessWriterBehavior::run(reader_locator, &self.guid, &self.writer_cache, *self.last_change_sequence_number()),
+                ReliabilityKind::Reliable => panic!("Reliable StatelessWriter not implemented!"),
+            };
         }
     }
 }
@@ -165,7 +171,7 @@ impl StatelessWriter {
 mod tests {
     use super::*;
     use crate::types::constants::*;
-    use crate::messages::RtpsSubmessage;
+    use crate::messages::receiver::ReaderReceiveMessage;
     use crate::types::*;
 
     #[test]
@@ -174,9 +180,8 @@ mod tests {
             GUID::new([0; 12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
             TopicKind::WithKey,
             ReliabilityKind::BestEffort,
-            vec![Locator::new(0, 7400, [0; 16])], /*unicast_locator_list*/
+            vec![], /*unicast_locator_list*/
             vec![],                               /*multicast_locator_list*/
-            false,                                /*push_mode*/
         );
 
         let cache_change_seq1 = writer.new_change(
@@ -213,9 +218,8 @@ mod tests {
             GUID::new([0; 12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
             TopicKind::WithKey,
             ReliabilityKind::BestEffort,
-            vec![Locator::new(0, 7400, [0; 16])], 
-            vec![],                               
-            false,
+            vec![], 
+            vec![],
         );
 
         let locator = Locator::new(0, 7400, [1; 16]);
@@ -239,24 +243,22 @@ mod tests {
         writer.history_cache().add_change(cache_change_seq1);
         writer.history_cache().add_change(cache_change_seq2);
 
-        let writer_data = writer.run(&locator).unwrap();
-        assert_eq!(writer_data.submessages().len(), 3);
-        if let RtpsSubmessage::InfoTs(message_1) = &writer_data.submessages()[0] {
-            println!("{:?}", message_1);
-        } else {
-            panic!("Wrong message type");
-        }
-        if let RtpsSubmessage::Data(data_message_1) = &writer_data.submessages()[1] {
+        writer.run();
+
+        let message_1 = writer.reader_locators().get(&locator).unwrap().pop_send_message().unwrap();
+        let message_2 = writer.reader_locators().get(&locator).unwrap().pop_send_message().unwrap();
+        assert!(writer.reader_locators().get(&locator).unwrap().pop_send_message().is_none());
+
+        if let ReaderReceiveMessage::Data(data_message_1) = &message_1 {
             assert_eq!(data_message_1.reader_id(), ENTITYID_UNKNOWN);
             assert_eq!(data_message_1.writer_id(), ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER);
             assert_eq!(data_message_1.writer_sn(), 1);
             assert_eq!(data_message_1.serialized_payload(), Some(&vec![1, 2, 3]));
-
         } else {
             panic!("Wrong message type");
         };
 
-        if let RtpsSubmessage::Data(data_message_2) = &writer_data.submessages()[2] {
+        if let ReaderReceiveMessage::Data(data_message_2) = &message_2 {
             assert_eq!(data_message_2.reader_id(), ENTITYID_UNKNOWN);
             assert_eq!(data_message_2.writer_id(), ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER);
             assert_eq!(data_message_2.writer_sn(), 2);
@@ -266,7 +268,7 @@ mod tests {
         };
 
         // Test that nothing more is sent after the first time
-        let writer_data = writer.run(&locator);
-        assert!(writer_data.is_none());
+        writer.run();
+        assert!(writer.reader_locators().get(&locator).unwrap().pop_send_message().is_none());
     }
 }
