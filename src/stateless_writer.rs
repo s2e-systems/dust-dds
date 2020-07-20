@@ -4,7 +4,6 @@ use std::sync::{Mutex, MutexGuard};
 use crate::cache::{CacheChange, HistoryCache};
 use crate::messages::{RtpsMessage, ParameterList};
 use crate::types::{ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID, };
-use crate::behavior::types::Duration;
 use crate::behavior::stateless_writer::StatelessWriterBehavior;
 
 pub struct ReaderLocator {
@@ -71,9 +70,7 @@ pub struct StatelessWriter {
 
     //Writer class:
     push_mode: bool,
-    heartbeat_period: Duration,
-    nack_response_delay: Duration,
-    nack_suppression_duration: Duration,
+    
     last_change_sequence_number: Mutex<SequenceNumber>,
     writer_cache: HistoryCache,
     data_max_sized_serialized: Option<i32>,
@@ -89,9 +86,6 @@ impl StatelessWriter {
         unicast_locator_list: Vec<Locator>,
         multicast_locator_list: Vec<Locator>,
         push_mode: bool,
-        heartbeat_period: Duration,
-        nack_response_delay: Duration,
-        nack_suppression_duration: Duration,
     ) -> Self {
         StatelessWriter {
             guid,
@@ -100,9 +94,6 @@ impl StatelessWriter {
             unicast_locator_list,
             multicast_locator_list,
             push_mode,
-            heartbeat_period,
-            nack_response_delay,
-            nack_suppression_duration,
             last_change_sequence_number: Mutex::new(0),
             writer_cache: HistoryCache::new(),
             data_max_sized_serialized: None,
@@ -174,7 +165,6 @@ impl StatelessWriter {
 mod tests {
     use super::*;
     use crate::types::constants::*;
-    use crate::behavior::types::constants::DURATION_ZERO;
     use crate::messages::RtpsSubmessage;
     use crate::types::*;
 
@@ -187,9 +177,6 @@ mod tests {
             vec![Locator::new(0, 7400, [0; 16])], /*unicast_locator_list*/
             vec![],                               /*multicast_locator_list*/
             false,                                /*push_mode*/
-            DURATION_ZERO,                        /* heartbeat_period */
-            DURATION_ZERO,                        /* nack_response_delay */
-            DURATION_ZERO,                        /* nack_suppression_duration */
         );
 
         let cache_change_seq1 = writer.new_change(
@@ -228,10 +215,7 @@ mod tests {
             ReliabilityKind::BestEffort,
             vec![Locator::new(0, 7400, [0; 16])], 
             vec![],                               
-            false,                                
-            DURATION_ZERO,                        
-            DURATION_ZERO,                        
-            DURATION_ZERO,                        
+            false,
         );
 
         let locator = Locator::new(0, 7400, [1; 16]);
