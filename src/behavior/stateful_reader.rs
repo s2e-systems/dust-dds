@@ -33,12 +33,13 @@ impl StatefulReaderBehavior {
         self.must_send_ack
     }
 
-    fn set_must_send_ack(&mut self, value: bool) {
-        self.must_send_ack = value;
+    fn set_must_send_ack(&mut self) {
+        self.time_heartbeat_received  = Instant::now();
+        self.must_send_ack = true;
     }
 
-    fn time_heartbeat_received_reset(&mut self) {
-        self.time_heartbeat_received  = Instant::now();
+    fn reset_must_send_ack(&mut self) {
+        self.must_send_ack = false;
     }
 
     fn duration_since_heartbeat_received(&self) -> Duration {
@@ -155,8 +156,7 @@ impl ReliableStatefulReaderBehavior {
             writer_proxy.lost_changes_update(heartbeat.first_sn());
             if !heartbeat.is_final() || 
                 (heartbeat.is_final() && !writer_proxy.missing_changes().is_empty()) {
-                writer_proxy.behavior().set_must_send_ack(true);
-                writer_proxy.behavior().time_heartbeat_received_reset();
+                writer_proxy.behavior().set_must_send_ack();
             } 
         }
     }
@@ -168,7 +168,7 @@ impl ReliableStatefulReaderBehavior {
     }
 
     fn transition_t5(writer_proxy: &WriterProxy, reader_guid: &GUID) {
-        writer_proxy.behavior().set_must_send_ack(false);
+        writer_proxy.behavior().reset_must_send_ack();
  
         writer_proxy.behavior().increment_acknack_count();
         let _acknack = AckNack::new(
