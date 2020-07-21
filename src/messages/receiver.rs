@@ -132,7 +132,7 @@ impl<'a> RtpsMessageReceiver<'a> {
     }
 
     fn stateless_reader_received_message(stateless_reader: &StatelessReader, source_guid_prefix: GuidPrefix, message: ReaderReceiveMessage) {
-        stateless_reader.push_received_message(source_guid_prefix, message);
+        stateless_reader.push_receive_message(source_guid_prefix, message);
     }
 }
 

@@ -14,7 +14,7 @@ impl BestEffortStatelessReaderBehavior {
     }
 
     fn waiting_state(reader: &mut StatelessReader) {
-        if let Some((source_guid_prefix, received_message)) =  reader.pop_received_message() {
+        if let Some((source_guid_prefix, received_message)) =  reader.pop_receive_message() {
             match received_message {
                 ReaderReceiveMessage::Data(data) => Self::transition_t2(reader.mut_history_cache(), &data, &source_guid_prefix),
                 _ => (),

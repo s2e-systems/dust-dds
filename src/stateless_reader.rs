@@ -33,16 +33,15 @@ impl StatelessReader {
     pub fn new(
         guid: GUID,
         topic_kind: TopicKind,
-        reliability_level: ReliabilityKind,
+        // reliability_level: ReliabilityKind, // Only BestEffort is supported
         unicast_locator_list: Vec<Locator>,
         multicast_locator_list: Vec<Locator>,
         expects_inline_qos: bool,
     ) -> Self {
-        assert!(reliability_level == ReliabilityKind::BestEffort);
         StatelessReader {
             guid,
             topic_kind,
-            reliability_level,
+            reliability_level: ReliabilityKind::BestEffort,
             unicast_locator_list,
             multicast_locator_list,
             reader_cache: HistoryCache::new(),
@@ -74,11 +73,11 @@ impl StatelessReader {
         }
     }
 
-    pub fn push_received_message(&self, source_guid_prefix: GuidPrefix, message: ReaderReceiveMessage) {
+    pub fn push_receive_message(&self, source_guid_prefix: GuidPrefix, message: ReaderReceiveMessage) {
         self.received_messages.lock().unwrap().push_back((source_guid_prefix, message));
     }
 
-    pub fn pop_received_message(&self) -> Option<(GuidPrefix, ReaderReceiveMessage)> {
+    pub fn pop_receive_message(&self) -> Option<(GuidPrefix, ReaderReceiveMessage)> {
         self.received_messages.lock().unwrap().pop_front()
     }
 }
@@ -96,7 +95,6 @@ mod tests {
         let mut reader = StatelessReader::new(
             GUID::new([0;12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER),
             TopicKind::WithKey,
-            ReliabilityKind::BestEffort,
             vec![Locator::new(0, 7400, [0;16])],
             vec![],
             false,
@@ -114,7 +112,7 @@ mod tests {
             Payload::Data(vec![0,1,2]),
         );
 
-        reader.push_received_message([2;12], ReaderReceiveMessage::Data(data1));
+        reader.push_receive_message([2;12], ReaderReceiveMessage::Data(data1));
 
         assert_eq!(reader.history_cache().changes().len(), 0);
         // let message = RtpsMessage::new(, submessages);
