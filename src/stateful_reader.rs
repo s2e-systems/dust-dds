@@ -281,14 +281,22 @@ impl StatefulReader {
     pub fn run(&self) {
         for (_writer_guid, writer_proxy) in self.matched_writers().iter() {
             match self.reliability_level {
-                ReliabilityKind::BestEffort => BestEfforStatefulReaderBehavior::run(writer_proxy, &self.reader_cache),
-                ReliabilityKind::Reliable => ReliableStatefulReaderBehavior::run(writer_proxy,  &self.guid, &self.reader_cache, self.heartbeat_response_delay),
+                ReliabilityKind::BestEffort => BestEfforStatefulReaderBehavior::run(writer_proxy, &self),
+                ReliabilityKind::Reliable => ReliableStatefulReaderBehavior::run(writer_proxy,  &self),
             };
         }
     }
 
     pub fn reader_cache(&self) -> &HistoryCache {
         &self.reader_cache
+    }
+
+    pub fn heartbeat_response_delay(&self) -> Duration {
+        self.heartbeat_response_delay
+    }
+
+    pub fn guid(&self) -> &GUID {
+        &self.guid
     }
 
 }

@@ -54,10 +54,6 @@ impl StatelessReader {
         &self.reader_cache
     }
 
-    pub fn mut_history_cache(&mut self) -> &mut HistoryCache {
-        &mut self.reader_cache
-    }
-
     pub fn unicast_locator_list(&self) -> &Vec<Locator> {
         &self.unicast_locator_list
     }
@@ -66,7 +62,7 @@ impl StatelessReader {
         &self.multicast_locator_list
     }
 
-    pub fn run(&mut self) {
+    pub fn run(&self) {
         match self.reliability_level {
             ReliabilityKind::BestEffort => BestEffortStatelessReaderBehavior::run(self),
             ReliabilityKind::Reliable => panic!("Reliable stateless reader not allowed!"),
@@ -92,7 +88,7 @@ mod tests {
 
     #[test]
     fn best_effort_stateless_reader_run() {
-        let mut reader = StatelessReader::new(
+        let reader = StatelessReader::new(
             GUID::new([0;12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER),
             TopicKind::WithKey,
             vec![Locator::new(0, 7400, [0;16])],

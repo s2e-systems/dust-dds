@@ -29,12 +29,12 @@ fn test_stateless_writer_stateless_reader_direct_communication_integration() {
     let reader_guid = GUID::new([0;12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER);
     let destination_locator = Locator::new(5, 7400, [1;16]);
 
-    let mut writer = StatelessWriter::new(
+    let writer = StatelessWriter::new(
         writer_guid,
         TopicKind::WithKey,
        );
 
-    let mut reader = StatelessReader::new(
+    let reader = StatelessReader::new(
         reader_guid,
         TopicKind::WithKey,
         vec![destination_locator],

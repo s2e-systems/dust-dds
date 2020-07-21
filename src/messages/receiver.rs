@@ -58,7 +58,7 @@ impl<'a> RtpsMessageReceiver<'a> {
         let _dest_guid_prefix = self.participant_guid_prefix;
         let _unicast_reply_locator_list = vec![Locator::new(0,0,[0;16])];
         let _multicast_reply_locator_list = vec![Locator::new(0,0,[0;16])];
-        let mut timestamp = None;
+        let mut _timestamp = None;
         let _message_length = 0;
         
         let source_locator = Locator::new(0,0, [0;16]);
@@ -72,7 +72,7 @@ impl<'a> RtpsMessageReceiver<'a> {
                 // Reader to writer messages
                 RtpsSubmessage::AckNack(ack_nack) => self.receive_writer_submessage(source_guid_prefix, WriterReceiveMessage::AckNack(ack_nack)),
                 // Receiver status messages
-                RtpsSubmessage::InfoTs(info_ts) => timestamp = info_ts.time(),
+                RtpsSubmessage::InfoTs(info_ts) => _timestamp = info_ts.time(),
             }
         }
     }

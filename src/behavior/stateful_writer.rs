@@ -1,10 +1,9 @@
 use std::time::{Instant};
 use std::convert::TryInto;
 
-use crate::types::{GUID, SequenceNumber};
+use crate::types::{SequenceNumber, };
 use crate::messages::{Gap, Heartbeat, Endianness, AckNack};
-use crate::cache::{HistoryCache};
-use crate::stateful_writer::ReaderProxy;
+use crate::stateful_writer::{StatefulWriter, ReaderProxy};
 use crate::behavior::types::Duration;
 use crate::messages::types::{Count};
 use crate::messages::receiver::{WriterSendMessage, WriterReceiveMessage};
@@ -63,25 +62,25 @@ impl StatefulWriterBehavior {
 pub struct BestEffortStatefulWriterBehavior {}
 
 impl BestEffortStatefulWriterBehavior {
-    pub fn run(reader_proxy: &ReaderProxy, writer_guid: &GUID, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber) {
-        if !reader_proxy.unsent_changes(last_change_sequence_number).is_empty() {
-            Self::pushing_state(reader_proxy, writer_guid, history_cache, last_change_sequence_number);
+    pub fn run(reader_proxy: &ReaderProxy, stateful_writer: &StatefulWriter) {
+        if !reader_proxy.unsent_changes(stateful_writer.last_change_sequence_number()).is_empty() {
+            Self::pushing_state(reader_proxy, stateful_writer);
         }
     }
 
-    fn pushing_state(reader_proxy: &ReaderProxy, writer_guid: &GUID, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber) {
+    fn pushing_state(reader_proxy: &ReaderProxy, stateful_writer: &StatefulWriter) {
         // This state is only valid if there are unsent changes
-        debug_assert!(!reader_proxy.unsent_changes(last_change_sequence_number).is_empty());
+        debug_assert!(!reader_proxy.unsent_changes(stateful_writer.last_change_sequence_number()).is_empty());
     
-        while let Some(next_unsent_seq_num) = reader_proxy.next_unsent_change(last_change_sequence_number) {
-            Self::transition_t4(reader_proxy, writer_guid, history_cache, next_unsent_seq_num);
+        while let Some(next_unsent_seq_num) = reader_proxy.next_unsent_change(stateful_writer.last_change_sequence_number()) {
+            Self::transition_t4(reader_proxy, stateful_writer, next_unsent_seq_num);
         }
     }
 
-    fn transition_t4(reader_proxy: &ReaderProxy, writer_guid: &GUID, history_cache: &HistoryCache, next_unsent_seq_num: SequenceNumber) {
+    fn transition_t4(reader_proxy: &ReaderProxy, stateful_writer: &StatefulWriter, next_unsent_seq_num: SequenceNumber) {
         let endianness = Endianness::LittleEndian;
 
-        if let Some(cache_change) = history_cache
+        if let Some(cache_change) = stateful_writer.writer_cache()
             .changes().iter().find(|cc| cc.sequence_number() == &next_unsent_seq_num)
         {
             let reader_id = *reader_proxy.remote_reader_guid().entity_id();
@@ -90,7 +89,7 @@ impl BestEffortStatefulWriterBehavior {
         } else {
             let gap = Gap::new(
                 *reader_proxy.remote_reader_guid().entity_id(), 
-                *writer_guid.entity_id(),
+                *stateful_writer.guid().entity_id(),
                 next_unsent_seq_num,
                 Endianness::LittleEndian);
 
@@ -102,44 +101,44 @@ impl BestEffortStatefulWriterBehavior {
 pub struct ReliableStatefulWriterBehavior{}
 
 impl ReliableStatefulWriterBehavior {
-    pub fn run(reader_proxy: &ReaderProxy, writer_guid: &GUID, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber, heartbeat_period: Duration, nack_response_delay: Duration) {
-        if reader_proxy.unacked_changes(last_change_sequence_number).is_empty() {
+    pub fn run(reader_proxy: &ReaderProxy, stateful_writer: &StatefulWriter) {
+        if reader_proxy.unacked_changes(stateful_writer.last_change_sequence_number()).is_empty() {
             // Idle
-        } else if !reader_proxy.unsent_changes(last_change_sequence_number).is_empty() {
-            BestEffortStatefulWriterBehavior::pushing_state(reader_proxy, writer_guid, history_cache, last_change_sequence_number);
-        } else if !reader_proxy.unacked_changes(last_change_sequence_number).is_empty() {
-            Self::announcing_state(reader_proxy, writer_guid, history_cache, last_change_sequence_number, heartbeat_period);
+        } else if !reader_proxy.unsent_changes(stateful_writer.last_change_sequence_number()).is_empty() {
+            BestEffortStatefulWriterBehavior::pushing_state(reader_proxy, stateful_writer);
+        } else if !reader_proxy.unacked_changes(stateful_writer.last_change_sequence_number()).is_empty() {
+            Self::announcing_state(reader_proxy, stateful_writer);
         }
     
         if reader_proxy.requested_changes().is_empty() {
             Self::waiting_state(reader_proxy);
         } else {
             Self::must_repair_state(reader_proxy);
-            if reader_proxy.behavior().duration_since_nack_received() > nack_response_delay {
-                Self::repairing_state(reader_proxy, writer_guid, history_cache);
+            if reader_proxy.behavior().duration_since_nack_received() > stateful_writer.nack_response_delay() {
+                Self::repairing_state(reader_proxy, stateful_writer);
             }
         }
     }
 
-    fn announcing_state(reader_proxy: &ReaderProxy, writer_guid: &GUID, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber, heartbeat_period: Duration){
-        if reader_proxy.behavior().duration_since_last_sent_data() > heartbeat_period {
-            Self::transition_t7(reader_proxy, writer_guid, history_cache, last_change_sequence_number);
+    fn announcing_state(reader_proxy: &ReaderProxy, stateful_writer: &StatefulWriter){
+        if reader_proxy.behavior().duration_since_last_sent_data() > stateful_writer.heartbeat_period() {
+            Self::transition_t7(reader_proxy, stateful_writer);
         }
     }
 
-    fn transition_t7(reader_proxy: &ReaderProxy, writer_guid: &GUID, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber) {
-        let first_sn = if let Some(seq_num) = history_cache.get_seq_num_min() {
+    fn transition_t7(reader_proxy: &ReaderProxy, stateful_writer: &StatefulWriter) {
+        let first_sn = if let Some(seq_num) = stateful_writer.writer_cache().get_seq_num_min() {
             seq_num
         } else {
-            last_change_sequence_number + 1
+            stateful_writer.last_change_sequence_number() + 1
         };
         reader_proxy.behavior().increment_heartbeat_count();
 
         let heartbeat = Heartbeat::new(
             *reader_proxy.remote_reader_guid().entity_id(),
-            *writer_guid.entity_id(),
+            *stateful_writer.guid().entity_id(),
             first_sn,
-            last_change_sequence_number,
+            stateful_writer.last_change_sequence_number(),
             *reader_proxy.behavior().heartbeat_count(),
             false,
             false,
@@ -167,17 +166,17 @@ impl ReliableStatefulWriterBehavior {
         }
     }
     
-    fn repairing_state(reader_proxy: &ReaderProxy, writer_guid: &GUID, history_cache: &HistoryCache) {
+    fn repairing_state(reader_proxy: &ReaderProxy, stateful_writer: &StatefulWriter) {
         // This state is only valid if there are requested changes
         debug_assert!(!reader_proxy.requested_changes().is_empty());
     
         while let Some(next_requested_seq_num) = reader_proxy.next_requested_change() {
-            Self::transition_t12(reader_proxy, writer_guid, history_cache, next_requested_seq_num);
+            Self::transition_t12(reader_proxy, stateful_writer, next_requested_seq_num);
         }
     }
 
-    fn transition_t12(reader_proxy: &ReaderProxy, writer_guid: &GUID, history_cache: &HistoryCache, next_requested_seq_num: SequenceNumber) {
-        if let Some(cache_change) = history_cache
+    fn transition_t12(reader_proxy: &ReaderProxy, stateful_writer: &StatefulWriter, next_requested_seq_num: SequenceNumber) {
+        if let Some(cache_change) = stateful_writer.writer_cache()
         .changes().iter().find(|cc| cc.sequence_number() == &next_requested_seq_num)
         {
             let endianness = Endianness::LittleEndian;
@@ -186,7 +185,7 @@ impl ReliableStatefulWriterBehavior {
         } else {
             let gap = Gap::new(
                 *reader_proxy.remote_reader_guid().entity_id(), 
-                *writer_guid.entity_id(),
+                *stateful_writer.guid().entity_id(),
                 next_requested_seq_num,
                 Endianness::LittleEndian);
 

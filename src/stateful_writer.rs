@@ -196,7 +196,7 @@ pub struct StatefulWriter {
     heartbeat_period: Duration,
     nack_response_delay: Duration,
     nack_suppression_duration: Duration,
-    last_change_sequence_number: SequenceNumber,
+    last_change_sequence_number: Mutex<SequenceNumber>,
     writer_cache: HistoryCache,
     data_max_sized_serialized: Option<i32>,
 
@@ -224,7 +224,7 @@ impl StatefulWriter {
             heartbeat_period,
             nack_response_delay,
             nack_suppression_duration,
-            last_change_sequence_number: 0,
+            last_change_sequence_number: Mutex::new(0),
             writer_cache: HistoryCache::new(),
             data_max_sized_serialized: None,
             matched_readers: RwLock::new(HashMap::new()),
@@ -232,21 +232,29 @@ impl StatefulWriter {
     }
 
     pub fn new_change(
-        &mut self,
+        &self,
         kind: ChangeKind,
         data: Option<Vec<u8>>,
         inline_qos: Option<ParameterList>,
         handle: InstanceHandle,
     ) -> CacheChange {
-        self.last_change_sequence_number = self.last_change_sequence_number + 1;
+        *self.last_change_sequence_number.lock().unwrap() += 1;
         CacheChange::new(
             kind,
             self.guid,
             handle,
-            self.last_change_sequence_number,
+            self.last_change_sequence_number(),
             data,
             inline_qos,
         )
+    }
+
+    pub fn last_change_sequence_number(&self) -> SequenceNumber {
+        *self.last_change_sequence_number.lock().unwrap()
+    }
+
+    pub fn guid(&self) -> &GUID {
+        &self.guid
     }
 
     pub fn writer_cache(&self) -> &HistoryCache {
@@ -269,11 +277,19 @@ impl StatefulWriter {
         todo!()
     }
 
+    pub fn heartbeat_period(&self) -> Duration {
+        self.heartbeat_period
+    }
+
+    pub fn nack_response_delay(&self) -> Duration {
+        self.nack_response_delay
+    }
+
     pub fn run(&self) {
         for (_, reader_proxy) in self.matched_readers().iter() {
             match self.reliability_level {
-                ReliabilityKind::BestEffort => BestEffortStatefulWriterBehavior::run(reader_proxy, &self.guid, &self.writer_cache, self.last_change_sequence_number),
-                ReliabilityKind::Reliable => ReliableStatefulWriterBehavior::run(reader_proxy, &self.guid, &self.writer_cache, self.last_change_sequence_number, self.heartbeat_period, self.nack_response_delay),
+                ReliabilityKind::BestEffort => BestEffortStatefulWriterBehavior::run(reader_proxy, &self),
+                ReliabilityKind::Reliable => ReliableStatefulWriterBehavior::run(reader_proxy, &self),
             };
         }
     }
@@ -287,7 +303,7 @@ mod tests {
 
     #[test]
     fn stateful_writer_new_change() {
-        let mut writer = StatefulWriter::new(
+        let writer = StatefulWriter::new(
             GUID::new([0; 12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
             TopicKind::WithKey,
             ReliabilityKind::BestEffort,
@@ -330,7 +346,7 @@ mod tests {
     #[test]
     fn reader_proxy_unsent_changes_operations() {
         let remote_reader_guid = GUID::new([1,2,3,4,5,6,7,8,9,10,11,12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-        let mut reader_proxy = ReaderProxy::new(remote_reader_guid, vec![], vec![], false, true);
+        let reader_proxy = ReaderProxy::new(remote_reader_guid, vec![], vec![], false, true);
 
         // Check that a reader proxy that has no changes marked as sent doesn't reports no changes
         let no_change_in_writer_sequence_number = 0;
@@ -356,7 +372,7 @@ mod tests {
     #[test]
     fn reader_proxy_requested_changes_operations() {
         let remote_reader_guid = GUID::new([1,2,3,4,5,6,7,8,9,10,11,12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-        let mut reader_proxy = ReaderProxy::new(remote_reader_guid, vec![], vec![], false, true);
+        let reader_proxy = ReaderProxy::new(remote_reader_guid, vec![], vec![], false, true);
 
         // Check that a reader proxy that has no changes marked as sent doesn't reports no changes
         assert!(reader_proxy.requested_changes().is_empty());
@@ -406,7 +422,7 @@ mod tests {
     #[test]
     fn reader_proxy_unacked_changes_operations() {
         let remote_reader_guid = GUID::new([1,2,3,4,5,6,7,8,9,10,11,12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-        let mut reader_proxy = ReaderProxy::new(remote_reader_guid, vec![], vec![], false, true);
+        let reader_proxy = ReaderProxy::new(remote_reader_guid, vec![], vec![], false, true);
 
         let no_change_in_writer = 0;
         assert!(reader_proxy.unacked_changes(no_change_in_writer).is_empty());

@@ -107,8 +107,8 @@ impl StatelessWriter {
         }
     }
 
-    fn last_change_sequence_number(&self) -> MutexGuard<SequenceNumber> {
-        self.last_change_sequence_number.lock().unwrap()
+    pub fn last_change_sequence_number(&self) -> SequenceNumber {
+        *self.last_change_sequence_number.lock().unwrap()
     }
 
     pub fn new_change(
@@ -118,20 +118,24 @@ impl StatelessWriter {
         inline_qos: Option<ParameterList>,
         handle: InstanceHandle,
     ) -> CacheChange {
-        *self.last_change_sequence_number() += 1;
+        *self.last_change_sequence_number.lock().unwrap() += 1;
 
         CacheChange::new(
             kind,
             self.guid,
             handle,
-            *self.last_change_sequence_number(),
+            self.last_change_sequence_number(),
             data,
             inline_qos,
         )
     }
 
-    pub fn history_cache(&mut self) -> &mut HistoryCache {
-        &mut self.writer_cache
+    pub fn guid(&self) -> &GUID {
+        &self.guid
+    }
+
+    pub fn history_cache(&self) -> &HistoryCache {
+        &self.writer_cache
     }
 
     pub fn reader_locator_add(&self, a_locator: Locator) {
@@ -157,7 +161,7 @@ impl StatelessWriter {
         assert!(self.reliability_level == ReliabilityKind::BestEffort);
 
         for (_, reader_locator) in self.reader_locators.read().unwrap().iter() {
-            BestEffortStatelessWriterBehavior::run(reader_locator, &self.guid, &self.writer_cache, *self.last_change_sequence_number())
+            BestEffortStatelessWriterBehavior::run(reader_locator, &self);
         }
     }
 }
@@ -208,7 +212,7 @@ mod tests {
 
     #[test]
     fn test_best_effort_stateless_writer_run() {
-        let mut writer = StatelessWriter::new(
+        let writer = StatelessWriter::new(
             GUID::new([0; 12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
             TopicKind::WithKey,
         );
