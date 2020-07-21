@@ -161,9 +161,6 @@ fn test_stateless_writer_stateless_reader_direct_communication_integration() {
    reader.push_receive_message(*writer_guid.prefix(), writer.reader_locators().get(&destination_locator).unwrap().pop_send_message().unwrap());
 
    reader.run();
-   reader.run();
-   reader.run();
-   reader.run();
 
    let reader_changes = reader.history_cache().changes();
    assert_eq!(reader_changes.len(), 4);
