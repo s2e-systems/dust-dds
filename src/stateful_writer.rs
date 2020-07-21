@@ -1,67 +1,29 @@
-use std::collections::{BTreeSet, HashMap};
-use std::time::{Instant};
-use std::convert::TryInto;
+use std::collections::{BTreeSet, HashMap, VecDeque};
+use std::sync::{RwLock, RwLockReadGuard, Mutex, MutexGuard};
 
 use crate::types::{ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID, };
 use crate::behavior::types::Duration;
-use crate::behavior::stateful_writer::StatefulWriterBehavior;
-use crate::messages::types::Count;
+use crate::behavior::stateful_writer::{StatefulWriterBehavior, BestEffortStatefulWriterBehavior, ReliableStatefulWriterBehavior};
+use crate::messages::receiver::{WriterSendMessage, WriterReceiveMessage};
 use crate::cache::{CacheChange, HistoryCache, };
-use crate::messages::{RtpsMessage, ParameterList};
+use crate::messages::{ParameterList};
 
-pub struct ReaderProxy {
-    remote_reader_guid: GUID,
-    // remoteGroupEntityId: EntityId_t,
-    unicast_locator_list: Vec<Locator>,
-    multicast_locator_list: Vec<Locator>,
-    // changes_for_reader: CacheChange[*], 
-    expects_inline_qos: bool,
-    is_active: bool,
-
-    // Additional fields:
+struct ChangeForReader {
     highest_sequence_number_sent: SequenceNumber,
     highest_sequence_number_acknowledged: SequenceNumber,
     sequence_numbers_requested: BTreeSet<SequenceNumber>,
-    heartbeat_count: Count,
-
-    time_last_sent_data: Instant,
-    time_nack_received: Instant,
-    highest_nack_count_received: Count,
 }
 
-
-impl ReaderProxy {
-    pub fn new(
-        remote_reader_guid: GUID,
-        unicast_locator_list: Vec<Locator>,
-        multicast_locator_list: Vec<Locator>,
-        expects_inline_qos: bool,
-        is_active: bool) -> Self {
-            ReaderProxy {
-                remote_reader_guid,
-                unicast_locator_list,
-                multicast_locator_list,
-                expects_inline_qos,
-                is_active,
-                highest_sequence_number_sent: 0,
-                highest_sequence_number_acknowledged: 0,
-                sequence_numbers_requested: BTreeSet::new(),
-                heartbeat_count: 0,
-                time_last_sent_data: Instant::now(),
-                time_nack_received: Instant::now(),
-                highest_nack_count_received: 0,
+impl ChangeForReader {
+    fn new() -> Self {
+        Self {
+            highest_sequence_number_sent: 0,
+            highest_sequence_number_acknowledged: 0,
+            sequence_numbers_requested: BTreeSet::new(),
         }
     }
 
-    pub fn remote_reader_guid(&self) -> &GUID {
-        &self.remote_reader_guid
-    }
-
-    pub fn heartbeat_count(&self) -> &Count {
-        &self.heartbeat_count
-    }
-
-    pub fn next_unsent_change(&mut self, last_change_sequence_number: SequenceNumber) -> Option<SequenceNumber> {
+    fn next_unsent_change(&mut self, last_change_sequence_number: SequenceNumber) -> Option<SequenceNumber> {
         let next_unsent_sequence_number = self.highest_sequence_number_sent + 1;
         if next_unsent_sequence_number > last_change_sequence_number {
             None
@@ -71,7 +33,7 @@ impl ReaderProxy {
         }
     }
 
-    pub fn unsent_changes(&self, last_change_sequence_number: SequenceNumber) -> BTreeSet<SequenceNumber> {
+    fn unsent_changes(&self, last_change_sequence_number: SequenceNumber) -> BTreeSet<SequenceNumber> {
         let mut unsent_changes_set = BTreeSet::new();
 
         // The for loop is made with the underlying sequence number type because it is not possible to implement the Step trait on Stable yet
@@ -84,15 +46,15 @@ impl ReaderProxy {
         unsent_changes_set
     }
 
-    pub fn acked_changes(&self) -> SequenceNumber {
+    fn acked_changes(&self) -> SequenceNumber {
         self.highest_sequence_number_acknowledged
     }
 
-    pub fn acked_changes_set(&mut self, committed_seq_num: SequenceNumber) {
+    fn acked_changes_set(&mut self, committed_seq_num: SequenceNumber) {
         self.highest_sequence_number_acknowledged = committed_seq_num;
     }
 
-    pub fn unacked_changes(&self, last_change_sequence_number: SequenceNumber) -> BTreeSet<SequenceNumber> {
+    fn unacked_changes(&self, last_change_sequence_number: SequenceNumber) -> BTreeSet<SequenceNumber> {
         let mut unacked_changes_set = BTreeSet::new();
 
         // The for loop is made with the underlying sequence number type because it is not possible to implement the Step trait on Stable yet
@@ -105,50 +67,113 @@ impl ReaderProxy {
         unacked_changes_set
     }
 
-    pub fn requested_changes_set(&mut self, req_seq_num_set: BTreeSet<SequenceNumber>) {
+    fn requested_changes_set(&mut self, req_seq_num_set: BTreeSet<SequenceNumber>) {
         let mut new_set = req_seq_num_set;
         self.sequence_numbers_requested.append(&mut new_set);
     }
 
-    pub fn requested_changes(&self) -> BTreeSet<SequenceNumber> {
+    fn requested_changes(&self) -> BTreeSet<SequenceNumber> {
         self.sequence_numbers_requested.clone()
     }
 
-    pub fn next_requested_change(&mut self) -> Option<SequenceNumber> {
+    fn next_requested_change(&mut self) -> Option<SequenceNumber> {
         let next_requested_change = *self.sequence_numbers_requested.iter().next()?;
 
         self.sequence_numbers_requested.remove(&next_requested_change);
 
         Some(next_requested_change)
     }
+}
 
-    pub fn nack_received(&self) -> &Count {
-        &self.highest_nack_count_received
+
+pub struct ReaderProxy {
+    remote_reader_guid: GUID,
+    // remoteGroupEntityId: EntityId_t,
+    unicast_locator_list: Vec<Locator>,
+    multicast_locator_list: Vec<Locator>,
+    changes_for_reader: Mutex<ChangeForReader>,
+    expects_inline_qos: bool,
+    is_active: bool,
+    stateful_writer_behavior: Mutex<StatefulWriterBehavior>,
+
+    send_messages: Mutex<VecDeque<WriterSendMessage>>,
+    receive_messages: Mutex<VecDeque<WriterReceiveMessage>>,
+}
+
+
+impl ReaderProxy {
+    pub fn new(
+        remote_reader_guid: GUID,
+        unicast_locator_list: Vec<Locator>,
+        multicast_locator_list: Vec<Locator>,
+        expects_inline_qos: bool,
+        is_active: bool) -> Self {
+            Self {
+                remote_reader_guid,
+                unicast_locator_list,
+                multicast_locator_list,
+                expects_inline_qos,
+                is_active,
+                changes_for_reader: Mutex::new(ChangeForReader::new()),
+                stateful_writer_behavior: Mutex::new(StatefulWriterBehavior::new()),
+                send_messages: Mutex::new(VecDeque::new()),
+                receive_messages: Mutex::new(VecDeque::new()),
+        }
     }
 
-    pub fn nack_received_set(&mut self, highest_nack_count_received: Count) {
-        self.highest_nack_count_received = highest_nack_count_received;
+    pub fn acked_changes_set(&self, committed_seq_num: SequenceNumber) {
+        self.changes_for_reader.lock().unwrap().acked_changes_set(committed_seq_num);
     }
 
-    pub fn time_last_sent_data_reset(&mut self) {
-        self.time_last_sent_data = Instant::now();
+    pub fn next_requested_change(&self) -> Option<SequenceNumber> {
+        self.changes_for_reader.lock().unwrap().next_requested_change()
     }
 
-    pub fn time_nack_received_reset(&mut self) {
-        self.time_nack_received = Instant::now();
+    pub fn next_unsent_change(&self, last_change_sequence_number: SequenceNumber) -> Option<SequenceNumber> {
+        self.changes_for_reader.lock().unwrap().next_unsent_change(last_change_sequence_number)
     }
 
-    pub fn duration_since_last_sent_data(&self) -> Duration {
-        self.time_last_sent_data.elapsed().try_into().unwrap()
+    pub fn unsent_changes(&self, last_change_sequence_number: SequenceNumber) -> BTreeSet<SequenceNumber> {
+        self.changes_for_reader.lock().unwrap().unsent_changes(last_change_sequence_number)
     }
 
-    pub fn duration_since_nack_received(&self) -> Duration {
-        self.time_nack_received.elapsed().try_into().unwrap()
+    pub fn requested_changes(&self) -> BTreeSet<SequenceNumber> {
+        self.changes_for_reader.lock().unwrap().requested_changes()
     }
 
-    pub fn increment_heartbeat_count(&mut self) {
-        self.heartbeat_count += 1;
+    pub fn requested_changes_set(&self, req_seq_num_set: BTreeSet<SequenceNumber>) {
+        self.changes_for_reader.lock().unwrap().requested_changes_set(req_seq_num_set);
     }
+
+    pub fn unacked_changes(&self, last_change_sequence_number: SequenceNumber) -> BTreeSet<SequenceNumber> {
+        self.changes_for_reader.lock().unwrap().unacked_changes(last_change_sequence_number)
+    }
+
+    pub fn remote_reader_guid(&self) -> &GUID {
+        &self.remote_reader_guid
+    }
+
+    pub fn behavior(&self) -> MutexGuard<StatefulWriterBehavior> {
+        self.stateful_writer_behavior.lock().unwrap()
+    }
+
+    pub fn push_send_message(&self, message: WriterSendMessage) {
+        self.send_messages.lock().unwrap().push_back(message);
+    }
+
+    pub fn pop_send_message(&self) -> Option<WriterSendMessage> {
+        self.send_messages.lock().unwrap().pop_front()
+    }
+
+    pub fn push_receive_message(&self, message: WriterReceiveMessage) {
+        self.receive_messages.lock().unwrap().push_back(message);
+    }
+
+    pub fn pop_receive_message(&self) -> Option<WriterReceiveMessage> {
+        self.receive_messages.lock().unwrap().pop_front()
+    }
+
+
 }
 
 pub struct StatefulWriter {
@@ -175,7 +200,7 @@ pub struct StatefulWriter {
     writer_cache: HistoryCache,
     data_max_sized_serialized: Option<i32>,
 
-    matched_readers: HashMap<GUID, ReaderProxy>,
+    matched_readers: RwLock<HashMap<GUID, ReaderProxy>>,
 }
 
 impl StatefulWriter {
@@ -202,7 +227,7 @@ impl StatefulWriter {
             last_change_sequence_number: 0,
             writer_cache: HistoryCache::new(),
             data_max_sized_serialized: None,
-            matched_readers: HashMap::new(),
+            matched_readers: RwLock::new(HashMap::new()),
         }
     }
 
@@ -224,37 +249,32 @@ impl StatefulWriter {
         )
     }
 
-    pub fn writer_cache(&mut self) -> &mut HistoryCache {
-        &mut self.writer_cache
+    pub fn writer_cache(&self) -> &HistoryCache {
+        &self.writer_cache
     }
 
-    pub fn matched_reader_add(&mut self, a_reader_proxy: ReaderProxy) {
-        self.matched_readers.insert(a_reader_proxy.remote_reader_guid, a_reader_proxy);
+    pub fn matched_reader_add(&self, a_reader_proxy: ReaderProxy) {
+        self.matched_readers.write().unwrap().insert(a_reader_proxy.remote_reader_guid, a_reader_proxy);
     }
 
-    pub fn matched_reader_remove(&mut self, a_reader_proxy: &ReaderProxy) {
-        self.matched_readers.remove(&a_reader_proxy.remote_reader_guid);
+    pub fn matched_reader_remove(&self, a_reader_proxy: &ReaderProxy) {
+        self.matched_readers.write().unwrap().remove(&a_reader_proxy.remote_reader_guid);
     }
     
-    pub fn matched_reader_lookup(&self, a_reader_guid: &GUID) -> Option<&ReaderProxy> {
-        self.matched_readers.get(a_reader_guid)
+    pub fn matched_readers(&self) -> RwLockReadGuard<HashMap<GUID, ReaderProxy>> {
+        self.matched_readers.read().unwrap()
     }
 
     pub fn is_acked_by_all(&self) -> bool {
         todo!()
     }
 
-    pub fn run(&mut self, a_reader_guid: &GUID, received_message: Option<&RtpsMessage>) -> Option<RtpsMessage> {
-        let reader_proxy = self.matched_readers.get_mut(a_reader_guid).unwrap();
-
-        let submessages = match self.reliability_level {
-            ReliabilityKind::BestEffort => StatefulWriterBehavior::run_best_effort(reader_proxy, &self.guid, &self.writer_cache, self.last_change_sequence_number),
-            ReliabilityKind::Reliable => StatefulWriterBehavior::run_reliable(reader_proxy, &self.guid, &self.writer_cache, self.last_change_sequence_number, self.heartbeat_period, self.nack_response_delay, received_message),
-        };
-
-        match submessages {
-            Some(submessages) => Some(RtpsMessage::new(*self.guid.prefix(), submessages)),
-            None => None,
+    pub fn run(&self) {
+        for (_, reader_proxy) in self.matched_readers().iter() {
+            match self.reliability_level {
+                ReliabilityKind::BestEffort => BestEffortStatefulWriterBehavior::run(reader_proxy, &self.guid, &self.writer_cache, self.last_change_sequence_number),
+                ReliabilityKind::Reliable => ReliableStatefulWriterBehavior::run(reader_proxy, &self.guid, &self.writer_cache, self.last_change_sequence_number, self.heartbeat_period, self.nack_response_delay),
+            };
         }
     }
 }

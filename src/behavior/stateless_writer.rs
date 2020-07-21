@@ -12,9 +12,7 @@ pub struct BestEffortStatelessWriterBehavior {}
 impl BestEffortStatelessWriterBehavior{
     pub fn run(reader_locator: &ReaderLocator, writer_guid: &GUID, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber) {
         if !reader_locator.unsent_changes(last_change_sequence_number).is_empty() {
-            Self::pushing_state(reader_locator, writer_guid, history_cache, last_change_sequence_number)
-        } else {
-            ()
+            Self::pushing_state(reader_locator, writer_guid, history_cache, last_change_sequence_number);
         }
     }
 

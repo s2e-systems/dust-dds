@@ -114,7 +114,7 @@ impl<'a> RtpsMessageReceiver<'a> {
                     // Stateless writers do not receive any message because they are only best effort
                 },
                 Writer::StatefulWriter(stateful_writer) => {
-                    if let Some(reader_proxy) = stateful_writer.matched_reader_lookup(&reader_guid) {
+                    if let Some(reader_proxy) = stateful_writer.matched_readers().get(&reader_guid) {
                         RtpsMessageReceiver::reader_proxy_received_message(reader_proxy, message);
                         break;
                     }
