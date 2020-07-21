@@ -75,10 +75,13 @@ pub struct StatelessWriter {
     topic_kind: TopicKind,
     /// The level of reliability supported by the Endpoint.
     reliability_level: ReliabilityKind,
+
+    // The stateless writer does not receive messages so these fields are left out
+
     /// List of unicast locators (transport, address, port combinations) that can be used to send messages to the Endpoint. The list may be empty
-    unicast_locator_list: Vec<Locator>,
+    // unicast_locator_list: Vec<Locator>,
     /// List of multicast locators (transport, address, port combinations) that can be used to send messages to the Endpoint. The list may be empty.
-    multicast_locator_list: Vec<Locator>,
+    // multicast_locator_list: Vec<Locator>,
 
     
     last_change_sequence_number: Mutex<SequenceNumber>,
@@ -92,16 +95,11 @@ impl StatelessWriter {
     pub fn new(
         guid: GUID,
         topic_kind: TopicKind,
-        reliability_level: ReliabilityKind,
-        unicast_locator_list: Vec<Locator>,
-        multicast_locator_list: Vec<Locator>,
     ) -> Self {
         StatelessWriter {
             guid,
             topic_kind,
-            reliability_level,
-            unicast_locator_list,
-            multicast_locator_list,
+            reliability_level: ReliabilityKind::BestEffort,
             last_change_sequence_number: Mutex::new(0),
             writer_cache: HistoryCache::new(),
             data_max_sized_serialized: None,
@@ -156,11 +154,10 @@ impl StatelessWriter {
     }
 
     pub fn run(&self) {
+        assert!(self.reliability_level == ReliabilityKind::BestEffort);
+
         for (_, reader_locator) in self.reader_locators.read().unwrap().iter() {
-            match self.reliability_level {
-                ReliabilityKind::BestEffort => BestEffortStatelessWriterBehavior::run(reader_locator, &self.guid, &self.writer_cache, *self.last_change_sequence_number()),
-                ReliabilityKind::Reliable => panic!("Reliable StatelessWriter not implemented!"),
-            };
+            BestEffortStatelessWriterBehavior::run(reader_locator, &self.guid, &self.writer_cache, *self.last_change_sequence_number())
         }
     }
 }
@@ -179,9 +176,6 @@ mod tests {
         let writer = StatelessWriter::new(
             GUID::new([0; 12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
             TopicKind::WithKey,
-            ReliabilityKind::BestEffort,
-            vec![], /*unicast_locator_list*/
-            vec![],                               /*multicast_locator_list*/
         );
 
         let cache_change_seq1 = writer.new_change(
@@ -217,9 +211,6 @@ mod tests {
         let mut writer = StatelessWriter::new(
             GUID::new([0; 12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
             TopicKind::WithKey,
-            ReliabilityKind::BestEffort,
-            vec![], 
-            vec![],
         );
 
         let locator = Locator::new(0, 7400, [1; 16]);

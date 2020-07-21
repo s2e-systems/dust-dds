@@ -178,7 +178,7 @@ impl ReliableStatefulReaderBehavior {
             writer_proxy.missing_changes().clone(),
             *writer_proxy.behavior().ackanck_count(),
             true,
-            Endianness::LittleEndian);
+            Endianness::LittleEndian); // TODO: Make endianness selectable
     }
 }
 
