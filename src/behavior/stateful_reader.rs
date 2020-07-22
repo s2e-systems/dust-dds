@@ -93,6 +93,9 @@ pub struct ReliableStatefulReaderBehavior {}
 
 impl ReliableStatefulReaderBehavior {
     pub fn run(writer_proxy: &WriterProxy, stateful_reader: &StatefulReader) {
+        // The heartbeat message triggers also a transition in the parallel state-machine
+        // relating to the acknack sending so it is returned from the ready_state for
+        // further processing.
         let heartbeat = Self::ready_state(writer_proxy, stateful_reader);
         if writer_proxy.behavior().must_send_ack() {
             Self::must_send_ack_state(writer_proxy, stateful_reader)
@@ -148,8 +151,6 @@ impl ReliableStatefulReaderBehavior {
 
     fn waiting_heartbeat_state(writer_proxy: &WriterProxy, heartbeat_message: Option<Heartbeat>) {            
         if let Some(heartbeat) = heartbeat_message {
-            writer_proxy.missing_changes_update(heartbeat.last_sn());
-            writer_proxy.lost_changes_update(heartbeat.first_sn());
             if !heartbeat.is_final() || 
                 (heartbeat.is_final() && !writer_proxy.missing_changes().is_empty()) {
                 writer_proxy.behavior().set_must_send_ack();
