@@ -1,51 +1,45 @@
-use crate::types::{GUID, SequenceNumber, };
+use crate::types::{SequenceNumber, };
 use crate::types::constants::ENTITYID_UNKNOWN;
-use crate::messages::{RtpsSubmessage, InfoTs, Gap};
-use crate::cache::{HistoryCache};
-use crate::stateless_writer::ReaderLocator;
+use crate::messages::{Gap};
+use crate::stateless_writer::{ReaderLocator, StatelessWriter};
 use crate::messages::Endianness;
-use crate::messages::types::{Time};
-use super::data_from_cache_change;
-pub struct StatelessWriterBehavior {}
+use crate::messages::receiver::WriterSendMessage;
 
-impl StatelessWriterBehavior{
-    pub fn run_best_effort(reader_locator: &mut ReaderLocator, writer_guid: &GUID, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber) -> Option<Vec<RtpsSubmessage>> {
-        if !reader_locator.unsent_changes(last_change_sequence_number).is_empty() {
-            Some(StatelessWriterBehavior::run_pushing_state(reader_locator, writer_guid, history_cache, last_change_sequence_number))
-        } else {
-            None
+use super::data_from_cache_change;
+pub struct BestEffortStatelessWriterBehavior {}
+
+impl BestEffortStatelessWriterBehavior{
+    pub fn run(reader_locator: &ReaderLocator, stateless_writer: &StatelessWriter) {
+        if !reader_locator.unsent_changes(stateless_writer.last_change_sequence_number()).is_empty() {
+            Self::pushing_state(reader_locator, stateless_writer);
         }
     }
 
-    fn run_pushing_state(reader_locator: &mut ReaderLocator, writer_guid: &GUID, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber) -> Vec<RtpsSubmessage> {
-
+    fn pushing_state(reader_locator: &ReaderLocator, stateless_writer: &StatelessWriter) {
         // This state is only valid if there are unsent changes
-        assert!(!reader_locator.unsent_changes(last_change_sequence_number).is_empty());
+        assert!(!reader_locator.unsent_changes(stateless_writer.last_change_sequence_number()).is_empty());
     
-        let endianness = Endianness::LittleEndian;
-        let mut submessages = Vec::with_capacity(2); // TODO: Probably can be preallocated with the correct size
-    
-        let time = Time::now();
-        let infots = InfoTs::new(Some(time), endianness);
-        submessages.push(RtpsSubmessage::InfoTs(infots));
-    
-        while let Some(next_unsent_seq_num) = reader_locator.next_unsent_change(last_change_sequence_number) {
-            if let Some(cache_change) = history_cache
-                .get_change_with_sequence_number(&next_unsent_seq_num)
-            {
-                let data = data_from_cache_change(cache_change, endianness, ENTITYID_UNKNOWN);    
-                submessages.push(RtpsSubmessage::Data(data));
-            } else {
-                let gap = Gap::new(
-                    ENTITYID_UNKNOWN, 
-                    *writer_guid.entity_id(),
-                    next_unsent_seq_num,
-                    Endianness::LittleEndian);
-    
-                submessages.push(RtpsSubmessage::Gap(gap));
-            }
+        while let Some(next_unsent_seq_num) = reader_locator.next_unsent_change(stateless_writer.last_change_sequence_number()) {
+            Self::transition_t4(reader_locator, stateless_writer, next_unsent_seq_num);
         }
-    
-        submessages
+    }
+
+    fn transition_t4(reader_locator: &ReaderLocator, stateless_writer: &StatelessWriter, next_unsent_seq_num: SequenceNumber) {
+        let endianness = Endianness::LittleEndian;
+
+        if let Some(cache_change) = stateless_writer.history_cache()
+            .changes().iter().find(|cc| cc.sequence_number() == &next_unsent_seq_num)
+        {
+            let data = data_from_cache_change(cache_change, endianness, ENTITYID_UNKNOWN);
+            reader_locator.push_send_message(WriterSendMessage::Data(data));
+        } else {
+            let gap = Gap::new(
+                ENTITYID_UNKNOWN, 
+                *stateless_writer.guid().entity_id(),
+                next_unsent_seq_num,
+                endianness);
+
+            reader_locator.push_send_message(WriterSendMessage::Gap(gap));
+        }
     }
 }

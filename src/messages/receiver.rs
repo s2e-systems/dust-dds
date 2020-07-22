@@ -3,7 +3,6 @@ use crate::stateless_reader::StatelessReader;
 use crate::stateless_writer::StatelessWriter;
 use crate::stateful_reader::{StatefulReader, WriterProxy};
 use crate::stateful_writer::{StatefulWriter, ReaderProxy};
-use super::types::constants::TIME_INVALID;
 use super::submessage::RtpsSubmessage;
 use super::{Data, Gap, Heartbeat, AckNack};
 use super::message::RtpsMessage;
@@ -25,10 +24,14 @@ pub enum ReaderReceiveMessage {
     Heartbeat(Heartbeat),
 }
 
+pub type WriterSendMessage = ReaderReceiveMessage;
+
 // Messages received by the writer. Which are the same as the ones sent by the reader
 pub enum WriterReceiveMessage {
     AckNack(AckNack)
 }
+
+pub type ReaderSendMessage = WriterReceiveMessage;
 
 pub struct RtpsMessageReceiver<'a>{
     participant_guid_prefix: GuidPrefix,
@@ -52,10 +55,10 @@ impl<'a> RtpsMessageReceiver<'a> {
         let _source_version = message.header().version();
         let _source_vendor_id = message.header().vendor_id();
         let source_guid_prefix = *message.header().guid_prefix();
-        let dest_guid_prefix = self.participant_guid_prefix;
+        let _dest_guid_prefix = self.participant_guid_prefix;
         let _unicast_reply_locator_list = vec![Locator::new(0,0,[0;16])];
         let _multicast_reply_locator_list = vec![Locator::new(0,0,[0;16])];
-        let mut timestamp = None;
+        let mut _timestamp = None;
         let _message_length = 0;
         
         let source_locator = Locator::new(0,0, [0;16]);
@@ -69,7 +72,7 @@ impl<'a> RtpsMessageReceiver<'a> {
                 // Reader to writer messages
                 RtpsSubmessage::AckNack(ack_nack) => self.receive_writer_submessage(source_guid_prefix, WriterReceiveMessage::AckNack(ack_nack)),
                 // Receiver status messages
-                RtpsSubmessage::InfoTs(info_ts) => timestamp = info_ts.time(),
+                RtpsSubmessage::InfoTs(info_ts) => _timestamp = info_ts.time(),
             }
         }
     }
@@ -86,12 +89,12 @@ impl<'a> RtpsMessageReceiver<'a> {
                 Reader::StatelessReader(stateless_reader) => {
                     if stateless_reader.unicast_locator_list().iter().find(|&loc| loc == source_locator).is_some() ||
                        stateless_reader.multicast_locator_list().iter().find(|&loc| loc == source_locator).is_some() {
-                        RtpsMessageReceiver::stateless_reader_received_message(stateless_reader, message);
+                        RtpsMessageReceiver::stateless_reader_received_message(stateless_reader, source_guid_prefix, message);
                         break;
                     }
                 },
                 Reader::StatefulReader(stateful_reader) => {
-                    if let Some(writer_proxy) = stateful_reader.matched_writer_lookup(&writer_guid) {
+                    if let Some(writer_proxy) = stateful_reader.matched_writers().get(&writer_guid) {
                         RtpsMessageReceiver::writer_proxy_received_message(writer_proxy, message);
                         break;
                     }
@@ -111,7 +114,7 @@ impl<'a> RtpsMessageReceiver<'a> {
                     // Stateless writers do not receive any message because they are only best effort
                 },
                 Writer::StatefulWriter(stateful_writer) => {
-                    if let Some(reader_proxy) = stateful_writer.matched_reader_lookup(&reader_guid) {
+                    if let Some(reader_proxy) = stateful_writer.matched_readers().get(&reader_guid) {
                         RtpsMessageReceiver::reader_proxy_received_message(reader_proxy, message);
                         break;
                     }
@@ -120,16 +123,16 @@ impl<'a> RtpsMessageReceiver<'a> {
         }
     }
 
-    fn reader_proxy_received_message(reader_proxy: &ReaderProxy, message: WriterReceiveMessage) {
+    fn reader_proxy_received_message(_reader_proxy: &ReaderProxy, _message: WriterReceiveMessage) {
         todo!()
     }
 
     fn writer_proxy_received_message(writer_proxy: &WriterProxy, message: ReaderReceiveMessage) {
-        todo!()
+        writer_proxy.push_received_message(message)
     }
 
-    fn stateless_reader_received_message(stateless_reader: &StatelessReader, message: ReaderReceiveMessage) {
-        todo!()
+    fn stateless_reader_received_message(stateless_reader: &StatelessReader, source_guid_prefix: GuidPrefix, message: ReaderReceiveMessage) {
+        stateless_reader.push_receive_message(source_guid_prefix, message);
     }
 }
 
@@ -152,8 +155,6 @@ mod tests {
             guid,
             TopicKind::WithKey, 
         ReliabilityKind::BestEffort,
-        vec![],
-        vec![],
         false,
         Duration::from_millis(500));
 

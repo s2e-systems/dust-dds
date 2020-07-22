@@ -1,19 +1,10 @@
+use std::collections::VecDeque;
+use std::sync::Mutex;
+
 use crate::cache::HistoryCache;
-use crate::types::{ReliabilityKind, TopicKind, GUID, Locator, };
-use crate::messages::{RtpsMessage};
-use crate::behavior::StatelessReaderBehavior;
-
-#[derive(Debug)]
-pub enum StatelessReaderError {
-    InlineQosNotFound,
-    StatusInfoNotFound,
-    KeyHashNotFound,
-    InvalidStatusInfo,
-    InvalidDataKeyFlagCombination,
-    InvalidKeyHashPayload,
-}
-
-pub type StatelessReaderResult<T> = std::result::Result<T, StatelessReaderError>;
+use crate::types::{ReliabilityKind, TopicKind, GUID, Locator, GuidPrefix };
+use crate::messages::receiver::ReaderReceiveMessage;
+use crate::behavior::stateless_reader::BestEffortStatelessReaderBehavior;
 
 pub struct StatelessReader {
     // Heartbeats are not relevant to stateless readers (only to readers),
@@ -33,6 +24,8 @@ pub struct StatelessReader {
     unicast_locator_list: Vec<Locator>,
     /// List of multicast locators (transport, address, port combinations) that can be used to send messages to the Endpoint. The list may be empty.
     multicast_locator_list: Vec<Locator>,
+
+    received_messages: Mutex<VecDeque<(GuidPrefix, ReaderReceiveMessage)>>,
 }
 
 impl StatelessReader {
@@ -40,20 +33,20 @@ impl StatelessReader {
     pub fn new(
         guid: GUID,
         topic_kind: TopicKind,
-        reliability_level: ReliabilityKind,
+        // reliability_level: ReliabilityKind, // Only BestEffort is supported
         unicast_locator_list: Vec<Locator>,
         multicast_locator_list: Vec<Locator>,
         expects_inline_qos: bool,
     ) -> Self {
-        assert!(reliability_level == ReliabilityKind::BestEffort);
         StatelessReader {
             guid,
             topic_kind,
-            reliability_level,
+            reliability_level: ReliabilityKind::BestEffort,
             unicast_locator_list,
             multicast_locator_list,
             reader_cache: HistoryCache::new(),
             expects_inline_qos,
+            received_messages: Mutex::new(VecDeque::new()),
         }
     }
 
@@ -69,11 +62,19 @@ impl StatelessReader {
         &self.multicast_locator_list
     }
 
-    pub fn run(&mut self, received_message: Option<&RtpsMessage>) {
+    pub fn run(&self) {
         match self.reliability_level {
-            ReliabilityKind::BestEffort => StatelessReaderBehavior::run_best_effort(&mut self.reader_cache, received_message),
+            ReliabilityKind::BestEffort => BestEffortStatelessReaderBehavior::run(self),
             ReliabilityKind::Reliable => panic!("Reliable stateless reader not allowed!"),
         }
+    }
+
+    pub fn push_receive_message(&self, source_guid_prefix: GuidPrefix, message: ReaderReceiveMessage) {
+        self.received_messages.lock().unwrap().push_back((source_guid_prefix, message));
+    }
+
+    pub fn pop_receive_message(&self) -> Option<(GuidPrefix, ReaderReceiveMessage)> {
+        self.received_messages.lock().unwrap().pop_front()
     }
 }
 
@@ -82,11 +83,19 @@ mod tests {
     use super::*;
     use crate::types::*;
     use crate::types::constants::*;
-    use crate::messages::{Data, Payload, RtpsSubmessage, Endianness, ParameterList };
+    use crate::messages::{Data, Payload, Endianness, ParameterList };
     use crate::inline_qos_types::{KeyHash};
 
     #[test]
     fn best_effort_stateless_reader_run() {
+        let reader = StatelessReader::new(
+            GUID::new([0;12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER),
+            TopicKind::WithKey,
+            vec![Locator::new(0, 7400, [0;16])],
+            vec![],
+            false,
+           );
+
         let mut inline_qos = ParameterList::new();
         inline_qos.push(KeyHash([1;16]));
 
@@ -99,23 +108,13 @@ mod tests {
             Payload::Data(vec![0,1,2]),
         );
 
-        let mut submessages = Vec::new();
-        submessages.push(RtpsSubmessage::Data(data1));
+        reader.push_receive_message([2;12], ReaderReceiveMessage::Data(data1));
 
-        let mut reader = StatelessReader::new(
-            GUID::new([0;12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER),
-            TopicKind::WithKey,
-            ReliabilityKind::BestEffort,
-            vec![Locator::new(0, 7400, [0;16])],
-            vec![],
-            false,
-           );
-
-        assert_eq!(reader.history_cache().get_changes().len(), 0);
-        let message = RtpsMessage::new([2;12], submessages);
+        assert_eq!(reader.history_cache().changes().len(), 0);
+        // let message = RtpsMessage::new(, submessages);
         
-        reader.run(Some(&message));
+        reader.run();
 
-        assert_eq!(reader.history_cache().get_changes().len(), 1);
+        assert_eq!(reader.history_cache().changes().len(), 1);
     }
 }

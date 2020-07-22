@@ -1,35 +1,28 @@
-use crate::cache::HistoryCache;
-use crate::messages::{RtpsMessage, RtpsSubmessage};
-use crate::types::constants::ENTITYID_UNKNOWN;
+use crate::types::GuidPrefix;
+use crate::messages::Data;
+use crate::messages::receiver::ReaderReceiveMessage;
+use crate::stateless_reader::StatelessReader;
 
 use super::cache_change_from_data;
 
-pub struct StatelessReaderBehavior {}
+pub struct BestEffortStatelessReaderBehavior {}
 
-impl StatelessReaderBehavior {
-    pub fn run_best_effort(history_cache: &mut HistoryCache, received_message: Option<&RtpsMessage>){
-        StatelessReaderBehavior::run_waiting_state(history_cache, received_message);
+impl BestEffortStatelessReaderBehavior {
+    pub fn run(reader: &StatelessReader){
+        Self::waiting_state(reader);
     }
 
-    pub fn run_waiting_state(history_cache: &mut HistoryCache, received_message: Option<&RtpsMessage>) {
-
-        if let Some(received_message) = received_message {
-            let guid_prefix = received_message.header().guid_prefix();
-            // let mut _source_time = None;
-
-            for submessage in received_message.submessages().iter() {
-                if let RtpsSubmessage::Data(data) = submessage {
-                    // Check if the message is for this reader and process it if that is the case
-                    if data.reader_id() == ENTITYID_UNKNOWN {
-
-                        let cache_change = cache_change_from_data(data, guid_prefix);
-                        history_cache.add_change(cache_change);
-                    }
-                }
-                else if let RtpsSubmessage::InfoTs(_infots) = submessage {
-                    // todo:_source_time = infots.get_timestamp();
-                }
-            }
+    fn waiting_state(reader: &StatelessReader) {
+        while let Some((source_guid_prefix, received_message)) =  reader.pop_receive_message() {
+            match received_message {
+                ReaderReceiveMessage::Data(data) => Self::transition_t2(reader, source_guid_prefix, data),
+                _ => (),
+            };
         }
+    }
+
+    fn transition_t2(reader: &StatelessReader, guid_prefix: GuidPrefix, data: Data) {
+        let cache_change = cache_change_from_data(&data, &guid_prefix);
+        reader.history_cache().add_change(cache_change);
     }
 }
