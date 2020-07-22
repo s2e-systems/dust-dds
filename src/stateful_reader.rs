@@ -230,8 +230,11 @@ pub struct StatefulReader {
     // From Endpoint base class:
     topic_kind: TopicKind,
     reliability_level: ReliabilityKind,
-    unicast_locator_list: Vec<Locator>,
-    multicast_locator_list: Vec<Locator>,
+
+    // All communication to this reader is done by the writer proxies
+    // so these fields are unnecessary
+    // unicast_locator_list: Vec<Locator>,
+    // multicast_locator_list: Vec<Locator>,
 
     // From Reader base class:
     expects_inline_qos: bool,
@@ -248,8 +251,6 @@ impl StatefulReader {
         guid: GUID,
         topic_kind: TopicKind,
         reliability_level: ReliabilityKind,
-        unicast_locator_list: Vec<Locator>,
-        multicast_locator_list: Vec<Locator>,
         expects_inline_qos: bool,
         heartbeat_response_delay: Duration,        
         ) -> Self {
@@ -257,8 +258,6 @@ impl StatefulReader {
             guid,
             topic_kind,
             reliability_level,
-            unicast_locator_list,
-            multicast_locator_list,
             expects_inline_qos,
             heartbeat_response_delay,       
             reader_cache: HistoryCache::new(),

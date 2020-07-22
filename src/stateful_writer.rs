@@ -186,10 +186,12 @@ pub struct StatefulWriter {
     topic_kind: TopicKind,
     /// The level of reliability supported by the Endpoint.
     reliability_level: ReliabilityKind,
-    /// List of unicast locators (transport, address, port combinations) that can be used to send messages to the Endpoint. The list may be empty
-    unicast_locator_list: Vec<Locator>,
-    /// List of multicast locators (transport, address, port combinations) that can be used to send messages to the Endpoint. The list may be empty.
-    multicast_locator_list: Vec<Locator>,
+
+    // All messages are received from the reader proxies so these fields are not used
+    // /// List of unicast locators (transport, address, port combinations) that can be used to send messages to the Endpoint. The list may be empty
+    // unicast_locator_list: Vec<Locator>,
+    // /// List of multicast locators (transport, address, port combinations) that can be used to send messages to the Endpoint. The list may be empty.
+    // multicast_locator_list: Vec<Locator>,
 
     //Writer class:
     push_mode: bool,
@@ -208,8 +210,6 @@ impl StatefulWriter {
         guid: GUID,
         topic_kind: TopicKind,
         reliability_level: ReliabilityKind,
-        unicast_locator_list: Vec<Locator>,
-        multicast_locator_list: Vec<Locator>,
         push_mode: bool,
         heartbeat_period: Duration,
         nack_response_delay: Duration,
@@ -218,8 +218,6 @@ impl StatefulWriter {
             guid,
             topic_kind,
             reliability_level,
-            unicast_locator_list,
-            multicast_locator_list,
             push_mode,
             heartbeat_period,
             nack_response_delay,
@@ -298,8 +296,15 @@ impl StatefulWriter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::constants::{ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, };
+    use crate::types::constants::{
+        ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER,
+        ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
+        ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,};
+
     use crate::behavior::types::constants::DURATION_ZERO;
+    use crate::messages::{AckNack, Endianness};
+
+    use std::thread::sleep;
 
     #[test]
     fn stateful_writer_new_change() {
@@ -307,8 +312,6 @@ mod tests {
             GUID::new([0; 12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
             TopicKind::WithKey,
             ReliabilityKind::BestEffort,
-            vec![Locator::new(0, 7400, [0; 16])],
-            vec![],
             false,
             DURATION_ZERO,
             DURATION_ZERO,
@@ -436,5 +439,135 @@ mod tests {
         assert_eq!(reader_proxy.unacked_changes(two_changes_in_writer).len(), 1);
         assert!(reader_proxy.unacked_changes(two_changes_in_writer).contains(&2));
     }
-    
+
+    #[test]
+    fn run_best_effort_send_data() {
+        let heartbeat_period = Duration::from_millis(200);
+
+        let writer_guid = GUID::new([2;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
+        let stateful_writer = StatefulWriter::new(
+            writer_guid,
+            TopicKind::WithKey,
+            ReliabilityKind::BestEffort,
+            true,
+            heartbeat_period,
+            DURATION_ZERO,
+            DURATION_ZERO
+        );
+
+        let remote_reader_guid = GUID::new([1,2,3,4,5,6,7,8,9,10,11,12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
+        let reader_proxy = ReaderProxy::new(remote_reader_guid, vec![], vec![], false, true);
+        stateful_writer.matched_reader_add(reader_proxy);
+
+        let instance_handle = [1;16];
+        let cache_change_seq1 = stateful_writer.new_change(ChangeKind::Alive, Some(vec![1,2,3]), None, instance_handle);
+        let cache_change_seq2 = stateful_writer.new_change(ChangeKind::Alive, Some(vec![2,3,4]), None, instance_handle);
+        stateful_writer.writer_cache().add_change(cache_change_seq1);
+        stateful_writer.writer_cache().add_change(cache_change_seq2);
+
+        stateful_writer.run();
+        let message_1 = stateful_writer.matched_readers().get(&remote_reader_guid).unwrap().pop_send_message().unwrap();
+        let message_2 = stateful_writer.matched_readers().get(&remote_reader_guid).unwrap().pop_send_message().unwrap();
+
+        if let WriterSendMessage::Data(data) = message_1 {
+            assert_eq!(&data.reader_id(), remote_reader_guid.entity_id());
+            assert_eq!(&data.writer_id(), writer_guid.entity_id());
+            assert_eq!(data.writer_sn(), 1);
+        } else {
+            panic!("Wrong message sent");
+        }
+
+        if let WriterSendMessage::Data(data) = message_2 {
+            assert_eq!(&data.reader_id(), remote_reader_guid.entity_id());
+            assert_eq!(&data.writer_id(), writer_guid.entity_id());
+            assert_eq!(data.writer_sn(), 2);
+        } else {
+            panic!("Wrong message sent");
+        }
+
+        // Check that no heartbeat is sent using best effort writers
+        stateful_writer.run();
+        assert!(stateful_writer.matched_readers().get(&remote_reader_guid).unwrap().pop_send_message().is_none());
+        sleep(heartbeat_period.into());
+        stateful_writer.run();
+        assert!(stateful_writer.matched_readers().get(&remote_reader_guid).unwrap().pop_send_message().is_none());
+    }
+
+    #[test]
+    fn run_reliable_send_data() {
+        let heartbeat_period = Duration::from_millis(200);
+
+        let writer_guid = GUID::new([2;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
+        let stateful_writer = StatefulWriter::new(
+            writer_guid,
+            TopicKind::WithKey,
+            ReliabilityKind::Reliable,
+            true,
+            heartbeat_period,
+            DURATION_ZERO,
+            DURATION_ZERO
+        );
+
+        let remote_reader_guid = GUID::new([1,2,3,4,5,6,7,8,9,10,11,12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
+        let reader_proxy = ReaderProxy::new(remote_reader_guid, vec![], vec![], false, true);
+        stateful_writer.matched_reader_add(reader_proxy);
+
+        let instance_handle = [1;16];
+        let cache_change_seq1 = stateful_writer.new_change(ChangeKind::Alive, Some(vec![1,2,3]), None, instance_handle);
+        let cache_change_seq2 = stateful_writer.new_change(ChangeKind::Alive, Some(vec![2,3,4]), None, instance_handle);
+        stateful_writer.writer_cache().add_change(cache_change_seq1);
+        stateful_writer.writer_cache().add_change(cache_change_seq2);
+
+        stateful_writer.run();
+        let message_1 = stateful_writer.matched_readers().get(&remote_reader_guid).unwrap().pop_send_message().unwrap();
+        let message_2 = stateful_writer.matched_readers().get(&remote_reader_guid).unwrap().pop_send_message().unwrap();
+
+        if let WriterSendMessage::Data(data) = message_1 {
+            assert_eq!(&data.reader_id(), remote_reader_guid.entity_id());
+            assert_eq!(&data.writer_id(), writer_guid.entity_id());
+            assert_eq!(data.writer_sn(), 1);
+        } else {
+            panic!("Wrong message sent");
+        }
+
+        if let WriterSendMessage::Data(data) = message_2 {
+            assert_eq!(&data.reader_id(), remote_reader_guid.entity_id());
+            assert_eq!(&data.writer_id(), writer_guid.entity_id());
+            assert_eq!(data.writer_sn(), 2);
+        } else {
+            panic!("Wrong message sent. Expected Data");
+        }
+
+        // Check that heartbeat is sent while there are unacked changes
+        stateful_writer.run();
+        assert!(stateful_writer.matched_readers().get(&remote_reader_guid).unwrap().pop_send_message().is_none());
+        sleep(heartbeat_period.into());
+        stateful_writer.run();
+        let message = stateful_writer.matched_readers().get(&remote_reader_guid).unwrap().pop_send_message().unwrap();
+        if let WriterSendMessage::Heartbeat(heartbeat) = message {
+            assert_eq!(heartbeat.is_final(), false);
+        } else {
+            panic!("Wrong message sent. Expected Heartbeat");
+        }
+
+        let acknack = AckNack::new(
+            *remote_reader_guid.entity_id(),
+            *writer_guid.entity_id(),
+                3,
+                BTreeSet::new(),
+                1,
+                false,
+                Endianness::LittleEndian,
+        );
+
+        stateful_writer.matched_readers().get(&remote_reader_guid).unwrap().push_receive_message(WriterReceiveMessage::AckNack(acknack));
+
+        // Check that no heartbeat is sent if there are no new changes
+        stateful_writer.run();
+        // let message = stateful_writer.matched_readers().get(&remote_reader_guid).unwrap().pop_send_message().unwrap();
+        assert!(stateful_writer.matched_readers().get(&remote_reader_guid).unwrap().pop_send_message().is_none());
+        sleep(heartbeat_period.into());
+        stateful_writer.run();
+        assert!(stateful_writer.matched_readers().get(&remote_reader_guid).unwrap().pop_send_message().is_none());
+    }
 }

@@ -1,14 +1,12 @@
 use std::convert::TryInto;
 use std::time::Instant;
 
-use crate::types::GUID;
-use crate::behavior::types::Duration;
-use crate::messages::{AckNack, Data, Gap, Heartbeat};
 use crate::stateful_reader::{WriterProxy, StatefulReader};
+use crate::messages::{AckNack, Data, Gap, Heartbeat, Endianness};
 use crate::messages::receiver::ReaderReceiveMessage;
 use crate::messages::types::Count;
 
-use crate::messages::Endianness;
+use super::types::Duration;
 use super::cache_change_from_data;
 
 pub struct StatefulReaderBehavior {
@@ -161,16 +159,16 @@ impl ReliableStatefulReaderBehavior {
 
     fn must_send_ack_state(writer_proxy: &WriterProxy, stateful_reader: &StatefulReader) {
         if writer_proxy.behavior().duration_since_heartbeat_received() >  stateful_reader.heartbeat_response_delay() {
-            Self::transition_t5(writer_proxy, stateful_reader.guid())
+            Self::transition_t5(writer_proxy, stateful_reader)
         }
     }
 
-    fn transition_t5(writer_proxy: &WriterProxy, reader_guid: &GUID) {
+    fn transition_t5(writer_proxy: &WriterProxy, stateful_reader: &StatefulReader) {
         writer_proxy.behavior().reset_must_send_ack();
  
         writer_proxy.behavior().increment_acknack_count();
         let _acknack = AckNack::new(
-            *reader_guid.entity_id(), 
+            *stateful_reader.guid().entity_id(), 
             *writer_proxy.remote_writer_guid().entity_id(),
             writer_proxy.available_changes_max(),
             writer_proxy.missing_changes().clone(),
@@ -183,176 +181,204 @@ impl ReliableStatefulReaderBehavior {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{ChangeKind, };
+    use crate::types::{ChangeKind, TopicKind, ReliabilityKind, GUID};
     use crate::types::constants::{
         ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, };
     use crate::cache::CacheChange;
-    use crate::messages::{Data, Payload, Heartbeat, ParameterList};
-    use crate::messages::Endianness;
+    use crate::messages::{Data, Payload, Heartbeat, ParameterList, Endianness};
     use crate::inline_qos_types::{KeyHash, StatusInfo, };
 
-    // #[test]
-    // fn run_best_effort_data_only() {
-    //     let history_cache = HistoryCache::new();
-    //     let remote_writer_guid = GUID::new([1;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-    //     let writer_proxy = WriterProxy::new(remote_writer_guid, vec![], vec![]);
+    #[test]
+    fn run_best_effort_data_only() {
+        let reader_guid = GUID::new([2;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
+        let stateful_reader = StatefulReader::new(
+            reader_guid,
+            TopicKind::WithKey,
+            ReliabilityKind::BestEffort,
+            false,
+            Duration::from_millis(300));
 
-    //     let mut inline_qos = ParameterList::new();
-    //     inline_qos.push(StatusInfo::from(ChangeKind::Alive));
-    //     inline_qos.push(KeyHash([1;16]));
+        let remote_writer_guid = GUID::new([1;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
+        let writer_proxy = WriterProxy::new(remote_writer_guid, vec![], vec![]);
 
-    //     let data1 = Data::new(
-    //         Endianness::LittleEndian, 
-    //         ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, 
-    //         ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER, 
-    //         3,
-    //         Some(inline_qos),
-    //         Payload::Data(vec![1,2,3]));
-    //     writer_proxy.push_received_message(ReaderReceiveMessage::Data(data1));
+        let mut inline_qos = ParameterList::new();
+        inline_qos.push(StatusInfo::from(ChangeKind::Alive));
+        inline_qos.push(KeyHash([1;16]));
 
-    //     BestEfforStatefulReaderBehavior::run(&writer_proxy, &history_cache);
+        let data1 = Data::new(
+            Endianness::LittleEndian, 
+            ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, 
+            ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER, 
+            3,
+            Some(inline_qos),
+            Payload::Data(vec![1,2,3]));
+        writer_proxy.push_received_message(ReaderReceiveMessage::Data(data1));
 
-    //     let expected_change_1 = CacheChange::new(
-    //         ChangeKind::Alive,
-    //         remote_writer_guid,
-    //         [1;16],
-    //         3,
-    //         Some(vec![1,2,3]),
-    //         None,
-    //     );
+        BestEfforStatefulReaderBehavior::run(&writer_proxy, &stateful_reader);
 
-    //     assert_eq!(history_cache.changes().len(), 1);
-    //     assert!(history_cache.changes().contains(&expected_change_1));
-    //     assert_eq!(writer_proxy.available_changes_max(), 3);
+        let expected_change_1 = CacheChange::new(
+            ChangeKind::Alive,
+            remote_writer_guid,
+            [1;16],
+            3,
+            Some(vec![1,2,3]),
+            None,
+        );
 
-    //     // Run waiting state without any received message and verify nothing changes
-    //     BestEfforStatefulReaderBehavior::run(&writer_proxy, &history_cache);
-    //     assert_eq!(history_cache.changes().len(), 1);
-    //     assert_eq!(writer_proxy.available_changes_max(), 3);
-    // }
+        assert_eq!(stateful_reader.reader_cache().changes().len(), 1);
+        assert!(stateful_reader.reader_cache().changes().contains(&expected_change_1));
+        assert_eq!(writer_proxy.available_changes_max(), 3);
 
-    // #[test]
-    // fn run_reliable_data_only() {
-    //     let reader_guid = GUID::new([2;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-    //     let history_cache = HistoryCache::new();
-    //     let remote_writer_guid = GUID::new([1;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-    //     let writer_proxy = WriterProxy::new(remote_writer_guid, vec![], vec![]);
+        // Run waiting state without any received message and verify nothing changes
+        BestEfforStatefulReaderBehavior::run(&writer_proxy, &stateful_reader);
+        assert_eq!(stateful_reader.reader_cache().changes().len(), 1);
+        assert_eq!(writer_proxy.available_changes_max(), 3);
+    }
 
-    //     let mut inline_qos = ParameterList::new();
-    //     inline_qos.push(StatusInfo::from(ChangeKind::Alive));
-    //     inline_qos.push(KeyHash([1;16]));
+    #[test]
+    fn run_reliable_data_only() {
+        let reader_guid = GUID::new([2;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
+        let stateful_reader = StatefulReader::new(
+            reader_guid,
+            TopicKind::WithKey,
+            ReliabilityKind::Reliable,
+            false,
+            Duration::from_millis(300));
 
-    //     let data1 = Data::new(
-    //         Endianness::LittleEndian, 
-    //         *reader_guid.entity_id(), 
-    //         ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER, 
-    //         3,
-    //         Some(inline_qos),
-    //         Payload::Data(vec![1,2,3]));
+        let remote_writer_guid = GUID::new([1;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
+        let writer_proxy = WriterProxy::new(remote_writer_guid, vec![], vec![]);
 
-    //     writer_proxy.push_received_message(ReaderReceiveMessage::Data(data1));
+        let mut inline_qos = ParameterList::new();
+        inline_qos.push(StatusInfo::from(ChangeKind::Alive));
+        inline_qos.push(KeyHash([1;16]));
 
-    //     ReliableStatefulReaderBehavior::run(&writer_proxy, &reader_guid, &history_cache, Duration::from_millis(300));
+        let data1 = Data::new(
+            Endianness::LittleEndian, 
+            *reader_guid.entity_id(), 
+            ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER, 
+            3,
+            Some(inline_qos),
+            Payload::Data(vec![1,2,3]));
 
-    //     let expected_change_1 = CacheChange::new(
-    //         ChangeKind::Alive,
-    //         remote_writer_guid,
-    //         [1;16],
-    //         3,
-    //         Some(vec![1,2,3]),
-    //         None,
-    //     );
+        writer_proxy.push_received_message(ReaderReceiveMessage::Data(data1));
 
-    //     assert_eq!(history_cache.changes().len(), 1);
-    //     assert!(history_cache.changes().contains(&expected_change_1));
-    //     assert_eq!(writer_proxy.available_changes_max(), 0);
+        ReliableStatefulReaderBehavior::run(&writer_proxy, &stateful_reader);
 
-    //     // Run ready state without any received message and verify nothing changes
-    //     ReliableStatefulReaderBehavior::ready_state(&writer_proxy, &history_cache);
-    //     assert_eq!(history_cache.changes().len(), 1);
-    //     assert_eq!(writer_proxy.available_changes_max(), 0);
-    // }
+        let expected_change_1 = CacheChange::new(
+            ChangeKind::Alive,
+            remote_writer_guid,
+            [1;16],
+            3,
+            Some(vec![1,2,3]),
+            None,
+        );
 
-    // #[test]
-    // fn run_reliable_non_final_heartbeat() {
-    //     let reader_guid = GUID::new([2;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-    //     let history_cache = HistoryCache::new();
-    //     let remote_writer_guid = GUID::new([1;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-    //     let writer_proxy = WriterProxy::new(remote_writer_guid, vec![], vec![]);
+        assert_eq!(stateful_reader.reader_cache().changes().len(), 1);
+        assert!(stateful_reader.reader_cache().changes().contains(&expected_change_1));
+        assert_eq!(writer_proxy.available_changes_max(), 0);
 
-    //     let heartbeat = Heartbeat::new(
-    //         *reader_guid.entity_id(),
-    //         *remote_writer_guid.entity_id(),
-    //         3,
-    //         6,
-    //         1,
-    //         false,
-    //         false,
-    //         Endianness::LittleEndian,
-    //     );
+        // Run ready state without any received message and verify nothing changes
+        ReliableStatefulReaderBehavior::ready_state(&writer_proxy, &stateful_reader);
+        assert_eq!(stateful_reader.reader_cache().changes().len(), 1);
+        assert_eq!(writer_proxy.available_changes_max(), 0);
+    }
+
+    #[test]
+    fn run_reliable_non_final_heartbeat() {
+        let reader_guid = GUID::new([2;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
+        let stateful_reader = StatefulReader::new(
+            reader_guid,
+            TopicKind::WithKey,
+            ReliabilityKind::Reliable,
+            false,
+            Duration::from_millis(300));
+
+        let remote_writer_guid = GUID::new([1;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
+        let writer_proxy = WriterProxy::new(remote_writer_guid, vec![], vec![]);
+
+        let heartbeat = Heartbeat::new(
+            *reader_guid.entity_id(),
+            *remote_writer_guid.entity_id(),
+            3,
+            6,
+            1,
+            false,
+            false,
+            Endianness::LittleEndian,
+        );
     
-    //     writer_proxy.push_received_message(ReaderReceiveMessage::Heartbeat(heartbeat));
+        writer_proxy.push_received_message(ReaderReceiveMessage::Heartbeat(heartbeat));
 
-    //     ReliableStatefulReaderBehavior::run(&writer_proxy, &reader_guid, &history_cache, Duration::from_millis(300));
-    //     assert_eq!(writer_proxy.missing_changes(), [3, 4, 5, 6].iter().cloned().collect());
-    //     assert_eq!(writer_proxy.behavior().must_send_ack(), true);
-
-    //     // TODO: Test that AckNack is sent after heartbeat_response_delay
-    // }
+        ReliableStatefulReaderBehavior::run(&writer_proxy, &stateful_reader);
+        assert_eq!(writer_proxy.missing_changes(), [3, 4, 5, 6].iter().cloned().collect());
+        assert_eq!(writer_proxy.behavior().must_send_ack(), true);
+    }
     
-    // #[test]
-    // fn run_reliable_final_heartbeat_with_missing_changes() {
-    //     let reader_guid = GUID::new([2;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-    //     let history_cache = HistoryCache::new();
-    //     let remote_writer_guid = GUID::new([1;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-    //     let writer_proxy = WriterProxy::new(remote_writer_guid, vec![], vec![]);
+    #[test]
+    fn run_reliable_final_heartbeat_with_missing_changes() {
+        let reader_guid = GUID::new([2;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
+        let stateful_reader = StatefulReader::new(
+            reader_guid,
+            TopicKind::WithKey,
+            ReliabilityKind::Reliable,
+            false,
+            Duration::from_millis(300));
 
-    //     let heartbeat = Heartbeat::new(
-    //         ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
-    //         *remote_writer_guid.entity_id(),
-    //         2,
-    //         3,
-    //         1,
-    //         true,
-    //         false,
-    //         Endianness::LittleEndian,
-    //     );
-    //     writer_proxy.push_received_message(ReaderReceiveMessage::Heartbeat(heartbeat));
+        let remote_writer_guid = GUID::new([1;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
+        let writer_proxy = WriterProxy::new(remote_writer_guid, vec![], vec![]);
 
-    //     let heartbeat_response_delay = Duration::from_millis(300);
-    //     ReliableStatefulReaderBehavior::run(&writer_proxy, &reader_guid, &history_cache, heartbeat_response_delay);
-    //     assert_eq!(writer_proxy.missing_changes(), [2, 3].iter().cloned().collect());
-    //     assert_eq!(writer_proxy.behavior().must_send_ack(), true);
+        let heartbeat = Heartbeat::new(
+            ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
+            *remote_writer_guid.entity_id(),
+            2,
+            3,
+            1,
+            true,
+            false,
+            Endianness::LittleEndian,
+        );
+        writer_proxy.push_received_message(ReaderReceiveMessage::Heartbeat(heartbeat));
 
-    //     std::thread::sleep(heartbeat_response_delay.into());
+        let heartbeat_response_delay = Duration::from_millis(300);
+        ReliableStatefulReaderBehavior::run(&writer_proxy, &stateful_reader);
+        assert_eq!(writer_proxy.missing_changes(), [2, 3].iter().cloned().collect());
+        assert_eq!(writer_proxy.behavior().must_send_ack(), true);
 
-    //     ReliableStatefulReaderBehavior::run(&writer_proxy, &reader_guid, &history_cache, heartbeat_response_delay);
-    //     assert_eq!(writer_proxy.behavior().must_send_ack(), false);
+        std::thread::sleep(heartbeat_response_delay.into());
 
-    //     // TODO: Test that AckNack is sent after duration
-    // }
+        ReliableStatefulReaderBehavior::run(&writer_proxy, &stateful_reader);
+        assert_eq!(writer_proxy.behavior().must_send_ack(), false);
 
-    // #[test]
-    // fn run_reliable_final_heartbeat_without_missing_changes() {
-    //     let reader_guid = GUID::new([2;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-    //     let history_cache = HistoryCache::new();
-    //     let remote_writer_guid = GUID::new([1;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-    //     let writer_proxy = WriterProxy::new(remote_writer_guid, vec![], vec![]);
+        // TODO: Test that AckNack is sent after duration
+    }
 
-    //     let heartbeat = Heartbeat::new(
-    //         ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
-    //         *remote_writer_guid.entity_id(),
-    //         1,
-    //         0,
-    //         1,
-    //         true,
-    //         false,
-    //         Endianness::LittleEndian,
-    //     );
-    //     writer_proxy.push_received_message(ReaderReceiveMessage::Heartbeat(heartbeat));
+    #[test]
+    fn run_reliable_final_heartbeat_without_missing_changes() {
+        let reader_guid = GUID::new([2;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
+        let stateful_reader = StatefulReader::new(
+            reader_guid,
+            TopicKind::WithKey,
+            ReliabilityKind::Reliable,
+            false,
+            Duration::from_millis(300));
 
-    //     ReliableStatefulReaderBehavior::run(&writer_proxy, &reader_guid, &history_cache, Duration::from_millis(300));
-    //     assert_eq!(writer_proxy.missing_changes(), [].iter().cloned().collect());
-    //     assert_eq!(writer_proxy.behavior().must_send_ack(), false);
-    // }
+        let remote_writer_guid = GUID::new([1;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
+        let writer_proxy = WriterProxy::new(remote_writer_guid, vec![], vec![]);
+
+        let heartbeat = Heartbeat::new(
+            ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
+            *remote_writer_guid.entity_id(),
+            1,
+            0,
+            1,
+            true,
+            false,
+            Endianness::LittleEndian,
+        );
+        writer_proxy.push_received_message(ReaderReceiveMessage::Heartbeat(heartbeat));
+
+        ReliableStatefulReaderBehavior::run(&writer_proxy, &stateful_reader);
+        assert_eq!(writer_proxy.missing_changes(), [].iter().cloned().collect());
+        assert_eq!(writer_proxy.behavior().must_send_ack(), false);
+    }
 }

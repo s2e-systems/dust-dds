@@ -1,12 +1,13 @@
-use std::time::{Instant};
+use std::time::Instant;
 use std::convert::TryInto;
 
 use crate::types::{SequenceNumber, };
 use crate::messages::{Gap, Heartbeat, Endianness, AckNack};
 use crate::stateful_writer::{StatefulWriter, ReaderProxy};
-use crate::behavior::types::Duration;
-use crate::messages::types::{Count};
+use crate::messages::types::{Count, };
 use crate::messages::receiver::{WriterSendMessage, WriterReceiveMessage};
+
+use super::types::Duration;
 use super::data_from_cache_change;
 
 pub struct StatefulWriterBehavior {
@@ -75,6 +76,7 @@ impl BestEffortStatefulWriterBehavior {
         while let Some(next_unsent_seq_num) = reader_proxy.next_unsent_change(stateful_writer.last_change_sequence_number()) {
             Self::transition_t4(reader_proxy, stateful_writer, next_unsent_seq_num);
         }
+        reader_proxy.behavior().time_last_sent_data_reset();
     }
 
     fn transition_t4(reader_proxy: &ReaderProxy, stateful_writer: &StatefulWriter, next_unsent_seq_num: SequenceNumber) {
@@ -123,6 +125,7 @@ impl ReliableStatefulWriterBehavior {
     fn announcing_state(reader_proxy: &ReaderProxy, stateful_writer: &StatefulWriter){
         if reader_proxy.behavior().duration_since_last_sent_data() > stateful_writer.heartbeat_period() {
             Self::transition_t7(reader_proxy, stateful_writer);
+            reader_proxy.behavior().time_last_sent_data_reset();
         }
     }
 
@@ -196,62 +199,18 @@ impl ReliableStatefulWriterBehavior {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::types::{ChangeKind, TopicKind, ReliabilityKind, Locator};
-    use crate::behavior::types::constants::DURATION_ZERO;
-    use crate::types::constants::{
-        ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER, 
-        ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, };
-    use crate::cache::CacheChange;
-    use crate::messages::{AckNack};
-    use crate::stateful_writer::StatefulWriter;
+    // use super::*;
+    // use crate::types::{ChangeKind, TopicKind, ReliabilityKind, GUID};
+    // use crate::behavior::types::constants::DURATION_ZERO;
+    // use crate::types::constants::{
+    //     ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER, 
+    //     ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, };
+    // use crate::messages::{AckNack};
+    // use crate::messages::receiver::WriterReceiveMessage;
+    // use crate::stateful_writer::StatefulWriter;
 
-    use std::thread::sleep;
-
-    // #[test]
-    // fn run_announcing_state_valid_data() {
-    //     let writer_guid = GUID::new([2;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-    //     let history_cache = HistoryCache::new();
-
-    //     let instance_handle = [1;16];
-
-    //     let cache_change_seq1 = CacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, 1, Some(vec![1,2,3]), None);
-    //     let cache_change_seq2 = CacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, 2, Some(vec![2,3,4]), None);
-    //     history_cache.add_change(cache_change_seq1);
-    //     history_cache.add_change(cache_change_seq2);
-    //     let last_change_sequence_number  = 2;
-
-    //     let remote_reader_guid = GUID::new([1,2,3,4,5,6,7,8,9,10,11,12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-    //     let mut reader_proxy = ReaderProxy::new(remote_reader_guid, vec![], vec![], false, true);
-
-    //     let heartbeat_period = Duration::from_millis(200);
-
-    //     // Reset time and check that no heartbeat is sent immediatelly after
-    //     reader_proxy.time_last_sent_data_reset();
-    //     let message = StatefulWriterBehavior::run_announcing_state(&mut reader_proxy, &writer_guid, &history_cache, last_change_sequence_number, heartbeat_period);
-    //     assert_eq!(message, None);
-
-    //     // Wait for heaartbeat period and check the heartbeat message
-    //     sleep(heartbeat_period.into());
-    //     let submessages = StatefulWriterBehavior::run_announcing_state(&mut reader_proxy, &writer_guid, &history_cache, last_change_sequence_number, heartbeat_period).unwrap();
-
-    //     assert_eq!(submessages.len(), 2);
-    //     if let RtpsSubmessage::InfoTs(message_1) = &submessages[0] {
-    //         println!("{:?}", message_1);
-    //     } else {
-    //         panic!("Wrong message type");
-    //     }
-    //     if let RtpsSubmessage::Heartbeat(heartbeat_message) = &submessages[1] {
-    //         assert_eq!(heartbeat_message.reader_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-    //         assert_eq!(heartbeat_message.writer_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-    //         assert_eq!(heartbeat_message.first_sn(), 1);
-    //         assert_eq!(heartbeat_message.last_sn(), 2);
-    //         assert_eq!(heartbeat_message.count(), 1);
-    //         assert_eq!(heartbeat_message.is_final(), false);
-    //     } else {
-    //         panic!("Wrong message type");
-    //     };
-    // }
+    // use std::collections::BTreeSet;
+    // use std::thread::sleep;
 
     // #[test]
     // fn run_announcing_state_multiple_data_combinations() {

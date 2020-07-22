@@ -155,8 +155,6 @@ mod tests {
             guid,
             TopicKind::WithKey, 
         ReliabilityKind::BestEffort,
-        vec![],
-        vec![],
         false,
         Duration::from_millis(500));
 
