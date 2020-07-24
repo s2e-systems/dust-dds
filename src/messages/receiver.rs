@@ -128,7 +128,7 @@ impl<'a> RtpsMessageReceiver<'a> {
     }
 
     fn writer_proxy_received_message(writer_proxy: &WriterProxy, message: ReaderReceiveMessage) {
-        writer_proxy.push_received_message(message)
+        writer_proxy.push_receive_message(message)
     }
 
     fn stateless_reader_received_message(stateless_reader: &StatelessReader, source_guid_prefix: GuidPrefix, message: ReaderReceiveMessage) {
