@@ -3,7 +3,7 @@ use std::time::Instant;
 
 use crate::stateful_reader::{WriterProxy, StatefulReader};
 use crate::messages::{AckNack, Data, Gap, Heartbeat, Endianness};
-use crate::messages::receiver::ReaderReceiveMessage;
+use crate::messages::receiver::{ReaderReceiveMessage, ReaderSendMessage, };
 use crate::messages::types::Count;
 
 use super::types::Duration;
@@ -60,7 +60,7 @@ impl BestEfforStatefulReaderBehavior {
     }
 
     fn waiting_state(writer_proxy: &WriterProxy, stateful_reader: &StatefulReader) {
-        if let Some(received_message) = writer_proxy.pop_received_message() {
+        if let Some(received_message) = writer_proxy.pop_receive_message() {
             match received_message {
                 ReaderReceiveMessage::Data(data) => Self::transition_t2(writer_proxy, stateful_reader, &data),
                 ReaderReceiveMessage::Gap(gap) => Self::transition_t4(writer_proxy, &gap),
@@ -105,7 +105,7 @@ impl ReliableStatefulReaderBehavior {
     }
 
     fn ready_state(writer_proxy: &WriterProxy, stateful_reader: &StatefulReader) -> Option<Heartbeat>{
-        if let Some(received_message) = writer_proxy.pop_received_message() {
+        if let Some(received_message) = writer_proxy.pop_receive_message() {
             match received_message {
                 ReaderReceiveMessage::Data(data) => {
                     Self::transition_t8(writer_proxy, stateful_reader, &data);
@@ -168,7 +168,7 @@ impl ReliableStatefulReaderBehavior {
         writer_proxy.behavior().reset_must_send_ack();
  
         writer_proxy.behavior().increment_acknack_count();
-        let _acknack = AckNack::new(
+        let acknack = AckNack::new(
             *stateful_reader.guid().entity_id(), 
             *writer_proxy.remote_writer_guid().entity_id(),
             writer_proxy.available_changes_max(),
@@ -176,6 +176,8 @@ impl ReliableStatefulReaderBehavior {
             *writer_proxy.behavior().ackanck_count(),
             true,
             Endianness::LittleEndian); // TODO: Make endianness selectable
+
+        writer_proxy.push_send_message(ReaderSendMessage::AckNack(acknack));
     }
 }
 
@@ -213,7 +215,7 @@ mod tests {
             3,
             Some(inline_qos),
             Payload::Data(vec![1,2,3]));
-        writer_proxy.push_received_message(ReaderReceiveMessage::Data(data1));
+        writer_proxy.push_receive_message(ReaderReceiveMessage::Data(data1));
 
         BestEfforStatefulReaderBehavior::run(&writer_proxy, &stateful_reader);
 
@@ -261,7 +263,7 @@ mod tests {
             Some(inline_qos),
             Payload::Data(vec![1,2,3]));
 
-        writer_proxy.push_received_message(ReaderReceiveMessage::Data(data1));
+        writer_proxy.push_receive_message(ReaderReceiveMessage::Data(data1));
 
         ReliableStatefulReaderBehavior::run(&writer_proxy, &stateful_reader);
 
@@ -308,7 +310,7 @@ mod tests {
             Endianness::LittleEndian,
         );
     
-        writer_proxy.push_received_message(ReaderReceiveMessage::Heartbeat(heartbeat));
+        writer_proxy.push_receive_message(ReaderReceiveMessage::Heartbeat(heartbeat));
 
         ReliableStatefulReaderBehavior::run(&writer_proxy, &stateful_reader);
         assert_eq!(writer_proxy.missing_changes(), [3, 4, 5, 6].iter().cloned().collect());
@@ -338,7 +340,7 @@ mod tests {
             false,
             Endianness::LittleEndian,
         );
-        writer_proxy.push_received_message(ReaderReceiveMessage::Heartbeat(heartbeat));
+        writer_proxy.push_receive_message(ReaderReceiveMessage::Heartbeat(heartbeat));
 
         let heartbeat_response_delay = Duration::from_millis(300);
         ReliableStatefulReaderBehavior::run(&writer_proxy, &stateful_reader);
@@ -376,7 +378,7 @@ mod tests {
             false,
             Endianness::LittleEndian,
         );
-        writer_proxy.push_received_message(ReaderReceiveMessage::Heartbeat(heartbeat));
+        writer_proxy.push_receive_message(ReaderReceiveMessage::Heartbeat(heartbeat));
 
         ReliableStatefulReaderBehavior::run(&writer_proxy, &stateful_reader);
         assert_eq!(writer_proxy.missing_changes(), [].iter().cloned().collect());

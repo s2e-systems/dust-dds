@@ -1,11 +1,11 @@
-use std::collections::{BTreeSet, HashMap, VecDeque};
-use std::sync::{RwLock, RwLockReadGuard, Mutex, MutexGuard};
+use std::collections::{BTreeSet, HashMap, VecDeque, };
+use std::sync::{RwLock, RwLockReadGuard, Mutex, MutexGuard, };
 
 use crate::cache::HistoryCache;
-use crate::types::{Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID};
-use crate::messages::receiver::ReaderReceiveMessage;
+use crate::types::{Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID, };
+use crate::messages::receiver::{ReaderReceiveMessage, ReaderSendMessage, };
 use crate::behavior::types::Duration;
-use crate::behavior::stateful_reader::{StatefulReaderBehavior, BestEfforStatefulReaderBehavior, ReliableStatefulReaderBehavior};
+use crate::behavior::stateful_reader::{StatefulReaderBehavior, BestEfforStatefulReaderBehavior, ReliableStatefulReaderBehavior, };
 
 struct ChangesFromWriter {
     highest_processed_sequence_number: SequenceNumber,
@@ -138,7 +138,8 @@ pub struct WriterProxy {
 
     stateful_reader_behavior: Mutex<StatefulReaderBehavior>,
 
-    received_messages: Mutex<VecDeque<ReaderReceiveMessage>>,
+    receive_messages: Mutex<VecDeque<ReaderReceiveMessage>>,
+    send_messages: Mutex<VecDeque<ReaderSendMessage>>,
 }
 
 impl WriterProxy {
@@ -153,7 +154,8 @@ impl WriterProxy {
                 multicast_locator_list,
                 changes_from_writer: Mutex::new(ChangesFromWriter::new()),
                 stateful_reader_behavior: Mutex::new(StatefulReaderBehavior::new()),
-                received_messages: Mutex::new(VecDeque::new()),
+                receive_messages: Mutex::new(VecDeque::new()),
+                send_messages: Mutex::new(VecDeque::new()),
         }
     }
 
@@ -213,12 +215,20 @@ impl WriterProxy {
         self.changes_from_writer.lock().unwrap()
     }
 
-    pub fn push_received_message(&self, message: ReaderReceiveMessage) {
-        self.received_messages.lock().unwrap().push_back(message);
+    pub fn push_receive_message(&self, message: ReaderReceiveMessage) {
+        self.receive_messages.lock().unwrap().push_back(message);
     }
 
-    pub fn pop_received_message(&self) -> Option<ReaderReceiveMessage> {
-        self.received_messages.lock().unwrap().pop_front()
+    pub fn pop_receive_message(&self) -> Option<ReaderReceiveMessage> {
+        self.receive_messages.lock().unwrap().pop_front()
+    }
+
+    pub fn push_send_message(&self, message: ReaderSendMessage) {
+        self.send_messages.lock().unwrap().push_back(message);
+    }
+
+    pub fn pop_send_message(&self) -> Option<ReaderSendMessage> {
+        self.send_messages.lock().unwrap().pop_front()
     }
 }
 
