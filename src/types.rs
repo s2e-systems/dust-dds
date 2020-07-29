@@ -7,6 +7,8 @@ use std::convert::TryFrom;
 use num_derive::FromPrimitive;
 use crate::inline_qos_types::StatusInfo;
 
+use serde::Serialize;
+
 
 pub mod constants {
     use super::{VendorId, EntityId, ProtocolVersion, EntityKind, SequenceNumber};
@@ -145,7 +147,7 @@ impl EntityId {
 
 pub type SequenceNumber = i64;
 
-#[derive(PartialEq, Hash, Eq, Debug, Copy, Clone)]
+#[derive(PartialEq, Hash, Eq, Debug, Copy, Clone, Serialize)]
 pub struct Locator {
     pub kind: i32,
     pub port: u32,
