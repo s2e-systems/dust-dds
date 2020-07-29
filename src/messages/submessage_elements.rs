@@ -584,6 +584,18 @@ impl ParameterList {
         })
     }
 
+    pub fn find_all<'de, T>(&self, endianness: Endianness) -> RtpsSerdesResult<Vec<T>> 
+        where T: Pid + ParameterOps + serde::Deserialize<'de>
+    {
+            Ok(self.parameter.iter()
+            .filter(|&x| x.parameter_id() == T::pid())
+            .map(|parameter| match endianness {
+                Endianness::LittleEndian => cdr::de::deserialize_data::<T, LittleEndian>(&parameter.value(endianness)).unwrap(),
+                Endianness::BigEndian => cdr::de::deserialize_data::<T, BigEndian>(&parameter.value(endianness)).unwrap(),
+            })
+            .collect())
+    }
+
     pub fn remove<T>(&mut self) 
         where T: Pid + ParameterOps
     {
