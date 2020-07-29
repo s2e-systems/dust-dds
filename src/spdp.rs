@@ -6,7 +6,7 @@ use serde::{Serialize, Deserialize, };
 use crate::messages::types::ParameterId;
 use crate::messages::{Pid, ParameterList, };
 use crate::messages::SubmessageElement;
-use crate::types::{VendorId, Locator};
+use crate::types::{VendorId, };
 
 type DomainId = u32;
 
@@ -33,6 +33,12 @@ impl Pid for ParameterDomainTag {
     }
 }
 
+impl Default for ParameterDomainTag {
+    fn default() -> Self {
+        Self("".to_string())
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 struct ParameterVendorId(VendorId);
 impl Pid for ParameterVendorId {
@@ -52,7 +58,10 @@ impl SpdpParticipantData {
 
         let mut parameter_list = ParameterList::new();
         parameter_list.push(ParameterDomainId(self.domain_id));
-        parameter_list.push(ParameterDomainTag(self.domain_tag.clone()));
+        if self.domain_tag != ParameterDomainTag::default().0 {
+            parameter_list.push(ParameterDomainTag(self.domain_tag.clone()));
+        }
+
         parameter_list.push(ParameterVendorId(self.vendor_id));
 
         parameter_list.serialize(writer, endianness).unwrap();
@@ -71,7 +80,7 @@ impl SpdpParticipantData {
 
         let parameter_list = ParameterList::deserialize(&bytes[4..], endianness).unwrap();
         let domain_id = parameter_list.find::<ParameterDomainId>(endianness).unwrap().0;
-        let domain_tag = parameter_list.find::<ParameterDomainTag>(endianness).unwrap().0;
+        let domain_tag = parameter_list.find::<ParameterDomainTag>(endianness).unwrap_or_default().0;
         let vendor_id = parameter_list.find::<ParameterVendorId>(endianness).unwrap().0;
 
         SpdpParticipantData{
