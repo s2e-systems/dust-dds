@@ -1,14 +1,20 @@
 use std::io::Write;
 use crate::messages::Endianness;
 
-use serde::{Serialize, Deserialize, };
-
-use crate::messages::types::ParameterId;
-use crate::messages::{Pid, ParameterList, };
+use crate::types::{VendorId, Locator, ProtocolVersion, };
+use crate::messages::{ParameterList, };
 use crate::messages::SubmessageElement;
-use crate::types::{VendorId, Locator, ProtocolVersion, GuidPrefix };
 
-type DomainId = u32;
+use crate::endpoint_types::{
+    DomainId,
+    ParameterDomainId,
+    ParameterDomainTag,
+    ParameterProtocolVersion,
+    ParameterVendorId,
+    ParameterExpectsInlineQoS,
+    ParameterMetatrafficUnicastLocator, };
+
+
 
 #[derive(Debug, PartialEq)]
 pub struct SpdpParticipantData{
@@ -20,79 +26,6 @@ pub struct SpdpParticipantData{
     expects_inline_qos: bool,
     metatraffic_unicast_locator_list: Vec<Locator>,
 }
-
-#[derive(Serialize, Deserialize, Debug)]
-struct ParameterDomainId(DomainId);
-impl Pid for ParameterDomainId {
-    fn pid() -> ParameterId {
-        0x000f       
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-struct ParameterDomainTag(String);
-impl Pid for ParameterDomainTag {
-    fn pid() -> ParameterId {
-        0x4014       
-    }
-}
-
-impl Default for ParameterDomainTag {
-    fn default() -> Self {
-        Self("".to_string())
-    }
-}
-
-impl PartialEq<ParameterDomainTag> for String {
-    fn eq(&self, other: &ParameterDomainTag) -> bool {
-        self == &other.0
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-struct ParameterProtocolVersion(ProtocolVersion);
-impl Pid for ParameterProtocolVersion {
-    fn pid() -> ParameterId {
-        0x0015       
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-struct ParameterVendorId(VendorId);
-impl Pid for ParameterVendorId {
-    fn pid() -> ParameterId {
-        0x0016
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-struct ParameterMetatrafficUnicastLocator(Locator);
-impl Pid for ParameterMetatrafficUnicastLocator {
-    fn pid() -> ParameterId {
-        0x0032
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-struct ParameterExpectsInlineQoS(bool);
-impl Pid for ParameterExpectsInlineQoS {
-    fn pid() -> ParameterId {
-        0x0043
-    }
-}
-
-impl Default for ParameterExpectsInlineQoS {
-    fn default() -> Self {
-        Self(false)
-    }
-}
-
-impl PartialEq<ParameterExpectsInlineQoS> for bool {
-    fn eq(&self, other: &ParameterExpectsInlineQoS) -> bool {
-        self == &other.0
-    }
-}
-
 
 impl SpdpParticipantData {
     fn serialize(&self, writer: &mut impl Write, endianness: Endianness) {

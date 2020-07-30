@@ -3,9 +3,16 @@
 /// in the sub clauses of 9.6.2 Data representation for the built-in Endpoints
 /// 
 
+use serde::{Serialize, Deserialize};
 
+use crate::types::{ProtocolVersion, VendorId, Locator, GUID};
+use crate::messages::{Pid, };
+use crate::messages::types::{ParameterId, Count,};
+use crate::behavior::types::Duration;
 
-#[derive(PartialEq, Debug, Eq, Hash)]
+pub type DomainId = u32;
+
+#[derive(PartialEq, Debug, Eq, Hash, Serialize, Deserialize)]
 pub struct BuiltInEndPointSet {
     value: u32,
 }
@@ -55,15 +62,193 @@ impl BuiltInEndPointSet {
 }
 
 
+// ///////////////// PID_DOMAIN_ID
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ParameterDomainId(pub DomainId);
+impl Pid for ParameterDomainId {
+    fn pid() -> ParameterId {
+        0x000f       
+    }
+}
 
+// ///////////////// PID_DOMAIN_TAG
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ParameterDomainTag(pub String);
+impl Pid for ParameterDomainTag {
+    fn pid() -> ParameterId {
+        0x4014       
+    }
+}
 
+impl Default for ParameterDomainTag {
+    fn default() -> Self {
+        Self("".to_string())
+    }
+}
+
+impl PartialEq<ParameterDomainTag> for String {
+    fn eq(&self, other: &ParameterDomainTag) -> bool {
+        self == &other.0
+    }
+}
+
+// ///////////////// PID_PROTOCOL_VERSION
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ParameterProtocolVersion(pub ProtocolVersion);
+impl Pid for ParameterProtocolVersion {
+    fn pid() -> ParameterId {
+        0x0015       
+    }
+}
+
+// ///////////////// PID_VENDORID
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ParameterVendorId(pub VendorId);
+impl Pid for ParameterVendorId {
+    fn pid() -> ParameterId {
+        0x0016
+    }
+}
+
+// ///////////////// PID_UNICAST_LOCATOR
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ParameterUnicastLocator(pub Locator);
+impl Pid for ParameterUnicastLocator {
+    fn pid() -> ParameterId {
+        0x002f
+    }
+}
+
+// ///////////////// PID_MULTICAST_LOCATOR
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ParameterMulticastLocator(pub Locator);
+impl Pid for ParameterMulticastLocator {
+    fn pid() -> ParameterId {
+        0x0030
+    }
+}
+
+// ///////////////// PID_DEFAULT_UNICAST_LOCATOR
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ParameterDefaultUnicastLocator(pub Locator);
+impl Pid for ParameterDefaultUnicastLocator {
+    fn pid() -> ParameterId {
+        0x0031
+    }
+}
+
+// ///////////////// PID_DEFAULT_MULTICAST_LOCATOR
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ParameterDefaultMulticastLocator(pub Locator);
+impl Pid for ParameterDefaultMulticastLocator {
+    fn pid() -> ParameterId {
+        0x0048
+    }
+}
+
+// ///////////////// PID_METATRAFFIC_UNICAST_LOCATOR
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ParameterMetatrafficUnicastLocator(pub Locator);
+impl Pid for ParameterMetatrafficUnicastLocator {
+    fn pid() -> ParameterId {
+        0x0032
+    }
+}
+
+// ///////////////// PID_METATRAFFIC_MULTICAST_LOCATOR
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ParameterMetatrafficMulticastLocator(pub Locator);
+impl Pid for ParameterMetatrafficMulticastLocator {
+    fn pid() -> ParameterId {
+        0x0033
+    }
+}
+
+// ///////////////// PID_EXPECTS_INLINE_QOS
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ParameterExpectsInlineQoS(pub bool);
+impl Pid for ParameterExpectsInlineQoS {
+    fn pid() -> ParameterId {
+        0x0043
+    }
+}
+
+impl Default for ParameterExpectsInlineQoS {
+    fn default() -> Self {
+        Self(false)
+    }
+}
+
+impl PartialEq<ParameterExpectsInlineQoS> for bool {
+    fn eq(&self, other: &ParameterExpectsInlineQoS) -> bool {
+        self == &other.0
+    }
+}
+
+// ///////////////// PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ParameterParticipantManualLivelinessCount(pub Count);
+impl Pid for ParameterParticipantManualLivelinessCount {
+    fn pid() -> ParameterId {
+        0x0034
+    }
+}
+
+// ///////////////// PID_PARTICIPANT_LEASE_DURATION
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ParameterParticipantLeaseDuration(pub Duration);
+impl Pid for ParameterParticipantLeaseDuration {
+    fn pid() -> ParameterId {
+        0x0002
+    }
+}
+
+impl Default for ParameterParticipantLeaseDuration {
+    fn default() -> Self {
+        Self(Duration::from_secs(100))
+    }
+}
+
+impl PartialEq<ParameterParticipantLeaseDuration> for Duration {
+    fn eq(&self, other: &ParameterParticipantLeaseDuration) -> bool {
+        self == &other.0
+    }
+}
+
+// ///////////////// PID_PARTICIPANT_GUID
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ParameterParticipantGuid(pub GUID);
+impl Pid for ParameterParticipantGuid {
+    fn pid() -> ParameterId {
+        0x0050
+    }
+}
+
+// ///////////////// PID_GROUP_GUID
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ParameterGroupGuid(pub GUID);
+impl Pid for ParameterGroupGuid {
+    fn pid() -> ParameterId {
+        0x0052
+    }
+}
+
+// ///////////////// PID_BUILTIN_ENDPOINT_SET
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ParameterBuiltinEndpointSet(pub BuiltInEndPointSet);
+impl Pid for ParameterBuiltinEndpointSet {
+    fn pid() -> ParameterId {
+        0x0058
+    }
+}
+
+// ///////////////// PID_BUILTIN_ENDPOINT_QOS
+//TODO
 
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::convert::TryFrom;
-
 
     ///////////////////////// BuiltInEndPointSet Tests ////////////////////////
 

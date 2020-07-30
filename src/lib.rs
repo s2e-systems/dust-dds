@@ -11,6 +11,7 @@ mod stateless_reader;
 mod stateless_writer;
 mod stateful_reader;
 mod stateful_writer;
+mod endpoint_types;
 mod spdp;
 // mod participant;
 // mod participant_proxy;

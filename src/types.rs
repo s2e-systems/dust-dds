@@ -82,7 +82,7 @@ pub mod constants {
     };
 }
 
-#[derive(Hash, PartialEq, Eq, Debug, Clone, Copy)]
+#[derive(Hash, PartialEq, Eq, Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct GUID {
     prefix: GuidPrefix,
     entity_id: EntityId,
@@ -105,7 +105,7 @@ impl GUID {
 pub type GuidPrefix = [u8; 12];
 
 pub type EntityKey = [u8; 3];
-#[derive(FromPrimitive, Debug, Hash, PartialEq, Eq, Clone, Copy)]
+#[derive(FromPrimitive, Debug, Hash, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
 pub enum EntityKind {
     UserDefinedUnknown = 0x00,
     UserDefinedWriterWithKey = 0x02,
@@ -124,7 +124,7 @@ pub enum EntityKind {
     BuiltInReaderGroup = 0xc9,
 }
 
-#[derive(Hash, Eq, PartialEq, Debug, Clone, Copy)]
+#[derive(Hash, Eq, PartialEq, Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct EntityId {
     entity_key: EntityKey,
     entity_kind: EntityKind,
