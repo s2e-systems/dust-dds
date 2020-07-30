@@ -6,7 +6,7 @@ use serde::{Serialize, Deserialize, };
 use crate::messages::types::ParameterId;
 use crate::messages::{Pid, ParameterList, };
 use crate::messages::SubmessageElement;
-use crate::types::{VendorId, Locator };
+use crate::types::{VendorId, Locator, ProtocolVersion, GuidPrefix };
 
 type DomainId = u32;
 
@@ -14,7 +14,10 @@ type DomainId = u32;
 pub struct SpdpParticipantData{
     domain_id: DomainId,
     domain_tag: String,
+    protocol_version: ProtocolVersion,
+    // guid_prefix: GuidPrefix, // Implicit by the key (TODO)
     vendor_id: VendorId,
+    expects_inline_qos: bool,
     metatraffic_unicast_locator_list: Vec<Locator>,
 }
 
@@ -47,10 +50,10 @@ impl PartialEq<ParameterDomainTag> for String {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-struct ParameterMetatrafficUnicastLocator(Locator);
-impl Pid for ParameterMetatrafficUnicastLocator {
+struct ParameterProtocolVersion(ProtocolVersion);
+impl Pid for ParameterProtocolVersion {
     fn pid() -> ParameterId {
-        0x0032
+        0x0015       
     }
 }
 
@@ -62,6 +65,35 @@ impl Pid for ParameterVendorId {
     }
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+struct ParameterMetatrafficUnicastLocator(Locator);
+impl Pid for ParameterMetatrafficUnicastLocator {
+    fn pid() -> ParameterId {
+        0x0032
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct ParameterExpectsInlineQoS(bool);
+impl Pid for ParameterExpectsInlineQoS {
+    fn pid() -> ParameterId {
+        0x0043
+    }
+}
+
+impl Default for ParameterExpectsInlineQoS {
+    fn default() -> Self {
+        Self(false)
+    }
+}
+
+impl PartialEq<ParameterExpectsInlineQoS> for bool {
+    fn eq(&self, other: &ParameterExpectsInlineQoS) -> bool {
+        self == &other.0
+    }
+}
+
+
 impl SpdpParticipantData {
     fn serialize(&self, writer: &mut impl Write, endianness: Endianness) {
 
@@ -72,12 +104,20 @@ impl SpdpParticipantData {
         }.unwrap();
 
         let mut parameter_list = ParameterList::new();
+
         parameter_list.push(ParameterDomainId(self.domain_id));
+
         if self.domain_tag != ParameterDomainTag::default() {
             parameter_list.push(ParameterDomainTag(self.domain_tag.clone()));
         }
 
+        parameter_list.push(ParameterProtocolVersion(self.protocol_version));
+
         parameter_list.push(ParameterVendorId(self.vendor_id));
+
+        if self.expects_inline_qos != ParameterExpectsInlineQoS::default() {
+            parameter_list.push(ParameterExpectsInlineQoS(self.expects_inline_qos));
+        }
 
         for metatraffic_unicast_locator in &self.metatraffic_unicast_locator_list {
             parameter_list.push(ParameterMetatrafficUnicastLocator(*metatraffic_unicast_locator));
@@ -100,7 +140,9 @@ impl SpdpParticipantData {
         let parameter_list = ParameterList::deserialize(&bytes[4..], endianness).unwrap();
         let domain_id = parameter_list.find::<ParameterDomainId>(endianness).unwrap().0;
         let domain_tag = parameter_list.find::<ParameterDomainTag>(endianness).unwrap_or_default().0;
+        let protocol_version = parameter_list.find::<ParameterProtocolVersion>(endianness).unwrap().0;
         let vendor_id = parameter_list.find::<ParameterVendorId>(endianness).unwrap().0;
+        let expects_inline_qos = parameter_list.find::<ParameterExpectsInlineQoS>(endianness).unwrap_or_default().0;
         let metatraffic_unicast_locator_list = 
             parameter_list.find_all::<ParameterMetatrafficUnicastLocator>(endianness).unwrap()
             .iter().map(|x|x.0).collect();
@@ -108,7 +150,9 @@ impl SpdpParticipantData {
         SpdpParticipantData{
             domain_id,
             domain_tag,
+            protocol_version,
             vendor_id,
+            expects_inline_qos,
             metatraffic_unicast_locator_list,
         }
     }
@@ -117,13 +161,16 @@ impl SpdpParticipantData {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::types::constants::PROTOCOL_VERSION_2_4;
 
     #[test]
     fn serialize_spdp_data() {
         let spdp_participant_data = SpdpParticipantData{
             domain_id: 1,
             domain_tag: "abcd".to_string(),
+            protocol_version: PROTOCOL_VERSION_2_4,
             vendor_id: [99,99],
+            expects_inline_qos: true,
             metatraffic_unicast_locator_list: vec![ Locator::new(10,100,[1;16]), Locator::new(5,20000,[20;16])],
         };
 

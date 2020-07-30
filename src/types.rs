@@ -203,7 +203,7 @@ pub enum ReliabilityKind {
 
 pub type InstanceHandle = [u8; 16];
 
-#[derive(PartialEq, Debug, Clone, Copy, Hash, Eq)]
+#[derive(PartialEq, Debug, Clone, Copy, Hash, Eq, Serialize, Deserialize)]
 pub struct ProtocolVersion {
     pub major: u8,
     pub minor: u8,
