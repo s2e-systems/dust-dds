@@ -253,7 +253,47 @@ mod tests {
 
         let deserialized_spdp = SpdpParticipantData::deserialize(&bytes);
         assert_eq!(deserialized_spdp,spdp_participant_data);
+    }
 
+    #[test]
+    fn serialize_spdp_data_with_defaults() {
+        let spdp_participant_data = SpdpParticipantData{
+            domain_id: 1,
+            domain_tag: "".to_string(),
+            protocol_version: PROTOCOL_VERSION_2_4,
+            vendor_id: [99,99],
+            expects_inline_qos: false,
+            metatraffic_unicast_locator_list: vec![],
+            metatraffic_multicast_locator_list: vec![],
+            default_unicast_locator_list: vec![Locator::new(10,100,[1;16])],
+            default_multicast_locator_list: vec![],
+            available_built_in_endpoints: BuiltInEndpointSet::new(123),
+            lease_duration: Duration::from_secs(100),
+            manual_liveliness_count: 0,
+        };
+
+        let mut bytes = Vec::new();
+
+        spdp_participant_data.serialize(&mut bytes, Endianness::BigEndian);
+        assert_eq!(bytes, 
+            [0, 2, 0, 0, // CDR_PL_BE
+            0, 15, 0, 4, // PID: 0x0015 (PID_PROTOCOL_VERSION) Length: 4
+            0, 0, 0, 1,  // DomainId
+            0, 21, 0, 4, // PID: 0x0015 (PID_PROTOCOL_VERSION) Length: 4
+            2, 4, 0, 0, // ProtocolVersion
+            0, 22, 0, 4, // PID: 0x0016 (PID_VENDORID) Length: 4
+            99, 99, 0, 0, //VendorId
+            0, 49, 0, 24, // PID:0x0031 (PID_DEFAULT_UNICAST_LOCATOR) Length: 24
+            0, 0, 0, 10, 0, 0, 0, 100, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, // Locator
+            0, 88, 0, 4, // PID:0x0058 (PID_BUILTIN_ENDPOINT_SET) Length: 4
+            0, 0, 0, 123, //BuiltInEndpointSet
+            0, 52, 0, 4, // PID:0x0034 (PID_PARTICIPANT_MANUAL_LIVELINESS_COUNT) Length: 8
+            0, 0, 0, 0, // Count
+            0, 1, 0, 0 // PID_SENTINEL
+        ].to_vec());
+        
+        let deserialized_spdp = SpdpParticipantData::deserialize(&bytes);
+        assert_eq!(deserialized_spdp,spdp_participant_data);
     }
 
 }
