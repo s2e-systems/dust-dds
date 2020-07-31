@@ -1,6 +1,7 @@
 use crate::stateless_writer::StatelessWriter;
+use crate::stateless_reader::StatelessReader;
 use crate::types::{GUID, Locator, ProtocolVersion, VendorId, TopicKind, ChangeKind};
-use crate::types::constants::{ENTITYID_PARTICIPANT, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, LOCATOR_KIND_UDPv4};
+use crate::types::constants::{ENTITYID_PARTICIPANT, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, ENTITYID_SPDP_BUILTIN_PARTICIPANT_DETECTOR, LOCATOR_KIND_UDPv4};
 use crate::messages::Endianness;
 use crate::behavior::types::Duration;
 use crate::spdp::SPDPdiscoveredParticipantData;
@@ -12,7 +13,7 @@ pub struct Participant {
     protocol_version: ProtocolVersion,
     vendor_id: VendorId,
     // socket: Transport,
-    // spdp_builtin_participant_reader: StatelessReader,
+    spdp_builtin_participant_reader: StatelessReader,
     spdp_builtin_participant_writer: StatelessWriter,
     // sedp_builtin_publications_reader: StatefulReader,
     // sedp_builtin_publications_writer: StatefulWriter,
@@ -33,6 +34,7 @@ impl Participant {
         let domain_id = 0; // TODO: Should be configurable
         let lease_duration = Duration::from_secs(100); // TODO: Should be configurable
         let endianness = Endianness::LittleEndian; // TODO: Should be configurable
+        let expects_inline_qos = false;
         const PB : u32 = 7400;  // TODO: Should be configurable
         const DG : u32 = 250;   // TODO: Should be configurable
         const PG : u32 = 2; // TODO: Should be configurable
@@ -47,16 +49,22 @@ impl Participant {
             GUID::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER),
             TopicKind::WithKey);
 
-        let spdp_builtin_participant_reader = StatelessReader::new(
-
-        );
-
         let spdp_well_known_multicast_port = PB + DG * domain_id + D0;
-        spdp_builtin_participant_writer.reader_locator_add(Locator::new(
+        let spdp_locator = Locator::new(
             LOCATOR_KIND_UDPv4,
             spdp_well_known_multicast_port,
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 239, 255, 0, 1],
-        ));
+        );
+
+        let spdp_builtin_participant_reader = StatelessReader::new(
+            GUID::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_DETECTOR),
+            TopicKind::WithKey,
+            vec![],
+            vec![spdp_locator.clone()],
+            expects_inline_qos,
+        );
+        
+        spdp_builtin_participant_writer.reader_locator_add(spdp_locator);
 
         let participant = Self {
             guid: GUID::new(guid_prefix,ENTITYID_PARTICIPANT ),
@@ -64,6 +72,7 @@ impl Participant {
             default_multicast_locator_list,
             protocol_version,
             vendor_id,
+            spdp_builtin_participant_reader,
             spdp_builtin_participant_writer,
         };
 
@@ -222,31 +231,6 @@ impl Participant {
     pub fn default_multicast_locator_list(&self) -> &Vec<Locator> {
         &self.default_multicast_locator_list
     }
-
-    // fn add_participant_to_spdp_writer(&mut self) {
-    //     let participant_data = cdr::serialize::<_,_,PlCdrLe>(self, Infinite).unwrap();
-    //     let change = self.spdp_builtin_participant_writer.new_change(ChangeKind::Alive, Some(participant_data), None, [0;16]);
-    //     self.spdp_builtin_participant_writer.history_cache().add_change(change);
-    // }
-
-    // fn receive_data(&mut self) {
-    //     // let received_data = self.socket.read().unwrap_or(&[]);
-    //     // println!("Data: {:?}", received_data);
-
-    //     // let rtps_message = parse_rtps_message(received_data);
-    //     // println!("RTPS message: {:?}", rtps_message);
-
-    //     // TODO: Check if there are changes between participant proxy list and spdp_builtin_participant_reader history cache
-    // }
-
-    // fn send_data(&mut self) {
-    //     let multicast_locator = Locator::new(0 /*UDP_V4_KIND*/,7400, [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 239, 255, 0, 1]);
-    //     let _spdp_data = self.spdp_builtin_participant_writer.get_data_to_send(multicast_locator); // Returns a vec of [Data(1) Data(2)]
-
-    //     // let buf = serialize(spdp_data);
-    //     // self.socket.write(buf, unicast_locator: Udpv4Locator)
-
-    // }
 
     // fn process_spdp(
     //     &mut self,
