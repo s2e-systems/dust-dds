@@ -1,6 +1,9 @@
 use crate::stateless_writer::StatelessWriter;
 use crate::types::{GUID, Locator, ProtocolVersion, VendorId, TopicKind, ChangeKind};
 use crate::types::constants::{ENTITYID_PARTICIPANT, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, LOCATOR_KIND_UDPv4};
+use crate::messages::Endianness;
+use crate::behavior::types::Duration;
+use crate::spdp::SPDPdiscoveredParticipantData;
 
 pub struct Participant {
     guid: GUID,
@@ -28,20 +31,25 @@ impl Participant {
         vendor_id: VendorId,
     ) -> Self {
         let domain_id = 0; // TODO: Should be configurable
+        let lease_duration = Duration::from_secs(100); // TODO: Should be configurable
+        let endianness = Endianness::LittleEndian; // TODO: Should be configurable
+        const PB : u32 = 7400;  // TODO: Should be configurable
+        const DG : u32 = 250;   // TODO: Should be configurable
+        const PG : u32 = 2; // TODO: Should be configurable
+        const D0 : u32 = 0; // TODO: Should be configurable
+        const D1 : u32 = 10;    // TODO: Should be configurable
+        const D2 : u32 = 1; // TODO: Should be configurable
+        const D3 : u32 = 11;    // TODO: Should be configurable
 
-        let guid_prefix = [5, 6, 7, 8, 9, 5, 1, 2, 3, 4, 10, 11];
+        let guid_prefix = [5, 6, 7, 8, 9, 5, 1, 2, 3, 4, 10, 11];   // TODO: Should be uniquely generated
 
         let spdp_builtin_participant_writer = StatelessWriter::new(
             GUID::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER),
             TopicKind::WithKey);
 
-        const PB : u32 = 7400;
-        const DG : u32 = 250;
-        const PG : u32 = 2;
-        const D0 : u32 = 0;
-        const D1 : u32 = 10;
-        const D2 : u32 = 1;
-        const D3 : u32 = 11;
+        let spdp_builtin_participant_reader = StatelessReader::new(
+
+        );
 
         let spdp_well_known_multicast_port = PB + DG * domain_id + D0;
         spdp_builtin_participant_writer.reader_locator_add(Locator::new(
@@ -59,8 +67,9 @@ impl Participant {
             spdp_builtin_participant_writer,
         };
 
-        // TODO: Get the participant which is described here 
-        // spdp_builtin_participant_writer.new_change(ChangeKind::Alive,Some(vec![]) , None, guid_prefix/*handle*/);
+        let spdp_discovered_data = SPDPdiscoveredParticipantData::new_from_participant(&participant, lease_duration);
+        let spdp_change = participant.spdp_builtin_participant_writer.new_change(ChangeKind::Alive,Some(spdp_discovered_data.data(endianness)) , None, spdp_discovered_data.key());
+        participant.spdp_builtin_participant_writer.history_cache().add_change(spdp_change);
         
         participant
         

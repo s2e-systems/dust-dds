@@ -46,7 +46,7 @@ pub struct SPDPdiscoveredParticipantData{
 }
 
 impl SPDPdiscoveredParticipantData {
-    fn new_from_participant(participant: &Participant, lease_duration: Duration) -> Self{
+    pub fn new_from_participant(participant: &Participant, lease_duration: Duration) -> Self{
         Self {
             // domain_id: 0, //TODO: participant.domain_id(),
             domain_tag: "".to_string(), //TODO: participant.domain_tag(),
@@ -64,13 +64,15 @@ impl SPDPdiscoveredParticipantData {
         }
     }
 
-    fn key(&self) -> InstanceHandle {
+    pub fn key(&self) -> InstanceHandle {
         let mut instance_handle = [0;16];
         instance_handle[0..12].copy_from_slice(&self.guid_prefix);
         instance_handle
     }
 
-    fn data(&self, writer: &mut impl Write, endianness: Endianness) {
+    pub fn data(&self, endianness: Endianness) -> Vec<u8> {
+
+        let mut writer = Vec::new();
 
         // Start by writing the header which depends on the endianness
         match endianness {
@@ -120,11 +122,12 @@ impl SPDPdiscoveredParticipantData {
 
         parameter_list.push(ParameterParticipantManualLivelinessCount(self.manual_liveliness_count));
         
+        parameter_list.serialize(&mut writer, endianness).unwrap();
 
-        parameter_list.serialize(writer, endianness).unwrap();
+        writer
     }
 
-    fn from_key_data(key: InstanceHandle, data: &[u8]) -> Self {
+    pub fn from_key_data(key: InstanceHandle, data: &[u8]) -> Self {
         if data.len() < 4 {
             panic!("Message too small");
         }
@@ -204,9 +207,7 @@ mod tests {
 
         assert_eq!(key,  [1, 2, 3, 4, 5, 6, 7, 1, 2, 3, 4, 5, 0, 0, 0, 0]);
 
-        let mut data = Vec::new();
-
-        spdp_participant_data.data(&mut data, Endianness::BigEndian);
+        let data = spdp_participant_data.data(Endianness::BigEndian);
         assert_eq!(data, 
             [0, 2, 0, 0, // CDR_PL_BE
             // 0, 15, 0, 4, // PID: 0x000f (PID_DOMAIN_ID) Length: 4
@@ -247,9 +248,7 @@ mod tests {
         let deserialized_spdp = SPDPdiscoveredParticipantData::from_key_data(key, &data);
         assert_eq!(deserialized_spdp,spdp_participant_data);
 
-        data.clear();
-
-        spdp_participant_data.data(&mut data, Endianness::LittleEndian);
+        let data = spdp_participant_data.data(Endianness::LittleEndian);
         assert_eq!(data, 
             [0, 3, 0, 0, // CDR_PL_BE
             // 15, 0, 4, 0, // PID: 0x000f (PID_DOMAIN_ID) Length: 4
@@ -310,9 +309,8 @@ mod tests {
         };
 
         let key = spdp_participant_data.key();
-        let mut data = Vec::new();
 
-        spdp_participant_data.data(&mut data, Endianness::BigEndian);
+        let data = spdp_participant_data.data(Endianness::BigEndian);
         assert_eq!(data, 
             [0, 2, 0, 0, // CDR_PL_BE
             // 0, 15, 0, 4, // PID: 0x00f (PID_DOMAIN_ID) Length: 4
