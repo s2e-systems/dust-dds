@@ -9,9 +9,9 @@ use crate::behavior::types::Duration;
 use crate::participant::Participant;
 
 use crate::endpoint_types::{
-    DomainId,
+    // DomainId,
     BuiltInEndpointSet,
-    ParameterDomainId,
+    // ParameterDomainId,
     ParameterDomainTag,
     ParameterProtocolVersion,
     ParameterVendorId,
@@ -29,7 +29,7 @@ use crate::endpoint_types::{
 
 #[derive(Debug, PartialEq)]
 pub struct SPDPdiscoveredParticipantData{
-    domain_id: DomainId,
+    // domain_id: DomainId,
     domain_tag: String,
     protocol_version: ProtocolVersion,
     guid_prefix: GuidPrefix, // Implicit by the key (TODO)
@@ -48,7 +48,7 @@ pub struct SPDPdiscoveredParticipantData{
 impl SPDPdiscoveredParticipantData {
     fn new_from_participant(participant: &Participant, lease_duration: Duration) -> Self{
         Self {
-            domain_id: 0, //TODO: participant.domain_id(),
+            // domain_id: 0, //TODO: participant.domain_id(),
             domain_tag: "".to_string(), //TODO: participant.domain_tag(),
             protocol_version: participant.protocol_version(),
             guid_prefix: *participant.guid().prefix(),
@@ -80,7 +80,9 @@ impl SPDPdiscoveredParticipantData {
 
         let mut parameter_list = ParameterList::new();
 
-        parameter_list.push(ParameterDomainId(self.domain_id));
+        // Defaults to the domainId of the local participant receiving the message
+        // TODO: Add the chance of adding a specific domain_id
+        // parameter_list.push(ParameterDomainId(self.domain_id));
 
         if self.domain_tag != ParameterDomainTag::default() {
             parameter_list.push(ParameterDomainTag(self.domain_tag.clone()));
@@ -135,7 +137,8 @@ impl SPDPdiscoveredParticipantData {
 
         let guid_prefix: GuidPrefix = key[0..12].try_into().unwrap();
         let parameter_list = ParameterList::deserialize(&data[4..], endianness).unwrap();
-        let domain_id = parameter_list.find::<ParameterDomainId>(endianness).unwrap().0;
+        // TODO: Defaults to the domain_id of the participant receiving the message
+        // let domain_id = parameter_list.find::<ParameterDomainId>(endianness).unwrap().0;
         let domain_tag = parameter_list.find::<ParameterDomainTag>(endianness).unwrap_or_default().0;
         let protocol_version = parameter_list.find::<ParameterProtocolVersion>(endianness).unwrap().0;
         let vendor_id = parameter_list.find::<ParameterVendorId>(endianness).unwrap().0;
@@ -157,7 +160,7 @@ impl SPDPdiscoveredParticipantData {
         let manual_liveliness_count = parameter_list.find::<ParameterParticipantManualLivelinessCount>(endianness).unwrap().0;
 
         Self{
-            domain_id,
+            // domain_id,
             domain_tag,
             protocol_version,
             guid_prefix,
@@ -182,7 +185,7 @@ mod tests {
     #[test]
     fn complete_serialize_spdp_data() {
         let spdp_participant_data = SPDPdiscoveredParticipantData{
-            domain_id: 1,
+            // domain_id: 1,
             domain_tag: "abcd".to_string(),
             protocol_version: PROTOCOL_VERSION_2_4,
             guid_prefix: [1, 2, 3, 4, 5, 6, 7, 1, 2, 3, 4, 5],
@@ -206,8 +209,8 @@ mod tests {
         spdp_participant_data.data(&mut data, Endianness::BigEndian);
         assert_eq!(data, 
             [0, 2, 0, 0, // CDR_PL_BE
-            0, 15, 0, 4, // PID: 0x0015 (PID_PROTOCOL_VERSION) Length: 4
-            0, 0, 0, 1,  // DomainId
+            // 0, 15, 0, 4, // PID: 0x000f (PID_DOMAIN_ID) Length: 4
+            // 0, 0, 0, 1,  // DomainId
             64, 20, 0, 12, // PID: 0x4014 (PID_DOMAIN_TAG) Length: 12
             0, 0, 0, 5, 97, 98, 99, 100, 0, 0, 0, 0, // DomainTag
             0, 21, 0, 4, // PID: 0x0015 (PID_PROTOCOL_VERSION) Length: 4
@@ -249,8 +252,8 @@ mod tests {
         spdp_participant_data.data(&mut data, Endianness::LittleEndian);
         assert_eq!(data, 
             [0, 3, 0, 0, // CDR_PL_BE
-            15, 0, 4, 0, // PID: 0x0015 (PID_PROTOCOL_VERSION) Length: 4
-            1, 0, 0, 0,  // DomainId
+            // 15, 0, 4, 0, // PID: 0x000f (PID_DOMAIN_ID) Length: 4
+            // 1, 0, 0, 0,  // DomainId
             20, 64, 12, 0, // PID: 0x4014 (PID_DOMAIN_TAG) Length: 12
             5, 0, 0, 0, 97, 98, 99, 100, 0, 0, 0, 0, // DomainTag
             21, 0, 4, 0, // PID: 0x0015 (PID_PROTOCOL_VERSION) Length: 4
@@ -291,7 +294,7 @@ mod tests {
     #[test]
     fn serialize_spdp_data_with_defaults() {
         let spdp_participant_data = SPDPdiscoveredParticipantData{
-            domain_id: 1,
+            // domain_id: 1,
             domain_tag: "".to_string(),
             protocol_version: PROTOCOL_VERSION_2_4,
             vendor_id: [99,99],
@@ -312,8 +315,8 @@ mod tests {
         spdp_participant_data.data(&mut data, Endianness::BigEndian);
         assert_eq!(data, 
             [0, 2, 0, 0, // CDR_PL_BE
-            0, 15, 0, 4, // PID: 0x0015 (PID_PROTOCOL_VERSION) Length: 4
-            0, 0, 0, 1,  // DomainId
+            // 0, 15, 0, 4, // PID: 0x00f (PID_DOMAIN_ID) Length: 4
+            // 0, 0, 0, 1,  // DomainId
             0, 21, 0, 4, // PID: 0x0015 (PID_PROTOCOL_VERSION) Length: 4
             2, 4, 0, 0, // ProtocolVersion
             0, 22, 0, 4, // PID: 0x0016 (PID_VENDORID) Length: 4
