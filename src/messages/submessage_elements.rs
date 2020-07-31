@@ -575,7 +575,7 @@ impl ParameterList {
     }
 
     pub fn find<'de, T>(&self, endianness: Endianness) -> Option<T>
-        where T: Pid + ParameterOps + serde::Deserialize<'de>
+        where T: Pid + serde::Deserialize<'de>
     {
         let parameter = self.parameter.iter().find(|&x| x.parameter_id() == T::pid())?;
         Some(match endianness {
@@ -585,7 +585,7 @@ impl ParameterList {
     }
 
     pub fn find_all<'de, T>(&self, endianness: Endianness) -> RtpsSerdesResult<Vec<T>> 
-        where T: Pid + ParameterOps + serde::Deserialize<'de>
+        where T: Pid + serde::Deserialize<'de>
     {
             Ok(self.parameter.iter()
             .filter(|&x| x.parameter_id() == T::pid())
