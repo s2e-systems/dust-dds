@@ -1,4 +1,3 @@
-use std::io::Write;
 use std::convert::TryInto;
 use crate::messages::Endianness;
 
