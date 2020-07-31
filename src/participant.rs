@@ -194,6 +194,26 @@ impl Participant {
     //     new_participant
     }
 
+    pub fn guid(&self) -> GUID {
+        self.guid
+    }
+
+    pub fn protocol_version(&self) -> ProtocolVersion {
+        self.protocol_version
+    }
+
+    pub fn vendor_id(&self) -> VendorId {
+        self.vendor_id
+    }
+
+    pub fn default_unicast_locator_list(&self) -> &Vec<Locator> {
+        &self.default_unicast_locator_list
+    }
+
+    pub fn default_multicast_locator_list(&self) -> &Vec<Locator> {
+        &self.default_multicast_locator_list
+    }
+
     // fn add_participant_to_spdp_writer(&mut self) {
     //     let participant_data = cdr::serialize::<_,_,PlCdrLe>(self, Infinite).unwrap();
     //     let change = self.spdp_builtin_participant_writer.new_change(ChangeKind::Alive, Some(participant_data), None, [0;16]);

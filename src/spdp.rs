@@ -6,6 +6,7 @@ use crate::types::{VendorId, Locator, ProtocolVersion, GuidPrefix, InstanceHandl
 use crate::messages::{ParameterList, SubmessageElement};
 use crate::messages::types::Count;
 use crate::behavior::types::Duration;
+use crate::participant::Participant;
 
 use crate::endpoint_types::{
     DomainId,
@@ -27,7 +28,7 @@ use crate::endpoint_types::{
 
 
 #[derive(Debug, PartialEq)]
-pub struct SpdpParticipantData{
+pub struct SPDPdiscoveredParticipantData{
     domain_id: DomainId,
     domain_tag: String,
     protocol_version: ProtocolVersion,
@@ -44,7 +45,25 @@ pub struct SpdpParticipantData{
     // built_in_endpoint_qos: BuiltInEndpointQos
 }
 
-impl SpdpParticipantData {
+impl SPDPdiscoveredParticipantData {
+    fn new_from_participant(participant: &Participant, lease_duration: Duration) -> Self{
+        Self {
+            domain_id: 0, //TODO: participant.domain_id(),
+            domain_tag: "".to_string(), //TODO: participant.domain_tag(),
+            protocol_version: participant.protocol_version(),
+            guid_prefix: *participant.guid().prefix(),
+            vendor_id: participant.vendor_id(),
+            expects_inline_qos: false, // TODO
+            metatraffic_unicast_locator_list: vec![], //TODO: participant.metatraffic_unicast_locator_list().clone(),
+            metatraffic_multicast_locator_list: vec![], //TODO: participant.metatraffic_multicast_locator_list().clone(),
+            default_unicast_locator_list: participant.default_unicast_locator_list().clone(),
+            default_multicast_locator_list: participant.default_multicast_locator_list().clone(),
+            available_built_in_endpoints: BuiltInEndpointSet::new(0),
+            lease_duration,
+            manual_liveliness_count: 0, //TODO:Count,
+        }
+    }
+
     fn key(&self) -> InstanceHandle {
         let mut instance_handle = [0;16];
         instance_handle[0..12].copy_from_slice(&self.guid_prefix);
@@ -137,7 +156,7 @@ impl SpdpParticipantData {
         let lease_duration = parameter_list.find::<ParameterParticipantLeaseDuration>(endianness).unwrap_or_default().0;
         let manual_liveliness_count = parameter_list.find::<ParameterParticipantManualLivelinessCount>(endianness).unwrap().0;
 
-        SpdpParticipantData{
+        Self{
             domain_id,
             domain_tag,
             protocol_version,
@@ -162,7 +181,7 @@ mod tests {
 
     #[test]
     fn complete_serialize_spdp_data() {
-        let spdp_participant_data = SpdpParticipantData{
+        let spdp_participant_data = SPDPdiscoveredParticipantData{
             domain_id: 1,
             domain_tag: "abcd".to_string(),
             protocol_version: PROTOCOL_VERSION_2_4,
@@ -222,7 +241,7 @@ mod tests {
             0, 1, 0, 0 // PID_SENTINEL
         ].to_vec());
 
-        let deserialized_spdp = SpdpParticipantData::from_key_data(key, &data);
+        let deserialized_spdp = SPDPdiscoveredParticipantData::from_key_data(key, &data);
         assert_eq!(deserialized_spdp,spdp_participant_data);
 
         data.clear();
@@ -265,13 +284,13 @@ mod tests {
             1, 0, 0, 0 // PID_SENTINEL
         ].to_vec());
 
-        let deserialized_spdp = SpdpParticipantData::from_key_data(key, &data);
+        let deserialized_spdp = SPDPdiscoveredParticipantData::from_key_data(key, &data);
         assert_eq!(deserialized_spdp,spdp_participant_data);
     }
 
     #[test]
     fn serialize_spdp_data_with_defaults() {
-        let spdp_participant_data = SpdpParticipantData{
+        let spdp_participant_data = SPDPdiscoveredParticipantData{
             domain_id: 1,
             domain_tag: "".to_string(),
             protocol_version: PROTOCOL_VERSION_2_4,
@@ -308,7 +327,7 @@ mod tests {
             0, 1, 0, 0 // PID_SENTINEL
         ].to_vec());
         
-        let deserialized_spdp = SpdpParticipantData::from_key_data(key, &data);
+        let deserialized_spdp = SPDPdiscoveredParticipantData::from_key_data(key, &data);
         assert_eq!(deserialized_spdp,spdp_participant_data);
     }
 
