@@ -570,10 +570,6 @@ impl ParameterList {
         self.parameter.push(Rc::new(value));
     }
 
-    pub fn parameter(&self) -> &Vec<Rc<dyn ParameterOps>> {
-        &self.parameter
-    }
-
     pub fn find<'de, T>(&self, endianness: Endianness) -> Option<T>
         where T: Pid + serde::Deserialize<'de>
     {

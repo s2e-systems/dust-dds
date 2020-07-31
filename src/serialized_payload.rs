@@ -1,5 +1,4 @@
 use crate::messages::{ParameterList, SubmessageElement, Endianness, Pid};
-use cdr::{LittleEndian, BigEndian};
 
 #[derive(PartialEq, Debug)]
 struct RepresentationIdentifier([u8; 2]);
