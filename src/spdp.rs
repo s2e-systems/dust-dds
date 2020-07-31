@@ -1,7 +1,8 @@
 use std::io::Write;
+use std::convert::TryInto;
 use crate::messages::Endianness;
 
-use crate::types::{VendorId, Locator, ProtocolVersion, };
+use crate::types::{VendorId, Locator, ProtocolVersion, GuidPrefix, InstanceHandle};
 use crate::messages::{ParameterList, SubmessageElement};
 use crate::messages::types::Count;
 use crate::behavior::types::Duration;
@@ -30,7 +31,7 @@ pub struct SpdpParticipantData{
     domain_id: DomainId,
     domain_tag: String,
     protocol_version: ProtocolVersion,
-    // guid_prefix: GuidPrefix, // Implicit by the key (TODO)
+    guid_prefix: GuidPrefix, // Implicit by the key (TODO)
     vendor_id: VendorId,
     expects_inline_qos: bool,
     metatraffic_unicast_locator_list: Vec<Locator>,
@@ -44,7 +45,13 @@ pub struct SpdpParticipantData{
 }
 
 impl SpdpParticipantData {
-    fn serialize(&self, writer: &mut impl Write, endianness: Endianness) {
+    fn key(&self) -> InstanceHandle {
+        let mut instance_handle = [0;16];
+        instance_handle[0..12].copy_from_slice(&self.guid_prefix);
+        instance_handle
+    }
+
+    fn data(&self, writer: &mut impl Write, endianness: Endianness) {
 
         // Start by writing the header which depends on the endianness
         match endianness {
@@ -96,18 +103,19 @@ impl SpdpParticipantData {
         parameter_list.serialize(writer, endianness).unwrap();
     }
 
-    fn deserialize(bytes: &[u8]) -> Self {
-        if bytes.len() < 4 {
+    fn from_key_data(key: InstanceHandle, data: &[u8]) -> Self {
+        if data.len() < 4 {
             panic!("Message too small");
         }
 
-        let endianness = match &bytes[0..4] {
+        let endianness = match &data[0..4] {
             &[0x00, 0x02, 0x00, 0x00] => Endianness::BigEndian,
             &[0x00, 0x03, 0x00, 0x00] => Endianness::LittleEndian,
             _ => panic!("Invalid header"),
         };
 
-        let parameter_list = ParameterList::deserialize(&bytes[4..], endianness).unwrap();
+        let guid_prefix: GuidPrefix = key[0..12].try_into().unwrap();
+        let parameter_list = ParameterList::deserialize(&data[4..], endianness).unwrap();
         let domain_id = parameter_list.find::<ParameterDomainId>(endianness).unwrap().0;
         let domain_tag = parameter_list.find::<ParameterDomainTag>(endianness).unwrap_or_default().0;
         let protocol_version = parameter_list.find::<ParameterProtocolVersion>(endianness).unwrap().0;
@@ -133,6 +141,7 @@ impl SpdpParticipantData {
             domain_id,
             domain_tag,
             protocol_version,
+            guid_prefix,
             vendor_id,
             expects_inline_qos,
             metatraffic_unicast_locator_list,
@@ -157,6 +166,7 @@ mod tests {
             domain_id: 1,
             domain_tag: "abcd".to_string(),
             protocol_version: PROTOCOL_VERSION_2_4,
+            guid_prefix: [1, 2, 3, 4, 5, 6, 7, 1, 2, 3, 4, 5],
             vendor_id: [99,99],
             expects_inline_qos: true,
             metatraffic_unicast_locator_list: vec![ Locator::new(10,100,[1;16]) ],
@@ -168,10 +178,14 @@ mod tests {
             manual_liveliness_count: 0,
         };
 
-        let mut bytes = Vec::new();
+        let key = spdp_participant_data.key();
 
-        spdp_participant_data.serialize(&mut bytes, Endianness::BigEndian);
-        assert_eq!(bytes, 
+        assert_eq!(key,  [1, 2, 3, 4, 5, 6, 7, 1, 2, 3, 4, 5, 0, 0, 0, 0]);
+
+        let mut data = Vec::new();
+
+        spdp_participant_data.data(&mut data, Endianness::BigEndian);
+        assert_eq!(data, 
             [0, 2, 0, 0, // CDR_PL_BE
             0, 15, 0, 4, // PID: 0x0015 (PID_PROTOCOL_VERSION) Length: 4
             0, 0, 0, 1,  // DomainId
@@ -208,13 +222,13 @@ mod tests {
             0, 1, 0, 0 // PID_SENTINEL
         ].to_vec());
 
-        let deserialized_spdp = SpdpParticipantData::deserialize(&bytes);
+        let deserialized_spdp = SpdpParticipantData::from_key_data(key, &data);
         assert_eq!(deserialized_spdp,spdp_participant_data);
 
-        bytes.clear();
+        data.clear();
 
-        spdp_participant_data.serialize(&mut bytes, Endianness::LittleEndian);
-        assert_eq!(bytes, 
+        spdp_participant_data.data(&mut data, Endianness::LittleEndian);
+        assert_eq!(data, 
             [0, 3, 0, 0, // CDR_PL_BE
             15, 0, 4, 0, // PID: 0x0015 (PID_PROTOCOL_VERSION) Length: 4
             1, 0, 0, 0,  // DomainId
@@ -251,7 +265,7 @@ mod tests {
             1, 0, 0, 0 // PID_SENTINEL
         ].to_vec());
 
-        let deserialized_spdp = SpdpParticipantData::deserialize(&bytes);
+        let deserialized_spdp = SpdpParticipantData::from_key_data(key, &data);
         assert_eq!(deserialized_spdp,spdp_participant_data);
     }
 
@@ -262,6 +276,7 @@ mod tests {
             domain_tag: "".to_string(),
             protocol_version: PROTOCOL_VERSION_2_4,
             vendor_id: [99,99],
+            guid_prefix: [1, 2, 3, 4, 5, 6, 7, 1, 2, 3, 4, 5],
             expects_inline_qos: false,
             metatraffic_unicast_locator_list: vec![],
             metatraffic_multicast_locator_list: vec![],
@@ -272,10 +287,11 @@ mod tests {
             manual_liveliness_count: 0,
         };
 
-        let mut bytes = Vec::new();
+        let key = spdp_participant_data.key();
+        let mut data = Vec::new();
 
-        spdp_participant_data.serialize(&mut bytes, Endianness::BigEndian);
-        assert_eq!(bytes, 
+        spdp_participant_data.data(&mut data, Endianness::BigEndian);
+        assert_eq!(data, 
             [0, 2, 0, 0, // CDR_PL_BE
             0, 15, 0, 4, // PID: 0x0015 (PID_PROTOCOL_VERSION) Length: 4
             0, 0, 0, 1,  // DomainId
@@ -292,7 +308,7 @@ mod tests {
             0, 1, 0, 0 // PID_SENTINEL
         ].to_vec());
         
-        let deserialized_spdp = SpdpParticipantData::deserialize(&bytes);
+        let deserialized_spdp = SpdpParticipantData::from_key_data(key, &data);
         assert_eq!(deserialized_spdp,spdp_participant_data);
     }
 
