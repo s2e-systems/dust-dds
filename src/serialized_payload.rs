@@ -62,23 +62,13 @@ impl CdrParameterList {
     pub fn find<'de, T>(&self) -> Option<T>
         where T: Pid + serde::Deserialize<'de>
     {
-        let parameter = self.parameter_list.parameter().iter().find(|&x| x.parameter_id() == T::pid())?;
-        Some(match self.endianness {
-            Endianness::LittleEndian => cdr::de::deserialize_data::<T, LittleEndian>(&parameter.value(self.endianness)).ok()?,
-            Endianness::BigEndian => cdr::de::deserialize_data::<T, BigEndian>(&parameter.value(self.endianness)).ok()?,
-        })
+        self.parameter_list.find(self.endianness)
     }
 
     pub fn find_all<'de, T>(&self) -> Vec<T>
         where T: Pid + serde::Deserialize<'de>
     {
-            self.parameter_list.parameter().iter()
-            .filter(|&x| x.parameter_id() == T::pid())
-            .map(|parameter| match self.endianness {
-                Endianness::LittleEndian => cdr::de::deserialize_data::<T, LittleEndian>(&parameter.value(self.endianness)).unwrap(),
-                Endianness::BigEndian => cdr::de::deserialize_data::<T, BigEndian>(&parameter.value(self.endianness)).unwrap(),
-            })
-            .collect()
+        self.parameter_list.find_all(self.endianness).unwrap()
     }
 }
 
