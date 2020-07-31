@@ -3,10 +3,10 @@ use std::convert::TryInto;
 use crate::messages::Endianness;
 
 use crate::types::{VendorId, Locator, ProtocolVersion, GuidPrefix, InstanceHandle};
-use crate::messages::{ParameterList, SubmessageElement};
 use crate::messages::types::Count;
 use crate::behavior::types::Duration;
 use crate::participant::Participant;
+use crate::serialized_payload::CdrParameterList;
 
 use crate::endpoint_types::{
     // DomainId,
@@ -72,15 +72,7 @@ impl SPDPdiscoveredParticipantData {
 
     pub fn data(&self, endianness: Endianness) -> Vec<u8> {
 
-        let mut writer = Vec::new();
-
-        // Start by writing the header which depends on the endianness
-        match endianness {
-            Endianness::BigEndian => writer.write(&[0x00, 0x02, 0x00, 0x00]),
-            Endianness::LittleEndian => writer.write(&[0x00, 0x03, 0x00, 0x00]),
-        }.unwrap();
-
-        let mut parameter_list = ParameterList::new();
+        let mut parameter_list = CdrParameterList::new(endianness);
 
         // Defaults to the domainId of the local participant receiving the message
         // TODO: Add the chance of adding a specific domain_id
@@ -121,46 +113,39 @@ impl SPDPdiscoveredParticipantData {
         }
 
         parameter_list.push(ParameterParticipantManualLivelinessCount(self.manual_liveliness_count));
-        
-        parameter_list.serialize(&mut writer, endianness).unwrap();
 
+        let mut writer = Vec::new();
+        parameter_list.serialize(&mut writer);
         writer
     }
 
     pub fn from_key_data(key: InstanceHandle, data: &[u8]) -> Self {
-        if data.len() < 4 {
-            panic!("Message too small");
-        }
-
-        let endianness = match &data[0..4] {
-            &[0x00, 0x02, 0x00, 0x00] => Endianness::BigEndian,
-            &[0x00, 0x03, 0x00, 0x00] => Endianness::LittleEndian,
-            _ => panic!("Invalid header"),
-        };
 
         let guid_prefix: GuidPrefix = key[0..12].try_into().unwrap();
-        let parameter_list = ParameterList::deserialize(&data[4..], endianness).unwrap();
+
+        let parameter_list = CdrParameterList::deserialize(&data);
+
         // TODO: Defaults to the domain_id of the participant receiving the message
         // let domain_id = parameter_list.find::<ParameterDomainId>(endianness).unwrap().0;
-        let domain_tag = parameter_list.find::<ParameterDomainTag>(endianness).unwrap_or_default().0;
-        let protocol_version = parameter_list.find::<ParameterProtocolVersion>(endianness).unwrap().0;
-        let vendor_id = parameter_list.find::<ParameterVendorId>(endianness).unwrap().0;
-        let expects_inline_qos = parameter_list.find::<ParameterExpectsInlineQoS>(endianness).unwrap_or_default().0;
+        let domain_tag = parameter_list.find::<ParameterDomainTag>().unwrap_or_default().0;
+        let protocol_version = parameter_list.find::<ParameterProtocolVersion>().unwrap().0;
+        let vendor_id = parameter_list.find::<ParameterVendorId>().unwrap().0;
+        let expects_inline_qos = parameter_list.find::<ParameterExpectsInlineQoS>().unwrap_or_default().0;
         let metatraffic_unicast_locator_list = 
-            parameter_list.find_all::<ParameterMetatrafficUnicastLocator>(endianness).unwrap()
+            parameter_list.find_all::<ParameterMetatrafficUnicastLocator>()
             .iter().map(|x|x.0).collect();
         let metatraffic_multicast_locator_list = 
-            parameter_list.find_all::<ParameterMetatrafficMulticastLocator>(endianness).unwrap()
+            parameter_list.find_all::<ParameterMetatrafficMulticastLocator>()
             .iter().map(|x|x.0).collect();
         let default_unicast_locator_list = 
-            parameter_list.find_all::<ParameterDefaultUnicastLocator>(endianness).unwrap()
+            parameter_list.find_all::<ParameterDefaultUnicastLocator>()
             .iter().map(|x|x.0).collect();
         let default_multicast_locator_list = 
-            parameter_list.find_all::<ParameterDefaultMulticastLocator>(endianness).unwrap()
+            parameter_list.find_all::<ParameterDefaultMulticastLocator>()
             .iter().map(|x|x.0).collect();
-        let available_built_in_endpoints = parameter_list.find::<ParameterBuiltInEndpointSet>(endianness).unwrap().0;
-        let lease_duration = parameter_list.find::<ParameterParticipantLeaseDuration>(endianness).unwrap_or_default().0;
-        let manual_liveliness_count = parameter_list.find::<ParameterParticipantManualLivelinessCount>(endianness).unwrap().0;
+        let available_built_in_endpoints = parameter_list.find::<ParameterBuiltInEndpointSet>().unwrap().0;
+        let lease_duration = parameter_list.find::<ParameterParticipantLeaseDuration>().unwrap_or_default().0;
+        let manual_liveliness_count = parameter_list.find::<ParameterParticipantManualLivelinessCount>().unwrap().0;
 
         Self{
             // domain_id,
