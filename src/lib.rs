@@ -13,7 +13,7 @@ mod stateful_reader;
 mod stateful_writer;
 mod endpoint_types;
 mod spdp;
-// mod participant;
+mod participant;
 // mod participant_proxy;
 // mod proxy;
 // mod transport;
