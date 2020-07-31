@@ -80,6 +80,15 @@ pub mod constants {
         entity_key: [0, 0x02, 0x00],
         entity_kind: EntityKind::BuiltInReaderWithKey,
     };
+
+    pub const LOCATOR_KIND_INVALID : i32 = -1;
+    pub const LOCATOR_KIND_RESERVED : i32 = 0;
+    #[allow(non_upper_case_globals)]
+    pub const LOCATOR_KIND_UDPv4 : i32 = 1;
+    #[allow(non_upper_case_globals)]
+    pub const LOCATOR_KIND_UDPv6 : i32 = 2;
+
+    pub const LOCATOR_PORT_INVALID : u32 = 0;
 }
 
 #[derive(Hash, PartialEq, Eq, Debug, Clone, Copy, Serialize, Deserialize)]

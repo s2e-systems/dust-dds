@@ -1,6 +1,6 @@
 use crate::stateless_writer::StatelessWriter;
 use crate::types::{GUID, Locator, ProtocolVersion, VendorId, TopicKind, ChangeKind};
-use crate::types::constants::{ENTITYID_PARTICIPANT, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER};
+use crate::types::constants::{ENTITYID_PARTICIPANT, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, LOCATOR_KIND_UDPv4};
 
 pub struct Participant {
     guid: GUID,
@@ -27,6 +27,7 @@ impl Participant {
         protocol_version: ProtocolVersion,
         vendor_id: VendorId,
     ) -> Self {
+        let domain_id = 0; // TODO: Should be configurable
 
         let guid_prefix = [5, 6, 7, 8, 9, 5, 1, 2, 3, 4, 10, 11];
 
@@ -34,8 +35,20 @@ impl Participant {
             GUID::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER),
             TopicKind::WithKey);
 
-        // TODO: Add the SPDP discovery locator
-        // spdp_builtin_participant_writer.reader_locator_add(Locator::new())
+        const PB : u32 = 7400;
+        const DG : u32 = 250;
+        const PG : u32 = 2;
+        const D0 : u32 = 0;
+        const D1 : u32 = 10;
+        const D2 : u32 = 1;
+        const D3 : u32 = 11;
+
+        let spdp_well_known_multicast_port = PB + DG * domain_id + D0;
+        spdp_builtin_participant_writer.reader_locator_add(Locator::new(
+            LOCATOR_KIND_UDPv4,
+            spdp_well_known_multicast_port,
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 239, 255, 0, 1],
+        ));
 
         let participant = Self {
             guid: GUID::new(guid_prefix,ENTITYID_PARTICIPANT ),
