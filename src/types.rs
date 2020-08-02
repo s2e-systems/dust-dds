@@ -147,9 +147,9 @@ pub type SequenceNumber = i64;
 
 #[derive(PartialEq, Hash, Eq, Debug, Copy, Clone)]
 pub struct Locator {
-    pub kind: i32,
-    pub port: u32,
-    pub address: [u8; 16],
+    kind: i32,
+    port: u32,
+    address: [u8; 16],
 }
 
 impl Locator {
@@ -159,6 +159,18 @@ impl Locator {
             port,
             address,
         }
+    }
+
+    pub fn kind(&self) -> i32 {
+        self.kind
+    }
+
+    pub fn port(&self) -> u32 {
+        self.port
+    }
+
+    pub fn address(&self) -> &[u8;16] {
+        &self.address
     }
 }
 
