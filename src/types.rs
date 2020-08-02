@@ -19,6 +19,14 @@ pub mod constants {
     pub const PROTOCOL_VERSION_2_2 : ProtocolVersion = ProtocolVersion{major: 2, minor: 2};
     pub const PROTOCOL_VERSION_2_4 : ProtocolVersion = ProtocolVersion{major: 2, minor: 4};
 
+    pub const LOCATOR_KIND_INVALID : i32 = -1;
+    pub const LOCATOR_KIND_RESERVED : i32 = 0;
+    #[allow(non_upper_case_globals)]
+    pub const LOCATOR_KIND_UDPv4 : i32 = 1;
+    #[allow(non_upper_case_globals)]
+    pub const LOCATOR_KIND_UDPv6 : i32 = 2;
+    pub const LOCATOR_PORT_INVALID : u32 = 0;
+
     pub const ENTITYID_UNKNOWN: EntityId = EntityId {
         entity_key: [0, 0, 0x00],
         entity_kind: EntityKind::UserDefinedUnknown,
@@ -157,6 +165,15 @@ impl Locator {
         Locator {
             kind,
             port,
+            address,
+        }
+    }
+
+    pub fn new_udpv4(port: u16, address: [u8; 4]) -> Locator {
+        let address: [u8;16] = [0,0,0,0,0,0,0,0,0,0,0,0,address[0],address[1],address[2],address[3]];
+        Locator {
+            kind: constants::LOCATOR_KIND_UDPv4,
+            port: port as u32,
             address,
         }
     }

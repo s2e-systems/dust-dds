@@ -1,12 +1,11 @@
 use ipconfig;
 use net2::UdpBuilder;
 
-use std::net::SocketAddr;
-
-use std::net::UdpSocket;
-use std::net::{IpAddr, Ipv4Addr};
+use std::convert::{TryInto, TryFrom};
+use std::net::{UdpSocket, IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4, SocketAddrV6};
 
 use crate::types::Locator;
+use crate::types::constants::{LOCATOR_KIND_UDPv4, LOCATOR_KIND_UDPv6};
 
 #[derive(Debug)]
 pub enum TransportError {
@@ -45,49 +44,65 @@ fn get_interface_address(interface_name: &str) -> Option<Ipv4Addr> {
     None
 }
 
+impl TryFrom<Locator> for SocketAddr {
+    type Error = &'static str;
+
+    fn try_from(value: Locator) -> std::result::Result<Self, Self::Error> {
+        #[allow(non_upper_case_globals)]
+        match value.kind() {
+            LOCATOR_KIND_UDPv4 => Ok(SocketAddr::new(
+                IpAddr::V4(Ipv4Addr::new(value.address()[12], value.address()[13], value.address()[14], value.address()[15])),
+                value.port() as u16,
+            )),
+            LOCATOR_KIND_UDPv6 => todo!(),
+            _ => Err("Unknown locator kind"),
+        }
+    }
+}
+
 impl Transport {
     pub fn new(
         unicast_locator: Locator,
         multicast_locator: Option<Locator>,
     ) -> Result<Self> {
-        // let socket_builder = UdpBuilder::new_v4()?;
-        // socket_builder.reuse_address(true)?;
-        // let socket = socket_builder.bind(SocketAddr::from((
-        //     unicast_locator.address,
-        //     unicast_locator.port,
-        // )))?;
+        let socket_builder = UdpBuilder::new_v4()?;
+        socket_builder.reuse_address(true)?;
+        let unicast_address: [u8;4] = unicast_locator.address()[12..16].try_into().unwrap();
+        let port: u16 = unicast_locator.port() as u16;
 
-        // if let Some(multicast_locator) = multicast_locator {
-        //     socket.set_multicast_loop_v4(true)?;
-        //     let multicast_addr = Ipv4Addr::from(multicast_locator.address);
-        //     let multicast_interface = Ipv4Addr::from(unicast_locator.address);
-        //     socket.join_multicast_v4(&multicast_addr, &multicast_interface)?;
-        // }
+        let socket = socket_builder.bind(SocketAddr::from((unicast_address, port)))?;
+
+        if let Some(multicast_locator) = multicast_locator {
+            socket.set_multicast_loop_v4(true)?;
+            let multicast_address: [u8;4] = multicast_locator.address()[12..16].try_into().unwrap();
+            let multicast_addr = Ipv4Addr::from(multicast_address);
+            let multicast_interface = Ipv4Addr::from(unicast_address);
+            socket.join_multicast_v4(&multicast_addr, &multicast_interface)?;
+        }
 
         // //socket.set_read_timeout(Some(Duration::new(0/*secs*/, 0/*nanos*/))).expect("Error setting timeout");
-        // socket.set_nonblocking(true)?;
+        socket.set_nonblocking(true)?;
 
-        // Ok(Transport {
-        //     socket,
-        //     buf: [0; MAX_UDP_DATA_SIZE],
-        // })
-        todo!()
+        Ok(Transport {
+            socket,
+            buf: [0; MAX_UDP_DATA_SIZE],
+        })
     }
 
     pub fn write(&self, buf: &[u8], unicast_locator: Locator) -> () {
-        // self.socket
-        //     .send_to(
-        //         buf,
-        //         SocketAddr::from((unicast_locator.address, unicast_locator.port)),
-        //     )
-        //     .unwrap();
-        todo!()
+        let address: [u8;4] = unicast_locator.address()[12..16].try_into().unwrap();
+        let port: u16 = unicast_locator.port() as u16;
+        self.socket
+            .send_to(
+                buf,
+                SocketAddr::from((address, port)),
+            )
+            .unwrap();
     }
 
     pub fn read(&mut self) -> Result<&[u8]> {
-        // let (number_of_bytes, _src_addr) = self.socket.recv_from(&mut self.buf)?;
-        // Ok(&self.buf[..number_of_bytes])
-        todo!()
+        let (number_of_bytes, _src_addr) = self.socket.recv_from(&mut self.buf)?;
+        Ok(&self.buf[..number_of_bytes])
     }
 }
 
@@ -95,69 +110,71 @@ impl Transport {
 mod tests {
     use super::*;
 
-    // #[test]
-    // fn read_udp_data() {
-    //     let addr = [127, 0, 0, 1];
-    //     let multicast_group = [239, 255, 0, 1];
-    //     let port = 7405;
-    //     let unicast_locator = Udpv4Locator::new_udpv4(&addr, &port);
-    //     let multicast_locator = Udpv4Locator::new_udpv4(&multicast_group, &0);
+    #[test]
+    fn read_udp_data() {
+        let addr = [127, 0, 0, 1];
+        let multicast_group = [239, 255, 0, 1];
+        let port = 7405;
+        let unicast_locator = Locator::new_udpv4(port, addr);
+        let multicast_locator = Locator::new_udpv4(0, multicast_group);
 
-    //     let mut transport = Transport::new(unicast_locator, Some(multicast_locator)).unwrap();
+        let mut transport = Transport::new(unicast_locator, Some(multicast_locator)).unwrap();
 
-    //     let expected = [1, 2, 3];
+        let expected = [1, 2, 3];
 
-    //     let sender = std::net::UdpSocket::bind(SocketAddr::from((addr, 0))).unwrap();
-    //     sender
-    //         .send_to(&expected, SocketAddr::from((multicast_group, port)))
-    //         .unwrap();
+        let sender = std::net::UdpSocket::bind(SocketAddr::from((addr, 0))).unwrap();
+        sender
+            .send_to(&expected, SocketAddr::from((multicast_group, port)))
+            .unwrap();
 
-    //     let result = transport.read().unwrap();
+        let result = transport.read().unwrap();
 
-    //     assert_eq!(expected, result);
-    // }
+        assert_eq!(expected, result);
+    }
 
-    // #[test]
-    // fn read_udp_no_data() {
-    //     let addr = [127, 0, 0, 1];
-    //     let multicast_group = [239, 255, 0, 1];
-    //     let port = 7400;
-    //     let unicast_locator = Udpv4Locator::new_udpv4(&addr, &port);
-    //     let multicast_locator = Udpv4Locator::new_udpv4(&multicast_group, &0);
+    #[test]
+    fn read_udp_no_data() {
+        let addr = [127, 0, 0, 1];
+        let multicast_group = [239, 255, 0, 1];
+        let port = 7400;
+        let unicast_locator = Locator::new_udpv4(port, addr);
+        let multicast_locator = Locator::new_udpv4(0, multicast_group);
 
-    //     let mut transport = Transport::new(unicast_locator, Some(multicast_locator)).unwrap();
+        let mut transport = Transport::new(unicast_locator, Some(multicast_locator)).unwrap();
 
-    //     let expected = std::io::ErrorKind::WouldBlock;
-    //     let result = transport.read();
+        let expected = std::io::ErrorKind::WouldBlock;
+        let result = transport.read();
 
-    //     match result {
-    //         Err(TransportError::IoError(io_err)) => assert_eq!(io_err.kind(), expected),
-    //         _ => assert!(false),
-    //     }
-    // }
+        match result {
+            Err(TransportError::IoError(io_err)) => assert_eq!(io_err.kind(), expected),
+            _ => assert!(false),
+        }
+    }
 
-    // #[test]
-    // fn write_udp_data() {
-    //     let addr = [127, 0, 0, 1];
-    //     let multicast_group = [239, 255, 0, 1];
-    //     let port = 7500;
-    //     let unicast_locator = Udpv4Locator::new_udpv4(&addr, &0);
-    //     let multicast_locator = Udpv4Locator::new_udpv4(&multicast_group, &0);
-    //     let unicast_locator_sent_to = Udpv4Locator::new_udpv4(&addr, &port);
+    #[test]
+    fn write_udp_data() {
+        let addr = [127, 0, 0, 1];
+        let multicast_group = [239, 255, 0, 1];
+        let port = 7500;
+        let unicast_locator = Locator::new_udpv4(0, addr);
+        let multicast_locator = Locator::new_udpv4(0, multicast_group);
+        let unicast_locator_sent_to = Locator::new_udpv4(port, addr);
 
-    //     let transport = Transport::new(unicast_locator, Some(multicast_locator)).unwrap();
+        let transport = Transport::new(unicast_locator, Some(multicast_locator)).unwrap();
 
-    //     let expected = [1, 2, 3];
+        let expected = [1, 2, 3];
 
-    //     let receiver = std::net::UdpSocket::bind(SocketAddr::from((addr, port))).unwrap();
+        let receiver_address: [u8;4] = unicast_locator.address()[12..16].try_into().unwrap();
+        let receiver_port = port as u16;
+        let receiver = std::net::UdpSocket::bind(SocketAddr::from((receiver_address, receiver_port))).unwrap();
 
-    //     transport.write(&expected, unicast_locator_sent_to);
+        transport.write(&expected, unicast_locator_sent_to);
 
-    //     let mut buf = [0; MAX_UDP_DATA_SIZE];
-    //     let (size, _) = receiver.recv_from(&mut buf).unwrap();
-    //     let result = &buf[..size];
-    //     assert_eq!(expected, result);
-    // }
+        let mut buf = [0; MAX_UDP_DATA_SIZE];
+        let (size, _) = receiver.recv_from(&mut buf).unwrap();
+        let result = &buf[..size];
+        assert_eq!(expected, result);
+    }
 
     #[test]
     fn test_list_adapters() {
