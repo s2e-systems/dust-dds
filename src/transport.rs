@@ -1,11 +1,10 @@
 use ipconfig;
 use net2::UdpBuilder;
 
-use std::convert::{TryInto, TryFrom};
-use std::net::{UdpSocket, IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4, SocketAddrV6};
+use std::convert::TryInto;
+use std::net::{UdpSocket, IpAddr, Ipv4Addr, SocketAddr};
 
 use crate::types::Locator;
-use crate::types::constants::{LOCATOR_KIND_UDPv4, LOCATOR_KIND_UDPv6};
 
 #[derive(Debug)]
 pub enum TransportError {
@@ -42,22 +41,6 @@ fn get_interface_address(interface_name: &str) -> Option<Ipv4Addr> {
     }
 
     None
-}
-
-impl TryFrom<Locator> for SocketAddr {
-    type Error = &'static str;
-
-    fn try_from(value: Locator) -> std::result::Result<Self, Self::Error> {
-        #[allow(non_upper_case_globals)]
-        match value.kind() {
-            LOCATOR_KIND_UDPv4 => Ok(SocketAddr::new(
-                IpAddr::V4(Ipv4Addr::new(value.address()[12], value.address()[13], value.address()[14], value.address()[15])),
-                value.port() as u16,
-            )),
-            LOCATOR_KIND_UDPv6 => todo!(),
-            _ => Err("Unknown locator kind"),
-        }
-    }
 }
 
 impl Transport {
