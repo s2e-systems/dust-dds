@@ -11,10 +11,11 @@ mod stateless_reader;
 mod stateless_writer;
 mod stateful_reader;
 mod stateful_writer;
+mod transport;
 // mod participant;
 // mod participant_proxy;
 // mod proxy;
-// mod transport;
+
 
 pub use stateless_reader::StatelessReader;
 pub use stateless_writer::StatelessWriter;
