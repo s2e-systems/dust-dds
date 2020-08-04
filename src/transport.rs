@@ -1,12 +1,10 @@
 use ipconfig;
 use net2::UdpBuilder;
 
-use std::net::SocketAddr;
+use std::convert::TryInto;
+use std::net::{UdpSocket, IpAddr, Ipv4Addr, SocketAddr};
 
-use std::net::UdpSocket;
-use std::net::{IpAddr, Ipv4Addr};
-
-use crate::Udpv4Locator;
+use crate::types::Locator;
 
 #[derive(Debug)]
 pub enum TransportError {
@@ -29,10 +27,9 @@ pub struct Transport {
     buf: [u8; MAX_UDP_DATA_SIZE],
 }
 
-fn get_wifi_adress() -> Option<Ipv4Addr> {
+fn get_interface_address(interface_name: &str) -> Option<Ipv4Addr> {
     for adapter in ipconfig::get_adapters().unwrap() {
-        if adapter.friendly_name() == "Loopback Pseudo-Interface 1"
-        /*"Wi-Fi"*/
+        if adapter.friendly_name() == interface_name
         {
             for addr in adapter.ip_addresses() {
                 match *addr {
@@ -48,20 +45,21 @@ fn get_wifi_adress() -> Option<Ipv4Addr> {
 
 impl Transport {
     pub fn new(
-        unicast_locator: Udpv4Locator,
-        multicast_locator: Option<Udpv4Locator>,
+        unicast_locator: Locator,
+        multicast_locator: Option<Locator>,
     ) -> Result<Self> {
         let socket_builder = UdpBuilder::new_v4()?;
         socket_builder.reuse_address(true)?;
-        let socket = socket_builder.bind(SocketAddr::from((
-            unicast_locator.address,
-            unicast_locator.port,
-        )))?;
+        let unicast_address: [u8;4] = unicast_locator.address()[12..16].try_into().unwrap();
+        let port: u16 = unicast_locator.port() as u16;
+
+        let socket = socket_builder.bind(SocketAddr::from((unicast_address, port)))?;
 
         if let Some(multicast_locator) = multicast_locator {
             socket.set_multicast_loop_v4(true)?;
-            let multicast_addr = Ipv4Addr::from(multicast_locator.address);
-            let multicast_interface = Ipv4Addr::from(unicast_locator.address);
+            let multicast_address: [u8;4] = multicast_locator.address()[12..16].try_into().unwrap();
+            let multicast_addr = Ipv4Addr::from(multicast_address);
+            let multicast_interface = Ipv4Addr::from(unicast_address);
             socket.join_multicast_v4(&multicast_addr, &multicast_interface)?;
         }
 
@@ -74,11 +72,13 @@ impl Transport {
         })
     }
 
-    pub fn write(&self, buf: &[u8], unicast_locator: Udpv4Locator) -> () {
+    pub fn write(&self, buf: &[u8], unicast_locator: Locator) -> () {
+        let address: [u8;4] = unicast_locator.address()[12..16].try_into().unwrap();
+        let port: u16 = unicast_locator.port() as u16;
         self.socket
             .send_to(
                 buf,
-                SocketAddr::from((unicast_locator.address, unicast_locator.port)),
+                SocketAddr::from((address, port)),
             )
             .unwrap();
     }
@@ -98,8 +98,8 @@ mod tests {
         let addr = [127, 0, 0, 1];
         let multicast_group = [239, 255, 0, 1];
         let port = 7405;
-        let unicast_locator = Udpv4Locator::new_udpv4(&addr, &port);
-        let multicast_locator = Udpv4Locator::new_udpv4(&multicast_group, &0);
+        let unicast_locator = Locator::new_udpv4(port, addr);
+        let multicast_locator = Locator::new_udpv4(0, multicast_group);
 
         let mut transport = Transport::new(unicast_locator, Some(multicast_locator)).unwrap();
 
@@ -120,8 +120,8 @@ mod tests {
         let addr = [127, 0, 0, 1];
         let multicast_group = [239, 255, 0, 1];
         let port = 7400;
-        let unicast_locator = Udpv4Locator::new_udpv4(&addr, &port);
-        let multicast_locator = Udpv4Locator::new_udpv4(&multicast_group, &0);
+        let unicast_locator = Locator::new_udpv4(port, addr);
+        let multicast_locator = Locator::new_udpv4(0, multicast_group);
 
         let mut transport = Transport::new(unicast_locator, Some(multicast_locator)).unwrap();
 
@@ -139,15 +139,17 @@ mod tests {
         let addr = [127, 0, 0, 1];
         let multicast_group = [239, 255, 0, 1];
         let port = 7500;
-        let unicast_locator = Udpv4Locator::new_udpv4(&addr, &0);
-        let multicast_locator = Udpv4Locator::new_udpv4(&multicast_group, &0);
-        let unicast_locator_sent_to = Udpv4Locator::new_udpv4(&addr, &port);
+        let unicast_locator = Locator::new_udpv4(0, addr);
+        let multicast_locator = Locator::new_udpv4(0, multicast_group);
+        let unicast_locator_sent_to = Locator::new_udpv4(port, addr);
 
         let transport = Transport::new(unicast_locator, Some(multicast_locator)).unwrap();
 
         let expected = [1, 2, 3];
 
-        let receiver = std::net::UdpSocket::bind(SocketAddr::from((addr, port))).unwrap();
+        let receiver_address: [u8;4] = unicast_locator.address()[12..16].try_into().unwrap();
+        let receiver_port = port as u16;
+        let receiver = std::net::UdpSocket::bind(SocketAddr::from((receiver_address, receiver_port))).unwrap();
 
         transport.write(&expected, unicast_locator_sent_to);
 
@@ -162,5 +164,15 @@ mod tests {
         for adapter in ipconfig::get_adapters().unwrap() {
             println!("Adapter: {:?}", adapter.friendly_name());
         }
+    }
+
+    #[test]
+    fn get_address() {
+        let interface = "Wi-Fi";
+        println!("Interface {:?} address: {:?}", interface, get_interface_address(&interface));
+
+        let interface = "Invalid";
+        println!("Interface {:?} address: {:?}", interface, get_interface_address(&interface));
+
     }
 }

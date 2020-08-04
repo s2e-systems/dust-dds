@@ -664,9 +664,9 @@ impl SubmessageElement for Count {
 pub struct LocatorList(pub Vec<Locator>);
 
 fn serialize_locator(locator: &Locator, writer: &mut impl std::io::Write, endianness: Endianness) -> RtpsSerdesResult<()> {
-    Long(locator.kind).serialize(writer, endianness)?;
-    ULong(locator.port).serialize(writer, endianness)?;
-    writer.write(&locator.address)?;
+    Long(locator.kind()).serialize(writer, endianness)?;
+    ULong(locator.port()).serialize(writer, endianness)?;
+    writer.write(locator.address())?;
     Ok(())
 }
 
@@ -675,7 +675,7 @@ fn deserialize_locator(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult
     let kind = Long::deserialize(&bytes[0..4], endianness)?.0;
     let port = ULong::deserialize(&bytes[4..8], endianness)?.0;
     let address = bytes[8..24].try_into()?;
-    Ok(Locator {kind, port, address})
+    Ok(Locator::new(kind, port, address))
 }
 
 impl SubmessageElement for LocatorList {
