@@ -63,7 +63,7 @@ impl Transport {
             socket.join_multicast_v4(&multicast_addr, &multicast_interface)?;
         }
 
-        // //socket.set_read_timeout(Some(Duration::new(0/*secs*/, 0/*nanos*/))).expect("Error setting timeout");
+        //socket.set_read_timeout(Some(Duration::new(0/*secs*/, 0/*nanos*/))).expect("Error setting timeout");
         socket.set_nonblocking(true)?;
 
         Ok(Transport {
