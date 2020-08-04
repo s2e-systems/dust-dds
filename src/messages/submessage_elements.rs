@@ -570,18 +570,26 @@ impl ParameterList {
         self.parameter.push(Rc::new(value));
     }
 
-    pub fn parameter(&self) -> &Vec<Rc<dyn ParameterOps>> {
-        &self.parameter
-    }
-
     pub fn find<'de, T>(&self, endianness: Endianness) -> Option<T>
-        where T: Pid + ParameterOps + serde::Deserialize<'de>
+        where T: Pid + serde::Deserialize<'de>
     {
         let parameter = self.parameter.iter().find(|&x| x.parameter_id() == T::pid())?;
         Some(match endianness {
             Endianness::LittleEndian => cdr::de::deserialize_data::<T, LittleEndian>(&parameter.value(endianness)).ok()?,
             Endianness::BigEndian => cdr::de::deserialize_data::<T, BigEndian>(&parameter.value(endianness)).ok()?,
         })
+    }
+
+    pub fn find_all<'de, T>(&self, endianness: Endianness) -> RtpsSerdesResult<Vec<T>> 
+        where T: Pid + serde::Deserialize<'de>
+    {
+            Ok(self.parameter.iter()
+            .filter(|&x| x.parameter_id() == T::pid())
+            .map(|parameter| match endianness {
+                Endianness::LittleEndian => cdr::de::deserialize_data::<T, LittleEndian>(&parameter.value(endianness)).unwrap(),
+                Endianness::BigEndian => cdr::de::deserialize_data::<T, BigEndian>(&parameter.value(endianness)).unwrap(),
+            })
+            .collect())
     }
 
     pub fn remove<T>(&mut self) 

@@ -7,6 +7,8 @@ use std::convert::TryFrom;
 use num_derive::FromPrimitive;
 use crate::inline_qos_types::StatusInfo;
 
+use serde::{Serialize, Deserialize};
+
 
 pub mod constants {
     use super::{VendorId, EntityId, ProtocolVersion, EntityKind, SequenceNumber};
@@ -78,9 +80,18 @@ pub mod constants {
         entity_key: [0, 0x02, 0x00],
         entity_kind: EntityKind::BuiltInReaderWithKey,
     };
+
+    pub const LOCATOR_KIND_INVALID : i32 = -1;
+    pub const LOCATOR_KIND_RESERVED : i32 = 0;
+    #[allow(non_upper_case_globals)]
+    pub const LOCATOR_KIND_UDPv4 : i32 = 1;
+    #[allow(non_upper_case_globals)]
+    pub const LOCATOR_KIND_UDPv6 : i32 = 2;
+
+    pub const LOCATOR_PORT_INVALID : u32 = 0;
 }
 
-#[derive(Hash, PartialEq, Eq, Debug, Clone, Copy)]
+#[derive(Hash, PartialEq, Eq, Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct GUID {
     prefix: GuidPrefix,
     entity_id: EntityId,
@@ -103,7 +114,7 @@ impl GUID {
 pub type GuidPrefix = [u8; 12];
 
 pub type EntityKey = [u8; 3];
-#[derive(FromPrimitive, Debug, Hash, PartialEq, Eq, Clone, Copy)]
+#[derive(FromPrimitive, Debug, Hash, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
 pub enum EntityKind {
     UserDefinedUnknown = 0x00,
     UserDefinedWriterWithKey = 0x02,
@@ -122,7 +133,7 @@ pub enum EntityKind {
     BuiltInReaderGroup = 0xc9,
 }
 
-#[derive(Hash, Eq, PartialEq, Debug, Clone, Copy)]
+#[derive(Hash, Eq, PartialEq, Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct EntityId {
     entity_key: EntityKey,
     entity_kind: EntityKind,
@@ -145,7 +156,7 @@ impl EntityId {
 
 pub type SequenceNumber = i64;
 
-#[derive(PartialEq, Hash, Eq, Debug, Copy, Clone)]
+#[derive(PartialEq, Hash, Eq, Debug, Copy, Clone, Serialize, Deserialize)]
 pub struct Locator {
     pub kind: i32,
     pub port: u32,
@@ -201,7 +212,7 @@ pub enum ReliabilityKind {
 
 pub type InstanceHandle = [u8; 16];
 
-#[derive(PartialEq, Debug, Clone, Copy, Hash, Eq)]
+#[derive(PartialEq, Debug, Clone, Copy, Hash, Eq, Serialize, Deserialize)]
 pub struct ProtocolVersion {
     pub major: u8,
     pub minor: u8,
