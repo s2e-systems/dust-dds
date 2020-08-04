@@ -5,6 +5,8 @@
 
 use std::convert::{TryInto, TryFrom, From};
 
+use serde::{Serialize, Deserialize};
+
 pub mod constants {
     use super::Duration;
 
@@ -20,7 +22,7 @@ pub mod constants {
 }
 
 
-#[derive(PartialEq, Eq, PartialOrd, Hash, Debug, Clone, Copy)]
+#[derive(PartialEq, Eq, PartialOrd, Hash, Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct Duration {
     seconds: i32,
     fraction: u32,
@@ -29,6 +31,10 @@ pub struct Duration {
 impl Duration {
     pub fn from_millis(millis: u64) -> Self { 
         std::time::Duration::from_millis(millis).try_into().unwrap()
+    }
+
+    pub fn from_secs(secs: u64) -> Self { 
+        std::time::Duration::from_secs(secs).try_into().unwrap()
     }
 }
 

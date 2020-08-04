@@ -35,7 +35,7 @@ pub use info_timestamp_submessage::InfoTs;
 
 pub use message::RtpsMessage;
 pub use submessage::RtpsSubmessage;
-pub use serdes::Endianness;
+pub use serdes::{Endianness, SubmessageElement};
 pub use submessage_elements::ParameterList;
 
 pub const RTPS_MAJOR_VERSION: u8 = 2;
