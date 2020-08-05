@@ -5,6 +5,8 @@ use crate::types::constants::{ENTITYID_PARTICIPANT, ENTITYID_SPDP_BUILTIN_PARTIC
 use crate::messages::Endianness;
 use crate::behavior::types::Duration;
 use crate::spdp::SPDPdiscoveredParticipantData;
+use crate::transport::Transport;
+
 
 pub struct Participant {
     guid: GUID,
@@ -12,7 +14,7 @@ pub struct Participant {
     default_multicast_locator_list: Vec<Locator>,
     protocol_version: ProtocolVersion,
     vendor_id: VendorId,
-    // socket: Transport,
+    discovery_transport: Transport,
     spdp_builtin_participant_reader: StatelessReader,
     spdp_builtin_participant_writer: StatelessWriter,
     // sedp_builtin_publications_reader: StatefulReader,
@@ -45,26 +47,35 @@ impl Participant {
 
         let guid_prefix = [5, 6, 7, 8, 9, 5, 1, 2, 3, 4, 10, 11];   // TODO: Should be uniquely generated
 
-        let spdp_builtin_participant_writer = StatelessWriter::new(
-            GUID::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER),
-            TopicKind::WithKey);
-
         let spdp_well_known_multicast_port = PB + DG * domain_id + D0;
-        let spdp_locator = Locator::new(
+
+        let spdp_socket_locator = Locator::new(
+            LOCATOR_KIND_UDPv4,
+            spdp_well_known_multicast_port,
+            crate::transport::get_interface_address(&"Wi-Fi").unwrap(),
+        );
+
+        let spdp_multicast_locator = Locator::new(
             LOCATOR_KIND_UDPv4,
             spdp_well_known_multicast_port,
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 239, 255, 0, 1],
         );
 
+        let discovery_transport = Transport::new(spdp_socket_locator, Some(spdp_multicast_locator)).unwrap();
+
+        let spdp_builtin_participant_writer = StatelessWriter::new(
+            GUID::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER),
+            TopicKind::WithKey);
+
         let spdp_builtin_participant_reader = StatelessReader::new(
             GUID::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_DETECTOR),
             TopicKind::WithKey,
             vec![],
-            vec![spdp_locator.clone()],
+            vec![spdp_multicast_locator],
             expects_inline_qos,
         );
         
-        spdp_builtin_participant_writer.reader_locator_add(spdp_locator);
+        spdp_builtin_participant_writer.reader_locator_add(spdp_multicast_locator);
 
         let participant = Self {
             guid: GUID::new(guid_prefix,ENTITYID_PARTICIPANT ),
@@ -72,6 +83,7 @@ impl Participant {
             default_multicast_locator_list,
             protocol_version,
             vendor_id,
+            discovery_transport,
             spdp_builtin_participant_reader,
             spdp_builtin_participant_writer,
         };

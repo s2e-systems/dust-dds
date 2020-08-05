@@ -27,13 +27,13 @@ pub struct Transport {
     buf: [u8; MAX_UDP_DATA_SIZE],
 }
 
-fn get_interface_address(interface_name: &str) -> Option<Ipv4Addr> {
+pub fn get_interface_address(interface_name: &str) -> Option<[u8; 16]> {
     for adapter in ipconfig::get_adapters().unwrap() {
         if adapter.friendly_name() == interface_name
         {
             for addr in adapter.ip_addresses() {
                 match *addr {
-                    IpAddr::V4(ip4) => return Some(ip4),
+                    IpAddr::V4(ipv4addr) => return Some(ipv4addr.to_ipv6_compatible().octets()),
                     _ => (),
                 }
             }
