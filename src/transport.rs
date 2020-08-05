@@ -83,9 +83,9 @@ impl Transport {
             .unwrap();
     }
 
-    pub fn read(&mut self) -> Result<&[u8]> {
-        let (number_of_bytes, _src_addr) = self.socket.recv_from(&mut self.buf)?;
-        Ok(&self.buf[..number_of_bytes])
+    pub fn read(&mut self) -> Result<(&[u8], SocketAddr)> {
+        let (number_of_bytes, src_addr) = self.socket.recv_from(&mut self.buf)?;
+        Ok((&self.buf[..number_of_bytes], src_addr))
     }
 }
 
@@ -103,16 +103,17 @@ mod tests {
 
         let mut transport = Transport::new(unicast_locator, Some(multicast_locator)).unwrap();
 
-        let expected = [1, 2, 3];
+        let expected_buf = [1, 2, 3];
 
         let sender = std::net::UdpSocket::bind(SocketAddr::from((addr, 0))).unwrap();
         sender
-            .send_to(&expected, SocketAddr::from((multicast_group, port)))
+            .send_to(&expected_buf, SocketAddr::from((multicast_group, port)))
             .unwrap();
 
         let result = transport.read().unwrap();
 
-        assert_eq!(expected, result);
+        assert_eq!(expected_buf, result.0);
+        assert_eq!(sender.local_addr().unwrap(), result.1);
     }
 
     #[test]
