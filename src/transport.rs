@@ -5,6 +5,7 @@ use std::convert::TryInto;
 use std::net::{UdpSocket, IpAddr, Ipv4Addr, SocketAddr};
 
 use crate::types::Locator;
+use crate::messages::{RtpsMessage, UdpPsmMapping};
 
 #[derive(Debug)]
 pub enum TransportError {
@@ -72,12 +73,14 @@ impl Transport {
         })
     }
 
-    pub fn write(&self, buf: &[u8], unicast_locator: Locator) -> () {
+    pub fn write(&self, message: RtpsMessage, unicast_locator: Locator) -> () {
+        let mut buf =  Vec::new();
+        message.compose(&mut buf);
         let address: [u8;4] = unicast_locator.address()[12..16].try_into().unwrap();
         let port: u16 = unicast_locator.port() as u16;
         self.socket
             .send_to(
-                buf,
+                &buf,
                 SocketAddr::from((address, port)),
             )
             .unwrap();
@@ -92,6 +95,9 @@ impl Transport {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::messages::{RtpsSubmessage, Gap};
+    use crate::types::constants::{ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR};
+    use crate::messages::Endianness;
 
     #[test]
     fn read_udp_data() {
@@ -146,18 +152,23 @@ mod tests {
 
         let transport = Transport::new(unicast_locator, Some(multicast_locator)).unwrap();
 
-        let expected = [1, 2, 3];
+        let submessages = vec![
+            RtpsSubmessage::Gap(Gap::new(ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, 0, Endianness::LittleEndian)),
+        ];
+        let message = RtpsMessage::new([1,2,3,4,5,6,7,8,9,10,11,12], submessages);
+        let mut expected_bytes = Vec::new();
+        message.compose(&mut expected_bytes).unwrap();
 
         let receiver_address: [u8;4] = unicast_locator.address()[12..16].try_into().unwrap();
         let receiver_port = port as u16;
         let receiver = std::net::UdpSocket::bind(SocketAddr::from((receiver_address, receiver_port))).unwrap();
 
-        transport.write(&expected, unicast_locator_sent_to);
+        transport.write(message, unicast_locator_sent_to);
 
         let mut buf = [0; MAX_UDP_DATA_SIZE];
         let (size, _) = receiver.recv_from(&mut buf).unwrap();
         let result = &buf[..size];
-        assert_eq!(expected, result);
+        assert_eq!(expected_bytes, result);
     }
 
     #[test]

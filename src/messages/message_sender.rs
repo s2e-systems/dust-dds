@@ -35,10 +35,15 @@ pub fn rtps_message_sender(transport: &mut Transport, participant_guid_prefix: G
 
             if !submessage.is_empty() {
                 let rtps_message = RtpsMessage::new(participant_guid_prefix, submessage);
-                let mut buf = Vec::new();
-                rtps_message.compose(&mut buf).unwrap();
-                transport.write(&buf, *locator);
+                transport.write(rtps_message, *locator);
             }
         }
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+
 }
