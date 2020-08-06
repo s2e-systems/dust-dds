@@ -25,7 +25,6 @@ const MAX_UDP_DATA_SIZE: usize = 65536;
 
 pub struct Transport {
     socket: UdpSocket,
-    buf: [u8; MAX_UDP_DATA_SIZE],
 }
 
 pub fn get_interface_address(interface_name: &str) -> Option<[u8; 16]> {
@@ -68,14 +67,13 @@ impl Transport {
         socket.set_nonblocking(true)?;
 
         Ok(Transport {
-            socket,
-            buf: [0; MAX_UDP_DATA_SIZE],
+            socket
         })
     }
 
-    pub fn write(&self, message: RtpsMessage, unicast_locator: Locator) -> () {
+    pub fn write(&self, message: RtpsMessage, unicast_locator: Locator) {
         let mut buf =  Vec::new();
-        message.compose(&mut buf);
+        message.compose(&mut buf).unwrap();
         let address: [u8;4] = unicast_locator.address()[12..16].try_into().unwrap();
         let port: u16 = unicast_locator.port() as u16;
         self.socket
@@ -86,9 +84,12 @@ impl Transport {
             .unwrap();
     }
 
-    pub fn read(&mut self) -> Result<(&[u8], SocketAddr)> {
-        let (number_of_bytes, src_addr) = self.socket.recv_from(&mut self.buf)?;
-        Ok((&self.buf[..number_of_bytes], src_addr))
+    pub fn read(&self) -> Result<(Option<RtpsMessage>, SocketAddr)> {
+        let mut buf = [0_u8; MAX_UDP_DATA_SIZE];
+        let (number_of_bytes, src_addr) = self.socket.recv_from(&mut buf)?;
+        let message = RtpsMessage::parse(&buf[..number_of_bytes]).ok();
+
+        Ok((message, src_addr))
     }
 }
 
@@ -107,18 +108,23 @@ mod tests {
         let unicast_locator = Locator::new_udpv4(port, addr);
         let multicast_locator = Locator::new_udpv4(0, multicast_group);
 
-        let mut transport = Transport::new(unicast_locator, Some(multicast_locator)).unwrap();
+        let transport = Transport::new(unicast_locator, Some(multicast_locator)).unwrap();
 
-        let expected_buf = [1, 2, 3];
+        let submessages = vec![
+            RtpsSubmessage::Gap(Gap::new(ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, 0, Endianness::LittleEndian)),
+        ];
+        let message = RtpsMessage::new([1,2,3,4,5,6,7,8,9,10,11,12], submessages);
+        let mut bytes = Vec::new();
+        message.compose(&mut bytes).unwrap();
 
         let sender = std::net::UdpSocket::bind(SocketAddr::from((addr, 0))).unwrap();
         sender
-            .send_to(&expected_buf, SocketAddr::from((multicast_group, port)))
+            .send_to(&bytes, SocketAddr::from((multicast_group, port)))
             .unwrap();
 
         let result = transport.read().unwrap();
 
-        assert_eq!(expected_buf, result.0);
+        assert_eq!(Some(message), result.0);
         assert_eq!(sender.local_addr().unwrap(), result.1);
     }
 
@@ -130,7 +136,7 @@ mod tests {
         let unicast_locator = Locator::new_udpv4(port, addr);
         let multicast_locator = Locator::new_udpv4(0, multicast_group);
 
-        let mut transport = Transport::new(unicast_locator, Some(multicast_locator)).unwrap();
+        let transport = Transport::new(unicast_locator, Some(multicast_locator)).unwrap();
 
         let expected = std::io::ErrorKind::WouldBlock;
         let result = transport.read();

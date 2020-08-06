@@ -29,7 +29,7 @@ pub fn rtps_message_sender(transport: &mut Transport, participant_guid_prefix: G
                 match message {
                     WriterSendMessage::Data(data) => submessage.push(RtpsSubmessage::Data(data)),
                     WriterSendMessage::Gap(gap) => submessage.push(RtpsSubmessage::Gap(gap)),
-                    WriterSendMessage::Heartbeat(_) => panic!("Heartbeat not expect from stateless writer"),
+                    WriterSendMessage::Heartbeat(_) => panic!("Heartbeat not expected from stateless writer"),
                 };
             };
 
