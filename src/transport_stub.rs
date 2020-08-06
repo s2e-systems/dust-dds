@@ -11,11 +11,19 @@ pub struct StubTransport {
 }
 
 impl StubTransport {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             read: Mutex::new(VecDeque::new()),
             write: Mutex::new(VecDeque::new()),
         }
+    }
+
+    pub fn push_read(&self, message: RtpsMessage, locator: Locator) {
+        self.read.lock().unwrap().push_back((message, locator));
+    }
+
+    pub fn pop_write(&self) -> Option<(RtpsMessage, Locator)> {
+        self.write.lock().unwrap().pop_front()
     }
 }
 
