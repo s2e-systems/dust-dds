@@ -46,7 +46,10 @@ mod tests {
     use super::*;
     use crate::transport_stub::StubTransport;
     use crate::types::{TopicKind, GUID, ChangeKind};
-    use crate::types::constants::{ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER, ENTITYID_UNKNOWN};
+    use crate::types::constants::{
+        ENTITYID_UNKNOWN,
+        ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
+        ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, };
 
     #[test]
     fn stateless_writer_single_reader_locator() {
@@ -163,7 +166,53 @@ mod tests {
             },
             _ => panic!("Unexpected submessage type received"),
         };
+    }
 
+    #[test]
+    fn multiple_stateless_writers_multiple_reader_locators() {
+        let transport = StubTransport::new();
+        let participant_guid_prefix = [1,2,3,4,5,5,4,3,2,1,1,2];
+
+        let reader_locator_1 = Locator::new(-2, 10000, [1;16]);
+        let reader_locator_2 = Locator::new(-2, 2000, [2;16]);
+        let reader_locator_3 = Locator::new(-2, 300, [3;16]);
+
+        let stateless_writer_1 = StatelessWriter::new(GUID::new(participant_guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER), TopicKind::WithKey);
+        let stateless_writer_2 = StatelessWriter::new(GUID::new(participant_guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER), TopicKind::WithKey);
+        
+        stateless_writer_1.reader_locator_add(reader_locator_1);
+
+        stateless_writer_2.reader_locator_add(reader_locator_1);
+        stateless_writer_2.reader_locator_add(reader_locator_2);
+        stateless_writer_2.reader_locator_add(reader_locator_3);
+
+        let change_1_1 = stateless_writer_1.new_change(ChangeKind::Alive, Some(vec![1,2,3,4]), None, [5;16]);
+        let change_1_2 = stateless_writer_1.new_change(ChangeKind::Alive, Some(vec![1,2,3,4]), None, [5;16]);
+        stateless_writer_1.history_cache().add_change(change_1_1);
+        stateless_writer_1.history_cache().add_change(change_1_2);
+
+        let _change_2_1 = stateless_writer_2.new_change(ChangeKind::Alive, Some(vec![1,2,4]), None, [12;16]);
+        let change_2_2 = stateless_writer_2.new_change(ChangeKind::Alive, Some(vec![1,2,3,4]), None, [12;16]);
+        stateless_writer_2.history_cache().add_change(change_2_2);
+
+        stateless_writer_1.run();
+        stateless_writer_2.run();
+
+        rtps_message_sender(&transport, participant_guid_prefix, &[&stateless_writer_1, &stateless_writer_2]);
+
+        // The order at which the messages are sent is not predictable so collect eveything in a vector and test from there onwards
+        let mut sent_messages = Vec::new();
+        sent_messages.push(transport.pop_write().unwrap());
+        sent_messages.push(transport.pop_write().unwrap());
+        sent_messages.push(transport.pop_write().unwrap());
+        sent_messages.push(transport.pop_write().unwrap());
+
+        assert_eq!(sent_messages.iter().filter(|&(_, locator)| locator==&reader_locator_1).count(), 2);
+        assert_eq!(sent_messages.iter().filter(|&(_, locator)| locator==&reader_locator_2).count(), 1);
+        assert_eq!(sent_messages.iter().filter(|&(_, locator)| locator==&reader_locator_3).count(), 1);
+
+        assert!(transport.pop_write().is_none());
+        
     }
 
 
