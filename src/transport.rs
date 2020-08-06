@@ -21,9 +21,15 @@ impl From<std::io::Error> for TransportError {
 
 type Result<T> = std::result::Result<T, TransportError>;
 
+pub trait Transport {
+    fn write(&self, message: RtpsMessage, locator: Locator);
+
+    fn read(&self) -> Result<(Option<RtpsMessage>, SocketAddr)>;
+}
+
 const MAX_UDP_DATA_SIZE: usize = 65536;
 
-pub struct Transport {
+pub struct UdpTransport {
     socket: UdpSocket,
 }
 
@@ -43,7 +49,7 @@ pub fn get_interface_address(interface_name: &str) -> Option<[u8; 16]> {
     None
 }
 
-impl Transport {
+impl UdpTransport {
     pub fn new(
         unicast_locator: Locator,
         multicast_locator: Option<Locator>,
@@ -66,12 +72,14 @@ impl Transport {
         //socket.set_read_timeout(Some(Duration::new(0/*secs*/, 0/*nanos*/))).expect("Error setting timeout");
         socket.set_nonblocking(true)?;
 
-        Ok(Transport {
+        Ok(Self {
             socket
         })
     }
+}
 
-    pub fn write(&self, message: RtpsMessage, unicast_locator: Locator) {
+impl Transport for UdpTransport {
+    fn write(&self, message: RtpsMessage, unicast_locator: Locator) {
         let mut buf =  Vec::new();
         message.compose(&mut buf).unwrap();
         let address: [u8;4] = unicast_locator.address()[12..16].try_into().unwrap();
@@ -84,7 +92,7 @@ impl Transport {
             .unwrap();
     }
 
-    pub fn read(&self) -> Result<(Option<RtpsMessage>, SocketAddr)> {
+    fn read(&self) -> Result<(Option<RtpsMessage>, SocketAddr)> {
         let mut buf = [0_u8; MAX_UDP_DATA_SIZE];
         let (number_of_bytes, src_addr) = self.socket.recv_from(&mut buf)?;
         let message = RtpsMessage::parse(&buf[..number_of_bytes]).ok();
@@ -92,6 +100,8 @@ impl Transport {
         Ok((message, src_addr))
     }
 }
+
+
 
 #[cfg(test)]
 mod tests {
@@ -108,7 +118,7 @@ mod tests {
         let unicast_locator = Locator::new_udpv4(port, addr);
         let multicast_locator = Locator::new_udpv4(0, multicast_group);
 
-        let transport = Transport::new(unicast_locator, Some(multicast_locator)).unwrap();
+        let transport = UdpTransport::new(unicast_locator, Some(multicast_locator)).unwrap();
 
         let submessages = vec![
             RtpsSubmessage::Gap(Gap::new(ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, 0, Endianness::LittleEndian)),
@@ -136,7 +146,7 @@ mod tests {
         let unicast_locator = Locator::new_udpv4(port, addr);
         let multicast_locator = Locator::new_udpv4(0, multicast_group);
 
-        let transport = Transport::new(unicast_locator, Some(multicast_locator)).unwrap();
+        let transport = UdpTransport::new(unicast_locator, Some(multicast_locator)).unwrap();
 
         let expected = std::io::ErrorKind::WouldBlock;
         let result = transport.read();
@@ -156,7 +166,7 @@ mod tests {
         let multicast_locator = Locator::new_udpv4(0, multicast_group);
         let unicast_locator_sent_to = Locator::new_udpv4(port, addr);
 
-        let transport = Transport::new(unicast_locator, Some(multicast_locator)).unwrap();
+        let transport = UdpTransport::new(unicast_locator, Some(multicast_locator)).unwrap();
 
         let submessages = vec![
             RtpsSubmessage::Gap(Gap::new(ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, 0, Endianness::LittleEndian)),

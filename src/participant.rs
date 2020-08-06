@@ -5,7 +5,7 @@ use crate::types::constants::{ENTITYID_PARTICIPANT, ENTITYID_SPDP_BUILTIN_PARTIC
 use crate::messages::Endianness;
 use crate::behavior::types::Duration;
 use crate::spdp::SPDPdiscoveredParticipantData;
-use crate::transport::Transport;
+use crate::transport::UdpTransport;
 use crate::messages::message_sender::rtps_message_sender;
 
 
@@ -15,7 +15,7 @@ pub struct Participant {
     default_multicast_locator_list: Vec<Locator>,
     protocol_version: ProtocolVersion,
     vendor_id: VendorId,
-    discovery_transport: Transport,
+    discovery_transport: UdpTransport,
     spdp_builtin_participant_reader: StatelessReader,
     spdp_builtin_participant_writer: StatelessWriter,
     // sedp_builtin_publications_reader: StatefulReader,
@@ -62,7 +62,7 @@ impl Participant {
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 239, 255, 0, 1],
         );
 
-        let discovery_transport = Transport::new(spdp_socket_locator, Some(spdp_multicast_locator)).unwrap();
+        let discovery_transport = UdpTransport::new(spdp_socket_locator, Some(spdp_multicast_locator)).unwrap();
 
         let spdp_builtin_participant_writer = StatelessWriter::new(
             GUID::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER),

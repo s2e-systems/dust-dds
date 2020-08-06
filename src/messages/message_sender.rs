@@ -19,10 +19,10 @@ pub enum WriterReceiveMessage {
 
 pub type WriterSendMessage = ReaderReceiveMessage;
 
-pub fn rtps_message_sender(transport: &mut Transport, participant_guid_prefix: GuidPrefix, stateless_writer_list: &[&StatelessWriter]) {
+pub fn rtps_message_sender(transport: &mut impl Transport, participant_guid_prefix: GuidPrefix, stateless_writer_list: &[&StatelessWriter]) {
     for stateless_writer in stateless_writer_list {
         let reader_locators = stateless_writer.reader_locators();
-        for (locator, reader_locator) in reader_locators.iter() {
+        for (&locator, reader_locator) in reader_locators.iter() {
             let mut submessage = Vec::new();
             while let Some(message) = reader_locator.pop_send_message() {
                 submessage.push(RtpsSubmessage::InfoTs(InfoTs::new(Some(Time::now()), Endianness::LittleEndian)));
@@ -35,7 +35,7 @@ pub fn rtps_message_sender(transport: &mut Transport, participant_guid_prefix: G
 
             if !submessage.is_empty() {
                 let rtps_message = RtpsMessage::new(participant_guid_prefix, submessage);
-                transport.write(rtps_message, *locator);
+                transport.write(rtps_message, locator);
             }
         }
     }
@@ -44,6 +44,11 @@ pub fn rtps_message_sender(transport: &mut Transport, participant_guid_prefix: G
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn stateless_writer_single_reader_locator() {
+
+    }
 
 
 }
