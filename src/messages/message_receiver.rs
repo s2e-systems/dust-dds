@@ -7,7 +7,7 @@ use crate::transport::Transport;
 
 
 use super::submessage::RtpsSubmessage;
-use super::{Data, Gap, Heartbeat, AckNack, InfoTs, Endianness, UdpPsmMapping};
+use super::{Data, Gap, Heartbeat, AckNack, InfoTs, Endianness};
 use super::message::{RtpsMessage};
 use super::types::Time;
 use super::message_sender::WriterReceiveMessage;
@@ -25,100 +25,80 @@ pub type ReaderSendMessage = WriterReceiveMessage;
 
 // ////////////////// RTPS Message Receiver
 
-pub fn rtps_message_receiver(transport: &mut impl Transport, participant_guid_prefix: GuidPrefix, stateless_reader_list: &[StatelessReader]) {
-    // let (message, src_addr) = transport.read().unwrap();
+pub fn rtps_message_receiver(transport: &impl Transport, participant_guid_prefix: GuidPrefix, stateless_reader_list: &[&StatelessReader]) {
+    if let Some((message, src_locator)) = transport.read().unwrap() {
+        let _source_version = message.header().version();
+        let _source_vendor_id = message.header().vendor_id();
+        let source_guid_prefix = *message.header().guid_prefix();
+        let _dest_guid_prefix = participant_guid_prefix;
+        let _unicast_reply_locator_list = vec![Locator::new(0,0,[0;16])];
+        let _multicast_reply_locator_list = vec![Locator::new(0,0,[0;16])];
+        let mut _timestamp = None;
+        let _message_length = 0;
+        
+        let source_locator = Locator::new(0,0, [0;16]);
 
+        for submessage in message.take_submessages() {
+            match submessage {
+                // Writer to reader messages
+                RtpsSubmessage::Data(data) => receive_reader_submessage(&src_locator, source_guid_prefix, ReaderReceiveMessage::Data(data), stateless_reader_list),
+                RtpsSubmessage::Gap(gap) => receive_reader_submessage(&src_locator, source_guid_prefix, ReaderReceiveMessage::Gap(gap), stateless_reader_list),
+                RtpsSubmessage::Heartbeat(heartbeat) => receive_reader_submessage(&source_locator, source_guid_prefix, ReaderReceiveMessage::Heartbeat(heartbeat), stateless_reader_list),
+                // Reader to writer messages
+                RtpsSubmessage::AckNack(ack_nack) => receive_writer_submessage(source_guid_prefix, WriterReceiveMessage::AckNack(ack_nack)),
+                // Receiver status messages
+                RtpsSubmessage::InfoTs(info_ts) => _timestamp = info_ts.time(),
+            }
+        }
+    }    
+}
+
+fn receive_reader_submessage(source_locator: &Locator, source_guid_prefix: GuidPrefix, message: ReaderReceiveMessage, stateless_reader_list: &[&StatelessReader]) {
+    let writer_guid = match &message {
+        ReaderReceiveMessage::Data(data) => GUID::new(source_guid_prefix, data.writer_id()),
+        ReaderReceiveMessage::Gap(gap) => GUID::new(source_guid_prefix, gap.writer_id()),
+        ReaderReceiveMessage::Heartbeat(heartbeat) => GUID::new(source_guid_prefix, heartbeat.writer_id()),
+    };
+
+    for stateless_reader in stateless_reader_list {
+        if stateless_reader.unicast_locator_list().iter().find(|&loc| loc == source_locator).is_some() ||
+            stateless_reader.multicast_locator_list().iter().find(|&loc| loc == source_locator).is_some() {
+                stateless_reader.push_receive_message(source_guid_prefix, message);
+                break;
+        }
+    }
+
+    // if let Some(writer_proxy) = stateful_reader.matched_writers().get(&writer_guid) {
+    //     writer_proxy_received_message(writer_proxy, message);
+    //     break;
+    
+}
+
+fn receive_writer_submessage(source_guid_prefix: GuidPrefix, message: WriterReceiveMessage) {
     todo!()
-    
-    // let message = RtpsMessage::parse(buf).unwrap();
+    // let reader_guid = match &message {
+    //     WriterReceiveMessage::AckNack(ack_nack) =>  GUID::new(source_guid_prefix, ack_nack.reader_id()),
+    // };
 
-    // let _source_version = message.header().version();
-    // let _source_vendor_id = message.header().vendor_id();
-    // let source_guid_prefix = *message.header().guid_prefix();
-    // let _dest_guid_prefix = participant_guid_prefix;
-    // let _unicast_reply_locator_list = vec![Locator::new(0,0,[0;16])];
-    // let _multicast_reply_locator_list = vec![Locator::new(0,0,[0;16])];
-    // let mut _timestamp = None;
-    // let _message_length = 0;
-    
-    // let source_locator = Locator::new(0,0, [0;16]);
-
-    // for submessage in message.take_submessages() {
-    //     match submessage {
-    //         // Writer to reader messages
-    //         RtpsSubmessage::Data(data) => receive_reader_submessage(&source_locator, source_guid_prefix, ReaderReceiveMessage::Data(data)),
-    //         RtpsSubmessage::Gap(gap) => receive_reader_submessage(&source_locator, source_guid_prefix, ReaderReceiveMessage::Gap(gap)),
-    //         RtpsSubmessage::Heartbeat(heartbeat) => receive_reader_submessage(&source_locator, source_guid_prefix, ReaderReceiveMessage::Heartbeat(heartbeat)),
-    //         // Reader to writer messages
-    //         RtpsSubmessage::AckNack(ack_nack) => receive_writer_submessage(source_guid_prefix, WriterReceiveMessage::AckNack(ack_nack)),
-    //         // Receiver status messages
-    //         RtpsSubmessage::InfoTs(info_ts) => _timestamp = info_ts.time(),
+    // for writer in &self.writer_list {
+    //     match writer {
+    //         Writer::StatelessWriter(_stateless_writer) => {
+    //             // Stateless writers do not receive any message because they are only best effort
+    //         },
+    //         Writer::StatefulWriter(stateful_writer) => {
+    //             if let Some(reader_proxy) = stateful_writer.matched_readers().get(&reader_guid) {
+    //                 reader_proxy_received_message(reader_proxy, message);
+    //                 break;
+    //             }
+    //         },
     //     }
     // }
 }
 
-// fn receive_reader_submessage(source_locator: &Locator, source_guid_prefix: GuidPrefix, message: ReaderReceiveMessage) {
-//     let writer_guid = match &message {
-//         ReaderReceiveMessage::Data(data) => GUID::new(source_guid_prefix, data.writer_id()),
-//         ReaderReceiveMessage::Gap(gap) => GUID::new(source_guid_prefix, gap.writer_id()),
-//         ReaderReceiveMessage::Heartbeat(heartbeat) => GUID::new(source_guid_prefix, heartbeat.writer_id()),
-//     };
-
-//     for reader in &self.reader_list {
-//         match reader {
-//             Reader::StatelessReader(stateless_reader) => {
-//                 if stateless_reader.unicast_locator_list().iter().find(|&loc| loc == source_locator).is_some() ||
-//                     stateless_reader.multicast_locator_list().iter().find(|&loc| loc == source_locator).is_some() {
-//                     stateless_reader_received_message(stateless_reader, source_guid_prefix, message);
-//                     break;
-//                 }
-//             },
-//             Reader::StatefulReader(stateful_reader) => {
-//                 if let Some(writer_proxy) = stateful_reader.matched_writers().get(&writer_guid) {
-//                     writer_proxy_received_message(writer_proxy, message);
-//                     break;
-//                 }
-//             },
-//         }
-//     }
-// }
-
-// fn receive_writer_submessage(source_guid_prefix: GuidPrefix, message: WriterReceiveMessage) {
-//     let reader_guid = match &message {
-//         WriterReceiveMessage::AckNack(ack_nack) =>  GUID::new(source_guid_prefix, ack_nack.reader_id()),
-//     };
-
-//     for writer in &self.writer_list {
-//         match writer {
-//             Writer::StatelessWriter(_stateless_writer) => {
-//                 // Stateless writers do not receive any message because they are only best effort
-//             },
-//             Writer::StatefulWriter(stateful_writer) => {
-//                 if let Some(reader_proxy) = stateful_writer.matched_readers().get(&reader_guid) {
-//                     reader_proxy_received_message(reader_proxy, message);
-//                     break;
-//                 }
-//             },
-//         }
-//     }
-// }
-
-// fn reader_proxy_received_message(_reader_proxy: &ReaderProxy, _message: WriterReceiveMessage) {
-//     todo!()
-// }
-
-// fn writer_proxy_received_message(writer_proxy: &WriterProxy, message: ReaderReceiveMessage) {
-//     writer_proxy.push_receive_message(message)
-// }
-
-// fn stateless_reader_received_message(stateless_reader: &StatelessReader, source_guid_prefix: GuidPrefix, message: ReaderReceiveMessage) {
-//     stateless_reader.push_receive_message(source_guid_prefix, message);
-// }
-
 
 #[cfg(test)]
 mod tests {
-    // use super::*;
+    use super::*;
     // use crate::messages::{InfoTs, Data};
     // use crate::messages::Endianness;
     // use crate::messages::types::Time;
