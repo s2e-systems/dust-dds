@@ -6,6 +6,7 @@ use crate::messages::Endianness;
 use crate::behavior::types::Duration;
 use crate::spdp::SPDPdiscoveredParticipantData;
 use crate::transport::Transport;
+use crate::messages::receiver::rtps_message_sender;
 
 
 pub struct Participant {
@@ -396,14 +397,33 @@ impl Participant {
     //             .matched_writer_add(proxy);
     //     }
     // }
+
+    fn run(&mut self) {
+        self.spdp_builtin_participant_writer.run();
+
+        rtps_message_sender(&mut self.discovery_transport, *self.guid.prefix(), &[&self.spdp_builtin_participant_writer]);
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    // use super::*;
+    use super::*;
+    use crate::types::constants::{PROTOCOL_VERSION_2_4};
     // use crate::cache::HistoryCache;
     // use std::net::SocketAddr;
 
+    #[test]
+    fn participant() {
+        let mut participant = Participant::new(
+            vec![],
+            vec![],
+            PROTOCOL_VERSION_2_4,
+            [99,99]);
+
+        participant.run();
+
+        participant.run();
+    }
     // #[test]
     // fn test_participant() {
     //     let addr = [127, 0, 0, 1];
