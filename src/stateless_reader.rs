@@ -3,7 +3,7 @@ use std::sync::Mutex;
 
 use crate::cache::HistoryCache;
 use crate::types::{ReliabilityKind, TopicKind, GUID, Locator, GuidPrefix };
-use crate::messages::receiver::ReaderReceiveMessage;
+use crate::messages::message_receiver::ReaderReceiveMessage;
 use crate::behavior::stateless_reader::BestEffortStatelessReaderBehavior;
 
 pub struct StatelessReader {

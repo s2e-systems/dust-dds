@@ -3,7 +3,7 @@ use crate::types::constants::ENTITYID_UNKNOWN;
 use crate::messages::{Gap};
 use crate::stateless_writer::{ReaderLocator, StatelessWriter};
 use crate::messages::Endianness;
-use crate::messages::receiver::WriterSendMessage;
+use crate::messages::message_sender::WriterSendMessage;
 
 use super::data_from_cache_change;
 pub struct BestEffortStatelessWriterBehavior {}

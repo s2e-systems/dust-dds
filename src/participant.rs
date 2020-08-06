@@ -6,7 +6,7 @@ use crate::messages::Endianness;
 use crate::behavior::types::Duration;
 use crate::spdp::SPDPdiscoveredParticipantData;
 use crate::transport::Transport;
-use crate::messages::receiver::rtps_message_sender;
+use crate::messages::message_sender::rtps_message_sender;
 
 
 pub struct Participant {

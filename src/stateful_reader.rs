@@ -3,7 +3,7 @@ use std::sync::{RwLock, RwLockReadGuard, Mutex, MutexGuard, };
 
 use crate::cache::HistoryCache;
 use crate::types::{Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID, };
-use crate::messages::receiver::{ReaderReceiveMessage, ReaderSendMessage, };
+use crate::messages::message_receiver::{ReaderReceiveMessage, ReaderSendMessage, };
 use crate::behavior::types::Duration;
 use crate::behavior::stateful_reader::{StatefulReaderBehavior, BestEfforStatefulReaderBehavior, ReliableStatefulReaderBehavior, };
 

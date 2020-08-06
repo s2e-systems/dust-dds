@@ -18,7 +18,8 @@ mod submessage;
 mod serdes;
 mod submessage_elements;
 pub mod types;
-pub mod receiver;
+pub mod message_receiver;
+pub mod message_sender;
 
 pub use ack_nack_submessage::AckNack;
 // pub use data_frag_submessage::DataFrag;

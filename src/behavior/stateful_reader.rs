@@ -3,7 +3,7 @@ use std::time::Instant;
 
 use crate::stateful_reader::{WriterProxy, StatefulReader};
 use crate::messages::{AckNack, Data, Gap, Heartbeat, Endianness};
-use crate::messages::receiver::{ReaderReceiveMessage, ReaderSendMessage, };
+use crate::messages::message_receiver::{ReaderReceiveMessage, ReaderSendMessage, };
 use crate::messages::types::Count;
 
 use super::types::Duration;

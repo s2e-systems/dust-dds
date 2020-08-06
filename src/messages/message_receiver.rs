@@ -10,16 +10,7 @@ use super::submessage::RtpsSubmessage;
 use super::{Data, Gap, Heartbeat, AckNack, InfoTs, Endianness, UdpPsmMapping};
 use super::message::{RtpsMessage};
 use super::types::Time;
-
-pub enum Reader<'a> {
-    StatelessReader(&'a StatelessReader),
-    StatefulReader(&'a StatefulReader),
-}
-
-pub enum Writer<'a> {
-    StatelessWriter(&'a StatelessWriter),
-    StatefulWriter(&'a StatefulWriter),
-}
+use super::message_sender::WriterReceiveMessage;
 
 // Messages received by the reader. Which are the same as the ones sent by the writer
 #[derive(Debug)]
@@ -27,13 +18,6 @@ pub enum ReaderReceiveMessage {
     Data(Data),
     Gap(Gap),
     Heartbeat(Heartbeat),
-}
-
-pub type WriterSendMessage = ReaderReceiveMessage;
-
-// Messages received by the writer. Which are the same as the ones sent by the reader
-pub enum WriterReceiveMessage {
-    AckNack(AckNack)
 }
 
 pub type ReaderSendMessage = WriterReceiveMessage;
@@ -131,33 +115,6 @@ pub fn rtps_message_receiver(transport: &mut Transport, participant_guid_prefix:
 //     stateless_reader.push_receive_message(source_guid_prefix, message);
 // }
 
-
-
-// ////////////////// RTPS Message Sender
-
-pub fn rtps_message_sender(transport: &mut Transport, participant_guid_prefix: GuidPrefix, stateless_writer_list: &[&StatelessWriter]) {
-    for stateless_writer in stateless_writer_list {
-        let reader_locators = stateless_writer.reader_locators();
-        for (locator, reader_locator) in reader_locators.iter() {
-            let mut submessage = Vec::new();
-            while let Some(message) = reader_locator.pop_send_message() {
-                submessage.push(RtpsSubmessage::InfoTs(InfoTs::new(Some(Time::now()), Endianness::LittleEndian)));
-                match message {
-                    WriterSendMessage::Data(data) => submessage.push(RtpsSubmessage::Data(data)),
-                    WriterSendMessage::Gap(gap) => submessage.push(RtpsSubmessage::Gap(gap)),
-                    WriterSendMessage::Heartbeat(_) => panic!("Heartbeat not expect from stateless writer"),
-                };
-            };
-
-            if !submessage.is_empty() {
-                let rtps_message = RtpsMessage::new(participant_guid_prefix, submessage);
-                let mut buf = Vec::new();
-                rtps_message.compose(&mut buf).unwrap();
-                transport.write(&buf, *locator);
-            }
-        }
-    }
-}
 
 #[cfg(test)]
 mod tests {

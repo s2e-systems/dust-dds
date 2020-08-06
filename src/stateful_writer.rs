@@ -4,7 +4,7 @@ use std::sync::{RwLock, RwLockReadGuard, Mutex, MutexGuard};
 use crate::types::{ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID, };
 use crate::behavior::types::Duration;
 use crate::behavior::stateful_writer::{StatefulWriterBehavior, BestEffortStatefulWriterBehavior, ReliableStatefulWriterBehavior};
-use crate::messages::receiver::{WriterSendMessage, WriterReceiveMessage};
+use crate::messages::message_sender::{WriterSendMessage, WriterReceiveMessage};
 use crate::cache::{CacheChange, HistoryCache, };
 use crate::messages::{ParameterList};
 

@@ -5,7 +5,7 @@ use crate::types::{SequenceNumber, };
 use crate::messages::{Gap, Heartbeat, Endianness, AckNack};
 use crate::stateful_writer::{StatefulWriter, ReaderProxy};
 use crate::messages::types::{Count, };
-use crate::messages::receiver::{WriterSendMessage, WriterReceiveMessage};
+use crate::messages::message_sender::{WriterSendMessage, WriterReceiveMessage};
 
 use super::types::Duration;
 use super::data_from_cache_change;

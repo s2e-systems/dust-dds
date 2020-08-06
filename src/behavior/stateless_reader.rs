@@ -1,6 +1,6 @@
 use crate::types::GuidPrefix;
 use crate::messages::Data;
-use crate::messages::receiver::ReaderReceiveMessage;
+use crate::messages::message_receiver::ReaderReceiveMessage;
 use crate::stateless_reader::StatelessReader;
 
 use super::cache_change_from_data;

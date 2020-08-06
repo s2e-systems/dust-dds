@@ -5,7 +5,7 @@ use crate::cache::{CacheChange, HistoryCache};
 use crate::messages::{ParameterList};
 use crate::types::{ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID, };
 use crate::behavior::stateless_writer::BestEffortStatelessWriterBehavior;
-use crate::messages::receiver::WriterSendMessage;
+use crate::messages::message_sender::WriterSendMessage;
 
 pub struct ReaderLocator {
     //requested_changes: HashSet<CacheChange>,
@@ -172,7 +172,7 @@ impl StatelessWriter {
 mod tests {
     use super::*;
     use crate::types::constants::*;
-    use crate::messages::receiver::ReaderReceiveMessage;
+    use crate::messages::message_receiver::ReaderReceiveMessage;
     use crate::types::*;
 
     #[test]
