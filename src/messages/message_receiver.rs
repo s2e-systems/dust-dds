@@ -26,7 +26,7 @@ pub type ReaderSendMessage = WriterReceiveMessage;
 // ////////////////// RTPS Message Receiver
 
 pub fn rtps_message_receiver(transport: &mut impl Transport, participant_guid_prefix: GuidPrefix, stateless_reader_list: &[StatelessReader]) {
-    let (message, src_addr) = transport.read().unwrap();
+    // let (message, src_addr) = transport.read().unwrap();
 
     todo!()
     

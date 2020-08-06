@@ -12,6 +12,7 @@ mod stateless_writer;
 mod stateful_reader;
 mod stateful_writer;
 mod transport;
+mod transport_stub;
 mod endpoint_types;
 mod spdp;
 mod participant;

@@ -19,12 +19,12 @@ impl From<std::io::Error> for TransportError {
     }
 }
 
-type Result<T> = std::result::Result<T, TransportError>;
+pub type Result<T> = std::result::Result<T, TransportError>;
 
 pub trait Transport {
     fn write(&self, message: RtpsMessage, locator: Locator);
 
-    fn read(&self) -> Result<(Option<RtpsMessage>, SocketAddr)>;
+    fn read(&self) -> Result<Option<(RtpsMessage, Locator)>>;
 }
 
 const MAX_UDP_DATA_SIZE: usize = 65536;
@@ -92,12 +92,21 @@ impl Transport for UdpTransport {
             .unwrap();
     }
 
-    fn read(&self) -> Result<(Option<RtpsMessage>, SocketAddr)> {
+    fn read(&self) -> Result<Option<(RtpsMessage, Locator)>> {
         let mut buf = [0_u8; MAX_UDP_DATA_SIZE];
         let (number_of_bytes, src_addr) = self.socket.recv_from(&mut buf)?;
         let message = RtpsMessage::parse(&buf[..number_of_bytes]).ok();
-
-        Ok((message, src_addr))
+        if let Some(message) = message {
+            let src_locator = match src_addr {
+                SocketAddr::V4(socket_addr_v4) => Locator::new_udpv4(socket_addr_v4.port(), socket_addr_v4.ip().octets()),
+                _ => todo!(),
+            };
+    
+            Ok(Some((message, src_locator)))
+        } else {
+            Ok(None)
+        }
+        
     }
 }
 
@@ -134,8 +143,13 @@ mod tests {
 
         let result = transport.read().unwrap();
 
-        assert_eq!(Some(message), result.0);
-        assert_eq!(sender.local_addr().unwrap(), result.1);
+        let (src_port, src_address) = match sender.local_addr().unwrap() {
+            SocketAddr::V4(socket_addr_v4) => (socket_addr_v4.port(), socket_addr_v4.ip().octets()),
+            _ => panic!("Expected IPv4"),
+        };
+        let expected_src_locator = Locator::new_udpv4(src_port, src_address);
+
+        assert_eq!(result, Some((message, expected_src_locator)));
     }
 
     #[test]
