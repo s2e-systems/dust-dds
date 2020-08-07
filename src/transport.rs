@@ -94,19 +94,29 @@ impl Transport for UdpTransport {
 
     fn read(&self) -> Result<Option<(RtpsMessage, Locator)>> {
         let mut buf = [0_u8; MAX_UDP_DATA_SIZE];
-        let (number_of_bytes, src_addr) = self.socket.recv_from(&mut buf)?;
-        let message = RtpsMessage::parse(&buf[..number_of_bytes]).ok();
-        if let Some(message) = message {
-            let src_locator = match src_addr {
-                SocketAddr::V4(socket_addr_v4) => Locator::new_udpv4(socket_addr_v4.port(), socket_addr_v4.ip().octets()),
-                _ => todo!(),
-            };
-    
-            Ok(Some((message, src_locator)))
-        } else {
-            Ok(None)
+        let recv_result = self.socket.recv_from(&mut buf);
+        match recv_result {
+            Ok((number_of_bytes, src_addr)) => {
+                let message = RtpsMessage::parse(&buf[..number_of_bytes]).ok();
+                if let Some(message) = message {
+                    let src_locator = match src_addr {
+                        SocketAddr::V4(socket_addr_v4) => Locator::new_udpv4(socket_addr_v4.port(), socket_addr_v4.ip().octets()),
+                        _ => todo!(),
+                    };
+            
+                    Ok(Some((message, src_locator)))
+                } else {
+                    Ok(None)
+                }
+            },
+            Err(error) => {
+                if error.kind() == std::io::ErrorKind::WouldBlock {
+                    Ok(None)
+                } else {
+                    Err(error.into())
+                }
+            },
         }
-        
     }
 }
 
@@ -162,13 +172,8 @@ mod tests {
 
         let transport = UdpTransport::new(unicast_locator, Some(multicast_locator)).unwrap();
 
-        let expected = std::io::ErrorKind::WouldBlock;
-        let result = transport.read();
-
-        match result {
-            Err(TransportError::IoError(io_err)) => assert_eq!(io_err.kind(), expected),
-            _ => assert!(false),
-        }
+        let result = transport.read().unwrap();
+        assert!(result.is_none());
     }
 
     #[test]

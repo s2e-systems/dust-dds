@@ -7,6 +7,7 @@ use crate::behavior::types::Duration;
 use crate::spdp::SPDPdiscoveredParticipantData;
 use crate::transport::UdpTransport;
 use crate::messages::message_sender::rtps_message_sender;
+use crate::messages::message_receiver::rtps_message_receiver;
 
 
 pub struct Participant {
@@ -398,10 +399,13 @@ impl Participant {
     //     }
     // }
 
-    fn run(&mut self) {
-        self.spdp_builtin_participant_writer.run();
+    fn run(&self) {
 
-        rtps_message_sender(&mut self.discovery_transport, *self.guid.prefix(), &[&self.spdp_builtin_participant_writer]);
+        rtps_message_receiver(&self.discovery_transport, *self.guid.prefix(), &[&self.spdp_builtin_participant_reader]);
+        self.spdp_builtin_participant_reader.run();
+
+        self.spdp_builtin_participant_writer.run();
+        rtps_message_sender(&self.discovery_transport, *self.guid.prefix(), &[&self.spdp_builtin_participant_writer]);
     }
 }
 
