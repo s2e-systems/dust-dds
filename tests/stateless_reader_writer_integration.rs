@@ -72,10 +72,10 @@ fn test_stateless_writer_stateless_reader_direct_communication_integration() {
         [0;16], /*handle*/
     );
 
-   writer.history_cache().add_change(cache_change_seq1.clone());
-   writer.history_cache().add_change(cache_change_seq2.clone());
-   writer.history_cache().add_change(cache_change_seq3.clone());
-   writer.history_cache().add_change(cache_change_seq4.clone());
+   writer.writer_cache().add_change(cache_change_seq1.clone());
+   writer.writer_cache().add_change(cache_change_seq2.clone());
+   writer.writer_cache().add_change(cache_change_seq3.clone());
+   writer.writer_cache().add_change(cache_change_seq4.clone());
 
    writer.run();
 

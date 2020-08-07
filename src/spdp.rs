@@ -31,7 +31,7 @@ pub struct SPDPdiscoveredParticipantData{
     domain_id: DomainId,
     domain_tag: String,
     protocol_version: ProtocolVersion,
-    guid_prefix: GuidPrefix, // Implicit by the key (TODO)
+    guid_prefix: GuidPrefix,
     vendor_id: VendorId,
     expects_inline_qos: bool,
     metatraffic_unicast_locator_list: Vec<Locator>,
@@ -48,13 +48,13 @@ impl SPDPdiscoveredParticipantData {
     pub fn new_from_participant(participant: &Participant, lease_duration: Duration) -> Self{
         Self {
             domain_id: participant.domain_id(),
-            domain_tag: "".to_string(), //TODO: participant.domain_tag(),
+            domain_tag: participant.domain_tag().clone(),
             protocol_version: participant.protocol_version(),
             guid_prefix: participant.guid().prefix(),
             vendor_id: participant.vendor_id(),
             expects_inline_qos: false, // TODO
-            metatraffic_unicast_locator_list: vec![], //TODO: participant.metatraffic_unicast_locator_list().clone(),
-            metatraffic_multicast_locator_list: vec![], //TODO: participant.metatraffic_multicast_locator_list().clone(),
+            metatraffic_unicast_locator_list: participant.metatraffic_unicast_locator_list().clone(),
+            metatraffic_multicast_locator_list: participant.metatraffic_multicast_locator_list().clone(),
             default_unicast_locator_list: participant.default_unicast_locator_list().clone(),
             default_multicast_locator_list: participant.default_multicast_locator_list().clone(),
             available_built_in_endpoints: participant.builtin_endpoint_set(),
@@ -110,7 +110,7 @@ impl SPDPdiscoveredParticipantData {
         let mut parameter_list = CdrParameterList::new(endianness);
 
         // Defaults to the domainId of the local participant receiving the message
-        // TODO: Add the chance of adding a specific domain_id
+        // TODO: Add the chance of sending a specific domain_id
         // parameter_list.push(ParameterDomainId(self.domain_id));
 
         if self.domain_tag != ParameterDomainTag::default() {
@@ -154,14 +154,13 @@ impl SPDPdiscoveredParticipantData {
         writer
     }
 
-    pub fn from_key_data(key: InstanceHandle, data: &[u8]) -> Self {
+    pub fn from_key_data(key: InstanceHandle, data: &[u8], default_domain_id: DomainId) -> Self {
 
         let guid_prefix: GuidPrefix = key[0..12].try_into().unwrap();
 
         let parameter_list = CdrParameterList::deserialize(&data);
 
-        // TODO: Defaults to the domain_id of the participant receiving the message
-        let domain_id = parameter_list.find::<ParameterDomainId>().unwrap_or(ParameterDomainId(0)).0;
+        let domain_id = parameter_list.find::<ParameterDomainId>().unwrap_or(ParameterDomainId(default_domain_id)).0;
         let domain_tag = parameter_list.find::<ParameterDomainTag>().unwrap_or_default().0;
         let protocol_version = parameter_list.find::<ParameterProtocolVersion>().unwrap().0;
         let vendor_id = parameter_list.find::<ParameterVendorId>().unwrap().0;
@@ -265,7 +264,7 @@ mod tests {
             0, 1, 0, 0 // PID_SENTINEL
         ].to_vec());
 
-        let deserialized_spdp = SPDPdiscoveredParticipantData::from_key_data(key, &data);
+        let deserialized_spdp = SPDPdiscoveredParticipantData::from_key_data(key, &data, 0);
         assert_eq!(deserialized_spdp,spdp_participant_data);
 
         let data = spdp_participant_data.data(Endianness::LittleEndian);
@@ -306,7 +305,7 @@ mod tests {
             1, 0, 0, 0 // PID_SENTINEL
         ].to_vec());
 
-        let deserialized_spdp = SPDPdiscoveredParticipantData::from_key_data(key, &data);
+        let deserialized_spdp = SPDPdiscoveredParticipantData::from_key_data(key, &data, 0);
         assert_eq!(deserialized_spdp,spdp_participant_data);
     }
 
@@ -348,7 +347,7 @@ mod tests {
             0, 1, 0, 0 // PID_SENTINEL
         ].to_vec());
         
-        let deserialized_spdp = SPDPdiscoveredParticipantData::from_key_data(key, &data);
+        let deserialized_spdp = SPDPdiscoveredParticipantData::from_key_data(key, &data, 0);
         assert_eq!(deserialized_spdp,spdp_participant_data);
     }
 

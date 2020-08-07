@@ -30,6 +30,8 @@ pub struct Participant {
     domain_id: DomainId,
     default_unicast_locator_list: Vec<Locator>,
     default_multicast_locator_list: Vec<Locator>,
+    metatraffic_unicast_locator_list: Vec<Locator>,
+    metatraffic_multicast_locator_list: Vec<Locator>,
     protocol_version: ProtocolVersion,
     vendor_id: VendorId,
     domain_tag: String,
@@ -68,33 +70,34 @@ impl Participant {
 
         let spdp_well_known_multicast_port = PB + DG * domain_id + D0;
 
-        let spdp_socket_locator = Locator::new(
+        let metatraffic_unicast_locator = Locator::new(
             LOCATOR_KIND_UDPv4,
             spdp_well_known_multicast_port,
             crate::transport::get_interface_address(&"Ethernet").unwrap(),
         );
 
-        let spdp_multicast_locator = Locator::new(
+        let metatraffic_multicast_locator = Locator::new(
             LOCATOR_KIND_UDPv4,
             spdp_well_known_multicast_port,
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 239, 255, 0, 1],
         );
 
-        let metatraffic_transport = UdpTransport::new(spdp_socket_locator, Some(spdp_multicast_locator)).unwrap();
+        let metatraffic_transport = UdpTransport::new(metatraffic_unicast_locator, Some(metatraffic_multicast_locator)).unwrap();
 
         let spdp_builtin_participant_writer = StatelessWriter::new(
             GUID::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER),
             TopicKind::WithKey);
+        spdp_builtin_participant_writer.reader_locator_add(metatraffic_multicast_locator);
 
         let spdp_builtin_participant_reader = StatelessReader::new(
             GUID::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_DETECTOR),
             TopicKind::WithKey,
             vec![],
-            vec![spdp_multicast_locator],
+            vec![metatraffic_multicast_locator],
             expects_inline_qos,
         );
         
-        spdp_builtin_participant_writer.reader_locator_add(spdp_multicast_locator);
+        
 
         let expects_inline_qos = false;
         let heartbeat_period = Duration::from_secs(5);
@@ -173,6 +176,8 @@ impl Participant {
             domain_id,
             default_unicast_locator_list,
             default_multicast_locator_list,
+            metatraffic_unicast_locator_list: vec![metatraffic_unicast_locator],
+            metatraffic_multicast_locator_list: vec![],
             protocol_version,
             vendor_id,
             domain_tag: "".to_string(),
@@ -219,8 +224,20 @@ impl Participant {
         &self.default_multicast_locator_list
     }
 
+    pub fn metatraffic_unicast_locator_list(&self) -> &Vec<Locator> {
+        &self.metatraffic_unicast_locator_list
+    }
+
+    pub fn metatraffic_multicast_locator_list(&self) -> &Vec<Locator> {
+        &self.metatraffic_multicast_locator_list
+    }
+
     pub fn builtin_endpoint_set(&self) -> BuiltInEndpointSet {
         self.builtin_endpoint_set
+    }
+
+    pub fn domain_tag(&self) -> &String {
+        &self.domain_tag
     }
 
     fn run(&self) {
