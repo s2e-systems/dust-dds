@@ -72,7 +72,7 @@ impl BestEfforStatefulReaderBehavior {
     fn transition_t2(writer_proxy: &WriterProxy, stateful_reader: &StatefulReader, data: &Data) {
         let expected_seq_number = writer_proxy.available_changes_max() + 1;
         if data.writer_sn() >= expected_seq_number {
-            let cache_change = cache_change_from_data(data, writer_proxy.remote_writer_guid().prefix());
+            let cache_change = cache_change_from_data(data, &writer_proxy.remote_writer_guid().prefix());
             stateful_reader.reader_cache().add_change(cache_change);
             writer_proxy.received_change_set(data.writer_sn());
             writer_proxy.lost_changes_update(data.writer_sn());
@@ -128,7 +128,7 @@ impl ReliableStatefulReaderBehavior {
     fn transition_t8(writer_proxy: &WriterProxy, stateful_reader: &StatefulReader, data: &Data) {
         let expected_seq_number = writer_proxy.available_changes_max() + 1;
         if data.writer_sn() >= expected_seq_number {
-            let cache_change = cache_change_from_data(data, writer_proxy.remote_writer_guid().prefix());
+            let cache_change = cache_change_from_data(data, &writer_proxy.remote_writer_guid().prefix());
             stateful_reader.reader_cache().add_change(cache_change);
             writer_proxy.received_change_set(data.writer_sn());
         }
@@ -169,8 +169,8 @@ impl ReliableStatefulReaderBehavior {
  
         writer_proxy.behavior().increment_acknack_count();
         let acknack = AckNack::new(
-            *stateful_reader.guid().entity_id(), 
-            *writer_proxy.remote_writer_guid().entity_id(),
+            stateful_reader.guid().entity_id(), 
+            writer_proxy.remote_writer_guid().entity_id(),
             writer_proxy.available_changes_max(),
             writer_proxy.missing_changes().clone(),
             *writer_proxy.behavior().ackanck_count(),
@@ -257,7 +257,7 @@ mod tests {
 
         let data1 = Data::new(
             Endianness::LittleEndian, 
-            *reader_guid.entity_id(), 
+            reader_guid.entity_id(), 
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER, 
             3,
             Some(inline_qos),
@@ -300,8 +300,8 @@ mod tests {
         let writer_proxy = WriterProxy::new(remote_writer_guid, vec![], vec![]);
 
         let heartbeat = Heartbeat::new(
-            *reader_guid.entity_id(),
-            *remote_writer_guid.entity_id(),
+            reader_guid.entity_id(),
+            remote_writer_guid.entity_id(),
             3,
             6,
             1,
@@ -332,7 +332,7 @@ mod tests {
 
         let heartbeat = Heartbeat::new(
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
-            *remote_writer_guid.entity_id(),
+            remote_writer_guid.entity_id(),
             2,
             3,
             1,
@@ -370,7 +370,7 @@ mod tests {
 
         let heartbeat = Heartbeat::new(
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
-            *remote_writer_guid.entity_id(),
+            remote_writer_guid.entity_id(),
             1,
             0,
             1,

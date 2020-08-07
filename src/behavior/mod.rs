@@ -35,7 +35,7 @@ fn cache_change_from_data(message: &Data, guid_prefix: &GuidPrefix) -> CacheChan
 }
 
 fn data_from_cache_change(cache_change: &CacheChange, endianness: Endianness, reader_id: EntityId) -> Data {
-    let writer_id: EntityId = *cache_change.writer_guid().entity_id();
+    let writer_id: EntityId = cache_change.writer_guid().entity_id();
     let writer_sn = *cache_change.sequence_number();
 
     let mut inline_qos_parameters = match cache_change.inline_qos() {

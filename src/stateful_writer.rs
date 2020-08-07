@@ -470,16 +470,16 @@ mod tests {
         let message_2 = stateful_writer.matched_readers().get(&remote_reader_guid).unwrap().pop_send_message().unwrap();
 
         if let WriterSendMessage::Data(data) = message_1 {
-            assert_eq!(&data.reader_id(), remote_reader_guid.entity_id());
-            assert_eq!(&data.writer_id(), writer_guid.entity_id());
+            assert_eq!(data.reader_id(), remote_reader_guid.entity_id());
+            assert_eq!(data.writer_id(), writer_guid.entity_id());
             assert_eq!(data.writer_sn(), 1);
         } else {
             panic!("Wrong message sent");
         }
 
         if let WriterSendMessage::Data(data) = message_2 {
-            assert_eq!(&data.reader_id(), remote_reader_guid.entity_id());
-            assert_eq!(&data.writer_id(), writer_guid.entity_id());
+            assert_eq!(data.reader_id(), remote_reader_guid.entity_id());
+            assert_eq!(data.writer_id(), writer_guid.entity_id());
             assert_eq!(data.writer_sn(), 2);
         } else {
             panic!("Wrong message sent");
@@ -523,16 +523,16 @@ mod tests {
         let message_2 = stateful_writer.matched_readers().get(&remote_reader_guid).unwrap().pop_send_message().unwrap();
 
         if let WriterSendMessage::Data(data) = message_1 {
-            assert_eq!(&data.reader_id(), remote_reader_guid.entity_id());
-            assert_eq!(&data.writer_id(), writer_guid.entity_id());
+            assert_eq!(data.reader_id(), remote_reader_guid.entity_id());
+            assert_eq!(data.writer_id(), writer_guid.entity_id());
             assert_eq!(data.writer_sn(), 1);
         } else {
             panic!("Wrong message sent");
         }
 
         if let WriterSendMessage::Data(data) = message_2 {
-            assert_eq!(&data.reader_id(), remote_reader_guid.entity_id());
-            assert_eq!(&data.writer_id(), writer_guid.entity_id());
+            assert_eq!(data.reader_id(), remote_reader_guid.entity_id());
+            assert_eq!(data.writer_id(), writer_guid.entity_id());
             assert_eq!(data.writer_sn(), 2);
         } else {
             panic!("Wrong message sent. Expected Data");
@@ -551,8 +551,8 @@ mod tests {
         }
 
         let acknack = AckNack::new(
-            *remote_reader_guid.entity_id(),
-            *writer_guid.entity_id(),
+            remote_reader_guid.entity_id(),
+            writer_guid.entity_id(),
                 3,
                 BTreeSet::new(),
                 1,

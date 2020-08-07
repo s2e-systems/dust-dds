@@ -35,7 +35,7 @@ impl BestEffortStatelessWriterBehavior{
         } else {
             let gap = Gap::new(
                 ENTITYID_UNKNOWN, 
-                *stateless_writer.guid().entity_id(),
+                stateless_writer.guid().entity_id(),
                 next_unsent_seq_num,
                 endianness);
 

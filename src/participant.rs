@@ -105,12 +105,6 @@ impl Participant {
         participant
         
 
-    //     let socket = Transport::new(
-    //         Udpv4Locator::new_udpv4(&[127, 0, 0, 1], &7400),
-    //         Some(Udpv4Locator::new_udpv4(&[239, 255, 0, 1], &7400)),
-    //     )
-    //     .unwrap();
-
     //     let heartbeat_response_delay = DURATION_ZERO;
     //     let heartbeat_suppression_duration = DURATION_ZERO;
     //     let expects_inline_qos = false;
@@ -413,11 +407,11 @@ impl Participant {
 
     fn run(&self) {
 
-        rtps_message_receiver(&self.discovery_transport, *self.guid.prefix(), &[&self.spdp_builtin_participant_reader]);
+        rtps_message_receiver(&self.discovery_transport, self.guid.prefix(), &[&self.spdp_builtin_participant_reader]);
         self.spdp_builtin_participant_reader.run();
 
         self.spdp_builtin_participant_writer.run();
-        rtps_message_sender(&self.discovery_transport, *self.guid.prefix(), &[&self.spdp_builtin_participant_writer]);
+        rtps_message_sender(&self.discovery_transport, self.guid.prefix(), &[&self.spdp_builtin_participant_writer]);
     }
 }
 

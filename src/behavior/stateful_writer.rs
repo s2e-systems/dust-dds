@@ -85,13 +85,13 @@ impl BestEffortStatefulWriterBehavior {
         if let Some(cache_change) = stateful_writer.writer_cache()
             .changes().iter().find(|cc| cc.sequence_number() == &next_unsent_seq_num)
         {
-            let reader_id = *reader_proxy.remote_reader_guid().entity_id();
+            let reader_id = reader_proxy.remote_reader_guid().entity_id();
             let data = data_from_cache_change(cache_change, endianness, reader_id);
             reader_proxy.push_send_message(WriterSendMessage::Data(data));
         } else {
             let gap = Gap::new(
-                *reader_proxy.remote_reader_guid().entity_id(), 
-                *stateful_writer.guid().entity_id(),
+                reader_proxy.remote_reader_guid().entity_id(), 
+                stateful_writer.guid().entity_id(),
                 next_unsent_seq_num,
                 Endianness::LittleEndian);
 
@@ -138,8 +138,8 @@ impl ReliableStatefulWriterBehavior {
         reader_proxy.behavior().increment_heartbeat_count();
 
         let heartbeat = Heartbeat::new(
-            *reader_proxy.remote_reader_guid().entity_id(),
-            *stateful_writer.guid().entity_id(),
+            reader_proxy.remote_reader_guid().entity_id(),
+            stateful_writer.guid().entity_id(),
             first_sn,
             stateful_writer.last_change_sequence_number(),
             *reader_proxy.behavior().heartbeat_count(),
@@ -183,12 +183,12 @@ impl ReliableStatefulWriterBehavior {
         .changes().iter().find(|cc| cc.sequence_number() == &next_requested_seq_num)
         {
             let endianness = Endianness::LittleEndian;
-            let data = data_from_cache_change(cache_change, endianness, *reader_proxy.remote_reader_guid().entity_id());
+            let data = data_from_cache_change(cache_change, endianness, reader_proxy.remote_reader_guid().entity_id());
             reader_proxy.push_send_message(WriterSendMessage::Data(data));
         } else {
             let gap = Gap::new(
-                *reader_proxy.remote_reader_guid().entity_id(), 
-                *stateful_writer.guid().entity_id(),
+                reader_proxy.remote_reader_guid().entity_id(), 
+                stateful_writer.guid().entity_id(),
                 next_requested_seq_num,
                 Endianness::LittleEndian);
 

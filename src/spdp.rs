@@ -50,7 +50,7 @@ impl SPDPdiscoveredParticipantData {
             // domain_id: 0, //TODO: participant.domain_id(),
             domain_tag: "".to_string(), //TODO: participant.domain_tag(),
             protocol_version: participant.protocol_version(),
-            guid_prefix: *participant.guid().prefix(),
+            guid_prefix: participant.guid().prefix(),
             vendor_id: participant.vendor_id(),
             expects_inline_qos: false, // TODO
             metatraffic_unicast_locator_list: vec![], //TODO: participant.metatraffic_unicast_locator_list().clone(),
