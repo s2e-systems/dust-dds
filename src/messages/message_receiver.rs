@@ -99,6 +99,10 @@ fn receive_writer_submessage(source_guid_prefix: GuidPrefix, message: WriterRece
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::types::TopicKind;
+    use crate::types::constants::{ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, ENTITYID_UNKNOWN};
+    use crate::transport_stub::StubTransport;
+    use crate::messages::{Endianness, Data, RtpsMessage, Payload};
     // use crate::messages::{InfoTs, Data};
     // use crate::messages::Endianness;
     // use crate::messages::types::Time;
@@ -107,7 +111,67 @@ mod tests {
     // use crate::stateful_reader::WriterProxy;
     // use crate::behavior::types::Duration;
 
-    // #[test]
+    #[test]
+    fn stateless_reader_message_receive() {
+        let transport = StubTransport::new();
+        let guid_prefix = [1,2,3,4,5,6,8,1,2,3,4,5];
+
+        let src_locator = Locator::new_udpv4(7500, [127,0,0,1]);
+
+        let stateless_reader = StatelessReader::new(
+            GUID::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR),
+            TopicKind::WithKey,
+            vec![src_locator],
+            vec![],
+            false);
+
+        // Run the empty transport and check that nothing happends
+        rtps_message_receiver(&transport, guid_prefix, &[&stateless_reader]);
+        assert!(stateless_reader.pop_receive_message().is_none());
+
+        // Send a message to the stateless reader
+        let src_guid_prefix = [5,2,3,4,5,6,8,1,2,3,4,5];
+        let data = Data::new(Endianness::LittleEndian, ENTITYID_UNKNOWN, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER, 1, None, Payload::None);
+        let message = RtpsMessage::new(src_guid_prefix, vec![RtpsSubmessage::Data(data)]);
+        transport.push_read(message, src_locator);
+
+        rtps_message_receiver(&transport, guid_prefix, &[&stateless_reader]);
+
+        let expected_data = Data::new(Endianness::LittleEndian, ENTITYID_UNKNOWN, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER, 1, None, Payload::None);
+        match stateless_reader.pop_receive_message() {
+            Some((received_guid_prefix, ReaderReceiveMessage::Data(data_received))) => {
+                assert_eq!(received_guid_prefix, src_guid_prefix);
+                assert_eq!(data_received, expected_data);
+            },
+            _ => panic!("Unexpected message received"),
+        };
+    }
+
+    #[test]
+    fn stateless_reader_message_receive_other_locator() {
+        let transport = StubTransport::new();
+        let guid_prefix = [1,2,3,4,5,6,8,1,2,3,4,5];
+
+        let src_locator = Locator::new_udpv4(7500, [127,0,0,1]);
+
+        let stateless_reader = StatelessReader::new(
+            GUID::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR),
+            TopicKind::WithKey,
+            vec![src_locator],
+            vec![],
+            false);
+
+        // Send a message to the stateless reader
+        let other_locator = Locator::new_udpv4(7600, [1,1,1,1]);
+        let src_guid_prefix = [5,2,3,4,5,6,8,1,2,3,4,5];
+        let data = Data::new(Endianness::LittleEndian, ENTITYID_UNKNOWN, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER, 1, None, Payload::None);
+        let message = RtpsMessage::new(src_guid_prefix, vec![RtpsSubmessage::Data(data)]);
+        transport.push_read(message, other_locator);
+
+        rtps_message_receiver(&transport, guid_prefix, &[&stateless_reader]);
+        assert!(stateless_reader.pop_receive_message().is_none());
+    }
+    
     // fn receive_infots_data_message() {
     //     let guid_prefix = [1;12];
     //     let guid = GUID::new(guid_prefix, EntityId::new([1,2,3], EntityKind::UserDefinedReaderWithKey));
