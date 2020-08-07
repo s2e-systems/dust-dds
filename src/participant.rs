@@ -190,7 +190,7 @@ impl Participant {
 
         let spdp_discovered_data = SPDPdiscoveredParticipantData::new_from_participant(&participant, lease_duration);
         let spdp_change = participant.spdp_builtin_participant_writer.new_change(ChangeKind::Alive,Some(spdp_discovered_data.data(endianness)) , None, spdp_discovered_data.key());
-        participant.spdp_builtin_participant_writer.history_cache().add_change(spdp_change);
+        participant.spdp_builtin_participant_writer.writer_cache().add_change(spdp_change);
         
         participant
     }

@@ -27,7 +27,7 @@ impl BestEffortStatelessWriterBehavior{
     fn transition_t4(reader_locator: &ReaderLocator, stateless_writer: &StatelessWriter, next_unsent_seq_num: SequenceNumber) {
         let endianness = Endianness::LittleEndian;
 
-        if let Some(cache_change) = stateless_writer.history_cache()
+        if let Some(cache_change) = stateless_writer.writer_cache()
             .changes().iter().find(|cc| cc.sequence_number() == &next_unsent_seq_num)
         {
             let data = data_from_cache_change(cache_change, endianness, ENTITYID_UNKNOWN);

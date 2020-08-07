@@ -134,7 +134,7 @@ impl StatelessWriter {
         &self.guid
     }
 
-    pub fn history_cache(&self) -> &HistoryCache {
+    pub fn writer_cache(&self) -> &HistoryCache {
         &self.writer_cache
     }
 
@@ -235,8 +235,8 @@ mod tests {
             [1; 16],             
         );
 
-        writer.history_cache().add_change(cache_change_seq1);
-        writer.history_cache().add_change(cache_change_seq2);
+        writer.writer_cache().add_change(cache_change_seq1);
+        writer.writer_cache().add_change(cache_change_seq2);
 
         writer.run();
 

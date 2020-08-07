@@ -115,17 +115,12 @@ fn receive_writer_submessage(_source_guid_prefix: GuidPrefix, _message: WriterRe
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::TopicKind;
+    use crate::types::{TopicKind, ReliabilityKind};
     use crate::types::constants::{ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, ENTITYID_UNKNOWN};
     use crate::transport_stub::StubTransport;
     use crate::messages::{Endianness, Data, RtpsMessage, Payload};
-    // use crate::messages::{InfoTs, Data};
-    // use crate::messages::Endianness;
-    // use crate::messages::types::Time;
-    // use crate::messages::data_submessage::Payload;
-    // use crate::types::{GUID, EntityId, EntityKind, TopicKind, ReliabilityKind};
-    // use crate::stateful_reader::WriterProxy;
-    // use crate::behavior::types::Duration;
+    use crate::behavior::types::Duration;
+    use crate::stateful_reader::WriterProxy;
 
     #[test]
     fn stateless_reader_message_receive() {
@@ -187,33 +182,53 @@ mod tests {
         rtps_message_receiver(&transport, guid_prefix, &[&stateless_reader], &[]);
         assert!(stateless_reader.pop_receive_message().is_none());
     }
-    
-    // fn receive_infots_data_message() {
-    //     let guid_prefix = [1;12];
-    //     let guid = GUID::new(guid_prefix, EntityId::new([1,2,3], EntityKind::UserDefinedReaderWithKey));
-    //     let mut reader1 = StatefulReader::new(
-    //         guid,
-    //         TopicKind::WithKey, 
-    //     ReliabilityKind::BestEffort,
-    //     false,
-    //     Duration::from_millis(500));
 
-    //     let proxy1 = WriterProxy::new(
-    //         GUID::new([2;12], EntityId::new([1,2,3], EntityKind::UserDefinedWriterWithKey)),
-    //         vec![],
-    //         vec![]);
+    #[test]
+    fn stateful_reader_message_receive() {
+        let transport = StubTransport::new();
+        let guid_prefix = [1,2,3,4,5,6,8,1,2,3,4,5];
 
-    //     reader1.matched_writer_add(proxy1);
+        let stateful_reader = StatefulReader::new(
+            GUID::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR),
+            TopicKind::WithKey,
+            ReliabilityKind::BestEffort,
+            false,
+            Duration::from_millis(500));
 
-    //     let receiver = RtpsMessageReceiver::new(guid_prefix, Locator::new(0,0, [0;16]), vec![Reader::StatefulReader(&reader1)], vec![]);
+        let remote_guid_prefix = [1;12];
+        let remote_guid = GUID::new(remote_guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER);
+        let src_locator = Locator::new_udpv4(7500, [127,0,0,1]);
 
-    //     let info_ts = InfoTs::new(Some(Time::new(100,100)), Endianness::LittleEndian);
-    //     let data = Data::new(Endianness::LittleEndian,
-    //         EntityId::new([1,2,3], EntityKind::UserDefinedReaderWithKey),
-    //         EntityId::new([1,2,3], EntityKind::UserDefinedWriterWithKey),
-    //         1, None, Payload::Data(vec![1,2,3,4]));
-    //     let message = RtpsMessage::new([2;12],vec![RtpsSubmessage::InfoTs(info_ts), RtpsSubmessage::Data(data)]);
+        let proxy = WriterProxy::new(remote_guid,vec![src_locator], vec![]);
+        stateful_reader.matched_writer_add(proxy);
+        
+        // Run the empty transport and check that nothing happends
+        rtps_message_receiver(&transport, guid_prefix, &[], &[&stateful_reader]);
+        assert!(stateful_reader.matched_writers().get(&remote_guid).unwrap().pop_receive_message().is_none());
 
-    //     receiver.receive(message);
-    // }
+        // Send a message from the matched writer to the reader
+        let data = Data::new(Endianness::LittleEndian, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER, 1, None, Payload::None);
+        let message = RtpsMessage::new(remote_guid_prefix, vec![RtpsSubmessage::Data(data)]);
+        transport.push_read(message, src_locator);
+
+        rtps_message_receiver(&transport, guid_prefix, &[], &[&stateful_reader]);
+
+        let expected_data = Data::new(Endianness::LittleEndian, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER, 1, None, Payload::None);
+        match stateful_reader.matched_writers().get(&remote_guid).unwrap().pop_receive_message() {
+            Some(ReaderReceiveMessage::Data(data_received)) => {
+                assert_eq!(data_received, expected_data);
+            },
+            _ => panic!("Unexpected message received"),
+        };
+
+        // Send a message from an unmatched writer to the reader
+        let other_remote_guid_prefix = [10;12];
+        let data = Data::new(Endianness::LittleEndian, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER, 1, None, Payload::None);
+        let message = RtpsMessage::new(other_remote_guid_prefix, vec![RtpsSubmessage::Data(data)]);
+        transport.push_read(message, src_locator);
+
+        rtps_message_receiver(&transport, guid_prefix, &[], &[&stateful_reader]);
+        assert!(stateful_reader.matched_writers().get(&remote_guid).unwrap().pop_receive_message().is_none());
+    }    
+
 }
