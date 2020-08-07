@@ -22,6 +22,8 @@ impl From<std::io::Error> for TransportError {
 pub type Result<T> = std::result::Result<T, TransportError>;
 
 pub trait Transport {
+    fn new(unicast_locator: Locator, multicast_locator: Option<Locator>) -> Result<Self> where Self: std::marker::Sized;
+
     fn write(&self, message: RtpsMessage, unicast_locator_list: &[Locator], multicast_locator_list: &[Locator]);
 
     fn read(&self) -> Result<Option<(RtpsMessage, Locator)>>;
@@ -50,7 +52,11 @@ pub fn get_interface_address(interface_name: &str) -> Option<[u8; 16]> {
 }
 
 impl UdpTransport {
-    pub fn new(
+
+}
+
+impl Transport for UdpTransport {
+    fn new(
         unicast_locator: Locator,
         multicast_locator: Option<Locator>,
     ) -> Result<Self> {
@@ -76,9 +82,7 @@ impl UdpTransport {
             socket
         })
     }
-}
 
-impl Transport for UdpTransport {
     fn write(&self, message: RtpsMessage, unicast_locator_list: &[Locator], multicast_locator_list: &[Locator]) {
         let mut buf =  Vec::new();
         message.compose(&mut buf).unwrap();

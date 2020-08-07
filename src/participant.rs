@@ -19,13 +19,13 @@ use crate::messages::Endianness;
 use crate::behavior::types::Duration;
 use crate::behavior::types::constants::DURATION_ZERO;
 use crate::spdp::SPDPdiscoveredParticipantData;
-use crate::transport::UdpTransport;
+use crate::transport::{Transport, UdpTransport};
 use crate::messages::message_sender::rtps_message_sender;
 use crate::messages::message_receiver::rtps_message_receiver;
 use crate::endpoint_types::DomainId;
 
 
-pub struct Participant {
+pub struct Participant<T: Transport> {
     guid: GUID,
     domain_id: DomainId,
     default_unicast_locator_list: Vec<Locator>,
@@ -35,7 +35,7 @@ pub struct Participant {
     protocol_version: ProtocolVersion,
     vendor_id: VendorId,
     domain_tag: String,
-    metatraffic_transport: UdpTransport,
+    metatraffic_transport: T,
     spdp_builtin_participant_reader: StatelessReader,
     spdp_builtin_participant_writer: StatelessWriter,
     builtin_endpoint_set: BuiltInEndpointSet,
@@ -47,7 +47,7 @@ pub struct Participant {
     sedp_builtin_topics_writer: StatefulWriter,
 }
 
-impl Participant {
+impl<T: Transport> Participant<T> {
     fn new(
         default_unicast_locator_list: Vec<Locator>,
         default_multicast_locator_list: Vec<Locator>,
@@ -82,7 +82,7 @@ impl Participant {
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 239, 255, 0, 1],
         );
 
-        let metatraffic_transport = UdpTransport::new(metatraffic_unicast_locator, Some(metatraffic_multicast_locator)).unwrap();
+        let metatraffic_transport = T::new(metatraffic_unicast_locator, Some(metatraffic_multicast_locator)).unwrap();
 
         let spdp_builtin_participant_writer = StatelessWriter::new(
             GUID::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER),
@@ -171,13 +171,19 @@ impl Participant {
             BuiltInEndpointSet::BUILTIN_ENDPOINT_TOPICS_DETECTOR
         );
 
+        // Fill up the metatraffic locator lists. By default only the SPDP will
+        // use the multicast and the remaining built-in endpoints will communicate
+        // over unicast.
+        let metatraffic_unicast_locator_list = vec![metatraffic_unicast_locator];
+        let metatraffic_multicast_locator_list = vec![];
+
         let participant = Self {
             guid: GUID::new(guid_prefix,ENTITYID_PARTICIPANT ),
             domain_id,
             default_unicast_locator_list,
             default_multicast_locator_list,
-            metatraffic_unicast_locator_list: vec![metatraffic_unicast_locator],
-            metatraffic_multicast_locator_list: vec![],
+            metatraffic_unicast_locator_list,
+            metatraffic_multicast_locator_list,
             protocol_version,
             vendor_id,
             domain_tag: "".to_string(),
@@ -360,16 +366,19 @@ impl Participant {
 mod tests {
     use super::*;
     use crate::types::constants::{PROTOCOL_VERSION_2_4};
+    use crate::transport_stub::StubTransport;
 
     #[test]
     fn participant() {
-        let participant = Participant::new(
+        let participant = Participant::<StubTransport>::new(
             vec![],
             vec![],
             PROTOCOL_VERSION_2_4,
             [99,99]);
 
         participant.run();
+
+        println!("Message: {:?}",participant.metatraffic_transport.pop_write().unwrap());
 
         participant.run();
     }

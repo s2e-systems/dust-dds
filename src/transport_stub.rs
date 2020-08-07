@@ -11,13 +11,6 @@ pub struct StubTransport {
 }
 
 impl StubTransport {
-    pub fn new() -> Self {
-        Self {
-            read: Mutex::new(VecDeque::new()),
-            write: Mutex::new(VecDeque::new()),
-        }
-    }
-
     pub fn push_read(&self, message: RtpsMessage, locator: Locator) {
         self.read.lock().unwrap().push_back((message, locator));
     }
@@ -28,6 +21,13 @@ impl StubTransport {
 }
 
 impl Transport for StubTransport {
+    fn new(_unicast_locator: Locator, _multicast_locator: Option<Locator>) -> crate::transport::Result<Self> {
+        Ok(Self {
+            read: Mutex::new(VecDeque::new()),
+            write: Mutex::new(VecDeque::new()),
+        })
+    }
+
     fn read(&self) -> crate::transport::Result<Option<(RtpsMessage, Locator)>> {
         match self.read.lock().unwrap().pop_front() {
             Some((message, locator)) => Ok(Some((message, locator))),

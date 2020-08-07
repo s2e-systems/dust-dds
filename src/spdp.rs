@@ -6,6 +6,7 @@ use crate::messages::types::Count;
 use crate::behavior::types::Duration;
 use crate::participant::Participant;
 use crate::serialized_payload::CdrParameterList;
+use crate::transport::Transport;
 
 use crate::endpoint_types::{
     DomainId,
@@ -45,7 +46,7 @@ pub struct SPDPdiscoveredParticipantData{
 }
 
 impl SPDPdiscoveredParticipantData {
-    pub fn new_from_participant(participant: &Participant, lease_duration: Duration) -> Self{
+    pub fn new_from_participant<T: Transport>(participant: &Participant<T>, lease_duration: Duration) -> Self{
         Self {
             domain_id: participant.domain_id(),
             domain_tag: participant.domain_tag().clone(),
