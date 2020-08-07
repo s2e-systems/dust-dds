@@ -1,15 +1,10 @@
 use crate::types::{GUID, GuidPrefix, Locator,};
 use crate::stateless_reader::StatelessReader;
-use crate::stateless_writer::StatelessWriter;
-use crate::stateful_reader::{StatefulReader, WriterProxy};
-use crate::stateful_writer::{StatefulWriter, ReaderProxy};
 use crate::transport::Transport;
 
 
 use super::submessage::RtpsSubmessage;
-use super::{Data, Gap, Heartbeat, AckNack, InfoTs, Endianness};
-use super::message::{RtpsMessage};
-use super::types::Time;
+use super::{Data, Gap, Heartbeat,};
 use super::message_sender::WriterReceiveMessage;
 
 // Messages received by the reader. Which are the same as the ones sent by the writer
@@ -54,7 +49,7 @@ pub fn rtps_message_receiver(transport: &impl Transport, participant_guid_prefix
 }
 
 fn receive_reader_submessage(source_locator: &Locator, source_guid_prefix: GuidPrefix, message: ReaderReceiveMessage, stateless_reader_list: &[&StatelessReader]) {
-    let writer_guid = match &message {
+    let _writer_guid = match &message {
         ReaderReceiveMessage::Data(data) => GUID::new(source_guid_prefix, data.writer_id()),
         ReaderReceiveMessage::Gap(gap) => GUID::new(source_guid_prefix, gap.writer_id()),
         ReaderReceiveMessage::Heartbeat(heartbeat) => GUID::new(source_guid_prefix, heartbeat.writer_id()),
@@ -74,7 +69,7 @@ fn receive_reader_submessage(source_locator: &Locator, source_guid_prefix: GuidP
     
 }
 
-fn receive_writer_submessage(source_guid_prefix: GuidPrefix, message: WriterReceiveMessage) {
+fn receive_writer_submessage(_source_guid_prefix: GuidPrefix, _message: WriterReceiveMessage) {
     todo!()
     // let reader_guid = match &message {
     //     WriterReceiveMessage::AckNack(ack_nack) =>  GUID::new(source_guid_prefix, ack_nack.reader_id()),

@@ -418,7 +418,7 @@ mod tests {
 
     #[test]
     fn participant() {
-        let mut participant = Participant::new(
+        let participant = Participant::new(
             vec![],
             vec![],
             PROTOCOL_VERSION_2_4,

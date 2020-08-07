@@ -1,13 +1,10 @@
-use crate::types::{GUID, GuidPrefix, Locator,};
-use crate::stateless_reader::StatelessReader;
+use crate::types::{GuidPrefix, };
 use crate::stateless_writer::StatelessWriter;
-use crate::stateful_reader::{StatefulReader, WriterProxy};
-use crate::stateful_writer::{StatefulWriter, ReaderProxy};
 use crate::transport::Transport;
 
 
 use super::submessage::RtpsSubmessage;
-use super::{Data, Gap, Heartbeat, AckNack, InfoTs, Endianness, UdpPsmMapping};
+use super::{AckNack, InfoTs, Endianness,};
 use super::message::{RtpsMessage};
 use super::types::Time;
 use super::message_receiver::ReaderReceiveMessage;
@@ -45,7 +42,7 @@ pub fn rtps_message_sender(transport: &impl Transport, participant_guid_prefix: 
 mod tests {
     use super::*;
     use crate::transport_stub::StubTransport;
-    use crate::types::{TopicKind, GUID, ChangeKind};
+    use crate::types::{TopicKind, GUID, ChangeKind, Locator};
     use crate::types::constants::{
         ENTITYID_UNKNOWN,
         ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
