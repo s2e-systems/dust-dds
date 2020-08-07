@@ -2,6 +2,7 @@ use crate::stateless_writer::StatelessWriter;
 use crate::stateless_reader::StatelessReader;
 use crate::types::{GUID, Locator, ProtocolVersion, VendorId, TopicKind, ChangeKind};
 use crate::types::constants::{ENTITYID_PARTICIPANT, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, ENTITYID_SPDP_BUILTIN_PARTICIPANT_DETECTOR, LOCATOR_KIND_UDPv4};
+use crate::endpoint_types::BuiltInEndpointSet;
 use crate::messages::Endianness;
 use crate::behavior::types::Duration;
 use crate::spdp::SPDPdiscoveredParticipantData;
@@ -19,6 +20,7 @@ pub struct Participant {
     discovery_transport: UdpTransport,
     spdp_builtin_participant_reader: StatelessReader,
     spdp_builtin_participant_writer: StatelessWriter,
+    builtin_endpoint_set: BuiltInEndpointSet
     // sedp_builtin_publications_reader: StatefulReader,
     // sedp_builtin_publications_writer: StatefulWriter,
     // sedp_builtin_subscriptions_reader: StatefulReader,
@@ -79,6 +81,11 @@ impl Participant {
         
         spdp_builtin_participant_writer.reader_locator_add(spdp_multicast_locator);
 
+        let builtin_endpoint_set = BuiltInEndpointSet::new(
+            BuiltInEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_ANNOUNCER |
+            BuiltInEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR
+        );
+
         let participant = Self {
             guid: GUID::new(guid_prefix,ENTITYID_PARTICIPANT ),
             default_unicast_locator_list,
@@ -86,6 +93,7 @@ impl Participant {
             protocol_version,
             vendor_id,
             discovery_transport,
+            builtin_endpoint_set,
             spdp_builtin_participant_reader,
             spdp_builtin_participant_writer,
         };
@@ -244,6 +252,10 @@ impl Participant {
 
     pub fn default_multicast_locator_list(&self) -> &Vec<Locator> {
         &self.default_multicast_locator_list
+    }
+
+    pub fn builtin_endpoint_set(&self) -> BuiltInEndpointSet {
+        self.builtin_endpoint_set
     }
 
     // fn process_spdp(
@@ -413,8 +425,6 @@ impl Participant {
 mod tests {
     use super::*;
     use crate::types::constants::{PROTOCOL_VERSION_2_4};
-    // use crate::cache::HistoryCache;
-    // use std::net::SocketAddr;
 
     #[test]
     fn participant() {

@@ -57,7 +57,7 @@ impl SPDPdiscoveredParticipantData {
             metatraffic_multicast_locator_list: vec![], //TODO: participant.metatraffic_multicast_locator_list().clone(),
             default_unicast_locator_list: participant.default_unicast_locator_list().clone(),
             default_multicast_locator_list: participant.default_multicast_locator_list().clone(),
-            available_built_in_endpoints: BuiltInEndpointSet::new(0),
+            available_built_in_endpoints: participant.builtin_endpoint_set(),
             lease_duration,
             manual_liveliness_count: 0, //TODO:Count,
         }

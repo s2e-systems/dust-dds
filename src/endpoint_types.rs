@@ -17,13 +17,13 @@ pub struct BuiltInEndpointSet {
     value: u32,
 }
 
-pub enum BuiltInEndPoints {
-    ParticipantAnnouncer = 0,
-    ParticipantDetector = 1,
-    PublicationsAnnouncer = 2,
-    PublicationsDetector = 3,
-    SubscriptionsAnnouncer = 4,
-    SubscriptionsDetector = 5,
+impl BuiltInEndpointSet {
+    pub const BUILTIN_ENDPOINT_PARTICIPANT_ANNOUNCER: u32 = 1 << 0;
+    pub const BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR: u32 = 1 << 1;
+    pub const BUILTIN_ENDPOINT_PUBLICATIONS_ANNOUNCER: u32 = 1 << 2;
+    pub const BUILTIN_ENDPOINT_PUBLICATIONS_DETECTOR: u32 = 1 << 3;
+    pub const BUILTIN_ENDPOINT_SUBSCRIPTIONS_ANNOUNCER: u32 = 1 << 4;
+    pub const BUILTIN_ENDPOINT_SUBSCRIPTIONS_DETECTOR: u32 = 1 << 5;
 
     /*
     The following have been deprecated in version 2.4 of the
@@ -36,8 +36,9 @@ pub enum BuiltInEndPoints {
     @position(8) DISC_BUILTIN_ENDPOINT_PARTICIPANT_STATE_ANNOUNCER,
     @position(9) DISC_BUILTIN_ENDPOINT_PARTICIPANT_STATE_DETECTOR,
     */
-    ParticipantMessageDataWriter = 10,
-    ParticipantMessageDataReader = 11,
+
+    pub const BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_WRITER: u32 = 1 << 10;
+    pub const BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_READER: u32 = 1 << 11;
 
     /*
     Bits 12-15 have been reserved by the DDS-Xtypes 1.2 Specification
@@ -45,19 +46,16 @@ pub enum BuiltInEndPoints {
     Bits 16-27 have been reserved by the DDS-Security 1.1 Specification
     and future revisions thereof.
     */
-    TopicsAnnouncer = 28,
-    TopicsDetector = 29,
-}
 
-impl BuiltInEndpointSet {
+    pub const BUILTIN_ENDPOINT_TOPICS_ANNOUNCER: u32 = 1 << 28;
+    pub const BUILTIN_ENDPOINT_TOPICS_DETECTOR: u32 = 1 << 29;
+
     pub fn new(value: u32) -> Self {
         BuiltInEndpointSet { value }
     }
 
-    pub fn has(&self, endpoint: BuiltInEndPoints) -> bool {
-        let bit_position = endpoint as u8;
-        let bitmask = 1 << bit_position;
-        (self.value & bitmask) >> bit_position == 1
+    pub fn has(&self, endpoint: u32) -> bool {
+        (self.value & endpoint)  == endpoint
     }
 }
 
@@ -255,19 +253,25 @@ mod tests {
     #[test]
     fn test_builtin_endpoint_set_participant_announcer() {
         assert_eq!(
-            BuiltInEndpointSet::new(0).has(BuiltInEndPoints::ParticipantAnnouncer),
+            BuiltInEndpointSet::new(0).has(BuiltInEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_ANNOUNCER),
             false
         );
         assert_eq!(
-            BuiltInEndpointSet::new(1).has(BuiltInEndPoints::ParticipantAnnouncer),
+            BuiltInEndpointSet::new(1).has(BuiltInEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_ANNOUNCER),
             true
         );
         assert_eq!(
-            BuiltInEndpointSet::new(16).has(BuiltInEndPoints::ParticipantAnnouncer),
+            BuiltInEndpointSet::new(16).has(BuiltInEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_ANNOUNCER),
             false
         );
         assert_eq!(
-            BuiltInEndpointSet::new(15).has(BuiltInEndPoints::ParticipantAnnouncer),
+            BuiltInEndpointSet::new(15).has(BuiltInEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_ANNOUNCER),
+            true
+        );
+        assert_eq!(
+            BuiltInEndpointSet::new(BuiltInEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_ANNOUNCER |
+                                    BuiltInEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR).
+                                    has(BuiltInEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_ANNOUNCER),
             true
         );
     }
@@ -275,19 +279,19 @@ mod tests {
     #[test]
     fn test_builtin_endpoint_set_participant_detector() {
         assert_eq!(
-            BuiltInEndpointSet::new(0).has(BuiltInEndPoints::ParticipantDetector),
+            BuiltInEndpointSet::new(0).has(BuiltInEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR),
             false
         );
         assert_eq!(
-            BuiltInEndpointSet::new(2).has(BuiltInEndPoints::ParticipantDetector),
+            BuiltInEndpointSet::new(2).has(BuiltInEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR),
             true
         );
         assert_eq!(
-            BuiltInEndpointSet::new(16).has(BuiltInEndPoints::ParticipantDetector),
+            BuiltInEndpointSet::new(16).has(BuiltInEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR),
             false
         );
         assert_eq!(
-            BuiltInEndpointSet::new(15).has(BuiltInEndPoints::ParticipantDetector),
+            BuiltInEndpointSet::new(15).has(BuiltInEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR),
             true
         );
     }
@@ -295,19 +299,19 @@ mod tests {
     #[test]
     fn test_builtin_endpoint_set_publications_announcer() {
         assert_eq!(
-            BuiltInEndpointSet::new(0).has(BuiltInEndPoints::PublicationsAnnouncer),
+            BuiltInEndpointSet::new(0).has(BuiltInEndpointSet::BUILTIN_ENDPOINT_PUBLICATIONS_ANNOUNCER),
             false
         );
         assert_eq!(
-            BuiltInEndpointSet::new(4).has(BuiltInEndPoints::PublicationsAnnouncer),
+            BuiltInEndpointSet::new(4).has(BuiltInEndpointSet::BUILTIN_ENDPOINT_PUBLICATIONS_ANNOUNCER),
             true
         );
         assert_eq!(
-            BuiltInEndpointSet::new(16).has(BuiltInEndPoints::PublicationsAnnouncer),
+            BuiltInEndpointSet::new(16).has(BuiltInEndpointSet::BUILTIN_ENDPOINT_PUBLICATIONS_ANNOUNCER),
             false
         );
         assert_eq!(
-            BuiltInEndpointSet::new(15).has(BuiltInEndPoints::PublicationsAnnouncer),
+            BuiltInEndpointSet::new(15).has(BuiltInEndpointSet::BUILTIN_ENDPOINT_PUBLICATIONS_ANNOUNCER),
             true
         );
     }
@@ -315,19 +319,19 @@ mod tests {
     #[test]
     fn test_builtin_endpoint_set_publications_detector() {
         assert_eq!(
-            BuiltInEndpointSet::new(0).has(BuiltInEndPoints::PublicationsDetector),
+            BuiltInEndpointSet::new(0).has(BuiltInEndpointSet::BUILTIN_ENDPOINT_PUBLICATIONS_DETECTOR),
             false
         );
         assert_eq!(
-            BuiltInEndpointSet::new(8).has(BuiltInEndPoints::PublicationsDetector),
+            BuiltInEndpointSet::new(8).has(BuiltInEndpointSet::BUILTIN_ENDPOINT_PUBLICATIONS_DETECTOR),
             true
         );
         assert_eq!(
-            BuiltInEndpointSet::new(16).has(BuiltInEndPoints::PublicationsDetector),
+            BuiltInEndpointSet::new(16).has(BuiltInEndpointSet::BUILTIN_ENDPOINT_PUBLICATIONS_DETECTOR),
             false
         );
         assert_eq!(
-            BuiltInEndpointSet::new(15).has(BuiltInEndPoints::PublicationsDetector),
+            BuiltInEndpointSet::new(15).has(BuiltInEndpointSet::BUILTIN_ENDPOINT_PUBLICATIONS_DETECTOR),
             true
         );
     }
@@ -335,19 +339,19 @@ mod tests {
     #[test]
     fn test_builtin_endpoint_set_subscriptions_announcer() {
         assert_eq!(
-            BuiltInEndpointSet::new(0).has(BuiltInEndPoints::SubscriptionsAnnouncer),
+            BuiltInEndpointSet::new(0).has(BuiltInEndpointSet::BUILTIN_ENDPOINT_SUBSCRIPTIONS_ANNOUNCER),
             false
         );
         assert_eq!(
-            BuiltInEndpointSet::new(16).has(BuiltInEndPoints::SubscriptionsAnnouncer),
+            BuiltInEndpointSet::new(16).has(BuiltInEndpointSet::BUILTIN_ENDPOINT_SUBSCRIPTIONS_ANNOUNCER),
             true
         );
         assert_eq!(
-            BuiltInEndpointSet::new(32).has(BuiltInEndPoints::SubscriptionsAnnouncer),
+            BuiltInEndpointSet::new(32).has(BuiltInEndpointSet::BUILTIN_ENDPOINT_SUBSCRIPTIONS_ANNOUNCER),
             false
         );
         assert_eq!(
-            BuiltInEndpointSet::new(31).has(BuiltInEndPoints::SubscriptionsAnnouncer),
+            BuiltInEndpointSet::new(31).has(BuiltInEndpointSet::BUILTIN_ENDPOINT_SUBSCRIPTIONS_ANNOUNCER),
             true
         );
     }
@@ -355,19 +359,19 @@ mod tests {
     #[test]
     fn test_builtin_endpoint_set_subscriptions_detector() {
         assert_eq!(
-            BuiltInEndpointSet::new(0).has(BuiltInEndPoints::SubscriptionsDetector),
+            BuiltInEndpointSet::new(0).has(BuiltInEndpointSet::BUILTIN_ENDPOINT_SUBSCRIPTIONS_DETECTOR),
             false
         );
         assert_eq!(
-            BuiltInEndpointSet::new(32).has(BuiltInEndPoints::SubscriptionsDetector),
+            BuiltInEndpointSet::new(32).has(BuiltInEndpointSet::BUILTIN_ENDPOINT_SUBSCRIPTIONS_DETECTOR),
             true
         );
         assert_eq!(
-            BuiltInEndpointSet::new(31).has(BuiltInEndPoints::SubscriptionsDetector),
+            BuiltInEndpointSet::new(31).has(BuiltInEndpointSet::BUILTIN_ENDPOINT_SUBSCRIPTIONS_DETECTOR),
             false
         );
         assert_eq!(
-            BuiltInEndpointSet::new(63).has(BuiltInEndPoints::SubscriptionsDetector),
+            BuiltInEndpointSet::new(63).has(BuiltInEndpointSet::BUILTIN_ENDPOINT_SUBSCRIPTIONS_DETECTOR),
             true
         );
     }
@@ -375,19 +379,19 @@ mod tests {
     #[test]
     fn test_builtin_endpoint_participant_message_data_writer() {
         assert_eq!(
-            BuiltInEndpointSet::new(0).has(BuiltInEndPoints::ParticipantMessageDataWriter),
+            BuiltInEndpointSet::new(0).has(BuiltInEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_WRITER),
             false
         );
         assert_eq!(
-            BuiltInEndpointSet::new(1024).has(BuiltInEndPoints::ParticipantMessageDataWriter),
+            BuiltInEndpointSet::new(1024).has(BuiltInEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_WRITER),
             true
         );
         assert_eq!(
-            BuiltInEndpointSet::new(1023).has(BuiltInEndPoints::ParticipantMessageDataWriter),
+            BuiltInEndpointSet::new(1023).has(BuiltInEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_WRITER),
             false
         );
         assert_eq!(
-            BuiltInEndpointSet::new(2047).has(BuiltInEndPoints::ParticipantMessageDataWriter),
+            BuiltInEndpointSet::new(2047).has(BuiltInEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_WRITER),
             true
         );
     }
@@ -395,19 +399,19 @@ mod tests {
     #[test]
     fn test_builtin_endpoint_participant_message_data_reader() {
         assert_eq!(
-            BuiltInEndpointSet::new(0).has(BuiltInEndPoints::ParticipantMessageDataReader),
+            BuiltInEndpointSet::new(0).has(BuiltInEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_READER),
             false
         );
         assert_eq!(
-            BuiltInEndpointSet::new(2048).has(BuiltInEndPoints::ParticipantMessageDataReader),
+            BuiltInEndpointSet::new(2048).has(BuiltInEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_READER),
             true
         );
         assert_eq!(
-            BuiltInEndpointSet::new(2047).has(BuiltInEndPoints::ParticipantMessageDataReader),
+            BuiltInEndpointSet::new(2047).has(BuiltInEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_READER),
             false
         );
         assert_eq!(
-            BuiltInEndpointSet::new(4095).has(BuiltInEndPoints::ParticipantMessageDataReader),
+            BuiltInEndpointSet::new(4095).has(BuiltInEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_READER),
             true
         );
     }
@@ -415,19 +419,19 @@ mod tests {
     #[test]
     fn test_builtin_endpoint_topics_announcer() {
         assert_eq!(
-            BuiltInEndpointSet::new(0).has(BuiltInEndPoints::TopicsAnnouncer),
+            BuiltInEndpointSet::new(0).has(BuiltInEndpointSet::BUILTIN_ENDPOINT_TOPICS_ANNOUNCER),
             false
         );
         assert_eq!(
-            BuiltInEndpointSet::new(268435456).has(BuiltInEndPoints::TopicsAnnouncer),
+            BuiltInEndpointSet::new(268435456).has(BuiltInEndpointSet::BUILTIN_ENDPOINT_TOPICS_ANNOUNCER),
             true
         );
         assert_eq!(
-            BuiltInEndpointSet::new(268435455).has(BuiltInEndPoints::TopicsAnnouncer),
+            BuiltInEndpointSet::new(268435455).has(BuiltInEndpointSet::BUILTIN_ENDPOINT_TOPICS_ANNOUNCER),
             false
         );
         assert_eq!(
-            BuiltInEndpointSet::new(536870911).has(BuiltInEndPoints::TopicsAnnouncer),
+            BuiltInEndpointSet::new(536870911).has(BuiltInEndpointSet::BUILTIN_ENDPOINT_TOPICS_ANNOUNCER),
             true
         );
     }
@@ -435,19 +439,19 @@ mod tests {
     #[test]
     fn test_builtin_endpoint_topics_detector() {
         assert_eq!(
-            BuiltInEndpointSet::new(0).has(BuiltInEndPoints::TopicsDetector),
+            BuiltInEndpointSet::new(0).has(BuiltInEndpointSet::BUILTIN_ENDPOINT_TOPICS_DETECTOR),
             false
         );
         assert_eq!(
-            BuiltInEndpointSet::new(536870912).has(BuiltInEndPoints::TopicsDetector),
+            BuiltInEndpointSet::new(536870912).has(BuiltInEndpointSet::BUILTIN_ENDPOINT_TOPICS_DETECTOR),
             true
         );
         assert_eq!(
-            BuiltInEndpointSet::new(536870911).has(BuiltInEndPoints::TopicsDetector),
+            BuiltInEndpointSet::new(536870911).has(BuiltInEndpointSet::BUILTIN_ENDPOINT_TOPICS_DETECTOR),
             false
         );
         assert_eq!(
-            BuiltInEndpointSet::new(1073741823).has(BuiltInEndPoints::TopicsDetector),
+            BuiltInEndpointSet::new(1073741823).has(BuiltInEndpointSet::BUILTIN_ENDPOINT_TOPICS_DETECTOR),
             true
         );
     }
