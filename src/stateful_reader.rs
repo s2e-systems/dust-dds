@@ -279,8 +279,8 @@ impl StatefulReader {
         self.matched_writers.write().unwrap().insert(a_writer_proxy.remote_writer_guid, a_writer_proxy);
     }
 
-    pub fn matched_writer_remove(&self, a_writer_proxy: &WriterProxy) {
-        self.matched_writers.write().unwrap().remove(&a_writer_proxy.remote_writer_guid);
+    pub fn matched_writer_remove(&self, writer_proxy_guid: &GUID) {
+        self.matched_writers.write().unwrap().remove(&writer_proxy_guid);
     }
     
     pub fn matched_writers(&self) -> RwLockReadGuard<HashMap<GUID, WriterProxy>> {
