@@ -33,7 +33,7 @@ pub struct Participant {
     protocol_version: ProtocolVersion,
     vendor_id: VendorId,
     domain_tag: String,
-    discovery_transport: UdpTransport,
+    metatraffic_transport: UdpTransport,
     spdp_builtin_participant_reader: StatelessReader,
     spdp_builtin_participant_writer: StatelessWriter,
     builtin_endpoint_set: BuiltInEndpointSet,
@@ -71,7 +71,7 @@ impl Participant {
         let spdp_socket_locator = Locator::new(
             LOCATOR_KIND_UDPv4,
             spdp_well_known_multicast_port,
-            crate::transport::get_interface_address(&"Wi-Fi").unwrap(),
+            crate::transport::get_interface_address(&"Ethernet").unwrap(),
         );
 
         let spdp_multicast_locator = Locator::new(
@@ -80,7 +80,7 @@ impl Participant {
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 239, 255, 0, 1],
         );
 
-        let discovery_transport = UdpTransport::new(spdp_socket_locator, Some(spdp_multicast_locator)).unwrap();
+        let metatraffic_transport = UdpTransport::new(spdp_socket_locator, Some(spdp_multicast_locator)).unwrap();
 
         let spdp_builtin_participant_writer = StatelessWriter::new(
             GUID::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER),
@@ -176,7 +176,7 @@ impl Participant {
             protocol_version,
             vendor_id,
             domain_tag: "".to_string(),
-            discovery_transport,
+            metatraffic_transport,
             builtin_endpoint_set,
             spdp_builtin_participant_reader,
             spdp_builtin_participant_writer,
@@ -224,15 +224,29 @@ impl Participant {
     }
 
     fn run(&self) {
-
-        rtps_message_receiver(&self.discovery_transport, self.guid.prefix(), &[&self.spdp_builtin_participant_reader]);
+        rtps_message_receiver(
+            &self.metatraffic_transport, 
+            self.guid.prefix(), 
+            &[&self.spdp_builtin_participant_reader],
+        &[&self.sedp_builtin_publications_reader, &self.sedp_builtin_subscriptions_reader, &self.sedp_builtin_topics_reader]);
         self.spdp_builtin_participant_reader.run();
+        self.sedp_builtin_publications_reader.run();
+        self.sedp_builtin_subscriptions_reader.run();
+        self.sedp_builtin_topics_reader.run();
 
         self.spdp_builtin_participant_writer.run();
-        rtps_message_sender(&self.discovery_transport, self.guid.prefix(), &[&self.spdp_builtin_participant_writer]);
+        self.sedp_builtin_publications_writer.run();
+        self.sedp_builtin_subscriptions_writer.run();
+        self.sedp_builtin_topics_writer.run();
+        rtps_message_sender(&self.metatraffic_transport, self.guid.prefix(), &[&self.spdp_builtin_participant_writer],
+    &[&self.sedp_builtin_publications_writer, &self.sedp_builtin_subscriptions_writer, &self.sedp_builtin_topics_writer]);
     }
 
+    
     fn add_discovered_participant(&self, discovered_participant: &SPDPdiscoveredParticipantData) {
+        // Implements the process described in
+        // 8.5.5.1 Discovery of a new remote Participant
+
         if discovered_participant.domain_id() != self.domain_id {
             return;
         }

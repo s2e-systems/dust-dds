@@ -1,5 +1,7 @@
 use crate::types::{GUID, GuidPrefix, Locator,};
+use crate::types::constants::ENTITYID_UNKNOWN;
 use crate::stateless_reader::StatelessReader;
+use crate::stateful_reader::StatefulReader;
 use crate::transport::Transport;
 
 
@@ -20,7 +22,12 @@ pub type ReaderSendMessage = WriterReceiveMessage;
 
 // ////////////////// RTPS Message Receiver
 
-pub fn rtps_message_receiver(transport: &impl Transport, participant_guid_prefix: GuidPrefix, stateless_reader_list: &[&StatelessReader]) {
+pub fn rtps_message_receiver(
+    transport: &impl Transport,
+    participant_guid_prefix: GuidPrefix,
+    stateless_reader_list: &[&StatelessReader],
+    stateful_reader_list: &[&StatefulReader])
+{
     if let Some((message, src_locator)) = transport.read().unwrap() {
         let _source_version = message.header().version();
         let _source_vendor_id = message.header().vendor_id();
@@ -36,9 +43,9 @@ pub fn rtps_message_receiver(transport: &impl Transport, participant_guid_prefix
         for submessage in message.take_submessages() {
             match submessage {
                 // Writer to reader messages
-                RtpsSubmessage::Data(data) => receive_reader_submessage(&src_locator, source_guid_prefix, ReaderReceiveMessage::Data(data), stateless_reader_list),
-                RtpsSubmessage::Gap(gap) => receive_reader_submessage(&src_locator, source_guid_prefix, ReaderReceiveMessage::Gap(gap), stateless_reader_list),
-                RtpsSubmessage::Heartbeat(heartbeat) => receive_reader_submessage(&source_locator, source_guid_prefix, ReaderReceiveMessage::Heartbeat(heartbeat), stateless_reader_list),
+                RtpsSubmessage::Data(data) => receive_reader_submessage(&src_locator, source_guid_prefix, ReaderReceiveMessage::Data(data), stateless_reader_list, stateful_reader_list),
+                RtpsSubmessage::Gap(gap) => receive_reader_submessage(&src_locator, source_guid_prefix, ReaderReceiveMessage::Gap(gap), stateless_reader_list, stateful_reader_list),
+                RtpsSubmessage::Heartbeat(heartbeat) => receive_reader_submessage(&source_locator, source_guid_prefix, ReaderReceiveMessage::Heartbeat(heartbeat), stateless_reader_list, stateful_reader_list),
                 // Reader to writer messages
                 RtpsSubmessage::AckNack(ack_nack) => receive_writer_submessage(source_guid_prefix, WriterReceiveMessage::AckNack(ack_nack)),
                 // Receiver status messages
@@ -48,25 +55,39 @@ pub fn rtps_message_receiver(transport: &impl Transport, participant_guid_prefix
     }    
 }
 
-fn receive_reader_submessage(source_locator: &Locator, source_guid_prefix: GuidPrefix, message: ReaderReceiveMessage, stateless_reader_list: &[&StatelessReader]) {
-    let _writer_guid = match &message {
+fn receive_reader_submessage(source_locator: &Locator, source_guid_prefix: GuidPrefix, message: ReaderReceiveMessage, stateless_reader_list: &[&StatelessReader], stateful_reader_list: &[&StatefulReader]) {
+    let writer_guid = match &message {
         ReaderReceiveMessage::Data(data) => GUID::new(source_guid_prefix, data.writer_id()),
         ReaderReceiveMessage::Gap(gap) => GUID::new(source_guid_prefix, gap.writer_id()),
         ReaderReceiveMessage::Heartbeat(heartbeat) => GUID::new(source_guid_prefix, heartbeat.writer_id()),
     };
 
-    for stateless_reader in stateless_reader_list {
-        if stateless_reader.unicast_locator_list().iter().find(|&loc| loc == source_locator).is_some() ||
-            stateless_reader.multicast_locator_list().iter().find(|&loc| loc == source_locator).is_some() {
-                stateless_reader.push_receive_message(source_guid_prefix, message);
-                break;
+    for &stateful_reader in stateful_reader_list {
+        // Messages are received if they come from a matched writer
+        if let Some(writer_proxy) = stateful_reader.matched_writers().get(&writer_guid) {
+            writer_proxy.push_receive_message(message);
+            return;
         }
     }
 
-    // if let Some(writer_proxy) = stateful_reader.matched_writers().get(&writer_guid) {
-    //     writer_proxy_received_message(writer_proxy, message);
-    //     break;
-    
+    let reader_guid_prefix = match &message {
+        ReaderReceiveMessage::Data(data) => data.reader_id(),
+        ReaderReceiveMessage::Gap(gap) => gap.reader_id(),
+        ReaderReceiveMessage::Heartbeat(heartbeat) => heartbeat.reader_id(),
+    };
+
+    for &stateless_reader in stateless_reader_list {
+        // Messages are received by the stateless reader if they come from the expected source locator and
+        // if the destination entity_id matches the reader id or if it is unknown
+        if stateless_reader.unicast_locator_list().iter().find(|&loc| loc == source_locator).is_some() ||
+            stateless_reader.multicast_locator_list().iter().find(|&loc| loc == source_locator).is_some() {
+
+            if stateless_reader.guid().entity_id() == reader_guid_prefix || reader_guid_prefix == ENTITYID_UNKNOWN {
+                stateless_reader.push_receive_message(source_guid_prefix, message);
+                return;
+            }
+        }
+    }
 }
 
 fn receive_writer_submessage(_source_guid_prefix: GuidPrefix, _message: WriterReceiveMessage) {
@@ -121,7 +142,7 @@ mod tests {
             false);
 
         // Run the empty transport and check that nothing happends
-        rtps_message_receiver(&transport, guid_prefix, &[&stateless_reader]);
+        rtps_message_receiver(&transport, guid_prefix, &[&stateless_reader], &[]);
         assert!(stateless_reader.pop_receive_message().is_none());
 
         // Send a message to the stateless reader
@@ -130,7 +151,7 @@ mod tests {
         let message = RtpsMessage::new(src_guid_prefix, vec![RtpsSubmessage::Data(data)]);
         transport.push_read(message, src_locator);
 
-        rtps_message_receiver(&transport, guid_prefix, &[&stateless_reader]);
+        rtps_message_receiver(&transport, guid_prefix, &[&stateless_reader], &[]);
 
         let expected_data = Data::new(Endianness::LittleEndian, ENTITYID_UNKNOWN, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER, 1, None, Payload::None);
         match stateless_reader.pop_receive_message() {
@@ -163,7 +184,7 @@ mod tests {
         let message = RtpsMessage::new(src_guid_prefix, vec![RtpsSubmessage::Data(data)]);
         transport.push_read(message, other_locator);
 
-        rtps_message_receiver(&transport, guid_prefix, &[&stateless_reader]);
+        rtps_message_receiver(&transport, guid_prefix, &[&stateless_reader], &[]);
         assert!(stateless_reader.pop_receive_message().is_none());
     }
     

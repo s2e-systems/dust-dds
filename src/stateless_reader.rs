@@ -50,6 +50,10 @@ impl StatelessReader {
         }
     }
 
+    pub fn guid(&self) -> &GUID {
+        &self.guid
+    }
+
     pub fn history_cache(&self) -> &HistoryCache {
         &self.reader_cache
     }

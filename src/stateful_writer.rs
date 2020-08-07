@@ -149,6 +149,14 @@ impl ReaderProxy {
         self.changes_for_reader.lock().unwrap().unacked_changes(last_change_sequence_number)
     }
 
+    pub fn unicast_locator_list(&self) -> &Vec<Locator> {
+        &self.unicast_locator_list
+    }
+
+    pub fn multicast_locator_list(&self) -> &Vec<Locator> {
+        &self.multicast_locator_list
+    }
+
     pub fn remote_reader_guid(&self) -> &GUID {
         &self.remote_reader_guid
     }

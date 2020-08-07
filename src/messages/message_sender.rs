@@ -1,5 +1,6 @@
 use crate::types::{GuidPrefix, };
 use crate::stateless_writer::StatelessWriter;
+use crate::stateful_writer::StatefulWriter;
 use crate::transport::Transport;
 
 
@@ -16,8 +17,13 @@ pub enum WriterReceiveMessage {
 
 pub type WriterSendMessage = ReaderReceiveMessage;
 
-pub fn rtps_message_sender(transport: &impl Transport, participant_guid_prefix: GuidPrefix, stateless_writer_list: &[&StatelessWriter]) {
-    for stateless_writer in stateless_writer_list {
+pub fn rtps_message_sender(
+    transport: &impl Transport,
+    participant_guid_prefix: GuidPrefix,
+    stateless_writer_list: &[&StatelessWriter],
+    stateful_writer_list: &[&StatefulWriter])
+{
+    for &stateless_writer in stateless_writer_list {
         let reader_locators = stateless_writer.reader_locators();
         for (&locator, reader_locator) in reader_locators.iter() {
             let mut submessage = Vec::new();
@@ -32,7 +38,27 @@ pub fn rtps_message_sender(transport: &impl Transport, participant_guid_prefix: 
 
             if !submessage.is_empty() {
                 let rtps_message = RtpsMessage::new(participant_guid_prefix, submessage);
-                transport.write(rtps_message, locator);
+                transport.write(rtps_message, &[locator], &[]);
+            }
+        }
+    }
+
+    for &stateful_writer in stateful_writer_list {
+        let matched_readers = stateful_writer.matched_readers();
+        for (_, reader_proxy) in matched_readers.iter() {
+            let mut submessage = Vec::new();
+            while let Some(message) = reader_proxy.pop_send_message() {
+                submessage.push(RtpsSubmessage::InfoTs(InfoTs::new(Some(Time::now()), Endianness::LittleEndian)));
+                match message {
+                    WriterSendMessage::Data(data) => submessage.push(RtpsSubmessage::Data(data)),
+                    WriterSendMessage::Gap(gap) => submessage.push(RtpsSubmessage::Gap(gap)),
+                    WriterSendMessage::Heartbeat(heartbeat) => submessage.push(RtpsSubmessage::Heartbeat(heartbeat)),
+                }
+            }
+
+            if !submessage.is_empty() {
+                let rtps_message = RtpsMessage::new(participant_guid_prefix, submessage);
+                transport.write(rtps_message, reader_proxy.unicast_locator_list(), reader_proxy.multicast_locator_list());
             }
         }
     }
@@ -58,7 +84,7 @@ mod tests {
         stateless_writer_1.reader_locator_add(reader_locator_1);
 
         // Check that nothing is sent to start with
-        rtps_message_sender(&transport, participant_guid_prefix, &[&stateless_writer_1]);
+        rtps_message_sender(&transport, participant_guid_prefix, &[&stateless_writer_1], &[]);
         
         assert_eq!(transport.pop_write(), None);
 
@@ -67,9 +93,9 @@ mod tests {
         stateless_writer_1.history_cache().add_change(change_1);
         stateless_writer_1.run();
 
-        rtps_message_sender(&transport, participant_guid_prefix, &[&stateless_writer_1]);
+        rtps_message_sender(&transport, participant_guid_prefix, &[&stateless_writer_1], &[]);
         let (message, dst_locator) = transport.pop_write().unwrap();
-        assert_eq!(dst_locator, reader_locator_1);
+        assert_eq!(dst_locator, vec![reader_locator_1]);
         assert_eq!(message.submessages().len(), 2);
         match &message.submessages()[0] {
             RtpsSubmessage::InfoTs(info_ts) => {
@@ -93,9 +119,9 @@ mod tests {
         stateless_writer_1.history_cache().add_change(change_3);
         stateless_writer_1.run();
 
-        rtps_message_sender(&transport, participant_guid_prefix, &[&stateless_writer_1]);
+        rtps_message_sender(&transport, participant_guid_prefix, &[&stateless_writer_1], &[]);
         let (message, dst_locator) = transport.pop_write().unwrap();
-        assert_eq!(dst_locator, reader_locator_1);
+        assert_eq!(dst_locator, vec![reader_locator_1]);
         assert_eq!(message.submessages().len(), 4);
         match &message.submessages()[0] {
             RtpsSubmessage::InfoTs(info_ts) => {
@@ -132,9 +158,9 @@ mod tests {
         stateless_writer_1.history_cache().add_change(change_5);
         stateless_writer_1.run();
 
-        rtps_message_sender(&transport, participant_guid_prefix, &[&stateless_writer_1]);
+        rtps_message_sender(&transport, participant_guid_prefix, &[&stateless_writer_1], &[]);
         let (message, dst_locator) = transport.pop_write().unwrap();
-        assert_eq!(dst_locator, reader_locator_1);
+        assert_eq!(dst_locator, vec![reader_locator_1]);
         assert_eq!(message.submessages().len(), 4);
         match &message.submessages()[0] {
             RtpsSubmessage::InfoTs(info_ts) => {
@@ -195,7 +221,7 @@ mod tests {
         stateless_writer_1.run();
         stateless_writer_2.run();
 
-        rtps_message_sender(&transport, participant_guid_prefix, &[&stateless_writer_1, &stateless_writer_2]);
+        rtps_message_sender(&transport, participant_guid_prefix, &[&stateless_writer_1, &stateless_writer_2], &[]);
 
         // The order at which the messages are sent is not predictable so collect eveything in a vector and test from there onwards
         let mut sent_messages = Vec::new();
@@ -204,9 +230,9 @@ mod tests {
         sent_messages.push(transport.pop_write().unwrap());
         sent_messages.push(transport.pop_write().unwrap());
 
-        assert_eq!(sent_messages.iter().filter(|&(_, locator)| locator==&reader_locator_1).count(), 2);
-        assert_eq!(sent_messages.iter().filter(|&(_, locator)| locator==&reader_locator_2).count(), 1);
-        assert_eq!(sent_messages.iter().filter(|&(_, locator)| locator==&reader_locator_3).count(), 1);
+        assert_eq!(sent_messages.iter().filter(|&(_, locator)| locator==&vec![reader_locator_1]).count(), 2);
+        assert_eq!(sent_messages.iter().filter(|&(_, locator)| locator==&vec![reader_locator_2]).count(), 1);
+        assert_eq!(sent_messages.iter().filter(|&(_, locator)| locator==&vec![reader_locator_3]).count(), 1);
 
         assert!(transport.pop_write().is_none());
         
