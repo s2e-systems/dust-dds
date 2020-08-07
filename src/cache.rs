@@ -61,25 +61,25 @@ impl CacheChange {
         }
     }
 
-    pub fn clone_without_data(&self) -> Self {
-        match *self {
-            CacheChange {
-                kind: ref __self_0_0,
-                writer_guid: ref __self_0_1,
-                instance_handle: ref __self_0_2,
-                sequence_number: ref __self_0_3,
-                data_value: ref __self_0_5,
-                inline_qos: ref __self_0_4,
-            } => {
-        CacheChange {
-           kind: *__self_0_0,
-            writer_guid: * __self_0_1,
-            instance_handle: * __self_0_2,
-            sequence_number: * __self_0_3,
-            data_value: None,
-            inline_qos: None,
-        }}}
-    }
+    // pub fn clone_without_data(&self) -> Self {
+    //     match *self {
+    //         CacheChange {
+    //             kind: ref __self_0_0,
+    //             writer_guid: ref __self_0_1,
+    //             instance_handle: ref __self_0_2,
+    //             sequence_number: ref __self_0_3,
+    //             data_value: ref __self_0_5,
+    //             inline_qos: ref __self_0_4,
+    //         } => {
+    //     CacheChange {
+    //        kind: *__self_0_0,
+    //         writer_guid: * __self_0_1,
+    //         instance_handle: * __self_0_2,
+    //         sequence_number: * __self_0_3,
+    //         data_value: None,
+    //         inline_qos: None,
+    //     }}}
+    // }
 }
 
 
@@ -186,14 +186,11 @@ mod tests {
             data_value,
             None,
         );
-        let cc_clone_no_data = cc.clone_without_data();
-        // cc_clone_no_data.data_value = None;
-        let cc_clone = cc.clone_without_data();
+
+        let cc_clone = cc.clone();
 
         assert_eq!(history_cache.changes().len(), 0);
         history_cache.add_change(cc);
-        assert_eq!(history_cache.changes().len(), 1);
-        history_cache.add_change(cc_clone_no_data);
         assert_eq!(history_cache.changes().len(), 1);
         history_cache.remove_change(&cc_clone);
         assert_eq!(history_cache.changes().len(), 0);

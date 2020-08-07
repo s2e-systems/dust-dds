@@ -8,9 +8,9 @@ use crate::participant::Participant;
 use crate::serialized_payload::CdrParameterList;
 
 use crate::endpoint_types::{
-    // DomainId,
+    DomainId,
     BuiltInEndpointSet,
-    // ParameterDomainId,
+    ParameterDomainId,
     ParameterDomainTag,
     ParameterProtocolVersion,
     ParameterVendorId,
@@ -28,7 +28,7 @@ use crate::endpoint_types::{
 
 #[derive(Debug, PartialEq)]
 pub struct SPDPdiscoveredParticipantData{
-    // domain_id: DomainId,
+    domain_id: DomainId,
     domain_tag: String,
     protocol_version: ProtocolVersion,
     guid_prefix: GuidPrefix, // Implicit by the key (TODO)
@@ -47,7 +47,7 @@ pub struct SPDPdiscoveredParticipantData{
 impl SPDPdiscoveredParticipantData {
     pub fn new_from_participant(participant: &Participant, lease_duration: Duration) -> Self{
         Self {
-            // domain_id: 0, //TODO: participant.domain_id(),
+            domain_id: participant.domain_id(),
             domain_tag: "".to_string(), //TODO: participant.domain_tag(),
             protocol_version: participant.protocol_version(),
             guid_prefix: participant.guid().prefix(),
@@ -61,6 +61,42 @@ impl SPDPdiscoveredParticipantData {
             lease_duration,
             manual_liveliness_count: 0, //TODO:Count,
         }
+    }
+
+    pub fn domain_id(&self) -> DomainId{
+        self.domain_id
+    }
+
+    pub fn domain_tag(&self) -> &String {
+        &self.domain_tag
+    }
+
+    pub fn guid_prefix(&self) -> GuidPrefix {
+        self.guid_prefix
+    }
+
+    pub fn expects_inline_qos(&self) -> bool {
+        self.expects_inline_qos
+    }
+
+    pub fn metatraffic_unicast_locator_list(&self) -> &Vec<Locator> {
+        &self.metatraffic_unicast_locator_list
+    }
+
+    pub fn metatraffic_multicast_locator_list(&self) -> &Vec<Locator> {
+        &self.metatraffic_multicast_locator_list
+    }
+
+    pub fn default_unicast_locator_list(&self) -> &Vec<Locator> {
+        &self.default_unicast_locator_list
+    }
+
+    pub fn default_multicast_locator_list(&self) -> &Vec<Locator> {
+        &self.default_multicast_locator_list
+    }
+
+    pub fn available_built_in_endpoints(&self) -> &BuiltInEndpointSet {
+        &self.available_built_in_endpoints
     }
 
     pub fn key(&self) -> InstanceHandle {
@@ -125,7 +161,7 @@ impl SPDPdiscoveredParticipantData {
         let parameter_list = CdrParameterList::deserialize(&data);
 
         // TODO: Defaults to the domain_id of the participant receiving the message
-        // let domain_id = parameter_list.find::<ParameterDomainId>(endianness).unwrap().0;
+        let domain_id = parameter_list.find::<ParameterDomainId>().unwrap_or(ParameterDomainId(0)).0;
         let domain_tag = parameter_list.find::<ParameterDomainTag>().unwrap_or_default().0;
         let protocol_version = parameter_list.find::<ParameterProtocolVersion>().unwrap().0;
         let vendor_id = parameter_list.find::<ParameterVendorId>().unwrap().0;
@@ -147,7 +183,7 @@ impl SPDPdiscoveredParticipantData {
         let manual_liveliness_count = parameter_list.find::<ParameterParticipantManualLivelinessCount>().unwrap().0;
 
         Self{
-            // domain_id,
+            domain_id,
             domain_tag,
             protocol_version,
             guid_prefix,
@@ -172,7 +208,7 @@ mod tests {
     #[test]
     fn complete_serialize_spdp_data() {
         let spdp_participant_data = SPDPdiscoveredParticipantData{
-            // domain_id: 1,
+            domain_id: 0,
             domain_tag: "abcd".to_string(),
             protocol_version: PROTOCOL_VERSION_2_4,
             guid_prefix: [1, 2, 3, 4, 5, 6, 7, 1, 2, 3, 4, 5],
@@ -277,7 +313,7 @@ mod tests {
     #[test]
     fn serialize_spdp_data_with_defaults() {
         let spdp_participant_data = SPDPdiscoveredParticipantData{
-            // domain_id: 1,
+            domain_id: 0,
             domain_tag: "".to_string(),
             protocol_version: PROTOCOL_VERSION_2_4,
             vendor_id: [99,99],
