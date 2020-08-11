@@ -13,7 +13,7 @@ use crate::types::constants::{
     ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
     ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
     ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
-    LOCATOR_KIND_UDPv4};
+    PROTOCOL_VERSION_2_4,};
 use crate::endpoint_types::BuiltInEndpointSet;
 use crate::messages::Endianness;
 use crate::behavior::types::Duration;
@@ -23,6 +23,7 @@ use crate::transport::{Transport, UdpTransport};
 use crate::messages::message_sender::rtps_message_sender;
 use crate::messages::message_receiver::rtps_message_receiver;
 use crate::endpoint_types::DomainId;
+use crate::spdp;
 
 
 pub struct Participant<T: Transport = UdpTransport> {
@@ -35,6 +36,7 @@ pub struct Participant<T: Transport = UdpTransport> {
     protocol_version: ProtocolVersion,
     vendor_id: VendorId,
     domain_tag: String,
+    userdata_transport: T,
     metatraffic_transport: T,
     spdp_builtin_participant_reader: StatelessReader,
     spdp_builtin_participant_writer: StatelessWriter,
@@ -49,55 +51,32 @@ pub struct Participant<T: Transport = UdpTransport> {
 
 impl<T: Transport> Participant<T> {
     fn new(
-        default_unicast_locator_list: Vec<Locator>,
-        default_multicast_locator_list: Vec<Locator>,
-        protocol_version: ProtocolVersion,
-        vendor_id: VendorId,
+        userdata_transport: T,
+        metatraffic_transport: T,
     ) -> Self {
         let domain_id = 0; // TODO: Should be configurable
+        let protocol_version = PROTOCOL_VERSION_2_4;
+        let vendor_id = [99,99];
         let lease_duration = Duration::from_secs(100); // TODO: Should be configurable
         let endianness = Endianness::LittleEndian; // TODO: Should be configurable
         let expects_inline_qos = false;
-        const PB : u32 = 7400;  // TODO: Should be configurable
-        const DG : u32 = 250;   // TODO: Should be configurable
-        const PG : u32 = 2; // TODO: Should be configurable
-        const D0 : u32 = 0; // TODO: Should be configurable
-        const D1 : u32 = 10;    // TODO: Should be configurable
-        const D2 : u32 = 1; // TODO: Should be configurable
-        const D3 : u32 = 11;    // TODO: Should be configurable
-
         let guid_prefix = [5, 6, 7, 8, 9, 5, 1, 2, 3, 4, 10, 11];   // TODO: Should be uniquely generated
-
-        let spdp_well_known_multicast_port = PB + DG * domain_id + D0;
-
-        let metatraffic_unicast_locator = Locator::new(
-            LOCATOR_KIND_UDPv4,
-            spdp_well_known_multicast_port,
-            crate::transport::get_interface_address(&"Ethernet").unwrap(),
-        );
-
-        let metatraffic_multicast_locator = Locator::new(
-            LOCATOR_KIND_UDPv4,
-            spdp_well_known_multicast_port,
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 239, 255, 0, 1],
-        );
-
-        let metatraffic_transport = T::new(metatraffic_unicast_locator, Some(metatraffic_multicast_locator)).unwrap();
 
         let spdp_builtin_participant_writer = StatelessWriter::new(
             GUID::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER),
             TopicKind::WithKey);
-        spdp_builtin_participant_writer.reader_locator_add(metatraffic_multicast_locator);
+
+        for metatraffic_multicast_locator in metatraffic_transport.multicast_locator_list() {
+            spdp_builtin_participant_writer.reader_locator_add(metatraffic_multicast_locator);
+        }
 
         let spdp_builtin_participant_reader = StatelessReader::new(
             GUID::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_DETECTOR),
             TopicKind::WithKey,
             vec![],
-            vec![metatraffic_multicast_locator],
+            metatraffic_transport.multicast_locator_list(),
             expects_inline_qos,
         );
-        
-        
 
         let expects_inline_qos = false;
         let heartbeat_period = Duration::from_secs(5);
@@ -171,10 +150,13 @@ impl<T: Transport> Participant<T> {
             BuiltInEndpointSet::BUILTIN_ENDPOINT_TOPICS_DETECTOR
         );
 
+        let default_unicast_locator_list = userdata_transport.unicast_locator_list().clone();
+        let default_multicast_locator_list = userdata_transport.multicast_locator_list().clone();
+
         // Fill up the metatraffic locator lists. By default only the SPDP will
         // use the multicast and the remaining built-in endpoints will communicate
         // over unicast.
-        let metatraffic_unicast_locator_list = vec![metatraffic_unicast_locator];
+        let metatraffic_unicast_locator_list = metatraffic_transport.unicast_locator_list().clone();
         let metatraffic_multicast_locator_list = vec![];
 
         let participant = Self {
@@ -187,6 +169,7 @@ impl<T: Transport> Participant<T> {
             protocol_version,
             vendor_id,
             domain_tag: "".to_string(),
+            userdata_transport,
             metatraffic_transport,
             builtin_endpoint_set,
             spdp_builtin_participant_reader,
@@ -246,6 +229,30 @@ impl<T: Transport> Participant<T> {
         &self.domain_tag
     }
 
+    pub fn sedp_builtin_publications_reader(&self) -> &StatefulReader {
+        &self.sedp_builtin_publications_reader
+    }
+
+    pub fn sedp_builtin_publications_writer(&self) -> &StatefulWriter {
+        &self.sedp_builtin_publications_writer
+    }
+
+    pub fn sedp_builtin_subscriptions_reader(&self) -> &StatefulReader {
+        &self.sedp_builtin_publications_reader
+    }
+
+    pub fn sedp_builtin_subscriptions_writer(&self) -> &StatefulWriter {
+        &self.sedp_builtin_publications_writer
+    }
+
+    pub fn sedp_builtin_topics_reader(&self) -> &StatefulReader {
+        &self.sedp_builtin_topics_reader
+    }
+
+    pub fn sedp_builtin_topics_writer(&self) -> &StatefulWriter {
+        &self.sedp_builtin_topics_writer
+    }
+
     fn run(&self) {
         rtps_message_receiver(
             &self.metatraffic_transport, 
@@ -263,136 +270,66 @@ impl<T: Transport> Participant<T> {
         self.sedp_builtin_topics_writer.run();
         rtps_message_sender(&self.metatraffic_transport, self.guid.prefix(), &[&self.spdp_builtin_participant_writer],
     &[&self.sedp_builtin_publications_writer, &self.sedp_builtin_subscriptions_writer, &self.sedp_builtin_topics_writer]);
-    }
 
-    
-    fn add_discovered_participant(&self, discovered_participant: &SPDPdiscoveredParticipantData) {
-        // Implements the process described in
-        // 8.5.5.1 Discovery of a new remote Participant
-
-        if discovered_participant.domain_id() != self.domain_id {
-            return;
+        for spdp_data in self.spdp_builtin_participant_reader.history_cache().changes().iter() {
+            let discovered_participant = SPDPdiscoveredParticipantData::from_key_data(*spdp_data.instance_handle(), spdp_data.data_value().unwrap(), self.domain_id);
+            spdp::add_discovered_participant(&self, &discovered_participant);
         }
-
-        if discovered_participant.domain_tag() != &self.domain_tag {
-            return;
-        }
-
-        if discovered_participant.available_built_in_endpoints().has(BuiltInEndpointSet::BUILTIN_ENDPOINT_PUBLICATIONS_DETECTOR) {
-            let guid = GUID::new(discovered_participant.guid_prefix(), ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR);
-            let proxy = ReaderProxy::new(
-                guid,
-                discovered_participant.metatraffic_unicast_locator_list().clone(),
-            discovered_participant.metatraffic_multicast_locator_list().clone(),
-        discovered_participant.expects_inline_qos(),
-    true );
-            self.sedp_builtin_publications_writer.matched_reader_add(proxy);
-        }
-
-        if discovered_participant.available_built_in_endpoints().has(BuiltInEndpointSet::BUILTIN_ENDPOINT_PUBLICATIONS_ANNOUNCER) {
-            let guid = GUID::new(discovered_participant.guid_prefix(), ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER);
-            let proxy = WriterProxy::new(
-                guid,
-                discovered_participant.metatraffic_unicast_locator_list().clone(), 
-                discovered_participant.metatraffic_multicast_locator_list().clone());
-            self.sedp_builtin_publications_reader.matched_writer_add(proxy);
-        }
-
-        if discovered_participant.available_built_in_endpoints().has(BuiltInEndpointSet::BUILTIN_ENDPOINT_SUBSCRIPTIONS_DETECTOR) {
-            let guid = GUID::new(discovered_participant.guid_prefix(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-            let proxy = ReaderProxy::new(
-                guid,
-                discovered_participant.metatraffic_unicast_locator_list().clone(),
-            discovered_participant.metatraffic_multicast_locator_list().clone(),
-        discovered_participant.expects_inline_qos(),
-    true );
-            self.sedp_builtin_subscriptions_writer.matched_reader_add(proxy);
-        }
-        
-        if discovered_participant.available_built_in_endpoints().has(BuiltInEndpointSet::BUILTIN_ENDPOINT_SUBSCRIPTIONS_ANNOUNCER) {
-            let guid = GUID::new(discovered_participant.guid_prefix(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-            let proxy = WriterProxy::new(
-                guid,
-                discovered_participant.metatraffic_unicast_locator_list().clone(), 
-                discovered_participant.metatraffic_multicast_locator_list().clone());
-            self.sedp_builtin_subscriptions_reader.matched_writer_add(proxy);
-        }
-
-        if discovered_participant.available_built_in_endpoints().has(BuiltInEndpointSet::BUILTIN_ENDPOINT_TOPICS_DETECTOR) {
-            let guid = GUID::new(discovered_participant.guid_prefix(), ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR);
-            let proxy = ReaderProxy::new(
-                guid,
-                discovered_participant.metatraffic_unicast_locator_list().clone(),
-            discovered_participant.metatraffic_multicast_locator_list().clone(),
-        discovered_participant.expects_inline_qos(),
-    true );
-            self.sedp_builtin_topics_writer.matched_reader_add(proxy);
-        }
-
-        if discovered_participant.available_built_in_endpoints().has(BuiltInEndpointSet::BUILTIN_ENDPOINT_TOPICS_ANNOUNCER) {
-            let guid = GUID::new(discovered_participant.guid_prefix(), ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER);
-            let proxy = WriterProxy::new(
-                guid,
-                discovered_participant.metatraffic_unicast_locator_list().clone(), 
-                discovered_participant.metatraffic_multicast_locator_list().clone());
-            self.sedp_builtin_topics_reader.matched_writer_add(proxy);
-        }           
-    }
-
-    fn remove_discovered_participant(&self, remote_participant_guid_prefix: GuidPrefix) {
-        // Implements the process described in
-        // 8.5.5.2 Removal of a previously discovered Participant
-        let guid = GUID::new(remote_participant_guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR);
-        self.sedp_builtin_publications_writer.matched_reader_remove(&guid);
-
-        let guid = GUID::new(remote_participant_guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER);
-        self.sedp_builtin_publications_reader.matched_writer_remove(&guid);
-
-        let guid = GUID::new(remote_participant_guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-        self.sedp_builtin_subscriptions_writer.matched_reader_remove(&guid);
-
-        let guid = GUID::new(remote_participant_guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-        self.sedp_builtin_subscriptions_reader.matched_writer_remove(&guid);
-
-        let guid = GUID::new(remote_participant_guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR);
-        self.sedp_builtin_topics_writer.matched_reader_remove(&guid);
-
-        let guid = GUID::new(remote_participant_guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER);
-        self.sedp_builtin_topics_reader.matched_writer_remove(&guid);
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::constants::{PROTOCOL_VERSION_2_4};
+    use crate::types::constants::ENTITYID_UNKNOWN;
     use crate::transport_stub::StubTransport;
+    use crate::messages::{RtpsSubmessage};
 
-    #[test]
-    fn participant_with_default_transport() {
-        // The weird syntax is needed to use the default transport without
-        // infering anything. See: https://github.com/rust-lang/rust/issues/36980#issuecomment-251726254 
-        // and https://users.rust-lang.org/t/default-trait-type-not-working-for-type-inference/33905
-        let participant = <Participant>::new(
-            vec![],
-            vec![],
-            PROTOCOL_VERSION_2_4,
-            [99,99]);
+    // #[test]
+    // fn participant_with_default_transport() {
+    //     // The weird syntax is needed to use the default transport without
+    //     // infering anything for the type. See: https://github.com/rust-lang/rust/issues/36980#issuecomment-251726254 
+    //     // and https://users.rust-lang.org/t/default-trait-type-not-working-for-type-inference/33905
+    //     let participant = <Participant>::new(
+    //         vec![],
+    //         vec![]);
 
-        participant.run();
-    }
+    //     participant.run();
+    // }
 
 
     #[test]
     fn participant() {
-        let participant = Participant::<StubTransport>::new(
-            vec![],
-            vec![],
-            PROTOCOL_VERSION_2_4,
-            [99,99]);
-    
-        participant.run();
+        let userdata_transport1 = StubTransport::new(
+            Locator::new_udpv4(7410, [192,168,0,5]), 
+            Some(Locator::new_udpv4(7410, [239,255,0,1]))).unwrap();
+        let metatraffic_transport1 = StubTransport::new(
+            Locator::new_udpv4(7400, [192,168,0,5]), 
+            Some(Locator::new_udpv4(7400, [239,255,0,1]))).unwrap();
 
-        println!("Message: {:?}",participant.metatraffic_transport.pop_write());
+        
+        let participant_1 = Participant::new(userdata_transport1,metatraffic_transport1);
+
+
+        let userdata_transport2 = StubTransport::new(
+            Locator::new_udpv4(7410, [192,168,0,10]), 
+            Some(Locator::new_udpv4(7410, [239,255,0,1]))).unwrap();
+        let metatraffic_transport2 = StubTransport::new(
+            Locator::new_udpv4(7400, [192,168,0,10]), 
+            Some(Locator::new_udpv4(7400, [239,255,0,1]))).unwrap();
+
+        let participant_2 = Participant::<StubTransport>::new(
+            userdata_transport2,
+            metatraffic_transport2);
+
+        // Check that the participant announces itself in the multicast channel
+        participant_1.run();
+
+        participant_2.metatraffic_transport.receive_from(&participant_1.metatraffic_transport);
+
+        participant_2.run();
+
+        assert_eq!(participant_2.spdp_builtin_participant_reader.history_cache().changes().len(), 1);
+        
     }
 }

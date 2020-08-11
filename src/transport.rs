@@ -5,7 +5,9 @@ use std::convert::TryInto;
 use std::net::{UdpSocket, IpAddr, Ipv4Addr, SocketAddr};
 
 use crate::types::Locator;
+use crate::types::constants::LOCATOR_KIND_UDPv4;
 use crate::messages::{RtpsMessage, UdpPsmMapping};
+use crate::endpoint_types::DomainId;
 
 #[derive(Debug)]
 pub enum TransportError {
@@ -27,12 +29,18 @@ pub trait Transport {
     fn write(&self, message: RtpsMessage, unicast_locator_list: &[Locator], multicast_locator_list: &[Locator]);
 
     fn read(&self) -> Result<Option<(RtpsMessage, Locator)>>;
+
+    fn unicast_locator_list(&self) -> Vec<Locator>;
+
+    fn multicast_locator_list(&self) -> Vec<Locator>;
 }
 
 const MAX_UDP_DATA_SIZE: usize = 65536;
 
 pub struct UdpTransport {
     socket: UdpSocket,
+    unicast_locator: Locator,
+    multicast_locator: Option<Locator>,
 }
 
 pub fn get_interface_address(interface_name: &str) -> Option<[u8; 16]> {
@@ -52,6 +60,35 @@ pub fn get_interface_address(interface_name: &str) -> Option<[u8; 16]> {
 }
 
 impl UdpTransport {
+    const PB : u32 = 7400;  // TODO: Should be configurable
+    const DG : u32 = 250;   // TODO: Should be configurable
+    const PG : u32 = 2; // TODO: Should be configurable
+    const D0 : u32 = 0; // TODO: Should be configurable
+    const D1 : u32 = 10;    // TODO: Should be configurable
+    const D2 : u32 = 1; // TODO: Should be configurable
+    const D3 : u32 = 11;    // TODO: Should be configurable
+
+    pub fn default_metatraffic_transport(domain_id: DomainId, interface: &str) -> Result<Self> {
+        let spdp_well_known_multicast_port = UdpTransport::PB + UdpTransport::DG * domain_id + UdpTransport::D0;
+
+        let metatraffic_unicast_locator = Locator::new(
+            LOCATOR_KIND_UDPv4,
+            spdp_well_known_multicast_port,
+            crate::transport::get_interface_address(interface).unwrap(),
+        );
+
+        let metatraffic_multicast_locator = Locator::new(
+            LOCATOR_KIND_UDPv4,
+            spdp_well_known_multicast_port,
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 239, 255, 0, 1],
+        );
+
+        UdpTransport::new(metatraffic_unicast_locator, Some(metatraffic_multicast_locator))
+    }
+
+    pub fn default_userdata_transport(_domain_id: DomainId, _interface: &str) -> Result<Self> {
+        todo!()
+    }
 
 }
 
@@ -79,7 +116,9 @@ impl Transport for UdpTransport {
         socket.set_nonblocking(true)?;
 
         Ok(Self {
-            socket
+            socket,
+            unicast_locator,
+            multicast_locator,
         })
     }
 
@@ -137,6 +176,17 @@ impl Transport for UdpTransport {
                     Err(error.into())
                 }
             },
+        }
+    }
+
+    fn unicast_locator_list(&self) -> Vec<Locator> {
+        vec![self.unicast_locator]
+    }
+    
+    fn multicast_locator_list(&self) -> Vec<Locator> {
+        match self.multicast_locator {
+            Some(multicast_locator) => vec![multicast_locator],
+            None => vec![],
         }
     }
 }

@@ -17,8 +17,8 @@ pub struct Data {
     reader_id: submessage_elements::EntityId,
     writer_id: submessage_elements::EntityId,
     writer_sn: submessage_elements::SequenceNumber,
-    inline_qos: Option<submessage_elements::ParameterList>,
-    serialized_payload: Option<submessage_elements::SerializedData>,
+    inline_qos: submessage_elements::ParameterList,
+    serialized_payload: submessage_elements::SerializedData,
 }
 
 #[derive(PartialEq, Debug)]
@@ -44,11 +44,15 @@ impl Data {
             let mut data_flag = false;
             let mut key_flag = false;
             let mut non_standard_payload_flag = false;
+            let inline_qos = match inline_qos {
+                Some(inline_qos_parameter_list) => inline_qos_parameter_list,
+                None => submessage_elements::ParameterList::new(),
+            };
             let serialized_payload = match  payload {
-                Payload::Data(serialized_payload) => {data_flag = true; Some(submessage_elements::SerializedData(serialized_payload))},
-                Payload::Key(serialized_payload) => {key_flag = true; Some(submessage_elements::SerializedData(serialized_payload))},
-                Payload::NonStandard(serialized_payload) => {non_standard_payload_flag = true; Some(submessage_elements::SerializedData(serialized_payload))},
-                Payload::None => {None}
+                Payload::Data(serialized_payload) => {data_flag = true; submessage_elements::SerializedData(serialized_payload)},
+                Payload::Key(serialized_payload) => {key_flag = true; submessage_elements::SerializedData(serialized_payload)},
+                Payload::NonStandard(serialized_payload) => {non_standard_payload_flag = true; submessage_elements::SerializedData(serialized_payload)},
+                Payload::None => {submessage_elements::SerializedData(Vec::new())},
             };
         
         Data {
@@ -77,14 +81,11 @@ impl Data {
         self.writer_sn.0
     }
 
-    pub fn serialized_payload(&self) -> Option<&Vec<u8>> {
-        match &self.serialized_payload {
-            Some(data) => Some(&data.0),
-            None => None,
-        }
+    pub fn serialized_payload(&self) -> &Vec<u8> {
+        &self.serialized_payload.0
     }
     
-    pub fn inline_qos(&self) -> &Option<submessage_elements::ParameterList> {
+    pub fn inline_qos(&self) -> &submessage_elements::ParameterList {
         &self.inline_qos
     }
 
@@ -103,6 +104,10 @@ impl Data {
     pub fn non_standard_payload_flag(&self) -> SubmessageFlag {
         self.non_standard_payload_flag
     }
+
+    pub fn take_payload_and_qos(self) -> (submessage_elements::SerializedData, submessage_elements::ParameterList) {
+        (self.serialized_payload, self.inline_qos)
+    }
 }
 
 impl Submessage for Data {
@@ -117,12 +122,11 @@ impl Submessage for Data {
         let flags = [e, q, d, k, n, x, x, x];
 
         let mut octets_to_next_header = 4 /*extra_flags and octetsToInlineQos*/ + self.reader_id.octets() + self.writer_id.octets() + self.writer_sn.octets();
-        if let Some(inline_qos) = &self.inline_qos {
-            octets_to_next_header += inline_qos.octets();
+        if self.inline_qos.len() > 0 {
+            octets_to_next_header += self.inline_qos.octets();
         }
-        if let Some(serialized_payload) = &self.serialized_payload {
-            octets_to_next_header += serialized_payload.octets();
-        }
+        octets_to_next_header += self.serialized_payload.octets();
+        
         SubmessageHeader::new( 
             SubmessageKind::Data,
             flags,
@@ -152,12 +156,12 @@ impl UdpPsmMapping for Data {
         self.reader_id.serialize(writer, endianness)?;
         self.writer_id.serialize(writer, endianness)?;
         self.writer_sn.serialize(writer, endianness)?;
-        // Note: No check for "Some" is needed here since this is enforced by the invariant
+        
         if self.inline_qos_flag {
-            self.inline_qos.as_ref().unwrap().serialize(writer, endianness)?;
+            self.inline_qos.serialize(writer, endianness)?;
         }
         if self.data_flag || self.key_flag {
-            self.serialized_payload.as_ref().unwrap().serialize(writer, endianness)?;
+            self.serialized_payload.serialize(writer, endianness)?;
         }
 
         Ok(())
@@ -180,22 +184,20 @@ impl UdpPsmMapping for Data {
         let reader_id = submessage_elements::EntityId::deserialize(&bytes[8..12], endianness)?;        
         let writer_id = submessage_elements::EntityId::deserialize(&bytes[12..16], endianness)?;
         let writer_sn = submessage_elements::SequenceNumber::deserialize(&bytes[16..24], endianness)?;
-        let inline_qos = if inline_qos_flag {
-            Some(submessage_elements::ParameterList::deserialize(&bytes[octets_to_inline_qos..], endianness)?)
+        let (inline_qos, inline_qos_octets) = if inline_qos_flag {
+            let inline_qos = submessage_elements::ParameterList::deserialize(&bytes[octets_to_inline_qos..], endianness)?;
+            let inline_qos_octets = inline_qos.octets();
+            (inline_qos, inline_qos_octets)
         } else { 
-            None
-        };
-        let inline_qos_octets = if let Some(inline_qos) = &inline_qos {
-            inline_qos.octets()
-        } else {
-            0
+            let inline_qos = submessage_elements::ParameterList::new();
+            (inline_qos, 0)
         };
         let end_of_submessage = usize::from(header.submessage_length()) + header.octets();
         let serialized_payload = if data_flag || key_flag || non_standard_payload_flag {
             let octets_to_serialized_payload = octets_to_inline_qos + inline_qos_octets;
-            submessage_elements::SerializedData::deserialize(&bytes[octets_to_serialized_payload..end_of_submessage], endianness).ok()
+            submessage_elements::SerializedData::deserialize(&bytes[octets_to_serialized_payload..end_of_submessage], endianness)?
         } else {
-            None
+            submessage_elements::SerializedData(Vec::new())
         };
 
 
@@ -253,12 +255,12 @@ mod tests {
             reader_id: submessage_elements::EntityId(ENTITYID_UNKNOWN),
             writer_id: submessage_elements::EntityId(ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER),
             writer_sn: submessage_elements::SequenceNumber(1),
-            inline_qos: None, 
-            serialized_payload: None, 
+            inline_qos: submessage_elements::ParameterList::new(), 
+            serialized_payload: submessage_elements::SerializedData(Vec::new()), 
         };
         let expected = vec![
             0x15_u8, 0b00000001, 20, 0x0, // Submessgae Header
-            0x00, 0x00,  16, 0x0, // ExtraFlags, octetsToInlineQos (liitle indian)
+            0x00, 0x00,  16, 0x0, // ExtraFlags, octetsToInlineQos (little indian)
             0x00, 0x00, 0x00, 0x00, // [Data Submessage] EntityId readerId => ENTITYID_UNKNOWN
             0x00, 0x01, 0x00, 0xc2, // [Data Submessage] EntityId writerId
             0x00, 0x00, 0x00, 0x00, // [Data Submessage] SequenceNumber writerSN
@@ -285,8 +287,8 @@ mod tests {
             reader_id: submessage_elements::EntityId(ENTITYID_UNKNOWN),
             writer_id: submessage_elements::EntityId(ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER),
             writer_sn: submessage_elements::SequenceNumber(1),
-            inline_qos: Some(inline_qos), 
-            serialized_payload: None, 
+            inline_qos: inline_qos,
+            serialized_payload: submessage_elements::SerializedData(Vec::new()), 
         };
         let expected = vec![
             0x15_u8, 0b00000011, 44, 0x0, // Submessgae Header
@@ -325,8 +327,8 @@ mod tests {
             reader_id: submessage_elements::EntityId(ENTITYID_UNKNOWN),
             writer_id: submessage_elements::EntityId(ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER),
             writer_sn: submessage_elements::SequenceNumber(1),
-            inline_qos: Some(inline_qos), 
-            serialized_payload: Some(serialized_payload), 
+            inline_qos: inline_qos, 
+            serialized_payload: serialized_payload,
         };
         let expected = vec![
             0x15_u8, 0b00000111, 47, 0x0, // Submessgae Header
@@ -360,8 +362,8 @@ mod tests {
             reader_id: submessage_elements::EntityId(ENTITYID_UNKNOWN),
             writer_id: submessage_elements::EntityId(ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER),
             writer_sn: submessage_elements::SequenceNumber(1),
-            inline_qos: None, 
-            serialized_payload: None, 
+            inline_qos: submessage_elements::ParameterList::new(), 
+            serialized_payload: submessage_elements::SerializedData(Vec::new()), 
         };
         let bytes = vec![
             0x15_u8, 0b00000001, 20, 0x0, // Submessgae Header
@@ -388,8 +390,8 @@ mod tests {
             reader_id: submessage_elements::EntityId(ENTITYID_UNKNOWN),
             writer_id: submessage_elements::EntityId(ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER),
             writer_sn: submessage_elements::SequenceNumber(1),
-            inline_qos: None, 
-            serialized_payload: Some(serialized_payload), 
+            inline_qos: submessage_elements::ParameterList::new(), 
+            serialized_payload: serialized_payload, 
         };
         let bytes = vec![
             0x15_u8, 0b00010001, 24, 0x0, // Submessgae Header
@@ -423,8 +425,8 @@ mod tests {
             reader_id: submessage_elements::EntityId(ENTITYID_UNKNOWN),
             writer_id: submessage_elements::EntityId(ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER),
             writer_sn: submessage_elements::SequenceNumber(1),
-            inline_qos: Some(inline_qos), 
-            serialized_payload: Some(serialized_payload), 
+            inline_qos: inline_qos, 
+            serialized_payload: serialized_payload, 
         };
         let bytes = vec![
             0x15_u8, 0b00001011, 47, 0x0, // Submessgae Header

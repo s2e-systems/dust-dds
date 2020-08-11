@@ -37,15 +37,13 @@ pub fn rtps_message_receiver(
         let _multicast_reply_locator_list = vec![Locator::new(0,0,[0;16])];
         let mut _timestamp = None;
         let _message_length = 0;
-        
-        let source_locator = Locator::new(0,0, [0;16]);
 
         for submessage in message.take_submessages() {
             match submessage {
                 // Writer to reader messages
                 RtpsSubmessage::Data(data) => receive_reader_submessage(&src_locator, source_guid_prefix, ReaderReceiveMessage::Data(data), stateless_reader_list, stateful_reader_list),
                 RtpsSubmessage::Gap(gap) => receive_reader_submessage(&src_locator, source_guid_prefix, ReaderReceiveMessage::Gap(gap), stateless_reader_list, stateful_reader_list),
-                RtpsSubmessage::Heartbeat(heartbeat) => receive_reader_submessage(&source_locator, source_guid_prefix, ReaderReceiveMessage::Heartbeat(heartbeat), stateless_reader_list, stateful_reader_list),
+                RtpsSubmessage::Heartbeat(heartbeat) => receive_reader_submessage(&src_locator, source_guid_prefix, ReaderReceiveMessage::Heartbeat(heartbeat), stateless_reader_list, stateful_reader_list),
                 // Reader to writer messages
                 RtpsSubmessage::AckNack(ack_nack) => receive_writer_submessage(source_guid_prefix, WriterReceiveMessage::AckNack(ack_nack)),
                 // Receiver status messages
@@ -81,7 +79,7 @@ fn receive_reader_submessage(source_locator: &Locator, source_guid_prefix: GuidP
         // if the destination entity_id matches the reader id or if it is unknown
         if stateless_reader.unicast_locator_list().iter().find(|&loc| loc == source_locator).is_some() ||
             stateless_reader.multicast_locator_list().iter().find(|&loc| loc == source_locator).is_some() {
-
+            
             if stateless_reader.guid().entity_id() == reader_guid_prefix || reader_guid_prefix == ENTITYID_UNKNOWN {
                 stateless_reader.push_receive_message(source_guid_prefix, message);
                 return;

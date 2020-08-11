@@ -62,20 +62,20 @@ impl BestEfforStatefulReaderBehavior {
     fn waiting_state(writer_proxy: &WriterProxy, stateful_reader: &StatefulReader) {
         if let Some(received_message) = writer_proxy.pop_receive_message() {
             match received_message {
-                ReaderReceiveMessage::Data(data) => Self::transition_t2(writer_proxy, stateful_reader, &data),
+                ReaderReceiveMessage::Data(data) => Self::transition_t2(writer_proxy, stateful_reader, data),
                 ReaderReceiveMessage::Gap(gap) => Self::transition_t4(writer_proxy, &gap),
                 ReaderReceiveMessage::Heartbeat(_) => (),
             }
         }
     }
 
-    fn transition_t2(writer_proxy: &WriterProxy, stateful_reader: &StatefulReader, data: &Data) {
+    fn transition_t2(writer_proxy: &WriterProxy, stateful_reader: &StatefulReader, data: Data) {
         let expected_seq_number = writer_proxy.available_changes_max() + 1;
         if data.writer_sn() >= expected_seq_number {
-            let cache_change = cache_change_from_data(data, &writer_proxy.remote_writer_guid().prefix());
-            stateful_reader.reader_cache().add_change(cache_change);
             writer_proxy.received_change_set(data.writer_sn());
             writer_proxy.lost_changes_update(data.writer_sn());
+            let cache_change = cache_change_from_data(data, &writer_proxy.remote_writer_guid().prefix());
+            stateful_reader.reader_cache().add_change(cache_change);
         }
     }
 
@@ -108,7 +108,7 @@ impl ReliableStatefulReaderBehavior {
         if let Some(received_message) = writer_proxy.pop_receive_message() {
             match received_message {
                 ReaderReceiveMessage::Data(data) => {
-                    Self::transition_t8(writer_proxy, stateful_reader, &data);
+                    Self::transition_t8(writer_proxy, stateful_reader, data);
                     None
                 },
                 ReaderReceiveMessage::Gap(gap) => {
@@ -125,12 +125,13 @@ impl ReliableStatefulReaderBehavior {
         }
     }
 
-    fn transition_t8(writer_proxy: &WriterProxy, stateful_reader: &StatefulReader, data: &Data) {
+    fn transition_t8(writer_proxy: &WriterProxy, stateful_reader: &StatefulReader, data: Data) {
         let expected_seq_number = writer_proxy.available_changes_max() + 1;
         if data.writer_sn() >= expected_seq_number {
+            writer_proxy.received_change_set(data.writer_sn());
             let cache_change = cache_change_from_data(data, &writer_proxy.remote_writer_guid().prefix());
             stateful_reader.reader_cache().add_change(cache_change);
-            writer_proxy.received_change_set(data.writer_sn());
+            
         }
     }
 
