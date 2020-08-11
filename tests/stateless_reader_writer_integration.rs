@@ -86,7 +86,7 @@ fn test_stateless_writer_stateless_reader_direct_communication_integration() {
 
    reader.run();
 
-   let reader_changes = reader.history_cache().changes();
+   let reader_changes = reader.reader_cache().changes();
    assert_eq!(reader_changes.len(), 4);
    assert!(reader_changes.contains(&cache_change_seq1));
    assert!(reader_changes.contains(&cache_change_seq2));

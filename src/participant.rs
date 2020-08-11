@@ -1,8 +1,8 @@
 use crate::stateless_writer::StatelessWriter;
 use crate::stateless_reader::StatelessReader;
-use crate::stateful_writer::{StatefulWriter, ReaderProxy};
-use crate::stateful_reader::{StatefulReader, WriterProxy};
-use crate::types::{GUID, GuidPrefix, Locator, ProtocolVersion, VendorId, TopicKind, ChangeKind, ReliabilityKind};
+use crate::stateful_writer::{StatefulWriter, };
+use crate::stateful_reader::{StatefulReader, };
+use crate::types::{GUID, Locator, ProtocolVersion, VendorId, TopicKind, ChangeKind, ReliabilityKind};
 use crate::types::constants::{
     ENTITYID_PARTICIPANT,
     ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
@@ -271,7 +271,7 @@ impl<T: Transport> Participant<T> {
         rtps_message_sender(&self.metatraffic_transport, self.guid.prefix(), &[&self.spdp_builtin_participant_writer],
     &[&self.sedp_builtin_publications_writer, &self.sedp_builtin_subscriptions_writer, &self.sedp_builtin_topics_writer]);
 
-        for spdp_data in self.spdp_builtin_participant_reader.history_cache().changes().iter() {
+        for spdp_data in self.spdp_builtin_participant_reader.reader_cache().changes().iter() {
             let discovered_participant = SPDPdiscoveredParticipantData::from_key_data(*spdp_data.instance_handle(), spdp_data.data_value().unwrap(), self.domain_id);
             spdp::add_discovered_participant(&self, &discovered_participant);
         }
@@ -281,9 +281,7 @@ impl<T: Transport> Participant<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::constants::ENTITYID_UNKNOWN;
     use crate::transport_stub::StubTransport;
-    use crate::messages::{RtpsSubmessage};
 
     // #[test]
     // fn participant_with_default_transport() {
@@ -322,14 +320,20 @@ mod tests {
             userdata_transport2,
             metatraffic_transport2);
 
-        // Check that the participant announces itself in the multicast channel
         participant_1.run();
 
         participant_2.metatraffic_transport.receive_from(&participant_1.metatraffic_transport);
 
         participant_2.run();
+        participant_1.metatraffic_transport.receive_from(&participant_2.metatraffic_transport);
 
-        assert_eq!(participant_2.spdp_builtin_participant_reader.history_cache().changes().len(), 1);
+        // For now just check that a cache change is added to the receiver. TODO: Check that the discovery
+        // worked properly
+        assert_eq!(participant_2.spdp_builtin_participant_reader.reader_cache().changes().len(), 1);
+
+        assert_eq!(participant_1.spdp_builtin_participant_reader.reader_cache().changes().len(), 0);
+        participant_1.run();
+        assert_eq!(participant_1.spdp_builtin_participant_reader.reader_cache().changes().len(), 1);
         
     }
 }

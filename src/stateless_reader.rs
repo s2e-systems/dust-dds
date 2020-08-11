@@ -54,7 +54,7 @@ impl StatelessReader {
         &self.guid
     }
 
-    pub fn history_cache(&self) -> &HistoryCache {
+    pub fn reader_cache(&self) -> &HistoryCache {
         &self.reader_cache
     }
 
@@ -114,11 +114,11 @@ mod tests {
 
         reader.push_receive_message([2;12], ReaderReceiveMessage::Data(data1));
 
-        assert_eq!(reader.history_cache().changes().len(), 0);
+        assert_eq!(reader.reader_cache().changes().len(), 0);
         // let message = RtpsMessage::new(, submessages);
         
         reader.run();
 
-        assert_eq!(reader.history_cache().changes().len(), 1);
+        assert_eq!(reader.reader_cache().changes().len(), 1);
     }
 }
