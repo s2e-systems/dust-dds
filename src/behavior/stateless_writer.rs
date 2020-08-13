@@ -28,7 +28,7 @@ impl BestEffortStatelessWriterBehavior{
         let endianness = Endianness::LittleEndian;
 
         if let Some(cache_change) = stateless_writer.writer_cache()
-            .changes().iter().find(|cc| cc.sequence_number() == &next_unsent_seq_num)
+            .changes().iter().find(|cc| cc.sequence_number() == next_unsent_seq_num)
         {
             let data = data_from_cache_change(cache_change, endianness, ENTITYID_UNKNOWN);
             reader_locator.push_send_message(WriterSendMessage::Data(data));

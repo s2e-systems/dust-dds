@@ -1,17 +1,16 @@
 #![allow(dead_code)]
 
 pub mod types;
+mod inline_qos_types;
+mod serialized_payload;
+mod endpoint_types;
 
 mod structure;
 mod messages;
 mod behavior;
 mod discovery;
 
-mod inline_qos_types;
-mod serialized_payload;
 mod transport;
-mod endpoint_types;
-
 
 pub use structure::stateless_reader::StatelessReader;
 pub use structure::stateless_writer::StatelessWriter;

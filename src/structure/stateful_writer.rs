@@ -5,7 +5,8 @@ use crate::types::{ChangeKind, InstanceHandle, Locator, ReliabilityKind, Sequenc
 use crate::behavior::types::Duration;
 use crate::behavior::stateful_writer::{StatefulWriterBehavior, BestEffortStatefulWriterBehavior, ReliableStatefulWriterBehavior};
 use crate::messages::message_sender::{WriterSendMessage, WriterReceiveMessage};
-use crate::structure::cache::{CacheChange, HistoryCache, };
+use crate::structure::history_cache::HistoryCache;
+use crate::structure::cache_change::CacheChange;
 use crate::messages::{ParameterList};
 
 struct ChangeForReader {
@@ -340,12 +341,12 @@ mod tests {
             [1; 16],
         );
 
-        assert_eq!(cache_change_seq1.sequence_number(), &1);
+        assert_eq!(cache_change_seq1.sequence_number(), 1);
         assert_eq!(cache_change_seq1.change_kind(), &ChangeKind::Alive);
         assert!(cache_change_seq1.inline_qos().is_none());
         assert_eq!(cache_change_seq1.instance_handle(), &[1; 16]);
 
-        assert_eq!(cache_change_seq2.sequence_number(), &2);
+        assert_eq!(cache_change_seq2.sequence_number(), 2);
         assert_eq!(
             cache_change_seq2.change_kind(),
             &ChangeKind::NotAliveUnregistered

@@ -7,7 +7,7 @@ pub mod stateless_reader;
 use std::convert::{TryFrom, TryInto};
 
 use crate::types::{GUID, GuidPrefix, EntityId, ChangeKind};
-use crate::structure::cache::CacheChange;
+use crate::structure::cache_change::CacheChange;
 use crate::messages::{Data, Payload, Endianness, ParameterList};
 use crate::inline_qos_types::{KeyHash, StatusInfo};
 
@@ -33,7 +33,7 @@ fn cache_change_from_data(message: Data, guid_prefix: &GuidPrefix) -> CacheChang
 
 fn data_from_cache_change(cache_change: &CacheChange, endianness: Endianness, reader_id: EntityId) -> Data {
     let writer_id: EntityId = cache_change.writer_guid().entity_id();
-    let writer_sn = *cache_change.sequence_number();
+    let writer_sn = cache_change.sequence_number();
 
     let mut inline_qos_parameters = match cache_change.inline_qos() {
         Some(inline_qos) => inline_qos.clone(),

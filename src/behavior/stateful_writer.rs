@@ -83,7 +83,7 @@ impl BestEffortStatefulWriterBehavior {
         let endianness = Endianness::LittleEndian;
 
         if let Some(cache_change) = stateful_writer.writer_cache()
-            .changes().iter().find(|cc| cc.sequence_number() == &next_unsent_seq_num)
+            .changes().iter().find(|cc| cc.sequence_number() == next_unsent_seq_num)
         {
             let reader_id = reader_proxy.remote_reader_guid().entity_id();
             let data = data_from_cache_change(cache_change, endianness, reader_id);
@@ -180,7 +180,7 @@ impl ReliableStatefulWriterBehavior {
 
     fn transition_t12(reader_proxy: &ReaderProxy, stateful_writer: &StatefulWriter, next_requested_seq_num: SequenceNumber) {
         if let Some(cache_change) = stateful_writer.writer_cache()
-        .changes().iter().find(|cc| cc.sequence_number() == &next_requested_seq_num)
+        .changes().iter().find(|cc| cc.sequence_number() == next_requested_seq_num)
         {
             let endianness = Endianness::LittleEndian;
             let data = data_from_cache_change(cache_change, endianness, reader_proxy.remote_reader_guid().entity_id());

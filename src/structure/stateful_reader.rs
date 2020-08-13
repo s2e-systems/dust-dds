@@ -1,7 +1,7 @@
 use std::collections::{BTreeSet, HashMap, VecDeque, };
 use std::sync::{RwLock, RwLockReadGuard, Mutex, MutexGuard, };
 
-use crate::structure::cache::HistoryCache;
+use crate::structure::history_cache::HistoryCache;
 use crate::types::{Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID, };
 use crate::messages::message_receiver::{ReaderReceiveMessage, ReaderSendMessage, };
 use crate::behavior::types::Duration;

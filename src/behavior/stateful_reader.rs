@@ -188,7 +188,7 @@ mod tests {
     use crate::types::{ChangeKind, TopicKind, ReliabilityKind, GUID};
     use crate::types::constants::{
         ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, };
-    use crate::structure::cache::CacheChange;
+    use crate::structure::cache_change::CacheChange;
     use crate::messages::{Data, Payload, Heartbeat, ParameterList, Endianness};
     use crate::inline_qos_types::{KeyHash, StatusInfo, };
 
