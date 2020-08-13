@@ -3,7 +3,7 @@ use std::sync::Mutex;
 
 use crate::types::Locator;
 use crate::messages::RtpsMessage;
-use crate::transport::Transport;
+use super::{Transport, TransportResult};
 
 pub struct StubTransport {
     read: Mutex<VecDeque<(RtpsMessage, Locator)>>,
@@ -36,7 +36,7 @@ impl StubTransport {
 }
 
 impl Transport for StubTransport {
-    fn new(unicast_locator: Locator, multicast_locator: Option<Locator>) -> crate::transport::Result<Self> {
+    fn new(unicast_locator: Locator, multicast_locator: Option<Locator>) -> TransportResult<Self> {
         Ok(Self {
             read: Mutex::new(VecDeque::new()),
             write: Mutex::new(VecDeque::new()),
@@ -45,7 +45,7 @@ impl Transport for StubTransport {
         })
     }
 
-    fn read(&self) -> crate::transport::Result<Option<(RtpsMessage, Locator)>> {
+    fn read(&self) -> TransportResult<Option<(RtpsMessage, Locator)>> {
         match self.read.lock().unwrap().pop_front() {
             Some((message, locator)) => Ok(Some((message, locator))),
             None => Ok(None),

@@ -67,7 +67,7 @@ pub fn rtps_message_sender(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::transport_stub::StubTransport;
+    use crate::transport::stub_transport::StubTransport;
     use crate::types::{TopicKind, GUID, ChangeKind, Locator, ReliabilityKind};
     use crate::types::constants::{
         ENTITYID_UNKNOWN,

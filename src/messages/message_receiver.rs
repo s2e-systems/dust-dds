@@ -115,7 +115,7 @@ mod tests {
     use super::*;
     use crate::types::{TopicKind, ReliabilityKind};
     use crate::types::constants::{ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, ENTITYID_UNKNOWN};
-    use crate::transport_stub::StubTransport;
+    use crate::transport::stub_transport::StubTransport;
     use crate::messages::{Endianness, Data, RtpsMessage, Payload};
     use crate::behavior::types::Duration;
     use crate::stateful_reader::WriterProxy;

@@ -8,32 +8,7 @@ use crate::types::Locator;
 use crate::types::constants::LOCATOR_KIND_UDPv4;
 use crate::messages::{RtpsMessage, UdpPsmMapping};
 use crate::endpoint_types::DomainId;
-
-#[derive(Debug)]
-pub enum TransportError {
-    IoError(std::io::Error),
-    Other,
-}
-
-impl From<std::io::Error> for TransportError {
-    fn from(error: std::io::Error) -> Self {
-        TransportError::IoError(error)
-    }
-}
-
-pub type Result<T> = std::result::Result<T, TransportError>;
-
-pub trait Transport {
-    fn new(unicast_locator: Locator, multicast_locator: Option<Locator>) -> Result<Self> where Self: std::marker::Sized;
-
-    fn write(&self, message: RtpsMessage, unicast_locator_list: &[Locator], multicast_locator_list: &[Locator]);
-
-    fn read(&self) -> Result<Option<(RtpsMessage, Locator)>>;
-
-    fn unicast_locator_list(&self) -> Vec<Locator>;
-
-    fn multicast_locator_list(&self) -> Vec<Locator>;
-}
+use super::{Transport, TransportResult};
 
 const MAX_UDP_DATA_SIZE: usize = 65536;
 
@@ -41,22 +16,6 @@ pub struct UdpTransport {
     socket: UdpSocket,
     unicast_locator: Locator,
     multicast_locator: Option<Locator>,
-}
-
-pub fn get_interface_address(interface_name: &str) -> Option<[u8; 16]> {
-    for adapter in ipconfig::get_adapters().unwrap() {
-        if adapter.friendly_name() == interface_name
-        {
-            for addr in adapter.ip_addresses() {
-                match *addr {
-                    IpAddr::V4(ipv4addr) => return Some(ipv4addr.to_ipv6_compatible().octets()),
-                    _ => (),
-                }
-            }
-        }
-    }
-
-    None
 }
 
 impl UdpTransport {
@@ -68,13 +27,13 @@ impl UdpTransport {
     const D2 : u32 = 1; // TODO: Should be configurable
     const D3 : u32 = 11;    // TODO: Should be configurable
 
-    pub fn default_metatraffic_transport(domain_id: DomainId, interface: &str) -> Result<Self> {
+    pub fn default_metatraffic_transport(domain_id: DomainId, interface: &str) -> TransportResult<Self> {
         let spdp_well_known_multicast_port = UdpTransport::PB + UdpTransport::DG * domain_id + UdpTransport::D0;
 
         let metatraffic_unicast_locator = Locator::new(
             LOCATOR_KIND_UDPv4,
             spdp_well_known_multicast_port,
-            crate::transport::get_interface_address(interface).unwrap(),
+            get_interface_address(interface).unwrap(),
         );
 
         let metatraffic_multicast_locator = Locator::new(
@@ -86,7 +45,7 @@ impl UdpTransport {
         UdpTransport::new(metatraffic_unicast_locator, Some(metatraffic_multicast_locator))
     }
 
-    pub fn default_userdata_transport(_domain_id: DomainId, _interface: &str) -> Result<Self> {
+    pub fn default_userdata_transport(_domain_id: DomainId, _interface: &str) -> TransportResult<Self> {
         todo!()
     }
 
@@ -96,7 +55,7 @@ impl Transport for UdpTransport {
     fn new(
         unicast_locator: Locator,
         multicast_locator: Option<Locator>,
-    ) -> Result<Self> {
+    ) -> TransportResult<Self> {
         let socket_builder = UdpBuilder::new_v4()?;
         socket_builder.reuse_address(true)?;
         let unicast_address: [u8;4] = unicast_locator.address()[12..16].try_into().unwrap();
@@ -152,7 +111,7 @@ impl Transport for UdpTransport {
         
     }
 
-    fn read(&self) -> Result<Option<(RtpsMessage, Locator)>> {
+    fn read(&self) -> TransportResult<Option<(RtpsMessage, Locator)>> {
         let mut buf = [0_u8; MAX_UDP_DATA_SIZE];
         let recv_result = self.socket.recv_from(&mut buf);
         match recv_result {
@@ -189,6 +148,22 @@ impl Transport for UdpTransport {
             None => vec![],
         }
     }
+}
+
+pub fn get_interface_address(interface_name: &str) -> Option<[u8; 16]> {
+    for adapter in ipconfig::get_adapters().unwrap() {
+        if adapter.friendly_name() == interface_name
+        {
+            for addr in adapter.ip_addresses() {
+                match *addr {
+                    IpAddr::V4(ipv4addr) => return Some(ipv4addr.to_ipv6_compatible().octets()),
+                    _ => (),
+                }
+            }
+        }
+    }
+
+    None
 }
 
 
