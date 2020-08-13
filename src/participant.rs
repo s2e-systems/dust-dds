@@ -18,13 +18,13 @@ use crate::endpoint_types::BuiltInEndpointSet;
 use crate::messages::Endianness;
 use crate::behavior::types::Duration;
 use crate::behavior::types::constants::DURATION_ZERO;
-use crate::spdp::SPDPdiscoveredParticipantData;
 use crate::transport::Transport;
 use crate::transport::udp_transport::UdpTransport;
 use crate::messages::message_sender::rtps_message_sender;
 use crate::messages::message_receiver::rtps_message_receiver;
 use crate::endpoint_types::DomainId;
-use crate::spdp;
+use crate::discovery::spdp;
+use crate::discovery::spdp::SPDPdiscoveredParticipantData;
 
 
 pub struct Participant<T: Transport = UdpTransport> {
