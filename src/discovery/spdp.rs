@@ -11,11 +11,11 @@ use crate::types::constants::{
     ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,};
 use crate::messages::types::Count;
 use crate::behavior::types::Duration;
-use crate::participant::Participant;
+use crate::structure::participant::Participant;
 use crate::serialized_payload::CdrParameterList;
 use crate::transport::Transport;
-use crate::stateful_reader::WriterProxy;
-use crate::stateful_writer::ReaderProxy;
+use crate::structure::stateful_reader::WriterProxy;
+use crate::structure::stateful_writer::ReaderProxy;
 
 use crate::endpoint_types::{
     DomainId,

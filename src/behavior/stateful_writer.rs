@@ -3,7 +3,7 @@ use std::convert::TryInto;
 
 use crate::types::{SequenceNumber, };
 use crate::messages::{Gap, Heartbeat, Endianness, AckNack};
-use crate::stateful_writer::{StatefulWriter, ReaderProxy};
+use crate::structure::stateful_writer::{StatefulWriter, ReaderProxy};
 use crate::messages::types::{Count, };
 use crate::messages::message_sender::{WriterSendMessage, WriterReceiveMessage};
 

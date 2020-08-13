@@ -1,7 +1,7 @@
 use std::collections::VecDeque;
 use std::sync::Mutex;
 
-use crate::cache::HistoryCache;
+use crate::structure::cache::HistoryCache;
 use crate::types::{ReliabilityKind, TopicKind, GUID, Locator, GuidPrefix };
 use crate::messages::message_receiver::ReaderReceiveMessage;
 use crate::behavior::stateless_reader::BestEffortStatelessReaderBehavior;

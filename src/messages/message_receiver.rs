@@ -1,7 +1,7 @@
 use crate::types::{GUID, GuidPrefix, Locator,};
 use crate::types::constants::ENTITYID_UNKNOWN;
-use crate::stateless_reader::StatelessReader;
-use crate::stateful_reader::StatefulReader;
+use crate::structure::stateless_reader::StatelessReader;
+use crate::structure::stateful_reader::StatefulReader;
 use crate::transport::Transport;
 
 
@@ -118,7 +118,7 @@ mod tests {
     use crate::transport::stub_transport::StubTransport;
     use crate::messages::{Endianness, Data, RtpsMessage, Payload};
     use crate::behavior::types::Duration;
-    use crate::stateful_reader::WriterProxy;
+    use crate::structure::stateful_reader::WriterProxy;
 
     #[test]
     fn stateless_reader_message_receive() {

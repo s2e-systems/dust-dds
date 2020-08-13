@@ -1,7 +1,7 @@
 use std::collections::{HashMap, BTreeSet, VecDeque};
 use std::sync::{RwLock, RwLockReadGuard, Mutex, MutexGuard};
 
-use crate::cache::{CacheChange, HistoryCache};
+use crate::structure::cache::{CacheChange, HistoryCache};
 use crate::messages::{ParameterList};
 use crate::types::{ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID, };
 use crate::behavior::stateless_writer::BestEffortStatelessWriterBehavior;

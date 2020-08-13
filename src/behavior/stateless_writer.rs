@@ -1,7 +1,7 @@
 use crate::types::{SequenceNumber, };
 use crate::types::constants::ENTITYID_UNKNOWN;
 use crate::messages::{Gap};
-use crate::stateless_writer::{ReaderLocator, StatelessWriter};
+use crate::structure::stateless_writer::{ReaderLocator, StatelessWriter};
 use crate::messages::Endianness;
 use crate::messages::message_sender::WriterSendMessage;
 

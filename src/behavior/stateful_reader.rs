@@ -1,7 +1,7 @@
 use std::convert::TryInto;
 use std::time::Instant;
 
-use crate::stateful_reader::{WriterProxy, StatefulReader};
+use crate::structure::stateful_reader::{WriterProxy, StatefulReader};
 use crate::messages::{AckNack, Data, Gap, Heartbeat, Endianness};
 use crate::messages::message_receiver::{ReaderReceiveMessage, ReaderSendMessage, };
 use crate::messages::types::Count;
@@ -188,7 +188,7 @@ mod tests {
     use crate::types::{ChangeKind, TopicKind, ReliabilityKind, GUID};
     use crate::types::constants::{
         ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, };
-    use crate::cache::CacheChange;
+    use crate::structure::cache::CacheChange;
     use crate::messages::{Data, Payload, Heartbeat, ParameterList, Endianness};
     use crate::inline_qos_types::{KeyHash, StatusInfo, };
 

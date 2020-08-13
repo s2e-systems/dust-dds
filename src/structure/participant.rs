@@ -1,7 +1,3 @@
-use crate::stateless_writer::StatelessWriter;
-use crate::stateless_reader::StatelessReader;
-use crate::stateful_writer::{StatefulWriter, };
-use crate::stateful_reader::{StatefulReader, };
 use crate::types::{GUID, Locator, ProtocolVersion, VendorId, TopicKind, ChangeKind, ReliabilityKind};
 use crate::types::constants::{
     ENTITYID_PARTICIPANT,
@@ -25,6 +21,11 @@ use crate::messages::message_receiver::rtps_message_receiver;
 use crate::endpoint_types::DomainId;
 use crate::discovery::spdp;
 use crate::discovery::spdp::SPDPdiscoveredParticipantData;
+
+use super::stateless_writer::StatelessWriter;
+use super::stateless_reader::StatelessReader;
+use super::stateful_writer::{StatefulWriter, };
+use super::stateful_reader::{StatefulReader, };
 
 
 pub struct Participant<T: Transport = UdpTransport> {
