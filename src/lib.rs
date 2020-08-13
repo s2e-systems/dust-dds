@@ -15,8 +15,6 @@ mod transport;
 mod endpoint_types;
 mod spdp;
 mod participant;
-// mod participant_proxy;
-// mod proxy;
 
 
 pub use stateless_reader::StatelessReader;
