@@ -16,7 +16,7 @@ use crate::behavior::types::Duration;
 use crate::behavior::types::constants::DURATION_ZERO;
 use crate::transport::Transport;
 use crate::transport::udp_transport::UdpTransport;
-use crate::messages::message_sender::rtps_message_sender;
+use crate::messages::message_sender::RtpsMessageSender;
 use crate::messages::message_receiver::RtpsMessageReceiver;
 use crate::endpoint_types::DomainId;
 use crate::discovery::spdp;
@@ -272,8 +272,9 @@ impl<T: Transport> Participant<T> {
         self.sedp_builtin_publications_writer.run();
         self.sedp_builtin_subscriptions_writer.run();
         self.sedp_builtin_topics_writer.run();
-        rtps_message_sender(&self.metatraffic_transport, self.guid.prefix(), &[&self.spdp_builtin_participant_writer],
-    &[&self.sedp_builtin_publications_writer, &self.sedp_builtin_subscriptions_writer, &self.sedp_builtin_topics_writer]);
+        let rtps_message_sender = RtpsMessageSender::new(self.guid.prefix(), &self.metatraffic_transport, vec![&self.spdp_builtin_participant_writer],
+    vec![&self.sedp_builtin_publications_writer, &self.sedp_builtin_subscriptions_writer, &self.sedp_builtin_topics_writer]);
+        rtps_message_sender.run();
 
         for spdp_data in self.spdp_builtin_participant_reader.reader_cache().changes().iter() {
             let discovered_participant = SPDPdiscoveredParticipantData::from_key_data(*spdp_data.instance_handle(), spdp_data.data_value().unwrap(), self.domain_id);
