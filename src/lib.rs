@@ -12,6 +12,8 @@ mod discovery;
 
 mod transport;
 
+pub use behavior::types as behavior_types;
+
 pub use structure::stateless_reader::StatelessReader;
 pub use structure::stateless_writer::StatelessWriter;
 pub use structure::stateful_reader::{StatefulReader, WriterProxy, };
