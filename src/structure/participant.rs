@@ -283,7 +283,7 @@ impl<T: Transport> Participant<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::transport::stub_transport::StubTransport;
+    use crate::transport::memory_transport::MemoryTransport;
 
     // #[test]
     // fn participant_with_default_transport() {
@@ -300,10 +300,10 @@ mod tests {
 
     #[test]
     fn participant() {
-        let userdata_transport1 = StubTransport::new(
+        let userdata_transport1 = MemoryTransport::new(
             Locator::new_udpv4(7410, [192,168,0,5]), 
             Some(Locator::new_udpv4(7410, [239,255,0,1]))).unwrap();
-        let metatraffic_transport1 = StubTransport::new(
+        let metatraffic_transport1 = MemoryTransport::new(
             Locator::new_udpv4(7400, [192,168,0,5]), 
             Some(Locator::new_udpv4(7400, [239,255,0,1]))).unwrap();
 
@@ -311,14 +311,14 @@ mod tests {
         let participant_1 = Participant::new(userdata_transport1,metatraffic_transport1);
 
 
-        let userdata_transport2 = StubTransport::new(
+        let userdata_transport2 = MemoryTransport::new(
             Locator::new_udpv4(7410, [192,168,0,10]), 
             Some(Locator::new_udpv4(7410, [239,255,0,1]))).unwrap();
-        let metatraffic_transport2 = StubTransport::new(
+        let metatraffic_transport2 = MemoryTransport::new(
             Locator::new_udpv4(7400, [192,168,0,10]), 
             Some(Locator::new_udpv4(7400, [239,255,0,1]))).unwrap();
 
-        let participant_2 = Participant::<StubTransport>::new(
+        let participant_2 = Participant::<MemoryTransport>::new(
             userdata_transport2,
             metatraffic_transport2);
 

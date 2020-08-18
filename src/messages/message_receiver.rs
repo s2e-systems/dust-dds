@@ -103,14 +103,14 @@ mod tests {
     use super::*;
     use crate::types::{TopicKind, ReliabilityKind};
     use crate::types::constants::{ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, ENTITYID_UNKNOWN};
-    use crate::transport::stub_transport::StubTransport;
+    use crate::transport::memory_transport::MemoryTransport;
     use crate::messages::{Endianness, Data, RtpsMessage, Payload};
     use crate::behavior::types::Duration;
     use crate::structure::stateful_reader::WriterProxy;
 
     #[test]
     fn stateless_reader_message_receive() {
-        let transport = StubTransport::new(Locator::new(0,0,[0;16]), None).unwrap();
+        let transport = MemoryTransport::new(Locator::new(0,0,[0;16]), None).unwrap();
         let guid_prefix = [1,2,3,4,5,6,8,1,2,3,4,5];
 
         let src_locator = Locator::new_udpv4(7500, [127,0,0,1]);
@@ -146,7 +146,7 @@ mod tests {
 
     #[test]
     fn stateless_reader_message_receive_other_locator() {
-        let transport = StubTransport::new(Locator::new(0,0,[0;16]), None).unwrap();
+        let transport = MemoryTransport::new(Locator::new(0,0,[0;16]), None).unwrap();
         let guid_prefix = [1,2,3,4,5,6,8,1,2,3,4,5];
 
         let src_locator = Locator::new_udpv4(7500, [127,0,0,1]);
@@ -171,7 +171,7 @@ mod tests {
 
     #[test]
     fn stateful_reader_message_receive() {
-        let transport = StubTransport::new(Locator::new(0,0,[0;16]), None).unwrap();
+        let transport = MemoryTransport::new(Locator::new(0,0,[0;16]), None).unwrap();
         let guid_prefix = [1,2,3,4,5,6,8,1,2,3,4,5];
 
         let stateful_reader = StatefulReader::new(

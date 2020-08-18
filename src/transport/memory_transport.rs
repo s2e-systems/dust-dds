@@ -5,14 +5,14 @@ use crate::types::Locator;
 use crate::messages::RtpsMessage;
 use super::{Transport, TransportResult};
 
-pub struct StubTransport {
+pub struct MemoryTransport {
     read: Mutex<VecDeque<(RtpsMessage, Locator)>>,
     write: Mutex<VecDeque<(RtpsMessage, Vec<Locator>)>>,
     unicast_locator: Locator,
     multicast_locator: Option<Locator>,
 }
 
-impl StubTransport {
+impl MemoryTransport {
     pub fn push_read(&self, message: RtpsMessage, locator: Locator) {
         self.read.lock().unwrap().push_back((message, locator));
     }
@@ -21,7 +21,7 @@ impl StubTransport {
         self.write.lock().unwrap().pop_front()
     }
 
-    pub fn receive_from(&self, transport: &StubTransport) {
+    pub fn receive_from(&self, transport: &MemoryTransport) {
         while let Some((message, dst_locator_list)) = transport.pop_write() {
             // If the message destination is the multicast, then its source has to be the same multicast as well
             // otherwise the source is the
@@ -35,7 +35,7 @@ impl StubTransport {
     }
 }
 
-impl Transport for StubTransport {
+impl Transport for MemoryTransport {
     fn new(unicast_locator: Locator, multicast_locator: Option<Locator>) -> TransportResult<Self> {
         Ok(Self {
             read: Mutex::new(VecDeque::new()),
@@ -81,11 +81,11 @@ mod tests {
     fn receive_from_transport_unicast_and_multicast() {
         let unicast_locator1 = Locator::new_udpv4(7400, [192,168,0,5]);
         let multicast_locator1 = Locator::new_udpv4(7400, [239,255,0,1]);
-        let transport1 = StubTransport::new(unicast_locator1, Some(multicast_locator1)).unwrap();
+        let transport1 = MemoryTransport::new(unicast_locator1, Some(multicast_locator1)).unwrap();
 
         let unicast_locator2 = Locator::new_udpv4(7400, [192,168,0,25]);
         let multicast_locator2 = Locator::new_udpv4(7400, [239,255,0,1]);
-        let transport2 = StubTransport::new(unicast_locator2, Some(multicast_locator2)).unwrap();
+        let transport2 = MemoryTransport::new(unicast_locator2, Some(multicast_locator2)).unwrap();
 
 
         // Write to the unicast locator
