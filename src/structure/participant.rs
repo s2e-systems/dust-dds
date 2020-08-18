@@ -17,7 +17,7 @@ use crate::behavior::types::constants::DURATION_ZERO;
 use crate::transport::Transport;
 use crate::transport::udp_transport::UdpTransport;
 use crate::messages::message_sender::rtps_message_sender;
-use crate::messages::message_receiver::rtps_message_receiver;
+use crate::messages::message_receiver::RtpsMessageReceiver;
 use crate::endpoint_types::DomainId;
 use crate::discovery::spdp;
 use crate::discovery::spdp::SPDPdiscoveredParticipantData;
@@ -256,11 +256,13 @@ impl<T: Transport> Participant<T> {
     }
 
     fn run(&self) {
-        rtps_message_receiver(
+        let rtps_message_receiver = RtpsMessageReceiver::new(self.guid.prefix(),
             &self.metatraffic_transport, 
-            self.guid.prefix(), 
-            &[&self.spdp_builtin_participant_reader],
-        &[&self.sedp_builtin_publications_reader, &self.sedp_builtin_subscriptions_reader, &self.sedp_builtin_topics_reader]);
+            vec![&self.spdp_builtin_participant_reader],
+        vec![&self.sedp_builtin_publications_reader, &self.sedp_builtin_subscriptions_reader, &self.sedp_builtin_topics_reader]);
+
+        rtps_message_receiver.run();
+
         self.spdp_builtin_participant_reader.run();
         self.sedp_builtin_publications_reader.run();
         self.sedp_builtin_subscriptions_reader.run();
