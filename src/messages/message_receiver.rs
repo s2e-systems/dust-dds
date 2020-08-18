@@ -14,7 +14,7 @@ pub struct RtpsMessageReceiver{
 
 impl RtpsMessageReceiver {
 
-    pub fn run(participant_guid_prefix: GuidPrefix, transport: &impl Transport, stateless_reader_list: &[&StatelessReader], stateful_reader_list: &[&StatefulReader]) {
+    pub fn receive(participant_guid_prefix: GuidPrefix, transport: &impl Transport, stateless_reader_list: &[&StatelessReader], stateful_reader_list: &[&StatefulReader]) {
         if let Some((message, src_locator)) = transport.read().unwrap() {
             let _source_version = message.header().version();
             let _source_vendor_id = message.header().vendor_id();
@@ -127,7 +127,7 @@ mod tests {
 
 
         // Run the empty transport and check that nothing happends
-        RtpsMessageReceiver::run(guid_prefix, &transport, &[&stateless_reader], &[]);
+        RtpsMessageReceiver::receive(guid_prefix, &transport, &[&stateless_reader], &[]);
         assert!(stateless_reader.pop_receive_message().is_none());
 
         // Send a message to the stateless reader
@@ -136,7 +136,7 @@ mod tests {
         let message = RtpsMessage::new(src_guid_prefix, vec![RtpsSubmessage::Data(data)]);
         transport.push_read(message, src_locator);
 
-        RtpsMessageReceiver::run(guid_prefix, &transport, &[&stateless_reader], &[]);
+        RtpsMessageReceiver::receive(guid_prefix, &transport, &[&stateless_reader], &[]);
 
         let expected_data = Data::new(Endianness::LittleEndian, ENTITYID_UNKNOWN, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER, 1, None, Payload::None);
         match stateless_reader.pop_receive_message() {
@@ -169,7 +169,7 @@ mod tests {
         let message = RtpsMessage::new(src_guid_prefix, vec![RtpsSubmessage::Data(data)]);
         transport.push_read(message, other_locator);
 
-        RtpsMessageReceiver::run(guid_prefix, &transport, &[&stateless_reader], &[]);
+        RtpsMessageReceiver::receive(guid_prefix, &transport, &[&stateless_reader], &[]);
         assert!(stateless_reader.pop_receive_message().is_none());
     }
 
@@ -185,7 +185,7 @@ mod tests {
             false,
             Duration::from_millis(500));
 
-        RtpsMessageReceiver::run(guid_prefix, &transport, &[], &[&stateful_reader]);
+        RtpsMessageReceiver::receive(guid_prefix, &transport, &[], &[&stateful_reader]);
 
         let remote_guid_prefix = [1;12];
         let remote_guid = GUID::new(remote_guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER);
@@ -195,7 +195,7 @@ mod tests {
         stateful_reader.matched_writer_add(proxy);
         
         // Run the empty transport and check that nothing happends
-        RtpsMessageReceiver::run(guid_prefix, &transport, &[], &[&stateful_reader]);
+        RtpsMessageReceiver::receive(guid_prefix, &transport, &[], &[&stateful_reader]);
         assert!(stateful_reader.matched_writers().get(&remote_guid).unwrap().pop_receive_message().is_none());
 
         // Send a message from the matched writer to the reader
@@ -203,7 +203,7 @@ mod tests {
         let message = RtpsMessage::new(remote_guid_prefix, vec![RtpsSubmessage::Data(data)]);
         transport.push_read(message, src_locator);
 
-        RtpsMessageReceiver::run(guid_prefix, &transport, &[], &[&stateful_reader]);
+        RtpsMessageReceiver::receive(guid_prefix, &transport, &[], &[&stateful_reader]);
 
         let expected_data = Data::new(Endianness::LittleEndian, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER, 1, None, Payload::None);
         match stateful_reader.matched_writers().get(&remote_guid).unwrap().pop_receive_message() {
@@ -219,7 +219,7 @@ mod tests {
         let message = RtpsMessage::new(other_remote_guid_prefix, vec![RtpsSubmessage::Data(data)]);
         transport.push_read(message, src_locator);
 
-        RtpsMessageReceiver::run(guid_prefix, &transport, &[], &[&stateful_reader]);
+        RtpsMessageReceiver::receive(guid_prefix, &transport, &[], &[&stateful_reader]);
         assert!(stateful_reader.matched_writers().get(&remote_guid).unwrap().pop_receive_message().is_none());
     }    
 
