@@ -256,12 +256,10 @@ impl<T: Transport> Participant<T> {
     }
 
     fn run(&self) {
-        let rtps_message_receiver = RtpsMessageReceiver::new(self.guid.prefix(),
+        RtpsMessageReceiver::run(self.guid.prefix(),
             &self.metatraffic_transport, 
-            vec![&self.spdp_builtin_participant_reader],
-        vec![&self.sedp_builtin_publications_reader, &self.sedp_builtin_subscriptions_reader, &self.sedp_builtin_topics_reader]);
-
-        rtps_message_receiver.run();
+            &[&self.spdp_builtin_participant_reader],
+        &[&self.sedp_builtin_publications_reader, &self.sedp_builtin_subscriptions_reader, &self.sedp_builtin_topics_reader]);
 
         self.spdp_builtin_participant_reader.run();
         self.sedp_builtin_publications_reader.run();
@@ -272,9 +270,8 @@ impl<T: Transport> Participant<T> {
         self.sedp_builtin_publications_writer.run();
         self.sedp_builtin_subscriptions_writer.run();
         self.sedp_builtin_topics_writer.run();
-        let rtps_message_sender = RtpsMessageSender::new(self.guid.prefix(), &self.metatraffic_transport, vec![&self.spdp_builtin_participant_writer],
-    vec![&self.sedp_builtin_publications_writer, &self.sedp_builtin_subscriptions_writer, &self.sedp_builtin_topics_writer]);
-        rtps_message_sender.run();
+        RtpsMessageSender::run(self.guid.prefix(), &self.metatraffic_transport, &[&self.spdp_builtin_participant_writer],
+    &[&self.sedp_builtin_publications_writer, &self.sedp_builtin_subscriptions_writer, &self.sedp_builtin_topics_writer]);
 
         for spdp_data in self.spdp_builtin_participant_reader.reader_cache().changes().iter() {
             let discovered_participant = SPDPdiscoveredParticipantData::from_key_data(*spdp_data.instance_handle(), spdp_data.data_value().unwrap(), self.domain_id);
