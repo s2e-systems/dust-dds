@@ -4,21 +4,7 @@ use crate::structure::stateless_reader::StatelessReader;
 use crate::structure::stateful_reader::StatefulReader;
 use crate::transport::Transport;
 
-
 use super::submessage::RtpsSubmessage;
-use super::{Data, Gap, Heartbeat,};
-use super::message_sender::WriterReceiveMessage;
-
-// Messages received by the reader. Which are the same as the ones sent by the writer
-#[derive(Debug)]
-pub enum ReaderReceiveMessage {
-    Data(Data),
-    Gap(Gap),
-    Heartbeat(Heartbeat),
-}
-
-pub type ReaderSendMessage = WriterReceiveMessage;
-
 
 // ////////////////// RTPS Message Receiver
 
@@ -41,11 +27,11 @@ pub fn rtps_message_receiver(
         for submessage in message.take_submessages() {
             match submessage {
                 // Writer to reader messages
-                RtpsSubmessage::Data(data) => receive_reader_submessage(&src_locator, source_guid_prefix, ReaderReceiveMessage::Data(data), stateless_reader_list, stateful_reader_list),
-                RtpsSubmessage::Gap(gap) => receive_reader_submessage(&src_locator, source_guid_prefix, ReaderReceiveMessage::Gap(gap), stateless_reader_list, stateful_reader_list),
-                RtpsSubmessage::Heartbeat(heartbeat) => receive_reader_submessage(&src_locator, source_guid_prefix, ReaderReceiveMessage::Heartbeat(heartbeat), stateless_reader_list, stateful_reader_list),
+                RtpsSubmessage::Data(data) => receive_reader_submessage(&src_locator, source_guid_prefix, RtpsSubmessage::Data(data), stateless_reader_list, stateful_reader_list),
+                RtpsSubmessage::Gap(gap) => receive_reader_submessage(&src_locator, source_guid_prefix, RtpsSubmessage::Gap(gap), stateless_reader_list, stateful_reader_list),
+                RtpsSubmessage::Heartbeat(heartbeat) => receive_reader_submessage(&src_locator, source_guid_prefix, RtpsSubmessage::Heartbeat(heartbeat), stateless_reader_list, stateful_reader_list),
                 // Reader to writer messages
-                RtpsSubmessage::AckNack(ack_nack) => receive_writer_submessage(source_guid_prefix, WriterReceiveMessage::AckNack(ack_nack)),
+                RtpsSubmessage::AckNack(ack_nack) => receive_writer_submessage(source_guid_prefix, RtpsSubmessage::AckNack(ack_nack)),
                 // Receiver status messages
                 RtpsSubmessage::InfoTs(info_ts) => _timestamp = info_ts.time(),
             }
@@ -53,11 +39,12 @@ pub fn rtps_message_receiver(
     }    
 }
 
-fn receive_reader_submessage(source_locator: &Locator, source_guid_prefix: GuidPrefix, message: ReaderReceiveMessage, stateless_reader_list: &[&StatelessReader], stateful_reader_list: &[&StatefulReader]) {
+fn receive_reader_submessage(source_locator: &Locator, source_guid_prefix: GuidPrefix, message: RtpsSubmessage, stateless_reader_list: &[&StatelessReader], stateful_reader_list: &[&StatefulReader]) {
     let writer_guid = match &message {
-        ReaderReceiveMessage::Data(data) => GUID::new(source_guid_prefix, data.writer_id()),
-        ReaderReceiveMessage::Gap(gap) => GUID::new(source_guid_prefix, gap.writer_id()),
-        ReaderReceiveMessage::Heartbeat(heartbeat) => GUID::new(source_guid_prefix, heartbeat.writer_id()),
+        RtpsSubmessage::Data(data) => GUID::new(source_guid_prefix, data.writer_id()),
+        RtpsSubmessage::Gap(gap) => GUID::new(source_guid_prefix, gap.writer_id()),
+        RtpsSubmessage::Heartbeat(heartbeat) => GUID::new(source_guid_prefix, heartbeat.writer_id()),
+        _ => panic!("Unexpected reader message")
     };
 
     for &stateful_reader in stateful_reader_list {
@@ -69,9 +56,10 @@ fn receive_reader_submessage(source_locator: &Locator, source_guid_prefix: GuidP
     }
 
     let reader_guid_prefix = match &message {
-        ReaderReceiveMessage::Data(data) => data.reader_id(),
-        ReaderReceiveMessage::Gap(gap) => gap.reader_id(),
-        ReaderReceiveMessage::Heartbeat(heartbeat) => heartbeat.reader_id(),
+        RtpsSubmessage::Data(data) => data.reader_id(),
+        RtpsSubmessage::Gap(gap) => gap.reader_id(),
+        RtpsSubmessage::Heartbeat(heartbeat) => heartbeat.reader_id(),
+        _ => panic!("Unexpected reader message"),
     };
 
     for &stateless_reader in stateless_reader_list {
@@ -88,7 +76,7 @@ fn receive_reader_submessage(source_locator: &Locator, source_guid_prefix: GuidP
     }
 }
 
-fn receive_writer_submessage(_source_guid_prefix: GuidPrefix, _message: WriterReceiveMessage) {
+fn receive_writer_submessage(_source_guid_prefix: GuidPrefix, _message: RtpsSubmessage) {
     todo!()
     // let reader_guid = match &message {
     //     WriterReceiveMessage::AckNack(ack_nack) =>  GUID::new(source_guid_prefix, ack_nack.reader_id()),
@@ -148,7 +136,7 @@ mod tests {
 
         let expected_data = Data::new(Endianness::LittleEndian, ENTITYID_UNKNOWN, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER, 1, None, Payload::None);
         match stateless_reader.pop_receive_message() {
-            Some((received_guid_prefix, ReaderReceiveMessage::Data(data_received))) => {
+            Some((received_guid_prefix, RtpsSubmessage::Data(data_received))) => {
                 assert_eq!(received_guid_prefix, src_guid_prefix);
                 assert_eq!(data_received, expected_data);
             },
@@ -213,7 +201,7 @@ mod tests {
 
         let expected_data = Data::new(Endianness::LittleEndian, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER, 1, None, Payload::None);
         match stateful_reader.matched_writers().get(&remote_guid).unwrap().pop_receive_message() {
-            Some(ReaderReceiveMessage::Data(data_received)) => {
+            Some(RtpsSubmessage::Data(data_received)) => {
                 assert_eq!(data_received, expected_data);
             },
             _ => panic!("Unexpected message received"),

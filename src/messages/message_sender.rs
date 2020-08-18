@@ -5,17 +5,9 @@ use crate::transport::Transport;
 
 
 use super::submessage::RtpsSubmessage;
-use super::{AckNack, InfoTs, Endianness,};
+use super::{InfoTs, Endianness,};
 use super::message::{RtpsMessage};
 use super::types::Time;
-use super::message_receiver::ReaderReceiveMessage;
-
-// Messages received by the writer. Which are the same as the ones sent by the reader
-pub enum WriterReceiveMessage {
-    AckNack(AckNack)
-}
-
-pub type WriterSendMessage = ReaderReceiveMessage;
 
 pub fn rtps_message_sender(
     transport: &impl Transport,
@@ -30,9 +22,10 @@ pub fn rtps_message_sender(
             while let Some(message) = reader_locator.pop_send_message() {
                 submessage.push(RtpsSubmessage::InfoTs(InfoTs::new(Some(Time::now()), Endianness::LittleEndian)));
                 match message {
-                    WriterSendMessage::Data(data) => submessage.push(RtpsSubmessage::Data(data)),
-                    WriterSendMessage::Gap(gap) => submessage.push(RtpsSubmessage::Gap(gap)),
-                    WriterSendMessage::Heartbeat(_) => panic!("Heartbeat not expected from stateless writer"),
+                    RtpsSubmessage::Data(data) => submessage.push(RtpsSubmessage::Data(data)),
+                    RtpsSubmessage::Gap(gap) => submessage.push(RtpsSubmessage::Gap(gap)),
+                    RtpsSubmessage::Heartbeat(_) => panic!("Heartbeat not expected from stateless writer"),
+                    _ => panic!("Unexpected message received"),
                 };
             };
 
@@ -50,9 +43,10 @@ pub fn rtps_message_sender(
             while let Some(message) = reader_proxy.pop_send_message() {
                 submessage.push(RtpsSubmessage::InfoTs(InfoTs::new(Some(Time::now()), Endianness::LittleEndian)));
                 match message {
-                    WriterSendMessage::Data(data) => submessage.push(RtpsSubmessage::Data(data)),
-                    WriterSendMessage::Gap(gap) => submessage.push(RtpsSubmessage::Gap(gap)),
-                    WriterSendMessage::Heartbeat(heartbeat) => submessage.push(RtpsSubmessage::Heartbeat(heartbeat)),
+                    RtpsSubmessage::Data(data) => submessage.push(RtpsSubmessage::Data(data)),
+                    RtpsSubmessage::Gap(gap) => submessage.push(RtpsSubmessage::Gap(gap)),
+                    RtpsSubmessage::Heartbeat(heartbeat) => submessage.push(RtpsSubmessage::Heartbeat(heartbeat)),
+                    _ => panic!("Unexpected message received"),
                 }
             }
 

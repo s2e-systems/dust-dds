@@ -6,7 +6,7 @@ use crate::structure::cache_change::CacheChange;
 use crate::messages::{ParameterList};
 use crate::types::{ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID, };
 use crate::behavior::stateless_writer::BestEffortStatelessWriterBehavior;
-use crate::messages::message_sender::WriterSendMessage;
+use crate::messages::RtpsSubmessage;
 
 pub struct ReaderLocator {
     //requested_changes: HashSet<CacheChange>,
@@ -14,7 +14,7 @@ pub struct ReaderLocator {
     expects_inline_qos: bool,
     highest_sequence_number_sent: Mutex<SequenceNumber>,
 
-    send_messages: Mutex<VecDeque<WriterSendMessage>>,
+    send_messages: Mutex<VecDeque<RtpsSubmessage>>,
 }
 
 impl ReaderLocator {
@@ -57,11 +57,11 @@ impl ReaderLocator {
         }
     }
 
-    pub fn push_send_message(&self, message: WriterSendMessage) {
+    pub fn push_send_message(&self, message: RtpsSubmessage) {
         self.send_messages.lock().unwrap().push_back(message);
     }
 
-    pub fn pop_send_message(&self) -> Option<WriterSendMessage> {
+    pub fn pop_send_message(&self) -> Option<RtpsSubmessage> {
         self.send_messages.lock().unwrap().pop_front()
     }
 }
@@ -173,7 +173,6 @@ impl StatelessWriter {
 mod tests {
     use super::*;
     use crate::types::constants::*;
-    use crate::messages::message_receiver::ReaderReceiveMessage;
     use crate::types::*;
 
     #[test]
@@ -245,7 +244,7 @@ mod tests {
         let message_2 = writer.reader_locators().get(&locator).unwrap().pop_send_message().unwrap();
         assert!(writer.reader_locators().get(&locator).unwrap().pop_send_message().is_none());
 
-        if let ReaderReceiveMessage::Data(data_message_1) = &message_1 {
+        if let RtpsSubmessage::Data(data_message_1) = &message_1 {
             assert_eq!(data_message_1.reader_id(), ENTITYID_UNKNOWN);
             assert_eq!(data_message_1.writer_id(), ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER);
             assert_eq!(data_message_1.writer_sn(), 1);
@@ -254,7 +253,7 @@ mod tests {
             panic!("Wrong message type");
         };
 
-        if let ReaderReceiveMessage::Data(data_message_2) = &message_2 {
+        if let RtpsSubmessage::Data(data_message_2) = &message_2 {
             assert_eq!(data_message_2.reader_id(), ENTITYID_UNKNOWN);
             assert_eq!(data_message_2.writer_id(), ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER);
             assert_eq!(data_message_2.writer_sn(), 2);

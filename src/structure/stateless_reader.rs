@@ -3,7 +3,7 @@ use std::sync::Mutex;
 
 use crate::structure::history_cache::HistoryCache;
 use crate::types::{ReliabilityKind, TopicKind, GUID, Locator, GuidPrefix };
-use crate::messages::message_receiver::ReaderReceiveMessage;
+use crate::messages::RtpsSubmessage;
 use crate::behavior::stateless_reader::BestEffortStatelessReaderBehavior;
 
 pub struct StatelessReader {
@@ -25,7 +25,7 @@ pub struct StatelessReader {
     /// List of multicast locators (transport, address, port combinations) that can be used to send messages to the Endpoint. The list may be empty.
     multicast_locator_list: Vec<Locator>,
 
-    received_messages: Mutex<VecDeque<(GuidPrefix, ReaderReceiveMessage)>>,
+    received_messages: Mutex<VecDeque<(GuidPrefix, RtpsSubmessage)>>,
 }
 
 impl StatelessReader {
@@ -73,11 +73,11 @@ impl StatelessReader {
         }
     }
 
-    pub fn push_receive_message(&self, source_guid_prefix: GuidPrefix, message: ReaderReceiveMessage) {
+    pub fn push_receive_message(&self, source_guid_prefix: GuidPrefix, message: RtpsSubmessage) {
         self.received_messages.lock().unwrap().push_back((source_guid_prefix, message));
     }
 
-    pub fn pop_receive_message(&self) -> Option<(GuidPrefix, ReaderReceiveMessage)> {
+    pub fn pop_receive_message(&self) -> Option<(GuidPrefix, RtpsSubmessage)> {
         self.received_messages.lock().unwrap().pop_front()
     }
 }
@@ -112,7 +112,7 @@ mod tests {
             Payload::Data(vec![0,1,2]),
         );
 
-        reader.push_receive_message([2;12], ReaderReceiveMessage::Data(data1));
+        reader.push_receive_message([2;12], RtpsSubmessage::Data(data1));
 
         assert_eq!(reader.reader_cache().changes().len(), 0);
         // let message = RtpsMessage::new(, submessages);

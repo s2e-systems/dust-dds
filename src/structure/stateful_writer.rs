@@ -4,7 +4,7 @@ use std::sync::{RwLock, RwLockReadGuard, Mutex, MutexGuard};
 use crate::types::{ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID, };
 use crate::behavior::types::Duration;
 use crate::behavior::stateful_writer::{StatefulWriterBehavior, BestEffortStatefulWriterBehavior, ReliableStatefulWriterBehavior};
-use crate::messages::message_sender::{WriterSendMessage, WriterReceiveMessage};
+use crate::messages::{RtpsSubmessage};
 use crate::structure::history_cache::HistoryCache;
 use crate::structure::cache_change::CacheChange;
 use crate::messages::{ParameterList};
@@ -97,8 +97,8 @@ pub struct ReaderProxy {
     is_active: bool,
     stateful_writer_behavior: Mutex<StatefulWriterBehavior>,
 
-    send_messages: Mutex<VecDeque<WriterSendMessage>>,
-    receive_messages: Mutex<VecDeque<WriterReceiveMessage>>,
+    send_messages: Mutex<VecDeque<RtpsSubmessage>>,
+    receive_messages: Mutex<VecDeque<RtpsSubmessage>>,
 }
 
 
@@ -166,19 +166,19 @@ impl ReaderProxy {
         self.stateful_writer_behavior.lock().unwrap()
     }
 
-    pub fn push_send_message(&self, message: WriterSendMessage) {
+    pub fn push_send_message(&self, message: RtpsSubmessage) {
         self.send_messages.lock().unwrap().push_back(message);
     }
 
-    pub fn pop_send_message(&self) -> Option<WriterSendMessage> {
+    pub fn pop_send_message(&self) -> Option<RtpsSubmessage> {
         self.send_messages.lock().unwrap().pop_front()
     }
 
-    pub fn push_receive_message(&self, message: WriterReceiveMessage) {
+    pub fn push_receive_message(&self, message: RtpsSubmessage) {
         self.receive_messages.lock().unwrap().push_back(message);
     }
 
-    pub fn pop_receive_message(&self) -> Option<WriterReceiveMessage> {
+    pub fn pop_receive_message(&self) -> Option<RtpsSubmessage> {
         self.receive_messages.lock().unwrap().pop_front()
     }
 
@@ -478,7 +478,7 @@ mod tests {
         let message_1 = stateful_writer.matched_readers().get(&remote_reader_guid).unwrap().pop_send_message().unwrap();
         let message_2 = stateful_writer.matched_readers().get(&remote_reader_guid).unwrap().pop_send_message().unwrap();
 
-        if let WriterSendMessage::Data(data) = message_1 {
+        if let RtpsSubmessage::Data(data) = message_1 {
             assert_eq!(data.reader_id(), remote_reader_guid.entity_id());
             assert_eq!(data.writer_id(), writer_guid.entity_id());
             assert_eq!(data.writer_sn(), 1);
@@ -486,7 +486,7 @@ mod tests {
             panic!("Wrong message sent");
         }
 
-        if let WriterSendMessage::Data(data) = message_2 {
+        if let RtpsSubmessage::Data(data) = message_2 {
             assert_eq!(data.reader_id(), remote_reader_guid.entity_id());
             assert_eq!(data.writer_id(), writer_guid.entity_id());
             assert_eq!(data.writer_sn(), 2);
@@ -531,7 +531,7 @@ mod tests {
         let message_1 = stateful_writer.matched_readers().get(&remote_reader_guid).unwrap().pop_send_message().unwrap();
         let message_2 = stateful_writer.matched_readers().get(&remote_reader_guid).unwrap().pop_send_message().unwrap();
 
-        if let WriterSendMessage::Data(data) = message_1 {
+        if let RtpsSubmessage::Data(data) = message_1 {
             assert_eq!(data.reader_id(), remote_reader_guid.entity_id());
             assert_eq!(data.writer_id(), writer_guid.entity_id());
             assert_eq!(data.writer_sn(), 1);
@@ -539,7 +539,7 @@ mod tests {
             panic!("Wrong message sent");
         }
 
-        if let WriterSendMessage::Data(data) = message_2 {
+        if let RtpsSubmessage::Data(data) = message_2 {
             assert_eq!(data.reader_id(), remote_reader_guid.entity_id());
             assert_eq!(data.writer_id(), writer_guid.entity_id());
             assert_eq!(data.writer_sn(), 2);
@@ -553,7 +553,7 @@ mod tests {
         sleep(heartbeat_period.into());
         stateful_writer.run();
         let message = stateful_writer.matched_readers().get(&remote_reader_guid).unwrap().pop_send_message().unwrap();
-        if let WriterSendMessage::Heartbeat(heartbeat) = message {
+        if let RtpsSubmessage::Heartbeat(heartbeat) = message {
             assert_eq!(heartbeat.is_final(), false);
         } else {
             panic!("Wrong message sent. Expected Heartbeat");
@@ -569,7 +569,7 @@ mod tests {
                 Endianness::LittleEndian,
         );
 
-        stateful_writer.matched_readers().get(&remote_reader_guid).unwrap().push_receive_message(WriterReceiveMessage::AckNack(acknack));
+        stateful_writer.matched_readers().get(&remote_reader_guid).unwrap().push_receive_message(RtpsSubmessage::AckNack(acknack));
 
         // Check that no heartbeat is sent if there are no new changes
         stateful_writer.run();

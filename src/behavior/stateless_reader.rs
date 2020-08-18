@@ -1,6 +1,5 @@
 use crate::types::GuidPrefix;
-use crate::messages::Data;
-use crate::messages::message_receiver::ReaderReceiveMessage;
+use crate::messages::{Data, RtpsSubmessage};
 use crate::structure::stateless_reader::StatelessReader;
 
 use super::cache_change_from_data;
@@ -15,7 +14,7 @@ impl BestEffortStatelessReaderBehavior {
     fn waiting_state(reader: &StatelessReader) {
         while let Some((source_guid_prefix, received_message)) =  reader.pop_receive_message() {
             match received_message {
-                ReaderReceiveMessage::Data(data) => Self::transition_t2(reader, source_guid_prefix, data),
+                RtpsSubmessage::Data(data) => Self::transition_t2(reader, source_guid_prefix, data),
                 _ => (),
             };
         }
