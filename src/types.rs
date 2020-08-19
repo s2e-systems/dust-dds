@@ -101,12 +101,12 @@ impl GUID {
         GUID { prefix, entity_id }
     }
 
-    pub fn prefix(&self) -> &GuidPrefix {
-        &self.prefix
+    pub fn prefix(&self) -> GuidPrefix {
+        self.prefix
     }
 
-    pub fn entity_id(&self) -> &EntityId {
-        &self.entity_id
+    pub fn entity_id(&self) -> EntityId {
+        self.entity_id
     }
 }
 

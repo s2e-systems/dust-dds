@@ -1,9 +1,9 @@
 use std::collections::{BTreeSet, HashMap, VecDeque, };
 use std::sync::{RwLock, RwLockReadGuard, Mutex, MutexGuard, };
 
-use crate::cache::HistoryCache;
+use crate::structure::history_cache::HistoryCache;
 use crate::types::{Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID, };
-use crate::messages::receiver::{ReaderReceiveMessage, ReaderSendMessage, };
+use crate::messages::RtpsSubmessage;
 use crate::behavior::types::Duration;
 use crate::behavior::stateful_reader::{StatefulReaderBehavior, BestEfforStatefulReaderBehavior, ReliableStatefulReaderBehavior, };
 
@@ -138,8 +138,8 @@ pub struct WriterProxy {
 
     stateful_reader_behavior: Mutex<StatefulReaderBehavior>,
 
-    receive_messages: Mutex<VecDeque<ReaderReceiveMessage>>,
-    send_messages: Mutex<VecDeque<ReaderSendMessage>>,
+    receive_messages: Mutex<VecDeque<RtpsSubmessage>>,
+    send_messages: Mutex<VecDeque<RtpsSubmessage>>,
 }
 
 impl WriterProxy {
@@ -215,19 +215,19 @@ impl WriterProxy {
         self.changes_from_writer.lock().unwrap()
     }
 
-    pub fn push_receive_message(&self, message: ReaderReceiveMessage) {
+    pub fn push_receive_message(&self, message: RtpsSubmessage) {
         self.receive_messages.lock().unwrap().push_back(message);
     }
 
-    pub fn pop_receive_message(&self) -> Option<ReaderReceiveMessage> {
+    pub fn pop_receive_message(&self) -> Option<RtpsSubmessage> {
         self.receive_messages.lock().unwrap().pop_front()
     }
 
-    pub fn push_send_message(&self, message: ReaderSendMessage) {
+    pub fn push_send_message(&self, message: RtpsSubmessage) {
         self.send_messages.lock().unwrap().push_back(message);
     }
 
-    pub fn pop_send_message(&self) -> Option<ReaderSendMessage> {
+    pub fn pop_send_message(&self) -> Option<RtpsSubmessage> {
         self.send_messages.lock().unwrap().pop_front()
     }
 }
@@ -275,12 +275,12 @@ impl StatefulReader {
         }
     }
 
-    pub fn matched_writer_add(&mut self, a_writer_proxy: WriterProxy) {
+    pub fn matched_writer_add(&self, a_writer_proxy: WriterProxy) {
         self.matched_writers.write().unwrap().insert(a_writer_proxy.remote_writer_guid, a_writer_proxy);
     }
 
-    pub fn matched_writer_remove(&mut self, a_writer_proxy: &WriterProxy) {
-        self.matched_writers.write().unwrap().remove(&a_writer_proxy.remote_writer_guid);
+    pub fn matched_writer_remove(&self, writer_proxy_guid: &GUID) {
+        self.matched_writers.write().unwrap().remove(&writer_proxy_guid);
     }
     
     pub fn matched_writers(&self) -> RwLockReadGuard<HashMap<GUID, WriterProxy>> {

@@ -1,4 +1,4 @@
-use rust_rtps::behavior::types::constants::DURATION_ZERO;
+use rust_rtps::behavior_types::constants::DURATION_ZERO;
 use rust_rtps::types::constants::{
     ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER, ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER,
 };
@@ -28,7 +28,7 @@ fn reliable_stateful_writer_stateful_reader_data_only() {
         [0; 12],
         ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER,
     );
-    let mut reader = StatefulReader::new(
+    let reader = StatefulReader::new(
         reader_guid,
         TopicKind::WithKey,
         ReliabilityKind::Reliable,
@@ -100,7 +100,7 @@ fn reliable_stateful_writer_stateful_reader_data_and_gap() {
         [0; 12],
         ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER,
     );
-    let mut reader = StatefulReader::new(
+    let reader = StatefulReader::new(
         reader_guid,
         TopicKind::WithKey,
         ReliabilityKind::Reliable,
@@ -173,7 +173,7 @@ fn reliable_stateful_writer_stateful_reader_dropped_messages() {
         [0; 12],
         ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER,
     );
-    let mut reader = StatefulReader::new(
+    let reader = StatefulReader::new(
         reader_guid,
         TopicKind::WithKey,
         ReliabilityKind::Reliable,
@@ -282,7 +282,7 @@ fn reliable_stateful_writer_stateful_reader_reordered_data() {
         [0; 12],
         ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER,
     );
-    let mut reader = StatefulReader::new(
+    let reader = StatefulReader::new(
         reader_guid,
         TopicKind::WithKey,
         ReliabilityKind::Reliable,

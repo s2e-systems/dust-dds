@@ -1,9 +1,8 @@
 use std::convert::TryInto;
 use std::time::Instant;
 
-use crate::stateful_reader::{WriterProxy, StatefulReader};
-use crate::messages::{AckNack, Data, Gap, Heartbeat, Endianness};
-use crate::messages::receiver::{ReaderReceiveMessage, ReaderSendMessage, };
+use crate::structure::stateful_reader::{WriterProxy, StatefulReader};
+use crate::messages::{AckNack, Data, Gap, Heartbeat, Endianness, RtpsSubmessage};
 use crate::messages::types::Count;
 
 use super::types::Duration;
@@ -62,20 +61,21 @@ impl BestEfforStatefulReaderBehavior {
     fn waiting_state(writer_proxy: &WriterProxy, stateful_reader: &StatefulReader) {
         if let Some(received_message) = writer_proxy.pop_receive_message() {
             match received_message {
-                ReaderReceiveMessage::Data(data) => Self::transition_t2(writer_proxy, stateful_reader, &data),
-                ReaderReceiveMessage::Gap(gap) => Self::transition_t4(writer_proxy, &gap),
-                ReaderReceiveMessage::Heartbeat(_) => (),
+                RtpsSubmessage::Data(data) => Self::transition_t2(writer_proxy, stateful_reader, data),
+                RtpsSubmessage::Gap(gap) => Self::transition_t4(writer_proxy, &gap),
+                RtpsSubmessage::Heartbeat(_) => (),
+                _ => panic!("Unexpected reader message received"),
             }
         }
     }
 
-    fn transition_t2(writer_proxy: &WriterProxy, stateful_reader: &StatefulReader, data: &Data) {
+    fn transition_t2(writer_proxy: &WriterProxy, stateful_reader: &StatefulReader, data: Data) {
         let expected_seq_number = writer_proxy.available_changes_max() + 1;
         if data.writer_sn() >= expected_seq_number {
-            let cache_change = cache_change_from_data(data, writer_proxy.remote_writer_guid().prefix());
-            stateful_reader.reader_cache().add_change(cache_change);
             writer_proxy.received_change_set(data.writer_sn());
             writer_proxy.lost_changes_update(data.writer_sn());
+            let cache_change = cache_change_from_data(data, &writer_proxy.remote_writer_guid().prefix());
+            stateful_reader.reader_cache().add_change(cache_change);
         }
     }
 
@@ -107,30 +107,32 @@ impl ReliableStatefulReaderBehavior {
     fn ready_state(writer_proxy: &WriterProxy, stateful_reader: &StatefulReader) -> Option<Heartbeat>{
         if let Some(received_message) = writer_proxy.pop_receive_message() {
             match received_message {
-                ReaderReceiveMessage::Data(data) => {
-                    Self::transition_t8(writer_proxy, stateful_reader, &data);
+                RtpsSubmessage::Data(data) => {
+                    Self::transition_t8(writer_proxy, stateful_reader, data);
                     None
                 },
-                ReaderReceiveMessage::Gap(gap) => {
+                RtpsSubmessage::Gap(gap) => {
                     Self::transition_t9(writer_proxy, &gap);
                     None
                 },
-                ReaderReceiveMessage::Heartbeat(heartbeat) => {
+                RtpsSubmessage::Heartbeat(heartbeat) => {
                     Self::transition_t7(writer_proxy, &heartbeat);
                     Some(heartbeat)
                 },
+                _ => panic!("Unexpected reader message received"),
             }
         } else {
             None
         }
     }
 
-    fn transition_t8(writer_proxy: &WriterProxy, stateful_reader: &StatefulReader, data: &Data) {
+    fn transition_t8(writer_proxy: &WriterProxy, stateful_reader: &StatefulReader, data: Data) {
         let expected_seq_number = writer_proxy.available_changes_max() + 1;
         if data.writer_sn() >= expected_seq_number {
-            let cache_change = cache_change_from_data(data, writer_proxy.remote_writer_guid().prefix());
-            stateful_reader.reader_cache().add_change(cache_change);
             writer_proxy.received_change_set(data.writer_sn());
+            let cache_change = cache_change_from_data(data, &writer_proxy.remote_writer_guid().prefix());
+            stateful_reader.reader_cache().add_change(cache_change);
+            
         }
     }
 
@@ -169,15 +171,15 @@ impl ReliableStatefulReaderBehavior {
  
         writer_proxy.behavior().increment_acknack_count();
         let acknack = AckNack::new(
-            *stateful_reader.guid().entity_id(), 
-            *writer_proxy.remote_writer_guid().entity_id(),
+            stateful_reader.guid().entity_id(), 
+            writer_proxy.remote_writer_guid().entity_id(),
             writer_proxy.available_changes_max(),
             writer_proxy.missing_changes().clone(),
             *writer_proxy.behavior().ackanck_count(),
             true,
             Endianness::LittleEndian); // TODO: Make endianness selectable
 
-        writer_proxy.push_send_message(ReaderSendMessage::AckNack(acknack));
+        writer_proxy.push_send_message(RtpsSubmessage::AckNack(acknack));
     }
 }
 
@@ -187,7 +189,7 @@ mod tests {
     use crate::types::{ChangeKind, TopicKind, ReliabilityKind, GUID};
     use crate::types::constants::{
         ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, };
-    use crate::cache::CacheChange;
+    use crate::structure::cache_change::CacheChange;
     use crate::messages::{Data, Payload, Heartbeat, ParameterList, Endianness};
     use crate::inline_qos_types::{KeyHash, StatusInfo, };
 
@@ -215,7 +217,7 @@ mod tests {
             3,
             Some(inline_qos),
             Payload::Data(vec![1,2,3]));
-        writer_proxy.push_receive_message(ReaderReceiveMessage::Data(data1));
+        writer_proxy.push_receive_message(RtpsSubmessage::Data(data1));
 
         BestEfforStatefulReaderBehavior::run(&writer_proxy, &stateful_reader);
 
@@ -257,13 +259,13 @@ mod tests {
 
         let data1 = Data::new(
             Endianness::LittleEndian, 
-            *reader_guid.entity_id(), 
+            reader_guid.entity_id(), 
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER, 
             3,
             Some(inline_qos),
             Payload::Data(vec![1,2,3]));
 
-        writer_proxy.push_receive_message(ReaderReceiveMessage::Data(data1));
+        writer_proxy.push_receive_message(RtpsSubmessage::Data(data1));
 
         ReliableStatefulReaderBehavior::run(&writer_proxy, &stateful_reader);
 
@@ -300,8 +302,8 @@ mod tests {
         let writer_proxy = WriterProxy::new(remote_writer_guid, vec![], vec![]);
 
         let heartbeat = Heartbeat::new(
-            *reader_guid.entity_id(),
-            *remote_writer_guid.entity_id(),
+            reader_guid.entity_id(),
+            remote_writer_guid.entity_id(),
             3,
             6,
             1,
@@ -310,7 +312,7 @@ mod tests {
             Endianness::LittleEndian,
         );
     
-        writer_proxy.push_receive_message(ReaderReceiveMessage::Heartbeat(heartbeat));
+        writer_proxy.push_receive_message(RtpsSubmessage::Heartbeat(heartbeat));
 
         ReliableStatefulReaderBehavior::run(&writer_proxy, &stateful_reader);
         assert_eq!(writer_proxy.missing_changes(), [3, 4, 5, 6].iter().cloned().collect());
@@ -332,7 +334,7 @@ mod tests {
 
         let heartbeat = Heartbeat::new(
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
-            *remote_writer_guid.entity_id(),
+            remote_writer_guid.entity_id(),
             2,
             3,
             1,
@@ -340,7 +342,7 @@ mod tests {
             false,
             Endianness::LittleEndian,
         );
-        writer_proxy.push_receive_message(ReaderReceiveMessage::Heartbeat(heartbeat));
+        writer_proxy.push_receive_message(RtpsSubmessage::Heartbeat(heartbeat));
 
         let heartbeat_response_delay = Duration::from_millis(300);
         ReliableStatefulReaderBehavior::run(&writer_proxy, &stateful_reader);
@@ -370,7 +372,7 @@ mod tests {
 
         let heartbeat = Heartbeat::new(
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
-            *remote_writer_guid.entity_id(),
+            remote_writer_guid.entity_id(),
             1,
             0,
             1,
@@ -378,7 +380,7 @@ mod tests {
             false,
             Endianness::LittleEndian,
         );
-        writer_proxy.push_receive_message(ReaderReceiveMessage::Heartbeat(heartbeat));
+        writer_proxy.push_receive_message(RtpsSubmessage::Heartbeat(heartbeat));
 
         ReliableStatefulReaderBehavior::run(&writer_proxy, &stateful_reader);
         assert_eq!(writer_proxy.missing_changes(), [].iter().cloned().collect());

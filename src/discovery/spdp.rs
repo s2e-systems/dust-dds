@@ -1,16 +1,26 @@
 use std::convert::TryInto;
 use crate::messages::Endianness;
 
-use crate::types::{VendorId, Locator, ProtocolVersion, GuidPrefix, InstanceHandle};
+use crate::types::{VendorId, Locator, ProtocolVersion, GuidPrefix, InstanceHandle, GUID};
+use crate::types::constants::{
+    ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
+    ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
+    ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
+    ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
+    ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
+    ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,};
 use crate::messages::types::Count;
 use crate::behavior::types::Duration;
-use crate::participant::Participant;
+use crate::structure::participant::Participant;
 use crate::serialized_payload::CdrParameterList;
+use crate::transport::Transport;
+use crate::structure::stateful_reader::WriterProxy;
+use crate::structure::stateful_writer::ReaderProxy;
 
 use crate::endpoint_types::{
-    // DomainId,
+    DomainId,
     BuiltInEndpointSet,
-    // ParameterDomainId,
+    ParameterDomainId,
     ParameterDomainTag,
     ParameterProtocolVersion,
     ParameterVendorId,
@@ -28,10 +38,10 @@ use crate::endpoint_types::{
 
 #[derive(Debug, PartialEq)]
 pub struct SPDPdiscoveredParticipantData{
-    // domain_id: DomainId,
+    domain_id: DomainId,
     domain_tag: String,
     protocol_version: ProtocolVersion,
-    guid_prefix: GuidPrefix, // Implicit by the key (TODO)
+    guid_prefix: GuidPrefix,
     vendor_id: VendorId,
     expects_inline_qos: bool,
     metatraffic_unicast_locator_list: Vec<Locator>,
@@ -45,22 +55,58 @@ pub struct SPDPdiscoveredParticipantData{
 }
 
 impl SPDPdiscoveredParticipantData {
-    pub fn new_from_participant(participant: &Participant, lease_duration: Duration) -> Self{
+    pub fn new_from_participant<T: Transport>(participant: &Participant<T>, lease_duration: Duration) -> Self{
         Self {
-            // domain_id: 0, //TODO: participant.domain_id(),
-            domain_tag: "".to_string(), //TODO: participant.domain_tag(),
+            domain_id: participant.domain_id(),
+            domain_tag: participant.domain_tag().clone(),
             protocol_version: participant.protocol_version(),
-            guid_prefix: *participant.guid().prefix(),
+            guid_prefix: participant.guid().prefix(),
             vendor_id: participant.vendor_id(),
             expects_inline_qos: false, // TODO
-            metatraffic_unicast_locator_list: vec![], //TODO: participant.metatraffic_unicast_locator_list().clone(),
-            metatraffic_multicast_locator_list: vec![], //TODO: participant.metatraffic_multicast_locator_list().clone(),
+            metatraffic_unicast_locator_list: participant.metatraffic_unicast_locator_list().clone(),
+            metatraffic_multicast_locator_list: participant.metatraffic_multicast_locator_list().clone(),
             default_unicast_locator_list: participant.default_unicast_locator_list().clone(),
             default_multicast_locator_list: participant.default_multicast_locator_list().clone(),
-            available_built_in_endpoints: BuiltInEndpointSet::new(0),
+            available_built_in_endpoints: participant.builtin_endpoint_set(),
             lease_duration,
             manual_liveliness_count: 0, //TODO:Count,
         }
+    }
+
+    pub fn domain_id(&self) -> DomainId{
+        self.domain_id
+    }
+
+    pub fn domain_tag(&self) -> &String {
+        &self.domain_tag
+    }
+
+    pub fn guid_prefix(&self) -> GuidPrefix {
+        self.guid_prefix
+    }
+
+    pub fn expects_inline_qos(&self) -> bool {
+        self.expects_inline_qos
+    }
+
+    pub fn metatraffic_unicast_locator_list(&self) -> &Vec<Locator> {
+        &self.metatraffic_unicast_locator_list
+    }
+
+    pub fn metatraffic_multicast_locator_list(&self) -> &Vec<Locator> {
+        &self.metatraffic_multicast_locator_list
+    }
+
+    pub fn default_unicast_locator_list(&self) -> &Vec<Locator> {
+        &self.default_unicast_locator_list
+    }
+
+    pub fn default_multicast_locator_list(&self) -> &Vec<Locator> {
+        &self.default_multicast_locator_list
+    }
+
+    pub fn available_built_in_endpoints(&self) -> &BuiltInEndpointSet {
+        &self.available_built_in_endpoints
     }
 
     pub fn key(&self) -> InstanceHandle {
@@ -74,7 +120,7 @@ impl SPDPdiscoveredParticipantData {
         let mut parameter_list = CdrParameterList::new(endianness);
 
         // Defaults to the domainId of the local participant receiving the message
-        // TODO: Add the chance of adding a specific domain_id
+        // TODO: Add the chance of sending a specific domain_id
         // parameter_list.push(ParameterDomainId(self.domain_id));
 
         if self.domain_tag != ParameterDomainTag::default() {
@@ -118,14 +164,13 @@ impl SPDPdiscoveredParticipantData {
         writer
     }
 
-    pub fn from_key_data(key: InstanceHandle, data: &[u8]) -> Self {
+    pub fn from_key_data(key: InstanceHandle, data: &[u8], default_domain_id: DomainId) -> Self {
 
         let guid_prefix: GuidPrefix = key[0..12].try_into().unwrap();
 
         let parameter_list = CdrParameterList::deserialize(&data);
 
-        // TODO: Defaults to the domain_id of the participant receiving the message
-        // let domain_id = parameter_list.find::<ParameterDomainId>(endianness).unwrap().0;
+        let domain_id = parameter_list.find::<ParameterDomainId>().unwrap_or(ParameterDomainId(default_domain_id)).0;
         let domain_tag = parameter_list.find::<ParameterDomainTag>().unwrap_or_default().0;
         let protocol_version = parameter_list.find::<ParameterProtocolVersion>().unwrap().0;
         let vendor_id = parameter_list.find::<ParameterVendorId>().unwrap().0;
@@ -147,7 +192,7 @@ impl SPDPdiscoveredParticipantData {
         let manual_liveliness_count = parameter_list.find::<ParameterParticipantManualLivelinessCount>().unwrap().0;
 
         Self{
-            // domain_id,
+            domain_id,
             domain_tag,
             protocol_version,
             guid_prefix,
@@ -164,6 +209,101 @@ impl SPDPdiscoveredParticipantData {
     }
 }
 
+pub fn add_discovered_participant<T: Transport>(participant: &Participant<T>, discovered_participant: &SPDPdiscoveredParticipantData) {
+    // Implements the process described in
+    // 8.5.5.1 Discovery of a new remote Participant
+
+    if discovered_participant.domain_id() != participant.domain_id() {
+        return;
+    }
+
+    if discovered_participant.domain_tag() != participant.domain_tag() {
+        return;
+    }
+
+    if discovered_participant.available_built_in_endpoints().has(BuiltInEndpointSet::BUILTIN_ENDPOINT_PUBLICATIONS_DETECTOR) {
+        let guid = GUID::new(discovered_participant.guid_prefix(), ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR);
+        let proxy = ReaderProxy::new(
+            guid,
+            discovered_participant.metatraffic_unicast_locator_list().clone(),
+        discovered_participant.metatraffic_multicast_locator_list().clone(),
+    discovered_participant.expects_inline_qos(),
+true );
+        participant.sedp_builtin_publications_writer().matched_reader_add(proxy);
+    }
+
+    if discovered_participant.available_built_in_endpoints().has(BuiltInEndpointSet::BUILTIN_ENDPOINT_PUBLICATIONS_ANNOUNCER) {
+        let guid = GUID::new(discovered_participant.guid_prefix(), ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER);
+        let proxy = WriterProxy::new(
+            guid,
+            discovered_participant.metatraffic_unicast_locator_list().clone(), 
+            discovered_participant.metatraffic_multicast_locator_list().clone());
+        participant.sedp_builtin_publications_reader().matched_writer_add(proxy);
+    }
+
+    if discovered_participant.available_built_in_endpoints().has(BuiltInEndpointSet::BUILTIN_ENDPOINT_SUBSCRIPTIONS_DETECTOR) {
+        let guid = GUID::new(discovered_participant.guid_prefix(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
+        let proxy = ReaderProxy::new(
+            guid,
+            discovered_participant.metatraffic_unicast_locator_list().clone(),
+        discovered_participant.metatraffic_multicast_locator_list().clone(),
+    discovered_participant.expects_inline_qos(),
+true );
+        participant.sedp_builtin_subscriptions_writer().matched_reader_add(proxy);
+    }
+    
+    if discovered_participant.available_built_in_endpoints().has(BuiltInEndpointSet::BUILTIN_ENDPOINT_SUBSCRIPTIONS_ANNOUNCER) {
+        let guid = GUID::new(discovered_participant.guid_prefix(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
+        let proxy = WriterProxy::new(
+            guid,
+            discovered_participant.metatraffic_unicast_locator_list().clone(), 
+            discovered_participant.metatraffic_multicast_locator_list().clone());
+        participant.sedp_builtin_subscriptions_reader().matched_writer_add(proxy);
+    }
+
+    if discovered_participant.available_built_in_endpoints().has(BuiltInEndpointSet::BUILTIN_ENDPOINT_TOPICS_DETECTOR) {
+        let guid = GUID::new(discovered_participant.guid_prefix(), ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR);
+        let proxy = ReaderProxy::new(
+            guid,
+            discovered_participant.metatraffic_unicast_locator_list().clone(),
+        discovered_participant.metatraffic_multicast_locator_list().clone(),
+    discovered_participant.expects_inline_qos(),
+true );
+        participant.sedp_builtin_topics_writer().matched_reader_add(proxy);
+    }
+
+    if discovered_participant.available_built_in_endpoints().has(BuiltInEndpointSet::BUILTIN_ENDPOINT_TOPICS_ANNOUNCER) {
+        let guid = GUID::new(discovered_participant.guid_prefix(), ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER);
+        let proxy = WriterProxy::new(
+            guid,
+            discovered_participant.metatraffic_unicast_locator_list().clone(), 
+            discovered_participant.metatraffic_multicast_locator_list().clone());
+        participant.sedp_builtin_topics_reader().matched_writer_add(proxy);
+    }           
+}
+
+pub fn remove_discovered_participant(participant: &Participant, remote_participant_guid_prefix: GuidPrefix) {
+    // Implements the process described in
+    // 8.5.5.2 Removal of a previously discovered Participant
+    let guid = GUID::new(remote_participant_guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR);
+    participant.sedp_builtin_publications_writer().matched_reader_remove(&guid);
+
+    let guid = GUID::new(remote_participant_guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER);
+    participant.sedp_builtin_publications_reader().matched_writer_remove(&guid);
+
+    let guid = GUID::new(remote_participant_guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
+    participant.sedp_builtin_subscriptions_writer().matched_reader_remove(&guid);
+
+    let guid = GUID::new(remote_participant_guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
+    participant.sedp_builtin_subscriptions_reader().matched_writer_remove(&guid);
+
+    let guid = GUID::new(remote_participant_guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR);
+    participant.sedp_builtin_topics_writer().matched_reader_remove(&guid);
+
+    let guid = GUID::new(remote_participant_guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER);
+    participant.sedp_builtin_topics_reader().matched_writer_remove(&guid);
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -172,7 +312,7 @@ mod tests {
     #[test]
     fn complete_serialize_spdp_data() {
         let spdp_participant_data = SPDPdiscoveredParticipantData{
-            // domain_id: 1,
+            domain_id: 0,
             domain_tag: "abcd".to_string(),
             protocol_version: PROTOCOL_VERSION_2_4,
             guid_prefix: [1, 2, 3, 4, 5, 6, 7, 1, 2, 3, 4, 5],
@@ -229,7 +369,7 @@ mod tests {
             0, 1, 0, 0 // PID_SENTINEL
         ].to_vec());
 
-        let deserialized_spdp = SPDPdiscoveredParticipantData::from_key_data(key, &data);
+        let deserialized_spdp = SPDPdiscoveredParticipantData::from_key_data(key, &data, 0);
         assert_eq!(deserialized_spdp,spdp_participant_data);
 
         let data = spdp_participant_data.data(Endianness::LittleEndian);
@@ -270,14 +410,14 @@ mod tests {
             1, 0, 0, 0 // PID_SENTINEL
         ].to_vec());
 
-        let deserialized_spdp = SPDPdiscoveredParticipantData::from_key_data(key, &data);
+        let deserialized_spdp = SPDPdiscoveredParticipantData::from_key_data(key, &data, 0);
         assert_eq!(deserialized_spdp,spdp_participant_data);
     }
 
     #[test]
     fn serialize_spdp_data_with_defaults() {
         let spdp_participant_data = SPDPdiscoveredParticipantData{
-            // domain_id: 1,
+            domain_id: 0,
             domain_tag: "".to_string(),
             protocol_version: PROTOCOL_VERSION_2_4,
             vendor_id: [99,99],
@@ -312,7 +452,7 @@ mod tests {
             0, 1, 0, 0 // PID_SENTINEL
         ].to_vec());
         
-        let deserialized_spdp = SPDPdiscoveredParticipantData::from_key_data(key, &data);
+        let deserialized_spdp = SPDPdiscoveredParticipantData::from_key_data(key, &data, 0);
         assert_eq!(deserialized_spdp,spdp_participant_data);
     }
 

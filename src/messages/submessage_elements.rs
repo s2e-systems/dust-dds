@@ -597,6 +597,10 @@ impl ParameterList {
     {
         self.parameter.retain(|x| x.parameter_id() != T::pid());
     }
+
+    pub fn len(&self) -> usize {
+        self.parameter.len()
+    }
 }
 
 impl SubmessageElement for ParameterList {

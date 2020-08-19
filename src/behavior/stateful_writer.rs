@@ -2,10 +2,9 @@ use std::time::Instant;
 use std::convert::TryInto;
 
 use crate::types::{SequenceNumber, };
-use crate::messages::{Gap, Heartbeat, Endianness, AckNack};
-use crate::stateful_writer::{StatefulWriter, ReaderProxy};
+use crate::messages::{Gap, Heartbeat, Endianness, AckNack, RtpsSubmessage};
+use crate::structure::stateful_writer::{StatefulWriter, ReaderProxy};
 use crate::messages::types::{Count, };
-use crate::messages::receiver::{WriterSendMessage, WriterReceiveMessage};
 
 use super::types::Duration;
 use super::data_from_cache_change;
@@ -83,19 +82,19 @@ impl BestEffortStatefulWriterBehavior {
         let endianness = Endianness::LittleEndian;
 
         if let Some(cache_change) = stateful_writer.writer_cache()
-            .changes().iter().find(|cc| cc.sequence_number() == &next_unsent_seq_num)
+            .changes().iter().find(|cc| cc.sequence_number() == next_unsent_seq_num)
         {
-            let reader_id = *reader_proxy.remote_reader_guid().entity_id();
+            let reader_id = reader_proxy.remote_reader_guid().entity_id();
             let data = data_from_cache_change(cache_change, endianness, reader_id);
-            reader_proxy.push_send_message(WriterSendMessage::Data(data));
+            reader_proxy.push_send_message(RtpsSubmessage::Data(data));
         } else {
             let gap = Gap::new(
-                *reader_proxy.remote_reader_guid().entity_id(), 
-                *stateful_writer.guid().entity_id(),
+                reader_proxy.remote_reader_guid().entity_id(), 
+                stateful_writer.guid().entity_id(),
                 next_unsent_seq_num,
                 Endianness::LittleEndian);
 
-            reader_proxy.push_send_message(WriterSendMessage::Gap(gap));
+            reader_proxy.push_send_message(RtpsSubmessage::Gap(gap));
         }
     }
 }
@@ -138,8 +137,8 @@ impl ReliableStatefulWriterBehavior {
         reader_proxy.behavior().increment_heartbeat_count();
 
         let heartbeat = Heartbeat::new(
-            *reader_proxy.remote_reader_guid().entity_id(),
-            *stateful_writer.guid().entity_id(),
+            reader_proxy.remote_reader_guid().entity_id(),
+            stateful_writer.guid().entity_id(),
             first_sn,
             stateful_writer.last_change_sequence_number(),
             *reader_proxy.behavior().heartbeat_count(),
@@ -148,11 +147,11 @@ impl ReliableStatefulWriterBehavior {
             Endianness::LittleEndian,
         );
 
-        reader_proxy.push_send_message(WriterSendMessage::Heartbeat(heartbeat));
+        reader_proxy.push_send_message(RtpsSubmessage::Heartbeat(heartbeat));
     }
     
     fn waiting_state(reader_proxy: &ReaderProxy) {
-        if let Some(WriterReceiveMessage::AckNack(acknack)) = reader_proxy.pop_receive_message() {
+        if let Some(RtpsSubmessage::AckNack(acknack)) = reader_proxy.pop_receive_message() {
             Self::transition_t8(reader_proxy, acknack);
             reader_proxy.behavior().time_nack_received_reset();
         }
@@ -164,7 +163,7 @@ impl ReliableStatefulWriterBehavior {
     }
     
     fn must_repair_state(reader_proxy: &ReaderProxy) {
-        if let Some(WriterReceiveMessage::AckNack(acknack)) = reader_proxy.pop_receive_message() {
+        if let Some(RtpsSubmessage::AckNack(acknack)) = reader_proxy.pop_receive_message() {
             Self::transition_t8(reader_proxy, acknack);
         }
     }
@@ -180,19 +179,19 @@ impl ReliableStatefulWriterBehavior {
 
     fn transition_t12(reader_proxy: &ReaderProxy, stateful_writer: &StatefulWriter, next_requested_seq_num: SequenceNumber) {
         if let Some(cache_change) = stateful_writer.writer_cache()
-        .changes().iter().find(|cc| cc.sequence_number() == &next_requested_seq_num)
+        .changes().iter().find(|cc| cc.sequence_number() == next_requested_seq_num)
         {
             let endianness = Endianness::LittleEndian;
-            let data = data_from_cache_change(cache_change, endianness, *reader_proxy.remote_reader_guid().entity_id());
-            reader_proxy.push_send_message(WriterSendMessage::Data(data));
+            let data = data_from_cache_change(cache_change, endianness, reader_proxy.remote_reader_guid().entity_id());
+            reader_proxy.push_send_message(RtpsSubmessage::Data(data));
         } else {
             let gap = Gap::new(
-                *reader_proxy.remote_reader_guid().entity_id(), 
-                *stateful_writer.guid().entity_id(),
+                reader_proxy.remote_reader_guid().entity_id(), 
+                stateful_writer.guid().entity_id(),
                 next_requested_seq_num,
                 Endianness::LittleEndian);
 
-            reader_proxy.push_send_message(WriterSendMessage::Gap(gap));
+            reader_proxy.push_send_message(RtpsSubmessage::Gap(gap));
         }
     }
 }
