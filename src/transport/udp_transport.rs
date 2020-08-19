@@ -27,32 +27,7 @@ impl UdpTransport {
     const D2 : u32 = 1; // TODO: Should be configurable
     const D3 : u32 = 11;    // TODO: Should be configurable
 
-    pub fn default_metatraffic_transport(domain_id: DomainId, interface: &str) -> TransportResult<Self> {
-        let spdp_well_known_multicast_port = UdpTransport::PB + UdpTransport::DG * domain_id + UdpTransport::D0;
-
-        let metatraffic_unicast_locator = Locator::new(
-            LOCATOR_KIND_UDPv4,
-            spdp_well_known_multicast_port,
-            get_interface_address(interface).unwrap(),
-        );
-
-        let metatraffic_multicast_locator = Locator::new(
-            LOCATOR_KIND_UDPv4,
-            spdp_well_known_multicast_port,
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 239, 255, 0, 1],
-        );
-
-        UdpTransport::new(metatraffic_unicast_locator, Some(metatraffic_multicast_locator))
-    }
-
-    pub fn default_userdata_transport(_domain_id: DomainId, _interface: &str) -> TransportResult<Self> {
-        todo!()
-    }
-
-}
-
-impl Transport for UdpTransport {
-    fn new(
+    pub fn new(
         unicast_locator: Locator,
         multicast_locator: Option<Locator>,
     ) -> TransportResult<Self> {
@@ -81,6 +56,31 @@ impl Transport for UdpTransport {
         })
     }
 
+    pub fn default_metatraffic_transport(domain_id: DomainId, interface: &str) -> TransportResult<Self> {
+        let spdp_well_known_multicast_port = UdpTransport::PB + UdpTransport::DG * domain_id + UdpTransport::D0;
+
+        let metatraffic_unicast_locator = Locator::new(
+            LOCATOR_KIND_UDPv4,
+            spdp_well_known_multicast_port,
+            get_interface_address(interface).unwrap(),
+        );
+
+        let metatraffic_multicast_locator = Locator::new(
+            LOCATOR_KIND_UDPv4,
+            spdp_well_known_multicast_port,
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 239, 255, 0, 1],
+        );
+
+        UdpTransport::new(metatraffic_unicast_locator, Some(metatraffic_multicast_locator))
+    }
+
+    pub fn default_userdata_transport(_domain_id: DomainId, _interface: &str) -> TransportResult<Self> {
+        todo!()
+    }
+
+}
+
+impl Transport for UdpTransport {
     fn write(&self, message: RtpsMessage, unicast_locator_list: &[Locator], multicast_locator_list: &[Locator]) {
         let mut buf =  Vec::new();
         message.compose(&mut buf).unwrap();

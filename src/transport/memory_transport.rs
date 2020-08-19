@@ -13,6 +13,15 @@ pub struct MemoryTransport {
 }
 
 impl MemoryTransport {
+    pub fn new(unicast_locator: Locator, multicast_locator: Option<Locator>) -> TransportResult<Self> {
+        Ok(Self {
+            read: Mutex::new(VecDeque::new()),
+            write: Mutex::new(VecDeque::new()),
+            unicast_locator,
+            multicast_locator,
+        })
+    }
+
     pub fn push_read(&self, message: RtpsMessage, locator: Locator) {
         self.read.lock().unwrap().push_back((message, locator));
     }
@@ -36,15 +45,6 @@ impl MemoryTransport {
 }
 
 impl Transport for MemoryTransport {
-    fn new(unicast_locator: Locator, multicast_locator: Option<Locator>) -> TransportResult<Self> {
-        Ok(Self {
-            read: Mutex::new(VecDeque::new()),
-            write: Mutex::new(VecDeque::new()),
-            unicast_locator,
-            multicast_locator,
-        })
-    }
-
     fn read(&self) -> TransportResult<Option<(RtpsMessage, Locator)>> {
         match self.read.lock().unwrap().pop_front() {
             Some((message, locator)) => Ok(Some((message, locator))),

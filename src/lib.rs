@@ -23,3 +23,7 @@ pub use messages::message_sender::RtpsMessageSender;
 pub use messages::{RtpsMessage, UdpPsmMapping, Pid};
 pub use messages::types::{ParameterId};
 pub use messages::{ParameterList,};
+pub use transport::Transport;
+pub use transport::udp_transport::UdpTransport;
+pub use transport::memory_transport::MemoryTransport;
+
