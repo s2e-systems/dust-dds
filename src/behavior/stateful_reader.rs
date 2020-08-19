@@ -4,6 +4,7 @@ use std::time::Instant;
 use crate::structure::stateful_reader::{WriterProxy, StatefulReader};
 use crate::messages::{AckNack, Data, Gap, Heartbeat, Endianness, RtpsSubmessage};
 use crate::messages::types::Count;
+use crate::messages::message_receiver::Receiver;
 
 use super::types::Duration;
 use super::cache_change_from_data;
@@ -59,7 +60,7 @@ impl BestEfforStatefulReaderBehavior {
     }
 
     fn waiting_state(writer_proxy: &WriterProxy, stateful_reader: &StatefulReader) {
-        if let Some(received_message) = writer_proxy.pop_receive_message() {
+        if let Some((_, received_message)) = writer_proxy.pop_receive_message() {
             match received_message {
                 RtpsSubmessage::Data(data) => Self::transition_t2(writer_proxy, stateful_reader, data),
                 RtpsSubmessage::Gap(gap) => Self::transition_t4(writer_proxy, &gap),
@@ -105,7 +106,7 @@ impl ReliableStatefulReaderBehavior {
     }
 
     fn ready_state(writer_proxy: &WriterProxy, stateful_reader: &StatefulReader) -> Option<Heartbeat>{
-        if let Some(received_message) = writer_proxy.pop_receive_message() {
+        if let Some((_, received_message)) = writer_proxy.pop_receive_message() {
             match received_message {
                 RtpsSubmessage::Data(data) => {
                     Self::transition_t8(writer_proxy, stateful_reader, data);
@@ -203,7 +204,8 @@ mod tests {
             false,
             Duration::from_millis(300));
 
-        let remote_writer_guid = GUID::new([1;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
+        let remote_writer_guid_prefix = [1;12];
+        let remote_writer_guid = GUID::new(remote_writer_guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
         let writer_proxy = WriterProxy::new(remote_writer_guid, vec![], vec![]);
 
         let mut inline_qos = ParameterList::new();
@@ -217,7 +219,7 @@ mod tests {
             3,
             Some(inline_qos),
             Payload::Data(vec![1,2,3]));
-        writer_proxy.push_receive_message(RtpsSubmessage::Data(data1));
+        writer_proxy.push_receive_message(remote_writer_guid_prefix, RtpsSubmessage::Data(data1));
 
         BestEfforStatefulReaderBehavior::run(&writer_proxy, &stateful_reader);
 
@@ -250,7 +252,8 @@ mod tests {
             false,
             Duration::from_millis(300));
 
-        let remote_writer_guid = GUID::new([1;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
+        let remote_writer_guid_prefix = [1;12];
+        let remote_writer_guid = GUID::new(remote_writer_guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
         let writer_proxy = WriterProxy::new(remote_writer_guid, vec![], vec![]);
 
         let mut inline_qos = ParameterList::new();
@@ -265,7 +268,7 @@ mod tests {
             Some(inline_qos),
             Payload::Data(vec![1,2,3]));
 
-        writer_proxy.push_receive_message(RtpsSubmessage::Data(data1));
+        writer_proxy.push_receive_message(remote_writer_guid_prefix, RtpsSubmessage::Data(data1));
 
         ReliableStatefulReaderBehavior::run(&writer_proxy, &stateful_reader);
 
@@ -298,7 +301,8 @@ mod tests {
             false,
             Duration::from_millis(300));
 
-        let remote_writer_guid = GUID::new([1;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
+        let remote_writer_guid_prefix = [1;12];
+        let remote_writer_guid = GUID::new(remote_writer_guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
         let writer_proxy = WriterProxy::new(remote_writer_guid, vec![], vec![]);
 
         let heartbeat = Heartbeat::new(
@@ -312,7 +316,7 @@ mod tests {
             Endianness::LittleEndian,
         );
     
-        writer_proxy.push_receive_message(RtpsSubmessage::Heartbeat(heartbeat));
+        writer_proxy.push_receive_message(remote_writer_guid_prefix, RtpsSubmessage::Heartbeat(heartbeat));
 
         ReliableStatefulReaderBehavior::run(&writer_proxy, &stateful_reader);
         assert_eq!(writer_proxy.missing_changes(), [3, 4, 5, 6].iter().cloned().collect());
@@ -329,7 +333,8 @@ mod tests {
             false,
             Duration::from_millis(300));
 
-        let remote_writer_guid = GUID::new([1;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
+        let remote_writer_guid_prefix = [1;12];
+        let remote_writer_guid = GUID::new(remote_writer_guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
         let writer_proxy = WriterProxy::new(remote_writer_guid, vec![], vec![]);
 
         let heartbeat = Heartbeat::new(
@@ -342,7 +347,7 @@ mod tests {
             false,
             Endianness::LittleEndian,
         );
-        writer_proxy.push_receive_message(RtpsSubmessage::Heartbeat(heartbeat));
+        writer_proxy.push_receive_message(remote_writer_guid_prefix, RtpsSubmessage::Heartbeat(heartbeat));
 
         let heartbeat_response_delay = Duration::from_millis(300);
         ReliableStatefulReaderBehavior::run(&writer_proxy, &stateful_reader);
@@ -367,7 +372,8 @@ mod tests {
             false,
             Duration::from_millis(300));
 
-        let remote_writer_guid = GUID::new([1;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
+        let remote_writer_guid_prefix = [1;12];
+        let remote_writer_guid = GUID::new(remote_writer_guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
         let writer_proxy = WriterProxy::new(remote_writer_guid, vec![], vec![]);
 
         let heartbeat = Heartbeat::new(
@@ -380,7 +386,7 @@ mod tests {
             false,
             Endianness::LittleEndian,
         );
-        writer_proxy.push_receive_message(RtpsSubmessage::Heartbeat(heartbeat));
+        writer_proxy.push_receive_message(remote_writer_guid_prefix, RtpsSubmessage::Heartbeat(heartbeat));
 
         ReliableStatefulReaderBehavior::run(&writer_proxy, &stateful_reader);
         assert_eq!(writer_proxy.missing_changes(), [].iter().cloned().collect());

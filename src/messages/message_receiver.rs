@@ -8,6 +8,12 @@ use super::submessage::RtpsSubmessage;
 
 // ////////////////// RTPS Message Receiver
 
+pub trait Receiver {
+    fn push_receive_message(&self, source_guid_prefix: GuidPrefix, message: RtpsSubmessage);
+    
+    fn pop_receive_message(&self) -> Option<(GuidPrefix, RtpsSubmessage)>;
+}
+
 pub struct RtpsMessageReceiver{
 
 }
@@ -52,7 +58,7 @@ impl RtpsMessageReceiver {
         for &stateful_reader in stateful_reader_list {
             // Messages are received if they come from a matched writer
             if let Some(writer_proxy) = stateful_reader.matched_writers().get(&writer_guid) {
-                writer_proxy.push_receive_message(message);
+                writer_proxy.push_receive_message(source_guid_prefix, message);
                 return;
             }
         }
@@ -207,7 +213,7 @@ mod tests {
 
         let expected_data = Data::new(Endianness::LittleEndian, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER, 1, None, Payload::None);
         match stateful_reader.matched_writers().get(&remote_guid).unwrap().pop_receive_message() {
-            Some(RtpsSubmessage::Data(data_received)) => {
+            Some((_, RtpsSubmessage::Data(data_received))) => {
                 assert_eq!(data_received, expected_data);
             },
             _ => panic!("Unexpected message received"),

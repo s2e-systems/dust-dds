@@ -4,6 +4,7 @@ use std::sync::Mutex;
 use crate::structure::history_cache::HistoryCache;
 use crate::types::{ReliabilityKind, TopicKind, GUID, Locator, GuidPrefix };
 use crate::messages::RtpsSubmessage;
+use crate::messages::message_receiver::Receiver;
 use crate::behavior::stateless_reader::BestEffortStatelessReaderBehavior;
 
 pub struct StatelessReader {
@@ -72,12 +73,14 @@ impl StatelessReader {
             ReliabilityKind::Reliable => panic!("Reliable stateless reader not allowed!"),
         }
     }
+}
 
-    pub fn push_receive_message(&self, source_guid_prefix: GuidPrefix, message: RtpsSubmessage) {
+impl Receiver for StatelessReader {
+    fn push_receive_message(&self, source_guid_prefix: GuidPrefix, message: RtpsSubmessage) {
         self.received_messages.lock().unwrap().push_back((source_guid_prefix, message));
     }
-
-    pub fn pop_receive_message(&self) -> Option<(GuidPrefix, RtpsSubmessage)> {
+    
+    fn pop_receive_message(&self) -> Option<(GuidPrefix, RtpsSubmessage)> {
         self.received_messages.lock().unwrap().pop_front()
     }
 }

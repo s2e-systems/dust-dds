@@ -2,8 +2,9 @@ use std::collections::{BTreeSet, HashMap, VecDeque, };
 use std::sync::{RwLock, RwLockReadGuard, Mutex, MutexGuard, };
 
 use crate::structure::history_cache::HistoryCache;
-use crate::types::{Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID, };
+use crate::types::{Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID, GuidPrefix };
 use crate::messages::RtpsSubmessage;
+use crate::messages::message_receiver::Receiver;
 use crate::behavior::types::Duration;
 use crate::behavior::stateful_reader::{StatefulReaderBehavior, BestEfforStatefulReaderBehavior, ReliableStatefulReaderBehavior, };
 
@@ -138,7 +139,7 @@ pub struct WriterProxy {
 
     stateful_reader_behavior: Mutex<StatefulReaderBehavior>,
 
-    receive_messages: Mutex<VecDeque<RtpsSubmessage>>,
+    received_messages: Mutex<VecDeque<(GuidPrefix, RtpsSubmessage)>>,
     send_messages: Mutex<VecDeque<RtpsSubmessage>>,
 }
 
@@ -154,7 +155,7 @@ impl WriterProxy {
                 multicast_locator_list,
                 changes_from_writer: Mutex::new(ChangesFromWriter::new()),
                 stateful_reader_behavior: Mutex::new(StatefulReaderBehavior::new()),
-                receive_messages: Mutex::new(VecDeque::new()),
+                received_messages: Mutex::new(VecDeque::new()),
                 send_messages: Mutex::new(VecDeque::new()),
         }
     }
@@ -215,20 +216,22 @@ impl WriterProxy {
         self.changes_from_writer.lock().unwrap()
     }
 
-    pub fn push_receive_message(&self, message: RtpsSubmessage) {
-        self.receive_messages.lock().unwrap().push_back(message);
-    }
-
-    pub fn pop_receive_message(&self) -> Option<RtpsSubmessage> {
-        self.receive_messages.lock().unwrap().pop_front()
-    }
-
     pub fn push_send_message(&self, message: RtpsSubmessage) {
         self.send_messages.lock().unwrap().push_back(message);
     }
 
     pub fn pop_send_message(&self) -> Option<RtpsSubmessage> {
         self.send_messages.lock().unwrap().pop_front()
+    }
+}
+
+impl Receiver for WriterProxy {
+    fn push_receive_message(&self, source_guid_prefix: GuidPrefix, message: RtpsSubmessage) {
+        self.received_messages.lock().unwrap().push_back((source_guid_prefix, message));
+    }
+    
+    fn pop_receive_message(&self) -> Option<(GuidPrefix, RtpsSubmessage)> {
+        self.received_messages.lock().unwrap().pop_front()
     }
 }
 
