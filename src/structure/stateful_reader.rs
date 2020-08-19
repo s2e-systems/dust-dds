@@ -5,6 +5,7 @@ use crate::structure::history_cache::HistoryCache;
 use crate::types::{Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID, GuidPrefix };
 use crate::messages::RtpsSubmessage;
 use crate::messages::message_receiver::Receiver;
+use crate::messages::message_sender::Sender;
 use crate::behavior::types::Duration;
 use crate::behavior::stateful_reader::{StatefulReaderBehavior, BestEfforStatefulReaderBehavior, ReliableStatefulReaderBehavior, };
 
@@ -215,14 +216,6 @@ impl WriterProxy {
     fn changes_from_writer(&self) -> MutexGuard<ChangesFromWriter> {
         self.changes_from_writer.lock().unwrap()
     }
-
-    pub fn push_send_message(&self, message: RtpsSubmessage) {
-        self.send_messages.lock().unwrap().push_back(message);
-    }
-
-    pub fn pop_send_message(&self) -> Option<RtpsSubmessage> {
-        self.send_messages.lock().unwrap().pop_front()
-    }
 }
 
 impl Receiver for WriterProxy {
@@ -232,6 +225,16 @@ impl Receiver for WriterProxy {
     
     fn pop_receive_message(&self) -> Option<(GuidPrefix, RtpsSubmessage)> {
         self.received_messages.lock().unwrap().pop_front()
+    }
+}
+
+impl Sender for WriterProxy {
+    fn push_send_message(&self, message: RtpsSubmessage) {
+        self.send_messages.lock().unwrap().push_back(message);
+    }
+
+    fn pop_send_message(&self) -> Option<RtpsSubmessage> {
+        self.send_messages.lock().unwrap().pop_front()
     }
 }
 

@@ -1,10 +1,12 @@
 use std::collections::{BTreeSet, HashMap, VecDeque};
 use std::sync::{RwLock, RwLockReadGuard, Mutex, MutexGuard};
 
-use crate::types::{ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID, };
+use crate::types::{ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID, GuidPrefix};
 use crate::behavior::types::Duration;
 use crate::behavior::stateful_writer::{StatefulWriterBehavior, BestEffortStatefulWriterBehavior, ReliableStatefulWriterBehavior};
 use crate::messages::{RtpsSubmessage};
+use crate::messages::message_receiver::Receiver;
+use crate::messages::message_sender::Sender;
 use crate::structure::history_cache::HistoryCache;
 use crate::structure::cache_change::CacheChange;
 use crate::messages::{ParameterList};
@@ -98,7 +100,7 @@ pub struct ReaderProxy {
     stateful_writer_behavior: Mutex<StatefulWriterBehavior>,
 
     send_messages: Mutex<VecDeque<RtpsSubmessage>>,
-    receive_messages: Mutex<VecDeque<RtpsSubmessage>>,
+    received_messages: Mutex<VecDeque<(GuidPrefix, RtpsSubmessage)>>,
 }
 
 
@@ -118,7 +120,7 @@ impl ReaderProxy {
                 changes_for_reader: Mutex::new(ChangeForReader::new()),
                 stateful_writer_behavior: Mutex::new(StatefulWriterBehavior::new()),
                 send_messages: Mutex::new(VecDeque::new()),
-                receive_messages: Mutex::new(VecDeque::new()),
+                received_messages: Mutex::new(VecDeque::new()),
         }
     }
 
@@ -165,24 +167,26 @@ impl ReaderProxy {
     pub fn behavior(&self) -> MutexGuard<StatefulWriterBehavior> {
         self.stateful_writer_behavior.lock().unwrap()
     }
+}
 
-    pub fn push_send_message(&self, message: RtpsSubmessage) {
+impl Sender for ReaderProxy {
+    fn push_send_message(&self, message: RtpsSubmessage) {
         self.send_messages.lock().unwrap().push_back(message);
     }
 
-    pub fn pop_send_message(&self) -> Option<RtpsSubmessage> {
+    fn pop_send_message(&self) -> Option<RtpsSubmessage> {
         self.send_messages.lock().unwrap().pop_front()
     }
+}
 
-    pub fn push_receive_message(&self, message: RtpsSubmessage) {
-        self.receive_messages.lock().unwrap().push_back(message);
+impl Receiver for ReaderProxy {
+    fn push_receive_message(&self, source_guid_prefix: GuidPrefix, message: RtpsSubmessage) {
+        self.received_messages.lock().unwrap().push_back((source_guid_prefix, message));
     }
-
-    pub fn pop_receive_message(&self) -> Option<RtpsSubmessage> {
-        self.receive_messages.lock().unwrap().pop_front()
+    
+    fn pop_receive_message(&self) -> Option<(GuidPrefix, RtpsSubmessage)> {
+        self.received_messages.lock().unwrap().pop_front()
     }
-
-
 }
 
 pub struct StatefulWriter {
@@ -517,7 +521,8 @@ mod tests {
             DURATION_ZERO
         );
 
-        let remote_reader_guid = GUID::new([1,2,3,4,5,6,7,8,9,10,11,12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
+        let remote_reader_guid_prefix = [1,2,3,4,5,6,7,8,9,10,11,12];
+        let remote_reader_guid = GUID::new(remote_reader_guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
         let reader_proxy = ReaderProxy::new(remote_reader_guid, vec![], vec![], false, true);
         stateful_writer.matched_reader_add(reader_proxy);
 
@@ -569,7 +574,7 @@ mod tests {
                 Endianness::LittleEndian,
         );
 
-        stateful_writer.matched_readers().get(&remote_reader_guid).unwrap().push_receive_message(RtpsSubmessage::AckNack(acknack));
+        stateful_writer.matched_readers().get(&remote_reader_guid).unwrap().push_receive_message(remote_reader_guid_prefix, RtpsSubmessage::AckNack(acknack));
 
         // Check that no heartbeat is sent if there are no new changes
         stateful_writer.run();

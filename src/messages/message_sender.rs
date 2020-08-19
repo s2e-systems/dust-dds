@@ -9,6 +9,11 @@ use super::{InfoTs, Endianness,};
 use super::message::{RtpsMessage};
 use super::types::Time;
 
+pub trait Sender {
+    fn push_send_message(&self, message: RtpsSubmessage);
+
+    fn pop_send_message(&self) -> Option<RtpsSubmessage>;
+}
 
 pub struct RtpsMessageSender {
 }

@@ -7,6 +7,7 @@ use crate::messages::{ParameterList};
 use crate::types::{ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID, };
 use crate::behavior::stateless_writer::BestEffortStatelessWriterBehavior;
 use crate::messages::RtpsSubmessage;
+use crate::messages::message_sender::Sender;
 
 pub struct ReaderLocator {
     //requested_changes: HashSet<CacheChange>,
@@ -56,12 +57,14 @@ impl ReaderLocator {
             Some(next_unsent_sequence_number)
         }
     }
+}
 
-    pub fn push_send_message(&self, message: RtpsSubmessage) {
+impl Sender for ReaderLocator {
+    fn push_send_message(&self, message: RtpsSubmessage) {
         self.send_messages.lock().unwrap().push_back(message);
     }
 
-    pub fn pop_send_message(&self) -> Option<RtpsSubmessage> {
+    fn pop_send_message(&self) -> Option<RtpsSubmessage> {
         self.send_messages.lock().unwrap().pop_front()
     }
 }

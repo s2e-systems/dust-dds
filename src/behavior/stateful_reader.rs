@@ -5,6 +5,7 @@ use crate::structure::stateful_reader::{WriterProxy, StatefulReader};
 use crate::messages::{AckNack, Data, Gap, Heartbeat, Endianness, RtpsSubmessage};
 use crate::messages::types::Count;
 use crate::messages::message_receiver::Receiver;
+use crate::messages::message_sender::Sender;
 
 use super::types::Duration;
 use super::cache_change_from_data;

@@ -5,6 +5,8 @@ use crate::types::{SequenceNumber, };
 use crate::messages::{Gap, Heartbeat, Endianness, AckNack, RtpsSubmessage};
 use crate::structure::stateful_writer::{StatefulWriter, ReaderProxy};
 use crate::messages::types::{Count, };
+use crate::messages::message_sender::Sender;
+use crate::messages::message_receiver::Receiver;
 
 use super::types::Duration;
 use super::data_from_cache_change;
@@ -151,7 +153,7 @@ impl ReliableStatefulWriterBehavior {
     }
     
     fn waiting_state(reader_proxy: &ReaderProxy) {
-        if let Some(RtpsSubmessage::AckNack(acknack)) = reader_proxy.pop_receive_message() {
+        if let Some((_, RtpsSubmessage::AckNack(acknack))) = reader_proxy.pop_receive_message() {
             Self::transition_t8(reader_proxy, acknack);
             reader_proxy.behavior().time_nack_received_reset();
         }
@@ -163,7 +165,7 @@ impl ReliableStatefulWriterBehavior {
     }
     
     fn must_repair_state(reader_proxy: &ReaderProxy) {
-        if let Some(RtpsSubmessage::AckNack(acknack)) = reader_proxy.pop_receive_message() {
+        if let Some((_, RtpsSubmessage::AckNack(acknack))) = reader_proxy.pop_receive_message() {
             Self::transition_t8(reader_proxy, acknack);
         }
     }
