@@ -218,16 +218,6 @@ impl WriterProxy {
     }
 }
 
-impl Receiver for WriterProxy {
-    fn push_receive_message(&self, source_guid_prefix: GuidPrefix, message: RtpsSubmessage) {
-        self.received_messages.lock().unwrap().push_back((source_guid_prefix, message));
-    }
-    
-    fn pop_receive_message(&self) -> Option<(GuidPrefix, RtpsSubmessage)> {
-        self.received_messages.lock().unwrap().pop_front()
-    }
-}
-
 impl Sender for WriterProxy {
     fn push_send_message(&self, message: RtpsSubmessage) {
         self.send_messages.lock().unwrap().push_back(message);
@@ -313,7 +303,47 @@ impl StatefulReader {
     pub fn guid(&self) -> &GUID {
         &self.guid
     }
+}
 
+impl Receiver for StatefulReader {
+    fn push_receive_message(&self, src_guid_prefix: GuidPrefix, submessage: RtpsSubmessage) {
+        let writer_id = match &submessage {
+            RtpsSubmessage::Data(data) => data.writer_id(),
+            RtpsSubmessage::Gap(gap) => gap.writer_id(),
+            RtpsSubmessage::Heartbeat(heartbeat) => 
+                if self.reliability_level == ReliabilityKind::Reliable {
+                    heartbeat.writer_id()
+                } else {
+                    panic!("Heartbeat messages not received by best-effort stateful reader")
+                },
+            _ =>  panic!("Unsupported message received by stateful reader"),
+        };
+        let writer_guid = GUID::new(src_guid_prefix, writer_id);
+
+        self.matched_writers().get(&writer_guid).unwrap().received_messages.lock().unwrap().push_back((src_guid_prefix, submessage));
+    }
+    
+    fn pop_receive_message(&self, guid: &GUID) -> Option<(GuidPrefix, RtpsSubmessage)> {
+        self.matched_writers().get(guid).unwrap().received_messages.lock().unwrap().pop_front()
+    }
+
+    fn is_submessage_destination(&self, _src_locator: &Locator, src_guid_prefix: &GuidPrefix, submessage: &RtpsSubmessage) -> bool {
+        let writer_id = match submessage {
+            RtpsSubmessage::Data(data) => data.writer_id(),
+            RtpsSubmessage::Gap(gap) => gap.writer_id(),
+            RtpsSubmessage::Heartbeat(heartbeat) => if self.reliability_level == ReliabilityKind::Reliable {
+                heartbeat.writer_id()
+            } else {
+                return false
+            },
+            _ => return false,
+        };
+
+        let writer_guid = GUID::new(*src_guid_prefix, writer_id);
+
+        // If the message comes from a matched writer then this should be the destination
+        self.matched_writers().get(&writer_guid).is_some()
+    }
 }
 
 #[cfg(test)]

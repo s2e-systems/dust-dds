@@ -80,7 +80,7 @@ fn best_effort_stateful_writer_stateful_reader_data_only() {
 
     reader_memory_transport.receive_from(&writer_memory_transport);
 
-    RtpsMessageReceiver::receive(reader_guid_prefix, &reader_memory_transport, &[], &[&reader]);
+    RtpsMessageReceiver::receive(reader_guid_prefix, &reader_memory_transport, &[&reader]);
 
     reader.run();
     reader.run();
@@ -165,7 +165,7 @@ fn best_effort_stateful_writer_stateful_reader_data_and_gap() {
 
     reader_memory_transport.receive_from(&writer_memory_transport);
 
-    RtpsMessageReceiver::receive(reader_guid_prefix, &reader_memory_transport, &[], &[&reader]);
+    RtpsMessageReceiver::receive(reader_guid_prefix, &reader_memory_transport, &[&reader]);
     reader.run();
     reader.run();
     reader.run();

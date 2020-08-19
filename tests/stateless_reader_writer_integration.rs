@@ -88,7 +88,7 @@ fn test_stateless_writer_stateless_reader_direct_communication_integration() {
 
    memory_transport2.receive_from(&memory_transport1);
 
-   RtpsMessageReceiver::receive(guid_prefix, &memory_transport2, &[&reader], &[]);
+   RtpsMessageReceiver::receive(guid_prefix, &memory_transport2, &[&reader]);
 
    reader.run();
 

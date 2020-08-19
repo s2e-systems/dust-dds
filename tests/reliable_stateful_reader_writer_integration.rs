@@ -79,7 +79,7 @@ fn reliable_stateful_writer_stateful_reader_data_only() {
 
     reader_memory_transport.receive_from(&writer_memory_transport);
 
-    RtpsMessageReceiver::receive(guid_prefix, &reader_memory_transport, &[], &[&reader]);
+    RtpsMessageReceiver::receive(guid_prefix, &reader_memory_transport, &[&reader]);
 
     reader.run();
     reader.run();
@@ -160,7 +160,7 @@ fn reliable_stateful_writer_stateful_reader_data_and_gap() {
     writer.run();
     RtpsMessageSender::send(guid_prefix, &writer_memory_transport, &[], &[&writer]);
     reader_memory_transport.receive_from(&writer_memory_transport);
-    RtpsMessageReceiver::receive(guid_prefix, &reader_memory_transport, &[], &[&reader]);
+    RtpsMessageReceiver::receive(guid_prefix, &reader_memory_transport, &[&reader]);
 
     reader.run();
     reader.run();

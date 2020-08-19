@@ -61,7 +61,7 @@ impl BestEfforStatefulReaderBehavior {
     }
 
     fn waiting_state(writer_proxy: &WriterProxy, stateful_reader: &StatefulReader) {
-        if let Some((_, received_message)) = writer_proxy.pop_receive_message() {
+        if let Some((_, received_message)) = stateful_reader.pop_receive_message(writer_proxy.remote_writer_guid()) {
             match received_message {
                 RtpsSubmessage::Data(data) => Self::transition_t2(writer_proxy, stateful_reader, data),
                 RtpsSubmessage::Gap(gap) => Self::transition_t4(writer_proxy, &gap),
@@ -107,7 +107,7 @@ impl ReliableStatefulReaderBehavior {
     }
 
     fn ready_state(writer_proxy: &WriterProxy, stateful_reader: &StatefulReader) -> Option<Heartbeat>{
-        if let Some((_, received_message)) = writer_proxy.pop_receive_message() {
+        if let Some((_, received_message)) = stateful_reader.pop_receive_message(writer_proxy.remote_writer_guid()) {
             match received_message {
                 RtpsSubmessage::Data(data) => {
                     Self::transition_t8(writer_proxy, stateful_reader, data);
@@ -208,6 +208,7 @@ mod tests {
         let remote_writer_guid_prefix = [1;12];
         let remote_writer_guid = GUID::new(remote_writer_guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
         let writer_proxy = WriterProxy::new(remote_writer_guid, vec![], vec![]);
+        stateful_reader.matched_writer_add(writer_proxy);
 
         let mut inline_qos = ParameterList::new();
         inline_qos.push(StatusInfo::from(ChangeKind::Alive));
@@ -220,9 +221,11 @@ mod tests {
             3,
             Some(inline_qos),
             Payload::Data(vec![1,2,3]));
-        writer_proxy.push_receive_message(remote_writer_guid_prefix, RtpsSubmessage::Data(data1));
+        stateful_reader.push_receive_message(remote_writer_guid_prefix, RtpsSubmessage::Data(data1));
 
-        BestEfforStatefulReaderBehavior::run(&writer_proxy, &stateful_reader);
+        let matched_writers = stateful_reader.matched_writers();
+        let writer_proxy = matched_writers.get(&remote_writer_guid).unwrap();
+        BestEfforStatefulReaderBehavior::run(writer_proxy, &stateful_reader);
 
         let expected_change_1 = CacheChange::new(
             ChangeKind::Alive,
@@ -256,6 +259,7 @@ mod tests {
         let remote_writer_guid_prefix = [1;12];
         let remote_writer_guid = GUID::new(remote_writer_guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
         let writer_proxy = WriterProxy::new(remote_writer_guid, vec![], vec![]);
+        stateful_reader.matched_writer_add(writer_proxy);
 
         let mut inline_qos = ParameterList::new();
         inline_qos.push(StatusInfo::from(ChangeKind::Alive));
@@ -269,9 +273,11 @@ mod tests {
             Some(inline_qos),
             Payload::Data(vec![1,2,3]));
 
-        writer_proxy.push_receive_message(remote_writer_guid_prefix, RtpsSubmessage::Data(data1));
+        stateful_reader.push_receive_message(remote_writer_guid_prefix, RtpsSubmessage::Data(data1));
 
-        ReliableStatefulReaderBehavior::run(&writer_proxy, &stateful_reader);
+        let matched_writers = stateful_reader.matched_writers();
+        let writer_proxy = matched_writers.get(&remote_writer_guid).unwrap();
+        ReliableStatefulReaderBehavior::run(writer_proxy, &stateful_reader);
 
         let expected_change_1 = CacheChange::new(
             ChangeKind::Alive,
@@ -287,7 +293,9 @@ mod tests {
         assert_eq!(writer_proxy.available_changes_max(), 0);
 
         // Run ready state without any received message and verify nothing changes
-        ReliableStatefulReaderBehavior::ready_state(&writer_proxy, &stateful_reader);
+        let matched_writers = stateful_reader.matched_writers();
+        let writer_proxy = matched_writers.get(&remote_writer_guid).unwrap();
+        ReliableStatefulReaderBehavior::ready_state(writer_proxy, &stateful_reader);
         assert_eq!(stateful_reader.reader_cache().changes().len(), 1);
         assert_eq!(writer_proxy.available_changes_max(), 0);
     }
@@ -305,6 +313,7 @@ mod tests {
         let remote_writer_guid_prefix = [1;12];
         let remote_writer_guid = GUID::new(remote_writer_guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
         let writer_proxy = WriterProxy::new(remote_writer_guid, vec![], vec![]);
+        stateful_reader.matched_writer_add(writer_proxy);
 
         let heartbeat = Heartbeat::new(
             reader_guid.entity_id(),
@@ -317,9 +326,11 @@ mod tests {
             Endianness::LittleEndian,
         );
     
-        writer_proxy.push_receive_message(remote_writer_guid_prefix, RtpsSubmessage::Heartbeat(heartbeat));
+        stateful_reader.push_receive_message(remote_writer_guid_prefix, RtpsSubmessage::Heartbeat(heartbeat));
 
-        ReliableStatefulReaderBehavior::run(&writer_proxy, &stateful_reader);
+        let matched_writers = stateful_reader.matched_writers();
+        let writer_proxy = matched_writers.get(&remote_writer_guid).unwrap();
+        ReliableStatefulReaderBehavior::run(writer_proxy, &stateful_reader);
         assert_eq!(writer_proxy.missing_changes(), [3, 4, 5, 6].iter().cloned().collect());
         assert_eq!(writer_proxy.behavior().must_send_ack(), true);
     }
@@ -337,6 +348,7 @@ mod tests {
         let remote_writer_guid_prefix = [1;12];
         let remote_writer_guid = GUID::new(remote_writer_guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
         let writer_proxy = WriterProxy::new(remote_writer_guid, vec![], vec![]);
+        stateful_reader.matched_writer_add(writer_proxy);
 
         let heartbeat = Heartbeat::new(
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
@@ -348,16 +360,20 @@ mod tests {
             false,
             Endianness::LittleEndian,
         );
-        writer_proxy.push_receive_message(remote_writer_guid_prefix, RtpsSubmessage::Heartbeat(heartbeat));
+        stateful_reader.push_receive_message(remote_writer_guid_prefix, RtpsSubmessage::Heartbeat(heartbeat));
+
+        let matched_writers = stateful_reader.matched_writers();
+        let writer_proxy = matched_writers.get(&remote_writer_guid).unwrap();
 
         let heartbeat_response_delay = Duration::from_millis(300);
-        ReliableStatefulReaderBehavior::run(&writer_proxy, &stateful_reader);
+        ReliableStatefulReaderBehavior::run(writer_proxy, &stateful_reader);
         assert_eq!(writer_proxy.missing_changes(), [2, 3].iter().cloned().collect());
         assert_eq!(writer_proxy.behavior().must_send_ack(), true);
 
         std::thread::sleep(heartbeat_response_delay.into());
 
-        ReliableStatefulReaderBehavior::run(&writer_proxy, &stateful_reader);
+        
+        ReliableStatefulReaderBehavior::run(writer_proxy, &stateful_reader);
         assert_eq!(writer_proxy.behavior().must_send_ack(), false);
 
         // TODO: Test that AckNack is sent after duration
@@ -376,6 +392,7 @@ mod tests {
         let remote_writer_guid_prefix = [1;12];
         let remote_writer_guid = GUID::new(remote_writer_guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
         let writer_proxy = WriterProxy::new(remote_writer_guid, vec![], vec![]);
+        stateful_reader.matched_writer_add(writer_proxy);
 
         let heartbeat = Heartbeat::new(
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
@@ -387,9 +404,11 @@ mod tests {
             false,
             Endianness::LittleEndian,
         );
-        writer_proxy.push_receive_message(remote_writer_guid_prefix, RtpsSubmessage::Heartbeat(heartbeat));
+        stateful_reader.push_receive_message(remote_writer_guid_prefix, RtpsSubmessage::Heartbeat(heartbeat));
 
-        ReliableStatefulReaderBehavior::run(&writer_proxy, &stateful_reader);
+        let matched_writers = stateful_reader.matched_writers();
+        let writer_proxy = matched_writers.get(&remote_writer_guid).unwrap();
+        ReliableStatefulReaderBehavior::run(writer_proxy, &stateful_reader);
         assert_eq!(writer_proxy.missing_changes(), [].iter().cloned().collect());
         assert_eq!(writer_proxy.behavior().must_send_ack(), false);
     }

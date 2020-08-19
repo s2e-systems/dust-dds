@@ -3,6 +3,7 @@ use std::sync::Mutex;
 
 use crate::structure::history_cache::HistoryCache;
 use crate::types::{ReliabilityKind, TopicKind, GUID, Locator, GuidPrefix };
+use crate::types::constants::{ENTITYID_UNKNOWN};
 use crate::messages::RtpsSubmessage;
 use crate::messages::message_receiver::Receiver;
 use crate::behavior::stateless_reader::BestEffortStatelessReaderBehavior;
@@ -80,8 +81,27 @@ impl Receiver for StatelessReader {
         self.received_messages.lock().unwrap().push_back((source_guid_prefix, message));
     }
     
-    fn pop_receive_message(&self) -> Option<(GuidPrefix, RtpsSubmessage)> {
+    fn pop_receive_message(&self, _guid: &GUID) -> Option<(GuidPrefix, RtpsSubmessage)> {
         self.received_messages.lock().unwrap().pop_front()
+    }
+
+    fn is_submessage_destination(&self, src_locator: &Locator, _src_guid_prefix: &GuidPrefix, submessage: &RtpsSubmessage) -> bool {
+        // The stateless reader receives only Data and Gap messages
+        let reader_guid_prefix = match submessage {
+            RtpsSubmessage::Data(data) => data.reader_id(),
+            RtpsSubmessage::Gap(gap) => gap.reader_id(),
+            _ => return false,
+        };
+
+        // Messages are received by the stateless reader if they come from the expected source locator and
+        // if the destination entity_id matches the reader id or if it is unknown
+        if (self.unicast_locator_list().iter().find(|&loc| loc == src_locator).is_some() || self.multicast_locator_list().iter().find(|&loc| loc == src_locator).is_some()) 
+        && (self.guid().entity_id() == reader_guid_prefix || reader_guid_prefix == ENTITYID_UNKNOWN) {
+                true
+        } else {
+            false
+        }
+
     }
 }
 

@@ -114,9 +114,9 @@ impl ReliableStatefulWriterBehavior {
         }
     
         if reader_proxy.requested_changes().is_empty() {
-            Self::waiting_state(reader_proxy);
+            Self::waiting_state(reader_proxy, stateful_writer);
         } else {
-            Self::must_repair_state(reader_proxy);
+            Self::must_repair_state(reader_proxy, stateful_writer);
             if reader_proxy.behavior().duration_since_nack_received() > stateful_writer.nack_response_delay() {
                 Self::repairing_state(reader_proxy, stateful_writer);
             }
@@ -152,8 +152,8 @@ impl ReliableStatefulWriterBehavior {
         reader_proxy.push_send_message(RtpsSubmessage::Heartbeat(heartbeat));
     }
     
-    fn waiting_state(reader_proxy: &ReaderProxy) {
-        if let Some((_, RtpsSubmessage::AckNack(acknack))) = reader_proxy.pop_receive_message() {
+    fn waiting_state(reader_proxy: &ReaderProxy, stateful_writer: &StatefulWriter) {
+        if let Some((_, RtpsSubmessage::AckNack(acknack))) = stateful_writer.pop_receive_message(reader_proxy.remote_reader_guid()) {
             Self::transition_t8(reader_proxy, acknack);
             reader_proxy.behavior().time_nack_received_reset();
         }
@@ -164,8 +164,8 @@ impl ReliableStatefulWriterBehavior {
         reader_proxy.requested_changes_set(acknack.reader_sn_state().set().clone());
     }
     
-    fn must_repair_state(reader_proxy: &ReaderProxy) {
-        if let Some((_, RtpsSubmessage::AckNack(acknack))) = reader_proxy.pop_receive_message() {
+    fn must_repair_state(reader_proxy: &ReaderProxy, stateful_writer: &StatefulWriter) {
+        if let Some((_, RtpsSubmessage::AckNack(acknack))) = stateful_writer.pop_receive_message(reader_proxy.remote_reader_guid()) {
             Self::transition_t8(reader_proxy, acknack);
         }
     }

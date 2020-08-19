@@ -179,16 +179,6 @@ impl Sender for ReaderProxy {
     }
 }
 
-impl Receiver for ReaderProxy {
-    fn push_receive_message(&self, source_guid_prefix: GuidPrefix, message: RtpsSubmessage) {
-        self.received_messages.lock().unwrap().push_back((source_guid_prefix, message));
-    }
-    
-    fn pop_receive_message(&self) -> Option<(GuidPrefix, RtpsSubmessage)> {
-        self.received_messages.lock().unwrap().pop_front()
-    }
-}
-
 pub struct StatefulWriter {
     /// Entity base class (contains the GUID)
     guid: GUID,
@@ -303,6 +293,32 @@ impl StatefulWriter {
                 ReliabilityKind::Reliable => ReliableStatefulWriterBehavior::run(reader_proxy, &self),
             };
         }
+    }
+}
+
+impl Receiver for StatefulWriter {
+    fn push_receive_message(&self, source_guid_prefix: GuidPrefix, submessage: RtpsSubmessage) {
+        let reader_id = match &submessage {
+            RtpsSubmessage::AckNack(acknack) => acknack.reader_id(),
+            _ => panic!("Unsupported message received by stateful writer"),
+        };
+        let guid = GUID::new(source_guid_prefix, reader_id);
+        self.matched_readers().get(&guid).unwrap().received_messages.lock().unwrap().push_back((source_guid_prefix, submessage));
+    }
+    
+    fn pop_receive_message(&self, guid: &GUID) -> Option<(GuidPrefix, RtpsSubmessage)> {
+        self.matched_readers().get(guid).unwrap().received_messages.lock().unwrap().pop_front()
+    }
+
+    fn is_submessage_destination(&self, _src_locator: &Locator, src_guid_prefix: &GuidPrefix, submessage: &RtpsSubmessage) -> bool {
+        let reader_id = match &submessage {
+            RtpsSubmessage::AckNack(acknack) => acknack.reader_id(),
+            _ => return false,
+        };
+
+        let reader_guid = GUID::new(*src_guid_prefix, reader_id);
+
+        self.matched_readers().get(&reader_guid).is_some()
     }
 }
 
@@ -574,7 +590,7 @@ mod tests {
                 Endianness::LittleEndian,
         );
 
-        stateful_writer.matched_readers().get(&remote_reader_guid).unwrap().push_receive_message(remote_reader_guid_prefix, RtpsSubmessage::AckNack(acknack));
+        stateful_writer.push_receive_message(remote_reader_guid_prefix, RtpsSubmessage::AckNack(acknack));
 
         // Check that no heartbeat is sent if there are no new changes
         stateful_writer.run();
