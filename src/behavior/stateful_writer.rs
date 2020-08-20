@@ -2,6 +2,7 @@ use std::time::Instant;
 use std::convert::TryInto;
 
 use crate::types::{SequenceNumber, };
+use crate::types::constants::LOCATOR_INVALID;
 use crate::messages::{Gap, Heartbeat, Endianness, AckNack, RtpsSubmessage};
 use crate::structure::stateful_writer::{StatefulWriter, ReaderProxy};
 use crate::messages::types::{Count, };
@@ -88,7 +89,7 @@ impl BestEffortStatefulWriterBehavior {
         {
             let reader_id = reader_proxy.remote_reader_guid().entity_id();
             let data = data_from_cache_change(cache_change, endianness, reader_id);
-            reader_proxy.push_send_message(RtpsSubmessage::Data(data));
+            stateful_writer.push_send_message(&LOCATOR_INVALID, reader_proxy.remote_reader_guid(), RtpsSubmessage::Data(data));
         } else {
             let gap = Gap::new(
                 reader_proxy.remote_reader_guid().entity_id(), 
@@ -96,7 +97,7 @@ impl BestEffortStatefulWriterBehavior {
                 next_unsent_seq_num,
                 Endianness::LittleEndian);
 
-            reader_proxy.push_send_message(RtpsSubmessage::Gap(gap));
+            stateful_writer.push_send_message(&LOCATOR_INVALID,reader_proxy.remote_reader_guid(), RtpsSubmessage::Gap(gap));
         }
     }
 }
@@ -149,7 +150,7 @@ impl ReliableStatefulWriterBehavior {
             Endianness::LittleEndian,
         );
 
-        reader_proxy.push_send_message(RtpsSubmessage::Heartbeat(heartbeat));
+        stateful_writer.push_send_message(&LOCATOR_INVALID, reader_proxy.remote_reader_guid(), RtpsSubmessage::Heartbeat(heartbeat));
     }
     
     fn waiting_state(reader_proxy: &ReaderProxy, stateful_writer: &StatefulWriter) {
@@ -185,7 +186,7 @@ impl ReliableStatefulWriterBehavior {
         {
             let endianness = Endianness::LittleEndian;
             let data = data_from_cache_change(cache_change, endianness, reader_proxy.remote_reader_guid().entity_id());
-            reader_proxy.push_send_message(RtpsSubmessage::Data(data));
+            stateful_writer.push_send_message(&LOCATOR_INVALID,reader_proxy.remote_reader_guid(), RtpsSubmessage::Data(data));
         } else {
             let gap = Gap::new(
                 reader_proxy.remote_reader_guid().entity_id(), 
@@ -193,7 +194,7 @@ impl ReliableStatefulWriterBehavior {
                 next_requested_seq_num,
                 Endianness::LittleEndian);
 
-            reader_proxy.push_send_message(RtpsSubmessage::Gap(gap));
+            stateful_writer.push_send_message(&LOCATOR_INVALID, reader_proxy.remote_reader_guid(), RtpsSubmessage::Gap(gap));
         }
     }
 }

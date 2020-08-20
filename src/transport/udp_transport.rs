@@ -81,13 +81,13 @@ impl UdpTransport {
 }
 
 impl Transport for UdpTransport {
-    fn write(&self, message: RtpsMessage, unicast_locator_list: &[Locator], multicast_locator_list: &[Locator]) {
+    fn write(&self, message: RtpsMessage, destination_locator_list: &[Locator]) {
         let mut buf =  Vec::new();
         message.compose(&mut buf).unwrap();
 
-        for unicast_locator in unicast_locator_list {
-            let address: [u8;4] = unicast_locator.address()[12..16].try_into().unwrap();
-            let port: u16 = unicast_locator.port() as u16;
+        for locator in destination_locator_list {
+            let address: [u8;4] = locator.address()[12..16].try_into().unwrap();
+            let port: u16 = locator.port() as u16;
             self.socket
                 .send_to(
                     &buf,
@@ -95,20 +95,6 @@ impl Transport for UdpTransport {
                 )
                 .unwrap();
         }
-
-        for multicast_locator in multicast_locator_list {
-            let address: [u8;4] = multicast_locator.address()[12..16].try_into().unwrap();
-            let port: u16 = multicast_locator.port() as u16;
-            self.socket
-                .send_to(
-                    &buf,
-                    SocketAddr::from((address, port)),
-                )
-                .unwrap();
-        }
-
-
-        
     }
 
     fn read(&self) -> TransportResult<Option<(RtpsMessage, Locator)>> {
@@ -244,7 +230,7 @@ mod tests {
         let receiver_port = port as u16;
         let receiver = std::net::UdpSocket::bind(SocketAddr::from((receiver_address, receiver_port))).unwrap();
 
-        transport.write(message, &[unicast_locator_sent_to], &[]);
+        transport.write(message, &[unicast_locator_sent_to]);
 
         let mut buf = [0; MAX_UDP_DATA_SIZE];
         let (size, _) = receiver.recv_from(&mut buf).unwrap();

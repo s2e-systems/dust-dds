@@ -169,16 +169,6 @@ impl ReaderProxy {
     }
 }
 
-impl Sender for ReaderProxy {
-    fn push_send_message(&self, message: RtpsSubmessage) {
-        self.send_messages.lock().unwrap().push_back(message);
-    }
-
-    fn pop_send_message(&self) -> Option<RtpsSubmessage> {
-        self.send_messages.lock().unwrap().pop_front()
-    }
-}
-
 pub struct StatefulWriter {
     /// Entity base class (contains the GUID)
     guid: GUID,
@@ -319,6 +309,29 @@ impl Receiver for StatefulWriter {
         let reader_guid = GUID::new(*src_guid_prefix, reader_id);
 
         self.matched_readers().get(&reader_guid).is_some()
+    }
+}
+
+impl Sender for StatefulWriter {
+    fn push_send_message(&self, _dst_locator: &Locator, dst_guid: &GUID, submessage: RtpsSubmessage) {
+       self.matched_readers().get(dst_guid).unwrap().send_messages.lock().unwrap().push_back(submessage)
+    }
+
+    fn pop_send_message(&self) -> Option<(Vec<Locator>, VecDeque<RtpsSubmessage>)> {
+        for (_, reader_proxy) in self.matched_readers().iter() {
+            let mut reader_proxy_send_messages = reader_proxy.send_messages.lock().unwrap();
+            if !reader_proxy_send_messages.is_empty() {
+                let mut send_message_queue = VecDeque::new();
+                std::mem::swap(&mut send_message_queue, &mut reader_proxy_send_messages);
+                
+                let mut locator_list = Vec::new();
+                locator_list.extend(reader_proxy.unicast_locator_list());
+                locator_list.extend(reader_proxy.multicast_locator_list());
+
+                return Some((locator_list, send_message_queue));
+            }
+        }
+        None
     }
 }
 
@@ -495,10 +508,9 @@ mod tests {
         stateful_writer.writer_cache().add_change(cache_change_seq2);
 
         stateful_writer.run();
-        let message_1 = stateful_writer.matched_readers().get(&remote_reader_guid).unwrap().pop_send_message().unwrap();
-        let message_2 = stateful_writer.matched_readers().get(&remote_reader_guid).unwrap().pop_send_message().unwrap();
+        let (_dst_locators, messages) = stateful_writer.pop_send_message().unwrap();
 
-        if let RtpsSubmessage::Data(data) = message_1 {
+        if let RtpsSubmessage::Data(data) = &messages[0] {
             assert_eq!(data.reader_id(), remote_reader_guid.entity_id());
             assert_eq!(data.writer_id(), writer_guid.entity_id());
             assert_eq!(data.writer_sn(), 1);
@@ -506,7 +518,7 @@ mod tests {
             panic!("Wrong message sent");
         }
 
-        if let RtpsSubmessage::Data(data) = message_2 {
+        if let RtpsSubmessage::Data(data) = &messages[1] {
             assert_eq!(data.reader_id(), remote_reader_guid.entity_id());
             assert_eq!(data.writer_id(), writer_guid.entity_id());
             assert_eq!(data.writer_sn(), 2);
@@ -516,10 +528,10 @@ mod tests {
 
         // Check that no heartbeat is sent using best effort writers
         stateful_writer.run();
-        assert!(stateful_writer.matched_readers().get(&remote_reader_guid).unwrap().pop_send_message().is_none());
+        assert!(stateful_writer.pop_send_message().is_none());
         sleep(heartbeat_period.into());
         stateful_writer.run();
-        assert!(stateful_writer.matched_readers().get(&remote_reader_guid).unwrap().pop_send_message().is_none());
+        assert!(stateful_writer.pop_send_message().is_none());
     }
 
     #[test]
@@ -549,10 +561,9 @@ mod tests {
         stateful_writer.writer_cache().add_change(cache_change_seq2);
 
         stateful_writer.run();
-        let message_1 = stateful_writer.matched_readers().get(&remote_reader_guid).unwrap().pop_send_message().unwrap();
-        let message_2 = stateful_writer.matched_readers().get(&remote_reader_guid).unwrap().pop_send_message().unwrap();
+        let (_dst_locators, messages) = stateful_writer.pop_send_message().unwrap();
 
-        if let RtpsSubmessage::Data(data) = message_1 {
+        if let RtpsSubmessage::Data(data) = &messages[0] {
             assert_eq!(data.reader_id(), remote_reader_guid.entity_id());
             assert_eq!(data.writer_id(), writer_guid.entity_id());
             assert_eq!(data.writer_sn(), 1);
@@ -560,7 +571,7 @@ mod tests {
             panic!("Wrong message sent");
         }
 
-        if let RtpsSubmessage::Data(data) = message_2 {
+        if let RtpsSubmessage::Data(data) = &messages[1] {
             assert_eq!(data.reader_id(), remote_reader_guid.entity_id());
             assert_eq!(data.writer_id(), writer_guid.entity_id());
             assert_eq!(data.writer_sn(), 2);
@@ -570,11 +581,11 @@ mod tests {
 
         // Check that heartbeat is sent while there are unacked changes
         stateful_writer.run();
-        assert!(stateful_writer.matched_readers().get(&remote_reader_guid).unwrap().pop_send_message().is_none());
+        assert!(stateful_writer.pop_send_message().is_none());
         sleep(heartbeat_period.into());
         stateful_writer.run();
-        let message = stateful_writer.matched_readers().get(&remote_reader_guid).unwrap().pop_send_message().unwrap();
-        if let RtpsSubmessage::Heartbeat(heartbeat) = message {
+        let (_dst_locators, messages) = stateful_writer.pop_send_message().unwrap();
+        if let RtpsSubmessage::Heartbeat(heartbeat) = &messages[0] {
             assert_eq!(heartbeat.is_final(), false);
         } else {
             panic!("Wrong message sent. Expected Heartbeat");
@@ -594,10 +605,9 @@ mod tests {
 
         // Check that no heartbeat is sent if there are no new changes
         stateful_writer.run();
-        // let message = stateful_writer.matched_readers().get(&remote_reader_guid).unwrap().pop_send_message().unwrap();
-        assert!(stateful_writer.matched_readers().get(&remote_reader_guid).unwrap().pop_send_message().is_none());
+        assert!(stateful_writer.pop_send_message().is_none());
         sleep(heartbeat_period.into());
         stateful_writer.run();
-        assert!(stateful_writer.matched_readers().get(&remote_reader_guid).unwrap().pop_send_message().is_none());
+        assert!(stateful_writer.pop_send_message().is_none());
     }
 }

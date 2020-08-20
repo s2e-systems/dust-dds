@@ -1,5 +1,5 @@
 use crate::types::{SequenceNumber, };
-use crate::types::constants::ENTITYID_UNKNOWN;
+use crate::types::constants::{ENTITYID_UNKNOWN, GUID_UNKNOWN};
 use crate::messages::{RtpsSubmessage, Gap};
 use crate::structure::stateless_writer::{ReaderLocator, StatelessWriter};
 use crate::messages::Endianness;
@@ -31,7 +31,7 @@ impl BestEffortStatelessWriterBehavior{
             .changes().iter().find(|cc| cc.sequence_number() == next_unsent_seq_num)
         {
             let data = data_from_cache_change(cache_change, endianness, ENTITYID_UNKNOWN);
-            reader_locator.push_send_message(RtpsSubmessage::Data(data));
+            stateless_writer.push_send_message(reader_locator.locator(), &GUID_UNKNOWN, RtpsSubmessage::Data(data));
         } else {
             let gap = Gap::new(
                 ENTITYID_UNKNOWN, 
@@ -39,7 +39,7 @@ impl BestEffortStatelessWriterBehavior{
                 next_unsent_seq_num,
                 endianness);
 
-            reader_locator.push_send_message(RtpsSubmessage::Gap(gap));
+            stateless_writer.push_send_message(reader_locator.locator(), &GUID_UNKNOWN, RtpsSubmessage::Gap(gap));
         }
     }
 }

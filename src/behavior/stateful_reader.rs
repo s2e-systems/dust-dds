@@ -1,6 +1,7 @@
 use std::convert::TryInto;
 use std::time::Instant;
 
+use crate::types::constants::LOCATOR_INVALID;
 use crate::structure::stateful_reader::{WriterProxy, StatefulReader};
 use crate::messages::{AckNack, Data, Gap, Heartbeat, Endianness, RtpsSubmessage};
 use crate::messages::types::Count;
@@ -181,7 +182,7 @@ impl ReliableStatefulReaderBehavior {
             true,
             Endianness::LittleEndian); // TODO: Make endianness selectable
 
-        writer_proxy.push_send_message(RtpsSubmessage::AckNack(acknack));
+        stateful_reader.push_send_message(&LOCATOR_INVALID, writer_proxy.remote_writer_guid(), RtpsSubmessage::AckNack(acknack));
     }
 }
 

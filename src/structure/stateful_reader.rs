@@ -218,15 +218,7 @@ impl WriterProxy {
     }
 }
 
-impl Sender for WriterProxy {
-    fn push_send_message(&self, message: RtpsSubmessage) {
-        self.send_messages.lock().unwrap().push_back(message);
-    }
 
-    fn pop_send_message(&self) -> Option<RtpsSubmessage> {
-        self.send_messages.lock().unwrap().pop_front()
-    }
-}
 
 pub struct StatefulReader {
     // From Entity base class
@@ -343,6 +335,16 @@ impl Receiver for StatefulReader {
 
         // If the message comes from a matched writer then this should be the destination
         self.matched_writers().get(&writer_guid).is_some()
+    }
+}
+
+impl Sender for StatefulReader {
+    fn push_send_message(&self, _dst_locator: &Locator, dst_guid: &GUID, submessage: RtpsSubmessage) {
+        self.matched_writers().get(dst_guid).unwrap().send_messages.lock().unwrap().push_back(submessage)
+    }
+
+    fn pop_send_message(&self) -> Option<(Vec<Locator>, VecDeque<RtpsSubmessage>)> {
+        todo!()
     }
 }
 
