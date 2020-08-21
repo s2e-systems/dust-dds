@@ -4,7 +4,7 @@ pub mod stateful_reader;
 pub mod stateless_writer;
 pub mod stateless_reader;
 
-use std::convert::{TryFrom, TryInto};
+use std::convert::TryInto;
 
 use crate::types::{GUID, GuidPrefix, EntityId, ChangeKind};
 use crate::structure::cache_change::CacheChange;
@@ -38,7 +38,7 @@ fn data_from_cache_change(cache_change: &CacheChange, endianness: Endianness, re
     let mut inline_qos_parameters = cache_change.inline_qos().clone();
 
     let change_kind = *cache_change.change_kind();
-    inline_qos_parameters.push(StatusInfo::from(change_kind));
+    inline_qos_parameters.push(change_kind_to_status_info(change_kind));
 
     let payload = match change_kind {
         ChangeKind::Alive => {
@@ -67,7 +67,7 @@ fn change_kind(data_submessage: &Data) -> ChangeKind{
         let endianness = data_submessage.endianness_flag().into();
         let status_info = data_submessage.inline_qos().find::<StatusInfo>(endianness).unwrap();           
 
-        ChangeKind::try_from(status_info).unwrap()
+        status_info_to_change_kind(status_info).unwrap()
     }
     else {
         panic!("Invalid change kind combination")
@@ -82,5 +82,41 @@ fn key_hash(data_submessage: &Data) -> Option<KeyHash> {
         Some(KeyHash(payload[0..16].try_into().ok()?))
     } else {
         None
+    }
+}
+
+fn status_info_to_change_kind(status_info: StatusInfo) -> Option<ChangeKind>{
+    if status_info.disposed_flag() && !status_info.unregistered_flag() && !status_info.filtered_flag() {
+        Some(ChangeKind::NotAliveDisposed)
+    } else if !status_info.disposed_flag() && status_info.unregistered_flag() && !status_info.filtered_flag() {
+        Some(ChangeKind::NotAliveUnregistered)
+    } else if !status_info.disposed_flag() && !status_info.unregistered_flag() && status_info.filtered_flag() {
+        Some(ChangeKind::AliveFiltered)
+    } else if !status_info.disposed_flag() && !status_info.unregistered_flag() && !status_info.filtered_flag() {
+        Some(ChangeKind::Alive)
+    } else {
+        None
+    }
+}
+
+fn change_kind_to_status_info(change_kind: ChangeKind) -> StatusInfo {
+    match change_kind {
+        ChangeKind::Alive => StatusInfo([0,0,0,0]),
+        ChangeKind::NotAliveDisposed => StatusInfo([0,0,0,StatusInfo::DISPOSED_FLAG_MASK]),
+        ChangeKind::NotAliveUnregistered => StatusInfo([0,0,0,StatusInfo::UNREGISTERED_FLAG_MASK]),
+        ChangeKind::AliveFiltered => StatusInfo([0,0,0,StatusInfo::FILTERED_FLAG_MASK]),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn status_info_change_kind_conversions() {
+        assert_eq!(status_info_to_change_kind(change_kind_to_status_info(ChangeKind::Alive)).unwrap(), ChangeKind::Alive);
+        assert_eq!(status_info_to_change_kind(change_kind_to_status_info(ChangeKind::AliveFiltered)).unwrap(), ChangeKind::AliveFiltered);
+        assert_eq!(status_info_to_change_kind(change_kind_to_status_info(ChangeKind::NotAliveUnregistered)).unwrap(), ChangeKind::NotAliveUnregistered);
+        assert_eq!(status_info_to_change_kind(change_kind_to_status_info(ChangeKind::NotAliveDisposed)).unwrap(), ChangeKind::NotAliveDisposed);
     }
 }

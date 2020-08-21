@@ -77,10 +77,10 @@ fn test_stateless_writer_stateless_reader_direct_communication_integration() {
         [0;16], /*handle*/
     );
 
-   writer.writer_cache().add_change(cache_change_seq1.clone());
-   writer.writer_cache().add_change(cache_change_seq2.clone());
-   writer.writer_cache().add_change(cache_change_seq3.clone());
-   writer.writer_cache().add_change(cache_change_seq4.clone());
+   writer.writer_cache().add_change(cache_change_seq1);
+   writer.writer_cache().add_change(cache_change_seq2);
+   writer.writer_cache().add_change(cache_change_seq3);
+   writer.writer_cache().add_change(cache_change_seq4);
 
    writer.run();
 
@@ -94,8 +94,8 @@ fn test_stateless_writer_stateless_reader_direct_communication_integration() {
 
    let reader_changes = reader.reader_cache().changes();
    assert_eq!(reader_changes.len(), 4);
-   assert!(reader_changes.contains(&cache_change_seq1));
-   assert!(reader_changes.contains(&cache_change_seq2));
-   assert!(reader_changes.contains(&cache_change_seq3));
-   assert!(reader_changes.contains(&cache_change_seq4));
+   assert!(reader_changes.iter().find(|&cc| cc.sequence_number() == 1).is_some());
+   assert!(reader_changes.iter().find(|&cc| cc.sequence_number() == 2).is_some());
+   assert!(reader_changes.iter().find(|&cc| cc.sequence_number() == 3).is_some());
+   assert!(reader_changes.iter().find(|&cc| cc.sequence_number() == 4).is_some());
 }

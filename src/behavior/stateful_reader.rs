@@ -194,7 +194,8 @@ mod tests {
         ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, };
     use crate::structure::cache_change::CacheChange;
     use crate::messages::{Data, Payload, Heartbeat, ParameterList, Endianness};
-    use crate::inline_qos_types::{KeyHash, StatusInfo, };
+    use crate::inline_qos_types::{KeyHash, };
+    use super::super::change_kind_to_status_info;
 
     #[test]
     fn run_best_effort_data_only() {
@@ -212,7 +213,7 @@ mod tests {
         stateful_reader.matched_writer_add(writer_proxy);
 
         let mut inline_qos = ParameterList::new();
-        inline_qos.push(StatusInfo::from(ChangeKind::Alive));
+        inline_qos.push(change_kind_to_status_info(ChangeKind::Alive));
         inline_qos.push(KeyHash([1;16]));
 
         let data1 = Data::new(
@@ -263,7 +264,7 @@ mod tests {
         stateful_reader.matched_writer_add(writer_proxy);
 
         let mut inline_qos = ParameterList::new();
-        inline_qos.push(StatusInfo::from(ChangeKind::Alive));
+        inline_qos.push(change_kind_to_status_info(ChangeKind::Alive));
         inline_qos.push(KeyHash([1;16]));
 
         let data1 = Data::new(

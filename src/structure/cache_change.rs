@@ -3,7 +3,7 @@ use std::cmp::Ordering;
 use crate::types::{ChangeKind, InstanceHandle, SequenceNumber, GUID, };
 use crate::messages::ParameterList;
 
-#[derive(Debug,)]
+#[derive(Debug)]
 pub struct CacheChange {
     kind: ChangeKind,
     writer_guid: GUID,
@@ -103,7 +103,11 @@ impl ::core::hash::Hash for CacheChange {
                 data_value: ref __self_0_5,
                 inline_qos: ref __self_0_4,
             } => {
-                ::core::hash::Hash::hash(&(*__self_0_0), state);
+                // The Hash should be such that two equal values return the same
+                // hash value. Therefore some field must be ignored.
+
+                // Explicitly ignore the change kind field
+                // ::core::hash::Hash::hash(&(*__self_0_0), state);
                 ::core::hash::Hash::hash(&(*__self_0_1), state);
                 ::core::hash::Hash::hash(&(*__self_0_2), state);
                 ::core::hash::Hash::hash(&(*__self_0_3), state);
@@ -117,6 +121,44 @@ impl ::core::hash::Hash for CacheChange {
 
 #[cfg(test)]
 mod tests {
-    // use super::*;
+    use super::*;
+    use crate::types::{EntityId, EntityKind};
+
+    #[test]
+    fn cache_change_equality_and_ordering() {
+        let cc1 = CacheChange::new(
+            ChangeKind::Alive,
+            GUID::new([1;12], EntityId::new([1;3], EntityKind::UserDefinedUnknown) ),
+            [1;16],
+            1,
+            Some(vec![1,2,3]),
+            None,
+        );
+
+        let cc2 = CacheChange::new(
+            ChangeKind::NotAliveDisposed,
+            GUID::new([1;12], EntityId::new([1;3], EntityKind::UserDefinedUnknown) ),
+            [1;16],
+            1,
+            Some(vec![5]),
+            None,
+        );
+
+        let cc3 = CacheChange::new(
+            ChangeKind::NotAliveDisposed,
+            GUID::new([1;12], EntityId::new([1;3], EntityKind::UserDefinedUnknown) ),
+            [1;16],
+            2,
+            Some(vec![5]),
+            None,
+        );
+
+        // Cache changes with the same writer_guid, instance_handle and sequence_number are equal
+        assert_eq!(cc1,cc2);
+        assert_ne!(cc1,cc3);
+
+        // Cache changes are ordered by the sequence number
+        assert!(cc3>cc1);
+    }
     
 }

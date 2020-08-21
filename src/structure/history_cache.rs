@@ -2,7 +2,6 @@ use std::collections::{HashSet};
 use std::sync::{Mutex, MutexGuard};
 
 use crate::types::{SequenceNumber, };
-
 use super::cache_change::CacheChange;
 
 pub struct HistoryCache {
@@ -10,24 +9,35 @@ pub struct HistoryCache {
 }
 
 impl HistoryCache {
+
+    /// This operation creates a new RTPS HistoryCache. The newly-created history cache is initialized with an empty list of changes.
     pub fn new() -> Self {
         HistoryCache {
             changes: Mutex::new(HashSet::new()),
         }
     }
 
+    /// This operation inserts the CacheChange a_change into the HistoryCache.
+    /// This operation will only fail if there are not enough resources to add the change to the HistoryCache. It is the responsibility 
+    /// of the DDS service implementation to configure the HistoryCache in a manner consistent with the DDS Entity RESOURCE_LIMITS QoS 
+    /// and to propagate any errors to the DDS-user in the manner specified by the DDS specification.
     pub fn add_change(&self, change: CacheChange) {
         self.changes().insert(change);
     }
 
+    /// This operation indicates that a previously-added CacheChange has become irrelevant and the details regarding the CacheChange need 
+    /// not be maintained in the HistoryCache. The determination of irrelevance is made based on the QoS associated with the related DDS
+    /// entity and on the acknowledgment status of the CacheChange. This is described in 8.4.1.
     pub fn remove_change(&self, change: &CacheChange) {
         self.changes().remove(change);
     }
 
+    /// This operation retrieves the smallest value of the CacheChange::sequenceNumber attribute among the CacheChange stored in the HistoryCache.    
     pub fn get_seq_num_min(&self) -> Option<SequenceNumber> {
         Some(self.changes().iter().min()?.sequence_number())
     }
 
+    /// This operation retrieves the largest value of the CacheChange::sequenceNumber attribute among the CacheChange stored in the HistoryCache.
     pub fn get_seq_num_max(&self) -> Option<SequenceNumber> {
         Some(self.changes().iter().max()?.sequence_number())
     }

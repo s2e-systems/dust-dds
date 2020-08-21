@@ -70,9 +70,9 @@ fn best_effort_stateful_writer_stateful_reader_data_only() {
         [0; 16], 
     );
 
-    writer.writer_cache().add_change(cache_change_seq1.clone());
-    writer.writer_cache().add_change(cache_change_seq2.clone());
-    writer.writer_cache().add_change(cache_change_seq3.clone());
+    writer.writer_cache().add_change(cache_change_seq1);
+    writer.writer_cache().add_change(cache_change_seq2);
+    writer.writer_cache().add_change(cache_change_seq3);
 
     writer.run();
 
@@ -89,9 +89,9 @@ fn best_effort_stateful_writer_stateful_reader_data_only() {
     // Verify that the writer transmits all the cache changes to the reader
     let reader_changes = reader.reader_cache().changes();
     assert_eq!(reader_changes.len(), writer.writer_cache().changes().len());
-    assert!(reader_changes.contains(&cache_change_seq1));
-    assert!(reader_changes.contains(&cache_change_seq2));
-    assert!(reader_changes.contains(&cache_change_seq3));
+    assert!(reader_changes.iter().find(|&cc| cc.sequence_number() == 1).is_some());
+    assert!(reader_changes.iter().find(|&cc| cc.sequence_number() == 2).is_some());
+    assert!(reader_changes.iter().find(|&cc| cc.sequence_number() == 3).is_some());
 }
 
 #[test]
@@ -142,7 +142,7 @@ fn best_effort_stateful_writer_stateful_reader_data_and_gap() {
         [0; 16],             
     );
 
-    let cache_change_seq2 = writer.new_change(
+    let _cache_change_seq2 = writer.new_change(
         ChangeKind::Alive,
         Some(vec![4, 5, 6]), 
         None,                
@@ -156,9 +156,9 @@ fn best_effort_stateful_writer_stateful_reader_data_and_gap() {
         [0; 16], 
     );
 
-    writer.writer_cache().add_change(cache_change_seq1.clone());
+    writer.writer_cache().add_change(cache_change_seq1);
     // writer.writer_cache().add_change(cache_change_seq2.clone());
-    writer.writer_cache().add_change(cache_change_seq3.clone());
+    writer.writer_cache().add_change(cache_change_seq3);
 
     writer.run();
     RtpsMessageSender::send(writer_guid_prefix, &writer_memory_transport, &[&writer]);
@@ -172,7 +172,7 @@ fn best_effort_stateful_writer_stateful_reader_data_and_gap() {
 
     let reader_changes = reader.reader_cache().changes();
     assert_eq!(reader_changes.len(), writer.writer_cache().changes().len());
-    assert!(reader_changes.contains(&cache_change_seq1));
-    assert!(!reader_changes.contains(&cache_change_seq2));
-    assert!(reader_changes.contains(&cache_change_seq3));
+    assert!(reader_changes.iter().find(|&cc| cc.sequence_number() == 1).is_some());
+    assert!(reader_changes.iter().find(|&cc| cc.sequence_number() == 2).is_none());
+    assert!(reader_changes.iter().find(|&cc| cc.sequence_number() == 3).is_some());
 }
