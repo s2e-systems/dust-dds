@@ -60,7 +60,7 @@ mod tests {
             None,
         );
 
-        let cc_clone = cc.clone();
+        let cc_clone = cc.clone_without_data();
 
         assert_eq!(history_cache.changes().len(), 0);
         history_cache.add_change(cc);

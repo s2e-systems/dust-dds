@@ -8,7 +8,7 @@ use std::convert::{TryFrom, TryInto};
 
 use crate::types::{GUID, GuidPrefix, EntityId, ChangeKind};
 use crate::structure::cache_change::CacheChange;
-use crate::messages::{Data, Payload, Endianness, ParameterList};
+use crate::messages::{Data, Payload, Endianness, };
 use crate::inline_qos_types::{KeyHash, StatusInfo};
 
 fn cache_change_from_data(message: Data, guid_prefix: &GuidPrefix) -> CacheChange {
@@ -35,10 +35,7 @@ fn data_from_cache_change(cache_change: &CacheChange, endianness: Endianness, re
     let writer_id: EntityId = cache_change.writer_guid().entity_id();
     let writer_sn = cache_change.sequence_number();
 
-    let mut inline_qos_parameters = match cache_change.inline_qos() {
-        Some(inline_qos) => inline_qos.clone(),
-        None => ParameterList::new(),
-    };
+    let mut inline_qos_parameters = cache_change.inline_qos().clone();
 
     let change_kind = *cache_change.change_kind();
     inline_qos_parameters.push(StatusInfo::from(change_kind));
@@ -46,7 +43,7 @@ fn data_from_cache_change(cache_change: &CacheChange, endianness: Endianness, re
     let payload = match change_kind {
         ChangeKind::Alive => {
             inline_qos_parameters.push(KeyHash(*cache_change.instance_handle()));
-            Payload::Data(cache_change.data_value().unwrap().to_vec())
+            Payload::Data(cache_change.data_value().clone())
         },
         ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered | ChangeKind::AliveFiltered => {
             Payload::Key(cache_change.instance_handle().to_vec())

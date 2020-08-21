@@ -3,14 +3,14 @@ use std::cmp::Ordering;
 use crate::types::{ChangeKind, InstanceHandle, SequenceNumber, GUID, };
 use crate::messages::ParameterList;
 
-#[derive(Debug, Clone)]
+#[derive(Debug,)]
 pub struct CacheChange {
     kind: ChangeKind,
     writer_guid: GUID,
     instance_handle: InstanceHandle,
     sequence_number: SequenceNumber,
-    data_value: Option<Vec<u8>>,
-    inline_qos: Option<ParameterList>,
+    data_value: Vec<u8>,
+    inline_qos: ParameterList,
 }
 
 impl CacheChange {
@@ -22,6 +22,8 @@ impl CacheChange {
         data_value: Option<Vec<u8>>,
         inline_qos: Option<ParameterList>,
     ) -> CacheChange {
+        let data_value = data_value.unwrap_or(Vec::new());
+        let inline_qos = inline_qos.unwrap_or(ParameterList::new());
         CacheChange {
             kind,
             writer_guid,
@@ -48,39 +50,25 @@ impl CacheChange {
         self.sequence_number
     }
 
-    pub fn inline_qos(&self) -> &Option<ParameterList> {
+    pub fn inline_qos(&self) -> &ParameterList {
         &self.inline_qos
     }
 
-    pub fn data_value(&self) -> Option<&Vec<u8>> {
-        match &self.data_value {
-            Some(data_value) => Some(data_value),
-            None => None,
-        }
+    pub fn data_value(&self) -> &Vec<u8> {
+        &self.data_value
     }
 
-    // pub fn clone_without_data(&self) -> Self {
-    //     match *self {
-    //         CacheChange {
-    //             kind: ref __self_0_0,
-    //             writer_guid: ref __self_0_1,
-    //             instance_handle: ref __self_0_2,
-    //             sequence_number: ref __self_0_3,
-    //             data_value: ref __self_0_5,
-    //             inline_qos: ref __self_0_4,
-    //         } => {
-    //     CacheChange {
-    //        kind: *__self_0_0,
-    //         writer_guid: * __self_0_1,
-    //         instance_handle: * __self_0_2,
-    //         sequence_number: * __self_0_3,
-    //         data_value: None,
-    //         inline_qos: None,
-    //     }}}
-    // }
+    pub fn clone_without_data(&self) -> Self {
+        Self {
+            data_value: Vec::new(),
+            inline_qos: ParameterList::new(),
+            .. *self
+        }
+    }
 }
 
-
+// Two cache changes with the same writer GUID, instance handle and sequence number
+// are considered equal
 impl PartialEq for CacheChange {
     fn eq(&self, other: &Self) -> bool {
         self.writer_guid == other.writer_guid
@@ -91,6 +79,7 @@ impl PartialEq for CacheChange {
 
 impl Eq for CacheChange {}
 
+// Cache changes are explcitly ordered by their sequence number
 impl Ord for CacheChange {
     fn cmp(&self, other: &Self) -> Ordering {
         self.sequence_number.cmp(&other.sequence_number)
@@ -118,8 +107,8 @@ impl ::core::hash::Hash for CacheChange {
                 ::core::hash::Hash::hash(&(*__self_0_1), state);
                 ::core::hash::Hash::hash(&(*__self_0_2), state);
                 ::core::hash::Hash::hash(&(*__self_0_3), state);
+                // Explicitly ignore the data_value and inline_qos fields
                 // ::core::hash::Hash::hash(&(*__self_0_4), state)
-                // Explicitly ignore the data_value field
                 // ::core::hash::Hash::hash(&(*__self_0_5), state)
             }
         }

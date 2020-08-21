@@ -272,7 +272,7 @@ impl<T: Transport> Participant<T> {
         RtpsMessageSender::send(self.guid.prefix(), &self.metatraffic_transport, &[&self.spdp_builtin_participant_writer, &self.sedp_builtin_publications_writer, &self.sedp_builtin_subscriptions_writer, &self.sedp_builtin_topics_writer]);
 
         for spdp_data in self.spdp_builtin_participant_reader.reader_cache().changes().iter() {
-            let discovered_participant = SPDPdiscoveredParticipantData::from_key_data(*spdp_data.instance_handle(), spdp_data.data_value().unwrap(), self.domain_id);
+            let discovered_participant = SPDPdiscoveredParticipantData::from_key_data(*spdp_data.instance_handle(), spdp_data.data_value(), self.domain_id);
             spdp::add_discovered_participant(&self, &discovered_participant);
         }
     }
