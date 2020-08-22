@@ -37,7 +37,8 @@ fn deserialize_header(bytes: &[u8]) -> UdpPsmMappingResult<Header> {
 pub fn serialize_rtps_message(rtps_message: &RtpsMessage, writer: &mut impl std::io::Write) -> UdpPsmMappingResult<()> {
     serialize_header(&rtps_message.header(), writer)?;
     for submessage in rtps_message.submessages() {
-        submessage.compose(writer).unwrap();
+        todo!()
+        // submessage.compose(writer).unwrap();
     }
     Ok(())
 }
@@ -50,10 +51,11 @@ pub fn deserialize_rtps_message(bytes: &[u8]) -> UdpPsmMappingResult<RtpsMessage
     let mut submessages = Vec::<RtpsSubmessage>::new();
 
     while submessage_start_index < size {
-        let submessage = RtpsSubmessage::parse(&bytes[submessage_start_index..]).unwrap();
+        todo!()
+        // let submessage = RtpsSubmessage::parse(&bytes[submessage_start_index..]).unwrap();
 
-        submessage_start_index += submessage.octets();
-        submessages.push(submessage);
+        // submessage_start_index += submessage.octets();
+        // submessages.push(submessage);
     }
     Ok(RtpsMessage::new(header.version(), header.vendor_id(), header.guid_prefix(), submessages))
 }

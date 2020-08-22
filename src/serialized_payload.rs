@@ -28,31 +28,33 @@ impl CdrParameterList {
 
     pub fn serialize(&self, writer: &mut impl std::io::Write) {
         // Start by writing the header which depends on the endianness
-        match self.endianness {
-            Endianness::BigEndian => writer.write(&[0x00, 0x02, 0x00, 0x00]),
-            Endianness::LittleEndian => writer.write(&[0x00, 0x03, 0x00, 0x00]),
-        }.unwrap();
+        // match self.endianness {
+        //     Endianness::BigEndian => writer.write(&[0x00, 0x02, 0x00, 0x00]),
+        //     Endianness::LittleEndian => writer.write(&[0x00, 0x03, 0x00, 0x00]),
+        // }.unwrap();
 
-        self.parameter_list.serialize(writer, self.endianness).unwrap();
+        // self.parameter_list.serialize(writer, self.endianness).unwrap();
+        todo!()
     }
 
     pub fn deserialize(bytes: &[u8]) -> Self {
-        if bytes.len() < 4 {
-            panic!("Message too small");
-        }
+        todo!()
+        // if bytes.len() < 4 {
+        //     panic!("Message too small");
+        // }
 
-        let endianness = match &bytes[0..4] {
-            &[0x00, 0x02, 0x00, 0x00] => Endianness::BigEndian,
-            &[0x00, 0x03, 0x00, 0x00] => Endianness::LittleEndian,
-            _ => panic!("Invalid header"),
-        };
+        // let endianness = match &bytes[0..4] {
+        //     &[0x00, 0x02, 0x00, 0x00] => Endianness::BigEndian,
+        //     &[0x00, 0x03, 0x00, 0x00] => Endianness::LittleEndian,
+        //     _ => panic!("Invalid header"),
+        // };
 
-        let parameter_list = ParameterList::deserialize(&bytes[4..], endianness).unwrap();
+        // let parameter_list = ParameterList::deserialize(&bytes[4..], endianness).unwrap();
 
-        Self {
-            endianness,
-            parameter_list,
-        }
+        // Self {
+        //     endianness,
+        //     parameter_list,
+        // }
     }
 
     pub fn push<T: Pid + serde::Serialize + std::fmt::Debug + 'static>(&mut self, value: T) {

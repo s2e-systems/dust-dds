@@ -1,4 +1,29 @@
 mod rtps_message;
+mod submessage_elements;
+
+#[derive(PartialEq, Debug, Clone, Copy)]
+pub enum TransportEndianness {
+    BigEndian = 0,
+    LittleEndian = 1,
+}
+
+// impl From<bool> for Endianness {
+//     fn from(value: bool) -> Self {
+//         match value {
+//             true => Endianness::LittleEndian,
+//             false => Endianness::BigEndian,
+//         }
+//     }
+// }
+
+// impl From<Endianness> for bool {
+//     fn from(value: Endianness) -> Self {
+//         match value {
+//             Endianness::LittleEndian => true,
+//             Endianness::BigEndian => false,
+//         }
+//     }
+// }
 
 #[derive(Debug)]
 pub enum UdpPsmMappingError {
@@ -50,5 +75,30 @@ impl std::io::Write for SizeSerializer {
 
     fn flush(&mut self) -> std::io::Result<()>{
         Ok(())
+    }
+}
+
+pub trait SizeCheck {
+    fn check_size_equal(&self, expected_size: usize) -> UdpPsmMappingResult<()>;
+    fn check_size_bigger_equal_than(&self, expected_size: usize) -> UdpPsmMappingResult<()>;
+}
+
+impl SizeCheck for &[u8] {
+    #[inline]
+    fn check_size_equal(&self, expected_size: usize) -> UdpPsmMappingResult<()> {
+        if self.len() != expected_size {
+            Err(UdpPsmMappingError::WrongSize)
+        } else {
+            Ok(())
+        }
+    }
+    
+    #[inline]
+    fn check_size_bigger_equal_than(&self, expected_size: usize) -> UdpPsmMappingResult<()> {
+        if self.len() >= expected_size {
+            Ok(())
+        } else {
+            Err(UdpPsmMappingError::MessageTooSmall)
+        }
     }
 }
