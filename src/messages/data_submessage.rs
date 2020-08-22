@@ -6,6 +6,7 @@ use super::submessage::{Submessage, SubmessageHeader, };
 use super::submessage_elements;
 use crate::types;
 use crate::types::constants::SEQUENCE_NUMBER_UNKNOWN;
+use super::parameter_list::ParameterList;
 
 #[derive(PartialEq, Debug)]
 pub struct Data {
@@ -17,7 +18,7 @@ pub struct Data {
     reader_id: submessage_elements::EntityId,
     writer_id: submessage_elements::EntityId,
     writer_sn: submessage_elements::SequenceNumber,
-    inline_qos: submessage_elements::ParameterList,
+    inline_qos: ParameterList,
     serialized_payload: submessage_elements::SerializedData,
 }
 
@@ -38,7 +39,7 @@ impl Data {
         reader_id: types::EntityId,
         writer_id: types::EntityId,
         writer_sn: types::SequenceNumber,
-        inline_qos: Option<submessage_elements::ParameterList>,
+        inline_qos: Option<ParameterList>,
         payload: Payload,) -> Self {
             let inline_qos_flag = inline_qos.is_some();
             let mut data_flag = false;
@@ -46,7 +47,7 @@ impl Data {
             let mut non_standard_payload_flag = false;
             let inline_qos = match inline_qos {
                 Some(inline_qos_parameter_list) => inline_qos_parameter_list,
-                None => submessage_elements::ParameterList::new(),
+                None => ParameterList::new(),
             };
             let serialized_payload = match  payload {
                 Payload::Data(serialized_payload) => {data_flag = true; submessage_elements::SerializedData(serialized_payload)},
@@ -85,7 +86,7 @@ impl Data {
         &self.serialized_payload.0
     }
     
-    pub fn inline_qos(&self) -> &submessage_elements::ParameterList {
+    pub fn inline_qos(&self) -> &ParameterList {
         &self.inline_qos
     }
 
@@ -105,7 +106,7 @@ impl Data {
         self.non_standard_payload_flag
     }
 
-    pub fn take_payload_and_qos(self) -> (submessage_elements::SerializedData, submessage_elements::ParameterList) {
+    pub fn take_payload_and_qos(self) -> (submessage_elements::SerializedData, ParameterList) {
         (self.serialized_payload, self.inline_qos)
     }
 }
@@ -185,11 +186,11 @@ impl UdpPsmMapping for Data {
         let writer_id = submessage_elements::EntityId::deserialize(&bytes[12..16], endianness)?;
         let writer_sn = submessage_elements::SequenceNumber::deserialize(&bytes[16..24], endianness)?;
         let (inline_qos, inline_qos_octets) = if inline_qos_flag {
-            let inline_qos = submessage_elements::ParameterList::deserialize(&bytes[octets_to_inline_qos..], endianness)?;
+            let inline_qos = ParameterList::deserialize(&bytes[octets_to_inline_qos..], endianness)?;
             let inline_qos_octets = inline_qos.octets();
             (inline_qos, inline_qos_octets)
         } else { 
-            let inline_qos = submessage_elements::ParameterList::new();
+            let inline_qos = ParameterList::new();
             (inline_qos, 0)
         };
         let end_of_submessage = usize::from(header.submessage_length()) + header.octets();
@@ -235,7 +236,7 @@ mod tests {
             ENTITYID_UNKNOWN, 
             ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, 
             1, 
-            Some(submessage_elements::ParameterList::new()),
+            Some(ParameterList::new()),
             Payload::Data(vec![])
         );
         assert_eq!(data.endianness_flag, true);
@@ -255,7 +256,7 @@ mod tests {
             reader_id: submessage_elements::EntityId(ENTITYID_UNKNOWN),
             writer_id: submessage_elements::EntityId(ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER),
             writer_sn: submessage_elements::SequenceNumber(1),
-            inline_qos: submessage_elements::ParameterList::new(), 
+            inline_qos: ParameterList::new(), 
             serialized_payload: submessage_elements::SerializedData(Vec::new()), 
         };
         let expected = vec![
@@ -275,7 +276,7 @@ mod tests {
     fn test_compose_data_submessage_with_inline_qos_without_data() {
         let endianness = Endianness::LittleEndian;
         let key_hash = KeyHash([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]);
-        let mut inline_qos = submessage_elements::ParameterList::new();
+        let mut inline_qos = ParameterList::new();
         inline_qos.push(key_hash);
         
         let data = Data {
@@ -313,7 +314,7 @@ mod tests {
     fn test_compose_data_submessage_with_inline_qos_with_data() {
         let endianness = Endianness::LittleEndian;
         let key_hash = KeyHash([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]);
-        let mut inline_qos = submessage_elements::ParameterList::new();
+        let mut inline_qos = ParameterList::new();
         inline_qos.push(key_hash);
         
         let serialized_payload = submessage_elements::SerializedData(vec![1_u8, 2, 3]);
@@ -362,7 +363,7 @@ mod tests {
             reader_id: submessage_elements::EntityId(ENTITYID_UNKNOWN),
             writer_id: submessage_elements::EntityId(ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER),
             writer_sn: submessage_elements::SequenceNumber(1),
-            inline_qos: submessage_elements::ParameterList::new(), 
+            inline_qos: ParameterList::new(), 
             serialized_payload: submessage_elements::SerializedData(Vec::new()), 
         };
         let bytes = vec![
@@ -390,7 +391,7 @@ mod tests {
             reader_id: submessage_elements::EntityId(ENTITYID_UNKNOWN),
             writer_id: submessage_elements::EntityId(ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER),
             writer_sn: submessage_elements::SequenceNumber(1),
-            inline_qos: submessage_elements::ParameterList::new(), 
+            inline_qos: ParameterList::new(), 
             serialized_payload: serialized_payload, 
         };
         let bytes = vec![
@@ -410,7 +411,7 @@ mod tests {
     fn test_parse_data_submessage_with_inline_qos_with_data() {
         let endianness = Endianness::LittleEndian;
         let key_hash = KeyHash([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]);
-        let mut inline_qos = submessage_elements::ParameterList::new();
+        let mut inline_qos = ParameterList::new();
         inline_qos.push(key_hash);
 
         

@@ -20,6 +20,7 @@ mod submessage_elements;
 pub mod types;
 pub mod message_receiver;
 pub mod message_sender;
+pub mod parameter_list;
 
 pub use ack_nack_submessage::AckNack;
 // pub use data_frag_submessage::DataFrag;
@@ -37,14 +38,11 @@ pub use info_timestamp_submessage::InfoTs;
 pub use message::RtpsMessage;
 pub use submessage::RtpsSubmessage;
 pub use serdes::{Endianness, SubmessageElement};
-pub use submessage_elements::ParameterList;
+pub use parameter_list::ParameterList;
 
 pub const RTPS_MAJOR_VERSION: u8 = 2;
 pub const RTPS_MINOR_VERSION: u8 = 4;
 
-pub trait Pid {
-    fn pid() -> types::ParameterId;
-}
 
 pub trait UdpPsmMapping
     where Self: std::marker::Sized {

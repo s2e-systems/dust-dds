@@ -1,4 +1,5 @@
-use crate::messages::{ParameterList, SubmessageElement, Endianness, Pid};
+use crate::messages::{ParameterList, SubmessageElement, Endianness, };
+use crate::messages::parameter_list::{Pid, };
 
 #[derive(PartialEq, Debug)]
 struct RepresentationIdentifier([u8; 2]);

@@ -4,7 +4,7 @@
 ///  
  
 use crate::messages::types::{ParameterId, };
-use crate::messages::Pid;
+use crate::messages::parameter_list::{Pid, };
 
 use serde::{Serialize, Deserialize};
 

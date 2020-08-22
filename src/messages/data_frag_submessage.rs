@@ -2,7 +2,9 @@ use super::serdes::{SubmessageElement, Endianness, RtpsSerdesResult, };
 use super::{SubmessageKind, SubmessageFlag, UdpPsmMapping, };
 use super::submessage::{Submessage, SubmessageHeader, };
 use super::submessage_elements;
+use super::parameter_list::ParameterList;
 use crate::types::constants::SEQUENCE_NUMBER_UNKNOWN;
+
 
 #[derive(PartialEq, Debug)]
 pub struct DataFrag {
@@ -17,7 +19,7 @@ pub struct DataFrag {
     fragments_in_submessage: submessage_elements::UShort,
     data_size: submessage_elements::ULong,
     fragment_size: submessage_elements::UShort,
-    inline_qos: Option<submessage_elements::ParameterList>,
+    inline_qos: Option<ParameterList>,
     serialized_payload: Option<submessage_elements::SerializedDataFragment>,
 }
 
@@ -120,7 +122,7 @@ impl UdpPsmMapping for DataFrag {
 
 
         let inline_qos = if inline_qos_flag {
-            Some(submessage_elements::ParameterList::deserialize(&bytes[octets_to_inline_qos..], endianness)?)
+            Some(ParameterList::deserialize(&bytes[octets_to_inline_qos..], endianness)?)
         } else { 
             None
         };
@@ -151,7 +153,7 @@ mod tests{
     use super::*;
     use crate::inline_qos_types::KeyHash;
     use crate::types::constants::{ENTITYID_UNKNOWN, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, };
-    use crate::messages::submessage_elements::{ParameterList, };
+    use crate::messages::parameter_list::ParameterList;
 
     #[test]
     fn parse_data_frag_submessage() {
