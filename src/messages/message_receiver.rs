@@ -52,7 +52,7 @@ mod tests {
     use super::*;
     use crate::types::{TopicKind, ReliabilityKind};
     use crate::types::constants::{ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, ENTITYID_UNKNOWN};
-    use crate::transport::memory_transport::MemoryTransport;
+    use crate::transport::memory::MemoryTransport;
     use crate::messages::{Endianness, RtpsMessage,};
     use crate::messages::submessages::{Data};
     use crate::messages::submessages::data_submessage::Payload;

@@ -25,6 +25,6 @@ pub use messages::parameter_list::{Pid, };
 pub use messages::types::{ParameterId};
 pub use messages::{ParameterList,};
 pub use transport::Transport;
-pub use transport::udp_transport::UdpTransport;
-pub use transport::memory_transport::MemoryTransport;
+pub use transport::udp::UdpTransport;
+pub use transport::memory::MemoryTransport;
 

@@ -2,8 +2,8 @@
 use crate::types::Locator;
 use crate::messages::RtpsMessage;
 
-pub mod udp_transport;
-pub mod memory_transport;
+pub mod udp;
+pub mod memory;
 
 #[derive(Debug)]
 pub enum TransportError {

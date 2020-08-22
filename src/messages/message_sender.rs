@@ -41,7 +41,7 @@ impl RtpsMessageSender {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::transport::memory_transport::MemoryTransport;
+    use crate::transport::memory::MemoryTransport;
     use crate::types::{TopicKind, GUID, ChangeKind, Locator, ReliabilityKind};
     use crate::types::constants::{
         ENTITYID_UNKNOWN,

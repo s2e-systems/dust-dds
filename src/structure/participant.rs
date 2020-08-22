@@ -15,7 +15,7 @@ use crate::messages::Endianness;
 use crate::behavior::types::Duration;
 use crate::behavior::types::constants::DURATION_ZERO;
 use crate::transport::Transport;
-use crate::transport::udp_transport::UdpTransport;
+use crate::transport::udp::UdpTransport;
 use crate::messages::message_sender::RtpsMessageSender;
 use crate::messages::message_receiver::RtpsMessageReceiver;
 use crate::endpoint_types::DomainId;
@@ -281,7 +281,7 @@ impl<T: Transport> Participant<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::transport::memory_transport::MemoryTransport;
+    use crate::transport::memory::MemoryTransport;
 
     // #[test]
     // fn participant_with_default_transport() {
