@@ -1,12 +1,15 @@
 
 use cdr::{LittleEndian, BigEndian, Infinite};
 use std::rc::Rc;
-use std::io::Write;
 
 use super::types;
 use super::submessages::submessage_elements::Short;
-use super::{Endianness, };
-use super::serdes::{SubmessageElement, RtpsSerdesResult, SizeCheck};
+
+#[derive(Debug, Copy, Clone)]
+pub enum CdrEndianness {
+    LittleEndian,
+    BigEndian,
+}
 
 pub trait Pid {
     fn pid() -> types::ParameterId;
@@ -17,7 +20,7 @@ pub trait ParameterOps : std::fmt::Debug{
 
     fn length(&self) -> Short;
 
-    fn value(&self, endianness: Endianness) -> Vec<u8>;
+    fn value(&self, endianness: CdrEndianness) -> Vec<u8>;
 }
 
 impl<T> ParameterOps for T
@@ -32,10 +35,10 @@ impl<T> ParameterOps for T
         Short((cdr::size::calc_serialized_data_size(self) + 3 & !3) as i16)
     }
 
-    fn value(&self, endianness: Endianness) -> Vec<u8> {
+    fn value(&self, endianness: CdrEndianness) -> Vec<u8> {
         match endianness {
-            Endianness::LittleEndian => cdr::ser::serialize_data::<_,_,LittleEndian>(&self, Infinite).unwrap(),       
-            Endianness::BigEndian => cdr::ser::serialize_data::<_,_,BigEndian>(&self, Infinite).unwrap(),
+            CdrEndianness::LittleEndian => cdr::ser::serialize_data::<_,_,LittleEndian>(&self, Infinite).unwrap(),       
+            CdrEndianness::BigEndian => cdr::ser::serialize_data::<_,_,BigEndian>(&self, Infinite).unwrap(),
         }
     }
 }
@@ -48,7 +51,7 @@ pub struct Parameter {
 }
 
 impl Parameter {
-    pub fn new(input: &(impl ParameterOps + ?Sized) , endianness: Endianness) -> Self {
+    pub fn new(input: &(impl ParameterOps + ?Sized) , endianness: CdrEndianness) -> Self {
         Self {
             parameter_id: input.parameter_id(),
             length: input.length(),
@@ -56,11 +59,11 @@ impl Parameter {
         }
     }
 
-    pub fn get<'de, T: Pid + serde::Deserialize<'de>>(&self, endianness: Endianness) -> Option<T> {
+    pub fn get<'de, T: Pid + serde::Deserialize<'de>>(&self, endianness: CdrEndianness) -> Option<T> {
         if self.parameter_id() == T::pid() {
             Some(match endianness {
-                Endianness::LittleEndian => cdr::de::deserialize_data::<T, LittleEndian>(&self.value).ok()?,
-                Endianness::BigEndian => cdr::de::deserialize_data::<T, BigEndian>(&self.value).ok()?,
+                CdrEndianness::LittleEndian => cdr::de::deserialize_data::<T, LittleEndian>(&self.value).ok()?,
+                CdrEndianness::BigEndian => cdr::de::deserialize_data::<T, BigEndian>(&self.value).ok()?,
             })
         } else {
             None
@@ -79,7 +82,7 @@ impl ParameterOps for Parameter {
         self.length
     }
 
-    fn value(&self, _endianness: Endianness) -> Vec<u8> {
+    fn value(&self, _endianness: CdrEndianness) -> Vec<u8> {
         self.value.clone()
     }
 }
@@ -95,7 +98,7 @@ impl PartialEq for ParameterList{
             .find(|(a,b)| 
                 (a.parameter_id() != b.parameter_id()) && 
                 (a.length() != b.length()) && 
-                (a.value(Endianness::LittleEndian) != b.value(Endianness::LittleEndian)))
+                (a.value(CdrEndianness::LittleEndian) != b.value(CdrEndianness::LittleEndian)))
             .is_none()
     }
 }
@@ -112,26 +115,26 @@ impl ParameterList {
         self.parameter.push(Rc::new(value));
     }
 
-    pub fn find<'de, T>(&self, endianness: Endianness) -> Option<T>
+    pub fn find<'de, T>(&self, endianness: CdrEndianness) -> Option<T>
         where T: Pid + serde::Deserialize<'de>
     {
         let parameter = self.parameter.iter().find(|&x| x.parameter_id() == T::pid())?;
         Some(match endianness {
-            Endianness::LittleEndian => cdr::de::deserialize_data::<T, LittleEndian>(&parameter.value(endianness)).ok()?,
-            Endianness::BigEndian => cdr::de::deserialize_data::<T, BigEndian>(&parameter.value(endianness)).ok()?,
+            CdrEndianness::LittleEndian => cdr::de::deserialize_data::<T, LittleEndian>(&parameter.value(endianness)).ok()?,
+            CdrEndianness::BigEndian => cdr::de::deserialize_data::<T, BigEndian>(&parameter.value(endianness)).ok()?,
         })
     }
 
-    pub fn find_all<'de, T>(&self, endianness: Endianness) -> RtpsSerdesResult<Vec<T>> 
+    pub fn find_all<'de, T>(&self, endianness: CdrEndianness) -> Vec<T>
         where T: Pid + serde::Deserialize<'de>
     {
-            Ok(self.parameter.iter()
+            self.parameter.iter()
             .filter(|&x| x.parameter_id() == T::pid())
             .map(|parameter| match endianness {
-                Endianness::LittleEndian => cdr::de::deserialize_data::<T, LittleEndian>(&parameter.value(endianness)).unwrap(),
-                Endianness::BigEndian => cdr::de::deserialize_data::<T, BigEndian>(&parameter.value(endianness)).unwrap(),
+                CdrEndianness::LittleEndian => cdr::de::deserialize_data::<T, LittleEndian>(&parameter.value(endianness)).unwrap(),
+                CdrEndianness::BigEndian => cdr::de::deserialize_data::<T, BigEndian>(&parameter.value(endianness)).unwrap(),
             })
-            .collect())
+            .collect()
     }
 
     pub fn remove<T>(&mut self) 

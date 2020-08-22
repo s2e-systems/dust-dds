@@ -11,7 +11,6 @@ use crate::types::constants::{
     ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
     PROTOCOL_VERSION_2_4,};
 use crate::endpoint_types::BuiltInEndpointSet;
-use crate::messages::Endianness;
 use crate::behavior::types::Duration;
 use crate::behavior::types::constants::DURATION_ZERO;
 use crate::transport::Transport;
@@ -60,7 +59,6 @@ impl<T: Transport> Participant<T> {
         let protocol_version = PROTOCOL_VERSION_2_4;
         let vendor_id = [99,99];
         let lease_duration = Duration::from_secs(100); // TODO: Should be configurable
-        let endianness = Endianness::LittleEndian; // TODO: Should be configurable
         let expects_inline_qos = false;
         let guid_prefix = [5, 6, 7, 8, 9, 5, 1, 2, 3, 4, 10, 11];   // TODO: Should be uniquely generated
 
@@ -184,9 +182,10 @@ impl<T: Transport> Participant<T> {
             sedp_builtin_topics_writer,
         };
 
-        let spdp_discovered_data = SPDPdiscoveredParticipantData::new_from_participant(&participant, lease_duration);
-        let spdp_change = participant.spdp_builtin_participant_writer.new_change(ChangeKind::Alive,Some(spdp_discovered_data.data(endianness)) , None, spdp_discovered_data.key());
-        participant.spdp_builtin_participant_writer.writer_cache().add_change(spdp_change);
+        // TODO:
+        // let spdp_discovered_data = SPDPdiscoveredParticipantData::new_from_participant(&participant, lease_duration);
+        // let spdp_change = participant.spdp_builtin_participant_writer.new_change(ChangeKind::Alive,Some(spdp_discovered_data.data(endianness)) , None, spdp_discovered_data.key());
+        // participant.spdp_builtin_participant_writer.writer_cache().add_change(spdp_change);
         
         participant
     }

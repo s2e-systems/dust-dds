@@ -162,7 +162,6 @@ mod tests {
     use crate::messages::RtpsSubmessage;
     use crate::messages::submessages::Gap;
     use crate::types::constants::{ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, PROTOCOL_VERSION_2_4, VENDOR_ID};
-    use crate::messages::Endianness;
 
     #[test]
     fn read_udp_data() {
@@ -175,7 +174,7 @@ mod tests {
         let transport = UdpTransport::new(unicast_locator, Some(multicast_locator)).unwrap();
 
         let submessages = vec![
-            RtpsSubmessage::Gap(Gap::new(ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, 0, Endianness::LittleEndian)),
+            RtpsSubmessage::Gap(Gap::new(ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, 0)),
         ];
         let message = RtpsMessage::new(PROTOCOL_VERSION_2_4, VENDOR_ID, [1,2,3,4,5,6,7,8,9,10,11,12], submessages);
         let mut bytes = Vec::new();
@@ -223,7 +222,7 @@ mod tests {
         let transport = UdpTransport::new(unicast_locator, Some(multicast_locator)).unwrap();
 
         let submessages = vec![
-            RtpsSubmessage::Gap(Gap::new(ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, 0, Endianness::LittleEndian)),
+            RtpsSubmessage::Gap(Gap::new(ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, 0)),
         ];
         let message = RtpsMessage::new(PROTOCOL_VERSION_2_4, VENDOR_ID, [1,2,3,4,5,6,7,8,9,10,11,12], submessages);
         let mut expected_bytes = Vec::new();

@@ -3,7 +3,7 @@ use std::time::Instant;
 
 use crate::types::constants::LOCATOR_INVALID;
 use crate::structure::stateful_reader::{WriterProxy, StatefulReader};
-use crate::messages::{Endianness, RtpsSubmessage};
+use crate::messages::{RtpsSubmessage};
 use crate::messages::submessages::{AckNack, Data, Gap, Heartbeat,};
 use crate::messages::types::Count;
 use crate::messages::message_receiver::Receiver;
@@ -180,8 +180,7 @@ impl ReliableStatefulReaderBehavior {
             writer_proxy.available_changes_max(),
             writer_proxy.missing_changes().clone(),
             *writer_proxy.behavior().ackanck_count(),
-            true,
-            Endianness::LittleEndian); // TODO: Make endianness selectable
+            true);
 
         stateful_reader.push_send_message(&LOCATOR_INVALID, writer_proxy.remote_writer_guid(), RtpsSubmessage::AckNack(acknack));
     }
@@ -194,8 +193,8 @@ mod tests {
     use crate::types::constants::{
         ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, };
     use crate::structure::cache_change::CacheChange;
-    use crate::messages::{ParameterList, Endianness};
     use crate::messages::submessages::data_submessage::Payload;
+    use crate::messages::parameter_list::ParameterList;
     use crate::inline_qos_types::{KeyHash, };
     use super::super::change_kind_to_status_info;
 
@@ -219,7 +218,6 @@ mod tests {
         inline_qos.push(KeyHash([1;16]));
 
         let data1 = Data::new(
-            Endianness::LittleEndian, 
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, 
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER, 
             3,
@@ -270,7 +268,6 @@ mod tests {
         inline_qos.push(KeyHash([1;16]));
 
         let data1 = Data::new(
-            Endianness::LittleEndian, 
             reader_guid.entity_id(), 
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER, 
             3,
@@ -327,7 +324,6 @@ mod tests {
             1,
             false,
             false,
-            Endianness::LittleEndian,
         );
     
         stateful_reader.push_receive_message(remote_writer_guid_prefix, RtpsSubmessage::Heartbeat(heartbeat));
@@ -362,7 +358,6 @@ mod tests {
             1,
             true,
             false,
-            Endianness::LittleEndian,
         );
         stateful_reader.push_receive_message(remote_writer_guid_prefix, RtpsSubmessage::Heartbeat(heartbeat));
 
@@ -406,7 +401,6 @@ mod tests {
             1,
             true,
             false,
-            Endianness::LittleEndian,
         );
         stateful_reader.push_receive_message(remote_writer_guid_prefix, RtpsSubmessage::Heartbeat(heartbeat));
 

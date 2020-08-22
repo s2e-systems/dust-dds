@@ -1,6 +1,5 @@
-use crate::messages::serdes::{SubmessageElement, Endianness, RtpsSerdesResult, };
 use super::submessage_elements;
-use super::{SubmessageKind, SubmessageFlag, UdpPsmMapping, };
+use super::{SubmessageKind, SubmessageFlag, };
 use super::{Submessage, SubmessageHeader, };
 use crate::messages;
 use crate::types;
@@ -34,8 +33,7 @@ impl Heartbeat {
         last_sn: types::SequenceNumber,
         count: messages::types::Count,
         final_flag: bool,
-        manual_liveliness: bool,
-        endianness_flag: Endianness) -> Self {
+        manual_liveliness: bool) -> Self {
             Heartbeat {
                 reader_id: submessage_elements::EntityId(reader_id),
                 writer_id: submessage_elements::EntityId(writer_id),
@@ -44,7 +42,7 @@ impl Heartbeat {
                 count: submessage_elements::Count(count),
                 final_flag,
                 liveliness_flag: manual_liveliness,
-                endianness_flag: endianness_flag.into(),
+                endianness_flag: false,
             }
         }
 

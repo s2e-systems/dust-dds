@@ -3,7 +3,6 @@ use crate::types::constants::{ENTITYID_UNKNOWN, GUID_UNKNOWN};
 use crate::messages::RtpsSubmessage;
 use crate::messages::submessages::Gap;
 use crate::structure::stateless_writer::{ReaderLocator, StatelessWriter};
-use crate::messages::Endianness;
 use crate::messages::message_sender::Sender;
 
 use super::data_from_cache_change;
@@ -26,19 +25,17 @@ impl BestEffortStatelessWriterBehavior{
     }
 
     fn transition_t4(reader_locator: &ReaderLocator, stateless_writer: &StatelessWriter, next_unsent_seq_num: SequenceNumber) {
-        let endianness = Endianness::LittleEndian;
 
         if let Some(cache_change) = stateless_writer.writer_cache()
             .changes().iter().find(|cc| cc.sequence_number() == next_unsent_seq_num)
         {
-            let data = data_from_cache_change(cache_change, endianness, ENTITYID_UNKNOWN);
+            let data = data_from_cache_change(cache_change, ENTITYID_UNKNOWN);
             stateless_writer.push_send_message(reader_locator.locator(), &GUID_UNKNOWN, RtpsSubmessage::Data(data));
         } else {
             let gap = Gap::new(
                 ENTITYID_UNKNOWN, 
                 stateless_writer.guid().entity_id(),
-                next_unsent_seq_num,
-                endianness);
+                next_unsent_seq_num,);
 
             stateless_writer.push_send_message(reader_locator.locator(), &GUID_UNKNOWN, RtpsSubmessage::Gap(gap));
         }

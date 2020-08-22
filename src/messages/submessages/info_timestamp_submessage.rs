@@ -1,5 +1,4 @@
-use crate::messages::serdes::{SubmessageElement, Endianness, RtpsSerdesResult, };
-use super::{SubmessageKind, SubmessageFlag, UdpPsmMapping, };
+use super::{SubmessageKind, SubmessageFlag, };
 use super::{Submessage, SubmessageHeader, };
 use super::submessage_elements;
 use crate::messages;
@@ -14,8 +13,8 @@ pub struct InfoTs {
 impl InfoTs {
     const INVALID_TIME_FLAG_MASK: u8 = 0x02;
 
-    pub fn new(time: Option<messages::types::Time>, endianness: Endianness) -> InfoTs {
-        let endianness_flag = endianness.into();
+    pub fn new(time: Option<messages::types::Time>) -> InfoTs {
+        let endianness_flag = false;
         let invalidate_flag = !time.is_some();
         let timestamp = match time {
             Some(time) => Some(submessage_elements::Timestamp(time)),

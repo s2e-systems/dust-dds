@@ -344,7 +344,6 @@ mod tests {
         ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,};
 
     use crate::behavior::types::constants::DURATION_ZERO;
-    use crate::messages::Endianness;
     use crate::messages::submessages::AckNack;
 
     use std::thread::sleep;
@@ -599,7 +598,6 @@ mod tests {
                 BTreeSet::new(),
                 1,
                 false,
-                Endianness::LittleEndian,
         );
 
         stateful_writer.push_receive_message(remote_reader_guid_prefix, RtpsSubmessage::AckNack(acknack));

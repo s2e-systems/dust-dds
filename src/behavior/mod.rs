@@ -8,7 +8,6 @@ use std::convert::TryInto;
 
 use crate::types::{GUID, GuidPrefix, EntityId, ChangeKind};
 use crate::structure::cache_change::CacheChange;
-use crate::messages::Endianness;
 use crate::messages::submessages::Data;
 use crate::messages::submessages::data_submessage::Payload;
 use crate::inline_qos_types::{KeyHash, StatusInfo};
@@ -33,7 +32,7 @@ fn cache_change_from_data(message: Data, guid_prefix: &GuidPrefix) -> CacheChang
     )
 }
 
-fn data_from_cache_change(cache_change: &CacheChange, endianness: Endianness, reader_id: EntityId) -> Data {
+fn data_from_cache_change(cache_change: &CacheChange, reader_id: EntityId) -> Data {
     let writer_id: EntityId = cache_change.writer_guid().entity_id();
     let writer_sn = cache_change.sequence_number();
 
@@ -53,7 +52,6 @@ fn data_from_cache_change(cache_change: &CacheChange, endianness: Endianness, re
     };
 
     Data::new(
-        endianness,
         reader_id,
         writer_id,
         writer_sn,
@@ -66,10 +64,11 @@ fn change_kind(data_submessage: &Data) -> ChangeKind{
     if data_submessage.data_flag() && !data_submessage.key_flag() {
         ChangeKind::Alive
     } else if !data_submessage.data_flag() && data_submessage.key_flag() {
-        let endianness = data_submessage.endianness_flag().into();
-        let status_info = data_submessage.inline_qos().find::<StatusInfo>(endianness).unwrap();           
+        todo!()
+        // let endianness = data_submessage.endianness_flag().into();
+        // let status_info = data_submessage.inline_qos().find::<StatusInfo>(endianness).unwrap();           
 
-        status_info_to_change_kind(status_info).unwrap()
+        // status_info_to_change_kind(status_info).unwrap()
     }
     else {
         panic!("Invalid change kind combination")
@@ -78,7 +77,8 @@ fn change_kind(data_submessage: &Data) -> ChangeKind{
 
 fn key_hash(data_submessage: &Data) -> Option<KeyHash> {
     if data_submessage.data_flag() && !data_submessage.key_flag() {
-        data_submessage.inline_qos().find::<KeyHash>(data_submessage.endianness_flag().into())
+        todo!()
+        // data_submessage.inline_qos().find::<KeyHash>(data_submessage.endianness_flag().into())
     } else if !data_submessage.data_flag() && data_submessage.key_flag() {
         let payload = data_submessage.serialized_payload(); 
         Some(KeyHash(payload[0..16].try_into().ok()?))

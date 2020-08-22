@@ -1,5 +1,5 @@
 use std::convert::TryInto;
-use crate::messages::Endianness;
+use crate::messages::parameter_list::CdrEndianness;
 
 use crate::types::{VendorId, Locator, ProtocolVersion, GuidPrefix, InstanceHandle, GUID};
 use crate::types::constants::{
@@ -115,7 +115,7 @@ impl SPDPdiscoveredParticipantData {
         instance_handle
     }
 
-    pub fn data(&self, endianness: Endianness) -> Vec<u8> {
+    pub fn data(&self, endianness: CdrEndianness) -> Vec<u8> {
 
         let mut parameter_list = CdrParameterList::new(endianness);
 
@@ -331,7 +331,7 @@ mod tests {
 
         assert_eq!(key,  [1, 2, 3, 4, 5, 6, 7, 1, 2, 3, 4, 5, 0, 0, 0, 0]);
 
-        let data = spdp_participant_data.data(Endianness::BigEndian);
+        let data = spdp_participant_data.data(CdrEndianness::BigEndian);
         assert_eq!(data, 
             [0, 2, 0, 0, // CDR_PL_BE
             // 0, 15, 0, 4, // PID: 0x000f (PID_DOMAIN_ID) Length: 4
@@ -372,7 +372,7 @@ mod tests {
         let deserialized_spdp = SPDPdiscoveredParticipantData::from_key_data(key, &data, 0);
         assert_eq!(deserialized_spdp,spdp_participant_data);
 
-        let data = spdp_participant_data.data(Endianness::LittleEndian);
+        let data = spdp_participant_data.data(CdrEndianness::LittleEndian);
         assert_eq!(data, 
             [0, 3, 0, 0, // CDR_PL_BE
             // 15, 0, 4, 0, // PID: 0x000f (PID_DOMAIN_ID) Length: 4
@@ -434,7 +434,7 @@ mod tests {
 
         let key = spdp_participant_data.key();
 
-        let data = spdp_participant_data.data(Endianness::BigEndian);
+        let data = spdp_participant_data.data(CdrEndianness::BigEndian);
         assert_eq!(data, 
             [0, 2, 0, 0, // CDR_PL_BE
             // 0, 15, 0, 4, // PID: 0x00f (PID_DOMAIN_ID) Length: 4

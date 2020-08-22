@@ -13,49 +13,11 @@ pub mod info_timestamp_submessage;
 pub mod nack_frag_submessage;
 
 use super::types::{SubmessageKind, SubmessageFlag};
-use super::serdes::{SubmessageElement, RtpsSerdesResult, RtpsSerdesError, SizeCheck};
-use super::{UdpPsmMapping, Endianness};
 pub use ack_nack_submessage::AckNack;
 pub use data_submessage::Data;
 pub use gap_submessage::Gap;
 pub use heartbeat_submessage::Heartbeat;
 pub use info_timestamp_submessage::InfoTs;
-
-fn serialize_submessage_kind(kind: SubmessageKind, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()>{
-    let submessage_kind_u8 = kind as u8;
-    writer.write(&[submessage_kind_u8])?;
-    Ok(())
-}
-
-fn deserialize_submessage_kind(bytes: &[u8]) -> RtpsSerdesResult<SubmessageKind> { 
-    bytes.check_size_equal(1)?;
-    Ok(num::FromPrimitive::from_u8(bytes[0]).ok_or(RtpsSerdesError::InvalidEnumRepresentation)?)
-}
-
-fn serialize_submessage_flags(submessage_flags: &[SubmessageFlag; 8], writer: &mut impl std::io::Write) -> RtpsSerdesResult<()>{
-    let mut flags = 0u8;
-    for i in 0..8 {
-        if submessage_flags[i] {
-            flags |= 0b00000001 << i;
-        }
-    }
-    writer.write(&[flags])?;
-    Ok(())
-}
-
-fn deserialize_submessage_flags(bytes: &[u8]) -> RtpsSerdesResult<[SubmessageFlag; 8]> {
-    bytes.check_size_equal(1)?;
-    let flags: u8 = bytes[0];        
-    let mut mask = 0b00000001_u8;
-    let mut submessage_flags = [false; 8];
-    for i in 0..8 {
-        if (flags & mask) > 0 {
-            submessage_flags[i] = true;
-        }
-        mask <<= 1;
-    };
-    Ok(submessage_flags)
-}
 
 
 #[derive(PartialEq, Debug)]

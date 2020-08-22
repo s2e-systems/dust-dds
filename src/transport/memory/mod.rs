@@ -72,8 +72,7 @@ impl Transport for MemoryTransport {
 mod tests {
     use super::*;
     use crate::types::constants::{PROTOCOL_VERSION_2_4, VENDOR_ID};
-    use crate::messages::{RtpsSubmessage, Endianness };
-    use crate::messages::submessages::InfoTs;
+    use crate::messages::submessages::{RtpsSubmessage, InfoTs};
 
     #[test]
     fn receive_from_transport_unicast_and_multicast() {
@@ -87,7 +86,7 @@ mod tests {
 
 
         // Write to the unicast locator
-        let message = RtpsMessage::new(PROTOCOL_VERSION_2_4, VENDOR_ID, [1;12], vec![RtpsSubmessage::InfoTs(InfoTs::new(None, Endianness::BigEndian))]);
+        let message = RtpsMessage::new(PROTOCOL_VERSION_2_4, VENDOR_ID, [1;12], vec![RtpsSubmessage::InfoTs(InfoTs::new(None))]);
         transport2.write(message, &[unicast_locator1]);
 
         transport1.receive_from(&transport2);
@@ -97,7 +96,7 @@ mod tests {
         assert!(transport2.pop_write().is_none());
 
         // Write to the multicast locator
-        let message = RtpsMessage::new(PROTOCOL_VERSION_2_4, VENDOR_ID, [1;12], vec![RtpsSubmessage::InfoTs(InfoTs::new(None, Endianness::BigEndian))]);
+        let message = RtpsMessage::new(PROTOCOL_VERSION_2_4, VENDOR_ID, [1;12], vec![RtpsSubmessage::InfoTs(InfoTs::new(None))]);
         transport2.write(message, &[multicast_locator1]);
 
         transport1.receive_from(&transport2);

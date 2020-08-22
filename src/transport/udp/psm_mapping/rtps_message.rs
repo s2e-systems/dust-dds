@@ -5,7 +5,6 @@ use super::{UdpPsmMappingResult, UdpPsmMappingError};
 use crate::types::ProtocolVersion;
 use crate::messages::RtpsSubmessage;
 use crate::messages::message::{Header, RtpsMessage};
-use crate::messages::UdpPsmMapping;
 
 const RTPS_MESSAGE_HEADER_OCTETS : usize = 20;
 
@@ -68,7 +67,6 @@ mod tests {
     use crate::messages::types::Time;
     use crate::types;
     use crate::messages::submessages::data_submessage::Payload;
-    use crate::messages::{Endianness,};
     use crate::messages::submessages::{ Data, InfoTs, Heartbeat};
 
     #[test]
@@ -91,7 +89,6 @@ mod tests {
     #[test]
     fn test_compose_message() {
         let submessage = RtpsSubmessage::Data(Data::new(
-            Endianness::LittleEndian,
             ENTITYID_UNKNOWN,
             ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
             1,
@@ -127,9 +124,8 @@ mod tests {
     fn test_compose_message_three_data_submessages() {
         let test_time = Time::new(1565525425, 269558339);
         let submessage1 =
-            RtpsSubmessage::InfoTs(InfoTs::new(Some(test_time), Endianness::LittleEndian));
+            RtpsSubmessage::InfoTs(InfoTs::new(Some(test_time)));
         let submessage2 = RtpsSubmessage::Data(Data::new(
-            Endianness::LittleEndian,
             ENTITYID_UNKNOWN,
             ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
             1,
@@ -137,7 +133,6 @@ mod tests {
             Payload::None,
         ));
         let submessage3 = RtpsSubmessage::Data(Data::new(
-            Endianness::LittleEndian,
             ENTITYID_UNKNOWN,
             ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
             2,
@@ -182,7 +177,6 @@ mod tests {
     #[test]
     fn test_parse_message() {
         let submessage = RtpsSubmessage::Data(Data::new(
-            Endianness::LittleEndian,
             ENTITYID_UNKNOWN,
             ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
             1,
@@ -214,7 +208,6 @@ mod tests {
         assert_eq!(expected, result);
 
         let submessage1 = RtpsSubmessage::Data(Data::new(
-            Endianness::LittleEndian,
             ENTITYID_UNKNOWN,
             ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
             1,
@@ -243,7 +236,6 @@ mod tests {
             count,
             final_flag,
             liveliness_flag,
-            Endianness::BigEndian,
         ));
         let expected = RtpsMessage::new(
             ProtocolVersion { major: 2, minor: 1 },
@@ -282,9 +274,8 @@ mod tests {
     fn test_parse_message_two_data_submessages() {
         let test_time = Time::new(1565525425, 269558339);
         let submessage1 =
-            RtpsSubmessage::InfoTs(InfoTs::new(Some(test_time), Endianness::LittleEndian));
+            RtpsSubmessage::InfoTs(InfoTs::new(Some(test_time)));
         let submessage2 = RtpsSubmessage::Data(Data::new(
-            Endianness::LittleEndian,
             ENTITYID_UNKNOWN,
             ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
             1,
@@ -292,7 +283,6 @@ mod tests {
             Payload::None,
         ));
         let submessage3 = RtpsSubmessage::Data(Data::new(
-            Endianness::LittleEndian,
             ENTITYID_UNKNOWN,
             ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
             2,

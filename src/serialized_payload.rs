@@ -1,5 +1,5 @@
-use crate::messages::{ParameterList, SubmessageElement, Endianness, };
-use crate::messages::parameter_list::{Pid, };
+use crate::messages::{ParameterList, };
+use crate::messages::parameter_list::{Pid, CdrEndianness };
 
 #[derive(PartialEq, Debug)]
 struct RepresentationIdentifier([u8; 2]);
@@ -14,12 +14,12 @@ struct SerializedPayloadHeader {
 }
 
 pub struct CdrParameterList {
-    endianness: Endianness,
+    endianness: CdrEndianness,
     parameter_list: ParameterList,
 }
 
 impl CdrParameterList {
-    pub fn new(endianness: Endianness) -> Self {
+    pub fn new(endianness: CdrEndianness) -> Self {
         Self {
             endianness,
             parameter_list: ParameterList::new(),
@@ -64,13 +64,15 @@ impl CdrParameterList {
     pub fn find<'de, T>(&self) -> Option<T>
         where T: Pid + serde::Deserialize<'de>
     {
-        self.parameter_list.find(self.endianness)
+        todo!()
+        // self.parameter_list.find(self.endianness)
     }
 
     pub fn find_all<'de, T>(&self) -> Vec<T>
         where T: Pid + serde::Deserialize<'de>
     {
-        self.parameter_list.find_all(self.endianness).unwrap()
+        todo!()
+        // self.parameter_list.find_all(self.endianness)
     }
 }
 

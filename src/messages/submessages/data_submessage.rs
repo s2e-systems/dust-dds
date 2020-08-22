@@ -1,7 +1,6 @@
 use std::convert::From;
 
-use crate::messages::serdes::{SubmessageElement, Endianness, RtpsSerdesResult, };
-use super::{SubmessageKind, SubmessageFlag, UdpPsmMapping, };
+use super::{SubmessageKind, SubmessageFlag, };
 use super::{Submessage, SubmessageHeader, };
 use super::submessage_elements;
 use crate::types;
@@ -36,7 +35,6 @@ impl Data {
     /// Inline_qos_flag is inferred from option of inline_qos
     /// data_flag, key_flag and non_standard_payload_flag are inferred from the kind of payload
     pub fn new(
-        endianness_flag: Endianness,
         reader_id: types::EntityId,
         writer_id: types::EntityId,
         writer_sn: types::SequenceNumber,
@@ -58,7 +56,7 @@ impl Data {
             };
         
         Data {
-            endianness_flag: endianness_flag.into(),
+            endianness_flag: false,
             inline_qos_flag,
             data_flag,
             key_flag,
