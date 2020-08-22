@@ -6,9 +6,11 @@ use std::net::{UdpSocket, IpAddr, Ipv4Addr, SocketAddr};
 
 use crate::types::Locator;
 use crate::types::constants::LOCATOR_KIND_UDPv4;
-use crate::messages::{RtpsMessage, UdpPsmMapping};
+use crate::messages::{RtpsMessage};
 use crate::endpoint_types::DomainId;
 use super::{Transport, TransportResult};
+
+mod psm_mapping;
 
 const MAX_UDP_DATA_SIZE: usize = 65536;
 
@@ -83,7 +85,7 @@ impl UdpTransport {
 impl Transport for UdpTransport {
     fn write(&self, message: RtpsMessage, destination_locator_list: &[Locator]) {
         let mut buf =  Vec::new();
-        message.compose(&mut buf).unwrap();
+        psm_mapping::serialize_rtps_message(&message, &mut buf).unwrap();
 
         for locator in destination_locator_list {
             let address: [u8;4] = locator.address()[12..16].try_into().unwrap();
@@ -102,7 +104,7 @@ impl Transport for UdpTransport {
         let recv_result = self.socket.recv_from(&mut buf);
         match recv_result {
             Ok((number_of_bytes, src_addr)) => {
-                let message = RtpsMessage::parse(&buf[..number_of_bytes]).ok();
+                let message = psm_mapping::deserialize_rtps_message(&buf[..number_of_bytes]).ok();
                 if let Some(message) = message {
                     let src_locator = match src_addr {
                         SocketAddr::V4(socket_addr_v4) => Locator::new_udpv4(socket_addr_v4.port(), socket_addr_v4.ip().octets()),
@@ -159,7 +161,7 @@ mod tests {
     use super::*;
     use crate::messages::RtpsSubmessage;
     use crate::messages::submessages::Gap;
-    use crate::types::constants::{ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR};
+    use crate::types::constants::{ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, PROTOCOL_VERSION_2_4, VENDOR_ID};
     use crate::messages::Endianness;
 
     #[test]
@@ -175,9 +177,9 @@ mod tests {
         let submessages = vec![
             RtpsSubmessage::Gap(Gap::new(ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, 0, Endianness::LittleEndian)),
         ];
-        let message = RtpsMessage::new([1,2,3,4,5,6,7,8,9,10,11,12], submessages);
+        let message = RtpsMessage::new(PROTOCOL_VERSION_2_4, VENDOR_ID, [1,2,3,4,5,6,7,8,9,10,11,12], submessages);
         let mut bytes = Vec::new();
-        message.compose(&mut bytes).unwrap();
+        psm_mapping::serialize_rtps_message(&message, &mut bytes).unwrap();
 
         let sender = std::net::UdpSocket::bind(SocketAddr::from((addr, 0))).unwrap();
         sender
@@ -223,9 +225,9 @@ mod tests {
         let submessages = vec![
             RtpsSubmessage::Gap(Gap::new(ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, 0, Endianness::LittleEndian)),
         ];
-        let message = RtpsMessage::new([1,2,3,4,5,6,7,8,9,10,11,12], submessages);
+        let message = RtpsMessage::new(PROTOCOL_VERSION_2_4, VENDOR_ID, [1,2,3,4,5,6,7,8,9,10,11,12], submessages);
         let mut expected_bytes = Vec::new();
-        message.compose(&mut expected_bytes).unwrap();
+        psm_mapping::serialize_rtps_message(&message, &mut expected_bytes).unwrap();
 
         let receiver_address: [u8;4] = unicast_locator.address()[12..16].try_into().unwrap();
         let receiver_port = port as u16;

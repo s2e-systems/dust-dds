@@ -1,6 +1,7 @@
 use std::collections::VecDeque;
 
 use crate::types::{GUID, GuidPrefix, Locator };
+use crate::types::constants::{PROTOCOL_VERSION_2_4, VENDOR_ID};
 use crate::transport::Transport;
 
 
@@ -30,7 +31,7 @@ impl RtpsMessageSender {
                 }
 
                 if !rtps_submessages.is_empty() {
-                    let rtps_message = RtpsMessage::new(participant_guid_prefix, rtps_submessages);
+                    let rtps_message = RtpsMessage::new(PROTOCOL_VERSION_2_4, VENDOR_ID, participant_guid_prefix, rtps_submessages);
                     transport.write(rtps_message, &dst_locators);
                 }
             }
