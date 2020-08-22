@@ -1,7 +1,7 @@
 use crate::types::{GUID, GuidPrefix, Locator,};
 use crate::transport::Transport;
 
-use super::submessage::RtpsSubmessage;
+use super::submessages::RtpsSubmessage;
 
 // ////////////////// RTPS Message Receiver
 
@@ -53,7 +53,9 @@ mod tests {
     use crate::types::{TopicKind, ReliabilityKind};
     use crate::types::constants::{ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, ENTITYID_UNKNOWN};
     use crate::transport::memory_transport::MemoryTransport;
-    use crate::messages::{Endianness, Data, RtpsMessage, Payload};
+    use crate::messages::{Endianness, RtpsMessage,};
+    use crate::messages::submessages::{Data};
+    use crate::messages::submessages::data_submessage::Payload;
     use crate::behavior::types::Duration;
     use crate::structure::stateful_reader::{StatefulReader, WriterProxy};
     use crate::structure::stateless_reader::StatelessReader;

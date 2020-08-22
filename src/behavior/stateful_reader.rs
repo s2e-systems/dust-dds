@@ -3,7 +3,8 @@ use std::time::Instant;
 
 use crate::types::constants::LOCATOR_INVALID;
 use crate::structure::stateful_reader::{WriterProxy, StatefulReader};
-use crate::messages::{AckNack, Data, Gap, Heartbeat, Endianness, RtpsSubmessage};
+use crate::messages::{Endianness, RtpsSubmessage};
+use crate::messages::submessages::{AckNack, Data, Gap, Heartbeat,};
 use crate::messages::types::Count;
 use crate::messages::message_receiver::Receiver;
 use crate::messages::message_sender::Sender;
@@ -193,7 +194,8 @@ mod tests {
     use crate::types::constants::{
         ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, };
     use crate::structure::cache_change::CacheChange;
-    use crate::messages::{Data, Payload, Heartbeat, ParameterList, Endianness};
+    use crate::messages::{ParameterList, Endianness};
+    use crate::messages::submessages::data_submessage::Payload;
     use crate::inline_qos_types::{KeyHash, };
     use super::super::change_kind_to_status_info;
 

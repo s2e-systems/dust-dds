@@ -4,8 +4,9 @@ use crate::types::{GUID, GuidPrefix, Locator };
 use crate::transport::Transport;
 
 
-use super::submessage::RtpsSubmessage;
-use super::{InfoTs, Endianness,};
+use super::RtpsSubmessage;
+use super::submessages::{InfoTs};
+use super::serdes::Endianness;
 use super::message::{RtpsMessage};
 use super::types::Time;
 

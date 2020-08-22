@@ -1,11 +1,11 @@
 use std::collections::BTreeSet;
 
-use super::serdes::{SubmessageElement, Endianness, RtpsSerdesResult, };
 use super::{SubmessageKind, SubmessageFlag, UdpPsmMapping, };
-use super::submessage::{Submessage, SubmessageHeader, };
+use super::{Submessage, SubmessageHeader, };
 use super::submessage_elements;
 use crate::types;
 use crate::messages;
+use crate::messages::serdes::{SubmessageElement, Endianness, RtpsSerdesResult, };
 
 #[derive(PartialEq, Debug)]
 pub struct AckNack {

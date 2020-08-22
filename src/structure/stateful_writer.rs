@@ -344,7 +344,8 @@ mod tests {
         ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,};
 
     use crate::behavior::types::constants::DURATION_ZERO;
-    use crate::messages::{AckNack, Endianness};
+    use crate::messages::Endianness;
+    use crate::messages::submessages::AckNack;
 
     use std::thread::sleep;
 

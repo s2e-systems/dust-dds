@@ -8,7 +8,9 @@ use std::convert::TryInto;
 
 use crate::types::{GUID, GuidPrefix, EntityId, ChangeKind};
 use crate::structure::cache_change::CacheChange;
-use crate::messages::{Data, Payload, Endianness, };
+use crate::messages::Endianness;
+use crate::messages::submessages::Data;
+use crate::messages::submessages::data_submessage::Payload;
 use crate::inline_qos_types::{KeyHash, StatusInfo};
 
 fn cache_change_from_data(message: Data, guid_prefix: &GuidPrefix) -> CacheChange {

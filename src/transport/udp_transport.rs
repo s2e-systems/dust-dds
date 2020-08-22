@@ -157,7 +157,8 @@ pub fn get_interface_address(interface_name: &str) -> Option<[u8; 16]> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::messages::{RtpsSubmessage, Gap};
+    use crate::messages::RtpsSubmessage;
+    use crate::messages::submessages::Gap;
     use crate::types::constants::{ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR};
     use crate::messages::Endianness;
 

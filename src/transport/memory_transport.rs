@@ -71,7 +71,8 @@ impl Transport for MemoryTransport {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::messages::{RtpsSubmessage, InfoTs, Endianness };
+    use crate::messages::{RtpsSubmessage, Endianness };
+    use crate::messages::submessages::InfoTs;
 
     #[test]
     fn receive_from_transport_unicast_and_multicast() {

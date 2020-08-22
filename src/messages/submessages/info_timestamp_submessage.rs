@@ -1,6 +1,6 @@
-use super::serdes::{SubmessageElement, Endianness, RtpsSerdesResult, };
+use crate::messages::serdes::{SubmessageElement, Endianness, RtpsSerdesResult, };
 use super::{SubmessageKind, SubmessageFlag, UdpPsmMapping, };
-use super::submessage::{Submessage, SubmessageHeader, };
+use super::{Submessage, SubmessageHeader, };
 use super::submessage_elements;
 use crate::messages;
 
@@ -103,7 +103,7 @@ mod tests {
         let info_timestamp_message_big_endian = 
             [0x09, 0x00, 0x00, 0x08, 0x5D, 0x50, 0x05, 0xB1, 0x10, 0x11, 0x22, 0x43];
 
-        let test_time = super::super::types::Time::new(1565525425, 269558339);
+        let test_time = crate::messages::types::Time::new(1565525425, 269558339);
 
         let infots_big_endian = InfoTs::new(Some(test_time), Endianness::BigEndian);
         // infots.compose(&mut writer_le, Endianness::LittleEndian).unwrap();

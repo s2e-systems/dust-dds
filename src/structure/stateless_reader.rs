@@ -110,7 +110,9 @@ mod tests {
     use super::*;
     use crate::types::*;
     use crate::types::constants::*;
-    use crate::messages::{Data, Payload, Endianness, ParameterList };
+    use crate::messages::{Endianness, ParameterList };
+    use crate::messages::submessages::Data;
+    use crate::messages::submessages::data_submessage::Payload;
     use crate::inline_qos_types::{KeyHash};
 
     #[test]

@@ -1,42 +1,16 @@
-use self::types::{SubmessageFlag, SubmessageKind};
 use serdes::{RtpsSerdesResult, SizeSerializer, };
 
-mod ack_nack_submessage;
-mod data_frag_submessage;
-mod data_submessage;
-mod gap_submessage;
-mod heartbeat_frag_submessage;
-mod heartbeat_submessage;
-mod info_destination_submessage;
-mod info_reply_submessage;
-mod info_source_submessage;
-mod info_timestamp_submessage;
-mod nack_frag_submessage;
-
-mod message;
-mod submessage;
-mod serdes;
-mod submessage_elements;
+pub mod message;
+pub mod submessages;
+pub mod serdes;
 pub mod types;
 pub mod message_receiver;
 pub mod message_sender;
 pub mod parameter_list;
 
-pub use ack_nack_submessage::AckNack;
-// pub use data_frag_submessage::DataFrag;
-pub use data_submessage::Data;
-pub use data_submessage::Payload;
-pub use gap_submessage::Gap;
-// pub use heartbeat_frag_submessage::HeartbeatFrag;
-pub use heartbeat_submessage::Heartbeat;
-// pub use info_destination_submessage::InfoDst;
-// pub use info_reply_submessage::InfoReply;
-// pub use info_source_submessage::InfoSrc;
-pub use info_timestamp_submessage::InfoTs;
-// pub use nack_frag_submessage::NackFrag;
 
 pub use message::RtpsMessage;
-pub use submessage::RtpsSubmessage;
+pub use submessages::RtpsSubmessage;
 pub use serdes::{Endianness, SubmessageElement};
 pub use parameter_list::ParameterList;
 

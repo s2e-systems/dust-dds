@@ -3,7 +3,7 @@ use super::serdes::{RtpsSerdesResult, };
 use crate::types::constants::{PROTOCOL_VERSION_2_4, VENDOR_ID};
 use crate::types::{GuidPrefix, ProtocolVersion, VendorId};
 use std::convert::TryInto;
-use super::submessage::RtpsSubmessage;
+use super::submessages::RtpsSubmessage;
 use super::UdpPsmMapping;
 use super::types::ProtocolId;
 
@@ -138,8 +138,9 @@ mod tests {
     use crate::types::{EntityKind};
     use crate::messages::types::Time;
     use crate::types;
-    use super::super::data_submessage::Payload;
-    use super::super::{Endianness, Data, InfoTs, Heartbeat};
+    use crate::messages::submessages::data_submessage::Payload;
+    use super::super::{Endianness,};
+    use crate::messages::submessages::{ Data, InfoTs, Heartbeat};
 
     #[test]
     fn test_parse_message_header() {

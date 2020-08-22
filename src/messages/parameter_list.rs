@@ -4,7 +4,7 @@ use std::rc::Rc;
 use std::io::Write;
 
 use super::types;
-use super::submessage_elements::Short;
+use super::submessages::submessage_elements::Short;
 use super::{Endianness, };
 use super::serdes::{SubmessageElement, RtpsSerdesResult, SizeCheck};
 

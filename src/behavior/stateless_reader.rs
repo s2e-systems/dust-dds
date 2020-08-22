@@ -1,5 +1,6 @@
 use crate::types::GuidPrefix;
-use crate::messages::{Data, RtpsSubmessage};
+use crate::messages::{RtpsSubmessage};
+use crate::messages::submessages::Data;
 use crate::messages::message_receiver::Receiver;
 use crate::structure::stateless_reader::StatelessReader;
 
