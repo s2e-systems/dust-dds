@@ -1,5 +1,11 @@
 use crate::messages::{ParameterList, };
-use crate::messages::parameter_list::{Pid, CdrEndianness };
+use crate::messages::parameter_list::{Pid};
+
+#[derive(Debug, Copy, Clone)]
+pub enum CdrEndianness {
+    LittleEndian,
+    BigEndian,
+}
 
 #[derive(PartialEq, Debug)]
 struct RepresentationIdentifier([u8; 2]);
@@ -29,12 +35,11 @@ impl CdrParameterList {
     pub fn serialize(&self, writer: &mut impl std::io::Write) {
         // Start by writing the header which depends on the endianness
         // match self.endianness {
-        //     Endianness::BigEndian => writer.write(&[0x00, 0x02, 0x00, 0x00]),
-        //     Endianness::LittleEndian => writer.write(&[0x00, 0x03, 0x00, 0x00]),
+        //     CdrEndianness::BigEndian => writer.write(&[0x00, 0x02, 0x00, 0x00]),
+        //     CdrEndianness::LittleEndian => writer.write(&[0x00, 0x03, 0x00, 0x00]),
         // }.unwrap();
 
         // self.parameter_list.serialize(writer, self.endianness).unwrap();
-        todo!()
     }
 
     pub fn deserialize(bytes: &[u8]) -> Self {
@@ -44,8 +49,8 @@ impl CdrParameterList {
         // }
 
         // let endianness = match &bytes[0..4] {
-        //     &[0x00, 0x02, 0x00, 0x00] => Endianness::BigEndian,
-        //     &[0x00, 0x03, 0x00, 0x00] => Endianness::LittleEndian,
+        //     &[0x00, 0x02, 0x00, 0x00] => CdrEndianness::BigEndian,
+        //     &[0x00, 0x03, 0x00, 0x00] => CdrEndianness::LittleEndian,
         //     _ => panic!("Invalid header"),
         // };
 

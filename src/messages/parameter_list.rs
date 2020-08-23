@@ -2,14 +2,9 @@
 use cdr::{LittleEndian, BigEndian, Infinite};
 use std::rc::Rc;
 
-use super::types;
-use super::submessages::submessage_elements::Short;
+use crate::serialized_payload::CdrEndianness;
 
-#[derive(Debug, Copy, Clone)]
-pub enum CdrEndianness {
-    LittleEndian,
-    BigEndian,
-}
+use super::types;
 
 pub trait Pid {
     fn pid() -> types::ParameterId;
@@ -18,7 +13,7 @@ pub trait Pid {
 pub trait ParameterOps : std::fmt::Debug{
     fn parameter_id(&self) -> super::types::ParameterId;
 
-    fn length(&self) -> Short;
+    fn length(&self) -> i16;
 
     fn value(&self, endianness: CdrEndianness) -> Vec<u8>;
 }
@@ -30,9 +25,9 @@ impl<T> ParameterOps for T
         T::pid()
     }
 
-    fn length(&self) -> Short {
+    fn length(&self) -> i16 {
         // rounded up to multple of 4 (that is besides the length of the value may not be a multiple of 4)
-        Short((cdr::size::calc_serialized_data_size(self) + 3 & !3) as i16)
+        (cdr::size::calc_serialized_data_size(self) + 3 & !3) as i16
     }
 
     fn value(&self, endianness: CdrEndianness) -> Vec<u8> {
@@ -46,7 +41,7 @@ impl<T> ParameterOps for T
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Parameter {
     parameter_id: super::types::ParameterId,
-    length: Short, // length is rounded up to multple of 4
+    length: i16, // length is rounded up to multple of 4
     value: Vec<u8>,
 }
 
@@ -57,6 +52,27 @@ impl Parameter {
             length: input.length(),
             value: input.value(endianness),
         }
+    }
+
+    pub fn from_raw(paramter_id: super::types::ParameterId, value: Vec<u8>) -> Self {
+        Self {
+            parameter_id: paramter_id,
+            length: value.len() as i16,
+            value
+
+        }
+    }
+
+    pub fn parameter_id(&self) -> super::types::ParameterId {
+        self.parameter_id
+    }
+
+    pub fn length(&self) -> i16 {
+        self.length
+    }
+
+    pub fn value(&self) -> &Vec<u8> {
+        &self.value
     }
 
     pub fn get<'de, T: Pid + serde::Deserialize<'de>>(&self, endianness: CdrEndianness) -> Option<T> {
@@ -78,7 +94,7 @@ impl ParameterOps for Parameter {
         self.parameter_id
     }
 
-    fn length(&self) -> Short {
+    fn length(&self) -> i16 {
         self.length
     }
 
@@ -148,3 +164,29 @@ impl ParameterList {
     }
 }
 
+     // #[test]
+     // fn test_parameter_round_up_to_multiples_of_four() {
+     //     let e= Endianness::LittleEndian;
+     //     assert_eq!(0, Parameter::new(&VendorTest0([]), e).length);
+     //     assert_eq!(4, Parameter::new(&VendorTest1([b'X']), e).length);
+     //     assert_eq!(4, Parameter::new(&VendorTest3([b'X'; 3]), e).length);
+     //     assert_eq!(4, Parameter::new(&VendorTest4([b'X'; 4]), e).length);
+     //     assert_eq!(8, Parameter::new(&VendorTest5([b'X'; 5]), e).length);
+     // }
+
+     //  #[test]
+    //  fn find_parameter_list() {
+    //      let endianness = Endianness::LittleEndian;
+    //      let expected = KeyHash([9; 16]);
+    //      let parameter_list = ParameterList{parameter: vec![Rc::new(expected), Rc::new(StatusInfo([8; 4]))]};
+    //      let result = parameter_list.find::<KeyHash>(endianness).unwrap();
+    //      assert_eq!(expected, result);
+    //  }
+ 
+    //  #[test]
+    //  fn remove_from_parameter_list() {
+    //      let expected = ParameterList{parameter: vec![Rc::new(StatusInfo([8; 4]))]};
+    //      let mut parameter_list = ParameterList{parameter: vec![Rc::new(KeyHash([9; 16])), Rc::new(StatusInfo([8; 4]))]};
+    //      parameter_list.remove::<KeyHash>();
+    //      assert_eq!(parameter_list, expected);
+    //  }

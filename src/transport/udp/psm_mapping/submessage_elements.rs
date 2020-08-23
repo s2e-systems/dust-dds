@@ -1,100 +1,100 @@
-// use std::convert::TryInto;
+use std::convert::TryInto;
 
-// use crate::messages::submessages::submessage_elements::{Long, Short, ULong, UShort};
+use crate::messages::submessages::submessage_elements::{Long, Short, ULong, UShort};
 
-// use super::{SizeCheck, TransportEndianness, UdpPsmMappingResult};
+use super::{SizeCheck, TransportEndianness, UdpPsmMappingResult};
 
-// fn serialize_long(
-//     long: &Long,
-//     writer: &mut impl std::io::Write,
-//     endianness: TransportEndianness,
-// ) -> UdpPsmMappingResult<()> {
-//     let value = match endianness {
-//         TransportEndianness::BigEndian => long.0.to_be_bytes(),
-//         TransportEndianness::LittleEndian => long.0.to_le_bytes(),
-//     };
-//     writer.write(&value)?;
-//     Ok(())
-// }
+pub fn serialize_long(
+    long: &Long,
+    writer: &mut impl std::io::Write,
+    endianness: TransportEndianness,
+) -> UdpPsmMappingResult<()> {
+    let value = match endianness {
+        TransportEndianness::BigEndian => long.0.to_be_bytes(),
+        TransportEndianness::LittleEndian => long.0.to_le_bytes(),
+    };
+    writer.write(&value)?;
+    Ok(())
+}
 
-// fn deserialize_long(bytes: &[u8], endianness: TransportEndianness) -> UdpPsmMappingResult<Long> {
-//     bytes.check_size_equal(4)?;
+pub fn deserialize_long(bytes: &[u8], endianness: TransportEndianness) -> UdpPsmMappingResult<Long> {
+    bytes.check_size_equal(4)?;
 
-//     let value = match endianness {
-//         TransportEndianness::BigEndian => Long(i32::from_be_bytes(bytes[0..4].try_into()?)),
-//         TransportEndianness::LittleEndian => Long(i32::from_le_bytes(bytes[0..4].try_into()?)),
-//     };
-//     Ok(value)
-// }
+    let value = match endianness {
+        TransportEndianness::BigEndian => Long(i32::from_be_bytes(bytes[0..4].try_into()?)),
+        TransportEndianness::LittleEndian => Long(i32::from_le_bytes(bytes[0..4].try_into()?)),
+    };
+    Ok(value)
+}
 
-// fn serialize_ulong(
-//     ulong: &ULong,
-//     writer: &mut impl std::io::Write,
-//     endianness: TransportEndianness,
-// ) -> UdpPsmMappingResult<()> {
-//     let value = match endianness {
-//         TransportEndianness::BigEndian => ulong.0.to_be_bytes(),
-//         TransportEndianness::LittleEndian => ulong.0.to_le_bytes(),
-//     };
-//     writer.write(&value)?;
-//     Ok(())
-// }
+pub fn serialize_ulong(
+    ulong: &ULong,
+    writer: &mut impl std::io::Write,
+    endianness: TransportEndianness,
+) -> UdpPsmMappingResult<()> {
+    let value = match endianness {
+        TransportEndianness::BigEndian => ulong.0.to_be_bytes(),
+        TransportEndianness::LittleEndian => ulong.0.to_le_bytes(),
+    };
+    writer.write(&value)?;
+    Ok(())
+}
 
-// fn deserialize_ulong(bytes: &[u8], endianness: TransportEndianness) -> UdpPsmMappingResult<ULong> {
-//     bytes.check_size_equal(4)?;
+pub fn deserialize_ulong(bytes: &[u8], endianness: TransportEndianness) -> UdpPsmMappingResult<ULong> {
+    bytes.check_size_equal(4)?;
 
-//     let value = match endianness {
-//         TransportEndianness::BigEndian => ULong(u32::from_be_bytes(bytes[0..4].try_into()?)),
-//         TransportEndianness::LittleEndian => ULong(u32::from_le_bytes(bytes[0..4].try_into()?)),
-//     };
-//     Ok(value)
-// }
+    let value = match endianness {
+        TransportEndianness::BigEndian => ULong(u32::from_be_bytes(bytes[0..4].try_into()?)),
+        TransportEndianness::LittleEndian => ULong(u32::from_le_bytes(bytes[0..4].try_into()?)),
+    };
+    Ok(value)
+}
 
-// fn serialize_short(
-//     short: &Short,
-//     writer: &mut impl std::io::Write,
-//     endianness: TransportEndianness,
-// ) -> UdpPsmMappingResult<()> {
-//     let value = match endianness {
-//         TransportEndianness::BigEndian => short.0.to_be_bytes(),
-//         TransportEndianness::LittleEndian => short.0.to_le_bytes(),
-//     };
-//     writer.write(&value)?;
-//     Ok(())
-// }
+pub fn serialize_short(
+    short: &Short,
+    writer: &mut impl std::io::Write,
+    endianness: TransportEndianness,
+) -> UdpPsmMappingResult<()> {
+    let value = match endianness {
+        TransportEndianness::BigEndian => short.0.to_be_bytes(),
+        TransportEndianness::LittleEndian => short.0.to_le_bytes(),
+    };
+    writer.write(&value)?;
+    Ok(())
+}
 
-// fn deserialize_short(bytes: &[u8], endianness: TransportEndianness) -> UdpPsmMappingResult<Short> {
-//     bytes.check_size_equal(2)?;
+pub fn deserialize_short(bytes: &[u8], endianness: TransportEndianness) -> UdpPsmMappingResult<Short> {
+    bytes.check_size_equal(2)?;
 
-//     let value = match endianness {
-//         TransportEndianness::BigEndian => Short(i16::from_be_bytes(bytes[0..2].try_into()?)),
-//         TransportEndianness::LittleEndian => Short(i16::from_le_bytes(bytes[0..2].try_into()?)),
-//     };
-//     Ok(value)
-// }
+    let value = match endianness {
+        TransportEndianness::BigEndian => Short(i16::from_be_bytes(bytes[0..2].try_into()?)),
+        TransportEndianness::LittleEndian => Short(i16::from_le_bytes(bytes[0..2].try_into()?)),
+    };
+    Ok(value)
+}
 
-// fn serialize_ushort(
-//     ushort: &UShort,
-//     writer: &mut impl std::io::Write,
-//     endianness: TransportEndianness,
-// ) -> UdpPsmMappingResult<()> {
-//     let value = match endianness {
-//         TransportEndianness::BigEndian => ushort.0.to_be_bytes(),
-//         TransportEndianness::LittleEndian => ushort.0.to_le_bytes(),
-//     };
-//     writer.write(&value)?;
-//     Ok(())
-// }
+pub fn serialize_ushort(
+    ushort: &UShort,
+    writer: &mut impl std::io::Write,
+    endianness: TransportEndianness,
+) -> UdpPsmMappingResult<()> {
+    let value = match endianness {
+        TransportEndianness::BigEndian => ushort.0.to_be_bytes(),
+        TransportEndianness::LittleEndian => ushort.0.to_le_bytes(),
+    };
+    writer.write(&value)?;
+    Ok(())
+}
 
-// fn deserialize_ushort(bytes: &[u8], endianness: TransportEndianness) -> UdpPsmMappingResult<UShort> {
-//     bytes.check_size_equal(2)?;
+pub fn deserialize_ushort(bytes: &[u8], endianness: TransportEndianness) -> UdpPsmMappingResult<UShort> {
+    bytes.check_size_equal(2)?;
 
-//     let value = match endianness {
-//         TransportEndianness::BigEndian => UShort(u16::from_be_bytes(bytes[0..2].try_into()?)),
-//         TransportEndianness::LittleEndian => UShort(u16::from_le_bytes(bytes[0..2].try_into()?)),
-//     };
-//     Ok(value)
-// }
+    let value = match endianness {
+        TransportEndianness::BigEndian => UShort(u16::from_be_bytes(bytes[0..2].try_into()?)),
+        TransportEndianness::LittleEndian => UShort(u16::from_le_bytes(bytes[0..2].try_into()?)),
+    };
+    Ok(value)
+}
 
 // impl SubmessageElement for GuidPrefix {
 //     fn serialize(&self, writer: &mut impl std::io::Write, _endianness: Endianness) -> RtpsSerdesResult<()> {
