@@ -1,14 +1,15 @@
 use std::io::Write;
 use crate::messages::submessages::submessage_elements::Short;
-use crate::messages::parameter_list::Parameter;
+use crate::messages::parameter_list::{Parameter, ParameterList, ParameterOps};
+use crate::serialized_payload::CdrEndianness;
 
 use super::{TransportEndianness, UdpPsmMappingResult, SizeCheck};
 use super::submessage_elements::{serialize_short, deserialize_short};
 
 
-fn serialize_parameter(parameter: &Parameter, writer: &mut impl Write, endianness: TransportEndianness) -> UdpPsmMappingResult<()> {
-    serialize_short(&Short(parameter.parameter_id()), writer, endianness)?;
-    serialize_short(&Short(parameter.length()), writer, endianness)?;
+fn serialize_parameter(parameter: &Parameter, writer: &mut impl Write, transport_endianness: TransportEndianness) -> UdpPsmMappingResult<()> {
+    serialize_short(&Short(parameter.parameter_id()), writer, transport_endianness)?;
+    serialize_short(&Short(parameter.length()), writer, transport_endianness)?;
     writer.write(parameter.value().as_slice())?;
     let padding = parameter.length() as usize - parameter.value().len();
     for _ in 0..padding {
@@ -28,49 +29,48 @@ fn deserialize_parameter(bytes: &[u8], endianness: TransportEndianness) -> UdpPs
     let bytes_end = (length.0 + 4) as usize;
     bytes.check_size_bigger_equal_than(bytes_end)?;
     let value = Vec::from(&bytes[4..bytes_end]);
-    Ok(Parameter::from_raw(parameter_id, value))
+    Ok(Parameter::new(parameter_id, value))
 }    
 
 // impl SubmessageElement for ParameterList {
-//     fn serialize(&self, writer: &mut impl Write, endianness: Endianness) -> RtpsSerdesResult<()> {
-//          for param in self.parameter.iter() {
-//             Parameter{parameter_id: param.parameter_id(), length: param.length(), value: param.value(endianness)}.serialize(writer, endianness)?;
-//         }       
-//         Short(ParameterList::PID_SENTINEL).serialize(writer, endianness)?;
-//         writer.write(&[0,0])?; // Sentinel length 0
-//         Ok(())
-//     }
+pub fn serialize_parameter_list(parameter_list: &ParameterList, writer: &mut impl Write, cdr_endianness: CdrEndianness, transport_endianness: TransportEndianness) -> UdpPsmMappingResult<()> {
+        for param in parameter_list.parameter().iter() {
+        serialize_parameter(&Parameter::from_parameter_ops(param.as_ref(), cdr_endianness), writer, transport_endianness)?;
+    }       
+    serialize_short(&Short(ParameterList::PID_SENTINEL), writer, transport_endianness)?;
+    writer.write(&[0,0])?; // Sentinel length 0
+    Ok(())
+}
 
-//     fn octets(&self) -> usize {
-//         let mut s = 4; //sentinel
-//         self.parameter.iter().for_each(|param| {s += 2 /*param.parameter_id().octets()*/ + 2 /*param.length().octets()*/ + (param.length().0 as usize) });
-//         s
-//     }   
+pub fn parameter_list_octets(parameter_list: &ParameterList) -> usize {
+        let mut s = 4; //sentinel
+        parameter_list.parameter().iter().for_each(|param| {s += 2 /*param.parameter_id().octets()*/ + 2 /*param.length().octets()*/ + (param.length() as usize) });
+        s
+    }   
 
-//     fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> {
-//         bytes.check_size_bigger_equal_than(2)?;
-//         let mut parameter_start_index: usize = 0;
-//         let mut parameters = ParameterList::new();
-//         loop {
-//             let parameter = Parameter::deserialize(&bytes[parameter_start_index..], endianness)?;          
-//             if &parameter.parameter_id == &ParameterList::PID_SENTINEL {
-//                 break;
-//             }            
-//             parameter_start_index += parameter.octets();
-//             parameters.push(parameter);
-//         }
-//         Ok(parameters)
-//     }
-// }
+pub fn deserialize_parameter_list(bytes: &[u8], endianness: TransportEndianness) -> UdpPsmMappingResult<ParameterList> {
+    bytes.check_size_bigger_equal_than(2)?;
+    let mut parameter_start_index: usize = 0;
+    let mut parameters = ParameterList::new();
+    loop {
+        let parameter = deserialize_parameter(&bytes[parameter_start_index..], endianness)?;          
+        if parameter.parameter_id() == ParameterList::PID_SENTINEL {
+            break;
+        }            
+        parameter_start_index += octets_parameter(&parameter);
+        parameters.push(parameter);
+    }
+    Ok(parameters)
+}
+
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::inline_qos_types::{StatusInfo, KeyHash, };
     use crate::messages::types::{ParameterId, };
     use serde::{Serialize, Deserialize, };
     use crate::messages::parameter_list::Pid;
-    use crate::serialized_payload::CdrEndianness;
+    use crate::inline_qos_types::{StatusInfo, KeyHash, };
     // use super::super::serdes::RtpsSerdesError;
 
     #[allow(overflowing_literals)]
@@ -138,7 +138,7 @@ mod tests {
  
      #[test]
      fn serialize_deserialize_parameter() {
-         let parameter = Parameter::new(&VendorTest3([1, 2, 3]), CdrEndianness::LittleEndian);
+         let parameter = Parameter::from_parameter_ops(&VendorTest3([1, 2, 3]), CdrEndianness::LittleEndian);
      
          let expected = vec![
              0x03, 0x80, 4, 0, //ParameterID, length
@@ -165,14 +165,14 @@ mod tests {
              0x71, 0x0, 4, 0, 
              1, 2, 3, 4,
          ];
-         let expected = Parameter::new(&StatusInfo([1, 2, 3, 4]), CdrEndianness::LittleEndian);
+         let expected = Parameter::from_parameter_ops(&StatusInfo([1, 2, 3, 4]), CdrEndianness::LittleEndian);
          let result = deserialize_parameter(&bytes, TransportEndianness::LittleEndian).unwrap();   
          assert_eq!(expected, result);
      }    
  
      #[test]
      fn serialize_parameter_short() {
-         let parameter = Parameter::new(&VendorTestShort(-1000), CdrEndianness::LittleEndian);
+         let parameter = Parameter::from_parameter_ops(&VendorTestShort(-1000), CdrEndianness::LittleEndian);
          let expected = vec![
              0x06, 0x80, 4, 0, 
              0x18, 0xFC, 0, 0,
@@ -181,7 +181,7 @@ mod tests {
          serialize_parameter(&parameter, &mut writer, TransportEndianness::LittleEndian).unwrap();
          assert_eq!(expected, writer);
  
-         let parameter = Parameter::new(&VendorTestShort(-1000), CdrEndianness::BigEndian);
+         let parameter = Parameter::from_parameter_ops(&VendorTestShort(-1000), CdrEndianness::BigEndian);
          let expected = vec![
              0x80, 0x06, 0, 4, 
              0xFC, 0x18, 0, 0,
@@ -214,7 +214,7 @@ mod tests {
  
      #[test]
      fn parameter_serialize_little_endian() {
-         let parameter = Parameter::new(&VendorTest3([1, 2, 3]), CdrEndianness::LittleEndian);
+         let parameter = Parameter::from_parameter_ops(&VendorTest3([1, 2, 3]), CdrEndianness::LittleEndian);
          let expected_bytes = vec![
              0x03, 0x80, 4, 0, 
              1, 2, 3, 0,
@@ -226,7 +226,7 @@ mod tests {
          assert_eq!(expected_bytes, result_bytes);
          assert_eq!(expected_octets, result_octets);
      
-         let parameter = Parameter::new(&VendorTest0([]), CdrEndianness::LittleEndian);
+         let parameter = Parameter::from_parameter_ops(&VendorTest0([]), CdrEndianness::LittleEndian);
          let expected_bytes = vec![0x00, 0x80, 0, 0, ];
          let expected_octets = expected_bytes.len();
          let mut result_bytes = Vec::new();
@@ -235,7 +235,7 @@ mod tests {
          assert_eq!(expected_bytes, result_bytes);
          assert_eq!(expected_octets, result_octets);
      
-         let parameter = Parameter::new(&VendorTest4([1,2,3,4]), CdrEndianness::LittleEndian);
+         let parameter = Parameter::from_parameter_ops(&VendorTest4([1,2,3,4]), CdrEndianness::LittleEndian);
          let expected_bytes = vec![
              0x04, 0x80, 4, 0, 
              1, 2, 3, 4,
@@ -247,7 +247,7 @@ mod tests {
          assert_eq!(expected_bytes, result_bytes);
          assert_eq!(expected_octets, result_octets);
      
-         let parameter = Parameter::new(&VendorTest5([1,2,3,4,5]), CdrEndianness::LittleEndian);
+         let parameter = Parameter::from_parameter_ops(&VendorTest5([1,2,3,4,5]), CdrEndianness::LittleEndian);
          let expected_bytes = vec![
              0x05, 0x80, 8, 0, 
              1, 2, 3, 4,
@@ -263,84 +263,80 @@ mod tests {
          
     
  
-    //  #[test]
-    //  fn parameter_list_deserialize_liitle_endian() {
-    //      let endianness = Endianness::LittleEndian;
-    //      let bytes = vec![
-    //          0x03, 0x80, 4, 0, // ParameterID, length 
-    //          1, 2, 3, 0, // value
-    //          0x05, 0x80, 8, 0, // ParameterID, length 
-    //          10, 20, 30, 40, // value
-    //          50, 0, 0, 0, // value
-    //          0x01, 0x00, 0, 0, // Sentinel
-    //      ];  
-    //      let expected1 = VendorTest3([1, 2, 3]);
-    //      let expected2 = VendorTest5([10, 20, 30, 40, 50]);
+     #[test]
+     fn parameter_list_deserialize_liitle_endian() {
+         let bytes = vec![
+             0x03, 0x80, 4, 0, // ParameterID, length 
+             1, 2, 3, 0, // value
+             0x05, 0x80, 8, 0, // ParameterID, length 
+             10, 20, 30, 40, // value
+             50, 0, 0, 0, // value
+             0x01, 0x00, 0, 0, // Sentinel
+         ];  
+         let expected1 = VendorTest3([1, 2, 3]);
+         let expected2 = VendorTest5([10, 20, 30, 40, 50]);
      
-    //      // Note that the complete list cannot simply be checked for equality here
-    //      // this is because the value of each parameter needs to be interpreted for that
-    //      // otherwise the value containes the padding 0's 
-    //      let result = ParameterList::deserialize(&bytes, endianness).unwrap(); 
-    //      let result1 = result.find::<VendorTest3>(endianness).unwrap();
-    //      let result2 = result.find::<VendorTest5>(endianness).unwrap();
-    //      assert_eq!(result1, expected1);
-    //      assert_eq!(result2, expected2);
-    //  }
+         // Note that the complete list cannot simply be checked for equality here
+         // this is because the value of each parameter needs to be interpreted for that
+         // otherwise the value containes the padding 0's 
+         let result = deserialize_parameter_list(&bytes, TransportEndianness::LittleEndian).unwrap(); 
+         let result1 = result.find::<VendorTest3>(CdrEndianness::LittleEndian).unwrap();
+         let result2 = result.find::<VendorTest5>(CdrEndianness::LittleEndian).unwrap();
+         assert_eq!(result1, expected1);
+         assert_eq!(result2, expected2);
+
+         let key_hash = KeyHash([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
+         let status_info = StatusInfo([101, 102, 103, 104]);
+     
+         let mut expected = ParameterList::new();
+         expected.push(key_hash);
+         expected.push(status_info);
  
-    //  #[test]
-    //  fn serialize_parameter_list() {
-    //      let endianness = Endianness::LittleEndian;
-    //      use crate::inline_qos_types::KeyHash;
-    //      let key_hash = KeyHash([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
-    //      let status_info = StatusInfo([101, 102, 103, 104]);
-    //      let vendor1 = VendorTest1([b'X']);
-    //      let vendor5 = VendorTest5([2;5]);
-    //      let parameter_list = ParameterList{parameter: vec![Rc::new(key_hash), Rc::new(status_info), Rc::new(vendor1), Rc::new(vendor5)]};
-     
-    //      let mut writer = Vec::new();
-    //      parameter_list.serialize(&mut writer, endianness).unwrap();
-     
-    //      let expected = vec![
-    //          0x70, 0x00, 16, 0, //ParameterID, length
-    //          1, 2, 3, 4, //key_hash
-    //          5, 6, 7, 8,  //key_hash
-    //          9, 10, 11, 12,  //key_hash
-    //          13, 14, 15, 16, //key_hash
-    //          0x71, 0x00, 4, 0, //ParameterID, length
-    //          101, 102, 103, 104, //status_info
-    //          0x01, 0x80, 4, 0, //ParameterID, length
-    //          b'X', 0, 0, 0, //vendor1
-    //          0x05, 0x80, 8, 0, //ParameterID, length
-    //          2, 2, 2, 2, //vendor5
-    //          2, 0, 0, 0, //vendor5
-    //          1, 0, 0, 0 // Sentinel
-    //      ];
-    //      assert_eq!(expected, writer);
-    //  }
-     
-    //  #[test]
-    //  fn deserialize_parameter_list() {
-    //      let endianness = Endianness::LittleEndian;
-    //      use crate::inline_qos_types::KeyHash;
-    //      let key_hash = KeyHash([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
-    //      let status_info = StatusInfo([101, 102, 103, 104]);
-     
-    //      let mut expected = ParameterList::new();
-    //      expected.push(key_hash);
-    //      expected.push(status_info);
- 
-    //      let bytes = vec![
-    //          0x70, 0x00, 16, 0, //ParameterID, length
-    //          1, 2, 3, 4, //key_hash
-    //          5, 6, 7, 8,  //key_hash
-    //          9, 10, 11, 12,  //key_hash
-    //          13, 14, 15, 16, //key_hash
-    //          0x71, 0x00, 4, 0, //ParameterID, length
-    //          101, 102, 103, 104, //status_info
-    //          1, 0, 0, 0 // Sentinel
-    //      ];
+         let bytes = vec![
+             0x70, 0x00, 16, 0, //ParameterID, length
+             1, 2, 3, 4, //key_hash
+             5, 6, 7, 8,  //key_hash
+             9, 10, 11, 12,  //key_hash
+             13, 14, 15, 16, //key_hash
+             0x71, 0x00, 4, 0, //ParameterID, length
+             101, 102, 103, 104, //status_info
+             1, 0, 0, 0 // Sentinel
+         ];
          
-    //      let result = ParameterList::deserialize(&bytes, endianness).unwrap();
-    //      assert_eq!(expected, result);
-    // }
+         let result = deserialize_parameter_list(&bytes, TransportEndianness::LittleEndian).unwrap();
+         assert_eq!(expected, result);
+     }
+ 
+     #[test]
+     fn serialize_parameter_list_little_endian() {
+         let key_hash = KeyHash([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
+         let status_info = StatusInfo([101, 102, 103, 104]);
+         let vendor1 = VendorTest1([b'X']);
+         let vendor5 = VendorTest5([2;5]);
+         let mut parameter_list = ParameterList::new();
+         parameter_list.push(key_hash);
+         parameter_list.push(status_info);
+         parameter_list.push(vendor1);
+         parameter_list.push(vendor5);
+     
+         let mut writer = Vec::new();
+         serialize_parameter_list(&parameter_list, &mut writer,  CdrEndianness::LittleEndian, TransportEndianness::LittleEndian).unwrap();
+     
+         let expected = vec![
+             0x70, 0x00, 16, 0, //ParameterID, length
+             1, 2, 3, 4, //key_hash
+             5, 6, 7, 8,  //key_hash
+             9, 10, 11, 12,  //key_hash
+             13, 14, 15, 16, //key_hash
+             0x71, 0x00, 4, 0, //ParameterID, length
+             101, 102, 103, 104, //status_info
+             0x01, 0x80, 4, 0, //ParameterID, length
+             b'X', 0, 0, 0, //vendor1
+             0x05, 0x80, 8, 0, //ParameterID, length
+             2, 2, 2, 2, //vendor5
+             2, 0, 0, 0, //vendor5
+             1, 0, 0, 0 // Sentinel
+         ];
+         assert_eq!(expected, writer);
+     }
 }

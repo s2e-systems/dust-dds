@@ -46,29 +46,19 @@ pub struct Parameter {
 }
 
 impl Parameter {
-    pub fn new(input: &(impl ParameterOps + ?Sized) , endianness: CdrEndianness) -> Self {
+    pub fn new(parameter_id: super::types::ParameterId, value: Vec<u8>) -> Self {
+        Self {
+            parameter_id,
+            length: (value.len() + 3 & !3) as i16,
+            value,
+        }
+    }
+    pub fn from_parameter_ops(input: &(impl ParameterOps + ?Sized) , endianness: CdrEndianness) -> Self {
         Self {
             parameter_id: input.parameter_id(),
             length: input.length(),
             value: input.value(endianness),
         }
-    }
-
-    pub fn from_raw(paramter_id: super::types::ParameterId, value: Vec<u8>) -> Self {
-        Self {
-            parameter_id: paramter_id,
-            length: value.len() as i16,
-            value
-
-        }
-    }
-
-    pub fn parameter_id(&self) -> super::types::ParameterId {
-        self.parameter_id
-    }
-
-    pub fn length(&self) -> i16 {
-        self.length
     }
 
     pub fn value(&self) -> &Vec<u8> {
@@ -121,10 +111,14 @@ impl PartialEq for ParameterList{
 
 impl ParameterList {
 
-    const PID_SENTINEL : super::types::ParameterId = 0x0001;
+    pub const PID_SENTINEL : super::types::ParameterId = 0x0001;
 
     pub fn new() -> Self {
         Self {parameter: Vec::new()}
+    }
+
+    pub fn parameter(&self) -> &Vec<Rc<dyn ParameterOps>> {
+        &self.parameter
     }
 
     pub fn push<T: ParameterOps + 'static>(&mut self, value: T) {
