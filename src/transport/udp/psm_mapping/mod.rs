@@ -1,6 +1,12 @@
 mod rtps_message;
 mod submessage_elements;
 mod parameter_list;
+mod rtps_submessage;
+mod info_timestamp_submessage;
+mod data_submessage;
+
+use crate::serialized_payload::CdrEndianness;
+pub use rtps_message::{serialize_rtps_message, deserialize_rtps_message};
 
 #[derive(PartialEq, Debug, Clone, Copy)]
 pub enum TransportEndianness {
@@ -8,23 +14,32 @@ pub enum TransportEndianness {
     LittleEndian = 1,
 }
 
-// impl From<bool> for Endianness {
-//     fn from(value: bool) -> Self {
-//         match value {
-//             true => Endianness::LittleEndian,
-//             false => Endianness::BigEndian,
-//         }
-//     }
-// }
+impl From<bool> for TransportEndianness {
+    fn from(value: bool) -> Self {
+        match value {
+            true => TransportEndianness::LittleEndian,
+            false => TransportEndianness::BigEndian,
+        }
+    }
+}
 
-// impl From<Endianness> for bool {
-//     fn from(value: Endianness) -> Self {
-//         match value {
-//             Endianness::LittleEndian => true,
-//             Endianness::BigEndian => false,
-//         }
-//     }
-// }
+impl From<TransportEndianness> for bool {
+    fn from(value: TransportEndianness) -> Self {
+        match value {
+            TransportEndianness::LittleEndian => true,
+            TransportEndianness::BigEndian => false,
+        }
+    }
+}
+
+impl From<TransportEndianness> for CdrEndianness {
+    fn from(value: TransportEndianness) -> Self {
+        match value {
+            TransportEndianness::LittleEndian => CdrEndianness::LittleEndian,
+            TransportEndianness::BigEndian => CdrEndianness::BigEndian,
+        }
+    }
+}
 
 #[derive(Debug)]
 pub enum UdpPsmMappingError {
@@ -32,6 +47,7 @@ pub enum UdpPsmMappingError {
     InvalidProtocolId,
     MessageTooSmall,
     InvalidEnumRepresentation,
+    UnknownSubmessageId,
     IoError(std::io::Error),
 }
 
@@ -48,8 +64,6 @@ impl From<std::array::TryFromSliceError> for UdpPsmMappingError {
 }
 
 pub type UdpPsmMappingResult<T> = std::result::Result<T, UdpPsmMappingError>;
-
-pub use  rtps_message::{serialize_rtps_message, deserialize_rtps_message};
 
 pub struct SizeSerializer {
     size: usize,

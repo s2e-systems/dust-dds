@@ -62,24 +62,24 @@ impl Heartbeat {
         true
     }
 
-    pub fn reader_id(&self) -> types::EntityId {
-        self.reader_id.0
+    pub fn reader_id(&self) -> submessage_elements::EntityId {
+        self.reader_id
     }
 
-    pub fn writer_id(&self) -> types::EntityId {
-        self.writer_id.0
+    pub fn writer_id(&self) -> submessage_elements::EntityId {
+        self.writer_id
     }
 
-    pub fn first_sn(&self) -> types::SequenceNumber {
-        self.first_sn.0
+    pub fn first_sn(&self) -> submessage_elements::SequenceNumber {
+        self.first_sn
     }
 
-    pub fn last_sn(&self) -> types::SequenceNumber {
-        self.last_sn.0
+    pub fn last_sn(&self) -> submessage_elements::SequenceNumber {
+        self.last_sn
     }
 
-    pub fn count(&self) -> messages::types::Count {
-        self.count.0
+    pub fn count(&self) -> submessage_elements::Count {
+        self.count
     }
 
     pub fn is_final(&self) -> bool {
@@ -88,13 +88,17 @@ impl Heartbeat {
 }
 
 impl Submessage for Heartbeat {
-    fn submessage_flags(&self) -> [SubmessageFlag; 8] {
+    fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeader {
+        let submessage_id = SubmessageKind::Heartbeat;
+        
         let x = false;
         let e = self.endianness_flag; // Indicates endianness.
         let f = self.final_flag; //Indicates to the Reader the presence of a ParameterList containing QoS parameters that should be used to interpret the message.
         let l = self.liveliness_flag; //Indicates to the Reader that the dataPayload submessage element contains the serialized value of the data-object.
         // X|X|X|X|X|L|F|E
-        [e, f, l, x, x, x, x, x]
+        let flags = [e, f, l, x, x, x, x, x];
+
+        SubmessageHeader::new(submessage_id, flags, octets_to_next_header)
     }
 
     fn is_valid(&self) -> bool {

@@ -69,15 +69,13 @@ impl CdrParameterList {
     pub fn find<'de, T>(&self) -> Option<T>
         where T: Pid + serde::Deserialize<'de>
     {
-        todo!()
-        // self.parameter_list.find(self.endianness)
+        self.parameter_list.find(self.endianness)
     }
 
     pub fn find_all<'de, T>(&self) -> Vec<T>
         where T: Pid + serde::Deserialize<'de>
     {
-        todo!()
-        // self.parameter_list.find_all(self.endianness)
+        self.parameter_list.find_all(self.endianness)
     }
 }
 

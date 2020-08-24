@@ -28,21 +28,23 @@ pub struct SubmessageHeader {
 }
 
 impl SubmessageHeader {
-    pub fn new(submessage_id: SubmessageKind, flags: [SubmessageFlag; 8], submessage_length: usize) -> Self {
+    pub fn new(submessage_id: SubmessageKind, flags: [SubmessageFlag; 8], submessage_length: u16) -> Self {
         Self {
             submessage_id, 
             flags,
-            submessage_length: submessage_elements::UShort(submessage_length as u16),
+            submessage_length: submessage_elements::UShort(submessage_length),
         }
     }
+
     pub fn submessage_id(&self) -> SubmessageKind {
         self.submessage_id
     }
+
     pub fn flags(&self) -> &[SubmessageFlag; 8] {
         &self.flags
     }
-    pub fn submessage_length(&self) -> u16 {
-        self.submessage_length.0
+    pub fn submessage_length(&self) -> &submessage_elements::UShort {
+        &self.submessage_length
     }
 }
 
@@ -88,7 +90,7 @@ impl RtpsSubmessage {
 
 pub trait Submessage 
 {
-    fn submessage_flags(&self) ->  [SubmessageFlag; 8];
+    fn submessage_header(&self, octets_to_next_header: u16 /* Transport dependent */) -> SubmessageHeader;
 
     fn is_valid(&self) -> bool;
 }

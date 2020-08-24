@@ -1,8 +1,10 @@
 use std::convert::TryInto;
 
-use crate::messages::submessages::submessage_elements::{Long, Short, ULong, UShort};
+use crate::messages::submessages::submessage_elements::{Long, Short, ULong, UShort, Timestamp, GuidPrefix, EntityId, SequenceNumber};
+use crate::messages::types::Time;
+use crate::types;
 
-use super::{SizeCheck, TransportEndianness, UdpPsmMappingResult};
+use super::{SizeCheck, TransportEndianness, UdpPsmMappingResult, UdpPsmMappingError};
 
 pub fn serialize_long(
     long: &Long,
@@ -96,32 +98,28 @@ pub fn deserialize_ushort(bytes: &[u8], endianness: TransportEndianness) -> UdpP
     Ok(value)
 }
 
-// impl SubmessageElement for GuidPrefix {
-//     fn serialize(&self, writer: &mut impl std::io::Write, _endianness: Endianness) -> RtpsSerdesResult<()> {
-//         writer.write(&self.0)?;
-//         Ok(())
-//     }
+pub fn serialize_guid_prefix(guid_prefix: &GuidPrefix, writer: &mut impl std::io::Write) -> UdpPsmMappingResult<()> {
+    writer.write(&guid_prefix.0)?;
+    Ok(())
+}
 
-//     fn deserialize(bytes: &[u8], _endianness: Endianness) -> RtpsSerdesResult<Self> {
-//         bytes.check_size_equal(12)?;
-//         Ok(GuidPrefix(bytes[0..12].try_into()?))
-//     }    
-// }
+pub fn deserialize_guid_prefix(bytes: &[u8]) -> UdpPsmMappingResult<GuidPrefix> {
+    bytes.check_size_equal(12)?;
+    Ok(GuidPrefix(bytes[0..12].try_into()?))
+}    
 
-// impl SubmessageElement for EntityId {
-//     fn serialize(&self, writer: &mut impl std::io::Write, _endianness: Endianness) -> RtpsSerdesResult<()>{
-//         writer.write(&self.0.entity_key())?;
-//         writer.write(&[self.0.entity_kind() as u8])?;
-//         Ok(())
-//     }
+pub fn serialize_entity_id(entity_id: &EntityId, writer: &mut impl std::io::Write) -> UdpPsmMappingResult<()>{
+    writer.write(&entity_id.0.entity_key())?;
+    writer.write(&[entity_id.0.entity_kind() as u8])?;
+    Ok(())
+}
 
-//     fn deserialize(bytes: &[u8], _endianness: Endianness) -> RtpsSerdesResult<Self> {
-//         bytes.check_size_equal( 4)?;
-//         let entity_key = bytes[0..3].try_into()?;
-//         let entity_kind = num::FromPrimitive::from_u8(bytes[3]).ok_or(RtpsSerdesError::InvalidEnumRepresentation)?;
-//         Ok(EntityId(types::EntityId::new(entity_key, entity_kind)))
-//     }
-// }
+pub fn deserialize_entity_id(bytes: &[u8]) -> UdpPsmMappingResult<EntityId> {
+    bytes.check_size_equal( 4)?;
+    let entity_key = bytes[0..3].try_into()?;
+    let entity_kind = num::FromPrimitive::from_u8(bytes[3]).ok_or(UdpPsmMappingError::InvalidEnumRepresentation)?;
+    Ok(EntityId(types::EntityId::new(entity_key, entity_kind)))
+}
 
 // impl SubmessageElement for VendorId {
 //     fn serialize(&self, writer: &mut impl std::io::Write, _endianness: Endianness) -> RtpsSerdesResult<()> {
@@ -150,26 +148,24 @@ pub fn deserialize_ushort(bytes: &[u8], endianness: TransportEndianness) -> UdpP
 //     }
 // }
 
-// impl SubmessageElement for SequenceNumber {
-//     fn serialize(&self, writer: &mut impl std::io::Write, endianness: Endianness) -> RtpsSerdesResult<()>{
-//         let msb = Long((self.0 >> 32) as i32);
-//         let lsb = ULong((self.0 & 0x0000_0000_FFFF_FFFF) as u32);
-//         msb.serialize(writer, endianness)?;
-//         lsb.serialize(writer, endianness)?;
-//         Ok(())
-//     }
+pub fn serialize_sequence_number(sequence_number: &SequenceNumber, writer: &mut impl std::io::Write, endianness: TransportEndianness) -> UdpPsmMappingResult<()>{
+    let msb = Long((sequence_number.0 >> 32) as i32);
+    let lsb = ULong((sequence_number.0 & 0x0000_0000_FFFF_FFFF) as u32);
+    serialize_long(&msb, writer, endianness)?;
+    serialize_ulong(&lsb, writer, endianness)?;
+    Ok(())
+}
 
-//     fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> {
-//         bytes.check_size_equal(8)?;
+pub fn deserialize_sequence_number(bytes: &[u8], endianness: TransportEndianness) -> UdpPsmMappingResult<SequenceNumber> {
+    bytes.check_size_equal(8)?;
 
-//         let msb = Long::deserialize(&bytes[0..4], endianness)?;
-//         let lsb = ULong::deserialize(&bytes[4..8], endianness)?;
+    let msb = deserialize_long(&bytes[0..4], endianness)?;
+    let lsb = deserialize_ulong(&bytes[4..8], endianness)?;
 
-//         let sequence_number = ((msb.0 as i64) << 32) + lsb.0 as i64;
+    let sequence_number = ((msb.0 as i64) << 32) + lsb.0 as i64;
 
-//         Ok(SequenceNumber(sequence_number))
-//     }
-// }
+    Ok(SequenceNumber(sequence_number))
+}
 
 // impl SubmessageElement for SequenceNumberSet {
 //     fn serialize(&self, writer: &mut impl Write, endianness: Endianness) -> RtpsSerdesResult<()> {
@@ -289,22 +285,20 @@ pub fn deserialize_ushort(bytes: &[u8], endianness: TransportEndianness) -> UdpP
 //     }    
 // }
 
-// impl SubmessageElement for Timestamp {
-//     fn serialize(&self, writer: &mut impl std::io::Write, endianness: Endianness) -> RtpsSerdesResult<()>{
-//         ULong(self.0.seconds()).serialize(writer, endianness)?;
-//         ULong(self.0.fraction()).serialize(writer, endianness)?;
-//         Ok(())
-//     }
+pub fn serialize_timestamp(timestamp: &Timestamp, writer: &mut impl std::io::Write, endianness: TransportEndianness) -> UdpPsmMappingResult<()>{
+    serialize_ulong(&ULong(timestamp.0.seconds()), writer, endianness)?;
+    serialize_ulong(&ULong(timestamp.0.fraction()), writer, endianness)?;
+    Ok(())
+}
 
-//     fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> {
-//         bytes.check_size_equal(8)?;
+pub fn deserialize_timestamp(bytes: &[u8], endianness: TransportEndianness) -> UdpPsmMappingResult<Timestamp> {
+    bytes.check_size_equal(8)?;
 
-//         let seconds = ULong::deserialize(&bytes[0..4], endianness)?.0;
-//         let fraction = ULong::deserialize(&bytes[4..8], endianness)?.0;
+    let seconds = deserialize_ulong(&bytes[0..4], endianness)?.0;
+    let fraction = deserialize_ulong(&bytes[4..8], endianness)?.0;
 
-//         Ok(Self(crate::messages::types::Time::new(seconds, fraction)))
-//     }
-// }
+    Ok(Timestamp(Time::new(seconds, fraction)))
+}
 
 // impl SubmessageElement for Count {
 //     fn serialize(&self, writer: &mut impl std::io::Write, endianness: Endianness) -> RtpsSerdesResult<()> {

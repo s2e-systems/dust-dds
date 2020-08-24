@@ -1,5 +1,3 @@
-use std::convert::From;
-
 use super::{SubmessageKind, SubmessageFlag, };
 use super::{Submessage, SubmessageHeader, };
 use super::submessage_elements;
@@ -69,16 +67,43 @@ impl Data {
         }
     }
 
-    pub fn reader_id(&self) -> types::EntityId {
-        self.reader_id.0
+    pub fn from_raw_parts(endianness_flag: SubmessageFlag,
+        inline_qos_flag: SubmessageFlag,    
+        data_flag: SubmessageFlag, 
+        key_flag: SubmessageFlag,
+        non_standard_payload_flag: SubmessageFlag,
+        reader_id: submessage_elements::EntityId,
+        writer_id: submessage_elements::EntityId,
+        writer_sn: submessage_elements::SequenceNumber,
+        inline_qos: ParameterList,
+        serialized_payload: submessage_elements::SerializedData,) -> Self {
+            
+            Data {
+                endianness_flag,
+                inline_qos_flag,
+                data_flag,
+                key_flag,
+                non_standard_payload_flag,
+                reader_id,
+                writer_id,
+                writer_sn,
+                inline_qos, 
+                serialized_payload, 
+            }
+
+
     }
 
-    pub fn writer_id(&self) -> types::EntityId {
-        self.writer_id.0
+    pub fn reader_id(&self) -> submessage_elements::EntityId {
+        self.reader_id
     }
 
-    pub fn writer_sn(&self) -> types::SequenceNumber {
-        self.writer_sn.0
+    pub fn writer_id(&self) -> submessage_elements::EntityId {
+        self.writer_id
+    }
+
+    pub fn writer_sn(&self) -> submessage_elements::SequenceNumber {
+        self.writer_sn
     }
 
     pub fn serialized_payload(&self) -> &Vec<u8> {
@@ -91,6 +116,14 @@ impl Data {
 
     pub fn endianness_flag(&self) -> SubmessageFlag {
         self.endianness_flag
+    }
+
+    pub fn set_endianness_flag(&mut self, value: SubmessageFlag) {
+        self.endianness_flag = value;
+    }
+
+    pub fn inline_qos_flag(&self) -> SubmessageFlag {
+        self.inline_qos_flag
     }
 
     pub fn data_flag(&self) -> SubmessageFlag {
@@ -111,7 +144,9 @@ impl Data {
 }
 
 impl Submessage for Data {
-    fn submessage_flags(&self) -> [SubmessageFlag; 8] {
+    fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeader {
+        let submessage_id = SubmessageKind::Data;
+
         let x = false;
         let e = self.endianness_flag; // Indicates endianness.
         let q = self.inline_qos_flag; //Indicates to the Reader the presence of a ParameterList containing QoS parameters that should be used to interpret the message.
@@ -119,7 +154,9 @@ impl Submessage for Data {
         let k = self.key_flag; //Indicates to the Reader that the dataPayload submessage element contains the serialized value of the key of the data-object. 
         let n = self.non_standard_payload_flag; //Indicates to the Reader that the serializedPayload submessage element is not formatted according to Section 10.
         // X|X|X|N|K|D|Q|E
-        [e, q, d, k, n, x, x, x]
+        let flags = [e, q, d, k, n, x, x, x];
+
+        SubmessageHeader::new(submessage_id, flags, octets_to_next_header)
     }
 
     fn is_valid(&self) -> bool {
@@ -129,5 +166,35 @@ impl Submessage for Data {
         } else {
             true
         }
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::inline_qos_types::KeyHash;
+    use crate::types::constants::{ENTITYID_UNKNOWN, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, };
+
+    // E: EndiannessFlag - Indicates endianness.
+    // Q: InlineQosFlag - Indicates to the Reader the presence of a ParameterList containing QoS parameters that should be used to interpret the message.
+    // D: DataFlag - Indicates to the Reader that the dataPayload submessage element contains the serialized value of the data-object.
+    // K: KeyFlag - Indicates to the Reader that the dataPayload submessage element contains the serialized value of the key of the data-object. 
+    // N: NonStandardPayloadFlag  -Indicates to the Reader that the serializedPayload submessage element is not formatted according to Section 10.
+    // X|X|X|N|K|D|Q|E
+    #[test]
+    fn test_data_contructor() {
+        let data = Data::new(
+            ENTITYID_UNKNOWN, 
+            ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, 
+            1, 
+            Some(ParameterList::new()),
+            Payload::Data(vec![])
+        );
+        assert_eq!(data.endianness_flag, true);
+        assert_eq!(data.inline_qos_flag, true);
+        assert_eq!(data.data_flag, true);
+        assert_eq!(data.key_flag, false);
+        assert_eq!(data.non_standard_payload_flag, false);
     }
 }

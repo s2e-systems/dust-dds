@@ -83,9 +83,9 @@ mod tests {
         };
         match &message.submessages()[1] {
             RtpsSubmessage::Data(data) => {
-                assert_eq!(data.reader_id(), ENTITYID_UNKNOWN);
-                assert_eq!(data.writer_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-                assert_eq!(data.writer_sn(), 1);
+                assert_eq!(data.reader_id().0, ENTITYID_UNKNOWN);
+                assert_eq!(data.writer_id().0, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
+                assert_eq!(data.writer_sn().0, 1);
             },
             _ => panic!("Unexpected submessage type received"),
         };
@@ -109,9 +109,9 @@ mod tests {
         };
         match &message.submessages()[1] {
             RtpsSubmessage::Data(data) => {
-                assert_eq!(data.reader_id(), ENTITYID_UNKNOWN);
-                assert_eq!(data.writer_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-                assert_eq!(data.writer_sn(), 2);
+                assert_eq!(data.reader_id().0, ENTITYID_UNKNOWN);
+                assert_eq!(data.writer_id().0, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
+                assert_eq!(data.writer_sn().0, 2);
             },
             _ => panic!("Unexpected submessage type received"),
         };
@@ -123,9 +123,9 @@ mod tests {
         };
         match &message.submessages()[3] {
             RtpsSubmessage::Data(data) => {
-                assert_eq!(data.reader_id(), ENTITYID_UNKNOWN);
-                assert_eq!(data.writer_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-                assert_eq!(data.writer_sn(), 3);
+                assert_eq!(data.reader_id().0, ENTITYID_UNKNOWN);
+                assert_eq!(data.writer_id().0, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
+                assert_eq!(data.writer_sn().0, 3);
             },
             _ => panic!("Unexpected submessage type received"),
         };
@@ -148,8 +148,8 @@ mod tests {
         };
         match &message.submessages()[1] {
             RtpsSubmessage::Gap(gap) => {
-                assert_eq!(gap.reader_id(), ENTITYID_UNKNOWN);
-                assert_eq!(gap.writer_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
+                assert_eq!(gap.reader_id().0, ENTITYID_UNKNOWN);
+                assert_eq!(gap.writer_id().0, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
             },
             _ => panic!("Unexpected submessage type received"),
         };
@@ -161,9 +161,9 @@ mod tests {
         };
         match &message.submessages()[3] {
             RtpsSubmessage::Data(data) => {
-                assert_eq!(data.reader_id(), ENTITYID_UNKNOWN);
-                assert_eq!(data.writer_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-                assert_eq!(data.writer_sn(), 5);
+                assert_eq!(data.reader_id().0, ENTITYID_UNKNOWN);
+                assert_eq!(data.writer_id().0, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
+                assert_eq!(data.writer_sn().0, 5);
             },
             _ => panic!("Unexpected submessage type received"),
         };
@@ -266,9 +266,9 @@ mod tests {
         };
         match &message.submessages()[1] {
             RtpsSubmessage::Data(data) => {
-                assert_eq!(data.reader_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-                assert_eq!(data.writer_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-                assert_eq!(data.writer_sn(), 1);
+                assert_eq!(data.reader_id().0, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
+                assert_eq!(data.writer_id().0, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
+                assert_eq!(data.writer_sn().0, 1);
             },
             _ => panic!("Unexpected submessage type received"),
         };

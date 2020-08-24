@@ -13,7 +13,7 @@ use crate::messages::submessages::data_submessage::Payload;
 use crate::inline_qos_types::{KeyHash, StatusInfo};
 
 fn cache_change_from_data(message: Data, guid_prefix: &GuidPrefix) -> CacheChange {
-    let writer_id = message.writer_id();
+    let writer_id = message.writer_id().0;
     let writer_sn = message.writer_sn();
     let change_kind = change_kind(&message);
     let key_hash = key_hash(&message).unwrap();
@@ -26,7 +26,7 @@ fn cache_change_from_data(message: Data, guid_prefix: &GuidPrefix) -> CacheChang
         change_kind,
         GUID::new(*guid_prefix, writer_id ),
         key_hash.0,
-        writer_sn,
+        writer_sn.0,
         Some(data.0),
         Some(inline_qos),
     )

@@ -24,13 +24,17 @@ pub struct DataFrag {
 
 
 impl Submessage for DataFrag {
-    fn submessage_flags(&self) -> [SubmessageFlag; 8] {
+    fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeader {
+        let submessage_id = SubmessageKind::DataFrag;
+    
         const X: SubmessageFlag = false;
         let e = self.endianness_flag; 
         let q = self.inline_qos_flag;
         let k = self.key_flag; 
         let n = self.non_standard_payload_flag;
-        [e, q, k, n, X, X, X, X]
+        let flags = [e, q, k, n, X, X, X, X];
+
+        SubmessageHeader::new(submessage_id, flags, octets_to_next_header)
     }
 
     fn is_valid(&self) -> bool {

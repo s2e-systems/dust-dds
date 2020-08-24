@@ -1,13 +1,14 @@
-use super::{SubmessageKind, SubmessageFlag, };
-use super::{Submessage, SubmessageHeader, };
-use super::submessage_elements;
+use crate::messages::types::constants::TIME_INVALID;
 use crate::messages;
+
+use super::{Submessage, SubmessageFlag, SubmessageKind, SubmessageHeader};
+use super::submessage_elements;
 
 #[derive(PartialEq, Debug)]
 pub struct InfoTs {
     endianness_flag: SubmessageFlag,
     invalidate_flag: SubmessageFlag,
-    timestamp: Option<submessage_elements::Timestamp>,
+    timestamp: submessage_elements::Timestamp,
 }
 
 impl InfoTs {
@@ -17,8 +18,8 @@ impl InfoTs {
         let endianness_flag = false;
         let invalidate_flag = !time.is_some();
         let timestamp = match time {
-            Some(time) => Some(submessage_elements::Timestamp(time)),
-            None => None,
+            Some(time) => submessage_elements::Timestamp(time),
+            None => submessage_elements::Timestamp(TIME_INVALID),
         };
         InfoTs {
             endianness_flag,
@@ -27,21 +28,49 @@ impl InfoTs {
         }
     }
 
+    pub fn from_raw_parts(endianness_flag: SubmessageFlag, invalidate_flag: SubmessageFlag, timestamp: submessage_elements::Timestamp,) -> Self {
+        InfoTs {
+            endianness_flag,
+            invalidate_flag,
+            timestamp,
+        }
+    }
+
+    pub fn endianness_flag(&self) -> SubmessageFlag {
+        self.endianness_flag
+    }
+
+    pub fn set_endianness_flag(&mut self, value: bool) {
+        self.endianness_flag = value;
+    }
+
+    pub fn invalidate_flag(&self) -> SubmessageFlag {
+        self.invalidate_flag
+    }
+
+    pub fn timestamp(&self) -> &submessage_elements::Timestamp {
+        &self.timestamp
+    }
+
     pub fn time(&self) -> Option<messages::types::Time> {
         match self.invalidate_flag {
             true => None,
-            false => Some((&self.timestamp).as_ref().unwrap().0),
+            false => Some(self.timestamp.0),
         }
     }
 }
 
 impl Submessage for InfoTs {
-    fn submessage_flags(&self) -> [SubmessageFlag; 8] {
+    fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeader {
+        let submessage_id = SubmessageKind::InfoTimestamp;
+
         let x = false;
         let e = self.endianness_flag; // Indicates endianness.
         let i = self.invalidate_flag; // Indicates whether subsequent Submessages should be considered as having a timestamp or not.
         // X|X|X|X|X|X|I|E
-        [e, i, x, x, x, x, x, x]
+        let flags = [e, i, x, x, x, x, x, x];
+
+        SubmessageHeader::new(submessage_id, flags, octets_to_next_header)
     }
     
     fn is_valid(&self) -> bool {

@@ -3,7 +3,6 @@
 /// Table 8.13 - Types used to define RTPS messages
 ///  
 use std::time::SystemTime;
-use num_derive::{FromPrimitive, };
 
 pub mod constants {
     use super::Time;
@@ -28,21 +27,21 @@ pub type ProtocolId = [u8; 4];
 
 pub type SubmessageFlag = bool;
 
-#[derive(FromPrimitive, PartialEq, Copy, Clone, Debug)]
+#[derive(PartialEq, Copy, Clone, Debug)]
 pub enum SubmessageKind {
-    Pad = 0x01,
-    AckNack = 0x06,
-    Heartbeat = 0x07,
-    Gap = 0x08,
-    InfoTimestamp = 0x09,
-    InfoSource = 0x0c,
-    InfoReplyIP4 = 0x0d,
-    InfoDestination = 0x0e,
-    InfoReply = 0x0f,
-    NackFrag = 0x12,
-    HeartbeatFrag = 0x13,
-    Data = 0x15,
-    DataFrag = 0x16,
+    Pad,
+    AckNack,
+    Heartbeat,
+    Gap,
+    InfoTimestamp,
+    InfoSource,
+    InfoReplyIP4,
+    InfoDestination,
+    InfoReply,
+    NackFrag,
+    HeartbeatFrag,
+    Data,
+    DataFrag,
 }
 
 #[derive(PartialEq, Eq, Hash, Debug, Clone, Copy)]

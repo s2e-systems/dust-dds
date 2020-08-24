@@ -9,10 +9,14 @@ pub struct InfoDestination {
 }
 
 impl Submessage for InfoDestination {
-    fn submessage_flags(&self) -> [SubmessageFlag; 8] {
+    fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeader {
+        let submessage_id = SubmessageKind::InfoDestination;
+
         const X : SubmessageFlag = false;
         let e = self.endianness_flag; // Indicates endianness.
-        [e, X, X, X, X, X, X, X]
+        let flags = [e, X, X, X, X, X, X, X];
+
+        SubmessageHeader::new(submessage_id, flags, octets_to_next_header)
     }
 
     fn is_valid(&self) -> bool {

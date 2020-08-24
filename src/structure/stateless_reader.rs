@@ -91,7 +91,7 @@ impl Receiver for StatelessReader {
             RtpsSubmessage::Data(data) => data.reader_id(),
             RtpsSubmessage::Gap(gap) => gap.reader_id(),
             _ => return false,
-        };
+        }.0;
 
         // Messages are received by the stateless reader if they come from the expected source locator and
         // if the destination entity_id matches the reader id or if it is unknown

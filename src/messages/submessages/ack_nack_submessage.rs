@@ -52,11 +52,15 @@ impl AckNack {
 }
 
 impl Submessage for AckNack {
-    fn submessage_flags(&self) -> [SubmessageFlag; 8] {
+    fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeader {
+        let submessage_id = SubmessageKind::AckNack;
+
         const X : SubmessageFlag = false;
         let e = self.endianness_flag; 
         let f = self.final_flag; 
-        [e, f, X, X, X, X, X, X]
+        let flags = [e, f, X, X, X, X, X, X];
+
+        SubmessageHeader::new(submessage_id, flags, octets_to_next_header)
     }
 
     fn is_valid(&self) -> bool {
