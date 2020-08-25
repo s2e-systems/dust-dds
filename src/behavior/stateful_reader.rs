@@ -3,7 +3,7 @@ use std::time::Instant;
 
 use crate::types::constants::LOCATOR_INVALID;
 use crate::structure::stateful_reader::{WriterProxy, StatefulReader};
-use crate::messages::{RtpsSubmessage};
+use crate::messages::{RtpsSubmessage, Endianness};
 use crate::messages::submessages::{AckNack, Data, Gap, Heartbeat,};
 use crate::messages::types::Count;
 use crate::messages::message_receiver::Receiver;
@@ -175,6 +175,7 @@ impl ReliableStatefulReaderBehavior {
  
         writer_proxy.behavior().increment_acknack_count();
         let acknack = AckNack::new(
+            Endianness::LittleEndian,
             stateful_reader.guid().entity_id(), 
             writer_proxy.remote_writer_guid().entity_id(),
             writer_proxy.available_changes_max(),

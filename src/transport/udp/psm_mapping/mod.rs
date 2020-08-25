@@ -2,8 +2,10 @@ mod rtps_message;
 mod submessage_elements;
 mod parameter_list;
 mod rtps_submessage;
-mod info_timestamp_submessage;
+
+mod ack_nack_submessage;
 mod data_submessage;
+mod info_timestamp_submessage;
 
 pub use rtps_message::{serialize_rtps_message, deserialize_rtps_message};
 

@@ -289,7 +289,7 @@ impl StatefulWriter {
 impl Receiver for StatefulWriter {
     fn push_receive_message(&self, source_guid_prefix: GuidPrefix, submessage: RtpsSubmessage) {
         let reader_id = match &submessage {
-            RtpsSubmessage::AckNack(acknack) => acknack.reader_id(),
+            RtpsSubmessage::AckNack(acknack) => acknack.reader_id().0,
             _ => panic!("Unsupported message received by stateful writer"),
         };
         let guid = GUID::new(source_guid_prefix, reader_id);
@@ -302,7 +302,7 @@ impl Receiver for StatefulWriter {
 
     fn is_submessage_destination(&self, _src_locator: &Locator, src_guid_prefix: &GuidPrefix, submessage: &RtpsSubmessage) -> bool {
         let reader_id = match &submessage {
-            RtpsSubmessage::AckNack(acknack) => acknack.reader_id(),
+            RtpsSubmessage::AckNack(acknack) => acknack.reader_id().0,
             _ => return false,
         };
 
@@ -345,6 +345,7 @@ mod tests {
 
     use crate::behavior::types::constants::DURATION_ZERO;
     use crate::messages::submessages::AckNack;
+    use crate::messages::Endianness;
 
     use std::thread::sleep;
 
@@ -592,6 +593,7 @@ mod tests {
         }
 
         let acknack = AckNack::new(
+            Endianness::LittleEndian,
             remote_reader_guid.entity_id(),
             writer_guid.entity_id(),
                 3,

@@ -2,7 +2,7 @@ use std::convert::TryInto;
 
 use std::collections::BTreeSet;
 
-use crate::messages::submessages::submessage_elements::{Long, Short, ULong, UShort, Timestamp, GuidPrefix, EntityId, SequenceNumber, SequenceNumberSet, SerializedData};
+use crate::messages::submessages::submessage_elements::{Long, Short, ULong, UShort, Timestamp, GuidPrefix, EntityId, SequenceNumber, SequenceNumberSet, Count, SerializedData};
 use crate::messages::types::Time;
 use crate::types;
 use crate::messages::Endianness;
@@ -192,7 +192,7 @@ pub fn serialize_sequence_number_set(sequence_number_set: &SequenceNumberSet, wr
     Ok(())
 }
 
-fn deserialize_sequence_number_set(bytes: &[u8], endianness: Endianness) -> UdpPsmMappingResult<SequenceNumberSet> {
+pub fn deserialize_sequence_number_set(bytes: &[u8], endianness: Endianness) -> UdpPsmMappingResult<SequenceNumberSet> {
     bytes.check_size_bigger_equal_than(12)?;
 
     let base = deserialize_sequence_number(&bytes[0..8], endianness)?.0;
@@ -301,17 +301,17 @@ pub fn deserialize_timestamp(bytes: &[u8], endianness: Endianness) -> UdpPsmMapp
     Ok(Timestamp(Time::new(seconds, fraction)))
 }
 
-// impl SubmessageElement for Count {
-//     fn serialize(&self, writer: &mut impl std::io::Write, endianness: Endianness) -> RtpsSerdesResult<()> {
-//         Long(self.0).serialize(writer, endianness)?;
-//         Ok(())
-//     }
 
-//     fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> {
-//         let value = Long::deserialize(bytes, endianness)?.0;
-//         Ok(Count(value))
-//     }
-// }
+pub fn serialize_count(count: &Count, writer: &mut impl std::io::Write, endianness: Endianness) -> UdpPsmMappingResult<()> {
+    serialize_long(&Long(count.0), writer, endianness)?;
+    Ok(())
+}
+
+pub fn deserialize_count(bytes: &[u8], endianness: Endianness) -> UdpPsmMappingResult<Count> {
+    let value = deserialize_long(bytes, endianness)?.0;
+    Ok(Count(value))
+}
+
 
 // fn serialize_locator(locator: &Locator, writer: &mut impl std::io::Write, endianness: Endianness) -> RtpsSerdesResult<()> {
 //     Long(locator.kind()).serialize(writer, endianness)?;
