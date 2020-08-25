@@ -68,6 +68,7 @@ mod tests {
     use crate::types;
     use crate::messages::submessages::data_submessage::Payload;
     use crate::messages::submessages::{ Data, InfoTs, Heartbeat};
+    use crate::messages::Endianness;
 
     #[test]
     fn test_parse_message_header() {
@@ -89,6 +90,7 @@ mod tests {
     #[test]
     fn test_compose_message() {
         let submessage = RtpsSubmessage::Data(Data::new(
+            Endianness::LittleEndian,
             ENTITYID_UNKNOWN,
             ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
             1,
@@ -124,8 +126,9 @@ mod tests {
     fn test_compose_message_three_data_submessages() {
         let test_time = Time::new(1565525425, 269558339);
         let submessage1 =
-            RtpsSubmessage::InfoTs(InfoTs::new(Some(test_time)));
+            RtpsSubmessage::InfoTs(InfoTs::new(Endianness::LittleEndian,Some(test_time)));
         let submessage2 = RtpsSubmessage::Data(Data::new(
+            Endianness::LittleEndian,
             ENTITYID_UNKNOWN,
             ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
             1,
@@ -133,6 +136,7 @@ mod tests {
             Payload::None,
         ));
         let submessage3 = RtpsSubmessage::Data(Data::new(
+            Endianness::LittleEndian,
             ENTITYID_UNKNOWN,
             ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
             2,
@@ -177,6 +181,7 @@ mod tests {
     #[test]
     fn test_parse_message() {
         let submessage = RtpsSubmessage::Data(Data::new(
+            Endianness::LittleEndian,
             ENTITYID_UNKNOWN,
             ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
             1,
@@ -208,6 +213,7 @@ mod tests {
         assert_eq!(expected, result);
 
         let submessage1 = RtpsSubmessage::Data(Data::new(
+            Endianness::LittleEndian,
             ENTITYID_UNKNOWN,
             ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
             1,
@@ -274,8 +280,9 @@ mod tests {
     fn test_parse_message_two_data_submessages() {
         let test_time = Time::new(1565525425, 269558339);
         let submessage1 =
-            RtpsSubmessage::InfoTs(InfoTs::new(Some(test_time)));
+            RtpsSubmessage::InfoTs(InfoTs::new(Endianness::LittleEndian,Some(test_time)));
         let submessage2 = RtpsSubmessage::Data(Data::new(
+            Endianness::LittleEndian,
             ENTITYID_UNKNOWN,
             ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
             1,
@@ -283,6 +290,7 @@ mod tests {
             Payload::None,
         ));
         let submessage3 = RtpsSubmessage::Data(Data::new(
+            Endianness::LittleEndian,
             ENTITYID_UNKNOWN,
             ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
             2,

@@ -1,5 +1,6 @@
 use crate::messages::types::constants::TIME_INVALID;
 use crate::messages;
+use crate::messages::Endianness;
 
 use super::{Submessage, SubmessageFlag, SubmessageKind, SubmessageHeader};
 use super::submessage_elements;
@@ -14,8 +15,8 @@ pub struct InfoTs {
 impl InfoTs {
     const INVALID_TIME_FLAG_MASK: u8 = 0x02;
 
-    pub fn new(time: Option<messages::types::Time>) -> InfoTs {
-        let endianness_flag = false;
+    pub fn new(endianness: Endianness, time: Option<messages::types::Time>) -> InfoTs {
+        let endianness_flag = endianness.into();
         let invalidate_flag = !time.is_some();
         let timestamp = match time {
             Some(time) => submessage_elements::Timestamp(time),
@@ -38,10 +39,6 @@ impl InfoTs {
 
     pub fn endianness_flag(&self) -> SubmessageFlag {
         self.endianness_flag
-    }
-
-    pub fn set_endianness_flag(&mut self, value: bool) {
-        self.endianness_flag = value;
     }
 
     pub fn invalidate_flag(&self) -> SubmessageFlag {

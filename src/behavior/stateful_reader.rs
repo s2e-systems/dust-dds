@@ -196,6 +196,7 @@ mod tests {
     use crate::messages::submessages::data_submessage::Payload;
     use crate::messages::parameter_list::ParameterList;
     use crate::inline_qos_types::{KeyHash, };
+    use crate::messages::Endianness;
     use super::super::change_kind_to_status_info;
 
     #[test]
@@ -218,6 +219,7 @@ mod tests {
         inline_qos.push(KeyHash([1;16]));
 
         let data1 = Data::new(
+            Endianness::LittleEndian,
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, 
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER, 
             3,
@@ -268,6 +270,7 @@ mod tests {
         inline_qos.push(KeyHash([1;16]));
 
         let data1 = Data::new(
+            Endianness::LittleEndian,
             reader_guid.entity_id(), 
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER, 
             3,

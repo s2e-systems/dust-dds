@@ -1,10 +1,20 @@
-use crate::messages::{ParameterList, };
+use crate::messages::{ParameterList, Endianness };
 use crate::messages::parameter_list::{Pid};
+
 
 #[derive(Debug, Copy, Clone)]
 pub enum CdrEndianness {
     LittleEndian,
     BigEndian,
+}
+
+impl From<Endianness> for CdrEndianness {
+    fn from(value: Endianness) -> Self {
+        match value {
+            Endianness::LittleEndian => CdrEndianness::LittleEndian,
+            Endianness::BigEndian => CdrEndianness::BigEndian,
+        }
+    }
 }
 
 #[derive(PartialEq, Debug)]

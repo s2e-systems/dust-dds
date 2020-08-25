@@ -2,7 +2,6 @@ use crate::messages::submessages::{InfoTs, SubmessageHeader};
 use crate::messages::types::constants::TIME_INVALID;
 use crate::messages::submessages::submessage_elements::Timestamp;
 
-use crate::transport::TransportEndianness;
 use super::{UdpPsmMappingResult};
 use super::submessage_elements::{serialize_timestamp, deserialize_timestamp};
 
@@ -36,6 +35,7 @@ pub fn deserialize_info_timestamp(bytes: &[u8], header: SubmessageHeader) -> Udp
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::messages::Endianness;
     use crate::messages::submessages::Submessage;
 
     #[test]
@@ -48,19 +48,17 @@ mod tests {
             [0x5D, 0x50, 0x05, 0xB1, 0x10, 0x11, 0x22, 0x43]; //0x09, 0x00, 0x00, 0x08, 
 
         let test_time = crate::messages::types::Time::new(1565525425, 269558339);
-        let flags = [true, false, false, false, false, false, false, false];
 
-        let mut infots = InfoTs::new(Some(test_time));
-        infots.set_endianness_flag(TransportEndianness::BigEndian.into());
-        serialize_info_timestamp(&infots, &mut writer).unwrap();
+        let infots_big_endian = InfoTs::new(Endianness::BigEndian, Some(test_time));
+        serialize_info_timestamp(&infots_big_endian, &mut writer).unwrap();
         assert_eq!(writer, info_timestamp_message_big_endian);
-        assert_eq!(deserialize_info_timestamp(&writer, infots.submessage_header(info_timestamp_message_big_endian.len() as u16)).unwrap(), infots);
+        assert_eq!(deserialize_info_timestamp(&writer, infots_big_endian.submessage_header(info_timestamp_message_big_endian.len() as u16)).unwrap(), infots_big_endian);
 
         writer.clear();
 
-        infots.set_endianness_flag(TransportEndianness::LittleEndian.into());
-        serialize_info_timestamp(&infots, &mut writer).unwrap();
+        let infots_little_endian = InfoTs::new(Endianness::LittleEndian, Some(test_time));
+        serialize_info_timestamp(&infots_little_endian, &mut writer).unwrap();
         assert_eq!(writer, info_timestamp_message_little_endian);
-        assert_eq!(deserialize_info_timestamp(&writer, infots.submessage_header(info_timestamp_message_little_endian.len() as u16)).unwrap(), infots);
+        assert_eq!(deserialize_info_timestamp(&writer, infots_little_endian.submessage_header(info_timestamp_message_little_endian.len() as u16)).unwrap(), infots_little_endian);
     }
 }

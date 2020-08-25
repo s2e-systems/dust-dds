@@ -4,6 +4,7 @@ use super::submessage_elements;
 use crate::types;
 use crate::types::constants::SEQUENCE_NUMBER_UNKNOWN;
 use crate::messages::parameter_list::ParameterList;
+use crate::messages::Endianness;
 
 
 #[derive(PartialEq, Debug)]
@@ -33,11 +34,13 @@ impl Data {
     /// Inline_qos_flag is inferred from option of inline_qos
     /// data_flag, key_flag and non_standard_payload_flag are inferred from the kind of payload
     pub fn new(
+        endianness: Endianness,
         reader_id: types::EntityId,
         writer_id: types::EntityId,
         writer_sn: types::SequenceNumber,
         inline_qos: Option<ParameterList>,
         payload: Payload,) -> Self {
+            let endianness_flag = endianness.into();
             let inline_qos_flag = inline_qos.is_some();
             let mut data_flag = false;
             let mut key_flag = false;
@@ -54,7 +57,7 @@ impl Data {
             };
         
         Data {
-            endianness_flag: false,
+            endianness_flag,
             inline_qos_flag,
             data_flag,
             key_flag,
@@ -106,8 +109,8 @@ impl Data {
         self.writer_sn
     }
 
-    pub fn serialized_payload(&self) -> &Vec<u8> {
-        &self.serialized_payload.0
+    pub fn serialized_payload(&self) -> &submessage_elements::SerializedData {
+        &self.serialized_payload
     }
     
     pub fn inline_qos(&self) -> &ParameterList {
@@ -116,10 +119,6 @@ impl Data {
 
     pub fn endianness_flag(&self) -> SubmessageFlag {
         self.endianness_flag
-    }
-
-    pub fn set_endianness_flag(&mut self, value: SubmessageFlag) {
-        self.endianness_flag = value;
     }
 
     pub fn inline_qos_flag(&self) -> SubmessageFlag {
@@ -173,7 +172,6 @@ impl Submessage for Data {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::inline_qos_types::KeyHash;
     use crate::types::constants::{ENTITYID_UNKNOWN, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, };
 
     // E: EndiannessFlag - Indicates endianness.
@@ -185,6 +183,7 @@ mod tests {
     #[test]
     fn test_data_contructor() {
         let data = Data::new(
+            Endianness::LittleEndian,
             ENTITYID_UNKNOWN, 
             ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, 
             1, 

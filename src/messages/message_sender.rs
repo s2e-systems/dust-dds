@@ -4,8 +4,7 @@ use crate::types::{GUID, GuidPrefix, Locator };
 use crate::types::constants::{PROTOCOL_VERSION_2_4, VENDOR_ID};
 use crate::transport::Transport;
 
-
-use super::RtpsSubmessage;
+use super::{RtpsSubmessage, Endianness};
 use super::submessages::{InfoTs};
 use super::message::{RtpsMessage};
 use super::types::Time;
@@ -25,7 +24,7 @@ impl RtpsMessageSender {
             while let Some((dst_locators, submessage_list)) = sender.pop_send_message() {
                 let mut rtps_submessages = Vec::new();
                 for submessage in submessage_list {
-                    rtps_submessages.push(RtpsSubmessage::InfoTs(InfoTs::new(Some(Time::now()))));
+                    rtps_submessages.push(RtpsSubmessage::InfoTs(InfoTs::new(Endianness::LittleEndian, Some(Time::now()))));
                     rtps_submessages.push(submessage);
                 }
 

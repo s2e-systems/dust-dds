@@ -2,7 +2,6 @@ use crate::messages::submessages::Data;
 use crate::messages::submessages::submessage_elements::UShort;
 use crate::messages::submessages::SubmessageHeader;
 use crate::messages::parameter_list::ParameterList;
-use crate::transport::TransportEndianness;
 
 use super::{UdpPsmMappingResult, SizeSerializer};
 use super::submessage_elements::{serialize_ushort, deserialize_ushort, serialize_entity_id, deserialize_entity_id, serialize_sequence_number, deserialize_sequence_number, serialize_serialized_data, deserialize_serialized_data};
@@ -31,7 +30,7 @@ pub fn serialize_data(data: &Data, writer: &mut impl std::io::Write) -> UdpPsmMa
     }
 
     if data.data_flag() || data.key_flag() {
-        writer.write(data.serialized_payload())?;
+        serialize_serialized_data(data.serialized_payload(), writer)?;
     }
 
     Ok(())
@@ -77,20 +76,21 @@ pub fn deserialize_data(bytes: &[u8], header: SubmessageHeader) -> UdpPsmMapping
 mod tests {
     use super::*;
     use crate::inline_qos_types::KeyHash;
+    use crate::messages::Endianness;
     use crate::messages::submessages::data_submessage::Payload;
     use crate::messages::submessages::Submessage;
     use crate::types::constants::{ENTITYID_UNKNOWN, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, };
+    
 
     #[test]
     fn test_serialize_data_submessage_without_inline_qos_empty_data() {
-        let mut data = Data::new(
+        let data = Data::new(
+            Endianness::LittleEndian,
             ENTITYID_UNKNOWN, 
             ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, 
             1, 
             None,
             Payload::None);
-
-        data.set_endianness_flag(TransportEndianness::LittleEndian.into());
         
         let expected = vec![
             // 0x15_u8, 0b00000001, 20, 0x0, // Submessgae Header
@@ -114,13 +114,13 @@ mod tests {
         let mut inline_qos = ParameterList::new();
         inline_qos.push(key_hash);
         
-        let mut data = Data::new(
+        let data = Data::new(
+            Endianness::LittleEndian,
             ENTITYID_UNKNOWN, 
             ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, 
             1, 
             Some(inline_qos), 
             Payload::None);
-        data.set_endianness_flag(TransportEndianness::LittleEndian.into());
         let expected = vec![
             // 0x15_u8, 0b00000011, 44, 0x0, // Submessgae Header
             0x00, 0x00,  16, 0x0, // ExtraFlags, octetsToInlineQos (liitle indian)
@@ -149,13 +149,13 @@ mod tests {
         let mut inline_qos = ParameterList::new();
         inline_qos.push(key_hash);
 
-        let mut data = Data::new(
+        let data = Data::new(
+            Endianness::LittleEndian,
             ENTITYID_UNKNOWN, 
             ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, 
             1, 
             Some(inline_qos), 
             Payload::Data(vec![1_u8, 2, 3]));
-        data.set_endianness_flag(TransportEndianness::LittleEndian.into());
             
         let expected = vec![
             // 0x15_u8, 0b00000111, 47, 0x0, // Submessgae Header

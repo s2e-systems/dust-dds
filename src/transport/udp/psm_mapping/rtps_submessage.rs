@@ -1,7 +1,6 @@
 use crate::messages::submessages::{Submessage, SubmessageHeader, RtpsSubmessage};
 use crate::messages::types::{SubmessageKind, SubmessageFlag};
 
-use crate::transport::TransportEndianness;
 use super::{UdpPsmMappingResult, UdpPsmMappingError, SizeCheck, SizeSerializer};
 use super::submessage_elements::{serialize_ushort, deserialize_ushort};
 use super::data_submessage::{serialize_data, deserialize_data};
@@ -137,6 +136,7 @@ fn deserialize_rtps_submessage(bytes: &[u8]) -> UdpPsmMappingResult<RtpsSubmessa
 mod tests {
     use super::*;
     use crate::types::constants::{ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, ENTITYID_UNKNOWN};
+    use crate::messages::Endianness;
     use crate::messages::submessages::Data;
     use crate::messages::submessages::data_submessage::Payload;
 
@@ -166,6 +166,7 @@ mod tests {
     #[test]
     fn test_serialize_rtps_submessage() {
         let submessage = RtpsSubmessage::Data(Data::new(
+            Endianness::LittleEndian,
             ENTITYID_UNKNOWN,
             ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
             1,
@@ -198,15 +199,14 @@ mod tests {
             0x01, 0x00, 0x00, 0x00, // [Data Submessage] SequenceNumber writerSN => 1
         ];
 
-        let mut data = Data::new(
+        let data = Data::new(
+            Endianness::LittleEndian,
             ENTITYID_UNKNOWN,
             ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
             1,
             None,
             Payload::None,
         );
-
-        data.set_endianness_flag(TransportEndianness::LittleEndian.into());
 
         let expected = RtpsSubmessage::Data(data);
         

@@ -110,7 +110,7 @@ mod tests {
     use super::*;
     use crate::types::*;
     use crate::types::constants::*;
-    use crate::messages::{ParameterList, };
+    use crate::messages::{ParameterList, Endianness };
     use crate::messages::submessages::Data;
     use crate::messages::submessages::data_submessage::Payload;
     use crate::inline_qos_types::{KeyHash};
@@ -129,6 +129,7 @@ mod tests {
         inline_qos.push(KeyHash([1;16]));
 
         let data1 = Data::new(
+            Endianness::LittleEndian,
             ENTITYID_UNKNOWN,
             ENTITYID_UNKNOWN,
             1,
