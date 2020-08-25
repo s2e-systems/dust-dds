@@ -1,7 +1,8 @@
 use crate::messages::submessages::{Submessage, SubmessageHeader, RtpsSubmessage};
 use crate::messages::types::{SubmessageKind, SubmessageFlag};
 
-use super::{UdpPsmMappingResult, UdpPsmMappingError, SizeCheck, SizeSerializer, TransportEndianness};
+use crate::transport::TransportEndianness;
+use super::{UdpPsmMappingResult, UdpPsmMappingError, SizeCheck, SizeSerializer};
 use super::submessage_elements::{serialize_ushort, deserialize_ushort};
 use super::data_submessage::{serialize_data, deserialize_data};
 use super::info_timestamp_submessage::{serialize_info_timestamp, deserialize_info_timestamp};

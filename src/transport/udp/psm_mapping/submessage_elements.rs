@@ -3,8 +3,9 @@ use std::convert::TryInto;
 use crate::messages::submessages::submessage_elements::{Long, Short, ULong, UShort, Timestamp, GuidPrefix, EntityId, SequenceNumber, SerializedData};
 use crate::messages::types::Time;
 use crate::types;
+use crate::transport::TransportEndianness;
 
-use super::{SizeCheck, TransportEndianness, UdpPsmMappingResult, UdpPsmMappingError};
+use super::{SizeCheck, UdpPsmMappingResult, UdpPsmMappingError};
 
 pub fn serialize_long(
     long: &Long,

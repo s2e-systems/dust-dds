@@ -2,7 +2,8 @@ use crate::messages::submessages::{InfoTs, SubmessageHeader};
 use crate::messages::types::constants::TIME_INVALID;
 use crate::messages::submessages::submessage_elements::Timestamp;
 
-use super::{UdpPsmMappingResult, TransportEndianness};
+use crate::transport::TransportEndianness;
+use super::{UdpPsmMappingResult};
 use super::submessage_elements::{serialize_timestamp, deserialize_timestamp};
 
 pub fn serialize_info_timestamp(info_timestamp: &InfoTs, writer: &mut impl std::io::Write) -> UdpPsmMappingResult<()> {

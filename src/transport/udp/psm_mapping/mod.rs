@@ -5,41 +5,7 @@ mod rtps_submessage;
 mod info_timestamp_submessage;
 mod data_submessage;
 
-use crate::serialized_payload::CdrEndianness;
 pub use rtps_message::{serialize_rtps_message, deserialize_rtps_message};
-
-#[derive(PartialEq, Debug, Clone, Copy)]
-pub enum TransportEndianness {
-    BigEndian = 0,
-    LittleEndian = 1,
-}
-
-impl From<bool> for TransportEndianness {
-    fn from(value: bool) -> Self {
-        match value {
-            true => TransportEndianness::LittleEndian,
-            false => TransportEndianness::BigEndian,
-        }
-    }
-}
-
-impl From<TransportEndianness> for bool {
-    fn from(value: TransportEndianness) -> Self {
-        match value {
-            TransportEndianness::LittleEndian => true,
-            TransportEndianness::BigEndian => false,
-        }
-    }
-}
-
-impl From<TransportEndianness> for CdrEndianness {
-    fn from(value: TransportEndianness) -> Self {
-        match value {
-            TransportEndianness::LittleEndian => CdrEndianness::LittleEndian,
-            TransportEndianness::BigEndian => CdrEndianness::BigEndian,
-        }
-    }
-}
 
 #[derive(Debug)]
 pub enum UdpPsmMappingError {

@@ -3,7 +3,8 @@ use crate::messages::submessages::submessage_elements::Short;
 use crate::messages::parameter_list::{Parameter, ParameterList, ParameterOps};
 use crate::serialized_payload::CdrEndianness;
 
-use super::{TransportEndianness, UdpPsmMappingResult, SizeCheck};
+use crate::transport::TransportEndianness;
+use super::{UdpPsmMappingResult, SizeCheck};
 use super::submessage_elements::{serialize_short, deserialize_short};
 
 
