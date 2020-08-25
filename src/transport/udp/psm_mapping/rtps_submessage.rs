@@ -3,8 +3,8 @@ use crate::messages::types::{SubmessageKind, SubmessageFlag};
 
 use super::{UdpPsmMappingResult, UdpPsmMappingError, SizeCheck, SizeSerializer, TransportEndianness};
 use super::submessage_elements::{serialize_ushort, deserialize_ushort};
-use super::data_submessage::serialize_data;
-use super::info_timestamp_submessage::serialize_info_timestamp;
+use super::data_submessage::{serialize_data, deserialize_data};
+use super::info_timestamp_submessage::{serialize_info_timestamp, deserialize_info_timestamp};
 
 /// Section 9.4.5.1.1 SubmessageId
 fn serialize_submessage_id(submessage_kind: SubmessageKind, writer: &mut impl std::io::Write) -> UdpPsmMappingResult<()> {
@@ -119,26 +119,17 @@ fn serialize_rtps_submessage(rtps_submessage: &RtpsSubmessage, writer: &mut impl
     Ok(())
 }
 
-//     fn parse(bytes: &[u8]) -> RtpsSerdesResult<Self> {
-//         let submessage_id =
-//             deserialize_submessage_kind(&[bytes[0]])?;
-//         match submessage_id {
-//             SubmessageKind::Data => Ok(RtpsSubmessage::Data(Data::parse(bytes)?)),
-//             SubmessageKind::Pad => todo!(),
-//             SubmessageKind::AckNack => Ok(RtpsSubmessage::AckNack(AckNack::parse(bytes)?)),
-//             SubmessageKind::Heartbeat => Ok(RtpsSubmessage::Heartbeat(Heartbeat::parse(bytes)?)),
-//             SubmessageKind::Gap => Ok(RtpsSubmessage::Gap(Gap::parse(bytes)?)),
-//             SubmessageKind::InfoTimestamp => Ok(RtpsSubmessage::InfoTs(InfoTs::parse(bytes)?)),
-//             SubmessageKind::InfoSource => todo!(),
-//             SubmessageKind::InfoReplyIP4 => todo!(),
-//             SubmessageKind::InfoDestination => todo!(),
-//             SubmessageKind::InfoReply => todo!(),
-//             SubmessageKind::NackFrag => todo!(),
-//             SubmessageKind::HeartbeatFrag => todo!(),
-//             SubmessageKind::DataFrag => todo!(),
-//         }
-//     }
-// }
+fn deserialize_rtps_submessage(bytes: &[u8]) -> UdpPsmMappingResult<RtpsSubmessage> {
+    bytes.check_size_bigger_equal_than(4)?;
+
+    let submessage_header = deserialize_submessage_header(&bytes[0..4])?;
+
+    match submessage_header.submessage_id() {
+        SubmessageKind::Data => Ok(RtpsSubmessage::Data(deserialize_data(&bytes[4..4 + submessage_header.submessage_length().0 as usize], submessage_header)?)),
+        SubmessageKind::InfoTimestamp => Ok(RtpsSubmessage::InfoTs(deserialize_info_timestamp(&bytes[4..4 + submessage_header.submessage_length().0 as usize], submessage_header)?)),
+        _ => unimplemented!(),
+    }
+}
 
 
 #[cfg(test)]
@@ -195,25 +186,30 @@ mod tests {
         assert_eq!(expected, writer);
     }
 
-    // #[test]
-    // fn test_parse_submessage() {
-    //     let bytes = vec![
-    //         0x15_u8, 0b00000001, 20, 0x0, // Submessgae Header
-    //         0x00, 0x00, 16, 0x0, // ExtraFlags, octetsToInlineQos (liitle indian)
-    //         0x00, 0x00, 0x00, 0x00, // [Data Submessage] EntityId readerId => ENTITYID_UNKNOWN
-    //         0x00, 0x01, 0x00, 0xc2, // [Data Submessage] EntityId writerId
-    //         0x00, 0x00, 0x00, 0x00, // [Data Submessage] SequenceNumber writerSN
-    //         0x01, 0x00, 0x00, 0x00, // [Data Submessage] SequenceNumber writerSN => 1
-    //     ];
-    //     let expected = RtpsSubmessage::Data(Data::new(
-    //         Endianness::LittleEndian,
-    //         ENTITYID_UNKNOWN,
-    //         ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
-    //         1,
-    //         None,
-    //         Payload::None,
-    //     ));
-    //     let result = RtpsSubmessage::parse(&bytes).unwrap();
-    //     assert_eq!(expected, result);
-    // }
+    #[test]
+    fn test_deserialize_rtps_submessage() {
+        let bytes = vec![
+            0x15_u8, 0b00000001, 20, 0x0, // Submessage Header
+            0x00, 0x00, 16, 0x0, // ExtraFlags, octetsToInlineQos (liitle indian)
+            0x00, 0x00, 0x00, 0x00, // [Data Submessage] EntityId readerId => ENTITYID_UNKNOWN
+            0x00, 0x01, 0x00, 0xc2, // [Data Submessage] EntityId writerId
+            0x00, 0x00, 0x00, 0x00, // [Data Submessage] SequenceNumber writerSN
+            0x01, 0x00, 0x00, 0x00, // [Data Submessage] SequenceNumber writerSN => 1
+        ];
+
+        let mut data = Data::new(
+            ENTITYID_UNKNOWN,
+            ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
+            1,
+            None,
+            Payload::None,
+        );
+
+        data.set_endianness_flag(TransportEndianness::LittleEndian.into());
+
+        let expected = RtpsSubmessage::Data(data);
+        
+        let result = deserialize_rtps_submessage(&bytes).unwrap();
+        assert_eq!(expected, result);
+    }
 }

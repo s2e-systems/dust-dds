@@ -44,7 +44,9 @@ pub fn serialize_parameter_list(parameter_list: &ParameterList, writer: &mut imp
 
 pub fn parameter_list_octets(parameter_list: &ParameterList) -> usize {
         let mut s = 4; //sentinel
-        parameter_list.parameter().iter().for_each(|param| {s += 2 /*param.parameter_id().octets()*/ + 2 /*param.length().octets()*/ + (param.length() as usize) });
+        for param in parameter_list.parameter().iter() {
+            s += 2 /*param.parameter_id().octets()*/ + 2 /*param.length().octets()*/ + (param.length() as usize);
+        }
         s
     }   
 

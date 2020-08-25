@@ -1,6 +1,6 @@
 use std::convert::TryInto;
 
-use crate::messages::submessages::submessage_elements::{Long, Short, ULong, UShort, Timestamp, GuidPrefix, EntityId, SequenceNumber};
+use crate::messages::submessages::submessage_elements::{Long, Short, ULong, UShort, Timestamp, GuidPrefix, EntityId, SequenceNumber, SerializedData};
 use crate::messages::types::Time;
 use crate::types;
 
@@ -352,16 +352,16 @@ pub fn deserialize_timestamp(bytes: &[u8], endianness: TransportEndianness) -> U
 //     }
 // }
 
-// impl SubmessageElement for SerializedData {
-//     fn serialize(&self, writer: &mut impl std::io::Write, _endianness: Endianness) -> RtpsSerdesResult<()> {
-//         writer.write(self.0.as_slice())?;
-//         Ok(())
-//     }
 
-//     fn deserialize(bytes: &[u8], _endianness: Endianness) -> RtpsSerdesResult<Self> {
-//         Ok(SerializedData(Vec::from(bytes)))
-//     }
-// }
+pub fn serialize_serialized_data(serialized_data: &SerializedData, writer: &mut impl std::io::Write) -> UdpPsmMappingResult<()> {
+    writer.write(serialized_data.0.as_slice())?;
+    Ok(())
+}
+
+pub fn deserialize_serialized_data(bytes: &[u8]) -> UdpPsmMappingResult<SerializedData> {
+    Ok(SerializedData(Vec::from(bytes)))
+}
+
 
 // impl SubmessageElement for SerializedDataFragment {
 //     fn serialize(&self, writer: &mut impl std::io::Write, _endianness: Endianness) -> RtpsSerdesResult<()> {
