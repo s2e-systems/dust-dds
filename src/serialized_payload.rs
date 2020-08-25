@@ -1,5 +1,7 @@
+use std::convert::TryInto;
+
 use crate::messages::{ParameterList, Endianness };
-use crate::messages::parameter_list::{Pid};
+use crate::messages::parameter_list::{Pid, Parameter};
 
 
 #[derive(Debug, Copy, Clone)]
@@ -60,32 +62,79 @@ impl CdrParameterList {
 
     pub fn serialize(&self, writer: &mut impl std::io::Write) {
         // Start by writing the header which depends on the endianness
-        // match self.endianness {
-        //     CdrEndianness::BigEndian => writer.write(&[0x00, 0x02, 0x00, 0x00]),
-        //     CdrEndianness::LittleEndian => writer.write(&[0x00, 0x03, 0x00, 0x00]),
-        // }.unwrap();
+        match self.endianness {
+            CdrEndianness::BigEndian => writer.write(&[0x00, 0x02, 0x00, 0x00]),
+            CdrEndianness::LittleEndian => writer.write(&[0x00, 0x03, 0x00, 0x00]),
+        }.unwrap();
 
-        // self.parameter_list.serialize(writer, self.endianness).unwrap();
+        for parameter in self.parameter_list.parameter().iter() {
+            match self.endianness {
+                CdrEndianness::LittleEndian => {
+                    writer.write(&parameter.parameter_id().to_le_bytes()).unwrap();
+                    writer.write(&parameter.length().to_le_bytes()).unwrap();
+                },
+                CdrEndianness::BigEndian => {
+                    writer.write(&parameter.parameter_id().to_be_bytes()).unwrap();
+                    writer.write(&parameter.length().to_be_bytes()).unwrap();
+                }
+            };
+
+            writer.write(parameter.value(self.endianness).as_slice()).unwrap();
+            let padding = parameter.length() as usize - parameter.value(self.endianness).len();
+            for _ in 0..padding {
+                writer.write(&[0_u8]).unwrap();
+            }
+        }
+
+        match self.endianness {
+            CdrEndianness::BigEndian => writer.write(&ParameterList::PID_SENTINEL.to_be_bytes()).unwrap(),
+            CdrEndianness::LittleEndian => writer.write(&ParameterList::PID_SENTINEL.to_le_bytes()).unwrap(),
+        };
+        writer.write(&[0,0]).unwrap(); // Sentinel length 0
     }
 
     pub fn deserialize(bytes: &[u8]) -> Self {
-        todo!()
-        // if bytes.len() < 4 {
-        //     panic!("Message too small");
-        // }
+        if bytes.len() < 4 {
+            panic!("Message too small");
+        }
 
-        // let endianness = match &bytes[0..4] {
-        //     &[0x00, 0x02, 0x00, 0x00] => CdrEndianness::BigEndian,
-        //     &[0x00, 0x03, 0x00, 0x00] => CdrEndianness::LittleEndian,
-        //     _ => panic!("Invalid header"),
-        // };
+        let endianness = match &bytes[0..4] {
+            &[0x00, 0x02, 0x00, 0x00] => CdrEndianness::BigEndian,
+            &[0x00, 0x03, 0x00, 0x00] => CdrEndianness::LittleEndian,
+            _ => panic!("Invalid header"),
+        };
 
-        // let parameter_list = ParameterList::deserialize(&bytes[4..], endianness).unwrap();
+        let mut parameter_start_index: usize = 0;
+        let mut parameter_list = ParameterList::new();
+        loop {
+            let (parameter_id, length) = match endianness {
+                CdrEndianness::BigEndian => {
+                    let parameter_id = i16::from_be_bytes(bytes[parameter_start_index..parameter_start_index+2].try_into().unwrap());
+                    let length = i16::from_be_bytes(bytes[parameter_start_index+2..parameter_start_index+4].try_into().unwrap());
+                    (parameter_id, length)
+                },
+                CdrEndianness::LittleEndian => {
+                    let parameter_id = i16::from_le_bytes(bytes[parameter_start_index..parameter_start_index+2].try_into().unwrap());
+                    let length = i16::from_le_bytes(bytes[parameter_start_index+2..parameter_start_index+4].try_into().unwrap());
+                    (parameter_id, length)
+                },
+            };
 
-        // Self {
-        //     endianness,
-        //     parameter_list,
-        // }
+            if parameter_id == ParameterList::PID_SENTINEL {
+                break;
+            }     
+
+            let bytes_end = parameter_start_index + (length + 4) as usize;
+            let value = Vec::from(&bytes[parameter_start_index+4..bytes_end]);
+            parameter_start_index = bytes_end;
+
+            parameter_list.push(Parameter::new(parameter_id, value));
+        }
+
+        Self {
+            endianness,
+            parameter_list,
+        }
     }
 
     pub fn push<T: Pid + serde::Serialize + std::fmt::Debug + 'static>(&mut self, value: T) {
