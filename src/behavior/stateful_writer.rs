@@ -1,9 +1,10 @@
 use std::time::Instant;
 use std::convert::TryInto;
+use std::collections::BTreeSet;
 
 use crate::types::{SequenceNumber, };
 use crate::types::constants::LOCATOR_INVALID;
-use crate::messages::{RtpsSubmessage, };
+use crate::messages::{RtpsSubmessage, Endianness};
 use crate::messages::submessages::{Gap, Heartbeat, AckNack};
 use crate::structure::stateful_writer::{StatefulWriter, ReaderProxy};
 use crate::messages::types::{Count, };
@@ -92,9 +93,11 @@ impl BestEffortStatefulWriterBehavior {
             stateful_writer.push_send_message(&LOCATOR_INVALID, reader_proxy.remote_reader_guid(), RtpsSubmessage::Data(data));
         } else {
             let gap = Gap::new(
+                Endianness::LittleEndian,
                 reader_proxy.remote_reader_guid().entity_id(), 
                 stateful_writer.guid().entity_id(),
-                next_unsent_seq_num,);
+                next_unsent_seq_num,
+            BTreeSet::new());
 
             stateful_writer.push_send_message(&LOCATOR_INVALID,reader_proxy.remote_reader_guid(), RtpsSubmessage::Gap(gap));
         }
@@ -139,6 +142,7 @@ impl ReliableStatefulWriterBehavior {
         reader_proxy.behavior().increment_heartbeat_count();
 
         let heartbeat = Heartbeat::new(
+            Endianness::LittleEndian,
             reader_proxy.remote_reader_guid().entity_id(),
             stateful_writer.guid().entity_id(),
             first_sn,
@@ -186,9 +190,11 @@ impl ReliableStatefulWriterBehavior {
             stateful_writer.push_send_message(&LOCATOR_INVALID,reader_proxy.remote_reader_guid(), RtpsSubmessage::Data(data));
         } else {
             let gap = Gap::new(
+                Endianness::LittleEndian,
                 reader_proxy.remote_reader_guid().entity_id(), 
                 stateful_writer.guid().entity_id(),
-                next_requested_seq_num,);
+                next_requested_seq_num,
+                BTreeSet::new());
 
             stateful_writer.push_send_message(&LOCATOR_INVALID, reader_proxy.remote_reader_guid(), RtpsSubmessage::Gap(gap));
         }

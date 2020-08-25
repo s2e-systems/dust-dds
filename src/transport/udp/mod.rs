@@ -159,9 +159,10 @@ pub fn get_interface_address(interface_name: &str) -> Option<[u8; 16]> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::messages::RtpsSubmessage;
+    use crate::messages::{RtpsSubmessage, Endianness};
     use crate::messages::submessages::Gap;
     use crate::types::constants::{ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, PROTOCOL_VERSION_2_4, VENDOR_ID};
+    use std::collections::BTreeSet;
 
     #[test]
     fn read_udp_data() {
@@ -174,7 +175,7 @@ mod tests {
         let transport = UdpTransport::new(unicast_locator, Some(multicast_locator)).unwrap();
 
         let submessages = vec![
-            RtpsSubmessage::Gap(Gap::new(ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, 0)),
+            RtpsSubmessage::Gap(Gap::new(Endianness::LittleEndian, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, 0, BTreeSet::new())),
         ];
         let message = RtpsMessage::new(PROTOCOL_VERSION_2_4, VENDOR_ID, [1,2,3,4,5,6,7,8,9,10,11,12], submessages);
         let mut bytes = Vec::new();
@@ -222,7 +223,12 @@ mod tests {
         let transport = UdpTransport::new(unicast_locator, Some(multicast_locator)).unwrap();
 
         let submessages = vec![
-            RtpsSubmessage::Gap(Gap::new(ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, 0)),
+            RtpsSubmessage::Gap(Gap::new(
+                Endianness::LittleEndian,
+                ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
+                ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
+                0,
+                BTreeSet::new())),
         ];
         let message = RtpsMessage::new(PROTOCOL_VERSION_2_4, VENDOR_ID, [1,2,3,4,5,6,7,8,9,10,11,12], submessages);
         let mut expected_bytes = Vec::new();

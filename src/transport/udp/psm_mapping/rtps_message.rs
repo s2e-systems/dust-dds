@@ -237,6 +237,7 @@ mod tests {
         let liveliness_flag = false;
 
         let submessage2 = RtpsSubmessage::Heartbeat(Heartbeat::new(
+            Endianness::BigEndian,
             reader_id,
             writer_id,
             first_sn,

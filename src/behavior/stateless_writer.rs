@@ -1,6 +1,8 @@
+use std::collections::BTreeSet;
+
 use crate::types::{SequenceNumber, };
 use crate::types::constants::{ENTITYID_UNKNOWN, GUID_UNKNOWN};
-use crate::messages::RtpsSubmessage;
+use crate::messages::{RtpsSubmessage, Endianness};
 use crate::messages::submessages::Gap;
 use crate::structure::stateless_writer::{ReaderLocator, StatelessWriter};
 use crate::messages::message_sender::Sender;
@@ -33,9 +35,11 @@ impl BestEffortStatelessWriterBehavior{
             stateless_writer.push_send_message(reader_locator.locator(), &GUID_UNKNOWN, RtpsSubmessage::Data(data));
         } else {
             let gap = Gap::new(
+                Endianness::LittleEndian,
                 ENTITYID_UNKNOWN, 
                 stateless_writer.guid().entity_id(),
-                next_unsent_seq_num,);
+                next_unsent_seq_num,
+            BTreeSet::new());
 
             stateless_writer.push_send_message(reader_locator.locator(), &GUID_UNKNOWN, RtpsSubmessage::Gap(gap));
         }

@@ -3,6 +3,7 @@ use super::{SubmessageKind, SubmessageFlag, };
 use super::{Submessage, SubmessageHeader, };
 use crate::messages;
 use crate::types;
+use crate::messages::Endianness;
 
 #[derive(PartialEq, Debug)]
 pub struct Heartbeat {
@@ -27,6 +28,7 @@ impl Heartbeat {
     const LIVELINESS_FLAG_MASK: u8 = 0x04;
 
     pub fn new(
+        endianness: Endianness,
         reader_id: types::EntityId,
         writer_id: types::EntityId,
         first_sn: types::SequenceNumber,
@@ -34,32 +36,43 @@ impl Heartbeat {
         count: messages::types::Count,
         final_flag: bool,
         manual_liveliness: bool) -> Self {
-            Heartbeat {
-                reader_id: submessage_elements::EntityId(reader_id),
-                writer_id: submessage_elements::EntityId(writer_id),
-                first_sn: submessage_elements::SequenceNumber(first_sn),
-                last_sn: submessage_elements::SequenceNumber(last_sn),
-                count: submessage_elements::Count(count),
-                final_flag,
-                liveliness_flag: manual_liveliness,
-                endianness_flag: false,
-            }
+
+        Self {
+            reader_id: submessage_elements::EntityId(reader_id),
+            writer_id: submessage_elements::EntityId(writer_id),
+            first_sn: submessage_elements::SequenceNumber(first_sn),
+            last_sn: submessage_elements::SequenceNumber(last_sn),
+            count: submessage_elements::Count(count),
+            final_flag,
+            liveliness_flag: manual_liveliness,
+            endianness_flag: endianness.into(),
         }
+    }
 
-    pub fn is_valid(&self) -> bool{
-        if self.first_sn.0 < 1 {
-            return false;
-        };
+    pub fn from_raw_parts(
+        endianness_flag: SubmessageFlag,
+        final_flag: SubmessageFlag,
+        liveliness_flag: SubmessageFlag,
+        reader_id: submessage_elements::EntityId,
+        writer_id: submessage_elements::EntityId,
+        first_sn: submessage_elements::SequenceNumber,
+        last_sn: submessage_elements::SequenceNumber,
+        count: submessage_elements::Count,) -> Self {
 
-        if self.last_sn.0 < 0 {
-            return false;
+        Self {
+            endianness_flag,
+            final_flag,
+            liveliness_flag,
+            reader_id,
+            writer_id,
+            first_sn,
+            last_sn,
+            count,
         }
+    }
 
-        if self.last_sn.0 < self.first_sn.0 - 1 {
-            return false;
-        }
-
-        true
+    pub fn endianness_flag(&self) -> SubmessageFlag {
+        self.endianness_flag
     }
 
     pub fn reader_id(&self) -> submessage_elements::EntityId {
@@ -109,5 +122,79 @@ impl Submessage for Heartbeat {
         } else {
             true
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::types::constants::ENTITYID_UNKNOWN;
+
+    #[test]
+    fn test_heartbeat_validity_function() {
+        let valid_heartbeat = Heartbeat {
+            reader_id: submessage_elements::EntityId(ENTITYID_UNKNOWN),
+            writer_id: submessage_elements::EntityId(ENTITYID_UNKNOWN),
+            first_sn: submessage_elements::SequenceNumber(2),
+            last_sn: submessage_elements::SequenceNumber(5), 
+            count: submessage_elements::Count(0),
+            final_flag: true,
+            liveliness_flag: true,
+            endianness_flag: Endianness::LittleEndian.into(),
+        };
+
+        assert_eq!(valid_heartbeat.is_valid(), true);
+
+        let valid_heartbeat_first_message = Heartbeat {
+            reader_id: submessage_elements::EntityId(ENTITYID_UNKNOWN),
+            writer_id: submessage_elements::EntityId(ENTITYID_UNKNOWN),
+            first_sn: submessage_elements::SequenceNumber(1),
+            last_sn: submessage_elements::SequenceNumber(0), 
+            count: submessage_elements::Count(2),
+            final_flag: true,
+            liveliness_flag: true,
+            endianness_flag: Endianness::LittleEndian.into(),
+        };
+
+        assert_eq!(valid_heartbeat_first_message.is_valid(), true);
+
+        let invalid_heartbeat_zero_first_value = Heartbeat {
+            reader_id: submessage_elements::EntityId(ENTITYID_UNKNOWN),
+            writer_id: submessage_elements::EntityId(ENTITYID_UNKNOWN),
+            first_sn: submessage_elements::SequenceNumber(0),
+            last_sn: submessage_elements::SequenceNumber(1), 
+            count: submessage_elements::Count(2),
+            final_flag: true,
+            liveliness_flag: true,
+            endianness_flag: Endianness::LittleEndian.into(),
+        };
+
+        assert_eq!(invalid_heartbeat_zero_first_value.is_valid(), false);
+
+        let invalid_heartbeat_negative_last_value = Heartbeat {
+            reader_id: submessage_elements::EntityId(ENTITYID_UNKNOWN),
+            writer_id: submessage_elements::EntityId(ENTITYID_UNKNOWN),
+            first_sn: submessage_elements::SequenceNumber(5),
+            last_sn: submessage_elements::SequenceNumber(-6), 
+            count: submessage_elements::Count(2),
+            final_flag: true,
+            liveliness_flag: true,
+            endianness_flag: Endianness::LittleEndian.into(),
+        };
+
+        assert_eq!(invalid_heartbeat_negative_last_value.is_valid(), false);
+
+        let invalid_heartbeat_wrong_first_last_value = Heartbeat {
+            reader_id: submessage_elements::EntityId(ENTITYID_UNKNOWN),
+            writer_id: submessage_elements::EntityId(ENTITYID_UNKNOWN),
+            first_sn: submessage_elements::SequenceNumber(6),
+            last_sn: submessage_elements::SequenceNumber(4), 
+            count: submessage_elements::Count(2),
+            final_flag: true,
+            liveliness_flag: true,
+            endianness_flag: Endianness::LittleEndian.into(),
+        };
+
+        assert_eq!(invalid_heartbeat_wrong_first_last_value.is_valid(), false);
     }
 }

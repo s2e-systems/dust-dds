@@ -1,5 +1,6 @@
 use std::collections::BTreeSet;
 
+use crate::messages::Endianness;
 use super::{SubmessageKind, SubmessageFlag, };
 use super::{Submessage, SubmessageHeader, };
 use super::submessage_elements;
@@ -20,20 +21,39 @@ pub struct Gap {
 
 impl Gap {
     pub fn new(
+        endianness: Endianness,
         reader_id: types::EntityId,
         writer_id: types::EntityId,
-        gap_start: types::SequenceNumber,) -> Self {
-
-            let mut gap_list_set = BTreeSet::new();
-            gap_list_set.insert(gap_start);
+        gap_start: types::SequenceNumber,
+        gap_list: BTreeSet<types::SequenceNumber>) -> Self {
 
             Gap {
+                endianness_flag: endianness.into(),
                 reader_id: submessage_elements::EntityId(reader_id),
                 writer_id: submessage_elements::EntityId(writer_id),
                 gap_start: submessage_elements::SequenceNumber(gap_start),
-                gap_list: submessage_elements::SequenceNumberSet::from_set(gap_list_set),
-                endianness_flag: false,
+                gap_list: submessage_elements::SequenceNumberSet::from_set(gap_list),
             }
+    }
+
+    pub fn from_raw_parts(
+        endianness_flag: SubmessageFlag,
+        reader_id: submessage_elements::EntityId,
+        writer_id: submessage_elements::EntityId,
+        gap_start: submessage_elements::SequenceNumber,
+        gap_list: submessage_elements::SequenceNumberSet) -> Self {
+
+        Self {
+            endianness_flag,
+            reader_id,
+            writer_id,
+            gap_start,
+            gap_list,
+        }
+    }
+
+    pub fn endianness_flag(&self) -> SubmessageFlag {
+        self.endianness_flag
     }
 
     pub fn reader_id(&self) -> submessage_elements::EntityId {
@@ -44,8 +64,8 @@ impl Gap {
         self.writer_id
     }
 
-    pub fn gap_start(&self) -> submessage_elements::SequenceNumber {
-        self.gap_start
+    pub fn gap_start(&self) -> &submessage_elements::SequenceNumber {
+        &self.gap_start
     }
 
     pub fn gap_list(&self) -> &submessage_elements::SequenceNumberSet {

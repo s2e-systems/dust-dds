@@ -321,6 +321,7 @@ mod tests {
         stateful_reader.matched_writer_add(writer_proxy);
 
         let heartbeat = Heartbeat::new(
+            Endianness::LittleEndian,
             reader_guid.entity_id(),
             remote_writer_guid.entity_id(),
             3,
@@ -355,6 +356,7 @@ mod tests {
         stateful_reader.matched_writer_add(writer_proxy);
 
         let heartbeat = Heartbeat::new(
+            Endianness::LittleEndian,
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
             remote_writer_guid.entity_id(),
             2,
@@ -398,6 +400,7 @@ mod tests {
         stateful_reader.matched_writer_add(writer_proxy);
 
         let heartbeat = Heartbeat::new(
+            Endianness::LittleEndian,
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
             remote_writer_guid.entity_id(),
             1,

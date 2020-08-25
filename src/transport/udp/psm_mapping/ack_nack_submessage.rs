@@ -1,7 +1,7 @@
 use crate::messages::submessages::AckNack;
 use crate::messages::submessages::SubmessageHeader;
 
-use super::{UdpPsmMappingResult, SizeSerializer};
+use super::{UdpPsmMappingResult, };
 use super::submessage_elements::{serialize_entity_id, deserialize_entity_id, serialize_sequence_number_set, deserialize_sequence_number_set, serialize_count, deserialize_count};
 
 pub fn serialize_ack_nack(ack_nack: &AckNack, writer: &mut impl std::io::Write) -> UdpPsmMappingResult<()> {
