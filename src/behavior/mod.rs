@@ -66,11 +66,10 @@ fn change_kind(data_submessage: &Data) -> ChangeKind{
     if data_submessage.data_flag() && !data_submessage.key_flag() {
         ChangeKind::Alive
     } else if !data_submessage.data_flag() && data_submessage.key_flag() {
-        todo!()
-        // let endianness = data_submessage.endianness_flag().into();
-        // let status_info = data_submessage.inline_qos().find::<StatusInfo>(endianness).unwrap();           
+        let endianness = data_submessage.endianness_flag().into();
+        let status_info = data_submessage.inline_qos().find::<StatusInfo>(endianness).unwrap();           
 
-        // status_info_to_change_kind(status_info).unwrap()
+        status_info_to_change_kind(status_info).unwrap()
     }
     else {
         panic!("Invalid change kind combination")
@@ -79,8 +78,7 @@ fn change_kind(data_submessage: &Data) -> ChangeKind{
 
 fn key_hash(data_submessage: &Data) -> Option<KeyHash> {
     if data_submessage.data_flag() && !data_submessage.key_flag() {
-        todo!()
-        // data_submessage.inline_qos().find::<KeyHash>(data_submessage.endianness_flag().into())
+        data_submessage.inline_qos().find::<KeyHash>(data_submessage.endianness_flag().into())
     } else if !data_submessage.data_flag() && data_submessage.key_flag() {
         let payload = &data_submessage.serialized_payload().0; 
         Some(KeyHash(payload[0..16].try_into().ok()?))

@@ -1,6 +1,7 @@
 use std::convert::TryInto;
 
 use super::{UdpPsmMappingResult, UdpPsmMappingError};
+use super::rtps_submessage::{serialize_rtps_submessage, deserialize_rtps_submessage, deserialize_submessage_header};
 
 use crate::types::ProtocolVersion;
 use crate::messages::RtpsSubmessage;
@@ -36,8 +37,7 @@ fn deserialize_header(bytes: &[u8]) -> UdpPsmMappingResult<Header> {
 pub fn serialize_rtps_message(rtps_message: &RtpsMessage, writer: &mut impl std::io::Write) -> UdpPsmMappingResult<()> {
     serialize_header(&rtps_message.header(), writer)?;
     for submessage in rtps_message.submessages() {
-        todo!()
-        // submessage.compose(writer).unwrap();
+        serialize_rtps_submessage(submessage, writer)?;
     }
     Ok(())
 }
@@ -50,11 +50,13 @@ pub fn deserialize_rtps_message(bytes: &[u8]) -> UdpPsmMappingResult<RtpsMessage
     let mut submessages = Vec::<RtpsSubmessage>::new();
 
     while submessage_start_index < size {
-        todo!()
-        // let submessage = RtpsSubmessage::parse(&bytes[submessage_start_index..]).unwrap();
+        let submessage_header = deserialize_submessage_header(&bytes[submessage_start_index..submessage_start_index+4])?;
+        
+        let submessage_end_index = submessage_start_index+4+submessage_header.submessage_length().0 as usize;
+        let submessage = deserialize_rtps_submessage(&bytes[submessage_start_index..submessage_end_index])?;
+        submessage_start_index = submessage_end_index;
 
-        // submessage_start_index += submessage.octets();
-        // submessages.push(submessage);
+        submessages.push(submessage);
     }
     Ok(RtpsMessage::new(header.version(), header.vendor_id(), header.guid_prefix(), submessages))
 }
@@ -315,7 +317,7 @@ mod tests {
             0x43, 0x22, 0x11, 0x10, // [Info Timestamp]
             0x15, 0b00000001, 20, 0x0, // [Data Submessage] Submessgae Header
             0x00, 0x00, 16,
-            0x0, // [Data Submessage] ExtraFlags, octetsToInlineQos (liitle indian)
+            0x0, // [Data Submessage] ExtraFlags, octetsToInlineQos (little indian)
             0x00, 0x00, 0x00, 0x00, // [Data Submessage] EntityId readerId => ENTITYID_UNKNOWN
             0x00, 0x01, 0x00, 0xc2, // [Data Submessage] EntityId writerId
             0x00, 0x00, 0x00, 0x00, // [Data Submessage] SequenceNumber writerSN

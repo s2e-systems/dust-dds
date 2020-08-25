@@ -1,6 +1,8 @@
 use std::convert::TryInto;
 
-use crate::messages::submessages::submessage_elements::{Long, Short, ULong, UShort, Timestamp, GuidPrefix, EntityId, SequenceNumber, SerializedData};
+use std::collections::BTreeSet;
+
+use crate::messages::submessages::submessage_elements::{Long, Short, ULong, UShort, Timestamp, GuidPrefix, EntityId, SequenceNumber, SequenceNumberSet, SerializedData};
 use crate::messages::types::Time;
 use crate::types;
 use crate::messages::Endianness;
@@ -168,58 +170,56 @@ pub fn deserialize_sequence_number(bytes: &[u8], endianness: Endianness) -> UdpP
     Ok(SequenceNumber(sequence_number))
 }
 
-// impl SubmessageElement for SequenceNumberSet {
-//     fn serialize(&self, writer: &mut impl Write, endianness: Endianness) -> RtpsSerdesResult<()> {
-//         let num_bits = ULong(if self.set.is_empty() {
-//             0 
-//         } else {
-//             (self.set.iter().last().unwrap() - self.base) as usize + 1
-//         } as u32);
-//         let m = ((num_bits.0 + 31) / 32) as usize;
-//         let mut bitmaps = vec![0_i32; m];
-//         SequenceNumber(self.base).serialize(writer, endianness)?;
-//         num_bits.serialize(writer, endianness)?;
-//         for seq_num in &self.set {
-//             let delta_n = (seq_num - self.base) as usize;
-//             let bitmap_i = delta_n / 32;
-//             let bitmask = 1 << (31 - delta_n % 32);
-//             bitmaps[bitmap_i] |= bitmask;
-//         };
-//         for bitmap in bitmaps {
-//             Long(bitmap).serialize(writer, endianness)?;
-//         }
-//         Ok(())
-//     }
+pub fn serialize_sequence_number_set(sequence_number_set: &SequenceNumberSet, writer: &mut impl std::io::Write, endianness: Endianness) -> UdpPsmMappingResult<()> {
+    let num_bits = ULong(if sequence_number_set.set().is_empty() {
+        0 
+    } else {
+        (sequence_number_set.set().iter().last().unwrap() - sequence_number_set.base()) as usize + 1
+    } as u32);
+    let m = ((num_bits.0 + 31) / 32) as usize;
+    let mut bitmaps = vec![0_i32; m];
+    serialize_sequence_number(&SequenceNumber(*sequence_number_set.base()), writer, endianness)?;
+    serialize_ulong(&num_bits, writer, endianness)?;
+    for seq_num in sequence_number_set.set() {
+        let delta_n = (seq_num - sequence_number_set.base()) as usize;
+        let bitmap_i = delta_n / 32;
+        let bitmask = 1 << (31 - delta_n % 32);
+        bitmaps[bitmap_i] |= bitmask;
+    };
+    for bitmap in bitmaps {
+        serialize_long(&Long(bitmap), writer, endianness)?;
+    }
+    Ok(())
+}
 
-//     fn deserialize(bytes: &[u8], endianness: Endianness) -> RtpsSerdesResult<Self> {
-//         bytes.check_size_bigger_equal_than(12)?;
+fn deserialize_sequence_number_set(bytes: &[u8], endianness: Endianness) -> UdpPsmMappingResult<SequenceNumberSet> {
+    bytes.check_size_bigger_equal_than(12)?;
 
-//         let base = SequenceNumber::deserialize(&bytes[0..8], endianness)?.0;
-//         let num_bits = ULong::deserialize(&bytes[8..12], endianness)?;
+    let base = deserialize_sequence_number(&bytes[0..8], endianness)?.0;
+    let num_bits = deserialize_ulong(&bytes[8..12], endianness)?;
 
-//         // Get bitmaps from "long"s that follow the numBits field in the message
-//         // Note that the amount of bitmaps that are included in the message are 
-//         // determined by the number of bits (32 max per bitmap, and a max of 256 in 
-//         // total which means max 8 bitmap "long"s)
-//         let m = ((num_bits.0 as usize) + 31) / 32;        
-//         let mut bitmaps = Vec::with_capacity(m);
-//         for i in 0..m {
-//             let index_of_byte_current_bitmap = 12 + i * 4;
-//             bytes.check_size_bigger_equal_than(index_of_byte_current_bitmap+4)?;
-//             bitmaps.push(Long::deserialize(&bytes[index_of_byte_current_bitmap..index_of_byte_current_bitmap+4], endianness)?.0);
-//         };
-//         // Interpet the bitmaps and insert the sequence numbers if they are encode in the bitmaps
-//         let mut set = BTreeSet::new(); 
-//         for delta_n in 0..num_bits.0 {
-//             let bitmask = 1 << (31 - delta_n % 32);
-//             if  bitmaps[delta_n as usize / 32] & bitmask == bitmask {               
-//                 let seq_num = delta_n as i64 + base;
-//                 set.insert(seq_num);
-//             }
-//         }
-//         Ok(Self {base, set})
-//     }    
-// }
+    // Get bitmaps from "long"s that follow the numBits field in the message
+    // Note that the amount of bitmaps that are included in the message are 
+    // determined by the number of bits (32 max per bitmap, and a max of 256 in 
+    // total which means max 8 bitmap "long"s)
+    let m = ((num_bits.0 as usize) + 31) / 32;        
+    let mut bitmaps = Vec::with_capacity(m);
+    for i in 0..m {
+        let index_of_byte_current_bitmap = 12 + i * 4;
+        bytes.check_size_bigger_equal_than(index_of_byte_current_bitmap+4)?;
+        bitmaps.push(deserialize_long(&bytes[index_of_byte_current_bitmap..index_of_byte_current_bitmap+4], endianness)?.0);
+    };
+    // Interpet the bitmaps and insert the sequence numbers if they are encode in the bitmaps
+    let mut set = BTreeSet::new(); 
+    for delta_n in 0..num_bits.0 {
+        let bitmask = 1 << (31 - delta_n % 32);
+        if  bitmaps[delta_n as usize / 32] & bitmask == bitmask {               
+            let seq_num = delta_n as i64 + base;
+            set.insert(seq_num);
+        }
+    }
+    Ok(SequenceNumberSet::new(base, set))
+}
 
 
 // impl SubmessageElement for FragmentNumber {

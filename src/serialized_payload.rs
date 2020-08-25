@@ -17,6 +17,22 @@ impl From<Endianness> for CdrEndianness {
     }
 }
 
+impl From<bool> for CdrEndianness {
+    fn from(value: bool) -> Self {
+        let endianness: Endianness = value.into();
+        endianness.into()
+    }
+}
+
+impl From<CdrEndianness> for Endianness {
+    fn from(value: CdrEndianness) -> Self {
+        match value {
+            CdrEndianness::LittleEndian => Endianness::LittleEndian,
+            CdrEndianness::BigEndian => Endianness::BigEndian,
+        }
+    }
+}
+
 #[derive(PartialEq, Debug)]
 struct RepresentationIdentifier([u8; 2]);
 

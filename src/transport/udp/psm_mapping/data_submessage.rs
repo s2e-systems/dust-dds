@@ -62,7 +62,7 @@ pub fn deserialize_data(bytes: &[u8], header: SubmessageHeader) -> UdpPsmMapping
         (inline_qos, 0)
     };
     let serialized_payload = if data_flag || key_flag || non_standard_payload_flag {
-        let octets_to_serialized_payload = octets_to_inline_qos + inline_qos_octets;
+        let octets_to_serialized_payload = octets_to_inline_qos + 4 + inline_qos_octets;
         deserialize_serialized_data(&bytes[octets_to_serialized_payload..])?
     } else {
         deserialize_serialized_data(&[])?

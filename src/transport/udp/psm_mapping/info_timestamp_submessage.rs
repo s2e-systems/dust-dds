@@ -26,7 +26,7 @@ pub fn deserialize_info_timestamp(bytes: &[u8], header: SubmessageHeader) -> Udp
     if invalidate_flag {
         Ok(InfoTs::from_raw_parts(endianness_flag, invalidate_flag, Timestamp(TIME_INVALID)))
     } else {            
-        let timestamp = deserialize_timestamp(&bytes[4..12], endianness)?;
+        let timestamp = deserialize_timestamp(&bytes[0..8], endianness)?;
         Ok(InfoTs::from_raw_parts(endianness_flag, invalidate_flag, timestamp))
     }
 }

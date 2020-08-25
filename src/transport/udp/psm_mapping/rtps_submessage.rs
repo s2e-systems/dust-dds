@@ -93,7 +93,7 @@ pub fn deserialize_submessage_header(bytes: &[u8]) -> UdpPsmMappingResult<Submes
     Ok(SubmessageHeader::new(submessage_id, flags, submessage_length))
 }
 
-fn serialize_rtps_submessage(rtps_submessage: &RtpsSubmessage, writer: &mut impl std::io::Write) -> UdpPsmMappingResult<()> {
+pub fn serialize_rtps_submessage(rtps_submessage: &RtpsSubmessage, writer: &mut impl std::io::Write) -> UdpPsmMappingResult<()> {
     let mut size_serializer = SizeSerializer::new();
 
     match rtps_submessage {
@@ -119,7 +119,7 @@ fn serialize_rtps_submessage(rtps_submessage: &RtpsSubmessage, writer: &mut impl
     Ok(())
 }
 
-fn deserialize_rtps_submessage(bytes: &[u8]) -> UdpPsmMappingResult<RtpsSubmessage> {
+pub fn deserialize_rtps_submessage(bytes: &[u8]) -> UdpPsmMappingResult<RtpsSubmessage> {
     bytes.check_size_bigger_equal_than(4)?;
 
     let submessage_header = deserialize_submessage_header(&bytes[0..4])?;
