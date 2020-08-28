@@ -159,16 +159,14 @@ impl SPDPdiscoveredParticipantData {
 
         parameter_list.push(ParameterParticipantManualLivelinessCount(self.manual_liveliness_count));
 
-        let mut writer = Vec::new();
-        parameter_list.serialize(&mut writer);
-        writer
+        parameter_list.as_bytes()
     }
 
     pub fn from_key_data(key: InstanceHandle, data: &[u8], default_domain_id: DomainId) -> Self {
 
         let guid_prefix: GuidPrefix = key[0..12].try_into().unwrap();
 
-        let parameter_list = CdrParameterList::deserialize(&data);
+        let parameter_list = CdrParameterList::from_bytes(&data);
 
         let domain_id = parameter_list.find::<ParameterDomainId>().unwrap_or(ParameterDomainId(default_domain_id)).0;
         let domain_tag = parameter_list.find::<ParameterDomainTag>().unwrap_or_default().0;
