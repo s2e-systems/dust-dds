@@ -3,7 +3,7 @@ use std::sync::{RwLock, RwLockReadGuard, Mutex, MutexGuard};
 
 use crate::structure::history_cache::HistoryCache;
 use crate::structure::cache_change::CacheChange;
-use crate::messages::{ParameterList};
+use crate::serialized_payload::ParameterList;
 use crate::types::{ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID, };
 use crate::behavior::stateless_writer::BestEffortStatelessWriterBehavior;
 use crate::messages::RtpsSubmessage;

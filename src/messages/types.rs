@@ -61,8 +61,6 @@ impl Time {
 
 pub type Count = i32;
 
-pub type ParameterId = i16;
-
 pub type FragmentNumber = u32;
 
 // /////////// GroupDigest_t /////////

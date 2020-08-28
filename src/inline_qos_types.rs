@@ -3,8 +3,7 @@
 /// in the sub clauses of 9.6.3 ParameterId Definitions used to Represent In-line QoS
 ///  
  
-use crate::messages::types::{ParameterId, };
-use crate::messages::parameter_list::{Pid, };
+use crate::serialized_payload::{Pid, ParameterId, };
 
 use serde::{Serialize, Deserialize};
 

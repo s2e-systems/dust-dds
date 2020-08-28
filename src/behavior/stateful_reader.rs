@@ -195,7 +195,7 @@ mod tests {
         ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, };
     use crate::structure::cache_change::CacheChange;
     use crate::messages::submessages::data_submessage::Payload;
-    use crate::messages::parameter_list::ParameterList;
+    use crate::serialized_payload::ParameterList;
     use crate::inline_qos_types::{KeyHash, };
     use crate::messages::Endianness;
     use super::super::change_kind_to_status_info;

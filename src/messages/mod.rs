@@ -3,7 +3,6 @@ pub mod submessages;
 pub mod types;
 pub mod message_receiver;
 pub mod message_sender;
-pub mod parameter_list;
 
 #[derive(PartialEq, Debug, Clone, Copy)]
 pub enum Endianness {
@@ -31,4 +30,3 @@ impl From<Endianness> for bool {
 
 pub use message::RtpsMessage;
 pub use submessages::RtpsSubmessage;
-pub use parameter_list::ParameterList;

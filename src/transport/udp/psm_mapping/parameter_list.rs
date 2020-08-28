@@ -1,5 +1,5 @@
 use std::io::Write;
-use crate::messages::parameter_list::{Parameter, ParameterList, ParameterOps};
+use crate::serialized_payload::{Parameter, ParameterList, ParameterOps};
 use crate::serialized_payload::CdrEndianness;
 
 use crate::messages::Endianness;
@@ -69,11 +69,9 @@ pub fn deserialize_parameter_list(bytes: &[u8], endianness: Endianness) -> UdpPs
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::messages::types::{ParameterId, };
+    use crate::serialized_payload::{ParameterId, Pid};
     use serde::{Serialize, Deserialize, };
-    use crate::messages::parameter_list::Pid;
     use crate::inline_qos_types::{StatusInfo, KeyHash, };
-    // use super::super::serdes::RtpsSerdesError;
 
     #[allow(overflowing_literals)]
     const PID_VENDOR_TEST_0 : ParameterId = 0x0000 | 0x8000;

@@ -1,7 +1,7 @@
 use super::{SubmessageKind, SubmessageFlag,};
 use super::{Submessage, SubmessageHeader, };
 use super::submessage_elements;
-use crate::messages::parameter_list::ParameterList;
+use crate::serialized_payload::ParameterList;
 use crate::types::constants::SEQUENCE_NUMBER_UNKNOWN;
 
 

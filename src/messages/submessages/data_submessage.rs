@@ -3,7 +3,7 @@ use super::{Submessage, SubmessageHeader, };
 use super::submessage_elements;
 use crate::types;
 use crate::types::constants::SEQUENCE_NUMBER_UNKNOWN;
-use crate::messages::parameter_list::ParameterList;
+use crate::serialized_payload::ParameterList;
 use crate::messages::Endianness;
 
 

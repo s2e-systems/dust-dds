@@ -1,6 +1,6 @@
 use crate::messages::submessages::Data;
 use crate::messages::submessages::SubmessageHeader;
-use crate::messages::parameter_list::ParameterList;
+use crate::serialized_payload::ParameterList;
 
 use super::{UdpPsmMappingResult, SizeSerializer};
 use super::submessage_elements::{serialize_ushort, deserialize_ushort, serialize_entity_id, deserialize_entity_id, serialize_sequence_number, deserialize_sequence_number, serialize_serialized_data, deserialize_serialized_data};

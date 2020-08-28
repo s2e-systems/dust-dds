@@ -1,7 +1,7 @@
 use std::cmp::Ordering;
 
 use crate::types::{ChangeKind, InstanceHandle, SequenceNumber, GUID, };
-use crate::messages::ParameterList;
+use crate::serialized_payload::ParameterList;
 
 #[derive(Debug)]
 pub struct CacheChange {

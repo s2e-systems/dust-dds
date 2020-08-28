@@ -9,7 +9,7 @@ use crate::messages::message_receiver::Receiver;
 use crate::messages::message_sender::Sender;
 use crate::structure::history_cache::HistoryCache;
 use crate::structure::cache_change::CacheChange;
-use crate::messages::{ParameterList};
+use crate::serialized_payload::ParameterList;
 
 struct ChangeForReader {
     highest_sequence_number_sent: SequenceNumber,
