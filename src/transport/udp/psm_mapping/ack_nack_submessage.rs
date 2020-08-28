@@ -6,8 +6,8 @@ use super::submessage_elements::{serialize_entity_id, deserialize_entity_id, ser
 
 pub fn serialize_ack_nack(ack_nack: &AckNack, writer: &mut impl std::io::Write) -> UdpPsmMappingResult<()> {
     let endianness = ack_nack.endianness_flag().into();
-    serialize_entity_id(ack_nack.reader_id(), writer)?;
-    serialize_entity_id(ack_nack.writer_id(), writer)?;
+    serialize_entity_id(&ack_nack.reader_id(), writer)?;
+    serialize_entity_id(&ack_nack.writer_id(), writer)?;
     serialize_sequence_number_set(ack_nack.reader_sn_state(), writer, endianness)?;
     serialize_count(ack_nack.count(), writer, endianness)?;        
     Ok(())
@@ -21,7 +21,7 @@ pub fn deserialize_ack_nack(bytes: &[u8], header: SubmessageHeader) -> UdpPsmMap
 
     let endianness = endianness_flag.into();
     
-    let end_of_message = usize::from(header.submessage_length().0);
+    let end_of_message = usize::from(header.submessage_length());
     let index_count = end_of_message - 4;
     let reader_id = deserialize_entity_id(&bytes[0..4])?;
     let writer_id = deserialize_entity_id(&bytes[4..8])?;

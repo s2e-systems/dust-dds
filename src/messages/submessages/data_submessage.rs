@@ -50,10 +50,10 @@ impl Data {
                 None => ParameterList::new(),
             };
             let serialized_payload = match  payload {
-                Payload::Data(serialized_payload) => {data_flag = true; submessage_elements::SerializedData(serialized_payload)},
-                Payload::Key(serialized_payload) => {key_flag = true; submessage_elements::SerializedData(serialized_payload)},
-                Payload::NonStandard(serialized_payload) => {non_standard_payload_flag = true; submessage_elements::SerializedData(serialized_payload)},
-                Payload::None => {submessage_elements::SerializedData(Vec::new())},
+                Payload::Data(serialized_payload) => {data_flag = true; serialized_payload},
+                Payload::Key(serialized_payload) => {key_flag = true; serialized_payload},
+                Payload::NonStandard(serialized_payload) => {non_standard_payload_flag = true; serialized_payload},
+                Payload::None => {Vec::new()},
             };
         
         Data {
@@ -62,9 +62,9 @@ impl Data {
             data_flag,
             key_flag,
             non_standard_payload_flag,
-            reader_id: submessage_elements::EntityId(reader_id),
-            writer_id: submessage_elements::EntityId(writer_id),
-            writer_sn: submessage_elements::SequenceNumber(writer_sn),
+            reader_id,
+            writer_id,
+            writer_sn,
             inline_qos, 
             serialized_payload, 
         }
@@ -159,7 +159,7 @@ impl Submessage for Data {
     }
 
     fn is_valid(&self) -> bool {
-        if self.writer_sn.0 < 1 || self.writer_sn.0 == SEQUENCE_NUMBER_UNKNOWN {
+        if self.writer_sn < 1 || self.writer_sn == SEQUENCE_NUMBER_UNKNOWN {
             //TODO: Check validity of inline_qos
             false
         } else {

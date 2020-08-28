@@ -26,7 +26,7 @@ impl Submessage for NackFrag {
     }
 
     fn is_valid(&self) -> bool {
-        if self.writer_sn.0 <= 0 ||
+        if self.writer_sn <= 0 ||
         !self.fragment_number_state.is_valid() {
             false
         } else {

@@ -82,7 +82,7 @@ pub fn serialize_submessage_header(submessage_header: &SubmessageHeader, writer:
     serialize_submessage_id(submessage_header.submessage_id(), writer)?;
     serialize_submessage_flags(submessage_header.flags(), writer)?;
     let endianness = submessage_header.flags()[0].into();
-    serialize_ushort(submessage_header.submessage_length(), writer, endianness)?;
+    serialize_ushort(&submessage_header.submessage_length(), writer, endianness)?;
     Ok(())
 }
 
@@ -92,7 +92,7 @@ pub fn deserialize_submessage_header(bytes: &[u8]) -> UdpPsmMappingResult<Submes
     let submessage_id = deserialize_submessage_id(&[bytes[0]])?;
     let flags = deserialize_submessage_flags(&[bytes[1]])?;
     let endianness = flags[0].into();
-    let submessage_length = deserialize_ushort(&bytes[2..4], endianness)?.0;
+    let submessage_length = deserialize_ushort(&bytes[2..4], endianness)?;
     Ok(SubmessageHeader::new(submessage_id, flags, submessage_length))
 }
 
@@ -136,11 +136,11 @@ pub fn deserialize_rtps_submessage(bytes: &[u8]) -> UdpPsmMappingResult<RtpsSubm
     let submessage_header = deserialize_submessage_header(&bytes[0..4])?;
 
     match submessage_header.submessage_id() {
-        SubmessageKind::AckNack => Ok(RtpsSubmessage::AckNack(deserialize_ack_nack(&bytes[4..4 + submessage_header.submessage_length().0 as usize], submessage_header)?)),
-        SubmessageKind::Data => Ok(RtpsSubmessage::Data(deserialize_data(&bytes[4..4 + submessage_header.submessage_length().0 as usize], submessage_header)?)),
-        SubmessageKind::Gap =>  Ok(RtpsSubmessage::Gap(deserialize_gap(&bytes[4..4 + submessage_header.submessage_length().0 as usize], submessage_header)?)),
-        SubmessageKind::Heartbeat => Ok(RtpsSubmessage::Heartbeat(deserialize_heartbeat(&bytes[4..4 + submessage_header.submessage_length().0 as usize], submessage_header)?)),
-        SubmessageKind::InfoTimestamp => Ok(RtpsSubmessage::InfoTs(deserialize_info_timestamp(&bytes[4..4 + submessage_header.submessage_length().0 as usize], submessage_header)?)),
+        SubmessageKind::AckNack => Ok(RtpsSubmessage::AckNack(deserialize_ack_nack(&bytes[4..4 + submessage_header.submessage_length() as usize], submessage_header)?)),
+        SubmessageKind::Data => Ok(RtpsSubmessage::Data(deserialize_data(&bytes[4..4 + submessage_header.submessage_length() as usize], submessage_header)?)),
+        SubmessageKind::Gap =>  Ok(RtpsSubmessage::Gap(deserialize_gap(&bytes[4..4 + submessage_header.submessage_length() as usize], submessage_header)?)),
+        SubmessageKind::Heartbeat => Ok(RtpsSubmessage::Heartbeat(deserialize_heartbeat(&bytes[4..4 + submessage_header.submessage_length() as usize], submessage_header)?)),
+        SubmessageKind::InfoTimestamp => Ok(RtpsSubmessage::InfoTs(deserialize_info_timestamp(&bytes[4..4 + submessage_header.submessage_length() as usize], submessage_header)?)),
         _ => unimplemented!(),
     }
 }

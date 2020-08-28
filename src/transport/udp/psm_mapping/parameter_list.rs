@@ -1,5 +1,4 @@
 use std::io::Write;
-use crate::messages::submessages::submessage_elements::Short;
 use crate::messages::parameter_list::{Parameter, ParameterList, ParameterOps};
 use crate::serialized_payload::CdrEndianness;
 
@@ -9,8 +8,8 @@ use super::submessage_elements::{serialize_short, deserialize_short};
 
 
 fn serialize_parameter(parameter: &Parameter, writer: &mut impl Write, transport_endianness: Endianness) -> UdpPsmMappingResult<()> {
-    serialize_short(&Short(parameter.parameter_id()), writer, transport_endianness)?;
-    serialize_short(&Short(parameter.length()), writer, transport_endianness)?;
+    serialize_short(&parameter.parameter_id(), writer, transport_endianness)?;
+    serialize_short(&parameter.length(), writer, transport_endianness)?;
     writer.write(parameter.value().as_slice())?;
     let padding = parameter.length() as usize - parameter.value().len();
     for _ in 0..padding {
@@ -25,9 +24,9 @@ fn octets_parameter(parameter: &Parameter) -> usize {
 
 fn deserialize_parameter(bytes: &[u8], endianness: Endianness) -> UdpPsmMappingResult<Parameter> {
     bytes.check_size_bigger_equal_than(4)?;
-    let parameter_id = deserialize_short(&bytes[0..2], endianness)?.0;
+    let parameter_id = deserialize_short(&bytes[0..2], endianness)?;
     let length = deserialize_short(&bytes[2..4], endianness)?;
-    let bytes_end = (length.0 + 4) as usize;
+    let bytes_end = (length + 4) as usize;
     bytes.check_size_bigger_equal_than(bytes_end)?;
     let value = Vec::from(&bytes[4..bytes_end]);
     Ok(Parameter::new(parameter_id, value))
@@ -38,7 +37,7 @@ pub fn serialize_parameter_list(parameter_list: &ParameterList, writer: &mut imp
         for param in parameter_list.parameter().iter() {
         serialize_parameter(&Parameter::from_parameter_ops(param.as_ref(), cdr_endianness), writer, transport_endianness)?;
     }       
-    serialize_short(&Short(ParameterList::PID_SENTINEL), writer, transport_endianness)?;
+    serialize_short(&ParameterList::PID_SENTINEL, writer, transport_endianness)?;
     writer.write(&[0,0])?; // Sentinel length 0
     Ok(())
 }

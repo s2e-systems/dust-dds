@@ -39,14 +39,14 @@ impl Submessage for DataFrag {
 
     fn is_valid(&self) -> bool {
         let serialized_data_size = match &self.serialized_payload {
-            Some(data) => data.0.len(),
+            Some(data) => data.len(),
             None => 0,
         };
 
-        if (self.writer_sn.0 < 1 || self.writer_sn.0 == SEQUENCE_NUMBER_UNKNOWN) ||
-           (self.fragment_starting_num.0 < 1) ||
-           (self.fragment_size.0 as u32 > self.data_size.0) ||
-           (serialized_data_size > self.fragments_in_submessage.0 as usize * self.fragment_size.0 as usize)
+        if (self.writer_sn < 1 || self.writer_sn == SEQUENCE_NUMBER_UNKNOWN) ||
+           (self.fragment_starting_num < 1) ||
+           (self.fragment_size as u32 > self.data_size) ||
+           (serialized_data_size > self.fragments_in_submessage as usize * self.fragment_size as usize)
         {
             // TODO: Check total number of fragments
             // TODO: Check validity of inline_qos

@@ -30,10 +30,10 @@ impl AckNack {
         AckNack {
             endianness_flag: endianness.into(),
             final_flag,
-            reader_id: submessage_elements::EntityId(reader_id),
-            writer_id: submessage_elements::EntityId(writer_id),
+            reader_id,
+            writer_id,
             reader_sn_state: submessage_elements::SequenceNumberSet::new(available_changes_max, missing_changes),
-            count: submessage_elements::Count(count),
+            count,
         }
     }
 
@@ -61,12 +61,12 @@ impl AckNack {
         self.endianness_flag
     }
 
-    pub fn reader_id(&self) -> &submessage_elements::EntityId {
-        &self.reader_id
+    pub fn reader_id(&self) -> submessage_elements::EntityId {
+        self.reader_id
     }
 
-    pub fn writer_id(&self) -> &submessage_elements::EntityId {
-        &self.writer_id
+    pub fn writer_id(&self) -> submessage_elements::EntityId {
+        self.writer_id
     }
 
     pub fn reader_sn_state(&self) -> &submessage_elements::SequenceNumberSet {

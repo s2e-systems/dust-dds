@@ -24,8 +24,8 @@ impl Submessage for HeartbeatFrag {
     }
 
     fn is_valid(&self) -> bool {
-        if self.writer_sn.0 <= 0 ||
-        self.last_fragment_num.0 <= 0 {
+        if self.writer_sn <= 0 ||
+        self.last_fragment_num <= 0 {
             false
         } else {
             true

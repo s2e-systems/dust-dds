@@ -289,7 +289,7 @@ impl StatefulWriter {
 impl Receiver for StatefulWriter {
     fn push_receive_message(&self, source_guid_prefix: GuidPrefix, submessage: RtpsSubmessage) {
         let reader_id = match &submessage {
-            RtpsSubmessage::AckNack(acknack) => acknack.reader_id().0,
+            RtpsSubmessage::AckNack(acknack) => acknack.reader_id(),
             _ => panic!("Unsupported message received by stateful writer"),
         };
         let guid = GUID::new(source_guid_prefix, reader_id);
@@ -302,7 +302,7 @@ impl Receiver for StatefulWriter {
 
     fn is_submessage_destination(&self, _src_locator: &Locator, src_guid_prefix: &GuidPrefix, submessage: &RtpsSubmessage) -> bool {
         let reader_id = match &submessage {
-            RtpsSubmessage::AckNack(acknack) => acknack.reader_id().0,
+            RtpsSubmessage::AckNack(acknack) => acknack.reader_id(),
             _ => return false,
         };
 
@@ -512,17 +512,17 @@ mod tests {
         let (_dst_locators, messages) = stateful_writer.pop_send_message().unwrap();
 
         if let RtpsSubmessage::Data(data) = &messages[0] {
-            assert_eq!(data.reader_id().0, remote_reader_guid.entity_id());
-            assert_eq!(data.writer_id().0, writer_guid.entity_id());
-            assert_eq!(data.writer_sn().0, 1);
+            assert_eq!(data.reader_id(), remote_reader_guid.entity_id());
+            assert_eq!(data.writer_id(), writer_guid.entity_id());
+            assert_eq!(data.writer_sn(), 1);
         } else {
             panic!("Wrong message sent");
         }
 
         if let RtpsSubmessage::Data(data) = &messages[1] {
-            assert_eq!(data.reader_id().0, remote_reader_guid.entity_id());
-            assert_eq!(data.writer_id().0, writer_guid.entity_id());
-            assert_eq!(data.writer_sn().0, 2);
+            assert_eq!(data.reader_id(), remote_reader_guid.entity_id());
+            assert_eq!(data.writer_id(), writer_guid.entity_id());
+            assert_eq!(data.writer_sn(), 2);
         } else {
             panic!("Wrong message sent");
         }
@@ -565,17 +565,17 @@ mod tests {
         let (_dst_locators, messages) = stateful_writer.pop_send_message().unwrap();
 
         if let RtpsSubmessage::Data(data) = &messages[0] {
-            assert_eq!(data.reader_id().0, remote_reader_guid.entity_id());
-            assert_eq!(data.writer_id().0, writer_guid.entity_id());
-            assert_eq!(data.writer_sn().0, 1);
+            assert_eq!(data.reader_id(), remote_reader_guid.entity_id());
+            assert_eq!(data.writer_id(), writer_guid.entity_id());
+            assert_eq!(data.writer_sn(), 1);
         } else {
             panic!("Wrong message sent");
         }
 
         if let RtpsSubmessage::Data(data) = &messages[1] {
-            assert_eq!(data.reader_id().0, remote_reader_guid.entity_id());
-            assert_eq!(data.writer_id().0, writer_guid.entity_id());
-            assert_eq!(data.writer_sn().0, 2);
+            assert_eq!(data.reader_id(), remote_reader_guid.entity_id());
+            assert_eq!(data.writer_id(), writer_guid.entity_id());
+            assert_eq!(data.writer_sn(), 2);
         } else {
             panic!("Wrong message sent. Expected Data");
         }

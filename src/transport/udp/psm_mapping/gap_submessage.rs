@@ -10,7 +10,7 @@ pub fn serialize_gap(gap: &Gap, writer: &mut impl std::io::Write) -> UdpPsmMappi
     let endianness = gap.endianness_flag().into();
     serialize_entity_id(&gap.reader_id(), writer)?;
     serialize_entity_id(&gap.writer_id(), writer)?;
-    serialize_sequence_number(gap.gap_start(), writer, endianness)?;
+    serialize_sequence_number(&gap.gap_start(), writer, endianness)?;
     serialize_sequence_number_set(gap.gap_list(), writer, endianness)?;
     Ok(())
 }

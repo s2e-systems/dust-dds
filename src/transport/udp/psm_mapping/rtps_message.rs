@@ -52,7 +52,7 @@ pub fn deserialize_rtps_message(bytes: &[u8]) -> UdpPsmMappingResult<RtpsMessage
     while submessage_start_index < size {
         let submessage_header = deserialize_submessage_header(&bytes[submessage_start_index..submessage_start_index+4])?;
         
-        let submessage_end_index = submessage_start_index+4+submessage_header.submessage_length().0 as usize;
+        let submessage_end_index = submessage_start_index+4+submessage_header.submessage_length() as usize;
         let submessage = deserialize_rtps_submessage(&bytes[submessage_start_index..submessage_end_index])?;
         submessage_start_index = submessage_end_index;
 

@@ -38,11 +38,11 @@ impl Heartbeat {
         manual_liveliness: bool) -> Self {
 
         Self {
-            reader_id: submessage_elements::EntityId(reader_id),
-            writer_id: submessage_elements::EntityId(writer_id),
-            first_sn: submessage_elements::SequenceNumber(first_sn),
-            last_sn: submessage_elements::SequenceNumber(last_sn),
-            count: submessage_elements::Count(count),
+            reader_id,
+            writer_id,
+            first_sn,
+            last_sn,
+            count,
             final_flag,
             liveliness_flag: manual_liveliness,
             endianness_flag: endianness.into(),
@@ -115,9 +115,9 @@ impl Submessage for Heartbeat {
     }
 
     fn is_valid(&self) -> bool {
-        if self.first_sn.0 <= 0 ||
-           self.last_sn.0 < 0 ||
-           self.last_sn.0 < self.first_sn.0 - 1 {
+        if self.first_sn <= 0 ||
+           self.last_sn < 0 ||
+           self.last_sn < self.first_sn - 1 {
             false
         } else {
             true
@@ -133,11 +133,11 @@ mod tests {
     #[test]
     fn test_heartbeat_validity_function() {
         let valid_heartbeat = Heartbeat {
-            reader_id: submessage_elements::EntityId(ENTITYID_UNKNOWN),
-            writer_id: submessage_elements::EntityId(ENTITYID_UNKNOWN),
-            first_sn: submessage_elements::SequenceNumber(2),
-            last_sn: submessage_elements::SequenceNumber(5), 
-            count: submessage_elements::Count(0),
+            reader_id: ENTITYID_UNKNOWN,
+            writer_id: ENTITYID_UNKNOWN,
+            first_sn: 2,
+            last_sn: 5, 
+            count: 0,
             final_flag: true,
             liveliness_flag: true,
             endianness_flag: Endianness::LittleEndian.into(),
@@ -146,11 +146,11 @@ mod tests {
         assert_eq!(valid_heartbeat.is_valid(), true);
 
         let valid_heartbeat_first_message = Heartbeat {
-            reader_id: submessage_elements::EntityId(ENTITYID_UNKNOWN),
-            writer_id: submessage_elements::EntityId(ENTITYID_UNKNOWN),
-            first_sn: submessage_elements::SequenceNumber(1),
-            last_sn: submessage_elements::SequenceNumber(0), 
-            count: submessage_elements::Count(2),
+            reader_id: ENTITYID_UNKNOWN,
+            writer_id: ENTITYID_UNKNOWN,
+            first_sn: 1,
+            last_sn: 0, 
+            count: 2,
             final_flag: true,
             liveliness_flag: true,
             endianness_flag: Endianness::LittleEndian.into(),
@@ -159,11 +159,11 @@ mod tests {
         assert_eq!(valid_heartbeat_first_message.is_valid(), true);
 
         let invalid_heartbeat_zero_first_value = Heartbeat {
-            reader_id: submessage_elements::EntityId(ENTITYID_UNKNOWN),
-            writer_id: submessage_elements::EntityId(ENTITYID_UNKNOWN),
-            first_sn: submessage_elements::SequenceNumber(0),
-            last_sn: submessage_elements::SequenceNumber(1), 
-            count: submessage_elements::Count(2),
+            reader_id: ENTITYID_UNKNOWN,
+            writer_id: ENTITYID_UNKNOWN,
+            first_sn: 0,
+            last_sn: 1, 
+            count: 2,
             final_flag: true,
             liveliness_flag: true,
             endianness_flag: Endianness::LittleEndian.into(),
@@ -172,11 +172,11 @@ mod tests {
         assert_eq!(invalid_heartbeat_zero_first_value.is_valid(), false);
 
         let invalid_heartbeat_negative_last_value = Heartbeat {
-            reader_id: submessage_elements::EntityId(ENTITYID_UNKNOWN),
-            writer_id: submessage_elements::EntityId(ENTITYID_UNKNOWN),
-            first_sn: submessage_elements::SequenceNumber(5),
-            last_sn: submessage_elements::SequenceNumber(-6), 
-            count: submessage_elements::Count(2),
+            reader_id: ENTITYID_UNKNOWN,
+            writer_id: ENTITYID_UNKNOWN,
+            first_sn: 5,
+            last_sn: -6, 
+            count: 2,
             final_flag: true,
             liveliness_flag: true,
             endianness_flag: Endianness::LittleEndian.into(),
@@ -185,11 +185,11 @@ mod tests {
         assert_eq!(invalid_heartbeat_negative_last_value.is_valid(), false);
 
         let invalid_heartbeat_wrong_first_last_value = Heartbeat {
-            reader_id: submessage_elements::EntityId(ENTITYID_UNKNOWN),
-            writer_id: submessage_elements::EntityId(ENTITYID_UNKNOWN),
-            first_sn: submessage_elements::SequenceNumber(6),
-            last_sn: submessage_elements::SequenceNumber(4), 
-            count: submessage_elements::Count(2),
+            reader_id: ENTITYID_UNKNOWN,
+            writer_id: ENTITYID_UNKNOWN,
+            first_sn: 6,
+            last_sn: 4, 
+            count: 2,
             final_flag: true,
             liveliness_flag: true,
             endianness_flag: Endianness::LittleEndian.into(),

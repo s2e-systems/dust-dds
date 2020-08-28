@@ -1,6 +1,5 @@
 use crate::messages::submessages::{InfoTs, SubmessageHeader};
 use crate::messages::types::constants::TIME_INVALID;
-use crate::messages::submessages::submessage_elements::Timestamp;
 
 use super::{UdpPsmMappingResult};
 use super::submessage_elements::{serialize_timestamp, deserialize_timestamp};
@@ -24,7 +23,7 @@ pub fn deserialize_info_timestamp(bytes: &[u8], header: SubmessageHeader) -> Udp
 
     let endianness = endianness_flag.into();
     if invalidate_flag {
-        Ok(InfoTs::from_raw_parts(endianness_flag, invalidate_flag, Timestamp(TIME_INVALID)))
+        Ok(InfoTs::from_raw_parts(endianness_flag, invalidate_flag, TIME_INVALID))
     } else {            
         let timestamp = deserialize_timestamp(&bytes[0..8], endianness)?;
         Ok(InfoTs::from_raw_parts(endianness_flag, invalidate_flag, timestamp))

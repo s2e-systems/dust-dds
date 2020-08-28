@@ -32,7 +32,7 @@ impl SubmessageHeader {
         Self {
             submessage_id, 
             flags,
-            submessage_length: submessage_elements::UShort(submessage_length),
+            submessage_length: submessage_length,
         }
     }
 
@@ -43,8 +43,8 @@ impl SubmessageHeader {
     pub fn flags(&self) -> &[SubmessageFlag; 8] {
         &self.flags
     }
-    pub fn submessage_length(&self) -> &submessage_elements::UShort {
-        &self.submessage_length
+    pub fn submessage_length(&self) -> submessage_elements::UShort {
+        self.submessage_length
     }
 }
 

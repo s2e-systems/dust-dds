@@ -263,19 +263,19 @@ mod tests {
         assert!(writer.pop_send_message().is_none());
 
         if let RtpsSubmessage::Data(data_message_1) = &messages[0] {
-            assert_eq!(data_message_1.reader_id().0, ENTITYID_UNKNOWN);
-            assert_eq!(data_message_1.writer_id().0, ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER);
-            assert_eq!(data_message_1.writer_sn().0, 1);
-            assert_eq!(data_message_1.serialized_payload().0, vec![1, 2, 3]);
+            assert_eq!(data_message_1.reader_id(), ENTITYID_UNKNOWN);
+            assert_eq!(data_message_1.writer_id(), ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER);
+            assert_eq!(data_message_1.writer_sn(), 1);
+            assert_eq!(data_message_1.serialized_payload(), &vec![1, 2, 3]);
         } else {
             panic!("Wrong message type");
         };
 
         if let RtpsSubmessage::Data(data_message_2) = &messages[1] {
-            assert_eq!(data_message_2.reader_id().0, ENTITYID_UNKNOWN);
-            assert_eq!(data_message_2.writer_id().0, ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER);
-            assert_eq!(data_message_2.writer_sn().0, 2);
-            assert_eq!(data_message_2.serialized_payload().0, vec![4, 5, 6]);
+            assert_eq!(data_message_2.reader_id(), ENTITYID_UNKNOWN);
+            assert_eq!(data_message_2.writer_id(), ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER);
+            assert_eq!(data_message_2.writer_sn(), 2);
+            assert_eq!(data_message_2.serialized_payload(), &vec![4, 5, 6]);
         } else {
             panic!("Wrong message type");
         };

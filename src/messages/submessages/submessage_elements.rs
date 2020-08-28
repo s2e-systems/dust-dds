@@ -5,39 +5,30 @@
 
 use std::collections::BTreeSet;
 
-use crate::types::{Locator};
 use crate::types;
+use crate::messages;
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub struct Long(pub i32);
+pub type Long = i32;
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub struct ULong(pub u32);
+pub type ULong = u32;
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub struct Short(pub i16);
+pub type Short = i16;
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub struct UShort(pub u16);
+pub type UShort = u16;
 
 // ///////// The GuidPrefix, and EntityId  ////////////////////////////////////
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Hash)]
-pub struct GuidPrefix(pub types::GuidPrefix);
+pub type GuidPrefix = types::GuidPrefix;
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
-pub struct EntityId(pub types::EntityId);
+pub type EntityId = types::EntityId;
 
 // /////////  VendorId ////////////////////////////////////////////////////////
-#[derive(Debug, PartialEq, Copy, Clone)]
-pub struct VendorId(pub types::VendorId);
+pub type VendorId = types::VendorId;
 
 // ///////// ProtocolVersion //////////////////////////////////////////////////
-#[derive(Debug, PartialEq, Copy, Clone)]
-pub struct ProtocolVersion(pub types::ProtocolVersion);
+pub type ProtocolVersion = types::ProtocolVersion;
 
 //  /////////   SequenceNumber
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Hash)]
-pub struct SequenceNumber(pub types::SequenceNumber);
+pub type SequenceNumber = types::SequenceNumber;
 
 
 //  /////////   SequenceNumberSet
@@ -82,8 +73,7 @@ impl SequenceNumberSet {
 
 
 //  /////////   FragmentNumber
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)] 
-pub struct FragmentNumber(pub crate::messages::types::FragmentNumber);
+pub type FragmentNumber = messages::types::FragmentNumber;
 
 //  ////////    FragmentNumberSet
 
@@ -95,7 +85,7 @@ pub struct FragmentNumberSet {
 
 impl FragmentNumberSet {
     pub fn new(set: BTreeSet<FragmentNumber>) -> Self { 
-        let base = *set.iter().next().unwrap_or(&FragmentNumber(0));
+        let base = *set.iter().next().unwrap_or(&0);
         Self {base, set } 
     }
 
@@ -103,7 +93,7 @@ impl FragmentNumberSet {
         let min = *self.set.iter().next().unwrap(); // First element. Must exist by the invariant
         let max = *self.set.iter().next_back().unwrap(); // Last element. Must exist by the invariant
 
-        if min >= FragmentNumber(1) && max.0 - min.0 < 256 {
+        if min >= 1 && max- min < 256 {
             true
         } else {
             false
@@ -112,31 +102,20 @@ impl FragmentNumberSet {
 }
 
 // //////////// Timestamp ////////////////
-#[derive(PartialEq, Debug)]
-pub struct Timestamp(pub crate::messages::types::Time);
+pub type Timestamp = messages::types::Time;
 
 //  /////////// Count ///////////
-#[derive(Debug, PartialEq, Copy, Clone, PartialOrd)]
-pub struct Count(pub crate::messages::types::Count);
-
-impl std::ops::AddAssign<i32> for Count {
-    fn add_assign(&mut self, rhs: i32) {
-        *self = Count(self.0+rhs)
-    }
-}
+pub type Count = messages::types::Count;
 
 
 // /////////// LocatorList ////////////////////////////////////////////////////
-#[derive(Debug, PartialEq)]
-pub struct LocatorList(pub Vec<Locator>);
+pub type LocatorList = Vec<types::Locator>;
 
 //  ///////////   SerializedData   //////////////////
-#[derive(PartialEq, Debug)]
-pub struct SerializedData(pub Vec<u8>);
+pub type SerializedData = Vec<u8>;
 
 //  ///////////   SerializedDataFragment  ///////////
-#[derive(PartialEq, Debug)]
-pub struct SerializedDataFragment(pub Vec<u8>);
+pub type SerializedDataFragment = Vec<u8>;
 
 //  ///////////   GroupDigest   //////////////////////
 // todo
@@ -173,10 +152,10 @@ mod tests {
     #[test]
     fn fragment_number_set_constructor() {
         let expected = FragmentNumberSet{
-            base: FragmentNumber(1001),
-            set:  [FragmentNumber(1001), FragmentNumber(1003)].iter().cloned().collect(),
+            base: 1001,
+            set:  [1001, 1003].iter().cloned().collect(),
         };
-        let result = FragmentNumberSet::new([FragmentNumber(1001), FragmentNumber(1003)].iter().cloned().collect());
+        let result = FragmentNumberSet::new([1001, 1003].iter().cloned().collect());
         assert_eq!(expected, result);
     }
 }

@@ -19,8 +19,8 @@ impl InfoTs {
         let endianness_flag = endianness.into();
         let invalidate_flag = !time.is_some();
         let timestamp = match time {
-            Some(time) => submessage_elements::Timestamp(time),
-            None => submessage_elements::Timestamp(TIME_INVALID),
+            Some(time) => time,
+            None => TIME_INVALID,
         };
         InfoTs {
             endianness_flag,
@@ -52,7 +52,7 @@ impl InfoTs {
     pub fn time(&self) -> Option<messages::types::Time> {
         match self.invalidate_flag {
             true => None,
-            false => Some(self.timestamp.0),
+            false => Some(self.timestamp),
         }
     }
 }

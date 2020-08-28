@@ -75,16 +75,16 @@ impl BestEfforStatefulReaderBehavior {
 
     fn transition_t2(writer_proxy: &WriterProxy, stateful_reader: &StatefulReader, data: Data) {
         let expected_seq_number = writer_proxy.available_changes_max() + 1;
-        if data.writer_sn().0 >= expected_seq_number {
-            writer_proxy.received_change_set(data.writer_sn().0);
-            writer_proxy.lost_changes_update(data.writer_sn().0);
+        if data.writer_sn() >= expected_seq_number {
+            writer_proxy.received_change_set(data.writer_sn());
+            writer_proxy.lost_changes_update(data.writer_sn());
             let cache_change = cache_change_from_data(data, &writer_proxy.remote_writer_guid().prefix());
             stateful_reader.reader_cache().add_change(cache_change);
         }
     }
 
     fn transition_t4(writer_proxy: &WriterProxy, gap: &Gap) {
-        for seq_num in gap.gap_start().0 .. gap.gap_list().base() - 1 {
+        for seq_num in gap.gap_start() .. gap.gap_list().base() - 1 {
             writer_proxy.irrelevant_change_set(seq_num);
         }
 
@@ -132,8 +132,8 @@ impl ReliableStatefulReaderBehavior {
 
     fn transition_t8(writer_proxy: &WriterProxy, stateful_reader: &StatefulReader, data: Data) {
         let expected_seq_number = writer_proxy.available_changes_max() + 1;
-        if data.writer_sn().0 >= expected_seq_number {
-            writer_proxy.received_change_set(data.writer_sn().0);
+        if data.writer_sn() >= expected_seq_number {
+            writer_proxy.received_change_set(data.writer_sn());
             let cache_change = cache_change_from_data(data, &writer_proxy.remote_writer_guid().prefix());
             stateful_reader.reader_cache().add_change(cache_change);
             
@@ -141,7 +141,7 @@ impl ReliableStatefulReaderBehavior {
     }
 
     fn transition_t9(writer_proxy: &WriterProxy, gap: &Gap) {
-        for seq_num in gap.gap_start().0 .. gap.gap_list().base() - 1 {
+        for seq_num in gap.gap_start() .. gap.gap_list().base() - 1 {
             writer_proxy.irrelevant_change_set(seq_num);
         }
 
@@ -151,8 +151,8 @@ impl ReliableStatefulReaderBehavior {
     }
 
     fn transition_t7(writer_proxy: &WriterProxy, heartbeat: &Heartbeat) {
-        writer_proxy.missing_changes_update(heartbeat.last_sn().0);
-        writer_proxy.lost_changes_update(heartbeat.first_sn().0);
+        writer_proxy.missing_changes_update(heartbeat.last_sn());
+        writer_proxy.lost_changes_update(heartbeat.first_sn());
     }
 
     fn waiting_heartbeat_state(writer_proxy: &WriterProxy, heartbeat_message: Option<Heartbeat>) {            

@@ -310,7 +310,7 @@ impl Receiver for StatefulReader {
                 },
             _ =>  panic!("Unsupported message received by stateful reader"),
         };
-        let writer_guid = GUID::new(src_guid_prefix, writer_id.0);
+        let writer_guid = GUID::new(src_guid_prefix, writer_id);
 
         self.matched_writers().get(&writer_guid).unwrap().received_messages.lock().unwrap().push_back((src_guid_prefix, submessage));
     }
@@ -331,7 +331,7 @@ impl Receiver for StatefulReader {
             _ => return false,
         };
 
-        let writer_guid = GUID::new(*src_guid_prefix, writer_id.0);
+        let writer_guid = GUID::new(*src_guid_prefix, writer_id);
 
         // If the message comes from a matched writer then this should be the destination
         self.matched_writers().get(&writer_guid).is_some()

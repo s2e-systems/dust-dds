@@ -29,9 +29,9 @@ impl Gap {
 
             Gap {
                 endianness_flag: endianness.into(),
-                reader_id: submessage_elements::EntityId(reader_id),
-                writer_id: submessage_elements::EntityId(writer_id),
-                gap_start: submessage_elements::SequenceNumber(gap_start),
+                reader_id: reader_id,
+                writer_id: writer_id,
+                gap_start: gap_start,
                 gap_list: submessage_elements::SequenceNumberSet::from_set(gap_list),
             }
     }
@@ -64,8 +64,8 @@ impl Gap {
         self.writer_id
     }
 
-    pub fn gap_start(&self) -> &submessage_elements::SequenceNumber {
-        &self.gap_start
+    pub fn gap_start(&self) -> submessage_elements::SequenceNumber {
+        self.gap_start
     }
 
     pub fn gap_list(&self) -> &submessage_elements::SequenceNumberSet {
@@ -86,7 +86,7 @@ impl Submessage for Gap {
     }
 
     fn is_valid(&self) -> bool {
-        if self.gap_start.0 <= 0 ||
+        if self.gap_start <= 0 ||
            !self.gap_list.is_valid()
         {
             false

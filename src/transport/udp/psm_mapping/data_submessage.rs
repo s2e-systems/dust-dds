@@ -1,5 +1,4 @@
 use crate::messages::submessages::Data;
-use crate::messages::submessages::submessage_elements::UShort;
 use crate::messages::submessages::SubmessageHeader;
 use crate::messages::parameter_list::ParameterList;
 
@@ -18,8 +17,8 @@ pub fn serialize_data(data: &Data, writer: &mut impl std::io::Write) -> UdpPsmMa
 
     let octecs_to_inline_qos_size = to_inline_qos_size_serializer.get_size() as u16;
 
-    serialize_ushort(&UShort(extra_flags), writer, endianness)?;
-    serialize_ushort(&UShort(octecs_to_inline_qos_size), writer, endianness)?;
+    serialize_ushort(&extra_flags, writer, endianness)?;
+    serialize_ushort(&octecs_to_inline_qos_size, writer, endianness)?;
 
     serialize_entity_id(&data.reader_id(), writer)?;
     serialize_entity_id(&data.writer_id(), writer)?;
@@ -49,7 +48,7 @@ pub fn deserialize_data(bytes: &[u8], header: SubmessageHeader) -> UdpPsmMapping
     let endianness = endianness_flag.into();
 
     // const HEADER_SIZE : usize = 8;
-    let octets_to_inline_qos = usize::from(deserialize_ushort(&bytes[2..4], endianness)?.0) ; 
+    let octets_to_inline_qos = usize::from(deserialize_ushort(&bytes[2..4], endianness)?) ; 
     let reader_id = deserialize_entity_id(&bytes[4..8])?;        
     let writer_id = deserialize_entity_id(&bytes[8..12])?;
     let writer_sn = deserialize_sequence_number(&bytes[12..20], endianness)?;
