@@ -4,10 +4,21 @@ pub mod types;
 pub mod message_receiver;
 pub mod message_sender;
 
+use crate::serialized_payload::CdrEndianness;
+
 #[derive(PartialEq, Debug, Clone, Copy)]
 pub enum Endianness {
     BigEndian = 0,
     LittleEndian = 1,
+}
+
+impl From<Endianness> for CdrEndianness {
+    fn from(value: Endianness) -> Self {
+        match value {
+            Endianness::LittleEndian => CdrEndianness::LittleEndian,
+            Endianness::BigEndian => CdrEndianness::BigEndian,
+        }
+    }
 }
 
 impl From<bool> for Endianness {

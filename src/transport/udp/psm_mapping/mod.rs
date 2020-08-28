@@ -1,6 +1,5 @@
 mod rtps_message;
 mod submessage_elements;
-mod parameter_list;
 mod rtps_submessage;
 
 mod ack_nack_submessage;

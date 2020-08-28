@@ -4,37 +4,10 @@ use std::io::Write;
 
 use cdr;
 
-use crate::messages::{Endianness, };
-
 #[derive(Debug, Copy, Clone)]
 pub enum CdrEndianness {
     LittleEndian,
     BigEndian,
-}
-
-impl From<Endianness> for CdrEndianness {
-    fn from(value: Endianness) -> Self {
-        match value {
-            Endianness::LittleEndian => CdrEndianness::LittleEndian,
-            Endianness::BigEndian => CdrEndianness::BigEndian,
-        }
-    }
-}
-
-impl From<bool> for CdrEndianness {
-    fn from(value: bool) -> Self {
-        let endianness: Endianness = value.into();
-        endianness.into()
-    }
-}
-
-impl From<CdrEndianness> for Endianness {
-    fn from(value: CdrEndianness) -> Self {
-        match value {
-            CdrEndianness::LittleEndian => Endianness::LittleEndian,
-            CdrEndianness::BigEndian => Endianness::BigEndian,
-        }
-    }
 }
 
 #[derive(PartialEq, Debug)]
@@ -393,3 +366,277 @@ pub struct SerializedPayload(pub Vec<u8>);
     //      assert_eq!(parameter_list, expected);
     //  }
 
+    // #[cfg(test)]
+    // mod tests {
+    //     use super::*;
+    //     use crate::serialized_payload::{ParameterId, Pid};
+    //     use serde::{Serialize, Deserialize, };
+    //     use crate::inline_qos_types::{StatusInfo, KeyHash, };
+    
+    //     #[allow(overflowing_literals)]
+    //     const PID_VENDOR_TEST_0 : ParameterId = 0x0000 | 0x8000;
+    //     #[allow(overflowing_literals)]
+    //     const PID_VENDOR_TEST_1 : ParameterId = 0x0001 | 0x8000;
+    //     #[allow(overflowing_literals)]
+    //     const PID_VENDOR_TEST_3 : ParameterId = 0x0003 | 0x8000;
+    //     #[allow(overflowing_literals)]
+    //     const PID_VENDOR_TEST_4 : ParameterId = 0x0004 | 0x8000;
+    //     #[allow(overflowing_literals)]
+    //     const PID_VENDOR_TEST_5 : ParameterId = 0x0005 | 0x8000;
+    //     #[allow(overflowing_literals)]
+    //     const PID_VENDOR_TEST_SHORT : ParameterId = 0x0006 | 0x8000;
+    
+    //      // /////////////////////// ParameterList Tests ////////////////////////
+        
+    //      #[derive(Debug, PartialEq, Serialize, Deserialize)]
+    //      pub struct VendorTest0(pub [u8; 0]);
+    //      impl Pid for VendorTest0 {
+    //          fn pid() -> ParameterId {
+    //              PID_VENDOR_TEST_0
+    //          }
+    //      }
+         
+    //      #[derive(Debug, PartialEq, Serialize, Deserialize)]
+    //      pub struct VendorTest1(pub [u8; 1]);
+    //      impl Pid for VendorTest1 {
+    //          fn pid() -> ParameterId {
+    //              PID_VENDOR_TEST_1
+    //          }
+    //      }
+         
+    //      #[derive(Debug, PartialEq, Serialize, Deserialize)]
+    //      pub struct VendorTest3(pub [u8; 3]);
+    //      impl Pid for VendorTest3 {
+    //          fn pid() -> ParameterId {
+    //              PID_VENDOR_TEST_3
+    //          }
+    //      }
+         
+    //      #[derive(Debug, PartialEq, Serialize)]
+    //      pub struct VendorTest4(pub [u8; 4]);
+    //      impl Pid for VendorTest4 {
+    //          fn pid() -> ParameterId {
+    //              PID_VENDOR_TEST_4
+    //          }
+    //      }
+         
+    //      #[derive(Debug, PartialEq, Serialize, Deserialize)]
+    //      pub struct VendorTest5(pub [u8; 5]);
+    //      impl Pid for VendorTest5 {
+    //          fn pid() -> ParameterId {
+    //              PID_VENDOR_TEST_5
+    //          }
+    //      }
+     
+    //      #[derive(Debug, PartialEq, Serialize, Deserialize)]
+    //      pub struct VendorTestShort(pub i16);
+    //      impl Pid for VendorTestShort {
+    //          fn pid() -> ParameterId {
+    //              PID_VENDOR_TEST_SHORT
+    //          }
+    //      }
+     
+    //      #[test]
+    //      fn serialize_deserialize_parameter() {
+    //          let parameter = Parameter::from_parameter_ops(&VendorTest3([1, 2, 3]), CdrEndianness::LittleEndian);
+         
+    //          let expected = vec![
+    //              0x03, 0x80, 4, 0, //ParameterID, length
+    //              1, 2, 3, 0, //VendorTest value       
+    //          ];
+    //          let mut writer = Vec::new();
+    //          serialize_parameter(&parameter, &mut writer, Endianness::LittleEndian).unwrap();
+    //          assert_eq!(expected, writer);
+    
+    //          let bytes = vec![
+    //              0x03, 0x80, 4, 0, //ParameterID, length
+    //              1, 2, 3, 0, //VendorTest value       
+    //          ];    
+    //          let expected = VendorTest3([1, 2, 3]);    
+    //          let parameter = deserialize_parameter(&bytes, Endianness::LittleEndian).unwrap();
+    //          let result = parameter.get(CdrEndianness::LittleEndian).unwrap();
+         
+    //          assert_eq!(expected, result);
+    //      }
+         
+    //      #[test]
+    //      fn deserialize_parameter_liitle_endian() {  
+    //          let bytes = vec![
+    //              0x71, 0x0, 4, 0, 
+    //              1, 2, 3, 4,
+    //          ];
+    //          let expected = Parameter::from_parameter_ops(&StatusInfo([1, 2, 3, 4]), CdrEndianness::LittleEndian);
+    //          let result = deserialize_parameter(&bytes, Endianness::LittleEndian).unwrap();   
+    //          assert_eq!(expected, result);
+    //      }    
+     
+    //      #[test]
+    //      fn serialize_parameter_short() {
+    //          let parameter = Parameter::from_parameter_ops(&VendorTestShort(-1000), CdrEndianness::LittleEndian);
+    //          let expected = vec![
+    //              0x06, 0x80, 4, 0, 
+    //              0x18, 0xFC, 0, 0,
+    //          ];
+    //          let mut writer = Vec::new();
+    //          serialize_parameter(&parameter, &mut writer, Endianness::LittleEndian).unwrap();
+    //          assert_eq!(expected, writer);
+     
+    //          let parameter = Parameter::from_parameter_ops(&VendorTestShort(-1000), CdrEndianness::BigEndian);
+    //          let expected = vec![
+    //              0x80, 0x06, 0, 4, 
+    //              0xFC, 0x18, 0, 0,
+    //          ];
+    //          let mut writer = Vec::new();
+    //          serialize_parameter(&parameter, &mut writer, Endianness::BigEndian).unwrap();
+    //          assert_eq!(expected, writer);
+    //      }
+     
+    //      #[test]
+    //      fn deserialize_parameter_short() {
+    //          let expected = VendorTestShort(-1000);
+    //          let bytes = vec![
+    //              0x06, 0x80, 4, 0, 
+    //              0x18, 0xFC, 0, 0,
+    //          ];
+    //          let parameter = deserialize_parameter(&bytes, Endianness::LittleEndian).unwrap();
+    //          let result = parameter.get(CdrEndianness::LittleEndian).unwrap();
+    //          assert_eq!(expected, result);
+     
+    //          let expected = VendorTestShort(-1000);
+    //          let bytes = vec![
+    //              0x80, 0x06, 0, 4, 
+    //              0xFC, 0x18, 0, 0,
+    //          ];
+    //          let parameter = deserialize_parameter(&bytes, Endianness::BigEndian).unwrap();
+    //          let result = parameter.get(CdrEndianness::BigEndian).unwrap();
+    //          assert_eq!(expected, result);
+    //      }
+     
+    //      #[test]
+    //      fn parameter_serialize_little_endian() {
+    //          let parameter = Parameter::from_parameter_ops(&VendorTest3([1, 2, 3]), CdrEndianness::LittleEndian);
+    //          let expected_bytes = vec![
+    //              0x03, 0x80, 4, 0, 
+    //              1, 2, 3, 0,
+    //          ];
+    //          let expected_octets = expected_bytes.len();
+    //          let mut result_bytes = Vec::new();
+    //          serialize_parameter(&parameter, &mut result_bytes, Endianness::LittleEndian).unwrap();
+    //          let result_octets = octets_parameter(&parameter);
+    //          assert_eq!(expected_bytes, result_bytes);
+    //          assert_eq!(expected_octets, result_octets);
+         
+    //          let parameter = Parameter::from_parameter_ops(&VendorTest0([]), CdrEndianness::LittleEndian);
+    //          let expected_bytes = vec![0x00, 0x80, 0, 0, ];
+    //          let expected_octets = expected_bytes.len();
+    //          let mut result_bytes = Vec::new();
+    //          serialize_parameter(&parameter, &mut result_bytes, Endianness::LittleEndian).ok();
+    //          let result_octets = octets_parameter(&parameter);
+    //          assert_eq!(expected_bytes, result_bytes);
+    //          assert_eq!(expected_octets, result_octets);
+         
+    //          let parameter = Parameter::from_parameter_ops(&VendorTest4([1,2,3,4]), CdrEndianness::LittleEndian);
+    //          let expected_bytes = vec![
+    //              0x04, 0x80, 4, 0, 
+    //              1, 2, 3, 4,
+    //          ];
+    //          let expected_octets = expected_bytes.len();
+    //          let mut result_bytes = Vec::new();
+    //          serialize_parameter(&parameter, &mut result_bytes, Endianness::LittleEndian).ok();
+    //          let result_octets = octets_parameter(&parameter);
+    //          assert_eq!(expected_bytes, result_bytes);
+    //          assert_eq!(expected_octets, result_octets);
+         
+    //          let parameter = Parameter::from_parameter_ops(&VendorTest5([1,2,3,4,5]), CdrEndianness::LittleEndian);
+    //          let expected_bytes = vec![
+    //              0x05, 0x80, 8, 0, 
+    //              1, 2, 3, 4,
+    //              5, 0, 0, 0, 
+    //          ];
+    //          let expected_octets = expected_bytes.len();
+    //          let mut result_bytes = Vec::new();
+    //          serialize_parameter(&parameter, &mut result_bytes, Endianness::LittleEndian).ok();
+    //          let result_octets = octets_parameter(&parameter);
+    //          assert_eq!(expected_bytes, result_bytes);
+    //          assert_eq!(expected_octets, result_octets);
+    //      }
+             
+        
+     
+    //      #[test]
+    //      fn parameter_list_deserialize_liitle_endian() {
+    //          let bytes = vec![
+    //              0x03, 0x80, 4, 0, // ParameterID, length 
+    //              1, 2, 3, 0, // value
+    //              0x05, 0x80, 8, 0, // ParameterID, length 
+    //              10, 20, 30, 40, // value
+    //              50, 0, 0, 0, // value
+    //              0x01, 0x00, 0, 0, // Sentinel
+    //          ];  
+    //          let expected1 = VendorTest3([1, 2, 3]);
+    //          let expected2 = VendorTest5([10, 20, 30, 40, 50]);
+         
+    //          // Note that the complete list cannot simply be checked for equality here
+    //          // this is because the value of each parameter needs to be interpreted for that
+    //          // otherwise the value containes the padding 0's 
+    //          let result = deserialize_parameter_list(&bytes, Endianness::LittleEndian).unwrap(); 
+    //          let result1 = result.find::<VendorTest3>(CdrEndianness::LittleEndian).unwrap();
+    //          let result2 = result.find::<VendorTest5>(CdrEndianness::LittleEndian).unwrap();
+    //          assert_eq!(result1, expected1);
+    //          assert_eq!(result2, expected2);
+    
+    //          let key_hash = KeyHash([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
+    //          let status_info = StatusInfo([101, 102, 103, 104]);
+         
+    //          let mut expected = ParameterList::new();
+    //          expected.push(key_hash);
+    //          expected.push(status_info);
+     
+    //          let bytes = vec![
+    //              0x70, 0x00, 16, 0, //ParameterID, length
+    //              1, 2, 3, 4, //key_hash
+    //              5, 6, 7, 8,  //key_hash
+    //              9, 10, 11, 12,  //key_hash
+    //              13, 14, 15, 16, //key_hash
+    //              0x71, 0x00, 4, 0, //ParameterID, length
+    //              101, 102, 103, 104, //status_info
+    //              1, 0, 0, 0 // Sentinel
+    //          ];
+             
+    //          let result = deserialize_parameter_list(&bytes, Endianness::LittleEndian).unwrap();
+    //          assert_eq!(expected, result);
+    //      }
+     
+    //      #[test]
+    //      fn serialize_parameter_list_little_endian() {
+    //          let key_hash = KeyHash([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
+    //          let status_info = StatusInfo([101, 102, 103, 104]);
+    //          let vendor1 = VendorTest1([b'X']);
+    //          let vendor5 = VendorTest5([2;5]);
+    //          let mut parameter_list = ParameterList::new();
+    //          parameter_list.push(key_hash);
+    //          parameter_list.push(status_info);
+    //          parameter_list.push(vendor1);
+    //          parameter_list.push(vendor5);
+         
+    //          let mut writer = Vec::new();
+    //          serialize_parameter_list(&parameter_list, &mut writer,  CdrEndianness::LittleEndian, Endianness::LittleEndian).unwrap();
+         
+    //          let expected = vec![
+    //              0x70, 0x00, 16, 0, //ParameterID, length
+    //              1, 2, 3, 4, //key_hash
+    //              5, 6, 7, 8,  //key_hash
+    //              9, 10, 11, 12,  //key_hash
+    //              13, 14, 15, 16, //key_hash
+    //              0x71, 0x00, 4, 0, //ParameterID, length
+    //              101, 102, 103, 104, //status_info
+    //              0x01, 0x80, 4, 0, //ParameterID, length
+    //              b'X', 0, 0, 0, //vendor1
+    //              0x05, 0x80, 8, 0, //ParameterID, length
+    //              2, 2, 2, 2, //vendor5
+    //              2, 0, 0, 0, //vendor5
+    //              1, 0, 0, 0 // Sentinel
+    //          ];
+    //          assert_eq!(expected, writer);
+    //      }
+    // }

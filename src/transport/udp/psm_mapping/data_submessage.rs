@@ -3,8 +3,7 @@ use crate::messages::submessages::SubmessageHeader;
 use crate::serialized_payload::ParameterList;
 
 use super::{UdpPsmMappingResult, SizeSerializer};
-use super::submessage_elements::{serialize_ushort, deserialize_ushort, serialize_entity_id, deserialize_entity_id, serialize_sequence_number, deserialize_sequence_number, serialize_serialized_data, deserialize_serialized_data};
-use super::parameter_list::{serialize_parameter_list, deserialize_parameter_list, parameter_list_octets};
+use super::submessage_elements::{serialize_ushort, deserialize_ushort, serialize_entity_id, deserialize_entity_id, serialize_sequence_number, deserialize_sequence_number, serialize_parameter_list, deserialize_parameter_list, serialize_serialized_data, deserialize_serialized_data};
 
 pub fn serialize_data(data: &Data, writer: &mut impl std::io::Write) -> UdpPsmMappingResult<()> {
     let endianness = data.endianness_flag().into();
@@ -25,7 +24,7 @@ pub fn serialize_data(data: &Data, writer: &mut impl std::io::Write) -> UdpPsmMa
     serialize_sequence_number(&data.writer_sn(), writer, endianness)?; 
     
     if data.inline_qos_flag() {
-        serialize_parameter_list(data.inline_qos(), writer, endianness.into(), endianness)?;
+        serialize_parameter_list(data.inline_qos(), writer, endianness)?;
     }
 
     if data.data_flag() || data.key_flag() {
@@ -54,7 +53,7 @@ pub fn deserialize_data(bytes: &[u8], header: SubmessageHeader) -> UdpPsmMapping
     let writer_sn = deserialize_sequence_number(&bytes[12..20], endianness)?;
     let (inline_qos, inline_qos_octets) = if inline_qos_flag {
         let inline_qos = deserialize_parameter_list(&bytes[octets_to_inline_qos + 4..], endianness)?; /*Start position is octets_to_inline_qos_value plus extra flags and octets_to_inline_qos_value*/
-        let inline_qos_octets = parameter_list_octets(&inline_qos);
+        let inline_qos_octets = inline_qos.as_bytes(endianness.into()).len(); /* TODO: Very ineficient. Should be improved */
         (inline_qos, inline_qos_octets)
     } else { 
         let inline_qos = ParameterList::new();
