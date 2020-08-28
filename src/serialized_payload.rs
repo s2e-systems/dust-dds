@@ -104,7 +104,7 @@ impl CdrParameterList {
             _ => panic!("Invalid header"),
         };
 
-        let mut parameter_start_index: usize = 0;
+        let mut parameter_start_index: usize = 4;
         let mut parameter_list = ParameterList::new();
         loop {
             let (parameter_id, length) = match endianness {
