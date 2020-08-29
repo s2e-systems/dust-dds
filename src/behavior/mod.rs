@@ -13,6 +13,8 @@ use crate::messages::submessages::Data;
 use crate::messages::submessages::data_submessage::Payload;
 use crate::inline_qos_types::{KeyHash, StatusInfo};
 
+pub const BEHAVIOR_ENDIANNESS: Endianness = Endianness::LittleEndian;
+
 fn cache_change_from_data(message: Data, guid_prefix: &GuidPrefix) -> CacheChange {
     let writer_id = message.writer_id();
     let writer_sn = message.writer_sn();
@@ -53,7 +55,7 @@ fn data_from_cache_change(cache_change: &CacheChange, reader_id: EntityId) -> Da
     };
 
     Data::new(
-        Endianness::LittleEndian,
+        BEHAVIOR_ENDIANNESS,
         reader_id,
         writer_id,
         writer_sn,

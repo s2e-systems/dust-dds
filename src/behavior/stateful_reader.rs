@@ -3,14 +3,14 @@ use std::time::Instant;
 
 use crate::types::constants::LOCATOR_INVALID;
 use crate::structure::stateful_reader::{WriterProxy, StatefulReader};
-use crate::messages::{RtpsSubmessage, Endianness};
+use crate::messages::RtpsSubmessage;
 use crate::messages::submessages::{AckNack, Data, Gap, Heartbeat,};
 use crate::messages::types::Count;
 use crate::messages::message_receiver::Receiver;
 use crate::messages::message_sender::Sender;
 
 use super::types::Duration;
-use super::cache_change_from_data;
+use super::{cache_change_from_data, BEHAVIOR_ENDIANNESS};
 
 pub struct StatefulReaderBehavior {
     must_send_ack: bool,
@@ -175,7 +175,7 @@ impl ReliableStatefulReaderBehavior {
  
         writer_proxy.behavior().increment_acknack_count();
         let acknack = AckNack::new(
-            Endianness::LittleEndian,
+            BEHAVIOR_ENDIANNESS,
             stateful_reader.guid().entity_id(), 
             writer_proxy.remote_writer_guid().entity_id(),
             writer_proxy.available_changes_max(),
@@ -196,7 +196,7 @@ mod tests {
     use crate::structure::cache_change::CacheChange;
     use crate::messages::submessages::data_submessage::Payload;
     use crate::serialized_payload::ParameterList;
-    use crate::inline_qos_types::{KeyHash, };
+    use crate::inline_qos_types::KeyHash;
     use crate::messages::Endianness;
     use super::super::change_kind_to_status_info;
 
