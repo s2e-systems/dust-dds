@@ -84,9 +84,24 @@ pub struct FragmentNumberSet {
 }
 
 impl FragmentNumberSet {
-    pub fn new(set: BTreeSet<FragmentNumber>) -> Self { 
+    pub fn new(base: FragmentNumber, set: BTreeSet<FragmentNumber>) -> Self {
+        Self{
+            base,
+            set
+        }
+    }
+
+    pub fn from_set(set: BTreeSet<FragmentNumber>) -> Self { 
         let base = *set.iter().next().unwrap_or(&0);
         Self {base, set } 
+    }
+
+    pub fn base(&self) -> FragmentNumber {
+        self.base
+    }
+
+    pub fn set(&self) -> &BTreeSet<FragmentNumber> {
+        &self.set
     }
 
     pub fn is_valid(&self) -> bool {
@@ -155,7 +170,7 @@ mod tests {
             base: 1001,
             set:  [1001, 1003].iter().cloned().collect(),
         };
-        let result = FragmentNumberSet::new([1001, 1003].iter().cloned().collect());
+        let result = FragmentNumberSet::from_set([1001, 1003].iter().cloned().collect());
         assert_eq!(expected, result);
     }
 }
