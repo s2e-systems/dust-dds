@@ -12,6 +12,8 @@ mod discovery;
 
 mod transport;
 
+mod dds;
+
 pub use behavior::types as behavior_types;
 
 pub use structure::stateless_reader::StatelessReader;
