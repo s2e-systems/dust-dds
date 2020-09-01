@@ -13,6 +13,15 @@ pub struct MemoryTransport {
 }
 
 impl MemoryTransport {
+    pub fn new(unicast_locator: Locator, multicast_locator: Option<Locator>) -> TransportResult<Self> {
+        Ok(Self {
+            read: Mutex::new(VecDeque::new()),
+            write: Mutex::new(VecDeque::new()),
+            unicast_locator,
+            multicast_locator,
+        })
+    }
+
     pub fn push_read(&self, message: RtpsMessage, locator: Locator) {
         self.read.lock().unwrap().push_back((message, locator));
     }
@@ -36,15 +45,6 @@ impl MemoryTransport {
 }
 
 impl Transport for MemoryTransport {
-    fn new(unicast_locator: Locator, multicast_locator: Option<Locator>) -> TransportResult<Self> {
-        Ok(Self {
-            read: Mutex::new(VecDeque::new()),
-            write: Mutex::new(VecDeque::new()),
-            unicast_locator,
-            multicast_locator,
-        })
-    }
-
     fn read(&self) -> TransportResult<Option<(RtpsMessage, Locator)>> {
         match self.read.lock().unwrap().pop_front() {
             Some((message, locator)) => Ok(Some((message, locator))),
@@ -52,12 +52,8 @@ impl Transport for MemoryTransport {
         }
     }
 
-    fn write(&self, message: RtpsMessage, unicast_locator_list: &[Locator], multicast_locator_list: &[Locator]) {
-        let mut locator_list = Vec::new();
-        locator_list.extend_from_slice(unicast_locator_list);
-        locator_list.extend_from_slice(multicast_locator_list);
-        
-        self.write.lock().unwrap().push_back((message, locator_list));
+    fn write(&self, message: RtpsMessage, destination_locator_list: &[Locator]) {
+        self.write.lock().unwrap().push_back((message, destination_locator_list.into()));
     }
 
     fn unicast_locator_list(&self) -> Vec<Locator> {
@@ -90,7 +86,7 @@ mod tests {
 
         // Write to the unicast locator
         let message = RtpsMessage::new([1;12], vec![RtpsSubmessage::InfoTs(InfoTs::new(None, Endianness::BigEndian))]);
-        transport2.write(message, &[unicast_locator1], &[]);
+        transport2.write(message, &[unicast_locator1]);
 
         transport1.receive_from(&transport2);
         let (message_received, src_message) = transport1.read().unwrap().unwrap();
@@ -100,7 +96,7 @@ mod tests {
 
         // Write to the multicast locator
         let message = RtpsMessage::new([1;12], vec![RtpsSubmessage::InfoTs(InfoTs::new(None, Endianness::BigEndian))]);
-        transport2.write(message, &[], &[multicast_locator1]);
+        transport2.write(message, &[multicast_locator1]);
 
         transport1.receive_from(&transport2);
         let (message_received, src_message) = transport1.read().unwrap().unwrap();

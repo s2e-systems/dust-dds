@@ -11,7 +11,7 @@ use serde::{Serialize, Deserialize};
 
 
 pub mod constants {
-    use super::{VendorId, EntityId, ProtocolVersion, EntityKind, SequenceNumber};
+    use super::{VendorId, EntityId, ProtocolVersion, EntityKind, SequenceNumber, Locator, GuidPrefix, GUID};
 
     pub const VENDOR_ID: VendorId = [99,99];
 
@@ -28,6 +28,10 @@ pub mod constants {
     #[allow(non_upper_case_globals)]
     pub const LOCATOR_KIND_UDPv6 : i32 = 2;
     pub const LOCATOR_PORT_INVALID : u32 = 0;
+    pub const LOCATOR_ADDRESS_INVALID : [u8;16] = [0;16];
+    pub const LOCATOR_INVALID: Locator = Locator::new(LOCATOR_KIND_INVALID, LOCATOR_PORT_INVALID, LOCATOR_ADDRESS_INVALID);
+
+    pub const GUID_PREFIX_UNKNOWN : GuidPrefix = [0;12];
 
     pub const ENTITYID_UNKNOWN: EntityId = EntityId {
         entity_key: [0, 0, 0x00],
@@ -88,6 +92,8 @@ pub mod constants {
         entity_key: [0, 0x02, 0x00],
         entity_kind: EntityKind::BuiltInReaderWithKey,
     };
+
+    pub const GUID_UNKNOWN: GUID = GUID::new(GUID_PREFIX_UNKNOWN, ENTITYID_UNKNOWN);
 }
 
 #[derive(Hash, PartialEq, Eq, Debug, Clone, Copy, Serialize, Deserialize)]
@@ -97,15 +103,15 @@ pub struct GUID {
 }
 
 impl GUID {
-    pub fn new(prefix: GuidPrefix, entity_id: EntityId) -> GUID {
+    pub const fn new(prefix: GuidPrefix, entity_id: EntityId) -> GUID {
         GUID { prefix, entity_id }
     }
 
-    pub fn prefix(&self) -> GuidPrefix {
+    pub const fn prefix(&self) -> GuidPrefix {
         self.prefix
     }
 
-    pub fn entity_id(&self) -> EntityId {
+    pub const fn entity_id(&self) -> EntityId {
         self.entity_id
     }
 }
@@ -163,7 +169,7 @@ pub struct Locator {
 }
 
 impl Locator {
-    pub fn new(kind: i32, port: u32, address: [u8; 16]) -> Locator {
+    pub const fn new(kind: i32, port: u32, address: [u8; 16]) -> Locator {
         Locator {
             kind,
             port,
@@ -171,7 +177,7 @@ impl Locator {
         }
     }
 
-    pub fn new_udpv4(port: u16, address: [u8; 4]) -> Locator {
+    pub const fn new_udpv4(port: u16, address: [u8; 4]) -> Locator {
         let address: [u8;16] = [0,0,0,0,0,0,0,0,0,0,0,0,address[0],address[1],address[2],address[3]];
         Locator {
             kind: constants::LOCATOR_KIND_UDPv4,

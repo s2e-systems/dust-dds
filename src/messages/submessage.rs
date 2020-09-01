@@ -89,7 +89,11 @@ impl UdpPsmMapping for SubmessageHeader {
     }
 }
 
-
+/// 8.3.7 RTPS Submessages
+/// The RTPS protocol version 2.4 defines several kinds of Submessages. 
+/// They are categorized into two groups: Entity- Submessages and Interpreter-Submessages.
+/// Entity Submessages target an RTPS Entity.
+/// Interpreter Submessages modify the RTPS Receiver state and provide context that helps process subsequent Entity Submessages.
 
 #[derive(Debug, PartialEq)]
 pub enum RtpsSubmessage {
@@ -104,6 +108,25 @@ pub enum RtpsSubmessage {
     // InfoSrc(InfoSrc),
     InfoTs(InfoTs),
     // NackFrag(NackFrag),
+}
+
+impl RtpsSubmessage {
+    pub fn is_entity_submessage(&self) -> bool {
+        match self {
+            RtpsSubmessage::Data(_) | 
+            // RtpsSubmessage::DataFrag(_) |
+            RtpsSubmessage::Heartbeat(_) |
+            // RtpsSubmessage::HeartbeatFrag(_) |
+            RtpsSubmessage::Gap(_) |
+            RtpsSubmessage::AckNack(_) //|
+            /*RtpsSubmessage::NackFrag(_)*/ => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_interpreter_submessage(&self) -> bool {
+        !self.is_entity_submessage()
+    }
 }
 
 impl UdpPsmMapping for RtpsSubmessage {

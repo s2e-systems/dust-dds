@@ -2,9 +2,12 @@ use std::time::Instant;
 use std::convert::TryInto;
 
 use crate::types::{SequenceNumber, };
+use crate::types::constants::LOCATOR_INVALID;
 use crate::messages::{Gap, Heartbeat, Endianness, AckNack, RtpsSubmessage};
 use crate::structure::stateful_writer::{StatefulWriter, ReaderProxy};
 use crate::messages::types::{Count, };
+use crate::messages::message_sender::Sender;
+use crate::messages::message_receiver::Receiver;
 
 use super::types::Duration;
 use super::data_from_cache_change;
@@ -86,7 +89,7 @@ impl BestEffortStatefulWriterBehavior {
         {
             let reader_id = reader_proxy.remote_reader_guid().entity_id();
             let data = data_from_cache_change(cache_change, endianness, reader_id);
-            reader_proxy.push_send_message(RtpsSubmessage::Data(data));
+            stateful_writer.push_send_message(&LOCATOR_INVALID, reader_proxy.remote_reader_guid(), RtpsSubmessage::Data(data));
         } else {
             let gap = Gap::new(
                 reader_proxy.remote_reader_guid().entity_id(), 
@@ -94,7 +97,7 @@ impl BestEffortStatefulWriterBehavior {
                 next_unsent_seq_num,
                 Endianness::LittleEndian);
 
-            reader_proxy.push_send_message(RtpsSubmessage::Gap(gap));
+            stateful_writer.push_send_message(&LOCATOR_INVALID,reader_proxy.remote_reader_guid(), RtpsSubmessage::Gap(gap));
         }
     }
 }
@@ -112,9 +115,9 @@ impl ReliableStatefulWriterBehavior {
         }
     
         if reader_proxy.requested_changes().is_empty() {
-            Self::waiting_state(reader_proxy);
+            Self::waiting_state(reader_proxy, stateful_writer);
         } else {
-            Self::must_repair_state(reader_proxy);
+            Self::must_repair_state(reader_proxy, stateful_writer);
             if reader_proxy.behavior().duration_since_nack_received() > stateful_writer.nack_response_delay() {
                 Self::repairing_state(reader_proxy, stateful_writer);
             }
@@ -147,11 +150,11 @@ impl ReliableStatefulWriterBehavior {
             Endianness::LittleEndian,
         );
 
-        reader_proxy.push_send_message(RtpsSubmessage::Heartbeat(heartbeat));
+        stateful_writer.push_send_message(&LOCATOR_INVALID, reader_proxy.remote_reader_guid(), RtpsSubmessage::Heartbeat(heartbeat));
     }
     
-    fn waiting_state(reader_proxy: &ReaderProxy) {
-        if let Some(RtpsSubmessage::AckNack(acknack)) = reader_proxy.pop_receive_message() {
+    fn waiting_state(reader_proxy: &ReaderProxy, stateful_writer: &StatefulWriter) {
+        if let Some((_, RtpsSubmessage::AckNack(acknack))) = stateful_writer.pop_receive_message(reader_proxy.remote_reader_guid()) {
             Self::transition_t8(reader_proxy, acknack);
             reader_proxy.behavior().time_nack_received_reset();
         }
@@ -162,8 +165,8 @@ impl ReliableStatefulWriterBehavior {
         reader_proxy.requested_changes_set(acknack.reader_sn_state().set().clone());
     }
     
-    fn must_repair_state(reader_proxy: &ReaderProxy) {
-        if let Some(RtpsSubmessage::AckNack(acknack)) = reader_proxy.pop_receive_message() {
+    fn must_repair_state(reader_proxy: &ReaderProxy, stateful_writer: &StatefulWriter) {
+        if let Some((_, RtpsSubmessage::AckNack(acknack))) = stateful_writer.pop_receive_message(reader_proxy.remote_reader_guid()) {
             Self::transition_t8(reader_proxy, acknack);
         }
     }
@@ -183,7 +186,7 @@ impl ReliableStatefulWriterBehavior {
         {
             let endianness = Endianness::LittleEndian;
             let data = data_from_cache_change(cache_change, endianness, reader_proxy.remote_reader_guid().entity_id());
-            reader_proxy.push_send_message(RtpsSubmessage::Data(data));
+            stateful_writer.push_send_message(&LOCATOR_INVALID,reader_proxy.remote_reader_guid(), RtpsSubmessage::Data(data));
         } else {
             let gap = Gap::new(
                 reader_proxy.remote_reader_guid().entity_id(), 
@@ -191,7 +194,7 @@ impl ReliableStatefulWriterBehavior {
                 next_requested_seq_num,
                 Endianness::LittleEndian);
 
-            reader_proxy.push_send_message(RtpsSubmessage::Gap(gap));
+            stateful_writer.push_send_message(&LOCATOR_INVALID, reader_proxy.remote_reader_guid(), RtpsSubmessage::Gap(gap));
         }
     }
 }

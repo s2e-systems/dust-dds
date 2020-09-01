@@ -1,7 +1,7 @@
 use rust_rtps::{StatelessWriter, StatelessReader, };
 use rust_rtps::types::{ChangeKind, TopicKind, Locator, GUID, };
 use rust_rtps::types::constants::{ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER, ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER, };
-use rust_rtps::{ParameterId, Pid};
+use rust_rtps::{ParameterId, Pid, MemoryTransport, RtpsMessageSender, RtpsMessageReceiver};
 
 use serde::{Serialize, };
 
@@ -25,9 +25,14 @@ impl Pid for OtherQos{
 
 #[test]
 fn test_stateless_writer_stateless_reader_direct_communication_integration() {
-    let writer_guid = GUID::new([0;12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER);
-    let reader_guid = GUID::new([0;12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER);
+    let guid_prefix = [0;12];
+    let writer_guid = GUID::new(guid_prefix, ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER);
+    let reader_guid = GUID::new(guid_prefix, ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER);
+    let source_locator = Locator::new(5, 7400, [2;16]);
     let destination_locator = Locator::new(5, 7400, [1;16]);
+
+    let memory_transport1 = MemoryTransport::new(source_locator, None).unwrap();
+    let memory_transport2 = MemoryTransport::new(destination_locator, None).unwrap();
 
     let writer = StatelessWriter::new(
         writer_guid,
@@ -37,7 +42,7 @@ fn test_stateless_writer_stateless_reader_direct_communication_integration() {
     let reader = StatelessReader::new(
         reader_guid,
         TopicKind::WithKey,
-        vec![destination_locator],
+        vec![source_locator],
         vec![],
         false,
        );
@@ -79,10 +84,11 @@ fn test_stateless_writer_stateless_reader_direct_communication_integration() {
 
    writer.run();
 
-   reader.push_receive_message(writer_guid.prefix(), writer.reader_locators().get(&destination_locator).unwrap().pop_send_message().unwrap());
-   reader.push_receive_message(writer_guid.prefix(), writer.reader_locators().get(&destination_locator).unwrap().pop_send_message().unwrap());
-   reader.push_receive_message(writer_guid.prefix(), writer.reader_locators().get(&destination_locator).unwrap().pop_send_message().unwrap());
-   reader.push_receive_message(writer_guid.prefix(), writer.reader_locators().get(&destination_locator).unwrap().pop_send_message().unwrap());
+   RtpsMessageSender::send(guid_prefix, &memory_transport1, &[&writer]);
+
+   memory_transport2.receive_from(&memory_transport1);
+
+   RtpsMessageReceiver::receive(guid_prefix, &memory_transport2, &[&reader]);
 
    reader.run();
 
