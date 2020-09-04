@@ -3,12 +3,8 @@
 /// Table 8.2 - Types of the attributes that appear in the RTPS Entities and Classes
 ///  
 
-use std::convert::TryFrom;
 use num_derive::FromPrimitive;
-use crate::inline_qos_types::StatusInfo;
-
 use serde::{Serialize, Deserialize};
-
 
 pub mod constants {
     use super::{VendorId, EntityId, ProtocolVersion, EntityKind, SequenceNumber, Locator, GuidPrefix, GUID};
@@ -204,30 +200,12 @@ pub enum TopicKind {
     WithKey,
 }
 
-#[derive(Hash, PartialEq, Eq, Debug, Clone, Copy)]
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub enum ChangeKind {
     Alive,
     AliveFiltered,
     NotAliveDisposed,
     NotAliveUnregistered,
-}
-
-impl TryFrom<StatusInfo> for ChangeKind {
-    type Error = &'static str;
-
-    fn try_from(status_info: StatusInfo) -> Result<Self, Self::Error> {
-        if status_info.disposed_flag() && !status_info.unregistered_flag() && !status_info.filtered_flag() {
-            Ok(ChangeKind::NotAliveDisposed)
-        } else if !status_info.disposed_flag() && status_info.unregistered_flag() && !status_info.filtered_flag() {
-            Ok(ChangeKind::NotAliveUnregistered)
-        } else if !status_info.disposed_flag() && !status_info.unregistered_flag() && status_info.filtered_flag() {
-                Ok(ChangeKind::AliveFiltered)
-        } else if !status_info.disposed_flag() && !status_info.unregistered_flag() && !status_info.filtered_flag() {
-                Ok(ChangeKind::Alive)
-        } else {
-            Err("Combination should not occur")
-        }
-    }
 }
 
 #[derive(PartialEq)]

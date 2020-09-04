@@ -1,39 +1,3 @@
-use super::serdes::{SubmessageElement, Endianness, RtpsSerdesResult, };
-use super::{SubmessageKind, SubmessageFlag, UdpPsmMapping, };
-use super::submessage::{Submessage, SubmessageHeader, };
-use super::submessage_elements;
-
-#[derive(PartialEq, Debug)]
-pub struct InfoSource {
-    endianness_flag: SubmessageFlag,
-    protocol_version: submessage_elements::ProtocolVersion,
-    vendor_id: submessage_elements::VendorId,
-    guid_prefix: submessage_elements::GuidPrefix,
-}
-
-
-impl Submessage for InfoSource {
-    fn submessage_header(&self) -> SubmessageHeader {
-        const X: SubmessageFlag = false;
-        let e = self.endianness_flag;
-        let flags = [e, X, X, X, X, X, X, X];
-        
-        let octets_to_next_header = 
-            4 /*unused.octets()*/ +
-            self.protocol_version.octets() + 
-            self.vendor_id.octets() +
-            self.guid_prefix.octets();
-        SubmessageHeader::new( 
-            SubmessageKind::InfoSource,
-            flags,
-            octets_to_next_header)
-    }
-
-    fn is_valid(&self) -> bool {
-        true
-    }
-}
-
 impl UdpPsmMapping for InfoSource {
     fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
         let endianness = self.endianness_flag.into();

@@ -6,8 +6,8 @@
 use serde::{Serialize, Deserialize};
 
 use crate::types::{ProtocolVersion, VendorId, Locator, GUID};
-use crate::messages::{Pid, };
-use crate::messages::types::{ParameterId, Count,};
+use crate::serialized_payload::{Pid, ParameterId };
+use crate::messages::types::Count;
 use crate::behavior::types::Duration;
 
 pub type DomainId = u32;

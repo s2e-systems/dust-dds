@@ -20,10 +20,9 @@ pub use structure::stateful_reader::{StatefulReader, WriterProxy, };
 pub use structure::stateful_writer::{StatefulWriter, ReaderProxy, };
 pub use messages::message_receiver::RtpsMessageReceiver;
 pub use messages::message_sender::RtpsMessageSender;
-pub use messages::{RtpsMessage, UdpPsmMapping, Pid};
-pub use messages::types::{ParameterId};
-pub use messages::{ParameterList,};
+pub use messages::RtpsMessage;
+pub use serialized_payload::{Pid, ParameterList, ParameterId};
 pub use transport::Transport;
-pub use transport::udp_transport::UdpTransport;
-pub use transport::memory_transport::MemoryTransport;
+pub use transport::udp::UdpTransport;
+pub use transport::memory::MemoryTransport;
 

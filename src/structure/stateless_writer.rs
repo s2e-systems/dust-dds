@@ -3,7 +3,7 @@ use std::sync::{RwLock, RwLockReadGuard, Mutex, MutexGuard};
 
 use crate::structure::history_cache::HistoryCache;
 use crate::structure::cache_change::CacheChange;
-use crate::messages::{ParameterList};
+use crate::serialized_payload::ParameterList;
 use crate::types::{ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID, };
 use crate::behavior::stateless_writer::BestEffortStatelessWriterBehavior;
 use crate::messages::RtpsSubmessage;
@@ -217,7 +217,7 @@ mod tests {
 
         assert_eq!(cache_change_seq1.sequence_number(), 1);
         assert_eq!(cache_change_seq1.change_kind(), &ChangeKind::Alive);
-        assert!(cache_change_seq1.inline_qos().is_none());
+        assert_eq!(cache_change_seq1.inline_qos().len(), 0);
         assert_eq!(cache_change_seq1.instance_handle(), &[1; 16]);
 
         assert_eq!(cache_change_seq2.sequence_number(), 2);
@@ -225,7 +225,7 @@ mod tests {
             cache_change_seq2.change_kind(),
             &ChangeKind::NotAliveUnregistered
         );
-        assert!(cache_change_seq2.inline_qos().is_none());
+        assert_eq!(cache_change_seq2.inline_qos().len(), 0);
         assert_eq!(cache_change_seq2.instance_handle(), &[1; 16]);
     }
 

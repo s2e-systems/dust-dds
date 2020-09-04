@@ -110,8 +110,11 @@ mod tests {
     use super::*;
     use crate::types::*;
     use crate::types::constants::*;
-    use crate::messages::{Data, Payload, Endianness, ParameterList };
-    use crate::inline_qos_types::{KeyHash};
+    use crate::serialized_payload::ParameterList;
+    use crate::messages::Endianness;
+    use crate::messages::submessages::Data;
+    use crate::messages::submessages::data_submessage::Payload;
+    use crate::inline_qos_types::KeyHash;
 
     #[test]
     fn best_effort_stateless_reader_run() {

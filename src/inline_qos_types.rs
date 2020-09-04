@@ -3,10 +3,7 @@
 /// in the sub clauses of 9.6.3 ParameterId Definitions used to Represent In-line QoS
 ///  
  
-use std::convert::From;
-use crate::types::{ChangeKind, };
-use crate::messages::types::{ParameterId, };
-use crate::messages::Pid;
+use crate::serialized_payload::{Pid, ParameterId, };
 
 use serde::{Serialize, Deserialize};
 
@@ -36,9 +33,9 @@ impl Pid for KeyHash {
 pub struct StatusInfo(pub [u8;4]);
 
 impl StatusInfo {
-    const DISPOSED_FLAG_MASK : u8 = 0b0000_0001;
-    const UNREGISTERED_FLAG_MASK : u8 = 0b0000_0010;
-    const FILTERED_FLAG_MASK : u8 = 0b0000_0100;
+    pub const DISPOSED_FLAG_MASK : u8 = 0b0000_0001;
+    pub const UNREGISTERED_FLAG_MASK : u8 = 0b0000_0010;
+    pub const FILTERED_FLAG_MASK : u8 = 0b0000_0100;
 
     pub fn disposed_flag(&self) -> bool {
         self.0[3] & StatusInfo::DISPOSED_FLAG_MASK == StatusInfo::DISPOSED_FLAG_MASK
@@ -56,33 +53,5 @@ impl StatusInfo {
 impl Pid for StatusInfo {
     fn pid() -> ParameterId {
         PID_STATUS_INFO
-    }
-}
-
-impl From<ChangeKind> for StatusInfo {
-    fn from(change_kind: ChangeKind) -> Self {
-        match change_kind {
-            ChangeKind::Alive => StatusInfo([0,0,0,0]),
-            ChangeKind::NotAliveDisposed => StatusInfo([0,0,0,StatusInfo::DISPOSED_FLAG_MASK]),
-            ChangeKind::NotAliveUnregistered => StatusInfo([0,0,0,StatusInfo::UNREGISTERED_FLAG_MASK]),
-            ChangeKind::AliveFiltered => StatusInfo([0,0,0,StatusInfo::FILTERED_FLAG_MASK]),
-        }
-    }
-}
-
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::convert::TryFrom;
-
-
-    ///////////////////////// StatusInfo Tests ////////////////////////
-    #[test]
-    fn test_status_info_change_kind_conversions() {
-        assert_eq!(ChangeKind::try_from(StatusInfo::from(ChangeKind::Alive)).unwrap(), ChangeKind::Alive);
-        assert_eq!(ChangeKind::try_from(StatusInfo::from(ChangeKind::AliveFiltered)).unwrap(), ChangeKind::AliveFiltered);
-        assert_eq!(ChangeKind::try_from(StatusInfo::from(ChangeKind::NotAliveUnregistered)).unwrap(), ChangeKind::NotAliveUnregistered);
-        assert_eq!(ChangeKind::try_from(StatusInfo::from(ChangeKind::NotAliveDisposed)).unwrap(), ChangeKind::NotAliveDisposed);
     }
 }

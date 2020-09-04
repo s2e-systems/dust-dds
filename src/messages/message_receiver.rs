@@ -1,7 +1,7 @@
 use crate::types::{GUID, GuidPrefix, Locator,};
 use crate::transport::Transport;
 
-use super::submessage::RtpsSubmessage;
+use super::submessages::RtpsSubmessage;
 
 // ////////////////// RTPS Message Receiver
 
@@ -20,7 +20,7 @@ impl RtpsMessageReceiver {
         if let Some((message, src_locator)) = transport.read().unwrap() {
             let _source_version = message.header().version();
             let _source_vendor_id = message.header().vendor_id();
-            let source_guid_prefix = *message.header().guid_prefix();
+            let source_guid_prefix = message.header().guid_prefix();
             let _dest_guid_prefix = participant_guid_prefix;
             let _unicast_reply_locator_list = vec![Locator::new(0,0,[0;16])];
             let _multicast_reply_locator_list = vec![Locator::new(0,0,[0;16])];
@@ -51,9 +51,12 @@ impl RtpsMessageReceiver {
 mod tests {
     use super::*;
     use crate::types::{TopicKind, ReliabilityKind};
-    use crate::types::constants::{ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, ENTITYID_UNKNOWN};
-    use crate::transport::memory_transport::MemoryTransport;
-    use crate::messages::{Endianness, Data, RtpsMessage, Payload};
+    use crate::types::constants::{ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, ENTITYID_UNKNOWN, PROTOCOL_VERSION_2_4, VENDOR_ID};
+    use crate::messages::Endianness;
+    use crate::transport::memory::MemoryTransport;
+    use crate::messages::{RtpsMessage,};
+    use crate::messages::submessages::{Data};
+    use crate::messages::submessages::data_submessage::Payload;
     use crate::behavior::types::Duration;
     use crate::structure::stateful_reader::{StatefulReader, WriterProxy};
     use crate::structure::stateless_reader::StatelessReader;
@@ -81,7 +84,7 @@ mod tests {
         // Send a message to the stateless reader
         let src_guid_prefix = [5,2,3,4,5,6,8,1,2,3,4,5];
         let data = Data::new(Endianness::LittleEndian, ENTITYID_UNKNOWN, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER, 1, None, Payload::None);
-        let message = RtpsMessage::new(src_guid_prefix, vec![RtpsSubmessage::Data(data)]);
+        let message = RtpsMessage::new(PROTOCOL_VERSION_2_4, VENDOR_ID, src_guid_prefix, vec![RtpsSubmessage::Data(data)]);
         transport.push_read(message, src_locator);
 
         RtpsMessageReceiver::receive(guid_prefix, &transport, &[&stateless_reader]);
@@ -115,7 +118,7 @@ mod tests {
         let other_locator = Locator::new_udpv4(7600, [1,1,1,1]);
         let src_guid_prefix = [5,2,3,4,5,6,8,1,2,3,4,5];
         let data = Data::new(Endianness::LittleEndian, ENTITYID_UNKNOWN, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER, 1, None, Payload::None);
-        let message = RtpsMessage::new(src_guid_prefix, vec![RtpsSubmessage::Data(data)]);
+        let message = RtpsMessage::new(PROTOCOL_VERSION_2_4, VENDOR_ID, src_guid_prefix, vec![RtpsSubmessage::Data(data)]);
         transport.push_read(message, other_locator);
 
         RtpsMessageReceiver::receive(guid_prefix, &transport, &[&stateless_reader]);
@@ -149,7 +152,7 @@ mod tests {
 
         // Send a message from the matched writer to the reader
         let data = Data::new(Endianness::LittleEndian, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER, 1, None, Payload::None);
-        let message = RtpsMessage::new(remote_guid_prefix, vec![RtpsSubmessage::Data(data)]);
+        let message = RtpsMessage::new(PROTOCOL_VERSION_2_4, VENDOR_ID, remote_guid_prefix, vec![RtpsSubmessage::Data(data)]);
         transport.push_read(message, src_locator);
 
         RtpsMessageReceiver::receive(guid_prefix, &transport, &[&stateful_reader]);
@@ -165,7 +168,7 @@ mod tests {
         // Send a message from an unmatched writer to the reader
         let other_remote_guid_prefix = [10;12];
         let data = Data::new(Endianness::LittleEndian, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER, 1, None, Payload::None);
-        let message = RtpsMessage::new(other_remote_guid_prefix, vec![RtpsSubmessage::Data(data)]);
+        let message = RtpsMessage::new(PROTOCOL_VERSION_2_4, VENDOR_ID, other_remote_guid_prefix, vec![RtpsSubmessage::Data(data)]);
         transport.push_read(message, src_locator);
 
         RtpsMessageReceiver::receive(guid_prefix, &transport, &[&stateful_reader]);

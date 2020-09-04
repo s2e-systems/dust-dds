@@ -1,38 +1,3 @@
-use super::serdes::{SubmessageElement, Endianness, RtpsSerdesResult, };
-use super::{SubmessageKind, SubmessageFlag, UdpPsmMapping, };
-use super::submessage::{Submessage, SubmessageHeader, };
-use super::submessage_elements;
-
-#[derive(PartialEq, Debug)]
-pub struct InfoReply {
-    endianness_flag: SubmessageFlag,
-    multicast_flag: SubmessageFlag,
-    unicast_locator_list: submessage_elements::LocatorList,
-    multicast_locator_list: submessage_elements::LocatorList,
-}
-
-impl Submessage for InfoReply {
-    fn submessage_header(&self) -> SubmessageHeader {
-        const X : SubmessageFlag = false;
-        let e = self.endianness_flag; 
-        let m = self.multicast_flag; 
-        let flags = [e, m, X, X, X, X, X, X];     
-        let mut submessage_length = self.unicast_locator_list.octets();
-        if self.multicast_flag {
-            submessage_length += self.multicast_locator_list.octets();
-        }
-        SubmessageHeader::new( 
-            SubmessageKind::InfoReply,
-            flags,
-            submessage_length)
-    }
-
-    fn is_valid(&self) -> bool {
-        true
-    }
-
-    
-}
 
 impl UdpPsmMapping for InfoReply {
     fn compose(&self, writer: &mut impl std::io::Write) -> RtpsSerdesResult<()> {
@@ -147,5 +112,4 @@ mod tests {
         message.compose(&mut writer).unwrap();
         assert_eq!(expected, writer);
     }
-
 }

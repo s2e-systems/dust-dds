@@ -9,7 +9,7 @@ use crate::messages::message_receiver::Receiver;
 use crate::messages::message_sender::Sender;
 use crate::structure::history_cache::HistoryCache;
 use crate::structure::cache_change::CacheChange;
-use crate::messages::{ParameterList};
+use crate::serialized_payload::ParameterList;
 
 struct ChangeForReader {
     highest_sequence_number_sent: SequenceNumber,
@@ -344,7 +344,8 @@ mod tests {
         ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,};
 
     use crate::behavior::types::constants::DURATION_ZERO;
-    use crate::messages::{AckNack, Endianness};
+    use crate::messages::submessages::AckNack;
+    use crate::messages::Endianness;
 
     use std::thread::sleep;
 
@@ -376,7 +377,7 @@ mod tests {
 
         assert_eq!(cache_change_seq1.sequence_number(), 1);
         assert_eq!(cache_change_seq1.change_kind(), &ChangeKind::Alive);
-        assert!(cache_change_seq1.inline_qos().is_none());
+        assert_eq!(cache_change_seq1.inline_qos().len(), 0);
         assert_eq!(cache_change_seq1.instance_handle(), &[1; 16]);
 
         assert_eq!(cache_change_seq2.sequence_number(), 2);
@@ -384,7 +385,7 @@ mod tests {
             cache_change_seq2.change_kind(),
             &ChangeKind::NotAliveUnregistered
         );
-        assert!(cache_change_seq2.inline_qos().is_none());
+        assert_eq!(cache_change_seq2.inline_qos().len(), 0);
         assert_eq!(cache_change_seq2.instance_handle(), &[1; 16]);
     }
 
@@ -592,13 +593,13 @@ mod tests {
         }
 
         let acknack = AckNack::new(
+            Endianness::LittleEndian,
             remote_reader_guid.entity_id(),
             writer_guid.entity_id(),
                 3,
                 BTreeSet::new(),
                 1,
                 false,
-                Endianness::LittleEndian,
         );
 
         stateful_writer.push_receive_message(remote_reader_guid_prefix, RtpsSubmessage::AckNack(acknack));

@@ -1,11 +1,11 @@
 use std::collections::VecDeque;
 
 use crate::types::{GUID, GuidPrefix, Locator };
+use crate::types::constants::{PROTOCOL_VERSION_2_4, VENDOR_ID};
 use crate::transport::Transport;
 
-
-use super::submessage::RtpsSubmessage;
-use super::{InfoTs, Endianness,};
+use super::{RtpsSubmessage, Endianness};
+use super::submessages::{InfoTs};
 use super::message::{RtpsMessage};
 use super::types::Time;
 
@@ -24,12 +24,12 @@ impl RtpsMessageSender {
             while let Some((dst_locators, submessage_list)) = sender.pop_send_message() {
                 let mut rtps_submessages = Vec::new();
                 for submessage in submessage_list {
-                    rtps_submessages.push(RtpsSubmessage::InfoTs(InfoTs::new(Some(Time::now()), Endianness::LittleEndian)));
+                    rtps_submessages.push(RtpsSubmessage::InfoTs(InfoTs::new(Endianness::LittleEndian, Some(Time::now()))));
                     rtps_submessages.push(submessage);
                 }
 
                 if !rtps_submessages.is_empty() {
-                    let rtps_message = RtpsMessage::new(participant_guid_prefix, rtps_submessages);
+                    let rtps_message = RtpsMessage::new(PROTOCOL_VERSION_2_4, VENDOR_ID, participant_guid_prefix, rtps_submessages);
                     transport.write(rtps_message, &dst_locators);
                 }
             }
@@ -40,7 +40,7 @@ impl RtpsMessageSender {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::transport::memory_transport::MemoryTransport;
+    use crate::transport::memory::MemoryTransport;
     use crate::types::{TopicKind, GUID, ChangeKind, Locator, ReliabilityKind};
     use crate::types::constants::{
         ENTITYID_UNKNOWN,

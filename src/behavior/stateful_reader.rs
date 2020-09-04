@@ -3,13 +3,14 @@ use std::time::Instant;
 
 use crate::types::constants::LOCATOR_INVALID;
 use crate::structure::stateful_reader::{WriterProxy, StatefulReader};
-use crate::messages::{AckNack, Data, Gap, Heartbeat, Endianness, RtpsSubmessage};
+use crate::messages::RtpsSubmessage;
+use crate::messages::submessages::{AckNack, Data, Gap, Heartbeat,};
 use crate::messages::types::Count;
 use crate::messages::message_receiver::Receiver;
 use crate::messages::message_sender::Sender;
 
 use super::types::Duration;
-use super::cache_change_from_data;
+use super::{cache_change_from_data, BEHAVIOR_ENDIANNESS};
 
 pub struct StatefulReaderBehavior {
     must_send_ack: bool,
@@ -174,13 +175,13 @@ impl ReliableStatefulReaderBehavior {
  
         writer_proxy.behavior().increment_acknack_count();
         let acknack = AckNack::new(
+            BEHAVIOR_ENDIANNESS,
             stateful_reader.guid().entity_id(), 
             writer_proxy.remote_writer_guid().entity_id(),
             writer_proxy.available_changes_max(),
             writer_proxy.missing_changes().clone(),
             *writer_proxy.behavior().ackanck_count(),
-            true,
-            Endianness::LittleEndian); // TODO: Make endianness selectable
+            true);
 
         stateful_reader.push_send_message(&LOCATOR_INVALID, writer_proxy.remote_writer_guid(), RtpsSubmessage::AckNack(acknack));
     }
@@ -193,8 +194,11 @@ mod tests {
     use crate::types::constants::{
         ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, };
     use crate::structure::cache_change::CacheChange;
-    use crate::messages::{Data, Payload, Heartbeat, ParameterList, Endianness};
-    use crate::inline_qos_types::{KeyHash, StatusInfo, };
+    use crate::messages::submessages::data_submessage::Payload;
+    use crate::serialized_payload::ParameterList;
+    use crate::inline_qos_types::KeyHash;
+    use crate::messages::Endianness;
+    use super::super::change_kind_to_status_info;
 
     #[test]
     fn run_best_effort_data_only() {
@@ -212,11 +216,11 @@ mod tests {
         stateful_reader.matched_writer_add(writer_proxy);
 
         let mut inline_qos = ParameterList::new();
-        inline_qos.push(StatusInfo::from(ChangeKind::Alive));
+        inline_qos.push(change_kind_to_status_info(ChangeKind::Alive));
         inline_qos.push(KeyHash([1;16]));
 
         let data1 = Data::new(
-            Endianness::LittleEndian, 
+            Endianness::LittleEndian,
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, 
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER, 
             3,
@@ -263,11 +267,11 @@ mod tests {
         stateful_reader.matched_writer_add(writer_proxy);
 
         let mut inline_qos = ParameterList::new();
-        inline_qos.push(StatusInfo::from(ChangeKind::Alive));
+        inline_qos.push(change_kind_to_status_info(ChangeKind::Alive));
         inline_qos.push(KeyHash([1;16]));
 
         let data1 = Data::new(
-            Endianness::LittleEndian, 
+            Endianness::LittleEndian,
             reader_guid.entity_id(), 
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER, 
             3,
@@ -317,6 +321,7 @@ mod tests {
         stateful_reader.matched_writer_add(writer_proxy);
 
         let heartbeat = Heartbeat::new(
+            Endianness::LittleEndian,
             reader_guid.entity_id(),
             remote_writer_guid.entity_id(),
             3,
@@ -324,7 +329,6 @@ mod tests {
             1,
             false,
             false,
-            Endianness::LittleEndian,
         );
     
         stateful_reader.push_receive_message(remote_writer_guid_prefix, RtpsSubmessage::Heartbeat(heartbeat));
@@ -352,6 +356,7 @@ mod tests {
         stateful_reader.matched_writer_add(writer_proxy);
 
         let heartbeat = Heartbeat::new(
+            Endianness::LittleEndian,
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
             remote_writer_guid.entity_id(),
             2,
@@ -359,7 +364,6 @@ mod tests {
             1,
             true,
             false,
-            Endianness::LittleEndian,
         );
         stateful_reader.push_receive_message(remote_writer_guid_prefix, RtpsSubmessage::Heartbeat(heartbeat));
 
@@ -396,6 +400,7 @@ mod tests {
         stateful_reader.matched_writer_add(writer_proxy);
 
         let heartbeat = Heartbeat::new(
+            Endianness::LittleEndian,
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
             remote_writer_guid.entity_id(),
             1,
@@ -403,7 +408,6 @@ mod tests {
             1,
             true,
             false,
-            Endianness::LittleEndian,
         );
         stateful_reader.push_receive_message(remote_writer_guid_prefix, RtpsSubmessage::Heartbeat(heartbeat));
 
