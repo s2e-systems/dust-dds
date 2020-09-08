@@ -1,6 +1,23 @@
 use std::cmp::Ordering;
 use crate::dds::types::{QosPolicyId, Duration};
 
+/// This class is the abstract root for all the QoS policies.
+/// It provides the basic mechanism for an application to specify quality of service parameters. It has an attribute name that is used
+/// to identify uniquely each QoS policy. All concrete QosPolicy classes derive from this root and include a value whose type
+/// depends on the concrete QoS policy.
+/// The type of a QosPolicy value may be atomic, such as an integer or float, or compound (a structure). Compound types are used
+/// whenever multiple parameters must be set coherently to define a consistent value for a QosPolicy.
+/// Each Entity can be configured with a list of QosPolicy. However, any Entity cannot support any QosPolicy. For instance, a
+/// DomainParticipant supports different QosPolicy than a Topic or a Publisher.
+/// QosPolicy can be set when the Entity is created, or modified with the set_qos method. Each QosPolicy in the list is treated
+/// independently from the others. This approach has the advantage of being very extensible. However, there may be cases where
+/// several policies are in conflict. Consistency checking is performed each time the policies are modified via the set_qos
+/// operation.
+/// When a policy is changed after being set to a given value, it is not required that the new value be applied instantaneously; the
+/// Service is allowed to apply it after a transition phase. In addition, some QosPolicy have “immutable” semantics meaning that
+/// they can only be specified either at Entity creation time or else prior to calling the enable operation on the Entity.
+/// Sub clause 2.2.3, Supported QoS provides the list of all QosPolicy, their meaning, characteristics and possible values, as well
+/// as the concrete Entity to which they apply.
 pub trait QosPolicy{
     fn name(&self) -> &str;
 }
@@ -23,7 +40,8 @@ const ENTITYFACTORY_QOS_POLICY_NAME: &str = "EntityFactory";
 const WRITERDATALIFECYCLE_QOS_POLICY_NAME: &str = "WriterDataLifecycle";
 const READERDATALIFECYCLE_QOS_POLICY_NAME: &str = "ReaderDataLifecycle";
 const TOPICDATA_QOS_POLICY_NAME: &str = "TopicData";
-const GROUPDATA_QOS_POLICY_NAME: &str = "TransportPriority";
+const TRANSPORTPRIORITY_QOS_POLICY_NAME: &str = "TransportPriority";
+const GROUPDATA_QOS_POLICY_NAME: &str = "GroupData";
 const LIFESPAN_QOS_POLICY_NAME: &str = "Lifespan";
 const DURABILITYSERVICE_POLICY_NAME: &str = "DurabilityService";
 
@@ -61,12 +79,24 @@ pub struct UserDataQosPolicy {
     value: Vec<u8>,
 }
 
+impl QosPolicy for UserDataQosPolicy {
+    fn name(&self) -> &str {
+        USERDATA_QOS_POLICY_NAME
+    }
+}
+
 /// The purpose of this QoS is to allow the application to attach additional information to the created Topic such that when a
 /// remote application discovers their existence it can examine the information and use it in an application-defined way. In
 /// combination with the listeners on the DataReader and DataWriter as well as by means of operations such as ignore_topic,
 /// these QoS can assist an application to extend the provided QoS.
 pub struct TopicDataQosPolicy {
     value: Vec<u8>,
+}
+
+impl QosPolicy for TopicDataQosPolicy {
+    fn name(&self) -> &str {
+        TOPICDATA_QOS_POLICY_NAME
+    }
 }
 
 /// The purpose of this QoS is to allow the application to attach additional information to the created Publisher or Subscriber. The
@@ -77,6 +107,12 @@ pub struct TopicDataQosPolicy {
 /// policy.
 pub struct GroupDataQosPolicy {
     value: Vec<u8>,
+}
+
+impl QosPolicy for GroupDataQosPolicy {
+    fn name(&self) -> &str {
+        GROUPDATA_QOS_POLICY_NAME
+    }
 }
 
 /// The purpose of this QoS is to allow the application to take advantage of transports capable of sending messages with different
@@ -92,6 +128,12 @@ pub struct TransportPriorityQosPolicy {
     value: i32,
 }
 
+impl QosPolicy for TransportPriorityQosPolicy {
+    fn name(&self) -> &str {
+        TRANSPORTPRIORITY_QOS_POLICY_NAME
+    }
+}
+
 /// The purpose of this QoS is to avoid delivering “stale” data to the application.
 /// Each data sample written by the DataWriter has an associated ‘expiration time’ beyond which the data should not be delivered
 /// to any application. Once the sample expires, the data will be removed from the DataReader caches as well as from the
@@ -105,6 +147,12 @@ pub struct TransportPriorityQosPolicy {
 /// computation of the ‘expiration time.’
 pub struct LifespanQosPolicy {
     duration: Duration,
+}
+
+impl QosPolicy for LifespanQosPolicy {
+    fn name(&self) -> &str {
+        LIFESPAN_QOS_POLICY_NAME
+    }
 }
 
 #[derive(PartialEq)]
@@ -201,6 +249,12 @@ pub struct DurabilityQosPolicy {
     kind: DurabilityQosPolicyKind,
 }
 
+impl QosPolicy for DurabilityQosPolicy {
+    fn name(&self) -> &str {
+        DURABILITY_QOS_POLICY_NAME
+    }
+}
+
 #[derive(PartialEq)]
 pub enum PresentationQosPolicyAccessScopeKind {
     InstancePresentationQoS,
@@ -280,6 +334,12 @@ pub struct PresentationQosPolicy {
     ordered_access: bool,
 }
 
+impl QosPolicy for PresentationQosPolicy {
+    fn name(&self) -> &str {
+        PRESENTATION_QOS_POLICY_NAME
+    }
+}
+
 /// This policy is useful for cases where a Topic is expected to have each instance updated periodically. On the publishing side this
 /// setting establishes a contract that the application must meet. On the subscribing side the setting establishes a minimum
 /// requirement for the remote publishers that are expected to supply the data values.
@@ -296,6 +356,12 @@ pub struct DeadlineQosPolicy {
     period: Duration,
 }
 
+impl QosPolicy for DeadlineQosPolicy {
+    fn name(&self) -> &str {
+        DEADLINE_QOS_POLICY_NAME
+    }
+}
+
 /// This policy provides a means for the application to indicate to the middleware the “urgency” of the data-communication. By
 /// having a non-zero duration the Service can optimize its internal operation.
 /// This policy is considered a hint. There is no specified mechanism as to how the service should take advantage of this hint.
@@ -303,6 +369,12 @@ pub struct DeadlineQosPolicy {
 /// requested duration” evaluates to ‘TRUE.’
 pub struct LatencyBudgetQosPolicy {
     duration: Duration,
+}
+
+impl QosPolicy for LatencyBudgetQosPolicy {
+    fn name(&self) -> &str {
+        LATENCYBUDGET_QOS_POLICY_NAME
+    }
 }
 
 pub enum OwnershipQosPolicyKind {
@@ -350,6 +422,12 @@ pub struct OwnershipQosPolicy {
     kind: OwnershipQosPolicyKind,
 }
 
+impl QosPolicy for OwnershipQosPolicy {
+    fn name(&self) -> &str {
+        OWNERSHIP_QOS_POLICY_NAME
+    }
+}
+
 /// This QoS policy should be used in combination with the OWNERSHIP policy. It only applies to the situation case where
 /// OWNERSHIP kind is set to EXCLUSIVE.
 /// The value of the OWNERSHIP_STRENGTH is used to determine the ownership of a data-instance (identified by the key).
@@ -357,6 +435,12 @@ pub struct OwnershipQosPolicy {
 /// EXCLUSIVE kind.
 pub struct OwnershipStrengthQosPolicy {
     value: i32,
+}
+
+impl QosPolicy for OwnershipStrengthQosPolicy {
+    fn name(&self) -> &str {
+        OWNERSHIPSTRENGTH_QOS_POLICY_NAME
+    }
 }
 
 #[derive(PartialEq)]
@@ -425,6 +509,12 @@ pub struct LivelinessQosPolicy {
     lease_duration: Duration,
 }
 
+impl QosPolicy for LivelinessQosPolicy {
+    fn name(&self) -> &str {
+        LIVELINESS_QOS_POLICY_NAME
+    }
+}
+
 /// This policy allows a DataReader to indicate that it does not necessarily want to see all values of each instance published under
 /// the Topic. Rather, it wants to see at most one change every minimum_separation period.
 /// The TIME_BASED_FILTER applies to each instance separately, that is, the constraint is that the DataReader does not want to
@@ -448,6 +538,12 @@ pub struct TimeBasedFilterQosPolicy {
     minimum_separation: Duration,
 }
 
+impl QosPolicy for TimeBasedFilterQosPolicy {
+    fn name(&self) -> &str {
+        TIMEBASEDFILTER_QOS_POLICY_NAME
+    }
+}
+
 /// This policy allows the introduction of a logical partition concept inside the ‘physical’ partition induced by a domain.
 /// For a DataReader to see the changes made to an instance by a DataWriter, not only the Topic must match, but also they must
 /// share a common partition. Each string in the list that defines this QoS policy defines a partition name. A partition name may
@@ -468,6 +564,12 @@ pub struct TimeBasedFilterQosPolicy {
 /// the other hand, the same data-instance can be made available (published) or requested (subscribed) on one or more partitions.
 pub struct PartitionQosPolicy {
     name: String,
+}
+
+impl QosPolicy for PartitionQosPolicy {
+    fn name(&self) -> &str {
+        PARTITION_QOS_POLICY_NAME
+    }
 }
 
 #[derive(PartialEq)]
@@ -517,6 +619,12 @@ pub struct ReliabilityQosPolicy {
     max_blocking_time: Duration,
 }
 
+impl QosPolicy for ReliabilityQosPolicy {
+    fn name(&self) -> &str {
+        RELIABILITY_QOS_POLICY_NAME
+    }
+}
+
 #[derive(PartialEq)]
 pub enum DestinationOrderQosPolicyKind {
     ByReceptionTimestampDestinationOrderQoS,
@@ -554,7 +662,13 @@ impl PartialOrd for DestinationOrderQosPolicyKind {
 /// kind” evaluates to ‘TRUE.’ For the purposes of this inequality, the values of DESTINATION_ORDER kind are considered
 /// ordered such that BY_RECEPTION_TIMESTAMP < BY_SOURCE_TIMESTAMP.
 pub struct DestinationOrderQosPolicy {
-    kind:DestinationOrderQosPolicyKind,
+    kind: DestinationOrderQosPolicyKind,
+}
+
+impl QosPolicy for DestinationOrderQosPolicyKind {
+    fn name(&self) -> &str {
+        DESTINATIONORDER_QOS_POLICY_NAME
+    }
 }
 
 pub enum HistoryQosPolicyKind {
@@ -580,6 +694,12 @@ pub struct HistoryQosPolicy {
     depth: i32,
 }
 
+impl QosPolicy for HistoryQosPolicy {
+    fn name(&self) -> &str {
+        HISTORY_QOS_POLICY_NAME
+    }
+}
+
 /// This policy controls the resources that the Service can use in order to meet the requirements imposed by the application and
 /// other QoS settings.
 /// If the DataWriter objects are communicating samples faster than they are ultimately taken by the DataReader objects, the
@@ -602,6 +722,12 @@ pub struct ResourceLimitsQosPolicy {
     max_samples_per_instance: i32,
 }
 
+impl QosPolicy for ResourceLimitsQosPolicy {
+    fn name(&self) -> &str {
+        RESOURCELIMITS_QOS_POLICY_NAME
+    }
+}
+
 /// This policy controls the behavior of the Entity as a factory for other entities.
 /// This policy concerns only DomainParticipant (as factory for Publisher, Subscriber, and Topic), Publisher (as factory for
 /// DataWriter), and Subscriber (as factory for DataReader).
@@ -615,6 +741,12 @@ pub struct ResourceLimitsQosPolicy {
 /// on newly created entities.
 pub struct EntityFactoryQosPolicy {
     autoenable_created_entities: bool,
+}
+
+impl QosPolicy for EntityFactoryQosPolicy {
+    fn name(&self) -> &str {
+        ENTITYFACTORY_QOS_POLICY_NAME
+    }
 }
 
 /// This policy controls the behavior of the DataWriter with regards to the lifecycle of the data-instances it manages, that is, the
@@ -635,6 +767,12 @@ pub struct EntityFactoryQosPolicy {
 /// calling delete_contained_entities on the Publisher or the DomainParticipant that contains the DataWriter.
 pub struct WriterDataLifecycleQosPolicy {
     autodispose_unregistered_instances: bool,
+}
+
+impl QosPolicy for WriterDataLifecycleQosPolicy {
+    fn name(&self) -> &str {
+        WRITERDATALIFECYCLE_QOS_POLICY_NAME
+    }
 }
 
 /// This policy controls the behavior of the DataReader with regards to the lifecycle of the data-instances it manages, that is, the
@@ -661,6 +799,12 @@ pub struct ReaderDataLifecycleQosPolicy {
     autopurge_disposed_samples_delay: Duration,
 }
 
+impl QosPolicy for ReaderDataLifecycleQosPolicy {
+    fn name(&self) -> &str {
+        READERDATALIFECYCLE_QOS_POLICY_NAME
+    }
+}
+
 /// This policy is used to configure the HISTORY QoS and the RESOURCE_LIMITS QoS used by the fictitious DataReader and
 /// DataWriter used by the “persistence service.” The “persistence service” is the one responsible for implementing the
 /// DURABILITY kinds TRANSIENT and PERSISTENCE (see 2.2.3.4).
@@ -673,6 +817,12 @@ pub struct DurabilityServiceQosPolicy {
     max_samples_per_instance: i32,
 }
 
+
+impl QosPolicy for DurabilityServiceQosPolicy {
+    fn name(&self) -> &str {
+        DURABILITYSERVICE_POLICY_NAME
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -758,7 +908,7 @@ mod tests {
 
         assert!(DestinationOrderQosPolicyKind::ByReceptionTimestampDestinationOrderQoS == DestinationOrderQosPolicyKind::ByReceptionTimestampDestinationOrderQoS);
         assert!(DestinationOrderQosPolicyKind::ByReceptionTimestampDestinationOrderQoS < DestinationOrderQosPolicyKind::BySourceTimestampDestinationOrderQoS);
-        
+
         assert!(DestinationOrderQosPolicyKind::BySourceTimestampDestinationOrderQoS > DestinationOrderQosPolicyKind::ByReceptionTimestampDestinationOrderQoS);
         assert!(DestinationOrderQosPolicyKind::BySourceTimestampDestinationOrderQoS == DestinationOrderQosPolicyKind::BySourceTimestampDestinationOrderQoS);
     }
