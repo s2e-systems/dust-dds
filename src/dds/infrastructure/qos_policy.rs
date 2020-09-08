@@ -1,9 +1,9 @@
 use std::cmp::Ordering;
-pub struct QosPolicy{
-    name: String,
-}
-
 use crate::dds::types::{QosPolicyId, Duration};
+
+pub trait QosPolicy{
+    fn name(&self) -> &str;
+}
 
 const USERDATA_QOS_POLICY_NAME: &str = "UserData";
 const DURABILITY_QOS_POLICY_NAME: &str = "Durability";

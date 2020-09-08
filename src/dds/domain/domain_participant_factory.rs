@@ -1,7 +1,8 @@
 use crate::dds::types::{DomainId, StatusKind, ReturnCode};
-use crate::dds::infrastructure::qos_policy::QosPolicy;
 use crate::dds::domain::domain_participant::DomainParticipant;
 use crate::dds::domain::domain_participant_listener::DomainParticipantListener;
+use crate::dds::domain::domain_participant::qos::DomainParticipantQos;
+use qos::DomainParticipantFactoryQos;
 
 
 pub mod qos {
@@ -24,7 +25,7 @@ impl DomainParticipantFactory {
     /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
     pub fn create_participant(
         _domain_id: DomainId,
-        _qos_list: &[QosPolicy],
+        _qos_list: &DomainParticipantQos,
         _a_listener: DomainParticipantListener,
         _mask: &[StatusKind],
     ) ->  DomainParticipant {
@@ -65,7 +66,7 @@ impl DomainParticipantFactory {
     /// This operation will check that the resulting policies are self consistent; if they are not, the operation will have no effect and
     /// return INCONSISTENT_POLICY.
     pub fn set_default_participant_qos(
-        _qos_list: &[QosPolicy],
+        _qos_list: &DomainParticipantQos,
     ) -> ReturnCode {
         todo!()
     }
@@ -77,7 +78,7 @@ impl DomainParticipantFactory {
     /// set_default_participant_qos, or else, if the call was never made, the default values listed in the QoS table in 2.2.3,
     /// Supported QoS.
     pub fn get_default_participant_qos(
-        _qos_list: &mut [QosPolicy],
+        _qos_list: &mut DomainParticipantQos,
     ) -> ReturnCode {
         todo!()
     }
@@ -88,14 +89,14 @@ impl DomainParticipantFactory {
     /// This operation will check that the resulting policies are self consistent; if they are not, the operation will have no effect and
     /// return INCONSISTENT_POLICY.
     pub fn set_qos(
-        _qos_list: &[QosPolicy],
+        _qos_list: &DomainParticipantFactoryQos,
     ) -> ReturnCode {
         todo!()
     }
 
     /// This operation returns the value of the DomainParticipantFactory QoS policies.
     pub fn get_qos(
-        _qos_list: &mut [QosPolicy],
+        _qos_list: &mut DomainParticipantFactoryQos,
     ) -> ReturnCode {
         todo!()
     }
