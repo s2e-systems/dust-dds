@@ -3,6 +3,14 @@ use crate::dds::infrastructure::qos_policy::QosPolicy;
 use crate::dds::domain::domain_participant::DomainParticipant;
 use crate::dds::domain::domain_participant_listener::DomainParticipantListener;
 
+
+pub mod qos {
+    use crate::dds::infrastructure::qos_policy::EntityFactoryQosPolicy;
+    pub struct DomainParticipantFactoryQos {
+        entity_factory: EntityFactoryQosPolicy,
+    }
+}
+
 struct DomainParticipantFactory{}
 
 impl DomainParticipantFactory {

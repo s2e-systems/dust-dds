@@ -9,6 +9,17 @@ use crate::dds::topic::topic_description::TopicDescription;
 use crate::dds::subscription::subscriber::Subscriber;
 use crate::dds::subscription::subscriber_listener::SubscriberListener;
 
+pub mod qos {
+    use crate::dds::infrastructure::qos_policy::{
+        UserDataQosPolicy, EntityFactoryQosPolicy
+    };
+    
+    pub struct DomainParticipantQos {
+        user_data: UserDataQosPolicy,
+        entity_factory: EntityFactoryQosPolicy,
+    }
+}
+
 // TODO: Create and find a home for it
 pub struct ParticipantBuiltinTopicData{}
 pub struct TopicBuiltinTopicData{}

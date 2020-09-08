@@ -10,6 +10,22 @@ use crate::dds::topic::topic::Topic;
 use crate::dds::publication::data_writer_listener::DataWriterListener;
 use crate::dds::publication::data_writer::DataWriter;
 
+pub mod qos {
+    use crate::dds::infrastructure::qos_policy::{
+        PresentationQosPolicy,
+        PartitionQosPolicy,
+        GroupDataQosPolicy,
+        EntityFactoryQosPolicy,
+    };
+
+    pub struct PublisherQos {
+        presentation: PresentationQosPolicy,
+        partition: PartitionQosPolicy,
+        group_data: GroupDataQosPolicy,
+        entity_factory: EntityFactoryQosPolicy,
+    }
+}
+
 /// The Publisher acts on the behalf of one or several DataWriter objects that belong to it. When it is informed of a change to the
 /// data associated with one of its DataWriter objects, it decides when it is appropriate to actually send the data-update message.
 /// In making this decision, it considers any extra information that goes with the data (timestamp, writer, etc.) as well as the QoS

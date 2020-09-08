@@ -13,6 +13,23 @@ use crate::dds::topic::topic_description::TopicDescription;
 use crate::dds::subscription::data_reader::DataReader;
 use crate::dds::subscription::data_reader_listener::DataReaderListener;
 
+
+pub mod qos {
+    use crate::dds::infrastructure::qos_policy::{
+        PresentationQosPolicy,
+        PartitionQosPolicy,
+        GroupDataQosPolicy,
+        EntityFactoryQosPolicy,
+    };
+
+    pub struct SubscriberQos {
+        presentation: PresentationQosPolicy,
+        partition: PartitionQosPolicy,
+        group_data: GroupDataQosPolicy,
+        entity_factory: EntityFactoryQosPolicy,
+    }
+}
+
 pub struct Subscriber{}
 
 /// A Subscriber is the object responsible for the actual reception of the data resulting from its subscriptions
