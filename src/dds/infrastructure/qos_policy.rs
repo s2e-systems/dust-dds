@@ -831,6 +831,15 @@ impl QosPolicy for HistoryQosPolicy {
     }
 }
 
+impl Default for HistoryQosPolicy {
+    fn default() -> Self {
+        Self{
+            kind: HistoryQosPolicyKind::KeepLastHistoryQoS,
+            depth: 1,
+        }
+    }
+}
+
 /// This policy controls the resources that the Service can use in order to meet the requirements imposed by the application and
 /// other QoS settings.
 /// If the DataWriter objects are communicating samples faster than they are ultimately taken by the DataReader objects, the

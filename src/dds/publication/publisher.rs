@@ -14,6 +14,7 @@ pub mod qos {
         EntityFactoryQosPolicy,
     };
 
+    #[derive(Default)]
     pub struct PublisherQos {
         presentation: PresentationQosPolicy,
         partition: PartitionQosPolicy,

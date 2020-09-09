@@ -6,6 +6,8 @@ use crate::dds::infrastructure::qos_policy::QosPolicy;
 
 pub mod qos {
     use crate::dds::infrastructure::qos_policy::EntityFactoryQosPolicy;
+
+    #[derive(Default)]
     pub struct DomainParticipantFactoryQos {
         entity_factory: EntityFactoryQosPolicy,
     }

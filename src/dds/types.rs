@@ -30,8 +30,8 @@ pub struct Time {
 
 #[derive(PartialOrd, PartialEq)]
 pub struct Duration {
-    sec: i32,
-    nanosec: u32,
+    pub sec: i32,
+    pub nanosec: u32,
 }
 pub const LENGTH_UNLIMITED: i32 = -1;   
 pub const DURATION_INFINITE: Duration = Duration{sec: 0x7fffffff, nanosec:0x7fffffff};

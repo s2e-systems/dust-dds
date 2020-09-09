@@ -8,6 +8,7 @@ use crate::dds::subscription::sample_info::SampleInfo;
 
 
 pub mod qos {
+    use crate::dds::types::Duration;
     use crate::dds::infrastructure::qos_policy::{
         DurabilityQosPolicy,
         DeadlineQosPolicy,
@@ -21,6 +22,7 @@ pub mod qos {
         OwnershipQosPolicy,
         TimeBasedFilterQosPolicy,
         ReaderDataLifecycleQosPolicy,
+        ReliabilityQosPolicyKind,
     };
 
     pub struct DataReaderQos {
@@ -36,6 +38,25 @@ pub mod qos {
         ownership: OwnershipQosPolicy,
         time_based_filter: TimeBasedFilterQosPolicy,
         reader_data_lifecycle: ReaderDataLifecycleQosPolicy,
+    }
+
+    impl Default for DataReaderQos {
+        fn default() -> Self {
+            Self {
+                reliability: ReliabilityQosPolicy{kind: ReliabilityQosPolicyKind::BestEffortReliabilityQos, max_blocking_time: Duration{sec: 0, nanosec: 100000000 /*100ms*/}},
+                durability: DurabilityQosPolicy::default(),
+                deadline: DeadlineQosPolicy::default(),
+                latency_budget: LatencyBudgetQosPolicy::default(), 
+                liveliness: LivelinessQosPolicy::default(),
+                destination_order: DestinationOrderQosPolicy::default(),
+                history: HistoryQosPolicy::default(),
+                resource_limits: ResourceLimitsQosPolicy::default(),
+                user_data: UserDataQosPolicy::default(),
+                ownership: OwnershipQosPolicy::default(),
+                time_based_filter: TimeBasedFilterQosPolicy::default(),
+                reader_data_lifecycle: ReaderDataLifecycleQosPolicy::default(),
+            }
+        }
     }
 }
 

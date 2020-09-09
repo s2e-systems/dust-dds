@@ -6,6 +6,7 @@ use crate::dds::topic::topic::Topic;
 use crate::dds::publication::publisher::Publisher;
 
 pub mod qos {
+    use crate::dds::types::{Duration};
     use crate::dds::infrastructure::qos_policy::{
         DurabilityQosPolicy,
         DurabilityServiceQosPolicy,
@@ -22,6 +23,7 @@ pub mod qos {
         OwnershipQosPolicy,
         OwnershipStrengthQosPolicy,
         WriterDataLifecycleQosPolicy,
+        ReliabilityQosPolicyKind,
     };
 
     pub struct DataWriterQos {
@@ -40,6 +42,28 @@ pub mod qos {
         ownership: OwnershipQosPolicy,
         ownership_strength: OwnershipStrengthQosPolicy,
         writer_data_lifecycle: WriterDataLifecycleQosPolicy,
+    }
+
+    impl Default for DataWriterQos {
+        fn default() -> Self {
+            Self {
+                reliability: ReliabilityQosPolicy{kind: ReliabilityQosPolicyKind::ReliableReliabilityQos, max_blocking_time: Duration{sec: 0, nanosec: 100000000 /*100ms*/}},
+                durability: DurabilityQosPolicy::default(),
+                deadline: DeadlineQosPolicy::default(),
+                latency_budget: LatencyBudgetQosPolicy::default(), 
+                liveliness: LivelinessQosPolicy::default(),
+                destination_order: DestinationOrderQosPolicy::default(),
+                history: HistoryQosPolicy::default(),
+                resource_limits: ResourceLimitsQosPolicy::default(),
+                user_data: UserDataQosPolicy::default(),
+                ownership: OwnershipQosPolicy::default(),
+                durability_service: DurabilityServiceQosPolicy::default(),
+                lifespan: LifespanQosPolicy::default(),
+                ownership_strength: OwnershipStrengthQosPolicy::default(),
+                transport_priority: TransportPriorityQosPolicy::default(),
+                writer_data_lifecycle: WriterDataLifecycleQosPolicy::default(),
+            }
+        }
     }
 }
 
