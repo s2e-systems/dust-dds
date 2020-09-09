@@ -1,5 +1,8 @@
 use std::cmp::Ordering;
-use crate::dds::types::{QosPolicyId, Duration};
+
+use crate::dds::types::{Duration, DURATION_INFINITE, DURATION_ZERO, LENGTH_UNLIMITED};
+
+pub type QosPolicyId = i32;
 
 /// This class is the abstract root for all the QoS policies.
 /// It provides the basic mechanism for an application to specify quality of service parameters. It has an attribute name that is used
@@ -76,7 +79,7 @@ const DURABILITYSERVICE_QOS_POLICY_ID: QosPolicyId = 22;
 /// and ignore_topic these QoS can assist an application to define and enforce its own security policies. The use of this QoS is not
 /// limited to security, rather it offers a simple, yet flexible extensibility mechanism.
 pub struct UserDataQosPolicy {
-    value: Vec<u8>,
+    pub value: Vec<u8>,
 }
 
 impl QosPolicy for UserDataQosPolicy {
@@ -85,17 +88,33 @@ impl QosPolicy for UserDataQosPolicy {
     }
 }
 
+impl Default for UserDataQosPolicy {
+    fn default() -> Self {
+        Self{
+            value: vec![]
+        }
+    }
+}
+
 /// The purpose of this QoS is to allow the application to attach additional information to the created Topic such that when a
 /// remote application discovers their existence it can examine the information and use it in an application-defined way. In
 /// combination with the listeners on the DataReader and DataWriter as well as by means of operations such as ignore_topic,
 /// these QoS can assist an application to extend the provided QoS.
 pub struct TopicDataQosPolicy {
-    value: Vec<u8>,
+    pub value: Vec<u8>,
 }
 
 impl QosPolicy for TopicDataQosPolicy {
     fn name(&self) -> &str {
         TOPICDATA_QOS_POLICY_NAME
+    }
+}
+
+impl Default for TopicDataQosPolicy {
+    fn default() -> Self {
+        Self{
+            value: vec![]
+        }
     }
 }
 
@@ -106,12 +125,20 @@ impl QosPolicy for TopicDataQosPolicy {
 /// matching policies similar to those of the PARTITION QoS except the decision can be made based on an application-defined
 /// policy.
 pub struct GroupDataQosPolicy {
-    value: Vec<u8>,
+    pub value: Vec<u8>,
 }
 
 impl QosPolicy for GroupDataQosPolicy {
     fn name(&self) -> &str {
         GROUPDATA_QOS_POLICY_NAME
+    }
+}
+
+impl Default for GroupDataQosPolicy {
+    fn default() -> Self {
+        Self{
+            value: vec![]
+        }
     }
 }
 
@@ -125,12 +152,20 @@ impl QosPolicy for GroupDataQosPolicy {
 /// TRANSPORT_PRIORITY set on DataWriter and the values meaningful to each transport. This mapping would then be used
 /// by the infrastructure when propagating the data written by the DataWriter.
 pub struct TransportPriorityQosPolicy {
-    value: i32,
+    pub value: i32,
 }
 
 impl QosPolicy for TransportPriorityQosPolicy {
     fn name(&self) -> &str {
         TRANSPORTPRIORITY_QOS_POLICY_NAME
+    }
+}
+
+impl Default for TransportPriorityQosPolicy {
+    fn default() -> Self {
+        Self{
+            value: 0
+        }
     }
 }
 
@@ -146,12 +181,20 @@ impl QosPolicy for TransportPriorityQosPolicy {
 /// and the Service can detect it, the DataReader is allowed to use the reception timestamp instead of the source timestamp in its
 /// computation of the ‘expiration time.’
 pub struct LifespanQosPolicy {
-    duration: Duration,
+    pub duration: Duration,
 }
 
 impl QosPolicy for LifespanQosPolicy {
     fn name(&self) -> &str {
         LIFESPAN_QOS_POLICY_NAME
+    }
+}
+
+impl Default for LifespanQosPolicy {
+    fn default() -> Self {
+        Self{
+            duration: DURATION_INFINITE,
+        }
     }
 }
 
@@ -246,7 +289,7 @@ impl PartialOrd for DurabilityQosPolicyKind {
 /// the information on the disposed instance and complete the interrupted tasks.
 #[derive(PartialEq, PartialOrd)]
 pub struct DurabilityQosPolicy {
-    kind: DurabilityQosPolicyKind,
+    pub kind: DurabilityQosPolicyKind,
 }
 
 impl QosPolicy for DurabilityQosPolicy {
@@ -254,6 +297,15 @@ impl QosPolicy for DurabilityQosPolicy {
         DURABILITY_QOS_POLICY_NAME
     }
 }
+
+impl Default for DurabilityQosPolicy {
+    fn default() -> Self {
+        Self{
+            kind: DurabilityQosPolicyKind::VolatileDurabilityQoS,
+        }
+    }
+}
+
 
 #[derive(PartialEq)]
 pub enum PresentationQosPolicyAccessScopeKind {
@@ -329,14 +381,24 @@ impl PartialOrd for PresentationQosPolicyAccessScopeKind {
 /// 2. Requested coherent_access is FALSE, or else both offered and requested coherent_access are TRUE.
 /// 3. Requested ordered_access is FALSE, or else both offered and requested ordered _access are TRUE.
 pub struct PresentationQosPolicy {
-    access_scope: PresentationQosPolicyAccessScopeKind,
-    coherent_access: bool,
-    ordered_access: bool,
+    pub access_scope: PresentationQosPolicyAccessScopeKind,
+    pub coherent_access: bool,
+    pub ordered_access: bool,
 }
 
 impl QosPolicy for PresentationQosPolicy {
     fn name(&self) -> &str {
         PRESENTATION_QOS_POLICY_NAME
+    }
+}
+
+impl Default for PresentationQosPolicy {
+    fn default() -> Self {
+        Self{
+            access_scope: PresentationQosPolicyAccessScopeKind::InstancePresentationQoS,
+            coherent_access: false,
+            ordered_access: false,
+        }
     }
 }
 
@@ -353,7 +415,7 @@ impl QosPolicy for PresentationQosPolicy {
 /// The setting of the DEADLINE policy must be set consistently with that of the TIME_BASED_FILTER. For these two policies
 /// to be consistent the settings must be such that “deadline period>= minimum_separation.”
 pub struct DeadlineQosPolicy {
-    period: Duration,
+    pub period: Duration,
 }
 
 impl QosPolicy for DeadlineQosPolicy {
@@ -362,18 +424,35 @@ impl QosPolicy for DeadlineQosPolicy {
     }
 }
 
+impl Default for DeadlineQosPolicy {
+    fn default() -> Self {
+        Self{
+            period: DURATION_INFINITE
+        }
+    }
+}
+
 /// This policy provides a means for the application to indicate to the middleware the “urgency” of the data-communication. By
 /// having a non-zero duration the Service can optimize its internal operation.
 /// This policy is considered a hint. There is no specified mechanism as to how the service should take advantage of this hint.
 /// The value offered is considered compatible with the value requested if and only if the inequality “offered duration <=
 /// requested duration” evaluates to ‘TRUE.’
+#[derive(PartialOrd, PartialEq)]
 pub struct LatencyBudgetQosPolicy {
-    duration: Duration,
+    pub duration: Duration,
 }
 
 impl QosPolicy for LatencyBudgetQosPolicy {
     fn name(&self) -> &str {
         LATENCYBUDGET_QOS_POLICY_NAME
+    }
+}
+
+impl Default for LatencyBudgetQosPolicy {
+    fn default() -> Self {
+        Self{
+            duration: DURATION_ZERO
+        }
     }
 }
 
@@ -394,7 +473,7 @@ pub enum OwnershipQosPolicyKind {
 /// EXCLUSIVE kind
 /// This setting indicates that each instance of a data-object can only be modified by one DataWriter. In other words, at any point
 /// in time a single DataWriter “owns” each instance and is the only one whose modifications will be visible to the DataReader
-/// objects. The owner is determined by selecting the DataWriter with the highest value of the strength26 that is both “alive” as
+/// objects. The owner is determined by selecting the DataWriter with the highest value of the strength that is both “alive” as
 /// defined by the LIVELINESS QoS policy and has not violated its DEADLINE contract with regards to the data-instance.
 /// Ownership can therefore change as a result of (a) a DataWriter in the system with a higher value of the strength that modifies
 /// the instance, (b) a change in the strength value of the DataWriter that owns the instance, (c) a change in the liveliness of the
@@ -419,12 +498,20 @@ pub enum OwnershipQosPolicyKind {
 /// The value of the OWNERSHIP kind offered must exactly match the one requested or else they are considered
 /// incompatible.
 pub struct OwnershipQosPolicy {
-    kind: OwnershipQosPolicyKind,
+    pub kind: OwnershipQosPolicyKind,
 }
 
 impl QosPolicy for OwnershipQosPolicy {
     fn name(&self) -> &str {
         OWNERSHIP_QOS_POLICY_NAME
+    }
+}
+
+impl Default for OwnershipQosPolicy {
+    fn default() -> Self {
+        Self{
+            kind: OwnershipQosPolicyKind::SharedOwnershipQoS
+        }
     }
 }
 
@@ -434,12 +521,20 @@ impl QosPolicy for OwnershipQosPolicy {
 /// The arbitration is performed by the DataReader. The rules used to perform the arbitration are described in 2.2.3.9.2,
 /// EXCLUSIVE kind.
 pub struct OwnershipStrengthQosPolicy {
-    value: i32,
+    pub value: i32,
 }
 
 impl QosPolicy for OwnershipStrengthQosPolicy {
     fn name(&self) -> &str {
         OWNERSHIPSTRENGTH_QOS_POLICY_NAME
+    }
+}
+
+impl Default for OwnershipStrengthQosPolicy {
+    fn default() -> Self {
+        Self{
+            value: 0
+        }
     }
 }
 
@@ -505,13 +600,22 @@ impl PartialOrd for LivelinessQosPolicyKind {
 /// ensures that the value of the LivelinessChangedStatus is updated at least once during each lease_duration and the related
 /// Listeners and WaitSets are notified within a lease_duration from the time the LIVELINESS changed.
 pub struct LivelinessQosPolicy {
-    kind: LivelinessQosPolicyKind,
-    lease_duration: Duration,
+    pub kind: LivelinessQosPolicyKind,
+    pub lease_duration: Duration,
 }
 
 impl QosPolicy for LivelinessQosPolicy {
     fn name(&self) -> &str {
         LIVELINESS_QOS_POLICY_NAME
+    }
+}
+
+impl Default for LivelinessQosPolicy {
+    fn default() -> Self {
+        Self{
+            kind: LivelinessQosPolicyKind::AutomaticLivelinessQoS,
+            lease_duration: DURATION_INFINITE,
+        }
     }
 }
 
@@ -535,12 +639,20 @@ impl QosPolicy for LivelinessQosPolicy {
 /// two QoS policies to be consistent they must verify that "period >= minimum_separation." An attempt to set these policies in
 /// an inconsistent manner when an entity is created of via a set_qos operation will cause the operation to fail.
 pub struct TimeBasedFilterQosPolicy {
-    minimum_separation: Duration,
+    pub minimum_separation: Duration,
 }
 
 impl QosPolicy for TimeBasedFilterQosPolicy {
     fn name(&self) -> &str {
         TIMEBASEDFILTER_QOS_POLICY_NAME
+    }
+}
+
+impl Default for TimeBasedFilterQosPolicy {
+    fn default() -> Self {
+        Self{
+            minimum_separation: DURATION_ZERO
+        }
     }
 }
 
@@ -563,12 +675,20 @@ impl QosPolicy for TimeBasedFilterQosPolicy {
 /// the tuple (domainId, Topic, key). Therefore two Entity objects in different domains cannot refer to the same data instance. On
 /// the other hand, the same data-instance can be made available (published) or requested (subscribed) on one or more partitions.
 pub struct PartitionQosPolicy {
-    name: String,
+    pub name: String,
 }
 
 impl QosPolicy for PartitionQosPolicy {
     fn name(&self) -> &str {
         PARTITION_QOS_POLICY_NAME
+    }
+}
+
+impl Default for PartitionQosPolicy {
+    fn default() -> Self {
+        Self{
+            name: String::new()
+        }
     }
 }
 
@@ -615,8 +735,8 @@ impl PartialOrd for ReliabilityQosPolicyKind {
 /// kind” evaluates to ‘TRUE.’ For the purposes of this inequality, the values of RELIABILITY kind are considered ordered such
 /// that BEST_EFFORT < RELIABLE.
 pub struct ReliabilityQosPolicy {
-    kind: ReliabilityQosPolicyKind,
-    max_blocking_time: Duration,
+    pub kind: ReliabilityQosPolicyKind,
+    pub max_blocking_time: Duration,
 }
 
 impl QosPolicy for ReliabilityQosPolicy {
@@ -661,8 +781,9 @@ impl PartialOrd for DestinationOrderQosPolicyKind {
 /// The value offered is considered compatible with the value requested if and only if the inequality “offered kind >= requested
 /// kind” evaluates to ‘TRUE.’ For the purposes of this inequality, the values of DESTINATION_ORDER kind are considered
 /// ordered such that BY_RECEPTION_TIMESTAMP < BY_SOURCE_TIMESTAMP.
+#[derive(PartialEq, PartialOrd)]
 pub struct DestinationOrderQosPolicy {
-    kind: DestinationOrderQosPolicyKind,
+    pub kind: DestinationOrderQosPolicyKind,
 }
 
 impl QosPolicy for DestinationOrderQosPolicyKind {
@@ -671,6 +792,16 @@ impl QosPolicy for DestinationOrderQosPolicyKind {
     }
 }
 
+
+impl Default for DestinationOrderQosPolicy {
+    fn default() -> Self {
+        Self{
+            kind: DestinationOrderQosPolicyKind::ByReceptionTimestampDestinationOrderQoS
+        }
+    }
+}
+
+#[derive(PartialEq)]
 pub enum HistoryQosPolicyKind {
     KeepLastHistoryQoS,
     KeepAllHistoryQos,
@@ -690,8 +821,8 @@ pub enum HistoryQosPolicyKind {
 /// The setting of HISTORY depth must be consistent with the RESOURCE_LIMITS max_samples_per_instance. For these two
 /// QoS to be consistent, they must verify that depth <= max_samples_per_instance.
 pub struct HistoryQosPolicy {
-    kind: HistoryQosPolicyKind,
-    depth: i32,
+    pub kind: HistoryQosPolicyKind,
+    pub depth: i32,
 }
 
 impl QosPolicy for HistoryQosPolicy {
@@ -706,7 +837,7 @@ impl QosPolicy for HistoryQosPolicy {
 /// middleware will eventually hit against some of the QoS-imposed resource limits. Note that this may occur when just a single
 /// DataReader cannot keep up with its corresponding DataWriter. The behavior in this case depends on the setting for the
 /// RELIABILITY QoS. If reliability is BEST_EFFORT then the Service is allowed to drop samples. If the reliability is
-/// RELIABLE, the Service will block the DataWriter or discard the sample at the DataReader 28in order not to lose existing
+/// RELIABLE, the Service will block the DataWriter or discard the sample at the DataReader in order not to lose existing
 /// samples.
 /// The constant LENGTH_UNLIMITED may be used to indicate the absence of a particular limit. For example setting
 /// max_samples_per_instance to LENGH_UNLIMITED will cause the middleware to not enforce this particular limit.
@@ -725,6 +856,16 @@ pub struct ResourceLimitsQosPolicy {
 impl QosPolicy for ResourceLimitsQosPolicy {
     fn name(&self) -> &str {
         RESOURCELIMITS_QOS_POLICY_NAME
+    }
+}
+
+impl Default for ResourceLimitsQosPolicy {
+    fn default() -> Self {
+        Self{
+            max_samples: LENGTH_UNLIMITED,
+            max_instances: LENGTH_UNLIMITED,
+            max_samples_per_instance: LENGTH_UNLIMITED
+        }
     }
 }
 
@@ -749,6 +890,14 @@ impl QosPolicy for EntityFactoryQosPolicy {
     }
 }
 
+impl Default for EntityFactoryQosPolicy {
+    fn default() -> Self {
+        Self{
+            autoenable_created_entities: true,
+        }
+    }
+}
+
 /// This policy controls the behavior of the DataWriter with regards to the lifecycle of the data-instances it manages, that is, the
 /// data-instances that have been either explicitly registered with the DataWriter using the register operations (see 2.2.2.4.2.5 and
 ///     2.2.2.4.2.6) or implicitly by directly writing the data (see 2.2.2.4.2.11 and 2.2.2.4.2.12).
@@ -766,12 +915,20 @@ impl QosPolicy for EntityFactoryQosPolicy {
 /// DataWriter is deleted either directly by means of the Publisher::delete_datawriter operation or indirectly as a consequence of
 /// calling delete_contained_entities on the Publisher or the DomainParticipant that contains the DataWriter.
 pub struct WriterDataLifecycleQosPolicy {
-    autodispose_unregistered_instances: bool,
+    pub autodispose_unregistered_instances: bool,
 }
 
 impl QosPolicy for WriterDataLifecycleQosPolicy {
     fn name(&self) -> &str {
         WRITERDATALIFECYCLE_QOS_POLICY_NAME
+    }
+}
+
+impl Default for WriterDataLifecycleQosPolicy {
+    fn default() -> Self {
+        Self{
+            autodispose_unregistered_instances: true,
+        }
     }
 }
 
@@ -795,8 +952,8 @@ impl QosPolicy for WriterDataLifecycleQosPolicy {
 /// an instance once its instance_state becomes NOT_ALIVE_DISPOSED. After this time elapses, the DataReader will purge all
 /// samples for the instance.
 pub struct ReaderDataLifecycleQosPolicy {
-    autopurge_nowriter_samples_delay: Duration,
-    autopurge_disposed_samples_delay: Duration,
+    pub autopurge_nowriter_samples_delay: Duration,
+    pub autopurge_disposed_samples_delay: Duration,
 }
 
 impl QosPolicy for ReaderDataLifecycleQosPolicy {
@@ -805,22 +962,44 @@ impl QosPolicy for ReaderDataLifecycleQosPolicy {
     }
 }
 
+impl Default for ReaderDataLifecycleQosPolicy {
+    fn default() -> Self {
+        Self{
+            autopurge_nowriter_samples_delay: DURATION_INFINITE,
+            autopurge_disposed_samples_delay: DURATION_INFINITE,
+        }
+    }
+}
+
 /// This policy is used to configure the HISTORY QoS and the RESOURCE_LIMITS QoS used by the fictitious DataReader and
 /// DataWriter used by the “persistence service.” The “persistence service” is the one responsible for implementing the
 /// DURABILITY kinds TRANSIENT and PERSISTENCE (see 2.2.3.4).
 pub struct DurabilityServiceQosPolicy {
-    service_cleanup_delay: Duration,
-    history_kind: HistoryQosPolicyKind,
-    history_depth: i32,
-    max_samples: i32,
-    max_instances: i32,
-    max_samples_per_instance: i32,
+    pub service_cleanup_delay: Duration,
+    pub history_kind: HistoryQosPolicyKind,
+    pub history_depth: i32,
+    pub max_samples: i32,
+    pub max_instances: i32,
+    pub max_samples_per_instance: i32,
 }
 
 
 impl QosPolicy for DurabilityServiceQosPolicy {
     fn name(&self) -> &str {
         DURABILITYSERVICE_POLICY_NAME
+    }
+}
+
+impl Default for DurabilityServiceQosPolicy {
+    fn default() -> Self {
+        Self{
+            service_cleanup_delay: DURATION_ZERO,
+            history_kind: HistoryQosPolicyKind::KeepLastHistoryQoS,
+            history_depth: 1,
+            max_samples: LENGTH_UNLIMITED,
+            max_instances: LENGTH_UNLIMITED,
+            max_samples_per_instance: LENGTH_UNLIMITED,
+        }
     }
 }
 
