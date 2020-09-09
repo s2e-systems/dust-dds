@@ -6,6 +6,39 @@ use crate::dds::topic::topic_description::TopicDescription;
 use crate::dds::subscription::subscriber::Subscriber;
 use crate::dds::subscription::sample_info::SampleInfo;
 
+
+pub mod qos {
+    use crate::dds::infrastructure::qos_policy::{
+        DurabilityQosPolicy,
+        DeadlineQosPolicy,
+        LatencyBudgetQosPolicy, 
+        LivelinessQosPolicy,
+        ReliabilityQosPolicy,
+        DestinationOrderQosPolicy,
+        HistoryQosPolicy,
+        ResourceLimitsQosPolicy,
+        UserDataQosPolicy,
+        OwnershipQosPolicy,
+        TimeBasedFilterQosPolicy,
+        ReaderDataLifecycleQosPolicy,
+    };
+
+    pub struct DataReaderQos {
+        durability: DurabilityQosPolicy,
+        deadline: DeadlineQosPolicy,
+        latency_budget: LatencyBudgetQosPolicy, 
+        liveliness: LivelinessQosPolicy,
+        reliability: ReliabilityQosPolicy,
+        destination_order: DestinationOrderQosPolicy,
+        history: HistoryQosPolicy,
+        resource_limits: ResourceLimitsQosPolicy,
+        user_data: UserDataQosPolicy,
+        ownership: OwnershipQosPolicy,
+        time_based_filter: TimeBasedFilterQosPolicy,
+        reader_data_lifecycle: ReaderDataLifecycleQosPolicy,
+    }
+}
+
 // Todo: Read data is dependent on the associated datatype
 type Data=Vec<u8>;
 

@@ -1,14 +1,26 @@
 
 use crate::dds::types::{StatusKind, ReturnCode, Duration};
-
-use crate::dds::infrastructure::qos_policy::QosPolicy;
-
 use crate::dds::domain::domain_participant::DomainParticipant;
-
 use crate::dds::topic::topic::Topic;
-
 use crate::dds::publication::data_writer_listener::DataWriterListener;
 use crate::dds::publication::data_writer::DataWriter;
+use crate::dds::infrastructure::qos_policy::QosPolicy;
+
+pub mod qos {
+    use crate::dds::infrastructure::qos_policy::{
+        PresentationQosPolicy,
+        PartitionQosPolicy,
+        GroupDataQosPolicy,
+        EntityFactoryQosPolicy,
+    };
+
+    pub struct PublisherQos {
+        presentation: PresentationQosPolicy,
+        partition: PartitionQosPolicy,
+        group_data: GroupDataQosPolicy,
+        entity_factory: EntityFactoryQosPolicy,
+    }
+}
 
 /// The Publisher acts on the behalf of one or several DataWriter objects that belong to it. When it is informed of a change to the
 /// data associated with one of its DataWriter objects, it decides when it is appropriate to actually send the data-update message.
@@ -42,7 +54,7 @@ impl Publisher {
     /// Publisher. If the Topic was created from a different DomainParticipant, the operation will fail and return a nil result.
     pub fn create_datawriter(
         _a_topic: Topic,
-        _qos: &[QosPolicy],
+        _qos: &[&dyn QosPolicy],
         _a_listener: DataWriterListener,
         _mask: &[StatusKind]
     ) -> DataWriter {
@@ -155,7 +167,7 @@ impl Publisher {
     /// reset back to the initial values the factory would use, that is the values that would be used if the set_default_datawriter_qos
     /// operation had never been called.
     pub fn set_default_datawriter_qos(
-        _qos_list: &[QosPolicy]
+        _qos_list: &[&dyn QosPolicy],
     ) -> ReturnCode {
         todo!()
     }
@@ -166,7 +178,7 @@ impl Publisher {
     /// set_default_datawriter_qos, or else, if the call was never made, the default values listed in the QoS table in 2.2.3, Supported
     /// QoS.
     pub fn get_default_datawriter_qos (
-        _qos_list: &[QosPolicy]
+        _qos_list: &mut [&dyn QosPolicy],
     ) -> ReturnCode {
         todo!()
     }
@@ -179,8 +191,8 @@ impl Publisher {
     /// This operation does not check the resulting a_datawriter_qos for consistency. This is because the ‘merged’ a_datawriter_qos
     /// may not be the final one, as the application can still modify some policies prior to applying the policies to the DataWriter.
     pub fn copy_from_topic_qos(
-        _a_datawriter_qos: &mut [QosPolicy],
-        _a_topic_qos: &[QosPolicy],
+        _a_datawriter_qos: &mut [&dyn QosPolicy],
+        _a_topic_qos: &[&dyn QosPolicy],
     ) -> ReturnCode {
         todo!()
     }

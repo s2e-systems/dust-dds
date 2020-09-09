@@ -5,6 +5,44 @@ use crate::dds::infrastructure::status::{LivelinessLostStatus, OfferedDeadlineMi
 use crate::dds::topic::topic::Topic;
 use crate::dds::publication::publisher::Publisher;
 
+pub mod qos {
+    use crate::dds::infrastructure::qos_policy::{
+        DurabilityQosPolicy,
+        DurabilityServiceQosPolicy,
+        DeadlineQosPolicy,
+        LatencyBudgetQosPolicy,
+        LivelinessQosPolicy,
+        ReliabilityQosPolicy,
+        DestinationOrderQosPolicy,
+        HistoryQosPolicy,
+        ResourceLimitsQosPolicy,
+        TransportPriorityQosPolicy,
+        LifespanQosPolicy,
+        UserDataQosPolicy,
+        OwnershipQosPolicy,
+        OwnershipStrengthQosPolicy,
+        WriterDataLifecycleQosPolicy,
+    };
+
+    pub struct DataWriterQos {
+        durability: DurabilityQosPolicy,
+        durability_service: DurabilityServiceQosPolicy,
+        deadline: DeadlineQosPolicy,
+        latency_budget: LatencyBudgetQosPolicy,
+        liveliness: LivelinessQosPolicy,
+        reliability: ReliabilityQosPolicy,
+        destination_order: DestinationOrderQosPolicy,
+        history: HistoryQosPolicy,
+        resource_limits: ResourceLimitsQosPolicy,
+        transport_priority: TransportPriorityQosPolicy,
+        lifespan: LifespanQosPolicy,
+        user_data: UserDataQosPolicy,
+        ownership: OwnershipQosPolicy,
+        ownership_strength: OwnershipStrengthQosPolicy,
+        writer_data_lifecycle: WriterDataLifecycleQosPolicy,
+    }
+}
+
 // Todo: Write data is dependent on the associated datatype
 type Data=Vec<u8>;
 

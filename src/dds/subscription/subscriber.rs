@@ -6,12 +6,28 @@ use crate::dds::types::{
     InstanceStateKind,
 };
 
-use crate::dds::infrastructure::qos_policy::QosPolicy;
 use crate::dds::infrastructure::status::SampleLostStatus;
 use crate::dds::domain::domain_participant::DomainParticipant;
 use crate::dds::topic::topic_description::TopicDescription;
 use crate::dds::subscription::data_reader::DataReader;
 use crate::dds::subscription::data_reader_listener::DataReaderListener;
+use crate::dds::infrastructure::qos_policy::QosPolicy;
+
+pub mod qos {
+    use crate::dds::infrastructure::qos_policy::{
+        PresentationQosPolicy,
+        PartitionQosPolicy,
+        GroupDataQosPolicy,
+        EntityFactoryQosPolicy,
+    };
+
+    pub struct SubscriberQos {
+        presentation: PresentationQosPolicy,
+        partition: PartitionQosPolicy,
+        group_data: GroupDataQosPolicy,
+        entity_factory: EntityFactoryQosPolicy,
+    }
+}
 
 pub struct Subscriber{}
 
@@ -53,7 +69,7 @@ impl Subscriber {
     /// return a nil result.
     pub fn create_datareader(
         _a_topic: TopicDescription,
-        _qos: &[QosPolicy],
+        _qos: &[&dyn QosPolicy],
         _a_listener: DataReaderListener,
         _mask: &[StatusKind]
     ) -> DataReader {
@@ -182,7 +198,7 @@ impl Subscriber {
     /// be reset back to the initial values the factory would use, that is the values that would be used if the
     /// set_default_datareader_qos operation had never been called.
     pub fn set_default_datareader_qos(
-        _qos_list: &[QosPolicy],
+        _qos_list: &[&dyn QosPolicy],
     ) -> ReturnCode {
         todo!()
     }
@@ -193,7 +209,7 @@ impl Subscriber {
     /// get_default_datareader_qos, or else, if the call was never made, the default values listed in the QoS table in 2.2.3,
     /// Supported QoS.
     pub fn get_default_datareader_qos(
-        _qos_list: &mut [QosPolicy],
+        _qos_list: &mut [&dyn QosPolicy],
     ) -> ReturnCode {
         todo!()
     }
@@ -206,8 +222,8 @@ impl Subscriber {
     /// This operation does not check the resulting a_datareader_qos for consistency. This is because the ‘merged’ a_datareader_qos
     /// may not be the final one, as the application can still modify some policies prior to applying the policies to the DataReader.
     pub fn copy_from_topic_qos(
-        _a_datareader_qos: &mut [QosPolicy],
-        _a_topic_qos: &[QosPolicy],
+        _a_datareader_qos: &mut [&dyn QosPolicy],
+        _a_topic_qos: &[&dyn QosPolicy],
     ) -> ReturnCode {
         todo!()
     }

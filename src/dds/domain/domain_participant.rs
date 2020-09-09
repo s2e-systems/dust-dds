@@ -1,13 +1,21 @@
 use crate::dds::types::{StatusKind, ReturnCode, Duration, InstanceHandle, DomainId, Time};
-
-use crate::dds::infrastructure::qos_policy::QosPolicy;
-
 use crate::dds::topic::topic::Topic;
 use crate::dds::topic::topic_listener::TopicListener;
 use crate::dds::topic::topic_description::TopicDescription;
-
 use crate::dds::subscription::subscriber::Subscriber;
 use crate::dds::subscription::subscriber_listener::SubscriberListener;
+use crate::dds::infrastructure::qos_policy::QosPolicy;
+
+pub mod qos {
+    use crate::dds::infrastructure::qos_policy::{
+        UserDataQosPolicy, EntityFactoryQosPolicy
+    };
+    
+    pub struct DomainParticipantQos {
+        user_data: UserDataQosPolicy,
+        entity_factory: EntityFactoryQosPolicy,
+    }
+}
 
 // TODO: Create and find a home for it
 pub struct ParticipantBuiltinTopicData{}
@@ -66,8 +74,8 @@ impl DomainParticipant {
     /// The created Subscriber belongs to the DomainParticipant that is its factory.
     /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
     pub fn create_subscriber(
-        _qos_list: &[QosPolicy],
         _a_listener: SubscriberListener,
+        _qos_list: &[&dyn QosPolicy],
         _mask: &[StatusKind]
     ) -> Subscriber {
         todo!()
@@ -99,7 +107,7 @@ impl DomainParticipant {
     pub fn create_topic(
         _topic_name: String,
         _type_name: String,
-        _qos_list: &[QosPolicy],
+        _qos_list: &[&dyn QosPolicy],
         _a_listener: TopicListener,
         _mask: &[StatusKind]
     ) -> Topic {
@@ -263,7 +271,7 @@ impl DomainParticipant {
     /// reset back to the initial values the factory would use, that is the values that would be used if the set_default_publisher_qos
     /// operation had never been called.
     pub fn set_default_publisher_qos(
-        _qos_list: &[QosPolicy]
+        _qos_list: &[&dyn QosPolicy],
     ) -> ReturnCode {
         todo!()
     }
@@ -274,7 +282,7 @@ impl DomainParticipant {
     /// set_default_publisher_qos, or else, if the call was never made, the default values listed in the QoS table in 2.2.3, Supported
     /// QoS.
     pub fn get_default_publisher_qos(
-        _qos_list: &mut [QosPolicy]
+        _qos_list: &mut [&dyn QosPolicy],
     ) -> ReturnCode {
         todo!()
     }
@@ -287,7 +295,7 @@ impl DomainParticipant {
     /// reset back to the initial values the factory would use, that is the values that would be used if the set_default_subscriber_qos
     /// operation had never been called.
     pub fn set_default_subscriber_qos(
-        _qos_list: &[QosPolicy]
+        _qos_list: &[&dyn QosPolicy],
     ) -> ReturnCode {
         todo!()
     }
@@ -298,7 +306,7 @@ impl DomainParticipant {
     /// set_default_subscriber_qos, or else, if the call was never made, the default values listed in the QoS table in 2.2.3, Supported
     /// QoS.
     pub fn get_default_subscriber_qos(
-        _qos_list: &mut [QosPolicy]
+        _qos_list: &mut [&dyn QosPolicy],
     ) -> ReturnCode {
         todo!()
     }
@@ -311,7 +319,7 @@ impl DomainParticipant {
     /// back to the initial values the factory would use, that is the values that would be used if the set_default_topic_qos operation
     /// had never been called.
     pub fn set_default_topic_qos(
-        _qos_list: &[QosPolicy]
+        _qos_list: &[&dyn QosPolicy],
     ) -> ReturnCode {
         todo!()
     }
@@ -321,7 +329,7 @@ impl DomainParticipant {
     /// The values retrieved get_default_topic_qos will match the set of values specified on the last successful call to
     /// set_default_topic_qos, or else, if the call was never made, the default values listed in the QoS table in 2.2.3, Supported QoS.
     pub fn get_default_topic_qos(
-        _qos_list: &mut [QosPolicy]
+        _qos_list: &[&dyn QosPolicy],
     ) -> ReturnCode {
         todo!()
     }
