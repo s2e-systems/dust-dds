@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+
 use crate::dds::types::{QosPolicyId, Duration};
 
 const USERDATA_QOS_POLICY_NAME: &str = "UserData";
@@ -102,12 +104,54 @@ pub struct LifespanQosPolicy {
     duration: Duration,
 }
 
+#[derive(PartialEq)]
 pub enum DurabilityQosPolicyKind {
     VolatileDurabilityQoS,
     TransientLocalDurabilityQoS,
     TransientDurabilityQoS,
     PersistentDurabilityQoS,
 }
+
+impl PartialOrd for DurabilityQosPolicyKind {
+    fn partial_cmp(&self, other: &DurabilityQosPolicyKind) -> Option<Ordering> {
+        match self {
+            DurabilityQosPolicyKind::VolatileDurabilityQoS => {
+                match other {
+                    DurabilityQosPolicyKind::VolatileDurabilityQoS => Some(Ordering::Equal),
+                    DurabilityQosPolicyKind::TransientLocalDurabilityQoS => Some(Ordering::Less),
+                    DurabilityQosPolicyKind::TransientDurabilityQoS => Some(Ordering::Less),
+                    DurabilityQosPolicyKind::PersistentDurabilityQoS => Some(Ordering::Less),
+                }
+            },
+            DurabilityQosPolicyKind::TransientLocalDurabilityQoS => {
+                match other {
+                    DurabilityQosPolicyKind::VolatileDurabilityQoS => Some(Ordering::Greater),
+                    DurabilityQosPolicyKind::TransientLocalDurabilityQoS => Some(Ordering::Equal),
+                    DurabilityQosPolicyKind::TransientDurabilityQoS => Some(Ordering::Less),
+                    DurabilityQosPolicyKind::PersistentDurabilityQoS => Some(Ordering::Less),
+                }
+            },
+            DurabilityQosPolicyKind::TransientDurabilityQoS => {
+                match other {
+                    DurabilityQosPolicyKind::VolatileDurabilityQoS => Some(Ordering::Greater),
+                    DurabilityQosPolicyKind::TransientLocalDurabilityQoS => Some(Ordering::Greater),
+                    DurabilityQosPolicyKind::TransientDurabilityQoS => Some(Ordering::Equal),
+                    DurabilityQosPolicyKind::PersistentDurabilityQoS => Some(Ordering::Less),
+                }
+            },
+            DurabilityQosPolicyKind::PersistentDurabilityQoS => {
+                match other {
+                    DurabilityQosPolicyKind::VolatileDurabilityQoS => Some(Ordering::Greater),
+                    DurabilityQosPolicyKind::TransientLocalDurabilityQoS => Some(Ordering::Greater),
+                    DurabilityQosPolicyKind::TransientDurabilityQoS => Some(Ordering::Greater),
+                    DurabilityQosPolicyKind::PersistentDurabilityQoS => Some(Ordering::Equal),
+                }
+            },
+        }
+    }
+}
+
+
 /// The decoupling between DataReader and DataWriter offered by the Publish/Subscribe paradigm allows an application to
 /// write data even if there are no current readers on the network. Moreover, a DataReader that joins the network after some data
 /// has been written could potentially be interested in accessing the most current values of the data as well as potentially some
@@ -149,14 +193,44 @@ pub enum DurabilityQosPolicyKind {
 /// before it has a chance to complete additional tasks related to the disposition. Upon re-start the application may ask for initial
 /// data to regain its state and the delay introduced by the service_cleanup_delay will allow the restarted application to receive
 /// the information on the disposed instance and complete the interrupted tasks.
+#[derive(PartialEq, PartialOrd)]
 pub struct DurabilityQosPolicy {
     kind: DurabilityQosPolicyKind,
 }
 
+#[derive(PartialEq)]
 pub enum PresentationQosPolicyAccessScopeKind {
     InstancePresentationQoS,
     TopicPresentationQoS,
     GroupPresentationQoS,
+}
+
+impl PartialOrd for PresentationQosPolicyAccessScopeKind {
+    fn partial_cmp(&self, other: &PresentationQosPolicyAccessScopeKind) -> Option<Ordering> {
+        match self {
+            PresentationQosPolicyAccessScopeKind::InstancePresentationQoS => {
+                match other {
+                    PresentationQosPolicyAccessScopeKind::InstancePresentationQoS => Some(Ordering::Equal),
+                    PresentationQosPolicyAccessScopeKind::TopicPresentationQoS => Some(Ordering::Less),
+                    PresentationQosPolicyAccessScopeKind::GroupPresentationQoS => Some(Ordering::Less),
+                }
+            },
+            PresentationQosPolicyAccessScopeKind::TopicPresentationQoS => {
+                match other {
+                    PresentationQosPolicyAccessScopeKind::InstancePresentationQoS => Some(Ordering::Greater),
+                    PresentationQosPolicyAccessScopeKind::TopicPresentationQoS => Some(Ordering::Equal),
+                    PresentationQosPolicyAccessScopeKind::GroupPresentationQoS => Some(Ordering::Less),
+                }
+            },
+            PresentationQosPolicyAccessScopeKind::GroupPresentationQoS => {
+                match other {
+                    PresentationQosPolicyAccessScopeKind::InstancePresentationQoS => Some(Ordering::Greater),
+                    PresentationQosPolicyAccessScopeKind::TopicPresentationQoS => Some(Ordering::Greater),
+                    PresentationQosPolicyAccessScopeKind::GroupPresentationQoS => Some(Ordering::Equal),
+                }
+            },
+        }
+    }
 }
 
 /// This QoS policy controls the extent to which changes to data-instances can be made dependent on each other and also the kind
@@ -282,10 +356,39 @@ pub struct OwnershipStrengthQosPolicy {
     value: i32,
 }
 
+#[derive(PartialEq)]
 pub enum LivelinessQosPolicyKind {
     AutomaticLivelinessQoS,
     ManualByParticipantLivelinessQoS,
     ManualByTopicLivelinessQoS,
+}
+
+impl PartialOrd for LivelinessQosPolicyKind {
+    fn partial_cmp(&self, other: &LivelinessQosPolicyKind) -> Option<Ordering> {
+        match self {
+            LivelinessQosPolicyKind::AutomaticLivelinessQoS => {
+                match other {
+                    LivelinessQosPolicyKind::AutomaticLivelinessQoS => Some(Ordering::Equal),
+                    LivelinessQosPolicyKind::ManualByParticipantLivelinessQoS => Some(Ordering::Less),
+                    LivelinessQosPolicyKind::ManualByTopicLivelinessQoS => Some(Ordering::Less),
+                }
+            },
+            LivelinessQosPolicyKind::ManualByParticipantLivelinessQoS => {
+                match other {
+                    LivelinessQosPolicyKind::AutomaticLivelinessQoS => Some(Ordering::Greater),
+                    LivelinessQosPolicyKind::ManualByParticipantLivelinessQoS => Some(Ordering::Equal),
+                    LivelinessQosPolicyKind::ManualByTopicLivelinessQoS => Some(Ordering::Less),
+                }
+            },
+            LivelinessQosPolicyKind::ManualByTopicLivelinessQoS => {
+                match other {
+                    LivelinessQosPolicyKind::AutomaticLivelinessQoS => Some(Ordering::Greater),
+                    LivelinessQosPolicyKind::ManualByParticipantLivelinessQoS => Some(Ordering::Greater),
+                    LivelinessQosPolicyKind::ManualByTopicLivelinessQoS => Some(Ordering::Equal),
+                }
+            },
+        }
+    }
 }
 
 /// This policy controls the mechanism and parameters used by the Service to ensure that particular entities on the network are
@@ -364,9 +467,29 @@ pub struct PartitionQosPolicy {
     name: String,
 }
 
+#[derive(PartialEq)]
 pub enum ReliabilityQosPolicyKind {
     BestEffortReliabilityQos,
     ReliableReliabilityQos,
+}
+
+impl PartialOrd for ReliabilityQosPolicyKind {
+    fn partial_cmp(&self, other: &ReliabilityQosPolicyKind) -> Option<Ordering> {
+        match self {
+            ReliabilityQosPolicyKind::BestEffortReliabilityQos => {
+                match other {
+                    ReliabilityQosPolicyKind::BestEffortReliabilityQos => Some(Ordering::Equal),
+                    ReliabilityQosPolicyKind::ReliableReliabilityQos => Some(Ordering::Less),
+                }
+            },
+            ReliabilityQosPolicyKind::ReliableReliabilityQos => {
+                match other {
+                    ReliabilityQosPolicyKind::BestEffortReliabilityQos => Some(Ordering::Greater),
+                    ReliabilityQosPolicyKind::ReliableReliabilityQos => Some(Ordering::Equal),
+                }
+            },
+        }
+    }
 }
 
 /// This policy indicates the level of reliability requested by a DataReader or offered by a DataWriter. These levels are ordered,
@@ -391,9 +514,29 @@ pub struct ReliabilityQosPolicy {
     max_blocking_time: Duration,
 }
 
+#[derive(PartialEq)]
 pub enum DestinationOrderQosPolicyKind {
     ByReceptionTimestampDestinationOrderQoS,
     BySourceTimestampDestinationOrderQoS,
+}
+
+impl PartialOrd for DestinationOrderQosPolicyKind {
+    fn partial_cmp(&self, other: &DestinationOrderQosPolicyKind) -> Option<Ordering> {
+        match self {
+            DestinationOrderQosPolicyKind::ByReceptionTimestampDestinationOrderQoS => {
+                match other {
+                    DestinationOrderQosPolicyKind::ByReceptionTimestampDestinationOrderQoS => Some(Ordering::Equal),
+                    DestinationOrderQosPolicyKind::BySourceTimestampDestinationOrderQoS => Some(Ordering::Less),
+                }
+            },
+            DestinationOrderQosPolicyKind::BySourceTimestampDestinationOrderQoS => {
+                match other {
+                    DestinationOrderQosPolicyKind::ByReceptionTimestampDestinationOrderQoS => Some(Ordering::Greater),
+                    DestinationOrderQosPolicyKind::BySourceTimestampDestinationOrderQoS => Some(Ordering::Equal),
+                }
+            },
+        }
+    }
 }
 
 /// This policy controls how each subscriber resolves the final value of a data instance that is written by multiple DataWriter
@@ -597,4 +740,94 @@ pub struct SubscriberQos {
     partition: PartitionQosPolicy,
     group_data: GroupDataQosPolicy,
     entity_factory: EntityFactoryQosPolicy,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn durability_qos_policy_kind_ordering() {
+        assert!(DurabilityQosPolicyKind::VolatileDurabilityQoS < DurabilityQosPolicyKind::TransientLocalDurabilityQoS);
+        assert!(DurabilityQosPolicyKind::TransientLocalDurabilityQoS < DurabilityQosPolicyKind::TransientDurabilityQoS);
+        assert!(DurabilityQosPolicyKind::TransientDurabilityQoS < DurabilityQosPolicyKind::PersistentDurabilityQoS);
+
+        assert!(DurabilityQosPolicyKind::VolatileDurabilityQoS == DurabilityQosPolicyKind::VolatileDurabilityQoS);
+        assert!(DurabilityQosPolicyKind::VolatileDurabilityQoS < DurabilityQosPolicyKind::TransientLocalDurabilityQoS);
+        assert!(DurabilityQosPolicyKind::VolatileDurabilityQoS < DurabilityQosPolicyKind::TransientDurabilityQoS);
+        assert!(DurabilityQosPolicyKind::VolatileDurabilityQoS < DurabilityQosPolicyKind::PersistentDurabilityQoS);
+
+        assert!(DurabilityQosPolicyKind::TransientLocalDurabilityQoS > DurabilityQosPolicyKind::VolatileDurabilityQoS);
+        assert!(DurabilityQosPolicyKind::TransientLocalDurabilityQoS == DurabilityQosPolicyKind::TransientLocalDurabilityQoS);
+        assert!(DurabilityQosPolicyKind::TransientLocalDurabilityQoS < DurabilityQosPolicyKind::TransientDurabilityQoS);
+        assert!(DurabilityQosPolicyKind::TransientLocalDurabilityQoS < DurabilityQosPolicyKind::PersistentDurabilityQoS);
+
+        assert!(DurabilityQosPolicyKind::TransientDurabilityQoS > DurabilityQosPolicyKind::VolatileDurabilityQoS);
+        assert!(DurabilityQosPolicyKind::TransientDurabilityQoS > DurabilityQosPolicyKind::TransientLocalDurabilityQoS);
+        assert!(DurabilityQosPolicyKind::TransientDurabilityQoS == DurabilityQosPolicyKind::TransientDurabilityQoS);
+        assert!(DurabilityQosPolicyKind::TransientDurabilityQoS < DurabilityQosPolicyKind::PersistentDurabilityQoS);
+
+        assert!(DurabilityQosPolicyKind::PersistentDurabilityQoS > DurabilityQosPolicyKind::VolatileDurabilityQoS);
+        assert!(DurabilityQosPolicyKind::PersistentDurabilityQoS > DurabilityQosPolicyKind::TransientLocalDurabilityQoS);
+        assert!(DurabilityQosPolicyKind::PersistentDurabilityQoS > DurabilityQosPolicyKind::TransientDurabilityQoS);
+        assert!(DurabilityQosPolicyKind::PersistentDurabilityQoS == DurabilityQosPolicyKind::PersistentDurabilityQoS);
+    }
+
+    #[test]
+    fn presentation_qos_policy_access_scope_kind_ordering() {
+        assert!(PresentationQosPolicyAccessScopeKind::InstancePresentationQoS < PresentationQosPolicyAccessScopeKind::TopicPresentationQoS);
+        assert!(PresentationQosPolicyAccessScopeKind::TopicPresentationQoS < PresentationQosPolicyAccessScopeKind::GroupPresentationQoS);
+
+        assert!(PresentationQosPolicyAccessScopeKind::InstancePresentationQoS == PresentationQosPolicyAccessScopeKind::InstancePresentationQoS);
+        assert!(PresentationQosPolicyAccessScopeKind::InstancePresentationQoS < PresentationQosPolicyAccessScopeKind::TopicPresentationQoS);
+        assert!(PresentationQosPolicyAccessScopeKind::InstancePresentationQoS < PresentationQosPolicyAccessScopeKind::GroupPresentationQoS);
+
+        assert!(PresentationQosPolicyAccessScopeKind::TopicPresentationQoS > PresentationQosPolicyAccessScopeKind::InstancePresentationQoS);
+        assert!(PresentationQosPolicyAccessScopeKind::TopicPresentationQoS == PresentationQosPolicyAccessScopeKind::TopicPresentationQoS);
+        assert!(PresentationQosPolicyAccessScopeKind::TopicPresentationQoS < PresentationQosPolicyAccessScopeKind::GroupPresentationQoS);
+
+        assert!(PresentationQosPolicyAccessScopeKind::GroupPresentationQoS > PresentationQosPolicyAccessScopeKind::InstancePresentationQoS);
+        assert!(PresentationQosPolicyAccessScopeKind::GroupPresentationQoS > PresentationQosPolicyAccessScopeKind::TopicPresentationQoS);
+        assert!(PresentationQosPolicyAccessScopeKind::GroupPresentationQoS == PresentationQosPolicyAccessScopeKind::GroupPresentationQoS);
+    }
+
+    #[test]
+    fn liveliness_qos_policy_kind_ordering() {
+        assert!(LivelinessQosPolicyKind::AutomaticLivelinessQoS < LivelinessQosPolicyKind::ManualByParticipantLivelinessQoS);
+        assert!(LivelinessQosPolicyKind::ManualByParticipantLivelinessQoS < LivelinessQosPolicyKind::ManualByTopicLivelinessQoS);
+
+        assert!(LivelinessQosPolicyKind::AutomaticLivelinessQoS == LivelinessQosPolicyKind::AutomaticLivelinessQoS);
+        assert!(LivelinessQosPolicyKind::AutomaticLivelinessQoS < LivelinessQosPolicyKind::ManualByParticipantLivelinessQoS);
+        assert!(LivelinessQosPolicyKind::AutomaticLivelinessQoS < LivelinessQosPolicyKind::ManualByTopicLivelinessQoS);
+
+        assert!(LivelinessQosPolicyKind::ManualByParticipantLivelinessQoS > LivelinessQosPolicyKind::AutomaticLivelinessQoS);
+        assert!(LivelinessQosPolicyKind::ManualByParticipantLivelinessQoS == LivelinessQosPolicyKind::ManualByParticipantLivelinessQoS);
+        assert!(LivelinessQosPolicyKind::ManualByParticipantLivelinessQoS < LivelinessQosPolicyKind::ManualByTopicLivelinessQoS);
+
+        assert!(LivelinessQosPolicyKind::ManualByTopicLivelinessQoS > LivelinessQosPolicyKind::AutomaticLivelinessQoS);
+        assert!(LivelinessQosPolicyKind::ManualByTopicLivelinessQoS > LivelinessQosPolicyKind::ManualByParticipantLivelinessQoS);
+        assert!(LivelinessQosPolicyKind::ManualByTopicLivelinessQoS == LivelinessQosPolicyKind::ManualByTopicLivelinessQoS);
+    }
+
+    #[test]
+    fn reliability_qos_policy_kind_ordering() {
+        assert!(ReliabilityQosPolicyKind::BestEffortReliabilityQos < ReliabilityQosPolicyKind::ReliableReliabilityQos);
+
+        assert!(ReliabilityQosPolicyKind::BestEffortReliabilityQos == ReliabilityQosPolicyKind::BestEffortReliabilityQos);
+        assert!(ReliabilityQosPolicyKind::BestEffortReliabilityQos < ReliabilityQosPolicyKind::ReliableReliabilityQos);
+
+        assert!(ReliabilityQosPolicyKind::ReliableReliabilityQos > ReliabilityQosPolicyKind::BestEffortReliabilityQos);
+        assert!(ReliabilityQosPolicyKind::ReliableReliabilityQos == ReliabilityQosPolicyKind::ReliableReliabilityQos);
+    }
+
+    #[test]
+    fn destination_order_qos_policy_kind_ordering() {
+        assert!(DestinationOrderQosPolicyKind::ByReceptionTimestampDestinationOrderQoS < DestinationOrderQosPolicyKind::BySourceTimestampDestinationOrderQoS);
+
+        assert!(DestinationOrderQosPolicyKind::ByReceptionTimestampDestinationOrderQoS == DestinationOrderQosPolicyKind::ByReceptionTimestampDestinationOrderQoS);
+        assert!(DestinationOrderQosPolicyKind::ByReceptionTimestampDestinationOrderQoS < DestinationOrderQosPolicyKind::BySourceTimestampDestinationOrderQoS);
+        
+        assert!(DestinationOrderQosPolicyKind::BySourceTimestampDestinationOrderQoS > DestinationOrderQosPolicyKind::ByReceptionTimestampDestinationOrderQoS);
+        assert!(DestinationOrderQosPolicyKind::BySourceTimestampDestinationOrderQoS == DestinationOrderQosPolicyKind::BySourceTimestampDestinationOrderQoS);
+    }
 }
