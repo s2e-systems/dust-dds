@@ -282,7 +282,7 @@ impl DomainParticipant {
     /// set_default_publisher_qos, or else, if the call was never made, the default values listed in the QoS table in 2.2.3, Supported
     /// QoS.
     pub fn get_default_publisher_qos(
-        _qos_list: &[&dyn QosPolicy],
+        _qos_list: &mut [&dyn QosPolicy],
     ) -> ReturnCode {
         todo!()
     }
@@ -306,7 +306,7 @@ impl DomainParticipant {
     /// set_default_subscriber_qos, or else, if the call was never made, the default values listed in the QoS table in 2.2.3, Supported
     /// QoS.
     pub fn get_default_subscriber_qos(
-        _qos_list: &[&dyn QosPolicy],
+        _qos_list: &mut [&dyn QosPolicy],
     ) -> ReturnCode {
         todo!()
     }

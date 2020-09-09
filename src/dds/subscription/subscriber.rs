@@ -209,7 +209,7 @@ impl Subscriber {
     /// get_default_datareader_qos, or else, if the call was never made, the default values listed in the QoS table in 2.2.3,
     /// Supported QoS.
     pub fn get_default_datareader_qos(
-        _qos_list: &[&dyn QosPolicy],
+        _qos_list: &mut [&dyn QosPolicy],
     ) -> ReturnCode {
         todo!()
     }
