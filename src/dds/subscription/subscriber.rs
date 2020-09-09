@@ -13,6 +13,7 @@ use crate::dds::subscription::data_reader::DataReader;
 use crate::dds::subscription::data_reader_listener::DataReaderListener;
 use crate::dds::infrastructure::qos_policy::QosPolicy;
 use crate::dds::infrastructure::entity::Entity;
+use crate::dds::infrastructure::entity::DomainEntity;
 use crate::dds::subscription::subscriber_listener::SubscriberListener;
 
 pub mod qos {
@@ -268,3 +269,5 @@ impl Entity for Subscriber {
         todo!()
     }
 }
+
+impl DomainEntity for Subscriber{}

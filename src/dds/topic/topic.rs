@@ -1,6 +1,7 @@
 use crate::dds::types::ReturnCode;
 use crate::dds::infrastructure::status::InconsistentTopicStatus;
 use crate::dds::infrastructure::entity::Entity;
+use crate::dds::infrastructure::entity::DomainEntity;
 use crate::dds::topic::topic_listener::TopicListener;
 
 /// Topic is the most basic description of the data to be published and subscribed.
@@ -59,3 +60,5 @@ impl Entity for Topic {
         todo!()
     }
 }
+
+impl DomainEntity for Topic{}

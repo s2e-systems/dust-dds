@@ -6,6 +6,7 @@ use crate::dds::publication::data_writer_listener::DataWriterListener;
 use crate::dds::publication::data_writer::DataWriter;
 use crate::dds::infrastructure::qos_policy::QosPolicy;
 use crate::dds::infrastructure::entity::Entity;
+use crate::dds::infrastructure::entity::DomainEntity;
 use crate::dds::publication::publisher_listener::PublisherListener;
 
 pub mod qos {
@@ -236,3 +237,5 @@ impl Entity for Publisher{
         todo!()
     }
 }
+
+impl DomainEntity for Publisher{}

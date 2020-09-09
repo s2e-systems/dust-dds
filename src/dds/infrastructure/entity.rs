@@ -4,6 +4,8 @@ use crate::dds::infrastructure::qos_policy::QosPolicy;
 
 pub struct StatusCondition;
 
+pub trait DomainEntity : Entity{}
+
 pub trait Entity {
     type Listener;
 

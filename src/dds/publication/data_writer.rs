@@ -5,10 +5,11 @@ use crate::dds::infrastructure::status::{LivelinessLostStatus, OfferedDeadlineMi
 use crate::dds::topic::topic::Topic;
 use crate::dds::publication::publisher::Publisher;
 use crate::dds::infrastructure::entity::Entity;
+use crate::dds::infrastructure::entity::DomainEntity;
 use crate::dds::publication::data_writer_listener::DataWriterListener;
 
 pub mod qos {
-    use crate::dds::types::{Duration};
+    use crate::dds::types::Duration;
     use crate::dds::infrastructure::qos_policy::{
         DurabilityQosPolicy,
         DurabilityServiceQosPolicy,
@@ -422,3 +423,5 @@ impl Entity for DataWriter{
         todo!()
     }
 }
+
+impl DomainEntity for DataWriter{}

@@ -6,6 +6,7 @@ use crate::dds::topic::topic_description::TopicDescription;
 use crate::dds::subscription::subscriber::Subscriber;
 use crate::dds::subscription::sample_info::SampleInfo;
 use crate::dds::infrastructure::entity::Entity;
+use crate::dds::infrastructure::entity::DomainEntity;
 use crate::dds::subscription::data_reader_listener::DataReaderListener;
 
 
@@ -651,3 +652,5 @@ impl Entity for DataReader {
         todo!()
     }
 }
+
+impl DomainEntity for DataReader{}
