@@ -4,6 +4,8 @@ use crate::dds::types::{InstanceHandle, Time, ReturnCode, Duration};
 use crate::dds::infrastructure::status::{LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus};
 use crate::dds::topic::topic::Topic;
 use crate::dds::publication::publisher::Publisher;
+use crate::dds::infrastructure::entity::Entity;
+use crate::dds::publication::data_writer_listener::DataWriterListener;
 
 pub mod qos {
     use crate::dds::types::{Duration};
@@ -381,6 +383,42 @@ impl DataWriter {
     pub fn get_matched_subscriptions(
         _subscription_handles: &[InstanceHandle],
     ) -> ReturnCode {
+        todo!()
+    }
+}
+
+impl Entity for DataWriter{
+    type Listener = Box<dyn DataWriterListener>;
+
+    fn set_qos(&self, _qos_list: &[&dyn crate::dds::infrastructure::qos_policy::QosPolicy]) -> ReturnCode {
+        todo!()
+    }
+
+    fn get_qos(&self, _qos_list: &mut [&dyn crate::dds::infrastructure::qos_policy::QosPolicy]) -> ReturnCode {
+        todo!()
+    }
+
+    fn set_listener(&self, _a_listener: Self::Listener, _mask: &[crate::dds::types::StatusKind]) -> ReturnCode {
+        todo!()
+    }
+
+    fn get_listener(&self, ) -> Self::Listener {
+        todo!()
+    }
+
+    fn get_statuscondition(&self, ) -> crate::dds::infrastructure::entity::StatusCondition {
+        todo!()
+    }
+
+    fn get_status_changes(&self, ) -> crate::dds::types::StatusKind {
+        todo!()
+    }
+
+    fn enable(&self, ) -> ReturnCode {
+        todo!()
+    }
+
+    fn get_instance_handle(&self, ) -> InstanceHandle {
         todo!()
     }
 }

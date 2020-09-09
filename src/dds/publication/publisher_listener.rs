@@ -1,1 +1,1 @@
-pub struct PublisherListener{}
+pub trait PublisherListener{}

@@ -5,6 +5,8 @@ use crate::dds::topic::topic::Topic;
 use crate::dds::publication::data_writer_listener::DataWriterListener;
 use crate::dds::publication::data_writer::DataWriter;
 use crate::dds::infrastructure::qos_policy::QosPolicy;
+use crate::dds::infrastructure::entity::Entity;
+use crate::dds::publication::publisher_listener::PublisherListener;
 
 pub mod qos {
     use crate::dds::infrastructure::qos_policy::{
@@ -56,7 +58,7 @@ impl Publisher {
     pub fn create_datawriter(
         _a_topic: Topic,
         _qos: &[&dyn QosPolicy],
-        _a_listener: DataWriterListener,
+        _a_listener: Box<dyn DataWriterListener>,
         _mask: &[StatusKind]
     ) -> DataWriter {
         todo!()
@@ -195,6 +197,42 @@ impl Publisher {
         _a_datawriter_qos: &mut [&dyn QosPolicy],
         _a_topic_qos: &[&dyn QosPolicy],
     ) -> ReturnCode {
+        todo!()
+    }
+}
+
+impl Entity for Publisher{
+    type Listener = Box<dyn PublisherListener>;
+
+    fn set_qos(&self, _qos_list: &[&dyn QosPolicy]) -> ReturnCode {
+        todo!()
+    }
+
+    fn get_qos(&self, _qos_list: &mut [&dyn QosPolicy]) -> ReturnCode {
+        todo!()
+    }
+
+    fn set_listener(&self, _a_listener: Self::Listener, _mask: &[StatusKind]) -> ReturnCode {
+        todo!()
+    }
+
+    fn get_listener(&self, ) -> Self::Listener {
+        todo!()
+    }
+
+    fn get_statuscondition(&self, ) -> crate::dds::infrastructure::entity::StatusCondition {
+        todo!()
+    }
+
+    fn get_status_changes(&self, ) -> StatusKind {
+        todo!()
+    }
+
+    fn enable(&self, ) -> ReturnCode {
+        todo!()
+    }
+
+    fn get_instance_handle(&self, ) -> crate::dds::types::InstanceHandle {
         todo!()
     }
 }

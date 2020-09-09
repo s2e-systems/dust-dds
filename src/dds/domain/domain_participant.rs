@@ -5,6 +5,8 @@ use crate::dds::topic::topic_description::TopicDescription;
 use crate::dds::subscription::subscriber::Subscriber;
 use crate::dds::subscription::subscriber_listener::SubscriberListener;
 use crate::dds::infrastructure::qos_policy::QosPolicy;
+use crate::dds::infrastructure::entity::Entity;
+use crate::dds::domain::domain_participant_listener::DomainParticipantListener;
 
 pub mod qos {
     use crate::dds::infrastructure::qos_policy::{
@@ -75,7 +77,7 @@ impl DomainParticipant {
     /// The created Subscriber belongs to the DomainParticipant that is its factory.
     /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
     pub fn create_subscriber(
-        _a_listener: SubscriberListener,
+        _a_listener: Box<dyn SubscriberListener>,
         _qos_list: &[&dyn QosPolicy],
         _mask: &[StatusKind]
     ) -> Subscriber {
@@ -109,7 +111,7 @@ impl DomainParticipant {
         _topic_name: String,
         _type_name: String,
         _qos_list: &[&dyn QosPolicy],
-        _a_listener: TopicListener,
+        _a_listener: Box<dyn TopicListener>,
         _mask: &[StatusKind]
     ) -> Topic {
         todo!()
@@ -405,4 +407,41 @@ impl DomainParticipant {
         todo!()
     }
 
+}
+
+impl Entity for DomainParticipant
+{
+    type Listener = Box<dyn DomainParticipantListener>;
+
+    fn set_qos(&self, _qos_list: &[&dyn QosPolicy]) -> ReturnCode {
+        todo!()
+    }
+
+    fn get_qos(&self, _qos_list: &mut [&dyn QosPolicy]) -> ReturnCode {
+        todo!()
+    }
+
+    fn set_listener(&self, _a_listener: Self::Listener, _mask: &[StatusKind]) -> ReturnCode {
+        todo!()
+    }
+
+    fn get_listener(&self, ) -> Self::Listener {
+        todo!()
+    }
+
+    fn get_statuscondition(&self, ) -> crate::dds::infrastructure::entity::StatusCondition {
+        todo!()
+    }
+
+    fn get_status_changes(&self, ) -> StatusKind {
+        todo!()
+    }
+
+    fn enable(&self, ) -> ReturnCode {
+        todo!()
+    }
+
+    fn get_instance_handle(&self, ) -> InstanceHandle {
+        todo!()
+    }
 }

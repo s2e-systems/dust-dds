@@ -27,7 +27,7 @@ impl DomainParticipantFactory {
     pub fn create_participant(
         _domain_id: DomainId,
         _qos_list: &[&dyn QosPolicy],
-        _a_listener: DomainParticipantListener,
+        _a_listener: impl DomainParticipantListener,
         _mask: &[StatusKind],
     ) ->  DomainParticipant {
         todo!()

@@ -5,6 +5,8 @@ use crate::dds::infrastructure::status::{LivelinessChangedStatus, RequestedDeadl
 use crate::dds::topic::topic_description::TopicDescription;
 use crate::dds::subscription::subscriber::Subscriber;
 use crate::dds::subscription::sample_info::SampleInfo;
+use crate::dds::infrastructure::entity::Entity;
+use crate::dds::subscription::data_reader_listener::DataReaderListener;
 
 
 pub mod qos {
@@ -610,6 +612,42 @@ impl DataReader {
     pub fn get_match_publication(
         _publication_handles: &mut [InstanceHandle],
     ) -> ReturnCode {
+        todo!()
+    }
+}
+
+impl Entity for DataReader {
+    type Listener = Box<dyn DataReaderListener>;
+
+    fn set_qos(&self, _qos_list: &[&dyn crate::dds::infrastructure::qos_policy::QosPolicy]) -> ReturnCode {
+        todo!()
+    }
+
+    fn get_qos(&self, _qos_list: &mut [&dyn crate::dds::infrastructure::qos_policy::QosPolicy]) -> ReturnCode {
+        todo!()
+    }
+
+    fn set_listener(&self, _a_listener: Self::Listener, _mask: &[crate::dds::types::StatusKind]) -> ReturnCode {
+        todo!()
+    }
+
+    fn get_listener(&self, ) -> Self::Listener {
+        todo!()
+    }
+
+    fn get_statuscondition(&self, ) -> crate::dds::infrastructure::entity::StatusCondition {
+        todo!()
+    }
+
+    fn get_status_changes(&self, ) -> crate::dds::types::StatusKind {
+        todo!()
+    }
+
+    fn enable(&self, ) -> ReturnCode {
+        todo!()
+    }
+
+    fn get_instance_handle(&self, ) -> InstanceHandle {
         todo!()
     }
 }

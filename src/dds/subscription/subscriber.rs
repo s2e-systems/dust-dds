@@ -12,6 +12,8 @@ use crate::dds::topic::topic_description::TopicDescription;
 use crate::dds::subscription::data_reader::DataReader;
 use crate::dds::subscription::data_reader_listener::DataReaderListener;
 use crate::dds::infrastructure::qos_policy::QosPolicy;
+use crate::dds::infrastructure::entity::Entity;
+use crate::dds::subscription::subscriber_listener::SubscriberListener;
 
 pub mod qos {
     use crate::dds::infrastructure::qos_policy::{
@@ -71,7 +73,7 @@ impl Subscriber {
     pub fn create_datareader(
         _a_topic: TopicDescription,
         _qos: &[&dyn QosPolicy],
-        _a_listener: DataReaderListener,
+        _a_listener: Box<dyn DataReaderListener>,
         _mask: &[StatusKind]
     ) -> DataReader {
         todo!()
@@ -229,4 +231,40 @@ impl Subscriber {
         todo!()
     }
 
+}
+
+impl Entity for Subscriber {
+    type Listener = Box<dyn SubscriberListener>;
+
+    fn set_qos(&self, _qos_list: &[&dyn QosPolicy]) -> ReturnCode {
+        todo!()
+    }
+
+    fn get_qos(&self, _qos_list: &mut [&dyn QosPolicy]) -> ReturnCode {
+        todo!()
+    }
+
+    fn set_listener(&self, _a_listener: Self::Listener, _mask: &[StatusKind]) -> ReturnCode {
+        todo!()
+    }
+
+    fn get_listener(&self, ) -> Self::Listener {
+        todo!()
+    }
+
+    fn get_statuscondition(&self, ) -> crate::dds::infrastructure::entity::StatusCondition {
+        todo!()
+    }
+
+    fn get_status_changes(&self, ) -> StatusKind {
+        todo!()
+    }
+
+    fn enable(&self, ) -> ReturnCode {
+        todo!()
+    }
+
+    fn get_instance_handle(&self, ) -> crate::dds::types::InstanceHandle {
+        todo!()
+    }
 }
