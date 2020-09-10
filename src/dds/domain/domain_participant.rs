@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::dds::types::{StatusKind, ReturnCode, Duration, InstanceHandle, DomainId, Time};
 use crate::dds::topic::topic::Topic;
 use crate::dds::topic::topic_listener::TopicListener;
@@ -9,6 +11,7 @@ use crate::dds::publication::publisher_listener::PublisherListener;
 use crate::dds::infrastructure::qos_policy::QosPolicy;
 use crate::dds::infrastructure::entity::Entity;
 use crate::dds::domain::domain_participant_listener::DomainParticipantListener;
+use crate::dds::domain::domain_participant_impl::DomainParticipantImpl;
 
 pub mod qos {
     use crate::dds::infrastructure::qos_policy::{
@@ -45,7 +48,7 @@ pub struct TopicBuiltinTopicData{}
 /// - Factory methods: create_topic, create_publisher, create_subscriber, delete_topic, delete_publisher,
 /// delete_subscriber
 /// - Operations that access the status: get_statuscondition
-pub struct DomainParticipant{}
+pub struct DomainParticipant(Arc<DomainParticipantImpl>);
 
 impl DomainParticipant {
     /// This operation creates a Publisher with the desired QoS policies and attaches to it the specified PublisherListener.
@@ -57,11 +60,11 @@ impl DomainParticipant {
     /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
     pub fn create_publisher(
         &self,
-        _qos_list: &[&dyn QosPolicy],
-        _a_listener: Box<dyn PublisherListener>,
-        _mask: &[StatusKind]
-    ) {
-        todo!()
+        qos_list: &[&dyn QosPolicy],
+        a_listener: Box<dyn PublisherListener>,
+        mask: &[StatusKind]
+    ) -> Publisher {
+        self.0.create_publisher(qos_list, a_listener, mask)
     }
 
     /// This operation deletes an existing Publisher.
@@ -73,9 +76,9 @@ impl DomainParticipant {
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
     pub fn delete_publisher(
         &self,
-        _a_publisher: Publisher
-    ) {
-        todo!()
+        a_publisher: Publisher
+    ) -> ReturnCode {
+        self.0.delete_publisher(a_publisher)
     }
 
     /// This operation creates a Subscriber with the desired QoS policies and attaches to it the specified SubscriberListener.
@@ -88,11 +91,11 @@ impl DomainParticipant {
     /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
     pub fn create_subscriber(
         &self,
-        _qos_list: &[&dyn QosPolicy],
-        _a_listener: Box<dyn SubscriberListener>,
-        _mask: &[StatusKind]
+        qos_list: &[&dyn QosPolicy],
+        a_listener: Box<dyn SubscriberListener>,
+        mask: &[StatusKind]
     ) -> Subscriber {
-        todo!()
+        self.0.create_subscriber(qos_list, a_listener, mask)
     }
 
     /// This operation deletes an existing Subscriber.
@@ -104,9 +107,9 @@ impl DomainParticipant {
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
     pub fn delete_subscriber(
         &self,
-        _a_subscriber: Subscriber,
+        a_subscriber: Subscriber,
     ) -> ReturnCode {
-        todo!()
+        self.0.delete_subscriber(a_subscriber)
     }
 
     /// This operation creates a Topic with the desired QoS policies and attaches to it the specified TopicListener.
@@ -121,13 +124,13 @@ impl DomainParticipant {
     /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
     pub fn create_topic(
         &self,
-        _topic_name: String,
-        _type_name: String,
-        _qos_list: &[&dyn QosPolicy],
-        _a_listener: Box<dyn TopicListener>,
-        _mask: &[StatusKind]
+        topic_name: String,
+        type_name: String,
+        qos_list: &[&dyn QosPolicy],
+        a_listener: Box<dyn TopicListener>,
+        mask: &[StatusKind]
     ) -> Topic {
-        todo!()
+        self.0.create_topic(topic_name, type_name, qos_list, a_listener, mask)
     }
 
     /// This operation deletes a Topic.
@@ -139,9 +142,9 @@ impl DomainParticipant {
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
     pub fn delete_topic(
         &self,
-        _a_topic: Topic,
+        a_topic: Topic,
     ) -> ReturnCode {
-        todo!()
+        self.0.delete_topic(a_topic)
     }
 
     /// The operation find_topic gives access to an existing (or ready to exist) enabled Topic, based on its name. The operation takes
@@ -157,10 +160,10 @@ impl DomainParticipant {
     /// If the operation times-out, a ‘nil’ value (as specified by the platform) is returned.
     pub fn find_topic(
         &self,
-        _topic_name: String,
-        _timeout: Duration,
+        topic_name: String,
+        timeout: Duration,
     ) -> Topic {
-        todo!()
+        self.0.find_topic(topic_name, timeout)
     }
 
     /// The operation lookup_topicdescription gives access to an existing locally-created TopicDescription, based on its name. The
@@ -176,9 +179,9 @@ impl DomainParticipant {
     /// If the operation fails to locate a TopicDescription, a ‘nil’ value (as specified by the platform) is returned.
     pub fn lookup_topicdescription(
         &self,
-        _name: String,
+        name: String,
     ) -> TopicDescription {
-        todo!()
+        self.0.lookup_topicdescription(name)
     }
 
     /// This operation allows access to the built-in Subscriber. Each DomainParticipant contains several built-in Topic objects as
@@ -186,7 +189,7 @@ impl DomainParticipant {
     /// The built-in Topics are used to communicate information about other DomainParticipant, Topic, DataReader, and DataWriter
     /// objects. These built-in objects are described in 2.2.5, Built-in Topics.
     pub fn get_builtin_subscriber(&self,) -> Subscriber {
-        todo!()
+        self.0.get_builtin_subscriber()
     }
 
     /// This operation allows an application to instruct the Service to locally ignore a remote domain participant. From that point
@@ -205,9 +208,9 @@ impl DomainParticipant {
     /// Possible error codes returned in addition to the standard ones: OUT_OF_RESOURCES.
     pub fn ignore_participant(
         &self,
-        _handle: InstanceHandle
+        handle: InstanceHandle
     ) -> ReturnCode{
-        todo!()
+        self.0.ignore_participant(handle)
     }
 
     /// This operation allows an application to instruct the Service to locally ignore a Topic. This means it will locally ignore any
@@ -220,9 +223,9 @@ impl DomainParticipant {
     /// Possible error codes returned in addition to the standard ones: OUT_OF_RESOURCES.
     pub fn ignore_topic(
         &self,
-        _handle: InstanceHandle
+        handle: InstanceHandle
     ) -> ReturnCode{
-        todo!()
+        self.0.ignore_topic(handle)
     }
 
     /// This operation allows an application to instruct the Service to locally ignore a remote publication; a publication is defined by
@@ -234,9 +237,9 @@ impl DomainParticipant {
     /// Possible error codes returned in addition to the standard ones: OUT_OF_RESOURCES.
     pub fn ignore_publication(
         &self,
-        _handle: InstanceHandle
+        handle: InstanceHandle
     ) -> ReturnCode{
-        todo!()
+        self.0.ignore_publication(handle)
     }
 
     /// This operation allows an application to instruct the Service to locally ignore a remote subscription; a subscription is defined by
@@ -248,16 +251,16 @@ impl DomainParticipant {
     /// Possible error codes returned in addition to the standard ones: OUT_OF_RESOURCES.
     pub fn ignore_subscription(
         &self,
-        _handle: InstanceHandle
+        handle: InstanceHandle
     ) -> ReturnCode{
-        todo!()
+        self.0.ignore_subscription(handle)
     }
 
     /// This operation retrieves the domain_id used to create the DomainParticipant. The domain_id identifies the DDS domain to
     /// which the DomainParticipant belongs. As described in the introduction to 2.2.2.2.1 each DDS domain represents a separate
     /// data “communication plane” isolated from other domains
     pub fn get_domain_id(&self,) -> DomainId {
-        todo!()
+        self.0.get_domain_id()
     }
 
     /// This operation deletes all the entities that were created by means of the “create” operations on the DomainParticipant. That is,
@@ -271,8 +274,8 @@ impl DomainParticipant {
     /// deleted.
     /// Once delete_contained_entities returns successfully, the application may delete the DomainParticipant knowing that it has no
     /// contained entities.
-    pub fn delete_contained_entities(&self,) -> ReturnCode {
-        todo!()   
+    pub fn delete_contained_entities(&self) -> ReturnCode {
+        self.0.delete_contained_entities()
     }
 
     /// This operation manually asserts the liveliness of the DomainParticipant. This is used in combination with the LIVELINESS
@@ -282,8 +285,8 @@ impl DomainParticipant {
     /// NOTE: Writing data via the write operation on a DataWriter asserts liveliness on the DataWriter itself and its
     /// DomainParticipant. Consequently the use of assert_liveliness is only needed if the application is not writing data regularly.
     /// Complete details are provided in 2.2.3.11, LIVELINESS
-    pub fn assert_liveliness(&self,) -> ReturnCode {
-        todo!()   
+    pub fn assert_liveliness(&self) -> ReturnCode {
+        self.0.assert_liveliness()
     }
 
     /// This operation sets a default value of the Publisher QoS policies which will be used for newly created Publisher entities in the
@@ -295,9 +298,9 @@ impl DomainParticipant {
     /// operation had never been called.
     pub fn set_default_publisher_qos(
         &self,
-        _qos_list: &[&dyn QosPolicy],
+        qos_list: &[&dyn QosPolicy],
     ) -> ReturnCode {
-        todo!()
+        self.0.set_default_publisher_qos(qos_list)
     }
 
     /// This operation retrieves the default value of the Publisher QoS, that is, the QoS policies which will be used for newly created
@@ -307,9 +310,9 @@ impl DomainParticipant {
     /// QoS.
     pub fn get_default_publisher_qos(
         &self,
-        _qos_list: &mut [&dyn QosPolicy],
+        qos_list: &mut [&dyn QosPolicy],
     ) -> ReturnCode {
-        todo!()
+        self.0.get_default_publisher_qos(qos_list)
     }
 
     /// This operation sets a default value of the Subscriber QoS policies that will be used for newly created Subscriber entities in the
@@ -321,9 +324,9 @@ impl DomainParticipant {
     /// operation had never been called.
     pub fn set_default_subscriber_qos(
         &self,
-        _qos_list: &[&dyn QosPolicy],
+        qos_list: &[&dyn QosPolicy],
     ) -> ReturnCode {
-        todo!()
+        self.0.set_default_subscriber_qos(qos_list)
     }
 
     /// This operation retrieves the default value of the Subscriber QoS, that is, the QoS policies which will be used for newly created
@@ -333,9 +336,9 @@ impl DomainParticipant {
     /// QoS.
     pub fn get_default_subscriber_qos(
         &self,
-        _qos_list: &mut [&dyn QosPolicy],
+        qos_list: &mut [&dyn QosPolicy],
     ) -> ReturnCode {
-        todo!()
+        self.0.get_default_subscriber_qos(qos_list)
     }
 
     /// This operation sets a default value of the Topic QoS policies which will be used for newly created Topic entities in the case
@@ -347,9 +350,9 @@ impl DomainParticipant {
     /// had never been called.
     pub fn set_default_topic_qos(
         &self,
-        _qos_list: &[&dyn QosPolicy],
+        qos_list: &[&dyn QosPolicy],
     ) -> ReturnCode {
-        todo!()
+        self.0.set_default_topic_qos(qos_list)
     }
 
     /// This operation retrieves the default value of the Topic QoS, that is, the QoS policies that will be used for newly created Topic
@@ -358,9 +361,9 @@ impl DomainParticipant {
     /// set_default_topic_qos, or else, if the call was never made, the default values listed in the QoS table in 2.2.3, Supported QoS.
     pub fn get_default_topic_qos(
         &self,
-        _qos_list: &[&dyn QosPolicy],
+        qos_list: &[&dyn QosPolicy],
     ) -> ReturnCode {
-        todo!()
+        self.0.get_default_topic_qos(qos_list)
     }
 
     /// This operation retrieves the list of DomainParticipants that have been discovered in the domain and that the application has not
@@ -369,9 +372,9 @@ impl DomainParticipant {
     /// will return UNSUPPORTED.
     pub fn get_discovered_participants(
         &self,
-        _participant_handles: &mut [InstanceHandle]
+        participant_handles: &mut [InstanceHandle]
     ) -> ReturnCode {
-        todo!()
+        self.0.get_discovered_participants(participant_handles)
     }
 
     /// This operation retrieves information on a DomainParticipant that has been discovered on the network. The participant must
@@ -384,19 +387,19 @@ impl DomainParticipant {
     /// case the operation will return UNSUPPORTED.
     pub fn get_discovered_participant_data(
         &self,
-        _participant_data: ParticipantBuiltinTopicData,
-        _participant_handle: InstanceHandle
+        participant_data: ParticipantBuiltinTopicData,
+        participant_handle: InstanceHandle
     ) -> ReturnCode {
-        todo!()
+        self.0.get_discovered_participant_data(participant_data, participant_handle)
     }
 
     /// This operation retrieves the list of Topics that have been discovered in the domain and that the application has not indicated
     /// should be “ignored” by means of the DomainParticipant ignore_topic operation.
     pub fn get_discovered_topics(
         &self,
-        _topic_handles: &mut [InstanceHandle]
+        topic_handles: &mut [InstanceHandle]
     ) -> ReturnCode {
-        todo!()
+        self.0.get_discovered_topics(topic_handles)
     }
 
     /// This operation retrieves information on a Topic that has been discovered on the network. The topic must have been created by
@@ -411,10 +414,10 @@ impl DomainParticipant {
     /// will return UNSUPPORTED.
     pub fn get_discovered_topic_data(
         &self,
-        _topic_data: TopicBuiltinTopicData,
-        _topic_handle: InstanceHandle
+        topic_data: TopicBuiltinTopicData,
+        topic_handle: InstanceHandle
     ) -> ReturnCode {
-        todo!()
+        self.0.get_discovered_topic_data(topic_data, topic_handle)
     }
 
     /// This operation checks whether or not the given a_handle represents an Entity that was created from the DomainParticipant.
@@ -425,18 +428,18 @@ impl DomainParticipant {
     /// get_instance_handle.
     pub fn contains_entity(
         &self,
-        _a_handle: InstanceHandle
+        a_handle: InstanceHandle
     ) -> bool {
-        todo!()
+        self.0.contains_entity(a_handle)
     }
 
     /// This operation returns the current value of the time that the service uses to time-stamp data-writes and to set the receptiontimestamp
     /// for the data-updates it receives.
     pub fn get_current_time(
         &self,
-        _current_time: Time,
+        current_time: Time,
     ) -> ReturnCode {
-        todo!()
+        self.0.get_current_time(current_time)
     }
 
 }
