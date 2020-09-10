@@ -1,17 +1,16 @@
 use crate::dds::types::{ReturnCode, StatusKind, InstanceHandle};
-use crate::dds::infrastructure::qos_policy::QosPolicy;
-// use crate::dds::infrastructure::Listener;
 
 pub struct StatusCondition;
 
 pub trait DomainEntity : Entity{}
 
 pub trait Entity {
+    type Qos;
     type Listener;
 
-    fn set_qos(&self, qos_list: &[&dyn QosPolicy]) -> ReturnCode;
+    fn set_qos(&self, qos_list: Self::Qos) -> ReturnCode;
 
-    fn get_qos(&self, qos_list: &mut [&dyn QosPolicy]) -> ReturnCode;
+    fn get_qos(&self, qos_list: &mut Self::Qos) -> ReturnCode;
 
     fn set_listener(&self, a_listener: Self::Listener, mask: &[StatusKind]) -> ReturnCode;
 

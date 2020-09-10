@@ -4,14 +4,18 @@ use crate::dds::types::{StatusKind, ReturnCode, Duration, InstanceHandle, Domain
 use crate::dds::topic::topic::Topic;
 use crate::dds::topic::topic_listener::TopicListener;
 use crate::dds::topic::topic_description::TopicDescription;
+use crate::dds::topic::qos::TopicQos;
 use crate::dds::subscription::subscriber::Subscriber;
+use crate::dds::subscription::subscriber::qos::SubscriberQos;
 use crate::dds::subscription::subscriber_listener::SubscriberListener;
 use crate::dds::publication::publisher::Publisher;
 use crate::dds::publication::publisher_listener::PublisherListener;
-use crate::dds::infrastructure::qos_policy::QosPolicy;
+use crate::dds::publication::publisher::qos::PublisherQos;
 use crate::dds::infrastructure::entity::Entity;
 use crate::dds::domain::domain_participant_listener::DomainParticipantListener;
 use crate::dds::domain::domain_participant_impl::DomainParticipantImpl;
+use qos::DomainParticipantQos;
+
 
 pub mod qos {
     use crate::dds::infrastructure::qos_policy::{
@@ -60,7 +64,7 @@ impl DomainParticipant {
     /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
     pub fn create_publisher(
         &self,
-        qos_list: &[&dyn QosPolicy],
+        qos_list: PublisherQos,
         a_listener: Box<dyn PublisherListener>,
         mask: &[StatusKind]
     ) -> Publisher {
@@ -91,7 +95,7 @@ impl DomainParticipant {
     /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
     pub fn create_subscriber(
         &self,
-        qos_list: &[&dyn QosPolicy],
+        qos_list: SubscriberQos,
         a_listener: Box<dyn SubscriberListener>,
         mask: &[StatusKind]
     ) -> Subscriber {
@@ -126,7 +130,7 @@ impl DomainParticipant {
         &self,
         topic_name: String,
         type_name: String,
-        qos_list: &[&dyn QosPolicy],
+        qos_list: TopicQos,
         a_listener: Box<dyn TopicListener>,
         mask: &[StatusKind]
     ) -> Topic {
@@ -298,7 +302,7 @@ impl DomainParticipant {
     /// operation had never been called.
     pub fn set_default_publisher_qos(
         &self,
-        qos_list: &[&dyn QosPolicy],
+        qos_list: PublisherQos,
     ) -> ReturnCode {
         self.0.set_default_publisher_qos(qos_list)
     }
@@ -310,7 +314,7 @@ impl DomainParticipant {
     /// QoS.
     pub fn get_default_publisher_qos(
         &self,
-        qos_list: &mut [&dyn QosPolicy],
+        qos_list: &mut PublisherQos,
     ) -> ReturnCode {
         self.0.get_default_publisher_qos(qos_list)
     }
@@ -324,7 +328,7 @@ impl DomainParticipant {
     /// operation had never been called.
     pub fn set_default_subscriber_qos(
         &self,
-        qos_list: &[&dyn QosPolicy],
+        qos_list: SubscriberQos,
     ) -> ReturnCode {
         self.0.set_default_subscriber_qos(qos_list)
     }
@@ -336,7 +340,7 @@ impl DomainParticipant {
     /// QoS.
     pub fn get_default_subscriber_qos(
         &self,
-        qos_list: &mut [&dyn QosPolicy],
+        qos_list: &mut SubscriberQos,
     ) -> ReturnCode {
         self.0.get_default_subscriber_qos(qos_list)
     }
@@ -350,7 +354,7 @@ impl DomainParticipant {
     /// had never been called.
     pub fn set_default_topic_qos(
         &self,
-        qos_list: &[&dyn QosPolicy],
+        qos_list: TopicQos,
     ) -> ReturnCode {
         self.0.set_default_topic_qos(qos_list)
     }
@@ -361,7 +365,7 @@ impl DomainParticipant {
     /// set_default_topic_qos, or else, if the call was never made, the default values listed in the QoS table in 2.2.3, Supported QoS.
     pub fn get_default_topic_qos(
         &self,
-        qos_list: &[&dyn QosPolicy],
+        qos_list: &mut TopicQos,
     ) -> ReturnCode {
         self.0.get_default_topic_qos(qos_list)
     }
@@ -446,13 +450,14 @@ impl DomainParticipant {
 
 impl Entity for DomainParticipant
 {
+    type Qos = DomainParticipantQos;
     type Listener = Box<dyn DomainParticipantListener>;
 
-    fn set_qos(&self, qos_list: &[&dyn QosPolicy]) -> ReturnCode {
+    fn set_qos(&self, qos_list: Self::Qos) -> ReturnCode {
         self.0.set_qos(qos_list)
     }
 
-    fn get_qos(&self, qos_list: &mut [&dyn QosPolicy]) -> ReturnCode {
+    fn get_qos(&self, qos_list: &mut Self::Qos) -> ReturnCode {
         self.0.get_qos(qos_list)
     }
 

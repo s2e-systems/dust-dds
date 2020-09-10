@@ -4,13 +4,15 @@ use std::sync::Weak;
 use crate::dds::types::{StatusKind, ReturnCode, Duration};
 use crate::dds::domain::domain_participant::DomainParticipant;
 use crate::dds::topic::topic::Topic;
+use crate::dds::topic::qos::TopicQos;
 use crate::dds::publication::data_writer_listener::DataWriterListener;
 use crate::dds::publication::data_writer::DataWriter;
-use crate::dds::infrastructure::qos_policy::QosPolicy;
+use crate::dds::publication::data_writer::qos::DataWriterQos;
 use crate::dds::infrastructure::entity::Entity;
 use crate::dds::infrastructure::entity::DomainEntity;
 use crate::dds::publication::publisher_listener::PublisherListener;
 use crate::dds::publication::publisher_impl::PublisherImpl;
+use qos::PublisherQos;
 
 pub mod qos {
     use crate::dds::infrastructure::qos_policy::{
@@ -62,7 +64,7 @@ impl Publisher {
     pub fn create_datawriter(
         &self,
         a_topic: Topic,
-        qos: &[&dyn QosPolicy],
+        qos: DataWriterQos,
         a_listener: Box<dyn DataWriterListener>,
         mask: &[StatusKind]
     ) -> DataWriter {
@@ -179,7 +181,7 @@ impl Publisher {
     /// operation had never been called.
     pub fn set_default_datawriter_qos(
         &self,
-        qos_list: &[&dyn QosPolicy],
+        qos_list: DataWriterQos,
     ) -> ReturnCode {
         self.0.upgrade().unwrap().set_default_datawriter_qos(qos_list)
     }
@@ -191,7 +193,7 @@ impl Publisher {
     /// QoS.
     pub fn get_default_datawriter_qos (
         &self,
-        qos_list: &mut [&dyn QosPolicy],
+        qos_list: &mut DataWriterQos,
     ) -> ReturnCode {
         self.0.upgrade().unwrap().get_default_datawriter_qos(qos_list)
     }
@@ -205,21 +207,22 @@ impl Publisher {
     /// may not be the final one, as the application can still modify some policies prior to applying the policies to the DataWriter.
     pub fn copy_from_topic_qos(
         &self,
-        a_datawriter_qos: &mut [&dyn QosPolicy],
-        a_topic_qos: &[&dyn QosPolicy],
+        a_datawriter_qos: &mut DataWriterQos,
+        a_topic_qos: &TopicQos,
     ) -> ReturnCode {
         self.0.upgrade().unwrap().copy_from_topic_qos(a_datawriter_qos, a_topic_qos)
     }
 }
 
 impl Entity for Publisher{
+    type Qos = PublisherQos;
     type Listener = Box<dyn PublisherListener>;
 
-    fn set_qos(&self, qos_list: &[&dyn QosPolicy]) -> ReturnCode {
+    fn set_qos(&self, qos_list: Self::Qos) -> ReturnCode {
         self.0.upgrade().unwrap().set_qos(qos_list)
     }
 
-    fn get_qos(&self, qos_list: &mut [&dyn QosPolicy]) -> ReturnCode {
+    fn get_qos(&self, qos_list: &mut Self::Qos) -> ReturnCode {
         self.0.upgrade().unwrap().get_qos(qos_list)
     }
 

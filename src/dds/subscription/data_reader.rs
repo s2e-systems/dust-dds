@@ -8,7 +8,7 @@ use crate::dds::subscription::sample_info::SampleInfo;
 use crate::dds::infrastructure::entity::Entity;
 use crate::dds::infrastructure::entity::DomainEntity;
 use crate::dds::subscription::data_reader_listener::DataReaderListener;
-
+use qos::DataReaderQos;
 
 pub mod qos {
     use crate::dds::types::Duration;
@@ -618,13 +618,14 @@ impl DataReader {
 }
 
 impl Entity for DataReader {
+    type Qos = DataReaderQos;
     type Listener = Box<dyn DataReaderListener>;
 
-    fn set_qos(&self, _qos_list: &[&dyn crate::dds::infrastructure::qos_policy::QosPolicy]) -> ReturnCode {
+    fn set_qos(&self, _qos_list: Self::Qos) -> ReturnCode {
         todo!()
     }
 
-    fn get_qos(&self, _qos_list: &mut [&dyn crate::dds::infrastructure::qos_policy::QosPolicy]) -> ReturnCode {
+    fn get_qos(&self, _qos_list: &mut Self::Qos) -> ReturnCode {
         todo!()
     }
 

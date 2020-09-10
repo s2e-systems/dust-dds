@@ -2,13 +2,15 @@ use std::any::Any;
 
 use crate::dds::types::{StatusKind, StatusMask, ReturnCode, Duration, InstanceHandle, DomainId, Time};
 use crate::dds::topic::topic::Topic;
+use crate::dds::topic::qos::TopicQos;
 use crate::dds::topic::topic_listener::TopicListener;
 use crate::dds::topic::topic_description::TopicDescription;
 use crate::dds::subscription::subscriber::Subscriber;
+use crate::dds::subscription::subscriber::qos::SubscriberQos;
 use crate::dds::subscription::subscriber_listener::SubscriberListener;
 use crate::dds::publication::publisher::Publisher;
+use crate::dds::publication::publisher::qos::PublisherQos;
 use crate::dds::publication::publisher_listener::PublisherListener;
-use crate::dds::infrastructure::qos_policy::QosPolicy;
 use crate::dds::infrastructure::entity::Entity;
 use crate::dds::domain::domain_participant_listener::{DomainParticipantListener, NoListener};
 
@@ -48,7 +50,7 @@ impl DomainParticipantImpl{
 
     pub fn create_publisher(
         &self,
-        _qos_list: &[&dyn QosPolicy],
+        _qos_list: PublisherQos,
         _a_listener: Box<dyn PublisherListener>,
         _mask: &[StatusKind]
     ) -> Publisher {
@@ -64,7 +66,7 @@ impl DomainParticipantImpl{
 
     pub fn create_subscriber(
         &self,
-        _qos_list: &[&dyn QosPolicy],
+        _qos_list: SubscriberQos,
         _a_listener: Box<dyn SubscriberListener>,
         _mask: &[StatusKind]
     ) -> Subscriber {
@@ -82,7 +84,7 @@ impl DomainParticipantImpl{
         &self,
         _topic_name: String,
         _type_name: String,
-        _qos_list: &[&dyn QosPolicy],
+        _qos_list: TopicQos,
         _a_listener: Box<dyn TopicListener>,
         _mask: &[StatusKind]
     ) -> Topic {
@@ -157,42 +159,42 @@ impl DomainParticipantImpl{
 
     pub fn set_default_publisher_qos(
         &self,
-        _qos_list: &[&dyn QosPolicy],
+        _qos_list: PublisherQos,
     ) -> ReturnCode {
         todo!()
     }
 
     pub fn get_default_publisher_qos(
         &self,
-        _qos_list: &mut [&dyn QosPolicy],
+        _qos_list: &mut PublisherQos,
     ) -> ReturnCode {
         todo!()
     }
 
     pub fn set_default_subscriber_qos(
         &self,
-        _qos_list: &[&dyn QosPolicy],
+        _qos_list: SubscriberQos,
     ) -> ReturnCode {
         todo!()
     }
 
     pub fn get_default_subscriber_qos(
         &self,
-        _qos_list: &mut [&dyn QosPolicy],
+        _qos_list: &mut SubscriberQos,
     ) -> ReturnCode {
         todo!()
     }
 
     pub fn set_default_topic_qos(
         &self,
-        _qos_list: &[&dyn QosPolicy],
+        _qos_list: TopicQos,
     ) -> ReturnCode {
         todo!()
     }
 
     pub fn get_default_topic_qos(
         &self,
-        _qos_list: &[&dyn QosPolicy],
+        _qos_list: &mut TopicQos,
     ) -> ReturnCode {
         todo!()
     }
@@ -244,13 +246,14 @@ impl DomainParticipantImpl{
 
 impl Entity for DomainParticipantImpl
 {
+    type Qos = DomainParticipantQos;
     type Listener = Box<dyn DomainParticipantListener>;
 
-    fn set_qos(&self, _qos_list: &[&dyn QosPolicy]) -> ReturnCode {
+    fn set_qos(&self, _qos_list: Self::Qos) -> ReturnCode {
         todo!()
     }
 
-    fn get_qos(&self, _qos_list: &mut [&dyn QosPolicy]) -> ReturnCode {
+    fn get_qos(&self, _qos_list: &mut Self::Qos) -> ReturnCode {
         todo!()
     }
 

@@ -7,6 +7,7 @@ use crate::dds::publication::publisher::Publisher;
 use crate::dds::infrastructure::entity::Entity;
 use crate::dds::infrastructure::entity::DomainEntity;
 use crate::dds::publication::data_writer_listener::DataWriterListener;
+use qos::DataWriterQos;
 
 pub mod qos {
     use crate::dds::types::Duration;
@@ -389,13 +390,14 @@ impl DataWriter {
 }
 
 impl Entity for DataWriter{
+    type Qos = DataWriterQos;
     type Listener = Box<dyn DataWriterListener>;
 
-    fn set_qos(&self, _qos_list: &[&dyn crate::dds::infrastructure::qos_policy::QosPolicy]) -> ReturnCode {
+    fn set_qos(&self, _qos_list: Self::Qos) -> ReturnCode {
         todo!()
     }
 
-    fn get_qos(&self, _qos_list: &mut [&dyn crate::dds::infrastructure::qos_policy::QosPolicy]) -> ReturnCode {
+    fn get_qos(&self, _qos_list: &mut Self::Qos) -> ReturnCode {
         todo!()
     }
 

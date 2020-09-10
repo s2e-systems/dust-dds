@@ -1,5 +1,4 @@
 use std::cmp::Ordering;
-use std::any::Any;
 use crate::dds::types::{Duration, DURATION_INFINITE, DURATION_ZERO, LENGTH_UNLIMITED};
 
 pub type QosPolicyId = i32;
@@ -21,7 +20,7 @@ pub type QosPolicyId = i32;
 /// they can only be specified either at Entity creation time or else prior to calling the enable operation on the Entity.
 /// Sub clause 2.2.3, Supported QoS provides the list of all QosPolicy, their meaning, characteristics and possible values, as well
 /// as the concrete Entity to which they apply.
-pub trait QosPolicy : Any{
+pub trait QosPolicy {
     fn name(&self) -> &str;
 }
 
