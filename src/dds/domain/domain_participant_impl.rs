@@ -215,9 +215,39 @@ impl DomainParticipantImpl{
     }
 }
 
-impl Drop for DomainParticipantImpl {
-    fn drop(&mut self) {
-        // DomainParticipantFactory::get_instance().delete_participant(a_participant);
-        println!("Dropping participant impl")
+impl Entity for DomainParticipantImpl
+{
+    type Listener = Box<dyn DomainParticipantListener>;
+
+    fn set_qos(&self, _qos_list: &[&dyn QosPolicy]) -> ReturnCode {
+        todo!()
+    }
+
+    fn get_qos(&self, _qos_list: &mut [&dyn QosPolicy]) -> ReturnCode {
+        todo!()
+    }
+
+    fn set_listener(&self, _a_listener: Self::Listener, _mask: &[StatusKind]) -> ReturnCode {
+        todo!()
+    }
+
+    fn get_listener(&self, ) -> Self::Listener {
+        todo!()
+    }
+
+    fn get_statuscondition(&self, ) -> crate::dds::infrastructure::entity::StatusCondition {
+        todo!()
+    }
+
+    fn get_status_changes(&self, ) -> StatusKind {
+        todo!()
+    }
+
+    fn enable(&self, ) -> ReturnCode {
+        todo!()
+    }
+
+    fn get_instance_handle(&self, ) -> InstanceHandle {
+        todo!()
     }
 }
