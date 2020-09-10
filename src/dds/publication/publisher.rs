@@ -1,4 +1,6 @@
 
+use std::sync::Weak;
+
 use crate::dds::types::{StatusKind, ReturnCode, Duration};
 use crate::dds::domain::domain_participant::DomainParticipant;
 use crate::dds::topic::topic::Topic;
@@ -8,6 +10,7 @@ use crate::dds::infrastructure::qos_policy::QosPolicy;
 use crate::dds::infrastructure::entity::Entity;
 use crate::dds::infrastructure::entity::DomainEntity;
 use crate::dds::publication::publisher_listener::PublisherListener;
+use crate::dds::publication::publisher_impl::PublisherImpl;
 
 pub mod qos {
     use crate::dds::infrastructure::qos_policy::{
@@ -32,7 +35,7 @@ pub mod qos {
 /// of the Publisher and the DataWriter.
 /// All operations except for the base-class operations set_qos, get_qos, set_listener, get_listener, enable, get_statuscondition,
 /// create_datawriter, and delete_datawriter may return the value NOT_ENABLED.
-pub struct Publisher{}
+pub struct Publisher(Weak<PublisherImpl>);
 
 impl Publisher {
     /// This operation creates a DataWriter. The returned DataWriter will be attached and belongs to the Publisher.
@@ -57,12 +60,13 @@ impl Publisher {
     /// The Topic passed to this operation must have been created from the same DomainParticipant that was used to create this
     /// Publisher. If the Topic was created from a different DomainParticipant, the operation will fail and return a nil result.
     pub fn create_datawriter(
-        _a_topic: Topic,
-        _qos: &[&dyn QosPolicy],
-        _a_listener: Box<dyn DataWriterListener>,
-        _mask: &[StatusKind]
+        &self,
+        a_topic: Topic,
+        qos: &[&dyn QosPolicy],
+        a_listener: Box<dyn DataWriterListener>,
+        mask: &[StatusKind]
     ) -> DataWriter {
-        todo!()
+        self.0.upgrade().unwrap().create_datawriter(a_topic, qos, a_listener, mask)
     }
 
     /// This operation deletes a DataWriter that belongs to the Publisher.
@@ -74,9 +78,10 @@ impl Publisher {
     /// details.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
     pub fn delete_datawriter(
-        _a_datawriter: DataWriter
+        &self,
+        a_datawriter: DataWriter
     ) -> ReturnCode {
-        todo!()
+        self.0.upgrade().unwrap().delete_datawriter(a_datawriter)
     }
 
     /// This operation retrieves a previously created DataWriter belonging to the Publisher that is attached to a Topic with a matching
@@ -84,9 +89,10 @@ impl Publisher {
     /// If multiple DataWriter attached to the Publisher satisfy this condition, then the operation will return one of them. It is not
     /// specified which one.
     pub fn lookup_datawriter(
-        _topic_name: String,
+        &self,
+        topic_name: String,
     ) -> DataWriter {
-        todo!()
+        self.0.upgrade().unwrap().lookup_datawriter(topic_name)
     }
 
     /// This operation indicates to the Service that the application is about to make multiple modifications using DataWriter objects
@@ -97,8 +103,8 @@ impl Publisher {
     /// The use of this operation must be matched by a corresponding call to resume_publications indicating that the set of
     /// modifications has completed. If the Publisher is deleted before resume_publications is called, any suspended updates yet to
     /// be published will be discarded.
-    pub fn suspend_publications() -> ReturnCode {
-        todo!()
+    pub fn suspend_publications(&self,) -> ReturnCode {
+        self.0.upgrade().unwrap().suspend_publications()
     }
 
     /// This operation indicates to the Service that the application has completed the multiple changes initiated by the previous
@@ -107,8 +113,8 @@ impl Publisher {
     /// The call to resume_publications must match a previous call to suspend_publications. Otherwise the operation will return the
     /// error PRECONDITION_NOT_MET.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
-    pub fn resume_publications() -> ReturnCode {
-        todo!()
+    pub fn resume_publications(&self,) -> ReturnCode {
+        self.0.upgrade().unwrap().resume_publications()
     }
 
     /// This operation requests that the application will begin a ‘coherent set’ of modifications using DataWriter objects attached to
@@ -127,15 +133,15 @@ impl Publisher {
     /// the values are inter-related (for example, if there are two data-instances representing the ‘altitude’ and ‘velocity vector’ of the
     /// same aircraft and both are changed, it may be useful to communicate those values in a way the reader can see both together;
     /// otherwise, it may e.g., erroneously interpret that the aircraft is on a collision course).
-    pub fn begin_coherent_changes() -> ReturnCode {
-        todo!()
+    pub fn begin_coherent_changes(&self,) -> ReturnCode {
+        self.0.upgrade().unwrap().begin_coherent_changes()
     }
 
     /// This operation terminates the ‘coherent set’ initiated by the matching call to begin_coherent_ changes. If there is no matching
     /// call to begin_coherent_ changes, the operation will return the error PRECONDITION_NOT_MET.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET
-    pub fn end_coherent_changes() -> ReturnCode {
-        todo!()
+    pub fn end_coherent_changes(&self,) -> ReturnCode {
+        self.0.upgrade().unwrap().end_coherent_changes()
     }
 
     /// This operation blocks the calling thread until either all data written by the reliable DataWriter entities is acknowledged by all
@@ -143,14 +149,15 @@ impl Publisher {
     /// first. A return value of OK indicates that all the samples written have been acknowledged by all reliable matched data readers;
     /// a return value of TIMEOUT indicates that max_wait elapsed before all the data was acknowledged.
     pub fn wait_for_acknowledgments(
-        _max_wait: Duration
+        &self,
+        max_wait: Duration
     ) -> ReturnCode {
-        todo!()
+        self.0.upgrade().unwrap().wait_for_acknowledgments(max_wait)
     }
 
     /// This operation returns the DomainParticipant to which the Publisher belongs.
-    pub fn get_participant() -> DomainParticipant {
-        todo!()
+    pub fn get_participant(&self,) -> DomainParticipant {
+        self.0.upgrade().unwrap().get_participant()
     }
 
     /// This operation deletes all the entities that were created by means of the “create” operations on the Publisher. That is, it deletes
@@ -159,8 +166,8 @@ impl Publisher {
     /// deleted.
     /// Once delete_contained_entities returns successfully, the application may delete the Publisher knowing that it has no
     /// contained DataWriter objects
-    pub fn delete_contained_entities() -> ReturnCode {
-        todo!()
+    pub fn delete_contained_entities(&self,) -> ReturnCode {
+        self.0.upgrade().unwrap().delete_contained_entities()
     }
 
     /// This operation sets a default value of the DataWriter QoS policies which will be used for newly created DataWriter entities in
@@ -171,9 +178,10 @@ impl Publisher {
     /// reset back to the initial values the factory would use, that is the values that would be used if the set_default_datawriter_qos
     /// operation had never been called.
     pub fn set_default_datawriter_qos(
-        _qos_list: &[&dyn QosPolicy],
+        &self,
+        qos_list: &[&dyn QosPolicy],
     ) -> ReturnCode {
-        todo!()
+        self.0.upgrade().unwrap().set_default_datawriter_qos(qos_list)
     }
 
     /// This operation retrieves the default value of the DataWriter QoS, that is, the QoS policies which will be used for newly created
@@ -182,9 +190,10 @@ impl Publisher {
     /// set_default_datawriter_qos, or else, if the call was never made, the default values listed in the QoS table in 2.2.3, Supported
     /// QoS.
     pub fn get_default_datawriter_qos (
-        _qos_list: &mut [&dyn QosPolicy],
+        &self,
+        qos_list: &mut [&dyn QosPolicy],
     ) -> ReturnCode {
-        todo!()
+        self.0.upgrade().unwrap().get_default_datawriter_qos(qos_list)
     }
 
     /// This operation copies the policies in the a_topic_qos to the corresponding policies in the a_datawriter_qos (replacing values
@@ -195,46 +204,47 @@ impl Publisher {
     /// This operation does not check the resulting a_datawriter_qos for consistency. This is because the ‘merged’ a_datawriter_qos
     /// may not be the final one, as the application can still modify some policies prior to applying the policies to the DataWriter.
     pub fn copy_from_topic_qos(
-        _a_datawriter_qos: &mut [&dyn QosPolicy],
-        _a_topic_qos: &[&dyn QosPolicy],
+        &self,
+        a_datawriter_qos: &mut [&dyn QosPolicy],
+        a_topic_qos: &[&dyn QosPolicy],
     ) -> ReturnCode {
-        todo!()
+        self.0.upgrade().unwrap().copy_from_topic_qos(a_datawriter_qos, a_topic_qos)
     }
 }
 
 impl Entity for Publisher{
     type Listener = Box<dyn PublisherListener>;
 
-    fn set_qos(&self, _qos_list: &[&dyn QosPolicy]) -> ReturnCode {
-        todo!()
+    fn set_qos(&self, qos_list: &[&dyn QosPolicy]) -> ReturnCode {
+        self.0.upgrade().unwrap().set_qos(qos_list)
     }
 
-    fn get_qos(&self, _qos_list: &mut [&dyn QosPolicy]) -> ReturnCode {
-        todo!()
+    fn get_qos(&self, qos_list: &mut [&dyn QosPolicy]) -> ReturnCode {
+        self.0.upgrade().unwrap().get_qos(qos_list)
     }
 
-    fn set_listener(&self, _a_listener: Self::Listener, _mask: &[StatusKind]) -> ReturnCode {
-        todo!()
+    fn set_listener(&self, a_listener: Self::Listener, mask: &[StatusKind]) -> ReturnCode {
+        self.0.upgrade().unwrap().set_listener(a_listener, mask)
     }
 
     fn get_listener(&self, ) -> Self::Listener {
-        todo!()
+        self.0.upgrade().unwrap().get_listener()
     }
 
     fn get_statuscondition(&self, ) -> crate::dds::infrastructure::entity::StatusCondition {
-        todo!()
+        self.0.upgrade().unwrap().get_statuscondition()
     }
 
     fn get_status_changes(&self, ) -> StatusKind {
-        todo!()
+        self.0.upgrade().unwrap().get_status_changes()
     }
 
     fn enable(&self, ) -> ReturnCode {
-        todo!()
+        self.0.upgrade().unwrap().enable()
     }
 
     fn get_instance_handle(&self, ) -> crate::dds::types::InstanceHandle {
-        todo!()
+        self.0.upgrade().unwrap().get_instance_handle()
     }
 }
 
