@@ -259,7 +259,7 @@ impl DomainParticipant {
     /// This operation retrieves the domain_id used to create the DomainParticipant. The domain_id identifies the DDS domain to
     /// which the DomainParticipant belongs. As described in the introduction to 2.2.2.2.1 each DDS domain represents a separate
     /// data “communication plane” isolated from other domains
-    pub fn get_domain_id(&self,) -> DomainId {
+    pub fn get_domain_id(&self) -> DomainId {
         self.0.get_domain_id()
     }
 
