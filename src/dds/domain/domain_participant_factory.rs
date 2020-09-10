@@ -75,9 +75,22 @@ impl DomainParticipantFactory {
     /// If multiple DomainParticipant entities belonging to that domain_id exist, then the operation will return one of them. It is not
     /// specified which one.
     pub fn lookup_participant(
-        _domain_id: DomainId,
-    ) -> DomainParticipant {
-        todo!()
+        &self,
+        domain_id: DomainId,
+    ) -> Option<DomainParticipant> {
+        let participant_list_lock = self.participant_list.lock().unwrap();
+        let domain_participant_impl = participant_list_lock
+            .iter()
+            .find(|&x| {
+                if let Some(dp) = x.upgrade() {
+                    dp.get_domain_id() == domain_id
+                } else {
+                    false
+                }
+            }
+        )?;
+
+        Some(DomainParticipant(domain_participant_impl.upgrade()?))
     }
 
     /// This operation sets a default value of the DomainParticipant QoS policies which will be used for newly created
@@ -150,6 +163,25 @@ mod tests {
             participant2.0.as_ref(),
             domain_participant_factory.participant_list.lock().unwrap()[1].upgrade().unwrap().as_ref())
         );
+    }
 
+    #[test]
+    fn create_and_lookup_participants() {
+        let domain_participant_factory = DomainParticipantFactory::get_instance();
+        let participant1 = domain_participant_factory.create_participant(1, DomainParticipantQos::default(),NoListener, 0).unwrap();
+
+        // Lookup an existing participant
+        let found_participant1 = domain_participant_factory.lookup_participant(1).unwrap();
+        assert!(std::ptr::eq(participant1.0.as_ref(), found_participant1.0.as_ref()));
+
+        // Lookup an inexisting participant
+        assert!(domain_participant_factory.lookup_participant(2).is_none());
+
+        // Lookup a dropped participant
+        {
+            let _participant5 = domain_participant_factory.create_participant(5, DomainParticipantQos::default(),NoListener, 0).unwrap();
+            assert!(domain_participant_factory.lookup_participant(5).is_some());
+        }
+        assert!(domain_participant_factory.lookup_participant(5).is_none())
     }
 }
