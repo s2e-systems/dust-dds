@@ -1,5 +1,5 @@
-// use std::sync::{Mutex, Arc};
 use std::any::Any;
+
 use crate::dds::types::{StatusKind, StatusMask, ReturnCode, Duration, InstanceHandle, DomainId, Time};
 use crate::dds::topic::topic::Topic;
 use crate::dds::topic::topic_listener::TopicListener;
@@ -10,7 +10,7 @@ use crate::dds::publication::publisher::Publisher;
 use crate::dds::publication::publisher_listener::PublisherListener;
 use crate::dds::infrastructure::qos_policy::QosPolicy;
 use crate::dds::infrastructure::entity::Entity;
-use crate::dds::domain::domain_participant_listener::DomainParticipantListener;
+use crate::dds::domain::domain_participant_listener::{DomainParticipantListener, NoListener};
 
 use super::domain_participant::qos::DomainParticipantQos;
 use super::domain_participant::TopicBuiltinTopicData;
@@ -18,7 +18,7 @@ use super::domain_participant::ParticipantBuiltinTopicData;
 
 pub struct DomainParticipantImpl{
     domain_id: DomainId,
-    domain_participant_qos: DomainParticipantQos,
+    qos: DomainParticipantQos,
     a_listener: Box<dyn DomainParticipantListener>,
     mask: StatusMask
 }
@@ -26,14 +26,18 @@ pub struct DomainParticipantImpl{
 impl DomainParticipantImpl{
     pub fn new(
         domain_id: DomainId,
-        qos_list: &[&dyn QosPolicy],
+        qos: DomainParticipantQos,
         a_listener: impl DomainParticipantListener,
         mask: StatusMask,
     ) -> Self {
-        let domain_participant_qos = qos_list_to_domain_participant_qos(qos_list).unwrap();
+        
+        if !Any::is::<NoListener>(&a_listener) {
+            println!("TODO: Use the real listener")
+        }
+
         Self {
             domain_id,
-            domain_participant_qos: DomainParticipantQos::default(),
+            qos,
             a_listener: Box::new(a_listener),
             mask,
         }
@@ -275,41 +279,8 @@ impl Entity for DomainParticipantImpl
     }
 }
 
-fn find_in_qos_list<T: 'static + QosPolicy + Clone>(qos_list: &[&dyn Any]) -> Option<T> {
-    qos_list.iter()
-        .find(|&&x| {
-            let x = x; x.is::<T>()})
-        .map(|x| x.downcast_ref::<T>().unwrap().clone())
-}
-
-fn qos_list_to_domain_participant_qos(qos_list: &[&dyn QosPolicy]) -> Option<DomainParticipantQos> {
-    use crate::dds::infrastructure::qos_policy::{UserDataQosPolicy, EntityFactoryQosPolicy};
-
-    let entity_factory = find_in_qos_list::<EntityFactoryQosPolicy>(qos_list)?;
-    let user_data = find_in_qos_list::<UserDataQosPolicy>(qos_list)?;
-
-    Some(DomainParticipantQos{
-        user_data,
-        entity_factory,
-    })
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::dds::infrastructure::qos_policy::{UserDataQosPolicy, EntityFactoryQosPolicy};
-
-    #[test]
-    fn test_qos_conversion() {
-        let user_data = UserDataQosPolicy::default();
-        let entity_factory = EntityFactoryQosPolicy::default();
-
-        let qos_list = [&user_data as &dyn QosPolicy, &entity_factory];
-
-        assert_eq!(DomainParticipantQos::default(), qos_list_to_domain_participant_qos(&qos_list).unwrap());
-        // DomainParticipantQos {
-        //     user_data: UserDataQosPolicy,
-        //     entity_factory: EntityFactoryQosPolicy,
-        // }
-    }
-}
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
+//     use crate::dds::infrastructure::qos_policy::{UserDataQosPolicy, EntityFactoryQosPolicy};
+// }
