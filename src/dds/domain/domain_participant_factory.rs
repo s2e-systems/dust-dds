@@ -1,11 +1,12 @@
+use std::any::Any;
 use std::sync::{Arc, Weak, Mutex};
 
-use crate::dds::types::{DomainId, StatusKind, ReturnCode};
+use crate::dds::types::{DomainId, StatusMask, ReturnCode};
 use crate::dds::domain::domain_participant::DomainParticipant;
 use crate::dds::domain::domain_participant_impl::DomainParticipantImpl;
 use crate::dds::domain::domain_participant_listener::DomainParticipantListener;
 use crate::dds::infrastructure::qos_policy::QosPolicy;
-
+use crate::dds::domain::domain_participant_listener::NoListener;
 
 pub mod qos {
     use crate::dds::infrastructure::qos_policy::EntityFactoryQosPolicy;
@@ -17,7 +18,8 @@ pub mod qos {
 }
 
 pub struct DomainParticipantFactory{
-    participant_list: Mutex<Vec<DomainParticipantImpl>>,
+    participant_list: Mutex<Vec<Weak<DomainParticipantImpl>>>,
+    // default_qos_list: 
 }
 
 lazy_static! {
@@ -25,6 +27,8 @@ lazy_static! {
         participant_list: Mutex::new(Vec::new())
     };
 }
+
+pub const PARTICIPANT_QOS_DEFAULT : &[&dyn QosPolicy] = &[];
 
 impl DomainParticipantFactory {
     /// This operation creates a new DomainParticipant object. The DomainParticipant signifies that the calling application intends
@@ -35,14 +39,26 @@ impl DomainParticipantFactory {
     /// default DomainParticipant QoS by means of the operation get_default_participant_qos (2.2.2.2.2.6) and using the resulting
     /// QoS to create the DomainParticipant.
     /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
-    pub fn create_participant(
+    pub fn create_participant (
         &self,
-        _domain_id: DomainId,
-        // _qos_list: &[&dyn QosPolicy],
-        // _a_listener: impl DomainParticipantListener,
-        // _mask: &[StatusKind],
-    ) ->  DomainParticipant {
-        DomainParticipant(Arc::new(DomainParticipantImpl{}))
+        domain_id: DomainId,
+        qos_list: &[&dyn QosPolicy],
+        a_listener: impl DomainParticipantListener,
+        mask: StatusMask,
+    ) ->  Option<DomainParticipant> {
+
+        if qos_list.is_empty() {
+            println!("TODO: Use default QoS")
+        }
+        
+        if !Any::is::<NoListener>(&a_listener) {
+            println!("TODO: Use the real listener")
+        }
+
+        let new_participant = Arc::new(DomainParticipantImpl::new(domain_id, qos_list, a_listener, mask));
+        self.participant_list.lock().unwrap().push(Arc::downgrade(&new_participant));
+
+        Some(DomainParticipant(new_participant))
     }
 
     /// This operation deletes an existing DomainParticipant. This operation can only be invoked if all domain entities belonging to
@@ -120,7 +136,29 @@ mod tests {
     use super::*;
 
     #[test]
-    fn create_and_delete_participant() {
-        DomainParticipantFactory::get_instance().create_participant(1,);
+    fn create_participants() {
+        let domain_participant_factory = DomainParticipantFactory::get_instance();
+
+        assert_eq!(domain_participant_factory.participant_list.lock().unwrap().len(), 0);
+        let participant = domain_participant_factory.create_participant(1, PARTICIPANT_QOS_DEFAULT,NoListener, 0).unwrap();
+
+        assert_eq!(domain_participant_factory.participant_list.lock().unwrap().len(), 1);
+        assert!(std::ptr::eq(
+            participant.0.as_ref(),
+            domain_participant_factory.participant_list.lock().unwrap()[0].upgrade().unwrap().as_ref())
+        );
+
+        let participant2 = domain_participant_factory.create_participant(2, PARTICIPANT_QOS_DEFAULT,NoListener, 0).unwrap();
+        assert_eq!(domain_participant_factory.participant_list.lock().unwrap().len(), 2);
+        assert!(std::ptr::eq(
+            participant.0.as_ref(),
+            domain_participant_factory.participant_list.lock().unwrap()[0].upgrade().unwrap().as_ref())
+        );
+
+        assert!(std::ptr::eq(
+            participant2.0.as_ref(),
+            domain_participant_factory.participant_list.lock().unwrap()[1].upgrade().unwrap().as_ref())
+        );
+
     }
 }

@@ -1,5 +1,5 @@
 use std::cmp::Ordering;
-
+use std::any::Any;
 use crate::dds::types::{Duration, DURATION_INFINITE, DURATION_ZERO, LENGTH_UNLIMITED};
 
 pub type QosPolicyId = i32;
@@ -21,7 +21,7 @@ pub type QosPolicyId = i32;
 /// they can only be specified either at Entity creation time or else prior to calling the enable operation on the Entity.
 /// Sub clause 2.2.3, Supported QoS provides the list of all QosPolicy, their meaning, characteristics and possible values, as well
 /// as the concrete Entity to which they apply.
-pub trait QosPolicy{
+pub trait QosPolicy : Any{
     fn name(&self) -> &str;
 }
 
@@ -78,6 +78,7 @@ const DURABILITYSERVICE_QOS_POLICY_ID: QosPolicyId = 22;
 /// authenticate the source. In combination with operations such as ignore_participant, ignore_publication, ignore_subscription,
 /// and ignore_topic these QoS can assist an application to define and enforce its own security policies. The use of this QoS is not
 /// limited to security, rather it offers a simple, yet flexible extensibility mechanism.
+#[derive(Debug, PartialEq, Clone)]
 pub struct UserDataQosPolicy {
     pub value: Vec<u8>,
 }
@@ -889,8 +890,9 @@ impl Default for ResourceLimitsQosPolicy {
 /// it explicitly by means of the enable operation (see 2.2.2.1.1.7).
 /// The default setting of autoenable_created_entities = TRUE means that, by default, it is not necessary to explicitly call enable
 /// on newly created entities.
+#[derive(Debug, PartialEq, Clone)]
 pub struct EntityFactoryQosPolicy {
-    autoenable_created_entities: bool,
+    pub autoenable_created_entities: bool,
 }
 
 impl QosPolicy for EntityFactoryQosPolicy {

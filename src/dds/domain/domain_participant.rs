@@ -18,10 +18,10 @@ pub mod qos {
         UserDataQosPolicy, EntityFactoryQosPolicy
     };
     
-    #[derive(Default)]
+    #[derive(Debug, Default, PartialEq)]
     pub struct DomainParticipantQos {
-        user_data: UserDataQosPolicy,
-        entity_factory: EntityFactoryQosPolicy,
+        pub user_data: UserDataQosPolicy,
+        pub entity_factory: EntityFactoryQosPolicy,
     }
 }
 
