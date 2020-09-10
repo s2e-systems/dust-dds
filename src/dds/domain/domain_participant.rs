@@ -48,7 +48,7 @@ pub struct TopicBuiltinTopicData{}
 /// - Factory methods: create_topic, create_publisher, create_subscriber, delete_topic, delete_publisher,
 /// delete_subscriber
 /// - Operations that access the status: get_statuscondition
-pub struct DomainParticipant(Arc<DomainParticipantImpl>);
+pub struct DomainParticipant(pub Arc<DomainParticipantImpl>);
 
 impl DomainParticipant {
     /// This operation creates a Publisher with the desired QoS policies and attaches to it the specified PublisherListener.
@@ -480,3 +480,14 @@ impl Entity for DomainParticipant
         self.0.get_instance_handle()
     }
 }
+
+// #[cfg(test)]
+// mod tests {
+
+//     #[test]
+//     fn factory_constructor() {
+//         use crate::dds::domain::domain_participant_factory::DomainParticipantFactory;
+
+//         let domain_participant = DomainParticipantFactory::get_instance().create_participant(0);
+//     }
+// }

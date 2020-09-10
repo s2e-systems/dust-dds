@@ -12,6 +12,7 @@ ipconfig = "0.2"
 net2 = "0.2"
 serde = { version = "1.0", features = ["derive"] }
 cdr = "0.2.3"
+lazy_static = "1.4.0"
 
 [dependencies.num-traits]
 version = "0.2"

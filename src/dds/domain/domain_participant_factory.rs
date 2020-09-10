@@ -1,5 +1,8 @@
+use std::sync::{Arc, Weak, Mutex};
+
 use crate::dds::types::{DomainId, StatusKind, ReturnCode};
 use crate::dds::domain::domain_participant::DomainParticipant;
+use crate::dds::domain::domain_participant_impl::DomainParticipantImpl;
 use crate::dds::domain::domain_participant_listener::DomainParticipantListener;
 use crate::dds::infrastructure::qos_policy::QosPolicy;
 
@@ -13,7 +16,15 @@ pub mod qos {
     }
 }
 
-struct DomainParticipantFactory{}
+pub struct DomainParticipantFactory{
+    participant_list: Mutex<Vec<DomainParticipantImpl>>,
+}
+
+lazy_static! {
+    pub static ref DOMAIN_PARTICIPANT_FACTORY: DomainParticipantFactory = DomainParticipantFactory{
+        participant_list: Mutex::new(Vec::new())
+    };
+}
 
 impl DomainParticipantFactory {
     /// This operation creates a new DomainParticipant object. The DomainParticipant signifies that the calling application intends
@@ -25,12 +36,13 @@ impl DomainParticipantFactory {
     /// QoS to create the DomainParticipant.
     /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
     pub fn create_participant(
+        &self,
         _domain_id: DomainId,
-        _qos_list: &[&dyn QosPolicy],
-        _a_listener: impl DomainParticipantListener,
-        _mask: &[StatusKind],
+        // _qos_list: &[&dyn QosPolicy],
+        // _a_listener: impl DomainParticipantListener,
+        // _mask: &[StatusKind],
     ) ->  DomainParticipant {
-        todo!()
+        DomainParticipant(Arc::new(DomainParticipantImpl{}))
     }
 
     /// This operation deletes an existing DomainParticipant. This operation can only be invoked if all domain entities belonging to
@@ -48,8 +60,8 @@ impl DomainParticipantFactory {
     /// expressed in the IDL PSM.
     /// The pre-defined value TheParticipantFactory can also be used as an alias for the singleton factory returned by the operation
     /// get_instance.
-    pub fn get_instance() -> DomainParticipantFactory {
-        todo!()
+    pub fn get_instance() -> &'static DOMAIN_PARTICIPANT_FACTORY {
+        &DOMAIN_PARTICIPANT_FACTORY
     }
 
     /// This operation retrieves a previously created DomainParticipant belonging to specified domain_id. If no such
@@ -100,7 +112,15 @@ impl DomainParticipantFactory {
         _qos_list: &mut [&dyn QosPolicy],
     ) -> ReturnCode {
         todo!()
-    }
+    }   
+}
 
-    
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn create_and_delete_participant() {
+        DomainParticipantFactory::get_instance().create_participant(1,);
+    }
 }
