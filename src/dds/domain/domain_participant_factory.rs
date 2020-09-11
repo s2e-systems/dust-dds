@@ -4,26 +4,29 @@ use crate::dds::domain::domain_participant::DomainParticipant;
 use crate::dds::domain::domain_participant_impl::DomainParticipantImpl;
 use crate::dds::domain::domain_participant_listener::DomainParticipantListener;
 use crate::dds::domain::domain_participant::qos::DomainParticipantQos;
+use crate::dds::infrastructure::entity::Entity;
 use qos::DomainParticipantFactoryQos;
 
 pub mod qos {
     use crate::dds::infrastructure::qos_policy::EntityFactoryQosPolicy;
 
-    #[derive(Default)]
+    #[derive(Default, Debug, PartialEq, Clone)]
     pub struct DomainParticipantFactoryQos {
-        entity_factory: EntityFactoryQosPolicy,
+        pub entity_factory: EntityFactoryQosPolicy,
     }
 }
 
 pub struct DomainParticipantFactory{
     participant_list: Mutex<Vec<Weak<DomainParticipantImpl>>>,
-    participant_default_qos: DomainParticipantQos, 
+    domain_participant_default_qos: Mutex<DomainParticipantQos>,
+    domain_participant_factory_qos: Mutex<DomainParticipantFactoryQos>,
 }
 
 lazy_static! {
     pub static ref DOMAIN_PARTICIPANT_FACTORY: DomainParticipantFactory = DomainParticipantFactory{
         participant_list: Mutex::new(Vec::new()),
-        participant_default_qos: DomainParticipantQos::default(),
+        domain_participant_default_qos: Mutex::new(DomainParticipantQos::default()),
+        domain_participant_factory_qos: Mutex::new(DomainParticipantFactoryQos::default()),
     };
 }
 
@@ -46,6 +49,12 @@ impl DomainParticipantFactory {
         mask: StatusMask,
     ) ->  Option<DomainParticipant> {
         let new_participant = Arc::new(DomainParticipantImpl::new(domain_id, qos_list, a_listener, mask));
+
+        let domain_participant_factory_qos = self.domain_participant_factory_qos.lock().unwrap();
+        if domain_participant_factory_qos.entity_factory.autoenable_created_entities {
+            new_participant.enable();
+        }
+
         self.participant_list.lock().unwrap().push(Arc::downgrade(&new_participant));
 
         Some(DomainParticipant(new_participant))
@@ -55,9 +64,20 @@ impl DomainParticipantFactory {
     /// the participant have already been deleted. Otherwise the error PRECONDITION_NOT_MET is returned.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
     pub fn delete_participant(
-        _a_participant: DomainParticipant,
+        &self,
+        a_participant: DomainParticipant,
     ) -> ReturnCode {
-        todo!()
+        // We rely on the Drop of the DomainParticipant to do the deletion so nothing needs to be done here.
+        // If the user calls this function, DomainParticipant has been moved into here and then just gets dropped
+        // The deletion only happens if this is the last reference to the DomainParticipantImpl, otherwise the 
+        // entity will still be alive. Even if there are alive entities inside the DomainParticipant these will be
+        // deleted since the DomainParticipantFactory doesn't own the object and as such can't decide to keep the
+        // reference alive
+        if Arc::strong_count(&a_participant.0) == 1 {
+            ReturnCode::Ok
+        } else {
+            ReturnCode::PreconditionNotMet
+        }
     }
 
     /// This operation returns the DomainParticipantFactory singleton. The operation is idempotent, that is, it can be called multiple
@@ -98,9 +118,11 @@ impl DomainParticipantFactory {
     /// This operation will check that the resulting policies are self consistent; if they are not, the operation will have no effect and
     /// return INCONSISTENT_POLICY.
     pub fn set_default_participant_qos(
-        _qos_list: DomainParticipantQos,
+        &self,
+        qos: DomainParticipantQos,
     ) -> ReturnCode {
-        todo!()
+        *self.domain_participant_default_qos.lock().unwrap() = qos;
+        ReturnCode::Ok
     }
 
     /// This operation retrieves the default value of the DomainParticipant QoS, that is, the QoS policies which will be used for
@@ -110,9 +132,11 @@ impl DomainParticipantFactory {
     /// set_default_participant_qos, or else, if the call was never made, the default values listed in the QoS table in 2.2.3,
     /// Supported QoS.
     pub fn get_default_participant_qos(
-        _qos_list: &mut DomainParticipantQos,
+        &self,
+        qos: &mut DomainParticipantQos,
     ) -> ReturnCode {
-        todo!()
+        qos.clone_from(&self.domain_participant_default_qos.lock().unwrap());
+        ReturnCode::Ok
     }
 
     /// This operation sets the value of the DomainParticipantFactory QoS policies. These policies control the behavior of the object
@@ -121,17 +145,30 @@ impl DomainParticipantFactory {
     /// This operation will check that the resulting policies are self consistent; if they are not, the operation will have no effect and
     /// return INCONSISTENT_POLICY.
     pub fn set_qos(
-        _qos_list: DomainParticipantFactoryQos,
+        &self,
+        qos: DomainParticipantFactoryQos,
     ) -> ReturnCode {
-        todo!()
+        *self.domain_participant_factory_qos.lock().unwrap() = qos;
+        ReturnCode::Ok
     }
 
     /// This operation returns the value of the DomainParticipantFactory QoS policies.
     pub fn get_qos(
-        _qos_list: &mut DomainParticipantFactoryQos,
+        &self,
+        qos: &mut DomainParticipantFactoryQos,
     ) -> ReturnCode {
-        todo!()
-    }   
+        qos.clone_from(&self.domain_participant_factory_qos.lock().unwrap());
+        ReturnCode::Ok
+    }
+
+
+    //////////////// From here on are the functions that do not belong to the standard API
+    pub(crate) fn remove_participant_reference(&self, weak_participant_impl: &Weak<DomainParticipantImpl>) {
+        let mut participant_list_lock = self.participant_list.lock().unwrap();
+        if let Some(index) = participant_list_lock.iter().position(|x| x.ptr_eq(weak_participant_impl)) {
+            participant_list_lock.swap_remove(index);
+        }
+    } 
 }
 
 #[cfg(test)]
@@ -165,23 +202,61 @@ mod tests {
         );
     }
 
-    // #[test]
-    // fn create_and_lookup_participants() {
-    //     let domain_participant_factory = DomainParticipantFactory::get_instance();
-    //     let participant1 = domain_participant_factory.create_participant(1, DomainParticipantQos::default(),NoListener, 0).unwrap();
+    #[test]
+    fn create_and_lookup_participants() {
+        let domain_participant_factory = DomainParticipantFactory::get_instance();
+        let participant1 = domain_participant_factory.create_participant(1, DomainParticipantQos::default(),NoListener, 0).unwrap();
 
-    //     // Lookup an existing participant
-    //     let found_participant1 = domain_participant_factory.lookup_participant(1).unwrap();
-    //     assert!(std::ptr::eq(participant1.0.as_ref(), found_participant1.0.as_ref()));
+        // Lookup an existing participant
+        let found_participant1 = domain_participant_factory.lookup_participant(1).unwrap();
+        assert!(std::ptr::eq(participant1.0.as_ref(), found_participant1.0.as_ref()));
 
-    //     // Lookup an inexisting participant
-    //     assert!(domain_participant_factory.lookup_participant(2).is_none());
+        // Lookup an inexisting participant
+        assert!(domain_participant_factory.lookup_participant(2).is_none());
 
-    //     // Lookup a dropped participant
-    //     {
-    //         let _participant5 = domain_participant_factory.create_participant(5, DomainParticipantQos::default(),NoListener, 0).unwrap();
-    //         assert!(domain_participant_factory.lookup_participant(5).is_some());
-    //     }
-    //     assert!(domain_participant_factory.lookup_participant(5).is_none())
-    // }
+        // Lookup a dropped participant
+        {
+            let _participant5 = domain_participant_factory.create_participant(5, DomainParticipantQos::default(),NoListener, 0).unwrap();
+            assert!(domain_participant_factory.lookup_participant(5).is_some());
+        }
+        assert!(domain_participant_factory.lookup_participant(5).is_none());
+
+        domain_participant_factory.delete_participant(participant1);
+        domain_participant_factory.delete_participant(found_participant1);
+    }
+
+    #[test]
+    fn delete_participant() {
+        let domain_participant_factory = DomainParticipantFactory::get_instance();
+        let participant1 = domain_participant_factory.create_participant(1, DomainParticipantQos::default(),NoListener, 0).unwrap();
+
+        // Lookup an existing participant (total reference count is 2)
+        let found_participant1 = domain_participant_factory.lookup_participant(1).unwrap();
+
+        // First explicit deletion will fail because there is still one more reference
+        assert_eq!(domain_participant_factory.delete_participant(participant1),ReturnCode::PreconditionNotMet);
+        // Second deletion should work correctly
+        assert_eq!(domain_participant_factory.delete_participant(found_participant1),ReturnCode::Ok);
+    }
+
+    #[test]
+    fn set_and_get_qos() {
+        let domain_participant_factory = DomainParticipantFactory::get_instance();
+        // Create an object to retrieve the qos, modify it and check that the returned value is the default one
+        let mut qos = DomainParticipantFactoryQos::default();
+        qos.entity_factory.autoenable_created_entities = false;
+        domain_participant_factory.get_qos(&mut qos);
+
+        assert_eq!(qos, DomainParticipantFactoryQos::default());
+
+        // Modify the qos and verify that the new qos is retrieved
+        qos.entity_factory.autoenable_created_entities = false;
+        domain_participant_factory.set_qos(qos.clone());    
+        let mut new_qos = DomainParticipantFactoryQos::default();
+        domain_participant_factory.get_qos(&mut new_qos);
+        assert_eq!(qos, new_qos);
+
+        // Set back the default
+        domain_participant_factory.set_qos(DomainParticipantFactoryQos::default());
+    }
 }
