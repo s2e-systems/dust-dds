@@ -3,8 +3,8 @@ use crate::dds::types::{DomainId, StatusMask, ReturnCode};
 use crate::dds::domain::domain_participant::DomainParticipant;
 use crate::dds::domain::domain_participant_impl::DomainParticipantImpl;
 use crate::dds::domain::domain_participant_listener::DomainParticipantListener;
-use crate::dds::infrastructure::qos_policy::QosPolicy;
 use crate::dds::domain::domain_participant::qos::DomainParticipantQos;
+use qos::DomainParticipantFactoryQos;
 
 pub mod qos {
     use crate::dds::infrastructure::qos_policy::EntityFactoryQosPolicy;
@@ -98,7 +98,7 @@ impl DomainParticipantFactory {
     /// This operation will check that the resulting policies are self consistent; if they are not, the operation will have no effect and
     /// return INCONSISTENT_POLICY.
     pub fn set_default_participant_qos(
-        _qos_list: &[&dyn QosPolicy],
+        _qos_list: DomainParticipantQos,
     ) -> ReturnCode {
         todo!()
     }
@@ -110,7 +110,7 @@ impl DomainParticipantFactory {
     /// set_default_participant_qos, or else, if the call was never made, the default values listed in the QoS table in 2.2.3,
     /// Supported QoS.
     pub fn get_default_participant_qos(
-        _qos_list: &mut [&dyn QosPolicy],
+        _qos_list: &mut DomainParticipantQos,
     ) -> ReturnCode {
         todo!()
     }
@@ -121,14 +121,14 @@ impl DomainParticipantFactory {
     /// This operation will check that the resulting policies are self consistent; if they are not, the operation will have no effect and
     /// return INCONSISTENT_POLICY.
     pub fn set_qos(
-        _qos_list: &[&dyn QosPolicy],
+        _qos_list: DomainParticipantFactoryQos,
     ) -> ReturnCode {
         todo!()
     }
 
     /// This operation returns the value of the DomainParticipantFactory QoS policies.
     pub fn get_qos(
-        _qos_list: &mut [&dyn QosPolicy],
+        _qos_list: &mut DomainParticipantFactoryQos,
     ) -> ReturnCode {
         todo!()
     }   
@@ -165,23 +165,23 @@ mod tests {
         );
     }
 
-    #[test]
-    fn create_and_lookup_participants() {
-        let domain_participant_factory = DomainParticipantFactory::get_instance();
-        let participant1 = domain_participant_factory.create_participant(1, DomainParticipantQos::default(),NoListener, 0).unwrap();
+    // #[test]
+    // fn create_and_lookup_participants() {
+    //     let domain_participant_factory = DomainParticipantFactory::get_instance();
+    //     let participant1 = domain_participant_factory.create_participant(1, DomainParticipantQos::default(),NoListener, 0).unwrap();
 
-        // Lookup an existing participant
-        let found_participant1 = domain_participant_factory.lookup_participant(1).unwrap();
-        assert!(std::ptr::eq(participant1.0.as_ref(), found_participant1.0.as_ref()));
+    //     // Lookup an existing participant
+    //     let found_participant1 = domain_participant_factory.lookup_participant(1).unwrap();
+    //     assert!(std::ptr::eq(participant1.0.as_ref(), found_participant1.0.as_ref()));
 
-        // Lookup an inexisting participant
-        assert!(domain_participant_factory.lookup_participant(2).is_none());
+    //     // Lookup an inexisting participant
+    //     assert!(domain_participant_factory.lookup_participant(2).is_none());
 
-        // Lookup a dropped participant
-        {
-            let _participant5 = domain_participant_factory.create_participant(5, DomainParticipantQos::default(),NoListener, 0).unwrap();
-            assert!(domain_participant_factory.lookup_participant(5).is_some());
-        }
-        assert!(domain_participant_factory.lookup_participant(5).is_none())
-    }
+    //     // Lookup a dropped participant
+    //     {
+    //         let _participant5 = domain_participant_factory.create_participant(5, DomainParticipantQos::default(),NoListener, 0).unwrap();
+    //         assert!(domain_participant_factory.lookup_participant(5).is_some());
+    //     }
+    //     assert!(domain_participant_factory.lookup_participant(5).is_none())
+    // }
 }

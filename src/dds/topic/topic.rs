@@ -3,6 +3,7 @@ use crate::dds::infrastructure::status::InconsistentTopicStatus;
 use crate::dds::infrastructure::entity::Entity;
 use crate::dds::infrastructure::entity::DomainEntity;
 use crate::dds::topic::topic_listener::TopicListener;
+use crate::dds::topic::qos::TopicQos;
 
 /// Topic is the most basic description of the data to be published and subscribed.
 /// A Topic is identified by its name, which must be unique in the whole Domain. In addition (by virtue of extending
@@ -26,13 +27,14 @@ impl Topic {
 }
 
 impl Entity for Topic {
+    type Qos = TopicQos;
     type Listener = Box<dyn TopicListener>;
 
-    fn set_qos(&self, _qos_list: &[&dyn crate::dds::infrastructure::qos_policy::QosPolicy]) -> ReturnCode {
+    fn set_qos(&self, _qos_list: Self::Qos) -> ReturnCode {
         todo!()
     }
 
-    fn get_qos(&self, _qos_list: &mut [&dyn crate::dds::infrastructure::qos_policy::QosPolicy]) -> ReturnCode {
+    fn get_qos(&self, _qos_list: &mut Self::Qos) -> ReturnCode {
         todo!()
     }
 

@@ -9,12 +9,14 @@ use crate::dds::types::{
 use crate::dds::infrastructure::status::SampleLostStatus;
 use crate::dds::domain::domain_participant::DomainParticipant;
 use crate::dds::topic::topic_description::TopicDescription;
+use crate::dds::topic::qos::TopicQos;
 use crate::dds::subscription::data_reader::DataReader;
 use crate::dds::subscription::data_reader_listener::DataReaderListener;
-use crate::dds::infrastructure::qos_policy::QosPolicy;
+use crate::dds::subscription::data_reader::qos::DataReaderQos;
 use crate::dds::infrastructure::entity::Entity;
 use crate::dds::infrastructure::entity::DomainEntity;
 use crate::dds::subscription::subscriber_listener::SubscriberListener;
+use qos::SubscriberQos;
 
 pub mod qos {
     use crate::dds::infrastructure::qos_policy::{
@@ -73,7 +75,7 @@ impl Subscriber {
     /// return a nil result.
     pub fn create_datareader(
         _a_topic: TopicDescription,
-        _qos: &[&dyn QosPolicy],
+        _qos: DataReaderQos,
         _a_listener: Box<dyn DataReaderListener>,
         _mask: &[StatusKind]
     ) -> DataReader {
@@ -202,7 +204,7 @@ impl Subscriber {
     /// be reset back to the initial values the factory would use, that is the values that would be used if the
     /// set_default_datareader_qos operation had never been called.
     pub fn set_default_datareader_qos(
-        _qos_list: &[&dyn QosPolicy],
+        _qos_list: DataReaderQos,
     ) -> ReturnCode {
         todo!()
     }
@@ -213,7 +215,7 @@ impl Subscriber {
     /// get_default_datareader_qos, or else, if the call was never made, the default values listed in the QoS table in 2.2.3,
     /// Supported QoS.
     pub fn get_default_datareader_qos(
-        _qos_list: &mut [&dyn QosPolicy],
+        _qos_list: &mut DataReaderQos,
     ) -> ReturnCode {
         todo!()
     }
@@ -226,8 +228,8 @@ impl Subscriber {
     /// This operation does not check the resulting a_datareader_qos for consistency. This is because the ‘merged’ a_datareader_qos
     /// may not be the final one, as the application can still modify some policies prior to applying the policies to the DataReader.
     pub fn copy_from_topic_qos(
-        _a_datareader_qos: &mut [&dyn QosPolicy],
-        _a_topic_qos: &[&dyn QosPolicy],
+        _a_datareader_qos: &mut DataReaderQos,
+        _a_topic_qos: &TopicQos,
     ) -> ReturnCode {
         todo!()
     }
@@ -235,13 +237,14 @@ impl Subscriber {
 }
 
 impl Entity for Subscriber {
+    type Qos = SubscriberQos;
     type Listener = Box<dyn SubscriberListener>;
 
-    fn set_qos(&self, _qos_list: &[&dyn QosPolicy]) -> ReturnCode {
+    fn set_qos(&self, _qos_list: Self::Qos) -> ReturnCode {
         todo!()
     }
 
-    fn get_qos(&self, _qos_list: &mut [&dyn QosPolicy]) -> ReturnCode {
+    fn get_qos(&self, _qos_list: &mut Self::Qos) -> ReturnCode {
         todo!()
     }
 
