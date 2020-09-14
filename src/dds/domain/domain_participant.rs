@@ -12,6 +12,7 @@ use crate::dds::publication::publisher::Publisher;
 use crate::dds::publication::publisher_listener::PublisherListener;
 use crate::dds::publication::publisher::qos::PublisherQos;
 use crate::dds::infrastructure::entity::Entity;
+use crate::dds::domain::domain_participant_factory::DomainParticipantFactory;
 use crate::dds::domain::domain_participant_listener::DomainParticipantListener;
 use crate::dds::domain::domain_participant_impl::DomainParticipantImpl;
 use qos::DomainParticipantQos;
@@ -22,7 +23,7 @@ pub mod qos {
         UserDataQosPolicy, EntityFactoryQosPolicy
     };
     
-    #[derive(Debug, Default, PartialEq)]
+    #[derive(Debug, Default, PartialEq, Clone)]
     pub struct DomainParticipantQos {
         pub user_data: UserDataQosPolicy,
         pub entity_factory: EntityFactoryQosPolicy,
@@ -483,6 +484,14 @@ impl Entity for DomainParticipant
 
     fn get_instance_handle(&self, ) -> InstanceHandle {
         self.0.get_instance_handle()
+    }
+}
+
+impl Drop for DomainParticipant {
+    fn drop(&mut self) {
+        if Arc::strong_count(&self.0) == 1 {
+            DomainParticipantFactory::get_instance().remove_participant_reference(&Arc::downgrade(&self.0));
+        }
     }
 }
 
