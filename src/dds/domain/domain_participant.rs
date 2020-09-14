@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::dds::types::{StatusKind, ReturnCode, Duration, InstanceHandle, DomainId, Time};
+use crate::dds::types::{StatusKind, ReturnCode, Duration, InstanceHandle, DomainId, Time, StatusMask};
 use crate::dds::topic::topic::Topic;
 use crate::dds::topic::topic_listener::TopicListener;
 use crate::dds::topic::topic_description::TopicDescription;
@@ -53,7 +53,7 @@ pub struct TopicBuiltinTopicData{}
 /// - Factory methods: create_topic, create_publisher, create_subscriber, delete_topic, delete_publisher,
 /// delete_subscriber
 /// - Operations that access the status: get_statuscondition
-pub struct DomainParticipant(pub Arc<DomainParticipantImpl>);
+pub struct DomainParticipant(pub(crate) Arc<DomainParticipantImpl>);
 
 impl DomainParticipant {
     /// This operation creates a Publisher with the desired QoS policies and attaches to it the specified PublisherListener.
@@ -66,10 +66,10 @@ impl DomainParticipant {
     pub fn create_publisher(
         &self,
         qos_list: PublisherQos,
-        a_listener: Box<dyn PublisherListener>,
-        mask: &[StatusKind]
+        a_listener: impl PublisherListener,
+        mask: StatusMask
     ) -> Publisher {
-        self.0.create_publisher(qos_list, a_listener, mask)
+        DomainParticipantImpl::create_publisher(self.0.clone(), qos_list, a_listener, mask)
     }
 
     /// This operation deletes an existing Publisher.
@@ -83,7 +83,7 @@ impl DomainParticipant {
         &self,
         a_publisher: Publisher
     ) -> ReturnCode {
-        self.0.delete_publisher(a_publisher)
+        self.0.delete_publisher(a_publisher.0.clone())
     }
 
     /// This operation creates a Subscriber with the desired QoS policies and attaches to it the specified SubscriberListener.

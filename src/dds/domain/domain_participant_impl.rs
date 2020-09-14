@@ -1,4 +1,5 @@
 use std::any::Any;
+use std::sync::{Arc, Mutex, Weak};
 
 use crate::dds::types::{StatusKind, StatusMask, ReturnCode, Duration, InstanceHandle, DomainId, Time};
 use crate::dds::topic::topic::Topic;
@@ -9,6 +10,7 @@ use crate::dds::subscription::subscriber::Subscriber;
 use crate::dds::subscription::subscriber::qos::SubscriberQos;
 use crate::dds::subscription::subscriber_listener::SubscriberListener;
 use crate::dds::publication::publisher::Publisher;
+use crate::dds::publication::publisher_impl::PublisherImpl;
 use crate::dds::publication::publisher::qos::PublisherQos;
 use crate::dds::publication::publisher_listener::PublisherListener;
 use crate::dds::infrastructure::entity::Entity;
@@ -22,24 +24,35 @@ pub struct DomainParticipantImpl{
     domain_id: DomainId,
     qos: DomainParticipantQos,
     a_listener: Box<dyn DomainParticipantListener>,
-    mask: StatusMask
+    mask: StatusMask,
+    publisher_list: Mutex<Vec<Arc<PublisherImpl>>>,
+    publisher_default_qos: Mutex<PublisherQos>,
 }
 
 impl DomainParticipantImpl{
     pub fn create_publisher(
-        &self,
+        parent_participant: Arc<DomainParticipantImpl>,
         _qos_list: PublisherQos,
-        _a_listener: Box<dyn PublisherListener>,
-        _mask: &[StatusKind]
+        _a_listener: impl PublisherListener,
+        _mask: StatusMask
     ) -> Publisher {
-        todo!()
+        let publisher_impl = Arc::new(PublisherImpl::new(Arc::downgrade(&parent_participant)));
+        let publisher = Publisher(Arc::downgrade(&publisher_impl));
+
+        parent_participant.publisher_list.lock().unwrap().push(publisher_impl);
+
+        publisher
     }
 
     pub fn delete_publisher(
         &self,
-        _a_publisher: Publisher
+        a_publisher: Weak<PublisherImpl>
     ) -> ReturnCode {
-        todo!()
+        // TODO: Shouldn't be deleted if it still contains entities but can't yet be done because the publisher is not implemented
+        let mut publisher_list = self.publisher_list.lock().unwrap();
+        let index = publisher_list.iter().position(|x| std::ptr::eq(x.as_ref(), a_publisher.upgrade().unwrap().as_ref())).unwrap();
+        publisher_list.swap_remove(index);
+        ReturnCode::Ok
     }
 
     pub fn create_subscriber(
@@ -137,16 +150,18 @@ impl DomainParticipantImpl{
 
     pub fn set_default_publisher_qos(
         &self,
-        _qos_list: PublisherQos,
+        qos: PublisherQos,
     ) -> ReturnCode {
-        todo!()
+        *self.publisher_default_qos.lock().unwrap() = qos;
+        ReturnCode::Ok
     }
 
     pub fn get_default_publisher_qos(
         &self,
-        _qos_list: &mut PublisherQos,
+        qos: &mut PublisherQos,
     ) -> ReturnCode {
-        todo!()
+        qos.clone_from(&self.publisher_default_qos.lock().unwrap());
+        ReturnCode::Ok
     }
 
     pub fn set_default_subscriber_qos(
@@ -238,6 +253,8 @@ impl DomainParticipantImpl{
             qos,
             a_listener: Box::new(a_listener),
             mask,
+            publisher_list: Mutex::new(Vec::new()),
+            publisher_default_qos: Mutex::new(PublisherQos::default())
         }
     }
 
@@ -282,8 +299,21 @@ impl Entity for DomainParticipantImpl
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//     use crate::dds::infrastructure::qos_policy::{UserDataQosPolicy, EntityFactoryQosPolicy};
-// }
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::dds::publication::publisher_listener::NoPublisherListener;
+
+    #[test]
+    fn create_publisher() {
+        let domain_participant_impl = Arc::new(DomainParticipantImpl::new(0, DomainParticipantQos::default(), NoListener, 0));
+
+        {
+            assert_eq!(domain_participant_impl.publisher_list.lock().unwrap().len(), 0);
+            let _publisher = DomainParticipantImpl::create_publisher(domain_participant_impl.clone(),PublisherQos::default(), NoPublisherListener, 0);
+            assert_eq!(domain_participant_impl.publisher_list.lock().unwrap().len(), 1);
+        }
+
+        assert_eq!(domain_participant_impl.publisher_list.lock().unwrap().len(), 0);
+    }
+}

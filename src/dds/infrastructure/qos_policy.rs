@@ -124,6 +124,7 @@ impl Default for TopicDataQosPolicy {
 /// This QoS can be used by an application combination with the DataReaderListener and DataWriterListener to implement
 /// matching policies similar to those of the PARTITION QoS except the decision can be made based on an application-defined
 /// policy.
+#[derive(Debug, PartialEq, Clone)]
 pub struct GroupDataQosPolicy {
     pub value: Vec<u8>,
 }
@@ -307,7 +308,7 @@ impl Default for DurabilityQosPolicy {
 }
 
 
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum PresentationQosPolicyAccessScopeKind {
     InstancePresentationQoS,
     TopicPresentationQoS,
@@ -380,6 +381,7 @@ impl PartialOrd for PresentationQosPolicyAccessScopeKind {
 /// GROUP.
 /// 2. Requested coherent_access is FALSE, or else both offered and requested coherent_access are TRUE.
 /// 3. Requested ordered_access is FALSE, or else both offered and requested ordered _access are TRUE.
+#[derive(Debug, PartialEq, Clone)]
 pub struct PresentationQosPolicy {
     pub access_scope: PresentationQosPolicyAccessScopeKind,
     pub coherent_access: bool,
@@ -414,6 +416,7 @@ impl Default for PresentationQosPolicy {
 /// requested deadline period” evaluates to ‘TRUE.’
 /// The setting of the DEADLINE policy must be set consistently with that of the TIME_BASED_FILTER. For these two policies
 /// to be consistent the settings must be such that “deadline period>= minimum_separation.”
+#[derive(Debug, PartialEq, Clone)]
 pub struct DeadlineQosPolicy {
     pub period: Duration,
 }
@@ -437,7 +440,7 @@ impl Default for DeadlineQosPolicy {
 /// This policy is considered a hint. There is no specified mechanism as to how the service should take advantage of this hint.
 /// The value offered is considered compatible with the value requested if and only if the inequality “offered duration <=
 /// requested duration” evaluates to ‘TRUE.’
-#[derive(PartialOrd, PartialEq)]
+#[derive(PartialOrd, PartialEq, Debug, Clone)]
 pub struct LatencyBudgetQosPolicy {
     pub duration: Duration,
 }
@@ -456,6 +459,7 @@ impl Default for LatencyBudgetQosPolicy {
     }
 }
 
+#[derive(Debug, PartialEq, Clone)]
 pub enum OwnershipQosPolicyKind {
     SharedOwnershipQoS,
     ExclusiveOwnershipQoS,
@@ -497,6 +501,7 @@ pub enum OwnershipQosPolicyKind {
 /// DataWriter.
 /// The value of the OWNERSHIP kind offered must exactly match the one requested or else they are considered
 /// incompatible.
+#[derive(Debug, PartialEq, Clone)]
 pub struct OwnershipQosPolicy {
     pub kind: OwnershipQosPolicyKind,
 }
@@ -674,6 +679,7 @@ impl Default for TimeBasedFilterQosPolicy {
 /// Entity can be in multiple partitions. Finally, as far as the DDS Service is concerned, each unique data instance is identified by
 /// the tuple (domainId, Topic, key). Therefore two Entity objects in different domains cannot refer to the same data instance. On
 /// the other hand, the same data-instance can be made available (published) or requested (subscribed) on one or more partitions.
+#[derive(Debug, PartialEq, Clone)]
 pub struct PartitionQosPolicy {
     pub name: String,
 }

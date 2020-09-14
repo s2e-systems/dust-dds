@@ -22,7 +22,7 @@ pub mod qos {
         EntityFactoryQosPolicy,
     };
 
-    #[derive(Default)]
+    #[derive(Debug, Default, PartialEq, Clone)]
     pub struct PublisherQos {
         presentation: PresentationQosPolicy,
         partition: PartitionQosPolicy,
@@ -37,7 +37,7 @@ pub mod qos {
 /// of the Publisher and the DataWriter.
 /// All operations except for the base-class operations set_qos, get_qos, set_listener, get_listener, enable, get_statuscondition,
 /// create_datawriter, and delete_datawriter may return the value NOT_ENABLED.
-pub struct Publisher(Weak<PublisherImpl>);
+pub struct Publisher(pub(crate) Weak<PublisherImpl>);
 
 impl Publisher {
     /// This operation creates a DataWriter. The returned DataWriter will be attached and belongs to the Publisher.
@@ -252,3 +252,10 @@ impl Entity for Publisher{
 }
 
 impl DomainEntity for Publisher{}
+
+impl Drop for Publisher {
+    fn drop(&mut self) {
+        let parent_participant = self.get_participant();
+        parent_participant.0.delete_publisher(self.0.clone());
+    }
+}
