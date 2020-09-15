@@ -9,8 +9,8 @@ pub trait TopicDescription {
     fn get_participant(&self) -> DomainParticipant;
 
     /// The type_name used to create the TopicDescription
-    fn get_type_name(&self) -> &String;
+    fn get_type_name(&self) -> String;
 
     /// The name used to create the TopicDescription
-    fn get_name(&self) -> &String;
+    fn get_name(&self) -> String;
 }

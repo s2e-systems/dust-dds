@@ -37,12 +37,12 @@ impl TopicDescription for Topic {
         TopicImpl::get_participant(&self.0)
     }
 
-    fn get_type_name(&self) -> &String {
-        todo!()
+    fn get_type_name(&self) -> String {
+        TopicImpl::get_type_name(&self.0)
     }
 
-    fn get_name(&self) -> &String {
-        todo!()
+    fn get_name(&self) -> String {
+        TopicImpl::get_name(&self.0)
     }
 }
 
