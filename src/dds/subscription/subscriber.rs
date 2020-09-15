@@ -1,3 +1,5 @@
+use std::sync::Weak;
+
 use crate::dds::types::{
     ReturnCode,
     StatusKind,
@@ -10,6 +12,7 @@ use crate::dds::infrastructure::status::SampleLostStatus;
 use crate::dds::domain::domain_participant::DomainParticipant;
 use crate::dds::topic::topic_description::TopicDescription;
 use crate::dds::topic::qos::TopicQos;
+use crate::dds::subscription::subscriber_impl::SubscriberImpl;
 use crate::dds::subscription::data_reader::DataReader;
 use crate::dds::subscription::data_reader_listener::DataReaderListener;
 use crate::dds::subscription::data_reader::qos::DataReaderQos;
@@ -35,7 +38,7 @@ pub mod qos {
     }
 }
 
-pub struct Subscriber{}
+pub struct Subscriber(pub(crate) Weak<SubscriberImpl>);
 
 /// A Subscriber is the object responsible for the actual reception of the data resulting from its subscriptions
 ///
@@ -74,12 +77,13 @@ impl Subscriber {
     /// create this Subscriber. If the TopicDescription was created from a different DomainParticipant, the operation will fail and
     /// return a nil result.
     pub fn create_datareader(
-        _a_topic: TopicDescription,
-        _qos: DataReaderQos,
-        _a_listener: Box<dyn DataReaderListener>,
-        _mask: &[StatusKind]
+        &self,
+        a_topic: TopicDescription,
+        qos: DataReaderQos,
+        a_listener: Box<dyn DataReaderListener>,
+        mask: &[StatusKind]
     ) -> DataReader {
-        todo!()
+        SubscriberImpl::create_datareader(&self.0, a_topic, qos, a_listener, mask)
     }
 
     /// This operation deletes a DataReader that belongs to the Subscriber. If the DataReader does not belong to the Subscriber, the
@@ -95,9 +99,10 @@ impl Subscriber {
     /// PRECONDITION_NOT_MET.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
     pub fn delete_datareader(
-        _a_datareader: DataReader
+        &self,
+        a_datareader: DataReader
     ) -> ReturnCode {
-        todo!()
+        SubscriberImpl::delete_datareader(&self.0, a_datareader)
     }
 
     /// This operation retrieves a previously-created DataReader belonging to the Subscriber that is attached to a Topic with a
@@ -106,9 +111,10 @@ impl Subscriber {
     /// specified which one.
     /// The use of this operation on the built-in Subscriber allows access to the built-in DataReader entities for the built-in topics
     pub fn lookup_datareader(
-        _topic_name: String
+        &self,
+        topic_name: String
     ) -> DataReader {
-        todo!()
+        SubscriberImpl::lookup_datareader(&self.0, topic_name)
     }
 
     /// This operation indicates that the application is about to access the data samples in any of the DataReader objects attached to
@@ -125,8 +131,8 @@ impl Subscriber {
     /// The calls to begin_access/end_access may be nested. In that case, the application must call end_access as many times as it
     /// called begin_access.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
-    pub fn begin_access() -> ReturnCode {
-        todo!()
+    pub fn begin_access(&self) -> ReturnCode {
+        SubscriberImpl::begin_access(&self.0)
     }
 
     /// Indicates that the application has finished accessing the data samples in DataReader objects managed by the Subscriber.
@@ -135,8 +141,8 @@ impl Subscriber {
     /// sample-accessing operations. This call must close a previous call to begin_access otherwise the operation will return the error
     /// PRECONDITION_NOT_MET.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
-    pub fn end_access() -> ReturnCode {
-        todo!()
+    pub fn end_access(&self) -> ReturnCode {
+        SubscriberImpl::end_access(&self.0)
     }
 
     /// This operation allows the application to access the DataReader objects that contain samples with the specified sample_states,
@@ -156,12 +162,13 @@ impl Subscriber {
     /// ‘list’ and read or take exactly one sample from each DataReader. The patterns that an application should use to access data is
     /// fully described in 2.2.2.5.1, Access to the data.
     pub fn get_datareaders(
-        _readers: &mut [DataReader],
-        _sample_states: &[SampleStateKind],
-        _view_states: &[ViewStateKind],
-        _instance_states: &[InstanceStateKind],
+        &self,
+        readers: &mut [DataReader],
+        sample_states: &[SampleStateKind],
+        view_states: &[ViewStateKind],
+        instance_states: &[InstanceStateKind],
     ) -> ReturnCode {
-        todo!()
+        SubscriberImpl::get_datareaders(&self.0, readers, sample_states, view_states, instance_states)
     }
 
     /// This operation invokes the operation on_data_available on the DataReaderListener objects attached to contained DataReader
@@ -169,18 +176,18 @@ impl Subscriber {
     /// Communication Statuses.
     /// This operation is typically invoked from the on_data_on_readers operation in the SubscriberListener. That way the
     /// SubscriberListener can delegate to the DataReaderListener objects the handling of the data.
-    pub fn notify_datareaders() -> ReturnCode {
-        todo!()
+    pub fn notify_datareaders(&self) -> ReturnCode {
+        SubscriberImpl::notify_datareaders(&self.0)
     }
 
     /// This operation allows access to the SAMPLE_LOST communication status. Communication statuses are described in 2.2.4.1
-    pub fn get_smaple_lost_status(_status: &mut SampleLostStatus) -> ReturnCode {
-        todo!()
+    pub fn get_sample_lost_status(&self, status: &mut SampleLostStatus) -> ReturnCode {
+        SubscriberImpl::get_sample_lost_status(&self.0, status)
     }
 
     /// This operation returns the DomainParticipant to which the Subscriber belongs.
-    pub fn get_participant() -> DomainParticipant {
-        todo!()
+    pub fn get_participant(&self) -> DomainParticipant {
+        SubscriberImpl::get_participant(&self.0)
     }
 
     /// This operation deletes all the entities that were created by means of the “create” operations on the Subscriber. That is, it
@@ -192,8 +199,8 @@ impl Subscriber {
     /// operation and has not called the corresponding return_loan operation to return the loaned samples.
     /// Once delete_contained_entities returns successfully, the application may delete the Subscriber knowing that it has no
     /// contained DataReader objects.
-    pub fn delete_contained_entities() -> ReturnCode {
-        todo!()
+    pub fn delete_contained_entities(&self) -> ReturnCode {
+        SubscriberImpl::delete_contained_entities(&self.0)
     }
 
     /// This operation sets a default value of the DataReader QoS policies which will be used for newly created DataReader entities
@@ -204,9 +211,10 @@ impl Subscriber {
     /// be reset back to the initial values the factory would use, that is the values that would be used if the
     /// set_default_datareader_qos operation had never been called.
     pub fn set_default_datareader_qos(
-        _qos_list: DataReaderQos,
+        &self,
+        qos_list: DataReaderQos,
     ) -> ReturnCode {
-        todo!()
+        SubscriberImpl::set_default_datareader_qos(&self.0, qos_list)
     }
 
     /// This operation retrieves the default value of the DataReader QoS, that is, the QoS policies which will be used for newly
@@ -215,9 +223,10 @@ impl Subscriber {
     /// get_default_datareader_qos, or else, if the call was never made, the default values listed in the QoS table in 2.2.3,
     /// Supported QoS.
     pub fn get_default_datareader_qos(
-        _qos_list: &mut DataReaderQos,
+        &self,
+        qos_list: &mut DataReaderQos,
     ) -> ReturnCode {
-        todo!()
+        SubscriberImpl::get_default_datareader_qos(&self.0, qos_list)
     }
 
     /// This operation copies the policies in the a_topic_qos to the corresponding policies in the a_datareader_qos (replacing values
@@ -228,10 +237,11 @@ impl Subscriber {
     /// This operation does not check the resulting a_datareader_qos for consistency. This is because the ‘merged’ a_datareader_qos
     /// may not be the final one, as the application can still modify some policies prior to applying the policies to the DataReader.
     pub fn copy_from_topic_qos(
-        _a_datareader_qos: &mut DataReaderQos,
-        _a_topic_qos: &TopicQos,
+        &self,
+        a_datareader_qos: &mut DataReaderQos,
+        a_topic_qos: &TopicQos,
     ) -> ReturnCode {
-        todo!()
+        SubscriberImpl::copy_from_topic_qos(&self.0, a_datareader_qos, a_topic_qos)
     }
 
 }
@@ -274,3 +284,10 @@ impl Entity for Subscriber {
 }
 
 impl DomainEntity for Subscriber{}
+
+impl Drop for Subscriber {
+    fn drop(&mut self) {
+        let parent_participant = self.get_participant();
+        parent_participant.delete_subscriber(self);
+    }
+}

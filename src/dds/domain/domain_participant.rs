@@ -83,7 +83,7 @@ impl DomainParticipant {
         &self,
         a_publisher: &Publisher
     ) -> ReturnCode {
-        DomainParticipantImpl::delete_publisher(&self.0, a_publisher.0.clone())
+        DomainParticipantImpl::delete_publisher(&self.0, a_publisher)
     }
 
     /// This operation creates a Subscriber with the desired QoS policies and attaches to it the specified SubscriberListener.
@@ -97,8 +97,8 @@ impl DomainParticipant {
     pub fn create_subscriber(
         &self,
         qos_list: SubscriberQos,
-        a_listener: Box<dyn SubscriberListener>,
-        mask: &[StatusKind]
+        a_listener: impl SubscriberListener,
+        mask: StatusMask
     ) -> Subscriber {
         DomainParticipantImpl::create_subscriber(&self.0, qos_list, a_listener, mask)
     }
@@ -112,7 +112,7 @@ impl DomainParticipant {
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
     pub fn delete_subscriber(
         &self,
-        a_subscriber: Subscriber,
+        a_subscriber: &Subscriber,
     ) -> ReturnCode {
         DomainParticipantImpl::delete_subscriber(&self.0, a_subscriber)
     }

@@ -1,5 +1,5 @@
 use std::any::Any;
-use std::sync::{Arc, Mutex, Weak};
+use std::sync::{Arc, Mutex};
 
 use crate::dds::types::{StatusKind, StatusMask, ReturnCode, Duration, InstanceHandle, DomainId, Time};
 use crate::dds::topic::topic::Topic;
@@ -7,6 +7,7 @@ use crate::dds::topic::qos::TopicQos;
 use crate::dds::topic::topic_listener::TopicListener;
 use crate::dds::topic::topic_description::TopicDescription;
 use crate::dds::subscription::subscriber::Subscriber;
+use crate::dds::subscription::subscriber_impl::SubscriberImpl;
 use crate::dds::subscription::subscriber::qos::SubscriberQos;
 use crate::dds::subscription::subscriber_listener::SubscriberListener;
 use crate::dds::publication::publisher::Publisher;
@@ -28,6 +29,8 @@ pub struct DomainParticipantImpl{
     mask: StatusMask,
     publisher_list: Mutex<Vec<Arc<PublisherImpl>>>,
     publisher_default_qos: Mutex<PublisherQos>,
+    subscriber_list: Mutex<Vec<Arc<SubscriberImpl>>>,
+    subscriber_default_qos: Mutex<SubscriberQos>,
 }
 
 impl DomainParticipantImpl{
@@ -47,29 +50,38 @@ impl DomainParticipantImpl{
 
     pub fn delete_publisher(
         this: &Arc<DomainParticipantImpl>,
-        a_publisher: Weak<PublisherImpl>
+        a_publisher: &Publisher
     ) -> ReturnCode {
         // TODO: Shouldn't be deleted if it still contains entities but can't yet be done because the publisher is not implemented
         let mut publisher_list = this.publisher_list.lock().unwrap();
-        let index = publisher_list.iter().position(|x| std::ptr::eq(x.as_ref(), a_publisher.upgrade().unwrap().as_ref())).unwrap();
+        let index = publisher_list.iter().position(|x| std::ptr::eq(x.as_ref(), a_publisher.0.upgrade().unwrap().as_ref())).unwrap();
         publisher_list.swap_remove(index);
         ReturnCode::Ok
     }
 
     pub fn create_subscriber(
-        _this: &Arc<DomainParticipantImpl>,
+        this: &Arc<DomainParticipantImpl>,
         _qos_list: SubscriberQos,
-        _a_listener: Box<dyn SubscriberListener>,
-        _mask: &[StatusKind]
+        _a_listener: impl SubscriberListener,
+        _mask: StatusMask
     ) -> Subscriber {
-        todo!()
+        let subscriber_impl = Arc::new(SubscriberImpl::new(Arc::downgrade(this)));
+        let subscriber = Subscriber(Arc::downgrade(&subscriber_impl));
+
+        this.subscriber_list.lock().unwrap().push(subscriber_impl);
+
+        subscriber
     }
 
     pub fn delete_subscriber(
-        _this: &Arc<DomainParticipantImpl>,
-        _a_subscriber: Subscriber,
+        this: &Arc<DomainParticipantImpl>,
+        a_subscriber: &Subscriber,
     ) -> ReturnCode {
-        todo!()
+        // TODO: Shouldn't be deleted if it still contains entities but can't yet be done because the publisher is not implemented
+        let mut subscriber_list = this.subscriber_list.lock().unwrap();
+        let index = subscriber_list.iter().position(|x| std::ptr::eq(x.as_ref(), a_subscriber.0.upgrade().unwrap().as_ref())).unwrap();
+        subscriber_list.swap_remove(index);
+        ReturnCode::Ok
     }
 
     pub fn create_topic(
@@ -255,7 +267,9 @@ impl DomainParticipantImpl{
             a_listener: Box::new(a_listener),
             mask,
             publisher_list: Mutex::new(Vec::new()),
-            publisher_default_qos: Mutex::new(PublisherQos::default())
+            publisher_default_qos: Mutex::new(PublisherQos::default()),
+            subscriber_list: Mutex::new(Vec::new()),
+            subscriber_default_qos: Mutex::new(SubscriberQos::default()),
         }
     }
 
@@ -316,5 +330,18 @@ mod tests {
         }
 
         assert_eq!(domain_participant_impl.publisher_list.lock().unwrap().len(), 0);
+    }
+
+    #[test]
+    fn create_subscriber() {
+        let domain_participant_impl = Arc::new(DomainParticipantImpl::new(0, DomainParticipantQos::default(), NoListener, 0));
+
+        {
+            assert_eq!(domain_participant_impl.subscriber_list.lock().unwrap().len(), 0);
+            let _subscriber = DomainParticipantImpl::create_subscriber(&domain_participant_impl,SubscriberQos::default(), NoListener, 0);
+            assert_eq!(domain_participant_impl.subscriber_list.lock().unwrap().len(), 1);
+        }
+
+        assert_eq!(domain_participant_impl.subscriber_list.lock().unwrap().len(), 0);
     }
 }
