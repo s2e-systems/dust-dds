@@ -31,32 +31,32 @@ pub struct DomainParticipantImpl{
 
 impl DomainParticipantImpl{
     pub fn create_publisher(
-        parent_participant: Arc<DomainParticipantImpl>,
+        this: &Arc<DomainParticipantImpl>,
         _qos_list: PublisherQos,
         _a_listener: impl PublisherListener,
         _mask: StatusMask
     ) -> Publisher {
-        let publisher_impl = Arc::new(PublisherImpl::new(Arc::downgrade(&parent_participant)));
+        let publisher_impl = Arc::new(PublisherImpl::new(Arc::downgrade(this)));
         let publisher = Publisher(Arc::downgrade(&publisher_impl));
 
-        parent_participant.publisher_list.lock().unwrap().push(publisher_impl);
+        this.publisher_list.lock().unwrap().push(publisher_impl);
 
         publisher
     }
 
     pub fn delete_publisher(
-        &self,
+        this: &Arc<DomainParticipantImpl>,
         a_publisher: Weak<PublisherImpl>
     ) -> ReturnCode {
         // TODO: Shouldn't be deleted if it still contains entities but can't yet be done because the publisher is not implemented
-        let mut publisher_list = self.publisher_list.lock().unwrap();
+        let mut publisher_list = this.publisher_list.lock().unwrap();
         let index = publisher_list.iter().position(|x| std::ptr::eq(x.as_ref(), a_publisher.upgrade().unwrap().as_ref())).unwrap();
         publisher_list.swap_remove(index);
         ReturnCode::Ok
     }
 
     pub fn create_subscriber(
-        &self,
+        _this: &Arc<DomainParticipantImpl>,
         _qos_list: SubscriberQos,
         _a_listener: Box<dyn SubscriberListener>,
         _mask: &[StatusKind]
@@ -65,14 +65,14 @@ impl DomainParticipantImpl{
     }
 
     pub fn delete_subscriber(
-        &self,
+        _this: &Arc<DomainParticipantImpl>,
         _a_subscriber: Subscriber,
     ) -> ReturnCode {
         todo!()
     }
 
     pub fn create_topic(
-        &self,
+        _this: &Arc<DomainParticipantImpl>,
         _topic_name: String,
         _type_name: String,
         _qos_list: TopicQos,
@@ -83,14 +83,14 @@ impl DomainParticipantImpl{
     }
 
     pub fn delete_topic(
-        &self,
+        _this: &Arc<DomainParticipantImpl>,
         _a_topic: Topic,
     ) -> ReturnCode {
         todo!()
     }
 
     pub fn find_topic(
-        &self,
+        _this: &Arc<DomainParticipantImpl>,
         _topic_name: String,
         _timeout: Duration,
     ) -> Topic {
@@ -98,109 +98,109 @@ impl DomainParticipantImpl{
     }
 
     pub fn lookup_topicdescription(
-        &self,
+        _this: &Arc<DomainParticipantImpl>,
         _name: String,
     ) -> TopicDescription {
         todo!()
     }
 
-    pub fn get_builtin_subscriber(&self,) -> Subscriber {
+    pub fn get_builtin_subscriber(_this: &Arc<DomainParticipantImpl>,) -> Subscriber {
         todo!()
     }
 
     pub fn ignore_participant(
-        &self,
+        _this: &Arc<DomainParticipantImpl>,
         _handle: InstanceHandle
     ) -> ReturnCode{
         todo!()
     }
 
     pub fn ignore_topic(
-        &self,
+        _this: &Arc<DomainParticipantImpl>,
         _handle: InstanceHandle
     ) -> ReturnCode{
         todo!()
     }
 
     pub fn ignore_publication(
-        &self,
+        _this: &Arc<DomainParticipantImpl>,
         _handle: InstanceHandle
     ) -> ReturnCode{
         todo!()
     }
 
     pub fn ignore_subscription(
-        &self,
+        _this: &Arc<DomainParticipantImpl>,
         _handle: InstanceHandle
     ) -> ReturnCode{
         todo!()
     }
 
-    pub fn get_domain_id(&self) -> DomainId {
-        self.domain_id
+    pub fn get_domain_id(this: &Arc<DomainParticipantImpl>) -> DomainId {
+        this.domain_id
     }
 
-    pub fn delete_contained_entities(&self,) -> ReturnCode {
+    pub fn delete_contained_entities(_this: &Arc<DomainParticipantImpl>) -> ReturnCode {
         todo!()   
     }
 
-    pub fn assert_liveliness(&self,) -> ReturnCode {
+    pub fn assert_liveliness(_this: &Arc<DomainParticipantImpl>) -> ReturnCode {
         todo!()   
     }
 
     pub fn set_default_publisher_qos(
-        &self,
+        this: &Arc<DomainParticipantImpl>,
         qos: PublisherQos,
     ) -> ReturnCode {
-        *self.publisher_default_qos.lock().unwrap() = qos;
+        *this.publisher_default_qos.lock().unwrap() = qos;
         ReturnCode::Ok
     }
 
     pub fn get_default_publisher_qos(
-        &self,
+        this: &Arc<DomainParticipantImpl>,
         qos: &mut PublisherQos,
     ) -> ReturnCode {
-        qos.clone_from(&self.publisher_default_qos.lock().unwrap());
+        qos.clone_from(&this.publisher_default_qos.lock().unwrap());
         ReturnCode::Ok
     }
 
     pub fn set_default_subscriber_qos(
-        &self,
+        _this: &Arc<DomainParticipantImpl>,
         _qos_list: SubscriberQos,
     ) -> ReturnCode {
         todo!()
     }
 
     pub fn get_default_subscriber_qos(
-        &self,
+        _this: &Arc<DomainParticipantImpl>,
         _qos_list: &mut SubscriberQos,
     ) -> ReturnCode {
         todo!()
     }
 
     pub fn set_default_topic_qos(
-        &self,
+        _this: &Arc<DomainParticipantImpl>,
         _qos_list: TopicQos,
     ) -> ReturnCode {
         todo!()
     }
 
     pub fn get_default_topic_qos(
-        &self,
+        _this: &Arc<DomainParticipantImpl>,
         _qos_list: &mut TopicQos,
     ) -> ReturnCode {
         todo!()
     }
 
     pub fn get_discovered_participants(
-        &self,
+        _this: &Arc<DomainParticipantImpl>,
         _participant_handles: &mut [InstanceHandle]
     ) -> ReturnCode {
         todo!()
     }
 
     pub fn get_discovered_participant_data(
-        &self,
+        _this: &Arc<DomainParticipantImpl>,
         _participant_data: ParticipantBuiltinTopicData,
         _participant_handle: InstanceHandle
     ) -> ReturnCode {
@@ -208,14 +208,14 @@ impl DomainParticipantImpl{
     }
 
     pub fn get_discovered_topics(
-        &self,
+        _this: &Arc<DomainParticipantImpl>,
         _topic_handles: &mut [InstanceHandle]
     ) -> ReturnCode {
         todo!()
     }
 
     pub fn get_discovered_topic_data(
-        &self,
+        _this: &Arc<DomainParticipantImpl>,
         _topic_data: TopicBuiltinTopicData,
         _topic_handle: InstanceHandle
     ) -> ReturnCode {
@@ -223,14 +223,14 @@ impl DomainParticipantImpl{
     }
 
     pub fn contains_entity(
-        &self,
+        _this: &Arc<DomainParticipantImpl>,
         _a_handle: InstanceHandle
     ) -> bool {
         todo!()
     }
 
     pub fn get_current_time(
-        &self,
+        _this: &Arc<DomainParticipantImpl>,
         _current_time: Time,
     ) -> ReturnCode {
         todo!()
@@ -310,7 +310,7 @@ mod tests {
 
         {
             assert_eq!(domain_participant_impl.publisher_list.lock().unwrap().len(), 0);
-            let _publisher = DomainParticipantImpl::create_publisher(domain_participant_impl.clone(),PublisherQos::default(), NoPublisherListener, 0);
+            let _publisher = DomainParticipantImpl::create_publisher(&domain_participant_impl,PublisherQos::default(), NoPublisherListener, 0);
             assert_eq!(domain_participant_impl.publisher_list.lock().unwrap().len(), 1);
         }
 

@@ -1,4 +1,3 @@
-
 use std::sync::Weak;
 
 use crate::dds::types::{StatusKind, ReturnCode, Duration};
@@ -256,6 +255,6 @@ impl DomainEntity for Publisher{}
 impl Drop for Publisher {
     fn drop(&mut self) {
         let parent_participant = self.get_participant();
-        parent_participant.0.delete_publisher(self.0.clone());
+        parent_participant.delete_publisher(self);
     }
 }
