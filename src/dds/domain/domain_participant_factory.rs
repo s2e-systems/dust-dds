@@ -174,7 +174,7 @@ impl DomainParticipantFactory {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::dds::domain::domain_participant_listener::NoListener;
+    use crate::dds::infrastructure::listener::NoListener;
 
     #[test]
     fn create_participants() {

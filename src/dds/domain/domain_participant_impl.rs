@@ -14,7 +14,8 @@ use crate::dds::publication::publisher_impl::PublisherImpl;
 use crate::dds::publication::publisher::qos::PublisherQos;
 use crate::dds::publication::publisher_listener::PublisherListener;
 use crate::dds::infrastructure::entity::Entity;
-use crate::dds::domain::domain_participant_listener::{DomainParticipantListener, NoListener};
+use crate::dds::domain::domain_participant_listener::DomainParticipantListener;
+use crate::dds::infrastructure::listener::NoListener;
 
 use super::domain_participant::qos::DomainParticipantQos;
 use super::domain_participant::TopicBuiltinTopicData;
@@ -302,7 +303,7 @@ impl Entity for DomainParticipantImpl
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::dds::publication::publisher_listener::NoPublisherListener;
+    use crate::dds::infrastructure::listener::NoListener;
 
     #[test]
     fn create_publisher() {
@@ -310,7 +311,7 @@ mod tests {
 
         {
             assert_eq!(domain_participant_impl.publisher_list.lock().unwrap().len(), 0);
-            let _publisher = DomainParticipantImpl::create_publisher(&domain_participant_impl,PublisherQos::default(), NoPublisherListener, 0);
+            let _publisher = DomainParticipantImpl::create_publisher(&domain_participant_impl,PublisherQos::default(), NoListener, 0);
             assert_eq!(domain_participant_impl.publisher_list.lock().unwrap().len(), 1);
         }
 

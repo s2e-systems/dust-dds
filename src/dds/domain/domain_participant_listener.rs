@@ -15,6 +15,7 @@ use crate::dds::infrastructure::status::{
 use crate::dds::subscription::subscriber::Subscriber;
 use crate::dds::subscription::data_reader::DataReader;
 use crate::dds::publication::data_writer::DataWriter;
+use crate::dds::infrastructure::listener::NoListener;
 
 /// The purpose of the DomainParticipantListener is to be the listener of last resort that is notified of all status changes not
 /// captured by more specific listeners attached to the DomainEntity objects. When a relevant status change occurs, the DCPS
@@ -93,8 +94,6 @@ pub trait DomainParticipantListener : Any + Send + Sync{
         _status: SubscriptionMatchedStatus,
     );
 }
-
-pub struct NoListener;
 
 impl DomainParticipantListener for NoListener {
     fn on_inconsistent_topic(&self, _the_topic: Topic, _status: InconsistentTopicStatus) {

@@ -1,7 +1,5 @@
 use std::any::Any;
-
+use crate::dds::infrastructure::listener::NoListener;
 pub trait PublisherListener: Any + Send + Sync{}
 
-pub struct NoPublisherListener;
-
-impl PublisherListener for NoPublisherListener{}
+impl PublisherListener for NoListener{}
