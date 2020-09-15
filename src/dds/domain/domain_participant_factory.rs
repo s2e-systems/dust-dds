@@ -48,16 +48,16 @@ impl DomainParticipantFactory {
         a_listener: impl DomainParticipantListener,
         mask: StatusMask,
     ) ->  Option<DomainParticipant> {
-        let new_participant = Arc::new(DomainParticipantImpl::new(domain_id, qos_list, a_listener, mask));
+        let new_participant = DomainParticipant(Arc::new(DomainParticipantImpl::new(domain_id, qos_list, a_listener, mask)));
 
         let domain_participant_factory_qos = self.domain_participant_factory_qos.lock().unwrap();
         if domain_participant_factory_qos.entity_factory.autoenable_created_entities {
             new_participant.enable();
         }
 
-        self.participant_list.lock().unwrap().push(Arc::downgrade(&new_participant));
+        self.participant_list.lock().unwrap().push(Arc::downgrade(&new_participant.0));
 
-        Some(DomainParticipant(new_participant))
+        Some(new_participant)
     }
 
     /// This operation deletes an existing DomainParticipant. This operation can only be invoked if all domain entities belonging to
