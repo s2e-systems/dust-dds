@@ -1,5 +1,8 @@
+use std::sync::Weak;
+
 use crate::dds::types::{StatusKind, ReturnCode, Duration};
 use crate::dds::domain::domain_participant::DomainParticipant;
+use crate::dds::domain::domain_participant_impl::DomainParticipantImpl;
 use crate::dds::topic::topic::Topic;
 use crate::dds::topic::qos::TopicQos;
 use crate::dds::publication::publisher::qos::PublisherQos;
@@ -10,7 +13,7 @@ use crate::dds::infrastructure::entity::Entity;
 use crate::dds::infrastructure::entity::DomainEntity;
 use crate::dds::publication::publisher_listener::PublisherListener;
 pub struct PublisherImpl{
-    
+    parent_participant: Weak<DomainParticipantImpl>,    
 }
 
 impl PublisherImpl {
@@ -61,8 +64,8 @@ impl PublisherImpl {
         todo!()
     }
 
-    pub fn get_participant(&self,) -> DomainParticipant {
-        todo!()
+    pub fn get_participant(&self) -> DomainParticipant {
+        DomainParticipant(self.parent_participant.upgrade().unwrap())
     }
 
     pub fn delete_contained_entities(&self,) -> ReturnCode {
@@ -89,6 +92,14 @@ impl PublisherImpl {
         _a_topic_qos: &TopicQos,
     ) -> ReturnCode {
         todo!()
+    }
+
+    //////////////// From here on are the functions that do not belong to the standard API
+    pub(crate) fn new(parent_participant: Weak<DomainParticipantImpl>
+    ) -> Self {
+        Self{
+            parent_participant
+        }
     }
 }
 

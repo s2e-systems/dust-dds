@@ -45,7 +45,7 @@ pub struct Time {
     nanosec: u32,
 }
 
-#[derive(PartialOrd, PartialEq)]
+#[derive(PartialOrd, PartialEq, Debug, Clone)]
 pub struct Duration {
     pub sec: i32,
     pub nanosec: u32,

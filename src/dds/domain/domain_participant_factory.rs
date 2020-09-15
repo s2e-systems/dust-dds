@@ -102,8 +102,8 @@ impl DomainParticipantFactory {
         let domain_participant_impl = participant_list_lock
             .iter()
             .find(|&x| {
-                if let Some(dp) = x.upgrade() {
-                    dp.get_domain_id() == domain_id
+                if let Some(dp) = &x.upgrade() {
+                    DomainParticipantImpl::get_domain_id(dp) == domain_id
                 } else {
                     false
                 }
@@ -174,7 +174,7 @@ impl DomainParticipantFactory {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::dds::domain::domain_participant_listener::NoListener;
+    use crate::dds::infrastructure::listener::NoListener;
 
     #[test]
     fn create_participants() {
