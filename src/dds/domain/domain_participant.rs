@@ -130,8 +130,8 @@ impl DomainParticipant {
         topic_name: String,
         type_name: String,
         qos_list: TopicQos,
-        a_listener: Box<dyn TopicListener>,
-        mask: &[StatusKind]
+        a_listener: impl TopicListener,
+        mask: StatusMask
     ) -> Topic {
         DomainParticipantImpl::create_topic(&self.0, topic_name, type_name, qos_list, a_listener, mask)
     }
@@ -145,7 +145,7 @@ impl DomainParticipant {
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
     pub fn delete_topic(
         &self,
-        a_topic: Topic,
+        a_topic: &Topic,
     ) -> ReturnCode {
         DomainParticipantImpl::delete_topic(&self.0, a_topic)
     }

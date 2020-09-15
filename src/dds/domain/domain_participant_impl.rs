@@ -3,6 +3,7 @@ use std::sync::{Arc, Mutex};
 
 use crate::dds::types::{StatusKind, StatusMask, ReturnCode, Duration, InstanceHandle, DomainId, Time};
 use crate::dds::topic::topic::Topic;
+use crate::dds::topic::topic_impl::TopicImpl;
 use crate::dds::topic::qos::TopicQos;
 use crate::dds::topic::topic_listener::TopicListener;
 use crate::dds::topic::topic_description::TopicDescription;
@@ -30,6 +31,8 @@ pub struct DomainParticipantImpl{
     publisher_default_qos: Mutex<PublisherQos>,
     subscriber_list: Mutex<Vec<Arc<SubscriberImpl>>>,
     subscriber_default_qos: Mutex<SubscriberQos>,
+    topic_list: Mutex<Vec<Arc<TopicImpl>>>,
+    topic_default_qos: Mutex<TopicQos>
 }
 
 impl DomainParticipantImpl{
@@ -76,7 +79,7 @@ impl DomainParticipantImpl{
         this: &Arc<DomainParticipantImpl>,
         a_subscriber: &Subscriber,
     ) -> ReturnCode {
-        // TODO: Shouldn't be deleted if it still contains entities but can't yet be done because the publisher is not implemented
+        // TODO: Shouldn't be deleted if it still contains entities but can't yet be done because the subscriber is not implemented
         let mut subscriber_list = this.subscriber_list.lock().unwrap();
         let index = subscriber_list.iter().position(|x| std::ptr::eq(x.as_ref(), a_subscriber.0.upgrade().unwrap().as_ref())).unwrap();
         subscriber_list.swap_remove(index);
@@ -84,21 +87,31 @@ impl DomainParticipantImpl{
     }
 
     pub fn create_topic(
-        _this: &Arc<DomainParticipantImpl>,
-        _topic_name: String,
-        _type_name: String,
+        this: &Arc<DomainParticipantImpl>,
+        topic_name: String,
+        type_name: String,
         _qos_list: TopicQos,
-        _a_listener: Box<dyn TopicListener>,
-        _mask: &[StatusKind]
+        _a_listener: impl TopicListener,
+        _mask: StatusMask
     ) -> Topic {
-        todo!()
+        let topic_impl = Arc::new(TopicImpl::new(Arc::downgrade(this), topic_name, type_name));
+        let topic = Topic(Arc::downgrade(&topic_impl));
+
+        this.topic_list.lock().unwrap().push(topic_impl);
+
+        topic
     }
 
     pub fn delete_topic(
-        _this: &Arc<DomainParticipantImpl>,
-        _a_topic: Topic,
+        this: &Arc<DomainParticipantImpl>,
+        a_topic: &Topic,
     ) -> ReturnCode {
-        todo!()
+        // TODO: Shouldn't be deleted if there are any existing DataReader, DataWriter, ContentFilteredTopic, or MultiTopic
+        // objects that are using the Topic. It can't yet be done because the functionality is not implemented
+        let mut topic_list = this.topic_list.lock().unwrap();
+        let index = topic_list.iter().position(|x| std::ptr::eq(x.as_ref(), a_topic.0.upgrade().unwrap().as_ref())).unwrap();
+        topic_list.swap_remove(index);
+        ReturnCode::Ok
     }
 
     pub fn find_topic(
@@ -269,6 +282,8 @@ impl DomainParticipantImpl{
             publisher_default_qos: Mutex::new(PublisherQos::default()),
             subscriber_list: Mutex::new(Vec::new()),
             subscriber_default_qos: Mutex::new(SubscriberQos::default()),
+            topic_list: Mutex::new(Vec::new()),
+            topic_default_qos: Mutex::new(TopicQos::default()),
         }
     }
 
@@ -342,5 +357,18 @@ mod tests {
         }
 
         assert_eq!(domain_participant_impl.subscriber_list.lock().unwrap().len(), 0);
+    }
+
+    #[test]
+    fn create_topic() {
+        let domain_participant_impl = Arc::new(DomainParticipantImpl::new(0, DomainParticipantQos::default(), NoListener, 0));
+
+        {
+            assert_eq!(domain_participant_impl.topic_list.lock().unwrap().len(), 0);
+            let _topic = DomainParticipantImpl::create_topic(&domain_participant_impl,"name".to_string(), "type".to_string(), TopicQos::default(), NoListener, 0);
+            assert_eq!(domain_participant_impl.topic_list.lock().unwrap().len(), 1);
+        }
+
+        assert_eq!(domain_participant_impl.topic_list.lock().unwrap().len(), 0);
     }
 }
