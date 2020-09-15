@@ -17,10 +17,9 @@ use crate::dds::publication::publisher_listener::PublisherListener;
 use crate::dds::infrastructure::entity::Entity;
 use crate::dds::domain::domain_participant_listener::DomainParticipantListener;
 use crate::dds::infrastructure::listener::NoListener;
+use crate::dds::builtin_topics::{TopicBuiltinTopicData, ParticipantBuiltinTopicData};
 
 use super::domain_participant::qos::DomainParticipantQos;
-use super::domain_participant::TopicBuiltinTopicData;
-use super::domain_participant::ParticipantBuiltinTopicData;
 
 pub struct DomainParticipantImpl{
     domain_id: DomainId,

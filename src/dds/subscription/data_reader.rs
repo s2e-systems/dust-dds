@@ -8,6 +8,7 @@ use crate::dds::subscription::sample_info::SampleInfo;
 use crate::dds::infrastructure::entity::Entity;
 use crate::dds::infrastructure::entity::DomainEntity;
 use crate::dds::subscription::data_reader_listener::DataReaderListener;
+use crate::dds::builtin_topics::PublicationBuiltinTopicData;
 use qos::DataReaderQos;
 
 pub mod qos {
@@ -65,11 +66,6 @@ pub mod qos {
 
 // Todo: Read data is dependent on the associated datatype
 type Data=Vec<u8>;
-
-// TODO: Fill up and find a home for this
-pub struct PublicationBuiltinTopicData {
-
-}
 
 /// A DataReader allows the application (1) to declare the data it wishes to receive (i.e., make a subscription) and (2) to access the
 /// data received by the attached Subscriber.

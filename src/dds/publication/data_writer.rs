@@ -7,6 +7,7 @@ use crate::dds::publication::publisher::Publisher;
 use crate::dds::infrastructure::entity::Entity;
 use crate::dds::infrastructure::entity::DomainEntity;
 use crate::dds::publication::data_writer_listener::DataWriterListener;
+use crate::dds::builtin_topics::SubscriptionBuiltinTopicData;
 use qos::DataWriterQos;
 
 pub mod qos {
@@ -73,11 +74,6 @@ pub mod qos {
 
 // Todo: Write data is dependent on the associated datatype
 type Data=Vec<u8>;
-
-// TODO: Fill up and find a home for this
-pub struct SubscriptionBuiltinTopicData {
-
-}
 
 pub struct DataWriter{}
 

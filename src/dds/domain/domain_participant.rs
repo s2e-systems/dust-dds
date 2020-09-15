@@ -15,6 +15,8 @@ use crate::dds::infrastructure::entity::Entity;
 use crate::dds::domain::domain_participant_factory::DomainParticipantFactory;
 use crate::dds::domain::domain_participant_listener::DomainParticipantListener;
 use crate::dds::domain::domain_participant_impl::DomainParticipantImpl;
+use crate::dds::builtin_topics::{TopicBuiltinTopicData, ParticipantBuiltinTopicData};
+
 use qos::DomainParticipantQos;
 
 
@@ -29,10 +31,6 @@ pub mod qos {
         pub entity_factory: EntityFactoryQosPolicy,
     }
 }
-
-// TODO: Create and find a home for it
-pub struct ParticipantBuiltinTopicData{}
-pub struct TopicBuiltinTopicData{}
 
 /// The DomainParticipant object plays several roles:
 /// - It acts as a container for all other Entity objects.
