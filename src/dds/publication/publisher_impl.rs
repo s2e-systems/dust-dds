@@ -18,7 +18,7 @@ pub struct PublisherImpl{
 
 impl PublisherImpl {
     pub fn create_datawriter(
-        &self,
+        _this: &Weak<PublisherImpl>,
         _a_topic: Topic,
         _qos: DataWriterQos,
         _a_listener: Box<dyn DataWriterListener>,
@@ -28,66 +28,66 @@ impl PublisherImpl {
     }
 
     pub fn delete_datawriter(
-        &self,
+        _this: &Weak<PublisherImpl>,
         _a_datawriter: DataWriter
     ) -> ReturnCode {
         todo!()
     }
 
     pub fn lookup_datawriter(
-        &self,
+        _this: &Weak<PublisherImpl>,
         _topic_name: String,
     ) -> DataWriter {
         todo!()
     }
 
-    pub fn suspend_publications(&self,) -> ReturnCode {
+    pub fn suspend_publications(_this: &Weak<PublisherImpl>) -> ReturnCode {
         todo!()
     }
 
-    pub fn resume_publications(&self,) -> ReturnCode {
+    pub fn resume_publications(_this: &Weak<PublisherImpl>) -> ReturnCode {
         todo!()
     }
 
-    pub fn begin_coherent_changes(&self,) -> ReturnCode {
+    pub fn begin_coherent_changes(_this: &Weak<PublisherImpl>) -> ReturnCode {
         todo!()
     }
 
-    pub fn end_coherent_changes(&self,) -> ReturnCode {
+    pub fn end_coherent_changes(_this: &Weak<PublisherImpl>) -> ReturnCode {
         todo!()
     }
 
     pub fn wait_for_acknowledgments(
-        &self,
+        _this: &Weak<PublisherImpl>,
         _max_wait: Duration
     ) -> ReturnCode {
         todo!()
     }
 
-    pub fn get_participant(&self) -> DomainParticipant {
-        DomainParticipant(self.parent_participant.upgrade().unwrap())
+    pub fn get_participant(this: &Weak<PublisherImpl>) -> DomainParticipant {
+        DomainParticipant(this.upgrade().unwrap().parent_participant.upgrade().unwrap())
     }
 
-    pub fn delete_contained_entities(&self,) -> ReturnCode {
+    pub fn delete_contained_entities(_this: &Weak<PublisherImpl>) -> ReturnCode {
         todo!()
     }
 
     pub fn set_default_datawriter_qos(
-        &self,
+        _this: &Weak<PublisherImpl>,
         _qos_list: DataWriterQos,
     ) -> ReturnCode {
         todo!()
     }
 
     pub fn get_default_datawriter_qos (
-        &self,
+        _this: &Weak<PublisherImpl>,
         _qos_list: &mut DataWriterQos,
     ) -> ReturnCode {
         todo!()
     }
 
     pub fn copy_from_topic_qos(
-        &self,
+        _this: &Weak<PublisherImpl>,
         _a_datawriter_qos: &mut DataWriterQos,
         _a_topic_qos: &TopicQos,
     ) -> ReturnCode {

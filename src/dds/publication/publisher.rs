@@ -67,7 +67,7 @@ impl Publisher {
         a_listener: Box<dyn DataWriterListener>,
         mask: &[StatusKind]
     ) -> DataWriter {
-        self.0.upgrade().unwrap().create_datawriter(a_topic, qos, a_listener, mask)
+        PublisherImpl::create_datawriter(&self.0, a_topic, qos, a_listener, mask)
     }
 
     /// This operation deletes a DataWriter that belongs to the Publisher.
@@ -82,7 +82,7 @@ impl Publisher {
         &self,
         a_datawriter: DataWriter
     ) -> ReturnCode {
-        self.0.upgrade().unwrap().delete_datawriter(a_datawriter)
+        PublisherImpl::delete_datawriter(&self.0, a_datawriter)
     }
 
     /// This operation retrieves a previously created DataWriter belonging to the Publisher that is attached to a Topic with a matching
@@ -93,7 +93,7 @@ impl Publisher {
         &self,
         topic_name: String,
     ) -> DataWriter {
-        self.0.upgrade().unwrap().lookup_datawriter(topic_name)
+        PublisherImpl::lookup_datawriter(&self.0, topic_name)
     }
 
     /// This operation indicates to the Service that the application is about to make multiple modifications using DataWriter objects
@@ -105,7 +105,7 @@ impl Publisher {
     /// modifications has completed. If the Publisher is deleted before resume_publications is called, any suspended updates yet to
     /// be published will be discarded.
     pub fn suspend_publications(&self,) -> ReturnCode {
-        self.0.upgrade().unwrap().suspend_publications()
+        PublisherImpl::suspend_publications(&self.0, )
     }
 
     /// This operation indicates to the Service that the application has completed the multiple changes initiated by the previous
@@ -115,7 +115,7 @@ impl Publisher {
     /// error PRECONDITION_NOT_MET.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
     pub fn resume_publications(&self,) -> ReturnCode {
-        self.0.upgrade().unwrap().resume_publications()
+        PublisherImpl::resume_publications(&self.0, )
     }
 
     /// This operation requests that the application will begin a ‘coherent set’ of modifications using DataWriter objects attached to
@@ -135,14 +135,14 @@ impl Publisher {
     /// same aircraft and both are changed, it may be useful to communicate those values in a way the reader can see both together;
     /// otherwise, it may e.g., erroneously interpret that the aircraft is on a collision course).
     pub fn begin_coherent_changes(&self,) -> ReturnCode {
-        self.0.upgrade().unwrap().begin_coherent_changes()
+        PublisherImpl::begin_coherent_changes(&self.0, )
     }
 
     /// This operation terminates the ‘coherent set’ initiated by the matching call to begin_coherent_ changes. If there is no matching
     /// call to begin_coherent_ changes, the operation will return the error PRECONDITION_NOT_MET.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET
     pub fn end_coherent_changes(&self,) -> ReturnCode {
-        self.0.upgrade().unwrap().end_coherent_changes()
+        PublisherImpl::end_coherent_changes(&self.0, )
     }
 
     /// This operation blocks the calling thread until either all data written by the reliable DataWriter entities is acknowledged by all
@@ -153,12 +153,12 @@ impl Publisher {
         &self,
         max_wait: Duration
     ) -> ReturnCode {
-        self.0.upgrade().unwrap().wait_for_acknowledgments(max_wait)
+        PublisherImpl::wait_for_acknowledgments(&self.0, max_wait)
     }
 
     /// This operation returns the DomainParticipant to which the Publisher belongs.
     pub fn get_participant(&self,) -> DomainParticipant {
-        self.0.upgrade().unwrap().get_participant()
+        PublisherImpl::get_participant(&self.0, )
     }
 
     /// This operation deletes all the entities that were created by means of the “create” operations on the Publisher. That is, it deletes
@@ -168,7 +168,7 @@ impl Publisher {
     /// Once delete_contained_entities returns successfully, the application may delete the Publisher knowing that it has no
     /// contained DataWriter objects
     pub fn delete_contained_entities(&self,) -> ReturnCode {
-        self.0.upgrade().unwrap().delete_contained_entities()
+        PublisherImpl::delete_contained_entities(&self.0, )
     }
 
     /// This operation sets a default value of the DataWriter QoS policies which will be used for newly created DataWriter entities in
@@ -182,7 +182,7 @@ impl Publisher {
         &self,
         qos_list: DataWriterQos,
     ) -> ReturnCode {
-        self.0.upgrade().unwrap().set_default_datawriter_qos(qos_list)
+        PublisherImpl::set_default_datawriter_qos(&self.0, qos_list)
     }
 
     /// This operation retrieves the default value of the DataWriter QoS, that is, the QoS policies which will be used for newly created
@@ -194,7 +194,7 @@ impl Publisher {
         &self,
         qos_list: &mut DataWriterQos,
     ) -> ReturnCode {
-        self.0.upgrade().unwrap().get_default_datawriter_qos(qos_list)
+        PublisherImpl::get_default_datawriter_qos(&self.0, qos_list)
     }
 
     /// This operation copies the policies in the a_topic_qos to the corresponding policies in the a_datawriter_qos (replacing values
@@ -209,7 +209,7 @@ impl Publisher {
         a_datawriter_qos: &mut DataWriterQos,
         a_topic_qos: &TopicQos,
     ) -> ReturnCode {
-        self.0.upgrade().unwrap().copy_from_topic_qos(a_datawriter_qos, a_topic_qos)
+        PublisherImpl::copy_from_topic_qos(&self.0, a_datawriter_qos, a_topic_qos)
     }
 }
 
