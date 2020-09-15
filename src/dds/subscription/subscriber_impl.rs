@@ -28,7 +28,7 @@ pub struct SubscriberImpl{
 impl SubscriberImpl {
     pub fn create_datareader(
         _this: &Weak<SubscriberImpl>,
-        _a_topic: TopicDescription,
+        _a_topic: &dyn TopicDescription,
         _qos: DataReaderQos,
         _a_listener: Box<dyn DataReaderListener>,
         _mask: &[StatusKind]

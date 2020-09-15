@@ -78,7 +78,7 @@ impl Subscriber {
     /// return a nil result.
     pub fn create_datareader(
         &self,
-        a_topic: TopicDescription,
+        a_topic: &dyn TopicDescription,
         qos: DataReaderQos,
         a_listener: Box<dyn DataReaderListener>,
         mask: &[StatusKind]

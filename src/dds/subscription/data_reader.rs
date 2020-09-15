@@ -553,7 +553,7 @@ impl DataReader {
 
     /// This operation returns the TopicDescription associated with the DataReader. This is the same TopicDescription that was used
     /// to create the DataReader.
-    pub fn get_topicdescription() -> TopicDescription {
+    pub fn get_topicdescription(&self) -> &dyn TopicDescription {
         todo!()
     }
 

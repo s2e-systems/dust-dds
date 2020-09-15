@@ -112,7 +112,7 @@ impl DomainParticipantImpl{
     pub fn lookup_topicdescription(
         _this: &Arc<DomainParticipantImpl>,
         _name: String,
-    ) -> TopicDescription {
+    ) -> &dyn TopicDescription {
         todo!()
     }
 

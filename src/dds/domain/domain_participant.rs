@@ -183,7 +183,7 @@ impl DomainParticipant {
     pub fn lookup_topicdescription(
         &self,
         name: String,
-    ) -> TopicDescription {
+    ) -> &dyn TopicDescription {
         DomainParticipantImpl::lookup_topicdescription(&self.0, name)
     }
 
