@@ -1,7 +1,6 @@
 use std::sync::{Arc, Weak, Mutex};
 use crate::dds::types::{DomainId, StatusMask, ReturnCode};
-use crate::dds::domain::domain_participant::DomainParticipant;
-use crate::dds::domain::domain_participant_impl::DomainParticipantImpl;
+use crate::dds::domain::domain_participant::{DomainParticipant, DomainParticipantImpl};
 use crate::dds::domain::domain_participant_listener::DomainParticipantListener;
 use crate::dds::domain::domain_participant::qos::DomainParticipantQos;
 use crate::dds::infrastructure::entity::Entity;
