@@ -1,6 +1,6 @@
 use rust_rtps::{StatelessWriter, StatelessReader, };
-use rust_rtps::types::{ChangeKind, TopicKind, Locator, GUID, };
-use rust_rtps::types::constants::{ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER, ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER, };
+use rust_rtps::rtps::types::{ChangeKind, TopicKind, Locator, GUID, };
+use rust_rtps::rtps::types::constants::{ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER, ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER, };
 use rust_rtps::{ParameterId, Pid, MemoryTransport, RtpsMessageSender, RtpsMessageReceiver};
 
 use serde::{Serialize, };
