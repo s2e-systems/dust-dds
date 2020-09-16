@@ -16,8 +16,6 @@ use crate::dds::topic::qos::TopicQos;
 use crate::dds::subscription::data_reader::DataReader;
 use crate::dds::subscription::data_reader_listener::DataReaderListener;
 use crate::dds::subscription::data_reader::qos::DataReaderQos;
-use crate::dds::infrastructure::entity::Entity;
-use crate::dds::infrastructure::entity::DomainEntity;
 use crate::dds::subscription::subscriber_listener::SubscriberListener;
 use crate::dds::subscription::subscriber::qos::SubscriberQos;
 
@@ -26,9 +24,9 @@ pub struct SubscriberImpl{
 }
 
 impl SubscriberImpl {
-    pub fn create_datareader(
+    pub(crate) fn create_datareader(
         _this: &Weak<SubscriberImpl>,
-        _a_topic: TopicDescription,
+        _a_topic: &dyn TopicDescription,
         _qos: DataReaderQos,
         _a_listener: Box<dyn DataReaderListener>,
         _mask: &[StatusKind]
@@ -36,34 +34,34 @@ impl SubscriberImpl {
         todo!()
     }
 
-    pub fn delete_datareader(
+    pub(crate) fn delete_datareader(
         _this: &Weak<SubscriberImpl>,
         _a_datareader: DataReader
     ) -> ReturnCode {
         todo!()
     }
 
-    pub fn lookup_datareader(
+    pub(crate) fn lookup_datareader(
         _this: &Weak<SubscriberImpl>,
         _topic_name: String
     ) -> DataReader {
         todo!()
     }
 
-    pub fn begin_access(
+    pub(crate) fn begin_access(
         _this: &Weak<SubscriberImpl>,
     ) -> ReturnCode {
         todo!()
     }
 
-    pub fn end_access(
+    pub(crate) fn end_access(
         _this: &Weak<SubscriberImpl>,
     ) -> ReturnCode {
         todo!()
     }
 
    
-    pub fn get_datareaders(
+    pub(crate) fn get_datareaders(
         _this: &Weak<SubscriberImpl>,
         _readers: &mut [DataReader],
         _sample_states: &[SampleStateKind],
@@ -73,49 +71,82 @@ impl SubscriberImpl {
         todo!()
     }
 
-    pub fn notify_datareaders(
+    pub(crate) fn notify_datareaders(
         _this: &Weak<SubscriberImpl>,
     ) -> ReturnCode {
         todo!()
     }
 
-    pub fn get_sample_lost_status(
+    pub(crate) fn get_sample_lost_status(
         _this: &Weak<SubscriberImpl>,
         _status: &mut SampleLostStatus) -> ReturnCode {
         todo!()
     }
 
-    pub fn get_participant(
+    pub(crate) fn get_participant(
         this: &Weak<SubscriberImpl>,
     ) -> DomainParticipant {
         DomainParticipant(this.upgrade().unwrap().parent_participant.upgrade().unwrap())
     }
 
-    pub fn delete_contained_entities(
+    pub(crate) fn delete_contained_entities(
         _this: &Weak<SubscriberImpl>,
     ) -> ReturnCode {
         todo!()
     }
 
-    pub fn set_default_datareader_qos(
+    pub(crate) fn set_default_datareader_qos(
         _this: &Weak<SubscriberImpl>,
         _qos_list: DataReaderQos,
     ) -> ReturnCode {
         todo!()
     }
 
-    pub fn get_default_datareader_qos(
+    pub(crate) fn get_default_datareader_qos(
         _this: &Weak<SubscriberImpl>,
         _qos_list: &mut DataReaderQos,
     ) -> ReturnCode {
         todo!()
     }
 
-    pub fn copy_from_topic_qos(
+    pub(crate) fn copy_from_topic_qos(
         _this: &Weak<SubscriberImpl>,
         _a_datareader_qos: &mut DataReaderQos,
         _a_topic_qos: &TopicQos,
     ) -> ReturnCode {
+        todo!()
+    }
+
+    //////////////// Entity trait methods
+    pub(crate) fn set_qos(_this: &Weak<SubscriberImpl>, _qos_list: SubscriberQos) -> ReturnCode {
+        todo!()
+    }
+
+    pub(crate) fn get_qos(_this: &Weak<SubscriberImpl>, _qos_list: &mut SubscriberQos) -> ReturnCode {
+        todo!()
+    }
+
+    pub(crate) fn set_listener(_this: &Weak<SubscriberImpl>, _a_listener: Box<dyn SubscriberListener>, _mask: &[StatusKind]) -> ReturnCode {
+        todo!()
+    }
+
+    pub(crate) fn get_listener(_this: &Weak<SubscriberImpl>) -> Box<dyn SubscriberListener> {
+        todo!()
+    }
+
+    pub(crate) fn get_statuscondition(_this: &Weak<SubscriberImpl>) -> crate::dds::infrastructure::entity::StatusCondition {
+        todo!()
+    }
+
+    pub(crate) fn get_status_changes(_this: &Weak<SubscriberImpl>) -> StatusKind {
+        todo!()
+    }
+
+    pub(crate) fn enable(_this: &Weak<SubscriberImpl>) -> ReturnCode {
+        todo!()
+    }
+
+    pub(crate) fn get_instance_handle(_this: &Weak<SubscriberImpl>) -> crate::dds::types::InstanceHandle {
         todo!()
     }
 
@@ -128,42 +159,3 @@ impl SubscriberImpl {
     }
 
 }
-
-impl Entity for SubscriberImpl {
-    type Qos = SubscriberQos;
-    type Listener = Box<dyn SubscriberListener>;
-
-    fn set_qos(&self, _qos_list: Self::Qos) -> ReturnCode {
-        todo!()
-    }
-
-    fn get_qos(&self, _qos_list: &mut Self::Qos) -> ReturnCode {
-        todo!()
-    }
-
-    fn set_listener(&self, _a_listener: Self::Listener, _mask: &[StatusKind]) -> ReturnCode {
-        todo!()
-    }
-
-    fn get_listener(&self, ) -> Self::Listener {
-        todo!()
-    }
-
-    fn get_statuscondition(&self, ) -> crate::dds::infrastructure::entity::StatusCondition {
-        todo!()
-    }
-
-    fn get_status_changes(&self, ) -> StatusKind {
-        todo!()
-    }
-
-    fn enable(&self, ) -> ReturnCode {
-        todo!()
-    }
-
-    fn get_instance_handle(&self, ) -> crate::dds::types::InstanceHandle {
-        todo!()
-    }
-}
-
-impl DomainEntity for SubscriberImpl{}

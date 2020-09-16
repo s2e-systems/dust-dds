@@ -130,8 +130,8 @@ impl DomainParticipant {
         topic_name: String,
         type_name: String,
         qos_list: TopicQos,
-        a_listener: Box<dyn TopicListener>,
-        mask: &[StatusKind]
+        a_listener: impl TopicListener,
+        mask: StatusMask
     ) -> Topic {
         DomainParticipantImpl::create_topic(&self.0, topic_name, type_name, qos_list, a_listener, mask)
     }
@@ -145,7 +145,7 @@ impl DomainParticipant {
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
     pub fn delete_topic(
         &self,
-        a_topic: Topic,
+        a_topic: &Topic,
     ) -> ReturnCode {
         DomainParticipantImpl::delete_topic(&self.0, a_topic)
     }
@@ -183,7 +183,7 @@ impl DomainParticipant {
     pub fn lookup_topicdescription(
         &self,
         name: String,
-    ) -> TopicDescription {
+    ) -> &dyn TopicDescription {
         DomainParticipantImpl::lookup_topicdescription(&self.0, name)
     }
 
@@ -453,35 +453,35 @@ impl Entity for DomainParticipant
     type Listener = Box<dyn DomainParticipantListener>;
 
     fn set_qos(&self, qos_list: Self::Qos) -> ReturnCode {
-        self.0.set_qos(qos_list)
+        DomainParticipantImpl::set_qos(&self.0, qos_list)
     }
 
     fn get_qos(&self, qos_list: &mut Self::Qos) -> ReturnCode {
-        self.0.get_qos(qos_list)
+        DomainParticipantImpl::get_qos(&self.0, qos_list)
     }
 
     fn set_listener(&self, a_listener: Self::Listener, mask: &[StatusKind]) -> ReturnCode {
-        self.0.set_listener(a_listener, mask)
+        DomainParticipantImpl::set_listener(&self.0, a_listener, mask)
     }
 
     fn get_listener(&self, ) -> Self::Listener {
-        self.0.get_listener()
+        DomainParticipantImpl::get_listener(&self.0)
     }
 
     fn get_statuscondition(&self, ) -> crate::dds::infrastructure::entity::StatusCondition {
-        self.0.get_statuscondition()
+        DomainParticipantImpl::get_statuscondition(&self.0)
     }
 
     fn get_status_changes(&self, ) -> StatusKind {
-        self.0.get_status_changes()
+        DomainParticipantImpl::get_status_changes(&self.0)
     }
 
     fn enable(&self, ) -> ReturnCode {
-        self.0.enable()
+        DomainParticipantImpl::enable(&self.0)
     }
 
     fn get_instance_handle(&self, ) -> InstanceHandle {
-        self.0.get_instance_handle()
+        DomainParticipantImpl::get_instance_handle(&self.0)
     }
 }
 

@@ -1,9 +1,14 @@
+use std::sync::Weak;
+
 use crate::dds::types::ReturnCode;
 use crate::dds::infrastructure::status::InconsistentTopicStatus;
 use crate::dds::infrastructure::entity::Entity;
 use crate::dds::infrastructure::entity::DomainEntity;
 use crate::dds::topic::topic_listener::TopicListener;
+use crate::dds::topic::topic_description::TopicDescription;
+use crate::dds::topic::topic_impl::TopicImpl;
 use crate::dds::topic::qos::TopicQos;
+use crate::dds::domain::domain_participant::DomainParticipant;
 
 /// Topic is the most basic description of the data to be published and subscribed.
 /// A Topic is identified by its name, which must be unique in the whole Domain. In addition (by virtue of extending
@@ -11,7 +16,7 @@ use crate::dds::topic::qos::TopicQos;
 /// Topic is the only TopicDescription that can be used for publications and therefore associated to a DataWriter.
 /// All operations except for the base-class operations set_qos, get_qos, set_listener, get_listener, enable and
 /// get_status_condition may return the value NOT_ENABLED.
-pub struct Topic {}
+pub struct Topic(pub(crate) Weak<TopicImpl>);
 
 impl Topic {
     /// This method allows the application to retrieve the INCONSISTENT_TOPIC status of the Topic.
@@ -20,9 +25,24 @@ impl Topic {
     /// The complete list of communication status, their values, and the DomainEntities they apply to is provided in 2.2.4.1,
     /// Communication Status.
     pub fn get_inconsistent_topic_status(
-        _status: &mut InconsistentTopicStatus,
+        &self,
+        status: &mut InconsistentTopicStatus,
     ) -> ReturnCode {
-        todo!()
+        TopicImpl::get_inconsistent_topic_status(&self.0, status)
+    }
+}
+
+impl TopicDescription for Topic {
+    fn get_participant(&self) -> DomainParticipant {
+        TopicImpl::get_participant(&self.0)
+    }
+
+    fn get_type_name(&self) -> String {
+        TopicImpl::get_type_name(&self.0)
+    }
+
+    fn get_name(&self) -> String {
+        TopicImpl::get_name(&self.0)
     }
 }
 
@@ -64,3 +84,10 @@ impl Entity for Topic {
 }
 
 impl DomainEntity for Topic{}
+
+impl Drop for Topic {
+    fn drop(&mut self) {
+        let parent_participant = self.get_participant();
+        parent_participant.delete_topic(self);
+    }
+}

@@ -218,35 +218,35 @@ impl Entity for Publisher{
     type Listener = Box<dyn PublisherListener>;
 
     fn set_qos(&self, qos_list: Self::Qos) -> ReturnCode {
-        self.0.upgrade().unwrap().set_qos(qos_list)
+        PublisherImpl::set_qos(&self.0, qos_list)
     }
 
     fn get_qos(&self, qos_list: &mut Self::Qos) -> ReturnCode {
-        self.0.upgrade().unwrap().get_qos(qos_list)
+        PublisherImpl::get_qos(&self.0, qos_list)
     }
 
     fn set_listener(&self, a_listener: Self::Listener, mask: &[StatusKind]) -> ReturnCode {
-        self.0.upgrade().unwrap().set_listener(a_listener, mask)
+        PublisherImpl::set_listener(&self.0, a_listener, mask)
     }
 
     fn get_listener(&self, ) -> Self::Listener {
-        self.0.upgrade().unwrap().get_listener()
+        PublisherImpl::get_listener(&self.0)
     }
 
     fn get_statuscondition(&self, ) -> crate::dds::infrastructure::entity::StatusCondition {
-        self.0.upgrade().unwrap().get_statuscondition()
+        PublisherImpl::get_statuscondition(&self.0)
     }
 
     fn get_status_changes(&self, ) -> StatusKind {
-        self.0.upgrade().unwrap().get_status_changes()
+        PublisherImpl::get_status_changes(&self.0)
     }
 
     fn enable(&self, ) -> ReturnCode {
-        self.0.upgrade().unwrap().enable()
+        PublisherImpl::enable(&self.0)
     }
 
     fn get_instance_handle(&self, ) -> crate::dds::types::InstanceHandle {
-        self.0.upgrade().unwrap().get_instance_handle()
+        PublisherImpl::get_instance_handle(&self.0)
     }
 }
 
