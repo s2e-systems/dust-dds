@@ -1,4 +1,5 @@
 use std::any::Any;
+use std::sync::Weak;
 
 use crate::dds::types::{InstanceHandle, Time, ReturnCode, Duration};
 
@@ -73,9 +74,7 @@ pub mod qos {
     }
 }
 
-pub struct DataWriter<T>{
-    value: T,
-}
+pub struct DataWriter<T>(pub(crate) Weak<DataWriterImpl<T>>);
 
 impl<T> DataWriter<T> {
     /// This operation informs the Service that the application will be modifying a particular instance. It gives an opportunity to the
@@ -93,9 +92,10 @@ impl<T> DataWriter<T> {
     /// operation is optional as the application may call directly the write operation and specify a HANDLE_NIL to indicate that the
     /// ‘key’ should be examined to identify the instance.
     pub fn register_instance(
-        _instance: T
+        &self,
+        instance: T
     ) -> InstanceHandle {
-        todo!()
+        DataWriterImpl::register_instance(&self.0, instance)
     }
 
     /// This operation performs the same function as register_instance and can be used instead of register_instance in the cases
@@ -106,10 +106,11 @@ impl<T> DataWriter<T> {
     /// This operation may return OUT_OF_RESOURCES under the same circumstances described for the write operation
     /// (2.2.2.4.2.11).
     pub fn register_instance_w_timestamp(
-        _instance: T,
-        _timestamp: Time,
+        &self,
+        instance: T,
+        timestamp: Time,
     ) -> InstanceHandle {
-        todo!()
+        DataWriterImpl::register_instance_w_timestamp(&self.0, instance, timestamp)
     }
 
     /// This operation reverses the action of register_instance. It should only be called on an instance that is currently registered.
@@ -140,10 +141,11 @@ impl<T> DataWriter<T> {
     /// write).
     /// Possible error codes returned in addition to the standard ones: TIMEOUT, PRECONDITION_NOT_MET.
     pub fn unregister_instance(
-        _instance: T,
-        _handle: InstanceHandle
+        &self,
+        instance: T,
+        handle: InstanceHandle
     ) -> ReturnCode {
-        todo!()
+        DataWriterImpl::unregister_instance(&self.0, instance, handle)
     }
 
     /// This operation performs the same function as unregister_instance and can be used instead of unregister_instance in the cases
@@ -154,11 +156,12 @@ impl<T> DataWriter<T> {
     /// unregister_instance operation (2.2.2.4.2.7).
     /// This operation may block and return TIMEOUT under the same circumstances described for the write operation (2.2.2.4.2.11).
     pub fn unregister_instance_w_timestamp(
-        _instance: T,
-        _handle: InstanceHandle,
-        _timestamp: Time,
+        &self,
+        instance: T,
+        handle: InstanceHandle,
+        timestamp: Time,
     ) -> InstanceHandle {
-        todo!()
+        DataWriterImpl::unregister_instance_w_timestamp(&self.0, instance, handle, timestamp)
     }
 
     /// This operation can be used to retrieve the instance key that corresponds to an instance_handle. The operation will only fill the
@@ -167,10 +170,11 @@ impl<T> DataWriter<T> {
     /// known to the DataWriter. If the implementation is not able to check invalid handles, then the result in this situation is
     /// unspecified.
     pub fn get_key_value(
-        _key_holder: &mut T,
-        _handle: InstanceHandle
+        &self,
+        key_holder: &mut T,
+        handle: InstanceHandle
     ) -> ReturnCode {
-        todo!()
+        DataWriterImpl::get_key_value(&self.0, key_holder, handle)
     }
 
     /// This operation takes as a parameter an instance and returns a handle that can be used in subsequent operations that accept an
@@ -179,9 +183,10 @@ impl<T> DataWriter<T> {
     /// This operation does not register the instance in question. If the instance has not been previously registered, or if for any other
     /// reason the Service is unable to provide an instance handle, the Service will return the special value HANDLE_NIL.
     pub fn lookup_instance(
-        _instance: T,
+        &self,
+        instance: T,
     ) -> InstanceHandle {
-        todo!()
+        DataWriterImpl::lookup_instance(&self.0, instance)
     }
 
     /// This operation modifies the value of a data instance. When this operation is used, the Service will automatically supply the
@@ -223,10 +228,11 @@ impl<T> DataWriter<T> {
     /// error-code will be PRECONDITION_NOT_MET. In case the handle is invalid, the behavior is in general unspecified, but if
     /// detectable the returned error-code will be BAD_PARAMETER.
     pub fn write (
-        _data: T,
-        _instance_handle: InstanceHandle,
+        &self,
+        data: T,
+        instance_handle: InstanceHandle,
     ) -> ReturnCode {
-        todo!()
+        DataWriterImpl::write(&self.0, data, instance_handle)
     }
 
     /// This operation performs the same function as write except that it also provides the value for the source_timestamp that is made
@@ -243,11 +249,12 @@ impl<T> DataWriter<T> {
     /// Similar to write, this operation must also be provided on the specialized class that is generated for the particular application
     /// data-type that is being written.
     pub fn write_w_timestamp(
-        _data: T,
-        _instance_handle: InstanceHandle,
-        _timestamp: Time,
+        &self,
+        data: T,
+        instance_handle: InstanceHandle,
+        timestamp: Time,
     ) -> ReturnCode {
-        todo!()
+        DataWriterImpl::write_w_timestamp(&self.0, data, instance_handle, timestamp)
     }
 
     /// This operation requests the middleware to delete the data (the actual deletion is postponed until there is no more use for that
@@ -263,10 +270,11 @@ impl<T> DataWriter<T> {
     /// This operation may return OUT_OF_RESOURCES under the same circumstances described for the write operation
     /// (2.2.2.4.2.11).
     pub fn dispose(
-        _data: T,
-        _instance_handle: InstanceHandle,
+        &self,
+        data: T,
+        instance_handle: InstanceHandle,
     ) -> ReturnCode {
-        todo!()
+        DataWriterImpl::dispose(&self.0, data, instance_handle)
     }
 
     /// This operation performs the same functions as dispose except that the application provides the value for the source_timestamp
@@ -283,11 +291,12 @@ impl<T> DataWriter<T> {
     /// (2.2.2.4.2.11).
     /// Possible error codes returned in addition to the standard ones: TIMEOUT, PRECONDITION_NOT_MET.
     pub fn dispose_w_timestamp(
-        _data: T,
-        _instance_handle: InstanceHandle,
-        _timestamp: Time,
+        &self,
+        data: T,
+        instance_handle: InstanceHandle,
+        timestamp: Time,
     ) -> ReturnCode {
-        todo!()
+        DataWriterImpl::dispose_w_timestamp(&self.0, data, instance_handle, timestamp)
     }
 
     /// This operation is intended to be used only if the DataWriter has RELIABILITY QoS kind set to RELIABLE. Otherwise the
@@ -298,51 +307,56 @@ impl<T> DataWriter<T> {
     /// written have been acknowledged by all reliable matched data readers; a return value of TIMEOUT indicates that max_wait
     /// elapsed before all the data was acknowledged.
     pub fn wait_for_acknowledgments(
-        _max_wait: Duration
+        &self,
+        max_wait: Duration
     ) -> ReturnCode {
-        todo!()
+        DataWriterImpl::wait_for_acknowledgments(&self.0, max_wait)
     }
 
     /// This operation allows access to the LIVELINESS_LOST communication status. Communication statuses are described in
     /// 2.2.4.1, Communication Status.
     pub fn get_liveliness_lost_status(
-        _status: &mut LivelinessLostStatus
+        &self,
+        status: &mut LivelinessLostStatus
     ) -> ReturnCode {
-        todo!()
+        DataWriterImpl::get_liveliness_lost_status(&self.0, status)
     }
 
     /// This operation allows access to the OFFERED_DEADLINE_MISSED communication status. Communication statuses are
     /// described in 2.2.4.1, Communication Status.
     pub fn get_offered_deadline_missed_status(
-        _status: &mut OfferedDeadlineMissedStatus
+        &self,
+        status: &mut OfferedDeadlineMissedStatus
     ) -> ReturnCode {
-        todo!()
+        DataWriterImpl::get_offered_deadline_missed_status(&self.0, status)
     }
 
     /// This operation allows access to the OFFERED_INCOMPATIBLE_QOS communication status. Communication statuses are
     /// described in 2.2.4.1, Communication Status.
     pub fn get_offered_incompatible_qos_status(
-        _status: &mut OfferedIncompatibleQosStatus
+        &self,
+        status: &mut OfferedIncompatibleQosStatus
     ) -> ReturnCode {
-        todo!()
+        DataWriterImpl::get_offered_incompatible_qos_status(&self.0, status)
     }
 
     /// This operation allows access to the PUBLICATION_MATCHED communication status. Communication statuses are
     /// described in 2.2.4.1, Communication Status.
     pub fn get_publication_matched_status(
-        _status: &mut PublicationMatchedStatus
+        &self,
+        status: &mut PublicationMatchedStatus
     ) -> ReturnCode {
-        todo!()
+        DataWriterImpl::get_publication_matched_status(&self.0, status)
     }
 
     /// This operation returns the Topic associated with the DataWriter. This is the same Topic that was used to create the DataWriter.
-    pub fn get_topic() -> Topic {
-        todo!()
+    pub fn get_topic(&self) -> Topic {
+        DataWriterImpl::get_topic(&self.0)
     }
 
     /// This operation returns the Publisher to which the DataWriter belongs.
-    pub fn get_publisher() -> Publisher {
-        todo!()
+    pub fn get_publisher(&self,) -> Publisher {
+        DataWriterImpl::get_publisher(&self.0)
     }
 
     /// This operation manually asserts the liveliness of the DataWriter. This is used in combination with the LIVELINESS QoS
@@ -352,8 +366,8 @@ impl<T> DataWriter<T> {
     /// NOTE: Writing data via the write operation on a DataWriter asserts liveliness on the DataWriter itself and its
     /// DomainParticipant. Consequently the use of assert_liveliness is only needed if the application is not writing data regularly.
     /// Complete details are provided in 2.2.3.11, LIVELINESS.
-    pub fn assert_liveliness() -> ReturnCode {
-        todo!()
+    pub fn assert_liveliness(&self,) -> ReturnCode {
+        DataWriterImpl::assert_liveliness(&self.0)
     }
 
     /// This operation retrieves information on a subscription that is currently “associated” with the DataWriter; that is, a subscription
@@ -365,10 +379,11 @@ impl<T> DataWriter<T> {
     /// The operation may also fail if the infrastructure does not hold the information necessary to fill in the subscription_data. In this
     /// case the operation will return UNSUPPORTED.
     pub fn get_matched_subscription_data(
-        _subscription_data: SubscriptionBuiltinTopicData,
-        _subscription_handle: InstanceHandle,
+        &self,
+        subscription_data: SubscriptionBuiltinTopicData,
+        subscription_handle: InstanceHandle,
     ) -> ReturnCode {
-        todo!()
+        DataWriterImpl::get_matched_subscription_data(&self.0, subscription_data, subscription_handle)
     }
 
     /// This operation retrieves the list of subscriptions currently “associated” with the DataWriter; that is, subscriptions that have a
@@ -379,9 +394,10 @@ impl<T> DataWriter<T> {
     /// field of the SampleInfo when reading the “DCPSSubscriptions” builtin topic.
     /// The operation may fail if the infrastructure does not locally maintain the connectivity information.
     pub fn get_matched_subscriptions(
-        _subscription_handles: &[InstanceHandle],
+        &self,
+        subscription_handles: &[InstanceHandle],
     ) -> ReturnCode {
-        todo!()
+        DataWriterImpl::get_matched_subscriptions(&self.0, subscription_handles)
     }
 }
 
@@ -389,36 +405,36 @@ impl<T> Entity for DataWriter<T>{
     type Qos = DataWriterQos;
     type Listener = Box<dyn DataWriterListener<T>>;
 
-    fn set_qos(&self, _qos_list: Self::Qos) -> ReturnCode {
-        todo!()
+    fn set_qos(&self, qos_list: Self::Qos) -> ReturnCode {
+        DataWriterImpl::set_qos(&self.0, qos_list)
     }
 
-    fn get_qos(&self, _qos_list: &mut Self::Qos) -> ReturnCode {
-        todo!()
+    fn get_qos(&self, qos_list: &mut Self::Qos) -> ReturnCode {
+        DataWriterImpl::get_qos(&self.0, qos_list)
     }
 
-    fn set_listener(&self, _a_listener: Self::Listener, _mask: &[crate::dds::types::StatusKind]) -> ReturnCode {
-        todo!()
+    fn set_listener(&self, a_listener: Self::Listener, mask: &[crate::dds::types::StatusKind]) -> ReturnCode {
+        DataWriterImpl::set_listener(&self.0, a_listener, mask)
     }
 
     fn get_listener(&self, ) -> Self::Listener {
-        todo!()
+        DataWriterImpl::get_listener(&self.0)
     }
 
     fn get_statuscondition(&self, ) -> crate::dds::infrastructure::entity::StatusCondition {
-        todo!()
+        DataWriterImpl::get_statuscondition(&self.0)
     }
 
     fn get_status_changes(&self, ) -> crate::dds::types::StatusKind {
-        todo!()
+        DataWriterImpl::get_status_changes(&self.0)
     }
 
     fn enable(&self, ) -> ReturnCode {
-        todo!()
+        DataWriterImpl::enable(&self.0)
     }
 
     fn get_instance_handle(&self, ) -> InstanceHandle {
-        todo!()
+        DataWriterImpl::get_instance_handle(&self.0)
     }
 }
 
@@ -429,5 +445,192 @@ pub struct AnyDataWriter<'a>(&'a dyn Any);
 impl<'a> AnyDataWriter<'a> {
     fn get<T: Any>(&self) -> Option<&DataWriter<T>> {
         self.0.downcast_ref::<DataWriter<T>>()
+    }
+}
+
+pub(crate) struct DataWriterImpl<T> {
+    value: T,
+}
+
+impl<T> DataWriterImpl<T> {
+    pub fn register_instance(
+        _this: &Weak<DataWriterImpl<T>>,
+        _instance: T
+    ) -> InstanceHandle {
+        todo!()
+    }
+
+    pub fn register_instance_w_timestamp(
+        _this: &Weak<DataWriterImpl<T>>,
+        _instance: T,
+        _timestamp: Time,
+    ) -> InstanceHandle {
+        todo!()
+    }
+
+    pub fn unregister_instance(
+        _this: &Weak<DataWriterImpl<T>>,
+        _instance: T,
+        _handle: InstanceHandle
+    ) -> ReturnCode {
+        todo!()
+    }
+
+    pub fn unregister_instance_w_timestamp(
+        _this: &Weak<DataWriterImpl<T>>,
+        _instance: T,
+        _handle: InstanceHandle,
+        _timestamp: Time,
+    ) -> InstanceHandle {
+        todo!()
+    }
+
+    pub fn get_key_value(
+        _this: &Weak<DataWriterImpl<T>>,
+        _key_holder: &mut T,
+        _handle: InstanceHandle
+    ) -> ReturnCode {
+        todo!()
+    }
+
+    pub fn lookup_instance(
+        _this: &Weak<DataWriterImpl<T>>,
+        _instance: T,
+    ) -> InstanceHandle {
+        todo!()
+    }
+
+    pub fn write (
+        _this: &Weak<DataWriterImpl<T>>,
+        _data: T,
+        _instance_handle: InstanceHandle,
+    ) -> ReturnCode {
+        todo!()
+    }
+
+    pub fn write_w_timestamp(
+        _this: &Weak<DataWriterImpl<T>>,
+        _data: T,
+        _instance_handle: InstanceHandle,
+        _timestamp: Time,
+    ) -> ReturnCode {
+        todo!()
+    }
+
+    pub fn dispose(
+        _this: &Weak<DataWriterImpl<T>>,
+        _data: T,
+        _instance_handle: InstanceHandle,
+    ) -> ReturnCode {
+        todo!()
+    }
+
+    pub fn dispose_w_timestamp(
+        _this: &Weak<DataWriterImpl<T>>,
+        _data: T,
+        _instance_handle: InstanceHandle,
+        _timestamp: Time,
+    ) -> ReturnCode {
+        todo!()
+    }
+
+    pub fn wait_for_acknowledgments(
+        _this: &Weak<DataWriterImpl<T>>,
+        _max_wait: Duration
+    ) -> ReturnCode {
+        todo!()
+    }
+
+    pub fn get_liveliness_lost_status(
+        _this: &Weak<DataWriterImpl<T>>,
+        _status: &mut LivelinessLostStatus
+    ) -> ReturnCode {
+        todo!()
+    }
+
+    pub fn get_offered_deadline_missed_status(
+        _this: &Weak<DataWriterImpl<T>>,
+        _status: &mut OfferedDeadlineMissedStatus
+    ) -> ReturnCode {
+        todo!()
+    }
+
+
+    pub fn get_offered_incompatible_qos_status(
+        _this: &Weak<DataWriterImpl<T>>,
+        _status: &mut OfferedIncompatibleQosStatus
+    ) -> ReturnCode {
+        todo!()
+    }
+
+
+    pub fn get_publication_matched_status(
+        _this: &Weak<DataWriterImpl<T>>,
+        _status: &mut PublicationMatchedStatus
+    ) -> ReturnCode {
+        todo!()
+    }
+
+    pub fn get_topic(
+        _this: &Weak<DataWriterImpl<T>>,
+    ) -> Topic {
+        todo!()
+    }
+
+    pub fn get_publisher(
+        _this: &Weak<DataWriterImpl<T>>,
+    ) -> Publisher {
+        todo!()
+    }
+
+    pub fn assert_liveliness(_this: &Weak<DataWriterImpl<T>>,) -> ReturnCode {
+        todo!()
+    }
+
+    pub fn get_matched_subscription_data(
+        _this: &Weak<DataWriterImpl<T>>,
+        _subscription_data: SubscriptionBuiltinTopicData,
+        _subscription_handle: InstanceHandle,
+    ) -> ReturnCode {
+        todo!()
+    }
+
+    pub fn get_matched_subscriptions(
+        _this: &Weak<DataWriterImpl<T>>,
+        _subscription_handles: &[InstanceHandle],
+    ) -> ReturnCode {
+        todo!()
+    }
+
+    fn set_qos(_this: &Weak<DataWriterImpl<T>>, _qos_list: DataWriterQos) -> ReturnCode {
+        todo!()
+    }
+
+    fn get_qos(_this: &Weak<DataWriterImpl<T>>, _qos_list: &mut DataWriterQos) -> ReturnCode {
+        todo!()
+    }
+
+    fn set_listener(_this: &Weak<DataWriterImpl<T>>, _a_listener: Box<dyn DataWriterListener<T>>, _mask: &[crate::dds::types::StatusKind]) -> ReturnCode {
+        todo!()
+    }
+
+    fn get_listener(_this: &Weak<DataWriterImpl<T>>,) -> Box<dyn DataWriterListener<T>> {
+        todo!()
+    }
+
+    fn get_statuscondition(_this: &Weak<DataWriterImpl<T>>, ) -> crate::dds::infrastructure::entity::StatusCondition {
+        todo!()
+    }
+
+    fn get_status_changes(_this: &Weak<DataWriterImpl<T>>,) -> crate::dds::types::StatusKind {
+        todo!()
+    }
+
+    fn enable(_this: &Weak<DataWriterImpl<T>>,) -> ReturnCode {
+        todo!()
+    }
+
+    fn get_instance_handle(_this: &Weak<DataWriterImpl<T>>,) -> InstanceHandle {
+        todo!()
     }
 }
