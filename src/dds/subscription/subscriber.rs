@@ -284,12 +284,13 @@ impl Entity for Subscriber {
 
 impl DomainEntity for Subscriber{}
 
-impl Drop for Subscriber {
-    fn drop(&mut self) {
-        let parent_participant = self.get_participant();
-        parent_participant.delete_subscriber(self);
-    }
-}
+// impl Drop for Subscriber {
+//     fn drop(&mut self) {
+//         let parent_participant = self.get_participant();
+//         parent_participant.delete_subscriber(self);
+//     }
+// }
+
 pub struct SubscriberImpl{
     parent_participant: Weak<DomainParticipantImpl>,
 }

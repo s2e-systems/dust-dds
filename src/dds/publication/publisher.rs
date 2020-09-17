@@ -252,12 +252,13 @@ impl Entity for Publisher{
 
 impl DomainEntity for Publisher{}
 
-impl Drop for Publisher {
-    fn drop(&mut self) {
-        let parent_participant = self.get_participant();
-        parent_participant.delete_publisher(self);
-    }
-}
+// impl Drop for Publisher {
+//     fn drop(&mut self) {
+//         let parent_participant = self.get_participant();
+//         parent_participant.delete_publisher(self);
+//     }
+// }
+
 pub struct PublisherImpl{
     parent_participant: Weak<DomainParticipantImpl>,
     datawriter_list: Mutex<Vec<AnyDataWriter>>,

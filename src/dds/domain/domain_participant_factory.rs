@@ -73,10 +73,12 @@ impl DomainParticipantFactory {
         // deleted since the DomainParticipantFactory doesn't own the object and as such can't decide to keep the
         // reference alive
         if Arc::strong_count(&a_participant.0) == 1 {
+            DomainParticipantFactory::get_instance().remove_participant_reference(&Arc::downgrade(&a_participant.0));
             ReturnCode::Ok
         } else {
             ReturnCode::PreconditionNotMet
         }
+        
     }
 
     /// This operation returns the DomainParticipantFactory singleton. The operation is idempotent, that is, it can be called multiple
@@ -202,40 +204,11 @@ mod tests {
     }
 
     #[test]
-    fn create_and_lookup_participants() {
-        let domain_participant_factory = DomainParticipantFactory::get_instance();
-        let participant1 = domain_participant_factory.create_participant(1, DomainParticipantQos::default(),NoListener, 0).unwrap();
-
-        // Lookup an existing participant
-        let found_participant1 = domain_participant_factory.lookup_participant(1).unwrap();
-        assert!(std::ptr::eq(participant1.0.as_ref(), found_participant1.0.as_ref()));
-
-        // Lookup an inexisting participant
-        assert!(domain_participant_factory.lookup_participant(2).is_none());
-
-        // Lookup a dropped participant
-        {
-            let _participant5 = domain_participant_factory.create_participant(5, DomainParticipantQos::default(),NoListener, 0).unwrap();
-            assert!(domain_participant_factory.lookup_participant(5).is_some());
-        }
-        assert!(domain_participant_factory.lookup_participant(5).is_none());
-
-        domain_participant_factory.delete_participant(participant1);
-        domain_participant_factory.delete_participant(found_participant1);
-    }
-
-    #[test]
     fn delete_participant() {
         let domain_participant_factory = DomainParticipantFactory::get_instance();
         let participant1 = domain_participant_factory.create_participant(1, DomainParticipantQos::default(),NoListener, 0).unwrap();
-
-        // Lookup an existing participant (total reference count is 2)
-        let found_participant1 = domain_participant_factory.lookup_participant(1).unwrap();
-
-        // First explicit deletion will fail because there is still one more reference
-        assert_eq!(domain_participant_factory.delete_participant(participant1),ReturnCode::PreconditionNotMet);
-        // Second deletion should work correctly
-        assert_eq!(domain_participant_factory.delete_participant(found_participant1),ReturnCode::Ok);
+        
+        assert_eq!(domain_participant_factory.delete_participant(participant1),ReturnCode::Ok);
     }
 
     #[test]

@@ -13,7 +13,6 @@ use crate::dds::publication::publisher::{Publisher, PublisherImpl};
 use crate::dds::publication::publisher_listener::PublisherListener;
 use crate::dds::publication::publisher::qos::PublisherQos;
 use crate::dds::infrastructure::entity::{Entity, StatusCondition};
-use crate::dds::domain::domain_participant_factory::DomainParticipantFactory;
 use crate::dds::domain::domain_participant_listener::DomainParticipantListener;
 use crate::dds::builtin_topics::{TopicBuiltinTopicData, ParticipantBuiltinTopicData};
 use crate::dds::infrastructure::listener::NoListener;
@@ -486,13 +485,14 @@ impl Entity for DomainParticipant
     }
 }
 
-impl Drop for DomainParticipant {
-    fn drop(&mut self) {
-        if Arc::strong_count(&self.0) == 1 {
-            DomainParticipantFactory::get_instance().remove_participant_reference(&Arc::downgrade(&self.0));
-        }
-    }
-}
+// impl Drop for DomainParticipant {
+//     fn drop(&mut self) {
+//         if Arc::strong_count(&self.0) == 1 {
+//             DomainParticipantFactory::get_instance().remove_participant_reference(&Arc::downgrade(&self.0));
+//         }
+//     }
+// }
+
 pub struct DomainParticipantImpl{
     domain_id: DomainId,
     qos: DomainParticipantQos,
@@ -803,11 +803,11 @@ mod tests {
     fn create_publisher() {
         let domain_participant_impl = Arc::new(DomainParticipantImpl::new(0, DomainParticipantQos::default(), NoListener, 0));
 
-        {
-            assert_eq!(domain_participant_impl.publisher_list.lock().unwrap().len(), 0);
-            let _publisher = DomainParticipantImpl::create_publisher(&domain_participant_impl,PublisherQos::default(), NoListener, 0);
-            assert_eq!(domain_participant_impl.publisher_list.lock().unwrap().len(), 1);
-        }
+        assert_eq!(domain_participant_impl.publisher_list.lock().unwrap().len(), 0);
+        let publisher = DomainParticipantImpl::create_publisher(&domain_participant_impl,PublisherQos::default(), NoListener, 0).unwrap();
+        assert_eq!(domain_participant_impl.publisher_list.lock().unwrap().len(), 1);
+
+        DomainParticipantImpl::delete_publisher(&domain_participant_impl, &publisher);
 
         assert_eq!(domain_participant_impl.publisher_list.lock().unwrap().len(), 0);
     }
@@ -816,11 +816,11 @@ mod tests {
     fn create_subscriber() {
         let domain_participant_impl = Arc::new(DomainParticipantImpl::new(0, DomainParticipantQos::default(), NoListener, 0));
 
-        {
-            assert_eq!(domain_participant_impl.subscriber_list.lock().unwrap().len(), 0);
-            let _subscriber = DomainParticipantImpl::create_subscriber(&domain_participant_impl,SubscriberQos::default(), NoListener, 0);
-            assert_eq!(domain_participant_impl.subscriber_list.lock().unwrap().len(), 1);
-        }
+        assert_eq!(domain_participant_impl.subscriber_list.lock().unwrap().len(), 0);
+        let subscriber = DomainParticipantImpl::create_subscriber(&domain_participant_impl,SubscriberQos::default(), NoListener, 0).unwrap();
+        assert_eq!(domain_participant_impl.subscriber_list.lock().unwrap().len(), 1);
+
+        DomainParticipantImpl::delete_subscriber(&domain_participant_impl, &subscriber);
 
         assert_eq!(domain_participant_impl.subscriber_list.lock().unwrap().len(), 0);
     }
@@ -829,11 +829,11 @@ mod tests {
     fn create_topic() {
         let domain_participant_impl = Arc::new(DomainParticipantImpl::new(0, DomainParticipantQos::default(), NoListener, 0));
 
-        {
-            assert_eq!(domain_participant_impl.topic_list.lock().unwrap().len(), 0);
-            let _topic = DomainParticipantImpl::create_topic(&domain_participant_impl,"name".to_string(), "type".to_string(), TopicQos::default(), NoListener, 0);
-            assert_eq!(domain_participant_impl.topic_list.lock().unwrap().len(), 1);
-        }
+        assert_eq!(domain_participant_impl.topic_list.lock().unwrap().len(), 0);
+        let topic = DomainParticipantImpl::create_topic(&domain_participant_impl,"name".to_string(), "type".to_string(), TopicQos::default(), NoListener, 0).unwrap();
+        assert_eq!(domain_participant_impl.topic_list.lock().unwrap().len(), 1);
+
+        DomainParticipantImpl::delete_topic(&domain_participant_impl, &topic);
 
         assert_eq!(domain_participant_impl.topic_list.lock().unwrap().len(), 0);
     }
