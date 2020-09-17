@@ -42,6 +42,12 @@ pub type DomainId = i32;
 pub type InstanceHandle = [u8; 16];
 pub type QosPolicyId = i32;
 
+pub trait DDSType {
+    fn key(&self) -> InstanceHandle {
+        todo!()
+    }
+}
+
 pub struct Time {
     pub sec: i32,
     pub nanosec: u32,

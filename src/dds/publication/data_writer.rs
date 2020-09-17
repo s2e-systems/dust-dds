@@ -1,9 +1,8 @@
 use std::any::Any;
 use std::sync::{Arc,Weak, Mutex};
 use std::marker::PhantomData;
-use std::mem::MaybeUninit;
 
-use crate::dds::types::{InstanceHandle, Time, ReturnCode, Duration, ReturnCodes};
+use crate::dds::types::{InstanceHandle, Time, ReturnCode, Duration, ReturnCodes, DDSType};
 
 use crate::dds::infrastructure::status::{LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus};
 use crate::dds::topic::topic::Topic;
@@ -14,7 +13,7 @@ use crate::dds::publication::data_writer_listener::DataWriterListener;
 use crate::dds::builtin_topics::SubscriptionBuiltinTopicData;
 
 use crate::rtps::structure::stateful_writer::StatefulWriter;
-use crate::rtps::types::TopicKind;
+use crate::rtps::types::{TopicKind, GUID, EntityId, ReliabilityKind, EntityKind, ChangeKind};
 
 use qos::DataWriterQos;
 
@@ -466,7 +465,7 @@ impl AnyDataWriter {
 
 pub(crate) struct DataWriterImpl<T> {
     parent_publisher: Weak<PublisherImpl>,
-    rtps_writer: Mutex<MaybeUninit<StatefulWriter>>,
+    rtps_writer: Mutex<Option<StatefulWriter>>,
     value: PhantomData<T>,
 }
 
@@ -529,12 +528,28 @@ impl<T> DataWriterImpl<T> {
     pub fn write_w_timestamp(
         this: &Weak<DataWriterImpl<T>>,
         _data: T,
-        _instance_handle: Option<InstanceHandle>,
+        instance_handle: Option<InstanceHandle>,
         _timestamp: Time,
     ) -> ReturnCode {
         let dw = this.upgrade().ok_or(ReturnCodes::AlreadyDeleted)?;
         
-        todo!()
+        let datawriter_lock = dw.rtps_writer.lock().unwrap();
+        let rtps_datawriter = datawriter_lock.as_ref().ok_or(ReturnCodes::NotEnabled)?;
+        let history_cache = rtps_datawriter.writer_cache();
+
+        let kind = ChangeKind::Alive;
+        let data = Some(vec![1,2,3]);
+        let inline_qos = None;
+        let handle = match instance_handle {
+            Some(handle) => handle,
+            None => todo!()
+        };
+        
+        let change = rtps_datawriter.new_change(kind, data, inline_qos, handle);
+       
+        history_cache.add_change(change);
+
+        Ok(())
     }
 
     pub fn dispose(
@@ -646,8 +661,30 @@ impl<T> DataWriterImpl<T> {
         todo!()
     }
 
-    fn enable(_this: &Weak<DataWriterImpl<T>>,) -> ReturnCode {
-        todo!()
+    fn enable(this: &Weak<DataWriterImpl<T>>,) -> ReturnCode {
+        let dw = this.upgrade().ok_or(ReturnCodes::AlreadyDeleted)?;
+
+        let guid = GUID::new([1;12],EntityId::new([1;3], EntityKind::UserDefinedWriterWithKey));
+        let topic_kind = TopicKind::WithKey;
+        let reliability_level = ReliabilityKind::Reliable;
+        let push_mode = true;
+        let heartbeat_period = crate::rtps::behavior::types::Duration::from_millis(100);
+        let nack_response_delay = crate::rtps::behavior::types::Duration::from_millis(100);
+        let nack_suppression_duration = crate::rtps::behavior::types::Duration::from_millis(100);
+
+        *dw.rtps_writer.lock().unwrap() = Some(
+        StatefulWriter::new(
+                guid,
+                topic_kind,
+                reliability_level,
+                push_mode,
+                heartbeat_period,
+                nack_response_delay,
+                nack_suppression_duration)
+            );
+
+        Ok(())
+            
     }
 
     fn get_instance_handle(_this: &Weak<DataWriterImpl<T>>,) -> InstanceHandle {
@@ -659,15 +696,7 @@ impl<T> DataWriterImpl<T> {
      ) -> Self {
          Self{
             parent_publisher,
-            rtps_writer: Mutex::new(MaybeUninit::uninit()),
-            //  rtps_writer: StatefulWriter::new(
-            //      guid,
-            //      topic_kind,
-            //      reliability_level,
-            //      push_mode,
-            //      heartbeat_period,
-            //      nack_response_delay,
-            //      nack_suppression_duration),
+            rtps_writer: Mutex::new(None),
             value: PhantomData
          }
      }
