@@ -1,5 +1,5 @@
 use std::convert::TryInto;
-use std::rc::Rc;
+use std::sync::Arc;
 use std::io::Write;
 
 use cdr;
@@ -69,7 +69,7 @@ impl CdrParameterList {
         }
     }
 
-    pub fn push<T: Pid + serde::Serialize + std::fmt::Debug + 'static>(&mut self, value: T) {
+    pub fn push<T: Pid + serde::Serialize + Send + Sync + std::fmt::Debug + 'static>(&mut self, value: T) {
         self.parameter_list.push(value);
     }
 
@@ -93,7 +93,7 @@ pub trait Pid {
 }
 
 //  /////////// ParameterList ///////////
-pub trait ParameterOps : std::fmt::Debug{
+pub trait ParameterOps : Send + Sync + std::fmt::Debug{
     fn parameter_id(&self) -> ParameterId;
 
     fn length(&self) -> i16;
@@ -102,7 +102,7 @@ pub trait ParameterOps : std::fmt::Debug{
 }
 
 impl<T> ParameterOps for T
-    where T: Pid + serde::Serialize + std::fmt::Debug
+    where T: Pid + serde::Serialize + Send + Sync + std::fmt::Debug
 {
     fn parameter_id(&self) -> ParameterId {
         T::pid()
@@ -187,7 +187,7 @@ impl ParameterOps for Parameter {
 
 #[derive(Debug, Clone)]
 pub struct ParameterList {
-    parameter: Vec<Rc<dyn ParameterOps>>,
+    parameter: Vec<Arc<dyn ParameterOps>>,
 }
 
 impl PartialEq for ParameterList{
@@ -209,12 +209,12 @@ impl ParameterList {
         Self {parameter: Vec::new()}
     }
 
-    pub fn parameter(&self) -> &Vec<Rc<dyn ParameterOps>> {
+    pub fn parameter(&self) -> &Vec<Arc<dyn ParameterOps>> {
         &self.parameter
     }
 
     pub fn push<T: ParameterOps + 'static>(&mut self, value: T) {
-        self.parameter.push(Rc::new(value));
+        self.parameter.push(Arc::new(value));
     }
 
     pub fn find<'de, T>(&self, endianness: CdrEndianness) -> Option<T>
@@ -407,15 +407,15 @@ mod tests {
      fn find_parameter_list() {
          let endianness = CdrEndianness::LittleEndian;
          let expected = KeyHash([9; 16]);
-         let parameter_list = ParameterList{parameter: vec![Rc::new(expected), Rc::new(StatusInfo([8; 4]))]};
+         let parameter_list = ParameterList{parameter: vec![Arc::new(expected), Arc::new(StatusInfo([8; 4]))]};
          let result = parameter_list.find::<KeyHash>(endianness).unwrap();
          assert_eq!(expected, result);
      }
  
      #[test]
      fn remove_from_parameter_list() {
-         let expected = ParameterList{parameter: vec![Rc::new(StatusInfo([8; 4]))]};
-         let mut parameter_list = ParameterList{parameter: vec![Rc::new(KeyHash([9; 16])), Rc::new(StatusInfo([8; 4]))]};
+         let expected = ParameterList{parameter: vec![Arc::new(StatusInfo([8; 4]))]};
+         let mut parameter_list = ParameterList{parameter: vec![Arc::new(KeyHash([9; 16])), Arc::new(StatusInfo([8; 4]))]};
          parameter_list.remove::<KeyHash>();
          assert_eq!(parameter_list, expected);
      }

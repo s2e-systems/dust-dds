@@ -1,8 +1,9 @@
 use std::any::Any;
-use std::sync::{Arc,Weak};
+use std::sync::{Arc,Weak, Mutex};
 use std::marker::PhantomData;
+use std::mem::MaybeUninit;
 
-use crate::dds::types::{InstanceHandle, Time, ReturnCode, Duration};
+use crate::dds::types::{InstanceHandle, Time, ReturnCode, Duration, ReturnCodes};
 
 use crate::dds::infrastructure::status::{LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus};
 use crate::dds::topic::topic::Topic;
@@ -11,6 +12,10 @@ use crate::dds::infrastructure::entity::Entity;
 use crate::dds::infrastructure::entity::DomainEntity;
 use crate::dds::publication::data_writer_listener::DataWriterListener;
 use crate::dds::builtin_topics::SubscriptionBuiltinTopicData;
+
+use crate::rtps::structure::stateful_writer::StatefulWriter;
+use crate::rtps::types::TopicKind;
+
 use qos::DataWriterQos;
 
 pub mod qos {
@@ -461,6 +466,7 @@ impl AnyDataWriter {
 
 pub(crate) struct DataWriterImpl<T> {
     parent_publisher: Weak<PublisherImpl>,
+    rtps_writer: Mutex<MaybeUninit<StatefulWriter>>,
     value: PhantomData<T>,
 }
 
@@ -526,7 +532,8 @@ impl<T> DataWriterImpl<T> {
         _instance_handle: Option<InstanceHandle>,
         _timestamp: Time,
     ) -> ReturnCode {
-        let dw = this.upgrade();
+        let dw = this.upgrade().ok_or(ReturnCodes::AlreadyDeleted)?;
+        
         todo!()
     }
 
@@ -651,8 +658,17 @@ impl<T> DataWriterImpl<T> {
      pub(crate) fn new(parent_publisher: Weak<PublisherImpl>
      ) -> Self {
          Self{
-             parent_publisher,
-             value: PhantomData
+            parent_publisher,
+            rtps_writer: Mutex::new(MaybeUninit::uninit()),
+            //  rtps_writer: StatefulWriter::new(
+            //      guid,
+            //      topic_kind,
+            //      reliability_level,
+            //      push_mode,
+            //      heartbeat_period,
+            //      nack_response_delay,
+            //      nack_suppression_duration),
+            value: PhantomData
          }
      }
 }
