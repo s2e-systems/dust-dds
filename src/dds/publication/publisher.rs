@@ -65,7 +65,7 @@ impl Publisher {
         qos: DataWriterQos,
         a_listener: Box<dyn DataWriterListener<T>>,
         mask: &[StatusKind]
-    ) -> DataWriter<T> {
+    ) -> Option<DataWriter<T>> {
         PublisherImpl::create_datawriter(&self.0, a_topic, qos, a_listener, mask)
     }
 
@@ -91,7 +91,7 @@ impl Publisher {
     pub fn lookup_datawriter<T>(
         &self,
         topic_name: String,
-    ) -> DataWriter<T> {
+    ) -> Option<DataWriter<T>> {
         PublisherImpl::lookup_datawriter(&self.0, topic_name)
     }
 
@@ -103,8 +103,8 @@ impl Publisher {
     /// The use of this operation must be matched by a corresponding call to resume_publications indicating that the set of
     /// modifications has completed. If the Publisher is deleted before resume_publications is called, any suspended updates yet to
     /// be published will be discarded.
-    pub fn suspend_publications(&self,) -> ReturnCode {
-        PublisherImpl::suspend_publications(&self.0, )
+    pub fn suspend_publications(&self) -> ReturnCode {
+        PublisherImpl::suspend_publications(&self.0)
     }
 
     /// This operation indicates to the Service that the application has completed the multiple changes initiated by the previous
@@ -113,8 +113,8 @@ impl Publisher {
     /// The call to resume_publications must match a previous call to suspend_publications. Otherwise the operation will return the
     /// error PRECONDITION_NOT_MET.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
-    pub fn resume_publications(&self,) -> ReturnCode {
-        PublisherImpl::resume_publications(&self.0, )
+    pub fn resume_publications(&self) -> ReturnCode {
+        PublisherImpl::resume_publications(&self.0)
     }
 
     /// This operation requests that the application will begin a ‘coherent set’ of modifications using DataWriter objects attached to
@@ -133,15 +133,15 @@ impl Publisher {
     /// the values are inter-related (for example, if there are two data-instances representing the ‘altitude’ and ‘velocity vector’ of the
     /// same aircraft and both are changed, it may be useful to communicate those values in a way the reader can see both together;
     /// otherwise, it may e.g., erroneously interpret that the aircraft is on a collision course).
-    pub fn begin_coherent_changes(&self,) -> ReturnCode {
-        PublisherImpl::begin_coherent_changes(&self.0, )
+    pub fn begin_coherent_changes(&self) -> ReturnCode {
+        PublisherImpl::begin_coherent_changes(&self.0)
     }
 
     /// This operation terminates the ‘coherent set’ initiated by the matching call to begin_coherent_ changes. If there is no matching
     /// call to begin_coherent_ changes, the operation will return the error PRECONDITION_NOT_MET.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET
-    pub fn end_coherent_changes(&self,) -> ReturnCode {
-        PublisherImpl::end_coherent_changes(&self.0, )
+    pub fn end_coherent_changes(&self) -> ReturnCode {
+        PublisherImpl::end_coherent_changes(&self.0)
     }
 
     /// This operation blocks the calling thread until either all data written by the reliable DataWriter entities is acknowledged by all
@@ -166,8 +166,8 @@ impl Publisher {
     /// deleted.
     /// Once delete_contained_entities returns successfully, the application may delete the Publisher knowing that it has no
     /// contained DataWriter objects
-    pub fn delete_contained_entities(&self,) -> ReturnCode {
-        PublisherImpl::delete_contained_entities(&self.0, )
+    pub fn delete_contained_entities(&self) -> ReturnCode {
+        PublisherImpl::delete_contained_entities(&self.0)
     }
 
     /// This operation sets a default value of the DataWriter QoS policies which will be used for newly created DataWriter entities in
@@ -269,7 +269,7 @@ impl PublisherImpl {
         _qos: DataWriterQos,
         _a_listener: Box<dyn DataWriterListener<T>>,
         _mask: &[StatusKind]
-    ) -> DataWriter<T> {
+    ) -> Option<DataWriter<T>> {
         todo!()
     }
 
@@ -283,7 +283,7 @@ impl PublisherImpl {
     pub(crate) fn lookup_datawriter<T>(
         _this: &Weak<PublisherImpl>,
         _topic_name: String,
-    ) -> DataWriter<T> {
+    ) -> Option<DataWriter<T>> {
         todo!()
     }
 

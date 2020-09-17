@@ -67,7 +67,7 @@ impl DomainParticipant {
         qos_list: PublisherQos,
         a_listener: impl PublisherListener,
         mask: StatusMask
-    ) -> Publisher {
+    ) -> Option<Publisher> {
         DomainParticipantImpl::create_publisher(&self.0, qos_list, a_listener, mask)
     }
 
@@ -98,7 +98,7 @@ impl DomainParticipant {
         qos_list: SubscriberQos,
         a_listener: impl SubscriberListener,
         mask: StatusMask
-    ) -> Subscriber {
+    ) -> Option<Subscriber> {
         DomainParticipantImpl::create_subscriber(&self.0, qos_list, a_listener, mask)
     }
 
@@ -133,7 +133,7 @@ impl DomainParticipant {
         qos_list: TopicQos,
         a_listener: impl TopicListener,
         mask: StatusMask
-    ) -> Topic {
+    ) -> Option<Topic> {
         DomainParticipantImpl::create_topic(&self.0, topic_name, type_name, qos_list, a_listener, mask)
     }
 
@@ -166,7 +166,7 @@ impl DomainParticipant {
         &self,
         topic_name: String,
         timeout: Duration,
-    ) -> Topic {
+    ) -> Option<Topic> {
         DomainParticipantImpl::find_topic(&self.0, topic_name, timeout)
     }
 
@@ -184,7 +184,7 @@ impl DomainParticipant {
     pub fn lookup_topicdescription(
         &self,
         name: String,
-    ) -> &dyn TopicDescription {
+    ) -> Option<&dyn TopicDescription> {
         DomainParticipantImpl::lookup_topicdescription(&self.0, name)
     }
 
@@ -192,8 +192,8 @@ impl DomainParticipant {
     /// well as corresponding DataReader objects to access them. All these DataReader objects belong to a single built-in Subscriber.
     /// The built-in Topics are used to communicate information about other DomainParticipant, Topic, DataReader, and DataWriter
     /// objects. These built-in objects are described in 2.2.5, Built-in Topics.
-    pub fn get_builtin_subscriber(&self,) -> Subscriber {
-        DomainParticipantImpl::get_builtin_subscriber(&self.0, )
+    pub fn get_builtin_subscriber(&self) -> Subscriber {
+        DomainParticipantImpl::get_builtin_subscriber(&self.0)
     }
 
     /// This operation allows an application to instruct the Service to locally ignore a remote domain participant. From that point
@@ -228,7 +228,7 @@ impl DomainParticipant {
     pub fn ignore_topic(
         &self,
         handle: InstanceHandle
-    ) -> ReturnCode{
+    ) -> ReturnCode {
         DomainParticipantImpl::ignore_topic(&self.0, handle)
     }
 
@@ -242,7 +242,7 @@ impl DomainParticipant {
     pub fn ignore_publication(
         &self,
         handle: InstanceHandle
-    ) -> ReturnCode{
+    ) -> ReturnCode {
         DomainParticipantImpl::ignore_publication(&self.0, handle)
     }
 
@@ -437,7 +437,7 @@ impl DomainParticipant {
         DomainParticipantImpl::contains_entity(&self.0, a_handle)
     }
 
-    /// This operation returns the current value of the time that the service uses to time-stamp data-writes and to set the receptiontimestamp
+    /// This operation returns the current value of the time that the service uses to time-stamp data-writes and to set the reception timestamp
     /// for the data-updates it receives.
     pub fn get_current_time(
         &self,
@@ -513,13 +513,13 @@ impl DomainParticipantImpl{
         _qos_list: PublisherQos,
         _a_listener: impl PublisherListener,
         _mask: StatusMask
-    ) -> Publisher {
+    ) -> Option<Publisher> {
         let publisher_impl = Arc::new(PublisherImpl::new(Arc::downgrade(this)));
         let publisher = Publisher(Arc::downgrade(&publisher_impl));
 
-        this.publisher_list.lock().unwrap().push(publisher_impl);
+        this.publisher_list.lock().ok()?.push(publisher_impl);
 
-        publisher
+        Some(publisher)
     }
 
     pub(crate) fn delete_publisher(
@@ -538,13 +538,13 @@ impl DomainParticipantImpl{
         _qos_list: SubscriberQos,
         _a_listener: impl SubscriberListener,
         _mask: StatusMask
-    ) -> Subscriber {
+    ) -> Option<Subscriber> {
         let subscriber_impl = Arc::new(SubscriberImpl::new(Arc::downgrade(this)));
         let subscriber = Subscriber(Arc::downgrade(&subscriber_impl));
 
-        this.subscriber_list.lock().unwrap().push(subscriber_impl);
+        this.subscriber_list.lock().ok()?.push(subscriber_impl);
 
-        subscriber
+        Some(subscriber)
     }
 
     pub(crate) fn delete_subscriber(
@@ -565,13 +565,13 @@ impl DomainParticipantImpl{
         _qos_list: TopicQos,
         _a_listener: impl TopicListener,
         _mask: StatusMask
-    ) -> Topic {
+    ) -> Option<Topic> {
         let topic_impl = Arc::new(TopicImpl::new(Arc::downgrade(this), topic_name, type_name));
         let topic = Topic(Arc::downgrade(&topic_impl));
 
-        this.topic_list.lock().unwrap().push(topic_impl);
+        this.topic_list.lock().ok()?.push(topic_impl);
 
-        topic
+        Some(topic)
     }
 
     pub(crate) fn delete_topic(
@@ -590,14 +590,14 @@ impl DomainParticipantImpl{
         _this: &Arc<DomainParticipantImpl>,
         _topic_name: String,
         _timeout: Duration,
-    ) -> Topic {
+    ) -> Option<Topic> {
         todo!()
     }
 
     pub(crate) fn lookup_topicdescription(
         _this: &Arc<DomainParticipantImpl>,
         _name: String,
-    ) -> &dyn TopicDescription {
+    ) -> Option<&dyn TopicDescription> {
         todo!()
     }
 

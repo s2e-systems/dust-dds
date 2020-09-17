@@ -81,7 +81,7 @@ impl Subscriber {
         qos: DataReaderQos,
         a_listener: Box<dyn DataReaderListener<T>>,
         mask: &[StatusKind]
-    ) -> DataReader<T> {
+    ) -> Option<DataReader<T>> {
         SubscriberImpl::create_datareader(&self.0, a_topic, qos, a_listener, mask)
     }
 
@@ -302,7 +302,7 @@ impl SubscriberImpl {
         _qos: DataReaderQos,
         _a_listener: Box<dyn DataReaderListener<T>>,
         _mask: &[StatusKind]
-    ) -> DataReader<T> {
+    ) -> Option<DataReader<T>> {
         todo!()
     }
 
