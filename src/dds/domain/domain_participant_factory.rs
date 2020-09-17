@@ -1,5 +1,5 @@
 use std::sync::{Arc, Weak, Mutex};
-use crate::dds::types::{DomainId, StatusMask, ReturnCode};
+use crate::dds::types::{DomainId, StatusMask, ReturnCode, ReturnCodes};
 use crate::dds::domain::domain_participant::{DomainParticipant, DomainParticipantImpl};
 use crate::dds::domain::domain_participant_listener::DomainParticipantListener;
 use crate::dds::domain::domain_participant::qos::DomainParticipantQos;
@@ -51,7 +51,7 @@ impl DomainParticipantFactory {
 
         let domain_participant_factory_qos = self.domain_participant_factory_qos.lock().unwrap();
         if domain_participant_factory_qos.entity_factory.autoenable_created_entities {
-            new_participant.enable();
+            new_participant.enable().ok()?;
         }
 
         self.participant_list.lock().unwrap().push(Arc::downgrade(&new_participant.0));
@@ -74,9 +74,9 @@ impl DomainParticipantFactory {
         // reference alive
         if Arc::strong_count(&a_participant.0) == 1 {
             DomainParticipantFactory::get_instance().remove_participant_reference(&Arc::downgrade(&a_participant.0));
-            ReturnCode::Ok
+            Ok(())
         } else {
-            ReturnCode::PreconditionNotMet
+            Err(ReturnCodes::PreconditionNotMet)
         }
         
     }
@@ -123,7 +123,7 @@ impl DomainParticipantFactory {
         qos: DomainParticipantQos,
     ) -> ReturnCode {
         *self.domain_participant_default_qos.lock().unwrap() = qos;
-        ReturnCode::Ok
+        Ok(())
     }
 
     /// This operation retrieves the default value of the DomainParticipant QoS, that is, the QoS policies which will be used for
@@ -137,7 +137,7 @@ impl DomainParticipantFactory {
         qos: &mut DomainParticipantQos,
     ) -> ReturnCode {
         qos.clone_from(&self.domain_participant_default_qos.lock().unwrap());
-        ReturnCode::Ok
+        Ok(())
     }
 
     /// This operation sets the value of the DomainParticipantFactory QoS policies. These policies control the behavior of the object
@@ -150,7 +150,7 @@ impl DomainParticipantFactory {
         qos: DomainParticipantFactoryQos,
     ) -> ReturnCode {
         *self.domain_participant_factory_qos.lock().unwrap() = qos;
-        ReturnCode::Ok
+        Ok(())
     }
 
     /// This operation returns the value of the DomainParticipantFactory QoS policies.
@@ -159,7 +159,7 @@ impl DomainParticipantFactory {
         qos: &mut DomainParticipantFactoryQos,
     ) -> ReturnCode {
         qos.clone_from(&self.domain_participant_factory_qos.lock().unwrap());
-        ReturnCode::Ok
+        Ok(())
     }
 
 
@@ -208,7 +208,7 @@ mod tests {
         let domain_participant_factory = DomainParticipantFactory::get_instance();
         let participant1 = domain_participant_factory.create_participant(1, DomainParticipantQos::default(),NoListener, 0).unwrap();
         
-        assert_eq!(domain_participant_factory.delete_participant(participant1),ReturnCode::Ok);
+        assert!(domain_participant_factory.delete_participant(participant1).is_ok());
     }
 
     #[test]
@@ -217,18 +217,18 @@ mod tests {
         // Create an object to retrieve the qos, modify it and check that the returned value is the default one
         let mut qos = DomainParticipantFactoryQos::default();
         qos.entity_factory.autoenable_created_entities = false;
-        domain_participant_factory.get_qos(&mut qos);
+        domain_participant_factory.get_qos(&mut qos).unwrap();
 
         assert_eq!(qos, DomainParticipantFactoryQos::default());
 
         // Modify the qos and verify that the new qos is retrieved
         qos.entity_factory.autoenable_created_entities = false;
-        domain_participant_factory.set_qos(qos.clone());    
+        domain_participant_factory.set_qos(qos.clone()).unwrap();    
         let mut new_qos = DomainParticipantFactoryQos::default();
-        domain_participant_factory.get_qos(&mut new_qos);
+        domain_participant_factory.get_qos(&mut new_qos).unwrap();
         assert_eq!(qos, new_qos);
 
         // Set back the default
-        domain_participant_factory.set_qos(DomainParticipantFactoryQos::default());
+        domain_participant_factory.set_qos(DomainParticipantFactoryQos::default()).unwrap();
     }
 }

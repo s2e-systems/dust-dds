@@ -1,7 +1,7 @@
 use std::any::Any;
 use std::sync::{Arc, Weak, Mutex};
 
-use crate::dds::types::{StatusKind, ReturnCode, Duration, InstanceHandle, StatusMask};
+use crate::dds::types::{StatusKind, ReturnCode, Duration, InstanceHandle, StatusMask, ReturnCodes};
 use crate::dds::domain::domain_participant::{DomainParticipant, DomainParticipantImpl};
 use crate::dds::topic::topic::Topic;
 use crate::dds::topic::qos::TopicQos;
@@ -294,9 +294,9 @@ impl PublisherImpl {
         
         if let Some(index) = index{
             datawriter_list.swap_remove(index);
-            ReturnCode::Ok
+            Ok(())
         } else {
-            ReturnCode::PreconditionNotMet
+            Err(ReturnCodes::PreconditionNotMet)
         }
     }
 
@@ -421,7 +421,7 @@ mod tests {
         let datawriter = PublisherImpl::create_datawriter::<Foo>(&Arc::downgrade(&publisher_impl),topic, DataWriterQos::default(), Box::new(NoListener), 0).unwrap();
         assert_eq!(publisher_impl.datawriter_list.lock().unwrap().len(), 1);
         
-        PublisherImpl::delete_datawriter(&Arc::downgrade(&publisher_impl), &datawriter);
+        PublisherImpl::delete_datawriter(&Arc::downgrade(&publisher_impl), &datawriter).unwrap();
         assert_eq!(publisher_impl.datawriter_list.lock().unwrap().len(), 0);
     }
 }

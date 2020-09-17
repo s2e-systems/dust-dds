@@ -7,7 +7,8 @@ use crate::dds::types::{
     SampleStateKind,
     ViewStateKind,
     InstanceStateKind,
-    StatusMask
+    StatusMask,
+    ReturnCodes
 };
 
 use crate::dds::infrastructure::status::SampleLostStatus;
@@ -328,9 +329,9 @@ impl SubscriberImpl {
         
         if let Some(index) = index{
             datareader_list.swap_remove(index);
-            ReturnCode::Ok
+            Ok(())
         } else {
-            ReturnCode::PreconditionNotMet
+            Err(ReturnCodes::PreconditionNotMet)
         }
     }
 
@@ -473,7 +474,7 @@ mod tests {
         let datareader = SubscriberImpl::create_datareader::<Foo>(&Arc::downgrade(&subscriber_impl),&topic, DataReaderQos::default(), Box::new(NoListener), 0).unwrap();
         assert_eq!(subscriber_impl.datareader_list.lock().unwrap().len(), 1);
         
-        SubscriberImpl::delete_datareader(&Arc::downgrade(&subscriber_impl), &datareader);
+        SubscriberImpl::delete_datareader(&Arc::downgrade(&subscriber_impl), &datareader).unwrap();
         assert_eq!(subscriber_impl.datareader_list.lock().unwrap().len(), 0);
     }
 }

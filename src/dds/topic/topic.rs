@@ -84,13 +84,14 @@ impl Entity for Topic {
 
 impl DomainEntity for Topic{}
 
-impl Drop for Topic {
-    fn drop(&mut self) {
-        if let Some(parent_participant) = self.get_participant() {
-            parent_participant.delete_topic(self);
-        }
-    }
-}
+// impl Drop for Topic {
+//     fn drop(&mut self) {
+//         if let Some(parent_participant) = self.get_participant() {
+//             parent_participant.delete_topic(self);
+//         }
+//     }
+// }
+
 pub struct TopicImpl{
     parent_participant: Weak<DomainParticipantImpl>,
     name: String,

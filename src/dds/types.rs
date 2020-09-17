@@ -1,5 +1,7 @@
-#[derive(Debug, PartialEq)]
-pub enum ReturnCode {
+pub type ReturnCode = Result<(), ReturnCodes>;
+
+#[derive(Debug)]
+pub enum ReturnCodes {
     Ok,
     Error,
     Unsupported,
@@ -41,8 +43,8 @@ pub type InstanceHandle = [u8; 16];
 pub type QosPolicyId = i32;
 
 pub struct Time {
-    sec: i32,
-    nanosec: u32,
+    pub sec: i32,
+    pub nanosec: u32,
 }
 
 #[derive(PartialOrd, PartialEq, Debug, Clone)]

@@ -529,7 +529,7 @@ impl DomainParticipantImpl{
         let mut publisher_list = this.publisher_list.lock().unwrap();
         let index = publisher_list.iter().position(|x| std::ptr::eq(x.as_ref(), a_publisher.0.upgrade().unwrap().as_ref())).unwrap();
         publisher_list.swap_remove(index);
-        ReturnCode::Ok
+        Ok(())
     }
 
     pub(crate) fn create_subscriber(
@@ -554,7 +554,7 @@ impl DomainParticipantImpl{
         let mut subscriber_list = this.subscriber_list.lock().unwrap();
         let index = subscriber_list.iter().position(|x| std::ptr::eq(x.as_ref(), a_subscriber.0.upgrade().unwrap().as_ref())).unwrap();
         subscriber_list.swap_remove(index);
-        ReturnCode::Ok
+        Ok(())
     }
 
     pub(crate) fn create_topic(
@@ -582,7 +582,7 @@ impl DomainParticipantImpl{
         let mut topic_list = this.topic_list.lock().unwrap();
         let index = topic_list.iter().position(|x| std::ptr::eq(x.as_ref(), a_topic.0.upgrade().unwrap().as_ref())).unwrap();
         topic_list.swap_remove(index);
-        ReturnCode::Ok
+        Ok(())
     }
 
     pub(crate) fn find_topic(
@@ -649,7 +649,7 @@ impl DomainParticipantImpl{
         qos: PublisherQos,
     ) -> ReturnCode {
         *this.publisher_default_qos.lock().unwrap() = qos;
-        ReturnCode::Ok
+        Ok(())
     }
 
     pub(crate) fn get_default_publisher_qos(
@@ -657,7 +657,7 @@ impl DomainParticipantImpl{
         qos: &mut PublisherQos,
     ) -> ReturnCode {
         qos.clone_from(&this.publisher_default_qos.lock().unwrap());
-        ReturnCode::Ok
+        Ok(())
     }
 
     pub(crate) fn set_default_subscriber_qos(
@@ -759,7 +759,7 @@ impl DomainParticipantImpl{
 
     pub(crate) fn enable(_this: &Arc<DomainParticipantImpl>) -> ReturnCode {
         //TODO: This is to prevent the ParticipantFactory test from panicking
-        ReturnCode::Ok
+        Ok(())
     }
 
     pub(crate) fn get_instance_handle(_this: &Arc<DomainParticipantImpl>) -> InstanceHandle {
@@ -807,7 +807,7 @@ mod tests {
         let publisher = DomainParticipantImpl::create_publisher(&domain_participant_impl,PublisherQos::default(), NoListener, 0).unwrap();
         assert_eq!(domain_participant_impl.publisher_list.lock().unwrap().len(), 1);
 
-        DomainParticipantImpl::delete_publisher(&domain_participant_impl, &publisher);
+        DomainParticipantImpl::delete_publisher(&domain_participant_impl, &publisher).unwrap();
 
         assert_eq!(domain_participant_impl.publisher_list.lock().unwrap().len(), 0);
     }
@@ -820,7 +820,7 @@ mod tests {
         let subscriber = DomainParticipantImpl::create_subscriber(&domain_participant_impl,SubscriberQos::default(), NoListener, 0).unwrap();
         assert_eq!(domain_participant_impl.subscriber_list.lock().unwrap().len(), 1);
 
-        DomainParticipantImpl::delete_subscriber(&domain_participant_impl, &subscriber);
+        DomainParticipantImpl::delete_subscriber(&domain_participant_impl, &subscriber).unwrap();
 
         assert_eq!(domain_participant_impl.subscriber_list.lock().unwrap().len(), 0);
     }
@@ -833,7 +833,7 @@ mod tests {
         let topic = DomainParticipantImpl::create_topic(&domain_participant_impl,"name".to_string(), "type".to_string(), TopicQos::default(), NoListener, 0).unwrap();
         assert_eq!(domain_participant_impl.topic_list.lock().unwrap().len(), 1);
 
-        DomainParticipantImpl::delete_topic(&domain_participant_impl, &topic);
+        DomainParticipantImpl::delete_topic(&domain_participant_impl, &topic).unwrap();
 
         assert_eq!(domain_participant_impl.topic_list.lock().unwrap().len(), 0);
     }

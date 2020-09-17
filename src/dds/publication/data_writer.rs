@@ -230,7 +230,7 @@ impl<T: Any+Send+Sync> DataWriter<T> {
     pub fn write (
         &self,
         data: T,
-        instance_handle: InstanceHandle,
+        instance_handle: Option<InstanceHandle>,
     ) -> ReturnCode {
         DataWriterImpl::write(&self.0, data, instance_handle)
     }
@@ -251,7 +251,7 @@ impl<T: Any+Send+Sync> DataWriter<T> {
     pub fn write_w_timestamp(
         &self,
         data: T,
-        instance_handle: InstanceHandle,
+        instance_handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> ReturnCode {
         DataWriterImpl::write_w_timestamp(&self.0, data, instance_handle, timestamp)
@@ -515,17 +515,18 @@ impl<T> DataWriterImpl<T> {
     pub fn write (
         _this: &Weak<DataWriterImpl<T>>,
         _data: T,
-        _instance_handle: InstanceHandle,
+        _instance_handle: Option<InstanceHandle>,
     ) -> ReturnCode {
         todo!()
     }
 
     pub fn write_w_timestamp(
-        _this: &Weak<DataWriterImpl<T>>,
+        this: &Weak<DataWriterImpl<T>>,
         _data: T,
-        _instance_handle: InstanceHandle,
+        _instance_handle: Option<InstanceHandle>,
         _timestamp: Time,
     ) -> ReturnCode {
+        let dw = this.upgrade();
         todo!()
     }
 
@@ -700,6 +701,26 @@ mod tests {
 
         assert_eq!(datawriter_list.iter().position(|x| x.get::<Foo>().is_some()).unwrap(),0);
         assert_eq!(datawriter_list.iter().position(|x| x.get::<Bar>().is_some()).unwrap(),1);
+    }
 
+    #[test]
+    fn write_w_timestamp() {
+        use crate::dds::types::Time;
+
+        struct Foo {
+            value: u8,
+        }
+
+        let timestamp = Time {
+            sec: 100,
+            nanosec: 20000,
+        };
+
+        let dw = Arc::new(DataWriterImpl::new(Weak::new()));
+        let dw_weak = Arc::downgrade(&dw);
+
+        let new_foo = Foo{value:1};
+
+        DataWriterImpl::write_w_timestamp(&dw_weak, new_foo, None, timestamp).unwrap();
     }
 }
