@@ -1,3 +1,5 @@
+use std::any::Any;
+
 use crate::dds::types::{ReturnCode, SampleStateKind, ViewStateKind, InstanceStateKind, InstanceHandle};
 use crate::dds::subscription::read_condition::ReadCondition;
 use crate::dds::subscription::query_condition::QueryCondition;
@@ -64,9 +66,6 @@ pub mod qos {
     }
 }
 
-// Todo: Read data is dependent on the associated datatype
-type Data=Vec<u8>;
-
 /// A DataReader allows the application (1) to declare the data it wishes to receive (i.e., make a subscription) and (2) to access the
 /// data received by the attached Subscriber.
 ///
@@ -78,9 +77,11 @@ type Data=Vec<u8>;
 /// get_statuscondition may return the error NOT_ENABLED.
 /// All sample-accessing operations, namely all variants of read, take may return the error PRECONDITION_NOT_MET. The
 /// circumstances that result on this are described in 2.2.2.5.2.8.
-pub struct DataReader{}
+pub struct DataReader<T>{
+    value: T,
+}
 
-impl DataReader {
+impl<T> DataReader<T> {
     /// This operation accesses a collection of Data values from the DataReader. The size of the returned collection will be limited to
     /// the specified max_samples. The properties of the data_values collection and the setting of the PRESENTATION QoS policy
     /// (see 2.2.3.6) may impose further limits on the size of the returned ‘list.’
@@ -158,7 +159,7 @@ impl DataReader {
     /// read.
     /// If the DataReader has no samples that meet the constraints, the return value will be NO_DATA.
     pub fn read(
-        _data_values: &mut [Data],
+        _data_values: &mut [T],
         _sample_infos: &mut [SampleInfo],
         _max_samples: i32,
         _sample_states: &[SampleStateKind],
@@ -182,7 +183,7 @@ impl DataReader {
     /// that is being taken.
     /// If the DataReader has no samples that meet the constraints, the return value will be NO_DATA.
     pub fn take(
-        _data_values: &mut [Data],
+        _data_values: &mut [T],
         _sample_infos: &mut [SampleInfo],
         _max_samples: i32,
         _sample_states: &[SampleStateKind],
@@ -205,7 +206,7 @@ impl DataReader {
     /// that is being read.
     /// If the DataReader has no samples that meet the constraints, the return value will be NO_DATA.
     pub fn read_w_condition(
-        _data_values: &mut [Data],
+        _data_values: &mut [T],
         _sample_infos: &mut [SampleInfo],
         _max_samples: i32,
         _a_condition: ReadCondition,
@@ -222,7 +223,7 @@ impl DataReader {
     /// that is being taken.
     /// If the DataReader has no samples that meet the constraints, the return value will be NO_DATA.
     pub fn take_w_condition(
-        _data_values: &mut [Data],
+        _data_values: &mut [T],
         _sample_infos: &mut [SampleInfo],
         _max_samples: i32,
         _a_condition: ReadCondition,
@@ -240,7 +241,7 @@ impl DataReader {
     /// sequences and specify states.
     /// If there is no unread data in the DataReader, the operation will return NO_DATA and nothing is copied.
     pub fn read_next_sample(
-        _data_value: &mut [Data],
+        _data_value: &mut [T],
         _sample_info: &mut [SampleInfo],
     ) -> ReturnCode {
         todo!()
@@ -255,7 +256,7 @@ impl DataReader {
     /// specify states.
     /// If there is no unread data in the DataReader, the operation will return NO_DATA and nothing is copied.
     pub fn take_next_sample(
-        _data_value: &mut [Data],
+        _data_value: &mut [T],
         _sample_info: &mut [SampleInfo],
     ) -> ReturnCode {
         todo!()
@@ -277,7 +278,7 @@ impl DataReader {
     /// known to the DataReader. If the implementation is not able to check invalid handles, then the result in this situation is
     /// unspecified.
     pub fn read_instance(
-        _data_values: &mut [Data],
+        _data_values: &mut [T],
         _sample_infos: &mut [SampleInfo],
         _max_samples: i32,
         _a_handle: InstanceHandle,
@@ -302,7 +303,7 @@ impl DataReader {
     /// known to the DataReader. If the implementation is not able to check invalid handles, then the result in this situation is
     /// unspecified.
     pub fn take_instance(
-        _data_values: &mut [Data],
+        _data_values: &mut [T],
         _sample_infos: &mut [SampleInfo],
         _max_samples: i32,
         _a_handle: InstanceHandle,
@@ -344,7 +345,7 @@ impl DataReader {
     /// that is being taken.
     /// If the DataReader has no samples that meet the constraints, the return value will be NO_DATA.
     pub fn read_next_instance(
-        _data_values: &mut [Data],
+        _data_values: &mut [T],
         _sample_infos: &mut [SampleInfo],
         _max_samples: i32,
         _previous_handle: InstanceHandle,
@@ -367,7 +368,7 @@ impl DataReader {
     /// that is being taken.
     /// If the DataReader has no samples that meet the constraints, the return value will be NO_DATA.
     pub fn take_next_instance(
-        _data_values: &mut [Data],
+        _data_values: &mut [T],
         _sample_infos: &mut [SampleInfo],
         _max_samples: i32,
         _previous_handle: InstanceHandle,
@@ -392,7 +393,7 @@ impl DataReader {
     /// that is being taken.
     /// If the DataReader has no samples that meet the constraints, the return value will be NO_DATA.
     pub fn read_next_instance_w_condition(
-        _data_values: &mut [Data],
+        _data_values: &mut [T],
         _sample_infos: &mut [SampleInfo],
         _max_samples: i32,
         _previous_handle: InstanceHandle,
@@ -414,7 +415,7 @@ impl DataReader {
     /// that is being taken.
     /// If the DataReader has no samples that meet the constraints, the return value will be NO_DATA.
     pub fn take_next_instance_w_condition(
-        _data_values: &mut [Data],
+        _data_values: &mut [T],
         _sample_infos: &mut [SampleInfo],
         _max_samples: i32,
         _previous_handle: InstanceHandle,
@@ -442,7 +443,7 @@ impl DataReader {
     /// Similar to read, this operation must be provided on the specialized class that is generated for the particular application datatype
     /// that is being taken.
     pub fn return_loan( 
-        _data_values: &mut [Data],
+        _data_values: &mut [T],
         _sample_infos: &mut [SampleInfo],
      ) -> ReturnCode {
         todo!()
@@ -454,7 +455,7 @@ impl DataReader {
     /// known to the DataReader. If the implementation is not able to check invalid handles then the result in this situation is
     /// unspecified.
     pub fn get_key_value(
-        _key_holder: &mut Data,
+        _key_holder: &mut T,
         _handle: InstanceHandle
     ) -> ReturnCode {
         todo!()
@@ -466,7 +467,7 @@ impl DataReader {
     /// This operation does not register the instance in question. If the instance has not been previously registered, or if for any other
     /// reason the Service is unable to provide an instance handle, the Service will return the special value HANDLE_NIL.
     pub fn lookup_instance(
-        _instance: &Data,
+        _instance: &T,
     ) -> InstanceHandle {
         todo!()
     }
@@ -613,9 +614,9 @@ impl DataReader {
     }
 }
 
-impl Entity for DataReader {
+impl<T> Entity for DataReader<T> {
     type Qos = DataReaderQos;
-    type Listener = Box<dyn DataReaderListener>;
+    type Listener = Box<dyn DataReaderListener<T>>;
 
     fn set_qos(&self, _qos_list: Self::Qos) -> ReturnCode {
         todo!()
@@ -650,4 +651,12 @@ impl Entity for DataReader {
     }
 }
 
-impl DomainEntity for DataReader{}
+impl<T> DomainEntity for DataReader<T>{}
+
+pub struct AnyDataReader<'a>(&'a dyn Any);
+
+impl<'a> AnyDataReader<'a> {
+    fn get<T: Any>(&self) -> Option<&DataReader<T>> {
+        self.0.downcast_ref::<DataReader<T>>()
+    }
+}

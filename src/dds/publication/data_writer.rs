@@ -1,3 +1,4 @@
+use std::any::Any;
 
 use crate::dds::types::{InstanceHandle, Time, ReturnCode, Duration};
 
@@ -72,12 +73,11 @@ pub mod qos {
     }
 }
 
-// Todo: Write data is dependent on the associated datatype
-type Data=Vec<u8>;
+pub struct DataWriter<T>{
+    value: T,
+}
 
-pub struct DataWriter{}
-
-impl DataWriter {
+impl<T> DataWriter<T> {
     /// This operation informs the Service that the application will be modifying a particular instance. It gives an opportunity to the
     /// Service to pre-configure itself to improve performance.
     /// It takes as a parameter an instance (to get the key value) and returns a handle that can be used in successive write or dispose
@@ -93,7 +93,7 @@ impl DataWriter {
     /// operation is optional as the application may call directly the write operation and specify a HANDLE_NIL to indicate that the
     /// ‘key’ should be examined to identify the instance.
     pub fn register_instance(
-        _instance: Data
+        _instance: T
     ) -> InstanceHandle {
         todo!()
     }
@@ -106,7 +106,7 @@ impl DataWriter {
     /// This operation may return OUT_OF_RESOURCES under the same circumstances described for the write operation
     /// (2.2.2.4.2.11).
     pub fn register_instance_w_timestamp(
-        _instance: Data,
+        _instance: T,
         _timestamp: Time,
     ) -> InstanceHandle {
         todo!()
@@ -140,7 +140,7 @@ impl DataWriter {
     /// write).
     /// Possible error codes returned in addition to the standard ones: TIMEOUT, PRECONDITION_NOT_MET.
     pub fn unregister_instance(
-        _instance: Data,
+        _instance: T,
         _handle: InstanceHandle
     ) -> ReturnCode {
         todo!()
@@ -154,7 +154,7 @@ impl DataWriter {
     /// unregister_instance operation (2.2.2.4.2.7).
     /// This operation may block and return TIMEOUT under the same circumstances described for the write operation (2.2.2.4.2.11).
     pub fn unregister_instance_w_timestamp(
-        _instance: Data,
+        _instance: T,
         _handle: InstanceHandle,
         _timestamp: Time,
     ) -> InstanceHandle {
@@ -167,7 +167,7 @@ impl DataWriter {
     /// known to the DataWriter. If the implementation is not able to check invalid handles, then the result in this situation is
     /// unspecified.
     pub fn get_key_value(
-        _key_holder: &mut Data,
+        _key_holder: &mut T,
         _handle: InstanceHandle
     ) -> ReturnCode {
         todo!()
@@ -179,7 +179,7 @@ impl DataWriter {
     /// This operation does not register the instance in question. If the instance has not been previously registered, or if for any other
     /// reason the Service is unable to provide an instance handle, the Service will return the special value HANDLE_NIL.
     pub fn lookup_instance(
-        _instance: Data,
+        _instance: T,
     ) -> InstanceHandle {
         todo!()
     }
@@ -223,7 +223,7 @@ impl DataWriter {
     /// error-code will be PRECONDITION_NOT_MET. In case the handle is invalid, the behavior is in general unspecified, but if
     /// detectable the returned error-code will be BAD_PARAMETER.
     pub fn write (
-        _data: Data,
+        _data: T,
         _instance_handle: InstanceHandle,
     ) -> ReturnCode {
         todo!()
@@ -243,7 +243,7 @@ impl DataWriter {
     /// Similar to write, this operation must also be provided on the specialized class that is generated for the particular application
     /// data-type that is being written.
     pub fn write_w_timestamp(
-        _data: Data,
+        _data: T,
         _instance_handle: InstanceHandle,
         _timestamp: Time,
     ) -> ReturnCode {
@@ -263,7 +263,7 @@ impl DataWriter {
     /// This operation may return OUT_OF_RESOURCES under the same circumstances described for the write operation
     /// (2.2.2.4.2.11).
     pub fn dispose(
-        _data: Data,
+        _data: T,
         _instance_handle: InstanceHandle,
     ) -> ReturnCode {
         todo!()
@@ -283,7 +283,7 @@ impl DataWriter {
     /// (2.2.2.4.2.11).
     /// Possible error codes returned in addition to the standard ones: TIMEOUT, PRECONDITION_NOT_MET.
     pub fn dispose_w_timestamp(
-        _data: Data,
+        _data: T,
         _instance_handle: InstanceHandle,
         _timestamp: Time,
     ) -> ReturnCode {
@@ -385,9 +385,9 @@ impl DataWriter {
     }
 }
 
-impl Entity for DataWriter{
+impl<T> Entity for DataWriter<T>{
     type Qos = DataWriterQos;
-    type Listener = Box<dyn DataWriterListener>;
+    type Listener = Box<dyn DataWriterListener<T>>;
 
     fn set_qos(&self, _qos_list: Self::Qos) -> ReturnCode {
         todo!()
@@ -422,4 +422,12 @@ impl Entity for DataWriter{
     }
 }
 
-impl DomainEntity for DataWriter{}
+impl<T> DomainEntity for DataWriter<T>{}
+
+pub struct AnyDataWriter<'a>(&'a dyn Any);
+
+impl<'a> AnyDataWriter<'a> {
+    fn get<T: Any>(&self) -> Option<&DataWriter<T>> {
+        self.0.downcast_ref::<DataWriter<T>>()
+    }
+}

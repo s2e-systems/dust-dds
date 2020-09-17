@@ -75,13 +75,13 @@ impl Subscriber {
     /// The TopicDescription passed to this operation must have been created from the same DomainParticipant that was used to
     /// create this Subscriber. If the TopicDescription was created from a different DomainParticipant, the operation will fail and
     /// return a nil result.
-    pub fn create_datareader(
+    pub fn create_datareader<T>(
         &self,
         a_topic: &dyn TopicDescription,
         qos: DataReaderQos,
-        a_listener: Box<dyn DataReaderListener>,
+        a_listener: Box<dyn DataReaderListener<T>>,
         mask: &[StatusKind]
-    ) -> DataReader {
+    ) -> DataReader<T> {
         SubscriberImpl::create_datareader(&self.0, a_topic, qos, a_listener, mask)
     }
 
@@ -97,9 +97,9 @@ impl Subscriber {
     /// delete_datareader is called on a different Subscriber, the operation will have no effect and it will return
     /// PRECONDITION_NOT_MET.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
-    pub fn delete_datareader(
+    pub fn delete_datareader<T>(
         &self,
-        a_datareader: DataReader
+        a_datareader: DataReader<T>
     ) -> ReturnCode {
         SubscriberImpl::delete_datareader(&self.0, a_datareader)
     }
@@ -109,10 +109,10 @@ impl Subscriber {
     /// If multiple DataReaders attached to the Subscriber satisfy this condition, then the operation will return one of them. It is not
     /// specified which one.
     /// The use of this operation on the built-in Subscriber allows access to the built-in DataReader entities for the built-in topics
-    pub fn lookup_datareader(
+    pub fn lookup_datareader<T>(
         &self,
         topic_name: String
-    ) -> DataReader {
+    ) -> DataReader<T> {
         SubscriberImpl::lookup_datareader(&self.0, topic_name)
     }
 
@@ -160,9 +160,9 @@ impl Subscriber {
     /// objects in a particular order. In this case, the application should process each DataReader in the same order it appears in the
     /// ‘list’ and read or take exactly one sample from each DataReader. The patterns that an application should use to access data is
     /// fully described in 2.2.2.5.1, Access to the data.
-    pub fn get_datareaders(
+    pub fn get_datareaders<T>(
         &self,
-        readers: &mut [DataReader],
+        readers: &mut [DataReader<T>],
         sample_states: &[SampleStateKind],
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
@@ -296,27 +296,27 @@ pub struct SubscriberImpl{
 }
 
 impl SubscriberImpl {
-    pub(crate) fn create_datareader(
+    pub(crate) fn create_datareader<T>(
         _this: &Weak<SubscriberImpl>,
         _a_topic: &dyn TopicDescription,
         _qos: DataReaderQos,
-        _a_listener: Box<dyn DataReaderListener>,
+        _a_listener: Box<dyn DataReaderListener<T>>,
         _mask: &[StatusKind]
-    ) -> DataReader {
+    ) -> DataReader<T> {
         todo!()
     }
 
-    pub(crate) fn delete_datareader(
+    pub(crate) fn delete_datareader<T>(
         _this: &Weak<SubscriberImpl>,
-        _a_datareader: DataReader
+        _a_datareader: DataReader<T>
     ) -> ReturnCode {
         todo!()
     }
 
-    pub(crate) fn lookup_datareader(
+    pub(crate) fn lookup_datareader<T>(
         _this: &Weak<SubscriberImpl>,
         _topic_name: String
-    ) -> DataReader {
+    ) -> DataReader<T> {
         todo!()
     }
 
@@ -333,9 +333,9 @@ impl SubscriberImpl {
     }
 
    
-    pub(crate) fn get_datareaders(
+    pub(crate) fn get_datareaders<T>(
         _this: &Weak<SubscriberImpl>,
-        _readers: &mut [DataReader],
+        _readers: &mut [DataReader<T>],
         _sample_states: &[SampleStateKind],
         _view_states: &[ViewStateKind],
         _instance_states: &[InstanceStateKind],

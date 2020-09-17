@@ -59,13 +59,13 @@ impl Publisher {
     /// corresponding policy on the default QoS. The resulting QoS is then applied to the creation of the DataWriter.
     /// The Topic passed to this operation must have been created from the same DomainParticipant that was used to create this
     /// Publisher. If the Topic was created from a different DomainParticipant, the operation will fail and return a nil result.
-    pub fn create_datawriter(
+    pub fn create_datawriter<T>(
         &self,
         a_topic: Topic,
         qos: DataWriterQos,
-        a_listener: Box<dyn DataWriterListener>,
+        a_listener: Box<dyn DataWriterListener<T>>,
         mask: &[StatusKind]
-    ) -> DataWriter {
+    ) -> DataWriter<T> {
         PublisherImpl::create_datawriter(&self.0, a_topic, qos, a_listener, mask)
     }
 
@@ -77,9 +77,9 @@ impl Publisher {
     /// WRITER_DATA_LIFECYCLE QosPolicy, the deletion of the DataWriter may also dispose all instances. Refer to 2.2.3.21 for
     /// details.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
-    pub fn delete_datawriter(
+    pub fn delete_datawriter<T>(
         &self,
-        a_datawriter: DataWriter
+        a_datawriter: DataWriter<T>
     ) -> ReturnCode {
         PublisherImpl::delete_datawriter(&self.0, a_datawriter)
     }
@@ -88,10 +88,10 @@ impl Publisher {
     /// topic_name. If no such DataWriter exists, the operation will return ’nil.’
     /// If multiple DataWriter attached to the Publisher satisfy this condition, then the operation will return one of them. It is not
     /// specified which one.
-    pub fn lookup_datawriter(
+    pub fn lookup_datawriter<T>(
         &self,
         topic_name: String,
-    ) -> DataWriter {
+    ) -> DataWriter<T> {
         PublisherImpl::lookup_datawriter(&self.0, topic_name)
     }
 
@@ -263,27 +263,27 @@ pub struct PublisherImpl{
 }
 
 impl PublisherImpl {
-    pub(crate) fn create_datawriter(
+    pub(crate) fn create_datawriter<T>(
         _this: &Weak<PublisherImpl>,
         _a_topic: Topic,
         _qos: DataWriterQos,
-        _a_listener: Box<dyn DataWriterListener>,
+        _a_listener: Box<dyn DataWriterListener<T>>,
         _mask: &[StatusKind]
-    ) -> DataWriter {
+    ) -> DataWriter<T> {
         todo!()
     }
 
-    pub(crate) fn delete_datawriter(
+    pub(crate) fn delete_datawriter<T>(
         _this: &Weak<PublisherImpl>,
-        _a_datawriter: DataWriter
+        _a_datawriter: DataWriter<T>
     ) -> ReturnCode {
         todo!()
     }
 
-    pub(crate) fn lookup_datawriter(
+    pub(crate) fn lookup_datawriter<T>(
         _this: &Weak<PublisherImpl>,
         _topic_name: String,
-    ) -> DataWriter {
+    ) -> DataWriter<T> {
         todo!()
     }
 

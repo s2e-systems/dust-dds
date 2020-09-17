@@ -13,8 +13,8 @@ use crate::dds::infrastructure::status::{
     PublicationMatchedStatus,
     SubscriptionMatchedStatus};
 use crate::dds::subscription::subscriber::Subscriber;
-use crate::dds::subscription::data_reader::DataReader;
-use crate::dds::publication::data_writer::DataWriter;
+use crate::dds::subscription::data_reader::AnyDataReader;
+use crate::dds::publication::data_writer::AnyDataWriter;
 use crate::dds::infrastructure::listener::NoListener;
 
 /// The purpose of the DomainParticipantListener is to be the listener of last resort that is notified of all status changes not
@@ -26,19 +26,19 @@ pub trait DomainParticipantListener : Any + Send + Sync{
 
     fn on_liveliness_lost(
         &self,
-        _the_writer: DataWriter,
+        _the_writer: AnyDataWriter,
         _status: LivelinessLostStatus,
     );
 
     fn on_offered_deadline_missed(
         &self,
-        _the_writer: DataWriter,
+        _the_writer: AnyDataWriter,
         _status: OfferedDeadlineMissedStatus,
     );
 
     fn on_offered_incompatible_qos(
         &self,
-        _the_writer: DataWriter,
+        _the_writer: AnyDataWriter,
         _status: OfferedDeadlineMissedStatus,
     );
 
@@ -49,48 +49,48 @@ pub trait DomainParticipantListener : Any + Send + Sync{
 
     fn on_sample_lost(
         &self,
-        _the_reader: DataReader,
+        _the_reader: AnyDataReader,
         _status: SampleLostStatus,
     );
 
     fn on_data_available(
         &self,
-        _the_reader: DataReader,
+        _the_reader: AnyDataReader,
     );
 
     fn on_sample_rejected(
         &self,
-        _the_reader: DataReader,
+        _the_reader: AnyDataReader,
         _status: SampleRejectedStatus,
     );
 
     fn on_liveliness_changed(
         &self,
-        _the_reader: DataReader,
+        _the_reader: AnyDataReader,
         _status: LivelinessChangedStatus,
     );
 
     fn on_requested_deadline_missed(
         &self,
-        _the_reader: DataReader,
+        _the_reader: AnyDataReader,
         _status: RequestedDeadlineMissedStatus,
     );
 
     fn on_requested_incompatible_qos(
         &self,
-        _the_reader: DataReader,
+        _the_reader: AnyDataReader,
         _status: RequestedIncompatibleQosStatus,
     );
 
     fn on_publication_matched(
         &self,
-        _the_writer: DataWriter,
+        _the_writer: AnyDataWriter,
         _status: PublicationMatchedStatus,
     );
 
     fn on_subscription_matched(
         &self,
-        _the_reader: DataReader,
+        _the_reader: AnyDataReader,
         _status: SubscriptionMatchedStatus,
     );
 }
@@ -102,7 +102,7 @@ impl DomainParticipantListener for NoListener {
 
     fn on_liveliness_lost(
         &self,
-        _the_writer: DataWriter,
+        _the_writer: AnyDataWriter,
         _status: LivelinessLostStatus,
     ) {
         todo!()
@@ -110,7 +110,7 @@ impl DomainParticipantListener for NoListener {
 
     fn on_offered_deadline_missed(
         &self,
-        _the_writer: DataWriter,
+        _the_writer: AnyDataWriter,
         _status: OfferedDeadlineMissedStatus,
     ) {
         todo!()
@@ -118,7 +118,7 @@ impl DomainParticipantListener for NoListener {
 
     fn on_offered_incompatible_qos(
         &self,
-        _the_writer: DataWriter,
+        _the_writer: AnyDataWriter,
         _status: OfferedDeadlineMissedStatus,
     ) {
         todo!()
@@ -133,7 +133,7 @@ impl DomainParticipantListener for NoListener {
 
     fn on_sample_lost(
         &self,
-        _the_reader: DataReader,
+        _the_reader: AnyDataReader,
         _status: SampleLostStatus,
     ) {
         todo!()
@@ -141,14 +141,14 @@ impl DomainParticipantListener for NoListener {
 
     fn on_data_available(
         &self,
-        _the_reader: DataReader,
+        _the_reader: AnyDataReader,
     ) {
         todo!()
     }
 
     fn on_sample_rejected(
         &self,
-        _the_reader: DataReader,
+        _the_reader: AnyDataReader,
         _status: SampleRejectedStatus,
     ) {
         todo!()
@@ -156,7 +156,7 @@ impl DomainParticipantListener for NoListener {
 
     fn on_liveliness_changed(
         &self,
-        _the_reader: DataReader,
+        _the_reader: AnyDataReader,
         _status: LivelinessChangedStatus,
     ) {
         todo!()
@@ -164,7 +164,7 @@ impl DomainParticipantListener for NoListener {
 
     fn on_requested_deadline_missed(
         &self,
-        _the_reader: DataReader,
+        _the_reader: AnyDataReader,
         _status: RequestedDeadlineMissedStatus,
     ) {
         todo!()
@@ -172,7 +172,7 @@ impl DomainParticipantListener for NoListener {
 
     fn on_requested_incompatible_qos(
         &self,
-        _the_reader: DataReader,
+        _the_reader: AnyDataReader,
         _status: RequestedIncompatibleQosStatus,
     ) {
         todo!()
@@ -180,7 +180,7 @@ impl DomainParticipantListener for NoListener {
 
     fn on_publication_matched(
         &self,
-        _the_writer: DataWriter,
+        _the_writer: AnyDataWriter,
         _status: PublicationMatchedStatus,
     ) {
         todo!()
@@ -188,7 +188,7 @@ impl DomainParticipantListener for NoListener {
 
     fn on_subscription_matched(
         &self,
-        _the_reader: DataReader,
+        _the_reader: AnyDataReader,
         _status: SubscriptionMatchedStatus,
     ) {
         todo!()
