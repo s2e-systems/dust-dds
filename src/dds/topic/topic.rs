@@ -32,15 +32,15 @@ impl Topic {
 }
 
 impl TopicDescription for Topic {
-    fn get_participant(&self) -> DomainParticipant {
+    fn get_participant(&self) -> Option<DomainParticipant> {
         TopicImpl::get_participant(&self.0)
     }
 
-    fn get_type_name(&self) -> String {
+    fn get_type_name(&self) -> Option<String> {
         TopicImpl::get_type_name(&self.0)
     }
 
-    fn get_name(&self) -> String {
+    fn get_name(&self) -> Option<String> {
         TopicImpl::get_name(&self.0)
     }
 }
@@ -86,11 +86,13 @@ impl DomainEntity for Topic{}
 
 impl Drop for Topic {
     fn drop(&mut self) {
-        let parent_participant = self.get_participant();
-        parent_participant.delete_topic(self);
+        if let Some(parent_participant) = self.get_participant() {
+            parent_participant.delete_topic(self);
+        }
     }
 }
 
+#[derive(Debug)]
 pub struct TopicImpl{
     parent_participant: Weak<DomainParticipantImpl>,
     name: String,
@@ -106,16 +108,16 @@ impl TopicImpl {
     }
 
     ///////////////// Topic description trait methods
-    pub(crate) fn get_participant(this: &Weak<TopicImpl>) -> DomainParticipant {
-        DomainParticipant(this.upgrade().unwrap().parent_participant.upgrade().unwrap())
+    pub(crate) fn get_participant(this: &Weak<TopicImpl>) -> Option<DomainParticipant> {
+        Some(DomainParticipant(this.upgrade()?.parent_participant.upgrade()?))
     }
 
-    pub(crate) fn get_type_name(this: &Weak<TopicImpl>) -> String {
-        this.upgrade().unwrap().name.clone()
+    pub(crate) fn get_type_name(this: &Weak<TopicImpl>) -> Option<String> {
+        Some(this.upgrade()?.name.clone())
     }
 
-    pub(crate) fn get_name(this: &Weak<TopicImpl>) -> String {
-        this.upgrade().unwrap().type_name.clone()
+    pub(crate) fn get_name(this: &Weak<TopicImpl>) -> Option<String> {
+        Some(this.upgrade()?.type_name.clone())
     }
 
     ///////////////// Entity trait methods

@@ -15,6 +15,7 @@ use crate::dds::infrastructure::qos_policy:: {
     OwnershipQosPolicy,
     ReliabilityQosPolicyKind,
 };
+#[derive(Debug)]
 pub struct TopicQos {
     topic_data: TopicDataQosPolicy,
     durability: DurabilityQosPolicy,

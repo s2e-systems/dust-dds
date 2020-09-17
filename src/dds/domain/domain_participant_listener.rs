@@ -21,7 +21,7 @@ use crate::dds::infrastructure::listener::NoListener;
 /// captured by more specific listeners attached to the DomainEntity objects. When a relevant status change occurs, the DCPS
 /// Service will first attempt to notify the listener attached to the concerned DomainEntity if one is installed. Otherwise, the
 /// DCPS Service will notify the Listener attached to the DomainParticipant.
-pub trait DomainParticipantListener : Any + Send + Sync{
+pub trait DomainParticipantListener : Any + Send + Sync + std::fmt::Debug{
     fn on_inconsistent_topic(&self, _the_topic: Topic, _status: InconsistentTopicStatus);
 
     fn on_liveliness_lost(

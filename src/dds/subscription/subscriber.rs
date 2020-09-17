@@ -28,7 +28,7 @@ pub mod qos {
         EntityFactoryQosPolicy,
     };
 
-    #[derive(Default)]
+    #[derive(Default, Debug)]
     pub struct SubscriberQos {
         presentation: PresentationQosPolicy,
         partition: PartitionQosPolicy,
@@ -290,7 +290,7 @@ impl Drop for Subscriber {
         parent_participant.delete_subscriber(self);
     }
 }
-
+#[derive(Debug)]
 pub struct SubscriberImpl{
     parent_participant: Weak<DomainParticipantImpl>,
 }

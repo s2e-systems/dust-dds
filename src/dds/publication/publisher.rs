@@ -1,11 +1,12 @@
-use std::sync::Weak;
+use std::any::Any;
+use std::sync::{Arc, Weak, Mutex};
 
-use crate::dds::types::{StatusKind, ReturnCode, Duration, InstanceHandle};
+use crate::dds::types::{StatusKind, ReturnCode, Duration, InstanceHandle, StatusMask};
 use crate::dds::domain::domain_participant::{DomainParticipant, DomainParticipantImpl};
 use crate::dds::topic::topic::Topic;
 use crate::dds::topic::qos::TopicQos;
 use crate::dds::publication::data_writer_listener::DataWriterListener;
-use crate::dds::publication::data_writer::DataWriter;
+use crate::dds::publication::data_writer::{DataWriter, DataWriterImpl, AnyDataWriter};
 use crate::dds::publication::data_writer::qos::DataWriterQos;
 use crate::dds::infrastructure::entity::{Entity, StatusCondition};
 use crate::dds::infrastructure::entity::DomainEntity;
@@ -59,12 +60,12 @@ impl Publisher {
     /// corresponding policy on the default QoS. The resulting QoS is then applied to the creation of the DataWriter.
     /// The Topic passed to this operation must have been created from the same DomainParticipant that was used to create this
     /// Publisher. If the Topic was created from a different DomainParticipant, the operation will fail and return a nil result.
-    pub fn create_datawriter<T>(
+    pub fn create_datawriter<T: Any+Sync+Send+std::fmt::Debug>(
         &self,
         a_topic: Topic,
         qos: DataWriterQos,
         a_listener: Box<dyn DataWriterListener<T>>,
-        mask: &[StatusKind]
+        mask: StatusMask
     ) -> Option<DataWriter<T>> {
         PublisherImpl::create_datawriter(&self.0, a_topic, qos, a_listener, mask)
     }
@@ -77,18 +78,18 @@ impl Publisher {
     /// WRITER_DATA_LIFECYCLE QosPolicy, the deletion of the DataWriter may also dispose all instances. Refer to 2.2.3.21 for
     /// details.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
-    pub fn delete_datawriter<T>(
+    pub fn delete_datawriter<T: Any+Send+Sync+std::fmt::Debug>(
         &self,
-        a_datawriter: DataWriter<T>
+        a_datawriter: &DataWriter<T>
     ) -> ReturnCode {
-        PublisherImpl::delete_datawriter(&self.0, a_datawriter)
+        PublisherImpl::delete_datawriter(&self.0, &a_datawriter)
     }
 
     /// This operation retrieves a previously created DataWriter belonging to the Publisher that is attached to a Topic with a matching
     /// topic_name. If no such DataWriter exists, the operation will return ’nil.’
     /// If multiple DataWriter attached to the Publisher satisfy this condition, then the operation will return one of them. It is not
     /// specified which one.
-    pub fn lookup_datawriter<T>(
+    pub fn lookup_datawriter<T: Any+Send+Sync+std::fmt::Debug>(
         &self,
         topic_name: String,
     ) -> Option<DataWriter<T>> {
@@ -257,30 +258,54 @@ impl Drop for Publisher {
         parent_participant.delete_publisher(self);
     }
 }
-
+#[derive(Debug)]
 pub struct PublisherImpl{
-    parent_participant: Weak<DomainParticipantImpl>,    
+    parent_participant: Weak<DomainParticipantImpl>,
+    datawriter_list: Mutex<Vec<AnyDataWriter>>,
 }
 
 impl PublisherImpl {
-    pub(crate) fn create_datawriter<T>(
-        _this: &Weak<PublisherImpl>,
+    pub(crate) fn create_datawriter<T: Any+Send+Sync+std::fmt::Debug>(
+        this: &Weak<PublisherImpl>,
         _a_topic: Topic,
         _qos: DataWriterQos,
         _a_listener: Box<dyn DataWriterListener<T>>,
-        _mask: &[StatusKind]
+        _mask: StatusMask,
     ) -> Option<DataWriter<T>> {
-        todo!()
+        let datawriter_impl = Arc::new(DataWriterImpl::new(this.clone()));
+        let datawriter = DataWriter(Arc::downgrade(&datawriter_impl));        
+
+        this.upgrade()?.datawriter_list.lock().ok()?.push(AnyDataWriter(datawriter_impl));
+
+        Some(datawriter)
     }
 
-    pub(crate) fn delete_datawriter<T>(
-        _this: &Weak<PublisherImpl>,
-        _a_datawriter: DataWriter<T>
+    pub(crate) fn delete_datawriter<T: Any+Send+Sync+std::fmt::Debug>(
+        this: &Weak<PublisherImpl>,
+        a_datawriter: &DataWriter<T>
     ) -> ReturnCode {
-        todo!()
+        let publisher = this.upgrade().unwrap();
+        let mut datawriter_list = publisher.datawriter_list.lock().unwrap();
+        if let Some(index) = datawriter_list.iter().position(|x| {
+            let get_result = x.get::<T>();
+        
+            if let Some(dw) =  get_result{
+                if dw.0.ptr_eq(&a_datawriter.0) {
+                    true
+                } else {
+                    false
+                }
+        } else {
+            false
+        }}) {
+            datawriter_list.swap_remove(index);
+            ReturnCode::Ok
+        } else {
+            ReturnCode::PreconditionNotMet
+        }
     }
 
-    pub(crate) fn lookup_datawriter<T>(
+    pub(crate) fn lookup_datawriter<T: Any+Send+Sync+std::fmt::Debug>(
         _this: &Weak<PublisherImpl>,
         _topic_name: String,
     ) -> Option<DataWriter<T>> {
@@ -373,13 +398,35 @@ impl PublisherImpl {
         todo!()
     }
 
-
-
     //////////////// From here on are the functions that do not belong to the standard API
     pub(crate) fn new(parent_participant: Weak<DomainParticipantImpl>
     ) -> Self {
         Self{
-            parent_participant
+            parent_participant,
+            datawriter_list: Mutex::new(Vec::new()),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::dds::infrastructure::listener::NoListener;
+    #[derive(Debug)]
+    struct  Foo {
+        value: bool
+    }
+
+    #[test]
+    fn create_datawriter() {
+        let publisher_impl = Arc::new(PublisherImpl::new(Weak::new()));
+        let topic = Topic(Weak::new());
+        
+        assert_eq!(publisher_impl.datawriter_list.lock().unwrap().len(), 0);
+        let datawriter = PublisherImpl::create_datawriter::<Foo>(&Arc::downgrade(&publisher_impl),topic, DataWriterQos::default(), Box::new(NoListener), 0).unwrap();
+        assert_eq!(publisher_impl.datawriter_list.lock().unwrap().len(), 1);
+        
+        PublisherImpl::delete_datawriter(&Arc::downgrade(&publisher_impl), &datawriter);
+        assert_eq!(publisher_impl.datawriter_list.lock().unwrap().len(), 0);
     }
 }

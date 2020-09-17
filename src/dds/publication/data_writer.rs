@@ -1,11 +1,12 @@
 use std::any::Any;
-use std::sync::Weak;
+use std::sync::{Arc,Weak};
+use std::marker::PhantomData;
 
 use crate::dds::types::{InstanceHandle, Time, ReturnCode, Duration};
 
 use crate::dds::infrastructure::status::{LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus};
 use crate::dds::topic::topic::Topic;
-use crate::dds::publication::publisher::Publisher;
+use crate::dds::publication::publisher::{Publisher, PublisherImpl};
 use crate::dds::infrastructure::entity::Entity;
 use crate::dds::infrastructure::entity::DomainEntity;
 use crate::dds::publication::data_writer_listener::DataWriterListener;
@@ -74,9 +75,10 @@ pub mod qos {
     }
 }
 
-pub struct DataWriter<T>(pub(crate) Weak<DataWriterImpl<T>>);
+#[derive(Debug)]
+pub struct DataWriter<T: Any+Send+Sync+std::fmt::Debug>(pub(crate) Weak<DataWriterImpl<T>>);
 
-impl<T> DataWriter<T> {
+impl<T: Any+Send+Sync+std::fmt::Debug> DataWriter<T> {
     /// This operation informs the Service that the application will be modifying a particular instance. It gives an opportunity to the
     /// Service to pre-configure itself to improve performance.
     /// It takes as a parameter an instance (to get the key value) and returns a handle that can be used in successive write or dispose
@@ -401,7 +403,7 @@ impl<T> DataWriter<T> {
     }
 }
 
-impl<T> Entity for DataWriter<T>{
+impl<T: Any+Send+Sync+std::fmt::Debug> Entity for DataWriter<T>{
     type Qos = DataWriterQos;
     type Listener = Box<dyn DataWriterListener<T>>;
 
@@ -438,18 +440,31 @@ impl<T> Entity for DataWriter<T>{
     }
 }
 
-impl<T> DomainEntity for DataWriter<T>{}
+impl<T: Any+Send+Sync+std::fmt::Debug> DomainEntity for DataWriter<T>{}
 
-pub struct AnyDataWriter<'a>(&'a dyn Any);
+// impl<T: Any+Send+Sync+std::fmt::Debug> Drop for DataWriter<T> {
+//     fn drop(&mut self) {
+//         let parent_publisher = self.get_publisher();
+//         parent_publisher.delete_datawriter(self);
+//     }
+// }
 
-impl<'a> AnyDataWriter<'a> {
-    fn get<T: Any>(&self) -> Option<&DataWriter<T>> {
-        self.0.downcast_ref::<DataWriter<T>>()
+#[derive(Debug)]
+pub struct AnyDataWriter(pub(crate) std::sync::Arc<dyn Any+Sync+Send>);
+
+impl AnyDataWriter {
+    pub fn get<T: Any+Send+Sync+std::fmt::Debug>(&self) -> Option<DataWriter<T>> {
+        let upcasted_arc = self.0.clone().downcast::<DataWriterImpl<T>>().ok()?;
+        let datawriter = DataWriter(Arc::downgrade(&upcasted_arc));
+
+        Some(datawriter)
     }
 }
 
+#[derive(Debug)]
 pub(crate) struct DataWriterImpl<T> {
-    value: T,
+    parent_publisher: Weak<PublisherImpl>,
+    value: PhantomData<T>,
 }
 
 impl<T> DataWriterImpl<T> {
@@ -578,9 +593,9 @@ impl<T> DataWriterImpl<T> {
     }
 
     pub fn get_publisher(
-        _this: &Weak<DataWriterImpl<T>>,
+        this: &Weak<DataWriterImpl<T>>,
     ) -> Publisher {
-        todo!()
+        Publisher(this.upgrade().unwrap().parent_publisher.clone())
     }
 
     pub fn assert_liveliness(_this: &Weak<DataWriterImpl<T>>,) -> ReturnCode {
@@ -632,5 +647,62 @@ impl<T> DataWriterImpl<T> {
 
     fn get_instance_handle(_this: &Weak<DataWriterImpl<T>>,) -> InstanceHandle {
         todo!()
+    }
+
+     //////////////// From here on are the functions that do not belong to the standard API
+     pub(crate) fn new(parent_publisher: Weak<PublisherImpl>
+     ) -> Self {
+         Self{
+             parent_publisher,
+             value: PhantomData
+         }
+     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::Arc;
+    
+    #[derive(Debug)]
+    struct  Foo {
+        value: bool
+    }
+
+    #[derive(Debug)]
+    struct  Bar {
+        value: bool
+    }
+
+    #[derive(Debug)]
+    struct  Baz {
+        value: bool
+    }
+
+    #[test]
+    fn get_single_anydatawriter_value() {
+        let any_datawriter = AnyDataWriter(
+            Arc::new(DataWriterImpl::<Foo>::new(Weak::new()))
+        );
+
+        assert!(any_datawriter.get::<Foo>().is_some())
+    }
+
+    #[test]
+    fn get_multiple_anydatawriter_values() {
+        let mut datawriter_list = Vec::new();
+
+        datawriter_list.push(AnyDataWriter(Arc::new(DataWriterImpl::<Foo>::new(Weak::new()))));
+        datawriter_list.push(AnyDataWriter(Arc::new(DataWriterImpl::<Bar>::new(Weak::new()))));
+
+        assert!(datawriter_list[0].get::<Foo>().is_some());
+        assert!(datawriter_list[0].get::<Bar>().is_none());
+
+        assert!(datawriter_list[1].get::<Foo>().is_none());
+        assert!(datawriter_list[1].get::<Bar>().is_some());
+
+        assert_eq!(datawriter_list.iter().position(|x| x.get::<Foo>().is_some()).unwrap(),0);
+        assert_eq!(datawriter_list.iter().position(|x| x.get::<Bar>().is_some()).unwrap(),1);
+
     }
 }

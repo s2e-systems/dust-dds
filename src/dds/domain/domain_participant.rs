@@ -494,6 +494,7 @@ impl Drop for DomainParticipant {
     }
 }
 
+#[derive(Debug)]
 pub struct DomainParticipantImpl{
     domain_id: DomainId,
     qos: DomainParticipantQos,
