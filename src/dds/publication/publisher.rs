@@ -286,18 +286,13 @@ impl PublisherImpl {
     ) -> ReturnCode {
         let publisher = this.upgrade().unwrap();
         let mut datawriter_list = publisher.datawriter_list.lock().unwrap();
-        if let Some(index) = datawriter_list.iter().position(|x| {
-            let get_result = x.get::<T>();
+        let index = datawriter_list.iter().position(|x| 
+            match x.get::<T>() {
+                Some(dw) => dw.0.ptr_eq(&a_datawriter.0),
+                None => false,
+        });
         
-            if let Some(dw) =  get_result{
-                if dw.0.ptr_eq(&a_datawriter.0) {
-                    true
-                } else {
-                    false
-                }
-        } else {
-            false
-        }}) {
+        if let Some(index) = index{
             datawriter_list.swap_remove(index);
             ReturnCode::Ok
         } else {
@@ -418,7 +413,7 @@ mod tests {
     }
 
     #[test]
-    fn create_datawriter() {
+    fn create_delete_datawriter() {
         let publisher_impl = Arc::new(PublisherImpl::new(Weak::new()));
         let topic = Topic(Weak::new());
         

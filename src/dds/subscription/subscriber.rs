@@ -1,4 +1,5 @@
-use std::sync::Weak;
+use std::sync::{Arc, Weak, Mutex};
+use std::any::Any;
 
 use crate::dds::types::{
     ReturnCode,
@@ -6,13 +7,14 @@ use crate::dds::types::{
     SampleStateKind,
     ViewStateKind,
     InstanceStateKind,
+    StatusMask
 };
 
 use crate::dds::infrastructure::status::SampleLostStatus;
 use crate::dds::domain::domain_participant::{DomainParticipant, DomainParticipantImpl};
 use crate::dds::topic::topic_description::TopicDescription;
 use crate::dds::topic::qos::TopicQos;
-use crate::dds::subscription::data_reader::DataReader;
+use crate::dds::subscription::data_reader::{DataReader, DataReaderImpl, AnyDataReader};
 use crate::dds::subscription::data_reader_listener::DataReaderListener;
 use crate::dds::subscription::data_reader::qos::DataReaderQos;
 use crate::dds::infrastructure::entity::Entity;
@@ -75,12 +77,12 @@ impl Subscriber {
     /// The TopicDescription passed to this operation must have been created from the same DomainParticipant that was used to
     /// create this Subscriber. If the TopicDescription was created from a different DomainParticipant, the operation will fail and
     /// return a nil result.
-    pub fn create_datareader<T>(
+    pub fn create_datareader<T: Any+Send+Sync>(
         &self,
         a_topic: &dyn TopicDescription,
         qos: DataReaderQos,
         a_listener: Box<dyn DataReaderListener<T>>,
-        mask: &[StatusKind]
+        mask: StatusMask
     ) -> Option<DataReader<T>> {
         SubscriberImpl::create_datareader(&self.0, a_topic, qos, a_listener, mask)
     }
@@ -97,9 +99,9 @@ impl Subscriber {
     /// delete_datareader is called on a different Subscriber, the operation will have no effect and it will return
     /// PRECONDITION_NOT_MET.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
-    pub fn delete_datareader<T>(
+    pub fn delete_datareader<T: Any+Send+Sync>(
         &self,
-        a_datareader: DataReader<T>
+        a_datareader: &DataReader<T>
     ) -> ReturnCode {
         SubscriberImpl::delete_datareader(&self.0, a_datareader)
     }
@@ -109,7 +111,7 @@ impl Subscriber {
     /// If multiple DataReaders attached to the Subscriber satisfy this condition, then the operation will return one of them. It is not
     /// specified which one.
     /// The use of this operation on the built-in Subscriber allows access to the built-in DataReader entities for the built-in topics
-    pub fn lookup_datareader<T>(
+    pub fn lookup_datareader<T: Any+Send+Sync>(
         &self,
         topic_name: String
     ) -> DataReader<T> {
@@ -293,24 +295,43 @@ impl DomainEntity for Subscriber{}
 
 pub struct SubscriberImpl{
     parent_participant: Weak<DomainParticipantImpl>,
+    datareader_list: Mutex<Vec<AnyDataReader>>,
 }
 
 impl SubscriberImpl {
-    pub(crate) fn create_datareader<T>(
-        _this: &Weak<SubscriberImpl>,
+    pub(crate) fn create_datareader<T: Any+Send+Sync>(
+        this: &Weak<SubscriberImpl>,
         _a_topic: &dyn TopicDescription,
         _qos: DataReaderQos,
         _a_listener: Box<dyn DataReaderListener<T>>,
-        _mask: &[StatusKind]
+        _mask: StatusMask
     ) -> Option<DataReader<T>> {
-        todo!()
+        let datareader_impl = Arc::new(DataReaderImpl::new(this.clone()));
+        let datareader = DataReader(Arc::downgrade(&datareader_impl));        
+
+        this.upgrade()?.datareader_list.lock().ok()?.push(AnyDataReader(datareader_impl));
+
+        Some(datareader)
     }
 
-    pub(crate) fn delete_datareader<T>(
-        _this: &Weak<SubscriberImpl>,
-        _a_datareader: DataReader<T>
+    pub(crate) fn delete_datareader<T: Any+Send+Sync>(
+        this: &Weak<SubscriberImpl>,
+        a_datareader: &DataReader<T>
     ) -> ReturnCode {
-        todo!()
+        let subscriber = this.upgrade().unwrap();
+        let mut datareader_list = subscriber.datareader_list.lock().unwrap();
+        let index = datareader_list.iter().position(|x| 
+            match x.get::<T>() {
+                Some(dr) => dr.0.ptr_eq(&a_datareader.0),
+                None => false,
+        });
+        
+        if let Some(index) = index{
+            datareader_list.swap_remove(index);
+            ReturnCode::Ok
+        } else {
+            ReturnCode::PreconditionNotMet
+        }
     }
 
     pub(crate) fn lookup_datareader<T>(
@@ -426,8 +447,33 @@ impl SubscriberImpl {
     pub(crate) fn new(parent_participant: Weak<DomainParticipantImpl>
     ) -> Self {
         Self{
-            parent_participant
+            parent_participant,
+            datareader_list: Mutex::new(Vec::new()),
         }
     }
 
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::dds::infrastructure::listener::NoListener;
+    use crate::dds::topic::topic::Topic;
+    #[derive(Debug)]
+    struct  Foo {
+        value: bool
+    }
+
+    #[test]
+    fn create_delete_datareader() {
+        let subscriber_impl = Arc::new(SubscriberImpl::new(Weak::new()));
+        let topic = Topic(Weak::new());
+        
+        assert_eq!(subscriber_impl.datareader_list.lock().unwrap().len(), 0);
+        let datareader = SubscriberImpl::create_datareader::<Foo>(&Arc::downgrade(&subscriber_impl),&topic, DataReaderQos::default(), Box::new(NoListener), 0).unwrap();
+        assert_eq!(subscriber_impl.datareader_list.lock().unwrap().len(), 1);
+        
+        SubscriberImpl::delete_datareader(&Arc::downgrade(&subscriber_impl), &datareader);
+        assert_eq!(subscriber_impl.datareader_list.lock().unwrap().len(), 0);
+    }
 }

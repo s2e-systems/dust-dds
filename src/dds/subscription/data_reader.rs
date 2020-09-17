@@ -1,12 +1,13 @@
 use std::any::Any;
-use std::sync::Weak;
+use std::sync::{Arc, Weak};
+use std::marker::PhantomData;
 
 use crate::dds::types::{ReturnCode, SampleStateKind, ViewStateKind, InstanceStateKind, InstanceHandle};
 use crate::dds::subscription::read_condition::ReadCondition;
 use crate::dds::subscription::query_condition::QueryCondition;
 use crate::dds::infrastructure::status::{LivelinessChangedStatus, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus, SubscriptionMatchedStatus};
 use crate::dds::topic::topic_description::TopicDescription;
-use crate::dds::subscription::subscriber::Subscriber;
+use crate::dds::subscription::subscriber::{Subscriber, SubscriberImpl};
 use crate::dds::subscription::sample_info::SampleInfo;
 use crate::dds::infrastructure::entity::Entity;
 use crate::dds::infrastructure::entity::DomainEntity;
@@ -678,16 +679,20 @@ impl<T> Entity for DataReader<T> {
 
 impl<T> DomainEntity for DataReader<T>{}
 
-pub struct AnyDataReader<'a>(&'a dyn Any);
+pub struct AnyDataReader(pub(crate) std::sync::Arc<dyn Any+Sync+Send>);
 
-impl<'a> AnyDataReader<'a> {
-    fn get<T: Any>(&self) -> Option<&DataReader<T>> {
-        self.0.downcast_ref::<DataReader<T>>()
+impl AnyDataReader {
+    pub fn get<T: Any+Send+Sync>(&self) -> Option<DataReader<T>> {
+        let upcasted_arc = self.0.clone().downcast::<DataReaderImpl<T>>().ok()?;
+        let datareader = DataReader(Arc::downgrade(&upcasted_arc));
+
+        Some(datareader)
     }
 }
 
 pub(crate) struct DataReaderImpl<T>{
-    value: T,
+    parent_subscriber: Weak<SubscriberImpl>,
+    value: PhantomData<T>,
 }
 
 impl<T> DataReaderImpl<T> {
@@ -1005,5 +1010,14 @@ impl<T> DataReaderImpl<T> {
         _this: &Weak<DataReaderImpl<T>>,
     ) -> InstanceHandle {
         todo!()
+    }
+
+    //////////////// From here on are the functions that do not belong to the standard API
+    pub(crate) fn new(parent_subscriber: Weak<SubscriberImpl>
+    ) -> Self {
+        Self{
+            parent_subscriber,
+            value: PhantomData
+        }
     }
 }
