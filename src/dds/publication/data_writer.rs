@@ -74,11 +74,9 @@ pub mod qos {
         }
     }
 }
+pub struct DataWriter<T: Any+Send+Sync>(pub(crate) Weak<DataWriterImpl<T>>);
 
-#[derive(Debug)]
-pub struct DataWriter<T: Any+Send+Sync+std::fmt::Debug>(pub(crate) Weak<DataWriterImpl<T>>);
-
-impl<T: Any+Send+Sync+std::fmt::Debug> DataWriter<T> {
+impl<T: Any+Send+Sync> DataWriter<T> {
     /// This operation informs the Service that the application will be modifying a particular instance. It gives an opportunity to the
     /// Service to pre-configure itself to improve performance.
     /// It takes as a parameter an instance (to get the key value) and returns a handle that can be used in successive write or dispose
@@ -403,7 +401,7 @@ impl<T: Any+Send+Sync+std::fmt::Debug> DataWriter<T> {
     }
 }
 
-impl<T: Any+Send+Sync+std::fmt::Debug> Entity for DataWriter<T>{
+impl<T: Any+Send+Sync> Entity for DataWriter<T>{
     type Qos = DataWriterQos;
     type Listener = Box<dyn DataWriterListener<T>>;
 
@@ -440,9 +438,9 @@ impl<T: Any+Send+Sync+std::fmt::Debug> Entity for DataWriter<T>{
     }
 }
 
-impl<T: Any+Send+Sync+std::fmt::Debug> DomainEntity for DataWriter<T>{}
+impl<T: Any+Send+Sync> DomainEntity for DataWriter<T>{}
 
-// impl<T: Any+Send+Sync+std::fmt::Debug> Drop for DataWriter<T> {
+// impl<T: Any+Send+Sync> Drop for DataWriter<T> {
 //     fn drop(&mut self) {
 //         let parent_publisher = self.get_publisher();
 //         parent_publisher.delete_datawriter(self);
@@ -453,7 +451,7 @@ impl<T: Any+Send+Sync+std::fmt::Debug> DomainEntity for DataWriter<T>{}
 pub struct AnyDataWriter(pub(crate) std::sync::Arc<dyn Any+Sync+Send>);
 
 impl AnyDataWriter {
-    pub fn get<T: Any+Send+Sync+std::fmt::Debug>(&self) -> Option<DataWriter<T>> {
+    pub fn get<T: Any+Send+Sync>(&self) -> Option<DataWriter<T>> {
         let upcasted_arc = self.0.clone().downcast::<DataWriterImpl<T>>().ok()?;
         let datawriter = DataWriter(Arc::downgrade(&upcasted_arc));
 
@@ -461,7 +459,6 @@ impl AnyDataWriter {
     }
 }
 
-#[derive(Debug)]
 pub(crate) struct DataWriterImpl<T> {
     parent_publisher: Weak<PublisherImpl>,
     value: PhantomData<T>,

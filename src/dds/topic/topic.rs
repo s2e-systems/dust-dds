@@ -91,8 +91,6 @@ impl Drop for Topic {
         }
     }
 }
-
-#[derive(Debug)]
 pub struct TopicImpl{
     parent_participant: Weak<DomainParticipantImpl>,
     name: String,

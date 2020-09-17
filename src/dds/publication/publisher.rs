@@ -258,14 +258,13 @@ impl Drop for Publisher {
         parent_participant.delete_publisher(self);
     }
 }
-#[derive(Debug)]
 pub struct PublisherImpl{
     parent_participant: Weak<DomainParticipantImpl>,
     datawriter_list: Mutex<Vec<AnyDataWriter>>,
 }
 
 impl PublisherImpl {
-    pub(crate) fn create_datawriter<T: Any+Send+Sync+std::fmt::Debug>(
+    pub(crate) fn create_datawriter<T: Any+Send+Sync>(
         this: &Weak<PublisherImpl>,
         _a_topic: Topic,
         _qos: DataWriterQos,
@@ -280,7 +279,7 @@ impl PublisherImpl {
         Some(datawriter)
     }
 
-    pub(crate) fn delete_datawriter<T: Any+Send+Sync+std::fmt::Debug>(
+    pub(crate) fn delete_datawriter<T: Any+Send+Sync>(
         this: &Weak<PublisherImpl>,
         a_datawriter: &DataWriter<T>
     ) -> ReturnCode {

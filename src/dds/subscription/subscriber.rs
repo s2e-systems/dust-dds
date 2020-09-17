@@ -290,7 +290,6 @@ impl Drop for Subscriber {
         parent_participant.delete_subscriber(self);
     }
 }
-#[derive(Debug)]
 pub struct SubscriberImpl{
     parent_participant: Weak<DomainParticipantImpl>,
 }
