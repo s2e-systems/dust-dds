@@ -1,7 +1,7 @@
 use std::any::Any;
 use std::sync::{Arc, Weak, Mutex};
 
-use crate::dds::types::{StatusKind, ReturnCode, Duration, InstanceHandle, StatusMask, ReturnCodes};
+use crate::dds::types::{StatusKind, ReturnCode, Duration, InstanceHandle, StatusMask, ReturnCodes, DDSType};
 use crate::dds::domain::domain_participant::{DomainParticipant, DomainParticipantImpl};
 use crate::dds::topic::topic::Topic;
 use crate::dds::topic::qos::TopicQos;
@@ -60,7 +60,7 @@ impl Publisher {
     /// corresponding policy on the default QoS. The resulting QoS is then applied to the creation of the DataWriter.
     /// The Topic passed to this operation must have been created from the same DomainParticipant that was used to create this
     /// Publisher. If the Topic was created from a different DomainParticipant, the operation will fail and return a nil result.
-    pub fn create_datawriter<T: Any+Sync+Send+std::fmt::Debug>(
+    pub fn create_datawriter<T: DDSType+Any+Sync+Send>(
         &self,
         a_topic: Topic,
         qos: DataWriterQos,
@@ -78,7 +78,7 @@ impl Publisher {
     /// WRITER_DATA_LIFECYCLE QosPolicy, the deletion of the DataWriter may also dispose all instances. Refer to 2.2.3.21 for
     /// details.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
-    pub fn delete_datawriter<T: Any+Send+Sync+std::fmt::Debug>(
+    pub fn delete_datawriter<T: DDSType+Any+Send+Sync>(
         &self,
         a_datawriter: &DataWriter<T>
     ) -> ReturnCode {
@@ -89,7 +89,7 @@ impl Publisher {
     /// topic_name. If no such DataWriter exists, the operation will return ’nil.’
     /// If multiple DataWriter attached to the Publisher satisfy this condition, then the operation will return one of them. It is not
     /// specified which one.
-    pub fn lookup_datawriter<T: Any+Send+Sync+std::fmt::Debug>(
+    pub fn lookup_datawriter<T: DDSType+Any+Send+Sync>(
         &self,
         topic_name: String,
     ) -> Option<DataWriter<T>> {
@@ -265,7 +265,7 @@ pub struct PublisherImpl{
 }
 
 impl PublisherImpl {
-    pub(crate) fn create_datawriter<T: Any+Send+Sync>(
+    pub(crate) fn create_datawriter<T: DDSType+Any+Send+Sync>(
         this: &Weak<PublisherImpl>,
         _a_topic: Topic,
         _qos: DataWriterQos,
@@ -280,7 +280,7 @@ impl PublisherImpl {
         Some(datawriter)
     }
 
-    pub(crate) fn delete_datawriter<T: Any+Send+Sync>(
+    pub(crate) fn delete_datawriter<T: DDSType+Any+Send+Sync>(
         this: &Weak<PublisherImpl>,
         a_datawriter: &DataWriter<T>
     ) -> ReturnCode {
@@ -300,7 +300,7 @@ impl PublisherImpl {
         }
     }
 
-    pub(crate) fn lookup_datawriter<T: Any+Send+Sync+std::fmt::Debug>(
+    pub(crate) fn lookup_datawriter<T: DDSType+Any+Send+Sync>(
         _this: &Weak<PublisherImpl>,
         _topic_name: String,
     ) -> Option<DataWriter<T>> {
@@ -410,6 +410,16 @@ mod tests {
     #[derive(Debug)]
     struct  Foo {
         value: bool
+    }
+
+    impl DDSType for Foo {
+        fn key(&self) -> InstanceHandle {
+        todo!()
+    }
+
+        fn data(&self) -> Vec<u8> {
+        todo!()
+    }
     }
 
     #[test]

@@ -43,9 +43,9 @@ pub type InstanceHandle = [u8; 16];
 pub type QosPolicyId = i32;
 
 pub trait DDSType {
-    fn key(&self) -> InstanceHandle {
-        todo!()
-    }
+    fn key(&self) -> InstanceHandle;
+
+    fn data(&self) -> Vec<u8>;
 }
 
 pub struct Time {

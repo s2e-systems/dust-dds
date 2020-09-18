@@ -78,9 +78,9 @@ pub mod qos {
         }
     }
 }
-pub struct DataWriter<T: Any+Send+Sync>(pub(crate) Weak<DataWriterImpl<T>>);
+pub struct DataWriter<T: DDSType+Any+Send+Sync>(pub(crate) Weak<DataWriterImpl<T>>);
 
-impl<T: Any+Send+Sync> DataWriter<T> {
+impl<T: DDSType+Any+Send+Sync> DataWriter<T> {
     /// This operation informs the Service that the application will be modifying a particular instance. It gives an opportunity to the
     /// Service to pre-configure itself to improve performance.
     /// It takes as a parameter an instance (to get the key value) and returns a handle that can be used in successive write or dispose
@@ -405,7 +405,7 @@ impl<T: Any+Send+Sync> DataWriter<T> {
     }
 }
 
-impl<T: Any+Send+Sync> Entity for DataWriter<T>{
+impl<T: DDSType+Any+Send+Sync> Entity for DataWriter<T>{
     type Qos = DataWriterQos;
     type Listener = Box<dyn DataWriterListener<T>>;
 
@@ -442,7 +442,7 @@ impl<T: Any+Send+Sync> Entity for DataWriter<T>{
     }
 }
 
-impl<T: Any+Send+Sync> DomainEntity for DataWriter<T>{}
+impl<T: DDSType+Any+Send+Sync> DomainEntity for DataWriter<T>{}
 
 // impl<T: Any+Send+Sync> Drop for DataWriter<T> {
 //     fn drop(&mut self) {
@@ -455,7 +455,7 @@ impl<T: Any+Send+Sync> DomainEntity for DataWriter<T>{}
 pub struct AnyDataWriter(pub(crate) std::sync::Arc<dyn Any+Sync+Send>);
 
 impl AnyDataWriter {
-    pub fn get<T: Any+Send+Sync>(&self) -> Option<DataWriter<T>> {
+    pub fn get<T: DDSType+Any+Send+Sync>(&self) -> Option<DataWriter<T>> {
         let upcasted_arc = self.0.clone().downcast::<DataWriterImpl<T>>().ok()?;
         let datawriter = DataWriter(Arc::downgrade(&upcasted_arc));
 
@@ -711,15 +711,42 @@ mod tests {
     struct  Foo {
         value: bool
     }
+    impl DDSType for Foo {
+        fn key(&self) -> InstanceHandle {
+            todo!()
+        }
+
+        fn data(&self) -> Vec<u8> {
+            todo!()
+        }
+    }
 
     #[derive(Debug)]
     struct  Bar {
         value: bool
     }
+    impl DDSType for Bar {
+        fn key(&self) -> InstanceHandle {
+            todo!()
+        }
+
+        fn data(&self) -> Vec<u8> {
+            todo!()
+        }
+    }
 
     #[derive(Debug)]
     struct  Baz {
         value: bool
+    }
+    impl DDSType for Baz {
+        fn key(&self) -> InstanceHandle {
+            todo!()
+        }
+
+        fn data(&self) -> Vec<u8> {
+            todo!()
+        }
     }
 
     #[test]
