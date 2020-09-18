@@ -1,8 +1,7 @@
-pub type ReturnCode = Result<(), ReturnCodes>;
+pub type ReturnCode<T> = Result<T, ReturnCodes>;
 
 #[derive(Debug)]
 pub enum ReturnCodes {
-    Ok,
     Error,
     Unsupported,
     BadParameter,

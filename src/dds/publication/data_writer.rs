@@ -148,7 +148,7 @@ impl<T: DDSType+Any+Send+Sync> DataWriter<T> {
         &self,
         instance: T,
         handle: InstanceHandle
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         DataWriterImpl::unregister_instance(&self.0, instance, handle)
     }
 
@@ -177,7 +177,7 @@ impl<T: DDSType+Any+Send+Sync> DataWriter<T> {
         &self,
         key_holder: &mut T,
         handle: InstanceHandle
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         DataWriterImpl::get_key_value(&self.0, key_holder, handle)
     }
 
@@ -235,7 +235,7 @@ impl<T: DDSType+Any+Send+Sync> DataWriter<T> {
         &self,
         data: T,
         instance_handle: Option<InstanceHandle>,
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         DataWriterImpl::write(&self.0, data, instance_handle)
     }
 
@@ -257,7 +257,7 @@ impl<T: DDSType+Any+Send+Sync> DataWriter<T> {
         data: T,
         instance_handle: Option<InstanceHandle>,
         timestamp: Time,
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         DataWriterImpl::write_w_timestamp(&self.0, data, instance_handle, timestamp)
     }
 
@@ -277,7 +277,7 @@ impl<T: DDSType+Any+Send+Sync> DataWriter<T> {
         &self,
         data: T,
         instance_handle: InstanceHandle,
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         DataWriterImpl::dispose(&self.0, data, instance_handle)
     }
 
@@ -299,7 +299,7 @@ impl<T: DDSType+Any+Send+Sync> DataWriter<T> {
         data: T,
         instance_handle: InstanceHandle,
         timestamp: Time,
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         DataWriterImpl::dispose_w_timestamp(&self.0, data, instance_handle, timestamp)
     }
 
@@ -313,7 +313,7 @@ impl<T: DDSType+Any+Send+Sync> DataWriter<T> {
     pub fn wait_for_acknowledgments(
         &self,
         max_wait: Duration
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         DataWriterImpl::wait_for_acknowledgments(&self.0, max_wait)
     }
 
@@ -322,7 +322,7 @@ impl<T: DDSType+Any+Send+Sync> DataWriter<T> {
     pub fn get_liveliness_lost_status(
         &self,
         status: &mut LivelinessLostStatus
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         DataWriterImpl::get_liveliness_lost_status(&self.0, status)
     }
 
@@ -331,7 +331,7 @@ impl<T: DDSType+Any+Send+Sync> DataWriter<T> {
     pub fn get_offered_deadline_missed_status(
         &self,
         status: &mut OfferedDeadlineMissedStatus
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         DataWriterImpl::get_offered_deadline_missed_status(&self.0, status)
     }
 
@@ -340,7 +340,7 @@ impl<T: DDSType+Any+Send+Sync> DataWriter<T> {
     pub fn get_offered_incompatible_qos_status(
         &self,
         status: &mut OfferedIncompatibleQosStatus
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         DataWriterImpl::get_offered_incompatible_qos_status(&self.0, status)
     }
 
@@ -349,7 +349,7 @@ impl<T: DDSType+Any+Send+Sync> DataWriter<T> {
     pub fn get_publication_matched_status(
         &self,
         status: &mut PublicationMatchedStatus
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         DataWriterImpl::get_publication_matched_status(&self.0, status)
     }
 
@@ -370,7 +370,7 @@ impl<T: DDSType+Any+Send+Sync> DataWriter<T> {
     /// NOTE: Writing data via the write operation on a DataWriter asserts liveliness on the DataWriter itself and its
     /// DomainParticipant. Consequently the use of assert_liveliness is only needed if the application is not writing data regularly.
     /// Complete details are provided in 2.2.3.11, LIVELINESS.
-    pub fn assert_liveliness(&self,) -> ReturnCode {
+    pub fn assert_liveliness(&self,) -> ReturnCode<()> {
         DataWriterImpl::assert_liveliness(&self.0)
     }
 
@@ -386,7 +386,7 @@ impl<T: DDSType+Any+Send+Sync> DataWriter<T> {
         &self,
         subscription_data: SubscriptionBuiltinTopicData,
         subscription_handle: InstanceHandle,
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         DataWriterImpl::get_matched_subscription_data(&self.0, subscription_data, subscription_handle)
     }
 
@@ -400,7 +400,7 @@ impl<T: DDSType+Any+Send+Sync> DataWriter<T> {
     pub fn get_matched_subscriptions(
         &self,
         subscription_handles: &[InstanceHandle],
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         DataWriterImpl::get_matched_subscriptions(&self.0, subscription_handles)
     }
 }
@@ -409,15 +409,15 @@ impl<T: DDSType+Any+Send+Sync> Entity for DataWriter<T>{
     type Qos = DataWriterQos;
     type Listener = Box<dyn DataWriterListener<T>>;
 
-    fn set_qos(&self, qos_list: Self::Qos) -> ReturnCode {
+    fn set_qos(&self, qos_list: Self::Qos) -> ReturnCode<()> {
         DataWriterImpl::set_qos(&self.0, qos_list)
     }
 
-    fn get_qos(&self, qos_list: &mut Self::Qos) -> ReturnCode {
+    fn get_qos(&self, qos_list: &mut Self::Qos) -> ReturnCode<()> {
         DataWriterImpl::get_qos(&self.0, qos_list)
     }
 
-    fn set_listener(&self, a_listener: Self::Listener, mask: &[crate::dds::types::StatusKind]) -> ReturnCode {
+    fn set_listener(&self, a_listener: Self::Listener, mask: &[crate::dds::types::StatusKind]) -> ReturnCode<()> {
         DataWriterImpl::set_listener(&self.0, a_listener, mask)
     }
 
@@ -433,7 +433,7 @@ impl<T: DDSType+Any+Send+Sync> Entity for DataWriter<T>{
         DataWriterImpl::get_status_changes(&self.0)
     }
 
-    fn enable(&self, ) -> ReturnCode {
+    fn enable(&self, ) -> ReturnCode<()> {
         DataWriterImpl::enable(&self.0)
     }
 
@@ -489,7 +489,7 @@ impl<T> DataWriterImpl<T> {
         _this: &Weak<DataWriterImpl<T>>,
         _instance: T,
         _handle: InstanceHandle
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         todo!()
     }
 
@@ -506,7 +506,7 @@ impl<T> DataWriterImpl<T> {
         _this: &Weak<DataWriterImpl<T>>,
         _key_holder: &mut T,
         _handle: InstanceHandle
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         todo!()
     }
 
@@ -521,7 +521,7 @@ impl<T> DataWriterImpl<T> {
         _this: &Weak<DataWriterImpl<T>>,
         _data: T,
         _instance_handle: Option<InstanceHandle>,
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         todo!()
     }
 
@@ -530,7 +530,7 @@ impl<T> DataWriterImpl<T> {
         _data: T,
         instance_handle: Option<InstanceHandle>,
         _timestamp: Time,
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         let dw = this.upgrade().ok_or(ReturnCodes::AlreadyDeleted)?;
         
         let datawriter_lock = dw.rtps_writer.lock().unwrap();
@@ -556,7 +556,7 @@ impl<T> DataWriterImpl<T> {
         _this: &Weak<DataWriterImpl<T>>,
         _data: T,
         _instance_handle: InstanceHandle,
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         todo!()
     }
 
@@ -565,28 +565,28 @@ impl<T> DataWriterImpl<T> {
         _data: T,
         _instance_handle: InstanceHandle,
         _timestamp: Time,
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         todo!()
     }
 
     pub fn wait_for_acknowledgments(
         _this: &Weak<DataWriterImpl<T>>,
         _max_wait: Duration
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         todo!()
     }
 
     pub fn get_liveliness_lost_status(
         _this: &Weak<DataWriterImpl<T>>,
         _status: &mut LivelinessLostStatus
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         todo!()
     }
 
     pub fn get_offered_deadline_missed_status(
         _this: &Weak<DataWriterImpl<T>>,
         _status: &mut OfferedDeadlineMissedStatus
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         todo!()
     }
 
@@ -594,7 +594,7 @@ impl<T> DataWriterImpl<T> {
     pub fn get_offered_incompatible_qos_status(
         _this: &Weak<DataWriterImpl<T>>,
         _status: &mut OfferedIncompatibleQosStatus
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         todo!()
     }
 
@@ -602,7 +602,7 @@ impl<T> DataWriterImpl<T> {
     pub fn get_publication_matched_status(
         _this: &Weak<DataWriterImpl<T>>,
         _status: &mut PublicationMatchedStatus
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         todo!()
     }
 
@@ -618,7 +618,7 @@ impl<T> DataWriterImpl<T> {
         Publisher(this.upgrade().unwrap().parent_publisher.clone())
     }
 
-    pub fn assert_liveliness(_this: &Weak<DataWriterImpl<T>>,) -> ReturnCode {
+    pub fn assert_liveliness(_this: &Weak<DataWriterImpl<T>>,) -> ReturnCode<()> {
         todo!()
     }
 
@@ -626,26 +626,26 @@ impl<T> DataWriterImpl<T> {
         _this: &Weak<DataWriterImpl<T>>,
         _subscription_data: SubscriptionBuiltinTopicData,
         _subscription_handle: InstanceHandle,
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         todo!()
     }
 
     pub fn get_matched_subscriptions(
         _this: &Weak<DataWriterImpl<T>>,
         _subscription_handles: &[InstanceHandle],
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         todo!()
     }
 
-    fn set_qos(_this: &Weak<DataWriterImpl<T>>, _qos_list: DataWriterQos) -> ReturnCode {
+    fn set_qos(_this: &Weak<DataWriterImpl<T>>, _qos_list: DataWriterQos) -> ReturnCode<()> {
         todo!()
     }
 
-    fn get_qos(_this: &Weak<DataWriterImpl<T>>, _qos_list: &mut DataWriterQos) -> ReturnCode {
+    fn get_qos(_this: &Weak<DataWriterImpl<T>>, _qos_list: &mut DataWriterQos) -> ReturnCode<()> {
         todo!()
     }
 
-    fn set_listener(_this: &Weak<DataWriterImpl<T>>, _a_listener: Box<dyn DataWriterListener<T>>, _mask: &[crate::dds::types::StatusKind]) -> ReturnCode {
+    fn set_listener(_this: &Weak<DataWriterImpl<T>>, _a_listener: Box<dyn DataWriterListener<T>>, _mask: &[crate::dds::types::StatusKind]) -> ReturnCode<()> {
         todo!()
     }
 
@@ -661,7 +661,7 @@ impl<T> DataWriterImpl<T> {
         todo!()
     }
 
-    fn enable(this: &Weak<DataWriterImpl<T>>,) -> ReturnCode {
+    fn enable(this: &Weak<DataWriterImpl<T>>,) -> ReturnCode<()> {
         let dw = this.upgrade().ok_or(ReturnCodes::AlreadyDeleted)?;
 
         let guid = GUID::new([1;12],EntityId::new([1;3], EntityKind::UserDefinedWriterWithKey));

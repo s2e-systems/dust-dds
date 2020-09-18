@@ -81,7 +81,7 @@ impl Publisher {
     pub fn delete_datawriter<T: DDSType+Any+Send+Sync>(
         &self,
         a_datawriter: &DataWriter<T>
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         PublisherImpl::delete_datawriter(&self.0, &a_datawriter)
     }
 
@@ -104,7 +104,7 @@ impl Publisher {
     /// The use of this operation must be matched by a corresponding call to resume_publications indicating that the set of
     /// modifications has completed. If the Publisher is deleted before resume_publications is called, any suspended updates yet to
     /// be published will be discarded.
-    pub fn suspend_publications(&self) -> ReturnCode {
+    pub fn suspend_publications(&self) -> ReturnCode<()> {
         PublisherImpl::suspend_publications(&self.0)
     }
 
@@ -114,7 +114,7 @@ impl Publisher {
     /// The call to resume_publications must match a previous call to suspend_publications. Otherwise the operation will return the
     /// error PRECONDITION_NOT_MET.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
-    pub fn resume_publications(&self) -> ReturnCode {
+    pub fn resume_publications(&self) -> ReturnCode<()> {
         PublisherImpl::resume_publications(&self.0)
     }
 
@@ -134,14 +134,14 @@ impl Publisher {
     /// the values are inter-related (for example, if there are two data-instances representing the ‘altitude’ and ‘velocity vector’ of the
     /// same aircraft and both are changed, it may be useful to communicate those values in a way the reader can see both together;
     /// otherwise, it may e.g., erroneously interpret that the aircraft is on a collision course).
-    pub fn begin_coherent_changes(&self) -> ReturnCode {
+    pub fn begin_coherent_changes(&self) -> ReturnCode<()> {
         PublisherImpl::begin_coherent_changes(&self.0)
     }
 
     /// This operation terminates the ‘coherent set’ initiated by the matching call to begin_coherent_ changes. If there is no matching
     /// call to begin_coherent_ changes, the operation will return the error PRECONDITION_NOT_MET.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET
-    pub fn end_coherent_changes(&self) -> ReturnCode {
+    pub fn end_coherent_changes(&self) -> ReturnCode<()> {
         PublisherImpl::end_coherent_changes(&self.0)
     }
 
@@ -152,7 +152,7 @@ impl Publisher {
     pub fn wait_for_acknowledgments(
         &self,
         max_wait: Duration
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         PublisherImpl::wait_for_acknowledgments(&self.0, max_wait)
     }
 
@@ -167,7 +167,7 @@ impl Publisher {
     /// deleted.
     /// Once delete_contained_entities returns successfully, the application may delete the Publisher knowing that it has no
     /// contained DataWriter objects
-    pub fn delete_contained_entities(&self) -> ReturnCode {
+    pub fn delete_contained_entities(&self) -> ReturnCode<()> {
         PublisherImpl::delete_contained_entities(&self.0)
     }
 
@@ -181,7 +181,7 @@ impl Publisher {
     pub fn set_default_datawriter_qos(
         &self,
         qos_list: DataWriterQos,
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         PublisherImpl::set_default_datawriter_qos(&self.0, qos_list)
     }
 
@@ -193,7 +193,7 @@ impl Publisher {
     pub fn get_default_datawriter_qos (
         &self,
         qos_list: &mut DataWriterQos,
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         PublisherImpl::get_default_datawriter_qos(&self.0, qos_list)
     }
 
@@ -208,7 +208,7 @@ impl Publisher {
         &self,
         a_datawriter_qos: &mut DataWriterQos,
         a_topic_qos: &TopicQos,
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         PublisherImpl::copy_from_topic_qos(&self.0, a_datawriter_qos, a_topic_qos)
     }
 }
@@ -217,15 +217,15 @@ impl Entity for Publisher{
     type Qos = PublisherQos;
     type Listener = Box<dyn PublisherListener>;
 
-    fn set_qos(&self, qos_list: Self::Qos) -> ReturnCode {
+    fn set_qos(&self, qos_list: Self::Qos) -> ReturnCode<()> {
         PublisherImpl::set_qos(&self.0, qos_list)
     }
 
-    fn get_qos(&self, qos_list: &mut Self::Qos) -> ReturnCode {
+    fn get_qos(&self, qos_list: &mut Self::Qos) -> ReturnCode<()> {
         PublisherImpl::get_qos(&self.0, qos_list)
     }
 
-    fn set_listener(&self, a_listener: Self::Listener, mask: &[StatusKind]) -> ReturnCode {
+    fn set_listener(&self, a_listener: Self::Listener, mask: &[StatusKind]) -> ReturnCode<()> {
         PublisherImpl::set_listener(&self.0, a_listener, mask)
     }
 
@@ -241,7 +241,7 @@ impl Entity for Publisher{
         PublisherImpl::get_status_changes(&self.0)
     }
 
-    fn enable(&self, ) -> ReturnCode {
+    fn enable(&self, ) -> ReturnCode<()> {
         PublisherImpl::enable(&self.0)
     }
 
@@ -283,7 +283,7 @@ impl PublisherImpl {
     pub(crate) fn delete_datawriter<T: DDSType+Any+Send+Sync>(
         this: &Weak<PublisherImpl>,
         a_datawriter: &DataWriter<T>
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         let publisher = this.upgrade().unwrap();
         let mut datawriter_list = publisher.datawriter_list.lock().unwrap();
         let index = datawriter_list.iter().position(|x| 
@@ -307,26 +307,26 @@ impl PublisherImpl {
         todo!()
     }
 
-    pub(crate) fn suspend_publications(_this: &Weak<PublisherImpl>) -> ReturnCode {
+    pub(crate) fn suspend_publications(_this: &Weak<PublisherImpl>) -> ReturnCode<()> {
         todo!()
     }
 
-    pub(crate) fn resume_publications(_this: &Weak<PublisherImpl>) -> ReturnCode {
+    pub(crate) fn resume_publications(_this: &Weak<PublisherImpl>) -> ReturnCode<()> {
         todo!()
     }
 
-    pub(crate) fn begin_coherent_changes(_this: &Weak<PublisherImpl>) -> ReturnCode {
+    pub(crate) fn begin_coherent_changes(_this: &Weak<PublisherImpl>) -> ReturnCode<()> {
         todo!()
     }
 
-    pub(crate) fn end_coherent_changes(_this: &Weak<PublisherImpl>) -> ReturnCode {
+    pub(crate) fn end_coherent_changes(_this: &Weak<PublisherImpl>) -> ReturnCode<()> {
         todo!()
     }
 
     pub(crate) fn wait_for_acknowledgments(
         _this: &Weak<PublisherImpl>,
         _max_wait: Duration
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         todo!()
     }
 
@@ -334,21 +334,21 @@ impl PublisherImpl {
         DomainParticipant(this.upgrade().unwrap().parent_participant.upgrade().unwrap())
     }
 
-    pub(crate) fn delete_contained_entities(_this: &Weak<PublisherImpl>) -> ReturnCode {
+    pub(crate) fn delete_contained_entities(_this: &Weak<PublisherImpl>) -> ReturnCode<()> {
         todo!()
     }
 
     pub(crate) fn set_default_datawriter_qos(
         _this: &Weak<PublisherImpl>,
         _qos_list: DataWriterQos,
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         todo!()
     }
 
     pub(crate) fn get_default_datawriter_qos (
         _this: &Weak<PublisherImpl>,
         _qos_list: &mut DataWriterQos,
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         todo!()
     }
 
@@ -356,20 +356,20 @@ impl PublisherImpl {
         _this: &Weak<PublisherImpl>,
         _a_datawriter_qos: &mut DataWriterQos,
         _a_topic_qos: &TopicQos,
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         todo!()
     }
 
     ///////////////// Entity trait methods
-    pub(crate) fn set_qos(_this: &Weak<PublisherImpl>, _qos_list: PublisherQos) -> ReturnCode {
+    pub(crate) fn set_qos(_this: &Weak<PublisherImpl>, _qos_list: PublisherQos) -> ReturnCode<()> {
         todo!()
     }
 
-    pub(crate) fn get_qos(_this: &Weak<PublisherImpl>, _qos_list: &mut PublisherQos) -> ReturnCode {
+    pub(crate) fn get_qos(_this: &Weak<PublisherImpl>, _qos_list: &mut PublisherQos) -> ReturnCode<()> {
         todo!()
     }
 
-    pub(crate) fn set_listener(_this: &Weak<PublisherImpl>, _a_listener: Box<dyn PublisherListener>, _mask: &[StatusKind]) -> ReturnCode {
+    pub(crate) fn set_listener(_this: &Weak<PublisherImpl>, _a_listener: Box<dyn PublisherListener>, _mask: &[StatusKind]) -> ReturnCode<()> {
         todo!()
     }
 
@@ -385,7 +385,7 @@ impl PublisherImpl {
         todo!()
     }
 
-    pub(crate) fn enable(_this: &Weak<PublisherImpl>, ) -> ReturnCode {
+    pub(crate) fn enable(_this: &Weak<PublisherImpl>, ) -> ReturnCode<()> {
         todo!()
     }
 

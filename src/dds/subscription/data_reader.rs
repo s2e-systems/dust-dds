@@ -166,7 +166,7 @@ impl<T> DataReader<T> {
         sample_states: &[SampleStateKind],
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         DataReaderImpl::read(&self.0, data_values, sample_infos, max_samples, sample_states, view_states, instance_states)
     }
 
@@ -191,7 +191,7 @@ impl<T> DataReader<T> {
         sample_states: &[SampleStateKind],
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         DataReaderImpl::take(&self.0, data_values, sample_infos, max_samples, sample_states, view_states, instance_states)
     }
     
@@ -213,7 +213,7 @@ impl<T> DataReader<T> {
         sample_infos: &mut [SampleInfo],
         max_samples: i32,
         a_condition: ReadCondition,
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         DataReaderImpl::read_w_condition(&self.0, data_values, sample_infos, max_samples, a_condition)
     }
 
@@ -231,7 +231,7 @@ impl<T> DataReader<T> {
         sample_infos: &mut [SampleInfo],
         max_samples: i32,
         a_condition: ReadCondition,
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         DataReaderImpl::take_w_condition(&self.0, data_values, sample_infos, max_samples, a_condition)
     }
 
@@ -248,7 +248,7 @@ impl<T> DataReader<T> {
         &self,
         data_value: &mut [T],
         sample_info: &mut [SampleInfo],
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         DataReaderImpl::read_next_sample(&self.0, data_value, sample_info)
     }
 
@@ -264,7 +264,7 @@ impl<T> DataReader<T> {
         &self,
         data_value: &mut [T],
         sample_info: &mut [SampleInfo],
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         DataReaderImpl::take_next_sample(&self.0, data_value, sample_info)
     }
 
@@ -292,7 +292,7 @@ impl<T> DataReader<T> {
         sample_states: &[SampleStateKind],
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         DataReaderImpl::read_instance(&self.0, data_values, sample_infos, max_samples, a_handle, sample_states, view_states, instance_states)
     }
 
@@ -318,7 +318,7 @@ impl<T> DataReader<T> {
         sample_states: &[SampleStateKind],
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         DataReaderImpl::take_instance(&self.0, data_values, sample_infos, max_samples, a_handle, sample_states, view_states, instance_states)
     }
 
@@ -361,7 +361,7 @@ impl<T> DataReader<T> {
         sample_states: &[SampleStateKind],
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         DataReaderImpl::read_next_instance(&self.0, data_values, sample_infos, max_samples, previous_handle, sample_states, view_states, instance_states)
     }
 
@@ -385,7 +385,7 @@ impl<T> DataReader<T> {
         sample_states: &[SampleStateKind],
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         DataReaderImpl::take_next_instance(&self.0, data_values, sample_infos, max_samples, previous_handle, sample_states, view_states, instance_states)
     }
 
@@ -409,7 +409,7 @@ impl<T> DataReader<T> {
         max_samples: i32,
         previous_handle: InstanceHandle,
         a_condition: ReadCondition,
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         DataReaderImpl::read_next_instance_w_condition(&self.0, data_values, sample_infos, max_samples, previous_handle, a_condition)
     }
 
@@ -432,7 +432,7 @@ impl<T> DataReader<T> {
         max_samples: i32,
         previous_handle: InstanceHandle,
         a_condition: ReadCondition,
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         DataReaderImpl::take_next_instance_w_condition(&self.0, data_values, sample_infos, max_samples, previous_handle, a_condition)
     }
 
@@ -458,7 +458,7 @@ impl<T> DataReader<T> {
         &self, 
         data_values: &mut [T],
         sample_infos: &mut [SampleInfo],
-     ) -> ReturnCode {
+     ) -> ReturnCode<()> {
         DataReaderImpl::return_loan(&self.0, data_values, sample_infos)
     }
 
@@ -471,7 +471,7 @@ impl<T> DataReader<T> {
         &self,
         key_holder: &mut T,
         handle: InstanceHandle
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         DataReaderImpl::get_key_value(&self.0, key_holder, handle)
     }
 
@@ -519,7 +519,7 @@ impl<T> DataReader<T> {
     pub fn delete_readcondition(
         &self,
         a_condition: ReadCondition
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         DataReaderImpl::delete_readcondition(&self.0, a_condition)
     }
 
@@ -528,7 +528,7 @@ impl<T> DataReader<T> {
     pub fn get_liveliness_changed_status(
         &self,
         status: &mut LivelinessChangedStatus
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         DataReaderImpl::get_liveliness_changed_status(&self.0, status)
     }
 
@@ -537,7 +537,7 @@ impl<T> DataReader<T> {
     pub fn get_requested_deadline_missed_status(
         &self,
         status: &mut RequestedDeadlineMissedStatus
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         DataReaderImpl::get_requested_deadline_missed_status(&self.0, status)
     }
 
@@ -546,7 +546,7 @@ impl<T> DataReader<T> {
     pub fn get_requested_incompatible_qos_status(
         &self,
         status: &mut RequestedIncompatibleQosStatus
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         DataReaderImpl::get_requested_incompatible_qos_status(&self.0, status)
     }
 
@@ -554,7 +554,7 @@ impl<T> DataReader<T> {
     pub fn get_sample_lost_status(
         &self,
         status: &mut SampleLostStatus
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         DataReaderImpl::get_sample_lost_status(&self.0, status)
     }
 
@@ -563,7 +563,7 @@ impl<T> DataReader<T> {
     pub fn get_sample_rejected_status(
         &self,
         status: &mut SampleRejectedStatus
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         DataReaderImpl::get_sample_rejected_status(&self.0, status)
     }
 
@@ -572,7 +572,7 @@ impl<T> DataReader<T> {
     pub fn get_subscription_matched_status(
         &self,
         status: &mut SubscriptionMatchedStatus
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         DataReaderImpl::get_subscription_matched_status(&self.0, status)
     }
 
@@ -593,7 +593,7 @@ impl<T> DataReader<T> {
     /// deleted.
     /// Once delete_contained_entities returns successfully, the application may delete the DataReader knowing that it has no
     /// contained ReadCondition and QueryCondition objects.
-    pub fn delete_contained_entities(&self) -> ReturnCode {
+    pub fn delete_contained_entities(&self) -> ReturnCode<()> {
         DataReaderImpl::delete_contained_entities(&self.0)
     }
 
@@ -605,7 +605,7 @@ impl<T> DataReader<T> {
     /// The operation wait_for_historical_data blocks the calling thread until either all “historical” data is received, or else the
     /// duration specified by the max_wait parameter elapses, whichever happens first. A return value of OK indicates that all the
     /// “historical” data was received; a return value of TIMEOUT indicates that max_wait elapsed before all the data was received.
-    pub fn wait_for_historical_data(&self) -> ReturnCode {
+    pub fn wait_for_historical_data(&self) -> ReturnCode<()> {
         DataReaderImpl::wait_for_historical_data(&self.0)
     }
 
@@ -621,7 +621,7 @@ impl<T> DataReader<T> {
         &self,
         publication_data: &mut PublicationBuiltinTopicData,
         publication_handle: InstanceHandle,
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         DataReaderImpl::get_matched_publication_data(&self.0, publication_data, publication_handle)
     }
 
@@ -635,7 +635,7 @@ impl<T> DataReader<T> {
     pub fn get_match_publication(
         &self,
         publication_handles: &mut [InstanceHandle],
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         DataReaderImpl::get_match_publication(&self.0, publication_handles)
     }
 }
@@ -644,15 +644,15 @@ impl<T> Entity for DataReader<T> {
     type Qos = DataReaderQos;
     type Listener = Box<dyn DataReaderListener<T>>;
 
-    fn set_qos(&self, qos_list: Self::Qos) -> ReturnCode {
+    fn set_qos(&self, qos_list: Self::Qos) -> ReturnCode<()> {
         DataReaderImpl::set_qos(&self.0, qos_list)
     }
 
-    fn get_qos(&self, qos_list: &mut Self::Qos) -> ReturnCode {
+    fn get_qos(&self, qos_list: &mut Self::Qos) -> ReturnCode<()> {
         DataReaderImpl::get_qos(&self.0, qos_list)
     }
 
-    fn set_listener(&self, a_listener: Self::Listener, mask: &[crate::dds::types::StatusKind]) -> ReturnCode {
+    fn set_listener(&self, a_listener: Self::Listener, mask: &[crate::dds::types::StatusKind]) -> ReturnCode<()> {
         DataReaderImpl::set_listener(&self.0, a_listener, mask)
     }
 
@@ -668,7 +668,7 @@ impl<T> Entity for DataReader<T> {
         DataReaderImpl::get_status_changes(&self.0)
     }
 
-    fn enable(&self, ) -> ReturnCode {
+    fn enable(&self, ) -> ReturnCode<()> {
         DataReaderImpl::enable(&self.0)
     }
 
@@ -704,7 +704,7 @@ impl<T> DataReaderImpl<T> {
         _sample_states: &[SampleStateKind],
         _view_states: &[ViewStateKind],
         _instance_states: &[InstanceStateKind],
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         todo!()
     }
 
@@ -716,7 +716,7 @@ impl<T> DataReaderImpl<T> {
         _sample_states: &[SampleStateKind],
         _view_states: &[ViewStateKind],
         _instance_states: &[InstanceStateKind],
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         todo!()
     }
     
@@ -726,7 +726,7 @@ impl<T> DataReaderImpl<T> {
         _sample_infos: &mut [SampleInfo],
         _max_samples: i32,
         _a_condition: ReadCondition,
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         todo!()
     }
 
@@ -736,7 +736,7 @@ impl<T> DataReaderImpl<T> {
         _sample_infos: &mut [SampleInfo],
         _max_samples: i32,
         _a_condition: ReadCondition,
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         todo!()
     }
 
@@ -744,7 +744,7 @@ impl<T> DataReaderImpl<T> {
         _this: &Weak<DataReaderImpl<T>>,
         _data_value: &mut [T],
         _sample_info: &mut [SampleInfo],
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         todo!()
     }
 
@@ -752,7 +752,7 @@ impl<T> DataReaderImpl<T> {
         _this: &Weak<DataReaderImpl<T>>,
         _data_value: &mut [T],
         _sample_info: &mut [SampleInfo],
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         todo!()
     }
 
@@ -765,7 +765,7 @@ impl<T> DataReaderImpl<T> {
         _sample_states: &[SampleStateKind],
         _view_states: &[ViewStateKind],
         _instance_states: &[InstanceStateKind],
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         todo!()
     }
 
@@ -778,7 +778,7 @@ impl<T> DataReaderImpl<T> {
         _sample_states: &[SampleStateKind],
         _view_states: &[ViewStateKind],
         _instance_states: &[InstanceStateKind],
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         todo!()
     }
 
@@ -791,7 +791,7 @@ impl<T> DataReaderImpl<T> {
         _sample_states: &[SampleStateKind],
         _view_states: &[ViewStateKind],
         _instance_states: &[InstanceStateKind],
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         todo!()
     }
 
@@ -804,7 +804,7 @@ impl<T> DataReaderImpl<T> {
         _sample_states: &[SampleStateKind],
         _view_states: &[ViewStateKind],
         _instance_states: &[InstanceStateKind],
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         todo!()
     }
 
@@ -815,7 +815,7 @@ impl<T> DataReaderImpl<T> {
         _max_samples: i32,
         _previous_handle: InstanceHandle,
         _a_condition: ReadCondition,
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         todo!()
     }
 
@@ -826,7 +826,7 @@ impl<T> DataReaderImpl<T> {
         _max_samples: i32,
         _previous_handle: InstanceHandle,
         _a_condition: ReadCondition,
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         todo!()
     }
 
@@ -834,7 +834,7 @@ impl<T> DataReaderImpl<T> {
         _this: &Weak<DataReaderImpl<T>>,
         _data_values: &mut [T],
         _sample_infos: &mut [SampleInfo],
-     ) -> ReturnCode {
+     ) -> ReturnCode<()> {
         todo!()
     }
 
@@ -842,7 +842,7 @@ impl<T> DataReaderImpl<T> {
         _this: &Weak<DataReaderImpl<T>>,
         _key_holder: &mut T,
         _handle: InstanceHandle
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         todo!()
     }
 
@@ -876,49 +876,49 @@ impl<T> DataReaderImpl<T> {
     pub fn delete_readcondition(
         _this: &Weak<DataReaderImpl<T>>,
         _a_condition: ReadCondition
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         todo!()
     }
 
     pub fn get_liveliness_changed_status(
         _this: &Weak<DataReaderImpl<T>>,
         _status: &mut LivelinessChangedStatus
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         todo!()
     }
 
     pub fn get_requested_deadline_missed_status(
         _this: &Weak<DataReaderImpl<T>>,
         _status: &mut RequestedDeadlineMissedStatus
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         todo!()
     }
 
     pub fn get_requested_incompatible_qos_status(
         _this: &Weak<DataReaderImpl<T>>,
         _status: &mut RequestedIncompatibleQosStatus
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         todo!()
     }
 
     pub fn get_sample_lost_status(
         _this: &Weak<DataReaderImpl<T>>,
         _status: &mut SampleLostStatus
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         todo!()
     }
 
     pub fn get_sample_rejected_status(
         _this: &Weak<DataReaderImpl<T>>,
         _status: &mut SampleRejectedStatus
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         todo!()
     }
 
     pub fn get_subscription_matched_status(
         _this: &Weak<DataReaderImpl<T>>,
         _status: &mut SubscriptionMatchedStatus
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         todo!()
     }
 
@@ -936,13 +936,13 @@ impl<T> DataReaderImpl<T> {
 
     pub fn delete_contained_entities(
         _this: &Weak<DataReaderImpl<T>>,
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         todo!()
     }
 
     pub fn wait_for_historical_data(
         _this: &Weak<DataReaderImpl<T>>,
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         todo!()
     }
 
@@ -950,35 +950,35 @@ impl<T> DataReaderImpl<T> {
         _this: &Weak<DataReaderImpl<T>>,
         _publication_data: &mut PublicationBuiltinTopicData,
         _publication_handle: InstanceHandle,
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         todo!()
     }
 
     pub fn get_match_publication(
         _this: &Weak<DataReaderImpl<T>>,
         _publication_handles: &mut [InstanceHandle],
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         todo!()
     }
 
     fn set_qos(
         _this: &Weak<DataReaderImpl<T>>,
         _qos_list: DataReaderQos
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         todo!()
     }
 
     fn get_qos(
         _this: &Weak<DataReaderImpl<T>>,
         _qos_list: &mut DataReaderQos
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         todo!()
     }
 
     fn set_listener(
         _this: &Weak<DataReaderImpl<T>>,
         _a_listener: Box<dyn DataReaderListener<T>>, _mask: &[crate::dds::types::StatusKind]
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         todo!()
     }
 
@@ -1002,7 +1002,7 @@ impl<T> DataReaderImpl<T> {
 
     fn enable(
         _this: &Weak<DataReaderImpl<T>>,
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         todo!()
     }
 
