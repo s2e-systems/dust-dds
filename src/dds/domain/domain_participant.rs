@@ -54,6 +54,30 @@ pub mod qos {
 pub struct DomainParticipant(pub(crate) Arc<DomainParticipantImpl>);
 
 impl DomainParticipant {
+    /// This operation creates a new DomainParticipant object. The DomainParticipant signifies that the calling application intends
+    /// to join the Domain identified by the domain_id argument.
+    /// If the specified QoS policies are not consistent, the operation will fail and no DomainParticipant will be created.
+    /// The special value PARTICIPANT_QOS_DEFAULT can be used to indicate that the DomainParticipant should be created
+    /// with the default DomainParticipant QoS set in the factory. The use of this value is equivalent to the application obtaining the
+    /// default DomainParticipant QoS by means of the operation get_default_participant_qos (2.2.2.2.2.6) and using the resulting
+    /// QoS to create the DomainParticipant.
+    /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
+    pub fn new (
+        domain_id: DomainId,
+        qos_list: DomainParticipantQos,
+        a_listener: impl DomainParticipantListener,
+        mask: StatusMask,
+        enabled: bool,
+    ) ->  Option<DomainParticipant> {
+        let new_participant = DomainParticipant(Arc::new(DomainParticipantImpl::new(domain_id, qos_list, a_listener, mask)));
+
+        if enabled {
+            new_participant.enable().ok()?;
+        }
+
+        Some(new_participant)
+    }
+
     /// This operation creates a Publisher with the desired QoS policies and attaches to it the specified PublisherListener.
     /// If the specified QoS policies are not consistent, the operation will fail and no Publisher will be created.
     /// The special value PUBLISHER_QOS_DEFAULT can be used to indicate that the Publisher should be created with the default
