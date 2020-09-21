@@ -523,11 +523,11 @@ pub struct DomainParticipantImpl{
     a_listener: Box<dyn DomainParticipantListener>,
     mask: StatusMask,
     publisher_list: Mutex<Vec<Arc<PublisherImpl>>>,
-    publisher_default_qos: Mutex<PublisherQos>,
+    default_publisher_qos: Mutex<PublisherQos>,
     subscriber_list: Mutex<Vec<Arc<SubscriberImpl>>>,
-    subscriber_default_qos: Mutex<SubscriberQos>,
+    default_subscriber_qos: Mutex<SubscriberQos>,
     topic_list: Mutex<Vec<Arc<TopicImpl>>>,
-    topic_default_qos: Mutex<TopicQos>
+    default_topic_qos: Mutex<TopicQos>
 }
 
 impl DomainParticipantImpl{
@@ -672,7 +672,7 @@ impl DomainParticipantImpl{
         this: &Arc<DomainParticipantImpl>,
         qos: PublisherQos,
     ) -> ReturnCode<()> {
-        *this.publisher_default_qos.lock().unwrap() = qos;
+        *this.default_publisher_qos.lock().unwrap() = qos;
         Ok(())
     }
 
@@ -680,7 +680,7 @@ impl DomainParticipantImpl{
         this: &Arc<DomainParticipantImpl>,
         qos: &mut PublisherQos,
     ) -> ReturnCode<()> {
-        qos.clone_from(&this.publisher_default_qos.lock().unwrap());
+        qos.clone_from(&this.default_publisher_qos.lock().unwrap());
         Ok(())
     }
 
@@ -688,7 +688,7 @@ impl DomainParticipantImpl{
         this: &Arc<DomainParticipantImpl>,
         qos: SubscriberQos,
     ) -> ReturnCode<()> {
-        *this.subscriber_default_qos.lock().unwrap() = qos;
+        *this.default_subscriber_qos.lock().unwrap() = qos;
         Ok(())
     }
 
@@ -704,7 +704,7 @@ impl DomainParticipantImpl{
         qos: TopicQos,
     ) -> ReturnCode<()> {
         if qos.is_consistent() {
-            *this.topic_default_qos.lock().unwrap() = qos;
+            *this.default_topic_qos.lock().unwrap() = qos;
         } else {
             return Err(ReturnCodes::InconsistentPolicy);
         }
@@ -815,11 +815,11 @@ impl DomainParticipantImpl{
             a_listener: Box::new(a_listener),
             mask,
             publisher_list: Mutex::new(Vec::new()),
-            publisher_default_qos: Mutex::new(PublisherQos::default()),
+            default_publisher_qos: Mutex::new(PublisherQos::default()),
             subscriber_list: Mutex::new(Vec::new()),
-            subscriber_default_qos: Mutex::new(SubscriberQos::default()),
+            default_subscriber_qos: Mutex::new(SubscriberQos::default()),
             topic_list: Mutex::new(Vec::new()),
-            topic_default_qos: Mutex::new(TopicQos::default()),
+            default_topic_qos: Mutex::new(TopicQos::default()),
         }
     }
 
