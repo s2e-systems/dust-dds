@@ -26,7 +26,7 @@ impl Topic {
     pub fn get_inconsistent_topic_status(
         &self,
         status: &mut InconsistentTopicStatus,
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         TopicImpl::get_inconsistent_topic_status(&self.0, status)
     }
 }
@@ -49,15 +49,15 @@ impl Entity for Topic {
     type Qos = TopicQos;
     type Listener = Box<dyn TopicListener>;
 
-    fn set_qos(&self, _qos_list: Self::Qos) -> ReturnCode {
+    fn set_qos(&self, _qos_list: Self::Qos) -> ReturnCode<()> {
         todo!()
     }
 
-    fn get_qos(&self, _qos_list: &mut Self::Qos) -> ReturnCode {
+    fn get_qos(&self, _qos_list: &mut Self::Qos) -> ReturnCode<()> {
         todo!()
     }
 
-    fn set_listener(&self, _a_listener: Self::Listener, _mask: &[crate::dds::types::StatusKind]) -> ReturnCode {
+    fn set_listener(&self, _a_listener: Self::Listener, _mask: &[crate::dds::types::StatusKind]) -> ReturnCode<()> {
         todo!()
     }
 
@@ -73,7 +73,7 @@ impl Entity for Topic {
         todo!()
     }
 
-    fn enable(&self, ) -> ReturnCode {
+    fn enable(&self, ) -> ReturnCode<()> {
         todo!()
     }
 
@@ -102,7 +102,7 @@ impl TopicImpl {
     pub(crate) fn get_inconsistent_topic_status(
         _this: &Weak<TopicImpl>,
         _status: &mut InconsistentTopicStatus,
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         todo!()
     }
 
