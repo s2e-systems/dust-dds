@@ -1,7 +1,7 @@
 use std::any::Any;
 use std::sync::{Arc, Mutex};
 
-use crate::dds::types::{StatusKind, ReturnCode, Duration, InstanceHandle, DomainId, Time, StatusMask};
+use crate::dds::types::{StatusKind, ReturnCode, Duration, InstanceHandle, DomainId, Time, StatusMask, ReturnCodes};
 use crate::dds::topic::topic::{Topic, TopicImpl};
 use crate::dds::topic::topic_listener::TopicListener;
 use crate::dds::topic::topic_description::TopicDescription;
@@ -325,9 +325,9 @@ impl DomainParticipant {
     /// operation had never been called.
     pub fn set_default_publisher_qos(
         &self,
-        qos_list: PublisherQos,
+        qos: PublisherQos,
     ) -> ReturnCode<()> {
-        DomainParticipantImpl::set_default_publisher_qos(&self.0, qos_list)
+        DomainParticipantImpl::set_default_publisher_qos(&self.0, qos)
     }
 
     /// This operation retrieves the default value of the Publisher QoS, that is, the QoS policies which will be used for newly created
@@ -351,9 +351,9 @@ impl DomainParticipant {
     /// operation had never been called.
     pub fn set_default_subscriber_qos(
         &self,
-        qos_list: SubscriberQos,
+        qos: SubscriberQos,
     ) -> ReturnCode<()> {
-        DomainParticipantImpl::set_default_subscriber_qos(&self.0, qos_list)
+        DomainParticipantImpl::set_default_subscriber_qos(&self.0, qos)
     }
 
     /// This operation retrieves the default value of the Subscriber QoS, that is, the QoS policies which will be used for newly created
@@ -377,9 +377,9 @@ impl DomainParticipant {
     /// had never been called.
     pub fn set_default_topic_qos(
         &self,
-        qos_list: TopicQos,
+        qos: TopicQos,
     ) -> ReturnCode<()> {
-        DomainParticipantImpl::set_default_topic_qos(&self.0, qos_list)
+        DomainParticipantImpl::set_default_topic_qos(&self.0, qos)
     }
 
     /// This operation retrieves the default value of the Topic QoS, that is, the QoS policies that will be used for newly created Topic
@@ -685,10 +685,11 @@ impl DomainParticipantImpl{
     }
 
     pub(crate) fn set_default_subscriber_qos(
-        _this: &Arc<DomainParticipantImpl>,
-        _qos_list: SubscriberQos,
+        this: &Arc<DomainParticipantImpl>,
+        qos: SubscriberQos,
     ) -> ReturnCode<()> {
-        todo!()
+        *this.subscriber_default_qos.lock().unwrap() = qos;
+        Ok(())
     }
 
     pub(crate) fn get_default_subscriber_qos(
@@ -699,10 +700,16 @@ impl DomainParticipantImpl{
     }
 
     pub(crate) fn set_default_topic_qos(
-        _this: &Arc<DomainParticipantImpl>,
-        _qos_list: TopicQos,
+        this: &Arc<DomainParticipantImpl>,
+        qos: TopicQos,
     ) -> ReturnCode<()> {
-        todo!()
+        if qos.is_consistent() {
+            *this.topic_default_qos.lock().unwrap() = qos;
+        } else {
+            return Err(ReturnCodes::InconsistentPolicy);
+        }
+            
+        Ok(())
     }
 
     pub(crate) fn get_default_topic_qos(
