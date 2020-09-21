@@ -31,6 +31,7 @@ pub mod qos {
         TimeBasedFilterQosPolicy,
         ReaderDataLifecycleQosPolicy,
         ReliabilityQosPolicyKind,
+        HistoryQosPolicyKind
     };
 
     pub struct DataReaderQos {
@@ -64,6 +65,30 @@ pub mod qos {
                 time_based_filter: TimeBasedFilterQosPolicy::default(),
                 reader_data_lifecycle: ReaderDataLifecycleQosPolicy::default(),
             }
+        }
+    }
+
+    impl DataReaderQos {
+        pub fn is_consistent(&self) -> bool {
+            // The setting of RESOURCE_LIMITS max_samples must be consistent with the max_samples_per_instance. For these two
+            // values to be consistent they must verify that “max_samples >= max_samples_per_instance.”
+            if self.resource_limits.max_samples < self.resource_limits.max_samples_per_instance {
+                return false
+            }
+    
+            // The setting of RESOURCE_LIMITS max_samples_per_instance must be consistent with the HISTORY depth. For these two
+            // QoS to be consistent, they must verify that “depth <= max_samples_per_instance.”
+            if self.history.kind == HistoryQosPolicyKind::KeepLastHistoryQoS && self.history.depth > self.resource_limits.max_samples_per_instance {
+                return false
+            }
+
+            // The setting of the DEADLINE policy must be set consistently with that of the TIME_BASED_FILTER. For these two policies
+            // to be consistent the settings must be such that “deadline period>= minimum_separation.”
+            if self.deadline.period < self.time_based_filter.minimum_separation {
+                return false
+            }
+    
+            true
         }
     }
 }

@@ -870,9 +870,9 @@ impl Default for HistoryQosPolicy {
 /// to fail.
 #[derive(Debug)]
 pub struct ResourceLimitsQosPolicy {
-    max_samples: i32,
-    max_instances: i32,
-    max_samples_per_instance: i32,
+    pub max_samples: i32,
+    pub max_instances: i32,
+    pub max_samples_per_instance: i32,
 }
 
 impl QosPolicy for ResourceLimitsQosPolicy {
