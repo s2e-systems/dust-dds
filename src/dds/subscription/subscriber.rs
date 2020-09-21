@@ -214,7 +214,7 @@ impl Subscriber {
     /// set_default_datareader_qos operation had never been called.
     pub fn set_default_datareader_qos(
         &self,
-        qos: Option<DataReaderQos>,
+        qos: DataReaderQos,
     ) -> ReturnCode<()> {
         SubscriberImpl::set_default_datareader_qos(&self.0, qos)
     }
@@ -392,18 +392,14 @@ impl SubscriberImpl {
 
     pub(crate) fn set_default_datareader_qos(
         this: &Weak<SubscriberImpl>,
-        qos: Option<DataReaderQos>,
+        qos: DataReaderQos,
     ) -> ReturnCode<()> {
         let subscriber = SubscriberImpl::upgrade_subscriber(this)?;
 
-        if let Some(qos) = qos {
-            if qos.is_consistent() {
-                *subscriber.default_datareader_qos.lock().unwrap() = qos;
-            } else {
-                return Err(ReturnCodes::InconsistentPolicy);
-            }
+        if qos.is_consistent() {
+            *subscriber.default_datareader_qos.lock().unwrap() = qos;
         } else {
-            *subscriber.default_datareader_qos.lock().unwrap() = DataReaderQos::default();
+            return Err(ReturnCodes::InconsistentPolicy);
         }
         
         Ok(())

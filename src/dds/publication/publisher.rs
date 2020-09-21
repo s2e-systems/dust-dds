@@ -262,6 +262,7 @@ impl DomainEntity for Publisher{}
 pub struct PublisherImpl{
     parent_participant: Weak<DomainParticipantImpl>,
     datawriter_list: Mutex<Vec<AnyDataWriter>>,
+    default_datawriter_qos: Mutex<DataWriterQos>,
 }
 
 impl PublisherImpl {
@@ -339,10 +340,18 @@ impl PublisherImpl {
     }
 
     pub(crate) fn set_default_datawriter_qos(
-        _this: &Weak<PublisherImpl>,
-        _qos_list: DataWriterQos,
+        this: &Weak<PublisherImpl>,
+        qos: DataWriterQos,
     ) -> ReturnCode<()> {
-        todo!()
+        let publisher = PublisherImpl::upgrade_publisher(this)?;
+
+        if qos.is_consistent() {
+            *publisher.default_datawriter_qos.lock().unwrap() = qos;
+        } else {
+            return Err(ReturnCodes::InconsistentPolicy);
+        }
+        
+        Ok(())
     }
 
     pub(crate) fn get_default_datawriter_qos (
@@ -399,7 +408,12 @@ impl PublisherImpl {
         Self{
             parent_participant,
             datawriter_list: Mutex::new(Vec::new()),
+            default_datawriter_qos: Mutex::new(DataWriterQos::default()),
         }
+    }
+
+    fn upgrade_publisher(this: &Weak<PublisherImpl>) -> ReturnCode<Arc<PublisherImpl>> {
+        this.upgrade().ok_or(ReturnCodes::AlreadyDeleted)
     }
 }
 
