@@ -406,10 +406,13 @@ impl SubscriberImpl {
     }
 
     pub(crate) fn get_default_datareader_qos(
-        _this: &Weak<SubscriberImpl>,
-        _qos_list: &mut DataReaderQos,
+        this: &Weak<SubscriberImpl>,
+        qos: &mut DataReaderQos,
     ) -> ReturnCode<()> {
-        todo!()
+        let subscriber = SubscriberImpl:: upgrade_subscriber(this)?;
+
+        qos.clone_from(&subscriber.default_datareader_qos.lock().unwrap());
+        Ok(())
     }
 
     pub(crate) fn copy_from_topic_qos(
@@ -474,6 +477,7 @@ mod tests {
     use super::*;
     use crate::dds::infrastructure::listener::NoListener;
     use crate::dds::topic::topic::Topic;
+    use crate::dds::infrastructure::qos_policy::ReliabilityQosPolicyKind;
     #[derive(Debug)]
     struct  Foo {
         value: bool
@@ -490,5 +494,23 @@ mod tests {
         
         SubscriberImpl::delete_datareader(&Arc::downgrade(&subscriber_impl), &datareader).unwrap();
         assert_eq!(subscriber_impl.datareader_list.lock().unwrap().len(), 0);
+    }
+
+    #[test]
+    fn set_and_get_default_datareader_qos() {
+        let subscriber_impl = Arc::new(SubscriberImpl::new(Weak::new()));
+        let subscriber = Arc::downgrade(&subscriber_impl);
+
+        let mut datareader_qos = DataReaderQos::default();
+        datareader_qos.user_data.value = vec![1,2,3,4];
+        datareader_qos.reliability.kind = ReliabilityQosPolicyKind::ReliableReliabilityQos;
+
+        SubscriberImpl::set_default_datareader_qos(&subscriber, datareader_qos.clone()).unwrap();
+        assert_eq!(*subscriber_impl.default_datareader_qos.lock().unwrap(), datareader_qos);
+
+        let mut read_datareader_qos = DataReaderQos::default();
+        SubscriberImpl::get_default_datareader_qos(&subscriber, &mut read_datareader_qos).unwrap();
+
+        assert_eq!(read_datareader_qos, datareader_qos);
     }
 }

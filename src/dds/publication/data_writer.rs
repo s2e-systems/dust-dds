@@ -18,7 +18,7 @@ use crate::rtps::types::{TopicKind, GUID, EntityId, ReliabilityKind, EntityKind,
 use qos::DataWriterQos;
 
 pub mod qos {
-    use crate::dds::types::Duration;
+    use crate::dds::types::{Duration, LENGTH_UNLIMITED};
     use crate::dds::infrastructure::qos_policy::{
         DurabilityQosPolicy,
         DurabilityServiceQosPolicy,
@@ -39,22 +39,23 @@ pub mod qos {
         HistoryQosPolicyKind
     };
 
+    #[derive(Debug, PartialEq, Clone)]
     pub struct DataWriterQos {
-        durability: DurabilityQosPolicy,
-        durability_service: DurabilityServiceQosPolicy,
-        deadline: DeadlineQosPolicy,
-        latency_budget: LatencyBudgetQosPolicy,
-        liveliness: LivelinessQosPolicy,
-        reliability: ReliabilityQosPolicy,
-        destination_order: DestinationOrderQosPolicy,
-        history: HistoryQosPolicy,
-        resource_limits: ResourceLimitsQosPolicy,
-        transport_priority: TransportPriorityQosPolicy,
-        lifespan: LifespanQosPolicy,
-        user_data: UserDataQosPolicy,
-        ownership: OwnershipQosPolicy,
-        ownership_strength: OwnershipStrengthQosPolicy,
-        writer_data_lifecycle: WriterDataLifecycleQosPolicy,
+        pub durability: DurabilityQosPolicy,
+        pub durability_service: DurabilityServiceQosPolicy,
+        pub deadline: DeadlineQosPolicy,
+        pub latency_budget: LatencyBudgetQosPolicy,
+        pub liveliness: LivelinessQosPolicy,
+        pub reliability: ReliabilityQosPolicy,
+        pub destination_order: DestinationOrderQosPolicy,
+        pub history: HistoryQosPolicy,
+        pub resource_limits: ResourceLimitsQosPolicy,
+        pub transport_priority: TransportPriorityQosPolicy,
+        pub lifespan: LifespanQosPolicy,
+        pub user_data: UserDataQosPolicy,
+        pub ownership: OwnershipQosPolicy,
+        pub ownership_strength: OwnershipStrengthQosPolicy,
+        pub writer_data_lifecycle: WriterDataLifecycleQosPolicy,
     }
 
     impl Default for DataWriterQos {
@@ -83,14 +84,18 @@ pub mod qos {
         pub fn is_consistent(&self) -> bool {
             // The setting of RESOURCE_LIMITS max_samples must be consistent with the max_samples_per_instance. For these two
             // values to be consistent they must verify that “max_samples >= max_samples_per_instance.”
-            if self.resource_limits.max_samples < self.resource_limits.max_samples_per_instance {
-                return false
+            if  self.resource_limits.max_samples_per_instance != LENGTH_UNLIMITED {
+                if self.resource_limits.max_samples == LENGTH_UNLIMITED || self.resource_limits.max_samples < self.resource_limits.max_samples_per_instance {
+                    return false
+                }
             }
-    
+
             // The setting of RESOURCE_LIMITS max_samples_per_instance must be consistent with the HISTORY depth. For these two
             // QoS to be consistent, they must verify that “depth <= max_samples_per_instance.”
-            if self.history.kind == HistoryQosPolicyKind::KeepLastHistoryQoS && self.history.depth > self.resource_limits.max_samples_per_instance {
-                return false
+            if self.history.kind == HistoryQosPolicyKind::KeepLastHistoryQoS && self.resource_limits.max_samples_per_instance != LENGTH_UNLIMITED {
+                if self.history.depth == LENGTH_UNLIMITED || self.history.depth > self.resource_limits.max_samples_per_instance {
+                    return false
+                }
             }
     
             true

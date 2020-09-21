@@ -528,6 +528,7 @@ impl Default for OwnershipQosPolicy {
 /// The value of the OWNERSHIP_STRENGTH is used to determine the ownership of a data-instance (identified by the key).
 /// The arbitration is performed by the DataReader. The rules used to perform the arbitration are described in 2.2.3.9.2,
 /// EXCLUSIVE kind.
+#[derive(Debug, PartialEq, Clone)]
 pub struct OwnershipStrengthQosPolicy {
     pub value: i32,
 }
@@ -647,6 +648,7 @@ impl Default for LivelinessQosPolicy {
 /// The setting of the TIME_BASED_FILTER minimum_separation must be consistent with the DEADLINE period. For these
 /// two QoS policies to be consistent they must verify that "period >= minimum_separation." An attempt to set these policies in
 /// an inconsistent manner when an entity is created of via a set_qos operation will cause the operation to fail.
+#[derive(Debug, PartialEq, Clone)]
 pub struct TimeBasedFilterQosPolicy {
     pub minimum_separation: Duration,
 }
@@ -937,6 +939,7 @@ impl Default for EntityFactoryQosPolicy {
 /// setting of the autodispose_unregistered_instances flag will determine whether instances are ultimately disposed when the
 /// DataWriter is deleted either directly by means of the Publisher::delete_datawriter operation or indirectly as a consequence of
 /// calling delete_contained_entities on the Publisher or the DomainParticipant that contains the DataWriter.
+#[derive(Debug, PartialEq, Clone)]
 pub struct WriterDataLifecycleQosPolicy {
     pub autodispose_unregistered_instances: bool,
 }
@@ -974,6 +977,7 @@ impl Default for WriterDataLifecycleQosPolicy {
 /// The autopurge_disposed_samples_delay defines the maximum duration for which the DataReader will maintain samples for
 /// an instance once its instance_state becomes NOT_ALIVE_DISPOSED. After this time elapses, the DataReader will purge all
 /// samples for the instance.
+#[derive(Debug, PartialEq, Clone)]
 pub struct ReaderDataLifecycleQosPolicy {
     pub autopurge_nowriter_samples_delay: Duration,
     pub autopurge_disposed_samples_delay: Duration,
