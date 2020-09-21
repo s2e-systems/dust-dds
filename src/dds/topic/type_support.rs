@@ -23,7 +23,7 @@ impl TypeSupport {
     pub fn register_type(
         _participant: DomainParticipant,
         _type_name: String,
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         todo!()
     }
 

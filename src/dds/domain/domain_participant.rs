@@ -104,7 +104,7 @@ impl DomainParticipant {
     pub fn delete_publisher(
         &self,
         a_publisher: &Publisher
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         DomainParticipantImpl::delete_publisher(&self.0, a_publisher)
     }
 
@@ -135,7 +135,7 @@ impl DomainParticipant {
     pub fn delete_subscriber(
         &self,
         a_subscriber: &Subscriber,
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         DomainParticipantImpl::delete_subscriber(&self.0, a_subscriber)
     }
 
@@ -170,7 +170,7 @@ impl DomainParticipant {
     pub fn delete_topic(
         &self,
         a_topic: &Topic,
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         DomainParticipantImpl::delete_topic(&self.0, a_topic)
     }
 
@@ -236,7 +236,7 @@ impl DomainParticipant {
     pub fn ignore_participant(
         &self,
         handle: InstanceHandle
-    ) -> ReturnCode{
+    ) -> ReturnCode<()> {
         DomainParticipantImpl::ignore_participant(&self.0, handle)
     }
 
@@ -251,7 +251,7 @@ impl DomainParticipant {
     pub fn ignore_topic(
         &self,
         handle: InstanceHandle
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         DomainParticipantImpl::ignore_topic(&self.0, handle)
     }
 
@@ -265,7 +265,7 @@ impl DomainParticipant {
     pub fn ignore_publication(
         &self,
         handle: InstanceHandle
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         DomainParticipantImpl::ignore_publication(&self.0, handle)
     }
 
@@ -279,7 +279,7 @@ impl DomainParticipant {
     pub fn ignore_subscription(
         &self,
         handle: InstanceHandle
-    ) -> ReturnCode{
+    ) -> ReturnCode<()> {
         DomainParticipantImpl::ignore_subscription(&self.0, handle)
     }
 
@@ -301,7 +301,7 @@ impl DomainParticipant {
     /// deleted.
     /// Once delete_contained_entities returns successfully, the application may delete the DomainParticipant knowing that it has no
     /// contained entities.
-    pub fn delete_contained_entities(&self) -> ReturnCode {
+    pub fn delete_contained_entities(&self) -> ReturnCode<()> {
         DomainParticipantImpl::delete_contained_entities(&self.0)
     }
 
@@ -312,7 +312,7 @@ impl DomainParticipant {
     /// NOTE: Writing data via the write operation on a DataWriter asserts liveliness on the DataWriter itself and its
     /// DomainParticipant. Consequently the use of assert_liveliness is only needed if the application is not writing data regularly.
     /// Complete details are provided in 2.2.3.11, LIVELINESS
-    pub fn assert_liveliness(&self) -> ReturnCode {
+    pub fn assert_liveliness(&self) -> ReturnCode<()> {
         DomainParticipantImpl::assert_liveliness(&self.0)
     }
 
@@ -326,7 +326,7 @@ impl DomainParticipant {
     pub fn set_default_publisher_qos(
         &self,
         qos_list: PublisherQos,
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         DomainParticipantImpl::set_default_publisher_qos(&self.0, qos_list)
     }
 
@@ -338,7 +338,7 @@ impl DomainParticipant {
     pub fn get_default_publisher_qos(
         &self,
         qos_list: &mut PublisherQos,
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         DomainParticipantImpl::get_default_publisher_qos(&self.0, qos_list)
     }
 
@@ -352,7 +352,7 @@ impl DomainParticipant {
     pub fn set_default_subscriber_qos(
         &self,
         qos_list: SubscriberQos,
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         DomainParticipantImpl::set_default_subscriber_qos(&self.0, qos_list)
     }
 
@@ -364,7 +364,7 @@ impl DomainParticipant {
     pub fn get_default_subscriber_qos(
         &self,
         qos_list: &mut SubscriberQos,
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         DomainParticipantImpl::get_default_subscriber_qos(&self.0, qos_list)
     }
 
@@ -378,7 +378,7 @@ impl DomainParticipant {
     pub fn set_default_topic_qos(
         &self,
         qos_list: TopicQos,
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         DomainParticipantImpl::set_default_topic_qos(&self.0, qos_list)
     }
 
@@ -389,7 +389,7 @@ impl DomainParticipant {
     pub fn get_default_topic_qos(
         &self,
         qos_list: &mut TopicQos,
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         DomainParticipantImpl::get_default_topic_qos(&self.0, qos_list)
     }
 
@@ -400,7 +400,7 @@ impl DomainParticipant {
     pub fn get_discovered_participants(
         &self,
         participant_handles: &mut [InstanceHandle]
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         DomainParticipantImpl::get_discovered_participants(&self.0, participant_handles)
     }
 
@@ -416,7 +416,7 @@ impl DomainParticipant {
         &self,
         participant_data: ParticipantBuiltinTopicData,
         participant_handle: InstanceHandle
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         DomainParticipantImpl::get_discovered_participant_data(&self.0, participant_data, participant_handle)
     }
 
@@ -425,7 +425,7 @@ impl DomainParticipant {
     pub fn get_discovered_topics(
         &self,
         topic_handles: &mut [InstanceHandle]
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         DomainParticipantImpl::get_discovered_topics(&self.0, topic_handles)
     }
 
@@ -443,7 +443,7 @@ impl DomainParticipant {
         &self,
         topic_data: TopicBuiltinTopicData,
         topic_handle: InstanceHandle
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         DomainParticipantImpl::get_discovered_topic_data(&self.0, topic_data, topic_handle)
     }
 
@@ -465,7 +465,7 @@ impl DomainParticipant {
     pub fn get_current_time(
         &self,
         current_time: Time,
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         DomainParticipantImpl::get_current_time(&self.0, current_time)
     }
 
@@ -476,15 +476,15 @@ impl Entity for DomainParticipant
     type Qos = DomainParticipantQos;
     type Listener = Box<dyn DomainParticipantListener>;
 
-    fn set_qos(&self, qos_list: Self::Qos) -> ReturnCode {
+    fn set_qos(&self, qos_list: Self::Qos) -> ReturnCode<()> {
         DomainParticipantImpl::set_qos(&self.0, qos_list)
     }
 
-    fn get_qos(&self, qos_list: &mut Self::Qos) -> ReturnCode {
+    fn get_qos(&self, qos_list: &mut Self::Qos) -> ReturnCode<()> {
         DomainParticipantImpl::get_qos(&self.0, qos_list)
     }
 
-    fn set_listener(&self, a_listener: Self::Listener, mask: &[StatusKind]) -> ReturnCode {
+    fn set_listener(&self, a_listener: Self::Listener, mask: &[StatusKind]) -> ReturnCode<()> {
         DomainParticipantImpl::set_listener(&self.0, a_listener, mask)
     }
 
@@ -500,7 +500,7 @@ impl Entity for DomainParticipant
         DomainParticipantImpl::get_status_changes(&self.0)
     }
 
-    fn enable(&self, ) -> ReturnCode {
+    fn enable(&self, ) -> ReturnCode<()> {
         DomainParticipantImpl::enable(&self.0)
     }
 
@@ -548,7 +548,7 @@ impl DomainParticipantImpl{
     pub(crate) fn delete_publisher(
         this: &Arc<DomainParticipantImpl>,
         a_publisher: &Publisher
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         // TODO: Shouldn't be deleted if it still contains entities but can't yet be done because the publisher is not implemented
         let mut publisher_list = this.publisher_list.lock().unwrap();
         let index = publisher_list.iter().position(|x| std::ptr::eq(x.as_ref(), a_publisher.0.upgrade().unwrap().as_ref())).unwrap();
@@ -573,7 +573,7 @@ impl DomainParticipantImpl{
     pub(crate) fn delete_subscriber(
         this: &Arc<DomainParticipantImpl>,
         a_subscriber: &Subscriber,
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         // TODO: Shouldn't be deleted if it still contains entities but can't yet be done because the subscriber is not implemented
         let mut subscriber_list = this.subscriber_list.lock().unwrap();
         let index = subscriber_list.iter().position(|x| std::ptr::eq(x.as_ref(), a_subscriber.0.upgrade().unwrap().as_ref())).unwrap();
@@ -600,7 +600,7 @@ impl DomainParticipantImpl{
     pub(crate) fn delete_topic(
         this: &Arc<DomainParticipantImpl>,
         a_topic: &Topic,
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         // TODO: Shouldn't be deleted if there are any existing DataReader, DataWriter, ContentFilteredTopic, or MultiTopic
         // objects that are using the Topic. It can't yet be done because the functionality is not implemented
         let mut topic_list = this.topic_list.lock().unwrap();
@@ -631,28 +631,28 @@ impl DomainParticipantImpl{
     pub(crate) fn ignore_participant(
         _this: &Arc<DomainParticipantImpl>,
         _handle: InstanceHandle
-    ) -> ReturnCode{
+    ) -> ReturnCode<()> {
         todo!()
     }
 
     pub(crate) fn ignore_topic(
         _this: &Arc<DomainParticipantImpl>,
         _handle: InstanceHandle
-    ) -> ReturnCode{
+    ) -> ReturnCode<()> {
         todo!()
     }
 
     pub(crate) fn ignore_publication(
         _this: &Arc<DomainParticipantImpl>,
         _handle: InstanceHandle
-    ) -> ReturnCode{
+    ) -> ReturnCode<()> {
         todo!()
     }
 
     pub(crate) fn ignore_subscription(
         _this: &Arc<DomainParticipantImpl>,
         _handle: InstanceHandle
-    ) -> ReturnCode{
+    ) -> ReturnCode<()> {
         todo!()
     }
 
@@ -660,18 +660,18 @@ impl DomainParticipantImpl{
         this.domain_id
     }
 
-    pub(crate) fn delete_contained_entities(_this: &Arc<DomainParticipantImpl>) -> ReturnCode {
+    pub(crate) fn delete_contained_entities(_this: &Arc<DomainParticipantImpl>) -> ReturnCode<()> {
         todo!()   
     }
 
-    pub(crate) fn assert_liveliness(_this: &Arc<DomainParticipantImpl>) -> ReturnCode {
+    pub(crate) fn assert_liveliness(_this: &Arc<DomainParticipantImpl>) -> ReturnCode<()> {
         todo!()   
     }
 
     pub(crate) fn set_default_publisher_qos(
         this: &Arc<DomainParticipantImpl>,
         qos: PublisherQos,
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         *this.publisher_default_qos.lock().unwrap() = qos;
         Ok(())
     }
@@ -679,7 +679,7 @@ impl DomainParticipantImpl{
     pub(crate) fn get_default_publisher_qos(
         this: &Arc<DomainParticipantImpl>,
         qos: &mut PublisherQos,
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         qos.clone_from(&this.publisher_default_qos.lock().unwrap());
         Ok(())
     }
@@ -687,35 +687,35 @@ impl DomainParticipantImpl{
     pub(crate) fn set_default_subscriber_qos(
         _this: &Arc<DomainParticipantImpl>,
         _qos_list: SubscriberQos,
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         todo!()
     }
 
     pub(crate) fn get_default_subscriber_qos(
         _this: &Arc<DomainParticipantImpl>,
         _qos_list: &mut SubscriberQos,
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         todo!()
     }
 
     pub(crate) fn set_default_topic_qos(
         _this: &Arc<DomainParticipantImpl>,
         _qos_list: TopicQos,
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         todo!()
     }
 
     pub(crate) fn get_default_topic_qos(
         _this: &Arc<DomainParticipantImpl>,
         _qos_list: &mut TopicQos,
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         todo!()
     }
 
     pub(crate) fn get_discovered_participants(
         _this: &Arc<DomainParticipantImpl>,
         _participant_handles: &mut [InstanceHandle]
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         todo!()
     }
 
@@ -723,14 +723,14 @@ impl DomainParticipantImpl{
         _this: &Arc<DomainParticipantImpl>,
         _participant_data: ParticipantBuiltinTopicData,
         _participant_handle: InstanceHandle
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         todo!()
     }
 
     pub(crate) fn get_discovered_topics(
         _this: &Arc<DomainParticipantImpl>,
         _topic_handles: &mut [InstanceHandle]
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         todo!()
     }
 
@@ -738,7 +738,7 @@ impl DomainParticipantImpl{
         _this: &Arc<DomainParticipantImpl>,
         _topic_data: TopicBuiltinTopicData,
         _topic_handle: InstanceHandle
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         todo!()
     }
 
@@ -752,20 +752,20 @@ impl DomainParticipantImpl{
     pub(crate) fn get_current_time(
         _this: &Arc<DomainParticipantImpl>,
         _current_time: Time,
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         todo!()
     }
 
     //////////////// Entity trait methods
-    pub(crate) fn set_qos(_this: &Arc<DomainParticipantImpl>, _qos_list: DomainParticipantQos) -> ReturnCode {
+    pub(crate) fn set_qos(_this: &Arc<DomainParticipantImpl>, _qos_list: DomainParticipantQos) -> ReturnCode<()> {
         todo!()
     }
 
-    pub(crate) fn get_qos(_this: &Arc<DomainParticipantImpl>, _qos_list: &mut DomainParticipantQos) -> ReturnCode {
+    pub(crate) fn get_qos(_this: &Arc<DomainParticipantImpl>, _qos_list: &mut DomainParticipantQos) -> ReturnCode<()> {
         todo!()
     }
 
-    pub(crate) fn set_listener(_this: &Arc<DomainParticipantImpl>, _a_listener: Box<dyn DomainParticipantListener>, _mask: &[StatusKind]) -> ReturnCode {
+    pub(crate) fn set_listener(_this: &Arc<DomainParticipantImpl>, _a_listener: Box<dyn DomainParticipantListener>, _mask: &[StatusKind]) -> ReturnCode<()> {
         todo!()
     }
 
@@ -781,7 +781,7 @@ impl DomainParticipantImpl{
         todo!()
     }
 
-    pub(crate) fn enable(_this: &Arc<DomainParticipantImpl>) -> ReturnCode {
+    pub(crate) fn enable(_this: &Arc<DomainParticipantImpl>) -> ReturnCode<()> {
         //TODO: This is to prevent the ParticipantFactory test from panicking
         Ok(())
     }

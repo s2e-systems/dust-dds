@@ -65,7 +65,7 @@ impl DomainParticipantFactory {
     pub fn delete_participant(
         &self,
         a_participant: DomainParticipant,
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         // We rely on the Drop of the DomainParticipant to do the deletion so nothing needs to be done here.
         // If the user calls this function, DomainParticipant has been moved into here and then just gets dropped
         // The deletion only happens if this is the last reference to the DomainParticipantImpl, otherwise the 
@@ -121,7 +121,7 @@ impl DomainParticipantFactory {
     pub fn set_default_participant_qos(
         &self,
         qos: DomainParticipantQos,
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         *self.domain_participant_default_qos.lock().unwrap() = qos;
         Ok(())
     }
@@ -135,7 +135,7 @@ impl DomainParticipantFactory {
     pub fn get_default_participant_qos(
         &self,
         qos: &mut DomainParticipantQos,
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         qos.clone_from(&self.domain_participant_default_qos.lock().unwrap());
         Ok(())
     }
@@ -148,7 +148,7 @@ impl DomainParticipantFactory {
     pub fn set_qos(
         &self,
         qos: DomainParticipantFactoryQos,
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         *self.domain_participant_factory_qos.lock().unwrap() = qos;
         Ok(())
     }
@@ -157,7 +157,7 @@ impl DomainParticipantFactory {
     pub fn get_qos(
         &self,
         qos: &mut DomainParticipantFactoryQos,
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         qos.clone_from(&self.domain_participant_factory_qos.lock().unwrap());
         Ok(())
     }

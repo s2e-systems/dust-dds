@@ -103,7 +103,7 @@ impl Subscriber {
     pub fn delete_datareader<T: Any+Send+Sync>(
         &self,
         a_datareader: &DataReader<T>
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         SubscriberImpl::delete_datareader(&self.0, a_datareader)
     }
 
@@ -133,7 +133,7 @@ impl Subscriber {
     /// The calls to begin_access/end_access may be nested. In that case, the application must call end_access as many times as it
     /// called begin_access.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
-    pub fn begin_access(&self) -> ReturnCode {
+    pub fn begin_access(&self) -> ReturnCode<()> {
         SubscriberImpl::begin_access(&self.0)
     }
 
@@ -143,7 +143,7 @@ impl Subscriber {
     /// sample-accessing operations. This call must close a previous call to begin_access otherwise the operation will return the error
     /// PRECONDITION_NOT_MET.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
-    pub fn end_access(&self) -> ReturnCode {
+    pub fn end_access(&self) -> ReturnCode<()> {
         SubscriberImpl::end_access(&self.0)
     }
 
@@ -169,7 +169,7 @@ impl Subscriber {
         sample_states: &[SampleStateKind],
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         SubscriberImpl::get_datareaders(&self.0, readers, sample_states, view_states, instance_states)
     }
 
@@ -178,12 +178,12 @@ impl Subscriber {
     /// Communication Statuses.
     /// This operation is typically invoked from the on_data_on_readers operation in the SubscriberListener. That way the
     /// SubscriberListener can delegate to the DataReaderListener objects the handling of the data.
-    pub fn notify_datareaders(&self) -> ReturnCode {
+    pub fn notify_datareaders(&self) -> ReturnCode<()> {
         SubscriberImpl::notify_datareaders(&self.0)
     }
 
     /// This operation allows access to the SAMPLE_LOST communication status. Communication statuses are described in 2.2.4.1
-    pub fn get_sample_lost_status(&self, status: &mut SampleLostStatus) -> ReturnCode {
+    pub fn get_sample_lost_status(&self, status: &mut SampleLostStatus) -> ReturnCode<()> {
         SubscriberImpl::get_sample_lost_status(&self.0, status)
     }
 
@@ -201,7 +201,7 @@ impl Subscriber {
     /// operation and has not called the corresponding return_loan operation to return the loaned samples.
     /// Once delete_contained_entities returns successfully, the application may delete the Subscriber knowing that it has no
     /// contained DataReader objects.
-    pub fn delete_contained_entities(&self) -> ReturnCode {
+    pub fn delete_contained_entities(&self) -> ReturnCode<()> {
         SubscriberImpl::delete_contained_entities(&self.0)
     }
 
@@ -215,7 +215,7 @@ impl Subscriber {
     pub fn set_default_datareader_qos(
         &self,
         qos_list: DataReaderQos,
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         SubscriberImpl::set_default_datareader_qos(&self.0, qos_list)
     }
 
@@ -227,7 +227,7 @@ impl Subscriber {
     pub fn get_default_datareader_qos(
         &self,
         qos_list: &mut DataReaderQos,
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         SubscriberImpl::get_default_datareader_qos(&self.0, qos_list)
     }
 
@@ -242,7 +242,7 @@ impl Subscriber {
         &self,
         a_datareader_qos: &mut DataReaderQos,
         a_topic_qos: &TopicQos,
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         SubscriberImpl::copy_from_topic_qos(&self.0, a_datareader_qos, a_topic_qos)
     }
 
@@ -252,15 +252,15 @@ impl Entity for Subscriber {
     type Qos = SubscriberQos;
     type Listener = Box<dyn SubscriberListener>;
 
-    fn set_qos(&self, qos_list: Self::Qos) -> ReturnCode {
+    fn set_qos(&self, qos_list: Self::Qos) -> ReturnCode<()> {
         SubscriberImpl::set_qos(&self.0, qos_list)
     }
 
-    fn get_qos(&self, qos_list: &mut Self::Qos) -> ReturnCode {
+    fn get_qos(&self, qos_list: &mut Self::Qos) -> ReturnCode<()> {
         SubscriberImpl::get_qos(&self.0, qos_list)
     }
 
-    fn set_listener(&self, a_listener: Self::Listener, mask: &[StatusKind]) -> ReturnCode {
+    fn set_listener(&self, a_listener: Self::Listener, mask: &[StatusKind]) -> ReturnCode<()> {
         SubscriberImpl::set_listener(&self.0, a_listener, mask)
     }
 
@@ -276,7 +276,7 @@ impl Entity for Subscriber {
         SubscriberImpl::get_status_changes(&self.0)
     }
 
-    fn enable(&self) -> ReturnCode {
+    fn enable(&self) -> ReturnCode<()> {
         SubscriberImpl::enable(&self.0)
     }
 
@@ -318,7 +318,7 @@ impl SubscriberImpl {
     pub(crate) fn delete_datareader<T: Any+Send+Sync>(
         this: &Weak<SubscriberImpl>,
         a_datareader: &DataReader<T>
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         let subscriber = this.upgrade().unwrap();
         let mut datareader_list = subscriber.datareader_list.lock().unwrap();
         let index = datareader_list.iter().position(|x| 
@@ -344,13 +344,13 @@ impl SubscriberImpl {
 
     pub(crate) fn begin_access(
         _this: &Weak<SubscriberImpl>,
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         todo!()
     }
 
     pub(crate) fn end_access(
         _this: &Weak<SubscriberImpl>,
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         todo!()
     }
 
@@ -361,19 +361,19 @@ impl SubscriberImpl {
         _sample_states: &[SampleStateKind],
         _view_states: &[ViewStateKind],
         _instance_states: &[InstanceStateKind],
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         todo!()
     }
 
     pub(crate) fn notify_datareaders(
         _this: &Weak<SubscriberImpl>,
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         todo!()
     }
 
     pub(crate) fn get_sample_lost_status(
         _this: &Weak<SubscriberImpl>,
-        _status: &mut SampleLostStatus) -> ReturnCode {
+        _status: &mut SampleLostStatus) -> ReturnCode<()> {
         todo!()
     }
 
@@ -385,21 +385,21 @@ impl SubscriberImpl {
 
     pub(crate) fn delete_contained_entities(
         _this: &Weak<SubscriberImpl>,
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         todo!()
     }
 
     pub(crate) fn set_default_datareader_qos(
         _this: &Weak<SubscriberImpl>,
         _qos_list: DataReaderQos,
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         todo!()
     }
 
     pub(crate) fn get_default_datareader_qos(
         _this: &Weak<SubscriberImpl>,
         _qos_list: &mut DataReaderQos,
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         todo!()
     }
 
@@ -407,20 +407,20 @@ impl SubscriberImpl {
         _this: &Weak<SubscriberImpl>,
         _a_datareader_qos: &mut DataReaderQos,
         _a_topic_qos: &TopicQos,
-    ) -> ReturnCode {
+    ) -> ReturnCode<()> {
         todo!()
     }
 
     //////////////// Entity trait methods
-    pub(crate) fn set_qos(_this: &Weak<SubscriberImpl>, _qos_list: SubscriberQos) -> ReturnCode {
+    pub(crate) fn set_qos(_this: &Weak<SubscriberImpl>, _qos_list: SubscriberQos) -> ReturnCode<()> {
         todo!()
     }
 
-    pub(crate) fn get_qos(_this: &Weak<SubscriberImpl>, _qos_list: &mut SubscriberQos) -> ReturnCode {
+    pub(crate) fn get_qos(_this: &Weak<SubscriberImpl>, _qos_list: &mut SubscriberQos) -> ReturnCode<()> {
         todo!()
     }
 
-    pub(crate) fn set_listener(_this: &Weak<SubscriberImpl>, _a_listener: Box<dyn SubscriberListener>, _mask: &[StatusKind]) -> ReturnCode {
+    pub(crate) fn set_listener(_this: &Weak<SubscriberImpl>, _a_listener: Box<dyn SubscriberListener>, _mask: &[StatusKind]) -> ReturnCode<()> {
         todo!()
     }
 
@@ -436,7 +436,7 @@ impl SubscriberImpl {
         todo!()
     }
 
-    pub(crate) fn enable(_this: &Weak<SubscriberImpl>) -> ReturnCode {
+    pub(crate) fn enable(_this: &Weak<SubscriberImpl>) -> ReturnCode<()> {
         todo!()
     }
 
