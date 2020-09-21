@@ -922,4 +922,18 @@ mod tests {
 
         assert_eq!(read_topic_qos, topic_qos);
     }
+
+    #[test]
+    fn inconsistent_datareader_qos() {
+        let domain_participant_impl = Arc::new(DomainParticipantImpl::new(0, DomainParticipantQos::default(), NoListener, 0));
+
+        let mut topic_qos = TopicQos::default();
+        topic_qos.resource_limits.max_samples = 5;
+        topic_qos.resource_limits.max_samples_per_instance = 15;
+
+        let error = DomainParticipantImpl::set_default_topic_qos(&domain_participant_impl, topic_qos.clone());
+        assert_eq!(error, Err(ReturnCodes::InconsistentPolicy));
+
+        assert_eq!(*domain_participant_impl.default_topic_qos.lock().unwrap(), TopicQos::default());
+    }
 }

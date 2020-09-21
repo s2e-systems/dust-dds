@@ -470,4 +470,19 @@ mod tests {
 
         assert_eq!(read_datawriter_qos, datawriter_qos);
     }
+
+    #[test]
+    fn inconsistent_datawriter_qos() {
+        let publisher_impl = Arc::new(PublisherImpl::new(Weak::new()));
+        let publisher = Arc::downgrade(&publisher_impl);
+
+        let mut datawriter_qos = DataWriterQos::default();
+        datawriter_qos.resource_limits.max_samples = 5;
+        datawriter_qos.resource_limits.max_samples_per_instance = 15;
+
+        let error = PublisherImpl::set_default_datawriter_qos(&publisher, datawriter_qos.clone());
+        assert_eq!(error, Err(ReturnCodes::InconsistentPolicy));
+
+        assert_eq!(*publisher_impl.default_datawriter_qos.lock().unwrap(), DataWriterQos::default());
+    }
 }

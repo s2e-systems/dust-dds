@@ -513,4 +513,19 @@ mod tests {
 
         assert_eq!(read_datareader_qos, datareader_qos);
     }
+
+    #[test]
+    fn inconsistent_datareader_qos() {
+        let subscriber_impl = Arc::new(SubscriberImpl::new(Weak::new()));
+        let subscriber = Arc::downgrade(&subscriber_impl);
+
+        let mut datareader_qos = DataReaderQos::default();
+        datareader_qos.resource_limits.max_samples = 5;
+        datareader_qos.resource_limits.max_samples_per_instance = 15;
+
+        let error = SubscriberImpl::set_default_datareader_qos(&subscriber, datareader_qos.clone());
+        assert_eq!(error, Err(ReturnCodes::InconsistentPolicy));
+
+        assert_eq!(*subscriber_impl.default_datareader_qos.lock().unwrap(), DataReaderQos::default());
+    }
 }

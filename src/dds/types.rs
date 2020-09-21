@@ -1,6 +1,6 @@
 pub type ReturnCode<T> = Result<T, ReturnCodes>;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum ReturnCodes {
     Error,
     Unsupported,
