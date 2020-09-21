@@ -214,9 +214,9 @@ impl Subscriber {
     /// set_default_datareader_qos operation had never been called.
     pub fn set_default_datareader_qos(
         &self,
-        qos_list: DataReaderQos,
+        qos: Option<DataReaderQos>,
     ) -> ReturnCode<()> {
-        SubscriberImpl::set_default_datareader_qos(&self.0, qos_list)
+        SubscriberImpl::set_default_datareader_qos(&self.0, qos)
     }
 
     /// This operation retrieves the default value of the DataReader QoS, that is, the QoS policies which will be used for newly
@@ -297,6 +297,7 @@ impl DomainEntity for Subscriber{}
 pub struct SubscriberImpl{
     parent_participant: Weak<DomainParticipantImpl>,
     datareader_list: Mutex<Vec<AnyDataReader>>,
+    default_datareader_qos: Mutex<DataReaderQos>,
 }
 
 impl SubscriberImpl {
@@ -390,10 +391,22 @@ impl SubscriberImpl {
     }
 
     pub(crate) fn set_default_datareader_qos(
-        _this: &Weak<SubscriberImpl>,
-        _qos_list: DataReaderQos,
+        this: &Weak<SubscriberImpl>,
+        qos: Option<DataReaderQos>,
     ) -> ReturnCode<()> {
-        todo!()
+        let subscriber = SubscriberImpl::upgrade_subscriber(this)?;
+
+        if let Some(qos) = qos {
+            if qos.is_consistent() {
+                *subscriber.default_datareader_qos.lock().unwrap() = qos;
+            } else {
+                return Err(ReturnCodes::InconsistentPolicy);
+            }
+        } else {
+            *subscriber.default_datareader_qos.lock().unwrap() = DataReaderQos::default();
+        }
+        
+        Ok(())
     }
 
     pub(crate) fn get_default_datareader_qos(
@@ -450,7 +463,12 @@ impl SubscriberImpl {
         Self{
             parent_participant,
             datareader_list: Mutex::new(Vec::new()),
+            default_datareader_qos: Mutex::new(DataReaderQos::default()),
         }
+    }
+
+    fn upgrade_subscriber(this: &Weak<SubscriberImpl>) -> ReturnCode<Arc<SubscriberImpl>> {
+        this.upgrade().ok_or(ReturnCodes::AlreadyDeleted)
     }
 
 }
