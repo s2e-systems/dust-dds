@@ -31,12 +31,12 @@ pub mod qos {
         EntityFactoryQosPolicy,
     };
 
-    #[derive(Default, Debug)]
+    #[derive(Default, Debug, PartialEq, Clone)]
     pub struct SubscriberQos {
-        presentation: PresentationQosPolicy,
-        partition: PartitionQosPolicy,
-        group_data: GroupDataQosPolicy,
-        entity_factory: EntityFactoryQosPolicy,
+        pub presentation: PresentationQosPolicy,
+        pub partition: PartitionQosPolicy,
+        pub group_data: GroupDataQosPolicy,
+        pub entity_factory: EntityFactoryQosPolicy,
     }
 }
 

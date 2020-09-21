@@ -100,7 +100,7 @@ impl Default for UserDataQosPolicy {
 /// remote application discovers their existence it can examine the information and use it in an application-defined way. In
 /// combination with the listeners on the DataReader and DataWriter as well as by means of operations such as ignore_topic,
 /// these QoS can assist an application to extend the provided QoS.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct TopicDataQosPolicy {
     pub value: Vec<u8>,
 }
@@ -153,7 +153,7 @@ impl Default for GroupDataQosPolicy {
 /// expected that during transport configuration the application would provide a mapping between the values of the
 /// TRANSPORT_PRIORITY set on DataWriter and the values meaningful to each transport. This mapping would then be used
 /// by the infrastructure when propagating the data written by the DataWriter.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct TransportPriorityQosPolicy {
     pub value: i32,
 }
@@ -183,7 +183,7 @@ impl Default for TransportPriorityQosPolicy {
 /// This QoS relies on the sender and receiving applications having their clocks sufficiently synchronized. If this is not the case
 /// and the Service can detect it, the DataReader is allowed to use the reception timestamp instead of the source timestamp in its
 /// computation of the ‘expiration time.’
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct LifespanQosPolicy {
     pub duration: Duration,
 }
@@ -202,7 +202,7 @@ impl Default for LifespanQosPolicy {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum DurabilityQosPolicyKind {
     VolatileDurabilityQoS,
     TransientLocalDurabilityQoS,
@@ -291,7 +291,7 @@ impl PartialOrd for DurabilityQosPolicyKind {
 /// before it has a chance to complete additional tasks related to the disposition. Upon re-start the application may ask for initial
 /// data to regain its state and the delay introduced by the service_cleanup_delay will allow the restarted application to receive
 /// the information on the disposed instance and complete the interrupted tasks.
-#[derive(Debug, PartialEq, PartialOrd)]
+#[derive(Debug, PartialEq, PartialOrd, Clone)]
 pub struct DurabilityQosPolicy {
     pub kind: DurabilityQosPolicyKind,
 }
@@ -546,7 +546,7 @@ impl Default for OwnershipStrengthQosPolicy {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum LivelinessQosPolicyKind {
     AutomaticLivelinessQoS,
     ManualByParticipantLivelinessQoS,
@@ -607,7 +607,7 @@ impl PartialOrd for LivelinessQosPolicyKind {
 /// Changes in LIVELINESS must be detected by the Service with a time-granularity greater or equal to the lease_duration. This
 /// ensures that the value of the LivelinessChangedStatus is updated at least once during each lease_duration and the related
 /// Listeners and WaitSets are notified within a lease_duration from the time the LIVELINESS changed.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct LivelinessQosPolicy {
     pub kind: LivelinessQosPolicyKind,
     pub lease_duration: Duration,
@@ -702,7 +702,7 @@ impl Default for PartitionQosPolicy {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum ReliabilityQosPolicyKind {
     BestEffortReliabilityQos,
     ReliableReliabilityQos,
@@ -744,7 +744,7 @@ impl PartialOrd for ReliabilityQosPolicyKind {
 /// The value offered is considered compatible with the value requested if and only if the inequality “offered kind >= requested
 /// kind” evaluates to ‘TRUE.’ For the purposes of this inequality, the values of RELIABILITY kind are considered ordered such
 /// that BEST_EFFORT < RELIABLE.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct ReliabilityQosPolicy {
     pub kind: ReliabilityQosPolicyKind,
     pub max_blocking_time: Duration,
@@ -756,7 +756,7 @@ impl QosPolicy for ReliabilityQosPolicy {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum DestinationOrderQosPolicyKind {
     ByReceptionTimestampDestinationOrderQoS,
     BySourceTimestampDestinationOrderQoS,
@@ -792,7 +792,7 @@ impl PartialOrd for DestinationOrderQosPolicyKind {
 /// The value offered is considered compatible with the value requested if and only if the inequality “offered kind >= requested
 /// kind” evaluates to ‘TRUE.’ For the purposes of this inequality, the values of DESTINATION_ORDER kind are considered
 /// ordered such that BY_RECEPTION_TIMESTAMP < BY_SOURCE_TIMESTAMP.
-#[derive(Debug, PartialEq, PartialOrd)]
+#[derive(Debug, PartialEq, PartialOrd, Clone)]
 pub struct DestinationOrderQosPolicy {
     pub kind: DestinationOrderQosPolicyKind,
 }
@@ -812,7 +812,7 @@ impl Default for DestinationOrderQosPolicy {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum HistoryQosPolicyKind {
     KeepLastHistoryQoS,
     KeepAllHistoryQos,
@@ -831,7 +831,7 @@ pub enum HistoryQosPolicyKind {
 /// RELIABLE, then the Service will block the DataWriter until it can deliver the necessary old values to all subscribers.
 /// The setting of HISTORY depth must be consistent with the RESOURCE_LIMITS max_samples_per_instance. For these two
 /// QoS to be consistent, they must verify that depth <= max_samples_per_instance.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct HistoryQosPolicy {
     pub kind: HistoryQosPolicyKind,
     pub depth: i32,
@@ -868,7 +868,7 @@ impl Default for HistoryQosPolicy {
 /// QoS to be consistent, they must verify that “depth <= max_samples_per_instance.”
 /// An attempt to set this policy to inconsistent values when an entity is created of via a set_qos operation will cause the operation
 /// to fail.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct ResourceLimitsQosPolicy {
     pub max_samples: i32,
     pub max_instances: i32,
@@ -997,7 +997,7 @@ impl Default for ReaderDataLifecycleQosPolicy {
 /// This policy is used to configure the HISTORY QoS and the RESOURCE_LIMITS QoS used by the fictitious DataReader and
 /// DataWriter used by the “persistence service.” The “persistence service” is the one responsible for implementing the
 /// DURABILITY kinds TRANSIENT and PERSISTENCE (see 2.2.3.4).
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct DurabilityServiceQosPolicy {
     pub service_cleanup_delay: Duration,
     pub history_kind: HistoryQosPolicyKind,

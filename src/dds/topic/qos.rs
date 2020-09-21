@@ -1,4 +1,4 @@
-use crate::dds::types::Duration;
+use crate::dds::types::{Duration, LENGTH_UNLIMITED};
 use crate::dds::infrastructure::qos_policy:: {
     TopicDataQosPolicy,
     DurabilityQosPolicy,
@@ -16,21 +16,21 @@ use crate::dds::infrastructure::qos_policy:: {
     ReliabilityQosPolicyKind,
     HistoryQosPolicyKind,
 };
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct TopicQos {
-    topic_data: TopicDataQosPolicy,
-    durability: DurabilityQosPolicy,
-    durability_service: DurabilityServiceQosPolicy,
-    deadline: DeadlineQosPolicy,
-    latency_budget: LatencyBudgetQosPolicy,
-    liveliness: LivelinessQosPolicy,
-    reliability: ReliabilityQosPolicy,
-    destination_order: DestinationOrderQosPolicy,
-    history: HistoryQosPolicy,
-    resource_limits: ResourceLimitsQosPolicy,
-    transport_priority: TransportPriorityQosPolicy,
-    lifespan: LifespanQosPolicy,
-    ownership: OwnershipQosPolicy,
+    pub topic_data: TopicDataQosPolicy,
+    pub durability: DurabilityQosPolicy,
+    pub durability_service: DurabilityServiceQosPolicy,
+    pub deadline: DeadlineQosPolicy,
+    pub latency_budget: LatencyBudgetQosPolicy,
+    pub liveliness: LivelinessQosPolicy,
+    pub reliability: ReliabilityQosPolicy,
+    pub destination_order: DestinationOrderQosPolicy,
+    pub history: HistoryQosPolicy,
+    pub resource_limits: ResourceLimitsQosPolicy,
+    pub transport_priority: TransportPriorityQosPolicy,
+    pub lifespan: LifespanQosPolicy,
+    pub ownership: OwnershipQosPolicy,
 }
 
 impl Default for TopicQos {
@@ -57,14 +57,18 @@ impl TopicQos {
     pub fn is_consistent(&self) -> bool {
         // The setting of RESOURCE_LIMITS max_samples must be consistent with the max_samples_per_instance. For these two
         // values to be consistent they must verify that “max_samples >= max_samples_per_instance.”
-        if self.resource_limits.max_samples < self.resource_limits.max_samples_per_instance {
-            return false
+        if  self.resource_limits.max_samples_per_instance != LENGTH_UNLIMITED {
+            if self.resource_limits.max_samples == LENGTH_UNLIMITED || self.resource_limits.max_samples < self.resource_limits.max_samples_per_instance {
+                return false
+            }
         }
 
         // The setting of RESOURCE_LIMITS max_samples_per_instance must be consistent with the HISTORY depth. For these two
         // QoS to be consistent, they must verify that “depth <= max_samples_per_instance.”
-        if self.history.kind == HistoryQosPolicyKind::KeepLastHistoryQoS && self.history.depth > self.resource_limits.max_samples_per_instance {
-            return false
+        if self.history.kind == HistoryQosPolicyKind::KeepLastHistoryQoS && self.resource_limits.max_samples_per_instance != LENGTH_UNLIMITED {
+            if self.history.depth == LENGTH_UNLIMITED || self.history.depth > self.resource_limits.max_samples_per_instance {
+                return false
+            }
         }
 
         true

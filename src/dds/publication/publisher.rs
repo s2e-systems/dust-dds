@@ -23,10 +23,10 @@ pub mod qos {
 
     #[derive(Debug, Default, PartialEq, Clone)]
     pub struct PublisherQos {
-        presentation: PresentationQosPolicy,
-        partition: PartitionQosPolicy,
-        group_data: GroupDataQosPolicy,
-        entity_factory: EntityFactoryQosPolicy,
+        pub presentation: PresentationQosPolicy,
+        pub partition: PartitionQosPolicy,
+        pub group_data: GroupDataQosPolicy,
+        pub entity_factory: EntityFactoryQosPolicy,
     }
 }
 
