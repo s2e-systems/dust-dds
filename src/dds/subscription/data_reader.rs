@@ -16,7 +16,7 @@ use crate::dds::builtin_topics::PublicationBuiltinTopicData;
 use qos::DataReaderQos;
 
 pub mod qos {
-    use crate::dds::types::Duration;
+    use crate::dds::types::{Duration, LENGTH_UNLIMITED};
     use crate::dds::infrastructure::qos_policy::{
         DurabilityQosPolicy,
         DeadlineQosPolicy,
@@ -31,21 +31,23 @@ pub mod qos {
         TimeBasedFilterQosPolicy,
         ReaderDataLifecycleQosPolicy,
         ReliabilityQosPolicyKind,
+        HistoryQosPolicyKind
     };
 
+    #[derive(Debug, PartialEq, Clone)]
     pub struct DataReaderQos {
-        durability: DurabilityQosPolicy,
-        deadline: DeadlineQosPolicy,
-        latency_budget: LatencyBudgetQosPolicy, 
-        liveliness: LivelinessQosPolicy,
-        reliability: ReliabilityQosPolicy,
-        destination_order: DestinationOrderQosPolicy,
-        history: HistoryQosPolicy,
-        resource_limits: ResourceLimitsQosPolicy,
-        user_data: UserDataQosPolicy,
-        ownership: OwnershipQosPolicy,
-        time_based_filter: TimeBasedFilterQosPolicy,
-        reader_data_lifecycle: ReaderDataLifecycleQosPolicy,
+        pub durability: DurabilityQosPolicy,
+        pub deadline: DeadlineQosPolicy,
+        pub latency_budget: LatencyBudgetQosPolicy, 
+        pub liveliness: LivelinessQosPolicy,
+        pub reliability: ReliabilityQosPolicy,
+        pub destination_order: DestinationOrderQosPolicy,
+        pub history: HistoryQosPolicy,
+        pub resource_limits: ResourceLimitsQosPolicy,
+        pub user_data: UserDataQosPolicy,
+        pub ownership: OwnershipQosPolicy,
+        pub time_based_filter: TimeBasedFilterQosPolicy,
+        pub reader_data_lifecycle: ReaderDataLifecycleQosPolicy,
     }
 
     impl Default for DataReaderQos {
@@ -64,6 +66,34 @@ pub mod qos {
                 time_based_filter: TimeBasedFilterQosPolicy::default(),
                 reader_data_lifecycle: ReaderDataLifecycleQosPolicy::default(),
             }
+        }
+    }
+
+    impl DataReaderQos {
+        pub fn is_consistent(&self) -> bool {
+            // The setting of RESOURCE_LIMITS max_samples must be consistent with the max_samples_per_instance. For these two
+            // values to be consistent they must verify that “max_samples >= max_samples_per_instance.”
+            if  self.resource_limits.max_samples_per_instance != LENGTH_UNLIMITED {
+                if self.resource_limits.max_samples == LENGTH_UNLIMITED || self.resource_limits.max_samples < self.resource_limits.max_samples_per_instance {
+                    return false
+                }
+            }
+
+            // The setting of RESOURCE_LIMITS max_samples_per_instance must be consistent with the HISTORY depth. For these two
+            // QoS to be consistent, they must verify that “depth <= max_samples_per_instance.”
+            if self.history.kind == HistoryQosPolicyKind::KeepLastHistoryQoS && self.resource_limits.max_samples_per_instance != LENGTH_UNLIMITED {
+                if self.history.depth == LENGTH_UNLIMITED || self.history.depth > self.resource_limits.max_samples_per_instance {
+                    return false
+                }
+            }
+
+            // The setting of the DEADLINE policy must be set consistently with that of the TIME_BASED_FILTER. For these two policies
+            // to be consistent the settings must be such that “deadline period>= minimum_separation.”
+            if self.deadline.period < self.time_based_filter.minimum_separation {
+                return false
+            }
+    
+            true
         }
     }
 }

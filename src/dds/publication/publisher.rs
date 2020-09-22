@@ -23,10 +23,10 @@ pub mod qos {
 
     #[derive(Debug, Default, PartialEq, Clone)]
     pub struct PublisherQos {
-        presentation: PresentationQosPolicy,
-        partition: PartitionQosPolicy,
-        group_data: GroupDataQosPolicy,
-        entity_factory: EntityFactoryQosPolicy,
+        pub presentation: PresentationQosPolicy,
+        pub partition: PartitionQosPolicy,
+        pub group_data: GroupDataQosPolicy,
+        pub entity_factory: EntityFactoryQosPolicy,
     }
 }
 
@@ -262,6 +262,7 @@ impl DomainEntity for Publisher{}
 pub struct PublisherImpl{
     parent_participant: Weak<DomainParticipantImpl>,
     datawriter_list: Mutex<Vec<AnyDataWriter>>,
+    default_datawriter_qos: Mutex<DataWriterQos>,
 }
 
 impl PublisherImpl {
@@ -339,17 +340,28 @@ impl PublisherImpl {
     }
 
     pub(crate) fn set_default_datawriter_qos(
-        _this: &Weak<PublisherImpl>,
-        _qos_list: DataWriterQos,
+        this: &Weak<PublisherImpl>,
+        qos: DataWriterQos,
     ) -> ReturnCode<()> {
-        todo!()
+        let publisher = PublisherImpl::upgrade_publisher(this)?;
+
+        if qos.is_consistent() {
+            *publisher.default_datawriter_qos.lock().unwrap() = qos;
+        } else {
+            return Err(ReturnCodes::InconsistentPolicy);
+        }
+        
+        Ok(())
     }
 
     pub(crate) fn get_default_datawriter_qos (
-        _this: &Weak<PublisherImpl>,
-        _qos_list: &mut DataWriterQos,
+        this: &Weak<PublisherImpl>,
+        qos: &mut DataWriterQos,
     ) -> ReturnCode<()> {
-        todo!()
+        let publisher = PublisherImpl::upgrade_publisher(this)?;
+
+        qos.clone_from(&publisher.default_datawriter_qos.lock().unwrap());
+        Ok(())
     }
 
     pub(crate) fn copy_from_topic_qos(
@@ -399,7 +411,12 @@ impl PublisherImpl {
         Self{
             parent_participant,
             datawriter_list: Mutex::new(Vec::new()),
+            default_datawriter_qos: Mutex::new(DataWriterQos::default()),
         }
+    }
+
+    fn upgrade_publisher(this: &Weak<PublisherImpl>) -> ReturnCode<Arc<PublisherImpl>> {
+        this.upgrade().ok_or(ReturnCodes::AlreadyDeleted)
     }
 }
 
@@ -407,6 +424,7 @@ impl PublisherImpl {
 mod tests {
     use super::*;
     use crate::dds::infrastructure::listener::NoListener;
+    use crate::dds::infrastructure::qos_policy::ReliabilityQosPolicyKind;
     #[derive(Debug)]
     struct  Foo {
         value: bool
@@ -433,5 +451,38 @@ mod tests {
         
         PublisherImpl::delete_datawriter(&Arc::downgrade(&publisher_impl), &datawriter).unwrap();
         assert_eq!(publisher_impl.datawriter_list.lock().unwrap().len(), 0);
+    }
+
+    #[test]
+    fn set_and_get_default_datawriter_qos() {
+        let publisher_impl = Arc::new(PublisherImpl::new(Weak::new()));
+        let publisher = Arc::downgrade(&publisher_impl);
+
+        let mut datawriter_qos = DataWriterQos::default();
+        datawriter_qos.user_data.value = vec![1,2,3,4];
+        datawriter_qos.reliability.kind = ReliabilityQosPolicyKind::ReliableReliabilityQos;
+
+        PublisherImpl::set_default_datawriter_qos(&publisher, datawriter_qos.clone()).unwrap();
+        assert_eq!(*publisher_impl.default_datawriter_qos.lock().unwrap(), datawriter_qos);
+
+        let mut read_datawriter_qos = DataWriterQos::default();
+        PublisherImpl::get_default_datawriter_qos(&publisher, &mut read_datawriter_qos).unwrap();
+
+        assert_eq!(read_datawriter_qos, datawriter_qos);
+    }
+
+    #[test]
+    fn inconsistent_datawriter_qos() {
+        let publisher_impl = Arc::new(PublisherImpl::new(Weak::new()));
+        let publisher = Arc::downgrade(&publisher_impl);
+
+        let mut datawriter_qos = DataWriterQos::default();
+        datawriter_qos.resource_limits.max_samples = 5;
+        datawriter_qos.resource_limits.max_samples_per_instance = 15;
+
+        let error = PublisherImpl::set_default_datawriter_qos(&publisher, datawriter_qos.clone());
+        assert_eq!(error, Err(ReturnCodes::InconsistentPolicy));
+
+        assert_eq!(*publisher_impl.default_datawriter_qos.lock().unwrap(), DataWriterQos::default());
     }
 }

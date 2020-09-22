@@ -31,12 +31,12 @@ pub mod qos {
         EntityFactoryQosPolicy,
     };
 
-    #[derive(Default, Debug)]
+    #[derive(Default, Debug, PartialEq, Clone)]
     pub struct SubscriberQos {
-        presentation: PresentationQosPolicy,
-        partition: PartitionQosPolicy,
-        group_data: GroupDataQosPolicy,
-        entity_factory: EntityFactoryQosPolicy,
+        pub presentation: PresentationQosPolicy,
+        pub partition: PartitionQosPolicy,
+        pub group_data: GroupDataQosPolicy,
+        pub entity_factory: EntityFactoryQosPolicy,
     }
 }
 
@@ -214,9 +214,9 @@ impl Subscriber {
     /// set_default_datareader_qos operation had never been called.
     pub fn set_default_datareader_qos(
         &self,
-        qos_list: DataReaderQos,
+        qos: DataReaderQos,
     ) -> ReturnCode<()> {
-        SubscriberImpl::set_default_datareader_qos(&self.0, qos_list)
+        SubscriberImpl::set_default_datareader_qos(&self.0, qos)
     }
 
     /// This operation retrieves the default value of the DataReader QoS, that is, the QoS policies which will be used for newly
@@ -297,6 +297,7 @@ impl DomainEntity for Subscriber{}
 pub struct SubscriberImpl{
     parent_participant: Weak<DomainParticipantImpl>,
     datareader_list: Mutex<Vec<AnyDataReader>>,
+    default_datareader_qos: Mutex<DataReaderQos>,
 }
 
 impl SubscriberImpl {
@@ -390,17 +391,28 @@ impl SubscriberImpl {
     }
 
     pub(crate) fn set_default_datareader_qos(
-        _this: &Weak<SubscriberImpl>,
-        _qos_list: DataReaderQos,
+        this: &Weak<SubscriberImpl>,
+        qos: DataReaderQos,
     ) -> ReturnCode<()> {
-        todo!()
+        let subscriber = SubscriberImpl::upgrade_subscriber(this)?;
+
+        if qos.is_consistent() {
+            *subscriber.default_datareader_qos.lock().unwrap() = qos;
+        } else {
+            return Err(ReturnCodes::InconsistentPolicy);
+        }
+        
+        Ok(())
     }
 
     pub(crate) fn get_default_datareader_qos(
-        _this: &Weak<SubscriberImpl>,
-        _qos_list: &mut DataReaderQos,
+        this: &Weak<SubscriberImpl>,
+        qos: &mut DataReaderQos,
     ) -> ReturnCode<()> {
-        todo!()
+        let subscriber = SubscriberImpl:: upgrade_subscriber(this)?;
+
+        qos.clone_from(&subscriber.default_datareader_qos.lock().unwrap());
+        Ok(())
     }
 
     pub(crate) fn copy_from_topic_qos(
@@ -450,7 +462,12 @@ impl SubscriberImpl {
         Self{
             parent_participant,
             datareader_list: Mutex::new(Vec::new()),
+            default_datareader_qos: Mutex::new(DataReaderQos::default()),
         }
+    }
+
+    fn upgrade_subscriber(this: &Weak<SubscriberImpl>) -> ReturnCode<Arc<SubscriberImpl>> {
+        this.upgrade().ok_or(ReturnCodes::AlreadyDeleted)
     }
 
 }
@@ -460,6 +477,7 @@ mod tests {
     use super::*;
     use crate::dds::infrastructure::listener::NoListener;
     use crate::dds::topic::topic::Topic;
+    use crate::dds::infrastructure::qos_policy::ReliabilityQosPolicyKind;
     #[derive(Debug)]
     struct  Foo {
         value: bool
@@ -476,5 +494,38 @@ mod tests {
         
         SubscriberImpl::delete_datareader(&Arc::downgrade(&subscriber_impl), &datareader).unwrap();
         assert_eq!(subscriber_impl.datareader_list.lock().unwrap().len(), 0);
+    }
+
+    #[test]
+    fn set_and_get_default_datareader_qos() {
+        let subscriber_impl = Arc::new(SubscriberImpl::new(Weak::new()));
+        let subscriber = Arc::downgrade(&subscriber_impl);
+
+        let mut datareader_qos = DataReaderQos::default();
+        datareader_qos.user_data.value = vec![1,2,3,4];
+        datareader_qos.reliability.kind = ReliabilityQosPolicyKind::ReliableReliabilityQos;
+
+        SubscriberImpl::set_default_datareader_qos(&subscriber, datareader_qos.clone()).unwrap();
+        assert_eq!(*subscriber_impl.default_datareader_qos.lock().unwrap(), datareader_qos);
+
+        let mut read_datareader_qos = DataReaderQos::default();
+        SubscriberImpl::get_default_datareader_qos(&subscriber, &mut read_datareader_qos).unwrap();
+
+        assert_eq!(read_datareader_qos, datareader_qos);
+    }
+
+    #[test]
+    fn inconsistent_datareader_qos() {
+        let subscriber_impl = Arc::new(SubscriberImpl::new(Weak::new()));
+        let subscriber = Arc::downgrade(&subscriber_impl);
+
+        let mut datareader_qos = DataReaderQos::default();
+        datareader_qos.resource_limits.max_samples = 5;
+        datareader_qos.resource_limits.max_samples_per_instance = 15;
+
+        let error = SubscriberImpl::set_default_datareader_qos(&subscriber, datareader_qos.clone());
+        assert_eq!(error, Err(ReturnCodes::InconsistentPolicy));
+
+        assert_eq!(*subscriber_impl.default_datareader_qos.lock().unwrap(), DataReaderQos::default());
     }
 }

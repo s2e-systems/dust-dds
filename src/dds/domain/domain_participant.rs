@@ -1,7 +1,7 @@
 use std::any::Any;
 use std::sync::{Arc, Mutex};
 
-use crate::dds::types::{StatusKind, ReturnCode, Duration, InstanceHandle, DomainId, Time, StatusMask};
+use crate::dds::types::{StatusKind, ReturnCode, Duration, InstanceHandle, DomainId, Time, StatusMask, ReturnCodes};
 use crate::dds::topic::topic::{Topic, TopicImpl};
 use crate::dds::topic::topic_listener::TopicListener;
 use crate::dds::topic::topic_description::TopicDescription;
@@ -325,9 +325,9 @@ impl DomainParticipant {
     /// operation had never been called.
     pub fn set_default_publisher_qos(
         &self,
-        qos_list: PublisherQos,
+        qos: PublisherQos,
     ) -> ReturnCode<()> {
-        DomainParticipantImpl::set_default_publisher_qos(&self.0, qos_list)
+        DomainParticipantImpl::set_default_publisher_qos(&self.0, qos)
     }
 
     /// This operation retrieves the default value of the Publisher QoS, that is, the QoS policies which will be used for newly created
@@ -351,9 +351,9 @@ impl DomainParticipant {
     /// operation had never been called.
     pub fn set_default_subscriber_qos(
         &self,
-        qos_list: SubscriberQos,
+        qos: SubscriberQos,
     ) -> ReturnCode<()> {
-        DomainParticipantImpl::set_default_subscriber_qos(&self.0, qos_list)
+        DomainParticipantImpl::set_default_subscriber_qos(&self.0, qos)
     }
 
     /// This operation retrieves the default value of the Subscriber QoS, that is, the QoS policies which will be used for newly created
@@ -377,9 +377,9 @@ impl DomainParticipant {
     /// had never been called.
     pub fn set_default_topic_qos(
         &self,
-        qos_list: TopicQos,
+        qos: TopicQos,
     ) -> ReturnCode<()> {
-        DomainParticipantImpl::set_default_topic_qos(&self.0, qos_list)
+        DomainParticipantImpl::set_default_topic_qos(&self.0, qos)
     }
 
     /// This operation retrieves the default value of the Topic QoS, that is, the QoS policies that will be used for newly created Topic
@@ -523,11 +523,11 @@ pub struct DomainParticipantImpl{
     a_listener: Box<dyn DomainParticipantListener>,
     mask: StatusMask,
     publisher_list: Mutex<Vec<Arc<PublisherImpl>>>,
-    publisher_default_qos: Mutex<PublisherQos>,
+    default_publisher_qos: Mutex<PublisherQos>,
     subscriber_list: Mutex<Vec<Arc<SubscriberImpl>>>,
-    subscriber_default_qos: Mutex<SubscriberQos>,
+    default_subscriber_qos: Mutex<SubscriberQos>,
     topic_list: Mutex<Vec<Arc<TopicImpl>>>,
-    topic_default_qos: Mutex<TopicQos>
+    default_topic_qos: Mutex<TopicQos>
 }
 
 impl DomainParticipantImpl{
@@ -672,7 +672,7 @@ impl DomainParticipantImpl{
         this: &Arc<DomainParticipantImpl>,
         qos: PublisherQos,
     ) -> ReturnCode<()> {
-        *this.publisher_default_qos.lock().unwrap() = qos;
+        *this.default_publisher_qos.lock().unwrap() = qos;
         Ok(())
     }
 
@@ -680,36 +680,45 @@ impl DomainParticipantImpl{
         this: &Arc<DomainParticipantImpl>,
         qos: &mut PublisherQos,
     ) -> ReturnCode<()> {
-        qos.clone_from(&this.publisher_default_qos.lock().unwrap());
+        qos.clone_from(&this.default_publisher_qos.lock().unwrap());
         Ok(())
     }
 
     pub(crate) fn set_default_subscriber_qos(
-        _this: &Arc<DomainParticipantImpl>,
-        _qos_list: SubscriberQos,
+        this: &Arc<DomainParticipantImpl>,
+        qos: SubscriberQos,
     ) -> ReturnCode<()> {
-        todo!()
+        *this.default_subscriber_qos.lock().unwrap() = qos;
+        Ok(())
     }
 
     pub(crate) fn get_default_subscriber_qos(
-        _this: &Arc<DomainParticipantImpl>,
-        _qos_list: &mut SubscriberQos,
+        this: &Arc<DomainParticipantImpl>,
+        qos: &mut SubscriberQos,
     ) -> ReturnCode<()> {
-        todo!()
+        qos.clone_from(&this.default_subscriber_qos.lock().unwrap());
+        Ok(())
     }
 
     pub(crate) fn set_default_topic_qos(
-        _this: &Arc<DomainParticipantImpl>,
-        _qos_list: TopicQos,
+        this: &Arc<DomainParticipantImpl>,
+        qos: TopicQos,
     ) -> ReturnCode<()> {
-        todo!()
+        if qos.is_consistent() {
+            *this.default_topic_qos.lock().unwrap() = qos;
+        } else {
+            return Err(ReturnCodes::InconsistentPolicy);
+        }
+            
+        Ok(())
     }
 
     pub(crate) fn get_default_topic_qos(
-        _this: &Arc<DomainParticipantImpl>,
-        _qos_list: &mut TopicQos,
+        this: &Arc<DomainParticipantImpl>,
+        qos: &mut TopicQos,
     ) -> ReturnCode<()> {
-        todo!()
+        qos.clone_from(&this.default_topic_qos.lock().unwrap());
+        Ok(())
     }
 
     pub(crate) fn get_discovered_participants(
@@ -808,11 +817,11 @@ impl DomainParticipantImpl{
             a_listener: Box::new(a_listener),
             mask,
             publisher_list: Mutex::new(Vec::new()),
-            publisher_default_qos: Mutex::new(PublisherQos::default()),
+            default_publisher_qos: Mutex::new(PublisherQos::default()),
             subscriber_list: Mutex::new(Vec::new()),
-            subscriber_default_qos: Mutex::new(SubscriberQos::default()),
+            default_subscriber_qos: Mutex::new(SubscriberQos::default()),
             topic_list: Mutex::new(Vec::new()),
-            topic_default_qos: Mutex::new(TopicQos::default()),
+            default_topic_qos: Mutex::new(TopicQos::default()),
         }
     }
 
@@ -822,6 +831,7 @@ impl DomainParticipantImpl{
 mod tests {
     use super::*;
     use crate::dds::infrastructure::listener::NoListener;
+    use crate::dds::infrastructure::qos_policy::ReliabilityQosPolicyKind;
 
     #[test]
     fn create_publisher() {
@@ -860,5 +870,70 @@ mod tests {
         DomainParticipantImpl::delete_topic(&domain_participant_impl, &topic).unwrap();
 
         assert_eq!(domain_participant_impl.topic_list.lock().unwrap().len(), 0);
+    }
+
+    #[test]
+    fn set_and_get_default_publisher_qos() {
+        let domain_participant_impl = Arc::new(DomainParticipantImpl::new(0, DomainParticipantQos::default(), NoListener, 0));
+
+        let mut publisher_qos = PublisherQos::default();
+        publisher_qos.partition.name = String::from("test");
+        publisher_qos.entity_factory.autoenable_created_entities = false;
+
+        DomainParticipantImpl::set_default_publisher_qos(&domain_participant_impl, publisher_qos.clone()).unwrap();
+        assert_eq!(*domain_participant_impl.default_publisher_qos.lock().unwrap(), publisher_qos);
+
+        let mut read_publisher_qos = PublisherQos::default();
+        DomainParticipantImpl::get_default_publisher_qos(&domain_participant_impl, &mut read_publisher_qos).unwrap();
+
+        assert_eq!(read_publisher_qos, publisher_qos);
+    }
+
+    #[test]
+    fn set_and_get_default_subscriber_qos() {
+        let domain_participant_impl = Arc::new(DomainParticipantImpl::new(0, DomainParticipantQos::default(), NoListener, 0));
+
+        let mut subscriber_qos = SubscriberQos::default();
+        subscriber_qos.partition.name = String::from("test");
+        subscriber_qos.entity_factory.autoenable_created_entities = false;
+
+        DomainParticipantImpl::set_default_subscriber_qos(&domain_participant_impl, subscriber_qos.clone()).unwrap();
+        assert_eq!(*domain_participant_impl.default_subscriber_qos.lock().unwrap(), subscriber_qos);
+
+        let mut read_subscriber_qos = SubscriberQos::default();
+        DomainParticipantImpl::get_default_subscriber_qos(&domain_participant_impl, &mut read_subscriber_qos).unwrap();
+
+        assert_eq!(read_subscriber_qos, subscriber_qos);
+    }
+
+    #[test]
+    fn set_and_get_default_topic_qos() {
+        let domain_participant_impl = Arc::new(DomainParticipantImpl::new(0, DomainParticipantQos::default(), NoListener, 0));
+
+        let mut topic_qos = TopicQos::default();
+        topic_qos.topic_data.value = vec![1,2,3,4];
+        topic_qos.reliability.kind = ReliabilityQosPolicyKind::ReliableReliabilityQos;
+
+        DomainParticipantImpl::set_default_topic_qos(&domain_participant_impl, topic_qos.clone()).unwrap();
+        assert_eq!(*domain_participant_impl.default_topic_qos.lock().unwrap(), topic_qos);
+
+        let mut read_topic_qos = TopicQos::default();
+        DomainParticipantImpl::get_default_topic_qos(&domain_participant_impl, &mut read_topic_qos).unwrap();
+
+        assert_eq!(read_topic_qos, topic_qos);
+    }
+
+    #[test]
+    fn inconsistent_datareader_qos() {
+        let domain_participant_impl = Arc::new(DomainParticipantImpl::new(0, DomainParticipantQos::default(), NoListener, 0));
+
+        let mut topic_qos = TopicQos::default();
+        topic_qos.resource_limits.max_samples = 5;
+        topic_qos.resource_limits.max_samples_per_instance = 15;
+
+        let error = DomainParticipantImpl::set_default_topic_qos(&domain_participant_impl, topic_qos.clone());
+        assert_eq!(error, Err(ReturnCodes::InconsistentPolicy));
+
+        assert_eq!(*domain_participant_impl.default_topic_qos.lock().unwrap(), TopicQos::default());
     }
 }
