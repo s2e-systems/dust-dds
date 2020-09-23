@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::types::{ReturnCode, Duration, InstanceHandle, DomainId, Time};
+use crate::types::{ReturnCode, Duration, InstanceHandle, Time};
 use crate::infrastructure::status::{StatusKind, StatusMask};
 use crate::topic::{Topic, TopicListener, TopicDescription};
 use crate::subscription::{Subscriber, SubscriberListener};
@@ -12,6 +12,8 @@ use crate::builtin_topics::{TopicBuiltinTopicData, ParticipantBuiltinTopicData};
 use crate::implementation::domain_participant_impl::DomainParticipantImpl;
 
 use rust_dds_interface::qos::{DomainParticipantQos, TopicQos, PublisherQos, SubscriberQos};
+
+pub type DomainId = i32;
 
 /// The DomainParticipant object plays several roles:
 /// - It acts as a container for all other Entity objects.

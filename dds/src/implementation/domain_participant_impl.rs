@@ -2,13 +2,13 @@
 use std::any::Any;
 use std::sync::{Arc, Mutex};
 
-use crate::types::{ReturnCode, Duration, InstanceHandle, DomainId, Time, ReturnCodes};
+use crate::types::{ReturnCode, Duration, InstanceHandle, Time, ReturnCodes};
 use crate::infrastructure::status::{StatusKind, StatusMask };
 use crate::topic::{Topic, TopicListener, TopicDescription};
 use crate::subscription::{Subscriber, SubscriberListener};
 use crate::publication::{Publisher, PublisherListener};
 use crate::infrastructure::entity::StatusCondition;
-use crate::domain::DomainParticipantListener;
+use crate::domain::{DomainParticipantListener, DomainId};
 use crate::builtin_topics::{TopicBuiltinTopicData, ParticipantBuiltinTopicData};
 use crate::infrastructure::listener::NoListener;
 

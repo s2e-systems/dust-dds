@@ -2,7 +2,7 @@ pub use rust_dds_interface::types::{InstanceHandle, Data, Duration, DURATION_INF
 
 
 
-pub type DomainId = i32;
+
 
 
 pub trait DDSType {
