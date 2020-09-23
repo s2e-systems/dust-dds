@@ -3,7 +3,8 @@ use std::any::Any;
 use std::sync::{Weak, Mutex};
 use std::marker::PhantomData;
 
-use crate::types::{InstanceHandle, Time, ReturnCode, Duration, ReturnCodes, DDSType};
+use crate::types::DDSType;
+use rust_dds_interface::types::{InstanceHandle, Time, ReturnCode, Duration, ReturnCodes};
 
 use crate::infrastructure::status::{LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus, StatusKind};
 use crate::topic::Topic;
@@ -251,7 +252,7 @@ mod tests {
     use std::sync::Arc;
     use crate::types::DDSType;
     use crate::publication::AnyDataWriter;
-    use crate::types::Data;
+    use rust_dds_interface::types::Data;
 
     #[derive(Debug)]
     struct  Foo {

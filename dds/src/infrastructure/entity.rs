@@ -1,4 +1,4 @@
-use crate::types::{ReturnCode, InstanceHandle};
+use rust_dds_interface::types::{ReturnCode, InstanceHandle};
 use crate::infrastructure::status::StatusKind;
 
 pub struct StatusCondition;

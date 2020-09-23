@@ -1,7 +1,7 @@
 
 use std::sync::Weak;
 
-use crate::types::ReturnCode;
+use rust_dds_interface::types::ReturnCode;
 use crate::infrastructure::status::InconsistentTopicStatus;
 use crate::domain::DomainParticipant;
 

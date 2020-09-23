@@ -1,9 +1,10 @@
 use std::sync::{Arc, Weak, Mutex};
 use std::any::Any;
 
-use crate::types::{
+use rust_dds_interface::types::{
     ReturnCode,
-    ReturnCodes
+    ReturnCodes,
+    InstanceHandle
 };
 
 use crate::infrastructure::status::{SampleLostStatus, StatusKind,
@@ -178,7 +179,7 @@ impl SubscriberImpl {
         todo!()
     }
 
-    pub(crate) fn get_instance_handle(_this: &Weak<SubscriberImpl>) -> crate::types::InstanceHandle {
+    pub(crate) fn get_instance_handle(_this: &Weak<SubscriberImpl>) -> InstanceHandle {
         todo!()
     }
 

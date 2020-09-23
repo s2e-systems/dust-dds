@@ -1,4 +1,4 @@
-use crate::types::{Time, InstanceHandle};
+use rust_dds_interface::types::{Time, InstanceHandle};
 use crate::infrastructure::status::{SampleStateKind, ViewStateKind, InstanceStateKind,};
 
 pub struct SampleInfo {

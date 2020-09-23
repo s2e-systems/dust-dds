@@ -1,7 +1,7 @@
 use std::any::Any;
 use std::sync::{Arc, Weak};
 
-use crate::types::{ReturnCode, InstanceHandle};
+use rust_dds_interface::types::{ReturnCode, InstanceHandle};
 use crate::infrastructure::status::{ViewStateKind, SampleStateKind, InstanceStateKind, StatusKind};
 use crate::subscription::read_condition::ReadCondition;
 use crate::subscription::query_condition::QueryCondition;

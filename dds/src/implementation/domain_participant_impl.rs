@@ -2,7 +2,7 @@
 use std::any::Any;
 use std::sync::{Arc, Mutex};
 
-use crate::types::{ReturnCode, Duration, InstanceHandle, Time, ReturnCodes};
+use rust_dds_interface::types::{ReturnCode, Duration, InstanceHandle, Time, ReturnCodes};
 use crate::infrastructure::status::{StatusKind, StatusMask };
 use crate::topic::{Topic, TopicListener, TopicDescription};
 use crate::subscription::{Subscriber, SubscriberListener};

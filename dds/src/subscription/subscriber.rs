@@ -1,8 +1,7 @@
 use std::sync::Weak;
 use std::any::Any;
 
-use crate::types::
-    ReturnCode;
+use rust_dds_interface::types::{ReturnCode, InstanceHandle};
 
 use crate::infrastructure::status::{SampleLostStatus, StatusKind,
     SampleStateKind,
@@ -260,7 +259,7 @@ impl Entity for Subscriber {
         SubscriberImpl::enable(&self.0)
     }
 
-    fn get_instance_handle(&self) -> crate::types::InstanceHandle {
+    fn get_instance_handle(&self) -> InstanceHandle {
         SubscriberImpl::get_instance_handle(&self.0)
     }
 }

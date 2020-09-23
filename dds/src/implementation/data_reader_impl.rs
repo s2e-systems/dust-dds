@@ -1,7 +1,7 @@
 use std::sync::Weak;
 use std::marker::PhantomData;
 
-use crate::types::{ReturnCode, InstanceHandle};
+use rust_dds_interface::types::{ReturnCode, InstanceHandle};
 use crate::infrastructure::status::{SampleStateKind, ViewStateKind, InstanceStateKind, StatusKind};
 use crate::subscription::{ReadCondition, QueryCondition};
 use crate::infrastructure::status::{LivelinessChangedStatus, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus, SubscriptionMatchedStatus};

@@ -1,7 +1,8 @@
 use std::any::Any;
 use std::sync::{Arc, Weak, Mutex};
 
-use crate::types::{ReturnCode, Duration, InstanceHandle, ReturnCodes, DDSType};
+use crate::types::DDSType;
+use rust_dds_interface::types::{ReturnCode, Duration, InstanceHandle, ReturnCodes};
 use crate::infrastructure::status::{StatusKind, StatusMask};
 use crate::domain::DomainParticipant;
 use crate::topic::Topic;
@@ -178,7 +179,7 @@ mod tests {
     use super::*;
     use crate::infrastructure::listener::NoListener;
     use rust_dds_interface::qos_policy::ReliabilityQosPolicyKind;
-    use crate::types::Data;
+    use rust_dds_interface::types::Data;
     #[derive(Debug)]
     struct  Foo {
         value: bool

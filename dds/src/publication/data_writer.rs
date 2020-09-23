@@ -1,7 +1,8 @@
 use std::any::Any;
 use std::sync::{Arc,Weak};
 
-use crate::types::{InstanceHandle, Time, ReturnCode, Duration, DDSType};
+use crate::types::DDSType;
+use rust_dds_interface::types::{InstanceHandle, Time, ReturnCode, Duration};
 
 use crate::infrastructure::status::{LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus, StatusKind};
 use crate::topic::Topic;

@@ -1,4 +1,4 @@
-use crate::types::InstanceHandle;
+use rust_dds_interface::types::InstanceHandle;
 use rust_dds_interface::qos_policy::QosPolicyId;
 
 pub type StatusKind = u32;

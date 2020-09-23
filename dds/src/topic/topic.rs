@@ -1,6 +1,6 @@
 use std::sync::Weak;
 
-use crate::types::ReturnCode;
+use rust_dds_interface::types::{ReturnCode, InstanceHandle};
 use crate::infrastructure::status::{InconsistentTopicStatus, StatusKind};
 use crate::infrastructure::entity::Entity;
 use crate::infrastructure::entity::DomainEntity;
@@ -79,7 +79,7 @@ impl Entity for Topic {
         todo!()
     }
 
-    fn get_instance_handle(&self, ) -> crate::types::InstanceHandle {
+    fn get_instance_handle(&self, ) -> InstanceHandle {
         todo!()
     }
 }

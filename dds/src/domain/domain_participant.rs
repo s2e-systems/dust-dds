@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::types::{ReturnCode, Duration, InstanceHandle, Time};
+use rust_dds_interface::types::{ReturnCode, Duration, InstanceHandle, Time};
 use crate::infrastructure::status::{StatusKind, StatusMask};
 use crate::topic::{Topic, TopicListener, TopicDescription};
 use crate::subscription::{Subscriber, SubscriberListener};

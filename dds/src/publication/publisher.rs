@@ -1,7 +1,8 @@
 use std::any::Any;
 use std::sync::Weak;
 
-use crate::types::{ReturnCode, Duration, DDSType};
+use crate::types::DDSType;
+use rust_dds_interface::types::{ReturnCode, Duration, InstanceHandle};
 use crate::infrastructure::status::{StatusMask, StatusKind};
 use crate::domain::DomainParticipant;
 use crate::topic::Topic;
@@ -230,7 +231,7 @@ impl Entity for Publisher{
         PublisherImpl::enable(&self.0)
     }
 
-    fn get_instance_handle(&self, ) -> crate::types::InstanceHandle {
+    fn get_instance_handle(&self, ) -> InstanceHandle {
         PublisherImpl::get_instance_handle(&self.0)
     }
 }
