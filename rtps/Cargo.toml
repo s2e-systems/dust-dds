@@ -12,6 +12,7 @@ ipconfig = "0.2"
 net2 = "0.2"
 serde = { version = "1.0", features = ["derive"] }
 cdr = "0.2.3"
+rust-dds-interface = {path = "../dds_interface" }
 
 [dependencies.num-traits]
 version = "0.2"

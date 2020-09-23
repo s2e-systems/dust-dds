@@ -10,6 +10,7 @@ use crate::messages::message_sender::Sender;
 use crate::structure::history_cache::HistoryCache;
 use crate::structure::cache_change::CacheChange;
 use crate::serialized_payload::ParameterList;
+use rust_dds_interface::protocol::WriterInterface;
 
 struct ChangeForReader {
     highest_sequence_number_sent: SequenceNumber,
@@ -283,6 +284,28 @@ impl StatefulWriter {
                 ReliabilityKind::Reliable => ReliableStatefulWriterBehavior::run(reader_proxy, &self),
             };
         }
+    }
+}
+
+impl WriterInterface for StatefulWriter {
+    fn new() -> Self {
+        todo!()
+    }
+
+    fn write(&self, _instance_handle: InstanceHandle) {
+        todo!()
+    }
+
+    fn dispose(&self) {
+        todo!()
+    }
+
+    fn unregister(&self) {
+        todo!()
+    }
+
+    fn register(&self) {
+        todo!()
     }
 }
 

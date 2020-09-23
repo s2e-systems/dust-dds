@@ -1,8 +1,8 @@
 
-use std::sync::Weak;
+use std::sync::{Weak, Mutex};
 use std::marker::PhantomData;
 
-use crate::types::{InstanceHandle, Time, ReturnCode, Duration};
+use crate::types::{InstanceHandle, Time, ReturnCode, Duration, ReturnCodes};
 
 use crate::infrastructure::status::{LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus};
 use crate::topic::topic::Topic;
@@ -14,22 +14,26 @@ use crate::implementation::publisher_impl::PublisherImpl;
 
 use crate::publication::data_writer::qos::DataWriterQos;
 
-pub(crate) struct DataWriterImpl<T> {
+use rust_dds_interface::protocol::WriterInterface;
+use rust_rtps::StatefulWriter;
+
+pub(crate) struct DataWriterImpl<T, I: WriterInterface = StatefulWriter> {
     parent_publisher: Weak<PublisherImpl>,
-    // rtps_writer: Mutex<Option<StatefulWriter>>,
+    writer_interface: Mutex<Option<I>>,
     value: PhantomData<T>,
 }
 
-impl<T> DataWriterImpl<T> {
+impl<T, I: WriterInterface> DataWriterImpl<T,I> {
     pub fn register_instance(
-        _this: &Weak<DataWriterImpl<T>>,
+        _this: &Weak<DataWriterImpl<T,I>>,
         _instance: T
     ) -> InstanceHandle {
+        // WriterInterface::register(&concrete_writer);
         todo!()
     }
 
     pub fn register_instance_w_timestamp(
-        _this: &Weak<DataWriterImpl<T>>,
+        _this: &Weak<DataWriterImpl<T,I>>,
         _instance: T,
         _timestamp: Time,
     ) -> InstanceHandle {
@@ -37,7 +41,7 @@ impl<T> DataWriterImpl<T> {
     }
 
     pub fn unregister_instance(
-        _this: &Weak<DataWriterImpl<T>>,
+        _this: &Weak<DataWriterImpl<T,I>>,
         _instance: T,
         _handle: InstanceHandle
     ) -> ReturnCode<()> {
@@ -45,7 +49,7 @@ impl<T> DataWriterImpl<T> {
     }
 
     pub fn unregister_instance_w_timestamp(
-        _this: &Weak<DataWriterImpl<T>>,
+        _this: &Weak<DataWriterImpl<T,I>>,
         _instance: T,
         _handle: InstanceHandle,
         _timestamp: Time,
@@ -54,7 +58,7 @@ impl<T> DataWriterImpl<T> {
     }
 
     pub fn get_key_value(
-        _this: &Weak<DataWriterImpl<T>>,
+        _this: &Weak<DataWriterImpl<T,I>>,
         _key_holder: &mut T,
         _handle: InstanceHandle
     ) -> ReturnCode<()> {
@@ -62,14 +66,14 @@ impl<T> DataWriterImpl<T> {
     }
 
     pub fn lookup_instance(
-        _this: &Weak<DataWriterImpl<T>>,
+        _this: &Weak<DataWriterImpl<T,I>>,
         _instance: T,
     ) -> InstanceHandle {
         todo!()
     }
 
     pub fn write (
-        _this: &Weak<DataWriterImpl<T>>,
+        _this: &Weak<DataWriterImpl<T,I>>,
         _data: T,
         _instance_handle: Option<InstanceHandle>,
     ) -> ReturnCode<()> {
@@ -77,15 +81,16 @@ impl<T> DataWriterImpl<T> {
     }
 
     pub fn write_w_timestamp(
-        _this: &Weak<DataWriterImpl<T>>,
+        this: &Weak<DataWriterImpl<T,I>>,
         _data: T,
         _instance_handle: Option<InstanceHandle>,
         _timestamp: Time,
     ) -> ReturnCode<()> {
-        // let dw = this.upgrade().ok_or(ReturnCodes::AlreadyDeleted)?;
+        let dw = this.upgrade().ok_or(ReturnCodes::AlreadyDeleted)?;
         
-        // // let datawriter_lock = dw.rtps_writer.lock().unwrap();
-        // // let rtps_datawriter = datawriter_lock.as_ref().ok_or(ReturnCodes::NotEnabled)?;
+        let writer_interface_lock = dw.writer_interface.lock().unwrap();
+        let writer_interface = writer_interface_lock.as_ref().ok_or(ReturnCodes::NotEnabled)?;
+        writer_interface.write([0;16]);
         // // let history_cache = rtps_datawriter.writer_cache();
 
         // // let kind = ChangeKind::Alive;
@@ -100,12 +105,11 @@ impl<T> DataWriterImpl<T> {
        
         // history_cache.add_change(change);
 
-        // Ok(())
-        todo!()
+        Ok(())
     }
 
     pub fn dispose(
-        _this: &Weak<DataWriterImpl<T>>,
+        _this: &Weak<DataWriterImpl<T,I>>,
         _data: T,
         _instance_handle: InstanceHandle,
     ) -> ReturnCode<()> {
@@ -113,7 +117,7 @@ impl<T> DataWriterImpl<T> {
     }
 
     pub fn dispose_w_timestamp(
-        _this: &Weak<DataWriterImpl<T>>,
+        _this: &Weak<DataWriterImpl<T,I>>,
         _data: T,
         _instance_handle: InstanceHandle,
         _timestamp: Time,
@@ -122,21 +126,21 @@ impl<T> DataWriterImpl<T> {
     }
 
     pub fn wait_for_acknowledgments(
-        _this: &Weak<DataWriterImpl<T>>,
+        _this: &Weak<DataWriterImpl<T,I>>,
         _max_wait: Duration
     ) -> ReturnCode<()> {
         todo!()
     }
 
     pub fn get_liveliness_lost_status(
-        _this: &Weak<DataWriterImpl<T>>,
+        _this: &Weak<DataWriterImpl<T,I>>,
         _status: &mut LivelinessLostStatus
     ) -> ReturnCode<()> {
         todo!()
     }
 
     pub fn get_offered_deadline_missed_status(
-        _this: &Weak<DataWriterImpl<T>>,
+        _this: &Weak<DataWriterImpl<T,I>>,
         _status: &mut OfferedDeadlineMissedStatus
     ) -> ReturnCode<()> {
         todo!()
@@ -144,7 +148,7 @@ impl<T> DataWriterImpl<T> {
 
 
     pub fn get_offered_incompatible_qos_status(
-        _this: &Weak<DataWriterImpl<T>>,
+        _this: &Weak<DataWriterImpl<T,I>>,
         _status: &mut OfferedIncompatibleQosStatus
     ) -> ReturnCode<()> {
         todo!()
@@ -152,30 +156,30 @@ impl<T> DataWriterImpl<T> {
 
 
     pub fn get_publication_matched_status(
-        _this: &Weak<DataWriterImpl<T>>,
+        _this: &Weak<DataWriterImpl<T,I>>,
         _status: &mut PublicationMatchedStatus
     ) -> ReturnCode<()> {
         todo!()
     }
 
     pub fn get_topic(
-        _this: &Weak<DataWriterImpl<T>>,
+        _this: &Weak<DataWriterImpl<T,I>>,
     ) -> Topic {
         todo!()
     }
 
     pub fn get_publisher(
-        this: &Weak<DataWriterImpl<T>>,
+        this: &Weak<DataWriterImpl<T,I>>,
     ) -> Publisher {
         Publisher(this.upgrade().unwrap().parent_publisher.clone())
     }
 
-    pub fn assert_liveliness(_this: &Weak<DataWriterImpl<T>>,) -> ReturnCode<()> {
+    pub fn assert_liveliness(_this: &Weak<DataWriterImpl<T,I>>,) -> ReturnCode<()> {
         todo!()
     }
 
     pub fn get_matched_subscription_data(
-        _this: &Weak<DataWriterImpl<T>>,
+        _this: &Weak<DataWriterImpl<T,I>>,
         _subscription_data: SubscriptionBuiltinTopicData,
         _subscription_handle: InstanceHandle,
     ) -> ReturnCode<()> {
@@ -183,38 +187,38 @@ impl<T> DataWriterImpl<T> {
     }
 
     pub fn get_matched_subscriptions(
-        _this: &Weak<DataWriterImpl<T>>,
+        _this: &Weak<DataWriterImpl<T,I>>,
         _subscription_handles: &[InstanceHandle],
     ) -> ReturnCode<()> {
         todo!()
     }
 
-    pub fn set_qos(_this: &Weak<DataWriterImpl<T>>, _qos_list: DataWriterQos) -> ReturnCode<()> {
+    pub fn set_qos(_this: &Weak<DataWriterImpl<T,I>>, _qos_list: DataWriterQos) -> ReturnCode<()> {
         todo!()
     }
 
-    pub fn get_qos(_this: &Weak<DataWriterImpl<T>>, _qos_list: &mut DataWriterQos) -> ReturnCode<()> {
+    pub fn get_qos(_this: &Weak<DataWriterImpl<T,I>>, _qos_list: &mut DataWriterQos) -> ReturnCode<()> {
         todo!()
     }
 
-    pub fn set_listener(_this: &Weak<DataWriterImpl<T>>, _a_listener: Box<dyn DataWriterListener<T>>, _mask: &[crate::types::StatusKind]) -> ReturnCode<()> {
+    pub fn set_listener(_this: &Weak<DataWriterImpl<T,I>>, _a_listener: Box<dyn DataWriterListener<T>>, _mask: &[crate::types::StatusKind]) -> ReturnCode<()> {
         todo!()
     }
 
-    pub fn get_listener(_this: &Weak<DataWriterImpl<T>>,) -> Box<dyn DataWriterListener<T>> {
+    pub fn get_listener(_this: &Weak<DataWriterImpl<T,I>>,) -> Box<dyn DataWriterListener<T>> {
         todo!()
     }
 
-    pub fn get_statuscondition(_this: &Weak<DataWriterImpl<T>>, ) -> crate::infrastructure::entity::StatusCondition {
+    pub fn get_statuscondition(_this: &Weak<DataWriterImpl<T,I>>, ) -> crate::infrastructure::entity::StatusCondition {
         todo!()
     }
 
-    pub fn get_status_changes(_this: &Weak<DataWriterImpl<T>>,) -> crate::types::StatusKind {
+    pub fn get_status_changes(_this: &Weak<DataWriterImpl<T,I>>,) -> crate::types::StatusKind {
         todo!()
     }
 
-    pub fn enable(_this: &Weak<DataWriterImpl<T>>,) -> ReturnCode<()> {
-        // let dw = this.upgrade().ok_or(ReturnCodes::AlreadyDeleted)?;
+    pub fn enable(this: &Weak<DataWriterImpl<T,I>>,) -> ReturnCode<()> {
+        let dw = this.upgrade().ok_or(ReturnCodes::AlreadyDeleted)?;
 
         // let guid = GUID::new([1;12],EntityId::new([1;3], EntityKind::UserDefinedWriterWithKey));
         // let topic_kind = TopicKind::WithKey;
@@ -224,7 +228,7 @@ impl<T> DataWriterImpl<T> {
         // let nack_response_delay = crate::rtps::behavior::types::Duration::from_millis(100);
         // let nack_suppression_duration = crate::rtps::behavior::types::Duration::from_millis(100);
 
-        // *dw.rtps_writer.lock().unwrap() = Some(
+        *dw.writer_interface.lock().unwrap() = Some(I::new());
         // StatefulWriter::new(
         //         guid,
         //         topic_kind,
@@ -235,13 +239,10 @@ impl<T> DataWriterImpl<T> {
         //         nack_suppression_duration)
         //     );
 
-        // Ok(())
-
-        todo!()
-            
+        Ok(())
     }
 
-    pub fn get_instance_handle(_this: &Weak<DataWriterImpl<T>>,) -> InstanceHandle {
+    pub fn get_instance_handle(_this: &Weak<DataWriterImpl<T,I>>,) -> InstanceHandle {
         todo!()
     }
 
@@ -250,7 +251,7 @@ impl<T> DataWriterImpl<T> {
      ) -> Self {
          Self{
             parent_publisher,
-            // rtps_writer: Mutex::new(None),
+            writer_interface: Mutex::new(None),
             value: PhantomData
          }
      }
@@ -334,6 +335,31 @@ mod tests {
     #[test]
     fn write_w_timestamp() {
         use crate::types::Time;
+        struct MockInterface {
+
+        }
+
+        impl WriterInterface for MockInterface {
+            fn new() -> Self {
+                MockInterface{}
+            }
+
+            fn write(&self, _instance_handle: InstanceHandle) {
+                println!("Mock interface");
+            }
+        
+            fn dispose(&self) {
+                todo!()
+            }
+        
+            fn unregister(&self) {
+                todo!()
+            }
+        
+            fn register(&self) {
+                todo!()
+            }
+        }
 
         struct Foo {
             value: u8,
@@ -344,10 +370,12 @@ mod tests {
             nanosec: 20000,
         };
 
-        let dw = Arc::new(DataWriterImpl::new(Weak::new()));
+        let dw = Arc::new(DataWriterImpl::<Foo, MockInterface>::new(Weak::new()));
         let dw_weak = Arc::downgrade(&dw);
 
         let new_foo = Foo{value:1};
+
+        DataWriterImpl::enable(&dw_weak).unwrap();
 
         DataWriterImpl::write_w_timestamp(&dw_weak, new_foo, None, timestamp).unwrap();
     }

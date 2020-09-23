@@ -1,3 +1,5 @@
+pub use rust_dds_interface::types::InstanceHandle;
+
 pub type ReturnCode<T> = Result<T, ReturnCodes>;
 
 #[derive(Debug, PartialEq)]
@@ -38,7 +40,6 @@ pub type ViewStateKind = u32;
 pub type InstanceStateKind = u32;
 
 pub type DomainId = i32;
-pub type InstanceHandle = [u8; 16];
 pub type QosPolicyId = i32;
 
 pub trait DDSType {

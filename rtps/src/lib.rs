@@ -1,5 +1,4 @@
 #![allow(dead_code)]
-pub mod protocol_interface;
 
 pub mod types;
 pub mod inline_qos_types;
