@@ -1,0 +1,7 @@
+[workspace]
+
+members = [
+    "dds",
+    "dds_interface",
+    "rtps"
+]

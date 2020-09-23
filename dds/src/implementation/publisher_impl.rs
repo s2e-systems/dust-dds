@@ -180,6 +180,7 @@ mod tests {
     use super::*;
     use crate::infrastructure::listener::NoListener;
     use crate::infrastructure::qos_policy::ReliabilityQosPolicyKind;
+    use crate::types::Data;
     #[derive(Debug)]
     struct  Foo {
         value: bool
@@ -187,12 +188,16 @@ mod tests {
 
     impl DDSType for Foo {
         fn key(&self) -> InstanceHandle {
-        todo!()
-    }
+            todo!()
+        }
 
-        fn data(&self) -> Vec<u8> {
-        todo!()
-    }
+        fn serialize(&self) -> Data {
+            todo!()
+        }
+
+        fn deserialize(_data: Data) -> Self {
+            todo!()
+        }
     }
 
     #[test]

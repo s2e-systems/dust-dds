@@ -1,6 +1,6 @@
 use std::cmp::Ordering;
 
-use crate::types::{ChangeKind, InstanceHandle, SequenceNumber, GUID, };
+use crate::types::{ChangeKind, InstanceHandle, SequenceNumber, GUID, Data};
 use crate::serialized_payload::ParameterList;
 
 #[derive(Debug)]
@@ -9,7 +9,7 @@ pub struct CacheChange {
     writer_guid: GUID,
     instance_handle: InstanceHandle,
     sequence_number: SequenceNumber,
-    data_value: Vec<u8>,
+    data_value: Data,
     inline_qos: ParameterList,
 }
 
@@ -19,7 +19,7 @@ impl CacheChange {
         writer_guid: GUID,
         instance_handle: InstanceHandle,
         sequence_number: SequenceNumber,
-        data_value: Option<Vec<u8>>,
+        data_value: Option<Data>,
         inline_qos: Option<ParameterList>,
     ) -> CacheChange {
         let data_value = data_value.unwrap_or(Vec::new());

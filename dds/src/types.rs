@@ -1,4 +1,4 @@
-pub use rust_dds_interface::types::InstanceHandle;
+pub use rust_dds_interface::types::{InstanceHandle, Data};
 
 pub type ReturnCode<T> = Result<T, ReturnCodes>;
 
@@ -45,7 +45,9 @@ pub type QosPolicyId = i32;
 pub trait DDSType {
     fn key(&self) -> InstanceHandle;
 
-    fn data(&self) -> Vec<u8>;
+    fn serialize(&self) -> Data;
+
+    fn deserialize(data: Data) -> Self;
 }
 
 pub struct Time {

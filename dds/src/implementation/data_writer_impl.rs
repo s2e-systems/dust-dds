@@ -1,8 +1,9 @@
 
+use std::any::Any;
 use std::sync::{Weak, Mutex};
 use std::marker::PhantomData;
 
-use crate::types::{InstanceHandle, Time, ReturnCode, Duration, ReturnCodes};
+use crate::types::{InstanceHandle, Time, ReturnCode, Duration, ReturnCodes, DDSType};
 
 use crate::infrastructure::status::{LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus};
 use crate::topic::topic::Topic;
@@ -17,13 +18,13 @@ use crate::publication::data_writer::qos::DataWriterQos;
 use rust_dds_interface::protocol::WriterInterface;
 use rust_rtps::StatefulWriter;
 
-pub(crate) struct DataWriterImpl<T, I: WriterInterface = StatefulWriter> {
+pub(crate) struct DataWriterImpl<T: DDSType+Any+Send+Sync, I: WriterInterface = StatefulWriter> {
     parent_publisher: Weak<PublisherImpl>,
     writer_interface: Mutex<Option<I>>,
     value: PhantomData<T>,
 }
 
-impl<T, I: WriterInterface> DataWriterImpl<T,I> {
+impl<T: DDSType+Any+Send+Sync, I: WriterInterface> DataWriterImpl<T,I> {
     pub fn register_instance(
         _this: &Weak<DataWriterImpl<T,I>>,
         _instance: T
@@ -90,7 +91,7 @@ impl<T, I: WriterInterface> DataWriterImpl<T,I> {
         
         let writer_interface_lock = dw.writer_interface.lock().unwrap();
         let writer_interface = writer_interface_lock.as_ref().ok_or(ReturnCodes::NotEnabled)?;
-        writer_interface.write([0;16]);
+        writer_interface.write([0;16], vec![]);
         // // let history_cache = rtps_datawriter.writer_cache();
 
         // // let kind = ChangeKind::Alive;
@@ -263,17 +264,23 @@ mod tests {
     use std::sync::Arc;
     use crate::types::DDSType;
     use crate::publication::data_writer::AnyDataWriter;
-    
+    use crate::types::Data;
+
     #[derive(Debug)]
     struct  Foo {
-        value: bool
+        value: bool //@key   
     }
+
     impl DDSType for Foo {
         fn key(&self) -> InstanceHandle {
             todo!()
         }
 
-        fn data(&self) -> Vec<u8> {
+        fn serialize(&self) -> Data {
+            todo!()
+        }
+
+        fn deserialize(_data: Data) -> Self {
             todo!()
         }
     }
@@ -287,7 +294,11 @@ mod tests {
             todo!()
         }
 
-        fn data(&self) -> Vec<u8> {
+        fn serialize(&self) -> Data {
+            todo!()
+        }
+
+        fn deserialize(_data: Data) -> Self {
             todo!()
         }
     }
@@ -301,7 +312,11 @@ mod tests {
             todo!()
         }
 
-        fn data(&self) -> Vec<u8> {
+        fn serialize(&self) -> Data {
+            todo!()
+        }
+
+        fn deserialize(_data: Data) -> Self {
             todo!()
         }
     }
@@ -335,6 +350,7 @@ mod tests {
     #[test]
     fn write_w_timestamp() {
         use crate::types::Time;
+        use rust_dds_interface::types::Data;
         struct MockInterface {
 
         }
@@ -344,26 +360,23 @@ mod tests {
                 MockInterface{}
             }
 
-            fn write(&self, _instance_handle: InstanceHandle) {
+            fn write(&self, _instance_handle: InstanceHandle, _data: Data) {
                 println!("Mock interface");
             }
         
-            fn dispose(&self) {
+            fn dispose(&self, _instance_handle: InstanceHandle) {
                 todo!()
             }
         
-            fn unregister(&self) {
+            fn unregister(&self, _instance_handle: InstanceHandle) {
                 todo!()
             }
         
-            fn register(&self) {
+            fn register(&self, _instance_handle: InstanceHandle) {
                 todo!()
             }
         }
 
-        struct Foo {
-            value: u8,
-        }
 
         let timestamp = Time {
             sec: 100,
@@ -373,7 +386,7 @@ mod tests {
         let dw = Arc::new(DataWriterImpl::<Foo, MockInterface>::new(Weak::new()));
         let dw_weak = Arc::downgrade(&dw);
 
-        let new_foo = Foo{value:1};
+        let new_foo = Foo{value:false};
 
         DataWriterImpl::enable(&dw_weak).unwrap();
 

@@ -6,6 +6,8 @@
 use num_derive::FromPrimitive;
 use serde::{Serialize, Deserialize};
 
+pub use rust_dds_interface::types::{InstanceHandle, Data};
+
 pub mod constants {
     use super::{VendorId, EntityId, ProtocolVersion, EntityKind, SequenceNumber, Locator, GuidPrefix, GUID};
 
@@ -213,8 +215,6 @@ pub enum ReliabilityKind {
     BestEffort,
     Reliable,
 }
-
-pub type InstanceHandle = [u8; 16];
 
 #[derive(PartialEq, Debug, Clone, Copy, Hash, Eq, Serialize, Deserialize)]
 pub struct ProtocolVersion {

@@ -11,6 +11,7 @@ use crate::structure::history_cache::HistoryCache;
 use crate::structure::cache_change::CacheChange;
 use crate::serialized_payload::ParameterList;
 use rust_dds_interface::protocol::WriterInterface;
+use rust_dds_interface::types::Data;
 
 struct ChangeForReader {
     highest_sequence_number_sent: SequenceNumber,
@@ -292,19 +293,19 @@ impl WriterInterface for StatefulWriter {
         todo!()
     }
 
-    fn write(&self, _instance_handle: InstanceHandle) {
+    fn write(&self, _instance_handle: InstanceHandle, _data: Data) {
         todo!()
     }
 
-    fn dispose(&self) {
+    fn dispose(&self, _instance_handle: InstanceHandle) {
         todo!()
     }
 
-    fn unregister(&self) {
+    fn unregister(&self, _instance_handle: InstanceHandle) {
         todo!()
     }
 
-    fn register(&self) {
+    fn register(&self, _instance_handle: InstanceHandle) {
         todo!()
     }
 }
