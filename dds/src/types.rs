@@ -1,4 +1,4 @@
-pub use rust_dds_interface::types::{InstanceHandle, Data};
+pub use rust_dds_interface::types::{InstanceHandle, Data, Duration, DURATION_INFINITE, DURATION_ZERO, Time, TIME_INVALID, LENGTH_UNLIMITED};
 
 pub type ReturnCode<T> = Result<T, ReturnCodes>;
 
@@ -43,24 +43,11 @@ pub type DomainId = i32;
 pub type QosPolicyId = i32;
 
 pub trait DDSType {
-    fn key(&self) -> InstanceHandle;
+    fn instance_handle(&self) -> InstanceHandle;
 
     fn serialize(&self) -> Data;
 
     fn deserialize(data: Data) -> Self;
 }
 
-pub struct Time {
-    pub sec: i32,
-    pub nanosec: u32,
-}
-
-#[derive(PartialOrd, PartialEq, Debug, Clone)]
-pub struct Duration {
-    pub sec: i32,
-    pub nanosec: u32,
-}
-pub const LENGTH_UNLIMITED: i32 = -1;   
-pub const DURATION_INFINITE: Duration = Duration{sec: 0x7fffffff, nanosec:0x7fffffff};
-pub const DURATION_ZERO: Duration = Duration{sec: 0, nanosec:0};
-pub const TIME_INVALID: Time = Time{sec: -1, nanosec:0xffffffff};
+ 

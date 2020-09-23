@@ -4,14 +4,14 @@ use std::sync::{RwLock, RwLockReadGuard, Mutex, MutexGuard};
 use crate::types::{ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID, GuidPrefix};
 use crate::behavior::types::Duration;
 use crate::behavior::stateful_writer::{StatefulWriterBehavior, BestEffortStatefulWriterBehavior, ReliableStatefulWriterBehavior};
-use crate::messages::{RtpsSubmessage};
+use crate::messages::RtpsSubmessage;
 use crate::messages::message_receiver::Receiver;
 use crate::messages::message_sender::Sender;
 use crate::structure::history_cache::HistoryCache;
 use crate::structure::cache_change::CacheChange;
 use crate::serialized_payload::ParameterList;
 use rust_dds_interface::protocol::WriterInterface;
-use rust_dds_interface::types::Data;
+use rust_dds_interface::types::{Data, Time, ResourceLimits, HistoryKind};
 
 struct ChangeForReader {
     highest_sequence_number_sent: SequenceNumber,
@@ -289,11 +289,17 @@ impl StatefulWriter {
 }
 
 impl WriterInterface for StatefulWriter {
-    fn new() -> Self {
+    fn new(
+        _topic_kind: TopicKind,
+        _reliability: rust_dds_interface::types::ReliabilityKind,
+        _max_blocking_time: rust_dds_interface::types::Duration,
+        _history_kind: HistoryKind,
+        _resource_limits: ResourceLimits,
+    ) -> Self {
         todo!()
     }
 
-    fn write(&self, _instance_handle: InstanceHandle, _data: Data) {
+    fn write(&self, _instance_handle: InstanceHandle, _data: Data, _timestamp: Time) {
         todo!()
     }
 

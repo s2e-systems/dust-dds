@@ -6,7 +6,7 @@
 use num_derive::FromPrimitive;
 use serde::{Serialize, Deserialize};
 
-pub use rust_dds_interface::types::{InstanceHandle, Data};
+pub use rust_dds_interface::types::{InstanceHandle, Data, ReliabilityKind, TopicKind};
 
 pub mod constants {
     use super::{VendorId, EntityId, ProtocolVersion, EntityKind, SequenceNumber, Locator, GuidPrefix, GUID};
@@ -197,23 +197,12 @@ impl Locator {
     }
 }
 
-pub enum TopicKind {
-    NoKey,
-    WithKey,
-}
-
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub enum ChangeKind {
     Alive,
     AliveFiltered,
     NotAliveDisposed,
     NotAliveUnregistered,
-}
-
-#[derive(PartialEq)]
-pub enum ReliabilityKind {
-    BestEffort,
-    Reliable,
 }
 
 #[derive(PartialEq, Debug, Clone, Copy, Hash, Eq, Serialize, Deserialize)]

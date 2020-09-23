@@ -187,7 +187,7 @@ mod tests {
     }
 
     impl DDSType for Foo {
-        fn key(&self) -> InstanceHandle {
+        fn instance_handle(&self) -> InstanceHandle {
             todo!()
         }
 
