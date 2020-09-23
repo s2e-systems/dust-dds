@@ -6,3 +6,7 @@ mod type_support;
 pub use topic_description::TopicDescription;
 pub use topic::Topic;
 pub use topic_listener::TopicListener;
+
+pub mod qos {
+    pub use rust_dds_interface::qos::TopicQos;
+}

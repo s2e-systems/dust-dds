@@ -13,3 +13,7 @@ pub use subscriber_listener::SubscriberListener;
 pub use data_reader_listener::DataReaderListener;
 pub use read_condition::ReadCondition;
 pub use query_condition::QueryCondition;
+
+pub mod qos {
+    pub use rust_dds_interface::qos::{SubscriberQos, DataReaderQos};
+}
