@@ -1,4 +1,5 @@
-use crate::types::{SampleStateKind, ViewStateKind, InstanceStateKind, Time, InstanceHandle};
+use crate::types::{Time, InstanceHandle};
+use crate::infrastructure::status::{SampleStateKind, ViewStateKind, InstanceStateKind,};
 
 pub struct SampleInfo {
     /// The sample_state (READ or NOT_READ) - indicates whether or not the corresponding data sample has already been read.

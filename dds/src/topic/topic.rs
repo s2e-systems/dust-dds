@@ -1,12 +1,12 @@
 use std::sync::Weak;
 
 use crate::types::ReturnCode;
-use crate::infrastructure::status::InconsistentTopicStatus;
+use crate::infrastructure::status::{InconsistentTopicStatus, StatusKind};
 use crate::infrastructure::entity::Entity;
 use crate::infrastructure::entity::DomainEntity;
 use crate::topic::topic_listener::TopicListener;
 use crate::topic::topic_description::TopicDescription;
-use crate::domain::domain_participant::DomainParticipant;
+use crate::domain::DomainParticipant;
 
 use rust_dds_interface::qos::TopicQos;
 use crate::implementation::topic_impl::TopicImpl;
@@ -59,7 +59,7 @@ impl Entity for Topic {
         todo!()
     }
 
-    fn set_listener(&self, _a_listener: Self::Listener, _mask: &[crate::types::StatusKind]) -> ReturnCode<()> {
+    fn set_listener(&self, _a_listener: Self::Listener, _mask: &[StatusKind]) -> ReturnCode<()> {
         todo!()
     }
 
@@ -71,7 +71,7 @@ impl Entity for Topic {
         todo!()
     }
 
-    fn get_status_changes(&self, ) -> crate::types::StatusKind {
+    fn get_status_changes(&self, ) -> StatusKind {
         todo!()
     }
 

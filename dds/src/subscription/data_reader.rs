@@ -1,11 +1,12 @@
 use std::any::Any;
 use std::sync::{Arc, Weak};
 
-use crate::types::{ReturnCode, SampleStateKind, ViewStateKind, InstanceStateKind, InstanceHandle};
+use crate::types::{ReturnCode, InstanceHandle};
+use crate::infrastructure::status::{ViewStateKind, SampleStateKind, InstanceStateKind, StatusKind};
 use crate::subscription::read_condition::ReadCondition;
 use crate::subscription::query_condition::QueryCondition;
 use crate::infrastructure::status::{LivelinessChangedStatus, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus, SubscriptionMatchedStatus};
-use crate::topic::topic_description::TopicDescription;
+use crate::topic::TopicDescription;
 use crate::subscription::subscriber::Subscriber;
 use crate::subscription::sample_info::SampleInfo;
 use crate::infrastructure::entity::Entity;
@@ -600,7 +601,7 @@ impl<T> Entity for DataReader<T> {
         DataReaderImpl::get_qos(&self.0, qos_list)
     }
 
-    fn set_listener(&self, a_listener: Self::Listener, mask: &[crate::types::StatusKind]) -> ReturnCode<()> {
+    fn set_listener(&self, a_listener: Self::Listener, mask: &[StatusKind]) -> ReturnCode<()> {
         DataReaderImpl::set_listener(&self.0, a_listener, mask)
     }
 
@@ -612,7 +613,7 @@ impl<T> Entity for DataReader<T> {
         DataReaderImpl::get_statuscondition(&self.0)
     }
 
-    fn get_status_changes(&self, ) -> crate::types::StatusKind {
+    fn get_status_changes(&self, ) -> StatusKind {
         DataReaderImpl::get_status_changes(&self.0)
     }
 

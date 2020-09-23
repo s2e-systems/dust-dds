@@ -3,7 +3,7 @@ use std::sync::Weak;
 
 use crate::types::ReturnCode;
 use crate::infrastructure::status::InconsistentTopicStatus;
-use crate::domain::domain_participant::DomainParticipant;
+use crate::domain::DomainParticipant;
 
 use crate::implementation::domain_participant_impl::DomainParticipantImpl;
 

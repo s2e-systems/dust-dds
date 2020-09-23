@@ -1,9 +1,10 @@
 use std::any::Any;
 use std::sync::Weak;
 
-use crate::types::{StatusKind, ReturnCode, Duration, StatusMask, DDSType};
-use crate::domain::domain_participant::DomainParticipant;
-use crate::topic::topic::Topic;
+use crate::types::{ReturnCode, Duration, DDSType};
+use crate::infrastructure::status::{StatusMask, StatusKind};
+use crate::domain::DomainParticipant;
+use crate::topic::Topic;
 use crate::publication::data_writer_listener::DataWriterListener;
 use crate::publication::data_writer::DataWriter;
 use crate::infrastructure::entity::Entity;

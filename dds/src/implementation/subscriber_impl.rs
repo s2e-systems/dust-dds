@@ -3,20 +3,17 @@ use std::any::Any;
 
 use crate::types::{
     ReturnCode,
-    StatusKind,
-    SampleStateKind,
-    ViewStateKind,
-    InstanceStateKind,
-    StatusMask,
     ReturnCodes
 };
 
-use crate::infrastructure::status::SampleLostStatus;
-use crate::domain::domain_participant::DomainParticipant;
-use crate::topic::topic_description::TopicDescription;
-use crate::subscription::data_reader::{DataReader, AnyDataReader};
-use crate::subscription::data_reader_listener::DataReaderListener;
-use crate::subscription::subscriber_listener::SubscriberListener;
+use crate::infrastructure::status::{SampleLostStatus, StatusKind,
+    SampleStateKind,
+    ViewStateKind,
+    InstanceStateKind,
+    StatusMask,};
+use crate::domain::DomainParticipant;
+use crate::topic::TopicDescription;
+use crate::subscription::{DataReader, AnyDataReader, DataReaderListener, SubscriberListener};
 
 use crate::implementation::domain_participant_impl::DomainParticipantImpl;
 use crate::implementation::data_reader_impl::DataReaderImpl;
@@ -205,7 +202,7 @@ impl SubscriberImpl {
 mod tests {
     use super::*;
     use crate::infrastructure::listener::NoListener;
-    use crate::topic::topic::Topic;
+    use crate::topic::Topic;
     use rust_dds_interface::qos_policy::ReliabilityQosPolicyKind;
     #[derive(Debug)]
     struct  Foo {

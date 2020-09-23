@@ -5,10 +5,9 @@ use std::marker::PhantomData;
 
 use crate::types::{InstanceHandle, Time, ReturnCode, Duration, ReturnCodes, DDSType};
 
-use crate::infrastructure::status::{LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus};
-use crate::topic::topic::Topic;
-use crate::publication::publisher::Publisher;
-use crate::publication::data_writer_listener::DataWriterListener;
+use crate::infrastructure::status::{LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus, StatusKind};
+use crate::topic::Topic;
+use crate::publication::{Publisher, DataWriterListener};
 use crate::builtin_topics::SubscriptionBuiltinTopicData;
 
 use crate::implementation::publisher_impl::PublisherImpl;
@@ -190,7 +189,7 @@ impl<T: DDSType+Any+Send+Sync, I: WriterInterface> DataWriterImpl<T,I> {
         todo!()
     }
 
-    pub fn set_listener(_this: &Weak<DataWriterImpl<T,I>>, _a_listener: Box<dyn DataWriterListener<T>>, _mask: &[crate::types::StatusKind]) -> ReturnCode<()> {
+    pub fn set_listener(_this: &Weak<DataWriterImpl<T,I>>, _a_listener: Box<dyn DataWriterListener<T>>, _mask: &[StatusKind]) -> ReturnCode<()> {
         todo!()
     }
 
@@ -202,7 +201,7 @@ impl<T: DDSType+Any+Send+Sync, I: WriterInterface> DataWriterImpl<T,I> {
         todo!()
     }
 
-    pub fn get_status_changes(_this: &Weak<DataWriterImpl<T,I>>,) -> crate::types::StatusKind {
+    pub fn get_status_changes(_this: &Weak<DataWriterImpl<T,I>>,) -> StatusKind {
         todo!()
     }
 
@@ -251,7 +250,7 @@ mod tests {
     use super::*;
     use std::sync::Arc;
     use crate::types::DDSType;
-    use crate::publication::data_writer::AnyDataWriter;
+    use crate::publication::AnyDataWriter;
     use crate::types::Data;
 
     #[derive(Debug)]

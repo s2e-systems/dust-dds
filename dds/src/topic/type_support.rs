@@ -1,5 +1,5 @@
 use crate::types::ReturnCode;
-use crate::domain::domain_participant::DomainParticipant;
+use crate::domain::DomainParticipant;
 
 /// The TypeSupport interface is an abstract interface that has to be specialized for each concrete type that will be used by the application.
 /// It is required that each implementation of the Service provides an automatic means to generate this type-specific class from a

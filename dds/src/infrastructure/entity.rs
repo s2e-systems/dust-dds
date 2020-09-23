@@ -1,4 +1,5 @@
-use crate::types::{ReturnCode, StatusKind, InstanceHandle};
+use crate::types::{ReturnCode, InstanceHandle};
+use crate::infrastructure::status::StatusKind;
 
 pub struct StatusCondition;
 

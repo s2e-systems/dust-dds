@@ -1,13 +1,12 @@
 use std::any::Any;
 use std::sync::{Arc, Weak, Mutex};
 
-use crate::types::{StatusKind, ReturnCode, Duration, InstanceHandle, StatusMask, ReturnCodes, DDSType};
-use crate::domain::domain_participant::DomainParticipant;
-use crate::topic::topic::Topic;
-use crate::publication::data_writer_listener::DataWriterListener;
-use crate::publication::data_writer::{DataWriter, AnyDataWriter};
+use crate::types::{ReturnCode, Duration, InstanceHandle, ReturnCodes, DDSType};
+use crate::infrastructure::status::{StatusKind, StatusMask};
+use crate::domain::DomainParticipant;
+use crate::topic::Topic;
 use crate::infrastructure::entity::StatusCondition;
-use crate::publication::publisher_listener::PublisherListener;
+use crate::publication::{PublisherListener, DataWriter, AnyDataWriter, DataWriterListener};
 use crate::implementation::domain_participant_impl::DomainParticipantImpl;
 use crate::implementation::data_writer_impl::DataWriterImpl;
 

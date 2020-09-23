@@ -1,6 +1,6 @@
 use std::any::Any;
 
-use crate::topic::topic::Topic;
+use crate::topic::Topic;
 use crate::infrastructure::status::{
     InconsistentTopicStatus,
     LivelinessLostStatus,
@@ -12,9 +12,8 @@ use crate::infrastructure::status::{
     RequestedIncompatibleQosStatus,
     PublicationMatchedStatus,
     SubscriptionMatchedStatus};
-use crate::subscription::subscriber::Subscriber;
-use crate::subscription::data_reader::AnyDataReader;
-use crate::publication::data_writer::AnyDataWriter;
+use crate::subscription::{Subscriber, AnyDataReader};
+use crate::publication::AnyDataWriter;
 use crate::infrastructure::listener::NoListener;
 
 /// The purpose of the DomainParticipantListener is to be the listener of last resort that is notified of all status changes not

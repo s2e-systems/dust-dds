@@ -1,4 +1,4 @@
-use crate::domain::domain_participant::DomainParticipant;
+use crate::domain::DomainParticipant;
 
 /// TopicDescription represents the fact that both publications and subscriptions are tied to a single data-type. Its attribute
 /// type_name defines a unique resulting type for the publication or the subscription and therefore creates an implicit association

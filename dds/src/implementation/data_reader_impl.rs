@@ -1,14 +1,12 @@
 use std::sync::Weak;
 use std::marker::PhantomData;
 
-use crate::types::{ReturnCode, SampleStateKind, ViewStateKind, InstanceStateKind, InstanceHandle};
-use crate::subscription::read_condition::ReadCondition;
-use crate::subscription::query_condition::QueryCondition;
+use crate::types::{ReturnCode, InstanceHandle};
+use crate::infrastructure::status::{SampleStateKind, ViewStateKind, InstanceStateKind, StatusKind};
+use crate::subscription::{ReadCondition, QueryCondition};
 use crate::infrastructure::status::{LivelinessChangedStatus, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus, SubscriptionMatchedStatus};
-use crate::topic::topic_description::TopicDescription;
-use crate::subscription::subscriber::Subscriber;
-use crate::subscription::sample_info::SampleInfo;
-use crate::subscription::data_reader_listener::DataReaderListener;
+use crate::topic::TopicDescription;
+use crate::subscription::{Subscriber, SampleInfo, DataReaderListener};
 use crate::builtin_topics::PublicationBuiltinTopicData;
 
 use crate::implementation::subscriber_impl::SubscriberImpl;
@@ -302,7 +300,7 @@ impl<T> DataReaderImpl<T> {
 
     pub fn set_listener(
         _this: &Weak<DataReaderImpl<T>>,
-        _a_listener: Box<dyn DataReaderListener<T>>, _mask: &[crate::types::StatusKind]
+        _a_listener: Box<dyn DataReaderListener<T>>, _mask: &[StatusKind]
     ) -> ReturnCode<()> {
         todo!()
     }
@@ -321,7 +319,7 @@ impl<T> DataReaderImpl<T> {
 
     pub fn get_status_changes(
         _this: &Weak<DataReaderImpl<T>>,
-    ) -> crate::types::StatusKind {
+    ) -> StatusKind {
         todo!()
     }
 

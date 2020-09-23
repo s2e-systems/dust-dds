@@ -1,20 +1,17 @@
 use std::sync::Weak;
 use std::any::Any;
 
-use crate::types::{
-    ReturnCode,
-    StatusKind,
+use crate::types::
+    ReturnCode;
+
+use crate::infrastructure::status::{SampleLostStatus, StatusKind,
     SampleStateKind,
     ViewStateKind,
     InstanceStateKind,
-    StatusMask,
-};
-
-use crate::infrastructure::status::SampleLostStatus;
-use crate::domain::domain_participant::DomainParticipant;
-use crate::topic::topic_description::TopicDescription;
-use crate::subscription::data_reader::DataReader;
-use crate::subscription::data_reader_listener::DataReaderListener;
+    StatusMask,};
+use crate::domain::DomainParticipant;
+use crate::topic::TopicDescription;
+use crate::subscription::{DataReader, DataReaderListener};
 use crate::infrastructure::entity::Entity;
 use crate::infrastructure::entity::DomainEntity;
 use crate::subscription::subscriber_listener::SubscriberListener;

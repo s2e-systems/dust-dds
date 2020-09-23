@@ -1,13 +1,10 @@
 use std::sync::Arc;
 
-use crate::types::{StatusKind, ReturnCode, Duration, InstanceHandle, DomainId, Time, StatusMask};
-use crate::topic::topic::Topic;
-use crate::topic::topic_listener::TopicListener;
-use crate::topic::topic_description::TopicDescription;
-use crate::subscription::subscriber::Subscriber;
-use crate::subscription::subscriber_listener::SubscriberListener;
-use crate::publication::publisher::Publisher;
-use crate::publication::publisher_listener::PublisherListener;
+use crate::types::{ReturnCode, Duration, InstanceHandle, DomainId, Time};
+use crate::infrastructure::status::{StatusKind, StatusMask};
+use crate::topic::{Topic, TopicListener, TopicDescription};
+use crate::subscription::{Subscriber, SubscriberListener};
+use crate::publication::{Publisher, PublisherListener};
 use crate::infrastructure::entity::Entity;
 use crate::domain::domain_participant_listener::DomainParticipantListener;
 use crate::builtin_topics::{TopicBuiltinTopicData, ParticipantBuiltinTopicData};

@@ -3,8 +3,8 @@ use std::sync::{Arc,Weak};
 
 use crate::types::{InstanceHandle, Time, ReturnCode, Duration, DDSType};
 
-use crate::infrastructure::status::{LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus};
-use crate::topic::topic::Topic;
+use crate::infrastructure::status::{LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus, StatusKind};
+use crate::topic::Topic;
 use crate::publication::publisher::Publisher;
 use crate::infrastructure::entity::Entity;
 use crate::infrastructure::entity::DomainEntity;
@@ -352,7 +352,7 @@ impl<T: DDSType+Any+Send+Sync> Entity for DataWriter<T>{
         DataWriterImpl::get_qos(&self.0, qos_list)
     }
 
-    fn set_listener(&self, a_listener: Self::Listener, mask: &[crate::types::StatusKind]) -> ReturnCode<()> {
+    fn set_listener(&self, a_listener: Self::Listener, mask: &[StatusKind]) -> ReturnCode<()> {
         DataWriterImpl::set_listener(&self.0, a_listener, mask)
     }
 
@@ -364,7 +364,7 @@ impl<T: DDSType+Any+Send+Sync> Entity for DataWriter<T>{
         DataWriterImpl::get_statuscondition(&self.0)
     }
 
-    fn get_status_changes(&self, ) -> crate::types::StatusKind {
+    fn get_status_changes(&self, ) -> StatusKind {
         DataWriterImpl::get_status_changes(&self.0)
     }
 
