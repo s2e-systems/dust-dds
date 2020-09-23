@@ -4,15 +4,14 @@ use std::sync::{Arc, Weak, Mutex};
 use crate::types::{StatusKind, ReturnCode, Duration, InstanceHandle, StatusMask, ReturnCodes, DDSType};
 use crate::domain::domain_participant::DomainParticipant;
 use crate::topic::topic::Topic;
-use crate::topic::qos::TopicQos;
 use crate::publication::data_writer_listener::DataWriterListener;
 use crate::publication::data_writer::{DataWriter, AnyDataWriter};
-use crate::publication::data_writer::qos::DataWriterQos;
 use crate::infrastructure::entity::StatusCondition;
 use crate::publication::publisher_listener::PublisherListener;
-use crate::publication::publisher::qos::PublisherQos;
 use crate::implementation::domain_participant_impl::DomainParticipantImpl;
 use crate::implementation::data_writer_impl::DataWriterImpl;
+
+use rust_dds_interface::qos::{TopicQos, PublisherQos, DataWriterQos};
 
 pub struct PublisherImpl{
     parent_participant: Weak<DomainParticipantImpl>,
@@ -179,7 +178,7 @@ impl PublisherImpl {
 mod tests {
     use super::*;
     use crate::infrastructure::listener::NoListener;
-    use crate::infrastructure::qos_policy::ReliabilityQosPolicyKind;
+    use rust_dds_interface::qos_policy::ReliabilityQosPolicyKind;
     use crate::types::Data;
     #[derive(Debug)]
     struct  Foo {

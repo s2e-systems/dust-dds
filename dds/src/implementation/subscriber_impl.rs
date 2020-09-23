@@ -14,15 +14,14 @@ use crate::types::{
 use crate::infrastructure::status::SampleLostStatus;
 use crate::domain::domain_participant::DomainParticipant;
 use crate::topic::topic_description::TopicDescription;
-use crate::topic::qos::TopicQos;
 use crate::subscription::data_reader::{DataReader, AnyDataReader};
 use crate::subscription::data_reader_listener::DataReaderListener;
-use crate::subscription::data_reader::qos::DataReaderQos;
 use crate::subscription::subscriber_listener::SubscriberListener;
-use crate::subscription::subscriber::qos::SubscriberQos;
 
 use crate::implementation::domain_participant_impl::DomainParticipantImpl;
 use crate::implementation::data_reader_impl::DataReaderImpl;
+
+use rust_dds_interface::qos::{TopicQos, SubscriberQos, DataReaderQos};
 
 pub struct SubscriberImpl{
     parent_participant: Weak<DomainParticipantImpl>,
@@ -207,7 +206,7 @@ mod tests {
     use super::*;
     use crate::infrastructure::listener::NoListener;
     use crate::topic::topic::Topic;
-    use crate::infrastructure::qos_policy::ReliabilityQosPolicyKind;
+    use rust_dds_interface::qos_policy::ReliabilityQosPolicyKind;
     #[derive(Debug)]
     struct  Foo {
         value: bool

@@ -13,7 +13,7 @@ use crate::builtin_topics::SubscriptionBuiltinTopicData;
 
 use crate::implementation::publisher_impl::PublisherImpl;
 
-use crate::publication::data_writer::qos::DataWriterQos;
+use rust_dds_interface::qos::DataWriterQos;
 
 use rust_dds_interface::protocol::WriterInterface;
 use rust_rtps::StatefulWriter;
@@ -92,7 +92,7 @@ impl<T: DDSType+Any+Send+Sync, I: WriterInterface> DataWriterImpl<T,I> {
         let writer_interface_lock = dw.writer_interface.lock().unwrap();
         let writer_interface = writer_interface_lock.as_ref().ok_or(ReturnCodes::NotEnabled)?;
 
-        writer_interface.write([0;16], vec![], timestamp);
+        writer_interface.write([0;16], vec![], timestamp)?;
 
         Ok(())
     }

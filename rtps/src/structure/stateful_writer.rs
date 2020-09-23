@@ -11,7 +11,8 @@ use crate::structure::history_cache::HistoryCache;
 use crate::structure::cache_change::CacheChange;
 use crate::serialized_payload::ParameterList;
 use rust_dds_interface::protocol::WriterInterface;
-use rust_dds_interface::types::{Data, Time, ResourceLimits, HistoryKind};
+use rust_dds_interface::types::{Data, Time, EntityType, ReturnCode};
+use rust_dds_interface::qos::DataWriterQos;
 
 struct ChangeForReader {
     highest_sequence_number_sent: SequenceNumber,
@@ -290,28 +291,27 @@ impl StatefulWriter {
 
 impl WriterInterface for StatefulWriter {
     fn new(
+        _parent_instance_handle: InstanceHandle,
+        _entity_type: EntityType,
         _topic_kind: TopicKind,
-        _reliability: rust_dds_interface::types::ReliabilityKind,
-        _max_blocking_time: rust_dds_interface::types::Duration,
-        _history_kind: HistoryKind,
-        _resource_limits: ResourceLimits,
+        _writer_qos: DataWriterQos,
     ) -> Self {
         todo!()
     }
 
-    fn write(&self, _instance_handle: InstanceHandle, _data: Data, _timestamp: Time) {
+    fn write(&self, _instance_handle: InstanceHandle, _data: Data, _timestamp: Time) -> ReturnCode<()>{
         todo!()
     }
 
-    fn dispose(&self, _instance_handle: InstanceHandle) {
+    fn dispose(&self, _instance_handle: InstanceHandle) -> ReturnCode<()> {
         todo!()
     }
 
-    fn unregister(&self, _instance_handle: InstanceHandle) {
+    fn unregister(&self, _instance_handle: InstanceHandle) -> ReturnCode<()> {
         todo!()
     }
 
-    fn register(&self, _instance_handle: InstanceHandle) {
+    fn register(&self, _instance_handle: InstanceHandle) -> ReturnCode<()> {
         todo!()
     }
 }

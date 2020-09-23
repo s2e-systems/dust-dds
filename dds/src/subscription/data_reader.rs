@@ -12,92 +12,9 @@ use crate::infrastructure::entity::Entity;
 use crate::infrastructure::entity::DomainEntity;
 use crate::subscription::data_reader_listener::DataReaderListener;
 use crate::builtin_topics::PublicationBuiltinTopicData;
-use qos::DataReaderQos;
+use rust_dds_interface::qos::DataReaderQos;
 
 use crate::implementation::data_reader_impl::DataReaderImpl;
-
-pub mod qos {
-    use crate::types::{Duration, LENGTH_UNLIMITED};
-    use crate::infrastructure::qos_policy::{
-        DurabilityQosPolicy,
-        DeadlineQosPolicy,
-        LatencyBudgetQosPolicy, 
-        LivelinessQosPolicy,
-        ReliabilityQosPolicy,
-        DestinationOrderQosPolicy,
-        HistoryQosPolicy,
-        ResourceLimitsQosPolicy,
-        UserDataQosPolicy,
-        OwnershipQosPolicy,
-        TimeBasedFilterQosPolicy,
-        ReaderDataLifecycleQosPolicy,
-        ReliabilityQosPolicyKind,
-        HistoryQosPolicyKind
-    };
-
-    #[derive(Debug, PartialEq, Clone)]
-    pub struct DataReaderQos {
-        pub durability: DurabilityQosPolicy,
-        pub deadline: DeadlineQosPolicy,
-        pub latency_budget: LatencyBudgetQosPolicy, 
-        pub liveliness: LivelinessQosPolicy,
-        pub reliability: ReliabilityQosPolicy,
-        pub destination_order: DestinationOrderQosPolicy,
-        pub history: HistoryQosPolicy,
-        pub resource_limits: ResourceLimitsQosPolicy,
-        pub user_data: UserDataQosPolicy,
-        pub ownership: OwnershipQosPolicy,
-        pub time_based_filter: TimeBasedFilterQosPolicy,
-        pub reader_data_lifecycle: ReaderDataLifecycleQosPolicy,
-    }
-
-    impl Default for DataReaderQos {
-        fn default() -> Self {
-            Self {
-                reliability: ReliabilityQosPolicy{kind: ReliabilityQosPolicyKind::BestEffortReliabilityQos, max_blocking_time: Duration{sec: 0, nanosec: 100000000 /*100ms*/}},
-                durability: DurabilityQosPolicy::default(),
-                deadline: DeadlineQosPolicy::default(),
-                latency_budget: LatencyBudgetQosPolicy::default(), 
-                liveliness: LivelinessQosPolicy::default(),
-                destination_order: DestinationOrderQosPolicy::default(),
-                history: HistoryQosPolicy::default(),
-                resource_limits: ResourceLimitsQosPolicy::default(),
-                user_data: UserDataQosPolicy::default(),
-                ownership: OwnershipQosPolicy::default(),
-                time_based_filter: TimeBasedFilterQosPolicy::default(),
-                reader_data_lifecycle: ReaderDataLifecycleQosPolicy::default(),
-            }
-        }
-    }
-
-    impl DataReaderQos {
-        pub fn is_consistent(&self) -> bool {
-            // The setting of RESOURCE_LIMITS max_samples must be consistent with the max_samples_per_instance. For these two
-            // values to be consistent they must verify that “max_samples >= max_samples_per_instance.”
-            if  self.resource_limits.max_samples_per_instance != LENGTH_UNLIMITED {
-                if self.resource_limits.max_samples == LENGTH_UNLIMITED || self.resource_limits.max_samples < self.resource_limits.max_samples_per_instance {
-                    return false
-                }
-            }
-
-            // The setting of RESOURCE_LIMITS max_samples_per_instance must be consistent with the HISTORY depth. For these two
-            // QoS to be consistent, they must verify that “depth <= max_samples_per_instance.”
-            if self.history.kind == HistoryQosPolicyKind::KeepLastHistoryQoS && self.resource_limits.max_samples_per_instance != LENGTH_UNLIMITED {
-                if self.history.depth == LENGTH_UNLIMITED || self.history.depth > self.resource_limits.max_samples_per_instance {
-                    return false
-                }
-            }
-
-            // The setting of the DEADLINE policy must be set consistently with that of the TIME_BASED_FILTER. For these two policies
-            // to be consistent the settings must be such that “deadline period>= minimum_separation.”
-            if self.deadline.period < self.time_based_filter.minimum_separation {
-                return false
-            }
-    
-            true
-        }
-    }
-}
 
 /// A DataReader allows the application (1) to declare the data it wishes to receive (i.e., make a subscription) and (2) to access the
 /// data received by the attached Subscriber.

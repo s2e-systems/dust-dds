@@ -6,22 +6,20 @@ use crate::types::{StatusKind, ReturnCode, Duration, InstanceHandle, DomainId, T
 use crate::topic::topic::Topic;
 use crate::topic::topic_listener::TopicListener;
 use crate::topic::topic_description::TopicDescription;
-use crate::topic::qos::TopicQos;
 use crate::subscription::subscriber::Subscriber;
-use crate::subscription::subscriber::qos::SubscriberQos;
 use crate::subscription::subscriber_listener::SubscriberListener;
 use crate::publication::publisher::Publisher;
 use crate::publication::publisher_listener::PublisherListener;
-use crate::publication::publisher::qos::PublisherQos;
 use crate::infrastructure::entity::StatusCondition;
 use crate::domain::domain_participant_listener::DomainParticipantListener;
 use crate::builtin_topics::{TopicBuiltinTopicData, ParticipantBuiltinTopicData};
 use crate::infrastructure::listener::NoListener;
 
-use crate::domain::domain_participant::qos::DomainParticipantQos;
 use crate::implementation::publisher_impl::PublisherImpl;
 use crate::implementation::subscriber_impl::SubscriberImpl;
 use crate::implementation::topic_impl::TopicImpl;
+
+use rust_dds_interface::qos::{DomainParticipantQos, TopicQos, PublisherQos, SubscriberQos};
 
 pub struct DomainParticipantImpl{
     domain_id: DomainId,
@@ -337,7 +335,7 @@ impl DomainParticipantImpl{
 mod tests {
     use super::*;
     use crate::infrastructure::listener::NoListener;
-    use crate::infrastructure::qos_policy::ReliabilityQosPolicyKind;
+    use rust_dds_interface::qos_policy::ReliabilityQosPolicyKind;
 
     #[test]
     fn create_publisher() {

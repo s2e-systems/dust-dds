@@ -10,9 +10,10 @@ use crate::subscription::subscriber::Subscriber;
 use crate::subscription::sample_info::SampleInfo;
 use crate::subscription::data_reader_listener::DataReaderListener;
 use crate::builtin_topics::PublicationBuiltinTopicData;
-use crate::subscription::data_reader::qos::DataReaderQos;
 
 use crate::implementation::subscriber_impl::SubscriberImpl;
+
+use rust_dds_interface::qos::DataReaderQos;
 
 pub(crate) struct DataReaderImpl<T>{
     parent_subscriber: Weak<SubscriberImpl>,

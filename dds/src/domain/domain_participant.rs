@@ -4,32 +4,17 @@ use crate::types::{StatusKind, ReturnCode, Duration, InstanceHandle, DomainId, T
 use crate::topic::topic::Topic;
 use crate::topic::topic_listener::TopicListener;
 use crate::topic::topic_description::TopicDescription;
-use crate::topic::qos::TopicQos;
 use crate::subscription::subscriber::Subscriber;
-use crate::subscription::subscriber::qos::SubscriberQos;
 use crate::subscription::subscriber_listener::SubscriberListener;
 use crate::publication::publisher::Publisher;
 use crate::publication::publisher_listener::PublisherListener;
-use crate::publication::publisher::qos::PublisherQos;
 use crate::infrastructure::entity::Entity;
 use crate::domain::domain_participant_listener::DomainParticipantListener;
 use crate::builtin_topics::{TopicBuiltinTopicData, ParticipantBuiltinTopicData};
 
 use crate::implementation::domain_participant_impl::DomainParticipantImpl;
-use qos::DomainParticipantQos;
 
-
-pub mod qos {
-    use crate::infrastructure::qos_policy::{
-        UserDataQosPolicy, EntityFactoryQosPolicy
-    };
-    
-    #[derive(Debug, Default, PartialEq, Clone)]
-    pub struct DomainParticipantQos {
-        pub user_data: UserDataQosPolicy,
-        pub entity_factory: EntityFactoryQosPolicy,
-    }
-}
+use rust_dds_interface::qos::{DomainParticipantQos, TopicQos, PublisherQos, SubscriberQos};
 
 /// The DomainParticipant object plays several roles:
 /// - It acts as a container for all other Entity objects.

@@ -1,15 +1,21 @@
-use crate::types::{InstanceHandle, Data, Duration, ReliabilityKind, Time, ResourceLimits, HistoryKind, TopicKind};
+use crate::types::{InstanceHandle, Data, Time, TopicKind, EntityType, ReturnCode};
+use crate::qos::DataWriterQos;
 
 pub trait WriterInterface{
-    fn new(topic_kind: TopicKind, reliability: ReliabilityKind, max_blocking_time: Duration, history_kind: HistoryKind,  resource_limits: ResourceLimits ) -> Self;
+    fn new(
+        parent_instance_handle: InstanceHandle,
+        entity_type: EntityType,
+        topic_kind: TopicKind,
+        writer_qos: DataWriterQos,
+    ) -> Self;
     
-    fn write(&self, instance_handle: InstanceHandle, data: Data, timestamp: Time);
+    fn write(&self, instance_handle: InstanceHandle, data: Data, timestamp: Time) -> ReturnCode<()>;
 
-    fn dispose(&self, instance_handle: InstanceHandle);
+    fn dispose(&self, instance_handle: InstanceHandle) -> ReturnCode<()>;
 
-    fn unregister(&self, instance_handle: InstanceHandle);
+    fn unregister(&self, instance_handle: InstanceHandle) -> ReturnCode<()>;
 
-    fn register(&self, instance_handle: InstanceHandle);
+    fn register(&self, instance_handle: InstanceHandle) -> ReturnCode<()>;
 }
 
 pub trait ReaderProtocolInterface {

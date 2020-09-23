@@ -1,6 +1,28 @@
 pub type InstanceHandle = [u8; 16];
 pub type Data = Vec<u8>;
 
+pub type ReturnCode<T> = Result<T, ReturnCodes>;
+
+#[derive(Debug, PartialEq)]
+pub enum ReturnCodes {
+    Error,
+    Unsupported,
+    BadParameter,
+    PreconditionNotMet,
+    OutOfResources,
+    NotEnabled,
+    ImmutablePolicy,
+    InconsistentPolicy,
+    AlreadyDeleted,
+    Timeout,
+    NoData,
+    IllegalOperation,
+}
+
+pub enum EntityType {
+    BuiltIn,
+    UserDefined,
+}
 
 //// From DDS
 #[derive(PartialOrd, PartialEq, Debug, Clone)]

@@ -6,9 +6,9 @@ use crate::infrastructure::entity::Entity;
 use crate::infrastructure::entity::DomainEntity;
 use crate::topic::topic_listener::TopicListener;
 use crate::topic::topic_description::TopicDescription;
-use crate::topic::qos::TopicQos;
 use crate::domain::domain_participant::DomainParticipant;
 
+use rust_dds_interface::qos::TopicQos;
 use crate::implementation::topic_impl::TopicImpl;
 
 /// Topic is the most basic description of the data to be published and subscribed.

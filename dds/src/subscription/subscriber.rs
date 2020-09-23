@@ -13,33 +13,15 @@ use crate::types::{
 use crate::infrastructure::status::SampleLostStatus;
 use crate::domain::domain_participant::DomainParticipant;
 use crate::topic::topic_description::TopicDescription;
-use crate::topic::qos::TopicQos;
 use crate::subscription::data_reader::DataReader;
 use crate::subscription::data_reader_listener::DataReaderListener;
-use crate::subscription::data_reader::qos::DataReaderQos;
 use crate::infrastructure::entity::Entity;
 use crate::infrastructure::entity::DomainEntity;
 use crate::subscription::subscriber_listener::SubscriberListener;
-use qos::SubscriberQos;
+
+use rust_dds_interface::qos::{TopicQos, SubscriberQos, DataReaderQos};
 
 use crate::implementation::subscriber_impl::SubscriberImpl;
-
-pub mod qos {
-    use crate::infrastructure::qos_policy::{
-        PresentationQosPolicy,
-        PartitionQosPolicy,
-        GroupDataQosPolicy,
-        EntityFactoryQosPolicy,
-    };
-
-    #[derive(Default, Debug, PartialEq, Clone)]
-    pub struct SubscriberQos {
-        pub presentation: PresentationQosPolicy,
-        pub partition: PartitionQosPolicy,
-        pub group_data: GroupDataQosPolicy,
-        pub entity_factory: EntityFactoryQosPolicy,
-    }
-}
 
 pub struct Subscriber(pub(crate) Weak<SubscriberImpl>);
 

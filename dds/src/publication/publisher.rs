@@ -4,33 +4,15 @@ use std::sync::Weak;
 use crate::types::{StatusKind, ReturnCode, Duration, StatusMask, DDSType};
 use crate::domain::domain_participant::DomainParticipant;
 use crate::topic::topic::Topic;
-use crate::topic::qos::TopicQos;
 use crate::publication::data_writer_listener::DataWriterListener;
 use crate::publication::data_writer::DataWriter;
-use crate::publication::data_writer::qos::DataWriterQos;
 use crate::infrastructure::entity::Entity;
 use crate::infrastructure::entity::DomainEntity;
 use crate::publication::publisher_listener::PublisherListener;
-use qos::PublisherQos;
+
+use rust_dds_interface::qos::{TopicQos, PublisherQos, DataWriterQos};
 
 use crate::implementation::publisher_impl::PublisherImpl;
-
-pub mod qos {
-    use crate::infrastructure::qos_policy::{
-        PresentationQosPolicy,
-        PartitionQosPolicy,
-        GroupDataQosPolicy,
-        EntityFactoryQosPolicy,
-    };
-
-    #[derive(Debug, Default, PartialEq, Clone)]
-    pub struct PublisherQos {
-        pub presentation: PresentationQosPolicy,
-        pub partition: PartitionQosPolicy,
-        pub group_data: GroupDataQosPolicy,
-        pub entity_factory: EntityFactoryQosPolicy,
-    }
-}
 
 /// The Publisher acts on the behalf of one or several DataWriter objects that belong to it. When it is informed of a change to the
 /// data associated with one of its DataWriter objects, it decides when it is appropriate to actually send the data-update message.

@@ -1,22 +1,4 @@
-pub use rust_dds_interface::types::{InstanceHandle, Data, Duration, DURATION_INFINITE, DURATION_ZERO, Time, TIME_INVALID, LENGTH_UNLIMITED};
-
-pub type ReturnCode<T> = Result<T, ReturnCodes>;
-
-#[derive(Debug, PartialEq)]
-pub enum ReturnCodes {
-    Error,
-    Unsupported,
-    BadParameter,
-    PreconditionNotMet,
-    OutOfResources,
-    NotEnabled,
-    ImmutablePolicy,
-    InconsistentPolicy,
-    AlreadyDeleted,
-    Timeout,
-    NoData,
-    IllegalOperation,
-}
+pub use rust_dds_interface::types::{InstanceHandle, Data, Duration, DURATION_INFINITE, DURATION_ZERO, Time, TIME_INVALID, LENGTH_UNLIMITED, ReturnCode, ReturnCodes};
 
 pub type StatusKind = u32;
 pub type StatusMask = u32;
