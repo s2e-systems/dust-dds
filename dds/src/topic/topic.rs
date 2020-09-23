@@ -7,7 +7,9 @@ use crate::infrastructure::entity::DomainEntity;
 use crate::topic::topic_listener::TopicListener;
 use crate::topic::topic_description::TopicDescription;
 use crate::topic::qos::TopicQos;
-use crate::domain::domain_participant::{DomainParticipant, DomainParticipantImpl};
+use crate::domain::domain_participant::DomainParticipant;
+
+use crate::implementation::topic_impl::TopicImpl;
 
 /// Topic is the most basic description of the data to be published and subscribed.
 /// A Topic is identified by its name, which must be unique in the whole Domain. In addition (by virtue of extending
@@ -92,48 +94,3 @@ impl DomainEntity for Topic{}
 //     }
 // }
 
-pub struct TopicImpl{
-    parent_participant: Weak<DomainParticipantImpl>,
-    name: String,
-    type_name: String,
-}
-
-impl TopicImpl {
-    pub(crate) fn get_inconsistent_topic_status(
-        _this: &Weak<TopicImpl>,
-        _status: &mut InconsistentTopicStatus,
-    ) -> ReturnCode<()> {
-        todo!()
-    }
-
-    ///////////////// Topic description trait methods
-    pub(crate) fn get_participant(this: &Weak<TopicImpl>) -> Option<DomainParticipant> {
-        Some(DomainParticipant(this.upgrade()?.parent_participant.upgrade()?))
-    }
-
-    pub(crate) fn get_type_name(this: &Weak<TopicImpl>) -> Option<String> {
-        Some(this.upgrade()?.name.clone())
-    }
-
-    pub(crate) fn get_name(this: &Weak<TopicImpl>) -> Option<String> {
-        Some(this.upgrade()?.type_name.clone())
-    }
-
-    ///////////////// Entity trait methods
-    
-    //TODO
-    
-
-    //////////////// From here on are the functions that do not belong to the standard API
-    pub(crate) fn new(
-        parent_participant: Weak<DomainParticipantImpl>,
-        name: String,
-        type_name: String,
-    ) -> Self {
-        Self{
-            parent_participant,
-            name,
-            type_name,
-        }
-    }
-}
