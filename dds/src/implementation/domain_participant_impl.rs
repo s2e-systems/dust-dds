@@ -263,10 +263,7 @@ impl DomainParticipantImpl{
         todo!()
     }
 
-    pub(crate) fn get_current_time(
-        _this: &Arc<DomainParticipantImpl>,
-        _current_time: Time,
-    ) -> ReturnCode<()> {
+    pub(crate) fn get_current_time() -> ReturnCode<Time> {
         todo!()
     }
 

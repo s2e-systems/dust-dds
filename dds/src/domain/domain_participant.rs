@@ -453,11 +453,8 @@ impl DomainParticipant {
 
     /// This operation returns the current value of the time that the service uses to time-stamp data-writes and to set the reception timestamp
     /// for the data-updates it receives.
-    pub fn get_current_time(
-        &self,
-        current_time: Time,
-    ) -> ReturnCode<()> {
-        DomainParticipantImpl::get_current_time(&self.0, current_time)
+    pub fn get_current_time() -> ReturnCode<Time> {
+        DomainParticipantImpl::get_current_time()
     }
 
 }

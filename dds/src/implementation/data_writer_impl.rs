@@ -4,18 +4,19 @@ use std::sync::{Arc, Weak};
 use std::marker::PhantomData;
 
 use crate::types::DDSType;
-use rust_dds_interface::types::{InstanceHandle, Time, ReturnCode, Duration, ReturnCodes};
+
 
 use crate::infrastructure::status::{LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus, StatusKind};
+use crate::domain::DomainParticipant;
 use crate::topic::Topic;
 use crate::publication::{Publisher, DataWriterListener};
 use crate::builtin_topics::SubscriptionBuiltinTopicData;
-
 use crate::implementation::publisher_impl::PublisherImpl;
 
+use rust_dds_interface::types::{InstanceHandle, Time, ReturnCode, Duration, ReturnCodes};
 use rust_dds_interface::qos::DataWriterQos;
-
 use rust_dds_interface::protocol::ProtocolWriter;
+
 
 pub(crate) struct DataWriterImpl<T: DDSType+Any+Send+Sync> {
     parent_publisher: Weak<PublisherImpl>,
@@ -66,18 +67,28 @@ impl<T: DDSType+Any+Send+Sync> DataWriterImpl<T> {
     }
 
     pub fn lookup_instance(
-        _this: &Weak<DataWriterImpl<T>>,
-        _instance: &T,
+        this: &Weak<DataWriterImpl<T>>,
+        instance: &T,
     ) -> ReturnCode<Option<InstanceHandle>> {
-        todo!()
+        let dw = Self::upgrade_datawriter(this)?;
+        let protocol_writer = Self::upgrade_protocol_writer(&dw.protocol_writer)?;
+
+        let handle = instance.instance_handle();
+
+        match protocol_writer.is_registered(handle) {
+            true => Ok(Some(handle)),
+            false => Ok(None),
+        }
     }
 
     pub fn write (
-        _this: &Weak<DataWriterImpl<T>>,
-        _data: T,
-        _instance_handle: Option<InstanceHandle>,
+        this: &Weak<DataWriterImpl<T>>,
+        data: T,
+        instance_handle: Option<InstanceHandle>,
     ) -> ReturnCode<()> {
-        todo!()
+        let timestamp = DomainParticipant::get_current_time()?;
+
+        Self::write_w_timestamp(this, data, instance_handle, timestamp)
     }
 
     pub fn write_w_timestamp(
@@ -295,6 +306,10 @@ mod tests {
         }
 
         fn register(&self, _instance_handle: InstanceHandle) -> ReturnCode<()> {
+            todo!()
+        }
+
+        fn is_registered(&self, _instance_handle: InstanceHandle) -> bool {
             todo!()
         }
     }

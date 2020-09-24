@@ -318,6 +318,10 @@ impl ProtocolWriter for StatefulWriter {
     fn register(&self, _instance_handle: InstanceHandle) -> ReturnCode<()> {
         todo!()
     }
+
+    fn is_registered(&self, _instance_handle: InstanceHandle) -> bool {
+        todo!()
+    }
 }
 
 impl Receiver for StatefulWriter {

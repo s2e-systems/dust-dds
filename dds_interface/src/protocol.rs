@@ -30,6 +30,8 @@ pub trait ProtocolWriter : ProtocolEntity {
     fn unregister(&self, instance_handle: InstanceHandle) -> ReturnCode<()>;
 
     fn register(&self, instance_handle: InstanceHandle) -> ReturnCode<()>;
+
+    fn is_registered(&self, instance_handle: InstanceHandle) -> bool;
 }
 
 pub trait ProtocolReader: ProtocolEntity {
