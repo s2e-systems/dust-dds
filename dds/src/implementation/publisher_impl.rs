@@ -29,11 +29,13 @@ impl PublisherImpl {
         _a_listener: Box<dyn DataWriterListener<T>>,
         _mask: StatusMask,
     ) -> Option<DataWriter<T>> {
-        let protocol_writer = this.upgrade().unwrap().protocol_group.upgrade().unwrap().create_writer();
+        let publisher = PublisherImpl::upgrade_publisher(this).ok()?;
+        let protocol_group = PublisherImpl::upgrade_protocol_group(&publisher.protocol_group).ok()?;
+        let protocol_writer = protocol_group.create_writer();
         let datawriter_impl = Arc::new(DataWriterImpl::new(this.clone(), protocol_writer));
         let datawriter = DataWriter(Arc::downgrade(&datawriter_impl));        
 
-        this.upgrade()?.datawriter_list.lock().ok()?.push(AnyDataWriter(datawriter_impl));
+        publisher.datawriter_list.lock().ok()?.push(AnyDataWriter(datawriter_impl));
 
         Some(datawriter)
     }
@@ -42,7 +44,7 @@ impl PublisherImpl {
         this: &Weak<PublisherImpl>,
         a_datawriter: &DataWriter<T>
     ) -> ReturnCode<()> {
-        let publisher = this.upgrade().unwrap();
+        let publisher = PublisherImpl::upgrade_publisher(this)?;
         let mut datawriter_list = publisher.datawriter_list.lock().unwrap();
         let index = datawriter_list.iter().position(|x| 
             match x.get::<T>() {
@@ -158,8 +160,10 @@ impl PublisherImpl {
         todo!()
     }
 
-    pub(crate) fn get_instance_handle(_this: &Weak<PublisherImpl>, ) -> InstanceHandle {
-        todo!()
+    pub(crate) fn get_instance_handle(this: &Weak<PublisherImpl>) -> ReturnCode<InstanceHandle> {
+        let publisher = PublisherImpl::upgrade_publisher(this)?;
+        let protocol_group = PublisherImpl::upgrade_protocol_group(&publisher.protocol_group)?;
+        Ok(protocol_group.get_instance_handle())
     }
 
     //////////////// From here on are the functions that do not belong to the standard API
@@ -173,7 +177,11 @@ impl PublisherImpl {
     }
 
     fn upgrade_publisher(this: &Weak<PublisherImpl>) -> ReturnCode<Arc<PublisherImpl>> {
-        this.upgrade().ok_or(ReturnCodes::AlreadyDeleted)
+        this.upgrade().ok_or(ReturnCodes::AlreadyDeleted("Publisher"))
+    }
+
+    fn upgrade_protocol_group(protocol_group: &Weak<dyn ProtocolGroup>) -> ReturnCode<Arc<dyn ProtocolGroup>> {
+        protocol_group.upgrade().ok_or(ReturnCodes::AlreadyDeleted("Protocol group"))
     }
 }
 
@@ -186,13 +194,17 @@ mod tests {
     use rust_dds_interface::types::Data;
 
     struct MockProtocolGroup;
-    impl ProtocolEntity for MockProtocolGroup{}
+    impl ProtocolEntity for MockProtocolGroup{
+        fn get_instance_handle(&self) -> InstanceHandle {
+            todo!()
+        }
+    }
     impl ProtocolGroup for MockProtocolGroup {
         fn create_writer(&self) -> Weak<dyn rust_dds_interface::protocol::ProtocolWriter> {
             todo!()
         }
 
-        fn create_reader(&self) -> Weak<dyn rust_dds_interface::protocol::ProtocolWriter> {
+        fn create_reader(&self) -> Weak<dyn rust_dds_interface::protocol::ProtocolReader> {
             todo!()
         }
     }

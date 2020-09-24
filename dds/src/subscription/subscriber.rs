@@ -259,7 +259,7 @@ impl Entity for Subscriber {
         SubscriberImpl::enable(&self.0)
     }
 
-    fn get_instance_handle(&self) -> InstanceHandle {
+    fn get_instance_handle(&self) -> ReturnCode<InstanceHandle> {
         SubscriberImpl::get_instance_handle(&self.0)
     }
 }

@@ -495,7 +495,7 @@ impl Entity for DomainParticipant
         DomainParticipantImpl::enable(&self.0)
     }
 
-    fn get_instance_handle(&self, ) -> InstanceHandle {
+    fn get_instance_handle(&self) -> ReturnCode<InstanceHandle> {
         DomainParticipantImpl::get_instance_handle(&self.0)
     }
 }

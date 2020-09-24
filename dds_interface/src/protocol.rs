@@ -2,7 +2,9 @@ use std::sync::Weak;
 use crate::types::{InstanceHandle, Data, Time, TopicKind, EntityType, ReturnCode};
 use crate::qos::DataWriterQos;
 
-pub trait ProtocolEntity : Send + Sync {}
+pub trait ProtocolEntity : Send + Sync {
+    fn get_instance_handle(&self) -> InstanceHandle;
+}
 
 pub trait ProtocolParticipant : ProtocolEntity {
     fn create_group(&self) -> Weak<dyn ProtocolGroup>;
@@ -10,7 +12,7 @@ pub trait ProtocolParticipant : ProtocolEntity {
 
 pub trait ProtocolGroup : ProtocolEntity {
     fn create_writer(&self) -> Weak<dyn ProtocolWriter>;
-    fn create_reader(&self) -> Weak<dyn ProtocolWriter>;
+    fn create_reader(&self) -> Weak<dyn ProtocolReader>;
 }
 
 pub trait ProtocolWriter : ProtocolEntity {
@@ -30,6 +32,6 @@ pub trait ProtocolWriter : ProtocolEntity {
     fn register(&self, instance_handle: InstanceHandle) -> ReturnCode<()>;
 }
 
-pub trait ReaderProtocolInterface {
+pub trait ProtocolReader: ProtocolEntity {
 
 }

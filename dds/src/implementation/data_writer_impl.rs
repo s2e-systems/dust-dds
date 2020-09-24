@@ -1,6 +1,6 @@
 
 use std::any::Any;
-use std::sync::{Weak, Mutex};
+use std::sync::{Arc, Weak};
 use std::marker::PhantomData;
 
 use crate::types::DDSType;
@@ -84,9 +84,9 @@ impl<T: DDSType+Any+Send+Sync> DataWriterImpl<T> {
         this: &Weak<DataWriterImpl<T>>,
         _data: T,
         _instance_handle: Option<InstanceHandle>,
-        timestamp: Time,
+        _timestamp: Time,
     ) -> ReturnCode<()> {
-        let dw = this.upgrade().ok_or(ReturnCodes::AlreadyDeleted)?;
+        let _dw = DataWriterImpl::upgrade_datawriter(this)?;
         
         // let writer_interface_lock = dw.writer_interface.lock().unwrap();
         // let writer_interface = writer_interface_lock.as_ref().ok_or(ReturnCodes::NotEnabled)?;
@@ -206,7 +206,7 @@ impl<T: DDSType+Any+Send+Sync> DataWriterImpl<T> {
     }
 
     pub fn enable(this: &Weak<DataWriterImpl<T>>,) -> ReturnCode<()> {
-        let _dw = this.upgrade().ok_or(ReturnCodes::AlreadyDeleted)?;
+        let _dw = DataWriterImpl::upgrade_datawriter(this)?;
 
         // let guid = GUID::new([1;12],EntityId::new([1;3], EntityKind::UserDefinedWriterWithKey));
         // let topic_kind = TopicKind::WithKey;
@@ -230,19 +230,28 @@ impl<T: DDSType+Any+Send+Sync> DataWriterImpl<T> {
         Ok(())
     }
 
-    pub fn get_instance_handle(_this: &Weak<DataWriterImpl<T>>,) -> InstanceHandle {
-        todo!()
+    pub fn get_instance_handle(this: &Weak<DataWriterImpl<T>>) -> ReturnCode<InstanceHandle> {
+        let datawriter = Self::upgrade_datawriter(this)?;
+        let protocol_writer = Self::upgrade_protocol_writer(&datawriter.protocol_writer)?;
+        Ok(protocol_writer.get_instance_handle())
     }
 
      //////////////// From here on are the functions that do not belong to the standard API
-     pub(crate) fn new(parent_publisher: Weak<PublisherImpl>, protocol_writer: Weak<dyn ProtocolWriter>
-     ) -> Self {
+     pub(crate) fn new(parent_publisher: Weak<PublisherImpl>, protocol_writer: Weak<dyn ProtocolWriter>) -> Self {
          Self{
             parent_publisher,
             protocol_writer,
             value: PhantomData
          }
      }
+
+    fn upgrade_datawriter(this: &Weak<DataWriterImpl<T>>) -> ReturnCode<Arc<DataWriterImpl<T>>> {
+        this.upgrade().ok_or(ReturnCodes::AlreadyDeleted("Datawriter"))
+    }
+
+    fn upgrade_protocol_writer(protocol_writer: &Weak<dyn ProtocolWriter>) -> ReturnCode<Arc<dyn ProtocolWriter>> {
+        protocol_writer.upgrade().ok_or(ReturnCodes::AlreadyDeleted("Protocol writer"))
+    }
 }
 
 #[cfg(test)]
@@ -255,21 +264,25 @@ mod tests {
     use rust_dds_interface::types::Data;
 
     struct MockProtocolWriter;
-    impl ProtocolEntity for MockProtocolWriter{}
+    impl ProtocolEntity for MockProtocolWriter{
+        fn get_instance_handle(&self) -> InstanceHandle {
+            todo!()
+        }
+    }
     impl ProtocolWriter for MockProtocolWriter {
-        fn write(&self, instance_handle: InstanceHandle, data: Data, timestamp: Time) -> ReturnCode<()> {
+        fn write(&self, _instance_handle: InstanceHandle, _data: Data, _timestamp: Time) -> ReturnCode<()> {
             todo!()
         }
 
-        fn dispose(&self, instance_handle: InstanceHandle) -> ReturnCode<()> {
+        fn dispose(&self, _instance_handle: InstanceHandle) -> ReturnCode<()> {
             todo!()
         }
 
-        fn unregister(&self, instance_handle: InstanceHandle) -> ReturnCode<()> {
+        fn unregister(&self, _instance_handle: InstanceHandle) -> ReturnCode<()> {
             todo!()
         }
 
-        fn register(&self, instance_handle: InstanceHandle) -> ReturnCode<()> {
+        fn register(&self, _instance_handle: InstanceHandle) -> ReturnCode<()> {
             todo!()
         }
     }

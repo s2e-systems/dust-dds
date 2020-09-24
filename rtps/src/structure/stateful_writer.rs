@@ -288,7 +288,11 @@ impl StatefulWriter {
         }
     }
 }
-impl ProtocolEntity for StatefulWriter {}
+impl ProtocolEntity for StatefulWriter {
+    fn get_instance_handle(&self) -> InstanceHandle {
+        todo!()
+    }
+}
 impl ProtocolWriter for StatefulWriter {
     // fn new(
     //     _parent_instance_handle: InstanceHandle,

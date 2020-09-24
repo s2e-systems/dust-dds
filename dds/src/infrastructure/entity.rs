@@ -23,5 +23,5 @@ pub trait Entity {
 
     fn enable(&self, ) -> ReturnCode<()>;
 
-    fn get_instance_handle(&self, ) -> InstanceHandle;
+    fn get_instance_handle(&self, ) -> ReturnCode<InstanceHandle>;
 }

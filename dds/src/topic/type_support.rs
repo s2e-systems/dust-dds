@@ -21,6 +21,7 @@ impl TypeSupport {
     /// (i.e., the value returned by the get_type_name operation) will be used.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET and OUT_OF_RESOURCES
     pub fn register_type(
+        &self,
         _participant: DomainParticipant,
         _type_name: String,
     ) -> ReturnCode<()> {

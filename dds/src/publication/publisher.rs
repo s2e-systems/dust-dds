@@ -231,7 +231,7 @@ impl Entity for Publisher{
         PublisherImpl::enable(&self.0)
     }
 
-    fn get_instance_handle(&self, ) -> InstanceHandle {
+    fn get_instance_handle(&self) -> ReturnCode<InstanceHandle> {
         PublisherImpl::get_instance_handle(&self.0)
     }
 }

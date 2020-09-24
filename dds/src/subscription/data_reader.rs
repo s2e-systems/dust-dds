@@ -621,7 +621,7 @@ impl<T> Entity for DataReader<T> {
         DataReaderImpl::enable(&self.0)
     }
 
-    fn get_instance_handle(&self, ) -> InstanceHandle {
+    fn get_instance_handle(&self, ) -> ReturnCode<InstanceHandle> {
         DataReaderImpl::get_instance_handle(&self.0)
     }
 }

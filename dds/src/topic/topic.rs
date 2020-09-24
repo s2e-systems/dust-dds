@@ -79,7 +79,7 @@ impl Entity for Topic {
         todo!()
     }
 
-    fn get_instance_handle(&self, ) -> InstanceHandle {
+    fn get_instance_handle(&self) -> ReturnCode<InstanceHandle> {
         todo!()
     }
 }

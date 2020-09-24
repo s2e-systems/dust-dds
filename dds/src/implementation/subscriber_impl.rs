@@ -20,11 +20,13 @@ use crate::implementation::domain_participant_impl::DomainParticipantImpl;
 use crate::implementation::data_reader_impl::DataReaderImpl;
 
 use rust_dds_interface::qos::{TopicQos, SubscriberQos, DataReaderQos};
+use rust_dds_interface::protocol::ProtocolGroup;
 
 pub struct SubscriberImpl{
     parent_participant: Weak<DomainParticipantImpl>,
     datareader_list: Mutex<Vec<AnyDataReader>>,
     default_datareader_qos: Mutex<DataReaderQos>,
+    protocol_group: Weak<dyn ProtocolGroup>,
 }
 
 impl SubscriberImpl {
@@ -35,10 +37,15 @@ impl SubscriberImpl {
         _a_listener: Box<dyn DataReaderListener<T>>,
         _mask: StatusMask
     ) -> Option<DataReader<T>> {
-        let datareader_impl = Arc::new(DataReaderImpl::new(this.clone()));
-        let datareader = DataReader(Arc::downgrade(&datareader_impl));        
 
-        this.upgrade()?.datareader_list.lock().ok()?.push(AnyDataReader(datareader_impl));
+        let subscriber = Self::upgrade_subscriber(this).ok()?;
+        let protocol_group = Self::upgrade_protocol_group(&subscriber.protocol_group).ok()?;
+        let protocol_reader = protocol_group.create_reader();
+        let datareader_impl = Arc::new(DataReaderImpl::new(this.clone(), protocol_reader));
+        let datareader = DataReader(Arc::downgrade(&datareader_impl));    
+            
+
+        subscriber.datareader_list.lock().ok()?.push(AnyDataReader(datareader_impl));
 
         Some(datareader)
     }
@@ -179,24 +186,30 @@ impl SubscriberImpl {
         todo!()
     }
 
-    pub(crate) fn get_instance_handle(_this: &Weak<SubscriberImpl>) -> InstanceHandle {
-        todo!()
+    pub(crate) fn get_instance_handle(this: &Weak<SubscriberImpl>) -> ReturnCode<InstanceHandle> {
+        let subscriber = SubscriberImpl::upgrade_subscriber(this)?;
+        let protocol_group = SubscriberImpl::upgrade_protocol_group(&subscriber.protocol_group)?;
+        Ok(protocol_group.get_instance_handle())
     }
 
     //////////////// From here on are the functions that do not belong to the standard API
-    pub(crate) fn new(parent_participant: Weak<DomainParticipantImpl>
+    pub(crate) fn new(parent_participant: Weak<DomainParticipantImpl>, protocol_group: Weak<dyn ProtocolGroup>
     ) -> Self {
         Self{
             parent_participant,
             datareader_list: Mutex::new(Vec::new()),
             default_datareader_qos: Mutex::new(DataReaderQos::default()),
+            protocol_group,
         }
     }
 
     fn upgrade_subscriber(this: &Weak<SubscriberImpl>) -> ReturnCode<Arc<SubscriberImpl>> {
-        this.upgrade().ok_or(ReturnCodes::AlreadyDeleted)
+        this.upgrade().ok_or(ReturnCodes::AlreadyDeleted("Subscriber"))
     }
 
+    fn upgrade_protocol_group(protocol_group: &Weak<dyn ProtocolGroup>) -> ReturnCode<Arc<dyn ProtocolGroup>> {
+        protocol_group.upgrade().ok_or(ReturnCodes::AlreadyDeleted("Protocol group"))
+    }
 }
 
 #[cfg(test)]
@@ -205,6 +218,24 @@ mod tests {
     use crate::infrastructure::listener::NoListener;
     use crate::topic::Topic;
     use rust_dds_interface::qos_policy::ReliabilityQosPolicyKind;
+    use rust_dds_interface::protocol::ProtocolEntity;
+
+    struct MockProtocolGroup;
+    impl ProtocolEntity for MockProtocolGroup{
+        fn get_instance_handle(&self) -> InstanceHandle {
+            todo!()
+        }
+    }
+    impl ProtocolGroup for MockProtocolGroup {
+        fn create_writer(&self) -> Weak<dyn rust_dds_interface::protocol::ProtocolWriter> {
+            todo!()
+        }
+
+        fn create_reader(&self) -> Weak<dyn rust_dds_interface::protocol::ProtocolReader> {
+            todo!()
+        }
+    }
+
     #[derive(Debug)]
     struct  Foo {
         value: bool
@@ -212,7 +243,7 @@ mod tests {
 
     #[test]
     fn create_delete_datareader() {
-        let subscriber_impl = Arc::new(SubscriberImpl::new(Weak::new()));
+        let subscriber_impl = Arc::new(SubscriberImpl::new(Weak::new(), Weak::<MockProtocolGroup>::new()));
         let topic = Topic(Weak::new());
         
         assert_eq!(subscriber_impl.datareader_list.lock().unwrap().len(), 0);
@@ -225,7 +256,7 @@ mod tests {
 
     #[test]
     fn set_and_get_default_datareader_qos() {
-        let subscriber_impl = Arc::new(SubscriberImpl::new(Weak::new()));
+        let subscriber_impl = Arc::new(SubscriberImpl::new(Weak::new(), Weak::<MockProtocolGroup>::new()));
         let subscriber = Arc::downgrade(&subscriber_impl);
 
         let mut datareader_qos = DataReaderQos::default();
@@ -243,7 +274,7 @@ mod tests {
 
     #[test]
     fn inconsistent_datareader_qos() {
-        let subscriber_impl = Arc::new(SubscriberImpl::new(Weak::new()));
+        let subscriber_impl = Arc::new(SubscriberImpl::new(Weak::new(), Weak::<MockProtocolGroup>::new()));
         let subscriber = Arc::downgrade(&subscriber_impl);
 
         let mut datareader_qos = DataReaderQos::default();

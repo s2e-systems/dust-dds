@@ -13,7 +13,7 @@ pub enum ReturnCodes {
     NotEnabled,
     ImmutablePolicy,
     InconsistentPolicy,
-    AlreadyDeleted,
+    AlreadyDeleted(&'static str),
     Timeout,
     NoData,
     IllegalOperation,

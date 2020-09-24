@@ -66,7 +66,8 @@ impl DomainParticipantImpl{
         _a_listener: impl SubscriberListener,
         _mask: StatusMask
     ) -> Option<Subscriber> {
-        let subscriber_impl = Arc::new(SubscriberImpl::new(Arc::downgrade(this)));
+        let protocol_group = this.protocol_participant.create_group();
+        let subscriber_impl = Arc::new(SubscriberImpl::new(Arc::downgrade(this), protocol_group));
         let subscriber = Subscriber(Arc::downgrade(&subscriber_impl));
 
         this.subscriber_list.lock().ok()?.push(subscriber_impl);
@@ -299,8 +300,8 @@ impl DomainParticipantImpl{
         Ok(())
     }
 
-    pub(crate) fn get_instance_handle(_this: &Arc<DomainParticipantImpl>) -> InstanceHandle {
-        todo!()
+    pub(crate) fn get_instance_handle(this: &Arc<DomainParticipantImpl>) -> ReturnCode<InstanceHandle> {
+        Ok(this.protocol_participant.get_instance_handle())
     }
 
 
@@ -348,7 +349,12 @@ mod tests {
     use rust_dds_interface::qos_policy::ReliabilityQosPolicyKind;
 
     struct MockProtocolParticipant;
-    impl ProtocolEntity for MockProtocolParticipant{}
+    impl ProtocolEntity for MockProtocolParticipant{
+        fn get_instance_handle(&self) -> InstanceHandle {
+            todo!()
+        }
+    }
+
     impl ProtocolParticipant for MockProtocolParticipant {
         fn create_group(&self) -> Weak<dyn rust_dds_interface::protocol::ProtocolGroup> {
             todo!()

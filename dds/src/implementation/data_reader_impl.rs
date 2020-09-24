@@ -1,7 +1,7 @@
-use std::sync::Weak;
+use std::sync::{Arc, Weak};
 use std::marker::PhantomData;
 
-use rust_dds_interface::types::{ReturnCode, InstanceHandle};
+use rust_dds_interface::types::{ReturnCode, ReturnCodes, InstanceHandle};
 use crate::infrastructure::status::{SampleStateKind, ViewStateKind, InstanceStateKind, StatusKind};
 use crate::subscription::{ReadCondition, QueryCondition};
 use crate::infrastructure::status::{LivelinessChangedStatus, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus, SubscriptionMatchedStatus};
@@ -12,10 +12,12 @@ use crate::builtin_topics::PublicationBuiltinTopicData;
 use crate::implementation::subscriber_impl::SubscriberImpl;
 
 use rust_dds_interface::qos::DataReaderQos;
+use rust_dds_interface::protocol::ProtocolReader;
 
 pub(crate) struct DataReaderImpl<T>{
     parent_subscriber: Weak<SubscriberImpl>,
     value: PhantomData<T>,
+    protocol_reader: Weak<dyn ProtocolReader>,
 }
 
 impl<T> DataReaderImpl<T> {
@@ -329,18 +331,26 @@ impl<T> DataReaderImpl<T> {
         todo!()
     }
 
-    pub fn get_instance_handle(
-        _this: &Weak<DataReaderImpl<T>>,
-    ) -> InstanceHandle {
-        todo!()
+    pub fn get_instance_handle(this: &Weak<DataReaderImpl<T>>) -> ReturnCode<InstanceHandle> {
+        let datareader = Self::upgrade_datareader(this)?;
+        let protocol_reader = Self::upgrade_protocol_reader(&datareader.protocol_reader)?;
+        Ok(protocol_reader.get_instance_handle())
     }
 
     //////////////// From here on are the functions that do not belong to the standard API
-    pub(crate) fn new(parent_subscriber: Weak<SubscriberImpl>
-    ) -> Self {
+    pub(crate) fn new(parent_subscriber: Weak<SubscriberImpl>, protocol_reader: Weak<dyn ProtocolReader>) -> Self {
         Self{
             parent_subscriber,
-            value: PhantomData
+            value: PhantomData,
+            protocol_reader,
         }
+    }
+
+    fn upgrade_datareader(this: &Weak<DataReaderImpl<T>>) -> ReturnCode<Arc<DataReaderImpl<T>>> {
+        this.upgrade().ok_or(ReturnCodes::AlreadyDeleted("Datareader"))
+    }
+
+    fn upgrade_protocol_reader(protocol_writer: &Weak<dyn ProtocolReader>) -> ReturnCode<Arc<dyn ProtocolReader>> {
+        protocol_writer.upgrade().ok_or(ReturnCodes::AlreadyDeleted("Protocol reader"))
     }
 }
