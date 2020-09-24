@@ -54,13 +54,18 @@ impl DomainParticipant {
         enabled: bool,
     ) ->  Option<DomainParticipant> {
 
+        use rust_rtps::transport::udp::UdpTransport;
+        let interface = "Wi-Fi";
+        let userdata_transport = UdpTransport::default_userdata_transport(domain_id, interface).unwrap();
+        let metatraffic_transport = UdpTransport::default_metatraffic_transport(domain_id, interface).unwrap();
+
         let name = "rtps";
-        let protocol_participant = match name {
-            "rtps" => todo!(),//rust_rtps::structure::participant::Participant::new(),
+        let protocol_participant = match name {            
+            "rtps" => rust_rtps::structure::participant::Participant::new(userdata_transport, metatraffic_transport),
             _ => panic!("Protocol not valid"),
         };
 
-        let new_participant = DomainParticipant(Arc::new(DomainParticipantImpl::new(domain_id, qos_list, a_listener, mask, protocol_participant)));
+        let new_participant = DomainParticipant(Arc::new(DomainParticipantImpl::new(domain_id, qos_list, a_listener, mask, Box::new(protocol_participant))));
 
         if enabled {
             new_participant.enable().ok()?;

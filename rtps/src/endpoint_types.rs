@@ -10,7 +10,7 @@ use crate::serialized_payload::{Pid, ParameterId };
 use crate::messages::types::Count;
 use crate::behavior::types::Duration;
 
-pub type DomainId = u32;
+pub type DomainId = i32;
 
 #[derive(PartialEq, Debug, Eq, Clone, Copy, Serialize, Deserialize)]
 pub struct BuiltInEndpointSet {

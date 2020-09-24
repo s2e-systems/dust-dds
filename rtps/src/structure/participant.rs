@@ -1,3 +1,4 @@
+use std::sync::Weak;
 use crate::types::{GUID, Locator, ProtocolVersion, VendorId, TopicKind, ChangeKind, ReliabilityKind};
 use crate::types::constants::{
     ENTITYID_PARTICIPANT,
@@ -27,6 +28,7 @@ use super::stateless_reader::StatelessReader;
 use super::stateful_writer::{StatefulWriter, };
 use super::stateful_reader::{StatefulReader, };
 
+use rust_dds_interface::protocol::{ProtocolEntity, ProtocolParticipant};
 
 pub struct Participant<T: Transport = UdpTransport> {
     guid: GUID,
@@ -52,7 +54,7 @@ pub struct Participant<T: Transport = UdpTransport> {
 }
 
 impl<T: Transport> Participant<T> {
-    fn new(
+    pub fn new(
         userdata_transport: T,
         metatraffic_transport: T,
     ) -> Self {
@@ -275,6 +277,17 @@ impl<T: Transport> Participant<T> {
             let discovered_participant = SPDPdiscoveredParticipantData::from_key_data(*spdp_data.instance_handle(), spdp_data.data_value(), self.domain_id);
             spdp::add_discovered_participant(&self, &discovered_participant);
         }
+    }
+}
+
+impl ProtocolEntity for Participant{
+    fn get_instance_handle(&self) -> rust_dds_interface::types::InstanceHandle {
+        todo!()
+    }
+}
+impl ProtocolParticipant for Participant {
+    fn create_group(&self) -> Weak<dyn rust_dds_interface::protocol::ProtocolGroup> {
+        todo!()
     }
 }
 

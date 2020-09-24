@@ -21,13 +21,13 @@ pub struct UdpTransport {
 }
 
 impl UdpTransport {
-    const PB : u32 = 7400;  // TODO: Should be configurable
-    const DG : u32 = 250;   // TODO: Should be configurable
-    const PG : u32 = 2; // TODO: Should be configurable
-    const D0 : u32 = 0; // TODO: Should be configurable
-    const D1 : u32 = 10;    // TODO: Should be configurable
-    const D2 : u32 = 1; // TODO: Should be configurable
-    const D3 : u32 = 11;    // TODO: Should be configurable
+    const PB : i32 = 7400;  // TODO: Should be configurable
+    const DG : i32 = 250;   // TODO: Should be configurable
+    const PG : i32 = 2; // TODO: Should be configurable
+    const D0 : i32 = 0; // TODO: Should be configurable
+    const D1 : i32 = 10;    // TODO: Should be configurable
+    const D2 : i32 = 1; // TODO: Should be configurable
+    const D3 : i32 = 11;    // TODO: Should be configurable
 
     pub fn new(
         unicast_locator: Locator,
@@ -59,7 +59,7 @@ impl UdpTransport {
     }
 
     pub fn default_metatraffic_transport(domain_id: DomainId, interface: &str) -> TransportResult<Self> {
-        let spdp_well_known_multicast_port = UdpTransport::PB + UdpTransport::DG * domain_id + UdpTransport::D0;
+        let spdp_well_known_multicast_port = (UdpTransport::PB + UdpTransport::DG * domain_id + UdpTransport::D0) as u32;
 
         let metatraffic_unicast_locator = Locator::new(
             LOCATOR_KIND_UDPv4,
@@ -76,8 +76,22 @@ impl UdpTransport {
         UdpTransport::new(metatraffic_unicast_locator, Some(metatraffic_multicast_locator))
     }
 
-    pub fn default_userdata_transport(_domain_id: DomainId, _interface: &str) -> TransportResult<Self> {
-        todo!()
+    pub fn default_userdata_transport(domain_id: DomainId, interface: &str) -> TransportResult<Self> {
+        let spdp_well_known_multicast_port = (UdpTransport::PB + UdpTransport::DG * domain_id + UdpTransport::D0 + 1) as u32;
+
+        let metatraffic_unicast_locator = Locator::new(
+            LOCATOR_KIND_UDPv4,
+            spdp_well_known_multicast_port,
+            get_interface_address(interface).unwrap(),
+        );
+
+        let metatraffic_multicast_locator = Locator::new(
+            LOCATOR_KIND_UDPv4,
+            spdp_well_known_multicast_port,
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 239, 255, 0, 1],
+        );
+
+        UdpTransport::new(metatraffic_unicast_locator, Some(metatraffic_multicast_locator))
     }
 
 }

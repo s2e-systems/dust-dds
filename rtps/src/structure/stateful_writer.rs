@@ -303,8 +303,10 @@ impl ProtocolWriter for StatefulWriter {
     //     todo!()
     // }
 
-    fn write(&self, _instance_handle: InstanceHandle, _data: Data, _timestamp: Time) -> ReturnCode<()>{
-        todo!()
+    fn write(&self, instance_handle: InstanceHandle, data: Data, _timestamp: Time) -> ReturnCode<()>{
+        let cc = self.new_change(ChangeKind::Alive, Some(data), None, instance_handle);
+        self.writer_cache().add_change(cc);
+        Ok(())
     }
 
     fn dispose(&self, _instance_handle: InstanceHandle, timestamp: Time) -> ReturnCode<()> {
