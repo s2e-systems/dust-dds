@@ -1,6 +1,5 @@
 use std::sync::Weak;
-use crate::types::{InstanceHandle, Data, Time, TopicKind, EntityType, ReturnCode};
-use crate::qos::DataWriterQos;
+use crate::types::{InstanceHandle, Data, Time, ReturnCode};
 
 pub trait ProtocolEntity : Send + Sync {
     fn enable(&self) -> ReturnCode<()>;

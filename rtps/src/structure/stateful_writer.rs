@@ -11,8 +11,7 @@ use crate::structure::history_cache::HistoryCache;
 use crate::structure::cache_change::CacheChange;
 use crate::serialized_payload::ParameterList;
 use rust_dds_interface::protocol::{ProtocolEntity, ProtocolWriter};
-use rust_dds_interface::types::{Data, Time, EntityType, ReturnCode};
-use rust_dds_interface::qos::DataWriterQos;
+use rust_dds_interface::types::{Data, Time, ReturnCode};
 
 struct ChangeForReader {
     highest_sequence_number_sent: SequenceNumber,
@@ -313,15 +312,15 @@ impl ProtocolWriter for StatefulWriter {
         Ok(())
     }
 
-    fn dispose(&self, _instance_handle: InstanceHandle, timestamp: Time) -> ReturnCode<()> {
+    fn dispose(&self, _instance_handle: InstanceHandle, _timestamp: Time) -> ReturnCode<()> {
         todo!()
     }
 
-    fn unregister(&self, _instance_handle: InstanceHandle, timestamp: Time) -> ReturnCode<()> {
+    fn unregister(&self, _instance_handle: InstanceHandle, _timestamp: Time) -> ReturnCode<()> {
         todo!()
     }
 
-    fn register(&self, _instance_handle: InstanceHandle, timestamp: Time) -> ReturnCode<()> {
+    fn register(&self, _instance_handle: InstanceHandle, _timestamp: Time) -> ReturnCode<()> {
         todo!()
     }
 
