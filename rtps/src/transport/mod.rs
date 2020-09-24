@@ -18,7 +18,7 @@ impl From<std::io::Error> for TransportError {
 }
 
 pub type TransportResult<T> = std::result::Result<T, TransportError>;
-pub trait Transport {
+pub trait Transport : Send + Sync {
     fn write(&self, message: RtpsMessage, destination_locator_list: &[Locator]);
 
     fn read(&self) -> TransportResult<Option<(RtpsMessage, Locator)>>;

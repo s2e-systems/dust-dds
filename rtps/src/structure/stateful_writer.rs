@@ -10,7 +10,7 @@ use crate::messages::message_sender::Sender;
 use crate::structure::history_cache::HistoryCache;
 use crate::structure::cache_change::CacheChange;
 use crate::serialized_payload::ParameterList;
-use rust_dds_interface::protocol::WriterInterface;
+use rust_dds_interface::protocol::{ProtocolEntity, ProtocolWriter};
 use rust_dds_interface::types::{Data, Time, EntityType, ReturnCode};
 use rust_dds_interface::qos::DataWriterQos;
 
@@ -288,16 +288,16 @@ impl StatefulWriter {
         }
     }
 }
-
-impl WriterInterface for StatefulWriter {
-    fn new(
-        _parent_instance_handle: InstanceHandle,
-        _entity_type: EntityType,
-        _topic_kind: TopicKind,
-        _writer_qos: DataWriterQos,
-    ) -> Self {
-        todo!()
-    }
+impl ProtocolEntity for StatefulWriter {}
+impl ProtocolWriter for StatefulWriter {
+    // fn new(
+    //     _parent_instance_handle: InstanceHandle,
+    //     _entity_type: EntityType,
+    //     _topic_kind: TopicKind,
+    //     _writer_qos: DataWriterQos,
+    // ) -> Self {
+    //     todo!()
+    // }
 
     fn write(&self, _instance_handle: InstanceHandle, _data: Data, _timestamp: Time) -> ReturnCode<()>{
         todo!()

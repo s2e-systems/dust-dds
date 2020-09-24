@@ -15,26 +15,25 @@ use crate::implementation::publisher_impl::PublisherImpl;
 
 use rust_dds_interface::qos::DataWriterQos;
 
-use rust_dds_interface::protocol::WriterInterface;
-use rust_rtps::StatefulWriter;
+use rust_dds_interface::protocol::ProtocolWriter;
 
-pub(crate) struct DataWriterImpl<T: DDSType+Any+Send+Sync, I: WriterInterface = StatefulWriter> {
+pub(crate) struct DataWriterImpl<T: DDSType+Any+Send+Sync> {
     parent_publisher: Weak<PublisherImpl>,
-    writer_interface: Mutex<Option<I>>,
+    protocol_writer: Weak<dyn ProtocolWriter>,
     value: PhantomData<T>,
 }
 
-impl<T: DDSType+Any+Send+Sync, I: WriterInterface> DataWriterImpl<T,I> {
+impl<T: DDSType+Any+Send+Sync> DataWriterImpl<T> {
     pub fn register_instance(
-        _this: &Weak<DataWriterImpl<T,I>>,
+        _this: &Weak<DataWriterImpl<T>>,
         _instance: T
     ) -> InstanceHandle {
-        // WriterInterface::register(&concrete_writer);
+        // ProtocolWriter::register(&concrete_writer);
         todo!()
     }
 
     pub fn register_instance_w_timestamp(
-        _this: &Weak<DataWriterImpl<T,I>>,
+        _this: &Weak<DataWriterImpl<T>>,
         _instance: T,
         _timestamp: Time,
     ) -> InstanceHandle {
@@ -42,7 +41,7 @@ impl<T: DDSType+Any+Send+Sync, I: WriterInterface> DataWriterImpl<T,I> {
     }
 
     pub fn unregister_instance(
-        _this: &Weak<DataWriterImpl<T,I>>,
+        _this: &Weak<DataWriterImpl<T>>,
         _instance: T,
         _handle: InstanceHandle
     ) -> ReturnCode<()> {
@@ -50,7 +49,7 @@ impl<T: DDSType+Any+Send+Sync, I: WriterInterface> DataWriterImpl<T,I> {
     }
 
     pub fn unregister_instance_w_timestamp(
-        _this: &Weak<DataWriterImpl<T,I>>,
+        _this: &Weak<DataWriterImpl<T>>,
         _instance: T,
         _handle: InstanceHandle,
         _timestamp: Time,
@@ -59,7 +58,7 @@ impl<T: DDSType+Any+Send+Sync, I: WriterInterface> DataWriterImpl<T,I> {
     }
 
     pub fn get_key_value(
-        _this: &Weak<DataWriterImpl<T,I>>,
+        _this: &Weak<DataWriterImpl<T>>,
         _key_holder: &mut T,
         _handle: InstanceHandle
     ) -> ReturnCode<()> {
@@ -67,14 +66,14 @@ impl<T: DDSType+Any+Send+Sync, I: WriterInterface> DataWriterImpl<T,I> {
     }
 
     pub fn lookup_instance(
-        _this: &Weak<DataWriterImpl<T,I>>,
+        _this: &Weak<DataWriterImpl<T>>,
         _instance: T,
     ) -> InstanceHandle {
         todo!()
     }
 
     pub fn write (
-        _this: &Weak<DataWriterImpl<T,I>>,
+        _this: &Weak<DataWriterImpl<T>>,
         _data: T,
         _instance_handle: Option<InstanceHandle>,
     ) -> ReturnCode<()> {
@@ -82,23 +81,23 @@ impl<T: DDSType+Any+Send+Sync, I: WriterInterface> DataWriterImpl<T,I> {
     }
 
     pub fn write_w_timestamp(
-        this: &Weak<DataWriterImpl<T,I>>,
+        this: &Weak<DataWriterImpl<T>>,
         _data: T,
         _instance_handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> ReturnCode<()> {
         let dw = this.upgrade().ok_or(ReturnCodes::AlreadyDeleted)?;
         
-        let writer_interface_lock = dw.writer_interface.lock().unwrap();
-        let writer_interface = writer_interface_lock.as_ref().ok_or(ReturnCodes::NotEnabled)?;
+        // let writer_interface_lock = dw.writer_interface.lock().unwrap();
+        // let writer_interface = writer_interface_lock.as_ref().ok_or(ReturnCodes::NotEnabled)?;
 
-        writer_interface.write([0;16], vec![], timestamp)?;
+        // writer_interface.write([0;16], vec![], timestamp)?;
 
         Ok(())
     }
 
     pub fn dispose(
-        _this: &Weak<DataWriterImpl<T,I>>,
+        _this: &Weak<DataWriterImpl<T>>,
         _data: T,
         _instance_handle: InstanceHandle,
     ) -> ReturnCode<()> {
@@ -106,7 +105,7 @@ impl<T: DDSType+Any+Send+Sync, I: WriterInterface> DataWriterImpl<T,I> {
     }
 
     pub fn dispose_w_timestamp(
-        _this: &Weak<DataWriterImpl<T,I>>,
+        _this: &Weak<DataWriterImpl<T>>,
         _data: T,
         _instance_handle: InstanceHandle,
         _timestamp: Time,
@@ -115,21 +114,21 @@ impl<T: DDSType+Any+Send+Sync, I: WriterInterface> DataWriterImpl<T,I> {
     }
 
     pub fn wait_for_acknowledgments(
-        _this: &Weak<DataWriterImpl<T,I>>,
+        _this: &Weak<DataWriterImpl<T>>,
         _max_wait: Duration
     ) -> ReturnCode<()> {
         todo!()
     }
 
     pub fn get_liveliness_lost_status(
-        _this: &Weak<DataWriterImpl<T,I>>,
+        _this: &Weak<DataWriterImpl<T>>,
         _status: &mut LivelinessLostStatus
     ) -> ReturnCode<()> {
         todo!()
     }
 
     pub fn get_offered_deadline_missed_status(
-        _this: &Weak<DataWriterImpl<T,I>>,
+        _this: &Weak<DataWriterImpl<T>>,
         _status: &mut OfferedDeadlineMissedStatus
     ) -> ReturnCode<()> {
         todo!()
@@ -137,7 +136,7 @@ impl<T: DDSType+Any+Send+Sync, I: WriterInterface> DataWriterImpl<T,I> {
 
 
     pub fn get_offered_incompatible_qos_status(
-        _this: &Weak<DataWriterImpl<T,I>>,
+        _this: &Weak<DataWriterImpl<T>>,
         _status: &mut OfferedIncompatibleQosStatus
     ) -> ReturnCode<()> {
         todo!()
@@ -145,30 +144,30 @@ impl<T: DDSType+Any+Send+Sync, I: WriterInterface> DataWriterImpl<T,I> {
 
 
     pub fn get_publication_matched_status(
-        _this: &Weak<DataWriterImpl<T,I>>,
+        _this: &Weak<DataWriterImpl<T>>,
         _status: &mut PublicationMatchedStatus
     ) -> ReturnCode<()> {
         todo!()
     }
 
     pub fn get_topic(
-        _this: &Weak<DataWriterImpl<T,I>>,
+        _this: &Weak<DataWriterImpl<T>>,
     ) -> Topic {
         todo!()
     }
 
     pub fn get_publisher(
-        this: &Weak<DataWriterImpl<T,I>>,
+        this: &Weak<DataWriterImpl<T>>,
     ) -> Publisher {
         Publisher(this.upgrade().unwrap().parent_publisher.clone())
     }
 
-    pub fn assert_liveliness(_this: &Weak<DataWriterImpl<T,I>>,) -> ReturnCode<()> {
+    pub fn assert_liveliness(_this: &Weak<DataWriterImpl<T>>,) -> ReturnCode<()> {
         todo!()
     }
 
     pub fn get_matched_subscription_data(
-        _this: &Weak<DataWriterImpl<T,I>>,
+        _this: &Weak<DataWriterImpl<T>>,
         _subscription_data: SubscriptionBuiltinTopicData,
         _subscription_handle: InstanceHandle,
     ) -> ReturnCode<()> {
@@ -176,37 +175,37 @@ impl<T: DDSType+Any+Send+Sync, I: WriterInterface> DataWriterImpl<T,I> {
     }
 
     pub fn get_matched_subscriptions(
-        _this: &Weak<DataWriterImpl<T,I>>,
+        _this: &Weak<DataWriterImpl<T>>,
         _subscription_handles: &[InstanceHandle],
     ) -> ReturnCode<()> {
         todo!()
     }
 
-    pub fn set_qos(_this: &Weak<DataWriterImpl<T,I>>, _qos_list: DataWriterQos) -> ReturnCode<()> {
+    pub fn set_qos(_this: &Weak<DataWriterImpl<T>>, _qos_list: DataWriterQos) -> ReturnCode<()> {
         todo!()
     }
 
-    pub fn get_qos(_this: &Weak<DataWriterImpl<T,I>>, _qos_list: &mut DataWriterQos) -> ReturnCode<()> {
+    pub fn get_qos(_this: &Weak<DataWriterImpl<T>>, _qos_list: &mut DataWriterQos) -> ReturnCode<()> {
         todo!()
     }
 
-    pub fn set_listener(_this: &Weak<DataWriterImpl<T,I>>, _a_listener: Box<dyn DataWriterListener<T>>, _mask: &[StatusKind]) -> ReturnCode<()> {
+    pub fn set_listener(_this: &Weak<DataWriterImpl<T>>, _a_listener: Box<dyn DataWriterListener<T>>, _mask: &[StatusKind]) -> ReturnCode<()> {
         todo!()
     }
 
-    pub fn get_listener(_this: &Weak<DataWriterImpl<T,I>>,) -> Box<dyn DataWriterListener<T>> {
+    pub fn get_listener(_this: &Weak<DataWriterImpl<T>>,) -> Box<dyn DataWriterListener<T>> {
         todo!()
     }
 
-    pub fn get_statuscondition(_this: &Weak<DataWriterImpl<T,I>>, ) -> crate::infrastructure::entity::StatusCondition {
+    pub fn get_statuscondition(_this: &Weak<DataWriterImpl<T>>, ) -> crate::infrastructure::entity::StatusCondition {
         todo!()
     }
 
-    pub fn get_status_changes(_this: &Weak<DataWriterImpl<T,I>>,) -> StatusKind {
+    pub fn get_status_changes(_this: &Weak<DataWriterImpl<T>>,) -> StatusKind {
         todo!()
     }
 
-    pub fn enable(this: &Weak<DataWriterImpl<T,I>>,) -> ReturnCode<()> {
+    pub fn enable(this: &Weak<DataWriterImpl<T>>,) -> ReturnCode<()> {
         let _dw = this.upgrade().ok_or(ReturnCodes::AlreadyDeleted)?;
 
         // let guid = GUID::new([1;12],EntityId::new([1;3], EntityKind::UserDefinedWriterWithKey));
@@ -231,16 +230,16 @@ impl<T: DDSType+Any+Send+Sync, I: WriterInterface> DataWriterImpl<T,I> {
         Ok(())
     }
 
-    pub fn get_instance_handle(_this: &Weak<DataWriterImpl<T,I>>,) -> InstanceHandle {
+    pub fn get_instance_handle(_this: &Weak<DataWriterImpl<T>>,) -> InstanceHandle {
         todo!()
     }
 
      //////////////// From here on are the functions that do not belong to the standard API
-     pub(crate) fn new(parent_publisher: Weak<PublisherImpl>
+     pub(crate) fn new(parent_publisher: Weak<PublisherImpl>, protocol_writer: Weak<dyn ProtocolWriter>
      ) -> Self {
          Self{
             parent_publisher,
-            writer_interface: Mutex::new(None),
+            protocol_writer,
             value: PhantomData
          }
      }
@@ -252,7 +251,29 @@ mod tests {
     use std::sync::Arc;
     use crate::types::DDSType;
     use crate::publication::AnyDataWriter;
+    use rust_dds_interface::protocol::{ProtocolEntity, ProtocolWriter};
     use rust_dds_interface::types::Data;
+
+    struct MockProtocolWriter;
+    impl ProtocolEntity for MockProtocolWriter{}
+    impl ProtocolWriter for MockProtocolWriter {
+        fn write(&self, instance_handle: InstanceHandle, data: Data, timestamp: Time) -> ReturnCode<()> {
+            todo!()
+        }
+
+        fn dispose(&self, instance_handle: InstanceHandle) -> ReturnCode<()> {
+            todo!()
+        }
+
+        fn unregister(&self, instance_handle: InstanceHandle) -> ReturnCode<()> {
+            todo!()
+        }
+
+        fn register(&self, instance_handle: InstanceHandle) -> ReturnCode<()> {
+            todo!()
+        }
+    }
+
 
     #[derive(Debug)]
     struct  Foo {
@@ -312,7 +333,7 @@ mod tests {
     #[test]
     fn get_single_anydatawriter_value() {
         let any_datawriter = AnyDataWriter(
-            Arc::new(DataWriterImpl::<Foo>::new(Weak::new()))
+            Arc::new(DataWriterImpl::<Foo>::new(Weak::new(), Weak::<MockProtocolWriter>::new()))
         );
 
         assert!(any_datawriter.get::<Foo>().is_some())
@@ -322,8 +343,8 @@ mod tests {
     fn get_multiple_anydatawriter_values() {
         let mut datawriter_list = Vec::new();
 
-        datawriter_list.push(AnyDataWriter(Arc::new(DataWriterImpl::<Foo>::new(Weak::new()))));
-        datawriter_list.push(AnyDataWriter(Arc::new(DataWriterImpl::<Bar>::new(Weak::new()))));
+        datawriter_list.push(AnyDataWriter(Arc::new(DataWriterImpl::<Foo>::new(Weak::new(), Weak::<MockProtocolWriter>::new()))));
+        datawriter_list.push(AnyDataWriter(Arc::new(DataWriterImpl::<Bar>::new(Weak::new(), Weak::<MockProtocolWriter>::new()))));
 
         assert!(datawriter_list[0].get::<Foo>().is_some());
         assert!(datawriter_list[0].get::<Bar>().is_none());
@@ -335,49 +356,4 @@ mod tests {
         assert_eq!(datawriter_list.iter().position(|x| x.get::<Bar>().is_some()).unwrap(),1);
     }
 
-    // #[test]
-    // fn write_w_timestamp() {
-    //     use crate::types::Time;
-    //     use rust_dds_interface::types::Data;
-    //     struct MockInterface {
-
-    //     }
-
-    //     impl WriterInterface for MockInterface {
-    //         fn new(_reliability: rust_dds_interface::types::ReliabilityKind, _max_blocking_time: rust_dds_interface::types::Duration ) -> Self {
-    //             MockInterface{}
-    //         }
-
-    //         fn write(&self, _instance_handle: InstanceHandle, _data: Data) {
-    //             println!("Mock interface");
-    //         }
-        
-    //         fn dispose(&self, _instance_handle: InstanceHandle) {
-    //             todo!()
-    //         }
-        
-    //         fn unregister(&self, _instance_handle: InstanceHandle) {
-    //             todo!()
-    //         }
-        
-    //         fn register(&self, _instance_handle: InstanceHandle) {
-    //             todo!()
-    //         }
-    //     }
-
-
-    //     let timestamp = Time {
-    //         sec: 100,
-    //         nanosec: 20000,
-    //     };
-
-    //     let dw = Arc::new(DataWriterImpl::<Foo, MockInterface>::new(Weak::new()));
-    //     let dw_weak = Arc::downgrade(&dw);
-
-    //     let new_foo = Foo{value:false};
-
-    //     DataWriterImpl::enable(&dw_weak).unwrap();
-
-    //     DataWriterImpl::write_w_timestamp(&dw_weak, new_foo, None, timestamp).unwrap();
-    // }
 }

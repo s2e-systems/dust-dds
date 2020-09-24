@@ -36,6 +36,7 @@ pub type DomainId = i32;
 /// - Operations that access the status: get_statuscondition
 pub struct DomainParticipant(pub(crate) Arc<DomainParticipantImpl>);
 
+
 impl DomainParticipant {
     /// This operation creates a new DomainParticipant object. The DomainParticipant signifies that the calling application intends
     /// to join the Domain identified by the domain_id argument.
@@ -52,7 +53,14 @@ impl DomainParticipant {
         mask: StatusMask,
         enabled: bool,
     ) ->  Option<DomainParticipant> {
-        let new_participant = DomainParticipant(Arc::new(DomainParticipantImpl::new(domain_id, qos_list, a_listener, mask)));
+
+        let name = "rtps";
+        let protocol_participant = match name {
+            "rtps" => todo!(),//rust_rtps::structure::participant::Participant::new(),
+            _ => panic!("Protocol not valid"),
+        };
+
+        let new_participant = DomainParticipant(Arc::new(DomainParticipantImpl::new(domain_id, qos_list, a_listener, mask, protocol_participant)));
 
         if enabled {
             new_participant.enable().ok()?;
