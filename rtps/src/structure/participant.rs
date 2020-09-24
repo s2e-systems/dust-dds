@@ -284,6 +284,10 @@ impl ProtocolEntity for Participant{
     fn get_instance_handle(&self) -> rust_dds_interface::types::InstanceHandle {
         todo!()
     }
+
+    fn enable(&self) -> rust_dds_interface::types::ReturnCode<()> {
+        todo!()
+    }
 }
 impl ProtocolParticipant for Participant {
     fn create_group(&self) -> Weak<dyn rust_dds_interface::protocol::ProtocolGroup> {

@@ -350,6 +350,10 @@ mod tests {
         fn get_instance_handle(&self) -> InstanceHandle {
             todo!()
         }
+
+        fn enable(&self) -> ReturnCode<()> {
+            todo!()
+        }
     }
 
     impl ProtocolParticipant for MockProtocolParticipant {

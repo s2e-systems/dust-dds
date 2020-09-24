@@ -292,6 +292,10 @@ impl ProtocolEntity for StatefulWriter {
     fn get_instance_handle(&self) -> InstanceHandle {
         todo!()
     }
+
+    fn enable(&self) -> ReturnCode<()> {
+        todo!()
+    }
 }
 impl ProtocolWriter for StatefulWriter {
     // fn new(

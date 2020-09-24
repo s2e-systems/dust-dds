@@ -198,6 +198,10 @@ mod tests {
         fn get_instance_handle(&self) -> InstanceHandle {
             todo!()
         }
+
+        fn enable(&self) -> ReturnCode<()> {
+            todo!()
+        }
     }
     impl ProtocolGroup for MockProtocolGroup {
         fn create_writer(&self) -> Weak<dyn rust_dds_interface::protocol::ProtocolWriter> {

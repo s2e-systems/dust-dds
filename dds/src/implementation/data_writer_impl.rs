@@ -291,6 +291,10 @@ mod tests {
         fn get_instance_handle(&self) -> InstanceHandle {
             todo!()
         }
+
+        fn enable(&self) -> ReturnCode<()> {
+            todo!()
+        }
     }
     impl ProtocolWriter for MockProtocolWriter {
         fn write(&self, _instance_handle: InstanceHandle, _data: Data, _timestamp: Time) -> ReturnCode<()> {

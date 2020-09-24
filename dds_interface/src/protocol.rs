@@ -3,6 +3,7 @@ use crate::types::{InstanceHandle, Data, Time, TopicKind, EntityType, ReturnCode
 use crate::qos::DataWriterQos;
 
 pub trait ProtocolEntity : Send + Sync {
+    fn enable(&self) -> ReturnCode<()>;
     fn get_instance_handle(&self) -> InstanceHandle;
 }
 
