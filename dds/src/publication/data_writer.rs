@@ -124,8 +124,8 @@ impl<T: DDSType+Any+Send+Sync> DataWriter<T> {
     /// reason the Service is unable to provide an instance handle, the Service will return the special value HANDLE_NIL.
     pub fn lookup_instance(
         &self,
-        instance: T,
-    ) -> InstanceHandle {
+        instance: &T,
+    ) -> ReturnCode<Option<InstanceHandle>> {
         DataWriterImpl::lookup_instance(&self.0, instance)
     }
 

@@ -67,8 +67,8 @@ impl<T: DDSType+Any+Send+Sync> DataWriterImpl<T> {
 
     pub fn lookup_instance(
         _this: &Weak<DataWriterImpl<T>>,
-        _instance: T,
-    ) -> InstanceHandle {
+        _instance: &T,
+    ) -> ReturnCode<Option<InstanceHandle>> {
         todo!()
     }
 
@@ -82,18 +82,30 @@ impl<T: DDSType+Any+Send+Sync> DataWriterImpl<T> {
 
     pub fn write_w_timestamp(
         this: &Weak<DataWriterImpl<T>>,
-        _data: T,
-        _instance_handle: Option<InstanceHandle>,
-        _timestamp: Time,
+        data: T,
+        instance_handle: Option<InstanceHandle>,
+        timestamp: Time,
     ) -> ReturnCode<()> {
-        let _dw = DataWriterImpl::upgrade_datawriter(this)?;
-        
-        // let writer_interface_lock = dw.writer_interface.lock().unwrap();
-        // let writer_interface = writer_interface_lock.as_ref().ok_or(ReturnCodes::NotEnabled)?;
+        let dw = Self::upgrade_datawriter(this)?;
+        let protocol_writer = Self::upgrade_protocol_writer(&dw.protocol_writer)?;
 
-        // writer_interface.write([0;16], vec![], timestamp)?;
+        let handle = match instance_handle {
+            None => data.instance_handle(),
+            Some(handle) => {
+                if let Some(existing_handle) = Self::lookup_instance(&this, &data)? {
+                    if existing_handle != data.instance_handle() {
+                        return Err(ReturnCodes::PreconditionNotMet);
+                    }
+                } else {
+                    return Err(ReturnCodes::BadParameter);
+                }
+                handle
+            },
+        };
 
-        Ok(())
+        let serialized_data = data.serialize();
+
+        protocol_writer.write(handle, serialized_data, timestamp)
     }
 
     pub fn dispose(
