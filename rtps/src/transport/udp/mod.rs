@@ -8,7 +8,7 @@ use rust_dds_interface::types::DomainId;
 
 use crate::types::Locator;
 use crate::types::constants::LOCATOR_KIND_UDPv4;
-use crate::messages::{RtpsMessage};
+use crate::messages::RtpsMessage;
 use super::{Transport, TransportResult};
 
 mod psm_mapping;
@@ -24,10 +24,10 @@ pub struct UdpTransport {
 impl UdpTransport {
     const PB : i32 = 7400;  // TODO: Should be configurable
     const DG : i32 = 250;   // TODO: Should be configurable
-    const PG : i32 = 2; // TODO: Should be configurable
-    const D0 : i32 = 0; // TODO: Should be configurable
+    const PG : i32 = 2;     // TODO: Should be configurable
+    const D0 : i32 = 0;     // TODO: Should be configurable
     const D1 : i32 = 10;    // TODO: Should be configurable
-    const D2 : i32 = 1; // TODO: Should be configurable
+    const D2 : i32 = 1;     // TODO: Should be configurable
     const D3 : i32 = 11;    // TODO: Should be configurable
 
     pub fn new(
@@ -49,7 +49,6 @@ impl UdpTransport {
             socket.join_multicast_v4(&multicast_addr, &multicast_interface)?;
         }
 
-        //socket.set_read_timeout(Some(Duration::new(0/*secs*/, 0/*nanos*/))).expect("Error setting timeout");
         socket.set_nonblocking(true)?;
 
         Ok(Self {
@@ -78,21 +77,21 @@ impl UdpTransport {
     }
 
     pub fn default_userdata_transport(domain_id: DomainId, interface: &str) -> TransportResult<Self> {
-        let spdp_well_known_multicast_port = (UdpTransport::PB + UdpTransport::DG * domain_id + UdpTransport::D0 + 1) as u32;
+        let userdata_multicast_port = (UdpTransport::PB + UdpTransport::DG * domain_id + UdpTransport::D2) as u32;
 
-        let metatraffic_unicast_locator = Locator::new(
+        let userdata_unicast_locator = Locator::new(
             LOCATOR_KIND_UDPv4,
-            spdp_well_known_multicast_port,
+            userdata_multicast_port,
             get_interface_address(interface).unwrap(),
         );
 
-        let metatraffic_multicast_locator = Locator::new(
+        let userdata_multicast_locator = Locator::new(
             LOCATOR_KIND_UDPv4,
-            spdp_well_known_multicast_port,
+            userdata_multicast_port,
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 239, 255, 0, 1],
         );
 
-        UdpTransport::new(metatraffic_unicast_locator, Some(metatraffic_multicast_locator))
+        UdpTransport::new(userdata_unicast_locator, Some(userdata_multicast_locator))
     }
 
 }
