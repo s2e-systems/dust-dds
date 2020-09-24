@@ -25,11 +25,11 @@ pub trait ProtocolWriter : ProtocolEntity {
     
     fn write(&self, instance_handle: InstanceHandle, data: Data, timestamp: Time) -> ReturnCode<()>;
 
-    fn dispose(&self, instance_handle: InstanceHandle) -> ReturnCode<()>;
+    fn dispose(&self, instance_handle: InstanceHandle, timestamp: Time) -> ReturnCode<()>;
 
-    fn unregister(&self, instance_handle: InstanceHandle) -> ReturnCode<()>;
+    fn unregister(&self, instance_handle: InstanceHandle, timestamp: Time) -> ReturnCode<()>;
 
-    fn register(&self, instance_handle: InstanceHandle) -> ReturnCode<()>;
+    fn register(&self, instance_handle: InstanceHandle, timestamp: Time) -> ReturnCode<()>;
 
     fn is_registered(&self, instance_handle: InstanceHandle) -> bool;
 }

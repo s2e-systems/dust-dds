@@ -297,15 +297,15 @@ mod tests {
             todo!()
         }
 
-        fn dispose(&self, _instance_handle: InstanceHandle) -> ReturnCode<()> {
+        fn dispose(&self, _instance_handle: InstanceHandle, _timestamp: Time) -> ReturnCode<()> {
             todo!()
         }
 
-        fn unregister(&self, _instance_handle: InstanceHandle) -> ReturnCode<()> {
+        fn unregister(&self, _instance_handle: InstanceHandle, _timestamp: Time) -> ReturnCode<()> {
             todo!()
         }
 
-        fn register(&self, _instance_handle: InstanceHandle) -> ReturnCode<()> {
+        fn register(&self, _instance_handle: InstanceHandle, _timestamp: Time) -> ReturnCode<()> {
             todo!()
         }
 
