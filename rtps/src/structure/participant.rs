@@ -19,16 +19,17 @@ use crate::transport::udp::UdpTransport;
 use crate::messages::Endianness;
 use crate::messages::message_sender::RtpsMessageSender;
 use crate::messages::message_receiver::RtpsMessageReceiver;
-use crate::endpoint_types::DomainId;
 use crate::discovery::spdp;
 use crate::discovery::spdp::SPDPdiscoveredParticipantData;
 
 use super::stateless_writer::StatelessWriter;
 use super::stateless_reader::StatelessReader;
-use super::stateful_writer::{StatefulWriter, };
-use super::stateful_reader::{StatefulReader, };
+use super::stateful_writer::StatefulWriter;
+use super::stateful_reader::StatefulReader;
 
+use rust_dds_interface::types::DomainId;
 use rust_dds_interface::protocol::{ProtocolEntity, ProtocolParticipant};
+
 
 pub struct Participant<T: Transport = UdpTransport> {
     guid: GUID,

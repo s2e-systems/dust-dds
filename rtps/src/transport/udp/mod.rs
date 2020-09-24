@@ -4,10 +4,11 @@ use net2::UdpBuilder;
 use std::convert::TryInto;
 use std::net::{UdpSocket, IpAddr, Ipv4Addr, SocketAddr};
 
+use rust_dds_interface::types::DomainId;
+
 use crate::types::Locator;
 use crate::types::constants::LOCATOR_KIND_UDPv4;
 use crate::messages::{RtpsMessage};
-use crate::endpoint_types::DomainId;
 use super::{Transport, TransportResult};
 
 mod psm_mapping;

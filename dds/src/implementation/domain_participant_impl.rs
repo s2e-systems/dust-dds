@@ -8,7 +8,7 @@ use crate::topic::{Topic, TopicListener, TopicDescription};
 use crate::subscription::{Subscriber, SubscriberListener};
 use crate::publication::{Publisher, PublisherListener};
 use crate::infrastructure::entity::StatusCondition;
-use crate::domain::{DomainParticipantListener, DomainId};
+use crate::domain::DomainParticipantListener;
 use crate::builtin_topics::{TopicBuiltinTopicData, ParticipantBuiltinTopicData};
 use crate::infrastructure::listener::NoListener;
 
@@ -16,6 +16,7 @@ use crate::implementation::publisher_impl::PublisherImpl;
 use crate::implementation::subscriber_impl::SubscriberImpl;
 use crate::implementation::topic_impl::TopicImpl;
 
+use rust_dds_interface::types::DomainId;
 use rust_dds_interface::protocol::ProtocolParticipant;
 use rust_dds_interface::qos::{DomainParticipantQos, TopicQos, PublisherQos, SubscriberQos,};
 

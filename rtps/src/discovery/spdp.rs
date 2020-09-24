@@ -1,4 +1,6 @@
 use std::convert::TryInto;
+use rust_dds_interface::types::DomainId;
+
 use crate::serialized_payload::CdrEndianness;
 
 use crate::types::{VendorId, Locator, ProtocolVersion, GuidPrefix, InstanceHandle, GUID};
@@ -18,7 +20,6 @@ use crate::structure::stateful_reader::WriterProxy;
 use crate::structure::stateful_writer::ReaderProxy;
 
 use crate::endpoint_types::{
-    DomainId,
     BuiltInEndpointSet,
     ParameterDomainId,
     ParameterDomainTag,

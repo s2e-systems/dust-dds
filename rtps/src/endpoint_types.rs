@@ -5,12 +5,12 @@
 
 use serde::{Serialize, Deserialize};
 
+use rust_dds_interface::types::DomainId;
+
 use crate::types::{ProtocolVersion, VendorId, Locator, GUID};
 use crate::serialized_payload::{Pid, ParameterId };
 use crate::messages::types::Count;
 use crate::behavior::types::Duration;
-
-pub type DomainId = i32;
 
 #[derive(PartialEq, Debug, Eq, Clone, Copy, Serialize, Deserialize)]
 pub struct BuiltInEndpointSet {

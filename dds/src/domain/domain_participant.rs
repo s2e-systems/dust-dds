@@ -11,9 +11,8 @@ use crate::builtin_topics::{TopicBuiltinTopicData, ParticipantBuiltinTopicData};
 
 use crate::implementation::domain_participant_impl::DomainParticipantImpl;
 
+use rust_dds_interface::types::DomainId;
 use rust_dds_interface::qos::{DomainParticipantQos, TopicQos, PublisherQos, SubscriberQos};
-
-pub type DomainId = i32;
 
 /// The DomainParticipant object plays several roles:
 /// - It acts as a container for all other Entity objects.
