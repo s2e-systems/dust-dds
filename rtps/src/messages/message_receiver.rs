@@ -16,7 +16,7 @@ pub trait Receiver {
 pub struct RtpsMessageReceiver;
 
 impl RtpsMessageReceiver {
-    pub fn receive(participant_guid_prefix: GuidPrefix, transport: &impl Transport, receiver_list: &[&dyn Receiver]) {
+    pub fn receive(participant_guid_prefix: GuidPrefix, transport: &dyn Transport, receiver_list: &[&dyn Receiver]) {
         if let Some((message, src_locator)) = transport.read().unwrap() {
             let _source_version = message.header().version();
             let _source_vendor_id = message.header().vendor_id();

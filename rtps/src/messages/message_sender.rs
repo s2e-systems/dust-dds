@@ -19,7 +19,7 @@ pub struct RtpsMessageSender {
 }
 
 impl RtpsMessageSender {
-    pub fn send(participant_guid_prefix: GuidPrefix, transport: &impl Transport,  sender_list: &[&dyn Sender]) {
+    pub fn send(participant_guid_prefix: GuidPrefix, transport: &dyn Transport,  sender_list: &[&dyn Sender]) {
         for sender in sender_list {
             while let Some((dst_locators, submessage_list)) = sender.pop_send_message() {
                 let mut rtps_submessages = Vec::new();

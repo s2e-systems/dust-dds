@@ -15,7 +15,6 @@ use crate::messages::types::Count;
 use crate::behavior::types::Duration;
 use crate::structure::participant::Participant;
 use crate::serialized_payload::CdrParameterList;
-use crate::transport::Transport;
 use crate::structure::stateful_reader::WriterProxy;
 use crate::structure::stateful_writer::ReaderProxy;
 
@@ -56,7 +55,7 @@ pub struct SPDPdiscoveredParticipantData{
 }
 
 impl SPDPdiscoveredParticipantData {
-    pub fn new_from_participant<T: Transport>(participant: &Participant<T>, lease_duration: Duration) -> Self{
+    pub fn new_from_participant(participant: &Participant, lease_duration: Duration) -> Self{
         Self {
             domain_id: participant.domain_id(),
             domain_tag: participant.domain_tag().clone(),
@@ -208,7 +207,7 @@ impl SPDPdiscoveredParticipantData {
     }
 }
 
-pub fn add_discovered_participant<T: Transport>(participant: &Participant<T>, discovered_participant: &SPDPdiscoveredParticipantData) {
+pub fn add_discovered_participant(participant: &Participant, discovered_participant: &SPDPdiscoveredParticipantData) {
     // Implements the process described in
     // 8.5.5.1 Discovery of a new remote Participant
 
