@@ -8,6 +8,7 @@ pub mod memory;
 #[derive(Debug)]
 pub enum TransportError {
     IoError(std::io::Error),
+    InterfaceNotFound(String),
     Other,
 }
 

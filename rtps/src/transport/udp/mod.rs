@@ -9,7 +9,7 @@ use rust_dds_interface::types::DomainId;
 use crate::types::Locator;
 use crate::types::constants::LOCATOR_KIND_UDPv4;
 use crate::messages::RtpsMessage;
-use super::{Transport, TransportResult};
+use super::{Transport, TransportResult, TransportError};
 
 mod psm_mapping;
 
@@ -64,7 +64,7 @@ impl UdpTransport {
         let metatraffic_unicast_locator = Locator::new(
             LOCATOR_KIND_UDPv4,
             spdp_well_known_multicast_port,
-            get_interface_address(interface).unwrap(),
+            get_interface_address(interface)?,
         );
 
         let metatraffic_multicast_locator = Locator::new(
@@ -82,7 +82,7 @@ impl UdpTransport {
         let userdata_unicast_locator = Locator::new(
             LOCATOR_KIND_UDPv4,
             userdata_multicast_port,
-            get_interface_address(interface).unwrap(),
+            get_interface_address(interface)?,
         );
 
         let userdata_multicast_locator = Locator::new(
@@ -152,20 +152,20 @@ impl Transport for UdpTransport {
     }
 }
 
-pub fn get_interface_address(interface_name: &str) -> Option<[u8; 16]> {
+fn get_interface_address(interface_name: &str) -> TransportResult<[u8; 16]> {
     for adapter in ipconfig::get_adapters().unwrap() {
         if adapter.friendly_name() == interface_name
         {
             for addr in adapter.ip_addresses() {
                 match *addr {
-                    IpAddr::V4(ipv4addr) => return Some(ipv4addr.to_ipv6_compatible().octets()),
+                    IpAddr::V4(ipv4addr) => return Ok(ipv4addr.to_ipv6_compatible().octets()),
                     _ => (),
                 }
             }
         }
     }
 
-    None
+    Err(TransportError::InterfaceNotFound(interface_name.to_string()))
 }
 
 
@@ -273,7 +273,11 @@ mod tests {
         println!("Interface {:?} address: {:?}", interface, get_interface_address(&interface));
 
         let interface = "Invalid";
-        println!("Interface {:?} address: {:?}", interface, get_interface_address(&interface));
+        let invalid_interface_address = get_interface_address(&interface);
+        match invalid_interface_address {
+            Err(TransportError::InterfaceNotFound(message)) => assert_eq!(message, interface),
+            _ => assert!(false),
+        };
 
     }
 }
