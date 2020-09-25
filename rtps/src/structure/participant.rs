@@ -51,10 +51,10 @@ pub struct Participant {
 
 impl Participant {
     pub fn new(
+        domain_id: DomainId,
         userdata_transport: impl Transport + 'static,
         metatraffic_transport: impl Transport + 'static,
     ) -> Self {
-        let domain_id = 0; // TODO: Should be configurable
         let protocol_version = PROTOCOL_VERSION_2_4;
         let vendor_id = [99,99];
         let lease_duration = Duration::from_secs(100); // TODO: Should be configurable
@@ -306,7 +306,7 @@ mod tests {
             vec![Locator::new_udpv4(7400, [239,255,0,1])]).unwrap();
 
         
-        let participant_1 = Participant::new(userdata_transport1, metatraffic_transport1);
+        let participant_1 = Participant::new(0, userdata_transport1, metatraffic_transport1);
 
 
         let userdata_transport2 = MemoryTransport::new(
@@ -317,6 +317,7 @@ mod tests {
             vec![Locator::new_udpv4(7400, [239,255,0,1])]).unwrap();
 
         let participant_2 = Participant::new(
+            0,
             userdata_transport2,
             metatraffic_transport2);
 
