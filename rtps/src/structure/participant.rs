@@ -33,10 +33,6 @@ use rust_dds_interface::protocol::{ProtocolEntity, ProtocolParticipant};
 pub struct Participant {
     guid: GUID,
     domain_id: DomainId,
-    default_unicast_locator_list: Vec<Locator>,
-    default_multicast_locator_list: Vec<Locator>,
-    metatraffic_unicast_locator_list: Vec<Locator>,
-    metatraffic_multicast_locator_list: Vec<Locator>,
     protocol_version: ProtocolVersion,
     vendor_id: VendorId,
     domain_tag: String,
@@ -154,22 +150,9 @@ impl Participant {
             BuiltInEndpointSet::BUILTIN_ENDPOINT_TOPICS_DETECTOR
         );
 
-        let default_unicast_locator_list = userdata_transport.unicast_locator_list().clone();
-        let default_multicast_locator_list = userdata_transport.multicast_locator_list().clone();
-
-        // Fill up the metatraffic locator lists. By default only the SPDP will
-        // use the multicast and the remaining built-in endpoints will communicate
-        // over unicast.
-        let metatraffic_unicast_locator_list = metatraffic_transport.unicast_locator_list().clone();
-        let metatraffic_multicast_locator_list = vec![];
-
         let participant = Self {
             guid: GUID::new(guid_prefix,ENTITYID_PARTICIPANT ),
             domain_id,
-            default_unicast_locator_list,
-            default_multicast_locator_list,
-            metatraffic_unicast_locator_list,
-            metatraffic_multicast_locator_list,
             protocol_version,
             vendor_id,
             domain_tag: "".to_string(),
@@ -210,19 +193,19 @@ impl Participant {
     }
 
     pub fn default_unicast_locator_list(&self) -> &Vec<Locator> {
-        &self.default_unicast_locator_list
+        self.userdata_transport.unicast_locator_list()
     }
 
     pub fn default_multicast_locator_list(&self) -> &Vec<Locator> {
-        &self.default_multicast_locator_list
+        self.userdata_transport.multicast_locator_list()
     }
 
     pub fn metatraffic_unicast_locator_list(&self) -> &Vec<Locator> {
-        &self.metatraffic_unicast_locator_list
+        self.metatraffic_transport.unicast_locator_list()
     }
 
     pub fn metatraffic_multicast_locator_list(&self) -> &Vec<Locator> {
-        &self.metatraffic_multicast_locator_list
+        self.metatraffic_transport.multicast_locator_list()
     }
 
     pub fn builtin_endpoint_set(&self) -> BuiltInEndpointSet {
