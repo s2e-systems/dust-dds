@@ -1,14 +1,13 @@
 use std::sync::Weak;
-use crate::types::{GUID, Locator, ProtocolVersion, VendorId, TopicKind, ChangeKind};
+
+use crate::types::{GUID, Locator, ProtocolVersion, VendorId, TopicKind};
 use crate::types::constants::{
     ENTITYID_PARTICIPANT,
     ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
     ENTITYID_SPDP_BUILTIN_PARTICIPANT_DETECTOR,
     PROTOCOL_VERSION_2_4,};
 use crate::endpoint_types::BuiltInEndpointSet;
-use crate::behavior::types::Duration;
 use crate::transport::Transport;
-use crate::messages::Endianness;
 use crate::messages::message_sender::RtpsMessageSender;
 use crate::messages::message_receiver::RtpsMessageReceiver;
 use crate::discovery::spdp;
@@ -42,8 +41,6 @@ impl Participant {
     ) -> Self {
         let protocol_version = PROTOCOL_VERSION_2_4;
         let vendor_id = [99,99];
-        let lease_duration = Duration::from_secs(100); // TODO: Should be configurable
-        let endianness = Endianness::LittleEndian; // TODO: Should be configurable
         let expects_inline_qos = false;
         let guid_prefix = [5, 6, 7, 8, 9, 5, 1, 2, 3, 4, 10, 11];   // TODO: Should be uniquely generated
 
@@ -94,9 +91,9 @@ impl Participant {
             spdp_builtin_participant_writer,
         };
 
-        let spdp_discovered_data = SPDPdiscoveredParticipantData::new_from_participant(&participant, lease_duration);
-        let spdp_change = participant.spdp_builtin_participant_writer.new_change(ChangeKind::Alive,Some(spdp_discovered_data.data(endianness.into())) , None, spdp_discovered_data.key());
-        participant.spdp_builtin_participant_writer.writer_cache().add_change(spdp_change);
+        // let spdp_discovered_data = SPDPdiscoveredParticipantData::new_from_participant(&participant, lease_duration);
+        // let spdp_change = participant.spdp_builtin_participant_writer.new_change(ChangeKind::Alive,Some(spdp_discovered_data.data(endianness.into())) , None, spdp_discovered_data.key());
+        // participant.spdp_builtin_participant_writer.writer_cache().add_change(spdp_change);
         
         participant
     }
