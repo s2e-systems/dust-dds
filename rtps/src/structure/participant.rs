@@ -1,19 +1,12 @@
 use std::sync::Weak;
-use crate::types::{GUID, Locator, ProtocolVersion, VendorId, TopicKind, ChangeKind, ReliabilityKind};
+use crate::types::{GUID, Locator, ProtocolVersion, VendorId, TopicKind, ChangeKind};
 use crate::types::constants::{
     ENTITYID_PARTICIPANT,
     ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
     ENTITYID_SPDP_BUILTIN_PARTICIPANT_DETECTOR,
-    ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
-    ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
-    ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
-    ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
-    ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
-    ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
     PROTOCOL_VERSION_2_4,};
 use crate::endpoint_types::BuiltInEndpointSet;
 use crate::behavior::types::Duration;
-use crate::behavior::types::constants::DURATION_ZERO;
 use crate::transport::Transport;
 use crate::messages::Endianness;
 use crate::messages::message_sender::RtpsMessageSender;
@@ -23,8 +16,6 @@ use crate::discovery::spdp::SPDPdiscoveredParticipantData;
 
 use super::stateless_writer::StatelessWriter;
 use super::stateless_reader::StatelessReader;
-use super::stateful_writer::StatefulWriter;
-use super::stateful_reader::StatefulReader;
 
 use rust_dds_interface::types::DomainId;
 use rust_dds_interface::protocol::{ProtocolEntity, ProtocolParticipant};
@@ -41,12 +32,6 @@ pub struct Participant {
     spdp_builtin_participant_reader: StatelessReader,
     spdp_builtin_participant_writer: StatelessWriter,
     builtin_endpoint_set: BuiltInEndpointSet,
-    sedp_builtin_publications_reader: StatefulReader,
-    sedp_builtin_publications_writer: StatefulWriter,
-    sedp_builtin_subscriptions_reader: StatefulReader,
-    sedp_builtin_subscriptions_writer: StatefulWriter,
-    sedp_builtin_topics_reader: StatefulReader,
-    sedp_builtin_topics_writer: StatefulWriter,
 }
 
 impl Participant {
@@ -78,66 +63,12 @@ impl Participant {
             expects_inline_qos,
         );
 
-        let expects_inline_qos = false;
-        let heartbeat_period = Duration::from_secs(5);
-        let heartbeat_response_delay = Duration::from_millis(500);
-        let nack_response_delay = DURATION_ZERO;
-        let nack_supression_duration = DURATION_ZERO;
+        // let expects_inline_qos = false;
+        // let heartbeat_period = Duration::from_secs(5);
+        // let heartbeat_response_delay = Duration::from_millis(500);
+        // let nack_response_delay = DURATION_ZERO;
+        // let nack_supression_duration = DURATION_ZERO;
 
-
-        let sedp_builtin_publications_reader = StatefulReader::new(
-            GUID::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR),
-            TopicKind::WithKey,
-            ReliabilityKind::Reliable,
-            expects_inline_qos,
-            heartbeat_response_delay,
-        );
-
-        let sedp_builtin_publications_writer = StatefulWriter::new(
-            GUID::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER),
-            TopicKind::WithKey,
-            ReliabilityKind::Reliable,
-            true,
-            heartbeat_period,
-            nack_response_delay,
-            nack_supression_duration
-        );
-
-        let sedp_builtin_subscriptions_reader = StatefulReader::new(
-            GUID::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR),
-            TopicKind::WithKey,
-            ReliabilityKind::Reliable,
-            expects_inline_qos,
-            heartbeat_response_delay,
-        );
-
-        let sedp_builtin_subscriptions_writer = StatefulWriter::new(
-            GUID::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER),
-            TopicKind::WithKey,
-            ReliabilityKind::Reliable,
-            true,
-            heartbeat_period,
-            nack_response_delay,
-            nack_supression_duration
-        );
-        
-        let sedp_builtin_topics_reader = StatefulReader::new(
-            GUID::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR),
-            TopicKind::WithKey,
-            ReliabilityKind::Reliable,
-            expects_inline_qos,
-            heartbeat_response_delay,
-        );
-
-        let sedp_builtin_topics_writer = StatefulWriter::new(
-            GUID::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER),
-            TopicKind::WithKey,
-            ReliabilityKind::Reliable,
-            true,
-            heartbeat_period,
-            nack_response_delay,
-            nack_supression_duration
-        );
 
         let builtin_endpoint_set = BuiltInEndpointSet::new(
             BuiltInEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_ANNOUNCER |
@@ -161,12 +92,6 @@ impl Participant {
             builtin_endpoint_set,
             spdp_builtin_participant_reader,
             spdp_builtin_participant_writer,
-            sedp_builtin_publications_reader,
-            sedp_builtin_publications_writer,
-            sedp_builtin_subscriptions_reader,
-            sedp_builtin_subscriptions_writer,
-            sedp_builtin_topics_reader,
-            sedp_builtin_topics_writer,
         };
 
         let spdp_discovered_data = SPDPdiscoveredParticipantData::new_from_participant(&participant, lease_duration);
@@ -216,45 +141,15 @@ impl Participant {
         &self.domain_tag
     }
 
-    pub fn sedp_builtin_publications_reader(&self) -> &StatefulReader {
-        &self.sedp_builtin_publications_reader
-    }
-
-    pub fn sedp_builtin_publications_writer(&self) -> &StatefulWriter {
-        &self.sedp_builtin_publications_writer
-    }
-
-    pub fn sedp_builtin_subscriptions_reader(&self) -> &StatefulReader {
-        &self.sedp_builtin_publications_reader
-    }
-
-    pub fn sedp_builtin_subscriptions_writer(&self) -> &StatefulWriter {
-        &self.sedp_builtin_publications_writer
-    }
-
-    pub fn sedp_builtin_topics_reader(&self) -> &StatefulReader {
-        &self.sedp_builtin_topics_reader
-    }
-
-    pub fn sedp_builtin_topics_writer(&self) -> &StatefulWriter {
-        &self.sedp_builtin_topics_writer
-    }
-
     fn run(&self) {
         RtpsMessageReceiver::receive(self.guid.prefix(),
             self.metatraffic_transport.as_ref(), 
-            &[&self.spdp_builtin_participant_reader, &self.sedp_builtin_publications_reader, &self.sedp_builtin_subscriptions_reader, &self.sedp_builtin_topics_reader]);
+            &[&self.spdp_builtin_participant_reader]);
 
         self.spdp_builtin_participant_reader.run();
-        self.sedp_builtin_publications_reader.run();
-        self.sedp_builtin_subscriptions_reader.run();
-        self.sedp_builtin_topics_reader.run();
 
         self.spdp_builtin_participant_writer.run();
-        self.sedp_builtin_publications_writer.run();
-        self.sedp_builtin_subscriptions_writer.run();
-        self.sedp_builtin_topics_writer.run();
-        RtpsMessageSender::send(self.guid.prefix(), self.metatraffic_transport.as_ref(), &[&self.spdp_builtin_participant_writer, &self.sedp_builtin_publications_writer, &self.sedp_builtin_subscriptions_writer, &self.sedp_builtin_topics_writer]);
+        RtpsMessageSender::send(self.guid.prefix(), self.metatraffic_transport.as_ref(), &[&self.spdp_builtin_participant_writer]);
 
         for spdp_data in self.spdp_builtin_participant_reader.reader_cache().changes().iter() {
             let discovered_participant = SPDPdiscoveredParticipantData::from_key_data(*spdp_data.instance_handle(), spdp_data.data_value(), self.domain_id);
