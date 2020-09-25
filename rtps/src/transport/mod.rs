@@ -9,7 +9,7 @@ pub mod memory;
 pub enum TransportError {
     IoError(std::io::Error),
     InterfaceNotFound(String),
-    Other,
+    Other(String),
 }
 
 impl From<std::io::Error> for TransportError {
@@ -24,7 +24,7 @@ pub trait Transport : Send + Sync {
 
     fn read(&self) -> TransportResult<Option<(RtpsMessage, Locator)>>;
 
-    fn unicast_locator_list(&self) -> Vec<Locator>;
+    fn unicast_locator_list(&self) -> &Vec<Locator>;
 
-    fn multicast_locator_list(&self) -> Vec<Locator>;
+    fn multicast_locator_list(&self) -> &Vec<Locator>;
 }

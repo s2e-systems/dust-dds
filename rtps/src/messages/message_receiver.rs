@@ -63,7 +63,7 @@ mod tests {
 
     #[test]
     fn stateless_reader_message_receive() {
-        let transport = MemoryTransport::new(Locator::new(0,0,[0;16]), None).unwrap();
+        let transport = MemoryTransport::new(Locator::new(0,0,[0;16]), vec![]).unwrap();
         let guid_prefix = [1,2,3,4,5,6,8,1,2,3,4,5];
 
         let src_locator = Locator::new_udpv4(7500, [127,0,0,1]);
@@ -101,7 +101,7 @@ mod tests {
 
     #[test]
     fn stateless_reader_message_receive_other_locator() {
-        let transport = MemoryTransport::new(Locator::new(0,0,[0;16]), None).unwrap();
+        let transport = MemoryTransport::new(Locator::new(0,0,[0;16]), vec![]).unwrap();
         let guid_prefix = [1,2,3,4,5,6,8,1,2,3,4,5];
 
         let src_locator = Locator::new_udpv4(7500, [127,0,0,1]);
@@ -127,7 +127,7 @@ mod tests {
 
     #[test]
     fn stateful_reader_message_receive() {
-        let transport = MemoryTransport::new(Locator::new(0,0,[0;16]), None).unwrap();
+        let transport = MemoryTransport::new(Locator::new(0,0,[0;16]), vec![]).unwrap();
         let guid_prefix = [1,2,3,4,5,6,8,1,2,3,4,5];
 
         let stateful_reader = StatefulReader::new(

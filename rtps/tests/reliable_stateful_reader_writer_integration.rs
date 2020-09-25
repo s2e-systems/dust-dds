@@ -14,8 +14,8 @@ fn reliable_stateful_writer_stateful_reader_data_only() {
     let reader_locator = Locator::new(5, 7400, [2;16]);
     let writer_locator = Locator::new(5, 7400, [1;16]);
 
-    let reader_memory_transport = MemoryTransport::new(reader_locator, None).unwrap();
-    let writer_memory_transport = MemoryTransport::new(writer_locator, None).unwrap();
+    let reader_memory_transport = MemoryTransport::new(reader_locator, vec![]).unwrap();
+    let writer_memory_transport = MemoryTransport::new(writer_locator, vec![]).unwrap();
 
     let guid_prefix = [0; 12];
     let writer_guid = GUID::new(
@@ -97,8 +97,8 @@ fn reliable_stateful_writer_stateful_reader_data_and_gap() {
     let reader_locator = Locator::new(5, 7400, [2;16]);
     let writer_locator = Locator::new(5, 7400, [1;16]);
 
-    let reader_memory_transport = MemoryTransport::new(reader_locator, None).unwrap();
-    let writer_memory_transport = MemoryTransport::new(writer_locator, None).unwrap();
+    let reader_memory_transport = MemoryTransport::new(reader_locator, vec![]).unwrap();
+    let writer_memory_transport = MemoryTransport::new(writer_locator, vec![]).unwrap();
 
     let guid_prefix = [0; 12];
     let writer_guid = GUID::new(

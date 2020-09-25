@@ -70,7 +70,7 @@ impl Participant {
             GUID::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER),
             TopicKind::WithKey);
 
-        for metatraffic_multicast_locator in metatraffic_transport.multicast_locator_list() {
+        for &metatraffic_multicast_locator in metatraffic_transport.multicast_locator_list() {
             spdp_builtin_participant_writer.reader_locator_add(metatraffic_multicast_locator);
         }
 
@@ -78,7 +78,7 @@ impl Participant {
             GUID::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_DETECTOR),
             TopicKind::WithKey,
             vec![],
-            metatraffic_transport.multicast_locator_list(),
+            metatraffic_transport.multicast_locator_list().clone(),
             expects_inline_qos,
         );
 
@@ -317,10 +317,10 @@ mod tests {
     fn participant() {
         let userdata_transport1 = MemoryTransport::new(
             Locator::new_udpv4(7410, [192,168,0,5]), 
-            Some(Locator::new_udpv4(7410, [239,255,0,1]))).unwrap();
+            vec![Locator::new_udpv4(7410, [239,255,0,1])]).unwrap();
         let metatraffic_transport1 = MemoryTransport::new(
             Locator::new_udpv4(7400, [192,168,0,5]), 
-            Some(Locator::new_udpv4(7400, [239,255,0,1]))).unwrap();
+            vec![Locator::new_udpv4(7400, [239,255,0,1])]).unwrap();
 
         
         let participant_1 = Participant::new(userdata_transport1, metatraffic_transport1);
@@ -328,10 +328,10 @@ mod tests {
 
         let userdata_transport2 = MemoryTransport::new(
             Locator::new_udpv4(7410, [192,168,0,10]), 
-            Some(Locator::new_udpv4(7410, [239,255,0,1]))).unwrap();
+            vec![Locator::new_udpv4(7410, [239,255,0,1])]).unwrap();
         let metatraffic_transport2 = MemoryTransport::new(
             Locator::new_udpv4(7400, [192,168,0,10]), 
-            Some(Locator::new_udpv4(7400, [239,255,0,1]))).unwrap();
+            vec![Locator::new_udpv4(7400, [239,255,0,1])]).unwrap();
 
         let participant_2 = Participant::new(
             userdata_transport2,
