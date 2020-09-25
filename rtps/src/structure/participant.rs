@@ -1,4 +1,4 @@
-use std::sync::{Arc, Weak};
+use std::sync::Weak;
 use crate::types::{GUID, Locator, ProtocolVersion, VendorId, TopicKind, ChangeKind, ReliabilityKind};
 use crate::types::constants::{
     ENTITYID_PARTICIPANT,
@@ -40,8 +40,8 @@ pub struct Participant {
     protocol_version: ProtocolVersion,
     vendor_id: VendorId,
     domain_tag: String,
-    userdata_transport: Arc<dyn Transport>,
-    metatraffic_transport: Arc<dyn Transport>,
+    userdata_transport: Box<dyn Transport>,
+    metatraffic_transport: Box<dyn Transport>,
     spdp_builtin_participant_reader: StatelessReader,
     spdp_builtin_participant_writer: StatelessWriter,
     builtin_endpoint_set: BuiltInEndpointSet,
@@ -55,8 +55,8 @@ pub struct Participant {
 
 impl Participant {
     pub fn new(
-        userdata_transport: Arc<dyn Transport>,
-        metatraffic_transport: Arc<dyn Transport>,
+        userdata_transport: impl Transport + 'static,
+        metatraffic_transport: impl Transport + 'static,
     ) -> Self {
         let domain_id = 0; // TODO: Should be configurable
         let protocol_version = PROTOCOL_VERSION_2_4;
@@ -173,8 +173,8 @@ impl Participant {
             protocol_version,
             vendor_id,
             domain_tag: "".to_string(),
-            userdata_transport: userdata_transport,
-            metatraffic_transport: metatraffic_transport,
+            userdata_transport: Box::new(userdata_transport),
+            metatraffic_transport: Box::new(metatraffic_transport),
             builtin_endpoint_set,
             spdp_builtin_participant_reader,
             spdp_builtin_participant_writer,
@@ -315,34 +315,34 @@ mod tests {
 
     #[test]
     fn participant() {
-        let userdata_transport1 = Arc::new(MemoryTransport::new(
+        let userdata_transport1 = MemoryTransport::new(
             Locator::new_udpv4(7410, [192,168,0,5]), 
-            Some(Locator::new_udpv4(7410, [239,255,0,1]))).unwrap());
-        let metatraffic_transport1 = Arc::new(MemoryTransport::new(
+            Some(Locator::new_udpv4(7410, [239,255,0,1]))).unwrap();
+        let metatraffic_transport1 = MemoryTransport::new(
             Locator::new_udpv4(7400, [192,168,0,5]), 
-            Some(Locator::new_udpv4(7400, [239,255,0,1]))).unwrap());
+            Some(Locator::new_udpv4(7400, [239,255,0,1]))).unwrap();
 
         
-        let participant_1 = Participant::new(userdata_transport1.clone(), metatraffic_transport1.clone());
+        let participant_1 = Participant::new(userdata_transport1, metatraffic_transport1);
 
 
-        let userdata_transport2 = Arc::new(MemoryTransport::new(
+        let userdata_transport2 = MemoryTransport::new(
             Locator::new_udpv4(7410, [192,168,0,10]), 
-            Some(Locator::new_udpv4(7410, [239,255,0,1]))).unwrap());
-        let metatraffic_transport2 = Arc::new(MemoryTransport::new(
+            Some(Locator::new_udpv4(7410, [239,255,0,1]))).unwrap();
+        let metatraffic_transport2 = MemoryTransport::new(
             Locator::new_udpv4(7400, [192,168,0,10]), 
-            Some(Locator::new_udpv4(7400, [239,255,0,1]))).unwrap());
+            Some(Locator::new_udpv4(7400, [239,255,0,1]))).unwrap();
 
         let participant_2 = Participant::new(
-            userdata_transport2.clone(),
-            metatraffic_transport2.clone());
+            userdata_transport2,
+            metatraffic_transport2);
 
         participant_1.run();
   
-        metatraffic_transport2.receive_from(metatraffic_transport1.as_ref());
+        // participant_2.metatraffic_transport.downcast::<String>receive_from(metatraffic_transport1.as_ref());
 
         participant_2.run();
-        metatraffic_transport1.receive_from(&metatraffic_transport2);
+        // metatraffic_transport1.receive_from(&metatraffic_transport2);
 
         // For now just check that a cache change is added to the receiver. TODO: Check that the discovery
         // worked properly
@@ -352,5 +352,6 @@ mod tests {
         participant_1.run();
         assert_eq!(participant_1.spdp_builtin_participant_reader.reader_cache().changes().len(), 1);
         
+        todo!()
     }
 }
