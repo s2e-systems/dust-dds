@@ -34,7 +34,7 @@ impl<T: DDSType+Any+Send+Sync> DataWriter<T> {
     pub fn register_instance(
         &self,
         instance: T
-    ) -> InstanceHandle {
+    ) -> ReturnCode<Option<InstanceHandle>> {
         DataWriterImpl::register_instance(&self.0, instance)
     }
 
@@ -49,7 +49,7 @@ impl<T: DDSType+Any+Send+Sync> DataWriter<T> {
         &self,
         instance: T,
         timestamp: Time,
-    ) -> InstanceHandle {
+    ) -> ReturnCode<Option<InstanceHandle>> {
         DataWriterImpl::register_instance_w_timestamp(&self.0, instance, timestamp)
     }
 
@@ -83,7 +83,7 @@ impl<T: DDSType+Any+Send+Sync> DataWriter<T> {
     pub fn unregister_instance(
         &self,
         instance: T,
-        handle: InstanceHandle
+        handle: Option<InstanceHandle>
     ) -> ReturnCode<()> {
         DataWriterImpl::unregister_instance(&self.0, instance, handle)
     }
@@ -98,7 +98,7 @@ impl<T: DDSType+Any+Send+Sync> DataWriter<T> {
     pub fn unregister_instance_w_timestamp(
         &self,
         instance: T,
-        handle: InstanceHandle,
+        handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> InstanceHandle {
         DataWriterImpl::unregister_instance_w_timestamp(&self.0, instance, handle, timestamp)
@@ -357,19 +357,19 @@ impl<T: DDSType+Any+Send+Sync> Entity for DataWriter<T>{
         DataWriterImpl::set_listener(&self.0, a_listener, mask)
     }
 
-    fn get_listener(&self, ) -> Self::Listener {
+    fn get_listener(&self) -> Self::Listener {
         DataWriterImpl::get_listener(&self.0)
     }
 
-    fn get_statuscondition(&self, ) -> crate::infrastructure::entity::StatusCondition {
+    fn get_statuscondition(&self) -> crate::infrastructure::entity::StatusCondition {
         DataWriterImpl::get_statuscondition(&self.0)
     }
 
-    fn get_status_changes(&self, ) -> StatusKind {
+    fn get_status_changes(&self) -> StatusKind {
         DataWriterImpl::get_status_changes(&self.0)
     }
 
-    fn enable(&self, ) -> ReturnCode<()> {
+    fn enable(&self) -> ReturnCode<()> {
         DataWriterImpl::enable(&self.0)
     }
 

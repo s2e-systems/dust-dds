@@ -28,7 +28,7 @@ impl<T: DDSType+Any+Send+Sync> DataWriterImpl<T> {
     pub fn register_instance(
         _this: &Weak<DataWriterImpl<T>>,
         _instance: T
-    ) -> InstanceHandle {
+    ) -> ReturnCode<Option<InstanceHandle>> {
         // ProtocolWriter::register(&concrete_writer);
         todo!()
     }
@@ -37,14 +37,14 @@ impl<T: DDSType+Any+Send+Sync> DataWriterImpl<T> {
         _this: &Weak<DataWriterImpl<T>>,
         _instance: T,
         _timestamp: Time,
-    ) -> InstanceHandle {
+    ) -> ReturnCode<Option<InstanceHandle>> {
         todo!()
     }
 
     pub fn unregister_instance(
         _this: &Weak<DataWriterImpl<T>>,
         _instance: T,
-        _handle: InstanceHandle
+        _handle: Option<InstanceHandle>
     ) -> ReturnCode<()> {
         todo!()
     }
@@ -52,7 +52,7 @@ impl<T: DDSType+Any+Send+Sync> DataWriterImpl<T> {
     pub fn unregister_instance_w_timestamp(
         _this: &Weak<DataWriterImpl<T>>,
         _instance: T,
-        _handle: InstanceHandle,
+        _handle: Option<InstanceHandle>,
         _timestamp: Time,
     ) -> InstanceHandle {
         todo!()
