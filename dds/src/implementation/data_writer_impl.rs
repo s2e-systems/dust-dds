@@ -34,11 +34,16 @@ impl<T: DDSType+Any+Send+Sync> DataWriterImpl<T> {
     }
 
     pub fn register_instance_w_timestamp(
-        _this: &Weak<DataWriterImpl<T>>,
-        _instance: T,
-        _timestamp: Time,
+        this: &Weak<DataWriterImpl<T>>,
+        instance: T,
+        timestamp: Time,
     ) -> ReturnCode<Option<InstanceHandle>> {
-        todo!()
+        let dw = Self::upgrade_datawriter(this)?;
+        let protocol_writer = Self::upgrade_protocol_writer(&dw.protocol_writer)?;
+
+        let instance_handle = instance.instance_handle();
+
+        protocol_writer.register(instance_handle, timestamp)
     }
 
     pub fn unregister_instance(
@@ -88,7 +93,6 @@ impl<T: DDSType+Any+Send+Sync> DataWriterImpl<T> {
         instance_handle: Option<InstanceHandle>,
     ) -> ReturnCode<()> {
         let timestamp = DomainParticipant::get_current_time()?;
-
         Self::write_w_timestamp(this, data, instance_handle, timestamp)
     }
 
@@ -310,7 +314,7 @@ mod tests {
             todo!()
         }
 
-        fn register(&self, _instance_handle: InstanceHandle, _timestamp: Time) -> ReturnCode<()> {
+        fn register(&self, _instance_handle: InstanceHandle, _timestamp: Time) -> ReturnCode<Option<InstanceHandle>> {
             todo!()
         }
 

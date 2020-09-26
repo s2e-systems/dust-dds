@@ -29,7 +29,7 @@ pub trait ProtocolWriter : ProtocolEntity {
 
     fn unregister(&self, instance_handle: InstanceHandle, timestamp: Time) -> ReturnCode<()>;
 
-    fn register(&self, instance_handle: InstanceHandle, timestamp: Time) -> ReturnCode<()>;
+    fn register(&self, instance_handle: InstanceHandle, timestamp: Time) -> ReturnCode<Option<InstanceHandle>>;
 
     fn is_registered(&self, instance_handle: InstanceHandle) -> bool;
 }

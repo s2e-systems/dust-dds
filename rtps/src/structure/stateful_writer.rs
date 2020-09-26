@@ -320,7 +320,7 @@ impl ProtocolWriter for StatefulWriter {
         todo!()
     }
 
-    fn register(&self, _instance_handle: InstanceHandle, _timestamp: Time) -> ReturnCode<()> {
+    fn register(&self, _instance_handle: InstanceHandle, _timestamp: Time) -> ReturnCode<Option<InstanceHandle>> {
         todo!()
     }
 
