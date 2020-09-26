@@ -26,11 +26,11 @@ pub(crate) struct DataWriterImpl<T: DDSType+Any+Send+Sync> {
 
 impl<T: DDSType+Any+Send+Sync> DataWriterImpl<T> {
     pub fn register_instance(
-        _this: &Weak<DataWriterImpl<T>>,
-        _instance: T
+        this: &Weak<DataWriterImpl<T>>,
+        instance: T
     ) -> ReturnCode<Option<InstanceHandle>> {
-        // ProtocolWriter::register(&concrete_writer);
-        todo!()
+        let timestamp = DomainParticipant::get_current_time()?;
+        Self::register_instance_w_timestamp(this, instance, timestamp)
     }
 
     pub fn register_instance_w_timestamp(
@@ -42,11 +42,12 @@ impl<T: DDSType+Any+Send+Sync> DataWriterImpl<T> {
     }
 
     pub fn unregister_instance(
-        _this: &Weak<DataWriterImpl<T>>,
-        _instance: T,
-        _handle: Option<InstanceHandle>
+        this: &Weak<DataWriterImpl<T>>,
+        instance: T,
+        handle: Option<InstanceHandle>
     ) -> ReturnCode<()> {
-        todo!()
+        let timestamp = DomainParticipant::get_current_time()?;
+        Self::unregister_instance_w_timestamp(this, instance, handle, timestamp)
     }
 
     pub fn unregister_instance_w_timestamp(
@@ -54,7 +55,7 @@ impl<T: DDSType+Any+Send+Sync> DataWriterImpl<T> {
         _instance: T,
         _handle: Option<InstanceHandle>,
         _timestamp: Time,
-    ) -> InstanceHandle {
+    ) -> ReturnCode<()> {
         todo!()
     }
 

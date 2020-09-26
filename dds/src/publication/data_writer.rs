@@ -100,7 +100,7 @@ impl<T: DDSType+Any+Send+Sync> DataWriter<T> {
         instance: T,
         handle: Option<InstanceHandle>,
         timestamp: Time,
-    ) -> InstanceHandle {
+    ) -> ReturnCode<()> {
         DataWriterImpl::unregister_instance_w_timestamp(&self.0, instance, handle, timestamp)
     }
 
