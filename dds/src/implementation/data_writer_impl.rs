@@ -176,14 +176,15 @@ impl<T: DDSType+Any+Send+Sync> DataWriterImpl<T> {
 
     pub fn get_topic(
         _this: &Weak<DataWriterImpl<T>>,
-    ) -> Topic {
+    ) -> ReturnCode<Topic> {
         todo!()
     }
 
     pub fn get_publisher(
         this: &Weak<DataWriterImpl<T>>,
-    ) -> Publisher {
-        Publisher(this.upgrade().unwrap().parent_publisher.clone())
+    ) -> ReturnCode<Publisher> {
+        let dw = Self::upgrade_datawriter(this)?;
+        Ok(Publisher(dw.parent_publisher.clone()))
     }
 
     pub fn assert_liveliness(_this: &Weak<DataWriterImpl<T>>,) -> ReturnCode<()> {

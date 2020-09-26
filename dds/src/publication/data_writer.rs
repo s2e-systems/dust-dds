@@ -290,12 +290,12 @@ impl<T: DDSType+Any+Send+Sync> DataWriter<T> {
     }
 
     /// This operation returns the Topic associated with the DataWriter. This is the same Topic that was used to create the DataWriter.
-    pub fn get_topic(&self) -> Topic {
+    pub fn get_topic(&self) -> ReturnCode<Topic> {
         DataWriterImpl::get_topic(&self.0)
     }
 
     /// This operation returns the Publisher to which the DataWriter belongs.
-    pub fn get_publisher(&self,) -> Publisher {
+    pub fn get_publisher(&self,) -> ReturnCode<Publisher> {
         DataWriterImpl::get_publisher(&self.0)
     }
 
