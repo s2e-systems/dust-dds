@@ -56,12 +56,17 @@ impl<T: DDSType+Any+Send+Sync> DataWriterImpl<T> {
     }
 
     pub fn unregister_instance_w_timestamp(
-        _this: &Weak<DataWriterImpl<T>>,
-        _instance: T,
-        _handle: Option<InstanceHandle>,
-        _timestamp: Time,
+        this: &Weak<DataWriterImpl<T>>,
+        instance: T,
+        handle: Option<InstanceHandle>,
+        timestamp: Time,
     ) -> ReturnCode<()> {
-        todo!()
+        let dw = Self::upgrade_datawriter(this)?;
+        let protocol_writer = Self::upgrade_protocol_writer(&dw.protocol_writer)?;
+
+        let instance_handle = Self::get_handle_from_option_instance_handle(this, &instance, handle)?;
+
+        protocol_writer.dispose(instance_handle, timestamp)
     }
 
     pub fn get_key_value(
@@ -79,64 +84,57 @@ impl<T: DDSType+Any+Send+Sync> DataWriterImpl<T> {
         let dw = Self::upgrade_datawriter(this)?;
         let protocol_writer = Self::upgrade_protocol_writer(&dw.protocol_writer)?;
 
-        let handle = instance.instance_handle();
+        let instance_handle = instance.instance_handle();
 
-        Ok(protocol_writer.lookup_instance(handle))
+        Ok(protocol_writer.lookup_instance(instance_handle))
     }
 
     pub fn write (
         this: &Weak<DataWriterImpl<T>>,
         data: T,
-        instance_handle: Option<InstanceHandle>,
+        handle: Option<InstanceHandle>,
     ) -> ReturnCode<()> {
         let timestamp = DomainParticipant::get_current_time()?;
-        Self::write_w_timestamp(this, data, instance_handle, timestamp)
+        Self::write_w_timestamp(this, data, handle, timestamp)
     }
 
     pub fn write_w_timestamp(
         this: &Weak<DataWriterImpl<T>>,
         data: T,
-        instance_handle: Option<InstanceHandle>,
+        handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> ReturnCode<()> {
         let dw = Self::upgrade_datawriter(this)?;
         let protocol_writer = Self::upgrade_protocol_writer(&dw.protocol_writer)?;
 
-        let handle = match instance_handle {
-            None => data.instance_handle(),
-            Some(handle) => {
-                if let Some(existing_handle) = Self::lookup_instance(&this, &data)? {
-                    if existing_handle != data.instance_handle() {
-                        return Err(ReturnCodes::PreconditionNotMet);
-                    }
-                } else {
-                    return Err(ReturnCodes::BadParameter);
-                }
-                handle
-            },
-        };
+        let instance_handle = Self::get_handle_from_option_instance_handle(this, &data, handle)?;
 
         let serialized_data = data.serialize();
 
-        protocol_writer.write(handle, serialized_data, timestamp)
+        protocol_writer.write(instance_handle, serialized_data, timestamp)
     }
 
     pub fn dispose(
         this: &Weak<DataWriterImpl<T>>,
         data: T,
-        instance_handle: InstanceHandle,
+        handle: Option<InstanceHandle>,
     ) -> ReturnCode<()> {
         let timestamp = DomainParticipant::get_current_time()?;
-        Self::dispose_w_timestamp(this, data, instance_handle, timestamp)
+        Self::dispose_w_timestamp(this, data, handle, timestamp)
     }
 
     pub fn dispose_w_timestamp(
-        _this: &Weak<DataWriterImpl<T>>,
-        _data: T,
-        _instance_handle: InstanceHandle,
-        _timestamp: Time,
+        this: &Weak<DataWriterImpl<T>>,
+        data: T,
+        handle: Option<InstanceHandle>,
+        timestamp: Time,
     ) -> ReturnCode<()> {
-        todo!()
+        let dw = Self::upgrade_datawriter(this)?;
+        let protocol_writer = Self::upgrade_protocol_writer(&dw.protocol_writer)?;
+
+        let instance_handle = Self::get_handle_from_option_instance_handle(this, &data, handle)?;
+
+        protocol_writer.dispose(instance_handle, timestamp)
     }
 
     pub fn wait_for_acknowledgments(
@@ -277,6 +275,22 @@ impl<T: DDSType+Any+Send+Sync> DataWriterImpl<T> {
 
     fn upgrade_protocol_writer(protocol_writer: &Weak<dyn ProtocolWriter>) -> ReturnCode<Arc<dyn ProtocolWriter>> {
         protocol_writer.upgrade().ok_or(ReturnCodes::AlreadyDeleted("Protocol writer"))
+    }
+
+    fn get_handle_from_option_instance_handle(this: &Weak<DataWriterImpl<T>>, data: &T, instance_handle: Option<InstanceHandle>) -> ReturnCode<InstanceHandle> {
+        Ok(match instance_handle {
+            None => data.instance_handle(),
+            Some(handle) => {
+                if let Some(existing_handle) = Self::lookup_instance(&this, &data)? {
+                    if existing_handle != data.instance_handle() {
+                        return Err(ReturnCodes::PreconditionNotMet);
+                    }
+                } else {
+                    return Err(ReturnCodes::BadParameter);
+                }
+                handle
+            },
+        })
     }
 }
 

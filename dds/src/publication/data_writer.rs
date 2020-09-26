@@ -170,9 +170,9 @@ impl<T: DDSType+Any+Send+Sync> DataWriter<T> {
     pub fn write (
         &self,
         data: T,
-        instance_handle: Option<InstanceHandle>,
+        handle: Option<InstanceHandle>,
     ) -> ReturnCode<()> {
-        DataWriterImpl::write(&self.0, data, instance_handle)
+        DataWriterImpl::write(&self.0, data, handle)
     }
 
     /// This operation performs the same function as write except that it also provides the value for the source_timestamp that is made
@@ -191,10 +191,10 @@ impl<T: DDSType+Any+Send+Sync> DataWriter<T> {
     pub fn write_w_timestamp(
         &self,
         data: T,
-        instance_handle: Option<InstanceHandle>,
+        handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> ReturnCode<()> {
-        DataWriterImpl::write_w_timestamp(&self.0, data, instance_handle, timestamp)
+        DataWriterImpl::write_w_timestamp(&self.0, data, handle, timestamp)
     }
 
     /// This operation requests the middleware to delete the data (the actual deletion is postponed until there is no more use for that
@@ -212,9 +212,9 @@ impl<T: DDSType+Any+Send+Sync> DataWriter<T> {
     pub fn dispose(
         &self,
         data: T,
-        instance_handle: InstanceHandle,
+        handle: Option<InstanceHandle>,
     ) -> ReturnCode<()> {
-        DataWriterImpl::dispose(&self.0, data, instance_handle)
+        DataWriterImpl::dispose(&self.0, data, handle)
     }
 
     /// This operation performs the same functions as dispose except that the application provides the value for the source_timestamp
@@ -233,10 +233,10 @@ impl<T: DDSType+Any+Send+Sync> DataWriter<T> {
     pub fn dispose_w_timestamp(
         &self,
         data: T,
-        instance_handle: InstanceHandle,
+        handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> ReturnCode<()> {
-        DataWriterImpl::dispose_w_timestamp(&self.0, data, instance_handle, timestamp)
+        DataWriterImpl::dispose_w_timestamp(&self.0, data, handle, timestamp)
     }
 
     /// This operation is intended to be used only if the DataWriter has RELIABILITY QoS kind set to RELIABLE. Otherwise the
