@@ -81,10 +81,7 @@ impl<T: DDSType+Any+Send+Sync> DataWriterImpl<T> {
 
         let handle = instance.instance_handle();
 
-        match protocol_writer.is_registered(handle) {
-            true => Ok(Some(handle)),
-            false => Ok(None),
-        }
+        Ok(protocol_writer.lookup_instance(handle))
     }
 
     pub fn write (
@@ -125,11 +122,12 @@ impl<T: DDSType+Any+Send+Sync> DataWriterImpl<T> {
     }
 
     pub fn dispose(
-        _this: &Weak<DataWriterImpl<T>>,
-        _data: T,
-        _instance_handle: InstanceHandle,
+        this: &Weak<DataWriterImpl<T>>,
+        data: T,
+        instance_handle: InstanceHandle,
     ) -> ReturnCode<()> {
-        todo!()
+        let timestamp = DomainParticipant::get_current_time()?;
+        Self::dispose_w_timestamp(this, data, instance_handle, timestamp)
     }
 
     pub fn dispose_w_timestamp(
@@ -318,7 +316,7 @@ mod tests {
             todo!()
         }
 
-        fn is_registered(&self, _instance_handle: InstanceHandle) -> bool {
+        fn lookup_instance(&self, _instance_handle: InstanceHandle) -> Option<InstanceHandle> {
             todo!()
         }
     }

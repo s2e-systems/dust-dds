@@ -324,7 +324,7 @@ impl ProtocolWriter for StatefulWriter {
         todo!()
     }
 
-    fn is_registered(&self, _instance_handle: InstanceHandle) -> bool {
+    fn lookup_instance(&self, _instance_handle: InstanceHandle) -> Option<InstanceHandle> {
         todo!()
     }
 }
