@@ -6,7 +6,7 @@ use std::marker::PhantomData;
 use crate::types::DDSType;
 
 
-use crate::infrastructure::status::{LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus, StatusKind};
+use crate::infrastructure::status::{LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus, StatusMask};
 use crate::domain::DomainParticipant;
 use crate::topic::Topic;
 use crate::publication::{Publisher, DataWriterListener};
@@ -214,7 +214,7 @@ impl<T: DDSType+Any+Send+Sync> DataWriterImpl<T> {
         todo!()
     }
 
-    pub fn set_listener(_this: &Weak<DataWriterImpl<T>>, _a_listener: Box<dyn DataWriterListener<T>>, _mask: &[StatusKind]) -> ReturnCode<()> {
+    pub fn set_listener(_this: &Weak<DataWriterImpl<T>>, _a_listener: Box<dyn DataWriterListener<T>>, _mask: StatusMask) -> ReturnCode<()> {
         todo!()
     }
 
@@ -226,7 +226,7 @@ impl<T: DDSType+Any+Send+Sync> DataWriterImpl<T> {
         todo!()
     }
 
-    pub fn get_status_changes(_this: &Weak<DataWriterImpl<T>>,) -> StatusKind {
+    pub fn get_status_changes(_this: &Weak<DataWriterImpl<T>>,) -> StatusMask {
         todo!()
     }
 

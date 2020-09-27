@@ -4,7 +4,7 @@ use std::sync::{Arc,Weak};
 use crate::types::DDSType;
 use rust_dds_interface::types::{InstanceHandle, Time, ReturnCode, Duration};
 
-use crate::infrastructure::status::{LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus, StatusKind};
+use crate::infrastructure::status::{LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus, StatusMask};
 use crate::topic::Topic;
 use crate::publication::publisher::Publisher;
 use crate::infrastructure::entity::Entity;
@@ -353,7 +353,7 @@ impl<T: DDSType+Any+Send+Sync> Entity for DataWriter<T>{
         DataWriterImpl::get_qos(&self.0, qos_list)
     }
 
-    fn set_listener(&self, a_listener: Self::Listener, mask: &[StatusKind]) -> ReturnCode<()> {
+    fn set_listener(&self, a_listener: Self::Listener, mask: StatusMask) -> ReturnCode<()> {
         DataWriterImpl::set_listener(&self.0, a_listener, mask)
     }
 
@@ -365,7 +365,7 @@ impl<T: DDSType+Any+Send+Sync> Entity for DataWriter<T>{
         DataWriterImpl::get_statuscondition(&self.0)
     }
 
-    fn get_status_changes(&self) -> StatusKind {
+    fn get_status_changes(&self) -> StatusMask {
         DataWriterImpl::get_status_changes(&self.0)
     }
 

@@ -7,11 +7,12 @@ use rust_dds_interface::types::{
     InstanceHandle
 };
 
-use crate::infrastructure::status::{SampleLostStatus, StatusKind,
+use crate::infrastructure::status::{
+    SampleLostStatus,
     SampleStateKind,
     ViewStateKind,
     InstanceStateKind,
-    StatusMask,};
+    StatusMask};
 use crate::domain::DomainParticipant;
 use crate::topic::TopicDescription;
 use crate::subscription::{DataReader, AnyDataReader, DataReaderListener, SubscriberListener};
@@ -166,7 +167,7 @@ impl SubscriberImpl {
         todo!()
     }
 
-    pub(crate) fn set_listener(_this: &Weak<SubscriberImpl>, _a_listener: Box<dyn SubscriberListener>, _mask: &[StatusKind]) -> ReturnCode<()> {
+    pub(crate) fn set_listener(_this: &Weak<SubscriberImpl>, _a_listener: Box<dyn SubscriberListener>, _mask: StatusMask) -> ReturnCode<()> {
         todo!()
     }
 
@@ -178,7 +179,7 @@ impl SubscriberImpl {
         todo!()
     }
 
-    pub(crate) fn get_status_changes(_this: &Weak<SubscriberImpl>) -> StatusKind {
+    pub(crate) fn get_status_changes(_this: &Weak<SubscriberImpl>) -> StatusMask {
         todo!()
     }
 

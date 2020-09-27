@@ -3,7 +3,7 @@ use std::sync::{Arc, Weak, Mutex};
 
 use crate::types::DDSType;
 use rust_dds_interface::types::{ReturnCode, Duration, InstanceHandle, ReturnCodes};
-use crate::infrastructure::status::{StatusKind, StatusMask};
+use crate::infrastructure::status::StatusMask;
 use crate::domain::DomainParticipant;
 use crate::topic::Topic;
 use crate::infrastructure::entity::StatusCondition;
@@ -140,7 +140,7 @@ impl PublisherImpl {
         todo!()
     }
 
-    pub(crate) fn set_listener(_this: &Weak<PublisherImpl>, _a_listener: Box<dyn PublisherListener>, _mask: &[StatusKind]) -> ReturnCode<()> {
+    pub(crate) fn set_listener(_this: &Weak<PublisherImpl>, _a_listener: Box<dyn PublisherListener>, _mask: StatusMask) -> ReturnCode<()> {
         todo!()
     }
 
@@ -152,7 +152,7 @@ impl PublisherImpl {
         todo!()
     }
 
-    pub(crate) fn get_status_changes(_this: &Weak<PublisherImpl>, ) -> StatusKind {
+    pub(crate) fn get_status_changes(_this: &Weak<PublisherImpl>, ) -> StatusMask {
         todo!()
     }
 

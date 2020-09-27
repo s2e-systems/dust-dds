@@ -3,7 +3,8 @@ use std::any::Any;
 
 use rust_dds_interface::types::{ReturnCode, InstanceHandle};
 
-use crate::infrastructure::status::{SampleLostStatus, StatusKind,
+use crate::infrastructure::status::{
+    SampleLostStatus,
     SampleStateKind,
     ViewStateKind,
     InstanceStateKind,
@@ -239,7 +240,7 @@ impl Entity for Subscriber {
         SubscriberImpl::get_qos(&self.0, qos_list)
     }
 
-    fn set_listener(&self, a_listener: Self::Listener, mask: &[StatusKind]) -> ReturnCode<()> {
+    fn set_listener(&self, a_listener: Self::Listener, mask: StatusMask) -> ReturnCode<()> {
         SubscriberImpl::set_listener(&self.0, a_listener, mask)
     }
 
@@ -251,7 +252,7 @@ impl Entity for Subscriber {
         SubscriberImpl::get_statuscondition(&self.0)
     }
 
-    fn get_status_changes(&self) -> StatusKind {
+    fn get_status_changes(&self) -> StatusMask {
         SubscriberImpl::get_status_changes(&self.0)
     }
 

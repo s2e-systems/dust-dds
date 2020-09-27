@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use rust_dds_interface::types::{ReturnCode, Duration, InstanceHandle, Time};
-use crate::infrastructure::status::{StatusKind, StatusMask};
+use crate::infrastructure::status::StatusMask;
 use crate::topic::{Topic, TopicListener, TopicDescription};
 use crate::subscription::{Subscriber, SubscriberListener};
 use crate::publication::{Publisher, PublisherListener};
@@ -173,7 +173,7 @@ impl DomainParticipant {
     /// as arguments the name of the Topic and a timeout.
     /// If a Topic of the same name already exists, it gives access to it, otherwise it waits (blocks the caller) until another mechanism
     /// creates it (or the specified timeout occurs). This other mechanism can be another thread, a configuration tool, or some other
-    /// middleware service. Note that the Topic is a local object10 that acts as a ‘proxy’ to designate the global concept of topic.
+    /// middleware service. Note that the Topic is a local object that acts as a ‘proxy’ to designate the global concept of topic.
     /// Middleware implementations could choose to propagate topics and make remotely created topics locally available.
     /// A Topic obtained by means of find_topic, must also be deleted by means of delete_topic so that the local resources can be
     /// released. If a Topic is obtained multiple times by means of find_topic or create_topic, it must also be deleted that same number
@@ -476,7 +476,7 @@ impl Entity for DomainParticipant
         DomainParticipantImpl::get_qos(&self.0, qos_list)
     }
 
-    fn set_listener(&self, a_listener: Self::Listener, mask: &[StatusKind]) -> ReturnCode<()> {
+    fn set_listener(&self, a_listener: Self::Listener, mask: StatusMask) -> ReturnCode<()> {
         DomainParticipantImpl::set_listener(&self.0, a_listener, mask)
     }
 
@@ -488,7 +488,7 @@ impl Entity for DomainParticipant
         DomainParticipantImpl::get_statuscondition(&self.0)
     }
 
-    fn get_status_changes(&self, ) -> StatusKind {
+    fn get_status_changes(&self, ) -> StatusMask {
         DomainParticipantImpl::get_status_changes(&self.0)
     }
 

@@ -3,7 +3,7 @@ use std::any::Any;
 use std::sync::{Arc, Mutex};
 
 use rust_dds_interface::types::{ReturnCode, Duration, InstanceHandle, Time, ReturnCodes};
-use crate::infrastructure::status::{StatusKind, StatusMask };
+use crate::infrastructure::status::StatusMask;
 use crate::topic::{Topic, TopicListener, TopicDescription};
 use crate::subscription::{Subscriber, SubscriberListener};
 use crate::publication::{Publisher, PublisherListener};
@@ -277,7 +277,7 @@ impl DomainParticipantImpl{
         todo!()
     }
 
-    pub(crate) fn set_listener(_this: &Arc<DomainParticipantImpl>, _a_listener: Box<dyn DomainParticipantListener>, _mask: &[StatusKind]) -> ReturnCode<()> {
+    pub(crate) fn set_listener(_this: &Arc<DomainParticipantImpl>, _a_listener: Box<dyn DomainParticipantListener>, _mask: StatusMask) -> ReturnCode<()> {
         todo!()
     }
 
@@ -289,7 +289,7 @@ impl DomainParticipantImpl{
         todo!()
     }
 
-    pub(crate) fn get_status_changes(_this: &Arc<DomainParticipantImpl>) -> StatusKind {
+    pub(crate) fn get_status_changes(_this: &Arc<DomainParticipantImpl>) -> StatusMask {
         todo!()
     }
 
