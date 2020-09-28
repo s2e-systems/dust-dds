@@ -16,7 +16,7 @@ pub trait Receiver {
 pub struct RtpsMessageReceiver;
 
 impl RtpsMessageReceiver {
-    pub fn receive(participant_guid_prefix: GuidPrefix, transport: &impl Transport, receiver_list: &[&dyn Receiver]) {
+    pub fn receive(participant_guid_prefix: GuidPrefix, transport: &dyn Transport, receiver_list: &[&dyn Receiver]) {
         if let Some((message, src_locator)) = transport.read().unwrap() {
             let _source_version = message.header().version();
             let _source_vendor_id = message.header().vendor_id();
@@ -63,7 +63,7 @@ mod tests {
 
     #[test]
     fn stateless_reader_message_receive() {
-        let transport = MemoryTransport::new(Locator::new(0,0,[0;16]), None).unwrap();
+        let transport = MemoryTransport::new(Locator::new(0,0,[0;16]), vec![]).unwrap();
         let guid_prefix = [1,2,3,4,5,6,8,1,2,3,4,5];
 
         let src_locator = Locator::new_udpv4(7500, [127,0,0,1]);
@@ -101,7 +101,7 @@ mod tests {
 
     #[test]
     fn stateless_reader_message_receive_other_locator() {
-        let transport = MemoryTransport::new(Locator::new(0,0,[0;16]), None).unwrap();
+        let transport = MemoryTransport::new(Locator::new(0,0,[0;16]), vec![]).unwrap();
         let guid_prefix = [1,2,3,4,5,6,8,1,2,3,4,5];
 
         let src_locator = Locator::new_udpv4(7500, [127,0,0,1]);
@@ -127,7 +127,7 @@ mod tests {
 
     #[test]
     fn stateful_reader_message_receive() {
-        let transport = MemoryTransport::new(Locator::new(0,0,[0;16]), None).unwrap();
+        let transport = MemoryTransport::new(Locator::new(0,0,[0;16]), vec![]).unwrap();
         let guid_prefix = [1,2,3,4,5,6,8,1,2,3,4,5];
 
         let stateful_reader = StatefulReader::new(

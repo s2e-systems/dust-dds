@@ -31,8 +31,8 @@ fn test_stateless_writer_stateless_reader_direct_communication_integration() {
     let source_locator = Locator::new(5, 7400, [2;16]);
     let destination_locator = Locator::new(5, 7400, [1;16]);
 
-    let memory_transport1 = MemoryTransport::new(source_locator, None).unwrap();
-    let memory_transport2 = MemoryTransport::new(destination_locator, None).unwrap();
+    let memory_transport1 = MemoryTransport::new(source_locator, vec![]).unwrap();
+    let memory_transport2 = MemoryTransport::new(destination_locator, vec![]).unwrap();
 
     let writer = StatelessWriter::new(
         writer_guid,

@@ -1,5 +1,5 @@
 use std::sync::Weak;
-use crate::types::{GUID, Locator, ProtocolVersion, VendorId, TopicKind, ChangeKind, ReliabilityKind};
+use crate::types::{GUID, Locator, ProtocolVersion, VendorId, TopicKind, ReliabilityKind};
 use crate::types::constants::{
     ENTITYID_PARTICIPANT,
     ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
@@ -15,8 +15,6 @@ use crate::endpoint_types::BuiltInEndpointSet;
 use crate::behavior::types::Duration;
 use crate::behavior::types::constants::DURATION_ZERO;
 use crate::transport::Transport;
-use crate::transport::udp::UdpTransport;
-use crate::messages::Endianness;
 use crate::messages::message_sender::RtpsMessageSender;
 use crate::messages::message_receiver::RtpsMessageReceiver;
 use crate::discovery::spdp;
@@ -31,18 +29,14 @@ use rust_dds_interface::types::DomainId;
 use rust_dds_interface::protocol::{ProtocolEntity, ProtocolParticipant};
 
 
-pub struct Participant<T: Transport = UdpTransport> {
+pub struct Participant {
     guid: GUID,
     domain_id: DomainId,
-    default_unicast_locator_list: Vec<Locator>,
-    default_multicast_locator_list: Vec<Locator>,
-    metatraffic_unicast_locator_list: Vec<Locator>,
-    metatraffic_multicast_locator_list: Vec<Locator>,
     protocol_version: ProtocolVersion,
     vendor_id: VendorId,
     domain_tag: String,
-    userdata_transport: T,
-    metatraffic_transport: T,
+    userdata_transport: Box<dyn Transport>,
+    metatraffic_transport: Box<dyn Transport>,
     spdp_builtin_participant_reader: StatelessReader,
     spdp_builtin_participant_writer: StatelessWriter,
     builtin_endpoint_set: BuiltInEndpointSet,
@@ -54,16 +48,14 @@ pub struct Participant<T: Transport = UdpTransport> {
     sedp_builtin_topics_writer: StatefulWriter,
 }
 
-impl<T: Transport> Participant<T> {
+impl Participant {
     pub fn new(
-        userdata_transport: T,
-        metatraffic_transport: T,
+        domain_id: DomainId,
+        userdata_transport: impl Transport + 'static,
+        metatraffic_transport: impl Transport + 'static,
     ) -> Self {
-        let domain_id = 0; // TODO: Should be configurable
         let protocol_version = PROTOCOL_VERSION_2_4;
         let vendor_id = [99,99];
-        let lease_duration = Duration::from_secs(100); // TODO: Should be configurable
-        let endianness = Endianness::LittleEndian; // TODO: Should be configurable
         let expects_inline_qos = false;
         let guid_prefix = [5, 6, 7, 8, 9, 5, 1, 2, 3, 4, 10, 11];   // TODO: Should be uniquely generated
 
@@ -71,7 +63,7 @@ impl<T: Transport> Participant<T> {
             GUID::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER),
             TopicKind::WithKey);
 
-        for metatraffic_multicast_locator in metatraffic_transport.multicast_locator_list() {
+        for &metatraffic_multicast_locator in metatraffic_transport.multicast_locator_list() {
             spdp_builtin_participant_writer.reader_locator_add(metatraffic_multicast_locator);
         }
 
@@ -79,7 +71,7 @@ impl<T: Transport> Participant<T> {
             GUID::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_DETECTOR),
             TopicKind::WithKey,
             vec![],
-            metatraffic_transport.multicast_locator_list(),
+            metatraffic_transport.multicast_locator_list().clone(),
             expects_inline_qos,
         );
 
@@ -155,27 +147,14 @@ impl<T: Transport> Participant<T> {
             BuiltInEndpointSet::BUILTIN_ENDPOINT_TOPICS_DETECTOR
         );
 
-        let default_unicast_locator_list = userdata_transport.unicast_locator_list().clone();
-        let default_multicast_locator_list = userdata_transport.multicast_locator_list().clone();
-
-        // Fill up the metatraffic locator lists. By default only the SPDP will
-        // use the multicast and the remaining built-in endpoints will communicate
-        // over unicast.
-        let metatraffic_unicast_locator_list = metatraffic_transport.unicast_locator_list().clone();
-        let metatraffic_multicast_locator_list = vec![];
-
         let participant = Self {
             guid: GUID::new(guid_prefix,ENTITYID_PARTICIPANT ),
             domain_id,
-            default_unicast_locator_list,
-            default_multicast_locator_list,
-            metatraffic_unicast_locator_list,
-            metatraffic_multicast_locator_list,
             protocol_version,
             vendor_id,
             domain_tag: "".to_string(),
-            userdata_transport,
-            metatraffic_transport,
+            userdata_transport: Box::new(userdata_transport),
+            metatraffic_transport: Box::new(metatraffic_transport),
             builtin_endpoint_set,
             spdp_builtin_participant_reader,
             spdp_builtin_participant_writer,
@@ -187,9 +166,9 @@ impl<T: Transport> Participant<T> {
             sedp_builtin_topics_writer,
         };
 
-        let spdp_discovered_data = SPDPdiscoveredParticipantData::new_from_participant(&participant, lease_duration);
-        let spdp_change = participant.spdp_builtin_participant_writer.new_change(ChangeKind::Alive,Some(spdp_discovered_data.data(endianness.into())) , None, spdp_discovered_data.key());
-        participant.spdp_builtin_participant_writer.writer_cache().add_change(spdp_change);
+        // let spdp_discovered_data = SPDPdiscoveredParticipantData::new_from_participant(&participant, lease_duration);
+        // let spdp_change = participant.spdp_builtin_participant_writer.new_change(ChangeKind::Alive,Some(spdp_discovered_data.data(endianness.into())) , None, spdp_discovered_data.key());
+        // participant.spdp_builtin_participant_writer.writer_cache().add_change(spdp_change);
         
         participant
     }
@@ -211,19 +190,19 @@ impl<T: Transport> Participant<T> {
     }
 
     pub fn default_unicast_locator_list(&self) -> &Vec<Locator> {
-        &self.default_unicast_locator_list
+        self.userdata_transport.unicast_locator_list()
     }
 
     pub fn default_multicast_locator_list(&self) -> &Vec<Locator> {
-        &self.default_multicast_locator_list
+        self.userdata_transport.multicast_locator_list()
     }
 
     pub fn metatraffic_unicast_locator_list(&self) -> &Vec<Locator> {
-        &self.metatraffic_unicast_locator_list
+        self.metatraffic_transport.unicast_locator_list()
     }
 
     pub fn metatraffic_multicast_locator_list(&self) -> &Vec<Locator> {
-        &self.metatraffic_multicast_locator_list
+        self.metatraffic_transport.multicast_locator_list()
     }
 
     pub fn builtin_endpoint_set(&self) -> BuiltInEndpointSet {
@@ -260,7 +239,7 @@ impl<T: Transport> Participant<T> {
 
     fn run(&self) {
         RtpsMessageReceiver::receive(self.guid.prefix(),
-            &self.metatraffic_transport, 
+            self.metatraffic_transport.as_ref(), 
             &[&self.spdp_builtin_participant_reader, &self.sedp_builtin_publications_reader, &self.sedp_builtin_subscriptions_reader, &self.sedp_builtin_topics_reader]);
 
         self.spdp_builtin_participant_reader.run();
@@ -272,7 +251,7 @@ impl<T: Transport> Participant<T> {
         self.sedp_builtin_publications_writer.run();
         self.sedp_builtin_subscriptions_writer.run();
         self.sedp_builtin_topics_writer.run();
-        RtpsMessageSender::send(self.guid.prefix(), &self.metatraffic_transport, &[&self.spdp_builtin_participant_writer, &self.sedp_builtin_publications_writer, &self.sedp_builtin_subscriptions_writer, &self.sedp_builtin_topics_writer]);
+        RtpsMessageSender::send(self.guid.prefix(), self.metatraffic_transport.as_ref(), &[&self.spdp_builtin_participant_writer, &self.sedp_builtin_publications_writer, &self.sedp_builtin_subscriptions_writer, &self.sedp_builtin_topics_writer]);
 
         for spdp_data in self.spdp_builtin_participant_reader.reader_cache().changes().iter() {
             let discovered_participant = SPDPdiscoveredParticipantData::from_key_data(*spdp_data.instance_handle(), spdp_data.data_value(), self.domain_id);
@@ -281,7 +260,7 @@ impl<T: Transport> Participant<T> {
     }
 }
 
-impl ProtocolEntity for Participant{
+impl ProtocolEntity for Participant {
     fn get_instance_handle(&self) -> rust_dds_interface::types::InstanceHandle {
         todo!()
     }
@@ -318,32 +297,36 @@ mod tests {
     fn participant() {
         let userdata_transport1 = MemoryTransport::new(
             Locator::new_udpv4(7410, [192,168,0,5]), 
-            Some(Locator::new_udpv4(7410, [239,255,0,1]))).unwrap();
+            vec![Locator::new_udpv4(7410, [239,255,0,1])]).unwrap();
         let metatraffic_transport1 = MemoryTransport::new(
             Locator::new_udpv4(7400, [192,168,0,5]), 
-            Some(Locator::new_udpv4(7400, [239,255,0,1]))).unwrap();
+            vec![Locator::new_udpv4(7400, [239,255,0,1])]).unwrap();
 
         
-        let participant_1 = Participant::new(userdata_transport1,metatraffic_transport1);
+        let participant_1 = Participant::new(0, userdata_transport1, metatraffic_transport1);
 
 
         let userdata_transport2 = MemoryTransport::new(
             Locator::new_udpv4(7410, [192,168,0,10]), 
-            Some(Locator::new_udpv4(7410, [239,255,0,1]))).unwrap();
+            vec![Locator::new_udpv4(7410, [239,255,0,1])]).unwrap();
         let metatraffic_transport2 = MemoryTransport::new(
             Locator::new_udpv4(7400, [192,168,0,10]), 
-            Some(Locator::new_udpv4(7400, [239,255,0,1]))).unwrap();
+            vec![Locator::new_udpv4(7400, [239,255,0,1])]).unwrap();
 
-        let participant_2 = Participant::<MemoryTransport>::new(
+        let participant_2 = Participant::new(
+            0,
             userdata_transport2,
             metatraffic_transport2);
 
+            
+        let m1 = participant_1.metatraffic_transport.as_any().downcast_ref::<MemoryTransport>().unwrap();
+        let m2 = participant_2.metatraffic_transport.as_any().downcast_ref::<MemoryTransport>().unwrap();
+        
         participant_1.run();
-
-        participant_2.metatraffic_transport.receive_from(&participant_1.metatraffic_transport);
+        m2.receive_from(m1);
 
         participant_2.run();
-        participant_1.metatraffic_transport.receive_from(&participant_2.metatraffic_transport);
+        m1.receive_from(m2);
 
         // For now just check that a cache change is added to the receiver. TODO: Check that the discovery
         // worked properly
@@ -352,6 +335,5 @@ mod tests {
         assert_eq!(participant_1.spdp_builtin_participant_reader.reader_cache().changes().len(), 0);
         participant_1.run();
         assert_eq!(participant_1.spdp_builtin_participant_reader.reader_cache().changes().len(), 1);
-        
     }
 }

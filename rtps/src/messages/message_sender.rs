@@ -19,7 +19,7 @@ pub struct RtpsMessageSender {
 }
 
 impl RtpsMessageSender {
-    pub fn send(participant_guid_prefix: GuidPrefix, transport: &impl Transport,  sender_list: &[&dyn Sender]) {
+    pub fn send(participant_guid_prefix: GuidPrefix, transport: &dyn Transport,  sender_list: &[&dyn Sender]) {
         for sender in sender_list {
             while let Some((dst_locators, submessage_list)) = sender.pop_send_message() {
                 let mut rtps_submessages = Vec::new();
@@ -53,7 +53,7 @@ mod tests {
 
     #[test]
     fn stateless_writer_single_reader_locator() {
-        let transport = MemoryTransport::new(Locator::new(0,0,[0;16]), None).unwrap();
+        let transport = MemoryTransport::new(Locator::new(0,0,[0;16]), vec![]).unwrap();
         let participant_guid_prefix = [1,2,3,4,5,5,4,3,2,1,1,2];
 
         let stateless_writer_1 = StatelessWriter::new(GUID::new(participant_guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER), TopicKind::WithKey);
@@ -170,7 +170,7 @@ mod tests {
 
     #[test]
     fn multiple_stateless_writers_multiple_reader_locators() {
-        let transport = MemoryTransport::new(Locator::new(0,0,[0;16]), None).unwrap();
+        let transport = MemoryTransport::new(Locator::new(0,0,[0;16]), vec![]).unwrap();
         let participant_guid_prefix = [1,2,3,4,5,5,4,3,2,1,1,2];
 
         let reader_locator_1 = Locator::new(-2, 10000, [1;16]);
@@ -218,7 +218,7 @@ mod tests {
 
     #[test]
     fn stateful_writer_multiple_reader_locators() {
-        let transport = MemoryTransport::new(Locator::new(0,0,[0;16]), None).unwrap();
+        let transport = MemoryTransport::new(Locator::new(0,0,[0;16]), vec![]).unwrap();
         let participant_guid_prefix = [1,2,3,4,5,5,4,3,2,1,1,2];
 
         let stateful_writer_1 = StatefulWriter::new(
