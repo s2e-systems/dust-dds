@@ -60,7 +60,7 @@ impl DomainParticipant {
 
         let name = "rtps";
         let protocol_participant = match name {            
-            "rtps" => rust_rtps::structure::participant::Participant::new(userdata_transport, metatraffic_transport),
+            "rtps" => rust_rtps::structure::participant::Participant::new(domain_id, userdata_transport, metatraffic_transport),
             _ => panic!("Protocol not valid"),
         };
 

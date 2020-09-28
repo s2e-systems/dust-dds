@@ -3,6 +3,7 @@ use net2::UdpBuilder;
 
 use std::convert::TryInto;
 use std::net::{UdpSocket, IpAddr, Ipv4Addr, SocketAddr};
+use std::any::Any;
 
 use rust_dds_interface::types::DomainId;
 
@@ -17,8 +18,8 @@ const MAX_UDP_DATA_SIZE: usize = 65536;
 
 pub struct UdpTransport {
     socket: UdpSocket,
-    unicast_locator: Locator,
-    multicast_locator: Option<Locator>,
+    unicast_locator_list: Vec<Locator>,
+    multicast_locator_list: Vec<Locator>,
 }
 
 impl UdpTransport {
@@ -32,7 +33,7 @@ impl UdpTransport {
 
     pub fn new(
         unicast_locator: Locator,
-        multicast_locator: Option<Locator>,
+        multicast_locator_list: Vec<Locator>,
     ) -> TransportResult<Self> {
         let socket_builder = UdpBuilder::new_v4()?;
         socket_builder.reuse_address(true)?;
@@ -41,7 +42,7 @@ impl UdpTransport {
 
         let socket = socket_builder.bind(SocketAddr::from((unicast_address, port)))?;
 
-        if let Some(multicast_locator) = multicast_locator {
+        for multicast_locator in &multicast_locator_list{
             socket.set_multicast_loop_v4(true)?;
             let multicast_address: [u8;4] = multicast_locator.address()[12..16].try_into().unwrap();
             let multicast_addr = Ipv4Addr::from(multicast_address);
@@ -53,8 +54,8 @@ impl UdpTransport {
 
         Ok(Self {
             socket,
-            unicast_locator,
-            multicast_locator,
+            unicast_locator_list: vec![unicast_locator],
+            multicast_locator_list,
         })
     }
 
@@ -73,7 +74,7 @@ impl UdpTransport {
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 239, 255, 0, 1],
         );
 
-        UdpTransport::new(metatraffic_unicast_locator, Some(metatraffic_multicast_locator))
+        UdpTransport::new(metatraffic_unicast_locator, vec![metatraffic_multicast_locator])
     }
 
     pub fn default_userdata_transport(domain_id: DomainId, interface: &str) -> TransportResult<Self> {
@@ -91,7 +92,7 @@ impl UdpTransport {
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 239, 255, 0, 1],
         );
 
-        UdpTransport::new(userdata_unicast_locator, Some(userdata_multicast_locator))
+        UdpTransport::new(userdata_unicast_locator, vec![userdata_multicast_locator])
     }
 
 }
@@ -140,15 +141,16 @@ impl Transport for UdpTransport {
         }
     }
 
-    fn unicast_locator_list(&self) -> Vec<Locator> {
-        vec![self.unicast_locator]
+    fn unicast_locator_list(&self) -> &Vec<Locator> {
+        &self.unicast_locator_list
     }
     
-    fn multicast_locator_list(&self) -> Vec<Locator> {
-        match self.multicast_locator {
-            Some(multicast_locator) => vec![multicast_locator],
-            None => vec![],
-        }
+    fn multicast_locator_list(&self) -> &Vec<Locator> {
+        &self.multicast_locator_list
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 
@@ -186,7 +188,7 @@ mod tests {
         let unicast_locator = Locator::new_udpv4(port, addr);
         let multicast_locator = Locator::new_udpv4(0, multicast_group);
 
-        let transport = UdpTransport::new(unicast_locator, Some(multicast_locator)).unwrap();
+        let transport = UdpTransport::new(unicast_locator, vec![multicast_locator]).unwrap();
 
         let submessages = vec![
             RtpsSubmessage::Gap(Gap::new(Endianness::LittleEndian, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, 0, BTreeSet::new())),
@@ -219,7 +221,7 @@ mod tests {
         let unicast_locator = Locator::new_udpv4(port, addr);
         let multicast_locator = Locator::new_udpv4(0, multicast_group);
 
-        let transport = UdpTransport::new(unicast_locator, Some(multicast_locator)).unwrap();
+        let transport = UdpTransport::new(unicast_locator, vec![multicast_locator]).unwrap();
 
         let result = transport.read().unwrap();
         assert!(result.is_none());
@@ -234,7 +236,7 @@ mod tests {
         let multicast_locator = Locator::new_udpv4(0, multicast_group);
         let unicast_locator_sent_to = Locator::new_udpv4(port, addr);
 
-        let transport = UdpTransport::new(unicast_locator, Some(multicast_locator)).unwrap();
+        let transport = UdpTransport::new(unicast_locator, vec![multicast_locator]).unwrap();
 
         let submessages = vec![
             RtpsSubmessage::Gap(Gap::new(
