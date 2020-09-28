@@ -1,5 +1,6 @@
 use std::collections::VecDeque;
 use std::sync::Mutex;
+use std::any::Any;
 
 use crate::types::Locator;
 use crate::messages::RtpsMessage;
@@ -62,6 +63,10 @@ impl Transport for MemoryTransport {
     
     fn multicast_locator_list(&self) -> &Vec<Locator> {
         &self.multicast_locator_list
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 

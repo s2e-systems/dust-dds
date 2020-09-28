@@ -213,12 +213,15 @@ mod tests {
             userdata_transport2,
             metatraffic_transport2);
 
+            
+        let m1 = participant_1.metatraffic_transport.as_any().downcast_ref::<MemoryTransport>().unwrap();
+        let m2 = participant_2.metatraffic_transport.as_any().downcast_ref::<MemoryTransport>().unwrap();
+        
         participant_1.run();
-  
-        // participant_2.metatraffic_transport.downcast::<String>receive_from(metatraffic_transport1.as_ref());
+        m2.receive_from(m1);
 
         participant_2.run();
-        // metatraffic_transport1.receive_from(&metatraffic_transport2);
+        m1.receive_from(m2);
 
         // For now just check that a cache change is added to the receiver. TODO: Check that the discovery
         // worked properly
@@ -227,7 +230,5 @@ mod tests {
         assert_eq!(participant_1.spdp_builtin_participant_reader.reader_cache().changes().len(), 0);
         participant_1.run();
         assert_eq!(participant_1.spdp_builtin_participant_reader.reader_cache().changes().len(), 1);
-        
-        todo!()
     }
 }
