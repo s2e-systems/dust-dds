@@ -2,7 +2,7 @@ use std::sync::{Arc, Weak};
 use std::marker::PhantomData;
 
 use rust_dds_interface::types::{ReturnCode, ReturnCodes, InstanceHandle};
-use crate::infrastructure::status::{SampleStateKind, ViewStateKind, InstanceStateKind, StatusKind};
+use crate::infrastructure::status::{SampleStateKind, ViewStateKind, InstanceStateKind, StatusMask};
 use crate::subscription::{ReadCondition, QueryCondition};
 use crate::infrastructure::status::{LivelinessChangedStatus, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus, SubscriptionMatchedStatus};
 use crate::topic::TopicDescription;
@@ -302,7 +302,7 @@ impl<T> DataReaderImpl<T> {
 
     pub fn set_listener(
         _this: &Weak<DataReaderImpl<T>>,
-        _a_listener: Box<dyn DataReaderListener<T>>, _mask: &[StatusKind]
+        _a_listener: Box<dyn DataReaderListener<T>>, _mask: StatusMask
     ) -> ReturnCode<()> {
         todo!()
     }
@@ -321,7 +321,7 @@ impl<T> DataReaderImpl<T> {
 
     pub fn get_status_changes(
         _this: &Weak<DataReaderImpl<T>>,
-    ) -> StatusKind {
+    ) -> StatusMask {
         todo!()
     }
 

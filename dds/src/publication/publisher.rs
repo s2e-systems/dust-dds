@@ -3,7 +3,7 @@ use std::sync::Weak;
 
 use crate::types::DDSType;
 use rust_dds_interface::types::{ReturnCode, Duration, InstanceHandle};
-use crate::infrastructure::status::{StatusMask, StatusKind};
+use crate::infrastructure::status::StatusMask;
 use crate::domain::DomainParticipant;
 use crate::topic::Topic;
 use crate::publication::data_writer_listener::DataWriterListener;
@@ -211,7 +211,7 @@ impl Entity for Publisher{
         PublisherImpl::get_qos(&self.0, qos_list)
     }
 
-    fn set_listener(&self, a_listener: Self::Listener, mask: &[StatusKind]) -> ReturnCode<()> {
+    fn set_listener(&self, a_listener: Self::Listener, mask: StatusMask) -> ReturnCode<()> {
         PublisherImpl::set_listener(&self.0, a_listener, mask)
     }
 
@@ -223,7 +223,7 @@ impl Entity for Publisher{
         PublisherImpl::get_statuscondition(&self.0)
     }
 
-    fn get_status_changes(&self, ) -> StatusKind {
+    fn get_status_changes(&self, ) -> StatusMask {
         PublisherImpl::get_status_changes(&self.0)
     }
 

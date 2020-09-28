@@ -1,5 +1,5 @@
 use rust_dds_interface::types::{ReturnCode, InstanceHandle};
-use crate::infrastructure::status::StatusKind;
+use crate::infrastructure::status::StatusMask;
 
 pub struct StatusCondition;
 
@@ -13,13 +13,13 @@ pub trait Entity {
 
     fn get_qos(&self, qos_list: &mut Self::Qos) -> ReturnCode<()>;
 
-    fn set_listener(&self, a_listener: Self::Listener, mask: &[StatusKind]) -> ReturnCode<()>;
+    fn set_listener(&self, a_listener: Self::Listener, mask: StatusMask) -> ReturnCode<()>;
 
     fn get_listener(&self, ) -> Self::Listener;
 
     fn get_statuscondition(&self, ) -> StatusCondition;
 
-    fn get_status_changes(&self, ) -> StatusKind;
+    fn get_status_changes(&self, ) -> StatusMask;
 
     fn enable(&self, ) -> ReturnCode<()>;
 

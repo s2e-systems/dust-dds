@@ -4,7 +4,7 @@ use std::sync::{Arc,Weak};
 use crate::types::DDSType;
 use rust_dds_interface::types::{InstanceHandle, Time, ReturnCode, Duration};
 
-use crate::infrastructure::status::{LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus, StatusKind};
+use crate::infrastructure::status::{LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus, StatusMask};
 use crate::topic::Topic;
 use crate::publication::publisher::Publisher;
 use crate::infrastructure::entity::Entity;
@@ -34,7 +34,7 @@ impl<T: DDSType+Any+Send+Sync> DataWriter<T> {
     pub fn register_instance(
         &self,
         instance: T
-    ) -> InstanceHandle {
+    ) -> ReturnCode<Option<InstanceHandle>> {
         DataWriterImpl::register_instance(&self.0, instance)
     }
 
@@ -49,7 +49,7 @@ impl<T: DDSType+Any+Send+Sync> DataWriter<T> {
         &self,
         instance: T,
         timestamp: Time,
-    ) -> InstanceHandle {
+    ) -> ReturnCode<Option<InstanceHandle>> {
         DataWriterImpl::register_instance_w_timestamp(&self.0, instance, timestamp)
     }
 
@@ -83,7 +83,7 @@ impl<T: DDSType+Any+Send+Sync> DataWriter<T> {
     pub fn unregister_instance(
         &self,
         instance: T,
-        handle: InstanceHandle
+        handle: Option<InstanceHandle>
     ) -> ReturnCode<()> {
         DataWriterImpl::unregister_instance(&self.0, instance, handle)
     }
@@ -98,9 +98,9 @@ impl<T: DDSType+Any+Send+Sync> DataWriter<T> {
     pub fn unregister_instance_w_timestamp(
         &self,
         instance: T,
-        handle: InstanceHandle,
+        handle: Option<InstanceHandle>,
         timestamp: Time,
-    ) -> InstanceHandle {
+    ) -> ReturnCode<()> {
         DataWriterImpl::unregister_instance_w_timestamp(&self.0, instance, handle, timestamp)
     }
 
@@ -170,9 +170,9 @@ impl<T: DDSType+Any+Send+Sync> DataWriter<T> {
     pub fn write (
         &self,
         data: T,
-        instance_handle: Option<InstanceHandle>,
+        handle: Option<InstanceHandle>,
     ) -> ReturnCode<()> {
-        DataWriterImpl::write(&self.0, data, instance_handle)
+        DataWriterImpl::write(&self.0, data, handle)
     }
 
     /// This operation performs the same function as write except that it also provides the value for the source_timestamp that is made
@@ -191,10 +191,10 @@ impl<T: DDSType+Any+Send+Sync> DataWriter<T> {
     pub fn write_w_timestamp(
         &self,
         data: T,
-        instance_handle: Option<InstanceHandle>,
+        handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> ReturnCode<()> {
-        DataWriterImpl::write_w_timestamp(&self.0, data, instance_handle, timestamp)
+        DataWriterImpl::write_w_timestamp(&self.0, data, handle, timestamp)
     }
 
     /// This operation requests the middleware to delete the data (the actual deletion is postponed until there is no more use for that
@@ -212,9 +212,9 @@ impl<T: DDSType+Any+Send+Sync> DataWriter<T> {
     pub fn dispose(
         &self,
         data: T,
-        instance_handle: InstanceHandle,
+        handle: Option<InstanceHandle>,
     ) -> ReturnCode<()> {
-        DataWriterImpl::dispose(&self.0, data, instance_handle)
+        DataWriterImpl::dispose(&self.0, data, handle)
     }
 
     /// This operation performs the same functions as dispose except that the application provides the value for the source_timestamp
@@ -233,10 +233,10 @@ impl<T: DDSType+Any+Send+Sync> DataWriter<T> {
     pub fn dispose_w_timestamp(
         &self,
         data: T,
-        instance_handle: InstanceHandle,
+        handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> ReturnCode<()> {
-        DataWriterImpl::dispose_w_timestamp(&self.0, data, instance_handle, timestamp)
+        DataWriterImpl::dispose_w_timestamp(&self.0, data, handle, timestamp)
     }
 
     /// This operation is intended to be used only if the DataWriter has RELIABILITY QoS kind set to RELIABLE. Otherwise the
@@ -290,12 +290,12 @@ impl<T: DDSType+Any+Send+Sync> DataWriter<T> {
     }
 
     /// This operation returns the Topic associated with the DataWriter. This is the same Topic that was used to create the DataWriter.
-    pub fn get_topic(&self) -> Topic {
+    pub fn get_topic(&self) -> ReturnCode<Topic> {
         DataWriterImpl::get_topic(&self.0)
     }
 
     /// This operation returns the Publisher to which the DataWriter belongs.
-    pub fn get_publisher(&self,) -> Publisher {
+    pub fn get_publisher(&self,) -> ReturnCode<Publisher> {
         DataWriterImpl::get_publisher(&self.0)
     }
 
@@ -353,23 +353,23 @@ impl<T: DDSType+Any+Send+Sync> Entity for DataWriter<T>{
         DataWriterImpl::get_qos(&self.0, qos_list)
     }
 
-    fn set_listener(&self, a_listener: Self::Listener, mask: &[StatusKind]) -> ReturnCode<()> {
+    fn set_listener(&self, a_listener: Self::Listener, mask: StatusMask) -> ReturnCode<()> {
         DataWriterImpl::set_listener(&self.0, a_listener, mask)
     }
 
-    fn get_listener(&self, ) -> Self::Listener {
+    fn get_listener(&self) -> Self::Listener {
         DataWriterImpl::get_listener(&self.0)
     }
 
-    fn get_statuscondition(&self, ) -> crate::infrastructure::entity::StatusCondition {
+    fn get_statuscondition(&self) -> crate::infrastructure::entity::StatusCondition {
         DataWriterImpl::get_statuscondition(&self.0)
     }
 
-    fn get_status_changes(&self, ) -> StatusKind {
+    fn get_status_changes(&self) -> StatusMask {
         DataWriterImpl::get_status_changes(&self.0)
     }
 
-    fn enable(&self, ) -> ReturnCode<()> {
+    fn enable(&self) -> ReturnCode<()> {
         DataWriterImpl::enable(&self.0)
     }
 
