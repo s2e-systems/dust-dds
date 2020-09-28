@@ -4,6 +4,7 @@
 
 pub mod cache_change;
 pub mod history_cache;
+pub mod group;
 pub mod participant;
 pub mod stateless_writer;
 pub mod stateful_writer;

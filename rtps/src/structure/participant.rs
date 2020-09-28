@@ -1,4 +1,4 @@
-use std::sync::Weak;
+use std::sync::{Arc, Weak, Mutex};
 use crate::types::{GUID, Locator, ProtocolVersion, VendorId, TopicKind, ReliabilityKind};
 use crate::types::constants::{
     ENTITYID_PARTICIPANT,
@@ -20,6 +20,7 @@ use crate::messages::message_receiver::RtpsMessageReceiver;
 use crate::discovery::spdp;
 use crate::discovery::spdp::SPDPdiscoveredParticipantData;
 
+use super::group::Group;
 use super::stateless_writer::StatelessWriter;
 use super::stateless_reader::StatelessReader;
 use super::stateful_writer::StatefulWriter;
@@ -27,6 +28,7 @@ use super::stateful_reader::StatefulReader;
 
 use rust_dds_interface::types::DomainId;
 use rust_dds_interface::protocol::{ProtocolEntity, ProtocolParticipant};
+
 
 
 pub struct Participant {
@@ -37,6 +39,7 @@ pub struct Participant {
     domain_tag: String,
     userdata_transport: Box<dyn Transport>,
     metatraffic_transport: Box<dyn Transport>,
+    groups: Mutex<Vec<Arc<Group>>>,
     spdp_builtin_participant_reader: StatelessReader,
     spdp_builtin_participant_writer: StatelessWriter,
     builtin_endpoint_set: BuiltInEndpointSet,
@@ -155,6 +158,7 @@ impl Participant {
             domain_tag: "".to_string(),
             userdata_transport: Box::new(userdata_transport),
             metatraffic_transport: Box::new(metatraffic_transport),
+            groups: Mutex::new(vec![]),
             builtin_endpoint_set,
             spdp_builtin_participant_reader,
             spdp_builtin_participant_writer,
@@ -269,9 +273,13 @@ impl ProtocolEntity for Participant {
         todo!()
     }
 }
+
 impl ProtocolParticipant for Participant {
     fn create_group(&self) -> Weak<dyn rust_dds_interface::protocol::ProtocolGroup> {
-        todo!()
+        let group = Arc::new(Group::new());
+        let weak_group = Arc::downgrade(&group);
+        self.groups.lock().unwrap().push(group);
+        weak_group
     }
 }
 

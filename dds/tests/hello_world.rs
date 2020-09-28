@@ -7,5 +7,6 @@ use rust_dds::infrastructure::listener::NoListener;
 fn hello_world() {
     let p = DomainParticipant::new(0, DomainParticipantQos::default(), NoListener, 0, true);
     p.unwrap().create_publisher(PublisherQos::default(), NoListener, 0);
-    std::thread::sleep(std::time::Duration::from_secs(1));
+    // std::thread::sleep(std::time::Duration::from_secs(1));
+    todo!()
 }
