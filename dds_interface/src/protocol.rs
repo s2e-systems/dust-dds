@@ -6,23 +6,21 @@ pub trait ProtocolEntity : Send + Sync {
     fn get_instance_handle(&self) -> InstanceHandle;
 }
 
+pub trait ProtocolEndpoint : ProtocolEntity {}
+
 pub trait ProtocolParticipant : ProtocolEntity {
-    fn create_group(&self) -> Weak<dyn ProtocolGroup>;
+    fn create_publisher(&self) -> Weak<dyn ProtocolPublisher>;
+    fn create_subscriber(&self) -> Weak<dyn ProtocolSubscriber>;
 }
 
-pub trait ProtocolGroup : ProtocolEntity {
-    fn create_writer(&self) -> Weak<dyn ProtocolWriter>;
+pub trait ProtocolSubscriber : ProtocolEntity {
     fn create_reader(&self) -> Weak<dyn ProtocolReader>;
 }
+pub trait ProtocolPublisher : ProtocolEntity {
+    fn create_writer(&self) -> Weak<dyn ProtocolWriter>;
+}
 
-pub trait ProtocolWriter : ProtocolEntity {
-    // fn new(
-    //     parent_instance_handle: InstanceHandle,
-    //     entity_type: EntityType,
-    //     topic_kind: TopicKind,
-    //     writer_qos: DataWriterQos,
-    // ) -> Self;
-    
+pub trait ProtocolWriter : ProtocolEndpoint {    
     fn write(&self, instance_handle: InstanceHandle, data: Data, timestamp: Time) -> ReturnCode<()>;
 
     fn dispose(&self, instance_handle: InstanceHandle, timestamp: Time) -> ReturnCode<()>;
@@ -34,6 +32,6 @@ pub trait ProtocolWriter : ProtocolEntity {
     fn lookup_instance(&self, instance_handle: InstanceHandle) -> Option<InstanceHandle>;
 }
 
-pub trait ProtocolReader: ProtocolEntity {
+pub trait ProtocolReader: ProtocolEndpoint {
 
 }

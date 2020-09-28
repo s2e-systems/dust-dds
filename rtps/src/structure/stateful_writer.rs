@@ -10,7 +10,7 @@ use crate::messages::message_sender::Sender;
 use crate::structure::history_cache::HistoryCache;
 use crate::structure::cache_change::CacheChange;
 use crate::serialized_payload::ParameterList;
-use rust_dds_interface::protocol::{ProtocolEntity, ProtocolWriter};
+use rust_dds_interface::protocol::{ProtocolEntity, ProtocolWriter, ProtocolEndpoint};
 use rust_dds_interface::types::{Data, Time, ReturnCode};
 
 struct ChangeForReader {
@@ -296,6 +296,8 @@ impl ProtocolEntity for StatefulWriter {
         todo!()
     }
 }
+
+impl ProtocolEndpoint for StatefulWriter {}
 impl ProtocolWriter for StatefulWriter {
     // fn new(
     //     _parent_instance_handle: InstanceHandle,

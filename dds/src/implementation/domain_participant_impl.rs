@@ -41,13 +41,14 @@ impl DomainParticipantImpl{
         _a_listener: impl PublisherListener,
         _mask: StatusMask
     ) -> Option<Publisher> {
-        let protocol_group = this.protocol_participant.create_group();
-        let publisher_impl = Arc::new(PublisherImpl::new(Arc::downgrade(this), protocol_group));
-        let publisher = Publisher(Arc::downgrade(&publisher_impl));
+        todo!()
+        // let protocol_group = this.protocol_participant.create_group();
+        // let publisher_impl = Arc::new(PublisherImpl::new(Arc::downgrade(this), protocol_group));
+        // let publisher = Publisher(Arc::downgrade(&publisher_impl));
 
-        this.publisher_list.lock().ok()?.push(publisher_impl);
+        // this.publisher_list.lock().ok()?.push(publisher_impl);
 
-        Some(publisher)
+        // Some(publisher)
     }
 
     pub(crate) fn delete_publisher(
@@ -67,13 +68,14 @@ impl DomainParticipantImpl{
         _a_listener: impl SubscriberListener,
         _mask: StatusMask
     ) -> Option<Subscriber> {
-        let protocol_group = this.protocol_participant.create_group();
-        let subscriber_impl = Arc::new(SubscriberImpl::new(Arc::downgrade(this), protocol_group));
-        let subscriber = Subscriber(Arc::downgrade(&subscriber_impl));
+        // let protocol_group = this.protocol_participant.create_group();
+        // let subscriber_impl = Arc::new(SubscriberImpl::new(Arc::downgrade(this), protocol_group));
+        // let subscriber = Subscriber(Arc::downgrade(&subscriber_impl));
 
-        this.subscriber_list.lock().ok()?.push(subscriber_impl);
+        // this.subscriber_list.lock().ok()?.push(subscriber_impl);
 
-        Some(subscriber)
+        // Some(subscriber)
+        todo!()
     }
 
     pub(crate) fn delete_subscriber(
@@ -343,7 +345,7 @@ mod tests {
     use super::*;
     use std::sync::Weak;
     use crate::infrastructure::listener::NoListener;
-    use rust_dds_interface::protocol::ProtocolEntity;
+    use rust_dds_interface::protocol::{ProtocolEntity, ProtocolWriter};
     use rust_dds_interface::qos_policy::ReliabilityQosPolicyKind;
 
     struct MockProtocolParticipant;
@@ -358,7 +360,11 @@ mod tests {
     }
 
     impl ProtocolParticipant for MockProtocolParticipant {
-        fn create_group(&self) -> Weak<dyn rust_dds_interface::protocol::ProtocolGroup> {
+        fn create_publisher(&self) -> Weak<dyn rust_dds_interface::protocol::ProtocolPublisher> {
+            todo!()
+        }
+
+        fn create_subscriber(&self) -> Weak<dyn rust_dds_interface::protocol::ProtocolSubscriber> {
             todo!()
         }
     }
