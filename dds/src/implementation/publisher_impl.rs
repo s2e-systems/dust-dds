@@ -17,7 +17,7 @@ pub struct PublisherImpl{
     parent_participant: Weak<DomainParticipantImpl>,
     datawriter_list: Mutex<Vec<AnyDataWriter>>,
     default_datawriter_qos: Mutex<DataWriterQos>,
-    protocol_publisher: Weak<dyn ProtocolPublisher>,
+    protocol_publisher: Arc<dyn ProtocolPublisher>,
 }
 
 impl PublisherImpl {
@@ -28,8 +28,8 @@ impl PublisherImpl {
         _a_listener: Box<dyn DataWriterListener<T>>,
         _mask: StatusMask,
     ) -> Option<DataWriter<T>> {
-        let publisher = PublisherImpl::upgrade_publisher(this).ok()?;
-        let _protocol_publisher = PublisherImpl::upgrade_protocol_publisher(&publisher.protocol_publisher).ok()?;
+        let _publisher = PublisherImpl::upgrade_publisher(this).ok()?;
+       
         // let protocol_writer = protocol_group.create_writer();
         // let datawriter_impl = Arc::new(DataWriterImpl::new(this.clone(), protocol_writer));
         // let datawriter = DataWriter(Arc::downgrade(&datawriter_impl));        
@@ -162,12 +162,11 @@ impl PublisherImpl {
 
     pub(crate) fn get_instance_handle(this: &Weak<PublisherImpl>) -> ReturnCode<InstanceHandle> {
         let publisher = PublisherImpl::upgrade_publisher(this)?;
-        let protocol_publisher = PublisherImpl::upgrade_protocol_publisher(&publisher.protocol_publisher)?;
-        Ok(protocol_publisher.get_instance_handle())
+        Ok(publisher.protocol_publisher.get_instance_handle())
     }
 
     //////////////// From here on are the functions that do not belong to the standard API
-    pub(crate) fn new(parent_participant: Weak<DomainParticipantImpl>, protocol_publisher: Weak<dyn ProtocolPublisher>) -> Self {
+    pub(crate) fn new(parent_participant: Weak<DomainParticipantImpl>, protocol_publisher: Arc<dyn ProtocolPublisher>) -> Self {
         Self{
             parent_participant,
             datawriter_list: Mutex::new(Vec::new()),
@@ -178,10 +177,6 @@ impl PublisherImpl {
 
     fn upgrade_publisher(this: &Weak<PublisherImpl>) -> ReturnCode<Arc<PublisherImpl>> {
         this.upgrade().ok_or(ReturnCodes::AlreadyDeleted("Publisher"))
-    }
-
-    fn upgrade_protocol_publisher(protocol_publisher: &Weak<dyn ProtocolPublisher>) -> ReturnCode<Arc<dyn ProtocolPublisher>> {
-        protocol_publisher.upgrade().ok_or(ReturnCodes::AlreadyDeleted("Protocol group"))
     }
 }
 

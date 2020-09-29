@@ -391,12 +391,12 @@ mod tests {
     }
 
     impl ProtocolParticipant for MockProtocolParticipant {
-        fn create_publisher(&self) -> Weak<dyn ProtocolPublisher> {
-            Weak::<MockProtocolPublisher>::new()
+        fn create_publisher(&self) -> Arc<dyn ProtocolPublisher> {
+            Arc::new(MockProtocolPublisher)
         }
 
-        fn create_subscriber(&self) -> Weak<dyn ProtocolSubscriber> {
-            Weak::<MockProtocolSubscriber>::new()
+        fn create_subscriber(&self) -> Arc<dyn ProtocolSubscriber> {
+            Arc::new(MockProtocolSubscriber)
         }
     }
 

@@ -1,4 +1,4 @@
-use std::sync::{Arc, Weak, Mutex};
+use std::sync::{Arc, Mutex};
 use crate::types::{GUID, Locator, ProtocolVersion, VendorId, TopicKind, ReliabilityKind};
 use crate::types::constants::{
     ENTITYID_PARTICIPANT,
@@ -278,11 +278,11 @@ impl ProtocolEntity for RtpsParticipant {
 }
 
 impl ProtocolParticipant for RtpsParticipant {
-    fn create_publisher(&self) -> Weak<dyn rust_dds_interface::protocol::ProtocolPublisher> {
+    fn create_publisher(&self) -> Arc<dyn rust_dds_interface::protocol::ProtocolPublisher> {
         todo!()
     }
 
-    fn create_subscriber(&self) -> Weak<dyn rust_dds_interface::protocol::ProtocolSubscriber> {
+    fn create_subscriber(&self) -> Arc<dyn rust_dds_interface::protocol::ProtocolSubscriber> {
         todo!()
     }
 }

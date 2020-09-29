@@ -1,4 +1,4 @@
-use std::sync::Weak;
+use std::sync::{Arc, Weak};
 use crate::types::{InstanceHandle, Data, Time, ReturnCode};
 
 pub trait ProtocolEntity : Send + Sync {
@@ -9,8 +9,8 @@ pub trait ProtocolEntity : Send + Sync {
 pub trait ProtocolEndpoint : ProtocolEntity {}
 
 pub trait ProtocolParticipant : ProtocolEntity {
-    fn create_publisher(&self) -> Weak<dyn ProtocolPublisher>;
-    fn create_subscriber(&self) -> Weak<dyn ProtocolSubscriber>;
+    fn create_publisher(&self) -> Arc<dyn ProtocolPublisher>;
+    fn create_subscriber(&self) -> Arc<dyn ProtocolSubscriber>;
 }
 
 pub trait ProtocolSubscriber : ProtocolEntity {

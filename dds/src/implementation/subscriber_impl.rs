@@ -26,7 +26,7 @@ pub struct SubscriberImpl{
     parent_participant: Weak<DomainParticipantImpl>,
     datareader_list: Mutex<Vec<AnyDataReader>>,
     default_datareader_qos: Mutex<DataReaderQos>,
-    protocol_subscriber: Weak<dyn ProtocolSubscriber>,
+    protocol_subscriber: Arc<dyn ProtocolSubscriber>,
 }
 
 impl SubscriberImpl {
@@ -38,8 +38,7 @@ impl SubscriberImpl {
         _mask: StatusMask
     ) -> Option<DataReader<T>> {
 
-        let subscriber = Self::upgrade_subscriber(this).ok()?;
-        let _protocol_subscriber = Self::upgrade_protocol_subscriber(&subscriber.protocol_subscriber).ok()?;
+        let _subscriber = Self::upgrade_subscriber(this).ok()?;
         // let protocol_reader = protocol_group.create_reader();
         // let datareader_impl = Arc::new(DataReaderImpl::new(this.clone(), protocol_reader));
         // let datareader = DataReader(Arc::downgrade(&datareader_impl));    
@@ -190,12 +189,12 @@ impl SubscriberImpl {
 
     pub(crate) fn get_instance_handle(this: &Weak<SubscriberImpl>) -> ReturnCode<InstanceHandle> {
         let subscriber = SubscriberImpl::upgrade_subscriber(this)?;
-        let protocol_subscriber = SubscriberImpl::upgrade_protocol_subscriber(&subscriber.protocol_subscriber)?;
-        Ok(protocol_subscriber.get_instance_handle())
+        
+        Ok(subscriber.protocol_subscriber.get_instance_handle())
     }
 
     //////////////// From here on are the functions that do not belong to the standard API
-    pub(crate) fn new(parent_participant: Weak<DomainParticipantImpl>, protocol_subscriber: Weak<dyn ProtocolSubscriber>
+    pub(crate) fn new(parent_participant: Weak<DomainParticipantImpl>, protocol_subscriber: Arc<dyn ProtocolSubscriber>
     ) -> Self {
         Self{
             parent_participant,
@@ -207,10 +206,6 @@ impl SubscriberImpl {
 
     fn upgrade_subscriber(this: &Weak<SubscriberImpl>) -> ReturnCode<Arc<SubscriberImpl>> {
         this.upgrade().ok_or(ReturnCodes::AlreadyDeleted("Subscriber"))
-    }
-
-    fn upgrade_protocol_subscriber(protocol_subscriber: &Weak<dyn ProtocolSubscriber>) -> ReturnCode<Arc<dyn ProtocolSubscriber>> {
-        protocol_subscriber.upgrade().ok_or(ReturnCodes::AlreadyDeleted("Protocol group"))
     }
 }
 
