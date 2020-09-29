@@ -285,14 +285,6 @@ impl ProtocolParticipant for RtpsParticipant {
     fn create_subscriber(&self) -> Arc<dyn rust_dds_interface::protocol::ProtocolSubscriber> {
         todo!()
     }
-
-    fn delete_publisher(&self, _publisher: std::sync::Weak<dyn rust_dds_interface::protocol::ProtocolPublisher>) {
-        todo!()
-    }
-
-    fn delete_subscriber(&self, _subscriber: std::sync::Weak<dyn rust_dds_interface::protocol::ProtocolPublisher>) {
-        todo!()
-    }
 }
 
 #[cfg(test)]

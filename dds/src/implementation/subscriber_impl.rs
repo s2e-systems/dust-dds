@@ -244,10 +244,6 @@ mod tests {
         fn create_reader(&self) -> Arc<dyn ProtocolReader> {
             todo!()
         }
-
-        fn delete_reader(&self, _reader: Weak<dyn ProtocolReader>) {
-            todo!()
-        }
     }
 
     #[derive(Debug)]

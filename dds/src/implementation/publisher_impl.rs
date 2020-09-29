@@ -233,10 +233,6 @@ mod tests {
         fn create_writer(&self) -> Arc<dyn ProtocolWriter> {
             todo!()
         }
-
-        fn delete_writer(&self, _writer: Weak<dyn ProtocolWriter>) {
-            todo!()
-        }
     }
     #[derive(Debug)]
     struct  Foo {
