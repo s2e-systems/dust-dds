@@ -341,7 +341,6 @@ impl DomainParticipantImpl{
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::Weak;
     use crate::infrastructure::listener::NoListener;
     use rust_dds_interface::protocol::{ProtocolEntity, ProtocolPublisher, ProtocolSubscriber};
     use rust_dds_interface::qos_policy::ReliabilityQosPolicyKind;
@@ -357,7 +356,7 @@ mod tests {
         }
     }
     impl ProtocolPublisher for MockProtocolPublisher {
-        fn create_writer(&self) -> Weak<dyn rust_dds_interface::protocol::ProtocolWriter> {
+        fn create_writer(&self) -> Arc<dyn rust_dds_interface::protocol::ProtocolWriter> {
             todo!()
         }
     }
@@ -373,7 +372,7 @@ mod tests {
         }
     }
     impl ProtocolSubscriber for MockProtocolSubscriber {
-        fn create_reader(&self) -> Weak<dyn rust_dds_interface::protocol::ProtocolReader> {
+        fn create_reader(&self) -> Arc<dyn rust_dds_interface::protocol::ProtocolReader> {
             todo!()
         }
     }

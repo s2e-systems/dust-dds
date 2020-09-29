@@ -241,7 +241,7 @@ mod tests {
         }
     }
     impl ProtocolSubscriber for MockReaderProtocolGroup {
-        fn create_reader(&self) -> Weak<dyn ProtocolReader> {
+        fn create_reader(&self) -> Arc<dyn ProtocolReader> {
             todo!()
         }
     }

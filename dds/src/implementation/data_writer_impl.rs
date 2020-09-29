@@ -20,7 +20,7 @@ use rust_dds_interface::protocol::ProtocolWriter;
 
 pub(crate) struct DataWriterImpl<T: DDSType+Any+Send+Sync> {
     parent_publisher: Weak<PublisherImpl>,
-    protocol_writer: Weak<dyn ProtocolWriter>,
+    protocol_writer: Arc<dyn ProtocolWriter>,
     value: PhantomData<T>,
 }
 
@@ -38,12 +38,11 @@ impl<T: DDSType+Any+Send+Sync> DataWriterImpl<T> {
         instance: T,
         timestamp: Time,
     ) -> ReturnCode<Option<InstanceHandle>> {
-        let dw = Self::upgrade_datawriter(this)?;
-        let protocol_writer = Self::upgrade_protocol_writer(&dw.protocol_writer)?;
+        let data_writer = Self::upgrade_datawriter(this)?;
 
         let instance_handle = instance.instance_handle();
 
-        protocol_writer.register(instance_handle, timestamp)
+        data_writer.protocol_writer.register(instance_handle, timestamp)
     }
 
     pub fn unregister_instance(
@@ -61,12 +60,11 @@ impl<T: DDSType+Any+Send+Sync> DataWriterImpl<T> {
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> ReturnCode<()> {
-        let dw = Self::upgrade_datawriter(this)?;
-        let protocol_writer = Self::upgrade_protocol_writer(&dw.protocol_writer)?;
+        let data_writer = Self::upgrade_datawriter(this)?;
 
         let instance_handle = Self::get_handle_from_option_instance_handle(this, &instance, handle)?;
 
-        protocol_writer.dispose(instance_handle, timestamp)
+        data_writer.protocol_writer.dispose(instance_handle, timestamp)
     }
 
     pub fn get_key_value(
@@ -81,12 +79,11 @@ impl<T: DDSType+Any+Send+Sync> DataWriterImpl<T> {
         this: &Weak<DataWriterImpl<T>>,
         instance: &T,
     ) -> ReturnCode<Option<InstanceHandle>> {
-        let dw = Self::upgrade_datawriter(this)?;
-        let protocol_writer = Self::upgrade_protocol_writer(&dw.protocol_writer)?;
+        let data_writer = Self::upgrade_datawriter(this)?;
 
         let instance_handle = instance.instance_handle();
 
-        Ok(protocol_writer.lookup_instance(instance_handle))
+        Ok(data_writer.protocol_writer.lookup_instance(instance_handle))
     }
 
     pub fn write (
@@ -104,14 +101,13 @@ impl<T: DDSType+Any+Send+Sync> DataWriterImpl<T> {
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> ReturnCode<()> {
-        let dw = Self::upgrade_datawriter(this)?;
-        let protocol_writer = Self::upgrade_protocol_writer(&dw.protocol_writer)?;
+        let data_writer = Self::upgrade_datawriter(this)?;
 
         let instance_handle = Self::get_handle_from_option_instance_handle(this, &data, handle)?;
 
         let serialized_data = data.serialize();
 
-        protocol_writer.write(instance_handle, serialized_data, timestamp)
+        data_writer.protocol_writer.write(instance_handle, serialized_data, timestamp)
     }
 
     pub fn dispose(
@@ -129,12 +125,11 @@ impl<T: DDSType+Any+Send+Sync> DataWriterImpl<T> {
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> ReturnCode<()> {
-        let dw = Self::upgrade_datawriter(this)?;
-        let protocol_writer = Self::upgrade_protocol_writer(&dw.protocol_writer)?;
+        let data_writer = Self::upgrade_datawriter(this)?;
 
         let instance_handle = Self::get_handle_from_option_instance_handle(this, &data, handle)?;
 
-        protocol_writer.dispose(instance_handle, timestamp)
+        data_writer.protocol_writer.dispose(instance_handle, timestamp)
     }
 
     pub fn wait_for_acknowledgments(
@@ -183,8 +178,8 @@ impl<T: DDSType+Any+Send+Sync> DataWriterImpl<T> {
     pub fn get_publisher(
         this: &Weak<DataWriterImpl<T>>,
     ) -> ReturnCode<Publisher> {
-        let dw = Self::upgrade_datawriter(this)?;
-        Ok(Publisher(dw.parent_publisher.clone()))
+        let data_writer = Self::upgrade_datawriter(this)?;
+        Ok(Publisher(data_writer.parent_publisher.clone()))
     }
 
     pub fn assert_liveliness(_this: &Weak<DataWriterImpl<T>>,) -> ReturnCode<()> {
@@ -231,7 +226,7 @@ impl<T: DDSType+Any+Send+Sync> DataWriterImpl<T> {
     }
 
     pub fn enable(this: &Weak<DataWriterImpl<T>>,) -> ReturnCode<()> {
-        let _dw = DataWriterImpl::upgrade_datawriter(this)?;
+        let _data_writer = DataWriterImpl::upgrade_datawriter(this)?;
 
         // let guid = GUID::new([1;12],EntityId::new([1;3], EntityKind::UserDefinedWriterWithKey));
         // let topic_kind = TopicKind::WithKey;
@@ -256,13 +251,12 @@ impl<T: DDSType+Any+Send+Sync> DataWriterImpl<T> {
     }
 
     pub fn get_instance_handle(this: &Weak<DataWriterImpl<T>>) -> ReturnCode<InstanceHandle> {
-        let datawriter = Self::upgrade_datawriter(this)?;
-        let protocol_writer = Self::upgrade_protocol_writer(&datawriter.protocol_writer)?;
-        Ok(protocol_writer.get_instance_handle())
+        let data_writer = Self::upgrade_datawriter(this)?;
+        Ok(data_writer.protocol_writer.get_instance_handle())
     }
 
      //////////////// From here on are the functions that do not belong to the standard API
-     pub(crate) fn new(parent_publisher: Weak<PublisherImpl>, protocol_writer: Weak<dyn ProtocolWriter>) -> Self {
+     pub(crate) fn new(parent_publisher: Weak<PublisherImpl>, protocol_writer: Arc<dyn ProtocolWriter>) -> Self {
          Self{
             parent_publisher,
             protocol_writer,
@@ -272,10 +266,6 @@ impl<T: DDSType+Any+Send+Sync> DataWriterImpl<T> {
 
     fn upgrade_datawriter(this: &Weak<DataWriterImpl<T>>) -> ReturnCode<Arc<DataWriterImpl<T>>> {
         this.upgrade().ok_or(ReturnCodes::AlreadyDeleted("Datawriter"))
-    }
-
-    fn upgrade_protocol_writer(protocol_writer: &Weak<dyn ProtocolWriter>) -> ReturnCode<Arc<dyn ProtocolWriter>> {
-        protocol_writer.upgrade().ok_or(ReturnCodes::AlreadyDeleted("Protocol writer"))
     }
 
     fn get_handle_from_option_instance_handle(this: &Weak<DataWriterImpl<T>>, data: &T, instance_handle: Option<InstanceHandle>) -> ReturnCode<InstanceHandle> {
@@ -397,7 +387,7 @@ mod tests {
     #[test]
     fn get_single_anydatawriter_value() {
         let any_datawriter = AnyDataWriter(
-            Arc::new(DataWriterImpl::<Foo>::new(Weak::new(), Weak::<MockProtocolWriter>::new()))
+            Arc::new(DataWriterImpl::<Foo>::new(Weak::new(), Arc::new(MockProtocolWriter)))
         );
 
         assert!(any_datawriter.get::<Foo>().is_some())
@@ -407,8 +397,8 @@ mod tests {
     fn get_multiple_anydatawriter_values() {
         let mut datawriter_list = Vec::new();
 
-        datawriter_list.push(AnyDataWriter(Arc::new(DataWriterImpl::<Foo>::new(Weak::new(), Weak::<MockProtocolWriter>::new()))));
-        datawriter_list.push(AnyDataWriter(Arc::new(DataWriterImpl::<Bar>::new(Weak::new(), Weak::<MockProtocolWriter>::new()))));
+        datawriter_list.push(AnyDataWriter(Arc::new(DataWriterImpl::<Foo>::new(Weak::new(), Arc::new(MockProtocolWriter)))));
+        datawriter_list.push(AnyDataWriter(Arc::new(DataWriterImpl::<Bar>::new(Weak::new(), Arc::new(MockProtocolWriter)))));
 
         assert!(datawriter_list[0].get::<Foo>().is_some());
         assert!(datawriter_list[0].get::<Bar>().is_none());

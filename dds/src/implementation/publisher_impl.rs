@@ -230,7 +230,7 @@ mod tests {
         }
     }
     impl ProtocolPublisher for MockWriterProtocolGroup {
-        fn create_writer(&self) -> Weak<dyn ProtocolWriter> {
+        fn create_writer(&self) -> Arc<dyn ProtocolWriter> {
             todo!()
         }
     }
