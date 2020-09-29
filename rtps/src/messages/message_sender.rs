@@ -48,8 +48,7 @@ mod tests {
         ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
         ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, };
     use crate::behavior::types::Duration;
-    use crate::structure::stateless_writer::StatelessWriter;
-    use crate::structure::stateful_writer::{StatefulWriter, ReaderProxy};
+    use crate::structure::{StatelessWriter, StatefulWriter, ReaderProxy};
 
     #[test]
     fn stateless_writer_single_reader_locator() {

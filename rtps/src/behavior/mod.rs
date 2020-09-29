@@ -7,7 +7,7 @@ pub mod stateless_reader;
 use std::convert::TryInto;
 
 use crate::types::{GUID, GuidPrefix, EntityId, ChangeKind};
-use crate::structure::cache_change::CacheChange;
+use crate::structure::CacheChange;
 use crate::messages::Endianness;
 use crate::messages::submessages::Data;
 use crate::messages::submessages::data_submessage::Payload;

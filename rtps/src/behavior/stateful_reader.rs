@@ -2,7 +2,7 @@ use std::convert::TryInto;
 use std::time::Instant;
 
 use crate::types::constants::LOCATOR_INVALID;
-use crate::structure::stateful_reader::{WriterProxy, StatefulReader};
+use crate::structure::{WriterProxy, StatefulReader};
 use crate::messages::RtpsSubmessage;
 use crate::messages::submessages::{AckNack, Data, Gap, Heartbeat,};
 use crate::messages::types::Count;
@@ -193,7 +193,7 @@ mod tests {
     use crate::types::{ChangeKind, TopicKind, ReliabilityKind, GUID};
     use crate::types::constants::{
         ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, };
-    use crate::structure::cache_change::CacheChange;
+    use crate::structure::CacheChange;
     use crate::messages::submessages::data_submessage::Payload;
     use crate::serialized_payload::ParameterList;
     use crate::inline_qos_types::KeyHash;

@@ -14,10 +14,7 @@ pub mod transport;
 
 pub use behavior::types as behavior_types;
 
-pub use structure::stateless_reader::StatelessReader;
-pub use structure::stateless_writer::StatelessWriter;
-pub use structure::stateful_reader::{StatefulReader, WriterProxy, };
-pub use structure::stateful_writer::{StatefulWriter, ReaderProxy, };
+pub use structure::{StatelessReader, StatelessWriter, StatefulWriter, ReaderProxy, StatefulReader, WriterProxy, };
 pub use messages::message_receiver::RtpsMessageReceiver;
 pub use messages::message_sender::RtpsMessageSender;
 pub use messages::RtpsMessage;

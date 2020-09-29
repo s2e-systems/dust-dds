@@ -6,7 +6,7 @@ use crate::types::SequenceNumber;
 use crate::types::constants::LOCATOR_INVALID;
 use crate::messages::RtpsSubmessage;
 use crate::messages::submessages::{Gap, Heartbeat, AckNack};
-use crate::structure::stateful_writer::{StatefulWriter, ReaderProxy};
+use crate::structure::{StatefulWriter, ReaderProxy};
 use crate::messages::types::Count;
 use crate::messages::message_sender::Sender;
 use crate::messages::message_receiver::Receiver;

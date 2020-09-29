@@ -13,10 +13,8 @@ use crate::types::constants::{
     ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,};
 use crate::messages::types::Count;
 use crate::behavior::types::Duration;
-use crate::structure::participant::RtpsParticipant;
+use crate::structure::{RtpsParticipant, WriterProxy, ReaderProxy};
 use crate::serialized_payload::CdrParameterList;
-use crate::structure::stateful_reader::WriterProxy;
-use crate::structure::stateful_writer::ReaderProxy;
 
 use crate::endpoint_types::{
     BuiltInEndpointSet,

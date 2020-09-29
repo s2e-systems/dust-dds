@@ -36,7 +36,7 @@ pub struct DomainParticipantImpl{
 
 impl DomainParticipantImpl{
     pub(crate) fn create_publisher(
-        this: &Arc<DomainParticipantImpl>,
+        _this: &Arc<DomainParticipantImpl>,
         _qos_list: PublisherQos,
         _a_listener: impl PublisherListener,
         _mask: StatusMask
@@ -63,7 +63,7 @@ impl DomainParticipantImpl{
     }
 
     pub(crate) fn create_subscriber(
-        this: &Arc<DomainParticipantImpl>,
+        _this: &Arc<DomainParticipantImpl>,
         _qos_list: SubscriberQos,
         _a_listener: impl SubscriberListener,
         _mask: StatusMask
@@ -345,7 +345,7 @@ mod tests {
     use super::*;
     use std::sync::Weak;
     use crate::infrastructure::listener::NoListener;
-    use rust_dds_interface::protocol::{ProtocolEntity, ProtocolWriter};
+    use rust_dds_interface::protocol::ProtocolEntity;
     use rust_dds_interface::qos_policy::ReliabilityQosPolicyKind;
 
     struct MockProtocolParticipant;

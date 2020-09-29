@@ -18,10 +18,9 @@ use crate::topic::TopicDescription;
 use crate::subscription::{DataReader, AnyDataReader, DataReaderListener, SubscriberListener};
 
 use crate::implementation::domain_participant_impl::DomainParticipantImpl;
-use crate::implementation::data_reader_impl::DataReaderImpl;
 
 use rust_dds_interface::qos::{TopicQos, SubscriberQos, DataReaderQos};
-use rust_dds_interface::protocol::{ProtocolReader, ProtocolSubscriber};
+use rust_dds_interface::protocol::ProtocolSubscriber;
 
 pub struct SubscriberImpl{
     parent_participant: Weak<DomainParticipantImpl>,
@@ -40,7 +39,7 @@ impl SubscriberImpl {
     ) -> Option<DataReader<T>> {
 
         let subscriber = Self::upgrade_subscriber(this).ok()?;
-        let protocol_group = Self::upgrade_protocol_group(&subscriber.protocol_group).ok()?;
+        let _protocol_group = Self::upgrade_protocol_group(&subscriber.protocol_group).ok()?;
         // let protocol_reader = protocol_group.create_reader();
         // let datareader_impl = Arc::new(DataReaderImpl::new(this.clone(), protocol_reader));
         // let datareader = DataReader(Arc::downgrade(&datareader_impl));    
@@ -218,10 +217,10 @@ impl SubscriberImpl {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::infrastructure::listener::NoListener;
-    use crate::topic::Topic;
-    use rust_dds_interface::qos_policy::ReliabilityQosPolicyKind;
-    use rust_dds_interface::protocol::{ProtocolEntity, ProtocolEndpoint};
+    // use crate::infrastructure::listener::NoListener;
+    // use crate::topic::Topic;
+    // use rust_dds_interface::qos_policy::ReliabilityQosPolicyKind;
+    use rust_dds_interface::protocol::{ProtocolEntity, ProtocolEndpoint, ProtocolReader};
 
     struct MockReader;
     impl ProtocolEndpoint for MockReader {}

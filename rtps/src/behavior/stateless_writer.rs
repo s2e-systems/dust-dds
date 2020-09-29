@@ -4,7 +4,7 @@ use crate::types::SequenceNumber;
 use crate::types::constants::{ENTITYID_UNKNOWN, GUID_UNKNOWN};
 use crate::messages::RtpsSubmessage;
 use crate::messages::submessages::Gap;
-use crate::structure::stateless_writer::{ReaderLocator, StatelessWriter};
+use crate::structure::{ReaderLocator, StatelessWriter};
 use crate::messages::message_sender::Sender;
 
 use super::{data_from_cache_change, BEHAVIOR_ENDIANNESS};

@@ -54,12 +54,11 @@ mod tests {
     use crate::types::constants::{ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, ENTITYID_UNKNOWN, PROTOCOL_VERSION_2_4, VENDOR_ID};
     use crate::messages::Endianness;
     use crate::transport::memory::MemoryTransport;
-    use crate::messages::{RtpsMessage,};
-    use crate::messages::submessages::{Data};
+    use crate::messages::RtpsMessage;
+    use crate::messages::submessages::Data;
     use crate::messages::submessages::data_submessage::Payload;
     use crate::behavior::types::Duration;
-    use crate::structure::stateful_reader::{StatefulReader, WriterProxy};
-    use crate::structure::stateless_reader::StatelessReader;
+    use crate::structure::{StatelessReader, StatefulReader, WriterProxy};
 
     #[test]
     fn stateless_reader_message_receive() {

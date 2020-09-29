@@ -9,9 +9,8 @@ use crate::topic::Topic;
 use crate::infrastructure::entity::StatusCondition;
 use crate::publication::{PublisherListener, DataWriter, AnyDataWriter, DataWriterListener};
 use crate::implementation::domain_participant_impl::DomainParticipantImpl;
-use crate::implementation::data_writer_impl::DataWriterImpl;
 
-use rust_dds_interface::protocol::{ProtocolWriter, ProtocolPublisher};
+use rust_dds_interface::protocol::{ProtocolPublisher};
 use rust_dds_interface::qos::{TopicQos, PublisherQos, DataWriterQos};
 
 pub struct PublisherImpl{
@@ -30,7 +29,7 @@ impl PublisherImpl {
         _mask: StatusMask,
     ) -> Option<DataWriter<T>> {
         let publisher = PublisherImpl::upgrade_publisher(this).ok()?;
-        let protocol_group = PublisherImpl::upgrade_protocol_group(&publisher.protocol_group).ok()?;
+        let _protocol_group = PublisherImpl::upgrade_protocol_group(&publisher.protocol_group).ok()?;
         // let protocol_writer = protocol_group.create_writer();
         // let datawriter_impl = Arc::new(DataWriterImpl::new(this.clone(), protocol_writer));
         // let datawriter = DataWriter(Arc::downgrade(&datawriter_impl));        
@@ -189,9 +188,7 @@ impl PublisherImpl {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::infrastructure::listener::NoListener;
     use rust_dds_interface::protocol::{ProtocolEntity, ProtocolEndpoint, ProtocolWriter};
-    use rust_dds_interface::qos_policy::ReliabilityQosPolicyKind;
     use rust_dds_interface::types::Data;
 
     struct MockWriter;
@@ -206,23 +203,23 @@ mod tests {
         }
     }
     impl ProtocolWriter for MockWriter {
-        fn write(&self, instance_handle: InstanceHandle, data: Data, timestamp: rust_dds_interface::types::Time) -> ReturnCode<()> {
+        fn write(&self, _instance_handle: InstanceHandle, _data: Data, _timestamp: rust_dds_interface::types::Time) -> ReturnCode<()> {
             todo!()
         }
 
-        fn dispose(&self, instance_handle: InstanceHandle, timestamp: rust_dds_interface::types::Time) -> ReturnCode<()> {
+        fn dispose(&self, _instance_handle: InstanceHandle, _timestamp: rust_dds_interface::types::Time) -> ReturnCode<()> {
             todo!()
         }
 
-        fn unregister(&self, instance_handle: InstanceHandle, timestamp: rust_dds_interface::types::Time) -> ReturnCode<()> {
+        fn unregister(&self, _instance_handle: InstanceHandle, _timestamp: rust_dds_interface::types::Time) -> ReturnCode<()> {
             todo!()
         }
 
-        fn register(&self, instance_handle: InstanceHandle, timestamp: rust_dds_interface::types::Time) -> ReturnCode<Option<InstanceHandle>> {
+        fn register(&self, _instance_handle: InstanceHandle, _timestamp: rust_dds_interface::types::Time) -> ReturnCode<Option<InstanceHandle>> {
             todo!()
         }
 
-        fn lookup_instance(&self, instance_handle: InstanceHandle) -> Option<InstanceHandle> {
+        fn lookup_instance(&self, _instance_handle: InstanceHandle) -> Option<InstanceHandle> {
             todo!()
         }
     }
