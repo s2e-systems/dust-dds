@@ -13,7 +13,7 @@ use crate::types::constants::{
     ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,};
 use crate::messages::types::Count;
 use crate::behavior::types::Duration;
-use crate::structure::participant::Participant;
+use crate::structure::participant::RtpsParticipant;
 use crate::serialized_payload::CdrParameterList;
 use crate::structure::stateful_reader::WriterProxy;
 use crate::structure::stateful_writer::ReaderProxy;
@@ -55,7 +55,7 @@ pub struct SPDPdiscoveredParticipantData{
 }
 
 impl SPDPdiscoveredParticipantData {
-    pub fn new_from_participant(participant: &Participant, lease_duration: Duration) -> Self{
+    pub fn new_from_participant(participant: &RtpsParticipant, lease_duration: Duration) -> Self{
         Self {
             domain_id: participant.domain_id(),
             domain_tag: participant.domain_tag().clone(),
@@ -207,7 +207,7 @@ impl SPDPdiscoveredParticipantData {
     }
 }
 
-pub fn add_discovered_participant(participant: &Participant, discovered_participant: &SPDPdiscoveredParticipantData) {
+pub fn add_discovered_participant(participant: &RtpsParticipant, discovered_participant: &SPDPdiscoveredParticipantData) {
     // Implements the process described in
     // 8.5.5.1 Discovery of a new remote Participant
 
@@ -280,7 +280,7 @@ true );
     }           
 }
 
-pub fn remove_discovered_participant(participant: &Participant, remote_participant_guid_prefix: GuidPrefix) {
+pub fn remove_discovered_participant(participant: &RtpsParticipant, remote_participant_guid_prefix: GuidPrefix) {
     // Implements the process described in
     // 8.5.5.2 Removal of a previously discovered Participant
     let guid = GUID::new(remote_participant_guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR);

@@ -5,6 +5,8 @@
 pub mod cache_change;
 pub mod history_cache;
 pub mod participant;
+pub mod publisher;
+pub mod subscriber;
 pub mod stateless_writer;
 pub mod stateful_writer;
 pub mod stateless_reader;

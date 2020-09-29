@@ -20,6 +20,8 @@ use crate::messages::message_receiver::RtpsMessageReceiver;
 use crate::discovery::spdp;
 use crate::discovery::spdp::SPDPdiscoveredParticipantData;
 
+use super::publisher::RtpsPublisher;
+use super::subscriber::RtpsSubscriber;
 use super::stateless_writer::StatelessWriter;
 use super::stateless_reader::StatelessReader;
 use super::stateful_writer::StatefulWriter;
@@ -30,7 +32,7 @@ use rust_dds_interface::protocol::{ProtocolEntity, ProtocolParticipant};
 
 
 
-pub struct Participant {
+pub struct RtpsParticipant {
     guid: GUID,
     domain_id: DomainId,
     protocol_version: ProtocolVersion,
@@ -38,8 +40,8 @@ pub struct Participant {
     domain_tag: String,
     userdata_transport: Box<dyn Transport>,
     metatraffic_transport: Box<dyn Transport>,
-    // publisher: Mutex<Vec<Arc<RtpsPublisher>>>,
-    // subscriber: Mutex<Vec<Arc<RtpsSubscriber>>>>,
+    publisher_list: Mutex<Vec<Arc<RtpsPublisher>>>,
+    subscriber_list: Mutex<Vec<Arc<RtpsSubscriber>>>,
     spdp_builtin_participant_reader: StatelessReader,
     spdp_builtin_participant_writer: StatelessWriter,
     builtin_endpoint_set: BuiltInEndpointSet,
@@ -51,7 +53,7 @@ pub struct Participant {
     sedp_builtin_topics_writer: StatefulWriter,
 }
 
-impl Participant {
+impl RtpsParticipant {
     pub fn new(
         domain_id: DomainId,
         userdata_transport: impl Transport + 'static,
@@ -158,6 +160,8 @@ impl Participant {
             domain_tag: "".to_string(),
             userdata_transport: Box::new(userdata_transport),
             metatraffic_transport: Box::new(metatraffic_transport),
+            publisher_list: Mutex::new(Vec::new()),
+            subscriber_list: Mutex::new(Vec::new()),
             builtin_endpoint_set,
             spdp_builtin_participant_reader,
             spdp_builtin_participant_writer,
@@ -263,7 +267,7 @@ impl Participant {
     }
 }
 
-impl ProtocolEntity for Participant {
+impl ProtocolEntity for RtpsParticipant {
     fn get_instance_handle(&self) -> rust_dds_interface::types::InstanceHandle {
         todo!()
     }
@@ -273,7 +277,7 @@ impl ProtocolEntity for Participant {
     }
 }
 
-impl ProtocolParticipant for Participant {
+impl ProtocolParticipant for RtpsParticipant {
     fn create_publisher(&self) -> Weak<dyn rust_dds_interface::protocol::ProtocolPublisher> {
         todo!()
     }
@@ -311,7 +315,7 @@ mod tests {
             vec![Locator::new_udpv4(7400, [239,255,0,1])]).unwrap();
 
         
-        let participant_1 = Participant::new(0, userdata_transport1, metatraffic_transport1);
+        let participant_1 = RtpsParticipant::new(0, userdata_transport1, metatraffic_transport1);
 
 
         let userdata_transport2 = MemoryTransport::new(
@@ -321,7 +325,7 @@ mod tests {
             Locator::new_udpv4(7400, [192,168,0,10]), 
             vec![Locator::new_udpv4(7400, [239,255,0,1])]).unwrap();
 
-        let participant_2 = Participant::new(
+        let participant_2 = RtpsParticipant::new(
             0,
             userdata_transport2,
             metatraffic_transport2);
