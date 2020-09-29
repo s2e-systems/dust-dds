@@ -18,6 +18,7 @@ use crate::topic::TopicDescription;
 use crate::subscription::{DataReader, AnyDataReader, DataReaderListener, SubscriberListener};
 
 use crate::implementation::domain_participant_impl::DomainParticipantImpl;
+use crate::implementation::data_reader_impl::DataReaderImpl;
 
 use rust_dds_interface::qos::{TopicQos, SubscriberQos, DataReaderQos};
 use rust_dds_interface::protocol::ProtocolSubscriber;
@@ -38,17 +39,14 @@ impl SubscriberImpl {
         _mask: StatusMask
     ) -> Option<DataReader<T>> {
 
-        let _subscriber = Self::upgrade_subscriber(this).ok()?;
-        // let protocol_reader = protocol_group.create_reader();
-        // let datareader_impl = Arc::new(DataReaderImpl::new(this.clone(), protocol_reader));
-        // let datareader = DataReader(Arc::downgrade(&datareader_impl));    
-        
-        
+        let subscriber = Self::upgrade_subscriber(this).ok()?;
+        let protocol_reader = subscriber.protocol_subscriber.create_reader();
+        let datareader_impl = Arc::new(DataReaderImpl::new(this.clone(), protocol_reader));
+        let datareader = DataReader(Arc::downgrade(&datareader_impl));  
 
-        // subscriber.datareader_list.lock().ok()?.push(AnyDataReader(datareader_impl));
+        subscriber.datareader_list.lock().ok()?.push(AnyDataReader(datareader_impl));
 
-        // Some(datareader)
-        todo!()
+        Some(datareader)
     }
 
     pub(crate) fn delete_datareader<T: Any+Send+Sync>(

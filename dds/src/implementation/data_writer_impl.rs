@@ -283,6 +283,7 @@ impl<T: DDSType+Any+Send+Sync> DataWriterImpl<T> {
             },
         })
     }
+
 }
 
 #[cfg(test)]

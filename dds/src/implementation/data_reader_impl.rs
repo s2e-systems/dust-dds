@@ -17,7 +17,7 @@ use rust_dds_interface::protocol::ProtocolReader;
 pub(crate) struct DataReaderImpl<T>{
     parent_subscriber: Weak<SubscriberImpl>,
     value: PhantomData<T>,
-    protocol_reader: Weak<dyn ProtocolReader>,
+    protocol_reader: Arc<dyn ProtocolReader>,
 }
 
 impl<T> DataReaderImpl<T> {
@@ -333,12 +333,11 @@ impl<T> DataReaderImpl<T> {
 
     pub fn get_instance_handle(this: &Weak<DataReaderImpl<T>>) -> ReturnCode<InstanceHandle> {
         let datareader = Self::upgrade_datareader(this)?;
-        let protocol_reader = Self::upgrade_protocol_reader(&datareader.protocol_reader)?;
-        Ok(protocol_reader.get_instance_handle())
+        Ok(datareader.protocol_reader.get_instance_handle())
     }
 
     //////////////// From here on are the functions that do not belong to the standard API
-    pub(crate) fn new(parent_subscriber: Weak<SubscriberImpl>, protocol_reader: Weak<dyn ProtocolReader>) -> Self {
+    pub(crate) fn new(parent_subscriber: Weak<SubscriberImpl>, protocol_reader: Arc<dyn ProtocolReader>) -> Self {
         Self{
             parent_subscriber,
             value: PhantomData,
@@ -348,9 +347,5 @@ impl<T> DataReaderImpl<T> {
 
     fn upgrade_datareader(this: &Weak<DataReaderImpl<T>>) -> ReturnCode<Arc<DataReaderImpl<T>>> {
         this.upgrade().ok_or(ReturnCodes::AlreadyDeleted("Datareader"))
-    }
-
-    fn upgrade_protocol_reader(protocol_writer: &Weak<dyn ProtocolReader>) -> ReturnCode<Arc<dyn ProtocolReader>> {
-        protocol_writer.upgrade().ok_or(ReturnCodes::AlreadyDeleted("Protocol reader"))
     }
 }

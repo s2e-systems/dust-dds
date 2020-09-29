@@ -9,6 +9,7 @@ use crate::topic::Topic;
 use crate::infrastructure::entity::StatusCondition;
 use crate::publication::{PublisherListener, DataWriter, AnyDataWriter, DataWriterListener};
 use crate::implementation::domain_participant_impl::DomainParticipantImpl;
+use crate::implementation::data_writer_impl::DataWriterImpl;
 
 use rust_dds_interface::protocol::ProtocolPublisher;
 use rust_dds_interface::qos::{TopicQos, PublisherQos, DataWriterQos};
@@ -28,16 +29,15 @@ impl PublisherImpl {
         _a_listener: Box<dyn DataWriterListener<T>>,
         _mask: StatusMask,
     ) -> Option<DataWriter<T>> {
-        let _publisher = PublisherImpl::upgrade_publisher(this).ok()?;
+        let publisher = PublisherImpl::upgrade_publisher(this).ok()?;
        
-        // let protocol_writer = protocol_group.create_writer();
-        // let datawriter_impl = Arc::new(DataWriterImpl::new(this.clone(), protocol_writer));
-        // let datawriter = DataWriter(Arc::downgrade(&datawriter_impl));        
+        let protocol_writer = publisher.protocol_publisher.create_writer();
+        let datawriter_impl = Arc::new(DataWriterImpl::new(this.clone(), protocol_writer));
+        let datawriter = DataWriter(Arc::downgrade(&datawriter_impl));        
 
-        // publisher.datawriter_list.lock().ok()?.push(AnyDataWriter(datawriter_impl));
+        publisher.datawriter_list.lock().ok()?.push(AnyDataWriter(datawriter_impl));
 
-        // Some(datawriter)
-        todo!()
+        Some(datawriter)
     }
 
     pub(crate) fn delete_datawriter<T: DDSType+Any+Send+Sync>(
