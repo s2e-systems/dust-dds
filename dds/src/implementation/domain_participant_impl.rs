@@ -36,19 +36,18 @@ pub struct DomainParticipantImpl{
 
 impl DomainParticipantImpl{
     pub(crate) fn create_publisher(
-        _this: &Arc<DomainParticipantImpl>,
+        this: &Arc<DomainParticipantImpl>,
         _qos_list: PublisherQos,
         _a_listener: impl PublisherListener,
         _mask: StatusMask
     ) -> Option<Publisher> {
-        todo!()
-        // let protocol_group = this.protocol_participant.create_group();
-        // let publisher_impl = Arc::new(PublisherImpl::new(Arc::downgrade(this), protocol_group));
-        // let publisher = Publisher(Arc::downgrade(&publisher_impl));
+        let protocol_publisher = this.protocol_participant.create_publisher();
+        let publisher_impl = Arc::new(PublisherImpl::new(Arc::downgrade(this), protocol_publisher));
+        let publisher = Publisher(Arc::downgrade(&publisher_impl));
 
-        // this.publisher_list.lock().ok()?.push(publisher_impl);
+        this.publisher_list.lock().ok()?.push(publisher_impl);
 
-        // Some(publisher)
+        Some(publisher)
     }
 
     pub(crate) fn delete_publisher(
@@ -63,19 +62,18 @@ impl DomainParticipantImpl{
     }
 
     pub(crate) fn create_subscriber(
-        _this: &Arc<DomainParticipantImpl>,
+        this: &Arc<DomainParticipantImpl>,
         _qos_list: SubscriberQos,
         _a_listener: impl SubscriberListener,
         _mask: StatusMask
     ) -> Option<Subscriber> {
-        // let protocol_group = this.protocol_participant.create_group();
-        // let subscriber_impl = Arc::new(SubscriberImpl::new(Arc::downgrade(this), protocol_group));
-        // let subscriber = Subscriber(Arc::downgrade(&subscriber_impl));
+        let protocol_subscriber = this.protocol_participant.create_subscriber();
+        let subscriber_impl = Arc::new(SubscriberImpl::new(Arc::downgrade(this), protocol_subscriber));
+        let subscriber = Subscriber(Arc::downgrade(&subscriber_impl));
 
-        // this.subscriber_list.lock().ok()?.push(subscriber_impl);
+        this.subscriber_list.lock().ok()?.push(subscriber_impl);
 
-        // Some(subscriber)
-        todo!()
+        Some(subscriber)
     }
 
     pub(crate) fn delete_subscriber(
@@ -345,8 +343,41 @@ mod tests {
     use super::*;
     use std::sync::Weak;
     use crate::infrastructure::listener::NoListener;
-    use rust_dds_interface::protocol::ProtocolEntity;
+    use rust_dds_interface::protocol::{ProtocolEntity, ProtocolPublisher, ProtocolSubscriber};
     use rust_dds_interface::qos_policy::ReliabilityQosPolicyKind;
+
+    struct MockProtocolPublisher;
+    impl ProtocolEntity for MockProtocolPublisher {
+        fn enable(&self) -> ReturnCode<()> {
+            todo!()
+        }
+
+        fn get_instance_handle(&self) -> InstanceHandle {
+            todo!()
+        }
+    }
+    impl ProtocolPublisher for MockProtocolPublisher {
+        fn create_writer(&self) -> Weak<dyn rust_dds_interface::protocol::ProtocolWriter> {
+            todo!()
+        }
+    }
+
+    struct MockProtocolSubscriber;
+    impl ProtocolEntity for MockProtocolSubscriber {
+        fn enable(&self) -> ReturnCode<()> {
+            todo!()
+        }
+
+        fn get_instance_handle(&self) -> InstanceHandle {
+            todo!()
+        }
+    }
+    impl ProtocolSubscriber for MockProtocolSubscriber {
+        fn create_reader(&self) -> Weak<dyn rust_dds_interface::protocol::ProtocolReader> {
+            todo!()
+        }
+    }
+
 
     struct MockProtocolParticipant;
     impl ProtocolEntity for MockProtocolParticipant{
@@ -360,12 +391,12 @@ mod tests {
     }
 
     impl ProtocolParticipant for MockProtocolParticipant {
-        fn create_publisher(&self) -> Weak<dyn rust_dds_interface::protocol::ProtocolPublisher> {
-            todo!()
+        fn create_publisher(&self) -> Weak<dyn ProtocolPublisher> {
+            Weak::<MockProtocolPublisher>::new()
         }
 
-        fn create_subscriber(&self) -> Weak<dyn rust_dds_interface::protocol::ProtocolSubscriber> {
-            todo!()
+        fn create_subscriber(&self) -> Weak<dyn ProtocolSubscriber> {
+            Weak::<MockProtocolSubscriber>::new()
         }
     }
 
