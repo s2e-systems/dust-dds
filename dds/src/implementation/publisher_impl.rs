@@ -10,14 +10,14 @@ use crate::infrastructure::entity::StatusCondition;
 use crate::publication::{PublisherListener, DataWriter, AnyDataWriter, DataWriterListener};
 use crate::implementation::domain_participant_impl::DomainParticipantImpl;
 
-use rust_dds_interface::protocol::{ProtocolPublisher};
+use rust_dds_interface::protocol::ProtocolPublisher;
 use rust_dds_interface::qos::{TopicQos, PublisherQos, DataWriterQos};
 
 pub struct PublisherImpl{
     parent_participant: Weak<DomainParticipantImpl>,
     datawriter_list: Mutex<Vec<AnyDataWriter>>,
     default_datawriter_qos: Mutex<DataWriterQos>,
-    protocol_group: Weak<dyn ProtocolPublisher>,
+    protocol_publisher: Weak<dyn ProtocolPublisher>,
 }
 
 impl PublisherImpl {
@@ -29,7 +29,7 @@ impl PublisherImpl {
         _mask: StatusMask,
     ) -> Option<DataWriter<T>> {
         let publisher = PublisherImpl::upgrade_publisher(this).ok()?;
-        let _protocol_group = PublisherImpl::upgrade_protocol_group(&publisher.protocol_group).ok()?;
+        let _protocol_publisher = PublisherImpl::upgrade_protocol_publisher(&publisher.protocol_publisher).ok()?;
         // let protocol_writer = protocol_group.create_writer();
         // let datawriter_impl = Arc::new(DataWriterImpl::new(this.clone(), protocol_writer));
         // let datawriter = DataWriter(Arc::downgrade(&datawriter_impl));        
@@ -162,17 +162,17 @@ impl PublisherImpl {
 
     pub(crate) fn get_instance_handle(this: &Weak<PublisherImpl>) -> ReturnCode<InstanceHandle> {
         let publisher = PublisherImpl::upgrade_publisher(this)?;
-        let protocol_group = PublisherImpl::upgrade_protocol_group(&publisher.protocol_group)?;
-        Ok(protocol_group.get_instance_handle())
+        let protocol_publisher = PublisherImpl::upgrade_protocol_publisher(&publisher.protocol_publisher)?;
+        Ok(protocol_publisher.get_instance_handle())
     }
 
     //////////////// From here on are the functions that do not belong to the standard API
-    pub(crate) fn new(parent_participant: Weak<DomainParticipantImpl>, protocol_group: Weak<dyn ProtocolPublisher>) -> Self {
+    pub(crate) fn new(parent_participant: Weak<DomainParticipantImpl>, protocol_publisher: Weak<dyn ProtocolPublisher>) -> Self {
         Self{
             parent_participant,
             datawriter_list: Mutex::new(Vec::new()),
             default_datawriter_qos: Mutex::new(DataWriterQos::default()),
-            protocol_group
+            protocol_publisher
         }
     }
 
@@ -180,8 +180,8 @@ impl PublisherImpl {
         this.upgrade().ok_or(ReturnCodes::AlreadyDeleted("Publisher"))
     }
 
-    fn upgrade_protocol_group(protocol_group: &Weak<dyn ProtocolPublisher>) -> ReturnCode<Arc<dyn ProtocolPublisher>> {
-        protocol_group.upgrade().ok_or(ReturnCodes::AlreadyDeleted("Protocol group"))
+    fn upgrade_protocol_publisher(protocol_publisher: &Weak<dyn ProtocolPublisher>) -> ReturnCode<Arc<dyn ProtocolPublisher>> {
+        protocol_publisher.upgrade().ok_or(ReturnCodes::AlreadyDeleted("Protocol group"))
     }
 }
 

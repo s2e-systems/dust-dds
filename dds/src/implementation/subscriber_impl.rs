@@ -26,7 +26,7 @@ pub struct SubscriberImpl{
     parent_participant: Weak<DomainParticipantImpl>,
     datareader_list: Mutex<Vec<AnyDataReader>>,
     default_datareader_qos: Mutex<DataReaderQos>,
-    protocol_group: Weak<dyn ProtocolSubscriber>,
+    protocol_subscriber: Weak<dyn ProtocolSubscriber>,
 }
 
 impl SubscriberImpl {
@@ -39,7 +39,7 @@ impl SubscriberImpl {
     ) -> Option<DataReader<T>> {
 
         let subscriber = Self::upgrade_subscriber(this).ok()?;
-        let _protocol_group = Self::upgrade_protocol_group(&subscriber.protocol_group).ok()?;
+        let _protocol_subscriber = Self::upgrade_protocol_subscriber(&subscriber.protocol_subscriber).ok()?;
         // let protocol_reader = protocol_group.create_reader();
         // let datareader_impl = Arc::new(DataReaderImpl::new(this.clone(), protocol_reader));
         // let datareader = DataReader(Arc::downgrade(&datareader_impl));    
@@ -190,18 +190,18 @@ impl SubscriberImpl {
 
     pub(crate) fn get_instance_handle(this: &Weak<SubscriberImpl>) -> ReturnCode<InstanceHandle> {
         let subscriber = SubscriberImpl::upgrade_subscriber(this)?;
-        let protocol_group = SubscriberImpl::upgrade_protocol_group(&subscriber.protocol_group)?;
-        Ok(protocol_group.get_instance_handle())
+        let protocol_subscriber = SubscriberImpl::upgrade_protocol_subscriber(&subscriber.protocol_subscriber)?;
+        Ok(protocol_subscriber.get_instance_handle())
     }
 
     //////////////// From here on are the functions that do not belong to the standard API
-    pub(crate) fn new(parent_participant: Weak<DomainParticipantImpl>, protocol_group: Weak<dyn ProtocolSubscriber>
+    pub(crate) fn new(parent_participant: Weak<DomainParticipantImpl>, protocol_subscriber: Weak<dyn ProtocolSubscriber>
     ) -> Self {
         Self{
             parent_participant,
             datareader_list: Mutex::new(Vec::new()),
             default_datareader_qos: Mutex::new(DataReaderQos::default()),
-            protocol_group,
+            protocol_subscriber,
         }
     }
 
@@ -209,8 +209,8 @@ impl SubscriberImpl {
         this.upgrade().ok_or(ReturnCodes::AlreadyDeleted("Subscriber"))
     }
 
-    fn upgrade_protocol_group(protocol_group: &Weak<dyn ProtocolSubscriber>) -> ReturnCode<Arc<dyn ProtocolSubscriber>> {
-        protocol_group.upgrade().ok_or(ReturnCodes::AlreadyDeleted("Protocol group"))
+    fn upgrade_protocol_subscriber(protocol_subscriber: &Weak<dyn ProtocolSubscriber>) -> ReturnCode<Arc<dyn ProtocolSubscriber>> {
+        protocol_subscriber.upgrade().ok_or(ReturnCodes::AlreadyDeleted("Protocol group"))
     }
 }
 
