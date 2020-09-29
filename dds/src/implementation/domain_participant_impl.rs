@@ -359,6 +359,10 @@ mod tests {
         fn create_writer(&self) -> Arc<dyn rust_dds_interface::protocol::ProtocolWriter> {
             todo!()
         }
+
+        fn delete_writer(&self, _writer: std::sync::Weak<dyn rust_dds_interface::protocol::ProtocolWriter>) {
+            todo!()
+        }
     }
 
     struct MockProtocolSubscriber;
@@ -373,6 +377,10 @@ mod tests {
     }
     impl ProtocolSubscriber for MockProtocolSubscriber {
         fn create_reader(&self) -> Arc<dyn rust_dds_interface::protocol::ProtocolReader> {
+            todo!()
+        }
+
+        fn delete_reader(&self, _reader: std::sync::Weak<dyn rust_dds_interface::protocol::ProtocolReader>) {
             todo!()
         }
     }
@@ -396,6 +404,14 @@ mod tests {
 
         fn create_subscriber(&self) -> Arc<dyn ProtocolSubscriber> {
             Arc::new(MockProtocolSubscriber)
+        }
+
+        fn delete_publisher(&self, _publisher: std::sync::Weak<dyn ProtocolPublisher>) {
+            todo!()
+        }
+
+        fn delete_subscriber(&self, _subscriber: std::sync::Weak<dyn ProtocolPublisher>) {
+            todo!()
         }
     }
 
