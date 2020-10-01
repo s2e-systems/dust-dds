@@ -1,34 +1,13 @@
-use std::sync::{Arc, Mutex};
-use crate::types::{GUID, Locator, ProtocolVersion, VendorId, TopicKind, ReliabilityKind};
+use std::sync::{Arc, Weak, Mutex};
+use crate::types::{GUID, Locator, ProtocolVersion, VendorId, EntityId, EntityKind};
 use crate::types::constants::{
     ENTITYID_PARTICIPANT,
-    ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
-    ENTITYID_SPDP_BUILTIN_PARTICIPANT_DETECTOR,
-    ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
-    ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
-    ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
-    ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
-    ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
-    ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
     PROTOCOL_VERSION_2_4,};
-use crate::endpoint_types::BuiltInEndpointSet;
-use crate::behavior::types::Duration;
-use crate::behavior::types::constants::DURATION_ZERO;
 use crate::transport::Transport;
-use crate::messages::message_sender::RtpsMessageSender;
-use crate::messages::message_receiver::RtpsMessageReceiver;
-use crate::discovery::spdp;
-use crate::discovery::spdp::SPDPdiscoveredParticipantData;
 
 use super::publisher::RtpsPublisher;
-use super::subscriber::RtpsSubscriber;
-use super::stateless_writer::StatelessWriter;
-use super::stateless_reader::StatelessReader;
-use super::stateful_writer::StatefulWriter;
-use super::stateful_reader::StatefulReader;
-
 use rust_dds_interface::types::DomainId;
-use rust_dds_interface::protocol::{ProtocolEntity, ProtocolParticipant};
+use rust_dds_interface::protocol::{ProtocolEntity, ProtocolParticipant, ProtocolPublisher, ProtocolSubscriber};
 
 
 
@@ -37,20 +16,10 @@ pub struct RtpsParticipant {
     domain_id: DomainId,
     protocol_version: ProtocolVersion,
     vendor_id: VendorId,
-    domain_tag: String,
     userdata_transport: Box<dyn Transport>,
     metatraffic_transport: Box<dyn Transport>,
-    publisher_list: Mutex<Vec<Arc<RtpsPublisher>>>,
-    subscriber_list: Mutex<Vec<Arc<RtpsSubscriber>>>,
-    spdp_builtin_participant_reader: StatelessReader,
-    spdp_builtin_participant_writer: StatelessWriter,
-    builtin_endpoint_set: BuiltInEndpointSet,
-    sedp_builtin_publications_reader: StatefulReader,
-    sedp_builtin_publications_writer: StatefulWriter,
-    sedp_builtin_subscriptions_reader: StatefulReader,
-    sedp_builtin_subscriptions_writer: StatefulWriter,
-    sedp_builtin_topics_reader: StatefulReader,
-    sedp_builtin_topics_writer: StatefulWriter,
+    publisher_list: Mutex<[Weak<RtpsPublisher>;32]>,
+    subscriber_list: Mutex<[Weak<RtpsPublisher>;32]>,
 }
 
 impl RtpsParticipant {
@@ -61,123 +30,19 @@ impl RtpsParticipant {
     ) -> Self {
         let protocol_version = PROTOCOL_VERSION_2_4;
         let vendor_id = [99,99];
-        let expects_inline_qos = false;
         let guid_prefix = [5, 6, 7, 8, 9, 5, 1, 2, 3, 4, 10, 11];   // TODO: Should be uniquely generated
 
-        let spdp_builtin_participant_writer = StatelessWriter::new(
-            GUID::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER),
-            TopicKind::WithKey);
 
-        for &metatraffic_multicast_locator in metatraffic_transport.multicast_locator_list() {
-            spdp_builtin_participant_writer.reader_locator_add(metatraffic_multicast_locator);
-        }
-
-        let spdp_builtin_participant_reader = StatelessReader::new(
-            GUID::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_DETECTOR),
-            TopicKind::WithKey,
-            vec![],
-            metatraffic_transport.multicast_locator_list().clone(),
-            expects_inline_qos,
-        );
-
-        let expects_inline_qos = false;
-        let heartbeat_period = Duration::from_secs(5);
-        let heartbeat_response_delay = Duration::from_millis(500);
-        let nack_response_delay = DURATION_ZERO;
-        let nack_supression_duration = DURATION_ZERO;
-
-
-        let sedp_builtin_publications_reader = StatefulReader::new(
-            GUID::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR),
-            TopicKind::WithKey,
-            ReliabilityKind::Reliable,
-            expects_inline_qos,
-            heartbeat_response_delay,
-        );
-
-        let sedp_builtin_publications_writer = StatefulWriter::new(
-            GUID::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER),
-            TopicKind::WithKey,
-            ReliabilityKind::Reliable,
-            true,
-            heartbeat_period,
-            nack_response_delay,
-            nack_supression_duration
-        );
-
-        let sedp_builtin_subscriptions_reader = StatefulReader::new(
-            GUID::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR),
-            TopicKind::WithKey,
-            ReliabilityKind::Reliable,
-            expects_inline_qos,
-            heartbeat_response_delay,
-        );
-
-        let sedp_builtin_subscriptions_writer = StatefulWriter::new(
-            GUID::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER),
-            TopicKind::WithKey,
-            ReliabilityKind::Reliable,
-            true,
-            heartbeat_period,
-            nack_response_delay,
-            nack_supression_duration
-        );
-        
-        let sedp_builtin_topics_reader = StatefulReader::new(
-            GUID::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR),
-            TopicKind::WithKey,
-            ReliabilityKind::Reliable,
-            expects_inline_qos,
-            heartbeat_response_delay,
-        );
-
-        let sedp_builtin_topics_writer = StatefulWriter::new(
-            GUID::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER),
-            TopicKind::WithKey,
-            ReliabilityKind::Reliable,
-            true,
-            heartbeat_period,
-            nack_response_delay,
-            nack_supression_duration
-        );
-
-        let builtin_endpoint_set = BuiltInEndpointSet::new(
-            BuiltInEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_ANNOUNCER |
-            BuiltInEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR |
-            BuiltInEndpointSet::BUILTIN_ENDPOINT_PUBLICATIONS_ANNOUNCER |
-            BuiltInEndpointSet::BUILTIN_ENDPOINT_PUBLICATIONS_DETECTOR |
-            BuiltInEndpointSet::BUILTIN_ENDPOINT_SUBSCRIPTIONS_ANNOUNCER |
-            BuiltInEndpointSet::BUILTIN_ENDPOINT_SUBSCRIPTIONS_DETECTOR |
-            BuiltInEndpointSet::BUILTIN_ENDPOINT_TOPICS_ANNOUNCER |
-            BuiltInEndpointSet::BUILTIN_ENDPOINT_TOPICS_DETECTOR
-        );
-
-        let participant = Self {
+        Self {
             guid: GUID::new(guid_prefix,ENTITYID_PARTICIPANT ),
             domain_id,
             protocol_version,
             vendor_id,
-            domain_tag: "".to_string(),
             userdata_transport: Box::new(userdata_transport),
             metatraffic_transport: Box::new(metatraffic_transport),
-            publisher_list: Mutex::new(Vec::new()),
-            subscriber_list: Mutex::new(Vec::new()),
-            builtin_endpoint_set,
-            spdp_builtin_participant_reader,
-            spdp_builtin_participant_writer,
-            sedp_builtin_publications_reader,
-            sedp_builtin_publications_writer,
-            sedp_builtin_subscriptions_reader,
-            sedp_builtin_subscriptions_writer,
-            sedp_builtin_topics_reader,
-            sedp_builtin_topics_writer,
-        };
-
-        // let spdp_discovered_data = SPDPdiscoveredParticipantData::new_from_participant(&participant, lease_duration);
-        // let spdp_change = participant.spdp_builtin_participant_writer.new_change(ChangeKind::Alive,Some(spdp_discovered_data.data(endianness.into())) , None, spdp_discovered_data.key());
-        // participant.spdp_builtin_participant_writer.writer_cache().add_change(spdp_change);
-        
-        participant
+            publisher_list: Mutex::new(Default::default()),
+            subscriber_list: Mutex::new(Default::default()),
+        }
     }
 
     pub fn guid(&self) -> GUID {
@@ -211,60 +76,6 @@ impl RtpsParticipant {
     pub fn metatraffic_multicast_locator_list(&self) -> &Vec<Locator> {
         self.metatraffic_transport.multicast_locator_list()
     }
-
-    pub fn builtin_endpoint_set(&self) -> BuiltInEndpointSet {
-        self.builtin_endpoint_set
-    }
-
-    pub fn domain_tag(&self) -> &String {
-        &self.domain_tag
-    }
-
-    pub fn sedp_builtin_publications_reader(&self) -> &StatefulReader {
-        &self.sedp_builtin_publications_reader
-    }
-
-    pub fn sedp_builtin_publications_writer(&self) -> &StatefulWriter {
-        &self.sedp_builtin_publications_writer
-    }
-
-    pub fn sedp_builtin_subscriptions_reader(&self) -> &StatefulReader {
-        &self.sedp_builtin_publications_reader
-    }
-
-    pub fn sedp_builtin_subscriptions_writer(&self) -> &StatefulWriter {
-        &self.sedp_builtin_publications_writer
-    }
-
-    pub fn sedp_builtin_topics_reader(&self) -> &StatefulReader {
-        &self.sedp_builtin_topics_reader
-    }
-
-    pub fn sedp_builtin_topics_writer(&self) -> &StatefulWriter {
-        &self.sedp_builtin_topics_writer
-    }
-
-    fn run(&self) {
-        RtpsMessageReceiver::receive(self.guid.prefix(),
-            self.metatraffic_transport.as_ref(), 
-            &[&self.spdp_builtin_participant_reader, &self.sedp_builtin_publications_reader, &self.sedp_builtin_subscriptions_reader, &self.sedp_builtin_topics_reader]);
-
-        self.spdp_builtin_participant_reader.run();
-        self.sedp_builtin_publications_reader.run();
-        self.sedp_builtin_subscriptions_reader.run();
-        self.sedp_builtin_topics_reader.run();
-
-        self.spdp_builtin_participant_writer.run();
-        self.sedp_builtin_publications_writer.run();
-        self.sedp_builtin_subscriptions_writer.run();
-        self.sedp_builtin_topics_writer.run();
-        RtpsMessageSender::send(self.guid.prefix(), self.metatraffic_transport.as_ref(), &[&self.spdp_builtin_participant_writer, &self.sedp_builtin_publications_writer, &self.sedp_builtin_subscriptions_writer, &self.sedp_builtin_topics_writer]);
-
-        for spdp_data in self.spdp_builtin_participant_reader.reader_cache().changes().iter() {
-            let discovered_participant = SPDPdiscoveredParticipantData::from_key_data(*spdp_data.instance_handle(), spdp_data.data_value(), self.domain_id);
-            spdp::add_discovered_participant(&self, &discovered_participant);
-        }
-    }
 }
 
 impl ProtocolEntity for RtpsParticipant {
@@ -278,11 +89,77 @@ impl ProtocolEntity for RtpsParticipant {
 }
 
 impl ProtocolParticipant for RtpsParticipant {
-    fn create_publisher(&self) -> Arc<dyn rust_dds_interface::protocol::ProtocolPublisher> {
-        todo!()
+    fn create_publisher(&self) -> Arc<dyn ProtocolPublisher> {
+        let mut publisher_list = self.publisher_list.lock().unwrap();
+        let index = publisher_list.iter().position(|x| x.strong_count() == 0).unwrap();
+
+        let guid_prefix = self.guid.prefix();
+        let entity_id = EntityId::new([index as u8,0,0], EntityKind::UserDefinedWriterGroup);
+        let publisher_guid = GUID::new(guid_prefix, entity_id);
+        let new_publisher = Arc::new(RtpsPublisher::new(publisher_guid));
+        publisher_list[index] = Arc::downgrade(&new_publisher);
+
+        new_publisher
     }
 
-    fn create_subscriber(&self) -> Arc<dyn rust_dds_interface::protocol::ProtocolSubscriber> {
+    fn create_subscriber(&self) -> Arc<dyn ProtocolSubscriber> {
         todo!()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    struct MockTransport;
+
+    impl Transport for MockTransport {
+        fn write(&self, _message: crate::RtpsMessage, _destination_locator_list: &[Locator]) {
+            todo!()
+        }
+
+        fn read(&self) -> crate::transport::TransportResult<Option<(crate::RtpsMessage, Locator)>> {
+            todo!()
+        }
+
+        fn unicast_locator_list(&self) -> &Vec<Locator> {
+            todo!()
+        }
+
+        fn multicast_locator_list(&self) -> &Vec<Locator> {
+            todo!()
+        }
+
+        fn as_any(&self) -> &dyn std::any::Any {
+            todo!()
+        }
+    }
+
+    #[test]
+    fn create_publisher() {
+        let participant = RtpsParticipant::new(0, MockTransport, MockTransport);
+
+        assert_eq!(participant.publisher_list.lock().unwrap()[0].strong_count(),0);
+        assert_eq!(participant.publisher_list.lock().unwrap()[1].strong_count(),0);
+
+        let publisher1 = participant.create_publisher();
+
+        assert_eq!(participant.publisher_list.lock().unwrap()[0].strong_count(),1);
+        assert_eq!(participant.publisher_list.lock().unwrap()[1].strong_count(),0);
+
+        let _publisher2 = participant.create_publisher();
+
+        assert_eq!(participant.publisher_list.lock().unwrap()[0].strong_count(),1);
+        assert_eq!(participant.publisher_list.lock().unwrap()[1].strong_count(),1);
+
+        std::mem::drop(publisher1);
+
+        assert_eq!(participant.publisher_list.lock().unwrap()[0].strong_count(),0);
+        assert_eq!(participant.publisher_list.lock().unwrap()[1].strong_count(),1);
+
+        let _publisher3 = participant.create_publisher();
+
+        assert_eq!(participant.publisher_list.lock().unwrap()[0].strong_count(),1);
+        assert_eq!(participant.publisher_list.lock().unwrap()[1].strong_count(),1);
+    }
+}
+
