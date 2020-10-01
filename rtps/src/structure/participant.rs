@@ -6,7 +6,7 @@ use crate::types::constants::{
 use crate::transport::Transport;
 
 use super::publisher::RtpsPublisher;
-use rust_dds_interface::types::DomainId;
+use rust_dds_interface::types::{DomainId, InstanceHandle, ReturnCode};
 use rust_dds_interface::protocol::{ProtocolEntity, ProtocolParticipant, ProtocolPublisher, ProtocolSubscriber};
 
 
@@ -79,11 +79,11 @@ impl RtpsParticipant {
 }
 
 impl ProtocolEntity for RtpsParticipant {
-    fn get_instance_handle(&self) -> rust_dds_interface::types::InstanceHandle {
-        todo!()
+    fn get_instance_handle(&self) -> InstanceHandle {
+        self.guid.into()
     }
 
-    fn enable(&self) -> rust_dds_interface::types::ReturnCode<()> {
+    fn enable(&self) -> ReturnCode<()> {
         todo!()
     }
 }
@@ -110,6 +110,7 @@ impl ProtocolParticipant for RtpsParticipant {
 #[cfg(test)]
 mod tests {
     use super::*;
+
     struct MockTransport;
 
     impl Transport for MockTransport {
@@ -137,16 +138,23 @@ mod tests {
     #[test]
     fn create_publisher() {
         let participant = RtpsParticipant::new(0, MockTransport, MockTransport);
+        let participant_guid_prefix = &participant.get_instance_handle()[0..12];
 
         assert_eq!(participant.publisher_list.lock().unwrap()[0].strong_count(),0);
         assert_eq!(participant.publisher_list.lock().unwrap()[1].strong_count(),0);
 
         let publisher1 = participant.create_publisher();
+        let publisher1_entityid = [0,0,0,8];
+        assert_eq!(&publisher1.get_instance_handle()[0..12], participant_guid_prefix); 
+        assert_eq!(publisher1.get_instance_handle()[12..16], publisher1_entityid);
 
         assert_eq!(participant.publisher_list.lock().unwrap()[0].strong_count(),1);
         assert_eq!(participant.publisher_list.lock().unwrap()[1].strong_count(),0);
 
-        let _publisher2 = participant.create_publisher();
+        let publisher2 = participant.create_publisher();
+        let publisher2_entityid = [1,0,0,8];
+        assert_eq!(&publisher2.get_instance_handle()[0..12], participant_guid_prefix); 
+        assert_eq!(publisher2.get_instance_handle()[12..16], publisher2_entityid);
 
         assert_eq!(participant.publisher_list.lock().unwrap()[0].strong_count(),1);
         assert_eq!(participant.publisher_list.lock().unwrap()[1].strong_count(),1);
@@ -156,7 +164,10 @@ mod tests {
         assert_eq!(participant.publisher_list.lock().unwrap()[0].strong_count(),0);
         assert_eq!(participant.publisher_list.lock().unwrap()[1].strong_count(),1);
 
-        let _publisher3 = participant.create_publisher();
+        let publisher3 = participant.create_publisher();
+        let publisher3_entityid = [0,0,0,8];
+        assert_eq!(&publisher3.get_instance_handle()[0..12], participant_guid_prefix); 
+        assert_eq!(publisher3.get_instance_handle()[12..16], publisher3_entityid);
 
         assert_eq!(participant.publisher_list.lock().unwrap()[0].strong_count(),1);
         assert_eq!(participant.publisher_list.lock().unwrap()[1].strong_count(),1);
