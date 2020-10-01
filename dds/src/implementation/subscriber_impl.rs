@@ -210,9 +210,9 @@ impl SubscriberImpl {
 #[cfg(test)]
 mod tests {
     use super::*;
-    // use crate::infrastructure::listener::NoListener;
-    // use crate::topic::Topic;
-    // use rust_dds_interface::qos_policy::ReliabilityQosPolicyKind;
+    use crate::infrastructure::listener::NoListener;
+    use crate::topic::Topic;
+    use rust_dds_interface::qos_policy::ReliabilityQosPolicyKind;
     use rust_dds_interface::protocol::{ProtocolEntity, ProtocolEndpoint, ProtocolReader};
 
     struct MockReader;
@@ -240,7 +240,7 @@ mod tests {
     }
     impl ProtocolSubscriber for MockReaderProtocolGroup {
         fn create_reader(&self) -> Arc<dyn ProtocolReader> {
-            todo!()
+            Arc::new(MockReader)
         }
     }
 
@@ -249,49 +249,49 @@ mod tests {
         value: bool
     }
 
-    // #[test]
-    // fn create_delete_datareader() {
-    //     let subscriber_impl = Arc::new(SubscriberImpl::new(Weak::new(), Weak::<MockReaderProtocolGroup>::new()));
-    //     let topic = Topic(Weak::new());
+    #[test]
+    fn create_delete_datareader() {
+        let subscriber_impl = Arc::new(SubscriberImpl::new(Weak::new(), Arc::new(MockReaderProtocolGroup)));
+        let topic = Topic(Weak::new());
         
-    //     assert_eq!(subscriber_impl.datareader_list.lock().unwrap().len(), 0);
-    //     let datareader = SubscriberImpl::create_datareader::<Foo>(&Arc::downgrade(&subscriber_impl),&topic, DataReaderQos::default(), Box::new(NoListener), 0).unwrap();
-    //     assert_eq!(subscriber_impl.datareader_list.lock().unwrap().len(), 1);
+        assert_eq!(subscriber_impl.datareader_list.lock().unwrap().len(), 0);
+        let datareader = SubscriberImpl::create_datareader::<Foo>(&Arc::downgrade(&subscriber_impl),&topic, DataReaderQos::default(), Box::new(NoListener), 0).unwrap();
+        assert_eq!(subscriber_impl.datareader_list.lock().unwrap().len(), 1);
         
-    //     SubscriberImpl::delete_datareader(&Arc::downgrade(&subscriber_impl), &datareader).unwrap();
-    //     assert_eq!(subscriber_impl.datareader_list.lock().unwrap().len(), 0);
-    // }
+        SubscriberImpl::delete_datareader(&Arc::downgrade(&subscriber_impl), &datareader).unwrap();
+        assert_eq!(subscriber_impl.datareader_list.lock().unwrap().len(), 0);
+    }
 
-    // #[test]
-    // fn set_and_get_default_datareader_qos() {
-    //     let subscriber_impl = Arc::new(SubscriberImpl::new(Weak::new(), Weak::<MockReaderProtocolGroup>::new()));
-    //     let subscriber = Arc::downgrade(&subscriber_impl);
+    #[test]
+    fn set_and_get_default_datareader_qos() {
+        let subscriber_impl = Arc::new(SubscriberImpl::new(Weak::new(), Arc::new(MockReaderProtocolGroup)));
+        let subscriber = Arc::downgrade(&subscriber_impl);
 
-    //     let mut datareader_qos = DataReaderQos::default();
-    //     datareader_qos.user_data.value = vec![1,2,3,4];
-    //     datareader_qos.reliability.kind = ReliabilityQosPolicyKind::ReliableReliabilityQos;
+        let mut datareader_qos = DataReaderQos::default();
+        datareader_qos.user_data.value = vec![1,2,3,4];
+        datareader_qos.reliability.kind = ReliabilityQosPolicyKind::ReliableReliabilityQos;
 
-    //     SubscriberImpl::set_default_datareader_qos(&subscriber, datareader_qos.clone()).unwrap();
-    //     assert_eq!(*subscriber_impl.default_datareader_qos.lock().unwrap(), datareader_qos);
+        SubscriberImpl::set_default_datareader_qos(&subscriber, datareader_qos.clone()).unwrap();
+        assert_eq!(*subscriber_impl.default_datareader_qos.lock().unwrap(), datareader_qos);
 
-    //     let mut read_datareader_qos = DataReaderQos::default();
-    //     SubscriberImpl::get_default_datareader_qos(&subscriber, &mut read_datareader_qos).unwrap();
+        let mut read_datareader_qos = DataReaderQos::default();
+        SubscriberImpl::get_default_datareader_qos(&subscriber, &mut read_datareader_qos).unwrap();
 
-    //     assert_eq!(read_datareader_qos, datareader_qos);
-    // }
+        assert_eq!(read_datareader_qos, datareader_qos);
+    }
 
-    // #[test]
-    // fn inconsistent_datareader_qos() {
-    //     let subscriber_impl = Arc::new(SubscriberImpl::new(Weak::new(), Weak::<MockReaderProtocolGroup>::new()));
-    //     let subscriber = Arc::downgrade(&subscriber_impl);
+    #[test]
+    fn inconsistent_datareader_qos() {
+        let subscriber_impl = Arc::new(SubscriberImpl::new(Weak::new(), Arc::new(MockReaderProtocolGroup)));
+        let subscriber = Arc::downgrade(&subscriber_impl);
 
-    //     let mut datareader_qos = DataReaderQos::default();
-    //     datareader_qos.resource_limits.max_samples = 5;
-    //     datareader_qos.resource_limits.max_samples_per_instance = 15;
+        let mut datareader_qos = DataReaderQos::default();
+        datareader_qos.resource_limits.max_samples = 5;
+        datareader_qos.resource_limits.max_samples_per_instance = 15;
 
-    //     let error = SubscriberImpl::set_default_datareader_qos(&subscriber, datareader_qos.clone());
-    //     assert_eq!(error, Err(ReturnCodes::InconsistentPolicy));
+        let error = SubscriberImpl::set_default_datareader_qos(&subscriber, datareader_qos.clone());
+        assert_eq!(error, Err(ReturnCodes::InconsistentPolicy));
 
-    //     assert_eq!(*subscriber_impl.default_datareader_qos.lock().unwrap(), DataReaderQos::default());
-    // }
+        assert_eq!(*subscriber_impl.default_datareader_qos.lock().unwrap(), DataReaderQos::default());
+    }
 }

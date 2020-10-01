@@ -183,7 +183,9 @@ impl PublisherImpl {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::infrastructure::listener::NoListener;
     use rust_dds_interface::protocol::{ProtocolEntity, ProtocolEndpoint, ProtocolWriter};
+    use rust_dds_interface::qos_policy::ReliabilityQosPolicyKind;
     use rust_dds_interface::types::Data;
 
     struct MockWriter;
@@ -231,7 +233,7 @@ mod tests {
     }
     impl ProtocolPublisher for MockWriterProtocolGroup {
         fn create_writer(&self) -> Arc<dyn ProtocolWriter> {
-            todo!()
+            Arc::new(MockWriter)
         }
     }
     #[derive(Debug)]
@@ -253,49 +255,49 @@ mod tests {
         }
     }
 
-    // #[test]
-    // fn create_delete_datawriter() {
-    //     let publisher_impl = Arc::new(PublisherImpl::new(Weak::new(), Weak::<MockWriterProtocolGroup>::new()));
-    //     let topic = Topic(Weak::new());
+    #[test]
+    fn create_delete_datawriter() {
+        let publisher_impl = Arc::new(PublisherImpl::new(Weak::new(), Arc::new(MockWriterProtocolGroup)));
+        let topic = Topic(Weak::new());
         
-    //     assert_eq!(publisher_impl.datawriter_list.lock().unwrap().len(), 0);
-    //     let datawriter = PublisherImpl::create_datawriter::<Foo>(&Arc::downgrade(&publisher_impl),topic, DataWriterQos::default(), Box::new(NoListener), 0).unwrap();
-    //     assert_eq!(publisher_impl.datawriter_list.lock().unwrap().len(), 1);
+        assert_eq!(publisher_impl.datawriter_list.lock().unwrap().len(), 0);
+        let datawriter = PublisherImpl::create_datawriter::<Foo>(&Arc::downgrade(&publisher_impl),topic, DataWriterQos::default(), Box::new(NoListener), 0).unwrap();
+        assert_eq!(publisher_impl.datawriter_list.lock().unwrap().len(), 1);
         
-    //     PublisherImpl::delete_datawriter(&Arc::downgrade(&publisher_impl), &datawriter).unwrap();
-    //     assert_eq!(publisher_impl.datawriter_list.lock().unwrap().len(), 0);
-    // }
+        PublisherImpl::delete_datawriter(&Arc::downgrade(&publisher_impl), &datawriter).unwrap();
+        assert_eq!(publisher_impl.datawriter_list.lock().unwrap().len(), 0);
+    }
 
-    // #[test]
-    // fn set_and_get_default_datawriter_qos() {
-    //     let publisher_impl = Arc::new(PublisherImpl::new(Weak::new(), Weak::<MockWriterProtocolGroup>::new()));
-    //     let publisher = Arc::downgrade(&publisher_impl);
+    #[test]
+    fn set_and_get_default_datawriter_qos() {
+        let publisher_impl = Arc::new(PublisherImpl::new(Weak::new(), Arc::new(MockWriterProtocolGroup)));
+        let publisher = Arc::downgrade(&publisher_impl);
 
-    //     let mut datawriter_qos = DataWriterQos::default();
-    //     datawriter_qos.user_data.value = vec![1,2,3,4];
-    //     datawriter_qos.reliability.kind = ReliabilityQosPolicyKind::ReliableReliabilityQos;
+        let mut datawriter_qos = DataWriterQos::default();
+        datawriter_qos.user_data.value = vec![1,2,3,4];
+        datawriter_qos.reliability.kind = ReliabilityQosPolicyKind::ReliableReliabilityQos;
 
-    //     PublisherImpl::set_default_datawriter_qos(&publisher, datawriter_qos.clone()).unwrap();
-    //     assert_eq!(*publisher_impl.default_datawriter_qos.lock().unwrap(), datawriter_qos);
+        PublisherImpl::set_default_datawriter_qos(&publisher, datawriter_qos.clone()).unwrap();
+        assert_eq!(*publisher_impl.default_datawriter_qos.lock().unwrap(), datawriter_qos);
 
-    //     let mut read_datawriter_qos = DataWriterQos::default();
-    //     PublisherImpl::get_default_datawriter_qos(&publisher, &mut read_datawriter_qos).unwrap();
+        let mut read_datawriter_qos = DataWriterQos::default();
+        PublisherImpl::get_default_datawriter_qos(&publisher, &mut read_datawriter_qos).unwrap();
 
-    //     assert_eq!(read_datawriter_qos, datawriter_qos);
-    // }
+        assert_eq!(read_datawriter_qos, datawriter_qos);
+    }
 
-    // #[test]
-    // fn inconsistent_datawriter_qos() {
-    //     let publisher_impl = Arc::new(PublisherImpl::new(Weak::new(), Weak::<MockWriterProtocolGroup>::new()));
-    //     let publisher = Arc::downgrade(&publisher_impl);
+    #[test]
+    fn inconsistent_datawriter_qos() {
+        let publisher_impl = Arc::new(PublisherImpl::new(Weak::new(), Arc::new(MockWriterProtocolGroup)));
+        let publisher = Arc::downgrade(&publisher_impl);
 
-    //     let mut datawriter_qos = DataWriterQos::default();
-    //     datawriter_qos.resource_limits.max_samples = 5;
-    //     datawriter_qos.resource_limits.max_samples_per_instance = 15;
+        let mut datawriter_qos = DataWriterQos::default();
+        datawriter_qos.resource_limits.max_samples = 5;
+        datawriter_qos.resource_limits.max_samples_per_instance = 15;
 
-    //     let error = PublisherImpl::set_default_datawriter_qos(&publisher, datawriter_qos.clone());
-    //     assert_eq!(error, Err(ReturnCodes::InconsistentPolicy));
+        let error = PublisherImpl::set_default_datawriter_qos(&publisher, datawriter_qos.clone());
+        assert_eq!(error, Err(ReturnCodes::InconsistentPolicy));
 
-    //     assert_eq!(*publisher_impl.default_datawriter_qos.lock().unwrap(), DataWriterQos::default());
-    // }
+        assert_eq!(*publisher_impl.default_datawriter_qos.lock().unwrap(), DataWriterQos::default());
+    }
 }
