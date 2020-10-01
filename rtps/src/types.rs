@@ -114,6 +114,16 @@ impl GUID {
     }
 }
 
+impl From<GUID> for InstanceHandle {
+    fn from(guid: GUID) -> Self {
+        let mut instance_handle = [0u8;16];
+        instance_handle[0..12].copy_from_slice(&guid.prefix);
+        instance_handle[12..15].copy_from_slice(&guid.entity_id.entity_key);
+        instance_handle[15] = guid.entity_id.entity_kind as u8;
+        instance_handle
+    }
+}
+
 pub type GuidPrefix = [u8; 12];
 
 pub type EntityKey = [u8; 3];
@@ -213,3 +223,18 @@ pub struct ProtocolVersion {
 
 pub type VendorId = [u8; 2];
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn guid_to_instance_handle() {
+        let prefix = [1,2,3,4,5,6,7,8,9,10,11,0];
+        let entity_id = EntityId::new([200,100,5], EntityKind::UserDefinedReaderGroup);
+        let guid = GUID::new(prefix, entity_id);
+
+        let expected_instance_handle = [1,2,3,4,5,6,7,8,9,10,11,0,200,100,5,9];
+
+        assert_eq!(expected_instance_handle, InstanceHandle::from(guid));
+    }
+}

@@ -25,7 +25,7 @@ impl ProtocolEntity for RtpsPublisher {
     }
 
     fn get_instance_handle(&self) -> InstanceHandle {
-        todo!()
+        self.guid.into()
     }
 }
 
