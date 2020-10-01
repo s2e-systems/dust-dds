@@ -6,7 +6,8 @@
 use num_derive::FromPrimitive;
 use serde::{Serialize, Deserialize};
 
-pub use rust_dds_interface::types::{InstanceHandle, Data, ReliabilityKind, TopicKind};
+pub use rust_dds_interface::types::{InstanceHandle, Data, TopicKind};
+use rust_dds_interface::qos_policy::ReliabilityQosPolicyKind;
 
 pub mod constants {
     use super::{VendorId, EntityId, ProtocolVersion, EntityKind, SequenceNumber, Locator, GuidPrefix, GUID};
@@ -93,6 +94,22 @@ pub mod constants {
 
     pub const GUID_UNKNOWN: GUID = GUID::new(GUID_PREFIX_UNKNOWN, ENTITYID_UNKNOWN);
 }
+
+#[derive(PartialEq, Copy, Clone)]
+pub enum ReliabilityKind {
+    BestEffort,
+    Reliable,
+}
+
+impl From<ReliabilityQosPolicyKind> for ReliabilityKind {
+    fn from(value: ReliabilityQosPolicyKind) -> Self {
+        match value {
+            ReliabilityQosPolicyKind::BestEffortReliabilityQos => ReliabilityKind::BestEffort,
+            ReliabilityQosPolicyKind::ReliableReliabilityQos => ReliabilityKind::Reliable,
+        }
+    }
+}
+
 
 #[derive(Hash, PartialEq, Eq, Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct GUID {

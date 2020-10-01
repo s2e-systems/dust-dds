@@ -704,7 +704,7 @@ impl Default for PartitionQosPolicy {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum ReliabilityQosPolicyKind {
     BestEffortReliabilityQos,
     ReliableReliabilityQos,

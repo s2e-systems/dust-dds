@@ -10,8 +10,6 @@ use super::subscriber::RtpsSubscriber;
 use rust_dds_interface::types::{DomainId, InstanceHandle, ReturnCode};
 use rust_dds_interface::protocol::{ProtocolEntity, ProtocolParticipant, ProtocolPublisher, ProtocolSubscriber};
 
-
-
 pub struct RtpsParticipant {
     guid: GUID,
     domain_id: DomainId,

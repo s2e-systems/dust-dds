@@ -348,6 +348,8 @@ impl DomainParticipantImpl{
 mod tests {
     use super::*;
     use crate::infrastructure::listener::NoListener;
+    use rust_dds_interface::types::TopicKind;
+    use rust_dds_interface::qos::DataWriterQos;
     use rust_dds_interface::protocol::{ProtocolEntity, ProtocolPublisher, ProtocolSubscriber};
     use rust_dds_interface::qos_policy::ReliabilityQosPolicyKind;
 
@@ -362,7 +364,7 @@ mod tests {
         }
     }
     impl ProtocolPublisher for MockProtocolPublisher {
-        fn create_writer(&self) -> Arc<dyn rust_dds_interface::protocol::ProtocolWriter> {
+        fn create_writer(&self, _topic_kind: TopicKind, _data_writer_qos: &DataWriterQos) -> Arc<dyn rust_dds_interface::protocol::ProtocolWriter> {
             todo!()
         }
     }

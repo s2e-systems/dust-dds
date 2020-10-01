@@ -25,13 +25,13 @@ impl PublisherImpl {
     pub(crate) fn create_datawriter<T: DDSType+Any+Send+Sync>(
         this: &Weak<PublisherImpl>,
         _a_topic: Topic,
-        _qos: DataWriterQos,
+        qos: DataWriterQos,
         _a_listener: Box<dyn DataWriterListener<T>>,
         _mask: StatusMask,
     ) -> Option<DataWriter<T>> {
         let publisher = PublisherImpl::upgrade_publisher(this).ok()?;
        
-        let protocol_writer = publisher.protocol_publisher.create_writer();
+        let protocol_writer = publisher.protocol_publisher.create_writer(T::topic_kind(), &qos);
         let datawriter_impl = Arc::new(DataWriterImpl::new(this.clone(), protocol_writer));
         let datawriter = DataWriter(Arc::downgrade(&datawriter_impl));        
 
@@ -190,7 +190,7 @@ mod tests {
     use crate::infrastructure::listener::NoListener;
     use rust_dds_interface::protocol::{ProtocolEntity, ProtocolEndpoint, ProtocolWriter};
     use rust_dds_interface::qos_policy::ReliabilityQosPolicyKind;
-    use rust_dds_interface::types::Data;
+    use rust_dds_interface::types::{Data, TopicKind};
 
     struct MockWriter;
     impl ProtocolEndpoint for MockWriter {}
@@ -236,7 +236,7 @@ mod tests {
         }
     }
     impl ProtocolPublisher for MockWriterProtocolGroup {
-        fn create_writer(&self) -> Arc<dyn ProtocolWriter> {
+        fn create_writer(&self, _topic_kind: TopicKind, _data_writer_qos: &DataWriterQos) -> Arc<dyn ProtocolWriter> {
             Arc::new(MockWriter)
         }
     }
@@ -246,6 +246,10 @@ mod tests {
     }
 
     impl DDSType for Foo {
+        fn topic_kind() -> TopicKind {
+            TopicKind::NoKey
+        }
+
         fn instance_handle(&self) -> InstanceHandle {
             todo!()
         }

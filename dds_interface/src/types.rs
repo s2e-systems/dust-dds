@@ -58,12 +58,6 @@ pub enum HistoryKind {
 }
 
 //// From RTPS
-#[derive(PartialEq)]
-pub enum ReliabilityKind {
-    BestEffort,
-    Reliable,
-}
-
 pub enum TopicKind {
     NoKey,
     WithKey,

@@ -293,7 +293,7 @@ mod tests {
     use crate::types::DDSType;
     use crate::publication::AnyDataWriter;
     use rust_dds_interface::protocol::{ProtocolEntity, ProtocolEndpoint, ProtocolWriter};
-    use rust_dds_interface::types::Data;
+    use rust_dds_interface::types::{Data, TopicKind};
 
     struct MockProtocolWriter;
     impl ProtocolEntity for MockProtocolWriter{
@@ -336,6 +336,10 @@ mod tests {
     }
 
     impl DDSType for Foo {
+        fn topic_kind() -> TopicKind {
+            todo!()
+        }
+
         fn instance_handle(&self) -> InstanceHandle {
             todo!()
         }
@@ -354,6 +358,10 @@ mod tests {
         value: bool
     }
     impl DDSType for Bar {
+        fn topic_kind() -> TopicKind {
+            todo!()
+        }
+
         fn instance_handle(&self) -> InstanceHandle {
             todo!()
         }
@@ -372,6 +380,10 @@ mod tests {
         value: bool
     }
     impl DDSType for Baz {
+        fn topic_kind() -> TopicKind {
+            todo!()
+        }
+
         fn instance_handle(&self) -> InstanceHandle {
             todo!()
         }
