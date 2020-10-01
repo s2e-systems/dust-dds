@@ -37,5 +37,6 @@ fn hello_world() {
     let publisher = participant.create_publisher(PublisherQos::default(), NoListener, 0).expect("Error creating publisher");
     let helloworld_topic = participant.create_topic("HelloWorld".to_string(), "HelloWorldType".to_string(), TopicQos::default(), NoListener, 0).expect("Error creating topic");
 
-    let _datawriter = publisher.create_datawriter::<HelloWorldType>(helloworld_topic, DataWriterQos::default(), Box::new(NoListener), 0).expect("Error creating data writer");
+    let _datawriter1 = publisher.create_datawriter::<HelloWorldType>(helloworld_topic, DataWriterQos::default(), Box::new(NoListener), 0).expect("Error creating data writer");
+    
 }

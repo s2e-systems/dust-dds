@@ -1,6 +1,6 @@
 use std::sync::Arc;
 use crate::types::{InstanceHandle, Data, Time, ReturnCode, TopicKind};
-use crate::qos::DataWriterQos;
+use crate::qos::{DataWriterQos, DataReaderQos};
 
 pub trait ProtocolEntity : Send + Sync {
     fn enable(&self) -> ReturnCode<()>;
@@ -15,7 +15,7 @@ pub trait ProtocolParticipant : ProtocolEntity {
 }
 
 pub trait ProtocolSubscriber : ProtocolEntity {
-    fn create_reader(&self) -> Arc<dyn ProtocolReader>;
+    fn create_reader(&self, topic_kind: TopicKind, data_reader_qos: &DataReaderQos) -> Arc<dyn ProtocolReader>;
 }
 pub trait ProtocolPublisher : ProtocolEntity {
     fn create_writer(&self, topic_kind: TopicKind, data_writer_qos: &DataWriterQos) -> Arc<dyn ProtocolWriter>;

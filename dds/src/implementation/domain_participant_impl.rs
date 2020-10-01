@@ -349,7 +349,7 @@ mod tests {
     use super::*;
     use crate::infrastructure::listener::NoListener;
     use rust_dds_interface::types::TopicKind;
-    use rust_dds_interface::qos::DataWriterQos;
+    use rust_dds_interface::qos::{DataWriterQos, DataReaderQos};
     use rust_dds_interface::protocol::{ProtocolEntity, ProtocolPublisher, ProtocolSubscriber};
     use rust_dds_interface::qos_policy::ReliabilityQosPolicyKind;
 
@@ -380,7 +380,7 @@ mod tests {
         }
     }
     impl ProtocolSubscriber for MockProtocolSubscriber {
-        fn create_reader(&self) -> Arc<dyn rust_dds_interface::protocol::ProtocolReader> {
+        fn create_reader(&self, _topic_kind: TopicKind, _data_reader_qos: &DataReaderQos) -> Arc<dyn rust_dds_interface::protocol::ProtocolReader> {
             todo!()
         }
     }

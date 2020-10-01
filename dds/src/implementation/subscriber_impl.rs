@@ -16,6 +16,7 @@ use crate::infrastructure::status::{
 use crate::domain::DomainParticipant;
 use crate::topic::TopicDescription;
 use crate::subscription::{DataReader, AnyDataReader, DataReaderListener, SubscriberListener};
+use crate::types::DDSType;
 
 use crate::implementation::domain_participant_impl::DomainParticipantImpl;
 use crate::implementation::data_reader_impl::DataReaderImpl;
@@ -31,16 +32,16 @@ pub struct SubscriberImpl{
 }
 
 impl SubscriberImpl {
-    pub(crate) fn create_datareader<T: Any+Send+Sync>(
+    pub(crate) fn create_datareader<T: DDSType+Any+Send+Sync>(
         this: &Weak<SubscriberImpl>,
         _a_topic: &dyn TopicDescription,
-        _qos: DataReaderQos,
+        qos: DataReaderQos,
         _a_listener: Box<dyn DataReaderListener<T>>,
         _mask: StatusMask
     ) -> Option<DataReader<T>> {
 
         let subscriber = Self::upgrade_subscriber(this).ok()?;
-        let protocol_reader = subscriber.protocol_subscriber.create_reader();
+        let protocol_reader = subscriber.protocol_subscriber.create_reader(T::topic_kind(), &qos);
         let datareader_impl = Arc::new(DataReaderImpl::new(this.clone(), protocol_reader));
         let datareader = DataReader(Arc::downgrade(&datareader_impl));  
 
@@ -49,7 +50,7 @@ impl SubscriberImpl {
         Some(datareader)
     }
 
-    pub(crate) fn delete_datareader<T: Any+Send+Sync>(
+    pub(crate) fn delete_datareader<T: DDSType+Any+Send+Sync>(
         this: &Weak<SubscriberImpl>,
         a_datareader: &DataReader<T>
     ) -> ReturnCode<()> {
@@ -69,7 +70,7 @@ impl SubscriberImpl {
         }
     }
 
-    pub(crate) fn lookup_datareader<T>(
+    pub(crate) fn lookup_datareader<T: DDSType+Any+Send+Sync>(
         _this: &Weak<SubscriberImpl>,
         _topic_name: String
     ) -> DataReader<T> {
@@ -89,7 +90,7 @@ impl SubscriberImpl {
     }
 
    
-    pub(crate) fn get_datareaders<T>(
+    pub(crate) fn get_datareaders<T: DDSType+Any+Send+Sync>(
         _this: &Weak<SubscriberImpl>,
         _readers: &mut [DataReader<T>],
         _sample_states: &[SampleStateKind],
@@ -218,6 +219,7 @@ mod tests {
     use crate::topic::Topic;
     use rust_dds_interface::qos_policy::ReliabilityQosPolicyKind;
     use rust_dds_interface::protocol::{ProtocolEntity, ProtocolEndpoint, ProtocolReader};
+    use rust_dds_interface::types::TopicKind;
 
     struct MockReader;
     impl ProtocolEndpoint for MockReader {}
@@ -243,7 +245,7 @@ mod tests {
         }
     }
     impl ProtocolSubscriber for MockReaderProtocolGroup {
-        fn create_reader(&self) -> Arc<dyn ProtocolReader> {
+        fn create_reader(&self, _topic_kind: TopicKind, _data_reader_qos: &DataReaderQos) -> Arc<dyn ProtocolReader> {
             Arc::new(MockReader)
         }
     }
@@ -251,6 +253,24 @@ mod tests {
     #[derive(Debug)]
     struct  Foo {
         value: bool
+    }
+
+    impl DDSType for Foo {
+        fn topic_kind() -> TopicKind {
+            TopicKind::NoKey
+        }
+
+        fn instance_handle(&self) -> InstanceHandle {
+            todo!()
+        }
+
+        fn serialize(&self) -> rust_dds_interface::types::Data {
+            todo!()
+        }
+
+        fn deserialize(_data: rust_dds_interface::types::Data) -> Self {
+            todo!()
+        }
     }
 
     #[test]
