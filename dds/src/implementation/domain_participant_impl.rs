@@ -54,11 +54,15 @@ impl DomainParticipantImpl{
         this: &Arc<DomainParticipantImpl>,
         a_publisher: &Publisher
     ) -> ReturnCode<()> {
-        // TODO: Shouldn't be deleted if it still contains entities but can't yet be done because the publisher is not implemented
+        let publisher_impl = a_publisher.0.upgrade().ok_or(ReturnCodes::AlreadyDeleted("Publisher"))?;
         let mut publisher_list = this.publisher_list.lock().unwrap();
-        let index = publisher_list.iter().position(|x| std::ptr::eq(x.as_ref(), a_publisher.0.upgrade().unwrap().as_ref())).unwrap();
-        publisher_list.swap_remove(index);
-        Ok(())
+        let index = publisher_list.iter().position(|x| std::ptr::eq(x.as_ref(), publisher_impl.as_ref())).ok_or(ReturnCodes::PreconditionNotMet("Publisher not found in Domain Participant"))?;
+        if publisher_impl.has_no_datawriters() {
+            publisher_list.swap_remove(index);
+            Ok(())
+        } else {
+            Err(ReturnCodes::PreconditionNotMet("Publisher still contains data writers"))
+        }
     }
 
     pub(crate) fn create_subscriber(
@@ -80,11 +84,16 @@ impl DomainParticipantImpl{
         this: &Arc<DomainParticipantImpl>,
         a_subscriber: &Subscriber,
     ) -> ReturnCode<()> {
-        // TODO: Shouldn't be deleted if it still contains entities but can't yet be done because the subscriber is not implemented
+        let subscriber_impl = a_subscriber.0.upgrade().ok_or(ReturnCodes::AlreadyDeleted("Subscriber"))?;
         let mut subscriber_list = this.subscriber_list.lock().unwrap();
-        let index = subscriber_list.iter().position(|x| std::ptr::eq(x.as_ref(), a_subscriber.0.upgrade().unwrap().as_ref())).unwrap();
-        subscriber_list.swap_remove(index);
-        Ok(())
+        let index = subscriber_list.iter().position(|x| std::ptr::eq(x.as_ref(), subscriber_impl.as_ref())).ok_or(ReturnCodes::PreconditionNotMet("Subscriber not found in Domain Participant"))?;
+        if subscriber_impl.has_no_datareaders() {
+            subscriber_list.swap_remove(index);
+            Ok(())
+        } else {
+            Err(ReturnCodes::PreconditionNotMet("Subscriber still contains data readers"))
+        }
+        
     }
 
     pub(crate) fn create_topic(
@@ -317,9 +326,6 @@ impl DomainParticipantImpl{
             println!("TODO: Use the real listener")
         }
 
-        
-        
-
         Self {
             domain_id,
             qos,
@@ -400,7 +406,7 @@ mod tests {
     }
 
     #[test]
-    fn create_publisher() {
+    fn create_delete_publisher() {
         let domain_participant_impl = Arc::new(DomainParticipantImpl::new(0, DomainParticipantQos::default(), NoListener, 0, Box::new(MockProtocolParticipant)));
 
         assert_eq!(domain_participant_impl.publisher_list.lock().unwrap().len(), 0);
@@ -413,7 +419,20 @@ mod tests {
     }
 
     #[test]
-    fn create_subscriber() {
+    fn delete_publisher_wrong_domain_participant() {
+        let domain_participant_impl1 = Arc::new(DomainParticipantImpl::new(0, DomainParticipantQos::default(), NoListener, 0, Box::new(MockProtocolParticipant)));
+        let domain_participant_impl2 = Arc::new(DomainParticipantImpl::new(0, DomainParticipantQos::default(), NoListener, 0, Box::new(MockProtocolParticipant)));
+
+        let publisher = DomainParticipantImpl::create_publisher(&domain_participant_impl1,PublisherQos::default(), NoListener, 0).unwrap();
+
+        match DomainParticipantImpl::delete_publisher(&domain_participant_impl2, &publisher) {
+            Err(ReturnCodes::PreconditionNotMet(message)) => assert_eq!(message, "Publisher not found in Domain Participant"),
+            _ => assert!(false),
+        }
+    }
+
+    #[test]
+    fn create_delete_subscriber() {
         let domain_participant_impl = Arc::new(DomainParticipantImpl::new(0, DomainParticipantQos::default(), NoListener, 0, Box::new(MockProtocolParticipant)));
 
         assert_eq!(domain_participant_impl.subscriber_list.lock().unwrap().len(), 0);
@@ -423,6 +442,19 @@ mod tests {
         DomainParticipantImpl::delete_subscriber(&domain_participant_impl, &subscriber).unwrap();
 
         assert_eq!(domain_participant_impl.subscriber_list.lock().unwrap().len(), 0);
+    }
+
+    #[test]
+    fn delete_subscriber_wrong_domain_participant() {
+        let domain_participant_impl1 = Arc::new(DomainParticipantImpl::new(0, DomainParticipantQos::default(), NoListener, 0, Box::new(MockProtocolParticipant)));
+        let domain_participant_impl2 = Arc::new(DomainParticipantImpl::new(0, DomainParticipantQos::default(), NoListener, 0, Box::new(MockProtocolParticipant)));
+
+        let subscriber = DomainParticipantImpl::create_subscriber(&domain_participant_impl1,SubscriberQos::default(), NoListener, 0).unwrap();
+
+        match DomainParticipantImpl::delete_subscriber(&domain_participant_impl2, &subscriber) {
+            Err(ReturnCodes::PreconditionNotMet(message)) => assert_eq!(message, "Subscriber not found in Domain Participant"),
+            _ => assert!(false),
+        }
     }
 
     #[test]

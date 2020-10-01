@@ -65,7 +65,7 @@ impl SubscriberImpl {
             datareader_list.swap_remove(index);
             Ok(())
         } else {
-            Err(ReturnCodes::PreconditionNotMet)
+            Err(ReturnCodes::PreconditionNotMet("Data reader not found in subscriber"))
         }
     }
 
@@ -204,6 +204,10 @@ impl SubscriberImpl {
 
     fn upgrade_subscriber(this: &Weak<SubscriberImpl>) -> ReturnCode<Arc<SubscriberImpl>> {
         this.upgrade().ok_or(ReturnCodes::AlreadyDeleted("Subscriber"))
+    }
+
+    pub fn has_no_datareaders(&self) -> bool {
+        self.datareader_list.lock().unwrap().is_empty()
     }
 }
 

@@ -9,7 +9,7 @@ pub enum ReturnCodes {
     Error,
     Unsupported,
     BadParameter,
-    PreconditionNotMet,
+    PreconditionNotMet(&'static str),
     OutOfResources,
     NotEnabled,
     ImmutablePolicy,

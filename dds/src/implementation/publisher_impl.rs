@@ -56,7 +56,7 @@ impl PublisherImpl {
             datawriter_list.swap_remove(index);
             Ok(())
         } else {
-            Err(ReturnCodes::PreconditionNotMet)
+            Err(ReturnCodes::PreconditionNotMet("Data writer not found in publisher"))
         }
     }
 
@@ -177,6 +177,10 @@ impl PublisherImpl {
 
     fn upgrade_publisher(this: &Weak<PublisherImpl>) -> ReturnCode<Arc<PublisherImpl>> {
         this.upgrade().ok_or(ReturnCodes::AlreadyDeleted("Publisher"))
+    }
+
+    pub fn has_no_datawriters(&self) -> bool {
+        self.datawriter_list.lock().unwrap().is_empty()
     }
 }
 

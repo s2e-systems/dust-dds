@@ -274,7 +274,7 @@ impl<T: DDSType+Any+Send+Sync> DataWriterImpl<T> {
             Some(handle) => {
                 if let Some(existing_handle) = Self::lookup_instance(&this, &data)? {
                     if existing_handle != data.instance_handle() {
-                        return Err(ReturnCodes::PreconditionNotMet);
+                        return Err(ReturnCodes::PreconditionNotMet("Instance handle does not match handle computed from data"));
                     }
                 } else {
                     return Err(ReturnCodes::BadParameter);
