@@ -10,6 +10,7 @@ use crate::behavior::types::Duration;
 use crate::behavior::stateful_reader::{StatefulReaderBehavior, BestEfforStatefulReaderBehavior, ReliableStatefulReaderBehavior, };
 
 use rust_dds_interface::protocol::{ProtocolEntity, ProtocolReader, ProtocolEndpoint};
+use rust_dds_interface::types::{InstanceHandle, ReturnCode};
 
 struct ChangesFromWriter {
     highest_processed_sequence_number: SequenceNumber,
@@ -352,12 +353,12 @@ impl Sender for StatefulReader {
 
 
 impl ProtocolEntity for StatefulReader {
-    fn enable(&self) -> rust_dds_interface::types::ReturnCode<()> {
+    fn enable(&self) -> ReturnCode<()> {
         todo!()
     }
 
-    fn get_instance_handle(&self) -> rust_dds_interface::types::InstanceHandle {
-        todo!()
+    fn get_instance_handle(&self) -> InstanceHandle {
+        self.guid.into()
     }
 }
 

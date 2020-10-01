@@ -69,3 +69,84 @@ impl ProtocolSubscriber for RtpsSubscriber {
         new_reader
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn create_reader() {
+        let guid_prefix = [5, 6, 7, 8, 9, 5, 1, 2, 3, 4, 10, 11];
+        let entity_id = EntityId::new([0,0,0], EntityKind::UserDefinedWriterGroup);
+        let guid = GUID::new(guid_prefix, entity_id);
+        let subscriber = RtpsSubscriber::new(guid);
+
+        let data_reader_qos = DataReaderQos::default();
+
+        assert_eq!(subscriber.reader_list.lock().unwrap()[0].strong_count(),0);
+        assert_eq!(subscriber.reader_list.lock().unwrap()[1].strong_count(),0);
+
+        let reader1 = subscriber.create_reader(TopicKind::WithKey, &data_reader_qos);
+        let reader1_entityid = [0,0,0,4];
+        assert_eq!(reader1.get_instance_handle()[0..12], guid_prefix);
+        assert_eq!(reader1.get_instance_handle()[12..16], reader1_entityid);
+
+
+        assert_eq!(subscriber.reader_list.lock().unwrap()[0].strong_count(),1);
+        assert_eq!(subscriber.reader_list.lock().unwrap()[1].strong_count(),0);
+
+        let reader2 = subscriber.create_reader(TopicKind::NoKey, &data_reader_qos);
+        let reader2_entityid = [0,0,1,7];
+        assert_eq!(reader2.get_instance_handle()[0..12], guid_prefix);
+        assert_eq!(reader2.get_instance_handle()[12..16], reader2_entityid);
+
+        assert_eq!(subscriber.reader_list.lock().unwrap()[0].strong_count(),1);
+        assert_eq!(subscriber.reader_list.lock().unwrap()[1].strong_count(),1);
+
+        std::mem::drop(reader1);
+
+        assert_eq!(subscriber.reader_list.lock().unwrap()[0].strong_count(),0);
+        assert_eq!(subscriber.reader_list.lock().unwrap()[1].strong_count(),1);
+
+        let reader3 = subscriber.create_reader(TopicKind::NoKey, &data_reader_qos);
+        let reader3_entityid = [0,0,0,7];
+        assert_eq!(reader3.get_instance_handle()[0..12], guid_prefix);
+        assert_eq!(reader3.get_instance_handle()[12..16], reader3_entityid);
+
+        assert_eq!(subscriber.reader_list.lock().unwrap()[0].strong_count(),1);
+        assert_eq!(subscriber.reader_list.lock().unwrap()[1].strong_count(),1);
+    }
+
+    #[test]
+    fn create_writer_different_publishers() {
+        let guid_prefix = [5, 6, 7, 8, 9, 5, 1, 2, 3, 4, 10, 11];
+        let entity_id1 = EntityId::new([0,0,0], EntityKind::UserDefinedWriterGroup);
+        let entity_id2 = EntityId::new([2,0,0], EntityKind::UserDefinedWriterGroup);
+        let guid1 = GUID::new(guid_prefix, entity_id1);
+        let guid2 = GUID::new(guid_prefix, entity_id2);
+        let subscriber1 = RtpsSubscriber::new(guid1);
+        let subscriber2 = RtpsSubscriber::new(guid2);
+
+        let data_reader_qos = DataReaderQos::default();
+
+        let reader11 = subscriber1.create_reader(TopicKind::WithKey, &data_reader_qos);
+        let reader11_entityid = [0,0,0,4];
+        assert_eq!(reader11.get_instance_handle()[0..12], guid_prefix);
+        assert_eq!(reader11.get_instance_handle()[12..16], reader11_entityid);
+
+        let reader12 = subscriber1.create_reader(TopicKind::NoKey, &data_reader_qos);
+        let reader12_entityid = [0,0,1,7];
+        assert_eq!(reader12.get_instance_handle()[0..12], guid_prefix);
+        assert_eq!(reader12.get_instance_handle()[12..16], reader12_entityid);
+
+        let reader21 = subscriber2.create_reader(TopicKind::NoKey, &data_reader_qos);
+        let reader21_entityid = [2,0,0,7];
+        assert_eq!(reader21.get_instance_handle()[0..12], guid_prefix);
+        assert_eq!(reader21.get_instance_handle()[12..16], reader21_entityid);
+
+        let reader22 = subscriber2.create_reader(TopicKind::WithKey, &data_reader_qos);
+        let reader22_entityid = [2,0,1,4];
+        assert_eq!(reader22.get_instance_handle()[0..12], guid_prefix);
+        assert_eq!(reader22.get_instance_handle()[12..16], reader22_entityid);
+    }
+}
