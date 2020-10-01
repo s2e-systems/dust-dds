@@ -71,3 +71,84 @@ impl ProtocolPublisher for RtpsPublisher {
         new_writer
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn create_writer() {
+        let guid_prefix = [5, 6, 7, 8, 9, 5, 1, 2, 3, 4, 10, 11];
+        let entity_id = EntityId::new([0,0,0], EntityKind::UserDefinedWriterGroup);
+        let guid = GUID::new(guid_prefix, entity_id);
+        let publisher = RtpsPublisher::new(guid);
+
+        let data_writer_qos = DataWriterQos::default();
+
+        assert_eq!(publisher.writer_list.lock().unwrap()[0].strong_count(),0);
+        assert_eq!(publisher.writer_list.lock().unwrap()[1].strong_count(),0);
+
+        let writer1 = publisher.create_writer(TopicKind::WithKey, &data_writer_qos);
+        let writer1_entityid = [0,0,0,2];
+        assert_eq!(writer1.get_instance_handle()[0..12], guid_prefix);
+        assert_eq!(writer1.get_instance_handle()[12..16], writer1_entityid);
+
+
+        assert_eq!(publisher.writer_list.lock().unwrap()[0].strong_count(),1);
+        assert_eq!(publisher.writer_list.lock().unwrap()[1].strong_count(),0);
+
+        let writer2 = publisher.create_writer(TopicKind::NoKey, &data_writer_qos);
+        let writer2_entityid = [0,0,1,3];
+        assert_eq!(writer2.get_instance_handle()[0..12], guid_prefix);
+        assert_eq!(writer2.get_instance_handle()[12..16], writer2_entityid);
+
+        assert_eq!(publisher.writer_list.lock().unwrap()[0].strong_count(),1);
+        assert_eq!(publisher.writer_list.lock().unwrap()[1].strong_count(),1);
+
+        std::mem::drop(writer1);
+
+        assert_eq!(publisher.writer_list.lock().unwrap()[0].strong_count(),0);
+        assert_eq!(publisher.writer_list.lock().unwrap()[1].strong_count(),1);
+
+        let writer3 = publisher.create_writer(TopicKind::NoKey, &data_writer_qos);
+        let writer3_entityid = [0,0,0,3];
+        assert_eq!(writer3.get_instance_handle()[0..12], guid_prefix);
+        assert_eq!(writer3.get_instance_handle()[12..16], writer3_entityid);
+
+        assert_eq!(publisher.writer_list.lock().unwrap()[0].strong_count(),1);
+        assert_eq!(publisher.writer_list.lock().unwrap()[1].strong_count(),1);
+    }
+
+    #[test]
+    fn create_writer_different_publishers() {
+        let guid_prefix = [5, 6, 7, 8, 9, 5, 1, 2, 3, 4, 10, 11];
+        let entity_id1 = EntityId::new([0,0,0], EntityKind::UserDefinedWriterGroup);
+        let entity_id2 = EntityId::new([2,0,0], EntityKind::UserDefinedWriterGroup);
+        let guid1 = GUID::new(guid_prefix, entity_id1);
+        let guid2 = GUID::new(guid_prefix, entity_id2);
+        let publisher1 = RtpsPublisher::new(guid1);
+        let publisher2 = RtpsPublisher::new(guid2);
+
+        let data_writer_qos = DataWriterQos::default();
+
+        let writer11 = publisher1.create_writer(TopicKind::WithKey, &data_writer_qos);
+        let writer11_entityid = [0,0,0,2];
+        assert_eq!(writer11.get_instance_handle()[0..12], guid_prefix);
+        assert_eq!(writer11.get_instance_handle()[12..16], writer11_entityid);
+
+        let writer12 = publisher1.create_writer(TopicKind::NoKey, &data_writer_qos);
+        let writer12_entityid = [0,0,1,3];
+        assert_eq!(writer12.get_instance_handle()[0..12], guid_prefix);
+        assert_eq!(writer12.get_instance_handle()[12..16], writer12_entityid);
+
+        let writer21 = publisher2.create_writer(TopicKind::NoKey, &data_writer_qos);
+        let writer21_entityid = [2,0,0,3];
+        assert_eq!(writer21.get_instance_handle()[0..12], guid_prefix);
+        assert_eq!(writer21.get_instance_handle()[12..16], writer21_entityid);
+
+        let writer22 = publisher2.create_writer(TopicKind::WithKey, &data_writer_qos);
+        let writer22_entityid = [2,0,1,2];
+        assert_eq!(writer22.get_instance_handle()[0..12], guid_prefix);
+        assert_eq!(writer22.get_instance_handle()[12..16], writer22_entityid);
+    }
+}

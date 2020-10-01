@@ -289,7 +289,7 @@ impl StatefulWriter {
 }
 impl ProtocolEntity for StatefulWriter {
     fn get_instance_handle(&self) -> InstanceHandle {
-        todo!()
+        self.guid.into()
     }
 
     fn enable(&self) -> ReturnCode<()> {
