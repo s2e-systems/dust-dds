@@ -38,3 +38,7 @@ pub trait ProtocolWriter : ProtocolEndpoint  {
 pub trait ProtocolReader: ProtocolEndpoint {
 
 }
+
+pub trait ProtocolDiscovery : Send + Sync{
+
+}

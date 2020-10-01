@@ -1,5 +1,5 @@
 use std::sync::{Arc, Weak, Mutex};
-use crate::types::{GUID, Locator, ProtocolVersion, VendorId, EntityId, EntityKind};
+use crate::types::{GUID, ProtocolVersion, VendorId, EntityId, EntityKind};
 use crate::types::constants::{
     ENTITYID_PARTICIPANT,
     PROTOCOL_VERSION_2_4,};
@@ -7,7 +7,6 @@ use crate::transport::Transport;
 
 use super::publisher::RtpsPublisher;
 use super::subscriber::RtpsSubscriber;
-use crate::discovery::spdp::SPDP;
 use rust_dds_interface::types::{DomainId, InstanceHandle, ReturnCode};
 use rust_dds_interface::protocol::{ProtocolEntity, ProtocolParticipant, ProtocolPublisher, ProtocolSubscriber};
 
@@ -110,6 +109,7 @@ impl ProtocolParticipant for RtpsParticipant {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::types::Locator;
 
     struct MockTransport{
         multicast_locator_list: Vec<Locator>,

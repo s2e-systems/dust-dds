@@ -17,7 +17,7 @@ use crate::implementation::subscriber_impl::SubscriberImpl;
 use crate::implementation::topic_impl::TopicImpl;
 
 use rust_dds_interface::types::DomainId;
-use rust_dds_interface::protocol::ProtocolParticipant;
+use rust_dds_interface::protocol::{ProtocolParticipant, ProtocolDiscovery};
 use rust_dds_interface::qos::{DomainParticipantQos, TopicQos, PublisherQos, SubscriberQos,};
 
 pub struct DomainParticipantImpl{
@@ -32,6 +32,7 @@ pub struct DomainParticipantImpl{
     topic_list: Mutex<Vec<Arc<TopicImpl>>>,
     default_topic_qos: Mutex<TopicQos>,
     protocol_participant: Box<dyn ProtocolParticipant>,
+    discovery: Vec<Box<dyn ProtocolDiscovery>>,
 }
 
 impl DomainParticipantImpl{
@@ -338,10 +339,17 @@ impl DomainParticipantImpl{
             topic_list: Mutex::new(Vec::new()),
             default_topic_qos: Mutex::new(TopicQos::default()),
             protocol_participant,
+            discovery: Vec::new(),
         }
     }
 
- 
+    pub fn protocol_participant(&self) -> &Box<dyn ProtocolParticipant> {
+        &self.protocol_participant
+    }
+
+    pub fn add_discovery(&mut self, discovery: Box<dyn ProtocolDiscovery>) {
+        self.discovery.push(discovery)
+    } 
 }
 
 #[cfg(test)]
@@ -413,6 +421,11 @@ mod tests {
         fn create_subscriber(&self) -> Arc<dyn ProtocolSubscriber> {
             Arc::new(MockProtocolSubscriber)
         }
+    }
+
+    struct MockProtocolDiscovery;
+    impl ProtocolDiscovery for MockProtocolDiscovery{
+
     }
 
     #[test]
