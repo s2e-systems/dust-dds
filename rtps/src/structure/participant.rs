@@ -7,6 +7,7 @@ use crate::transport::Transport;
 
 use super::publisher::RtpsPublisher;
 use super::subscriber::RtpsSubscriber;
+use crate::discovery::spdp::SPDP;
 use rust_dds_interface::types::{DomainId, InstanceHandle, ReturnCode};
 use rust_dds_interface::protocol::{ProtocolEntity, ProtocolParticipant, ProtocolPublisher, ProtocolSubscriber};
 
@@ -30,7 +31,6 @@ impl RtpsParticipant {
         let protocol_version = PROTOCOL_VERSION_2_4;
         let vendor_id = [99,99];
         let guid_prefix = [5, 6, 7, 8, 9, 5, 1, 2, 3, 4, 10, 11];   // TODO: Should be uniquely generated
-
 
         Self {
             guid: GUID::new(guid_prefix,ENTITYID_PARTICIPANT ),
@@ -60,21 +60,13 @@ impl RtpsParticipant {
         self.vendor_id
     }
 
-    pub fn default_unicast_locator_list(&self) -> &Vec<Locator> {
-        self.userdata_transport.unicast_locator_list()
+    pub fn userdata_transport(&self) -> &Box<dyn Transport> {
+        &self.userdata_transport
     }
 
-    pub fn default_multicast_locator_list(&self) -> &Vec<Locator> {
-        self.userdata_transport.multicast_locator_list()
-    }
-
-    pub fn metatraffic_unicast_locator_list(&self) -> &Vec<Locator> {
-        self.metatraffic_transport.unicast_locator_list()
-    }
-
-    pub fn metatraffic_multicast_locator_list(&self) -> &Vec<Locator> {
-        self.metatraffic_transport.multicast_locator_list()
-    }
+    pub fn metatraffic_transport(&self) -> &Box<dyn Transport> {
+        &self.metatraffic_transport
+    }    
 }
 
 impl ProtocolEntity for RtpsParticipant {
@@ -119,7 +111,17 @@ impl ProtocolParticipant for RtpsParticipant {
 mod tests {
     use super::*;
 
-    struct MockTransport;
+    struct MockTransport{
+        multicast_locator_list: Vec<Locator>,
+    }
+
+    impl MockTransport{
+        fn new() -> Self {
+            Self {
+                multicast_locator_list: vec![Locator::new_udpv4(7400, [235,0,0,1])],
+            }
+        }
+    }
 
     impl Transport for MockTransport {
         fn write(&self, _message: crate::RtpsMessage, _destination_locator_list: &[Locator]) {
@@ -135,7 +137,7 @@ mod tests {
         }
 
         fn multicast_locator_list(&self) -> &Vec<Locator> {
-            todo!()
+            &self.multicast_locator_list
         }
 
         fn as_any(&self) -> &dyn std::any::Any {
@@ -145,7 +147,7 @@ mod tests {
 
     #[test]
     fn create_publisher() {
-        let participant = RtpsParticipant::new(0, MockTransport, MockTransport);
+        let participant = RtpsParticipant::new(0, MockTransport::new(), MockTransport::new());
         let participant_guid_prefix = &participant.get_instance_handle()[0..12];
 
         assert_eq!(participant.publisher_list.lock().unwrap()[0].strong_count(),0);
@@ -183,7 +185,7 @@ mod tests {
 
     #[test]
     fn create_subscriber() {
-        let participant = RtpsParticipant::new(0, MockTransport, MockTransport);
+        let participant = RtpsParticipant::new(0, MockTransport::new(), MockTransport::new());
         let participant_guid_prefix = &participant.get_instance_handle()[0..12];
 
         assert_eq!(participant.subscriber_list.lock().unwrap()[0].strong_count(),0);

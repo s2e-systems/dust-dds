@@ -367,6 +367,14 @@ mod tests {
         fn create_writer(&self, _topic_kind: TopicKind, _data_writer_qos: &DataWriterQos) -> Arc<dyn rust_dds_interface::protocol::ProtocolWriter> {
             todo!()
         }
+
+        fn create_builtin_stateless_writer(&self, _topic_kind: TopicKind, _data_writer_qos: &DataWriterQos) -> Arc<dyn rust_dds_interface::protocol::ProtocolWriter> {
+            todo!()
+        }
+    
+        fn create_builtin_stateful_writer(&self, _topic_kind: TopicKind, _data_writer_qos: &DataWriterQos) -> Arc<dyn rust_dds_interface::protocol::ProtocolWriter> {
+            todo!()
+        }
     }
 
     struct MockProtocolSubscriber;

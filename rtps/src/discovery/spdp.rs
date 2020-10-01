@@ -1,209 +1,306 @@
-// use std::convert::TryInto;
-// use rust_dds_interface::types::DomainId;
+use std::convert::TryInto;
+use rust_dds_interface::types::{TopicKind, DomainId, InstanceHandle};
 
-// use crate::serialized_payload::CdrEndianness;
+use crate::types::{GuidPrefix, GUID, Locator, ChangeKind, ProtocolVersion, VendorId};
+use crate::structure::RtpsParticipant;
+use crate::structure::StatelessWriter;
+use crate::messages::message_sender::RtpsMessageSender;
 
-// use crate::types::{VendorId, Locator, ProtocolVersion, GuidPrefix, InstanceHandle, GUID};
-// use crate::types::constants::{
-//     ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
-//     ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
-//     ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
-//     ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
-//     ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
-//     ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,};
-// use crate::messages::types::Count;
-// use crate::behavior::types::Duration;
-// use crate::structure::{RtpsParticipant, WriterProxy, ReaderProxy};
-// use crate::serialized_payload::CdrParameterList;
+use crate::serialized_payload::CdrEndianness;
+use crate::types::constants::{ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
+    ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
+    ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
+    ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
+    ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
+    ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
+    ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,};
+use crate::messages::types::Count;
+use crate::behavior::types::Duration;
+use crate::structure::{WriterProxy, ReaderProxy};
+use crate::serialized_payload::CdrParameterList;
 
-// use crate::endpoint_types::{
-//     BuiltInEndpointSet,
-//     ParameterDomainId,
-//     ParameterDomainTag,
-//     ParameterProtocolVersion,
-//     ParameterVendorId,
-//     ParameterExpectsInlineQoS,
-//     ParameterMetatrafficUnicastLocator, 
-//     ParameterMetatrafficMulticastLocator, 
-//     ParameterDefaultUnicastLocator, 
-//     ParameterDefaultMulticastLocator,
-//     ParameterBuiltInEndpointSet, 
-//     ParameterParticipantLeaseDuration,
-//     ParameterParticipantManualLivelinessCount, 
-//     };
+use crate::endpoint_types::{
+    BuiltInEndpointSet,
+    ParameterDomainId,
+    ParameterDomainTag,
+    ParameterProtocolVersion,
+    ParameterVendorId,
+    ParameterExpectsInlineQoS,
+    ParameterMetatrafficUnicastLocator, 
+    ParameterMetatrafficMulticastLocator, 
+    ParameterDefaultUnicastLocator, 
+    ParameterDefaultMulticastLocator,
+    ParameterBuiltInEndpointSet, 
+    ParameterParticipantLeaseDuration,
+    ParameterParticipantManualLivelinessCount, 
+    };
 
 
+pub struct SPDP<'a> {
+    participant: &'a RtpsParticipant,
+    spdp_builtin_participant_writer: StatelessWriter,
+}
 
-// #[derive(Debug, PartialEq)]
-// pub struct SPDPdiscoveredParticipantData{
-//     domain_id: DomainId,
-//     domain_tag: String,
-//     protocol_version: ProtocolVersion,
-//     guid_prefix: GuidPrefix,
-//     vendor_id: VendorId,
-//     expects_inline_qos: bool,
-//     metatraffic_unicast_locator_list: Vec<Locator>,
-//     metatraffic_multicast_locator_list: Vec<Locator>,
-//     default_unicast_locator_list: Vec<Locator>,
-//     default_multicast_locator_list: Vec<Locator>,
-//     available_built_in_endpoints: BuiltInEndpointSet,
-//     lease_duration: Duration,
-//     manual_liveliness_count: Count,
-//     // built_in_endpoint_qos: BuiltInEndpointQos
-// }
+impl<'a> SPDP<'a> {
+    pub fn new(participant: &'a RtpsParticipant) -> Self {
+        let guid_prefix = participant.guid().prefix();
+        let writer_guid = GUID::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER);
+        let spdp_builtin_participant_writer = StatelessWriter::new(writer_guid, TopicKind::WithKey);
 
-// impl SPDPdiscoveredParticipantData {
-//     pub fn new_from_participant(participant: &RtpsParticipant, lease_duration: Duration) -> Self{
-//         Self {
-//             domain_id: participant.domain_id(),
-//             domain_tag: participant.domain_tag().clone(),
-//             protocol_version: participant.protocol_version(),
-//             guid_prefix: participant.guid().prefix(),
-//             vendor_id: participant.vendor_id(),
-//             expects_inline_qos: false, // TODO
-//             metatraffic_unicast_locator_list: participant.metatraffic_unicast_locator_list().clone(),
-//             metatraffic_multicast_locator_list: participant.metatraffic_multicast_locator_list().clone(),
-//             default_unicast_locator_list: participant.default_unicast_locator_list().clone(),
-//             default_multicast_locator_list: participant.default_multicast_locator_list().clone(),
-//             available_built_in_endpoints: participant.builtin_endpoint_set(),
-//             lease_duration,
-//             manual_liveliness_count: 0, //TODO:Count,
-//         }
-//     }
+        for &locator in participant.metatraffic_transport().multicast_locator_list() {
+            spdp_builtin_participant_writer.reader_locator_add(locator)
+        }
 
-//     pub fn domain_id(&self) -> DomainId{
-//         self.domain_id
-//     }
+        let spdp_data = SPDPdiscoveredParticipantData::new_from_participant(participant, Duration::from_secs(30));
 
-//     pub fn domain_tag(&self) -> &String {
-//         &self.domain_tag
-//     }
+        let change = spdp_builtin_participant_writer.new_change(ChangeKind::Alive, Some(spdp_data.data(CdrEndianness::LittleEndian)), None, spdp_data.key());
+        spdp_builtin_participant_writer.writer_cache().add_change(change);
 
-//     pub fn guid_prefix(&self) -> GuidPrefix {
-//         self.guid_prefix
-//     }
+        Self {
+            participant,
+            spdp_builtin_participant_writer,
+        }        
+    }
 
-//     pub fn expects_inline_qos(&self) -> bool {
-//         self.expects_inline_qos
-//     }
+    pub fn send(&self) {
+        self.spdp_builtin_participant_writer.run();
+        RtpsMessageSender::send(
+            self.participant.guid().prefix(), 
+            self.participant.metatraffic_transport().as_ref(), 
+            &[&self.spdp_builtin_participant_writer])
+    }
+}
 
-//     pub fn metatraffic_unicast_locator_list(&self) -> &Vec<Locator> {
-//         &self.metatraffic_unicast_locator_list
-//     }
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::any::Any;
+    use crate::transport::udp::UdpTransport;
+    use crate::Transport;
+    use crate::RtpsMessage;
 
-//     pub fn metatraffic_multicast_locator_list(&self) -> &Vec<Locator> {
-//         &self.metatraffic_multicast_locator_list
-//     }
+    struct MockTransport{
+        sent_messages: Vec<RtpsMessage>,
+        multicast_locator_list: Vec<Locator>,
+    }
 
-//     pub fn default_unicast_locator_list(&self) -> &Vec<Locator> {
-//         &self.default_unicast_locator_list
-//     }
+    impl MockTransport{
+        fn new() -> Self {
+            Self {
+                sent_messages: Vec::new(),
+                multicast_locator_list: vec![Locator::new_udpv4(7400, [235,0,0,1])],
+            }
+        }
+    }
 
-//     pub fn default_multicast_locator_list(&self) -> &Vec<Locator> {
-//         &self.default_multicast_locator_list
-//     }
+    impl Transport for MockTransport {
+        fn write(&self, message: RtpsMessage, _destination_locator_list: &[Locator]) {
+            println!("Sent message: {:?}", message);
+        }
 
-//     pub fn available_built_in_endpoints(&self) -> &BuiltInEndpointSet {
-//         &self.available_built_in_endpoints
-//     }
+        fn read(&self) -> crate::transport::TransportResult<Option<(crate::RtpsMessage, Locator)>> {
+            todo!()
+        }
 
-//     pub fn key(&self) -> InstanceHandle {
-//         let mut instance_handle = [0;16];
-//         instance_handle[0..12].copy_from_slice(&self.guid_prefix);
-//         instance_handle
-//     }
+        fn unicast_locator_list(&self) -> &Vec<Locator> {
+            todo!()
+        }
 
-//     pub fn data(&self, endianness: CdrEndianness) -> Vec<u8> {
+        fn multicast_locator_list(&self) -> &Vec<Locator> {
+            &self.multicast_locator_list
+        }
 
-//         let mut parameter_list = CdrParameterList::new(endianness);
+        fn as_any(&self) -> &dyn std::any::Any {
+            todo!()
+        }
+    }
 
-//         // Defaults to the domainId of the local participant receiving the message
-//         // TODO: Add the chance of sending a specific domain_id
-//         // parameter_list.push(ParameterDomainId(self.domain_id));
+    #[test]
+    fn discovery_send() {
+        let userdata_transport = UdpTransport::default_userdata_transport(0, "Wi-Fi").unwrap();
+        let metatraffic_transport = UdpTransport::default_metatraffic_transport(0, "Wi-Fi").unwrap();
+        // let userdata_transport = MockTransport::new();
+        // let metatraffic_transport = MockTransport::new();
+        let participant = RtpsParticipant::new(0, userdata_transport, metatraffic_transport);
 
-//         if self.domain_tag != ParameterDomainTag::default() {
-//             parameter_list.push(ParameterDomainTag(self.domain_tag.clone()));
-//         }
+        let spdp = SPDP::new(&participant);
 
-//         parameter_list.push(ParameterProtocolVersion(self.protocol_version));
+        
+        spdp.send();
+    }
+}
 
-//         parameter_list.push(ParameterVendorId(self.vendor_id));
 
-//         if self.expects_inline_qos != ParameterExpectsInlineQoS::default() {
-//             parameter_list.push(ParameterExpectsInlineQoS(self.expects_inline_qos));
-//         }
+#[derive(Debug, PartialEq)]
+pub struct SPDPdiscoveredParticipantData{
+    domain_id: DomainId,
+    domain_tag: String,
+    protocol_version: ProtocolVersion,
+    guid_prefix: GuidPrefix,
+    vendor_id: VendorId,
+    expects_inline_qos: bool,
+    metatraffic_unicast_locator_list: Vec<Locator>,
+    metatraffic_multicast_locator_list: Vec<Locator>,
+    default_unicast_locator_list: Vec<Locator>,
+    default_multicast_locator_list: Vec<Locator>,
+    available_built_in_endpoints: BuiltInEndpointSet,
+    lease_duration: Duration,
+    manual_liveliness_count: Count,
+    // built_in_endpoint_qos: BuiltInEndpointQos
+}
 
-//         for metatraffic_unicast_locator in &self.metatraffic_unicast_locator_list {
-//             parameter_list.push(ParameterMetatrafficUnicastLocator(*metatraffic_unicast_locator));
-//         }
+impl SPDPdiscoveredParticipantData {
+    pub fn new_from_participant(participant: &RtpsParticipant, lease_duration: Duration) -> Self{
+        Self {
+            domain_id: participant.domain_id(),
+            domain_tag: "".to_string().clone(),
+            protocol_version: participant.protocol_version(),
+            guid_prefix: participant.guid().prefix(),
+            vendor_id: participant.vendor_id(),
+            expects_inline_qos: false, // TODO
+            metatraffic_unicast_locator_list: participant.metatraffic_transport().unicast_locator_list().clone(),
+            metatraffic_multicast_locator_list: participant.metatraffic_transport().multicast_locator_list().clone(),
+            default_unicast_locator_list: participant.userdata_transport().unicast_locator_list().clone(),
+            default_multicast_locator_list: participant.userdata_transport().multicast_locator_list().clone(),
+            available_built_in_endpoints: BuiltInEndpointSet::new(100), //TODO
+            lease_duration,
+            manual_liveliness_count: 0, //TODO:Count,
+        }
+    }
 
-//         for metatraffic_multicast_locator in &self.metatraffic_multicast_locator_list {
-//             parameter_list.push(ParameterMetatrafficMulticastLocator(*metatraffic_multicast_locator));
-//         }
+    pub fn domain_id(&self) -> DomainId{
+        self.domain_id
+    }
 
-//         for default_unicast_locator in &self.default_unicast_locator_list {
-//             parameter_list.push(ParameterDefaultUnicastLocator(*default_unicast_locator));
-//         }
+    pub fn domain_tag(&self) -> &String {
+        &self.domain_tag
+    }
 
-//         for default_multicast_locator in &self.default_multicast_locator_list {
-//             parameter_list.push(ParameterDefaultMulticastLocator(*default_multicast_locator));
-//         }
+    pub fn guid_prefix(&self) -> GuidPrefix {
+        self.guid_prefix
+    }
 
-//         parameter_list.push(ParameterBuiltInEndpointSet(self.available_built_in_endpoints));
+    pub fn expects_inline_qos(&self) -> bool {
+        self.expects_inline_qos
+    }
 
-//         if self.lease_duration != ParameterParticipantLeaseDuration::default() {
-//             parameter_list.push(ParameterParticipantLeaseDuration(self.lease_duration));
-//         }
+    pub fn metatraffic_unicast_locator_list(&self) -> &Vec<Locator> {
+        &self.metatraffic_unicast_locator_list
+    }
 
-//         parameter_list.push(ParameterParticipantManualLivelinessCount(self.manual_liveliness_count));
+    pub fn metatraffic_multicast_locator_list(&self) -> &Vec<Locator> {
+        &self.metatraffic_multicast_locator_list
+    }
 
-//         parameter_list.as_bytes()
-//     }
+    pub fn default_unicast_locator_list(&self) -> &Vec<Locator> {
+        &self.default_unicast_locator_list
+    }
 
-//     pub fn from_key_data(key: InstanceHandle, data: &[u8], default_domain_id: DomainId) -> Self {
+    pub fn default_multicast_locator_list(&self) -> &Vec<Locator> {
+        &self.default_multicast_locator_list
+    }
 
-//         let guid_prefix: GuidPrefix = key[0..12].try_into().unwrap();
+    pub fn available_built_in_endpoints(&self) -> &BuiltInEndpointSet {
+        &self.available_built_in_endpoints
+    }
 
-//         let parameter_list = CdrParameterList::from_bytes(&data);
+    pub fn key(&self) -> InstanceHandle {
+        let mut instance_handle = [0;16];
+        instance_handle[0..12].copy_from_slice(&self.guid_prefix);
+        instance_handle
+    }
 
-//         let domain_id = parameter_list.find::<ParameterDomainId>().unwrap_or(ParameterDomainId(default_domain_id)).0;
-//         let domain_tag = parameter_list.find::<ParameterDomainTag>().unwrap_or_default().0;
-//         let protocol_version = parameter_list.find::<ParameterProtocolVersion>().unwrap().0;
-//         let vendor_id = parameter_list.find::<ParameterVendorId>().unwrap().0;
-//         let expects_inline_qos = parameter_list.find::<ParameterExpectsInlineQoS>().unwrap_or_default().0;
-//         let metatraffic_unicast_locator_list = 
-//             parameter_list.find_all::<ParameterMetatrafficUnicastLocator>()
-//             .iter().map(|x|x.0).collect();
-//         let metatraffic_multicast_locator_list = 
-//             parameter_list.find_all::<ParameterMetatrafficMulticastLocator>()
-//             .iter().map(|x|x.0).collect();
-//         let default_unicast_locator_list = 
-//             parameter_list.find_all::<ParameterDefaultUnicastLocator>()
-//             .iter().map(|x|x.0).collect();
-//         let default_multicast_locator_list = 
-//             parameter_list.find_all::<ParameterDefaultMulticastLocator>()
-//             .iter().map(|x|x.0).collect();
-//         let available_built_in_endpoints = parameter_list.find::<ParameterBuiltInEndpointSet>().unwrap().0;
-//         let lease_duration = parameter_list.find::<ParameterParticipantLeaseDuration>().unwrap_or_default().0;
-//         let manual_liveliness_count = parameter_list.find::<ParameterParticipantManualLivelinessCount>().unwrap().0;
+    pub fn data(&self, endianness: CdrEndianness) -> Vec<u8> {
 
-//         Self{
-//             domain_id,
-//             domain_tag,
-//             protocol_version,
-//             guid_prefix,
-//             vendor_id,
-//             expects_inline_qos,
-//             metatraffic_unicast_locator_list,
-//             metatraffic_multicast_locator_list,
-//             default_unicast_locator_list,
-//             default_multicast_locator_list,
-//             available_built_in_endpoints,
-//             lease_duration,
-//             manual_liveliness_count,
-//         }
-//     }
-// }
+        let mut parameter_list = CdrParameterList::new(endianness);
+
+        // Defaults to the domainId of the local participant receiving the message
+        // TODO: Add the chance of sending a specific domain_id
+        // parameter_list.push(ParameterDomainId(self.domain_id));
+
+        if self.domain_tag != ParameterDomainTag::default() {
+            parameter_list.push(ParameterDomainTag(self.domain_tag.clone()));
+        }
+
+        parameter_list.push(ParameterProtocolVersion(self.protocol_version));
+
+        parameter_list.push(ParameterVendorId(self.vendor_id));
+
+        if self.expects_inline_qos != ParameterExpectsInlineQoS::default() {
+            parameter_list.push(ParameterExpectsInlineQoS(self.expects_inline_qos));
+        }
+
+        for metatraffic_unicast_locator in &self.metatraffic_unicast_locator_list {
+            parameter_list.push(ParameterMetatrafficUnicastLocator(*metatraffic_unicast_locator));
+        }
+
+        for metatraffic_multicast_locator in &self.metatraffic_multicast_locator_list {
+            parameter_list.push(ParameterMetatrafficMulticastLocator(*metatraffic_multicast_locator));
+        }
+
+        for default_unicast_locator in &self.default_unicast_locator_list {
+            parameter_list.push(ParameterDefaultUnicastLocator(*default_unicast_locator));
+        }
+
+        for default_multicast_locator in &self.default_multicast_locator_list {
+            parameter_list.push(ParameterDefaultMulticastLocator(*default_multicast_locator));
+        }
+
+        parameter_list.push(ParameterBuiltInEndpointSet(self.available_built_in_endpoints));
+
+        if self.lease_duration != ParameterParticipantLeaseDuration::default() {
+            parameter_list.push(ParameterParticipantLeaseDuration(self.lease_duration));
+        }
+
+        parameter_list.push(ParameterParticipantManualLivelinessCount(self.manual_liveliness_count));
+
+        parameter_list.as_bytes()
+    }
+
+    pub fn from_key_data(key: InstanceHandle, data: &[u8], default_domain_id: DomainId) -> Self {
+
+        let guid_prefix: GuidPrefix = key[0..12].try_into().unwrap();
+
+        let parameter_list = CdrParameterList::from_bytes(&data);
+
+        let domain_id = parameter_list.find::<ParameterDomainId>().unwrap_or(ParameterDomainId(default_domain_id)).0;
+        let domain_tag = parameter_list.find::<ParameterDomainTag>().unwrap_or_default().0;
+        let protocol_version = parameter_list.find::<ParameterProtocolVersion>().unwrap().0;
+        let vendor_id = parameter_list.find::<ParameterVendorId>().unwrap().0;
+        let expects_inline_qos = parameter_list.find::<ParameterExpectsInlineQoS>().unwrap_or_default().0;
+        let metatraffic_unicast_locator_list = 
+            parameter_list.find_all::<ParameterMetatrafficUnicastLocator>()
+            .iter().map(|x|x.0).collect();
+        let metatraffic_multicast_locator_list = 
+            parameter_list.find_all::<ParameterMetatrafficMulticastLocator>()
+            .iter().map(|x|x.0).collect();
+        let default_unicast_locator_list = 
+            parameter_list.find_all::<ParameterDefaultUnicastLocator>()
+            .iter().map(|x|x.0).collect();
+        let default_multicast_locator_list = 
+            parameter_list.find_all::<ParameterDefaultMulticastLocator>()
+            .iter().map(|x|x.0).collect();
+        let available_built_in_endpoints = parameter_list.find::<ParameterBuiltInEndpointSet>().unwrap().0;
+        let lease_duration = parameter_list.find::<ParameterParticipantLeaseDuration>().unwrap_or_default().0;
+        let manual_liveliness_count = parameter_list.find::<ParameterParticipantManualLivelinessCount>().unwrap().0;
+
+        Self{
+            domain_id,
+            domain_tag,
+            protocol_version,
+            guid_prefix,
+            vendor_id,
+            expects_inline_qos,
+            metatraffic_unicast_locator_list,
+            metatraffic_multicast_locator_list,
+            default_unicast_locator_list,
+            default_multicast_locator_list,
+            available_built_in_endpoints,
+            lease_duration,
+            manual_liveliness_count,
+        }
+    }
+}
 
 // pub fn add_discovered_participant(participant: &RtpsParticipant, discovered_participant: &SPDPdiscoveredParticipantData) {
 //     // Implements the process described in

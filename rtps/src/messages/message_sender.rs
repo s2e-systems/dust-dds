@@ -15,8 +15,7 @@ pub trait Sender {
     fn pop_send_message(&self) -> Option<(Vec<Locator>, VecDeque<RtpsSubmessage>)>;
 }
 
-pub struct RtpsMessageSender {
-}
+pub struct RtpsMessageSender;
 
 impl RtpsMessageSender {
     pub fn send(participant_guid_prefix: GuidPrefix, transport: &dyn Transport,  sender_list: &[&dyn Sender]) {
