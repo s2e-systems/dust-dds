@@ -6,10 +6,12 @@ use rust_dds_interface::protocol::ProtocolDiscovery;
 use crate::types::{GuidPrefix, GUID, Locator, ChangeKind, ProtocolVersion, VendorId};
 use crate::structure::RtpsParticipant;
 use crate::structure::StatelessWriter;
+use crate::structure::StatelessReader;
 use crate::messages::message_sender::RtpsMessageSender;
+use crate::messages::message_receiver::RtpsMessageReceiver;
 
 use crate::serialized_payload::CdrEndianness;
-use crate::types::constants::ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER;
+use crate::types::constants::{ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, ENTITYID_SPDP_BUILTIN_PARTICIPANT_DETECTOR};
 use crate::messages::types::Count;
 use crate::behavior::types::Duration;
 use crate::serialized_payload::CdrParameterList;
@@ -34,13 +36,22 @@ use crate::endpoint_types::{
 pub struct SPDP {
     participant: Weak<RtpsParticipant>,
     spdp_builtin_participant_writer: StatelessWriter,
+    spdp_builtin_participant_reader: StatelessReader,
 }
 
 impl SPDP {
     pub fn new(participant: &Arc<RtpsParticipant>) -> Self {
         let guid_prefix = participant.guid().prefix();
         let writer_guid = GUID::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER);
+        let reader_guid = GUID::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_DETECTOR);
         let spdp_builtin_participant_writer = StatelessWriter::new(writer_guid, TopicKind::WithKey);
+
+        let spdp_builtin_participant_reader = StatelessReader::new(
+            reader_guid,
+            TopicKind::WithKey, 
+            vec![],
+            participant.metatraffic_transport().multicast_locator_list().clone(),
+            false /*expects_inline_qos*/);
 
         for &locator in participant.metatraffic_transport().multicast_locator_list() {
             spdp_builtin_participant_writer.reader_locator_add(locator)
@@ -54,6 +65,7 @@ impl SPDP {
         Self {
             participant: Arc::downgrade(participant),
             spdp_builtin_participant_writer,
+            spdp_builtin_participant_reader
         }        
     }
 
@@ -63,12 +75,21 @@ impl SPDP {
         RtpsMessageSender::send(
             participant.guid().prefix(), 
             participant.metatraffic_transport().as_ref(), 
-            &[&self.spdp_builtin_participant_writer])
+            &[&self.spdp_builtin_participant_writer]);
+    }
+
+    pub fn receive(&self) {
+        let participant = self.participant.upgrade().unwrap();
+        RtpsMessageReceiver::receive(
+            participant.guid().prefix(), 
+            participant.metatraffic_transport().as_ref(),
+            &[&self.spdp_builtin_participant_reader]);
+        self.spdp_builtin_participant_reader.run()
     }
 }
 
 impl ProtocolDiscovery for SPDP {
-    
+
 }
 
 
@@ -346,8 +367,17 @@ mod tests {
     use crate::RtpsMessage;
     use crate::types::constants::PROTOCOL_VERSION_2_4;
 
+    use crate::messages::submessages::{InfoTs, Data};
+    use crate::messages::{Endianness, RtpsSubmessage};
+    use crate::messages::types::Time;
+    use crate::types::constants::ENTITYID_UNKNOWN;
+    use crate::serialized_payload::ParameterList;
+    use crate::messages::submessages::data_submessage::Payload;
+    use crate::inline_qos_types::{StatusInfo, KeyHash};
+
     struct MockTransport{
         sent_messages: Vec<RtpsMessage>,
+        unicast_locator_list: Vec<Locator>,
         multicast_locator_list: Vec<Locator>,
     }
 
@@ -355,7 +385,8 @@ mod tests {
         fn new() -> Self {
             Self {
                 sent_messages: Vec::new(),
-                multicast_locator_list: vec![Locator::new_udpv4(7400, [235,0,0,1])],
+                unicast_locator_list: vec![Locator::new_udpv4(7400, [127,0,0,1])],
+                multicast_locator_list: vec![Locator::new_udpv4(7400, [239,255,0,1])],
             }
         }
     }
@@ -365,12 +396,35 @@ mod tests {
             println!("Sent message: {:?}", message);
         }
 
-        fn read(&self) -> crate::transport::TransportResult<Option<(crate::RtpsMessage, Locator)>> {
-            todo!()
+        fn read(&self) -> crate::transport::TransportResult<Option<(RtpsMessage, Locator)>> {
+            let endianness = Endianness::LittleEndian;
+            let time = Time::new(100000, 10);
+            let info_ts_submessage = InfoTs::new(endianness, Some(time));
+
+            let reader_id = ENTITYID_UNKNOWN;
+            let writer_id = ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER;
+            let writer_sn = 1;
+            let mut inline_qos = ParameterList::new();
+            inline_qos.push(StatusInfo([0,0,0,0])); // Alive status 
+            inline_qos.push(KeyHash([10;16]));
+            let payload = Payload::Data(vec![0,0,0,0]);
+            let data = Data::new(endianness,
+                reader_id,
+                writer_id,
+                writer_sn,
+                Some(inline_qos),
+                payload);
+
+            let guid_prefix = [5;12];
+            let submessages = vec![RtpsSubmessage::InfoTs(info_ts_submessage), RtpsSubmessage::Data(data)];
+
+            let message = RtpsMessage::new(PROTOCOL_VERSION_2_4, [99,99], guid_prefix, submessages);
+            let locator = Locator::new_udpv4(7400, [239,255,0,1]);
+            Ok(Some((message, locator)))
         }
 
         fn unicast_locator_list(&self) -> &Vec<Locator> {
-            todo!()
+            &self.unicast_locator_list
         }
 
         fn multicast_locator_list(&self) -> &Vec<Locator> {
@@ -384,16 +438,27 @@ mod tests {
 
     #[test]
     fn discovery_send() {
-        let userdata_transport = UdpTransport::default_userdata_transport(0, "Wi-Fi").unwrap();
-        let metatraffic_transport = UdpTransport::default_metatraffic_transport(0, "Wi-Fi").unwrap();
-        // let userdata_transport = MockTransport::new();
-        // let metatraffic_transport = MockTransport::new();
+        // Left here for debugging
+        // let userdata_transport = UdpTransport::default_userdata_transport(0, "Wi-Fi").unwrap();
+        // let metatraffic_transport = UdpTransport::default_metatraffic_transport(0, "Wi-Fi").unwrap();
+        let userdata_transport = MockTransport::new();
+        let metatraffic_transport = MockTransport::new();
         let participant = Arc::new(RtpsParticipant::new(0, userdata_transport, metatraffic_transport));
 
         let spdp = SPDP::new(&participant);
 
-        
         spdp.send();
+    }
+
+    #[test]
+    fn discovery_receive() {
+        let userdata_transport = MockTransport::new();
+        let metatraffic_transport = MockTransport::new();
+        let participant = Arc::new(RtpsParticipant::new(0, userdata_transport, metatraffic_transport));
+
+        let spdp = SPDP::new(&participant);
+
+        spdp.receive();
     }
 
     #[test]
