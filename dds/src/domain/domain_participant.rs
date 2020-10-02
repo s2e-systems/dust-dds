@@ -60,11 +60,14 @@ impl DomainParticipant {
 
         let name = "rtps";
         let protocol_participant = match name {            
-            "rtps" => rust_rtps::structure::RtpsParticipant::new(domain_id, userdata_transport, metatraffic_transport),
+            "rtps" => Arc::new(rust_rtps::structure::RtpsParticipant::new(domain_id, userdata_transport, metatraffic_transport)),
             _ => panic!("Protocol not valid"),
         };
 
-        let new_participant = DomainParticipant(Arc::new(DomainParticipantImpl::new(domain_id, qos_list, a_listener, mask, Box::new(protocol_participant))));
+        let discovery = Box::new(rust_rtps::discovery::spdp::SPDP::new(&protocol_participant));
+
+        let new_participant = DomainParticipant(Arc::new(DomainParticipantImpl::new(domain_id, qos_list, a_listener, mask, protocol_participant)));
+        new_participant.0.add_discovery(discovery);
 
         if enabled {
             new_participant.enable().ok()?;

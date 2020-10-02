@@ -1,5 +1,7 @@
+use std::sync::{Arc,Weak};
 use std::convert::TryInto;
 use rust_dds_interface::types::{TopicKind, DomainId, InstanceHandle};
+use rust_dds_interface::protocol::ProtocolDiscovery;
 
 use crate::types::{GuidPrefix, GUID, Locator, ChangeKind, ProtocolVersion, VendorId};
 use crate::structure::RtpsParticipant;
@@ -29,13 +31,13 @@ use crate::endpoint_types::{
     };
 
 
-pub struct SPDP<'a> {
-    participant: &'a RtpsParticipant,
+pub struct SPDP {
+    participant: Weak<RtpsParticipant>,
     spdp_builtin_participant_writer: StatelessWriter,
 }
 
-impl<'a> SPDP<'a> {
-    pub fn new(participant: &'a RtpsParticipant) -> Self {
+impl SPDP {
+    pub fn new(participant: &Arc<RtpsParticipant>) -> Self {
         let guid_prefix = participant.guid().prefix();
         let writer_guid = GUID::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER);
         let spdp_builtin_participant_writer = StatelessWriter::new(writer_guid, TopicKind::WithKey);
@@ -50,19 +52,25 @@ impl<'a> SPDP<'a> {
         spdp_builtin_participant_writer.writer_cache().add_change(change);
 
         Self {
-            participant,
+            participant: Arc::downgrade(participant),
             spdp_builtin_participant_writer,
         }        
     }
 
     pub fn send(&self) {
+        let participant = self.participant.upgrade().unwrap();
         self.spdp_builtin_participant_writer.run();
         RtpsMessageSender::send(
-            self.participant.guid().prefix(), 
-            self.participant.metatraffic_transport().as_ref(), 
+            participant.guid().prefix(), 
+            participant.metatraffic_transport().as_ref(), 
             &[&self.spdp_builtin_participant_writer])
     }
 }
+
+impl ProtocolDiscovery for SPDP {
+    
+}
+
 
 #[derive(Debug, PartialEq)]
 pub struct SPDPdiscoveredParticipantData{
@@ -380,7 +388,7 @@ mod tests {
         let metatraffic_transport = UdpTransport::default_metatraffic_transport(0, "Wi-Fi").unwrap();
         // let userdata_transport = MockTransport::new();
         // let metatraffic_transport = MockTransport::new();
-        let participant = RtpsParticipant::new(0, userdata_transport, metatraffic_transport);
+        let participant = Arc::new(RtpsParticipant::new(0, userdata_transport, metatraffic_transport));
 
         let spdp = SPDP::new(&participant);
 
