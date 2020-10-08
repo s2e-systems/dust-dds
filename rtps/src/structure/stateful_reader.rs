@@ -10,6 +10,7 @@ use crate::behavior::types::Duration;
 use crate::behavior::stateful_reader::{StatefulReaderBehavior, BestEfforStatefulReaderBehavior, ReliableStatefulReaderBehavior, };
 
 use rust_dds_interface::protocol::{ProtocolEntity, ProtocolReader, ProtocolEndpoint};
+use rust_dds_interface::qos::DataReaderQos;
 use rust_dds_interface::types::{InstanceHandle, ReturnCode};
 
 struct ChangesFromWriter {
@@ -251,17 +252,19 @@ impl StatefulReader {
     pub fn new(
         guid: GUID,
         topic_kind: TopicKind,
-        reliability_level: ReliabilityKind,
-        expects_inline_qos: bool,
-        heartbeat_response_delay: Duration,        
+        reader_qos: &DataReaderQos,
         ) -> Self {
+            
+        let expects_inline_qos = false;
+        let heartbeat_response_delay = Duration::from_millis(200);
+        
         Self {
             guid,
             topic_kind,
-            reliability_level,
+            reliability_level: reader_qos.reliability.kind.into(),
             expects_inline_qos,
             heartbeat_response_delay,       
-            reader_cache: HistoryCache::new(),
+            reader_cache: HistoryCache::new(reader_qos.resource_limits.max_samples, reader_qos.resource_limits.max_instances, reader_qos.resource_limits.max_samples_per_instance),
             matched_writers: RwLock::new(HashMap::new()),
         }
     }

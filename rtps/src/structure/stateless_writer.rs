@@ -9,6 +9,8 @@ use crate::behavior::stateless_writer::BestEffortStatelessWriterBehavior;
 use crate::messages::RtpsSubmessage;
 use crate::messages::message_sender::Sender;
 
+use rust_dds_interface::qos::DataWriterQos;
+
 pub struct ReaderLocator {
     //requested_changes: HashSet<CacheChange>,
     // unsent_changes: SequenceNumber,
@@ -96,13 +98,14 @@ impl StatelessWriter {
     pub fn new(
         guid: GUID,
         topic_kind: TopicKind,
+        writer_qos: &DataWriterQos
     ) -> Self {
         StatelessWriter {
             guid,
             topic_kind,
             reliability_level: ReliabilityKind::BestEffort,
             last_change_sequence_number: Mutex::new(0),
-            writer_cache: HistoryCache::new(),
+            writer_cache: HistoryCache::new(writer_qos.resource_limits.max_samples, writer_qos.resource_limits.max_instances, writer_qos.resource_limits.max_samples_per_instance),
             data_max_sized_serialized: None,
             reader_locators: RwLock::new(HashMap::new()),
         }
@@ -196,9 +199,11 @@ mod tests {
 
     #[test]
     fn test_writer_new_change() {
+        let writer_qos = DataWriterQos::default();
         let writer = StatelessWriter::new(
             GUID::new([0; 12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
             TopicKind::WithKey,
+            &writer_qos
         );
 
         let cache_change_seq1 = writer.new_change(
@@ -231,9 +236,12 @@ mod tests {
 
     #[test]
     fn test_best_effort_stateless_writer_run() {
+        let writer_qos = DataWriterQos::default();
+
         let writer = StatelessWriter::new(
             GUID::new([0; 12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
             TopicKind::WithKey,
+            &writer_qos
         );
 
         let locator = Locator::new(0, 7400, [1; 16]);

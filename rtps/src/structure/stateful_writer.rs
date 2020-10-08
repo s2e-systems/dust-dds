@@ -11,6 +11,7 @@ use crate::structure::history_cache::HistoryCache;
 use crate::structure::cache_change::CacheChange;
 use crate::serialized_payload::ParameterList;
 use rust_dds_interface::protocol::{ProtocolEntity, ProtocolWriter, ProtocolEndpoint};
+use rust_dds_interface::qos::DataWriterQos;
 use rust_dds_interface::types::{Data, Time, ReturnCode};
 
 struct ChangeForReader {
@@ -204,23 +205,25 @@ impl StatefulWriter {
     pub fn new(
         guid: GUID,
         topic_kind: TopicKind,
-        reliability_level: ReliabilityKind,
-        push_mode: bool,
-        heartbeat_period: Duration,
-        nack_response_delay: Duration,
-        nack_suppression_duration: Duration,) -> Self {
-        StatefulWriter {
-            guid,
-            topic_kind,
-            reliability_level,
-            push_mode,
-            heartbeat_period,
-            nack_response_delay,
-            nack_suppression_duration,
-            last_change_sequence_number: Mutex::new(0),
-            writer_cache: HistoryCache::new(),
-            data_max_sized_serialized: None,
-            matched_readers: RwLock::new(HashMap::new()),
+        writer_qos: &DataWriterQos) -> Self {
+
+            let push_mode = true;
+            let heartbeat_period = Duration::from_millis(500);
+            let nack_response_delay = Duration::from_millis(200);
+            let nack_suppression_duration = Duration::from_millis(0);
+
+            StatefulWriter {
+                guid,
+                topic_kind,
+                reliability_level: writer_qos.reliability.kind.into(),
+                push_mode,
+                heartbeat_period,
+                nack_response_delay,
+                nack_suppression_duration,
+                last_change_sequence_number: Mutex::new(0),
+                writer_cache: HistoryCache::new(writer_qos.resource_limits.max_samples, writer_qos.resource_limits.max_instances, writer_qos.resource_limits.max_samples_per_instance),
+                data_max_sized_serialized: None,
+                matched_readers: RwLock::new(HashMap::new()),
         }
     }
 
@@ -388,22 +391,20 @@ mod tests {
         ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
         ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,};
 
-    use crate::behavior::types::constants::DURATION_ZERO;
     use crate::messages::submessages::AckNack;
     use crate::messages::Endianness;
+    
+    use rust_dds_interface::qos_policy::ReliabilityQosPolicyKind;
 
     use std::thread::sleep;
 
     #[test]
     fn stateful_writer_new_change() {
+        let writer_qos = DataWriterQos::default();
         let writer = StatefulWriter::new(
             GUID::new([0; 12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
             TopicKind::WithKey,
-            ReliabilityKind::BestEffort,
-            false,
-            DURATION_ZERO,
-            DURATION_ZERO,
-            DURATION_ZERO,
+            &writer_qos
         );
 
         let cache_change_seq1 = writer.new_change(
@@ -530,17 +531,14 @@ mod tests {
 
     #[test]
     fn run_best_effort_send_data() {
-        let heartbeat_period = Duration::from_millis(200);
+        let mut writer_qos = DataWriterQos::default();
+        writer_qos.reliability.kind = ReliabilityQosPolicyKind::BestEffortReliabilityQos;
 
         let writer_guid = GUID::new([2;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
         let stateful_writer = StatefulWriter::new(
             writer_guid,
             TopicKind::WithKey,
-            ReliabilityKind::BestEffort,
-            true,
-            heartbeat_period,
-            DURATION_ZERO,
-            DURATION_ZERO
+            &writer_qos,
         );
 
         let remote_reader_guid = GUID::new([1,2,3,4,5,6,7,8,9,10,11,12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
@@ -575,24 +573,21 @@ mod tests {
         // Check that no heartbeat is sent using best effort writers
         stateful_writer.run();
         assert!(stateful_writer.pop_send_message().is_none());
-        sleep(heartbeat_period.into());
+        sleep(stateful_writer.heartbeat_period.into());
         stateful_writer.run();
         assert!(stateful_writer.pop_send_message().is_none());
     }
 
     #[test]
     fn run_reliable_send_data() {
-        let heartbeat_period = Duration::from_millis(200);
+        let mut writer_qos = DataWriterQos::default();
+        writer_qos.reliability.kind = ReliabilityQosPolicyKind::ReliableReliabilityQos;
 
         let writer_guid = GUID::new([2;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
         let stateful_writer = StatefulWriter::new(
             writer_guid,
             TopicKind::WithKey,
-            ReliabilityKind::Reliable,
-            true,
-            heartbeat_period,
-            DURATION_ZERO,
-            DURATION_ZERO
+            &writer_qos
         );
 
         let remote_reader_guid_prefix = [1,2,3,4,5,6,7,8,9,10,11,12];
@@ -628,7 +623,7 @@ mod tests {
         // Check that heartbeat is sent while there are unacked changes
         stateful_writer.run();
         assert!(stateful_writer.pop_send_message().is_none());
-        sleep(heartbeat_period.into());
+        sleep(stateful_writer.heartbeat_period.into());
         stateful_writer.run();
         let (_dst_locators, messages) = stateful_writer.pop_send_message().unwrap();
         if let RtpsSubmessage::Heartbeat(heartbeat) = &messages[0] {
@@ -652,7 +647,7 @@ mod tests {
         // Check that no heartbeat is sent if there are no new changes
         stateful_writer.run();
         assert!(stateful_writer.pop_send_message().is_none());
-        sleep(heartbeat_period.into());
+        sleep(stateful_writer.heartbeat_period.into());
         stateful_writer.run();
         assert!(stateful_writer.pop_send_message().is_none());
     }

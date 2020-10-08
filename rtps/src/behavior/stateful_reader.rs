@@ -190,7 +190,7 @@ impl ReliableStatefulReaderBehavior {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{ChangeKind, TopicKind, ReliabilityKind, GUID};
+    use crate::types::{ChangeKind, TopicKind, GUID};
     use crate::types::constants::{
         ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, };
     use crate::structure::CacheChange;
@@ -200,15 +200,19 @@ mod tests {
     use crate::messages::Endianness;
     use super::super::change_kind_to_status_info;
 
+    use rust_dds_interface::qos::DataReaderQos;
+    use rust_dds_interface::qos_policy::ReliabilityQosPolicyKind;
+
     #[test]
     fn run_best_effort_data_only() {
         let reader_guid = GUID::new([2;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
+        let mut reader_qos = DataReaderQos::default();
+        reader_qos.reliability.kind = ReliabilityQosPolicyKind::BestEffortReliabilityQos;
+
         let stateful_reader = StatefulReader::new(
             reader_guid,
             TopicKind::WithKey,
-            ReliabilityKind::BestEffort,
-            false,
-            Duration::from_millis(300));
+            &reader_qos);
 
         let remote_writer_guid_prefix = [1;12];
         let remote_writer_guid = GUID::new(remote_writer_guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
@@ -254,12 +258,13 @@ mod tests {
     #[test]
     fn run_reliable_data_only() {
         let reader_guid = GUID::new([2;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
+        let mut reader_qos = DataReaderQos::default();
+        reader_qos.reliability.kind = ReliabilityQosPolicyKind::ReliableReliabilityQos;
+
         let stateful_reader = StatefulReader::new(
             reader_guid,
             TopicKind::WithKey,
-            ReliabilityKind::Reliable,
-            false,
-            Duration::from_millis(300));
+            &reader_qos);
 
         let remote_writer_guid_prefix = [1;12];
         let remote_writer_guid = GUID::new(remote_writer_guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
@@ -308,12 +313,13 @@ mod tests {
     #[test]
     fn run_reliable_non_final_heartbeat() {
         let reader_guid = GUID::new([2;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
+        let mut reader_qos = DataReaderQos::default();
+        reader_qos.reliability.kind = ReliabilityQosPolicyKind::ReliableReliabilityQos;
+
         let stateful_reader = StatefulReader::new(
             reader_guid,
             TopicKind::WithKey,
-            ReliabilityKind::Reliable,
-            false,
-            Duration::from_millis(300));
+            &reader_qos);
 
         let remote_writer_guid_prefix = [1;12];
         let remote_writer_guid = GUID::new(remote_writer_guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
@@ -343,12 +349,13 @@ mod tests {
     #[test]
     fn run_reliable_final_heartbeat_with_missing_changes() {
         let reader_guid = GUID::new([2;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
+        let mut reader_qos = DataReaderQos::default();
+        reader_qos.reliability.kind = ReliabilityQosPolicyKind::ReliableReliabilityQos;
+
         let stateful_reader = StatefulReader::new(
             reader_guid,
             TopicKind::WithKey,
-            ReliabilityKind::Reliable,
-            false,
-            Duration::from_millis(300));
+            &reader_qos);
 
         let remote_writer_guid_prefix = [1;12];
         let remote_writer_guid = GUID::new(remote_writer_guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
@@ -387,12 +394,13 @@ mod tests {
     #[test]
     fn run_reliable_final_heartbeat_without_missing_changes() {
         let reader_guid = GUID::new([2;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
+        let mut reader_qos = DataReaderQos::default();
+        reader_qos.reliability.kind = ReliabilityQosPolicyKind::ReliableReliabilityQos;
+
         let stateful_reader = StatefulReader::new(
             reader_guid,
             TopicKind::WithKey,
-            ReliabilityKind::Reliable,
-            false,
-            Duration::from_millis(300));
+            &reader_qos);
 
         let remote_writer_guid_prefix = [1;12];
         let remote_writer_guid = GUID::new(remote_writer_guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);

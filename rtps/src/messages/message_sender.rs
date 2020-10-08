@@ -40,21 +40,23 @@ impl RtpsMessageSender {
 mod tests {
     use super::*;
     use crate::transport::memory::MemoryTransport;
-    use crate::types::{TopicKind, GUID, ChangeKind, Locator, ReliabilityKind};
+    use crate::types::{TopicKind, GUID, ChangeKind, Locator};
     use crate::types::constants::{
         ENTITYID_UNKNOWN,
         ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
         ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
         ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, };
-    use crate::behavior::types::Duration;
     use crate::structure::{StatelessWriter, StatefulWriter, ReaderProxy};
+
+    use rust_dds_interface::qos::DataWriterQos;
+    use rust_dds_interface::qos_policy::ReliabilityQosPolicyKind;
 
     #[test]
     fn stateless_writer_single_reader_locator() {
         let transport = MemoryTransport::new(Locator::new(0,0,[0;16]), vec![]).unwrap();
         let participant_guid_prefix = [1,2,3,4,5,5,4,3,2,1,1,2];
-
-        let stateless_writer_1 = StatelessWriter::new(GUID::new(participant_guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER), TopicKind::WithKey);
+        let writer_qos = DataWriterQos::default();
+        let stateless_writer_1 = StatelessWriter::new(GUID::new(participant_guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER), TopicKind::WithKey, &writer_qos);
         let reader_locator_1 = Locator::new(-2, 10000, [1;16]);
         stateless_writer_1.reader_locator_add(reader_locator_1);
 
@@ -175,8 +177,10 @@ mod tests {
         let reader_locator_2 = Locator::new(-2, 2000, [2;16]);
         let reader_locator_3 = Locator::new(-2, 300, [3;16]);
 
-        let stateless_writer_1 = StatelessWriter::new(GUID::new(participant_guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER), TopicKind::WithKey);
-        let stateless_writer_2 = StatelessWriter::new(GUID::new(participant_guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER), TopicKind::WithKey);
+        let writer_qos = DataWriterQos::default();
+
+        let stateless_writer_1 = StatelessWriter::new(GUID::new(participant_guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER), TopicKind::WithKey, &writer_qos);
+        let stateless_writer_2 = StatelessWriter::new(GUID::new(participant_guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER), TopicKind::WithKey, &writer_qos);
 
         RtpsMessageSender::send(participant_guid_prefix, &transport, &[&stateless_writer_1, &stateless_writer_2]);
         
@@ -219,14 +223,13 @@ mod tests {
         let transport = MemoryTransport::new(Locator::new(0,0,[0;16]), vec![]).unwrap();
         let participant_guid_prefix = [1,2,3,4,5,5,4,3,2,1,1,2];
 
+        let mut writer_qos = DataWriterQos::default();
+        writer_qos.reliability.kind = ReliabilityQosPolicyKind::BestEffortReliabilityQos;
+
         let stateful_writer_1 = StatefulWriter::new(
             GUID::new(participant_guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER), 
             TopicKind::WithKey, 
-            ReliabilityKind::BestEffort,
-            true,
-            Duration::from_secs(10),
-            Duration::from_millis(500),
-            Duration::from_millis(0)
+            &writer_qos
         );
 
         let reader_guid_prefix = [5;12];

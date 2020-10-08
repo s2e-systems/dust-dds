@@ -5,6 +5,9 @@ use rust_rtps::{ParameterId, Pid, MemoryTransport, RtpsMessageSender, RtpsMessag
 
 use serde::{Serialize, };
 
+use rust_dds_interface::qos::{DataWriterQos, DataReaderQos};
+use rust_dds_interface::qos_policy::ReliabilityQosPolicyKind;
+
 #[derive(Debug, Serialize)]
 struct SpecialQos(u16);
 
@@ -34,17 +37,23 @@ fn test_stateless_writer_stateless_reader_direct_communication_integration() {
     let memory_transport1 = MemoryTransport::new(source_locator, vec![]).unwrap();
     let memory_transport2 = MemoryTransport::new(destination_locator, vec![]).unwrap();
 
+    let mut writer_qos = DataWriterQos::default();
+    writer_qos.reliability.kind = ReliabilityQosPolicyKind::BestEffortReliabilityQos;
+
     let writer = StatelessWriter::new(
         writer_guid,
         TopicKind::WithKey,
+        &writer_qos
        );
 
+    let mut reader_qos = DataReaderQos::default();
+    reader_qos.reliability.kind = ReliabilityQosPolicyKind::BestEffortReliabilityQos;
     let reader = StatelessReader::new(
         reader_guid,
         TopicKind::WithKey,
         vec![source_locator],
         vec![],
-        false,
+        &reader_qos,
        );
 
    writer.reader_locator_add(destination_locator);

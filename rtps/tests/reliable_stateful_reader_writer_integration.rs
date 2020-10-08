@@ -1,13 +1,15 @@
-use rust_rtps::behavior_types::constants::DURATION_ZERO;
 use rust_rtps::types::constants::{
     ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER, ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER,
 };
-use rust_rtps::types::{ChangeKind, ReliabilityKind, TopicKind, GUID, Locator};
+use rust_rtps::types::{ChangeKind, TopicKind, GUID, Locator};
 use rust_rtps::{
     ReaderProxy, StatefulReader, StatefulWriter, WriterProxy, 
 };
 
 use rust_rtps::{MemoryTransport, RtpsMessageReceiver, RtpsMessageSender};
+
+use rust_dds_interface::qos::{DataWriterQos, DataReaderQos};
+use rust_dds_interface::qos_policy::ReliabilityQosPolicyKind;
 
 #[test]
 fn reliable_stateful_writer_stateful_reader_data_only() {
@@ -22,26 +24,24 @@ fn reliable_stateful_writer_stateful_reader_data_only() {
         guid_prefix,
         ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER,
     );
+    let mut writer_qos = DataWriterQos::default();
+    writer_qos.reliability.kind = ReliabilityQosPolicyKind::ReliableReliabilityQos;
 
     let writer = StatefulWriter::new(
         writer_guid,
         TopicKind::WithKey,
-        ReliabilityKind::Reliable,
-        true,                   
-        DURATION_ZERO,                               
-        DURATION_ZERO,                        
-        DURATION_ZERO,                                            
+        &writer_qos                                           
     );
     let reader_guid = GUID::new(
         guid_prefix,
         ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER,
     );
+    let mut reader_qos = DataReaderQos::default();
+    reader_qos.reliability.kind = ReliabilityQosPolicyKind::ReliableReliabilityQos;
     let reader = StatefulReader::new(
         reader_guid,
         TopicKind::WithKey,
-        ReliabilityKind::Reliable,
-        false,
-        DURATION_ZERO,
+        &reader_qos
     );
 
     let reader_proxy = ReaderProxy::new(reader_guid, vec![reader_locator], vec![], false, true);
@@ -105,25 +105,23 @@ fn reliable_stateful_writer_stateful_reader_data_and_gap() {
         guid_prefix,
         ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER,
     );
+    let mut writer_qos = DataWriterQos::default();
+    writer_qos.reliability.kind = ReliabilityQosPolicyKind::ReliableReliabilityQos;
     let writer = StatefulWriter::new(
         writer_guid,
         TopicKind::WithKey,
-        ReliabilityKind::Reliable,                        
-        false,            
-        DURATION_ZERO,    
-        DURATION_ZERO,    
-        DURATION_ZERO,    
+        &writer_qos
     );
     let reader_guid = GUID::new(
         guid_prefix,
         ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER,
     );
+    let mut reader_qos = DataReaderQos::default();
+    reader_qos.reliability.kind = ReliabilityQosPolicyKind::ReliableReliabilityQos;
     let reader = StatefulReader::new(
         reader_guid,
         TopicKind::WithKey,
-        ReliabilityKind::Reliable,
-        false,
-        DURATION_ZERO,
+        &reader_qos
     );
 
     let reader_proxy = ReaderProxy::new(reader_guid, vec![reader_locator], vec![], false, true);

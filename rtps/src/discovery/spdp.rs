@@ -2,6 +2,7 @@ use std::sync::{Arc,Weak};
 use std::convert::TryInto;
 use rust_dds_interface::types::{TopicKind, DomainId, InstanceHandle};
 use rust_dds_interface::protocol::ProtocolDiscovery;
+use rust_dds_interface::qos::{DataReaderQos, DataWriterQos};
 
 use crate::types::{GuidPrefix, GUID, Locator, ChangeKind, ProtocolVersion, VendorId};
 use crate::structure::RtpsParticipant;
@@ -44,14 +45,17 @@ impl SPDP {
         let guid_prefix = participant.guid().prefix();
         let writer_guid = GUID::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER);
         let reader_guid = GUID::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_DETECTOR);
-        let spdp_builtin_participant_writer = StatelessWriter::new(writer_guid, TopicKind::WithKey);
 
+        let writer_qos = DataWriterQos::default(); // TODO: Should be adjusted according to the SPDP writer
+        let spdp_builtin_participant_writer = StatelessWriter::new(writer_guid, TopicKind::WithKey, &writer_qos);
+
+        let reader_qos = DataReaderQos::default(); // TODO: Should be adjusted according to the SPDP reader
         let spdp_builtin_participant_reader = StatelessReader::new(
             reader_guid,
             TopicKind::WithKey, 
             vec![],
             participant.metatraffic_transport().multicast_locator_list().clone(),
-            false /*expects_inline_qos*/);
+            &reader_qos);
 
         for &locator in participant.metatraffic_transport().multicast_locator_list() {
             spdp_builtin_participant_writer.reader_locator_add(locator)

@@ -50,15 +50,17 @@ impl RtpsMessageReceiver {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{TopicKind, ReliabilityKind};
+    use crate::types::TopicKind;
     use crate::types::constants::{ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, ENTITYID_UNKNOWN, PROTOCOL_VERSION_2_4, VENDOR_ID};
     use crate::messages::Endianness;
     use crate::transport::memory::MemoryTransport;
     use crate::messages::RtpsMessage;
     use crate::messages::submessages::Data;
     use crate::messages::submessages::data_submessage::Payload;
-    use crate::behavior::types::Duration;
     use crate::structure::{StatelessReader, StatefulReader, WriterProxy};
+
+    use rust_dds_interface::qos::DataReaderQos;
+    use rust_dds_interface::qos_policy::ReliabilityQosPolicyKind;
 
     #[test]
     fn stateless_reader_message_receive() {
@@ -67,13 +69,15 @@ mod tests {
 
         let src_locator = Locator::new_udpv4(7500, [127,0,0,1]);
 
+        let reader_qos = DataReaderQos::default();
+        
         let stateless_reader_guid = GUID::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR);
         let stateless_reader = StatelessReader::new(
             stateless_reader_guid,
             TopicKind::WithKey,
             vec![src_locator],
             vec![],
-            false);
+            &reader_qos);
 
 
         // Run the empty transport and check that nothing happends
@@ -105,13 +109,15 @@ mod tests {
 
         let src_locator = Locator::new_udpv4(7500, [127,0,0,1]);
 
+        let reader_qos = DataReaderQos::default();
+
         let stateless_reader_guid = GUID::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR);
         let stateless_reader = StatelessReader::new(
             stateless_reader_guid,
             TopicKind::WithKey,
             vec![src_locator],
             vec![],
-            false);
+            &reader_qos);
 
         // Send a message to the stateless reader
         let other_locator = Locator::new_udpv4(7600, [1,1,1,1]);
@@ -129,12 +135,13 @@ mod tests {
         let transport = MemoryTransport::new(Locator::new(0,0,[0;16]), vec![]).unwrap();
         let guid_prefix = [1,2,3,4,5,6,8,1,2,3,4,5];
 
+        let mut reader_qos = DataReaderQos::default();
+        reader_qos.reliability.kind = ReliabilityQosPolicyKind::BestEffortReliabilityQos;
+
         let stateful_reader = StatefulReader::new(
             GUID::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR),
             TopicKind::WithKey,
-            ReliabilityKind::BestEffort,
-            false,
-            Duration::from_millis(500));
+            &reader_qos);
 
         RtpsMessageReceiver::receive(guid_prefix, &transport, &[&stateful_reader]);
 

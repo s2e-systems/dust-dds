@@ -1,6 +1,8 @@
 use std::collections::VecDeque;
 use std::sync::Mutex;
 
+use rust_dds_interface::qos::DataReaderQos;
+
 use crate::structure::history_cache::HistoryCache;
 use crate::types::{ReliabilityKind, TopicKind, GUID, Locator, GuidPrefix };
 use crate::types::constants::{ENTITYID_UNKNOWN};
@@ -38,15 +40,18 @@ impl StatelessReader {
         // reliability_level: ReliabilityKind, // Only BestEffort is supported
         unicast_locator_list: Vec<Locator>,
         multicast_locator_list: Vec<Locator>,
-        expects_inline_qos: bool,
+        reader_qos: &DataReaderQos,
     ) -> Self {
+
+        let expects_inline_qos = false;
+
         StatelessReader {
             guid,
             topic_kind,
             reliability_level: ReliabilityKind::BestEffort,
             unicast_locator_list,
             multicast_locator_list,
-            reader_cache: HistoryCache::new(),
+            reader_cache: HistoryCache::new(reader_qos.resource_limits.max_samples, reader_qos.resource_limits.max_instances, reader_qos.resource_limits.max_samples_per_instance),
             expects_inline_qos,
             received_messages: Mutex::new(VecDeque::new()),
         }
@@ -118,12 +123,13 @@ mod tests {
 
     #[test]
     fn best_effort_stateless_reader_run() {
+        let data_reader_qos = DataReaderQos::default();
         let reader = StatelessReader::new(
             GUID::new([0;12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER),
             TopicKind::WithKey,
             vec![Locator::new(0, 7400, [0;16])],
             vec![],
-            false,
+            &data_reader_qos
            );
 
         let mut inline_qos = ParameterList::new();

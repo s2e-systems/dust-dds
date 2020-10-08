@@ -14,9 +14,11 @@ pub struct HistoryCache {
 }
 
 impl HistoryCache {
-
     /// This operation creates a new RTPS HistoryCache. The newly-created history cache is initialized with an empty list of changes.
-    pub fn new() -> Self {
+    pub fn new(max_samples: i32, max_instances: i32, max_samples_per_instance: i32) -> Self {
+        
+        assert!(max_samples == LENGTH_UNLIMITED || max_samples >= max_samples_per_instance);
+
         HistoryCache {
             changes: Mutex::new(HashSet::new()),
             max_samples: LENGTH_UNLIMITED,
@@ -62,7 +64,7 @@ mod tests {
 
     #[test]
     fn cache_change_list() {
-        let history_cache = HistoryCache::new();
+        let history_cache = HistoryCache::new(LENGTH_UNLIMITED, LENGTH_UNLIMITED, LENGTH_UNLIMITED);
         let guid_prefix = [8; 12];
         let entity_id = EntityId::new([1, 2, 3], EntityKind::BuiltInReaderWithKey);
         let guid = GUID::new(guid_prefix, entity_id);
@@ -89,7 +91,7 @@ mod tests {
 
     #[test]
     fn cache_change_sequence_number() {
-        let history_cache = HistoryCache::new();
+        let history_cache = HistoryCache::new(LENGTH_UNLIMITED, LENGTH_UNLIMITED, LENGTH_UNLIMITED);
 
         let guid_prefix = [8; 12];
         let entity_id = EntityId::new([1, 2, 3], EntityKind::BuiltInReaderWithKey);

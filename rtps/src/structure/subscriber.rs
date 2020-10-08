@@ -5,7 +5,6 @@ use rust_dds_interface::protocol::{ProtocolEntity, ProtocolReader, ProtocolSubsc
 use rust_dds_interface::qos::DataReaderQos;
 
 use crate::types::{GUID, EntityKind, EntityId};
-use crate::behavior;
 
 use super::stateful_reader::StatefulReader;
 
@@ -51,17 +50,10 @@ impl ProtocolSubscriber for RtpsSubscriber {
         let entity_id = EntityId::new([publisher_entity_key[0],entity_key_msb,entity_key_lsb], entity_kind);
         let reader_guid = GUID::new(guid_prefix, entity_id);
 
-        let reliability_level = data_reader_qos.reliability.kind.into();
-
-        let expects_inline_qos = false;
-        let heartbeat_response_delay = behavior::types::constants::DURATION_ZERO;
-
         let new_reader = Arc::new(StatefulReader::new(
             reader_guid,
             topic_kind,
-            reliability_level,
-            expects_inline_qos,
-            heartbeat_response_delay,
+            data_reader_qos
         ));
 
         reader_list[index] = Arc::downgrade(&new_reader);
