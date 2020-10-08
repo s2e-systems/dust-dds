@@ -95,8 +95,8 @@ mod tests {
 
     #[test]
     fn cache_change_list() {
-        let resource_limites = ResourceLimitsQosPolicy::default();
-        let history_cache = HistoryCache::new(&resource_limites);
+        let resource_limits = ResourceLimitsQosPolicy::default();
+        let history_cache = HistoryCache::new(&resource_limits);
         let guid_prefix = [8; 12];
         let entity_id = EntityId::new([1, 2, 3], EntityKind::BuiltInReaderWithKey);
         let guid = GUID::new(guid_prefix, entity_id);
@@ -123,8 +123,8 @@ mod tests {
 
     #[test]
     fn cache_change_sequence_number() {
-        let resource_limites = ResourceLimitsQosPolicy::default();
-        let history_cache = HistoryCache::new(&resource_limites);
+        let resource_limits = ResourceLimitsQosPolicy::default();
+        let history_cache = HistoryCache::new(&resource_limits);
 
         let guid_prefix = [8; 12];
         let entity_id = EntityId::new([1, 2, 3], EntityKind::BuiltInReaderWithKey);
@@ -159,5 +159,140 @@ mod tests {
         history_cache.add_change(cc2).unwrap();
         assert_eq!(history_cache.get_seq_num_min(), Some(sequence_number_min));
         assert_eq!(history_cache.get_seq_num_max(), Some(sequence_number_max));
+    }
+
+    #[test]
+    fn max_samples_reached() {
+        let resource_limits = ResourceLimitsQosPolicy{
+            max_samples: 2,
+            max_instances: LENGTH_UNLIMITED,
+            max_samples_per_instance: 2,
+        };
+
+        let history_cache = HistoryCache::new(&resource_limits);
+
+        let entity_id = EntityId::new([1, 2, 3], EntityKind::BuiltInReaderWithKey);
+        let instance_handle = [9; 16];
+
+
+        let cc1 = CacheChange::new(
+            ChangeKind::Alive,
+            GUID::new([1;12], entity_id),
+            instance_handle,
+            1,
+            None,
+            None,
+        );
+        let cc2 = CacheChange::new(
+            ChangeKind::Alive,
+            GUID::new([2;12], entity_id),
+            instance_handle,
+            2,
+            None,
+            None,
+        );
+        let cc3 = CacheChange::new(
+            ChangeKind::Alive,
+            GUID::new([3;12], entity_id),
+            instance_handle,
+            2,
+            None,
+            None,
+        );
+
+        history_cache.add_change(cc1).unwrap();
+        history_cache.add_change(cc2).unwrap();
+
+        assert_eq!(history_cache.add_change(cc3), Err(ReturnCodes::OutOfResources));
+    }
+
+    #[test]
+    fn max_instances_reached() {
+        let resource_limits = ResourceLimitsQosPolicy{
+            max_samples: LENGTH_UNLIMITED,
+            max_instances: 2,
+            max_samples_per_instance: LENGTH_UNLIMITED,
+        };
+
+        let history_cache = HistoryCache::new(&resource_limits);
+
+        let entity_id = EntityId::new([1, 2, 3], EntityKind::BuiltInReaderWithKey);
+
+        let cc1 = CacheChange::new(
+            ChangeKind::Alive,
+            GUID::new([1;12], entity_id),
+            [9; 16],
+            1,
+            None,
+            None,
+        );
+        let cc2 = CacheChange::new(
+            ChangeKind::Alive,
+            GUID::new([1;12], entity_id),
+            [8; 16],
+            2,
+            None,
+            None,
+        );
+        let cc3 = CacheChange::new(
+            ChangeKind::Alive,
+            GUID::new([1;12], entity_id),
+            [7; 16],
+            2,
+            None,
+            None,
+        );
+
+        history_cache.add_change(cc1).unwrap();
+        history_cache.add_change(cc2).unwrap();
+
+        assert_eq!(history_cache.add_change(cc3), Err(ReturnCodes::OutOfResources));
+    }
+
+    #[test]
+    fn max_samples_per_instance_reached() {
+        let resource_limits = ResourceLimitsQosPolicy{
+            max_samples: LENGTH_UNLIMITED,
+            max_instances: LENGTH_UNLIMITED,
+            max_samples_per_instance: 2,
+        };
+
+        let history_cache = HistoryCache::new(&resource_limits);
+
+        let guid_prefix = [8; 12];
+        let entity_id = EntityId::new([1, 2, 3], EntityKind::BuiltInReaderWithKey);
+        let guid = GUID::new(guid_prefix, entity_id);
+        let instance_handle = [9; 16];
+
+
+        let cc1 = CacheChange::new(
+            ChangeKind::Alive,
+            guid.clone(),
+            instance_handle,
+            1,
+            None,
+            None,
+        );
+        let cc2 = CacheChange::new(
+            ChangeKind::Alive,
+            guid.clone(),
+            instance_handle,
+            2,
+            None,
+            None,
+        );
+        let cc3 = CacheChange::new(
+            ChangeKind::Alive,
+            guid.clone(),
+            instance_handle,
+            3,
+            None,
+            None,
+        );
+
+        history_cache.add_change(cc1).unwrap();
+        history_cache.add_change(cc2).unwrap();
+
+        assert_eq!(history_cache.add_change(cc3), Err(ReturnCodes::OutOfResources));
     }
 }

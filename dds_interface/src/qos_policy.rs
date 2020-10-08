@@ -895,10 +895,14 @@ impl Default for ResourceLimitsQosPolicy {
 
 impl ResourceLimitsQosPolicy {
     pub fn is_consistent(&self) -> bool {
-        if self.max_samples == LENGTH_UNLIMITED || self.max_samples >= self.max_samples_per_instance {
+        if self.max_samples == LENGTH_UNLIMITED{
             true
         } else {
-            false
+            if self.max_samples_per_instance == LENGTH_UNLIMITED || self.max_samples < self.max_samples_per_instance  {
+                false
+            } else {
+                true
+            }
         }
     }
 }
@@ -1128,5 +1132,29 @@ mod tests {
 
         assert!(DestinationOrderQosPolicyKind::BySourceTimestampDestinationOrderQoS > DestinationOrderQosPolicyKind::ByReceptionTimestampDestinationOrderQoS);
         assert!(DestinationOrderQosPolicyKind::BySourceTimestampDestinationOrderQoS == DestinationOrderQosPolicyKind::BySourceTimestampDestinationOrderQoS);
+    }
+
+    #[test]
+    fn resource_limit_consistency() {
+        let mut resource_limits = ResourceLimitsQosPolicy {
+            max_samples: LENGTH_UNLIMITED,
+            max_instances: LENGTH_UNLIMITED,
+            max_samples_per_instance: LENGTH_UNLIMITED,
+        };
+        assert_eq!(resource_limits.is_consistent(), true);
+
+        resource_limits.max_samples=5;
+        assert_eq!(resource_limits.is_consistent(), false); // Inconsistent: Max samples per instance bigger than max samples
+
+        resource_limits.max_samples_per_instance=5;
+        assert_eq!(resource_limits.is_consistent(), true);
+
+        resource_limits.max_samples=4;
+        assert_eq!(resource_limits.is_consistent(), false); // Inconsistent: Max samples per instance bigger than max samples
+
+        resource_limits.max_samples=LENGTH_UNLIMITED;
+        assert_eq!(resource_limits.is_consistent(), true);
+
+        assert_eq!(ResourceLimitsQosPolicy::default().is_consistent(), true);
     }
 }
