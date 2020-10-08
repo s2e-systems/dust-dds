@@ -70,9 +70,9 @@ fn best_effort_stateful_writer_stateful_reader_data_only() {
         [0; 16], 
     );
 
-    writer.writer_cache().add_change(cache_change_seq1);
-    writer.writer_cache().add_change(cache_change_seq2);
-    writer.writer_cache().add_change(cache_change_seq3);
+    writer.writer_cache().add_change(cache_change_seq1).unwrap();
+    writer.writer_cache().add_change(cache_change_seq2).unwrap();
+    writer.writer_cache().add_change(cache_change_seq3).unwrap();
 
     writer.run();
 
@@ -154,9 +154,9 @@ fn best_effort_stateful_writer_stateful_reader_data_and_gap() {
         [0; 16], 
     );
 
-    writer.writer_cache().add_change(cache_change_seq1);
+    writer.writer_cache().add_change(cache_change_seq1).unwrap();
     // writer.writer_cache().add_change(cache_change_seq2.clone());
-    writer.writer_cache().add_change(cache_change_seq3);
+    writer.writer_cache().add_change(cache_change_seq3).unwrap();
 
     writer.run();
     RtpsMessageSender::send(writer_guid_prefix, &writer_memory_transport, &[&writer]);

@@ -67,7 +67,7 @@ mod tests {
 
         // Add a change to the stateless writer history cache and run the writer
         let change_1 = stateless_writer_1.new_change(ChangeKind::Alive, Some(vec![1,2,3,4]), None, [5;16]);
-        stateless_writer_1.writer_cache().add_change(change_1);
+        stateless_writer_1.writer_cache().add_change(change_1).unwrap();
         stateless_writer_1.run();
 
         RtpsMessageSender::send(participant_guid_prefix, &transport, &[&stateless_writer_1]);
@@ -92,8 +92,8 @@ mod tests {
         // Add two changes to the stateless writer history cache and run the writer
         let change_2 = stateless_writer_1.new_change(ChangeKind::Alive, Some(vec![1,2,3,4]), None, [5;16]);
         let change_3 = stateless_writer_1.new_change(ChangeKind::Alive, Some(vec![1,2,3,4]), None, [5;16]);
-        stateless_writer_1.writer_cache().add_change(change_2);
-        stateless_writer_1.writer_cache().add_change(change_3);
+        stateless_writer_1.writer_cache().add_change(change_2).unwrap();
+        stateless_writer_1.writer_cache().add_change(change_3).unwrap();
         stateless_writer_1.run();
 
         RtpsMessageSender::send(participant_guid_prefix, &transport, &[&stateless_writer_1]);
@@ -132,7 +132,7 @@ mod tests {
         // Add two new changes but only one to the stateless writer history cache and run the writer
         let _change_4 = stateless_writer_1.new_change(ChangeKind::Alive, Some(vec![1,2,3,4]), None, [5;16]);
         let change_5 = stateless_writer_1.new_change(ChangeKind::Alive, Some(vec![1,2,3,4]), None, [5;16]);
-        stateless_writer_1.writer_cache().add_change(change_5);
+        stateless_writer_1.writer_cache().add_change(change_5).unwrap();
         stateless_writer_1.run();
 
         RtpsMessageSender::send(participant_guid_prefix, &transport, &[&stateless_writer_1]);
@@ -192,12 +192,12 @@ mod tests {
 
         let change_1_1 = stateless_writer_1.new_change(ChangeKind::Alive, Some(vec![1,2,3,4]), None, [5;16]);
         let change_1_2 = stateless_writer_1.new_change(ChangeKind::Alive, Some(vec![1,2,3,4]), None, [5;16]);
-        stateless_writer_1.writer_cache().add_change(change_1_1);
-        stateless_writer_1.writer_cache().add_change(change_1_2);
+        stateless_writer_1.writer_cache().add_change(change_1_1).unwrap();
+        stateless_writer_1.writer_cache().add_change(change_1_2).unwrap();
 
         let _change_2_1 = stateless_writer_2.new_change(ChangeKind::Alive, Some(vec![1,2,4]), None, [12;16]);
         let change_2_2 = stateless_writer_2.new_change(ChangeKind::Alive, Some(vec![1,2,3,4]), None, [12;16]);
-        stateless_writer_2.writer_cache().add_change(change_2_2);
+        stateless_writer_2.writer_cache().add_change(change_2_2).unwrap();
 
         stateless_writer_1.run();
         stateless_writer_2.run();
@@ -251,7 +251,7 @@ mod tests {
 
         // Add a change to the stateless writer history cache and run the writer
         let change_1 = stateful_writer_1.new_change(ChangeKind::Alive, Some(vec![1,2,3,4]), None, [5;16]);
-        stateful_writer_1.writer_cache().add_change(change_1);
+        stateful_writer_1.writer_cache().add_change(change_1).unwrap();
         stateful_writer_1.run();
 
         RtpsMessageSender::send(participant_guid_prefix, &transport, &[&stateful_writer_1]);

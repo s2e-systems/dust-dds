@@ -1,10 +1,12 @@
-use std::collections::{HashSet};
+use std::collections::HashSet;
 use std::sync::{Mutex, MutexGuard};
 
 use rust_dds_interface::qos_policy::ResourceLimitsQosPolicy;
+use rust_dds_interface::types::{ReturnCode, LENGTH_UNLIMITED, ReturnCodes};
 
-use crate::types::{SequenceNumber, };
+use crate::types::SequenceNumber;
 use super::cache_change::CacheChange;
+
 
 pub struct HistoryCache {
     changes: Mutex<HashSet<CacheChange>>,
@@ -31,8 +33,37 @@ impl HistoryCache {
     /// This operation will only fail if there are not enough resources to add the change to the HistoryCache. It is the responsibility 
     /// of the DDS service implementation to configure the HistoryCache in a manner consistent with the DDS Entity RESOURCE_LIMITS QoS 
     /// and to propagate any errors to the DDS-user in the manner specified by the DDS specification.
-    pub fn add_change(&self, change: CacheChange) {
-        self.changes().insert(change);
+    pub fn add_change(&self, change: CacheChange) -> ReturnCode<()> {
+        let mut changes = self.changes();
+
+        if self.max_samples != LENGTH_UNLIMITED  {
+            if changes.len() as i32 >= self.max_samples {
+                return Err(ReturnCodes::OutOfResources);
+            }
+        }
+
+        if self.max_instances != LENGTH_UNLIMITED {
+            let mut instances = HashSet::new();
+            for sample in changes.iter() {
+                instances.insert(sample.instance_handle());
+            }
+
+            let total_instances = instances.len() as i32;
+
+            if total_instances >= self.max_instances && 
+               !instances.contains(change.instance_handle()) {
+                return Err(ReturnCodes::OutOfResources);
+            }
+        }
+
+        if self.max_samples_per_instance != LENGTH_UNLIMITED {
+            if changes.iter().filter(|&x| x.instance_handle() == change.instance_handle()).count() as i32 >= self.max_samples_per_instance {
+                return Err(ReturnCodes::OutOfResources)
+            }
+        }
+
+        changes.insert(change);
+        Ok(())
     }
 
     /// This operation indicates that a previously-added CacheChange has become irrelevant and the details regarding the CacheChange need 
@@ -84,7 +115,7 @@ mod tests {
         let cc_clone = cc.clone_without_data();
 
         assert_eq!(history_cache.changes().len(), 0);
-        history_cache.add_change(cc);
+        history_cache.add_change(cc).unwrap();
         assert_eq!(history_cache.changes().len(), 1);
         history_cache.remove_change(&cc_clone);
         assert_eq!(history_cache.changes().len(), 0);
@@ -120,12 +151,12 @@ mod tests {
         );
 
         assert_eq!(history_cache.get_seq_num_max(), None);
-        history_cache.add_change(cc1);
+        history_cache.add_change(cc1).unwrap();
         assert_eq!(
             history_cache.get_seq_num_min(),
             history_cache.get_seq_num_max()
         );
-        history_cache.add_change(cc2);
+        history_cache.add_change(cc2).unwrap();
         assert_eq!(history_cache.get_seq_num_min(), Some(sequence_number_min));
         assert_eq!(history_cache.get_seq_num_max(), Some(sequence_number_max));
     }

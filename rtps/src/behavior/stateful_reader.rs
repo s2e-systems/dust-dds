@@ -79,7 +79,7 @@ impl BestEfforStatefulReaderBehavior {
             writer_proxy.received_change_set(data.writer_sn());
             writer_proxy.lost_changes_update(data.writer_sn());
             let cache_change = cache_change_from_data(data, &writer_proxy.remote_writer_guid().prefix());
-            stateful_reader.reader_cache().add_change(cache_change);
+            stateful_reader.reader_cache().add_change(cache_change).unwrap();
         }
     }
 
@@ -135,7 +135,7 @@ impl ReliableStatefulReaderBehavior {
         if data.writer_sn() >= expected_seq_number {
             writer_proxy.received_change_set(data.writer_sn());
             let cache_change = cache_change_from_data(data, &writer_proxy.remote_writer_guid().prefix());
-            stateful_reader.reader_cache().add_change(cache_change);
+            stateful_reader.reader_cache().add_change(cache_change).unwrap();
             
         }
     }

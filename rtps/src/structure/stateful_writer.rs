@@ -313,7 +313,7 @@ impl ProtocolWriter for StatefulWriter {
 
     fn write(&self, instance_handle: InstanceHandle, data: Data, _timestamp: Time) -> ReturnCode<()>{
         let cc = self.new_change(ChangeKind::Alive, Some(data), None, instance_handle);
-        self.writer_cache().add_change(cc);
+        self.writer_cache().add_change(cc)?;
         Ok(())
     }
 
@@ -548,8 +548,8 @@ mod tests {
         let instance_handle = [1;16];
         let cache_change_seq1 = stateful_writer.new_change(ChangeKind::Alive, Some(vec![1,2,3]), None, instance_handle);
         let cache_change_seq2 = stateful_writer.new_change(ChangeKind::Alive, Some(vec![2,3,4]), None, instance_handle);
-        stateful_writer.writer_cache().add_change(cache_change_seq1);
-        stateful_writer.writer_cache().add_change(cache_change_seq2);
+        stateful_writer.writer_cache().add_change(cache_change_seq1).unwrap();
+        stateful_writer.writer_cache().add_change(cache_change_seq2).unwrap();
 
         stateful_writer.run();
         let (_dst_locators, messages) = stateful_writer.pop_send_message().unwrap();
@@ -598,8 +598,8 @@ mod tests {
         let instance_handle = [1;16];
         let cache_change_seq1 = stateful_writer.new_change(ChangeKind::Alive, Some(vec![1,2,3]), None, instance_handle);
         let cache_change_seq2 = stateful_writer.new_change(ChangeKind::Alive, Some(vec![2,3,4]), None, instance_handle);
-        stateful_writer.writer_cache().add_change(cache_change_seq1);
-        stateful_writer.writer_cache().add_change(cache_change_seq2);
+        stateful_writer.writer_cache().add_change(cache_change_seq1).unwrap();
+        stateful_writer.writer_cache().add_change(cache_change_seq2).unwrap();
 
         stateful_writer.run();
         let (_dst_locators, messages) = stateful_writer.pop_send_message().unwrap();

@@ -24,6 +24,6 @@ impl BestEffortStatelessReaderBehavior {
 
     fn transition_t2(reader: &StatelessReader, guid_prefix: GuidPrefix, data: Data) {
         let cache_change = cache_change_from_data(data, &guid_prefix);
-        reader.reader_cache().add_change(cache_change);
+        reader.reader_cache().add_change(cache_change).unwrap();
     }
 }

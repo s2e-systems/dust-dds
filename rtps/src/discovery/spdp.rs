@@ -64,7 +64,7 @@ impl SPDP {
         let spdp_data = SPDPdiscoveredParticipantData::new_from_participant(participant, Duration::from_secs(30));
 
         let change = spdp_builtin_participant_writer.new_change(ChangeKind::Alive, Some(spdp_data.data(CdrEndianness::LittleEndian)), None, spdp_data.key());
-        spdp_builtin_participant_writer.writer_cache().add_change(change);
+        spdp_builtin_participant_writer.writer_cache().add_change(change).unwrap();
 
         Self {
             participant: Arc::downgrade(participant),
@@ -366,7 +366,7 @@ impl SPDPdiscoveredParticipantData {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::transport::udp::UdpTransport;
+    // use crate::transport::udp::UdpTransport;
     use crate::Transport;
     use crate::RtpsMessage;
     use crate::types::constants::PROTOCOL_VERSION_2_4;
