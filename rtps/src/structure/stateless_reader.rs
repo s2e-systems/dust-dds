@@ -51,7 +51,7 @@ impl StatelessReader {
             reliability_level: ReliabilityKind::BestEffort,
             unicast_locator_list,
             multicast_locator_list,
-            reader_cache: HistoryCache::new(reader_qos.resource_limits.max_samples, reader_qos.resource_limits.max_instances, reader_qos.resource_limits.max_samples_per_instance),
+            reader_cache: HistoryCache::new(&reader_qos.resource_limits),
             expects_inline_qos,
             received_messages: Mutex::new(VecDeque::new()),
         }

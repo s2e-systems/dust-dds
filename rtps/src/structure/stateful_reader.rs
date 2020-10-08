@@ -264,7 +264,7 @@ impl StatefulReader {
             reliability_level: reader_qos.reliability.kind.into(),
             expects_inline_qos,
             heartbeat_response_delay,       
-            reader_cache: HistoryCache::new(reader_qos.resource_limits.max_samples, reader_qos.resource_limits.max_instances, reader_qos.resource_limits.max_samples_per_instance),
+            reader_cache: HistoryCache::new(&reader_qos.resource_limits),
             matched_writers: RwLock::new(HashMap::new()),
         }
     }

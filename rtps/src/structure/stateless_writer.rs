@@ -105,7 +105,7 @@ impl StatelessWriter {
             topic_kind,
             reliability_level: ReliabilityKind::BestEffort,
             last_change_sequence_number: Mutex::new(0),
-            writer_cache: HistoryCache::new(writer_qos.resource_limits.max_samples, writer_qos.resource_limits.max_instances, writer_qos.resource_limits.max_samples_per_instance),
+            writer_cache: HistoryCache::new(&writer_qos.resource_limits),
             data_max_sized_serialized: None,
             reader_locators: RwLock::new(HashMap::new()),
         }

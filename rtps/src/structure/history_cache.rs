@@ -1,7 +1,7 @@
 use std::collections::{HashSet};
 use std::sync::{Mutex, MutexGuard};
 
-use rust_dds_interface::types::LENGTH_UNLIMITED;
+use rust_dds_interface::qos_policy::ResourceLimitsQosPolicy;
 
 use crate::types::{SequenceNumber, };
 use super::cache_change::CacheChange;
@@ -15,15 +15,14 @@ pub struct HistoryCache {
 
 impl HistoryCache {
     /// This operation creates a new RTPS HistoryCache. The newly-created history cache is initialized with an empty list of changes.
-    pub fn new(max_samples: i32, max_instances: i32, max_samples_per_instance: i32) -> Self {
-        
-        assert!(max_samples == LENGTH_UNLIMITED || max_samples >= max_samples_per_instance);
+    pub fn new(resource_limits: &ResourceLimitsQosPolicy) -> Self {
+    
 
         HistoryCache {
             changes: Mutex::new(HashSet::new()),
-            max_samples: LENGTH_UNLIMITED,
-            max_instances: LENGTH_UNLIMITED,
-            max_samples_per_instance: LENGTH_UNLIMITED,
+            max_samples: resource_limits.max_samples,
+            max_instances: resource_limits.max_instances,
+            max_samples_per_instance: resource_limits.max_samples_per_instance,
         }
     }
 
@@ -64,7 +63,8 @@ mod tests {
 
     #[test]
     fn cache_change_list() {
-        let history_cache = HistoryCache::new(LENGTH_UNLIMITED, LENGTH_UNLIMITED, LENGTH_UNLIMITED);
+        let resource_limites = ResourceLimitsQosPolicy::default();
+        let history_cache = HistoryCache::new(&resource_limites);
         let guid_prefix = [8; 12];
         let entity_id = EntityId::new([1, 2, 3], EntityKind::BuiltInReaderWithKey);
         let guid = GUID::new(guid_prefix, entity_id);
@@ -91,7 +91,8 @@ mod tests {
 
     #[test]
     fn cache_change_sequence_number() {
-        let history_cache = HistoryCache::new(LENGTH_UNLIMITED, LENGTH_UNLIMITED, LENGTH_UNLIMITED);
+        let resource_limites = ResourceLimitsQosPolicy::default();
+        let history_cache = HistoryCache::new(&resource_limites);
 
         let guid_prefix = [8; 12];
         let entity_id = EntityId::new([1, 2, 3], EntityKind::BuiltInReaderWithKey);
