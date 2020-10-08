@@ -1,11 +1,16 @@
 use std::collections::{HashSet};
 use std::sync::{Mutex, MutexGuard};
 
+use rust_dds_interface::types::LENGTH_UNLIMITED;
+
 use crate::types::{SequenceNumber, };
 use super::cache_change::CacheChange;
 
 pub struct HistoryCache {
     changes: Mutex<HashSet<CacheChange>>,
+    max_samples: i32,
+    max_instances: i32,
+    max_samples_per_instance: i32,
 }
 
 impl HistoryCache {
@@ -14,6 +19,9 @@ impl HistoryCache {
     pub fn new() -> Self {
         HistoryCache {
             changes: Mutex::new(HashSet::new()),
+            max_samples: LENGTH_UNLIMITED,
+            max_instances: LENGTH_UNLIMITED,
+            max_samples_per_instance: LENGTH_UNLIMITED,
         }
     }
 
