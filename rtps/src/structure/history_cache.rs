@@ -16,7 +16,8 @@ pub struct HistoryCache {
 impl HistoryCache {
     /// This operation creates a new RTPS HistoryCache. The newly-created history cache is initialized with an empty list of changes.
     pub fn new(resource_limits: &ResourceLimitsQosPolicy) -> Self {
-    
+        
+        assert!(resource_limits.is_consistent());
 
         HistoryCache {
             changes: Mutex::new(HashSet::new()),

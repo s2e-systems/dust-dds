@@ -893,6 +893,16 @@ impl Default for ResourceLimitsQosPolicy {
     }
 }
 
+impl ResourceLimitsQosPolicy {
+    pub fn is_consistent(&self) -> bool {
+        if self.max_samples == LENGTH_UNLIMITED || self.max_samples >= self.max_samples_per_instance {
+            true
+        } else {
+            false
+        }
+    }
+}
+
 /// This policy controls the behavior of the Entity as a factory for other entities.
 /// This policy concerns only DomainParticipant (as factory for Publisher, Subscriber, and Topic), Publisher (as factory for
 /// DataWriter), and Subscriber (as factory for DataReader).
