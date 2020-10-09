@@ -8,7 +8,7 @@ use crate::types::{ReliabilityKind, TopicKind, GUID, Locator, GuidPrefix };
 use crate::types::constants::{ENTITYID_UNKNOWN};
 use crate::messages::RtpsSubmessage;
 use crate::messages::message_receiver::Receiver;
-use crate::behavior::stateless_reader_behavior::BestEffortStatelessReaderBehavior;
+use super::stateless_reader_behavior::BestEffortStatelessReaderBehavior;
 
 pub struct StatelessReader {
     // Heartbeats are not relevant to stateless readers (only to readers),

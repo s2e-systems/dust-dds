@@ -4,7 +4,7 @@ use crate::messages::submessages::Data;
 use crate::messages::message_receiver::Receiver;
 use crate::behavior::StatelessReader;
 
-use super::cache_change_from_data;
+use crate::behavior::cache_change_from_data;
 
 pub struct BestEffortStatelessReaderBehavior {}
 

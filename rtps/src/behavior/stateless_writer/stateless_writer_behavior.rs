@@ -7,7 +7,7 @@ use crate::messages::submessages::Gap;
 use crate::behavior::{ReaderLocator, StatelessWriter};
 use crate::messages::message_sender::Sender;
 
-use super::{data_from_cache_change, BEHAVIOR_ENDIANNESS};
+use crate::behavior::{data_from_cache_change, BEHAVIOR_ENDIANNESS};
 pub struct BestEffortStatelessWriterBehavior {}
 
 impl BestEffortStatelessWriterBehavior{

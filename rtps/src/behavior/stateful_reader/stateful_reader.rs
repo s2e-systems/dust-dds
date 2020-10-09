@@ -8,9 +8,9 @@ use crate::messages::message_receiver::Receiver;
 use crate::messages::message_sender::Sender;
 use crate::behavior::types::Duration;
 
-use super::WriterProxy;
-use crate::behavior::best_effort_writer_proxy::BestEffortWriterProxy;
-use crate::behavior::reliable_writer_proxy::ReliableWriterProxy;
+use crate::behavior::WriterProxy;
+use super::best_effort_writer_proxy::BestEffortWriterProxy;
+use super::reliable_writer_proxy::ReliableWriterProxy;
 
 use rust_dds_interface::protocol::{ProtocolEntity, ProtocolReader, ProtocolEndpoint};
 use rust_dds_interface::qos::DataReaderQos;

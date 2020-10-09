@@ -5,7 +5,7 @@ use crate::structure::HistoryCache;
 use crate::structure::CacheChange;
 use crate::serialized_payload::ParameterList;
 use crate::types::{ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID, };
-use crate::behavior::stateless_writer_behavior::BestEffortStatelessWriterBehavior;
+use super::stateless_writer_behavior::BestEffortStatelessWriterBehavior;
 use crate::messages::RtpsSubmessage;
 use crate::messages::message_sender::Sender;
 

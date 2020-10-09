@@ -11,8 +11,8 @@ use crate::messages::submessages::{AckNack, Data, Gap, Heartbeat,};
 use crate::messages::types::Count;
 use crate::messages::message_sender::Sender;
 
-use super::types::Duration;
-use super::{cache_change_from_data, BEHAVIOR_ENDIANNESS};
+use crate::behavior::types::Duration;
+use crate::behavior::{cache_change_from_data, BEHAVIOR_ENDIANNESS};
 use super::stateful_reader::WriterProxyOps;
 
 pub struct ReliableWriterProxy {
@@ -204,7 +204,7 @@ mod tests {
     use crate::serialized_payload::ParameterList;
     use crate::inline_qos_types::KeyHash;
     use crate::messages::Endianness;
-    use super::super::change_kind_to_status_info;
+    use crate::behavior::change_kind_to_status_info;
 
     use rust_dds_interface::qos_policy::ResourceLimitsQosPolicy;
 

@@ -1,24 +1,11 @@
 pub mod types;
-pub mod stateful_writer;
-pub mod writer_proxy;
-pub mod best_effort_writer_proxy;
-pub mod reliable_writer_proxy;
+mod stateful_reader;
+mod stateful_writer;
+mod stateless_reader;
+mod stateless_writer;
 
-pub mod reader_proxy;
-pub mod best_effort_reader_proxy;
-pub mod reliable_reader_proxy;
-
-pub mod stateful_reader;
-pub mod stateless_writer;
-pub mod stateless_reader;
-
-pub mod stateless_writer_behavior;
-pub mod stateless_reader_behavior;
-
-pub use writer_proxy::WriterProxy;
-pub use reader_proxy::ReaderProxy;
-pub use stateful_reader::StatefulReader;
-pub use stateful_writer::StatefulWriter;
+pub use stateful_reader::{StatefulReader, WriterProxy};
+pub use stateful_writer::{StatefulWriter, ReaderProxy};
 pub use stateless_reader::StatelessReader;
 pub use stateless_writer::{StatelessWriter, ReaderLocator};
 

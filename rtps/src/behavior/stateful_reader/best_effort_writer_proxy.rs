@@ -7,7 +7,7 @@ use crate::behavior::WriterProxy;
 use crate::messages::RtpsSubmessage;
 use crate::messages::submessages::{Data, Gap};
 
-use super::cache_change_from_data;
+use crate::behavior::cache_change_from_data;
 use super::stateful_reader::WriterProxyOps;
 
 pub struct BestEffortWriterProxy {
@@ -93,7 +93,7 @@ mod tests {
     use crate::serialized_payload::ParameterList;
     use crate::inline_qos_types::KeyHash;
     use crate::messages::Endianness;
-    use super::super::change_kind_to_status_info;
+    use crate::behavior::change_kind_to_status_info;
 
     use rust_dds_interface::qos_policy::ResourceLimitsQosPolicy;
 
