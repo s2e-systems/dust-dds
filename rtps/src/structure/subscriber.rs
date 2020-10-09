@@ -6,7 +6,7 @@ use rust_dds_interface::qos::DataReaderQos;
 
 use crate::types::{GUID, EntityKind, EntityId};
 
-use super::stateful_reader::StatefulReader;
+use crate::behavior::StatefulReader;
 
 pub struct RtpsSubscriber{
     guid: GUID,

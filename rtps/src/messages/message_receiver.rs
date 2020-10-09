@@ -57,7 +57,7 @@ mod tests {
     use crate::messages::RtpsMessage;
     use crate::messages::submessages::Data;
     use crate::messages::submessages::data_submessage::Payload;
-    use crate::structure::{StatelessReader, StatefulReader, WriterProxy};
+    use crate::behavior::{StatelessReader, StatefulReader, WriterProxy};
 
     use rust_dds_interface::qos::DataReaderQos;
     use rust_dds_interface::qos_policy::ReliabilityQosPolicyKind;

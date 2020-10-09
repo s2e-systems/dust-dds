@@ -1,841 +1,654 @@
-use std::time::Instant;
-use std::convert::TryInto;
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashMap, VecDeque};
+use std::sync::{RwLock, RwLockReadGuard, Mutex, MutexGuard};
 
-use crate::types::SequenceNumber;
-use crate::types::constants::LOCATOR_INVALID;
+use crate::types::{ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID, GuidPrefix};
+use crate::behavior::types::Duration;
+use crate::behavior::stateful_writer_behavior::{StatefulWriterBehavior, BestEffortStatefulWriterBehavior, ReliableStatefulWriterBehavior};
 use crate::messages::RtpsSubmessage;
-use crate::messages::submessages::{Gap, Heartbeat, AckNack};
-use crate::structure::{StatefulWriter, ReaderProxy};
-use crate::messages::types::Count;
-use crate::messages::message_sender::Sender;
 use crate::messages::message_receiver::Receiver;
+use crate::messages::message_sender::Sender;
+use crate::structure::HistoryCache;
+use crate::structure::CacheChange;
+use crate::serialized_payload::ParameterList;
+use rust_dds_interface::protocol::{ProtocolEntity, ProtocolWriter, ProtocolEndpoint};
+use rust_dds_interface::qos::DataWriterQos;
+use rust_dds_interface::types::{Data, Time, ReturnCode};
 
-use super::types::Duration;
-use super::{data_from_cache_change, BEHAVIOR_ENDIANNESS};
-
-pub struct StatefulWriterBehavior {
-    heartbeat_count: Count,
-    time_last_sent_data: Instant,
-    time_nack_received: Instant,
-    highest_nack_count_received: Count,
+struct ChangeForReader {
+    highest_sequence_number_sent: SequenceNumber,
+    highest_sequence_number_acknowledged: SequenceNumber,
+    sequence_numbers_requested: BTreeSet<SequenceNumber>,
 }
 
-impl StatefulWriterBehavior {
-    pub fn new() -> Self {
+impl ChangeForReader {
+    fn new() -> Self {
         Self {
-            heartbeat_count: 0,
-            time_last_sent_data: Instant::now(),
-            time_nack_received: Instant::now(),
-            highest_nack_count_received: 0,
+            highest_sequence_number_sent: 0,
+            highest_sequence_number_acknowledged: 0,
+            sequence_numbers_requested: BTreeSet::new(),
         }
     }
 
-    fn heartbeat_count(&self) -> &Count {
-        &self.heartbeat_count
-    }
-
-    fn nack_received(&self) -> &Count {
-        &self.highest_nack_count_received
-    }
-
-    fn nack_received_set(&mut self, highest_nack_count_received: Count) {
-        self.highest_nack_count_received = highest_nack_count_received;
-    }
-
-    fn time_last_sent_data_reset(&mut self) {
-        self.time_last_sent_data = Instant::now();
-    }
-
-    fn time_nack_received_reset(&mut self) {
-        self.time_nack_received = Instant::now();
-    }
-
-    fn duration_since_last_sent_data(&self) -> Duration {
-        self.time_last_sent_data.elapsed().try_into().unwrap()
-    }
-
-    fn duration_since_nack_received(&self) -> Duration {
-        self.time_nack_received.elapsed().try_into().unwrap()
-    }
-
-    fn increment_heartbeat_count(&mut self) {
-        self.heartbeat_count += 1;
-    }
-}
-
-pub struct BestEffortStatefulWriterBehavior {}
-
-impl BestEffortStatefulWriterBehavior {
-    pub fn run(reader_proxy: &ReaderProxy, stateful_writer: &StatefulWriter) {
-        if !reader_proxy.unsent_changes(stateful_writer.last_change_sequence_number()).is_empty() {
-            Self::pushing_state(reader_proxy, stateful_writer);
+    fn next_unsent_change(&mut self, last_change_sequence_number: SequenceNumber) -> Option<SequenceNumber> {
+        let next_unsent_sequence_number = self.highest_sequence_number_sent + 1;
+        if next_unsent_sequence_number > last_change_sequence_number {
+            None
+        } else {
+            self.highest_sequence_number_sent = next_unsent_sequence_number;
+            Some(next_unsent_sequence_number)
         }
     }
 
-    fn pushing_state(reader_proxy: &ReaderProxy, stateful_writer: &StatefulWriter) {
-        // This state is only valid if there are unsent changes
-        debug_assert!(!reader_proxy.unsent_changes(stateful_writer.last_change_sequence_number()).is_empty());
-    
-        while let Some(next_unsent_seq_num) = reader_proxy.next_unsent_change(stateful_writer.last_change_sequence_number()) {
-            Self::transition_t4(reader_proxy, stateful_writer, next_unsent_seq_num);
-        }
-        reader_proxy.behavior().time_last_sent_data_reset();
-    }
+    fn unsent_changes(&self, last_change_sequence_number: SequenceNumber) -> BTreeSet<SequenceNumber> {
+        let mut unsent_changes_set = BTreeSet::new();
 
-    fn transition_t4(reader_proxy: &ReaderProxy, stateful_writer: &StatefulWriter, next_unsent_seq_num: SequenceNumber) {
-
-        if let Some(cache_change) = stateful_writer.writer_cache()
-            .changes().iter().find(|cc| cc.sequence_number() == next_unsent_seq_num)
+        // The for loop is made with the underlying sequence number type because it is not possible to implement the Step trait on Stable yet
+        for unsent_sequence_number in
+            self.highest_sequence_number_sent + 1..=last_change_sequence_number
         {
-            let reader_id = reader_proxy.remote_reader_guid().entity_id();
-            let data = data_from_cache_change(cache_change, reader_id);
-            stateful_writer.push_send_message(&LOCATOR_INVALID, reader_proxy.remote_reader_guid(), RtpsSubmessage::Data(data));
-        } else {
-            let gap = Gap::new(
-                BEHAVIOR_ENDIANNESS,
-                reader_proxy.remote_reader_guid().entity_id(), 
-                stateful_writer.guid().entity_id(),
-                next_unsent_seq_num,
-            BTreeSet::new());
-
-            stateful_writer.push_send_message(&LOCATOR_INVALID,reader_proxy.remote_reader_guid(), RtpsSubmessage::Gap(gap));
+            unsent_changes_set.insert(unsent_sequence_number);
         }
+
+        unsent_changes_set
+    }
+
+    fn acked_changes(&self) -> SequenceNumber {
+        self.highest_sequence_number_acknowledged
+    }
+
+    fn acked_changes_set(&mut self, committed_seq_num: SequenceNumber) {
+        self.highest_sequence_number_acknowledged = committed_seq_num;
+    }
+
+    fn unacked_changes(&self, last_change_sequence_number: SequenceNumber) -> BTreeSet<SequenceNumber> {
+        let mut unacked_changes_set = BTreeSet::new();
+
+        // The for loop is made with the underlying sequence number type because it is not possible to implement the Step trait on Stable yet
+        for unsent_sequence_number in
+            self.highest_sequence_number_acknowledged + 1..=last_change_sequence_number
+        {
+            unacked_changes_set.insert(unsent_sequence_number);
+        }
+
+        unacked_changes_set
+    }
+
+    fn requested_changes_set(&mut self, req_seq_num_set: BTreeSet<SequenceNumber>) {
+        let mut new_set = req_seq_num_set;
+        self.sequence_numbers_requested.append(&mut new_set);
+    }
+
+    fn requested_changes(&self) -> BTreeSet<SequenceNumber> {
+        self.sequence_numbers_requested.clone()
+    }
+
+    fn next_requested_change(&mut self) -> Option<SequenceNumber> {
+        let next_requested_change = *self.sequence_numbers_requested.iter().next()?;
+
+        self.sequence_numbers_requested.remove(&next_requested_change);
+
+        Some(next_requested_change)
     }
 }
 
-pub struct ReliableStatefulWriterBehavior{}
 
-impl ReliableStatefulWriterBehavior {
-    pub fn run(reader_proxy: &ReaderProxy, stateful_writer: &StatefulWriter) {
-        if reader_proxy.unacked_changes(stateful_writer.last_change_sequence_number()).is_empty() {
-            // Idle
-        } else if !reader_proxy.unsent_changes(stateful_writer.last_change_sequence_number()).is_empty() {
-            BestEffortStatefulWriterBehavior::pushing_state(reader_proxy, stateful_writer);
-        } else if !reader_proxy.unacked_changes(stateful_writer.last_change_sequence_number()).is_empty() {
-            Self::announcing_state(reader_proxy, stateful_writer);
+pub struct ReaderProxy {
+    remote_reader_guid: GUID,
+    // remoteGroupEntityId: EntityId_t,
+    unicast_locator_list: Vec<Locator>,
+    multicast_locator_list: Vec<Locator>,
+    changes_for_reader: Mutex<ChangeForReader>,
+    expects_inline_qos: bool,
+    is_active: bool,
+    stateful_writer_behavior: Mutex<StatefulWriterBehavior>,
+
+    send_messages: Mutex<VecDeque<RtpsSubmessage>>,
+    received_messages: Mutex<VecDeque<(GuidPrefix, RtpsSubmessage)>>,
+}
+
+
+impl ReaderProxy {
+    pub fn new(
+        remote_reader_guid: GUID,
+        unicast_locator_list: Vec<Locator>,
+        multicast_locator_list: Vec<Locator>,
+        expects_inline_qos: bool,
+        is_active: bool) -> Self {
+            Self {
+                remote_reader_guid,
+                unicast_locator_list,
+                multicast_locator_list,
+                expects_inline_qos,
+                is_active,
+                changes_for_reader: Mutex::new(ChangeForReader::new()),
+                stateful_writer_behavior: Mutex::new(StatefulWriterBehavior::new()),
+                send_messages: Mutex::new(VecDeque::new()),
+                received_messages: Mutex::new(VecDeque::new()),
         }
+    }
+
+    pub fn acked_changes_set(&self, committed_seq_num: SequenceNumber) {
+        self.changes_for_reader.lock().unwrap().acked_changes_set(committed_seq_num);
+    }
+
+    pub fn next_requested_change(&self) -> Option<SequenceNumber> {
+        self.changes_for_reader.lock().unwrap().next_requested_change()
+    }
+
+    pub fn next_unsent_change(&self, last_change_sequence_number: SequenceNumber) -> Option<SequenceNumber> {
+        self.changes_for_reader.lock().unwrap().next_unsent_change(last_change_sequence_number)
+    }
+
+    pub fn unsent_changes(&self, last_change_sequence_number: SequenceNumber) -> BTreeSet<SequenceNumber> {
+        self.changes_for_reader.lock().unwrap().unsent_changes(last_change_sequence_number)
+    }
+
+    pub fn requested_changes(&self) -> BTreeSet<SequenceNumber> {
+        self.changes_for_reader.lock().unwrap().requested_changes()
+    }
+
+    pub fn requested_changes_set(&self, req_seq_num_set: BTreeSet<SequenceNumber>) {
+        self.changes_for_reader.lock().unwrap().requested_changes_set(req_seq_num_set);
+    }
+
+    pub fn unacked_changes(&self, last_change_sequence_number: SequenceNumber) -> BTreeSet<SequenceNumber> {
+        self.changes_for_reader.lock().unwrap().unacked_changes(last_change_sequence_number)
+    }
+
+    pub fn unicast_locator_list(&self) -> &Vec<Locator> {
+        &self.unicast_locator_list
+    }
+
+    pub fn multicast_locator_list(&self) -> &Vec<Locator> {
+        &self.multicast_locator_list
+    }
+
+    pub fn remote_reader_guid(&self) -> &GUID {
+        &self.remote_reader_guid
+    }
+
+    pub fn behavior(&self) -> MutexGuard<StatefulWriterBehavior> {
+        self.stateful_writer_behavior.lock().unwrap()
+    }
+}
+
+pub struct StatefulWriter {
+    /// Entity base class (contains the GUID)
+    guid: GUID,
+    // entity: Entity,
+
+    // Endpoint base class:
+    /// Used to indicate whether the Endpoint supports instance lifecycle management operations. Indicates whether the Endpoint is associated with a DataType that has defined some fields as containing the DDS key.
+    topic_kind: TopicKind,
+    /// The level of reliability supported by the Endpoint.
+    reliability_level: ReliabilityKind,
+
+    // All messages are received from the reader proxies so these fields are not used
+    // /// List of unicast locators (transport, address, port combinations) that can be used to send messages to the Endpoint. The list may be empty
+    // unicast_locator_list: Vec<Locator>,
+    // /// List of multicast locators (transport, address, port combinations) that can be used to send messages to the Endpoint. The list may be empty.
+    // multicast_locator_list: Vec<Locator>,
+
+    //Writer class:
+    push_mode: bool,
+    heartbeat_period: Duration,
+    nack_response_delay: Duration,
+    nack_suppression_duration: Duration,
+    last_change_sequence_number: Mutex<SequenceNumber>,
+    writer_cache: HistoryCache,
+    data_max_sized_serialized: Option<i32>,
+
+    matched_readers: RwLock<HashMap<GUID, ReaderProxy>>,
+}
+
+impl StatefulWriter {
+    pub fn new(
+        guid: GUID,
+        topic_kind: TopicKind,
+        writer_qos: &DataWriterQos) -> Self {
+
+            let push_mode = true;
+            let heartbeat_period = Duration::from_millis(500);
+            let nack_response_delay = Duration::from_millis(200);
+            let nack_suppression_duration = Duration::from_millis(0);
+
+            StatefulWriter {
+                guid,
+                topic_kind,
+                reliability_level: writer_qos.reliability.kind.into(),
+                push_mode,
+                heartbeat_period,
+                nack_response_delay,
+                nack_suppression_duration,
+                last_change_sequence_number: Mutex::new(0),
+                writer_cache: HistoryCache::new(&writer_qos.resource_limits),
+                data_max_sized_serialized: None,
+                matched_readers: RwLock::new(HashMap::new()),
+        }
+    }
+
+    pub fn new_change(
+        &self,
+        kind: ChangeKind,
+        data: Option<Vec<u8>>,
+        inline_qos: Option<ParameterList>,
+        handle: InstanceHandle,
+    ) -> CacheChange {
+        *self.last_change_sequence_number.lock().unwrap() += 1;
+        CacheChange::new(
+            kind,
+            self.guid,
+            handle,
+            self.last_change_sequence_number(),
+            data,
+            inline_qos,
+        )
+    }
+
+    pub fn last_change_sequence_number(&self) -> SequenceNumber {
+        *self.last_change_sequence_number.lock().unwrap()
+    }
+
+    pub fn guid(&self) -> &GUID {
+        &self.guid
+    }
+
+    pub fn writer_cache(&self) -> &HistoryCache {
+        &self.writer_cache
+    }
+
+    pub fn matched_reader_add(&self, a_reader_proxy: ReaderProxy) {
+        self.matched_readers.write().unwrap().insert(a_reader_proxy.remote_reader_guid, a_reader_proxy);
+    }
+
+    pub fn matched_reader_remove(&self, reader_proxy_guid: &GUID) {
+        self.matched_readers.write().unwrap().remove(reader_proxy_guid);
+    }
     
-        if reader_proxy.requested_changes().is_empty() {
-            Self::waiting_state(reader_proxy, stateful_writer);
-        } else {
-            Self::must_repair_state(reader_proxy, stateful_writer);
-            if reader_proxy.behavior().duration_since_nack_received() > stateful_writer.nack_response_delay() {
-                Self::repairing_state(reader_proxy, stateful_writer);
+    pub fn matched_readers(&self) -> RwLockReadGuard<HashMap<GUID, ReaderProxy>> {
+        self.matched_readers.read().unwrap()
+    }
+
+    pub fn is_acked_by_all(&self) -> bool {
+        todo!()
+    }
+
+    pub fn heartbeat_period(&self) -> Duration {
+        self.heartbeat_period
+    }
+
+    pub fn nack_response_delay(&self) -> Duration {
+        self.nack_response_delay
+    }
+
+    pub fn run(&self) {
+        for (_, reader_proxy) in self.matched_readers().iter() {
+            match self.reliability_level {
+                ReliabilityKind::BestEffort => BestEffortStatefulWriterBehavior::run(reader_proxy, &self),
+                ReliabilityKind::Reliable => ReliableStatefulWriterBehavior::run(reader_proxy, &self),
+            };
+        }
+    }
+}
+impl ProtocolEntity for StatefulWriter {
+    fn get_instance_handle(&self) -> InstanceHandle {
+        self.guid.into()
+    }
+
+    fn enable(&self) -> ReturnCode<()> {
+        todo!()
+    }
+}
+
+impl ProtocolEndpoint for StatefulWriter {}
+impl ProtocolWriter for StatefulWriter {
+    // fn new(
+    //     _parent_instance_handle: InstanceHandle,
+    //     _entity_type: EntityType,
+    //     _topic_kind: TopicKind,
+    //     _writer_qos: DataWriterQos,
+    // ) -> Self {
+    //     todo!()
+    // }
+
+    fn write(&self, instance_handle: InstanceHandle, data: Data, _timestamp: Time) -> ReturnCode<()>{
+        let cc = self.new_change(ChangeKind::Alive, Some(data), None, instance_handle);
+        self.writer_cache().add_change(cc)?;
+        Ok(())
+    }
+
+    fn dispose(&self, _instance_handle: InstanceHandle, _timestamp: Time) -> ReturnCode<()> {
+        todo!()
+    }
+
+    fn unregister(&self, _instance_handle: InstanceHandle, _timestamp: Time) -> ReturnCode<()> {
+        todo!()
+    }
+
+    fn register(&self, _instance_handle: InstanceHandle, _timestamp: Time) -> ReturnCode<Option<InstanceHandle>> {
+        todo!()
+    }
+
+    fn lookup_instance(&self, _instance_handle: InstanceHandle) -> Option<InstanceHandle> {
+        todo!()
+    }
+}
+
+impl Receiver for StatefulWriter {
+    fn push_receive_message(&self, source_guid_prefix: GuidPrefix, submessage: RtpsSubmessage) {
+        let reader_id = match &submessage {
+            RtpsSubmessage::AckNack(acknack) => acknack.reader_id(),
+            _ => panic!("Unsupported message received by stateful writer"),
+        };
+        let guid = GUID::new(source_guid_prefix, reader_id);
+        self.matched_readers().get(&guid).unwrap().received_messages.lock().unwrap().push_back((source_guid_prefix, submessage));
+    }
+    
+    fn pop_receive_message(&self, guid: &GUID) -> Option<(GuidPrefix, RtpsSubmessage)> {
+        self.matched_readers().get(guid).unwrap().received_messages.lock().unwrap().pop_front()
+    }
+
+    fn is_submessage_destination(&self, _src_locator: &Locator, src_guid_prefix: &GuidPrefix, submessage: &RtpsSubmessage) -> bool {
+        let reader_id = match &submessage {
+            RtpsSubmessage::AckNack(acknack) => acknack.reader_id(),
+            _ => return false,
+        };
+
+        let reader_guid = GUID::new(*src_guid_prefix, reader_id);
+
+        self.matched_readers().get(&reader_guid).is_some()
+    }
+}
+
+impl Sender for StatefulWriter {
+    fn push_send_message(&self, _dst_locator: &Locator, dst_guid: &GUID, submessage: RtpsSubmessage) {
+       self.matched_readers().get(dst_guid).unwrap().send_messages.lock().unwrap().push_back(submessage)
+    }
+
+    fn pop_send_message(&self) -> Option<(Vec<Locator>, VecDeque<RtpsSubmessage>)> {
+        for (_, reader_proxy) in self.matched_readers().iter() {
+            let mut reader_proxy_send_messages = reader_proxy.send_messages.lock().unwrap();
+            if !reader_proxy_send_messages.is_empty() {
+                let mut send_message_queue = VecDeque::new();
+                std::mem::swap(&mut send_message_queue, &mut reader_proxy_send_messages);
+                
+                let mut locator_list = Vec::new();
+                locator_list.extend(reader_proxy.unicast_locator_list());
+                locator_list.extend(reader_proxy.multicast_locator_list());
+
+                return Some((locator_list, send_message_queue));
             }
         }
-    }
-
-    fn announcing_state(reader_proxy: &ReaderProxy, stateful_writer: &StatefulWriter){
-        if reader_proxy.behavior().duration_since_last_sent_data() > stateful_writer.heartbeat_period() {
-            Self::transition_t7(reader_proxy, stateful_writer);
-            reader_proxy.behavior().time_last_sent_data_reset();
-        }
-    }
-
-    fn transition_t7(reader_proxy: &ReaderProxy, stateful_writer: &StatefulWriter) {
-        let first_sn = if let Some(seq_num) = stateful_writer.writer_cache().get_seq_num_min() {
-            seq_num
-        } else {
-            stateful_writer.last_change_sequence_number() + 1
-        };
-        reader_proxy.behavior().increment_heartbeat_count();
-
-        let heartbeat = Heartbeat::new(
-            BEHAVIOR_ENDIANNESS,
-            reader_proxy.remote_reader_guid().entity_id(),
-            stateful_writer.guid().entity_id(),
-            first_sn,
-            stateful_writer.last_change_sequence_number(),
-            *reader_proxy.behavior().heartbeat_count(),
-            false,
-            false,
-        );
-
-        stateful_writer.push_send_message(&LOCATOR_INVALID, reader_proxy.remote_reader_guid(), RtpsSubmessage::Heartbeat(heartbeat));
-    }
-    
-    fn waiting_state(reader_proxy: &ReaderProxy, stateful_writer: &StatefulWriter) {
-        if let Some((_, RtpsSubmessage::AckNack(acknack))) = stateful_writer.pop_receive_message(reader_proxy.remote_reader_guid()) {
-            Self::transition_t8(reader_proxy, acknack);
-            reader_proxy.behavior().time_nack_received_reset();
-        }
-    }
-    
-    fn transition_t8(reader_proxy: &ReaderProxy, acknack: AckNack) {
-        reader_proxy.acked_changes_set(acknack.reader_sn_state().base() - 1);
-        reader_proxy.requested_changes_set(acknack.reader_sn_state().set().clone());
-    }
-    
-    fn must_repair_state(reader_proxy: &ReaderProxy, stateful_writer: &StatefulWriter) {
-        if let Some((_, RtpsSubmessage::AckNack(acknack))) = stateful_writer.pop_receive_message(reader_proxy.remote_reader_guid()) {
-            Self::transition_t8(reader_proxy, acknack);
-        }
-    }
-    
-    fn repairing_state(reader_proxy: &ReaderProxy, stateful_writer: &StatefulWriter) {
-        // This state is only valid if there are requested changes
-        debug_assert!(!reader_proxy.requested_changes().is_empty());
-    
-        while let Some(next_requested_seq_num) = reader_proxy.next_requested_change() {
-            Self::transition_t12(reader_proxy, stateful_writer, next_requested_seq_num);
-        }
-    }
-
-    fn transition_t12(reader_proxy: &ReaderProxy, stateful_writer: &StatefulWriter, next_requested_seq_num: SequenceNumber) {
-        if let Some(cache_change) = stateful_writer.writer_cache()
-        .changes().iter().find(|cc| cc.sequence_number() == next_requested_seq_num)
-        {
-            let data = data_from_cache_change(cache_change, reader_proxy.remote_reader_guid().entity_id());
-            stateful_writer.push_send_message(&LOCATOR_INVALID,reader_proxy.remote_reader_guid(), RtpsSubmessage::Data(data));
-        } else {
-            let gap = Gap::new(
-                BEHAVIOR_ENDIANNESS,
-                reader_proxy.remote_reader_guid().entity_id(), 
-                stateful_writer.guid().entity_id(),
-                next_requested_seq_num,
-                BTreeSet::new());
-
-            stateful_writer.push_send_message(&LOCATOR_INVALID, reader_proxy.remote_reader_guid(), RtpsSubmessage::Gap(gap));
-        }
+        None
     }
 }
 
 #[cfg(test)]
 mod tests {
-    // use super::*;
-    // use crate::types::{ChangeKind, TopicKind, ReliabilityKind, GUID};
-    // use crate::behavior::types::constants::DURATION_ZERO;
-    // use crate::types::constants::{
-    //     ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER, 
-    //     ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, };
-    // use crate::messages::{AckNack};
-    // use crate::messages::receiver::WriterReceiveMessage;
-    // use crate::stateful_writer::StatefulWriter;
+    use super::*;
+    use crate::types::constants::{
+        ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER,
+        ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
+        ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,};
 
-    // use std::collections::BTreeSet;
-    // use std::thread::sleep;
+    use crate::messages::submessages::AckNack;
+    use crate::messages::Endianness;
+    
+    use rust_dds_interface::qos_policy::ReliabilityQosPolicyKind;
 
-    // #[test]
-    // fn run_announcing_state_multiple_data_combinations() {
-    //     let writer_guid = GUID::new([2;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-    //     let history_cache = HistoryCache::new();
+    use std::thread::sleep;
 
-    //     let remote_reader_guid = GUID::new([1,2,3,4,5,6,7,8,9,10,11,12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-    //     let mut reader_proxy = ReaderProxy::new(remote_reader_guid, vec![], vec![], false, true);
+    #[test]
+    fn stateful_writer_new_change() {
+        let writer_qos = DataWriterQos::default();
+        let writer = StatefulWriter::new(
+            GUID::new([0; 12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
+            TopicKind::WithKey,
+            &writer_qos
+        );
 
-    //     let heartbeat_period = DURATION_ZERO;
+        let cache_change_seq1 = writer.new_change(
+            ChangeKind::Alive,
+            Some(vec![1, 2, 3]),
+            None,
+            [1; 16],
+        );
+
+        let cache_change_seq2 = writer.new_change(
+            ChangeKind::NotAliveUnregistered,
+            None, 
+            None,
+            [1; 16],
+        );
+
+        assert_eq!(cache_change_seq1.sequence_number(), 1);
+        assert_eq!(cache_change_seq1.change_kind(), &ChangeKind::Alive);
+        assert_eq!(cache_change_seq1.inline_qos().len(), 0);
+        assert_eq!(cache_change_seq1.instance_handle(), &[1; 16]);
+
+        assert_eq!(cache_change_seq2.sequence_number(), 2);
+        assert_eq!(
+            cache_change_seq2.change_kind(),
+            &ChangeKind::NotAliveUnregistered
+        );
+        assert_eq!(cache_change_seq2.inline_qos().len(), 0);
+        assert_eq!(cache_change_seq2.instance_handle(), &[1; 16]);
+    }
+
+    #[test]
+    fn reader_proxy_unsent_changes_operations() {
+        let remote_reader_guid = GUID::new([1,2,3,4,5,6,7,8,9,10,11,12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
+        let reader_proxy = ReaderProxy::new(remote_reader_guid, vec![], vec![], false, true);
+
+        // Check that a reader proxy that has no changes marked as sent doesn't reports no changes
+        let no_change_in_writer_sequence_number = 0;
+        assert_eq!(reader_proxy.next_unsent_change(no_change_in_writer_sequence_number), None);
+        assert!(reader_proxy.unsent_changes(no_change_in_writer_sequence_number).is_empty());
+
+        // Check the behaviour for a reader proxy starting with no changes sent and two changes in writer
+        let two_changes_in_writer_sequence_number = 2;
+        assert_eq!(reader_proxy.unsent_changes(two_changes_in_writer_sequence_number).len(), 2);
+        assert!(reader_proxy.unsent_changes(two_changes_in_writer_sequence_number).contains(&1));
+        assert!(reader_proxy.unsent_changes(two_changes_in_writer_sequence_number).contains(&2));
+
+        assert_eq!(reader_proxy.next_unsent_change(two_changes_in_writer_sequence_number), Some(1));
+        assert_eq!(reader_proxy.unsent_changes(two_changes_in_writer_sequence_number).len(), 1);
+        assert!(reader_proxy.unsent_changes(two_changes_in_writer_sequence_number).contains(&2));
+
+        assert_eq!(reader_proxy.next_unsent_change(two_changes_in_writer_sequence_number), Some(2));
+        assert!(reader_proxy.unsent_changes(two_changes_in_writer_sequence_number).is_empty());
+
+        assert_eq!(reader_proxy.next_unsent_change(two_changes_in_writer_sequence_number), None);
+    }
+
+    #[test]
+    fn reader_proxy_requested_changes_operations() {
+        let remote_reader_guid = GUID::new([1,2,3,4,5,6,7,8,9,10,11,12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
+        let reader_proxy = ReaderProxy::new(remote_reader_guid, vec![], vec![], false, true);
+
+        // Check that a reader proxy that has no changes marked as sent doesn't reports no changes
+        assert!(reader_proxy.requested_changes().is_empty());
+        assert_eq!(reader_proxy.next_requested_change(), None);
+
+        // Insert some requested changes
+        let mut requested_changes = BTreeSet::new();
+        requested_changes.insert(2);
+        requested_changes.insert(3);
+        requested_changes.insert(6);
+        reader_proxy.requested_changes_set(requested_changes);
+
+        // Verify that the changes were correctly inserted and are removed in the correct order
+        assert_eq!(reader_proxy.requested_changes().len(), 3);
+        assert!(reader_proxy.requested_changes().contains(&2));
+        assert!(reader_proxy.requested_changes().contains(&3));
+        assert!(reader_proxy.requested_changes().contains(&6));
+
+        assert_eq!(reader_proxy.next_requested_change(), Some(2));
+        assert_eq!(reader_proxy.next_requested_change(), Some(3));
+        assert_eq!(reader_proxy.requested_changes().len(), 1);
+        assert!(reader_proxy.requested_changes().contains(&6));
+        assert_eq!(reader_proxy.next_requested_change(), Some(6));
+        assert_eq!(reader_proxy.next_requested_change(), None);
+
+
+        // Verify that if requested changes are inserted when there are already requested changes
+        // that the sets are not replaced
+        let mut requested_changes_1 = BTreeSet::new();
+        requested_changes_1.insert(2);
+        requested_changes_1.insert(3);
+        reader_proxy.requested_changes_set(requested_changes_1);
+
+        let mut requested_changes_2 = BTreeSet::new();
+        requested_changes_2.insert(2); // Repeated number
+        requested_changes_2.insert(7);
+        requested_changes_2.insert(9);
+        reader_proxy.requested_changes_set(requested_changes_2);
         
-    //     // Test no data in the history cache and no changes written
-    //     let no_change_sequence_number = 0;
-    //     let submessages = StatefulWriterBehavior::run_announcing_state(&mut reader_proxy, &writer_guid, &history_cache, no_change_sequence_number, heartbeat_period).unwrap();
-    //     if let RtpsSubmessage::Heartbeat(heartbeat) = &submessages[1] {
-    //         assert_eq!(heartbeat.reader_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-    //         assert_eq!(heartbeat.writer_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-    //         assert_eq!(heartbeat.first_sn(), 1);
-    //         assert_eq!(heartbeat.last_sn(), 0);
-    //         assert_eq!(heartbeat.count(), 1);
-    //         assert_eq!(heartbeat.is_final(), false);
-    //     } else {
-    //         assert!(false);
-    //     }
-
-    //     // Test no data in the history cache and two changes written
-    //     let two_changes_sequence_number = 2;
-    //     let submessages = StatefulWriterBehavior::run_announcing_state(&mut reader_proxy, &writer_guid, &history_cache, two_changes_sequence_number, heartbeat_period).unwrap();
-    //     if let RtpsSubmessage::Heartbeat(heartbeat) = &submessages[1] {
-    //         assert_eq!(heartbeat.reader_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-    //         assert_eq!(heartbeat.writer_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-    //         assert_eq!(heartbeat.first_sn(), 3);
-    //         assert_eq!(heartbeat.last_sn(), 2);
-    //         assert_eq!(heartbeat.count(), 2);
-    //         assert_eq!(heartbeat.is_final(), false);
-    //     } else {
-    //         assert!(false);
-    //     }
-
-    //     // Test two changes in the history cache and two changes written
-    //     let instance_handle = [1;16];
-    //     let cache_change_seq1 = CacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, 1, Some(vec![1,2,3]), None);
-    //     let cache_change_seq2 = CacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, 2, Some(vec![2,3,4]), None);
-    //     history_cache.add_change(cache_change_seq1);
-    //     history_cache.add_change(cache_change_seq2);
-
-    //     let submessages = StatefulWriterBehavior::run_announcing_state(&mut reader_proxy, &writer_guid, &history_cache, two_changes_sequence_number, heartbeat_period).unwrap();
-    //     if let RtpsSubmessage::Heartbeat(heartbeat) = &submessages[1] {
-    //         assert_eq!(heartbeat.reader_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-    //         assert_eq!(heartbeat.writer_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-    //         assert_eq!(heartbeat.first_sn(), 1);
-    //         assert_eq!(heartbeat.last_sn(), 2);
-    //         assert_eq!(heartbeat.count(), 3);
-    //         assert_eq!(heartbeat.is_final(), false);
-    //     } else {
-    //         assert!(false);
-    //     }
-    // }
-
-    // #[test]
-    // fn process_repair_message_acknowledged_and_requests() {
-    //     let remote_reader_guid = GUID::new([1,2,3,4,5,6,7,8,9,10,11,12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-    //     let mut reader_proxy = ReaderProxy::new(remote_reader_guid, vec![], vec![], false, true);
-
-    //     let writer_guid = GUID::new([2;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-        
-    //     let acknack = AckNack::new(
-    //         *remote_reader_guid.entity_id(),
-    //        *writer_guid.entity_id(),
-    //        3,
-    //         vec![3, 5, 6].iter().cloned().collect(),
-    //        1,
-    //         true,
-    //         Endianness::LittleEndian);
-    //     let received_message = RtpsMessage::new(*remote_reader_guid.prefix(), vec![RtpsSubmessage::AckNack(acknack)]);
-
-    //     StatefulWriterBehavior::process_repair_message(&mut reader_proxy, &writer_guid, &received_message);
-
-    //     assert_eq!(reader_proxy.acked_changes(), 2);
-    //     assert_eq!(reader_proxy.requested_changes(), vec![3, 5, 6].iter().cloned().collect());
-    // }
-
-    // #[test]
-    // fn process_repair_message_different_conditions() {
-    //     let remote_reader_guid = GUID::new([1,2,3,4,5,6,7,8,9,10,11,12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-    //     let mut reader_proxy = ReaderProxy::new(remote_reader_guid, vec![], vec![], false, true);
-
-    //     let writer_guid = GUID::new([2;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-
-    //     // Test message with different reader guid
-    //     let mut submessages = Vec::new();
-    //     let other_reader_guid = GUID::new([9;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-    //     let acknack = AckNack::new(
-    //         *other_reader_guid.entity_id(),
-    //        *writer_guid.entity_id(),
-    //        3,
-    //         vec![3, 5, 6].iter().cloned().collect(),
-    //        1,
-    //         true,
-    //         Endianness::LittleEndian);
-    //     submessages.push(RtpsSubmessage::AckNack(acknack));
-    //     let received_message = RtpsMessage::new(*other_reader_guid.prefix(), submessages);
-    //     StatefulWriterBehavior::process_repair_message(&mut reader_proxy, &writer_guid, &received_message);
-        
-    //     // Verify that message was ignored
-    //     // assert_eq!(reader_proxy.highest_sequence_number_acknowledged, 0);
-    //     assert!(reader_proxy.requested_changes().is_empty());
-
-    //     // Test message with different writer guid
-    //     let mut submessages = Vec::new();
-    //     let acknack = AckNack::new(
-    //         *remote_reader_guid.entity_id(),
-    //         ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
-    //        3, 
-    //        vec![5, 6].iter().cloned().collect(),
-    //        1,
-    //         true,
-    //         Endianness::LittleEndian);
-    //     submessages.push(RtpsSubmessage::AckNack(acknack));
-    //     let received_message = RtpsMessage::new(*remote_reader_guid.prefix(), submessages);
-
-    //     StatefulWriterBehavior::process_repair_message(&mut reader_proxy, &writer_guid, &received_message);
-
-    //     // Verify that message was ignored
-    //     assert_eq!(reader_proxy.acked_changes(), 0);
-    //     assert!(reader_proxy.requested_changes().is_empty());
-
-
-    //     // Test duplicate acknack message
-    //     let mut submessages = Vec::new();
-    //     let acknack = AckNack::new(
-    //         *remote_reader_guid.entity_id(),
-    //         *writer_guid.entity_id(),
-    //        3, 
-    //         vec![3, 5, 6].iter().cloned().collect(),
-    //        1,
-    //         true,
-    //         Endianness::LittleEndian);
-    //     submessages.push(RtpsSubmessage::AckNack(acknack));
-    //     let received_message = RtpsMessage::new(*remote_reader_guid.prefix(), submessages);
-
-    //     StatefulWriterBehavior::process_repair_message(&mut reader_proxy, &writer_guid, &received_message);
-
-    //     // Verify message was correctly processed
-    //     assert_eq!(reader_proxy.acked_changes(), 2);
-    //     assert_eq!(reader_proxy.requested_changes(), vec![3, 5, 6].iter().cloned().collect());
-
-    //     // Clear the requested sequence numbers and reprocess the message
-    //     while  reader_proxy.next_requested_change() != None {
-    //         // do nothing
-    //     }
-    //     StatefulWriterBehavior::process_repair_message(&mut reader_proxy, &writer_guid, &received_message);
-
-    //     // Verify that the requested sequence numbers remain empty
-    //     assert!(reader_proxy.requested_changes().is_empty());
-    // }
-
-    // #[test]
-    // fn process_repair_message_only_acknowledged() {
-    //     let remote_reader_guid = GUID::new([1,2,3,4,5,6,7,8,9,10,11,12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-    //     let mut reader_proxy = ReaderProxy::new(remote_reader_guid, vec![], vec![], false, true);
-
-    //     let writer_guid = GUID::new([2;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-
-    //     let mut submessages = Vec::new();
-    //     let acknack = AckNack::new(
-    //         *remote_reader_guid.entity_id(),
-    //         *writer_guid.entity_id(),
-    //        5, 
-    //        vec![].iter().cloned().collect(),
-    //        1,
-    //         true,
-    //         Endianness::LittleEndian);
-    //     submessages.push(RtpsSubmessage::AckNack(acknack));
-
-    //     let received_message = RtpsMessage::new(*remote_reader_guid.prefix(), submessages);
-    //     StatefulWriterBehavior::process_repair_message(&mut reader_proxy, &writer_guid, &received_message);
-
-    //     assert_eq!(reader_proxy.acked_changes(), 4);
-    //     assert!(reader_proxy.requested_changes().is_empty());
-    // }
-
-    // // #[test]
-    // fn run_pushing_state_only_data_messages() {
-    //     let writer_guid = GUID::new([2;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-    //     let history_cache = HistoryCache::new();
-
-    //     let instance_handle = [1;16];
-
-    //     let cache_change_seq1 = CacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, 1, Some(vec![1,2,3]), None);
-    //     let cache_change_seq2 = CacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, 2, Some(vec![2,3,4]), None);
-    //     history_cache.add_change(cache_change_seq1);
-    //     history_cache.add_change(cache_change_seq2);
-    //     let last_change_sequence_number  = 2;
-
-    //     let remote_reader_guid = GUID::new([1,2,3,4,5,6,7,8,9,10,11,12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-    //     let mut reader_proxy = ReaderProxy::new(remote_reader_guid, vec![], vec![], false, true);
-
-    //     let submessages = StatefulWriterBehavior::run_pushing_state(&mut reader_proxy, &writer_guid, &history_cache, last_change_sequence_number);
-    //     assert_eq!(submessages.len(), 3);
-    //     if let RtpsSubmessage::InfoTs(message_1) = &submessages[0] {
-    //         println!("{:?}", message_1);
-    //     } else {
-    //         panic!("Wrong message type");
-    //     }
-    //     if let RtpsSubmessage::Data(data_message_1) = &submessages[1] {
-    //         assert_eq!(data_message_1.reader_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-    //         assert_eq!(data_message_1.writer_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-    //         assert_eq!(data_message_1.writer_sn(), 1);
-    //         assert_eq!(data_message_1.serialized_payload(), Some(&vec![1, 2, 3]));
-
-    //     } else {
-    //         panic!("Wrong message type");
-    //     };
-
-    //     if let RtpsSubmessage::Data(data_message_2) = &submessages[2] {
-    //         assert_eq!(data_message_2.reader_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-    //         assert_eq!(data_message_2.writer_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-    //         assert_eq!(data_message_2.writer_sn(), 2);
-    //         assert_eq!(data_message_2.serialized_payload(), Some(&vec![2, 3, 4]));
-    //     } else {
-    //         panic!("Wrong message type");
-    //     };
-    // }
-
-    // #[test]
-    // fn run_pushing_state_only_gap_message() {
-    //     let writer_guid = GUID::new([2;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-    //     let history_cache = HistoryCache::new();
-
-    //     // Don't add any change to the history cache so that gap message has to be sent
-    //     // let instance_handle = [1;16];
-
-    //     // let cache_change_seq1 = CacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, 1, None, Some(vec![1,2,3]));
-    //     // let cache_change_seq2 = CacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, 2, None, Some(vec![2,3,4]));
-    //     // history_cache.add_change(cache_change_seq1);
-    //     // history_cache.add_change(cache_change_seq2);
-
-    //     let last_change_sequence_number  = 2;
-
-    //     let remote_reader_guid = GUID::new([1,2,3,4,5,6,7,8,9,10,11,12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-    //     let mut reader_proxy = ReaderProxy::new(remote_reader_guid, vec![], vec![], false, true);
-
-    //     let submessages = StatefulWriterBehavior::run_pushing_state(&mut reader_proxy, &writer_guid, &history_cache, last_change_sequence_number);
-    //     assert_eq!(submessages.len(), 3);
-    //     if let RtpsSubmessage::InfoTs(message_1) = &submessages[0] {
-    //         println!("{:?}", message_1);
-    //     } else {
-    //         panic!("Wrong message type");
-    //     }
-    //     if let RtpsSubmessage::Gap(gap_message_1) = &submessages[1] {
-    //         assert_eq!(gap_message_1.reader_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-    //         assert_eq!(gap_message_1.writer_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-    //         assert_eq!(gap_message_1.gap_start(), 1);
-    //     } else {
-    //         panic!("Wrong message type");
-    //     };
-    //     if let RtpsSubmessage::Gap(gap_message_2) = &submessages[2] {
-    //         assert_eq!(gap_message_2.reader_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-    //         assert_eq!(gap_message_2.writer_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-    //         assert_eq!(gap_message_2.gap_start(), 2);
-    //     } else {
-    //         panic!("Wrong message type");
-    //     };
-    // }
-
-    // #[test]
-    // fn run_pushing_state_gap_and_data_message() {
-    //     let writer_guid = GUID::new([2;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-    //     let history_cache = HistoryCache::new();
-
-    //     // Add one change to the history cache so that data and gap messages have to be sent
-    //     let instance_handle = [1;16];
-
-    //     // let cache_change_seq1 = CacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, 1, None, Some(vec![1,2,3]));
-    //     let cache_change_seq2 = CacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, 2, Some(vec![2,3,4]), None);
-    //     // history_cache.add_change(cache_change_seq1);
-    //     history_cache.add_change(cache_change_seq2);
-
-    //     let last_change_sequence_number  = 2;
-
-    //     let remote_reader_guid = GUID::new([1,2,3,4,5,6,7,8,9,10,11,12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-    //     let mut reader_proxy = ReaderProxy::new(remote_reader_guid, vec![], vec![], false, true);
-
-    //     let submessages = StatefulWriterBehavior::run_pushing_state(&mut reader_proxy, &writer_guid, &history_cache, last_change_sequence_number);
-    //     assert_eq!(submessages.len(), 3);
-    //     if let RtpsSubmessage::InfoTs(message_1) = &submessages[0] {
-    //         println!("{:?}", message_1);
-    //     } else {
-    //         panic!("Wrong message type");
-    //     }
-    //     if let RtpsSubmessage::Gap(gap_message) = &submessages[1] {
-    //         assert_eq!(gap_message.reader_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-    //         assert_eq!(gap_message.writer_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-    //         assert_eq!(gap_message.gap_start(), 1);
-    //     } else {
-    //         panic!("Wrong message type");
-    //     };
-    //     if let RtpsSubmessage::Data(data_message) = &submessages[2] {
-    //         assert_eq!(data_message.reader_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-    //         assert_eq!(data_message.writer_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-    //         assert_eq!(data_message.writer_sn(), 2);
-    //         assert_eq!(data_message.serialized_payload(), Some(&vec![2, 3, 4]));
-    //     } else {
-    //         panic!("Wrong message type");
-    //     };
-    // }
-
-
-
-    // #[test]
-    // fn run_repairing_state_only_data_messages() {
-    //     let writer_guid = GUID::new([2;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-    //     let history_cache = HistoryCache::new();
-
-    //     let instance_handle = [1;16];
-
-    //     let cache_change_seq1 = CacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, 1, Some(vec![1,2,3]), None);
-    //     let cache_change_seq2 = CacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, 2, Some(vec![2,3,4]), None);
-    //     history_cache.add_change(cache_change_seq1);
-    //     history_cache.add_change(cache_change_seq2);
-
-    //     let remote_reader_guid = GUID::new([1,2,3,4,5,6,7,8,9,10,11,12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-    //     let mut reader_proxy = ReaderProxy::new(remote_reader_guid, vec![], vec![], false, true);
-    //     reader_proxy.requested_changes_set(vec![1, 2].iter().cloned().collect());
-
-    //     let submessages = StatefulWriterBehavior::run_repairing_state(&mut reader_proxy, &writer_guid, &history_cache);
-    //     assert_eq!(submessages.len(), 3);
-    //     if let RtpsSubmessage::InfoTs(message_1) = &submessages[0] {
-    //         println!("{:?}", message_1);
-    //     } else {
-    //         panic!("Wrong message type");
-    //     }
-    //     if let RtpsSubmessage::Data(data_message_1) = &submessages[1] {
-    //         assert_eq!(data_message_1.reader_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-    //         assert_eq!(data_message_1.writer_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-    //         assert_eq!(data_message_1.writer_sn(), 1);
-    //         assert_eq!(data_message_1.serialized_payload(), Some(&vec![1, 2, 3]));
-
-    //     } else {
-    //         panic!("Wrong message type");
-    //     };
-
-    //     if let RtpsSubmessage::Data(data_message_2) = &submessages[2] {
-    //         assert_eq!(data_message_2.reader_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-    //         assert_eq!(data_message_2.writer_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-    //         assert_eq!(data_message_2.writer_sn(), 2);
-    //         assert_eq!(data_message_2.serialized_payload(), Some(&vec![2, 3, 4]));
-    //     } else {
-    //         panic!("Wrong message type");
-    //     };
-    // }
-
-    // #[test]
-    // fn run_repairing_state_only_gap_messages() {
-    //     let writer_guid = GUID::new([2;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-    //     let history_cache = HistoryCache::new();
-
-    //     let remote_reader_guid = GUID::new([1,2,3,4,5,6,7,8,9,10,11,12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-    //     let mut reader_proxy = ReaderProxy::new(remote_reader_guid, vec![], vec![], false, true);
-    //     reader_proxy.requested_changes_set(vec![1, 2].iter().cloned().collect());
-
-    //     let submessages = StatefulWriterBehavior::run_repairing_state(&mut reader_proxy, &writer_guid, &history_cache);
-    //     assert_eq!(submessages.len(), 3);
-    //     if let RtpsSubmessage::InfoTs(message_1) = &submessages[0] {
-    //         println!("{:?}", message_1);
-    //     } else {
-    //         panic!("Wrong message type");
-    //     }
-    //     if let RtpsSubmessage::Gap(gap_message_1) = &submessages[1] {
-    //         assert_eq!(gap_message_1.reader_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-    //         assert_eq!(gap_message_1.writer_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-    //         assert_eq!(gap_message_1.gap_start(), 1);
-    //     } else {
-    //         panic!("Wrong message type");
-    //     };
-    //     if let RtpsSubmessage::Gap(gap_message_2) = &submessages[2] {
-    //         assert_eq!(gap_message_2.reader_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-    //         assert_eq!(gap_message_2.writer_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-    //         assert_eq!(gap_message_2.gap_start(), 2);
-    //     } else {
-    //         panic!("Wrong message type");
-    //     };
-    // }
-
-    // #[test]
-    // fn run_best_effort_reader_proxy() {
-    //     let writer_guid = GUID::new([2;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-    //     let history_cache = HistoryCache::new();
-
-    //     let remote_reader_guid = GUID::new([1;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-    //     let mut reader_proxy = ReaderProxy::new(remote_reader_guid, vec![], vec![], false, true);
-    //     let last_change_sequence_number = 0;
-
-    //     assert!(StatefulWriterBehavior::run_best_effort(&mut reader_proxy, &writer_guid, &history_cache, last_change_sequence_number).is_none());
-
-    //     let instance_handle = [1;16];
-
-    //     let cache_change_seq1 = CacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, 1, Some(vec![1,2,3]), None);
-    //     let cache_change_seq2 = CacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, 2, Some(vec![2,3,4]), None);
-    //     history_cache.add_change(cache_change_seq1);
-    //     history_cache.add_change(cache_change_seq2);
-    //     let last_change_sequence_number = 2;
-
-    //     let submessages = StatefulWriterBehavior::run_best_effort(&mut reader_proxy, &writer_guid, &history_cache, last_change_sequence_number).unwrap();
-    //     assert_eq!(submessages.len(), 3);
-    //     if let RtpsSubmessage::InfoTs(message_1) = &submessages[0] {
-    //         println!("{:?}", message_1);
-    //     } else {
-    //         panic!("Wrong message type");
-    //     }
-    //     if let RtpsSubmessage::Data(data_message_1) = &submessages[1] {
-    //         assert_eq!(data_message_1.reader_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-    //         assert_eq!(data_message_1.writer_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-    //         assert_eq!(data_message_1.writer_sn(), 1);
-    //         assert_eq!(data_message_1.serialized_payload(), Some(&vec![1, 2, 3]));
-
-    //     } else {
-    //         panic!("Wrong message type");
-    //     };
-
-    //     if let RtpsSubmessage::Data(data_message_2) = &submessages[2] {
-    //         assert_eq!(data_message_2.reader_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-    //         assert_eq!(data_message_2.writer_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-    //         assert_eq!(data_message_2.writer_sn(), 2);
-    //         assert_eq!(data_message_2.serialized_payload(), Some(&vec![2, 3, 4]));
-    //     } else {
-    //         panic!("Wrong message type");
-    //     };
-
-    //     assert!(StatefulWriterBehavior::run_best_effort(&mut reader_proxy, &writer_guid, &history_cache, last_change_sequence_number).is_none());
-    // }
-
-    // #[test]
-    // fn run_reliable_reader_proxy() {
-    //     let heartbeat_period = Duration::from_millis(200);
-    //     let nack_response_delay = Duration::from_millis(200);
-    //     let writer_guid = GUID::new([2;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-    //     let history_cache = HistoryCache::new();
-
-    //     let remote_reader_guid = GUID::new([1;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-    //     let mut reader_proxy = ReaderProxy::new(remote_reader_guid, vec![], vec![], false, true);
-    //     let last_change_sequence_number = 0;
-
-    //     // Check that immediately after creation no message is sent
-    //     assert!(StatefulWriterBehavior::run_reliable(&mut reader_proxy, &writer_guid, &history_cache, last_change_sequence_number, heartbeat_period, nack_response_delay, None).is_none());
-
-    //     // Add two changes to the history cache and check that two data messages are sent
-    //     let instance_handle = [1;16];
-
-    //     let cache_change_seq1 = CacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, 1, Some(vec![1,2,3]), None);
-    //     let cache_change_seq2 = CacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, 2, Some(vec![2,3,4]), None);
-    //     history_cache.add_change(cache_change_seq1);
-    //     history_cache.add_change(cache_change_seq2);
-    //     let last_change_sequence_number = 2;
-
-    //     let submessages = StatefulWriterBehavior::run_reliable(&mut reader_proxy, &writer_guid, &history_cache, last_change_sequence_number, heartbeat_period, nack_response_delay, None).unwrap();
-    //     assert_eq!(submessages.len(), 3);
-    //     if let RtpsSubmessage::InfoTs(message_1) = &submessages[0] {
-    //         println!("{:?}", message_1);
-    //     } else {
-    //         panic!("Wrong message type");
-    //     }
-    //     if let RtpsSubmessage::Data(data_message_1) = &submessages[1] {
-    //         assert_eq!(data_message_1.reader_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-    //         assert_eq!(data_message_1.writer_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-    //         assert_eq!(data_message_1.writer_sn(), 1);
-    //         assert_eq!(data_message_1.serialized_payload(), Some(&vec![1, 2, 3]));
-
-    //     } else {
-    //         panic!("Wrong message type");
-    //     };
-
-    //     if let RtpsSubmessage::Data(data_message_2) = &submessages[2] {
-    //         assert_eq!(data_message_2.reader_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-    //         assert_eq!(data_message_2.writer_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-    //         assert_eq!(data_message_2.writer_sn(), 2);
-    //         assert_eq!(data_message_2.serialized_payload(), Some(&vec![2, 3, 4]));
-    //     } else {
-    //         panic!("Wrong message type");
-    //     };
-
-    //     // Check that immediately after sending the data nothing else is sent
-    //     assert!(StatefulWriterBehavior::run_reliable(&mut reader_proxy, &writer_guid, &history_cache, last_change_sequence_number, heartbeat_period, nack_response_delay, None).is_none());
-
-    //     // Check that a heartbeat is sent after the heartbeat period
-    //     sleep(heartbeat_period.into());
-
-    //     let submessages = StatefulWriterBehavior::run_reliable(&mut reader_proxy, &writer_guid, &history_cache, last_change_sequence_number, heartbeat_period, nack_response_delay, None).unwrap();
-    //     assert_eq!(submessages.len(), 2);
-    //     if let RtpsSubmessage::InfoTs(message_1) = &submessages[0] {
-    //         println!("{:?}", message_1);
-    //     } else {
-    //         panic!("Wrong message type");
-    //     }
-    //     if let RtpsSubmessage::Heartbeat(heartbeat_message) = &submessages[1] {
-    //         assert_eq!(heartbeat_message.reader_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-    //         assert_eq!(heartbeat_message.writer_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-    //         assert_eq!(heartbeat_message.first_sn(), 1);
-    //         assert_eq!(heartbeat_message.last_sn(), 2);
-    //         assert_eq!(heartbeat_message.count(), 1);
-    //         assert_eq!(heartbeat_message.is_final(), false);
-
-    //     } else {
-    //         panic!("Wrong message type");
-    //     };
-
-    //     // Check that if a sample is requested it gets sent after the nack_response_delay. In this case it comes together with a heartbeat
-    //     let acknack = AckNack::new(
-    //         *remote_reader_guid.entity_id(),
-    //         *writer_guid.entity_id(),
-    //        1, 
-    //        vec![2].iter().cloned().collect(),
-    //        1,
-    //        true,
-    //        Endianness::LittleEndian);
-    //     let received_message = RtpsMessage::new(*remote_reader_guid.prefix(), vec![RtpsSubmessage::AckNack(acknack)]);
-
-    //     let submessages = StatefulWriterBehavior::run_reliable(&mut reader_proxy, &writer_guid, &history_cache, last_change_sequence_number, heartbeat_period, nack_response_delay, Some(&received_message));
-    //     assert!(submessages.is_none());
-
-    //     sleep(nack_response_delay.into());
-
-    //     let submessages = StatefulWriterBehavior::run_reliable(&mut reader_proxy, &writer_guid, &history_cache, last_change_sequence_number, heartbeat_period, nack_response_delay, Some(&received_message)).unwrap();
-    //     assert_eq!(submessages.len(), 4);
-    //     if let RtpsSubmessage::InfoTs(message_1) = &submessages[0] {
-    //         println!("{:?}", message_1);
-    //     } else {
-    //         panic!("Wrong message type");
-    //     }
-    //     if let RtpsSubmessage::Heartbeat(heartbeat_message) = &submessages[1] {
-    //         assert_eq!(heartbeat_message.reader_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-    //         assert_eq!(heartbeat_message.writer_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-    //         assert_eq!(heartbeat_message.first_sn(), 1);
-    //         assert_eq!(heartbeat_message.last_sn(), 2);
-    //         assert_eq!(heartbeat_message.count(), 2);
-    //         assert_eq!(heartbeat_message.is_final(), false);
-    //     }
-    //     if let RtpsSubmessage::InfoTs(message_1) = &submessages[2] {
-    //         println!("{:?}", message_1);
-    //     } else {
-    //         panic!("Wrong message type");
-    //     }
-    //     if let RtpsSubmessage::Data(data_message_1) = &submessages[3] {
-    //         assert_eq!(data_message_1.reader_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-    //         assert_eq!(data_message_1.writer_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-    //         assert_eq!(data_message_1.writer_sn(), 2);
-    //         assert_eq!(data_message_1.serialized_payload(), Some(&vec![2, 3, 4]));
-
-    //     } else {
-    //         panic!("Wrong message type");
-    //     };
-
-    // }
-
-    // #[test]
-    // fn best_effort_stateful_writer_run() {
-    //     let mut writer = StatefulWriter::new(
-    //         GUID::new([0; 12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
-    //         TopicKind::WithKey,
-    //         ReliabilityKind::BestEffort,
-    //         vec![Locator::new(0, 7400, [0; 16])], 
-    //         vec![],                               
-    //         false,                                
-    //         DURATION_ZERO,                        
-    //         DURATION_ZERO,                        
-    //         DURATION_ZERO,                        
-    //     );
-
-    //     let reader_guid = GUID::new([1;12], ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR);
-    //     let reader_proxy = ReaderProxy::new(reader_guid, vec![], vec![], false, true);
-
-    //     writer.matched_reader_add(reader_proxy);
-
-    //     let cache_change_seq1 = writer.new_change(
-    //         ChangeKind::Alive,
-    //         Some(vec![1, 2, 3]), 
-    //         None,                
-    //         [1; 16],             
-    //     );
-
-    //     let cache_change_seq2 = writer.new_change(
-    //         ChangeKind::Alive,
-    //         Some(vec![4, 5, 6]), 
-    //         None,                
-    //         [1; 16],             
-    //     );
-
-    //     writer.writer_cache().add_change(cache_change_seq1);
-    //     writer.writer_cache().add_change(cache_change_seq2);
-
-    //     // let reader_proxy = writer.matched_reader_lookup(& reader_guid).unwrap();
-    //     let writer_data = writer.run(&reader_guid, None).unwrap();
-    //     assert_eq!(writer_data.submessages().len(), 3);
-    //     if let RtpsSubmessage::InfoTs(message_1) = &writer_data.submessages()[0] {
-    //         println!("{:?}", message_1);
-    //     } else {
-    //         panic!("Wrong message type");
-    //     }
-    //     if let RtpsSubmessage::Data(data_message_1) = &writer_data.submessages()[1] {
-    //         assert_eq!(data_message_1.reader_id(), ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR);
-    //         assert_eq!(data_message_1.writer_id(), ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER);
-    //         assert_eq!(data_message_1.writer_sn(), 1);
-    //         assert_eq!(data_message_1.serialized_payload(), Some(&vec![1, 2, 3]));
-
-    //     } else {
-    //         panic!("Wrong message type");
-    //     };
-
-    //     if let RtpsSubmessage::Data(data_message_2) = &writer_data.submessages()[2] {
-    //         assert_eq!(data_message_2.reader_id(), ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR);
-    //         assert_eq!(data_message_2.writer_id(), ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER);
-    //         assert_eq!(data_message_2.writer_sn(), 2);
-    //         assert_eq!(data_message_2.serialized_payload(), Some(&vec![4, 5, 6]));
-    //     } else {
-    //         panic!("Wrong message type");
-    //     };
-
-    //     // Test that nothing more is sent after the first time
-    //     let writer_data = writer.run(&reader_guid, None);
-    //     assert_eq!(writer_data.is_none(), true);
-    // }
-
+        assert_eq!(reader_proxy.requested_changes().len(), 4);
+        assert!(reader_proxy.requested_changes().contains(&2));
+        assert!(reader_proxy.requested_changes().contains(&3));
+        assert!(reader_proxy.requested_changes().contains(&7));
+        assert!(reader_proxy.requested_changes().contains(&9));
+    }
+
+    #[test]
+    fn reader_proxy_unacked_changes_operations() {
+        let remote_reader_guid = GUID::new([1,2,3,4,5,6,7,8,9,10,11,12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
+        let reader_proxy = ReaderProxy::new(remote_reader_guid, vec![], vec![], false, true);
+
+        let no_change_in_writer = 0;
+        assert!(reader_proxy.unacked_changes(no_change_in_writer).is_empty());
+
+        let two_changes_in_writer = 2;
+        assert_eq!(reader_proxy.unacked_changes(two_changes_in_writer).len(), 2);
+        assert!(reader_proxy.unacked_changes(two_changes_in_writer).contains(&1));
+        assert!(reader_proxy.unacked_changes(two_changes_in_writer).contains(&2));
+
+        reader_proxy.acked_changes_set(1);
+        assert_eq!(reader_proxy.unacked_changes(two_changes_in_writer).len(), 1);
+        assert!(reader_proxy.unacked_changes(two_changes_in_writer).contains(&2));
+    }
+
+    #[test]
+    fn run_best_effort_send_data() {
+        let mut writer_qos = DataWriterQos::default();
+        writer_qos.reliability.kind = ReliabilityQosPolicyKind::BestEffortReliabilityQos;
+
+        let writer_guid = GUID::new([2;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
+        let stateful_writer = StatefulWriter::new(
+            writer_guid,
+            TopicKind::WithKey,
+            &writer_qos,
+        );
+
+        let remote_reader_guid = GUID::new([1,2,3,4,5,6,7,8,9,10,11,12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
+        let reader_proxy = ReaderProxy::new(remote_reader_guid, vec![], vec![], false, true);
+        stateful_writer.matched_reader_add(reader_proxy);
+
+        let instance_handle = [1;16];
+        let cache_change_seq1 = stateful_writer.new_change(ChangeKind::Alive, Some(vec![1,2,3]), None, instance_handle);
+        let cache_change_seq2 = stateful_writer.new_change(ChangeKind::Alive, Some(vec![2,3,4]), None, instance_handle);
+        stateful_writer.writer_cache().add_change(cache_change_seq1).unwrap();
+        stateful_writer.writer_cache().add_change(cache_change_seq2).unwrap();
+
+        stateful_writer.run();
+        let (_dst_locators, messages) = stateful_writer.pop_send_message().unwrap();
+
+        if let RtpsSubmessage::Data(data) = &messages[0] {
+            assert_eq!(data.reader_id(), remote_reader_guid.entity_id());
+            assert_eq!(data.writer_id(), writer_guid.entity_id());
+            assert_eq!(data.writer_sn(), 1);
+        } else {
+            panic!("Wrong message sent");
+        }
+
+        if let RtpsSubmessage::Data(data) = &messages[1] {
+            assert_eq!(data.reader_id(), remote_reader_guid.entity_id());
+            assert_eq!(data.writer_id(), writer_guid.entity_id());
+            assert_eq!(data.writer_sn(), 2);
+        } else {
+            panic!("Wrong message sent");
+        }
+
+        // Check that no heartbeat is sent using best effort writers
+        stateful_writer.run();
+        assert!(stateful_writer.pop_send_message().is_none());
+        sleep(stateful_writer.heartbeat_period.into());
+        stateful_writer.run();
+        assert!(stateful_writer.pop_send_message().is_none());
+    }
+
+    #[test]
+    fn run_reliable_send_data() {
+        let mut writer_qos = DataWriterQos::default();
+        writer_qos.reliability.kind = ReliabilityQosPolicyKind::ReliableReliabilityQos;
+
+        let writer_guid = GUID::new([2;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
+        let stateful_writer = StatefulWriter::new(
+            writer_guid,
+            TopicKind::WithKey,
+            &writer_qos
+        );
+
+        let remote_reader_guid_prefix = [1,2,3,4,5,6,7,8,9,10,11,12];
+        let remote_reader_guid = GUID::new(remote_reader_guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
+        let reader_proxy = ReaderProxy::new(remote_reader_guid, vec![], vec![], false, true);
+        stateful_writer.matched_reader_add(reader_proxy);
+
+        let instance_handle = [1;16];
+        let cache_change_seq1 = stateful_writer.new_change(ChangeKind::Alive, Some(vec![1,2,3]), None, instance_handle);
+        let cache_change_seq2 = stateful_writer.new_change(ChangeKind::Alive, Some(vec![2,3,4]), None, instance_handle);
+        stateful_writer.writer_cache().add_change(cache_change_seq1).unwrap();
+        stateful_writer.writer_cache().add_change(cache_change_seq2).unwrap();
+
+        stateful_writer.run();
+        let (_dst_locators, messages) = stateful_writer.pop_send_message().unwrap();
+
+        if let RtpsSubmessage::Data(data) = &messages[0] {
+            assert_eq!(data.reader_id(), remote_reader_guid.entity_id());
+            assert_eq!(data.writer_id(), writer_guid.entity_id());
+            assert_eq!(data.writer_sn(), 1);
+        } else {
+            panic!("Wrong message sent");
+        }
+
+        if let RtpsSubmessage::Data(data) = &messages[1] {
+            assert_eq!(data.reader_id(), remote_reader_guid.entity_id());
+            assert_eq!(data.writer_id(), writer_guid.entity_id());
+            assert_eq!(data.writer_sn(), 2);
+        } else {
+            panic!("Wrong message sent. Expected Data");
+        }
+
+        // Check that heartbeat is sent while there are unacked changes
+        stateful_writer.run();
+        assert!(stateful_writer.pop_send_message().is_none());
+        sleep(stateful_writer.heartbeat_period.into());
+        stateful_writer.run();
+        let (_dst_locators, messages) = stateful_writer.pop_send_message().unwrap();
+        if let RtpsSubmessage::Heartbeat(heartbeat) = &messages[0] {
+            assert_eq!(heartbeat.is_final(), false);
+        } else {
+            panic!("Wrong message sent. Expected Heartbeat");
+        }
+
+        let acknack = AckNack::new(
+            Endianness::LittleEndian,
+            remote_reader_guid.entity_id(),
+            writer_guid.entity_id(),
+                3,
+                BTreeSet::new(),
+                1,
+                false,
+        );
+
+        stateful_writer.push_receive_message(remote_reader_guid_prefix, RtpsSubmessage::AckNack(acknack));
+
+        // Check that no heartbeat is sent if there are no new changes
+        stateful_writer.run();
+        assert!(stateful_writer.pop_send_message().is_none());
+        sleep(stateful_writer.heartbeat_period.into());
+        stateful_writer.run();
+        assert!(stateful_writer.pop_send_message().is_none());
+    }
 }

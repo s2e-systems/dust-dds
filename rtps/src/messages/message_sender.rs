@@ -46,7 +46,7 @@ mod tests {
         ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
         ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
         ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, };
-    use crate::structure::{StatelessWriter, StatefulWriter, ReaderProxy};
+    use crate::behavior::{StatelessWriter, StatefulWriter, ReaderProxy};
 
     use rust_dds_interface::qos::DataWriterQos;
     use rust_dds_interface::qos_policy::ReliabilityQosPolicyKind;

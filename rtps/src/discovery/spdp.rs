@@ -6,8 +6,8 @@ use rust_dds_interface::qos::{DataReaderQos, DataWriterQos};
 
 use crate::types::{GuidPrefix, GUID, Locator, ChangeKind, ProtocolVersion, VendorId};
 use crate::structure::RtpsParticipant;
-use crate::structure::StatelessWriter;
-use crate::structure::StatelessReader;
+use crate::behavior::StatelessWriter;
+use crate::behavior::StatelessReader;
 use crate::messages::message_sender::RtpsMessageSender;
 use crate::messages::message_receiver::RtpsMessageReceiver;
 

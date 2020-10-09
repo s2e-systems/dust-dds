@@ -4,7 +4,7 @@ use rust_dds_interface::protocol::{ProtocolEntity, ProtocolWriter, ProtocolPubli
 use rust_dds_interface::qos::DataWriterQos;
 
 use crate::types::{GUID, EntityId, EntityKind};
-use super::stateful_writer::StatefulWriter;
+use crate::behavior::StatefulWriter;
 
 pub struct RtpsPublisher {
     guid: GUID,
