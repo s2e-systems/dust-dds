@@ -1,16 +1,9 @@
-use std::convert::TryInto;
-use std::time::Instant;
-
-use crate::types::constants::LOCATOR_INVALID;
 use crate::behavior::{WriterProxy, StatefulReader};
 use crate::messages::RtpsSubmessage;
-use crate::messages::submessages::{AckNack, Data, Gap, Heartbeat,};
-use crate::messages::types::Count;
+use crate::messages::submessages::{Data, Gap};
 use crate::messages::message_receiver::Receiver;
-use crate::messages::message_sender::Sender;
 
-use super::types::Duration;
-use super::{cache_change_from_data, BEHAVIOR_ENDIANNESS};
+use super::cache_change_from_data;
 
 // pub fn new() -> Self {
 //     Self {
@@ -25,7 +18,7 @@ pub struct BestEffortWriterProxy {
     writer_proxy: WriterProxy,
 }
 
-impl<'a> BestEffortWriterProxy {
+impl BestEffortWriterProxy {
     pub fn run(&self, stateful_reader: &StatefulReader) {
         self.waiting_state(stateful_reader);
     }
@@ -59,130 +52,6 @@ impl<'a> BestEffortWriterProxy {
         for &seq_num in gap.gap_list().set() {
             self.writer_proxy.irrelevant_change_set(seq_num);
         }
-    }
-}
-pub struct ReliableWriterProxy {
-    writer_proxy: WriterProxy,
-    must_send_ack: bool,
-    time_heartbeat_received: Instant,
-    ackanck_count: Count,
-    highest_received_heartbeat_count: Count,
-}
-
-impl<'a> ReliableWriterProxy {
-    pub fn run(&mut self, stateful_reader: &StatefulReader) {
-        // The heartbeat message triggers also a transition in the parallel state-machine
-        // relating to the acknack sending so it is returned from the ready_state for
-        // further processing.
-        let heartbeat = self.ready_state(stateful_reader);
-        if self.must_send_ack {
-            self.must_send_ack_state(stateful_reader)
-        } else {
-            self.waiting_heartbeat_state(heartbeat);
-        }
-    }
-
-    fn ready_state(&self, stateful_reader: &StatefulReader) -> Option<Heartbeat>{
-        if let Some((_, received_message)) = stateful_reader.pop_receive_message(self.writer_proxy.remote_writer_guid()) {
-            match received_message {
-                RtpsSubmessage::Data(data) => {
-                    self.transition_t8(stateful_reader, data);
-                    None
-                },
-                RtpsSubmessage::Gap(gap) => {
-                    self.transition_t9(&gap);
-                    None
-                },
-                RtpsSubmessage::Heartbeat(heartbeat) => {
-                    self.transition_t7(&heartbeat);
-                    Some(heartbeat)
-                },
-                _ => panic!("Unexpected reader message received"),
-            }
-        } else {
-            None
-        }
-    }
-
-    fn transition_t8(&self, stateful_reader: &StatefulReader, data: Data) {
-        let expected_seq_number = self.writer_proxy.available_changes_max() + 1;
-        if data.writer_sn() >= expected_seq_number {
-            self.writer_proxy.received_change_set(data.writer_sn());
-            let cache_change = cache_change_from_data(data, &self.writer_proxy.remote_writer_guid().prefix());
-            stateful_reader.reader_cache().add_change(cache_change).unwrap();
-            
-        }
-    }
-
-    fn transition_t9(&self, gap: &Gap) {
-        for seq_num in gap.gap_start() .. gap.gap_list().base() - 1 {
-            self.writer_proxy.irrelevant_change_set(seq_num);
-        }
-
-        for &seq_num in gap.gap_list().set() {
-            self.writer_proxy.irrelevant_change_set(seq_num);
-        }
-    }
-
-    fn transition_t7(&self, heartbeat: &Heartbeat) {
-        self.writer_proxy.missing_changes_update(heartbeat.last_sn());
-        self.writer_proxy.lost_changes_update(heartbeat.first_sn());
-    }
-
-    fn waiting_heartbeat_state(&mut self, heartbeat_message: Option<Heartbeat>) {            
-        if let Some(heartbeat) = heartbeat_message {
-            if !heartbeat.is_final() || 
-                (heartbeat.is_final() && !self.writer_proxy.missing_changes().is_empty()) {
-                    self.set_must_send_ack();
-            } 
-        }
-    }
-
-    fn must_send_ack_state(&mut self, stateful_reader: &StatefulReader) {
-        if self.duration_since_heartbeat_received() >  stateful_reader.heartbeat_response_delay() {
-            self.transition_t5(stateful_reader)
-        }
-    }
-
-    fn transition_t5(&mut self, stateful_reader: &StatefulReader) {
-        self.reset_must_send_ack();
- 
-        self.increment_acknack_count();
-        let acknack = AckNack::new(
-            BEHAVIOR_ENDIANNESS,
-            stateful_reader.guid().entity_id(), 
-            self.writer_proxy.remote_writer_guid().entity_id(),
-            self.writer_proxy.available_changes_max(),
-            self.writer_proxy.missing_changes().clone(),
-            *self.ackanck_count(),
-            true);
-
-        stateful_reader.push_send_message(&LOCATOR_INVALID, self.writer_proxy.remote_writer_guid(), RtpsSubmessage::AckNack(acknack));
-    }
-
-    fn must_send_ack(&self) -> bool {
-        self.must_send_ack
-    }
-
-    fn set_must_send_ack(&mut self) {
-        self.time_heartbeat_received  = Instant::now();
-        self.must_send_ack = true;
-    }
-
-    fn reset_must_send_ack(&mut self) {
-        self.must_send_ack = false;
-    }
-
-    fn duration_since_heartbeat_received(&self) -> Duration {
-        self.time_heartbeat_received.elapsed().try_into().unwrap()
-    }
-
-    fn ackanck_count(&self) -> &Count {
-        &self.ackanck_count
-    }
-
-    pub fn increment_acknack_count(&mut self) {
-        self.ackanck_count += 1;
     }
 }
 
