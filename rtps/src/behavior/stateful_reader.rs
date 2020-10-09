@@ -142,11 +142,6 @@ impl Receiver for StatefulReader {
 }
 
 impl Sender for StatefulReader {
-    fn push_send_message(&self, _dst_locator: &Locator, dst_guid: &GUID, submessage: RtpsSubmessage) {
-        todo!()
-        // self.matched_writers().get(dst_guid).unwrap().send_messages.lock().unwrap().push_back(submessage)
-    }
-
     fn pop_send_message(&self) -> Option<(Vec<Locator>, VecDeque<RtpsSubmessage>)> {
         todo!()
     }

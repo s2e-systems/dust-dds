@@ -183,10 +183,6 @@ impl Receiver for ReliableWriterProxy {
 }
 
 impl Sender for ReliableWriterProxy {
-    fn push_send_message(&self, _dst_locator: &Locator, _dst_guid: &GUID, _submessage: RtpsSubmessage) {
-        todo!()
-    }
-
     fn pop_send_message(&self) -> Option<(Vec<Locator>, VecDeque<RtpsSubmessage>)> {
         todo!()
     }
@@ -195,7 +191,7 @@ impl Sender for ReliableWriterProxy {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{ChangeKind, TopicKind, GUID};
+    use crate::types::{ChangeKind, GUID};
     use crate::types::constants::{
         ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, };
     use crate::structure::CacheChange;

@@ -27,21 +27,21 @@ impl BestEffortStatelessWriterBehavior{
     }
 
     fn transition_t4(reader_locator: &ReaderLocator, stateless_writer: &StatelessWriter, next_unsent_seq_num: SequenceNumber) {
+        todo!()
+        // if let Some(cache_change) = stateless_writer.writer_cache()
+        //     .changes().iter().find(|cc| cc.sequence_number() == next_unsent_seq_num)
+        // {
+        //     let data = data_from_cache_change(cache_change, ENTITYID_UNKNOWN);
+        //     stateless_writer.push_send_message(reader_locator.locator(), &GUID_UNKNOWN, RtpsSubmessage::Data(data));
+        // } else {
+        //     let gap = Gap::new(
+        //         BEHAVIOR_ENDIANNESS,
+        //         ENTITYID_UNKNOWN, 
+        //         stateless_writer.guid().entity_id(),
+        //         next_unsent_seq_num,
+        //     BTreeSet::new());
 
-        if let Some(cache_change) = stateless_writer.writer_cache()
-            .changes().iter().find(|cc| cc.sequence_number() == next_unsent_seq_num)
-        {
-            let data = data_from_cache_change(cache_change, ENTITYID_UNKNOWN);
-            stateless_writer.push_send_message(reader_locator.locator(), &GUID_UNKNOWN, RtpsSubmessage::Data(data));
-        } else {
-            let gap = Gap::new(
-                BEHAVIOR_ENDIANNESS,
-                ENTITYID_UNKNOWN, 
-                stateless_writer.guid().entity_id(),
-                next_unsent_seq_num,
-            BTreeSet::new());
-
-            stateless_writer.push_send_message(reader_locator.locator(), &GUID_UNKNOWN, RtpsSubmessage::Gap(gap));
-        }
+        //     stateless_writer.push_send_message(reader_locator.locator(), &GUID_UNKNOWN, RtpsSubmessage::Gap(gap));
+        // }
     }
 }

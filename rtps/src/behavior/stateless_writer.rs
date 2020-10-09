@@ -171,10 +171,6 @@ impl StatelessWriter {
 }
 
 impl Sender for StatelessWriter {
-    fn push_send_message(&self, dst_locator: &Locator, _dst_guid: &GUID, submessage: RtpsSubmessage) {
-        self.reader_locators().get(dst_locator).unwrap().send_messages.lock().unwrap().push_back(submessage)
-    }
-
     fn pop_send_message(&self) -> Option<(Vec<Locator>, VecDeque<RtpsSubmessage>)> {
         for (&locator, reader_locator) in self.reader_locators().iter() {
             let mut reader_locator_send_messages = reader_locator.send_messages.lock().unwrap();

@@ -84,23 +84,23 @@ impl BestEffortStatefulWriterBehavior {
     }
 
     fn transition_t4(reader_proxy: &ReaderProxy, stateful_writer: &StatefulWriter, next_unsent_seq_num: SequenceNumber) {
+        todo!()
+        // if let Some(cache_change) = stateful_writer.writer_cache()
+        //     .changes().iter().find(|cc| cc.sequence_number() == next_unsent_seq_num)
+        // {
+        //     let reader_id = reader_proxy.remote_reader_guid().entity_id();
+        //     let data = data_from_cache_change(cache_change, reader_id);
+        //     stateful_writer.push_send_message(&LOCATOR_INVALID, reader_proxy.remote_reader_guid(), RtpsSubmessage::Data(data));
+        // } else {
+        //     let gap = Gap::new(
+        //         BEHAVIOR_ENDIANNESS,
+        //         reader_proxy.remote_reader_guid().entity_id(), 
+        //         stateful_writer.guid().entity_id(),
+        //         next_unsent_seq_num,
+        //     BTreeSet::new());
 
-        if let Some(cache_change) = stateful_writer.writer_cache()
-            .changes().iter().find(|cc| cc.sequence_number() == next_unsent_seq_num)
-        {
-            let reader_id = reader_proxy.remote_reader_guid().entity_id();
-            let data = data_from_cache_change(cache_change, reader_id);
-            stateful_writer.push_send_message(&LOCATOR_INVALID, reader_proxy.remote_reader_guid(), RtpsSubmessage::Data(data));
-        } else {
-            let gap = Gap::new(
-                BEHAVIOR_ENDIANNESS,
-                reader_proxy.remote_reader_guid().entity_id(), 
-                stateful_writer.guid().entity_id(),
-                next_unsent_seq_num,
-            BTreeSet::new());
-
-            stateful_writer.push_send_message(&LOCATOR_INVALID,reader_proxy.remote_reader_guid(), RtpsSubmessage::Gap(gap));
-        }
+        //     stateful_writer.push_send_message(&LOCATOR_INVALID,reader_proxy.remote_reader_guid(), RtpsSubmessage::Gap(gap));
+        // }
     }
 }
 
@@ -152,7 +152,8 @@ impl ReliableStatefulWriterBehavior {
             false,
         );
 
-        stateful_writer.push_send_message(&LOCATOR_INVALID, reader_proxy.remote_reader_guid(), RtpsSubmessage::Heartbeat(heartbeat));
+        todo!()
+        // stateful_writer.push_send_message(&LOCATOR_INVALID, reader_proxy.remote_reader_guid(), RtpsSubmessage::Heartbeat(heartbeat));
     }
     
     fn waiting_state(reader_proxy: &ReaderProxy, stateful_writer: &StatefulWriter) {
@@ -185,21 +186,22 @@ impl ReliableStatefulWriterBehavior {
     }
 
     fn transition_t12(reader_proxy: &ReaderProxy, stateful_writer: &StatefulWriter, next_requested_seq_num: SequenceNumber) {
-        if let Some(cache_change) = stateful_writer.writer_cache()
-        .changes().iter().find(|cc| cc.sequence_number() == next_requested_seq_num)
-        {
-            let data = data_from_cache_change(cache_change, reader_proxy.remote_reader_guid().entity_id());
-            stateful_writer.push_send_message(&LOCATOR_INVALID,reader_proxy.remote_reader_guid(), RtpsSubmessage::Data(data));
-        } else {
-            let gap = Gap::new(
-                BEHAVIOR_ENDIANNESS,
-                reader_proxy.remote_reader_guid().entity_id(), 
-                stateful_writer.guid().entity_id(),
-                next_requested_seq_num,
-                BTreeSet::new());
+        todo!()
+        // if let Some(cache_change) = stateful_writer.writer_cache()
+        // .changes().iter().find(|cc| cc.sequence_number() == next_requested_seq_num)
+        // {
+        //     let data = data_from_cache_change(cache_change, reader_proxy.remote_reader_guid().entity_id());
+        //     stateful_writer.push_send_message(&LOCATOR_INVALID,reader_proxy.remote_reader_guid(), RtpsSubmessage::Data(data));
+        // } else {
+        //     let gap = Gap::new(
+        //         BEHAVIOR_ENDIANNESS,
+        //         reader_proxy.remote_reader_guid().entity_id(), 
+        //         stateful_writer.guid().entity_id(),
+        //         next_requested_seq_num,
+        //         BTreeSet::new());
 
-            stateful_writer.push_send_message(&LOCATOR_INVALID, reader_proxy.remote_reader_guid(), RtpsSubmessage::Gap(gap));
-        }
+        //     stateful_writer.push_send_message(&LOCATOR_INVALID, reader_proxy.remote_reader_guid(), RtpsSubmessage::Gap(gap));
+        // }
     }
 }
 

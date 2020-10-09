@@ -10,8 +10,6 @@ use super::message::{RtpsMessage};
 use super::types::Time;
 
 pub trait Sender {
-    fn push_send_message(&self, dst_locator: &Locator, dst_guid: &GUID, submessage: RtpsSubmessage);
-
     fn pop_send_message(&self) -> Option<(Vec<Locator>, VecDeque<RtpsSubmessage>)>;
 }
 

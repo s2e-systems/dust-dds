@@ -357,10 +357,6 @@ impl Receiver for StatefulWriter {
 }
 
 impl Sender for StatefulWriter {
-    fn push_send_message(&self, _dst_locator: &Locator, dst_guid: &GUID, submessage: RtpsSubmessage) {
-       self.matched_readers().get(dst_guid).unwrap().send_messages.lock().unwrap().push_back(submessage)
-    }
-
     fn pop_send_message(&self) -> Option<(Vec<Locator>, VecDeque<RtpsSubmessage>)> {
         for (_, reader_proxy) in self.matched_readers().iter() {
             let mut reader_proxy_send_messages = reader_proxy.send_messages.lock().unwrap();
