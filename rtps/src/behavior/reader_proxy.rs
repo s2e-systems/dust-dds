@@ -1,9 +1,8 @@
 use std::collections::{BTreeSet, VecDeque};
-use std::sync::{Mutex, MutexGuard};
+use std::sync::Mutex;
 
 use crate::types::{Locator, SequenceNumber, GUID, GuidPrefix};
 
-use crate::behavior::stateful_writer_behavior::{StatefulWriterBehavior, };
 use crate::messages::RtpsSubmessage;
 
 pub struct ChangeForReader {
@@ -34,7 +33,6 @@ impl ChangeForReader {
     fn unsent_changes(&self, last_change_sequence_number: SequenceNumber) -> BTreeSet<SequenceNumber> {
         let mut unsent_changes_set = BTreeSet::new();
 
-        // The for loop is made with the underlying sequence number type because it is not possible to implement the Step trait on Stable yet
         for unsent_sequence_number in
             self.highest_sequence_number_sent + 1..=last_change_sequence_number
         {
@@ -55,7 +53,6 @@ impl ChangeForReader {
     fn unacked_changes(&self, last_change_sequence_number: SequenceNumber) -> BTreeSet<SequenceNumber> {
         let mut unacked_changes_set = BTreeSet::new();
 
-        // The for loop is made with the underlying sequence number type because it is not possible to implement the Step trait on Stable yet
         for unsent_sequence_number in
             self.highest_sequence_number_acknowledged + 1..=last_change_sequence_number
         {
@@ -92,7 +89,6 @@ pub struct ReaderProxy {
     changes_for_reader: Mutex<ChangeForReader>,
     expects_inline_qos: bool,
     is_active: bool,
-    stateful_writer_behavior: Mutex<StatefulWriterBehavior>,
 
     pub send_messages: Mutex<VecDeque<RtpsSubmessage>>,
     pub received_messages: Mutex<VecDeque<(GuidPrefix, RtpsSubmessage)>>,
@@ -113,7 +109,6 @@ impl ReaderProxy {
                 expects_inline_qos,
                 is_active,
                 changes_for_reader: Mutex::new(ChangeForReader::new()),
-                stateful_writer_behavior: Mutex::new(StatefulWriterBehavior::new()),
                 send_messages: Mutex::new(VecDeque::new()),
                 received_messages: Mutex::new(VecDeque::new()),
         }
@@ -158,10 +153,6 @@ impl ReaderProxy {
     pub fn remote_reader_guid(&self) -> &GUID {
         &self.remote_reader_guid
     }
-
-    pub fn behavior(&self) -> MutexGuard<StatefulWriterBehavior> {
-        self.stateful_writer_behavior.lock().unwrap()
-    }
 }
 
 
@@ -169,18 +160,7 @@ impl ReaderProxy {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::constants::{
-        ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER,
-        ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
-        ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
-        LOCATOR_INVALID};
-
-    use crate::messages::submessages::AckNack;
-    use crate::messages::Endianness;
-    
-    use rust_dds_interface::qos_policy::ReliabilityQosPolicyKind;
-
-    use std::thread::sleep;
+    use crate::types::constants::ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR;
 
 
     #[test]

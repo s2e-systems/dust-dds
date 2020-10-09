@@ -3,7 +3,6 @@ use std::sync::{RwLock, RwLockReadGuard, Mutex};
 
 use crate::types::{ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID, GuidPrefix};
 use crate::behavior::types::Duration;
-use crate::behavior::stateful_writer_behavior::{BestEffortStatefulWriterBehavior, ReliableStatefulWriterBehavior};
 use crate::messages::RtpsSubmessage;
 use crate::messages::message_receiver::Receiver;
 use crate::messages::message_sender::Sender;
@@ -126,12 +125,13 @@ impl StatefulWriter {
     }
 
     pub fn run(&self) {
-        for (_, reader_proxy) in self.matched_readers().iter() {
-            match self.reliability_level {
-                ReliabilityKind::BestEffort => BestEffortStatefulWriterBehavior::run(reader_proxy, &self),
-                ReliabilityKind::Reliable => ReliableStatefulWriterBehavior::run(reader_proxy, &self),
-            };
-        }
+        todo!()
+        // for (_, reader_proxy) in self.matched_readers().iter() {
+        //     match self.reliability_level {
+        //         ReliabilityKind::BestEffort => BestEffortStatefulWriterBehavior::run(reader_proxy, &self),
+        //         ReliabilityKind::Reliable => ReliableStatefulWriterBehavior::run(reader_proxy, &self),
+        //     };
+        // }
     }
 }
 impl ProtocolEntity for StatefulWriter {

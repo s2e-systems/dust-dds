@@ -1,13 +1,17 @@
 pub mod types;
 pub mod stateful_writer;
 pub mod writer_proxy;
-pub mod reader_proxy;
 pub mod best_effort_writer_proxy;
 pub mod reliable_writer_proxy;
+
+pub mod reader_proxy;
+pub mod best_effort_reader_proxy;
+pub mod reliable_reader_proxy;
+
 pub mod stateful_reader;
 pub mod stateless_writer;
 pub mod stateless_reader;
-pub mod stateful_writer_behavior;
+
 pub mod stateless_writer_behavior;
 pub mod stateless_reader_behavior;
 

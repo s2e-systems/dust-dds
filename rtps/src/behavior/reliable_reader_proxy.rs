@@ -1,12 +1,13 @@
 use std::time::Instant;
 use std::convert::TryInto;
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, VecDeque};
+use std::sync::Mutex;
 
-use crate::types::SequenceNumber;
-use crate::types::constants::LOCATOR_INVALID;
+use crate::types::{SequenceNumber, GuidPrefix, EntityId};
+use crate::structure::HistoryCache;
 use crate::messages::RtpsSubmessage;
 use crate::messages::submessages::{Gap, Heartbeat, AckNack};
-use crate::behavior::{StatefulWriter, ReaderProxy};
+use crate::behavior::ReaderProxy;
 use crate::messages::types::Count;
 use crate::messages::message_sender::Sender;
 use crate::messages::message_receiver::Receiver;
@@ -14,29 +15,160 @@ use crate::messages::message_receiver::Receiver;
 use super::types::Duration;
 use super::{data_from_cache_change, BEHAVIOR_ENDIANNESS};
 
-pub struct StatefulWriterBehavior {
+pub struct ReliableReaderProxy{
+    reader_proxy: ReaderProxy,
+    writer_entity_id: EntityId,
+
+    nack_response_delay: Duration,
+    heartbeat_period: Duration,
+
     heartbeat_count: Count,
     time_last_sent_data: Instant,
     time_nack_received: Instant,
     highest_nack_count_received: Count,
+
+    received_messages: Mutex<VecDeque<(GuidPrefix, RtpsSubmessage)>>,
+    sent_messages: Mutex<VecDeque<RtpsSubmessage>>
 }
 
-impl StatefulWriterBehavior {
-    pub fn new() -> Self {
+impl ReliableReaderProxy {
+    pub fn new(reader_proxy: ReaderProxy, writer_entity_id: EntityId, heartbeat_period: Duration, nack_response_delay: Duration) -> Self {
         Self {
+            reader_proxy,
+            writer_entity_id,
+            nack_response_delay,
+            heartbeat_period,
             heartbeat_count: 0,
             time_last_sent_data: Instant::now(),
             time_nack_received: Instant::now(),
             highest_nack_count_received: 0,
+            received_messages: Mutex::new(VecDeque::new()),
+            sent_messages: Mutex::new(VecDeque::new()),
+
         }
     }
 
-    fn heartbeat_count(&self) -> &Count {
-        &self.heartbeat_count
+    pub fn run(&mut self, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber) {
+        if self.reader_proxy.unacked_changes(last_change_sequence_number).is_empty() {
+            // Idle
+        } else if !self.reader_proxy.unsent_changes(last_change_sequence_number).is_empty() {
+            self.pushing_state(history_cache, last_change_sequence_number);
+        } else if !self.reader_proxy.unacked_changes(last_change_sequence_number).is_empty() {
+            self.announcing_state(history_cache, last_change_sequence_number);
+        }
+    
+        if self.reader_proxy.requested_changes().is_empty() {
+            self.waiting_state();
+        } else {
+            self.must_repair_state();
+            if self.duration_since_nack_received() > self.nack_response_delay {
+                self.repairing_state(history_cache);
+            }
+        }
     }
 
-    fn nack_received(&self) -> &Count {
-        &self.highest_nack_count_received
+    fn pushing_state(&mut self, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber) {
+        // This state is only valid if there are unsent changes
+        debug_assert!(!self.reader_proxy.unsent_changes(last_change_sequence_number).is_empty());
+    
+        while let Some(next_unsent_seq_num) = self.reader_proxy.next_unsent_change(last_change_sequence_number) {
+            self.transition_t4(history_cache, next_unsent_seq_num);
+        }
+        self.time_last_sent_data_reset();
+    }
+
+    fn transition_t4(&self, history_cache: &HistoryCache, next_unsent_seq_num: SequenceNumber) {
+        if let Some(cache_change) = history_cache
+            .changes().iter().find(|cc| cc.sequence_number() == next_unsent_seq_num)
+        {
+            let reader_id = self.reader_proxy.remote_reader_guid().entity_id();
+            let data = data_from_cache_change(cache_change, reader_id);
+            self.sent_messages.lock().unwrap().push_back(RtpsSubmessage::Data(data));
+        } else {
+            let gap = Gap::new(
+                BEHAVIOR_ENDIANNESS,
+                self.reader_proxy.remote_reader_guid().entity_id(), 
+                self.writer_entity_id,
+                next_unsent_seq_num,
+            BTreeSet::new());
+
+            self.sent_messages.lock().unwrap().push_back(RtpsSubmessage::Gap(gap));
+        }
+    }
+
+    fn announcing_state(&mut self, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber){
+        if self.duration_since_last_sent_data() > self.heartbeat_period {
+            self.transition_t7(history_cache, last_change_sequence_number);
+            self.time_last_sent_data_reset();
+        }
+    }
+
+    fn transition_t7(&mut self, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber) {
+        let first_sn = if let Some(seq_num) = history_cache.get_seq_num_min() {
+            seq_num
+        } else {
+            last_change_sequence_number + 1
+        };
+        self.increment_heartbeat_count();
+
+        let heartbeat = Heartbeat::new(
+            BEHAVIOR_ENDIANNESS,
+            self.reader_proxy.remote_reader_guid().entity_id(),
+            self.writer_entity_id,
+            first_sn,
+            last_change_sequence_number,
+            self.heartbeat_count,
+            false,
+            false,
+        );
+
+        self.sent_messages.lock().unwrap().push_back(RtpsSubmessage::Heartbeat(heartbeat));
+    }
+    
+    fn waiting_state(&mut self) {
+        let received = self.received_messages.lock().unwrap().pop_front();
+        if let Some((_, RtpsSubmessage::AckNack(acknack))) = received {
+            self.transition_t8(acknack);
+            self.time_nack_received_reset();
+        }
+    }
+    
+    fn transition_t8(&self, acknack: AckNack) {
+        self.reader_proxy.acked_changes_set(acknack.reader_sn_state().base() - 1);
+        self.reader_proxy.requested_changes_set(acknack.reader_sn_state().set().clone());
+    }
+    
+    fn must_repair_state(&self) {
+        let received = self.received_messages.lock().unwrap().pop_front();
+        if let Some((_, RtpsSubmessage::AckNack(acknack))) = received {
+            self.transition_t8(acknack);
+        }
+    }
+    
+    fn repairing_state(&self, history_cache: &HistoryCache) {
+        // This state is only valid if there are requested changes
+        debug_assert!(!self.reader_proxy.requested_changes().is_empty());
+    
+        while let Some(next_requested_seq_num) = self.reader_proxy.next_requested_change() {
+            self.transition_t12(history_cache, next_requested_seq_num);
+        }
+    }
+
+    fn transition_t12(&self, history_cache: &HistoryCache, next_requested_seq_num: SequenceNumber) {
+        if let Some(cache_change) = history_cache.changes().iter().find(|cc| cc.sequence_number() == next_requested_seq_num)
+        {
+            let data = data_from_cache_change(cache_change, self.reader_proxy.remote_reader_guid().entity_id());
+            self.sent_messages.lock().unwrap().push_back(RtpsSubmessage::Data(data));
+        } else {
+            let gap = Gap::new(
+                BEHAVIOR_ENDIANNESS,
+                self.reader_proxy.remote_reader_guid().entity_id(), 
+                self.writer_entity_id,
+                next_requested_seq_num,
+                BTreeSet::new());
+
+            self.sent_messages.lock().unwrap().push_back(RtpsSubmessage::Gap(gap));
+        }
     }
 
     fn nack_received_set(&mut self, highest_nack_count_received: Count) {
@@ -64,219 +196,81 @@ impl StatefulWriterBehavior {
     }
 }
 
-pub struct BestEffortStatefulWriterBehavior {}
-
-impl BestEffortStatefulWriterBehavior {
-    pub fn run(reader_proxy: &ReaderProxy, stateful_writer: &StatefulWriter) {
-        if !reader_proxy.unsent_changes(stateful_writer.last_change_sequence_number()).is_empty() {
-            Self::pushing_state(reader_proxy, stateful_writer);
-        }
-    }
-
-    fn pushing_state(reader_proxy: &ReaderProxy, stateful_writer: &StatefulWriter) {
-        // This state is only valid if there are unsent changes
-        debug_assert!(!reader_proxy.unsent_changes(stateful_writer.last_change_sequence_number()).is_empty());
-    
-        while let Some(next_unsent_seq_num) = reader_proxy.next_unsent_change(stateful_writer.last_change_sequence_number()) {
-            Self::transition_t4(reader_proxy, stateful_writer, next_unsent_seq_num);
-        }
-        reader_proxy.behavior().time_last_sent_data_reset();
-    }
-
-    fn transition_t4(reader_proxy: &ReaderProxy, stateful_writer: &StatefulWriter, next_unsent_seq_num: SequenceNumber) {
-        todo!()
-        // if let Some(cache_change) = stateful_writer.writer_cache()
-        //     .changes().iter().find(|cc| cc.sequence_number() == next_unsent_seq_num)
-        // {
-        //     let reader_id = reader_proxy.remote_reader_guid().entity_id();
-        //     let data = data_from_cache_change(cache_change, reader_id);
-        //     stateful_writer.push_send_message(&LOCATOR_INVALID, reader_proxy.remote_reader_guid(), RtpsSubmessage::Data(data));
-        // } else {
-        //     let gap = Gap::new(
-        //         BEHAVIOR_ENDIANNESS,
-        //         reader_proxy.remote_reader_guid().entity_id(), 
-        //         stateful_writer.guid().entity_id(),
-        //         next_unsent_seq_num,
-        //     BTreeSet::new());
-
-        //     stateful_writer.push_send_message(&LOCATOR_INVALID,reader_proxy.remote_reader_guid(), RtpsSubmessage::Gap(gap));
-        // }
-    }
-}
-
-pub struct ReliableStatefulWriterBehavior{}
-
-impl ReliableStatefulWriterBehavior {
-    pub fn run(reader_proxy: &ReaderProxy, stateful_writer: &StatefulWriter) {
-        if reader_proxy.unacked_changes(stateful_writer.last_change_sequence_number()).is_empty() {
-            // Idle
-        } else if !reader_proxy.unsent_changes(stateful_writer.last_change_sequence_number()).is_empty() {
-            BestEffortStatefulWriterBehavior::pushing_state(reader_proxy, stateful_writer);
-        } else if !reader_proxy.unacked_changes(stateful_writer.last_change_sequence_number()).is_empty() {
-            Self::announcing_state(reader_proxy, stateful_writer);
-        }
-    
-        if reader_proxy.requested_changes().is_empty() {
-            Self::waiting_state(reader_proxy, stateful_writer);
-        } else {
-            Self::must_repair_state(reader_proxy, stateful_writer);
-            if reader_proxy.behavior().duration_since_nack_received() > stateful_writer.nack_response_delay() {
-                Self::repairing_state(reader_proxy, stateful_writer);
-            }
-        }
-    }
-
-    fn announcing_state(reader_proxy: &ReaderProxy, stateful_writer: &StatefulWriter){
-        if reader_proxy.behavior().duration_since_last_sent_data() > stateful_writer.heartbeat_period() {
-            Self::transition_t7(reader_proxy, stateful_writer);
-            reader_proxy.behavior().time_last_sent_data_reset();
-        }
-    }
-
-    fn transition_t7(reader_proxy: &ReaderProxy, stateful_writer: &StatefulWriter) {
-        let first_sn = if let Some(seq_num) = stateful_writer.writer_cache().get_seq_num_min() {
-            seq_num
-        } else {
-            stateful_writer.last_change_sequence_number() + 1
-        };
-        reader_proxy.behavior().increment_heartbeat_count();
-
-        let heartbeat = Heartbeat::new(
-            BEHAVIOR_ENDIANNESS,
-            reader_proxy.remote_reader_guid().entity_id(),
-            stateful_writer.guid().entity_id(),
-            first_sn,
-            stateful_writer.last_change_sequence_number(),
-            *reader_proxy.behavior().heartbeat_count(),
-            false,
-            false,
-        );
-
-        todo!()
-        // stateful_writer.push_send_message(&LOCATOR_INVALID, reader_proxy.remote_reader_guid(), RtpsSubmessage::Heartbeat(heartbeat));
-    }
-    
-    fn waiting_state(reader_proxy: &ReaderProxy, stateful_writer: &StatefulWriter) {
-        todo!()
-        // if let Some((_, RtpsSubmessage::AckNack(acknack))) = stateful_writer.pop_receive_message(reader_proxy.remote_reader_guid()) {
-        //     Self::transition_t8(reader_proxy, acknack);
-        //     reader_proxy.behavior().time_nack_received_reset();
-        // }
-    }
-    
-    fn transition_t8(reader_proxy: &ReaderProxy, acknack: AckNack) {
-        reader_proxy.acked_changes_set(acknack.reader_sn_state().base() - 1);
-        reader_proxy.requested_changes_set(acknack.reader_sn_state().set().clone());
-    }
-    
-    fn must_repair_state(reader_proxy: &ReaderProxy, stateful_writer: &StatefulWriter) {
-        todo!()
-        // if let Some((_, RtpsSubmessage::AckNack(acknack))) = stateful_writer.pop_receive_message(reader_proxy.remote_reader_guid()) {
-        //     Self::transition_t8(reader_proxy, acknack);
-        // }
-    }
-    
-    fn repairing_state(reader_proxy: &ReaderProxy, stateful_writer: &StatefulWriter) {
-        // This state is only valid if there are requested changes
-        debug_assert!(!reader_proxy.requested_changes().is_empty());
-    
-        while let Some(next_requested_seq_num) = reader_proxy.next_requested_change() {
-            Self::transition_t12(reader_proxy, stateful_writer, next_requested_seq_num);
-        }
-    }
-
-    fn transition_t12(reader_proxy: &ReaderProxy, stateful_writer: &StatefulWriter, next_requested_seq_num: SequenceNumber) {
-        todo!()
-        // if let Some(cache_change) = stateful_writer.writer_cache()
-        // .changes().iter().find(|cc| cc.sequence_number() == next_requested_seq_num)
-        // {
-        //     let data = data_from_cache_change(cache_change, reader_proxy.remote_reader_guid().entity_id());
-        //     stateful_writer.push_send_message(&LOCATOR_INVALID,reader_proxy.remote_reader_guid(), RtpsSubmessage::Data(data));
-        // } else {
-        //     let gap = Gap::new(
-        //         BEHAVIOR_ENDIANNESS,
-        //         reader_proxy.remote_reader_guid().entity_id(), 
-        //         stateful_writer.guid().entity_id(),
-        //         next_requested_seq_num,
-        //         BTreeSet::new());
-
-        //     stateful_writer.push_send_message(&LOCATOR_INVALID, reader_proxy.remote_reader_guid(), RtpsSubmessage::Gap(gap));
-        // }
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    // use super::*;
-    // use crate::types::{ChangeKind, TopicKind, ReliabilityKind, GUID};
-    // use crate::behavior::types::constants::DURATION_ZERO;
-    // use crate::types::constants::{
-    //     ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER, 
-    //     ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, };
+    use super::*;
+    use crate::types::{ChangeKind, TopicKind, ReliabilityKind, GUID};
+    use crate::behavior::types::constants::DURATION_ZERO;
+    use crate::types::constants::{
+        ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER, 
+        ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, };
     // use crate::messages::{AckNack};
     // use crate::messages::receiver::WriterReceiveMessage;
     // use crate::stateful_writer::StatefulWriter;
 
+    use rust_dds_interface::qos_policy::ResourceLimitsQosPolicy;
     // use std::collections::BTreeSet;
     // use std::thread::sleep;
 
-    // #[test]
-    // fn run_announcing_state_multiple_data_combinations() {
-    //     let writer_guid = GUID::new([2;12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-    //     let history_cache = HistoryCache::new();
+    #[test]
+    fn run_announcing_state_multiple_data_combinations() {
+        let writer_entity_id = ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER;
+        let history_cache = HistoryCache::new(&ResourceLimitsQosPolicy::default());
 
-    //     let remote_reader_guid = GUID::new([1,2,3,4,5,6,7,8,9,10,11,12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-    //     let mut reader_proxy = ReaderProxy::new(remote_reader_guid, vec![], vec![], false, true);
+        let remote_reader_guid = GUID::new([1,2,3,4,5,6,7,8,9,10,11,12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
+        let mut reader_proxy = ReaderProxy::new(remote_reader_guid, vec![], vec![], false, true);
+        let heartbeat_period = DURATION_ZERO;
+        let nack_response_delay = DURATION_ZERO;
+        let mut reliable_reader_proxy = ReliableReaderProxy::new(reader_proxy, writer_entity_id, heartbeat_period, nack_response_delay);
 
-    //     let heartbeat_period = DURATION_ZERO;
-        
-    //     // Test no data in the history cache and no changes written
-    //     let no_change_sequence_number = 0;
-    //     let submessages = StatefulWriterBehavior::run_announcing_state(&mut reader_proxy, &writer_guid, &history_cache, no_change_sequence_number, heartbeat_period).unwrap();
-    //     if let RtpsSubmessage::Heartbeat(heartbeat) = &submessages[1] {
-    //         assert_eq!(heartbeat.reader_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-    //         assert_eq!(heartbeat.writer_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-    //         assert_eq!(heartbeat.first_sn(), 1);
-    //         assert_eq!(heartbeat.last_sn(), 0);
-    //         assert_eq!(heartbeat.count(), 1);
-    //         assert_eq!(heartbeat.is_final(), false);
-    //     } else {
-    //         assert!(false);
-    //     }
+        // Test no data in the history cache and no changes written
+        let no_change_sequence_number = 0;
+        reliable_reader_proxy.run(&history_cache, 0);
+        let sent_submessages = reliable_reader_proxy.sent_messages.lock().unwrap().pop_front().unwrap();
+        if let RtpsSubmessage::Heartbeat(heartbeat) = &sent_submessages {
+            assert_eq!(heartbeat.reader_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
+            assert_eq!(heartbeat.writer_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
+            assert_eq!(heartbeat.first_sn(), 1);
+            assert_eq!(heartbeat.last_sn(), 0);
+            assert_eq!(heartbeat.count(), 1);
+            assert_eq!(heartbeat.is_final(), false);
+        } else {
+            assert!(false);
+        }
 
-    //     // Test no data in the history cache and two changes written
-    //     let two_changes_sequence_number = 2;
-    //     let submessages = StatefulWriterBehavior::run_announcing_state(&mut reader_proxy, &writer_guid, &history_cache, two_changes_sequence_number, heartbeat_period).unwrap();
-    //     if let RtpsSubmessage::Heartbeat(heartbeat) = &submessages[1] {
-    //         assert_eq!(heartbeat.reader_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-    //         assert_eq!(heartbeat.writer_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-    //         assert_eq!(heartbeat.first_sn(), 3);
-    //         assert_eq!(heartbeat.last_sn(), 2);
-    //         assert_eq!(heartbeat.count(), 2);
-    //         assert_eq!(heartbeat.is_final(), false);
-    //     } else {
-    //         assert!(false);
-    //     }
+        // Test no data in the history cache and two changes written
+        // let two_changes_sequence_number = 2;
+        // let submessages = StatefulWriterBehavior::run_announcing_state(&mut reader_proxy, &writer_guid, &history_cache, two_changes_sequence_number, heartbeat_period).unwrap();
+        // if let RtpsSubmessage::Heartbeat(heartbeat) = &submessages[1] {
+        //     assert_eq!(heartbeat.reader_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
+        //     assert_eq!(heartbeat.writer_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
+        //     assert_eq!(heartbeat.first_sn(), 3);
+        //     assert_eq!(heartbeat.last_sn(), 2);
+        //     assert_eq!(heartbeat.count(), 2);
+        //     assert_eq!(heartbeat.is_final(), false);
+        // } else {
+        //     assert!(false);
+        // }
 
-    //     // Test two changes in the history cache and two changes written
-    //     let instance_handle = [1;16];
-    //     let cache_change_seq1 = CacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, 1, Some(vec![1,2,3]), None);
-    //     let cache_change_seq2 = CacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, 2, Some(vec![2,3,4]), None);
-    //     history_cache.add_change(cache_change_seq1);
-    //     history_cache.add_change(cache_change_seq2);
+        // // Test two changes in the history cache and two changes written
+        // let instance_handle = [1;16];
+        // let cache_change_seq1 = CacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, 1, Some(vec![1,2,3]), None);
+        // let cache_change_seq2 = CacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, 2, Some(vec![2,3,4]), None);
+        // history_cache.add_change(cache_change_seq1);
+        // history_cache.add_change(cache_change_seq2);
 
-    //     let submessages = StatefulWriterBehavior::run_announcing_state(&mut reader_proxy, &writer_guid, &history_cache, two_changes_sequence_number, heartbeat_period).unwrap();
-    //     if let RtpsSubmessage::Heartbeat(heartbeat) = &submessages[1] {
-    //         assert_eq!(heartbeat.reader_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-    //         assert_eq!(heartbeat.writer_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-    //         assert_eq!(heartbeat.first_sn(), 1);
-    //         assert_eq!(heartbeat.last_sn(), 2);
-    //         assert_eq!(heartbeat.count(), 3);
-    //         assert_eq!(heartbeat.is_final(), false);
-    //     } else {
-    //         assert!(false);
-    //     }
-    // }
+        // let submessages = StatefulWriterBehavior::run_announcing_state(&mut reader_proxy, &writer_guid, &history_cache, two_changes_sequence_number, heartbeat_period).unwrap();
+        // if let RtpsSubmessage::Heartbeat(heartbeat) = &submessages[1] {
+        //     assert_eq!(heartbeat.reader_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
+        //     assert_eq!(heartbeat.writer_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
+        //     assert_eq!(heartbeat.first_sn(), 1);
+        //     assert_eq!(heartbeat.last_sn(), 2);
+        //     assert_eq!(heartbeat.count(), 3);
+        //     assert_eq!(heartbeat.is_final(), false);
+        // } else {
+        //     assert!(false);
+        // }
+    }
 
     // #[test]
     // fn process_repair_message_acknowledged_and_requests() {
