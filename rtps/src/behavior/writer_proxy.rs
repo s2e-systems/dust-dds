@@ -1,9 +1,6 @@
-use std::collections::{BTreeSet, VecDeque};
-use std::sync::{Mutex, MutexGuard};
+use std::collections::BTreeSet;
 
-use crate::types::{SequenceNumber, GuidPrefix, GUID, Locator};
-use crate::messages::RtpsSubmessage;
-use crate::messages::message_receiver::Receiver;
+use crate::types::{SequenceNumber, GUID, Locator};
 
 struct ChangesFromWriter {
     highest_processed_sequence_number: SequenceNumber,
@@ -129,7 +126,7 @@ pub struct WriterProxy {
     // rather the additional fields are used here
     // changes_from_writer: CacheChange[*],
 
-    changes_from_writer: Mutex<ChangesFromWriter>,
+    changes_from_writer: ChangesFromWriter,
     
     // Groups are not supported yet:
     // remoteGroupEntityId: EntityId_t,
@@ -145,7 +142,7 @@ impl WriterProxy {
                 remote_writer_guid,
                 unicast_locator_list,
                 multicast_locator_list,
-                changes_from_writer: Mutex::new(ChangesFromWriter::new()),
+                changes_from_writer: ChangesFromWriter::new(),
         }
     }
 
@@ -154,51 +151,47 @@ impl WriterProxy {
     /// for ‘access’ by the DDS DataReader is that there are no changes from the RTPS Writer with SequenceNumber_t smaller
     /// than or equal to a_change.sequenceNumber that have status MISSING or UNKNOWN. In other words, the available_changes_max
     /// and all previous changes are either RECEIVED or LOST.
-    pub fn available_changes_max(&self) -> SequenceNumber {
-        self.changes_from_writer().available_changes_max()
+    pub fn available_changes_max(&mut self) -> SequenceNumber {
+        self.changes_from_writer.available_changes_max()
     }
 
     /// This operation modifies the status of a ChangeFromWriter to indicate that the CacheChange with the
     /// SequenceNumber_t ‘a_seq_num’ is irrelevant to the RTPS Reader.
-    pub fn irrelevant_change_set(&self, a_seq_num: SequenceNumber) {
-        self.changes_from_writer().irrelevant_change_set(a_seq_num);
+    pub fn irrelevant_change_set(&mut self, a_seq_num: SequenceNumber) {
+        self.changes_from_writer.irrelevant_change_set(a_seq_num);
     }
 
     /// This operation modifies the status stored in ChangeFromWriter for any changes in the WriterProxy whose 
     /// status is MISSING or UNKNOWN and have sequence numbers lower than ‘first_available_seq_num.’ The status of 
     /// those changes is modified to LOST indicating that the changes are no longer available in the WriterHistoryCache
     /// of the RTPS Writer represented by the RTPS WriterProxy
-    pub fn lost_changes_update(&self, first_available_seq_num: SequenceNumber) {
-        self.changes_from_writer().lost_changes_update(first_available_seq_num);
+    pub fn lost_changes_update(&mut self, first_available_seq_num: SequenceNumber) {
+        self.changes_from_writer.lost_changes_update(first_available_seq_num);
     }
 
     /// This operation returns the subset of changes for the WriterProxy that have status ‘MISSING.’
     /// The changes with status ‘MISSING’ represent the set of changes available in the HistoryCache of the RTPS Writer
     /// represented by the RTPS WriterProxy that have not been received by the RTPS Reader.
-    pub fn missing_changes(&self) -> BTreeSet<SequenceNumber> {
-        self.changes_from_writer().missing_changes()
+    pub fn missing_changes(&mut self) -> BTreeSet<SequenceNumber> {
+        self.changes_from_writer.missing_changes()
     }
 
     /// This operation modifies the status stored in ChangeFromWriter for any changes in the WriterProxy whose status is UNKNOWN 
     /// and have sequence numbers smaller or equal to ‘last_available_seq_num.’ The status of those changes is modified 
     /// from UNKNOWN to MISSING indicating that the changes are available at the WriterHistoryCache of the RTPS Writer represented 
     /// by the RTPS WriterProxy but have not been received by the RTPS Reader
-    pub fn missing_changes_update(&self, last_available_seq_num: SequenceNumber) {
-        self.changes_from_writer().missing_changes_update(last_available_seq_num);
+    pub fn missing_changes_update(&mut self, last_available_seq_num: SequenceNumber) {
+        self.changes_from_writer.missing_changes_update(last_available_seq_num);
     }
 
     /// This operation modifies the status of the ChangeFromWriter that refers to the CacheChange with the
     /// SequenceNumber_t ‘a_seq_num.’ The status of the change is set to ‘RECEIVED,’ indicating it has been received.
-    pub fn received_change_set(&self, a_seq_num: SequenceNumber) {
-        self.changes_from_writer().received_change_set(a_seq_num);
+    pub fn received_change_set(&mut self, a_seq_num: SequenceNumber) {
+        self.changes_from_writer.received_change_set(a_seq_num);
     }
 
     pub fn remote_writer_guid(&self) -> &GUID {
         &self.remote_writer_guid
-    }
-
-    fn changes_from_writer(&self) -> MutexGuard<ChangesFromWriter> {
-        self.changes_from_writer.lock().unwrap()
     }
 }
 
@@ -212,7 +205,7 @@ mod tests {
     #[test]
     fn received_changes_set_sequential_ordered() {
         let remote_writer_guid = GUID::new([1;12], ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER );
-        let writer_proxy = WriterProxy::new(remote_writer_guid, vec![], vec![]);
+        let mut writer_proxy = WriterProxy::new(remote_writer_guid, vec![], vec![]);
 
         // Originally the writer proxy doesn't know of any available changes
         assert_eq!(writer_proxy.available_changes_max(), 0);
@@ -220,18 +213,18 @@ mod tests {
         // If the next sequence number is received the unknown changes are empty
         writer_proxy.received_change_set(1);
         assert_eq!(writer_proxy.available_changes_max(), 1);
-        assert!(writer_proxy.changes_from_writer().unknown_changes.is_empty());
+        assert!(writer_proxy.changes_from_writer.unknown_changes.is_empty());
 
         // If the next sequence number is received the unknown changes are empty
         writer_proxy.received_change_set(2);
         assert_eq!(writer_proxy.available_changes_max(), 2);
-        assert!(writer_proxy.changes_from_writer().unknown_changes.is_empty());
+        assert!(writer_proxy.changes_from_writer.unknown_changes.is_empty());
     }
 
     #[test]
     fn received_changes_set_unordered() {
         let remote_writer_guid = GUID::new([1;12], ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER );
-        let writer_proxy = WriterProxy::new(remote_writer_guid, vec![], vec![]);
+        let mut writer_proxy = WriterProxy::new(remote_writer_guid, vec![], vec![]);
 
         // Originally the writer proxy doesn't know of any available changes
         assert_eq!(writer_proxy.available_changes_max(), 0);
@@ -239,117 +232,117 @@ mod tests {
         // If the next sequence number jumps two number then change 1 and 2 are unknown
         writer_proxy.received_change_set(3);
         assert_eq!(writer_proxy.available_changes_max(), 0);
-        assert_eq!(writer_proxy.changes_from_writer().unknown_changes, [1, 2].iter().cloned().collect());
+        assert_eq!(writer_proxy.changes_from_writer.unknown_changes, [1, 2].iter().cloned().collect());
 
         // If sequence number 2 is received the only unknown change is 1
         writer_proxy.received_change_set(1);
         assert_eq!(writer_proxy.available_changes_max(), 1);
-        assert_eq!(writer_proxy.changes_from_writer().unknown_changes, [2].iter().cloned().collect());
+        assert_eq!(writer_proxy.changes_from_writer.unknown_changes, [2].iter().cloned().collect());
 
         // If sequence number 1 is received after there are no more unknown changes
         writer_proxy.received_change_set(2);
         assert_eq!(writer_proxy.available_changes_max(), 3);
-        assert!(writer_proxy.changes_from_writer().unknown_changes.is_empty());
+        assert!(writer_proxy.changes_from_writer.unknown_changes.is_empty());
     }
 
     #[test]
     fn lost_changes_only() {
         let remote_writer_guid = GUID::new([1;12], ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER );
-        let writer_proxy = WriterProxy::new(remote_writer_guid, vec![], vec![]);
+        let mut writer_proxy = WriterProxy::new(remote_writer_guid, vec![], vec![]);
 
         writer_proxy.lost_changes_update(3);
 
         assert_eq!(writer_proxy.available_changes_max(), 2);
-        assert_eq!(writer_proxy.changes_from_writer().lost_changes, [1, 2].iter().cloned().collect());
+        assert_eq!(writer_proxy.changes_from_writer.lost_changes, [1, 2].iter().cloned().collect());
 
         writer_proxy.lost_changes_update(5);
         assert_eq!(writer_proxy.available_changes_max(), 4);
-        assert_eq!(writer_proxy.changes_from_writer().lost_changes, [1, 2, 3, 4].iter().cloned().collect());
+        assert_eq!(writer_proxy.changes_from_writer.lost_changes, [1, 2, 3, 4].iter().cloned().collect());
     }
 
     #[test]
     fn received_and_lost_changes() {
         let remote_writer_guid = GUID::new([1;12], ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER );
-        let writer_proxy = WriterProxy::new(remote_writer_guid, vec![], vec![]);
+        let mut writer_proxy = WriterProxy::new(remote_writer_guid, vec![], vec![]);
 
         writer_proxy.received_change_set(3);
         writer_proxy.lost_changes_update(3);
 
         assert_eq!(writer_proxy.available_changes_max(), 3);
-        assert_eq!(writer_proxy.changes_from_writer().lost_changes, [1, 2].iter().cloned().collect());
+        assert_eq!(writer_proxy.changes_from_writer.lost_changes, [1, 2].iter().cloned().collect());
 
         writer_proxy.lost_changes_update(5);
         assert_eq!(writer_proxy.available_changes_max(), 4);
-        assert_eq!(writer_proxy.changes_from_writer().lost_changes, [1, 2, 4].iter().cloned().collect());
+        assert_eq!(writer_proxy.changes_from_writer.lost_changes, [1, 2, 4].iter().cloned().collect());
     }
 
     #[test]
     fn missing_changes_only() {
         let remote_writer_guid = GUID::new([1;12], ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER );
-        let writer_proxy = WriterProxy::new(remote_writer_guid, vec![], vec![]);
+        let mut writer_proxy = WriterProxy::new(remote_writer_guid, vec![], vec![]);
 
         writer_proxy.missing_changes_update(3);
 
         assert_eq!(writer_proxy.available_changes_max(), 0);
-        assert_eq!(writer_proxy.changes_from_writer().missing_changes, [1, 2, 3].iter().cloned().collect());
+        assert_eq!(writer_proxy.changes_from_writer.missing_changes, [1, 2, 3].iter().cloned().collect());
 
         writer_proxy.missing_changes_update(5);
         assert_eq!(writer_proxy.available_changes_max(), 0);
-        assert_eq!(writer_proxy.changes_from_writer().missing_changes, [1, 2, 3, 4, 5].iter().cloned().collect());
+        assert_eq!(writer_proxy.changes_from_writer.missing_changes, [1, 2, 3, 4, 5].iter().cloned().collect());
     }
 
     #[test]
     fn received_lost_and_missing_changes() {
         let remote_writer_guid = GUID::new([1;12], ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER );
-        let writer_proxy = WriterProxy::new(remote_writer_guid, vec![], vec![]);
+        let mut writer_proxy = WriterProxy::new(remote_writer_guid, vec![], vec![]);
 
         // Received sample number 4. Verify that all sample numbers before are unknown
         writer_proxy.received_change_set(4);
         assert_eq!(writer_proxy.available_changes_max(), 0);
-        assert_eq!(writer_proxy.changes_from_writer().unknown_changes, [1, 2, 3].iter().cloned().collect());
-        assert_eq!(writer_proxy.changes_from_writer().missing_changes, [].iter().cloned().collect());
-        assert_eq!(writer_proxy.changes_from_writer().lost_changes, [].iter().cloned().collect());
+        assert_eq!(writer_proxy.changes_from_writer.unknown_changes, [1, 2, 3].iter().cloned().collect());
+        assert_eq!(writer_proxy.changes_from_writer.missing_changes, [].iter().cloned().collect());
+        assert_eq!(writer_proxy.changes_from_writer.lost_changes, [].iter().cloned().collect());
 
         // Mark sample 1 as lost and verify that now samples 2 and 3 are unknown
         writer_proxy.lost_changes_update(2);
         assert_eq!(writer_proxy.available_changes_max(), 1);
-        assert_eq!(writer_proxy.changes_from_writer().unknown_changes, [2, 3].iter().cloned().collect());
-        assert_eq!(writer_proxy.changes_from_writer().missing_changes, [].iter().cloned().collect());
-        assert_eq!(writer_proxy.changes_from_writer().lost_changes, [1].iter().cloned().collect());
+        assert_eq!(writer_proxy.changes_from_writer.unknown_changes, [2, 3].iter().cloned().collect());
+        assert_eq!(writer_proxy.changes_from_writer.missing_changes, [].iter().cloned().collect());
+        assert_eq!(writer_proxy.changes_from_writer.lost_changes, [1].iter().cloned().collect());
 
         // Mark sample 2 as missing
         writer_proxy.missing_changes_update(3);
         assert_eq!(writer_proxy.available_changes_max(), 1);
-        assert_eq!(writer_proxy.changes_from_writer().unknown_changes, [3].iter().cloned().collect());
-        assert_eq!(writer_proxy.changes_from_writer().missing_changes, [2].iter().cloned().collect());
-        assert_eq!(writer_proxy.changes_from_writer().lost_changes, [1].iter().cloned().collect());
+        assert_eq!(writer_proxy.changes_from_writer.unknown_changes, [3].iter().cloned().collect());
+        assert_eq!(writer_proxy.changes_from_writer.missing_changes, [2].iter().cloned().collect());
+        assert_eq!(writer_proxy.changes_from_writer.lost_changes, [1].iter().cloned().collect());
 
         // Mark sample 2 as received
         writer_proxy.received_change_set(2);
         assert_eq!(writer_proxy.available_changes_max(), 2);
-        assert_eq!(writer_proxy.changes_from_writer().unknown_changes, [3].iter().cloned().collect());
-        assert_eq!(writer_proxy.changes_from_writer().missing_changes, [].iter().cloned().collect());
-        assert_eq!(writer_proxy.changes_from_writer().lost_changes, [1].iter().cloned().collect());
+        assert_eq!(writer_proxy.changes_from_writer.unknown_changes, [3].iter().cloned().collect());
+        assert_eq!(writer_proxy.changes_from_writer.missing_changes, [].iter().cloned().collect());
+        assert_eq!(writer_proxy.changes_from_writer.lost_changes, [1].iter().cloned().collect());
 
         // Mark samples 1 and 2 as lost and check that nothing happens
         writer_proxy.lost_changes_update(3);
         assert_eq!(writer_proxy.available_changes_max(), 2);
-        assert_eq!(writer_proxy.changes_from_writer().unknown_changes, [3].iter().cloned().collect());
-        assert_eq!(writer_proxy.changes_from_writer().missing_changes, [].iter().cloned().collect());
-        assert_eq!(writer_proxy.changes_from_writer().lost_changes, [1].iter().cloned().collect());
+        assert_eq!(writer_proxy.changes_from_writer.unknown_changes, [3].iter().cloned().collect());
+        assert_eq!(writer_proxy.changes_from_writer.missing_changes, [].iter().cloned().collect());
+        assert_eq!(writer_proxy.changes_from_writer.lost_changes, [1].iter().cloned().collect());
 
         // Mark sample 3 as missing
         writer_proxy.missing_changes_update(4);
         assert_eq!(writer_proxy.available_changes_max(), 2);
-        assert_eq!(writer_proxy.changes_from_writer().unknown_changes, [].iter().cloned().collect());
-        assert_eq!(writer_proxy.changes_from_writer().missing_changes, [3].iter().cloned().collect());
-        assert_eq!(writer_proxy.changes_from_writer().lost_changes, [1].iter().cloned().collect());
+        assert_eq!(writer_proxy.changes_from_writer.unknown_changes, [].iter().cloned().collect());
+        assert_eq!(writer_proxy.changes_from_writer.missing_changes, [3].iter().cloned().collect());
+        assert_eq!(writer_proxy.changes_from_writer.lost_changes, [1].iter().cloned().collect());
 
         // Mark sample 3 as lost
         writer_proxy.lost_changes_update(4);
         assert_eq!(writer_proxy.available_changes_max(), 4);
-        assert_eq!(writer_proxy.changes_from_writer().unknown_changes, [].iter().cloned().collect());
-        assert_eq!(writer_proxy.changes_from_writer().missing_changes, [].iter().cloned().collect());
-        assert_eq!(writer_proxy.changes_from_writer().lost_changes, [1, 3].iter().cloned().collect());
+        assert_eq!(writer_proxy.changes_from_writer.unknown_changes, [].iter().cloned().collect());
+        assert_eq!(writer_proxy.changes_from_writer.missing_changes, [].iter().cloned().collect());
+        assert_eq!(writer_proxy.changes_from_writer.lost_changes, [1, 3].iter().cloned().collect());
     }
 }

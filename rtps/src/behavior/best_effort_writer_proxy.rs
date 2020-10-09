@@ -1,13 +1,11 @@
 use std::collections::VecDeque;
 use std::sync::Mutex;
 
-use crate::types::{GuidPrefix, GUID, Locator};
-use crate::types::constants::LOCATOR_INVALID;
+use crate::types::{GuidPrefix, GUID};
 use crate::structure::HistoryCache;
 use crate::behavior::WriterProxy;
 use crate::messages::RtpsSubmessage;
 use crate::messages::submessages::{Data, Gap};
-use crate::messages::message_receiver::Receiver;
 
 use super::cache_change_from_data;
 
@@ -24,12 +22,13 @@ impl BestEffortWriterProxy {
         }
     }
 
-    pub fn run(&self, history_cache: &HistoryCache) {
+    pub fn run(&mut self, history_cache: &HistoryCache) {
         self.waiting_state(history_cache);
     }
 
-    fn waiting_state(&self, history_cache: &HistoryCache) {
-        if let Some((_, received_message)) = self.received_messages.lock().unwrap().pop_front() {
+    fn waiting_state(&mut self, history_cache: &HistoryCache) {
+        let received = self.received_messages.lock().unwrap().pop_front();
+        if let Some((_, received_message)) = received  {
             match received_message {
                 RtpsSubmessage::Data(data) => self.transition_t2(history_cache, data),
                 RtpsSubmessage::Gap(gap) => self.transition_t4(&gap),
@@ -39,7 +38,7 @@ impl BestEffortWriterProxy {
         }
     }
 
-    fn transition_t2(&self, history_cache: &HistoryCache, data: Data) {
+    fn transition_t2(&mut self, history_cache: &HistoryCache, data: Data) {
         let expected_seq_number = self.writer_proxy.available_changes_max() + 1;
         if data.writer_sn() >= expected_seq_number {
             self.writer_proxy.received_change_set(data.writer_sn());
@@ -49,7 +48,7 @@ impl BestEffortWriterProxy {
         }
     }
 
-    fn transition_t4(&self, gap: &Gap) {
+    fn transition_t4(&mut self, gap: &Gap) {
         for seq_num in gap.gap_start() .. gap.gap_list().base() - 1 {
             self.writer_proxy.irrelevant_change_set(seq_num);
         }
@@ -58,16 +57,14 @@ impl BestEffortWriterProxy {
             self.writer_proxy.irrelevant_change_set(seq_num);
         }
     }
-}
 
-impl Receiver for BestEffortWriterProxy {
-    fn push_receive_message(&self, src_guid_prefix: GuidPrefix, submessage: RtpsSubmessage) {
-        assert!(self.is_submessage_destination(&LOCATOR_INVALID, &src_guid_prefix, &submessage));
+    pub fn push_receive_message(&self, src_guid_prefix: GuidPrefix, submessage: RtpsSubmessage) {
+        assert!(self.is_submessage_destination(&src_guid_prefix, &submessage));
 
         self.received_messages.lock().unwrap().push_back((src_guid_prefix, submessage));
     }
 
-    fn is_submessage_destination(&self, _src_locator: &Locator, src_guid_prefix: &GuidPrefix, submessage: &RtpsSubmessage) -> bool {
+    pub fn is_submessage_destination(&self, src_guid_prefix: &GuidPrefix, submessage: &RtpsSubmessage) -> bool {
         let writer_id = match submessage {
             RtpsSubmessage::Data(data) => data.writer_id(),
             RtpsSubmessage::Gap(gap) => gap.writer_id(),
@@ -85,7 +82,7 @@ mod tests {
     use super::*;
     use crate::types::{ChangeKind, GUID};
     use crate::types::constants::{
-        ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, };
+        ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR};
     use crate::structure::CacheChange;
     use crate::messages::submessages::data_submessage::Payload;
     use crate::serialized_payload::ParameterList;
@@ -102,7 +99,7 @@ mod tests {
         let remote_writer_guid = GUID::new(remote_writer_guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
         let writer_proxy = WriterProxy::new(remote_writer_guid, vec![], vec![]);
 
-        let best_effort_proxy = BestEffortWriterProxy::new(writer_proxy);
+        let mut best_effort_proxy = BestEffortWriterProxy::new(writer_proxy);
 
         let mut inline_qos = ParameterList::new();
         inline_qos.push(change_kind_to_status_info(ChangeKind::Alive));

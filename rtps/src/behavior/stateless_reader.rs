@@ -82,7 +82,7 @@ impl StatelessReader {
 }
 
 impl Receiver for StatelessReader {
-    fn push_receive_message(&self, source_guid_prefix: GuidPrefix, message: RtpsSubmessage) {
+    fn push_receive_message(&self, src_locator: Locator, source_guid_prefix: GuidPrefix, message: RtpsSubmessage) {
         self.received_messages.lock().unwrap().push_back((source_guid_prefix, message));
     }
 
@@ -140,7 +140,7 @@ mod tests {
             Payload::Data(vec![0,1,2]),
         );
 
-        reader.push_receive_message([2;12], RtpsSubmessage::Data(data1));
+        reader.push_receive_message(LOCATOR_INVALID,[2;12], RtpsSubmessage::Data(data1));
 
         assert_eq!(reader.reader_cache().changes().len(), 0);
         // let message = RtpsMessage::new(, submessages);

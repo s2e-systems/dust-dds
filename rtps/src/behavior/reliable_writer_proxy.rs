@@ -4,13 +4,11 @@ use std::collections::VecDeque;
 use std::sync::Mutex;
 
 use crate::types::{GuidPrefix, GUID, EntityId, Locator};
-use crate::types::constants::LOCATOR_INVALID;
 use crate::structure::HistoryCache;
 use crate::behavior::WriterProxy;
 use crate::messages::RtpsSubmessage;
 use crate::messages::submessages::{AckNack, Data, Gap, Heartbeat,};
 use crate::messages::types::Count;
-use crate::messages::message_receiver::Receiver;
 use crate::messages::message_sender::Sender;
 
 use super::types::Duration;
@@ -57,8 +55,9 @@ impl ReliableWriterProxy {
         }
     }
 
-    fn ready_state(&self, history_cache: &HistoryCache) -> Option<Heartbeat>{
-        if let Some((_, received_message)) = self.received_messages.lock().unwrap().pop_front() {
+    fn ready_state(&mut self, history_cache: &HistoryCache) -> Option<Heartbeat>{
+        let received = self.received_messages.lock().unwrap().pop_front();
+        if let Some((_, received_message)) = received {
             match received_message {
                 RtpsSubmessage::Data(data) => {
                     self.transition_t8(history_cache, data);
@@ -79,7 +78,7 @@ impl ReliableWriterProxy {
         }
     }
 
-    fn transition_t8(&self, history_cache: &HistoryCache, data: Data) {
+    fn transition_t8(&mut self, history_cache: &HistoryCache, data: Data) {
         let expected_seq_number = self.writer_proxy.available_changes_max() + 1;
         if data.writer_sn() >= expected_seq_number {
             self.writer_proxy.received_change_set(data.writer_sn());
@@ -89,7 +88,7 @@ impl ReliableWriterProxy {
         }
     }
 
-    fn transition_t9(&self, gap: &Gap) {
+    fn transition_t9(&mut self, gap: &Gap) {
         for seq_num in gap.gap_start() .. gap.gap_list().base() - 1 {
             self.writer_proxy.irrelevant_change_set(seq_num);
         }
@@ -99,7 +98,7 @@ impl ReliableWriterProxy {
         }
     }
 
-    fn transition_t7(&self, heartbeat: &Heartbeat) {
+    fn transition_t7(&mut self, heartbeat: &Heartbeat) {
         self.writer_proxy.missing_changes_update(heartbeat.last_sn());
         self.writer_proxy.lost_changes_update(heartbeat.first_sn());
     }
@@ -159,16 +158,14 @@ impl ReliableWriterProxy {
     pub fn increment_acknack_count(&mut self) {
         self.ackanck_count += 1;
     }
-}
 
-impl Receiver for ReliableWriterProxy {
-    fn push_receive_message(&self, src_guid_prefix: GuidPrefix, submessage: RtpsSubmessage) {
-        assert!(self.is_submessage_destination(&LOCATOR_INVALID, &src_guid_prefix, &submessage));
+    pub fn push_receive_message(&self, src_guid_prefix: GuidPrefix, submessage: RtpsSubmessage) {
+        assert!(self.is_submessage_destination(&src_guid_prefix, &submessage));
 
         self.received_messages.lock().unwrap().push_back((src_guid_prefix, submessage));
     }
 
-    fn is_submessage_destination(&self, _src_locator: &Locator, src_guid_prefix: &GuidPrefix, submessage: &RtpsSubmessage) -> bool {
+    pub fn is_submessage_destination(&self, src_guid_prefix: &GuidPrefix, submessage: &RtpsSubmessage) -> bool {
         let writer_id = match submessage {
             RtpsSubmessage::Data(data) => data.writer_id(),
             RtpsSubmessage::Gap(gap) => gap.writer_id(),
@@ -182,6 +179,10 @@ impl Receiver for ReliableWriterProxy {
     }
 }
 
+
+    
+
+
 impl Sender for ReliableWriterProxy {
     fn pop_send_message(&self) -> Option<(Vec<Locator>, VecDeque<RtpsSubmessage>)> {
         todo!()
@@ -193,7 +194,7 @@ mod tests {
     use super::*;
     use crate::types::{ChangeKind, GUID};
     use crate::types::constants::{
-        ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, };
+        ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR};
     use crate::structure::CacheChange;
     use crate::messages::submessages::data_submessage::Payload;
     use crate::serialized_payload::ParameterList;

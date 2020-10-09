@@ -6,7 +6,7 @@ use super::submessages::RtpsSubmessage;
 // ////////////////// RTPS Message Receiver
 
 pub trait Receiver {
-    fn push_receive_message(&self, src_guid_prefix: GuidPrefix, submessage: RtpsSubmessage);
+    fn push_receive_message(&self, src_locator: Locator, src_guid_prefix: GuidPrefix, submessage: RtpsSubmessage);
 
     fn is_submessage_destination(&self, src_locator: &Locator, src_guid_prefix: &GuidPrefix, submessage: &RtpsSubmessage) -> bool;
 }
@@ -29,7 +29,7 @@ impl RtpsMessageReceiver {
                 if submessage.is_entity_submessage() {
                     for &receiver in receiver_list {
                         if receiver.is_submessage_destination(&src_locator, &source_guid_prefix, &submessage) {
-                            receiver.push_receive_message(source_guid_prefix, submessage);
+                            receiver.push_receive_message(src_locator, source_guid_prefix, submessage);
                             break;
                         }
                     }  

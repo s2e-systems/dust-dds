@@ -21,6 +21,31 @@ enum WriterProxyType {
     Reliable(ReliableWriterProxy),
 }
 
+impl WriterProxyType {
+    fn push_receive_message(&self, src_guid_prefix: GuidPrefix, submessage: RtpsSubmessage) {
+        match self {
+            WriterProxyType::BestEffort(writer_proxy) => writer_proxy.push_receive_message(src_guid_prefix, submessage),
+            WriterProxyType::Reliable(writer_proxy) => writer_proxy.push_receive_message(src_guid_prefix, submessage),
+        }
+    }
+
+    fn is_submessage_destination(&self, src_guid_prefix: &GuidPrefix, submessage: &RtpsSubmessage) -> bool {
+        match self {
+            WriterProxyType::BestEffort(writer_proxy) => writer_proxy.is_submessage_destination(src_guid_prefix, submessage),
+            WriterProxyType::Reliable(writer_proxy) => writer_proxy.is_submessage_destination(src_guid_prefix, submessage),
+        }
+    }
+
+    fn run(&mut self, history_cache: &HistoryCache) {
+        match self {
+            WriterProxyType::BestEffort(writer_proxy) => writer_proxy.run(history_cache),
+            WriterProxyType::Reliable(writer_proxy) => writer_proxy.run(history_cache),
+        }
+    }
+}
+
+
+
 pub struct StatefulReader {
     // From Entity base class
     guid: GUID,
@@ -67,12 +92,17 @@ impl StatefulReader {
     }
 
     pub fn matched_writer_add(&self, a_writer_proxy: WriterProxy) {
-        todo!()
-        // self.matched_writers.write().unwrap().insert(a_writer_proxy.remote_writer_guid, a_writer_proxy);
+        let remote_writer_guid = a_writer_proxy.remote_writer_guid().clone();
+        let writer_type = match self.reliability_level {
+            ReliabilityKind::Reliable => WriterProxyType::Reliable(ReliableWriterProxy::new(a_writer_proxy, self.guid.entity_id(), self.heartbeat_response_delay)),
+            ReliabilityKind::BestEffort => WriterProxyType::BestEffort(BestEffortWriterProxy::new(a_writer_proxy)),
+        };
+        
+        self.matched_writers.write().unwrap().insert(remote_writer_guid, writer_type);
     }
 
     pub fn matched_writer_remove(&self, writer_proxy_guid: &GUID) {
-        self.matched_writers.write().unwrap().remove(&writer_proxy_guid);
+        self.matched_writers.write().unwrap().remove(writer_proxy_guid);
     }
     
     pub fn matched_writers(&self) -> RwLockReadGuard<HashMap<GUID, WriterProxy>> {
@@ -81,13 +111,10 @@ impl StatefulReader {
     }
 
     pub fn run(&self) {
-        todo!()
-        // for (_writer_guid, writer_proxy) in self.matched_writers().iter() {
-        //     match self.reliability_level {
-        //         ReliabilityKind::BestEffort => BestEfforStatefulReaderBehavior::run(writer_proxy, &self),
-        //         ReliabilityKind::Reliable => ReliableStatefulReaderBehavior::run(writer_proxy,  &self),
-        //     };
-        // }
+        let mut matched_writers = self.matched_writers.write().unwrap();
+        for (_writer_guid, writer_proxy) in matched_writers.iter_mut(){
+            writer_proxy.run(&self.reader_cache)
+        }
     }
 
     pub fn reader_cache(&self) -> &HistoryCache {
@@ -104,40 +131,17 @@ impl StatefulReader {
 }
 
 impl Receiver for StatefulReader {
-    fn push_receive_message(&self, src_guid_prefix: GuidPrefix, submessage: RtpsSubmessage) {
-        let writer_id = match &submessage {
-            RtpsSubmessage::Data(data) => data.writer_id(),
-            RtpsSubmessage::Gap(gap) => gap.writer_id(),
-            RtpsSubmessage::Heartbeat(heartbeat) => 
-                if self.reliability_level == ReliabilityKind::Reliable {
-                    heartbeat.writer_id()
-                } else {
-                    panic!("Heartbeat messages not received by best-effort stateful reader")
-                },
-            _ =>  panic!("Unsupported message received by stateful reader"),
-        };
-        let writer_guid = GUID::new(src_guid_prefix, writer_id);
+    fn push_receive_message(&self, _src_locator: Locator, src_guid_prefix: GuidPrefix, submessage: RtpsSubmessage){
+        let matched_writers = self.matched_writers.read().unwrap();
+        let destination_writer = matched_writers.iter().find(|&(_, writer)| writer.is_submessage_destination(&src_guid_prefix, &submessage)).unwrap();
 
-        todo!()
-        // self.matched_writers().get(&writer_guid).unwrap().received_messages.lock().unwrap().push_back((src_guid_prefix, submessage));
+        destination_writer.1.push_receive_message(src_guid_prefix, submessage);
     }
 
     fn is_submessage_destination(&self, _src_locator: &Locator, src_guid_prefix: &GuidPrefix, submessage: &RtpsSubmessage) -> bool {
-        let writer_id = match submessage {
-            RtpsSubmessage::Data(data) => data.writer_id(),
-            RtpsSubmessage::Gap(gap) => gap.writer_id(),
-            RtpsSubmessage::Heartbeat(heartbeat) => if self.reliability_level == ReliabilityKind::Reliable {
-                heartbeat.writer_id()
-            } else {
-                return false
-            },
-            _ => return false,
-        };
-
-        let writer_guid = GUID::new(*src_guid_prefix, writer_id);
-
-        // If the message comes from a matched writer then this should be the destination
-        self.matched_writers().get(&writer_guid).is_some()
+        let matched_writers = self.matched_writers.read().unwrap();
+        matched_writers.iter().find(|&(_, writer)| writer.is_submessage_destination(src_guid_prefix, submessage)).is_some()
+       
     }
 }
 

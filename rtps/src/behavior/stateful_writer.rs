@@ -335,7 +335,7 @@ impl ProtocolWriter for StatefulWriter {
 }
 
 impl Receiver for StatefulWriter {
-    fn push_receive_message(&self, source_guid_prefix: GuidPrefix, submessage: RtpsSubmessage) {
+    fn push_receive_message(&self, src_locator: Locator, source_guid_prefix: GuidPrefix, submessage: RtpsSubmessage) {
         let reader_id = match &submessage {
             RtpsSubmessage::AckNack(acknack) => acknack.reader_id(),
             _ => panic!("Unsupported message received by stateful writer"),
@@ -381,7 +381,8 @@ mod tests {
     use crate::types::constants::{
         ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER,
         ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
-        ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,};
+        ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
+        LOCATOR_INVALID};
 
     use crate::messages::submessages::AckNack;
     use crate::messages::Endianness;
@@ -634,7 +635,7 @@ mod tests {
                 false,
         );
 
-        stateful_writer.push_receive_message(remote_reader_guid_prefix, RtpsSubmessage::AckNack(acknack));
+        stateful_writer.push_receive_message( LOCATOR_INVALID, remote_reader_guid_prefix, RtpsSubmessage::AckNack(acknack));
 
         // Check that no heartbeat is sent if there are no new changes
         stateful_writer.run();
