@@ -26,7 +26,7 @@ pub struct ReliableWriterProxy {
     highest_received_heartbeat_count: Count,
 
     received_messages: Mutex<VecDeque<(GuidPrefix, RtpsSubmessage)>>,
-    send_messages: Mutex<VecDeque<RtpsSubmessage>>
+    sent_messages: Mutex<VecDeque<RtpsSubmessage>>
 }
 
 impl ReliableWriterProxy {
@@ -40,7 +40,7 @@ impl ReliableWriterProxy {
             ackanck_count: 0,
             highest_received_heartbeat_count: 0,
             received_messages: Mutex::new(VecDeque::new()),
-            send_messages: Mutex::new(VecDeque::new()),
+            sent_messages: Mutex::new(VecDeque::new()),
         }
     }
 
@@ -120,7 +120,7 @@ impl ReliableWriterProxy {
             *self.ackanck_count(),
             true);
 
-        self.send_messages.lock().unwrap().push_back(RtpsSubmessage::AckNack(acknack));
+        self.sent_messages.lock().unwrap().push_back(RtpsSubmessage::AckNack(acknack));
     }
 
     fn must_send_ack(&self) -> bool {
