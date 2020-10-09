@@ -1,19 +1,11 @@
-use std::time::Instant;
-use std::convert::TryInto;
 use std::collections::{BTreeSet, VecDeque};
 use std::sync::Mutex;
 
 use crate::types::{EntityId, SequenceNumber};
 use crate::structure::HistoryCache;
-use crate::types::constants::LOCATOR_INVALID;
 use crate::messages::RtpsSubmessage;
-use crate::messages::submessages::{Gap, Heartbeat, AckNack};
-use crate::behavior::{StatefulWriter, ReaderProxy};
-use crate::messages::types::Count;
-use crate::messages::message_sender::Sender;
-use crate::messages::message_receiver::Receiver;
-
-use crate::behavior::types::Duration;
+use crate::messages::submessages::Gap;
+use crate::behavior::ReaderProxy;
 use crate::behavior::{data_from_cache_change, BEHAVIOR_ENDIANNESS};
 
 pub struct BestEffortReaderProxy {

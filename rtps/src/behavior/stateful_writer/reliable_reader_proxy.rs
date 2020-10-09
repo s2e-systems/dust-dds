@@ -9,8 +9,6 @@ use crate::messages::RtpsSubmessage;
 use crate::messages::submessages::{Gap, Heartbeat, AckNack};
 use crate::behavior::ReaderProxy;
 use crate::messages::types::Count;
-use crate::messages::message_sender::Sender;
-use crate::messages::message_receiver::Receiver;
 
 use crate::behavior::types::Duration;
 use crate::behavior::{data_from_cache_change, BEHAVIOR_ENDIANNESS};
@@ -199,11 +197,10 @@ impl ReliableReaderProxy {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{ChangeKind, TopicKind, ReliabilityKind, GUID};
+    use crate::types::GUID;
     use crate::behavior::types::constants::DURATION_ZERO;
     use crate::types::constants::{
-        ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER, 
-        ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, };
+        ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR };
     // use crate::messages::{AckNack};
     // use crate::messages::receiver::WriterReceiveMessage;
     // use crate::stateful_writer::StatefulWriter;
@@ -218,14 +215,14 @@ mod tests {
         let history_cache = HistoryCache::new(&ResourceLimitsQosPolicy::default());
 
         let remote_reader_guid = GUID::new([1,2,3,4,5,6,7,8,9,10,11,12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-        let mut reader_proxy = ReaderProxy::new(remote_reader_guid, vec![], vec![], false, true);
+        let reader_proxy = ReaderProxy::new(remote_reader_guid, vec![], vec![], false, true);
         let heartbeat_period = DURATION_ZERO;
         let nack_response_delay = DURATION_ZERO;
         let mut reliable_reader_proxy = ReliableReaderProxy::new(reader_proxy, writer_entity_id, heartbeat_period, nack_response_delay);
 
         // Test no data in the history cache and no changes written
         let no_change_sequence_number = 0;
-        reliable_reader_proxy.run(&history_cache, 0);
+        reliable_reader_proxy.run(&history_cache, no_change_sequence_number);
         let sent_submessages = reliable_reader_proxy.sent_messages.lock().unwrap().pop_front().unwrap();
         if let RtpsSubmessage::Heartbeat(heartbeat) = &sent_submessages {
             assert_eq!(heartbeat.reader_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);

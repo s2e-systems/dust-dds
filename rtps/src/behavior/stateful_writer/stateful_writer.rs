@@ -179,7 +179,7 @@ impl ProtocolWriter for StatefulWriter {
 }
 
 impl Receiver for StatefulWriter {
-    fn push_receive_message(&self, src_locator: Locator, source_guid_prefix: GuidPrefix, submessage: RtpsSubmessage) {
+    fn push_receive_message(&self, _src_locator: Locator, source_guid_prefix: GuidPrefix, submessage: RtpsSubmessage) {
         let reader_id = match &submessage {
             RtpsSubmessage::AckNack(acknack) => acknack.reader_id(),
             _ => panic!("Unsupported message received by stateful writer"),
