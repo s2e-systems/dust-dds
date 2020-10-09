@@ -121,11 +121,6 @@ impl Receiver for StatefulReader {
         todo!()
         // self.matched_writers().get(&writer_guid).unwrap().received_messages.lock().unwrap().push_back((src_guid_prefix, submessage));
     }
-    
-    fn pop_receive_message(&self, guid: &GUID) -> Option<(GuidPrefix, RtpsSubmessage)> {
-        todo!()
-        // self.matched_writers().get(guid).unwrap().received_messages.lock().unwrap().pop_front()
-    }
 
     fn is_submessage_destination(&self, _src_locator: &Locator, src_guid_prefix: &GuidPrefix, submessage: &RtpsSubmessage) -> bool {
         let writer_id = match submessage {

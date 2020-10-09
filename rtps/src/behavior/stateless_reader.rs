@@ -85,10 +85,6 @@ impl Receiver for StatelessReader {
     fn push_receive_message(&self, source_guid_prefix: GuidPrefix, message: RtpsSubmessage) {
         self.received_messages.lock().unwrap().push_back((source_guid_prefix, message));
     }
-    
-    fn pop_receive_message(&self, _guid: &GUID) -> Option<(GuidPrefix, RtpsSubmessage)> {
-        self.received_messages.lock().unwrap().pop_front()
-    }
 
     fn is_submessage_destination(&self, src_locator: &Locator, _src_guid_prefix: &GuidPrefix, submessage: &RtpsSubmessage) -> bool {
         // The stateless reader receives only Data and Gap messages

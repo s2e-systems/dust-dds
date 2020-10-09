@@ -14,12 +14,13 @@ impl BestEffortStatelessReaderBehavior {
     }
 
     fn waiting_state(reader: &StatelessReader) {
-        while let Some((source_guid_prefix, received_message)) =  reader.pop_receive_message(reader.guid()) {
-            match received_message {
-                RtpsSubmessage::Data(data) => Self::transition_t2(reader, source_guid_prefix, data),
-                _ => (),
-            };
-        }
+        todo!()
+        // while let Some((source_guid_prefix, received_message)) =  reader.pop_receive_message(reader.guid()) {
+        //     match received_message {
+        //         RtpsSubmessage::Data(data) => Self::transition_t2(reader, source_guid_prefix, data),
+        //         _ => (),
+        //     };
+        // }
     }
 
     fn transition_t2(reader: &StatelessReader, guid_prefix: GuidPrefix, data: Data) {

@@ -156,10 +156,11 @@ impl ReliableStatefulWriterBehavior {
     }
     
     fn waiting_state(reader_proxy: &ReaderProxy, stateful_writer: &StatefulWriter) {
-        if let Some((_, RtpsSubmessage::AckNack(acknack))) = stateful_writer.pop_receive_message(reader_proxy.remote_reader_guid()) {
-            Self::transition_t8(reader_proxy, acknack);
-            reader_proxy.behavior().time_nack_received_reset();
-        }
+        todo!()
+        // if let Some((_, RtpsSubmessage::AckNack(acknack))) = stateful_writer.pop_receive_message(reader_proxy.remote_reader_guid()) {
+        //     Self::transition_t8(reader_proxy, acknack);
+        //     reader_proxy.behavior().time_nack_received_reset();
+        // }
     }
     
     fn transition_t8(reader_proxy: &ReaderProxy, acknack: AckNack) {
@@ -168,9 +169,10 @@ impl ReliableStatefulWriterBehavior {
     }
     
     fn must_repair_state(reader_proxy: &ReaderProxy, stateful_writer: &StatefulWriter) {
-        if let Some((_, RtpsSubmessage::AckNack(acknack))) = stateful_writer.pop_receive_message(reader_proxy.remote_reader_guid()) {
-            Self::transition_t8(reader_proxy, acknack);
-        }
+        todo!()
+        // if let Some((_, RtpsSubmessage::AckNack(acknack))) = stateful_writer.pop_receive_message(reader_proxy.remote_reader_guid()) {
+        //     Self::transition_t8(reader_proxy, acknack);
+        // }
     }
     
     fn repairing_state(reader_proxy: &ReaderProxy, stateful_writer: &StatefulWriter) {

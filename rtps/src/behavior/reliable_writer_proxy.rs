@@ -6,7 +6,6 @@ use crate::behavior::{WriterProxy, StatefulReader};
 use crate::messages::RtpsSubmessage;
 use crate::messages::submessages::{AckNack, Data, Gap, Heartbeat,};
 use crate::messages::types::Count;
-use crate::messages::message_receiver::Receiver;
 use crate::messages::message_sender::Sender;
 
 use super::types::Duration;
@@ -30,7 +29,7 @@ pub struct ReliableWriterProxy {
     highest_received_heartbeat_count: Count,
 }
 
-impl<'a> ReliableWriterProxy {
+impl ReliableWriterProxy {
     pub fn run(&mut self, stateful_reader: &StatefulReader) {
         // The heartbeat message triggers also a transition in the parallel state-machine
         // relating to the acknack sending so it is returned from the ready_state for
@@ -44,25 +43,26 @@ impl<'a> ReliableWriterProxy {
     }
 
     fn ready_state(&self, stateful_reader: &StatefulReader) -> Option<Heartbeat>{
-        if let Some((_, received_message)) = stateful_reader.pop_receive_message(self.writer_proxy.remote_writer_guid()) {
-            match received_message {
-                RtpsSubmessage::Data(data) => {
-                    self.transition_t8(stateful_reader, data);
-                    None
-                },
-                RtpsSubmessage::Gap(gap) => {
-                    self.transition_t9(&gap);
-                    None
-                },
-                RtpsSubmessage::Heartbeat(heartbeat) => {
-                    self.transition_t7(&heartbeat);
-                    Some(heartbeat)
-                },
-                _ => panic!("Unexpected reader message received"),
-            }
-        } else {
-            None
-        }
+        todo!()
+        // if let Some((_, received_message)) = stateful_reader.pop_receive_message(self.writer_proxy.remote_writer_guid()) {
+        //     match received_message {
+        //         RtpsSubmessage::Data(data) => {
+        //             self.transition_t8(stateful_reader, data);
+        //             None
+        //         },
+        //         RtpsSubmessage::Gap(gap) => {
+        //             self.transition_t9(&gap);
+        //             None
+        //         },
+        //         RtpsSubmessage::Heartbeat(heartbeat) => {
+        //             self.transition_t7(&heartbeat);
+        //             Some(heartbeat)
+        //         },
+        //         _ => panic!("Unexpected reader message received"),
+        //     }
+        // } else {
+        //     None
+        // }
     }
 
     fn transition_t8(&self, stateful_reader: &StatefulReader, data: Data) {

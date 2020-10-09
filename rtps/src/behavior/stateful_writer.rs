@@ -344,10 +344,6 @@ impl Receiver for StatefulWriter {
         self.matched_readers().get(&guid).unwrap().received_messages.lock().unwrap().push_back((source_guid_prefix, submessage));
     }
     
-    fn pop_receive_message(&self, guid: &GUID) -> Option<(GuidPrefix, RtpsSubmessage)> {
-        self.matched_readers().get(guid).unwrap().received_messages.lock().unwrap().pop_front()
-    }
-
     fn is_submessage_destination(&self, _src_locator: &Locator, src_guid_prefix: &GuidPrefix, submessage: &RtpsSubmessage) -> bool {
         let reader_id = match &submessage {
             RtpsSubmessage::AckNack(acknack) => acknack.reader_id(),

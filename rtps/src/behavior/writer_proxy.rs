@@ -3,6 +3,7 @@ use std::sync::{Mutex, MutexGuard};
 
 use crate::types::{SequenceNumber, GuidPrefix, GUID, Locator};
 use crate::messages::RtpsSubmessage;
+use crate::messages::message_receiver::Receiver;
 
 struct ChangesFromWriter {
     highest_processed_sequence_number: SequenceNumber,
@@ -133,8 +134,7 @@ pub struct WriterProxy {
     // Groups are not supported yet:
     // remoteGroupEntityId: EntityId_t,
 
-    received_messages: Mutex<VecDeque<(GuidPrefix, RtpsSubmessage)>>,
-    send_messages: Mutex<VecDeque<RtpsSubmessage>>,
+    
 }
 
 impl WriterProxy {
@@ -148,8 +148,6 @@ impl WriterProxy {
                 unicast_locator_list,
                 multicast_locator_list,
                 changes_from_writer: Mutex::new(ChangesFromWriter::new()),
-                received_messages: Mutex::new(VecDeque::new()),
-                send_messages: Mutex::new(VecDeque::new()),
         }
     }
 
@@ -205,6 +203,8 @@ impl WriterProxy {
         self.changes_from_writer.lock().unwrap()
     }
 }
+
+
 
 #[cfg(test)]
 mod tests {
