@@ -7,11 +7,13 @@ use crate::messages::RtpsSubmessage;
 use crate::messages::message_receiver::Receiver;
 use crate::messages::message_sender::Sender;
 use crate::behavior::types::Duration;
-use crate::behavior::stateful_reader_behavior::{StatefulReaderBehavior, BestEfforStatefulReaderBehavior, ReliableStatefulReaderBehavior, };
+use crate::behavior::stateful_reader_behavior::{BestEffortWriterProxy, ReliableWriterProxy};
 
 use rust_dds_interface::protocol::{ProtocolEntity, ProtocolReader, ProtocolEndpoint};
 use rust_dds_interface::qos::DataReaderQos;
 use rust_dds_interface::types::{InstanceHandle, ReturnCode};
+
+
 
 struct ChangesFromWriter {
     highest_processed_sequence_number: SequenceNumber,
@@ -142,8 +144,6 @@ pub struct WriterProxy {
     // Groups are not supported yet:
     // remoteGroupEntityId: EntityId_t,
 
-    stateful_reader_behavior: Mutex<StatefulReaderBehavior>,
-
     received_messages: Mutex<VecDeque<(GuidPrefix, RtpsSubmessage)>>,
     send_messages: Mutex<VecDeque<RtpsSubmessage>>,
 }
@@ -159,7 +159,6 @@ impl WriterProxy {
                 unicast_locator_list,
                 multicast_locator_list,
                 changes_from_writer: Mutex::new(ChangesFromWriter::new()),
-                stateful_reader_behavior: Mutex::new(StatefulReaderBehavior::new()),
                 received_messages: Mutex::new(VecDeque::new()),
                 send_messages: Mutex::new(VecDeque::new()),
         }
@@ -213,15 +212,15 @@ impl WriterProxy {
         &self.remote_writer_guid
     }
 
-    pub fn behavior(&self) -> MutexGuard<StatefulReaderBehavior> {
-        self.stateful_reader_behavior.lock().unwrap()
-    }
-
     fn changes_from_writer(&self) -> MutexGuard<ChangesFromWriter> {
         self.changes_from_writer.lock().unwrap()
     }
 }
 
+enum WriterProxyType {
+    BestEffort(BestEffortWriterProxy),
+    Reliable(ReliableWriterProxy),
+}
 
 
 pub struct StatefulReader {
@@ -245,7 +244,7 @@ pub struct StatefulReader {
     reader_cache: HistoryCache,
 
     // Fields
-    matched_writers: RwLock<HashMap<GUID, WriterProxy>>,
+    matched_writers: RwLock<HashMap<GUID, WriterProxyType>>,
 }
 
 impl StatefulReader {
@@ -270,7 +269,8 @@ impl StatefulReader {
     }
 
     pub fn matched_writer_add(&self, a_writer_proxy: WriterProxy) {
-        self.matched_writers.write().unwrap().insert(a_writer_proxy.remote_writer_guid, a_writer_proxy);
+        todo!()
+        // self.matched_writers.write().unwrap().insert(a_writer_proxy.remote_writer_guid, a_writer_proxy);
     }
 
     pub fn matched_writer_remove(&self, writer_proxy_guid: &GUID) {
@@ -278,16 +278,18 @@ impl StatefulReader {
     }
     
     pub fn matched_writers(&self) -> RwLockReadGuard<HashMap<GUID, WriterProxy>> {
-        self.matched_writers.read().unwrap()
+        todo!()
+        // self.matched_writers.read().unwrap()
     }
 
     pub fn run(&self) {
-        for (_writer_guid, writer_proxy) in self.matched_writers().iter() {
-            match self.reliability_level {
-                ReliabilityKind::BestEffort => BestEfforStatefulReaderBehavior::run(writer_proxy, &self),
-                ReliabilityKind::Reliable => ReliableStatefulReaderBehavior::run(writer_proxy,  &self),
-            };
-        }
+        todo!()
+        // for (_writer_guid, writer_proxy) in self.matched_writers().iter() {
+        //     match self.reliability_level {
+        //         ReliabilityKind::BestEffort => BestEfforStatefulReaderBehavior::run(writer_proxy, &self),
+        //         ReliabilityKind::Reliable => ReliableStatefulReaderBehavior::run(writer_proxy,  &self),
+        //     };
+        // }
     }
 
     pub fn reader_cache(&self) -> &HistoryCache {
