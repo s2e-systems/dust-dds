@@ -16,35 +16,11 @@ use rust_dds_interface::protocol::{ProtocolEntity, ProtocolReader, ProtocolEndpo
 use rust_dds_interface::qos::DataReaderQos;
 use rust_dds_interface::types::{InstanceHandle, ReturnCode};
 
-enum WriterProxyType {
-    BestEffort(BestEffortWriterProxy),
-    Reliable(ReliableWriterProxy),
+pub trait WriterProxyOps : Send + Sync {
+    fn push_receive_message(&self, src_guid_prefix: GuidPrefix, submessage: RtpsSubmessage);
+    fn is_submessage_destination(&self, src_guid_prefix: &GuidPrefix, submessage: &RtpsSubmessage) -> bool;
+    fn run(&mut self, history_cache: &HistoryCache);
 }
-
-impl WriterProxyType {
-    fn push_receive_message(&self, src_guid_prefix: GuidPrefix, submessage: RtpsSubmessage) {
-        match self {
-            WriterProxyType::BestEffort(writer_proxy) => writer_proxy.push_receive_message(src_guid_prefix, submessage),
-            WriterProxyType::Reliable(writer_proxy) => writer_proxy.push_receive_message(src_guid_prefix, submessage),
-        }
-    }
-
-    fn is_submessage_destination(&self, src_guid_prefix: &GuidPrefix, submessage: &RtpsSubmessage) -> bool {
-        match self {
-            WriterProxyType::BestEffort(writer_proxy) => writer_proxy.is_submessage_destination(src_guid_prefix, submessage),
-            WriterProxyType::Reliable(writer_proxy) => writer_proxy.is_submessage_destination(src_guid_prefix, submessage),
-        }
-    }
-
-    fn run(&mut self, history_cache: &HistoryCache) {
-        match self {
-            WriterProxyType::BestEffort(writer_proxy) => writer_proxy.run(history_cache),
-            WriterProxyType::Reliable(writer_proxy) => writer_proxy.run(history_cache),
-        }
-    }
-}
-
-
 
 pub struct StatefulReader {
     // From Entity base class
@@ -67,7 +43,7 @@ pub struct StatefulReader {
     reader_cache: HistoryCache,
 
     // Fields
-    matched_writers: RwLock<HashMap<GUID, WriterProxyType>>,
+    matched_writers: RwLock<HashMap<GUID, Box<dyn WriterProxyOps>>>,
 }
 
 impl StatefulReader {
@@ -93,9 +69,9 @@ impl StatefulReader {
 
     pub fn matched_writer_add(&self, a_writer_proxy: WriterProxy) {
         let remote_writer_guid = a_writer_proxy.remote_writer_guid().clone();
-        let writer_type = match self.reliability_level {
-            ReliabilityKind::Reliable => WriterProxyType::Reliable(ReliableWriterProxy::new(a_writer_proxy, self.guid.entity_id(), self.heartbeat_response_delay)),
-            ReliabilityKind::BestEffort => WriterProxyType::BestEffort(BestEffortWriterProxy::new(a_writer_proxy)),
+        let writer_type: Box<dyn WriterProxyOps> = match self.reliability_level {
+            ReliabilityKind::Reliable => Box::new(ReliableWriterProxy::new(a_writer_proxy, self.guid.entity_id(), self.heartbeat_response_delay)),
+            ReliabilityKind::BestEffort => Box::new(BestEffortWriterProxy::new(a_writer_proxy)),
         };
         
         self.matched_writers.write().unwrap().insert(remote_writer_guid, writer_type);

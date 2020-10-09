@@ -8,6 +8,7 @@ use crate::messages::RtpsSubmessage;
 use crate::messages::submessages::{Data, Gap};
 
 use super::cache_change_from_data;
+use super::stateful_reader::WriterProxyOps;
 
 pub struct BestEffortWriterProxy {
     writer_proxy: WriterProxy,
@@ -20,10 +21,6 @@ impl BestEffortWriterProxy {
             writer_proxy,
             received_messages: Mutex::new(VecDeque::new())
         }
-    }
-
-    pub fn run(&mut self, history_cache: &HistoryCache) {
-        self.waiting_state(history_cache);
     }
 
     fn waiting_state(&mut self, history_cache: &HistoryCache) {
@@ -58,13 +55,21 @@ impl BestEffortWriterProxy {
         }
     }
 
-    pub fn push_receive_message(&self, src_guid_prefix: GuidPrefix, submessage: RtpsSubmessage) {
+    
+}
+
+impl WriterProxyOps for BestEffortWriterProxy {
+    fn run(&mut self, history_cache: &HistoryCache) {
+        self.waiting_state(history_cache);
+    }
+
+    fn push_receive_message(&self, src_guid_prefix: GuidPrefix, submessage: RtpsSubmessage) {
         assert!(self.is_submessage_destination(&src_guid_prefix, &submessage));
 
         self.received_messages.lock().unwrap().push_back((src_guid_prefix, submessage));
     }
 
-    pub fn is_submessage_destination(&self, src_guid_prefix: &GuidPrefix, submessage: &RtpsSubmessage) -> bool {
+    fn is_submessage_destination(&self, src_guid_prefix: &GuidPrefix, submessage: &RtpsSubmessage) -> bool {
         let writer_id = match submessage {
             RtpsSubmessage::Data(data) => data.writer_id(),
             RtpsSubmessage::Gap(gap) => gap.writer_id(),

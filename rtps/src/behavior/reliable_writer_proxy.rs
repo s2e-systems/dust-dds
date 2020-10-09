@@ -13,6 +13,7 @@ use crate::messages::message_sender::Sender;
 
 use super::types::Duration;
 use super::{cache_change_from_data, BEHAVIOR_ENDIANNESS};
+use super::stateful_reader::WriterProxyOps;
 
 pub struct ReliableWriterProxy {
     writer_proxy: WriterProxy,
@@ -40,18 +41,6 @@ impl ReliableWriterProxy {
             highest_received_heartbeat_count: 0,
             received_messages: Mutex::new(VecDeque::new()),
             send_messages: Mutex::new(VecDeque::new()),
-        }
-    }
-
-    pub fn run(&mut self, history_cache: &HistoryCache) {
-        // The heartbeat message triggers also a transition in the parallel state-machine
-        // relating to the acknack sending so it is returned from the ready_state for
-        // further processing.
-        let heartbeat = self.ready_state(history_cache);
-        if self.must_send_ack {
-            self.must_send_ack_state()
-        } else {
-            self.waiting_heartbeat_state(heartbeat);
         }
     }
 
@@ -159,13 +148,29 @@ impl ReliableWriterProxy {
         self.ackanck_count += 1;
     }
 
-    pub fn push_receive_message(&self, src_guid_prefix: GuidPrefix, submessage: RtpsSubmessage) {
+    
+}
+
+impl WriterProxyOps for ReliableWriterProxy {
+    fn run(&mut self, history_cache: &HistoryCache) {
+        // The heartbeat message triggers also a transition in the parallel state-machine
+        // relating to the acknack sending so it is returned from the ready_state for
+        // further processing.
+        let heartbeat = self.ready_state(history_cache);
+        if self.must_send_ack {
+            self.must_send_ack_state()
+        } else {
+            self.waiting_heartbeat_state(heartbeat);
+        }
+    }
+
+    fn push_receive_message(&self, src_guid_prefix: GuidPrefix, submessage: RtpsSubmessage) {
         assert!(self.is_submessage_destination(&src_guid_prefix, &submessage));
 
         self.received_messages.lock().unwrap().push_back((src_guid_prefix, submessage));
     }
 
-    pub fn is_submessage_destination(&self, src_guid_prefix: &GuidPrefix, submessage: &RtpsSubmessage) -> bool {
+    fn is_submessage_destination(&self, src_guid_prefix: &GuidPrefix, submessage: &RtpsSubmessage) -> bool {
         let writer_id = match submessage {
             RtpsSubmessage::Data(data) => data.writer_id(),
             RtpsSubmessage::Gap(gap) => gap.writer_id(),
@@ -178,7 +183,6 @@ impl ReliableWriterProxy {
         self.writer_proxy.remote_writer_guid() == &writer_guid
     }
 }
-
 
     
 
