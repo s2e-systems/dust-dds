@@ -53,7 +53,7 @@ impl StatefulReader {
         ) -> Self {
             
         let expects_inline_qos = false;
-        let heartbeat_response_delay = Duration::from_millis(200);
+        let heartbeat_response_delay = Duration::from_millis(500);
         
         Self {
             guid,

@@ -1,8 +1,12 @@
 use std::convert::TryInto;
 use std::time::Instant;
+use std::collections::VecDeque;
+use std::sync::Mutex;
 
+use crate::types::{GuidPrefix, EntityId};
 use crate::types::constants::LOCATOR_INVALID;
-use crate::behavior::{WriterProxy, StatefulReader};
+use crate::structure::HistoryCache;
+use crate::behavior::WriterProxy;
 use crate::messages::RtpsSubmessage;
 use crate::messages::submessages::{AckNack, Data, Gap, Heartbeat,};
 use crate::messages::types::Count;
@@ -11,66 +15,75 @@ use crate::messages::message_sender::Sender;
 use super::types::Duration;
 use super::{cache_change_from_data, BEHAVIOR_ENDIANNESS};
 
-// pub fn new() -> Self {
-//     Self {
-//         must_send_ack: false,
-//         time_heartbeat_received: Instant::now(),
-//         ackanck_count: 0,
-//         highest_received_heartbeat_count: 0,
-//     }
-// }
-
-
 pub struct ReliableWriterProxy {
     writer_proxy: WriterProxy,
+    reader_entity_id: EntityId,
+    heartbeat_response_delay: Duration,
+
     must_send_ack: bool,
     time_heartbeat_received: Instant,
     ackanck_count: Count,
     highest_received_heartbeat_count: Count,
+
+    received_messages: Mutex<VecDeque<(GuidPrefix, RtpsSubmessage)>>,
+    send_messages: Mutex<VecDeque<RtpsSubmessage>>
 }
 
 impl ReliableWriterProxy {
-    pub fn run(&mut self, stateful_reader: &StatefulReader) {
+    pub fn new(writer_proxy: WriterProxy, reader_entity_id: EntityId, heartbeat_response_delay: Duration,) -> Self {
+        Self {
+            writer_proxy,
+            reader_entity_id,
+            heartbeat_response_delay,
+            must_send_ack: false,
+            time_heartbeat_received: Instant::now(),
+            ackanck_count: 0,
+            highest_received_heartbeat_count: 0,
+            received_messages: Mutex::new(VecDeque::new()),
+            send_messages: Mutex::new(VecDeque::new()),
+        }
+    }
+
+    pub fn run(&mut self, history_cache: &HistoryCache) {
         // The heartbeat message triggers also a transition in the parallel state-machine
         // relating to the acknack sending so it is returned from the ready_state for
         // further processing.
-        let heartbeat = self.ready_state(stateful_reader);
+        let heartbeat = self.ready_state(history_cache);
         if self.must_send_ack {
-            self.must_send_ack_state(stateful_reader)
+            self.must_send_ack_state()
         } else {
             self.waiting_heartbeat_state(heartbeat);
         }
     }
 
-    fn ready_state(&self, stateful_reader: &StatefulReader) -> Option<Heartbeat>{
-        todo!()
-        // if let Some((_, received_message)) = stateful_reader.pop_receive_message(self.writer_proxy.remote_writer_guid()) {
-        //     match received_message {
-        //         RtpsSubmessage::Data(data) => {
-        //             self.transition_t8(stateful_reader, data);
-        //             None
-        //         },
-        //         RtpsSubmessage::Gap(gap) => {
-        //             self.transition_t9(&gap);
-        //             None
-        //         },
-        //         RtpsSubmessage::Heartbeat(heartbeat) => {
-        //             self.transition_t7(&heartbeat);
-        //             Some(heartbeat)
-        //         },
-        //         _ => panic!("Unexpected reader message received"),
-        //     }
-        // } else {
-        //     None
-        // }
+    fn ready_state(&self, history_cache: &HistoryCache) -> Option<Heartbeat>{
+        if let Some((_, received_message)) = self.received_messages.lock().unwrap().pop_front() {
+            match received_message {
+                RtpsSubmessage::Data(data) => {
+                    self.transition_t8(history_cache, data);
+                    None
+                },
+                RtpsSubmessage::Gap(gap) => {
+                    self.transition_t9(&gap);
+                    None
+                },
+                RtpsSubmessage::Heartbeat(heartbeat) => {
+                    self.transition_t7(&heartbeat);
+                    Some(heartbeat)
+                },
+                _ => panic!("Unexpected reader message received"),
+            }
+        } else {
+            None
+        }
     }
 
-    fn transition_t8(&self, stateful_reader: &StatefulReader, data: Data) {
+    fn transition_t8(&self, history_cache: &HistoryCache, data: Data) {
         let expected_seq_number = self.writer_proxy.available_changes_max() + 1;
         if data.writer_sn() >= expected_seq_number {
             self.writer_proxy.received_change_set(data.writer_sn());
             let cache_change = cache_change_from_data(data, &self.writer_proxy.remote_writer_guid().prefix());
-            stateful_reader.reader_cache().add_change(cache_change).unwrap();
+            history_cache.add_change(cache_change).unwrap();
             
         }
     }
@@ -99,26 +112,26 @@ impl ReliableWriterProxy {
         }
     }
 
-    fn must_send_ack_state(&mut self, stateful_reader: &StatefulReader) {
-        if self.duration_since_heartbeat_received() >  stateful_reader.heartbeat_response_delay() {
-            self.transition_t5(stateful_reader)
+    fn must_send_ack_state(&mut self) {
+        if self.duration_since_heartbeat_received() >  self.heartbeat_response_delay {
+            self.transition_t5()
         }
     }
 
-    fn transition_t5(&mut self, stateful_reader: &StatefulReader) {
+    fn transition_t5(&mut self) {
         self.reset_must_send_ack();
  
         self.increment_acknack_count();
         let acknack = AckNack::new(
             BEHAVIOR_ENDIANNESS,
-            stateful_reader.guid().entity_id(), 
+            self.reader_entity_id, 
             self.writer_proxy.remote_writer_guid().entity_id(),
             self.writer_proxy.available_changes_max(),
             self.writer_proxy.missing_changes().clone(),
             *self.ackanck_count(),
             true);
 
-        stateful_reader.push_send_message(&LOCATOR_INVALID, self.writer_proxy.remote_writer_guid(), RtpsSubmessage::AckNack(acknack));
+        self.send_messages.lock().unwrap().push_back(RtpsSubmessage::AckNack(acknack));
     }
 
     fn must_send_ack(&self) -> bool {

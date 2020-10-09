@@ -133,8 +133,6 @@ pub struct WriterProxy {
     
     // Groups are not supported yet:
     // remoteGroupEntityId: EntityId_t,
-
-    
 }
 
 impl WriterProxy {
