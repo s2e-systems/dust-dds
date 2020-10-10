@@ -82,7 +82,7 @@ impl StatelessReader {
 }
 
 impl Receiver for StatelessReader {
-    fn push_receive_message(&self, src_locator: Locator, source_guid_prefix: GuidPrefix, message: RtpsSubmessage) {
+    fn push_receive_message(&self, _src_locator: Locator, source_guid_prefix: GuidPrefix, message: RtpsSubmessage) {
         self.received_messages.lock().unwrap().push_back((source_guid_prefix, message));
     }
 
