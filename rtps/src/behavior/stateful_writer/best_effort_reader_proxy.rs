@@ -8,6 +8,8 @@ use crate::messages::submessages::Gap;
 use crate::behavior::ReaderProxy;
 use crate::behavior::{data_from_cache_change, BEHAVIOR_ENDIANNESS};
 
+use super::stateful_writer::ReaderProxyOps;
+
 pub struct BestEffortReaderProxy {
     reader_proxy: ReaderProxy,
     writer_entity_id: EntityId,
@@ -15,11 +17,14 @@ pub struct BestEffortReaderProxy {
 }
 
 impl BestEffortReaderProxy {
-    pub fn run(&self, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber) {
-        if !self.reader_proxy.unsent_changes(last_change_sequence_number).is_empty() {
-            self.pushing_state(history_cache, last_change_sequence_number);
+    pub fn new(reader_proxy: ReaderProxy, writer_entity_id: EntityId) -> Self {
+        Self{
+            reader_proxy,
+            writer_entity_id,
+            sent_messages: Mutex::new(VecDeque::new()),
         }
     }
+    
 
     fn pushing_state(&self, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber) {
         // This state is only valid if there are unsent changes
@@ -28,7 +33,6 @@ impl BestEffortReaderProxy {
         while let Some(next_unsent_seq_num) = self.reader_proxy.next_unsent_change(last_change_sequence_number) {
             self.transition_t4(history_cache, next_unsent_seq_num);
         }
-        // reader_proxy.behavior().time_last_sent_data_reset();
     }
 
     fn transition_t4(&self, history_cache: &HistoryCache, next_unsent_seq_num: SequenceNumber) {
@@ -46,6 +50,14 @@ impl BestEffortReaderProxy {
                 next_unsent_seq_num,
             BTreeSet::new());
             self.sent_messages.lock().unwrap().push_back(RtpsSubmessage::Gap(gap))
+        }
+    }
+}
+
+impl ReaderProxyOps for BestEffortReaderProxy {
+    fn run(&mut self, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber) {
+        if !self.reader_proxy.unsent_changes(last_change_sequence_number).is_empty() {
+            self.pushing_state(history_cache, last_change_sequence_number);
         }
     }
 }

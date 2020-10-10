@@ -1,12 +1,12 @@
 use std::collections::VecDeque;
 
-use crate::types::{GUID, GuidPrefix, Locator };
+use crate::types::{GuidPrefix, Locator };
 use crate::types::constants::{PROTOCOL_VERSION_2_4, VENDOR_ID};
 use crate::transport::Transport;
 
 use super::{RtpsSubmessage, Endianness};
-use super::submessages::{InfoTs};
-use super::message::{RtpsMessage};
+use super::submessages::InfoTs;
+use super::message::RtpsMessage;
 use super::types::Time;
 
 pub trait Sender {

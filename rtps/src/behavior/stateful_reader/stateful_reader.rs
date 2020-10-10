@@ -69,12 +69,12 @@ impl StatefulReader {
 
     pub fn matched_writer_add(&self, a_writer_proxy: WriterProxy) {
         let remote_writer_guid = a_writer_proxy.remote_writer_guid().clone();
-        let writer_type: Box<dyn WriterProxyOps> = match self.reliability_level {
+        let writer_proxy: Box<dyn WriterProxyOps> = match self.reliability_level {
             ReliabilityKind::Reliable => Box::new(ReliableWriterProxy::new(a_writer_proxy, self.guid.entity_id(), self.heartbeat_response_delay)),
             ReliabilityKind::BestEffort => Box::new(BestEffortWriterProxy::new(a_writer_proxy)),
         };
         
-        self.matched_writers.write().unwrap().insert(remote_writer_guid, writer_type);
+        self.matched_writers.write().unwrap().insert(remote_writer_guid, writer_proxy);
     }
 
     pub fn matched_writer_remove(&self, writer_proxy_guid: &GUID) {

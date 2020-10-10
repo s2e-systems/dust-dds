@@ -13,6 +13,8 @@ use crate::messages::types::Count;
 use crate::behavior::types::Duration;
 use crate::behavior::{data_from_cache_change, BEHAVIOR_ENDIANNESS};
 
+use super::stateful_writer::ReaderProxyOps;
+
 pub struct ReliableReaderProxy{
     reader_proxy: ReaderProxy,
     writer_entity_id: EntityId,
@@ -43,25 +45,6 @@ impl ReliableReaderProxy {
             received_messages: Mutex::new(VecDeque::new()),
             sent_messages: Mutex::new(VecDeque::new()),
 
-        }
-    }
-
-    pub fn run(&mut self, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber) {
-        if self.reader_proxy.unacked_changes(last_change_sequence_number).is_empty() {
-            // Idle
-        } else if !self.reader_proxy.unsent_changes(last_change_sequence_number).is_empty() {
-            self.pushing_state(history_cache, last_change_sequence_number);
-        } else if !self.reader_proxy.unacked_changes(last_change_sequence_number).is_empty() {
-            self.announcing_state(history_cache, last_change_sequence_number);
-        }
-    
-        if self.reader_proxy.requested_changes().is_empty() {
-            self.waiting_state();
-        } else {
-            self.must_repair_state();
-            if self.duration_since_nack_received() > self.nack_response_delay {
-                self.repairing_state(history_cache);
-            }
         }
     }
 
@@ -191,6 +174,27 @@ impl ReliableReaderProxy {
 
     fn increment_heartbeat_count(&mut self) {
         self.heartbeat_count += 1;
+    }
+}
+
+impl ReaderProxyOps for ReliableReaderProxy {
+    fn run(&mut self, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber) {
+        if self.reader_proxy.unacked_changes(last_change_sequence_number).is_empty() {
+            // Idle
+        } else if !self.reader_proxy.unsent_changes(last_change_sequence_number).is_empty() {
+            self.pushing_state(history_cache, last_change_sequence_number);
+        } else if !self.reader_proxy.unacked_changes(last_change_sequence_number).is_empty() {
+            self.announcing_state(history_cache, last_change_sequence_number);
+        }
+    
+        if self.reader_proxy.requested_changes().is_empty() {
+            self.waiting_state();
+        } else {
+            self.must_repair_state();
+            if self.duration_since_nack_received() > self.nack_response_delay {
+                self.repairing_state(history_cache);
+            }
+        }
     }
 }
 

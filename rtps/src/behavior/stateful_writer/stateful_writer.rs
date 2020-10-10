@@ -10,10 +10,15 @@ use crate::structure::HistoryCache;
 use crate::structure::CacheChange;
 use crate::serialized_payload::ParameterList;
 use super::reader_proxy::ReaderProxy;
+use super::reliable_reader_proxy::ReliableReaderProxy;
+use super::best_effort_reader_proxy::BestEffortReaderProxy;
 use rust_dds_interface::protocol::{ProtocolEntity, ProtocolWriter, ProtocolEndpoint};
 use rust_dds_interface::qos::DataWriterQos;
 use rust_dds_interface::types::{Data, Time, ReturnCode};
 
+pub trait ReaderProxyOps : Send + Sync {
+    fn run(&mut self, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber);
+}
 
 pub struct StatefulWriter {
     /// Entity base class (contains the GUID)
@@ -41,7 +46,7 @@ pub struct StatefulWriter {
     writer_cache: HistoryCache,
     data_max_sized_serialized: Option<i32>,
 
-    matched_readers: RwLock<HashMap<GUID, ReaderProxy>>,
+    matched_readers: RwLock<HashMap<GUID, Box<dyn ReaderProxyOps>>>,
 }
 
 impl StatefulWriter {
@@ -101,7 +106,12 @@ impl StatefulWriter {
     }
 
     pub fn matched_reader_add(&self, a_reader_proxy: ReaderProxy) {
-        self.matched_readers.write().unwrap().insert(a_reader_proxy.remote_reader_guid, a_reader_proxy);
+        let remote_reader_guid = a_reader_proxy.remote_reader_guid().clone();
+        let reader_proxy: Box<dyn ReaderProxyOps> = match self.reliability_level {
+            ReliabilityKind::Reliable => Box::new(ReliableReaderProxy::new(a_reader_proxy, self.guid.entity_id(), self.heartbeat_period, self.nack_response_delay)),
+            ReliabilityKind::BestEffort => Box::new(BestEffortReaderProxy::new(a_reader_proxy, self.guid.entity_id())),
+        };
+        self.matched_readers.write().unwrap().insert(remote_reader_guid, reader_proxy);
     }
 
     pub fn matched_reader_remove(&self, reader_proxy_guid: &GUID) {
@@ -109,7 +119,8 @@ impl StatefulWriter {
     }
     
     pub fn matched_readers(&self) -> RwLockReadGuard<HashMap<GUID, ReaderProxy>> {
-        self.matched_readers.read().unwrap()
+        todo!()
+        // self.matched_readers.read().unwrap()
     }
 
     pub fn is_acked_by_all(&self) -> bool {
@@ -146,14 +157,6 @@ impl ProtocolEntity for StatefulWriter {
 
 impl ProtocolEndpoint for StatefulWriter {}
 impl ProtocolWriter for StatefulWriter {
-    // fn new(
-    //     _parent_instance_handle: InstanceHandle,
-    //     _entity_type: EntityType,
-    //     _topic_kind: TopicKind,
-    //     _writer_qos: DataWriterQos,
-    // ) -> Self {
-    //     todo!()
-    // }
 
     fn write(&self, instance_handle: InstanceHandle, data: Data, _timestamp: Time) -> ReturnCode<()>{
         let cc = self.new_change(ChangeKind::Alive, Some(data), None, instance_handle);
