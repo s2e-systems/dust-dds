@@ -7,7 +7,7 @@ mod stateless_writer;
 pub use stateful_reader::{StatefulReader, WriterProxy};
 pub use stateful_writer::{StatefulWriter, ReaderProxy};
 pub use stateless_reader::StatelessReader;
-pub use stateless_writer::{StatelessWriter, ReaderLocator};
+pub use stateless_writer::StatelessWriter;
 
 use std::convert::TryInto;
 

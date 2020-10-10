@@ -1,6 +1,4 @@
 mod stateless_writer;
-mod stateless_writer_behavior;
-
+mod reader_locator;
 
 pub use stateless_writer::StatelessWriter;
-pub use stateless_writer::ReaderLocator;

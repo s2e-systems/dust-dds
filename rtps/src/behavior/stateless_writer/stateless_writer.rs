@@ -1,72 +1,15 @@
-use std::collections::{HashMap, BTreeSet, VecDeque};
-use std::sync::{RwLock, RwLockReadGuard, Mutex, MutexGuard};
+use std::collections::{HashMap,  VecDeque};
+use std::sync::{RwLock, RwLockReadGuard, Mutex,};
 
 use crate::structure::HistoryCache;
 use crate::structure::CacheChange;
 use crate::serialized_payload::ParameterList;
 use crate::types::{ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID, };
-use super::stateless_writer_behavior::BestEffortStatelessWriterBehavior;
 use crate::messages::RtpsSubmessage;
 use crate::messages::message_sender::Sender;
+use super::reader_locator::ReaderLocator;
 
 use rust_dds_interface::qos::DataWriterQos;
-
-pub struct ReaderLocator {
-    //requested_changes: HashSet<CacheChange>,
-    // unsent_changes: SequenceNumber,
-    locator: Locator,
-    expects_inline_qos: bool,
-
-    highest_sequence_number_sent: Mutex<SequenceNumber>,
-
-    send_messages: Mutex<VecDeque<RtpsSubmessage>>,
-}
-
-impl ReaderLocator {
-    fn new(locator: Locator, expects_inline_qos: bool) -> Self {
-        Self {
-            locator,
-            expects_inline_qos,
-            highest_sequence_number_sent: Mutex::new(0),
-            send_messages: Mutex::new(VecDeque::new()),
-        }
-    }
-
-    pub fn locator(&self) -> &Locator {
-        &self.locator
-    }
-
-    fn highest_sequence_number_sent(&self) -> MutexGuard<SequenceNumber> {
-        self.highest_sequence_number_sent.lock().unwrap()
-    }
-
-    fn unsent_changes_reset(&self) {
-        *self.highest_sequence_number_sent() = 0;
-    }
-
-    pub fn unsent_changes(&self, last_change_sequence_number: SequenceNumber) -> BTreeSet<SequenceNumber> {
-        let mut unsent_changes_set = BTreeSet::new();
-
-        // The for loop is made with the underlying sequence number type because it is not possible to implement the Step trait on Stable yet
-        for unsent_sequence_number in
-            *self.highest_sequence_number_sent() + 1..=last_change_sequence_number
-        {
-            unsent_changes_set.insert(unsent_sequence_number);
-        }
-
-        unsent_changes_set
-    }
-
-    pub fn next_unsent_change(&self, last_change_sequence_number: SequenceNumber) -> Option<SequenceNumber> {
-        let next_unsent_sequence_number = *self.highest_sequence_number_sent() + 1;
-        if next_unsent_sequence_number > last_change_sequence_number {
-            None
-        } else {
-            *self.highest_sequence_number_sent() = next_unsent_sequence_number;
-            Some(next_unsent_sequence_number)
-        }
-    }
-}
 
 pub struct StatelessWriter {
     /// Entity base class (contains the GUID)
@@ -144,7 +87,7 @@ impl StatelessWriter {
 
     pub fn reader_locator_add(&self, a_locator: Locator) {
         self.reader_locators.write().unwrap()
-            .insert(a_locator, ReaderLocator::new(a_locator, false /*expects_inline_qos*/));
+            .insert(a_locator, ReaderLocator::new(a_locator, self.guid.entity_id(), false /*expects_inline_qos*/));
     }
 
     pub fn reader_locator_remove(&self, a_locator: &Locator) {
@@ -163,9 +106,9 @@ impl StatelessWriter {
 
     pub fn run(&self) {
         assert!(self.reliability_level == ReliabilityKind::BestEffort);
-
+        let last_change_sequence_number = *self.last_change_sequence_number.lock().unwrap();
         for (_, reader_locator) in self.reader_locators().iter() {
-            BestEffortStatelessWriterBehavior::run(reader_locator, &self);
+            reader_locator.run(&self.writer_cache, last_change_sequence_number);
         }
     }
 }
