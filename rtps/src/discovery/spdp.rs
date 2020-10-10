@@ -47,7 +47,7 @@ impl SPDP {
         let reader_guid = GUID::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_DETECTOR);
 
         let writer_qos = DataWriterQos::default(); // TODO: Should be adjusted according to the SPDP writer
-        let spdp_builtin_participant_writer = StatelessWriter::new(writer_guid, TopicKind::WithKey, &writer_qos);
+        let mut spdp_builtin_participant_writer = StatelessWriter::new(writer_guid, TopicKind::WithKey, &writer_qos);
 
         let reader_qos = DataReaderQos::default(); // TODO: Should be adjusted according to the SPDP reader
         let spdp_builtin_participant_reader = StatelessReader::new(

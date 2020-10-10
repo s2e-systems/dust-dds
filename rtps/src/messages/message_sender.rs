@@ -57,7 +57,7 @@ mod tests {
         let transport = MemoryTransport::new(Locator::new(0,0,[0;16]), vec![]).unwrap();
         let participant_guid_prefix = [1,2,3,4,5,5,4,3,2,1,1,2];
         let writer_qos = DataWriterQos::default();
-        let stateless_writer_1 = StatelessWriter::new(GUID::new(participant_guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER), TopicKind::WithKey, &writer_qos);
+        let mut stateless_writer_1 = StatelessWriter::new(GUID::new(participant_guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER), TopicKind::WithKey, &writer_qos);
         let reader_locator_1 = Locator::new(-2, 10000, [1;16]);
         stateless_writer_1.reader_locator_add(reader_locator_1);
 
@@ -180,8 +180,8 @@ mod tests {
 
         let writer_qos = DataWriterQos::default();
 
-        let stateless_writer_1 = StatelessWriter::new(GUID::new(participant_guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER), TopicKind::WithKey, &writer_qos);
-        let stateless_writer_2 = StatelessWriter::new(GUID::new(participant_guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER), TopicKind::WithKey, &writer_qos);
+        let mut stateless_writer_1 = StatelessWriter::new(GUID::new(participant_guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER), TopicKind::WithKey, &writer_qos);
+        let mut stateless_writer_2 = StatelessWriter::new(GUID::new(participant_guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER), TopicKind::WithKey, &writer_qos);
 
         RtpsMessageSender::send(participant_guid_prefix, &transport, &[&stateless_writer_1, &stateless_writer_2]);
         

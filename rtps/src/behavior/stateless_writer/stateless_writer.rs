@@ -1,5 +1,5 @@
 use std::collections::{HashMap,  VecDeque};
-use std::sync::{RwLock, Mutex};
+use std::sync::RwLock;
 
 use crate::structure::HistoryCache;
 use crate::structure::CacheChange;
@@ -30,7 +30,7 @@ pub struct StatelessWriter {
     // multicast_locator_list: Vec<Locator>,
 
     
-    last_change_sequence_number: Mutex<SequenceNumber>,
+    last_change_sequence_number: SequenceNumber,
     writer_cache: HistoryCache,
     data_max_sized_serialized: Option<i32>,
 
@@ -47,31 +47,27 @@ impl StatelessWriter {
             guid,
             topic_kind,
             reliability_level: ReliabilityKind::BestEffort,
-            last_change_sequence_number: Mutex::new(0),
+            last_change_sequence_number: 0,
             writer_cache: HistoryCache::new(&writer_qos.resource_limits),
             data_max_sized_serialized: None,
             reader_locators: RwLock::new(HashMap::new()),
         }
     }
 
-    pub fn last_change_sequence_number(&self) -> SequenceNumber {
-        *self.last_change_sequence_number.lock().unwrap()
-    }
-
     pub fn new_change(
-        &self,
+        &mut self,
         kind: ChangeKind,
         data: Option<Vec<u8>>,
         inline_qos: Option<ParameterList>,
         handle: InstanceHandle,
     ) -> CacheChange {
-        *self.last_change_sequence_number.lock().unwrap() += 1;
+        self.last_change_sequence_number += 1;
 
         CacheChange::new(
             kind,
             self.guid,
             handle,
-            self.last_change_sequence_number(),
+            self.last_change_sequence_number,
             data,
             inline_qos,
         )
@@ -101,8 +97,7 @@ impl StatelessWriter {
     }
 
     pub fn run(&self) {
-        assert!(self.reliability_level == ReliabilityKind::BestEffort);
-        let last_change_sequence_number = *self.last_change_sequence_number.lock().unwrap();
+        let last_change_sequence_number = self.last_change_sequence_number;
         for (_, reader_locator) in self.reader_locators.write().unwrap().iter_mut() {
             reader_locator.run(&self.writer_cache, last_change_sequence_number);
         }
@@ -136,7 +131,7 @@ mod tests {
     #[test]
     fn test_writer_new_change() {
         let writer_qos = DataWriterQos::default();
-        let writer = StatelessWriter::new(
+        let mut writer = StatelessWriter::new(
             GUID::new([0; 12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
             TopicKind::WithKey,
             &writer_qos

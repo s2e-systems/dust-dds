@@ -40,7 +40,7 @@ fn test_stateless_writer_stateless_reader_direct_communication_integration() {
     let mut writer_qos = DataWriterQos::default();
     writer_qos.reliability.kind = ReliabilityQosPolicyKind::BestEffortReliabilityQos;
 
-    let writer = StatelessWriter::new(
+    let mut writer = StatelessWriter::new(
         writer_guid,
         TopicKind::WithKey,
         &writer_qos
