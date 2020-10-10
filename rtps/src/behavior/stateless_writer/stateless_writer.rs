@@ -171,17 +171,18 @@ impl StatelessWriter {
 }
 
 impl Sender for StatelessWriter {
-    fn pop_send_message(&self) -> Option<(Vec<Locator>, VecDeque<RtpsSubmessage>)> {
-        for (&locator, reader_locator) in self.reader_locators().iter() {
-            let mut reader_locator_send_messages = reader_locator.send_messages.lock().unwrap();
-            if !reader_locator_send_messages.is_empty() {
-                let mut send_message_queue = VecDeque::new();
-                std::mem::swap(&mut send_message_queue, &mut reader_locator_send_messages);
+    fn pop_send_messages(&self) -> Vec<Option<(Vec<Locator>, VecDeque<RtpsSubmessage>)>> {
+        todo!()
+        // for (&locator, reader_locator) in self.reader_locators().iter() {
+        //     let mut reader_locator_send_messages = reader_locator.send_messages.lock().unwrap();
+        //     if !reader_locator_send_messages.is_empty() {
+        //         let mut send_message_queue = VecDeque::new();
+        //         std::mem::swap(&mut send_message_queue, &mut reader_locator_send_messages);
                 
-                return Some((vec![locator], send_message_queue));
-            }
-        }
-        None
+        //         return Some((vec![locator], send_message_queue));
+        //     }
+        // }
+        // None
     }
 }
 
@@ -232,60 +233,61 @@ mod tests {
 
     #[test]
     fn test_best_effort_stateless_writer_run() {
-        let writer_qos = DataWriterQos::default();
+        todo!()
+        // let writer_qos = DataWriterQos::default();
 
-        let writer = StatelessWriter::new(
-            GUID::new([0; 12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
-            TopicKind::WithKey,
-            &writer_qos
-        );
+        // let writer = StatelessWriter::new(
+        //     GUID::new([0; 12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
+        //     TopicKind::WithKey,
+        //     &writer_qos
+        // );
 
-        let locator = Locator::new(0, 7400, [1; 16]);
+        // let locator = Locator::new(0, 7400, [1; 16]);
 
-        writer.reader_locator_add(locator);
+        // writer.reader_locator_add(locator);
 
-        let cache_change_seq1 = writer.new_change(
-            ChangeKind::Alive,
-            Some(vec![1, 2, 3]), 
-            None,                
-            [1; 16],             
-        );
+        // let cache_change_seq1 = writer.new_change(
+        //     ChangeKind::Alive,
+        //     Some(vec![1, 2, 3]), 
+        //     None,                
+        //     [1; 16],             
+        // );
 
-        let cache_change_seq2 = writer.new_change(
-            ChangeKind::Alive,
-            Some(vec![4, 5, 6]), 
-            None,                
-            [1; 16],             
-        );
+        // let cache_change_seq2 = writer.new_change(
+        //     ChangeKind::Alive,
+        //     Some(vec![4, 5, 6]), 
+        //     None,                
+        //     [1; 16],             
+        // );
 
-        writer.writer_cache().add_change(cache_change_seq1).unwrap();
-        writer.writer_cache().add_change(cache_change_seq2).unwrap();
+        // writer.writer_cache().add_change(cache_change_seq1).unwrap();
+        // writer.writer_cache().add_change(cache_change_seq2).unwrap();
 
-        writer.run();
+        // writer.run();
 
-        let (_dst_locators, messages) = writer.pop_send_message().unwrap();
-        assert!(writer.pop_send_message().is_none());
+        // let (_dst_locators, messages) = writer.pop_send_messages().unwrap();
+        // assert!(writer.pop_send_messages().is_none());
 
-        if let RtpsSubmessage::Data(data_message_1) = &messages[0] {
-            assert_eq!(data_message_1.reader_id(), ENTITYID_UNKNOWN);
-            assert_eq!(data_message_1.writer_id(), ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER);
-            assert_eq!(data_message_1.writer_sn(), 1);
-            assert_eq!(data_message_1.serialized_payload(), &vec![1, 2, 3]);
-        } else {
-            panic!("Wrong message type");
-        };
+        // if let RtpsSubmessage::Data(data_message_1) = &messages[0] {
+        //     assert_eq!(data_message_1.reader_id(), ENTITYID_UNKNOWN);
+        //     assert_eq!(data_message_1.writer_id(), ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER);
+        //     assert_eq!(data_message_1.writer_sn(), 1);
+        //     assert_eq!(data_message_1.serialized_payload(), &vec![1, 2, 3]);
+        // } else {
+        //     panic!("Wrong message type");
+        // };
 
-        if let RtpsSubmessage::Data(data_message_2) = &messages[1] {
-            assert_eq!(data_message_2.reader_id(), ENTITYID_UNKNOWN);
-            assert_eq!(data_message_2.writer_id(), ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER);
-            assert_eq!(data_message_2.writer_sn(), 2);
-            assert_eq!(data_message_2.serialized_payload(), &vec![4, 5, 6]);
-        } else {
-            panic!("Wrong message type");
-        };
+        // if let RtpsSubmessage::Data(data_message_2) = &messages[1] {
+        //     assert_eq!(data_message_2.reader_id(), ENTITYID_UNKNOWN);
+        //     assert_eq!(data_message_2.writer_id(), ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER);
+        //     assert_eq!(data_message_2.writer_sn(), 2);
+        //     assert_eq!(data_message_2.serialized_payload(), &vec![4, 5, 6]);
+        // } else {
+        //     panic!("Wrong message type");
+        // };
 
-        // Test that nothing more is sent after the first time
-        writer.run();
-        assert!(writer.pop_send_message().is_none());
+        // // Test that nothing more is sent after the first time
+        // writer.run();
+        // assert!(writer.pop_send_messages().is_none());
     }
 }

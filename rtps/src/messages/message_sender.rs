@@ -10,7 +10,7 @@ use super::message::RtpsMessage;
 use super::types::Time;
 
 pub trait Sender {
-    fn pop_send_message(&self) -> Option<(Vec<Locator>, VecDeque<RtpsSubmessage>)>;
+    fn pop_send_messages(&self) -> Vec<Option<(Vec<Locator>, VecDeque<RtpsSubmessage>)>>;
 }
 
 pub struct RtpsMessageSender;
@@ -18,16 +18,19 @@ pub struct RtpsMessageSender;
 impl RtpsMessageSender {
     pub fn send(participant_guid_prefix: GuidPrefix, transport: &dyn Transport,  sender_list: &[&dyn Sender]) {
         for sender in sender_list {
-            while let Some((dst_locators, submessage_list)) = sender.pop_send_message() {
-                let mut rtps_submessages = Vec::new();
-                for submessage in submessage_list {
-                    rtps_submessages.push(RtpsSubmessage::InfoTs(InfoTs::new(Endianness::LittleEndian, Some(Time::now()))));
-                    rtps_submessages.push(submessage);
-                }
-
-                if !rtps_submessages.is_empty() {
-                    let rtps_message = RtpsMessage::new(PROTOCOL_VERSION_2_4, VENDOR_ID, participant_guid_prefix, rtps_submessages);
-                    transport.write(rtps_message, &dst_locators);
+            let send_messages = sender.pop_send_messages();
+            for message in send_messages {
+                if let Some((dst_locators, submessage_list)) = message {
+                    let mut rtps_submessages = Vec::new();
+                    for submessage in submessage_list {
+                        rtps_submessages.push(RtpsSubmessage::InfoTs(InfoTs::new(Endianness::LittleEndian, Some(Time::now()))));
+                        rtps_submessages.push(submessage);
+                    }
+    
+                    if !rtps_submessages.is_empty() {
+                        let rtps_message = RtpsMessage::new(PROTOCOL_VERSION_2_4, VENDOR_ID, participant_guid_prefix, rtps_submessages);
+                        transport.write(rtps_message, &dst_locators);
+                    }
                 }
             }
         }

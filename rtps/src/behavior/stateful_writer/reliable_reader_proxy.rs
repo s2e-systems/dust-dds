@@ -196,6 +196,30 @@ impl ReaderProxyOps for ReliableReaderProxy {
             }
         }
     }
+
+    fn push_receive_message(&self, src_guid_prefix: GuidPrefix, submessage: RtpsSubmessage) {
+        todo!()
+    }
+
+    fn is_submessage_destination(&self, src_guid_prefix: &GuidPrefix, submessage: &RtpsSubmessage) -> bool {
+        todo!()
+    }
+
+    fn pop_send_message(&self) -> Option<(Vec<crate::types::Locator>, VecDeque<RtpsSubmessage>)> {
+        let mut reader_proxy_send_messages = self.sent_messages.lock().unwrap();
+        if !reader_proxy_send_messages.is_empty() {
+            let mut send_message_queue = VecDeque::new();
+            std::mem::swap(&mut send_message_queue, &mut reader_proxy_send_messages);
+            
+            let mut locator_list = Vec::new();
+            locator_list.extend(self.reader_proxy.unicast_locator_list());
+            locator_list.extend(self.reader_proxy.multicast_locator_list());
+
+            Some((locator_list, send_message_queue))
+        } else {
+            None
+        }
+    }
 }
 
 #[cfg(test)]
