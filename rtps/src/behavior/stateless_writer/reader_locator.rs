@@ -1,4 +1,4 @@
-use std::sync::{Mutex, MutexGuard};
+use std::sync::Mutex;
 use std::collections::{VecDeque, BTreeSet};
 
 use crate::types::{Locator, SequenceNumber, EntityId};
@@ -15,7 +15,7 @@ pub struct ReaderLocator {
     writer_entity_id: EntityId,
     expects_inline_qos: bool,
 
-    highest_sequence_number_sent: Mutex<SequenceNumber>,
+    highest_sequence_number_sent: SequenceNumber,
 
     send_messages: Mutex<VecDeque<RtpsSubmessage>>,
 }
@@ -26,7 +26,7 @@ impl ReaderLocator {
             locator,
             writer_entity_id,
             expects_inline_qos,
-            highest_sequence_number_sent: Mutex::new(0),
+            highest_sequence_number_sent:0,
             send_messages: Mutex::new(VecDeque::new()),
         }
     }
@@ -35,12 +35,8 @@ impl ReaderLocator {
         &self.locator
     }
 
-    fn highest_sequence_number_sent(&self) -> MutexGuard<SequenceNumber> {
-        self.highest_sequence_number_sent.lock().unwrap()
-    }
-
-    pub fn unsent_changes_reset(&self) {
-        *self.highest_sequence_number_sent() = 0;
+    pub fn unsent_changes_reset(&mut self) {
+        self.highest_sequence_number_sent = 0;
     }
 
     pub fn unsent_changes(&self, last_change_sequence_number: SequenceNumber) -> BTreeSet<SequenceNumber> {
@@ -48,7 +44,7 @@ impl ReaderLocator {
 
         // The for loop is made with the underlying sequence number type because it is not possible to implement the Step trait on Stable yet
         for unsent_sequence_number in
-            (*self.highest_sequence_number_sent() + 1) ..= last_change_sequence_number
+            self.highest_sequence_number_sent + 1 ..= last_change_sequence_number
         {
             unsent_changes_set.insert(unsent_sequence_number);
         }
@@ -56,23 +52,23 @@ impl ReaderLocator {
         unsent_changes_set
     }
 
-    pub fn next_unsent_change(&self, last_change_sequence_number: SequenceNumber) -> Option<SequenceNumber> {
-        let next_unsent_sequence_number = *self.highest_sequence_number_sent() + 1;
+    pub fn next_unsent_change(&mut self, last_change_sequence_number: SequenceNumber) -> Option<SequenceNumber> {
+        let next_unsent_sequence_number = self.highest_sequence_number_sent + 1;
         if next_unsent_sequence_number > last_change_sequence_number {
             None
         } else {
-            *self.highest_sequence_number_sent() = next_unsent_sequence_number;
+            self.highest_sequence_number_sent = next_unsent_sequence_number;
             Some(next_unsent_sequence_number)
         }
     }
 
-    pub fn run(&self, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber) {
+    pub fn run(&mut self, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber) {
         if !self.unsent_changes(last_change_sequence_number).is_empty() {
             self.pushing_state(history_cache, last_change_sequence_number);
         }
     }
 
-    fn pushing_state(&self, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber) {
+    fn pushing_state(&mut self, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber) {
         // This state is only valid if there are unsent changes
         assert!(!self.unsent_changes(last_change_sequence_number).is_empty());
     

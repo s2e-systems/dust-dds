@@ -1,5 +1,5 @@
 use std::collections::{HashMap,  VecDeque};
-use std::sync::{RwLock, RwLockReadGuard, Mutex,};
+use std::sync::{RwLock, Mutex};
 
 use crate::structure::HistoryCache;
 use crate::structure::CacheChange;
@@ -94,12 +94,8 @@ impl StatelessWriter {
         self.reader_locators.write().unwrap().remove(a_locator);
     }
 
-    pub fn reader_locators(&self) -> RwLockReadGuard<HashMap<Locator, ReaderLocator>>{
-        self.reader_locators.read().unwrap()
-    }
-
-    pub fn unsent_changes_reset(&self) {
-        for (_, rl) in self.reader_locators().iter() {
+    pub fn unsent_changes_reset(&mut self) {
+        for (_, rl) in self.reader_locators.write().unwrap().iter_mut() {
             rl.unsent_changes_reset();
         }
     }
@@ -107,7 +103,7 @@ impl StatelessWriter {
     pub fn run(&self) {
         assert!(self.reliability_level == ReliabilityKind::BestEffort);
         let last_change_sequence_number = *self.last_change_sequence_number.lock().unwrap();
-        for (_, reader_locator) in self.reader_locators().iter() {
+        for (_, reader_locator) in self.reader_locators.write().unwrap().iter_mut() {
             reader_locator.run(&self.writer_cache, last_change_sequence_number);
         }
     }
