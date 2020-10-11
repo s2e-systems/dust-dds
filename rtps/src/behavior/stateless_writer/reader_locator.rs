@@ -66,7 +66,7 @@ impl ReaderLocator {
 
     fn pushing_state(&mut self, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber) {
         // This state is only valid if there are unsent changes
-        assert!(!self.unsent_changes(last_change_sequence_number).is_empty());
+        debug_assert!(!self.unsent_changes(last_change_sequence_number).is_empty());
     
         while let Some(next_unsent_seq_num) = self.next_unsent_change(last_change_sequence_number) {
             self.transition_t4(history_cache, next_unsent_seq_num);
@@ -88,6 +88,19 @@ impl ReaderLocator {
             BTreeSet::new());
 
             self.send_messages.lock().unwrap().push_back(RtpsSubmessage::Gap(gap));
+        }
+    }
+
+    pub fn pop_send_messages(&self) -> Option<(Vec<Locator>, VecDeque<RtpsSubmessage>)> {
+        let mut send_messages = self.send_messages.lock().unwrap();
+        if !send_messages.is_empty() {
+            let mut send_messages_queue = VecDeque::new();
+            std::mem::swap(&mut send_messages_queue, &mut send_messages);
+
+            let locator_list = vec![self.locator];
+            Some((locator_list, send_messages_queue))
+        } else {
+            None
         }
     }
 }

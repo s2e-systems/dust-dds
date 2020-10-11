@@ -73,7 +73,7 @@ impl SPDP {
         }        
     }
 
-    pub fn send(&self) {
+    pub fn send(&mut self) {
         let participant = self.participant.upgrade().unwrap();
         self.spdp_builtin_participant_writer.run();
         RtpsMessageSender::send(
@@ -449,7 +449,7 @@ mod tests {
         let metatraffic_transport = MockTransport::new();
         let participant = Arc::new(RtpsParticipant::new(0, userdata_transport, metatraffic_transport));
 
-        let spdp = SPDP::new(&participant);
+        let mut spdp = SPDP::new(&participant);
 
         spdp.send();
     }

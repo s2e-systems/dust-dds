@@ -198,9 +198,9 @@ impl Receiver for StatefulWriter {
 }
 
 impl Sender for StatefulWriter {
-    fn pop_send_messages(&self) -> Vec<Option<(Vec<Locator>, VecDeque<RtpsSubmessage>)>> {
+    fn pop_send_messages(&self) -> Vec<(Vec<Locator>, VecDeque<RtpsSubmessage>)> {
         self.matched_readers.read().unwrap().iter()
-            .map(|(_reader_guid, reader)| reader.pop_send_message())
+            .filter_map(|(_reader_guid, reader)| reader.pop_send_message())
             .collect()
     }
 }
