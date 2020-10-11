@@ -122,7 +122,7 @@ impl Receiver for StatefulReader {
 }
 
 impl Sender for StatefulReader {
-    fn pop_send_messages(&self) -> Vec<(Vec<Locator>, VecDeque<RtpsSubmessage>)> {
+    fn pop_send_messages(&mut self) -> Vec<(Vec<Locator>, VecDeque<RtpsSubmessage>)> {
         todo!()
     }
 }

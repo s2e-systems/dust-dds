@@ -79,7 +79,7 @@ impl SPDP {
         RtpsMessageSender::send(
             participant.guid().prefix(), 
             participant.metatraffic_transport().as_ref(), 
-            &[&self.spdp_builtin_participant_writer]);
+            &mut [&mut self.spdp_builtin_participant_writer]);
     }
 
     pub fn receive(&self) {

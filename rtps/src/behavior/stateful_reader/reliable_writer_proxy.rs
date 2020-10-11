@@ -185,7 +185,7 @@ impl WriterProxyOps for ReliableWriterProxy {
 }
 
 impl Sender for ReliableWriterProxy {
-    fn pop_send_messages(&self) -> Vec<(Vec<Locator>, VecDeque<RtpsSubmessage>)> {
+    fn pop_send_messages(&mut self) -> Vec<(Vec<Locator>, VecDeque<RtpsSubmessage>)> {
         todo!()
     }
 }

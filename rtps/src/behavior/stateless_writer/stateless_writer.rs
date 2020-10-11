@@ -99,8 +99,8 @@ impl StatelessWriter {
 }
 
 impl Sender for StatelessWriter {
-    fn pop_send_messages(&self) -> Vec<(Vec<Locator>, VecDeque<RtpsSubmessage>)> {
-        self.reader_locators.iter()
+    fn pop_send_messages(&mut self) -> Vec<(Vec<Locator>, VecDeque<RtpsSubmessage>)> {
+        self.reader_locators.iter_mut()
             .filter_map(|(_, reader_locator)| reader_locator.pop_send_messages())
             .collect()
     }

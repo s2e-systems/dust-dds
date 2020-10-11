@@ -25,7 +25,7 @@ fn best_effort_stateful_writer_stateful_reader_data_only() {
     let mut writer_qos = DataWriterQos::default();
     writer_qos.reliability.kind = ReliabilityQosPolicyKind::BestEffortReliabilityQos;
 
-    let writer = StatefulWriter::new(
+    let mut writer = StatefulWriter::new(
         writer_guid,
         TopicKind::WithKey,
         &writer_qos
@@ -76,7 +76,7 @@ fn best_effort_stateful_writer_stateful_reader_data_only() {
 
     writer.run();
 
-    RtpsMessageSender::send(writer_guid_prefix, &writer_memory_transport, &[&writer]);
+    RtpsMessageSender::send(writer_guid_prefix, &writer_memory_transport, &mut [&mut writer]);
 
     reader_memory_transport.receive_from(&writer_memory_transport);
 
@@ -109,7 +109,7 @@ fn best_effort_stateful_writer_stateful_reader_data_and_gap() {
     );
     let mut writer_qos = DataWriterQos::default();
     writer_qos.reliability.kind = ReliabilityQosPolicyKind::BestEffortReliabilityQos;
-    let writer = StatefulWriter::new(
+    let mut writer = StatefulWriter::new(
         writer_guid,
         TopicKind::WithKey,
         &writer_qos,
@@ -159,7 +159,7 @@ fn best_effort_stateful_writer_stateful_reader_data_and_gap() {
     writer.writer_cache().add_change(cache_change_seq3).unwrap();
 
     writer.run();
-    RtpsMessageSender::send(writer_guid_prefix, &writer_memory_transport, &[&writer]);
+    RtpsMessageSender::send(writer_guid_prefix, &writer_memory_transport, &mut [&mut writer]);
 
     reader_memory_transport.receive_from(&writer_memory_transport);
 

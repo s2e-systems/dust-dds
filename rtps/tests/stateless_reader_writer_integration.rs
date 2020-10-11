@@ -93,7 +93,7 @@ fn test_stateless_writer_stateless_reader_direct_communication_integration() {
 
    writer.run();
 
-   RtpsMessageSender::send(guid_prefix, &memory_transport1, &[&writer]);
+   RtpsMessageSender::send(guid_prefix, &memory_transport1, &mut [&mut writer]);
 
    memory_transport2.receive_from(&memory_transport1);
 

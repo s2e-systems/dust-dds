@@ -10,14 +10,14 @@ use super::message::RtpsMessage;
 use super::types::Time;
 
 pub trait Sender {
-    fn pop_send_messages(&self) -> Vec<(Vec<Locator>, VecDeque<RtpsSubmessage>)>;
+    fn pop_send_messages(&mut self) -> Vec<(Vec<Locator>, VecDeque<RtpsSubmessage>)>;
 }
 
 pub struct RtpsMessageSender;
 
 impl RtpsMessageSender {
-    pub fn send(participant_guid_prefix: GuidPrefix, transport: &dyn Transport,  sender_list: &[&dyn Sender]) {
-        for &sender in sender_list {
+    pub fn send(participant_guid_prefix: GuidPrefix, transport: &dyn Transport,  sender_list: &mut [&mut dyn Sender]) {
+        for sender in sender_list {
             let send_messages = sender.pop_send_messages();
             for (dst_locators, submessage_list) in send_messages {
                 let mut rtps_submessages = Vec::new();
@@ -60,7 +60,7 @@ mod tests {
         stateless_writer_1.reader_locator_add(reader_locator_1);
 
         // Check that nothing is sent to start with
-        RtpsMessageSender::send(participant_guid_prefix, &transport, &[&stateless_writer_1]);
+        RtpsMessageSender::send(participant_guid_prefix, &transport, &mut [&mut stateless_writer_1]);
         
         assert_eq!(transport.pop_write(), None);
 
@@ -69,7 +69,7 @@ mod tests {
         stateless_writer_1.writer_cache().add_change(change_1).unwrap();
         stateless_writer_1.run();
 
-        RtpsMessageSender::send(participant_guid_prefix, &transport, &[&stateless_writer_1]);
+        RtpsMessageSender::send(participant_guid_prefix, &transport, &mut [&mut stateless_writer_1]);
         let (message, dst_locator) = transport.pop_write().unwrap();
         assert_eq!(dst_locator, vec![reader_locator_1]);
         assert_eq!(message.submessages().len(), 2);
@@ -95,7 +95,7 @@ mod tests {
         stateless_writer_1.writer_cache().add_change(change_3).unwrap();
         stateless_writer_1.run();
 
-        RtpsMessageSender::send(participant_guid_prefix, &transport, &[&stateless_writer_1]);
+        RtpsMessageSender::send(participant_guid_prefix, &transport, &mut [&mut stateless_writer_1]);
         let (message, dst_locator) = transport.pop_write().unwrap();
         assert_eq!(dst_locator, vec![reader_locator_1]);
         assert_eq!(message.submessages().len(), 4);
@@ -134,7 +134,7 @@ mod tests {
         stateless_writer_1.writer_cache().add_change(change_5).unwrap();
         stateless_writer_1.run();
 
-        RtpsMessageSender::send(participant_guid_prefix, &transport, &[&stateless_writer_1]);
+        RtpsMessageSender::send(participant_guid_prefix, &transport, &mut [&mut stateless_writer_1]);
         let (message, dst_locator) = transport.pop_write().unwrap();
         assert_eq!(dst_locator, vec![reader_locator_1]);
         assert_eq!(message.submessages().len(), 4);
@@ -181,7 +181,7 @@ mod tests {
         let mut stateless_writer_1 = StatelessWriter::new(GUID::new(participant_guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER), TopicKind::WithKey, &writer_qos);
         let mut stateless_writer_2 = StatelessWriter::new(GUID::new(participant_guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER), TopicKind::WithKey, &writer_qos);
 
-        RtpsMessageSender::send(participant_guid_prefix, &transport, &[&stateless_writer_1, &stateless_writer_2]);
+        RtpsMessageSender::send(participant_guid_prefix, &transport, &mut [&mut stateless_writer_1, &mut stateless_writer_2]);
         
         stateless_writer_1.reader_locator_add(reader_locator_1);
 
@@ -201,7 +201,7 @@ mod tests {
         stateless_writer_1.run();
         stateless_writer_2.run();
 
-        RtpsMessageSender::send(participant_guid_prefix, &transport, &[&stateless_writer_1, &stateless_writer_2]);
+        RtpsMessageSender::send(participant_guid_prefix, &transport, &mut [&mut stateless_writer_1, &mut stateless_writer_2]);
 
         // The order at which the messages are sent is not predictable so collect eveything in a vector and test from there onwards
         let mut sent_messages = Vec::new();
@@ -225,7 +225,7 @@ mod tests {
         let mut writer_qos = DataWriterQos::default();
         writer_qos.reliability.kind = ReliabilityQosPolicyKind::BestEffortReliabilityQos;
 
-        let stateful_writer_1 = StatefulWriter::new(
+        let mut stateful_writer_1 = StatefulWriter::new(
             GUID::new(participant_guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER), 
             TopicKind::WithKey, 
             &writer_qos
@@ -245,7 +245,7 @@ mod tests {
         stateful_writer_1.matched_reader_add(reader_proxy_1);
 
         // Check that nothing is sent to start with
-        RtpsMessageSender::send(participant_guid_prefix, &transport, &[&stateful_writer_1]);
+        RtpsMessageSender::send(participant_guid_prefix, &transport, &mut [&mut stateful_writer_1]);
         assert_eq!(transport.pop_write(), None);
 
         // Add a change to the stateless writer history cache and run the writer
@@ -253,7 +253,7 @@ mod tests {
         stateful_writer_1.writer_cache().add_change(change_1).unwrap();
         stateful_writer_1.run();
 
-        RtpsMessageSender::send(participant_guid_prefix, &transport, &[&stateful_writer_1]);
+        RtpsMessageSender::send(participant_guid_prefix, &transport, &mut [&mut stateful_writer_1]);
         let (message, dst_locator) = transport.pop_write().unwrap();
         assert_eq!(dst_locator, vec![unicast_locator_1, unicast_locator_2,  multicast_locator ]);
         assert_eq!(message.submessages().len(), 2);
