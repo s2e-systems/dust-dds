@@ -73,10 +73,6 @@ impl StatelessWriter {
         )
     }
 
-    pub fn guid(&self) -> &GUID {
-        &self.guid
-    }
-
     pub fn writer_cache(&self) -> &HistoryCache {
         &self.writer_cache
     }
