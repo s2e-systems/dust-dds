@@ -1,5 +1,4 @@
 use std::collections::{HashMap, VecDeque};
-use std::sync::{RwLock, RwLockReadGuard, Mutex};
 
 use crate::types::{ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID, GuidPrefix};
 use crate::behavior::types::Duration;
@@ -45,11 +44,11 @@ pub struct StatefulWriter {
     heartbeat_period: Duration,
     nack_response_delay: Duration,
     nack_suppression_duration: Duration,
-    last_change_sequence_number: Mutex<SequenceNumber>,
+    last_change_sequence_number: SequenceNumber,
     writer_cache: HistoryCache,
     data_max_sized_serialized: Option<i32>,
 
-    matched_readers: RwLock<HashMap<GUID, Box<dyn ReaderProxyOps>>>,
+    matched_readers: HashMap<GUID, Box<dyn ReaderProxyOps>>,
 }
 
 impl StatefulWriter {
@@ -71,21 +70,21 @@ impl StatefulWriter {
                 heartbeat_period,
                 nack_response_delay,
                 nack_suppression_duration,
-                last_change_sequence_number: Mutex::new(0),
+                last_change_sequence_number: 0,
                 writer_cache: HistoryCache::new(&writer_qos.resource_limits),
                 data_max_sized_serialized: None,
-                matched_readers: RwLock::new(HashMap::new()),
+                matched_readers: HashMap::new(),
         }
     }
 
     pub fn new_change(
-        &self,
+        &mut self,
         kind: ChangeKind,
         data: Option<Vec<u8>>,
         inline_qos: Option<ParameterList>,
         handle: InstanceHandle,
     ) -> CacheChange {
-        *self.last_change_sequence_number.lock().unwrap() += 1;
+        self.last_change_sequence_number += 1;
         CacheChange::new(
             kind,
             self.guid,
@@ -97,7 +96,7 @@ impl StatefulWriter {
     }
 
     pub fn last_change_sequence_number(&self) -> SequenceNumber {
-        *self.last_change_sequence_number.lock().unwrap()
+        self.last_change_sequence_number
     }
 
     pub fn guid(&self) -> &GUID {
@@ -108,22 +107,17 @@ impl StatefulWriter {
         &self.writer_cache
     }
 
-    pub fn matched_reader_add(&self, a_reader_proxy: ReaderProxy) {
+    pub fn matched_reader_add(&mut self, a_reader_proxy: ReaderProxy) {
         let remote_reader_guid = a_reader_proxy.remote_reader_guid().clone();
         let reader_proxy: Box<dyn ReaderProxyOps> = match self.reliability_level {
             ReliabilityKind::Reliable => Box::new(ReliableReaderProxy::new(a_reader_proxy, self.guid.entity_id(), self.heartbeat_period, self.nack_response_delay)),
             ReliabilityKind::BestEffort => Box::new(BestEffortReaderProxy::new(a_reader_proxy, self.guid.entity_id())),
         };
-        self.matched_readers.write().unwrap().insert(remote_reader_guid, reader_proxy);
+        self.matched_readers.insert(remote_reader_guid, reader_proxy);
     }
 
-    pub fn matched_reader_remove(&self, reader_proxy_guid: &GUID) {
-        self.matched_readers.write().unwrap().remove(reader_proxy_guid);
-    }
-    
-    pub fn matched_readers(&self) -> RwLockReadGuard<HashMap<GUID, ReaderProxy>> {
-        todo!()
-        // self.matched_readers.read().unwrap()
+    pub fn matched_reader_remove(&mut self, reader_proxy_guid: &GUID) {
+        self.matched_readers.remove(reader_proxy_guid);
     }
 
     pub fn is_acked_by_all(&self) -> bool {
@@ -138,11 +132,9 @@ impl StatefulWriter {
         self.nack_response_delay
     }
 
-    pub fn run(&self) {
-        let mut matched_readers = self.matched_readers.write().unwrap();
-        let last_change_sequence_number = self.last_change_sequence_number.lock().unwrap();
-        for (_reader_guid, reader_proxy) in matched_readers.iter_mut(){
-            reader_proxy.run(&self.writer_cache, *last_change_sequence_number);
+    pub fn run(&mut self) {
+        for (_reader_guid, reader_proxy) in self.matched_readers.iter_mut(){
+            reader_proxy.run(&self.writer_cache, self.last_change_sequence_number);
         }
     }
 }
@@ -159,10 +151,11 @@ impl ProtocolEntity for StatefulWriter {
 impl ProtocolEndpoint for StatefulWriter {}
 impl ProtocolWriter for StatefulWriter {
 
-    fn write(&self, instance_handle: InstanceHandle, data: Data, _timestamp: Time) -> ReturnCode<()>{
-        let cc = self.new_change(ChangeKind::Alive, Some(data), None, instance_handle);
-        self.writer_cache().add_change(cc)?;
-        Ok(())
+    fn write(&self, _instance_handle: InstanceHandle, _data: Data, _timestamp: Time) -> ReturnCode<()>{
+        // let cc = self.new_change(ChangeKind::Alive, Some(data), None, instance_handle);
+        // self.writer_cache().add_change(cc)?;
+        // Ok(())
+        todo!()
     }
 
     fn dispose(&self, _instance_handle: InstanceHandle, _timestamp: Time) -> ReturnCode<()> {
@@ -184,22 +177,20 @@ impl ProtocolWriter for StatefulWriter {
 
 impl Receiver for StatefulWriter {
     fn push_receive_message(&self, _src_locator: Locator, source_guid_prefix: GuidPrefix, submessage: RtpsSubmessage) {
-        let matched_readers = self.matched_readers.read().unwrap();
-        let destination_reader = matched_readers.iter()
+        let destination_reader = self.matched_readers.iter()
             .find(|&(_, reader)| reader.is_submessage_destination(&source_guid_prefix, &submessage)).unwrap();
 
         destination_reader.1.push_receive_message(source_guid_prefix, submessage);
     }
     
     fn is_submessage_destination(&self, _src_locator: &Locator, src_guid_prefix: &GuidPrefix, submessage: &RtpsSubmessage) -> bool {
-        let matched_readers = self.matched_readers.read().unwrap();
-        matched_readers.iter().find(|&(_, reader)| reader.is_submessage_destination(src_guid_prefix, submessage)).is_some()
+        self.matched_readers.iter().find(|&(_, reader)| reader.is_submessage_destination(src_guid_prefix, submessage)).is_some()
     }
 }
 
 impl Sender for StatefulWriter {
     fn pop_send_messages(&mut self) -> Vec<(Vec<Locator>, VecDeque<RtpsSubmessage>)> {
-        self.matched_readers.read().unwrap().iter()
+        self.matched_readers.iter()
             .filter_map(|(_reader_guid, reader)| reader.pop_send_message())
             .collect()
     }
@@ -225,7 +216,7 @@ mod tests {
     #[test]
     fn stateful_writer_new_change() {
         let writer_qos = DataWriterQos::default();
-        let writer = StatefulWriter::new(
+        let mut writer = StatefulWriter::new(
             GUID::new([0; 12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
             TopicKind::WithKey,
             &writer_qos
