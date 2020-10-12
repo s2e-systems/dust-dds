@@ -48,7 +48,7 @@ fn test_stateless_writer_stateless_reader_direct_communication_integration() {
 
     let mut reader_qos = DataReaderQos::default();
     reader_qos.reliability.kind = ReliabilityQosPolicyKind::BestEffortReliabilityQos;
-    let reader = StatelessReader::new(
+    let mut reader = StatelessReader::new(
         reader_guid,
         TopicKind::WithKey,
         vec![source_locator],
@@ -97,7 +97,7 @@ fn test_stateless_writer_stateless_reader_direct_communication_integration() {
 
    memory_transport2.receive_from(&memory_transport1);
 
-   RtpsMessageReceiver::receive(guid_prefix, &memory_transport2, &[&reader]);
+   RtpsMessageReceiver::receive(guid_prefix, &memory_transport2, &mut [&mut reader]);
 
    reader.run();
 

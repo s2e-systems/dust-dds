@@ -1,7 +1,6 @@
 use std::time::Instant;
 use std::convert::TryInto;
 use std::collections::{BTreeSet, VecDeque};
-use std::sync::Mutex;
 
 use crate::types::{SequenceNumber, GuidPrefix, EntityId};
 use crate::structure::HistoryCache;
@@ -27,8 +26,8 @@ pub struct ReliableReaderProxy{
     time_nack_received: Instant,
     highest_nack_count_received: Count,
 
-    received_messages: Mutex<VecDeque<(GuidPrefix, RtpsSubmessage)>>,
-    sent_messages: Mutex<VecDeque<RtpsSubmessage>>
+    received_messages: VecDeque<(GuidPrefix, RtpsSubmessage)>,
+    sent_messages: VecDeque<RtpsSubmessage>
 }
 
 impl ReliableReaderProxy {
@@ -42,8 +41,8 @@ impl ReliableReaderProxy {
             time_last_sent_data: Instant::now(),
             time_nack_received: Instant::now(),
             highest_nack_count_received: 0,
-            received_messages: Mutex::new(VecDeque::new()),
-            sent_messages: Mutex::new(VecDeque::new()),
+            received_messages: VecDeque::new(),
+            sent_messages: VecDeque::new(),
 
         }
     }
@@ -58,13 +57,13 @@ impl ReliableReaderProxy {
         self.time_last_sent_data_reset();
     }
 
-    fn transition_t4(&self, history_cache: &HistoryCache, next_unsent_seq_num: SequenceNumber) {
+    fn transition_t4(&mut self, history_cache: &HistoryCache, next_unsent_seq_num: SequenceNumber) {
         if let Some(cache_change) = history_cache
             .changes().iter().find(|cc| cc.sequence_number() == next_unsent_seq_num)
         {
             let reader_id = self.reader_proxy.remote_reader_guid().entity_id();
             let data = data_from_cache_change(cache_change, reader_id);
-            self.sent_messages.lock().unwrap().push_back(RtpsSubmessage::Data(data));
+            self.sent_messages.push_back(RtpsSubmessage::Data(data));
         } else {
             let gap = Gap::new(
                 BEHAVIOR_ENDIANNESS,
@@ -73,7 +72,7 @@ impl ReliableReaderProxy {
                 next_unsent_seq_num,
             BTreeSet::new());
 
-            self.sent_messages.lock().unwrap().push_back(RtpsSubmessage::Gap(gap));
+            self.sent_messages.push_back(RtpsSubmessage::Gap(gap));
         }
     }
 
@@ -103,30 +102,30 @@ impl ReliableReaderProxy {
             false,
         );
 
-        self.sent_messages.lock().unwrap().push_back(RtpsSubmessage::Heartbeat(heartbeat));
+        self.sent_messages.push_back(RtpsSubmessage::Heartbeat(heartbeat));
     }
     
     fn waiting_state(&mut self) {
-        let received = self.received_messages.lock().unwrap().pop_front();
+        let received = self.received_messages.pop_front();
         if let Some((_, RtpsSubmessage::AckNack(acknack))) = received {
             self.transition_t8(acknack);
             self.time_nack_received_reset();
         }
     }
     
-    fn transition_t8(&self, acknack: AckNack) {
+    fn transition_t8(&mut self, acknack: AckNack) {
         self.reader_proxy.acked_changes_set(acknack.reader_sn_state().base() - 1);
         self.reader_proxy.requested_changes_set(acknack.reader_sn_state().set().clone());
     }
     
-    fn must_repair_state(&self) {
-        let received = self.received_messages.lock().unwrap().pop_front();
+    fn must_repair_state(&mut self) {
+        let received = self.received_messages.pop_front();
         if let Some((_, RtpsSubmessage::AckNack(acknack))) = received {
             self.transition_t8(acknack);
         }
     }
     
-    fn repairing_state(&self, history_cache: &HistoryCache) {
+    fn repairing_state(&mut self, history_cache: &HistoryCache) {
         // This state is only valid if there are requested changes
         debug_assert!(!self.reader_proxy.requested_changes().is_empty());
     
@@ -135,11 +134,11 @@ impl ReliableReaderProxy {
         }
     }
 
-    fn transition_t12(&self, history_cache: &HistoryCache, next_requested_seq_num: SequenceNumber) {
+    fn transition_t12(&mut self, history_cache: &HistoryCache, next_requested_seq_num: SequenceNumber) {
         if let Some(cache_change) = history_cache.changes().iter().find(|cc| cc.sequence_number() == next_requested_seq_num)
         {
             let data = data_from_cache_change(cache_change, self.reader_proxy.remote_reader_guid().entity_id());
-            self.sent_messages.lock().unwrap().push_back(RtpsSubmessage::Data(data));
+            self.sent_messages.push_back(RtpsSubmessage::Data(data));
         } else {
             let gap = Gap::new(
                 BEHAVIOR_ENDIANNESS,
@@ -148,7 +147,7 @@ impl ReliableReaderProxy {
                 next_requested_seq_num,
                 BTreeSet::new());
 
-            self.sent_messages.lock().unwrap().push_back(RtpsSubmessage::Gap(gap));
+            self.sent_messages.push_back(RtpsSubmessage::Gap(gap));
         }
     }
 
@@ -197,7 +196,7 @@ impl ReaderProxyOps for ReliableReaderProxy {
         }
     }
 
-    fn push_receive_message(&self, src_guid_prefix: GuidPrefix, submessage: RtpsSubmessage) {
+    fn push_receive_message(&mut self, src_guid_prefix: GuidPrefix, submessage: RtpsSubmessage) {
         todo!()
     }
 
@@ -205,11 +204,10 @@ impl ReaderProxyOps for ReliableReaderProxy {
         todo!()
     }
 
-    fn pop_send_message(&self) -> Option<(Vec<crate::types::Locator>, VecDeque<RtpsSubmessage>)> {
-        let mut reader_proxy_send_messages = self.sent_messages.lock().unwrap();
-        if !reader_proxy_send_messages.is_empty() {
+    fn pop_send_message(&mut self) -> Option<(Vec<crate::types::Locator>, VecDeque<RtpsSubmessage>)> {
+        if !self.sent_messages.is_empty() {
             let mut send_message_queue = VecDeque::new();
-            std::mem::swap(&mut send_message_queue, &mut reader_proxy_send_messages);
+            std::mem::swap(&mut send_message_queue, &mut self.sent_messages);
             
             let mut locator_list = Vec::new();
             locator_list.extend(self.reader_proxy.unicast_locator_list());
@@ -251,7 +249,7 @@ mod tests {
         // Test no data in the history cache and no changes written
         let no_change_sequence_number = 0;
         reliable_reader_proxy.run(&history_cache, no_change_sequence_number);
-        let sent_submessages = reliable_reader_proxy.sent_messages.lock().unwrap().pop_front().unwrap();
+        let sent_submessages = reliable_reader_proxy.sent_messages.pop_front().unwrap();
         if let RtpsSubmessage::Heartbeat(heartbeat) = &sent_submessages {
             assert_eq!(heartbeat.reader_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
             assert_eq!(heartbeat.writer_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);

@@ -1,5 +1,4 @@
 use std::collections::{BTreeSet, VecDeque};
-use std::sync::Mutex;
 
 use crate::types::{Locator, SequenceNumber, GUID, GuidPrefix};
 
@@ -86,12 +85,12 @@ pub struct ReaderProxy {
     // remoteGroupEntityId: EntityId_t,
     unicast_locator_list: Vec<Locator>,
     multicast_locator_list: Vec<Locator>,
-    changes_for_reader: Mutex<ChangeForReader>,
+    changes_for_reader: ChangeForReader,
     expects_inline_qos: bool,
     is_active: bool,
 
-    pub send_messages: Mutex<VecDeque<RtpsSubmessage>>,
-    pub received_messages: Mutex<VecDeque<(GuidPrefix, RtpsSubmessage)>>,
+    pub send_messages: VecDeque<RtpsSubmessage>,
+    pub received_messages: VecDeque<(GuidPrefix, RtpsSubmessage)>,
 }
 
 
@@ -108,38 +107,38 @@ impl ReaderProxy {
                 multicast_locator_list,
                 expects_inline_qos,
                 is_active,
-                changes_for_reader: Mutex::new(ChangeForReader::new()),
-                send_messages: Mutex::new(VecDeque::new()),
-                received_messages: Mutex::new(VecDeque::new()),
+                changes_for_reader: ChangeForReader::new(),
+                send_messages:VecDeque::new(),
+                received_messages: VecDeque::new(),
         }
     }
 
-    pub fn acked_changes_set(&self, committed_seq_num: SequenceNumber) {
-        self.changes_for_reader.lock().unwrap().acked_changes_set(committed_seq_num);
+    pub fn acked_changes_set(&mut self, committed_seq_num: SequenceNumber) {
+        self.changes_for_reader.acked_changes_set(committed_seq_num);
     }
 
-    pub fn next_requested_change(&self) -> Option<SequenceNumber> {
-        self.changes_for_reader.lock().unwrap().next_requested_change()
+    pub fn next_requested_change(&mut self) -> Option<SequenceNumber> {
+        self.changes_for_reader.next_requested_change()
     }
 
-    pub fn next_unsent_change(&self, last_change_sequence_number: SequenceNumber) -> Option<SequenceNumber> {
-        self.changes_for_reader.lock().unwrap().next_unsent_change(last_change_sequence_number)
+    pub fn next_unsent_change(&mut self, last_change_sequence_number: SequenceNumber) -> Option<SequenceNumber> {
+        self.changes_for_reader.next_unsent_change(last_change_sequence_number)
     }
 
-    pub fn unsent_changes(&self, last_change_sequence_number: SequenceNumber) -> BTreeSet<SequenceNumber> {
-        self.changes_for_reader.lock().unwrap().unsent_changes(last_change_sequence_number)
+    pub fn unsent_changes(&mut self, last_change_sequence_number: SequenceNumber) -> BTreeSet<SequenceNumber> {
+        self.changes_for_reader.unsent_changes(last_change_sequence_number)
     }
 
-    pub fn requested_changes(&self) -> BTreeSet<SequenceNumber> {
-        self.changes_for_reader.lock().unwrap().requested_changes()
+    pub fn requested_changes(&mut self) -> BTreeSet<SequenceNumber> {
+        self.changes_for_reader.requested_changes()
     }
 
-    pub fn requested_changes_set(&self, req_seq_num_set: BTreeSet<SequenceNumber>) {
-        self.changes_for_reader.lock().unwrap().requested_changes_set(req_seq_num_set);
+    pub fn requested_changes_set(&mut self, req_seq_num_set: BTreeSet<SequenceNumber>) {
+        self.changes_for_reader.requested_changes_set(req_seq_num_set);
     }
 
-    pub fn unacked_changes(&self, last_change_sequence_number: SequenceNumber) -> BTreeSet<SequenceNumber> {
-        self.changes_for_reader.lock().unwrap().unacked_changes(last_change_sequence_number)
+    pub fn unacked_changes(&mut self, last_change_sequence_number: SequenceNumber) -> BTreeSet<SequenceNumber> {
+        self.changes_for_reader.unacked_changes(last_change_sequence_number)
     }
 
     pub fn unicast_locator_list(&self) -> &Vec<Locator> {
@@ -166,7 +165,7 @@ mod tests {
     #[test]
     fn reader_proxy_unsent_changes_operations() {
         let remote_reader_guid = GUID::new([1,2,3,4,5,6,7,8,9,10,11,12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-        let reader_proxy = ReaderProxy::new(remote_reader_guid, vec![], vec![], false, true);
+        let mut reader_proxy = ReaderProxy::new(remote_reader_guid, vec![], vec![], false, true);
 
         // Check that a reader proxy that has no changes marked as sent doesn't reports no changes
         let no_change_in_writer_sequence_number = 0;
@@ -192,7 +191,7 @@ mod tests {
     #[test]
     fn reader_proxy_requested_changes_operations() {
         let remote_reader_guid = GUID::new([1,2,3,4,5,6,7,8,9,10,11,12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-        let reader_proxy = ReaderProxy::new(remote_reader_guid, vec![], vec![], false, true);
+        let mut reader_proxy = ReaderProxy::new(remote_reader_guid, vec![], vec![], false, true);
 
         // Check that a reader proxy that has no changes marked as sent doesn't reports no changes
         assert!(reader_proxy.requested_changes().is_empty());
@@ -242,7 +241,7 @@ mod tests {
     #[test]
     fn reader_proxy_unacked_changes_operations() {
         let remote_reader_guid = GUID::new([1,2,3,4,5,6,7,8,9,10,11,12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-        let reader_proxy = ReaderProxy::new(remote_reader_guid, vec![], vec![], false, true);
+        let mut reader_proxy = ReaderProxy::new(remote_reader_guid, vec![], vec![], false, true);
 
         let no_change_in_writer = 0;
         assert!(reader_proxy.unacked_changes(no_change_in_writer).is_empty());

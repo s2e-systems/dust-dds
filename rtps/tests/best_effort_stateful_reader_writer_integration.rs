@@ -38,7 +38,7 @@ fn best_effort_stateful_writer_stateful_reader_data_only() {
     );
     let mut reader_qos = DataReaderQos::default();
     reader_qos.reliability.kind = ReliabilityQosPolicyKind::BestEffortReliabilityQos;
-    let reader = StatefulReader::new(
+    let mut reader = StatefulReader::new(
         reader_guid,
         TopicKind::WithKey,
        &reader_qos,
@@ -80,7 +80,7 @@ fn best_effort_stateful_writer_stateful_reader_data_only() {
 
     reader_memory_transport.receive_from(&writer_memory_transport);
 
-    RtpsMessageReceiver::receive(reader_guid_prefix, &reader_memory_transport, &[&reader]);
+    RtpsMessageReceiver::receive(reader_guid_prefix, &reader_memory_transport, &mut [&mut reader]);
 
     reader.run();
     reader.run();
@@ -121,7 +121,7 @@ fn best_effort_stateful_writer_stateful_reader_data_and_gap() {
     );
     let mut reader_qos = DataReaderQos::default();
     reader_qos.reliability.kind = ReliabilityQosPolicyKind::BestEffortReliabilityQos;
-    let reader = StatefulReader::new(
+    let mut reader = StatefulReader::new(
         reader_guid,
         TopicKind::WithKey,
         &reader_qos,
@@ -163,7 +163,7 @@ fn best_effort_stateful_writer_stateful_reader_data_and_gap() {
 
     reader_memory_transport.receive_from(&writer_memory_transport);
 
-    RtpsMessageReceiver::receive(reader_guid_prefix, &reader_memory_transport, &[&reader]);
+    RtpsMessageReceiver::receive(reader_guid_prefix, &reader_memory_transport, &mut [&mut reader]);
     reader.run();
     reader.run();
     reader.run();

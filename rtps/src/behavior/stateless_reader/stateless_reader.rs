@@ -1,5 +1,4 @@
 use std::collections::VecDeque;
-use std::sync::Mutex;
 
 use rust_dds_interface::qos::DataReaderQos;
 
@@ -29,7 +28,7 @@ pub struct StatelessReader {
     /// List of multicast locators (transport, address, port combinations) that can be used to send messages to the Endpoint. The list may be empty.
     multicast_locator_list: Vec<Locator>,
 
-    received_messages: Mutex<VecDeque<(GuidPrefix, RtpsSubmessage)>>,
+    received_messages: VecDeque<(GuidPrefix, RtpsSubmessage)>,
 }
 
 impl StatelessReader {
@@ -53,7 +52,7 @@ impl StatelessReader {
             multicast_locator_list,
             reader_cache: HistoryCache::new(&reader_qos.resource_limits),
             expects_inline_qos,
-            received_messages: Mutex::new(VecDeque::new()),
+            received_messages: VecDeque::new(),
         }
     }
 
@@ -82,8 +81,8 @@ impl StatelessReader {
 }
 
 impl Receiver for StatelessReader {
-    fn push_receive_message(&self, _src_locator: Locator, source_guid_prefix: GuidPrefix, message: RtpsSubmessage) {
-        self.received_messages.lock().unwrap().push_back((source_guid_prefix, message));
+    fn push_receive_message(&mut self, _src_locator: Locator, source_guid_prefix: GuidPrefix, message: RtpsSubmessage) {
+        self.received_messages.push_back((source_guid_prefix, message));
     }
 
     fn is_submessage_destination(&self, src_locator: &Locator, _src_guid_prefix: &GuidPrefix, submessage: &RtpsSubmessage) -> bool {
@@ -120,7 +119,7 @@ mod tests {
     #[test]
     fn best_effort_stateless_reader_run() {
         let data_reader_qos = DataReaderQos::default();
-        let reader = StatelessReader::new(
+        let mut reader = StatelessReader::new(
             GUID::new([0;12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER),
             TopicKind::WithKey,
             vec![Locator::new(0, 7400, [0;16])],

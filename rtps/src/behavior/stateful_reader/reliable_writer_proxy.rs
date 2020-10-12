@@ -1,7 +1,6 @@
 use std::convert::TryInto;
 use std::time::Instant;
 use std::collections::VecDeque;
-use std::sync::Mutex;
 
 use crate::types::{GuidPrefix, GUID, EntityId, Locator};
 use crate::structure::HistoryCache;
@@ -25,8 +24,8 @@ pub struct ReliableWriterProxy {
     ackanck_count: Count,
     highest_received_heartbeat_count: Count,
 
-    received_messages: Mutex<VecDeque<(GuidPrefix, RtpsSubmessage)>>,
-    sent_messages: Mutex<VecDeque<RtpsSubmessage>>
+    received_messages: VecDeque<(GuidPrefix, RtpsSubmessage)>,
+    sent_messages: VecDeque<RtpsSubmessage>
 }
 
 impl ReliableWriterProxy {
@@ -39,13 +38,13 @@ impl ReliableWriterProxy {
             time_heartbeat_received: Instant::now(),
             ackanck_count: 0,
             highest_received_heartbeat_count: 0,
-            received_messages: Mutex::new(VecDeque::new()),
-            sent_messages: Mutex::new(VecDeque::new()),
+            received_messages: VecDeque::new(),
+            sent_messages: VecDeque::new(),
         }
     }
 
     fn ready_state(&mut self, history_cache: &HistoryCache) -> Option<Heartbeat>{
-        let received = self.received_messages.lock().unwrap().pop_front();
+        let received = self.received_messages.pop_front();
         if let Some((_, received_message)) = received {
             match received_message {
                 RtpsSubmessage::Data(data) => {
@@ -120,7 +119,7 @@ impl ReliableWriterProxy {
             *self.ackanck_count(),
             true);
 
-        self.sent_messages.lock().unwrap().push_back(RtpsSubmessage::AckNack(acknack));
+        self.sent_messages.push_back(RtpsSubmessage::AckNack(acknack));
     }
 
     fn must_send_ack(&self) -> bool {
@@ -164,10 +163,10 @@ impl WriterProxyOps for ReliableWriterProxy {
         }
     }
 
-    fn push_receive_message(&self, src_guid_prefix: GuidPrefix, submessage: RtpsSubmessage) {
+    fn push_receive_message(&mut self, src_guid_prefix: GuidPrefix, submessage: RtpsSubmessage) {
         assert!(self.is_submessage_destination(&src_guid_prefix, &submessage));
 
-        self.received_messages.lock().unwrap().push_back((src_guid_prefix, submessage));
+        self.received_messages.push_back((src_guid_prefix, submessage));
     }
 
     fn is_submessage_destination(&self, src_guid_prefix: &GuidPrefix, submessage: &RtpsSubmessage) -> bool {

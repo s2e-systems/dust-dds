@@ -6,7 +6,7 @@ use super::submessages::RtpsSubmessage;
 // ////////////////// RTPS Message Receiver
 
 pub trait Receiver {
-    fn push_receive_message(&self, src_locator: Locator, src_guid_prefix: GuidPrefix, submessage: RtpsSubmessage);
+    fn push_receive_message(&mut self, src_locator: Locator, src_guid_prefix: GuidPrefix, submessage: RtpsSubmessage);
 
     fn is_submessage_destination(&self, src_locator: &Locator, src_guid_prefix: &GuidPrefix, submessage: &RtpsSubmessage) -> bool;
 }
@@ -14,7 +14,7 @@ pub trait Receiver {
 pub struct RtpsMessageReceiver;
 
 impl RtpsMessageReceiver {
-    pub fn receive(participant_guid_prefix: GuidPrefix, transport: &dyn Transport, receiver_list: &[&dyn Receiver]) {
+    pub fn receive(participant_guid_prefix: GuidPrefix, transport: &dyn Transport, receiver_list: &mut [&mut dyn Receiver]) {
         if let Some((message, src_locator)) = transport.read().unwrap() {
             let _source_version = message.header().version();
             let _source_vendor_id = message.header().vendor_id();
@@ -27,7 +27,7 @@ impl RtpsMessageReceiver {
     
             for submessage in message.take_submessages() {
                 if submessage.is_entity_submessage() {
-                    for &receiver in receiver_list {
+                    for receiver in receiver_list.iter_mut() {
                         if receiver.is_submessage_destination(&src_locator, &source_guid_prefix, &submessage) {
                             receiver.push_receive_message(src_locator, source_guid_prefix, submessage);
                             break;

@@ -1,5 +1,4 @@
 use std::collections::VecDeque;
-use std::sync::Mutex;
 
 use crate::types::{GuidPrefix, GUID};
 use crate::structure::HistoryCache;
@@ -12,19 +11,19 @@ use super::stateful_reader::WriterProxyOps;
 
 pub struct BestEffortWriterProxy {
     writer_proxy: WriterProxy,
-    received_messages: Mutex<VecDeque<(GuidPrefix, RtpsSubmessage)>>,
+    received_messages: VecDeque<(GuidPrefix, RtpsSubmessage)>,
 }
 
 impl BestEffortWriterProxy {
     pub fn new(writer_proxy: WriterProxy) -> Self {
         Self {
             writer_proxy,
-            received_messages: Mutex::new(VecDeque::new())
+            received_messages: VecDeque::new()
         }
     }
 
     fn waiting_state(&mut self, history_cache: &HistoryCache) {
-        let received = self.received_messages.lock().unwrap().pop_front();
+        let received = self.received_messages.pop_front();
         if let Some((_, received_message)) = received  {
             match received_message {
                 RtpsSubmessage::Data(data) => self.transition_t2(history_cache, data),
@@ -63,10 +62,10 @@ impl WriterProxyOps for BestEffortWriterProxy {
         self.waiting_state(history_cache);
     }
 
-    fn push_receive_message(&self, src_guid_prefix: GuidPrefix, submessage: RtpsSubmessage) {
+    fn push_receive_message(&mut self, src_guid_prefix: GuidPrefix, submessage: RtpsSubmessage) {
         assert!(self.is_submessage_destination(&src_guid_prefix, &submessage));
 
-        self.received_messages.lock().unwrap().push_back((src_guid_prefix, submessage));
+        self.received_messages.push_back((src_guid_prefix, submessage));
     }
 
     fn is_submessage_destination(&self, src_guid_prefix: &GuidPrefix, submessage: &RtpsSubmessage) -> bool {

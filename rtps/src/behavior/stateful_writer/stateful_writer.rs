@@ -17,9 +17,9 @@ use rust_dds_interface::types::{Data, Time, ReturnCode};
 
 pub trait ReaderProxyOps : Send + Sync {
     fn run(&mut self, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber);
-    fn push_receive_message(&self, src_guid_prefix: GuidPrefix, submessage: RtpsSubmessage);
+    fn push_receive_message(&mut self, src_guid_prefix: GuidPrefix, submessage: RtpsSubmessage);
     fn is_submessage_destination(&self, src_guid_prefix: &GuidPrefix, submessage: &RtpsSubmessage) -> bool;
-    fn pop_send_message(&self) -> Option<(Vec<Locator>, VecDeque<RtpsSubmessage>)>;
+    fn pop_send_message(&mut self) -> Option<(Vec<Locator>, VecDeque<RtpsSubmessage>)>;
 }
 
 pub struct StatefulWriter {
@@ -176,11 +176,11 @@ impl ProtocolWriter for StatefulWriter {
 }
 
 impl Receiver for StatefulWriter {
-    fn push_receive_message(&self, _src_locator: Locator, source_guid_prefix: GuidPrefix, submessage: RtpsSubmessage) {
-        let destination_reader = self.matched_readers.iter()
-            .find(|&(_, reader)| reader.is_submessage_destination(&source_guid_prefix, &submessage)).unwrap();
+    fn push_receive_message(&mut self, _src_locator: Locator, source_guid_prefix: GuidPrefix, submessage: RtpsSubmessage) {
+        let (_, destination_reader) = self.matched_readers.iter_mut()
+            .find(|(_, reader)| reader.is_submessage_destination(&source_guid_prefix, &submessage) ).unwrap();
 
-        destination_reader.1.push_receive_message(source_guid_prefix, submessage);
+        destination_reader.push_receive_message(source_guid_prefix, submessage);
     }
     
     fn is_submessage_destination(&self, _src_locator: &Locator, src_guid_prefix: &GuidPrefix, submessage: &RtpsSubmessage) -> bool {
@@ -190,7 +190,7 @@ impl Receiver for StatefulWriter {
 
 impl Sender for StatefulWriter {
     fn pop_send_messages(&mut self) -> Vec<(Vec<Locator>, VecDeque<RtpsSubmessage>)> {
-        self.matched_readers.iter()
+        self.matched_readers.iter_mut()
             .filter_map(|(_reader_guid, reader)| reader.pop_send_message())
             .collect()
     }

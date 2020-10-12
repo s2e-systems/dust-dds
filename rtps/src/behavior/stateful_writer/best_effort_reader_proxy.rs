@@ -1,5 +1,4 @@
 use std::collections::{BTreeSet, VecDeque};
-use std::sync::Mutex;
 
 use crate::types::{EntityId, SequenceNumber};
 use crate::structure::HistoryCache;
@@ -13,7 +12,7 @@ use super::stateful_writer::ReaderProxyOps;
 pub struct BestEffortReaderProxy {
     reader_proxy: ReaderProxy,
     writer_entity_id: EntityId,
-    sent_messages: Mutex<VecDeque<RtpsSubmessage>>
+    sent_messages: VecDeque<RtpsSubmessage>
 }
 
 impl BestEffortReaderProxy {
@@ -21,12 +20,12 @@ impl BestEffortReaderProxy {
         Self{
             reader_proxy,
             writer_entity_id,
-            sent_messages: Mutex::new(VecDeque::new()),
+            sent_messages: VecDeque::new(),
         }
     }
     
 
-    fn pushing_state(&self, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber) {
+    fn pushing_state(&mut self, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber) {
         // This state is only valid if there are unsent changes
         debug_assert!(!self.reader_proxy.unsent_changes(last_change_sequence_number).is_empty());
     
@@ -35,13 +34,13 @@ impl BestEffortReaderProxy {
         }
     }
 
-    fn transition_t4(&self, history_cache: &HistoryCache, next_unsent_seq_num: SequenceNumber) {
+    fn transition_t4(&mut self, history_cache: &HistoryCache, next_unsent_seq_num: SequenceNumber) {
         if let Some(cache_change) = history_cache
             .changes().iter().find(|cc| cc.sequence_number() == next_unsent_seq_num)
         {
             let reader_id = self.reader_proxy.remote_reader_guid().entity_id();
             let data = data_from_cache_change(cache_change, reader_id);
-            self.sent_messages.lock().unwrap().push_back(RtpsSubmessage::Data(data));
+            self.sent_messages.push_back(RtpsSubmessage::Data(data));
         } else {
             let gap = Gap::new(
                 BEHAVIOR_ENDIANNESS,
@@ -49,7 +48,7 @@ impl BestEffortReaderProxy {
                 self.writer_entity_id,
                 next_unsent_seq_num,
             BTreeSet::new());
-            self.sent_messages.lock().unwrap().push_back(RtpsSubmessage::Gap(gap))
+            self.sent_messages.push_back(RtpsSubmessage::Gap(gap))
         }
     }
 }
@@ -61,7 +60,7 @@ impl ReaderProxyOps for BestEffortReaderProxy {
         }
     }
 
-    fn push_receive_message(&self, _src_guid_prefix: crate::types::GuidPrefix, _submessage: RtpsSubmessage) {
+    fn push_receive_message(&mut self, _src_guid_prefix: crate::types::GuidPrefix, _submessage: RtpsSubmessage) {
         assert!(false)
     }
 
@@ -70,11 +69,10 @@ impl ReaderProxyOps for BestEffortReaderProxy {
         false
     }
 
-    fn pop_send_message(&self) -> Option<(Vec<crate::types::Locator>, VecDeque<RtpsSubmessage>)> {
-        let mut reader_proxy_send_messages = self.sent_messages.lock().unwrap();
-        if !reader_proxy_send_messages.is_empty() {
+    fn pop_send_message(&mut self) -> Option<(Vec<crate::types::Locator>, VecDeque<RtpsSubmessage>)> {
+        if !self.sent_messages.is_empty() {
             let mut send_message_queue = VecDeque::new();
-            std::mem::swap(&mut send_message_queue, &mut reader_proxy_send_messages);
+            std::mem::swap(&mut send_message_queue, &mut self.sent_messages);
             
             let mut locator_list = Vec::new();
             locator_list.extend(self.reader_proxy.unicast_locator_list());
