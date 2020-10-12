@@ -1,5 +1,4 @@
 use std::collections::{HashMap, VecDeque, };
-use std::sync::{RwLock, RwLockReadGuard};
 
 use crate::structure::HistoryCache;
 use crate::types::{Locator, ReliabilityKind, TopicKind, GUID, GuidPrefix };
@@ -43,7 +42,7 @@ pub struct StatefulReader {
     reader_cache: HistoryCache,
 
     // Fields
-    matched_writers: RwLock<HashMap<GUID, Box<dyn WriterProxyOps>>>,
+    matched_writers: HashMap<GUID, Box<dyn WriterProxyOps>>,
 }
 
 impl StatefulReader {
@@ -63,32 +62,26 @@ impl StatefulReader {
             expects_inline_qos,
             heartbeat_response_delay,       
             reader_cache: HistoryCache::new(&reader_qos.resource_limits),
-            matched_writers: RwLock::new(HashMap::new()),
+            matched_writers: HashMap::new(),
         }
     }
 
-    pub fn matched_writer_add(&self, a_writer_proxy: WriterProxy) {
+    pub fn matched_writer_add(&mut self, a_writer_proxy: WriterProxy) {
         let remote_writer_guid = a_writer_proxy.remote_writer_guid().clone();
         let writer_proxy: Box<dyn WriterProxyOps> = match self.reliability_level {
             ReliabilityKind::Reliable => Box::new(ReliableWriterProxy::new(a_writer_proxy, self.guid.entity_id(), self.heartbeat_response_delay)),
             ReliabilityKind::BestEffort => Box::new(BestEffortWriterProxy::new(a_writer_proxy)),
         };
         
-        self.matched_writers.write().unwrap().insert(remote_writer_guid, writer_proxy);
+        self.matched_writers.insert(remote_writer_guid, writer_proxy);
     }
 
-    pub fn matched_writer_remove(&self, writer_proxy_guid: &GUID) {
-        self.matched_writers.write().unwrap().remove(writer_proxy_guid);
-    }
-    
-    pub fn matched_writers(&self) -> RwLockReadGuard<HashMap<GUID, WriterProxy>> {
-        todo!()
-        // self.matched_writers.read().unwrap()
+    pub fn matched_writer_remove(&mut self, writer_proxy_guid: &GUID) {
+        self.matched_writers.remove(writer_proxy_guid);
     }
 
-    pub fn run(&self) {
-        let mut matched_writers = self.matched_writers.write().unwrap();
-        for (_writer_guid, writer_proxy) in matched_writers.iter_mut(){
+    pub fn run(&mut self) {
+        for (_writer_guid, writer_proxy) in self.matched_writers.iter_mut(){
             writer_proxy.run(&self.reader_cache)
         }
     }
@@ -108,15 +101,15 @@ impl StatefulReader {
 
 impl Receiver for StatefulReader {
     fn push_receive_message(&self, _src_locator: Locator, src_guid_prefix: GuidPrefix, submessage: RtpsSubmessage){
-        let matched_writers = self.matched_writers.read().unwrap();
-        let destination_writer = matched_writers.iter().find(|&(_, writer)| writer.is_submessage_destination(&src_guid_prefix, &submessage)).unwrap();
+        let destination_writer = self.matched_writers.iter()
+            .find(|&(_, writer)| writer.is_submessage_destination(&src_guid_prefix, &submessage)).unwrap();
 
         destination_writer.1.push_receive_message(src_guid_prefix, submessage);
     }
 
     fn is_submessage_destination(&self, _src_locator: &Locator, src_guid_prefix: &GuidPrefix, submessage: &RtpsSubmessage) -> bool {
-        let matched_writers = self.matched_writers.read().unwrap();
-        matched_writers.iter().find(|&(_, writer)| writer.is_submessage_destination(src_guid_prefix, submessage)).is_some()
+        self.matched_writers.iter()
+            .find(|&(_, writer)| writer.is_submessage_destination(src_guid_prefix, submessage)).is_some()
        
     }
 }
