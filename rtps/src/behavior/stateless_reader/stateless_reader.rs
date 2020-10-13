@@ -1,12 +1,16 @@
-use std::collections::{HashMap, };
+use std::collections::{VecDeque};
 
 use rust_dds_interface::qos::DataReaderQos;
 
 use crate::structure::HistoryCache;
 use crate::types::{ReliabilityKind, TopicKind, GUID, Locator, GuidPrefix };
+use crate::types::constants::ENTITYID_UNKNOWN;
 use crate::messages::RtpsSubmessage;
 use crate::messages::message_receiver::Receiver;
-use super::writer_locator::WriterLocator;
+use crate::messages::submessages::{Data, };
+use crate::behavior::cache_change_from_data;
+
+
 pub struct StatelessReader {
     // From RTPS Entity
     guid: GUID,
@@ -26,7 +30,7 @@ pub struct StatelessReader {
     expects_inline_qos: bool,
 
     // Additional field:
-    writer_locators: HashMap<Locator, WriterLocator>,
+    received_messages: VecDeque<(GuidPrefix, RtpsSubmessage)>,
 }
 
 impl StatelessReader {
@@ -50,14 +54,27 @@ impl StatelessReader {
             multicast_locator_list,
             reader_cache: HistoryCache::new(&reader_qos.resource_limits),
             expects_inline_qos,
-            writer_locators: HashMap::new(),
+            received_messages: VecDeque::new(),
         }
     }
 
     pub fn run(&mut self) {
-        for (_writer_guid, writer_locator) in self.writer_locators.iter_mut(){
-            writer_locator.run(&self.reader_cache)
+        self.waiting_state();
+    }
+
+
+    fn waiting_state(&mut self) {
+        while let Some((guid_prefix, received_message)) =  self.received_messages.pop_front() {
+            match received_message {
+                RtpsSubmessage::Data(data) => self.transition_t2(guid_prefix, data),
+                _ => (),
+            };
         }
+    }
+
+    fn transition_t2(&mut self, guid_prefix: GuidPrefix, data: Data) {
+        let cache_change = cache_change_from_data(data, &guid_prefix);
+        self.reader_cache.add_change(cache_change).unwrap();
     }
 
     pub fn guid(&self) -> &GUID {
@@ -78,13 +95,21 @@ impl StatelessReader {
 }
 
 impl Receiver for StatelessReader {
-    fn push_receive_message(&mut self, _src_locator: Locator, _source_guid_prefix: GuidPrefix, _message: RtpsSubmessage) {
-        todo!()
+    fn push_receive_message(&mut self, src_locator: Locator, source_guid_prefix: GuidPrefix, submessage: RtpsSubmessage) {
+        assert!(self.is_submessage_destination(&src_locator, &source_guid_prefix, &submessage));
+
+        self.received_messages.push_back((source_guid_prefix, submessage));
     }
 
-    fn is_submessage_destination(&self, _src_locator: &Locator, _src_guid_prefix: &GuidPrefix, _submessage: &RtpsSubmessage) -> bool {
-        todo!()       
-    }
+    fn is_submessage_destination(&self, src_locator: &Locator, _src_guid_prefix: &GuidPrefix, submessage: &RtpsSubmessage) -> bool {
+        let reader_id = match submessage {
+            RtpsSubmessage::Data(data) => data.reader_id(),
+            _ => return false,
+        };
+        let is_in_locator_lists = self.multicast_locator_list.contains(src_locator) || self.unicast_locator_list.contains(src_locator);
+        is_in_locator_lists && (self.guid.entity_id() == reader_id || reader_id == ENTITYID_UNKNOWN)
+    }   
+ 
 }
 
 #[cfg(test)]

@@ -64,11 +64,8 @@ impl DomainParticipant {
             _ => panic!("Protocol not valid"),
         };
 
-        let discovery = Box::new(rust_rtps::discovery::spdp::SPDP::new(&protocol_participant));
-
         let new_participant = DomainParticipant(Arc::new(DomainParticipantImpl::new(domain_id, qos_list, a_listener, mask, protocol_participant)));
-        new_participant.0.add_discovery(discovery);
-
+        
         if enabled {
             new_participant.enable().ok()?;
         }
