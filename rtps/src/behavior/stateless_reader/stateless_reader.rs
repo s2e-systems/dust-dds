@@ -103,44 +103,116 @@ impl Receiver for StatelessReader {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::*;
-    use crate::types::constants::*;
+    use crate::types::ChangeKind;
+    use crate::types::constants::{ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER, ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR};
     use crate::serialized_payload::ParameterList;
     use crate::messages::Endianness;
     use crate::messages::submessages::Data;
     use crate::messages::submessages::data_submessage::Payload;
     use crate::inline_qos_types::KeyHash;
-
+    use crate::structure::CacheChange;
+    use crate::behavior::change_kind_to_status_info;
+    
     #[test]
-    fn best_effort_stateless_reader_run() {
+    fn run() {
         let data_reader_qos = DataReaderQos::default();
+        let reader_guid_prefix = [0;12];
+        let source_locator = Locator::new(0, 7400, [0;16]);
         let mut reader = StatelessReader::new(
-            GUID::new([0;12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER),
+            GUID::new(reader_guid_prefix, ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER),
             TopicKind::WithKey,
-            vec![Locator::new(0, 7400, [0;16])],
+            vec![source_locator],
             vec![],
             &data_reader_qos
            );
 
         let mut inline_qos = ParameterList::new();
-        inline_qos.push(KeyHash([1;16]));
+        let instance_handle = [1;16];
+        inline_qos.push(KeyHash(instance_handle));
+        inline_qos.push(change_kind_to_status_info(ChangeKind::Alive));
 
         let data1 = Data::new(
             Endianness::LittleEndian,
             ENTITYID_UNKNOWN,
-            ENTITYID_UNKNOWN,
+            ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER,
             1,
             Some(inline_qos),
             Payload::Data(vec![0,1,2]),
         );
 
-        reader.push_receive_message(LOCATOR_INVALID,[2;12], RtpsSubmessage::Data(data1));
+        let source_guid_prefix  = [2;12];
+        reader.push_receive_message(source_locator,source_guid_prefix, RtpsSubmessage::Data(data1));
 
-        assert_eq!(reader.reader_cache().changes().len(), 0);
-        // let message = RtpsMessage::new(, submessages);
-        
+        let expected_cache_change = CacheChange::new(
+            ChangeKind::Alive,
+            GUID::new(source_guid_prefix, ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
+            instance_handle,
+            1,
+            Some(vec![0,1,2]),
+            None);
+
+        assert_eq!(reader.reader_cache.changes().len(), 0);
         reader.run();
+        assert_eq!(reader.reader_cache.changes().len(), 1);
+        assert!(reader.reader_cache.changes().contains(&expected_cache_change));
+    }
 
-        assert_eq!(reader.reader_cache().changes().len(), 1);
+    #[test]
+    fn submessage_destination() {
+        let data_reader_qos = DataReaderQos::default();
+        let reader_guid_prefix = [0;12];
+        let source_locator_unicast1 = Locator::new(0, 7400, [0;16]);
+        let source_locator_unicast2 = Locator::new(0, 7400, [1;16]);
+        let source_locator_multicast = Locator::new(0, 7401, [2;16]);
+        let reader = StatelessReader::new(
+            GUID::new(reader_guid_prefix, ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER),
+            TopicKind::WithKey,
+            vec![source_locator_unicast1, source_locator_unicast2],
+            vec![source_locator_multicast],
+            &data_reader_qos
+           );
+        
+        let data_to_unknown_reader = RtpsSubmessage::Data(Data::new(
+            Endianness::LittleEndian,
+            ENTITYID_UNKNOWN,
+            ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER,
+            1,
+            None,
+            Payload::Data(vec![0,1,2]),
+        ));
+
+        let data_to_this_reader = RtpsSubmessage::Data(Data::new(
+            Endianness::LittleEndian,
+            ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER,
+            ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER,
+            1,
+            None,
+            Payload::Data(vec![0,1,2]),
+        ));
+
+        let data_to_other_reader = RtpsSubmessage::Data(Data::new(
+            Endianness::LittleEndian,
+            ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
+            ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER,
+            1,
+            None,
+            Payload::Data(vec![0,1,2]),
+        ));
+
+        let source_guid_prefix = [1;12];
+
+        // Check that messages from different valid locators are received
+        assert!(reader.is_submessage_destination(&source_locator_unicast1, &source_guid_prefix, &data_to_unknown_reader));
+        assert!(reader.is_submessage_destination(&source_locator_unicast2, &source_guid_prefix, &data_to_unknown_reader));
+        assert!(reader.is_submessage_destination(&source_locator_multicast, &source_guid_prefix, &data_to_unknown_reader));
+
+        // Check that messages with reader id unknown and the correct reader id are received
+        assert!(reader.is_submessage_destination(&source_locator_unicast1, &source_guid_prefix, &data_to_unknown_reader));
+        assert!(reader.is_submessage_destination(&source_locator_unicast1, &source_guid_prefix, &data_to_this_reader));
+
+        // Check that messages with other source locator and mean for other reader are NOT received
+        let other_source_locator = Locator::new(1, 1111, [11;16]);
+        assert!(!reader.is_submessage_destination(&other_source_locator, &source_guid_prefix, &data_to_unknown_reader));
+        assert!(!reader.is_submessage_destination(&source_locator_unicast1, &source_guid_prefix, &data_to_other_reader));
     }
 }

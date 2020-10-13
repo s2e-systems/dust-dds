@@ -164,7 +164,7 @@ mod tests {
     }
 
     #[test]
-    fn behavior() {
+    fn run() {
         let locator = Locator::new_udpv4(7400, [127,0,0,1]);
         let writer_entity_id = ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER;
         let expects_inline_qos = false;
