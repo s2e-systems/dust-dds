@@ -111,7 +111,7 @@ mod tests {
     use crate::types::*;
 
     #[test]
-    fn test_writer_new_change() {
+    fn new_change() {
         let writer_qos = DataWriterQos::default();
         let mut writer = StatelessWriter::new(
             GUID::new([0; 12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
@@ -148,7 +148,7 @@ mod tests {
     }
 
     #[test]
-    fn test_best_effort_stateless_writer_run() {
+    fn stateless_writer_run() {
         // Create the stateless writer
         let writer_qos = DataWriterQos::default();
 

@@ -1,8 +1,6 @@
-use std::collections::{BTreeSet, VecDeque};
+use std::collections::BTreeSet;
 
-use crate::types::{Locator, SequenceNumber, GUID, GuidPrefix};
-
-use crate::messages::RtpsSubmessage;
+use crate::types::{Locator, SequenceNumber, GUID};
 
 pub struct ChangeForReader {
     highest_sequence_number_sent: SequenceNumber,
@@ -88,9 +86,6 @@ pub struct ReaderProxy {
     changes_for_reader: ChangeForReader,
     expects_inline_qos: bool,
     is_active: bool,
-
-    pub send_messages: VecDeque<RtpsSubmessage>,
-    pub received_messages: VecDeque<(GuidPrefix, RtpsSubmessage)>,
 }
 
 
@@ -108,8 +103,6 @@ impl ReaderProxy {
                 expects_inline_qos,
                 is_active,
                 changes_for_reader: ChangeForReader::new(),
-                send_messages:VecDeque::new(),
-                received_messages: VecDeque::new(),
         }
     }
 

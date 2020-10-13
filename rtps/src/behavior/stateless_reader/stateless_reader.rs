@@ -1,4 +1,4 @@
-use std::collections::{VecDeque};
+use std::collections::VecDeque;
 
 use rust_dds_interface::qos::DataReaderQos;
 
@@ -7,7 +7,7 @@ use crate::types::{ReliabilityKind, TopicKind, GUID, Locator, GuidPrefix };
 use crate::types::constants::ENTITYID_UNKNOWN;
 use crate::messages::RtpsSubmessage;
 use crate::messages::message_receiver::Receiver;
-use crate::messages::submessages::{Data, };
+use crate::messages::submessages::Data;
 use crate::behavior::cache_change_from_data;
 
 
@@ -77,20 +77,8 @@ impl StatelessReader {
         self.reader_cache.add_change(cache_change).unwrap();
     }
 
-    pub fn guid(&self) -> &GUID {
-        &self.guid
-    }
-
     pub fn reader_cache(&self) -> &HistoryCache {
         &self.reader_cache
-    }
-
-    pub fn unicast_locator_list(&self) -> &Vec<Locator> {
-        &self.unicast_locator_list
-    }
-
-    pub fn multicast_locator_list(&self) -> &Vec<Locator> {
-        &self.multicast_locator_list
     }
 }
 
