@@ -1,34 +1,32 @@
-use std::collections::VecDeque;
+use std::collections::{HashMap, };
 
 use rust_dds_interface::qos::DataReaderQos;
 
 use crate::structure::HistoryCache;
 use crate::types::{ReliabilityKind, TopicKind, GUID, Locator, GuidPrefix };
-use crate::types::constants::{ENTITYID_UNKNOWN};
 use crate::messages::RtpsSubmessage;
 use crate::messages::message_receiver::Receiver;
-use super::stateless_reader_behavior::BestEffortStatelessReaderBehavior;
-
+use super::writer_locator::WriterLocator;
 pub struct StatelessReader {
-    // Heartbeats are not relevant to stateless readers (only to readers),
+    // From RTPS Entity
+    guid: GUID,
+
+    // From RTPS Enpoint:    
+    unicast_locator_list: Vec<Locator>,
+    multicast_locator_list: Vec<Locator>,
+    reliability_level: ReliabilityKind,
+    topic_kind: TopicKind,
+
+    // From RTPS Reader:
+    // Heartbeats are not relevant to stateless readers (only to stateful readers),
     // hence the heartbeat_ members are not included here
     // heartbeat_response_delay: Duration,
     // heartbeat_suppression_duration: Duration,
     reader_cache: HistoryCache,
     expects_inline_qos: bool,
-    // Enpoint members:
-    /// Entity base class (contains the GUID)
-    guid: GUID,
-    /// Used to indicate whether the Endpoint supports instance lifecycle management operations. Indicates whether the Endpoint is associated with a DataType that has defined some fields as containing the DDS key.
-    topic_kind: TopicKind,
-    /// The level of reliability supported by the Endpoint.
-    reliability_level: ReliabilityKind,
-    /// List of unicast locators (transport, address, port combinations) that can be used to send messages to the Endpoint. The list may be empty
-    unicast_locator_list: Vec<Locator>,
-    /// List of multicast locators (transport, address, port combinations) that can be used to send messages to the Endpoint. The list may be empty.
-    multicast_locator_list: Vec<Locator>,
 
-    received_messages: VecDeque<(GuidPrefix, RtpsSubmessage)>,
+    // Additional field:
+    writer_locators: HashMap<Locator, WriterLocator>,
 }
 
 impl StatelessReader {
@@ -52,7 +50,13 @@ impl StatelessReader {
             multicast_locator_list,
             reader_cache: HistoryCache::new(&reader_qos.resource_limits),
             expects_inline_qos,
-            received_messages: VecDeque::new(),
+            writer_locators: HashMap::new(),
+        }
+    }
+
+    pub fn run(&mut self) {
+        for (_writer_guid, writer_locator) in self.writer_locators.iter_mut(){
+            writer_locator.run(&self.reader_cache)
         }
     }
 
@@ -71,37 +75,15 @@ impl StatelessReader {
     pub fn multicast_locator_list(&self) -> &Vec<Locator> {
         &self.multicast_locator_list
     }
-
-    pub fn run(&self) {
-        match self.reliability_level {
-            ReliabilityKind::BestEffort => BestEffortStatelessReaderBehavior::run(self),
-            ReliabilityKind::Reliable => panic!("Reliable stateless reader not allowed!"),
-        }
-    }
 }
 
 impl Receiver for StatelessReader {
-    fn push_receive_message(&mut self, _src_locator: Locator, source_guid_prefix: GuidPrefix, message: RtpsSubmessage) {
-        self.received_messages.push_back((source_guid_prefix, message));
+    fn push_receive_message(&mut self, _src_locator: Locator, _source_guid_prefix: GuidPrefix, _message: RtpsSubmessage) {
+        todo!()
     }
 
-    fn is_submessage_destination(&self, src_locator: &Locator, _src_guid_prefix: &GuidPrefix, submessage: &RtpsSubmessage) -> bool {
-        // The stateless reader receives only Data and Gap messages
-        let reader_guid_prefix = match submessage {
-            RtpsSubmessage::Data(data) => data.reader_id(),
-            RtpsSubmessage::Gap(gap) => gap.reader_id(),
-            _ => return false,
-        };
-
-        // Messages are received by the stateless reader if they come from the expected source locator and
-        // if the destination entity_id matches the reader id or if it is unknown
-        if (self.unicast_locator_list().iter().find(|&loc| loc == src_locator).is_some() || self.multicast_locator_list().iter().find(|&loc| loc == src_locator).is_some()) 
-        && (self.guid().entity_id() == reader_guid_prefix || reader_guid_prefix == ENTITYID_UNKNOWN) {
-                true
-        } else {
-            false
-        }
-
+    fn is_submessage_destination(&self, _src_locator: &Locator, _src_guid_prefix: &GuidPrefix, _submessage: &RtpsSubmessage) -> bool {
+        todo!()       
     }
 }
 
