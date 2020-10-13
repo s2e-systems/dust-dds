@@ -22,12 +22,10 @@ pub struct StatelessWriter {
     reliability_level: ReliabilityKind,
 
     // The stateless writer does not receive messages so these fields are left out
-
     /// List of unicast locators (transport, address, port combinations) that can be used to send messages to the Endpoint. The list may be empty
     // unicast_locator_list: Vec<Locator>,
     /// List of multicast locators (transport, address, port combinations) that can be used to send messages to the Endpoint. The list may be empty.
     // multicast_locator_list: Vec<Locator>,
-
     
     last_change_sequence_number: SequenceNumber,
     writer_cache: HistoryCache,
@@ -106,8 +104,6 @@ impl Sender for StatelessWriter {
     }
 }
 
-
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -168,8 +164,7 @@ mod tests {
         stateless_writer.reader_locator_add(locator1);
         stateless_writer.reader_locator_add(locator2);
 
-        // Add two changes to the cache change
-        let cache_change_seq1 = stateless_writer.new_change(
+        let _cache_change_seq1 = stateless_writer.new_change(
             ChangeKind::Alive,
             Some(vec![1, 2, 3]), 
             None,                
@@ -183,34 +178,41 @@ mod tests {
             [1; 16],             
         );
 
-        stateless_writer.writer_cache().add_change(cache_change_seq1).unwrap();
+        // stateless_writer.writer_cache().add_change(cache_change_seq1).unwrap();
         stateless_writer.writer_cache().add_change(cache_change_seq2).unwrap();
 
         stateless_writer.run();
 
-        let send_messages = stateless_writer.pop_send_messages();
-        // assert!(writer.pop_send_messages().is_none());
+        let mut send_messages = stateless_writer.pop_send_messages();
+        assert_eq!(send_messages.len(), 2);
 
-        // if let RtpsSubmessage::Data(data_message_1) = &messages[0] {
-        //     assert_eq!(data_message_1.reader_id(), ENTITYID_UNKNOWN);
-        //     assert_eq!(data_message_1.writer_id(), ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER);
-        //     assert_eq!(data_message_1.writer_sn(), 1);
-        //     assert_eq!(data_message_1.serialized_payload(), &vec![1, 2, 3]);
-        // } else {
-        //     panic!("Wrong message type");
-        // };
+        // Check that the two reader locators have messages sent to them. The order is not fixed so it can
+        // not be used for the test
+        send_messages.iter().find(|(dst_locator, _)| dst_locator == &vec![locator1]).unwrap();
+        send_messages.iter().find(|(dst_locator, _)| dst_locator == &vec![locator2]).unwrap();
 
-        // if let RtpsSubmessage::Data(data_message_2) = &messages[1] {
-        //     assert_eq!(data_message_2.reader_id(), ENTITYID_UNKNOWN);
-        //     assert_eq!(data_message_2.writer_id(), ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER);
-        //     assert_eq!(data_message_2.writer_sn(), 2);
-        //     assert_eq!(data_message_2.serialized_payload(), &vec![4, 5, 6]);
-        // } else {
-        //     panic!("Wrong message type");
-        // };
+        let (_, send_messages_reader_locator_1) = send_messages.pop().unwrap();
+        let (_, send_messages_reader_locator_2) = send_messages.pop().unwrap();
 
-        // // Test that nothing more is sent after the first time
-        // writer.run();
-        // assert!(writer.pop_send_messages().is_none());
+        // Check that the same messages are sent to both locators
+        assert_eq!(send_messages_reader_locator_1, send_messages_reader_locator_2);
+
+        if let RtpsSubmessage::Gap(_) = &send_messages_reader_locator_1[0] {
+            // The contents of the message are tested in the reader locator so simply assert the type is correct
+            assert!(true)
+        } else {
+            panic!("Wrong message type");
+        };
+
+        if let RtpsSubmessage::Data(_) = &send_messages_reader_locator_1[1] {
+                // The contents of the message are tested in the reader locator so simply assert the type is correct
+                assert!(true)
+        } else {
+            panic!("Wrong message type");
+        };
+
+        // Test that nothing more is sent after the first time
+        stateless_writer.run();
+        assert_eq!(stateless_writer.pop_send_messages().len(), 0);
     }
 }
