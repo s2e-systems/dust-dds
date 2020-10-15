@@ -3,13 +3,13 @@ use rust_dds::domain::qos::DomainParticipantQos;
 use rust_dds::topic::qos::TopicQos;
 use rust_dds::publication::qos::{DataWriterQos, PublisherQos};
 use rust_dds::infrastructure::listener::NoListener;
+use rust_dds::infrastructure::qos_policy::{ReliabilityQosPolicy, ReliabilityQosPolicyKind};
 use rust_dds::types::DDSType;
-
-use rust_dds_interface::types::TopicKind;
+use rust_dds_interface::types::{TopicKind, Time, DURATION_ZERO};
 
 struct HelloWorldType {
-    _id: u8,
-    _msg: String
+    id: u8,
+    msg: String
 }
 
 impl DDSType for HelloWorldType {
@@ -18,11 +18,11 @@ impl DDSType for HelloWorldType {
     }
 
     fn instance_handle(&self) -> rust_dds_interface::types::InstanceHandle {
-        todo!()
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, self.id]
     }
 
     fn serialize(&self) -> rust_dds_interface::types::Data {
-        todo!()
+        vec![self.id]
     }
 
     fn deserialize(_data: rust_dds_interface::types::Data) -> Self {
@@ -37,6 +37,11 @@ fn hello_world() {
     let publisher = participant.create_publisher(PublisherQos::default(), NoListener, 0).expect("Error creating publisher");
     let helloworld_topic = participant.create_topic("HelloWorld".to_string(), "HelloWorldType".to_string(), TopicQos::default(), NoListener, 0).expect("Error creating topic");
 
-    let _datawriter1 = publisher.create_datawriter::<HelloWorldType>(helloworld_topic, DataWriterQos::default(), Box::new(NoListener), 0).expect("Error creating data writer");
-    
+    let mut data_writer_qos = DataWriterQos::default();
+    data_writer_qos.reliability = ReliabilityQosPolicy{kind: ReliabilityQosPolicyKind::BestEffortReliabilityQos, max_blocking_time: DURATION_ZERO};
+    let datawriter = publisher.create_datawriter::<HelloWorldType>(helloworld_topic, data_writer_qos, Box::new(NoListener), 0).expect("Error creating data writer");
+    let data = HelloWorldType{id: 1, msg: "Hello World!".to_string()};
+    let handle = None;
+    let timestamp = Time{sec: 1, nanosec: 2};
+    datawriter.write_w_timestamp(data, handle, timestamp).expect("Error writing");
 }

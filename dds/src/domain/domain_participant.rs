@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::sync::{Mutex, Arc};
 
 use rust_dds_interface::types::{ReturnCode, Duration, InstanceHandle, Time};
 use crate::infrastructure::status::StatusMask;
@@ -60,7 +60,7 @@ impl DomainParticipant {
 
         let name = "rtps";
         let protocol_participant = match name {            
-            "rtps" => Arc::new(rust_rtps::structure::RtpsParticipant::new(domain_id, userdata_transport, metatraffic_transport)),
+            "rtps" => Arc::new(Mutex::new(rust_rtps::structure::RtpsParticipant::new(domain_id, userdata_transport, metatraffic_transport))),
             _ => panic!("Protocol not valid"),
         };
 

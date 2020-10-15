@@ -17,7 +17,7 @@ pub struct RtpsParticipant {
     vendor_id: VendorId,
     userdata_transport: Box<dyn Transport>,
     metatraffic_transport: Box<dyn Transport>,
-    publisher_list: Mutex<[Weak<RtpsPublisher>;32]>,
+    publisher_list: [Weak<Mutex<RtpsPublisher>>;32],
     subscriber_list: Mutex<[Weak<RtpsSubscriber>;32]>,
 }
 
@@ -38,7 +38,7 @@ impl RtpsParticipant {
             vendor_id,
             userdata_transport: Box::new(userdata_transport),
             metatraffic_transport: Box::new(metatraffic_transport),
-            publisher_list: Mutex::new(Default::default()),
+            publisher_list: Default::default(),
             subscriber_list: Mutex::new(Default::default()),
         }
     }
@@ -79,15 +79,14 @@ impl ProtocolEntity for RtpsParticipant {
 }
 
 impl ProtocolParticipant for RtpsParticipant {
-    fn create_publisher(&self) -> Arc<dyn ProtocolPublisher> {
-        let mut publisher_list = self.publisher_list.lock().unwrap();
-        let index = publisher_list.iter().position(|x| x.strong_count() == 0).unwrap();
+    fn create_publisher(&mut self) -> Arc<Mutex<dyn ProtocolPublisher>> {
+        let index = self.publisher_list.iter().position(|x| x.strong_count() == 0).unwrap();
 
         let guid_prefix = self.guid.prefix();
         let entity_id = EntityId::new([index as u8,0,0], EntityKind::UserDefinedWriterGroup);
         let publisher_guid = GUID::new(guid_prefix, entity_id);
-        let new_publisher = Arc::new(RtpsPublisher::new(publisher_guid));
-        publisher_list[index] = Arc::downgrade(&new_publisher);
+        let new_publisher = Arc::new(Mutex::new(RtpsPublisher::new(publisher_guid)));
+        self.publisher_list[index] = Arc::downgrade(&new_publisher);
 
         new_publisher
     }
@@ -147,40 +146,44 @@ mod tests {
 
     #[test]
     fn create_publisher() {
-        let participant = RtpsParticipant::new(0, MockTransport::new(), MockTransport::new());
+        let mut participant = RtpsParticipant::new(0, MockTransport::new(), MockTransport::new());
         let participant_guid_prefix = &participant.get_instance_handle()[0..12];
 
-        assert_eq!(participant.publisher_list.lock().unwrap()[0].strong_count(),0);
-        assert_eq!(participant.publisher_list.lock().unwrap()[1].strong_count(),0);
+        assert_eq!(participant.publisher_list[0].strong_count(),0);
+        assert_eq!(participant.publisher_list[1].strong_count(),0);
 
-        let publisher1 = participant.create_publisher();
+        let publisher1_arc = participant.create_publisher();
+        let publisher1 = publisher1_arc.lock().unwrap();
         let publisher1_entityid = [0,0,0,8];
         assert_eq!(&publisher1.get_instance_handle()[0..12], participant_guid_prefix); 
         assert_eq!(publisher1.get_instance_handle()[12..16], publisher1_entityid);
 
-        assert_eq!(participant.publisher_list.lock().unwrap()[0].strong_count(),1);
-        assert_eq!(participant.publisher_list.lock().unwrap()[1].strong_count(),0);
+        assert_eq!(participant.publisher_list[0].strong_count(),1);
+        assert_eq!(participant.publisher_list[1].strong_count(),0);
 
         let publisher2 = participant.create_publisher();
+        let publisher2 = publisher2.lock().unwrap();
         let publisher2_entityid = [1,0,0,8];
         assert_eq!(&publisher2.get_instance_handle()[0..12], participant_guid_prefix); 
         assert_eq!(publisher2.get_instance_handle()[12..16], publisher2_entityid);
 
-        assert_eq!(participant.publisher_list.lock().unwrap()[0].strong_count(),1);
-        assert_eq!(participant.publisher_list.lock().unwrap()[1].strong_count(),1);
+        assert_eq!(participant.publisher_list[0].strong_count(),1);
+        assert_eq!(participant.publisher_list[1].strong_count(),1);
 
         std::mem::drop(publisher1);
+        std::mem::drop(publisher1_arc);
 
-        assert_eq!(participant.publisher_list.lock().unwrap()[0].strong_count(),0);
-        assert_eq!(participant.publisher_list.lock().unwrap()[1].strong_count(),1);
+        assert_eq!(participant.publisher_list[0].strong_count(),0);
+        assert_eq!(participant.publisher_list[1].strong_count(),1);
 
         let publisher3 = participant.create_publisher();
+        let publisher3 = publisher3.lock().unwrap();
         let publisher3_entityid = [0,0,0,8];
         assert_eq!(&publisher3.get_instance_handle()[0..12], participant_guid_prefix); 
         assert_eq!(publisher3.get_instance_handle()[12..16], publisher3_entityid);
 
-        assert_eq!(participant.publisher_list.lock().unwrap()[0].strong_count(),1);
-        assert_eq!(participant.publisher_list.lock().unwrap()[1].strong_count(),1);
+        assert_eq!(participant.publisher_list[0].strong_count(),1);
+        assert_eq!(participant.publisher_list[1].strong_count(),1);
     }
 
     #[test]
