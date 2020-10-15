@@ -140,8 +140,14 @@ impl DomainParticipantImpl{
         todo!()
     }
 
-    pub(crate) fn get_builtin_subscriber(_this: &Arc<DomainParticipantImpl>,) -> Subscriber {
-        todo!()
+    pub(crate) fn get_builtin_subscriber(this: &Arc<DomainParticipantImpl>,) -> Subscriber {
+        let protocol_subscriber = this.protocol_participant.get_builtin_subscriber();
+        let subscriber_impl = Arc::new(SubscriberImpl::new(Arc::downgrade(this), protocol_subscriber));
+        let subscriber = Subscriber(Arc::downgrade(&subscriber_impl));
+
+        this.subscriber_list.lock().unwrap().push(subscriber_impl);
+
+        subscriber
     }
 
     pub(crate) fn ignore_participant(

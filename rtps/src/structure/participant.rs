@@ -115,7 +115,7 @@ impl ProtocolParticipant for RtpsParticipant {
     }
 
     fn get_builtin_subscriber(&self) -> Arc<dyn ProtocolSubscriber> {
-        todo!()
+        self.builtin_subscriber.clone()
     }
 }
 
