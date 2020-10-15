@@ -19,8 +19,6 @@ pub trait ProtocolSubscriber : ProtocolEntity {
 }
 pub trait ProtocolPublisher : ProtocolEntity {
     fn create_writer(&self, topic_kind: TopicKind, data_writer_qos: &DataWriterQos) -> Arc<dyn ProtocolWriter>;
-    fn create_builtin_stateless_writer(&self, topic_kind: TopicKind, data_writer_qos: &DataWriterQos) -> Arc<dyn ProtocolWriter>;
-    fn create_builtin_stateful_writer(&self, topic_kind: TopicKind, data_writer_qos: &DataWriterQos) -> Arc<dyn ProtocolWriter>;
 }
 
 pub trait ProtocolWriter : ProtocolEndpoint  {    
