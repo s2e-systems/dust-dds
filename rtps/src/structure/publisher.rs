@@ -1,14 +1,17 @@
-use std::sync::{Arc, Weak, Mutex};
+use std::sync::{Arc, Weak, Mutex, MutexGuard};
 use rust_dds_interface::types::{ReturnCode, InstanceHandle, TopicKind};
 use rust_dds_interface::protocol::{ProtocolEntity, ProtocolWriter, ProtocolPublisher};
 use rust_dds_interface::qos::DataWriterQos;
 
 use crate::types::{GUID, EntityId, EntityKind};
 use crate::behavior::StatefulWriter;
+use crate::messages::message_sender::{RtpsMessageSender, Sender};
+use crate::transport::Transport;
 
 pub struct RtpsPublisher {
     guid: GUID,
     writer_list: [Weak<Mutex<StatefulWriter>>;32],
+    // writer_list: [Weak<Mutex<dyn ProtocolWriter>>;32],
 }
 
 impl RtpsPublisher {
@@ -17,6 +20,14 @@ impl RtpsPublisher {
             guid,
             writer_list: Default::default(),
         }
+    }
+
+    pub fn send(&self, transport: &dyn Transport) {
+        let valid_writers : Vec<Arc<Mutex<StatefulWriter>>> = self.writer_list.iter().filter_map(|w| w.upgrade()).collect();
+        for writer in valid_writers {
+            RtpsMessageSender::send(self.guid.prefix(), transport, &[writer.as_ref()]);
+        }
+        
     }
 }
 

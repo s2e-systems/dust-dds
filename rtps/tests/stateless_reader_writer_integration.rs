@@ -26,85 +26,85 @@ impl Pid for OtherQos{
     }
 }
 
-#[test]
-fn test_stateless_writer_stateless_reader_direct_communication_integration() {
-    let guid_prefix = [0;12];
-    let writer_guid = GUID::new(guid_prefix, ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER);
-    let reader_guid = GUID::new(guid_prefix, ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER);
-    let source_locator = Locator::new(5, 7400, [2;16]);
-    let destination_locator = Locator::new(5, 7400, [1;16]);
+// #[test]
+// fn test_stateless_writer_stateless_reader_direct_communication_integration() {
+//     let guid_prefix = [0;12];
+//     let writer_guid = GUID::new(guid_prefix, ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER);
+//     let reader_guid = GUID::new(guid_prefix, ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER);
+//     let source_locator = Locator::new(5, 7400, [2;16]);
+//     let destination_locator = Locator::new(5, 7400, [1;16]);
 
-    let memory_transport1 = MemoryTransport::new(source_locator, vec![]).unwrap();
-    let memory_transport2 = MemoryTransport::new(destination_locator, vec![]).unwrap();
+//     let memory_transport1 = MemoryTransport::new(source_locator, vec![]).unwrap();
+//     let memory_transport2 = MemoryTransport::new(destination_locator, vec![]).unwrap();
 
-    let mut writer_qos = DataWriterQos::default();
-    writer_qos.reliability.kind = ReliabilityQosPolicyKind::BestEffortReliabilityQos;
+//     let mut writer_qos = DataWriterQos::default();
+//     writer_qos.reliability.kind = ReliabilityQosPolicyKind::BestEffortReliabilityQos;
 
-    let mut writer = StatelessWriter::new(
-        writer_guid,
-        TopicKind::WithKey,
-        &writer_qos
-       );
+//     let mut writer = StatelessWriter::new(
+//         writer_guid,
+//         TopicKind::WithKey,
+//         &writer_qos
+//        );
 
-    let mut reader_qos = DataReaderQos::default();
-    reader_qos.reliability.kind = ReliabilityQosPolicyKind::BestEffortReliabilityQos;
-    let mut reader = StatelessReader::new(
-        reader_guid,
-        TopicKind::WithKey,
-        vec![source_locator],
-        vec![],
-        &reader_qos,
-       );
+//     let mut reader_qos = DataReaderQos::default();
+//     reader_qos.reliability.kind = ReliabilityQosPolicyKind::BestEffortReliabilityQos;
+//     let mut reader = StatelessReader::new(
+//         reader_guid,
+//         TopicKind::WithKey,
+//         vec![source_locator],
+//         vec![],
+//         &reader_qos,
+//        );
 
-   writer.reader_locator_add(destination_locator);
+//    writer.reader_locator_add(destination_locator);
 
-   let cache_change_seq1 = writer.new_change(
-       ChangeKind::Alive,
-       Some(vec![1,2,3]), /*data*/
-       None, /*inline_qos*/
-       [0;16], /*handle*/
-   );
+//    let cache_change_seq1 = writer.new_change(
+//        ChangeKind::Alive,
+//        Some(vec![1,2,3]), /*data*/
+//        None, /*inline_qos*/
+//        [0;16], /*handle*/
+//    );
    
-   let cache_change_seq2 = writer.new_change(
-       ChangeKind::Alive,
-       Some(vec!(4,5,6)), /*data*/
-       None, /*inline_qos*/
-       [0;16], /*handle*/
-   );
+//    let cache_change_seq2 = writer.new_change(
+//        ChangeKind::Alive,
+//        Some(vec!(4,5,6)), /*data*/
+//        None, /*inline_qos*/
+//        [0;16], /*handle*/
+//    );
 
-   let cache_change_seq3 = writer.new_change(
-    ChangeKind::NotAliveUnregistered,
-    None, /*data*/
-    None, /*inline_qos*/
-    [0;16], /*handle*/
-    );
+//    let cache_change_seq3 = writer.new_change(
+//     ChangeKind::NotAliveUnregistered,
+//     None, /*data*/
+//     None, /*inline_qos*/
+//     [0;16], /*handle*/
+//     );
 
-    let cache_change_seq4 = writer.new_change(
-        ChangeKind::NotAliveDisposed,
-        None, /*data*/
-        None, /*inline_qos*/
-        [0;16], /*handle*/
-    );
+//     let cache_change_seq4 = writer.new_change(
+//         ChangeKind::NotAliveDisposed,
+//         None, /*data*/
+//         None, /*inline_qos*/
+//         [0;16], /*handle*/
+//     );
 
-   writer.writer_cache().add_change(cache_change_seq1).unwrap();
-   writer.writer_cache().add_change(cache_change_seq2).unwrap();
-   writer.writer_cache().add_change(cache_change_seq3).unwrap();
-   writer.writer_cache().add_change(cache_change_seq4).unwrap();
+//    writer.writer_cache().add_change(cache_change_seq1).unwrap();
+//    writer.writer_cache().add_change(cache_change_seq2).unwrap();
+//    writer.writer_cache().add_change(cache_change_seq3).unwrap();
+//    writer.writer_cache().add_change(cache_change_seq4).unwrap();
 
-   writer.run();
+//    writer.run();
 
-   RtpsMessageSender::send(guid_prefix, &memory_transport1, &mut [&mut writer]);
+//    RtpsMessageSender::send(guid_prefix, &memory_transport1, &mut [&mut writer]);
 
-   memory_transport2.receive_from(&memory_transport1);
+//    memory_transport2.receive_from(&memory_transport1);
 
-   RtpsMessageReceiver::receive(guid_prefix, &memory_transport2, &mut [&mut reader]);
+//    RtpsMessageReceiver::receive(guid_prefix, &memory_transport2, &mut [&mut reader]);
 
-   reader.run();
+//    reader.run();
 
-   let reader_changes = reader.reader_cache().changes();
-   assert_eq!(reader_changes.len(), 4);
-   assert!(reader_changes.iter().find(|&cc| cc.sequence_number() == 1).is_some());
-   assert!(reader_changes.iter().find(|&cc| cc.sequence_number() == 2).is_some());
-   assert!(reader_changes.iter().find(|&cc| cc.sequence_number() == 3).is_some());
-   assert!(reader_changes.iter().find(|&cc| cc.sequence_number() == 4).is_some());
-}
+//    let reader_changes = reader.reader_cache().changes();
+//    assert_eq!(reader_changes.len(), 4);
+//    assert!(reader_changes.iter().find(|&cc| cc.sequence_number() == 1).is_some());
+//    assert!(reader_changes.iter().find(|&cc| cc.sequence_number() == 2).is_some());
+//    assert!(reader_changes.iter().find(|&cc| cc.sequence_number() == 3).is_some());
+//    assert!(reader_changes.iter().find(|&cc| cc.sequence_number() == 4).is_some());
+// }
