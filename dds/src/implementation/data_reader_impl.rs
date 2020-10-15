@@ -1,4 +1,4 @@
-use std::sync::{Arc, Weak};
+use std::sync::{Arc, Mutex, Weak};
 use std::marker::PhantomData;
 
 use rust_dds_interface::types::{ReturnCode, ReturnCodes, InstanceHandle};
@@ -17,7 +17,7 @@ use rust_dds_interface::protocol::ProtocolReader;
 pub(crate) struct DataReaderImpl<T>{
     parent_subscriber: Weak<SubscriberImpl>,
     value: PhantomData<T>,
-    protocol_reader: Arc<dyn ProtocolReader>,
+    protocol_reader: Arc<Mutex<dyn ProtocolReader>>,
 }
 
 impl<T> DataReaderImpl<T> {
@@ -333,11 +333,12 @@ impl<T> DataReaderImpl<T> {
 
     pub fn get_instance_handle(this: &Weak<DataReaderImpl<T>>) -> ReturnCode<InstanceHandle> {
         let datareader = Self::upgrade_datareader(this)?;
-        Ok(datareader.protocol_reader.get_instance_handle())
+        let protocol_reader = datareader.protocol_reader.lock().unwrap();
+        Ok(protocol_reader.get_instance_handle())
     }
 
     //////////////// From here on are the functions that do not belong to the standard API
-    pub(crate) fn new(parent_subscriber: Weak<SubscriberImpl>, protocol_reader: Arc<dyn ProtocolReader>) -> Self {
+    pub(crate) fn new(parent_subscriber: Weak<SubscriberImpl>, protocol_reader: Arc<Mutex<dyn ProtocolReader>>) -> Self {
         Self{
             parent_subscriber,
             value: PhantomData,

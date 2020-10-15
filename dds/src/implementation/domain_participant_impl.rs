@@ -73,7 +73,7 @@ impl DomainParticipantImpl{
         _a_listener: impl SubscriberListener,
         _mask: StatusMask
     ) -> Option<Subscriber> {        
-        let protocol_participant = this.protocol_participant.lock().unwrap();
+        let mut protocol_participant = this.protocol_participant.lock().unwrap();
         let protocol_subscriber = protocol_participant.create_subscriber();
         let subscriber_impl = Arc::new(SubscriberImpl::new(Arc::downgrade(this), protocol_subscriber));
         let subscriber = Subscriber(Arc::downgrade(&subscriber_impl));
@@ -357,7 +357,7 @@ mod tests {
     use crate::infrastructure::listener::NoListener;
     use rust_dds_interface::types::TopicKind;
     use rust_dds_interface::qos::{DataWriterQos, DataReaderQos};
-    use rust_dds_interface::protocol::{ProtocolEntity, ProtocolPublisher, ProtocolSubscriber};
+    use rust_dds_interface::protocol::{ProtocolEntity, ProtocolPublisher, ProtocolSubscriber, ProtocolReader, ProtocolWriter};
     use rust_dds_interface::qos_policy::ReliabilityQosPolicyKind;
 
     struct MockProtocolPublisher;
@@ -371,15 +371,15 @@ mod tests {
         }
     }
     impl ProtocolPublisher for MockProtocolPublisher {
-        fn create_writer(&mut self, _topic_kind: TopicKind, _data_writer_qos: &DataWriterQos) -> Arc<Mutex<dyn rust_dds_interface::protocol::ProtocolWriter>> {
+        fn create_writer(&mut self, _topic_kind: TopicKind, _data_writer_qos: &DataWriterQos) -> Arc<Mutex<dyn ProtocolWriter>> {
             todo!()
         }
 
-        fn create_builtin_stateless_writer(&self, _topic_kind: TopicKind, _data_writer_qos: &DataWriterQos) -> Arc<dyn rust_dds_interface::protocol::ProtocolWriter> {
+        fn create_builtin_stateless_writer(&self, _topic_kind: TopicKind, _data_writer_qos: &DataWriterQos) -> Arc<dyn ProtocolWriter> {
             todo!()
         }
     
-        fn create_builtin_stateful_writer(&self, _topic_kind: TopicKind, _data_writer_qos: &DataWriterQos) -> Arc<dyn rust_dds_interface::protocol::ProtocolWriter> {
+        fn create_builtin_stateful_writer(&self, _topic_kind: TopicKind, _data_writer_qos: &DataWriterQos) -> Arc<dyn ProtocolWriter> {
             todo!()
         }
     }
@@ -395,7 +395,7 @@ mod tests {
         }
     }
     impl ProtocolSubscriber for MockProtocolSubscriber {
-        fn create_reader(&self, _topic_kind: TopicKind, _data_reader_qos: &DataReaderQos) -> Arc<dyn rust_dds_interface::protocol::ProtocolReader> {
+        fn create_reader(&mut self, _topic_kind: TopicKind, _data_reader_qos: &DataReaderQos) -> Arc<Mutex<dyn ProtocolReader>> {
             todo!()
         }
     }
@@ -417,8 +417,8 @@ mod tests {
             Arc::new(Mutex::new(MockProtocolPublisher))
         }
 
-        fn create_subscriber(&self) -> Arc<dyn ProtocolSubscriber> {
-            Arc::new(MockProtocolSubscriber)
+        fn create_subscriber(&mut self) -> Arc<Mutex<dyn ProtocolSubscriber>> {
+            Arc::new(Mutex::new(MockProtocolSubscriber))
         }
     }
 

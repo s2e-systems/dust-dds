@@ -18,7 +18,7 @@ pub struct RtpsParticipant {
     userdata_transport: Box<dyn Transport>,
     metatraffic_transport: Box<dyn Transport>,
     publisher_list: [Weak<Mutex<RtpsPublisher>>;32],
-    subscriber_list: Mutex<[Weak<RtpsSubscriber>;32]>,
+    subscriber_list:[Weak<Mutex<RtpsSubscriber>>;32],
 }
 
 impl RtpsParticipant {
@@ -39,7 +39,7 @@ impl RtpsParticipant {
             userdata_transport: Box::new(userdata_transport),
             metatraffic_transport: Box::new(metatraffic_transport),
             publisher_list: Default::default(),
-            subscriber_list: Mutex::new(Default::default()),
+            subscriber_list: Default::default(),
         }
     }
 
@@ -96,15 +96,14 @@ impl ProtocolParticipant for RtpsParticipant {
         new_publisher
     }
 
-    fn create_subscriber(&self) -> Arc<dyn ProtocolSubscriber> {
-        let mut subscriber_list = self.subscriber_list.lock().unwrap();
-        let index = subscriber_list.iter().position(|x| x.strong_count() == 0).unwrap();
+    fn create_subscriber(&mut self) -> Arc<Mutex<dyn ProtocolSubscriber>> {
+        let index = self.subscriber_list.iter().position(|x| x.strong_count() == 0).unwrap();
 
         let guid_prefix = self.guid.prefix();
         let entity_id = EntityId::new([index as u8,0,0], EntityKind::UserDefinedReaderGroup);
         let subscriber_guid = GUID::new(guid_prefix, entity_id);
-        let new_subscriber = Arc::new(RtpsSubscriber::new(subscriber_guid));
-        subscriber_list[index] = Arc::downgrade(&new_subscriber);
+        let new_subscriber = Arc::new(Mutex::new(RtpsSubscriber::new(subscriber_guid)));
+        self.subscriber_list[index] = Arc::downgrade(&new_subscriber);
 
         new_subscriber
     }
@@ -193,40 +192,44 @@ mod tests {
 
     #[test]
     fn create_subscriber() {
-        let participant = RtpsParticipant::new(0, MockTransport::new(), MockTransport::new());
+        let mut participant = RtpsParticipant::new(0, MockTransport::new(), MockTransport::new());
         let participant_guid_prefix = &participant.get_instance_handle()[0..12];
 
-        assert_eq!(participant.subscriber_list.lock().unwrap()[0].strong_count(),0);
-        assert_eq!(participant.subscriber_list.lock().unwrap()[1].strong_count(),0);
+        assert_eq!(participant.subscriber_list[0].strong_count(),0);
+        assert_eq!(participant.subscriber_list[1].strong_count(),0);
 
-        let subscriber1 = participant.create_subscriber();
+        let subscriber1_arc = participant.create_subscriber();
+        let subscriber1 = subscriber1_arc.lock().unwrap();
         let subscriber1_entityid = [0,0,0,9];
         assert_eq!(&subscriber1.get_instance_handle()[0..12], participant_guid_prefix); 
         assert_eq!(subscriber1.get_instance_handle()[12..16], subscriber1_entityid);
 
-        assert_eq!(participant.subscriber_list.lock().unwrap()[0].strong_count(),1);
-        assert_eq!(participant.subscriber_list.lock().unwrap()[1].strong_count(),0);
+        assert_eq!(participant.subscriber_list[0].strong_count(),1);
+        assert_eq!(participant.subscriber_list[1].strong_count(),0);
 
         let subscriber2 = participant.create_subscriber();
+        let subscriber2 = subscriber2.lock().unwrap();
         let subscriber2_entityid = [1,0,0,9];
         assert_eq!(&subscriber2.get_instance_handle()[0..12], participant_guid_prefix); 
         assert_eq!(subscriber2.get_instance_handle()[12..16], subscriber2_entityid);
 
-        assert_eq!(participant.subscriber_list.lock().unwrap()[0].strong_count(),1);
-        assert_eq!(participant.subscriber_list.lock().unwrap()[1].strong_count(),1);
+        assert_eq!(participant.subscriber_list[0].strong_count(),1);
+        assert_eq!(participant.subscriber_list[1].strong_count(),1);
 
         std::mem::drop(subscriber1);
+        std::mem::drop(subscriber1_arc);
 
-        assert_eq!(participant.subscriber_list.lock().unwrap()[0].strong_count(),0);
-        assert_eq!(participant.subscriber_list.lock().unwrap()[1].strong_count(),1);
+        assert_eq!(participant.subscriber_list[0].strong_count(),0);
+        assert_eq!(participant.subscriber_list[1].strong_count(),1);
 
         let subscriber3 = participant.create_subscriber();
+        let subscriber3 = subscriber3.lock().unwrap();
         let subscriber3_entityid = [0,0,0,9];
         assert_eq!(&subscriber3.get_instance_handle()[0..12], participant_guid_prefix); 
         assert_eq!(subscriber3.get_instance_handle()[12..16], subscriber3_entityid);
 
-        assert_eq!(participant.subscriber_list.lock().unwrap()[0].strong_count(),1);
-        assert_eq!(participant.subscriber_list.lock().unwrap()[1].strong_count(),1);
+        assert_eq!(participant.subscriber_list[0].strong_count(),1);
+        assert_eq!(participant.subscriber_list[1].strong_count(),1);
     }
 }
 

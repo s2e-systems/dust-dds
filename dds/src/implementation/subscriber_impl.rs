@@ -28,7 +28,7 @@ pub struct SubscriberImpl{
     parent_participant: Weak<DomainParticipantImpl>,
     datareader_list: Mutex<Vec<AnyDataReader>>,
     default_datareader_qos: Mutex<DataReaderQos>,
-    protocol_subscriber: Arc<dyn ProtocolSubscriber>,
+    protocol_subscriber: Arc<Mutex<dyn ProtocolSubscriber>>,
 }
 
 impl SubscriberImpl {
@@ -41,7 +41,8 @@ impl SubscriberImpl {
     ) -> Option<DataReader<T>> {
 
         let subscriber = Self::upgrade_subscriber(this).ok()?;
-        let protocol_reader = subscriber.protocol_subscriber.create_reader(T::topic_kind(), &qos);
+        let mut protocol_subscriber = subscriber.protocol_subscriber.lock().unwrap();
+        let protocol_reader = protocol_subscriber.create_reader(T::topic_kind(), &qos);
         let datareader_impl = Arc::new(DataReaderImpl::new(this.clone(), protocol_reader));
         let datareader = DataReader(Arc::downgrade(&datareader_impl));  
 
@@ -188,12 +189,12 @@ impl SubscriberImpl {
 
     pub(crate) fn get_instance_handle(this: &Weak<SubscriberImpl>) -> ReturnCode<InstanceHandle> {
         let subscriber = SubscriberImpl::upgrade_subscriber(this)?;
-        
-        Ok(subscriber.protocol_subscriber.get_instance_handle())
+        let protocol_subscriber = subscriber.protocol_subscriber.lock().unwrap();
+        Ok(protocol_subscriber.get_instance_handle())
     }
 
     //////////////// From here on are the functions that do not belong to the standard API
-    pub(crate) fn new(parent_participant: Weak<DomainParticipantImpl>, protocol_subscriber: Arc<dyn ProtocolSubscriber>
+    pub(crate) fn new(parent_participant: Weak<DomainParticipantImpl>, protocol_subscriber: Arc<Mutex<dyn ProtocolSubscriber>>
     ) -> Self {
         Self{
             parent_participant,
@@ -245,8 +246,8 @@ mod tests {
         }
     }
     impl ProtocolSubscriber for MockReaderProtocolGroup {
-        fn create_reader(&self, _topic_kind: TopicKind, _data_reader_qos: &DataReaderQos) -> Arc<dyn ProtocolReader> {
-            Arc::new(MockReader)
+        fn create_reader(&mut self, _topic_kind: TopicKind, _data_reader_qos: &DataReaderQos) -> Arc<Mutex<dyn ProtocolReader>> {
+            Arc::new(Mutex::new(MockReader))
         }
     }
 
@@ -275,7 +276,7 @@ mod tests {
 
     #[test]
     fn create_delete_datareader() {
-        let subscriber_impl = Arc::new(SubscriberImpl::new(Weak::new(), Arc::new(MockReaderProtocolGroup)));
+        let subscriber_impl = Arc::new(SubscriberImpl::new(Weak::new(), Arc::new(Mutex::new(MockReaderProtocolGroup))));
         let topic = Topic(Weak::new());
         
         assert_eq!(subscriber_impl.datareader_list.lock().unwrap().len(), 0);
@@ -288,7 +289,7 @@ mod tests {
 
     #[test]
     fn set_and_get_default_datareader_qos() {
-        let subscriber_impl = Arc::new(SubscriberImpl::new(Weak::new(), Arc::new(MockReaderProtocolGroup)));
+        let subscriber_impl = Arc::new(SubscriberImpl::new(Weak::new(), Arc::new(Mutex::new(MockReaderProtocolGroup))));
         let subscriber = Arc::downgrade(&subscriber_impl);
 
         let mut datareader_qos = DataReaderQos::default();
@@ -306,7 +307,7 @@ mod tests {
 
     #[test]
     fn inconsistent_datareader_qos() {
-        let subscriber_impl = Arc::new(SubscriberImpl::new(Weak::new(), Arc::new(MockReaderProtocolGroup)));
+        let subscriber_impl = Arc::new(SubscriberImpl::new(Weak::new(), Arc::new(Mutex::new(MockReaderProtocolGroup))));
         let subscriber = Arc::downgrade(&subscriber_impl);
 
         let mut datareader_qos = DataReaderQos::default();

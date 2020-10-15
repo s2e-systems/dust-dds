@@ -11,11 +11,11 @@ pub trait ProtocolEndpoint : ProtocolEntity {}
 
 pub trait ProtocolParticipant : ProtocolEntity {
     fn create_publisher(&mut self) -> Arc<Mutex<dyn ProtocolPublisher>>;
-    fn create_subscriber(&self) -> Arc<dyn ProtocolSubscriber>;
+    fn create_subscriber(&mut self) -> Arc<Mutex<dyn ProtocolSubscriber>>;
 }
 
 pub trait ProtocolSubscriber : ProtocolEntity {
-    fn create_reader(&self, topic_kind: TopicKind, data_reader_qos: &DataReaderQos) -> Arc<dyn ProtocolReader>;
+    fn create_reader(&mut self, topic_kind: TopicKind, data_reader_qos: &DataReaderQos) -> Arc<Mutex<dyn ProtocolReader>>;
 }
 pub trait ProtocolPublisher : ProtocolEntity {
     fn create_writer(&mut self, topic_kind: TopicKind, data_writer_qos: &DataWriterQos) -> Arc<Mutex<dyn ProtocolWriter>>;
