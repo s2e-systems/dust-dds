@@ -12,6 +12,7 @@ pub trait ProtocolEndpoint : ProtocolEntity {}
 pub trait ProtocolParticipant : ProtocolEntity {
     fn create_publisher(&mut self) -> Arc<Mutex<dyn ProtocolPublisher>>;
     fn create_subscriber(&mut self) -> Arc<Mutex<dyn ProtocolSubscriber>>;
+    fn get_builtin_subscriber(&self) -> Arc<dyn ProtocolSubscriber>;
 }
 
 pub trait ProtocolSubscriber : ProtocolEntity {
@@ -19,8 +20,6 @@ pub trait ProtocolSubscriber : ProtocolEntity {
 }
 pub trait ProtocolPublisher : ProtocolEntity {
     fn create_writer(&mut self, topic_kind: TopicKind, data_writer_qos: &DataWriterQos) -> Arc<Mutex<dyn ProtocolWriter>>;
-    fn create_builtin_stateless_writer(&self, topic_kind: TopicKind, data_writer_qos: &DataWriterQos) -> Arc<dyn ProtocolWriter>;
-    fn create_builtin_stateful_writer(&self, topic_kind: TopicKind, data_writer_qos: &DataWriterQos) -> Arc<dyn ProtocolWriter>;
 }
 
 pub trait ProtocolWriter : ProtocolEndpoint  {    

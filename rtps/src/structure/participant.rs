@@ -7,6 +7,9 @@ use crate::transport::Transport;
 
 use super::publisher::RtpsPublisher;
 use super::subscriber::RtpsSubscriber;
+use super::builtin_publisher::BuiltinPublisher;
+use super::builtin_subscriber::BuiltinSubscriber;
+
 use rust_dds_interface::types::{DomainId, InstanceHandle, ReturnCode};
 use rust_dds_interface::protocol::{ProtocolEntity, ProtocolParticipant, ProtocolPublisher, ProtocolSubscriber};
 
@@ -17,6 +20,8 @@ pub struct RtpsParticipant {
     vendor_id: VendorId,
     userdata_transport: Box<dyn Transport>,
     metatraffic_transport: Box<dyn Transport>,
+    builtin_publisher: BuiltinPublisher,
+    builtin_subscriber: Arc<BuiltinSubscriber>, 
     publisher_list: [Weak<Mutex<RtpsPublisher>>;32],
     subscriber_list:[Weak<Mutex<RtpsSubscriber>>;32],
 }
@@ -30,6 +35,8 @@ impl RtpsParticipant {
         let protocol_version = PROTOCOL_VERSION_2_4;
         let vendor_id = [99,99];
         let guid_prefix = [5, 6, 7, 8, 9, 5, 1, 2, 3, 4, 10, 11];   // TODO: Should be uniquely generated
+        let builtin_publisher = BuiltinPublisher;
+        let builtin_subscriber = Arc::new(BuiltinSubscriber);
 
         Self {
             guid: GUID::new(guid_prefix,ENTITYID_PARTICIPANT ),
@@ -38,6 +45,8 @@ impl RtpsParticipant {
             vendor_id,
             userdata_transport: Box::new(userdata_transport),
             metatraffic_transport: Box::new(metatraffic_transport),
+            builtin_subscriber,
+            builtin_publisher,
             publisher_list: Default::default(),
             subscriber_list: Default::default(),
         }
@@ -106,6 +115,10 @@ impl ProtocolParticipant for RtpsParticipant {
         self.subscriber_list[index] = Arc::downgrade(&new_subscriber);
 
         new_subscriber
+    }
+
+    fn get_builtin_subscriber(&self) -> Arc<dyn ProtocolSubscriber> {
+        self.builtin_subscriber.clone()
     }
 }
 

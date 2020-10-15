@@ -142,8 +142,14 @@ impl DomainParticipantImpl{
         todo!()
     }
 
-    pub(crate) fn get_builtin_subscriber(_this: &Arc<DomainParticipantImpl>,) -> Subscriber {
-        todo!()
+    pub(crate) fn get_builtin_subscriber(this: &Arc<DomainParticipantImpl>,) -> Subscriber {
+        let protocol_subscriber = this.protocol_participant.get_builtin_subscriber();
+        let subscriber_impl = Arc::new(SubscriberImpl::new(Arc::downgrade(this), protocol_subscriber));
+        let subscriber = Subscriber(Arc::downgrade(&subscriber_impl));
+
+        this.subscriber_list.lock().unwrap().push(subscriber_impl);
+
+        subscriber
     }
 
     pub(crate) fn ignore_participant(
@@ -374,14 +380,6 @@ mod tests {
         fn create_writer(&mut self, _topic_kind: TopicKind, _data_writer_qos: &DataWriterQos) -> Arc<Mutex<dyn ProtocolWriter>> {
             todo!()
         }
-
-        fn create_builtin_stateless_writer(&self, _topic_kind: TopicKind, _data_writer_qos: &DataWriterQos) -> Arc<dyn ProtocolWriter> {
-            todo!()
-        }
-    
-        fn create_builtin_stateful_writer(&self, _topic_kind: TopicKind, _data_writer_qos: &DataWriterQos) -> Arc<dyn ProtocolWriter> {
-            todo!()
-        }
     }
 
     struct MockProtocolSubscriber;
@@ -417,8 +415,12 @@ mod tests {
             Arc::new(Mutex::new(MockProtocolPublisher))
         }
 
-        fn create_subscriber(&mut self) -> Arc<Mutex<dyn ProtocolSubscriber>> {
-            Arc::new(Mutex::new(MockProtocolSubscriber))
+        fn create_subscriber(&self) -> Arc<dyn ProtocolSubscriber> {
+            Arc::new(MockProtocolSubscriber)
+        }
+
+        fn get_builtin_subscriber(&self) -> Arc<dyn ProtocolSubscriber> {
+            Arc::new(MockProtocolSubscriber)
         }
     }
 

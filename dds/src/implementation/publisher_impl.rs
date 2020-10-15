@@ -240,14 +240,6 @@ mod tests {
         fn create_writer(&mut self, _topic_kind: TopicKind, _data_writer_qos: &DataWriterQos) -> Arc<Mutex<dyn ProtocolWriter>> {
             Arc::new(Mutex::new(MockWriter))
         }
-
-        fn create_builtin_stateless_writer(&self, _topic_kind: TopicKind, _data_writer_qos: &DataWriterQos) -> Arc<dyn ProtocolWriter> {
-            Arc::new(MockWriter)
-        }
-    
-        fn create_builtin_stateful_writer(&self, _topic_kind: TopicKind, _data_writer_qos: &DataWriterQos) -> Arc<dyn ProtocolWriter> {
-            Arc::new(MockWriter)
-        }
     }
     #[derive(Debug)]
     struct  Foo {
