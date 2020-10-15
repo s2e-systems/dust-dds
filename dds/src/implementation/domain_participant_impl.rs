@@ -409,6 +409,10 @@ mod tests {
         fn create_subscriber(&self) -> Arc<dyn ProtocolSubscriber> {
             Arc::new(MockProtocolSubscriber)
         }
+
+        fn get_builtin_subscriber(&self) -> Arc<dyn ProtocolSubscriber> {
+            Arc::new(MockProtocolSubscriber)
+        }
     }
 
     struct MockProtocolDiscovery;

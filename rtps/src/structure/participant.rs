@@ -104,6 +104,10 @@ impl ProtocolParticipant for RtpsParticipant {
 
         new_subscriber
     }
+
+    fn get_builtin_subscriber(&self) -> Arc<dyn ProtocolSubscriber> {
+        todo!()
+    }
 }
 
 #[cfg(test)]

@@ -12,6 +12,7 @@ pub trait ProtocolEndpoint : ProtocolEntity {}
 pub trait ProtocolParticipant : ProtocolEntity {
     fn create_publisher(&self) -> Arc<dyn ProtocolPublisher>;
     fn create_subscriber(&self) -> Arc<dyn ProtocolSubscriber>;
+    fn get_builtin_subscriber(&self) -> Arc<dyn ProtocolSubscriber>;
 }
 
 pub trait ProtocolSubscriber : ProtocolEntity {
