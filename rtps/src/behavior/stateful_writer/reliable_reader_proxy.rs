@@ -222,78 +222,18 @@ impl ReaderProxyOps for ReliableReaderProxy {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::types::GUID;
-    use crate::behavior::types::constants::DURATION_ZERO;
-    use crate::types::constants::{
-        ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR };
+    // use super::*;
+    // use crate::types::GUID;
+    // use crate::behavior::types::constants::DURATION_ZERO;
+    // use crate::types::constants::{
+    //     ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR };
     // use crate::messages::{AckNack};
     // use crate::messages::receiver::WriterReceiveMessage;
     // use crate::stateful_writer::StatefulWriter;
 
-    use rust_dds_interface::qos_policy::ResourceLimitsQosPolicy;
+    // use rust_dds_interface::qos_policy::ResourceLimitsQosPolicy;
     // use std::collections::BTreeSet;
     // use std::thread::sleep;
-
-    #[test]
-    fn run_announcing_state_multiple_data_combinations() {
-        let writer_entity_id = ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER;
-        let history_cache = HistoryCache::new(&ResourceLimitsQosPolicy::default());
-
-        let remote_reader_guid = GUID::new([1,2,3,4,5,6,7,8,9,10,11,12], ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-        let reader_proxy = ReaderProxy::new(remote_reader_guid, vec![], vec![], false, true);
-        let heartbeat_period = DURATION_ZERO;
-        let nack_response_delay = DURATION_ZERO;
-        let mut reliable_reader_proxy = ReliableReaderProxy::new(reader_proxy, writer_entity_id, heartbeat_period, nack_response_delay);
-
-        // Test no data in the history cache and no changes written
-        let no_change_sequence_number = 0;
-        reliable_reader_proxy.run(&history_cache, no_change_sequence_number);
-        let sent_submessages = reliable_reader_proxy.sent_messages.pop_front().unwrap();
-        if let RtpsSubmessage::Heartbeat(heartbeat) = &sent_submessages {
-            assert_eq!(heartbeat.reader_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-            assert_eq!(heartbeat.writer_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-            assert_eq!(heartbeat.first_sn(), 1);
-            assert_eq!(heartbeat.last_sn(), 0);
-            assert_eq!(heartbeat.count(), 1);
-            assert_eq!(heartbeat.is_final(), false);
-        } else {
-            assert!(false);
-        }
-
-        // Test no data in the history cache and two changes written
-        // let two_changes_sequence_number = 2;
-        // let submessages = StatefulWriterBehavior::run_announcing_state(&mut reader_proxy, &writer_guid, &history_cache, two_changes_sequence_number, heartbeat_period).unwrap();
-        // if let RtpsSubmessage::Heartbeat(heartbeat) = &submessages[1] {
-        //     assert_eq!(heartbeat.reader_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-        //     assert_eq!(heartbeat.writer_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-        //     assert_eq!(heartbeat.first_sn(), 3);
-        //     assert_eq!(heartbeat.last_sn(), 2);
-        //     assert_eq!(heartbeat.count(), 2);
-        //     assert_eq!(heartbeat.is_final(), false);
-        // } else {
-        //     assert!(false);
-        // }
-
-        // // Test two changes in the history cache and two changes written
-        // let instance_handle = [1;16];
-        // let cache_change_seq1 = CacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, 1, Some(vec![1,2,3]), None);
-        // let cache_change_seq2 = CacheChange::new(ChangeKind::Alive, writer_guid, instance_handle, 2, Some(vec![2,3,4]), None);
-        // history_cache.add_change(cache_change_seq1);
-        // history_cache.add_change(cache_change_seq2);
-
-        // let submessages = StatefulWriterBehavior::run_announcing_state(&mut reader_proxy, &writer_guid, &history_cache, two_changes_sequence_number, heartbeat_period).unwrap();
-        // if let RtpsSubmessage::Heartbeat(heartbeat) = &submessages[1] {
-        //     assert_eq!(heartbeat.reader_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
-        //     assert_eq!(heartbeat.writer_id(), ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
-        //     assert_eq!(heartbeat.first_sn(), 1);
-        //     assert_eq!(heartbeat.last_sn(), 2);
-        //     assert_eq!(heartbeat.count(), 3);
-        //     assert_eq!(heartbeat.is_final(), false);
-        // } else {
-        //     assert!(false);
-        // }
-    }
 
     // #[test]
     // fn process_repair_message_acknowledged_and_requests() {
