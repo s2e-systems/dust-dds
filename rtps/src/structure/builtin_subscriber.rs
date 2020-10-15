@@ -1,3 +1,4 @@
+use std::sync::{Arc,Mutex};
 use rust_dds_interface::protocol::{ProtocolEntity, ProtocolSubscriber, ProtocolReader};
 
 use rust_dds_interface::types::{ReturnCode, InstanceHandle, TopicKind};
@@ -17,7 +18,7 @@ impl ProtocolEntity for BuiltinSubscriber {
 }
 
 impl ProtocolSubscriber for BuiltinSubscriber {
-    fn create_reader(&self, _topic_kind: TopicKind, _data_reader_qos: &DataReaderQos) -> std::sync::Arc<dyn ProtocolReader> {
+    fn create_reader(&mut self, _topic_kind: TopicKind, _data_reader_qos: &DataReaderQos) -> Arc<Mutex<dyn ProtocolReader>> {
         todo!()
     }
 }

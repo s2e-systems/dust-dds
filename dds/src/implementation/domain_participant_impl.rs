@@ -143,7 +143,8 @@ impl DomainParticipantImpl{
     }
 
     pub(crate) fn get_builtin_subscriber(this: &Arc<DomainParticipantImpl>,) -> Subscriber {
-        let protocol_subscriber = this.protocol_participant.get_builtin_subscriber();
+        let protocol_participant = this.protocol_participant.lock().unwrap();
+        let protocol_subscriber = protocol_participant.get_builtin_subscriber();
         let subscriber_impl = Arc::new(SubscriberImpl::new(Arc::downgrade(this), protocol_subscriber));
         let subscriber = Subscriber(Arc::downgrade(&subscriber_impl));
 
@@ -415,12 +416,12 @@ mod tests {
             Arc::new(Mutex::new(MockProtocolPublisher))
         }
 
-        fn create_subscriber(&self) -> Arc<dyn ProtocolSubscriber> {
-            Arc::new(MockProtocolSubscriber)
+        fn create_subscriber(&mut self) -> Arc<Mutex<dyn ProtocolSubscriber>> {
+            Arc::new(Mutex::new(MockProtocolSubscriber))
         }
 
-        fn get_builtin_subscriber(&self) -> Arc<dyn ProtocolSubscriber> {
-            Arc::new(MockProtocolSubscriber)
+        fn get_builtin_subscriber(&self) -> Arc<Mutex<dyn ProtocolSubscriber>> {
+            Arc::new(Mutex::new(MockProtocolSubscriber))
         }
     }
 

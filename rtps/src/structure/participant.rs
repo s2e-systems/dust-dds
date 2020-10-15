@@ -21,7 +21,7 @@ pub struct RtpsParticipant {
     userdata_transport: Box<dyn Transport>,
     metatraffic_transport: Box<dyn Transport>,
     builtin_publisher: BuiltinPublisher,
-    builtin_subscriber: Arc<BuiltinSubscriber>, 
+    builtin_subscriber: Arc<Mutex<BuiltinSubscriber>>, 
     publisher_list: [Weak<Mutex<RtpsPublisher>>;32],
     subscriber_list:[Weak<Mutex<RtpsSubscriber>>;32],
 }
@@ -36,7 +36,7 @@ impl RtpsParticipant {
         let vendor_id = [99,99];
         let guid_prefix = [5, 6, 7, 8, 9, 5, 1, 2, 3, 4, 10, 11];   // TODO: Should be uniquely generated
         let builtin_publisher = BuiltinPublisher;
-        let builtin_subscriber = Arc::new(BuiltinSubscriber);
+        let builtin_subscriber = Arc::new(Mutex::new(BuiltinSubscriber));
 
         Self {
             guid: GUID::new(guid_prefix,ENTITYID_PARTICIPANT ),
@@ -117,7 +117,7 @@ impl ProtocolParticipant for RtpsParticipant {
         new_subscriber
     }
 
-    fn get_builtin_subscriber(&self) -> Arc<dyn ProtocolSubscriber> {
+    fn get_builtin_subscriber(&self) -> Arc<Mutex<dyn ProtocolSubscriber>> {
         self.builtin_subscriber.clone()
     }
 }
