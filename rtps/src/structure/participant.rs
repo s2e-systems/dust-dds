@@ -35,7 +35,7 @@ impl RtpsParticipant {
         let protocol_version = PROTOCOL_VERSION_2_4;
         let vendor_id = [99,99];
         let guid_prefix = [5, 6, 7, 8, 9, 5, 1, 2, 3, 4, 10, 11];   // TODO: Should be uniquely generated
-        let builtin_publisher = BuiltinPublisher;
+        let builtin_publisher = BuiltinPublisher::new(guid_prefix);
         let builtin_subscriber = Arc::new(Mutex::new(BuiltinSubscriber));
 
         Self {
