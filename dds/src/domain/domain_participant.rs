@@ -1,6 +1,5 @@
 use std::sync::{Mutex, Arc};
 
-use rust_dds_interface::types::{ReturnCode, Duration, InstanceHandle, Time};
 use crate::infrastructure::status::StatusMask;
 use crate::topic::{Topic, TopicListener, TopicDescription};
 use crate::subscription::{Subscriber, SubscriberListener};
@@ -11,7 +10,8 @@ use crate::builtin_topics::{TopicBuiltinTopicData, ParticipantBuiltinTopicData};
 
 use crate::implementation::domain_participant_impl::DomainParticipantImpl;
 
-use rust_dds_interface::types::DomainId;
+use rust_dds_interface::protocol::ProtocolEntity;
+use rust_dds_interface::types::{DomainId, ReturnCode, Duration, InstanceHandle, Time};
 use rust_dds_interface::qos::{DomainParticipantQos, TopicQos, PublisherQos, SubscriberQos};
 
 /// The DomainParticipant object plays several roles:
@@ -63,7 +63,8 @@ impl DomainParticipant {
             "rtps" => Arc::new(Mutex::new(rust_rtps::structure::RtpsParticipant::new(domain_id, userdata_transport, metatraffic_transport))),
             _ => panic!("Protocol not valid"),
         };
-
+        protocol_participant.lock().unwrap().enable().unwrap();
+   
         let new_participant = DomainParticipant(Arc::new(DomainParticipantImpl::new(domain_id, qos_list, a_listener, mask, protocol_participant)));
         
         if enabled {

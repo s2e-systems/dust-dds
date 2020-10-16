@@ -1,4 +1,6 @@
-use std::sync::{Arc, Weak, Mutex};
+use std::sync::{Arc, Weak, Mutex, };
+use std::thread;
+
 use crate::types::{GUID, ProtocolVersion, VendorId, EntityId, EntityKind};
 use crate::types::constants::{
     ENTITYID_PARTICIPANT,
@@ -13,17 +15,25 @@ use super::builtin_subscriber::BuiltinSubscriber;
 use rust_dds_interface::types::{DomainId, InstanceHandle, ReturnCode};
 use rust_dds_interface::protocol::{ProtocolEntity, ProtocolParticipant, ProtocolPublisher, ProtocolSubscriber};
 
+
 pub struct RtpsParticipant {
     guid: GUID,
     domain_id: DomainId,
     protocol_version: ProtocolVersion,
     vendor_id: VendorId,
     userdata_transport: Box<dyn Transport>,
-    metatraffic_transport: Box<dyn Transport>,
-    builtin_publisher: BuiltinPublisher,
+    metatraffic_transport: Arc<dyn Transport>,
+    builtin_publisher: Arc<BuiltinPublisher>,
     builtin_subscriber: Arc<Mutex<BuiltinSubscriber>>, 
     publisher_list: [Weak<Mutex<RtpsPublisher>>;32],
     subscriber_list:[Weak<Mutex<RtpsSubscriber>>;32],
+    should_run: Arc<Mutex<bool>>,
+}
+
+impl Drop for RtpsParticipant {
+    fn drop(&mut self) {
+        *self.should_run.lock().unwrap() = false;
+    }
 }
 
 impl RtpsParticipant {
@@ -35,7 +45,7 @@ impl RtpsParticipant {
         let protocol_version = PROTOCOL_VERSION_2_4;
         let vendor_id = [99,99];
         let guid_prefix = [5, 6, 7, 8, 9, 5, 1, 2, 3, 4, 10, 11];   // TODO: Should be uniquely generated
-        let builtin_publisher = BuiltinPublisher::new(guid_prefix);
+        let builtin_publisher = Arc::new(BuiltinPublisher::new(guid_prefix));
         let builtin_subscriber = Arc::new(Mutex::new(BuiltinSubscriber));
 
         Self {
@@ -44,11 +54,12 @@ impl RtpsParticipant {
             protocol_version,
             vendor_id,
             userdata_transport: Box::new(userdata_transport),
-            metatraffic_transport: Box::new(metatraffic_transport),
+            metatraffic_transport: Arc::new(metatraffic_transport),
             builtin_subscriber,
             builtin_publisher,
             publisher_list: Default::default(),
             subscriber_list: Default::default(),
+            should_run: Arc::new(Mutex::new(true)),
         }
     }
 
@@ -56,7 +67,7 @@ impl RtpsParticipant {
         let valid_publishers = self.publisher_list.iter().filter_map(|p|p.upgrade());
         valid_publishers.for_each(|p|p.lock().unwrap().send(self.userdata_transport.as_ref()));
     }
-
+    
     pub fn guid(&self) -> GUID {
         self.guid
     }
@@ -77,9 +88,21 @@ impl RtpsParticipant {
         &self.userdata_transport
     }
 
-    pub fn metatraffic_transport(&self) -> &Box<dyn Transport> {
+    pub fn metatraffic_transport(&self) -> &Arc<dyn Transport> {
         &self.metatraffic_transport
     }    
+            
+    fn start_thread(&self) {
+        let builtin_publisher = self.builtin_publisher.clone();
+        let metatraffic_transport = self.metatraffic_transport.clone();
+        let should_run_clone = self.should_run.clone();
+        thread::spawn(move ||{
+            while *should_run_clone.lock().unwrap() {             
+                builtin_publisher.run_and_send(metatraffic_transport.as_ref());
+                std::thread::sleep_ms(10);
+            }
+        });
+    }
 }
 
 impl ProtocolEntity for RtpsParticipant {
@@ -88,7 +111,8 @@ impl ProtocolEntity for RtpsParticipant {
     }
 
     fn enable(&self) -> ReturnCode<()> {
-        todo!()
+        self.start_thread();
+        Ok(())
     }
 }
 

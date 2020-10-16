@@ -89,9 +89,8 @@ impl StatelessWriter {
     }
 
     pub fn run(&mut self) {
-        let last_change_sequence_number = self.last_change_sequence_number;
         for (_, reader_locator) in self.reader_locators.iter_mut() {
-            reader_locator.run(&self.writer_cache, last_change_sequence_number);
+            reader_locator.run(&self.writer_cache, self.last_change_sequence_number);
         }
     }
 }
