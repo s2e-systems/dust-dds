@@ -4,7 +4,6 @@ use std::sync::mpsc;
 use crate::types::{GuidPrefix, GUID, EntityId, EntityKind, TopicKind, Locator, ChangeKind};
 use crate::types::constants::ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER;
 use crate::behavior::StatelessWriter;
-use crate::messages::message_sender::{RtpsMessageSender, Sender};
 use crate::messages::RtpsSubmessage;
 use crate::transport::Transport;
 
@@ -46,11 +45,5 @@ impl BuiltinPublisher {
     pub fn run(&self, transport: &dyn Transport) {
         self.spdp_builtin_participant_writer.lock().unwrap().unsent_changes_reset();
         self.spdp_builtin_participant_writer.lock().unwrap().run();
-    }
-}
-
-impl Sender for BuiltinPublisher {
-    fn pop_send_messages(&mut self) -> Vec<(Vec<Locator>, std::collections::VecDeque<crate::messages::RtpsSubmessage>)> {
-        todo!()
     }
 }

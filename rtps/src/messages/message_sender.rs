@@ -1,4 +1,3 @@
-use std::sync::Mutex;
 use std::collections::VecDeque;
 use std::sync::mpsc;
 
@@ -10,10 +9,6 @@ use super::{RtpsSubmessage, Endianness};
 use super::submessages::InfoTs;
 use super::message::RtpsMessage;
 use super::types::Time;
-
-pub trait Sender {
-    fn pop_send_messages(&mut self) -> Vec<(Vec<Locator>, VecDeque<RtpsSubmessage>)>;
-}
 
 pub struct RtpsMessageSender;
 

@@ -8,7 +8,6 @@ use crate::behavior::WriterProxy;
 use crate::messages::RtpsSubmessage;
 use crate::messages::submessages::{AckNack, Data, Gap, Heartbeat,};
 use crate::messages::types::Count;
-use crate::messages::message_sender::Sender;
 
 use crate::behavior::types::Duration;
 use crate::behavior::{cache_change_from_data, BEHAVIOR_ENDIANNESS};
@@ -180,12 +179,6 @@ impl WriterProxyOps for ReliableWriterProxy {
         let writer_guid = GUID::new(*src_guid_prefix, writer_id);
 
         self.writer_proxy.remote_writer_guid() == &writer_guid
-    }
-}
-
-impl Sender for ReliableWriterProxy {
-    fn pop_send_messages(&mut self) -> Vec<(Vec<Locator>, VecDeque<RtpsSubmessage>)> {
-        todo!()
     }
 }
 

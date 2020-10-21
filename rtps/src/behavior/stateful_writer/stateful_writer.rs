@@ -5,7 +5,6 @@ use crate::types::{ChangeKind, InstanceHandle, Locator, ReliabilityKind, Sequenc
 use crate::behavior::types::Duration;
 use crate::messages::RtpsSubmessage;
 use crate::messages::message_receiver::Receiver;
-use crate::messages::message_sender::Sender;
 use crate::structure::HistoryCache;
 use crate::structure::CacheChange;
 use crate::serialized_payload::ParameterList;

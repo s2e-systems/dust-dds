@@ -28,13 +28,6 @@ pub struct RtpsParticipant {
     builtin_subscriber: Arc<Mutex<BuiltinSubscriber>>, 
     publisher_list: [Weak<Mutex<RtpsPublisher>>;32],
     subscriber_list:[Weak<Mutex<RtpsSubscriber>>;32],
-    should_run: Arc<Mutex<bool>>,
-}
-
-impl Drop for RtpsParticipant {
-    fn drop(&mut self) {
-        *self.should_run.lock().unwrap() = false;
-    }
 }
 
 impl RtpsParticipant {
@@ -60,7 +53,6 @@ impl RtpsParticipant {
             builtin_publisher,
             publisher_list: Default::default(),
             subscriber_list: Default::default(),
-            should_run: Arc::new(Mutex::new(true)),
         }
     }
 

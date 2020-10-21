@@ -4,7 +4,6 @@ use crate::structure::HistoryCache;
 use crate::types::{Locator, ReliabilityKind, TopicKind, GUID, GuidPrefix };
 use crate::messages::RtpsSubmessage;
 use crate::messages::message_receiver::Receiver;
-use crate::messages::message_sender::Sender;
 use crate::behavior::types::Duration;
 
 use crate::behavior::WriterProxy;
@@ -111,12 +110,6 @@ impl Receiver for StatefulReader {
         self.matched_writers.iter()
             .find(|&(_, writer)| writer.is_submessage_destination(src_guid_prefix, submessage)).is_some()
        
-    }
-}
-
-impl Sender for StatefulReader {
-    fn pop_send_messages(&mut self) -> Vec<(Vec<Locator>, VecDeque<RtpsSubmessage>)> {
-        todo!()
     }
 }
 

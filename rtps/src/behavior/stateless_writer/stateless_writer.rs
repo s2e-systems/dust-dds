@@ -5,7 +5,6 @@ use crate::structure::CacheChange;
 use crate::serialized_payload::ParameterList;
 use crate::types::{ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID, };
 use crate::messages::RtpsSubmessage;
-use crate::messages::message_sender::Sender;
 use super::reader_locator::ReaderLocator;
 
 use rust_dds_interface::qos::DataWriterQos;
@@ -99,15 +98,6 @@ impl StatelessWriter {
     }
 }
 
-impl Sender for StatelessWriter {
-    fn pop_send_messages(&mut self) -> Vec<(Vec<Locator>, VecDeque<RtpsSubmessage>)> {
-        todo!()
-        // self.reader_locators.iter_mut()
-        //     .filter_map(|(_, reader_locator)| reader_locator.pop_send_messages())
-        //     .collect()
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -156,7 +146,7 @@ mod tests {
 
     #[test]
     fn stateless_writer_run() {
-        let (sender, receiver) = mpsc::channel();
+        let (sender, _receiver) = mpsc::channel();
 
         // Create the stateless writer
         let writer_qos = DataWriterQos::default();
@@ -193,36 +183,38 @@ mod tests {
 
         stateless_writer.run();
 
-        let mut send_messages = stateless_writer.pop_send_messages();
-        assert_eq!(send_messages.len(), 2);
+        todo!()
 
-        // Check that the two reader locators have messages sent to them. The order is not fixed so it can
-        // not be used for the test
-        send_messages.iter().find(|(dst_locator, _)| dst_locator == &vec![locator1]).unwrap();
-        send_messages.iter().find(|(dst_locator, _)| dst_locator == &vec![locator2]).unwrap();
+        // let mut send_messages = stateless_writer.pop_send_messages();
+        // assert_eq!(send_messages.len(), 2);
 
-        let (_, send_messages_reader_locator_1) = send_messages.pop().unwrap();
-        let (_, send_messages_reader_locator_2) = send_messages.pop().unwrap();
+        // // Check that the two reader locators have messages sent to them. The order is not fixed so it can
+        // // not be used for the test
+        // send_messages.iter().find(|(dst_locator, _)| dst_locator == &vec![locator1]).unwrap();
+        // send_messages.iter().find(|(dst_locator, _)| dst_locator == &vec![locator2]).unwrap();
 
-        // Check that the same messages are sent to both locators
-        assert_eq!(send_messages_reader_locator_1, send_messages_reader_locator_2);
+        // let (_, send_messages_reader_locator_1) = send_messages.pop().unwrap();
+        // let (_, send_messages_reader_locator_2) = send_messages.pop().unwrap();
 
-        if let RtpsSubmessage::Gap(_) = &send_messages_reader_locator_1[0] {
-            // The contents of the message are tested in the reader locator so simply assert the type is correct
-            assert!(true)
-        } else {
-            panic!("Wrong message type");
-        };
+        // // Check that the same messages are sent to both locators
+        // assert_eq!(send_messages_reader_locator_1, send_messages_reader_locator_2);
 
-        if let RtpsSubmessage::Data(_) = &send_messages_reader_locator_1[1] {
-                // The contents of the message are tested in the reader locator so simply assert the type is correct
-                assert!(true)
-        } else {
-            panic!("Wrong message type");
-        };
+        // if let RtpsSubmessage::Gap(_) = &send_messages_reader_locator_1[0] {
+        //     // The contents of the message are tested in the reader locator so simply assert the type is correct
+        //     assert!(true)
+        // } else {
+        //     panic!("Wrong message type");
+        // };
 
-        // Test that nothing more is sent after the first time
-        stateless_writer.run();
-        assert_eq!(stateless_writer.pop_send_messages().len(), 0);
+        // if let RtpsSubmessage::Data(_) = &send_messages_reader_locator_1[1] {
+        //         // The contents of the message are tested in the reader locator so simply assert the type is correct
+        //         assert!(true)
+        // } else {
+        //     panic!("Wrong message type");
+        // };
+
+        // // Test that nothing more is sent after the first time
+        // stateless_writer.run();
+        // assert_eq!(stateless_writer.pop_send_messages().len(), 0);
     }
 }
