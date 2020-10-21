@@ -7,6 +7,7 @@ use crate::types::constants::{
     PROTOCOL_VERSION_2_4,};
 use crate::transport::Transport;
 use crate::messages::message_receiver::RtpsMessageReceiver;
+use crate::messages::message_sender::RtpsMessageSender;
 
 use super::publisher::RtpsPublisher;
 use super::subscriber::RtpsSubscriber;
@@ -24,7 +25,7 @@ pub struct RtpsParticipant {
     vendor_id: VendorId,
     userdata_transport: Box<dyn Transport>,
     metatraffic_transport: Arc<dyn Transport>,
-    builtin_publisher: Arc<BuiltinPublisher>,
+    builtin_publisher: Arc<Mutex<BuiltinPublisher>>,
     builtin_subscriber: Arc<Mutex<BuiltinSubscriber>>, 
     publisher_list: [Weak<Mutex<RtpsPublisher>>;32],
     subscriber_list:[Weak<Mutex<RtpsSubscriber>>;32],
@@ -46,7 +47,7 @@ impl RtpsParticipant {
         let protocol_version = PROTOCOL_VERSION_2_4;
         let vendor_id = [99,99];
         let guid_prefix = [5, 6, 7, 8, 9, 5, 1, 2, 3, 4, 10, 11];   // TODO: Should be uniquely generated
-        let builtin_publisher = Arc::new(BuiltinPublisher::new(guid_prefix));
+        let builtin_publisher = Arc::new(Mutex::new(BuiltinPublisher::new(guid_prefix)));
         let builtin_subscriber = Arc::new(Mutex::new(BuiltinSubscriber::new(guid_prefix)));
 
         Self {
@@ -92,21 +93,10 @@ impl RtpsParticipant {
     pub fn metatraffic_transport(&self) -> &Arc<dyn Transport> {
         &self.metatraffic_transport
     }    
-            
-    fn start_thread(&self) {
-        let builtin_publisher = self.builtin_publisher.clone();
-        let metatraffic_transport = self.metatraffic_transport.clone();
-        let should_run_clone = self.should_run.clone();
-        thread::spawn(move ||{
-            while *should_run_clone.lock().unwrap() {             
-                builtin_publisher.run_and_send(metatraffic_transport.as_ref());
-                std::thread::sleep_ms(10);
-            }
-        });
-    }
 
     pub fn run(&self) {
-        RtpsMessageReceiver::receive(self.guid.prefix(), self.metatraffic_transport.as_ref(), &mut [self.builtin_subscriber.as_ref()])
+        RtpsMessageReceiver::receive(self.guid.prefix(), self.metatraffic_transport.as_ref(), &mut [self.builtin_subscriber.as_ref()]);
+        RtpsMessageSender::send(self.guid.prefix(), self.metatraffic_transport.as_ref(), &[self.builtin_publisher.as_ref()]);
     }
 
 }
@@ -117,7 +107,6 @@ impl ProtocolEntity for RtpsParticipant {
     }
 
     fn enable(&self) -> ReturnCode<()> {
-        self.start_thread();
         Ok(())
     }
 }

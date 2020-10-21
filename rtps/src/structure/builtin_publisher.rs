@@ -2,7 +2,7 @@ use std::sync::Mutex;
 use crate::types::{GuidPrefix, GUID, EntityId, EntityKind, TopicKind, Locator, ChangeKind};
 use crate::types::constants::ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER;
 use crate::behavior::StatelessWriter;
-use crate::messages::message_sender::RtpsMessageSender;
+use crate::messages::message_sender::{RtpsMessageSender, Sender};
 use crate::transport::Transport;
 
 use rust_dds_interface::qos::DataWriterQos;
@@ -37,6 +37,10 @@ impl BuiltinPublisher {
         self.spdp_builtin_participant_writer.lock().unwrap().run();
         RtpsMessageSender::send(self.guid.prefix(), transport, &[&self.spdp_builtin_participant_writer]);
     }
+}
 
-
+impl Sender for BuiltinPublisher {
+    fn pop_send_messages(&mut self) -> Vec<(Vec<Locator>, std::collections::VecDeque<crate::messages::RtpsSubmessage>)> {
+        todo!()
+    }
 }
