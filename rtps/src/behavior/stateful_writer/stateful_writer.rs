@@ -15,7 +15,7 @@ use rust_dds_interface::protocol::{ProtocolEntity, ProtocolWriter, ProtocolEndpo
 use rust_dds_interface::qos::DataWriterQos;
 use rust_dds_interface::types::{Data, Time, ReturnCode};
 
-pub trait ReaderProxyOps : Send + Sync {
+pub trait ReaderProxyOps {
     fn run(&mut self, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber);
     fn push_receive_message(&mut self, src_guid_prefix: GuidPrefix, submessage: RtpsSubmessage);
     fn is_submessage_destination(&self, src_guid_prefix: &GuidPrefix, submessage: &RtpsSubmessage) -> bool;

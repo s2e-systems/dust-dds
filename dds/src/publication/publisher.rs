@@ -1,4 +1,3 @@
-use std::any::Any;
 use std::sync::Weak;
 
 use crate::types::DDSType;
@@ -46,7 +45,7 @@ impl Publisher {
     /// corresponding policy on the default QoS. The resulting QoS is then applied to the creation of the DataWriter.
     /// The Topic passed to this operation must have been created from the same DomainParticipant that was used to create this
     /// Publisher. If the Topic was created from a different DomainParticipant, the operation will fail and return a nil result.
-    pub fn create_datawriter<T: DDSType+Any+Sync+Send>(
+    pub fn create_datawriter<T: DDSType>(
         &self,
         a_topic: Topic,
         qos: DataWriterQos,

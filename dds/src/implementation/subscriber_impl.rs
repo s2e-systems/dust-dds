@@ -1,5 +1,4 @@
 use std::sync::{Arc, Weak, Mutex};
-use std::any::Any;
 
 use rust_dds_interface::types::{
     ReturnCode,

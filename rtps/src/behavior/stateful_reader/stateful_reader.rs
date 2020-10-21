@@ -15,7 +15,7 @@ use rust_dds_interface::protocol::{ProtocolEntity, ProtocolReader, ProtocolEndpo
 use rust_dds_interface::qos::DataReaderQos;
 use rust_dds_interface::types::{InstanceHandle, ReturnCode};
 
-pub trait WriterProxyOps : Send + Sync {
+pub trait WriterProxyOps {
     fn push_receive_message(&mut self, src_guid_prefix: GuidPrefix, submessage: RtpsSubmessage);
     fn is_submessage_destination(&self, src_guid_prefix: &GuidPrefix, submessage: &RtpsSubmessage) -> bool;
     fn run(&mut self, history_cache: &HistoryCache);

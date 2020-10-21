@@ -69,7 +69,7 @@ impl CdrParameterList {
         }
     }
 
-    pub fn push<T: Pid + serde::Serialize + Send + Sync + std::fmt::Debug + 'static>(&mut self, value: T) {
+    pub fn push<T: Pid + serde::Serialize + std::fmt::Debug + 'static>(&mut self, value: T) {
         self.parameter_list.push(value);
     }
 
@@ -93,7 +93,7 @@ pub trait Pid {
 }
 
 //  /////////// ParameterList ///////////
-pub trait ParameterOps : Send + Sync + std::fmt::Debug{
+pub trait ParameterOps : std::fmt::Debug{
     fn parameter_id(&self) -> ParameterId;
 
     fn length(&self) -> i16;
@@ -102,7 +102,7 @@ pub trait ParameterOps : Send + Sync + std::fmt::Debug{
 }
 
 impl<T> ParameterOps for T
-    where T: Pid + serde::Serialize + Send + Sync + std::fmt::Debug
+    where T: Pid + serde::Serialize + std::fmt::Debug
 {
     fn parameter_id(&self) -> ParameterId {
         T::pid()

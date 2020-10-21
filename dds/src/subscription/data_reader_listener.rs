@@ -1,9 +1,8 @@
-use std::any::Any;
 use crate::infrastructure::status::{SampleRejectedStatus, LivelinessChangedStatus, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus, SubscriptionMatchedStatus, SampleLostStatus};
 use crate::subscription::data_reader::DataReader;
 use crate::infrastructure::listener::NoListener;
 
-pub trait DataReaderListener<T>: Any + Send + Sync{
+pub trait DataReaderListener<T>{
     fn on_data_available(&self, the_reader: DataReader<T>);
     fn on_sample_rejected(&self, the_reader: DataReader<T>, status: SampleRejectedStatus);
     fn on_liveliness_changed(&self, the_reader: DataReader<T>, status: LivelinessChangedStatus);

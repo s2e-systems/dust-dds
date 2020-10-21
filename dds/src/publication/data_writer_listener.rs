@@ -1,4 +1,3 @@
-use std::any::Any;
 use crate::types::DDSType;
 use crate::infrastructure::status::{LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus};
 use crate::publication::data_writer::DataWriter;

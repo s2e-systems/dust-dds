@@ -2,7 +2,7 @@ use std::sync::{Arc, Mutex};
 use crate::types::{InstanceHandle, Data, Time, ReturnCode, TopicKind};
 use crate::qos::{DataWriterQos, DataReaderQos};
 
-pub trait ProtocolEntity : Send + Sync {
+pub trait ProtocolEntity {
     fn enable(&self) -> ReturnCode<()>;
     fn get_instance_handle(&self) -> InstanceHandle;
 }
@@ -38,6 +38,6 @@ pub trait ProtocolReader: ProtocolEndpoint {
 
 }
 
-pub trait ProtocolDiscovery : Send + Sync{
+pub trait ProtocolDiscovery{
 
 }

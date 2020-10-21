@@ -1,5 +1,4 @@
 use std::sync::Weak;
-use std::any::Any;
 
 use rust_dds_interface::types::{ReturnCode, InstanceHandle};
 
