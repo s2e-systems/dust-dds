@@ -1,4 +1,4 @@
-use std::collections::{VecDeque, BTreeSet};
+use std::collections::BTreeSet;
 use std::sync::mpsc;
 
 use crate::types::{Locator, SequenceNumber, EntityId};

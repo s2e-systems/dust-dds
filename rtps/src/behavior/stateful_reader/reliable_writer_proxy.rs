@@ -1,6 +1,7 @@
 use std::convert::TryInto;
 use std::time::Instant;
 use std::collections::VecDeque;
+use std::sync::mpsc;
 
 use crate::types::{GuidPrefix, GUID, EntityId, Locator};
 use crate::structure::HistoryCache;
@@ -24,11 +25,11 @@ pub struct ReliableWriterProxy {
     highest_received_heartbeat_count: Count,
 
     received_messages: VecDeque<(GuidPrefix, RtpsSubmessage)>,
-    sent_messages: VecDeque<RtpsSubmessage>
+    sender: mpsc::Sender<(Vec<Locator>,RtpsSubmessage)>,
 }
 
 impl ReliableWriterProxy {
-    pub fn new(writer_proxy: WriterProxy, reader_entity_id: EntityId, heartbeat_response_delay: Duration,) -> Self {
+    pub fn new(writer_proxy: WriterProxy, reader_entity_id: EntityId, heartbeat_response_delay: Duration, sender: mpsc::Sender<(Vec<Locator>,RtpsSubmessage)>) -> Self {
         Self {
             writer_proxy,
             reader_entity_id,
@@ -38,7 +39,7 @@ impl ReliableWriterProxy {
             ackanck_count: 0,
             highest_received_heartbeat_count: 0,
             received_messages: VecDeque::new(),
-            sent_messages: VecDeque::new(),
+            sender,
         }
     }
 
@@ -118,7 +119,10 @@ impl ReliableWriterProxy {
             *self.ackanck_count(),
             true);
 
-        self.sent_messages.push_back(RtpsSubmessage::AckNack(acknack));
+        let mut dst_locator = Vec::new();
+        dst_locator.extend(self.writer_proxy.unicast_locator_list());
+        dst_locator.extend(self.writer_proxy.multicast_locator_list());
+        self.sender.send((dst_locator, RtpsSubmessage::AckNack(acknack)));
     }
 
     fn must_send_ack(&self) -> bool {
@@ -198,7 +202,8 @@ mod tests {
     use rust_dds_interface::qos_policy::ResourceLimitsQosPolicy;
 
     #[test]
-    fn run_reliable_data_only() {        
+    fn run_reliable_data_only() {
+        let (sender, receiver) = mpsc::channel();
         let history_cache = HistoryCache::new(&ResourceLimitsQosPolicy::default());
         let heartbeat_response_delay = Duration::from_millis(500);
         let reader_entity_id = ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR;
@@ -206,7 +211,7 @@ mod tests {
         let remote_writer_guid_prefix = [1;12];
         let remote_writer_guid = GUID::new(remote_writer_guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
         let writer_proxy = WriterProxy::new(remote_writer_guid, vec![], vec![]);
-        let mut reliable_writer_proxy = ReliableWriterProxy::new(writer_proxy, reader_entity_id, heartbeat_response_delay);
+        let mut reliable_writer_proxy = ReliableWriterProxy::new(writer_proxy, reader_entity_id, heartbeat_response_delay, sender);
 
         let mut inline_qos = ParameterList::new();
         inline_qos.push(change_kind_to_status_info(ChangeKind::Alive));
@@ -246,6 +251,7 @@ mod tests {
 
     #[test]
     fn run_reliable_non_final_heartbeat() {
+        let (sender, receiver) = mpsc::channel();
         let history_cache = HistoryCache::new(&ResourceLimitsQosPolicy::default());
         let heartbeat_response_delay = Duration::from_millis(500);
         let reader_entity_id = ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR;
@@ -253,7 +259,7 @@ mod tests {
         let remote_writer_guid_prefix = [1;12];
         let remote_writer_guid = GUID::new(remote_writer_guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
         let writer_proxy = WriterProxy::new(remote_writer_guid, vec![], vec![]);
-        let mut reliable_writer_proxy = ReliableWriterProxy::new(writer_proxy, reader_entity_id, heartbeat_response_delay);
+        let mut reliable_writer_proxy = ReliableWriterProxy::new(writer_proxy, reader_entity_id, heartbeat_response_delay, sender);
 
         let heartbeat = Heartbeat::new(
             Endianness::LittleEndian,
@@ -275,6 +281,7 @@ mod tests {
     
     #[test]
     fn run_reliable_final_heartbeat_with_missing_changes() {
+        let (sender, receiver) = mpsc::channel();
         let history_cache = HistoryCache::new(&ResourceLimitsQosPolicy::default());
         let heartbeat_response_delay = Duration::from_millis(300);
         let reader_entity_id = ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR;
@@ -282,7 +289,7 @@ mod tests {
         let remote_writer_guid_prefix = [1;12];
         let remote_writer_guid = GUID::new(remote_writer_guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
         let writer_proxy = WriterProxy::new(remote_writer_guid, vec![], vec![]);
-        let mut reliable_writer_proxy = ReliableWriterProxy::new(writer_proxy, reader_entity_id, heartbeat_response_delay);
+        let mut reliable_writer_proxy = ReliableWriterProxy::new(writer_proxy, reader_entity_id, heartbeat_response_delay, sender);
 
         let heartbeat = Heartbeat::new(
             Endianness::LittleEndian,
@@ -310,6 +317,7 @@ mod tests {
 
     #[test]
     fn run_reliable_final_heartbeat_without_missing_changes() {
+        let (sender, receiver) = mpsc::channel();
         let history_cache = HistoryCache::new(&ResourceLimitsQosPolicy::default());
         let heartbeat_response_delay = Duration::from_millis(500);
         let reader_entity_id = ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR;
@@ -317,7 +325,7 @@ mod tests {
         let remote_writer_guid_prefix = [1;12];
         let remote_writer_guid = GUID::new(remote_writer_guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
         let writer_proxy = WriterProxy::new(remote_writer_guid, vec![], vec![]);
-        let mut reliable_writer_proxy = ReliableWriterProxy::new(writer_proxy, reader_entity_id, heartbeat_response_delay);
+        let mut reliable_writer_proxy = ReliableWriterProxy::new(writer_proxy, reader_entity_id, heartbeat_response_delay, sender);
 
         let heartbeat = Heartbeat::new(
             Endianness::LittleEndian,

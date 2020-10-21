@@ -1,4 +1,5 @@
-use std::collections::{HashMap, VecDeque, };
+use std::collections::HashMap;
+use std::sync::mpsc;
 
 use crate::structure::HistoryCache;
 use crate::types::{Locator, ReliabilityKind, TopicKind, GUID, GuidPrefix };
@@ -42,6 +43,9 @@ pub struct StatefulReader {
 
     // Fields
     matched_writers: HashMap<GUID, Box<dyn WriterProxyOps>>,
+
+    sender: mpsc::Sender<(Vec<Locator>,RtpsSubmessage)>,
+    
 }
 
 impl StatefulReader {
@@ -49,6 +53,7 @@ impl StatefulReader {
         guid: GUID,
         topic_kind: TopicKind,
         reader_qos: &DataReaderQos,
+        sender: mpsc::Sender<(Vec<Locator>,RtpsSubmessage)>,
         ) -> Self {
             
         let expects_inline_qos = false;
@@ -62,13 +67,14 @@ impl StatefulReader {
             heartbeat_response_delay,       
             reader_cache: HistoryCache::new(&reader_qos.resource_limits),
             matched_writers: HashMap::new(),
+            sender,
         }
     }
 
     pub fn matched_writer_add(&mut self, a_writer_proxy: WriterProxy) {
         let remote_writer_guid = a_writer_proxy.remote_writer_guid().clone();
         let writer_proxy: Box<dyn WriterProxyOps> = match self.reliability_level {
-            ReliabilityKind::Reliable => Box::new(ReliableWriterProxy::new(a_writer_proxy, self.guid.entity_id(), self.heartbeat_response_delay)),
+            ReliabilityKind::Reliable => Box::new(ReliableWriterProxy::new(a_writer_proxy, self.guid.entity_id(), self.heartbeat_response_delay, self.sender.clone())),
             ReliabilityKind::BestEffort => Box::new(BestEffortWriterProxy::new(a_writer_proxy)),
         };
         

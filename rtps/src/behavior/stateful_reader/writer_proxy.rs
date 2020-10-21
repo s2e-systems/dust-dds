@@ -193,6 +193,14 @@ impl WriterProxy {
     pub fn remote_writer_guid(&self) -> &GUID {
         &self.remote_writer_guid
     }
+
+    pub fn unicast_locator_list(&self) -> &Vec<Locator> {
+        &self.unicast_locator_list
+    }
+
+    pub fn multicast_locator_list(&self) -> &Vec<Locator> {
+        &self.multicast_locator_list
+    }
 }
 
 

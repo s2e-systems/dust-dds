@@ -1,23 +1,31 @@
 use std::sync::{Arc, Weak, Mutex};
+use std::sync::mpsc;
 
 use rust_dds_interface::types::{ReturnCode, InstanceHandle, TopicKind};
 use rust_dds_interface::protocol::{ProtocolEntity, ProtocolReader, ProtocolSubscriber};
 use rust_dds_interface::qos::DataReaderQos;
 
-use crate::types::{GUID, EntityKind, EntityId};
+use crate::types::{GUID, EntityKind, EntityId, Locator};
+use crate::messages::RtpsSubmessage;
 
 use crate::behavior::StatefulReader;
 
 pub struct RtpsSubscriber{
     guid: GUID,
     reader_list: [Weak<Mutex<StatefulReader>>;32],
+    sender: mpsc::Sender<(Vec<Locator>,RtpsSubmessage)>,
+    receiver: mpsc::Receiver<(Vec<Locator>,RtpsSubmessage)>,
 }
 
 impl RtpsSubscriber {
     pub fn new(guid: GUID) -> Self {
+        let (sender, receiver) = mpsc::channel();
+
         Self {
             guid,
             reader_list: Default::default(),
+            sender,
+            receiver,
         }
     }
 }
@@ -52,7 +60,8 @@ impl ProtocolSubscriber for RtpsSubscriber {
         let new_reader = Arc::new(Mutex::new(StatefulReader::new(
             reader_guid,
             topic_kind,
-            data_reader_qos
+            data_reader_qos,
+            self.sender.clone(),
         )));
 
         self.reader_list[index] = Arc::downgrade(&new_reader);
