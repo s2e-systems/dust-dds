@@ -1,4 +1,5 @@
 use std::collections::{VecDeque, BTreeSet};
+use std::sync::mpsc;
 
 use crate::types::{Locator, SequenceNumber, EntityId};
 use crate::types::constants::ENTITYID_UNKNOWN;
@@ -16,17 +17,17 @@ pub struct ReaderLocator {
 
     highest_sequence_number_sent: SequenceNumber,
 
-    send_messages: VecDeque<RtpsSubmessage>,
+    sender: mpsc::Sender<(Vec<Locator>,RtpsSubmessage)>,
 }
 
 impl ReaderLocator {
-    pub fn new(locator: Locator, writer_entity_id: EntityId, expects_inline_qos: bool) -> Self {
+    pub fn new(locator: Locator, writer_entity_id: EntityId, expects_inline_qos: bool, sender: mpsc::Sender<(Vec<Locator>,RtpsSubmessage)>) -> Self {
         Self {
             locator,
             writer_entity_id,
             expects_inline_qos,
             highest_sequence_number_sent:0,
-            send_messages: VecDeque::new(),
+            sender,
         }
     }
 
@@ -77,7 +78,7 @@ impl ReaderLocator {
             .changes().iter().find(|cc| cc.sequence_number() == next_unsent_seq_num)
         {
             let data = data_from_cache_change(cache_change, ENTITYID_UNKNOWN);
-            self.send_messages.push_back(RtpsSubmessage::Data(data));
+            self.sender.send((vec![self.locator], RtpsSubmessage::Data(data))).unwrap();
         } else {
             let gap = Gap::new(
                 BEHAVIOR_ENDIANNESS,
@@ -86,19 +87,7 @@ impl ReaderLocator {
                 next_unsent_seq_num,
             BTreeSet::new());
 
-            self.send_messages.push_back(RtpsSubmessage::Gap(gap));
-        }
-    }
-
-    pub fn pop_send_messages(&mut self) -> Option<(Vec<Locator>, VecDeque<RtpsSubmessage>)> {
-        if !self.send_messages.is_empty() {
-            let mut send_messages_queue = VecDeque::new();
-            std::mem::swap(&mut send_messages_queue, &mut self.send_messages);
-
-            let locator_list = vec![self.locator];
-            Some((locator_list, send_messages_queue))
-        } else {
-            None
+            self.sender.send((vec![self.locator], RtpsSubmessage::Gap(gap))).unwrap();
         }
     }
 }
@@ -113,10 +102,11 @@ mod tests {
 
     #[test]
     fn unsent_change_operations() {
+        let (sender, receiver) = mpsc::channel();
         let locator = Locator::new_udpv4(7400, [127,0,0,1]);
         let writer_entity_id = ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER;
         let expects_inline_qos = false;
-        let mut reader_locator = ReaderLocator::new(locator, writer_entity_id, expects_inline_qos);
+        let mut reader_locator = ReaderLocator::new(locator, writer_entity_id, expects_inline_qos, sender);
 
         let unsent_changes = reader_locator.unsent_changes(0);
         assert!(unsent_changes.is_empty());
@@ -141,10 +131,11 @@ mod tests {
 
     #[test]
     fn unsent_changes_reset() {
+        let (sender, receiver) = mpsc::channel();
         let locator = Locator::new_udpv4(7400, [127,0,0,1]);
         let writer_entity_id = ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER;
         let expects_inline_qos = false;
-        let mut reader_locator = ReaderLocator::new(locator, writer_entity_id, expects_inline_qos);
+        let mut reader_locator = ReaderLocator::new(locator, writer_entity_id, expects_inline_qos, sender);
 
         let next_unsent_change = reader_locator.next_unsent_change(2).unwrap();
         assert_eq!(next_unsent_change, 1);
@@ -165,10 +156,11 @@ mod tests {
 
     #[test]
     fn run() {
+        let (sender, receiver) = mpsc::channel();
         let locator = Locator::new_udpv4(7400, [127,0,0,1]);
         let writer_entity_id = ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER;
         let expects_inline_qos = false;
-        let mut reader_locator = ReaderLocator::new(locator, writer_entity_id, expects_inline_qos);
+        let mut reader_locator = ReaderLocator::new(locator, writer_entity_id, expects_inline_qos, sender);
 
         let history_cache = HistoryCache::new(&ResourceLimitsQosPolicy::default());
 
@@ -176,7 +168,7 @@ mod tests {
         let last_change_sequence_number = 0;
         reader_locator.run(&history_cache, last_change_sequence_number);
 
-        assert!(reader_locator.send_messages.is_empty());
+        assert!(receiver.try_recv().is_err());
 
         // Add one change to the history cache and run with that change as the last one. One Data submessage should be sent
         let writer_guid = GUID::new([5;12], writer_entity_id);
@@ -189,8 +181,8 @@ mod tests {
         reader_locator.run(&history_cache, last_change_sequence_number);
 
         let expected_submessage = RtpsSubmessage::Data(expected_data_submessage);
-        let sent_message = reader_locator.send_messages.pop_front().unwrap();
-        assert!(reader_locator.send_messages.is_empty());
+        let (locator_list, sent_message) = receiver.try_recv().unwrap();
+        assert!(receiver.try_recv().is_err());
         assert_eq!(sent_message, expected_submessage);
 
         // Run with the next sequence number without adding any change to the history cache. One Gap submessage should be sent
@@ -198,8 +190,8 @@ mod tests {
         reader_locator.run(&history_cache, last_change_sequence_number);
 
         let expected_submessage = RtpsSubmessage::Gap(Gap::new(BEHAVIOR_ENDIANNESS, ENTITYID_UNKNOWN, writer_entity_id, 2, BTreeSet::new()));
-        let sent_message = reader_locator.send_messages.pop_front().unwrap();
-        assert!(reader_locator.send_messages.is_empty());
+        let (locator_list, sent_message) = receiver.try_recv().unwrap();
+        assert!(receiver.try_recv().is_err());
         assert_eq!(sent_message, expected_submessage);
 
         // Add one change to the history cache skipping one sequence number. One Gap and one Data submessage should be sent
@@ -213,8 +205,8 @@ mod tests {
         let expected_gap_submessage = RtpsSubmessage::Gap(Gap::new(BEHAVIOR_ENDIANNESS, ENTITYID_UNKNOWN, writer_entity_id, 3, BTreeSet::new()));
         let expected_data_submessage = RtpsSubmessage::Data(expected_data_submessage);
 
-        let sent_message_1 = reader_locator.send_messages.pop_front().unwrap();
-        let sent_message_2 = reader_locator.send_messages.pop_front().unwrap();
+        let (locator_list, sent_message_1) = receiver.try_recv().unwrap();
+        let (locator_list, sent_message_2) = receiver.try_recv().unwrap();
         assert_eq!(sent_message_1, expected_gap_submessage);
         assert_eq!(sent_message_2, expected_data_submessage);
 

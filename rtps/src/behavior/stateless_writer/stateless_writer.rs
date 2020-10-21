@@ -1,5 +1,5 @@
 use std::collections::{HashMap,  VecDeque};
-
+use std::sync::mpsc;
 use crate::structure::HistoryCache;
 use crate::structure::CacheChange;
 use crate::serialized_payload::ParameterList;
@@ -32,13 +32,16 @@ pub struct StatelessWriter {
     data_max_sized_serialized: Option<i32>,
 
     reader_locators: HashMap<Locator, ReaderLocator>,
+
+    sender: mpsc::Sender<(Vec<Locator>,RtpsSubmessage)>,
 }
 
 impl StatelessWriter {
     pub fn new(
         guid: GUID,
         topic_kind: TopicKind,
-        writer_qos: &DataWriterQos
+        writer_qos: &DataWriterQos,
+        sender: mpsc::Sender<(Vec<Locator>,RtpsSubmessage)>,
     ) -> Self {
         StatelessWriter {
             guid,
@@ -48,6 +51,7 @@ impl StatelessWriter {
             writer_cache: HistoryCache::new(&writer_qos.resource_limits),
             data_max_sized_serialized: None,
             reader_locators: HashMap::new(),
+            sender
         }
     }
 
@@ -75,7 +79,7 @@ impl StatelessWriter {
     }
 
     pub fn reader_locator_add(&mut self, a_locator: Locator) {
-        self.reader_locators.insert(a_locator, ReaderLocator::new(a_locator, self.guid.entity_id(), false /*expects_inline_qos*/));
+        self.reader_locators.insert(a_locator, ReaderLocator::new(a_locator, self.guid.entity_id(), false /*expects_inline_qos*/, self.sender.clone()));
     }
 
     pub fn reader_locator_remove(&mut self, a_locator: &Locator) {
@@ -97,9 +101,10 @@ impl StatelessWriter {
 
 impl Sender for StatelessWriter {
     fn pop_send_messages(&mut self) -> Vec<(Vec<Locator>, VecDeque<RtpsSubmessage>)> {
-        self.reader_locators.iter_mut()
-            .filter_map(|(_, reader_locator)| reader_locator.pop_send_messages())
-            .collect()
+        todo!()
+        // self.reader_locators.iter_mut()
+        //     .filter_map(|(_, reader_locator)| reader_locator.pop_send_messages())
+        //     .collect()
     }
 }
 
@@ -111,11 +116,14 @@ mod tests {
 
     #[test]
     fn new_change() {
+        let (sender, receiver) = mpsc::channel();
+
         let writer_qos = DataWriterQos::default();
         let mut writer = StatelessWriter::new(
             GUID::new([0; 12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
             TopicKind::WithKey,
-            &writer_qos
+            &writer_qos,
+            sender
         );
 
         let cache_change_seq1 = writer.new_change(
@@ -148,13 +156,16 @@ mod tests {
 
     #[test]
     fn stateless_writer_run() {
+        let (sender, receiver) = mpsc::channel();
+
         // Create the stateless writer
         let writer_qos = DataWriterQos::default();
 
         let mut stateless_writer = StatelessWriter::new(
             GUID::new([0; 12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
             TopicKind::WithKey,
-            &writer_qos
+            &writer_qos,
+            sender
         );
 
         // Add two locators

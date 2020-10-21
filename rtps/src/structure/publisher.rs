@@ -25,7 +25,8 @@ impl RtpsPublisher {
     pub fn send(&self, transport: &dyn Transport) {
         let valid_writers : Vec<Arc<Mutex<StatefulWriter>>> = self.writer_list.iter().filter_map(|w| w.upgrade()).collect();
         for writer in valid_writers {
-            RtpsMessageSender::send(self.guid.prefix(), transport, &[writer.as_ref()]);
+            todo!()
+            // RtpsMessageSender::send(self.guid.prefix(), transport, &[writer.as_ref()]);
         }
         
     }

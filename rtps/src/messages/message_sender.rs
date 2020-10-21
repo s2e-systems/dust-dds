@@ -1,5 +1,6 @@
 use std::sync::Mutex;
 use std::collections::VecDeque;
+use std::sync::mpsc;
 
 use crate::types::{GuidPrefix, Locator };
 use crate::types::constants::{PROTOCOL_VERSION_2_4, VENDOR_ID};
@@ -17,21 +18,17 @@ pub trait Sender {
 pub struct RtpsMessageSender;
 
 impl RtpsMessageSender {
-    pub fn send(participant_guid_prefix: GuidPrefix, transport: &dyn Transport,  sender_list: &[&Mutex<dyn Sender>]) {
-        for sender in sender_list {
-            let mut sender_lock = sender.lock().unwrap();
-            let send_messages = sender_lock.pop_send_messages();
-            for (dst_locators, submessage_list) in send_messages {
+    pub fn send(participant_guid_prefix: GuidPrefix, transport: &dyn Transport,  sender_list: &[&mpsc::Receiver<(Vec<Locator>,RtpsSubmessage)>]) {
+        for &sender in sender_list {
+            while let Some((dst_locators, submessage)) = sender.try_recv().ok()
+            {
                 let mut rtps_submessages = Vec::new();
-                for submessage in submessage_list {
-                    rtps_submessages.push(RtpsSubmessage::InfoTs(InfoTs::new(Endianness::LittleEndian, Some(Time::now()))));
-                    rtps_submessages.push(submessage);
-                }
+                
+                rtps_submessages.push(RtpsSubmessage::InfoTs(InfoTs::new(Endianness::LittleEndian, Some(Time::now()))));
+                rtps_submessages.push(submessage);
 
-                if !rtps_submessages.is_empty() {
-                    let rtps_message = RtpsMessage::new(PROTOCOL_VERSION_2_4, VENDOR_ID, participant_guid_prefix, rtps_submessages);
-                    transport.write(rtps_message, &dst_locators);
-                }
+                let rtps_message = RtpsMessage::new(PROTOCOL_VERSION_2_4, VENDOR_ID, participant_guid_prefix, rtps_submessages);
+                transport.write(rtps_message, &dst_locators);
             }
         }
     }
