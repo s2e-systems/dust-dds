@@ -4,14 +4,14 @@ use crate::infrastructure::status::{LivelinessLostStatus, OfferedDeadlineMissedS
 use crate::publication::data_writer::DataWriter;
 use crate::infrastructure::listener::NoListener;
 
-pub trait DataWriterListener<T: DDSType+Any+Send+Sync> : Any + Send + Sync {
+pub trait DataWriterListener<T: DDSType> {
     fn on_liveliness_lost(&self, the_writer: DataWriter<T>, status: LivelinessLostStatus);
     fn on_offered_deadline_missed(&self, the_writer: DataWriter<T>, status: OfferedDeadlineMissedStatus);
     fn on_offered_incompatible_qos(&self, the_writer: DataWriter<T>, status: OfferedIncompatibleQosStatus);
     fn on_publication_matched(&self, the_writer: DataWriter<T>, status: PublicationMatchedStatus);
 }
 
-impl<T: DDSType+Any+Send+Sync> DataWriterListener<T> for NoListener {
+impl<T: DDSType> DataWriterListener<T> for NoListener {
     fn on_liveliness_lost(&self, _the_writer: DataWriter<T>, _status: LivelinessLostStatus) {
         todo!()
     }

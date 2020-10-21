@@ -22,7 +22,7 @@ pub struct PublisherImpl{
 }
 
 impl PublisherImpl {
-    pub(crate) fn create_datawriter<T: DDSType+Any+Send+Sync>(
+    pub(crate) fn create_datawriter<T: DDSType>(
         this: &Weak<PublisherImpl>,
         _a_topic: Topic,
         qos: DataWriterQos,
@@ -41,7 +41,7 @@ impl PublisherImpl {
         Some(datawriter)
     }
 
-    pub(crate) fn delete_datawriter<T: DDSType+Any+Send+Sync>(
+    pub(crate) fn delete_datawriter<T: DDSType>(
         this: &Weak<PublisherImpl>,
         a_datawriter: &DataWriter<T>
     ) -> ReturnCode<()> {
@@ -61,7 +61,7 @@ impl PublisherImpl {
         }
     }
 
-    pub(crate) fn lookup_datawriter<T: DDSType+Any+Send+Sync>(
+    pub(crate) fn lookup_datawriter<T: DDSType>(
         _this: &Weak<PublisherImpl>,
         _topic_name: String,
     ) -> Option<DataWriter<T>> {

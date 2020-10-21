@@ -64,7 +64,7 @@ impl Publisher {
     /// WRITER_DATA_LIFECYCLE QosPolicy, the deletion of the DataWriter may also dispose all instances. Refer to 2.2.3.21 for
     /// details.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
-    pub fn delete_datawriter<T: DDSType+Any+Send+Sync>(
+    pub fn delete_datawriter<T: DDSType>(
         &self,
         a_datawriter: &DataWriter<T>
     ) -> ReturnCode<()> {
@@ -75,7 +75,7 @@ impl Publisher {
     /// topic_name. If no such DataWriter exists, the operation will return ’nil.’
     /// If multiple DataWriter attached to the Publisher satisfy this condition, then the operation will return one of them. It is not
     /// specified which one.
-    pub fn lookup_datawriter<T: DDSType+Any+Send+Sync>(
+    pub fn lookup_datawriter<T: DDSType>(
         &self,
         topic_name: String,
     ) -> Option<DataWriter<T>> {

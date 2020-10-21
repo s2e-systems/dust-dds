@@ -18,13 +18,13 @@ use rust_dds_interface::qos::DataWriterQos;
 use rust_dds_interface::protocol::ProtocolWriter;
 
 
-pub(crate) struct DataWriterImpl<T: DDSType+Any+Send+Sync> {
+pub(crate) struct DataWriterImpl<T: DDSType> {
     parent_publisher: Weak<PublisherImpl>,
     protocol_writer: Arc<Mutex<dyn ProtocolWriter>>,
     value: PhantomData<T>,
 }
 
-impl<T: DDSType+Any+Send+Sync> DataWriterImpl<T> {
+impl<T: DDSType> DataWriterImpl<T> {
     pub fn register_instance(
         this: &Weak<DataWriterImpl<T>>,
         instance: T

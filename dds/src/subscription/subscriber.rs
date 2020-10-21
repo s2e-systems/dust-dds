@@ -59,7 +59,7 @@ impl Subscriber {
     /// The TopicDescription passed to this operation must have been created from the same DomainParticipant that was used to
     /// create this Subscriber. If the TopicDescription was created from a different DomainParticipant, the operation will fail and
     /// return a nil result.
-    pub fn create_datareader<T: DDSType+Any+Send+Sync>(
+    pub fn create_datareader<T: DDSType>(
         &self,
         a_topic: &dyn TopicDescription,
         qos: DataReaderQos,
@@ -81,7 +81,7 @@ impl Subscriber {
     /// delete_datareader is called on a different Subscriber, the operation will have no effect and it will return
     /// PRECONDITION_NOT_MET.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
-    pub fn delete_datareader<T: DDSType+Any+Send+Sync>(
+    pub fn delete_datareader<T: DDSType>(
         &self,
         a_datareader: &DataReader<T>
     ) -> ReturnCode<()> {
@@ -93,7 +93,7 @@ impl Subscriber {
     /// If multiple DataReaders attached to the Subscriber satisfy this condition, then the operation will return one of them. It is not
     /// specified which one.
     /// The use of this operation on the built-in Subscriber allows access to the built-in DataReader entities for the built-in topics
-    pub fn lookup_datareader<T: DDSType+Any+Send+Sync>(
+    pub fn lookup_datareader<T: DDSType>(
         &self,
         topic_name: String
     ) -> DataReader<T> {
@@ -144,7 +144,7 @@ impl Subscriber {
     /// objects in a particular order. In this case, the application should process each DataReader in the same order it appears in the
     /// ‘list’ and read or take exactly one sample from each DataReader. The patterns that an application should use to access data is
     /// fully described in 2.2.2.5.1, Access to the data.
-    pub fn get_datareaders<T: DDSType+Any+Send+Sync>(
+    pub fn get_datareaders<T: DDSType>(
         &self,
         readers: &mut [DataReader<T>],
         sample_states: &[SampleStateKind],

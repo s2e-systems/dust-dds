@@ -32,7 +32,7 @@ pub struct SubscriberImpl{
 }
 
 impl SubscriberImpl {
-    pub(crate) fn create_datareader<T: DDSType+Any+Send+Sync>(
+    pub(crate) fn create_datareader<T: DDSType>(
         this: &Weak<SubscriberImpl>,
         _a_topic: &dyn TopicDescription,
         qos: DataReaderQos,
@@ -52,7 +52,7 @@ impl SubscriberImpl {
         Some(datareader)
     }
 
-    pub(crate) fn delete_datareader<T: DDSType+Any+Send+Sync>(
+    pub(crate) fn delete_datareader<T: DDSType>(
         this: &Weak<SubscriberImpl>,
         a_datareader: &DataReader<T>
     ) -> ReturnCode<()> {
@@ -72,7 +72,7 @@ impl SubscriberImpl {
         }
     }
 
-    pub(crate) fn lookup_datareader<T: DDSType+Any+Send+Sync>(
+    pub(crate) fn lookup_datareader<T: DDSType>(
         _this: &Weak<SubscriberImpl>,
         _topic_name: String
     ) -> DataReader<T> {
@@ -92,7 +92,7 @@ impl SubscriberImpl {
     }
 
    
-    pub(crate) fn get_datareaders<T: DDSType+Any+Send+Sync>(
+    pub(crate) fn get_datareaders<T: DDSType>(
         _this: &Weak<SubscriberImpl>,
         _readers: &mut [DataReader<T>],
         _sample_states: &[SampleStateKind],

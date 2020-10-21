@@ -14,9 +14,9 @@ use crate::builtin_topics::SubscriptionBuiltinTopicData;
 use crate::implementation::data_writer_impl::DataWriterImpl;
 use rust_dds_interface::qos::DataWriterQos;
 
-pub struct DataWriter<T: DDSType+Any+Send+Sync>(pub(crate) Weak<DataWriterImpl<T>>);
+pub struct DataWriter<T: DDSType>(pub(crate) Weak<DataWriterImpl<T>>);
 
-impl<T: DDSType+Any+Send+Sync> DataWriter<T> {
+impl<T: DDSType> DataWriter<T> {
     /// This operation informs the Service that the application will be modifying a particular instance. It gives an opportunity to the
     /// Service to pre-configure itself to improve performance.
     /// It takes as a parameter an instance (to get the key value) and returns a handle that can be used in successive write or dispose
@@ -341,7 +341,7 @@ impl<T: DDSType+Any+Send+Sync> DataWriter<T> {
     }
 }
 
-impl<T: DDSType+Any+Send+Sync> Entity for DataWriter<T>{
+impl<T: DDSType> Entity for DataWriter<T>{
     type Qos = DataWriterQos;
     type Listener = Box<dyn DataWriterListener<T>>;
 
@@ -378,9 +378,9 @@ impl<T: DDSType+Any+Send+Sync> Entity for DataWriter<T>{
     }
 }
 
-impl<T: DDSType+Any+Send+Sync> DomainEntity for DataWriter<T>{}
+impl<T: DDSType> DomainEntity for DataWriter<T>{}
 
-// impl<T: Any+Send+Sync> Drop for DataWriter<T> {
+// impl<T> Drop for DataWriter<T> {
 //     fn drop(&mut self) {
 //         let parent_publisher = self.get_publisher();
 //         parent_publisher.delete_datawriter(self);
@@ -391,14 +391,14 @@ pub trait AnyDataWriter {
     fn as_any(&self) -> &dyn Any;
 }
 
-impl<T: DDSType+Any+Send+Sync> AnyDataWriter for DataWriter<T>{
+impl<T: DDSType> AnyDataWriter for DataWriter<T>{
     fn as_any(&self) -> &dyn Any {
         self
     }
 }
 
 impl dyn AnyDataWriter {
-    pub fn get<T: DDSType+Any+Send+Sync>(&self) -> Option<&DataWriter<T>> {
+    pub fn get<T: DDSType>(&self) -> Option<&DataWriter<T>> {
         self.as_any().downcast_ref::<DataWriter<T>>()
     }
 }

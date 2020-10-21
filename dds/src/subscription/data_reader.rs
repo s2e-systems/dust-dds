@@ -13,6 +13,8 @@ use crate::infrastructure::entity::Entity;
 use crate::infrastructure::entity::DomainEntity;
 use crate::subscription::data_reader_listener::DataReaderListener;
 use crate::builtin_topics::PublicationBuiltinTopicData;
+use crate::types::DDSType;
+
 use rust_dds_interface::qos::DataReaderQos;
 
 use crate::implementation::data_reader_impl::DataReaderImpl;
@@ -632,14 +634,14 @@ pub trait AnyDataReader {
     fn as_any(&self) -> &dyn Any;   
 }
 
-impl<T: 'static> AnyDataReader for DataReader<T>{
+impl<T: DDSType> AnyDataReader for DataReader<T>{
     fn as_any(&self) -> &dyn Any {
         self
     }
 }
 
 impl dyn AnyDataReader {
-    pub fn get<T: Any+Send+Sync>(&self) -> Option<&DataReader<T>> {
+    pub fn get<T: DDSType>(&self) -> Option<&DataReader<T>> {
         self.as_any().downcast_ref::<DataReader<T>>()
     }
 }
