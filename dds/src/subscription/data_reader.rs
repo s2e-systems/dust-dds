@@ -628,13 +628,18 @@ impl<T> Entity for DataReader<T> {
 
 impl<T> DomainEntity for DataReader<T>{}
 
-pub struct AnyDataReader(pub(crate) std::sync::Arc<dyn Any+Sync+Send>);
+pub trait AnyDataReader {
+    fn as_any(&self) -> &dyn Any;   
+}
 
-impl AnyDataReader {
-    pub fn get<T: Any+Send+Sync>(&self) -> Option<DataReader<T>> {
-        let upcasted_arc = self.0.clone().downcast::<DataReaderImpl<T>>().ok()?;
-        let datareader = DataReader(Arc::downgrade(&upcasted_arc));
+impl<T: 'static> AnyDataReader for DataReader<T>{
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
 
-        Some(datareader)
+impl dyn AnyDataReader {
+    pub fn get<T: Any+Send+Sync>(&self) -> Option<&DataReader<T>> {
+        self.as_any().downcast_ref::<DataReader<T>>()
     }
 }

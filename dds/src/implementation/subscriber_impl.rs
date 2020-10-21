@@ -26,7 +26,7 @@ use rust_dds_interface::protocol::ProtocolSubscriber;
 
 pub struct SubscriberImpl{
     parent_participant: Weak<DomainParticipantImpl>,
-    datareader_list: Mutex<Vec<AnyDataReader>>,
+    datareader_list: Mutex<Vec<Box<dyn AnyDataReader>>>,
     default_datareader_qos: Mutex<DataReaderQos>,
     protocol_subscriber: Arc<Mutex<dyn ProtocolSubscriber>>,
 }
@@ -45,8 +45,9 @@ impl SubscriberImpl {
         let protocol_reader = protocol_subscriber.create_reader(T::topic_kind(), &qos);
         let datareader_impl = Arc::new(DataReaderImpl::new(this.clone(), protocol_reader));
         let datareader = DataReader(Arc::downgrade(&datareader_impl));  
+        let datareader_2 = DataReader(Arc::downgrade(&datareader_impl));
 
-        subscriber.datareader_list.lock().ok()?.push(AnyDataReader(datareader_impl));
+        subscriber.datareader_list.lock().ok()?.push(Box::new(datareader_2));
 
         Some(datareader)
     }

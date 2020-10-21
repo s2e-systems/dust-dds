@@ -387,14 +387,18 @@ impl<T: DDSType+Any+Send+Sync> DomainEntity for DataWriter<T>{}
 //     }
 // }
 
-#[derive(Debug)]
-pub struct AnyDataWriter(pub(crate) std::sync::Arc<dyn Any+Sync+Send>);
+pub trait AnyDataWriter {
+    fn as_any(&self) -> &dyn Any;
+}
 
-impl AnyDataWriter {
-    pub fn get<T: DDSType+Any+Send+Sync>(&self) -> Option<DataWriter<T>> {
-        let upcasted_arc = self.0.clone().downcast::<DataWriterImpl<T>>().ok()?;
-        let datawriter = DataWriter(Arc::downgrade(&upcasted_arc));
+impl<T: DDSType+Any+Send+Sync> AnyDataWriter for DataWriter<T>{
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
 
-        Some(datawriter)
+impl dyn AnyDataWriter {
+    pub fn get<T: DDSType+Any+Send+Sync>(&self) -> Option<&DataWriter<T>> {
+        self.as_any().downcast_ref::<DataWriter<T>>()
     }
 }

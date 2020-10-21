@@ -402,28 +402,30 @@ mod tests {
 
     #[test]
     fn get_single_anydatawriter_value() {
-        let any_datawriter = AnyDataWriter(
-            Arc::new(DataWriterImpl::<Foo>::new(Weak::new(), Arc::new(Mutex::new(MockProtocolWriter))))
-        );
+        todo!()
+        // let any_datawriter = AnyDataWriter(
+        //     Arc::new(DataWriterImpl::<Foo>::new(Weak::new(), Arc::new(Mutex::new(MockProtocolWriter))))
+        // );
 
-        assert!(any_datawriter.get::<Foo>().is_some())
+        // assert!(any_datawriter.get::<Foo>().is_some())
     }
 
     #[test]
     fn get_multiple_anydatawriter_values() {
-        let mut datawriter_list = Vec::new();
+        // let mut datawriter_list = Vec::new();
 
-        datawriter_list.push(AnyDataWriter(Arc::new(DataWriterImpl::<Foo>::new(Weak::new(), Arc::new(Mutex::new(MockProtocolWriter))))));
-        datawriter_list.push(AnyDataWriter(Arc::new(DataWriterImpl::<Bar>::new(Weak::new(), Arc::new(Mutex::new(MockProtocolWriter))))));
+        todo!()
+        // datawriter_list.push(AnyDataWriter(Arc::new(DataWriterImpl::<Foo>::new(Weak::new(), Arc::new(Mutex::new(MockProtocolWriter))))));
+        // datawriter_list.push(AnyDataWriter(Arc::new(DataWriterImpl::<Bar>::new(Weak::new(), Arc::new(Mutex::new(MockProtocolWriter))))));
 
-        assert!(datawriter_list[0].get::<Foo>().is_some());
-        assert!(datawriter_list[0].get::<Bar>().is_none());
+        // assert!(datawriter_list[0].get::<Foo>().is_some());
+        // assert!(datawriter_list[0].get::<Bar>().is_none());
 
-        assert!(datawriter_list[1].get::<Foo>().is_none());
-        assert!(datawriter_list[1].get::<Bar>().is_some());
+        // assert!(datawriter_list[1].get::<Foo>().is_none());
+        // assert!(datawriter_list[1].get::<Bar>().is_some());
 
-        assert_eq!(datawriter_list.iter().position(|x| x.get::<Foo>().is_some()).unwrap(),0);
-        assert_eq!(datawriter_list.iter().position(|x| x.get::<Bar>().is_some()).unwrap(),1);
+        // assert_eq!(datawriter_list.iter().position(|x| x.get::<Foo>().is_some()).unwrap(),0);
+        // assert_eq!(datawriter_list.iter().position(|x| x.get::<Bar>().is_some()).unwrap(),1);
     }
 
 }
