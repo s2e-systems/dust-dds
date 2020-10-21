@@ -1,3 +1,4 @@
+use std::sync::Mutex;
 use crate::types::{GuidPrefix, Locator,};
 use crate::transport::Transport;
 
@@ -14,7 +15,7 @@ pub trait Receiver {
 pub struct RtpsMessageReceiver;
 
 impl RtpsMessageReceiver {
-    pub fn receive(participant_guid_prefix: GuidPrefix, transport: &dyn Transport, receiver_list: &mut [&mut dyn Receiver]) {
+    pub fn receive(participant_guid_prefix: GuidPrefix, transport: &dyn Transport, receiver_list: &mut [&Mutex<dyn Receiver>]) {
         if let Some((message, src_locator)) = transport.read().unwrap() {
             let _source_version = message.header().version();
             let _source_vendor_id = message.header().vendor_id();
@@ -27,7 +28,8 @@ impl RtpsMessageReceiver {
     
             for submessage in message.take_submessages() {
                 if submessage.is_entity_submessage() {
-                    for receiver in receiver_list.iter_mut() {
+                    for receiver in receiver_list.iter() {
+                        let mut receiver = receiver.lock().unwrap();
                         if receiver.is_submessage_destination(&src_locator, &source_guid_prefix, &submessage) {
                             receiver.push_receive_message(src_locator, source_guid_prefix, submessage);
                             break;

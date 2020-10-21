@@ -6,6 +6,7 @@ use crate::types::constants::{
     ENTITYID_PARTICIPANT,
     PROTOCOL_VERSION_2_4,};
 use crate::transport::Transport;
+use crate::messages::message_receiver::RtpsMessageReceiver;
 
 use super::publisher::RtpsPublisher;
 use super::subscriber::RtpsSubscriber;
@@ -46,7 +47,7 @@ impl RtpsParticipant {
         let vendor_id = [99,99];
         let guid_prefix = [5, 6, 7, 8, 9, 5, 1, 2, 3, 4, 10, 11];   // TODO: Should be uniquely generated
         let builtin_publisher = Arc::new(BuiltinPublisher::new(guid_prefix));
-        let builtin_subscriber = Arc::new(Mutex::new(BuiltinSubscriber));
+        let builtin_subscriber = Arc::new(Mutex::new(BuiltinSubscriber::new(guid_prefix)));
 
         Self {
             guid: GUID::new(guid_prefix,ENTITYID_PARTICIPANT ),
@@ -103,6 +104,11 @@ impl RtpsParticipant {
             }
         });
     }
+
+    pub fn run(&self) {
+        RtpsMessageReceiver::receive(self.guid.prefix(), self.metatraffic_transport.as_ref(), &mut [self.builtin_subscriber.as_ref()])
+    }
+
 }
 
 impl ProtocolEntity for RtpsParticipant {
