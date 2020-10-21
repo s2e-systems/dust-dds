@@ -1,8 +1,9 @@
 use std::time::Instant;
 use std::convert::TryInto;
 use std::collections::{BTreeSet, VecDeque};
+use std::sync::mpsc;
 
-use crate::types::{SequenceNumber, GuidPrefix, EntityId};
+use crate::types::{SequenceNumber, GuidPrefix, EntityId, Locator};
 use crate::structure::HistoryCache;
 use crate::messages::RtpsSubmessage;
 use crate::messages::submessages::{Gap, Heartbeat, AckNack};
@@ -27,11 +28,11 @@ pub struct ReliableReaderProxy{
     highest_nack_count_received: Count,
 
     received_messages: VecDeque<(GuidPrefix, RtpsSubmessage)>,
-    sent_messages: VecDeque<RtpsSubmessage>
+    sender: mpsc::Sender<(Vec<Locator>,RtpsSubmessage)>,
 }
 
 impl ReliableReaderProxy {
-    pub fn new(reader_proxy: ReaderProxy, writer_entity_id: EntityId, heartbeat_period: Duration, nack_response_delay: Duration) -> Self {
+    pub fn new(reader_proxy: ReaderProxy, writer_entity_id: EntityId, heartbeat_period: Duration, nack_response_delay: Duration, sender: mpsc::Sender<(Vec<Locator>,RtpsSubmessage)>) -> Self {
         Self {
             reader_proxy,
             writer_entity_id,
@@ -42,8 +43,7 @@ impl ReliableReaderProxy {
             time_nack_received: Instant::now(),
             highest_nack_count_received: 0,
             received_messages: VecDeque::new(),
-            sent_messages: VecDeque::new(),
-
+            sender,
         }
     }
 
@@ -63,7 +63,10 @@ impl ReliableReaderProxy {
         {
             let reader_id = self.reader_proxy.remote_reader_guid().entity_id();
             let data = data_from_cache_change(cache_change, reader_id);
-            self.sent_messages.push_back(RtpsSubmessage::Data(data));
+            let mut dst_locator = self.reader_proxy.unicast_locator_list().clone();
+            dst_locator.extend(self.reader_proxy.unicast_locator_list());
+            dst_locator.extend(self.reader_proxy.multicast_locator_list());
+            self.sender.send((dst_locator, RtpsSubmessage::Data(data)));
         } else {
             let gap = Gap::new(
                 BEHAVIOR_ENDIANNESS,
@@ -72,7 +75,10 @@ impl ReliableReaderProxy {
                 next_unsent_seq_num,
             BTreeSet::new());
 
-            self.sent_messages.push_back(RtpsSubmessage::Gap(gap));
+            let mut dst_locator = self.reader_proxy.unicast_locator_list().clone();
+            dst_locator.extend(self.reader_proxy.unicast_locator_list());
+            dst_locator.extend(self.reader_proxy.multicast_locator_list());
+            self.sender.send((dst_locator, RtpsSubmessage::Gap(gap)));
         }
     }
 
@@ -102,7 +108,11 @@ impl ReliableReaderProxy {
             false,
         );
 
-        self.sent_messages.push_back(RtpsSubmessage::Heartbeat(heartbeat));
+        let mut dst_locator = self.reader_proxy.unicast_locator_list().clone();
+        dst_locator.extend(self.reader_proxy.unicast_locator_list());
+        dst_locator.extend(self.reader_proxy.multicast_locator_list());
+
+        self.sender.send((dst_locator, RtpsSubmessage::Heartbeat(heartbeat)));
     }
     
     fn waiting_state(&mut self) {
@@ -138,7 +148,10 @@ impl ReliableReaderProxy {
         if let Some(cache_change) = history_cache.changes().iter().find(|cc| cc.sequence_number() == next_requested_seq_num)
         {
             let data = data_from_cache_change(cache_change, self.reader_proxy.remote_reader_guid().entity_id());
-            self.sent_messages.push_back(RtpsSubmessage::Data(data));
+            let mut dst_locator = self.reader_proxy.unicast_locator_list().clone();
+            dst_locator.extend(self.reader_proxy.unicast_locator_list());
+            dst_locator.extend(self.reader_proxy.multicast_locator_list());
+            self.sender.send((dst_locator, RtpsSubmessage::Data(data)));
         } else {
             let gap = Gap::new(
                 BEHAVIOR_ENDIANNESS,
@@ -147,7 +160,10 @@ impl ReliableReaderProxy {
                 next_requested_seq_num,
                 BTreeSet::new());
 
-            self.sent_messages.push_back(RtpsSubmessage::Gap(gap));
+            let mut dst_locator = self.reader_proxy.unicast_locator_list().clone();
+            dst_locator.extend(self.reader_proxy.unicast_locator_list());
+            dst_locator.extend(self.reader_proxy.multicast_locator_list());
+            self.sender.send((dst_locator, RtpsSubmessage::Gap(gap)));
         }
     }
 
@@ -202,21 +218,6 @@ impl ReaderProxyOps for ReliableReaderProxy {
 
     fn is_submessage_destination(&self, src_guid_prefix: &GuidPrefix, submessage: &RtpsSubmessage) -> bool {
         todo!()
-    }
-
-    fn pop_send_message(&mut self) -> Option<(Vec<crate::types::Locator>, VecDeque<RtpsSubmessage>)> {
-        if !self.sent_messages.is_empty() {
-            let mut send_message_queue = VecDeque::new();
-            std::mem::swap(&mut send_message_queue, &mut self.sent_messages);
-            
-            let mut locator_list = Vec::new();
-            locator_list.extend(self.reader_proxy.unicast_locator_list());
-            locator_list.extend(self.reader_proxy.multicast_locator_list());
-
-            Some((locator_list, send_message_queue))
-        } else {
-            None
-        }
     }
 }
 

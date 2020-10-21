@@ -1,4 +1,5 @@
 use std::collections::{HashMap, VecDeque};
+use std::sync::mpsc;
 
 use crate::types::{ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID, GuidPrefix};
 use crate::behavior::types::Duration;
@@ -19,7 +20,6 @@ pub trait ReaderProxyOps {
     fn run(&mut self, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber);
     fn push_receive_message(&mut self, src_guid_prefix: GuidPrefix, submessage: RtpsSubmessage);
     fn is_submessage_destination(&self, src_guid_prefix: &GuidPrefix, submessage: &RtpsSubmessage) -> bool;
-    fn pop_send_message(&mut self) -> Option<(Vec<Locator>, VecDeque<RtpsSubmessage>)>;
 }
 
 pub struct StatefulWriter {
@@ -49,20 +49,23 @@ pub struct StatefulWriter {
     data_max_sized_serialized: Option<i32>,
 
     matched_readers: HashMap<GUID, Box<dyn ReaderProxyOps>>,
+
+    sender: mpsc::Sender<(Vec<Locator>,RtpsSubmessage)>,
 }
 
 impl StatefulWriter {
     pub fn new(
         guid: GUID,
         topic_kind: TopicKind,
-        writer_qos: &DataWriterQos) -> Self {
+        writer_qos: &DataWriterQos,
+        sender: mpsc::Sender<(Vec<Locator>,RtpsSubmessage)>) -> Self {
 
             let push_mode = true;
             let heartbeat_period = Duration::from_millis(500);
             let nack_response_delay = Duration::from_millis(200);
             let nack_suppression_duration = Duration::from_millis(0);
 
-            StatefulWriter {
+            Self {
                 guid,
                 topic_kind,
                 reliability_level: writer_qos.reliability.kind.into(),
@@ -74,6 +77,7 @@ impl StatefulWriter {
                 writer_cache: HistoryCache::new(&writer_qos.resource_limits),
                 data_max_sized_serialized: None,
                 matched_readers: HashMap::new(),
+                sender
         }
     }
 
@@ -110,8 +114,8 @@ impl StatefulWriter {
     pub fn matched_reader_add(&mut self, a_reader_proxy: ReaderProxy) {
         let remote_reader_guid = a_reader_proxy.remote_reader_guid().clone();
         let reader_proxy: Box<dyn ReaderProxyOps> = match self.reliability_level {
-            ReliabilityKind::Reliable => Box::new(ReliableReaderProxy::new(a_reader_proxy, self.guid.entity_id(), self.heartbeat_period, self.nack_response_delay)),
-            ReliabilityKind::BestEffort => Box::new(BestEffortReaderProxy::new(a_reader_proxy, self.guid.entity_id())),
+            ReliabilityKind::Reliable => Box::new(ReliableReaderProxy::new(a_reader_proxy, self.guid.entity_id(), self.heartbeat_period, self.nack_response_delay, self.sender.clone())),
+            ReliabilityKind::BestEffort => Box::new(BestEffortReaderProxy::new(a_reader_proxy, self.guid.entity_id(), self.sender.clone())),
         };
         self.matched_readers.insert(remote_reader_guid, reader_proxy);
     }
@@ -191,14 +195,6 @@ impl Receiver for StatefulWriter {
     }
 }
 
-impl Sender for StatefulWriter {
-    fn pop_send_messages(&mut self) -> Vec<(Vec<Locator>, VecDeque<RtpsSubmessage>)> {
-        self.matched_readers.iter_mut()
-            .filter_map(|(_reader_guid, reader)| reader.pop_send_message())
-            .collect()
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -218,11 +214,14 @@ mod tests {
 
     #[test]
     fn stateful_writer_new_change() {
+        let (sender, receiver) = mpsc::channel();
+
         let writer_qos = DataWriterQos::default();
         let mut writer = StatefulWriter::new(
             GUID::new([0; 12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
             TopicKind::WithKey,
-            &writer_qos
+            &writer_qos,
+            sender,
         );
 
         let cache_change_seq1 = writer.new_change(

@@ -1,5 +1,4 @@
 use std::sync::{Arc, Weak, Mutex, };
-use std::thread;
 
 use crate::types::{GUID, ProtocolVersion, VendorId, EntityId, EntityKind};
 use crate::types::constants::{
@@ -65,11 +64,6 @@ impl RtpsParticipant {
         }
     }
 
-    pub fn send(&self) {
-        let valid_publishers = self.publisher_list.iter().filter_map(|p|p.upgrade());
-        valid_publishers.for_each(|p|p.lock().unwrap().send(self.userdata_transport.as_ref()));
-    }
-    
     pub fn guid(&self) -> GUID {
         self.guid
     }

@@ -1,6 +1,7 @@
-use std::collections::{BTreeSet, VecDeque};
+use std::collections::BTreeSet;
+use std::sync::mpsc;
 
-use crate::types::{EntityId, SequenceNumber};
+use crate::types::{EntityId, SequenceNumber, Locator};
 use crate::structure::HistoryCache;
 use crate::messages::RtpsSubmessage;
 use crate::messages::submessages::Gap;
@@ -12,15 +13,15 @@ use super::stateful_writer::ReaderProxyOps;
 pub struct BestEffortReaderProxy {
     reader_proxy: ReaderProxy,
     writer_entity_id: EntityId,
-    send_messages: VecDeque<RtpsSubmessage>
+    sender: mpsc::Sender<(Vec<Locator>,RtpsSubmessage)>,
 }
 
 impl BestEffortReaderProxy {
-    pub fn new(reader_proxy: ReaderProxy, writer_entity_id: EntityId) -> Self {
+    pub fn new(reader_proxy: ReaderProxy, writer_entity_id: EntityId, sender: mpsc::Sender<(Vec<Locator>,RtpsSubmessage)>) -> Self {
         Self{
             reader_proxy,
             writer_entity_id,
-            send_messages: VecDeque::new(),
+            sender,
         }
     }
     
@@ -40,7 +41,10 @@ impl BestEffortReaderProxy {
         {
             let reader_id = self.reader_proxy.remote_reader_guid().entity_id();
             let data = data_from_cache_change(cache_change, reader_id);
-            self.send_messages.push_back(RtpsSubmessage::Data(data));
+            let mut dst_locator = self.reader_proxy.unicast_locator_list().clone();
+            dst_locator.extend(self.reader_proxy.unicast_locator_list());
+            dst_locator.extend(self.reader_proxy.multicast_locator_list());
+            self.sender.send((dst_locator, RtpsSubmessage::Data(data)));
         } else {
             let gap = Gap::new(
                 BEHAVIOR_ENDIANNESS,
@@ -48,7 +52,10 @@ impl BestEffortReaderProxy {
                 self.writer_entity_id,
                 next_unsent_seq_num,
             BTreeSet::new());
-            self.send_messages.push_back(RtpsSubmessage::Gap(gap))
+            let mut dst_locator = self.reader_proxy.unicast_locator_list().clone();
+            dst_locator.extend(self.reader_proxy.unicast_locator_list());
+            dst_locator.extend(self.reader_proxy.multicast_locator_list());
+            self.sender.send((dst_locator, RtpsSubmessage::Gap(gap)));
         }
     }
 }
@@ -68,21 +75,6 @@ impl ReaderProxyOps for BestEffortReaderProxy {
         // The best effor reader proxy doesn't receive any message
         false
     }
-
-    fn pop_send_message(&mut self) -> Option<(Vec<crate::types::Locator>, VecDeque<RtpsSubmessage>)> {
-        if !self.send_messages.is_empty() {
-            let mut send_message_queue = VecDeque::new();
-            std::mem::swap(&mut send_message_queue, &mut self.send_messages);
-            
-            let mut locator_list = Vec::new();
-            locator_list.extend(self.reader_proxy.unicast_locator_list());
-            locator_list.extend(self.reader_proxy.multicast_locator_list());
-
-            Some((locator_list, send_message_queue))
-        } else {
-            None
-        }
-    }
 }
 
 #[cfg(test)]
@@ -96,6 +88,8 @@ mod tests {
 
     #[test]
     fn run() {
+        let (sender, receiver) = mpsc::channel();
+
         let reader_entity_id = ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR;
         let remote_reader_guid = GUID::new([1;12], reader_entity_id);
         let reader_locator = Locator::new(0, 7400, [1;16]);
@@ -104,7 +98,7 @@ mod tests {
         let reader_proxy = ReaderProxy::new(remote_reader_guid, vec![reader_locator], vec![], expects_inline_qos, is_active);
 
         let writer_entity_id = ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER;
-        let mut best_effort_reader_proxy = BestEffortReaderProxy::new(reader_proxy, writer_entity_id);
+        let mut best_effort_reader_proxy = BestEffortReaderProxy::new(reader_proxy, writer_entity_id, sender);
 
         let history_cache = HistoryCache::new(&ResourceLimitsQosPolicy::default());
         
@@ -112,7 +106,7 @@ mod tests {
         let last_change_sequence_number = 0;
         best_effort_reader_proxy.run(&history_cache, last_change_sequence_number);
 
-        assert!(best_effort_reader_proxy.send_messages.is_empty());
+        assert!(receiver.try_recv().is_err());
 
         // Add one change to the history cache and run with that change as the last one. One Data submessage should be sent
         let writer_guid = GUID::new([5;12], writer_entity_id);
@@ -125,8 +119,8 @@ mod tests {
         best_effort_reader_proxy.run(&history_cache, last_change_sequence_number);
 
         let expected_submessage = RtpsSubmessage::Data(expected_data_submessage);
-        let sent_message = best_effort_reader_proxy.send_messages.pop_front().unwrap();
-        assert!(best_effort_reader_proxy.send_messages.is_empty());
+        let (locator, sent_message) = receiver.try_recv().unwrap();
+        assert!(receiver.try_recv().is_err());
         assert_eq!(sent_message, expected_submessage);
 
         // Run with the next sequence number without adding any change to the history cache. One Gap submessage should be sent
@@ -134,8 +128,8 @@ mod tests {
         best_effort_reader_proxy.run(&history_cache, last_change_sequence_number);
 
         let expected_submessage = RtpsSubmessage::Gap(Gap::new(BEHAVIOR_ENDIANNESS, reader_entity_id, writer_entity_id, 2, BTreeSet::new()));
-        let sent_message = best_effort_reader_proxy.send_messages.pop_front().unwrap();
-        assert!(best_effort_reader_proxy.send_messages.is_empty());
+        let (locator, sent_message) = receiver.try_recv().unwrap();
+        assert!(receiver.try_recv().is_err());
         assert_eq!(sent_message, expected_submessage);
 
         // Add one change to the history cache skipping one sequence number. One Gap and one Data submessage should be sent
@@ -149,8 +143,8 @@ mod tests {
         let expected_gap_submessage = RtpsSubmessage::Gap(Gap::new(BEHAVIOR_ENDIANNESS, reader_entity_id, writer_entity_id, 3, BTreeSet::new()));
         let expected_data_submessage = RtpsSubmessage::Data(expected_data_submessage);
 
-        let sent_message_1 = best_effort_reader_proxy.send_messages.pop_front().unwrap();
-        let sent_message_2 = best_effort_reader_proxy.send_messages.pop_front().unwrap();
+        let (locator, sent_message_1) = receiver.try_recv().unwrap();
+        let (locator, sent_message_2) = receiver.try_recv().unwrap();
         assert_eq!(sent_message_1, expected_gap_submessage);
         assert_eq!(sent_message_2, expected_data_submessage);
     }
