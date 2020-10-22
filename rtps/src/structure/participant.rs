@@ -22,7 +22,7 @@ pub struct RtpsParticipant {
     domain_id: DomainId,
     protocol_version: ProtocolVersion,
     vendor_id: VendorId,
-    userdata_transport: Box<dyn Transport>,
+    userdata_transport: Arc<dyn Transport>,
     metatraffic_transport: Arc<dyn Transport>,
     builtin_publisher: Arc<Mutex<BuiltinPublisher>>,
     builtin_subscriber: Arc<Mutex<BuiltinSubscriber>>, 
@@ -36,19 +36,21 @@ impl RtpsParticipant {
         userdata_transport: impl Transport + 'static,
         metatraffic_transport: impl Transport + 'static,
     ) -> Self {
+        let userdata_transport = Arc::new(userdata_transport);
+        let metatraffic_transport = Arc::new(metatraffic_transport);
+        let metatraffic_sender = RtpsMessageSender::new(metatraffic_transport.clone());
         let protocol_version = PROTOCOL_VERSION_2_4;
         let vendor_id = [99,99];
         let guid_prefix = [5, 6, 7, 8, 9, 5, 1, 2, 3, 4, 10, 11];   // TODO: Should be uniquely generated
-        let builtin_publisher = Arc::new(Mutex::new(BuiltinPublisher::new(guid_prefix)));
+        let builtin_publisher = Arc::new(Mutex::new(BuiltinPublisher::new(guid_prefix, metatraffic_sender)));
         let builtin_subscriber = Arc::new(Mutex::new(BuiltinSubscriber::new(guid_prefix)));
-
         Self {
             guid: GUID::new(guid_prefix,ENTITYID_PARTICIPANT ),
             domain_id,
             protocol_version,
             vendor_id,
-            userdata_transport: Box::new(userdata_transport),
-            metatraffic_transport: Arc::new(metatraffic_transport),
+            userdata_transport,
+            metatraffic_transport,
             builtin_subscriber,
             builtin_publisher,
             publisher_list: Default::default(),
@@ -72,7 +74,7 @@ impl RtpsParticipant {
         self.vendor_id
     }
 
-    pub fn userdata_transport(&self) -> &Box<dyn Transport> {
+    pub fn userdata_transport(&self) -> &Arc<dyn Transport> {
         &self.userdata_transport
     }
 

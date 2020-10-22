@@ -1,21 +1,26 @@
-use std::collections::VecDeque;
-use std::sync::mpsc;
+use std::sync::Arc;
 
 use crate::types::{GuidPrefix, Locator };
 use crate::types::constants::{PROTOCOL_VERSION_2_4, VENDOR_ID};
 use crate::transport::Transport;
 
-use super::{RtpsSubmessage, Endianness};
-use super::submessages::InfoTs;
+use super::{RtpsSubmessage, };
 use super::message::RtpsMessage;
-use super::types::Time;
 
-pub struct RtpsMessageSender;
+pub struct RtpsMessageSender {
+    transport: Arc<dyn Transport>
+}
 
 impl RtpsMessageSender {
-    pub fn send(participant_guid_prefix: GuidPrefix, transport: &dyn Transport,  locator: &Locator, submessages: Vec<RtpsSubmessage>) {
+    pub fn new(transport: Arc<dyn Transport>) -> Self {
+        Self {
+            transport
+        }
+    }
+
+    pub fn send(&self, participant_guid_prefix: GuidPrefix, locator: &Locator, submessages: Vec<RtpsSubmessage>) {
         let rtps_message = RtpsMessage::new(PROTOCOL_VERSION_2_4, VENDOR_ID, participant_guid_prefix, submessages);
-        transport.write(rtps_message, &locator);
+        self.transport.write(rtps_message, &locator);
     }
 }
 
