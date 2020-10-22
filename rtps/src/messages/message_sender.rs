@@ -13,19 +13,9 @@ use super::types::Time;
 pub struct RtpsMessageSender;
 
 impl RtpsMessageSender {
-    pub fn send(participant_guid_prefix: GuidPrefix, transport: &dyn Transport,  sender_list: &[&mpsc::Receiver<(Vec<Locator>,RtpsSubmessage)>]) {
-        for &sender in sender_list {
-            while let Some((dst_locators, submessage)) = sender.try_recv().ok()
-            {
-                let mut rtps_submessages = Vec::new();
-                
-                rtps_submessages.push(RtpsSubmessage::InfoTs(InfoTs::new(Endianness::LittleEndian, Some(Time::now()))));
-                rtps_submessages.push(submessage);
-
-                let rtps_message = RtpsMessage::new(PROTOCOL_VERSION_2_4, VENDOR_ID, participant_guid_prefix, rtps_submessages);
-                transport.write(rtps_message, &dst_locators);
-            }
-        }
+    pub fn send(participant_guid_prefix: GuidPrefix, transport: &dyn Transport,  locator: &Locator, submessages: Vec<RtpsSubmessage>) {
+        let rtps_message = RtpsMessage::new(PROTOCOL_VERSION_2_4, VENDOR_ID, participant_guid_prefix, submessages);
+        transport.write(rtps_message, &locator);
     }
 }
 

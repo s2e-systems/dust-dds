@@ -83,7 +83,6 @@ impl RtpsParticipant {
     pub fn run(&self) {
         RtpsMessageReceiver::receive(self.guid.prefix(), self.metatraffic_transport.as_ref(), &mut [self.builtin_subscriber.as_ref()]);
         let builtin_publisher_lock = self.builtin_publisher.lock().unwrap();
-        RtpsMessageSender::send(self.guid.prefix(), self.metatraffic_transport.as_ref(), &[builtin_publisher_lock.receiver()]);
     }
 
 }
@@ -146,7 +145,7 @@ mod tests {
     }
 
     impl Transport for MockTransport {
-        fn write(&self, _message: crate::RtpsMessage, _destination_locator_list: &[Locator]) {
+        fn write(&self, _message: crate::RtpsMessage, _destination_locator: &Locator) {
             todo!()
         }
 
