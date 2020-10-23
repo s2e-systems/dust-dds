@@ -15,7 +15,7 @@ use rust_dds_interface::qos::DataReaderQos;
 use rust_dds_interface::types::{InstanceHandle, ReturnCode};
 
 pub trait WriterProxyOps {
-    fn push_receive_message(&mut self, src_guid_prefix: GuidPrefix, submessage: RtpsSubmessage);
+    fn push_receive_message(&mut self, submessage: RtpsSubmessage);
     fn is_submessage_destination(&self, src_guid_prefix: &GuidPrefix, submessage: &RtpsSubmessage) -> bool;
     fn run(&mut self, history_cache: &HistoryCache);
 }
@@ -103,7 +103,7 @@ impl Receiver for StatefulReader {
         let (_, destination_writer) = self.matched_writers.iter_mut()
             .find(|(_, writer)| writer.is_submessage_destination(&src_guid_prefix, &submessage)).unwrap();
 
-        destination_writer.push_receive_message(src_guid_prefix, submessage);
+        destination_writer.push_receive_message(submessage);
     }
 
     fn is_submessage_destination(&self, _src_locator: &Locator, src_guid_prefix: &GuidPrefix, submessage: &RtpsSubmessage) -> bool {

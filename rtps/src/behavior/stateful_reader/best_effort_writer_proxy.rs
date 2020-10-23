@@ -11,20 +11,20 @@ use super::stateful_reader::WriterProxyOps;
 
 pub struct BestEffortWriterProxy {
     writer_proxy: WriterProxy,
-    received_messages: VecDeque<(GuidPrefix, RtpsSubmessage)>,
+    input_queue: VecDeque<RtpsSubmessage>,
 }
 
 impl BestEffortWriterProxy {
     pub fn new(writer_proxy: WriterProxy) -> Self {
         Self {
             writer_proxy,
-            received_messages: VecDeque::new()
+            input_queue: VecDeque::new()
         }
     }
 
     fn waiting_state(&mut self, history_cache: &HistoryCache) {
-        let received = self.received_messages.pop_front();
-        if let Some((_, received_message)) = received  {
+        let received = self.input_queue.pop_front();
+        if let Some(received_message) = received  {
             match received_message {
                 RtpsSubmessage::Data(data) => self.transition_t2(history_cache, data),
                 RtpsSubmessage::Gap(gap) => self.transition_t4(&gap),
@@ -62,10 +62,10 @@ impl WriterProxyOps for BestEffortWriterProxy {
         self.waiting_state(history_cache);
     }
 
-    fn push_receive_message(&mut self, src_guid_prefix: GuidPrefix, submessage: RtpsSubmessage) {
-        assert!(self.is_submessage_destination(&src_guid_prefix, &submessage));
+    fn push_receive_message(&mut self, submessage: RtpsSubmessage) {
+        // assert!(self.is_submessage_destination(&src_guid_prefix, &submessage));
 
-        self.received_messages.push_back((src_guid_prefix, submessage));
+        self.input_queue.push_back(submessage);
     }
 
     fn is_submessage_destination(&self, src_guid_prefix: &GuidPrefix, submessage: &RtpsSubmessage) -> bool {
@@ -117,7 +117,7 @@ mod tests {
             Some(inline_qos),
             Payload::Data(vec![1,2,3]));
 
-        best_effort_proxy.push_receive_message(remote_writer_guid_prefix, RtpsSubmessage::Data(data1));
+        best_effort_proxy.push_receive_message(RtpsSubmessage::Data(data1));
         best_effort_proxy.run(&history_cache);
 
         let expected_change_1 = CacheChange::new(

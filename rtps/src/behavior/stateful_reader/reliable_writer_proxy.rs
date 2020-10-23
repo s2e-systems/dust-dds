@@ -23,7 +23,7 @@ pub struct ReliableWriterProxy {
     ackanck_count: Count,
     highest_received_heartbeat_count: Count,
 
-    received_messages: VecDeque<(GuidPrefix, RtpsSubmessage)>,
+    input_queue: VecDeque<RtpsSubmessage>,
     output_queue: VecDeque<RtpsSubmessage>,
 }
 
@@ -37,14 +37,14 @@ impl ReliableWriterProxy {
             time_heartbeat_received: Instant::now(),
             ackanck_count: 0,
             highest_received_heartbeat_count: 0,
-            received_messages: VecDeque::new(),
+            input_queue: VecDeque::new(),
             output_queue: VecDeque::new(),
         }
     }
 
     fn ready_state(&mut self, history_cache: &HistoryCache) -> Option<Heartbeat>{
-        let received = self.received_messages.pop_front();
-        if let Some((_, received_message)) = received {
+        let received = self.input_queue.pop_front();
+        if let Some(received_message) = received {
             match received_message {
                 RtpsSubmessage::Data(data) => {
                     self.transition_t8(history_cache, data);
@@ -162,10 +162,10 @@ impl WriterProxyOps for ReliableWriterProxy {
         }
     }
 
-    fn push_receive_message(&mut self, src_guid_prefix: GuidPrefix, submessage: RtpsSubmessage) {
-        assert!(self.is_submessage_destination(&src_guid_prefix, &submessage));
+    fn push_receive_message(&mut self, submessage: RtpsSubmessage) {
+        // assert!(self.is_submessage_destination(&src_guid_prefix, &submessage));
 
-        self.received_messages.push_back((src_guid_prefix, submessage));
+        self.input_queue.push_back(submessage);
     }
 
     fn is_submessage_destination(&self, src_guid_prefix: &GuidPrefix, submessage: &RtpsSubmessage) -> bool {
@@ -220,7 +220,7 @@ mod tests {
             Some(inline_qos),
             Payload::Data(vec![1,2,3]));
 
-        reliable_writer_proxy.push_receive_message(remote_writer_guid_prefix, RtpsSubmessage::Data(data1));
+        reliable_writer_proxy.push_receive_message(RtpsSubmessage::Data(data1));
 
 
         reliable_writer_proxy.run(&history_cache);
@@ -266,7 +266,7 @@ mod tests {
             false,
         );
     
-        reliable_writer_proxy.push_receive_message(remote_writer_guid_prefix, RtpsSubmessage::Heartbeat(heartbeat));
+        reliable_writer_proxy.push_receive_message(RtpsSubmessage::Heartbeat(heartbeat));
 
         reliable_writer_proxy.run(&history_cache);
         assert_eq!(reliable_writer_proxy.writer_proxy.missing_changes(), [3, 4, 5, 6].iter().cloned().collect());
@@ -294,7 +294,7 @@ mod tests {
             true,
             false,
         );
-        reliable_writer_proxy.push_receive_message(remote_writer_guid_prefix, RtpsSubmessage::Heartbeat(heartbeat));
+        reliable_writer_proxy.push_receive_message(RtpsSubmessage::Heartbeat(heartbeat));
 
         reliable_writer_proxy.run(&history_cache);
         assert_eq!(reliable_writer_proxy.writer_proxy.missing_changes(), [2, 3].iter().cloned().collect());
@@ -329,7 +329,7 @@ mod tests {
             true,
             false,
         );
-        reliable_writer_proxy.push_receive_message(remote_writer_guid_prefix, RtpsSubmessage::Heartbeat(heartbeat));
+        reliable_writer_proxy.push_receive_message(RtpsSubmessage::Heartbeat(heartbeat));
 
         reliable_writer_proxy.run(&history_cache);
         assert_eq!(reliable_writer_proxy.writer_proxy.missing_changes(), [].iter().cloned().collect());
