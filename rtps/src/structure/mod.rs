@@ -5,13 +5,11 @@
 mod cache_change;
 mod history_cache;
 mod participant;
-mod publisher;
-mod subscriber;
-mod builtin_publisher;
-mod builtin_subscriber;
+mod group;
+mod endpoint;
 
 pub use cache_change::CacheChange;
 pub use history_cache::HistoryCache;
 pub use participant::RtpsParticipant;
-pub use publisher::RtpsPublisher;
-pub use subscriber::RtpsSubscriber;
+pub use group::RtpsGroup;
+pub use endpoint::RtpsEndpoint;

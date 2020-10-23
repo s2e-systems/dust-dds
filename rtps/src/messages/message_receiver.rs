@@ -1,19 +1,12 @@
-use std::sync::Mutex;
 use crate::types::{GuidPrefix, Locator,};
+use crate::structure::RtpsGroup;
 use crate::transport::Transport;
 
 use super::submessages::RtpsSubmessage;
-
-// ////////////////// RTPS Message Receiver
-
-pub trait Receiver {
-    fn try_push_message(&self, src_locator: Locator, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>);
-}
-
 pub struct RtpsMessageReceiver;
 
 impl RtpsMessageReceiver {
-    pub fn receive(participant_guid_prefix: GuidPrefix, transport: &dyn Transport, receiver_list: &[&dyn Receiver]) {
+    pub fn receive(participant_guid_prefix: GuidPrefix, transport: &dyn Transport, receiver_list: &[&RtpsGroup]) {
         if let Some((message, src_locator)) = transport.read().unwrap() {
             let _source_version = message.header().version();
             let _source_vendor_id = message.header().vendor_id();

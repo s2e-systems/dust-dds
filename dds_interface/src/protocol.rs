@@ -7,8 +7,6 @@ pub trait ProtocolEntity {
     fn get_instance_handle(&self) -> InstanceHandle;
 }
 
-pub trait ProtocolEndpoint : ProtocolEntity {}
-
 pub trait ProtocolParticipant : ProtocolEntity {
     fn create_publisher(&mut self) -> Arc<Mutex<dyn ProtocolPublisher>>;
     fn create_subscriber(&mut self) -> Arc<Mutex<dyn ProtocolSubscriber>>;
@@ -22,7 +20,7 @@ pub trait ProtocolPublisher : ProtocolEntity {
     fn create_writer(&mut self, topic_kind: TopicKind, data_writer_qos: &DataWriterQos) -> Arc<Mutex<dyn ProtocolWriter>>;
 }
 
-pub trait ProtocolWriter : ProtocolEndpoint  {    
+pub trait ProtocolWriter : ProtocolEntity  {    
     fn write(&mut self, instance_handle: InstanceHandle, data: Data, timestamp: Time) -> ReturnCode<()>;
 
     fn dispose(&self, instance_handle: InstanceHandle, timestamp: Time) -> ReturnCode<()>;
@@ -34,7 +32,7 @@ pub trait ProtocolWriter : ProtocolEndpoint  {
     fn lookup_instance(&self, instance_handle: InstanceHandle) -> Option<InstanceHandle>;
 }
 
-pub trait ProtocolReader: ProtocolEndpoint {
+pub trait ProtocolReader: ProtocolEntity {
 
 }
 

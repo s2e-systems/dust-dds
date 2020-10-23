@@ -1,3 +1,4 @@
+use std::sync::Mutex;
 use std::collections::VecDeque;
 
 use crate::types::{GuidPrefix, GUID};
@@ -11,19 +12,19 @@ use super::stateful_reader::WriterProxyOps;
 
 pub struct BestEffortWriterProxy {
     writer_proxy: WriterProxy,
-    input_queue: VecDeque<RtpsSubmessage>,
+    input_queue: Mutex<VecDeque<RtpsSubmessage>>,
 }
 
 impl BestEffortWriterProxy {
     pub fn new(writer_proxy: WriterProxy) -> Self {
         Self {
             writer_proxy,
-            input_queue: VecDeque::new()
+            input_queue: Mutex::new(VecDeque::new())
         }
     }
 
     fn waiting_state(&mut self, history_cache: &HistoryCache) {
-        let received = self.input_queue.pop_front();
+        let received = self.input_queue.lock().unwrap().pop_front();
         if let Some(received_message) = received  {
             match received_message {
                 RtpsSubmessage::Data(data) => self.transition_t2(history_cache, data),
@@ -62,22 +63,17 @@ impl WriterProxyOps for BestEffortWriterProxy {
         self.waiting_state(history_cache);
     }
 
-    fn push_receive_message(&mut self, submessage: RtpsSubmessage) {
-        // assert!(self.is_submessage_destination(&src_guid_prefix, &submessage));
-
-        self.input_queue.push_back(submessage);
-    }
-
-    fn is_submessage_destination(&self, src_guid_prefix: &GuidPrefix, submessage: &RtpsSubmessage) -> bool {
+    fn try_push_message(&self, _src_locator: crate::types::Locator, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>) {
         let writer_id = match submessage {
-            RtpsSubmessage::Data(data) => data.writer_id(),
-            RtpsSubmessage::Gap(gap) => gap.writer_id(),
-            _ => return false,
+            Some(RtpsSubmessage::Data(data)) => data.writer_id(),
+            Some(RtpsSubmessage::Gap(gap)) => gap.writer_id(),
+            _ => return,
         };
+        let writer_guid = GUID::new(src_guid_prefix, writer_id);
 
-        let writer_guid = GUID::new(*src_guid_prefix, writer_id);
-
-        self.writer_proxy.remote_writer_guid() == &writer_guid
+        if self.writer_proxy.remote_writer_guid() == &writer_guid {
+            self.input_queue.lock().unwrap().push_back(submessage.take().unwrap())
+        }
     }
 }
 
@@ -86,7 +82,7 @@ mod tests {
     use super::*;
     use crate::types::{ChangeKind, GUID};
     use crate::types::constants::{
-        ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR};
+        ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, LOCATOR_INVALID};
     use crate::structure::CacheChange;
     use crate::messages::submessages::data_submessage::Payload;
     use crate::serialized_payload::ParameterList;
@@ -117,7 +113,7 @@ mod tests {
             Some(inline_qos),
             Payload::Data(vec![1,2,3]));
 
-        best_effort_proxy.push_receive_message(RtpsSubmessage::Data(data1));
+        best_effort_proxy.try_push_message(LOCATOR_INVALID,  remote_writer_guid_prefix, &mut Some(RtpsSubmessage::Data(data1)));
         best_effort_proxy.run(&history_cache);
 
         let expected_change_1 = CacheChange::new(

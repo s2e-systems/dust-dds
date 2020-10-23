@@ -1,23 +1,21 @@
 use std::collections::HashMap;
 
-use crate::structure::HistoryCache;
+use crate::structure::{HistoryCache, RtpsEndpoint};
 use crate::types::{Locator, ReliabilityKind, TopicKind, GUID, GuidPrefix };
 use crate::messages::RtpsSubmessage;
-use crate::messages::message_receiver::Receiver;
 use crate::behavior::types::Duration;
 
 use crate::behavior::WriterProxy;
 use super::best_effort_writer_proxy::BestEffortWriterProxy;
 use super::reliable_writer_proxy::ReliableWriterProxy;
 
-use rust_dds_interface::protocol::{ProtocolEntity, ProtocolReader, ProtocolEndpoint};
+use rust_dds_interface::protocol::{ProtocolEntity, ProtocolReader};
 use rust_dds_interface::qos::DataReaderQos;
 use rust_dds_interface::types::{InstanceHandle, ReturnCode};
 
 pub trait WriterProxyOps {
-    fn push_receive_message(&mut self, submessage: RtpsSubmessage);
-    fn is_submessage_destination(&self, src_guid_prefix: &GuidPrefix, submessage: &RtpsSubmessage) -> bool;
     fn run(&mut self, history_cache: &HistoryCache);
+    fn try_push_message(&self, src_locator: Locator, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>);
 }
 
 pub struct StatefulReader {
@@ -96,19 +94,6 @@ impl StatefulReader {
     pub fn guid(&self) -> &GUID {
         &self.guid
     }
-
-    fn push_receive_message(&mut self, _src_locator: Locator, src_guid_prefix: GuidPrefix, submessage: RtpsSubmessage){
-        let (_, destination_writer) = self.matched_writers.iter_mut()
-            .find(|(_, writer)| writer.is_submessage_destination(&src_guid_prefix, &submessage)).unwrap();
-
-        destination_writer.push_receive_message(submessage);
-    }
-
-    fn is_submessage_destination(&self, _src_locator: &Locator, src_guid_prefix: &GuidPrefix, submessage: &RtpsSubmessage) -> bool {
-        self.matched_writers.iter()
-            .find(|&(_, writer)| writer.is_submessage_destination(src_guid_prefix, submessage)).is_some()
-       
-    }
 }
 
 impl ProtocolEntity for StatefulReader {
@@ -121,8 +106,15 @@ impl ProtocolEntity for StatefulReader {
     }
 }
 
-impl ProtocolEndpoint for StatefulReader {}
 impl ProtocolReader for StatefulReader {}
+
+impl RtpsEndpoint for StatefulReader {
+    fn try_push_message(&self, src_locator: Locator, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>) {
+        for (_, writer_proxy) in &self.matched_writers {
+            writer_proxy.try_push_message(src_locator, src_guid_prefix, submessage)
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {

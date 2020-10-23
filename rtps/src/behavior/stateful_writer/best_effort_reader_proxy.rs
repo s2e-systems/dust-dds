@@ -66,13 +66,8 @@ impl ReaderProxyOps for BestEffortReaderProxy {
         }
     }
 
-    fn push_receive_message(&mut self, _src_guid_prefix: crate::types::GuidPrefix, _submessage: RtpsSubmessage) {
-        assert!(false)
-    }
-
-    fn is_submessage_destination(&self, _src_guid_prefix: &crate::types::GuidPrefix, _submessage: &RtpsSubmessage) -> bool {
-        // The best effor reader proxy doesn't receive any message
-        false
+    fn try_push_message(&self, _src_locator: crate::types::Locator, _src_guid_prefix: crate::types::GuidPrefix, _submessage: &mut Option<RtpsSubmessage>) {
+        // Best effort reader proxies do not receive messages so do nothing
     }
 }
 

@@ -1,8 +1,9 @@
+use std::sync::Mutex;
 use std::time::Instant;
 use std::convert::TryInto;
 use std::collections::{BTreeSet, VecDeque};
 
-use crate::types::{SequenceNumber, GuidPrefix, EntityId, Locator};
+use crate::types::{SequenceNumber, GUID, GuidPrefix, EntityId, Locator};
 use crate::structure::HistoryCache;
 use crate::messages::RtpsSubmessage;
 use crate::messages::submessages::{Gap, Heartbeat, AckNack};
@@ -26,7 +27,7 @@ pub struct ReliableReaderProxy{
     time_nack_received: Instant,
     highest_nack_count_received: Count,
 
-    input_queue: VecDeque<RtpsSubmessage>,
+    input_queue: Mutex<VecDeque<RtpsSubmessage>>,
     output_queue: VecDeque<RtpsSubmessage>,
 }
 
@@ -41,7 +42,7 @@ impl ReliableReaderProxy {
             time_last_sent_data: Instant::now(),
             time_nack_received: Instant::now(),
             highest_nack_count_received: 0,
-            input_queue: VecDeque::new(),
+            input_queue: Mutex::new(VecDeque::new()),
             output_queue: VecDeque::new(),
         }
     }
@@ -115,7 +116,7 @@ impl ReliableReaderProxy {
     }
     
     fn waiting_state(&mut self) {
-        let received = self.input_queue.pop_front();
+        let received = self.input_queue.lock().unwrap().pop_front();
         if let Some(RtpsSubmessage::AckNack(acknack)) = received {
             self.transition_t8(acknack);
             self.time_nack_received_reset();
@@ -128,7 +129,7 @@ impl ReliableReaderProxy {
     }
     
     fn must_repair_state(&mut self) {
-        let received = self.input_queue.pop_front();
+        let received = self.input_queue.lock().unwrap().pop_front();
         if let Some(RtpsSubmessage::AckNack(acknack)) = received {
             self.transition_t8(acknack);
         }
@@ -211,12 +212,17 @@ impl ReaderProxyOps for ReliableReaderProxy {
         }
     }
 
-    fn push_receive_message(&mut self, src_guid_prefix: GuidPrefix, submessage: RtpsSubmessage) {
-        todo!()
-    }
+    fn try_push_message(&self, _src_locator: Locator, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>) {
+        let reader_id = match submessage {
+            Some(RtpsSubmessage::AckNack(acknack)) => acknack.reader_id(),
+            _ => return,
+        };
 
-    fn is_submessage_destination(&self, src_guid_prefix: &GuidPrefix, submessage: &RtpsSubmessage) -> bool {
-        todo!()
+        let reader_guid = GUID::new(src_guid_prefix, reader_id);
+
+        if self.reader_proxy.remote_reader_guid() == &reader_guid {
+            self.input_queue.lock().unwrap().push_back(submessage.take().unwrap())
+        }
     }
 }
 

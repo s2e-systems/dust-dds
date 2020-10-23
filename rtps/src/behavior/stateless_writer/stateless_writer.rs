@@ -1,6 +1,5 @@
 use std::collections::{HashMap,  VecDeque};
-use crate::structure::HistoryCache;
-use crate::structure::CacheChange;
+use crate::structure::{HistoryCache, CacheChange, RtpsEndpoint};
 use crate::serialized_payload::ParameterList;
 use crate::types::{ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID, };
 use crate::messages::RtpsSubmessage;
@@ -103,6 +102,12 @@ impl StatelessWriter {
         }
 
         output
+    }
+}
+
+impl RtpsEndpoint for StatelessWriter {
+    fn try_push_message(&self, _src_locator: Locator, _src_guid_prefix: crate::types::GuidPrefix, _submessage: &mut Option<RtpsSubmessage>) {
+        // Doesn't receive message so do nothing
     }
 }
 

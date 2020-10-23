@@ -3,21 +3,18 @@ use std::collections::HashMap;
 use crate::types::{ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID, GuidPrefix};
 use crate::behavior::types::Duration;
 use crate::messages::RtpsSubmessage;
-use crate::messages::message_receiver::Receiver;
-use crate::structure::HistoryCache;
-use crate::structure::CacheChange;
+use crate::structure::{HistoryCache, CacheChange, RtpsEndpoint};
 use crate::serialized_payload::ParameterList;
 use super::reader_proxy::ReaderProxy;
 use super::reliable_reader_proxy::ReliableReaderProxy;
 use super::best_effort_reader_proxy::BestEffortReaderProxy;
-use rust_dds_interface::protocol::{ProtocolEntity, ProtocolWriter, ProtocolEndpoint};
+use rust_dds_interface::protocol::{ProtocolEntity, ProtocolWriter};
 use rust_dds_interface::qos::DataWriterQos;
 use rust_dds_interface::types::{Data, Time, ReturnCode};
 
 pub trait ReaderProxyOps {
     fn run(&mut self, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber);
-    fn push_receive_message(&mut self, src_guid_prefix: GuidPrefix, submessage: RtpsSubmessage);
-    fn is_submessage_destination(&self, src_guid_prefix: &GuidPrefix, submessage: &RtpsSubmessage) -> bool;
+    fn try_push_message(&self, src_locator: Locator, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>);
 }
 
 pub struct StatefulWriter {
@@ -146,7 +143,6 @@ impl ProtocolEntity for StatefulWriter {
     }
 }
 
-impl ProtocolEndpoint for StatefulWriter {}
 impl ProtocolWriter for StatefulWriter {
 
     fn write(&mut self, instance_handle: InstanceHandle, data: Data, _timestamp: Time) -> ReturnCode<()>{
@@ -173,6 +169,14 @@ impl ProtocolWriter for StatefulWriter {
 
     fn lookup_instance(&self, _instance_handle: InstanceHandle) -> Option<InstanceHandle> {
         todo!()
+    }
+}
+
+impl RtpsEndpoint for StatefulWriter {
+    fn try_push_message(&self, src_locator: Locator, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>) {
+        for (_,reader_proxy) in &self.matched_readers {
+            reader_proxy.try_push_message(src_locator, src_guid_prefix, submessage);
+        }
     }
 }
 

@@ -7,11 +7,7 @@ use crate::types::constants::{
 use crate::transport::Transport;
 use crate::messages::message_receiver::RtpsMessageReceiver;
 use crate::messages::message_sender::RtpsMessageSender;
-
-use super::publisher::RtpsPublisher;
-use super::subscriber::RtpsSubscriber;
-use super::builtin_publisher::BuiltinPublisher;
-use super::builtin_subscriber::BuiltinSubscriber;
+use super::RtpsGroup;
 
 use rust_dds_interface::types::{DomainId, InstanceHandle, ReturnCode};
 use rust_dds_interface::protocol::{ProtocolEntity, ProtocolParticipant, ProtocolPublisher, ProtocolSubscriber};
@@ -24,10 +20,10 @@ pub struct RtpsParticipant {
     vendor_id: VendorId,
     userdata_transport: Arc<dyn Transport>,
     metatraffic_transport: Arc<dyn Transport>,
-    builtin_publisher: Arc<Mutex<BuiltinPublisher>>,
-    builtin_subscriber: Arc<Mutex<BuiltinSubscriber>>, 
-    publisher_list: [Weak<Mutex<RtpsPublisher>>;32],
-    subscriber_list:[Weak<Mutex<RtpsSubscriber>>;32],
+    builtin_publisher: Arc<Mutex<RtpsGroup>>,
+    builtin_subscriber: Arc<Mutex<RtpsGroup>>, 
+    publisher_list: [Weak<Mutex<RtpsGroup>>;32],
+    subscriber_list:[Weak<Mutex<RtpsGroup>>;32],
 }
 
 impl RtpsParticipant {
@@ -38,12 +34,13 @@ impl RtpsParticipant {
     ) -> Self {
         let userdata_transport = Arc::new(userdata_transport);
         let metatraffic_transport = Arc::new(metatraffic_transport);
-        let metatraffic_sender = RtpsMessageSender::new(metatraffic_transport.clone());
         let protocol_version = PROTOCOL_VERSION_2_4;
         let vendor_id = [99,99];
         let guid_prefix = [5, 6, 7, 8, 9, 5, 1, 2, 3, 4, 10, 11];   // TODO: Should be uniquely generated
-        let builtin_publisher = Arc::new(Mutex::new(BuiltinPublisher::new(guid_prefix, metatraffic_sender)));
-        let builtin_subscriber = Arc::new(Mutex::new(BuiltinSubscriber::new(guid_prefix)));
+
+        let builtin_publisher = RtpsParticipant::create_builtin_publisher();
+        let builtin_subscriber = RtpsParticipant::create_builtin_subscriber();
+
         Self {
             guid: GUID::new(guid_prefix,ENTITYID_PARTICIPANT ),
             domain_id,
@@ -80,12 +77,19 @@ impl RtpsParticipant {
 
     pub fn metatraffic_transport(&self) -> &Arc<dyn Transport> {
         &self.metatraffic_transport
-    }    
+    }
+
+    fn create_builtin_publisher() -> Arc<Mutex<RtpsGroup>> {
+        todo!()
+    }
+
+    fn create_builtin_subscriber() -> Arc<Mutex<RtpsGroup>> {
+        todo!()
+    }
 
     pub fn run(&self) {
-        // RtpsMessageReceiver::receive(self.guid.prefix(), self.metatraffic_transport.as_ref(), &[self.builtin_subscriber.as_ref()]);
-        // let builtin_publisher_lock = self.builtin_publisher.lock().unwrap();
         todo!()
+        // RtpsMessageReceiver::receive(self.guid.prefix(), self.metatraffic_transport.as_ref(), &[self.builtin_subscriber.as_ref()]);
     }
 
 }
@@ -107,7 +111,8 @@ impl ProtocolParticipant for RtpsParticipant {
         let guid_prefix = self.guid.prefix();
         let entity_id = EntityId::new([index as u8,0,0], EntityKind::UserDefinedWriterGroup);
         let publisher_guid = GUID::new(guid_prefix, entity_id);
-        let new_publisher = Arc::new(Mutex::new(RtpsPublisher::new(publisher_guid)));
+        let publisher_sender = RtpsMessageSender::new(self.userdata_transport.clone());
+        let new_publisher = Arc::new(Mutex::new(RtpsGroup::new(publisher_guid, publisher_sender)));
         self.publisher_list[index] = Arc::downgrade(&new_publisher);
 
         new_publisher
@@ -119,7 +124,8 @@ impl ProtocolParticipant for RtpsParticipant {
         let guid_prefix = self.guid.prefix();
         let entity_id = EntityId::new([index as u8,0,0], EntityKind::UserDefinedReaderGroup);
         let subscriber_guid = GUID::new(guid_prefix, entity_id);
-        let new_subscriber = Arc::new(Mutex::new(RtpsSubscriber::new(subscriber_guid)));
+        let subscriber_sender = RtpsMessageSender::new(self.userdata_transport.clone());
+        let new_subscriber = Arc::new(Mutex::new(RtpsGroup::new(subscriber_guid, subscriber_sender)));
         self.subscriber_list[index] = Arc::downgrade(&new_subscriber);
 
         new_subscriber

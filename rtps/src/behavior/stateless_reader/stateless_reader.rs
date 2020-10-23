@@ -1,8 +1,9 @@
+use std::sync::Mutex;
 use std::collections::VecDeque;
 
 use rust_dds_interface::qos::DataReaderQos;
 
-use crate::structure::HistoryCache;
+use crate::structure::{HistoryCache, RtpsEndpoint};
 use crate::types::{ReliabilityKind, TopicKind, GUID, Locator, GuidPrefix };
 use crate::types::constants::ENTITYID_UNKNOWN;
 use crate::messages::RtpsSubmessage;
@@ -29,11 +30,10 @@ pub struct StatelessReader {
     expects_inline_qos: bool,
 
     // Additional field:
-    input_queue: VecDeque<(GuidPrefix, RtpsSubmessage)>,
+    input_queue: Mutex<VecDeque<(GuidPrefix, RtpsSubmessage)>>,
 }
 
 impl StatelessReader {
-
     pub fn new(
         guid: GUID,
         topic_kind: TopicKind,
@@ -53,7 +53,7 @@ impl StatelessReader {
             multicast_locator_list,
             reader_cache: HistoryCache::new(&reader_qos.resource_limits),
             expects_inline_qos,
-            input_queue: VecDeque::new(),
+            input_queue: Mutex::new(VecDeque::new()),
         }
     }
 
@@ -63,7 +63,8 @@ impl StatelessReader {
 
 
     fn waiting_state(&mut self) {
-        while let Some((guid_prefix, received_message)) =  self.input_queue.pop_front() {
+        let popped_queue = self.input_queue.lock().unwrap().pop_front();
+        if let Some((guid_prefix, received_message)) = popped_queue {
             match received_message {
                 RtpsSubmessage::Data(data) => self.transition_t2(guid_prefix, data),
                 _ => (),
@@ -80,13 +81,6 @@ impl StatelessReader {
         &self.reader_cache
     }
 
-    pub fn try_push_message(&mut self, src_locator: Locator, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>) {
-        if let Some(inner_submessage) = submessage {
-            if self.is_submessage_destination(&src_locator, &src_guid_prefix, inner_submessage) {
-                self.input_queue.push_back((src_guid_prefix, submessage.take().unwrap()))
-            }
-        }
-    }
 
     fn is_submessage_destination(&self, src_locator: &Locator, _src_guid_prefix: &GuidPrefix, submessage: &RtpsSubmessage) -> bool {
         let reader_id = match submessage {
@@ -96,6 +90,16 @@ impl StatelessReader {
         let is_in_locator_lists = self.multicast_locator_list.contains(src_locator) || self.unicast_locator_list.contains(src_locator);
         is_in_locator_lists && (self.guid.entity_id() == reader_id || reader_id == ENTITYID_UNKNOWN)
     }   
+}
+
+impl RtpsEndpoint for StatelessReader {
+    fn try_push_message(&self, src_locator: Locator, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>) {
+        if let Some(inner_submessage) = submessage {
+            if self.is_submessage_destination(&src_locator, &src_guid_prefix, inner_submessage) {
+                self.input_queue.lock().unwrap().push_back((src_guid_prefix, submessage.take().unwrap()))
+            }
+        }
+    }
 }
 
 #[cfg(test)]
