@@ -1,29 +1,22 @@
-use std::sync::mpsc;
 use std::sync::{Arc, Weak, Mutex};
 use rust_dds_interface::types::{ReturnCode, InstanceHandle, TopicKind};
 use rust_dds_interface::protocol::{ProtocolEntity, ProtocolWriter, ProtocolPublisher};
 use rust_dds_interface::qos::DataWriterQos;
 
-use crate::types::{GUID, EntityId, EntityKind, Locator};
+use crate::types::{GUID, EntityId, EntityKind};
 use crate::behavior::StatefulWriter;
 use crate::messages::RtpsSubmessage;
 
 pub struct RtpsPublisher {
     guid: GUID,
     writer_list: [Weak<Mutex<StatefulWriter>>;32],
-    receiver: mpsc::Receiver<(Vec<Locator>,RtpsSubmessage)>,
-    sender: mpsc::Sender<(Vec<Locator>,RtpsSubmessage)>,
 }
 
 impl RtpsPublisher {
     pub fn new(guid: GUID) -> Self {
-        let (sender, receiver) = mpsc::channel();
-
         Self {
             guid,
             writer_list: Default::default(),
-            receiver,
-            sender,
         }
     }
 }
@@ -59,7 +52,6 @@ impl ProtocolPublisher for RtpsPublisher {
             writer_guid,
             topic_kind,
             data_writer_qos,
-            self.sender.clone(),
         )));
 
         self.writer_list[index] = Arc::downgrade(&new_writer);

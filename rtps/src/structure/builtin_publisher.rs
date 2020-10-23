@@ -47,3 +47,60 @@ impl BuiltinPublisher {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::Arc;
+    use crate::transport::Transport;
+    use crate::types::Locator;
+    use crate::messages::RtpsMessage;
+    struct MockTransport {
+        written: Mutex<Vec<(RtpsMessage, Locator)>>
+    }
+
+    impl MockTransport {
+        fn new() -> Self {
+            Self {
+                written: Mutex::new(Vec::new())
+            }
+        }
+    }
+
+    impl Transport for MockTransport {
+        fn write(&self, message: RtpsMessage, destination_locator: &Locator) {
+            self.written.lock().unwrap().push((message, *destination_locator))
+        }
+
+        fn read(&self) -> crate::transport::TransportResult<Option<(RtpsMessage, Locator)>> {
+            Ok(self.written.lock().unwrap().pop())
+        }
+
+        fn unicast_locator_list(&self) -> &Vec<Locator> {
+            todo!()
+        }
+
+        fn multicast_locator_list(&self) -> &Vec<Locator> {
+            todo!()
+        }
+
+        fn as_any(&self) -> &dyn std::any::Any {
+            todo!()
+        }
+    }
+
+    #[test]
+    fn run() {
+        let transport = Arc::new(MockTransport::new());        
+        let sender = RtpsMessageSender::new(transport.clone());
+        let guid_prefix = [1;12];
+        let publisher = BuiltinPublisher::new(guid_prefix, sender);
+
+        publisher.run();
+        publisher.run();
+
+        println!("{:?}", transport.read());
+        println!("{:?}", transport.read());
+        println!("{:?}", transport.read());
+    }
+}
