@@ -1,5 +1,4 @@
 use std::collections::{HashMap,  VecDeque};
-use std::sync::mpsc;
 use crate::structure::HistoryCache;
 use crate::structure::CacheChange;
 use crate::serialized_payload::ParameterList;
@@ -74,8 +73,7 @@ impl StatelessWriter {
     }
 
     pub fn reader_locator_add(&mut self, a_locator: Locator) {
-        todo!()
-        // self.reader_locators.insert(a_locator, ReaderLocator::new(a_locator, self.guid.entity_id(), false /*expects_inline_qos*/, self.sender.clone()));
+        self.reader_locators.insert(a_locator, ReaderLocator::new(a_locator, self.guid.entity_id(), false /*expects_inline_qos*/));
     }
 
     pub fn reader_locator_remove(&mut self, a_locator: &Locator) {
@@ -92,6 +90,19 @@ impl StatelessWriter {
         for (_, reader_locator) in self.reader_locators.iter_mut() {
             reader_locator.run(&self.writer_cache, self.last_change_sequence_number);
         }
+    }
+
+    pub fn output_queues(&mut self) -> Vec<(Locator, &mut VecDeque<RtpsSubmessage>)> {
+        let mut output = Vec::new();
+
+        for (_, reader_locator) in &mut self.reader_locators {
+            let locator = *reader_locator.locator();
+            let output_queue = reader_locator.output_queue_mut();
+
+            output.push((locator, output_queue))
+        }
+
+        output
     }
 }
 

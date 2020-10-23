@@ -1,11 +1,9 @@
 use std::sync::Mutex;
-use std::sync::mpsc;
 
 use crate::types::{GuidPrefix, GUID, EntityId, EntityKind, TopicKind, Locator, ChangeKind};
 use crate::types::constants::ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER;
 use crate::behavior::StatelessWriter;
-use crate::messages::{message_sender::RtpsMessageSender, RtpsSubmessage};
-use crate::transport::Transport;
+use crate::messages::message_sender::RtpsMessageSender;
 
 use rust_dds_interface::qos::DataWriterQos;
 use rust_dds_interface::qos_policy::ReliabilityQosPolicyKind;
@@ -36,8 +34,16 @@ impl BuiltinPublisher {
         }
     }
 
-    pub fn run(&self, transport: &dyn Transport) {
+    pub fn run(&self) {
         self.spdp_builtin_participant_writer.lock().unwrap().unsent_changes_reset();
         self.spdp_builtin_participant_writer.lock().unwrap().run();
+
+        let mut spdp_writer_lock = self.spdp_builtin_participant_writer.lock().unwrap();
+        let output_queues = spdp_writer_lock.output_queues();
+
+        for (locator, message) in output_queues {
+            let rtps_submessage = message.drain(..).collect();
+            self.sender.send(self.guid.prefix(), &locator, rtps_submessage);
+        }
     }
 }
