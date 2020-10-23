@@ -48,7 +48,7 @@ impl BuiltinSubscriber {
 }
 
 impl Receiver for BuiltinSubscriber {
-    fn try_push_message(&self, src_locator: Locator, src_guid_prefix: GuidPrefix, submessage: RtpsSubmessage) -> Option<RtpsSubmessage> {
+    fn try_push_message(&self, src_locator: Locator, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>) {
         self.spdp_builtin_participant_reader.lock().unwrap().try_push_message(src_locator, src_guid_prefix, submessage)
     }
 }

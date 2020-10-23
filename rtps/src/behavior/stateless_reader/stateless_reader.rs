@@ -80,19 +80,12 @@ impl StatelessReader {
         &self.reader_cache
     }
 
-    pub fn try_push_message(&mut self, src_locator: Locator, src_guid_prefix: GuidPrefix, submessage: RtpsSubmessage) -> Option<RtpsSubmessage> {
-        if self.is_submessage_destination(&src_locator, &src_guid_prefix, &submessage) {
-            self.push_receive_message(src_locator, src_guid_prefix, submessage);
-            None
-        } else {
-            Some(submessage)
+    pub fn try_push_message(&mut self, src_locator: Locator, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>) {
+        if let Some(inner_submessage) = submessage {
+            if self.is_submessage_destination(&src_locator, &src_guid_prefix, inner_submessage) {
+                self.input_queue.push_back((src_guid_prefix, submessage.take().unwrap()))
+            }
         }
-    }
-    
-    fn push_receive_message(&mut self, src_locator: Locator, source_guid_prefix: GuidPrefix, submessage: RtpsSubmessage) {
-        assert!(self.is_submessage_destination(&src_locator, &source_guid_prefix, &submessage));
-
-        self.input_queue.push_back((source_guid_prefix, submessage));
     }
 
     fn is_submessage_destination(&self, src_locator: &Locator, _src_guid_prefix: &GuidPrefix, submessage: &RtpsSubmessage) -> bool {
@@ -146,7 +139,7 @@ mod tests {
         );
 
         let source_guid_prefix  = [2;12];
-        reader.push_receive_message(source_locator,source_guid_prefix, RtpsSubmessage::Data(data1));
+        reader.try_push_message(source_locator,source_guid_prefix, &mut Some(RtpsSubmessage::Data(data1)));
 
         let expected_cache_change = CacheChange::new(
             ChangeKind::Alive,
