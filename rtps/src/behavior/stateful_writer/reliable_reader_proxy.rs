@@ -26,7 +26,7 @@ pub struct ReliableReaderProxy{
     time_nack_received: Instant,
     highest_nack_count_received: Count,
 
-    received_messages: VecDeque<(GuidPrefix, RtpsSubmessage)>,
+    input_queue: VecDeque<RtpsSubmessage>,
     output_queue: VecDeque<RtpsSubmessage>,
 }
 
@@ -41,7 +41,7 @@ impl ReliableReaderProxy {
             time_last_sent_data: Instant::now(),
             time_nack_received: Instant::now(),
             highest_nack_count_received: 0,
-            received_messages: VecDeque::new(),
+            input_queue: VecDeque::new(),
             output_queue: VecDeque::new(),
         }
     }
@@ -115,8 +115,8 @@ impl ReliableReaderProxy {
     }
     
     fn waiting_state(&mut self) {
-        let received = self.received_messages.pop_front();
-        if let Some((_, RtpsSubmessage::AckNack(acknack))) = received {
+        let received = self.input_queue.pop_front();
+        if let Some(RtpsSubmessage::AckNack(acknack)) = received {
             self.transition_t8(acknack);
             self.time_nack_received_reset();
         }
@@ -128,8 +128,8 @@ impl ReliableReaderProxy {
     }
     
     fn must_repair_state(&mut self) {
-        let received = self.received_messages.pop_front();
-        if let Some((_, RtpsSubmessage::AckNack(acknack))) = received {
+        let received = self.input_queue.pop_front();
+        if let Some(RtpsSubmessage::AckNack(acknack)) = received {
             self.transition_t8(acknack);
         }
     }

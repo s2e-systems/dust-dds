@@ -30,7 +30,7 @@ pub struct StatelessReader {
     expects_inline_qos: bool,
 
     // Additional field:
-    received_messages: VecDeque<(GuidPrefix, RtpsSubmessage)>,
+    input_queue: VecDeque<(GuidPrefix, RtpsSubmessage)>,
 }
 
 impl StatelessReader {
@@ -54,7 +54,7 @@ impl StatelessReader {
             multicast_locator_list,
             reader_cache: HistoryCache::new(&reader_qos.resource_limits),
             expects_inline_qos,
-            received_messages: VecDeque::new(),
+            input_queue: VecDeque::new(),
         }
     }
 
@@ -64,7 +64,7 @@ impl StatelessReader {
 
 
     fn waiting_state(&mut self) {
-        while let Some((guid_prefix, received_message)) =  self.received_messages.pop_front() {
+        while let Some((guid_prefix, received_message)) =  self.input_queue.pop_front() {
             match received_message {
                 RtpsSubmessage::Data(data) => self.transition_t2(guid_prefix, data),
                 _ => (),
@@ -86,7 +86,7 @@ impl Receiver for StatelessReader {
     fn push_receive_message(&mut self, src_locator: Locator, source_guid_prefix: GuidPrefix, submessage: RtpsSubmessage) {
         assert!(self.is_submessage_destination(&src_locator, &source_guid_prefix, &submessage));
 
-        self.received_messages.push_back((source_guid_prefix, submessage));
+        self.input_queue.push_back((source_guid_prefix, submessage));
     }
 
     fn is_submessage_destination(&self, src_locator: &Locator, _src_guid_prefix: &GuidPrefix, submessage: &RtpsSubmessage) -> bool {
