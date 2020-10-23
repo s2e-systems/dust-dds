@@ -189,12 +189,11 @@ impl PublisherImpl {
 mod tests {
     use super::*;
     use crate::infrastructure::listener::NoListener;
-    use rust_dds_interface::protocol::{ProtocolEntity, ProtocolEndpoint, ProtocolWriter};
+    use rust_dds_interface::protocol::{ProtocolEntity, ProtocolWriter};
     use rust_dds_interface::qos_policy::ReliabilityQosPolicyKind;
     use rust_dds_interface::types::{Data, TopicKind};
 
     struct MockWriter;
-    impl ProtocolEndpoint for MockWriter {}
     impl ProtocolEntity for MockWriter {
         fn enable(&self) -> ReturnCode<()> {
             todo!()

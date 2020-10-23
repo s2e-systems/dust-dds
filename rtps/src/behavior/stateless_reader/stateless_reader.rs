@@ -1,4 +1,3 @@
-use std::sync::Mutex;
 use std::collections::VecDeque;
 
 use rust_dds_interface::qos::DataReaderQos;
@@ -30,7 +29,7 @@ pub struct StatelessReader {
     expects_inline_qos: bool,
 
     // Additional field:
-    input_queue: Mutex<VecDeque<(GuidPrefix, RtpsSubmessage)>>,
+    input_queue: VecDeque<(GuidPrefix, RtpsSubmessage)>,
 }
 
 impl StatelessReader {
@@ -53,7 +52,7 @@ impl StatelessReader {
             multicast_locator_list,
             reader_cache: HistoryCache::new(&reader_qos.resource_limits),
             expects_inline_qos,
-            input_queue: Mutex::new(VecDeque::new()),
+            input_queue: VecDeque::new(),
         }
     }
 
@@ -63,7 +62,7 @@ impl StatelessReader {
 
 
     fn waiting_state(&mut self) {
-        let popped_queue = self.input_queue.lock().unwrap().pop_front();
+        let popped_queue = self.input_queue.pop_front();
         if let Some((guid_prefix, received_message)) = popped_queue {
             match received_message {
                 RtpsSubmessage::Data(data) => self.transition_t2(guid_prefix, data),
@@ -93,10 +92,10 @@ impl StatelessReader {
 }
 
 impl RtpsEndpoint for StatelessReader {
-    fn try_push_message(&self, src_locator: Locator, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>) {
+    fn try_push_message(&mut self, src_locator: Locator, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>) {
         if let Some(inner_submessage) = submessage {
             if self.is_submessage_destination(&src_locator, &src_guid_prefix, inner_submessage) {
-                self.input_queue.lock().unwrap().push_back((src_guid_prefix, submessage.take().unwrap()))
+                self.input_queue.push_back((src_guid_prefix, submessage.take().unwrap()))
             }
         }
     }

@@ -1,4 +1,3 @@
-use std::sync::Mutex;
 use std::convert::TryInto;
 use std::time::Instant;
 use std::collections::VecDeque;
@@ -24,7 +23,7 @@ pub struct ReliableWriterProxy {
     ackanck_count: Count,
     highest_received_heartbeat_count: Count,
 
-    input_queue: Mutex<VecDeque<RtpsSubmessage>>,
+    input_queue: VecDeque<RtpsSubmessage>,
     output_queue: VecDeque<RtpsSubmessage>,
 }
 
@@ -38,13 +37,13 @@ impl ReliableWriterProxy {
             time_heartbeat_received: Instant::now(),
             ackanck_count: 0,
             highest_received_heartbeat_count: 0,
-            input_queue: Mutex::new(VecDeque::new()),
+            input_queue: VecDeque::new(),
             output_queue: VecDeque::new(),
         }
     }
 
     fn ready_state(&mut self, history_cache: &HistoryCache) -> Option<Heartbeat>{
-        let received = self.input_queue.lock().unwrap().pop_front();
+        let received = self.input_queue.pop_front();
         if let Some(received_message) = received {
             match received_message {
                 RtpsSubmessage::Data(data) => {
@@ -163,7 +162,7 @@ impl WriterProxyOps for ReliableWriterProxy {
         }
     }
 
-    fn try_push_message(&self, _src_locator: crate::types::Locator, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>) {
+    fn try_push_message(&mut self, _src_locator: crate::types::Locator, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>) {
         let writer_id = match submessage {
             Some(RtpsSubmessage::Data(data)) => data.writer_id(),
             Some(RtpsSubmessage::Gap(gap)) => gap.writer_id(),
@@ -174,7 +173,7 @@ impl WriterProxyOps for ReliableWriterProxy {
         let writer_guid = GUID::new(src_guid_prefix, writer_id);
 
         if self.writer_proxy.remote_writer_guid() == &writer_guid {
-            self.input_queue.lock().unwrap().push_back(submessage.take().unwrap())
+            self.input_queue.push_back(submessage.take().unwrap())
         }
     }
 }

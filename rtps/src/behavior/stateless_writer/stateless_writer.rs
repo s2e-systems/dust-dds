@@ -106,7 +106,7 @@ impl StatelessWriter {
 }
 
 impl RtpsEndpoint for StatelessWriter {
-    fn try_push_message(&self, _src_locator: Locator, _src_guid_prefix: crate::types::GuidPrefix, _submessage: &mut Option<RtpsSubmessage>) {
+    fn try_push_message(&mut self, _src_locator: Locator, _src_guid_prefix: crate::types::GuidPrefix, _submessage: &mut Option<RtpsSubmessage>) {
         // Doesn't receive message so do nothing
     }
 }

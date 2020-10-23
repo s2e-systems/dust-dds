@@ -14,7 +14,7 @@ use rust_dds_interface::types::{Data, Time, ReturnCode};
 
 pub trait ReaderProxyOps {
     fn run(&mut self, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber);
-    fn try_push_message(&self, src_locator: Locator, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>);
+    fn try_push_message(&mut self, src_locator: Locator, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>);
 }
 
 pub struct StatefulWriter {
@@ -173,8 +173,8 @@ impl ProtocolWriter for StatefulWriter {
 }
 
 impl RtpsEndpoint for StatefulWriter {
-    fn try_push_message(&self, src_locator: Locator, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>) {
-        for (_,reader_proxy) in &self.matched_readers {
+    fn try_push_message(&mut self, src_locator: Locator, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>) {
+        for (_,reader_proxy) in &mut self.matched_readers {
             reader_proxy.try_push_message(src_locator, src_guid_prefix, submessage);
         }
     }

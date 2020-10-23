@@ -23,10 +23,6 @@ impl RtpsGroup {
             endpoints: Vec::new(),
         }
     }
-
-    pub fn try_push_message(&self, _src_locator: Locator, _src_guid_prefix: GuidPrefix, _submessage: &mut Option<RtpsSubmessage>) {
-        todo!()
-    }
 }
 
 impl ProtocolEntity for RtpsGroup {

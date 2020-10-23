@@ -219,11 +219,10 @@ mod tests {
     use crate::infrastructure::listener::NoListener;
     use crate::topic::Topic;
     use rust_dds_interface::qos_policy::ReliabilityQosPolicyKind;
-    use rust_dds_interface::protocol::{ProtocolEntity, ProtocolEndpoint, ProtocolReader};
+    use rust_dds_interface::protocol::{ProtocolEntity, ProtocolReader};
     use rust_dds_interface::types::TopicKind;
 
     struct MockReader;
-    impl ProtocolEndpoint for MockReader {}
     impl ProtocolEntity for MockReader {
         fn enable(&self) -> ReturnCode<()> {
         todo!()

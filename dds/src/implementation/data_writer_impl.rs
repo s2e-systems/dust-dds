@@ -293,7 +293,7 @@ mod tests {
     use std::sync::Arc;
     use crate::types::DDSType;
     use crate::publication::AnyDataWriter;
-    use rust_dds_interface::protocol::{ProtocolEntity, ProtocolEndpoint, ProtocolWriter};
+    use rust_dds_interface::protocol::{ProtocolEntity, ProtocolWriter};
     use rust_dds_interface::types::{Data, TopicKind};
 
     struct MockProtocolWriter;
@@ -307,7 +307,6 @@ mod tests {
         }
     }
 
-    impl ProtocolEndpoint for MockProtocolWriter {}
     impl ProtocolWriter for MockProtocolWriter {
         fn write(&mut self, _instance_handle: InstanceHandle, _data: Data, _timestamp: Time) -> ReturnCode<()> {
             todo!()

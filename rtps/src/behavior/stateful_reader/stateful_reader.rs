@@ -15,7 +15,7 @@ use rust_dds_interface::types::{InstanceHandle, ReturnCode};
 
 pub trait WriterProxyOps {
     fn run(&mut self, history_cache: &HistoryCache);
-    fn try_push_message(&self, src_locator: Locator, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>);
+    fn try_push_message(&mut self, src_locator: Locator, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>);
 }
 
 pub struct StatefulReader {
@@ -109,8 +109,8 @@ impl ProtocolEntity for StatefulReader {
 impl ProtocolReader for StatefulReader {}
 
 impl RtpsEndpoint for StatefulReader {
-    fn try_push_message(&self, src_locator: Locator, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>) {
-        for (_, writer_proxy) in &self.matched_writers {
+    fn try_push_message(&mut self, src_locator: Locator, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>) {
+        for (_, writer_proxy) in &mut self.matched_writers {
             writer_proxy.try_push_message(src_locator, src_guid_prefix, submessage)
         }
     }
