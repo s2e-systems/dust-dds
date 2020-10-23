@@ -83,8 +83,9 @@ impl RtpsParticipant {
     }    
 
     pub fn run(&self) {
-        RtpsMessageReceiver::receive(self.guid.prefix(), self.metatraffic_transport.as_ref(), &mut [self.builtin_subscriber.as_ref()]);
-        let builtin_publisher_lock = self.builtin_publisher.lock().unwrap();
+        // RtpsMessageReceiver::receive(self.guid.prefix(), self.metatraffic_transport.as_ref(), &[self.builtin_subscriber.as_ref()]);
+        // let builtin_publisher_lock = self.builtin_publisher.lock().unwrap();
+        todo!()
     }
 
 }

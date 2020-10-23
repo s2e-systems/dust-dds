@@ -7,15 +7,13 @@ use super::submessages::RtpsSubmessage;
 // ////////////////// RTPS Message Receiver
 
 pub trait Receiver {
-    fn push_receive_message(&mut self, src_locator: Locator, src_guid_prefix: GuidPrefix, submessage: RtpsSubmessage);
-
-    fn is_submessage_destination(&self, src_locator: &Locator, src_guid_prefix: &GuidPrefix, submessage: &RtpsSubmessage) -> bool;
+    fn try_push_message(&self, src_locator: Locator, src_guid_prefix: GuidPrefix, submessage: RtpsSubmessage) -> Option<RtpsSubmessage>;
 }
 
 pub struct RtpsMessageReceiver;
 
 impl RtpsMessageReceiver {
-    pub fn receive(participant_guid_prefix: GuidPrefix, transport: &dyn Transport, receiver_list: &mut [&Mutex<dyn Receiver>]) {
+    pub fn receive(participant_guid_prefix: GuidPrefix, transport: &dyn Transport, receiver_list: &[&dyn Receiver]) {
         if let Some((message, src_locator)) = transport.read().unwrap() {
             let _source_version = message.header().version();
             let _source_vendor_id = message.header().vendor_id();
@@ -28,13 +26,13 @@ impl RtpsMessageReceiver {
     
             for submessage in message.take_submessages() {
                 if submessage.is_entity_submessage() {
-                    for receiver in receiver_list.iter() {
-                        let mut receiver = receiver.lock().unwrap();
-                        if receiver.is_submessage_destination(&src_locator, &source_guid_prefix, &submessage) {
-                            receiver.push_receive_message(src_locator, source_guid_prefix, submessage);
-                            break;
-                        }
-                    }  
+                    let mut internal_submessage = submessage;
+                    for &receiver in receiver_list {
+                        internal_submessage = match receiver.try_push_message(src_locator, source_guid_prefix, internal_submessage){
+                            Some(submessage) => submessage,
+                            None => break,
+                        };
+                    }
                 } else if submessage.is_interpreter_submessage(){
                     match submessage {
                         RtpsSubmessage::InfoTs(info_ts) => _timestamp = info_ts.time(),

@@ -1,3 +1,4 @@
+use std::collections::VecDeque;
 use std::sync::{Arc,Mutex};
 use rust_dds_interface::protocol::{ProtocolEntity, ProtocolSubscriber, ProtocolReader};
 
@@ -41,19 +42,14 @@ impl BuiltinSubscriber {
         }
     }
 
-    // pub fn receive_and_run(&self, transport: &dyn Transport) {
-    //     let spdp_builtin_participant_reader_lock = self.spdp_builtin_participant_reader.lock().unwrap(); 
-    //     RtpsMessageReceiver::receive(self.guid.prefix(), transport, &[spdp_builtin_participant_reader_lock])
-    // }
+    pub fn run(&self) {
+        self.spdp_builtin_participant_reader.lock().unwrap().run()
+    }
 }
 
 impl Receiver for BuiltinSubscriber {
-    fn push_receive_message(&mut self, src_locator: Locator, src_guid_prefix: GuidPrefix, submessage: RtpsSubmessage) {
-        self.spdp_builtin_participant_reader.lock().unwrap().push_receive_message(src_locator, src_guid_prefix, submessage)
-    }
-
-    fn is_submessage_destination(&self, src_locator: &Locator, src_guid_prefix: &GuidPrefix, submessage: &RtpsSubmessage) -> bool {
-        self.spdp_builtin_participant_reader.lock().unwrap().is_submessage_destination(src_locator, src_guid_prefix, submessage)
+    fn try_push_message(&self, src_locator: Locator, src_guid_prefix: GuidPrefix, submessage: RtpsSubmessage) -> Option<RtpsSubmessage> {
+        self.spdp_builtin_participant_reader.lock().unwrap().try_push_message(src_locator, src_guid_prefix, submessage)
     }
 }
 

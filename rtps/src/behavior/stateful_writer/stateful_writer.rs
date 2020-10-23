@@ -176,18 +176,18 @@ impl ProtocolWriter for StatefulWriter {
     }
 }
 
-impl Receiver for StatefulWriter {
-    fn push_receive_message(&mut self, _src_locator: Locator, source_guid_prefix: GuidPrefix, submessage: RtpsSubmessage) {
-        let (_, destination_reader) = self.matched_readers.iter_mut()
-            .find(|(_, reader)| reader.is_submessage_destination(&source_guid_prefix, &submessage) ).unwrap();
+// impl Receiver for StatefulWriter {
+//     fn push_receive_message(&mut self, _src_locator: Locator, source_guid_prefix: GuidPrefix, submessage: RtpsSubmessage) {
+//         let (_, destination_reader) = self.matched_readers.iter_mut()
+//             .find(|(_, reader)| reader.is_submessage_destination(&source_guid_prefix, &submessage) ).unwrap();
 
-        destination_reader.push_receive_message(source_guid_prefix, submessage);
-    }
+//         destination_reader.push_receive_message(source_guid_prefix, submessage);
+//     }
     
-    fn is_submessage_destination(&self, _src_locator: &Locator, src_guid_prefix: &GuidPrefix, submessage: &RtpsSubmessage) -> bool {
-        self.matched_readers.iter().find(|&(_, reader)| reader.is_submessage_destination(src_guid_prefix, submessage)).is_some()
-    }
-}
+//     fn is_submessage_destination(&self, _src_locator: &Locator, src_guid_prefix: &GuidPrefix, submessage: &RtpsSubmessage) -> bool {
+//         self.matched_readers.iter().find(|&(_, reader)| reader.is_submessage_destination(src_guid_prefix, submessage)).is_some()
+//     }
+// }
 
 #[cfg(test)]
 mod tests {

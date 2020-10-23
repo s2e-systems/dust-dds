@@ -6,7 +6,6 @@ use crate::structure::HistoryCache;
 use crate::types::{ReliabilityKind, TopicKind, GUID, Locator, GuidPrefix };
 use crate::types::constants::ENTITYID_UNKNOWN;
 use crate::messages::RtpsSubmessage;
-use crate::messages::message_receiver::Receiver;
 use crate::messages::submessages::Data;
 use crate::behavior::cache_change_from_data;
 
@@ -80,9 +79,16 @@ impl StatelessReader {
     pub fn reader_cache(&self) -> &HistoryCache {
         &self.reader_cache
     }
-}
 
-impl Receiver for StatelessReader {
+    pub fn try_push_message(&mut self, src_locator: Locator, src_guid_prefix: GuidPrefix, submessage: RtpsSubmessage) -> Option<RtpsSubmessage> {
+        if self.is_submessage_destination(&src_locator, &src_guid_prefix, &submessage) {
+            self.push_receive_message(src_locator, src_guid_prefix, submessage);
+            None
+        } else {
+            Some(submessage)
+        }
+    }
+    
     fn push_receive_message(&mut self, src_locator: Locator, source_guid_prefix: GuidPrefix, submessage: RtpsSubmessage) {
         assert!(self.is_submessage_destination(&src_locator, &source_guid_prefix, &submessage));
 
@@ -97,7 +103,6 @@ impl Receiver for StatelessReader {
         let is_in_locator_lists = self.multicast_locator_list.contains(src_locator) || self.unicast_locator_list.contains(src_locator);
         is_in_locator_lists && (self.guid.entity_id() == reader_id || reader_id == ENTITYID_UNKNOWN)
     }   
- 
 }
 
 #[cfg(test)]

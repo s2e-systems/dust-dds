@@ -96,9 +96,7 @@ impl StatefulReader {
     pub fn guid(&self) -> &GUID {
         &self.guid
     }
-}
 
-impl Receiver for StatefulReader {
     fn push_receive_message(&mut self, _src_locator: Locator, src_guid_prefix: GuidPrefix, submessage: RtpsSubmessage){
         let (_, destination_writer) = self.matched_writers.iter_mut()
             .find(|(_, writer)| writer.is_submessage_destination(&src_guid_prefix, &submessage)).unwrap();
@@ -112,7 +110,6 @@ impl Receiver for StatefulReader {
        
     }
 }
-
 
 impl ProtocolEntity for StatefulReader {
     fn enable(&self) -> ReturnCode<()> {
