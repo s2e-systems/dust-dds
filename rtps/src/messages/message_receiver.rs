@@ -1,13 +1,13 @@
 use std::sync::{Arc, Mutex};
 use crate::types::{GuidPrefix, Locator,};
-use crate::structure::RtpsEndpoint;
+use crate::structure::RtpsGroup;
 use crate::transport::Transport;
 
 use super::submessages::RtpsSubmessage;
 pub struct RtpsMessageReceiver;
 
 impl RtpsMessageReceiver {
-    pub fn receive(participant_guid_prefix: GuidPrefix, transport: &dyn Transport, receiver_list: &[Arc<Mutex<dyn RtpsEndpoint>>]) {
+    pub fn receive(participant_guid_prefix: GuidPrefix, transport: &dyn Transport, group_list: &[&Arc<Mutex<RtpsGroup>>]) {
         if let Some((message, src_locator)) = transport.read().unwrap() {
             let _source_version = message.header().version();
             let _source_vendor_id = message.header().vendor_id();
@@ -21,8 +21,11 @@ impl RtpsMessageReceiver {
             for submessage in message.take_submessages() {
                 if submessage.is_entity_submessage() {
                     let mut optional_submessage = Some(submessage);
-                    for receiver in receiver_list {
-                        receiver.lock().unwrap().try_push_message(src_locator, source_guid_prefix, &mut optional_submessage);
+                    for &group in group_list {
+                        let group = group.lock().unwrap();
+                        for endpoint in group.endpoints() {
+                            endpoint.lock().unwrap().try_push_message(src_locator, source_guid_prefix, &mut optional_submessage);
+                        }
                     }
                 } else if submessage.is_interpreter_submessage(){
                     match submessage {

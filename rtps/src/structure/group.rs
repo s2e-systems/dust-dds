@@ -23,6 +23,14 @@ impl RtpsGroup {
             endpoints: Vec::new(),
         }
     }
+
+    pub fn guid(&self) -> GUID {
+        self.guid
+    }
+
+    pub fn endpoints(&self) -> &[Arc<Mutex<dyn RtpsEndpoint>>] {
+        self.endpoints.as_slice()
+    }
 }
 
 impl ProtocolEntity for RtpsGroup {
@@ -31,7 +39,7 @@ impl ProtocolEntity for RtpsGroup {
     }
 
     fn get_instance_handle(&self) -> InstanceHandle {
-        todo!()
+        self.guid.into()
     }
 }
 

@@ -1,4 +1,4 @@
-use std::sync::{Arc, Weak, Mutex, };
+use std::sync::{Arc, Mutex, };
 
 use crate::types::{GUID, ProtocolVersion, VendorId, EntityId, EntityKind};
 use crate::types::constants::{
@@ -22,8 +22,8 @@ pub struct RtpsParticipant {
     metatraffic_transport: Arc<dyn Transport>,
     builtin_publisher: Arc<Mutex<RtpsGroup>>,
     builtin_subscriber: Arc<Mutex<RtpsGroup>>, 
-    publisher_list: [Weak<Mutex<RtpsGroup>>;32],
-    subscriber_list:[Weak<Mutex<RtpsGroup>>;32],
+    publisher_list: Vec<Arc<Mutex<RtpsGroup>>>,
+    subscriber_list: Vec<Arc<Mutex<RtpsGroup>>>,
 }
 
 impl RtpsParticipant {
@@ -50,8 +50,8 @@ impl RtpsParticipant {
             metatraffic_transport,
             builtin_subscriber,
             builtin_publisher,
-            publisher_list: Default::default(),
-            subscriber_list: Default::default(),
+            publisher_list: Vec::new(),
+            subscriber_list: Vec::new(),
         }
     }
 
@@ -88,10 +88,12 @@ impl RtpsParticipant {
     }
 
     pub fn run(&self) {
-        todo!()
-        // RtpsMessageReceiver::receive(self.guid.prefix(), self.metatraffic_transport.as_ref(), &[self.builtin_subscriber.as_ref()]);
+        RtpsMessageReceiver::receive(
+            self.guid.prefix(),
+            self.metatraffic_transport.as_ref(),
+            &[&self.builtin_subscriber]
+        );
     }
-
 }
 
 impl ProtocolEntity for RtpsParticipant {
@@ -106,27 +108,37 @@ impl ProtocolEntity for RtpsParticipant {
 
 impl ProtocolParticipant for RtpsParticipant {
     fn create_publisher(&mut self) -> Arc<Mutex<dyn ProtocolPublisher>> {
-        let index = self.publisher_list.iter().position(|x| x.strong_count() == 0).unwrap();
+        let index = match self.publisher_list.iter()
+            .max_by(|&x, &y| 
+            x.lock().unwrap().guid().entity_id().entity_key()[0].cmp(&y.lock().unwrap().guid().entity_id().entity_key()[0])) {
+                Some(group) => group.lock().unwrap().guid().entity_id().entity_key()[0] + 1,
+                None => 0,
+        };
 
         let guid_prefix = self.guid.prefix();
         let entity_id = EntityId::new([index as u8,0,0], EntityKind::UserDefinedWriterGroup);
         let publisher_guid = GUID::new(guid_prefix, entity_id);
         let publisher_sender = RtpsMessageSender::new(self.userdata_transport.clone());
         let new_publisher = Arc::new(Mutex::new(RtpsGroup::new(publisher_guid, publisher_sender)));
-        self.publisher_list[index] = Arc::downgrade(&new_publisher);
+        self.publisher_list.push(new_publisher.clone());
 
         new_publisher
     }
 
     fn create_subscriber(&mut self) -> Arc<Mutex<dyn ProtocolSubscriber>> {
-        let index = self.subscriber_list.iter().position(|x| x.strong_count() == 0).unwrap();
+        let index = match self.subscriber_list.iter()
+            .max_by(|&x, &y| 
+            x.lock().unwrap().guid().entity_id().entity_key()[0].cmp(&y.lock().unwrap().guid().entity_id().entity_key()[0])) {
+                Some(group) => group.lock().unwrap().guid().entity_id().entity_key()[0] + 1,
+                None => 0,
+        };
 
         let guid_prefix = self.guid.prefix();
         let entity_id = EntityId::new([index as u8,0,0], EntityKind::UserDefinedReaderGroup);
         let subscriber_guid = GUID::new(guid_prefix, entity_id);
         let subscriber_sender = RtpsMessageSender::new(self.userdata_transport.clone());
         let new_subscriber = Arc::new(Mutex::new(RtpsGroup::new(subscriber_guid, subscriber_sender)));
-        self.subscriber_list[index] = Arc::downgrade(&new_subscriber);
+        self.subscriber_list.push(new_subscriber.clone());
 
         new_subscriber
     }
@@ -180,17 +192,11 @@ mod tests {
         let mut participant = RtpsParticipant::new(0, MockTransport::new(), MockTransport::new());
         let participant_guid_prefix = &participant.get_instance_handle()[0..12];
 
-        assert_eq!(participant.publisher_list[0].strong_count(),0);
-        assert_eq!(participant.publisher_list[1].strong_count(),0);
-
-        let publisher1_arc = participant.create_publisher();
-        let publisher1 = publisher1_arc.lock().unwrap();
+        let publisher1 = participant.create_publisher();
+        let publisher1 = publisher1.lock().unwrap();
         let publisher1_entityid = [0,0,0,8];
         assert_eq!(&publisher1.get_instance_handle()[0..12], participant_guid_prefix); 
         assert_eq!(publisher1.get_instance_handle()[12..16], publisher1_entityid);
-
-        assert_eq!(participant.publisher_list[0].strong_count(),1);
-        assert_eq!(participant.publisher_list[1].strong_count(),0);
 
         let publisher2 = participant.create_publisher();
         let publisher2 = publisher2.lock().unwrap();
@@ -198,23 +204,13 @@ mod tests {
         assert_eq!(&publisher2.get_instance_handle()[0..12], participant_guid_prefix); 
         assert_eq!(publisher2.get_instance_handle()[12..16], publisher2_entityid);
 
-        assert_eq!(participant.publisher_list[0].strong_count(),1);
-        assert_eq!(participant.publisher_list[1].strong_count(),1);
-
         std::mem::drop(publisher1);
-        std::mem::drop(publisher1_arc);
-
-        assert_eq!(participant.publisher_list[0].strong_count(),0);
-        assert_eq!(participant.publisher_list[1].strong_count(),1);
 
         let publisher3 = participant.create_publisher();
         let publisher3 = publisher3.lock().unwrap();
         let publisher3_entityid = [0,0,0,8];
         assert_eq!(&publisher3.get_instance_handle()[0..12], participant_guid_prefix); 
         assert_eq!(publisher3.get_instance_handle()[12..16], publisher3_entityid);
-
-        assert_eq!(participant.publisher_list[0].strong_count(),1);
-        assert_eq!(participant.publisher_list[1].strong_count(),1);
     }
 
     #[test]
@@ -222,17 +218,11 @@ mod tests {
         let mut participant = RtpsParticipant::new(0, MockTransport::new(), MockTransport::new());
         let participant_guid_prefix = &participant.get_instance_handle()[0..12];
 
-        assert_eq!(participant.subscriber_list[0].strong_count(),0);
-        assert_eq!(participant.subscriber_list[1].strong_count(),0);
-
-        let subscriber1_arc = participant.create_subscriber();
-        let subscriber1 = subscriber1_arc.lock().unwrap();
+        let subscriber1 = participant.create_subscriber();
+        let subscriber1 = subscriber1.lock().unwrap();
         let subscriber1_entityid = [0,0,0,9];
         assert_eq!(&subscriber1.get_instance_handle()[0..12], participant_guid_prefix); 
         assert_eq!(subscriber1.get_instance_handle()[12..16], subscriber1_entityid);
-
-        assert_eq!(participant.subscriber_list[0].strong_count(),1);
-        assert_eq!(participant.subscriber_list[1].strong_count(),0);
 
         let subscriber2 = participant.create_subscriber();
         let subscriber2 = subscriber2.lock().unwrap();
@@ -240,23 +230,13 @@ mod tests {
         assert_eq!(&subscriber2.get_instance_handle()[0..12], participant_guid_prefix); 
         assert_eq!(subscriber2.get_instance_handle()[12..16], subscriber2_entityid);
 
-        assert_eq!(participant.subscriber_list[0].strong_count(),1);
-        assert_eq!(participant.subscriber_list[1].strong_count(),1);
-
         std::mem::drop(subscriber1);
-        std::mem::drop(subscriber1_arc);
-
-        assert_eq!(participant.subscriber_list[0].strong_count(),0);
-        assert_eq!(participant.subscriber_list[1].strong_count(),1);
 
         let subscriber3 = participant.create_subscriber();
         let subscriber3 = subscriber3.lock().unwrap();
         let subscriber3_entityid = [0,0,0,9];
         assert_eq!(&subscriber3.get_instance_handle()[0..12], participant_guid_prefix); 
         assert_eq!(subscriber3.get_instance_handle()[12..16], subscriber3_entityid);
-
-        assert_eq!(participant.subscriber_list[0].strong_count(),1);
-        assert_eq!(participant.subscriber_list[1].strong_count(),1);
     }
 }
 
