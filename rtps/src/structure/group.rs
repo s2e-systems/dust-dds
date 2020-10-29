@@ -11,21 +11,23 @@ use crate::structure::RtpsEndpoint;
 
 pub struct RtpsGroup {
     guid: GUID,
-    sender: RtpsMessageSender,
     endpoints: Vec<Arc<Mutex<dyn RtpsEndpoint>>>,
 }
 
 impl RtpsGroup {
-    pub fn new(guid: GUID, sender: RtpsMessageSender) -> Self {
+    pub fn new(guid: GUID) -> Self {
         Self {
             guid,
-            sender,
             endpoints: Vec::new(),
         }
     }
 
     pub fn guid(&self) -> GUID {
         self.guid
+    }
+
+    pub fn mut_endpoints(&mut self) -> &mut Vec<Arc<Mutex<dyn RtpsEndpoint>>> {
+        &mut self.endpoints
     }
 
     pub fn endpoints(&self) -> &[Arc<Mutex<dyn RtpsEndpoint>>] {

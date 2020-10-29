@@ -9,6 +9,7 @@ pub trait ProtocolEntity {
 
 pub trait ProtocolParticipant : ProtocolEntity {
     fn create_publisher(&mut self) -> Arc<Mutex<dyn ProtocolPublisher>>;
+    // fn delete_publisher(&mut self, publisher: &Arc<Mutex<dyn ProtocolPublisher>>);
     fn create_subscriber(&mut self) -> Arc<Mutex<dyn ProtocolSubscriber>>;
     fn get_builtin_subscriber(&self) -> Arc<Mutex<dyn ProtocolSubscriber>>;
 }

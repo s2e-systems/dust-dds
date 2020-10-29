@@ -7,9 +7,17 @@ use crate::types::constants::{
 use crate::transport::Transport;
 use crate::messages::message_receiver::RtpsMessageReceiver;
 use crate::messages::message_sender::RtpsMessageSender;
+
+use crate::behavior::StatelessWriter;
+use crate::types::GuidPrefix;
+use crate::types::constants::ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER;
+use rust_dds_interface::qos::DataWriterQos;
+use crate::discovery::spdp::SPDPdiscoveredParticipantData;
+use crate::endpoint_types::BuiltInEndpointSet;
+
 use super::RtpsGroup;
 
-use rust_dds_interface::types::{DomainId, InstanceHandle, ReturnCode};
+use rust_dds_interface::types::{DomainId, InstanceHandle, ReturnCode, TopicKind, Duration};
 use rust_dds_interface::protocol::{ProtocolEntity, ProtocolParticipant, ProtocolPublisher, ProtocolSubscriber};
 
 
@@ -21,7 +29,7 @@ pub struct RtpsParticipant {
     userdata_transport: Arc<dyn Transport>,
     metatraffic_transport: Arc<dyn Transport>,
     builtin_publisher: Arc<Mutex<RtpsGroup>>,
-    builtin_subscriber: Arc<Mutex<RtpsGroup>>, 
+    // builtin_subscriber: Arc<Mutex<RtpsGroup>>, 
     publisher_list: Vec<Arc<Mutex<RtpsGroup>>>,
     subscriber_list: Vec<Arc<Mutex<RtpsGroup>>>,
 }
@@ -38,8 +46,8 @@ impl RtpsParticipant {
         let vendor_id = [99,99];
         let guid_prefix = [5, 6, 7, 8, 9, 5, 1, 2, 3, 4, 10, 11];   // TODO: Should be uniquely generated
 
-        let builtin_publisher = RtpsParticipant::create_builtin_publisher();
-        let builtin_subscriber = RtpsParticipant::create_builtin_subscriber();
+        let builtin_publisher = RtpsParticipant::create_builtin_publisher(guid_prefix);
+        // let builtin_subscriber = RtpsParticipant::create_builtin_subscriber();
 
         Self {
             guid: GUID::new(guid_prefix,ENTITYID_PARTICIPANT ),
@@ -48,7 +56,7 @@ impl RtpsParticipant {
             vendor_id,
             userdata_transport,
             metatraffic_transport,
-            builtin_subscriber,
+            // builtin_subscriber,
             builtin_publisher,
             publisher_list: Vec::new(),
             subscriber_list: Vec::new(),
@@ -79,8 +87,37 @@ impl RtpsParticipant {
         &self.metatraffic_transport
     }
 
-    fn create_builtin_publisher() -> Arc<Mutex<RtpsGroup>> {
-        todo!()
+    pub fn initialize_spdp(&self, domain_tag: String, lease_duration: Duration) {
+        let spdp_discovered_participant_data = SPDPdiscoveredParticipantData::new(
+            self.domain_id,
+            domain_tag,
+            self.protocol_version,
+            self.guid.prefix(),
+            self.vendor_id,
+            self.metatraffic_transport.unicast_locator_list().clone(),
+            self.metatraffic_transport.multicast_locator_list().clone(),
+            self.userdata_transport.unicast_locator_list().clone(),
+            self.userdata_transport.multicast_locator_list().clone(),
+            BuiltInEndpointSet::new(0),
+            lease_duration,
+        );
+
+        // let spdp_data = SPDPdiscoveredParticipantData::new_from_participant(participant, Duration::from_secs(30));
+        // let change = spdp_builtin_participant_writer.new_change(ChangeKind::Alive, Some(spdp_data.data(CdrEndianness::LittleEndian)), None, spdp_data.key());
+        // spdp_builtin_participant_writer.writer_cache().add_change(change).unwrap();
+    }
+
+    fn create_builtin_publisher(guid_prefix: GuidPrefix) -> Arc<Mutex<RtpsGroup>> {
+        let builtin_publisher_guid = GUID::new(guid_prefix, EntityId::new([3,3,3], EntityKind::BuiltInWriterGroup));
+        let mut builtin_publisher = RtpsGroup::new(builtin_publisher_guid);
+
+        let writer_guid = GUID::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER);
+        let writer_qos = DataWriterQos::default(); // TODO: Should be adjusted according to the SPDP writer
+        let spdp_builtin_participant_writer = StatelessWriter::new(writer_guid, TopicKind::WithKey, &writer_qos);
+
+        builtin_publisher.mut_endpoints().push(Arc::new(Mutex::new(spdp_builtin_participant_writer)));
+
+        Arc::new(Mutex::new(builtin_publisher))
     }
 
     fn create_builtin_subscriber() -> Arc<Mutex<RtpsGroup>> {
@@ -88,11 +125,11 @@ impl RtpsParticipant {
     }
 
     pub fn run(&self) {
-        RtpsMessageReceiver::receive(
-            self.guid.prefix(),
-            self.metatraffic_transport.as_ref(),
-            &[&self.builtin_subscriber]
-        );
+        // RtpsMessageReceiver::receive(
+            // self.guid.prefix(),
+            // self.metatraffic_transport.as_ref(),
+            // &[&self.builtin_subscriber]
+        // );
     }
 }
 
@@ -118,8 +155,8 @@ impl ProtocolParticipant for RtpsParticipant {
         let guid_prefix = self.guid.prefix();
         let entity_id = EntityId::new([index as u8,0,0], EntityKind::UserDefinedWriterGroup);
         let publisher_guid = GUID::new(guid_prefix, entity_id);
-        let publisher_sender = RtpsMessageSender::new(self.userdata_transport.clone());
-        let new_publisher = Arc::new(Mutex::new(RtpsGroup::new(publisher_guid, publisher_sender)));
+        // let publisher_sender = RtpsMessageSender::new(self.userdata_transport.clone());
+        let new_publisher = Arc::new(Mutex::new(RtpsGroup::new(publisher_guid)));
         self.publisher_list.push(new_publisher.clone());
 
         new_publisher
@@ -136,15 +173,16 @@ impl ProtocolParticipant for RtpsParticipant {
         let guid_prefix = self.guid.prefix();
         let entity_id = EntityId::new([index as u8,0,0], EntityKind::UserDefinedReaderGroup);
         let subscriber_guid = GUID::new(guid_prefix, entity_id);
-        let subscriber_sender = RtpsMessageSender::new(self.userdata_transport.clone());
-        let new_subscriber = Arc::new(Mutex::new(RtpsGroup::new(subscriber_guid, subscriber_sender)));
+        // let subscriber_sender = RtpsMessageSender::new(self.userdata_transport.clone());
+        let new_subscriber = Arc::new(Mutex::new(RtpsGroup::new(subscriber_guid)));
         self.subscriber_list.push(new_subscriber.clone());
 
         new_subscriber
     }
 
     fn get_builtin_subscriber(&self) -> Arc<Mutex<dyn ProtocolSubscriber>> {
-        self.builtin_subscriber.clone()
+        todo!()
+        // self.builtin_subscriber.clone()
     }
 }
 
