@@ -11,12 +11,9 @@ use crate::messages::types::Count;
 
 use crate::behavior::types::Duration;
 use crate::behavior::{cache_change_from_data, BEHAVIOR_ENDIANNESS};
-use super::stateful_reader::WriterProxyOps;
 
 pub struct ReliableWriterProxy {
     writer_proxy: WriterProxy,
-    reader_entity_id: EntityId,
-    heartbeat_response_delay: Duration,
 
     must_send_ack: bool,
     time_heartbeat_received: Instant,
@@ -28,17 +25,42 @@ pub struct ReliableWriterProxy {
 }
 
 impl ReliableWriterProxy {
-    pub fn new(writer_proxy: WriterProxy, reader_entity_id: EntityId, heartbeat_response_delay: Duration) -> Self {
+    pub fn new(writer_proxy: WriterProxy) -> Self {
         Self {
             writer_proxy,
-            reader_entity_id,
-            heartbeat_response_delay,
             must_send_ack: false,
             time_heartbeat_received: Instant::now(),
             ackanck_count: 0,
             highest_received_heartbeat_count: 0,
             input_queue: VecDeque::new(),
             output_queue: VecDeque::new(),
+        }
+    }
+
+    pub fn process(&mut self, history_cache: &HistoryCache, reader_entity_id: EntityId, heartbeat_response_delay: Duration) {
+        // The heartbeat message triggers also a transition in the parallel state-machine
+        // relating to the acknack sending so it is returned from the ready_state for
+        // further processing.
+        let heartbeat = self.ready_state(history_cache);
+        if self.must_send_ack {
+            self.must_send_ack_state(reader_entity_id, heartbeat_response_delay)
+        } else {
+            self.waiting_heartbeat_state(heartbeat);
+        }
+    }
+
+    pub fn try_push_message(&mut self, _src_locator: crate::types::Locator, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>) {
+        let writer_id = match submessage {
+            Some(RtpsSubmessage::Data(data)) => data.writer_id(),
+            Some(RtpsSubmessage::Gap(gap)) => gap.writer_id(),
+            Some(RtpsSubmessage::Heartbeat(heartbeat)) => heartbeat.writer_id(),
+            _ => return,
+        };
+
+        let writer_guid = GUID::new(src_guid_prefix, writer_id);
+
+        if self.writer_proxy.remote_writer_guid() == &writer_guid {
+            self.input_queue.push_back(submessage.take().unwrap())
         }
     }
 
@@ -99,19 +121,19 @@ impl ReliableWriterProxy {
         }
     }
 
-    fn must_send_ack_state(&mut self) {
-        if self.duration_since_heartbeat_received() >  self.heartbeat_response_delay {
-            self.transition_t5()
+    fn must_send_ack_state(&mut self, reader_entity_id: EntityId, heartbeat_response_delay: Duration) {
+        if self.duration_since_heartbeat_received() >  heartbeat_response_delay {
+            self.transition_t5(reader_entity_id)
         }
     }
 
-    fn transition_t5(&mut self) {
+    fn transition_t5(&mut self, reader_entity_id: EntityId) {
         self.reset_must_send_ack();
  
         self.increment_acknack_count();
         let acknack = AckNack::new(
             BEHAVIOR_ENDIANNESS,
-            self.reader_entity_id, 
+            reader_entity_id, 
             self.writer_proxy.remote_writer_guid().entity_id(),
             self.writer_proxy.available_changes_max(),
             self.writer_proxy.missing_changes().clone(),
@@ -149,35 +171,6 @@ impl ReliableWriterProxy {
     
 }
 
-impl WriterProxyOps for ReliableWriterProxy {
-    fn process(&mut self, history_cache: &HistoryCache) {
-        // The heartbeat message triggers also a transition in the parallel state-machine
-        // relating to the acknack sending so it is returned from the ready_state for
-        // further processing.
-        let heartbeat = self.ready_state(history_cache);
-        if self.must_send_ack {
-            self.must_send_ack_state()
-        } else {
-            self.waiting_heartbeat_state(heartbeat);
-        }
-    }
-
-    fn try_push_message(&mut self, _src_locator: crate::types::Locator, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>) {
-        let writer_id = match submessage {
-            Some(RtpsSubmessage::Data(data)) => data.writer_id(),
-            Some(RtpsSubmessage::Gap(gap)) => gap.writer_id(),
-            Some(RtpsSubmessage::Heartbeat(heartbeat)) => heartbeat.writer_id(),
-            _ => return,
-        };
-
-        let writer_guid = GUID::new(src_guid_prefix, writer_id);
-
-        if self.writer_proxy.remote_writer_guid() == &writer_guid {
-            self.input_queue.push_back(submessage.take().unwrap())
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -202,7 +195,7 @@ mod tests {
         let remote_writer_guid_prefix = [1;12];
         let remote_writer_guid = GUID::new(remote_writer_guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
         let writer_proxy = WriterProxy::new(remote_writer_guid, vec![], vec![]);
-        let mut reliable_writer_proxy = ReliableWriterProxy::new(writer_proxy, reader_entity_id, heartbeat_response_delay);
+        let mut reliable_writer_proxy = ReliableWriterProxy::new(writer_proxy);
 
         let mut inline_qos = ParameterList::new();
         inline_qos.push(change_kind_to_status_info(ChangeKind::Alive));
@@ -219,7 +212,7 @@ mod tests {
         reliable_writer_proxy.try_push_message(LOCATOR_INVALID,  remote_writer_guid_prefix, &mut Some(RtpsSubmessage::Data(data1)));
 
 
-        reliable_writer_proxy.process(&history_cache);
+        reliable_writer_proxy.process(&history_cache, reader_entity_id, heartbeat_response_delay);
 
         let expected_change_1 = CacheChange::new(
             ChangeKind::Alive,
@@ -235,7 +228,7 @@ mod tests {
         assert_eq!(reliable_writer_proxy.writer_proxy.available_changes_max(), 0);
 
         // Run without any received message and verify nothing changes
-        reliable_writer_proxy.process(&history_cache);
+        reliable_writer_proxy.process(&history_cache, reader_entity_id, heartbeat_response_delay);
         assert_eq!(history_cache.changes().len(), 1);
         assert_eq!(reliable_writer_proxy.writer_proxy.available_changes_max(), 0);
     }
@@ -249,7 +242,7 @@ mod tests {
         let remote_writer_guid_prefix = [1;12];
         let remote_writer_guid = GUID::new(remote_writer_guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
         let writer_proxy = WriterProxy::new(remote_writer_guid, vec![], vec![]);
-        let mut reliable_writer_proxy = ReliableWriterProxy::new(writer_proxy, reader_entity_id, heartbeat_response_delay);
+        let mut reliable_writer_proxy = ReliableWriterProxy::new(writer_proxy);
 
         let heartbeat = Heartbeat::new(
             Endianness::LittleEndian,
@@ -264,7 +257,7 @@ mod tests {
     
         reliable_writer_proxy.try_push_message(LOCATOR_INVALID,  remote_writer_guid_prefix, &mut Some(RtpsSubmessage::Heartbeat(heartbeat)));
 
-        reliable_writer_proxy.process(&history_cache);
+        reliable_writer_proxy.process(&history_cache, reader_entity_id, heartbeat_response_delay);
         assert_eq!(reliable_writer_proxy.writer_proxy.missing_changes(), [3, 4, 5, 6].iter().cloned().collect());
         assert_eq!(reliable_writer_proxy.must_send_ack(), true);
     }
@@ -278,7 +271,7 @@ mod tests {
         let remote_writer_guid_prefix = [1;12];
         let remote_writer_guid = GUID::new(remote_writer_guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
         let writer_proxy = WriterProxy::new(remote_writer_guid, vec![], vec![]);
-        let mut reliable_writer_proxy = ReliableWriterProxy::new(writer_proxy, reader_entity_id, heartbeat_response_delay);
+        let mut reliable_writer_proxy = ReliableWriterProxy::new(writer_proxy);
 
         let heartbeat = Heartbeat::new(
             Endianness::LittleEndian,
@@ -292,13 +285,13 @@ mod tests {
         );
         reliable_writer_proxy.try_push_message(LOCATOR_INVALID,  remote_writer_guid_prefix, &mut Some(RtpsSubmessage::Heartbeat(heartbeat)));
 
-        reliable_writer_proxy.process(&history_cache);
+        reliable_writer_proxy.process(&history_cache, reader_entity_id, heartbeat_response_delay);
         assert_eq!(reliable_writer_proxy.writer_proxy.missing_changes(), [2, 3].iter().cloned().collect());
         assert_eq!(reliable_writer_proxy.must_send_ack(), true);
 
         std::thread::sleep(heartbeat_response_delay.into());
 
-        reliable_writer_proxy.process(&history_cache);
+        reliable_writer_proxy.process(&history_cache, reader_entity_id, heartbeat_response_delay);
         assert_eq!(reliable_writer_proxy.must_send_ack(), false);
 
         // TODO: Test that AckNack is sent after duration
@@ -313,7 +306,7 @@ mod tests {
         let remote_writer_guid_prefix = [1;12];
         let remote_writer_guid = GUID::new(remote_writer_guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
         let writer_proxy = WriterProxy::new(remote_writer_guid, vec![], vec![]);
-        let mut reliable_writer_proxy = ReliableWriterProxy::new(writer_proxy, reader_entity_id, heartbeat_response_delay);
+        let mut reliable_writer_proxy = ReliableWriterProxy::new(writer_proxy);
 
         let heartbeat = Heartbeat::new(
             Endianness::LittleEndian,
@@ -327,7 +320,7 @@ mod tests {
         );
         reliable_writer_proxy.try_push_message(LOCATOR_INVALID,  remote_writer_guid_prefix, &mut Some(RtpsSubmessage::Heartbeat(heartbeat)));
 
-        reliable_writer_proxy.process(&history_cache);
+        reliable_writer_proxy.process(&history_cache, reader_entity_id, heartbeat_response_delay);
         assert_eq!(reliable_writer_proxy.writer_proxy.missing_changes(), [].iter().cloned().collect());
         assert_eq!(reliable_writer_proxy.must_send_ack, false);
     }

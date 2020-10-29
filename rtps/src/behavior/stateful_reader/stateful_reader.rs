@@ -13,9 +13,9 @@ use rust_dds_interface::protocol::{ProtocolEntity, ProtocolReader};
 use rust_dds_interface::qos::DataReaderQos;
 use rust_dds_interface::types::{InstanceHandle, ReturnCode};
 
-pub trait WriterProxyOps {
-    fn process(&mut self, history_cache: &HistoryCache);
-    fn try_push_message(&mut self, src_locator: Locator, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>);
+enum WriterProxyFlavor{
+    BestEffort(BestEffortWriterProxy),
+    Reliable(ReliableWriterProxy),
 }
 
 pub struct StatefulReader {
@@ -39,7 +39,7 @@ pub struct StatefulReader {
     reader_cache: HistoryCache,
 
     // Fields
-    matched_writers: HashMap<GUID, Box<dyn WriterProxyOps>>,
+    matched_writers: HashMap<GUID, WriterProxyFlavor>,
 }
 
 impl StatefulReader {
@@ -65,9 +65,9 @@ impl StatefulReader {
 
     pub fn matched_writer_add(&mut self, a_writer_proxy: WriterProxy) {
         let remote_writer_guid = a_writer_proxy.remote_writer_guid().clone();
-        let writer_proxy: Box<dyn WriterProxyOps> = match self.reliability_level {
-            ReliabilityKind::Reliable => Box::new(ReliableWriterProxy::new(a_writer_proxy, self.guid.entity_id(), self.heartbeat_response_delay)),
-            ReliabilityKind::BestEffort => Box::new(BestEffortWriterProxy::new(a_writer_proxy)),
+        let writer_proxy = match self.reliability_level {
+            ReliabilityKind::Reliable => WriterProxyFlavor::Reliable(ReliableWriterProxy::new(a_writer_proxy)),
+            ReliabilityKind::BestEffort => WriterProxyFlavor::BestEffort(BestEffortWriterProxy::new(a_writer_proxy)),
         };
         
         self.matched_writers.insert(remote_writer_guid, writer_proxy);
@@ -92,8 +92,11 @@ impl StatefulReader {
 
 impl RtpsRun for StatefulReader {
     fn run(&mut self) {
-        for (_writer_guid, writer_proxy) in self.matched_writers.iter_mut(){
-            writer_proxy.process(&self.reader_cache)
+        for (_writer_guid, writer_proxy) in self.matched_writers.iter_mut() {
+            match writer_proxy {
+                WriterProxyFlavor::BestEffort(best_effort_writer_proxy) => best_effort_writer_proxy.process(&self.reader_cache),
+                WriterProxyFlavor::Reliable(reliable_writer_proxy) => reliable_writer_proxy.process(&self.reader_cache, self.guid.entity_id(), self.heartbeat_response_delay),
+            }
         }
     }
 }
@@ -117,7 +120,7 @@ impl RtpsEntity for StatefulReader {
 }
 
 impl RtpsMessageSender for StatefulReader {
-    fn output_queues(&self) -> Vec<OutputQueue> {
+    fn output_queues(&mut self) -> Vec<OutputQueue> {
         todo!()
     }
 }
@@ -143,7 +146,10 @@ impl RtpsEndpoint for StatefulReader {
 impl RtpsCommunication for StatefulReader {
     fn try_push_message(&mut self, src_locator: Locator, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>) {
         for (_, writer_proxy) in &mut self.matched_writers {
-            writer_proxy.try_push_message(src_locator, src_guid_prefix, submessage)
+            match writer_proxy {
+                WriterProxyFlavor::BestEffort(best_effort_writer_proxy) => best_effort_writer_proxy.try_push_message(src_locator, src_guid_prefix, submessage),
+                WriterProxyFlavor::Reliable(reliable_writer_proxy) => reliable_writer_proxy.try_push_message(src_locator, src_guid_prefix, submessage),
+            }
         }
     }
 }
