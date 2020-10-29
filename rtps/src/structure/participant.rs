@@ -31,7 +31,7 @@ pub struct RtpsParticipant {
     userdata_transport: Arc<dyn Transport>,
     metatraffic_transport: Arc<dyn Transport>,
     builtin_publisher: Arc<Mutex<RtpsGroup>>,
-    // builtin_subscriber: Arc<Mutex<RtpsGroup>>, 
+    builtin_subscriber: Arc<Mutex<RtpsGroup>>, 
     publisher_list: Vec<Arc<Mutex<RtpsGroup>>>,
     subscriber_list: Vec<Arc<Mutex<RtpsGroup>>>,
 }
@@ -61,7 +61,7 @@ impl RtpsParticipant {
             vendor_id,
             userdata_transport,
             metatraffic_transport,
-            // builtin_subscriber,
+            builtin_subscriber,
             builtin_publisher,
             publisher_list: Vec::new(),
             subscriber_list: Vec::new(),
@@ -174,8 +174,7 @@ impl ProtocolParticipant for RtpsParticipant {
     }
 
     fn get_builtin_subscriber(&self) -> Arc<Mutex<dyn ProtocolSubscriber>> {
-        todo!()
-        // self.builtin_subscriber.clone()
+        self.builtin_subscriber.clone()
     }
 }
 
