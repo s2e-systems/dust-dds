@@ -2,7 +2,7 @@ use std::collections::VecDeque;
 
 use rust_dds_interface::qos::DataReaderQos;
 
-use crate::structure::{HistoryCache, RtpsEndpoint};
+use crate::structure::{HistoryCache, RtpsEndpoint, RtpsEntity};
 use crate::types::{ReliabilityKind, TopicKind, GUID, Locator, GuidPrefix };
 use crate::types::constants::ENTITYID_UNKNOWN;
 use crate::messages::RtpsSubmessage;
@@ -89,6 +89,12 @@ impl StatelessReader {
         let is_in_locator_lists = self.multicast_locator_list.contains(src_locator) || self.unicast_locator_list.contains(src_locator);
         is_in_locator_lists && (self.guid.entity_id() == reader_id || reader_id == ENTITYID_UNKNOWN)
     }   
+}
+
+impl RtpsEntity for StatelessReader {
+    fn guid(&self) -> GUID {
+        self.guid
+    }
 }
 
 impl RtpsEndpoint for StatelessReader {

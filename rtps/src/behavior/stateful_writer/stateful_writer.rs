@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::types::{ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID, GuidPrefix};
 use crate::behavior::types::Duration;
 use crate::messages::RtpsSubmessage;
-use crate::structure::{HistoryCache, CacheChange, RtpsEndpoint};
+use crate::structure::{HistoryCache, CacheChange, RtpsEndpoint, RtpsEntity};
 use crate::serialized_payload::ParameterList;
 use super::reader_proxy::ReaderProxy;
 use super::reliable_reader_proxy::ReliableReaderProxy;
@@ -169,6 +169,12 @@ impl ProtocolWriter for StatefulWriter {
 
     fn lookup_instance(&self, _instance_handle: InstanceHandle) -> Option<InstanceHandle> {
         todo!()
+    }
+}
+
+impl RtpsEntity for StatefulWriter {
+    fn guid(&self) -> GUID {
+        self.guid
     }
 }
 

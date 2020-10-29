@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex, };
 
-use crate::types::{GUID, ProtocolVersion, VendorId, EntityId, EntityKind};
+use crate::types::{GUID, ProtocolVersion, VendorId, EntityId, EntityKind, ChangeKind};
 use crate::types::constants::{
     ENTITYID_PARTICIPANT,
     PROTOCOL_VERSION_2_4,};
@@ -8,16 +8,18 @@ use crate::transport::Transport;
 use crate::messages::message_receiver::RtpsMessageReceiver;
 use crate::messages::message_sender::RtpsMessageSender;
 
+use crate::behavior::types::Duration;
 use crate::behavior::StatelessWriter;
 use crate::types::GuidPrefix;
 use crate::types::constants::ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER;
 use rust_dds_interface::qos::DataWriterQos;
 use crate::discovery::spdp::SPDPdiscoveredParticipantData;
 use crate::endpoint_types::BuiltInEndpointSet;
+use crate::serialized_payload::CdrEndianness;
 
 use super::RtpsGroup;
 
-use rust_dds_interface::types::{DomainId, InstanceHandle, ReturnCode, TopicKind, Duration};
+use rust_dds_interface::types::{DomainId, InstanceHandle, ReturnCode, TopicKind};
 use rust_dds_interface::protocol::{ProtocolEntity, ProtocolParticipant, ProtocolPublisher, ProtocolSubscriber};
 
 
@@ -46,8 +48,11 @@ impl RtpsParticipant {
         let vendor_id = [99,99];
         let guid_prefix = [5, 6, 7, 8, 9, 5, 1, 2, 3, 4, 10, 11];   // TODO: Should be uniquely generated
 
-        let builtin_publisher = RtpsParticipant::create_builtin_publisher(guid_prefix);
-        // let builtin_subscriber = RtpsParticipant::create_builtin_subscriber();
+        let builtin_publisher_guid = GUID::new(guid_prefix, EntityId::new([3,3,3], EntityKind::BuiltInWriterGroup));
+        let builtin_subscriber_guid = GUID::new(guid_prefix, EntityId::new([3,3,3], EntityKind::BuiltInReaderGroup));
+
+        let builtin_publisher = Arc::new(Mutex::new(RtpsGroup::new(builtin_publisher_guid)));
+        let builtin_subscriber = Arc::new(Mutex::new(RtpsGroup::new(builtin_subscriber_guid)));
 
         Self {
             guid: GUID::new(guid_prefix,ENTITYID_PARTICIPANT ),
@@ -88,7 +93,7 @@ impl RtpsParticipant {
     }
 
     pub fn initialize_spdp(&self, domain_tag: String, lease_duration: Duration) {
-        let spdp_discovered_participant_data = SPDPdiscoveredParticipantData::new(
+        let spdp_data = SPDPdiscoveredParticipantData::new(
             self.domain_id,
             domain_tag,
             self.protocol_version,
@@ -102,26 +107,14 @@ impl RtpsParticipant {
             lease_duration,
         );
 
-        // let spdp_data = SPDPdiscoveredParticipantData::new_from_participant(participant, Duration::from_secs(30));
-        // let change = spdp_builtin_participant_writer.new_change(ChangeKind::Alive, Some(spdp_data.data(CdrEndianness::LittleEndian)), None, spdp_data.key());
-        // spdp_builtin_participant_writer.writer_cache().add_change(change).unwrap();
-    }
-
-    fn create_builtin_publisher(guid_prefix: GuidPrefix) -> Arc<Mutex<RtpsGroup>> {
-        let builtin_publisher_guid = GUID::new(guid_prefix, EntityId::new([3,3,3], EntityKind::BuiltInWriterGroup));
-        let mut builtin_publisher = RtpsGroup::new(builtin_publisher_guid);
-
-        let writer_guid = GUID::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER);
+        let writer_guid = GUID::new(self.guid.prefix(), ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER);
         let writer_qos = DataWriterQos::default(); // TODO: Should be adjusted according to the SPDP writer
-        let spdp_builtin_participant_writer = StatelessWriter::new(writer_guid, TopicKind::WithKey, &writer_qos);
+        let mut spdp_builtin_participant_writer = StatelessWriter::new(writer_guid, TopicKind::WithKey, &writer_qos);
 
-        builtin_publisher.mut_endpoints().push(Arc::new(Mutex::new(spdp_builtin_participant_writer)));
+        let change = spdp_builtin_participant_writer.new_change(ChangeKind::Alive, Some(spdp_data.data(CdrEndianness::LittleEndian)), None, spdp_data.key());
+        spdp_builtin_participant_writer.writer_cache().add_change(change).unwrap();
 
-        Arc::new(Mutex::new(builtin_publisher))
-    }
-
-    fn create_builtin_subscriber() -> Arc<Mutex<RtpsGroup>> {
-        todo!()
+        self.builtin_publisher.lock().unwrap().mut_endpoints().push(Arc::new(Mutex::new(spdp_builtin_participant_writer)));
     }
 
     pub fn run(&self) {

@@ -1,5 +1,5 @@
 use std::collections::{HashMap,  VecDeque};
-use crate::structure::{HistoryCache, CacheChange, RtpsEndpoint};
+use crate::structure::{HistoryCache, CacheChange, RtpsEndpoint, RtpsEntity};
 use crate::serialized_payload::ParameterList;
 use crate::types::{ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID, };
 use crate::messages::RtpsSubmessage;
@@ -102,6 +102,12 @@ impl StatelessWriter {
         }
 
         output
+    }
+}
+
+impl RtpsEntity for StatelessWriter {
+    fn guid(&self) -> GUID {
+        self.guid
     }
 }
 
