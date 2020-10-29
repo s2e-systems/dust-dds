@@ -11,13 +11,15 @@ use crate::structure::{RtpsEndpoint, RtpsEntity, RtpsRun};
 
 pub struct RtpsGroup {
     guid: GUID,
+    sender: RtpsMessageSender,
     endpoints: Vec<Arc<Mutex<dyn RtpsEndpoint>>>,
 }
 
 impl RtpsGroup {
-    pub fn new(guid: GUID) -> Self {
+    pub fn new(guid: GUID, sender: RtpsMessageSender,) -> Self {
         Self {
             guid,
+            sender,
             endpoints: Vec::new(),
         }
     }
@@ -33,11 +35,7 @@ impl RtpsGroup {
 
 impl RtpsRun for RtpsGroup {
     fn run(&mut self) {
-        for endpoint in &self.endpoints {
-            endpoint.lock().unwrap().run()
-
-            
-        }
+        todo!()
     }
 }
 

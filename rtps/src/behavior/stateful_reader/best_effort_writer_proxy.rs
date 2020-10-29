@@ -58,7 +58,7 @@ impl BestEffortWriterProxy {
 }
 
 impl WriterProxyOps for BestEffortWriterProxy {
-    fn run(&mut self, history_cache: &HistoryCache) {
+    fn process(&mut self, history_cache: &HistoryCache) {
         self.waiting_state(history_cache);
     }
 
@@ -113,7 +113,7 @@ mod tests {
             Payload::Data(vec![1,2,3]));
 
         best_effort_proxy.try_push_message(LOCATOR_INVALID,  remote_writer_guid_prefix, &mut Some(RtpsSubmessage::Data(data1)));
-        best_effort_proxy.run(&history_cache);
+        best_effort_proxy.process(&history_cache);
 
         let expected_change_1 = CacheChange::new(
             ChangeKind::Alive,
@@ -129,7 +129,7 @@ mod tests {
         assert_eq!(best_effort_proxy.writer_proxy.available_changes_max(), 3);
 
         // Run waiting state without any received message and verify nothing changes
-        best_effort_proxy.run(&history_cache);
+        best_effort_proxy.process(&history_cache);
         assert_eq!(history_cache.changes().len(), 1);
         assert_eq!(best_effort_proxy.writer_proxy.available_changes_max(), 3);
     }

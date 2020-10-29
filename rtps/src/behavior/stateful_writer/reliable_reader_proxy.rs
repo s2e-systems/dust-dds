@@ -192,7 +192,7 @@ impl ReliableReaderProxy {
 }
 
 impl ReaderProxyOps for ReliableReaderProxy {
-    fn run(&mut self, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber) {
+    fn process(&mut self, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber) {
         if self.reader_proxy.unacked_changes(last_change_sequence_number).is_empty() {
             // Idle
         } else if !self.reader_proxy.unsent_changes(last_change_sequence_number).is_empty() {

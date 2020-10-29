@@ -14,7 +14,7 @@ use rust_dds_interface::qos::DataReaderQos;
 use rust_dds_interface::types::{InstanceHandle, ReturnCode};
 
 pub trait WriterProxyOps {
-    fn run(&mut self, history_cache: &HistoryCache);
+    fn process(&mut self, history_cache: &HistoryCache);
     fn try_push_message(&mut self, src_locator: Locator, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>);
 }
 
@@ -93,7 +93,7 @@ impl StatefulReader {
 impl RtpsRun for StatefulReader {
     fn run(&mut self) {
         for (_writer_guid, writer_proxy) in self.matched_writers.iter_mut(){
-            writer_proxy.run(&self.reader_cache)
+            writer_proxy.process(&self.reader_cache)
         }
     }
 }

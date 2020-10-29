@@ -150,7 +150,7 @@ impl ReliableWriterProxy {
 }
 
 impl WriterProxyOps for ReliableWriterProxy {
-    fn run(&mut self, history_cache: &HistoryCache) {
+    fn process(&mut self, history_cache: &HistoryCache) {
         // The heartbeat message triggers also a transition in the parallel state-machine
         // relating to the acknack sending so it is returned from the ready_state for
         // further processing.
@@ -219,7 +219,7 @@ mod tests {
         reliable_writer_proxy.try_push_message(LOCATOR_INVALID,  remote_writer_guid_prefix, &mut Some(RtpsSubmessage::Data(data1)));
 
 
-        reliable_writer_proxy.run(&history_cache);
+        reliable_writer_proxy.process(&history_cache);
 
         let expected_change_1 = CacheChange::new(
             ChangeKind::Alive,
@@ -235,7 +235,7 @@ mod tests {
         assert_eq!(reliable_writer_proxy.writer_proxy.available_changes_max(), 0);
 
         // Run without any received message and verify nothing changes
-        reliable_writer_proxy.run(&history_cache);
+        reliable_writer_proxy.process(&history_cache);
         assert_eq!(history_cache.changes().len(), 1);
         assert_eq!(reliable_writer_proxy.writer_proxy.available_changes_max(), 0);
     }
@@ -264,7 +264,7 @@ mod tests {
     
         reliable_writer_proxy.try_push_message(LOCATOR_INVALID,  remote_writer_guid_prefix, &mut Some(RtpsSubmessage::Heartbeat(heartbeat)));
 
-        reliable_writer_proxy.run(&history_cache);
+        reliable_writer_proxy.process(&history_cache);
         assert_eq!(reliable_writer_proxy.writer_proxy.missing_changes(), [3, 4, 5, 6].iter().cloned().collect());
         assert_eq!(reliable_writer_proxy.must_send_ack(), true);
     }
@@ -292,13 +292,13 @@ mod tests {
         );
         reliable_writer_proxy.try_push_message(LOCATOR_INVALID,  remote_writer_guid_prefix, &mut Some(RtpsSubmessage::Heartbeat(heartbeat)));
 
-        reliable_writer_proxy.run(&history_cache);
+        reliable_writer_proxy.process(&history_cache);
         assert_eq!(reliable_writer_proxy.writer_proxy.missing_changes(), [2, 3].iter().cloned().collect());
         assert_eq!(reliable_writer_proxy.must_send_ack(), true);
 
         std::thread::sleep(heartbeat_response_delay.into());
 
-        reliable_writer_proxy.run(&history_cache);
+        reliable_writer_proxy.process(&history_cache);
         assert_eq!(reliable_writer_proxy.must_send_ack(), false);
 
         // TODO: Test that AckNack is sent after duration
@@ -327,7 +327,7 @@ mod tests {
         );
         reliable_writer_proxy.try_push_message(LOCATOR_INVALID,  remote_writer_guid_prefix, &mut Some(RtpsSubmessage::Heartbeat(heartbeat)));
 
-        reliable_writer_proxy.run(&history_cache);
+        reliable_writer_proxy.process(&history_cache);
         assert_eq!(reliable_writer_proxy.writer_proxy.missing_changes(), [].iter().cloned().collect());
         assert_eq!(reliable_writer_proxy.must_send_ack, false);
     }

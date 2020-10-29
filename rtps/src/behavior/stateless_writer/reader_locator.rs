@@ -57,7 +57,7 @@ impl ReaderLocator {
         }
     }
 
-    pub fn run(&mut self, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber) {
+    pub fn process(&mut self, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber) {
         if !self.unsent_changes(last_change_sequence_number).is_empty() {
             self.pushing_state(history_cache, last_change_sequence_number);
         }
@@ -170,7 +170,7 @@ mod tests {
 
         // Run without any change being created or added in the cache. No message should be sent
         let last_change_sequence_number = 0;
-        reader_locator.run(&history_cache, last_change_sequence_number);
+        reader_locator.process(&history_cache, last_change_sequence_number);
 
         assert!(reader_locator.output_queue.is_empty());
 
@@ -182,7 +182,7 @@ mod tests {
         history_cache.add_change(cache_change_seq1).unwrap();
 
         let last_change_sequence_number = 1;
-        reader_locator.run(&history_cache, last_change_sequence_number);
+        reader_locator.process(&history_cache, last_change_sequence_number);
 
         let expected_submessage = RtpsSubmessage::Data(expected_data_submessage);
         let sent_message = reader_locator.output_queue.pop_front().unwrap();
@@ -191,7 +191,7 @@ mod tests {
 
         // Run with the next sequence number without adding any change to the history cache. One Gap submessage should be sent
         let last_change_sequence_number = 2;
-        reader_locator.run(&history_cache, last_change_sequence_number);
+        reader_locator.process(&history_cache, last_change_sequence_number);
 
         let expected_submessage = RtpsSubmessage::Gap(Gap::new(BEHAVIOR_ENDIANNESS, ENTITYID_UNKNOWN, writer_entity_id, 2, BTreeSet::new()));
         let sent_message =  reader_locator.output_queue.pop_front().unwrap();
@@ -204,7 +204,7 @@ mod tests {
         history_cache.add_change(cache_change_seq4).unwrap();
 
         let last_change_sequence_number = 4;
-        reader_locator.run(&history_cache, last_change_sequence_number);
+        reader_locator.process(&history_cache, last_change_sequence_number);
 
         let expected_gap_submessage = RtpsSubmessage::Gap(Gap::new(BEHAVIOR_ENDIANNESS, ENTITYID_UNKNOWN, writer_entity_id, 3, BTreeSet::new()));
         let expected_data_submessage = RtpsSubmessage::Data(expected_data_submessage);

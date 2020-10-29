@@ -60,7 +60,7 @@ impl BestEffortReaderProxy {
 }
 
 impl ReaderProxyOps for BestEffortReaderProxy {
-    fn run(&mut self, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber) {
+    fn process(&mut self, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber) {
         if !self.reader_proxy.unsent_changes(last_change_sequence_number).is_empty() {
             self.pushing_state(history_cache, last_change_sequence_number);
         }
@@ -96,7 +96,7 @@ mod tests {
         
         // Run without any change being created or added in the cache. No message should be sent
         let last_change_sequence_number = 0;
-        best_effort_reader_proxy.run(&history_cache, last_change_sequence_number);
+        best_effort_reader_proxy.process(&history_cache, last_change_sequence_number);
 
         assert!(best_effort_reader_proxy.output_queue.is_empty());
 
@@ -108,7 +108,7 @@ mod tests {
         history_cache.add_change(cache_change_seq1).unwrap();
 
         let last_change_sequence_number = 1;
-        best_effort_reader_proxy.run(&history_cache, last_change_sequence_number);
+        best_effort_reader_proxy.process(&history_cache, last_change_sequence_number);
 
         let expected_submessage = RtpsSubmessage::Data(expected_data_submessage);
         let sent_message = best_effort_reader_proxy.output_queue.pop_front().unwrap();
@@ -117,7 +117,7 @@ mod tests {
 
         // Run with the next sequence number without adding any change to the history cache. One Gap submessage should be sent
         let last_change_sequence_number = 2;
-        best_effort_reader_proxy.run(&history_cache, last_change_sequence_number);
+        best_effort_reader_proxy.process(&history_cache, last_change_sequence_number);
 
         let expected_submessage = RtpsSubmessage::Gap(Gap::new(BEHAVIOR_ENDIANNESS, reader_entity_id, writer_entity_id, 2, BTreeSet::new()));
         let sent_message = best_effort_reader_proxy.output_queue.pop_front().unwrap();
@@ -130,7 +130,7 @@ mod tests {
         history_cache.add_change(cache_change_seq4).unwrap();
 
         let last_change_sequence_number = 4;
-        best_effort_reader_proxy.run(&history_cache, last_change_sequence_number);
+        best_effort_reader_proxy.process(&history_cache, last_change_sequence_number);
 
         let expected_gap_submessage = RtpsSubmessage::Gap(Gap::new(BEHAVIOR_ENDIANNESS, reader_entity_id, writer_entity_id, 3, BTreeSet::new()));
         let expected_data_submessage = RtpsSubmessage::Data(expected_data_submessage);

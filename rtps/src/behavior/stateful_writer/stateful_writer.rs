@@ -13,7 +13,7 @@ use rust_dds_interface::qos::DataWriterQos;
 use rust_dds_interface::types::{Data, Time, ReturnCode};
 
 pub trait ReaderProxyOps {
-    fn run(&mut self, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber);
+    fn process(&mut self, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber);
     fn try_push_message(&mut self, src_locator: Locator, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>);
 }
 
@@ -169,7 +169,7 @@ impl ProtocolWriter for StatefulWriter {
 impl RtpsRun for StatefulWriter {
     fn run(&mut self) {
         for (_reader_guid, reader_proxy) in self.matched_readers.iter_mut(){
-            reader_proxy.run(&self.writer_cache, self.last_change_sequence_number);
+            reader_proxy.process(&self.writer_cache, self.last_change_sequence_number);
         }
     }
 }
