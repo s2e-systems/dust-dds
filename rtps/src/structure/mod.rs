@@ -13,6 +13,10 @@ pub trait RtpsRun{
     fn run(&mut self);
 }
 
+pub trait RtpsCommunication {
+    fn try_push_message(&mut self, src_locator: crate::types::Locator, src_guid_prefix: crate::types::GuidPrefix, submessage: &mut Option<crate::messages::RtpsSubmessage>);
+}
+
 pub use cache_change::CacheChange;
 pub use history_cache::HistoryCache;
 pub use entity::RtpsEntity;

@@ -2,7 +2,7 @@ use std::collections::VecDeque;
 
 use rust_dds_interface::qos::DataReaderQos;
 
-use crate::structure::{HistoryCache, RtpsEndpoint, RtpsEntity, RtpsRun};
+use crate::structure::{HistoryCache, RtpsEndpoint, RtpsEntity, RtpsRun, RtpsCommunication};
 use crate::types::{ReliabilityKind, TopicKind, GUID, Locator, GuidPrefix };
 use crate::types::constants::ENTITYID_UNKNOWN;
 use crate::messages::RtpsSubmessage;
@@ -83,7 +83,7 @@ impl StatelessReader {
         };
         let is_in_locator_lists = self.multicast_locator_list.contains(src_locator) || self.unicast_locator_list.contains(src_locator);
         is_in_locator_lists && (self.guid.entity_id() == reader_id || reader_id == ENTITYID_UNKNOWN)
-    }   
+    } 
 }
 
 impl RtpsEntity for StatelessReader {
@@ -99,6 +99,24 @@ impl RtpsRun for StatelessReader {
 }
 
 impl RtpsEndpoint for StatelessReader {
+    fn unicast_locator_list(&self) -> Vec<Locator> {
+        todo!()
+    }
+
+    fn multicast_locator_list(&self) -> Vec<Locator> {
+        todo!()
+    }
+
+    fn reliability_level(&self) -> ReliabilityKind {
+        todo!()
+    }
+
+    fn topic_kind(&self) -> &TopicKind {
+        todo!()
+    }
+}
+
+impl RtpsCommunication for StatelessReader {
     fn try_push_message(&mut self, src_locator: Locator, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>) {
         if let Some(inner_submessage) = submessage {
             if self.is_submessage_destination(&src_locator, &src_guid_prefix, inner_submessage) {

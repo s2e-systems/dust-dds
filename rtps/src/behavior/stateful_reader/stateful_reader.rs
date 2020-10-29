@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::structure::{HistoryCache, RtpsEndpoint, RtpsEntity, RtpsRun};
+use crate::structure::{HistoryCache, RtpsEndpoint, RtpsEntity, RtpsRun, RtpsCommunication};
 use crate::types::{Locator, ReliabilityKind, TopicKind, GUID, GuidPrefix };
 use crate::messages::RtpsSubmessage;
 use crate::behavior::types::Duration;
@@ -117,6 +117,24 @@ impl RtpsEntity for StatefulReader {
 }
 
 impl RtpsEndpoint for StatefulReader {
+    fn unicast_locator_list(&self) -> Vec<Locator> {
+        todo!()
+    }
+
+    fn multicast_locator_list(&self) -> Vec<Locator> {
+        todo!()
+    }
+
+    fn reliability_level(&self) -> ReliabilityKind {
+        todo!()
+    }
+
+    fn topic_kind(&self) -> &TopicKind {
+        todo!()
+    }
+}
+
+impl RtpsCommunication for StatefulReader {
     fn try_push_message(&mut self, src_locator: Locator, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>) {
         for (_, writer_proxy) in &mut self.matched_writers {
             writer_proxy.try_push_message(src_locator, src_guid_prefix, submessage)

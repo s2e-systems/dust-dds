@@ -223,6 +223,18 @@ impl ReaderProxyOps for ReliableReaderProxy {
             self.input_queue.push_back(submessage.take().unwrap())
         }
     }
+
+    fn unicast_locator_list(&self) -> &Vec<Locator> {
+        self.reader_proxy.unicast_locator_list()
+    }
+
+    fn multicast_locator_list(&self) -> &Vec<Locator> {
+        self.reader_proxy.multicast_locator_list()
+    }
+
+    fn output_queue_mut(&mut self) -> &mut VecDeque<RtpsSubmessage> {
+        &mut self.output_queue
+    }
 }
 
 #[cfg(test)]

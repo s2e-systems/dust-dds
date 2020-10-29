@@ -1,9 +1,9 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 
 use crate::types::{ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID, GuidPrefix};
 use crate::behavior::types::Duration;
 use crate::messages::RtpsSubmessage;
-use crate::structure::{HistoryCache, CacheChange, RtpsEndpoint, RtpsEntity, RtpsRun};
+use crate::structure::{HistoryCache, CacheChange, RtpsEndpoint, RtpsEntity, RtpsRun, RtpsCommunication};
 use crate::serialized_payload::ParameterList;
 use super::reader_proxy::ReaderProxy;
 use super::reliable_reader_proxy::ReliableReaderProxy;
@@ -15,6 +15,10 @@ use rust_dds_interface::types::{Data, Time, ReturnCode};
 pub trait ReaderProxyOps {
     fn process(&mut self, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber);
     fn try_push_message(&mut self, src_locator: Locator, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>);
+    fn unicast_locator_list(&self) -> &Vec<Locator>;
+    fn multicast_locator_list(&self) -> &Vec<Locator>;
+    fn output_queue_mut(&mut self) -> &mut VecDeque<RtpsSubmessage>;
+
 }
 
 pub struct StatefulWriter {
@@ -126,6 +130,21 @@ impl StatefulWriter {
     pub fn nack_response_delay(&self) -> Duration {
         self.nack_response_delay
     }
+
+    pub fn output_queues(&mut self) -> Vec<(Vec<Locator>, Vec<Locator>, &mut VecDeque<RtpsSubmessage>)> {
+        let mut output = Vec::new();
+        self.matched_readers.iter();
+
+        for (_, reader_proxy) in &mut self.matched_readers {
+            let unicast_locator_list = reader_proxy.unicast_locator_list().clone();
+            let multicast_locator_list = reader_proxy.multicast_locator_list().clone();
+            let output_queue = reader_proxy.output_queue_mut();
+
+            output.push((unicast_locator_list, multicast_locator_list, output_queue))
+        }
+
+        output
+    }
 }
 impl ProtocolEntity for StatefulWriter {
     fn get_instance_handle(&self) -> InstanceHandle {
@@ -181,6 +200,24 @@ impl RtpsEntity for StatefulWriter {
 }
 
 impl RtpsEndpoint for StatefulWriter {
+    fn unicast_locator_list(&self) -> Vec<Locator> {
+        todo!()
+    }
+
+    fn multicast_locator_list(&self) -> Vec<Locator> {
+        todo!()
+    }
+
+    fn reliability_level(&self) -> ReliabilityKind {
+        todo!()
+    }
+
+    fn topic_kind(&self) -> &TopicKind {
+        todo!()
+    }
+}
+
+impl RtpsCommunication for StatefulWriter {
     fn try_push_message(&mut self, src_locator: Locator, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>) {
         for (_,reader_proxy) in &mut self.matched_readers {
             reader_proxy.try_push_message(src_locator, src_guid_prefix, submessage);

@@ -1,5 +1,5 @@
 use std::collections::{HashMap,  VecDeque};
-use crate::structure::{HistoryCache, CacheChange, RtpsEndpoint, RtpsEntity, RtpsRun};
+use crate::structure::{HistoryCache, CacheChange, RtpsEndpoint, RtpsEntity, RtpsRun, RtpsCommunication};
 use crate::serialized_payload::ParameterList;
 use crate::types::{ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID, };
 use crate::messages::RtpsSubmessage;
@@ -114,6 +114,24 @@ impl RtpsRun for StatelessWriter {
 }
 
 impl RtpsEndpoint for StatelessWriter {
+    fn unicast_locator_list(&self) -> Vec<Locator> {
+        vec![]
+    }
+
+    fn multicast_locator_list(&self) -> Vec<Locator> {
+        vec![]
+    }
+
+    fn reliability_level(&self) -> ReliabilityKind {
+        self.reliability_level
+    }
+
+    fn topic_kind(&self) -> &TopicKind {
+        &self.topic_kind
+    }
+}
+
+impl RtpsCommunication for StatelessWriter {
     fn try_push_message(&mut self, _src_locator: Locator, _src_guid_prefix: crate::types::GuidPrefix, _submessage: &mut Option<RtpsSubmessage>) {
         // Doesn't receive message so do nothing
     }
