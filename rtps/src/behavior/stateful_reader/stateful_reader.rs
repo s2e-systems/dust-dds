@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::structure::{HistoryCache, RtpsEndpoint, RtpsEntity};
+use crate::structure::{HistoryCache, RtpsEndpoint, RtpsEntity, RtpsRun};
 use crate::types::{Locator, ReliabilityKind, TopicKind, GUID, GuidPrefix };
 use crate::messages::RtpsSubmessage;
 use crate::behavior::types::Duration;
@@ -77,12 +77,6 @@ impl StatefulReader {
         self.matched_writers.remove(writer_proxy_guid);
     }
 
-    pub fn run(&mut self) {
-        for (_writer_guid, writer_proxy) in self.matched_writers.iter_mut(){
-            writer_proxy.run(&self.reader_cache)
-        }
-    }
-
     pub fn reader_cache(&self) -> &HistoryCache {
         &self.reader_cache
     }
@@ -93,6 +87,14 @@ impl StatefulReader {
 
     pub fn guid(&self) -> &GUID {
         &self.guid
+    }
+}
+
+impl RtpsRun for StatefulReader {
+    fn run(&mut self) {
+        for (_writer_guid, writer_proxy) in self.matched_writers.iter_mut(){
+            writer_proxy.run(&self.reader_cache)
+        }
     }
 }
 

@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::types::{ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID, GuidPrefix};
 use crate::behavior::types::Duration;
 use crate::messages::RtpsSubmessage;
-use crate::structure::{HistoryCache, CacheChange, RtpsEndpoint, RtpsEntity};
+use crate::structure::{HistoryCache, CacheChange, RtpsEndpoint, RtpsEntity, RtpsRun};
 use crate::serialized_payload::ParameterList;
 use super::reader_proxy::ReaderProxy;
 use super::reliable_reader_proxy::ReliableReaderProxy;
@@ -126,12 +126,6 @@ impl StatefulWriter {
     pub fn nack_response_delay(&self) -> Duration {
         self.nack_response_delay
     }
-
-    pub fn run(&mut self) {
-        for (_reader_guid, reader_proxy) in self.matched_readers.iter_mut(){
-            reader_proxy.run(&self.writer_cache, self.last_change_sequence_number);
-        }
-    }
 }
 impl ProtocolEntity for StatefulWriter {
     fn get_instance_handle(&self) -> InstanceHandle {
@@ -169,6 +163,14 @@ impl ProtocolWriter for StatefulWriter {
 
     fn lookup_instance(&self, _instance_handle: InstanceHandle) -> Option<InstanceHandle> {
         todo!()
+    }
+}
+
+impl RtpsRun for StatefulWriter {
+    fn run(&mut self) {
+        for (_reader_guid, reader_proxy) in self.matched_readers.iter_mut(){
+            reader_proxy.run(&self.writer_cache, self.last_change_sequence_number);
+        }
     }
 }
 

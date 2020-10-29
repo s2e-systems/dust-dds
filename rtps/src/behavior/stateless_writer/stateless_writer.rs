@@ -1,5 +1,5 @@
 use std::collections::{HashMap,  VecDeque};
-use crate::structure::{HistoryCache, CacheChange, RtpsEndpoint, RtpsEntity};
+use crate::structure::{HistoryCache, CacheChange, RtpsEndpoint, RtpsEntity, RtpsRun};
 use crate::serialized_payload::ParameterList;
 use crate::types::{ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID, };
 use crate::messages::RtpsSubmessage;
@@ -85,12 +85,6 @@ impl StatelessWriter {
         }
     }
 
-    pub fn run(&mut self) {
-        for (_, reader_locator) in self.reader_locators.iter_mut() {
-            reader_locator.run(&self.writer_cache, self.last_change_sequence_number);
-        }
-    }
-
     pub fn output_queues(&mut self) -> Vec<(Locator, &mut VecDeque<RtpsSubmessage>)> {
         let mut output = Vec::new();
 
@@ -108,6 +102,14 @@ impl StatelessWriter {
 impl RtpsEntity for StatelessWriter {
     fn guid(&self) -> GUID {
         self.guid
+    }
+}
+
+impl RtpsRun for StatelessWriter {
+    fn run(&mut self) {
+        for (_, reader_locator) in self.reader_locators.iter_mut() {
+            reader_locator.run(&self.writer_cache, self.last_change_sequence_number);
+        }
     }
 }
 

@@ -145,23 +145,23 @@ impl SPDPdiscoveredParticipantData {
         }
     }
 
-    pub fn new_from_participant(participant: &RtpsParticipant, lease_duration: Duration) -> Self{
-        Self {
-            domain_id: participant.domain_id(),
-            domain_tag: "".to_string().clone(),
-            protocol_version: participant.protocol_version(),
-            guid_prefix: participant.guid().prefix(),
-            vendor_id: participant.vendor_id(),
-            expects_inline_qos: false, // TODO
-            metatraffic_unicast_locator_list: participant.metatraffic_transport().unicast_locator_list().clone(),
-            metatraffic_multicast_locator_list: participant.metatraffic_transport().multicast_locator_list().clone(),
-            default_unicast_locator_list: participant.userdata_transport().unicast_locator_list().clone(),
-            default_multicast_locator_list: participant.userdata_transport().multicast_locator_list().clone(),
-            available_built_in_endpoints: BuiltInEndpointSet::new(100), //TODO
-            lease_duration,
-            manual_liveliness_count: 0, //TODO:Count,
-        }
-    }
+    // pub fn new_from_participant(participant: &RtpsParticipant, lease_duration: Duration) -> Self{
+    //     Self {
+    //         domain_id: participant.domain_id(),
+    //         domain_tag: "".to_string().clone(),
+    //         protocol_version: participant.protocol_version(),
+    //         guid_prefix: participant.guid().prefix(),
+    //         vendor_id: participant.vendor_id(),
+    //         expects_inline_qos: false, // TODO
+    //         metatraffic_unicast_locator_list: participant.metatraffic_transport().unicast_locator_list().clone(),
+    //         metatraffic_multicast_locator_list: participant.metatraffic_transport().multicast_locator_list().clone(),
+    //         default_unicast_locator_list: participant.userdata_transport().unicast_locator_list().clone(),
+    //         default_multicast_locator_list: participant.userdata_transport().multicast_locator_list().clone(),
+    //         available_built_in_endpoints: BuiltInEndpointSet::new(100), //TODO
+    //         lease_duration,
+    //         manual_liveliness_count: 0, //TODO:Count,
+    //     }
+    // }
 
     pub fn domain_id(&self) -> DomainId{
         self.domain_id

@@ -17,7 +17,7 @@ use crate::discovery::spdp::SPDPdiscoveredParticipantData;
 use crate::endpoint_types::BuiltInEndpointSet;
 use crate::serialized_payload::CdrEndianness;
 
-use super::RtpsGroup;
+use super::{RtpsGroup, RtpsEntity, RtpsRun};
 
 use rust_dds_interface::types::{DomainId, InstanceHandle, ReturnCode, TopicKind};
 use rust_dds_interface::protocol::{ProtocolEntity, ProtocolParticipant, ProtocolPublisher, ProtocolSubscriber};
@@ -68,10 +68,6 @@ impl RtpsParticipant {
         }
     }
 
-    pub fn guid(&self) -> GUID {
-        self.guid
-    }
-
     pub fn domain_id(&self) -> DomainId {
         self.domain_id
     }
@@ -116,8 +112,16 @@ impl RtpsParticipant {
 
         self.builtin_publisher.lock().unwrap().mut_endpoints().push(Arc::new(Mutex::new(spdp_builtin_participant_writer)));
     }
+}
 
-    pub fn run(&self) {
+impl RtpsEntity for RtpsParticipant {
+    fn guid(&self) -> GUID {
+        self.guid
+    }
+}
+
+impl RtpsRun for RtpsParticipant {
+    fn run(&mut self) {
         // RtpsMessageReceiver::receive(
             // self.guid.prefix(),
             // self.metatraffic_transport.as_ref(),

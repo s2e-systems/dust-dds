@@ -7,7 +7,7 @@ use rust_dds_interface::qos::{DataWriterQos, DataReaderQos};
 use crate::types::{GUID, Locator, GuidPrefix};
 use crate::messages::RtpsSubmessage;
 use crate::messages::message_sender::RtpsMessageSender;
-use crate::structure::RtpsEndpoint;
+use crate::structure::{RtpsEndpoint, RtpsEntity, RtpsRun};
 
 pub struct RtpsGroup {
     guid: GUID,
@@ -22,16 +22,28 @@ impl RtpsGroup {
         }
     }
 
-    pub fn guid(&self) -> GUID {
-        self.guid
-    }
-
     pub fn mut_endpoints(&mut self) -> &mut Vec<Arc<Mutex<dyn RtpsEndpoint>>> {
         &mut self.endpoints
     }
 
     pub fn endpoints(&self) -> &[Arc<Mutex<dyn RtpsEndpoint>>] {
         self.endpoints.as_slice()
+    }
+}
+
+impl RtpsRun for RtpsGroup {
+    fn run(&mut self) {
+        for endpoint in &self.endpoints {
+            endpoint.lock().unwrap().run()
+
+            
+        }
+    }
+}
+
+impl RtpsEntity for RtpsGroup {
+    fn guid(&self) -> GUID {
+        self.guid
     }
 }
 

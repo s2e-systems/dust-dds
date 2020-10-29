@@ -9,6 +9,10 @@ mod participant;
 mod group;
 mod endpoint;
 
+pub trait RtpsRun{
+    fn run(&mut self);
+}
+
 pub use cache_change::CacheChange;
 pub use history_cache::HistoryCache;
 pub use entity::RtpsEntity;
