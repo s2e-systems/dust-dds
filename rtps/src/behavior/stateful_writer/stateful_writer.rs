@@ -3,7 +3,7 @@ use std::collections::{HashMap, VecDeque};
 use crate::types::{ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID, GuidPrefix};
 use crate::behavior::types::Duration;
 use crate::messages::RtpsSubmessage;
-use crate::structure::{HistoryCache, CacheChange, RtpsEndpoint, RtpsEntity, RtpsRun, RtpsCommunication};
+use crate::structure::{HistoryCache, CacheChange, RtpsEndpoint, RtpsEntity, RtpsRun, RtpsCommunication, RtpsMessageSender, OutputQueue};
 use crate::serialized_payload::ParameterList;
 use super::reader_proxy::ReaderProxy;
 use super::reliable_reader_proxy::ReliableReaderProxy;
@@ -141,6 +141,30 @@ impl StatefulWriter {
             let output_queue = reader_proxy.output_queue_mut();
 
             output.push((unicast_locator_list, multicast_locator_list, output_queue))
+        }
+
+        output
+    }
+}
+
+impl RtpsMessageSender for StatefulWriter {
+    fn output_queues(&mut self) -> Vec<OutputQueue> {
+        let mut output = Vec::new();
+        self.matched_readers.iter();
+
+        for (_, reader_proxy) in &mut self.matched_readers {
+            let unicast_locator_list = reader_proxy.unicast_locator_list().clone();
+            let multicast_locator_list = reader_proxy.multicast_locator_list().clone();
+            let mut message_queue = VecDeque::new();
+            let output_queue = reader_proxy.output_queue_mut();
+            std::mem::swap(&mut message_queue, output_queue);
+
+            output.push(
+                OutputQueue::MultiDestination{
+                    unicast_locator_list,
+                    multicast_locator_list,
+                    message_queue,
+                })
         }
 
         output

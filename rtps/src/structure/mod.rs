@@ -13,8 +13,17 @@ pub trait RtpsRun{
     fn run(&mut self);
 }
 
-pub trait RtpsCommunication {
+pub trait RtpsCommunication /* RtpsMessageReceiver */{
     fn try_push_message(&mut self, src_locator: crate::types::Locator, src_guid_prefix: crate::types::GuidPrefix, submessage: &mut Option<crate::messages::RtpsSubmessage>);
+}
+
+pub enum OutputQueue {
+    SingleDestination{locator: crate::types::Locator, message_queue: std::collections::VecDeque<crate::messages::RtpsSubmessage>},
+    MultiDestination{unicast_locator_list: Vec<crate::types::Locator>, multicast_locator_list: Vec<crate::types::Locator>, message_queue: std::collections::VecDeque<crate::messages::RtpsSubmessage>},
+}
+
+pub trait RtpsMessageSender {
+    fn output_queues(&mut self) -> Vec<OutputQueue>;
 }
 
 pub use cache_change::CacheChange;

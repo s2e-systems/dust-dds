@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::structure::{HistoryCache, RtpsEndpoint, RtpsEntity, RtpsRun, RtpsCommunication};
+use crate::structure::{HistoryCache, RtpsEndpoint, RtpsEntity, RtpsRun, RtpsCommunication, RtpsMessageSender, OutputQueue};
 use crate::types::{Locator, ReliabilityKind, TopicKind, GUID, GuidPrefix };
 use crate::messages::RtpsSubmessage;
 use crate::behavior::types::Duration;
@@ -113,6 +113,12 @@ impl ProtocolReader for StatefulReader {}
 impl RtpsEntity for StatefulReader {
     fn guid(&self) -> GUID {
         self.guid
+    }
+}
+
+impl RtpsMessageSender for StatefulReader {
+    fn output_queues(&self) -> Vec<OutputQueue> {
+        todo!()
     }
 }
 

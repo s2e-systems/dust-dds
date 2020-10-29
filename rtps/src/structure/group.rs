@@ -9,6 +9,8 @@ use crate::messages::RtpsSubmessage;
 use crate::messages::message_sender::RtpsMessageSender;
 use crate::structure::{RtpsEndpoint, RtpsEntity, RtpsRun};
 
+
+
 pub struct RtpsGroup {
     guid: GUID,
     sender: RtpsMessageSender,
