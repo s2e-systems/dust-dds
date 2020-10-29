@@ -7,8 +7,6 @@ use crate::messages::submessages::Gap;
 use crate::behavior::ReaderProxy;
 use crate::behavior::{data_from_cache_change, BEHAVIOR_ENDIANNESS};
 
-use super::stateful_writer::ReaderProxyOps;
-
 pub struct BestEffortReaderProxy {
     reader_proxy: ReaderProxy,
     writer_entity_id: EntityId,
@@ -22,6 +20,28 @@ impl BestEffortReaderProxy {
             writer_entity_id,
             output_queue: VecDeque::new(),
         }
+    }
+
+    pub fn process(&mut self, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber) {
+        if !self.reader_proxy.unsent_changes(last_change_sequence_number).is_empty() {
+            self.pushing_state(history_cache, last_change_sequence_number);
+        }
+    }
+
+    pub fn try_push_message(&mut self, _src_locator: crate::types::Locator, _src_guid_prefix: crate::types::GuidPrefix, _submessage: &mut Option<RtpsSubmessage>) {
+        // Best effort reader proxies do not receive messages so do nothing
+    }
+
+    pub fn unicast_locator_list(&self) -> &Vec<crate::types::Locator> {
+        self.reader_proxy.unicast_locator_list()
+    }
+
+    pub fn multicast_locator_list(&self) -> &Vec<crate::types::Locator> {
+        self.reader_proxy.multicast_locator_list()
+    }
+
+    pub fn output_queue_mut(&mut self) -> &mut VecDeque<RtpsSubmessage> {
+        &mut self.output_queue
     }
     
 
@@ -56,30 +76,6 @@ impl BestEffortReaderProxy {
             dst_locator.extend(self.reader_proxy.multicast_locator_list());
             self.output_queue.push_back(RtpsSubmessage::Gap(gap));
         }
-    }
-}
-
-impl ReaderProxyOps for BestEffortReaderProxy {
-    fn process(&mut self, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber) {
-        if !self.reader_proxy.unsent_changes(last_change_sequence_number).is_empty() {
-            self.pushing_state(history_cache, last_change_sequence_number);
-        }
-    }
-
-    fn try_push_message(&mut self, _src_locator: crate::types::Locator, _src_guid_prefix: crate::types::GuidPrefix, _submessage: &mut Option<RtpsSubmessage>) {
-        // Best effort reader proxies do not receive messages so do nothing
-    }
-
-    fn unicast_locator_list(&self) -> &Vec<crate::types::Locator> {
-        self.reader_proxy.unicast_locator_list()
-    }
-
-    fn multicast_locator_list(&self) -> &Vec<crate::types::Locator> {
-        self.reader_proxy.multicast_locator_list()
-    }
-
-    fn output_queue_mut(&mut self) -> &mut VecDeque<RtpsSubmessage> {
-        &mut self.output_queue
     }
 }
 

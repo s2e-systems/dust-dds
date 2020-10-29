@@ -12,13 +12,9 @@ use rust_dds_interface::protocol::{ProtocolEntity, ProtocolWriter};
 use rust_dds_interface::qos::DataWriterQos;
 use rust_dds_interface::types::{Data, Time, ReturnCode};
 
-pub trait ReaderProxyOps {
-    fn process(&mut self, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber);
-    fn try_push_message(&mut self, src_locator: Locator, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>);
-    fn unicast_locator_list(&self) -> &Vec<Locator>;
-    fn multicast_locator_list(&self) -> &Vec<Locator>;
-    fn output_queue_mut(&mut self) -> &mut VecDeque<RtpsSubmessage>;
-
+enum ReaderProxyFlavor {
+    BestEffort(BestEffortReaderProxy),
+    Reliable(ReliableReaderProxy),
 }
 
 pub struct StatefulWriter {
@@ -47,7 +43,7 @@ pub struct StatefulWriter {
     writer_cache: HistoryCache,
     data_max_sized_serialized: Option<i32>,
 
-    matched_readers: HashMap<GUID, Box<dyn ReaderProxyOps>>,
+    matched_readers: HashMap<GUID, ReaderProxyFlavor>,
 }
 
 impl StatefulWriter {
@@ -108,9 +104,9 @@ impl StatefulWriter {
 
     pub fn matched_reader_add(&mut self, a_reader_proxy: ReaderProxy) {
         let remote_reader_guid = a_reader_proxy.remote_reader_guid().clone();
-        let reader_proxy: Box<dyn ReaderProxyOps> = match self.reliability_level {
-            ReliabilityKind::Reliable => Box::new(ReliableReaderProxy::new(a_reader_proxy, self.guid.entity_id(), self.heartbeat_period, self.nack_response_delay)),
-            ReliabilityKind::BestEffort => Box::new(BestEffortReaderProxy::new(a_reader_proxy, self.guid.entity_id())),
+        let reader_proxy = match self.reliability_level {
+            ReliabilityKind::Reliable => ReaderProxyFlavor::Reliable(ReliableReaderProxy::new(a_reader_proxy, self.guid.entity_id(), self.heartbeat_period, self.nack_response_delay)),
+            ReliabilityKind::BestEffort => ReaderProxyFlavor::BestEffort(BestEffortReaderProxy::new(a_reader_proxy, self.guid.entity_id())),
         };
         self.matched_readers.insert(remote_reader_guid, reader_proxy);
     }
@@ -130,44 +126,30 @@ impl StatefulWriter {
     pub fn nack_response_delay(&self) -> Duration {
         self.nack_response_delay
     }
-
-    pub fn output_queues(&mut self) -> Vec<(Vec<Locator>, Vec<Locator>, &mut VecDeque<RtpsSubmessage>)> {
-        let mut output = Vec::new();
-        self.matched_readers.iter();
-
-        for (_, reader_proxy) in &mut self.matched_readers {
-            let unicast_locator_list = reader_proxy.unicast_locator_list().clone();
-            let multicast_locator_list = reader_proxy.multicast_locator_list().clone();
-            let output_queue = reader_proxy.output_queue_mut();
-
-            output.push((unicast_locator_list, multicast_locator_list, output_queue))
-        }
-
-        output
-    }
 }
 
 impl RtpsMessageSender for StatefulWriter {
     fn output_queues(&mut self) -> Vec<OutputQueue> {
-        let mut output = Vec::new();
-        self.matched_readers.iter();
+        todo!()
+        // let mut output = Vec::new();
+        // self.matched_readers.iter();
 
-        for (_, reader_proxy) in &mut self.matched_readers {
-            let unicast_locator_list = reader_proxy.unicast_locator_list().clone();
-            let multicast_locator_list = reader_proxy.multicast_locator_list().clone();
-            let mut message_queue = VecDeque::new();
-            let output_queue = reader_proxy.output_queue_mut();
-            std::mem::swap(&mut message_queue, output_queue);
+        // for (_, reader_proxy) in &mut self.matched_readers {
+        //     let unicast_locator_list = reader_proxy.unicast_locator_list().clone();
+        //     let multicast_locator_list = reader_proxy.multicast_locator_list().clone();
+        //     let mut message_queue = VecDeque::new();
+        //     let output_queue = reader_proxy.output_queue_mut();
+        //     std::mem::swap(&mut message_queue, output_queue);
 
-            output.push(
-                OutputQueue::MultiDestination{
-                    unicast_locator_list,
-                    multicast_locator_list,
-                    message_queue,
-                })
-        }
+        //     output.push(
+        //         OutputQueue::MultiDestination{
+        //             unicast_locator_list,
+        //             multicast_locator_list,
+        //             message_queue,
+        //         })
+        // }
 
-        output
+        // output
     }
 }
 impl ProtocolEntity for StatefulWriter {
@@ -212,7 +194,10 @@ impl ProtocolWriter for StatefulWriter {
 impl RtpsRun for StatefulWriter {
     fn run(&mut self) {
         for (_reader_guid, reader_proxy) in self.matched_readers.iter_mut(){
-            reader_proxy.process(&self.writer_cache, self.last_change_sequence_number);
+            match reader_proxy {
+                ReaderProxyFlavor::Reliable(reliable_reader_proxy) => reliable_reader_proxy.process(&self.writer_cache, self.last_change_sequence_number),
+                ReaderProxyFlavor::BestEffort(best_effort_reader_proxy) => best_effort_reader_proxy.process(&self.writer_cache, self.last_change_sequence_number),
+            }
         }
     }
 }
@@ -244,7 +229,10 @@ impl RtpsEndpoint for StatefulWriter {
 impl RtpsCommunication for StatefulWriter {
     fn try_push_message(&mut self, src_locator: Locator, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>) {
         for (_,reader_proxy) in &mut self.matched_readers {
-            reader_proxy.try_push_message(src_locator, src_guid_prefix, submessage);
+            match reader_proxy {
+                ReaderProxyFlavor::Reliable(reliable_reader_proxy) => reliable_reader_proxy.try_push_message(src_locator, src_guid_prefix, submessage),
+                ReaderProxyFlavor::BestEffort(_) => (),
+            }
         }
     }
 }

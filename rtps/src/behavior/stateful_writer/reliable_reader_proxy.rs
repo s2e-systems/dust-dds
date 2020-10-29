@@ -12,8 +12,6 @@ use crate::messages::types::Count;
 use crate::behavior::types::Duration;
 use crate::behavior::{data_from_cache_change, BEHAVIOR_ENDIANNESS};
 
-use super::stateful_writer::ReaderProxyOps;
-
 pub struct ReliableReaderProxy{
     reader_proxy: ReaderProxy,
     writer_entity_id: EntityId,
@@ -44,6 +42,50 @@ impl ReliableReaderProxy {
             input_queue: VecDeque::new(),
             output_queue: VecDeque::new(),
         }
+    }
+
+    pub fn process(&mut self, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber) {
+        if self.reader_proxy.unacked_changes(last_change_sequence_number).is_empty() {
+            // Idle
+        } else if !self.reader_proxy.unsent_changes(last_change_sequence_number).is_empty() {
+            self.pushing_state(history_cache, last_change_sequence_number);
+        } else if !self.reader_proxy.unacked_changes(last_change_sequence_number).is_empty() {
+            self.announcing_state(history_cache, last_change_sequence_number);
+        }
+    
+        if self.reader_proxy.requested_changes().is_empty() {
+            self.waiting_state();
+        } else {
+            self.must_repair_state();
+            if self.duration_since_nack_received() > self.nack_response_delay {
+                self.repairing_state(history_cache);
+            }
+        }
+    }
+
+    pub fn try_push_message(&mut self, _src_locator: Locator, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>) {
+        let reader_id = match submessage {
+            Some(RtpsSubmessage::AckNack(acknack)) => acknack.reader_id(),
+            _ => return,
+        };
+
+        let reader_guid = GUID::new(src_guid_prefix, reader_id);
+
+        if self.reader_proxy.remote_reader_guid() == &reader_guid {
+            self.input_queue.push_back(submessage.take().unwrap())
+        }
+    }
+
+    pub fn unicast_locator_list(&self) -> &Vec<Locator> {
+        self.reader_proxy.unicast_locator_list()
+    }
+
+    pub fn multicast_locator_list(&self) -> &Vec<Locator> {
+        self.reader_proxy.multicast_locator_list()
+    }
+
+    pub fn output_queue_mut(&mut self) -> &mut VecDeque<RtpsSubmessage> {
+        &mut self.output_queue
     }
 
     fn pushing_state(&mut self, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber) {
@@ -188,52 +230,6 @@ impl ReliableReaderProxy {
 
     fn increment_heartbeat_count(&mut self) {
         self.heartbeat_count += 1;
-    }
-}
-
-impl ReaderProxyOps for ReliableReaderProxy {
-    fn process(&mut self, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber) {
-        if self.reader_proxy.unacked_changes(last_change_sequence_number).is_empty() {
-            // Idle
-        } else if !self.reader_proxy.unsent_changes(last_change_sequence_number).is_empty() {
-            self.pushing_state(history_cache, last_change_sequence_number);
-        } else if !self.reader_proxy.unacked_changes(last_change_sequence_number).is_empty() {
-            self.announcing_state(history_cache, last_change_sequence_number);
-        }
-    
-        if self.reader_proxy.requested_changes().is_empty() {
-            self.waiting_state();
-        } else {
-            self.must_repair_state();
-            if self.duration_since_nack_received() > self.nack_response_delay {
-                self.repairing_state(history_cache);
-            }
-        }
-    }
-
-    fn try_push_message(&mut self, _src_locator: Locator, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>) {
-        let reader_id = match submessage {
-            Some(RtpsSubmessage::AckNack(acknack)) => acknack.reader_id(),
-            _ => return,
-        };
-
-        let reader_guid = GUID::new(src_guid_prefix, reader_id);
-
-        if self.reader_proxy.remote_reader_guid() == &reader_guid {
-            self.input_queue.push_back(submessage.take().unwrap())
-        }
-    }
-
-    fn unicast_locator_list(&self) -> &Vec<Locator> {
-        self.reader_proxy.unicast_locator_list()
-    }
-
-    fn multicast_locator_list(&self) -> &Vec<Locator> {
-        self.reader_proxy.multicast_locator_list()
-    }
-
-    fn output_queue_mut(&mut self) -> &mut VecDeque<RtpsSubmessage> {
-        &mut self.output_queue
     }
 }
 
