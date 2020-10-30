@@ -11,21 +11,28 @@ use crate::messages::RtpsMessage;
 pub struct RtpsMessageSender;
 
 impl RtpsMessageSender {
-    pub fn send(_participant_guid_prefix: GuidPrefix, _transport: &dyn Transport, endpoint_list: &[&Arc<Mutex<dyn RtpsEndpoint>>]) {
+    pub fn send(participant_guid_prefix: GuidPrefix, transport: &dyn Transport, endpoint_list: &[&Arc<Mutex<dyn RtpsEndpoint>>]) {
         for &endpoint in endpoint_list {
-            let endpoint_lock = endpoint.lock().unwrap();
-            if let Some(stateless_writer) = endpoint_lock.get::<StatelessWriter>() {
-                RtpsMessageSender::send_stateless_writer(stateless_writer)
-            } else if let Some(stateful_writer) = endpoint_lock.get::<StatefulWriter>() {
+            let mut endpoint_lock = endpoint.lock().unwrap();
+            if let Some(stateless_writer) = endpoint_lock.get_mut::<StatelessWriter>() {
+                RtpsMessageSender::send_stateless_writer(stateless_writer, transport, participant_guid_prefix)
+            } else if let Some(stateful_writer) = endpoint_lock.get_mut::<StatefulWriter>() {
                 RtpsMessageSender::send_stateful_writer(stateful_writer)
-            } else if let Some(stateful_reader) = endpoint_lock.get::<StatefulReader>() {
+            } else if let Some(stateful_reader) = endpoint_lock.get_mut::<StatefulReader>() {
                 RtpsMessageSender::send_stateful_reader(stateful_reader)
             }
         }
     }
 
-    fn send_stateless_writer(_stateless_writer: &StatelessWriter) {
-        todo!()
+    fn send_stateless_writer(stateless_writer: &mut StatelessWriter, transport: &dyn Transport, participant_guid_prefix: GuidPrefix) {
+        for (destination_locator, reader_locator) in stateless_writer.into_iter() {
+            let submessages =  reader_locator.output_queue_mut().drain(..).collect();
+            let message = RtpsMessage::new(
+                PROTOCOL_VERSION_2_4,
+                VENDOR_ID,
+                participant_guid_prefix, submessages);
+            transport.write(message, destination_locator)
+        }
     }
 
     fn send_stateful_writer(_stateful_writer: &StatefulWriter) {

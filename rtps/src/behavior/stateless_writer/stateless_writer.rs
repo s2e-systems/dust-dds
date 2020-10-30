@@ -29,6 +29,24 @@ pub struct StatelessWriter {
     reader_locators: HashMap<Locator, ReaderLocator>,
 }
 
+impl<'a> IntoIterator for &'a StatelessWriter {
+    type Item = (&'a Locator, &'a ReaderLocator);
+    type IntoIter = std::collections::hash_map::Iter<'a, Locator, ReaderLocator>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.reader_locators.iter()
+    }
+}
+
+impl<'a> IntoIterator for &'a mut StatelessWriter {
+    type Item = (&'a Locator, &'a mut ReaderLocator);
+    type IntoIter = std::collections::hash_map::IterMut<'a, Locator, ReaderLocator>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.reader_locators.iter_mut()
+    }
+}
+
 impl StatelessWriter {
     pub fn new(
         guid: GUID,
