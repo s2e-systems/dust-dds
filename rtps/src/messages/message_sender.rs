@@ -11,7 +11,7 @@ use super::message::RtpsMessage;
 pub struct RtpsMessageSender;
 
 impl RtpsMessageSender {
-    pub fn send(&self, participant_guid_prefix: GuidPrefix, transport: &dyn Transport, group_list: &[&Arc<Mutex<RtpsGroup>>]) {
+    pub fn send(participant_guid_prefix: GuidPrefix, transport: &dyn Transport, group_list: &[&Arc<Mutex<RtpsGroup>>]) {
         for &group in group_list {
             let mut group = group.lock().unwrap();
             for endpoint in group.mut_endpoints() {
