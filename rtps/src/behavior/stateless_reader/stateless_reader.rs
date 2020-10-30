@@ -1,8 +1,7 @@
 use std::collections::VecDeque;
-
 use rust_dds_interface::qos::DataReaderQos;
 
-use crate::structure::{HistoryCache, RtpsEndpoint, RtpsEntity, RtpsCommunication, RtpsMessageSender};
+use crate::structure::{CacheChange, HistoryCache, RtpsEndpoint, RtpsEntity, RtpsCommunication, RtpsMessageSender};
 use crate::types::{ReliabilityKind, TopicKind, GUID, Locator, GuidPrefix };
 use crate::types::constants::ENTITYID_UNKNOWN;
 use crate::messages::RtpsSubmessage;
@@ -56,22 +55,23 @@ impl StatelessReader {
         }
     }
 
-    fn run(&mut self) {
-        self.waiting_state();
+    fn run(&mut self, on_data_available: impl FnOnce(&CacheChange)) {
+        self.waiting_state(on_data_available);
     }
 
-    fn waiting_state(&mut self) {
+    fn waiting_state(&mut self, on_data_available: impl FnOnce(&CacheChange)) {
         let popped_queue = self.input_queue.pop_front();
         if let Some((guid_prefix, received_message)) = popped_queue {
             match received_message {
-                RtpsSubmessage::Data(data) => self.transition_t2(guid_prefix, data),
+                RtpsSubmessage::Data(data) => self.transition_t2(guid_prefix, data, on_data_available),
                 _ => (),
             };
         }
     }
 
-    fn transition_t2(&mut self, guid_prefix: GuidPrefix, data: Data) {
+    fn transition_t2(&mut self, guid_prefix: GuidPrefix, data: Data, on_data_available: impl FnOnce(&CacheChange)) {
         let cache_change = cache_change_from_data(data, &guid_prefix);
+        on_data_available(&cache_change);
         self.reader_cache.add_change(cache_change).unwrap();
     }
 
@@ -182,9 +182,11 @@ mod tests {
             None);
 
         assert_eq!(reader.reader_cache.changes().len(), 0);
-        reader.run();
+        let expected_data = vec![0,1,2];
+        reader.run(|cc| assert_eq!(cc.data_value(),&expected_data) );
         assert_eq!(reader.reader_cache.changes().len(), 1);
         assert!(reader.reader_cache.changes().contains(&expected_cache_change));
+        reader.run(|_cc| assert!(false, "Callback shouldn't execute") );
     }
 
     #[test]
