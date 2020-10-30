@@ -121,7 +121,20 @@ impl RtpsEntity for StatefulReader {
 
 impl RtpsMessageSender for StatefulReader {
     fn output_queues(&mut self) -> Vec<OutputQueue> {
-        todo!()
+        let mut output_queues = Vec::new();
+        for (_, proxy) in self.matched_writers.iter_mut() {
+            match proxy {
+                WriterProxyFlavor::BestEffort(_) => {}
+                WriterProxyFlavor::Reliable(reliable_proxy) => {
+                    output_queues.push(OutputQueue::MultiDestination{
+                        unicast_locator_list: reliable_proxy.writer_proxy().unicast_locator_list().clone(),                        
+                        multicast_locator_list: reliable_proxy.writer_proxy().multicast_locator_list().clone(),
+                        message_queue: reliable_proxy.output_queue_mut().drain(..).collect()
+                    });
+                }
+            }
+        }
+        output_queues
     }
 }
 

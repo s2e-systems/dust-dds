@@ -77,6 +77,10 @@ impl BestEffortReaderProxy {
             self.output_queue.push_back(RtpsSubmessage::Gap(gap));
         }
     }
+
+    pub fn reader_proxy(&self) -> &ReaderProxy {
+        &self.reader_proxy
+    }
 }
 
 #[cfg(test)]

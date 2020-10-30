@@ -231,6 +231,10 @@ impl ReliableReaderProxy {
     fn increment_heartbeat_count(&mut self) {
         self.heartbeat_count += 1;
     }
+
+    pub fn reader_proxy(&self) -> &ReaderProxy {
+        &self.reader_proxy
+    }
 }
 
 #[cfg(test)]

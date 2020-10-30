@@ -130,26 +130,30 @@ impl StatefulWriter {
 
 impl RtpsMessageSender for StatefulWriter {
     fn output_queues(&mut self) -> Vec<OutputQueue> {
-        todo!()
-        // let mut output = Vec::new();
-        // self.matched_readers.iter();
+        let mut output_queues = Vec::new();        
 
-        // for (_, reader_proxy) in &mut self.matched_readers {
-        //     let unicast_locator_list = reader_proxy.unicast_locator_list().clone();
-        //     let multicast_locator_list = reader_proxy.multicast_locator_list().clone();
-        //     let mut message_queue = VecDeque::new();
-        //     let output_queue = reader_proxy.output_queue_mut();
-        //     std::mem::swap(&mut message_queue, output_queue);
+        for (_, reader_proxy) in self.matched_readers.iter_mut() {
+            let (unicast_locator_list, multicast_locator_list, message_queue) = match reader_proxy {
+                ReaderProxyFlavor::BestEffort(best_effort_proxy) => (
+                    best_effort_proxy.reader_proxy().unicast_locator_list().clone(),
+                    best_effort_proxy.reader_proxy().multicast_locator_list().clone(),
+                    best_effort_proxy.output_queue_mut().drain(..).collect()
+                ),
+                ReaderProxyFlavor::Reliable(reliable_proxy) => (
+                    reliable_proxy.reader_proxy().unicast_locator_list().clone(),
+                    reliable_proxy.reader_proxy().multicast_locator_list().clone(),
+                    reliable_proxy.output_queue_mut().drain(..).collect()
+                )
+            };           
 
-        //     output.push(
-        //         OutputQueue::MultiDestination{
-        //             unicast_locator_list,
-        //             multicast_locator_list,
-        //             message_queue,
-        //         })
-        // }
-
-        // output
+            output_queues.push(
+                OutputQueue::MultiDestination{
+                    unicast_locator_list,
+                    multicast_locator_list,
+                    message_queue,
+                })
+        }
+        output_queues
     }
 }
 impl ProtocolEntity for StatefulWriter {

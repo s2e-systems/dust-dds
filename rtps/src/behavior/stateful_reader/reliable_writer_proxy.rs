@@ -168,7 +168,13 @@ impl ReliableWriterProxy {
         self.ackanck_count += 1;
     }
 
-    
+    pub fn output_queue_mut(&mut self) -> &mut VecDeque<RtpsSubmessage> {
+        &mut self.output_queue
+    }
+
+    pub fn writer_proxy(&self) -> &WriterProxy {
+        &self.writer_proxy
+    }
 }
 
 #[cfg(test)]

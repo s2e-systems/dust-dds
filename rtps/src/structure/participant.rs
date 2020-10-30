@@ -127,6 +127,8 @@ impl RtpsRun for RtpsParticipant {
             self.metatraffic_transport.as_ref(),
             &[&self.builtin_subscriber, &self.builtin_publisher]
         );
+
+        self.builtin_publisher.lock().unwrap().run();
     }
 }
 
