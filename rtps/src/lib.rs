@@ -4,6 +4,8 @@ pub mod types;
 pub mod inline_qos_types;
 pub mod serialized_payload;
 pub mod endpoint_types;
+pub mod protocol;
+
 
 pub mod structure;
 pub mod messages;

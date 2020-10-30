@@ -1,4 +1,4 @@
-use std::sync::{Arc,Weak};
+use std::sync::{Arc,Weak, Mutex};
 use std::convert::TryInto;
 use rust_dds_interface::types::{TopicKind, DomainId, InstanceHandle};
 use rust_dds_interface::protocol::ProtocolDiscovery;
@@ -34,67 +34,48 @@ use crate::endpoint_types::{
     };
 
 
-// pub struct SPDP {
-//     participant: Weak<RtpsParticipant>,
-//     spdp_builtin_participant_writer: StatelessWriter,
-//     spdp_builtin_participant_reader: StatelessReader,
-// }
+pub struct SimpleEndpointDiscoveryProtocol {
+    spdp_builtin_participant_writer: Arc<Mutex<StatelessWriter>>,
+    spdp_builtin_participant_reader: Arc<Mutex<StatelessReader>>,
+}
 
-// impl SPDP {
-//     pub fn new(participant: &Arc<RtpsParticipant>) -> Self {
-//         let guid_prefix = participant.guid().prefix();
-//         let writer_guid = GUID::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER);
-//         let reader_guid = GUID::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_DETECTOR);
+impl SimpleEndpointDiscoveryProtocol {
+    pub fn new(spdp_data: SPDPdiscoveredParticipantData) -> Self {
+        let writer_guid = GUID::new(spdp_data.guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER);
+        let writer_qos = DataWriterQos::default();
+        let mut spdp_builtin_participant_writer = StatelessWriter::new(writer_guid, TopicKind::WithKey, &writer_qos);
 
-//         let writer_qos = DataWriterQos::default(); // TODO: Should be adjusted according to the SPDP writer
-//         let mut spdp_builtin_participant_writer = StatelessWriter::new(writer_guid, TopicKind::WithKey, &writer_qos);
+        let change = spdp_builtin_participant_writer.new_change(ChangeKind::Alive, Some(spdp_data.data(CdrEndianness::LittleEndian)), None, spdp_data.key());
+        spdp_builtin_participant_writer.writer_cache().add_change(change).unwrap();
 
-//         let reader_qos = DataReaderQos::default(); // TODO: Should be adjusted according to the SPDP reader
-//         let spdp_builtin_participant_reader = StatelessReader::new(
-//             reader_guid,
-//             TopicKind::WithKey, 
-//             vec![],
-//             participant.metatraffic_transport().multicast_locator_list().clone(),
-//             &reader_qos);
+        for locator in &spdp_data.metatraffic_multicast_locator_list {
+            spdp_builtin_participant_writer.reader_locator_add(locator.clone());
+        }
 
-//         for &locator in participant.metatraffic_transport().multicast_locator_list() {
-//             spdp_builtin_participant_writer.reader_locator_add(locator)
-//         }
+        let reader_qos = DataReaderQos::default(); // TODO: Should be adjusted according to the SPDP reader
+        let reader_guid = GUID::new(spdp_data.guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_DETECTOR);
+        let spdp_builtin_participant_reader = StatelessReader::new(
+            reader_guid,
+            TopicKind::WithKey, 
+            vec![],
+            spdp_data.metatraffic_multicast_locator_list.clone(),
+            &reader_qos);
 
-//         let spdp_data = SPDPdiscoveredParticipantData::new_from_participant(participant, Duration::from_secs(30));
+        Self {
+            spdp_builtin_participant_writer: Arc::new(Mutex::new(spdp_builtin_participant_writer)),
+            spdp_builtin_participant_reader: Arc::new(Mutex::new(spdp_builtin_participant_reader)),
+        }        
+    }
 
-//         let change = spdp_builtin_participant_writer.new_change(ChangeKind::Alive, Some(spdp_data.data(CdrEndianness::LittleEndian)), None, spdp_data.key());
-//         spdp_builtin_participant_writer.writer_cache().add_change(change).unwrap();
+    pub fn spdp_builtin_participant_writer(&self) -> &Arc<Mutex<StatelessWriter>> {
+        &self.spdp_builtin_participant_writer
+    }
 
-//         Self {
-//             participant: Arc::downgrade(participant),
-//             spdp_builtin_participant_writer,
-//             spdp_builtin_participant_reader
-//         }        
-//     }
+    pub fn spdp_builtin_participant_reader(&self) -> &Arc<Mutex<StatelessReader>> {
+        &self.spdp_builtin_participant_reader
+    }
 
-//     pub fn send(&mut self) {
-//         let participant = self.participant.upgrade().unwrap();
-//         self.spdp_builtin_participant_writer.run();
-//         RtpsMessageSender::send(
-//             participant.guid().prefix(), 
-//             participant.metatraffic_transport().as_ref(), 
-//             &mut [&mut self.spdp_builtin_participant_writer]);
-//     }
-
-//     pub fn receive(&mut self) {
-//         let participant = self.participant.upgrade().unwrap();
-//         RtpsMessageReceiver::receive(
-//             participant.guid().prefix(), 
-//             participant.metatraffic_transport().as_ref(),
-//             &mut [&mut self.spdp_builtin_participant_reader]);
-//         self.spdp_builtin_participant_reader.run()
-//     }
-// }
-
-// impl ProtocolDiscovery for SPDP {
-
-// }
+}
 
 
 #[derive(Debug, PartialEq)]

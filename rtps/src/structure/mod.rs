@@ -4,7 +4,7 @@
 
 mod cache_change;
 mod history_cache;
-mod entity;
+pub mod entity;
 mod participant;
 mod group;
 mod endpoint;

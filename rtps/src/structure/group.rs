@@ -37,6 +37,10 @@ impl RtpsGroup {
 
 impl RtpsRun for RtpsGroup {
     fn run(&mut self) {
+        for endpoint in &mut self.endpoints {
+            endpoint.lock().unwrap().run();
+        }
+
         let participant_guid_prefix = self.guid.prefix();
         for endpoint in &mut self.endpoints {
             let queues = endpoint.lock().unwrap().output_queues();

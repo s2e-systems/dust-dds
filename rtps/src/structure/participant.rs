@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex, };
 
-use crate::types::{GUID, ProtocolVersion, VendorId, EntityId, EntityKind, ChangeKind};
+use crate::types::{GUID, ProtocolVersion, VendorId, EntityId, EntityKind,};
 use crate::types::constants::{
     ENTITYID_PARTICIPANT,
     PROTOCOL_VERSION_2_4,};
@@ -8,18 +8,9 @@ use crate::transport::Transport;
 use crate::messages::message_receiver::RtpsMessageReceiver;
 use crate::messages::message_sender::RtpsMessageSender;
 
-use crate::behavior::types::Duration;
-use crate::behavior::StatelessWriter;
-use crate::types::GuidPrefix;
-use crate::types::constants::ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER;
-use rust_dds_interface::qos::DataWriterQos;
-use crate::discovery::spdp::SPDPdiscoveredParticipantData;
-use crate::endpoint_types::BuiltInEndpointSet;
-use crate::serialized_payload::CdrEndianness;
-
 use super::{RtpsGroup, RtpsEntity, RtpsRun};
 
-use rust_dds_interface::types::{DomainId, InstanceHandle, ReturnCode, TopicKind};
+use rust_dds_interface::types::{DomainId, InstanceHandle, ReturnCode};
 use rust_dds_interface::protocol::{ProtocolEntity, ProtocolParticipant, ProtocolPublisher, ProtocolSubscriber};
 
 
@@ -39,8 +30,8 @@ pub struct RtpsParticipant {
 impl RtpsParticipant {
     pub fn new(
         domain_id: DomainId,
-        userdata_transport: impl Transport + 'static,
-        metatraffic_transport: impl Transport + 'static,
+        userdata_transport: impl Transport,
+        metatraffic_transport: impl Transport,
     ) -> Self {
         let userdata_transport = Arc::new(userdata_transport);
         let metatraffic_transport = Arc::new(metatraffic_transport);
@@ -86,31 +77,10 @@ impl RtpsParticipant {
 
     pub fn metatraffic_transport(&self) -> &Arc<dyn Transport> {
         &self.metatraffic_transport
-    }
+    }    
 
-    pub fn initialize_spdp(&self, domain_tag: String, lease_duration: Duration) {
-        let spdp_data = SPDPdiscoveredParticipantData::new(
-            self.domain_id,
-            domain_tag,
-            self.protocol_version,
-            self.guid.prefix(),
-            self.vendor_id,
-            self.metatraffic_transport.unicast_locator_list().clone(),
-            self.metatraffic_transport.multicast_locator_list().clone(),
-            self.userdata_transport.unicast_locator_list().clone(),
-            self.userdata_transport.multicast_locator_list().clone(),
-            BuiltInEndpointSet::new(0),
-            lease_duration,
-        );
-
-        let writer_guid = GUID::new(self.guid.prefix(), ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER);
-        let writer_qos = DataWriterQos::default(); // TODO: Should be adjusted according to the SPDP writer
-        let mut spdp_builtin_participant_writer = StatelessWriter::new(writer_guid, TopicKind::WithKey, &writer_qos);
-
-        let change = spdp_builtin_participant_writer.new_change(ChangeKind::Alive, Some(spdp_data.data(CdrEndianness::LittleEndian)), None, spdp_data.key());
-        spdp_builtin_participant_writer.writer_cache().add_change(change).unwrap();
-
-        self.builtin_publisher.lock().unwrap().mut_endpoints().push(Arc::new(Mutex::new(spdp_builtin_participant_writer)));
+    pub fn builtin_publisher(&self) -> &Arc<Mutex<RtpsGroup>> {
+        &self.builtin_publisher
     }
 }
 
@@ -120,17 +90,17 @@ impl RtpsEntity for RtpsParticipant {
     }
 }
 
-impl RtpsRun for RtpsParticipant {
-    fn run(&mut self) {
-        RtpsMessageReceiver::receive(
-            self.guid.prefix(),
-            self.metatraffic_transport.as_ref(),
-            &[&self.builtin_subscriber, &self.builtin_publisher]
-        );
+// impl RtpsRun for RtpsParticipant {
+//     fn run(&mut self) {
+//         RtpsMessageReceiver::receive(
+//             self.guid.prefix(),
+//             self.metatraffic_transport.as_ref(),
+//             &[&self.builtin_subscriber, &self.builtin_publisher]
+//         );
 
-        self.builtin_publisher.lock().unwrap().run();
-    }
-}
+//         self.builtin_publisher.lock().unwrap().run();
+//     }
+// }
 
 impl ProtocolEntity for RtpsParticipant {
     fn get_instance_handle(&self) -> InstanceHandle {
