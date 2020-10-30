@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::structure::{HistoryCache, RtpsEndpoint, RtpsEntity, RtpsCommunication, RtpsMessageSender, OutputQueue};
+use crate::structure::{HistoryCache, HistoryCacheResourceLimits, RtpsEndpoint, RtpsEntity, RtpsCommunication, RtpsMessageSender, OutputQueue};
 use crate::types::{Locator, ReliabilityKind, TopicKind, GUID, GuidPrefix };
 use crate::messages::RtpsSubmessage;
 use crate::behavior::types::Duration;
@@ -10,7 +10,6 @@ use super::best_effort_writer_proxy::BestEffortWriterProxy;
 use super::reliable_writer_proxy::ReliableWriterProxy;
 
 use rust_dds_interface::protocol::{ProtocolEntity, ProtocolReader};
-use rust_dds_interface::qos::DataReaderQos;
 use rust_dds_interface::types::{InstanceHandle, ReturnCode};
 
 enum WriterProxyFlavor{
@@ -46,21 +45,20 @@ impl StatefulReader {
     pub fn new(
         guid: GUID,
         topic_kind: TopicKind,
-        reader_qos: &DataReaderQos
+        reliability_level: ReliabilityKind,
+        expects_inline_qos: bool,
+        heartbeat_response_delay: Duration,
+        resource_limits: HistoryCacheResourceLimits
         ) -> Self {
-            
-        let expects_inline_qos = false;
-        let heartbeat_response_delay = Duration::from_millis(500);
-        
-        Self {
-            guid,
-            topic_kind,
-            reliability_level: reader_qos.reliability.kind.into(),
-            expects_inline_qos,
-            heartbeat_response_delay,       
-            reader_cache: HistoryCache::default(),
-            matched_writers: HashMap::new()
-        }
+            Self {
+                guid,
+                topic_kind,
+                reliability_level,
+                expects_inline_qos,
+                heartbeat_response_delay,       
+                reader_cache: HistoryCache::new(resource_limits),
+                matched_writers: HashMap::new()
+            }
     }
 
     pub fn run(&mut self) {

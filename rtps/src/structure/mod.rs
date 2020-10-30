@@ -23,7 +23,7 @@ pub trait RtpsMessageSender {
 }
 
 pub use cache_change::CacheChange;
-pub use history_cache::HistoryCache;
+pub use history_cache::{HistoryCache, HistoryCacheResourceLimits};
 pub use entity::RtpsEntity;
 pub use participant::RtpsParticipant;
 pub use group::RtpsGroup;

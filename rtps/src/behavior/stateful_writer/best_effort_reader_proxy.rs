@@ -88,7 +88,7 @@ mod tests {
     use super::*;
     use crate::types::{ChangeKind, GUID, Locator};
     use crate::types::constants::{ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER};
-    use crate::structure::CacheChange;
+    use crate::structure::{CacheChange, HistoryCacheResourceLimits};
 
     #[test]
     fn run() {
@@ -102,7 +102,7 @@ mod tests {
         let writer_entity_id = ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER;
         let mut best_effort_reader_proxy = BestEffortReaderProxy::new(reader_proxy, writer_entity_id);
 
-        let mut history_cache = HistoryCache::default();
+        let mut history_cache = HistoryCache::new(HistoryCacheResourceLimits::default());
         
         // Run without any change being created or added in the cache. No message should be sent
         let last_change_sequence_number = 0;

@@ -78,7 +78,7 @@ mod tests {
     use crate::types::{ChangeKind, GUID};
     use crate::types::constants::{
         ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR, LOCATOR_INVALID};
-    use crate::structure::CacheChange;
+    use crate::structure::{CacheChange, HistoryCacheResourceLimits};
     use crate::messages::submessages::data_submessage::Payload;
     use crate::serialized_payload::ParameterList;
     use crate::inline_qos_types::KeyHash;
@@ -87,7 +87,7 @@ mod tests {
 
     #[test]
     fn run_best_effort_data_only() {
-        let mut history_cache = HistoryCache::default();
+        let mut history_cache = HistoryCache::new(HistoryCacheResourceLimits::default());
         let remote_writer_guid_prefix = [1;12];
         let remote_writer_guid = GUID::new(remote_writer_guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
         let writer_proxy = WriterProxy::new(remote_writer_guid, vec![], vec![]);

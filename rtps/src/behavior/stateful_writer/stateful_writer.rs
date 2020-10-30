@@ -3,13 +3,13 @@ use std::collections::HashMap;
 use crate::types::{ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID, GuidPrefix};
 use crate::behavior::types::Duration;
 use crate::messages::RtpsSubmessage;
-use crate::structure::{HistoryCache, CacheChange, RtpsEndpoint, RtpsEntity, RtpsCommunication, RtpsMessageSender, OutputQueue};
+use crate::structure::{HistoryCache, CacheChange, RtpsEndpoint, RtpsEntity, HistoryCacheResourceLimits, RtpsCommunication, RtpsMessageSender, OutputQueue};
 use crate::serialized_payload::ParameterList;
 use super::reader_proxy::ReaderProxy;
 use super::reliable_reader_proxy::ReliableReaderProxy;
 use super::best_effort_reader_proxy::BestEffortReaderProxy;
+
 use rust_dds_interface::protocol::{ProtocolEntity, ProtocolWriter};
-use rust_dds_interface::qos::DataWriterQos;
 use rust_dds_interface::types::{Data, Time, ReturnCode};
 
 enum ReaderProxyFlavor {
@@ -50,23 +50,23 @@ impl StatefulWriter {
     pub fn new(
         guid: GUID,
         topic_kind: TopicKind,
-        writer_qos: &DataWriterQos) -> Self {
-
-            let push_mode = true;
-            let heartbeat_period = Duration::from_millis(500);
-            let nack_response_delay = Duration::from_millis(200);
-            let nack_suppression_duration = Duration::from_millis(0);
-
+        reliability_level: ReliabilityKind,
+        resource_limits: HistoryCacheResourceLimits,
+        push_mode: bool,
+        heartbeat_period: Duration,
+        nack_response_delay: Duration,
+        nack_suppression_duration: Duration,
+    ) -> Self {
             Self {
                 guid,
                 topic_kind,
-                reliability_level: writer_qos.reliability.kind.into(),
+                reliability_level,
                 push_mode,
                 heartbeat_period,
                 nack_response_delay,
                 nack_suppression_duration,
                 last_change_sequence_number: 0,
-                writer_cache: HistoryCache::default(),
+                writer_cache: HistoryCache::new(resource_limits),
                 data_max_sized_serialized: None,
                 matched_readers: HashMap::new()
         }
@@ -260,11 +260,15 @@ mod tests {
 
     #[test]
     fn stateful_writer_new_change() {
-        let writer_qos = DataWriterQos::default();
         let mut writer = StatefulWriter::new(
             GUID::new([0; 12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
             TopicKind::WithKey,
-            &writer_qos,
+            ReliabilityKind::BestEffort,
+            HistoryCacheResourceLimits::default(),
+            true,
+            Duration::from_millis(500),
+            Duration::from_millis(200),
+            Duration::from_millis(0),
         );
 
         let cache_change_seq1 = writer.new_change(

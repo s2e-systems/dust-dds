@@ -1,11 +1,9 @@
 use std::collections::{HashMap,  VecDeque};
-use crate::structure::{HistoryCache, CacheChange, RtpsEndpoint, RtpsEntity, RtpsCommunication, RtpsMessageSender, OutputQueue};
+use crate::structure::{HistoryCache, HistoryCacheResourceLimits, CacheChange, RtpsEndpoint, RtpsEntity, RtpsCommunication, RtpsMessageSender, OutputQueue};
 use crate::serialized_payload::ParameterList;
 use crate::types::{ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID, };
 use crate::messages::RtpsSubmessage;
 use super::reader_locator::ReaderLocator;
-
-use rust_dds_interface::qos::DataWriterQos;
 
 pub struct StatelessWriter {
     /// Entity base class (contains the GUID)
@@ -35,14 +33,17 @@ impl StatelessWriter {
     pub fn new(
         guid: GUID,
         topic_kind: TopicKind,
-        _writer_qos: &DataWriterQos,
+        reliability_level: ReliabilityKind,
+        resource_limits: HistoryCacheResourceLimits,
     ) -> Self {
-        StatelessWriter {
+        assert!(reliability_level == ReliabilityKind::BestEffort, "Only BestEffort is supported on stateless writer");
+
+        Self {
             guid,
             topic_kind,
-            reliability_level: ReliabilityKind::BestEffort,
+            reliability_level,
             last_change_sequence_number: 0,
-            writer_cache: HistoryCache::default(),
+            writer_cache: HistoryCache::new(resource_limits),
             data_max_sized_serialized: None,
             reader_locators: HashMap::new(),
         }
@@ -160,11 +161,11 @@ mod tests {
 
     #[test]
     fn new_change() {
-        let writer_qos = DataWriterQos::default();
         let mut writer = StatelessWriter::new(
             GUID::new([0; 12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
             TopicKind::WithKey,
-            &writer_qos
+            ReliabilityKind::BestEffort,
+            HistoryCacheResourceLimits::default(),
         );
 
         let cache_change_seq1 = writer.new_change(
@@ -198,12 +199,11 @@ mod tests {
     #[test]
     fn stateless_writer_run() {
         // Create the stateless writer
-        let writer_qos = DataWriterQos::default();
-
         let mut stateless_writer = StatelessWriter::new(
             GUID::new([0; 12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
             TopicKind::WithKey,
-            &writer_qos
+            ReliabilityKind::BestEffort,
+            HistoryCacheResourceLimits::default(),
         );
 
         // Add two locators

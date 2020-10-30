@@ -104,7 +104,7 @@ mod tests {
     use super::*;
     use crate::types::{GUID, ChangeKind};
     use crate::types::constants::ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER;
-    use crate::structure::CacheChange;
+    use crate::structure::{CacheChange, HistoryCacheResourceLimits};
 
     #[test]
     fn unsent_change_operations() {
@@ -165,7 +165,7 @@ mod tests {
         let expects_inline_qos = false;
         let mut reader_locator = ReaderLocator::new(locator, writer_entity_id, expects_inline_qos);
 
-        let mut history_cache = HistoryCache::default();
+        let mut history_cache = HistoryCache::new(HistoryCacheResourceLimits::default());
 
         // Run without any change being created or added in the cache. No message should be sent
         let last_change_sequence_number = 0;

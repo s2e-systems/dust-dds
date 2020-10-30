@@ -1,7 +1,6 @@
 use std::collections::VecDeque;
-use rust_dds_interface::qos::DataReaderQos;
 
-use crate::structure::{CacheChange, HistoryCache, RtpsEndpoint, RtpsEntity, RtpsCommunication, RtpsMessageSender};
+use crate::structure::{CacheChange, HistoryCache, RtpsEndpoint, RtpsEntity, HistoryCacheResourceLimits, RtpsCommunication, RtpsMessageSender};
 use crate::types::{ReliabilityKind, TopicKind, GUID, Locator, GuidPrefix };
 use crate::types::constants::ENTITYID_UNKNOWN;
 use crate::messages::RtpsSubmessage;
@@ -35,21 +34,22 @@ impl StatelessReader {
     pub fn new(
         guid: GUID,
         topic_kind: TopicKind,
-        // reliability_level: ReliabilityKind, // Only BestEffort is supported
+        reliability_level: ReliabilityKind,
         unicast_locator_list: Vec<Locator>,
         multicast_locator_list: Vec<Locator>,
-        _reader_qos: &DataReaderQos,
+        expects_inline_qos: bool,
+        resource_limits: HistoryCacheResourceLimits,
     ) -> Self {
+        
+        assert!(reliability_level == ReliabilityKind::BestEffort, "Only BestEffort is supported on stateless reader");
 
-        let expects_inline_qos = false;
-
-        StatelessReader {
+        Self {
             guid,
             topic_kind,
-            reliability_level: ReliabilityKind::BestEffort,
+            reliability_level,
             unicast_locator_list,
             multicast_locator_list,
-            reader_cache: HistoryCache::default(),
+            reader_cache: HistoryCache::new(resource_limits),
             expects_inline_qos,
             input_queue: VecDeque::new(),
         }
@@ -145,15 +145,16 @@ mod tests {
     
     #[test]
     fn run() {
-        let data_reader_qos = DataReaderQos::default();
         let reader_guid_prefix = [0;12];
         let source_locator = Locator::new(0, 7400, [0;16]);
         let mut reader = StatelessReader::new(
             GUID::new(reader_guid_prefix, ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER),
             TopicKind::WithKey,
+            ReliabilityKind::BestEffort,
             vec![source_locator],
             vec![],
-            &data_reader_qos
+            false,
+            HistoryCacheResourceLimits::default(),
            );
 
         let mut inline_qos = ParameterList::new();
@@ -191,7 +192,6 @@ mod tests {
 
     #[test]
     fn submessage_destination() {
-        let data_reader_qos = DataReaderQos::default();
         let reader_guid_prefix = [0;12];
         let source_locator_unicast1 = Locator::new(0, 7400, [0;16]);
         let source_locator_unicast2 = Locator::new(0, 7400, [1;16]);
@@ -199,9 +199,11 @@ mod tests {
         let reader = StatelessReader::new(
             GUID::new(reader_guid_prefix, ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER),
             TopicKind::WithKey,
+            ReliabilityKind::BestEffort,
             vec![source_locator_unicast1, source_locator_unicast2],
             vec![source_locator_multicast],
-            &data_reader_qos
+            false,
+            HistoryCacheResourceLimits::default(),
            );
         
         let data_to_unknown_reader = RtpsSubmessage::Data(Data::new(

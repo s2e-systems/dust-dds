@@ -1,4 +1,4 @@
-use crate::types::{GUID, GuidPrefix, TopicKind};
+use crate::types::{GUID, GuidPrefix, TopicKind, ReliabilityKind};
 use crate::types::constants::{
     ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
     ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
@@ -8,8 +8,7 @@ use crate::types::constants::{
     ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR
 };
 use crate::behavior::{StatefulReader, StatefulWriter};
-
-use rust_dds_interface::qos::{DataWriterQos, DataReaderQos};
+use crate::behavior::types::Duration;
 
 pub struct SimpleEndpointDiscoveryProtocol {
     sedp_builtin_publications_writer: StatefulWriter,
@@ -35,6 +34,9 @@ impl SimpleEndpointDiscoveryProtocol {
         let sedp_builtin_publications_reader = StatefulReader::new(
             sedp_builtin_publications_reader_guid,
             TopicKind::WithKey,
+            ReliabilityKind::Reliable,
+            false,
+            Duration::from_millis(500),
             &sedp_builtin_publications_reader_qos
         );
 
@@ -51,6 +53,9 @@ impl SimpleEndpointDiscoveryProtocol {
         let sedp_builtin_subscriptions_reader = StatefulReader::new(
             sedp_builtin_subscriptions_reader_guid,
             TopicKind::WithKey,
+            ReliabilityKind::Reliable,
+            false,
+            Duration::from_millis(500),
             &sedp_builtin_subscriptions_reader_qos
         );
 
@@ -67,6 +72,9 @@ impl SimpleEndpointDiscoveryProtocol {
         let sedp_builtin_topics_reader = StatefulReader::new(
             sedp_builtin_topics_reader_guid,
             TopicKind::WithKey,
+            ReliabilityKind::Reliable,
+            false,
+            Duration::from_millis(500),
             &sedp_builtin_topics_reader_qos
         );
 

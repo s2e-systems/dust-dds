@@ -1,9 +1,9 @@
 use std::sync::{Arc, Mutex};
 use std::convert::TryInto;
 use rust_dds_interface::types::{TopicKind, DomainId, InstanceHandle};
-use rust_dds_interface::qos::{DataReaderQos, DataWriterQos};
 
-use crate::types::{GuidPrefix, GUID, Locator, ChangeKind, ProtocolVersion, VendorId};
+use crate::types::{GuidPrefix, GUID, Locator, ChangeKind, ProtocolVersion, VendorId, ReliabilityKind};
+use crate::structure::HistoryCacheResourceLimits;
 use crate::behavior::StatelessWriter;
 use crate::behavior::StatelessReader;
 
@@ -38,8 +38,12 @@ pub struct SimpleParticipantDiscoveryProtocol {
 impl SimpleParticipantDiscoveryProtocol {
     pub fn new(spdp_data: SPDPdiscoveredParticipantData) -> Self {
         let writer_guid = GUID::new(spdp_data.guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER);
-        let writer_qos = DataWriterQos::default();
-        let mut spdp_builtin_participant_writer = StatelessWriter::new(writer_guid, TopicKind::WithKey, &writer_qos);
+        let mut spdp_builtin_participant_writer = StatelessWriter::new(
+            writer_guid,
+            TopicKind::WithKey,
+            ReliabilityKind::BestEffort,
+            HistoryCacheResourceLimits::default(),
+            );
 
         let change = spdp_builtin_participant_writer.new_change(ChangeKind::Alive, Some(spdp_data.data(CdrEndianness::LittleEndian)), None, spdp_data.key());
         spdp_builtin_participant_writer.writer_cache().add_change(change).unwrap();
@@ -48,14 +52,15 @@ impl SimpleParticipantDiscoveryProtocol {
             spdp_builtin_participant_writer.reader_locator_add(locator.clone());
         }
 
-        let reader_qos = DataReaderQos::default(); // TODO: Should be adjusted according to the SPDP reader
         let reader_guid = GUID::new(spdp_data.guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_DETECTOR);
         let spdp_builtin_participant_reader = StatelessReader::new(
             reader_guid,
             TopicKind::WithKey, 
+            ReliabilityKind::BestEffort,
             vec![],
             spdp_data.metatraffic_multicast_locator_list.clone(),
-            &reader_qos);
+            false,
+            HistoryCacheResourceLimits::default());
 
         Self {
             spdp_builtin_participant_writer: Arc::new(Mutex::new(spdp_builtin_participant_writer)),
