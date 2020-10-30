@@ -6,7 +6,7 @@ use crate::structure::RtpsGroup;
 use crate::transport::Transport;
 use crate::structure::OutputQueue;
 
-use super::message::RtpsMessage;
+use crate::messages::RtpsMessage;
 
 pub struct RtpsMessageSender;
 

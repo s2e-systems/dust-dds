@@ -4,8 +4,8 @@ use crate::discovery::spdp::{SimpleParticipantDiscoveryProtocol, SPDPdiscoveredP
 use crate::endpoint_types::BuiltInEndpointSet;
 use crate::structure::RtpsParticipant;
 use crate::structure::entity::RtpsEntity;
-use crate::messages::message_receiver::RtpsMessageReceiver;
-use crate::messages::message_sender::RtpsMessageSender;
+use crate::message_receiver::RtpsMessageReceiver;
+use crate::message_sender::RtpsMessageSender;
 
 use rust_dds_interface::types::DomainId;
 

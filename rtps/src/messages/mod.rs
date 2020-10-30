@@ -1,8 +1,6 @@
 pub mod message;
 pub mod submessages;
 pub mod types;
-pub mod message_receiver;
-pub mod message_sender;
 
 use crate::serialized_payload::CdrEndianness;
 

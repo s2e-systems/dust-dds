@@ -8,8 +8,8 @@ use crate::types::{GuidPrefix, GUID, Locator, ChangeKind, ProtocolVersion, Vendo
 use crate::structure::RtpsParticipant;
 use crate::behavior::StatelessWriter;
 use crate::behavior::StatelessReader;
-use crate::messages::message_sender::RtpsMessageSender;
-use crate::messages::message_receiver::RtpsMessageReceiver;
+use crate::message_sender::RtpsMessageSender;
+use crate::message_receiver::RtpsMessageReceiver;
 
 use crate::serialized_payload::CdrEndianness;
 use crate::types::constants::{ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, ENTITYID_SPDP_BUILTIN_PARTICIPANT_DETECTOR};

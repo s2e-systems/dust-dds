@@ -2,8 +2,8 @@ use std::sync::{Arc, Mutex};
 use crate::types::{GuidPrefix, Locator,};
 use crate::structure::RtpsGroup;
 use crate::transport::Transport;
+use crate::messages::submessages::RtpsSubmessage;
 
-use super::submessages::RtpsSubmessage;
 pub struct RtpsMessageReceiver;
 
 impl RtpsMessageReceiver {

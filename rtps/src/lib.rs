@@ -5,6 +5,8 @@ pub mod inline_qos_types;
 pub mod serialized_payload;
 pub mod endpoint_types;
 pub mod protocol;
+pub mod message_receiver;
+pub mod message_sender;
 
 
 pub mod structure;
@@ -17,8 +19,8 @@ pub mod transport;
 pub use behavior::types as behavior_types;
 
 pub use behavior::{StatelessReader, StatelessWriter, StatefulWriter, ReaderProxy, StatefulReader, WriterProxy, };
-pub use messages::message_receiver::RtpsMessageReceiver;
-pub use messages::message_sender::RtpsMessageSender;
+pub use message_receiver::RtpsMessageReceiver;
+pub use message_sender::RtpsMessageSender;
 pub use messages::RtpsMessage;
 pub use serialized_payload::{Pid, ParameterList, ParameterId};
 pub use transport::Transport;
