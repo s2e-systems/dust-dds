@@ -20,7 +20,7 @@ impl BestEffortWriterProxy {
         }
     }
 
-    pub fn process(&mut self, history_cache: &HistoryCache) {
+    pub fn process(&mut self, history_cache: &mut HistoryCache) {
         self.waiting_state(history_cache);
     }
 
@@ -37,7 +37,7 @@ impl BestEffortWriterProxy {
         }
     }
 
-    fn waiting_state(&mut self, history_cache: &HistoryCache) {
+    fn waiting_state(&mut self, history_cache: &mut HistoryCache) {
         let received = self.input_queue.pop_front();
         if let Some(received_message) = received  {
             match received_message {
@@ -49,7 +49,7 @@ impl BestEffortWriterProxy {
         }
     }
 
-    fn transition_t2(&mut self, history_cache: &HistoryCache, data: Data) {
+    fn transition_t2(&mut self, history_cache: &mut HistoryCache, data: Data) {
         let expected_seq_number = self.writer_proxy.available_changes_max() + 1;
         if data.writer_sn() >= expected_seq_number {
             self.writer_proxy.received_change_set(data.writer_sn());
@@ -85,11 +85,9 @@ mod tests {
     use crate::messages::Endianness;
     use crate::behavior::change_kind_to_status_info;
 
-    use rust_dds_interface::qos_policy::ResourceLimitsQosPolicy;
-
     #[test]
     fn run_best_effort_data_only() {
-        let history_cache = HistoryCache::new(&ResourceLimitsQosPolicy::default());
+        let mut history_cache = HistoryCache::default();
         let remote_writer_guid_prefix = [1;12];
         let remote_writer_guid = GUID::new(remote_writer_guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
         let writer_proxy = WriterProxy::new(remote_writer_guid, vec![], vec![]);
@@ -109,7 +107,7 @@ mod tests {
             Payload::Data(vec![1,2,3]));
 
         best_effort_proxy.try_push_message(LOCATOR_INVALID,  remote_writer_guid_prefix, &mut Some(RtpsSubmessage::Data(data1)));
-        best_effort_proxy.process(&history_cache);
+        best_effort_proxy.process(&mut history_cache);
 
         let expected_change_1 = CacheChange::new(
             ChangeKind::Alive,
@@ -125,7 +123,7 @@ mod tests {
         assert_eq!(best_effort_proxy.writer_proxy.available_changes_max(), 3);
 
         // Run waiting state without any received message and verify nothing changes
-        best_effort_proxy.process(&history_cache);
+        best_effort_proxy.process(&mut history_cache);
         assert_eq!(history_cache.changes().len(), 1);
         assert_eq!(best_effort_proxy.writer_proxy.available_changes_max(), 3);
     }

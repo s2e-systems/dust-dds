@@ -37,7 +37,7 @@ impl ReliableWriterProxy {
         }
     }
 
-    pub fn process(&mut self, history_cache: &HistoryCache, reader_entity_id: EntityId, heartbeat_response_delay: Duration) {
+    pub fn process(&mut self, history_cache: &mut HistoryCache, reader_entity_id: EntityId, heartbeat_response_delay: Duration) {
         // The heartbeat message triggers also a transition in the parallel state-machine
         // relating to the acknack sending so it is returned from the ready_state for
         // further processing.
@@ -64,7 +64,7 @@ impl ReliableWriterProxy {
         }
     }
 
-    fn ready_state(&mut self, history_cache: &HistoryCache) -> Option<Heartbeat>{
+    fn ready_state(&mut self, history_cache: &mut HistoryCache) -> Option<Heartbeat>{
         let received = self.input_queue.pop_front();
         if let Some(received_message) = received {
             match received_message {
@@ -87,7 +87,7 @@ impl ReliableWriterProxy {
         }
     }
 
-    fn transition_t8(&mut self, history_cache: &HistoryCache, data: Data) {
+    fn transition_t8(&mut self, history_cache: &mut HistoryCache, data: Data) {
         let expected_seq_number = self.writer_proxy.available_changes_max() + 1;
         if data.writer_sn() >= expected_seq_number {
             self.writer_proxy.received_change_set(data.writer_sn());
@@ -190,11 +190,9 @@ mod tests {
     use crate::messages::Endianness;
     use crate::behavior::change_kind_to_status_info;
 
-    use rust_dds_interface::qos_policy::ResourceLimitsQosPolicy;
-
     #[test]
     fn run_reliable_data_only() {
-        let history_cache = HistoryCache::new(&ResourceLimitsQosPolicy::default());
+        let mut history_cache = HistoryCache::default();
         let heartbeat_response_delay = Duration::from_millis(500);
         let reader_entity_id = ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR;
         
@@ -218,7 +216,7 @@ mod tests {
         reliable_writer_proxy.try_push_message(LOCATOR_INVALID,  remote_writer_guid_prefix, &mut Some(RtpsSubmessage::Data(data1)));
 
 
-        reliable_writer_proxy.process(&history_cache, reader_entity_id, heartbeat_response_delay);
+        reliable_writer_proxy.process(&mut history_cache, reader_entity_id, heartbeat_response_delay);
 
         let expected_change_1 = CacheChange::new(
             ChangeKind::Alive,
@@ -234,14 +232,14 @@ mod tests {
         assert_eq!(reliable_writer_proxy.writer_proxy.available_changes_max(), 0);
 
         // Run without any received message and verify nothing changes
-        reliable_writer_proxy.process(&history_cache, reader_entity_id, heartbeat_response_delay);
+        reliable_writer_proxy.process(&mut history_cache, reader_entity_id, heartbeat_response_delay);
         assert_eq!(history_cache.changes().len(), 1);
         assert_eq!(reliable_writer_proxy.writer_proxy.available_changes_max(), 0);
     }
 
     #[test]
     fn run_reliable_non_final_heartbeat() {
-        let history_cache = HistoryCache::new(&ResourceLimitsQosPolicy::default());
+        let mut history_cache = HistoryCache::default();
         let heartbeat_response_delay = Duration::from_millis(500);
         let reader_entity_id = ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR;
         
@@ -263,14 +261,14 @@ mod tests {
     
         reliable_writer_proxy.try_push_message(LOCATOR_INVALID,  remote_writer_guid_prefix, &mut Some(RtpsSubmessage::Heartbeat(heartbeat)));
 
-        reliable_writer_proxy.process(&history_cache, reader_entity_id, heartbeat_response_delay);
+        reliable_writer_proxy.process(&mut history_cache, reader_entity_id, heartbeat_response_delay);
         assert_eq!(reliable_writer_proxy.writer_proxy.missing_changes(), [3, 4, 5, 6].iter().cloned().collect());
         assert_eq!(reliable_writer_proxy.must_send_ack(), true);
     }
     
     #[test]
     fn run_reliable_final_heartbeat_with_missing_changes() {
-        let history_cache = HistoryCache::new(&ResourceLimitsQosPolicy::default());
+        let mut history_cache = HistoryCache::default();
         let heartbeat_response_delay = Duration::from_millis(300);
         let reader_entity_id = ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR;
         
@@ -291,13 +289,13 @@ mod tests {
         );
         reliable_writer_proxy.try_push_message(LOCATOR_INVALID,  remote_writer_guid_prefix, &mut Some(RtpsSubmessage::Heartbeat(heartbeat)));
 
-        reliable_writer_proxy.process(&history_cache, reader_entity_id, heartbeat_response_delay);
+        reliable_writer_proxy.process(&mut history_cache, reader_entity_id, heartbeat_response_delay);
         assert_eq!(reliable_writer_proxy.writer_proxy.missing_changes(), [2, 3].iter().cloned().collect());
         assert_eq!(reliable_writer_proxy.must_send_ack(), true);
 
         std::thread::sleep(heartbeat_response_delay.into());
 
-        reliable_writer_proxy.process(&history_cache, reader_entity_id, heartbeat_response_delay);
+        reliable_writer_proxy.process(&mut history_cache, reader_entity_id, heartbeat_response_delay);
         assert_eq!(reliable_writer_proxy.must_send_ack(), false);
 
         // TODO: Test that AckNack is sent after duration
@@ -305,7 +303,7 @@ mod tests {
 
     #[test]
     fn run_reliable_final_heartbeat_without_missing_changes() {
-        let history_cache = HistoryCache::new(&ResourceLimitsQosPolicy::default());
+        let mut history_cache = HistoryCache::default();
         let heartbeat_response_delay = Duration::from_millis(500);
         let reader_entity_id = ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR;
         
@@ -326,7 +324,7 @@ mod tests {
         );
         reliable_writer_proxy.try_push_message(LOCATOR_INVALID,  remote_writer_guid_prefix, &mut Some(RtpsSubmessage::Heartbeat(heartbeat)));
 
-        reliable_writer_proxy.process(&history_cache, reader_entity_id, heartbeat_response_delay);
+        reliable_writer_proxy.process(&mut history_cache, reader_entity_id, heartbeat_response_delay);
         assert_eq!(reliable_writer_proxy.writer_proxy.missing_changes(), [].iter().cloned().collect());
         assert_eq!(reliable_writer_proxy.must_send_ack, false);
     }

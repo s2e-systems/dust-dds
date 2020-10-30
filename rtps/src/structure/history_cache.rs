@@ -1,31 +1,48 @@
 use std::collections::HashSet;
-use std::sync::{Mutex, MutexGuard};
 
-use rust_dds_interface::qos_policy::ResourceLimitsQosPolicy;
-use rust_dds_interface::types::{ReturnCode, LENGTH_UNLIMITED, ReturnCodes};
+use rust_dds_interface::types::{Length, ReturnCode, LENGTH_UNLIMITED, ReturnCodes};
 
 use crate::types::SequenceNumber;
 use super::cache_change::CacheChange;
 
 
 pub struct HistoryCache {
-    changes: Mutex<HashSet<CacheChange>>,
-    max_samples: i32,
-    max_instances: i32,
-    max_samples_per_instance: i32,
+    changes: HashSet<CacheChange>,
+    max_samples: Length,
+    max_instances: Length,
+    max_samples_per_instance: Length,
+}
+
+impl Default for HistoryCache {
+    fn default() -> Self {
+        HistoryCache::new(LENGTH_UNLIMITED, LENGTH_UNLIMITED, LENGTH_UNLIMITED)
+    }
 }
 
 impl HistoryCache {
     /// This operation creates a new RTPS HistoryCache. The newly-created history cache is initialized with an empty list of changes.
-    pub fn new(resource_limits: &ResourceLimitsQosPolicy) -> Self {
-        
-        assert!(resource_limits.is_consistent());
+    pub fn new(max_samples: Length, max_instances: Length, max_samples_per_instance: Length) -> Self {
+        let new_history_cache = HistoryCache {
+            changes: HashSet::new(),
+            max_samples,
+            max_instances,
+            max_samples_per_instance,
+        };
 
-        HistoryCache {
-            changes: Mutex::new(HashSet::new()),
-            max_samples: resource_limits.max_samples,
-            max_instances: resource_limits.max_instances,
-            max_samples_per_instance: resource_limits.max_samples_per_instance,
+        assert!(new_history_cache.is_consistent());
+
+        new_history_cache
+    }
+
+    fn is_consistent(&self) -> bool {
+        if self.max_samples == LENGTH_UNLIMITED{
+            true
+        } else {
+            if self.max_samples_per_instance == LENGTH_UNLIMITED || self.max_samples < self.max_samples_per_instance  {
+                false
+            } else {
+                true
+            }
         }
     }
 
@@ -33,18 +50,16 @@ impl HistoryCache {
     /// This operation will only fail if there are not enough resources to add the change to the HistoryCache. It is the responsibility 
     /// of the DDS service implementation to configure the HistoryCache in a manner consistent with the DDS Entity RESOURCE_LIMITS QoS 
     /// and to propagate any errors to the DDS-user in the manner specified by the DDS specification.
-    pub fn add_change(&self, change: CacheChange) -> ReturnCode<()> {
-        let mut changes = self.changes();
-
+    pub fn add_change(&mut self, change: CacheChange) -> ReturnCode<()> {
         if self.max_samples != LENGTH_UNLIMITED  {
-            if changes.len() as i32 >= self.max_samples {
+            if self.changes.len() as i32 >= self.max_samples {
                 return Err(ReturnCodes::OutOfResources);
             }
         }
 
         if self.max_instances != LENGTH_UNLIMITED {
             let mut instances = HashSet::new();
-            for sample in changes.iter() {
+            for sample in self.changes.iter() {
                 instances.insert(sample.instance_handle());
             }
 
@@ -57,20 +72,20 @@ impl HistoryCache {
         }
 
         if self.max_samples_per_instance != LENGTH_UNLIMITED {
-            if changes.iter().filter(|&x| x.instance_handle() == change.instance_handle()).count() as i32 >= self.max_samples_per_instance {
+            if self.changes.iter().filter(|&x| x.instance_handle() == change.instance_handle()).count() as i32 >= self.max_samples_per_instance {
                 return Err(ReturnCodes::OutOfResources)
             }
         }
 
-        changes.insert(change);
+        self.changes.insert(change);
         Ok(())
     }
 
     /// This operation indicates that a previously-added CacheChange has become irrelevant and the details regarding the CacheChange need 
     /// not be maintained in the HistoryCache. The determination of irrelevance is made based on the QoS associated with the related DDS
     /// entity and on the acknowledgment status of the CacheChange. This is described in 8.4.1.
-    pub fn remove_change(&self, change: &CacheChange) {
-        self.changes().remove(change);
+    pub fn remove_change(&mut self, change: &CacheChange) {
+        self.changes.remove(change);
     }
 
     /// This operation retrieves the smallest value of the CacheChange::sequenceNumber attribute among the CacheChange stored in the HistoryCache.    
@@ -83,8 +98,8 @@ impl HistoryCache {
         Some(self.changes().iter().max()?.sequence_number())
     }
 
-    pub fn changes(&self) -> MutexGuard<HashSet<CacheChange>> {
-        self.changes.lock().unwrap()
+    pub fn changes(&self) -> &HashSet<CacheChange> {
+        &self.changes
     }
 }
 
@@ -95,8 +110,7 @@ mod tests {
 
     #[test]
     fn cache_change_list() {
-        let resource_limits = ResourceLimitsQosPolicy::default();
-        let history_cache = HistoryCache::new(&resource_limits);
+        let mut history_cache = HistoryCache::new(LENGTH_UNLIMITED, LENGTH_UNLIMITED, LENGTH_UNLIMITED, );
         let guid_prefix = [8; 12];
         let entity_id = EntityId::new([1, 2, 3], EntityKind::BuiltInReaderWithKey);
         let guid = GUID::new(guid_prefix, entity_id);
@@ -130,8 +144,7 @@ mod tests {
 
     #[test]
     fn cache_change_sequence_number() {
-        let resource_limits = ResourceLimitsQosPolicy::default();
-        let history_cache = HistoryCache::new(&resource_limits);
+        let mut history_cache = HistoryCache::new(LENGTH_UNLIMITED, LENGTH_UNLIMITED, LENGTH_UNLIMITED);
 
         let guid_prefix = [8; 12];
         let entity_id = EntityId::new([1, 2, 3], EntityKind::BuiltInReaderWithKey);
@@ -170,13 +183,7 @@ mod tests {
 
     #[test]
     fn max_samples_reached() {
-        let resource_limits = ResourceLimitsQosPolicy{
-            max_samples: 2,
-            max_instances: LENGTH_UNLIMITED,
-            max_samples_per_instance: 2,
-        };
-
-        let history_cache = HistoryCache::new(&resource_limits);
+        let mut history_cache = HistoryCache::new(2, LENGTH_UNLIMITED,  2);
 
         let entity_id = EntityId::new([1, 2, 3], EntityKind::BuiltInReaderWithKey);
         let instance_handle = [9; 16];
@@ -215,13 +222,7 @@ mod tests {
 
     #[test]
     fn max_instances_reached() {
-        let resource_limits = ResourceLimitsQosPolicy{
-            max_samples: LENGTH_UNLIMITED,
-            max_instances: 2,
-            max_samples_per_instance: LENGTH_UNLIMITED,
-        };
-
-        let history_cache = HistoryCache::new(&resource_limits);
+        let mut history_cache = HistoryCache::new(LENGTH_UNLIMITED, 2, LENGTH_UNLIMITED);
 
         let entity_id = EntityId::new([1, 2, 3], EntityKind::BuiltInReaderWithKey);
 
@@ -258,13 +259,7 @@ mod tests {
 
     #[test]
     fn max_samples_per_instance_reached() {
-        let resource_limits = ResourceLimitsQosPolicy{
-            max_samples: LENGTH_UNLIMITED,
-            max_instances: LENGTH_UNLIMITED,
-            max_samples_per_instance: 2,
-        };
-
-        let history_cache = HistoryCache::new(&resource_limits);
+        let mut history_cache = HistoryCache::new(LENGTH_UNLIMITED, LENGTH_UNLIMITED, 2);
 
         let guid_prefix = [8; 12];
         let entity_id = EntityId::new([1, 2, 3], EntityKind::BuiltInReaderWithKey);

@@ -104,7 +104,7 @@ mod tests {
         let writer_entity_id = ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER;
         let mut best_effort_reader_proxy = BestEffortReaderProxy::new(reader_proxy, writer_entity_id);
 
-        let history_cache = HistoryCache::new(&ResourceLimitsQosPolicy::default());
+        let mut history_cache = HistoryCache::default();
         
         // Run without any change being created or added in the cache. No message should be sent
         let last_change_sequence_number = 0;

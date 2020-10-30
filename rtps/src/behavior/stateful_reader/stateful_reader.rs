@@ -58,7 +58,7 @@ impl StatefulReader {
             reliability_level: reader_qos.reliability.kind.into(),
             expects_inline_qos,
             heartbeat_response_delay,       
-            reader_cache: HistoryCache::new(&reader_qos.resource_limits),
+            reader_cache: HistoryCache::default(),
             matched_writers: HashMap::new()
         }
     }
@@ -66,8 +66,8 @@ impl StatefulReader {
     pub fn run(&mut self) {
         for (_writer_guid, writer_proxy) in self.matched_writers.iter_mut() {
             match writer_proxy {
-                WriterProxyFlavor::BestEffort(best_effort_writer_proxy) => best_effort_writer_proxy.process(&self.reader_cache),
-                WriterProxyFlavor::Reliable(reliable_writer_proxy) => reliable_writer_proxy.process(&self.reader_cache, self.guid.entity_id(), self.heartbeat_response_delay),
+                WriterProxyFlavor::BestEffort(best_effort_writer_proxy) => best_effort_writer_proxy.process(&mut self.reader_cache),
+                WriterProxyFlavor::Reliable(reliable_writer_proxy) => reliable_writer_proxy.process(&mut self.reader_cache, self.guid.entity_id(), self.heartbeat_response_delay),
             }
         }
     }

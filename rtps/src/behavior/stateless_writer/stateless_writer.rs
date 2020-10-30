@@ -42,7 +42,7 @@ impl StatelessWriter {
             topic_kind,
             reliability_level: ReliabilityKind::BestEffort,
             last_change_sequence_number: 0,
-            writer_cache: HistoryCache::new(&writer_qos.resource_limits),
+            writer_cache: HistoryCache::default(),
             data_max_sized_serialized: None,
             reader_locators: HashMap::new(),
         }
@@ -73,8 +73,8 @@ impl StatelessWriter {
         }
     }
 
-    pub fn writer_cache(&self) -> &HistoryCache {
-        &self.writer_cache
+    pub fn writer_cache(&mut self) -> &mut HistoryCache {
+        &mut self.writer_cache
     }
 
     pub fn reader_locator_add(&mut self, a_locator: Locator) {

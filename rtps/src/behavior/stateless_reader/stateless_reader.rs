@@ -49,7 +49,7 @@ impl StatelessReader {
             reliability_level: ReliabilityKind::BestEffort,
             unicast_locator_list,
             multicast_locator_list,
-            reader_cache: HistoryCache::new(&reader_qos.resource_limits),
+            reader_cache: HistoryCache::default(),
             expects_inline_qos,
             input_queue: VecDeque::new(),
         }

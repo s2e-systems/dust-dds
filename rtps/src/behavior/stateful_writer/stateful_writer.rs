@@ -66,7 +66,7 @@ impl StatefulWriter {
                 nack_response_delay,
                 nack_suppression_duration,
                 last_change_sequence_number: 0,
-                writer_cache: HistoryCache::new(&writer_qos.resource_limits),
+                writer_cache: HistoryCache::default(),
                 data_max_sized_serialized: None,
                 matched_readers: HashMap::new()
         }
@@ -178,13 +178,14 @@ impl ProtocolEntity for StatefulWriter {
 impl ProtocolWriter for StatefulWriter {
 
     fn write(&mut self, instance_handle: InstanceHandle, data: Data, _timestamp: Time) -> ReturnCode<()>{
-        if self.reliability_level == ReliabilityKind::BestEffort {
-            let cc = self.new_change(ChangeKind::Alive, Some(data), None, instance_handle);
-            self.writer_cache().add_change(cc)?;
-            Ok(())
-        } else {
-            todo!() // Blocking until wirtier_cache available
-        }
+        todo!()
+        // if self.reliability_level == ReliabilityKind::BestEffort {
+        //     let cc = self.new_change(ChangeKind::Alive, Some(data), None, instance_handle);
+        //     self.writer_cache().add_change(cc)?;
+        //     Ok(())
+        // } else {
+        //     todo!() // Blocking until wirtier_cache available
+        // }
     }
 
     fn dispose(&self, _instance_handle: InstanceHandle, _timestamp: Time) -> ReturnCode<()> {

@@ -166,7 +166,7 @@ mod tests {
         let expects_inline_qos = false;
         let mut reader_locator = ReaderLocator::new(locator, writer_entity_id, expects_inline_qos);
 
-        let history_cache = HistoryCache::new(&ResourceLimitsQosPolicy::default());
+        let mut history_cache = HistoryCache::default();
 
         // Run without any change being created or added in the cache. No message should be sent
         let last_change_sequence_number = 0;
