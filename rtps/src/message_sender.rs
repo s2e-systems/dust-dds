@@ -13,8 +13,11 @@ use crate::messages::RtpsMessage;
 pub struct RtpsMessageSender;
 
 impl RtpsMessageSender {
-    pub fn send(participant_guid_prefix: GuidPrefix, transport: &dyn Transport, endpoint_list: &[&Arc<Mutex<dyn RtpsEndpoint>>]) {
-        for &endpoint in endpoint_list {
+    pub fn send<'a, I>(participant_guid_prefix: GuidPrefix, transport: &dyn Transport, endpoint_list: I) 
+    where 
+        I: IntoIterator<Item = &'a Arc<Mutex<dyn RtpsEndpoint>> >,
+    {
+        for endpoint in endpoint_list {
             let mut endpoint_lock = endpoint.lock().unwrap();
             if let Some(stateless_writer) = endpoint_lock.get_mut::<StatelessWriter>() {
                 RtpsMessageSender::send_stateless_writer(stateless_writer, transport, participant_guid_prefix)

@@ -59,12 +59,13 @@ impl RtpsProtocol {
     //         &[self.participant.builtin_publisher(), self.participant.builtin_subscriber()])
     // }
 
-    // pub fn send_metatraffic(&self) {
-    //     RtpsMessageSender::send(
-    //         self.participant.guid().prefix(), 
-    //         self.participant.metatraffic_transport().as_ref(),
-    //         &[self.participant.builtin_publisher(), self.participant.builtin_subscriber()])
-    // }
+    pub fn send_metatraffic(&self) {
+        RtpsMessageSender::send(
+            self.participant.guid().prefix(), 
+            self.participant.metatraffic_transport().as_ref(),
+            self.participant.builtin_publisher().lock().unwrap().into_iter()
+            .chain(self.participant.builtin_subscriber().lock().unwrap().into_iter()))
+    }
 }
 
 #[cfg(test)]

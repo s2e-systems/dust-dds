@@ -29,6 +29,14 @@ impl RtpsGroup {
     }
 }
 
+impl<'a> IntoIterator for &'a RtpsGroup {
+    type Item = &'a Arc<Mutex<dyn RtpsEndpoint>>;
+    type IntoIter = std::slice::Iter<'a, Arc<Mutex<dyn RtpsEndpoint>>>;
+    fn into_iter(self) -> Self::IntoIter {
+        self.endpoints.iter()
+    }
+}
+
 impl RtpsEntity for RtpsGroup {
     fn guid(&self) -> GUID {
         self.guid
