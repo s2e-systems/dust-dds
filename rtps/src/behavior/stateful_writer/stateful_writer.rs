@@ -12,7 +12,7 @@ use super::best_effort_reader_proxy::BestEffortReaderProxy;
 use rust_dds_interface::protocol::{ProtocolEntity, ProtocolWriter};
 use rust_dds_interface::types::{Data, Time, ReturnCode};
 
-enum ReaderProxyFlavor {
+pub enum ReaderProxyFlavor {
     BestEffort(BestEffortReaderProxy),
     Reliable(ReliableReaderProxy),
 }
@@ -134,6 +134,24 @@ impl StatefulWriter {
 
     pub fn nack_response_delay(&self) -> Duration {
         self.nack_response_delay
+    }
+}
+
+impl<'a> IntoIterator for &'a StatefulWriter {
+    type Item = (&'a GUID, &'a ReaderProxyFlavor);
+    type IntoIter = std::collections::hash_map::Iter<'a, GUID, ReaderProxyFlavor>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.matched_readers.iter()
+    }
+}
+
+impl<'a> IntoIterator for &'a mut StatefulWriter {
+    type Item = (&'a GUID, &'a mut ReaderProxyFlavor);
+    type IntoIter = std::collections::hash_map::IterMut<'a, GUID, ReaderProxyFlavor>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.matched_readers.iter_mut()
     }
 }
 

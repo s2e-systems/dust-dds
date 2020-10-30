@@ -5,6 +5,8 @@ use crate::types::constants::{PROTOCOL_VERSION_2_4, VENDOR_ID};
 use crate::structure::RtpsEndpoint;
 use crate::transport::Transport;
 use crate::behavior::{StatelessWriter, StatefulWriter, StatefulReader};
+use crate::behavior::stateful_writer::stateful_writer::ReaderProxyFlavor;
+use crate::behavior::stateful_reader::stateful_reader::WriterProxyFlavor;
 
 use crate::messages::RtpsMessage;
 
@@ -17,9 +19,9 @@ impl RtpsMessageSender {
             if let Some(stateless_writer) = endpoint_lock.get_mut::<StatelessWriter>() {
                 RtpsMessageSender::send_stateless_writer(stateless_writer, transport, participant_guid_prefix)
             } else if let Some(stateful_writer) = endpoint_lock.get_mut::<StatefulWriter>() {
-                RtpsMessageSender::send_stateful_writer(stateful_writer)
+                RtpsMessageSender::send_stateful_writer(stateful_writer, transport, participant_guid_prefix)
             } else if let Some(stateful_reader) = endpoint_lock.get_mut::<StatefulReader>() {
-                RtpsMessageSender::send_stateful_reader(stateful_reader)
+                RtpsMessageSender::send_stateful_reader(stateful_reader, transport, participant_guid_prefix)
             }
         }
     }
@@ -35,12 +37,28 @@ impl RtpsMessageSender {
         }
     }
 
-    fn send_stateful_writer(_stateful_writer: &StatefulWriter) {
-        todo!()
+    fn send_stateful_writer(stateful_writer: &StatefulWriter, transport: &dyn Transport, participant_guid_prefix: GuidPrefix) {
+        for (guid, reader_proxy) in stateful_writer.into_iter() {
+            match reader_proxy {
+                ReaderProxyFlavor::BestEffort(_best_effort_reader_proxy) => {
+                    todo!()
+                }
+                ReaderProxyFlavor::Reliable(_reliable_reader_proxy) => {
+                    todo!()
+                }
+            }
+        }
     }
 
-    fn send_stateful_reader(_stateful_reader: &StatefulReader) {
-        todo!()
+    fn send_stateful_reader(stateful_reader: &StatefulReader, transport: &dyn Transport, participant_guid_prefix: GuidPrefix) {
+        for (guid, writer_proxy) in stateful_reader.into_iter() {
+            match writer_proxy {
+                WriterProxyFlavor::BestEffort(_best_effort_reader_proxy) => (),
+                WriterProxyFlavor::Reliable(_reliable_reader_proxy) => {
+                    todo!()
+                }
+            }
+        }
     }
 }
 

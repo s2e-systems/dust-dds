@@ -1,8 +1,8 @@
 pub mod types;
-mod stateful_reader;
-mod stateful_writer;
-mod stateless_reader;
-mod stateless_writer;
+pub mod stateful_reader;
+pub mod stateful_writer;
+pub mod stateless_reader;
+pub mod stateless_writer;
 
 pub use stateful_reader::{StatefulReader, WriterProxy};
 pub use stateful_writer::{StatefulWriter, ReaderProxy};

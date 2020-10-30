@@ -12,7 +12,7 @@ use super::reliable_writer_proxy::ReliableWriterProxy;
 use rust_dds_interface::protocol::{ProtocolEntity, ProtocolReader};
 use rust_dds_interface::types::{InstanceHandle, ReturnCode};
 
-enum WriterProxyFlavor{
+pub enum WriterProxyFlavor{
     BestEffort(BestEffortWriterProxy),
     Reliable(ReliableWriterProxy),
 }
@@ -94,6 +94,24 @@ impl StatefulReader {
 
     pub fn guid(&self) -> &GUID {
         &self.guid
+    }
+}
+
+impl<'a> IntoIterator for &'a StatefulReader {
+    type Item = (&'a GUID, &'a WriterProxyFlavor);
+    type IntoIter = std::collections::hash_map::Iter<'a, GUID, WriterProxyFlavor>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.matched_writers.iter()
+    }
+}
+
+impl<'a> IntoIterator for &'a mut StatefulReader {
+    type Item = (&'a GUID, &'a mut WriterProxyFlavor);
+    type IntoIter = std::collections::hash_map::IterMut<'a, GUID, WriterProxyFlavor>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.matched_writers.iter_mut()
     }
 }
 
