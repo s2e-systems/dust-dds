@@ -34,16 +34,16 @@ impl CacheChange {
         }
     }
 
-    pub fn change_kind(&self) -> &ChangeKind {
-        &self.kind
+    pub fn change_kind(&self) -> ChangeKind {
+        self.kind
     }
 
-    pub fn writer_guid(&self) -> &GUID {
-        &self.writer_guid
+    pub fn writer_guid(&self) -> GUID {
+        self.writer_guid
     }
 
-    pub fn instance_handle(&self) -> &InstanceHandle {
-        &self.instance_handle
+    pub fn instance_handle(&self) -> InstanceHandle {
+        self.instance_handle
     }
 
     pub fn sequence_number(&self) -> SequenceNumber {
@@ -56,14 +56,6 @@ impl CacheChange {
 
     pub fn data_value(&self) -> &Vec<u8> {
         &self.data_value
-    }
-
-    pub fn clone_without_data(&self) -> Self {
-        Self {
-            data_value: Vec::new(),
-            inline_qos: ParameterList::new(),
-            .. *self
-        }
     }
 }
 

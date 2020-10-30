@@ -51,7 +51,7 @@ impl HistoryCache {
             let total_instances = instances.len() as i32;
 
             if total_instances >= self.max_instances && 
-               !instances.contains(change.instance_handle()) {
+               !instances.contains(&change.instance_handle()) {
                 return Err(ReturnCodes::OutOfResources);
             }
         }
@@ -112,12 +112,19 @@ mod tests {
             None,
         );
 
-        let cc_clone = cc.clone_without_data();
+        let cc_copy_no_data =  CacheChange::new(
+            ChangeKind::Alive,
+            guid,
+            instance_handle,
+            sequence_number,
+            None,
+            None,
+        );
 
         assert_eq!(history_cache.changes().len(), 0);
         history_cache.add_change(cc).unwrap();
         assert_eq!(history_cache.changes().len(), 1);
-        history_cache.remove_change(&cc_clone);
+        history_cache.remove_change(&cc_copy_no_data);
         assert_eq!(history_cache.changes().len(), 0);
     }
 

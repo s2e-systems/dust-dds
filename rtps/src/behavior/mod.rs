@@ -46,12 +46,12 @@ fn data_from_cache_change(cache_change: &CacheChange, reader_id: EntityId) -> Da
 
     let mut inline_qos_parameters = cache_change.inline_qos().clone();
 
-    let change_kind = *cache_change.change_kind();
+    let change_kind = cache_change.change_kind();
     inline_qos_parameters.push(change_kind_to_status_info(change_kind));
 
     let payload = match change_kind {
         ChangeKind::Alive => {
-            inline_qos_parameters.push(KeyHash(*cache_change.instance_handle()));
+            inline_qos_parameters.push(KeyHash(cache_change.instance_handle()));
             Payload::Data(cache_change.data_value().clone())
         },
         ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered | ChangeKind::AliveFiltered => {
