@@ -3,7 +3,6 @@ use net2::UdpBuilder;
 
 use std::convert::TryInto;
 use std::net::{UdpSocket, IpAddr, Ipv4Addr, SocketAddr};
-use std::any::Any;
 
 use rust_dds_interface::types::DomainId;
 
@@ -145,10 +144,6 @@ impl Transport for UdpTransport {
     
     fn multicast_locator_list(&self) -> &Vec<Locator> {
         &self.multicast_locator_list
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
     }
 }
 

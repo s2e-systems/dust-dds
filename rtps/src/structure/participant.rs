@@ -176,10 +176,6 @@ mod tests {
         fn multicast_locator_list(&self) -> &Vec<Locator> {
             &self.multicast_locator_list
         }
-
-        fn as_any(&self) -> &dyn std::any::Any {
-            todo!()
-        }
     }
 
     #[test]

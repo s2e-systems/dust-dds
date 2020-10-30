@@ -1,5 +1,3 @@
-use std::any::Any;
-
 use crate::types::Locator;
 use crate::messages::RtpsMessage;
 
@@ -28,6 +26,4 @@ pub trait Transport : 'static{
     fn unicast_locator_list(&self) -> &Vec<Locator>;
 
     fn multicast_locator_list(&self) -> &Vec<Locator>;
-
-    fn as_any(&self) -> &dyn Any;
 }
