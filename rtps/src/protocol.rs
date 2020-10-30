@@ -44,27 +44,27 @@ impl RtpsProtocol {
         }
     }
 
-    pub fn run_builtin_endpoints(&self) {
-        self.spdp.spdp_builtin_participant_reader().lock().unwrap().run(
-            |_| println!("Discovery data")
-        );
+    // pub fn run_builtin_endpoints(&self) {
+    //     self.spdp.spdp_builtin_participant_reader().lock().unwrap().run(
+    //         |_| println!("Discovery data")
+    //     );
 
-        self.spdp.spdp_builtin_participant_writer().lock().unwrap().run();
-    }
+    //     self.spdp.spdp_builtin_participant_writer().lock().unwrap().run();
+    // }
 
-    pub fn receive_metatraffic(&self) {
-        RtpsMessageReceiver::receive(
-            self.participant.guid().prefix(), 
-            self.participant.metatraffic_transport().as_ref(),
-            &[self.participant.builtin_publisher(), self.participant.builtin_subscriber()])
-    }
+    // pub fn receive_metatraffic(&self) {
+    //     RtpsMessageReceiver::receive(
+    //         self.participant.guid().prefix(), 
+    //         self.participant.metatraffic_transport().as_ref(),
+    //         &[self.participant.builtin_publisher(), self.participant.builtin_subscriber()])
+    // }
 
-    pub fn send_metatraffic(&self) {
-        RtpsMessageSender::send(
-            self.participant.guid().prefix(), 
-            self.participant.metatraffic_transport().as_ref(),
-            &[self.participant.builtin_publisher(), self.participant.builtin_subscriber()])
-    }
+    // pub fn send_metatraffic(&self) {
+    //     RtpsMessageSender::send(
+    //         self.participant.guid().prefix(), 
+    //         self.participant.metatraffic_transport().as_ref(),
+    //         &[self.participant.builtin_publisher(), self.participant.builtin_subscriber()])
+    // }
 }
 
 #[cfg(test)]

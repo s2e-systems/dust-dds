@@ -2,40 +2,38 @@ use std::sync::{Arc, Mutex};
 
 use crate::types::GuidPrefix;
 use crate::types::constants::{PROTOCOL_VERSION_2_4, VENDOR_ID};
-use crate::structure::RtpsGroup;
+use crate::structure::RtpsEndpoint;
 use crate::transport::Transport;
-use crate::structure::OutputQueue;
+use crate::behavior::{StatelessWriter, StatefulWriter, StatefulReader};
 
 use crate::messages::RtpsMessage;
 
 pub struct RtpsMessageSender;
 
 impl RtpsMessageSender {
-    pub fn send(participant_guid_prefix: GuidPrefix, transport: &dyn Transport, group_list: &[&Arc<Mutex<RtpsGroup>>]) {
-        for &group in group_list {
-            let mut group = group.lock().unwrap();
-            for endpoint in group.mut_endpoints() {
-                let queues = endpoint.lock().unwrap().output_queues();
-                for queue in queues {
-                    match queue {
-                        OutputQueue::SingleDestination { locator, message_queue } => {
-                            let rtps_message = RtpsMessage::new(PROTOCOL_VERSION_2_4, VENDOR_ID, participant_guid_prefix, message_queue.into());
-                            transport.write(rtps_message, &locator);
-                        }
-                        OutputQueue::MultiDestination { unicast_locator_list, multicast_locator_list, message_queue } => {
-                            for locator in unicast_locator_list {
-                                let rtps_message = RtpsMessage::new(PROTOCOL_VERSION_2_4, VENDOR_ID, participant_guid_prefix, message_queue.into());
-                                transport.write(rtps_message, &locator);
-                                break; // Take only first element for now
-                            }
-                            for _locator in multicast_locator_list {
-                                break; // Take only first element for now
-                            }
-                        }
-                    }
-                }
+    pub fn send(_participant_guid_prefix: GuidPrefix, _transport: &dyn Transport, endpoint_list: &[&Arc<Mutex<dyn RtpsEndpoint>>]) {
+        for &endpoint in endpoint_list {
+            let endpoint_lock = endpoint.lock().unwrap();
+            if let Some(stateless_writer) = endpoint_lock.get::<StatelessWriter>() {
+                RtpsMessageSender::send_stateless_writer(stateless_writer)
+            } else if let Some(stateful_writer) = endpoint_lock.get::<StatefulWriter>() {
+                RtpsMessageSender::send_stateful_writer(stateful_writer)
+            } else if let Some(stateful_reader) = endpoint_lock.get::<StatefulReader>() {
+                RtpsMessageSender::send_stateful_reader(stateful_reader)
             }
         }
+    }
+
+    fn send_stateless_writer(_stateless_writer: &StatelessWriter) {
+        todo!()
+    }
+
+    fn send_stateful_writer(_stateful_writer: &StatefulWriter) {
+        todo!()
+    }
+
+    fn send_stateful_reader(_stateful_reader: &StatefulReader) {
+        todo!()
     }
 }
 

@@ -1,5 +1,5 @@
 use std::collections::{HashMap,  VecDeque};
-use crate::structure::{HistoryCache, HistoryCacheResourceLimits, CacheChange, RtpsEndpoint, RtpsEntity, RtpsCommunication, RtpsMessageSender, OutputQueue};
+use crate::structure::{HistoryCache, HistoryCacheResourceLimits, CacheChange, RtpsEndpoint, RtpsEntity};
 use crate::serialized_payload::ParameterList;
 use crate::types::{ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID, };
 use crate::messages::RtpsSubmessage;
@@ -112,22 +112,22 @@ impl RtpsEntity for StatelessWriter {
     }
 }
 
-impl RtpsMessageSender for StatelessWriter {
-    fn output_queues(&mut self) -> Vec<OutputQueue> {
-        let mut output = Vec::new();
+// impl RtpsMessageSender for StatelessWriter {
+//     fn output_queues(&mut self) -> Vec<OutputQueue> {
+//         let mut output = Vec::new();
 
-        for (_, reader_locator) in &mut self.reader_locators {
-            let locator = *reader_locator.locator();
-            let mut message_queue = VecDeque::new();
-            let output_queue = reader_locator.output_queue_mut();
-            std::mem::swap(&mut message_queue, output_queue);
+//         for (_, reader_locator) in &mut self.reader_locators {
+//             let locator = *reader_locator.locator();
+//             let mut message_queue = VecDeque::new();
+//             let output_queue = reader_locator.output_queue_mut();
+//             std::mem::swap(&mut message_queue, output_queue);
 
-            output.push(OutputQueue::SingleDestination{locator, message_queue})
-        }
+//             output.push(OutputQueue::SingleDestination{locator, message_queue})
+//         }
 
-        output
-    }
-}
+//         output
+//     }
+// }
 
 impl RtpsEndpoint for StatelessWriter {
     fn unicast_locator_list(&self) -> Vec<Locator> {
@@ -145,13 +145,21 @@ impl RtpsEndpoint for StatelessWriter {
     fn topic_kind(&self) -> &TopicKind {
         &self.topic_kind
     }
-}
 
-impl RtpsCommunication for StatelessWriter {
-    fn try_push_message(&mut self, _src_locator: Locator, _src_guid_prefix: crate::types::GuidPrefix, _submessage: &mut Option<RtpsSubmessage>) {
-        // Doesn't receive message so do nothing
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn as_mut_any(&mut self) -> &mut dyn std::any::Any {
+        self
     }
 }
+
+// impl RtpsCommunication for StatelessWriter {
+//     fn try_push_message(&mut self, _src_locator: Locator, _src_guid_prefix: crate::types::GuidPrefix, _submessage: &mut Option<RtpsSubmessage>) {
+//         // Doesn't receive message so do nothing
+//     }
+// }
 
 #[cfg(test)]
 mod tests {

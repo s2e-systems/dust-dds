@@ -1,5 +1,5 @@
 use crate::types::GUID;
 
-pub trait RtpsEntity {
+pub trait RtpsEntity: 'static {
     fn guid(&self) -> GUID;
 }

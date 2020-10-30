@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 
-use crate::structure::{CacheChange, HistoryCache, RtpsEndpoint, RtpsEntity, HistoryCacheResourceLimits, RtpsCommunication, RtpsMessageSender};
+use crate::structure::{CacheChange, HistoryCache, RtpsEndpoint, RtpsEntity, HistoryCacheResourceLimits};
 use crate::types::{ReliabilityKind, TopicKind, GUID, Locator, GuidPrefix };
 use crate::types::constants::ENTITYID_UNKNOWN;
 use crate::messages::RtpsSubmessage;
@@ -40,7 +40,7 @@ impl StatelessReader {
         expects_inline_qos: bool,
         resource_limits: HistoryCacheResourceLimits,
     ) -> Self {
-        
+
         assert!(reliability_level == ReliabilityKind::BestEffort, "Only BestEffort is supported on stateless reader");
 
         Self {
@@ -96,11 +96,11 @@ impl RtpsEntity for StatelessReader {
     }
 }
 
-impl RtpsMessageSender for StatelessReader {
-    fn output_queues(&mut self) -> Vec<crate::structure::OutputQueue> {
-        vec![]
-    }
-}
+// impl RtpsMessageSender for StatelessReader {
+//     fn output_queues(&mut self) -> Vec<crate::structure::OutputQueue> {
+//         vec![]
+//     }
+// }
 
 impl RtpsEndpoint for StatelessReader {
     fn unicast_locator_list(&self) -> Vec<Locator> {
@@ -118,17 +118,25 @@ impl RtpsEndpoint for StatelessReader {
     fn topic_kind(&self) -> &TopicKind {
         todo!()
     }
-}
 
-impl RtpsCommunication for StatelessReader {
-    fn try_push_message(&mut self, src_locator: Locator, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>) {
-        if let Some(inner_submessage) = submessage {
-            if self.is_submessage_destination(&src_locator, &src_guid_prefix, inner_submessage) {
-                self.input_queue.push_back((src_guid_prefix, submessage.take().unwrap()))
-            }
-        }
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn as_mut_any(&mut self) -> &mut dyn std::any::Any {
+        self
     }
 }
+
+// impl RtpsCommunication for StatelessReader {
+//     fn try_push_message(&mut self, src_locator: Locator, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>) {
+//         if let Some(inner_submessage) = submessage {
+//             if self.is_submessage_destination(&src_locator, &src_guid_prefix, inner_submessage) {
+//                 self.input_queue.push_back((src_guid_prefix, submessage.take().unwrap()))
+//             }
+//         }
+//     }
+// }
 
 #[cfg(test)]
 mod tests {
@@ -172,7 +180,7 @@ mod tests {
         );
 
         let source_guid_prefix  = [2;12];
-        reader.try_push_message(source_locator,source_guid_prefix, &mut Some(RtpsSubmessage::Data(data1)));
+        reader.input_queue.push_back((source_guid_prefix, RtpsSubmessage::Data(data1)));
 
         let expected_cache_change = CacheChange::new(
             ChangeKind::Alive,

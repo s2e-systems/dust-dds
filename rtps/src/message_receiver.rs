@@ -1,40 +1,42 @@
+use std::any::Any;
 use std::sync::{Arc, Mutex};
 use crate::types::{GuidPrefix, Locator,};
-use crate::structure::RtpsGroup;
+use crate::structure::{RtpsGroup, RtpsEndpoint};
 use crate::transport::Transport;
 use crate::messages::submessages::RtpsSubmessage;
 
 pub struct RtpsMessageReceiver;
 
 impl RtpsMessageReceiver {
-    pub fn receive(participant_guid_prefix: GuidPrefix, transport: &dyn Transport, group_list: &[&Arc<Mutex<RtpsGroup>>]) {
-        if let Some((message, src_locator)) = transport.read().unwrap() {
-            let _source_version = message.header().version();
-            let _source_vendor_id = message.header().vendor_id();
-            let source_guid_prefix = message.header().guid_prefix();
-            let _dest_guid_prefix = participant_guid_prefix;
-            let _unicast_reply_locator_list = vec![Locator::new(0,0,[0;16])];
-            let _multicast_reply_locator_list = vec![Locator::new(0,0,[0;16])];
-            let mut _timestamp = None;
-            let _message_length = 0;
+    pub fn receive(participant_guid_prefix: GuidPrefix, transport: &dyn Transport, group_list: &[&Arc<Mutex<dyn RtpsEndpoint>>]) {
+        todo!()
+        // if let Some((message, src_locator)) = transport.read().unwrap() {
+        //     let _source_version = message.header().version();
+        //     let _source_vendor_id = message.header().vendor_id();
+        //     let source_guid_prefix = message.header().guid_prefix();
+        //     let _dest_guid_prefix = participant_guid_prefix;
+        //     let _unicast_reply_locator_list = vec![Locator::new(0,0,[0;16])];
+        //     let _multicast_reply_locator_list = vec![Locator::new(0,0,[0;16])];
+        //     let mut _timestamp = None;
+        //     let _message_length = 0;
     
-            for submessage in message.take_submessages() {
-                if submessage.is_entity_submessage() {
-                    let mut optional_submessage = Some(submessage);
-                    for &group in group_list {
-                        let group = group.lock().unwrap();
-                        for endpoint in group.endpoints() {
-                            endpoint.lock().unwrap().try_push_message(src_locator, source_guid_prefix, &mut optional_submessage);
-                        }
-                    }
-                } else if submessage.is_interpreter_submessage(){
-                    match submessage {
-                        RtpsSubmessage::InfoTs(info_ts) => _timestamp = info_ts.time(),
-                        _ => panic!("Unexpected interpreter submessage"),
-                    };
-                }
-            }
-        }    
+        //     for submessage in message.take_submessages() {
+        //         if submessage.is_entity_submessage() {
+        //             let mut optional_submessage = Some(submessage);
+        //             for &group in group_list {
+        //                 let group = group.lock().unwrap();
+        //                 for endpoint in group.endpoints() {
+        //                     endpoint.lock().unwrap().try_push_message(src_locator, source_guid_prefix, &mut optional_submessage);
+        //                 }
+        //             }
+        //         } else if submessage.is_interpreter_submessage(){
+        //             match submessage {
+        //                 RtpsSubmessage::InfoTs(info_ts) => _timestamp = info_ts.time(),
+        //                 _ => panic!("Unexpected interpreter submessage"),
+        //             };
+        //         }
+        //     }
+        // }    
     }
 }
 
