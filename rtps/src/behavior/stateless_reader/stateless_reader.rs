@@ -55,7 +55,7 @@ impl StatelessReader {
         }
     }
 
-    fn run(&mut self, on_data_available: impl FnOnce(&CacheChange)) {
+    pub fn run(&mut self, on_data_available: impl FnOnce(&CacheChange)) {
         self.waiting_state(on_data_available);
     }
 

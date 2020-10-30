@@ -67,7 +67,7 @@ impl StatelessWriter {
         )
     }
 
-    fn run(&mut self) {
+    pub fn run(&mut self) {
         for (_, reader_locator) in self.reader_locators.iter_mut() {
             reader_locator.process(&self.writer_cache, self.last_change_sequence_number);
         }

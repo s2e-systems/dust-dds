@@ -44,6 +44,14 @@ impl RtpsProtocol {
         }
     }
 
+    pub fn run_builtin_endpoints(&self) {
+        self.spdp.spdp_builtin_participant_reader().lock().unwrap().run(
+            |_| println!("Discovery data")
+        );
+
+        self.spdp.spdp_builtin_participant_writer().lock().unwrap().run();
+    }
+
     pub fn receive_metatraffic(&self) {
         RtpsMessageReceiver::receive(
             self.participant.guid().prefix(), 
@@ -61,7 +69,7 @@ impl RtpsProtocol {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    // use super::*;
 
     #[test]
     fn spdp_announce() {
