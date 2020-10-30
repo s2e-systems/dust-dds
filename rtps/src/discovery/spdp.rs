@@ -1,15 +1,11 @@
-use std::sync::{Arc,Weak, Mutex};
+use std::sync::{Arc, Mutex};
 use std::convert::TryInto;
 use rust_dds_interface::types::{TopicKind, DomainId, InstanceHandle};
-use rust_dds_interface::protocol::ProtocolDiscovery;
 use rust_dds_interface::qos::{DataReaderQos, DataWriterQos};
 
 use crate::types::{GuidPrefix, GUID, Locator, ChangeKind, ProtocolVersion, VendorId};
-use crate::structure::RtpsParticipant;
 use crate::behavior::StatelessWriter;
 use crate::behavior::StatelessReader;
-use crate::message_sender::RtpsMessageSender;
-use crate::message_receiver::RtpsMessageReceiver;
 
 use crate::serialized_payload::CdrEndianness;
 use crate::types::constants::{ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, ENTITYID_SPDP_BUILTIN_PARTICIPANT_DETECTOR};
@@ -377,18 +373,7 @@ impl SPDPdiscoveredParticipantData {
 mod tests {
     use super::*;
     // use crate::transport::udp::UdpTransport;
-    use crate::Transport;
-    use crate::RtpsMessage;
     use crate::types::constants::PROTOCOL_VERSION_2_4;
-
-    use crate::messages::submessages::{InfoTs, Data};
-    use crate::messages::{Endianness, RtpsSubmessage};
-    use crate::messages::types::Time;
-    use crate::types::constants::ENTITYID_UNKNOWN;
-    use crate::serialized_payload::ParameterList;
-    use crate::messages::submessages::data_submessage::Payload;
-    use crate::inline_qos_types::{StatusInfo, KeyHash};
-
     // struct MockTransport{
     //     sent_messages: Vec<RtpsMessage>,
     //     unicast_locator_list: Vec<Locator>,

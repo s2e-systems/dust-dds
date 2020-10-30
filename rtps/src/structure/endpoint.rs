@@ -1,6 +1,5 @@
 use crate::structure::{RtpsEntity, RtpsCommunication, RtpsMessageSender};
-use crate::types::{Locator,GuidPrefix, ReliabilityKind, TopicKind};
-use crate::messages::RtpsSubmessage;
+use crate::types::{Locator, ReliabilityKind, TopicKind};
 
 pub trait RtpsEndpoint : RtpsEntity + RtpsCommunication + RtpsMessageSender {
     fn unicast_locator_list(&self) -> Vec<Locator>;

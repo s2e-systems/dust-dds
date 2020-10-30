@@ -1,4 +1,4 @@
-use std::collections::{HashMap, VecDeque};
+use std::collections::HashMap;
 
 use crate::types::{ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID, GuidPrefix};
 use crate::behavior::types::Duration;
@@ -177,7 +177,7 @@ impl ProtocolEntity for StatefulWriter {
 
 impl ProtocolWriter for StatefulWriter {
 
-    fn write(&mut self, instance_handle: InstanceHandle, data: Data, _timestamp: Time) -> ReturnCode<()>{
+    fn write(&mut self, _instance_handle: InstanceHandle, _data: Data, _timestamp: Time) -> ReturnCode<()>{
         todo!()
         // if self.reliability_level == ReliabilityKind::BestEffort {
         //     let cc = self.new_change(ChangeKind::Alive, Some(data), None, instance_handle);
@@ -256,19 +256,7 @@ impl RtpsCommunication for StatefulWriter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::constants::{
-        ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER,
-        ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
-        ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
-        LOCATOR_INVALID};
-
-    use crate::messages::submessages::AckNack;
-    use crate::messages::Endianness;
-    
-    use rust_dds_interface::qos_policy::ReliabilityQosPolicyKind;
-    
-    use std::collections::BTreeSet;
-    use std::thread::sleep;
+    use crate::types::constants::ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER;
 
     #[test]
     fn stateful_writer_new_change() {

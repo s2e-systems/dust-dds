@@ -105,7 +105,6 @@ mod tests {
     use crate::types::{GUID, ChangeKind};
     use crate::types::constants::ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER;
     use crate::structure::CacheChange;
-    use rust_dds_interface::qos_policy::ResourceLimitsQosPolicy;
 
     #[test]
     fn unsent_change_operations() {

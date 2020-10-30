@@ -35,7 +35,7 @@ impl StatelessWriter {
     pub fn new(
         guid: GUID,
         topic_kind: TopicKind,
-        writer_qos: &DataWriterQos,
+        _writer_qos: &DataWriterQos,
     ) -> Self {
         StatelessWriter {
             guid,

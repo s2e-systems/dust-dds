@@ -1,30 +1,30 @@
-use rust_rtps::{StatelessWriter, StatelessReader, };
-use rust_rtps::types::{ChangeKind, TopicKind, Locator, GUID, };
-use rust_rtps::types::constants::{ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER, ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER, };
-use rust_rtps::{ParameterId, Pid, MemoryTransport, RtpsMessageSender, RtpsMessageReceiver};
+// use rust_rtps::{StatelessWriter, StatelessReader, };
+// use rust_rtps::types::{ChangeKind, TopicKind, Locator, GUID, };
+// use rust_rtps::types::constants::{ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER, ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER, };
+// use rust_rtps::{ParameterId, Pid, MemoryTransport, RtpsMessageSender, RtpsMessageReceiver};
 
-use serde::{Serialize, };
+// use serde::{Serialize, };
 
-use rust_dds_interface::qos::{DataWriterQos, DataReaderQos};
-use rust_dds_interface::qos_policy::ReliabilityQosPolicyKind;
+// use rust_dds_interface::qos::{DataWriterQos, DataReaderQos};
+// use rust_dds_interface::qos_policy::ReliabilityQosPolicyKind;
 
-#[derive(Debug, Serialize)]
-struct SpecialQos(u16);
+// #[derive(Debug, Serialize)]
+// struct SpecialQos(u16);
 
-impl Pid for SpecialQos{
-    fn pid() -> ParameterId {
-        0x0AA0
-    }
-}
+// impl Pid for SpecialQos{
+//     fn pid() -> ParameterId {
+//         0x0AA0
+//     }
+// }
 
-#[derive(Debug, Serialize)]
-struct OtherQos(i32);
+// #[derive(Debug, Serialize)]
+// struct OtherQos(i32);
 
-impl Pid for OtherQos{
-    fn pid() -> ParameterId {
-        0x0AA1
-    }
-}
+// impl Pid for OtherQos{
+//     fn pid() -> ParameterId {
+//         0x0AA1
+//     }
+// }
 
 // #[test]
 // fn test_stateless_writer_stateless_reader_direct_communication_integration() {

@@ -38,7 +38,7 @@ impl StatelessReader {
         // reliability_level: ReliabilityKind, // Only BestEffort is supported
         unicast_locator_list: Vec<Locator>,
         multicast_locator_list: Vec<Locator>,
-        reader_qos: &DataReaderQos,
+        _reader_qos: &DataReaderQos,
     ) -> Self {
 
         let expects_inline_qos = false;
