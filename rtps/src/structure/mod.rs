@@ -9,10 +9,6 @@ mod participant;
 mod group;
 mod endpoint;
 
-pub trait RtpsRun{
-    fn run(&mut self);
-}
-
 pub trait RtpsCommunication /* RtpsMessageReceiver */{
     fn try_push_message(&mut self, src_locator: crate::types::Locator, src_guid_prefix: crate::types::GuidPrefix, submessage: &mut Option<crate::messages::RtpsSubmessage>);
 }

@@ -2,7 +2,7 @@ use std::collections::VecDeque;
 
 use rust_dds_interface::qos::DataReaderQos;
 
-use crate::structure::{HistoryCache, RtpsEndpoint, RtpsEntity, RtpsRun, RtpsCommunication, RtpsMessageSender};
+use crate::structure::{HistoryCache, RtpsEndpoint, RtpsEntity, RtpsCommunication, RtpsMessageSender};
 use crate::types::{ReliabilityKind, TopicKind, GUID, Locator, GuidPrefix };
 use crate::types::constants::ENTITYID_UNKNOWN;
 use crate::messages::RtpsSubmessage;
@@ -56,6 +56,10 @@ impl StatelessReader {
         }
     }
 
+    fn run(&mut self) {
+        self.waiting_state();
+    }
+
     fn waiting_state(&mut self) {
         let popped_queue = self.input_queue.pop_front();
         if let Some((guid_prefix, received_message)) = popped_queue {
@@ -89,12 +93,6 @@ impl StatelessReader {
 impl RtpsEntity for StatelessReader {
     fn guid(&self) -> GUID {
         self.guid
-    }
-}
-
-impl RtpsRun for StatelessReader {
-    fn run(&mut self) {
-        self.waiting_state();
     }
 }
 

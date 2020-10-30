@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::structure::{HistoryCache, RtpsEndpoint, RtpsEntity, RtpsRun, RtpsCommunication, RtpsMessageSender, OutputQueue};
+use crate::structure::{HistoryCache, RtpsEndpoint, RtpsEntity, RtpsCommunication, RtpsMessageSender, OutputQueue};
 use crate::types::{Locator, ReliabilityKind, TopicKind, GUID, GuidPrefix };
 use crate::messages::RtpsSubmessage;
 use crate::behavior::types::Duration;
@@ -63,6 +63,15 @@ impl StatefulReader {
         }
     }
 
+    pub fn run(&mut self) {
+        for (_writer_guid, writer_proxy) in self.matched_writers.iter_mut() {
+            match writer_proxy {
+                WriterProxyFlavor::BestEffort(best_effort_writer_proxy) => best_effort_writer_proxy.process(&self.reader_cache),
+                WriterProxyFlavor::Reliable(reliable_writer_proxy) => reliable_writer_proxy.process(&self.reader_cache, self.guid.entity_id(), self.heartbeat_response_delay),
+            }
+        }
+    }
+
     pub fn matched_writer_add(&mut self, a_writer_proxy: WriterProxy) {
         let remote_writer_guid = a_writer_proxy.remote_writer_guid().clone();
         let writer_proxy = match self.reliability_level {
@@ -87,17 +96,6 @@ impl StatefulReader {
 
     pub fn guid(&self) -> &GUID {
         &self.guid
-    }
-}
-
-impl RtpsRun for StatefulReader {
-    fn run(&mut self) {
-        for (_writer_guid, writer_proxy) in self.matched_writers.iter_mut() {
-            match writer_proxy {
-                WriterProxyFlavor::BestEffort(best_effort_writer_proxy) => best_effort_writer_proxy.process(&self.reader_cache),
-                WriterProxyFlavor::Reliable(reliable_writer_proxy) => reliable_writer_proxy.process(&self.reader_cache, self.guid.entity_id(), self.heartbeat_response_delay),
-            }
-        }
     }
 }
 
