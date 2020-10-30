@@ -1,26 +1,41 @@
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
-use crate::types::{GuidPrefix, Locator };
+use crate::types::GuidPrefix;
 use crate::types::constants::{PROTOCOL_VERSION_2_4, VENDOR_ID};
+use crate::structure::RtpsGroup;
 use crate::transport::Transport;
+use crate::structure::OutputQueue;
 
-use super::{RtpsSubmessage, };
 use super::message::RtpsMessage;
 
-pub struct RtpsMessageSender {
-    transport: Arc<dyn Transport>
-}
+pub struct RtpsMessageSender;
 
 impl RtpsMessageSender {
-    pub fn new(transport: Arc<dyn Transport>) -> Self {
-        Self {
-            transport
+    pub fn send(&self, participant_guid_prefix: GuidPrefix, transport: &dyn Transport, group_list: &[&Arc<Mutex<RtpsGroup>>]) {
+        for &group in group_list {
+            let mut group = group.lock().unwrap();
+            for endpoint in group.mut_endpoints() {
+                let queues = endpoint.lock().unwrap().output_queues();
+                for queue in queues {
+                    match queue {
+                        OutputQueue::SingleDestination { locator, message_queue } => {
+                            let rtps_message = RtpsMessage::new(PROTOCOL_VERSION_2_4, VENDOR_ID, participant_guid_prefix, message_queue.into());
+                            transport.write(rtps_message, &locator);
+                        }
+                        OutputQueue::MultiDestination { unicast_locator_list, multicast_locator_list, message_queue } => {
+                            for locator in unicast_locator_list {
+                                let rtps_message = RtpsMessage::new(PROTOCOL_VERSION_2_4, VENDOR_ID, participant_guid_prefix, message_queue.into());
+                                transport.write(rtps_message, &locator);
+                                break; // Take only first element for now
+                            }
+                            for _locator in multicast_locator_list {
+                                break; // Take only first element for now
+                            }
+                        }
+                    }
+                }
+            }
         }
-    }
-
-    pub fn send(&self, participant_guid_prefix: GuidPrefix, locator: &Locator, submessages: Vec<RtpsSubmessage>) {
-        let rtps_message = RtpsMessage::new(PROTOCOL_VERSION_2_4, VENDOR_ID, participant_guid_prefix, submessages);
-        self.transport.write(rtps_message, &locator);
     }
 }
 

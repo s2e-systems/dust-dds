@@ -5,7 +5,6 @@ use crate::types::constants::{
     ENTITYID_PARTICIPANT,
     PROTOCOL_VERSION_2_4,};
 use crate::transport::Transport;
-use crate::messages::message_sender::RtpsMessageSender;
 
 use super::{RtpsGroup, RtpsEntity};
 
@@ -40,8 +39,8 @@ impl RtpsParticipant {
         let builtin_publisher_guid = GUID::new(guid_prefix, EntityId::new([3,3,3], EntityKind::BuiltInWriterGroup));
         let builtin_subscriber_guid = GUID::new(guid_prefix, EntityId::new([3,3,3], EntityKind::BuiltInReaderGroup));
 
-        let builtin_publisher = Arc::new(Mutex::new(RtpsGroup::new(builtin_publisher_guid, RtpsMessageSender::new(metatraffic_transport.clone()))));
-        let builtin_subscriber = Arc::new(Mutex::new(RtpsGroup::new(builtin_subscriber_guid, RtpsMessageSender::new(metatraffic_transport.clone()))));
+        let builtin_publisher = Arc::new(Mutex::new(RtpsGroup::new(builtin_publisher_guid)));
+        let builtin_subscriber = Arc::new(Mutex::new(RtpsGroup::new(builtin_subscriber_guid)));
 
         Self {
             guid: GUID::new(guid_prefix,ENTITYID_PARTICIPANT ),
@@ -114,8 +113,7 @@ impl ProtocolParticipant for RtpsParticipant {
         let guid_prefix = self.guid.prefix();
         let entity_id = EntityId::new([index as u8,0,0], EntityKind::UserDefinedWriterGroup);
         let publisher_guid = GUID::new(guid_prefix, entity_id);
-        // let publisher_sender = RtpsMessageSender::new(self.userdata_transport.clone());
-        let new_publisher = Arc::new(Mutex::new(RtpsGroup::new(publisher_guid, RtpsMessageSender::new(self.userdata_transport.clone()))));
+        let new_publisher = Arc::new(Mutex::new(RtpsGroup::new(publisher_guid)));
         self.publisher_list.push(new_publisher.clone());
 
         new_publisher
@@ -132,8 +130,7 @@ impl ProtocolParticipant for RtpsParticipant {
         let guid_prefix = self.guid.prefix();
         let entity_id = EntityId::new([index as u8,0,0], EntityKind::UserDefinedReaderGroup);
         let subscriber_guid = GUID::new(guid_prefix, entity_id);
-        // let subscriber_sender = RtpsMessageSender::new(self.userdata_transport.clone());
-        let new_subscriber = Arc::new(Mutex::new(RtpsGroup::new(subscriber_guid, RtpsMessageSender::new(self.userdata_transport.clone()))));
+        let new_subscriber = Arc::new(Mutex::new(RtpsGroup::new(subscriber_guid)));
         self.subscriber_list.push(new_subscriber.clone());
 
         new_subscriber

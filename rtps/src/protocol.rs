@@ -50,3 +50,13 @@ impl RtpsProtocol {
             &[self.participant.builtin_publisher(), self.participant.builtin_subscriber()])
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn spdp_announce() {
+
+    }
+}
