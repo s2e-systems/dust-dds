@@ -60,7 +60,7 @@ impl DomainParticipant {
 
         let name = "rtps";
         let protocol_participant = match name {            
-            "rtps" => Arc::new(Mutex::new(rust_rtps::structure::RtpsParticipant::new(domain_id, userdata_transport, metatraffic_transport))),
+            "rtps" => Arc::new(Mutex::new(rust_rtps::structure::RtpsParticipant::new(domain_id, [1;12], userdata_transport, metatraffic_transport))),
             _ => panic!("Protocol not valid"),
         };
         protocol_participant.lock().unwrap().enable().unwrap();

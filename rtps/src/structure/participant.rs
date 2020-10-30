@@ -1,18 +1,16 @@
 use std::sync::{Arc, Mutex, };
 
-use crate::types::{GUID, ProtocolVersion, VendorId, EntityId, EntityKind,};
+use crate::types::{GUID, GuidPrefix, ProtocolVersion, VendorId, EntityId, EntityKind,};
 use crate::types::constants::{
     ENTITYID_PARTICIPANT,
     PROTOCOL_VERSION_2_4,};
 use crate::transport::Transport;
-use crate::messages::message_receiver::RtpsMessageReceiver;
 use crate::messages::message_sender::RtpsMessageSender;
 
-use super::{RtpsGroup, RtpsEntity, RtpsRun};
+use super::{RtpsGroup, RtpsEntity};
 
 use rust_dds_interface::types::{DomainId, InstanceHandle, ReturnCode};
 use rust_dds_interface::protocol::{ProtocolEntity, ProtocolParticipant, ProtocolPublisher, ProtocolSubscriber};
-
 
 pub struct RtpsParticipant {
     guid: GUID,
@@ -30,6 +28,7 @@ pub struct RtpsParticipant {
 impl RtpsParticipant {
     pub fn new(
         domain_id: DomainId,
+        guid_prefix: GuidPrefix,
         userdata_transport: impl Transport,
         metatraffic_transport: impl Transport,
     ) -> Self {
@@ -37,7 +36,6 @@ impl RtpsParticipant {
         let metatraffic_transport = Arc::new(metatraffic_transport);
         let protocol_version = PROTOCOL_VERSION_2_4;
         let vendor_id = [99,99];
-        let guid_prefix = [5, 6, 7, 8, 9, 5, 1, 2, 3, 4, 10, 11];   // TODO: Should be uniquely generated
 
         let builtin_publisher_guid = GUID::new(guid_prefix, EntityId::new([3,3,3], EntityKind::BuiltInWriterGroup));
         let builtin_subscriber_guid = GUID::new(guid_prefix, EntityId::new([3,3,3], EntityKind::BuiltInReaderGroup));
@@ -82,6 +80,10 @@ impl RtpsParticipant {
     pub fn builtin_publisher(&self) -> &Arc<Mutex<RtpsGroup>> {
         &self.builtin_publisher
     }
+
+    pub fn builtin_subscriber(&self) -> &Arc<Mutex<RtpsGroup>> {
+        &self.builtin_subscriber
+    }
 }
 
 impl RtpsEntity for RtpsParticipant {
@@ -89,18 +91,6 @@ impl RtpsEntity for RtpsParticipant {
         self.guid
     }
 }
-
-// impl RtpsRun for RtpsParticipant {
-//     fn run(&mut self) {
-//         RtpsMessageReceiver::receive(
-//             self.guid.prefix(),
-//             self.metatraffic_transport.as_ref(),
-//             &[&self.builtin_subscriber, &self.builtin_publisher]
-//         );
-
-//         self.builtin_publisher.lock().unwrap().run();
-//     }
-// }
 
 impl ProtocolEntity for RtpsParticipant {
     fn get_instance_handle(&self) -> InstanceHandle {
@@ -195,7 +185,8 @@ mod tests {
 
     #[test]
     fn create_publisher() {
-        let mut participant = RtpsParticipant::new(0, MockTransport::new(), MockTransport::new());
+        let guid_prefix = [1;12];
+        let mut participant = RtpsParticipant::new(0, guid_prefix, MockTransport::new(), MockTransport::new());
         let participant_guid_prefix = &participant.get_instance_handle()[0..12];
 
         let publisher1 = participant.create_publisher();
@@ -221,7 +212,8 @@ mod tests {
 
     #[test]
     fn create_subscriber() {
-        let mut participant = RtpsParticipant::new(0, MockTransport::new(), MockTransport::new());
+        let guid_prefix = [1;12];
+        let mut participant = RtpsParticipant::new(0, guid_prefix, MockTransport::new(), MockTransport::new());
         let participant_guid_prefix = &participant.get_instance_handle()[0..12];
 
         let subscriber1 = participant.create_subscriber();

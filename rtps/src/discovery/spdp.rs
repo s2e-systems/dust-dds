@@ -34,12 +34,12 @@ use crate::endpoint_types::{
     };
 
 
-pub struct SimpleEndpointDiscoveryProtocol {
+pub struct SimpleParticipantDiscoveryProtocol {
     spdp_builtin_participant_writer: Arc<Mutex<StatelessWriter>>,
     spdp_builtin_participant_reader: Arc<Mutex<StatelessReader>>,
 }
 
-impl SimpleEndpointDiscoveryProtocol {
+impl SimpleParticipantDiscoveryProtocol {
     pub fn new(spdp_data: SPDPdiscoveredParticipantData) -> Self {
         let writer_guid = GUID::new(spdp_data.guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER);
         let writer_qos = DataWriterQos::default();
