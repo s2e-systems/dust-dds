@@ -8,7 +8,7 @@ use crate::behavior::{StatelessWriter, StatefulWriter, StatefulReader};
 use crate::behavior::stateful_writer::stateful_writer::ReaderProxyFlavor;
 use crate::behavior::stateful_reader::stateful_reader::WriterProxyFlavor;
 
-use crate::messages::RtpsMessage;
+use crate::messages::{RtpsMessage, RtpsSubmessage};
 
 pub struct RtpsMessageSender;
 
@@ -31,12 +31,14 @@ impl RtpsMessageSender {
 
     fn send_stateless_writer(stateless_writer: &mut StatelessWriter, transport: &dyn Transport, participant_guid_prefix: GuidPrefix) {
         for (destination_locator, reader_locator) in stateless_writer.reader_locators() {
-            let submessages =  reader_locator.output_queue_mut().drain(..).collect();
-            let message = RtpsMessage::new(
-                PROTOCOL_VERSION_2_4,
-                VENDOR_ID,
-                participant_guid_prefix, submessages);
-            transport.write(message, destination_locator)
+            let submessages: Vec<RtpsSubmessage> =  reader_locator.output_queue_mut().drain(..).collect();
+            if submessages.len() > 0 {
+                let message = RtpsMessage::new(
+                    PROTOCOL_VERSION_2_4,
+                    VENDOR_ID,
+                    participant_guid_prefix, submessages);
+                transport.write(message, destination_locator);
+            }
         }
     }
 
@@ -44,31 +46,35 @@ impl RtpsMessageSender {
         for (_, reader_proxy) in stateful_writer.matched_readers() {
             match reader_proxy {
                 ReaderProxyFlavor::BestEffort(best_effort_reader_proxy) => {
-                    let submessages = best_effort_reader_proxy.output_queue_mut().drain(..).collect();
-                    let unicast_locator_list = best_effort_reader_proxy.unicast_locator_list();
-                    let multicast_locator_list = best_effort_reader_proxy.multicast_locator_list();
-                    let message = RtpsMessage::new(
-                        PROTOCOL_VERSION_2_4,
-                        VENDOR_ID,
-                        participant_guid_prefix, submessages);
-                    if !unicast_locator_list.is_empty() {
-                        transport.write(message, &unicast_locator_list[0]);
-                    } else if !multicast_locator_list.is_empty() {
-                        transport.write(message, &multicast_locator_list[0]);
+                    let submessages: Vec<RtpsSubmessage> = best_effort_reader_proxy.output_queue_mut().drain(..).collect();
+                    if submessages.len() > 0 {
+                        let unicast_locator_list = best_effort_reader_proxy.unicast_locator_list();
+                        let multicast_locator_list = best_effort_reader_proxy.multicast_locator_list();
+                        let message = RtpsMessage::new(
+                            PROTOCOL_VERSION_2_4,
+                            VENDOR_ID,
+                            participant_guid_prefix, submessages);
+                        if !unicast_locator_list.is_empty() {
+                            transport.write(message, &unicast_locator_list[0]);
+                        } else if !multicast_locator_list.is_empty() {
+                            transport.write(message, &multicast_locator_list[0]);
+                        }
                     }
                 }
                 ReaderProxyFlavor::Reliable(reliable_reader_proxy) => {
-                    let submessages = reliable_reader_proxy.output_queue_mut().drain(..).collect();
-                    let unicast_locator_list = reliable_reader_proxy.unicast_locator_list();
-                    let multicast_locator_list = reliable_reader_proxy.multicast_locator_list();
-                    let message = RtpsMessage::new(
-                        PROTOCOL_VERSION_2_4,
-                        VENDOR_ID,
-                        participant_guid_prefix, submessages);
-                    if !unicast_locator_list.is_empty() {
-                        transport.write(message, &unicast_locator_list[0]);
-                    } else if !multicast_locator_list.is_empty() {
-                        transport.write(message, &multicast_locator_list[0]);
+                    let submessages: Vec<RtpsSubmessage> = reliable_reader_proxy.output_queue_mut().drain(..).collect();
+                    if submessages.len() > 0 {
+                        let unicast_locator_list = reliable_reader_proxy.unicast_locator_list();
+                        let multicast_locator_list = reliable_reader_proxy.multicast_locator_list();
+                        let message = RtpsMessage::new(
+                            PROTOCOL_VERSION_2_4,
+                            VENDOR_ID,
+                            participant_guid_prefix, submessages);
+                        if !unicast_locator_list.is_empty() {
+                            transport.write(message, &unicast_locator_list[0]);
+                        } else if !multicast_locator_list.is_empty() {
+                            transport.write(message, &multicast_locator_list[0]);
+                        }
                     }
                 }
             }
@@ -80,17 +86,19 @@ impl RtpsMessageSender {
             match writer_proxy {
                 WriterProxyFlavor::BestEffort(_) => (),
                 WriterProxyFlavor::Reliable(reliable_writer_proxy) => {
-                    let submessages = reliable_writer_proxy.output_queue_mut().drain(..).collect();
-                    let unicast_locator_list = reliable_writer_proxy.unicast_locator_list();
-                    let multicast_locator_list = reliable_writer_proxy.multicast_locator_list();
-                    let message = RtpsMessage::new(
-                        PROTOCOL_VERSION_2_4,
-                        VENDOR_ID,
-                        participant_guid_prefix, submessages);
-                    if !unicast_locator_list.is_empty() {
-                        transport.write(message, &unicast_locator_list[0]);
-                    } else if !multicast_locator_list.is_empty() {
-                        transport.write(message, &multicast_locator_list[0]);
+                    let submessages: Vec<RtpsSubmessage> = reliable_writer_proxy.output_queue_mut().drain(..).collect();
+                    if submessages.len() > 0 {
+                        let unicast_locator_list = reliable_writer_proxy.unicast_locator_list();
+                        let multicast_locator_list = reliable_writer_proxy.multicast_locator_list();
+                        let message = RtpsMessage::new(
+                            PROTOCOL_VERSION_2_4,
+                            VENDOR_ID,
+                            participant_guid_prefix, submessages);
+                        if !unicast_locator_list.is_empty() {
+                            transport.write(message, &unicast_locator_list[0]);
+                        } else if !multicast_locator_list.is_empty() {
+                            transport.write(message, &multicast_locator_list[0]);
+                        }
                     }
                 }
             }

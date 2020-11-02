@@ -52,13 +52,13 @@ impl RtpsProtocol {
         }
     }
 
-    // pub fn run_builtin_endpoints(&self) {
-    //     self.spdp.spdp_builtin_participant_reader().lock().unwrap().run(
-    //         |_| println!("Discovery data")
-    //     );
+    pub fn run_builtin_endpoints(&self) {
+        self.spdp.spdp_builtin_participant_reader().lock().unwrap().run(
+            |_| println!("Discovery data")
+        );
 
-    //     self.spdp.spdp_builtin_participant_writer().lock().unwrap().run();
-    // }
+        self.spdp.spdp_builtin_participant_writer().lock().unwrap().run();
+    }
 
     // pub fn receive_metatraffic(&self) {
     //     RtpsMessageReceiver::receive(
@@ -78,10 +78,47 @@ impl RtpsProtocol {
 
 #[cfg(test)]
 mod tests {
-    // use super::*;
+    use super::*;
+    use crate::types::Locator;
 
+    struct MockTransport{
+        multicast_locator_list: Vec<Locator>,
+        unicast_locator_list: Vec<Locator>,
+    }
+
+    impl MockTransport{
+        fn new() -> Self {
+            Self {
+                multicast_locator_list: vec![Locator::new_udpv4(7400, [235,0,0,1])],
+                unicast_locator_list: vec![Locator::new_udpv4(7400, [235,0,0,1])],
+            }
+        }
+    }
+
+    impl Transport for MockTransport {
+        fn write(&self, message: crate::RtpsMessage, _destination_locator: &Locator) {
+            println!("{:?}", message);
+        }
+
+        fn read(&self) -> crate::transport::TransportResult<Option<(crate::RtpsMessage, Locator)>> {
+            todo!()
+        }
+
+        fn unicast_locator_list(&self) -> &Vec<Locator> {
+            &self.unicast_locator_list
+        }
+
+        fn multicast_locator_list(&self) -> &Vec<Locator> {
+            &self.multicast_locator_list
+        }
+    }
     #[test]
     fn spdp_announce() {
-
+        let domain_id = 0;
+        let domain_tag = "".to_string();
+        let lease_duration = Duration::from_millis(100);
+        let protocol = RtpsProtocol::new(domain_id, MockTransport::new(), MockTransport::new(), domain_tag, lease_duration);
+        protocol.run_builtin_endpoints();
+        protocol.send_metatraffic();
     }
 }
