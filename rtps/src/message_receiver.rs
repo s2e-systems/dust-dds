@@ -13,7 +13,7 @@ impl RtpsMessageReceiver {
         where I: IntoIterator<Item = &'a Arc<Mutex<dyn RtpsEndpoint>> >
     {     
         let endpoint_list: Vec<&'a Arc<Mutex<dyn RtpsEndpoint>>> = endpoint_list.into_iter().collect();
-        if let Some((message, src_locator)) = transport.read().unwrap() {
+        if let Some((message, _src_locator)) = transport.read().unwrap() {
             let _source_version = message.header().version();
             let _source_vendor_id = message.header().vendor_id();
             let source_guid_prefix = message.header().guid_prefix();
@@ -29,11 +29,11 @@ impl RtpsMessageReceiver {
                     for endpoint in endpoint_list.iter() {                        
                         let mut endpoint_lock = endpoint.lock().unwrap();
                         if let Some(stateless_reader) = endpoint_lock.get_mut::<StatelessReader>() {
-                            stateless_reader.try_process_message(src_locator, source_guid_prefix, &mut optional_submessage);
+                            stateless_reader.try_process_message(source_guid_prefix, &mut optional_submessage);
                         } else if let Some(stateful_writer) = endpoint_lock.get_mut::<StatefulWriter>() {
                             stateful_writer.try_process_message(source_guid_prefix, &mut optional_submessage);
                         } else if let Some(stateful_reader) = endpoint_lock.get_mut::<StatefulReader>() {
-                            //
+                            stateful_reader.try_process_message(source_guid_prefix, &mut optional_submessage);
                         }
                     }
                 } else if submessage.is_interpreter_submessage(){

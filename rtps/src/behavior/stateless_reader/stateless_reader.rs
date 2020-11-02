@@ -49,11 +49,10 @@ impl StatelessReader {
         }
     }
 
-    fn waiting_state(&mut self, src_locator: Locator, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>) {
+    fn waiting_state(&mut self, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>) {
         if let Some(inner_submessage) = submessage {
-            if let RtpsSubmessage::Data(data) = inner_submessage {                 
-                let is_in_locator_lists = self.multicast_locator_list.contains(&src_locator) || self.unicast_locator_list.contains(&src_locator);
-                if is_in_locator_lists && (self.guid.entity_id() == data.reader_id() || data.reader_id() == ENTITYID_UNKNOWN) {
+            if let RtpsSubmessage::Data(data) = inner_submessage { 
+                if self.guid.entity_id() == data.reader_id() || data.reader_id() == ENTITYID_UNKNOWN {
                     if let RtpsSubmessage::Data(data) = submessage.take().unwrap() {
                         self.transition_t2(src_guid_prefix, data)
                     }
@@ -71,8 +70,8 @@ impl StatelessReader {
         &self.reader_cache
     }   
 
-    pub fn try_process_message(&mut self, src_locator: Locator, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>) {
-        self.waiting_state(src_locator, src_guid_prefix, submessage);
+    pub fn try_process_message(&mut self, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>) {
+        self.waiting_state(src_guid_prefix, submessage);
     }
 }
 
