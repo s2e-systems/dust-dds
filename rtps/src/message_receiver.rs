@@ -31,8 +31,7 @@ impl RtpsMessageReceiver {
                         if let Some(stateless_reader) = endpoint_lock.get_mut::<StatelessReader>() {
                             stateless_reader.try_process_message(src_locator, source_guid_prefix, &mut optional_submessage);
                         } else if let Some(stateful_writer) = endpoint_lock.get_mut::<StatefulWriter>() {
-                            //stateful_writer.
-                            //stateful_writer.try_push_message(src_locator, source_guid_prefix, &mut optional_submessage);
+                            stateful_writer.try_process_message(source_guid_prefix, &mut optional_submessage);
                         } else if let Some(stateful_reader) = endpoint_lock.get_mut::<StatefulReader>() {
                             //
                         }

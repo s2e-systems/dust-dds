@@ -103,6 +103,15 @@ impl StatefulWriter {
         }
     }
 
+    pub fn try_process_message(&mut self, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>) {
+        for (_reader_guid, reader_proxy) in self.matched_readers.iter_mut(){
+            match reader_proxy {
+                ReaderProxyFlavor::Reliable(reliable_reader_proxy) => reliable_reader_proxy.try_process_message(src_guid_prefix, submessage),
+                ReaderProxyFlavor::BestEffort(_) => ()
+            }
+        }
+    }
+
     pub fn guid(&self) -> &GUID {
         &self.guid
     }

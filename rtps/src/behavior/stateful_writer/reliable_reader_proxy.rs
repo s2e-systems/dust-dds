@@ -44,6 +44,24 @@ impl ReliableReaderProxy {
         }
     }
 
+    pub fn try_process_message(&mut self, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>) {
+        if let Some(inner_submessage) = submessage {
+            if let  RtpsSubmessage::AckNack(acknack) = inner_submessage {    
+                let reader_guid = GUID::new(src_guid_prefix, acknack.reader_id());
+                if self.reader_proxy.remote_reader_guid() == &reader_guid {
+                    if let RtpsSubmessage::AckNack(acknack) = submessage.take().unwrap() { 
+                        if self.reader_proxy.requested_changes().is_empty() {
+                            self.waiting_state(acknack);
+                        } else {
+                            self.must_repair_state(acknack);
+                        }
+                    }
+                }
+
+            }
+        }
+    }
+
     pub fn process(&mut self, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber) {
         if self.reader_proxy.unacked_changes(last_change_sequence_number).is_empty() {
             // Idle
@@ -53,28 +71,25 @@ impl ReliableReaderProxy {
             self.announcing_state(history_cache, last_change_sequence_number);
         }
     
-        if self.reader_proxy.requested_changes().is_empty() {
-            self.waiting_state();
-        } else {
-            self.must_repair_state();
+        if !self.reader_proxy.requested_changes().is_empty() {
             if self.duration_since_nack_received() > self.nack_response_delay {
                 self.repairing_state(history_cache);
             }
         }
     }
 
-    pub fn try_push_message(&mut self, _src_locator: Locator, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>) {
-        let reader_id = match submessage {
-            Some(RtpsSubmessage::AckNack(acknack)) => acknack.reader_id(),
-            _ => return,
-        };
+    // pub fn try_push_message(&mut self, _src_locator: Locator, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>) {
+    //     let reader_id = match submessage {
+    //         Some(RtpsSubmessage::AckNack(acknack)) => acknack.reader_id(),
+    //         _ => return,
+    //     };
 
-        let reader_guid = GUID::new(src_guid_prefix, reader_id);
+    //     let reader_guid = GUID::new(src_guid_prefix, reader_id);
 
-        if self.reader_proxy.remote_reader_guid() == &reader_guid {
-            self.input_queue.push_back(submessage.take().unwrap())
-        }
-    }
+    //     if self.reader_proxy.remote_reader_guid() == &reader_guid {
+    //         self.input_queue.push_back(submessage.take().unwrap())
+    //     }
+    // }
 
     pub fn unicast_locator_list(&self) -> &Vec<Locator> {
         self.reader_proxy.unicast_locator_list()
@@ -156,12 +171,9 @@ impl ReliableReaderProxy {
         self.output_queue.push_back(RtpsSubmessage::Heartbeat(heartbeat));
     }
     
-    fn waiting_state(&mut self) {
-        let received = self.input_queue.pop_front();
-        if let Some(RtpsSubmessage::AckNack(acknack)) = received {
-            self.transition_t8(acknack);
-            self.time_nack_received_reset();
-        }
+    fn waiting_state(&mut self, acknack: AckNack) {
+        self.transition_t8(acknack);
+        self.time_nack_received_reset();
     }
     
     fn transition_t8(&mut self, acknack: AckNack) {
@@ -169,11 +181,8 @@ impl ReliableReaderProxy {
         self.reader_proxy.requested_changes_set(acknack.reader_sn_state().set().clone());
     }
     
-    fn must_repair_state(&mut self) {
-        let received = self.input_queue.pop_front();
-        if let Some(RtpsSubmessage::AckNack(acknack)) = received {
-            self.transition_t8(acknack);
-        }
+    fn must_repair_state(&mut self, acknack: AckNack) {
+        self.transition_t8(acknack);
     }
     
     fn repairing_state(&mut self, history_cache: &HistoryCache) {
