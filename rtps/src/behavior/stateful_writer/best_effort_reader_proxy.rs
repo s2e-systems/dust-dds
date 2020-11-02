@@ -28,10 +28,6 @@ impl BestEffortReaderProxy {
         }
     }
 
-    pub fn try_push_message(&mut self, _src_locator: crate::types::Locator, _src_guid_prefix: crate::types::GuidPrefix, _submessage: &mut Option<RtpsSubmessage>) {
-        // Best effort reader proxies do not receive messages so do nothing
-    }
-
     pub fn unicast_locator_list(&self) -> &Vec<crate::types::Locator> {
         self.reader_proxy.unicast_locator_list()
     }
@@ -76,10 +72,6 @@ impl BestEffortReaderProxy {
             dst_locator.extend(self.reader_proxy.multicast_locator_list());
             self.output_queue.push_back(RtpsSubmessage::Gap(gap));
         }
-    }
-
-    pub fn reader_proxy(&self) -> &ReaderProxy {
-        &self.reader_proxy
     }
 }
 

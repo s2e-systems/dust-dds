@@ -49,19 +49,12 @@ impl ReliableWriterProxy {
         }
     }
 
-    pub fn try_push_message(&mut self, _src_locator: crate::types::Locator, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>) {
-        let writer_id = match submessage {
-            Some(RtpsSubmessage::Data(data)) => data.writer_id(),
-            Some(RtpsSubmessage::Gap(gap)) => gap.writer_id(),
-            Some(RtpsSubmessage::Heartbeat(heartbeat)) => heartbeat.writer_id(),
-            _ => return,
-        };
+    pub fn unicast_locator_list(&self) -> &Vec<crate::types::Locator> {
+        self.writer_proxy.unicast_locator_list()
+    }
 
-        let writer_guid = GUID::new(src_guid_prefix, writer_id);
-
-        if self.writer_proxy.remote_writer_guid() == &writer_guid {
-            self.input_queue.push_back(submessage.take().unwrap())
-        }
+    pub fn multicast_locator_list(&self) -> &Vec<crate::types::Locator> {
+        self.writer_proxy.multicast_locator_list()
     }
 
     fn ready_state(&mut self, history_cache: &mut HistoryCache) -> Option<Heartbeat>{
@@ -171,10 +164,6 @@ impl ReliableWriterProxy {
     pub fn output_queue_mut(&mut self) -> &mut VecDeque<RtpsSubmessage> {
         &mut self.output_queue
     }
-
-    pub fn writer_proxy(&self) -> &WriterProxy {
-        &self.writer_proxy
-    }
 }
 
 #[cfg(test)]
@@ -212,8 +201,8 @@ mod tests {
             3,
             Some(inline_qos),
             Payload::Data(vec![1,2,3]));
-
-        reliable_writer_proxy.try_push_message(LOCATOR_INVALID,  remote_writer_guid_prefix, &mut Some(RtpsSubmessage::Data(data1)));
+            
+        reliable_writer_proxy.input_queue.push_back(RtpsSubmessage::Data(data1));
 
 
         reliable_writer_proxy.process(&mut history_cache, reader_entity_id, heartbeat_response_delay);
@@ -259,7 +248,7 @@ mod tests {
             false,
         );
     
-        reliable_writer_proxy.try_push_message(LOCATOR_INVALID,  remote_writer_guid_prefix, &mut Some(RtpsSubmessage::Heartbeat(heartbeat)));
+        reliable_writer_proxy.input_queue.push_back(RtpsSubmessage::Heartbeat(heartbeat));
 
         reliable_writer_proxy.process(&mut history_cache, reader_entity_id, heartbeat_response_delay);
         assert_eq!(reliable_writer_proxy.writer_proxy.missing_changes(), [3, 4, 5, 6].iter().cloned().collect());
@@ -287,7 +276,8 @@ mod tests {
             true,
             false,
         );
-        reliable_writer_proxy.try_push_message(LOCATOR_INVALID,  remote_writer_guid_prefix, &mut Some(RtpsSubmessage::Heartbeat(heartbeat)));
+        reliable_writer_proxy.input_queue.push_back(RtpsSubmessage::Heartbeat(heartbeat));
+        
 
         reliable_writer_proxy.process(&mut history_cache, reader_entity_id, heartbeat_response_delay);
         assert_eq!(reliable_writer_proxy.writer_proxy.missing_changes(), [2, 3].iter().cloned().collect());
@@ -322,7 +312,7 @@ mod tests {
             true,
             false,
         );
-        reliable_writer_proxy.try_push_message(LOCATOR_INVALID,  remote_writer_guid_prefix, &mut Some(RtpsSubmessage::Heartbeat(heartbeat)));
+        reliable_writer_proxy.input_queue.push_back(RtpsSubmessage::Heartbeat(heartbeat));
 
         reliable_writer_proxy.process(&mut history_cache, reader_entity_id, heartbeat_response_delay);
         assert_eq!(reliable_writer_proxy.writer_proxy.missing_changes(), [].iter().cloned().collect());

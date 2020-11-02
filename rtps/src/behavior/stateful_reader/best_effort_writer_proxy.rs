@@ -24,19 +24,6 @@ impl BestEffortWriterProxy {
         self.waiting_state(history_cache);
     }
 
-    pub fn try_push_message(&mut self, _src_locator: crate::types::Locator, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>) {
-        let writer_id = match submessage {
-            Some(RtpsSubmessage::Data(data)) => data.writer_id(),
-            Some(RtpsSubmessage::Gap(gap)) => gap.writer_id(),
-            _ => return,
-        };
-        let writer_guid = GUID::new(src_guid_prefix, writer_id);
-
-        if self.writer_proxy.remote_writer_guid() == &writer_guid {
-            self.input_queue.push_back(submessage.take().unwrap())
-        }
-    }
-
     fn waiting_state(&mut self, history_cache: &mut HistoryCache) {
         let received = self.input_queue.pop_front();
         if let Some(received_message) = received  {
@@ -106,7 +93,7 @@ mod tests {
             Some(inline_qos),
             Payload::Data(vec![1,2,3]));
 
-        best_effort_proxy.try_push_message(LOCATOR_INVALID,  remote_writer_guid_prefix, &mut Some(RtpsSubmessage::Data(data1)));
+        best_effort_proxy.input_queue.push_back(RtpsSubmessage::Data(data1));
         best_effort_proxy.process(&mut history_cache);
 
         let expected_change_1 = CacheChange::new(
