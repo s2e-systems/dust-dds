@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use crate::transport::Transport;
 use crate::behavior::types::Duration;
 use crate::discovery::spdp::{SimpleParticipantDiscoveryProtocol, SPDPdiscoveredParticipantData};
@@ -12,13 +13,15 @@ use rust_dds_interface::types::DomainId;
 pub struct RtpsProtocol {
     participant: RtpsParticipant,
     spdp: SimpleParticipantDiscoveryProtocol,
+    userdata_transport: Arc<dyn Transport>,
+    metatraffic_transport: Arc<dyn Transport>,
 }
 
 impl RtpsProtocol {
     pub fn new(domain_id: DomainId, userdata_transport: impl Transport, metatraffic_transport: impl Transport, domain_tag: String, lease_duration: Duration) -> Self {
 
         let guid_prefix = [1,2,3,4,5,6,7,8,9,10,11,12];  //TODO: Should be uniquely generated
-        let participant = RtpsParticipant::new(domain_id, guid_prefix, userdata_transport, metatraffic_transport);
+        let participant = RtpsParticipant::new(domain_id, guid_prefix);
 
         let data = SPDPdiscoveredParticipantData::new(
             participant.domain_id(),
@@ -26,10 +29,10 @@ impl RtpsProtocol {
             participant.protocol_version(), 
             participant.guid().prefix(), 
             participant.vendor_id(), 
-            participant.metatraffic_transport().unicast_locator_list().clone(), 
-            participant.metatraffic_transport().multicast_locator_list().clone(), 
-            participant.userdata_transport().unicast_locator_list().clone(),
-            participant.userdata_transport().multicast_locator_list().clone(),
+            metatraffic_transport.unicast_locator_list().clone(), 
+            metatraffic_transport.multicast_locator_list().clone(), 
+            userdata_transport.unicast_locator_list().clone(),
+            userdata_transport.multicast_locator_list().clone(),
             BuiltInEndpointSet::new(0),
             lease_duration,
         );
@@ -38,9 +41,14 @@ impl RtpsProtocol {
         participant.builtin_publisher().lock().unwrap().mut_endpoints().push(spdp.spdp_builtin_participant_writer().clone());
         participant.builtin_subscriber().lock().unwrap().mut_endpoints().push(spdp.spdp_builtin_participant_reader().clone());
 
+        let userdata_transport = Arc::new(userdata_transport);
+        let metatraffic_transport = Arc::new(metatraffic_transport);
+
         Self {
             participant,
             spdp,
+            userdata_transport,
+            metatraffic_transport,
         }
     }
 
@@ -62,7 +70,7 @@ impl RtpsProtocol {
     pub fn send_metatraffic(&self) {
         RtpsMessageSender::send(
             self.participant.guid().prefix(), 
-            self.participant.metatraffic_transport().as_ref(),
+            self.metatraffic_transport.as_ref(),
             self.participant.builtin_publisher().lock().unwrap().into_iter()
             .chain(self.participant.builtin_subscriber().lock().unwrap().into_iter()))
     }

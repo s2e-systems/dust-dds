@@ -103,23 +103,6 @@ impl RtpsEntity for StatelessWriter {
     }
 }
 
-// impl RtpsMessageSender for StatelessWriter {
-//     fn output_queues(&mut self) -> Vec<OutputQueue> {
-//         let mut output = Vec::new();
-
-//         for (_, reader_locator) in &mut self.reader_locators {
-//             let locator = *reader_locator.locator();
-//             let mut message_queue = VecDeque::new();
-//             let output_queue = reader_locator.output_queue_mut();
-//             std::mem::swap(&mut message_queue, output_queue);
-
-//             output.push(OutputQueue::SingleDestination{locator, message_queue})
-//         }
-
-//         output
-//     }
-// }
-
 impl RtpsEndpoint for StatelessWriter {
     fn unicast_locator_list(&self) -> Vec<Locator> {
         vec![]
@@ -145,12 +128,6 @@ impl RtpsEndpoint for StatelessWriter {
         self
     }
 }
-
-// impl RtpsCommunication for StatelessWriter {
-//     fn try_push_message(&mut self, _src_locator: Locator, _src_guid_prefix: crate::types::GuidPrefix, _submessage: &mut Option<RtpsSubmessage>) {
-//         // Doesn't receive message so do nothing
-//     }
-// }
 
 #[cfg(test)]
 mod tests {
