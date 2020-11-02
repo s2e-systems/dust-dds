@@ -124,6 +124,10 @@ impl StatefulWriter {
         self.matched_readers.remove(reader_proxy_guid);
     }
 
+    pub fn matched_readers(&mut self) -> &mut HashMap<GUID, ReaderProxyFlavor> {
+        &mut self.matched_readers
+    }
+
     pub fn is_acked_by_all(&self) -> bool {
         todo!()
     }
@@ -134,24 +138,6 @@ impl StatefulWriter {
 
     pub fn nack_response_delay(&self) -> Duration {
         self.nack_response_delay
-    }
-}
-
-impl<'a> IntoIterator for &'a StatefulWriter {
-    type Item = (&'a GUID, &'a ReaderProxyFlavor);
-    type IntoIter = std::collections::hash_map::Iter<'a, GUID, ReaderProxyFlavor>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.matched_readers.iter()
-    }
-}
-
-impl<'a> IntoIterator for &'a mut StatefulWriter {
-    type Item = (&'a GUID, &'a mut ReaderProxyFlavor);
-    type IntoIter = std::collections::hash_map::IterMut<'a, GUID, ReaderProxyFlavor>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.matched_readers.iter_mut()
     }
 }
 

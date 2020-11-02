@@ -84,6 +84,10 @@ impl StatefulReader {
         self.matched_writers.remove(writer_proxy_guid);
     }
 
+    pub fn matched_writers(&mut self) -> &mut HashMap<GUID, WriterProxyFlavor> {
+        &mut self.matched_writers
+    }
+
     pub fn reader_cache(&self) -> &HistoryCache {
         &self.reader_cache
     }
@@ -94,24 +98,6 @@ impl StatefulReader {
 
     pub fn guid(&self) -> &GUID {
         &self.guid
-    }
-}
-
-impl<'a> IntoIterator for &'a StatefulReader {
-    type Item = (&'a GUID, &'a WriterProxyFlavor);
-    type IntoIter = std::collections::hash_map::Iter<'a, GUID, WriterProxyFlavor>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.matched_writers.iter()
-    }
-}
-
-impl<'a> IntoIterator for &'a mut StatefulReader {
-    type Item = (&'a GUID, &'a mut WriterProxyFlavor);
-    type IntoIter = std::collections::hash_map::IterMut<'a, GUID, WriterProxyFlavor>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.matched_writers.iter_mut()
     }
 }
 

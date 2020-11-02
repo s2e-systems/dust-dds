@@ -30,7 +30,7 @@ impl RtpsMessageSender {
     }
 
     fn send_stateless_writer(stateless_writer: &mut StatelessWriter, transport: &dyn Transport, participant_guid_prefix: GuidPrefix) {
-        for (destination_locator, reader_locator) in stateless_writer.into_iter() {
+        for (destination_locator, reader_locator) in stateless_writer.reader_locators() {
             let submessages =  reader_locator.output_queue_mut().drain(..).collect();
             let message = RtpsMessage::new(
                 PROTOCOL_VERSION_2_4,
@@ -40,8 +40,8 @@ impl RtpsMessageSender {
         }
     }
 
-    fn send_stateful_writer(stateful_writer: &StatefulWriter, transport: &dyn Transport, participant_guid_prefix: GuidPrefix) {
-        for (guid, reader_proxy) in stateful_writer.into_iter() {
+    fn send_stateful_writer(stateful_writer: &mut StatefulWriter, transport: &dyn Transport, participant_guid_prefix: GuidPrefix) {
+        for (guid, reader_proxy) in stateful_writer.matched_readers() {
             match reader_proxy {
                 ReaderProxyFlavor::BestEffort(_best_effort_reader_proxy) => {
                     todo!()
@@ -53,8 +53,8 @@ impl RtpsMessageSender {
         }
     }
 
-    fn send_stateful_reader(stateful_reader: &StatefulReader, transport: &dyn Transport, participant_guid_prefix: GuidPrefix) {
-        for (guid, writer_proxy) in stateful_reader.into_iter() {
+    fn send_stateful_reader(stateful_reader: &mut StatefulReader, transport: &dyn Transport, participant_guid_prefix: GuidPrefix) {
+        for (guid, writer_proxy) in stateful_reader.matched_writers() {
             match writer_proxy {
                 WriterProxyFlavor::BestEffort(_best_effort_reader_proxy) => (),
                 WriterProxyFlavor::Reliable(_reliable_reader_proxy) => {

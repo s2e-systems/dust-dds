@@ -6,6 +6,7 @@ pub trait RtpsEndpoint : RtpsEntity  {
     fn multicast_locator_list(&self) -> Vec<Locator>;
     fn reliability_level(&self) -> ReliabilityKind;
     fn topic_kind(&self) -> &TopicKind;
+    
     fn as_any(&self) -> &dyn std::any::Any;
     fn as_mut_any(&mut self) -> &mut dyn std::any::Any;
 }

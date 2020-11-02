@@ -29,24 +29,6 @@ pub struct StatelessWriter {
     reader_locators: HashMap<Locator, ReaderLocator>,
 }
 
-impl<'a> IntoIterator for &'a StatelessWriter {
-    type Item = (&'a Locator, &'a ReaderLocator);
-    type IntoIter = std::collections::hash_map::Iter<'a, Locator, ReaderLocator>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.reader_locators.iter()
-    }
-}
-
-impl<'a> IntoIterator for &'a mut StatelessWriter {
-    type Item = (&'a Locator, &'a mut ReaderLocator);
-    type IntoIter = std::collections::hash_map::IterMut<'a, Locator, ReaderLocator>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.reader_locators.iter_mut()
-    }
-}
-
 impl StatelessWriter {
     pub fn new(
         guid: GUID,
@@ -110,17 +92,8 @@ impl StatelessWriter {
         }
     }
 
-    pub fn output_queues(&mut self) -> Vec<(Locator, &mut VecDeque<RtpsSubmessage>)> {
-        let mut output = Vec::new();
-
-        for (_, reader_locator) in &mut self.reader_locators {
-            let locator = *reader_locator.locator();
-            let output_queue = reader_locator.output_queue_mut();
-
-            output.push((locator, output_queue))
-        }
-
-        output
+    pub fn reader_locators(&mut self) -> &mut HashMap<Locator, ReaderLocator> {
+        &mut self.reader_locators
     }
 }
 
