@@ -61,15 +61,15 @@ impl StatefulReader {
             }
     }
 
-    pub fn run(&mut self) {
+    pub fn try_process_message(&mut self, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>) {
         for (_writer_guid, writer_proxy) in self.matched_writers.iter_mut() {
             match writer_proxy {
-                WriterProxyFlavor::BestEffort(best_effort_writer_proxy) => best_effort_writer_proxy.process(&mut self.reader_cache),
-                WriterProxyFlavor::Reliable(reliable_writer_proxy) => reliable_writer_proxy.process(&mut self.reader_cache, self.guid.entity_id(), self.heartbeat_response_delay),
+                WriterProxyFlavor::BestEffort(best_effort_writer_proxy) => best_effort_writer_proxy.try_process_message(src_guid_prefix, submessage, &mut self.reader_cache),
+                WriterProxyFlavor::Reliable(reliable_writer_proxy) => reliable_writer_proxy.try_process_message(src_guid_prefix, submessage, &mut self.reader_cache),
             }
         }
     }
-
+    
     pub fn matched_writer_add(&mut self, a_writer_proxy: WriterProxy) {
         let remote_writer_guid = a_writer_proxy.remote_writer_guid().clone();
         let writer_proxy = match self.reliability_level {
@@ -119,25 +119,6 @@ impl RtpsEntity for StatefulReader {
     }
 }
 
-// impl RtpsMessageSender for StatefulReader {
-//     fn output_queues(&mut self) -> Vec<OutputQueue> {
-//         let mut output_queues = Vec::new();
-//         for (_, proxy) in self.matched_writers.iter_mut() {
-//             match proxy {
-//                 WriterProxyFlavor::BestEffort(_) => {}
-//                 WriterProxyFlavor::Reliable(reliable_proxy) => {
-//                     output_queues.push(OutputQueue::MultiDestination{
-//                         unicast_locator_list: reliable_proxy.writer_proxy().unicast_locator_list().clone(),                        
-//                         multicast_locator_list: reliable_proxy.writer_proxy().multicast_locator_list().clone(),
-//                         message_queue: reliable_proxy.output_queue_mut().drain(..).collect()
-//                     });
-//                 }
-//             }
-//         }
-//         output_queues
-//     }
-// }
-
 impl RtpsEndpoint for StatefulReader {
     fn unicast_locator_list(&self) -> Vec<Locator> {
         todo!()
@@ -166,12 +147,7 @@ impl RtpsEndpoint for StatefulReader {
 
 // impl RtpsCommunication for StatefulReader {
 //     fn try_push_message(&mut self, src_locator: Locator, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>) {
-//         for (_, writer_proxy) in &mut self.matched_writers {
-//             match writer_proxy {
-//                 WriterProxyFlavor::BestEffort(best_effort_writer_proxy) => best_effort_writer_proxy.try_push_message(src_locator, src_guid_prefix, submessage),
-//                 WriterProxyFlavor::Reliable(reliable_writer_proxy) => reliable_writer_proxy.try_push_message(src_locator, src_guid_prefix, submessage),
-//             }
-//         }
+//         
 //     }
 // }
 
