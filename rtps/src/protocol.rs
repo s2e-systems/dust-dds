@@ -2,6 +2,7 @@ use std::sync::Arc;
 use crate::transport::Transport;
 use crate::behavior::types::Duration;
 use crate::discovery::spdp::{SimpleParticipantDiscoveryProtocol, SPDPdiscoveredParticipantData};
+use crate::discovery::sedp::{SimpleEndpointDiscoveryProtocol};
 use crate::endpoint_types::BuiltInEndpointSet;
 use crate::structure::RtpsParticipant;
 use crate::structure::entity::RtpsEntity;
@@ -36,11 +37,26 @@ impl RtpsProtocol {
             BuiltInEndpointSet::new(0),
             lease_duration,
         );
+        
         let spdp = SimpleParticipantDiscoveryProtocol::new(data);
 
-        participant.builtin_publisher().lock().unwrap().mut_endpoints().push(spdp.spdp_builtin_participant_writer().clone());
-        participant.builtin_subscriber().lock().unwrap().mut_endpoints().push(spdp.spdp_builtin_participant_reader().clone());
+        {
+            let mut builtin_publisher = participant.builtin_publisher().lock().unwrap();
+            let mut builtin_subscriber = participant.builtin_subscriber().lock().unwrap();
+            let builtin_publisher_endpoints = builtin_publisher.mut_endpoints();
+            let builtin_subscriber_endpoints = builtin_subscriber.mut_endpoints();
+            builtin_publisher_endpoints.push(spdp.spdp_builtin_participant_writer().clone());
+            builtin_subscriber_endpoints.push(spdp.spdp_builtin_participant_reader().clone());
 
+            //SEDP
+            let sedp = SimpleEndpointDiscoveryProtocol::new(guid_prefix);
+            builtin_publisher_endpoints.push(sedp.sedp_builtin_publications_writer().clone());
+            builtin_publisher_endpoints.push(sedp.sedp_builtin_subscriptions_writer().clone());
+            builtin_publisher_endpoints.push(sedp.sedp_builtin_topics_writer().clone());
+            builtin_subscriber_endpoints.push(sedp.sedp_builtin_publications_reader().clone());
+            builtin_subscriber_endpoints.push(sedp.sedp_builtin_subscriptions_reader().clone());
+            builtin_subscriber_endpoints.push(sedp.sedp_builtin_topics_reader().clone());
+        }
         let userdata_transport = Arc::new(userdata_transport);
         let metatraffic_transport = Arc::new(metatraffic_transport);
 
@@ -59,7 +75,6 @@ impl RtpsProtocol {
 
         self.spdp.spdp_builtin_participant_writer().lock().unwrap().run();
     }
-
     pub fn receive_metatraffic(&self) {
         RtpsMessageReceiver::receive(
             self.participant.guid().prefix(), 
@@ -225,5 +240,7 @@ mod tests {
         let cc = cache.changes().iter().next().unwrap();        
         let result = SPDPdiscoveredParticipantData::from_key_data( cc.instance_handle(), cc.data_value(), 0);
         assert!(result == expected)
+
+        // SEDP builtinendpoint to be configured according the received cache change
     }
 }
