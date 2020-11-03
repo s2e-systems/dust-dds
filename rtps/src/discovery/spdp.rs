@@ -6,7 +6,7 @@ use crate::types::{GuidPrefix, GUID, Locator, ChangeKind, ProtocolVersion, Vendo
 use crate::structure::HistoryCacheResourceLimits;
 use crate::behavior::{StatelessWriter, StatefulWriter, ReaderProxy};
 use crate::behavior::StatelessReader;
-use super::super::behavior::stateless_reader::stateless_reader::StatelessReaderListener;
+use super::super::behavior::stateless_reader::StatelessReaderListener;
 
 use crate::serialized_payload::CdrEndianness;
 use crate::types::constants::{ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, ENTITYID_SPDP_BUILTIN_PARTICIPANT_DETECTOR, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR};

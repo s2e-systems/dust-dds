@@ -1,17 +1,10 @@
-use crate::structure::{HistoryCache, RtpsEndpoint, RtpsEntity, HistoryCacheResourceLimits, CacheChange};
+use crate::structure::{HistoryCache, RtpsEndpoint, RtpsEntity, HistoryCacheResourceLimits};
 use crate::types::{ReliabilityKind, TopicKind, GUID, Locator, GuidPrefix };
 use crate::types::constants::ENTITYID_UNKNOWN;
 use crate::messages::RtpsSubmessage;
 use crate::messages::submessages::Data;
 use crate::behavior::cache_change_from_data;
-
-
-pub trait StatelessReaderListener {
-    fn on_add_change(&self, cc: &CacheChange) -> (){}
-}
-
-pub struct NoOpStatelessReaderListener;
-impl StatelessReaderListener for NoOpStatelessReaderListener {}
+use crate::behavior::stateless_reader::StatelessReaderListener;
 
 
 pub struct StatelessReader {
@@ -45,7 +38,7 @@ impl StatelessReader {
         multicast_locator_list: Vec<Locator>,
         expects_inline_qos: bool,
         resource_limits: HistoryCacheResourceLimits,
-        listener: impl StatelessReaderListener + 'static
+        listener: impl StatelessReaderListener
     ) -> Self {
 
         assert!(reliability_level == ReliabilityKind::BestEffort, "Only BestEffort is supported on stateless reader");
