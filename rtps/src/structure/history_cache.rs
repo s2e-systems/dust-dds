@@ -5,6 +5,7 @@ use rust_dds_interface::types::{Length, ReturnCode, LENGTH_UNLIMITED, ReturnCode
 use crate::types::SequenceNumber;
 use super::cache_change::CacheChange;
 
+#[derive(Copy, Clone)]
 pub struct HistoryCacheResourceLimits {
     pub max_samples: Length,
     pub max_instances: Length,
