@@ -9,6 +9,7 @@ use crate::types::constants::{
     ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR
 };
 use crate::behavior::{StatefulReader, StatefulWriter};
+use crate::behavior::stateful_reader::NoOpStatefulReaderListener;
 use crate::behavior::types::Duration;
 use crate::structure::HistoryCacheResourceLimits;
 
@@ -51,7 +52,8 @@ impl SimpleEndpointDiscoveryProtocol {
             reliability_level,
             false,
             heartbeat_response_delay,
-            resource_limits
+            resource_limits,
+            NoOpStatefulReaderListener,
         )));
 
         let sedp_builtin_subscriptions_writer_guid = GUID::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
@@ -73,7 +75,8 @@ impl SimpleEndpointDiscoveryProtocol {
             reliability_level,
             false,
             heartbeat_response_delay,
-            resource_limits
+            resource_limits,
+            NoOpStatefulReaderListener,
         )));
 
         let sedp_builtin_topics_writer_guid = GUID::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER);
@@ -95,7 +98,8 @@ impl SimpleEndpointDiscoveryProtocol {
             reliability_level,
             false,
             heartbeat_response_delay,
-            resource_limits
+            resource_limits,
+            NoOpStatefulReaderListener,
         )));
 
 

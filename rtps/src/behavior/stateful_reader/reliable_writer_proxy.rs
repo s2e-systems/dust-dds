@@ -10,6 +10,7 @@ use crate::messages::submessages::{AckNack, Data, Gap, Heartbeat,};
 use crate::messages::types::Count;
 
 use crate::behavior::types::Duration;
+use crate::behavior::stateful_reader::StatefulReaderListener;
 use crate::behavior::{cache_change_from_data, BEHAVIOR_ENDIANNESS};
 
 pub struct ReliableWriterProxy {
@@ -35,7 +36,7 @@ impl ReliableWriterProxy {
         }
     }
 
-    pub fn try_process_message(&mut self, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>, history_cache: &mut HistoryCache) {
+    pub fn try_process_message(&mut self, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>, history_cache: &mut HistoryCache, listener: &dyn StatefulReaderListener) {
         if let Some(inner_submessage) = submessage {
             if self.is_submessage_destination(src_guid_prefix, inner_submessage) {
                 // If Waiting state (marked by the must_send_ack flag)
