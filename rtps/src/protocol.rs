@@ -37,8 +37,8 @@ impl RtpsProtocol {
             BuiltInEndpointSet::new(0),
             lease_duration,
         );
-        
-        let spdp = SimpleParticipantDiscoveryProtocol::new(data);
+        let sedp = SimpleEndpointDiscoveryProtocol::new(guid_prefix);
+        let spdp = SimpleParticipantDiscoveryProtocol::new(data, &sedp);
 
         {
             let mut builtin_publisher = participant.builtin_publisher().lock().unwrap();
@@ -49,7 +49,7 @@ impl RtpsProtocol {
             builtin_subscriber_endpoints.push(spdp.spdp_builtin_participant_reader().clone());
 
             //SEDP
-            let sedp = SimpleEndpointDiscoveryProtocol::new(guid_prefix);
+            
             builtin_publisher_endpoints.push(sedp.sedp_builtin_publications_writer().clone());
             builtin_publisher_endpoints.push(sedp.sedp_builtin_subscriptions_writer().clone());
             builtin_publisher_endpoints.push(sedp.sedp_builtin_topics_writer().clone());
@@ -217,7 +217,7 @@ mod tests {
         parameter_list.push(StatusInfo([0,0,0,0]));
         parameter_list.push(KeyHash(expected.key()));
         let inline_qos = Some(parameter_list);
-        let data_submessage = Data::new(Endianness::LittleEndian, ENTITYID_UNKNOWN, ENTITYID_SPDP_BUILTIN_PARTICIPANT_DETECTOR, 0, inline_qos, Payload::Data(expected.data(CdrEndianness::LittleEndian)));
+        let data_submessage = Data::new(Endianness::LittleEndian, ENTITYID_UNKNOWN, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, 0, inline_qos, Payload::Data(expected.data(CdrEndianness::LittleEndian)));
         let message = RtpsMessage::new(
             PROTOCOL_VERSION_2_4,
             VENDOR_ID,

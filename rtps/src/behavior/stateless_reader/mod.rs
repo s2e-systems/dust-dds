@@ -1,2 +1,2 @@
-mod stateless_reader;
+pub mod stateless_reader;
 pub use stateless_reader::StatelessReader;

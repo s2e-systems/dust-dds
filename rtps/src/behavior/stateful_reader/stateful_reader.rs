@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::structure::{HistoryCache, HistoryCacheResourceLimits, RtpsEndpoint, RtpsEntity};
+use crate::structure::{HistoryCache, HistoryCacheResourceLimits, RtpsEndpoint, RtpsEntity, CacheChange};
 use crate::types::{Locator, ReliabilityKind, TopicKind, GUID, GuidPrefix };
 use crate::messages::RtpsSubmessage;
 use crate::behavior::types::Duration;
@@ -16,6 +16,13 @@ pub enum WriterProxyFlavor{
     BestEffort(BestEffortWriterProxy),
     Reliable(ReliableWriterProxy),
 }
+
+pub trait StatefulReaderListener {
+    fn on_add_change(&self, cc: &CacheChange) -> (){}
+}
+
+struct NoOpStatefulReaderListener;
+impl StatefulReaderListener for NoOpStatefulReaderListener {}
 
 pub struct StatefulReader {
     // From Entity base class
@@ -39,6 +46,9 @@ pub struct StatefulReader {
 
     // Fields
     matched_writers: HashMap<GUID, WriterProxyFlavor>,
+
+    // Additional fields:
+    listener: Box<dyn StatefulReaderListener>,
 }
 
 impl StatefulReader {
@@ -57,14 +67,15 @@ impl StatefulReader {
                 expects_inline_qos,
                 heartbeat_response_delay,       
                 reader_cache: HistoryCache::new(resource_limits),
-                matched_writers: HashMap::new()
+                matched_writers: HashMap::new(),
+                listener: Box::new(NoOpStatefulReaderListener),
             }
     }
 
     pub fn try_process_message(&mut self, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>) {
         for (_writer_guid, writer_proxy) in self.matched_writers.iter_mut() {
             match writer_proxy {
-                WriterProxyFlavor::BestEffort(best_effort_writer_proxy) => best_effort_writer_proxy.try_process_message(src_guid_prefix, submessage, &mut self.reader_cache),
+                WriterProxyFlavor::BestEffort(best_effort_writer_proxy) => best_effort_writer_proxy.try_process_message(src_guid_prefix, submessage, &mut self.reader_cache, self.listener.as_ref()),
                 WriterProxyFlavor::Reliable(reliable_writer_proxy) => reliable_writer_proxy.try_process_message(src_guid_prefix, submessage, &mut self.reader_cache),
             }
         }

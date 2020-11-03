@@ -39,16 +39,17 @@ impl HistoryCacheResourceLimits {
 pub struct HistoryCache {
     changes: HashSet<CacheChange>,
     resource_limits: HistoryCacheResourceLimits,
+    on_add_change: Box<dyn Fn(&CacheChange)->()>
 }
 
 impl HistoryCache {
     /// This operation creates a new RTPS HistoryCache. The newly-created history cache is initialized with an empty list of changes.
     pub fn new(resource_limits: HistoryCacheResourceLimits) -> Self {
         assert!(resource_limits.is_consistent());
-
         Self {
             changes: HashSet::new(),
-            resource_limits
+            resource_limits,
+            on_add_change: Box::new(|_|())
         }
     }
 
@@ -83,7 +84,10 @@ impl HistoryCache {
             }
         }
 
+        (self.on_add_change)(&change);
+        
         self.changes.insert(change);
+
         Ok(())
     }
 
@@ -106,6 +110,10 @@ impl HistoryCache {
 
     pub fn changes(&self) -> &HashSet<CacheChange> {
         &self.changes
+    }
+
+    pub fn install_on_add_change(&mut self, on_add_change: Box<dyn Fn(&CacheChange)->()>) {
+        self.on_add_change = on_add_change;
     }
 }
 
@@ -314,5 +322,43 @@ mod tests {
         history_cache.add_change(cc2).unwrap();
 
         assert_eq!(history_cache.add_change(cc3), Err(ReturnCodes::OutOfResources));
+    }
+
+
+    use std::sync::{Arc, Mutex};
+    #[test]
+    fn on_add_change_call() {
+        let mut history_cache = HistoryCache::new(HistoryCacheResourceLimits::default() );
+        let guid_prefix = [8; 12];
+        let entity_id = EntityId::new([1, 2, 3], EntityKind::BuiltInReaderWithKey);
+        let guid = GUID::new(guid_prefix, entity_id);
+        let instance_handle = [9; 16];
+        let sequence_number = 1;
+        let data_value = Some(vec![4, 5, 6]);
+        let cc = CacheChange::new(
+            ChangeKind::Alive,
+            guid,
+            instance_handle,
+            sequence_number,
+            data_value,
+            None,
+        );
+
+        let cc_copy_no_data =  CacheChange::new(
+            ChangeKind::Alive,
+            guid,
+            instance_handle,
+            sequence_number,
+            None,
+            None,
+        );
+
+        let data_received = Arc::new(Mutex::new(1));
+        let d = data_received.clone();
+        history_cache.install_on_add_change(Box::new(move|cc|{*d.lock().unwrap() += 1; println!("{:?}", cc);}));
+        history_cache.add_change(cc).unwrap();
+        history_cache.add_change(cc_copy_no_data).unwrap();
+
+        assert!(data_received.lock().unwrap().eq(&3));
     }
 }

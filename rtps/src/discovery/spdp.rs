@@ -4,14 +4,16 @@ use rust_dds_interface::types::{TopicKind, DomainId, InstanceHandle};
 
 use crate::types::{GuidPrefix, GUID, Locator, ChangeKind, ProtocolVersion, VendorId, ReliabilityKind};
 use crate::structure::HistoryCacheResourceLimits;
-use crate::behavior::StatelessWriter;
+use crate::behavior::{StatelessWriter, StatefulWriter, ReaderProxy};
 use crate::behavior::StatelessReader;
+use super::super::behavior::stateless_reader::stateless_reader::StatelessReaderListener;
 
 use crate::serialized_payload::CdrEndianness;
-use crate::types::constants::{ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, ENTITYID_SPDP_BUILTIN_PARTICIPANT_DETECTOR};
+use crate::types::constants::{ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, ENTITYID_SPDP_BUILTIN_PARTICIPANT_DETECTOR, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR};
 use crate::messages::types::Count;
 use crate::behavior::types::Duration;
 use crate::serialized_payload::CdrParameterList;
+use crate::discovery::sedp::SimpleEndpointDiscoveryProtocol;
 
 use crate::endpoint_types::{
     BuiltInEndpointSet,
@@ -35,8 +37,27 @@ pub struct SimpleParticipantDiscoveryProtocol {
     spdp_builtin_participant_reader: Arc<Mutex<StatelessReader>>,
 }
 
+struct MyListener{
+    sedp_builtin_publications_writer: Arc<Mutex<StatefulWriter>>
+}
+impl StatelessReaderListener for MyListener {
+    fn on_add_change(&self, cc: &crate::structure::CacheChange) -> (){
+        let discovered_participant = SPDPdiscoveredParticipantData::from_key_data(cc.instance_handle(), cc.data_value(), 0);
+        let guid = GUID::new(discovered_participant.guid_prefix(), ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR);
+        let proxy = ReaderProxy::new(
+            guid,
+            discovered_participant.metatraffic_unicast_locator_list().clone(),
+            discovered_participant.metatraffic_multicast_locator_list().clone(),
+            discovered_participant.expects_inline_qos(), 
+            true
+        );
+        println!("{:?}", proxy.remote_reader_guid());
+        self.sedp_builtin_publications_writer.lock().unwrap().matched_reader_add(proxy);
+    }
+}
+
 impl SimpleParticipantDiscoveryProtocol {
-    pub fn new(spdp_data: SPDPdiscoveredParticipantData) -> Self {
+    pub fn new(spdp_data: SPDPdiscoveredParticipantData, sedp: &SimpleEndpointDiscoveryProtocol) -> Self {
         let writer_guid = GUID::new(spdp_data.guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER);
         let mut spdp_builtin_participant_writer = StatelessWriter::new(
             writer_guid,
@@ -53,6 +74,10 @@ impl SimpleParticipantDiscoveryProtocol {
         }
 
         let reader_guid = GUID::new(spdp_data.guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_DETECTOR);
+        let listener = MyListener{
+            sedp_builtin_publications_writer: sedp.sedp_builtin_publications_writer().clone()
+        };
+
         let spdp_builtin_participant_reader = StatelessReader::new(
             reader_guid,
             TopicKind::WithKey, 
@@ -60,7 +85,9 @@ impl SimpleParticipantDiscoveryProtocol {
             vec![],
             spdp_data.metatraffic_multicast_locator_list.clone(),
             false,
-            HistoryCacheResourceLimits::default());
+            HistoryCacheResourceLimits::default(),
+            listener
+        ); 
 
         Self {
             spdp_builtin_participant_writer: Arc::new(Mutex::new(spdp_builtin_participant_writer)),
