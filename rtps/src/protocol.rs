@@ -80,7 +80,17 @@ impl RtpsProtocol {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::Locator;
+    use std::cell::RefCell;
+    use crate::behavior_types::Duration;
+    use crate::types::{Locator};
+    use crate::structure::RtpsEndpoint;
+    use crate::behavior::StatelessReader;
+    use crate::messages::{Endianness, RtpsMessage, RtpsSubmessage};
+    use crate::messages::submessages::{Data, data_submessage::Payload};
+    use crate::types::constants::{PROTOCOL_VERSION_2_4, VENDOR_ID};
+    use crate::types::constants::{ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, ENTITYID_SPDP_BUILTIN_PARTICIPANT_DETECTOR, ENTITYID_UNKNOWN};
+    use crate::serialized_payload::{ParameterList, CdrEndianness};
+    use crate::inline_qos_types::{StatusInfo, KeyHash};
 
     struct MockTransport{
         multicast_locator_list: Vec<Locator>,
@@ -113,6 +123,7 @@ mod tests {
             &self.multicast_locator_list
         }
     }
+
     #[test]
     fn spdp_announce() {
         let domain_id = 0;
@@ -121,5 +132,98 @@ mod tests {
         let protocol = RtpsProtocol::new(domain_id, MockTransport::new(), MockTransport::new(), domain_tag, lease_duration);
         protocol.run_builtin_endpoints();
         protocol.send_metatraffic();
+    }
+
+
+    struct MockTransportDetect{
+        multicast_locator_list: Vec<Locator>,
+        unicast_locator_list: Vec<Locator>,
+        to_read: RefCell<Vec<(crate::RtpsMessage, Locator)>>
+    }
+
+    impl MockTransportDetect{
+        fn new() -> Self {            
+            Self {
+                multicast_locator_list: vec![Locator::new_udpv4(7400, [235,0,0,1])],
+                unicast_locator_list: vec![Locator::new_udpv4(7400, [235,0,0,1])],
+                to_read: RefCell::new(vec![])
+            }
+        }
+    }
+
+    impl Transport for MockTransportDetect {
+        fn write(&self, message: crate::RtpsMessage, _destination_locator: &Locator) {
+            println!("{:?}", message);
+        }
+
+        fn read(&self) -> crate::transport::TransportResult<Option<(crate::RtpsMessage, Locator)>> {
+            Ok(self.to_read.borrow_mut().pop())
+        }
+
+        fn unicast_locator_list(&self) -> &Vec<Locator> {
+            &self.unicast_locator_list
+        }
+
+        fn multicast_locator_list(&self) -> &Vec<Locator> {
+            &self.multicast_locator_list
+        }
+    }
+
+
+  
+    #[test]
+    fn spdp_detect() {      
+
+        let domain_id = 0;
+        let domain_tag = "".to_string();
+        let lease_duration = Duration::from_millis(100);
+        let transport = MockTransportDetect::new();
+
+        let locator = Locator::new_udpv4(7401, [127,0,0,1]);
+        let participant_guid_prefix = [1, 2, 3, 4, 5, 6, 7, 8 ,9, 10, 11, 12];
+
+        let remote_participant_guid_prefix = [2; 12];
+        let unicast_locator_list = vec![Locator::new_udpv4(7401, [127,0,0,1])];
+        let multicast_locator_list = vec![Locator::new_udpv4(7401, [127,0,0,1])];
+        let expected = SPDPdiscoveredParticipantData::new(
+            0,
+            "".to_string(), 
+            PROTOCOL_VERSION_2_4, 
+            remote_participant_guid_prefix, 
+            VENDOR_ID, 
+            unicast_locator_list.clone(), 
+            multicast_locator_list.clone(), 
+            unicast_locator_list.clone(),
+            multicast_locator_list.clone(),
+            BuiltInEndpointSet::new(0),
+            Duration::from_millis(100),
+        );
+        let mut parameter_list = ParameterList::new();
+        parameter_list.push(StatusInfo([0,0,0,0]));
+        parameter_list.push(KeyHash(expected.key()));
+        let inline_qos = Some(parameter_list);
+        let data_submessage = Data::new(Endianness::LittleEndian, ENTITYID_UNKNOWN, ENTITYID_SPDP_BUILTIN_PARTICIPANT_DETECTOR, 0, inline_qos, Payload::Data(expected.data(CdrEndianness::LittleEndian)));
+        let message = RtpsMessage::new(
+            PROTOCOL_VERSION_2_4,
+            VENDOR_ID,
+            participant_guid_prefix, vec![RtpsSubmessage::Data(data_submessage)]);
+
+
+        transport.to_read.borrow_mut().push((message, locator));
+
+        let protocol = RtpsProtocol::new(domain_id, MockTransportDetect::new(), transport, domain_tag, lease_duration);
+        protocol.receive_metatraffic();
+        protocol.run_builtin_endpoints();
+        let builtin_subscriber = protocol.participant.builtin_subscriber().lock().unwrap();
+        let mut first_endpoint = builtin_subscriber.endpoints().into_iter().next().unwrap().lock().unwrap();
+
+        assert!(first_endpoint.guid().entity_id() == ENTITYID_SPDP_BUILTIN_PARTICIPANT_DETECTOR);       
+            
+        let spdp_detector = first_endpoint.get_mut::<StatelessReader>().unwrap();
+
+        let cache = spdp_detector.reader_cache();
+        let cc = cache.changes().iter().next().unwrap();        
+        let result = SPDPdiscoveredParticipantData::from_key_data( cc.instance_handle(), cc.data_value(), 0);
+        assert!(result == expected)
     }
 }
