@@ -4,7 +4,6 @@ use crate::types::{GUID, GuidPrefix, ProtocolVersion, VendorId, EntityId, Entity
 use crate::types::constants::{
     ENTITYID_PARTICIPANT,
     PROTOCOL_VERSION_2_4,};
-use crate::transport::Transport;
 
 use super::{RtpsGroup, RtpsEntity};
 

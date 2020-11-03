@@ -98,7 +98,6 @@ mod tests {
     use std::cell::RefCell;
     use crate::behavior_types::Duration;
     use crate::types::{Locator};
-    use crate::structure::RtpsEndpoint;
     use crate::behavior::StatelessReader;
     use crate::messages::{Endianness, RtpsMessage, RtpsSubmessage};
     use crate::messages::submessages::{Data, data_submessage::Payload};

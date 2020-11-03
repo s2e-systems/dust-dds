@@ -1,7 +1,7 @@
 use crate::structure::CacheChange;
 
 pub trait StatelessReaderListener: 'static {
-    fn on_add_change(&self, cc: &CacheChange) -> (){}
+    fn on_add_change(&self, _cc: &CacheChange) -> (){}
 }
 
 pub struct NoOpStatelessReaderListener;

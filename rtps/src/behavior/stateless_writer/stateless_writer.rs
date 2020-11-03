@@ -1,8 +1,7 @@
-use std::collections::{HashMap,  VecDeque};
+use std::collections::HashMap;
 use crate::structure::{HistoryCache, HistoryCacheResourceLimits, CacheChange, RtpsEndpoint, RtpsEntity};
 use crate::serialized_payload::ParameterList;
 use crate::types::{ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID, };
-use crate::messages::RtpsSubmessage;
 use super::reader_locator::ReaderLocator;
 
 pub struct StatelessWriter {

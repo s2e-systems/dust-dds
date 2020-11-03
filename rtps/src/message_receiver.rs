@@ -1,7 +1,6 @@
-use std::any::Any;
 use std::sync::{Arc, Mutex};
 use crate::types::{GuidPrefix, Locator,};
-use crate::structure::{RtpsGroup, RtpsEndpoint};
+use crate::structure::RtpsEndpoint;
 use crate::transport::Transport;
 use crate::behavior::{StatelessReader, StatefulWriter, StatefulReader};
 use crate::messages::submessages::RtpsSubmessage;
