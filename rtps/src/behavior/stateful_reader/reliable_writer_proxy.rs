@@ -32,6 +32,10 @@ impl ReliableWriterProxy {
         }
     }
 
+    pub fn writer_proxy(&self) -> &WriterProxy {
+        &self.writer_proxy
+    }
+
     pub fn try_process_message(&mut self, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>, history_cache: &mut HistoryCache, listener: &dyn StatefulReaderListener) {
         if let Some(inner_submessage) = submessage {
             if self.is_submessage_destination(src_guid_prefix, inner_submessage) {

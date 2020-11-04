@@ -111,6 +111,16 @@ impl StatefulReader {
         self.matched_writers.remove(writer_proxy_guid);
     }
 
+    pub fn matched_writer_lookup(&self, a_writer_guid: GUID) -> Option<&WriterProxy> {
+        match self.matched_writers.get(&a_writer_guid) {
+            Some(writer_proxy_flavor) => match writer_proxy_flavor {
+                WriterProxyFlavor::BestEffort(wp) => Some(wp.writer_proxy()),
+                WriterProxyFlavor::Reliable(wp) => Some(wp.writer_proxy()),
+            }
+            None => None,
+        }
+    }
+
     pub fn reader_cache(&self) -> &HistoryCache {
         &self.reader_cache
     }

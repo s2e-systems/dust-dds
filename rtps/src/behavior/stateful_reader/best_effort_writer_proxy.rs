@@ -16,6 +16,10 @@ impl BestEffortWriterProxy {
         }
     }
 
+    pub fn writer_proxy(&self) -> &WriterProxy {
+        &self.writer_proxy
+    }
+
     pub fn try_process_message(&mut self, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>, history_cache: &mut HistoryCache, listener: &dyn StatefulReaderListener) {
         self.waiting_state(src_guid_prefix, submessage, history_cache, listener);
     }

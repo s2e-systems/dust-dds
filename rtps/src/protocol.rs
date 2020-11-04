@@ -93,12 +93,21 @@ mod tests {
     use super::*;
     use std::cell::RefCell;
     use crate::behavior_types::Duration;
-    use crate::types::{Locator};
-    use crate::behavior::StatelessReader;
+    use crate::types::{GUID, Locator};
+    use crate::behavior::{StatelessReader, StatefulReader, StatefulWriter};
     use crate::messages::{Endianness, RtpsMessage, RtpsSubmessage};
     use crate::messages::submessages::{Data, data_submessage::Payload};
     use crate::types::constants::{PROTOCOL_VERSION_2_4, VENDOR_ID};
-    use crate::types::constants::{ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, ENTITYID_SPDP_BUILTIN_PARTICIPANT_DETECTOR, ENTITYID_UNKNOWN};
+    use crate::types::constants::{
+        ENTITYID_UNKNOWN,
+        ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
+        ENTITYID_SPDP_BUILTIN_PARTICIPANT_DETECTOR,
+        ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
+        ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
+        ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
+        ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
+        ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
+        ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR};
     use crate::serialized_payload::{ParameterList, CdrEndianness};
     use crate::inline_qos_types::{StatusInfo, KeyHash};
 
@@ -141,6 +150,7 @@ mod tests {
         let lease_duration = Duration::from_millis(100);
         let protocol = RtpsProtocol::new(domain_id, MockTransport::new(), MockTransport::new(), domain_tag, lease_duration);
         protocol.send_metatraffic();
+
     }
 
 
@@ -181,8 +191,7 @@ mod tests {
 
   
     #[test]
-    fn spdp_detect() {      
-
+    fn spdp_detect() { 
         let domain_id = 0;
         let domain_tag = "".to_string();
         let lease_duration = Duration::from_millis(100);
@@ -204,7 +213,9 @@ mod tests {
             multicast_locator_list.clone(), 
             unicast_locator_list.clone(),
             multicast_locator_list.clone(),
-            BuiltInEndpointSet::new(0),
+            BuiltInEndpointSet::new(
+                BuiltInEndpointSet::BUILTIN_ENDPOINT_PUBLICATIONS_ANNOUNCER | 
+                BuiltInEndpointSet::BUILTIN_ENDPOINT_TOPICS_DETECTOR),
             Duration::from_millis(100),
         );
         let mut parameter_list = ParameterList::new();
@@ -222,18 +233,39 @@ mod tests {
 
         let protocol = RtpsProtocol::new(domain_id, MockTransportDetect::new(), transport, domain_tag, lease_duration);
         protocol.receive_metatraffic();
+
         let builtin_subscriber = protocol.participant.builtin_subscriber().lock().unwrap();
-        let mut first_endpoint = builtin_subscriber.endpoints().into_iter().next().unwrap().lock().unwrap();
+        let builtin_publisher = protocol.participant.builtin_publisher().lock().unwrap();
+        {
+            let mut first_endpoint = builtin_subscriber.endpoints().into_iter().next().unwrap().lock().unwrap();
 
-        assert!(first_endpoint.guid().entity_id() == ENTITYID_SPDP_BUILTIN_PARTICIPANT_DETECTOR);       
-            
-        let spdp_detector = first_endpoint.get_mut::<StatelessReader>().unwrap();
+            assert!(first_endpoint.guid().entity_id() == ENTITYID_SPDP_BUILTIN_PARTICIPANT_DETECTOR);       
+                
+            let spdp_detector = first_endpoint.get_mut::<StatelessReader>().unwrap();
 
-        let cache = spdp_detector.reader_cache();
-        let cc = cache.changes().iter().next().unwrap();        
-        let result = SPDPdiscoveredParticipantData::from_key_data( cc.instance_handle(), cc.data_value(), 0);
-        assert!(result == expected)
+            let cache = spdp_detector.reader_cache();
+            let cc = cache.changes().iter().next().unwrap();        
+            let result = SPDPdiscoveredParticipantData::from_key_data( cc.instance_handle(), cc.data_value(), 0);
+            assert!(result == expected);
+        }
 
-        // SEDP builtinendpoint to be configured according the received cache change
+        {
+            let sedp_builtin_publications_detector = builtin_subscriber.endpoints().iter().find(|&x| x.lock().unwrap().guid().entity_id() == ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR).unwrap().lock().unwrap();
+            let sedp_builtin_publications_detector = sedp_builtin_publications_detector.get::<StatefulReader>().unwrap();
+            assert!(sedp_builtin_publications_detector.matched_writer_lookup(GUID::new(remote_participant_guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER)).is_some());
+        }
+
+        {
+            let sedp_builtin_topics_announcer = builtin_publisher.endpoints().iter().find(|&x| x.lock().unwrap().guid().entity_id() == ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER).unwrap().lock().unwrap();
+            let sedp_builtin_topics_announcer = sedp_builtin_topics_announcer.get::<StatefulWriter>().unwrap();
+            assert!(sedp_builtin_topics_announcer.matched_reader_lookup(GUID::new(remote_participant_guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR)).is_some());
+        }
+
+        {
+            let sedp_builtin_subscriptions_detector = builtin_subscriber.endpoints().iter().find(|&x| x.lock().unwrap().guid().entity_id() == ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR).unwrap().lock().unwrap();
+            let sedp_builtin_subscriptions_detector = sedp_builtin_subscriptions_detector.get::<StatefulReader>().unwrap();
+            assert!(sedp_builtin_subscriptions_detector.matched_writer_lookup(GUID::new(remote_participant_guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER)).is_none());
+        }
+
     }
 }

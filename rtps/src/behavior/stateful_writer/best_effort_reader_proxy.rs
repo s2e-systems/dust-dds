@@ -21,6 +21,10 @@ impl BestEffortReaderProxy {
             output_queue: VecDeque::new(),
         }
     }
+    
+    pub fn reader_proxy(&self) -> &ReaderProxy {
+        &self.reader_proxy
+    }
 
     pub fn produce_messages(&mut self, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber) -> Vec<RtpsSubmessage> {
         let mut messages = Vec::new();
