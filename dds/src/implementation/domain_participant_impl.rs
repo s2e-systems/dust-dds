@@ -354,7 +354,7 @@ mod tests {
     use crate::infrastructure::listener::NoListener;
     use rust_dds_interface::types::TopicKind;
     use rust_dds_interface::qos::{DataWriterQos, DataReaderQos};
-    use rust_dds_interface::protocol::{ProtocolEntity, ProtocolPublisher, ProtocolSubscriber, ProtocolReader, ProtocolWriter};
+    use rust_dds_interface::protocol::{ProtocolEntity, ProtocolReader, ProtocolWriter};
     use rust_dds_interface::qos_policy::ReliabilityQosPolicyKind;
 
     struct MockProtocolPublisher;
@@ -364,11 +364,6 @@ mod tests {
         }
 
         fn get_instance_handle(&self) -> InstanceHandle {
-            todo!()
-        }
-    }
-    impl ProtocolPublisher for MockProtocolPublisher {
-        fn create_writer(&mut self, _topic_kind: TopicKind, _data_writer_qos: &DataWriterQos) -> Arc<Mutex<dyn ProtocolWriter>> {
             todo!()
         }
     }
@@ -383,11 +378,7 @@ mod tests {
             todo!()
         }
     }
-    impl ProtocolSubscriber for MockProtocolSubscriber {
-        fn create_reader(&mut self, _topic_kind: TopicKind, _data_reader_qos: &DataReaderQos) -> Arc<Mutex<dyn ProtocolReader>> {
-            todo!()
-        }
-    }
+
 
 
     struct MockProtocolParticipant;
@@ -402,16 +393,24 @@ mod tests {
     }
 
     impl ProtocolParticipant for MockProtocolParticipant {
-        fn create_publisher(&mut self) -> Arc<Mutex<dyn ProtocolPublisher>> {
-            Arc::new(Mutex::new(MockProtocolPublisher))
+        fn create_publisher(&mut self) -> InstanceHandle {
+            todo!()
         }
 
-        fn create_subscriber(&mut self) -> Arc<Mutex<dyn ProtocolSubscriber>> {
-            Arc::new(Mutex::new(MockProtocolSubscriber))
+        fn create_subscriber(&mut self) -> InstanceHandle {
+            todo!()
         }
 
-        fn get_builtin_subscriber(&self) -> Arc<Mutex<dyn ProtocolSubscriber>> {
-            Arc::new(Mutex::new(MockProtocolSubscriber))
+        fn get_builtin_subscriber(&self) -> InstanceHandle {
+            todo!()
+        }
+
+        fn create_reader(&mut self, topic_kind: TopicKind, data_reader_qos: &DataReaderQos) -> Arc<Mutex<dyn ProtocolReader>> {
+            todo!()
+        }
+
+        fn create_writer(&mut self, topic_kind: TopicKind, data_writer_qos: &DataWriterQos) -> Arc<Mutex<dyn ProtocolWriter>> {
+            todo!()
         }
     }
 

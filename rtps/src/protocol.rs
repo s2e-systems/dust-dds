@@ -1,18 +1,22 @@
 use std::sync::{Arc, Mutex};
 
-use crate::types::{GUID, EntityId, EntityKind};
+use crate::types::{GUID, EntityId, EntityKind, TopicKind, ReliabilityKind};
 use crate::transport::Transport;
 use crate::discovery::spdp::{SimpleParticipantDiscoveryProtocol, SPDPdiscoveredParticipantData};
 use crate::discovery::spdp_listener::SimpleParticipantDiscoveryListener;
 use crate::discovery::sedp::{SimpleEndpointDiscoveryProtocol};
 use crate::endpoint_types::BuiltInEndpointSet;
-use crate::structure::{RtpsParticipant, RtpsGroup};
+use crate::structure::{RtpsParticipant, RtpsGroup, HistoryCacheResourceLimits};
 use crate::structure::entity::RtpsEntity;
 use crate::message_receiver::RtpsMessageReceiver;
 use crate::message_sender::RtpsMessageSender;
+use crate::behavior::{StatefulReader, StatefulWriter};
+use crate::behavior::types::Duration;
 
 use rust_dds_interface::types::{DomainId, InstanceHandle, ReturnCode};
-use rust_dds_interface::protocol::{ProtocolEntity, ProtocolParticipant, ProtocolSubscriber, ProtocolPublisher};
+use rust_dds_interface::protocol::{ProtocolEntity, ProtocolParticipant, ProtocolSubscriber, ProtocolPublisher, ProtocolWriter, ProtocolReader};
+use rust_dds_interface::qos::{DataWriterQos,DataReaderQos};
+use rust_dds_interface::qos_policy::ReliabilityQosPolicyKind;
 
 pub struct RtpsProtocol {
     participant: RtpsParticipant,
@@ -112,7 +116,7 @@ impl ProtocolEntity for RtpsProtocol {
 }
 
 impl ProtocolParticipant for RtpsProtocol {
-    fn create_publisher(&mut self) -> Arc<Mutex<dyn ProtocolPublisher>> {
+    fn create_publisher(&mut self) -> InstanceHandle {
         let guid_prefix = self.participant.guid().prefix();
         let entity_id = EntityId::new([self.publisher_counter as u8,0,0], EntityKind::UserDefinedWriterGroup);
         self.publisher_counter += 1;
@@ -120,10 +124,10 @@ impl ProtocolParticipant for RtpsProtocol {
         let new_publisher = Arc::new(Mutex::new(RtpsGroup::new(publisher_guid)));
         self.participant.mut_groups().push(new_publisher.clone());
 
-        new_publisher
+        publisher_guid.into()
     }
 
-    fn create_subscriber(&mut self) -> Arc<Mutex<dyn ProtocolSubscriber>> {
+    fn create_subscriber(&mut self) -> InstanceHandle {
         let guid_prefix = self.participant.guid().prefix();
         let entity_id = EntityId::new([self.subscriber_counter as u8,0,0], EntityKind::UserDefinedReaderGroup);
         self.subscriber_counter += 1;
@@ -131,11 +135,59 @@ impl ProtocolParticipant for RtpsProtocol {
         let new_subscriber = Arc::new(Mutex::new(RtpsGroup::new(subscriber_guid)));
         self.participant.mut_groups().push(new_subscriber.clone());
 
-        new_subscriber
+        subscriber_guid.into()
     }
 
-    fn get_builtin_subscriber(&self) -> Arc<Mutex<dyn ProtocolSubscriber>> {
-        self.builtin_subscriber.clone()
+    fn get_builtin_subscriber(&self) -> InstanceHandle {
+        self.builtin_subscriber.lock().unwrap().guid().into()
+    }
+
+    fn create_writer(&mut self, topic_kind: TopicKind, data_writer_qos: &DataWriterQos) -> Arc<Mutex<dyn ProtocolWriter>> {
+        todo!()
+        // let guid_prefix = self.guid.prefix();
+        // let entity_kind = match topic_kind {
+        //     TopicKind::NoKey => EntityKind::UserDefinedReaderNoKey,
+        //     TopicKind::WithKey => EntityKind::UserDefinedReaderWithKey,
+        // };
+        // let entity_key = [self.guid.entity_id().entity_key()[0], self.endpoint_counter as u8, 0];
+        // let entity_id = EntityId::new(entity_key, entity_kind);
+        // self.endpoint_counter += 1;
+        // let writer_guid = GUID::new(guid_prefix, entity_id);
+
+        // let reliability_level = match data_writer_qos.reliability.kind {
+        //     ReliabilityQosPolicyKind::ReliableReliabilityQos => ReliabilityKind::Reliable,
+        //     ReliabilityQosPolicyKind::BestEffortReliabilityQos => ReliabilityKind::BestEffort,
+        // };
+
+        // let resource_limits = HistoryCacheResourceLimits{
+        //     max_samples: data_writer_qos.resource_limits.max_samples,
+        //     max_instances: data_writer_qos.resource_limits.max_instances,
+        //     max_samples_per_instance: data_writer_qos.resource_limits.max_samples_per_instance,
+        // };
+
+        // let push_mode = true;
+        // let heartbeat_period = Duration::from_millis(500);
+        // let nack_response_delay = Duration::from_millis(0);
+        // let nack_supression_duration = Duration::from_millis(0);
+
+        // let new_writer = Arc::new(Mutex::new(
+        //     StatefulWriter::new(
+        //         writer_guid,
+        //         topic_kind,
+        //         reliability_level,
+        //         resource_limits,
+        //         push_mode,
+        //         heartbeat_period,
+        //         nack_response_delay,
+        //         nack_supression_duration,
+        //     )));
+        // self.endpoints.push(new_writer.clone());
+
+        // new_writer
+    }
+
+    fn create_reader(&mut self, _topic_kind: TopicKind, _data_reader_qos: &DataReaderQos) -> Arc<Mutex<dyn ProtocolReader>> {
+        todo!()
     }
 }
 

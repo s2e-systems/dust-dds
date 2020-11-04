@@ -45,5 +45,5 @@ fn hello_world() {
     let timestamp = Time{sec: 1, nanosec: 2};
     datawriter.write_w_timestamp(data, handle, timestamp).expect("Error writing");
 
-    std::thread::sleep_ms(100)
+    // std::thread::sleep_ms(100)
 }

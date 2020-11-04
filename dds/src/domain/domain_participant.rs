@@ -55,7 +55,7 @@ impl DomainParticipant {
         use rust_rtps::transport::udp::UdpTransport;
         use rust_rtps::protocol::RtpsProtocol;
 
-        let interface = "Wi-Fi";
+        let interface = "Ethernet";
         let userdata_transport = UdpTransport::default_userdata_transport(domain_id, interface).unwrap();
         let metatraffic_transport = UdpTransport::default_metatraffic_transport(domain_id, interface).unwrap();
         let domain_tag = "".to_string();

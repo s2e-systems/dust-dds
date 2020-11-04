@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex, };
 
-use crate::types::{GUID, GuidPrefix, ProtocolVersion, VendorId, EntityId, EntityKind,};
+use crate::types::{GUID, GuidPrefix, ProtocolVersion, VendorId};
 use crate::types::constants::{
     ENTITYID_PARTICIPANT,
     PROTOCOL_VERSION_2_4,};
