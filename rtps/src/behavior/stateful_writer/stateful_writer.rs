@@ -169,14 +169,6 @@ impl StatefulWriter {
     pub fn is_acked_by_all(&self) -> bool {
         todo!()
     }
-
-    pub fn heartbeat_period(&self) -> Duration {
-        self.heartbeat_period
-    }
-
-    pub fn nack_response_delay(&self) -> Duration {
-        self.nack_response_delay
-    }
 }
 
 // impl RtpsMessageSender for StatefulWriter {
