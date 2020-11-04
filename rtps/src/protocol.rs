@@ -20,6 +20,8 @@ pub struct RtpsProtocol {
     builtin_subscriber: Arc<Mutex<RtpsGroup>>, 
     userdata_transport: Arc<dyn Transport>,
     metatraffic_transport: Arc<dyn Transport>,
+    publisher_counter: usize,
+    subscriber_counter: usize,
 }
 
 impl RtpsProtocol {
@@ -76,6 +78,8 @@ impl RtpsProtocol {
             builtin_subscriber: Arc::new(Mutex::new(builtin_subscriber)),
             userdata_transport,
             metatraffic_transport,
+            publisher_counter: 0,
+            subscriber_counter: 0,
         }
     }
 
@@ -109,44 +113,29 @@ impl ProtocolEntity for RtpsProtocol {
 
 impl ProtocolParticipant for RtpsProtocol {
     fn create_publisher(&mut self) -> Arc<Mutex<dyn ProtocolPublisher>> {
-        todo!()
-        // let index = match self.publisher_list.iter()
-        //     .max_by(|&x, &y| 
-        //     x.lock().unwrap().guid().entity_id().entity_key()[0].cmp(&y.lock().unwrap().guid().entity_id().entity_key()[0])) {
-        //         Some(group) => group.lock().unwrap().guid().entity_id().entity_key()[0] + 1,
-        //         None => 0,
-        // };
+        let guid_prefix = self.participant.guid().prefix();
+        let entity_id = EntityId::new([self.publisher_counter as u8,0,0], EntityKind::UserDefinedWriterGroup);
+        self.publisher_counter += 1;
+        let publisher_guid = GUID::new(guid_prefix, entity_id);
+        let new_publisher = Arc::new(Mutex::new(RtpsGroup::new(publisher_guid)));
+        self.participant.mut_groups().push(new_publisher.clone());
 
-        // let guid_prefix = self.guid.prefix();
-        // let entity_id = EntityId::new([index as u8,0,0], EntityKind::UserDefinedWriterGroup);
-        // let publisher_guid = GUID::new(guid_prefix, entity_id);
-        // let new_publisher = Arc::new(Mutex::new(RtpsGroup::new(publisher_guid)));
-        // self.publisher_list.push(new_publisher.clone());
-
-        // new_publisher
+        new_publisher
     }
 
     fn create_subscriber(&mut self) -> Arc<Mutex<dyn ProtocolSubscriber>> {
-        todo!()
-        // let index = match self.subscriber_list.iter()
-        //     .max_by(|&x, &y| 
-        //     x.lock().unwrap().guid().entity_id().entity_key()[0].cmp(&y.lock().unwrap().guid().entity_id().entity_key()[0])) {
-        //         Some(group) => group.lock().unwrap().guid().entity_id().entity_key()[0] + 1,
-        //         None => 0,
-        // };
+        let guid_prefix = self.participant.guid().prefix();
+        let entity_id = EntityId::new([self.subscriber_counter as u8,0,0], EntityKind::UserDefinedReaderGroup);
+        self.subscriber_counter += 1;
+        let subscriber_guid = GUID::new(guid_prefix, entity_id);
+        let new_subscriber = Arc::new(Mutex::new(RtpsGroup::new(subscriber_guid)));
+        self.participant.mut_groups().push(new_subscriber.clone());
 
-        // let guid_prefix = self.guid.prefix();
-        // let entity_id = EntityId::new([index as u8,0,0], EntityKind::UserDefinedReaderGroup);
-        // let subscriber_guid = GUID::new(guid_prefix, entity_id);
-        // let new_subscriber = Arc::new(Mutex::new(RtpsGroup::new(subscriber_guid)));
-        // self.subscriber_list.push(new_subscriber.clone());
-
-        // new_subscriber
+        new_subscriber
     }
 
     fn get_builtin_subscriber(&self) -> Arc<Mutex<dyn ProtocolSubscriber>> {
-        todo!()
-        // self.builtin_subscriber.clone()
+        self.builtin_subscriber.clone()
     }
 }
 

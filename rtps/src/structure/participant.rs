@@ -15,9 +15,7 @@ pub struct RtpsParticipant {
     protocol_version: ProtocolVersion,
     vendor_id: VendorId,
 
-
-    publisher_list: Vec<Arc<Mutex<RtpsGroup>>>,
-    subscriber_list: Vec<Arc<Mutex<RtpsGroup>>>,
+    groups: Vec<Arc<Mutex<RtpsGroup>>>,
 }
 
 impl RtpsParticipant {
@@ -33,8 +31,7 @@ impl RtpsParticipant {
             domain_id,
             protocol_version,
             vendor_id,
-            publisher_list: Vec::new(),
-            subscriber_list: Vec::new(),
+            groups: Vec::new(),
         }
     }
 
@@ -48,6 +45,10 @@ impl RtpsParticipant {
 
     pub fn vendor_id(&self) -> VendorId {
         self.vendor_id
+    }
+    
+    pub fn mut_groups(&mut self) -> &mut Vec<Arc<Mutex<RtpsGroup>>> {
+        &mut self.groups
     }
 }
 
