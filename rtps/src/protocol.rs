@@ -14,7 +14,6 @@ use rust_dds_interface::types::DomainId;
 
 pub struct RtpsProtocol {
     participant: RtpsParticipant,
-    spdp: SimpleParticipantDiscoveryProtocol,
     userdata_transport: Arc<dyn Transport>,
     metatraffic_transport: Arc<dyn Transport>,
 }
@@ -64,7 +63,6 @@ impl RtpsProtocol {
 
         Self {
             participant,
-            spdp,
             userdata_transport,
             metatraffic_transport,
         }
