@@ -15,8 +15,7 @@ pub struct RtpsParticipant {
     protocol_version: ProtocolVersion,
     vendor_id: VendorId,
 
-    builtin_publisher: Arc<Mutex<RtpsGroup>>,
-    builtin_subscriber: Arc<Mutex<RtpsGroup>>, 
+
     publisher_list: Vec<Arc<Mutex<RtpsGroup>>>,
     subscriber_list: Vec<Arc<Mutex<RtpsGroup>>>,
 }
@@ -29,19 +28,11 @@ impl RtpsParticipant {
         let protocol_version = PROTOCOL_VERSION_2_4;
         let vendor_id = [99,99];
 
-        let builtin_publisher_guid = GUID::new(guid_prefix, EntityId::new([3,3,3], EntityKind::BuiltInWriterGroup));
-        let builtin_subscriber_guid = GUID::new(guid_prefix, EntityId::new([3,3,3], EntityKind::BuiltInReaderGroup));
-
-        let builtin_publisher = Arc::new(Mutex::new(RtpsGroup::new(builtin_publisher_guid)));
-        let builtin_subscriber = Arc::new(Mutex::new(RtpsGroup::new(builtin_subscriber_guid)));
-
         Self {
             guid: GUID::new(guid_prefix,ENTITYID_PARTICIPANT ),
             domain_id,
             protocol_version,
             vendor_id,
-            builtin_subscriber,
-            builtin_publisher,
             publisher_list: Vec::new(),
             subscriber_list: Vec::new(),
         }
@@ -57,14 +48,6 @@ impl RtpsParticipant {
 
     pub fn vendor_id(&self) -> VendorId {
         self.vendor_id
-    }
-
-    pub fn builtin_publisher(&self) -> &Arc<Mutex<RtpsGroup>> {
-        &self.builtin_publisher
-    }
-
-    pub fn builtin_subscriber(&self) -> &Arc<Mutex<RtpsGroup>> {
-        &self.builtin_subscriber
     }
 }
 

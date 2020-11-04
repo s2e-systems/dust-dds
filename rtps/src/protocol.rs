@@ -1,12 +1,12 @@
 use std::sync::{Arc, Mutex};
 
-use crate::types::GUID;
+use crate::types::{GUID, EntityId, EntityKind};
 use crate::transport::Transport;
 use crate::discovery::spdp::{SimpleParticipantDiscoveryProtocol, SPDPdiscoveredParticipantData};
 use crate::discovery::spdp_listener::SimpleParticipantDiscoveryListener;
 use crate::discovery::sedp::{SimpleEndpointDiscoveryProtocol};
 use crate::endpoint_types::BuiltInEndpointSet;
-use crate::structure::RtpsParticipant;
+use crate::structure::{RtpsParticipant, RtpsGroup};
 use crate::structure::entity::RtpsEntity;
 use crate::message_receiver::RtpsMessageReceiver;
 use crate::message_sender::RtpsMessageSender;
@@ -16,6 +16,8 @@ use rust_dds_interface::protocol::{ProtocolEntity, ProtocolParticipant, Protocol
 
 pub struct RtpsProtocol {
     participant: RtpsParticipant,
+    builtin_publisher: Arc<Mutex<RtpsGroup>>,
+    builtin_subscriber: Arc<Mutex<RtpsGroup>>, 
     userdata_transport: Arc<dyn Transport>,
     metatraffic_transport: Arc<dyn Transport>,
 }
@@ -41,32 +43,37 @@ impl RtpsProtocol {
             BuiltInEndpointSet::new(0),
             lease_duration,
         );
+
+        let builtin_publisher_guid = GUID::new(guid_prefix, EntityId::new([3,3,3], EntityKind::BuiltInWriterGroup));
+        let builtin_subscriber_guid = GUID::new(guid_prefix, EntityId::new([3,3,3], EntityKind::BuiltInReaderGroup));
+
+        let mut builtin_publisher = RtpsGroup::new(builtin_publisher_guid);
+        let mut builtin_subscriber = RtpsGroup::new(builtin_subscriber_guid);
+
         let sedp = SimpleEndpointDiscoveryProtocol::new(guid_prefix);
         let spdp_listener = SimpleParticipantDiscoveryListener::new(participant.domain_id(), domain_tag.clone(), sedp.clone());
         let spdp = SimpleParticipantDiscoveryProtocol::new(data, spdp_listener);
 
-        {
-            let mut builtin_publisher = participant.builtin_publisher().lock().unwrap();
-            let mut builtin_subscriber = participant.builtin_subscriber().lock().unwrap();
-            let builtin_publisher_endpoints = builtin_publisher.mut_endpoints();
-            let builtin_subscriber_endpoints = builtin_subscriber.mut_endpoints();
-            builtin_publisher_endpoints.push(spdp.spdp_builtin_participant_writer().clone());
-            builtin_subscriber_endpoints.push(spdp.spdp_builtin_participant_reader().clone());
+        let builtin_publisher_endpoints = builtin_publisher.mut_endpoints();
+        let builtin_subscriber_endpoints = builtin_subscriber.mut_endpoints();
+        builtin_publisher_endpoints.push(spdp.spdp_builtin_participant_writer().clone());
+        builtin_subscriber_endpoints.push(spdp.spdp_builtin_participant_reader().clone());
 
-            //SEDP
-            
-            builtin_publisher_endpoints.push(sedp.sedp_builtin_publications_writer().clone());
-            builtin_publisher_endpoints.push(sedp.sedp_builtin_subscriptions_writer().clone());
-            builtin_publisher_endpoints.push(sedp.sedp_builtin_topics_writer().clone());
-            builtin_subscriber_endpoints.push(sedp.sedp_builtin_publications_reader().clone());
-            builtin_subscriber_endpoints.push(sedp.sedp_builtin_subscriptions_reader().clone());
-            builtin_subscriber_endpoints.push(sedp.sedp_builtin_topics_reader().clone());
-        }
+        //SEDP 
+        builtin_publisher_endpoints.push(sedp.sedp_builtin_publications_writer().clone());
+        builtin_publisher_endpoints.push(sedp.sedp_builtin_subscriptions_writer().clone());
+        builtin_publisher_endpoints.push(sedp.sedp_builtin_topics_writer().clone());
+        builtin_subscriber_endpoints.push(sedp.sedp_builtin_publications_reader().clone());
+        builtin_subscriber_endpoints.push(sedp.sedp_builtin_subscriptions_reader().clone());
+        builtin_subscriber_endpoints.push(sedp.sedp_builtin_topics_reader().clone());
+
         let userdata_transport = Arc::new(userdata_transport);
         let metatraffic_transport = Arc::new(metatraffic_transport);
 
         Self {
             participant,
+            builtin_publisher: Arc::new(Mutex::new(builtin_publisher)),
+            builtin_subscriber: Arc::new(Mutex::new(builtin_subscriber)),
             userdata_transport,
             metatraffic_transport,
         }
@@ -77,16 +84,16 @@ impl RtpsProtocol {
         RtpsMessageReceiver::receive(
             self.participant.guid().prefix(), 
             self.metatraffic_transport.as_ref(),
-            self.participant.builtin_publisher().lock().unwrap().into_iter()
-            .chain(self.participant.builtin_subscriber().lock().unwrap().into_iter()))
+            self.builtin_publisher.lock().unwrap().into_iter()
+            .chain(self.builtin_subscriber.lock().unwrap().into_iter()))
     }
 
     pub fn send_metatraffic(&self) {
         RtpsMessageSender::send(
             self.participant.guid().prefix(), 
             self.metatraffic_transport.as_ref(),
-            self.participant.builtin_publisher().lock().unwrap().into_iter()
-            .chain(self.participant.builtin_subscriber().lock().unwrap().into_iter()))
+            self.builtin_publisher.lock().unwrap().into_iter()
+            .chain(self.builtin_subscriber.lock().unwrap().into_iter()))
     }
 }
 
@@ -288,8 +295,8 @@ mod tests {
         let protocol = RtpsProtocol::new(domain_id, MockTransportDetect::new(), transport, domain_tag, lease_duration);
         protocol.receive_metatraffic();
 
-        let builtin_subscriber = protocol.participant.builtin_subscriber().lock().unwrap();
-        let builtin_publisher = protocol.participant.builtin_publisher().lock().unwrap();
+        let builtin_subscriber = protocol.builtin_subscriber.lock().unwrap();
+        let builtin_publisher = protocol.builtin_publisher.lock().unwrap();
         {
             let mut first_endpoint = builtin_subscriber.endpoints().into_iter().next().unwrap().lock().unwrap();
 
