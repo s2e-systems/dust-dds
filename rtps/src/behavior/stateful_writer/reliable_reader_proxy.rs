@@ -1,6 +1,6 @@
 use std::time::Instant;
 use std::convert::TryInto;
-use std::collections::{BTreeSet, VecDeque};
+use std::collections::BTreeSet;
 
 use crate::types::{SequenceNumber, GUID, GuidPrefix, EntityId, Locator};
 use crate::structure::HistoryCache;
@@ -23,9 +23,6 @@ pub struct ReliableReaderProxy{
     time_last_sent_data: Instant,
     time_nack_received: Instant,
     highest_nack_count_received: Count,
-
-    input_queue: VecDeque<RtpsSubmessage>,
-    output_queue: VecDeque<RtpsSubmessage>,
 }
 
 impl ReliableReaderProxy {
@@ -39,9 +36,27 @@ impl ReliableReaderProxy {
             time_last_sent_data: Instant::now(),
             time_nack_received: Instant::now(),
             highest_nack_count_received: 0,
-            input_queue: VecDeque::new(),
-            output_queue: VecDeque::new(),
         }
+    }
+
+    pub fn produce_messages(&mut self, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber) -> Vec<RtpsSubmessage> {
+        let mut message_queue = Vec::new();
+
+        if self.reader_proxy.unacked_changes(last_change_sequence_number).is_empty() {
+            // Idle
+        } else if !self.reader_proxy.unsent_changes(last_change_sequence_number).is_empty() {
+            self.pushing_state(history_cache, last_change_sequence_number, &mut message_queue);
+        } else if !self.reader_proxy.unacked_changes(last_change_sequence_number).is_empty() {
+            self.announcing_state(history_cache, last_change_sequence_number, &mut message_queue);
+        }
+    
+        if !self.reader_proxy.requested_changes().is_empty() {
+            if self.duration_since_nack_received() > self.nack_response_delay {
+                self.repairing_state(history_cache, &mut message_queue);
+            }
+        }
+
+        message_queue
     }
 
     pub fn try_process_message(&mut self, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>) {
@@ -57,39 +72,9 @@ impl ReliableReaderProxy {
                         }
                     }
                 }
-
             }
         }
     }
-
-    pub fn process(&mut self, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber) {
-        if self.reader_proxy.unacked_changes(last_change_sequence_number).is_empty() {
-            // Idle
-        } else if !self.reader_proxy.unsent_changes(last_change_sequence_number).is_empty() {
-            self.pushing_state(history_cache, last_change_sequence_number);
-        } else if !self.reader_proxy.unacked_changes(last_change_sequence_number).is_empty() {
-            self.announcing_state(history_cache, last_change_sequence_number);
-        }
-    
-        if !self.reader_proxy.requested_changes().is_empty() {
-            if self.duration_since_nack_received() > self.nack_response_delay {
-                self.repairing_state(history_cache);
-            }
-        }
-    }
-
-    // pub fn try_push_message(&mut self, _src_locator: Locator, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>) {
-    //     let reader_id = match submessage {
-    //         Some(RtpsSubmessage::AckNack(acknack)) => acknack.reader_id(),
-    //         _ => return,
-    //     };
-
-    //     let reader_guid = GUID::new(src_guid_prefix, reader_id);
-
-    //     if self.reader_proxy.remote_reader_guid() == &reader_guid {
-    //         self.input_queue.push_back(submessage.take().unwrap())
-    //     }
-    // }
 
     pub fn unicast_locator_list(&self) -> &Vec<Locator> {
         self.reader_proxy.unicast_locator_list()
@@ -99,21 +84,17 @@ impl ReliableReaderProxy {
         self.reader_proxy.multicast_locator_list()
     }
 
-    pub fn output_queue_mut(&mut self) -> &mut VecDeque<RtpsSubmessage> {
-        &mut self.output_queue
-    }
-
-    fn pushing_state(&mut self, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber) {
+    fn pushing_state(&mut self, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber, message_queue: &mut Vec<RtpsSubmessage>) {
         // This state is only valid if there are unsent changes
         debug_assert!(!self.reader_proxy.unsent_changes(last_change_sequence_number).is_empty());
     
         while let Some(next_unsent_seq_num) = self.reader_proxy.next_unsent_change(last_change_sequence_number) {
-            self.transition_t4(history_cache, next_unsent_seq_num);
+            self.transition_t4(history_cache, next_unsent_seq_num, message_queue);
         }
         self.time_last_sent_data_reset();
     }
 
-    fn transition_t4(&mut self, history_cache: &HistoryCache, next_unsent_seq_num: SequenceNumber) {
+    fn transition_t4(&mut self, history_cache: &HistoryCache, next_unsent_seq_num: SequenceNumber, message_queue: &mut Vec<RtpsSubmessage>) {
         if let Some(cache_change) = history_cache
             .changes().iter().find(|cc| cc.sequence_number() == next_unsent_seq_num)
         {
@@ -122,7 +103,7 @@ impl ReliableReaderProxy {
             let mut dst_locator = self.reader_proxy.unicast_locator_list().clone();
             dst_locator.extend(self.reader_proxy.unicast_locator_list());
             dst_locator.extend(self.reader_proxy.multicast_locator_list());
-            self.output_queue.push_back(RtpsSubmessage::Data(data));
+            message_queue.push(RtpsSubmessage::Data(data));
         } else {
             let gap = Gap::new(
                 BEHAVIOR_ENDIANNESS,
@@ -134,18 +115,18 @@ impl ReliableReaderProxy {
             let mut dst_locator = self.reader_proxy.unicast_locator_list().clone();
             dst_locator.extend(self.reader_proxy.unicast_locator_list());
             dst_locator.extend(self.reader_proxy.multicast_locator_list());
-            self.output_queue.push_back(RtpsSubmessage::Gap(gap));
+            message_queue.push(RtpsSubmessage::Gap(gap));
         }
     }
 
-    fn announcing_state(&mut self, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber){
+    fn announcing_state(&mut self, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber, message_queue: &mut Vec<RtpsSubmessage>){
         if self.duration_since_last_sent_data() > self.heartbeat_period {
-            self.transition_t7(history_cache, last_change_sequence_number);
+            self.transition_t7(history_cache, last_change_sequence_number, message_queue);
             self.time_last_sent_data_reset();
         }
     }
 
-    fn transition_t7(&mut self, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber) {
+    fn transition_t7(&mut self, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber, message_queue: &mut Vec<RtpsSubmessage>) {
         let first_sn = if let Some(seq_num) = history_cache.get_seq_num_min() {
             seq_num
         } else {
@@ -168,7 +149,7 @@ impl ReliableReaderProxy {
         dst_locator.extend(self.reader_proxy.unicast_locator_list());
         dst_locator.extend(self.reader_proxy.multicast_locator_list());
 
-        self.output_queue.push_back(RtpsSubmessage::Heartbeat(heartbeat));
+        message_queue.push(RtpsSubmessage::Heartbeat(heartbeat));
     }
     
     fn waiting_state(&mut self, acknack: AckNack) {
@@ -185,23 +166,23 @@ impl ReliableReaderProxy {
         self.transition_t8(acknack);
     }
     
-    fn repairing_state(&mut self, history_cache: &HistoryCache) {
+    fn repairing_state(&mut self, history_cache: &HistoryCache, message_queue: &mut Vec<RtpsSubmessage>) {
         // This state is only valid if there are requested changes
         debug_assert!(!self.reader_proxy.requested_changes().is_empty());
     
         while let Some(next_requested_seq_num) = self.reader_proxy.next_requested_change() {
-            self.transition_t12(history_cache, next_requested_seq_num);
+            self.transition_t12(history_cache, next_requested_seq_num, message_queue);
         }
     }
 
-    fn transition_t12(&mut self, history_cache: &HistoryCache, next_requested_seq_num: SequenceNumber) {
+    fn transition_t12(&mut self, history_cache: &HistoryCache, next_requested_seq_num: SequenceNumber, message_queue: &mut Vec<RtpsSubmessage>) {
         if let Some(cache_change) = history_cache.changes().iter().find(|cc| cc.sequence_number() == next_requested_seq_num)
         {
             let data = data_from_cache_change(cache_change, self.reader_proxy.remote_reader_guid().entity_id());
             let mut dst_locator = self.reader_proxy.unicast_locator_list().clone();
             dst_locator.extend(self.reader_proxy.unicast_locator_list());
             dst_locator.extend(self.reader_proxy.multicast_locator_list());
-            self.output_queue.push_back(RtpsSubmessage::Data(data));
+            message_queue.push(RtpsSubmessage::Data(data));
         } else {
             let gap = Gap::new(
                 BEHAVIOR_ENDIANNESS,
@@ -213,7 +194,7 @@ impl ReliableReaderProxy {
             let mut dst_locator = self.reader_proxy.unicast_locator_list().clone();
             dst_locator.extend(self.reader_proxy.unicast_locator_list());
             dst_locator.extend(self.reader_proxy.multicast_locator_list());
-            self.output_queue.push_back(RtpsSubmessage::Gap(gap));
+            message_queue.push(RtpsSubmessage::Gap(gap));
         }
     }
 

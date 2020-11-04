@@ -11,14 +11,20 @@ pub use stateless_writer::StatelessWriter;
 
 use std::convert::TryInto;
 
-use crate::types::{GUID, GuidPrefix, EntityId, ChangeKind};
+use crate::types::{GUID, GuidPrefix, EntityId, ChangeKind, Locator};
 use crate::structure::CacheChange;
-use crate::messages::Endianness;
+use crate::messages::{Endianness, RtpsSubmessage};
 use crate::messages::submessages::Data;
 use crate::messages::submessages::data_submessage::Payload;
 use crate::inline_qos_types::{KeyHash, StatusInfo};
 
 pub const BEHAVIOR_ENDIANNESS: Endianness = Endianness::LittleEndian;
+
+pub enum DestinedMessages {
+    SingleDestination{locator: Locator, messages: Vec<RtpsSubmessage>},
+    MultiDestination{unicast_locator_list: Vec<Locator>, multicast_locator_list: Vec<Locator>, messages: Vec<RtpsSubmessage>}
+}
+
 
 fn cache_change_from_data(message: Data, guid_prefix: &GuidPrefix) -> CacheChange {
     let writer_id = message.writer_id();

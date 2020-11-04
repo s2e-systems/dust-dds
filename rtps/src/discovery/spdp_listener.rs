@@ -194,7 +194,7 @@ impl SimpleParticipantDiscoveryListener {
         }
     }
 
-    pub fn remove_discovered_participant(&self, remote_participant_guid_prefix: GuidPrefix) {
+    fn remove_discovered_participant(&self, remote_participant_guid_prefix: GuidPrefix) {
         // Implements the process described in 8.5.5.2 Removal of a previously discovered Participant
         let guid = GUID::new(
             remote_participant_guid_prefix,

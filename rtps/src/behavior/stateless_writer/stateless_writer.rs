@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 use crate::structure::{HistoryCache, HistoryCacheResourceLimits, CacheChange, RtpsEndpoint, RtpsEntity};
 use crate::serialized_payload::ParameterList;
+use crate::messages::RtpsSubmessage;
+use crate::behavior::DestinedMessages;
 use crate::types::{ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID, };
 use super::reader_locator::ReaderLocator;
 
@@ -67,11 +69,16 @@ impl StatelessWriter {
         )
     }
 
-    pub fn run(&mut self) {
-        for (_, reader_locator) in self.reader_locators.iter_mut() {
-            reader_locator.process(&self.writer_cache, self.last_change_sequence_number);
+    pub fn produce_messages(&mut self) -> Vec<DestinedMessages> {
+        let mut output = Vec::new();
+        for (&locator, reader_locator) in self.reader_locators.iter_mut() {
+            let messages = reader_locator.produce_messages(&self.writer_cache, self.last_change_sequence_number);
+            if !messages.is_empty() {
+                output.push(DestinedMessages::SingleDestination{locator, messages});
+            }
         }
-    }
+        output
+    } 
 
     pub fn writer_cache(&mut self) -> &mut HistoryCache {
         &mut self.writer_cache

@@ -13,7 +13,7 @@ use super::reliable_writer_proxy::ReliableWriterProxy;
 use rust_dds_interface::protocol::{ProtocolEntity, ProtocolReader};
 use rust_dds_interface::types::{InstanceHandle, ReturnCode};
 
-pub enum WriterProxyFlavor{
+enum WriterProxyFlavor{
     BestEffort(BestEffortWriterProxy),
     Reliable(ReliableWriterProxy),
 }
@@ -88,10 +88,6 @@ impl StatefulReader {
 
     pub fn matched_writer_remove(&mut self, writer_proxy_guid: &GUID) {
         self.matched_writers.remove(writer_proxy_guid);
-    }
-
-    pub fn matched_writers(&mut self) -> &mut HashMap<GUID, WriterProxyFlavor> {
-        &mut self.matched_writers
     }
 
     pub fn reader_cache(&self) -> &HistoryCache {

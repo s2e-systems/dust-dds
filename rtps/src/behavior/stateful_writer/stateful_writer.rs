@@ -5,6 +5,8 @@ use crate::behavior::types::Duration;
 use crate::messages::RtpsSubmessage;
 use crate::structure::{HistoryCache, CacheChange, RtpsEndpoint, RtpsEntity, HistoryCacheResourceLimits};
 use crate::serialized_payload::ParameterList;
+use crate::behavior::DestinedMessages;
+
 use super::reader_proxy::ReaderProxy;
 use super::reliable_reader_proxy::ReliableReaderProxy;
 use super::best_effort_reader_proxy::BestEffortReaderProxy;
@@ -12,7 +14,7 @@ use super::best_effort_reader_proxy::BestEffortReaderProxy;
 use rust_dds_interface::protocol::{ProtocolEntity, ProtocolWriter};
 use rust_dds_interface::types::{Data, Time, ReturnCode};
 
-pub enum ReaderProxyFlavor {
+enum ReaderProxyFlavor {
     BestEffort(BestEffortReaderProxy),
     Reliable(ReliableReaderProxy),
 }
@@ -94,13 +96,35 @@ impl StatefulWriter {
         self.last_change_sequence_number
     }
 
-    pub fn run(&mut self) {
+    pub fn produce_messages(&mut self) -> Vec<DestinedMessages> {
+        let mut output = Vec::new();
+
         for (_reader_guid, reader_proxy) in self.matched_readers.iter_mut(){
+            let mut output = Vec::new();
             match reader_proxy {
-                ReaderProxyFlavor::Reliable(reliable_reader_proxy) => reliable_reader_proxy.process(&self.writer_cache, self.last_change_sequence_number),
-                ReaderProxyFlavor::BestEffort(best_effort_reader_proxy) => best_effort_reader_proxy.process(&self.writer_cache, self.last_change_sequence_number),
-            }
+                ReaderProxyFlavor::Reliable(reliable_reader_proxy) => {
+                    let messages = reliable_reader_proxy.produce_messages(&self.writer_cache, self.last_change_sequence_number);
+                    if !messages.is_empty() {
+                        output.push(DestinedMessages::MultiDestination{
+                            unicast_locator_list: reliable_reader_proxy.unicast_locator_list().clone(),
+                            multicast_locator_list: reliable_reader_proxy.multicast_locator_list().clone(),
+                            messages,
+                        });   
+                    }
+                }
+                ReaderProxyFlavor::BestEffort(best_effort_reader_proxy) => {
+                    let messages = best_effort_reader_proxy.produce_messages(&self.writer_cache, self.last_change_sequence_number);
+                    if !messages.is_empty() {
+                        output.push(DestinedMessages::MultiDestination{
+                            unicast_locator_list: best_effort_reader_proxy.unicast_locator_list().clone(),
+                            multicast_locator_list: best_effort_reader_proxy.multicast_locator_list().clone(),
+                            messages,
+                        });   
+                    }
+                }
+            };
         }
+        output
     }
 
     pub fn try_process_message(&mut self, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>) {
@@ -131,10 +155,6 @@ impl StatefulWriter {
 
     pub fn matched_reader_remove(&mut self, reader_proxy_guid: &GUID) {
         self.matched_readers.remove(reader_proxy_guid);
-    }
-
-    pub fn matched_readers(&mut self) -> &mut HashMap<GUID, ReaderProxyFlavor> {
-        &mut self.matched_readers
     }
 
     pub fn is_acked_by_all(&self) -> bool {

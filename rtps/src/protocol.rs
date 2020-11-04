@@ -70,13 +70,7 @@ impl RtpsProtocol {
         }
     }
 
-    pub fn run_builtin_endpoints(&self) {
-        // self.spdp.spdp_builtin_participant_reader().lock().unwrap().run(
-        //     |_| println!("Discovery data")
-        // );
 
-        self.spdp.spdp_builtin_participant_writer().lock().unwrap().run();
-    }
     pub fn receive_metatraffic(&self) {
         RtpsMessageReceiver::receive(
             self.participant.guid().prefix(), 
@@ -146,7 +140,6 @@ mod tests {
         let domain_tag = "".to_string();
         let lease_duration = Duration::from_millis(100);
         let protocol = RtpsProtocol::new(domain_id, MockTransport::new(), MockTransport::new(), domain_tag, lease_duration);
-        protocol.run_builtin_endpoints();
         protocol.send_metatraffic();
     }
 
@@ -229,7 +222,6 @@ mod tests {
 
         let protocol = RtpsProtocol::new(domain_id, MockTransportDetect::new(), transport, domain_tag, lease_duration);
         protocol.receive_metatraffic();
-        protocol.run_builtin_endpoints();
         let builtin_subscriber = protocol.participant.builtin_subscriber().lock().unwrap();
         let mut first_endpoint = builtin_subscriber.endpoints().into_iter().next().unwrap().lock().unwrap();
 
