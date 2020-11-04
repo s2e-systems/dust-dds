@@ -10,7 +10,6 @@ use crate::publication::{PublisherListener, DataWriter, AnyDataWriter, DataWrite
 use crate::implementation::domain_participant_impl::DomainParticipantImpl;
 use crate::implementation::data_writer_impl::DataWriterImpl;
 
-use rust_dds_interface::protocol::ProtocolEntity;
 use rust_dds_interface::qos::{TopicQos, PublisherQos, DataWriterQos};
 
 pub struct PublisherImpl{
@@ -29,16 +28,21 @@ impl PublisherImpl {
         _mask: StatusMask,
     ) -> Option<DataWriter<T>> {
         let publisher = PublisherImpl::upgrade_publisher(this).ok()?;
-        todo!()
-        // let mut protocol_publisher = publisher.protocol_publisher.lock().unwrap();
-        // let protocol_writer = protocol_publisher.create_writer(T::topic_kind(), &qos);
-        // let datawriter_impl = Arc::new(DataWriterImpl::new(this.clone(), protocol_writer));
-        // let datawriter = DataWriter(Arc::downgrade(&datawriter_impl)); 
-        // let datawriter_2 = DataWriter(Arc::downgrade(&datawriter_impl)); 
+        let protocol_writer = publisher
+            .parent_participant
+            .upgrade()
+            .unwrap()
+            .protocol_participant()
+            .lock()
+            .unwrap()
+            .create_writer(T::topic_kind(), &qos);
+        let datawriter_impl = Arc::new(DataWriterImpl::new(this.clone(), protocol_writer));
+        let datawriter = DataWriter(Arc::downgrade(&datawriter_impl)); 
+        let datawriter_2 = DataWriter(Arc::downgrade(&datawriter_impl)); 
 
-        // publisher.datawriter_list.lock().ok()?.push(Box::new(datawriter_2));
+        publisher.datawriter_list.lock().ok()?.push(Box::new(datawriter_2));
 
-        // Some(datawriter)
+        Some(datawriter)
     }
 
     pub(crate) fn delete_datawriter<T: DDSType>(

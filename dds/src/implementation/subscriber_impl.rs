@@ -21,7 +21,6 @@ use crate::implementation::domain_participant_impl::DomainParticipantImpl;
 use crate::implementation::data_reader_impl::DataReaderImpl;
 
 use rust_dds_interface::qos::{TopicQos, SubscriberQos, DataReaderQos};
-use rust_dds_interface::protocol::ProtocolSubscriber;
 
 pub struct SubscriberImpl{
     parent_participant: Weak<DomainParticipantImpl>,
@@ -38,17 +37,22 @@ impl SubscriberImpl {
         _a_listener: Box<dyn DataReaderListener<T>>,
         _mask: StatusMask
     ) -> Option<DataReader<T>> {
-        todo!()
-        // let subscriber = Self::upgrade_subscriber(this).ok()?;
-        // let mut protocol_subscriber = subscriber.protocol_subscriber.lock().unwrap();
-        // let protocol_reader = protocol_subscriber.create_reader(T::topic_kind(), &qos);
-        // let datareader_impl = Arc::new(DataReaderImpl::new(this.clone(), protocol_reader));
-        // let datareader = DataReader(Arc::downgrade(&datareader_impl));  
-        // let datareader_2 = DataReader(Arc::downgrade(&datareader_impl));
+        let subscriber = Self::upgrade_subscriber(this).ok()?;
+        let protocol_reader = subscriber
+            .parent_participant
+            .upgrade()
+            .unwrap()
+            .protocol_participant()
+            .lock()
+            .unwrap()
+            .create_reader(T::topic_kind(), &qos);
+        let datareader_impl = Arc::new(DataReaderImpl::new(this.clone(), protocol_reader));
+        let datareader = DataReader(Arc::downgrade(&datareader_impl));  
+        let datareader_2 = DataReader(Arc::downgrade(&datareader_impl));
 
-        // subscriber.datareader_list.lock().ok()?.push(Box::new(datareader_2));
+        subscriber.datareader_list.lock().ok()?.push(Box::new(datareader_2));
 
-        // Some(datareader)
+        Some(datareader)
     }
 
     pub(crate) fn delete_datareader<T: DDSType>(

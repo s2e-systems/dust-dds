@@ -1,4 +1,3 @@
-use std::any::Any;
 use crate::topic::topic::Topic;
 use crate::infrastructure::status::InconsistentTopicStatus;
 use crate::infrastructure::listener::NoListener;

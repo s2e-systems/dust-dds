@@ -41,8 +41,8 @@ impl DomainParticipantImpl{
         _a_listener: impl PublisherListener,
         _mask: StatusMask
     ) -> Option<Publisher> {
-        let protocol_publisher = this.protocol_participant.lock().unwrap().create_publisher();
-        let publisher_impl = Arc::new(PublisherImpl::new(Arc::downgrade(this), protocol_publisher));
+        let publisher_instance_handle = this.protocol_participant.lock().unwrap().create_publisher();
+        let publisher_impl = Arc::new(PublisherImpl::new(Arc::downgrade(this), publisher_instance_handle));
         let publisher = Publisher(Arc::downgrade(&publisher_impl));
 
         this.publisher_list.lock().ok()?.push(publisher_impl);
@@ -346,6 +346,10 @@ impl DomainParticipantImpl{
             protocol_participant: Mutex::new(Box::new(protocol_participant)),
         }
     }
+
+    pub(crate) fn protocol_participant(&self) -> &Mutex<Box<dyn ProtocolParticipant>> {
+        &self.protocol_participant
+    }
 }
 
 #[cfg(test)]
@@ -405,11 +409,11 @@ mod tests {
             todo!()
         }
 
-        fn create_reader(&mut self, topic_kind: TopicKind, data_reader_qos: &DataReaderQos) -> Arc<Mutex<dyn ProtocolReader>> {
+        fn create_reader(&mut self, _topic_kind: TopicKind, _data_reader_qos: &DataReaderQos) -> Arc<Mutex<dyn ProtocolReader>> {
             todo!()
         }
 
-        fn create_writer(&mut self, topic_kind: TopicKind, data_writer_qos: &DataWriterQos) -> Arc<Mutex<dyn ProtocolWriter>> {
+        fn create_writer(&mut self, _topic_kind: TopicKind, _data_writer_qos: &DataWriterQos) -> Arc<Mutex<dyn ProtocolWriter>> {
             todo!()
         }
     }

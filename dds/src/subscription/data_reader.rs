@@ -1,5 +1,5 @@
 use std::any::Any;
-use std::sync::{Arc, Weak};
+use std::sync::Weak;
 
 use rust_dds_interface::types::{ReturnCode, InstanceHandle};
 use crate::infrastructure::status::{ViewStateKind, SampleStateKind, InstanceStateKind, StatusMask};

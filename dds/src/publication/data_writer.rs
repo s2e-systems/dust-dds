@@ -1,5 +1,5 @@
 use std::any::Any;
-use std::sync::{Arc,Weak};
+use std::sync::Weak;
 
 use crate::types::DDSType;
 use rust_dds_interface::types::{InstanceHandle, Time, ReturnCode, Duration};
