@@ -100,7 +100,6 @@ impl StatefulWriter {
         let mut output = Vec::new();
 
         for (_reader_guid, reader_proxy) in self.matched_readers.iter_mut(){
-            let mut output = Vec::new();
             match reader_proxy {
                 ReaderProxyFlavor::Reliable(reliable_reader_proxy) => {
                     let messages = reliable_reader_proxy.produce_messages(&self.writer_cache, self.last_change_sequence_number);

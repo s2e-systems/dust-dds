@@ -5,7 +5,7 @@ use crate::types::{Locator, ReliabilityKind, TopicKind, GUID, GuidPrefix };
 use crate::messages::RtpsSubmessage;
 use crate::behavior::types::Duration;
 
-use crate::behavior::WriterProxy;
+use crate::behavior::{WriterProxy, DestinedMessages};
 use super::stateful_reader_listener::StatefulReaderListener;
 use super::best_effort_writer_proxy::BestEffortWriterProxy;
 use super::reliable_writer_proxy::ReliableWriterProxy;
@@ -74,6 +74,27 @@ impl StatefulReader {
                 WriterProxyFlavor::Reliable(reliable_writer_proxy) => reliable_writer_proxy.try_process_message(src_guid_prefix, submessage, &mut self.reader_cache, self.listener.as_ref()),
             }
         }
+    }
+
+    pub fn produce_messages(&mut self) -> Vec<DestinedMessages> {
+        let mut output = Vec::new();
+        for (_writer_guid, writer_proxy) in self.matched_writers.iter_mut(){
+            match writer_proxy {
+                WriterProxyFlavor::BestEffort(_) => (),
+                WriterProxyFlavor::Reliable(reliable_writer_proxy) => {
+                    let messages = reliable_writer_proxy.produce_messages(self.guid.entity_id(), self.heartbeat_response_delay);
+                    output.push( {
+                        DestinedMessages::MultiDestination{
+                            unicast_locator_list: reliable_writer_proxy.unicast_locator_list().clone(),
+                            multicast_locator_list: reliable_writer_proxy.multicast_locator_list().clone(),
+                            messages
+                        }
+                    })
+                }
+            }
+        }
+        output
+
     }
     
     pub fn matched_writer_add(&mut self, a_writer_proxy: WriterProxy) {

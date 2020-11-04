@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 use crate::structure::{HistoryCache, HistoryCacheResourceLimits, CacheChange, RtpsEndpoint, RtpsEntity};
 use crate::serialized_payload::ParameterList;
-use crate::messages::RtpsSubmessage;
 use crate::behavior::DestinedMessages;
 use crate::types::{ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID, };
 use super::reader_locator::ReaderLocator;

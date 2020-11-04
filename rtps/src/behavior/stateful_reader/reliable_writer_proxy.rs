@@ -1,6 +1,5 @@
 use std::convert::TryInto;
 use std::time::Instant;
-use std::collections::VecDeque;
 
 use crate::types::{GuidPrefix, GUID, EntityId};
 use crate::structure::HistoryCache;
@@ -20,8 +19,6 @@ pub struct ReliableWriterProxy {
     time_heartbeat_received: Instant,
     ackanck_count: Count,
     highest_received_heartbeat_count: Count,
-
-    output_queue: VecDeque<RtpsSubmessage>,
 }
 
 impl ReliableWriterProxy {
@@ -32,7 +29,6 @@ impl ReliableWriterProxy {
             time_heartbeat_received: Instant::now(),
             ackanck_count: 0,
             highest_received_heartbeat_count: 0,
-            output_queue: VecDeque::new(),
         }
     }
 
@@ -47,6 +43,14 @@ impl ReliableWriterProxy {
                 self.ready_state(submessage, history_cache, listener);
             }
         }
+    }
+
+    pub fn produce_messages(&mut self, reader_entity_id: EntityId, heartbeat_response_delay: Duration) -> Vec<RtpsSubmessage> {
+        let mut output_queue = Vec::new();
+        if self.must_send_ack {
+            self.must_send_ack_state(reader_entity_id, heartbeat_response_delay, &mut output_queue);
+        }
+        output_queue
     }
 
     pub fn unicast_locator_list(&self) -> &Vec<crate::types::Locator> {
@@ -117,13 +121,13 @@ impl ReliableWriterProxy {
         }   
     }
 
-    fn must_send_ack_state(&mut self, reader_entity_id: EntityId, heartbeat_response_delay: Duration) {
+    fn must_send_ack_state(&mut self, reader_entity_id: EntityId, heartbeat_response_delay: Duration, output_queue: &mut Vec<RtpsSubmessage>) {
         if self.duration_since_heartbeat_received() >  heartbeat_response_delay {
-            self.transition_t5(reader_entity_id)
+            self.transition_t5(reader_entity_id, output_queue)
         }
     }
 
-    fn transition_t5(&mut self, reader_entity_id: EntityId) {
+    fn transition_t5(&mut self, reader_entity_id: EntityId, output_queue: &mut Vec<RtpsSubmessage>) {
         self.reset_must_send_ack();
  
         self.increment_acknack_count();
@@ -136,11 +140,7 @@ impl ReliableWriterProxy {
             *self.ackanck_count(),
             true);
 
-        self.output_queue.push_back(RtpsSubmessage::AckNack(acknack));
-    }
-
-    fn must_send_ack(&self) -> bool {
-        self.must_send_ack
+        output_queue.push(RtpsSubmessage::AckNack(acknack));
     }
 
     fn set_must_send_ack(&mut self) {
@@ -162,10 +162,6 @@ impl ReliableWriterProxy {
 
     pub fn increment_acknack_count(&mut self) {
         self.ackanck_count += 1;
-    }
-
-    pub fn output_queue_mut(&mut self) -> &mut VecDeque<RtpsSubmessage> {
-        &mut self.output_queue
     }
 }
 

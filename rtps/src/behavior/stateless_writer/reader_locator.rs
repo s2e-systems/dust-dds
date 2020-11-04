@@ -96,62 +96,62 @@ impl ReaderLocator {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::types::{GUID, ChangeKind};
-    use crate::types::constants::ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER;
-    use crate::structure::{CacheChange, HistoryCacheResourceLimits};
+    // use super::*;
+    // use crate::types::{GUID, ChangeKind};
+    // use crate::types::constants::ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER;
+    // use crate::structure::{CacheChange, HistoryCacheResourceLimits};
 
-    #[test]
-    fn unsent_change_operations() {
-        let locator = Locator::new_udpv4(7400, [127,0,0,1]);
-        let writer_entity_id = ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER;
-        let expects_inline_qos = false;
-        let mut reader_locator = ReaderLocator::new(locator, writer_entity_id, expects_inline_qos);
+    // #[test]
+    // fn unsent_change_operations() {
+    //     let locator = Locator::new_udpv4(7400, [127,0,0,1]);
+    //     let writer_entity_id = ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER;
+    //     let expects_inline_qos = false;
+    //     let mut reader_locator = ReaderLocator::new(locator, writer_entity_id, expects_inline_qos);
 
-        let unsent_changes = reader_locator.unsent_changes(0);
-        assert!(unsent_changes.is_empty());
+    //     let unsent_changes = reader_locator.unsent_changes(0);
+    //     assert!(unsent_changes.is_empty());
 
-        let unsent_changes = reader_locator.unsent_changes(2);
-        assert_eq!(unsent_changes.len(), 2);
-        assert!(unsent_changes.contains(&1));
-        assert!(unsent_changes.contains(&2));
+    //     let unsent_changes = reader_locator.unsent_changes(2);
+    //     assert_eq!(unsent_changes.len(), 2);
+    //     assert!(unsent_changes.contains(&1));
+    //     assert!(unsent_changes.contains(&2));
 
-        let next_unsent_change = reader_locator.next_unsent_change(2).unwrap();
-        assert_eq!(next_unsent_change, 1);
-        let next_unsent_change = reader_locator.next_unsent_change(2).unwrap();
-        assert_eq!(next_unsent_change, 2);
-        let next_unsent_change = reader_locator.next_unsent_change(2);
-        assert!(next_unsent_change.is_none());
+    //     let next_unsent_change = reader_locator.next_unsent_change(2).unwrap();
+    //     assert_eq!(next_unsent_change, 1);
+    //     let next_unsent_change = reader_locator.next_unsent_change(2).unwrap();
+    //     assert_eq!(next_unsent_change, 2);
+    //     let next_unsent_change = reader_locator.next_unsent_change(2);
+    //     assert!(next_unsent_change.is_none());
 
-        // Test also that the system is robust if the last_change_sequence_number input does not follow the precondition
-        // of being a constantly increasing number
-        let next_unsent_change = reader_locator.next_unsent_change(1);
-        assert!(next_unsent_change.is_none());
-    }
+    //     // Test also that the system is robust if the last_change_sequence_number input does not follow the precondition
+    //     // of being a constantly increasing number
+    //     let next_unsent_change = reader_locator.next_unsent_change(1);
+    //     assert!(next_unsent_change.is_none());
+    // }
 
-    #[test]
-    fn unsent_changes_reset() {
-        let locator = Locator::new_udpv4(7400, [127,0,0,1]);
-        let writer_entity_id = ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER;
-        let expects_inline_qos = false;
-        let mut reader_locator = ReaderLocator::new(locator, writer_entity_id, expects_inline_qos);
+    // #[test]
+    // fn unsent_changes_reset() {
+    //     let locator = Locator::new_udpv4(7400, [127,0,0,1]);
+    //     let writer_entity_id = ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER;
+    //     let expects_inline_qos = false;
+    //     let mut reader_locator = ReaderLocator::new(locator, writer_entity_id, expects_inline_qos);
 
-        let next_unsent_change = reader_locator.next_unsent_change(2).unwrap();
-        assert_eq!(next_unsent_change, 1);
-        let next_unsent_change = reader_locator.next_unsent_change(2).unwrap();
-        assert_eq!(next_unsent_change, 2);
-        let next_unsent_change = reader_locator.next_unsent_change(2);
-        assert!(next_unsent_change.is_none());
+    //     let next_unsent_change = reader_locator.next_unsent_change(2).unwrap();
+    //     assert_eq!(next_unsent_change, 1);
+    //     let next_unsent_change = reader_locator.next_unsent_change(2).unwrap();
+    //     assert_eq!(next_unsent_change, 2);
+    //     let next_unsent_change = reader_locator.next_unsent_change(2);
+    //     assert!(next_unsent_change.is_none());
 
-        reader_locator.unsent_changes_reset();
+    //     reader_locator.unsent_changes_reset();
 
-        let next_unsent_change = reader_locator.next_unsent_change(2).unwrap();
-        assert_eq!(next_unsent_change, 1);
-        let next_unsent_change = reader_locator.next_unsent_change(2).unwrap();
-        assert_eq!(next_unsent_change, 2);
-        let next_unsent_change = reader_locator.next_unsent_change(2);
-        assert!(next_unsent_change.is_none());
-    }
+    //     let next_unsent_change = reader_locator.next_unsent_change(2).unwrap();
+    //     assert_eq!(next_unsent_change, 1);
+    //     let next_unsent_change = reader_locator.next_unsent_change(2).unwrap();
+    //     assert_eq!(next_unsent_change, 2);
+    //     let next_unsent_change = reader_locator.next_unsent_change(2);
+    //     assert!(next_unsent_change.is_none());
+    // }
 
     // #[test]
     // fn run() {
