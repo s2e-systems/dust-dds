@@ -2,6 +2,7 @@ use std::sync::Arc;
 use crate::transport::Transport;
 use crate::behavior::types::Duration;
 use crate::discovery::spdp::{SimpleParticipantDiscoveryProtocol, SPDPdiscoveredParticipantData};
+use crate::discovery::spdp_listener::SimpleParticipantDiscoveryListener;
 use crate::discovery::sedp::{SimpleEndpointDiscoveryProtocol};
 use crate::endpoint_types::BuiltInEndpointSet;
 use crate::structure::RtpsParticipant;
@@ -26,7 +27,7 @@ impl RtpsProtocol {
 
         let data = SPDPdiscoveredParticipantData::new(
             participant.domain_id(),
-            domain_tag, 
+            domain_tag.clone(), 
             participant.protocol_version(), 
             participant.guid().prefix(), 
             participant.vendor_id(), 
@@ -38,7 +39,8 @@ impl RtpsProtocol {
             lease_duration,
         );
         let sedp = SimpleEndpointDiscoveryProtocol::new(guid_prefix);
-        let spdp = SimpleParticipantDiscoveryProtocol::new(data, &sedp);
+        let spdp_listener = SimpleParticipantDiscoveryListener::new(participant.domain_id(), domain_tag.clone(), sedp.clone());
+        let spdp = SimpleParticipantDiscoveryProtocol::new(data, spdp_listener);
 
         {
             let mut builtin_publisher = participant.builtin_publisher().lock().unwrap();

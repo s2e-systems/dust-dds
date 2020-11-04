@@ -44,7 +44,7 @@ impl ReliableWriterProxy {
                     self.waiting_heartbeat_state(inner_submessage);
                 }
 
-                self.ready_state(submessage, history_cache);
+                self.ready_state(submessage, history_cache, listener);
             }
         }
     }
@@ -57,9 +57,9 @@ impl ReliableWriterProxy {
         self.writer_proxy.multicast_locator_list()
     }
 
-    fn ready_state(&mut self, submessage: &mut Option<RtpsSubmessage>, history_cache: &mut HistoryCache) {
+    fn ready_state(&mut self, submessage: &mut Option<RtpsSubmessage>, history_cache: &mut HistoryCache, listener: &dyn StatefulReaderListener) {
         match submessage.take().unwrap() {
-            RtpsSubmessage::Data(data) => self.transition_t8(history_cache, data),
+            RtpsSubmessage::Data(data) => self.transition_t8(history_cache, data, listener),
             RtpsSubmessage::Gap(gap) => self.transition_t9(gap),
             RtpsSubmessage::Heartbeat(heartbeat) => self.transition_t7(heartbeat),
             _ => panic!("Unexpected reader message received"),
@@ -82,11 +82,12 @@ impl ReliableWriterProxy {
         }
     }
 
-    fn transition_t8(&mut self, history_cache: &mut HistoryCache, data: Data) {
+    fn transition_t8(&mut self, history_cache: &mut HistoryCache, data: Data, listener: &dyn StatefulReaderListener) {
         let expected_seq_number = self.writer_proxy.available_changes_max() + 1;
         if data.writer_sn() >= expected_seq_number {
             self.writer_proxy.received_change_set(data.writer_sn());
             let cache_change = cache_change_from_data(data, &self.writer_proxy.remote_writer_guid().prefix());
+            listener.on_add_change(&cache_change);
             history_cache.add_change(cache_change).unwrap();
             
         }

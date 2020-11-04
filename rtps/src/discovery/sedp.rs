@@ -13,6 +13,7 @@ use crate::behavior::stateful_reader::NoOpStatefulReaderListener;
 use crate::behavior::types::Duration;
 use crate::structure::HistoryCacheResourceLimits;
 
+#[derive(Clone)]
 pub struct SimpleEndpointDiscoveryProtocol {
     sedp_builtin_publications_writer: Arc<Mutex<StatefulWriter>>,
     sedp_builtin_publications_reader: Arc<Mutex<StatefulReader>>,
