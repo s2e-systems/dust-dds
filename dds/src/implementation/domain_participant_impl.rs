@@ -17,7 +17,7 @@ use crate::implementation::subscriber_impl::SubscriberImpl;
 use crate::implementation::topic_impl::TopicImpl;
 
 use rust_dds_interface::types::DomainId;
-use rust_dds_interface::protocol::{ProtocolParticipant, ProtocolDiscovery};
+use rust_dds_interface::protocol::ProtocolParticipant;
 use rust_dds_interface::qos::{DomainParticipantQos, TopicQos, PublisherQos, SubscriberQos,};
 
 pub struct DomainParticipantImpl{
@@ -31,8 +31,7 @@ pub struct DomainParticipantImpl{
     default_subscriber_qos: Mutex<SubscriberQos>,
     topic_list: Mutex<Vec<Arc<TopicImpl>>>,
     default_topic_qos: Mutex<TopicQos>,
-    protocol_participant: Arc<Mutex<dyn ProtocolParticipant>>,
-    discovery: Mutex<Vec<Box<dyn ProtocolDiscovery>>>,
+    protocol_participant: Mutex<Box<dyn ProtocolParticipant>>,
 }
 
 impl DomainParticipantImpl{
@@ -42,8 +41,7 @@ impl DomainParticipantImpl{
         _a_listener: impl PublisherListener,
         _mask: StatusMask
     ) -> Option<Publisher> {
-        let mut protocol_participant = this.protocol_participant.lock().unwrap();
-        let protocol_publisher = protocol_participant.create_publisher();
+        let protocol_publisher = this.protocol_participant.lock().unwrap().create_publisher();
         let publisher_impl = Arc::new(PublisherImpl::new(Arc::downgrade(this), protocol_publisher));
         let publisher = Publisher(Arc::downgrade(&publisher_impl));
 
@@ -73,8 +71,7 @@ impl DomainParticipantImpl{
         _a_listener: impl SubscriberListener,
         _mask: StatusMask
     ) -> Option<Subscriber> {        
-        let mut protocol_participant = this.protocol_participant.lock().unwrap();
-        let protocol_subscriber = protocol_participant.create_subscriber();
+        let protocol_subscriber = this.protocol_participant.lock().unwrap().create_subscriber();
         let subscriber_impl = Arc::new(SubscriberImpl::new(Arc::downgrade(this), protocol_subscriber));
         let subscriber = Subscriber(Arc::downgrade(&subscriber_impl));
 
@@ -143,8 +140,7 @@ impl DomainParticipantImpl{
     }
 
     pub(crate) fn get_builtin_subscriber(this: &Arc<DomainParticipantImpl>,) -> Subscriber {
-        let protocol_participant = this.protocol_participant.lock().unwrap();
-        let protocol_subscriber = protocol_participant.get_builtin_subscriber();
+        let protocol_subscriber = this.protocol_participant.lock().unwrap().get_builtin_subscriber();
         let subscriber_impl = Arc::new(SubscriberImpl::new(Arc::downgrade(this), protocol_subscriber));
         let subscriber = Subscriber(Arc::downgrade(&subscriber_impl));
 
@@ -318,8 +314,7 @@ impl DomainParticipantImpl{
     }
 
     pub(crate) fn get_instance_handle(this: &Arc<DomainParticipantImpl>) -> ReturnCode<InstanceHandle> {
-        let protocol_participant = this.protocol_participant.lock().unwrap();
-        Ok(protocol_participant.get_instance_handle())
+        Ok(this.protocol_participant.lock().unwrap().get_instance_handle())
     }
 
 
@@ -330,7 +325,7 @@ impl DomainParticipantImpl{
         qos: DomainParticipantQos,
         a_listener: impl DomainParticipantListener,
         mask: StatusMask,
-        protocol_participant: Arc<Mutex<dyn ProtocolParticipant>>,
+        protocol_participant: impl ProtocolParticipant,
     ) -> Self {
         
         if !Any::is::<NoListener>(&a_listener) {
@@ -348,14 +343,9 @@ impl DomainParticipantImpl{
             default_subscriber_qos: Mutex::new(SubscriberQos::default()),
             topic_list: Mutex::new(Vec::new()),
             default_topic_qos: Mutex::new(TopicQos::default()),
-            protocol_participant,
-            discovery: Mutex::new(Vec::new()),
+            protocol_participant: Mutex::new(Box::new(protocol_participant)),
         }
     }
-
-    pub fn add_discovery(&self, discovery: Box<dyn ProtocolDiscovery>) {
-        self.discovery.lock().unwrap().push(discovery)
-    } 
 }
 
 #[cfg(test)]
@@ -425,14 +415,9 @@ mod tests {
         }
     }
 
-    struct MockProtocolDiscovery;
-    impl ProtocolDiscovery for MockProtocolDiscovery{
-
-    }
-
     #[test]
     fn create_delete_publisher() {
-        let domain_participant_impl = Arc::new(DomainParticipantImpl::new(0, DomainParticipantQos::default(), NoListener, 0, Arc::new(Mutex::new(MockProtocolParticipant))));
+        let domain_participant_impl = Arc::new(DomainParticipantImpl::new(0, DomainParticipantQos::default(), NoListener, 0, MockProtocolParticipant));
 
         assert_eq!(domain_participant_impl.publisher_list.lock().unwrap().len(), 0);
         let publisher = DomainParticipantImpl::create_publisher(&domain_participant_impl,PublisherQos::default(), NoListener, 0).unwrap();
@@ -445,8 +430,8 @@ mod tests {
 
     #[test]
     fn delete_publisher_wrong_domain_participant() {
-        let domain_participant_impl1 = Arc::new(DomainParticipantImpl::new(0, DomainParticipantQos::default(), NoListener, 0, Arc::new(Mutex::new(MockProtocolParticipant))));
-        let domain_participant_impl2 = Arc::new(DomainParticipantImpl::new(0, DomainParticipantQos::default(), NoListener, 0, Arc::new(Mutex::new(MockProtocolParticipant))));
+        let domain_participant_impl1 = Arc::new(DomainParticipantImpl::new(0, DomainParticipantQos::default(), NoListener, 0, MockProtocolParticipant));
+        let domain_participant_impl2 = Arc::new(DomainParticipantImpl::new(0, DomainParticipantQos::default(), NoListener, 0, MockProtocolParticipant));
 
         let publisher = DomainParticipantImpl::create_publisher(&domain_participant_impl1,PublisherQos::default(), NoListener, 0).unwrap();
 
@@ -458,7 +443,7 @@ mod tests {
 
     #[test]
     fn create_delete_subscriber() {
-        let domain_participant_impl = Arc::new(DomainParticipantImpl::new(0, DomainParticipantQos::default(), NoListener, 0, Arc::new(Mutex::new(MockProtocolParticipant))));
+        let domain_participant_impl = Arc::new(DomainParticipantImpl::new(0, DomainParticipantQos::default(), NoListener, 0, MockProtocolParticipant));
 
         assert_eq!(domain_participant_impl.subscriber_list.lock().unwrap().len(), 0);
         let subscriber = DomainParticipantImpl::create_subscriber(&domain_participant_impl,SubscriberQos::default(), NoListener, 0).unwrap();
@@ -471,8 +456,8 @@ mod tests {
 
     #[test]
     fn delete_subscriber_wrong_domain_participant() {
-        let domain_participant_impl1 = Arc::new(DomainParticipantImpl::new(0, DomainParticipantQos::default(), NoListener, 0, Arc::new(Mutex::new(MockProtocolParticipant))));
-        let domain_participant_impl2 = Arc::new(DomainParticipantImpl::new(0, DomainParticipantQos::default(), NoListener, 0, Arc::new(Mutex::new(MockProtocolParticipant))));
+        let domain_participant_impl1 = Arc::new(DomainParticipantImpl::new(0, DomainParticipantQos::default(), NoListener, 0, MockProtocolParticipant));
+        let domain_participant_impl2 = Arc::new(DomainParticipantImpl::new(0, DomainParticipantQos::default(), NoListener, 0, MockProtocolParticipant));
 
         let subscriber = DomainParticipantImpl::create_subscriber(&domain_participant_impl1,SubscriberQos::default(), NoListener, 0).unwrap();
 
@@ -484,7 +469,7 @@ mod tests {
 
     #[test]
     fn create_topic() {
-        let domain_participant_impl = Arc::new(DomainParticipantImpl::new(0, DomainParticipantQos::default(), NoListener, 0, Arc::new(Mutex::new(MockProtocolParticipant))));
+        let domain_participant_impl = Arc::new(DomainParticipantImpl::new(0, DomainParticipantQos::default(), NoListener, 0, MockProtocolParticipant));
 
         assert_eq!(domain_participant_impl.topic_list.lock().unwrap().len(), 0);
         let topic = DomainParticipantImpl::create_topic(&domain_participant_impl,"name".to_string(), "type".to_string(), TopicQos::default(), NoListener, 0).unwrap();
@@ -497,7 +482,7 @@ mod tests {
 
     #[test]
     fn set_and_get_default_publisher_qos() {
-        let domain_participant_impl = Arc::new(DomainParticipantImpl::new(0, DomainParticipantQos::default(), NoListener, 0, Arc::new(Mutex::new(MockProtocolParticipant))));
+        let domain_participant_impl = Arc::new(DomainParticipantImpl::new(0, DomainParticipantQos::default(), NoListener, 0, MockProtocolParticipant));
 
         let mut publisher_qos = PublisherQos::default();
         publisher_qos.partition.name = String::from("test");
@@ -514,7 +499,7 @@ mod tests {
 
     #[test]
     fn set_and_get_default_subscriber_qos() {
-        let domain_participant_impl = Arc::new(DomainParticipantImpl::new(0, DomainParticipantQos::default(), NoListener, 0, Arc::new(Mutex::new(MockProtocolParticipant))));
+        let domain_participant_impl = Arc::new(DomainParticipantImpl::new(0, DomainParticipantQos::default(), NoListener, 0, MockProtocolParticipant));
 
         let mut subscriber_qos = SubscriberQos::default();
         subscriber_qos.partition.name = String::from("test");
@@ -531,7 +516,7 @@ mod tests {
 
     #[test]
     fn set_and_get_default_topic_qos() {
-        let domain_participant_impl = Arc::new(DomainParticipantImpl::new(0, DomainParticipantQos::default(), NoListener, 0, Arc::new(Mutex::new(MockProtocolParticipant))));
+        let domain_participant_impl = Arc::new(DomainParticipantImpl::new(0, DomainParticipantQos::default(), NoListener, 0, MockProtocolParticipant));
 
         let mut topic_qos = TopicQos::default();
         topic_qos.topic_data.value = vec![1,2,3,4];
@@ -548,7 +533,7 @@ mod tests {
 
     #[test]
     fn inconsistent_datareader_qos() {
-        let domain_participant_impl = Arc::new(DomainParticipantImpl::new(0, DomainParticipantQos::default(), NoListener, 0, Arc::new(Mutex::new(MockProtocolParticipant))));
+        let domain_participant_impl = Arc::new(DomainParticipantImpl::new(0, DomainParticipantQos::default(), NoListener, 0, MockProtocolParticipant));
 
         let mut topic_qos = TopicQos::default();
         topic_qos.resource_limits.max_samples = 5;

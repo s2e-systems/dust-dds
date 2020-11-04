@@ -7,7 +7,7 @@ pub trait ProtocolEntity {
     fn get_instance_handle(&self) -> InstanceHandle;
 }
 
-pub trait ProtocolParticipant : ProtocolEntity {
+pub trait ProtocolParticipant : ProtocolEntity + 'static {
     fn create_publisher(&mut self) -> Arc<Mutex<dyn ProtocolPublisher>>;
     // fn delete_publisher(&mut self, publisher: &Arc<Mutex<dyn ProtocolPublisher>>);
     fn create_subscriber(&mut self) -> Arc<Mutex<dyn ProtocolSubscriber>>;

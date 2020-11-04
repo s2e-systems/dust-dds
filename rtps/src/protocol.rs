@@ -1,6 +1,7 @@
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
+
+use crate::types::GUID;
 use crate::transport::Transport;
-use crate::behavior::types::Duration;
 use crate::discovery::spdp::{SimpleParticipantDiscoveryProtocol, SPDPdiscoveredParticipantData};
 use crate::discovery::spdp_listener::SimpleParticipantDiscoveryListener;
 use crate::discovery::sedp::{SimpleEndpointDiscoveryProtocol};
@@ -10,7 +11,8 @@ use crate::structure::entity::RtpsEntity;
 use crate::message_receiver::RtpsMessageReceiver;
 use crate::message_sender::RtpsMessageSender;
 
-use rust_dds_interface::types::DomainId;
+use rust_dds_interface::types::{DomainId, InstanceHandle, ReturnCode};
+use rust_dds_interface::protocol::{ProtocolEntity, ProtocolParticipant, ProtocolSubscriber, ProtocolPublisher};
 
 pub struct RtpsProtocol {
     participant: RtpsParticipant,
@@ -19,10 +21,12 @@ pub struct RtpsProtocol {
 }
 
 impl RtpsProtocol {
-    pub fn new(domain_id: DomainId, userdata_transport: impl Transport, metatraffic_transport: impl Transport, domain_tag: String, lease_duration: Duration) -> Self {
+    pub fn new(domain_id: DomainId, userdata_transport: impl Transport, metatraffic_transport: impl Transport, domain_tag: String, lease_duration: rust_dds_interface::types::Duration) -> Self {
 
         let guid_prefix = [1,2,3,4,5,6,7,8,9,10,11,12];  //TODO: Should be uniquely generated
         let participant = RtpsParticipant::new(domain_id, guid_prefix);
+
+        let lease_duration = crate::behavior::types::Duration::from_secs(lease_duration.sec as u64); // TODO: Fix this conversion
 
         let data = SPDPdiscoveredParticipantData::new(
             participant.domain_id(),
@@ -86,6 +90,59 @@ impl RtpsProtocol {
     }
 }
 
+impl ProtocolEntity for RtpsProtocol {
+    fn get_instance_handle(&self) -> InstanceHandle {
+        self.participant.guid().into()
+    }
+
+    fn enable(&self) -> ReturnCode<()> {
+        Ok(())
+    }
+}
+
+impl ProtocolParticipant for RtpsProtocol {
+    fn create_publisher(&mut self) -> Arc<Mutex<dyn ProtocolPublisher>> {
+        todo!()
+        // let index = match self.publisher_list.iter()
+        //     .max_by(|&x, &y| 
+        //     x.lock().unwrap().guid().entity_id().entity_key()[0].cmp(&y.lock().unwrap().guid().entity_id().entity_key()[0])) {
+        //         Some(group) => group.lock().unwrap().guid().entity_id().entity_key()[0] + 1,
+        //         None => 0,
+        // };
+
+        // let guid_prefix = self.guid.prefix();
+        // let entity_id = EntityId::new([index as u8,0,0], EntityKind::UserDefinedWriterGroup);
+        // let publisher_guid = GUID::new(guid_prefix, entity_id);
+        // let new_publisher = Arc::new(Mutex::new(RtpsGroup::new(publisher_guid)));
+        // self.publisher_list.push(new_publisher.clone());
+
+        // new_publisher
+    }
+
+    fn create_subscriber(&mut self) -> Arc<Mutex<dyn ProtocolSubscriber>> {
+        todo!()
+        // let index = match self.subscriber_list.iter()
+        //     .max_by(|&x, &y| 
+        //     x.lock().unwrap().guid().entity_id().entity_key()[0].cmp(&y.lock().unwrap().guid().entity_id().entity_key()[0])) {
+        //         Some(group) => group.lock().unwrap().guid().entity_id().entity_key()[0] + 1,
+        //         None => 0,
+        // };
+
+        // let guid_prefix = self.guid.prefix();
+        // let entity_id = EntityId::new([index as u8,0,0], EntityKind::UserDefinedReaderGroup);
+        // let subscriber_guid = GUID::new(guid_prefix, entity_id);
+        // let new_subscriber = Arc::new(Mutex::new(RtpsGroup::new(subscriber_guid)));
+        // self.subscriber_list.push(new_subscriber.clone());
+
+        // new_subscriber
+    }
+
+    fn get_builtin_subscriber(&self) -> Arc<Mutex<dyn ProtocolSubscriber>> {
+        todo!()
+        // self.builtin_subscriber.clone()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -145,10 +202,9 @@ mod tests {
     fn spdp_announce() {
         let domain_id = 0;
         let domain_tag = "".to_string();
-        let lease_duration = Duration::from_millis(100);
+        let lease_duration = rust_dds_interface::types::Duration{sec: 30, nanosec: 0};
         let protocol = RtpsProtocol::new(domain_id, MockTransport::new(), MockTransport::new(), domain_tag, lease_duration);
         protocol.send_metatraffic();
-
     }
 
 
@@ -192,7 +248,7 @@ mod tests {
     fn spdp_detect() { 
         let domain_id = 0;
         let domain_tag = "".to_string();
-        let lease_duration = Duration::from_millis(100);
+        let lease_duration = rust_dds_interface::types::Duration{sec: 30, nanosec: 0};
         let transport = MockTransportDetect::new();
 
         let locator = Locator::new_udpv4(7401, [127,0,0,1]);

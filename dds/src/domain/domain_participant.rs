@@ -46,32 +46,35 @@ impl DomainParticipant {
     /// QoS to create the DomainParticipant.
     /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
     pub fn new (
-        _domain_id: DomainId,
-        _qos_list: DomainParticipantQos,
-        _a_listener: impl DomainParticipantListener,
-        _mask: StatusMask,
-        _enabled: bool,
+        domain_id: DomainId,
+        qos_list: DomainParticipantQos,
+        a_listener: impl DomainParticipantListener,
+        mask: StatusMask,
+        enabled: bool,
     ) ->  Option<DomainParticipant> {
-        todo!()
-        // use rust_rtps::transport::udp::UdpTransport;
-        // let interface = "Wi-Fi";
-        // let userdata_transport = UdpTransport::default_userdata_transport(domain_id, interface).unwrap();
-        // let metatraffic_transport = UdpTransport::default_metatraffic_transport(domain_id, interface).unwrap();
+        use rust_rtps::transport::udp::UdpTransport;
+        use rust_rtps::protocol::RtpsProtocol;
 
-        // let name = "rtps";
-        // let protocol_participant = match name {            
-        //     "rtps" => Arc::new(Mutex::new(rust_rtps::structure::RtpsParticipant::new(domain_id, [1;12], userdata_transport, metatraffic_transport))),
-        //     _ => panic!("Protocol not valid"),
-        // };
+        let interface = "Wi-Fi";
+        let userdata_transport = UdpTransport::default_userdata_transport(domain_id, interface).unwrap();
+        let metatraffic_transport = UdpTransport::default_metatraffic_transport(domain_id, interface).unwrap();
+        let domain_tag = "".to_string();
+        let lease_duration = rust_dds_interface::types::Duration{sec: 30, nanosec: 0};
+
+        let name = "rtps";
+        let protocol = match name {         
+            "rtps" => RtpsProtocol::new(domain_id, userdata_transport, metatraffic_transport, domain_tag, lease_duration),
+            _ => panic!("Protocol not valid"),
+        };
         // protocol_participant.lock().unwrap().enable().unwrap();
    
-        // let new_participant = DomainParticipant(Arc::new(DomainParticipantImpl::new(domain_id, qos_list, a_listener, mask, protocol_participant)));
+        let new_participant = DomainParticipant(Arc::new(DomainParticipantImpl::new(domain_id, qos_list, a_listener, mask, protocol)));
         
-        // if enabled {
-        //     new_participant.enable().ok()?;
-        // }
+        if enabled {
+            new_participant.enable().ok()?;
+        }
 
-        // Some(new_participant)
+        Some(new_participant)
     }
 
     /// This operation creates a Publisher with the desired QoS policies and attaches to it the specified PublisherListener.
