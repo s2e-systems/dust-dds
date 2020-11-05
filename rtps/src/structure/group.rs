@@ -60,7 +60,9 @@ impl ProtocolEntity for RtpsGroup {
 }
 
 impl ProtocolPublisher for RtpsGroup {
-    
+    fn create_writer(&mut self, topic_kind: TopicKind, data_writer_qos: &DataWriterQos) -> Box<dyn ProtocolWriter> {
+        todo!()
+    }
 }
 
 impl ProtocolSubscriber for RtpsGroup {

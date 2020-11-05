@@ -1,4 +1,3 @@
-use std::sync::{Arc, Mutex};
 use crate::types::{InstanceHandle, Data, Time, ReturnCode, TopicKind};
 use crate::qos::{DataWriterQos, DataReaderQos};
 
@@ -12,15 +11,13 @@ pub trait ProtocolParticipant : ProtocolEntity + 'static {
     // fn delete_publisher(&mut self, publisher: &Arc<Mutex<dyn ProtocolPublisher>>);
     fn create_subscriber(&mut self) -> Box<dyn ProtocolSubscriber>;
     fn get_builtin_subscriber(&self) -> Box<dyn ProtocolSubscriber>;   
-
-    fn create_writer(&mut self, topic_kind: TopicKind, data_writer_qos: &DataWriterQos) -> Arc<Mutex<dyn ProtocolWriter>>;
 }
 
 pub trait ProtocolSubscriber : ProtocolEntity {
     fn create_reader(&mut self, topic_kind: TopicKind, data_reader_qos: &DataReaderQos) -> Box<dyn ProtocolReader>;
 }
 pub trait ProtocolPublisher : ProtocolEntity {
-
+    fn create_writer(&mut self, topic_kind: TopicKind, data_writer_qos: &DataWriterQos) -> Box<dyn ProtocolWriter>;
 }
 
 pub trait ProtocolWriter : ProtocolEntity  {    

@@ -393,20 +393,17 @@ mod tests {
 
     impl ProtocolParticipant for MockProtocolParticipant {
         fn create_publisher(&mut self) -> InstanceHandle {
-        todo!()
-    }
+            todo!()
+        }
 
         fn create_subscriber(&mut self) -> Box<dyn rust_dds_interface::protocol::ProtocolSubscriber> {
-        todo!()
-    }
+            todo!()
+        }
 
         fn get_builtin_subscriber(&self) -> Box<dyn rust_dds_interface::protocol::ProtocolSubscriber> {
-        todo!()
-    }
+            todo!()
+        }
 
-        fn create_writer(&mut self, topic_kind: TopicKind, data_writer_qos: &DataWriterQos) -> Arc<Mutex<dyn ProtocolWriter>> {
-        todo!()
-    }
     }
 
     #[test]

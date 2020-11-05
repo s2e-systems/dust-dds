@@ -4,7 +4,13 @@ pub mod types;
 pub mod inline_qos_types;
 pub mod serialized_payload;
 pub mod endpoint_types;
+
 pub mod protocol;
+pub mod publisher;
+pub mod subscriber;
+pub mod reader;
+pub mod writer;
+
 pub mod message_receiver;
 pub mod message_sender;
 
@@ -15,8 +21,7 @@ pub mod behavior;
 pub mod discovery;
 
 pub mod transport;
-pub mod subscriber;
-pub mod reader;
+
 
 pub use behavior::types as behavior_types;
 

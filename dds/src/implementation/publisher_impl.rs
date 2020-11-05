@@ -27,22 +27,23 @@ impl PublisherImpl {
         _a_listener: Box<dyn DataWriterListener<T>>,
         _mask: StatusMask,
     ) -> Option<DataWriter<T>> {
-        let publisher = PublisherImpl::upgrade_publisher(this).ok()?;
-        let protocol_writer = publisher
-            .parent_participant
-            .upgrade()
-            .unwrap()
-            .protocol_participant()
-            .lock()
-            .unwrap()
-            .create_writer(T::topic_kind(), &qos);
-        let datawriter_impl = Arc::new(DataWriterImpl::new(this.clone(), protocol_writer));
-        let datawriter = DataWriter(Arc::downgrade(&datawriter_impl)); 
-        let datawriter_2 = DataWriter(Arc::downgrade(&datawriter_impl)); 
+        todo!()
+        // let publisher = PublisherImpl::upgrade_publisher(this).ok()?;
+        // let protocol_writer = publisher
+        //     .parent_participant
+        //     .upgrade()
+        //     .unwrap()
+        //     .protocol_participant()
+        //     .lock()
+        //     .unwrap()
+        //     .create_writer(T::topic_kind(), &qos);
+        // let datawriter_impl = Arc::new(DataWriterImpl::new(this.clone(), protocol_writer));
+        // let datawriter = DataWriter(Arc::downgrade(&datawriter_impl)); 
+        // let datawriter_2 = DataWriter(Arc::downgrade(&datawriter_impl)); 
 
-        publisher.datawriter_list.lock().ok()?.push(Box::new(datawriter_2));
+        // publisher.datawriter_list.lock().ok()?.push(Box::new(datawriter_2));
 
-        Some(datawriter)
+        // Some(datawriter)
     }
 
     pub(crate) fn delete_datawriter<T: DDSType>(

@@ -32,6 +32,7 @@ impl ProtocolEntity for Subscriber {
         todo!()
     }
 }
+
 impl ProtocolSubscriber for Subscriber {
     fn create_reader(&mut self, topic_kind: TopicKind, data_reader_qos: &DataReaderQos) -> Box<dyn ProtocolReader> {
         let mut group = self.group.lock().unwrap();
