@@ -70,7 +70,7 @@ mod tests {
     use crate::types;
     use crate::messages::submessages::data_submessage::Payload;
     use crate::messages::submessages::{ Data, InfoTs, Heartbeat};
-    use crate::messages::Endianness;
+    use crate::messages::types::Endianness;
 
     #[test]
     fn test_parse_message_header() {

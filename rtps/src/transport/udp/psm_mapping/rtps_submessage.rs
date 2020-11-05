@@ -150,7 +150,7 @@ pub fn deserialize_rtps_submessage(bytes: &[u8]) -> UdpPsmMappingResult<RtpsSubm
 mod tests {
     use super::*;
     use crate::types::constants::{ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, ENTITYID_UNKNOWN};
-    use crate::messages::Endianness;
+    use crate::messages::types::Endianness;
     use crate::messages::submessages::Data;
     use crate::messages::submessages::data_submessage::Payload;
 

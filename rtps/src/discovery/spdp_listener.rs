@@ -6,12 +6,13 @@ use crate::types::constants::{
     ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
     ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
 };
-use crate::types::{ChangeKind, GuidPrefix, GUID};
+use crate::types::{GuidPrefix, GUID};
 
 use super::sedp::SimpleEndpointDiscoveryProtocol;
 use super::spdp::SPDPdiscoveredParticipantData;
 
-use rust_dds_interface::types::DomainId;
+use rust_dds_interface::types::{DomainId, ChangeKind};
+use rust_dds_interface::cache_change::CacheChange;
 
 pub struct SimpleParticipantDiscoveryListener {
     domain_id: DomainId,
@@ -259,9 +260,9 @@ impl SimpleParticipantDiscoveryListener {
 }
 
 impl StatelessReaderListener for SimpleParticipantDiscoveryListener {
-    fn on_add_change(&self, cc: &crate::structure::CacheChange) {
+    fn on_add_change(&self, cc: &CacheChange) {
         let discovered_participant =
-            SPDPdiscoveredParticipantData::from_key_data(cc.instance_handle(), cc.data_value(), 0);
+            SPDPdiscoveredParticipantData::from_key_data(cc.instance_handle(), cc.data_value().as_ref().unwrap(), 0);
 
         match cc.change_kind() {
             ChangeKind::Alive => self.add_discovered_participant(&discovered_participant),

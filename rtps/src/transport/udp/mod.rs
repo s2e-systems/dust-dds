@@ -168,7 +168,7 @@ fn get_interface_address(interface_name: &str) -> TransportResult<[u8; 16]> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::messages::{RtpsSubmessage, Endianness};
+    use crate::messages::{RtpsSubmessage, types::Endianness};
     use crate::messages::submessages::Gap;
     use crate::types::constants::{ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, PROTOCOL_VERSION_2_4, VENDOR_ID};
     use std::collections::BTreeSet;

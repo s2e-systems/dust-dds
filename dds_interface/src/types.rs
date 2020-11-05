@@ -71,6 +71,7 @@ pub enum ChangeKind {
 
 pub type ParameterId = i16;
 
+#[derive(Debug, PartialEq)]
 pub struct Parameter {
     parameter_id: ParameterId,
     length: i16, // length is rounded up to multple of 4
@@ -98,9 +99,17 @@ impl Parameter {
         &self.value
     }
 }
-
+#[derive(Debug, PartialEq)]
 pub struct ParameterList {
     pub parameter: Vec<Parameter>,
+}
+
+impl ParameterList {
+    pub fn new() -> Self {
+        Self {
+            parameter: Vec::new(),
+        }
+    }
 }
 
 //// From RTPS

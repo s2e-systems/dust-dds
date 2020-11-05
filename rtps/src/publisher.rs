@@ -52,7 +52,7 @@ impl ProtocolPublisher for Publisher {
             ReliabilityQosPolicyKind::BestEffortReliabilityQos => ReliabilityKind::BestEffort,
         };
 
-        let writer_cache = HistoryCache::new(data_writer_qos.resource_limits);
+        let writer_cache = HistoryCache::new(data_writer_qos.resource_limits.clone());
 
         let push_mode = true;
         let heartbeat_period = Duration::from_millis(500);

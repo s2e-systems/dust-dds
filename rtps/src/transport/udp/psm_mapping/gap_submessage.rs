@@ -37,7 +37,7 @@ pub fn deserialize_gap(bytes: &[u8], header: SubmessageHeader) -> UdpPsmMappingR
 mod tests {
     use super::*;
     use crate::types::{EntityKind, EntityId};
-    use crate::messages::Endianness;
+    use crate::messages::types::Endianness;
     use crate::messages::submessages::Submessage;
     
     #[test]

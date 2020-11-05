@@ -1,6 +1,6 @@
 use std::collections::BTreeSet;
 
-use crate::messages::Endianness;
+use crate::messages::types::Endianness;
 use super::{SubmessageKind, SubmessageFlag, };
 use super::{Submessage, SubmessageHeader, };
 use super::submessage_elements;

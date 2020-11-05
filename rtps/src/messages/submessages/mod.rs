@@ -32,7 +32,7 @@ impl SubmessageHeader {
         Self {
             submessage_id, 
             flags,
-            submessage_length: submessage_length,
+            submessage_length,
         }
     }
 

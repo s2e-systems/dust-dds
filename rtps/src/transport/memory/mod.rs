@@ -69,7 +69,7 @@ mod tests {
     use super::*;
     use crate::types::constants::{PROTOCOL_VERSION_2_4, VENDOR_ID};
     use crate::messages::submessages::{RtpsSubmessage, InfoTs};
-    use crate::messages::Endianness;
+    use crate::messages::types::Endianness;
 
     #[test]
     fn receive_from_transport_unicast_and_multicast() {

@@ -390,7 +390,11 @@ mod tests {
         }
     }
 
-
+    impl ProtocolSubscriber for MockProtocolSubscriber {
+        fn create_reader(&mut self, _topic_kind: rust_dds_interface::types::TopicKind, _data_reader_qos: &rust_dds_interface::qos::DataReaderQos) -> Box<dyn rust_dds_interface::protocol::ProtocolReader> {
+            todo!()
+        }
+    }
 
     struct MockProtocolParticipant;
     impl ProtocolEntity for MockProtocolParticipant{
@@ -408,7 +412,7 @@ mod tests {
         }
 
         fn create_subscriber(&mut self) -> Box<dyn ProtocolSubscriber> {
-            todo!()
+            Box::new(MockProtocolSubscriber)
         }
 
         fn delete_subscriber(&mut self, _subscriber: &Box<dyn ProtocolSubscriber>) {

@@ -15,8 +15,8 @@ impl Header {
     pub fn new(version: ProtocolVersion, vendor_id: VendorId, guid_prefix: GuidPrefix) -> Self {
         Self {
             protocol: PROTOCOL_RTPS,
-            version: version,
-            vendor_id: vendor_id,
+            version,
+            vendor_id,
             guid_prefix,
         }
     }
@@ -37,8 +37,7 @@ impl Header {
         self.guid_prefix
     }   
 }
-
-#[derive(PartialEq, Debug)]
+#[derive(Debug, PartialEq)]
 pub struct RtpsMessage {
     header: Header,
     submessages: Vec<RtpsSubmessage>,

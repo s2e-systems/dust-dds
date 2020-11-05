@@ -5,7 +5,7 @@ use super::{Submessage, SubmessageHeader, };
 use super::submessage_elements;
 use crate::types;
 use crate::messages;
-use crate::messages::Endianness;
+use crate::messages::types::Endianness;
 
 #[derive(PartialEq, Debug)]
 pub struct AckNack {

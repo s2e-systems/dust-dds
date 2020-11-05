@@ -11,11 +11,11 @@ pub use stateless_writer::StatelessWriter;
 
 use std::convert::TryInto;
 
-use crate::types::{GUID, GuidPrefix, EntityId, Locator};
-use crate::messages::{Endianness, RtpsSubmessage};
+use crate::types::{GUID, GuidPrefix, EntityId, Locator,};
+use crate::messages::{types::Endianness, RtpsSubmessage};
 use crate::messages::submessages::Data;
 use crate::messages::submessages::data_submessage::Payload;
-use crate::inline_qos_types::{KeyHash, StatusInfo};
+use crate::messages::types::{KeyHash, StatusInfo};
 
 use rust_dds_interface::types::ChangeKind;
 use rust_dds_interface::cache_change::CacheChange;
@@ -29,62 +29,65 @@ pub enum DestinedMessages {
 
 
 fn cache_change_from_data(message: Data, guid_prefix: &GuidPrefix) -> CacheChange {
-    let writer_id = message.writer_id();
-    let writer_sn = message.writer_sn();
-    let change_kind = change_kind(&message);
-    let key_hash = key_hash(&message).unwrap();
-    let (data, mut inline_qos) = message.take_payload_and_qos();
+    // let writer_id = message.writer_id();
+    // let writer_sn = message.writer_sn();
+    // let change_kind = change_kind(&message);
+    // let key_hash = key_hash(&message).unwrap();
+    // let (data, mut inline_qos) = message.take_payload_and_qos();
 
-    inline_qos.remove::<KeyHash>();
-    inline_qos.remove::<StatusInfo>();
+    // // inline_qos.remove::<KeyHash>();
+    // // inline_qos.remove::<StatusInfo>();
 
-    CacheChange::new(
-        change_kind,
-        GUID::new(*guid_prefix, writer_id ),
-        key_hash.0,
-        writer_sn,
-        Some(data),
-        Some(inline_qos),
-    )
+    // CacheChange::new(
+    //     change_kind,
+    //     GUID::new(*guid_prefix, writer_id ).into(),
+    //     key_hash.0,
+    //     writer_sn,
+    //     Some(data),
+    //     Some(inline_qos),
+    // )
+    todo!()
 }
 
 fn data_from_cache_change(cache_change: &CacheChange, reader_id: EntityId) -> Data {
-    let writer_id: EntityId = cache_change.writer_guid().entity_id();
-    let writer_sn = cache_change.sequence_number();
+    // let writer_id: EntityId = cache_change.writer_guid().entity_id();
+    // let writer_sn = cache_change.sequence_number();
 
-    let mut inline_qos_parameters = cache_change.inline_qos().clone();
+    // let mut inline_qos_parameters = cache_change.inline_qos().clone();
 
-    let change_kind = cache_change.change_kind();
-    inline_qos_parameters.push(change_kind_to_status_info(change_kind));
+    // let change_kind = cache_change.change_kind();
+    // inline_qos_parameters.push(change_kind_to_status_info(change_kind));
 
-    let payload = match change_kind {
-        ChangeKind::Alive => {
-            inline_qos_parameters.push(KeyHash(cache_change.instance_handle()));
-            Payload::Data(cache_change.data_value().clone())
-        },
-        ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered | ChangeKind::AliveFiltered => {
-            Payload::Key(cache_change.instance_handle().to_vec())
-        }
-    };
+    // let payload = match change_kind {
+    //     ChangeKind::Alive => {
+    //         inline_qos_parameters.push(KeyHash(cache_change.instance_handle()));
+    //         Payload::Data(cache_change.data_value().clone())
+    //     },
+    //     ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered | ChangeKind::AliveFiltered => {
+    //         Payload::Key(cache_change.instance_handle().to_vec())
+    //     }
+    // };
 
-    Data::new(
-        BEHAVIOR_ENDIANNESS,
-        reader_id,
-        writer_id,
-        writer_sn,
-        Some(inline_qos_parameters),
-        payload,
-    )
+    // Data::new(
+    //     BEHAVIOR_ENDIANNESS,
+    //     reader_id,
+    //     writer_id,
+    //     writer_sn,
+    //     Some(inline_qos_parameters),
+    //     payload,
+    // )
+    todo!()
 }
 
 fn change_kind(data_submessage: &Data) -> ChangeKind{
     if data_submessage.data_flag() && !data_submessage.key_flag() {
         ChangeKind::Alive
     } else if !data_submessage.data_flag() && data_submessage.key_flag() {
-        let endianness = Endianness::from(data_submessage.endianness_flag()).into();
-        let status_info = data_submessage.inline_qos().find::<StatusInfo>(endianness).unwrap();           
+        // let endianness = Endianness::from(data_submessage.endianness_flag()).into();
+        // let status_info = data_submessage.inline_qos().find::<StatusInfo>(endianness).unwrap();           
 
-        status_info_to_change_kind(status_info).unwrap()
+        // status_info_to_change_kind(status_info).unwrap()
+        todo!()
     }
     else {
         panic!("Invalid change kind combination")
@@ -93,7 +96,8 @@ fn change_kind(data_submessage: &Data) -> ChangeKind{
 
 fn key_hash(data_submessage: &Data) -> Option<KeyHash> {
     if data_submessage.data_flag() && !data_submessage.key_flag() {
-        data_submessage.inline_qos().find::<KeyHash>(Endianness::from(data_submessage.endianness_flag()).into())
+        // data_submessage.inline_qos().find::<KeyHash>(Endianness::from(data_submessage.endianness_flag()).into())
+        todo!()
     } else if !data_submessage.data_flag() && data_submessage.key_flag() {
         let payload = &data_submessage.serialized_payload(); 
         Some(KeyHash(payload[0..16].try_into().ok()?))

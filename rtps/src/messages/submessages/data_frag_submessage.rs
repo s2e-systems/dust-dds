@@ -2,8 +2,6 @@ use super::{SubmessageKind, SubmessageFlag,};
 use super::{Submessage, SubmessageHeader, };
 use super::submessage_elements;
 
-
-#[derive(PartialEq, Debug)]
 pub struct DataFrag {
     endianness_flag: SubmessageFlag,
     inline_qos_flag: SubmessageFlag,   

@@ -34,7 +34,7 @@ pub fn deserialize_info_timestamp(bytes: &[u8], header: SubmessageHeader) -> Udp
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::messages::Endianness;
+    use crate::messages::types::Endianness;
     use crate::messages::submessages::Submessage;
 
     #[test]

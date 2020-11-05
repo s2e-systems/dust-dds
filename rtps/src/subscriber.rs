@@ -3,7 +3,7 @@ use std::sync::{Arc, Mutex};
 use crate::reader::Reader;
 use crate::structure::{RtpsEntity, RtpsGroup};
 use crate::behavior::{types::Duration, stateful_reader::StatefulReader};
-use crate::types::{GUID, EntityId, EntityKind, ReliabilityKind,};
+use crate::types::ReliabilityKind;
 use crate::behavior::stateful_reader::NoOpStatefulReaderListener;
 
 use rust_dds_interface::protocol::{ProtocolSubscriber, ProtocolEntity, ProtocolReader};
@@ -43,7 +43,7 @@ impl ProtocolSubscriber for Subscriber {
         };
         let expects_inline_qos = false;
         let heartbeat_response_delay = Duration::from_millis(100);
-        let reader_cache = HistoryCache::new(data_reader_qos.resource_limits);
+        let reader_cache = HistoryCache::new(data_reader_qos.resource_limits.clone());
         let listener = NoOpStatefulReaderListener;
         let reader = Arc::new(Mutex::new(StatefulReader::new(group.guid(), topic_kind, reliability_level, expects_inline_qos, heartbeat_response_delay, reader_cache, listener)));
         group.mut_endpoints().push(reader.clone());

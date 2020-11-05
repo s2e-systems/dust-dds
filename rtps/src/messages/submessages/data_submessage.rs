@@ -2,10 +2,9 @@ use super::{SubmessageKind, SubmessageFlag, };
 use super::{Submessage, SubmessageHeader, };
 use super::submessage_elements;
 use crate::types;
-use crate::messages::Endianness;
+use crate::messages::types::Endianness;
 
-
-#[derive(PartialEq, Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Data {
     endianness_flag: SubmessageFlag,
     inline_qos_flag: SubmessageFlag,    

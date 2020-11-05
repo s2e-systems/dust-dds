@@ -53,7 +53,9 @@ pub fn deserialize_data(bytes: &[u8], header: SubmessageHeader) -> UdpPsmMapping
     let writer_sn = deserialize_sequence_number(&bytes[12..20], endianness)?;
     let (inline_qos, inline_qos_octets) = if inline_qos_flag {
         let inline_qos = deserialize_parameter_list(&bytes[octets_to_inline_qos + 4..], endianness)?; /*Start position is octets_to_inline_qos_value plus extra flags and octets_to_inline_qos_value*/
-        let inline_qos_octets = inline_qos.as_bytes(endianness.into()).len(); /* TODO: Very ineficient. Should be improved */
+        let mut inline_qos_size_serializer = SizeSerializer::new();
+        serialize_parameter_list(&inline_qos, &mut inline_qos_size_serializer, endianness)?;
+        let inline_qos_octets = inline_qos_size_serializer.get_size();
         (inline_qos, inline_qos_octets)
     } else { 
         let inline_qos = ParameterList{parameter:Vec::new()};
@@ -74,7 +76,7 @@ pub fn deserialize_data(bytes: &[u8], header: SubmessageHeader) -> UdpPsmMapping
 mod tests {
     use super::*;
     use crate::messages::types::KeyHash;
-    use crate::messages::Endianness;
+    use crate::messages::types::Endianness;
     use crate::messages::submessages::data_submessage::Payload;
     use crate::messages::submessages::Submessage;
     use crate::types::constants::{ENTITYID_UNKNOWN, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, };
@@ -109,8 +111,9 @@ mod tests {
     #[test]
     fn test_serialize_data_with_inline_qos_without_data() {
         let key_hash = KeyHash([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]);
-        let mut inline_qos = ParameterList::new();
-        inline_qos.push(key_hash);
+        let mut parameter = Vec::new();
+        parameter.push(key_hash.into());
+        let inline_qos = ParameterList{parameter};
         
         let data = Data::new(
             Endianness::LittleEndian,
@@ -144,8 +147,9 @@ mod tests {
     #[test]
     fn test_serialize_data_submessage_with_inline_qos_with_data() {
         let key_hash = KeyHash([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]);
-        let mut inline_qos = ParameterList::new();
-        inline_qos.push(key_hash);
+        let mut parameter = Vec::new();
+        parameter.push(key_hash.into());
+        let inline_qos = ParameterList{parameter};
 
         let data = Data::new(
             Endianness::LittleEndian,

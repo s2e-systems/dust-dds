@@ -1,6 +1,6 @@
 use crate::messages::types::constants::TIME_INVALID;
 use crate::messages;
-use crate::messages::Endianness;
+use crate::messages::types::Endianness;
 
 use super::{Submessage, SubmessageFlag, SubmessageKind, SubmessageHeader};
 use super::submessage_elements;

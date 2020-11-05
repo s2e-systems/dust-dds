@@ -12,7 +12,6 @@ pub mod writer;
 pub mod message_receiver;
 pub mod message_sender;
 
-
 pub mod structure;
 pub mod messages;
 pub mod behavior;

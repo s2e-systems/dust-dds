@@ -15,8 +15,8 @@ use rust_dds_interface::protocol::ProtocolPublisher;
 
 pub struct PublisherImpl{
     parent_participant: Weak<DomainParticipantImpl>,
-    protocol_publisher: Box<dyn ProtocolPublisher>,
-    datawriter_list: Mutex<Vec<Box<dyn AnyDataWriter>>>,
+    protocol_publisher: Mutex<Box<dyn ProtocolPublisher>>,
+    datawriter_list: Mutex<Vec<Arc<dyn AnyDataWriter>>>,
     default_datawriter_qos: Mutex<DataWriterQos>,
 }
 
@@ -28,23 +28,15 @@ impl PublisherImpl {
         _a_listener: Box<dyn DataWriterListener<T>>,
         _mask: StatusMask,
     ) -> Option<DataWriter<T>> {
-        todo!()
-        // let publisher = PublisherImpl::upgrade_publisher(this).ok()?;
-        // let protocol_writer = publisher
-        //     .parent_participant
-        //     .upgrade()
-        //     .unwrap()
-        //     .protocol_participant()
-        //     .lock()
-        //     .unwrap()
-        //     .create_writer(T::topic_kind(), &qos);
-        // let datawriter_impl = Arc::new(DataWriterImpl::new(this.clone(), protocol_writer));
-        // let datawriter = DataWriter(Arc::downgrade(&datawriter_impl)); 
-        // let datawriter_2 = DataWriter(Arc::downgrade(&datawriter_impl)); 
+        
+        let publisher = PublisherImpl::upgrade_publisher(this).ok()?;
 
-        // publisher.datawriter_list.lock().ok()?.push(Box::new(datawriter_2));
+        let protocol_writer = publisher.protocol_publisher.lock().unwrap().create_writer(T::topic_kind(), &qos);
+        let datawriter_impl = Arc::new(DataWriterImpl::new(this.clone(), protocol_writer)); 
 
-        // Some(datawriter)
+        publisher.datawriter_list.lock().ok()?.push(Arc::new(DataWriter(Arc::downgrade(&datawriter_impl))));
+
+        Some(DataWriter(Arc::downgrade(&datawriter_impl)))
     }
 
     pub(crate) fn delete_datawriter<T: DDSType>(
@@ -169,7 +161,8 @@ impl PublisherImpl {
 
     pub(crate) fn get_instance_handle(this: &Weak<PublisherImpl>) -> ReturnCode<InstanceHandle> {
         let publisher = PublisherImpl::upgrade_publisher(this)?;
-        Ok(publisher.protocol_publisher.get_instance_handle())
+        let protocol_publisher_lock = publisher.protocol_publisher.lock().unwrap();
+        Ok(protocol_publisher_lock.get_instance_handle())
     }
 
     //////////////// From here on are the functions that do not belong to the standard API
@@ -178,7 +171,7 @@ impl PublisherImpl {
             parent_participant,
             datawriter_list: Mutex::new(Vec::new()),
             default_datawriter_qos: Mutex::new(DataWriterQos::default()),
-            protocol_publisher,
+            protocol_publisher: Mutex::new(protocol_publisher),
         }
     }
 
@@ -211,11 +204,11 @@ mod tests {
         }
     }
     impl ProtocolPublisher for MockPublisher {
-        fn create_writer(&mut self, topic_kind: TopicKind, data_writer_qos: &DataWriterQos) -> Box<dyn ProtocolWriter> {
+        fn create_writer(&mut self, _topic_kind: TopicKind, _data_writer_qos: &DataWriterQos) -> Box<dyn ProtocolWriter> {
             todo!()
         }
 
-        fn delete_writer(&mut self, writer: &Box<dyn ProtocolWriter>) {
+        fn delete_writer(&mut self, _writer: &Box<dyn ProtocolWriter>) {
             todo!()
         }
     }

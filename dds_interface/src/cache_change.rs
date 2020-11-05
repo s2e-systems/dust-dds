@@ -45,12 +45,12 @@ impl CacheChange {
         self.sequence_number
     }
 
-    pub fn inline_qos(&self) -> &Option<ParameterList> {
-        &self.inline_qos
+    pub fn inline_qos(&self) -> Option<&ParameterList> {
+        self.inline_qos.as_ref()
     }
 
-    pub fn data_value(&self) -> &Option<Data> {
-        &self.data_value
+    pub fn data_value(&self) -> Option<&Data> {
+        self.data_value.as_ref()
     }
 }
 

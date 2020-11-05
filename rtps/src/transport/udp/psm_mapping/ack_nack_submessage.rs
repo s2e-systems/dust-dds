@@ -36,7 +36,7 @@ mod tests {
     use super::*;
     use crate::types::constants::{ENTITYID_UNKNOWN, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, };
     use crate::messages::submessages::Submessage;
-    use crate::messages::Endianness;
+    use crate::messages::types::Endianness;
     
     #[test]
     fn test_deserialize_ack_nack_submessage() {

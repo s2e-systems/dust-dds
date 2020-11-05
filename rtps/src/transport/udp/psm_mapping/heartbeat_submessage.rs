@@ -42,7 +42,7 @@ pub fn deserialize_heartbeat(bytes: &[u8], header: SubmessageHeader) -> UdpPsmMa
 mod tests {
     use super::*;
     use crate::types::{EntityKind, EntityId};
-    use crate::messages::Endianness;
+    use crate::messages::types::Endianness;
     use crate::messages::submessages::Submessage;
 
     #[test]

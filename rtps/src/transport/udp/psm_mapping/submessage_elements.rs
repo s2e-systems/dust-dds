@@ -5,7 +5,7 @@ use std::collections::BTreeSet;
 use crate::messages::submessages::submessage_elements::{Long, Short, ULong, UShort, Timestamp, GuidPrefix, EntityId, VendorId, ProtocolVersion, SequenceNumber, SequenceNumberSet, FragmentNumber, FragmentNumberSet, LocatorList, Count, SerializedData, ParameterList};
 use crate::messages::types::Time;
 use crate::types;
-use crate::messages::Endianness;
+use crate::messages::types::Endianness;
 
 use super::{SizeCheck, UdpPsmMappingResult, UdpPsmMappingError};
 
@@ -343,14 +343,21 @@ pub fn deserialize_locator_list(bytes: &[u8], endianness: Endianness) -> UdpPsmM
     Ok(locator_list)
 }
 
-// pub fn serialize_parameter_list(parameter_list: &ParameterList, writer: &mut impl std::io::Write, endianness: Endianness) -> UdpPsmMappingResult<()> {
-//     writer.write(&parameter_list.as_bytes(endianness.into()))?;
-//     Ok(())
-// }
+pub fn serialize_parameter_list(parameter_list: &ParameterList, writer: &mut impl std::io::Write, endianness: Endianness) -> UdpPsmMappingResult<()> {
+    for parameter in &parameter_list.parameter {
+        serialize_short(&parameter.parameter_id(), writer, endianness)?;
+        serialize_short(&parameter.length(), writer, endianness)?;
+        writer.write(parameter.value())?;
+    }
+    Ok(())
+}
 
-// pub fn deserialize_parameter_list(bytes: &[u8], endianness: Endianness) -> UdpPsmMappingResult<ParameterList> {
-//     Ok(ParameterList::from_bytes(bytes, endianness.into()))
-// }
+pub fn deserialize_parameter_list(bytes: &[u8], endianness: Endianness) -> UdpPsmMappingResult<ParameterList> {
+    // let mut parameter = Vec::new();
+    
+    // Ok(ParameterList{parameter})
+    todo!()
+}
 
 
 pub fn serialize_serialized_data(serialized_data: &SerializedData, writer: &mut impl std::io::Write) -> UdpPsmMappingResult<()> {
@@ -377,7 +384,7 @@ pub fn deserialize_serialized_data(bytes: &[u8]) -> UdpPsmMappingResult<Serializ
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::messages::types::{ Time, };
+    use crate::messages::types::Time;
     use crate::types::constants;
 
     // ///////// The GuidPrefix, and EntityId Tests ///////////////////////////

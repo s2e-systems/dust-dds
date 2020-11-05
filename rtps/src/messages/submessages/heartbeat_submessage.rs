@@ -3,7 +3,7 @@ use super::{SubmessageKind, SubmessageFlag, };
 use super::{Submessage, SubmessageHeader, };
 use crate::messages;
 use crate::types;
-use crate::messages::Endianness;
+use crate::messages::types::Endianness;
 
 #[derive(PartialEq, Debug)]
 pub struct Heartbeat {
