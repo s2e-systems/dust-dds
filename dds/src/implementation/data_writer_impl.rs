@@ -18,7 +18,7 @@ use rust_dds_interface::protocol::ProtocolWriter;
 
 pub(crate) struct DataWriterImpl<T: DDSType> {
     parent_publisher: Weak<PublisherImpl>,
-    protocol_writer: Arc<Mutex<dyn ProtocolWriter>>,
+    protocol_writer: Box<dyn ProtocolWriter>,
     value: PhantomData<T>,
 }
 
@@ -38,10 +38,11 @@ impl<T: DDSType> DataWriterImpl<T> {
     ) -> ReturnCode<Option<InstanceHandle>> {
         let data_writer = Self::upgrade_datawriter(this)?;
 
-        let instance_handle = instance.instance_handle();
+        todo!()
+        // let instance_handle = instance.instance_handle();
 
-        let protocol_writer = data_writer.protocol_writer.lock().unwrap();
-        protocol_writer.register(instance_handle, timestamp)
+        // let protocol_writer = data_writer.protocol_writer.lock().unwrap();
+        // protocol_writer.register(instance_handle, timestamp)
     }
 
     pub fn unregister_instance(
@@ -61,10 +62,11 @@ impl<T: DDSType> DataWriterImpl<T> {
     ) -> ReturnCode<()> {
         let data_writer = Self::upgrade_datawriter(this)?;
 
-        let instance_handle = Self::get_handle_from_option_instance_handle(this, &instance, handle)?;
+        todo!()
+        // let instance_handle = Self::get_handle_from_option_instance_handle(this, &instance, handle)?;
 
-        let protocol_writer = data_writer.protocol_writer.lock().unwrap();
-        protocol_writer.dispose(instance_handle, timestamp)
+        // let protocol_writer = data_writer.protocol_writer.lock().unwrap();
+        // protocol_writer.dispose(instance_handle, timestamp)
     }
 
     pub fn get_key_value(
@@ -80,10 +82,10 @@ impl<T: DDSType> DataWriterImpl<T> {
         instance: &T,
     ) -> ReturnCode<Option<InstanceHandle>> {
         let data_writer = Self::upgrade_datawriter(this)?;
-
-        let instance_handle = instance.instance_handle();
-        let protocol_writer = data_writer.protocol_writer.lock().unwrap();
-        Ok(protocol_writer.lookup_instance(instance_handle))
+        todo!()
+        // let instance_handle = instance.instance_handle();
+        // let protocol_writer = data_writer.protocol_writer.lock().unwrap();
+        // Ok(protocol_writer.lookup_instance(instance_handle))
     }
 
     pub fn write (
@@ -102,12 +104,12 @@ impl<T: DDSType> DataWriterImpl<T> {
         timestamp: Time,
     ) -> ReturnCode<()> {
         let data_writer = Self::upgrade_datawriter(this)?;
+        todo!()
+        // let instance_handle = Self::get_handle_from_option_instance_handle(this, &data, handle)?;
 
-        let instance_handle = Self::get_handle_from_option_instance_handle(this, &data, handle)?;
-
-        let serialized_data = data.serialize();
-        let mut protocol_writer = data_writer.protocol_writer.lock().unwrap();
-        protocol_writer.write(instance_handle, serialized_data, timestamp)
+        // let serialized_data = data.serialize();
+        // let mut protocol_writer = data_writer.protocol_writer.lock().unwrap();
+        // protocol_writer.write(instance_handle, serialized_data, timestamp)
     }
 
     pub fn dispose(
@@ -126,10 +128,10 @@ impl<T: DDSType> DataWriterImpl<T> {
         timestamp: Time,
     ) -> ReturnCode<()> {
         let data_writer = Self::upgrade_datawriter(this)?;
-
-        let instance_handle = Self::get_handle_from_option_instance_handle(this, &data, handle)?;
-        let protocol_writer = data_writer.protocol_writer.lock().unwrap();
-        protocol_writer.dispose(instance_handle, timestamp)
+        todo!()
+        // let instance_handle = Self::get_handle_from_option_instance_handle(this, &data, handle)?;
+        // let protocol_writer = data_writer.protocol_writer.lock().unwrap();
+        // protocol_writer.dispose(instance_handle, timestamp)
     }
 
     pub fn wait_for_acknowledgments(
@@ -252,12 +254,13 @@ impl<T: DDSType> DataWriterImpl<T> {
 
     pub fn get_instance_handle(this: &Weak<DataWriterImpl<T>>) -> ReturnCode<InstanceHandle> {
         let data_writer = Self::upgrade_datawriter(this)?;
-        let protocol_writer = data_writer.protocol_writer.lock().unwrap();
-        Ok(protocol_writer.get_instance_handle())
+        todo!()
+        // let protocol_writer = data_writer.protocol_writer.lock().unwrap();
+        // Ok(protocol_writer.get_instance_handle())
     }
 
      //////////////// From here on are the functions that do not belong to the standard API
-     pub(crate) fn new(parent_publisher: Weak<PublisherImpl>, protocol_writer: Arc<Mutex<dyn ProtocolWriter>>) -> Self {
+     pub(crate) fn new(parent_publisher: Weak<PublisherImpl>, protocol_writer: Box<dyn ProtocolWriter>) -> Self {
          Self{
             parent_publisher,
             protocol_writer,

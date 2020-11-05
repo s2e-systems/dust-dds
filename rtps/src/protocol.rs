@@ -126,6 +126,14 @@ impl ProtocolParticipant for RtpsProtocol {
         Box::new(Publisher::new(publisher_group))
     }
 
+    fn delete_publisher(&mut self, publisher: &Box<dyn ProtocolPublisher>) {
+        let publisher_instance_handle = publisher.get_instance_handle();
+        self.participant
+            .mut_groups()
+            .retain(|x| 
+                InstanceHandle::from(x.lock().unwrap().guid()) != publisher_instance_handle);
+    }
+
     fn create_subscriber(&mut self) -> Box<dyn ProtocolSubscriber> {
         let guid_prefix = self.participant.guid().prefix();
         let entity_id = EntityId::new([self.subscriber_counter as u8,0,0], EntityKind::UserDefinedReaderGroup);
@@ -135,6 +143,14 @@ impl ProtocolParticipant for RtpsProtocol {
         self.participant.mut_groups().push(subscriber_group.clone());
 
         Box::new(Subscriber::new(subscriber_group))
+    }
+
+    fn delete_subscriber(&mut self, subscriber: &Box<dyn ProtocolSubscriber>) {
+        let subscriber_instance_handle = subscriber.get_instance_handle();
+        self.participant
+            .mut_groups()
+            .retain(|x| 
+                InstanceHandle::from(x.lock().unwrap().guid()) != subscriber_instance_handle);
     }
 
     fn get_builtin_subscriber(&self) -> Box<dyn ProtocolSubscriber> {
@@ -197,6 +213,42 @@ mod tests {
         }
     }
 
+
+    #[test]
+    fn create_delete_publisher() {
+        let domain_id = 1;
+        let domain_tag = "".to_string();
+        let lease_duration = rust_dds_interface::types::Duration{sec: 30, nanosec: 0};
+        let mut protocol = RtpsProtocol::new(domain_id, MockTransport::new(), MockTransport::new(), domain_tag, lease_duration);
+
+        assert_eq!(protocol.participant.mut_groups().len(), 0);
+        let publisher1 = protocol.create_publisher();
+        assert_eq!(protocol.participant.mut_groups().len(), 1);
+        let _publisher2 = protocol.create_publisher();
+        assert_eq!(protocol.participant.mut_groups().len(), 2);
+        
+        protocol.delete_publisher(&publisher1);
+        assert_eq!(protocol.participant.mut_groups().len(), 1);
+    }
+
+    #[test]
+    fn create_delete_subscriber() {
+        let domain_id = 1;
+        let domain_tag = "".to_string();
+        let lease_duration = rust_dds_interface::types::Duration{sec: 30, nanosec: 0};
+        let mut protocol = RtpsProtocol::new(domain_id, MockTransport::new(), MockTransport::new(), domain_tag, lease_duration);
+
+        assert_eq!(protocol.participant.mut_groups().len(), 0);
+        let subscriber1 = protocol.create_subscriber();
+        assert_eq!(protocol.participant.mut_groups().len(), 1);
+        let _subscriber2 = protocol.create_subscriber();
+        assert_eq!(protocol.participant.mut_groups().len(), 2);
+        
+        protocol.delete_subscriber(&subscriber1);
+        assert_eq!(protocol.participant.mut_groups().len(), 1);
+    }
+
+    
     #[test]
     fn spdp_announce() {
         let domain_id = 0;

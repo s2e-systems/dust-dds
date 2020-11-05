@@ -29,7 +29,7 @@ impl ProtocolEntity for Publisher {
     }
 
     fn get_instance_handle(&self) -> InstanceHandle {
-        todo!()
+        self.group.lock().unwrap().guid().into()
     }
 }
 
@@ -76,5 +76,9 @@ impl ProtocolPublisher for Publisher {
         self.group.lock().unwrap().mut_endpoints().push(new_writer.clone());
 
         Box::new(Writer::new(new_writer))
+    }
+
+    fn delete_writer(&mut self, writer: &Box<dyn ProtocolWriter>) {
+        todo!()
     }
 }

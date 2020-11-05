@@ -41,14 +41,13 @@ impl DomainParticipantImpl{
         _a_listener: impl PublisherListener,
         _mask: StatusMask
     ) -> Option<Publisher> {
-        todo!()
-        // let publisher_instance_handle = this.protocol_participant.lock().unwrap().create_publisher();
-        // let publisher_impl = Arc::new(PublisherImpl::new(Arc::downgrade(this), publisher_instance_handle));
-        // let publisher = Publisher(Arc::downgrade(&publisher_impl));
+        let protocol_publisher = this.protocol_participant.lock().unwrap().create_publisher();
+        let publisher_impl = Arc::new(PublisherImpl::new(Arc::downgrade(this), protocol_publisher));
+        let publisher = Publisher(Arc::downgrade(&publisher_impl));
 
-        // this.publisher_list.lock().ok()?.push(publisher_impl);
+        this.publisher_list.lock().ok()?.push(publisher_impl);
 
-        // Some(publisher)
+        Some(publisher)
     }
 
     pub(crate) fn delete_publisher(
@@ -370,6 +369,15 @@ mod tests {
             todo!()
         }
     }
+    impl ProtocolPublisher for MockProtocolPublisher {
+        fn create_writer(&mut self, _topic_kind: rust_dds_interface::types::TopicKind, _data_writer_qos: &rust_dds_interface::qos::DataWriterQos) -> Box<dyn rust_dds_interface::protocol::ProtocolWriter> {
+            todo!()
+        }
+
+        fn delete_writer(&mut self, _writer: &Box<dyn rust_dds_interface::protocol::ProtocolWriter>) {
+            todo!()
+        }
+    }
 
     struct MockProtocolSubscriber;
     impl ProtocolEntity for MockProtocolSubscriber {
@@ -392,6 +400,10 @@ mod tests {
 
     impl ProtocolParticipant for MockProtocolParticipant {
         fn create_publisher(&mut self) -> Box<dyn ProtocolPublisher> {
+            Box::new(MockProtocolPublisher)
+        }
+
+        fn delete_publisher(&mut self, _publisher: &Box<dyn ProtocolPublisher>) {
             todo!()
         }
 
@@ -399,10 +411,15 @@ mod tests {
             todo!()
         }
 
+        fn delete_subscriber(&mut self, _subscriber: &Box<dyn ProtocolSubscriber>) {
+            todo!()
+        }        
+
         fn get_builtin_subscriber(&self) -> Box<dyn ProtocolSubscriber> {
             todo!()
         }
 
+        
     }
 
     #[test]

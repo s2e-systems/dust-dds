@@ -8,8 +8,10 @@ pub trait ProtocolEntity {
 
 pub trait ProtocolParticipant : ProtocolEntity + 'static {
     fn create_publisher(&mut self) -> Box<dyn ProtocolPublisher>;
-    // fn delete_publisher(&mut self, publisher: &Arc<Mutex<dyn ProtocolPublisher>>);
+    fn delete_publisher(&mut self, publisher: &Box<dyn ProtocolPublisher>);
+
     fn create_subscriber(&mut self) -> Box<dyn ProtocolSubscriber>;
+    fn delete_subscriber(&mut self, subscriber: &Box<dyn ProtocolSubscriber>);
     fn get_builtin_subscriber(&self) -> Box<dyn ProtocolSubscriber>;   
 }
 
@@ -18,9 +20,10 @@ pub trait ProtocolSubscriber : ProtocolEntity {
 }
 pub trait ProtocolPublisher : ProtocolEntity {
     fn create_writer(&mut self, topic_kind: TopicKind, data_writer_qos: &DataWriterQos) -> Box<dyn ProtocolWriter>;
+    fn delete_writer(&mut self, writer: &Box<dyn ProtocolWriter>);
 }
 
-pub trait ProtocolWriter : ProtocolEntity  {    
+pub trait ProtocolWriter : ProtocolEntity  {
     fn write(&mut self, instance_handle: InstanceHandle, data: Data, timestamp: Time) -> ReturnCode<()>;
 
     fn dispose(&self, instance_handle: InstanceHandle, timestamp: Time) -> ReturnCode<()>;
@@ -36,6 +39,6 @@ pub trait ProtocolReader: ProtocolEntity {
 
 }
 
-pub trait ProtocolDiscovery{
+pub trait ProtocolHistoryCache {
 
 }

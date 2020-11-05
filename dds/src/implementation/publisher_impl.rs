@@ -11,10 +11,11 @@ use crate::implementation::domain_participant_impl::DomainParticipantImpl;
 use crate::implementation::data_writer_impl::DataWriterImpl;
 
 use rust_dds_interface::qos::{TopicQos, PublisherQos, DataWriterQos};
+use rust_dds_interface::protocol::ProtocolPublisher;
 
 pub struct PublisherImpl{
     parent_participant: Weak<DomainParticipantImpl>,
-    instance_handle: InstanceHandle,
+    protocol_publisher: Box<dyn ProtocolPublisher>,
     datawriter_list: Mutex<Vec<Box<dyn AnyDataWriter>>>,
     default_datawriter_qos: Mutex<DataWriterQos>,
 }
@@ -168,16 +169,16 @@ impl PublisherImpl {
 
     pub(crate) fn get_instance_handle(this: &Weak<PublisherImpl>) -> ReturnCode<InstanceHandle> {
         let publisher = PublisherImpl::upgrade_publisher(this)?;
-        Ok(publisher.instance_handle)
+        Ok(publisher.protocol_publisher.get_instance_handle())
     }
 
     //////////////// From here on are the functions that do not belong to the standard API
-    pub(crate) fn new(parent_participant: Weak<DomainParticipantImpl>, instance_handle: InstanceHandle) -> Self {
+    pub(crate) fn new(parent_participant: Weak<DomainParticipantImpl>, protocol_publisher: Box<dyn ProtocolPublisher>) -> Self {
         Self{
             parent_participant,
             datawriter_list: Mutex::new(Vec::new()),
             default_datawriter_qos: Mutex::new(DataWriterQos::default()),
-            instance_handle
+            protocol_publisher,
         }
     }
 
@@ -198,6 +199,26 @@ mod tests {
     use rust_dds_interface::qos_policy::ReliabilityQosPolicyKind;
     use rust_dds_interface::types::{Data, TopicKind};
 
+    struct MockPublisher;
+
+    impl ProtocolEntity for MockPublisher {
+        fn enable(&self) -> ReturnCode<()> {
+            todo!()
+        }
+
+        fn get_instance_handle(&self) -> InstanceHandle {
+            todo!()
+        }
+    }
+    impl ProtocolPublisher for MockPublisher {
+        fn create_writer(&mut self, topic_kind: TopicKind, data_writer_qos: &DataWriterQos) -> Box<dyn ProtocolWriter> {
+            todo!()
+        }
+
+        fn delete_writer(&mut self, writer: &Box<dyn ProtocolWriter>) {
+            todo!()
+        }
+    }
     struct MockWriter;
     impl ProtocolEntity for MockWriter {
         fn enable(&self) -> ReturnCode<()> {
@@ -289,8 +310,7 @@ mod tests {
 
     #[test]
     fn create_delete_datawriter() {
-        let instance_handle = [1;16];
-        let publisher_impl = Arc::new(PublisherImpl::new(Weak::new(), instance_handle));
+        let publisher_impl = Arc::new(PublisherImpl::new(Weak::new(), Box::new(MockPublisher)));
         let topic = Topic(Weak::new());
         
         assert_eq!(publisher_impl.datawriter_list.lock().unwrap().len(), 0);
@@ -303,8 +323,7 @@ mod tests {
 
     #[test]
     fn any_datawriter() {
-        let instance_handle = [1;16];
-        let publisher_impl = Arc::new(PublisherImpl::new(Weak::new(), instance_handle));
+        let publisher_impl = Arc::new(PublisherImpl::new(Weak::new(), Box::new(MockPublisher)));
         let topic_foo = Topic(Weak::new());
         let topic_bar = Topic(Weak::new());
         
@@ -328,8 +347,7 @@ mod tests {
 
     #[test]
     fn set_and_get_default_datawriter_qos() {
-        let instance_handle = [1;16];
-        let publisher_impl = Arc::new(PublisherImpl::new(Weak::new(), instance_handle));
+        let publisher_impl = Arc::new(PublisherImpl::new(Weak::new(), Box::new(MockPublisher)));
         let publisher = Arc::downgrade(&publisher_impl);
 
         let mut datawriter_qos = DataWriterQos::default();
@@ -347,8 +365,7 @@ mod tests {
 
     #[test]
     fn inconsistent_datawriter_qos() {
-        let instance_handle = [1;16];
-        let publisher_impl = Arc::new(PublisherImpl::new(Weak::new(), instance_handle));
+        let publisher_impl = Arc::new(PublisherImpl::new(Weak::new(), Box::new(MockPublisher)));
         let publisher = Arc::downgrade(&publisher_impl);
 
         let mut datawriter_qos = DataWriterQos::default();
