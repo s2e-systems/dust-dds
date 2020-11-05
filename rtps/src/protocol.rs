@@ -110,7 +110,7 @@ impl ProtocolEntity for RtpsProtocol {
     }
 
     fn enable(&self) -> ReturnCode<()> {
-        Ok(())
+        Ok(()) // TODO
     }
 }
 
@@ -138,8 +138,7 @@ impl ProtocolParticipant for RtpsProtocol {
     }
 
     fn get_builtin_subscriber(&self) -> Box<dyn ProtocolSubscriber> {
-        // self.builtin_subscriber.lock().unwrap().guid().into()
-        todo!()
+        Box::new(Subscriber::new(self.builtin_subscriber.clone()))
     }
 }
 

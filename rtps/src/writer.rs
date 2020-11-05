@@ -8,6 +8,15 @@ pub struct Writer {
     writer: Arc<Mutex<StatefulWriter>>,
 }
 
+impl Writer {
+    pub fn new(writer: Arc<Mutex<StatefulWriter>>) -> Self {
+        Self {
+            writer
+        }
+    }
+}
+
+
 impl ProtocolEntity for Writer {
     fn enable(&self) -> ReturnCode<()> {
         todo!()
