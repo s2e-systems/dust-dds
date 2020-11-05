@@ -387,35 +387,22 @@ mod tests {
 
     struct MockProtocolParticipant;
     impl ProtocolEntity for MockProtocolParticipant{
-        fn get_instance_handle(&self) -> InstanceHandle {
-            todo!()
-        }
-
-        fn enable(&self) -> ReturnCode<()> {
-            todo!()
-        }
+        fn get_instance_handle(&self) -> InstanceHandle {unimplemented!()}
+        fn enable(&self) -> ReturnCode<()> {unimplemented!()}
     }
 
     impl ProtocolParticipant for MockProtocolParticipant {
         fn create_publisher(&mut self) -> InstanceHandle {
-            todo!()
+            [1; 16]
         }
 
         fn create_subscriber(&mut self) -> InstanceHandle {
-            todo!()
+            [2; 16]
         }
 
-        fn get_builtin_subscriber(&self) -> InstanceHandle {
-            todo!()
-        }
-
-        fn create_reader(&mut self, _topic_kind: TopicKind, _data_reader_qos: &DataReaderQos) -> Arc<Mutex<dyn ProtocolReader>> {
-            todo!()
-        }
-
-        fn create_writer(&mut self, _topic_kind: TopicKind, _data_writer_qos: &DataWriterQos) -> Arc<Mutex<dyn ProtocolWriter>> {
-            todo!()
-        }
+        fn get_builtin_subscriber(&self) -> InstanceHandle {unimplemented!()}
+        fn create_reader(&mut self, _topic_kind: TopicKind, _data_reader_qos: &DataReaderQos) -> Arc<Mutex<dyn ProtocolReader>> {unimplemented!()}
+        fn create_writer(&mut self, _topic_kind: TopicKind, _data_writer_qos: &DataWriterQos) -> Arc<Mutex<dyn ProtocolWriter>> {unimplemented!()}
     }
 
     #[test]
