@@ -12,6 +12,7 @@ use crate::message_receiver::RtpsMessageReceiver;
 use crate::message_sender::RtpsMessageSender;
 use crate::behavior::{StatefulReader, StatefulWriter};
 use crate::behavior::types::Duration;
+use crate::subscriber::Subscriber;
 
 use rust_dds_interface::types::{DomainId, InstanceHandle, ReturnCode};
 use rust_dds_interface::protocol::{ProtocolEntity, ProtocolParticipant, ProtocolSubscriber, ProtocolPublisher, ProtocolWriter, ProtocolReader};
@@ -127,7 +128,7 @@ impl ProtocolParticipant for RtpsProtocol {
         publisher_guid.into()
     }
 
-    fn create_subscriber(&mut self) -> InstanceHandle {
+    fn create_subscriber(&mut self) -> Box<dyn ProtocolSubscriber> {
         let guid_prefix = self.participant.guid().prefix();
         let entity_id = EntityId::new([self.subscriber_counter as u8,0,0], EntityKind::UserDefinedReaderGroup);
         self.subscriber_counter += 1;
@@ -135,11 +136,12 @@ impl ProtocolParticipant for RtpsProtocol {
         let new_subscriber = Arc::new(Mutex::new(RtpsGroup::new(subscriber_guid)));
         self.participant.mut_groups().push(new_subscriber.clone());
 
-        subscriber_guid.into()
+        Box::new(Subscriber::new(new_subscriber.clone()))
     }
 
-    fn get_builtin_subscriber(&self) -> InstanceHandle {
-        self.builtin_subscriber.lock().unwrap().guid().into()
+    fn get_builtin_subscriber(&self) -> Box<dyn ProtocolSubscriber> {
+        // self.builtin_subscriber.lock().unwrap().guid().into()
+        todo!()
     }
 
     fn create_writer(&mut self, topic_kind: TopicKind, data_writer_qos: &DataWriterQos) -> Arc<Mutex<dyn ProtocolWriter>> {
@@ -184,10 +186,6 @@ impl ProtocolParticipant for RtpsProtocol {
         // self.endpoints.push(new_writer.clone());
 
         // new_writer
-    }
-
-    fn create_reader(&mut self, _topic_kind: TopicKind, _data_reader_qos: &DataReaderQos) -> Arc<Mutex<dyn ProtocolReader>> {
-        todo!()
     }
 }
 

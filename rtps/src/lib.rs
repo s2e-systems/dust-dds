@@ -15,6 +15,8 @@ pub mod behavior;
 pub mod discovery;
 
 pub mod transport;
+pub mod subscriber;
+pub mod reader;
 
 pub use behavior::types as behavior_types;
 

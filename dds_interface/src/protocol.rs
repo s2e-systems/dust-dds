@@ -10,17 +10,14 @@ pub trait ProtocolEntity {
 pub trait ProtocolParticipant : ProtocolEntity + 'static {
     fn create_publisher(&mut self) -> InstanceHandle;
     // fn delete_publisher(&mut self, publisher: &Arc<Mutex<dyn ProtocolPublisher>>);
-    fn create_subscriber(&mut self) -> InstanceHandle;
-    fn get_builtin_subscriber(&self) -> InstanceHandle;
-    
-    fn create_reader(&mut self, topic_kind: TopicKind, data_reader_qos: &DataReaderQos) -> Arc<Mutex<dyn ProtocolReader>>;
+    fn create_subscriber(&mut self) -> Box<dyn ProtocolSubscriber>;
+    fn get_builtin_subscriber(&self) -> Box<dyn ProtocolSubscriber>;   
 
     fn create_writer(&mut self, topic_kind: TopicKind, data_writer_qos: &DataWriterQos) -> Arc<Mutex<dyn ProtocolWriter>>;
 }
-    
 
 pub trait ProtocolSubscriber : ProtocolEntity {
-    
+    fn create_reader(&mut self, topic_kind: TopicKind, data_reader_qos: &DataReaderQos) -> Box<dyn ProtocolReader>;
 }
 pub trait ProtocolPublisher : ProtocolEntity {
 

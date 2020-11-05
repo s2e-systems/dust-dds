@@ -64,5 +64,7 @@ impl ProtocolPublisher for RtpsGroup {
 }
 
 impl ProtocolSubscriber for RtpsGroup {
-    
+    fn create_reader(&mut self, topic_kind: TopicKind, data_reader_qos: &DataReaderQos) -> Box<dyn ProtocolReader> {
+        todo!()
+    }
 }
