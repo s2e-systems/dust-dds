@@ -1,23 +1,21 @@
 use std::sync::{Arc, Mutex};
 
-use crate::types::{GUID, EntityId, EntityKind, TopicKind, ReliabilityKind};
+use crate::types::{GUID, EntityId, EntityKind};
 use crate::transport::Transport;
 use crate::discovery::spdp::{SimpleParticipantDiscoveryProtocol, SPDPdiscoveredParticipantData};
 use crate::discovery::spdp_listener::SimpleParticipantDiscoveryListener;
-use crate::discovery::sedp::{SimpleEndpointDiscoveryProtocol};
+use crate::discovery::sedp::SimpleEndpointDiscoveryProtocol;
 use crate::endpoint_types::BuiltInEndpointSet;
-use crate::structure::{RtpsParticipant, RtpsGroup, HistoryCacheResourceLimits};
+use crate::structure::{RtpsParticipant, RtpsGroup,};
 use crate::structure::entity::RtpsEntity;
 use crate::message_receiver::RtpsMessageReceiver;
 use crate::message_sender::RtpsMessageSender;
-use crate::behavior::{StatefulReader, StatefulWriter};
-use crate::behavior::types::Duration;
 use crate::subscriber::Subscriber;
+use crate::publisher::Publisher;
+
 
 use rust_dds_interface::types::{DomainId, InstanceHandle, ReturnCode};
-use rust_dds_interface::protocol::{ProtocolEntity, ProtocolParticipant, ProtocolSubscriber, ProtocolPublisher, ProtocolWriter, ProtocolReader};
-use rust_dds_interface::qos::{DataWriterQos,DataReaderQos};
-use rust_dds_interface::qos_policy::ReliabilityQosPolicyKind;
+use rust_dds_interface::protocol::{ProtocolEntity, ProtocolParticipant, ProtocolSubscriber, ProtocolPublisher};
 
 pub struct RtpsProtocol {
     participant: RtpsParticipant,
@@ -117,15 +115,15 @@ impl ProtocolEntity for RtpsProtocol {
 }
 
 impl ProtocolParticipant for RtpsProtocol {
-    fn create_publisher(&mut self) -> InstanceHandle {
+    fn create_publisher(&mut self) ->  Box<dyn ProtocolPublisher> {
         let guid_prefix = self.participant.guid().prefix();
         let entity_id = EntityId::new([self.publisher_counter as u8,0,0], EntityKind::UserDefinedWriterGroup);
         self.publisher_counter += 1;
         let publisher_guid = GUID::new(guid_prefix, entity_id);
-        let new_publisher = Arc::new(Mutex::new(RtpsGroup::new(publisher_guid)));
-        self.participant.mut_groups().push(new_publisher.clone());
+        let publisher_group = Arc::new(Mutex::new(RtpsGroup::new(publisher_guid)));
+        self.participant.mut_groups().push(publisher_group.clone());
 
-        publisher_guid.into()
+        Box::new(Publisher::new(publisher_group))
     }
 
     fn create_subscriber(&mut self) -> Box<dyn ProtocolSubscriber> {
@@ -133,10 +131,10 @@ impl ProtocolParticipant for RtpsProtocol {
         let entity_id = EntityId::new([self.subscriber_counter as u8,0,0], EntityKind::UserDefinedReaderGroup);
         self.subscriber_counter += 1;
         let subscriber_guid = GUID::new(guid_prefix, entity_id);
-        let new_subscriber = Arc::new(Mutex::new(RtpsGroup::new(subscriber_guid)));
-        self.participant.mut_groups().push(new_subscriber.clone());
+        let subscriber_group = Arc::new(Mutex::new(RtpsGroup::new(subscriber_guid)));
+        self.participant.mut_groups().push(subscriber_group.clone());
 
-        Box::new(Subscriber::new(new_subscriber.clone()))
+        Box::new(Subscriber::new(subscriber_group))
     }
 
     fn get_builtin_subscriber(&self) -> Box<dyn ProtocolSubscriber> {

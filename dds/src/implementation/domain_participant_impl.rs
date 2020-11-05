@@ -41,13 +41,14 @@ impl DomainParticipantImpl{
         _a_listener: impl PublisherListener,
         _mask: StatusMask
     ) -> Option<Publisher> {
-        let publisher_instance_handle = this.protocol_participant.lock().unwrap().create_publisher();
-        let publisher_impl = Arc::new(PublisherImpl::new(Arc::downgrade(this), publisher_instance_handle));
-        let publisher = Publisher(Arc::downgrade(&publisher_impl));
+        todo!()
+        // let publisher_instance_handle = this.protocol_participant.lock().unwrap().create_publisher();
+        // let publisher_impl = Arc::new(PublisherImpl::new(Arc::downgrade(this), publisher_instance_handle));
+        // let publisher = Publisher(Arc::downgrade(&publisher_impl));
 
-        this.publisher_list.lock().ok()?.push(publisher_impl);
+        // this.publisher_list.lock().ok()?.push(publisher_impl);
 
-        Some(publisher)
+        // Some(publisher)
     }
 
     pub(crate) fn delete_publisher(
@@ -356,9 +357,7 @@ impl DomainParticipantImpl{
 mod tests {
     use super::*;
     use crate::infrastructure::listener::NoListener;
-    use rust_dds_interface::types::TopicKind;
-    use rust_dds_interface::qos::{DataWriterQos, DataReaderQos};
-    use rust_dds_interface::protocol::{ProtocolEntity, ProtocolReader, ProtocolWriter};
+    use rust_dds_interface::protocol::{ProtocolEntity, ProtocolSubscriber, ProtocolPublisher};
     use rust_dds_interface::qos_policy::ReliabilityQosPolicyKind;
 
     struct MockProtocolPublisher;
@@ -392,15 +391,15 @@ mod tests {
     }
 
     impl ProtocolParticipant for MockProtocolParticipant {
-        fn create_publisher(&mut self) -> InstanceHandle {
+        fn create_publisher(&mut self) -> Box<dyn ProtocolPublisher> {
             todo!()
         }
 
-        fn create_subscriber(&mut self) -> Box<dyn rust_dds_interface::protocol::ProtocolSubscriber> {
+        fn create_subscriber(&mut self) -> Box<dyn ProtocolSubscriber> {
             todo!()
         }
 
-        fn get_builtin_subscriber(&self) -> Box<dyn rust_dds_interface::protocol::ProtocolSubscriber> {
+        fn get_builtin_subscriber(&self) -> Box<dyn ProtocolSubscriber> {
             todo!()
         }
 

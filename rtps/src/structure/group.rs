@@ -1,15 +1,7 @@
 use std::sync::{Arc, Mutex};
 
-use rust_dds_interface::types::{ReturnCode, InstanceHandle, TopicKind};
-use rust_dds_interface::protocol::{ProtocolEntity, ProtocolPublisher, ProtocolSubscriber, ProtocolWriter, ProtocolReader};
-use rust_dds_interface::qos::{DataWriterQos, DataReaderQos};
-use rust_dds_interface::qos_policy::ReliabilityQosPolicyKind;
-
-use crate::types::{GUID, EntityKind, EntityId, ReliabilityKind};
+use crate::types::GUID;
 use crate::structure::{RtpsEndpoint, RtpsEntity, };
-use crate::structure::HistoryCacheResourceLimits;
-use crate::behavior::{StatefulReader, StatefulWriter};
-use crate::behavior::types::Duration;
 
 pub struct RtpsGroup {
     guid: GUID,
@@ -46,27 +38,5 @@ impl<'a> IntoIterator for &'a RtpsGroup {
 impl RtpsEntity for RtpsGroup {
     fn guid(&self) -> GUID {
         self.guid
-    }
-}
-
-impl ProtocolEntity for RtpsGroup {
-    fn enable(&self) -> ReturnCode<()> {
-        todo!()
-    }
-
-    fn get_instance_handle(&self) -> InstanceHandle {
-        self.guid.into()
-    }
-}
-
-impl ProtocolPublisher for RtpsGroup {
-    fn create_writer(&mut self, topic_kind: TopicKind, data_writer_qos: &DataWriterQos) -> Box<dyn ProtocolWriter> {
-        todo!()
-    }
-}
-
-impl ProtocolSubscriber for RtpsGroup {
-    fn create_reader(&mut self, topic_kind: TopicKind, data_reader_qos: &DataReaderQos) -> Box<dyn ProtocolReader> {
-        todo!()
     }
 }
