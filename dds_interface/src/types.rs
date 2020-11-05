@@ -57,6 +57,40 @@ pub enum HistoryKind {
     KeepLast(i32),
 }
 
+pub type SequenceNumber = i64;
+
+pub const SEQUENCE_NUMBER_UNKNOWN : SequenceNumber = std::i64::MIN;
+
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+pub enum ChangeKind {
+    Alive,
+    AliveFiltered,
+    NotAliveDisposed,
+    NotAliveUnregistered,
+}
+
+pub type ParameterId = i16;
+
+pub struct Parameter {
+    parameter_id: ParameterId,
+    length: i16, // length is rounded up to multple of 4
+    value: Vec<u8>,
+}
+
+impl Parameter {
+    pub fn new(parameter_id: ParameterId, value: Vec<u8>) -> Self {
+        Self {
+            parameter_id,
+            length: (value.len() + 3 & !3) as i16,
+            value,
+        }
+    }
+}
+
+pub struct ParameterList {
+    parameter: Vec<Parameter>,
+}
+
 //// From RTPS
 pub enum TopicKind {
     NoKey,

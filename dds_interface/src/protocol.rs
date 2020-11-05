@@ -38,7 +38,3 @@ pub trait ProtocolWriter : ProtocolEntity  {
 pub trait ProtocolReader: ProtocolEntity {
 
 }
-
-pub trait ProtocolHistoryCache {
-
-}

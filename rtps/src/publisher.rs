@@ -1,5 +1,5 @@
 use std::sync::{Arc, Mutex};
-use crate::structure::{RtpsGroup, RtpsEntity, HistoryCacheResourceLimits};
+use crate::structure::{RtpsGroup, RtpsEntity};
 use crate::types::{GUID, EntityId, EntityKind, ReliabilityKind,};
 use crate::behavior::StatefulWriter;
 use crate::behavior::types::Duration;
@@ -10,6 +10,7 @@ use rust_dds_interface::protocol::{ProtocolPublisher, ProtocolEntity, ProtocolWr
 use rust_dds_interface::types::{ReturnCode, InstanceHandle, TopicKind};
 use rust_dds_interface::qos::DataWriterQos;
 use rust_dds_interface::qos_policy::ReliabilityQosPolicyKind;
+use rust_dds_interface::history_cache::HistoryCache;
 
 pub struct Publisher {
     group: Arc<Mutex<RtpsGroup>>,
@@ -51,11 +52,7 @@ impl ProtocolPublisher for Publisher {
             ReliabilityQosPolicyKind::BestEffortReliabilityQos => ReliabilityKind::BestEffort,
         };
 
-        let resource_limits = HistoryCacheResourceLimits{
-            max_samples: data_writer_qos.resource_limits.max_samples,
-            max_instances: data_writer_qos.resource_limits.max_instances,
-            max_samples_per_instance: data_writer_qos.resource_limits.max_samples_per_instance,
-        };
+        let writer_cache = HistoryCache::new(data_writer_qos.resource_limits);
 
         let push_mode = true;
         let heartbeat_period = Duration::from_millis(500);
@@ -67,7 +64,7 @@ impl ProtocolPublisher for Publisher {
                 writer_guid,
                 topic_kind,
                 reliability_level,
-                resource_limits,
+                writer_cache,
                 push_mode,
                 heartbeat_period,
                 nack_response_delay,

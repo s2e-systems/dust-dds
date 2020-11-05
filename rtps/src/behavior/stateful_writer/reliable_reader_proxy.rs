@@ -2,8 +2,7 @@ use std::time::Instant;
 use std::convert::TryInto;
 use std::collections::BTreeSet;
 
-use crate::types::{SequenceNumber, GUID, GuidPrefix, EntityId, Locator};
-use crate::structure::HistoryCache;
+use crate::types::{GUID, GuidPrefix, EntityId, Locator};
 use crate::messages::RtpsSubmessage;
 use crate::messages::submessages::{Gap, Heartbeat, AckNack};
 use crate::behavior::ReaderProxy;
@@ -11,6 +10,9 @@ use crate::messages::types::Count;
 
 use crate::behavior::types::Duration;
 use crate::behavior::{data_from_cache_change, BEHAVIOR_ENDIANNESS};
+
+use rust_dds_interface::types::SequenceNumber;
+use rust_dds_interface::history_cache::HistoryCache;
 
 pub struct ReliableReaderProxy{
     reader_proxy: ReaderProxy,

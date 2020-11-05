@@ -1,6 +1,6 @@
 use std::collections::BTreeSet;
-
-use crate::types::{SequenceNumber, GUID, Locator};
+use rust_dds_interface::types::SequenceNumber;
+use crate::types::{GUID, Locator};
 
 struct ChangesFromWriter {
     highest_processed_sequence_number: SequenceNumber,

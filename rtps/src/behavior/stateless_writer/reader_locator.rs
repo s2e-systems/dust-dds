@@ -1,11 +1,13 @@
 use std::collections::BTreeSet;
 
-use crate::types::{Locator, SequenceNumber, EntityId};
+use crate::types::{Locator, EntityId};
 use crate::types::constants::ENTITYID_UNKNOWN;
-use crate::structure::HistoryCache;
 use crate::messages::RtpsSubmessage;
 use crate::messages::submessages::Gap;
 use crate::behavior::{data_from_cache_change, BEHAVIOR_ENDIANNESS};
+
+use rust_dds_interface::types::SequenceNumber;
+use rust_dds_interface::history_cache::HistoryCache;
 
 pub struct ReaderLocator {
     //requested_changes: HashSet<CacheChange>,

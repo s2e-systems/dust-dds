@@ -1,11 +1,13 @@
-use crate::structure::{HistoryCache, RtpsEndpoint, RtpsEntity, HistoryCacheResourceLimits};
-use crate::types::{ReliabilityKind, TopicKind, GUID, Locator, GuidPrefix };
+use crate::structure::{RtpsEndpoint, RtpsEntity};
+use crate::types::{ReliabilityKind, GUID, Locator, GuidPrefix };
 use crate::types::constants::ENTITYID_UNKNOWN;
 use crate::messages::RtpsSubmessage;
 use crate::messages::submessages::Data;
 use crate::behavior::cache_change_from_data;
 use crate::behavior::stateless_reader::StatelessReaderListener;
 
+use rust_dds_interface::history_cache::HistoryCache;
+use rust_dds_interface::types::TopicKind;
 
 pub struct StatelessReader {
     // From RTPS Entity
@@ -37,7 +39,7 @@ impl StatelessReader {
         unicast_locator_list: Vec<Locator>,
         multicast_locator_list: Vec<Locator>,
         expects_inline_qos: bool,
-        resource_limits: HistoryCacheResourceLimits,
+        reader_cache: HistoryCache,
         listener: impl StatelessReaderListener
     ) -> Self {
 
@@ -49,7 +51,7 @@ impl StatelessReader {
             reliability_level,
             unicast_locator_list,
             multicast_locator_list,
-            reader_cache: HistoryCache::new(resource_limits),
+            reader_cache,
             expects_inline_qos,
             listener: Box::new(listener)
         }

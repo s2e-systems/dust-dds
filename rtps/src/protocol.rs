@@ -178,7 +178,6 @@ mod tests {
         ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
         ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
         ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR};
-    use crate::serialized_payload::{ParameterList, CdrEndianness};
     use crate::inline_qos_types::{StatusInfo, KeyHash};
 
     struct MockTransport{

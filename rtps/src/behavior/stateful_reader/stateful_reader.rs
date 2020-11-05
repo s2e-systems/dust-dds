@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
-use crate::structure::{HistoryCache, HistoryCacheResourceLimits, RtpsEndpoint, RtpsEntity};
-use crate::types::{Locator, ReliabilityKind, TopicKind, GUID, GuidPrefix };
+use crate::structure::{RtpsEndpoint, RtpsEntity};
+use crate::types::{Locator, ReliabilityKind, GUID, GuidPrefix };
 use crate::messages::RtpsSubmessage;
 use crate::behavior::types::Duration;
 
@@ -11,7 +11,8 @@ use super::best_effort_writer_proxy::BestEffortWriterProxy;
 use super::reliable_writer_proxy::ReliableWriterProxy;
 
 use rust_dds_interface::protocol::{ProtocolEntity, ProtocolReader};
-use rust_dds_interface::types::{InstanceHandle, ReturnCode};
+use rust_dds_interface::types::{InstanceHandle, ReturnCode, TopicKind};
+use rust_dds_interface::history_cache::HistoryCache;
 
 enum WriterProxyFlavor{
     BestEffort(BestEffortWriterProxy),
@@ -52,7 +53,7 @@ impl StatefulReader {
         reliability_level: ReliabilityKind,
         expects_inline_qos: bool,
         heartbeat_response_delay: Duration,
-        resource_limits: HistoryCacheResourceLimits,
+        reader_cache: HistoryCache,
         listener: impl StatefulReaderListener,
         ) -> Self {
             Self {
@@ -61,7 +62,7 @@ impl StatefulReader {
                 reliability_level,
                 expects_inline_qos,
                 heartbeat_response_delay,       
-                reader_cache: HistoryCache::new(resource_limits),
+                reader_cache,
                 matched_writers: HashMap::new(),
                 listener: Box::new(listener),
             }

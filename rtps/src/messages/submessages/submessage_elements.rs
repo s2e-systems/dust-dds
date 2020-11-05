@@ -28,34 +28,34 @@ pub type VendorId = types::VendorId;
 pub type ProtocolVersion = types::ProtocolVersion;
 
 //  /////////   SequenceNumber
-pub type SequenceNumber = types::SequenceNumber;
+pub type SequenceNumber = rust_dds_interface::types::SequenceNumber;
 
 
 //  /////////   SequenceNumberSet
 #[derive(PartialEq, Debug)]
 pub struct SequenceNumberSet {
-    base: types::SequenceNumber,
-    set: BTreeSet<types::SequenceNumber>,
+    base: rust_dds_interface::types::SequenceNumber,
+    set: BTreeSet<rust_dds_interface::types::SequenceNumber>,
 }
 
 impl SequenceNumberSet {
-    pub fn new(base: types::SequenceNumber, set: BTreeSet<types::SequenceNumber>) -> Self {
+    pub fn new(base: rust_dds_interface::types::SequenceNumber, set: BTreeSet<rust_dds_interface::types::SequenceNumber>) -> Self {
         SequenceNumberSet {
             base,
             set,
         }
     }
 
-    pub fn from_set(set: BTreeSet<types::SequenceNumber>) -> Self { 
+    pub fn from_set(set: BTreeSet<rust_dds_interface::types::SequenceNumber>) -> Self { 
         let base = *set.iter().next().unwrap_or(&0);
         Self {base, set } 
     }
 
-    pub fn base(&self) -> &types::SequenceNumber {
+    pub fn base(&self) -> &rust_dds_interface::types::SequenceNumber {
         &self.base
     }
 
-    pub fn set(&self) -> &BTreeSet<types::SequenceNumber> {
+    pub fn set(&self) -> &BTreeSet<rust_dds_interface::types::SequenceNumber> {
         &self.set
     }
 

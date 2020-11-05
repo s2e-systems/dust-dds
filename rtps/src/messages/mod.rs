@@ -2,7 +2,12 @@ pub mod message;
 pub mod submessages;
 pub mod types;
 
-use crate::serialized_payload::CdrEndianness;
+// use crate::serialized_payload::CdrEndianness;
+
+enum CdrEndianness {
+    LittleEndian,
+    BigEndian,
+}
 
 #[derive(PartialEq, Debug, Clone, Copy)]
 pub enum Endianness {

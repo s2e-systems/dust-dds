@@ -24,14 +24,14 @@ impl Gap {
         endianness: Endianness,
         reader_id: types::EntityId,
         writer_id: types::EntityId,
-        gap_start: types::SequenceNumber,
-        gap_list: BTreeSet<types::SequenceNumber>) -> Self {
+        gap_start: rust_dds_interface::types::SequenceNumber,
+        gap_list: BTreeSet<rust_dds_interface::types::SequenceNumber>) -> Self {
 
             Gap {
                 endianness_flag: endianness.into(),
-                reader_id: reader_id,
-                writer_id: writer_id,
-                gap_start: gap_start,
+                reader_id,
+                writer_id,
+                gap_start,
                 gap_list: submessage_elements::SequenceNumberSet::from_set(gap_list),
             }
     }

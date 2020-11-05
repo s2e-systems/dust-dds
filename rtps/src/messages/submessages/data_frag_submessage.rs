@@ -1,8 +1,6 @@
 use super::{SubmessageKind, SubmessageFlag,};
 use super::{Submessage, SubmessageHeader, };
 use super::submessage_elements;
-use crate::serialized_payload::ParameterList;
-use crate::types::constants::SEQUENCE_NUMBER_UNKNOWN;
 
 
 #[derive(PartialEq, Debug)]
@@ -18,7 +16,7 @@ pub struct DataFrag {
     fragments_in_submessage: submessage_elements::UShort,
     data_size: submessage_elements::ULong,
     fragment_size: submessage_elements::UShort,
-    inline_qos: Option<ParameterList>,
+    inline_qos: Option<rust_dds_interface::types::ParameterList>,
     serialized_payload: Option<submessage_elements::SerializedDataFragment>,
 }
 
@@ -43,7 +41,7 @@ impl Submessage for DataFrag {
             None => 0,
         };
 
-        if (self.writer_sn < 1 || self.writer_sn == SEQUENCE_NUMBER_UNKNOWN) ||
+        if (self.writer_sn < 1 || self.writer_sn == rust_dds_interface::types::SEQUENCE_NUMBER_UNKNOWN) ||
            (self.fragment_starting_num < 1) ||
            (self.fragment_size as u32 > self.data_size) ||
            (serialized_data_size > self.fragments_in_submessage as usize * self.fragment_size as usize)

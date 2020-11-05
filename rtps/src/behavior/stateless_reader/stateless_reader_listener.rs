@@ -1,4 +1,4 @@
-use crate::structure::CacheChange;
+use rust_dds_interface::cache_change::CacheChange;
 
 pub trait StatelessReaderListener: 'static {
     fn on_add_change(&self, _cc: &CacheChange) -> (){}

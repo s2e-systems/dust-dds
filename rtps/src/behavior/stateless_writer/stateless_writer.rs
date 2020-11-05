@@ -1,9 +1,12 @@
 use std::collections::HashMap;
-use crate::structure::{HistoryCache, HistoryCacheResourceLimits, CacheChange, RtpsEndpoint, RtpsEntity};
-use crate::serialized_payload::ParameterList;
+use crate::structure::{RtpsEndpoint, RtpsEntity};
 use crate::behavior::DestinedMessages;
-use crate::types::{ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID, };
+use crate::types::{Locator, ReliabilityKind, GUID, };
 use super::reader_locator::ReaderLocator;
+
+use rust_dds_interface::types::{ChangeKind, InstanceHandle, SequenceNumber, TopicKind, ParameterList};
+use rust_dds_interface::history_cache::HistoryCache;
+use rust_dds_interface::cache_change::CacheChange;
 
 pub struct StatelessWriter {
     /// Entity base class (contains the GUID)
@@ -34,7 +37,7 @@ impl StatelessWriter {
         guid: GUID,
         topic_kind: TopicKind,
         reliability_level: ReliabilityKind,
-        resource_limits: HistoryCacheResourceLimits,
+        writer_cache: HistoryCache,
     ) -> Self {
         assert!(reliability_level == ReliabilityKind::BestEffort, "Only BestEffort is supported on stateless writer");
 
@@ -43,7 +46,7 @@ impl StatelessWriter {
             topic_kind,
             reliability_level,
             last_change_sequence_number: 0,
-            writer_cache: HistoryCache::new(resource_limits),
+            writer_cache,
             data_max_sized_serialized: None,
             reader_locators: HashMap::new(),
         }
@@ -146,7 +149,7 @@ mod tests {
             GUID::new([0; 12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
             TopicKind::WithKey,
             ReliabilityKind::BestEffort,
-            HistoryCacheResourceLimits::default(),
+            HistoryCache::default(),
         );
 
         let cache_change_seq1 = writer.new_change(

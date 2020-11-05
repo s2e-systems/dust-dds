@@ -1,11 +1,13 @@
 use std::collections::{BTreeSet, VecDeque};
 
-use crate::types::{EntityId, SequenceNumber};
-use crate::structure::HistoryCache;
+use crate::types::EntityId;
 use crate::messages::RtpsSubmessage;
 use crate::messages::submessages::Gap;
 use crate::behavior::ReaderProxy;
 use crate::behavior::{data_from_cache_change, BEHAVIOR_ENDIANNESS};
+
+use rust_dds_interface::history_cache::HistoryCache;
+use rust_dds_interface::types::SequenceNumber;
 
 pub struct BestEffortReaderProxy {
     reader_proxy: ReaderProxy,

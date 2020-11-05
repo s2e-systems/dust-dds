@@ -1,10 +1,9 @@
 use std::collections::HashMap;
 
-use crate::types::{ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID, GuidPrefix};
+use crate::types::{ Locator, ReliabilityKind, GUID, GuidPrefix};
 use crate::behavior::types::Duration;
 use crate::messages::RtpsSubmessage;
-use crate::structure::{HistoryCache, CacheChange, RtpsEndpoint, RtpsEntity, HistoryCacheResourceLimits};
-use crate::serialized_payload::ParameterList;
+use crate::structure::{RtpsEndpoint, RtpsEntity};
 use crate::behavior::DestinedMessages;
 
 use super::reader_proxy::ReaderProxy;
@@ -12,7 +11,9 @@ use super::reliable_reader_proxy::ReliableReaderProxy;
 use super::best_effort_reader_proxy::BestEffortReaderProxy;
 
 use rust_dds_interface::protocol::{ProtocolEntity, ProtocolWriter};
-use rust_dds_interface::types::{Data, Time, ReturnCode};
+use rust_dds_interface::types::{Data, Time, ReturnCode, InstanceHandle, SequenceNumber, TopicKind, ChangeKind, ParameterList};
+use rust_dds_interface::history_cache::HistoryCache;
+use rust_dds_interface::cache_change::CacheChange;
 
 enum ReaderProxyFlavor {
     BestEffort(BestEffortReaderProxy),
@@ -53,7 +54,7 @@ impl StatefulWriter {
         guid: GUID,
         topic_kind: TopicKind,
         reliability_level: ReliabilityKind,
-        resource_limits: HistoryCacheResourceLimits,
+        writer_cache: HistoryCache,
         push_mode: bool,
         heartbeat_period: Duration,
         nack_response_delay: Duration,
@@ -68,7 +69,7 @@ impl StatefulWriter {
                 nack_response_delay,
                 nack_suppression_duration,
                 last_change_sequence_number: 0,
-                writer_cache: HistoryCache::new(resource_limits),
+                writer_cache,
                 data_max_sized_serialized: None,
                 matched_readers: HashMap::new()
         }
@@ -84,7 +85,7 @@ impl StatefulWriter {
         self.last_change_sequence_number += 1;
         CacheChange::new(
             kind,
-            self.guid,
+            self.guid.into(),
             handle,
             self.last_change_sequence_number(),
             data,
@@ -303,11 +304,12 @@ mod tests {
 
     #[test]
     fn stateful_writer_new_change() {
+        let writer_cache = HistoryCache::default();
         let mut writer = StatefulWriter::new(
             GUID::new([0; 12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
             TopicKind::WithKey,
             ReliabilityKind::BestEffort,
-            HistoryCacheResourceLimits::default(),
+            writer_cache,
             true,
             Duration::from_millis(500),
             Duration::from_millis(200),

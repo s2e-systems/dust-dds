@@ -11,12 +11,14 @@ pub use stateless_writer::StatelessWriter;
 
 use std::convert::TryInto;
 
-use crate::types::{GUID, GuidPrefix, EntityId, ChangeKind, Locator};
-use crate::structure::CacheChange;
+use crate::types::{GUID, GuidPrefix, EntityId, Locator};
 use crate::messages::{Endianness, RtpsSubmessage};
 use crate::messages::submessages::Data;
 use crate::messages::submessages::data_submessage::Payload;
 use crate::inline_qos_types::{KeyHash, StatusInfo};
+
+use rust_dds_interface::types::ChangeKind;
+use rust_dds_interface::cache_change::CacheChange;
 
 pub const BEHAVIOR_ENDIANNESS: Endianness = Endianness::LittleEndian;
 

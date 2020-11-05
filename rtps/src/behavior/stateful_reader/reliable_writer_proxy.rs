@@ -2,7 +2,6 @@ use std::convert::TryInto;
 use std::time::Instant;
 
 use crate::types::{GuidPrefix, GUID, EntityId};
-use crate::structure::HistoryCache;
 use crate::behavior::WriterProxy;
 use crate::messages::RtpsSubmessage;
 use crate::messages::submessages::{AckNack, Data, Gap, Heartbeat,};
@@ -11,6 +10,8 @@ use crate::messages::types::Count;
 use crate::behavior::types::Duration;
 use crate::behavior::stateful_reader::StatefulReaderListener;
 use crate::behavior::{cache_change_from_data, BEHAVIOR_ENDIANNESS};
+
+use rust_dds_interface::history_cache::HistoryCache;
 
 pub struct ReliableWriterProxy {
     writer_proxy: WriterProxy,

@@ -6,15 +6,10 @@
 use num_derive::FromPrimitive;
 use serde::{Serialize, Deserialize};
 
-pub use rust_dds_interface::types::{InstanceHandle, Data, TopicKind};
-use rust_dds_interface::qos_policy::ReliabilityQosPolicyKind;
-
 pub mod constants {
-    use super::{VendorId, EntityId, ProtocolVersion, EntityKind, SequenceNumber, Locator, GuidPrefix, GUID};
+    use super::{VendorId, EntityId, ProtocolVersion, EntityKind, Locator, GuidPrefix, GUID};
 
     pub const VENDOR_ID: VendorId = [99,99];
-
-    pub const SEQUENCE_NUMBER_UNKNOWN : SequenceNumber = std::i64::MIN;
 
     pub const PROTOCOL_VERSION_2_1 : ProtocolVersion = ProtocolVersion{major: 2, minor: 1};
     pub const PROTOCOL_VERSION_2_2 : ProtocolVersion = ProtocolVersion{major: 2, minor: 2};
@@ -101,16 +96,6 @@ pub enum ReliabilityKind {
     Reliable,
 }
 
-impl From<ReliabilityQosPolicyKind> for ReliabilityKind {
-    fn from(value: ReliabilityQosPolicyKind) -> Self {
-        match value {
-            ReliabilityQosPolicyKind::BestEffortReliabilityQos => ReliabilityKind::BestEffort,
-            ReliabilityQosPolicyKind::ReliableReliabilityQos => ReliabilityKind::Reliable,
-        }
-    }
-}
-
-
 #[derive(Hash, PartialEq, Eq, Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct GUID {
     prefix: GuidPrefix,
@@ -131,7 +116,7 @@ impl GUID {
     }
 }
 
-impl From<GUID> for InstanceHandle {
+impl From<GUID> for rust_dds_interface::types::InstanceHandle {
     fn from(guid: GUID) -> Self {
         let mut instance_handle = [0u8;16];
         instance_handle[0..12].copy_from_slice(&guid.prefix);
@@ -184,7 +169,6 @@ impl EntityId {
     }
 }
 
-pub type SequenceNumber = i64;
 
 #[derive(PartialEq, Hash, Eq, Debug, Copy, Clone, Serialize, Deserialize)]
 pub struct Locator {
@@ -224,14 +208,6 @@ impl Locator {
     }
 }
 
-#[derive(PartialEq, Eq, Debug, Clone, Copy)]
-pub enum ChangeKind {
-    Alive,
-    AliveFiltered,
-    NotAliveDisposed,
-    NotAliveUnregistered,
-}
-
 #[derive(PartialEq, Debug, Clone, Copy, Hash, Eq, Serialize, Deserialize)]
 pub struct ProtocolVersion {
     pub major: u8,
@@ -243,6 +219,7 @@ pub type VendorId = [u8; 2];
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rust_dds_interface::types::InstanceHandle;
 
     #[test]
     fn guid_to_instance_handle() {

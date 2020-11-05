@@ -2,8 +2,6 @@ use super::{SubmessageKind, SubmessageFlag, };
 use super::{Submessage, SubmessageHeader, };
 use super::submessage_elements;
 use crate::types;
-use crate::types::constants::SEQUENCE_NUMBER_UNKNOWN;
-use crate::serialized_payload::ParameterList;
 use crate::messages::Endianness;
 
 
@@ -17,7 +15,7 @@ pub struct Data {
     reader_id: submessage_elements::EntityId,
     writer_id: submessage_elements::EntityId,
     writer_sn: submessage_elements::SequenceNumber,
-    inline_qos: ParameterList,
+    inline_qos: rust_dds_interface::types::ParameterList,
     serialized_payload: submessage_elements::SerializedData,
 }
 
@@ -37,8 +35,8 @@ impl Data {
         endianness: Endianness,
         reader_id: types::EntityId,
         writer_id: types::EntityId,
-        writer_sn: types::SequenceNumber,
-        inline_qos: Option<ParameterList>,
+        writer_sn: rust_dds_interface::types::SequenceNumber,
+        inline_qos: Option<rust_dds_interface::types::ParameterList>,
         payload: Payload,) -> Self {
             let endianness_flag = endianness.into();
             let inline_qos_flag = inline_qos.is_some();
@@ -47,7 +45,7 @@ impl Data {
             let mut non_standard_payload_flag = false;
             let inline_qos = match inline_qos {
                 Some(inline_qos_parameter_list) => inline_qos_parameter_list,
-                None => ParameterList::new(),
+                None => rust_dds_interface::types::ParameterList::new(),
             };
             let serialized_payload = match  payload {
                 Payload::Data(serialized_payload) => {data_flag = true; serialized_payload},
@@ -78,7 +76,7 @@ impl Data {
         reader_id: submessage_elements::EntityId,
         writer_id: submessage_elements::EntityId,
         writer_sn: submessage_elements::SequenceNumber,
-        inline_qos: ParameterList,
+        inline_qos: rust_dds_interface::types::ParameterList,
         serialized_payload: submessage_elements::SerializedData,) -> Self {
             
             Data {
@@ -113,7 +111,7 @@ impl Data {
         &self.serialized_payload
     }
     
-    pub fn inline_qos(&self) -> &ParameterList {
+    pub fn inline_qos(&self) -> &rust_dds_interface::types::ParameterList {
         &self.inline_qos
     }
 
@@ -137,7 +135,7 @@ impl Data {
         self.non_standard_payload_flag
     }
 
-    pub fn take_payload_and_qos(self) -> (submessage_elements::SerializedData, ParameterList) {
+    pub fn take_payload_and_qos(self) -> (submessage_elements::SerializedData, rust_dds_interface::types::ParameterList) {
         (self.serialized_payload, self.inline_qos)
     }
 }
@@ -159,7 +157,7 @@ impl Submessage for Data {
     }
 
     fn is_valid(&self) -> bool {
-        if self.writer_sn < 1 || self.writer_sn == SEQUENCE_NUMBER_UNKNOWN {
+        if self.writer_sn < 1 || self.writer_sn == rust_dds_interface::types::SEQUENCE_NUMBER_UNKNOWN {
             //TODO: Check validity of inline_qos
             false
         } else {
@@ -187,7 +185,7 @@ mod tests {
             ENTITYID_UNKNOWN, 
             ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, 
             1, 
-            Some(ParameterList::new()),
+            Some(rust_dds_interface::types::ParameterList::new()),
             Payload::Data(vec![])
         );
         assert_eq!(data.endianness_flag, true);
