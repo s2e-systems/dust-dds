@@ -15,7 +15,7 @@ pub struct Data {
     reader_id: submessage_elements::EntityId,
     writer_id: submessage_elements::EntityId,
     writer_sn: submessage_elements::SequenceNumber,
-    inline_qos: rust_dds_interface::types::ParameterList,
+    inline_qos: submessage_elements::ParameterList,
     serialized_payload: submessage_elements::SerializedData,
 }
 
@@ -76,7 +76,7 @@ impl Data {
         reader_id: submessage_elements::EntityId,
         writer_id: submessage_elements::EntityId,
         writer_sn: submessage_elements::SequenceNumber,
-        inline_qos: rust_dds_interface::types::ParameterList,
+        inline_qos: submessage_elements::ParameterList,
         serialized_payload: submessage_elements::SerializedData,) -> Self {
             
             Data {

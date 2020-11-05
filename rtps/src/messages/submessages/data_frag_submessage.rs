@@ -16,7 +16,7 @@ pub struct DataFrag {
     fragments_in_submessage: submessage_elements::UShort,
     data_size: submessage_elements::ULong,
     fragment_size: submessage_elements::UShort,
-    inline_qos: Option<rust_dds_interface::types::ParameterList>,
+    inline_qos: Option<submessage_elements::ParameterList>,
     serialized_payload: Option<submessage_elements::SerializedDataFragment>,
 }
 

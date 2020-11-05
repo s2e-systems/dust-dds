@@ -86,11 +86,6 @@ impl CdrParameterList {
     }
 }
 
-pub type ParameterId = i16;
-
-pub trait Pid {
-    fn pid() -> ParameterId;
-}
 
 //  /////////// ParameterList ///////////
 pub trait ParameterOps : std::fmt::Debug{
@@ -185,10 +180,7 @@ impl ParameterOps for Parameter {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct ParameterList {
-    parameter: Vec<Arc<dyn ParameterOps>>,
-}
+
 
 impl PartialEq for ParameterList{
     fn eq(&self, other: &Self) -> bool {

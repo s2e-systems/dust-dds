@@ -1,6 +1,6 @@
 use crate::messages::submessages::Data;
 use crate::messages::submessages::SubmessageHeader;
-use crate::serialized_payload::ParameterList;
+use crate::messages::submessages::submessage_elements::ParameterList;
 
 use super::{UdpPsmMappingResult, SizeSerializer};
 use super::submessage_elements::{serialize_ushort, deserialize_ushort, serialize_entity_id, deserialize_entity_id, serialize_sequence_number, deserialize_sequence_number, serialize_parameter_list, deserialize_parameter_list, serialize_serialized_data, deserialize_serialized_data};
@@ -56,7 +56,7 @@ pub fn deserialize_data(bytes: &[u8], header: SubmessageHeader) -> UdpPsmMapping
         let inline_qos_octets = inline_qos.as_bytes(endianness.into()).len(); /* TODO: Very ineficient. Should be improved */
         (inline_qos, inline_qos_octets)
     } else { 
-        let inline_qos = ParameterList::new();
+        let inline_qos = ParameterList{parameter:Vec::new()};
         (inline_qos, 0)
     };
     let serialized_payload = if data_flag || key_flag || non_standard_payload_flag {
@@ -73,7 +73,7 @@ pub fn deserialize_data(bytes: &[u8], header: SubmessageHeader) -> UdpPsmMapping
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::inline_qos_types::KeyHash;
+    use crate::messages::types::KeyHash;
     use crate::messages::Endianness;
     use crate::messages::submessages::data_submessage::Payload;
     use crate::messages::submessages::Submessage;

@@ -30,6 +30,7 @@ pub type ProtocolVersion = types::ProtocolVersion;
 //  /////////   SequenceNumber
 pub type SequenceNumber = rust_dds_interface::types::SequenceNumber;
 
+pub type ParameterList = rust_dds_interface::types::ParameterList;
 
 //  /////////   SequenceNumberSet
 #[derive(PartialEq, Debug)]

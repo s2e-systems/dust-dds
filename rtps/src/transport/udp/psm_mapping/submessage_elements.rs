@@ -2,10 +2,9 @@ use std::convert::TryInto;
 
 use std::collections::BTreeSet;
 
-use crate::messages::submessages::submessage_elements::{Long, Short, ULong, UShort, Timestamp, GuidPrefix, EntityId, VendorId, ProtocolVersion, SequenceNumber, SequenceNumberSet, FragmentNumber, FragmentNumberSet, LocatorList, Count, SerializedData};
+use crate::messages::submessages::submessage_elements::{Long, Short, ULong, UShort, Timestamp, GuidPrefix, EntityId, VendorId, ProtocolVersion, SequenceNumber, SequenceNumberSet, FragmentNumber, FragmentNumberSet, LocatorList, Count, SerializedData, ParameterList};
 use crate::messages::types::Time;
 use crate::types;
-use crate::serialized_payload::ParameterList;
 use crate::messages::Endianness;
 
 use super::{SizeCheck, UdpPsmMappingResult, UdpPsmMappingError};
@@ -344,14 +343,14 @@ pub fn deserialize_locator_list(bytes: &[u8], endianness: Endianness) -> UdpPsmM
     Ok(locator_list)
 }
 
-pub fn serialize_parameter_list(parameter_list: &ParameterList, writer: &mut impl std::io::Write, endianness: Endianness) -> UdpPsmMappingResult<()> {
-    writer.write(&parameter_list.as_bytes(endianness.into()))?;
-    Ok(())
-}
+// pub fn serialize_parameter_list(parameter_list: &ParameterList, writer: &mut impl std::io::Write, endianness: Endianness) -> UdpPsmMappingResult<()> {
+//     writer.write(&parameter_list.as_bytes(endianness.into()))?;
+//     Ok(())
+// }
 
-pub fn deserialize_parameter_list(bytes: &[u8], endianness: Endianness) -> UdpPsmMappingResult<ParameterList> {
-    Ok(ParameterList::from_bytes(bytes, endianness.into()))
-}
+// pub fn deserialize_parameter_list(bytes: &[u8], endianness: Endianness) -> UdpPsmMappingResult<ParameterList> {
+//     Ok(ParameterList::from_bytes(bytes, endianness.into()))
+// }
 
 
 pub fn serialize_serialized_data(serialized_data: &SerializedData, writer: &mut impl std::io::Write) -> UdpPsmMappingResult<()> {

@@ -85,10 +85,22 @@ impl Parameter {
             value,
         }
     }
+
+    pub fn parameter_id(&self) -> ParameterId {
+        self.parameter_id
+    }
+
+    pub fn length(&self) -> i16 {
+        self.length
+    }
+
+    pub fn value(&self) -> &Vec<u8> {
+        &self.value
+    }
 }
 
 pub struct ParameterList {
-    parameter: Vec<Parameter>,
+    pub parameter: Vec<Parameter>,
 }
 
 //// From RTPS
