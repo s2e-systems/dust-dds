@@ -4,7 +4,7 @@ use crate::behavior::stateful_reader::StatefulReader;
 use rust_dds_interface::protocol::{ProtocolEntity, ProtocolReader};
 use rust_dds_interface::types::{ReturnCode, InstanceHandle};
 
-struct Reader {
+pub struct Reader {
     reader: Arc<Mutex<StatefulReader>>,
 }
 
