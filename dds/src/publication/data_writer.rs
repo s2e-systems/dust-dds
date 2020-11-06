@@ -1,6 +1,7 @@
 use std::any::Any;
 use std::sync::Weak;
 
+use std::marker::PhantomData;
 use crate::types::DDSType;
 use rust_dds_interface::types::{InstanceHandle, Time, ReturnCode, Duration};
 
@@ -11,10 +12,9 @@ use crate::infrastructure::entity::Entity;
 use crate::infrastructure::entity::DomainEntity;
 use crate::publication::data_writer_listener::DataWriterListener;
 use crate::builtin_topics::SubscriptionBuiltinTopicData;
-use crate::implementation::data_writer_impl::DataWriterImpl;
 use rust_dds_interface::qos::DataWriterQos;
 
-pub struct DataWriter<T: DDSType>(pub(crate) Weak<DataWriterImpl<T>>);
+pub struct DataWriter<T: DDSType>(PhantomData<T>);
 
 impl<T: DDSType> DataWriter<T> {
     /// This operation informs the Service that the application will be modifying a particular instance. It gives an opportunity to the
@@ -35,7 +35,8 @@ impl<T: DDSType> DataWriter<T> {
         &self,
         instance: T
     ) -> ReturnCode<Option<InstanceHandle>> {
-        DataWriterImpl::register_instance(&self.0, instance)
+        // DataWriterImpl::register_instance(&self.0, instance)
+        todo!()
     }
 
     /// This operation performs the same function as register_instance and can be used instead of register_instance in the cases
@@ -50,7 +51,8 @@ impl<T: DDSType> DataWriter<T> {
         instance: T,
         timestamp: Time,
     ) -> ReturnCode<Option<InstanceHandle>> {
-        DataWriterImpl::register_instance_w_timestamp(&self.0, instance, timestamp)
+        // DataWriterImpl::register_instance_w_timestamp(&self.0, instance, timestamp)
+        todo!()
     }
 
     /// This operation reverses the action of register_instance. It should only be called on an instance that is currently registered.
@@ -85,7 +87,8 @@ impl<T: DDSType> DataWriter<T> {
         instance: T,
         handle: Option<InstanceHandle>
     ) -> ReturnCode<()> {
-        DataWriterImpl::unregister_instance(&self.0, instance, handle)
+        // DataWriterImpl::unregister_instance(&self.0, instance, handle)
+        todo!()
     }
 
     /// This operation performs the same function as unregister_instance and can be used instead of unregister_instance in the cases
@@ -101,7 +104,8 @@ impl<T: DDSType> DataWriter<T> {
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> ReturnCode<()> {
-        DataWriterImpl::unregister_instance_w_timestamp(&self.0, instance, handle, timestamp)
+        // DataWriterImpl::unregister_instance_w_timestamp(&self.0, instance, handle, timestamp)
+        todo!()
     }
 
     /// This operation can be used to retrieve the instance key that corresponds to an instance_handle. The operation will only fill the
@@ -114,7 +118,8 @@ impl<T: DDSType> DataWriter<T> {
         key_holder: &mut T,
         handle: InstanceHandle
     ) -> ReturnCode<()> {
-        DataWriterImpl::get_key_value(&self.0, key_holder, handle)
+        // DataWriterImpl::get_key_value(&self.0, key_holder, handle)
+        todo!()
     }
 
     /// This operation takes as a parameter an instance and returns a handle that can be used in subsequent operations that accept an
@@ -126,7 +131,8 @@ impl<T: DDSType> DataWriter<T> {
         &self,
         instance: &T,
     ) -> ReturnCode<Option<InstanceHandle>> {
-        DataWriterImpl::lookup_instance(&self.0, instance)
+        // DataWriterImpl::lookup_instance(&self.0, instance)
+        todo!()
     }
 
     /// This operation modifies the value of a data instance. When this operation is used, the Service will automatically supply the
@@ -172,7 +178,8 @@ impl<T: DDSType> DataWriter<T> {
         data: T,
         handle: Option<InstanceHandle>,
     ) -> ReturnCode<()> {
-        DataWriterImpl::write(&self.0, data, handle)
+        // DataWriterImpl::write(&self.0, data, handle)
+        todo!()
     }
 
     /// This operation performs the same function as write except that it also provides the value for the source_timestamp that is made
@@ -194,7 +201,8 @@ impl<T: DDSType> DataWriter<T> {
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> ReturnCode<()> {
-        DataWriterImpl::write_w_timestamp(&self.0, data, handle, timestamp)
+        // DataWriterImpl::write_w_timestamp(&self.0, data, handle, timestamp)
+        todo!()
     }
 
     /// This operation requests the middleware to delete the data (the actual deletion is postponed until there is no more use for that
@@ -214,7 +222,8 @@ impl<T: DDSType> DataWriter<T> {
         data: T,
         handle: Option<InstanceHandle>,
     ) -> ReturnCode<()> {
-        DataWriterImpl::dispose(&self.0, data, handle)
+        // DataWriterImpl::dispose(&self.0, data, handle)
+        todo!()
     }
 
     /// This operation performs the same functions as dispose except that the application provides the value for the source_timestamp
@@ -236,7 +245,8 @@ impl<T: DDSType> DataWriter<T> {
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> ReturnCode<()> {
-        DataWriterImpl::dispose_w_timestamp(&self.0, data, handle, timestamp)
+        // DataWriterImpl::dispose_w_timestamp(&self.0, data, handle, timestamp)
+        todo!()
     }
 
     /// This operation is intended to be used only if the DataWriter has RELIABILITY QoS kind set to RELIABLE. Otherwise the
@@ -250,7 +260,8 @@ impl<T: DDSType> DataWriter<T> {
         &self,
         max_wait: Duration
     ) -> ReturnCode<()> {
-        DataWriterImpl::wait_for_acknowledgments(&self.0, max_wait)
+        // DataWriterImpl::wait_for_acknowledgments(&self.0, max_wait)
+        todo!()
     }
 
     /// This operation allows access to the LIVELINESS_LOST communication status. Communication statuses are described in
@@ -259,7 +270,8 @@ impl<T: DDSType> DataWriter<T> {
         &self,
         status: &mut LivelinessLostStatus
     ) -> ReturnCode<()> {
-        DataWriterImpl::get_liveliness_lost_status(&self.0, status)
+        // DataWriterImpl::get_liveliness_lost_status(&self.0, status)
+        todo!()
     }
 
     /// This operation allows access to the OFFERED_DEADLINE_MISSED communication status. Communication statuses are
@@ -268,7 +280,8 @@ impl<T: DDSType> DataWriter<T> {
         &self,
         status: &mut OfferedDeadlineMissedStatus
     ) -> ReturnCode<()> {
-        DataWriterImpl::get_offered_deadline_missed_status(&self.0, status)
+        // DataWriterImpl::get_offered_deadline_missed_status(&self.0, status)
+        todo!()
     }
 
     /// This operation allows access to the OFFERED_INCOMPATIBLE_QOS communication status. Communication statuses are
@@ -277,7 +290,8 @@ impl<T: DDSType> DataWriter<T> {
         &self,
         status: &mut OfferedIncompatibleQosStatus
     ) -> ReturnCode<()> {
-        DataWriterImpl::get_offered_incompatible_qos_status(&self.0, status)
+        // DataWriterImpl::get_offered_incompatible_qos_status(&self.0, status)
+        todo!()
     }
 
     /// This operation allows access to the PUBLICATION_MATCHED communication status. Communication statuses are
@@ -286,17 +300,20 @@ impl<T: DDSType> DataWriter<T> {
         &self,
         status: &mut PublicationMatchedStatus
     ) -> ReturnCode<()> {
-        DataWriterImpl::get_publication_matched_status(&self.0, status)
+        // DataWriterImpl::get_publication_matched_status(&self.0, status)
+        todo!()
     }
 
     /// This operation returns the Topic associated with the DataWriter. This is the same Topic that was used to create the DataWriter.
     pub fn get_topic(&self) -> ReturnCode<Topic> {
-        DataWriterImpl::get_topic(&self.0)
+        // DataWriterImpl::get_topic(&self.0)
+        todo!()
     }
 
     /// This operation returns the Publisher to which the DataWriter belongs.
     pub fn get_publisher(&self,) -> ReturnCode<Publisher> {
-        DataWriterImpl::get_publisher(&self.0)
+        // DataWriterImpl::get_publisher(&self.0)
+        todo!()
     }
 
     /// This operation manually asserts the liveliness of the DataWriter. This is used in combination with the LIVELINESS QoS
@@ -307,7 +324,8 @@ impl<T: DDSType> DataWriter<T> {
     /// DomainParticipant. Consequently the use of assert_liveliness is only needed if the application is not writing data regularly.
     /// Complete details are provided in 2.2.3.11, LIVELINESS.
     pub fn assert_liveliness(&self,) -> ReturnCode<()> {
-        DataWriterImpl::assert_liveliness(&self.0)
+        // DataWriterImpl::assert_liveliness(&self.0)
+        todo!()
     }
 
     /// This operation retrieves information on a subscription that is currently “associated” with the DataWriter; that is, a subscription
@@ -323,7 +341,8 @@ impl<T: DDSType> DataWriter<T> {
         subscription_data: SubscriptionBuiltinTopicData,
         subscription_handle: InstanceHandle,
     ) -> ReturnCode<()> {
-        DataWriterImpl::get_matched_subscription_data(&self.0, subscription_data, subscription_handle)
+        // DataWriterImpl::get_matched_subscription_data(&self.0, subscription_data, subscription_handle)
+        todo!()
     }
 
     /// This operation retrieves the list of subscriptions currently “associated” with the DataWriter; that is, subscriptions that have a
@@ -337,7 +356,8 @@ impl<T: DDSType> DataWriter<T> {
         &self,
         subscription_handles: &[InstanceHandle],
     ) -> ReturnCode<()> {
-        DataWriterImpl::get_matched_subscriptions(&self.0, subscription_handles)
+        // DataWriterImpl::get_matched_subscriptions(&self.0, subscription_handles)
+        todo!()
     }
 }
 
@@ -346,35 +366,43 @@ impl<T: DDSType> Entity for DataWriter<T>{
     type Listener = Box<dyn DataWriterListener<T>>;
 
     fn set_qos(&self, qos_list: Self::Qos) -> ReturnCode<()> {
-        DataWriterImpl::set_qos(&self.0, qos_list)
+        // DataWriterImpl::set_qos(&self.0, qos_list)
+        todo!()
     }
 
     fn get_qos(&self, qos_list: &mut Self::Qos) -> ReturnCode<()> {
-        DataWriterImpl::get_qos(&self.0, qos_list)
+        // DataWriterImpl::get_qos(&self.0, qos_list)
+        todo!()
     }
 
     fn set_listener(&self, a_listener: Self::Listener, mask: StatusMask) -> ReturnCode<()> {
-        DataWriterImpl::set_listener(&self.0, a_listener, mask)
+        // DataWriterImpl::set_listener(&self.0, a_listener, mask)
+        todo!()
     }
 
     fn get_listener(&self) -> Self::Listener {
-        DataWriterImpl::get_listener(&self.0)
+        // DataWriterImpl::get_listener(&self.0)
+        todo!()
     }
 
     fn get_statuscondition(&self) -> crate::infrastructure::entity::StatusCondition {
-        DataWriterImpl::get_statuscondition(&self.0)
+        // DataWriterImpl::get_statuscondition(&self.0)
+        todo!()
     }
 
     fn get_status_changes(&self) -> StatusMask {
-        DataWriterImpl::get_status_changes(&self.0)
+        // DataWriterImpl::get_status_changes(&self.0)
+        todo!()
     }
 
     fn enable(&self) -> ReturnCode<()> {
-        DataWriterImpl::enable(&self.0)
+        // DataWriterImpl::enable(&self.0)
+        todo!()
     }
 
     fn get_instance_handle(&self) -> ReturnCode<InstanceHandle> {
-        DataWriterImpl::get_instance_handle(&self.0)
+        // DataWriterImpl::get_instance_handle(&self.0)
+        todo!()
     }
 }
 

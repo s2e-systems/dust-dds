@@ -1,4 +1,4 @@
-use std::sync::{Mutex, Arc};
+use std::sync::Mutex;
 
 use crate::infrastructure::status::StatusMask;
 use crate::topic::{Topic, TopicListener, TopicDescription};
@@ -8,9 +8,6 @@ use crate::infrastructure::entity::Entity;
 use crate::domain::domain_participant_listener::DomainParticipantListener;
 use crate::builtin_topics::{TopicBuiltinTopicData, ParticipantBuiltinTopicData};
 
-use crate::implementation::domain_participant_impl::DomainParticipantImpl;
-
-use rust_dds_interface::protocol::ProtocolEntity;
 use rust_dds_interface::types::{DomainId, ReturnCode, Duration, InstanceHandle, Time};
 use rust_dds_interface::qos::{DomainParticipantQos, TopicQos, PublisherQos, SubscriberQos};
 
@@ -33,7 +30,19 @@ use rust_dds_interface::qos::{DomainParticipantQos, TopicQos, PublisherQos, Subs
 /// - Factory methods: create_topic, create_publisher, create_subscriber, delete_topic, delete_publisher,
 /// delete_subscriber
 /// - Operations that access the status: get_statuscondition
-pub struct DomainParticipant(pub(crate) Arc<DomainParticipantImpl>);
+pub struct DomainParticipant{
+    domain_id: DomainId,
+    qos: DomainParticipantQos,
+    a_listener: Box<dyn DomainParticipantListener>,
+    mask: StatusMask,
+    // publisher_list: Mutex<Vec<Arc<PublisherImpl>>>,
+    default_publisher_qos: Mutex<PublisherQos>,
+    // subscriber_list: Mutex<Vec<Arc<SubscriberImpl>>>,
+    default_subscriber_qos: Mutex<SubscriberQos>,
+    // topic_list: Mutex<Vec<Arc<TopicImpl>>>,
+    default_topic_qos: Mutex<TopicQos>,
+    // protocol_participant: Mutex<Box<dyn ProtocolParticipant>>,
+}
 
 
 impl DomainParticipant {
@@ -52,29 +61,30 @@ impl DomainParticipant {
         mask: StatusMask,
         enabled: bool,
     ) ->  Option<DomainParticipant> {
-        use rust_rtps::transport::udp::UdpTransport;
-        use rust_rtps::protocol::RtpsProtocol;
+        todo!()
+        // use rust_rtps::transport::udp::UdpTransport;
+        // use rust_rtps::protocol::RtpsProtocol;
 
-        let interface = "Ethernet";
-        let userdata_transport = UdpTransport::default_userdata_transport(domain_id, interface).unwrap();
-        let metatraffic_transport = UdpTransport::default_metatraffic_transport(domain_id, interface).unwrap();
-        let domain_tag = "".to_string();
-        let lease_duration = rust_dds_interface::types::Duration{sec: 30, nanosec: 0};
+        // let interface = "Ethernet";
+        // let userdata_transport = UdpTransport::default_userdata_transport(domain_id, interface).unwrap();
+        // let metatraffic_transport = UdpTransport::default_metatraffic_transport(domain_id, interface).unwrap();
+        // let domain_tag = "".to_string();
+        // let lease_duration = rust_dds_interface::types::Duration{sec: 30, nanosec: 0};
 
-        let name = "rtps";
-        let protocol = match name {         
-            "rtps" => RtpsProtocol::new(domain_id, userdata_transport, metatraffic_transport, domain_tag, lease_duration),
-            _ => panic!("Protocol not valid"),
-        };
-        // protocol_participant.lock().unwrap().enable().unwrap();
+        // let name = "rtps";
+        // let protocol = match name {         
+        //     "rtps" => RtpsProtocol::new(domain_id, userdata_transport, metatraffic_transport, domain_tag, lease_duration),
+        //     _ => panic!("Protocol not valid"),
+        // };
+        // // protocol_participant.lock().unwrap().enable().unwrap();
    
-        let new_participant = DomainParticipant(Arc::new(DomainParticipantImpl::new(domain_id, qos_list, a_listener, mask, protocol)));
+        // let new_participant = DomainParticipant(Arc::new(DomainParticipantImpl::new(domain_id, qos_list, a_listener, mask, protocol)));
         
-        if enabled {
-            new_participant.enable().ok()?;
-        }
+        // if enabled {
+        //     new_participant.enable().ok()?;
+        // }
 
-        Some(new_participant)
+        // Some(new_participant)
     }
 
     /// This operation creates a Publisher with the desired QoS policies and attaches to it the specified PublisherListener.
@@ -90,7 +100,8 @@ impl DomainParticipant {
         a_listener: impl PublisherListener,
         mask: StatusMask
     ) -> Option<Publisher> {
-        DomainParticipantImpl::create_publisher(&self.0, qos_list, a_listener, mask)
+        // DomainParticipantImpl::create_publisher(&self.0, qos_list, a_listener, mask)
+        todo!()
     }
 
     /// This operation deletes an existing Publisher.
@@ -104,7 +115,8 @@ impl DomainParticipant {
         &self,
         a_publisher: &Publisher
     ) -> ReturnCode<()> {
-        DomainParticipantImpl::delete_publisher(&self.0, a_publisher)
+        // DomainParticipantImpl::delete_publisher(&self.0, a_publisher)
+        todo!()
     }
 
     /// This operation creates a Subscriber with the desired QoS policies and attaches to it the specified SubscriberListener.
@@ -121,7 +133,8 @@ impl DomainParticipant {
         a_listener: impl SubscriberListener,
         mask: StatusMask
     ) -> Option<Subscriber> {
-        DomainParticipantImpl::create_subscriber(&self.0, qos_list, a_listener, mask)
+        // DomainParticipantImpl::create_subscriber(&self.0, qos_list, a_listener, mask)
+        todo!()
     }
 
     /// This operation deletes an existing Subscriber.
@@ -135,7 +148,8 @@ impl DomainParticipant {
         &self,
         a_subscriber: &Subscriber,
     ) -> ReturnCode<()> {
-        DomainParticipantImpl::delete_subscriber(&self.0, a_subscriber)
+        // DomainParticipantImpl::delete_subscriber(&self.0, a_subscriber)
+        todo!()
     }
 
     /// This operation creates a Topic with the desired QoS policies and attaches to it the specified TopicListener.
@@ -156,7 +170,8 @@ impl DomainParticipant {
         a_listener: impl TopicListener,
         mask: StatusMask
     ) -> Option<Topic> {
-        DomainParticipantImpl::create_topic(&self.0, topic_name, type_name, qos_list, a_listener, mask)
+        // DomainParticipantImpl::create_topic(&self.0, topic_name, type_name, qos_list, a_listener, mask)
+        todo!()
     }
 
     /// This operation deletes a Topic.
@@ -170,7 +185,8 @@ impl DomainParticipant {
         &self,
         a_topic: &Topic,
     ) -> ReturnCode<()> {
-        DomainParticipantImpl::delete_topic(&self.0, a_topic)
+        // DomainParticipantImpl::delete_topic(&self.0, a_topic)
+        todo!()
     }
 
     /// The operation find_topic gives access to an existing (or ready to exist) enabled Topic, based on its name. The operation takes
@@ -189,7 +205,8 @@ impl DomainParticipant {
         topic_name: String,
         timeout: Duration,
     ) -> Option<Topic> {
-        DomainParticipantImpl::find_topic(&self.0, topic_name, timeout)
+        // DomainParticipantImpl::find_topic(&self.0, topic_name, timeout)
+        todo!()
     }
 
     /// The operation lookup_topicdescription gives access to an existing locally-created TopicDescription, based on its name. The
@@ -207,7 +224,8 @@ impl DomainParticipant {
         &self,
         name: String,
     ) -> Option<&dyn TopicDescription> {
-        DomainParticipantImpl::lookup_topicdescription(&self.0, name)
+        // DomainParticipantImpl::lookup_topicdescription(&self.0, name)
+        todo!()
     }
 
     /// This operation allows access to the built-in Subscriber. Each DomainParticipant contains several built-in Topic objects as
@@ -215,7 +233,8 @@ impl DomainParticipant {
     /// The built-in Topics are used to communicate information about other DomainParticipant, Topic, DataReader, and DataWriter
     /// objects. These built-in objects are described in 2.2.5, Built-in Topics.
     pub fn get_builtin_subscriber(&self) -> Subscriber {
-        DomainParticipantImpl::get_builtin_subscriber(&self.0)
+        // DomainParticipantImpl::get_builtin_subscriber(&self.0)
+        todo!()
     }
 
     /// This operation allows an application to instruct the Service to locally ignore a remote domain participant. From that point
@@ -236,7 +255,8 @@ impl DomainParticipant {
         &self,
         handle: InstanceHandle
     ) -> ReturnCode<()> {
-        DomainParticipantImpl::ignore_participant(&self.0, handle)
+        // DomainParticipantImpl::ignore_participant(&self.0, handle)
+        todo!()
     }
 
     /// This operation allows an application to instruct the Service to locally ignore a Topic. This means it will locally ignore any
@@ -251,7 +271,8 @@ impl DomainParticipant {
         &self,
         handle: InstanceHandle
     ) -> ReturnCode<()> {
-        DomainParticipantImpl::ignore_topic(&self.0, handle)
+        // DomainParticipantImpl::ignore_topic(&self.0, handle)
+        todo!()
     }
 
     /// This operation allows an application to instruct the Service to locally ignore a remote publication; a publication is defined by
@@ -265,7 +286,8 @@ impl DomainParticipant {
         &self,
         handle: InstanceHandle
     ) -> ReturnCode<()> {
-        DomainParticipantImpl::ignore_publication(&self.0, handle)
+        // DomainParticipantImpl::ignore_publication(&self.0, handle)
+        todo!()
     }
 
     /// This operation allows an application to instruct the Service to locally ignore a remote subscription; a subscription is defined by
@@ -279,14 +301,16 @@ impl DomainParticipant {
         &self,
         handle: InstanceHandle
     ) -> ReturnCode<()> {
-        DomainParticipantImpl::ignore_subscription(&self.0, handle)
+        // DomainParticipantImpl::ignore_subscription(&self.0, handle)
+        todo!()
     }
 
     /// This operation retrieves the domain_id used to create the DomainParticipant. The domain_id identifies the DDS domain to
     /// which the DomainParticipant belongs. As described in the introduction to 2.2.2.2.1 each DDS domain represents a separate
     /// data “communication plane” isolated from other domains
     pub fn get_domain_id(&self) -> DomainId {
-        DomainParticipantImpl::get_domain_id(&self.0)
+        // DomainParticipantImpl::get_domain_id(&self.0)
+        todo!()
     }
 
     /// This operation deletes all the entities that were created by means of the “create” operations on the DomainParticipant. That is,
@@ -301,7 +325,8 @@ impl DomainParticipant {
     /// Once delete_contained_entities returns successfully, the application may delete the DomainParticipant knowing that it has no
     /// contained entities.
     pub fn delete_contained_entities(&self) -> ReturnCode<()> {
-        DomainParticipantImpl::delete_contained_entities(&self.0)
+        // DomainParticipantImpl::delete_contained_entities(&self.0)
+        todo!()
     }
 
     /// This operation manually asserts the liveliness of the DomainParticipant. This is used in combination with the LIVELINESS
@@ -312,7 +337,8 @@ impl DomainParticipant {
     /// DomainParticipant. Consequently the use of assert_liveliness is only needed if the application is not writing data regularly.
     /// Complete details are provided in 2.2.3.11, LIVELINESS
     pub fn assert_liveliness(&self) -> ReturnCode<()> {
-        DomainParticipantImpl::assert_liveliness(&self.0)
+        // DomainParticipantImpl::assert_liveliness(&self.0)
+        todo!()
     }
 
     /// This operation sets a default value of the Publisher QoS policies which will be used for newly created Publisher entities in the
@@ -326,7 +352,8 @@ impl DomainParticipant {
         &self,
         qos: PublisherQos,
     ) -> ReturnCode<()> {
-        DomainParticipantImpl::set_default_publisher_qos(&self.0, qos)
+        // DomainParticipantImpl::set_default_publisher_qos(&self.0, qos)
+        todo!()
     }
 
     /// This operation retrieves the default value of the Publisher QoS, that is, the QoS policies which will be used for newly created
@@ -338,7 +365,8 @@ impl DomainParticipant {
         &self,
         qos_list: &mut PublisherQos,
     ) -> ReturnCode<()> {
-        DomainParticipantImpl::get_default_publisher_qos(&self.0, qos_list)
+        // DomainParticipantImpl::get_default_publisher_qos(&self.0, qos_list)
+        todo!()
     }
 
     /// This operation sets a default value of the Subscriber QoS policies that will be used for newly created Subscriber entities in the
@@ -352,7 +380,8 @@ impl DomainParticipant {
         &self,
         qos: SubscriberQos,
     ) -> ReturnCode<()> {
-        DomainParticipantImpl::set_default_subscriber_qos(&self.0, qos)
+        // DomainParticipantImpl::set_default_subscriber_qos(&self.0, qos)
+        todo!()
     }
 
     /// This operation retrieves the default value of the Subscriber QoS, that is, the QoS policies which will be used for newly created
@@ -364,7 +393,8 @@ impl DomainParticipant {
         &self,
         qos_list: &mut SubscriberQos,
     ) -> ReturnCode<()> {
-        DomainParticipantImpl::get_default_subscriber_qos(&self.0, qos_list)
+        // DomainParticipantImpl::get_default_subscriber_qos(&self.0, qos_list)
+        todo!()
     }
 
     /// This operation sets a default value of the Topic QoS policies which will be used for newly created Topic entities in the case
@@ -378,7 +408,8 @@ impl DomainParticipant {
         &self,
         qos: TopicQos,
     ) -> ReturnCode<()> {
-        DomainParticipantImpl::set_default_topic_qos(&self.0, qos)
+        // DomainParticipantImpl::set_default_topic_qos(&self.0, qos)
+        todo!()
     }
 
     /// This operation retrieves the default value of the Topic QoS, that is, the QoS policies that will be used for newly created Topic
@@ -389,7 +420,8 @@ impl DomainParticipant {
         &self,
         qos_list: &mut TopicQos,
     ) -> ReturnCode<()> {
-        DomainParticipantImpl::get_default_topic_qos(&self.0, qos_list)
+        // DomainParticipantImpl::get_default_topic_qos(&self.0, qos_list)
+        todo!()
     }
 
     /// This operation retrieves the list of DomainParticipants that have been discovered in the domain and that the application has not
@@ -400,7 +432,8 @@ impl DomainParticipant {
         &self,
         participant_handles: &mut [InstanceHandle]
     ) -> ReturnCode<()> {
-        DomainParticipantImpl::get_discovered_participants(&self.0, participant_handles)
+        // DomainParticipantImpl::get_discovered_participants(&self.0, participant_handles)
+        todo!()
     }
 
     /// This operation retrieves information on a DomainParticipant that has been discovered on the network. The participant must
@@ -416,7 +449,8 @@ impl DomainParticipant {
         participant_data: ParticipantBuiltinTopicData,
         participant_handle: InstanceHandle
     ) -> ReturnCode<()> {
-        DomainParticipantImpl::get_discovered_participant_data(&self.0, participant_data, participant_handle)
+        // DomainParticipantImpl::get_discovered_participant_data(&self.0, participant_data, participant_handle)
+        todo!()
     }
 
     /// This operation retrieves the list of Topics that have been discovered in the domain and that the application has not indicated
@@ -425,7 +459,8 @@ impl DomainParticipant {
         &self,
         topic_handles: &mut [InstanceHandle]
     ) -> ReturnCode<()> {
-        DomainParticipantImpl::get_discovered_topics(&self.0, topic_handles)
+        // DomainParticipantImpl::get_discovered_topics(&self.0, topic_handles)
+        todo!()
     }
 
     /// This operation retrieves information on a Topic that has been discovered on the network. The topic must have been created by
@@ -443,7 +478,8 @@ impl DomainParticipant {
         topic_data: TopicBuiltinTopicData,
         topic_handle: InstanceHandle
     ) -> ReturnCode<()> {
-        DomainParticipantImpl::get_discovered_topic_data(&self.0, topic_data, topic_handle)
+        // DomainParticipantImpl::get_discovered_topic_data(&self.0, topic_data, topic_handle)
+        todo!()
     }
 
     /// This operation checks whether or not the given a_handle represents an Entity that was created from the DomainParticipant.
@@ -456,13 +492,15 @@ impl DomainParticipant {
         &self,
         a_handle: InstanceHandle
     ) -> bool {
-        DomainParticipantImpl::contains_entity(&self.0, a_handle)
+        // DomainParticipantImpl::contains_entity(&self.0, a_handle)
+        todo!()
     }
 
     /// This operation returns the current value of the time that the service uses to time-stamp data-writes and to set the reception timestamp
     /// for the data-updates it receives.
     pub fn get_current_time() -> ReturnCode<Time> {
-        DomainParticipantImpl::get_current_time()
+        // DomainParticipantImpl::get_current_time()
+        todo!()
     }
 
 }
@@ -473,35 +511,43 @@ impl Entity for DomainParticipant
     type Listener = Box<dyn DomainParticipantListener>;
 
     fn set_qos(&self, qos_list: Self::Qos) -> ReturnCode<()> {
-        DomainParticipantImpl::set_qos(&self.0, qos_list)
+        // DomainParticipantImpl::set_qos(&self.0, qos_list)
+        todo!()
     }
 
     fn get_qos(&self, qos_list: &mut Self::Qos) -> ReturnCode<()> {
-        DomainParticipantImpl::get_qos(&self.0, qos_list)
+        // DomainParticipantImpl::get_qos(&self.0, qos_list)
+        todo!()
     }
 
     fn set_listener(&self, a_listener: Self::Listener, mask: StatusMask) -> ReturnCode<()> {
-        DomainParticipantImpl::set_listener(&self.0, a_listener, mask)
+        // DomainParticipantImpl::set_listener(&self.0, a_listener, mask)
+        todo!()
     }
 
     fn get_listener(&self, ) -> Self::Listener {
-        DomainParticipantImpl::get_listener(&self.0)
+        // DomainParticipantImpl::get_listener(&self.0)
+        todo!()
     }
 
     fn get_statuscondition(&self, ) -> crate::infrastructure::entity::StatusCondition {
-        DomainParticipantImpl::get_statuscondition(&self.0)
+        // DomainParticipantImpl::get_statuscondition(&self.0)
+        todo!()
     }
 
     fn get_status_changes(&self, ) -> StatusMask {
-        DomainParticipantImpl::get_status_changes(&self.0)
+        // DomainParticipantImpl::get_status_changes(&self.0)
+        todo!()
     }
 
     fn enable(&self, ) -> ReturnCode<()> {
-        DomainParticipantImpl::enable(&self.0)
+        // DomainParticipantImpl::enable(&self.0)
+        todo!()
     }
 
     fn get_instance_handle(&self) -> ReturnCode<InstanceHandle> {
-        DomainParticipantImpl::get_instance_handle(&self.0)
+        // DomainParticipantImpl::get_instance_handle(&self.0)
+        todo!()
     }
 }
 

@@ -1,4 +1,4 @@
-use std::sync::Weak;
+use std::sync::Mutex;
 
 use rust_dds_interface::types::{ReturnCode, InstanceHandle};
 
@@ -16,11 +16,13 @@ use crate::infrastructure::entity::DomainEntity;
 use crate::subscription::subscriber_listener::SubscriberListener;
 use crate::types::DDSType;
 
+use rust_dds_interface::protocol::ProtocolSubscriber;
 use rust_dds_interface::qos::{TopicQos, SubscriberQos, DataReaderQos};
 
-use crate::implementation::subscriber_impl::SubscriberImpl;
-
-pub struct Subscriber(pub(crate) Weak<SubscriberImpl>);
+pub struct Subscriber<'subscriber>{
+    parent_participant: &'subscriber DomainParticipant,
+    protocol_subscriber: Mutex<Box<dyn ProtocolSubscriber>>,
+}
 
 /// A Subscriber is the object responsible for the actual reception of the data resulting from its subscriptions
 ///
@@ -30,7 +32,7 @@ pub struct Subscriber(pub(crate) Weak<SubscriberImpl>);
 /// objects through the operation get_datareaders and then access the data available though operations on the DataReader.
 /// All operations except for the base-class operations set_qos, get_qos, set_listener, get_listener, enable, get_statuscondition,
 /// and create_datareader may return the value NOT_ENABLED.
-impl Subscriber {
+impl<'subscriber> Subscriber<'subscriber> {
     /// This operation creates a DataReader. The returned DataReader will be attached and belong to the Subscriber.
     ///
     /// The DataReader returned by the create_datareader operation will in fact be a derived class, specific to the data-type
@@ -65,7 +67,8 @@ impl Subscriber {
         a_listener: Box<dyn DataReaderListener<T>>,
         mask: StatusMask
     ) -> Option<DataReader<T>> {
-        SubscriberImpl::create_datareader(&self.0, a_topic, qos, a_listener, mask)
+        // SubscriberImpl::create_datareader(&self.0, a_topic, qos, a_listener, mask)
+        todo!()
     }
 
     /// This operation deletes a DataReader that belongs to the Subscriber. If the DataReader does not belong to the Subscriber, the
@@ -84,7 +87,8 @@ impl Subscriber {
         &self,
         a_datareader: &DataReader<T>
     ) -> ReturnCode<()> {
-        SubscriberImpl::delete_datareader(&self.0, a_datareader)
+        // SubscriberImpl::delete_datareader(&self.0, a_datareader)
+        todo!()
     }
 
     /// This operation retrieves a previously-created DataReader belonging to the Subscriber that is attached to a Topic with a
@@ -96,7 +100,8 @@ impl Subscriber {
         &self,
         topic_name: String
     ) -> DataReader<T> {
-        SubscriberImpl::lookup_datareader(&self.0, topic_name)
+        // SubscriberImpl::lookup_datareader(&self.0, topic_name)
+        todo!()
     }
 
     /// This operation indicates that the application is about to access the data samples in any of the DataReader objects attached to
@@ -114,7 +119,8 @@ impl Subscriber {
     /// called begin_access.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
     pub fn begin_access(&self) -> ReturnCode<()> {
-        SubscriberImpl::begin_access(&self.0)
+        // SubscriberImpl::begin_access(&self.0)
+        todo!()
     }
 
     /// Indicates that the application has finished accessing the data samples in DataReader objects managed by the Subscriber.
@@ -124,7 +130,8 @@ impl Subscriber {
     /// PRECONDITION_NOT_MET.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
     pub fn end_access(&self) -> ReturnCode<()> {
-        SubscriberImpl::end_access(&self.0)
+        // SubscriberImpl::end_access(&self.0)
+        todo!()
     }
 
     /// This operation allows the application to access the DataReader objects that contain samples with the specified sample_states,
@@ -150,7 +157,8 @@ impl Subscriber {
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
     ) -> ReturnCode<()> {
-        SubscriberImpl::get_datareaders(&self.0, readers, sample_states, view_states, instance_states)
+        // SubscriberImpl::get_datareaders(&self.0, readers, sample_states, view_states, instance_states)
+        todo!()
     }
 
     /// This operation invokes the operation on_data_available on the DataReaderListener objects attached to contained DataReader
@@ -159,17 +167,20 @@ impl Subscriber {
     /// This operation is typically invoked from the on_data_on_readers operation in the SubscriberListener. That way the
     /// SubscriberListener can delegate to the DataReaderListener objects the handling of the data.
     pub fn notify_datareaders(&self) -> ReturnCode<()> {
-        SubscriberImpl::notify_datareaders(&self.0)
+        // SubscriberImpl::notify_datareaders(&self.0)
+        todo!()
     }
 
     /// This operation allows access to the SAMPLE_LOST communication status. Communication statuses are described in 2.2.4.1
     pub fn get_sample_lost_status(&self, status: &mut SampleLostStatus) -> ReturnCode<()> {
-        SubscriberImpl::get_sample_lost_status(&self.0, status)
+        // SubscriberImpl::get_sample_lost_status(&self.0, status)
+        todo!()
     }
 
     /// This operation returns the DomainParticipant to which the Subscriber belongs.
     pub fn get_participant(&self) -> DomainParticipant {
-        SubscriberImpl::get_participant(&self.0)
+        // SubscriberImpl::get_participant(&self.0)
+        todo!()
     }
 
     /// This operation deletes all the entities that were created by means of the “create” operations on the Subscriber. That is, it
@@ -182,7 +193,8 @@ impl Subscriber {
     /// Once delete_contained_entities returns successfully, the application may delete the Subscriber knowing that it has no
     /// contained DataReader objects.
     pub fn delete_contained_entities(&self) -> ReturnCode<()> {
-        SubscriberImpl::delete_contained_entities(&self.0)
+        // SubscriberImpl::delete_contained_entities(&self.0)
+        todo!()
     }
 
     /// This operation sets a default value of the DataReader QoS policies which will be used for newly created DataReader entities
@@ -196,7 +208,8 @@ impl Subscriber {
         &self,
         qos: DataReaderQos,
     ) -> ReturnCode<()> {
-        SubscriberImpl::set_default_datareader_qos(&self.0, qos)
+        // SubscriberImpl::set_default_datareader_qos(&self.0, qos)
+        todo!()
     }
 
     /// This operation retrieves the default value of the DataReader QoS, that is, the QoS policies which will be used for newly
@@ -208,7 +221,8 @@ impl Subscriber {
         &self,
         qos_list: &mut DataReaderQos,
     ) -> ReturnCode<()> {
-        SubscriberImpl::get_default_datareader_qos(&self.0, qos_list)
+        // SubscriberImpl::get_default_datareader_qos(&self.0, qos_list)
+        todo!()
     }
 
     /// This operation copies the policies in the a_topic_qos to the corresponding policies in the a_datareader_qos (replacing values
@@ -223,49 +237,58 @@ impl Subscriber {
         a_datareader_qos: &mut DataReaderQos,
         a_topic_qos: &TopicQos,
     ) -> ReturnCode<()> {
-        SubscriberImpl::copy_from_topic_qos(&self.0, a_datareader_qos, a_topic_qos)
+        // SubscriberImpl::copy_from_topic_qos(&self.0, a_datareader_qos, a_topic_qos)
+        todo!()
     }
 
 }
 
-impl Entity for Subscriber {
+impl<'subscriber> Entity for Subscriber<'subscriber> {
     type Qos = SubscriberQos;
     type Listener = Box<dyn SubscriberListener>;
 
     fn set_qos(&self, qos_list: Self::Qos) -> ReturnCode<()> {
-        SubscriberImpl::set_qos(&self.0, qos_list)
+        // SubscriberImpl::set_qos(&self.0, qos_list)
+        todo!()
     }
 
     fn get_qos(&self, qos_list: &mut Self::Qos) -> ReturnCode<()> {
-        SubscriberImpl::get_qos(&self.0, qos_list)
+        // SubscriberImpl::get_qos(&self.0, qos_list)
+        todo!()
     }
 
     fn set_listener(&self, a_listener: Self::Listener, mask: StatusMask) -> ReturnCode<()> {
-        SubscriberImpl::set_listener(&self.0, a_listener, mask)
+        // SubscriberImpl::set_listener(&self.0, a_listener, mask)
+        todo!()
     }
 
     fn get_listener(&self) -> Self::Listener {
-        SubscriberImpl::get_listener(&self.0)
+        // SubscriberImpl::get_listener(&self.0)
+        todo!()
     }
 
     fn get_statuscondition(&self) -> crate::infrastructure::entity::StatusCondition {
-        SubscriberImpl::get_statuscondition(&self.0)
+        // SubscriberImpl::get_statuscondition(&self.0)
+        todo!()
     }
 
     fn get_status_changes(&self) -> StatusMask {
-        SubscriberImpl::get_status_changes(&self.0)
+        // SubscriberImpl::get_status_changes(&self.0)
+        todo!()
     }
 
     fn enable(&self) -> ReturnCode<()> {
-        SubscriberImpl::enable(&self.0)
+        // SubscriberImpl::enable(&self.0)
+        todo!()
     }
 
     fn get_instance_handle(&self) -> ReturnCode<InstanceHandle> {
-        SubscriberImpl::get_instance_handle(&self.0)
+        // SubscriberImpl::get_instance_handle(&self.0)
+        todo!()
     }
 }
 
-impl DomainEntity for Subscriber{}
+impl<'subscriber> DomainEntity for Subscriber<'subscriber>{}
 
 // impl Drop for Subscriber {
 //     fn drop(&mut self) {

@@ -9,7 +9,6 @@ use crate::topic::topic_description::TopicDescription;
 use crate::domain::DomainParticipant;
 
 use rust_dds_interface::qos::TopicQos;
-use crate::implementation::topic_impl::TopicImpl;
 
 /// Topic is the most basic description of the data to be published and subscribed.
 /// A Topic is identified by its name, which must be unique in the whole Domain. In addition (by virtue of extending
@@ -17,7 +16,7 @@ use crate::implementation::topic_impl::TopicImpl;
 /// Topic is the only TopicDescription that can be used for publications and therefore associated to a DataWriter.
 /// All operations except for the base-class operations set_qos, get_qos, set_listener, get_listener, enable and
 /// get_status_condition may return the value NOT_ENABLED.
-pub struct Topic(pub(crate) Weak<TopicImpl>);
+pub struct Topic;
 
 impl Topic {
     /// This method allows the application to retrieve the INCONSISTENT_TOPIC status of the Topic.
@@ -29,21 +28,25 @@ impl Topic {
         &self,
         status: &mut InconsistentTopicStatus,
     ) -> ReturnCode<()> {
-        TopicImpl::get_inconsistent_topic_status(&self.0, status)
+        // TopicImpl::get_inconsistent_topic_status(&self.0, status)
+        todo!()
     }
 }
 
 impl TopicDescription for Topic {
     fn get_participant(&self) -> Option<DomainParticipant> {
-        TopicImpl::get_participant(&self.0)
+        // TopicImpl::get_participant(&self.0)
+        todo!()
     }
 
     fn get_type_name(&self) -> Option<String> {
-        TopicImpl::get_type_name(&self.0)
+        // TopicImpl::get_type_name(&self.0)
+        todo!()
     }
 
     fn get_name(&self) -> Option<String> {
-        TopicImpl::get_name(&self.0)
+        // TopicImpl::get_name(&self.0)
+        todo!()
     }
 }
 

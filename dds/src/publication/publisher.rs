@@ -1,4 +1,4 @@
-use std::sync::Weak;
+use std::sync::Mutex;
 
 use crate::types::DDSType;
 use rust_dds_interface::types::{ReturnCode, Duration, InstanceHandle};
@@ -11,9 +11,8 @@ use crate::infrastructure::entity::Entity;
 use crate::infrastructure::entity::DomainEntity;
 use crate::publication::publisher_listener::PublisherListener;
 
+use rust_dds_interface::protocol::ProtocolPublisher;
 use rust_dds_interface::qos::{TopicQos, PublisherQos, DataWriterQos};
-
-use crate::implementation::publisher_impl::PublisherImpl;
 
 /// The Publisher acts on the behalf of one or several DataWriter objects that belong to it. When it is informed of a change to the
 /// data associated with one of its DataWriter objects, it decides when it is appropriate to actually send the data-update message.
@@ -21,9 +20,12 @@ use crate::implementation::publisher_impl::PublisherImpl;
 /// of the Publisher and the DataWriter.
 /// All operations except for the base-class operations set_qos, get_qos, set_listener, get_listener, enable, get_statuscondition,
 /// create_datawriter, and delete_datawriter may return the value NOT_ENABLED.
-pub struct Publisher(pub(crate) Weak<PublisherImpl>);
+pub struct Publisher<'publisher>{
+    parent_participant: &'publisher DomainParticipant,
+    protocol_publisher: Mutex<Box<dyn ProtocolPublisher>>,
+}  
 
-impl Publisher {
+impl<'publisher> Publisher<'publisher> {
     /// This operation creates a DataWriter. The returned DataWriter will be attached and belongs to the Publisher.
     /// The DataWriter returned by the create_datawriter operation will in fact be a derived class, specific to the data-type associated
     /// with the Topic. As described in 2.2.2.3.7, for each application-defined type “Foo” there is an implied, auto-generated class
@@ -52,7 +54,8 @@ impl Publisher {
         a_listener: Box<dyn DataWriterListener<T>>,
         mask: StatusMask
     ) -> Option<DataWriter<T>> {
-        PublisherImpl::create_datawriter(&self.0, a_topic, qos, a_listener, mask)
+        // PublisherImpl::create_datawriter(&self.0, a_topic, qos, a_listener, mask)
+        todo!()
     }
 
     /// This operation deletes a DataWriter that belongs to the Publisher.
@@ -67,7 +70,8 @@ impl Publisher {
         &self,
         a_datawriter: &DataWriter<T>
     ) -> ReturnCode<()> {
-        PublisherImpl::delete_datawriter(&self.0, &a_datawriter)
+        // PublisherImpl::delete_datawriter(&self.0, &a_datawriter)
+        todo!()
     }
 
     /// This operation retrieves a previously created DataWriter belonging to the Publisher that is attached to a Topic with a matching
@@ -78,7 +82,8 @@ impl Publisher {
         &self,
         topic_name: String,
     ) -> Option<DataWriter<T>> {
-        PublisherImpl::lookup_datawriter(&self.0, topic_name)
+        // PublisherImpl::lookup_datawriter(&self.0, topic_name)
+        todo!()
     }
 
     /// This operation indicates to the Service that the application is about to make multiple modifications using DataWriter objects
@@ -90,7 +95,8 @@ impl Publisher {
     /// modifications has completed. If the Publisher is deleted before resume_publications is called, any suspended updates yet to
     /// be published will be discarded.
     pub fn suspend_publications(&self) -> ReturnCode<()> {
-        PublisherImpl::suspend_publications(&self.0)
+        // PublisherImpl::suspend_publications(&self.0)
+        todo!()
     }
 
     /// This operation indicates to the Service that the application has completed the multiple changes initiated by the previous
@@ -100,7 +106,8 @@ impl Publisher {
     /// error PRECONDITION_NOT_MET.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
     pub fn resume_publications(&self) -> ReturnCode<()> {
-        PublisherImpl::resume_publications(&self.0)
+        // PublisherImpl::resume_publications(&self.0)
+        todo!()
     }
 
     /// This operation requests that the application will begin a ‘coherent set’ of modifications using DataWriter objects attached to
@@ -120,14 +127,16 @@ impl Publisher {
     /// same aircraft and both are changed, it may be useful to communicate those values in a way the reader can see both together;
     /// otherwise, it may e.g., erroneously interpret that the aircraft is on a collision course).
     pub fn begin_coherent_changes(&self) -> ReturnCode<()> {
-        PublisherImpl::begin_coherent_changes(&self.0)
+        // PublisherImpl::begin_coherent_changes(&self.0)
+        todo!()
     }
 
     /// This operation terminates the ‘coherent set’ initiated by the matching call to begin_coherent_ changes. If there is no matching
     /// call to begin_coherent_ changes, the operation will return the error PRECONDITION_NOT_MET.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET
     pub fn end_coherent_changes(&self) -> ReturnCode<()> {
-        PublisherImpl::end_coherent_changes(&self.0)
+        // PublisherImpl::end_coherent_changes(&self.0)
+        todo!()
     }
 
     /// This operation blocks the calling thread until either all data written by the reliable DataWriter entities is acknowledged by all
@@ -138,12 +147,14 @@ impl Publisher {
         &self,
         max_wait: Duration
     ) -> ReturnCode<()> {
-        PublisherImpl::wait_for_acknowledgments(&self.0, max_wait)
+        // PublisherImpl::wait_for_acknowledgments(&self.0, max_wait)
+        todo!()
     }
 
     /// This operation returns the DomainParticipant to which the Publisher belongs.
     pub fn get_participant(&self,) -> DomainParticipant {
-        PublisherImpl::get_participant(&self.0, )
+        // PublisherImpl::get_participant(&self.0, )
+        todo!()
     }
 
     /// This operation deletes all the entities that were created by means of the “create” operations on the Publisher. That is, it deletes
@@ -153,7 +164,8 @@ impl Publisher {
     /// Once delete_contained_entities returns successfully, the application may delete the Publisher knowing that it has no
     /// contained DataWriter objects
     pub fn delete_contained_entities(&self) -> ReturnCode<()> {
-        PublisherImpl::delete_contained_entities(&self.0)
+        // PublisherImpl::delete_contained_entities(&self.0)
+        todo!()
     }
 
     /// This operation sets a default value of the DataWriter QoS policies which will be used for newly created DataWriter entities in
@@ -167,7 +179,8 @@ impl Publisher {
         &self,
         qos_list: DataWriterQos,
     ) -> ReturnCode<()> {
-        PublisherImpl::set_default_datawriter_qos(&self.0, qos_list)
+        // PublisherImpl::set_default_datawriter_qos(&self.0, qos_list)
+        todo!()
     }
 
     /// This operation retrieves the default value of the DataWriter QoS, that is, the QoS policies which will be used for newly created
@@ -179,7 +192,8 @@ impl Publisher {
         &self,
         qos_list: &mut DataWriterQos,
     ) -> ReturnCode<()> {
-        PublisherImpl::get_default_datawriter_qos(&self.0, qos_list)
+        // PublisherImpl::get_default_datawriter_qos(&self.0, qos_list)
+        todo!()
     }
 
     /// This operation copies the policies in the a_topic_qos to the corresponding policies in the a_datawriter_qos (replacing values
@@ -194,48 +208,57 @@ impl Publisher {
         a_datawriter_qos: &mut DataWriterQos,
         a_topic_qos: &TopicQos,
     ) -> ReturnCode<()> {
-        PublisherImpl::copy_from_topic_qos(&self.0, a_datawriter_qos, a_topic_qos)
+        // PublisherImpl::copy_from_topic_qos(&self.0, a_datawriter_qos, a_topic_qos)
+        todo!()
     }
 }
 
-impl Entity for Publisher{
+impl<'publisher> Entity for Publisher<'publisher>{
     type Qos = PublisherQos;
     type Listener = Box<dyn PublisherListener>;
 
     fn set_qos(&self, qos_list: Self::Qos) -> ReturnCode<()> {
-        PublisherImpl::set_qos(&self.0, qos_list)
+        // PublisherImpl::set_qos(&self.0, qos_list)
+        todo!()
     }
 
     fn get_qos(&self, qos_list: &mut Self::Qos) -> ReturnCode<()> {
-        PublisherImpl::get_qos(&self.0, qos_list)
+        // PublisherImpl::get_qos(&self.0, qos_list)
+        todo!()
     }
 
     fn set_listener(&self, a_listener: Self::Listener, mask: StatusMask) -> ReturnCode<()> {
-        PublisherImpl::set_listener(&self.0, a_listener, mask)
+        // PublisherImpl::set_listener(&self.0, a_listener, mask)
+        todo!()
     }
 
     fn get_listener(&self, ) -> Self::Listener {
-        PublisherImpl::get_listener(&self.0)
+        // PublisherImpl::get_listener(&self.0)
+        todo!()
     }
 
     fn get_statuscondition(&self, ) -> crate::infrastructure::entity::StatusCondition {
-        PublisherImpl::get_statuscondition(&self.0)
+        // PublisherImpl::get_statuscondition(&self.0)
+        todo!()
     }
 
     fn get_status_changes(&self, ) -> StatusMask {
-        PublisherImpl::get_status_changes(&self.0)
+        // PublisherImpl::get_status_changes(&self.0)
+        todo!()
     }
 
     fn enable(&self, ) -> ReturnCode<()> {
-        PublisherImpl::enable(&self.0)
+        // PublisherImpl::enable(&self.0)
+        todo!()
     }
 
     fn get_instance_handle(&self) -> ReturnCode<InstanceHandle> {
-        PublisherImpl::get_instance_handle(&self.0)
+        // PublisherImpl::get_instance_handle(&self.0)
+        todo!()
     }
 }
 
-impl DomainEntity for Publisher{}
+impl<'publisher> DomainEntity for Publisher<'publisher>{}
 
 // impl Drop for Publisher {
 //     fn drop(&mut self) {
