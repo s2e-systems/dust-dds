@@ -325,8 +325,7 @@ impl DomainParticipant {
     /// which the DomainParticipant belongs. As described in the introduction to 2.2.2.2.1 each DDS domain represents a separate
     /// data “communication plane” isolated from other domains
     pub fn get_domain_id(&self) -> DomainId {
-        // DomainParticipantImpl::get_domain_id(&self.0)
-        todo!()
+        self.domain_id
     }
 
     /// This operation deletes all the entities that were created by means of the “create” operations on the DomainParticipant. That is,
@@ -365,9 +364,8 @@ impl DomainParticipant {
     /// operation had never been called.
     pub fn set_default_publisher_qos(
         &self,
-        qos: PublisherQos,
+        qos: Option<PublisherQos>,
     ) -> ReturnCode<()> {
-        // DomainParticipantImpl::set_default_publisher_qos(&self.0, qos)
         todo!()
     }
 
@@ -377,11 +375,9 @@ impl DomainParticipant {
     /// set_default_publisher_qos, or else, if the call was never made, the default values listed in the QoS table in 2.2.3, Supported
     /// QoS.
     pub fn get_default_publisher_qos(
-        &self,
-        qos_list: &mut PublisherQos,
-    ) -> ReturnCode<()> {
-        // DomainParticipantImpl::get_default_publisher_qos(&self.0, qos_list)
-        todo!()
+        &self
+    ) -> ReturnCode<PublisherQos> {
+        Ok(self.default_publisher_qos.lock().unwrap().clone())
     }
 
     /// This operation sets a default value of the Subscriber QoS policies that will be used for newly created Subscriber entities in the
@@ -405,11 +401,9 @@ impl DomainParticipant {
     /// set_default_subscriber_qos, or else, if the call was never made, the default values listed in the QoS table in 2.2.3, Supported
     /// QoS.
     pub fn get_default_subscriber_qos(
-        &self,
-        qos_list: &mut SubscriberQos,
-    ) -> ReturnCode<()> {
-        // DomainParticipantImpl::get_default_subscriber_qos(&self.0, qos_list)
-        todo!()
+        &self
+    ) -> ReturnCode<SubscriberQos> {
+        Ok(self.default_subscriber_qos.lock().unwrap().clone())
     }
 
     /// This operation sets a default value of the Topic QoS policies which will be used for newly created Topic entities in the case
@@ -432,11 +426,9 @@ impl DomainParticipant {
     /// The values retrieved get_default_topic_qos will match the set of values specified on the last successful call to
     /// set_default_topic_qos, or else, if the call was never made, the default values listed in the QoS table in 2.2.3, Supported QoS.
     pub fn get_default_topic_qos(
-        &self,
-        qos_list: &mut TopicQos,
-    ) -> ReturnCode<()> {
-        // DomainParticipantImpl::get_default_topic_qos(&self.0, qos_list)
-        todo!()
+        &self
+    ) -> ReturnCode<TopicQos> {
+        Ok(self.default_topic_qos.lock().unwrap().clone())
     }
 
     /// This operation retrieves the list of DomainParticipants that have been discovered in the domain and that the application has not
