@@ -34,7 +34,7 @@ impl DDSType for HelloWorldType {
 fn hello_world() {
     let participant = DomainParticipant::new(0, DomainParticipantQos::default(), NoListener, 0, true).expect("Error creating participant");
     
-    let publisher = participant.create_publisher(PublisherQos::default(), NoListener, 0).expect("Error creating publisher");
+    let publisher = participant.create_publisher(Some(PublisherQos::default()), NoListener, 0).expect("Error creating publisher");
     let helloworld_topic = participant.create_topic("HelloWorld".to_string(), "HelloWorldType".to_string(), TopicQos::default(), NoListener, 0).expect("Error creating topic");
 
     let mut data_writer_qos = DataWriterQos::default();

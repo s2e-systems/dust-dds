@@ -4,11 +4,12 @@ use crate::infrastructure::status::StatusMask;
 use crate::topic::{Topic, TopicListener, TopicDescription};
 use crate::subscription::{Subscriber, SubscriberListener};
 use crate::publication::{Publisher, PublisherListener};
-use crate::infrastructure::entity::Entity;
+use crate::infrastructure::entity::{Entity, StatusCondition};
 use crate::domain::domain_participant_listener::DomainParticipantListener;
 use crate::builtin_topics::{TopicBuiltinTopicData, ParticipantBuiltinTopicData};
 
-use rust_dds_interface::types::{DomainId, ReturnCode, Duration, InstanceHandle, Time};
+use rust_dds_interface::types::{DomainId, ReturnCode, Duration, InstanceHandle, Time, ReturnCodes};
+use rust_dds_interface::protocol::ProtocolParticipant;
 use rust_dds_interface::qos::{DomainParticipantQos, TopicQos, PublisherQos, SubscriberQos};
 
 /// The DomainParticipant object plays several roles:
@@ -35,13 +36,10 @@ pub struct DomainParticipant{
     qos: DomainParticipantQos,
     a_listener: Box<dyn DomainParticipantListener>,
     mask: StatusMask,
-    // publisher_list: Mutex<Vec<Arc<PublisherImpl>>>,
     default_publisher_qos: Mutex<PublisherQos>,
-    // subscriber_list: Mutex<Vec<Arc<SubscriberImpl>>>,
     default_subscriber_qos: Mutex<SubscriberQos>,
-    // topic_list: Mutex<Vec<Arc<TopicImpl>>>,
     default_topic_qos: Mutex<TopicQos>,
-    // protocol_participant: Mutex<Box<dyn ProtocolParticipant>>,
+    protocol_participant: Mutex<Box<dyn ProtocolParticipant>>,
 }
 
 
@@ -55,11 +53,11 @@ impl DomainParticipant {
     /// QoS to create the DomainParticipant.
     /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
     pub fn new (
-        domain_id: DomainId,
-        qos_list: DomainParticipantQos,
-        a_listener: impl DomainParticipantListener,
-        mask: StatusMask,
-        enabled: bool,
+        _domain_id: DomainId,
+        _qos_list: DomainParticipantQos,
+        _a_listener: impl DomainParticipantListener,
+        _mask: StatusMask,
+        _enabled: bool,
     ) ->  Option<DomainParticipant> {
         todo!()
         // use rust_rtps::transport::udp::UdpTransport;
@@ -96,12 +94,18 @@ impl DomainParticipant {
     /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
     pub fn create_publisher(
         &self,
-        qos_list: PublisherQos,
-        a_listener: impl PublisherListener,
-        mask: StatusMask
+        qos: Option<PublisherQos>,
+        _a_listener: impl PublisherListener,
+        _mask: StatusMask
     ) -> Option<Publisher> {
-        // DomainParticipantImpl::create_publisher(&self.0, qos_list, a_listener, mask)
-        todo!()
+        let _publisher_qos = match qos {
+            Some(qos) => qos,
+            None => self.default_publisher_qos.lock().unwrap().clone(),
+        };
+
+        let protocol_publisher = self.protocol_participant.lock().unwrap().create_publisher();
+
+        Some(Publisher::new(self, protocol_publisher))
     }
 
     /// This operation deletes an existing Publisher.
@@ -113,10 +117,13 @@ impl DomainParticipant {
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
     pub fn delete_publisher(
         &self,
-        a_publisher: &Publisher
+        a_publisher: &mut Publisher
     ) -> ReturnCode<()> {
-        // DomainParticipantImpl::delete_publisher(&self.0, a_publisher)
-        todo!()
+        if std::ptr::eq(self, a_publisher.get_participant()?) {
+            a_publisher.delete()
+        } else {
+            Err(ReturnCodes::PreconditionNotMet("Subscriber can only be deleted by its parent participant"))
+        }
     }
 
     /// This operation creates a Subscriber with the desired QoS policies and attaches to it the specified SubscriberListener.
@@ -129,12 +136,18 @@ impl DomainParticipant {
     /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
     pub fn create_subscriber(
         &self,
-        qos_list: SubscriberQos,
-        a_listener: impl SubscriberListener,
-        mask: StatusMask
+        qos: Option<SubscriberQos>,
+        _a_listener: impl SubscriberListener,
+        _mask: StatusMask
     ) -> Option<Subscriber> {
-        // DomainParticipantImpl::create_subscriber(&self.0, qos_list, a_listener, mask)
-        todo!()
+        let _subscriber_qos = match qos {
+            Some(qos) => qos,
+            None => self.default_subscriber_qos.lock().unwrap().clone(),
+        };
+
+        let protocol_subscriber = self.protocol_participant.lock().unwrap().create_subscriber();
+
+        Some(Subscriber::new(self, protocol_subscriber))
     }
 
     /// This operation deletes an existing Subscriber.
@@ -146,10 +159,13 @@ impl DomainParticipant {
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
     pub fn delete_subscriber(
         &self,
-        a_subscriber: &Subscriber,
+        a_subscriber: &mut Subscriber,
     ) -> ReturnCode<()> {
-        // DomainParticipantImpl::delete_subscriber(&self.0, a_subscriber)
-        todo!()
+        if std::ptr::eq(self, a_subscriber.get_participant()?) {
+            a_subscriber.delete()
+        } else {
+            Err(ReturnCodes::PreconditionNotMet("Subscriber can only be deleted by its parent participant"))
+        }
     }
 
     /// This operation creates a Topic with the desired QoS policies and attaches to it the specified TopicListener.
@@ -325,7 +341,6 @@ impl DomainParticipant {
     /// Once delete_contained_entities returns successfully, the application may delete the DomainParticipant knowing that it has no
     /// contained entities.
     pub fn delete_contained_entities(&self) -> ReturnCode<()> {
-        // DomainParticipantImpl::delete_contained_entities(&self.0)
         todo!()
     }
 
@@ -525,12 +540,12 @@ impl Entity for DomainParticipant
         todo!()
     }
 
-    fn get_listener(&self, ) -> Self::Listener {
+    fn get_listener(&self) -> Self::Listener {
         // DomainParticipantImpl::get_listener(&self.0)
         todo!()
     }
 
-    fn get_statuscondition(&self, ) -> crate::infrastructure::entity::StatusCondition {
+    fn get_statuscondition(&self) -> StatusCondition {
         // DomainParticipantImpl::get_statuscondition(&self.0)
         todo!()
     }
@@ -551,10 +566,129 @@ impl Entity for DomainParticipant
     }
 }
 
-// impl Drop for DomainParticipant {
-//     fn drop(&mut self) {
-//         if Arc::strong_count(&self.0) == 1 {
-//             DomainParticipantFactory::get_instance().remove_participant_reference(&Arc::downgrade(&self.0));
-//         }
-//     }
-// }
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::infrastructure::listener::NoListener;
+    use rust_dds_interface::protocol::{ProtocolEntity, ProtocolPublisher, ProtocolSubscriber};
+
+    struct MockProtocolParticipant;
+
+    impl ProtocolEntity for MockProtocolParticipant {
+        fn enable(&self) -> ReturnCode<()> {
+            todo!()
+        }
+
+        fn get_instance_handle(&self) -> InstanceHandle {
+            todo!()
+        }
+    }
+    impl ProtocolParticipant for MockProtocolParticipant {
+        fn create_publisher(&mut self) -> Box<dyn ProtocolPublisher> {
+            Box::new(MockProtocolPublisher)
+        }
+
+        fn delete_publisher(&mut self, _publisher: &Box<dyn ProtocolPublisher>) {
+            todo!()
+        }
+
+        fn create_subscriber(&mut self) -> Box<dyn ProtocolSubscriber> {
+            Box::new(MockProtocolSubscriber)
+        }
+
+        fn delete_subscriber(&mut self, _subscriber: &Box<dyn ProtocolSubscriber>) {
+            todo!()
+        }
+
+        fn get_builtin_subscriber(&self) -> Box<dyn rust_dds_interface::protocol::ProtocolSubscriber> {
+            todo!()
+        }
+    }
+
+    struct MockProtocolPublisher;
+    impl ProtocolEntity for MockProtocolPublisher {
+        fn enable(&self) -> ReturnCode<()> {
+            todo!()
+        }
+
+        fn get_instance_handle(&self) -> InstanceHandle {
+            todo!()
+        }
+    }
+
+    impl ProtocolPublisher for MockProtocolPublisher {
+        fn create_writer(&mut self, _topic_kind: rust_dds_interface::types::TopicKind, _data_writer_qos: &rust_dds_interface::qos::DataWriterQos) -> Box<dyn rust_dds_interface::protocol::ProtocolWriter> {
+            todo!()
+        }
+
+        fn delete_writer(&mut self, _writer: &Box<dyn rust_dds_interface::protocol::ProtocolWriter>) {
+            todo!()
+        }
+    }
+
+    struct MockProtocolSubscriber;
+    impl ProtocolEntity for MockProtocolSubscriber {
+        fn enable(&self) -> ReturnCode<()> {
+            todo!()
+        }
+
+        fn get_instance_handle(&self) -> InstanceHandle {
+            todo!()
+        }
+    }
+
+    impl ProtocolSubscriber for MockProtocolSubscriber {
+        fn create_reader(&mut self, _topic_kind: rust_dds_interface::types::TopicKind, _data_reader_qos: &rust_dds_interface::qos::DataReaderQos) -> Box<dyn rust_dds_interface::protocol::ProtocolReader> {
+            todo!()
+        }
+    }
+
+
+    #[test]
+    fn create_delete_publisher() {
+        let dp = DomainParticipant {
+            domain_id: 1,
+            qos: DomainParticipantQos::default(),
+            a_listener: Box::new(NoListener),
+            mask: 0,
+            default_publisher_qos: Mutex::new(PublisherQos::default()),
+            default_subscriber_qos: Mutex::new(SubscriberQos::default()),
+            default_topic_qos: Mutex::new(TopicQos::default()),
+            protocol_participant: Mutex::new(Box::new(MockProtocolParticipant)),
+        };
+
+        let mut publisher = dp.create_publisher(None, NoListener, 0).unwrap();
+
+        dp.delete_publisher(&mut publisher).unwrap();
+
+        // Verify that second publisher delete returns Already Deleted error
+        match dp.delete_publisher(&mut publisher) {
+            Err(ReturnCodes::AlreadyDeleted("Publisher already deleted")) => assert!(true),
+            _ => assert!(false),
+        }
+    }
+
+    #[test]
+    fn create_delete_subscriber() {
+        let dp = DomainParticipant {
+            domain_id: 1,
+            qos: DomainParticipantQos::default(),
+            a_listener: Box::new(NoListener),
+            mask: 0,
+            default_publisher_qos: Mutex::new(PublisherQos::default()),
+            default_subscriber_qos: Mutex::new(SubscriberQos::default()),
+            default_topic_qos: Mutex::new(TopicQos::default()),
+            protocol_participant: Mutex::new(Box::new(MockProtocolParticipant)),
+        };
+
+        let mut subscriber = dp.create_subscriber(None, NoListener, 0).unwrap();
+
+        dp.delete_subscriber(&mut subscriber).unwrap();
+
+        // Verify that second publisher delete returns Already Deleted error
+        match dp.delete_subscriber(&mut subscriber) {
+            Err(ReturnCodes::AlreadyDeleted("Subscriber already deleted")) => assert!(true),
+            _ => assert!(false),
+        }
+    }
+}

@@ -1,7 +1,6 @@
 use std::sync::Mutex;
 
 use crate::types::DDSType;
-use rust_dds_interface::types::{ReturnCode, Duration, InstanceHandle};
 use crate::infrastructure::status::StatusMask;
 use crate::domain::DomainParticipant;
 use crate::topic::Topic;
@@ -11,19 +10,21 @@ use crate::infrastructure::entity::Entity;
 use crate::infrastructure::entity::DomainEntity;
 use crate::publication::publisher_listener::PublisherListener;
 
+use rust_dds_interface::types::{ReturnCode, Duration, InstanceHandle, ReturnCodes};
 use rust_dds_interface::protocol::ProtocolPublisher;
 use rust_dds_interface::qos::{TopicQos, PublisherQos, DataWriterQos};
 
+struct PublisherImpl<'publisher> {
+    parent_participant: &'publisher DomainParticipant,
+    protocol_publisher: Mutex<Box<dyn ProtocolPublisher>>,
+}
 /// The Publisher acts on the behalf of one or several DataWriter objects that belong to it. When it is informed of a change to the
 /// data associated with one of its DataWriter objects, it decides when it is appropriate to actually send the data-update message.
 /// In making this decision, it considers any extra information that goes with the data (timestamp, writer, etc.) as well as the QoS
 /// of the Publisher and the DataWriter.
 /// All operations except for the base-class operations set_qos, get_qos, set_listener, get_listener, enable, get_statuscondition,
 /// create_datawriter, and delete_datawriter may return the value NOT_ENABLED.
-pub struct Publisher<'publisher>{
-    parent_participant: &'publisher DomainParticipant,
-    protocol_publisher: Mutex<Box<dyn ProtocolPublisher>>,
-}  
+pub struct Publisher<'publisher>(Option<PublisherImpl<'publisher>>);
 
 impl<'publisher> Publisher<'publisher> {
     /// This operation creates a DataWriter. The returned DataWriter will be attached and belongs to the Publisher.
@@ -152,9 +153,8 @@ impl<'publisher> Publisher<'publisher> {
     }
 
     /// This operation returns the DomainParticipant to which the Publisher belongs.
-    pub fn get_participant(&self,) -> DomainParticipant {
-        // PublisherImpl::get_participant(&self.0, )
-        todo!()
+    pub fn get_participant(&self,) -> ReturnCode<&DomainParticipant> {
+        Ok(self.publisher_impl()?.parent_participant)
     }
 
     /// This operation deletes all the entities that were created by means of the “create” operations on the Publisher. That is, it deletes
@@ -210,6 +210,26 @@ impl<'publisher> Publisher<'publisher> {
     ) -> ReturnCode<()> {
         // PublisherImpl::copy_from_topic_qos(&self.0, a_datawriter_qos, a_topic_qos)
         todo!()
+    }
+
+    //  /// From here on are function that do not belong to the standard API
+    pub(crate) fn new(parent_participant: &'publisher DomainParticipant, protocol_publisher: Box<dyn ProtocolPublisher>) -> Self{
+        Self(Some(PublisherImpl{
+            parent_participant,
+            protocol_publisher: Mutex::new(protocol_publisher),
+        }))
+    }
+
+    pub(crate) fn delete(&mut self) -> ReturnCode<()>{
+        self.0 = None;
+        Ok(())
+    }
+
+    fn publisher_impl(&self) -> ReturnCode<&PublisherImpl> {
+        match &self.0 {
+            Some(subscriberimpl) => Ok(subscriberimpl),
+            None => Err(ReturnCodes::AlreadyDeleted("Publisher already deleted")),
+        }
     }
 }
 

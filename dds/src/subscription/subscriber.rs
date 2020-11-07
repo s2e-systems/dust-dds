@@ -1,6 +1,6 @@
 use std::sync::Mutex;
 
-use rust_dds_interface::types::{ReturnCode, InstanceHandle};
+use rust_dds_interface::types::{ReturnCode, InstanceHandle, ReturnCodes};
 
 use crate::infrastructure::status::{
     SampleLostStatus,
@@ -19,10 +19,12 @@ use crate::types::DDSType;
 use rust_dds_interface::protocol::ProtocolSubscriber;
 use rust_dds_interface::qos::{TopicQos, SubscriberQos, DataReaderQos};
 
-pub struct Subscriber<'subscriber>{
+struct SubscriberImpl<'subscriber> {
     parent_participant: &'subscriber DomainParticipant,
     protocol_subscriber: Mutex<Box<dyn ProtocolSubscriber>>,
 }
+
+pub struct Subscriber<'subscriber>(Option<SubscriberImpl<'subscriber>>);
 
 /// A Subscriber is the object responsible for the actual reception of the data resulting from its subscriptions
 ///
@@ -178,9 +180,8 @@ impl<'subscriber> Subscriber<'subscriber> {
     }
 
     /// This operation returns the DomainParticipant to which the Subscriber belongs.
-    pub fn get_participant(&self) -> DomainParticipant {
-        // SubscriberImpl::get_participant(&self.0)
-        todo!()
+    pub fn get_participant(&self) -> ReturnCode<&DomainParticipant> {
+        Ok(self.subscriber_impl()?.parent_participant)
     }
 
     /// This operation deletes all the entities that were created by means of the “create” operations on the Subscriber. That is, it
@@ -241,6 +242,25 @@ impl<'subscriber> Subscriber<'subscriber> {
         todo!()
     }
 
+    // //////////// From here on are the functions that do not belong to the official API
+    pub(crate) fn new(parent_participant: &'subscriber DomainParticipant, protocol_subscriber: Box<dyn ProtocolSubscriber>) -> Self{
+        Self(Some(SubscriberImpl{
+            parent_participant,
+            protocol_subscriber: Mutex::new(protocol_subscriber),
+        }))
+    }
+
+    pub(crate) fn delete(&mut self) -> ReturnCode<()>{
+        self.0 = None;
+        Ok(())
+    }
+
+    fn subscriber_impl(&self) -> ReturnCode<&SubscriberImpl> {
+        match &self.0 {
+            Some(subscriberimpl) => Ok(subscriberimpl),
+            None => Err(ReturnCodes::AlreadyDeleted("Subscriber already deleted")),
+        }
+    }
 }
 
 impl<'subscriber> Entity for Subscriber<'subscriber> {
@@ -283,16 +303,20 @@ impl<'subscriber> Entity for Subscriber<'subscriber> {
     }
 
     fn get_instance_handle(&self) -> ReturnCode<InstanceHandle> {
-        // SubscriberImpl::get_instance_handle(&self.0)
+        // self.subscriber_impl()?.protocol_subscriber.get_instance_handle()
         todo!()
     }
 }
 
 impl<'subscriber> DomainEntity for Subscriber<'subscriber>{}
 
-// impl Drop for Subscriber {
-//     fn drop(&mut self) {
-//         let parent_participant = self.get_participant();
-//         parent_participant.delete_subscriber(self);
-//     }
-// }
+impl<'subscriber> Drop for Subscriber<'subscriber> {
+    fn drop(&mut self) {
+        match &self.0 {
+            Some(subscriber_impl) => {
+                subscriber_impl.parent_participant.delete_subscriber(self).ok();
+            }
+            None => (),
+        };
+    }
+}
