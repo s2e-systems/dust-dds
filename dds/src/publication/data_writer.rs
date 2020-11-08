@@ -305,7 +305,7 @@ impl<T: DDSType> DataWriter<T> {
     }
 
     /// This operation returns the Topic associated with the DataWriter. This is the same Topic that was used to create the DataWriter.
-    pub fn get_topic(&self) -> ReturnCode<Topic> {
+    pub fn get_topic(&self) -> ReturnCode<Topic<T>> {
         // DataWriterImpl::get_topic(&self.0)
         todo!()
     }

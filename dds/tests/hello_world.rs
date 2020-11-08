@@ -1,6 +1,5 @@
 use rust_dds::domain::DomainParticipant;
 use rust_dds::domain::qos::DomainParticipantQos;
-use rust_dds::topic::qos::TopicQos;
 use rust_dds::publication::qos::{DataWriterQos, PublisherQos};
 use rust_dds::infrastructure::listener::NoListener;
 use rust_dds::infrastructure::qos_policy::{ReliabilityQosPolicy, ReliabilityQosPolicyKind};
@@ -35,7 +34,7 @@ fn hello_world() {
     let participant = DomainParticipant::new(0, DomainParticipantQos::default(), NoListener, 0, true).expect("Error creating participant");
     
     let publisher = participant.create_publisher(Some(PublisherQos::default()), NoListener, 0).expect("Error creating publisher");
-    let helloworld_topic = participant.create_topic("HelloWorld".to_string(), "HelloWorldType".to_string(), TopicQos::default(), NoListener, 0).expect("Error creating topic");
+    let helloworld_topic = participant.create_topic("HelloWorld".to_string(), None, NoListener, 0).expect("Error creating topic");
 
     let mut data_writer_qos = DataWriterQos::default();
     data_writer_qos.reliability = ReliabilityQosPolicy{kind: ReliabilityQosPolicyKind::BestEffortReliabilityQos, max_blocking_time: DURATION_ZERO};

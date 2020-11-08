@@ -50,7 +50,7 @@ impl<'publisher> Publisher<'publisher> {
     /// Publisher. If the Topic was created from a different DomainParticipant, the operation will fail and return a nil result.
     pub fn create_datawriter<T: DDSType>(
         &self,
-        a_topic: Topic,
+        a_topic: Topic<T>,
         qos: DataWriterQos,
         a_listener: Box<dyn DataWriterListener<T>>,
         mask: StatusMask

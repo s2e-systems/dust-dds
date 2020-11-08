@@ -19,7 +19,7 @@ use crate::infrastructure::listener::NoListener;
 /// Service will first attempt to notify the listener attached to the concerned DomainEntity if one is installed. Otherwise, the
 /// DCPS Service will notify the Listener attached to the DomainParticipant.
 pub trait DomainParticipantListener: 'static{
-    fn on_inconsistent_topic(&self, _the_topic: Topic, _status: InconsistentTopicStatus);
+    // fn on_inconsistent_topic(&self, _the_topic: Topic, _status: InconsistentTopicStatus);
 
     fn on_liveliness_lost(
         &self,
@@ -93,9 +93,9 @@ pub trait DomainParticipantListener: 'static{
 }
 
 impl DomainParticipantListener for NoListener {
-    fn on_inconsistent_topic(&self, _the_topic: Topic, _status: InconsistentTopicStatus) {
-        todo!()
-    }
+    // fn on_inconsistent_topic(&self, _the_topic: Topic, _status: InconsistentTopicStatus) {
+    //     todo!()
+    // }
 
     fn on_liveliness_lost(
         &self,

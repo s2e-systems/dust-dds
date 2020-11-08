@@ -7,6 +7,7 @@ use crate::publication::{Publisher, PublisherListener};
 use crate::infrastructure::entity::{Entity, StatusCondition};
 use crate::domain::domain_participant_listener::DomainParticipantListener;
 use crate::builtin_topics::{TopicBuiltinTopicData, ParticipantBuiltinTopicData};
+use crate::types::DDSType;
 
 use rust_dds_interface::types::{DomainId, ReturnCode, Duration, InstanceHandle, Time, ReturnCodes};
 use rust_dds_interface::protocol::ProtocolParticipant;
@@ -178,14 +179,13 @@ impl DomainParticipant {
     /// registered with the Service. This is done using the register_type operation on a derived class of the TypeSupport interface as
     /// described in 2.2.2.3.6, TypeSupport Interface.
     /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
-    pub fn create_topic(
+    pub fn create_topic<T: DDSType>(
         &self,
         topic_name: String,
-        type_name: String,
-        qos_list: TopicQos,
-        a_listener: impl TopicListener,
+        qos_list: Option<TopicQos>,
+        a_listener: impl TopicListener<T>,
         mask: StatusMask
-    ) -> Option<Topic> {
+    ) -> Option<Topic<T>> {
         // DomainParticipantImpl::create_topic(&self.0, topic_name, type_name, qos_list, a_listener, mask)
         todo!()
     }
@@ -197,9 +197,9 @@ impl DomainParticipant {
     /// The delete_topic operation must be called on the same DomainParticipant object used to create the Topic. If delete_topic is
     /// called on a different DomainParticipant, the operation will have no effect and it will return PRECONDITION_NOT_MET.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
-    pub fn delete_topic(
+    pub fn delete_topic<T: DDSType>(
         &self,
-        a_topic: &Topic,
+        a_topic: &mut Topic<T>,
     ) -> ReturnCode<()> {
         // DomainParticipantImpl::delete_topic(&self.0, a_topic)
         todo!()
@@ -216,11 +216,11 @@ impl DomainParticipant {
     /// of times using delete_topic.
     /// Regardless of whether the middleware chooses to propagate topics, the delete_topic operation deletes only the local proxy.
     /// If the operation times-out, a ‘nil’ value (as specified by the platform) is returned.
-    pub fn find_topic(
+    pub fn find_topic<T: DDSType>(
         &self,
         topic_name: String,
         timeout: Duration,
-    ) -> Option<Topic> {
+    ) -> Option<Topic<T>> {
         // DomainParticipantImpl::find_topic(&self.0, topic_name, timeout)
         todo!()
     }
@@ -340,7 +340,7 @@ impl DomainParticipant {
     /// Once delete_contained_entities returns successfully, the application may delete the DomainParticipant knowing that it has no
     /// contained entities.
     pub fn delete_contained_entities(&self) -> ReturnCode<()> {
-        todo!()
+        unimplemented!("Entities are deleted when dropped")
     }
 
     /// This operation manually asserts the liveliness of the DomainParticipant. This is used in combination with the LIVELINESS
