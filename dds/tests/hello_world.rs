@@ -12,6 +12,10 @@ struct HelloWorldType {
 }
 
 impl DDSType for HelloWorldType {
+    fn type_name() -> &'static str {
+        "HelloWorldType"
+    }
+
     fn topic_kind() -> TopicKind {
         TopicKind::WithKey
     }

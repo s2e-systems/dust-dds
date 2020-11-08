@@ -280,9 +280,10 @@ impl<'publisher> Entity for Publisher<'publisher>{
 
 impl<'publisher> DomainEntity for Publisher<'publisher>{}
 
-// impl Drop for Publisher {
-//     fn drop(&mut self) {
-//         let parent_participant = self.get_participant();
-//         parent_participant.delete_publisher(self);
-//     }
-// }
+impl<'publisher> Drop for Publisher<'publisher> {
+    fn drop(&mut self) {
+        if let Some(publisher_impl) = &self.0 {
+            publisher_impl.parent_participant.delete_publisher(self).ok();
+        };
+    }
+}

@@ -182,12 +182,16 @@ impl DomainParticipant {
     pub fn create_topic<T: DDSType>(
         &self,
         topic_name: String,
-        qos_list: Option<TopicQos>,
-        a_listener: impl TopicListener<T>,
-        mask: StatusMask
+        qos: Option<TopicQos>,
+        _a_listener: impl TopicListener<T>,
+        _mask: StatusMask
     ) -> Option<Topic<T>> {
-        // DomainParticipantImpl::create_topic(&self.0, topic_name, type_name, qos_list, a_listener, mask)
-        todo!()
+        let _topic_qos = match qos {
+            Some(qos) => qos,
+            None => self.default_topic_qos.lock().unwrap().clone(),
+        };
+
+        Some(Topic::new(self, topic_name))
     }
 
     /// This operation deletes a Topic.
@@ -201,8 +205,11 @@ impl DomainParticipant {
         &self,
         a_topic: &mut Topic<T>,
     ) -> ReturnCode<()> {
-        // DomainParticipantImpl::delete_topic(&self.0, a_topic)
-        todo!()
+        if std::ptr::eq(self, a_topic.get_participant()?) {
+            a_topic.delete()
+        } else {
+            Err(ReturnCodes::PreconditionNotMet("Topic can only be deleted by its parent participant"))
+        }
     }
 
     /// The operation find_topic gives access to an existing (or ready to exist) enabled Topic, based on its name. The operation takes
@@ -680,6 +687,54 @@ mod tests {
         // Verify that second publisher delete returns Already Deleted error
         match dp.delete_subscriber(&mut subscriber) {
             Err(ReturnCodes::AlreadyDeleted("Subscriber already deleted")) => assert!(true),
+            _ => assert!(false),
+        }
+    }
+
+    #[test]
+    fn create_delete_topic() {
+        struct TestType;
+        impl DDSType for TestType {
+            fn type_name() -> &'static str {
+                "TestType"
+            }
+
+            fn topic_kind() -> rust_dds_interface::types::TopicKind {
+                todo!()
+            }
+
+            fn instance_handle(&self) -> InstanceHandle {
+                todo!()
+            }
+
+            fn serialize(&self) -> rust_dds_interface::types::Data {
+                todo!()
+            }
+
+            fn deserialize(_data: rust_dds_interface::types::Data) -> Self {
+                todo!()
+            }
+        }
+
+        
+        let dp = DomainParticipant {
+            domain_id: 1,
+            qos: DomainParticipantQos::default(),
+            a_listener: Box::new(NoListener),
+            mask: 0,
+            default_publisher_qos: Mutex::new(PublisherQos::default()),
+            default_subscriber_qos: Mutex::new(SubscriberQos::default()),
+            default_topic_qos: Mutex::new(TopicQos::default()),
+            protocol_participant: Mutex::new(Box::new(MockProtocolParticipant)),
+        };
+
+        let mut topic: Topic<TestType> = dp.create_topic("test".to_string(), None, NoListener, 0).unwrap();
+
+        dp.delete_topic(&mut topic).unwrap();
+
+        // Verify that second publisher delete returns Already Deleted error
+        match dp.delete_topic(&mut topic) {
+            Err(ReturnCodes::AlreadyDeleted("Topic already deleted")) => assert!(true),
             _ => assert!(false),
         }
     }

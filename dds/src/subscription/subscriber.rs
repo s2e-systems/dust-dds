@@ -312,11 +312,8 @@ impl<'subscriber> DomainEntity for Subscriber<'subscriber>{}
 
 impl<'subscriber> Drop for Subscriber<'subscriber> {
     fn drop(&mut self) {
-        match &self.0 {
-            Some(subscriber_impl) => {
-                subscriber_impl.parent_participant.delete_subscriber(self).ok();
-            }
-            None => (),
+        if let Some(subscriber_impl) = &self.0 {
+            subscriber_impl.parent_participant.delete_subscriber(self).ok();
         };
     }
 }
