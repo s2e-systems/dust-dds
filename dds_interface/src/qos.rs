@@ -26,10 +26,20 @@ use crate::qos_policy::{
     TopicDataQosPolicy,
 };
 
+pub trait QosList: Default {
+    fn is_consistent(&self) -> bool;
+}
+
 #[derive(Debug, Default, PartialEq, Clone)]
 pub struct DomainParticipantQos {
     pub user_data: UserDataQosPolicy,
     pub entity_factory: EntityFactoryQosPolicy,
+}
+
+impl QosList for DomainParticipantQos {
+    fn is_consistent(&self) -> bool {
+        true
+    }
 }
 
 #[derive(Debug, Default, PartialEq, Clone)]
@@ -38,6 +48,12 @@ pub struct PublisherQos {
     pub partition: PartitionQosPolicy,
     pub group_data: GroupDataQosPolicy,
     pub entity_factory: EntityFactoryQosPolicy,
+}
+
+impl QosList for PublisherQos {
+    fn is_consistent(&self) -> bool {
+        true
+    }
 }
 
 
@@ -82,8 +98,8 @@ impl Default for DataWriterQos {
     }
 }
 
-impl DataWriterQos {
-    pub fn is_consistent(&self) -> bool {
+impl QosList for DataWriterQos {
+    fn is_consistent(&self) -> bool {
         // The setting of RESOURCE_LIMITS max_samples must be consistent with the max_samples_per_instance. For these two
         // values to be consistent they must verify that “max_samples >= max_samples_per_instance.”
         if  self.resource_limits.max_samples_per_instance != LENGTH_UNLIMITED {
@@ -110,6 +126,12 @@ pub struct SubscriberQos {
     pub partition: PartitionQosPolicy,
     pub group_data: GroupDataQosPolicy,
     pub entity_factory: EntityFactoryQosPolicy,
+}
+
+impl QosList for SubscriberQos {
+    fn is_consistent(&self) -> bool {
+        true
+    }
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -147,8 +169,8 @@ impl Default for DataReaderQos {
     }
 }
 
-impl DataReaderQos {
-    pub fn is_consistent(&self) -> bool {
+impl QosList for DataReaderQos {
+    fn is_consistent(&self) -> bool {
         // The setting of RESOURCE_LIMITS max_samples must be consistent with the max_samples_per_instance. For these two
         // values to be consistent they must verify that “max_samples >= max_samples_per_instance.”
         if  self.resource_limits.max_samples_per_instance != LENGTH_UNLIMITED {
@@ -212,8 +234,8 @@ impl Default for TopicQos {
     }
 }
 
-impl TopicQos {
-    pub fn is_consistent(&self) -> bool {
+impl QosList for TopicQos {
+    fn is_consistent(&self) -> bool {
         // The setting of RESOURCE_LIMITS max_samples must be consistent with the max_samples_per_instance. For these two
         // values to be consistent they must verify that “max_samples >= max_samples_per_instance.”
         if  self.resource_limits.max_samples_per_instance != LENGTH_UNLIMITED {

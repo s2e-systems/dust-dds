@@ -11,7 +11,7 @@ use crate::types::DDSType;
 
 use rust_dds_interface::types::{DomainId, ReturnCode, Duration, InstanceHandle, Time, ReturnCodes};
 use rust_dds_interface::protocol::ProtocolParticipant;
-use rust_dds_interface::qos::{DomainParticipantQos, TopicQos, PublisherQos, SubscriberQos};
+use rust_dds_interface::qos::{QosList, DomainParticipantQos, TopicQos, PublisherQos, SubscriberQos};
 
 /// The DomainParticipant object plays several roles:
 /// - It acts as a container for all other Entity objects.
@@ -347,7 +347,7 @@ impl DomainParticipant {
     /// Once delete_contained_entities returns successfully, the application may delete the DomainParticipant knowing that it has no
     /// contained entities.
     pub fn delete_contained_entities(&self) -> ReturnCode<()> {
-        unimplemented!("Entities are deleted when dropped")
+        unimplemented!("Entities are deleted when dropped. The borrow checker prevents the parent entities from being deleted before its children are deleted")
     }
 
     /// This operation manually asserts the liveliness of the DomainParticipant. This is used in combination with the LIVELINESS
@@ -373,7 +373,13 @@ impl DomainParticipant {
         &self,
         qos: Option<PublisherQos>,
     ) -> ReturnCode<()> {
-        todo!()
+        let new_default_publisher_qos = qos.unwrap_or_default();
+        if new_default_publisher_qos.is_consistent() {
+            *self.default_publisher_qos.lock().unwrap() = new_default_publisher_qos;
+            Ok(())
+        } else {
+            Err(ReturnCodes::InconsistentPolicy)
+        }
     }
 
     /// This operation retrieves the default value of the Publisher QoS, that is, the QoS policies which will be used for newly created
@@ -396,10 +402,15 @@ impl DomainParticipant {
     /// operation had never been called.
     pub fn set_default_subscriber_qos(
         &self,
-        qos: SubscriberQos,
+        qos: Option<SubscriberQos>,
     ) -> ReturnCode<()> {
-        // DomainParticipantImpl::set_default_subscriber_qos(&self.0, qos)
-        todo!()
+        let new_default_subscriber_qos = qos.unwrap_or_default();
+        if new_default_subscriber_qos.is_consistent() {
+            *self.default_subscriber_qos.lock().unwrap() = new_default_subscriber_qos;
+            Ok(())
+        } else {
+            Err(ReturnCodes::InconsistentPolicy)
+        }
     }
 
     /// This operation retrieves the default value of the Subscriber QoS, that is, the QoS policies which will be used for newly created
@@ -422,10 +433,15 @@ impl DomainParticipant {
     /// had never been called.
     pub fn set_default_topic_qos(
         &self,
-        qos: TopicQos,
+        qos: Option<TopicQos>,
     ) -> ReturnCode<()> {
-        // DomainParticipantImpl::set_default_topic_qos(&self.0, qos)
-        todo!()
+        let new_default_topic_qos = qos.unwrap_or_default();
+        if new_default_topic_qos.is_consistent() {
+            *self.default_topic_qos.lock().unwrap() = new_default_topic_qos;
+            Ok(())
+        } else {
+            Err(ReturnCodes::InconsistentPolicy)
+        }
     }
 
     /// This operation retrieves the default value of the Topic QoS, that is, the QoS policies that will be used for newly created Topic
@@ -444,7 +460,7 @@ impl DomainParticipant {
     /// will return UNSUPPORTED.
     pub fn get_discovered_participants(
         &self,
-        participant_handles: &mut [InstanceHandle]
+        _participant_handles: &mut [InstanceHandle]
     ) -> ReturnCode<()> {
         // DomainParticipantImpl::get_discovered_participants(&self.0, participant_handles)
         todo!()
@@ -460,8 +476,8 @@ impl DomainParticipant {
     /// case the operation will return UNSUPPORTED.
     pub fn get_discovered_participant_data(
         &self,
-        participant_data: ParticipantBuiltinTopicData,
-        participant_handle: InstanceHandle
+        _participant_data: ParticipantBuiltinTopicData,
+        _participant_handle: InstanceHandle
     ) -> ReturnCode<()> {
         // DomainParticipantImpl::get_discovered_participant_data(&self.0, participant_data, participant_handle)
         todo!()
@@ -471,7 +487,7 @@ impl DomainParticipant {
     /// should be “ignored” by means of the DomainParticipant ignore_topic operation.
     pub fn get_discovered_topics(
         &self,
-        topic_handles: &mut [InstanceHandle]
+        _topic_handles: &mut [InstanceHandle]
     ) -> ReturnCode<()> {
         // DomainParticipantImpl::get_discovered_topics(&self.0, topic_handles)
         todo!()
@@ -489,8 +505,8 @@ impl DomainParticipant {
     /// will return UNSUPPORTED.
     pub fn get_discovered_topic_data(
         &self,
-        topic_data: TopicBuiltinTopicData,
-        topic_handle: InstanceHandle
+        _topic_data: TopicBuiltinTopicData,
+        _topic_handle: InstanceHandle
     ) -> ReturnCode<()> {
         // DomainParticipantImpl::get_discovered_topic_data(&self.0, topic_data, topic_handle)
         todo!()
@@ -504,7 +520,7 @@ impl DomainParticipant {
     /// get_instance_handle.
     pub fn contains_entity(
         &self,
-        a_handle: InstanceHandle
+        _a_handle: InstanceHandle
     ) -> bool {
         // DomainParticipantImpl::contains_entity(&self.0, a_handle)
         todo!()
@@ -560,8 +576,7 @@ impl Entity for DomainParticipant
     }
 
     fn get_instance_handle(&self) -> ReturnCode<InstanceHandle> {
-        // DomainParticipantImpl::get_instance_handle(&self.0)
-        todo!()
+        Ok(self.protocol_participant.lock().unwrap().get_instance_handle())
     }
 }
 
