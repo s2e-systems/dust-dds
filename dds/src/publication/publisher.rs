@@ -14,15 +14,13 @@ use rust_dds_interface::types::{ReturnCode, Duration, InstanceHandle, ReturnCode
 use rust_dds_interface::protocol::ProtocolPublisher;
 use rust_dds_interface::qos::{TopicQos, PublisherQos, DataWriterQos};
 
-pub(crate) struct PublisherImpl<'publisher> {
-    parent_participant: &'publisher DomainParticipant<'publisher>,
+pub(crate) struct PublisherImpl {
     protocol_publisher: Mutex<Box<dyn ProtocolPublisher>>,
 }
 
-impl<'publisher> PublisherImpl<'publisher> {
-    pub(crate) fn new(parent_participant: &'publisher DomainParticipant<'publisher>, protocol_publisher: Box<dyn ProtocolPublisher>) -> Self{
+impl PublisherImpl {
+    pub(crate) fn new(protocol_publisher: Box<dyn ProtocolPublisher>) -> Self{
         Self{
-            parent_participant,
             protocol_publisher: Mutex::new(protocol_publisher),
         }
     }
@@ -33,7 +31,10 @@ impl<'publisher> PublisherImpl<'publisher> {
 /// of the Publisher and the DataWriter.
 /// All operations except for the base-class operations set_qos, get_qos, set_listener, get_listener, enable, get_statuscondition,
 /// create_datawriter, and delete_datawriter may return the value NOT_ENABLED.
-pub struct Publisher<'publisher>(pub(crate) Weak<PublisherImpl<'publisher>>);
+pub struct Publisher<'publisher>{
+    parent_participant:  &'publisher DomainParticipant,
+    inner: Weak<PublisherImpl>
+}
 
 impl<'publisher> Publisher<'publisher> {
     /// This operation creates a DataWriter. The returned DataWriter will be attached and belongs to the Publisher.
@@ -162,8 +163,8 @@ impl<'publisher> Publisher<'publisher> {
     }
 
     /// This operation returns the DomainParticipant to which the Publisher belongs.
-    pub fn get_participant(&self,) -> ReturnCode<&DomainParticipant<'publisher>> {
-        Ok(self.publisher_impl()?.parent_participant)
+    pub fn get_participant(&self,) -> ReturnCode<&DomainParticipant> {
+        Ok(self.parent_participant)
     }
 
     /// This operation deletes all the entities that were created by means of the “create” operations on the Publisher. That is, it deletes
@@ -222,8 +223,15 @@ impl<'publisher> Publisher<'publisher> {
     }
 
     // ////// From here on are function that do not belong to the standard API
-    fn publisher_impl(&self) -> ReturnCode<Arc<PublisherImpl<'publisher>>> {
-        match self.0.upgrade() {
+    pub(crate) fn new( parent_participant:  &'publisher DomainParticipant, publisher_impl: Weak<PublisherImpl>) -> Self{
+        Self{
+            parent_participant,
+            inner: publisher_impl,
+        }
+    }
+
+    pub(crate) fn publisher_impl(&self) -> ReturnCode<Arc<PublisherImpl>> {
+        match self.inner.upgrade() {
             Some(publisher_impl) => Ok(publisher_impl),
             None => Err(ReturnCodes::AlreadyDeleted("Publisher already deleted")),
         }
@@ -279,8 +287,6 @@ impl<'publisher> DomainEntity for Publisher<'publisher>{}
 
 impl<'publisher> Drop for Publisher<'publisher> {
     fn drop(&mut self) {
-        if let Some(publisher_impl) = &self.0.upgrade() {
-            publisher_impl.parent_participant.delete_publisher(self).ok();
-        };
+        self.parent_participant.delete_publisher(self).ok();
     }
 }

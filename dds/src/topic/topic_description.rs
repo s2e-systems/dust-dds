@@ -7,11 +7,11 @@ use rust_dds_interface::types::ReturnCode;
 /// This class is an abstract class. It is the base class for Topic, ContentFilteredTopic, and MultiTopic.
 pub trait TopicDescription {
     /// This operation returns the DomainParticipant to which the TopicDescription belongs.
-    fn get_participant(&self) -> ReturnCode<&DomainParticipant>;
+    fn get_participant(&self) -> &DomainParticipant;
 
     /// The type_name used to create the TopicDescription
     fn get_type_name(&self) -> ReturnCode<&str>;
 
     /// The name used to create the TopicDescription
-    fn get_name(&self) -> ReturnCode<&String>;
+    fn get_name(&self) -> ReturnCode<String>;
 }

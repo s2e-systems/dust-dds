@@ -19,21 +19,22 @@ use crate::types::DDSType;
 use rust_dds_interface::protocol::ProtocolSubscriber;
 use rust_dds_interface::qos::{TopicQos, SubscriberQos, DataReaderQos};
 
-pub(crate) struct SubscriberImpl<'subscriber> {
-    parent_participant: &'subscriber DomainParticipant<'subscriber>,
+pub(crate) struct SubscriberImpl {
     protocol_subscriber: Mutex<Box<dyn ProtocolSubscriber>>,
 }
 
-impl<'subscriber> SubscriberImpl<'subscriber> {
-    pub(crate) fn new(parent_participant: &'subscriber DomainParticipant<'subscriber>, protocol_subscriber: Box<dyn ProtocolSubscriber>) -> Self{
+impl SubscriberImpl {
+    pub(crate) fn new(protocol_subscriber: Box<dyn ProtocolSubscriber>) -> Self{
         Self{
-            parent_participant,
             protocol_subscriber: Mutex::new(protocol_subscriber),
         }
     }
 }
 
-pub struct Subscriber<'subscriber>(pub(crate) Weak<SubscriberImpl<'subscriber>>);
+pub struct Subscriber<'subscriber> {
+    parent_participant: &'subscriber DomainParticipant,
+    inner: Weak<SubscriberImpl>,
+}
 
 /// A Subscriber is the object responsible for the actual reception of the data resulting from its subscriptions
 ///
@@ -189,8 +190,8 @@ impl<'subscriber> Subscriber<'subscriber> {
     }
 
     /// This operation returns the DomainParticipant to which the Subscriber belongs.
-    pub fn get_participant(&self) -> ReturnCode<&DomainParticipant<'subscriber>> {
-        Ok(self.subscriber_impl()?.parent_participant)
+    pub fn get_participant(&self) -> ReturnCode<&DomainParticipant> {
+        Ok(self.parent_participant)
     }
 
     /// This operation deletes all the entities that were created by means of the “create” operations on the Subscriber. That is, it
@@ -252,8 +253,8 @@ impl<'subscriber> Subscriber<'subscriber> {
     }
 
     // //////////// From here on are the functions that do not belong to the official API
-    fn subscriber_impl(&self) -> ReturnCode<Arc<SubscriberImpl<'subscriber>>> {
-        match self.0.upgrade() {
+    fn subscriber_impl(&self) -> ReturnCode<Arc<SubscriberImpl>> {
+        match self.inner.upgrade() {
             Some(subscriber_impl) => Ok(subscriber_impl),
             None => Err(ReturnCodes::AlreadyDeleted("Subscriber already deleted")),
         }
@@ -307,10 +308,10 @@ impl<'subscriber> Entity for Subscriber<'subscriber> {
 
 impl<'subscriber> DomainEntity for Subscriber<'subscriber>{}
 
-impl<'subscriber> Drop for Subscriber<'subscriber> {
-    fn drop(&mut self) {
-        if let Some(subscriber_impl) = &self.0.upgrade() {
-            subscriber_impl.parent_participant.delete_subscriber(self).ok();
-        };
-    }
-}
+// impl<'subscriber> Drop for Subscriber<'subscriber> {
+//     fn drop(&mut self) {
+//         if let Some(subscriber_impl) = &self.0.upgrade() {
+//             subscriber_impl.parent_participant.delete_subscriber(self).ok();
+//         };
+//     }
+// }

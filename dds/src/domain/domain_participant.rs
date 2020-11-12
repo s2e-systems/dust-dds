@@ -2,6 +2,7 @@ use std::sync::{Mutex, Arc};
 
 use crate::infrastructure::status::StatusMask;
 use crate::topic::{Topic, TopicListener, TopicDescription};
+use crate::topic::topic::{TopicImpl, AnyTopic};
 use crate::subscription::{Subscriber, SubscriberListener};
 use crate::subscription::subscriber::SubscriberImpl;
 use crate::publication::{Publisher, PublisherListener};
@@ -34,21 +35,22 @@ use rust_dds_interface::qos::{QosList, DomainParticipantQos, TopicQos, Publisher
 /// - Factory methods: create_topic, create_publisher, create_subscriber, delete_topic, delete_publisher,
 /// delete_subscriber
 /// - Operations that access the status: get_statuscondition
-pub struct DomainParticipant<'participant>{
+pub struct DomainParticipant{
     domain_id: DomainId,
     qos: DomainParticipantQos,
     a_listener: Box<dyn DomainParticipantListener>,
     mask: StatusMask,
-    publisher_list: Mutex<Vec<Arc<PublisherImpl<'participant>>>>,
+    publisher_list: Mutex<Vec<Arc<PublisherImpl>>>,
     default_publisher_qos: Mutex<PublisherQos>,
-    subscriber_list: Mutex<Vec<Arc<SubscriberImpl<'participant>>>>,
+    subscriber_list: Mutex<Vec<Arc<SubscriberImpl>>>,
     default_subscriber_qos: Mutex<SubscriberQos>,
+    topic_list: Mutex<Vec<Arc<dyn AnyTopic>>>,
     default_topic_qos: Mutex<TopicQos>,
     protocol_participant: Mutex<Box<dyn ProtocolParticipant>>,
 }
 
 
-impl<'participant> DomainParticipant<'participant> {
+impl DomainParticipant {
     /// This operation creates a new DomainParticipant object. The DomainParticipant signifies that the calling application intends
     /// to join the Domain identified by the domain_id argument.
     /// If the specified QoS policies are not consistent, the operation will fail and no DomainParticipant will be created.
@@ -63,7 +65,7 @@ impl<'participant> DomainParticipant<'participant> {
         _a_listener: impl DomainParticipantListener,
         _mask: StatusMask,
         _enabled: bool,
-    ) ->  Option<DomainParticipant<'participant>> {
+    ) ->  Option<DomainParticipant> {
         todo!()
         // use rust_rtps::transport::udp::UdpTransport;
         // use rust_rtps::protocol::RtpsProtocol;
@@ -98,7 +100,7 @@ impl<'participant> DomainParticipant<'participant> {
     /// The created Publisher belongs to the DomainParticipant that is its factory
     /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
     pub fn create_publisher(
-        &'participant self,
+        &self,
         qos: Option<PublisherQos>,
         _a_listener: impl PublisherListener,
         _mask: StatusMask
@@ -109,10 +111,10 @@ impl<'participant> DomainParticipant<'participant> {
         };
 
         let protocol_publisher = self.protocol_participant.lock().unwrap().create_publisher();
-        let publisher_impl = Arc::new(PublisherImpl::new(self, protocol_publisher));
+        let publisher_impl = Arc::new(PublisherImpl::new(protocol_publisher));
         self.publisher_list.lock().unwrap().push(publisher_impl.clone());
 
-        Some(Publisher(Arc::downgrade(&publisher_impl)))
+        Some(Publisher::new(self, Arc::downgrade(&publisher_impl)))
     }
 
     /// This operation deletes an existing Publisher.
@@ -124,9 +126,9 @@ impl<'participant> DomainParticipant<'participant> {
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
     pub fn delete_publisher<'d>(
         &self,
-        a_publisher: &'d mut Publisher<'participant>
+        a_publisher: &'d mut Publisher
     ) -> ReturnCode<()> {
-        let publisher_impl = a_publisher.0.upgrade().ok_or(ReturnCodes::AlreadyDeleted("Publisher already deleted"))?;
+        let publisher_impl = a_publisher.publisher_impl()?;
         let mut publisher_list = self.publisher_list.lock().unwrap();
         let publisher_index = publisher_list
             .iter()
@@ -146,21 +148,22 @@ impl<'participant> DomainParticipant<'participant> {
     /// The created Subscriber belongs to the DomainParticipant that is its factory.
     /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
     pub fn create_subscriber(
-        &'participant self,
+        &self,
         qos: Option<SubscriberQos>,
         _a_listener: impl SubscriberListener,
         _mask: StatusMask
     ) -> Option<Subscriber> {
-        let _subscriber_qos = match qos {
-            Some(qos) => qos,
-            None => self.default_subscriber_qos.lock().unwrap().clone(),
-        };
+        todo!()
+        // let _subscriber_qos = match qos {
+        //     Some(qos) => qos,
+        //     None => self.default_subscriber_qos.lock().unwrap().clone(),
+        // };
 
-        let protocol_subscriber = self.protocol_participant.lock().unwrap().create_subscriber();
-        let subscriber_impl = Arc::new(SubscriberImpl::new(self, protocol_subscriber));
-        self.subscriber_list.lock().unwrap().push(subscriber_impl.clone());
+        // let protocol_subscriber = self.protocol_participant.lock().unwrap().create_subscriber();
+        // let subscriber_impl = Arc::new(SubscriberImpl::new(self, protocol_subscriber));
+        // self.subscriber_list.lock().unwrap().push(subscriber_impl.clone());
 
-        Some(Subscriber(Arc::downgrade(&subscriber_impl)))
+        // Some(Subscriber(Arc::downgrade(&subscriber_impl)))
     }
 
     /// This operation deletes an existing Subscriber.
@@ -172,17 +175,18 @@ impl<'participant> DomainParticipant<'participant> {
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
     pub fn delete_subscriber<'d>(
         &self,
-        a_subscriber: &'d mut Subscriber<'participant>,
+        a_subscriber: &'d mut Subscriber,
     ) -> ReturnCode<()> {
-        let subscriber_impl = a_subscriber.0.upgrade().ok_or(ReturnCodes::AlreadyDeleted("Subscriber already deleted"))?;
-        let mut subscriber_list = self.subscriber_list.lock().unwrap();
-        let subscriber_index = subscriber_list
-            .iter()
-            .position(|x| Arc::ptr_eq(x,&subscriber_impl))
-            .ok_or(ReturnCodes::PreconditionNotMet("Subscriber can only be deleted by its parent participant"))?;
+        todo!()
+        // let subscriber_impl = a_subscriber.0.upgrade().ok_or(ReturnCodes::AlreadyDeleted("Subscriber already deleted"))?;
+        // let mut subscriber_list = self.subscriber_list.lock().unwrap();
+        // let subscriber_index = subscriber_list
+        //     .iter()
+        //     .position(|x| Arc::ptr_eq(x,&subscriber_impl))
+        //     .ok_or(ReturnCodes::PreconditionNotMet("Subscriber can only be deleted by its parent participant"))?;
         
-        subscriber_list.remove(subscriber_index);
-        Ok(())
+        // subscriber_list.remove(subscriber_index);
+        // Ok(())
     }
 
     /// This operation creates a Topic with the desired QoS policies and attaches to it the specified TopicListener.
@@ -202,13 +206,15 @@ impl<'participant> DomainParticipant<'participant> {
         _a_listener: impl TopicListener<T>,
         _mask: StatusMask
     ) -> Option<Topic<T>> {
-        todo!()
-        // let _topic_qos = match qos {
-        //     Some(qos) => qos,
-        //     None => self.default_topic_qos.lock().unwrap().clone(),
-        // };
+        let _topic_qos = match qos {
+            Some(qos) => qos,
+            None => self.default_topic_qos.lock().unwrap().clone(),
+        };
 
-        // Some(Topic::new(self, topic_name))
+        let topic_impl = Arc::new(TopicImpl::new(topic_name));
+        self.topic_list.lock().unwrap().push(topic_impl.clone());
+
+        Some(Topic::new(self, Arc::downgrade(&topic_impl)))
     }
 
     /// This operation deletes a Topic.
@@ -222,12 +228,15 @@ impl<'participant> DomainParticipant<'participant> {
         &self,
         a_topic: &mut Topic<T>,
     ) -> ReturnCode<()> {
-        todo!()
-        // if std::ptr::eq(self, a_topic.get_participant()?) {
-        //     a_topic.delete()
-        // } else {
-        //     Err(ReturnCodes::PreconditionNotMet("Topic can only be deleted by its parent participant"))
-        // }
+        let topic_impl: Arc<dyn AnyTopic> = a_topic.topic_impl()?;
+        let mut topic_list = self.topic_list.lock().unwrap();
+        let topic_index = topic_list
+            .iter()
+            .position(|x| Arc::ptr_eq(x,&topic_impl))
+            .ok_or(ReturnCodes::PreconditionNotMet("Topic can only be deleted by its parent participant"))?;
+        
+        topic_list.remove(topic_index);
+        Ok(())
     }
 
     /// The operation find_topic gives access to an existing (or ready to exist) enabled Topic, based on its name. The operation takes
@@ -553,7 +562,7 @@ impl<'participant> DomainParticipant<'participant> {
 
 }
 
-impl<'p> Entity for DomainParticipant<'p>
+impl Entity for DomainParticipant
 {
     type Qos = DomainParticipantQos;
     type Listener = Box<dyn DomainParticipantListener>;
@@ -688,6 +697,7 @@ mod tests {
             default_subscriber_qos: Mutex::new(SubscriberQos::default()),
             subscriber_list: Mutex::new(Vec::new()),
             default_topic_qos: Mutex::new(TopicQos::default()),
+            topic_list: Mutex::new(Vec::new()),
             protocol_participant: Mutex::new(Box::new(MockProtocolParticipant)),
         };
 
@@ -714,6 +724,7 @@ mod tests {
             default_subscriber_qos: Mutex::new(SubscriberQos::default()),
             subscriber_list: Mutex::new(Vec::new()),
             default_topic_qos: Mutex::new(TopicQos::default()),
+            topic_list: Mutex::new(Vec::new()),
             protocol_participant: Mutex::new(Box::new(MockProtocolParticipant)),
         };
 
@@ -764,11 +775,13 @@ mod tests {
             default_subscriber_qos: Mutex::new(SubscriberQos::default()),
             subscriber_list: Mutex::new(Vec::new()),
             default_topic_qos: Mutex::new(TopicQos::default()),
+            topic_list: Mutex::new(Vec::new()),
             protocol_participant: Mutex::new(Box::new(MockProtocolParticipant)),
         };
 
         let mut topic: Topic<TestType> = dp.create_topic("test".to_string(), None, NoListener, 0).unwrap();
 
+        assert!(std::ptr::eq(topic.get_participant(), &dp));
         dp.delete_topic(&mut topic).unwrap();
 
         // Verify that second publisher delete returns Already Deleted error

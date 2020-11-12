@@ -1,3 +1,5 @@
+use std::sync::{Arc, Weak};
+
 use rust_dds_interface::types::{ReturnCode, InstanceHandle, ReturnCodes};
 
 use crate::infrastructure::status::{InconsistentTopicStatus, StatusMask};
@@ -10,11 +12,27 @@ use crate::types::DDSType;
 
 use rust_dds_interface::qos::TopicQos;
 
-struct TopicImpl<'topic, T: DDSType>{
-    parent_participant: &'topic DomainParticipant<'topic>,
+pub(crate) trait AnyTopic{}
+
+pub(crate) struct TopicImpl<T: DDSType>{
     topic_name: String,
     topic_data: std::marker::PhantomData<T>,
 }
+
+impl<T: DDSType> TopicImpl<T> {
+    pub(crate) fn new(topic_name: String) -> Self {
+        Self {
+            topic_name,
+            topic_data: std::marker::PhantomData,
+        }
+    }
+}
+
+impl<T: DDSType> AnyTopic for TopicImpl<T>{
+
+}
+
+
 
 /// Topic is the most basic description of the data to be published and subscribed.
 /// A Topic is identified by its name, which must be unique in the whole Domain. In addition (by virtue of extending
@@ -22,7 +40,10 @@ struct TopicImpl<'topic, T: DDSType>{
 /// Topic is the only TopicDescription that can be used for publications and therefore associated to a DataWriter.
 /// All operations except for the base-class operations set_qos, get_qos, set_listener, get_listener, enable and
 /// get_status_condition may return the value NOT_ENABLED.
-pub struct Topic<'topic, T: DDSType>(Option<TopicImpl<'topic, T>>);
+pub struct Topic<'topic, T: DDSType>{
+    parent_participant: &'topic DomainParticipant,
+    inner: Weak<TopicImpl<T>>,
+}
 
 impl<'topic, T:DDSType> Topic<'topic, T> {
     /// This method allows the application to retrieve the INCONSISTENT_TOPIC status of the Topic.
@@ -39,31 +60,24 @@ impl<'topic, T:DDSType> Topic<'topic, T> {
     }
 
     // //////////// From here on are the functions that do not belong to the official API
-    pub(crate) fn new(parent_participant: &'topic DomainParticipant<'topic>, topic_name: String) -> Self {
-        Self(Some(TopicImpl{
+    pub(crate) fn new(parent_participant: &'topic DomainParticipant, topic_impl: Weak<TopicImpl<T>>) -> Self {
+        Self{
             parent_participant,
-            topic_name,
-            topic_data: std::marker::PhantomData
-        }))
+            inner: topic_impl,
+        }
     }
 
-    pub(crate) fn delete(&mut self) -> ReturnCode<()>{
-        self.0 = None;
-        Ok(())
-    }
-
-    fn topic_impl(&self) -> ReturnCode<&TopicImpl<T>> {
-        todo!()
-        // match &self.0 {
-        //     Some(topicimpl) => Ok(topicimpl),
-        //     None => Err(ReturnCodes::AlreadyDeleted("Topic already deleted")),
-        // }
+    pub(crate) fn topic_impl(&self) -> ReturnCode<Arc<TopicImpl<T>>> {
+        match self.inner.upgrade() {
+            Some(topicimpl) => Ok(topicimpl),
+            None => Err(ReturnCodes::AlreadyDeleted("Topic already deleted")),
+        }
     }
 }
 
 impl<'topic, T:DDSType> TopicDescription for Topic<'topic, T> {
-    fn get_participant(&self) -> ReturnCode<&DomainParticipant> {
-        Ok(self.topic_impl()?.parent_participant)
+    fn get_participant(&self) -> &DomainParticipant {
+        self.parent_participant
     }
 
     fn get_type_name(&self) -> ReturnCode<&str> {
@@ -71,8 +85,8 @@ impl<'topic, T:DDSType> TopicDescription for Topic<'topic, T> {
         Ok(T::type_name())
     }
 
-    fn get_name(&self) -> ReturnCode<&String> {
-        Ok(&self.topic_impl()?.topic_name)
+    fn get_name(&self) -> ReturnCode<String> {
+        Ok(self.topic_impl()?.topic_name.clone())
     }
 }
 
@@ -117,9 +131,7 @@ impl<'topic, T:DDSType> DomainEntity for Topic<'topic, T>{}
 
 impl<'topic, T:DDSType> Drop for Topic<'topic, T> {
     fn drop(&mut self) {
-        if let Some(topic_impl) = &self.0 {
-            topic_impl.parent_participant.delete_topic(self).ok();
-        };
+        self.parent_participant.delete_topic(self).ok();
     }
 }
 
