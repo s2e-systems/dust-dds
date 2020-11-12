@@ -253,7 +253,14 @@ impl<'subscriber> Subscriber<'subscriber> {
     }
 
     // //////////// From here on are the functions that do not belong to the official API
-    fn subscriber_impl(&self) -> ReturnCode<Arc<SubscriberImpl>> {
+    pub(crate) fn new( parent_participant:  &'subscriber DomainParticipant, subscriber_impl: Weak<SubscriberImpl>) -> Self{
+        Self{
+            parent_participant,
+            inner: subscriber_impl,
+        }
+    }
+
+    pub(crate) fn subscriber_impl(&self) -> ReturnCode<Arc<SubscriberImpl>> {
         match self.inner.upgrade() {
             Some(subscriber_impl) => Ok(subscriber_impl),
             None => Err(ReturnCodes::AlreadyDeleted("Subscriber already deleted")),

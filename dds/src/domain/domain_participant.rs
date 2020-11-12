@@ -60,36 +60,46 @@ impl DomainParticipant {
     /// QoS to create the DomainParticipant.
     /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
     pub fn new (
-        _domain_id: DomainId,
-        _qos_list: DomainParticipantQos,
-        _a_listener: impl DomainParticipantListener,
-        _mask: StatusMask,
-        _enabled: bool,
+        domain_id: DomainId,
+        qos: DomainParticipantQos,
+        a_listener: impl DomainParticipantListener,
+        mask: StatusMask,
+        enabled: bool,
     ) ->  Option<DomainParticipant> {
-        todo!()
-        // use rust_rtps::transport::udp::UdpTransport;
-        // use rust_rtps::protocol::RtpsProtocol;
+        use rust_rtps::transport::udp::UdpTransport;
+        use rust_rtps::protocol::RtpsProtocol;
 
-        // let interface = "Ethernet";
-        // let userdata_transport = UdpTransport::default_userdata_transport(domain_id, interface).unwrap();
-        // let metatraffic_transport = UdpTransport::default_metatraffic_transport(domain_id, interface).unwrap();
-        // let domain_tag = "".to_string();
-        // let lease_duration = rust_dds_interface::types::Duration{sec: 30, nanosec: 0};
+        let interface = "Ethernet";
+        let userdata_transport = UdpTransport::default_userdata_transport(domain_id, interface).unwrap();
+        let metatraffic_transport = UdpTransport::default_metatraffic_transport(domain_id, interface).unwrap();
+        let domain_tag = "".to_string();
+        let lease_duration = rust_dds_interface::types::Duration{sec: 30, nanosec: 0};
 
-        // let name = "rtps";
-        // let protocol = match name {         
-        //     "rtps" => RtpsProtocol::new(domain_id, userdata_transport, metatraffic_transport, domain_tag, lease_duration),
-        //     _ => panic!("Protocol not valid"),
-        // };
-        // // protocol_participant.lock().unwrap().enable().unwrap();
+        let name = "rtps";
+        let protocol = match name {         
+            "rtps" => RtpsProtocol::new(domain_id, userdata_transport, metatraffic_transport, domain_tag, lease_duration),
+            _ => panic!("Protocol not valid"),
+        };
    
-        // let new_participant = DomainParticipant(Arc::new(DomainParticipantImpl::new(domain_id, qos_list, a_listener, mask, protocol)));
+        let new_participant = DomainParticipant {
+            domain_id,
+            qos,
+            a_listener: Box::new(a_listener),
+            mask,
+            publisher_list: Mutex::new(Vec::new()),
+            default_publisher_qos: Mutex::new(PublisherQos::default()),
+            subscriber_list: Mutex::new(Vec::new()),
+            default_subscriber_qos: Mutex::new(SubscriberQos::default()),
+            topic_list: Mutex::new(Vec::new()),
+            default_topic_qos: Mutex::new(TopicQos::default()),
+            protocol_participant: Mutex::new(Box::new(protocol)),
+        };
         
-        // if enabled {
-        //     new_participant.enable().ok()?;
-        // }
+        if enabled {
+            new_participant.enable().ok()?;
+        }
 
-        // Some(new_participant)
+        Some(new_participant)
     }
 
     /// This operation creates a Publisher with the desired QoS policies and attaches to it the specified PublisherListener.
@@ -153,17 +163,16 @@ impl DomainParticipant {
         _a_listener: impl SubscriberListener,
         _mask: StatusMask
     ) -> Option<Subscriber> {
-        todo!()
-        // let _subscriber_qos = match qos {
-        //     Some(qos) => qos,
-        //     None => self.default_subscriber_qos.lock().unwrap().clone(),
-        // };
+        let _subscriber_qos = match qos {
+            Some(qos) => qos,
+            None => self.default_subscriber_qos.lock().unwrap().clone(),
+        };
 
-        // let protocol_subscriber = self.protocol_participant.lock().unwrap().create_subscriber();
-        // let subscriber_impl = Arc::new(SubscriberImpl::new(self, protocol_subscriber));
-        // self.subscriber_list.lock().unwrap().push(subscriber_impl.clone());
+        let protocol_subscriber = self.protocol_participant.lock().unwrap().create_subscriber();
+        let subscriber_impl = Arc::new(SubscriberImpl::new(protocol_subscriber));
+        self.subscriber_list.lock().unwrap().push(subscriber_impl.clone());
 
-        // Some(Subscriber(Arc::downgrade(&subscriber_impl)))
+        Some(Subscriber::new(self, Arc::downgrade(&subscriber_impl)))
     }
 
     /// This operation deletes an existing Subscriber.
@@ -177,16 +186,15 @@ impl DomainParticipant {
         &self,
         a_subscriber: &'d mut Subscriber,
     ) -> ReturnCode<()> {
-        todo!()
-        // let subscriber_impl = a_subscriber.0.upgrade().ok_or(ReturnCodes::AlreadyDeleted("Subscriber already deleted"))?;
-        // let mut subscriber_list = self.subscriber_list.lock().unwrap();
-        // let subscriber_index = subscriber_list
-        //     .iter()
-        //     .position(|x| Arc::ptr_eq(x,&subscriber_impl))
-        //     .ok_or(ReturnCodes::PreconditionNotMet("Subscriber can only be deleted by its parent participant"))?;
+        let subscriber_impl = a_subscriber.subscriber_impl()?;
+        let mut subscriber_list = self.subscriber_list.lock().unwrap();
+        let subscriber_index = subscriber_list
+            .iter()
+            .position(|x| Arc::ptr_eq(x,&subscriber_impl))
+            .ok_or(ReturnCodes::PreconditionNotMet("Subscriber can only be deleted by its parent participant"))?;
         
-        // subscriber_list.remove(subscriber_index);
-        // Ok(())
+        subscriber_list.remove(subscriber_index);
+        Ok(())
     }
 
     /// This operation creates a Topic with the desired QoS policies and attaches to it the specified TopicListener.
@@ -567,17 +575,17 @@ impl Entity for DomainParticipant
     type Qos = DomainParticipantQos;
     type Listener = Box<dyn DomainParticipantListener>;
 
-    fn set_qos(&self, qos_list: Self::Qos) -> ReturnCode<()> {
+    fn set_qos(&self, _qos_list: Self::Qos) -> ReturnCode<()> {
         // DomainParticipantImpl::set_qos(&self.0, qos_list)
         todo!()
     }
 
-    fn get_qos(&self, qos_list: &mut Self::Qos) -> ReturnCode<()> {
+    fn get_qos(&self, _qos_list: &mut Self::Qos) -> ReturnCode<()> {
         // DomainParticipantImpl::get_qos(&self.0, qos_list)
         todo!()
     }
 
-    fn set_listener(&self, a_listener: Self::Listener, mask: StatusMask) -> ReturnCode<()> {
+    fn set_listener(&self, _a_listener: Self::Listener, _mask: StatusMask) -> ReturnCode<()> {
         // DomainParticipantImpl::set_listener(&self.0, a_listener, mask)
         todo!()
     }
@@ -598,8 +606,7 @@ impl Entity for DomainParticipant
     }
 
     fn enable(&self, ) -> ReturnCode<()> {
-        // DomainParticipantImpl::enable(&self.0)
-        todo!()
+       Ok(())
     }
 
     fn get_instance_handle(&self) -> ReturnCode<InstanceHandle> {
