@@ -1,4 +1,4 @@
-use std::sync::Mutex;
+use std::sync::{Mutex, Arc, Weak};
 
 use rust_dds_interface::types::{ReturnCode, InstanceHandle, ReturnCodes};
 
@@ -19,12 +19,21 @@ use crate::types::DDSType;
 use rust_dds_interface::protocol::ProtocolSubscriber;
 use rust_dds_interface::qos::{TopicQos, SubscriberQos, DataReaderQos};
 
-struct SubscriberImpl<'subscriber> {
+pub(crate) struct SubscriberImpl<'subscriber> {
     parent_participant: &'subscriber DomainParticipant<'subscriber>,
     protocol_subscriber: Mutex<Box<dyn ProtocolSubscriber>>,
 }
 
-pub struct Subscriber<'subscriber>(Option<SubscriberImpl<'subscriber>>);
+impl<'subscriber> SubscriberImpl<'subscriber> {
+    pub(crate) fn new(parent_participant: &'subscriber DomainParticipant<'subscriber>, protocol_subscriber: Box<dyn ProtocolSubscriber>) -> Self{
+        Self{
+            parent_participant,
+            protocol_subscriber: Mutex::new(protocol_subscriber),
+        }
+    }
+}
+
+pub struct Subscriber<'subscriber>(pub(crate) Weak<SubscriberImpl<'subscriber>>);
 
 /// A Subscriber is the object responsible for the actual reception of the data resulting from its subscriptions
 ///
@@ -180,7 +189,7 @@ impl<'subscriber> Subscriber<'subscriber> {
     }
 
     /// This operation returns the DomainParticipant to which the Subscriber belongs.
-    pub fn get_participant(&self) -> ReturnCode<&DomainParticipant> {
+    pub fn get_participant(&self) -> ReturnCode<&DomainParticipant<'subscriber>> {
         Ok(self.subscriber_impl()?.parent_participant)
     }
 
@@ -243,24 +252,11 @@ impl<'subscriber> Subscriber<'subscriber> {
     }
 
     // //////////// From here on are the functions that do not belong to the official API
-    pub(crate) fn new(parent_participant: &'subscriber DomainParticipant<'subscriber>, protocol_subscriber: Box<dyn ProtocolSubscriber>) -> Self{
-        Self(Some(SubscriberImpl{
-            parent_participant,
-            protocol_subscriber: Mutex::new(protocol_subscriber),
-        }))
-    }
-
-    pub(crate) fn delete(&mut self) -> ReturnCode<()>{
-        self.0 = None;
-        Ok(())
-    }
-
-    fn subscriber_impl(&self) -> ReturnCode<&SubscriberImpl> {
-        todo!()
-        // match &self.0 {
-        //     Some(subscriberimpl) => Ok(subscriberimpl),
-        //     None => Err(ReturnCodes::AlreadyDeleted("Subscriber already deleted")),
-        // }
+    fn subscriber_impl(&self) -> ReturnCode<Arc<SubscriberImpl<'subscriber>>> {
+        match self.0.upgrade() {
+            Some(subscriber_impl) => Ok(subscriber_impl),
+            None => Err(ReturnCodes::AlreadyDeleted("Subscriber already deleted")),
+        }
     }
 }
 
@@ -313,9 +309,8 @@ impl<'subscriber> DomainEntity for Subscriber<'subscriber>{}
 
 impl<'subscriber> Drop for Subscriber<'subscriber> {
     fn drop(&mut self) {
-        todo!()
-        // if let Some(subscriber_impl) = &self.0 {
-        //     subscriber_impl.parent_participant.delete_subscriber(self).ok();
-        // };
+        if let Some(subscriber_impl) = &self.0.upgrade() {
+            subscriber_impl.parent_participant.delete_subscriber(self).ok();
+        };
     }
 }

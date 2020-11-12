@@ -162,7 +162,7 @@ impl<'publisher> Publisher<'publisher> {
     }
 
     /// This operation returns the DomainParticipant to which the Publisher belongs.
-    pub fn get_participant(&self,) -> ReturnCode<&DomainParticipant> {
+    pub fn get_participant(&self,) -> ReturnCode<&DomainParticipant<'publisher>> {
         Ok(self.publisher_impl()?.parent_participant)
     }
 
@@ -221,25 +221,12 @@ impl<'publisher> Publisher<'publisher> {
         todo!()
     }
 
-    //  /// From here on are function that do not belong to the standard API
-    // pub(crate) fn new(parent_participant: &'publisher DomainParticipant, protocol_publisher: Box<dyn ProtocolPublisher>) -> Self{
-    //     Self(Some(PublisherImpl{
-    //         parent_participant,
-    //         protocol_publisher: Mutex::new(protocol_publisher),
-    //     }))
-    // }
-
-    // pub(crate) fn delete(&mut self) -> ReturnCode<()>{
-    //     self.0 = None;
-    //     Ok(())
-    // }
-
-    fn publisher_impl(&self) -> ReturnCode<Arc<PublisherImpl>> {
-        todo!()
-        // match self.0.upgrade() {
-        //     Some(subscriberimpl) => Ok(subscriberimpl),
-        //     None => Err(ReturnCodes::AlreadyDeleted("Publisher already deleted")),
-        // }
+    // ////// From here on are function that do not belong to the standard API
+    fn publisher_impl(&self) -> ReturnCode<Arc<PublisherImpl<'publisher>>> {
+        match self.0.upgrade() {
+            Some(publisher_impl) => Ok(publisher_impl),
+            None => Err(ReturnCodes::AlreadyDeleted("Publisher already deleted")),
+        }
     }
 }
 
