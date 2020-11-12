@@ -11,7 +11,7 @@ use crate::types::DDSType;
 use rust_dds_interface::qos::TopicQos;
 
 struct TopicImpl<'topic, T: DDSType>{
-    parent_participant: &'topic DomainParticipant,
+    parent_participant: &'topic DomainParticipant<'topic>,
     topic_name: String,
     topic_data: std::marker::PhantomData<T>,
 }
@@ -39,7 +39,7 @@ impl<'topic, T:DDSType> Topic<'topic, T> {
     }
 
     // //////////// From here on are the functions that do not belong to the official API
-    pub(crate) fn new(parent_participant: &'topic DomainParticipant, topic_name: String) -> Self {
+    pub(crate) fn new(parent_participant: &'topic DomainParticipant<'topic>, topic_name: String) -> Self {
         Self(Some(TopicImpl{
             parent_participant,
             topic_name,
@@ -53,10 +53,11 @@ impl<'topic, T:DDSType> Topic<'topic, T> {
     }
 
     fn topic_impl(&self) -> ReturnCode<&TopicImpl<T>> {
-        match &self.0 {
-            Some(topicimpl) => Ok(topicimpl),
-            None => Err(ReturnCodes::AlreadyDeleted("Topic already deleted")),
-        }
+        todo!()
+        // match &self.0 {
+        //     Some(topicimpl) => Ok(topicimpl),
+        //     None => Err(ReturnCodes::AlreadyDeleted("Topic already deleted")),
+        // }
     }
 }
 

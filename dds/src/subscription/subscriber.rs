@@ -20,7 +20,7 @@ use rust_dds_interface::protocol::ProtocolSubscriber;
 use rust_dds_interface::qos::{TopicQos, SubscriberQos, DataReaderQos};
 
 struct SubscriberImpl<'subscriber> {
-    parent_participant: &'subscriber DomainParticipant,
+    parent_participant: &'subscriber DomainParticipant<'subscriber>,
     protocol_subscriber: Mutex<Box<dyn ProtocolSubscriber>>,
 }
 
@@ -243,7 +243,7 @@ impl<'subscriber> Subscriber<'subscriber> {
     }
 
     // //////////// From here on are the functions that do not belong to the official API
-    pub(crate) fn new(parent_participant: &'subscriber DomainParticipant, protocol_subscriber: Box<dyn ProtocolSubscriber>) -> Self{
+    pub(crate) fn new(parent_participant: &'subscriber DomainParticipant<'subscriber>, protocol_subscriber: Box<dyn ProtocolSubscriber>) -> Self{
         Self(Some(SubscriberImpl{
             parent_participant,
             protocol_subscriber: Mutex::new(protocol_subscriber),
@@ -256,10 +256,11 @@ impl<'subscriber> Subscriber<'subscriber> {
     }
 
     fn subscriber_impl(&self) -> ReturnCode<&SubscriberImpl> {
-        match &self.0 {
-            Some(subscriberimpl) => Ok(subscriberimpl),
-            None => Err(ReturnCodes::AlreadyDeleted("Subscriber already deleted")),
-        }
+        todo!()
+        // match &self.0 {
+        //     Some(subscriberimpl) => Ok(subscriberimpl),
+        //     None => Err(ReturnCodes::AlreadyDeleted("Subscriber already deleted")),
+        // }
     }
 }
 
@@ -312,8 +313,9 @@ impl<'subscriber> DomainEntity for Subscriber<'subscriber>{}
 
 impl<'subscriber> Drop for Subscriber<'subscriber> {
     fn drop(&mut self) {
-        if let Some(subscriber_impl) = &self.0 {
-            subscriber_impl.parent_participant.delete_subscriber(self).ok();
-        };
+        todo!()
+        // if let Some(subscriber_impl) = &self.0 {
+        //     subscriber_impl.parent_participant.delete_subscriber(self).ok();
+        // };
     }
 }
