@@ -45,7 +45,7 @@ impl ProtocolSubscriber for Subscriber {
         let heartbeat_response_delay = Duration::from_millis(100);
         let reader_cache = HistoryCache::new(data_reader_qos.resource_limits.clone());
         let listener = NoOpStatefulReaderListener;
-        let reader = Arc::new(Mutex::new(StatefulReader::new(group.guid(), topic_kind, reliability_level, expects_inline_qos, heartbeat_response_delay, reader_cache, listener)));
+        let reader = Arc::new(StatefulReader::new(group.guid(), topic_kind, reliability_level, expects_inline_qos, heartbeat_response_delay, reader_cache, listener));
         group.mut_endpoints().push(reader.clone());
         Box::new(Reader::new(reader.clone()))
     }

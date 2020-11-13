@@ -1,3 +1,5 @@
+use std::sync::Mutex;
+
 use crate::types::{ReturnCode, ReturnCodes, LENGTH_UNLIMITED, SequenceNumber};
 use crate::cache_change::CacheChange;
 use crate::qos_policy::ResourceLimitsQosPolicy;
@@ -31,11 +33,11 @@ impl HistoryCache {
     /// of the DDS service implementation to configure the HistoryCache in a manner consistent with the DDS Entity RESOURCE_LIMITS QoS 
     /// and to propagate any errors to the DDS-user in the manner specified by the DDS specification.
     pub fn add_change(&mut self, change: CacheChange) -> ReturnCode<()> {
-        if self.resource_limits.max_samples != LENGTH_UNLIMITED  {
-            if self.changes.len() as i32 >= self.resource_limits.max_samples {
-                return Err(ReturnCodes::OutOfResources);
-            }
-        }
+        // if self.resource_limits.max_samples != LENGTH_UNLIMITED  {
+        //     if self.changes.len() as i32 >= self.resource_limits.max_samples {
+        //         return Err(ReturnCodes::OutOfResources);
+        //     }
+        // }
 
         // TODO: Resource limits
         // if self.resource_limits.max_instances != LENGTH_UNLIMITED {
@@ -70,6 +72,10 @@ impl HistoryCache {
         self.changes.retain(|x| x!=change);
     }
 
+    pub fn get_change(&self, seq_num: SequenceNumber) -> Option<&CacheChange> {
+        self.changes.iter().find(|cc| cc.sequence_number() == seq_num)
+    }
+
     /// This operation retrieves the smallest value of the CacheChange::sequenceNumber attribute among the CacheChange stored in the HistoryCache.    
     pub fn get_seq_num_min(&self) -> Option<SequenceNumber> {
         Some(self.changes.iter().min()?.sequence_number())
@@ -78,10 +84,6 @@ impl HistoryCache {
     /// This operation retrieves the largest value of the CacheChange::sequenceNumber attribute among the CacheChange stored in the HistoryCache.
     pub fn get_seq_num_max(&self) -> Option<SequenceNumber> {
         Some(self.changes.iter().max()?.sequence_number())
-    }
-
-    pub fn changes(&self) -> &Vec<CacheChange> {
-        &self.changes
     }
 }
 

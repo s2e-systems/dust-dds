@@ -14,21 +14,21 @@ pub struct RtpsMessageSender;
 impl RtpsMessageSender {
     pub fn send<'a, I>(participant_guid_prefix: GuidPrefix, transport: &dyn Transport, endpoint_list: I) 
     where 
-        I: IntoIterator<Item = &'a Arc<Mutex<dyn RtpsEndpoint>> >,
+        I: IntoIterator<Item = &'a Arc<dyn RtpsEndpoint> >,
     {
         for endpoint in endpoint_list {
-            let mut endpoint_lock = endpoint.lock().unwrap();
-            if let Some(stateless_writer) = endpoint_lock.get_mut::<StatelessWriter>() {
+            let mut endpoint_lock = endpoint;
+            if let Some(stateless_writer) = endpoint_lock.get::<StatelessWriter>() {
                 RtpsMessageSender::send_stateless_writer(stateless_writer, transport, participant_guid_prefix)
-            } else if let Some(stateful_writer) = endpoint_lock.get_mut::<StatefulWriter>() {
+            } else if let Some(stateful_writer) = endpoint_lock.get::<StatefulWriter>() {
                 RtpsMessageSender::send_stateful_writer(stateful_writer, transport, participant_guid_prefix)
-            } else if let Some(stateful_reader) = endpoint_lock.get_mut::<StatefulReader>() {
+            } else if let Some(stateful_reader) = endpoint_lock.get::<StatefulReader>() {
                 RtpsMessageSender::send_stateful_reader(stateful_reader, transport, participant_guid_prefix)
             }
         }
     }
 
-    fn send_stateless_writer(stateless_writer: &mut StatelessWriter, transport: &dyn Transport, participant_guid_prefix: GuidPrefix) {
+    fn send_stateless_writer(stateless_writer: &StatelessWriter, transport: &dyn Transport, participant_guid_prefix: GuidPrefix) {
         let destined_messages = stateless_writer.produce_messages();
         for destined_message in destined_messages{
             match destined_message {
@@ -59,7 +59,7 @@ impl RtpsMessageSender {
         }
     }
 
-    fn send_stateful_writer(stateful_writer: &mut StatefulWriter, transport: &dyn Transport, participant_guid_prefix: GuidPrefix) {
+    fn send_stateful_writer(stateful_writer: &StatefulWriter, transport: &dyn Transport, participant_guid_prefix: GuidPrefix) {
         let destined_messages = stateful_writer.produce_messages();
         for destined_message in destined_messages{
             match destined_message {
@@ -90,7 +90,7 @@ impl RtpsMessageSender {
         }
     }
 
-    fn send_stateful_reader(stateful_reader: &mut StatefulReader, transport: &dyn Transport, participant_guid_prefix: GuidPrefix) {
+    fn send_stateful_reader(stateful_reader: &StatefulReader, transport: &dyn Transport, participant_guid_prefix: GuidPrefix) {
         let destined_messages = stateful_reader.produce_messages();
         for destined_message in destined_messages{
             match destined_message {

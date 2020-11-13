@@ -1,3 +1,5 @@
+use std::sync::Mutex;
+
 use crate::structure::{RtpsEndpoint, RtpsEntity};
 use crate::types::{ReliabilityKind, GUID, Locator, GuidPrefix };
 use crate::types::constants::ENTITYID_UNKNOWN;
@@ -24,7 +26,7 @@ pub struct StatelessReader {
     // hence the heartbeat_ members are not included here
     // heartbeat_response_delay: Duration,
     // heartbeat_suppression_duration: Duration,
-    reader_cache: HistoryCache,
+    reader_cache: Mutex<HistoryCache>,
     expects_inline_qos: bool,
 
     // Additional fields:
@@ -51,13 +53,13 @@ impl StatelessReader {
             reliability_level,
             unicast_locator_list,
             multicast_locator_list,
-            reader_cache,
+            reader_cache: Mutex::new(reader_cache),
             expects_inline_qos,
             listener: Box::new(listener)
         }
     }
 
-    fn waiting_state(&mut self, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>) {
+    fn waiting_state(&self, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>) {
         if let Some(inner_submessage) = submessage {
             if let RtpsSubmessage::Data(data) = inner_submessage { 
                 if self.guid.entity_id() == data.reader_id() || data.reader_id() == ENTITYID_UNKNOWN {
@@ -69,17 +71,17 @@ impl StatelessReader {
         }
     }
 
-    fn transition_t2(&mut self, guid_prefix: GuidPrefix, data: Data) {
+    fn transition_t2(&self, guid_prefix: GuidPrefix, data: Data) {
         let cache_change = cache_change_from_data(data, &guid_prefix);
         self.listener.on_add_change(&cache_change);
-        self.reader_cache.add_change(cache_change).unwrap();
+        self.reader_cache.lock().unwrap().add_change(cache_change).unwrap();
     }
 
-    pub fn reader_cache(&self) -> &HistoryCache {
+    pub fn reader_cache(&self) -> &Mutex<HistoryCache> {
         &self.reader_cache
     }   
 
-    pub fn try_process_message(&mut self, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>) {
+    pub fn try_process_message(&self, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>) {
         self.waiting_state(src_guid_prefix, submessage);
     }
 }

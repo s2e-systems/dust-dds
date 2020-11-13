@@ -17,12 +17,12 @@ use rust_dds_interface::history_cache::HistoryCache;
 
 #[derive(Clone)]
 pub struct SimpleEndpointDiscoveryProtocol {
-    sedp_builtin_publications_writer: Arc<Mutex<StatefulWriter>>,
-    sedp_builtin_publications_reader: Arc<Mutex<StatefulReader>>,
-    sedp_builtin_subscriptions_writer: Arc<Mutex<StatefulWriter>>,
-    sedp_builtin_subscriptions_reader: Arc<Mutex<StatefulReader>>,
-    sedp_builtin_topics_writer: Arc<Mutex<StatefulWriter>>,
-    sedp_builtin_topics_reader: Arc<Mutex<StatefulReader>>,
+    sedp_builtin_publications_writer: Arc<StatefulWriter>,
+    sedp_builtin_publications_reader: Arc<StatefulReader>,
+    sedp_builtin_subscriptions_writer: Arc<StatefulWriter>,
+    sedp_builtin_subscriptions_reader: Arc<StatefulReader>,
+    sedp_builtin_topics_writer: Arc<StatefulWriter>,
+    sedp_builtin_topics_reader: Arc<StatefulReader>,
 }
 
 impl SimpleEndpointDiscoveryProtocol {
@@ -35,7 +35,7 @@ impl SimpleEndpointDiscoveryProtocol {
 
         let sedp_builtin_publications_writer_guid = GUID::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER);
         let writer_cache = HistoryCache::default();
-        let sedp_builtin_publications_writer = Arc::new(Mutex::new(StatefulWriter::new(
+        let sedp_builtin_publications_writer = Arc::new(StatefulWriter::new(
             sedp_builtin_publications_writer_guid,
             TopicKind::WithKey,
             reliability_level,
@@ -44,13 +44,13 @@ impl SimpleEndpointDiscoveryProtocol {
             heartbeat_period,
             nack_response_delay,
             nack_suppression_duration
-        )));
+        ));
 
         let heartbeat_response_delay = Duration::from_millis(500);
 
         let sedp_builtin_publications_reader_guid = GUID::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR);
         let reader_cache = HistoryCache::default();
-        let sedp_builtin_publications_reader = Arc::new(Mutex::new(StatefulReader::new(
+        let sedp_builtin_publications_reader = Arc::new(StatefulReader::new(
             sedp_builtin_publications_reader_guid,
             TopicKind::WithKey,
             reliability_level,
@@ -58,11 +58,11 @@ impl SimpleEndpointDiscoveryProtocol {
             heartbeat_response_delay,
             reader_cache,
             NoOpStatefulReaderListener,
-        )));
+        ));
 
         let sedp_builtin_subscriptions_writer_guid = GUID::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
         let writer_cache = HistoryCache::default();
-        let sedp_builtin_subscriptions_writer = Arc::new(Mutex::new(StatefulWriter::new(
+        let sedp_builtin_subscriptions_writer = Arc::new(StatefulWriter::new(
             sedp_builtin_subscriptions_writer_guid,
             TopicKind::WithKey,
             reliability_level,
@@ -71,11 +71,11 @@ impl SimpleEndpointDiscoveryProtocol {
             heartbeat_period,
             nack_response_delay,
             nack_suppression_duration
-        )));
+        ));
 
         let sedp_builtin_subscriptions_reader_guid = GUID::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
         let reader_cache = HistoryCache::default();
-        let sedp_builtin_subscriptions_reader = Arc::new(Mutex::new(StatefulReader::new(
+        let sedp_builtin_subscriptions_reader = Arc::new(StatefulReader::new(
             sedp_builtin_subscriptions_reader_guid,
             TopicKind::WithKey,
             reliability_level,
@@ -83,11 +83,11 @@ impl SimpleEndpointDiscoveryProtocol {
             heartbeat_response_delay,
             reader_cache,
             NoOpStatefulReaderListener,
-        )));
+        ));
 
         let sedp_builtin_topics_writer_guid = GUID::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER);
         let writer_cache = HistoryCache::default();
-        let sedp_builtin_topics_writer = Arc::new(Mutex::new(StatefulWriter::new(
+        let sedp_builtin_topics_writer = Arc::new(StatefulWriter::new(
             sedp_builtin_topics_writer_guid,
             TopicKind::WithKey,
             reliability_level,
@@ -96,11 +96,11 @@ impl SimpleEndpointDiscoveryProtocol {
             heartbeat_period,
             nack_response_delay,
             nack_suppression_duration
-        )));
+        ));
 
         let sedp_builtin_topics_reader_guid = GUID::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR);
         let reader_cache = HistoryCache::default();
-        let sedp_builtin_topics_reader = Arc::new(Mutex::new(StatefulReader::new(
+        let sedp_builtin_topics_reader = Arc::new(StatefulReader::new(
             sedp_builtin_topics_reader_guid,
             TopicKind::WithKey,
             reliability_level,
@@ -108,7 +108,7 @@ impl SimpleEndpointDiscoveryProtocol {
             heartbeat_response_delay,
             reader_cache,
             NoOpStatefulReaderListener,
-        )));
+        ));
 
 
         Self {
@@ -121,22 +121,22 @@ impl SimpleEndpointDiscoveryProtocol {
         }
     }
 
-    pub fn sedp_builtin_publications_writer(&self) -> &Arc<Mutex<StatefulWriter>> {
+    pub fn sedp_builtin_publications_writer(&self) -> &Arc<StatefulWriter> {
         &self.sedp_builtin_publications_writer
     }
-    pub fn sedp_builtin_publications_reader(&self) -> &Arc<Mutex<StatefulReader>> {
+    pub fn sedp_builtin_publications_reader(&self) -> &Arc<StatefulReader> {
         &self.sedp_builtin_publications_reader
     }
-    pub fn sedp_builtin_subscriptions_writer(&self) -> &Arc<Mutex<StatefulWriter>> {
+    pub fn sedp_builtin_subscriptions_writer(&self) -> &Arc<StatefulWriter> {
         &self.sedp_builtin_subscriptions_writer
     }
-    pub fn sedp_builtin_subscriptions_reader(&self) -> &Arc<Mutex<StatefulReader>> {
+    pub fn sedp_builtin_subscriptions_reader(&self) -> &Arc<StatefulReader> {
         &self.sedp_builtin_subscriptions_reader
     }
-    pub fn sedp_builtin_topics_writer(&self) -> &Arc<Mutex<StatefulWriter>> {
+    pub fn sedp_builtin_topics_writer(&self) -> &Arc<StatefulWriter> {
         &self.sedp_builtin_topics_writer
     }
-    pub fn sedp_builtin_topics_reader(&self) -> &Arc<Mutex<StatefulReader>> {
+    pub fn sedp_builtin_topics_reader(&self) -> &Arc<StatefulReader> {
         &self.sedp_builtin_topics_reader
     }
 

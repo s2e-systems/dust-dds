@@ -114,10 +114,18 @@ impl<'subscriber> Subscriber<'subscriber> {
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
     pub fn delete_datareader<T: DDSType>(
         &self,
-        a_datareader: &DataReader<T>
+        a_datareader: &mut DataReader<T>
     ) -> ReturnCode<()> {
-        // SubscriberImpl::delete_datareader(&self.0, a_datareader)
-        todo!()
+        let subscriber_impl = self.subscriber_impl()?;
+        let data_reader_impl: Arc<dyn AnyDataReaderImpl> = a_datareader.data_reader_impl()?;
+        let mut data_reader_list = subscriber_impl.data_reader_list.lock().unwrap();
+        let data_reader_index = data_reader_list
+            .iter()
+            .position(|x| Arc::ptr_eq(x,&data_reader_impl))
+            .ok_or(ReturnCodes::PreconditionNotMet("Data reader can only be deleted by its parent subscriber"))?;
+        
+        data_reader_list.remove(data_reader_index);
+        Ok(())
     }
 
     /// This operation retrieves a previously-created DataReader belonging to the Subscriber that is attached to a Topic with a

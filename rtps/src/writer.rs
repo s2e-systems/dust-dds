@@ -2,14 +2,16 @@ use std::sync::{Arc, Mutex};
 use crate::behavior::StatefulWriter;
 
 use rust_dds_interface::protocol::{ProtocolEntity, ProtocolWriter};
-use rust_dds_interface::types::{ReturnCode, InstanceHandle};
+use rust_dds_interface::types::{ReturnCode, InstanceHandle, ChangeKind, Data, ParameterList};
+use rust_dds_interface::cache_change::CacheChange;
+use rust_dds_interface::history_cache::HistoryCache;
 
 pub struct Writer {
-    writer: Arc<Mutex<StatefulWriter>>,
+    writer: Arc<StatefulWriter>,
 }
 
 impl Writer {
-    pub fn new(writer: Arc<Mutex<StatefulWriter>>) -> Self {
+    pub fn new(writer: Arc<StatefulWriter>) -> Self {
         Self {
             writer
         }
@@ -28,23 +30,11 @@ impl ProtocolEntity for Writer {
 }
 
 impl ProtocolWriter for Writer {
-    fn write(&mut self, _instance_handle: InstanceHandle, _data: rust_dds_interface::types::Data, _timestamp: rust_dds_interface::types::Time) -> ReturnCode<()> {
-        todo!()
+    fn new_change(&self, kind: ChangeKind, data: Option<Data>, inline_qos: Option<ParameterList>, handle: InstanceHandle) -> CacheChange {
+        self.writer.new_change(kind, data, inline_qos, handle)
     }
 
-    fn dispose(&self, _instance_handle: InstanceHandle, _timestamp: rust_dds_interface::types::Time) -> ReturnCode<()> {
-        todo!()
-    }
-
-    fn unregister(&self, _instance_handle: InstanceHandle, _timestamp: rust_dds_interface::types::Time) -> ReturnCode<()> {
-        todo!()
-    }
-
-    fn register(&self, _instance_handle: InstanceHandle, _timestamp: rust_dds_interface::types::Time) -> ReturnCode<Option<InstanceHandle>> {
-        todo!()
-    }
-
-    fn lookup_instance(&self, _instance_handle: InstanceHandle) -> Option<InstanceHandle> {
-        todo!()
+    fn writer_cache(&self) -> &Mutex<HistoryCache> {
+        self.writer.writer_cache()
     }
 }

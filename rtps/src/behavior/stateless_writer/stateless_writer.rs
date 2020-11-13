@@ -1,4 +1,6 @@
+use std::sync::Mutex;
 use std::collections::HashMap;
+
 use crate::structure::{RtpsEndpoint, RtpsEntity};
 use crate::behavior::DestinedMessages;
 use crate::types::{Locator, ReliabilityKind, GUID, };
@@ -25,11 +27,11 @@ pub struct StatelessWriter {
     /// List of multicast locators (transport, address, port combinations) that can be used to send messages to the Endpoint. The list may be empty.
     // multicast_locator_list: Vec<Locator>,
     
-    last_change_sequence_number: SequenceNumber,
-    writer_cache: HistoryCache,
+    last_change_sequence_number: Mutex<SequenceNumber>,
+    writer_cache: Mutex<HistoryCache>,
     data_max_sized_serialized: Option<i32>,
 
-    reader_locators: HashMap<Locator, ReaderLocator>,
+    reader_locators: Mutex<HashMap<Locator, ReaderLocator>>,
 }
 
 impl StatelessWriter {
@@ -45,36 +47,38 @@ impl StatelessWriter {
             guid,
             topic_kind,
             reliability_level,
-            last_change_sequence_number: 0,
-            writer_cache,
+            last_change_sequence_number: Mutex::new(0),
+            writer_cache: Mutex::new(writer_cache),
             data_max_sized_serialized: None,
-            reader_locators: HashMap::new(),
+            reader_locators: Mutex::new(HashMap::new()),
         }
     }
 
     pub fn new_change(
-        &mut self,
+        &self,
         kind: ChangeKind,
         data: Option<Vec<u8>>,
         inline_qos: Option<ParameterList>,
         handle: InstanceHandle,
     ) -> CacheChange {
-        self.last_change_sequence_number += 1;
+        let mut last_change_sequence_number = self.last_change_sequence_number.lock().unwrap();
+        *last_change_sequence_number += 1;
 
         CacheChange::new(
             kind,
             self.guid.into(),
             handle,
-            self.last_change_sequence_number,
+            *last_change_sequence_number,
             data,
             inline_qos,
         )
     }
 
-    pub fn produce_messages(&mut self) -> Vec<DestinedMessages> {
+    pub fn produce_messages(&self) -> Vec<DestinedMessages> {
+        let mut reader_locators = self.reader_locators.lock().unwrap();
         let mut output = Vec::new();
-        for (&locator, reader_locator) in self.reader_locators.iter_mut() {
-            let messages = reader_locator.produce_messages(&self.writer_cache, self.last_change_sequence_number);
+        for (&locator, reader_locator) in reader_locators.iter_mut() {
+            let messages = reader_locator.produce_messages(&self.writer_cache.lock().unwrap(), *self.last_change_sequence_number.lock().unwrap());
             if !messages.is_empty() {
                 output.push(DestinedMessages::SingleDestination{locator, messages});
             }
@@ -82,26 +86,23 @@ impl StatelessWriter {
         output
     } 
 
-    pub fn writer_cache(&mut self) -> &mut HistoryCache {
-        &mut self.writer_cache
+    pub fn writer_cache(&self) -> &Mutex<HistoryCache> {
+        &self.writer_cache
     }
 
-    pub fn reader_locator_add(&mut self, a_locator: Locator) {
-        self.reader_locators.insert(a_locator, ReaderLocator::new(a_locator, self.guid.entity_id(), false /*expects_inline_qos*/));
+    pub fn reader_locator_add(&self, a_locator: Locator) {
+        self.reader_locators.lock().unwrap().insert(a_locator, ReaderLocator::new(a_locator, self.guid.entity_id(), false /*expects_inline_qos*/));
     }
 
-    pub fn reader_locator_remove(&mut self, a_locator: &Locator) {
-        self.reader_locators.remove(a_locator);
+    pub fn reader_locator_remove(&self, a_locator: &Locator) {
+        self.reader_locators.lock().unwrap().remove(a_locator);
     }
 
     pub fn unsent_changes_reset(&mut self) {
-        for (_, rl) in self.reader_locators.iter_mut() {
+        let mut reader_locators = self.reader_locators.lock().unwrap();
+        for (_, rl) in reader_locators.iter_mut() {
             rl.unsent_changes_reset();
         }
-    }
-
-    pub fn reader_locators(&mut self) -> &mut HashMap<Locator, ReaderLocator> {
-        &mut self.reader_locators
     }
 }
 

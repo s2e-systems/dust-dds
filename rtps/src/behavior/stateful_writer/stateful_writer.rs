@@ -1,3 +1,4 @@
+use std::sync::Mutex;
 use std::collections::HashMap;
 
 use crate::types::{ Locator, ReliabilityKind, GUID, GuidPrefix};
@@ -10,7 +11,6 @@ use super::reader_proxy::ReaderProxy;
 use super::reliable_reader_proxy::ReliableReaderProxy;
 use super::best_effort_reader_proxy::BestEffortReaderProxy;
 
-use rust_dds_interface::protocol::{ProtocolEntity, ProtocolWriter};
 use rust_dds_interface::types::{Data, Time, ReturnCode, InstanceHandle, SequenceNumber, TopicKind, ChangeKind, ParameterList};
 use rust_dds_interface::history_cache::HistoryCache;
 use rust_dds_interface::cache_change::CacheChange;
@@ -42,11 +42,11 @@ pub struct StatefulWriter {
     heartbeat_period: Duration,
     nack_response_delay: Duration,
     nack_suppression_duration: Duration,
-    last_change_sequence_number: SequenceNumber,
-    writer_cache: HistoryCache,
+    last_change_sequence_number: Mutex<SequenceNumber>,
+    writer_cache: Mutex<HistoryCache>,
     data_max_sized_serialized: Option<i32>,
 
-    matched_readers: HashMap<GUID, ReaderProxyFlavor>,
+    matched_readers: Mutex<HashMap<GUID, ReaderProxyFlavor>>,
 }
 
 impl StatefulWriter {
@@ -68,21 +68,21 @@ impl StatefulWriter {
                 heartbeat_period,
                 nack_response_delay,
                 nack_suppression_duration,
-                last_change_sequence_number: 0,
-                writer_cache,
+                last_change_sequence_number: Mutex::new(0),
+                writer_cache: Mutex::new(writer_cache),
                 data_max_sized_serialized: None,
-                matched_readers: HashMap::new()
+                matched_readers: Mutex::new(HashMap::new())
         }
     }
 
     pub fn new_change(
-        &mut self,
+        &self,
         kind: ChangeKind,
         data: Option<Vec<u8>>,
         inline_qos: Option<ParameterList>,
         handle: InstanceHandle,
     ) -> CacheChange {
-        self.last_change_sequence_number += 1;
+        *self.last_change_sequence_number.lock().unwrap() += 1;
         CacheChange::new(
             kind,
             self.guid.into(),
@@ -94,16 +94,16 @@ impl StatefulWriter {
     }
 
     pub fn last_change_sequence_number(&self) -> SequenceNumber {
-        self.last_change_sequence_number
+        *self.last_change_sequence_number.lock().unwrap()
     }
 
-    pub fn produce_messages(&mut self) -> Vec<DestinedMessages> {
+    pub fn produce_messages(&self) -> Vec<DestinedMessages> {
         let mut output = Vec::new();
-
-        for (_reader_guid, reader_proxy) in self.matched_readers.iter_mut(){
+        let mut matched_readers = self.matched_readers.lock().unwrap();
+        for (_reader_guid, reader_proxy) in matched_readers.iter_mut() {
             match reader_proxy {
                 ReaderProxyFlavor::Reliable(reliable_reader_proxy) => {
-                    let messages = reliable_reader_proxy.produce_messages(&self.writer_cache, self.last_change_sequence_number);
+                    let messages = reliable_reader_proxy.produce_messages(&self.writer_cache.lock().unwrap(), *self.last_change_sequence_number.lock().unwrap());
                     if !messages.is_empty() {
                         output.push(DestinedMessages::MultiDestination{
                             unicast_locator_list: reliable_reader_proxy.unicast_locator_list().clone(),
@@ -113,7 +113,7 @@ impl StatefulWriter {
                     }
                 }
                 ReaderProxyFlavor::BestEffort(best_effort_reader_proxy) => {
-                    let messages = best_effort_reader_proxy.produce_messages(&self.writer_cache, self.last_change_sequence_number);
+                    let messages = best_effort_reader_proxy.produce_messages(&self.writer_cache.lock().unwrap(), *self.last_change_sequence_number.lock().unwrap());
                     if !messages.is_empty() {
                         output.push(DestinedMessages::MultiDestination{
                             unicast_locator_list: best_effort_reader_proxy.unicast_locator_list().clone(),
@@ -127,8 +127,9 @@ impl StatefulWriter {
         output
     }
 
-    pub fn try_process_message(&mut self, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>) {
-        for (_reader_guid, reader_proxy) in self.matched_readers.iter_mut(){
+    pub fn try_process_message(&self, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>) {
+        let mut matched_readers = self.matched_readers.lock().unwrap();
+        for (_reader_guid, reader_proxy) in matched_readers.iter_mut(){
             match reader_proxy {
                 ReaderProxyFlavor::Reliable(reliable_reader_proxy) => reliable_reader_proxy.try_process_message(src_guid_prefix, submessage),
                 ReaderProxyFlavor::BestEffort(_) => ()
@@ -140,31 +141,21 @@ impl StatefulWriter {
         &self.guid
     }
 
-    pub fn writer_cache(&self) -> &HistoryCache {
+    pub fn writer_cache(&self) -> &Mutex<HistoryCache> {
         &self.writer_cache
     }
 
-    pub fn matched_reader_add(&mut self, a_reader_proxy: ReaderProxy) {
+    pub fn matched_reader_add(&self, a_reader_proxy: ReaderProxy) {
         let remote_reader_guid = a_reader_proxy.remote_reader_guid().clone();
         let reader_proxy = match self.reliability_level {
             ReliabilityKind::Reliable => ReaderProxyFlavor::Reliable(ReliableReaderProxy::new(a_reader_proxy, self.guid.entity_id(), self.heartbeat_period, self.nack_response_delay)),
             ReliabilityKind::BestEffort => ReaderProxyFlavor::BestEffort(BestEffortReaderProxy::new(a_reader_proxy, self.guid.entity_id())),
         };
-        self.matched_readers.insert(remote_reader_guid, reader_proxy);
+        self.matched_readers.lock().unwrap().insert(remote_reader_guid, reader_proxy);
     }
 
-    pub fn matched_reader_remove(&mut self, reader_proxy_guid: &GUID) {
-        self.matched_readers.remove(reader_proxy_guid);
-    }
-
-    pub fn matched_reader_lookup(&self, a_reader_guid: GUID) -> Option<&ReaderProxy> {
-        match self.matched_readers.get(&a_reader_guid) {
-            Some(reader_proxy_flavor) => match reader_proxy_flavor {
-                ReaderProxyFlavor::BestEffort(rp) => Some(rp.reader_proxy()),
-                ReaderProxyFlavor::Reliable(rp) => Some(rp.reader_proxy()),
-            },
-            None => None,
-        }
+    pub fn matched_reader_remove(&self, reader_proxy_guid: &GUID) {
+        self.matched_readers.lock().unwrap().remove(reader_proxy_guid);
     }
 
     pub fn is_acked_by_all(&self) -> bool {
@@ -200,46 +191,6 @@ impl StatefulWriter {
 //         output_queues
 //     }
 // }
-
-impl ProtocolEntity for StatefulWriter {
-    fn get_instance_handle(&self) -> InstanceHandle {
-        self.guid.into()
-    }
-
-    fn enable(&self) -> ReturnCode<()> {
-        todo!()
-    }
-}
-
-impl ProtocolWriter for StatefulWriter {
-
-    fn write(&mut self, _instance_handle: InstanceHandle, _data: Data, _timestamp: Time) -> ReturnCode<()>{
-        todo!()
-        // if self.reliability_level == ReliabilityKind::BestEffort {
-        //     let cc = self.new_change(ChangeKind::Alive, Some(data), None, instance_handle);
-        //     self.writer_cache().add_change(cc)?;
-        //     Ok(())
-        // } else {
-        //     todo!() // Blocking until wirtier_cache available
-        // }
-    }
-
-    fn dispose(&self, _instance_handle: InstanceHandle, _timestamp: Time) -> ReturnCode<()> {
-        todo!()
-    }
-
-    fn unregister(&self, _instance_handle: InstanceHandle, _timestamp: Time) -> ReturnCode<()> {
-        todo!()
-    }
-
-    fn register(&self, _instance_handle: InstanceHandle, _timestamp: Time) -> ReturnCode<Option<InstanceHandle>> {
-        todo!()
-    }
-
-    fn lookup_instance(&self, _instance_handle: InstanceHandle) -> Option<InstanceHandle> {
-        todo!()
-    }
-}
 
 impl RtpsEntity for StatefulWriter {
     fn guid(&self) -> GUID {
@@ -305,7 +256,7 @@ mod tests {
     #[test]
     fn stateful_writer_new_change() {
         let writer_cache = HistoryCache::default();
-        let mut writer = StatefulWriter::new(
+        let writer = StatefulWriter::new(
             GUID::new([0; 12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
             TopicKind::WithKey,
             ReliabilityKind::BestEffort,

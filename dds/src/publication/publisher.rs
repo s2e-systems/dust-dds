@@ -103,7 +103,7 @@ impl<'publisher> Publisher<'publisher> {
         let data_writer_index = data_writer_list
             .iter()
             .position(|x| Arc::ptr_eq(x,&data_writer_impl))
-            .ok_or(ReturnCodes::PreconditionNotMet("Publisher can only be deleted by its parent participant"))?;
+            .ok_or(ReturnCodes::PreconditionNotMet("Data writer can only be deleted by its parent publisher"))?;
         
         data_writer_list.remove(data_writer_index);
         Ok(())

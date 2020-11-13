@@ -66,9 +66,7 @@ impl ReaderLocator {
     }
 
     fn transition_t4(&mut self, history_cache: &HistoryCache, next_unsent_seq_num: SequenceNumber, message_queue: &mut Vec<RtpsSubmessage>) {
-        if let Some(cache_change) = history_cache
-            .changes().iter().find(|cc| cc.sequence_number() == next_unsent_seq_num)
-        {
+        if let Some(cache_change) = history_cache.get_change(next_unsent_seq_num) {
             let data = data_from_cache_change(cache_change, ENTITYID_UNKNOWN);
             message_queue.push(RtpsSubmessage::Data(data));
         } else {

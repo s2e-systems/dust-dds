@@ -5,11 +5,11 @@ use rust_dds_interface::protocol::{ProtocolEntity, ProtocolReader};
 use rust_dds_interface::types::{ReturnCode, InstanceHandle};
 
 pub struct Reader {
-    reader: Arc<Mutex<StatefulReader>>,
+    reader: Arc<StatefulReader>,
 }
 
 impl Reader {
-    pub fn new(reader: Arc<Mutex<StatefulReader>>) -> Self {
+    pub fn new(reader: Arc<StatefulReader>) -> Self {
         Self {
             reader
         }

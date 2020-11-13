@@ -29,8 +29,8 @@ use crate::endpoint_types::{
 
 
 pub struct SimpleParticipantDiscoveryProtocol {
-    spdp_builtin_participant_writer: Arc<Mutex<StatelessWriter>>,
-    spdp_builtin_participant_reader: Arc<Mutex<StatelessReader>>,
+    spdp_builtin_participant_writer: Arc<StatelessWriter>,
+    spdp_builtin_participant_reader: Arc<StatelessReader>,
 }
 
 impl SimpleParticipantDiscoveryProtocol {
@@ -66,16 +66,16 @@ impl SimpleParticipantDiscoveryProtocol {
         ); 
 
         Self {
-            spdp_builtin_participant_writer: Arc::new(Mutex::new(spdp_builtin_participant_writer)),
-            spdp_builtin_participant_reader: Arc::new(Mutex::new(spdp_builtin_participant_reader)),
+            spdp_builtin_participant_writer: Arc::new(spdp_builtin_participant_writer),
+            spdp_builtin_participant_reader: Arc::new(spdp_builtin_participant_reader),
         }        
     }
 
-    pub fn spdp_builtin_participant_writer(&self) -> &Arc<Mutex<StatelessWriter>> {
+    pub fn spdp_builtin_participant_writer(&self) -> &Arc<StatelessWriter> {
         &self.spdp_builtin_participant_writer
     }
 
-    pub fn spdp_builtin_participant_reader(&self) -> &Arc<Mutex<StatelessReader>> {
+    pub fn spdp_builtin_participant_reader(&self) -> &Arc<StatelessReader> {
         &self.spdp_builtin_participant_reader
     }
 

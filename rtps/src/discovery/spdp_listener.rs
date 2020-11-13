@@ -65,8 +65,6 @@ impl SimpleParticipantDiscoveryListener {
             );
             self.sedp
                 .sedp_builtin_publications_writer()
-                .lock()
-                .unwrap()
                 .matched_reader_add(proxy);
         }
 
@@ -89,8 +87,6 @@ impl SimpleParticipantDiscoveryListener {
             );
             self.sedp
                 .sedp_builtin_publications_reader()
-                .lock()
-                .unwrap()
                 .matched_writer_add(proxy);
         }
 
@@ -115,8 +111,6 @@ impl SimpleParticipantDiscoveryListener {
             );
             self.sedp
                 .sedp_builtin_subscriptions_writer()
-                .lock()
-                .unwrap()
                 .matched_reader_add(proxy);
         }
 
@@ -139,8 +133,6 @@ impl SimpleParticipantDiscoveryListener {
             );
             self.sedp
                 .sedp_builtin_subscriptions_reader()
-                .lock()
-                .unwrap()
                 .matched_writer_add(proxy);
         }
 
@@ -165,8 +157,6 @@ impl SimpleParticipantDiscoveryListener {
             );
             self.sedp
                 .sedp_builtin_topics_writer()
-                .lock()
-                .unwrap()
                 .matched_reader_add(proxy);
         }
 
@@ -189,8 +179,6 @@ impl SimpleParticipantDiscoveryListener {
             );
             self.sedp
                 .sedp_builtin_topics_reader()
-                .lock()
-                .unwrap()
                 .matched_writer_add(proxy);
         }
     }
@@ -203,8 +191,6 @@ impl SimpleParticipantDiscoveryListener {
         );
         self.sedp
             .sedp_builtin_publications_writer()
-            .lock()
-            .unwrap()
             .matched_reader_remove(&guid);
 
         let guid = GUID::new(
@@ -213,8 +199,6 @@ impl SimpleParticipantDiscoveryListener {
         );
         self.sedp
             .sedp_builtin_publications_reader()
-            .lock()
-            .unwrap()
             .matched_writer_remove(&guid);
 
         let guid = GUID::new(
@@ -223,8 +207,6 @@ impl SimpleParticipantDiscoveryListener {
         );
         self.sedp
             .sedp_builtin_subscriptions_writer()
-            .lock()
-            .unwrap()
             .matched_reader_remove(&guid);
 
         let guid = GUID::new(
@@ -233,8 +215,6 @@ impl SimpleParticipantDiscoveryListener {
         );
         self.sedp
             .sedp_builtin_subscriptions_reader()
-            .lock()
-            .unwrap()
             .matched_writer_remove(&guid);
 
         let guid = GUID::new(
@@ -243,8 +223,6 @@ impl SimpleParticipantDiscoveryListener {
         );
         self.sedp
             .sedp_builtin_topics_writer()
-            .lock()
-            .unwrap()
             .matched_reader_remove(&guid);
 
         let guid = GUID::new(
@@ -253,8 +231,6 @@ impl SimpleParticipantDiscoveryListener {
         );
         self.sedp
             .sedp_builtin_topics_reader()
-            .lock()
-            .unwrap()
             .matched_writer_remove(&guid);
     }
 }

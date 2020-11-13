@@ -59,7 +59,7 @@ impl ProtocolPublisher for Publisher {
         let nack_response_delay = Duration::from_millis(0);
         let nack_supression_duration = Duration::from_millis(0);
 
-        let new_writer = Arc::new(Mutex::new(
+        let new_writer = Arc::new(
             StatefulWriter::new(
                 writer_guid,
                 topic_kind,
@@ -69,7 +69,7 @@ impl ProtocolPublisher for Publisher {
                 heartbeat_period,
                 nack_response_delay,
                 nack_supression_duration,
-            )));
+            ));
         self.group.lock().unwrap().mut_endpoints().push(new_writer.clone());
 
         Box::new(Writer::new(new_writer))

@@ -707,6 +707,11 @@ impl<'reader, T: DDSType> Entity for DataReader<'reader, T> {
 
 impl<'reader, T: DDSType> DomainEntity for DataReader<'reader, T>{}
 
+impl<'reader, T: DDSType> Drop for DataReader<'reader, T> {
+    fn drop(&mut self) {
+        self.parent_subscriber.delete_datareader(self).ok();
+    }
+}
 pub trait AnyDataReader {
     // fn as_any(&self) -> &dyn Any;   
 }

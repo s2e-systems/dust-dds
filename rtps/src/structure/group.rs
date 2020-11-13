@@ -6,7 +6,7 @@ use crate::structure::{RtpsEndpoint, RtpsEntity, };
 pub struct RtpsGroup {
     guid: GUID,
     endpoint_counter: usize,
-    endpoints: Vec<Arc<Mutex<dyn RtpsEndpoint>>>,
+    endpoints: Vec<Arc<dyn RtpsEndpoint>>,
 }
 
 impl RtpsGroup {
@@ -18,18 +18,18 @@ impl RtpsGroup {
         }
     }
 
-    pub fn mut_endpoints(&mut self) -> &mut Vec<Arc<Mutex<dyn RtpsEndpoint>>> {
+    pub fn mut_endpoints(&mut self) -> &mut Vec<Arc<dyn RtpsEndpoint>> {
         &mut self.endpoints
     }
 
-    pub fn endpoints(&self) -> &[Arc<Mutex<dyn RtpsEndpoint>>] {
+    pub fn endpoints(&self) -> &[Arc<dyn RtpsEndpoint>] {
         self.endpoints.as_slice()
     }
 }
 
 impl<'a> IntoIterator for &'a RtpsGroup {
-    type Item = &'a Arc<Mutex<dyn RtpsEndpoint>>;
-    type IntoIter = std::slice::Iter<'a, Arc<Mutex<dyn RtpsEndpoint>>>;
+    type Item = &'a Arc<dyn RtpsEndpoint>;
+    type IntoIter = std::slice::Iter<'a, Arc<dyn RtpsEndpoint>>;
     fn into_iter(self) -> Self::IntoIter {
         self.endpoints.iter()
     }

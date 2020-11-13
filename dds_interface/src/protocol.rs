@@ -1,4 +1,8 @@
-use crate::types::{InstanceHandle, Data, Time, ReturnCode, TopicKind};
+use std::sync::Mutex;
+
+use crate::types::{InstanceHandle, Data, Time, ReturnCode, TopicKind, ChangeKind, ParameterList};
+use crate::cache_change::CacheChange;
+use crate::history_cache::HistoryCache;
 use crate::qos::{DataWriterQos, DataReaderQos};
 
 pub trait ProtocolEntity {
@@ -24,17 +28,9 @@ pub trait ProtocolPublisher : ProtocolEntity {
 }
 
 pub trait ProtocolWriter : ProtocolEntity  {
-    fn write(&mut self, instance_handle: InstanceHandle, data: Data, timestamp: Time) -> ReturnCode<()>;
-
-    fn dispose(&self, instance_handle: InstanceHandle, timestamp: Time) -> ReturnCode<()>;
-
-    fn unregister(&self, instance_handle: InstanceHandle, timestamp: Time) -> ReturnCode<()>;
-
-    fn register(&self, instance_handle: InstanceHandle, timestamp: Time) -> ReturnCode<Option<InstanceHandle>>;
-
-    fn lookup_instance(&self, instance_handle: InstanceHandle) -> Option<InstanceHandle>;
+    fn new_change(&self, kind: ChangeKind, data: Option<Data>, inline_qos: Option<ParameterList>, handle: InstanceHandle) -> CacheChange;
+    fn writer_cache(&self) -> &Mutex<HistoryCache>;
 }
 
 pub trait ProtocolReader: ProtocolEntity {
-
 }

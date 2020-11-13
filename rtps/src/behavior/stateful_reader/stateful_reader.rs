@@ -1,3 +1,4 @@
+use std::sync::Mutex;
 use std::collections::HashMap;
 
 use crate::structure::{RtpsEndpoint, RtpsEntity};
@@ -37,10 +38,10 @@ pub struct StatefulReader {
     expects_inline_qos: bool,
     heartbeat_response_delay: Duration,
 
-    reader_cache: HistoryCache,
+    reader_cache: Mutex<HistoryCache>,
 
     // Fields
-    matched_writers: HashMap<GUID, WriterProxyFlavor>,
+    matched_writers: Mutex<HashMap<GUID, WriterProxyFlavor>>,
 
     // Additional fields:
     listener: Box<dyn StatefulReaderListener>,
@@ -62,24 +63,26 @@ impl StatefulReader {
                 reliability_level,
                 expects_inline_qos,
                 heartbeat_response_delay,       
-                reader_cache,
-                matched_writers: HashMap::new(),
+                reader_cache: Mutex::new(reader_cache),
+                matched_writers: Mutex::new(HashMap::new()),
                 listener: Box::new(listener),
             }
     }
 
-    pub fn try_process_message(&mut self, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>) {
-        for (_writer_guid, writer_proxy) in self.matched_writers.iter_mut() {
+    pub fn try_process_message(&self, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>) {
+        let mut matched_writers = self.matched_writers.lock().unwrap();
+        for (_writer_guid, writer_proxy) in matched_writers.iter_mut() {
             match writer_proxy {
-                WriterProxyFlavor::BestEffort(best_effort_writer_proxy) => best_effort_writer_proxy.try_process_message(src_guid_prefix, submessage, &mut self.reader_cache, self.listener.as_ref()),
-                WriterProxyFlavor::Reliable(reliable_writer_proxy) => reliable_writer_proxy.try_process_message(src_guid_prefix, submessage, &mut self.reader_cache, self.listener.as_ref()),
+                WriterProxyFlavor::BestEffort(best_effort_writer_proxy) => best_effort_writer_proxy.try_process_message(src_guid_prefix, submessage, &mut self.reader_cache.lock().unwrap(), self.listener.as_ref()),
+                WriterProxyFlavor::Reliable(reliable_writer_proxy) => reliable_writer_proxy.try_process_message(src_guid_prefix, submessage, &mut self.reader_cache.lock().unwrap(), self.listener.as_ref()),
             }
         }
     }
 
-    pub fn produce_messages(&mut self) -> Vec<DestinedMessages> {
+    pub fn produce_messages(&self) -> Vec<DestinedMessages> {
+        let mut matched_writers = self.matched_writers.lock().unwrap();
         let mut output = Vec::new();
-        for (_writer_guid, writer_proxy) in self.matched_writers.iter_mut(){
+        for (_writer_guid, writer_proxy) in matched_writers.iter_mut(){
             match writer_proxy {
                 WriterProxyFlavor::BestEffort(_) => (),
                 WriterProxyFlavor::Reliable(reliable_writer_proxy) => {
@@ -98,31 +101,21 @@ impl StatefulReader {
 
     }
     
-    pub fn matched_writer_add(&mut self, a_writer_proxy: WriterProxy) {
+    pub fn matched_writer_add(&self, a_writer_proxy: WriterProxy) {
         let remote_writer_guid = a_writer_proxy.remote_writer_guid().clone();
         let writer_proxy = match self.reliability_level {
             ReliabilityKind::Reliable => WriterProxyFlavor::Reliable(ReliableWriterProxy::new(a_writer_proxy)),
             ReliabilityKind::BestEffort => WriterProxyFlavor::BestEffort(BestEffortWriterProxy::new(a_writer_proxy)),
         };
         
-        self.matched_writers.insert(remote_writer_guid, writer_proxy);
+        self.matched_writers.lock().unwrap().insert(remote_writer_guid, writer_proxy);
     }
 
-    pub fn matched_writer_remove(&mut self, writer_proxy_guid: &GUID) {
-        self.matched_writers.remove(writer_proxy_guid);
+    pub fn matched_writer_remove(&self, writer_proxy_guid: &GUID) {
+        self.matched_writers.lock().unwrap().remove(writer_proxy_guid);
     }
 
-    pub fn matched_writer_lookup(&self, a_writer_guid: GUID) -> Option<&WriterProxy> {
-        match self.matched_writers.get(&a_writer_guid) {
-            Some(writer_proxy_flavor) => match writer_proxy_flavor {
-                WriterProxyFlavor::BestEffort(wp) => Some(wp.writer_proxy()),
-                WriterProxyFlavor::Reliable(wp) => Some(wp.writer_proxy()),
-            }
-            None => None,
-        }
-    }
-
-    pub fn reader_cache(&self) -> &HistoryCache {
+    pub fn reader_cache(&self) -> &Mutex<HistoryCache> {
         &self.reader_cache
     }
 
