@@ -17,7 +17,7 @@ use crate::messages::submessages::Data;
 use crate::messages::submessages::data_submessage::Payload;
 use crate::messages::types::{KeyHash, StatusInfo};
 
-use rust_dds_interface::types::ChangeKind;
+use rust_dds_interface::types::{ChangeKind,ParameterList};
 use rust_dds_interface::cache_change::CacheChange;
 
 pub const BEHAVIOR_ENDIANNESS: Endianness = Endianness::LittleEndian;
@@ -50,33 +50,36 @@ fn cache_change_from_data(message: Data, guid_prefix: &GuidPrefix) -> CacheChang
 }
 
 fn data_from_cache_change(cache_change: &CacheChange, reader_id: EntityId) -> Data {
-    // let writer_id: EntityId = cache_change.writer_guid().entity_id();
-    // let writer_sn = cache_change.sequence_number();
+    let writer_guid: GUID = cache_change.writer_guid().try_into().unwrap();
+    let writer_id = writer_guid.entity_id();
+    let writer_sn = cache_change.sequence_number();
 
-    // let mut inline_qos_parameters = cache_change.inline_qos().clone();
+    let mut inline_qos_parameters = match cache_change.inline_qos() {
+        Some(parameter_list) => parameter_list.clone(),
+        None => ParameterList::new(),
+    };
 
-    // let change_kind = cache_change.change_kind();
-    // inline_qos_parameters.push(change_kind_to_status_info(change_kind));
+    let change_kind = cache_change.change_kind();
+    inline_qos_parameters.parameter.push(change_kind_to_status_info(change_kind).into());
 
-    // let payload = match change_kind {
-    //     ChangeKind::Alive => {
-    //         inline_qos_parameters.push(KeyHash(cache_change.instance_handle()));
-    //         Payload::Data(cache_change.data_value().clone())
-    //     },
-    //     ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered | ChangeKind::AliveFiltered => {
-    //         Payload::Key(cache_change.instance_handle().to_vec())
-    //     }
-    // };
+    let payload = match change_kind {
+        ChangeKind::Alive => {
+            inline_qos_parameters.parameter.push(KeyHash(cache_change.instance_handle()).into());
+            Payload::Data(cache_change.data_value().unwrap().clone())
+        },
+        ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered | ChangeKind::AliveFiltered => {
+            Payload::Key(cache_change.instance_handle().to_vec())
+        }
+    };
 
-    // Data::new(
-    //     BEHAVIOR_ENDIANNESS,
-    //     reader_id,
-    //     writer_id,
-    //     writer_sn,
-    //     Some(inline_qos_parameters),
-    //     payload,
-    // )
-    todo!()
+    Data::new(
+        BEHAVIOR_ENDIANNESS,
+        reader_id,
+        writer_id,
+        writer_sn,
+        Some(inline_qos_parameters),
+        payload,
+    )
 }
 
 fn change_kind(data_submessage: &Data) -> ChangeKind{

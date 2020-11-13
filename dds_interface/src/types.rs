@@ -71,7 +71,7 @@ pub enum ChangeKind {
 
 pub type ParameterId = i16;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Parameter {
     parameter_id: ParameterId,
     length: i16, // length is rounded up to multple of 4
@@ -99,7 +99,7 @@ impl Parameter {
         &self.value
     }
 }
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct ParameterList {
     pub parameter: Vec<Parameter>,
 }

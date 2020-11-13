@@ -4,6 +4,7 @@
 ///  
 
 use num_derive::FromPrimitive;
+use std::convert::{TryFrom, TryInto};
 use serde::{Serialize, Deserialize};
 
 pub mod constants {
@@ -123,6 +124,17 @@ impl From<GUID> for rust_dds_interface::types::InstanceHandle {
         instance_handle[12..15].copy_from_slice(&guid.entity_id.entity_key);
         instance_handle[15] = guid.entity_id.entity_kind as u8;
         instance_handle
+    }
+}
+
+impl TryFrom<rust_dds_interface::types::InstanceHandle> for GUID {
+    type Error = ();
+    fn try_from(value: rust_dds_interface::types::InstanceHandle) -> Result<Self, Self::Error> {
+        let prefix = value[0..12].try_into().unwrap();
+        let entity_key = value[12..15].try_into().unwrap();
+        let entity_kind = num::FromPrimitive::from_u8(value[15]).unwrap();
+        let entity_id = EntityId::new(entity_key, entity_kind);
+        Ok(GUID::new(prefix, entity_id))
     }
 }
 

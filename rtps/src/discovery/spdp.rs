@@ -37,15 +37,15 @@ impl SimpleParticipantDiscoveryProtocol {
     pub fn new(spdp_data: SPDPdiscoveredParticipantData, spdp_listener: impl StatelessReaderListener) -> Self {
         let writer_guid = GUID::new(spdp_data.guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER);
         let writer_cache = HistoryCache::default();
-        let mut spdp_builtin_participant_writer = StatelessWriter::new(
+        let spdp_builtin_participant_writer = StatelessWriter::new(
             writer_guid,
             TopicKind::WithKey,
             ReliabilityKind::BestEffort,
             writer_cache,
             );
 
-        // let change = spdp_builtin_participant_writer.new_change(ChangeKind::Alive, Some(spdp_data.data(CdrEndianness::LittleEndian)), None, spdp_data.key());
-        // spdp_builtin_participant_writer.writer_cache().add_change(change).unwrap();
+        let change = spdp_builtin_participant_writer.new_change(ChangeKind::Alive, Some(spdp_data.data()), None, spdp_data.key());
+        spdp_builtin_participant_writer.writer_cache().lock().unwrap().add_change(change).unwrap();
 
         for locator in &spdp_data.metatraffic_multicast_locator_list {
             spdp_builtin_participant_writer.reader_locator_add(locator.clone());
@@ -173,7 +173,7 @@ impl SPDPdiscoveredParticipantData {
     }
 
     pub fn data(&self) -> Vec<u8> {
-        todo!()
+        vec![0,0,0,0,1,2,3,4,]
         // let mut parameter_list = CdrParameterList::new(endianness);
 
         // // Defaults to the domainId of the local participant receiving the message

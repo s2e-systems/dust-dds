@@ -349,6 +349,8 @@ pub fn serialize_parameter_list(parameter_list: &ParameterList, writer: &mut imp
         serialize_short(&parameter.length(), writer, endianness)?;
         writer.write(parameter.value())?;
     }
+    serialize_ushort(&1, writer, endianness)?; // PID_SENTINEL
+    writer.write(&[0,0])?;  // LENGTH
     Ok(())
 }
 

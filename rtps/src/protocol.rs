@@ -1,4 +1,5 @@
 use std::sync::{Arc, Mutex};
+use std::thread::JoinHandle;
 
 use crate::types::{GUID, EntityId, EntityKind};
 use crate::transport::Transport;
@@ -25,6 +26,7 @@ pub struct RtpsProtocol {
     metatraffic_transport: Arc<dyn Transport>,
     publisher_counter: usize,
     subscriber_counter: usize,
+    thread_handles: Vec<JoinHandle<()>>,
 }
 
 impl RtpsProtocol {
@@ -83,6 +85,7 @@ impl RtpsProtocol {
             metatraffic_transport,
             publisher_counter: 0,
             subscriber_counter: 0,
+            thread_handles: Vec::new(),
         }
     }
 
@@ -109,7 +112,21 @@ impl ProtocolEntity for RtpsProtocol {
         self.participant.guid().into()
     }
 
-    fn enable(&self) -> ReturnCode<()> {
+    fn enable(&mut self) -> ReturnCode<()> {
+        let participant_guid_prefix = self.participant.guid().prefix();
+        let metatraffic_transport = self.metatraffic_transport.clone();
+        let builtin_publisher = self.builtin_publisher.clone();
+        let builtin_subscriber = self.builtin_subscriber.clone();
+
+        let handle = std::thread::spawn(move ||
+            RtpsMessageSender::send(
+                participant_guid_prefix, 
+                metatraffic_transport.as_ref(),
+                builtin_publisher.lock().unwrap().into_iter()
+                .chain(builtin_subscriber.lock().unwrap().into_iter()))
+            );
+
+        self.thread_handles.push(handle);
         Ok(()) // TODO
     }
 }

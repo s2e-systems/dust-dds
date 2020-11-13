@@ -25,7 +25,7 @@ impl Subscriber {
 }
 
 impl ProtocolEntity for Subscriber {
-    fn enable(&self) -> ReturnCode<()> {
+    fn enable(&mut self) -> ReturnCode<()> {
         todo!()
     }
 

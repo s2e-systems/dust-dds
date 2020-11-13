@@ -25,7 +25,7 @@ impl Publisher {
 }
 
 impl ProtocolEntity for Publisher {
-    fn enable(&self) -> ReturnCode<()> {
+    fn enable(&mut self) -> ReturnCode<()> {
         todo!()
     }
 

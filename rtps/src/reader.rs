@@ -17,7 +17,7 @@ impl Reader {
 }
 
 impl ProtocolEntity for Reader {
-    fn enable(&self) -> ReturnCode<()> {
+    fn enable(&mut self) -> ReturnCode<()> {
         todo!()
     }
 

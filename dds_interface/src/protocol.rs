@@ -6,7 +6,7 @@ use crate::history_cache::HistoryCache;
 use crate::qos::{DataWriterQos, DataReaderQos};
 
 pub trait ProtocolEntity {
-    fn enable(&self) -> ReturnCode<()>;
+    fn enable(&mut self) -> ReturnCode<()>;
     fn get_instance_handle(&self) -> InstanceHandle;
 }
 

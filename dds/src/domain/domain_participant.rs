@@ -69,7 +69,7 @@ impl DomainParticipant {
         use rust_rtps::transport::udp::UdpTransport;
         use rust_rtps::protocol::RtpsProtocol;
 
-        let interface = "Ethernet";
+        let interface = "Wi-Fi";
         let userdata_transport = UdpTransport::default_userdata_transport(domain_id, interface).unwrap();
         let metatraffic_transport = UdpTransport::default_metatraffic_transport(domain_id, interface).unwrap();
         let domain_tag = "".to_string();
@@ -608,8 +608,8 @@ impl Entity for DomainParticipant
         todo!()
     }
 
-    fn enable(&self, ) -> ReturnCode<()> {
-       Ok(())
+    fn enable(&self) -> ReturnCode<()> {
+        self.protocol_participant.lock().unwrap().enable()
     }
 
     fn get_instance_handle(&self) -> ReturnCode<InstanceHandle> {
@@ -626,7 +626,7 @@ mod tests {
     struct MockProtocolParticipant;
 
     impl ProtocolEntity for MockProtocolParticipant {
-        fn enable(&self) -> ReturnCode<()> {
+        fn enable(&mut self) -> ReturnCode<()> {
             todo!()
         }
 
@@ -658,7 +658,7 @@ mod tests {
 
     struct MockProtocolPublisher;
     impl ProtocolEntity for MockProtocolPublisher {
-        fn enable(&self) -> ReturnCode<()> {
+        fn enable(&mut self) -> ReturnCode<()> {
             todo!()
         }
 
@@ -679,7 +679,7 @@ mod tests {
 
     struct MockProtocolSubscriber;
     impl ProtocolEntity for MockProtocolSubscriber {
-        fn enable(&self) -> ReturnCode<()> {
+        fn enable(&mut self) -> ReturnCode<()> {
             todo!()
         }
 

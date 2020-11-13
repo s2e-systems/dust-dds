@@ -20,7 +20,7 @@ impl Writer {
 
 
 impl ProtocolEntity for Writer {
-    fn enable(&self) -> ReturnCode<()> {
+    fn enable(&mut self) -> ReturnCode<()> {
         todo!()
     }
 

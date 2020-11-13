@@ -128,18 +128,6 @@ impl StatefulReader {
     }
 }
 
-impl ProtocolEntity for StatefulReader {
-    fn enable(&self) -> ReturnCode<()> {
-        todo!()
-    }
-
-    fn get_instance_handle(&self) -> InstanceHandle {
-        self.guid.into()
-    }
-}
-
-impl ProtocolReader for StatefulReader {}
-
 impl RtpsEntity for StatefulReader {
     fn guid(&self) -> GUID {
         self.guid
