@@ -96,8 +96,8 @@ pub type FragmentNumber = u32;
 
 // /////////// KeyHash and StatusInfo /////////////
 
-const PID_KEY_HASH : ParameterId = 0x0070;
-const PID_STATUS_INFO : ParameterId = 0x0071;
+pub const PID_KEY_HASH : ParameterId = 0x0070;
+pub const PID_STATUS_INFO : ParameterId = 0x0071;
 #[derive(Debug, PartialEq, Clone, Copy, Eq)]
 pub struct KeyHash(pub [u8; 16]);
 

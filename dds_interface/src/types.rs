@@ -105,6 +105,8 @@ pub struct ParameterList {
 }
 
 impl ParameterList {
+    pub const PID_SENTINEL : ParameterId = 0x0001;
+    
     pub fn new() -> Self {
         Self {
             parameter: Vec::new(),

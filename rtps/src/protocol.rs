@@ -47,7 +47,16 @@ impl RtpsProtocol {
             metatraffic_transport.multicast_locator_list().clone(), 
             userdata_transport.unicast_locator_list().clone(),
             userdata_transport.multicast_locator_list().clone(),
-            BuiltInEndpointSet::new(0),
+            BuiltInEndpointSet::new(
+                BuiltInEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_ANNOUNCER | 
+                BuiltInEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR |
+                BuiltInEndpointSet::BUILTIN_ENDPOINT_PUBLICATIONS_ANNOUNCER |
+                BuiltInEndpointSet::BUILTIN_ENDPOINT_PUBLICATIONS_DETECTOR |
+                BuiltInEndpointSet::BUILTIN_ENDPOINT_SUBSCRIPTIONS_ANNOUNCER |
+                BuiltInEndpointSet::BUILTIN_ENDPOINT_SUBSCRIPTIONS_DETECTOR |
+                BuiltInEndpointSet::BUILTIN_ENDPOINT_TOPICS_ANNOUNCER |
+                BuiltInEndpointSet::BUILTIN_ENDPOINT_TOPICS_DETECTOR
+             ),
             lease_duration,
         );
 
@@ -119,12 +128,19 @@ impl ProtocolEntity for RtpsProtocol {
         let builtin_subscriber = self.builtin_subscriber.clone();
 
         let handle = std::thread::spawn(move ||
+        {
             RtpsMessageSender::send(
                 participant_guid_prefix, 
                 metatraffic_transport.as_ref(),
                 builtin_publisher.lock().unwrap().into_iter()
-                .chain(builtin_subscriber.lock().unwrap().into_iter()))
-            );
+                .chain(builtin_subscriber.lock().unwrap().into_iter()));
+
+            RtpsMessageReceiver::receive(
+                participant_guid_prefix, 
+                metatraffic_transport.as_ref(),
+                builtin_publisher.lock().unwrap().into_iter()
+                .chain(builtin_subscriber.lock().unwrap().into_iter()));
+        });
 
         self.thread_handles.push(handle);
         Ok(()) // TODO

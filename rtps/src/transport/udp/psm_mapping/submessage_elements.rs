@@ -355,10 +355,34 @@ pub fn serialize_parameter_list(parameter_list: &ParameterList, writer: &mut imp
 }
 
 pub fn deserialize_parameter_list(bytes: &[u8], endianness: Endianness) -> UdpPsmMappingResult<ParameterList> {
-    // let mut parameter = Vec::new();
-    
-    // Ok(ParameterList{parameter})
-    todo!()
+    let mut parameter_start_index: usize = 0;
+    let mut parameter_list = ParameterList::new();
+    loop {
+        let (parameter_id, length) = match endianness {
+            Endianness::BigEndian => {
+                let parameter_id = i16::from_be_bytes(bytes[parameter_start_index..parameter_start_index+2].try_into().unwrap());
+                let length = i16::from_be_bytes(bytes[parameter_start_index+2..parameter_start_index+4].try_into().unwrap());
+                (parameter_id, length)
+            },
+            Endianness::LittleEndian => {
+                let parameter_id = i16::from_le_bytes(bytes[parameter_start_index..parameter_start_index+2].try_into().unwrap());
+                let length = i16::from_le_bytes(bytes[parameter_start_index+2..parameter_start_index+4].try_into().unwrap());
+                (parameter_id, length)
+            },
+        };
+
+        if parameter_id == ParameterList::PID_SENTINEL {
+            break;
+        }     
+
+        let bytes_end = parameter_start_index + (length + 4) as usize;
+        let value = Vec::from(&bytes[parameter_start_index+4..bytes_end]);
+        parameter_start_index = bytes_end;
+
+        parameter_list.parameter.push(rust_dds_interface::types::Parameter::new(parameter_id, value));
+    }
+
+    Ok(parameter_list)
 }
 
 

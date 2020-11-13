@@ -15,7 +15,7 @@ use crate::types::{GUID, GuidPrefix, EntityId, Locator,};
 use crate::messages::{types::Endianness, RtpsSubmessage};
 use crate::messages::submessages::Data;
 use crate::messages::submessages::data_submessage::Payload;
-use crate::messages::types::{KeyHash, StatusInfo};
+use crate::messages::types::{KeyHash, StatusInfo, PID_KEY_HASH, PID_STATUS_INFO};
 
 use rust_dds_interface::types::{ChangeKind,ParameterList};
 use rust_dds_interface::cache_change::CacheChange;
@@ -29,24 +29,23 @@ pub enum DestinedMessages {
 
 
 fn cache_change_from_data(message: Data, guid_prefix: &GuidPrefix) -> CacheChange {
-    // let writer_id = message.writer_id();
-    // let writer_sn = message.writer_sn();
-    // let change_kind = change_kind(&message);
-    // let key_hash = key_hash(&message).unwrap();
-    // let (data, mut inline_qos) = message.take_payload_and_qos();
+    let writer_id = message.writer_id();
+    let writer_sn = message.writer_sn();
+    let change_kind = change_kind(&message);
+    let key_hash = key_hash(&message).unwrap();
+    let (data, mut inline_qos) = message.take_payload_and_qos();
 
-    // // inline_qos.remove::<KeyHash>();
-    // // inline_qos.remove::<StatusInfo>();
+    inline_qos.parameter.retain(|x| x.parameter_id() != PID_KEY_HASH);
+    inline_qos.parameter.retain(|x| x.parameter_id() != PID_STATUS_INFO);
 
-    // CacheChange::new(
-    //     change_kind,
-    //     GUID::new(*guid_prefix, writer_id ).into(),
-    //     key_hash.0,
-    //     writer_sn,
-    //     Some(data),
-    //     Some(inline_qos),
-    // )
-    todo!()
+    CacheChange::new(
+        change_kind,
+        GUID::new(*guid_prefix, writer_id ).into(),
+        key_hash.0,
+        writer_sn,
+        Some(data),
+        Some(inline_qos),
+    )
 }
 
 fn data_from_cache_change(cache_change: &CacheChange, reader_id: EntityId) -> Data {
@@ -87,10 +86,15 @@ fn change_kind(data_submessage: &Data) -> ChangeKind{
         ChangeKind::Alive
     } else if !data_submessage.data_flag() && data_submessage.key_flag() {
         // let endianness = Endianness::from(data_submessage.endianness_flag()).into();
-        // let status_info = data_submessage.inline_qos().find::<StatusInfo>(endianness).unwrap();           
+        let status_info = data_submessage
+            .inline_qos()
+            .parameter
+            .iter()
+            .find(|&x| x.parameter_id() == PID_STATUS_INFO)
+            .unwrap()
+            .clone();
 
-        // status_info_to_change_kind(status_info).unwrap()
-        todo!()
+        status_info_to_change_kind(status_info.try_into().unwrap()).unwrap()
     }
     else {
         panic!("Invalid change kind combination")
@@ -99,8 +103,15 @@ fn change_kind(data_submessage: &Data) -> ChangeKind{
 
 fn key_hash(data_submessage: &Data) -> Option<KeyHash> {
     if data_submessage.data_flag() && !data_submessage.key_flag() {
-        // data_submessage.inline_qos().find::<KeyHash>(Endianness::from(data_submessage.endianness_flag()).into())
-        todo!()
+        Some(data_submessage
+        .inline_qos()
+        .parameter
+        .iter()
+        .find(|&x| x.parameter_id() == PID_KEY_HASH)
+        .unwrap()
+        .clone()
+        .try_into()
+        .unwrap())
     } else if !data_submessage.data_flag() && data_submessage.key_flag() {
         let payload = &data_submessage.serialized_payload(); 
         Some(KeyHash(payload[0..16].try_into().ok()?))
