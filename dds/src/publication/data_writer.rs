@@ -1,17 +1,17 @@
-use std::any::Any;
-use std::sync::Weak;
+use std::sync::{Arc, Weak};
 
 use std::marker::PhantomData;
 use crate::types::DDSType;
-use rust_dds_interface::types::{InstanceHandle, Time, ReturnCode, Duration};
+use rust_dds_interface::types::{InstanceHandle, Time, ReturnCode, Duration, ReturnCodes};
 
 use crate::infrastructure::status::{LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus, StatusMask};
 use crate::topic::Topic;
-use crate::publication::publisher::{Publisher, PublisherImpl};
+use crate::publication::publisher::Publisher;
 use crate::infrastructure::entity::Entity;
 use crate::infrastructure::entity::DomainEntity;
 use crate::publication::data_writer_listener::DataWriterListener;
 use crate::builtin_topics::SubscriptionBuiltinTopicData;
+
 use rust_dds_interface::qos::DataWriterQos;
 
 pub(crate) trait AnyDataWriterImpl{}
@@ -379,10 +379,18 @@ impl<'writer,T: DDSType> DataWriter<'writer, T> {
         todo!()
     }
 
+    // ////// From here on are function that do not belong to the standard API
     pub(crate) fn new(parent_publisher: &'writer Publisher<'writer>, writer_impl: Weak<DataWriterImpl<T>>) -> Self {
         Self {
             parent_publisher,
             inner: writer_impl,
+        }
+    }
+
+    pub(crate) fn datawriter_impl(&self) -> ReturnCode<Arc<DataWriterImpl<T>>> {
+        match self.inner.upgrade() {
+            Some(datawriter_impl) => Ok(datawriter_impl),
+            None => Err(ReturnCodes::AlreadyDeleted("Data writer already deleted")),
         }
     }
 }

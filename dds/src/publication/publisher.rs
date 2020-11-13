@@ -87,8 +87,16 @@ impl<'publisher> Publisher<'publisher> {
         &self,
         a_datawriter: &DataWriter<T>
     ) -> ReturnCode<()> {
-        // PublisherImpl::delete_datawriter(&self.0, &a_datawriter)
-        todo!()
+        let publisher_impl = self.publisher_impl()?;
+        let datawriter_impl: Arc<dyn AnyDataWriterImpl> = a_datawriter.datawriter_impl()?;
+        let mut datawriter_list = publisher_impl.datawriter_list.lock().unwrap();
+        let datawriter_index = datawriter_list
+            .iter()
+            .position(|x| Arc::ptr_eq(x,&datawriter_impl))
+            .ok_or(ReturnCodes::PreconditionNotMet("Publisher can only be deleted by its parent participant"))?;
+        
+        datawriter_list.remove(datawriter_index);
+        Ok(())
     }
 
     /// This operation retrieves a previously created DataWriter belonging to the Publisher that is attached to a Topic with a matching
