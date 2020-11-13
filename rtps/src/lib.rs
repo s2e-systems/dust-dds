@@ -19,6 +19,7 @@ pub mod discovery;
 
 pub mod transport;
 
+pub mod serialized_payload;
 
 pub use behavior::types as behavior_types;
 

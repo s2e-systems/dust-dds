@@ -1,6 +1,9 @@
 use std::sync::{Arc, Mutex};
 use std::convert::TryInto;
-use rust_dds_interface::types::{TopicKind, DomainId, InstanceHandle, ChangeKind};
+
+use serde::{Serialize,Deserialize};
+
+use rust_dds_interface::types::{TopicKind, DomainId, InstanceHandle, ChangeKind, ParameterId};
 use rust_dds_interface::history_cache::HistoryCache;
 
 use crate::types::{GuidPrefix, GUID, Locator, ProtocolVersion, VendorId, ReliabilityKind};
@@ -11,20 +14,22 @@ use crate::types::constants::{ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, ENTIT
 use crate::messages::types::Count;
 use crate::behavior::types::Duration;
 
+use crate::serialized_payload::{CdrParameterList, CdrEndianness};
+
 use crate::endpoint_types::{
     BuiltInEndpointSet,
-    // ParameterDomainId,
-    // ParameterDomainTag,
-    // ParameterProtocolVersion,
-    // ParameterVendorId,
-    // ParameterExpectsInlineQoS,
-    // ParameterMetatrafficUnicastLocator, 
-    // ParameterMetatrafficMulticastLocator, 
-    // ParameterDefaultUnicastLocator, 
-    // ParameterDefaultMulticastLocator,
-    // ParameterBuiltInEndpointSet, 
-    // ParameterParticipantLeaseDuration,
-    // ParameterParticipantManualLivelinessCount, 
+    ParameterDomainId,
+    ParameterDomainTag,
+    ParameterProtocolVersion,
+    ParameterVendorId,
+    ParameterExpectsInlineQoS,
+    ParameterMetatrafficUnicastLocator, 
+    ParameterMetatrafficMulticastLocator, 
+    ParameterDefaultUnicastLocator, 
+    ParameterDefaultMulticastLocator,
+    ParameterBuiltInEndpointSet, 
+    ParameterParticipantLeaseDuration,
+    ParameterParticipantManualLivelinessCount, 
     };
 
 
@@ -173,96 +178,95 @@ impl SPDPdiscoveredParticipantData {
     }
 
     pub fn data(&self) -> Vec<u8> {
-        vec![0,0,0,0,1,2,3,4,]
-        // let mut parameter_list = CdrParameterList::new(endianness);
+        let mut parameter_list = CdrParameterList::new(CdrEndianness::LittleEndian);
 
-        // // Defaults to the domainId of the local participant receiving the message
-        // // TODO: Add the chance of sending a specific domain_id
-        // // parameter_list.push(ParameterDomainId(self.domain_id));
+        // Defaults to the domainId of the local participant receiving the message
+        // TODO: Add the chance of sending a specific domain_id
+        // parameter_list.push(ParameterDomainId(self.domain_id));
 
-        // if self.domain_tag != ParameterDomainTag::default() {
-        //     parameter_list.push(ParameterDomainTag(self.domain_tag.clone()));
-        // }
+        if self.domain_tag != ParameterDomainTag::default() {
+            parameter_list.push(ParameterDomainTag(self.domain_tag.clone()));
+        }
 
-        // parameter_list.push(ParameterProtocolVersion(self.protocol_version));
+        parameter_list.push(ParameterProtocolVersion(self.protocol_version));
 
-        // parameter_list.push(ParameterVendorId(self.vendor_id));
+        parameter_list.push(ParameterVendorId(self.vendor_id));
 
-        // if self.expects_inline_qos != ParameterExpectsInlineQoS::default() {
-        //     parameter_list.push(ParameterExpectsInlineQoS(self.expects_inline_qos));
-        // }
+        if self.expects_inline_qos != ParameterExpectsInlineQoS::default() {
+            parameter_list.push(ParameterExpectsInlineQoS(self.expects_inline_qos));
+        }
 
-        // for metatraffic_unicast_locator in &self.metatraffic_unicast_locator_list {
-        //     parameter_list.push(ParameterMetatrafficUnicastLocator(*metatraffic_unicast_locator));
-        // }
+        for metatraffic_unicast_locator in &self.metatraffic_unicast_locator_list {
+            parameter_list.push(ParameterMetatrafficUnicastLocator(*metatraffic_unicast_locator));
+        }
 
-        // for metatraffic_multicast_locator in &self.metatraffic_multicast_locator_list {
-        //     parameter_list.push(ParameterMetatrafficMulticastLocator(*metatraffic_multicast_locator));
-        // }
+        for metatraffic_multicast_locator in &self.metatraffic_multicast_locator_list {
+            parameter_list.push(ParameterMetatrafficMulticastLocator(*metatraffic_multicast_locator));
+        }
 
-        // for default_unicast_locator in &self.default_unicast_locator_list {
-        //     parameter_list.push(ParameterDefaultUnicastLocator(*default_unicast_locator));
-        // }
+        for default_unicast_locator in &self.default_unicast_locator_list {
+            parameter_list.push(ParameterDefaultUnicastLocator(*default_unicast_locator));
+        }
 
-        // for default_multicast_locator in &self.default_multicast_locator_list {
-        //     parameter_list.push(ParameterDefaultMulticastLocator(*default_multicast_locator));
-        // }
+        for default_multicast_locator in &self.default_multicast_locator_list {
+            parameter_list.push(ParameterDefaultMulticastLocator(*default_multicast_locator));
+        }
 
-        // parameter_list.push(ParameterBuiltInEndpointSet(self.available_built_in_endpoints));
+        parameter_list.push(ParameterBuiltInEndpointSet(self.available_built_in_endpoints));
 
-        // if self.lease_duration != ParameterParticipantLeaseDuration::default() {
-        //     parameter_list.push(ParameterParticipantLeaseDuration(self.lease_duration));
-        // }
+        if self.lease_duration != ParameterParticipantLeaseDuration::default() {
+            parameter_list.push(ParameterParticipantLeaseDuration(self.lease_duration));
+        }
 
-        // parameter_list.push(ParameterParticipantManualLivelinessCount(self.manual_liveliness_count));
+        parameter_list.push(ParameterParticipantManualLivelinessCount(self.manual_liveliness_count));
 
-        // parameter_list.as_bytes()
+        parameter_list.as_bytes()
     }
 
     pub fn from_key_data(key: InstanceHandle, data: &[u8], default_domain_id: DomainId) -> Self {
-        todo!()
-        // let guid_prefix: GuidPrefix = key[0..12].try_into().unwrap();
+        let guid_prefix: GuidPrefix = key[0..12].try_into().unwrap();
 
-        // let parameter_list = CdrParameterList::from_bytes(&data);
+        let parameter_list = CdrParameterList::from_bytes(&data);
 
-        // let domain_id = parameter_list.find::<ParameterDomainId>().unwrap_or(ParameterDomainId(default_domain_id)).0;
-        // let domain_tag = parameter_list.find::<ParameterDomainTag>().unwrap_or_default().0;
-        // let protocol_version = parameter_list.find::<ParameterProtocolVersion>().unwrap().0;
-        // let vendor_id = parameter_list.find::<ParameterVendorId>().unwrap().0;
-        // let expects_inline_qos = parameter_list.find::<ParameterExpectsInlineQoS>().unwrap_or_default().0;
-        // let metatraffic_unicast_locator_list = 
-        //     parameter_list.find_all::<ParameterMetatrafficUnicastLocator>()
-        //     .iter().map(|x|x.0).collect();
-        // let metatraffic_multicast_locator_list = 
-        //     parameter_list.find_all::<ParameterMetatrafficMulticastLocator>()
-        //     .iter().map(|x|x.0).collect();
-        // let default_unicast_locator_list = 
-        //     parameter_list.find_all::<ParameterDefaultUnicastLocator>()
-        //     .iter().map(|x|x.0).collect();
-        // let default_multicast_locator_list = 
-        //     parameter_list.find_all::<ParameterDefaultMulticastLocator>()
-        //     .iter().map(|x|x.0).collect();
-        // let available_built_in_endpoints = parameter_list.find::<ParameterBuiltInEndpointSet>().unwrap().0;
-        // let lease_duration = parameter_list.find::<ParameterParticipantLeaseDuration>().unwrap_or_default().0;
-        // let manual_liveliness_count = parameter_list.find::<ParameterParticipantManualLivelinessCount>().unwrap().0;
+        let domain_id = parameter_list.find::<ParameterDomainId>().unwrap_or(ParameterDomainId(default_domain_id)).0;
+        let domain_tag = parameter_list.find::<ParameterDomainTag>().unwrap_or_default().0;
+        let protocol_version = parameter_list.find::<ParameterProtocolVersion>().unwrap().0;
+        let vendor_id = parameter_list.find::<ParameterVendorId>().unwrap().0;
+        let expects_inline_qos = parameter_list.find::<ParameterExpectsInlineQoS>().unwrap_or_default().0;
+        let metatraffic_unicast_locator_list = 
+            parameter_list.find_all::<ParameterMetatrafficUnicastLocator>()
+            .iter().map(|x|x.0).collect();
+        let metatraffic_multicast_locator_list = 
+            parameter_list.find_all::<ParameterMetatrafficMulticastLocator>()
+            .iter().map(|x|x.0).collect();
+        let default_unicast_locator_list = 
+            parameter_list.find_all::<ParameterDefaultUnicastLocator>()
+            .iter().map(|x|x.0).collect();
+        let default_multicast_locator_list = 
+            parameter_list.find_all::<ParameterDefaultMulticastLocator>()
+            .iter().map(|x|x.0).collect();
+        let available_built_in_endpoints = parameter_list.find::<ParameterBuiltInEndpointSet>().unwrap().0;
+        let lease_duration = parameter_list.find::<ParameterParticipantLeaseDuration>().unwrap_or_default().0;
+        let manual_liveliness_count = parameter_list.find::<ParameterParticipantManualLivelinessCount>().unwrap().0;
 
-        // Self{
-        //     domain_id,
-        //     domain_tag,
-        //     protocol_version,
-        //     guid_prefix,
-        //     vendor_id,
-        //     expects_inline_qos,
-        //     metatraffic_unicast_locator_list,
-        //     metatraffic_multicast_locator_list,
-        //     default_unicast_locator_list,
-        //     default_multicast_locator_list,
-        //     available_built_in_endpoints,
-        //     lease_duration,
-        //     manual_liveliness_count,
-        // }
+        Self{
+            domain_id,
+            domain_tag,
+            protocol_version,
+            guid_prefix,
+            vendor_id,
+            expects_inline_qos,
+            metatraffic_unicast_locator_list,
+            metatraffic_multicast_locator_list,
+            default_unicast_locator_list,
+            default_multicast_locator_list,
+            available_built_in_endpoints,
+            lease_duration,
+            manual_liveliness_count,
+        }
     }
 }
+
 
 #[cfg(test)]
 mod tests {
