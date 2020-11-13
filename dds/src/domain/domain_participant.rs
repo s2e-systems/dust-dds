@@ -260,8 +260,8 @@ impl DomainParticipant {
     /// If the operation times-out, a ‘nil’ value (as specified by the platform) is returned.
     pub fn find_topic<T: DDSType>(
         &self,
-        topic_name: String,
-        timeout: Duration,
+        _topic_name: String,
+        _timeout: Duration,
     ) -> Option<Topic<T>> {
         // DomainParticipantImpl::find_topic(&self.0, topic_name, timeout)
         todo!()
@@ -280,7 +280,7 @@ impl DomainParticipant {
     /// If the operation fails to locate a TopicDescription, a ‘nil’ value (as specified by the platform) is returned.
     pub fn lookup_topicdescription(
         &self,
-        name: String,
+        _name: String,
     ) -> Option<&dyn TopicDescription> {
         // DomainParticipantImpl::lookup_topicdescription(&self.0, name)
         todo!()
@@ -311,7 +311,7 @@ impl DomainParticipant {
     /// Possible error codes returned in addition to the standard ones: OUT_OF_RESOURCES.
     pub fn ignore_participant(
         &self,
-        handle: InstanceHandle
+        _handle: InstanceHandle
     ) -> ReturnCode<()> {
         // DomainParticipantImpl::ignore_participant(&self.0, handle)
         todo!()
@@ -327,7 +327,7 @@ impl DomainParticipant {
     /// Possible error codes returned in addition to the standard ones: OUT_OF_RESOURCES.
     pub fn ignore_topic(
         &self,
-        handle: InstanceHandle
+        _handle: InstanceHandle
     ) -> ReturnCode<()> {
         // DomainParticipantImpl::ignore_topic(&self.0, handle)
         todo!()
@@ -342,7 +342,7 @@ impl DomainParticipant {
     /// Possible error codes returned in addition to the standard ones: OUT_OF_RESOURCES.
     pub fn ignore_publication(
         &self,
-        handle: InstanceHandle
+        _handle: InstanceHandle
     ) -> ReturnCode<()> {
         // DomainParticipantImpl::ignore_publication(&self.0, handle)
         todo!()
@@ -357,7 +357,7 @@ impl DomainParticipant {
     /// Possible error codes returned in addition to the standard ones: OUT_OF_RESOURCES.
     pub fn ignore_subscription(
         &self,
-        handle: InstanceHandle
+        _handle: InstanceHandle
     ) -> ReturnCode<()> {
         // DomainParticipantImpl::ignore_subscription(&self.0, handle)
         todo!()

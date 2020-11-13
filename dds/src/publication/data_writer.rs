@@ -7,16 +7,35 @@ use rust_dds_interface::types::{InstanceHandle, Time, ReturnCode, Duration};
 
 use crate::infrastructure::status::{LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus, StatusMask};
 use crate::topic::Topic;
-use crate::publication::publisher::Publisher;
+use crate::publication::publisher::{Publisher, PublisherImpl};
 use crate::infrastructure::entity::Entity;
 use crate::infrastructure::entity::DomainEntity;
 use crate::publication::data_writer_listener::DataWriterListener;
 use crate::builtin_topics::SubscriptionBuiltinTopicData;
 use rust_dds_interface::qos::DataWriterQos;
 
-pub struct DataWriter<T: DDSType>(PhantomData<T>);
+pub(crate) trait AnyDataWriterImpl{}
 
-impl<T: DDSType> DataWriter<T> {
+impl<T: DDSType> AnyDataWriterImpl for DataWriterImpl<T>{}
+
+pub(crate) struct DataWriterImpl<T: DDSType> {
+    data: PhantomData<T>,
+}
+
+impl<T: DDSType> DataWriterImpl<T> {
+    pub(crate) fn new() -> Self{
+        Self{
+            data: PhantomData,
+        }
+    }
+}
+
+pub struct DataWriter<'writer, T: DDSType> {
+    parent_publisher: &'writer Publisher<'writer>,
+    inner: Weak<DataWriterImpl<T>>,
+}
+
+impl<'writer,T: DDSType> DataWriter<'writer, T> {
     /// This operation informs the Service that the application will be modifying a particular instance. It gives an opportunity to the
     /// Service to pre-configure itself to improve performance.
     /// It takes as a parameter an instance (to get the key value) and returns a handle that can be used in successive write or dispose
@@ -359,9 +378,16 @@ impl<T: DDSType> DataWriter<T> {
         // DataWriterImpl::get_matched_subscriptions(&self.0, subscription_handles)
         todo!()
     }
+
+    pub(crate) fn new(parent_publisher: &'writer Publisher<'writer>, writer_impl: Weak<DataWriterImpl<T>>) -> Self {
+        Self {
+            parent_publisher,
+            inner: writer_impl,
+        }
+    }
 }
 
-impl<T: DDSType> Entity for DataWriter<T>{
+impl<'writer, T: DDSType> Entity for DataWriter<'writer, T>{
     type Qos = DataWriterQos;
     type Listener = Box<dyn DataWriterListener<T>>;
 
@@ -406,7 +432,7 @@ impl<T: DDSType> Entity for DataWriter<T>{
     }
 }
 
-impl<T: DDSType> DomainEntity for DataWriter<T>{}
+impl<'writer, T: DDSType> DomainEntity for DataWriter<'writer, T>{}
 
 // impl<T> Drop for DataWriter<T> {
 //     fn drop(&mut self) {
@@ -416,17 +442,17 @@ impl<T: DDSType> DomainEntity for DataWriter<T>{}
 // }
 
 pub trait AnyDataWriter {
-    fn as_any(&self) -> &dyn Any;
+    // fn as_any(&self) -> &dyn Any;
 }
 
-impl<T: DDSType> AnyDataWriter for DataWriter<T>{
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
+impl<'writer, T: DDSType> AnyDataWriter for DataWriter<'writer, T>{
+    // fn as_any(&self) -> &dyn Any {
+    //     self
+    // }
 }
 
-impl dyn AnyDataWriter {
-    pub fn get<T: DDSType>(&self) -> Option<&DataWriter<T>> {
-        self.as_any().downcast_ref::<DataWriter<T>>()
-    }
-}
+// impl dyn AnyDataWriter {
+//     pub fn get<T: DDSType>(&self) -> Option<&DataWriter<T>> {
+//         self.as_any().downcast_ref::<DataWriter<T>>()
+//     }
+// }

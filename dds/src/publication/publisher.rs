@@ -5,7 +5,7 @@ use crate::infrastructure::status::StatusMask;
 use crate::domain::DomainParticipant;
 use crate::topic::Topic;
 use crate::publication::data_writer_listener::DataWriterListener;
-use crate::publication::data_writer::DataWriter;
+use crate::publication::data_writer::{DataWriter, DataWriterImpl, AnyDataWriterImpl};
 use crate::infrastructure::entity::Entity;
 use crate::infrastructure::entity::DomainEntity;
 use crate::publication::publisher_listener::PublisherListener;
@@ -16,12 +16,14 @@ use rust_dds_interface::qos::{TopicQos, PublisherQos, DataWriterQos};
 
 pub(crate) struct PublisherImpl {
     protocol_publisher: Mutex<Box<dyn ProtocolPublisher>>,
+    datawriter_list: Mutex<Vec<Arc<dyn AnyDataWriterImpl>>>,
 }
 
 impl PublisherImpl {
     pub(crate) fn new(protocol_publisher: Box<dyn ProtocolPublisher>) -> Self{
         Self{
             protocol_publisher: Mutex::new(protocol_publisher),
+            datawriter_list: Mutex::new(Vec::new()),
         }
     }
 }
@@ -65,8 +67,12 @@ impl<'publisher> Publisher<'publisher> {
         a_listener: Box<dyn DataWriterListener<T>>,
         mask: StatusMask
     ) -> Option<DataWriter<T>> {
-        // PublisherImpl::create_datawriter(&self.0, a_topic, qos, a_listener, mask)
-        todo!()
+        let publisher_impl = self.publisher_impl().ok()?;
+        let datawriter_impl = Arc::new(DataWriterImpl::new());
+        publisher_impl.datawriter_list.lock().unwrap().push(datawriter_impl.clone());
+        let datawriter = DataWriter::new(self, Arc::downgrade(&datawriter_impl));
+
+        Some(datawriter)
     }
 
     /// This operation deletes a DataWriter that belongs to the Publisher.
