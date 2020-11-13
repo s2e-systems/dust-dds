@@ -9,8 +9,9 @@ use crate::infrastructure::status::{
     InstanceStateKind,
     StatusMask,};
 use crate::domain::DomainParticipant;
-use crate::topic::TopicDescription;
+use crate::topic::Topic;
 use crate::subscription::{DataReader, DataReaderListener};
+use crate::subscription::data_reader::{AnyDataReaderImpl, DataReaderImpl};
 use crate::infrastructure::entity::Entity;
 use crate::infrastructure::entity::DomainEntity;
 use crate::subscription::subscriber_listener::SubscriberListener;
@@ -21,12 +22,16 @@ use rust_dds_interface::qos::{TopicQos, SubscriberQos, DataReaderQos};
 
 pub(crate) struct SubscriberImpl {
     protocol_subscriber: Mutex<Box<dyn ProtocolSubscriber>>,
+    default_data_reader_qos: Mutex<DataReaderQos>,
+    data_reader_list: Mutex<Vec<Arc<dyn AnyDataReaderImpl>>>,
 }
 
 impl SubscriberImpl {
     pub(crate) fn new(protocol_subscriber: Box<dyn ProtocolSubscriber>) -> Self{
         Self{
             protocol_subscriber: Mutex::new(protocol_subscriber),
+            default_data_reader_qos: Mutex::new(DataReaderQos::default()),
+            data_reader_list: Mutex::new(Vec::new()),
         }
     }
 }
@@ -74,13 +79,25 @@ impl<'subscriber> Subscriber<'subscriber> {
     /// return a nil result.
     pub fn create_datareader<T: DDSType>(
         &self,
-        a_topic: &dyn TopicDescription,
-        qos: DataReaderQos,
-        a_listener: Box<dyn DataReaderListener<T>>,
-        mask: StatusMask
+        a_topic: &'subscriber Topic<T>,
+        qos: Option<&DataReaderQos>,
+        _a_listener: impl DataReaderListener<T>,
+        _mask: StatusMask
     ) -> Option<DataReader<T>> {
-        // SubscriberImpl::create_datareader(&self.0, a_topic, qos, a_listener, mask)
-        todo!()
+        let subscriber_impl = self.subscriber_impl().ok()?;
+        let default_data_reader_qos = subscriber_impl.default_data_reader_qos.lock().unwrap();
+
+        let data_reader_qos = match qos {
+            Some(data_reader_qos) => data_reader_qos,
+            None => &default_data_reader_qos,
+        };
+
+        let protocol_reader = subscriber_impl.protocol_subscriber.lock().unwrap().create_reader(T::topic_kind(), &data_reader_qos);
+        let data_reader_impl = Arc::new(DataReaderImpl::new(protocol_reader));
+        subscriber_impl.data_reader_list.lock().unwrap().push(data_reader_impl.clone());
+        let data_reader = DataReader::new(self, a_topic, Arc::downgrade(&data_reader_impl));
+
+        Some(data_reader)
     }
 
     /// This operation deletes a DataReader that belongs to the Subscriber. If the DataReader does not belong to the Subscriber, the
@@ -190,8 +207,8 @@ impl<'subscriber> Subscriber<'subscriber> {
     }
 
     /// This operation returns the DomainParticipant to which the Subscriber belongs.
-    pub fn get_participant(&self) -> ReturnCode<&DomainParticipant> {
-        Ok(self.parent_participant)
+    pub fn get_participant(&self) -> &DomainParticipant {
+        self.parent_participant
     }
 
     /// This operation deletes all the entities that were created by means of the “create” operations on the Subscriber. That is, it

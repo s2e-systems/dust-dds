@@ -16,14 +16,16 @@ use rust_dds_interface::qos::{TopicQos, PublisherQos, DataWriterQos};
 
 pub(crate) struct PublisherImpl {
     protocol_publisher: Mutex<Box<dyn ProtocolPublisher>>,
-    datawriter_list: Mutex<Vec<Arc<dyn AnyDataWriterImpl>>>,
+    default_data_writer_qos: Mutex<DataWriterQos>,
+    data_writer_list: Mutex<Vec<Arc<dyn AnyDataWriterImpl>>>,
 }
 
 impl PublisherImpl {
     pub(crate) fn new(protocol_publisher: Box<dyn ProtocolPublisher>) -> Self{
         Self{
             protocol_publisher: Mutex::new(protocol_publisher),
-            datawriter_list: Mutex::new(Vec::new()),
+            default_data_writer_qos: Mutex::new(DataWriterQos::default()),
+            data_writer_list: Mutex::new(Vec::new()),
         }
     }
 }
@@ -62,17 +64,25 @@ impl<'publisher> Publisher<'publisher> {
     /// Publisher. If the Topic was created from a different DomainParticipant, the operation will fail and return a nil result.
     pub fn create_datawriter<T: DDSType>(
         &self,
-        a_topic: Topic<T>,
-        qos: DataWriterQos,
-        a_listener: Box<dyn DataWriterListener<T>>,
-        mask: StatusMask
+        a_topic: &'publisher Topic<T>,
+        qos: Option<&DataWriterQos>,
+        _a_listener: impl DataWriterListener<T>,
+        _mask: StatusMask
     ) -> Option<DataWriter<T>> {
         let publisher_impl = self.publisher_impl().ok()?;
-        let datawriter_impl = Arc::new(DataWriterImpl::new());
-        publisher_impl.datawriter_list.lock().unwrap().push(datawriter_impl.clone());
-        let datawriter = DataWriter::new(self, Arc::downgrade(&datawriter_impl));
+        let default_data_writer_qos = publisher_impl.default_data_writer_qos.lock().unwrap();
 
-        Some(datawriter)
+        let data_writer_qos = match qos {
+            Some(data_writer_qos) => data_writer_qos,
+            None => &default_data_writer_qos,
+        };
+
+        let protocol_writer = publisher_impl.protocol_publisher.lock().unwrap().create_writer(T::topic_kind(), &data_writer_qos);
+        let data_writer_impl = Arc::new(DataWriterImpl::new(protocol_writer));
+        publisher_impl.data_writer_list.lock().unwrap().push(data_writer_impl.clone());
+        let data_writer = DataWriter::new(self, a_topic, Arc::downgrade(&data_writer_impl));
+
+        Some(data_writer)
     }
 
     /// This operation deletes a DataWriter that belongs to the Publisher.
@@ -85,17 +95,17 @@ impl<'publisher> Publisher<'publisher> {
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
     pub fn delete_datawriter<T: DDSType>(
         &self,
-        a_datawriter: &DataWriter<T>
+        a_datawriter: &mut DataWriter<T>
     ) -> ReturnCode<()> {
         let publisher_impl = self.publisher_impl()?;
-        let datawriter_impl: Arc<dyn AnyDataWriterImpl> = a_datawriter.datawriter_impl()?;
-        let mut datawriter_list = publisher_impl.datawriter_list.lock().unwrap();
-        let datawriter_index = datawriter_list
+        let data_writer_impl: Arc<dyn AnyDataWriterImpl> = a_datawriter.data_writer_impl()?;
+        let mut data_writer_list = publisher_impl.data_writer_list.lock().unwrap();
+        let data_writer_index = data_writer_list
             .iter()
-            .position(|x| Arc::ptr_eq(x,&datawriter_impl))
+            .position(|x| Arc::ptr_eq(x,&data_writer_impl))
             .ok_or(ReturnCodes::PreconditionNotMet("Publisher can only be deleted by its parent participant"))?;
         
-        datawriter_list.remove(datawriter_index);
+        data_writer_list.remove(data_writer_index);
         Ok(())
     }
 
@@ -177,8 +187,8 @@ impl<'publisher> Publisher<'publisher> {
     }
 
     /// This operation returns the DomainParticipant to which the Publisher belongs.
-    pub fn get_participant(&self,) -> ReturnCode<&DomainParticipant> {
-        Ok(self.parent_participant)
+    pub fn get_participant(&self,) -> &DomainParticipant {
+        self.parent_participant
     }
 
     /// This operation deletes all the entities that were created by means of the “create” operations on the Publisher. That is, it deletes

@@ -1,6 +1,7 @@
 use rust_dds::domain::DomainParticipant;
 use rust_dds::domain::qos::DomainParticipantQos;
 use rust_dds::publication::qos::{DataWriterQos, PublisherQos};
+use rust_dds::subscription::qos::{DataReaderQos, SubscriberQos};
 use rust_dds::infrastructure::listener::NoListener;
 use rust_dds::infrastructure::qos_policy::{ReliabilityQosPolicy, ReliabilityQosPolicyKind};
 use rust_dds::types::DDSType;
@@ -37,16 +38,20 @@ impl DDSType for HelloWorldType {
 fn hello_world() {
     let participant = DomainParticipant::new(0, DomainParticipantQos::default(), NoListener, 0, true).expect("Error creating participant");
     
-    let publisher = participant.create_publisher(Some(PublisherQos::default()), NoListener, 0).expect("Error creating publisher");
+    let publisher = participant.create_publisher(Some(&PublisherQos::default()), NoListener, 0).expect("Error creating publisher");
     let helloworld_topic = participant.create_topic("HelloWorld".to_string(), None, NoListener, 0).expect("Error creating topic");
+
+    let subscriber = participant.create_subscriber(Some(&SubscriberQos::default()), NoListener, 0).expect("Error creating subscriber");
+    let datareader = subscriber.create_datareader(&helloworld_topic, Some(&DataReaderQos::default()), NoListener, 0);
 
     let mut data_writer_qos = DataWriterQos::default();
     data_writer_qos.reliability = ReliabilityQosPolicy{kind: ReliabilityQosPolicyKind::BestEffortReliabilityQos, max_blocking_time: DURATION_ZERO};
-    let datawriter = publisher.create_datawriter::<HelloWorldType>(helloworld_topic, data_writer_qos, Box::new(NoListener), 0).expect("Error creating data writer");
+    let datawriter = publisher.create_datawriter(&helloworld_topic, Some(&data_writer_qos), NoListener, 0).expect("Error creating data writer");
     let data = HelloWorldType{id: 1, msg: "Hello World!".to_string()};
     let handle = None;
     let timestamp = Time{sec: 1, nanosec: 2};
     datawriter.write_w_timestamp(data, handle, timestamp).expect("Error writing");
+
 
     // std::thread::sleep_ms(100)
 }

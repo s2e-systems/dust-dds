@@ -1,13 +1,16 @@
 use std::any::Any;
-use std::sync::Weak;
+use std::sync::{Mutex, Arc, Weak};
 use std::marker::PhantomData;
 
-use rust_dds_interface::types::{ReturnCode, InstanceHandle};
+use rust_dds_interface::types::{ReturnCode, InstanceHandle, ReturnCodes};
+use rust_dds_interface::qos::DataReaderQos;
+use rust_dds_interface::protocol::ProtocolReader;
+
 use crate::infrastructure::status::{ViewStateKind, SampleStateKind, InstanceStateKind, StatusMask};
 use crate::subscription::read_condition::ReadCondition;
 use crate::subscription::query_condition::QueryCondition;
 use crate::infrastructure::status::{LivelinessChangedStatus, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus, SubscriptionMatchedStatus};
-use crate::topic::TopicDescription;
+use crate::topic::{TopicDescription, Topic};
 use crate::subscription::subscriber::Subscriber;
 use crate::subscription::sample_info::SampleInfo;
 use crate::infrastructure::entity::Entity;
@@ -16,7 +19,23 @@ use crate::subscription::data_reader_listener::DataReaderListener;
 use crate::builtin_topics::PublicationBuiltinTopicData;
 use crate::types::DDSType;
 
-use rust_dds_interface::qos::DataReaderQos;
+pub(crate) trait AnyDataReaderImpl{}
+
+impl<T: DDSType> AnyDataReaderImpl for DataReaderImpl<T>{}
+
+pub(crate) struct DataReaderImpl<T: DDSType> {
+    protocol_reader: Mutex<Box<dyn ProtocolReader>>,
+    data: PhantomData<T>,
+}
+
+impl<T: DDSType> DataReaderImpl<T> {
+    pub(crate) fn new(protocol_reader: Box<dyn ProtocolReader>) -> Self{
+        Self{
+            protocol_reader: Mutex::new(protocol_reader),
+            data: PhantomData,
+        }
+    }
+}
 
 /// A DataReader allows the application (1) to declare the data it wishes to receive (i.e., make a subscription) and (2) to access the
 /// data received by the attached Subscriber.
@@ -29,9 +48,13 @@ use rust_dds_interface::qos::DataReaderQos;
 /// get_statuscondition may return the error NOT_ENABLED.
 /// All sample-accessing operations, namely all variants of read, take may return the error PRECONDITION_NOT_MET. The
 /// circumstances that result on this are described in 2.2.2.5.2.8.
-pub struct DataReader<T>(PhantomData<T>);
+pub struct DataReader<'reader, T: DDSType>{
+    parent_subscriber: &'reader Subscriber<'reader>,
+    topic: &'reader Topic<'reader, T>,
+    inner: Weak<DataReaderImpl<T>>,
+}
     
-impl<T> DataReader<T> {
+impl<'reader, T: DDSType> DataReader<'reader, T> {
     /// This operation accesses a collection of Data values from the DataReader. The size of the returned collection will be limited to
     /// the specified max_samples. The properties of the data_values collection and the setting of the PRESENTATION QoS policy
     /// (see 2.2.3.6) may impose further limits on the size of the returned ‘list.’
@@ -618,9 +641,26 @@ impl<T> DataReader<T> {
         // DataReaderImpl::get_match_publication(&self.0, publication_handles)
         todo!()
     }
+
+    // ////// From here on are function that do not belong to the standard API
+    pub(crate) fn new(parent_subscriber: &'reader Subscriber<'reader>, topic: &'reader Topic<'reader, T>,  reader_impl: Weak<DataReaderImpl<T>>) -> Self {
+        Self {
+            parent_subscriber,
+            topic,
+            inner: reader_impl,
+        }
+    }
+
+    pub(crate) fn data_reader_impl(&self) -> ReturnCode<Arc<DataReaderImpl<T>>> {
+        match self.inner.upgrade() {
+            Some(data_reader_impl) => Ok(data_reader_impl),
+            None => Err(ReturnCodes::AlreadyDeleted("Data reader already deleted")),
+        }
+    }
+
 }
 
-impl<T> Entity for DataReader<T> {
+impl<'reader, T: DDSType> Entity for DataReader<'reader, T> {
     type Qos = DataReaderQos;
     type Listener = Box<dyn DataReaderListener<T>>;
 
@@ -665,20 +705,20 @@ impl<T> Entity for DataReader<T> {
     }
 }
 
-impl<T> DomainEntity for DataReader<T>{}
+impl<'reader, T: DDSType> DomainEntity for DataReader<'reader, T>{}
 
 pub trait AnyDataReader {
-    fn as_any(&self) -> &dyn Any;   
+    // fn as_any(&self) -> &dyn Any;   
 }
 
-impl<T: DDSType> AnyDataReader for DataReader<T>{
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
+impl<'reader, T: DDSType> AnyDataReader for DataReader<'reader, T>{
+    // fn as_any(&self) -> &dyn Any {
+    //     self
+    // }
 }
 
 impl dyn AnyDataReader {
-    pub fn get<T: DDSType>(&self) -> Option<&DataReader<T>> {
-        self.as_any().downcast_ref::<DataReader<T>>()
-    }
+    // pub fn get<T: DDSType>(&self) -> Option<&DataReader<T>> {
+    //     self.as_any().downcast_ref::<DataReader<T>>()
+    // }
 }

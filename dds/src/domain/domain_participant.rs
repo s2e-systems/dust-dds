@@ -111,13 +111,14 @@ impl DomainParticipant {
     /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
     pub fn create_publisher(
         &self,
-        qos: Option<PublisherQos>,
+        qos: Option<&PublisherQos>,
         _a_listener: impl PublisherListener,
         _mask: StatusMask
     ) -> Option<Publisher> {
+        let default_subscriber_qos = self.default_publisher_qos.lock().unwrap();
         let _publisher_qos = match qos {
             Some(qos) => qos,
-            None => self.default_publisher_qos.lock().unwrap().clone(),
+            None => &default_subscriber_qos,
         };
 
         let protocol_publisher = self.protocol_participant.lock().unwrap().create_publisher();
@@ -159,13 +160,14 @@ impl DomainParticipant {
     /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
     pub fn create_subscriber(
         &self,
-        qos: Option<SubscriberQos>,
+        qos: Option<&SubscriberQos>,
         _a_listener: impl SubscriberListener,
         _mask: StatusMask
     ) -> Option<Subscriber> {
+        let default_subscriber_qos = self.default_subscriber_qos.lock().unwrap();
         let _subscriber_qos = match qos {
             Some(qos) => qos,
-            None => self.default_subscriber_qos.lock().unwrap().clone(),
+            None => &default_subscriber_qos,
         };
 
         let protocol_subscriber = self.protocol_participant.lock().unwrap().create_subscriber();
@@ -210,13 +212,14 @@ impl DomainParticipant {
     pub fn create_topic<T: DDSType>(
         &self,
         topic_name: String,
-        qos: Option<TopicQos>,
+        qos: Option<&TopicQos>,
         _a_listener: impl TopicListener<T>,
         _mask: StatusMask
     ) -> Option<Topic<T>> {
+        let default_topic_qos = self.default_topic_qos.lock().unwrap();
         let _topic_qos = match qos {
             Some(qos) => qos,
-            None => self.default_topic_qos.lock().unwrap().clone(),
+            None => &default_topic_qos,
         };
 
         let topic_impl = Arc::new(TopicImpl::new(topic_name));

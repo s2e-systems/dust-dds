@@ -1,8 +1,10 @@
-use std::sync::{Arc, Weak};
+use std::sync::{Mutex, Arc, Weak};
 
 use std::marker::PhantomData;
 use crate::types::DDSType;
 use rust_dds_interface::types::{InstanceHandle, Time, ReturnCode, Duration, ReturnCodes};
+use rust_dds_interface::protocol::ProtocolWriter;
+use rust_dds_interface::qos::DataWriterQos;
 
 use crate::infrastructure::status::{LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus, StatusMask};
 use crate::topic::Topic;
@@ -12,19 +14,21 @@ use crate::infrastructure::entity::DomainEntity;
 use crate::publication::data_writer_listener::DataWriterListener;
 use crate::builtin_topics::SubscriptionBuiltinTopicData;
 
-use rust_dds_interface::qos::DataWriterQos;
+
 
 pub(crate) trait AnyDataWriterImpl{}
 
 impl<T: DDSType> AnyDataWriterImpl for DataWriterImpl<T>{}
 
 pub(crate) struct DataWriterImpl<T: DDSType> {
+    protocol_writer: Mutex<Box<dyn ProtocolWriter>>,
     data: PhantomData<T>,
 }
 
 impl<T: DDSType> DataWriterImpl<T> {
-    pub(crate) fn new() -> Self{
+    pub(crate) fn new(protocol_writer: Box<dyn ProtocolWriter>) -> Self{
         Self{
+            protocol_writer: Mutex::new(protocol_writer),
             data: PhantomData,
         }
     }
@@ -32,6 +36,7 @@ impl<T: DDSType> DataWriterImpl<T> {
 
 pub struct DataWriter<'writer, T: DDSType> {
     parent_publisher: &'writer Publisher<'writer>,
+    topic: &'writer Topic<'writer, T>,
     inner: Weak<DataWriterImpl<T>>,
 }
 
@@ -324,15 +329,13 @@ impl<'writer,T: DDSType> DataWriter<'writer, T> {
     }
 
     /// This operation returns the Topic associated with the DataWriter. This is the same Topic that was used to create the DataWriter.
-    pub fn get_topic(&self) -> ReturnCode<Topic<T>> {
-        // DataWriterImpl::get_topic(&self.0)
-        todo!()
+    pub fn get_topic(&self) -> &Topic<T> {
+        self.topic
     }
 
     /// This operation returns the Publisher to which the DataWriter belongs.
-    pub fn get_publisher(&self,) -> ReturnCode<Publisher> {
-        // DataWriterImpl::get_publisher(&self.0)
-        todo!()
+    pub fn get_publisher(&self,) -> &Publisher {
+        self.parent_publisher
     }
 
     /// This operation manually asserts the liveliness of the DataWriter. This is used in combination with the LIVELINESS QoS
@@ -380,16 +383,17 @@ impl<'writer,T: DDSType> DataWriter<'writer, T> {
     }
 
     // ////// From here on are function that do not belong to the standard API
-    pub(crate) fn new(parent_publisher: &'writer Publisher<'writer>, writer_impl: Weak<DataWriterImpl<T>>) -> Self {
+    pub(crate) fn new(parent_publisher: &'writer Publisher<'writer>, topic: &'writer Topic<'writer, T>,  writer_impl: Weak<DataWriterImpl<T>>) -> Self {
         Self {
             parent_publisher,
+            topic,
             inner: writer_impl,
         }
     }
 
-    pub(crate) fn datawriter_impl(&self) -> ReturnCode<Arc<DataWriterImpl<T>>> {
+    pub(crate) fn data_writer_impl(&self) -> ReturnCode<Arc<DataWriterImpl<T>>> {
         match self.inner.upgrade() {
-            Some(datawriter_impl) => Ok(datawriter_impl),
+            Some(data_writer_impl) => Ok(data_writer_impl),
             None => Err(ReturnCodes::AlreadyDeleted("Data writer already deleted")),
         }
     }
@@ -442,12 +446,11 @@ impl<'writer, T: DDSType> Entity for DataWriter<'writer, T>{
 
 impl<'writer, T: DDSType> DomainEntity for DataWriter<'writer, T>{}
 
-// impl<T> Drop for DataWriter<T> {
-//     fn drop(&mut self) {
-//         let parent_publisher = self.get_publisher();
-//         parent_publisher.delete_datawriter(self);
-//     }
-// }
+impl<'writer, T: DDSType> Drop for DataWriter<'writer, T> {
+    fn drop(&mut self) {
+        self.parent_publisher.delete_datawriter(self).ok();
+    }
+}
 
 pub trait AnyDataWriter {
     // fn as_any(&self) -> &dyn Any;
