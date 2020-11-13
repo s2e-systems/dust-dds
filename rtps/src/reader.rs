@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use crate::behavior::stateful_reader::StatefulReader;
 
 use rust_dds_interface::protocol::{ProtocolEntity, ProtocolReader};
@@ -25,6 +25,7 @@ impl ProtocolEntity for Reader {
         todo!()
     }
 }
+
 impl ProtocolReader for Reader {
 
 }

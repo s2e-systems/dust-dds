@@ -115,7 +115,7 @@ impl<'publisher> Publisher<'publisher> {
     /// specified which one.
     pub fn lookup_datawriter<T: DDSType>(
         &self,
-        topic_name: String,
+        _topic_name: String,
     ) -> Option<DataWriter<T>> {
         // PublisherImpl::lookup_datawriter(&self.0, topic_name)
         todo!()
@@ -180,7 +180,7 @@ impl<'publisher> Publisher<'publisher> {
     /// a return value of TIMEOUT indicates that max_wait elapsed before all the data was acknowledged.
     pub fn wait_for_acknowledgments(
         &self,
-        max_wait: Duration
+        _max_wait: Duration
     ) -> ReturnCode<()> {
         // PublisherImpl::wait_for_acknowledgments(&self.0, max_wait)
         todo!()
@@ -211,7 +211,7 @@ impl<'publisher> Publisher<'publisher> {
     /// operation had never been called.
     pub fn set_default_datawriter_qos(
         &self,
-        qos_list: DataWriterQos,
+        _qos_list: DataWriterQos,
     ) -> ReturnCode<()> {
         // PublisherImpl::set_default_datawriter_qos(&self.0, qos_list)
         todo!()
@@ -224,7 +224,7 @@ impl<'publisher> Publisher<'publisher> {
     /// QoS.
     pub fn get_default_datawriter_qos (
         &self,
-        qos_list: &mut DataWriterQos,
+        _qos_list: &mut DataWriterQos,
     ) -> ReturnCode<()> {
         // PublisherImpl::get_default_datawriter_qos(&self.0, qos_list)
         todo!()
@@ -239,8 +239,8 @@ impl<'publisher> Publisher<'publisher> {
     /// may not be the final one, as the application can still modify some policies prior to applying the policies to the DataWriter.
     pub fn copy_from_topic_qos(
         &self,
-        a_datawriter_qos: &mut DataWriterQos,
-        a_topic_qos: &TopicQos,
+        _a_datawriter_qos: &mut DataWriterQos,
+        _a_topic_qos: &TopicQos,
     ) -> ReturnCode<()> {
         // PublisherImpl::copy_from_topic_qos(&self.0, a_datawriter_qos, a_topic_qos)
         todo!()
@@ -266,17 +266,17 @@ impl<'publisher> Entity for Publisher<'publisher>{
     type Qos = PublisherQos;
     type Listener = Box<dyn PublisherListener>;
 
-    fn set_qos(&self, qos_list: Self::Qos) -> ReturnCode<()> {
+    fn set_qos(&self, _qos_list: Self::Qos) -> ReturnCode<()> {
         // PublisherImpl::set_qos(&self.0, qos_list)
         todo!()
     }
 
-    fn get_qos(&self, qos_list: &mut Self::Qos) -> ReturnCode<()> {
+    fn get_qos(&self, _qos_list: &mut Self::Qos) -> ReturnCode<()> {
         // PublisherImpl::get_qos(&self.0, qos_list)
         todo!()
     }
 
-    fn set_listener(&self, a_listener: Self::Listener, mask: StatusMask) -> ReturnCode<()> {
+    fn set_listener(&self, _a_listener: Self::Listener, _mask: StatusMask) -> ReturnCode<()> {
         // PublisherImpl::set_listener(&self.0, a_listener, mask)
         todo!()
     }

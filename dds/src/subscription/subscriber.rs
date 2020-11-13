@@ -135,7 +135,7 @@ impl<'subscriber> Subscriber<'subscriber> {
     /// The use of this operation on the built-in Subscriber allows access to the built-in DataReader entities for the built-in topics
     pub fn lookup_datareader<T: DDSType>(
         &self,
-        topic_name: String
+        _topic_name: String
     ) -> DataReader<T> {
         // SubscriberImpl::lookup_datareader(&self.0, topic_name)
         todo!()
@@ -189,10 +189,10 @@ impl<'subscriber> Subscriber<'subscriber> {
     /// fully described in 2.2.2.5.1, Access to the data.
     pub fn get_datareaders<T: DDSType>(
         &self,
-        readers: &mut [DataReader<T>],
-        sample_states: &[SampleStateKind],
-        view_states: &[ViewStateKind],
-        instance_states: &[InstanceStateKind],
+        _readers: &mut [DataReader<T>],
+        _sample_states: &[SampleStateKind],
+        _view_states: &[ViewStateKind],
+        _instance_states: &[InstanceStateKind],
     ) -> ReturnCode<()> {
         // SubscriberImpl::get_datareaders(&self.0, readers, sample_states, view_states, instance_states)
         todo!()
@@ -209,7 +209,7 @@ impl<'subscriber> Subscriber<'subscriber> {
     }
 
     /// This operation allows access to the SAMPLE_LOST communication status. Communication statuses are described in 2.2.4.1
-    pub fn get_sample_lost_status(&self, status: &mut SampleLostStatus) -> ReturnCode<()> {
+    pub fn get_sample_lost_status(&self, _status: &mut SampleLostStatus) -> ReturnCode<()> {
         // SubscriberImpl::get_sample_lost_status(&self.0, status)
         todo!()
     }
@@ -242,7 +242,7 @@ impl<'subscriber> Subscriber<'subscriber> {
     /// set_default_datareader_qos operation had never been called.
     pub fn set_default_datareader_qos(
         &self,
-        qos: DataReaderQos,
+        _qos: DataReaderQos,
     ) -> ReturnCode<()> {
         // SubscriberImpl::set_default_datareader_qos(&self.0, qos)
         todo!()
@@ -255,7 +255,7 @@ impl<'subscriber> Subscriber<'subscriber> {
     /// Supported QoS.
     pub fn get_default_datareader_qos(
         &self,
-        qos_list: &mut DataReaderQos,
+        _qos_list: &mut DataReaderQos,
     ) -> ReturnCode<()> {
         // SubscriberImpl::get_default_datareader_qos(&self.0, qos_list)
         todo!()
@@ -270,8 +270,8 @@ impl<'subscriber> Subscriber<'subscriber> {
     /// may not be the final one, as the application can still modify some policies prior to applying the policies to the DataReader.
     pub fn copy_from_topic_qos(
         &self,
-        a_datareader_qos: &mut DataReaderQos,
-        a_topic_qos: &TopicQos,
+        _a_datareader_qos: &mut DataReaderQos,
+        _a_topic_qos: &TopicQos,
     ) -> ReturnCode<()> {
         // SubscriberImpl::copy_from_topic_qos(&self.0, a_datareader_qos, a_topic_qos)
         todo!()
@@ -297,17 +297,17 @@ impl<'subscriber> Entity for Subscriber<'subscriber> {
     type Qos = SubscriberQos;
     type Listener = Box<dyn SubscriberListener>;
 
-    fn set_qos(&self, qos_list: Self::Qos) -> ReturnCode<()> {
+    fn set_qos(&self, _qos_list: Self::Qos) -> ReturnCode<()> {
         // SubscriberImpl::set_qos(&self.0, qos_list)
         todo!()
     }
 
-    fn get_qos(&self, qos_list: &mut Self::Qos) -> ReturnCode<()> {
+    fn get_qos(&self, _qos_list: &mut Self::Qos) -> ReturnCode<()> {
         // SubscriberImpl::get_qos(&self.0, qos_list)
         todo!()
     }
 
-    fn set_listener(&self, a_listener: Self::Listener, mask: StatusMask) -> ReturnCode<()> {
+    fn set_listener(&self, _a_listener: Self::Listener, _mask: StatusMask) -> ReturnCode<()> {
         // SubscriberImpl::set_listener(&self.0, a_listener, mask)
         todo!()
     }

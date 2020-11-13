@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use crate::types::GUID;
 use crate::structure::{RtpsEndpoint, RtpsEntity, };

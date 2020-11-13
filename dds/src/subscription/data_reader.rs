@@ -1,4 +1,3 @@
-use std::any::Any;
 use std::sync::{Mutex, Arc, Weak};
 use std::marker::PhantomData;
 
@@ -133,12 +132,12 @@ impl<'reader, T: DDSType> DataReader<'reader, T> {
     /// If the DataReader has no samples that meet the constraints, the return value will be NO_DATA.
     pub fn read(
         &self,
-        data_values: &mut [T],
-        sample_infos: &mut [SampleInfo],
-        max_samples: i32,
-        sample_states: &[SampleStateKind],
-        view_states: &[ViewStateKind],
-        instance_states: &[InstanceStateKind],
+        _data_values: &mut [T],
+        _sample_infos: &mut [SampleInfo],
+        _max_samples: i32,
+        _sample_states: &[SampleStateKind],
+        _view_states: &[ViewStateKind],
+        _instance_states: &[InstanceStateKind],
     ) -> ReturnCode<()> {
         // DataReaderImpl::read(&self.0, data_values, sample_infos, max_samples, sample_states, view_states, instance_states)
         todo!()
@@ -159,12 +158,12 @@ impl<'reader, T: DDSType> DataReader<'reader, T> {
     /// If the DataReader has no samples that meet the constraints, the return value will be NO_DATA.
     pub fn take(
         &self,
-        data_values: &mut [T],
-        sample_infos: &mut [SampleInfo],
-        max_samples: i32,
-        sample_states: &[SampleStateKind],
-        view_states: &[ViewStateKind],
-        instance_states: &[InstanceStateKind],
+        _data_values: &mut [T],
+        _sample_infos: &mut [SampleInfo],
+        _max_samples: i32,
+        _sample_states: &[SampleStateKind],
+        _view_states: &[ViewStateKind],
+        _instance_states: &[InstanceStateKind],
     ) -> ReturnCode<()> {
         // DataReaderImpl::take(&self.0, data_values, sample_infos, max_samples, sample_states, view_states, instance_states)
         todo!()
@@ -184,10 +183,10 @@ impl<'reader, T: DDSType> DataReader<'reader, T> {
     /// If the DataReader has no samples that meet the constraints, the return value will be NO_DATA.
     pub fn read_w_condition(
         &self,
-        data_values: &mut [T],
-        sample_infos: &mut [SampleInfo],
-        max_samples: i32,
-        a_condition: ReadCondition,
+        _data_values: &mut [T],
+        _sample_infos: &mut [SampleInfo],
+        _max_samples: i32,
+        _a_condition: ReadCondition,
     ) -> ReturnCode<()> {
         // DataReaderImpl::read_w_condition(&self.0, data_values, sample_infos, max_samples, a_condition)
         todo!()
@@ -203,10 +202,10 @@ impl<'reader, T: DDSType> DataReader<'reader, T> {
     /// If the DataReader has no samples that meet the constraints, the return value will be NO_DATA.
     pub fn take_w_condition(
         &self,
-        data_values: &mut [T],
-        sample_infos: &mut [SampleInfo],
-        max_samples: i32,
-        a_condition: ReadCondition,
+        _data_values: &mut [T],
+        _sample_infos: &mut [SampleInfo],
+        _max_samples: i32,
+        _a_condition: ReadCondition,
     ) -> ReturnCode<()> {
         // DataReaderImpl::take_w_condition(&self.0, data_values, sample_infos, max_samples, a_condition)
         todo!()
@@ -223,8 +222,8 @@ impl<'reader, T: DDSType> DataReader<'reader, T> {
     /// If there is no unread data in the DataReader, the operation will return NO_DATA and nothing is copied.
     pub fn read_next_sample(
         &self,
-        data_value: &mut [T],
-        sample_info: &mut [SampleInfo],
+        _data_value: &mut [T],
+        _sample_info: &mut [SampleInfo],
     ) -> ReturnCode<()> {
         // DataReaderImpl::read_next_sample(&self.0, data_value, sample_info)
         todo!()
@@ -240,8 +239,8 @@ impl<'reader, T: DDSType> DataReader<'reader, T> {
     /// If there is no unread data in the DataReader, the operation will return NO_DATA and nothing is copied.
     pub fn take_next_sample(
         &self,
-        data_value: &mut [T],
-        sample_info: &mut [SampleInfo],
+        _data_value: &mut [T],
+        _sample_info: &mut [SampleInfo],
     ) -> ReturnCode<()> {
         // DataReaderImpl::take_next_sample(&self.0, data_value, sample_info)
         todo!()
@@ -264,13 +263,13 @@ impl<'reader, T: DDSType> DataReader<'reader, T> {
     /// unspecified.
     pub fn read_instance(
         &self,
-        data_values: &mut [T],
-        sample_infos: &mut [SampleInfo],
-        max_samples: i32,
-        a_handle: InstanceHandle,
-        sample_states: &[SampleStateKind],
-        view_states: &[ViewStateKind],
-        instance_states: &[InstanceStateKind],
+        _data_values: &mut [T],
+        _sample_infos: &mut [SampleInfo],
+        _max_samples: i32,
+        _a_handle: InstanceHandle,
+        _sample_states: &[SampleStateKind],
+        _view_states: &[ViewStateKind],
+        _instance_states: &[InstanceStateKind],
     ) -> ReturnCode<()> {
         // DataReaderImpl::read_instance(&self.0, data_values, sample_infos, max_samples, a_handle, sample_states, view_states, instance_states)
         todo!()
@@ -291,13 +290,13 @@ impl<'reader, T: DDSType> DataReader<'reader, T> {
     /// unspecified.
     pub fn take_instance(
         &self,
-        data_values: &mut [T],
-        sample_infos: &mut [SampleInfo],
-        max_samples: i32,
-        a_handle: InstanceHandle,
-        sample_states: &[SampleStateKind],
-        view_states: &[ViewStateKind],
-        instance_states: &[InstanceStateKind],
+        _data_values: &mut [T],
+        _sample_infos: &mut [SampleInfo],
+        _max_samples: i32,
+        _a_handle: InstanceHandle,
+        _sample_states: &[SampleStateKind],
+        _view_states: &[ViewStateKind],
+        _instance_states: &[InstanceStateKind],
     ) -> ReturnCode<()> {
         // DataReaderImpl::take_instance(&self.0, data_values, sample_infos, max_samples, a_handle, sample_states, view_states, instance_states)
         todo!()
@@ -335,13 +334,13 @@ impl<'reader, T: DDSType> DataReader<'reader, T> {
     /// If the DataReader has no samples that meet the constraints, the return value will be NO_DATA.
     pub fn read_next_instance(
         &self,
-        data_values: &mut [T],
-        sample_infos: &mut [SampleInfo],
-        max_samples: i32,
-        previous_handle: InstanceHandle,
-        sample_states: &[SampleStateKind],
-        view_states: &[ViewStateKind],
-        instance_states: &[InstanceStateKind],
+        _data_values: &mut [T],
+        _sample_infos: &mut [SampleInfo],
+        _max_samples: i32,
+        _previous_handle: InstanceHandle,
+        _sample_states: &[SampleStateKind],
+        _view_states: &[ViewStateKind],
+        _instance_states: &[InstanceStateKind],
     ) -> ReturnCode<()> {
         // DataReaderImpl::read_next_instance(&self.0, data_values, sample_infos, max_samples, previous_handle, sample_states, view_states, instance_states)
         todo!()
@@ -360,13 +359,13 @@ impl<'reader, T: DDSType> DataReader<'reader, T> {
     /// If the DataReader has no samples that meet the constraints, the return value will be NO_DATA.
     pub fn take_next_instance(
         &self,
-        data_values: &mut [T],
-        sample_infos: &mut [SampleInfo],
-        max_samples: i32,
-        previous_handle: InstanceHandle,
-        sample_states: &[SampleStateKind],
-        view_states: &[ViewStateKind],
-        instance_states: &[InstanceStateKind],
+        _data_values: &mut [T],
+        _sample_infos: &mut [SampleInfo],
+        _max_samples: i32,
+        _previous_handle: InstanceHandle,
+        _sample_states: &[SampleStateKind],
+        _view_states: &[ViewStateKind],
+        _instance_states: &[InstanceStateKind],
     ) -> ReturnCode<()> {
         // DataReaderImpl::take_next_instance(&self.0, data_values, sample_infos, max_samples, previous_handle, sample_states, view_states, instance_states)
         todo!()
@@ -387,11 +386,11 @@ impl<'reader, T: DDSType> DataReader<'reader, T> {
     /// If the DataReader has no samples that meet the constraints, the return value will be NO_DATA.
     pub fn read_next_instance_w_condition(
         &self,
-        data_values: &mut [T],
-        sample_infos: &mut [SampleInfo],
-        max_samples: i32,
-        previous_handle: InstanceHandle,
-        a_condition: ReadCondition,
+        _data_values: &mut [T],
+        _sample_infos: &mut [SampleInfo],
+        _max_samples: i32,
+        _previous_handle: InstanceHandle,
+        _a_condition: ReadCondition,
     ) -> ReturnCode<()> {
         // DataReaderImpl::read_next_instance_w_condition(&self.0, data_values, sample_infos, max_samples, previous_handle, a_condition)
         todo!()
@@ -411,11 +410,11 @@ impl<'reader, T: DDSType> DataReader<'reader, T> {
     /// If the DataReader has no samples that meet the constraints, the return value will be NO_DATA.
     pub fn take_next_instance_w_condition(
         &self,
-        data_values: &mut [T],
-        sample_infos: &mut [SampleInfo],
-        max_samples: i32,
-        previous_handle: InstanceHandle,
-        a_condition: ReadCondition,
+        _data_values: &mut [T],
+        _sample_infos: &mut [SampleInfo],
+        _max_samples: i32,
+        _previous_handle: InstanceHandle,
+        _a_condition: ReadCondition,
     ) -> ReturnCode<()> {
         // DataReaderImpl::take_next_instance_w_condition(&self.0, data_values, sample_infos, max_samples, previous_handle, a_condition)
         todo!()
@@ -441,8 +440,8 @@ impl<'reader, T: DDSType> DataReader<'reader, T> {
     /// that is being taken.
     pub fn return_loan(
         &self, 
-        data_values: &mut [T],
-        sample_infos: &mut [SampleInfo],
+        _data_values: &mut [T],
+        _sample_infos: &mut [SampleInfo],
      ) -> ReturnCode<()> {
         // DataReaderImpl::return_loan(&self.0, data_values, sample_infos)
         todo!()
@@ -455,8 +454,8 @@ impl<'reader, T: DDSType> DataReader<'reader, T> {
     /// unspecified.
     pub fn get_key_value(
         &self,
-        key_holder: &mut T,
-        handle: InstanceHandle
+        _key_holder: &mut T,
+        _handle: InstanceHandle
     ) -> ReturnCode<()> {
         // DataReaderImpl::get_key_value(&self.0, key_holder, handle)
         todo!()
@@ -469,7 +468,7 @@ impl<'reader, T: DDSType> DataReader<'reader, T> {
     /// reason the Service is unable to provide an instance handle, the Service will return the special value HANDLE_NIL.
     pub fn lookup_instance(
         &self,
-        instance: &T,
+        _instance: &T,
     ) -> InstanceHandle {
         // DataReaderImpl::lookup_instance(&self.0, instance)
         todo!()
@@ -479,9 +478,9 @@ impl<'reader, T: DDSType> DataReader<'reader, T> {
     /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
     pub fn create_readcondition(
         &self,
-        sample_states: &[SampleStateKind],
-        view_states: &[ViewStateKind],
-        instance_states: &[InstanceStateKind],
+        _sample_states: &[SampleStateKind],
+        _view_states: &[ViewStateKind],
+        _instance_states: &[InstanceStateKind],
     ) -> ReadCondition {
         // DataReaderImpl::create_readcondition(&self.0, sample_states, view_states, instance_states)
         todo!()
@@ -492,11 +491,11 @@ impl<'reader, T: DDSType> DataReader<'reader, T> {
     /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
     pub fn create_querycondition(
         &self,
-        sample_states: &[SampleStateKind],
-        view_states: &[ViewStateKind],
-        instance_states: &[InstanceStateKind],
-        query_expression: String,
-        query_parameters: &[String],
+        _sample_states: &[SampleStateKind],
+        _view_states: &[ViewStateKind],
+        _instance_states: &[InstanceStateKind],
+        _query_expression: String,
+        _query_parameters: &[String],
     ) -> QueryCondition {
         // DataReaderImpl::create_querycondition(&self.0, sample_states, view_states, instance_states, query_expression, query_parameters)
         todo!()
@@ -508,7 +507,7 @@ impl<'reader, T: DDSType> DataReader<'reader, T> {
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET
     pub fn delete_readcondition(
         &self,
-        a_condition: ReadCondition
+        _a_condition: ReadCondition
     ) -> ReturnCode<()> {
         // DataReaderImpl::delete_readcondition(&self.0, a_condition)
         todo!()
@@ -518,7 +517,7 @@ impl<'reader, T: DDSType> DataReader<'reader, T> {
     /// in 2.2.4.1.
     pub fn get_liveliness_changed_status(
         &self,
-        status: &mut LivelinessChangedStatus
+        _status: &mut LivelinessChangedStatus
     ) -> ReturnCode<()> {
         // DataReaderImpl::get_liveliness_changed_status(&self.0, status)
         todo!()
@@ -528,7 +527,7 @@ impl<'reader, T: DDSType> DataReader<'reader, T> {
     /// described in 2.2.4.1.
     pub fn get_requested_deadline_missed_status(
         &self,
-        status: &mut RequestedDeadlineMissedStatus
+        _status: &mut RequestedDeadlineMissedStatus
     ) -> ReturnCode<()> {
         // DataReaderImpl::get_requested_deadline_missed_status(&self.0, status)
         todo!()
@@ -538,7 +537,7 @@ impl<'reader, T: DDSType> DataReader<'reader, T> {
     /// are described in 2.2.4.1.
     pub fn get_requested_incompatible_qos_status(
         &self,
-        status: &mut RequestedIncompatibleQosStatus
+        _status: &mut RequestedIncompatibleQosStatus
     ) -> ReturnCode<()> {
         // DataReaderImpl::get_requested_incompatible_qos_status(&self.0, status)
         todo!()
@@ -547,7 +546,7 @@ impl<'reader, T: DDSType> DataReader<'reader, T> {
     /// This operation allows access to the SAMPLE_LOST communication status. Communication statuses are described in 2.2.4.1.
     pub fn get_sample_lost_status(
         &self,
-        status: &mut SampleLostStatus
+        _status: &mut SampleLostStatus
     ) -> ReturnCode<()> {
         // DataReaderImpl::get_sample_lost_status(&self.0, status)
         todo!()
@@ -557,7 +556,7 @@ impl<'reader, T: DDSType> DataReader<'reader, T> {
     /// 2.2.4.1.
     pub fn get_sample_rejected_status(
         &self,
-        status: &mut SampleRejectedStatus
+        _status: &mut SampleRejectedStatus
     ) -> ReturnCode<()> {
         // DataReaderImpl::get_sample_rejected_status(&self.0, status)
         todo!()
@@ -567,7 +566,7 @@ impl<'reader, T: DDSType> DataReader<'reader, T> {
     /// described in 2.2.4.1.
     pub fn get_subscription_matched_status(
         &self,
-        status: &mut SubscriptionMatchedStatus
+        _status: &mut SubscriptionMatchedStatus
     ) -> ReturnCode<()> {
         // DataReaderImpl::get_subscription_matched_status(&self.0, status)
         todo!()
@@ -620,8 +619,8 @@ impl<'reader, T: DDSType> DataReader<'reader, T> {
     /// case the operation will return UNSUPPORTED
     pub fn get_matched_publication_data(
         &self,
-        publication_data: &mut PublicationBuiltinTopicData,
-        publication_handle: InstanceHandle,
+        _publication_data: &mut PublicationBuiltinTopicData,
+        _publication_handle: InstanceHandle,
     ) -> ReturnCode<()> {
         // DataReaderImpl::get_matched_publication_data(&self.0, publication_data, publication_handle)
         todo!()
@@ -636,7 +635,7 @@ impl<'reader, T: DDSType> DataReader<'reader, T> {
     /// The operation may fail if the infrastructure does not locally maintain the connectivity information.
     pub fn get_match_publication(
         &self,
-        publication_handles: &mut [InstanceHandle],
+        _publication_handles: &mut [InstanceHandle],
     ) -> ReturnCode<()> {
         // DataReaderImpl::get_match_publication(&self.0, publication_handles)
         todo!()
@@ -664,17 +663,17 @@ impl<'reader, T: DDSType> Entity for DataReader<'reader, T> {
     type Qos = DataReaderQos;
     type Listener = Box<dyn DataReaderListener<T>>;
 
-    fn set_qos(&self, qos_list: Self::Qos) -> ReturnCode<()> {
+    fn set_qos(&self, _qos_list: Self::Qos) -> ReturnCode<()> {
         // DataReaderImpl::set_qos(&self.0, qos_list)
         todo!()
     }
 
-    fn get_qos(&self, qos_list: &mut Self::Qos) -> ReturnCode<()> {
+    fn get_qos(&self, _qos_list: &mut Self::Qos) -> ReturnCode<()> {
         // DataReaderImpl::get_qos(&self.0, qos_list)
         todo!()
     }
 
-    fn set_listener(&self, a_listener: Self::Listener, mask: StatusMask) -> ReturnCode<()> {
+    fn set_listener(&self, _a_listener: Self::Listener, _mask: StatusMask) -> ReturnCode<()> {
         // DataReaderImpl::set_listener(&self.0, a_listener, mask)
         todo!()
     }

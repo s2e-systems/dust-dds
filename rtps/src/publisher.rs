@@ -75,7 +75,7 @@ impl ProtocolPublisher for Publisher {
         Box::new(Writer::new(new_writer))
     }
 
-    fn delete_writer(&mut self, writer: &Box<dyn ProtocolWriter>) {
+    fn delete_writer(&mut self, _writer: &Box<dyn ProtocolWriter>) {
         todo!()
     }
 }

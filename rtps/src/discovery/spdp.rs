@@ -1,9 +1,7 @@
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::convert::TryInto;
 
-use serde::{Serialize,Deserialize};
-
-use rust_dds_interface::types::{TopicKind, DomainId, InstanceHandle, ChangeKind, ParameterId};
+use rust_dds_interface::types::{TopicKind, DomainId, InstanceHandle, ChangeKind};
 use rust_dds_interface::history_cache::HistoryCache;
 
 use crate::types::{GuidPrefix, GUID, Locator, ProtocolVersion, VendorId, ReliabilityKind};
@@ -270,9 +268,9 @@ impl SPDPdiscoveredParticipantData {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    // use super::*;
     // use crate::transport::udp::UdpTransport;
-    use crate::types::constants::PROTOCOL_VERSION_2_4;
+    // use crate::types::constants::PROTOCOL_VERSION_2_4;
     // struct MockTransport{
     //     sent_messages: Vec<RtpsMessage>,
     //     unicast_locator_list: Vec<Locator>,

@@ -9,7 +9,7 @@ use rust_dds_interface::types::{TopicKind, Time, DURATION_ZERO};
 
 struct HelloWorldType {
     id: u8,
-    msg: String
+    _msg: String
 }
 
 impl DDSType for HelloWorldType {
@@ -42,16 +42,16 @@ fn hello_world() {
     let helloworld_topic = participant.create_topic("HelloWorld".to_string(), None, NoListener, 0).expect("Error creating topic");
 
     let subscriber = participant.create_subscriber(Some(&SubscriberQos::default()), NoListener, 0).expect("Error creating subscriber");
-    let datareader = subscriber.create_datareader(&helloworld_topic, Some(&DataReaderQos::default()), NoListener, 0);
+    let _datareader = subscriber.create_datareader(&helloworld_topic, Some(&DataReaderQos::default()), NoListener, 0);
 
     let mut data_writer_qos = DataWriterQos::default();
     data_writer_qos.reliability = ReliabilityQosPolicy{kind: ReliabilityQosPolicyKind::BestEffortReliabilityQos, max_blocking_time: DURATION_ZERO};
     let datawriter = publisher.create_datawriter(&helloworld_topic, Some(&data_writer_qos), NoListener, 0).expect("Error creating data writer");
-    let data = HelloWorldType{id: 1, msg: "Hello World!".to_string()};
+    let data = HelloWorldType{id: 1, _msg: "Hello World!".to_string()};
     let handle = None;
     let timestamp = Time{sec: 1, nanosec: 2};
     datawriter.write_w_timestamp(data, handle, timestamp).expect("Error writing");
 
 
-    std::thread::sleep_ms(5000)
+    std::thread::sleep(std::time::Duration::from_secs(5))
 }

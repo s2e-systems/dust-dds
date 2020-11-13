@@ -11,8 +11,7 @@ use super::stateful_reader_listener::StatefulReaderListener;
 use super::best_effort_writer_proxy::BestEffortWriterProxy;
 use super::reliable_writer_proxy::ReliableWriterProxy;
 
-use rust_dds_interface::protocol::{ProtocolEntity, ProtocolReader};
-use rust_dds_interface::types::{InstanceHandle, ReturnCode, TopicKind};
+use rust_dds_interface::types::TopicKind;
 use rust_dds_interface::history_cache::HistoryCache;
 
 enum WriterProxyFlavor{
@@ -159,12 +158,6 @@ impl RtpsEndpoint for StatefulReader {
         self
     }
 }
-
-// impl RtpsCommunication for StatefulReader {
-//     fn try_push_message(&mut self, src_locator: Locator, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>) {
-//         
-//     }
-// }
 
 #[cfg(test)]
 mod tests {

@@ -1,4 +1,4 @@
-use std::sync::{Mutex, Arc, Weak};
+use std::sync::{Arc, Weak};
 
 use std::marker::PhantomData;
 use crate::types::DDSType;
@@ -57,7 +57,7 @@ impl<'writer,T: DDSType> DataWriter<'writer, T> {
     /// ‘key’ should be examined to identify the instance.
     pub fn register_instance(
         &self,
-        instance: T
+        _instance: T
     ) -> ReturnCode<Option<InstanceHandle>> {
         // DataWriterImpl::register_instance(&self.0, instance)
         todo!()
@@ -72,8 +72,8 @@ impl<'writer,T: DDSType> DataWriter<'writer, T> {
     /// (2.2.2.4.2.11).
     pub fn register_instance_w_timestamp(
         &self,
-        instance: T,
-        timestamp: Time,
+        _instance: T,
+        _timestamp: Time,
     ) -> ReturnCode<Option<InstanceHandle>> {
         // DataWriterImpl::register_instance_w_timestamp(&self.0, instance, timestamp)
         todo!()
@@ -108,8 +108,8 @@ impl<'writer,T: DDSType> DataWriter<'writer, T> {
     /// Possible error codes returned in addition to the standard ones: TIMEOUT, PRECONDITION_NOT_MET.
     pub fn unregister_instance(
         &self,
-        instance: T,
-        handle: Option<InstanceHandle>
+        _instance: T,
+        _handle: Option<InstanceHandle>
     ) -> ReturnCode<()> {
         // DataWriterImpl::unregister_instance(&self.0, instance, handle)
         todo!()
@@ -124,9 +124,9 @@ impl<'writer,T: DDSType> DataWriter<'writer, T> {
     /// This operation may block and return TIMEOUT under the same circumstances described for the write operation (2.2.2.4.2.11).
     pub fn unregister_instance_w_timestamp(
         &self,
-        instance: T,
-        handle: Option<InstanceHandle>,
-        timestamp: Time,
+        _instance: T,
+        _handle: Option<InstanceHandle>,
+        _timestamp: Time,
     ) -> ReturnCode<()> {
         // DataWriterImpl::unregister_instance_w_timestamp(&self.0, instance, handle, timestamp)
         todo!()
@@ -139,8 +139,8 @@ impl<'writer,T: DDSType> DataWriter<'writer, T> {
     /// unspecified.
     pub fn get_key_value(
         &self,
-        key_holder: &mut T,
-        handle: InstanceHandle
+        _key_holder: &mut T,
+        _handle: InstanceHandle
     ) -> ReturnCode<()> {
         // DataWriterImpl::get_key_value(&self.0, key_holder, handle)
         todo!()
@@ -153,7 +153,7 @@ impl<'writer,T: DDSType> DataWriter<'writer, T> {
     /// reason the Service is unable to provide an instance handle, the Service will return the special value HANDLE_NIL.
     pub fn lookup_instance(
         &self,
-        instance: &T,
+        _instance: &T,
     ) -> ReturnCode<Option<InstanceHandle>> {
         // DataWriterImpl::lookup_instance(&self.0, instance)
         todo!()
@@ -199,8 +199,8 @@ impl<'writer,T: DDSType> DataWriter<'writer, T> {
     /// detectable the returned error-code will be BAD_PARAMETER.
     pub fn write (
         &self,
-        data: T,
-        handle: Option<InstanceHandle>,
+        _data: T,
+        _handle: Option<InstanceHandle>,
     ) -> ReturnCode<()> {
         // DataWriterImpl::write(&self.0, data, handle)
         todo!()
@@ -222,8 +222,8 @@ impl<'writer,T: DDSType> DataWriter<'writer, T> {
     pub fn write_w_timestamp(
         &self,
         data: T,
-        handle: Option<InstanceHandle>,
-        timestamp: Time,
+        _handle: Option<InstanceHandle>,
+        _timestamp: Time,
     ) -> ReturnCode<()> {
         let data_writer_impl = self.data_writer_impl()?;
         let new_change = data_writer_impl
@@ -251,8 +251,8 @@ impl<'writer,T: DDSType> DataWriter<'writer, T> {
     /// (2.2.2.4.2.11).
     pub fn dispose(
         &self,
-        data: T,
-        handle: Option<InstanceHandle>,
+        _data: T,
+        _handle: Option<InstanceHandle>,
     ) -> ReturnCode<()> {
         // DataWriterImpl::dispose(&self.0, data, handle)
         todo!()
@@ -273,9 +273,9 @@ impl<'writer,T: DDSType> DataWriter<'writer, T> {
     /// Possible error codes returned in addition to the standard ones: TIMEOUT, PRECONDITION_NOT_MET.
     pub fn dispose_w_timestamp(
         &self,
-        data: T,
-        handle: Option<InstanceHandle>,
-        timestamp: Time,
+        _data: T,
+        _handle: Option<InstanceHandle>,
+        _timestamp: Time,
     ) -> ReturnCode<()> {
         // DataWriterImpl::dispose_w_timestamp(&self.0, data, handle, timestamp)
         todo!()
@@ -290,7 +290,7 @@ impl<'writer,T: DDSType> DataWriter<'writer, T> {
     /// elapsed before all the data was acknowledged.
     pub fn wait_for_acknowledgments(
         &self,
-        max_wait: Duration
+        _max_wait: Duration
     ) -> ReturnCode<()> {
         // DataWriterImpl::wait_for_acknowledgments(&self.0, max_wait)
         todo!()
@@ -300,7 +300,7 @@ impl<'writer,T: DDSType> DataWriter<'writer, T> {
     /// 2.2.4.1, Communication Status.
     pub fn get_liveliness_lost_status(
         &self,
-        status: &mut LivelinessLostStatus
+        _status: &mut LivelinessLostStatus
     ) -> ReturnCode<()> {
         // DataWriterImpl::get_liveliness_lost_status(&self.0, status)
         todo!()
@@ -310,7 +310,7 @@ impl<'writer,T: DDSType> DataWriter<'writer, T> {
     /// described in 2.2.4.1, Communication Status.
     pub fn get_offered_deadline_missed_status(
         &self,
-        status: &mut OfferedDeadlineMissedStatus
+        _status: &mut OfferedDeadlineMissedStatus
     ) -> ReturnCode<()> {
         // DataWriterImpl::get_offered_deadline_missed_status(&self.0, status)
         todo!()
@@ -320,7 +320,7 @@ impl<'writer,T: DDSType> DataWriter<'writer, T> {
     /// described in 2.2.4.1, Communication Status.
     pub fn get_offered_incompatible_qos_status(
         &self,
-        status: &mut OfferedIncompatibleQosStatus
+        _status: &mut OfferedIncompatibleQosStatus
     ) -> ReturnCode<()> {
         // DataWriterImpl::get_offered_incompatible_qos_status(&self.0, status)
         todo!()
@@ -330,7 +330,7 @@ impl<'writer,T: DDSType> DataWriter<'writer, T> {
     /// described in 2.2.4.1, Communication Status.
     pub fn get_publication_matched_status(
         &self,
-        status: &mut PublicationMatchedStatus
+        _status: &mut PublicationMatchedStatus
     ) -> ReturnCode<()> {
         // DataWriterImpl::get_publication_matched_status(&self.0, status)
         todo!()
@@ -368,8 +368,8 @@ impl<'writer,T: DDSType> DataWriter<'writer, T> {
     /// case the operation will return UNSUPPORTED.
     pub fn get_matched_subscription_data(
         &self,
-        subscription_data: SubscriptionBuiltinTopicData,
-        subscription_handle: InstanceHandle,
+        _subscription_data: SubscriptionBuiltinTopicData,
+        _subscription_handle: InstanceHandle,
     ) -> ReturnCode<()> {
         // DataWriterImpl::get_matched_subscription_data(&self.0, subscription_data, subscription_handle)
         todo!()
@@ -384,7 +384,7 @@ impl<'writer,T: DDSType> DataWriter<'writer, T> {
     /// The operation may fail if the infrastructure does not locally maintain the connectivity information.
     pub fn get_matched_subscriptions(
         &self,
-        subscription_handles: &[InstanceHandle],
+        _subscription_handles: &[InstanceHandle],
     ) -> ReturnCode<()> {
         // DataWriterImpl::get_matched_subscriptions(&self.0, subscription_handles)
         todo!()
@@ -411,17 +411,17 @@ impl<'writer, T: DDSType> Entity for DataWriter<'writer, T>{
     type Qos = DataWriterQos;
     type Listener = Box<dyn DataWriterListener<T>>;
 
-    fn set_qos(&self, qos_list: Self::Qos) -> ReturnCode<()> {
+    fn set_qos(&self, _qos_list: Self::Qos) -> ReturnCode<()> {
         // DataWriterImpl::set_qos(&self.0, qos_list)
         todo!()
     }
 
-    fn get_qos(&self, qos_list: &mut Self::Qos) -> ReturnCode<()> {
+    fn get_qos(&self, _qos_list: &mut Self::Qos) -> ReturnCode<()> {
         // DataWriterImpl::get_qos(&self.0, qos_list)
         todo!()
     }
 
-    fn set_listener(&self, a_listener: Self::Listener, mask: StatusMask) -> ReturnCode<()> {
+    fn set_listener(&self, _a_listener: Self::Listener, _mask: StatusMask) -> ReturnCode<()> {
         // DataWriterImpl::set_listener(&self.0, a_listener, mask)
         todo!()
     }

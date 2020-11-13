@@ -11,7 +11,7 @@ use super::reader_proxy::ReaderProxy;
 use super::reliable_reader_proxy::ReliableReaderProxy;
 use super::best_effort_reader_proxy::BestEffortReaderProxy;
 
-use rust_dds_interface::types::{Data, Time, ReturnCode, InstanceHandle, SequenceNumber, TopicKind, ChangeKind, ParameterList};
+use rust_dds_interface::types::{InstanceHandle, SequenceNumber, TopicKind, ChangeKind, ParameterList};
 use rust_dds_interface::history_cache::HistoryCache;
 use rust_dds_interface::cache_change::CacheChange;
 

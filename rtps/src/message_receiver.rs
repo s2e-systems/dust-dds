@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use crate::types::{GuidPrefix, Locator,};
 use crate::structure::RtpsEndpoint;
 use crate::transport::Transport;
@@ -26,12 +26,11 @@ impl RtpsMessageReceiver {
                 if submessage.is_entity_submessage() {
                     let mut optional_submessage = Some(submessage);
                     for endpoint in endpoint_list.iter() {                        
-                        let mut endpoint_lock = endpoint;
-                        if let Some(stateless_reader) = endpoint_lock.get::<StatelessReader>() {
+                        if let Some(stateless_reader) = endpoint.get::<StatelessReader>() {
                             stateless_reader.try_process_message(source_guid_prefix, &mut optional_submessage);
-                        } else if let Some(stateful_writer) = endpoint_lock.get::<StatefulWriter>() {
+                        } else if let Some(stateful_writer) = endpoint.get::<StatefulWriter>() {
                             stateful_writer.try_process_message(source_guid_prefix, &mut optional_submessage);
-                        } else if let Some(stateful_reader) = endpoint_lock.get::<StatefulReader>() {
+                        } else if let Some(stateful_reader) = endpoint.get::<StatefulReader>() {
                             stateful_reader.try_process_message(source_guid_prefix, &mut optional_submessage);
                         }
                     }

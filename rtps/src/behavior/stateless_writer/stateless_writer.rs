@@ -146,7 +146,7 @@ mod tests {
 
     #[test]
     fn new_change() {
-        let mut writer = StatelessWriter::new(
+        let writer = StatelessWriter::new(
             GUID::new([0; 12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
             TopicKind::WithKey,
             ReliabilityKind::BestEffort,

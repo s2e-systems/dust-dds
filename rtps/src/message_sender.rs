@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use crate::types::GuidPrefix;
 use crate::types::constants::{PROTOCOL_VERSION_2_4, VENDOR_ID};
@@ -17,12 +17,11 @@ impl RtpsMessageSender {
         I: IntoIterator<Item = &'a Arc<dyn RtpsEndpoint> >,
     {
         for endpoint in endpoint_list {
-            let mut endpoint_lock = endpoint;
-            if let Some(stateless_writer) = endpoint_lock.get::<StatelessWriter>() {
+            if let Some(stateless_writer) = endpoint.get::<StatelessWriter>() {
                 RtpsMessageSender::send_stateless_writer(stateless_writer, transport, participant_guid_prefix)
-            } else if let Some(stateful_writer) = endpoint_lock.get::<StatefulWriter>() {
+            } else if let Some(stateful_writer) = endpoint.get::<StatefulWriter>() {
                 RtpsMessageSender::send_stateful_writer(stateful_writer, transport, participant_guid_prefix)
-            } else if let Some(stateful_reader) = endpoint_lock.get::<StatefulReader>() {
+            } else if let Some(stateful_reader) = endpoint.get::<StatefulReader>() {
                 RtpsMessageSender::send_stateful_reader(stateful_reader, transport, participant_guid_prefix)
             }
         }

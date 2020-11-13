@@ -1,6 +1,6 @@
-use crate::topic::Topic;
+// use crate::topic::Topic;
 use crate::infrastructure::status::{
-    InconsistentTopicStatus,
+    // InconsistentTopicStatus,
     LivelinessLostStatus,
     OfferedDeadlineMissedStatus,
     SampleLostStatus,

@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use crate::types::{GUID, GuidPrefix, ReliabilityKind};
 use crate::types::constants::{
     ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
