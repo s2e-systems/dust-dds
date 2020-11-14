@@ -1,7 +1,7 @@
 use std::sync::Mutex;
 use std::collections::HashMap;
 
-use crate::types::{ Locator, ReliabilityKind, GUID, GuidPrefix};
+use crate::types::{ReliabilityKind, GUID, GuidPrefix};
 use crate::behavior::types::Duration;
 use crate::messages::RtpsSubmessage;
 use crate::structure::{RtpsEndpoint, RtpsEntity};
@@ -199,22 +199,6 @@ impl RtpsEntity for StatefulWriter {
 }
 
 impl RtpsEndpoint for StatefulWriter {
-    fn unicast_locator_list(&self) -> Vec<Locator> {
-        todo!()
-    }
-
-    fn multicast_locator_list(&self) -> Vec<Locator> {
-        todo!()
-    }
-
-    fn reliability_level(&self) -> ReliabilityKind {
-        todo!()
-    }
-
-    fn topic_kind(&self) -> &TopicKind {
-        todo!()
-    }
-
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }

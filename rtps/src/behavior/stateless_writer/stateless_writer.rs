@@ -113,22 +113,6 @@ impl RtpsEntity for StatelessWriter {
 }
 
 impl RtpsEndpoint for StatelessWriter {
-    fn unicast_locator_list(&self) -> Vec<Locator> {
-        vec![]
-    }
-
-    fn multicast_locator_list(&self) -> Vec<Locator> {
-        vec![]
-    }
-
-    fn reliability_level(&self) -> ReliabilityKind {
-        self.reliability_level
-    }
-
-    fn topic_kind(&self) -> &TopicKind {
-        &self.topic_kind
-    }
-
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }

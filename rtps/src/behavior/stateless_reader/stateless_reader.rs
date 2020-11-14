@@ -93,22 +93,6 @@ impl RtpsEntity for StatelessReader {
 }
 
 impl RtpsEndpoint for StatelessReader {
-    fn unicast_locator_list(&self) -> Vec<Locator> {
-        todo!()
-    }
-
-    fn multicast_locator_list(&self) -> Vec<Locator> {
-        todo!()
-    }
-
-    fn reliability_level(&self) -> ReliabilityKind {
-        todo!()
-    }
-
-    fn topic_kind(&self) -> &TopicKind {
-        todo!()
-    }
-
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }

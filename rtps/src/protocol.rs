@@ -2,13 +2,13 @@ use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 
 use crate::types::{GUID, EntityId, EntityKind};
+use crate::types::constants::{PROTOCOL_VERSION_2_4, VENDOR_ID};
 use crate::transport::Transport;
 use crate::discovery::spdp::{SimpleParticipantDiscoveryProtocol, SPDPdiscoveredParticipantData};
 use crate::discovery::spdp_listener::SimpleParticipantDiscoveryListener;
 use crate::discovery::sedp::SimpleEndpointDiscoveryProtocol;
 use crate::endpoint_types::BuiltInEndpointSet;
-use crate::structure::{RtpsParticipant, RtpsGroup,};
-use crate::structure::entity::RtpsEntity;
+use crate::structure::{RtpsParticipant, RtpsGroup, RtpsEntity};
 use crate::message_receiver::RtpsMessageReceiver;
 use crate::message_sender::RtpsMessageSender;
 use crate::subscriber::Subscriber;
@@ -33,7 +33,7 @@ impl RtpsProtocol {
     pub fn new(domain_id: DomainId, userdata_transport: impl Transport, metatraffic_transport: impl Transport, domain_tag: String, lease_duration: rust_dds_interface::types::Duration) -> Self {
 
         let guid_prefix = [1,2,3,4,5,6,7,8,9,10,11,12];  //TODO: Should be uniquely generated
-        let participant = RtpsParticipant::new(domain_id, guid_prefix);
+        let participant = RtpsParticipant::new(domain_id, guid_prefix, PROTOCOL_VERSION_2_4, VENDOR_ID);
 
         let lease_duration = crate::behavior::types::Duration::from_secs(lease_duration.sec as u64); // TODO: Fix this conversion
 

@@ -1,13 +1,6 @@
 use crate::structure::RtpsEntity;
-use crate::types::{Locator, ReliabilityKind};
-use rust_dds_interface::types::TopicKind;
 
-pub trait RtpsEndpoint : RtpsEntity  {
-    fn unicast_locator_list(&self) -> Vec<Locator>;
-    fn multicast_locator_list(&self) -> Vec<Locator>;
-    fn reliability_level(&self) -> ReliabilityKind;
-    fn topic_kind(&self) -> &TopicKind;
-    
+pub trait RtpsEndpoint : RtpsEntity  {   
     fn as_any(&self) -> &dyn std::any::Any;
     fn as_mut_any(&mut self) -> &mut dyn std::any::Any;
 }

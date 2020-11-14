@@ -1,9 +1,7 @@
 use std::sync::{Arc, Mutex, };
 
 use crate::types::{GUID, GuidPrefix, ProtocolVersion, VendorId};
-use crate::types::constants::{
-    ENTITYID_PARTICIPANT,
-    PROTOCOL_VERSION_2_4,};
+use crate::types::constants::ENTITYID_PARTICIPANT;
 
 use super::{RtpsGroup, RtpsEntity};
 
@@ -22,10 +20,9 @@ impl RtpsParticipant {
     pub fn new(
         domain_id: DomainId,
         guid_prefix: GuidPrefix,
+        protocol_version: ProtocolVersion,
+        vendor_id: VendorId,
     ) -> Self {
-        let protocol_version = PROTOCOL_VERSION_2_4;
-        let vendor_id = [99,99];
-
         Self {
             guid: GUID::new(guid_prefix,ENTITYID_PARTICIPANT ),
             domain_id,
