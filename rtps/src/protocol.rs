@@ -70,18 +70,16 @@ impl RtpsProtocol {
         let spdp_listener = SimpleParticipantDiscoveryListener::new(participant.domain_id(), domain_tag.clone(), sedp.clone());
         let spdp = SimpleParticipantDiscoveryProtocol::new(data, spdp_listener);
 
-        let builtin_publisher_endpoints = builtin_publisher.mut_endpoints();
-        let builtin_subscriber_endpoints = builtin_subscriber.mut_endpoints();
-        builtin_publisher_endpoints.push(spdp.spdp_builtin_participant_writer().clone());
-        builtin_subscriber_endpoints.push(spdp.spdp_builtin_participant_reader().clone());
+        builtin_publisher.push(spdp.spdp_builtin_participant_writer().clone());
+        builtin_subscriber.push(spdp.spdp_builtin_participant_reader().clone());
 
         //SEDP 
-        builtin_publisher_endpoints.push(sedp.sedp_builtin_publications_writer().clone());
-        builtin_publisher_endpoints.push(sedp.sedp_builtin_subscriptions_writer().clone());
-        builtin_publisher_endpoints.push(sedp.sedp_builtin_topics_writer().clone());
-        builtin_subscriber_endpoints.push(sedp.sedp_builtin_publications_reader().clone());
-        builtin_subscriber_endpoints.push(sedp.sedp_builtin_subscriptions_reader().clone());
-        builtin_subscriber_endpoints.push(sedp.sedp_builtin_topics_reader().clone());
+        builtin_publisher.push(sedp.sedp_builtin_publications_writer().clone());
+        builtin_publisher.push(sedp.sedp_builtin_subscriptions_writer().clone());
+        builtin_publisher.push(sedp.sedp_builtin_topics_writer().clone());
+        builtin_subscriber.push(sedp.sedp_builtin_publications_reader().clone());
+        builtin_subscriber.push(sedp.sedp_builtin_subscriptions_reader().clone());
+        builtin_subscriber.push(sedp.sedp_builtin_topics_reader().clone());
 
         let userdata_transport = Arc::new(userdata_transport);
         let metatraffic_transport = Arc::new(metatraffic_transport);
@@ -103,16 +101,16 @@ impl RtpsProtocol {
         RtpsMessageReceiver::receive(
             self.participant.guid().prefix(), 
             self.metatraffic_transport.as_ref(),
-            self.builtin_publisher.lock().unwrap().into_iter()
-            .chain(self.builtin_subscriber.lock().unwrap().into_iter()))
+            self.builtin_publisher.lock().unwrap().iter()
+            .chain(self.builtin_subscriber.lock().unwrap().iter()))
     }
 
     pub fn send_metatraffic(&self) {
         RtpsMessageSender::send(
             self.participant.guid().prefix(), 
             self.metatraffic_transport.as_ref(),
-            self.builtin_publisher.lock().unwrap().into_iter()
-            .chain(self.builtin_subscriber.lock().unwrap().into_iter()))
+            self.builtin_publisher.lock().unwrap().iter()
+            .chain(self.builtin_subscriber.lock().unwrap().iter()))
     }
 }
 
@@ -132,14 +130,14 @@ impl ProtocolEntity for RtpsProtocol {
             RtpsMessageSender::send(
                 participant_guid_prefix, 
                 metatraffic_transport.as_ref(),
-                builtin_publisher.lock().unwrap().into_iter()
-                .chain(builtin_subscriber.lock().unwrap().into_iter()));
+                builtin_publisher.lock().unwrap().iter()
+                .chain(builtin_subscriber.lock().unwrap().iter()));
 
             RtpsMessageReceiver::receive(
                 participant_guid_prefix, 
                 metatraffic_transport.as_ref(),
-                builtin_publisher.lock().unwrap().into_iter()
-                .chain(builtin_subscriber.lock().unwrap().into_iter()));
+                builtin_publisher.lock().unwrap().iter()
+                .chain(builtin_subscriber.lock().unwrap().iter()));
         });
 
         self.thread_handles.push(handle);

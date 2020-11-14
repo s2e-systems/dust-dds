@@ -70,7 +70,7 @@ impl ProtocolPublisher for Publisher {
                 nack_response_delay,
                 nack_supression_duration,
             ));
-        self.group.lock().unwrap().mut_endpoints().push(new_writer.clone());
+        self.group.lock().unwrap().push(new_writer.clone());
 
         Box::new(Writer::new(new_writer))
     }
