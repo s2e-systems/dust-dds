@@ -21,7 +21,8 @@ use rust_dds_interface::protocol::{ProtocolEntity, ProtocolParticipant, Protocol
 pub struct RtpsProtocol {
     participant: RtpsParticipant,
     builtin_publisher: Arc<Mutex<RtpsGroup>>,
-    builtin_subscriber: Arc<Mutex<RtpsGroup>>, 
+    builtin_subscriber: Arc<Mutex<RtpsGroup>>,
+    user_defined_groups: Vec<Arc<Mutex<RtpsGroup>>>,
     userdata_transport: Arc<dyn Transport>,
     metatraffic_transport: Arc<dyn Transport>,
     publisher_counter: usize,
@@ -88,6 +89,7 @@ impl RtpsProtocol {
             participant,
             builtin_publisher: Arc::new(Mutex::new(builtin_publisher)),
             builtin_subscriber: Arc::new(Mutex::new(builtin_subscriber)),
+            user_defined_groups: Vec::new(),
             userdata_transport,
             metatraffic_transport,
             publisher_counter: 0,
@@ -152,15 +154,14 @@ impl ProtocolParticipant for RtpsProtocol {
         self.publisher_counter += 1;
         let publisher_guid = GUID::new(guid_prefix, entity_id);
         let publisher_group = Arc::new(Mutex::new(RtpsGroup::new(publisher_guid)));
-        self.participant.mut_groups().push(publisher_group.clone());
+        self.user_defined_groups.push(publisher_group.clone());
 
         Box::new(Publisher::new(publisher_group))
     }
 
     fn delete_publisher(&mut self, publisher: &Box<dyn ProtocolPublisher>) {
         let publisher_instance_handle = publisher.get_instance_handle();
-        self.participant
-            .mut_groups()
+        self.user_defined_groups
             .retain(|x| 
                 InstanceHandle::from(x.lock().unwrap().guid()) != publisher_instance_handle);
     }
@@ -171,15 +172,14 @@ impl ProtocolParticipant for RtpsProtocol {
         self.subscriber_counter += 1;
         let subscriber_guid = GUID::new(guid_prefix, entity_id);
         let subscriber_group = Arc::new(Mutex::new(RtpsGroup::new(subscriber_guid)));
-        self.participant.mut_groups().push(subscriber_group.clone());
+        self.user_defined_groups.push(subscriber_group.clone());
 
         Box::new(Subscriber::new(subscriber_group))
     }
 
     fn delete_subscriber(&mut self, subscriber: &Box<dyn ProtocolSubscriber>) {
         let subscriber_instance_handle = subscriber.get_instance_handle();
-        self.participant
-            .mut_groups()
+        self.user_defined_groups
             .retain(|x| 
                 InstanceHandle::from(x.lock().unwrap().guid()) != subscriber_instance_handle);
     }
