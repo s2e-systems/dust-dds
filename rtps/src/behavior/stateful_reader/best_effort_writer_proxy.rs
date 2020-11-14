@@ -7,19 +7,11 @@ use crate::behavior::cache_change_from_data;
 
 use rust_dds_interface::history_cache::HistoryCache;
 
-pub struct BestEffortWriterProxy {
-    writer_proxy: WriterProxy,
-}
+pub struct BestEffortWriterProxy(WriterProxy);
 
 impl BestEffortWriterProxy {
     pub fn new(writer_proxy: WriterProxy) -> Self {
-        Self {
-            writer_proxy,
-        }
-    }
-
-    pub fn writer_proxy(&self) -> &WriterProxy {
-        &self.writer_proxy
+        Self(writer_proxy)
     }
 
     pub fn try_process_message(&mut self, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>, history_cache: &mut HistoryCache, listener: &dyn StatefulReaderListener) {
@@ -39,11 +31,11 @@ impl BestEffortWriterProxy {
     }
 
     fn transition_t2(&mut self, history_cache: &mut HistoryCache, data: Data, listener: &dyn StatefulReaderListener) {
-        let expected_seq_number = self.writer_proxy.available_changes_max() + 1;
+        let expected_seq_number = self.available_changes_max() + 1;
         if data.writer_sn() >= expected_seq_number {
-            self.writer_proxy.received_change_set(data.writer_sn());
-            self.writer_proxy.lost_changes_update(data.writer_sn());
-            let cache_change = cache_change_from_data(data, &self.writer_proxy.remote_writer_guid().prefix());
+            self.received_change_set(data.writer_sn());
+            self.lost_changes_update(data.writer_sn());
+            let cache_change = cache_change_from_data(data, &self.remote_writer_guid().prefix());
             listener.on_add_change(&cache_change);
             history_cache.add_change(cache_change).unwrap();
         }
@@ -51,11 +43,11 @@ impl BestEffortWriterProxy {
 
     fn transition_t4(&mut self, gap: Gap) {
         for seq_num in gap.gap_start() .. gap.gap_list().base() - 1 {
-            self.writer_proxy.irrelevant_change_set(seq_num);
+            self.irrelevant_change_set(seq_num);
         }
 
         for &seq_num in gap.gap_list().set() {
-            self.writer_proxy.irrelevant_change_set(seq_num);
+            self.irrelevant_change_set(seq_num);
         }
     }
 
@@ -67,11 +59,25 @@ impl BestEffortWriterProxy {
         };
 
         let writer_guid = GUID::new(src_guid_prefix, writer_id);
-        if &writer_guid == self.writer_proxy.remote_writer_guid() {
+        if &writer_guid == self.remote_writer_guid() {
             true
         } else {
             false
         }
+    }
+}
+
+impl std::ops::Deref for BestEffortWriterProxy {
+    type Target = WriterProxy;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl std::ops::DerefMut for BestEffortWriterProxy {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
     }
 }
 

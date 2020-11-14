@@ -2,7 +2,7 @@ use std::time::Instant;
 use std::convert::TryInto;
 use std::collections::BTreeSet;
 
-use crate::types::{GUID, GuidPrefix, EntityId, Locator};
+use crate::types::{GUID, GuidPrefix, EntityId};
 use crate::messages::RtpsSubmessage;
 use crate::messages::submessages::{Gap, Heartbeat, AckNack};
 use crate::behavior::ReaderProxy;
@@ -16,10 +16,6 @@ use rust_dds_interface::history_cache::HistoryCache;
 
 pub struct ReliableReaderProxy{
     reader_proxy: ReaderProxy,
-    writer_entity_id: EntityId,
-
-    nack_response_delay: Duration,
-    heartbeat_period: Duration,
 
     heartbeat_count: Count,
     time_last_sent_data: Instant,
@@ -28,12 +24,9 @@ pub struct ReliableReaderProxy{
 }
 
 impl ReliableReaderProxy {
-    pub fn new(reader_proxy: ReaderProxy, writer_entity_id: EntityId, heartbeat_period: Duration, nack_response_delay: Duration) -> Self {
+    pub fn new(reader_proxy: ReaderProxy) -> Self {
         Self {
             reader_proxy,
-            writer_entity_id,
-            nack_response_delay,
-            heartbeat_period,
             heartbeat_count: 0,
             time_last_sent_data: Instant::now(),
             time_nack_received: Instant::now(),
@@ -41,20 +34,26 @@ impl ReliableReaderProxy {
         }
     }
 
-    pub fn produce_messages(&mut self, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber) -> Vec<RtpsSubmessage> {
+    pub fn produce_messages(&mut self,
+        history_cache: &HistoryCache,
+        last_change_sequence_number: SequenceNumber,
+        writer_entity_id: EntityId,
+        heartbeat_period: Duration,
+        nack_response_delay: Duration
+    ) -> Vec<RtpsSubmessage> {
         let mut message_queue = Vec::new();
 
         if self.reader_proxy.unacked_changes(last_change_sequence_number).is_empty() {
             // Idle
         } else if !self.reader_proxy.unsent_changes(last_change_sequence_number).is_empty() {
-            self.pushing_state(history_cache, last_change_sequence_number, &mut message_queue);
+            self.pushing_state(history_cache, last_change_sequence_number, writer_entity_id, &mut message_queue);
         } else if !self.reader_proxy.unacked_changes(last_change_sequence_number).is_empty() {
-            self.announcing_state(history_cache, last_change_sequence_number, &mut message_queue);
+            self.announcing_state(history_cache, last_change_sequence_number, writer_entity_id, heartbeat_period, &mut message_queue);
         }
     
         if !self.reader_proxy.requested_changes().is_empty() {
-            if self.duration_since_nack_received() > self.nack_response_delay {
-                self.repairing_state(history_cache, &mut message_queue);
+            if self.duration_since_nack_received() > nack_response_delay {
+                self.repairing_state(history_cache, writer_entity_id, &mut message_queue);
             }
         }
 
@@ -78,25 +77,17 @@ impl ReliableReaderProxy {
         }
     }
 
-    pub fn unicast_locator_list(&self) -> &Vec<Locator> {
-        self.reader_proxy.unicast_locator_list()
-    }
-
-    pub fn multicast_locator_list(&self) -> &Vec<Locator> {
-        self.reader_proxy.multicast_locator_list()
-    }
-
-    fn pushing_state(&mut self, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber, message_queue: &mut Vec<RtpsSubmessage>) {
+    fn pushing_state(&mut self, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber, writer_entity_id: EntityId, message_queue: &mut Vec<RtpsSubmessage>) {
         // This state is only valid if there are unsent changes
         debug_assert!(!self.reader_proxy.unsent_changes(last_change_sequence_number).is_empty());
     
         while let Some(next_unsent_seq_num) = self.reader_proxy.next_unsent_change(last_change_sequence_number) {
-            self.transition_t4(history_cache, next_unsent_seq_num, message_queue);
+            self.transition_t4(history_cache, next_unsent_seq_num, writer_entity_id, message_queue);
         }
         self.time_last_sent_data_reset();
     }
 
-    fn transition_t4(&mut self, history_cache: &HistoryCache, next_unsent_seq_num: SequenceNumber, message_queue: &mut Vec<RtpsSubmessage>) {
+    fn transition_t4(&mut self, history_cache: &HistoryCache, next_unsent_seq_num: SequenceNumber, writer_entity_id: EntityId, message_queue: &mut Vec<RtpsSubmessage>) {
         if let Some(cache_change) = history_cache.get_change(next_unsent_seq_num) {
             let reader_id = self.reader_proxy.remote_reader_guid().entity_id();
             let data = data_from_cache_change(cache_change, reader_id);
@@ -108,7 +99,7 @@ impl ReliableReaderProxy {
             let gap = Gap::new(
                 BEHAVIOR_ENDIANNESS,
                 self.reader_proxy.remote_reader_guid().entity_id(), 
-                self.writer_entity_id,
+                writer_entity_id,
                 next_unsent_seq_num,
             BTreeSet::new());
 
@@ -119,14 +110,14 @@ impl ReliableReaderProxy {
         }
     }
 
-    fn announcing_state(&mut self, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber, message_queue: &mut Vec<RtpsSubmessage>){
-        if self.duration_since_last_sent_data() > self.heartbeat_period {
-            self.transition_t7(history_cache, last_change_sequence_number, message_queue);
+    fn announcing_state(&mut self, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber, writer_entity_id: EntityId, heartbeat_period: Duration, message_queue: &mut Vec<RtpsSubmessage>){
+        if self.duration_since_last_sent_data() > heartbeat_period {
+            self.transition_t7(history_cache, last_change_sequence_number, writer_entity_id, message_queue);
             self.time_last_sent_data_reset();
         }
     }
 
-    fn transition_t7(&mut self, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber, message_queue: &mut Vec<RtpsSubmessage>) {
+    fn transition_t7(&mut self, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber, writer_entity_id: EntityId, message_queue: &mut Vec<RtpsSubmessage>) {
         let first_sn = if let Some(seq_num) = history_cache.get_seq_num_min() {
             seq_num
         } else {
@@ -137,7 +128,7 @@ impl ReliableReaderProxy {
         let heartbeat = Heartbeat::new(
             BEHAVIOR_ENDIANNESS,
             self.reader_proxy.remote_reader_guid().entity_id(),
-            self.writer_entity_id,
+            writer_entity_id,
             first_sn,
             last_change_sequence_number,
             self.heartbeat_count,
@@ -166,16 +157,16 @@ impl ReliableReaderProxy {
         self.transition_t8(acknack);
     }
     
-    fn repairing_state(&mut self, history_cache: &HistoryCache, message_queue: &mut Vec<RtpsSubmessage>) {
+    fn repairing_state(&mut self, history_cache: &HistoryCache, writer_entity_id: EntityId, message_queue: &mut Vec<RtpsSubmessage>) {
         // This state is only valid if there are requested changes
         debug_assert!(!self.reader_proxy.requested_changes().is_empty());
     
         while let Some(next_requested_seq_num) = self.reader_proxy.next_requested_change() {
-            self.transition_t12(history_cache, next_requested_seq_num, message_queue);
+            self.transition_t12(history_cache, next_requested_seq_num, writer_entity_id, message_queue);
         }
     }
 
-    fn transition_t12(&mut self, history_cache: &HistoryCache, next_requested_seq_num: SequenceNumber, message_queue: &mut Vec<RtpsSubmessage>) {
+    fn transition_t12(&mut self, history_cache: &HistoryCache, next_requested_seq_num: SequenceNumber, writer_entity_id: EntityId, message_queue: &mut Vec<RtpsSubmessage>) {
         if let Some(cache_change) = history_cache.get_change(next_requested_seq_num) {
             let data = data_from_cache_change(cache_change, self.reader_proxy.remote_reader_guid().entity_id());
             let mut dst_locator = self.reader_proxy.unicast_locator_list().clone();
@@ -186,7 +177,7 @@ impl ReliableReaderProxy {
             let gap = Gap::new(
                 BEHAVIOR_ENDIANNESS,
                 self.reader_proxy.remote_reader_guid().entity_id(), 
-                self.writer_entity_id,
+                writer_entity_id,
                 next_requested_seq_num,
                 BTreeSet::new());
 
@@ -220,9 +211,19 @@ impl ReliableReaderProxy {
     fn increment_heartbeat_count(&mut self) {
         self.heartbeat_count += 1;
     }
+}
 
-    pub fn reader_proxy(&self) -> &ReaderProxy {
+impl std::ops::Deref for ReliableReaderProxy {
+    type Target = ReaderProxy;
+
+    fn deref(&self) -> &Self::Target {
         &self.reader_proxy
+    }
+}
+
+impl std::ops::DerefMut for ReliableReaderProxy {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.reader_proxy
     }
 }
 

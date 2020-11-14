@@ -103,7 +103,7 @@ impl StatefulWriter {
         for (_reader_guid, reader_proxy) in matched_readers.iter_mut() {
             match reader_proxy {
                 ReaderProxyFlavor::Reliable(reliable_reader_proxy) => {
-                    let messages = reliable_reader_proxy.produce_messages(&self.writer_cache.lock().unwrap(), *self.last_change_sequence_number.lock().unwrap());
+                    let messages = reliable_reader_proxy.produce_messages(&self.writer_cache.lock().unwrap(), *self.last_change_sequence_number.lock().unwrap(), self.guid.entity_id(), self.heartbeat_period, self.nack_response_delay);
                     if !messages.is_empty() {
                         output.push(DestinedMessages::MultiDestination{
                             unicast_locator_list: reliable_reader_proxy.unicast_locator_list().clone(),
@@ -113,7 +113,7 @@ impl StatefulWriter {
                     }
                 }
                 ReaderProxyFlavor::BestEffort(best_effort_reader_proxy) => {
-                    let messages = best_effort_reader_proxy.produce_messages(&self.writer_cache.lock().unwrap(), *self.last_change_sequence_number.lock().unwrap());
+                    let messages = best_effort_reader_proxy.produce_messages(&self.writer_cache.lock().unwrap(), *self.last_change_sequence_number.lock().unwrap(), self.guid.entity_id());
                     if !messages.is_empty() {
                         output.push(DestinedMessages::MultiDestination{
                             unicast_locator_list: best_effort_reader_proxy.unicast_locator_list().clone(),
@@ -148,8 +148,8 @@ impl StatefulWriter {
     pub fn matched_reader_add(&self, a_reader_proxy: ReaderProxy) {
         let remote_reader_guid = a_reader_proxy.remote_reader_guid().clone();
         let reader_proxy = match self.reliability_level {
-            ReliabilityKind::Reliable => ReaderProxyFlavor::Reliable(ReliableReaderProxy::new(a_reader_proxy, self.guid.entity_id(), self.heartbeat_period, self.nack_response_delay)),
-            ReliabilityKind::BestEffort => ReaderProxyFlavor::BestEffort(BestEffortReaderProxy::new(a_reader_proxy, self.guid.entity_id())),
+            ReliabilityKind::Reliable => ReaderProxyFlavor::Reliable(ReliableReaderProxy::new(a_reader_proxy)),
+            ReliabilityKind::BestEffort => ReaderProxyFlavor::BestEffort(BestEffortReaderProxy::new(a_reader_proxy)),
         };
         self.matched_readers.lock().unwrap().insert(remote_reader_guid, reader_proxy);
     }

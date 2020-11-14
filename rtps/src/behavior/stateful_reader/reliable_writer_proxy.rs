@@ -33,10 +33,6 @@ impl ReliableWriterProxy {
         }
     }
 
-    pub fn writer_proxy(&self) -> &WriterProxy {
-        &self.writer_proxy
-    }
-
     pub fn try_process_message(&mut self, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>, history_cache: &mut HistoryCache, listener: &dyn StatefulReaderListener) {
         if let Some(inner_submessage) = submessage {
             if self.is_submessage_destination(src_guid_prefix, inner_submessage) {
@@ -58,14 +54,6 @@ impl ReliableWriterProxy {
         output_queue
     }
 
-    pub fn unicast_locator_list(&self) -> &Vec<crate::types::Locator> {
-        self.writer_proxy.unicast_locator_list()
-    }
-
-    pub fn multicast_locator_list(&self) -> &Vec<crate::types::Locator> {
-        self.writer_proxy.multicast_locator_list()
-    }
-
     fn ready_state(&mut self, submessage: &mut Option<RtpsSubmessage>, history_cache: &mut HistoryCache, listener: &dyn StatefulReaderListener) {
         match submessage.take().unwrap() {
             RtpsSubmessage::Data(data) => self.transition_t8(history_cache, data, listener),
@@ -84,7 +72,7 @@ impl ReliableWriterProxy {
         };
 
         let writer_guid = GUID::new(src_guid_prefix, writer_id);
-        if &writer_guid == self.writer_proxy.remote_writer_guid() {
+        if &writer_guid == self.remote_writer_guid() {
             true
         } else {
             false
@@ -92,10 +80,10 @@ impl ReliableWriterProxy {
     }
 
     fn transition_t8(&mut self, history_cache: &mut HistoryCache, data: Data, listener: &dyn StatefulReaderListener) {
-        let expected_seq_number = self.writer_proxy.available_changes_max() + 1;
+        let expected_seq_number = self.available_changes_max() + 1;
         if data.writer_sn() >= expected_seq_number {
-            self.writer_proxy.received_change_set(data.writer_sn());
-            let cache_change = cache_change_from_data(data, &self.writer_proxy.remote_writer_guid().prefix());
+            self.received_change_set(data.writer_sn());
+            let cache_change = cache_change_from_data(data, &self.remote_writer_guid().prefix());
             listener.on_add_change(&cache_change);
             history_cache.add_change(cache_change).unwrap();
             
@@ -104,23 +92,23 @@ impl ReliableWriterProxy {
 
     fn transition_t9(&mut self, gap: Gap) {
         for seq_num in gap.gap_start() .. gap.gap_list().base() - 1 {
-            self.writer_proxy.irrelevant_change_set(seq_num);
+            self.irrelevant_change_set(seq_num);
         }
 
         for &seq_num in gap.gap_list().set() {
-            self.writer_proxy.irrelevant_change_set(seq_num);
+            self.irrelevant_change_set(seq_num);
         }
     }
 
     fn transition_t7(&mut self, heartbeat: Heartbeat) {
-        self.writer_proxy.missing_changes_update(heartbeat.last_sn());
-        self.writer_proxy.lost_changes_update(heartbeat.first_sn());
+        self.missing_changes_update(heartbeat.last_sn());
+        self.lost_changes_update(heartbeat.first_sn());
     }
 
     fn waiting_heartbeat_state(&mut self, submessage: &RtpsSubmessage) {
         if let RtpsSubmessage::Heartbeat(heartbeat) = submessage {
             if !heartbeat.is_final() || 
-                (heartbeat.is_final() && !self.writer_proxy.missing_changes().is_empty()) {
+                (heartbeat.is_final() && !self.missing_changes().is_empty()) {
                     self.set_must_send_ack();
             } 
         }   
@@ -139,9 +127,9 @@ impl ReliableWriterProxy {
         let acknack = AckNack::new(
             BEHAVIOR_ENDIANNESS,
             reader_entity_id, 
-            self.writer_proxy.remote_writer_guid().entity_id(),
-            self.writer_proxy.available_changes_max(),
-            self.writer_proxy.missing_changes().clone(),
+            self.remote_writer_guid().entity_id(),
+            self.available_changes_max(),
+            self.missing_changes().clone(),
             *self.ackanck_count(),
             true);
 
@@ -167,6 +155,20 @@ impl ReliableWriterProxy {
 
     pub fn increment_acknack_count(&mut self) {
         self.ackanck_count += 1;
+    }
+}
+
+impl std::ops::Deref for ReliableWriterProxy {
+    type Target = WriterProxy;
+
+    fn deref(&self) -> &Self::Target {
+        &self.writer_proxy
+    }
+}
+
+impl std::ops::DerefMut for ReliableWriterProxy {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.writer_proxy
     }
 }
 

@@ -1,4 +1,4 @@
-use std::collections::{BTreeSet, VecDeque};
+use std::collections::BTreeSet;
 
 use crate::types::EntityId;
 use crate::messages::RtpsSubmessage;
@@ -9,75 +9,61 @@ use crate::behavior::{data_from_cache_change, BEHAVIOR_ENDIANNESS};
 use rust_dds_interface::history_cache::HistoryCache;
 use rust_dds_interface::types::SequenceNumber;
 
-pub struct BestEffortReaderProxy {
-    reader_proxy: ReaderProxy,
-    writer_entity_id: EntityId,
-    output_queue: VecDeque<RtpsSubmessage>,
-}
+pub struct BestEffortReaderProxy(ReaderProxy);
 
 impl BestEffortReaderProxy {
-    pub fn new(reader_proxy: ReaderProxy, writer_entity_id: EntityId) -> Self {
-        Self{
-            reader_proxy,
-            writer_entity_id,
-            output_queue: VecDeque::new(),
-        }
-    }
-    
-    pub fn reader_proxy(&self) -> &ReaderProxy {
-        &self.reader_proxy
+    pub fn new(reader_proxy: ReaderProxy) -> Self {
+        Self(reader_proxy)
     }
 
-    pub fn produce_messages(&mut self, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber) -> Vec<RtpsSubmessage> {
+    pub fn produce_messages(&mut self, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber, writer_entity_id: EntityId) -> Vec<RtpsSubmessage> {
         let mut messages = Vec::new();
-        if !self.reader_proxy.unsent_changes(last_change_sequence_number).is_empty() {
-            self.pushing_state(history_cache, last_change_sequence_number, &mut messages);
+        if !self.unsent_changes(last_change_sequence_number).is_empty() {
+            self.pushing_state(history_cache, last_change_sequence_number, writer_entity_id, &mut messages);
         }
         messages
     }
 
-    pub fn unicast_locator_list(&self) -> &Vec<crate::types::Locator> {
-        self.reader_proxy.unicast_locator_list()
-    }
-
-    pub fn multicast_locator_list(&self) -> &Vec<crate::types::Locator> {
-        self.reader_proxy.multicast_locator_list()
-    }
-
-    pub fn output_queue_mut(&mut self) -> &mut VecDeque<RtpsSubmessage> {
-        &mut self.output_queue
-    }
-    
-
-    fn pushing_state(&mut self, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber, message_queue: &mut Vec<RtpsSubmessage>) {
-        // This state is only valid if there are unsent changes
-        debug_assert!(!self.reader_proxy.unsent_changes(last_change_sequence_number).is_empty());
-    
-        while let Some(next_unsent_seq_num) = self.reader_proxy.next_unsent_change(last_change_sequence_number) {
-            self.transition_t4(history_cache, next_unsent_seq_num, message_queue);
+    fn pushing_state(&mut self, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber, writer_entity_id: EntityId, message_queue: &mut Vec<RtpsSubmessage>) {
+        while let Some(next_unsent_seq_num) = self.next_unsent_change(last_change_sequence_number) {
+            self.transition_t4(history_cache, next_unsent_seq_num, writer_entity_id, message_queue);
         }
     }
 
-    fn transition_t4(&mut self, history_cache: &HistoryCache, next_unsent_seq_num: SequenceNumber, message_queue: &mut Vec<RtpsSubmessage>) {
+    fn transition_t4(&mut self, history_cache: &HistoryCache, next_unsent_seq_num: SequenceNumber, writer_entity_id: EntityId, message_queue: &mut Vec<RtpsSubmessage>) {
         if let Some(cache_change) = history_cache.get_change(next_unsent_seq_num) {
-            let reader_id = self.reader_proxy.remote_reader_guid().entity_id();
+            let reader_id = self.remote_reader_guid().entity_id();
             let data = data_from_cache_change(cache_change, reader_id);
-            let mut dst_locator = self.reader_proxy.unicast_locator_list().clone();
-            dst_locator.extend(self.reader_proxy.unicast_locator_list());
-            dst_locator.extend(self.reader_proxy.multicast_locator_list());
+            let mut dst_locator = self.unicast_locator_list().clone();
+            dst_locator.extend(self.unicast_locator_list());
+            dst_locator.extend(self.multicast_locator_list());
             message_queue.push(RtpsSubmessage::Data(data));
         } else {
             let gap = Gap::new(
                 BEHAVIOR_ENDIANNESS,
-                self.reader_proxy.remote_reader_guid().entity_id(), 
-                self.writer_entity_id,
+                self.remote_reader_guid().entity_id(), 
+                writer_entity_id,
                 next_unsent_seq_num,
             BTreeSet::new());
-            let mut dst_locator = self.reader_proxy.unicast_locator_list().clone();
-            dst_locator.extend(self.reader_proxy.unicast_locator_list());
-            dst_locator.extend(self.reader_proxy.multicast_locator_list());
+            let mut dst_locator = self.unicast_locator_list().clone();
+            dst_locator.extend(self.unicast_locator_list());
+            dst_locator.extend(self.multicast_locator_list());
             message_queue.push(RtpsSubmessage::Gap(gap));
         }
+    }
+}
+
+impl std::ops::Deref for BestEffortReaderProxy {
+    type Target = ReaderProxy;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl std::ops::DerefMut for BestEffortReaderProxy {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
     }
 }
 
