@@ -32,14 +32,15 @@ impl ProtocolEntity for Subscriber {
 
 impl ProtocolSubscriber for Subscriber {
     fn create_reader(&mut self, topic_kind: TopicKind, data_reader_qos: &DataReaderQos) -> Box<dyn ProtocolReader> {
-        let reliability_level = match data_reader_qos.reliability.kind {
-            ReliabilityQosPolicyKind::ReliableReliabilityQos => ReliabilityKind::Reliable,
-            ReliabilityQosPolicyKind::BestEffortReliabilityQos => ReliabilityKind::BestEffort,
-        };
-        let expects_inline_qos = false;
-        let heartbeat_response_delay = Duration::from_millis(100);
-        let reader_cache = HistoryCache::new(data_reader_qos.resource_limits.clone());
-        let reader = Arc::new(StatefulReader::new(self.group.guid(), topic_kind, reliability_level, expects_inline_qos, heartbeat_response_delay, reader_cache));
-        Box::new(Reader::new(reader.clone()))
+        todo!()
+        // let reliability_level = match data_reader_qos.reliability.kind {
+        //     ReliabilityQosPolicyKind::ReliableReliabilityQos => ReliabilityKind::Reliable,
+        //     ReliabilityQosPolicyKind::BestEffortReliabilityQos => ReliabilityKind::BestEffort,
+        // };
+        // let expects_inline_qos = false;
+        // let heartbeat_response_delay = Duration::from_millis(100);
+        // let reader_cache = HistoryCache::new(data_reader_qos.resource_limits.clone());
+        // let reader = Arc::new(StatefulReader::new(self.group.guid(), topic_kind, reliability_level, expects_inline_qos, heartbeat_response_delay, reader_cache));
+        // Box::new(Reader::new(reader.clone()))
     }
 }

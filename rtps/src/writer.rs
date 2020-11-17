@@ -26,11 +26,13 @@ impl ProtocolEntity for Writer {
 }
 
 impl ProtocolWriter for Writer {
-    fn new_change(&self, kind: ChangeKind, data: Option<Data>, inline_qos: Option<ParameterList>, handle: InstanceHandle) -> CacheChange {
-        self.writer.new_change(kind, data, inline_qos, handle)
+    fn new_change(&self, _kind: ChangeKind, _data: Option<Data>, _inline_qos: Option<ParameterList>, _handle: InstanceHandle) -> CacheChange {
+        // self.writer.new_change(kind, data, inline_qos, handle)
+        todo!()
     }
 
     fn writer_cache(&self) -> &Mutex<HistoryCache> {
-        self.writer.writer_cache()
+        // self.writer.writer_cache()
+        todo!()
     }
 }

@@ -1,99 +1,47 @@
-use std::sync::Mutex;
-
-use crate::structure::{RtpsEndpoint, RtpsEntity};
-use crate::types::{ReliabilityKind, GUID, Locator, GuidPrefix };
+use crate::types::{ReliabilityKind, GuidPrefix };
 use crate::types::constants::ENTITYID_UNKNOWN;
 use crate::messages::RtpsSubmessage;
 use crate::messages::submessages::Data;
+use crate::behavior::RtpsReader;
 use crate::behavior::cache_change_from_data;
 use crate::behavior::stateless_reader::StatelessReaderListener;
 
 use rust_dds_interface::history_cache::HistoryCache;
-use rust_dds_interface::types::TopicKind;
 
 pub struct StatelessReader {
-    // From RTPS Entity
-    guid: GUID,
-
-    // From RTPS Enpoint:    
-    unicast_locator_list: Vec<Locator>,
-    multicast_locator_list: Vec<Locator>,
-    reliability_level: ReliabilityKind,
-    topic_kind: TopicKind,
-
-    // From RTPS Reader:
-    // Heartbeats are not relevant to stateless readers (only to stateful readers),
-    // hence the heartbeat_ members are not included here
-    // heartbeat_response_delay: Duration,
-    // heartbeat_suppression_duration: Duration,
-    reader_cache: Mutex<HistoryCache>,
-    expects_inline_qos: bool,
+    pub reader: RtpsReader,
 }
 
 impl StatelessReader {
-    pub fn new(
-        guid: GUID,
-        topic_kind: TopicKind,
-        reliability_level: ReliabilityKind,
-        unicast_locator_list: Vec<Locator>,
-        multicast_locator_list: Vec<Locator>,
-        expects_inline_qos: bool,
-        reader_cache: HistoryCache,
-    ) -> Self {
+    pub fn new(reader: RtpsReader) -> Self {
 
-        assert!(reliability_level == ReliabilityKind::BestEffort, "Only BestEffort is supported on stateless reader");
+        assert!(reader.endpoint.reliability_level == ReliabilityKind::BestEffort, "Only BestEffort is supported on stateless reader");
 
         Self {
-            guid,
-            topic_kind,
-            reliability_level,
-            unicast_locator_list,
-            multicast_locator_list,
-            reader_cache: Mutex::new(reader_cache),
-            expects_inline_qos,
+            reader
         }
     }
 
-    fn waiting_state(&self, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>, listener: &dyn StatelessReaderListener) {
+    fn waiting_state(&self, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>, reader_cache: &mut HistoryCache, listener: &dyn StatelessReaderListener) {
         if let Some(inner_submessage) = submessage {
             if let RtpsSubmessage::Data(data) = inner_submessage { 
-                if self.guid.entity_id() == data.reader_id() || data.reader_id() == ENTITYID_UNKNOWN {
+                if self.reader.endpoint.entity.guid.entity_id() == data.reader_id() || data.reader_id() == ENTITYID_UNKNOWN {
                     if let RtpsSubmessage::Data(data) = submessage.take().unwrap() {
-                        self.transition_t2(src_guid_prefix, data, listener)
+                        self.transition_t2(src_guid_prefix, data, reader_cache, listener)
                     }
                 }
             }              
         }
     }
 
-    fn transition_t2(&self, guid_prefix: GuidPrefix, data: Data, listener: &dyn StatelessReaderListener) {
+    fn transition_t2(&self, guid_prefix: GuidPrefix, data: Data, reader_cache: &mut HistoryCache, listener: &dyn StatelessReaderListener) {
         let cache_change = cache_change_from_data(data, &guid_prefix);
         listener.on_add_change(&cache_change);
-        self.reader_cache.lock().unwrap().add_change(cache_change).unwrap();
+        reader_cache.add_change(cache_change).unwrap();
     }
 
-    pub fn reader_cache(&self) -> &Mutex<HistoryCache> {
-        &self.reader_cache
-    }   
-
-    pub fn try_process_message(&self, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>, listener: &dyn StatelessReaderListener) {
-        self.waiting_state(src_guid_prefix, submessage, listener);
-    }
-}
-
-impl RtpsEntity for StatelessReader {
-    fn guid(&self) -> GUID {
-        self.guid
-    }
-}
-
-impl RtpsEndpoint for StatelessReader {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-
-    fn as_mut_any(&mut self) -> &mut dyn std::any::Any {
-        self
+    pub fn try_process_message(&self, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>, reader_cache: &mut HistoryCache, listener: &dyn StatelessReaderListener) {
+        self.waiting_state(src_guid_prefix, submessage, reader_cache, listener);
     }
 }
 

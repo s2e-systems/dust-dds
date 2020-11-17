@@ -3,7 +3,7 @@ use std::sync::{Arc, Mutex};
 use crate::types::{GUID, EntityId, EntityKind};
 use crate::types::constants::{PROTOCOL_VERSION_2_4, VENDOR_ID};
 use crate::transport::Transport;
-use crate::discovery::spdp::{SimpleParticipantDiscoveryProtocol, SPDPdiscoveredParticipantData};
+// use crate::discovery::spdp::{SimpleParticipantDiscoveryProtocol, SPDPdiscoveredParticipantData};
 use crate::endpoint_types::BuiltInEndpointSet;
 use crate::structure::{RtpsParticipant, RtpsGroup, RtpsEntity};
 use crate::message_receiver::RtpsMessageReceiver;
@@ -31,32 +31,32 @@ impl RtpsProtocol {
     pub fn new(domain_id: DomainId, userdata_transport: impl Transport, metatraffic_transport: impl Transport, domain_tag: String, lease_duration: rust_dds_interface::types::Duration) -> Self {
 
         let guid_prefix = [1,2,3,4,5,6,7,8,9,10,11,12];  //TODO: Should be uniquely generated
-        let participant = RtpsParticipant::new(domain_id, guid_prefix, PROTOCOL_VERSION_2_4, VENDOR_ID);
+        // let participant = RtpsParticipant::new(domain_id, guid_prefix, PROTOCOL_VERSION_2_4, VENDOR_ID);
 
         let lease_duration = crate::behavior::types::Duration::from_secs(lease_duration.sec as u64); // TODO: Fix this conversion
 
-        let data = SPDPdiscoveredParticipantData::new(
-            participant.domain_id(),
-            domain_tag.clone(), 
-            participant.protocol_version(), 
-            participant.guid().prefix(), 
-            participant.vendor_id(), 
-            metatraffic_transport.unicast_locator_list().clone(), 
-            metatraffic_transport.multicast_locator_list().clone(), 
-            userdata_transport.unicast_locator_list().clone(),
-            userdata_transport.multicast_locator_list().clone(),
-            BuiltInEndpointSet::new(
-                BuiltInEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_ANNOUNCER | 
-                BuiltInEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR |
-                BuiltInEndpointSet::BUILTIN_ENDPOINT_PUBLICATIONS_ANNOUNCER |
-                BuiltInEndpointSet::BUILTIN_ENDPOINT_PUBLICATIONS_DETECTOR |
-                BuiltInEndpointSet::BUILTIN_ENDPOINT_SUBSCRIPTIONS_ANNOUNCER |
-                BuiltInEndpointSet::BUILTIN_ENDPOINT_SUBSCRIPTIONS_DETECTOR |
-                BuiltInEndpointSet::BUILTIN_ENDPOINT_TOPICS_ANNOUNCER |
-                BuiltInEndpointSet::BUILTIN_ENDPOINT_TOPICS_DETECTOR
-             ),
-            lease_duration,
-        );
+        // let data = SPDPdiscoveredParticipantData::new(
+        //     participant.domain_id(),
+        //     domain_tag.clone(), 
+        //     participant.protocol_version(), 
+        //     participant.guid().prefix(), 
+        //     participant.vendor_id(), 
+        //     metatraffic_transport.unicast_locator_list().clone(), 
+        //     metatraffic_transport.multicast_locator_list().clone(), 
+        //     userdata_transport.unicast_locator_list().clone(),
+        //     userdata_transport.multicast_locator_list().clone(),
+        //     BuiltInEndpointSet::new(
+        //         BuiltInEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_ANNOUNCER | 
+        //         BuiltInEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR |
+        //         BuiltInEndpointSet::BUILTIN_ENDPOINT_PUBLICATIONS_ANNOUNCER |
+        //         BuiltInEndpointSet::BUILTIN_ENDPOINT_PUBLICATIONS_DETECTOR |
+        //         BuiltInEndpointSet::BUILTIN_ENDPOINT_SUBSCRIPTIONS_ANNOUNCER |
+        //         BuiltInEndpointSet::BUILTIN_ENDPOINT_SUBSCRIPTIONS_DETECTOR |
+        //         BuiltInEndpointSet::BUILTIN_ENDPOINT_TOPICS_ANNOUNCER |
+        //         BuiltInEndpointSet::BUILTIN_ENDPOINT_TOPICS_DETECTOR
+        //      ),
+        //     lease_duration,
+        // );
 
         let builtin_publisher = BuiltInPublisher::new(guid_prefix);
         let builtin_subscriber = BuiltInSubscriber::new(guid_prefix);
@@ -64,15 +64,16 @@ impl RtpsProtocol {
         let userdata_transport = Box::new(userdata_transport);
         let metatraffic_transport = Box::new(metatraffic_transport);
 
-        Self {
-            participant,
-            builtin_publisher,
-            builtin_subscriber,
-            userdata_transport,
-            metatraffic_transport,
-            publisher_counter: 0,
-            subscriber_counter: 0,
-        }
+        // Self {
+        //     participant,
+        //     builtin_publisher,
+        //     builtin_subscriber,
+        //     userdata_transport,
+        //     metatraffic_transport,
+        //     publisher_counter: 0,
+        //     subscriber_counter: 0,
+        // }
+        todo!()
     }
 
     pub fn receive_metatraffic(&self) {
@@ -94,30 +95,33 @@ impl RtpsProtocol {
 
 impl ProtocolEntity for RtpsProtocol {
     fn get_instance_handle(&self) -> InstanceHandle {
-        self.participant.guid().into()
+        todo!()
+        // self.participant.guid().into()
     }
 }
 
 impl ProtocolParticipant for RtpsProtocol {
     fn create_publisher(&mut self) ->  Box<dyn ProtocolPublisher> {
-        let guid_prefix = self.participant.guid().prefix();
-        let entity_id = EntityId::new([self.publisher_counter as u8,0,0], EntityKind::UserDefinedWriterGroup);
-        self.publisher_counter += 1;
-        let publisher_guid = GUID::new(guid_prefix, entity_id);
-        let publisher_group = RtpsGroup::new(publisher_guid);
-        // self.user_defined_groups.push(publisher_group.clone());
+        // let guid_prefix = self.participant.guid().prefix();
+        // let entity_id = EntityId::new([self.publisher_counter as u8,0,0], EntityKind::UserDefinedWriterGroup);
+        // self.publisher_counter += 1;
+        // let publisher_guid = GUID::new(guid_prefix, entity_id);
+        // let publisher_group = RtpsGroup::new(publisher_guid);
+        // // self.user_defined_groups.push(publisher_group.clone());
 
-        Box::new(Publisher::new(publisher_group))
+        // Box::new(Publisher::new(publisher_group))
+        todo!()
     }
 
     fn create_subscriber(&mut self) -> Box<dyn ProtocolSubscriber> {
-        let guid_prefix = self.participant.guid().prefix();
-        let entity_id = EntityId::new([self.subscriber_counter as u8,0,0], EntityKind::UserDefinedReaderGroup);
-        self.subscriber_counter += 1;
-        let subscriber_guid = GUID::new(guid_prefix, entity_id);
-        let subscriber_group = RtpsGroup::new(subscriber_guid);
+        // let guid_prefix = self.participant.guid().prefix();
+        // let entity_id = EntityId::new([self.subscriber_counter as u8,0,0], EntityKind::UserDefinedReaderGroup);
+        // self.subscriber_counter += 1;
+        // let subscriber_guid = GUID::new(guid_prefix, entity_id);
+        // let subscriber_group = RtpsGroup::new(subscriber_guid);
 
-        Box::new(Subscriber::new(subscriber_group))
+        // Box::new(Subscriber::new(subscriber_group))
+        todo!()
     }
 
     fn get_builtin_subscriber(&self) -> Box<dyn ProtocolSubscriber> {

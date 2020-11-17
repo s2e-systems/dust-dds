@@ -1,16 +1,19 @@
 use crate::structure::RtpsEntity;
+use crate::types::ReliabilityKind;
+use rust_dds_interface::types::TopicKind;
 
-pub trait RtpsEndpoint : RtpsEntity  {   
-    fn as_any(&self) -> &dyn std::any::Any;
-    fn as_mut_any(&mut self) -> &mut dyn std::any::Any;
+pub struct RtpsEndpoint {
+    pub entity: RtpsEntity,
+    pub topic_kind: TopicKind,
+    pub reliability_level: ReliabilityKind,
 }
 
-impl dyn RtpsEndpoint {
-    pub fn get<T:RtpsEndpoint>(&self) -> Option<&T> {
-        self.as_any().downcast_ref()
-    }
-
-    pub fn get_mut<T:RtpsEndpoint>(&mut self) -> Option<&mut T> {
-        self.as_mut_any().downcast_mut()
+impl RtpsEndpoint {
+    pub fn new(entity: RtpsEntity, topic_kind: TopicKind, reliability_level: ReliabilityKind) -> Self {
+        Self {
+            entity,
+            topic_kind,
+            reliability_level,
+        }
     }
 }
