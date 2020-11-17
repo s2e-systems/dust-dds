@@ -2,7 +2,7 @@ use std::sync::{Arc, Mutex};
 use crate::behavior::StatefulWriter;
 
 use rust_dds_interface::protocol::{ProtocolEntity, ProtocolWriter};
-use rust_dds_interface::types::{ReturnCode, InstanceHandle, ChangeKind, Data, ParameterList};
+use rust_dds_interface::types::{InstanceHandle, ChangeKind, Data, ParameterList};
 use rust_dds_interface::cache_change::CacheChange;
 use rust_dds_interface::history_cache::HistoryCache;
 
@@ -20,10 +20,6 @@ impl Writer {
 
 
 impl ProtocolEntity for Writer {
-    fn enable(&mut self) -> ReturnCode<()> {
-        todo!()
-    }
-
     fn get_instance_handle(&self) -> InstanceHandle {
         todo!()
     }

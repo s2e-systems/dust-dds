@@ -8,6 +8,8 @@ pub mod publisher;
 pub mod subscriber;
 pub mod reader;
 pub mod writer;
+pub mod builtin_publisher;
+pub mod builtin_subscriber;
 
 pub mod message_receiver;
 pub mod message_sender;

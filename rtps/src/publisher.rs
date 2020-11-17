@@ -7,17 +7,17 @@ use crate::behavior::types::Duration;
 use crate::writer::Writer;
 
 use rust_dds_interface::protocol::{ProtocolPublisher, ProtocolEntity, ProtocolWriter};
-use rust_dds_interface::types::{ReturnCode, InstanceHandle, TopicKind};
+use rust_dds_interface::types::{InstanceHandle, TopicKind};
 use rust_dds_interface::qos::DataWriterQos;
 use rust_dds_interface::qos_policy::ReliabilityQosPolicyKind;
 use rust_dds_interface::history_cache::HistoryCache;
 
 pub struct Publisher {
-    group: Arc<Mutex<RtpsGroup>>,
+    group: RtpsGroup,
 }
 
 impl Publisher {
-    pub fn new(group: Arc<Mutex<RtpsGroup>>) -> Self {        
+    pub fn new(group: RtpsGroup) -> Self {        
         Self {
             group
         }
@@ -25,19 +25,15 @@ impl Publisher {
 }
 
 impl ProtocolEntity for Publisher {
-    fn enable(&mut self) -> ReturnCode<()> {
-        todo!()
-    }
-
     fn get_instance_handle(&self) -> InstanceHandle {
-        self.group.lock().unwrap().guid().into()
+        self.group.guid().into()
     }
 }
 
 impl ProtocolPublisher for Publisher {
     fn create_writer(&mut self, topic_kind: TopicKind, data_writer_qos: &DataWriterQos) -> Box<dyn ProtocolWriter> {
         let dummy_counter = 1;
-        let group_guid = self.group.lock().unwrap().guid();
+        let group_guid = self.group.guid();
         let entity_kind = match topic_kind {
             TopicKind::NoKey => EntityKind::UserDefinedReaderNoKey,
             TopicKind::WithKey => EntityKind::UserDefinedReaderWithKey,
@@ -70,12 +66,7 @@ impl ProtocolPublisher for Publisher {
                 nack_response_delay,
                 nack_supression_duration,
             ));
-        self.group.lock().unwrap().push(new_writer.clone());
 
         Box::new(Writer::new(new_writer))
-    }
-
-    fn delete_writer(&mut self, _writer: &Box<dyn ProtocolWriter>) {
-        todo!()
     }
 }

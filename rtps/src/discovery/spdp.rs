@@ -65,7 +65,6 @@ impl SimpleParticipantDiscoveryProtocol {
             spdp_data.metatraffic_multicast_locator_list.clone(),
             false,
             reader_cache,
-            spdp_listener
         ); 
 
         Self {

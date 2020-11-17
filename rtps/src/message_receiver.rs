@@ -26,12 +26,15 @@ impl RtpsMessageReceiver {
                 if submessage.is_entity_submessage() {
                     let mut optional_submessage = Some(submessage);
                     for endpoint in endpoint_list.iter() {                        
-                        if let Some(stateless_reader) = endpoint.get::<StatelessReader>() {
-                            stateless_reader.try_process_message(source_guid_prefix, &mut optional_submessage);
+                        if let Some(_stateless_reader) = endpoint.get::<StatelessReader>() {
+                            todo!()
+                            // stateless_reader.try_process_message(source_guid_prefix, &mut optional_submessage);
                         } else if let Some(stateful_writer) = endpoint.get::<StatefulWriter>() {
-                            stateful_writer.try_process_message(source_guid_prefix, &mut optional_submessage);
+                            // stateful_writer.try_process_message(source_guid_prefix, &mut optional_submessage);
+                            todo!()
                         } else if let Some(stateful_reader) = endpoint.get::<StatefulReader>() {
-                            stateful_reader.try_process_message(source_guid_prefix, &mut optional_submessage);
+                            // stateful_reader.try_process_message(source_guid_prefix, &mut optional_submessage);
+                            todo!()
                         }
                     }
                 } else if submessage.is_interpreter_submessage(){

@@ -28,9 +28,6 @@ pub struct StatelessReader {
     // heartbeat_suppression_duration: Duration,
     reader_cache: Mutex<HistoryCache>,
     expects_inline_qos: bool,
-
-    // Additional fields:
-    listener: Box<dyn StatelessReaderListener>,
 }
 
 impl StatelessReader {
@@ -42,7 +39,6 @@ impl StatelessReader {
         multicast_locator_list: Vec<Locator>,
         expects_inline_qos: bool,
         reader_cache: HistoryCache,
-        listener: impl StatelessReaderListener
     ) -> Self {
 
         assert!(reliability_level == ReliabilityKind::BestEffort, "Only BestEffort is supported on stateless reader");
@@ -55,25 +51,24 @@ impl StatelessReader {
             multicast_locator_list,
             reader_cache: Mutex::new(reader_cache),
             expects_inline_qos,
-            listener: Box::new(listener)
         }
     }
 
-    fn waiting_state(&self, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>) {
+    fn waiting_state(&self, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>, listener: &dyn StatelessReaderListener) {
         if let Some(inner_submessage) = submessage {
             if let RtpsSubmessage::Data(data) = inner_submessage { 
                 if self.guid.entity_id() == data.reader_id() || data.reader_id() == ENTITYID_UNKNOWN {
                     if let RtpsSubmessage::Data(data) = submessage.take().unwrap() {
-                        self.transition_t2(src_guid_prefix, data)
+                        self.transition_t2(src_guid_prefix, data, listener)
                     }
                 }
             }              
         }
     }
 
-    fn transition_t2(&self, guid_prefix: GuidPrefix, data: Data) {
+    fn transition_t2(&self, guid_prefix: GuidPrefix, data: Data, listener: &dyn StatelessReaderListener) {
         let cache_change = cache_change_from_data(data, &guid_prefix);
-        self.listener.on_add_change(&cache_change);
+        listener.on_add_change(&cache_change);
         self.reader_cache.lock().unwrap().add_change(cache_change).unwrap();
     }
 
@@ -81,8 +76,8 @@ impl StatelessReader {
         &self.reader_cache
     }   
 
-    pub fn try_process_message(&self, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>) {
-        self.waiting_state(src_guid_prefix, submessage);
+    pub fn try_process_message(&self, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>, listener: &dyn StatelessReaderListener) {
+        self.waiting_state(src_guid_prefix, submessage, listener);
     }
 }
 

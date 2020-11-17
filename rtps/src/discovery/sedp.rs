@@ -50,15 +50,14 @@ impl SimpleEndpointDiscoveryProtocol {
 
         let sedp_builtin_publications_reader_guid = GUID::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR);
         let reader_cache = HistoryCache::default();
-        let sedp_builtin_publications_reader = Arc::new(StatefulReader::new(
+        let sedp_builtin_publications_reader = StatefulReader::new(
             sedp_builtin_publications_reader_guid,
             TopicKind::WithKey,
             reliability_level,
             false,
             heartbeat_response_delay,
-            reader_cache,
-            NoOpStatefulReaderListener,
-        ));
+            reader_cache
+        );
 
         let sedp_builtin_subscriptions_writer_guid = GUID::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
         let writer_cache = HistoryCache::default();
@@ -75,15 +74,14 @@ impl SimpleEndpointDiscoveryProtocol {
 
         let sedp_builtin_subscriptions_reader_guid = GUID::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
         let reader_cache = HistoryCache::default();
-        let sedp_builtin_subscriptions_reader = Arc::new(StatefulReader::new(
+        let sedp_builtin_subscriptions_reader = StatefulReader::new(
             sedp_builtin_subscriptions_reader_guid,
             TopicKind::WithKey,
             reliability_level,
             false,
             heartbeat_response_delay,
-            reader_cache,
-            NoOpStatefulReaderListener,
-        ));
+            reader_cache
+        );
 
         let sedp_builtin_topics_writer_guid = GUID::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER);
         let writer_cache = HistoryCache::default();
@@ -100,15 +98,14 @@ impl SimpleEndpointDiscoveryProtocol {
 
         let sedp_builtin_topics_reader_guid = GUID::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR);
         let reader_cache = HistoryCache::default();
-        let sedp_builtin_topics_reader = Arc::new(StatefulReader::new(
+        let sedp_builtin_topics_reader = StatefulReader::new(
             sedp_builtin_topics_reader_guid,
             TopicKind::WithKey,
             reliability_level,
             false,
             heartbeat_response_delay,
             reader_cache,
-            NoOpStatefulReaderListener,
-        ));
+        );
 
 
         Self {

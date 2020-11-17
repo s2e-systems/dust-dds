@@ -41,9 +41,6 @@ pub struct StatefulReader {
 
     // Fields
     matched_writers: Mutex<HashMap<GUID, WriterProxyFlavor>>,
-
-    // Additional fields:
-    listener: Box<dyn StatefulReaderListener>,
 }
 
 impl StatefulReader {
@@ -53,8 +50,7 @@ impl StatefulReader {
         reliability_level: ReliabilityKind,
         expects_inline_qos: bool,
         heartbeat_response_delay: Duration,
-        reader_cache: HistoryCache,
-        listener: impl StatefulReaderListener,
+        reader_cache: HistoryCache
         ) -> Self {
             Self {
                 guid,
@@ -63,17 +59,16 @@ impl StatefulReader {
                 expects_inline_qos,
                 heartbeat_response_delay,       
                 reader_cache: Mutex::new(reader_cache),
-                matched_writers: Mutex::new(HashMap::new()),
-                listener: Box::new(listener),
+                matched_writers: Mutex::new(HashMap::new())
             }
     }
 
-    pub fn try_process_message(&self, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>) {
+    pub fn try_process_message(&self, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>, listener: &dyn StatefulReaderListener) {
         let mut matched_writers = self.matched_writers.lock().unwrap();
         for (_writer_guid, writer_proxy) in matched_writers.iter_mut() {
             match writer_proxy {
-                WriterProxyFlavor::BestEffort(best_effort_writer_proxy) => best_effort_writer_proxy.try_process_message(src_guid_prefix, submessage, &mut self.reader_cache.lock().unwrap(), self.listener.as_ref()),
-                WriterProxyFlavor::Reliable(reliable_writer_proxy) => reliable_writer_proxy.try_process_message(src_guid_prefix, submessage, &mut self.reader_cache.lock().unwrap(), self.listener.as_ref()),
+                WriterProxyFlavor::BestEffort(best_effort_writer_proxy) => best_effort_writer_proxy.try_process_message(src_guid_prefix, submessage, &mut self.reader_cache.lock().unwrap(), listener),
+                WriterProxyFlavor::Reliable(reliable_writer_proxy) => reliable_writer_proxy.try_process_message(src_guid_prefix, submessage, &mut self.reader_cache.lock().unwrap(), listener),
             }
         }
     }

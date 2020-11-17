@@ -1,33 +1,30 @@
 use std::sync::{Arc, Mutex};
-use std::thread::JoinHandle;
 
 use crate::types::{GUID, EntityId, EntityKind};
 use crate::types::constants::{PROTOCOL_VERSION_2_4, VENDOR_ID};
 use crate::transport::Transport;
 use crate::discovery::spdp::{SimpleParticipantDiscoveryProtocol, SPDPdiscoveredParticipantData};
-use crate::discovery::spdp_listener::SimpleParticipantDiscoveryListener;
-use crate::discovery::sedp::SimpleEndpointDiscoveryProtocol;
 use crate::endpoint_types::BuiltInEndpointSet;
 use crate::structure::{RtpsParticipant, RtpsGroup, RtpsEntity};
 use crate::message_receiver::RtpsMessageReceiver;
 use crate::message_sender::RtpsMessageSender;
 use crate::subscriber::Subscriber;
 use crate::publisher::Publisher;
+use crate::builtin_publisher::BuiltInPublisher;
+use crate::builtin_subscriber::BuiltInSubscriber;
 
 
-use rust_dds_interface::types::{DomainId, InstanceHandle, ReturnCode};
+use rust_dds_interface::types::{DomainId, InstanceHandle};
 use rust_dds_interface::protocol::{ProtocolEntity, ProtocolParticipant, ProtocolSubscriber, ProtocolPublisher};
 
 pub struct RtpsProtocol {
     participant: RtpsParticipant,
-    builtin_publisher: Arc<Mutex<RtpsGroup>>,
-    builtin_subscriber: Arc<Mutex<RtpsGroup>>,
-    user_defined_groups: Vec<Arc<Mutex<RtpsGroup>>>,
-    userdata_transport: Arc<dyn Transport>,
-    metatraffic_transport: Arc<dyn Transport>,
+    builtin_publisher: BuiltInPublisher,
+    builtin_subscriber: BuiltInSubscriber,
+    userdata_transport: Box<dyn Transport>,
+    metatraffic_transport: Box<dyn Transport>,
     publisher_counter: usize,
     subscriber_counter: usize,
-    thread_handles: Vec<JoinHandle<()>>,
 }
 
 impl RtpsProtocol {
@@ -61,89 +58,43 @@ impl RtpsProtocol {
             lease_duration,
         );
 
-        let builtin_publisher_guid = GUID::new(guid_prefix, EntityId::new([3,3,3], EntityKind::BuiltInWriterGroup));
-        let builtin_subscriber_guid = GUID::new(guid_prefix, EntityId::new([3,3,3], EntityKind::BuiltInReaderGroup));
+        let builtin_publisher = BuiltInPublisher::new(guid_prefix);
+        let builtin_subscriber = BuiltInSubscriber::new(guid_prefix);
 
-        let mut builtin_publisher = RtpsGroup::new(builtin_publisher_guid);
-        let mut builtin_subscriber = RtpsGroup::new(builtin_subscriber_guid);
-
-        let sedp = SimpleEndpointDiscoveryProtocol::new(guid_prefix);
-        let spdp_listener = SimpleParticipantDiscoveryListener::new(participant.domain_id(), domain_tag.clone(), sedp.clone());
-        let spdp = SimpleParticipantDiscoveryProtocol::new(data, spdp_listener);
-
-        builtin_publisher.push(spdp.spdp_builtin_participant_writer().clone());
-        builtin_subscriber.push(spdp.spdp_builtin_participant_reader().clone());
-
-        //SEDP 
-        builtin_publisher.push(sedp.sedp_builtin_publications_writer().clone());
-        builtin_publisher.push(sedp.sedp_builtin_subscriptions_writer().clone());
-        builtin_publisher.push(sedp.sedp_builtin_topics_writer().clone());
-        builtin_subscriber.push(sedp.sedp_builtin_publications_reader().clone());
-        builtin_subscriber.push(sedp.sedp_builtin_subscriptions_reader().clone());
-        builtin_subscriber.push(sedp.sedp_builtin_topics_reader().clone());
-
-        let userdata_transport = Arc::new(userdata_transport);
-        let metatraffic_transport = Arc::new(metatraffic_transport);
+        let userdata_transport = Box::new(userdata_transport);
+        let metatraffic_transport = Box::new(metatraffic_transport);
 
         Self {
             participant,
-            builtin_publisher: Arc::new(Mutex::new(builtin_publisher)),
-            builtin_subscriber: Arc::new(Mutex::new(builtin_subscriber)),
-            user_defined_groups: Vec::new(),
+            builtin_publisher,
+            builtin_subscriber,
             userdata_transport,
             metatraffic_transport,
             publisher_counter: 0,
             subscriber_counter: 0,
-            thread_handles: Vec::new(),
         }
     }
 
-
     pub fn receive_metatraffic(&self) {
-        RtpsMessageReceiver::receive(
-            self.participant.guid().prefix(), 
-            self.metatraffic_transport.as_ref(),
-            self.builtin_publisher.lock().unwrap().iter()
-            .chain(self.builtin_subscriber.lock().unwrap().iter()))
+        // RtpsMessageReceiver::receive(
+        //     self.participant.guid().prefix(), 
+        //     self.metatraffic_transport.as_ref(),
+        //     self.builtin_publisher.lock().unwrap().iter()
+        //     .chain(self.builtin_subscriber.lock().unwrap().iter()))
     }
 
     pub fn send_metatraffic(&self) {
-        RtpsMessageSender::send(
-            self.participant.guid().prefix(), 
-            self.metatraffic_transport.as_ref(),
-            self.builtin_publisher.lock().unwrap().iter()
-            .chain(self.builtin_subscriber.lock().unwrap().iter()))
+        // RtpsMessageSender::send(
+        //     self.participant.guid().prefix(), 
+        //     self.metatraffic_transport.as_ref(),
+        //     self.builtin_publisher.lock().unwrap().iter()
+        //     .chain(self.builtin_subscriber.lock().unwrap().iter()))
     }
 }
 
 impl ProtocolEntity for RtpsProtocol {
     fn get_instance_handle(&self) -> InstanceHandle {
         self.participant.guid().into()
-    }
-
-    fn enable(&mut self) -> ReturnCode<()> {
-        let participant_guid_prefix = self.participant.guid().prefix();
-        let metatraffic_transport = self.metatraffic_transport.clone();
-        let builtin_publisher = self.builtin_publisher.clone();
-        let builtin_subscriber = self.builtin_subscriber.clone();
-
-        let handle = std::thread::spawn(move ||
-        {
-            RtpsMessageSender::send(
-                participant_guid_prefix, 
-                metatraffic_transport.as_ref(),
-                builtin_publisher.lock().unwrap().iter()
-                .chain(builtin_subscriber.lock().unwrap().iter()));
-
-            RtpsMessageReceiver::receive(
-                participant_guid_prefix, 
-                metatraffic_transport.as_ref(),
-                builtin_publisher.lock().unwrap().iter()
-                .chain(builtin_subscriber.lock().unwrap().iter()));
-        });
-
-        self.thread_handles.push(handle);
-        Ok(()) // TODO
     }
 }
 
@@ -153,17 +104,10 @@ impl ProtocolParticipant for RtpsProtocol {
         let entity_id = EntityId::new([self.publisher_counter as u8,0,0], EntityKind::UserDefinedWriterGroup);
         self.publisher_counter += 1;
         let publisher_guid = GUID::new(guid_prefix, entity_id);
-        let publisher_group = Arc::new(Mutex::new(RtpsGroup::new(publisher_guid)));
-        self.user_defined_groups.push(publisher_group.clone());
+        let publisher_group = RtpsGroup::new(publisher_guid);
+        // self.user_defined_groups.push(publisher_group.clone());
 
         Box::new(Publisher::new(publisher_group))
-    }
-
-    fn delete_publisher(&mut self, publisher: &Box<dyn ProtocolPublisher>) {
-        let publisher_instance_handle = publisher.get_instance_handle();
-        self.user_defined_groups
-            .retain(|x| 
-                InstanceHandle::from(x.lock().unwrap().guid()) != publisher_instance_handle);
     }
 
     fn create_subscriber(&mut self) -> Box<dyn ProtocolSubscriber> {
@@ -171,21 +115,36 @@ impl ProtocolParticipant for RtpsProtocol {
         let entity_id = EntityId::new([self.subscriber_counter as u8,0,0], EntityKind::UserDefinedReaderGroup);
         self.subscriber_counter += 1;
         let subscriber_guid = GUID::new(guid_prefix, entity_id);
-        let subscriber_group = Arc::new(Mutex::new(RtpsGroup::new(subscriber_guid)));
-        self.user_defined_groups.push(subscriber_group.clone());
+        let subscriber_group = RtpsGroup::new(subscriber_guid);
 
         Box::new(Subscriber::new(subscriber_group))
     }
 
-    fn delete_subscriber(&mut self, subscriber: &Box<dyn ProtocolSubscriber>) {
-        let subscriber_instance_handle = subscriber.get_instance_handle();
-        self.user_defined_groups
-            .retain(|x| 
-                InstanceHandle::from(x.lock().unwrap().guid()) != subscriber_instance_handle);
+    fn get_builtin_subscriber(&self) -> Box<dyn ProtocolSubscriber> {
+        todo!()
+        // Box::new(Subscriber::new(self.builtin_subscriber.clone()))
     }
 
-    fn get_builtin_subscriber(&self) -> Box<dyn ProtocolSubscriber> {
-        Box::new(Subscriber::new(self.builtin_subscriber.clone()))
+    fn run(&self) {
+        // RtpsMessageReceiver::receive(
+        //     self.participant.guid().prefix(), 
+        //     self.metatraffic_transport.as_ref(),
+        //     self.builtin_publisher.lock().unwrap().iter()
+        //     .chain(self.builtin_subscriber.lock().unwrap().iter()));
+
+        // RtpsMessageSender::send(
+        //         self.participant.guid().prefix(), 
+        //         self.metatraffic_transport.as_ref(),
+        //         self.builtin_publisher.lock().unwrap().iter()
+        //         .chain(self.builtin_subscriber.lock().unwrap().iter()));
+    }
+
+    fn receive(&self, _publisher_list: &[&dyn ProtocolPublisher], _subscriber_list: &[&dyn ProtocolSubscriber]) {
+        todo!()
+    }
+
+    fn send(&self, _publisher_list: &[&dyn ProtocolPublisher], _subscriber_list: &[&dyn ProtocolSubscriber]) {
+        todo!()
     }
 }
 
