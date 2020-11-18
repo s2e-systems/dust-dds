@@ -5,6 +5,7 @@ pub mod stateful_reader;
 pub mod stateful_writer;
 pub mod stateless_reader;
 pub mod stateless_writer;
+pub mod endpoint_traits;
 
 pub use writer::RtpsWriter;
 pub use reader::RtpsReader;
@@ -15,8 +16,8 @@ pub use stateless_writer::StatelessWriter;
 
 use std::convert::TryInto;
 
-use crate::types::{GUID, GuidPrefix, EntityId, Locator,};
-use crate::messages::{types::Endianness, RtpsSubmessage};
+use crate::types::{GUID, GuidPrefix, EntityId};
+use crate::messages::types::Endianness;
 use crate::messages::submessages::Data;
 use crate::messages::submessages::data_submessage::Payload;
 use crate::messages::types::{KeyHash, StatusInfo, PID_KEY_HASH, PID_STATUS_INFO};
@@ -25,11 +26,6 @@ use rust_dds_interface::types::{ChangeKind,ParameterList};
 use rust_dds_interface::cache_change::CacheChange;
 
 pub const BEHAVIOR_ENDIANNESS: Endianness = Endianness::LittleEndian;
-
-pub enum DestinedMessages {
-    SingleDestination{locator: Locator, messages: Vec<RtpsSubmessage>},
-    MultiDestination{unicast_locator_list: Vec<Locator>, multicast_locator_list: Vec<Locator>, messages: Vec<RtpsSubmessage>}
-}
 
 
 fn cache_change_from_data(message: Data, guid_prefix: &GuidPrefix) -> CacheChange {

@@ -1,7 +1,8 @@
 use std::sync::Mutex;
 use std::collections::HashMap;
 
-use crate::behavior::{RtpsWriter, DestinedMessages};
+use crate::behavior::RtpsWriter;
+use crate::behavior::endpoint_traits::DestinedMessages;
 use crate::types::{Locator, ReliabilityKind, };
 use super::reader_locator::ReaderLocator;
 

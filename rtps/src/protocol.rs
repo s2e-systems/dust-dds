@@ -28,12 +28,12 @@ pub struct RtpsProtocol {
 }
 
 impl RtpsProtocol {
-    pub fn new(domain_id: DomainId, userdata_transport: impl Transport, metatraffic_transport: impl Transport, domain_tag: String, lease_duration: rust_dds_interface::types::Duration) -> Self {
+    pub fn new(_domain_id: DomainId, userdata_transport: impl Transport, metatraffic_transport: impl Transport, _domain_tag: String, lease_duration: rust_dds_interface::types::Duration) -> Self {
 
         let guid_prefix = [1,2,3,4,5,6,7,8,9,10,11,12];  //TODO: Should be uniquely generated
         // let participant = RtpsParticipant::new(domain_id, guid_prefix, PROTOCOL_VERSION_2_4, VENDOR_ID);
 
-        let lease_duration = crate::behavior::types::Duration::from_secs(lease_duration.sec as u64); // TODO: Fix this conversion
+        let _lease_duration = crate::behavior::types::Duration::from_secs(lease_duration.sec as u64); // TODO: Fix this conversion
 
         // let data = SPDPdiscoveredParticipantData::new(
         //     participant.domain_id(),

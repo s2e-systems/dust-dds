@@ -1,49 +1,45 @@
-use crate::types::GuidPrefix;
-use crate::types::constants::{PROTOCOL_VERSION_2_4, VENDOR_ID};
-use crate::transport::Transport;
-use crate::behavior::DestinedMessages;
+// use crate::types::GuidPrefix;
+// use crate::types::constants::{PROTOCOL_VERSION_2_4, VENDOR_ID};
+// use crate::transport::Transport;
+// // use crate::behavior::DestinedMessages;
 
-use crate::messages::RtpsMessage;
-
-pub trait MessageSender {
-    fn produce_messages(&self) -> Vec<DestinedMessages>;
-}
+// use crate::messages::RtpsMessage;
 
 pub struct RtpsMessageSender;
 
 impl RtpsMessageSender {
-    pub fn send<'a, I>(participant_guid_prefix: GuidPrefix, transport: &dyn Transport, endpoint_list: &[&dyn MessageSender]) {
-        for &endpoint in endpoint_list {
-            let destined_messages = endpoint.produce_messages();
-            for destined_message in destined_messages{
-                match destined_message {
-                    DestinedMessages::SingleDestination{locator, messages} => {
-                        if messages.len() > 0 {
-                            let message = RtpsMessage::new(
-                                PROTOCOL_VERSION_2_4,
-                                VENDOR_ID,
-                                participant_guid_prefix, messages);
-                            transport.write(message, &locator);
-                        }
-                    }
-                    DestinedMessages::MultiDestination { unicast_locator_list, multicast_locator_list, messages} => {
-                        if messages.len() > 0 {
-                            let message = RtpsMessage::new(
-                            PROTOCOL_VERSION_2_4,
-                            VENDOR_ID,
-                            participant_guid_prefix, messages);
+    // pub fn send<'a, I>(participant_guid_prefix: GuidPrefix, transport: &dyn Transport, endpoint_list: &[&dyn MessageSender]) {
+    //     for &endpoint in endpoint_list {
+    //         let destined_messages = endpoint.produce_messages();
+    //         for destined_message in destined_messages{
+    //             match destined_message {
+    //                 DestinedMessages::SingleDestination{locator, messages} => {
+    //                     if messages.len() > 0 {
+    //                         let message = RtpsMessage::new(
+    //                             PROTOCOL_VERSION_2_4,
+    //                             VENDOR_ID,
+    //                             participant_guid_prefix, messages);
+    //                         transport.write(message, &locator);
+    //                     }
+    //                 }
+    //                 DestinedMessages::MultiDestination { unicast_locator_list, multicast_locator_list, messages} => {
+    //                     if messages.len() > 0 {
+    //                         let message = RtpsMessage::new(
+    //                         PROTOCOL_VERSION_2_4,
+    //                         VENDOR_ID,
+    //                         participant_guid_prefix, messages);
         
-                            if !unicast_locator_list.is_empty() {
-                                transport.write(message, &unicast_locator_list[0]);
-                            } else if !multicast_locator_list.is_empty() {
-                                transport.write(message, &multicast_locator_list[0]);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
+    //                         if !unicast_locator_list.is_empty() {
+    //                             transport.write(message, &unicast_locator_list[0]);
+    //                         } else if !multicast_locator_list.is_empty() {
+    //                             transport.write(message, &multicast_locator_list[0]);
+    //                         }
+    //                     }
+    //                 }
+    //             }
+    //         }
+    //     }
+    // }
 }
 
 // #[cfg(test)]

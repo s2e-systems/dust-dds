@@ -3,7 +3,8 @@ use std::collections::HashMap;
 use crate::types::{ReliabilityKind, GUID, GuidPrefix };
 use crate::messages::RtpsSubmessage;
 
-use crate::behavior::{RtpsReader, WriterProxy, DestinedMessages};
+use crate::behavior::{RtpsReader, WriterProxy};
+use crate::behavior::endpoint_traits::DestinedMessages;
 use super::stateful_reader_listener::StatefulReaderListener;
 use super::best_effort_writer_proxy::BestEffortWriterProxy;
 use super::reliable_writer_proxy::ReliableWriterProxy;
