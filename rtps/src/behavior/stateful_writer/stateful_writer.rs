@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use crate::types::{ReliabilityKind, GUID, GuidPrefix};
 use crate::messages::RtpsSubmessage;
 use crate::behavior::RtpsWriter;
+use crate::behavior::types::Duration;
 use crate::behavior::endpoint_traits::DestinedMessages;
 
 use super::reader_proxy::ReaderProxy;
@@ -18,15 +19,24 @@ enum ReaderProxyFlavor {
 
 pub struct StatefulWriter {
     pub writer: RtpsWriter,
+    heartbeat_period: Duration,
+    nack_response_delay: Duration,
+    nack_suppression_duration: Duration,
     matched_readers: HashMap<GUID, ReaderProxyFlavor>,
 }
 
 impl StatefulWriter {
     pub fn new(
         writer: RtpsWriter,
+        heartbeat_period: Duration,
+        nack_response_delay: Duration,
+        nack_suppression_duration: Duration,
     ) -> Self {
             Self {
                 writer,
+                heartbeat_period,
+                nack_response_delay,
+                nack_suppression_duration,
                 matched_readers: HashMap::new()
         }
     }
@@ -36,7 +46,7 @@ impl StatefulWriter {
         for (_reader_guid, reader_proxy) in self.matched_readers.iter_mut() {
             match reader_proxy {
                 ReaderProxyFlavor::Reliable(reliable_reader_proxy) => {
-                    let messages = reliable_reader_proxy.produce_messages(writer_cache, self.writer.last_change_sequence_number, self.writer.endpoint.entity.guid.entity_id(), self.writer.heartbeat_period, self.writer.nack_response_delay);
+                    let messages = reliable_reader_proxy.produce_messages(writer_cache, self.writer.last_change_sequence_number, self.writer.endpoint.entity.guid.entity_id(), self.heartbeat_period, self.nack_response_delay);
                     if !messages.is_empty() {
                         output.push(DestinedMessages::MultiDestination{
                             unicast_locator_list: reliable_reader_proxy.unicast_locator_list().clone(),

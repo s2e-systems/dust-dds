@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use crate::types::{ReliabilityKind, GUID, GuidPrefix };
 use crate::messages::RtpsSubmessage;
 
+use crate::behavior::types::Duration;
 use crate::behavior::{RtpsReader, WriterProxy};
 use crate::behavior::endpoint_traits::DestinedMessages;
 use super::stateful_reader_listener::StatefulReaderListener;
@@ -18,15 +19,18 @@ enum WriterProxyFlavor{
 
 pub struct StatefulReader {
     pub reader: RtpsReader,
+    pub heartbeat_response_delay: Duration,
     matched_writers: HashMap<GUID, WriterProxyFlavor>,
 }
 
 impl StatefulReader {
     pub fn new(
         reader: RtpsReader,
+        heartbeat_response_delay: Duration
         ) -> Self {
             Self {
                 reader,
+                heartbeat_response_delay,
                 matched_writers: HashMap::new()
             }
     }
@@ -46,7 +50,7 @@ impl StatefulReader {
             match writer_proxy {
                 WriterProxyFlavor::BestEffort(_) => (),
                 WriterProxyFlavor::Reliable(reliable_writer_proxy) => {
-                    let messages = reliable_writer_proxy.produce_messages(self.reader.endpoint.entity.guid.entity_id(), self.reader.heartbeat_response_delay);
+                    let messages = reliable_writer_proxy.produce_messages(self.reader.endpoint.entity.guid.entity_id(), self.heartbeat_response_delay);
                     output.push( {
                         DestinedMessages::MultiDestination{
                             unicast_locator_list: reliable_writer_proxy.unicast_locator_list().clone(),
