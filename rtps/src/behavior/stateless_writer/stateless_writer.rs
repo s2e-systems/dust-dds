@@ -2,8 +2,10 @@ use std::collections::HashMap;
 
 use crate::behavior::RtpsWriter;
 use crate::behavior::endpoint_traits::{DestinedMessages, CacheChangeSender};
-use crate::types::{Locator, ReliabilityKind, };
+use crate::types::{Locator, ReliabilityKind, GUID};
 use super::reader_locator::ReaderLocator;
+use rust_dds_interface::types::TopicKind;
+use rust_dds_interface::history_cache::HistoryCache;
 
 pub struct StatelessWriter {
     pub writer: RtpsWriter,
@@ -12,9 +14,16 @@ pub struct StatelessWriter {
 
 impl StatelessWriter {
     pub fn new(
-        writer: RtpsWriter,
+        guid: GUID,
+        topic_kind: TopicKind,
+        reliability_level: ReliabilityKind,
+        push_mode: bool,
+        writer_cache: HistoryCache,
+        data_max_sized_serialized: Option<i32>,
     ) -> Self {
-        assert!(writer.endpoint.reliability_level == ReliabilityKind::BestEffort, "Only BestEffort is supported on stateless writer");
+        assert!(reliability_level == ReliabilityKind::BestEffort, "Only BestEffort is supported on stateless writer");
+
+        let writer = RtpsWriter::new(guid, topic_kind, reliability_level, push_mode, writer_cache, data_max_sized_serialized);
 
         Self {
             writer,

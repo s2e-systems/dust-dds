@@ -1,5 +1,5 @@
 use crate::structure::RtpsEntity;
-use crate::types::ReliabilityKind;
+use crate::types::{ReliabilityKind, GUID};
 use rust_dds_interface::types::TopicKind;
 
 pub struct RtpsEndpoint {
@@ -9,7 +9,8 @@ pub struct RtpsEndpoint {
 }
 
 impl RtpsEndpoint {
-    pub fn new(entity: RtpsEntity, topic_kind: TopicKind, reliability_level: ReliabilityKind) -> Self {
+    pub fn new(guid: GUID, topic_kind: TopicKind, reliability_level: ReliabilityKind) -> Self {
+        let entity = RtpsEntity::new(guid);
         Self {
             entity,
             topic_kind,

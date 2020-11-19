@@ -10,6 +10,7 @@ use super::stateful_reader_listener::StatefulReaderListener;
 use super::best_effort_writer_proxy::BestEffortWriterProxy;
 use super::reliable_writer_proxy::ReliableWriterProxy;
 
+use rust_dds_interface::types::TopicKind;
 use rust_dds_interface::history_cache::HistoryCache;
 
 enum WriterProxyFlavor{
@@ -25,9 +26,15 @@ pub struct StatefulReader {
 
 impl StatefulReader {
     pub fn new(
-        reader: RtpsReader,
+        guid: GUID,
+        topic_kind: TopicKind,
+        reliability_level: ReliabilityKind,
+        reader_cache: HistoryCache,
+        expects_inline_qos: bool,
         heartbeat_response_delay: Duration
         ) -> Self {
+
+            let reader = RtpsReader::new(guid, topic_kind, reliability_level, reader_cache, expects_inline_qos);
             Self {
                 reader,
                 heartbeat_response_delay,

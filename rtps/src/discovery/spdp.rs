@@ -2,8 +2,7 @@ use crate::types::{GuidPrefix, GUID, ReliabilityKind};
 
 use crate::discovery::spdp_data::SPDPdiscoveredParticipantData;
 use crate::endpoint_types::BuiltInEndpointSet;
-use crate::behavior::{StatelessWriter, StatelessReader, RtpsReader, RtpsWriter};
-use crate::structure::{ RtpsEntity, RtpsEndpoint};
+use crate::behavior::{StatelessWriter, StatelessReader};
 use crate::behavior::{ReaderProxy, WriterProxy};
 use crate::discovery::sedp::sedp::SimpleEndpointDiscoveryProtocol;
 
@@ -33,17 +32,14 @@ impl SimpleParticipantDiscovery {
         let guid_prefix = spdp_data.guid_prefix();
 
         let guid = GUID::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER);
-        let entity = RtpsEntity::new(guid);
         
         let topic_kind = TopicKind::WithKey;
         let reliability_level = ReliabilityKind::BestEffort;
-        let endpoint = RtpsEndpoint::new(entity, topic_kind, reliability_level);
         
         let push_mode = true;
         let writer_cache = HistoryCache::default();
         let data_max_sized_serialized = None;
-        let writer = RtpsWriter::new(endpoint, push_mode, writer_cache, data_max_sized_serialized); 
-        let mut spdp_builtin_participant_writer = StatelessWriter::new(writer);
+        let mut spdp_builtin_participant_writer = StatelessWriter::new(guid, topic_kind, reliability_level, push_mode, writer_cache, data_max_sized_serialized);
 
         let change = spdp_builtin_participant_writer.writer.new_change(ChangeKind::Alive, Some(spdp_data.data()), None, spdp_data.key());
         spdp_builtin_participant_writer.writer.writer_cache.add_change(change).unwrap();
@@ -54,16 +50,13 @@ impl SimpleParticipantDiscovery {
 
 
         let guid = GUID::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_DETECTOR);
-        let entity = RtpsEntity::new(guid);
         
         let topic_kind = TopicKind::WithKey;
         let reliability_level = ReliabilityKind::BestEffort;
-        let endpoint = RtpsEndpoint::new(entity, topic_kind, reliability_level);
         let expects_inline_qos = false;
 
         let reader_cache = HistoryCache::default();
-        let reader = RtpsReader::new(endpoint, reader_cache, expects_inline_qos);
-        let spdp_builtin_participant_reader = StatelessReader::new(reader);
+        let spdp_builtin_participant_reader = StatelessReader::new(guid, topic_kind, reliability_level, reader_cache, expects_inline_qos);
 
         Self {
             spdp_builtin_participant_writer,

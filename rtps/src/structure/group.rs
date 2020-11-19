@@ -1,3 +1,4 @@
+use crate::types::GUID;
 use crate::structure::RtpsEntity;
 
 pub struct RtpsGroup {
@@ -5,7 +6,8 @@ pub struct RtpsGroup {
 }
 
 impl RtpsGroup {
-    pub fn new(entity: RtpsEntity) -> Self {
+    pub fn new(guid: GUID) -> Self {
+        let entity = RtpsEntity::new(guid);
         Self {
             entity
         }

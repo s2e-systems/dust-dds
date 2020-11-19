@@ -1,35 +1,55 @@
-use crate::types::{ReliabilityKind, GuidPrefix };
-use crate::types::constants::ENTITYID_UNKNOWN;
-use crate::messages::RtpsSubmessage;
-use crate::messages::submessages::Data;
-use crate::behavior::RtpsReader;
 use crate::behavior::cache_change_from_data;
 use crate::behavior::endpoint_traits::CacheChangeReceiver;
-use crate::behavior::cache_change_receiver_listener::CacheChangeReceiverListener;
+use crate::behavior::RtpsReader;
+use crate::messages::submessages::Data;
+use crate::messages::RtpsSubmessage;
+use crate::types::constants::ENTITYID_UNKNOWN;
+use crate::types::{GuidPrefix, ReliabilityKind, GUID};
+use rust_dds_interface::history_cache::HistoryCache;
+use rust_dds_interface::types::TopicKind;
 
 pub struct StatelessReader {
     pub reader: RtpsReader,
 }
 
 impl StatelessReader {
-    pub fn new(reader: RtpsReader) -> Self {
+    pub fn new(
+        guid: GUID,
+        topic_kind: TopicKind,
+        reliability_level: ReliabilityKind,
+        reader_cache: HistoryCache,
+        expects_inline_qos: bool,
+    ) -> Self {
+        assert!(
+            reliability_level == ReliabilityKind::BestEffort,
+            "Only BestEffort supported on stateless reader"
+        );
 
-        assert!(reader.endpoint.reliability_level == ReliabilityKind::BestEffort, "Only BestEffort is supported on stateless reader");
-
-        Self {
-            reader
-        }
+        let reader = RtpsReader::new(
+            guid,
+            topic_kind,
+            reliability_level,
+            reader_cache,
+            expects_inline_qos,
+        );
+        Self { reader }
     }
 
-    fn waiting_state(&mut self, source_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>) {
+    fn waiting_state(
+        &mut self,
+        source_guid_prefix: GuidPrefix,
+        submessage: &mut Option<RtpsSubmessage>,
+    ) {
         if let Some(inner_submessage) = submessage {
-            if let RtpsSubmessage::Data(data) = inner_submessage { 
-                if self.reader.endpoint.entity.guid.entity_id() == data.reader_id() || data.reader_id() == ENTITYID_UNKNOWN {
+            if let RtpsSubmessage::Data(data) = inner_submessage {
+                if self.reader.endpoint.entity.guid.entity_id() == data.reader_id()
+                    || data.reader_id() == ENTITYID_UNKNOWN
+                {
                     if let RtpsSubmessage::Data(data) = submessage.take().unwrap() {
                         self.transition_t2(source_guid_prefix, data)
                     }
                 }
-            }              
+            }
         }
     }
 
@@ -41,7 +61,11 @@ impl StatelessReader {
 }
 
 impl CacheChangeReceiver for StatelessReader {
-    fn try_process_message(&mut self, source_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>) {
+    fn try_process_message(
+        &mut self,
+        source_guid_prefix: GuidPrefix,
+        submessage: &mut Option<RtpsSubmessage>,
+    ) {
         self.waiting_state(source_guid_prefix, submessage);
     }
 }
@@ -58,7 +82,7 @@ mod tests {
     // use crate::inline_qos_types::KeyHash;
     // use crate::structure::CacheChange;
     // use crate::behavior::change_kind_to_status_info;
-    
+
     // #[test]
     // fn run() {
     //     let reader_guid_prefix = [0;12];
@@ -121,7 +145,7 @@ mod tests {
     //         false,
     //         HistoryCacheResourceLimits::default(),
     //        );
-        
+
     //     let data_to_unknown_reader = RtpsSubmessage::Data(Data::new(
     //         Endianness::LittleEndian,
     //         ENTITYID_UNKNOWN,
@@ -151,18 +175,18 @@ mod tests {
 
     //     let source_guid_prefix = [1;12];
 
-        // Check that messages from different valid locators are received
-        // assert!(reader.is_submessage_destination(&source_locator_unicast1, &source_guid_prefix, &data_to_unknown_reader));
-        // assert!(reader.is_submessage_destination(&source_locator_unicast2, &source_guid_prefix, &data_to_unknown_reader));
-        // assert!(reader.is_submessage_destination(&source_locator_multicast, &source_guid_prefix, &data_to_unknown_reader));
+    // Check that messages from different valid locators are received
+    // assert!(reader.is_submessage_destination(&source_locator_unicast1, &source_guid_prefix, &data_to_unknown_reader));
+    // assert!(reader.is_submessage_destination(&source_locator_unicast2, &source_guid_prefix, &data_to_unknown_reader));
+    // assert!(reader.is_submessage_destination(&source_locator_multicast, &source_guid_prefix, &data_to_unknown_reader));
 
-        // // Check that messages with reader id unknown and the correct reader id are received
-        // assert!(reader.is_submessage_destination(&source_locator_unicast1, &source_guid_prefix, &data_to_unknown_reader));
-        // assert!(reader.is_submessage_destination(&source_locator_unicast1, &source_guid_prefix, &data_to_this_reader));
+    // // Check that messages with reader id unknown and the correct reader id are received
+    // assert!(reader.is_submessage_destination(&source_locator_unicast1, &source_guid_prefix, &data_to_unknown_reader));
+    // assert!(reader.is_submessage_destination(&source_locator_unicast1, &source_guid_prefix, &data_to_this_reader));
 
-        // // Check that messages with other source locator and mean for other reader are NOT received
-        // let other_source_locator = Locator::new(1, 1111, [11;16]);
-        // assert!(!reader.is_submessage_destination(&other_source_locator, &source_guid_prefix, &data_to_unknown_reader));
-        // assert!(!reader.is_submessage_destination(&source_locator_unicast1, &source_guid_prefix, &data_to_other_reader));
+    // // Check that messages with other source locator and mean for other reader are NOT received
+    // let other_source_locator = Locator::new(1, 1111, [11;16]);
+    // assert!(!reader.is_submessage_destination(&other_source_locator, &source_guid_prefix, &data_to_unknown_reader));
+    // assert!(!reader.is_submessage_destination(&source_locator_unicast1, &source_guid_prefix, &data_to_other_reader));
     // }
 }

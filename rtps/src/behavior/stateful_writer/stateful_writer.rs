@@ -9,7 +9,7 @@ use crate::behavior::endpoint_traits::{DestinedMessages, AcknowldegmentReceiver}
 use super::reader_proxy::ReaderProxy;
 use super::reliable_reader_proxy::ReliableReaderProxy;
 use super::best_effort_reader_proxy::BestEffortReaderProxy;
-
+use rust_dds_interface::types::TopicKind;
 use rust_dds_interface::history_cache::HistoryCache;
 
 enum ReaderProxyFlavor {
@@ -27,11 +27,18 @@ pub struct StatefulWriter {
 
 impl StatefulWriter {
     pub fn new(
-        writer: RtpsWriter,
+        guid: GUID,
+        topic_kind: TopicKind,
+        reliability_level: ReliabilityKind,
+        push_mode: bool,
+        writer_cache: HistoryCache,
+        data_max_sized_serialized: Option<i32>,
         heartbeat_period: Duration,
         nack_response_delay: Duration,
         nack_suppression_duration: Duration,
     ) -> Self {
+        
+        let writer = RtpsWriter::new(guid, topic_kind, reliability_level, push_mode, writer_cache, data_max_sized_serialized);
             Self {
                 writer,
                 heartbeat_period,

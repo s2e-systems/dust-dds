@@ -25,51 +25,41 @@ pub struct SimpleEndpointDiscoveryProtocol {
 }
 
 impl SimpleEndpointDiscoveryProtocol {
-    fn endpoint(guid_prefix: GuidPrefix, entity_id: EntityId) -> RtpsEndpoint {
-        let guid = GUID::new(guid_prefix, entity_id);
-        let entity = RtpsEntity::new(guid);
+    pub fn new(guid_prefix: GuidPrefix) -> Self {
         
         let topic_kind = TopicKind::WithKey;
         let reliability_level = ReliabilityKind::Reliable;
-        RtpsEndpoint::new(entity, topic_kind, reliability_level)
-    }
-
-    fn reader(guid_prefix: GuidPrefix, entity_id: EntityId) ->  RtpsReader {
         let expects_inline_qos = false;
-        RtpsReader::new(Self::endpoint(guid_prefix, entity_id), HistoryCache::default(), expects_inline_qos)
-    }
-
-    fn writer(guid_prefix: GuidPrefix, entity_id: EntityId) ->  RtpsWriter {
         let push_mode = true;
         let data_max_sized_serialized = None;
-        RtpsWriter::new(Self::endpoint(guid_prefix, entity_id), push_mode, HistoryCache::default(), data_max_sized_serialized)
-    }
-
-    fn stateful_reader(guid_prefix: GuidPrefix, entity_id: EntityId) -> StatefulReader {
-        let heartbeat_response_delay = Duration::from_millis(500);     
-        StatefulReader::new(Self::reader(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR), heartbeat_response_delay)
-    }
-
-    fn stateful_writer(guid_prefix: GuidPrefix, entity_id: EntityId) -> StatefulWriter {
         let heartbeat_period = Duration::from_millis(100);
         let nack_response_delay = Duration::from_millis(100);
         let nack_suppression_duration = Duration::from_millis(100);
-        StatefulWriter::new(
-            Self::writer(guid_prefix, entity_id),
-            heartbeat_period,
-            nack_response_delay,
-            nack_suppression_duration
-        )
-    }
-
-    pub fn new(guid_prefix: GuidPrefix) -> Self {
+        let heartbeat_response_delay = Duration::from_millis(500);   
         
-        let sedp_builtin_publications_writer = Self::stateful_writer(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER);      
-        let sedp_builtin_publications_reader = Self::stateful_reader(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR); 
-        let sedp_builtin_subscriptions_writer = Self::stateful_writer(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);  
-        let sedp_builtin_subscriptions_reader = Self::stateful_reader(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR); 
-        let sedp_builtin_topics_writer = Self::stateful_writer(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER);
-        let sedp_builtin_topics_reader = Self::stateful_reader(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR);
+        let guid = GUID::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER);
+        let writer_cache = HistoryCache::default();
+        let sedp_builtin_publications_writer = StatefulWriter::new(guid, topic_kind, reliability_level, push_mode, writer_cache, data_max_sized_serialized, heartbeat_period, nack_response_delay, nack_suppression_duration);
+
+        let guid = GUID::new(guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR);
+        let reader_cache = HistoryCache::default();
+        let sedp_builtin_publications_reader = StatefulReader::new(guid, topic_kind, reliability_level, reader_cache, expects_inline_qos, heartbeat_response_delay);
+        
+        let guid = GUID::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER);
+        let writer_cache = HistoryCache::default();
+        let sedp_builtin_subscriptions_writer = StatefulWriter::new(guid, topic_kind, reliability_level, push_mode, writer_cache, data_max_sized_serialized, heartbeat_period, nack_response_delay, nack_suppression_duration);
+        
+        let guid = GUID::new(guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR);
+        let reader_cache = HistoryCache::default();
+        let sedp_builtin_subscriptions_reader = StatefulReader::new(guid, topic_kind, reliability_level, reader_cache, expects_inline_qos, heartbeat_response_delay);
+        
+        let guid = GUID::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER);
+        let writer_cache = HistoryCache::default();
+        let sedp_builtin_topics_writer = StatefulWriter::new(guid, topic_kind, reliability_level, push_mode, writer_cache, data_max_sized_serialized, heartbeat_period, nack_response_delay, nack_suppression_duration);
+        
+        let guid = GUID::new(guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR);
+        let reader_cache = HistoryCache::default();
+        let sedp_builtin_topics_reader = StatefulReader::new(guid, topic_kind, reliability_level, reader_cache, expects_inline_qos, heartbeat_response_delay);
 
         Self {
             sedp_builtin_publications_writer,
