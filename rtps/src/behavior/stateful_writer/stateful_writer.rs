@@ -4,7 +4,7 @@ use crate::types::{ReliabilityKind, GUID, GuidPrefix};
 use crate::messages::RtpsSubmessage;
 use crate::behavior::RtpsWriter;
 use crate::behavior::types::Duration;
-use crate::behavior::endpoint_traits::DestinedMessages;
+use crate::behavior::endpoint_traits::{DestinedMessages, AcknowldegmentReceiver};
 
 use super::reader_proxy::ReaderProxy;
 use super::reliable_reader_proxy::ReliableReaderProxy;
@@ -70,15 +70,7 @@ impl StatefulWriter {
         output
     }
 
-    pub fn try_process_message(&mut self, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>) {
-        for (_reader_guid, reader_proxy) in self.matched_readers.iter_mut(){
-            match reader_proxy {
-                ReaderProxyFlavor::Reliable(reliable_reader_proxy) => reliable_reader_proxy.try_process_message(src_guid_prefix, submessage),
-                ReaderProxyFlavor::BestEffort(_) => ()
-            }
-        }
-    }
-
+    
     pub fn matched_reader_add(&mut self, a_reader_proxy: ReaderProxy) {
         let remote_reader_guid = a_reader_proxy.remote_reader_guid().clone();
         let reader_proxy = match self.writer.endpoint.reliability_level {
@@ -94,6 +86,17 @@ impl StatefulWriter {
 
     pub fn is_acked_by_all(&self) -> bool {
         todo!()
+    }
+}
+
+impl AcknowldegmentReceiver for StatefulWriter {
+    fn try_process_message(&mut self, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>) {
+        for (_reader_guid, reader_proxy) in self.matched_readers.iter_mut(){
+            match reader_proxy {
+                ReaderProxyFlavor::Reliable(reliable_reader_proxy) => reliable_reader_proxy.try_process_message(src_guid_prefix, submessage),
+                ReaderProxyFlavor::BestEffort(_) => ()
+            }
+        }
     }
 }
 

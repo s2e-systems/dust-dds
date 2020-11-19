@@ -10,7 +10,7 @@ impl RtpsMessageReceiver {
     pub fn receive(
         participant_guid_prefix: GuidPrefix,
         transport: &dyn Transport,
-        cache_change_receiver_list: &mut [(&mut dyn CacheChangeReceiver, &mut dyn CacheChangeReceiverListener)],
+        cache_change_receiver_list: &mut [&mut dyn CacheChangeReceiver],
         acknoledgment_receiver_list: &mut [&mut dyn AcknowldegmentReceiver]) {
 
         if let Some((message, _src_locator)) = transport.read().unwrap() {
@@ -26,8 +26,8 @@ impl RtpsMessageReceiver {
             for submessage in message.take_submessages() {
                 if submessage.is_entity_submessage() {
                     let mut optional_submessage = Some(submessage);
-                    for (receiver, listener) in cache_change_receiver_list.iter_mut() {
-                        receiver.try_process_message(source_guid_prefix, &mut optional_submessage, *listener);
+                    for receiver in cache_change_receiver_list.iter_mut() {
+                        receiver.try_process_message(source_guid_prefix, &mut optional_submessage);
                     }
                     for receiver in acknoledgment_receiver_list.iter_mut() {
                         receiver.try_process_message(source_guid_prefix, &mut optional_submessage);

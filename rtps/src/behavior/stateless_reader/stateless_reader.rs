@@ -21,28 +21,28 @@ impl StatelessReader {
         }
     }
 
-    fn waiting_state(&mut self, source_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>, listener: &dyn CacheChangeReceiverListener) {
+    fn waiting_state(&mut self, source_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>) {
         if let Some(inner_submessage) = submessage {
             if let RtpsSubmessage::Data(data) = inner_submessage { 
                 if self.reader.endpoint.entity.guid.entity_id() == data.reader_id() || data.reader_id() == ENTITYID_UNKNOWN {
                     if let RtpsSubmessage::Data(data) = submessage.take().unwrap() {
-                        self.transition_t2(source_guid_prefix, data, listener)
+                        self.transition_t2(source_guid_prefix, data)
                     }
                 }
             }              
         }
     }
 
-    fn transition_t2(&mut self, guid_prefix: GuidPrefix, data: Data, listener: &dyn CacheChangeReceiverListener) {
+    fn transition_t2(&mut self, guid_prefix: GuidPrefix, data: Data) {
         let cache_change = cache_change_from_data(data, &guid_prefix);
-        listener.on_add_change(&cache_change);
+        // listener.on_add_change(&cache_change);
         self.reader.reader_cache.add_change(cache_change).unwrap();
     }
 }
 
 impl CacheChangeReceiver for StatelessReader {
-    fn try_process_message(&mut self, source_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>, listener: &mut dyn CacheChangeReceiverListener ) {
-        self.waiting_state(source_guid_prefix, submessage, listener);
+    fn try_process_message(&mut self, source_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>) {
+        self.waiting_state(source_guid_prefix, submessage);
     }
 }
 

@@ -66,8 +66,8 @@ impl HistoryCache {
     /// This operation indicates that a previously-added CacheChange has become irrelevant and the details regarding the CacheChange need 
     /// not be maintained in the HistoryCache. The determination of irrelevance is made based on the QoS associated with the related DDS
     /// entity and on the acknowledgment status of the CacheChange. This is described in 8.4.1.
-    pub fn remove_change(&mut self, change: &CacheChange) {
-        self.changes.retain(|x| x!=change);
+    pub fn remove_change(&mut self, seq_num: SequenceNumber) {
+        self.changes.retain(|x| x.sequence_number() != seq_num);
     }
 
     pub fn get_change(&self, seq_num: SequenceNumber) -> Option<&CacheChange> {

@@ -12,7 +12,7 @@ pub trait CacheChangeSender {
 }
 
 pub trait CacheChangeReceiver {
-    fn try_process_message(&mut self, source_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>, listener: &mut dyn CacheChangeReceiverListener);
+    fn try_process_message(&mut self, source_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>);
 }
 
 pub trait AcknowldegmentSender {
