@@ -4,7 +4,7 @@ use crate::discovery::spdp_data::SPDPdiscoveredParticipantData;
 use crate::endpoint_types::BuiltInEndpointSet;
 use crate::behavior::{StatelessWriter, StatelessReader};
 use crate::behavior::{ReaderProxy, WriterProxy};
-use crate::discovery::sedp::sedp::SimpleEndpointDiscoveryProtocol;
+use crate::discovery::sedp::SimpleEndpointDiscoveryProtocol;
 
 use crate::types::constants::{
     ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, ENTITYID_SPDP_BUILTIN_PARTICIPANT_DETECTOR,

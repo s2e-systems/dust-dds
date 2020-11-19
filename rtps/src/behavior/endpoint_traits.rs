@@ -1,6 +1,5 @@
 use crate::types::{Locator, GuidPrefix};
 use crate::messages::RtpsSubmessage;
-use crate::behavior::cache_change_receiver_listener::CacheChangeReceiverListener;
 
 pub enum DestinedMessages {
     SingleDestination{locator: Locator, messages: Vec<RtpsSubmessage>},

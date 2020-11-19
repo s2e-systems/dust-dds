@@ -1,4 +1,4 @@
-use crate::types::{GUID, GuidPrefix, ReliabilityKind, EntityId};
+use crate::types::{GUID, GuidPrefix, ReliabilityKind,};
 use crate::types::constants::{
     ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
     ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
@@ -7,9 +7,7 @@ use crate::types::constants::{
     ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
     ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR
 };
-use crate::structure::{RtpsEntity, RtpsEndpoint};
-use crate::behavior::{StatefulReader, StatefulWriter, RtpsWriter, RtpsReader};
-use crate::behavior::stateful_reader::NoOpStatefulReaderListener;
+use crate::behavior::{StatefulReader, StatefulWriter,};
 use crate::behavior::types::Duration;
 
 use rust_dds_interface::types::TopicKind;

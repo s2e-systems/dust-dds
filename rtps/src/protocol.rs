@@ -8,7 +8,7 @@ use crate::message_sender::RtpsMessageSender;
 
 use crate::discovery::spdp::SimpleParticipantDiscovery;
 
-use crate::discovery::sedp::sedp::SimpleEndpointDiscoveryProtocol;
+use crate::discovery::sedp::SimpleEndpointDiscoveryProtocol;
 use crate::behavior::endpoint_traits::{AcknowldegmentReceiver};
 
 use rust_dds_interface::types::{DomainId, InstanceHandle, };
@@ -164,19 +164,14 @@ mod tests {
     use std::cell::RefCell;
     use crate::behavior_types::Duration;
     use crate::types::{GUID, Locator};
-    use crate::behavior::{StatelessReader, StatefulReader, StatefulWriter};
     use crate::messages::{RtpsMessage, RtpsSubmessage};
     use crate::messages::submessages::{Data, data_submessage::Payload};
     use crate::types::constants::{PROTOCOL_VERSION_2_4, VENDOR_ID};
     use crate::types::constants::{
         ENTITYID_UNKNOWN,
         ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
-        ENTITYID_SPDP_BUILTIN_PARTICIPANT_DETECTOR,
-        ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
         ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
         ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
-        ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
-        ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
         ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR};
 
     struct MockTransport{

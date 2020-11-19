@@ -2,7 +2,6 @@ use crate::types::{GuidPrefix, Locator,};
 use crate::transport::Transport;
 use crate::messages::submessages::RtpsSubmessage;
 use crate::behavior::endpoint_traits::{CacheChangeReceiver,AcknowldegmentReceiver};
-use crate::behavior::cache_change_receiver_listener::CacheChangeReceiverListener;
 
 pub struct RtpsMessageReceiver;
 
