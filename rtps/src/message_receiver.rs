@@ -11,7 +11,7 @@ impl RtpsMessageReceiver {
         participant_guid_prefix: GuidPrefix,
         transport: &dyn Transport,
         cache_change_receiver_list: &mut [&mut dyn CacheChangeReceiver],
-        acknoledgment_receiver_list: &mut [&mut dyn AcknowldegmentReceiver]) {
+        acknoledgment_receiver_list: &mut Vec<&mut dyn AcknowldegmentReceiver>) {
 
         if let Some((message, _src_locator)) = transport.read().unwrap() {
             let _source_version = message.header().version();

@@ -100,4 +100,7 @@ impl SimpleEndpointDiscoveryProtocol {
         &mut self.sedp_builtin_topics_reader
     }
 
+    pub fn writers(&mut self) -> Vec<&mut StatefulWriter> {
+        vec![&mut self.sedp_builtin_publications_writer,  &mut self.sedp_builtin_subscriptions_writer, &mut self.sedp_builtin_topics_writer]
+    }
 }

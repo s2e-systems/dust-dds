@@ -19,6 +19,7 @@ use crate::discovery::sedp::sedp_builtin_publications_writer::SedpBuiltinPublica
 use crate::behavior::cache_change_receiver_listener::CacheChangeReceiverListener;
 use crate::behavior::{ReaderProxy, WriterProxy};
 use crate::discovery::sedp::sedp::SimpleEndpointDiscoveryProtocol;
+use crate::behavior::endpoint_traits::{CacheChangeReceiver,AcknowldegmentReceiver};
 
 use crate::types::constants::{
     ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
@@ -345,13 +346,13 @@ impl RtpsProtocol {
             self.participant.entity.guid.prefix(), 
             self.metatraffic_transport.as_ref(),
             &mut [&mut self.spdp_builtin_participant_reader],
-        &mut [self.spdp_listener.sedp.sedp_builtin_publications_writer()]);
+            &mut self.spdp_listener.sedp.writers().iter_mut().map(|f| *f as &mut dyn AcknowldegmentReceiver).collect());
 
-        
+
         let reader_cache = &self.spdp_builtin_participant_reader.reader.reader_cache;
         let seq_num_min = reader_cache.get_seq_num_min().unwrap();
         let seq_num_max = reader_cache.get_seq_num_max().unwrap();
-        for seq_num in seq_num_min..seq_num_max {
+        for seq_num in seq_num_min..=seq_num_max {
 
             let cc = self.spdp_builtin_participant_reader.reader.reader_cache.get_change(seq_num).unwrap();
             self.spdp_listener.on_add_change(cc);
