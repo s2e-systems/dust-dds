@@ -84,6 +84,17 @@ impl StatefulWriter {
         self.matched_readers.remove(reader_proxy_guid);
     }
 
+    pub fn matched_reader_lookup(&self, a_reader_guid: GUID) -> Option<&ReaderProxy> {
+        match self.matched_readers.get(&a_reader_guid) {
+            Some(reader_proxy_flavor) => match reader_proxy_flavor {
+                ReaderProxyFlavor::BestEffort(rp) => Some(rp),
+                ReaderProxyFlavor::Reliable(rp) => Some(rp),
+            },
+            None => None,
+        }
+    }
+
+
     pub fn is_acked_by_all(&self) -> bool {
         todo!()
     }

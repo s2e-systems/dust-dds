@@ -88,9 +88,7 @@ impl RtpsProtocol {
             &mut [self.spdp.spdp_builtin_participant_reader()],
             &mut self.sedp.writers().iter_mut().map(|f| *f as &mut dyn AcknowldegmentReceiver).collect());
 
-
-        todo!()
-        // self.spdp.on_data(sedp);
+        self.spdp.on_add_change(&mut self.sedp);
     }
 
     pub fn send_metatraffic(&mut self) {        
@@ -341,39 +339,14 @@ mod tests {
 
         let mut protocol = RtpsProtocol::new(domain_id, MockTransportDetect::new(), transport, domain_tag, lease_duration);
         protocol.receive_metatraffic();
-
-        // let builtin_subscriber = protocol.builtin_subscriber.lock().unwrap();
-        // let builtin_publisher = protocol.builtin_publisher.lock().unwrap();
-        // {
-        //     let mut first_endpoint = builtin_subscriber.endpoints().into_iter().next().unwrap().lock().unwrap();
-
-        //     assert!(first_endpoint.guid().entity_id() == ENTITYID_SPDP_BUILTIN_PARTICIPANT_DETECTOR);       
-                
-        //     let spdp_detector = first_endpoint.get_mut::<StatelessReader>().unwrap();
-
-        //     let cache = spdp_detector.reader_cache();
-        //     let cc = cache.changes().iter().next().unwrap();        
-        //     let result = SPDPdiscoveredParticipantData::from_key_data( cc.instance_handle(), cc.data_value(), 0);
-        //     assert!(result == expected);
-        // }
-
-        // {
-        //     let sedp_builtin_publications_detector = builtin_subscriber.endpoints().iter().find(|&x| x.lock().unwrap().guid().entity_id() == ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR).unwrap().lock().unwrap();
-        //     let sedp_builtin_publications_detector = sedp_builtin_publications_detector.get::<StatefulReader>().unwrap();
-        //     assert!(sedp_builtin_publications_detector.matched_writer_lookup(GUID::new(remote_participant_guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER)).is_some());
-        // }
-
-        // {
-        //     let sedp_builtin_topics_announcer = builtin_publisher.endpoints().iter().find(|&x| x.lock().unwrap().guid().entity_id() == ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER).unwrap().lock().unwrap();
-        //     let sedp_builtin_topics_announcer = sedp_builtin_topics_announcer.get::<StatefulWriter>().unwrap();
-        //     assert!(sedp_builtin_topics_announcer.matched_reader_lookup(GUID::new(remote_participant_guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR)).is_some());
-        // }
-
-        // {
-        //     let sedp_builtin_subscriptions_detector = builtin_subscriber.endpoints().iter().find(|&x| x.lock().unwrap().guid().entity_id() == ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR).unwrap().lock().unwrap();
-        //     let sedp_builtin_subscriptions_detector = sedp_builtin_subscriptions_detector.get::<StatefulReader>().unwrap();
-        //     assert!(sedp_builtin_subscriptions_detector.matched_writer_lookup(GUID::new(remote_participant_guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER)).is_none());
-        // }
-
+        
+        let sedp_builtin_publications_detector = protocol.sedp.sedp_builtin_publications_reader();
+        assert!(sedp_builtin_publications_detector.matched_writer_lookup(GUID::new(remote_participant_guid_prefix, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER)).is_some());
+        
+        let sedp_builtin_topics_announcer = protocol.sedp.sedp_builtin_topics_writer();
+        assert!(sedp_builtin_topics_announcer.matched_reader_lookup(GUID::new(remote_participant_guid_prefix, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR)).is_some());
+        
+        let sedp_builtin_subscriptions_detector = protocol.sedp.sedp_builtin_subscriptions_reader();
+        assert!(sedp_builtin_subscriptions_detector.matched_writer_lookup(GUID::new(remote_participant_guid_prefix, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER)).is_none());
     }
 }

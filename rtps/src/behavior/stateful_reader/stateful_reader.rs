@@ -78,6 +78,16 @@ impl StatefulReader {
     pub fn matched_writer_remove(&mut self, writer_proxy_guid: &GUID) {
         self.matched_writers.remove(writer_proxy_guid);
     }
+
+    pub fn matched_writer_lookup(&self, a_writer_guid: GUID) -> Option<&WriterProxy> {
+        match self.matched_writers.get(&a_writer_guid) {
+            Some(writer_proxy_flavor) => match writer_proxy_flavor {
+                WriterProxyFlavor::BestEffort(wp) => Some(wp),
+                WriterProxyFlavor::Reliable(wp) => Some(wp),
+            }
+            None => None,
+        }
+    }
 }
 
 #[cfg(test)]

@@ -253,7 +253,7 @@ impl SimpleParticipantDiscovery {
             .matched_writer_remove(&guid);
     }
 
-    fn on_add_change(&mut self, sedp: &mut SimpleEndpointDiscoveryProtocol) {
+    pub fn on_add_change(&mut self, sedp: &mut SimpleEndpointDiscoveryProtocol) {
         let seq_num_min = self.spdp_builtin_participant_reader.reader.reader_cache.get_seq_num_min().unwrap();
         let seq_num_max = self.spdp_builtin_participant_reader.reader.reader_cache.get_seq_num_max().unwrap();
         for seq_num in seq_num_min..=seq_num_max {   
