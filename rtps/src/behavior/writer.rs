@@ -1,12 +1,14 @@
 use crate::structure::RtpsEndpoint;
 
 use rust_dds_interface::types::{SequenceNumber, ChangeKind, InstanceHandle, ParameterList};
+use rust_dds_interface::history_cache::HistoryCache;
 use rust_dds_interface::cache_change::CacheChange;
 
 pub struct RtpsWriter {
     pub endpoint: RtpsEndpoint,
     pub push_mode: bool,
     pub last_change_sequence_number: SequenceNumber,
+    pub writer_cache: HistoryCache,
     pub data_max_sized_serialized: Option<i32>,
 }
 
@@ -14,12 +16,14 @@ impl RtpsWriter {
     pub fn new(
         endpoint: RtpsEndpoint,
         push_mode: bool,
+        writer_cache: HistoryCache,
         data_max_sized_serialized: Option<i32>,
     ) -> Self {
         Self {
             endpoint,
             push_mode,
             last_change_sequence_number: 0,
+            writer_cache,
             data_max_sized_serialized,
         }
     }

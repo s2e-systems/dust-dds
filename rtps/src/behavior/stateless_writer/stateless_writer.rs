@@ -1,4 +1,3 @@
-use std::sync::Mutex;
 use std::collections::HashMap;
 
 use crate::behavior::RtpsWriter;
@@ -6,11 +5,9 @@ use crate::behavior::endpoint_traits::DestinedMessages;
 use crate::types::{Locator, ReliabilityKind, };
 use super::reader_locator::ReaderLocator;
 
-use rust_dds_interface::history_cache::HistoryCache;
-
 pub struct StatelessWriter {
     pub writer: RtpsWriter,
-    reader_locators: Mutex<HashMap<Locator, ReaderLocator>>,
+    reader_locators: HashMap<Locator, ReaderLocator>,
 }
 
 impl StatelessWriter {
@@ -21,15 +18,14 @@ impl StatelessWriter {
 
         Self {
             writer,
-            reader_locators: Mutex::new(HashMap::new()),
+            reader_locators: HashMap::new(),
         }
     }
 
-    pub fn produce_messages(&self, writer_cache: &Mutex<HistoryCache>) -> Vec<DestinedMessages> {
-        let mut reader_locators = self.reader_locators.lock().unwrap();
+    pub fn produce_messages(&mut self) -> Vec<DestinedMessages> {
         let mut output = Vec::new();
-        for (&locator, reader_locator) in reader_locators.iter_mut() {
-            let messages = reader_locator.produce_messages(&writer_cache.lock().unwrap(), self.writer.last_change_sequence_number);
+        for (&locator, reader_locator) in self.reader_locators.iter_mut() {
+            let messages = reader_locator.produce_messages(&self.writer.writer_cache, self.writer.last_change_sequence_number);
             if !messages.is_empty() {
                 output.push(DestinedMessages::SingleDestination{locator, messages});
             }
@@ -37,17 +33,16 @@ impl StatelessWriter {
         output
     } 
 
-    pub fn reader_locator_add(&self, a_locator: Locator) {
-        self.reader_locators.lock().unwrap().insert(a_locator, ReaderLocator::new(a_locator, self.writer.endpoint.entity.guid.entity_id(), false /*expects_inline_qos*/));
+    pub fn reader_locator_add(&mut self, a_locator: Locator) {
+        self.reader_locators.insert(a_locator, ReaderLocator::new(a_locator, self.writer.endpoint.entity.guid.entity_id(), false /*expects_inline_qos*/));
     }
 
-    pub fn reader_locator_remove(&self, a_locator: &Locator) {
-        self.reader_locators.lock().unwrap().remove(a_locator);
+    pub fn reader_locator_remove(&mut self, a_locator: &Locator) {
+        self.reader_locators.remove(a_locator);
     }
 
     pub fn unsent_changes_reset(&mut self) {
-        let mut reader_locators = self.reader_locators.lock().unwrap();
-        for (_, rl) in reader_locators.iter_mut() {
+        for (_, rl) in self.reader_locators.iter_mut() {
             rl.unsent_changes_reset();
         }
     }

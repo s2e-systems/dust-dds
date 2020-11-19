@@ -9,7 +9,6 @@ use rust_dds_interface::history_cache::HistoryCache;
 
 pub struct SpdpBuiltinParticipantWriter {
     stateless_writer: StatelessWriter,
-    writer_cache: HistoryCache,
 }
 
 impl SpdpBuiltinParticipantWriter {
@@ -22,15 +21,13 @@ impl SpdpBuiltinParticipantWriter {
         let endpoint = RtpsEndpoint::new(entity, topic_kind, reliability_level);
         
         let push_mode = true;
-        let data_max_sized_serialized = None;
-        let writer = RtpsWriter::new(endpoint, push_mode, data_max_sized_serialized); 
-        let stateless_writer = StatelessWriter::new(writer);
-
         let writer_cache = HistoryCache::default();
+        let data_max_sized_serialized = None;
+        let writer = RtpsWriter::new(endpoint, push_mode, writer_cache, data_max_sized_serialized); 
+        let stateless_writer = StatelessWriter::new(writer);
 
         Self {
             stateless_writer,
-            writer_cache,
         }
     }
 }

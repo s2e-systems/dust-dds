@@ -7,6 +7,7 @@ use crate::behavior::{StatelessReader, StatefulReader};
 use rust_dds_interface::types::TopicKind;
 use rust_dds_interface::history_cache::HistoryCache;
 
+
 pub struct BuiltInSubscriber {
     guid: GUID,
     spdp_builtin_participant_reader: StatelessReader,

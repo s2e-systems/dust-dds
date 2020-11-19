@@ -18,10 +18,10 @@ pub trait CacheChangeReceiver {
     fn try_process_message(&mut self, source_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>, reader_cache: &mut HistoryCache);
 }
 
-pub trait StatusSender {
+pub trait AcknowldegmentSender {
     fn produce_messages(&self, writer_cache: &Mutex<HistoryCache>) -> Vec<DestinedMessages>;
 }
 
-pub trait StatusReceiver {
+pub trait AcknowldegmentReceiver {
     fn try_process_message(&mut self, source_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>, reader_cache: &mut HistoryCache);
 }

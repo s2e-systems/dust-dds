@@ -10,8 +10,8 @@ use crate::message_receiver::RtpsMessageReceiver;
 use crate::message_sender::RtpsMessageSender;
 use crate::subscriber::Subscriber;
 use crate::publisher::Publisher;
-use crate::builtin_publisher::BuiltInPublisher;
-use crate::builtin_subscriber::BuiltInSubscriber;
+use crate::discovery::builtin_publisher::BuiltInPublisher;
+use crate::discovery::builtin_subscriber::BuiltInSubscriber;
 
 
 use rust_dds_interface::types::{DomainId, InstanceHandle};
