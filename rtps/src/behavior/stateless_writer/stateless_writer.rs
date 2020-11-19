@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::behavior::RtpsWriter;
-use crate::behavior::endpoint_traits::DestinedMessages;
+use crate::behavior::endpoint_traits::{DestinedMessages, CacheChangeSender};
 use crate::types::{Locator, ReliabilityKind, };
 use super::reader_locator::ReaderLocator;
 
@@ -22,17 +22,6 @@ impl StatelessWriter {
         }
     }
 
-    pub fn produce_messages(&mut self) -> Vec<DestinedMessages> {
-        let mut output = Vec::new();
-        for (&locator, reader_locator) in self.reader_locators.iter_mut() {
-            let messages = reader_locator.produce_messages(&self.writer.writer_cache, self.writer.last_change_sequence_number);
-            if !messages.is_empty() {
-                output.push(DestinedMessages::SingleDestination{locator, messages});
-            }
-        }
-        output
-    } 
-
     pub fn reader_locator_add(&mut self, a_locator: Locator) {
         self.reader_locators.insert(a_locator, ReaderLocator::new(a_locator, self.writer.endpoint.entity.guid.entity_id(), false /*expects_inline_qos*/));
     }
@@ -45,6 +34,19 @@ impl StatelessWriter {
         for (_, rl) in self.reader_locators.iter_mut() {
             rl.unsent_changes_reset();
         }
+    }
+}
+
+impl CacheChangeSender for StatelessWriter {
+    fn produce_messages(&mut self) -> Vec<DestinedMessages> {
+        let mut output = Vec::new();
+        for (&locator, reader_locator) in self.reader_locators.iter_mut() {
+            let messages = reader_locator.produce_messages(&self.writer.writer_cache, self.writer.last_change_sequence_number);
+            if !messages.is_empty() {
+                output.push(DestinedMessages::SingleDestination{locator, messages});
+            }
+        }
+        output
     }
 }
 

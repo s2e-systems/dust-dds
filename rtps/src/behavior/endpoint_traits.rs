@@ -11,7 +11,7 @@ pub enum DestinedMessages {
 }
 
 pub trait CacheChangeSender {
-    fn produce_messages(&self, writer_cache: &Mutex<HistoryCache>) -> Vec<DestinedMessages>;
+    fn produce_messages(&mut self) -> Vec<DestinedMessages>;
 }
 
 pub trait CacheChangeReceiver {

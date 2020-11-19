@@ -31,57 +31,57 @@ use crate::endpoint_types::{
     };
 
 
-pub struct SimpleParticipantDiscoveryProtocol {
-    spdp_builtin_participant_writer: Arc<StatelessWriter>,
-    spdp_builtin_participant_reader: Arc<StatelessReader>,
-}
+// pub struct SimpleParticipantDiscoveryProtocol {
+//     spdp_builtin_participant_writer: Arc<StatelessWriter>,
+//     spdp_builtin_participant_reader: Arc<StatelessReader>,
+// }
 
-impl SimpleParticipantDiscoveryProtocol {
-    pub fn new(spdp_data: SPDPdiscoveredParticipantData, spdp_listener: impl StatelessReaderListener) -> Self {
-        let writer_guid = GUID::new(spdp_data.guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER);
-        let writer_cache = HistoryCache::default();
-        let spdp_builtin_participant_writer = StatelessWriter::new(
-            writer_guid,
-            TopicKind::WithKey,
-            ReliabilityKind::BestEffort,
-            writer_cache,
-            );
+// impl SimpleParticipantDiscoveryProtocol {
+//     pub fn new(spdp_data: SPDPdiscoveredParticipantData, spdp_listener: impl StatelessReaderListener) -> Self {
+//         let writer_guid = GUID::new(spdp_data.guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER);
+//         let writer_cache = HistoryCache::default();
+//         let spdp_builtin_participant_writer = StatelessWriter::new(
+//             writer_guid,
+//             TopicKind::WithKey,
+//             ReliabilityKind::BestEffort,
+//             writer_cache,
+//             );
 
-        let change = spdp_builtin_participant_writer.new_change(ChangeKind::Alive, Some(spdp_data.data()), None, spdp_data.key());
-        spdp_builtin_participant_writer.writer_cache().lock().unwrap().add_change(change).unwrap();
+//         let change = spdp_builtin_participant_writer.new_change(ChangeKind::Alive, Some(spdp_data.data()), None, spdp_data.key());
+//         spdp_builtin_participant_writer.writer_cache().lock().unwrap().add_change(change).unwrap();
 
-        for locator in &spdp_data.metatraffic_multicast_locator_list {
-            spdp_builtin_participant_writer.reader_locator_add(locator.clone());
-        }
+//         for locator in &spdp_data.metatraffic_multicast_locator_list {
+//             spdp_builtin_participant_writer.reader_locator_add(locator.clone());
+//         }
 
-        let reader_guid = GUID::new(spdp_data.guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_DETECTOR);
-        let reader_cache = HistoryCache::default();
+//         let reader_guid = GUID::new(spdp_data.guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_DETECTOR);
+//         let reader_cache = HistoryCache::default();
 
-        let spdp_builtin_participant_reader = StatelessReader::new(
-            reader_guid,
-            TopicKind::WithKey, 
-            ReliabilityKind::BestEffort,
-            vec![],
-            spdp_data.metatraffic_multicast_locator_list.clone(),
-            false,
-            reader_cache,
-        ); 
+//         let spdp_builtin_participant_reader = StatelessReader::new(
+//             reader_guid,
+//             TopicKind::WithKey, 
+//             ReliabilityKind::BestEffort,
+//             vec![],
+//             spdp_data.metatraffic_multicast_locator_list.clone(),
+//             false,
+//             reader_cache,
+//         ); 
 
-        Self {
-            spdp_builtin_participant_writer: Arc::new(spdp_builtin_participant_writer),
-            spdp_builtin_participant_reader: Arc::new(spdp_builtin_participant_reader),
-        }        
-    }
+//         Self {
+//             spdp_builtin_participant_writer: Arc::new(spdp_builtin_participant_writer),
+//             spdp_builtin_participant_reader: Arc::new(spdp_builtin_participant_reader),
+//         }        
+//     }
 
-    pub fn spdp_builtin_participant_writer(&self) -> &Arc<StatelessWriter> {
-        &self.spdp_builtin_participant_writer
-    }
+//     pub fn spdp_builtin_participant_writer(&self) -> &Arc<StatelessWriter> {
+//         &self.spdp_builtin_participant_writer
+//     }
 
-    pub fn spdp_builtin_participant_reader(&self) -> &Arc<StatelessReader> {
-        &self.spdp_builtin_participant_reader
-    }
+//     pub fn spdp_builtin_participant_reader(&self) -> &Arc<StatelessReader> {
+//         &self.spdp_builtin_participant_reader
+//     }
 
-}
+// }
 
 
 #[derive(Debug, PartialEq)]

@@ -1,10 +1,11 @@
 use std::sync::{Arc, Mutex};
 
 use crate::types::{GUID, EntityId, EntityKind};
-use crate::types::constants::{PROTOCOL_VERSION_2_4, VENDOR_ID};
+use crate::types::constants::{PROTOCOL_VERSION_2_4, VENDOR_ID, ENTITYID_PARTICIPANT};
 use crate::transport::Transport;
-// use crate::discovery::spdp::{SimpleParticipantDiscoveryProtocol, SPDPdiscoveredParticipantData};
+use crate::discovery::spdp_data::SPDPdiscoveredParticipantData;
 use crate::endpoint_types::BuiltInEndpointSet;
+use crate::behavior::StatelessWriter;
 use crate::structure::{RtpsParticipant, RtpsGroup, RtpsEntity};
 use crate::message_receiver::RtpsMessageReceiver;
 use crate::message_sender::RtpsMessageSender;
@@ -12,15 +13,17 @@ use crate::subscriber::Subscriber;
 use crate::publisher::Publisher;
 use crate::discovery::builtin_publisher::BuiltInPublisher;
 use crate::discovery::builtin_subscriber::BuiltInSubscriber;
+use crate::discovery::spdp::spdp_builtin_participant_writer::SpdpBuiltinParticipantWriter;
 
 
-use rust_dds_interface::types::{DomainId, InstanceHandle};
+use rust_dds_interface::types::{DomainId, InstanceHandle, ChangeKind};
 use rust_dds_interface::protocol::{ProtocolEntity, ProtocolParticipant, ProtocolSubscriber, ProtocolPublisher};
 
 pub struct RtpsProtocol {
     participant: RtpsParticipant,
-    builtin_publisher: BuiltInPublisher,
-    builtin_subscriber: BuiltInSubscriber,
+    // builtin_publisher: BuiltInPublisher,
+    // builtin_subscriber: BuiltInSubscriber,
+    spdp_builtin_participant_writer: StatelessWriter,
     userdata_transport: Box<dyn Transport>,
     metatraffic_transport: Box<dyn Transport>,
     publisher_counter: usize,
@@ -28,52 +31,62 @@ pub struct RtpsProtocol {
 }
 
 impl RtpsProtocol {
-    pub fn new(_domain_id: DomainId, userdata_transport: impl Transport, metatraffic_transport: impl Transport, _domain_tag: String, lease_duration: rust_dds_interface::types::Duration) -> Self {
+    pub fn new(domain_id: DomainId, userdata_transport: impl Transport, metatraffic_transport: impl Transport, domain_tag: String, lease_duration: rust_dds_interface::types::Duration) -> Self {
 
         let guid_prefix = [1,2,3,4,5,6,7,8,9,10,11,12];  //TODO: Should be uniquely generated
-        // let participant = RtpsParticipant::new(domain_id, guid_prefix, PROTOCOL_VERSION_2_4, VENDOR_ID);
+        let participant = RtpsParticipant::new(guid_prefix, domain_id, PROTOCOL_VERSION_2_4, VENDOR_ID);
 
-        let _lease_duration = crate::behavior::types::Duration::from_secs(lease_duration.sec as u64); // TODO: Fix this conversion
+        let lease_duration = crate::behavior::types::Duration::from_secs(lease_duration.sec as u64); // TODO: Fix this conversion
 
-        // let data = SPDPdiscoveredParticipantData::new(
-        //     participant.domain_id(),
-        //     domain_tag.clone(), 
-        //     participant.protocol_version(), 
-        //     participant.guid().prefix(), 
-        //     participant.vendor_id(), 
-        //     metatraffic_transport.unicast_locator_list().clone(), 
-        //     metatraffic_transport.multicast_locator_list().clone(), 
-        //     userdata_transport.unicast_locator_list().clone(),
-        //     userdata_transport.multicast_locator_list().clone(),
-        //     BuiltInEndpointSet::new(
-        //         BuiltInEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_ANNOUNCER | 
-        //         BuiltInEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR |
-        //         BuiltInEndpointSet::BUILTIN_ENDPOINT_PUBLICATIONS_ANNOUNCER |
-        //         BuiltInEndpointSet::BUILTIN_ENDPOINT_PUBLICATIONS_DETECTOR |
-        //         BuiltInEndpointSet::BUILTIN_ENDPOINT_SUBSCRIPTIONS_ANNOUNCER |
-        //         BuiltInEndpointSet::BUILTIN_ENDPOINT_SUBSCRIPTIONS_DETECTOR |
-        //         BuiltInEndpointSet::BUILTIN_ENDPOINT_TOPICS_ANNOUNCER |
-        //         BuiltInEndpointSet::BUILTIN_ENDPOINT_TOPICS_DETECTOR
-        //      ),
-        //     lease_duration,
-        // );
 
-        let builtin_publisher = BuiltInPublisher::new(guid_prefix);
-        let builtin_subscriber = BuiltInSubscriber::new(guid_prefix);
+        let mut spdp_builtin_participant_writer = SpdpBuiltinParticipantWriter::new(guid_prefix);
+
+        let spdp_data = SPDPdiscoveredParticipantData::new(
+            participant.domain_id,
+            domain_tag.clone(), 
+            participant.protocol_version, 
+            participant.entity.guid.prefix(), 
+            participant.vendor_id, 
+            metatraffic_transport.unicast_locator_list().clone(), 
+            metatraffic_transport.multicast_locator_list().clone(), 
+            userdata_transport.unicast_locator_list().clone(),
+            userdata_transport.multicast_locator_list().clone(),
+            BuiltInEndpointSet::new(
+                BuiltInEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_ANNOUNCER | 
+                BuiltInEndpointSet::BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR |
+                BuiltInEndpointSet::BUILTIN_ENDPOINT_PUBLICATIONS_ANNOUNCER |
+                BuiltInEndpointSet::BUILTIN_ENDPOINT_PUBLICATIONS_DETECTOR |
+                BuiltInEndpointSet::BUILTIN_ENDPOINT_SUBSCRIPTIONS_ANNOUNCER |
+                BuiltInEndpointSet::BUILTIN_ENDPOINT_SUBSCRIPTIONS_DETECTOR |
+                BuiltInEndpointSet::BUILTIN_ENDPOINT_TOPICS_ANNOUNCER |
+                BuiltInEndpointSet::BUILTIN_ENDPOINT_TOPICS_DETECTOR
+             ),
+            lease_duration,
+        );
+
+        let change = spdp_builtin_participant_writer.writer.new_change(ChangeKind::Alive, Some(spdp_data.data()), None, spdp_data.key());
+        spdp_builtin_participant_writer.writer.writer_cache.add_change(change).unwrap();
+
+        for locator in metatraffic_transport.multicast_locator_list() {
+            spdp_builtin_participant_writer.reader_locator_add(locator.clone());
+        }
+
+        // let builtin_publisher = BuiltInPublisher::new(guid_prefix);
+        // let builtin_subscriber = BuiltInSubscriber::new(guid_prefix);
 
         let userdata_transport = Box::new(userdata_transport);
         let metatraffic_transport = Box::new(metatraffic_transport);
 
-        // Self {
-        //     participant,
-        //     builtin_publisher,
-        //     builtin_subscriber,
-        //     userdata_transport,
-        //     metatraffic_transport,
-        //     publisher_counter: 0,
-        //     subscriber_counter: 0,
-        // }
-        todo!()
+        Self {
+            participant,
+            // builtin_publisher,
+            // builtin_subscriber,
+            spdp_builtin_participant_writer,
+            userdata_transport,
+            metatraffic_transport,
+            publisher_counter: 0,
+            subscriber_counter: 0,
+        }
     }
 
     pub fn receive_metatraffic(&self) {
@@ -84,12 +97,11 @@ impl RtpsProtocol {
         //     .chain(self.builtin_subscriber.lock().unwrap().iter()))
     }
 
-    pub fn send_metatraffic(&self) {
-        // RtpsMessageSender::send(
-        //     self.participant.guid().prefix(), 
-        //     self.metatraffic_transport.as_ref(),
-        //     self.builtin_publisher.lock().unwrap().iter()
-        //     .chain(self.builtin_subscriber.lock().unwrap().iter()))
+    pub fn send_metatraffic(&mut self) {
+        RtpsMessageSender::send_cache_change_messages(
+            self.participant.entity.guid.prefix(), 
+            self.metatraffic_transport.as_ref(),
+            &mut [&mut self.spdp_builtin_participant_writer])
     }
 }
 
@@ -154,57 +166,56 @@ impl ProtocolParticipant for RtpsProtocol {
 
 #[cfg(test)]
 mod tests {
-    // use super::*;
-    // use std::cell::RefCell;
-    // use crate::behavior_types::Duration;
-    // use crate::types::{GUID, Locator};
-    // use crate::behavior::{StatelessReader, StatefulReader, StatefulWriter};
-    // use crate::messages::{Endianness, RtpsMessage, RtpsSubmessage};
-    // use crate::messages::submessages::{Data, data_submessage::Payload};
-    // use crate::types::constants::{PROTOCOL_VERSION_2_4, VENDOR_ID};
-    // use crate::types::constants::{
-    //     ENTITYID_UNKNOWN,
-    //     ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
-    //     ENTITYID_SPDP_BUILTIN_PARTICIPANT_DETECTOR,
-    //     ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
-    //     ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
-    //     ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
-    //     ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
-    //     ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
-    //     ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR};
-    // use crate::inline_qos_types::{StatusInfo, KeyHash};
+    use super::*;
+    use std::cell::RefCell;
+    use crate::behavior_types::Duration;
+    use crate::types::{GUID, Locator};
+    use crate::behavior::{StatelessReader, StatefulReader, StatefulWriter};
+    use crate::messages::{RtpsMessage, RtpsSubmessage};
+    use crate::messages::submessages::{Data, data_submessage::Payload};
+    use crate::types::constants::{PROTOCOL_VERSION_2_4, VENDOR_ID};
+    use crate::types::constants::{
+        ENTITYID_UNKNOWN,
+        ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
+        ENTITYID_SPDP_BUILTIN_PARTICIPANT_DETECTOR,
+        ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
+        ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
+        ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
+        ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
+        ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
+        ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR};
 
-    // struct MockTransport{
-    //     multicast_locator_list: Vec<Locator>,
-    //     unicast_locator_list: Vec<Locator>,
-    // }
+    struct MockTransport{
+        multicast_locator_list: Vec<Locator>,
+        unicast_locator_list: Vec<Locator>,
+    }
 
-    // impl MockTransport{
-    //     fn new() -> Self {
-    //         Self {
-    //             multicast_locator_list: vec![Locator::new_udpv4(7400, [235,0,0,1])],
-    //             unicast_locator_list: vec![Locator::new_udpv4(7400, [235,0,0,1])],
-    //         }
-    //     }
-    // }
+    impl MockTransport{
+        fn new() -> Self {
+            Self {
+                multicast_locator_list: vec![Locator::new_udpv4(7400, [235,0,0,1])],
+                unicast_locator_list: vec![Locator::new_udpv4(7400, [235,0,0,1])],
+            }
+        }
+    }
 
-    // impl Transport for MockTransport {
-    //     fn write(&self, message: crate::RtpsMessage, _destination_locator: &Locator) {
-    //         println!("{:?}", message);
-    //     }
+    impl Transport for MockTransport {
+        fn write(&self, message: crate::RtpsMessage, _destination_locator: &Locator) {
+            println!("{:?}", message);
+        }
 
-    //     fn read(&self) -> crate::transport::TransportResult<Option<(crate::RtpsMessage, Locator)>> {
-    //         todo!()
-    //     }
+        fn read(&self) -> crate::transport::TransportResult<Option<(crate::RtpsMessage, Locator)>> {
+            todo!()
+        }
 
-    //     fn unicast_locator_list(&self) -> &Vec<Locator> {
-    //         &self.unicast_locator_list
-    //     }
+        fn unicast_locator_list(&self) -> &Vec<Locator> {
+            &self.unicast_locator_list
+        }
 
-    //     fn multicast_locator_list(&self) -> &Vec<Locator> {
-    //         &self.multicast_locator_list
-    //     }
-    // }
+        fn multicast_locator_list(&self) -> &Vec<Locator> {
+            &self.multicast_locator_list
+        }
+    }
 
 
     // #[test]
@@ -242,14 +253,14 @@ mod tests {
     // }
 
     
-    // #[test]
-    // fn spdp_announce() {
-    //     let domain_id = 0;
-    //     let domain_tag = "".to_string();
-    //     let lease_duration = rust_dds_interface::types::Duration{sec: 30, nanosec: 0};
-    //     let protocol = RtpsProtocol::new(domain_id, MockTransport::new(), MockTransport::new(), domain_tag, lease_duration);
-    //     protocol.send_metatraffic();
-    // }
+    #[test]
+    fn spdp_announce() {
+        let domain_id = 0;
+        let domain_tag = "".to_string();
+        let lease_duration = rust_dds_interface::types::Duration{sec: 30, nanosec: 0};
+        let mut protocol = RtpsProtocol::new(domain_id, MockTransport::new(), MockTransport::new(), domain_tag, lease_duration);
+        protocol.send_metatraffic();
+    }
 
 
     // struct MockTransportDetect{
