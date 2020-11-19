@@ -1,268 +1,26 @@
-use std::sync::{Arc, Mutex};
-
-use crate::types::{GuidPrefix, GUID, EntityId, EntityKind};
-use crate::types::constants::{PROTOCOL_VERSION_2_4, VENDOR_ID, ENTITYID_PARTICIPANT};
+use crate::types::constants::{PROTOCOL_VERSION_2_4, VENDOR_ID};
 use crate::transport::Transport;
 use crate::discovery::spdp_data::SPDPdiscoveredParticipantData;
 use crate::endpoint_types::BuiltInEndpointSet;
-use crate::behavior::{StatelessWriter, StatelessReader, StatefulWriter};
-use crate::structure::{RtpsParticipant, RtpsGroup, RtpsEntity};
+use crate::structure::{RtpsParticipant};
 use crate::message_receiver::RtpsMessageReceiver;
 use crate::message_sender::RtpsMessageSender;
-use crate::subscriber::Subscriber;
-use crate::publisher::Publisher;
-use crate::discovery::builtin_publisher::BuiltInPublisher;
-use crate::discovery::builtin_subscriber::BuiltInSubscriber;
-use crate::discovery::spdp::spdp_builtin_participant_writer::SpdpBuiltinParticipantWriter;
-use crate::discovery::spdp::spdp_builtin_participant_reader::SpdpBuiltinParticipantReader;
-use crate::discovery::sedp::sedp_builtin_publications_writer::SedpBuiltinPublicationWriter;
-use crate::behavior::cache_change_receiver_listener::CacheChangeReceiverListener;
-use crate::behavior::{ReaderProxy, WriterProxy};
+
+use crate::discovery::spdp::SimpleParticipantDiscovery;
+
 use crate::discovery::sedp::sedp::SimpleEndpointDiscoveryProtocol;
-use crate::behavior::endpoint_traits::{CacheChangeReceiver,AcknowldegmentReceiver};
+use crate::behavior::endpoint_traits::{AcknowldegmentReceiver};
 
-use crate::types::constants::{
-    ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
-    ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
-    ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
-};
-
-use rust_dds_interface::types::{DomainId, InstanceHandle, ChangeKind};
+use rust_dds_interface::types::{DomainId, InstanceHandle, };
 use rust_dds_interface::protocol::{ProtocolEntity, ProtocolParticipant, ProtocolSubscriber, ProtocolPublisher};
-use rust_dds_interface::cache_change::CacheChange;
-
-pub struct SimpleParticipantDiscovery {
-    domain_id: DomainId,
-    domain_tag: String,
-    sedp: SimpleEndpointDiscoveryProtocol,
-}
-
-impl SimpleParticipantDiscovery {
-    pub fn new(
-        domain_id: DomainId,
-        domain_tag: String,
-        sedp: SimpleEndpointDiscoveryProtocol
-    ) -> Self {
-        Self {
-            domain_id,
-            domain_tag,
-            sedp
-        }
-    }
-
-    fn add_discovered_participant(&mut self, discovered_participant: &SPDPdiscoveredParticipantData) {
-        // Implements the process described in 8.5.5.1 - Discovery of a new remote Participant
-
-        if discovered_participant.domain_id() != self.domain_id {
-            return;
-        }
-
-        if discovered_participant.domain_tag() != &self.domain_tag {
-            return;
-        }
-
-        if discovered_participant
-            .available_built_in_endpoints()
-            .has(BuiltInEndpointSet::BUILTIN_ENDPOINT_PUBLICATIONS_DETECTOR)
-        {
-            let guid = GUID::new(
-                discovered_participant.guid_prefix(),
-                ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
-            );
-            let proxy = ReaderProxy::new(
-                guid,
-                discovered_participant
-                    .metatraffic_unicast_locator_list()
-                    .clone(),
-                discovered_participant
-                    .metatraffic_multicast_locator_list()
-                    .clone(),
-                discovered_participant.expects_inline_qos(),
-                true,
-            );
-            self.sedp.sedp_builtin_publications_writer().matched_reader_add(proxy);
-        }
-
-        if discovered_participant
-            .available_built_in_endpoints()
-            .has(BuiltInEndpointSet::BUILTIN_ENDPOINT_PUBLICATIONS_ANNOUNCER)
-        {
-            let guid = GUID::new(
-                discovered_participant.guid_prefix(),
-                ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
-            );
-            let proxy = WriterProxy::new(
-                guid,
-                discovered_participant
-                    .metatraffic_unicast_locator_list()
-                    .clone(),
-                discovered_participant
-                    .metatraffic_multicast_locator_list()
-                    .clone(),
-            );
-            self.sedp.sedp_builtin_publications_reader().matched_writer_add(proxy);
-        }
-
-        if discovered_participant
-            .available_built_in_endpoints()
-            .has(BuiltInEndpointSet::BUILTIN_ENDPOINT_SUBSCRIPTIONS_DETECTOR)
-        {
-            let guid = GUID::new(
-                discovered_participant.guid_prefix(),
-                ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
-            );
-            let proxy = ReaderProxy::new(
-                guid,
-                discovered_participant
-                    .metatraffic_unicast_locator_list()
-                    .clone(),
-                discovered_participant
-                    .metatraffic_multicast_locator_list()
-                    .clone(),
-                discovered_participant.expects_inline_qos(),
-                true,
-            );
-            self.sedp.sedp_builtin_subscriptions_writer().matched_reader_add(proxy);
-        }
-
-        if discovered_participant
-            .available_built_in_endpoints()
-            .has(BuiltInEndpointSet::BUILTIN_ENDPOINT_SUBSCRIPTIONS_ANNOUNCER)
-        {
-            let guid = GUID::new(
-                discovered_participant.guid_prefix(),
-                ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
-            );
-            let proxy = WriterProxy::new(
-                guid,
-                discovered_participant
-                    .metatraffic_unicast_locator_list()
-                    .clone(),
-                discovered_participant
-                    .metatraffic_multicast_locator_list()
-                    .clone(),
-            );
-            self.sedp.sedp_builtin_subscriptions_reader().matched_writer_add(proxy);
-        }
-
-        if discovered_participant
-            .available_built_in_endpoints()
-            .has(BuiltInEndpointSet::BUILTIN_ENDPOINT_TOPICS_DETECTOR)
-        {
-            let guid = GUID::new(
-                discovered_participant.guid_prefix(),
-                ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
-            );
-            let proxy = ReaderProxy::new(
-                guid,
-                discovered_participant
-                    .metatraffic_unicast_locator_list()
-                    .clone(),
-                discovered_participant
-                    .metatraffic_multicast_locator_list()
-                    .clone(),
-                discovered_participant.expects_inline_qos(),
-                true,
-            );
-            self.sedp.sedp_builtin_topics_writer().matched_reader_add(proxy);
-        }
-
-        if discovered_participant
-            .available_built_in_endpoints()
-            .has(BuiltInEndpointSet::BUILTIN_ENDPOINT_TOPICS_ANNOUNCER)
-        {
-            let guid = GUID::new(
-                discovered_participant.guid_prefix(),
-                ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
-            );
-            let proxy = WriterProxy::new(
-                guid,
-                discovered_participant
-                    .metatraffic_unicast_locator_list()
-                    .clone(),
-                discovered_participant
-                    .metatraffic_multicast_locator_list()
-                    .clone(),
-            );
-            self.sedp.sedp_builtin_topics_reader().matched_writer_add(proxy);
-        }
-    }
-
-    fn remove_discovered_participant(&mut self, remote_participant_guid_prefix: GuidPrefix) {
-        // Implements the process described in 8.5.5.2 Removal of a previously discovered Participant
-        let guid = GUID::new(
-            remote_participant_guid_prefix,
-            ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
-        );
-        self.sedp
-            .sedp_builtin_publications_writer()
-            .matched_reader_remove(&guid);
-
-        let guid = GUID::new(
-            remote_participant_guid_prefix,
-            ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
-        );
-        self.sedp
-            .sedp_builtin_publications_reader()
-            .matched_writer_remove(&guid);
-
-        let guid = GUID::new(
-            remote_participant_guid_prefix,
-            ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
-        );
-        self.sedp
-            .sedp_builtin_subscriptions_writer()
-            .matched_reader_remove(&guid);
-
-        let guid = GUID::new(
-            remote_participant_guid_prefix,
-            ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
-        );
-        self.sedp
-            .sedp_builtin_subscriptions_reader()
-            .matched_writer_remove(&guid);
-
-        let guid = GUID::new(
-            remote_participant_guid_prefix,
-            ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
-        );
-        self.sedp
-            .sedp_builtin_topics_writer()
-            .matched_reader_remove(&guid);
-
-        let guid = GUID::new(
-            remote_participant_guid_prefix,
-            ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER,
-        );
-        self.sedp
-            .sedp_builtin_topics_reader()
-            .matched_writer_remove(&guid);
-    }
-
-    fn on_add_change(&mut self, cc: &CacheChange) {
-        let discovered_participant =
-            SPDPdiscoveredParticipantData::from_key_data(cc.instance_handle(), cc.data_value().as_ref().unwrap(), 0);
-
-        match cc.change_kind() {
-            ChangeKind::Alive => self.add_discovered_participant(&discovered_participant),
-            ChangeKind::AliveFiltered => (),
-            ChangeKind::NotAliveDisposed | ChangeKind::NotAliveUnregistered => {
-                self.remove_discovered_participant(discovered_participant.guid_prefix())
-            }
-        }
-    }
-}
 
 
 pub struct RtpsProtocol {
     participant: RtpsParticipant,
     // builtin_publisher: BuiltInPublisher,
     // builtin_subscriber: BuiltInSubscriber,
-    spdp_builtin_participant_writer: StatelessWriter,
-    spdp_builtin_participant_reader: StatelessReader,
-    spdp_listener: SimpleParticipantDiscovery,    
-    // spdp_builtin_participant_reading_listener: (StatelessReader, SimpleParticipantDiscoveryListener),
-    // sedp_builtin_publications_writer: StatefulWriter,
+    spdp: SimpleParticipantDiscovery,    
+    sedp: SimpleEndpointDiscoveryProtocol,
     userdata_transport: Box<dyn Transport>,
     metatraffic_transport: Box<dyn Transport>,
     publisher_counter: usize,
@@ -276,15 +34,11 @@ impl RtpsProtocol {
         let participant = RtpsParticipant::new(guid_prefix, domain_id, PROTOCOL_VERSION_2_4, VENDOR_ID);
 
         let lease_duration = crate::behavior::types::Duration::from_secs(lease_duration.sec as u64); // TODO: Fix this conversion
-
-
-        let mut spdp_builtin_participant_writer = SpdpBuiltinParticipantWriter::new(guid_prefix);
-
         let spdp_data = SPDPdiscoveredParticipantData::new(
             participant.domain_id,
             domain_tag.clone(), 
             participant.protocol_version, 
-            participant.entity.guid.prefix(), 
+            guid_prefix, 
             participant.vendor_id, 
             metatraffic_transport.unicast_locator_list().clone(), 
             metatraffic_transport.multicast_locator_list().clone(), 
@@ -303,21 +57,10 @@ impl RtpsProtocol {
             lease_duration,
         );
 
-        let change = spdp_builtin_participant_writer.writer.new_change(ChangeKind::Alive, Some(spdp_data.data()), None, spdp_data.key());
-        spdp_builtin_participant_writer.writer.writer_cache.add_change(change).unwrap();
-
-        for locator in metatraffic_transport.multicast_locator_list() {
-            spdp_builtin_participant_writer.reader_locator_add(locator.clone());
-        }
+        let spdp = SimpleParticipantDiscovery::new(spdp_data);       
 
         let sedp = SimpleEndpointDiscoveryProtocol::new(guid_prefix);
-
-        let sedp_builtin_publications_writer = SedpBuiltinPublicationWriter::new(guid_prefix);
-
-        let spdp_listener = SimpleParticipantDiscovery::new(domain_id, domain_tag, sedp);
-        let spdp_builtin_participant_reader = SpdpBuiltinParticipantReader::new(guid_prefix);
-        // let spdp_builtin_participant_reading_listener = (spdp_builtin_participant_reader, spdp_listener);
-
+       
 
         // let builtin_publisher = BuiltInPublisher::new(guid_prefix);
         // let builtin_subscriber = BuiltInSubscriber::new(guid_prefix);
@@ -329,11 +72,8 @@ impl RtpsProtocol {
             participant,
             // builtin_publisher,
             // builtin_subscriber,
-            spdp_builtin_participant_writer,
-            spdp_builtin_participant_reader,
-            // sedp_builtin_publications_writer,
-            // spdp_builtin_participant_reading_listener,
-            spdp_listener,
+            spdp,
+            sedp,
             userdata_transport,
             metatraffic_transport,
             publisher_counter: 0,
@@ -345,27 +85,19 @@ impl RtpsProtocol {
         RtpsMessageReceiver::receive(
             self.participant.entity.guid.prefix(), 
             self.metatraffic_transport.as_ref(),
-            &mut [&mut self.spdp_builtin_participant_reader],
-            &mut self.spdp_listener.sedp.writers().iter_mut().map(|f| *f as &mut dyn AcknowldegmentReceiver).collect());
+            &mut [self.spdp.spdp_builtin_participant_reader()],
+            &mut self.sedp.writers().iter_mut().map(|f| *f as &mut dyn AcknowldegmentReceiver).collect());
 
 
-        let reader_cache = &self.spdp_builtin_participant_reader.reader.reader_cache;
-        let seq_num_min = reader_cache.get_seq_num_min().unwrap();
-        let seq_num_max = reader_cache.get_seq_num_max().unwrap();
-        for seq_num in seq_num_min..=seq_num_max {
-
-            let cc = self.spdp_builtin_participant_reader.reader.reader_cache.get_change(seq_num).unwrap();
-            self.spdp_listener.on_add_change(cc);
-            self.spdp_builtin_participant_reader.reader.reader_cache.remove_change(seq_num);
-            
-        }           
+        todo!()
+        // self.spdp.on_data(sedp);
     }
 
     pub fn send_metatraffic(&mut self) {        
         RtpsMessageSender::send_cache_change_messages(
             self.participant.entity.guid.prefix(), 
             self.metatraffic_transport.as_ref(),
-            &mut [&mut self.spdp_builtin_participant_writer])
+            &mut [self.spdp.spdp_builtin_participant_writer()])
     }
 }
 

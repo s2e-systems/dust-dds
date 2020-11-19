@@ -31,8 +31,8 @@ use crate::endpoint_types::{
 
 
 // pub struct SimpleParticipantDiscoveryProtocol {
-//     spdp_builtin_participant_writer: Arc<StatelessWriter>,
-//     spdp_builtin_participant_reader: Arc<StatelessReader>,
+//     spdp_builtin_participant_writer: StatelessWriter,
+//     spdp_builtin_participant_reader: StatelessReader,
 // }
 
 // impl SimpleParticipantDiscoveryProtocol {
