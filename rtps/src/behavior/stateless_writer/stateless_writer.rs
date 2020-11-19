@@ -3,13 +3,13 @@ use std::collections::HashMap;
 use crate::behavior::RtpsWriter;
 use crate::behavior::endpoint_traits::{DestinedMessages, CacheChangeSender};
 use crate::types::{Locator, ReliabilityKind, GUID};
-use super::reader_locator::ReaderLocator;
+use super::best_effort_reader_locator::BestEffortReaderLocator;
 use rust_dds_interface::types::TopicKind;
 use rust_dds_interface::history_cache::HistoryCache;
 
 pub struct StatelessWriter {
     pub writer: RtpsWriter,
-    reader_locators: HashMap<Locator, ReaderLocator>,
+    reader_locators: HashMap<Locator, BestEffortReaderLocator>,
 }
 
 impl StatelessWriter {
@@ -32,7 +32,7 @@ impl StatelessWriter {
     }
 
     pub fn reader_locator_add(&mut self, a_locator: Locator) {
-        self.reader_locators.insert(a_locator, ReaderLocator::new(a_locator, self.writer.endpoint.entity.guid.entity_id(), false /*expects_inline_qos*/));
+        self.reader_locators.insert(a_locator, BestEffortReaderLocator::new(a_locator));
     }
 
     pub fn reader_locator_remove(&mut self, a_locator: &Locator) {
@@ -50,7 +50,7 @@ impl CacheChangeSender for StatelessWriter {
     fn produce_messages(&mut self) -> Vec<DestinedMessages> {
         let mut output = Vec::new();
         for (&locator, reader_locator) in self.reader_locators.iter_mut() {
-            let messages = reader_locator.produce_messages(&self.writer.writer_cache, self.writer.last_change_sequence_number);
+            let messages = reader_locator.produce_messages(&self.writer.writer_cache, self.writer.endpoint.entity.guid.entity_id(), self.writer.last_change_sequence_number);
             if !messages.is_empty() {
                 output.push(DestinedMessages::SingleDestination{locator, messages});
             }
@@ -64,43 +64,6 @@ impl CacheChangeSender for StatelessWriter {
 //     use super::*;
 //     use crate::types::constants::*;
 //     use crate::types::*;
-
-//     #[test]
-//     fn new_change() {
-//         let writer = StatelessWriter::new(
-//             GUID::new([0; 12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
-//             TopicKind::WithKey,
-//             ReliabilityKind::BestEffort,
-//             HistoryCache::default(),
-//         );
-
-//         let cache_change_seq1 = writer.new_change(
-//             ChangeKind::Alive,
-//             Some(vec![1, 2, 3]), 
-//             None,                
-//             [1; 16],             
-//         );
-
-//         let cache_change_seq2 = writer.new_change(
-//             ChangeKind::NotAliveUnregistered,
-//             None,    
-//             None,    
-//             [1; 16], 
-//         );
-
-//         assert_eq!(cache_change_seq1.sequence_number(), 1);
-//         assert_eq!(cache_change_seq1.change_kind(), ChangeKind::Alive);
-//         assert_eq!(cache_change_seq1.inline_qos().unwrap().parameter.len(), 0);
-//         assert_eq!(cache_change_seq1.instance_handle(), [1; 16]);
-
-//         assert_eq!(cache_change_seq2.sequence_number(), 2);
-//         assert_eq!(
-//             cache_change_seq2.change_kind(),
-//             ChangeKind::NotAliveUnregistered
-//         );
-//         assert_eq!(cache_change_seq2.inline_qos().unwrap().parameter.len(), 0);
-//         assert_eq!(cache_change_seq2.instance_handle(), [1; 16]);
-//     }
 
     // #[test]
     // fn stateless_writer_run() {

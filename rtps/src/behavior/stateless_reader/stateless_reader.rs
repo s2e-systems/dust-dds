@@ -55,7 +55,6 @@ impl StatelessReader {
 
     fn transition_t2(&mut self, guid_prefix: GuidPrefix, data: Data) {
         let cache_change = cache_change_from_data(data, &guid_prefix);
-        // listener.on_add_change(&cache_change);
         self.reader.reader_cache.add_change(cache_change).unwrap();
     }
 }
