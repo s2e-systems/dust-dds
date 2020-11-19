@@ -3,17 +3,14 @@ use crate::types::{GUID, ReliabilityKind, GuidPrefix};
 use crate::types::constants::ENTITYID_SPDP_BUILTIN_PARTICIPANT_DETECTOR;
 use crate::structure::{RtpsEndpoint, RtpsEntity};
 use crate::behavior::{StatelessReader, RtpsReader};
-use crate::discovery::builtin_subscriber::BuiltInSubscriber;
 
 use rust_dds_interface::types::TopicKind;
 use rust_dds_interface::history_cache::HistoryCache;
 
-pub struct SpdpBuiltinParticipantReader {
-    stateless_reader: StatelessReader,
-}
+pub struct SpdpBuiltinParticipantReader;
 
-impl<'a> SpdpBuiltinParticipantReader<'a> {
-    pub fn new(guid_prefix: GuidPrefix, parent_subscriber: &'a BuiltInSubscriber) -> Self {
+impl SpdpBuiltinParticipantReader {
+    pub fn new(guid_prefix: GuidPrefix) -> StatelessReader {
 
         let guid = GUID::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_DETECTOR);
         let entity = RtpsEntity::new(guid);
@@ -25,11 +22,6 @@ impl<'a> SpdpBuiltinParticipantReader<'a> {
 
         let reader_cache = HistoryCache::default();
         let reader = RtpsReader::new(endpoint, reader_cache, expects_inline_qos);
-        let stateless_reader = StatelessReader::new(reader);
-
-        Self {
-            parent_subscriber,
-            stateless_reader,
-        }
+        StatelessReader::new(reader)
     }
 }

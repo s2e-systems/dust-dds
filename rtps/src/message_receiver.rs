@@ -1,15 +1,18 @@
 use crate::types::{GuidPrefix, Locator,};
 use crate::transport::Transport;
 use crate::messages::submessages::RtpsSubmessage;
-
-pub trait MessageReceiver {
-    fn try_process_message(&self, source_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>);
-}
+use crate::behavior::endpoint_traits::{CacheChangeReceiver,AcknowldegmentReceiver};
+use crate::behavior::cache_change_receiver_listener::CacheChangeReceiverListener;
 
 pub struct RtpsMessageReceiver;
 
 impl RtpsMessageReceiver {
-    pub fn receive<'a, I>(participant_guid_prefix: GuidPrefix, transport: &dyn Transport, endpoint_list: &[&dyn MessageReceiver]) {     
+    pub fn receive(
+        participant_guid_prefix: GuidPrefix,
+        transport: &dyn Transport,
+        cache_change_receiver_list: &mut [(&mut dyn CacheChangeReceiver, &mut dyn CacheChangeReceiverListener)],
+        acknoledgment_receiver_list: &mut [&mut dyn AcknowldegmentReceiver]) {
+
         if let Some((message, _src_locator)) = transport.read().unwrap() {
             let _source_version = message.header().version();
             let _source_vendor_id = message.header().vendor_id();
@@ -23,8 +26,11 @@ impl RtpsMessageReceiver {
             for submessage in message.take_submessages() {
                 if submessage.is_entity_submessage() {
                     let mut optional_submessage = Some(submessage);
-                    for &endpoint in endpoint_list {
-                        endpoint.try_process_message(source_guid_prefix, &mut optional_submessage);
+                    for (receiver, listener) in cache_change_receiver_list.iter_mut() {
+                        receiver.try_process_message(source_guid_prefix, &mut optional_submessage, *listener);
+                    }
+                    for receiver in acknoledgment_receiver_list.iter_mut() {
+                        receiver.try_process_message(source_guid_prefix, &mut optional_submessage);
                     }
                 } else if submessage.is_interpreter_submessage(){
                     match submessage {

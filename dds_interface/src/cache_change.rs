@@ -1,6 +1,7 @@
 use std::cmp::{Ord, Ordering};
 use crate::types::{ChangeKind, InstanceHandle, SequenceNumber, Data, ParameterList};
 
+#[derive(Debug)]
 pub struct CacheChange {
     kind: ChangeKind,
     writer_guid: InstanceHandle /*GUID*/,

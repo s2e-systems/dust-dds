@@ -4,9 +4,8 @@ use crate::messages::RtpsSubmessage;
 use crate::messages::submessages::Data;
 use crate::behavior::RtpsReader;
 use crate::behavior::cache_change_from_data;
-use crate::behavior::stateless_reader::StatelessReaderListener;
-
-use rust_dds_interface::history_cache::HistoryCache;
+use crate::behavior::endpoint_traits::CacheChangeReceiver;
+use crate::behavior::cache_change_receiver_listener::CacheChangeReceiverListener;
 
 pub struct StatelessReader {
     pub reader: RtpsReader,
@@ -22,26 +21,28 @@ impl StatelessReader {
         }
     }
 
-    fn waiting_state(&self, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>, reader_cache: &mut HistoryCache, listener: &dyn StatelessReaderListener) {
+    fn waiting_state(&mut self, source_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>, listener: &dyn CacheChangeReceiverListener) {
         if let Some(inner_submessage) = submessage {
             if let RtpsSubmessage::Data(data) = inner_submessage { 
                 if self.reader.endpoint.entity.guid.entity_id() == data.reader_id() || data.reader_id() == ENTITYID_UNKNOWN {
                     if let RtpsSubmessage::Data(data) = submessage.take().unwrap() {
-                        self.transition_t2(src_guid_prefix, data, reader_cache, listener)
+                        self.transition_t2(source_guid_prefix, data, listener)
                     }
                 }
             }              
         }
     }
 
-    fn transition_t2(&self, guid_prefix: GuidPrefix, data: Data, reader_cache: &mut HistoryCache, listener: &dyn StatelessReaderListener) {
+    fn transition_t2(&mut self, guid_prefix: GuidPrefix, data: Data, listener: &dyn CacheChangeReceiverListener) {
         let cache_change = cache_change_from_data(data, &guid_prefix);
         listener.on_add_change(&cache_change);
-        reader_cache.add_change(cache_change).unwrap();
+        self.reader.reader_cache.add_change(cache_change).unwrap();
     }
+}
 
-    pub fn try_process_message(&self, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>, reader_cache: &mut HistoryCache, listener: &dyn StatelessReaderListener) {
-        self.waiting_state(src_guid_prefix, submessage, reader_cache, listener);
+impl CacheChangeReceiver for StatelessReader {
+    fn try_process_message(&mut self, source_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>, listener: &mut dyn CacheChangeReceiverListener ) {
+        self.waiting_state(source_guid_prefix, submessage, listener);
     }
 }
 

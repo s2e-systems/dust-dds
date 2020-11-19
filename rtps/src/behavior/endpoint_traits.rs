@@ -1,9 +1,6 @@
-use std::sync::Mutex;
-
 use crate::types::{Locator, GuidPrefix};
 use crate::messages::RtpsSubmessage;
-
-use rust_dds_interface::history_cache::HistoryCache;
+use crate::behavior::cache_change_receiver_listener::CacheChangeReceiverListener;
 
 pub enum DestinedMessages {
     SingleDestination{locator: Locator, messages: Vec<RtpsSubmessage>},
@@ -15,13 +12,13 @@ pub trait CacheChangeSender {
 }
 
 pub trait CacheChangeReceiver {
-    fn try_process_message(&mut self, source_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>, reader_cache: &mut HistoryCache);
+    fn try_process_message(&mut self, source_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>, listener: &mut dyn CacheChangeReceiverListener);
 }
 
 pub trait AcknowldegmentSender {
-    fn produce_messages(&self, writer_cache: &Mutex<HistoryCache>) -> Vec<DestinedMessages>;
+    fn produce_messages(&mut self) -> Vec<DestinedMessages>;
 }
 
 pub trait AcknowldegmentReceiver {
-    fn try_process_message(&mut self, source_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>, reader_cache: &mut HistoryCache);
+    fn try_process_message(&mut self, source_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>);
 }

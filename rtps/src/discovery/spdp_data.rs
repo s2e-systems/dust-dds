@@ -6,7 +6,6 @@ use rust_dds_interface::history_cache::HistoryCache;
 
 use crate::types::{GuidPrefix, GUID, Locator, ProtocolVersion, VendorId, ReliabilityKind};
 use crate::behavior::{StatelessWriter, StatelessReader};
-use super::super::behavior::stateless_reader::StatelessReaderListener;
 
 use crate::types::constants::{ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, ENTITYID_SPDP_BUILTIN_PARTICIPANT_DETECTOR};
 use crate::messages::types::Count;
