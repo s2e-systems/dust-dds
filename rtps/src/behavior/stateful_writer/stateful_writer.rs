@@ -4,7 +4,7 @@ use crate::types::{ReliabilityKind, GUID, GuidPrefix};
 use crate::messages::RtpsSubmessage;
 use crate::behavior::RtpsWriter;
 use crate::behavior::types::Duration;
-use crate::behavior::endpoint_traits::{DestinedMessages, AcknowldegmentReceiver};
+use crate::behavior::endpoint_traits::{DestinedMessages, AcknowldegmentReceiver, CacheChangeSender};
 
 use super::reader_proxy::ReaderProxy;
 use super::reliable_reader_proxy::ReliableReaderProxy;
@@ -17,11 +17,22 @@ enum ReaderProxyFlavor {
     Reliable(ReliableReaderProxy),
 }
 
+impl std::ops::Deref for ReaderProxyFlavor {
+    type Target = ReaderProxy;
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            ReaderProxyFlavor::BestEffort(rp) => rp,
+            ReaderProxyFlavor::Reliable(rp) => rp,
+        }
+    }
+}
+
 pub struct StatefulWriter {
     pub writer: RtpsWriter,
-    heartbeat_period: Duration,
-    nack_response_delay: Duration,
-    nack_suppression_duration: Duration,
+    pub heartbeat_period: Duration,
+    pub nack_response_delay: Duration,
+    pub nack_suppression_duration: Duration,
     matched_readers: HashMap<GUID, ReaderProxyFlavor>,
 }
 
@@ -47,36 +58,6 @@ impl StatefulWriter {
                 matched_readers: HashMap::new()
         }
     }
-
-    pub fn produce_messages(&mut self, writer_cache: &mut HistoryCache) -> Vec<DestinedMessages> {
-        let mut output = Vec::new();
-        for (_reader_guid, reader_proxy) in self.matched_readers.iter_mut() {
-            match reader_proxy {
-                ReaderProxyFlavor::Reliable(reliable_reader_proxy) => {
-                    let messages = reliable_reader_proxy.produce_messages(writer_cache, self.writer.last_change_sequence_number, self.writer.endpoint.entity.guid.entity_id(), self.heartbeat_period, self.nack_response_delay);
-                    if !messages.is_empty() {
-                        output.push(DestinedMessages::MultiDestination{
-                            unicast_locator_list: reliable_reader_proxy.unicast_locator_list().clone(),
-                            multicast_locator_list: reliable_reader_proxy.multicast_locator_list().clone(),
-                            messages,
-                        });   
-                    }
-                }
-                ReaderProxyFlavor::BestEffort(best_effort_reader_proxy) => {
-                    let messages = best_effort_reader_proxy.produce_messages(writer_cache, self.writer.last_change_sequence_number, self.writer.endpoint.entity.guid.entity_id());
-                    if !messages.is_empty() {
-                        output.push(DestinedMessages::MultiDestination{
-                            unicast_locator_list: best_effort_reader_proxy.unicast_locator_list().clone(),
-                            multicast_locator_list: best_effort_reader_proxy.multicast_locator_list().clone(),
-                            messages,
-                        });   
-                    }
-                }
-            };
-        }
-        output
-    }
-
     
     pub fn matched_reader_add(&mut self, a_reader_proxy: ReaderProxy) {
         let remote_reader_guid = a_reader_proxy.remote_reader_guid().clone();
@@ -93,10 +74,7 @@ impl StatefulWriter {
 
     pub fn matched_reader_lookup(&self, a_reader_guid: GUID) -> Option<&ReaderProxy> {
         match self.matched_readers.get(&a_reader_guid) {
-            Some(reader_proxy_flavor) => match reader_proxy_flavor {
-                ReaderProxyFlavor::BestEffort(rp) => Some(rp),
-                ReaderProxyFlavor::Reliable(rp) => Some(rp),
-            },
+            Some(rp) => Some(rp),
             None => None,
         }
     }
@@ -104,6 +82,27 @@ impl StatefulWriter {
 
     pub fn is_acked_by_all(&self) -> bool {
         todo!()
+    }
+}
+
+impl CacheChangeSender for StatefulWriter {
+    fn produce_messages(&mut self) -> Vec<DestinedMessages> {
+        let mut output = Vec::new();
+        for (_reader_guid, reader_proxy) in self.matched_readers.iter_mut() {
+            let messages = match reader_proxy {
+                ReaderProxyFlavor::Reliable(reliable_reader_proxy) => reliable_reader_proxy.produce_messages(&self.writer.writer_cache, self.writer.last_change_sequence_number, self.writer.endpoint.entity.guid.entity_id(), self.heartbeat_period, self.nack_response_delay),
+                ReaderProxyFlavor::BestEffort(best_effort_reader_proxy) => best_effort_reader_proxy.produce_messages(&self.writer.writer_cache, self.writer.last_change_sequence_number, self.writer.endpoint.entity.guid.entity_id()),
+            };
+
+            if !messages.is_empty() {
+                output.push(DestinedMessages::MultiDestination{
+                    unicast_locator_list: reader_proxy.unicast_locator_list().clone(),
+                    multicast_locator_list: reader_proxy.multicast_locator_list().clone(),
+                    messages,
+                });   
+            }
+        }
+        output
     }
 }
 
@@ -117,59 +116,6 @@ impl AcknowldegmentReceiver for StatefulWriter {
         }
     }
 }
-
-// impl RtpsMessageSender for StatefulWriter {
-//     fn output_queues(&mut self) -> Vec<OutputQueue> {
-//         let mut output_queues = Vec::new();        
-
-//         for (_, reader_proxy) in self.matched_readers.iter_mut() {
-//             let (unicast_locator_list, multicast_locator_list, message_queue) = match reader_proxy {
-//                 ReaderProxyFlavor::BestEffort(best_effort_proxy) => (
-//                     best_effort_proxy.reader_proxy().unicast_locator_list().clone(),
-//                     best_effort_proxy.reader_proxy().multicast_locator_list().clone(),
-//                     best_effort_proxy.output_queue_mut().drain(..).collect()
-//                 ),
-//                 ReaderProxyFlavor::Reliable(reliable_proxy) => (
-//                     reliable_proxy.reader_proxy().unicast_locator_list().clone(),
-//                     reliable_proxy.reader_proxy().multicast_locator_list().clone(),
-//                     reliable_proxy.output_queue_mut().drain(..).collect()
-//                 )
-//             };           
-
-//             output_queues.push(
-//                 OutputQueue::MultiDestination{
-//                     unicast_locator_list,
-//                     multicast_locator_list,
-//                     message_queue,
-//                 })
-//         }
-//         output_queues
-//     }
-// }
-
-// impl RtpsCommunication for StatefulWriter {
-//     fn try_push_message(&mut self, src_locator: Locator, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>) {
-//         for (_,reader_proxy) in &mut self.matched_readers {
-//             match reader_proxy {
-//                 ReaderProxyFlavor::Reliable(reliable_reader_proxy) => reliable_reader_proxy.try_push_message(src_locator, src_guid_prefix, submessage),
-//                 ReaderProxyFlavor::BestEffort(_) => (),
-//             }
-//         }
-//     }
-// }
-
-// impl Receiver for StatefulWriter {
-//     fn push_receive_message(&mut self, _src_locator: Locator, source_guid_prefix: GuidPrefix, submessage: RtpsSubmessage) {
-//         let (_, destination_reader) = self.matched_readers.iter_mut()
-//             .find(|(_, reader)| reader.is_submessage_destination(&source_guid_prefix, &submessage) ).unwrap();
-
-//         destination_reader.push_receive_message(source_guid_prefix, submessage);
-//     }
-    
-//     fn is_submessage_destination(&self, _src_locator: &Locator, src_guid_prefix: &GuidPrefix, submessage: &RtpsSubmessage) -> bool {
-//         self.matched_readers.iter().find(|&(_, reader)| reader.is_submessage_destination(src_guid_prefix, submessage)).is_some()
-//     }
-// }
 
 // #[cfg(test)]
 // mod tests {
