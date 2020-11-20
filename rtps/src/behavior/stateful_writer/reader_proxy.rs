@@ -12,13 +12,12 @@ struct ChangeForReader {
 pub struct ReaderProxy {
     pub remote_reader_guid: GUID,
     // remoteGroupEntityId: EntityId_t,
-    unicast_locator_list: Vec<Locator>,
-    multicast_locator_list: Vec<Locator>,
+    pub unicast_locator_list: Vec<Locator>,
+    pub multicast_locator_list: Vec<Locator>,
     changes_for_reader: ChangeForReader,
-    expects_inline_qos: bool,
-    is_active: bool,
+    pub expects_inline_qos: bool,
+    pub is_active: bool,
 }
-
 
 impl ReaderProxy {
     pub fn new(
@@ -96,18 +95,6 @@ impl ReaderProxy {
         }
 
         unacked_changes_set
-    }
-
-    pub fn unicast_locator_list(&self) -> &Vec<Locator> {
-        &self.unicast_locator_list
-    }
-
-    pub fn multicast_locator_list(&self) -> &Vec<Locator> {
-        &self.multicast_locator_list
-    }
-
-    pub fn remote_reader_guid(&self) -> &GUID {
-        &self.remote_reader_guid
     }
 }
 

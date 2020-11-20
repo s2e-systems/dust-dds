@@ -32,22 +32,22 @@ impl BestEffortReaderProxy {
 
     fn transition_t4(&mut self, history_cache: &HistoryCache, next_unsent_seq_num: SequenceNumber, writer_entity_id: EntityId, message_queue: &mut Vec<RtpsSubmessage>) {
         if let Some(cache_change) = history_cache.get_change(next_unsent_seq_num) {
-            let reader_id = self.remote_reader_guid().entity_id();
+            let reader_id = self.remote_reader_guid.entity_id();
             let data = data_from_cache_change(cache_change, reader_id);
-            let mut dst_locator = self.unicast_locator_list().clone();
-            dst_locator.extend(self.unicast_locator_list());
-            dst_locator.extend(self.multicast_locator_list());
+            let mut dst_locator = self.unicast_locator_list.clone();
+            dst_locator.extend(&self.unicast_locator_list);
+            dst_locator.extend(&self.multicast_locator_list);
             message_queue.push(RtpsSubmessage::Data(data));
         } else {
             let gap = Gap::new(
                 BEHAVIOR_ENDIANNESS,
-                self.remote_reader_guid().entity_id(), 
+                self.remote_reader_guid.entity_id(), 
                 writer_entity_id,
                 next_unsent_seq_num,
             BTreeSet::new());
-            let mut dst_locator = self.unicast_locator_list().clone();
-            dst_locator.extend(self.unicast_locator_list());
-            dst_locator.extend(self.multicast_locator_list());
+            let mut dst_locator = self.unicast_locator_list.clone();
+            dst_locator.extend(&self.unicast_locator_list);
+            dst_locator.extend(&self.multicast_locator_list);
             message_queue.push(RtpsSubmessage::Gap(gap));
         }
     }

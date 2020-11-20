@@ -64,7 +64,7 @@ impl ReliableReaderProxy {
         if let Some(inner_submessage) = submessage {
             if let  RtpsSubmessage::AckNack(acknack) = inner_submessage {    
                 let reader_guid = GUID::new(src_guid_prefix, acknack.reader_id());
-                if self.reader_proxy.remote_reader_guid() == &reader_guid {
+                if self.reader_proxy.remote_reader_guid == reader_guid {
                     if let RtpsSubmessage::AckNack(acknack) = submessage.take().unwrap() { 
                         if self.reader_proxy.requested_changes().is_empty() {
                             self.waiting_state(acknack);
@@ -89,23 +89,23 @@ impl ReliableReaderProxy {
 
     fn transition_t4(&mut self, history_cache: &HistoryCache, next_unsent_seq_num: SequenceNumber, writer_entity_id: EntityId, message_queue: &mut Vec<RtpsSubmessage>) {
         if let Some(cache_change) = history_cache.get_change(next_unsent_seq_num) {
-            let reader_id = self.reader_proxy.remote_reader_guid().entity_id();
+            let reader_id = self.reader_proxy.remote_reader_guid.entity_id();
             let data = data_from_cache_change(cache_change, reader_id);
-            let mut dst_locator = self.reader_proxy.unicast_locator_list().clone();
-            dst_locator.extend(self.reader_proxy.unicast_locator_list());
-            dst_locator.extend(self.reader_proxy.multicast_locator_list());
+            let mut dst_locator = self.reader_proxy.unicast_locator_list.clone();
+            dst_locator.extend(&self.reader_proxy.unicast_locator_list);
+            dst_locator.extend(&self.reader_proxy.multicast_locator_list);
             message_queue.push(RtpsSubmessage::Data(data));
         } else {
             let gap = Gap::new(
                 BEHAVIOR_ENDIANNESS,
-                self.reader_proxy.remote_reader_guid().entity_id(), 
+                self.reader_proxy.remote_reader_guid.entity_id(), 
                 writer_entity_id,
                 next_unsent_seq_num,
             BTreeSet::new());
 
-            let mut dst_locator = self.reader_proxy.unicast_locator_list().clone();
-            dst_locator.extend(self.reader_proxy.unicast_locator_list());
-            dst_locator.extend(self.reader_proxy.multicast_locator_list());
+            let mut dst_locator = self.reader_proxy.unicast_locator_list.clone();
+            dst_locator.extend(&self.reader_proxy.unicast_locator_list);
+            dst_locator.extend(&self.reader_proxy.multicast_locator_list);
             message_queue.push(RtpsSubmessage::Gap(gap));
         }
     }
@@ -127,7 +127,7 @@ impl ReliableReaderProxy {
 
         let heartbeat = Heartbeat::new(
             BEHAVIOR_ENDIANNESS,
-            self.reader_proxy.remote_reader_guid().entity_id(),
+            self.reader_proxy.remote_reader_guid.entity_id(),
             writer_entity_id,
             first_sn,
             last_change_sequence_number,
@@ -136,9 +136,9 @@ impl ReliableReaderProxy {
             false,
         );
 
-        let mut dst_locator = self.reader_proxy.unicast_locator_list().clone();
-        dst_locator.extend(self.reader_proxy.unicast_locator_list());
-        dst_locator.extend(self.reader_proxy.multicast_locator_list());
+        let mut dst_locator = self.reader_proxy.unicast_locator_list.clone();
+        dst_locator.extend(&self.reader_proxy.unicast_locator_list);
+        dst_locator.extend(&self.reader_proxy.multicast_locator_list);
 
         message_queue.push(RtpsSubmessage::Heartbeat(heartbeat));
     }
@@ -168,22 +168,22 @@ impl ReliableReaderProxy {
 
     fn transition_t12(&mut self, history_cache: &HistoryCache, next_requested_seq_num: SequenceNumber, writer_entity_id: EntityId, message_queue: &mut Vec<RtpsSubmessage>) {
         if let Some(cache_change) = history_cache.get_change(next_requested_seq_num) {
-            let data = data_from_cache_change(cache_change, self.reader_proxy.remote_reader_guid().entity_id());
-            let mut dst_locator = self.reader_proxy.unicast_locator_list().clone();
-            dst_locator.extend(self.reader_proxy.unicast_locator_list());
-            dst_locator.extend(self.reader_proxy.multicast_locator_list());
+            let data = data_from_cache_change(cache_change, self.reader_proxy.remote_reader_guid.entity_id());
+            let mut dst_locator = self.reader_proxy.unicast_locator_list.clone();
+            dst_locator.extend(&self.reader_proxy.unicast_locator_list);
+            dst_locator.extend(&self.reader_proxy.multicast_locator_list);
             message_queue.push(RtpsSubmessage::Data(data));
         } else {
             let gap = Gap::new(
                 BEHAVIOR_ENDIANNESS,
-                self.reader_proxy.remote_reader_guid().entity_id(), 
+                self.reader_proxy.remote_reader_guid.entity_id(), 
                 writer_entity_id,
                 next_requested_seq_num,
                 BTreeSet::new());
 
-            let mut dst_locator = self.reader_proxy.unicast_locator_list().clone();
-            dst_locator.extend(self.reader_proxy.unicast_locator_list());
-            dst_locator.extend(self.reader_proxy.multicast_locator_list());
+            let mut dst_locator = self.reader_proxy.unicast_locator_list.clone();
+            dst_locator.extend(&self.reader_proxy.unicast_locator_list);
+            dst_locator.extend(&self.reader_proxy.multicast_locator_list);
             message_queue.push(RtpsSubmessage::Gap(gap));
         }
     }

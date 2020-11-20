@@ -60,7 +60,7 @@ impl StatefulWriter {
     }
     
     pub fn matched_reader_add(&mut self, a_reader_proxy: ReaderProxy) {
-        let remote_reader_guid = a_reader_proxy.remote_reader_guid().clone();
+        let remote_reader_guid = a_reader_proxy.remote_reader_guid;
         let reader_proxy = match self.writer.endpoint.reliability_level {
             ReliabilityKind::Reliable => ReaderProxyFlavor::Reliable(ReliableReaderProxy::new(a_reader_proxy)),
             ReliabilityKind::BestEffort => ReaderProxyFlavor::BestEffort(BestEffortReaderProxy::new(a_reader_proxy)),
@@ -96,8 +96,8 @@ impl CacheChangeSender for StatefulWriter {
 
             if !messages.is_empty() {
                 output.push(DestinedMessages::MultiDestination{
-                    unicast_locator_list: reader_proxy.unicast_locator_list().clone(),
-                    multicast_locator_list: reader_proxy.multicast_locator_list().clone(),
+                    unicast_locator_list: reader_proxy.unicast_locator_list.clone(),
+                    multicast_locator_list: reader_proxy.multicast_locator_list.clone(),
                     messages,
                 });   
             }
