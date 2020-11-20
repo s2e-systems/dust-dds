@@ -90,8 +90,8 @@ impl CacheChangeSender for StatefulWriter {
         let mut output = Vec::new();
         for (_reader_guid, reader_proxy) in self.matched_readers.iter_mut() {
             let messages = match reader_proxy {
-                ReaderProxyFlavor::Reliable(reliable_reader_proxy) => reliable_reader_proxy.produce_messages(&self.writer.writer_cache, self.writer.last_change_sequence_number, self.writer.endpoint.entity.guid.entity_id(), self.heartbeat_period, self.nack_response_delay),
-                ReaderProxyFlavor::BestEffort(best_effort_reader_proxy) => best_effort_reader_proxy.produce_messages(&self.writer.writer_cache, self.writer.last_change_sequence_number, self.writer.endpoint.entity.guid.entity_id()),
+                ReaderProxyFlavor::Reliable(reliable_reader_proxy) => reliable_reader_proxy.produce_messages(&self.writer.writer_cache, self.writer.endpoint.entity.guid.entity_id(), self.writer.last_change_sequence_number, self.heartbeat_period, self.nack_response_delay),
+                ReaderProxyFlavor::BestEffort(best_effort_reader_proxy) => best_effort_reader_proxy.produce_messages(&self.writer.writer_cache, self.writer.endpoint.entity.guid.entity_id(), self.writer.last_change_sequence_number),
             };
 
             if !messages.is_empty() {

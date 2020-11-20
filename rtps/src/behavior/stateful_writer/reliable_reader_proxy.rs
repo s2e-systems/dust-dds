@@ -36,8 +36,8 @@ impl ReliableReaderProxy {
 
     pub fn produce_messages(&mut self,
         history_cache: &HistoryCache,
-        last_change_sequence_number: SequenceNumber,
         writer_entity_id: EntityId,
+        last_change_sequence_number: SequenceNumber,
         heartbeat_period: Duration,
         nack_response_delay: Duration
     ) -> Vec<RtpsSubmessage> {

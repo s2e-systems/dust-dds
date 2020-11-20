@@ -69,17 +69,17 @@ mod tests {
         assert!(unsent_changes.contains(&1));
         assert!(unsent_changes.contains(&2));
 
-        let next_unsent_change = reader_locator.next_unsent_change(2).unwrap();
-        assert_eq!(next_unsent_change, 1);
-        let next_unsent_change = reader_locator.next_unsent_change(2).unwrap();
-        assert_eq!(next_unsent_change, 2);
         let next_unsent_change = reader_locator.next_unsent_change(2);
-        assert!(next_unsent_change.is_none());
+        assert_eq!(next_unsent_change, Some(1));
+        let next_unsent_change = reader_locator.next_unsent_change(2);
+        assert_eq!(next_unsent_change, Some(2));
+        let next_unsent_change = reader_locator.next_unsent_change(2);
+        assert_eq!(next_unsent_change, None);
 
         // Test also that the system is robust if the last_change_sequence_number input does not follow the precondition
         // of being a constantly increasing number
         let next_unsent_change = reader_locator.next_unsent_change(1);
-        assert!(next_unsent_change.is_none());
+        assert_eq!(next_unsent_change, None);
     }
 
     #[test]
@@ -87,20 +87,20 @@ mod tests {
         let locator = Locator::new_udpv4(7400, [127,0,0,1]);
         let mut reader_locator = ReaderLocator::new(locator);
 
-        let next_unsent_change = reader_locator.next_unsent_change(2).unwrap();
-        assert_eq!(next_unsent_change, 1);
-        let next_unsent_change = reader_locator.next_unsent_change(2).unwrap();
-        assert_eq!(next_unsent_change, 2);
         let next_unsent_change = reader_locator.next_unsent_change(2);
-        assert!(next_unsent_change.is_none());
+        assert_eq!(next_unsent_change, Some(1));
+        let next_unsent_change = reader_locator.next_unsent_change(2);
+        assert_eq!(next_unsent_change, Some(2));
+        let next_unsent_change = reader_locator.next_unsent_change(2);
+        assert_eq!(next_unsent_change, None);
 
         reader_locator.unsent_changes_reset();
 
-        let next_unsent_change = reader_locator.next_unsent_change(2).unwrap();
-        assert_eq!(next_unsent_change, 1);
-        let next_unsent_change = reader_locator.next_unsent_change(2).unwrap();
-        assert_eq!(next_unsent_change, 2);
         let next_unsent_change = reader_locator.next_unsent_change(2);
-        assert!(next_unsent_change.is_none());
+        assert_eq!(next_unsent_change, Some(1));
+        let next_unsent_change = reader_locator.next_unsent_change(2);
+        assert_eq!(next_unsent_change, Some(2));
+        let next_unsent_change = reader_locator.next_unsent_change(2);
+        assert_eq!(next_unsent_change, None);
     }
 }
