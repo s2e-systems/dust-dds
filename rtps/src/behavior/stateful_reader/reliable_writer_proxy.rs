@@ -8,7 +8,6 @@ use crate::messages::submessages::{AckNack, Data, Gap, Heartbeat,};
 use crate::messages::types::Count;
 
 use crate::behavior::types::Duration;
-use crate::behavior::stateful_reader::StatefulReaderListener;
 use crate::behavior::{cache_change_from_data, BEHAVIOR_ENDIANNESS};
 
 use rust_dds_interface::history_cache::HistoryCache;
@@ -33,7 +32,7 @@ impl ReliableWriterProxy {
         }
     }
 
-    pub fn try_process_message(&mut self, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>, history_cache: &mut HistoryCache, listener: &dyn StatefulReaderListener) {
+    pub fn try_process_message(&mut self, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>, history_cache: &mut HistoryCache) {
         if let Some(inner_submessage) = submessage {
             if self.is_submessage_destination(src_guid_prefix, inner_submessage) {
                 // If Waiting state (marked by the must_send_ack flag)
@@ -41,7 +40,7 @@ impl ReliableWriterProxy {
                     self.waiting_heartbeat_state(inner_submessage);
                 }
 
-                self.ready_state(submessage, history_cache, listener);
+                self.ready_state(submessage, history_cache);
             }
         }
     }
@@ -54,9 +53,9 @@ impl ReliableWriterProxy {
         output_queue
     }
 
-    fn ready_state(&mut self, submessage: &mut Option<RtpsSubmessage>, history_cache: &mut HistoryCache, listener: &dyn StatefulReaderListener) {
+    fn ready_state(&mut self, submessage: &mut Option<RtpsSubmessage>, history_cache: &mut HistoryCache) {
         match submessage.take().unwrap() {
-            RtpsSubmessage::Data(data) => self.transition_t8(history_cache, data, listener),
+            RtpsSubmessage::Data(data) => self.transition_t8(history_cache, data),
             RtpsSubmessage::Gap(gap) => self.transition_t9(gap),
             RtpsSubmessage::Heartbeat(heartbeat) => self.transition_t7(heartbeat),
             _ => panic!("Unexpected reader message received"),
@@ -72,19 +71,18 @@ impl ReliableWriterProxy {
         };
 
         let writer_guid = GUID::new(src_guid_prefix, writer_id);
-        if &writer_guid == self.remote_writer_guid() {
+        if self.remote_writer_guid == writer_guid{
             true
         } else {
             false
         }
     }
 
-    fn transition_t8(&mut self, history_cache: &mut HistoryCache, data: Data, listener: &dyn StatefulReaderListener) {
+    fn transition_t8(&mut self, history_cache: &mut HistoryCache, data: Data) {
         let expected_seq_number = self.available_changes_max() + 1;
         if data.writer_sn() >= expected_seq_number {
             self.received_change_set(data.writer_sn());
-            let cache_change = cache_change_from_data(data, &self.remote_writer_guid().prefix());
-            listener.on_add_change(&cache_change);
+            let cache_change = cache_change_from_data(data, &self.remote_writer_guid.prefix());
             history_cache.add_change(cache_change).unwrap();
             
         }
@@ -127,7 +125,7 @@ impl ReliableWriterProxy {
         let acknack = AckNack::new(
             BEHAVIOR_ENDIANNESS,
             reader_entity_id, 
-            self.remote_writer_guid().entity_id(),
+            self.remote_writer_guid.entity_id(),
             self.available_changes_max(),
             self.missing_changes().clone(),
             *self.ackanck_count(),

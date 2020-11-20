@@ -4,7 +4,6 @@ use crate::reader::Reader;
 use crate::structure::{RtpsEntity, RtpsGroup};
 use crate::behavior::{types::Duration, stateful_reader::StatefulReader};
 use crate::types::ReliabilityKind;
-use crate::behavior::stateful_reader::NoOpStatefulReaderListener;
 
 use rust_dds_interface::protocol::{ProtocolSubscriber, ProtocolEntity, ProtocolReader};
 use rust_dds_interface::types::{InstanceHandle, TopicKind};

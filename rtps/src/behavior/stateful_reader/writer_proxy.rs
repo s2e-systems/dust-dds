@@ -12,20 +12,12 @@ struct ChangesFromWriter {
 
 pub struct WriterProxy {
     pub remote_writer_guid: GUID,
+    // Groups are not supported yet:
+     // remoteGroupEntityId: EntityId_t,
     pub unicast_locator_list: Vec<Locator>,
     pub multicast_locator_list: Vec<Locator>,
-    
-    // Optional atribute:
     // data_max_size_serialized: Long,
-    
-    // The cache changes may be left within the reader itself to avoid unneccesray referencing (or pointing)
-    // rather the additional fields are used here
-    // changes_from_writer: CacheChange[*],
-
     changes_from_writer: ChangesFromWriter,
-    
-    // Groups are not supported yet:
-    // remoteGroupEntityId: EntityId_t,
 }
 
 impl WriterProxy {
@@ -41,6 +33,7 @@ impl WriterProxy {
                 missing_changes: BTreeSet::new(),
                 irrelevant_changes: BTreeSet::new(),
             };
+
             Self {
                 remote_writer_guid,
                 unicast_locator_list,
@@ -139,18 +132,6 @@ impl WriterProxy {
             self.changes_from_writer.unknown_changes.remove(&a_seq_num);
             self.changes_from_writer.missing_changes.remove(&a_seq_num);
         }
-    }
-
-    pub fn remote_writer_guid(&self) -> &GUID {
-        &self.remote_writer_guid
-    }
-
-    pub fn unicast_locator_list(&self) -> &Vec<Locator> {
-        &self.unicast_locator_list
-    }
-
-    pub fn multicast_locator_list(&self) -> &Vec<Locator> {
-        &self.multicast_locator_list
     }
 }
 

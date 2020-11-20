@@ -2,7 +2,6 @@ use crate::types::{GuidPrefix, GUID};
 use crate::behavior::WriterProxy;
 use crate::messages::RtpsSubmessage;
 use crate::messages::submessages::{Data, Gap};
-use super::stateful_reader_listener::StatefulReaderListener;
 use crate::behavior::cache_change_from_data;
 
 use rust_dds_interface::history_cache::HistoryCache;
@@ -14,15 +13,15 @@ impl BestEffortWriterProxy {
         Self(writer_proxy)
     }
 
-    pub fn try_process_message(&mut self, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>, history_cache: &mut HistoryCache, listener: &dyn StatefulReaderListener) {
-        self.waiting_state(src_guid_prefix, submessage, history_cache, listener);
+    pub fn try_process_message(&mut self, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>, history_cache: &mut HistoryCache) {
+        self.waiting_state(src_guid_prefix, submessage, history_cache);
     }
 
-    fn waiting_state(&mut self, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>, history_cache: &mut HistoryCache, listener: &dyn StatefulReaderListener) {
+    fn waiting_state(&mut self, src_guid_prefix: GuidPrefix, submessage: &mut Option<RtpsSubmessage>, history_cache: &mut HistoryCache) {
         if let Some(inner_submessage) = submessage {
             if self.is_submessage_destination(src_guid_prefix, inner_submessage) {
                 match submessage.take().unwrap() {
-                    RtpsSubmessage::Data(data) => self.transition_t2(history_cache, data, listener),
+                    RtpsSubmessage::Data(data) => self.transition_t2(history_cache, data),
                     RtpsSubmessage::Gap(gap) => self.transition_t4(gap),
                     _ => panic!("Unexpected reader message received"),
                 }
@@ -30,13 +29,12 @@ impl BestEffortWriterProxy {
         }
     }
 
-    fn transition_t2(&mut self, history_cache: &mut HistoryCache, data: Data, listener: &dyn StatefulReaderListener) {
+    fn transition_t2(&mut self, history_cache: &mut HistoryCache, data: Data) {
         let expected_seq_number = self.available_changes_max() + 1;
         if data.writer_sn() >= expected_seq_number {
             self.received_change_set(data.writer_sn());
             self.lost_changes_update(data.writer_sn());
-            let cache_change = cache_change_from_data(data, &self.remote_writer_guid().prefix());
-            listener.on_add_change(&cache_change);
+            let cache_change = cache_change_from_data(data, &self.remote_writer_guid.prefix());
             history_cache.add_change(cache_change).unwrap();
         }
     }
@@ -59,7 +57,7 @@ impl BestEffortWriterProxy {
         };
 
         let writer_guid = GUID::new(src_guid_prefix, writer_id);
-        if &writer_guid == self.remote_writer_guid() {
+        if self.remote_writer_guid == writer_guid{
             true
         } else {
             false
