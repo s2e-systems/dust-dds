@@ -72,14 +72,14 @@ mod tests {
         let cache_change_seq1 =
             writer.new_change(ChangeKind::Alive, Some(vec![1, 2, 3]), None, [1; 16]);
 
+        let cache_change_seq2 =
+        writer.new_change(ChangeKind::NotAliveUnregistered, None, None, [1; 16]);
+        
         assert_eq!(cache_change_seq1.sequence_number(), 1);
         assert_eq!(cache_change_seq1.change_kind(), ChangeKind::Alive);
         assert_eq!(cache_change_seq1.inline_qos(), None);
         assert_eq!(cache_change_seq1.instance_handle(), [1; 16]);
 
-        let cache_change_seq2 =
-        writer.new_change(ChangeKind::NotAliveUnregistered, None, None, [1; 16]);
-        
         assert_eq!(cache_change_seq2.sequence_number(), 2);
         assert_eq!(
             cache_change_seq2.change_kind(),

@@ -4,7 +4,7 @@ use super::submessage_elements;
 use crate::types;
 use crate::messages::types::Endianness;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Data {
     endianness_flag: SubmessageFlag,
     inline_qos_flag: SubmessageFlag,    
