@@ -3,81 +3,11 @@ use std::collections::BTreeSet;
 use crate::types::{Locator, GUID};
 
 use rust_dds_interface::types::SequenceNumber;
-pub struct ChangeForReader {
+struct ChangeForReader {
     highest_sequence_number_sent: SequenceNumber,
     highest_sequence_number_acknowledged: SequenceNumber,
     sequence_numbers_requested: BTreeSet<SequenceNumber>,
 }
-
-impl ChangeForReader {
-    fn new() -> Self {
-        Self {
-            highest_sequence_number_sent: 0,
-            highest_sequence_number_acknowledged: 0,
-            sequence_numbers_requested: BTreeSet::new(),
-        }
-    }
-
-    fn next_unsent_change(&mut self, last_change_sequence_number: SequenceNumber) -> Option<SequenceNumber> {
-        let next_unsent_sequence_number = self.highest_sequence_number_sent + 1;
-        if next_unsent_sequence_number > last_change_sequence_number {
-            None
-        } else {
-            self.highest_sequence_number_sent = next_unsent_sequence_number;
-            Some(next_unsent_sequence_number)
-        }
-    }
-
-    fn unsent_changes(&self, last_change_sequence_number: SequenceNumber) -> BTreeSet<SequenceNumber> {
-        let mut unsent_changes_set = BTreeSet::new();
-
-        for unsent_sequence_number in
-            self.highest_sequence_number_sent + 1..=last_change_sequence_number
-        {
-            unsent_changes_set.insert(unsent_sequence_number);
-        }
-
-        unsent_changes_set
-    }
-
-    fn acked_changes(&self) -> SequenceNumber {
-        self.highest_sequence_number_acknowledged
-    }
-
-    fn acked_changes_set(&mut self, committed_seq_num: SequenceNumber) {
-        self.highest_sequence_number_acknowledged = committed_seq_num;
-    }
-
-    fn unacked_changes(&self, last_change_sequence_number: SequenceNumber) -> BTreeSet<SequenceNumber> {
-        let mut unacked_changes_set = BTreeSet::new();
-
-        for unsent_sequence_number in
-            self.highest_sequence_number_acknowledged + 1..=last_change_sequence_number
-        {
-            unacked_changes_set.insert(unsent_sequence_number);
-        }
-
-        unacked_changes_set
-    }
-
-    fn requested_changes_set(&mut self, req_seq_num_set: BTreeSet<SequenceNumber>) {
-        let mut new_set = req_seq_num_set;
-        self.sequence_numbers_requested.append(&mut new_set);
-    }
-
-    fn requested_changes(&self) -> BTreeSet<SequenceNumber> {
-        self.sequence_numbers_requested.clone()
-    }
-
-    fn next_requested_change(&mut self) -> Option<SequenceNumber> {
-        let next_requested_change = *self.sequence_numbers_requested.iter().next()?;
-
-        self.sequence_numbers_requested.remove(&next_requested_change);
-
-        Some(next_requested_change)
-    }
-}
-
 
 pub struct ReaderProxy {
     pub remote_reader_guid: GUID,
@@ -97,42 +27,75 @@ impl ReaderProxy {
         multicast_locator_list: Vec<Locator>,
         expects_inline_qos: bool,
         is_active: bool) -> Self {
+
+            let changes_for_reader = ChangeForReader {
+                highest_sequence_number_sent: 0,
+                highest_sequence_number_acknowledged: 0,
+                sequence_numbers_requested: BTreeSet::new(),};
+
             Self {
                 remote_reader_guid,
                 unicast_locator_list,
                 multicast_locator_list,
                 expects_inline_qos,
                 is_active,
-                changes_for_reader: ChangeForReader::new(),
+                changes_for_reader,
         }
     }
 
     pub fn acked_changes_set(&mut self, committed_seq_num: SequenceNumber) {
-        self.changes_for_reader.acked_changes_set(committed_seq_num);
+        self.changes_for_reader.highest_sequence_number_acknowledged = committed_seq_num;
     }
 
     pub fn next_requested_change(&mut self) -> Option<SequenceNumber> {
-        self.changes_for_reader.next_requested_change()
+        let next_requested_change = *self.changes_for_reader.sequence_numbers_requested.iter().next()?;
+
+        self.changes_for_reader.sequence_numbers_requested.remove(&next_requested_change);
+
+        Some(next_requested_change)
     }
 
     pub fn next_unsent_change(&mut self, last_change_sequence_number: SequenceNumber) -> Option<SequenceNumber> {
-        self.changes_for_reader.next_unsent_change(last_change_sequence_number)
+        let next_unsent_sequence_number = self.changes_for_reader.highest_sequence_number_sent + 1;
+        if next_unsent_sequence_number > last_change_sequence_number {
+            None
+        } else {
+            self.changes_for_reader.highest_sequence_number_sent = next_unsent_sequence_number;
+            Some(next_unsent_sequence_number)
+        }
     }
 
     pub fn unsent_changes(&mut self, last_change_sequence_number: SequenceNumber) -> BTreeSet<SequenceNumber> {
-        self.changes_for_reader.unsent_changes(last_change_sequence_number)
+        let mut unsent_changes_set = BTreeSet::new();
+
+        for unsent_sequence_number in
+            self.changes_for_reader.highest_sequence_number_sent + 1..=last_change_sequence_number
+        {
+            unsent_changes_set.insert(unsent_sequence_number);
+        }
+
+        unsent_changes_set
     }
 
     pub fn requested_changes(&mut self) -> BTreeSet<SequenceNumber> {
-        self.changes_for_reader.requested_changes()
+        self.changes_for_reader.sequence_numbers_requested.clone()
     }
 
     pub fn requested_changes_set(&mut self, req_seq_num_set: BTreeSet<SequenceNumber>) {
-        self.changes_for_reader.requested_changes_set(req_seq_num_set);
+        let mut new_set = req_seq_num_set;
+        self.changes_for_reader.sequence_numbers_requested.append(&mut new_set);
     }
 
     pub fn unacked_changes(&mut self, last_change_sequence_number: SequenceNumber) -> BTreeSet<SequenceNumber> {
-        self.changes_for_reader.unacked_changes(last_change_sequence_number)
+        let mut unacked_changes_set = BTreeSet::new();
+
+        for unsent_sequence_number in
+            self.changes_for_reader.highest_sequence_number_acknowledged + 1..=last_change_sequence_number
+        {
+            unacked_changes_set.insert(unsent_sequence_number);
+        }
+
+        unacked_changes_set
     }
 
     pub fn unicast_locator_list(&self) -> &Vec<Locator> {
