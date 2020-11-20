@@ -52,7 +52,8 @@ impl ReliableReaderProxy {
         }
     
         if !self.reader_proxy.requested_changes().is_empty() {
-            if self.duration_since_nack_received() > nack_response_delay {
+            let duration_since_nack_received : Duration = self.time_nack_received.elapsed().try_into().unwrap();
+            if duration_since_nack_received > nack_response_delay {
                 self.repairing_state(history_cache, writer_entity_id, &mut message_queue);
             }
         }
@@ -78,13 +79,10 @@ impl ReliableReaderProxy {
     }
 
     fn pushing_state(&mut self, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber, writer_entity_id: EntityId, message_queue: &mut Vec<RtpsSubmessage>) {
-        // This state is only valid if there are unsent changes
-        debug_assert!(!self.reader_proxy.unsent_changes(last_change_sequence_number).is_empty());
-    
         while let Some(next_unsent_seq_num) = self.reader_proxy.next_unsent_change(last_change_sequence_number) {
             self.transition_t4(history_cache, next_unsent_seq_num, writer_entity_id, message_queue);
         }
-        self.time_last_sent_data_reset();
+        self.time_last_sent_data = Instant::now();
     }
 
     fn transition_t4(&mut self, history_cache: &HistoryCache, next_unsent_seq_num: SequenceNumber, writer_entity_id: EntityId, message_queue: &mut Vec<RtpsSubmessage>) {
@@ -111,9 +109,10 @@ impl ReliableReaderProxy {
     }
 
     fn announcing_state(&mut self, history_cache: &HistoryCache, last_change_sequence_number: SequenceNumber, writer_entity_id: EntityId, heartbeat_period: Duration, message_queue: &mut Vec<RtpsSubmessage>){
-        if self.duration_since_last_sent_data() > heartbeat_period {
+        let duration_since_last_sent_data : Duration = self.time_last_sent_data.elapsed().try_into().unwrap();
+        if duration_since_last_sent_data > heartbeat_period {
             self.transition_t7(history_cache, last_change_sequence_number, writer_entity_id, message_queue);
-            self.time_last_sent_data_reset();
+            self.time_last_sent_data = Instant::now();
         }
     }
 
@@ -123,7 +122,7 @@ impl ReliableReaderProxy {
         } else {
             last_change_sequence_number + 1
         };
-        self.increment_heartbeat_count();
+        self.heartbeat_count += 1;
 
         let heartbeat = Heartbeat::new(
             BEHAVIOR_ENDIANNESS,
@@ -145,7 +144,7 @@ impl ReliableReaderProxy {
     
     fn waiting_state(&mut self, acknack: AckNack) {
         self.transition_t8(acknack);
-        self.time_nack_received_reset();
+        self.time_nack_received = Instant::now();
     }
     
     fn transition_t8(&mut self, acknack: AckNack) {
@@ -186,30 +185,6 @@ impl ReliableReaderProxy {
             dst_locator.extend(&self.reader_proxy.multicast_locator_list);
             message_queue.push(RtpsSubmessage::Gap(gap));
         }
-    }
-
-    fn nack_received_set(&mut self, highest_nack_count_received: Count) {
-        self.highest_nack_count_received = highest_nack_count_received;
-    }
-
-    fn time_last_sent_data_reset(&mut self) {
-        self.time_last_sent_data = Instant::now();
-    }
-
-    fn time_nack_received_reset(&mut self) {
-        self.time_nack_received = Instant::now();
-    }
-
-    fn duration_since_last_sent_data(&self) -> Duration {
-        self.time_last_sent_data.elapsed().try_into().unwrap()
-    }
-
-    fn duration_since_nack_received(&self) -> Duration {
-        self.time_nack_received.elapsed().try_into().unwrap()
-    }
-
-    fn increment_heartbeat_count(&mut self) {
-        self.heartbeat_count += 1;
     }
 }
 
