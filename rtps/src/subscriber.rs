@@ -1,5 +1,3 @@
-use std::sync::{Arc, Mutex};
-
 use crate::reader::Reader;
 use crate::structure::{RtpsEntity, RtpsGroup};
 use crate::behavior::{types::Duration, stateful_reader::StatefulReader};

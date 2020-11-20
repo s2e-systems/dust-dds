@@ -1,4 +1,3 @@
-use std::sync::{Arc, Mutex};
 use crate::structure::{RtpsGroup, RtpsEntity};
 use crate::types::{GUID, EntityId, EntityKind, ReliabilityKind,};
 use crate::behavior::StatefulWriter;

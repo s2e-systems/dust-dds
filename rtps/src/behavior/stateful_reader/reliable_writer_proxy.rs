@@ -107,52 +107,33 @@ impl ReliableWriterProxy {
         if let RtpsSubmessage::Heartbeat(heartbeat) = submessage {
             if !heartbeat.is_final() || 
                 (heartbeat.is_final() && !self.missing_changes().is_empty()) {
-                    self.set_must_send_ack();
+                    self.time_heartbeat_received  = Instant::now();
+                    self.must_send_ack = true;
             } 
         }   
     }
 
     fn must_send_ack_state(&mut self, reader_entity_id: EntityId, heartbeat_response_delay: Duration, output_queue: &mut Vec<RtpsSubmessage>) {
-        if self.duration_since_heartbeat_received() >  heartbeat_response_delay {
+        let duration_since_heartbeat_received : Duration = self.time_heartbeat_received.elapsed().try_into().unwrap();
+        if duration_since_heartbeat_received >  heartbeat_response_delay {
             self.transition_t5(reader_entity_id, output_queue)
         }
     }
 
     fn transition_t5(&mut self, reader_entity_id: EntityId, output_queue: &mut Vec<RtpsSubmessage>) {
-        self.reset_must_send_ack();
+        self.must_send_ack = false;
  
-        self.increment_acknack_count();
+        self.ackanck_count += 1;
         let acknack = AckNack::new(
             BEHAVIOR_ENDIANNESS,
             reader_entity_id, 
             self.remote_writer_guid.entity_id(),
             self.available_changes_max(),
             self.missing_changes().clone(),
-            *self.ackanck_count(),
+            self.ackanck_count,
             true);
 
         output_queue.push(RtpsSubmessage::AckNack(acknack));
-    }
-
-    fn set_must_send_ack(&mut self) {
-        self.time_heartbeat_received  = Instant::now();
-        self.must_send_ack = true;
-    }
-
-    fn reset_must_send_ack(&mut self) {
-        self.must_send_ack = false;
-    }
-
-    fn duration_since_heartbeat_received(&self) -> Duration {
-        self.time_heartbeat_received.elapsed().try_into().unwrap()
-    }
-
-    fn ackanck_count(&self) -> &Count {
-        &self.ackanck_count
-    }
-
-    pub fn increment_acknack_count(&mut self) {
-        self.ackanck_count += 1;
     }
 }
 

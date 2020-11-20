@@ -98,14 +98,13 @@ mod tests {
     use rust_dds_interface::types::ChangeKind;
 
     #[test]
-    fn produce_data_and_gap_messages() {
+    fn produce_empty() {
         let locator = Locator::new_udpv4(7400, [127, 0, 0, 1]);
-
         let mut best_effort_reader_locator = BestEffortReaderLocator::new(locator);
-
         let writer_entity_id = ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER;
-        let mut history_cache = HistoryCache::default();
-        // Run without any change being created or added in the cache. No message should be sent
+        let history_cache = HistoryCache::default();
+
+        // Run without any change being created or added in the cache
         let last_change_sequence_number = 0;
         let messages_vec = best_effort_reader_locator.produce_messages(
             &history_cache,
@@ -114,11 +113,19 @@ mod tests {
         );
 
         assert!(messages_vec.is_empty());
+    }
 
-        // Add one change to the history cache and run with that change as the last one. One Data submessage should be sent
+    #[test]
+    fn produce_data_message() {
+        let locator = Locator::new_udpv4(7400, [127, 0, 0, 1]);
+        let mut best_effort_reader_locator = BestEffortReaderLocator::new(locator);
+        let writer_entity_id = ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER;
+        let mut history_cache = HistoryCache::default();
+
+        // Add one change to the history cache
         let writer_guid = GUID::new([5; 12], writer_entity_id);
         let instance_handle = [1; 16];
-        let cache_change_seq1 = CacheChange::new(
+        let cache_change1 = CacheChange::new(
             ChangeKind::Alive,
             writer_guid.into(),
             instance_handle,
@@ -126,54 +133,31 @@ mod tests {
             Some(vec![1, 2, 3]),
             None,
         );
-        let expected_data_submessage = data_from_cache_change(&cache_change_seq1, ENTITYID_UNKNOWN);
-        history_cache.add_change(cache_change_seq1).unwrap();
+        history_cache.add_change(cache_change1.clone()).unwrap();
 
+        // Run with the last change sequence number equal to the added cache change
         let last_change_sequence_number = 1;
-        let mut messages_vec = best_effort_reader_locator.produce_messages(
+        let messages_vec = best_effort_reader_locator.produce_messages(
             &history_cache,
             writer_entity_id,
             last_change_sequence_number,
         );
 
-        let expected_submessage = RtpsSubmessage::Data(expected_data_submessage);
-        let sent_message = messages_vec.pop().unwrap();
-        assert!(messages_vec.is_empty());
-        assert_eq!(sent_message, expected_submessage);
+        let expected_data_submessage = RtpsSubmessage::Data(data_from_cache_change(&cache_change1, ENTITYID_UNKNOWN));
+        assert_eq!(messages_vec.len(), 1);
+        assert!(messages_vec.contains(&expected_data_submessage));
+    }
 
-        // Run with the next sequence number without adding any change to the history cache. One Gap submessage should be sent
-        let last_change_sequence_number = 2;
-        let mut messages_vec = best_effort_reader_locator.produce_messages(
-            &history_cache,
-            writer_entity_id,
-            last_change_sequence_number,
-        );
+    #[test]
+    fn produce_gap_message() {
+        let locator = Locator::new_udpv4(7400, [127, 0, 0, 1]);
+        let mut best_effort_reader_locator = BestEffortReaderLocator::new(locator);
+        let writer_entity_id = ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER;
+        let history_cache = HistoryCache::default();
 
-        let expected_submessage = RtpsSubmessage::Gap(Gap::new(
-            BEHAVIOR_ENDIANNESS,
-            ENTITYID_UNKNOWN,
-            writer_entity_id,
-            2,
-            BTreeSet::new(),
-        ));
-        let sent_message = messages_vec.pop().unwrap();
-        assert!(messages_vec.is_empty());
-        assert_eq!(sent_message, expected_submessage);
-
-        // Add one change to the history cache skipping one sequence number. One Gap and one Data submessage should be sent
-        let cache_change_seq4 = CacheChange::new(
-            ChangeKind::Alive,
-            writer_guid.into(),
-            instance_handle,
-            4,
-            Some(vec![4, 5, 6]),
-            None,
-        );
-        let expected_data_submessage = data_from_cache_change(&cache_change_seq4, ENTITYID_UNKNOWN);
-        history_cache.add_change(cache_change_seq4).unwrap();
-
-        let last_change_sequence_number = 4;
-        let mut messages_vec = best_effort_reader_locator.produce_messages(
+        // Run with the a sequence number of 1 without adding any change to the history cache
+        let last_change_sequence_number = 1;
+        let messages_vec = best_effort_reader_locator.produce_messages(
             &history_cache,
             writer_entity_id,
             last_change_sequence_number,
@@ -183,15 +167,51 @@ mod tests {
             BEHAVIOR_ENDIANNESS,
             ENTITYID_UNKNOWN,
             writer_entity_id,
-            3,
+            1,
             BTreeSet::new(),
         ));
-        let expected_data_submessage = RtpsSubmessage::Data(expected_data_submessage);
+        assert_eq!(messages_vec.len(), 1);
+        assert!(messages_vec.contains(&expected_gap_submessage));
+    }
 
-        let sent_message_2 = messages_vec.pop().unwrap();
-        let sent_message_1 = messages_vec.pop().unwrap();
-        assert!(messages_vec.is_empty());
-        assert_eq!(sent_message_1, expected_gap_submessage);
-        assert_eq!(sent_message_2, expected_data_submessage);
+    #[test]
+    fn produce_data_and_gap_messages() {
+        let locator = Locator::new_udpv4(7400, [127, 0, 0, 1]);
+        let mut best_effort_reader_locator = BestEffortReaderLocator::new(locator);
+        let writer_entity_id = ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER;
+        let mut history_cache = HistoryCache::default();
+
+        // Add one change to the history cache
+        let writer_guid = GUID::new([5; 12], writer_entity_id);
+        let instance_handle = [1; 16];
+        let cache_change1 = CacheChange::new(
+            ChangeKind::Alive,
+            writer_guid.into(),
+            instance_handle,
+            1,
+            Some(vec![1, 2, 3]),
+            None,
+        );
+        history_cache.add_change(cache_change1.clone()).unwrap();
+
+        // Run with the last change sequence number one above the added cache change
+        let last_change_sequence_number = 2;
+        let messages_vec = best_effort_reader_locator.produce_messages(
+            &history_cache,
+            writer_entity_id,
+            last_change_sequence_number,
+        );
+
+        let expected_data_submessage = RtpsSubmessage::Data(data_from_cache_change(&cache_change1, ENTITYID_UNKNOWN));
+        let expected_gap_submessage = RtpsSubmessage::Gap(Gap::new(
+            BEHAVIOR_ENDIANNESS,
+            ENTITYID_UNKNOWN,
+            writer_entity_id,
+            2,
+            BTreeSet::new(),
+        ));
+        assert_eq!(messages_vec.len(), 2);
+        assert!(messages_vec.contains(&expected_data_submessage));
+        assert!(messages_vec.contains(&expected_gap_submessage));
     }
 }

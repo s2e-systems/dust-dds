@@ -1,6 +1,7 @@
 use crate::types::{Locator, GuidPrefix};
 use crate::messages::RtpsSubmessage;
 
+#[derive(PartialEq, Debug)]
 pub enum DestinedMessages {
     SingleDestination{locator: Locator, messages: Vec<RtpsSubmessage>},
     MultiDestination{unicast_locator_list: Vec<Locator>, multicast_locator_list: Vec<Locator>, messages: Vec<RtpsSubmessage>}
