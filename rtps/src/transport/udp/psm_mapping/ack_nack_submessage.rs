@@ -9,7 +9,7 @@ pub fn serialize_ack_nack(ack_nack: &AckNack, writer: &mut impl std::io::Write) 
     serialize_entity_id(&ack_nack.reader_id(), writer)?;
     serialize_entity_id(&ack_nack.writer_id(), writer)?;
     serialize_sequence_number_set(ack_nack.reader_sn_state(), writer, endianness)?;
-    serialize_count(ack_nack.count(), writer, endianness)?;        
+    serialize_count(&ack_nack.count(), writer, endianness)?;        
     Ok(())
 }
 
