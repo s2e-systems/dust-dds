@@ -115,9 +115,3 @@ impl AcknowldegmentReceiver for StatefulWriter {
         }
     }
 }
-
-// #[cfg(test)]
-// mod tests {
-    // use super::*;
-//     use crate::types::constants::ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER;
-// }

@@ -106,11 +106,3 @@ impl AcknowldegmentSender for StatefulReader {
         output
     }
 }
-
-#[cfg(test)]
-mod tests {
-    // use super::*;
-    // use crate::types::constants::ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER;
-
-
-}
