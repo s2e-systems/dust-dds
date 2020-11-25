@@ -1,22 +1,23 @@
 use std::sync::Mutex;
 
-use crate::types::{InstanceHandle, Data, ReturnCode, TopicKind, ChangeKind, ParameterList};
+use crate::types::{InstanceHandle, Data, TopicKind, ChangeKind, ParameterList};
 use crate::cache_change::CacheChange;
 use crate::history_cache::HistoryCache;
 use crate::qos::{DataWriterQos, DataReaderQos};
 
 pub trait ProtocolEntity {
-    fn enable(&mut self) -> ReturnCode<()>;
     fn get_instance_handle(&self) -> InstanceHandle;
 }
 
 pub trait ProtocolParticipant : ProtocolEntity + 'static {
     fn create_publisher(&mut self) -> Box<dyn ProtocolPublisher>;
-    fn delete_publisher(&mut self, publisher: &Box<dyn ProtocolPublisher>);
 
     fn create_subscriber(&mut self) -> Box<dyn ProtocolSubscriber>;
-    fn delete_subscriber(&mut self, subscriber: &Box<dyn ProtocolSubscriber>);
-    fn get_builtin_subscriber(&self) -> Box<dyn ProtocolSubscriber>;   
+    fn get_builtin_subscriber(&self) -> Box<dyn ProtocolSubscriber>;
+
+    fn run(&self);
+    fn receive(&self, publisher_list: &[&dyn ProtocolPublisher], subscriber_list: &[&dyn ProtocolSubscriber]);
+    fn send(&self, publisher_list: &[&dyn ProtocolPublisher], subscriber_list: &[&dyn ProtocolSubscriber]);
 }
 
 pub trait ProtocolSubscriber : ProtocolEntity {
@@ -24,7 +25,6 @@ pub trait ProtocolSubscriber : ProtocolEntity {
 }
 pub trait ProtocolPublisher : ProtocolEntity {
     fn create_writer(&mut self, topic_kind: TopicKind, data_writer_qos: &DataWriterQos) -> Box<dyn ProtocolWriter>;
-    fn delete_writer(&mut self, writer: &Box<dyn ProtocolWriter>);
 }
 
 pub trait ProtocolWriter : ProtocolEntity  {

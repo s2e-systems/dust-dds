@@ -115,6 +115,7 @@ impl ParameterList {
 }
 
 //// From RTPS
+#[derive(Copy, Clone)]
 pub enum TopicKind {
     NoKey,
     WithKey,

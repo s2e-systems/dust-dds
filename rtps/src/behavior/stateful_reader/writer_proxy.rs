@@ -10,126 +10,14 @@ struct ChangesFromWriter {
     irrelevant_changes: BTreeSet<SequenceNumber>,
 }
 
-impl ChangesFromWriter {
-    fn new() -> Self {
-        Self {
-            highest_processed_sequence_number: 0,
-            unknown_changes: BTreeSet::new(),
-            lost_changes: BTreeSet::new(),
-            missing_changes: BTreeSet::new(),
-            irrelevant_changes: BTreeSet::new(),
-        }
-    }
-
-    /// This operation returns the maximum SequenceNumber_t among the changes_from_writer changes in the RTPS WriterProxy
-    /// that are available for access by the DDS DataReader. The condition to make any CacheChange ‘a_change’ available 
-    /// for ‘access’ by the DDS DataReader is that there are no changes from the RTPS Writer with SequenceNumber_t smaller
-    /// than or equal to a_change.sequenceNumber that have status MISSING or UNKNOWN. In other words, the available_changes_max
-    /// and all previous changes are either RECEIVED or LOST.
-    fn available_changes_max(&self) -> SequenceNumber {
-
-        // The assumption is that all the numbers up to the highest processed sequence number
-        // are read (which is typically the scenario). Whatever is not read is
-        // marked in its own array as missing, unknown or lost. Therefore, the maximum avaiable
-        // change is the minimum value between the missing, unknown and received/lost samples.
-
-        let lowest_before_missing =
-            self.missing_changes
-            .iter().next()
-            .map_or(self.highest_processed_sequence_number, |x| *x-1);
-
-        
-        let lowest_unknown = 
-        self.unknown_changes
-        .iter().next()
-        .map_or(self.highest_processed_sequence_number, |x| *x-1);
-
-        self.highest_processed_sequence_number.min(lowest_unknown).min(lowest_before_missing)
-    }
-
-    /// This operation modifies the status of a ChangeFromWriter to indicate that the CacheChange with the
-    /// SequenceNumber_t ‘a_seq_num’ is irrelevant to the RTPS Reader.
-    fn irrelevant_change_set(&mut self, a_seq_num: SequenceNumber) {
-        self.received_change_set(a_seq_num);
-        self.irrelevant_changes.insert(a_seq_num);
-    }
-
-    /// This operation modifies the status stored in ChangeFromWriter for any changes in the WriterProxy whose 
-    /// status is MISSING or UNKNOWN and have sequence numbers lower than ‘first_available_seq_num.’ The status of 
-    /// those changes is modified to LOST indicating that the changes are no longer available in the WriterHistoryCache
-    /// of the RTPS Writer represented by the RTPS WriterProxy
-    fn lost_changes_update(&mut self, first_available_seq_num: SequenceNumber) {
-        let remaining_unknown = self.unknown_changes.split_off(&first_available_seq_num);
-        self.lost_changes.append(&mut self.unknown_changes);
-        self.unknown_changes = remaining_unknown;
-        
-        let remaining_missing = self.missing_changes.split_off(&first_available_seq_num);
-        self.lost_changes.append(&mut self.missing_changes);
-        self.missing_changes = remaining_missing;
-
-        if first_available_seq_num > self.highest_processed_sequence_number {
-            for seq_num in self.highest_processed_sequence_number+1 .. first_available_seq_num {
-                self.lost_changes.insert(seq_num);
-            }
-            self.highest_processed_sequence_number = first_available_seq_num - 1;
-        }
-    }
-
-    /// This operation returns the subset of changes for the WriterProxy that have status ‘MISSING.’
-    /// The changes with status ‘MISSING’ represent the set of changes available in the HistoryCache of the RTPS Writer
-    /// represented by the RTPS WriterProxy that have not been received by the RTPS Reader.
-    fn missing_changes(&self) -> BTreeSet<SequenceNumber> {
-        self.missing_changes.clone()
-    }
-
-    /// This operation modifies the status stored in ChangeFromWriter for any changes in the WriterProxy whose status is UNKNOWN 
-    /// and have sequence numbers smaller or equal to ‘last_available_seq_num.’ The status of those changes is modified 
-    /// from UNKNOWN to MISSING indicating that the changes are available at the WriterHistoryCache of the RTPS Writer represented 
-    /// by the RTPS WriterProxy but have not been received by the RTPS Reader
-    fn missing_changes_update(&mut self, last_available_seq_num: SequenceNumber) {
-        let remaining_unknown = self.unknown_changes.split_off(&last_available_seq_num);
-        self.missing_changes.append(&mut self.unknown_changes);
-        self.unknown_changes = remaining_unknown;
-
-        if last_available_seq_num > self.highest_processed_sequence_number {
-            for seq_num in self.highest_processed_sequence_number+1 ..= last_available_seq_num {
-                self.missing_changes.insert(seq_num);
-            }
-            self.highest_processed_sequence_number = last_available_seq_num;
-        }
-    }
-
-    /// This operation modifies the status of the ChangeFromWriter that refers to the CacheChange with the
-    /// SequenceNumber_t ‘a_seq_num.’ The status of the change is set to ‘RECEIVED,’ indicating it has been received.
-    fn received_change_set(&mut self, a_seq_num: SequenceNumber) {
-        if a_seq_num > self.highest_processed_sequence_number {
-            for seq_num in  self.highest_processed_sequence_number+1 .. a_seq_num {
-                self.unknown_changes.insert(seq_num);
-            }
-            self.highest_processed_sequence_number = a_seq_num;
-        } else {
-            self.unknown_changes.remove(&a_seq_num);
-            self.missing_changes.remove(&a_seq_num);
-        }
-    }
-}
-
 pub struct WriterProxy {
-    remote_writer_guid: GUID,
-    unicast_locator_list: Vec<Locator>,
-    multicast_locator_list: Vec<Locator>,
-    
-    // Optional atribute:
-    // data_max_size_serialized: Long,
-    
-    // The cache changes may be left within the reader itself to avoid unneccesray referencing (or pointing)
-    // rather the additional fields are used here
-    // changes_from_writer: CacheChange[*],
-
-    changes_from_writer: ChangesFromWriter,
-    
+    pub remote_writer_guid: GUID,
     // Groups are not supported yet:
-    // remoteGroupEntityId: EntityId_t,
+     // remoteGroupEntityId: EntityId_t,
+    pub unicast_locator_list: Vec<Locator>,
+    pub multicast_locator_list: Vec<Locator>,
+    // data_max_size_serialized: Long,
+    changes_from_writer: ChangesFromWriter,
 }
 
 impl WriterProxy {
@@ -138,11 +26,19 @@ impl WriterProxy {
         unicast_locator_list: Vec<Locator>,
         multicast_locator_list: Vec<Locator>, 
         ) -> Self {
+            let changes_from_writer = ChangesFromWriter {
+                highest_processed_sequence_number: 0,
+                unknown_changes: BTreeSet::new(),
+                lost_changes: BTreeSet::new(),
+                missing_changes: BTreeSet::new(),
+                irrelevant_changes: BTreeSet::new(),
+            };
+
             Self {
                 remote_writer_guid,
                 unicast_locator_list,
                 multicast_locator_list,
-                changes_from_writer: ChangesFromWriter::new(),
+                changes_from_writer,
         }
     }
 
@@ -152,13 +48,31 @@ impl WriterProxy {
     /// than or equal to a_change.sequenceNumber that have status MISSING or UNKNOWN. In other words, the available_changes_max
     /// and all previous changes are either RECEIVED or LOST.
     pub fn available_changes_max(&mut self) -> SequenceNumber {
-        self.changes_from_writer.available_changes_max()
+
+        // The assumption is that all the numbers up to the highest processed sequence number
+        // are read (which is typically the scenario). Whatever is not read is
+        // marked in its own array as missing, unknown or lost. Therefore, the maximum avaiable
+        // change is the minimum value between the missing, unknown and received/lost samples.
+
+        let lowest_before_missing =
+            self.changes_from_writer.missing_changes
+            .iter().next()
+            .map_or(self.changes_from_writer.highest_processed_sequence_number, |x| *x-1);
+
+        
+        let lowest_unknown = 
+        self.changes_from_writer.unknown_changes
+        .iter().next()
+        .map_or(self.changes_from_writer.highest_processed_sequence_number, |x| *x-1);
+
+        self.changes_from_writer.highest_processed_sequence_number.min(lowest_unknown).min(lowest_before_missing)
     }
 
     /// This operation modifies the status of a ChangeFromWriter to indicate that the CacheChange with the
     /// SequenceNumber_t ‘a_seq_num’ is irrelevant to the RTPS Reader.
     pub fn irrelevant_change_set(&mut self, a_seq_num: SequenceNumber) {
-        self.changes_from_writer.irrelevant_change_set(a_seq_num);
+        self.received_change_set(a_seq_num);
+        self.changes_from_writer.irrelevant_changes.insert(a_seq_num);
     }
 
     /// This operation modifies the status stored in ChangeFromWriter for any changes in the WriterProxy whose 
@@ -166,14 +80,27 @@ impl WriterProxy {
     /// those changes is modified to LOST indicating that the changes are no longer available in the WriterHistoryCache
     /// of the RTPS Writer represented by the RTPS WriterProxy
     pub fn lost_changes_update(&mut self, first_available_seq_num: SequenceNumber) {
-        self.changes_from_writer.lost_changes_update(first_available_seq_num);
+        let remaining_unknown = self.changes_from_writer.unknown_changes.split_off(&first_available_seq_num);
+        self.changes_from_writer.lost_changes.append(&mut self.changes_from_writer.unknown_changes);
+        self.changes_from_writer.unknown_changes = remaining_unknown;
+        
+        let remaining_missing = self.changes_from_writer.missing_changes.split_off(&first_available_seq_num);
+        self.changes_from_writer.lost_changes.append(&mut self.changes_from_writer.missing_changes);
+        self.changes_from_writer.missing_changes = remaining_missing;
+
+        if first_available_seq_num > self.changes_from_writer.highest_processed_sequence_number {
+            for seq_num in self.changes_from_writer.highest_processed_sequence_number+1 .. first_available_seq_num {
+                self.changes_from_writer.lost_changes.insert(seq_num);
+            }
+            self.changes_from_writer.highest_processed_sequence_number = first_available_seq_num - 1;
+        }
     }
 
     /// This operation returns the subset of changes for the WriterProxy that have status ‘MISSING.’
     /// The changes with status ‘MISSING’ represent the set of changes available in the HistoryCache of the RTPS Writer
     /// represented by the RTPS WriterProxy that have not been received by the RTPS Reader.
     pub fn missing_changes(&mut self) -> BTreeSet<SequenceNumber> {
-        self.changes_from_writer.missing_changes()
+        self.changes_from_writer.missing_changes.clone()
     }
 
     /// This operation modifies the status stored in ChangeFromWriter for any changes in the WriterProxy whose status is UNKNOWN 
@@ -181,29 +108,32 @@ impl WriterProxy {
     /// from UNKNOWN to MISSING indicating that the changes are available at the WriterHistoryCache of the RTPS Writer represented 
     /// by the RTPS WriterProxy but have not been received by the RTPS Reader
     pub fn missing_changes_update(&mut self, last_available_seq_num: SequenceNumber) {
-        self.changes_from_writer.missing_changes_update(last_available_seq_num);
+        let remaining_unknown = self.changes_from_writer.unknown_changes.split_off(&last_available_seq_num);
+        self.changes_from_writer.missing_changes.append(&mut self.changes_from_writer.unknown_changes);
+        self.changes_from_writer.unknown_changes = remaining_unknown;
+
+        if last_available_seq_num > self.changes_from_writer.highest_processed_sequence_number {
+            for seq_num in self.changes_from_writer.highest_processed_sequence_number+1 ..= last_available_seq_num {
+                self.changes_from_writer.missing_changes.insert(seq_num);
+            }
+            self.changes_from_writer.highest_processed_sequence_number = last_available_seq_num;
+        }
     }
 
     /// This operation modifies the status of the ChangeFromWriter that refers to the CacheChange with the
     /// SequenceNumber_t ‘a_seq_num.’ The status of the change is set to ‘RECEIVED,’ indicating it has been received.
     pub fn received_change_set(&mut self, a_seq_num: SequenceNumber) {
-        self.changes_from_writer.received_change_set(a_seq_num);
-    }
-
-    pub fn remote_writer_guid(&self) -> &GUID {
-        &self.remote_writer_guid
-    }
-
-    pub fn unicast_locator_list(&self) -> &Vec<Locator> {
-        &self.unicast_locator_list
-    }
-
-    pub fn multicast_locator_list(&self) -> &Vec<Locator> {
-        &self.multicast_locator_list
+        if a_seq_num > self.changes_from_writer.highest_processed_sequence_number {
+            for seq_num in  self.changes_from_writer.highest_processed_sequence_number+1 .. a_seq_num {
+                self.changes_from_writer.unknown_changes.insert(seq_num);
+            }
+            self.changes_from_writer.highest_processed_sequence_number = a_seq_num;
+        } else {
+            self.changes_from_writer.unknown_changes.remove(&a_seq_num);
+            self.changes_from_writer.missing_changes.remove(&a_seq_num);
+        }
     }
 }
-
-
 
 #[cfg(test)]
 mod tests {

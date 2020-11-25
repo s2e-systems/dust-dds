@@ -1,17 +1,17 @@
-use std::sync::Arc;
 use crate::types::{GuidPrefix, Locator,};
-use crate::structure::RtpsEndpoint;
 use crate::transport::Transport;
-use crate::behavior::{StatelessReader, StatefulWriter, StatefulReader};
 use crate::messages::submessages::RtpsSubmessage;
+use crate::behavior::endpoint_traits::{CacheChangeReceiver,AcknowldegmentReceiver};
 
 pub struct RtpsMessageReceiver;
 
 impl RtpsMessageReceiver {
-    pub fn receive<'a, I>(participant_guid_prefix: GuidPrefix, transport: &dyn Transport, endpoint_list: I) 
-        where I: IntoIterator<Item = &'a Arc<dyn RtpsEndpoint> >
-    {     
-        let endpoint_list: Vec<&'a Arc<dyn RtpsEndpoint>> = endpoint_list.into_iter().collect();
+    pub fn receive(
+        participant_guid_prefix: GuidPrefix,
+        transport: &dyn Transport,
+        cache_change_receiver_list: &mut [&mut dyn CacheChangeReceiver],
+        acknoledgment_receiver_list: &mut Vec<&mut dyn AcknowldegmentReceiver>) {
+
         if let Some((message, _src_locator)) = transport.read().unwrap() {
             let _source_version = message.header().version();
             let _source_vendor_id = message.header().vendor_id();
@@ -25,14 +25,11 @@ impl RtpsMessageReceiver {
             for submessage in message.take_submessages() {
                 if submessage.is_entity_submessage() {
                     let mut optional_submessage = Some(submessage);
-                    for endpoint in endpoint_list.iter() {                        
-                        if let Some(stateless_reader) = endpoint.get::<StatelessReader>() {
-                            stateless_reader.try_process_message(source_guid_prefix, &mut optional_submessage);
-                        } else if let Some(stateful_writer) = endpoint.get::<StatefulWriter>() {
-                            stateful_writer.try_process_message(source_guid_prefix, &mut optional_submessage);
-                        } else if let Some(stateful_reader) = endpoint.get::<StatefulReader>() {
-                            stateful_reader.try_process_message(source_guid_prefix, &mut optional_submessage);
-                        }
+                    for receiver in cache_change_receiver_list.iter_mut() {
+                        receiver.try_process_message(source_guid_prefix, &mut optional_submessage);
+                    }
+                    for receiver in acknoledgment_receiver_list.iter_mut() {
+                        receiver.try_process_message(source_guid_prefix, &mut optional_submessage);
                     }
                 } else if submessage.is_interpreter_submessage(){
                     match submessage {

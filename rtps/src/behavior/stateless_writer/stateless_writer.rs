@@ -1,37 +1,15 @@
-use std::sync::Mutex;
 use std::collections::HashMap;
 
-use crate::structure::{RtpsEndpoint, RtpsEntity};
-use crate::behavior::DestinedMessages;
-use crate::types::{Locator, ReliabilityKind, GUID, };
-use super::reader_locator::ReaderLocator;
-
-use rust_dds_interface::types::{ChangeKind, InstanceHandle, SequenceNumber, TopicKind, ParameterList};
+use super::best_effort_reader_locator::BestEffortReaderLocator;
+use crate::behavior::endpoint_traits::{CacheChangeSender, DestinedMessages};
+use crate::behavior::RtpsWriter;
+use crate::types::{Locator, ReliabilityKind, GUID};
 use rust_dds_interface::history_cache::HistoryCache;
-use rust_dds_interface::cache_change::CacheChange;
+use rust_dds_interface::types::TopicKind;
 
 pub struct StatelessWriter {
-    /// Entity base class (contains the GUID)
-    guid: GUID,
-    // entity: Entity,
-
-    // Endpoint base class:
-    /// Used to indicate whether the Endpoint supports instance lifecycle management operations. Indicates whether the Endpoint is associated with a DataType that has defined some fields as containing the DDS key.
-    topic_kind: TopicKind,
-    /// The level of reliability supported by the Endpoint.
-    reliability_level: ReliabilityKind,
-
-    // The stateless writer does not receive messages so these fields are left out
-    /// List of unicast locators (transport, address, port combinations) that can be used to send messages to the Endpoint. The list may be empty
-    // unicast_locator_list: Vec<Locator>,
-    /// List of multicast locators (transport, address, port combinations) that can be used to send messages to the Endpoint. The list may be empty.
-    // multicast_locator_list: Vec<Locator>,
-    
-    last_change_sequence_number: Mutex<SequenceNumber>,
-    writer_cache: Mutex<HistoryCache>,
-    data_max_sized_serialized: Option<i32>,
-
-    reader_locators: Mutex<HashMap<Locator, ReaderLocator>>,
+    pub writer: RtpsWriter,
+    reader_locators: HashMap<Locator, BestEffortReaderLocator>,
 }
 
 impl StatelessWriter {
@@ -39,215 +17,320 @@ impl StatelessWriter {
         guid: GUID,
         topic_kind: TopicKind,
         reliability_level: ReliabilityKind,
+        push_mode: bool,
         writer_cache: HistoryCache,
+        data_max_sized_serialized: Option<i32>,
     ) -> Self {
-        assert!(reliability_level == ReliabilityKind::BestEffort, "Only BestEffort is supported on stateless writer");
+        assert!(
+            reliability_level == ReliabilityKind::BestEffort,
+            "Only BestEffort is supported on stateless writer"
+        );
 
-        Self {
+        let writer = RtpsWriter::new(
             guid,
             topic_kind,
             reliability_level,
-            last_change_sequence_number: Mutex::new(0),
-            writer_cache: Mutex::new(writer_cache),
-            data_max_sized_serialized: None,
-            reader_locators: Mutex::new(HashMap::new()),
+            push_mode,
+            writer_cache,
+            data_max_sized_serialized,
+        );
+
+        Self {
+            writer,
+            reader_locators: HashMap::new(),
         }
     }
 
-    pub fn new_change(
-        &self,
-        kind: ChangeKind,
-        data: Option<Vec<u8>>,
-        inline_qos: Option<ParameterList>,
-        handle: InstanceHandle,
-    ) -> CacheChange {
-        let mut last_change_sequence_number = self.last_change_sequence_number.lock().unwrap();
-        *last_change_sequence_number += 1;
-
-        CacheChange::new(
-            kind,
-            self.guid.into(),
-            handle,
-            *last_change_sequence_number,
-            data,
-            inline_qos,
-        )
+    pub fn reader_locator_add(&mut self, a_locator: Locator) {
+        self.reader_locators
+            .insert(a_locator, BestEffortReaderLocator::new(a_locator));
     }
 
-    pub fn produce_messages(&self) -> Vec<DestinedMessages> {
-        let mut reader_locators = self.reader_locators.lock().unwrap();
-        let mut output = Vec::new();
-        for (&locator, reader_locator) in reader_locators.iter_mut() {
-            let messages = reader_locator.produce_messages(&self.writer_cache.lock().unwrap(), *self.last_change_sequence_number.lock().unwrap());
-            if !messages.is_empty() {
-                output.push(DestinedMessages::SingleDestination{locator, messages});
-            }
-        }
-        output
-    } 
-
-    pub fn writer_cache(&self) -> &Mutex<HistoryCache> {
-        &self.writer_cache
-    }
-
-    pub fn reader_locator_add(&self, a_locator: Locator) {
-        self.reader_locators.lock().unwrap().insert(a_locator, ReaderLocator::new(a_locator, self.guid.entity_id(), false /*expects_inline_qos*/));
-    }
-
-    pub fn reader_locator_remove(&self, a_locator: &Locator) {
-        self.reader_locators.lock().unwrap().remove(a_locator);
+    pub fn reader_locator_remove(&mut self, a_locator: &Locator) {
+        self.reader_locators.remove(a_locator);
     }
 
     pub fn unsent_changes_reset(&mut self) {
-        let mut reader_locators = self.reader_locators.lock().unwrap();
-        for (_, rl) in reader_locators.iter_mut() {
+        for (_, rl) in self.reader_locators.iter_mut() {
             rl.unsent_changes_reset();
         }
     }
 }
 
-impl RtpsEntity for StatelessWriter {
-    fn guid(&self) -> GUID {
-        self.guid
-    }
-}
-
-impl RtpsEndpoint for StatelessWriter {
-    fn unicast_locator_list(&self) -> Vec<Locator> {
-        vec![]
-    }
-
-    fn multicast_locator_list(&self) -> Vec<Locator> {
-        vec![]
-    }
-
-    fn reliability_level(&self) -> ReliabilityKind {
-        self.reliability_level
-    }
-
-    fn topic_kind(&self) -> &TopicKind {
-        &self.topic_kind
-    }
-
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-
-    fn as_mut_any(&mut self) -> &mut dyn std::any::Any {
-        self
+impl CacheChangeSender for StatelessWriter {
+    fn produce_messages(&mut self) -> Vec<DestinedMessages> {
+        let mut output = Vec::new();
+        for (&locator, reader_locator) in self.reader_locators.iter_mut() {
+            let messages = reader_locator.produce_messages(
+                &self.writer.writer_cache,
+                self.writer.endpoint.entity.guid.entity_id(),
+                self.writer.last_change_sequence_number,
+            );
+            if !messages.is_empty() {
+                output.push(DestinedMessages::SingleDestination { locator, messages });
+            }
+        }
+        output
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::constants::*;
-    use crate::types::*;
+    use crate::behavior::data_from_cache_change;
+    use crate::messages::RtpsSubmessage;
+    use crate::types::constants::{ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER, ENTITYID_UNKNOWN};
 
+    use rust_dds_interface::types::ChangeKind;
     #[test]
-    fn new_change() {
-        let writer = StatelessWriter::new(
-            GUID::new([0; 12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
-            TopicKind::WithKey,
-            ReliabilityKind::BestEffort,
-            HistoryCache::default(),
+    fn reader_locator_add() {
+        let guid = GUID::new([1; 12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER);
+        let topic_kind = TopicKind::WithKey;
+        let reliability_level = ReliabilityKind::BestEffort;
+        let push_mode = true;
+        let writer_cache = HistoryCache::default();
+        let data_max_sized_serialized = None;
+        let mut stateless_writer = StatelessWriter::new(
+            guid,
+            topic_kind,
+            reliability_level,
+            push_mode,
+            writer_cache,
+            data_max_sized_serialized,
         );
 
-        let cache_change_seq1 = writer.new_change(
-            ChangeKind::Alive,
-            Some(vec![1, 2, 3]), 
-            None,                
-            [1; 16],             
-        );
+        let locator_1 = Locator::new_udpv4(1000, [10, 11, 12, 13]);
+        stateless_writer.reader_locator_add(locator_1);
 
-        let cache_change_seq2 = writer.new_change(
-            ChangeKind::NotAliveUnregistered,
-            None,    
-            None,    
-            [1; 16], 
-        );
-
-        assert_eq!(cache_change_seq1.sequence_number(), 1);
-        assert_eq!(cache_change_seq1.change_kind(), ChangeKind::Alive);
-        assert_eq!(cache_change_seq1.inline_qos().unwrap().parameter.len(), 0);
-        assert_eq!(cache_change_seq1.instance_handle(), [1; 16]);
-
-        assert_eq!(cache_change_seq2.sequence_number(), 2);
+        assert_eq!(stateless_writer.reader_locators.len(), 1);
         assert_eq!(
-            cache_change_seq2.change_kind(),
-            ChangeKind::NotAliveUnregistered
+            stateless_writer.reader_locators[&locator_1].locator,
+            locator_1
         );
-        assert_eq!(cache_change_seq2.inline_qos().unwrap().parameter.len(), 0);
-        assert_eq!(cache_change_seq2.instance_handle(), [1; 16]);
     }
 
-    // #[test]
-    // fn stateless_writer_run() {
-    //     // Create the stateless writer
-    //     let mut stateless_writer = StatelessWriter::new(
-    //         GUID::new([0; 12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
-    //         TopicKind::WithKey,
-    //         ReliabilityKind::BestEffort,
-    //         HistoryCacheResourceLimits::default(),
-    //     );
+    #[test]
+    fn reader_locator_remove() {
+        let guid = GUID::new([1; 12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER);
+        let topic_kind = TopicKind::WithKey;
+        let reliability_level = ReliabilityKind::BestEffort;
+        let push_mode = true;
+        let writer_cache = HistoryCache::default();
+        let data_max_sized_serialized = None;
+        let mut stateless_writer = StatelessWriter::new(
+            guid,
+            topic_kind,
+            reliability_level,
+            push_mode,
+            writer_cache,
+            data_max_sized_serialized,
+        );
 
-    //     // Add two locators
-    //     let locator1 = Locator::new(0, 7400, [1; 16]);
-    //     let locator2 = Locator::new(0, 7500, [2; 16]);
-    //     stateless_writer.reader_locator_add(locator1);
-    //     stateless_writer.reader_locator_add(locator2);
+        let locator_1 = Locator::new_udpv4(1000, [10, 11, 12, 13]);
+        stateless_writer.reader_locator_add(locator_1);
+        stateless_writer.reader_locator_remove(&locator_1);
 
-    //     let _cache_change_seq1 = stateless_writer.new_change(
-    //         ChangeKind::Alive,
-    //         Some(vec![1, 2, 3]), 
-    //         None,                
-    //         [1; 16],             
-    //     );
+        assert_eq!(stateless_writer.reader_locators.len(), 0);
+    }
 
-    //     let cache_change_seq2 = stateless_writer.new_change(
-    //         ChangeKind::Alive,
-    //         Some(vec![4, 5, 6]), 
-    //         None,                
-    //         [1; 16],             
-    //     );
+    #[test]
+    fn produce_messages_single_locator() {
+        let guid = GUID::new([1; 12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER);
+        let topic_kind = TopicKind::WithKey;
+        let reliability_level = ReliabilityKind::BestEffort;
+        let push_mode = true;
+        let writer_cache = HistoryCache::default();
+        let data_max_sized_serialized = None;
+        let mut stateless_writer = StatelessWriter::new(
+            guid,
+            topic_kind,
+            reliability_level,
+            push_mode,
+            writer_cache,
+            data_max_sized_serialized,
+        );
 
-    //     // stateless_writer.writer_cache().add_change(cache_change_seq1).unwrap();
-    //     stateless_writer.writer_cache().add_change(cache_change_seq2).unwrap();
+        let locator_1 = Locator::new_udpv4(1000, [10, 11, 12, 13]);
+        stateless_writer.reader_locator_add(locator_1);
 
-    //     stateless_writer.run();
+        let cache_change1 = stateless_writer.writer.new_change(
+            ChangeKind::Alive,
+            Some(vec![1, 2, 3]),
+            None,
+            [1; 16],
+        );
+        stateless_writer
+            .writer
+            .writer_cache
+            .add_change(cache_change1.clone())
+            .unwrap();
 
-    //     todo!()
+        let cache_change2 = stateless_writer.writer.new_change(
+            ChangeKind::Alive,
+            Some(vec![3, 4, 5]),
+            None,
+            [2; 16],
+        );
+        stateless_writer
+            .writer
+            .writer_cache
+            .add_change(cache_change2.clone())
+            .unwrap();
 
-    //     // let mut send_messages = stateless_writer.pop_send_messages();
-    //     // assert_eq!(send_messages.len(), 2);
+        let destined_messages_vec = stateless_writer.produce_messages();
+        let expected_destined_message = DestinedMessages::SingleDestination {
+            locator: Locator::new_udpv4(1000, [10, 11, 12, 13]),
+            messages: vec![
+                RtpsSubmessage::Data(data_from_cache_change(&cache_change1, ENTITYID_UNKNOWN)),
+                RtpsSubmessage::Data(data_from_cache_change(&cache_change2, ENTITYID_UNKNOWN)),
+            ],
+        };
+        assert_eq!(destined_messages_vec.len(), 1);
+        assert!(destined_messages_vec.contains(&expected_destined_message));
+    }
 
-    //     // // Check that the two reader locators have messages sent to them. The order is not fixed so it can
-    //     // // not be used for the test
-    //     // send_messages.iter().find(|(dst_locator, _)| dst_locator == &vec![locator1]).unwrap();
-    //     // send_messages.iter().find(|(dst_locator, _)| dst_locator == &vec![locator2]).unwrap();
+    #[test]
+    fn produce_messages_multiple_locators() {
+        let guid = GUID::new([1; 12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER);
+        let topic_kind = TopicKind::WithKey;
+        let reliability_level = ReliabilityKind::BestEffort;
+        let push_mode = true;
+        let writer_cache = HistoryCache::default();
+        let data_max_sized_serialized = None;
+        let mut stateless_writer = StatelessWriter::new(
+            guid,
+            topic_kind,
+            reliability_level,
+            push_mode,
+            writer_cache,
+            data_max_sized_serialized,
+        );
 
-    //     // let (_, send_messages_reader_locator_1) = send_messages.pop().unwrap();
-    //     // let (_, send_messages_reader_locator_2) = send_messages.pop().unwrap();
+        let locator_1 = Locator::new_udpv4(1000, [10, 11, 12, 13]);
+        stateless_writer.reader_locator_add(locator_1);
 
-    //     // // Check that the same messages are sent to both locators
-    //     // assert_eq!(send_messages_reader_locator_1, send_messages_reader_locator_2);
+        let cache_change1 = stateless_writer.writer.new_change(
+            ChangeKind::Alive,
+            Some(vec![1, 2, 3]),
+            None,
+            [1; 16],
+        );
+        stateless_writer
+            .writer
+            .writer_cache
+            .add_change(cache_change1.clone())
+            .unwrap();
 
-    //     // if let RtpsSubmessage::Gap(_) = &send_messages_reader_locator_1[0] {
-    //     //     // The contents of the message are tested in the reader locator so simply assert the type is correct
-    //     //     assert!(true)
-    //     // } else {
-    //     //     panic!("Wrong message type");
-    //     // };
+        stateless_writer.produce_messages();
 
-    //     // if let RtpsSubmessage::Data(_) = &send_messages_reader_locator_1[1] {
-    //     //         // The contents of the message are tested in the reader locator so simply assert the type is correct
-    //     //         assert!(true)
-    //     // } else {
-    //     //     panic!("Wrong message type");
-    //     // };
+        let locator_2 = Locator::new_udpv4(21000, [10, 11, 12, 13]);
+        stateless_writer.reader_locator_add(locator_2);
 
-    //     // // Test that nothing more is sent after the first time
-    //     // stateless_writer.run();
-    //     // assert_eq!(stateless_writer.pop_send_messages().len(), 0);
-    // }
+        let cache_change2 = stateless_writer.writer.new_change(
+            ChangeKind::Alive,
+            Some(vec![4, 5, 6]),
+            None,
+            [1; 16],
+        );
+        stateless_writer
+            .writer
+            .writer_cache
+            .add_change(cache_change2.clone())
+            .unwrap();
+
+        let destined_messages_vec = stateless_writer.produce_messages();
+
+        let expected_destined_message1 = DestinedMessages::SingleDestination {
+            locator: Locator::new_udpv4(1000, [10, 11, 12, 13]),
+            messages: vec![RtpsSubmessage::Data(data_from_cache_change(
+                &cache_change2,
+                ENTITYID_UNKNOWN,
+            ))],
+        };
+        let expected_destined_message2 = DestinedMessages::SingleDestination {
+            locator: Locator::new_udpv4(21000, [10, 11, 12, 13]),
+            messages: vec![
+                RtpsSubmessage::Data(data_from_cache_change(&cache_change1, ENTITYID_UNKNOWN)),
+                RtpsSubmessage::Data(data_from_cache_change(&cache_change2, ENTITYID_UNKNOWN)),
+            ],
+        };
+        assert_eq!(destined_messages_vec.len(), 2);
+        assert!(destined_messages_vec.contains(&expected_destined_message1));
+        assert!(destined_messages_vec.contains(&expected_destined_message2));
+    }
+
+    #[test]
+    fn unsent_changes_reset_multiple_locators() {
+        let guid = GUID::new([1; 12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER);
+        let topic_kind = TopicKind::WithKey;
+        let reliability_level = ReliabilityKind::BestEffort;
+        let push_mode = true;
+        let writer_cache = HistoryCache::default();
+        let data_max_sized_serialized = None;
+        let mut stateless_writer = StatelessWriter::new(
+            guid,
+            topic_kind,
+            reliability_level,
+            push_mode,
+            writer_cache,
+            data_max_sized_serialized,
+        );
+
+        let locator_1 = Locator::new_udpv4(1000, [10, 11, 12, 13]);
+        stateless_writer.reader_locator_add(locator_1);
+
+        let locator_2 = Locator::new_udpv4(21000, [10, 11, 12, 13]);
+        stateless_writer.reader_locator_add(locator_2);
+
+        let cache_change1 = stateless_writer.writer.new_change(
+            ChangeKind::Alive,
+            Some(vec![1, 2, 3]),
+            None,
+            [1; 16],
+        );
+        stateless_writer
+            .writer
+            .writer_cache
+            .add_change(cache_change1.clone())
+            .unwrap();
+
+        let cache_change2 = stateless_writer.writer.new_change(
+            ChangeKind::Alive,
+            Some(vec![4, 5, 6]),
+            None,
+            [1; 16],
+        );
+        stateless_writer
+            .writer
+            .writer_cache
+            .add_change(cache_change2.clone())
+            .unwrap();
+
+        stateless_writer.produce_messages();
+
+        let destined_messages_vec_before_reset = stateless_writer.produce_messages();
+
+        stateless_writer.unsent_changes_reset();
+
+        let destined_messages_vec_after_reset = stateless_writer.produce_messages();
+
+        let expected_destined_message1 = DestinedMessages::SingleDestination {
+            locator: Locator::new_udpv4(1000, [10, 11, 12, 13]),
+            messages: vec![
+                RtpsSubmessage::Data(data_from_cache_change(&cache_change1, ENTITYID_UNKNOWN)),
+                RtpsSubmessage::Data(data_from_cache_change(&cache_change2, ENTITYID_UNKNOWN)),
+            ],
+        };
+        let expected_destined_message2 = DestinedMessages::SingleDestination {
+            locator: Locator::new_udpv4(21000, [10, 11, 12, 13]),
+            messages: vec![
+                RtpsSubmessage::Data(data_from_cache_change(&cache_change1, ENTITYID_UNKNOWN)),
+                RtpsSubmessage::Data(data_from_cache_change(&cache_change2, ENTITYID_UNKNOWN)),
+            ],
+        };
+        assert_eq!(destined_messages_vec_before_reset.len(), 0);
+        assert_eq!(destined_messages_vec_after_reset.len(), 2);
+        assert!(destined_messages_vec_after_reset.contains(&expected_destined_message1));
+        assert!(destined_messages_vec_after_reset.contains(&expected_destined_message2));
+    }
 }

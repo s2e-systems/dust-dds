@@ -1,118 +1,40 @@
-use std::sync::Arc;
-
 use crate::types::GuidPrefix;
 use crate::types::constants::{PROTOCOL_VERSION_2_4, VENDOR_ID};
-use crate::structure::RtpsEndpoint;
 use crate::transport::Transport;
-use crate::behavior::{StatelessWriter, StatefulWriter, StatefulReader};
-use crate::behavior::DestinedMessages;
+use crate::behavior::endpoint_traits::{DestinedMessages,CacheChangeSender};
+
 
 use crate::messages::RtpsMessage;
 
 pub struct RtpsMessageSender;
 
 impl RtpsMessageSender {
-    pub fn send<'a, I>(participant_guid_prefix: GuidPrefix, transport: &dyn Transport, endpoint_list: I) 
-    where 
-        I: IntoIterator<Item = &'a Arc<dyn RtpsEndpoint> >,
-    {
-        for endpoint in endpoint_list {
-            if let Some(stateless_writer) = endpoint.get::<StatelessWriter>() {
-                RtpsMessageSender::send_stateless_writer(stateless_writer, transport, participant_guid_prefix)
-            } else if let Some(stateful_writer) = endpoint.get::<StatefulWriter>() {
-                RtpsMessageSender::send_stateful_writer(stateful_writer, transport, participant_guid_prefix)
-            } else if let Some(stateful_reader) = endpoint.get::<StatefulReader>() {
-                RtpsMessageSender::send_stateful_reader(stateful_reader, transport, participant_guid_prefix)
-            }
-        }
-    }
-
-    fn send_stateless_writer(stateless_writer: &StatelessWriter, transport: &dyn Transport, participant_guid_prefix: GuidPrefix) {
-        let destined_messages = stateless_writer.produce_messages();
-        for destined_message in destined_messages{
-            match destined_message {
-                DestinedMessages::SingleDestination{locator, messages} => {
-                    if messages.len() > 0 {
-                        let message = RtpsMessage::new(
-                            PROTOCOL_VERSION_2_4,
-                            VENDOR_ID,
-                            participant_guid_prefix, messages);
-                        transport.write(message, &locator);
-                    }
-                }
-                DestinedMessages::MultiDestination { unicast_locator_list, multicast_locator_list, messages} => {
-                    if messages.len() > 0 {
-                        let message = RtpsMessage::new(
-                        PROTOCOL_VERSION_2_4,
-                        VENDOR_ID,
-                        participant_guid_prefix, messages);
-    
-                        if !unicast_locator_list.is_empty() {
-                            transport.write(message, &unicast_locator_list[0]);
-                        } else if !multicast_locator_list.is_empty() {
-                            transport.write(message, &multicast_locator_list[0]);
+    pub fn send_cache_change_messages(participant_guid_prefix: GuidPrefix, transport: &dyn Transport, sender_list: &mut [&mut dyn CacheChangeSender]) {
+        for sender in sender_list.iter_mut() {
+            let destined_messages = sender.produce_messages();
+            for destined_message in destined_messages{
+                match destined_message {
+                    DestinedMessages::SingleDestination{locator, messages} => {
+                        if messages.len() > 0 {
+                            let message = RtpsMessage::new(
+                                PROTOCOL_VERSION_2_4,
+                                VENDOR_ID,
+                                participant_guid_prefix, messages);
+                            transport.write(message, &locator);
                         }
                     }
-                }
-            }
-        }
-    }
-
-    fn send_stateful_writer(stateful_writer: &StatefulWriter, transport: &dyn Transport, participant_guid_prefix: GuidPrefix) {
-        let destined_messages = stateful_writer.produce_messages();
-        for destined_message in destined_messages{
-            match destined_message {
-                DestinedMessages::SingleDestination{locator, messages} => {
-                    if messages.len() > 0 {
-                        let message = RtpsMessage::new(
+                    DestinedMessages::MultiDestination { unicast_locator_list, multicast_locator_list, messages} => {
+                        if messages.len() > 0 {
+                            let message = RtpsMessage::new(
                             PROTOCOL_VERSION_2_4,
                             VENDOR_ID,
                             participant_guid_prefix, messages);
-                        transport.write(message, &locator);
-                    }
-                }
-                DestinedMessages::MultiDestination { unicast_locator_list, multicast_locator_list, messages} => {
-                    if messages.len() > 0 {
-                        let message = RtpsMessage::new(
-                        PROTOCOL_VERSION_2_4,
-                        VENDOR_ID,
-                        participant_guid_prefix, messages);
-    
-                        if !unicast_locator_list.is_empty() {
-                            transport.write(message, &unicast_locator_list[0]);
-                        } else if !multicast_locator_list.is_empty() {
-                            transport.write(message, &multicast_locator_list[0]);
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    fn send_stateful_reader(stateful_reader: &StatefulReader, transport: &dyn Transport, participant_guid_prefix: GuidPrefix) {
-        let destined_messages = stateful_reader.produce_messages();
-        for destined_message in destined_messages{
-            match destined_message {
-                DestinedMessages::SingleDestination{locator, messages} => {
-                    if messages.len() > 0 {
-                        let message = RtpsMessage::new(
-                            PROTOCOL_VERSION_2_4,
-                            VENDOR_ID,
-                            participant_guid_prefix, messages);
-                        transport.write(message, &locator);
-                    }
-                }
-                DestinedMessages::MultiDestination { unicast_locator_list, multicast_locator_list, messages} => {
-                    if messages.len() > 0 {
-                        let message = RtpsMessage::new(
-                        PROTOCOL_VERSION_2_4,
-                        VENDOR_ID,
-                        participant_guid_prefix, messages);
-    
-                        if !unicast_locator_list.is_empty() {
-                            transport.write(message, &unicast_locator_list[0]);
-                        } else if !multicast_locator_list.is_empty() {
-                            transport.write(message, &multicast_locator_list[0]);
+        
+                            if !unicast_locator_list.is_empty() {
+                                transport.write(message, &unicast_locator_list[0]);
+                            } else if !multicast_locator_list.is_empty() {
+                                transport.write(message, &multicast_locator_list[0]);
+                            }
                         }
                     }
                 }

@@ -73,8 +73,8 @@ impl AckNack {
         &self.reader_sn_state
     }
 
-    pub fn count(&self) -> &submessage_elements::Count {
-        &self.count
+    pub fn count(&self) -> submessage_elements::Count {
+        self.count
     }
 }
 

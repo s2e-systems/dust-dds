@@ -1,5 +1,13 @@
 use crate::types::GUID;
 
-pub trait RtpsEntity: 'static + Send + Sync{
-    fn guid(&self) -> GUID;
+pub struct RtpsEntity {
+    pub guid: GUID,
+}
+
+impl RtpsEntity {
+    pub fn new(guid: GUID) -> Self {
+        Self {
+            guid
+        }
+    }
 }
