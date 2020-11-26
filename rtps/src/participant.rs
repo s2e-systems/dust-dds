@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use crate::discovery::spdp_data::SPDPdiscoveredParticipantData;
+use crate::discovery::discovered_writer_data::DiscoveredWriterData;
 use crate::endpoint_types::BuiltInEndpointSet;
 use crate::message_receiver::RtpsMessageReceiver;
 use crate::message_sender::RtpsMessageSender;
@@ -18,7 +19,7 @@ use crate::writer::Writer;
 use crate::reader::Reader;
 
 use rust_dds_interface::qos::{DataWriterQos, DataReaderQos};
-use rust_dds_interface::types::{DomainId, InstanceHandle, ReturnCode, ReturnCodes, TopicKind};
+use rust_dds_interface::types::{DomainId, InstanceHandle, ReturnCode, ReturnCodes, TopicKind, ChangeKind};
 
 pub struct Participant {
     participant: RtpsParticipant,
@@ -138,12 +139,23 @@ impl Participant {
         topic_kind: TopicKind,
         data_writer_qos: &DataWriterQos,
     ) -> ReturnCode<Writer> {
-        self.publishers
+        let writer = self.publishers
             .get_mut(parent_publisher)
             .ok_or(ReturnCodes::PreconditionNotMet(
                 "Parent publisher not found",
             ))?
-            .create_writer(topic_kind, data_writer_qos)
+            .create_writer(topic_kind, data_writer_qos)?;
+
+        let discovered_writer_data = DiscoveredWriterData::new();
+
+        let kind = ChangeKind::Alive;
+        let handle = discovered_writer_data.key();
+        let data = Some(discovered_writer_data.data());
+        let inline_qos = None;
+        let cc = self.sedp.sedp_builtin_publications_writer().writer.new_change(kind, data, inline_qos, handle);
+        self.sedp.sedp_builtin_publications_writer().writer.writer_cache.add_change(cc)?;
+
+        Ok(writer)
     }
 
     pub fn create_subscriber(&mut self) -> ReturnCode<InstanceHandle> {
