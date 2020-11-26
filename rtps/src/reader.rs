@@ -9,7 +9,7 @@ use rust_dds_interface::qos_policy::ReliabilityQosPolicyKind;
 use rust_dds_interface::types::{InstanceHandle, TopicKind};
 
 pub struct Reader {
-    stateful_reader: StatefulReader,
+    pub stateful_reader: StatefulReader,
 }
 
 impl Reader {

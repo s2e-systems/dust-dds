@@ -18,4 +18,8 @@ impl DiscoveredWriterData {
     pub fn data(&self) -> Vec<u8> {
         self.id.to_be_bytes().into()
     }
+
+    pub fn from_key_data(key: InstanceHandle, data: &[u8]) -> Self {
+        todo!()
+    }
 }

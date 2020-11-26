@@ -4,6 +4,9 @@ use std::thread::JoinHandle;
 
 use crate::participant::Participant;
 use crate::transport::udp::UdpTransport;
+use crate::discovery::sedp::SimpleEndpointDiscoveryProtocol;
+use crate::discovery::discovered_writer_data::DiscoveredWriterData;
+use crate::reader::Reader;
 
 use rust_dds_interface::protocol::{
     ProtocolEntity, ProtocolParticipant, ProtocolReader, ProtocolWriter,
@@ -60,7 +63,7 @@ impl ProtocolParticipant for RtpsProtocol {
     }
 
     fn create_writer(
-        &self,
+        & self,
         parent_publisher: InstanceHandle,
         topic_kind: TopicKind,
         data_writer_qos: &DataWriterQos,
@@ -130,4 +133,25 @@ impl ProtocolParticipant for RtpsProtocol {
     // ) {
     //     todo!()
     // }
+}
+
+fn configure_readers(sedp: &mut SimpleEndpointDiscoveryProtocol, readers: &mut[&mut Reader]) {
+    let seq_num_min = sedp.sedp_builtin_subscriptions_reader().reader.reader_cache.get_seq_num_min().unwrap();
+    let seq_num_max = sedp.sedp_builtin_subscriptions_reader().reader.reader_cache.get_seq_num_max().unwrap();
+    for seq_num in seq_num_min..=seq_num_max {   
+        let cc = sedp.sedp_builtin_subscriptions_reader().reader.reader_cache.get_change(seq_num).unwrap();
+
+        let discovered_writer_data = DiscoveredWriterData::from_key_data(cc.instance_handle(), cc.data_value().as_ref().unwrap());
+
+        for reader in readers.iter_mut() {
+            // if reader matched
+                // get writer proxy
+                // add writer proxy
+                // reader.stateful_reader.matched_writer_add(a_writer_proxy);
+                // call Reader.on_subscription_matched (listener method)
+        }
+
+
+
+    }
 }
