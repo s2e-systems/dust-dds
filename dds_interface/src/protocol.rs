@@ -1,5 +1,3 @@
-use std::sync::Mutex;
-
 use crate::types::{InstanceHandle, Data, TopicKind, ChangeKind, ParameterList};
 use crate::cache_change::CacheChange;
 use crate::history_cache::HistoryCache;
@@ -28,8 +26,8 @@ pub trait ProtocolPublisher : ProtocolEntity {
 }
 
 pub trait ProtocolWriter : ProtocolEntity  {
-    fn new_change(&self, kind: ChangeKind, data: Option<Data>, inline_qos: Option<ParameterList>, handle: InstanceHandle) -> CacheChange;
-    fn writer_cache(&self) -> &Mutex<HistoryCache>;
+    fn new_change(&mut self, kind: ChangeKind, data: Option<Data>, inline_qos: Option<ParameterList>, handle: InstanceHandle) -> CacheChange;
+    fn writer_cache(&mut self) -> &mut HistoryCache;
 }
 
 pub trait ProtocolReader: ProtocolEntity {

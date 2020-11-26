@@ -2,7 +2,7 @@ use crate::types::constants::{PROTOCOL_VERSION_2_4, VENDOR_ID};
 use crate::transport::Transport;
 use crate::discovery::spdp_data::SPDPdiscoveredParticipantData;
 use crate::endpoint_types::BuiltInEndpointSet;
-use crate::structure::{RtpsParticipant};
+use crate::structure::RtpsParticipant;
 use crate::message_receiver::RtpsMessageReceiver;
 use crate::message_sender::RtpsMessageSender;
 
@@ -10,6 +10,8 @@ use crate::discovery::spdp::SimpleParticipantDiscovery;
 
 use crate::discovery::sedp::SimpleEndpointDiscoveryProtocol;
 use crate::behavior::endpoint_traits::{AcknowldegmentReceiver};
+use crate::publisher::Publisher;
+use crate::subscriber::Subscriber;
 
 use rust_dds_interface::types::{DomainId, InstanceHandle, };
 use rust_dds_interface::protocol::{ProtocolEntity, ProtocolParticipant, ProtocolSubscriber, ProtocolPublisher};
@@ -17,8 +19,6 @@ use rust_dds_interface::protocol::{ProtocolEntity, ProtocolParticipant, Protocol
 
 pub struct RtpsProtocol {
     participant: RtpsParticipant,
-    // builtin_publisher: BuiltInPublisher,
-    // builtin_subscriber: BuiltInSubscriber,
     spdp: SimpleParticipantDiscovery,    
     sedp: SimpleEndpointDiscoveryProtocol,
     userdata_transport: Box<dyn Transport>,
@@ -101,33 +101,24 @@ impl RtpsProtocol {
 
 impl ProtocolEntity for RtpsProtocol {
     fn get_instance_handle(&self) -> InstanceHandle {
-        todo!()
-        // self.participant.guid().into()
+        self.participant.entity.guid.into()
     }
 }
 
 impl ProtocolParticipant for RtpsProtocol {
     fn create_publisher(&mut self) ->  Box<dyn ProtocolPublisher> {
-        // let guid_prefix = self.participant.guid().prefix();
-        // let entity_id = EntityId::new([self.publisher_counter as u8,0,0], EntityKind::UserDefinedWriterGroup);
-        // self.publisher_counter += 1;
-        // let publisher_guid = GUID::new(guid_prefix, entity_id);
-        // let publisher_group = RtpsGroup::new(publisher_guid);
-        // // self.user_defined_groups.push(publisher_group.clone());
+        let guid_prefix = self.participant.entity.guid.prefix();
+        let entity_key = [self.publisher_counter as u8,0,0];
+        self.publisher_counter += 1;
 
-        // Box::new(Publisher::new(publisher_group))
-        todo!()
+        Box::new(Publisher::new(guid_prefix, entity_key))
     }
 
     fn create_subscriber(&mut self) -> Box<dyn ProtocolSubscriber> {
-        // let guid_prefix = self.participant.guid().prefix();
-        // let entity_id = EntityId::new([self.subscriber_counter as u8,0,0], EntityKind::UserDefinedReaderGroup);
-        // self.subscriber_counter += 1;
-        // let subscriber_guid = GUID::new(guid_prefix, entity_id);
-        // let subscriber_group = RtpsGroup::new(subscriber_guid);
-
-        // Box::new(Subscriber::new(subscriber_group))
-        todo!()
+        let guid_prefix = self.participant.entity.guid.prefix();
+        let entity_key = [self.subscriber_counter as u8,0,0];
+        self.subscriber_counter += 1;
+        Box::new(Subscriber::new(guid_prefix, entity_key))
     }
 
     fn get_builtin_subscriber(&self) -> Box<dyn ProtocolSubscriber> {
