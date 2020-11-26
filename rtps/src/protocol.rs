@@ -17,7 +17,7 @@ use rust_dds_interface::types::{DomainId, InstanceHandle, };
 use rust_dds_interface::protocol::{ProtocolEntity, ProtocolParticipant, ProtocolSubscriber, ProtocolPublisher};
 
 
-pub struct RtpsProtocol {
+pub struct Participant {
     participant: RtpsParticipant,
     spdp: SimpleParticipantDiscovery,    
     sedp: SimpleEndpointDiscoveryProtocol,
@@ -27,7 +27,7 @@ pub struct RtpsProtocol {
     subscriber_counter: usize,
 }
 
-impl RtpsProtocol {
+impl Participant {
     pub fn new(domain_id: DomainId, userdata_transport: impl Transport, metatraffic_transport: impl Transport, domain_tag: String, lease_duration: rust_dds_interface::types::Duration) -> Self {
 
         let guid_prefix = [1,2,3,4,5,6,7,8,9,10,11,12];  //TODO: Should be uniquely generated
@@ -99,13 +99,13 @@ impl RtpsProtocol {
     }
 }
 
-impl ProtocolEntity for RtpsProtocol {
+impl ProtocolEntity for Participant {
     fn get_instance_handle(&self) -> InstanceHandle {
         self.participant.entity.guid.into()
     }
 }
 
-impl ProtocolParticipant for RtpsProtocol {
+impl ProtocolParticipant for Participant {
     fn create_publisher(&mut self) ->  Box<dyn ProtocolPublisher> {
         let guid_prefix = self.participant.entity.guid.prefix();
         let entity_key = [self.publisher_counter as u8,0,0];
@@ -126,7 +126,7 @@ impl ProtocolParticipant for RtpsProtocol {
         // Box::new(Subscriber::new(self.builtin_subscriber.clone()))
     }
 
-    fn run(&self) {
+    fn enable(&self) {
         // RtpsMessageReceiver::receive(
         //     self.participant.guid().prefix(), 
         //     self.metatraffic_transport.as_ref(),
@@ -238,7 +238,7 @@ mod tests {
         let domain_id = 0;
         let domain_tag = "".to_string();
         let lease_duration = rust_dds_interface::types::Duration{sec: 30, nanosec: 0};
-        let mut protocol = RtpsProtocol::new(domain_id, MockTransport::new(), MockTransport::new(), domain_tag, lease_duration);
+        let mut protocol = Participant::new(domain_id, MockTransport::new(), MockTransport::new(), domain_tag, lease_duration);
         protocol.send_metatraffic();
     }
 
@@ -323,7 +323,7 @@ mod tests {
 
         transport.to_read.borrow_mut().push((message, locator));
 
-        let mut protocol = RtpsProtocol::new(domain_id, MockTransportDetect::new(), transport, domain_tag, lease_duration);
+        let mut protocol = Participant::new(domain_id, MockTransportDetect::new(), transport, domain_tag, lease_duration);
         protocol.receive_metatraffic();
         
         let sedp_builtin_publications_detector = protocol.sedp.sedp_builtin_publications_reader();

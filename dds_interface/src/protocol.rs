@@ -13,7 +13,7 @@ pub trait ProtocolParticipant : ProtocolEntity + 'static {
     fn create_subscriber(&mut self) -> Box<dyn ProtocolSubscriber>;
     fn get_builtin_subscriber(&self) -> Box<dyn ProtocolSubscriber>;
 
-    fn run(&self);
+    fn enable(&self);
     fn receive(&self, publisher_list: &[&dyn ProtocolPublisher], subscriber_list: &[&dyn ProtocolSubscriber]);
     fn send(&self, publisher_list: &[&dyn ProtocolPublisher], subscriber_list: &[&dyn ProtocolSubscriber]);
 }

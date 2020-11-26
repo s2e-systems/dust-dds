@@ -67,7 +67,7 @@ impl DomainParticipant {
         enabled: bool,
     ) ->  Option<DomainParticipant> {
         use rust_rtps::transport::udp::UdpTransport;
-        use rust_rtps::protocol::RtpsProtocol;
+        use rust_rtps::protocol::Participant;
 
         let interface = "Wi-Fi";
         let userdata_transport = UdpTransport::default_userdata_transport(domain_id, interface).unwrap();
@@ -77,7 +77,7 @@ impl DomainParticipant {
 
         let name = "rtps";
         let protocol = match name {         
-            "rtps" => RtpsProtocol::new(domain_id, userdata_transport, metatraffic_transport, domain_tag, lease_duration),
+            "rtps" => Participant::new(domain_id, userdata_transport, metatraffic_transport, domain_tag, lease_duration),
             _ => panic!("Protocol not valid"),
         };
    
@@ -644,7 +644,7 @@ mod tests {
             todo!()
         }
 
-        fn run(&self) {
+        fn enable(&self) {
             todo!()
         }
 
