@@ -46,7 +46,7 @@ pub struct DomainParticipant{
     default_subscriber_qos: Mutex<SubscriberQos>,
     topic_list: Mutex<Vec<Arc<dyn AnyTopic>>>,
     default_topic_qos: Mutex<TopicQos>,
-    protocol_participant: Mutex<Box<dyn ProtocolParticipant>>,
+    protocol_participant: Box<dyn ProtocolParticipant>,
 }
 
 
@@ -66,18 +66,11 @@ impl DomainParticipant {
         mask: StatusMask,
         enabled: bool,
     ) ->  Option<DomainParticipant> {
-        use rust_rtps::transport::udp::UdpTransport;
-        use rust_rtps::participant::Participant;
-
-        let interface = "Wi-Fi";
-        let userdata_transport = UdpTransport::default_userdata_transport(domain_id, interface).unwrap();
-        let metatraffic_transport = UdpTransport::default_metatraffic_transport(domain_id, interface).unwrap();
-        let domain_tag = "".to_string();
-        let lease_duration = rust_dds_interface::types::Duration{sec: 30, nanosec: 0};
+        use rust_rtps::protocol::RtpsProtocol;
 
         let name = "rtps";
         let protocol = match name {         
-            "rtps" => Participant::new(domain_id, userdata_transport, metatraffic_transport, domain_tag, lease_duration),
+            "rtps" => RtpsProtocol::new(domain_id),
             _ => panic!("Protocol not valid"),
         };
    
@@ -92,7 +85,7 @@ impl DomainParticipant {
             default_subscriber_qos: Mutex::new(SubscriberQos::default()),
             topic_list: Mutex::new(Vec::new()),
             default_topic_qos: Mutex::new(TopicQos::default()),
-            protocol_participant: Mutex::new(Box::new(protocol)),
+            protocol_participant: Box::new(protocol),
         };
         
         if enabled {
@@ -121,7 +114,7 @@ impl DomainParticipant {
             None => &default_subscriber_qos,
         };
 
-        let protocol_publisher = self.protocol_participant.lock().unwrap().create_publisher();
+        let protocol_publisher = self.protocol_participant.create_publisher();
         let publisher_impl = Arc::new(PublisherImpl::new(protocol_publisher));
         self.publisher_list.lock().unwrap().push(publisher_impl.clone());
 
@@ -170,7 +163,7 @@ impl DomainParticipant {
             None => &default_subscriber_qos,
         };
 
-        let protocol_subscriber = self.protocol_participant.lock().unwrap().create_subscriber();
+        let protocol_subscriber = self.protocol_participant.create_subscriber();
         let subscriber_impl = Arc::new(SubscriberImpl::new(protocol_subscriber));
         self.subscriber_list.lock().unwrap().push(subscriber_impl.clone());
 
@@ -609,12 +602,11 @@ impl Entity for DomainParticipant
     }
 
     fn enable(&self) -> ReturnCode<()> {
-        Ok(())
-        // self.protocol_participant.lock().unwrap().enable()
+        Ok(self.protocol_participant.enable())
     }
 
     fn get_instance_handle(&self) -> ReturnCode<InstanceHandle> {
-        Ok(self.protocol_participant.lock().unwrap().get_instance_handle())
+        Ok(self.protocol_participant.get_instance_handle())
     }
 }
 
@@ -632,11 +624,11 @@ mod tests {
         }
     }
     impl ProtocolParticipant for MockProtocolParticipant {
-        fn create_publisher(&mut self) -> Box<dyn ProtocolPublisher> {
+        fn create_publisher(&self) -> Box<dyn ProtocolPublisher> {
             Box::new(MockProtocolPublisher)
         }
 
-        fn create_subscriber(&mut self) -> Box<dyn ProtocolSubscriber> {
+        fn create_subscriber(&self) -> Box<dyn ProtocolSubscriber> {
             Box::new(MockProtocolSubscriber)
         }
 
@@ -698,7 +690,7 @@ mod tests {
             subscriber_list: Mutex::new(Vec::new()),
             default_topic_qos: Mutex::new(TopicQos::default()),
             topic_list: Mutex::new(Vec::new()),
-            protocol_participant: Mutex::new(Box::new(MockProtocolParticipant)),
+            protocol_participant: Box::new(MockProtocolParticipant),
         };
 
         let mut publisher = dp.create_publisher(None, NoListener, 0).unwrap();
@@ -725,7 +717,7 @@ mod tests {
             subscriber_list: Mutex::new(Vec::new()),
             default_topic_qos: Mutex::new(TopicQos::default()),
             topic_list: Mutex::new(Vec::new()),
-            protocol_participant: Mutex::new(Box::new(MockProtocolParticipant)),
+            protocol_participant: Box::new(MockProtocolParticipant),
         };
 
         let mut subscriber = dp.create_subscriber(None, NoListener, 0).unwrap();
@@ -776,7 +768,7 @@ mod tests {
             subscriber_list: Mutex::new(Vec::new()),
             default_topic_qos: Mutex::new(TopicQos::default()),
             topic_list: Mutex::new(Vec::new()),
-            protocol_participant: Mutex::new(Box::new(MockProtocolParticipant)),
+            protocol_participant: Box::new(MockProtocolParticipant),
         };
 
         let mut topic: Topic<TestType> = dp.create_topic("test".to_string(), None, NoListener, 0).unwrap();

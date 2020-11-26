@@ -9,6 +9,8 @@ pub mod subscriber;
 pub mod reader;
 pub mod writer;
 
+pub mod protocol;
+
 pub mod message_receiver;
 pub mod message_sender;
 

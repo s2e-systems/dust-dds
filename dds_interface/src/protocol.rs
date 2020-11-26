@@ -8,9 +8,9 @@ pub trait ProtocolEntity {
 }
 
 pub trait ProtocolParticipant : ProtocolEntity + 'static {
-    fn create_publisher(&mut self) -> Box<dyn ProtocolPublisher>;
+    fn create_publisher(&self) -> Box<dyn ProtocolPublisher>;
 
-    fn create_subscriber(&mut self) -> Box<dyn ProtocolSubscriber>;
+    fn create_subscriber(&self) -> Box<dyn ProtocolSubscriber>;
     fn get_builtin_subscriber(&self) -> Box<dyn ProtocolSubscriber>;
 
     fn enable(&self);

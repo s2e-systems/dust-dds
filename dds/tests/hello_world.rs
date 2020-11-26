@@ -53,5 +53,5 @@ fn hello_world() {
     datawriter.write_w_timestamp(data, handle, timestamp).expect("Error writing");
 
 
-    // std::thread::sleep(std::time::Duration::from_secs(5))
+    std::thread::sleep(std::time::Duration::from_secs(5))
 }
