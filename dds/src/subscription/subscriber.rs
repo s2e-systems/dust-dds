@@ -17,19 +17,18 @@ use crate::infrastructure::entity::DomainEntity;
 use crate::subscription::subscriber_listener::SubscriberListener;
 use crate::types::DDSType;
 
-use rust_dds_interface::protocol::ProtocolSubscriber;
 use rust_dds_interface::qos::{TopicQos, SubscriberQos, DataReaderQos};
 
 pub(crate) struct SubscriberImpl {
-    protocol_subscriber: Mutex<Box<dyn ProtocolSubscriber>>,
+    protocol_subscriber: InstanceHandle,
     default_data_reader_qos: Mutex<DataReaderQos>,
     data_reader_list: Mutex<Vec<Arc<dyn AnyDataReaderImpl>>>,
 }
 
 impl SubscriberImpl {
-    pub(crate) fn new(protocol_subscriber: Box<dyn ProtocolSubscriber>) -> Self{
+    pub(crate) fn new(protocol_subscriber: InstanceHandle) -> Self{
         Self{
-            protocol_subscriber: Mutex::new(protocol_subscriber),
+            protocol_subscriber,
             default_data_reader_qos: Mutex::new(DataReaderQos::default()),
             data_reader_list: Mutex::new(Vec::new()),
         }
@@ -91,8 +90,8 @@ impl<'subscriber> Subscriber<'subscriber> {
             Some(data_reader_qos) => data_reader_qos,
             None => &default_data_reader_qos,
         };
-
-        let protocol_reader = subscriber_impl.protocol_subscriber.lock().unwrap().create_reader(T::topic_kind(), &data_reader_qos);
+        let protocol_participant = self.parent_participant.protocol_participant();
+        let protocol_reader = protocol_participant.create_reader(subscriber_impl.protocol_subscriber, T::topic_kind(), &data_reader_qos).ok()?;
         let data_reader_impl = Arc::new(DataReaderImpl::new(protocol_reader));
         subscriber_impl.data_reader_list.lock().unwrap().push(data_reader_impl.clone());
         let data_reader = DataReader::new(self, a_topic, Arc::downgrade(&data_reader_impl));

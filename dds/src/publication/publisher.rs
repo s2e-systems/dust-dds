@@ -11,19 +11,18 @@ use crate::infrastructure::entity::DomainEntity;
 use crate::publication::publisher_listener::PublisherListener;
 
 use rust_dds_interface::types::{ReturnCode, Duration, InstanceHandle, ReturnCodes};
-use rust_dds_interface::protocol::ProtocolPublisher;
 use rust_dds_interface::qos::{TopicQos, PublisherQos, DataWriterQos};
 
 pub(crate) struct PublisherImpl {
-    protocol_publisher: Mutex<Box<dyn ProtocolPublisher>>,
+    protocol_publisher: InstanceHandle,
     default_data_writer_qos: Mutex<DataWriterQos>,
     data_writer_list: Mutex<Vec<Arc<dyn AnyDataWriterImpl>>>,
 }
 
 impl PublisherImpl {
-    pub(crate) fn new(protocol_publisher: Box<dyn ProtocolPublisher>) -> Self{
+    pub(crate) fn new(protocol_publisher: InstanceHandle) -> Self{
         Self{
-            protocol_publisher: Mutex::new(protocol_publisher),
+            protocol_publisher,
             default_data_writer_qos: Mutex::new(DataWriterQos::default()),
             data_writer_list: Mutex::new(Vec::new()),
         }
@@ -76,8 +75,8 @@ impl<'publisher> Publisher<'publisher> {
             Some(data_writer_qos) => data_writer_qos,
             None => &default_data_writer_qos,
         };
-
-        let protocol_writer = publisher_impl.protocol_publisher.lock().unwrap().create_writer(T::topic_kind(), &data_writer_qos);
+        let protocol_participant = self.parent_participant.protocol_participant();
+        let protocol_writer = protocol_participant.create_writer(publisher_impl.protocol_publisher, T::topic_kind(), &data_writer_qos).ok()?;
         let data_writer_impl = Arc::new(DataWriterImpl::new(protocol_writer));
         publisher_impl.data_writer_list.lock().unwrap().push(data_writer_impl.clone());
         let data_writer = DataWriter::new(self, a_topic, Arc::downgrade(&data_writer_impl));

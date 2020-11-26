@@ -3,9 +3,8 @@ use crate::types::{EntityId, EntityKey, EntityKind, GuidPrefix, GUID};
 
 use crate::writer::Writer;
 
-use rust_dds_interface::protocol::{ProtocolEntity, ProtocolPublisher, ProtocolWriter};
 use rust_dds_interface::qos::DataWriterQos;
-use rust_dds_interface::types::{InstanceHandle, TopicKind};
+use rust_dds_interface::types::{InstanceHandle, TopicKind, ReturnCode};
 
 pub struct Publisher {
     group: RtpsGroup,
@@ -23,20 +22,12 @@ impl Publisher {
             writer_counter: 0,
         }
     }
-}
 
-impl ProtocolEntity for Publisher {
-    fn get_instance_handle(&self) -> InstanceHandle {
-        self.group.entity.guid.into()
-    }
-}
-
-impl ProtocolPublisher for Publisher {
-    fn create_writer(
+    pub fn create_writer(
         &mut self,
         topic_kind: TopicKind,
         data_writer_qos: &DataWriterQos,
-    ) -> Box<dyn ProtocolWriter> {
+    ) -> ReturnCode<Writer> {
         let guid_prefix = self.group.entity.guid.prefix();
         let entity_key = [
             self.group.entity.guid.entity_id().entity_key()[0],
@@ -46,11 +37,15 @@ impl ProtocolPublisher for Publisher {
 
         self.writer_counter += 1;
 
-        Box::new(Writer::new(
+        Ok(Writer::new(
             guid_prefix,
             entity_key,
             topic_kind,
             data_writer_qos,
         ))
+    }
+
+    pub fn get_instance_handle(&self) -> InstanceHandle {
+        self.group.entity.guid.into()
     }
 }

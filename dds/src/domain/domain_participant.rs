@@ -114,7 +114,7 @@ impl DomainParticipant {
             None => &default_subscriber_qos,
         };
 
-        let protocol_publisher = self.protocol_participant.create_publisher();
+        let protocol_publisher = self.protocol_participant.create_publisher().ok()?;
         let publisher_impl = Arc::new(PublisherImpl::new(protocol_publisher));
         self.publisher_list.lock().unwrap().push(publisher_impl.clone());
 
@@ -163,7 +163,7 @@ impl DomainParticipant {
             None => &default_subscriber_qos,
         };
 
-        let protocol_subscriber = self.protocol_participant.create_subscriber();
+        let protocol_subscriber = self.protocol_participant.create_subscriber().ok()?;
         let subscriber_impl = Arc::new(SubscriberImpl::new(protocol_subscriber));
         self.subscriber_list.lock().unwrap().push(subscriber_impl.clone());
 
@@ -564,6 +564,10 @@ impl DomainParticipant {
         todo!()
     }
 
+    pub(crate) fn protocol_participant(&self) -> &Box<dyn ProtocolParticipant> {
+        &self.protocol_participant
+    }
+
 }
 
 impl Entity for DomainParticipant
@@ -614,7 +618,7 @@ impl Entity for DomainParticipant
 mod tests {
     use super::*;
     use crate::infrastructure::listener::NoListener;
-    use rust_dds_interface::protocol::{ProtocolEntity, ProtocolPublisher, ProtocolSubscriber};
+    use rust_dds_interface::protocol::ProtocolEntity;
 
     struct MockProtocolParticipant;
 
@@ -624,27 +628,27 @@ mod tests {
         }
     }
     impl ProtocolParticipant for MockProtocolParticipant {
-        fn create_publisher(&self) -> Box<dyn ProtocolPublisher> {
-            Box::new(MockProtocolPublisher)
+        fn create_publisher(&self) -> ReturnCode<InstanceHandle> {
+            Ok([2;16])
         }
 
-        fn create_subscriber(&self) -> Box<dyn ProtocolSubscriber> {
-            Box::new(MockProtocolSubscriber)
+        fn create_writer(&self, _parent_publisher: InstanceHandle, _topic_kind: rust_dds_interface::types::TopicKind, _data_writer_qos: &rust_dds_interface::qos::DataWriterQos) -> ReturnCode<Box<dyn rust_dds_interface::protocol::ProtocolWriter>> {
+            todo!()
         }
 
-        fn get_builtin_subscriber(&self) -> Box<dyn rust_dds_interface::protocol::ProtocolSubscriber> {
+        fn create_subscriber(&self) -> ReturnCode<InstanceHandle> {
+            Ok([1;16])
+        }
+
+        fn create_reader(&self, _parent_subscriber: InstanceHandle, _topic_kind: rust_dds_interface::types::TopicKind, _data_reader_qos: &rust_dds_interface::qos::DataReaderQos) -> ReturnCode<Box<dyn rust_dds_interface::protocol::ProtocolReader>> {
+            todo!()
+        }
+
+        fn get_builtin_subscriber(&self) -> ReturnCode<InstanceHandle> {
             todo!()
         }
 
         fn enable(&self) {
-            todo!()
-        }
-
-        fn receive(&self, _publisher_list: &[&dyn ProtocolPublisher], _subscriber_list: &[&dyn ProtocolSubscriber]) {
-            todo!()
-        }
-
-        fn send(&self, _publisher_list: &[&dyn ProtocolPublisher], _subscriber_list: &[&dyn ProtocolSubscriber]) {
             todo!()
         }
     }
@@ -656,22 +660,11 @@ mod tests {
         }
     }
 
-    impl ProtocolPublisher for MockProtocolPublisher {
-        fn create_writer(&mut self, _topic_kind: rust_dds_interface::types::TopicKind, _data_writer_qos: &rust_dds_interface::qos::DataWriterQos) -> Box<dyn rust_dds_interface::protocol::ProtocolWriter> {
-            todo!()
-        }
-    }
-
+  
     struct MockProtocolSubscriber;
     impl ProtocolEntity for MockProtocolSubscriber {
 
         fn get_instance_handle(&self) -> InstanceHandle {
-            todo!()
-        }
-    }
-
-    impl ProtocolSubscriber for MockProtocolSubscriber {
-        fn create_reader(&mut self, _topic_kind: rust_dds_interface::types::TopicKind, _data_reader_qos: &rust_dds_interface::qos::DataReaderQos) -> Box<dyn rust_dds_interface::protocol::ProtocolReader> {
             todo!()
         }
     }
