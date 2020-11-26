@@ -67,7 +67,7 @@ impl DomainParticipant {
         enabled: bool,
     ) ->  Option<DomainParticipant> {
         use rust_rtps::transport::udp::UdpTransport;
-        use rust_rtps::protocol::Participant;
+        use rust_rtps::participant::Participant;
 
         let interface = "Wi-Fi";
         let userdata_transport = UdpTransport::default_userdata_transport(domain_id, interface).unwrap();

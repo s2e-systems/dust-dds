@@ -3,7 +3,7 @@
 pub mod types;
 pub mod endpoint_types;
 
-pub mod protocol;
+pub mod participant;
 pub mod publisher;
 pub mod subscriber;
 pub mod reader;
