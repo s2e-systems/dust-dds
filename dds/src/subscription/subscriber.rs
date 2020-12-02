@@ -83,21 +83,19 @@ impl<'subscriber> Subscriber<'subscriber> {
         _a_listener: impl DataReaderListener<T>,
         _mask: StatusMask
     ) -> Option<DataReader<T>> {
-        todo!()
-        // let subscriber_impl = self.subscriber_impl().ok()?;
-        // let default_data_reader_qos = subscriber_impl.default_data_reader_qos.lock().unwrap();
+        let subscriber_impl = self.subscriber_impl().ok()?;
+        let default_data_reader_qos = subscriber_impl.default_data_reader_qos.lock().unwrap();
 
-        // let data_reader_qos = match qos {
-        //     Some(data_reader_qos) => data_reader_qos,
-        //     None => &default_data_reader_qos,
-        // };
-        // let protocol_participant = self.parent_participant.protocol_participant();
-        // let protocol_reader = protocol_participant.create_reader(subscriber_impl.protocol_subscriber, T::topic_kind(), &data_reader_qos).ok()?;
-        // let data_reader_impl = Arc::new(DataReaderImpl::new(protocol_reader));
-        // subscriber_impl.data_reader_list.lock().unwrap().push(data_reader_impl.clone());
-        // let data_reader = DataReader::new(self, a_topic, Arc::downgrade(&data_reader_impl));
+        let data_reader_qos = match qos {
+            Some(data_reader_qos) => data_reader_qos,
+            None => &default_data_reader_qos,
+        };
+        let protocol_reader = self.protocol_subscriber.create_reader(T::topic_kind(), &data_reader_qos).ok()?;
+        let data_reader_impl = Arc::new(DataReaderImpl::new());
+        subscriber_impl.data_reader_list.lock().unwrap().push(data_reader_impl.clone());
+        let data_reader = DataReader::new(self, a_topic, protocol_reader, Arc::downgrade(&data_reader_impl));
 
-        // Some(data_reader)
+        Some(data_reader)
     }
 
     /// This operation deletes a DataReader that belongs to the Subscriber. If the DataReader does not belong to the Subscriber, the
@@ -278,7 +276,7 @@ impl<'subscriber> Subscriber<'subscriber> {
     }
 
     // //////////// From here on are the functions that do not belong to the official API
-    pub(crate) fn new(parent_participant:  &'subscriber DomainParticipant, protocol_subscriber: Box<dyn ProtocolSubscriber>, subscriber_impl: Weak<SubscriberImpl>) -> Self{
+    pub(crate) fn new(parent_participant:  &'subscriber DomainParticipant, protocol_subscriber: Box<dyn ProtocolSubscriber + 'subscriber>, subscriber_impl: Weak<SubscriberImpl>) -> Self{
         Self{
             parent_participant,
             protocol_subscriber,

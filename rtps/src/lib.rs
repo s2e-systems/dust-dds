@@ -10,6 +10,7 @@ pub mod reader;
 pub mod writer;
 
 pub mod protocol;
+pub mod rtps_publisher;
 
 pub mod message_receiver;
 pub mod message_sender;

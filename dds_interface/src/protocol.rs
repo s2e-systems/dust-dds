@@ -16,11 +16,11 @@ pub trait ProtocolParticipant : ProtocolEntity {
 }
 
 pub trait ProtocolPublisher : ProtocolEntity {
-    fn create_writer<'a>(&'a self, parent_publisher: InstanceHandle, topic_kind: TopicKind, data_writer_qos: &DataWriterQos) -> ReturnCode<Box<dyn ProtocolWriter + 'a>>;
+    fn create_writer<'a>(&'a self, topic_kind: TopicKind, data_writer_qos: &DataWriterQos) -> ReturnCode<Box<dyn ProtocolWriter + 'a>>;
 }
 
 pub trait ProtocolSubscriber : ProtocolEntity {
-    fn create_reader<'a>(&'a self, parent_subscriber: InstanceHandle, topic_kind: TopicKind, data_reader_qos: &DataReaderQos) -> ReturnCode<Box<dyn ProtocolReader + 'a>>;
+    fn create_reader<'a>(&'a self, topic_kind: TopicKind, data_reader_qos: &DataReaderQos) -> ReturnCode<Box<dyn ProtocolReader + 'a>>;
 }
 
 pub trait ProtocolWriter : ProtocolEntity  {

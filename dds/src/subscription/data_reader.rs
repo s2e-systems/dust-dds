@@ -641,7 +641,7 @@ impl<'reader, T: DDSType> DataReader<'reader, T> {
     }
 
     // ////// From here on are function that do not belong to the standard API
-    pub(crate) fn new(parent_subscriber: &'reader Subscriber<'reader>, topic: &'reader Topic<'reader, T>, protocol_reader: Box<dyn ProtocolReader>, reader_impl: Weak<DataReaderImpl<T>>) -> Self {
+    pub(crate) fn new(parent_subscriber: &'reader Subscriber<'reader>, topic: &'reader Topic<'reader, T>, protocol_reader: Box<dyn ProtocolReader + 'reader>, reader_impl: Weak<DataReaderImpl<T>>) -> Self {
         Self {
             parent_subscriber,
             topic,

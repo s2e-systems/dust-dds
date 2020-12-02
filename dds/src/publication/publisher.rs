@@ -68,21 +68,19 @@ impl<'publisher> Publisher<'publisher> {
         _a_listener: impl DataWriterListener<T>,
         _mask: StatusMask
     ) -> Option<DataWriter<T>> {
-        todo!()
-        // let publisher_impl = self.publisher_impl().ok()?;
-        // let default_data_writer_qos = publisher_impl.default_data_writer_qos.lock().unwrap();
+        let publisher_impl = self.publisher_impl().ok()?;
+        let default_data_writer_qos = publisher_impl.default_data_writer_qos.lock().unwrap();
 
-        // let data_writer_qos = match qos {
-        //     Some(data_writer_qos) => data_writer_qos,
-        //     None => &default_data_writer_qos,
-        // };
-        // let protocol_participant = self.parent_participant.protocol_participant();
-        // let protocol_writer = protocol_participant.create_writer(publisher_impl.protocol_publisher, T::topic_kind(), &data_writer_qos).ok()?;
-        // let data_writer_impl = Arc::new(DataWriterImpl::new(protocol_writer));
-        // publisher_impl.data_writer_list.lock().unwrap().push(data_writer_impl.clone());
-        // let data_writer = DataWriter::new(self, a_topic, Arc::downgrade(&data_writer_impl));
+        let data_writer_qos = match qos {
+            Some(data_writer_qos) => data_writer_qos,
+            None => &default_data_writer_qos,
+        };
+        let protocol_writer = self.protocol_publisher.create_writer(T::topic_kind(), &data_writer_qos).ok()?;
+        let data_writer_impl = Arc::new(DataWriterImpl::new());
+        publisher_impl.data_writer_list.lock().unwrap().push(data_writer_impl.clone());
+        let data_writer = DataWriter::new(self, a_topic, protocol_writer, Arc::downgrade(&data_writer_impl));
 
-        // Some(data_writer)
+        Some(data_writer)
     }
 
     /// This operation deletes a DataWriter that belongs to the Publisher.
@@ -247,7 +245,7 @@ impl<'publisher> Publisher<'publisher> {
     }
 
     // ////// From here on are function that do not belong to the standard API
-    pub(crate) fn new( parent_participant:  &'publisher DomainParticipant, protocol_publisher: Box<dyn ProtocolPublisher>, publisher_impl: Weak<PublisherImpl>) -> Self{
+    pub(crate) fn new( parent_participant:  &'publisher DomainParticipant, protocol_publisher: Box<dyn ProtocolPublisher + 'publisher>, publisher_impl: Weak<PublisherImpl>) -> Self{
         Self{
             parent_participant,
             protocol_publisher,

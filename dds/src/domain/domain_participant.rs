@@ -108,18 +108,17 @@ impl DomainParticipant {
         _a_listener: impl PublisherListener,
         _mask: StatusMask
     ) -> Option<Publisher> {
-        // let default_subscriber_qos = self.default_publisher_qos.lock().unwrap();
-        // let _publisher_qos = match qos {
-        //     Some(qos) => qos,
-        //     None => &default_subscriber_qos,
-        // };
+        let default_subscriber_qos = self.default_publisher_qos.lock().unwrap();
+        let _publisher_qos = match qos {
+            Some(qos) => qos,
+            None => &default_subscriber_qos,
+        };
 
-        // let protocol_publisher = self.protocol_participant.create_publisher().ok()?;
-        // let publisher_impl = Arc::new(PublisherImpl::new(protocol_publisher));
-        // self.publisher_list.lock().unwrap().push(publisher_impl.clone());
+        let protocol_publisher = self.protocol_participant.create_publisher().ok()?;
+        let publisher_impl = Arc::new(PublisherImpl::new());
+        self.publisher_list.lock().unwrap().push(publisher_impl.clone());
 
-        // Some(Publisher::new(self, Arc::downgrade(&publisher_impl)))
-        todo!()
+        Some(Publisher::new(self, protocol_publisher, Arc::downgrade(&publisher_impl)))
     }
 
     /// This operation deletes an existing Publisher.
@@ -158,18 +157,17 @@ impl DomainParticipant {
         _a_listener: impl SubscriberListener,
         _mask: StatusMask
     ) -> Option<Subscriber> {
-        // let default_subscriber_qos = self.default_subscriber_qos.lock().unwrap();
-        // let _subscriber_qos = match qos {
-        //     Some(qos) => qos,
-        //     None => &default_subscriber_qos,
-        // };
+        let default_subscriber_qos = self.default_subscriber_qos.lock().unwrap();
+        let _subscriber_qos = match qos {
+            Some(qos) => qos,
+            None => &default_subscriber_qos,
+        };
 
-        // let protocol_subscriber = self.protocol_participant.create_subscriber().ok()?;
-        // let subscriber_impl = Arc::new(SubscriberImpl::new(protocol_subscriber));
-        // self.subscriber_list.lock().unwrap().push(subscriber_impl.clone());
+        let protocol_subscriber = self.protocol_participant.create_subscriber().ok()?;
+        let subscriber_impl = Arc::new(SubscriberImpl::new());
+        self.subscriber_list.lock().unwrap().push(subscriber_impl.clone());
 
-        // Some(Subscriber::new(self, Arc::downgrade(&subscriber_impl)))
-        todo!()
+        Some(Subscriber::new(self, protocol_subscriber, Arc::downgrade(&subscriber_impl)))
     }
 
     /// This operation deletes an existing Subscriber.
@@ -620,7 +618,7 @@ impl Entity for DomainParticipant
 mod tests {
     use super::*;
     use crate::infrastructure::listener::NoListener;
-    use rust_dds_interface::protocol::ProtocolEntity;
+    use rust_dds_interface::protocol::{ProtocolEntity, ProtocolSubscriber, ProtocolPublisher};
 
     struct MockProtocolParticipant;
 
@@ -634,12 +632,12 @@ mod tests {
         }
     }
     impl ProtocolParticipant for MockProtocolParticipant {
-        fn create_publisher<'a>(&'a self) -> ReturnCode<Box<dyn rust_dds_interface::protocol::ProtocolPublisher + 'a>> {
-            todo!()
+        fn create_publisher<'a>(&'a self) -> ReturnCode<Box<dyn ProtocolPublisher + 'a>> {
+            Ok(Box::new(MockProtocolPublisher))
         }
 
-        fn create_subscriber<'a>(&'a self) -> ReturnCode<Box<dyn rust_dds_interface::protocol::ProtocolSubscriber + 'a>> {
-            todo!()
+        fn create_subscriber<'a>(&'a self) -> ReturnCode<Box<dyn ProtocolSubscriber + 'a>> {
+            Ok(Box::new(MockProtocolSubscriber))
         }
 
         fn get_builtin_subscriber(&self) -> ReturnCode<InstanceHandle> {
@@ -658,6 +656,12 @@ mod tests {
         }
     }
 
+    impl ProtocolPublisher for MockProtocolPublisher {
+        fn create_writer<'a>(&'a self, topic_kind: rust_dds_interface::types::TopicKind, data_writer_qos: &rust_dds_interface::qos::DataWriterQos) -> ReturnCode<Box<dyn rust_dds_interface::protocol::ProtocolWriter + 'a>> {
+            todo!()
+        }
+    }
+
   
     struct MockProtocolSubscriber;
     impl ProtocolEntity for MockProtocolSubscriber {
@@ -667,6 +671,12 @@ mod tests {
         }
 
         fn enable(&self) {
+            todo!()
+        }
+    }
+
+    impl ProtocolSubscriber for MockProtocolSubscriber {
+        fn create_reader<'a>(&'a self, topic_kind: rust_dds_interface::types::TopicKind, data_reader_qos: &rust_dds_interface::qos::DataReaderQos) -> ReturnCode<Box<dyn rust_dds_interface::protocol::ProtocolReader + 'a>> {
             todo!()
         }
     }

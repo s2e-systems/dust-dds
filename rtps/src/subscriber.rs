@@ -3,26 +3,37 @@ use crate::structure::RtpsGroup;
 use crate::types::{EntityId, EntityKey, EntityKind, GuidPrefix, GUID};
 
 use rust_dds_interface::qos::DataReaderQos;
-use rust_dds_interface::types::{InstanceHandle, TopicKind, ReturnCode};
+use rust_dds_interface::types::{InstanceHandle, TopicKind, ReturnCode, ReturnCodes};
 
-pub struct Subscriber {
+
+struct SubscriberInner {
     group: RtpsGroup,
     reader_counter: usize,
 }
 
+#[derive(Default)]
+pub struct Subscriber {
+    inner: Option<SubscriberInner>,
+}
+
 impl Subscriber {
-    pub fn new(guid_prefix: GuidPrefix, entity_key: EntityKey) -> Self {
-        let entity_id = EntityId::new(entity_key, EntityKind::UserDefinedReaderGroup);
-        let subscriber_guid = GUID::new(guid_prefix, entity_id);
-        let group = RtpsGroup::new(subscriber_guid);
-        Self {
-            group,
-            reader_counter: 0,
+    pub fn initialize(&mut self, guid_prefix: GuidPrefix, entity_key: EntityKey) -> ReturnCode<()> {
+        if let None = self.inner {
+            let entity_id = EntityId::new(entity_key, EntityKind::UserDefinedReaderGroup);
+            let subscriber_guid = GUID::new(guid_prefix, entity_id);
+            let group = RtpsGroup::new(subscriber_guid);
+            self.inner = Some( SubscriberInner {
+                group,
+                reader_counter: 0,
+            });
+            Ok(())
+        } else {
+            Err(ReturnCodes::PreconditionNotMet("RTPS subscriber already initialized"))
         }
     }
     
     pub fn get_instance_handle(&self) -> InstanceHandle {
-        self.group.entity.guid.into()
+        self.inner.as_ref().unwrap().group.entity.guid.into()
     }
 
     pub fn create_reader(
@@ -30,13 +41,14 @@ impl Subscriber {
         topic_kind: TopicKind,
         data_reader_qos: &DataReaderQos,
     ) -> ReturnCode<Reader> {
-        let guid_prefix = self.group.entity.guid.prefix();
+        let subscriber = self.inner.as_mut().ok_or(ReturnCodes::AlreadyDeleted("RTPS subscriber already deleted"))?;
+        let guid_prefix = subscriber.group.entity.guid.prefix();
         let entity_key = [
-            self.group.entity.guid.entity_id().entity_key()[0],
-            self.reader_counter as u8,
+            subscriber.group.entity.guid.entity_id().entity_key()[0],
+            subscriber.reader_counter as u8,
             0,
         ];
-        self.reader_counter += 1;
+        subscriber.reader_counter += 1;
         Ok(Reader::new(
             guid_prefix,
             entity_key,

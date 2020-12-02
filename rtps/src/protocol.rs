@@ -7,6 +7,7 @@ use crate::transport::udp::UdpTransport;
 use crate::discovery::sedp::SimpleEndpointDiscoveryProtocol;
 use crate::discovery::discovered_writer_data::DiscoveredWriterData;
 use crate::reader::Reader;
+use crate::rtps_publisher::RtpsPublisher;
 
 use rust_dds_interface::protocol::{
     ProtocolEntity, ProtocolParticipant, ProtocolPublisher, ProtocolSubscriber
@@ -15,7 +16,7 @@ use rust_dds_interface::qos::{DataReaderQos, DataWriterQos};
 use rust_dds_interface::types::{DomainId, InstanceHandle, ReturnCode, TopicKind};
 
 pub struct RtpsProtocol {
-    participant: Arc<Mutex<Participant>>,
+    participant: Participant,
     thread_handle: RefCell<Vec<JoinHandle<()>>>,
 }
 
@@ -32,13 +33,13 @@ impl RtpsProtocol {
             nanosec: 0,
         };
 
-        let participant = Arc::new(Mutex::new(Participant::new(
+        let participant = Participant::new(
             domain_id,
             userdata_transport,
             metatraffic_transport,
             domain_tag,
             lease_duration,
-        )));
+        );
 
         Self {
             participant,
@@ -49,21 +50,21 @@ impl RtpsProtocol {
 
 impl ProtocolEntity for RtpsProtocol {
     fn get_instance_handle(&self) -> InstanceHandle {
-        self.participant.lock().unwrap().get_instance_handle()
+        self.participant.get_instance_handle()
     }
 
     fn enable(&self) {
-        let participant = self.participant.clone();
+        // let participant = self.participant.clone();
 
-        let handle = std::thread::spawn(move || loop {
-            participant.lock().unwrap().send_metatraffic();
+        // let handle = std::thread::spawn(move || loop {
+        //     participant.lock().unwrap().send_metatraffic();
 
-            std::thread::sleep(std::time::Duration::from_millis(500));
+        //     std::thread::sleep(std::time::Duration::from_millis(500));
 
-            participant.lock().unwrap().reset_discovery()
-        });
+        //     participant.lock().unwrap().reset_discovery()
+        // });
 
-        self.thread_handle.borrow_mut().push(handle);
+        // self.thread_handle.borrow_mut().push(handle);
         // RtpsMessageReceiver::receive(
         //     self.participant.guid().prefix(),
         //     self.metatraffic_transport.as_ref(),
@@ -80,8 +81,8 @@ impl ProtocolEntity for RtpsProtocol {
 
 impl ProtocolParticipant for RtpsProtocol {
     fn create_publisher<'a>(&'a self) -> ReturnCode<Box<dyn ProtocolPublisher + 'a>> {
-        todo!()
-        // self.participant.lock().unwrap().create_publisher()
+        let publisher = self.participant.create_publisher()?;
+        Ok(Box::new(RtpsPublisher::new(&self.participant, publisher)))
     }
 
     fn create_subscriber<'a>(&'a self) -> ReturnCode<Box<dyn ProtocolSubscriber + 'a>> {

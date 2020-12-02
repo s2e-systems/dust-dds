@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::sync::Mutex;
 
 use crate::discovery::spdp_data::SPDPdiscoveredParticipantData;
 use crate::discovery::discovered_writer_data::DiscoveredWriterData;
@@ -15,8 +15,6 @@ use crate::behavior::endpoint_traits::AcknowldegmentReceiver;
 use crate::discovery::sedp::SimpleEndpointDiscoveryProtocol;
 use crate::publisher::Publisher;
 use crate::subscriber::Subscriber;
-use crate::writer::Writer;
-use crate::reader::Reader;
 
 use rust_dds_interface::qos::{DataWriterQos, DataReaderQos};
 use rust_dds_interface::types::{DomainId, InstanceHandle, ReturnCode, ReturnCodes, TopicKind, ChangeKind};
@@ -24,13 +22,13 @@ use rust_dds_interface::types::{DomainId, InstanceHandle, ReturnCode, ReturnCode
 pub struct Participant {
     participant: RtpsParticipant,
     spdp: SimpleParticipantDiscovery,
-    sedp: Box<SimpleEndpointDiscoveryProtocol>,
-    publishers: HashMap<InstanceHandle, Publisher>,
-    subscribers: HashMap<InstanceHandle, Subscriber>,
+    sedp: SimpleEndpointDiscoveryProtocol,
+    publishers: [Publisher; 32],
+    subscribers: [Subscriber; 32],
     userdata_transport: Box<dyn Transport>,
     metatraffic_transport: Box<dyn Transport>,
-    publisher_counter: usize,
-    subscriber_counter: usize,
+    publisher_counter: Mutex<usize>,
+    subscriber_counter: Mutex<usize>,
 }
 
 impl Participant {
@@ -71,7 +69,7 @@ impl Participant {
 
         let spdp = SimpleParticipantDiscovery::new(spdp_data);
 
-        let sedp = Box::new(SimpleEndpointDiscoveryProtocol::new(guid_prefix));
+        let sedp = SimpleEndpointDiscoveryProtocol::new(guid_prefix);
 
         // let builtin_publisher = BuiltInPublisher::new(guid_prefix);
         // let builtin_subscriber = BuiltInSubscriber::new(guid_prefix);
@@ -83,14 +81,14 @@ impl Participant {
             participant,
             // builtin_publisher,
             // builtin_subscriber,
-            publishers: HashMap::new(),
-            subscribers: HashMap::new(),
+            publishers: Default::default(),
+            subscribers: Default::default(),
             spdp,
             sedp,
             userdata_transport,
             metatraffic_transport,
-            publisher_counter: 0,
-            subscriber_counter: 0,
+            publisher_counter: Mutex::new(0),
+            subscriber_counter: Mutex::new(0),
         }
     }
 
@@ -122,66 +120,66 @@ impl Participant {
         self.participant.entity.guid.into()
     }
 
-    pub fn create_publisher(&mut self) -> ReturnCode<InstanceHandle> {
+    pub fn create_publisher(&self) -> ReturnCode<&Publisher> {
+        let mut publisher_counter = self.publisher_counter.lock().unwrap();
         let guid_prefix = self.participant.entity.guid.prefix();
-        let entity_key = [self.publisher_counter as u8, 0, 0];
-        self.publisher_counter += 1;
+        let entity_key = [*publisher_counter as u8, 0, 0];
+        let publisher = &self.publishers[*publisher_counter];
+        publisher.initialize(guid_prefix, entity_key)?;
 
-        let publisher = Publisher::new(guid_prefix, entity_key);
-        let instance_handle = publisher.get_instance_handle();
-        self.publishers.insert(instance_handle, publisher);
-        Ok(instance_handle)
+        *publisher_counter += 1;
+
+        Ok(publisher)
     }
 
-    pub fn create_writer(
-        &mut self,
-        parent_publisher: &InstanceHandle,
-        topic_kind: TopicKind,
-        data_writer_qos: &DataWriterQos,
-    ) -> ReturnCode<Writer> {
-        let writer = self.publishers
-            .get_mut(parent_publisher)
-            .ok_or(ReturnCodes::PreconditionNotMet(
-                "Parent publisher not found",
-            ))?
-            .create_writer(topic_kind, data_writer_qos)?;
+    // pub fn create_writer(
+    //     &mut self,
+    //     parent_publisher: &InstanceHandle,
+    //     topic_kind: TopicKind,
+    //     data_writer_qos: &DataWriterQos,
+    // ) -> ReturnCode<Writer> {
+    //     let writer = self.publishers
+    //         .get_mut(parent_publisher)
+    //         .ok_or(ReturnCodes::PreconditionNotMet(
+    //             "Parent publisher not found",
+    //         ))?
+    //         .create_writer(topic_kind, data_writer_qos)?;
 
-        // let discovered_writer_data = DiscoveredWriterData::new();
+    //     // let discovered_writer_data = DiscoveredWriterData::new();
 
-        // let kind = ChangeKind::Alive;
-        // let handle = discovered_writer_data.key();
-        // let data = Some(discovered_writer_data.data());
-        // let inline_qos = None;
-        // let cc = self.sedp.sedp_builtin_publications_writer().writer.new_change(kind, data, inline_qos, handle);
-        // self.sedp.sedp_builtin_publications_writer().writer.writer_cache.add_change(cc)?;
+    //     // let kind = ChangeKind::Alive;
+    //     // let handle = discovered_writer_data.key();
+    //     // let data = Some(discovered_writer_data.data());
+    //     // let inline_qos = None;
+    //     // let cc = self.sedp.sedp_builtin_publications_writer().writer.new_change(kind, data, inline_qos, handle);
+    //     // self.sedp.sedp_builtin_publications_writer().writer.writer_cache.add_change(cc)?;
 
-        Ok(writer)
-    }
+    //     Ok(writer)
+    // }
 
-    pub fn create_subscriber(&mut self) -> ReturnCode<InstanceHandle> {
+    pub fn create_subscriber(&mut self) -> ReturnCode<&Subscriber> {
+        let mut subscriber_counter = self.subscriber_counter.lock().unwrap();
         let guid_prefix = self.participant.entity.guid.prefix();
-        let entity_key = [self.subscriber_counter as u8, 0, 0];
-        self.subscriber_counter += 1;
-
-        let subscriber = Subscriber::new(guid_prefix, entity_key);
-        let instance_handle = subscriber.get_instance_handle();
-        self.subscribers.insert(instance_handle, subscriber);
-        Ok(instance_handle)
+        let entity_key = [*subscriber_counter as u8, 0, 0];
+        let subscriber = &mut self.subscribers[*subscriber_counter];
+        subscriber.initialize(guid_prefix, entity_key)?;
+        *subscriber_counter += 1;
+        Ok(subscriber)
     }
 
-    pub fn create_reader(
-        &mut self,
-        parent_subscriber: &InstanceHandle,
-        topic_kind: TopicKind,
-        data_reader_qos: &DataReaderQos,
-    ) -> ReturnCode<Reader> {
-        self.subscribers
-            .get_mut(parent_subscriber)
-            .ok_or(ReturnCodes::PreconditionNotMet(
-                "Parent subscriber not found",
-            ))?
-            .create_reader(topic_kind, data_reader_qos)
-    }
+    // pub fn create_reader(
+    //     &mut self,
+    //     parent_subscriber: &InstanceHandle,
+    //     topic_kind: TopicKind,
+    //     data_reader_qos: &DataReaderQos,
+    // ) -> ReturnCode<Reader> {
+    //     self.subscribers
+    //         .get_mut(parent_subscriber)
+    //         .ok_or(ReturnCodes::PreconditionNotMet(
+    //             "Parent subscriber not found",
+    //         ))?
+    //         .create_reader(topic_kind, data_reader_qos)
+    // }
 
 
     pub fn reset_discovery(&mut self) {

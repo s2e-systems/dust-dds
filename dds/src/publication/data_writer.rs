@@ -393,7 +393,7 @@ impl<'writer,T: DDSType> DataWriter<'writer, T> {
     }
 
     // ////// From here on are function that do not belong to the standard API
-    pub(crate) fn new(parent_publisher: &'writer Publisher<'writer>, topic: &'writer Topic<'writer, T>, protocol_writer: Box<dyn ProtocolWriter>, writer_impl: Weak<DataWriterImpl<T>>) -> Self {
+    pub(crate) fn new(parent_publisher: &'writer Publisher<'writer>, topic: &'writer Topic<'writer, T>, protocol_writer: Box<dyn ProtocolWriter + 'writer>, writer_impl: Weak<DataWriterImpl<T>>) -> Self {
         Self {
             parent_publisher,
             topic,
