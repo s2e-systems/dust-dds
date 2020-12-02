@@ -49,6 +49,10 @@ impl ProtocolEntity for Reader {
     fn get_instance_handle(&self) -> InstanceHandle {
         self.stateful_reader.reader.endpoint.entity.guid.into()
     }
+
+    fn enable(&self) {
+        todo!()
+    }
 }
 
 impl ProtocolReader for Reader {}

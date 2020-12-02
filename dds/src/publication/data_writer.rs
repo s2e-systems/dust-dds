@@ -21,14 +21,12 @@ pub(crate) trait AnyDataWriterImpl{}
 impl<T: DDSType> AnyDataWriterImpl for DataWriterImpl<T>{}
 
 pub(crate) struct DataWriterImpl<T: DDSType> {
-    protocol_writer: Mutex<Box<dyn ProtocolWriter>>,
     data: PhantomData<T>,
 }
 
 impl<T: DDSType> DataWriterImpl<T> {
-    pub(crate) fn new(protocol_writer: Box<dyn ProtocolWriter>) -> Self{
+    pub(crate) fn new() -> Self{
         Self{
-            protocol_writer: Mutex::new(protocol_writer),
             data: PhantomData,
         }
     }
@@ -37,6 +35,7 @@ impl<T: DDSType> DataWriterImpl<T> {
 pub struct DataWriter<'writer, T: DDSType> {
     parent_publisher: &'writer Publisher<'writer>,
     topic: &'writer Topic<'writer, T>,
+    protocol_writer: Box<dyn ProtocolWriter + 'writer>,
     inner: Weak<DataWriterImpl<T>>,
 }
 
@@ -225,18 +224,19 @@ impl<'writer,T: DDSType> DataWriter<'writer, T> {
         _handle: Option<InstanceHandle>,
         _timestamp: Time,
     ) -> ReturnCode<()> {
-        let data_writer_impl = self.data_writer_impl()?;
-        let new_change = data_writer_impl
-            .protocol_writer
-            .lock()
-            .unwrap()
-            .new_change(
-                ChangeKind::Alive,
-                Some(data.serialize()),
-                None,
-                 data.instance_handle());
-        data_writer_impl.protocol_writer.lock().unwrap().writer_cache().add_change(new_change)?;
-        Ok(())
+        todo!()
+        // let data_writer_impl = self.data_writer_impl()?;
+        // let new_change = data_writer_impl
+        //     .protocol_writer
+        //     .lock()
+        //     .unwrap()
+        //     .new_change(
+        //         ChangeKind::Alive,
+        //         Some(data.serialize()),
+        //         None,
+        //          data.instance_handle());
+        // data_writer_impl.protocol_writer.lock().unwrap().writer_cache().add_change(new_change)?;
+        // Ok(())
     }
 
     /// This operation requests the middleware to delete the data (the actual deletion is postponed until there is no more use for that
@@ -393,10 +393,11 @@ impl<'writer,T: DDSType> DataWriter<'writer, T> {
     }
 
     // ////// From here on are function that do not belong to the standard API
-    pub(crate) fn new(parent_publisher: &'writer Publisher<'writer>, topic: &'writer Topic<'writer, T>,  writer_impl: Weak<DataWriterImpl<T>>) -> Self {
+    pub(crate) fn new(parent_publisher: &'writer Publisher<'writer>, topic: &'writer Topic<'writer, T>, protocol_writer: Box<dyn ProtocolWriter>, writer_impl: Weak<DataWriterImpl<T>>) -> Self {
         Self {
             parent_publisher,
             topic,
+            protocol_writer,
             inner: writer_impl,
         }
     }

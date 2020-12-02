@@ -61,6 +61,10 @@ impl ProtocolEntity for Writer {
     fn get_instance_handle(&self) -> InstanceHandle {
         self.stateful_writer.writer.endpoint.entity.guid.into()
     }
+
+    fn enable(&self) {
+        todo!()
+    }
 }
 
 impl ProtocolWriter for Writer {

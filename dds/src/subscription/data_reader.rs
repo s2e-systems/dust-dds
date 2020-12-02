@@ -1,4 +1,4 @@
-use std::sync::{Mutex, Arc, Weak};
+use std::sync::{Arc, Weak};
 use std::marker::PhantomData;
 
 use rust_dds_interface::types::{ReturnCode, InstanceHandle, ReturnCodes};
@@ -23,14 +23,12 @@ pub(crate) trait AnyDataReaderImpl{}
 impl<T: DDSType> AnyDataReaderImpl for DataReaderImpl<T>{}
 
 pub(crate) struct DataReaderImpl<T: DDSType> {
-    protocol_reader: Mutex<Box<dyn ProtocolReader>>,
     data: PhantomData<T>,
 }
 
 impl<T: DDSType> DataReaderImpl<T> {
-    pub(crate) fn new(protocol_reader: Box<dyn ProtocolReader>) -> Self{
+    pub(crate) fn new() -> Self{
         Self{
-            protocol_reader: Mutex::new(protocol_reader),
             data: PhantomData,
         }
     }
@@ -50,6 +48,7 @@ impl<T: DDSType> DataReaderImpl<T> {
 pub struct DataReader<'reader, T: DDSType>{
     parent_subscriber: &'reader Subscriber<'reader>,
     topic: &'reader Topic<'reader, T>,
+    protocol_reader: Box<dyn ProtocolReader + 'reader>,
     inner: Weak<DataReaderImpl<T>>,
 }
     
@@ -642,10 +641,11 @@ impl<'reader, T: DDSType> DataReader<'reader, T> {
     }
 
     // ////// From here on are function that do not belong to the standard API
-    pub(crate) fn new(parent_subscriber: &'reader Subscriber<'reader>, topic: &'reader Topic<'reader, T>,  reader_impl: Weak<DataReaderImpl<T>>) -> Self {
+    pub(crate) fn new(parent_subscriber: &'reader Subscriber<'reader>, topic: &'reader Topic<'reader, T>, protocol_reader: Box<dyn ProtocolReader>, reader_impl: Weak<DataReaderImpl<T>>) -> Self {
         Self {
             parent_subscriber,
             topic,
+            protocol_reader,
             inner: reader_impl,
         }
     }

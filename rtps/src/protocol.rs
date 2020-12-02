@@ -9,7 +9,7 @@ use crate::discovery::discovered_writer_data::DiscoveredWriterData;
 use crate::reader::Reader;
 
 use rust_dds_interface::protocol::{
-    ProtocolEntity, ProtocolParticipant, ProtocolReader, ProtocolWriter,
+    ProtocolEntity, ProtocolParticipant, ProtocolPublisher, ProtocolSubscriber
 };
 use rust_dds_interface::qos::{DataReaderQos, DataWriterQos};
 use rust_dds_interface::types::{DomainId, InstanceHandle, ReturnCode, TopicKind};
@@ -51,47 +51,6 @@ impl ProtocolEntity for RtpsProtocol {
     fn get_instance_handle(&self) -> InstanceHandle {
         self.participant.lock().unwrap().get_instance_handle()
     }
-}
-
-impl ProtocolParticipant for RtpsProtocol {
-    fn create_publisher(&self) -> ReturnCode<InstanceHandle> {
-        self.participant.lock().unwrap().create_publisher()
-    }
-
-    fn create_subscriber(&self) -> ReturnCode<InstanceHandle> {
-        self.participant.lock().unwrap().create_subscriber()
-    }
-
-    fn create_writer(
-        & self,
-        parent_publisher: InstanceHandle,
-        topic_kind: TopicKind,
-        data_writer_qos: &DataWriterQos,
-    ) -> ReturnCode<Box<dyn ProtocolWriter>> {
-        Ok(Box::new(self.participant.lock().unwrap().create_writer(
-            &parent_publisher,
-            topic_kind,
-            data_writer_qos,
-        )?))
-    }
-
-    fn create_reader(
-        &self,
-        parent_subscriber: InstanceHandle,
-        topic_kind: TopicKind,
-        data_reader_qos: &DataReaderQos,
-    ) -> ReturnCode<Box<dyn ProtocolReader>> {
-        Ok(Box::new(self.participant.lock().unwrap().create_reader(
-            &parent_subscriber,
-            topic_kind,
-            data_reader_qos,
-        )?))
-    }
-
-    fn get_builtin_subscriber(&self) -> ReturnCode<InstanceHandle> {
-        todo!()
-        // Box::new(Subscriber::new(self.builtin_subscriber.clone()))
-    }
 
     fn enable(&self) {
         let participant = self.participant.clone();
@@ -117,22 +76,23 @@ impl ProtocolParticipant for RtpsProtocol {
         //         self.builtin_publisher.lock().unwrap().iter()
         //         .chain(self.builtin_subscriber.lock().unwrap().iter()));
     }
+}
 
-    // fn receive(
-    //     &self,
-    //     _publisher_list: &[&dyn ProtocolPublisher],
-    //     _subscriber_list: &[&dyn ProtocolSubscriber],
-    // ) {
-    //     todo!()
-    // }
+impl ProtocolParticipant for RtpsProtocol {
+    fn create_publisher<'a>(&'a self) -> ReturnCode<Box<dyn ProtocolPublisher + 'a>> {
+        todo!()
+        // self.participant.lock().unwrap().create_publisher()
+    }
 
-    // fn send(
-    //     &self,
-    //     _publisher_list: &[&dyn ProtocolPublisher],
-    //     _subscriber_list: &[&dyn ProtocolSubscriber],
-    // ) {
-    //     todo!()
-    // }
+    fn create_subscriber<'a>(&'a self) -> ReturnCode<Box<dyn ProtocolSubscriber + 'a>> {
+        todo!()
+        // self.participant.lock().unwrap().create_subscriber()
+    }
+
+    fn get_builtin_subscriber(&self) -> ReturnCode<InstanceHandle> {
+        todo!()
+        // Box::new(Subscriber::new(self.builtin_subscriber.clone()))
+    }
 }
 
 fn configure_readers(sedp: &mut SimpleEndpointDiscoveryProtocol, readers: &mut[&mut Reader]) {

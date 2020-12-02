@@ -5,19 +5,22 @@ use crate::qos::{DataWriterQos, DataReaderQos};
 
 pub trait ProtocolEntity {
     fn get_instance_handle(&self) -> InstanceHandle;
+    fn enable(&self);
 }
 
-pub trait ProtocolParticipant : ProtocolEntity + 'static {
-    fn create_publisher(&self) -> ReturnCode<InstanceHandle>;
-    fn create_writer(&self, parent_publisher: InstanceHandle, topic_kind: TopicKind, data_writer_qos: &DataWriterQos) -> ReturnCode<Box<dyn ProtocolWriter>>;
-
-    fn create_subscriber(&self) -> ReturnCode<InstanceHandle>;
-    fn create_reader(&self, parent_subscriber: InstanceHandle, topic_kind: TopicKind, data_reader_qos: &DataReaderQos) -> ReturnCode<Box<dyn ProtocolReader>>;
+pub trait ProtocolParticipant : ProtocolEntity {
+    fn create_publisher<'a>(&'a self) -> ReturnCode<Box<dyn ProtocolPublisher + 'a>>;
+    fn create_subscriber<'a>(&'a self) -> ReturnCode<Box<dyn ProtocolSubscriber + 'a>>;
+    
     fn get_builtin_subscriber(&self) -> ReturnCode<InstanceHandle>;
+}
 
-    fn enable(&self);
-    // fn receive(&self, publisher_list: &[&dyn ProtocolPublisher], subscriber_list: &[&dyn ProtocolSubscriber]);
-    // fn send(&self, publisher_list: &[&dyn ProtocolPublisher], subscriber_list: &[&dyn ProtocolSubscriber]);
+pub trait ProtocolPublisher : ProtocolEntity {
+    fn create_writer<'a>(&'a self, parent_publisher: InstanceHandle, topic_kind: TopicKind, data_writer_qos: &DataWriterQos) -> ReturnCode<Box<dyn ProtocolWriter + 'a>>;
+}
+
+pub trait ProtocolSubscriber : ProtocolEntity {
+    fn create_reader<'a>(&'a self, parent_subscriber: InstanceHandle, topic_kind: TopicKind, data_reader_qos: &DataReaderQos) -> ReturnCode<Box<dyn ProtocolReader + 'a>>;
 }
 
 pub trait ProtocolWriter : ProtocolEntity  {
