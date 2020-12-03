@@ -6,8 +6,12 @@ mod entity;
 mod participant;
 mod group;
 mod endpoint;
+mod history_cache;
+mod cache_change;
 
 pub use entity::RtpsEntity;
 pub use participant::RtpsParticipant;
 pub use group::RtpsGroup;
 pub use endpoint::RtpsEndpoint;
+pub use cache_change::CacheChange;
+pub use history_cache::HistoryCache;

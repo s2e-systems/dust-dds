@@ -22,8 +22,8 @@ impl AckNack {
         endianness: Endianness,
         reader_id: types::EntityId,
         writer_id: types::EntityId,
-        available_changes_max: rust_dds_interface::types::SequenceNumber,
-        missing_changes: BTreeSet<rust_dds_interface::types::SequenceNumber>,
+        available_changes_max: rust_dds_api::types::SequenceNumber,
+        missing_changes: BTreeSet<rust_dds_api::types::SequenceNumber>,
         count: messages::types::Count,
         final_flag: bool) -> Self {
             

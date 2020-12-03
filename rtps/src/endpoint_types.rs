@@ -5,7 +5,7 @@
 
 use serde::{Serialize, Deserialize};
 
-use rust_dds_interface::types::DomainId;
+use rust_dds_api::types::DomainId;
 
 use crate::types::{ProtocolVersion, VendorId, Locator, GUID};
 use crate::serialized_payload::{Pid, ParameterId };

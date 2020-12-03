@@ -1,9 +1,9 @@
 use crate::structure::RtpsEndpoint;
 use crate::types::{ReliabilityKind, GUID};
 
-use rust_dds_interface::cache_change::CacheChange;
-use rust_dds_interface::history_cache::HistoryCache;
-use rust_dds_interface::types::{
+use crate::structure::CacheChange;
+use crate::structure::HistoryCache;
+use rust_dds_api::types::{
     ChangeKind, InstanceHandle, ParameterList, SequenceNumber, TopicKind,
 };
 

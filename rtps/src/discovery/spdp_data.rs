@@ -1,8 +1,8 @@
 use std::sync::Arc;
 use std::convert::TryInto;
 
-use rust_dds_interface::types::{TopicKind, DomainId, InstanceHandle, ChangeKind};
-use rust_dds_interface::history_cache::HistoryCache;
+use rust_dds_api::types::{TopicKind, DomainId, InstanceHandle, ChangeKind};
+use crate::structure::HistoryCache;
 
 use crate::types::{GuidPrefix, GUID, Locator, ProtocolVersion, VendorId, ReliabilityKind};
 use crate::behavior::{StatelessWriter, StatelessReader};

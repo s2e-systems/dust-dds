@@ -55,8 +55,8 @@ mod tests {
     // use crate::messages::submessages::data_submessage::Payload;
     // use crate::behavior::{StatelessReader, StatefulReader, WriterProxy};
 
-    // use rust_dds_interface::qos::DataReaderQos;
-    // use rust_dds_interface::qos_policy::ReliabilityQosPolicyKind;
+    // use rust_dds_api::qos::DataReaderQos;
+    // use rust_dds_api::qos_policy::ReliabilityQosPolicyKind;
 
     // #[test]
     // fn stateless_reader_message_receive() {

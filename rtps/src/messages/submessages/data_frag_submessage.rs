@@ -39,7 +39,7 @@ impl Submessage for DataFrag {
             None => 0,
         };
 
-        if (self.writer_sn < 1 || self.writer_sn == rust_dds_interface::types::SEQUENCE_NUMBER_UNKNOWN) ||
+        if (self.writer_sn < 1 || self.writer_sn == rust_dds_api::types::SEQUENCE_NUMBER_UNKNOWN) ||
            (self.fragment_starting_num < 1) ||
            (self.fragment_size as u32 > self.data_size) ||
            (serialized_data_size > self.fragments_in_submessage as usize * self.fragment_size as usize)

@@ -1,5 +1,5 @@
 use std::collections::BTreeSet;
-use rust_dds_interface::types::SequenceNumber;
+use rust_dds_api::types::SequenceNumber;
 use crate::types::{GUID, Locator};
 
 struct ChangesFromWriter {

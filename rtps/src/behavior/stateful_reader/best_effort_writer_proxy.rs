@@ -4,7 +4,7 @@ use crate::messages::submessages::{Data, Gap};
 use crate::messages::RtpsSubmessage;
 use crate::types::{GuidPrefix, GUID};
 
-use rust_dds_interface::history_cache::HistoryCache;
+use crate::structure::HistoryCache;
 
 pub struct BestEffortWriterProxy(WriterProxy);
 
@@ -103,7 +103,7 @@ mod tests {
         ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER, ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER,
     };
     use crate::types::Locator;
-    use rust_dds_interface::types::{ChangeKind, ParameterList};
+    use rust_dds_api::types::{ChangeKind, ParameterList};
 
     #[test]
     fn process_none_submessage() {

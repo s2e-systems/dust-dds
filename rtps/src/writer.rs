@@ -2,12 +2,10 @@ use crate::types::{GUID, EntityKind, GuidPrefix, EntityKey, EntityId, Reliabilit
 use crate::behavior::StatefulWriter;
 use crate::behavior::types::Duration;
 
-use rust_dds_interface::cache_change::CacheChange;
-use rust_dds_interface::history_cache::HistoryCache;
-use rust_dds_interface::protocol::{ProtocolEntity, ProtocolWriter};
-use rust_dds_interface::qos::DataWriterQos;
-use rust_dds_interface::qos_policy::ReliabilityQosPolicyKind;
-use rust_dds_interface::types::{ChangeKind, Data, InstanceHandle, ParameterList, TopicKind};
+use crate::structure::{CacheChange, HistoryCache};
+use rust_dds_api::qos::DataWriterQos;
+use rust_dds_api::qos_policy::ReliabilityQosPolicyKind;
+use rust_dds_api::types::{ChangeKind, Data, InstanceHandle, ParameterList, TopicKind};
 
 pub struct Writer {
     stateful_writer: StatefulWriter,

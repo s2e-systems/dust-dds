@@ -5,7 +5,7 @@
 use std::time::SystemTime;
 use std::convert::{TryFrom, TryInto};
 
-use rust_dds_interface::types::{ParameterId, Parameter};
+use rust_dds_api::types::{ParameterId, Parameter};
 
 pub mod constants {
     use super::Time;

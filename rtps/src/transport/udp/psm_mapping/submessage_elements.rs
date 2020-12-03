@@ -379,7 +379,7 @@ pub fn deserialize_parameter_list(bytes: &[u8], endianness: Endianness) -> UdpPs
         let value = Vec::from(&bytes[parameter_start_index+4..bytes_end]);
         parameter_start_index = bytes_end;
 
-        parameter_list.parameter.push(rust_dds_interface::types::Parameter::new(parameter_id, value));
+        parameter_list.parameter.push(rust_dds_api::types::Parameter::new(parameter_id, value));
     }
 
     Ok(parameter_list)

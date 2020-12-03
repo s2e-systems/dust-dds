@@ -5,8 +5,8 @@
 
 // use serde::{Serialize, };
 
-// use rust_dds_interface::qos::{DataWriterQos, DataReaderQos};
-// use rust_dds_interface::qos_policy::ReliabilityQosPolicyKind;
+// use rust_dds_api::qos::{DataWriterQos, DataReaderQos};
+// use rust_dds_api::qos_policy::ReliabilityQosPolicyKind;
 
 // #[derive(Debug, Serialize)]
 // struct SpecialQos(u16);

@@ -34,8 +34,8 @@ impl Data {
         endianness: Endianness,
         reader_id: types::EntityId,
         writer_id: types::EntityId,
-        writer_sn: rust_dds_interface::types::SequenceNumber,
-        inline_qos: Option<rust_dds_interface::types::ParameterList>,
+        writer_sn: rust_dds_api::types::SequenceNumber,
+        inline_qos: Option<rust_dds_api::types::ParameterList>,
         payload: Payload,) -> Self {
             let endianness_flag = endianness.into();
             let inline_qos_flag = inline_qos.is_some();
@@ -44,7 +44,7 @@ impl Data {
             let mut non_standard_payload_flag = false;
             let inline_qos = match inline_qos {
                 Some(inline_qos_parameter_list) => inline_qos_parameter_list,
-                None => rust_dds_interface::types::ParameterList::new(),
+                None => rust_dds_api::types::ParameterList::new(),
             };
             let serialized_payload = match  payload {
                 Payload::Data(serialized_payload) => {data_flag = true; serialized_payload},
@@ -110,7 +110,7 @@ impl Data {
         &self.serialized_payload
     }
     
-    pub fn inline_qos(&self) -> &rust_dds_interface::types::ParameterList {
+    pub fn inline_qos(&self) -> &rust_dds_api::types::ParameterList {
         &self.inline_qos
     }
 
@@ -134,7 +134,7 @@ impl Data {
         self.non_standard_payload_flag
     }
 
-    pub fn take_payload_and_qos(self) -> (submessage_elements::SerializedData, rust_dds_interface::types::ParameterList) {
+    pub fn take_payload_and_qos(self) -> (submessage_elements::SerializedData, rust_dds_api::types::ParameterList) {
         (self.serialized_payload, self.inline_qos)
     }
 }
@@ -156,7 +156,7 @@ impl Submessage for Data {
     }
 
     fn is_valid(&self) -> bool {
-        if self.writer_sn < 1 || self.writer_sn == rust_dds_interface::types::SEQUENCE_NUMBER_UNKNOWN {
+        if self.writer_sn < 1 || self.writer_sn == rust_dds_api::types::SEQUENCE_NUMBER_UNKNOWN {
             //TODO: Check validity of inline_qos
             false
         } else {
@@ -184,7 +184,7 @@ mod tests {
             ENTITYID_UNKNOWN, 
             ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, 
             1, 
-            Some(rust_dds_interface::types::ParameterList::new()),
+            Some(rust_dds_api::types::ParameterList::new()),
             Payload::Data(vec![])
         );
         assert_eq!(data.endianness_flag, true);

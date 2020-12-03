@@ -10,8 +10,8 @@ use crate::types::constants::{
 use crate::behavior::{StatefulReader, StatefulWriter,};
 use crate::behavior::types::Duration;
 
-use rust_dds_interface::types::TopicKind;
-use rust_dds_interface::history_cache::HistoryCache;
+use rust_dds_api::types::TopicKind;
+use crate::structure::HistoryCache;
 
 pub struct SimpleEndpointDiscoveryProtocol {
     sedp_builtin_publications_writer: StatefulWriter,

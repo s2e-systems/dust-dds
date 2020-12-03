@@ -1,4 +1,4 @@
-use rust_dds_interface::types::InstanceHandle;
+use rust_dds_api::types::InstanceHandle;
 
 pub struct DiscoveredWriterData {
     id: u32,

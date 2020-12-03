@@ -6,8 +6,8 @@
 //     ReaderProxy, StatefulReader, StatefulWriter, WriterProxy,
 // };
 // use rust_rtps::{RtpsMessageSender, RtpsMessageReceiver, MemoryTransport};
-// use rust_dds_interface::qos::{DataWriterQos, DataReaderQos};
-// use rust_dds_interface::qos_policy::ReliabilityQosPolicyKind;
+// use rust_dds_api::qos::{DataWriterQos, DataReaderQos};
+// use rust_dds_api::qos_policy::ReliabilityQosPolicyKind;
 
 // #[test]
 // fn best_effort_stateful_writer_stateful_reader_data_only() {

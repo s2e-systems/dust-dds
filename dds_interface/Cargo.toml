@@ -1,9 +1,0 @@
-[package]
-name = "rust-dds-interface"
-version = "0.1.0"
-authors = ["Joao Rebelo <2730147+jrebelo@users.noreply.github.com>"]
-edition = "2018"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[dependencies]

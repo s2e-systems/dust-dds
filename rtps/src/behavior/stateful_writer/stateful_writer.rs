@@ -9,8 +9,8 @@ use crate::behavior::endpoint_traits::{DestinedMessages, AcknowldegmentReceiver,
 use super::reader_proxy::ReaderProxy;
 use super::reliable_reader_proxy::ReliableReaderProxy;
 use super::best_effort_reader_proxy::BestEffortReaderProxy;
-use rust_dds_interface::types::TopicKind;
-use rust_dds_interface::history_cache::HistoryCache;
+use rust_dds_api::types::TopicKind;
+use crate::structure::HistoryCache;
 
 enum ReaderProxyFlavor {
     BestEffort(BestEffortReaderProxy),

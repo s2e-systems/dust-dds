@@ -11,8 +11,8 @@ use crate::types::{EntityId, GuidPrefix, GUID};
 use crate::behavior::types::Duration;
 use crate::behavior::{data_from_cache_change, BEHAVIOR_ENDIANNESS};
 
-use rust_dds_interface::history_cache::HistoryCache;
-use rust_dds_interface::types::SequenceNumber;
+use crate::structure::HistoryCache;
+use rust_dds_api::types::SequenceNumber;
 
 pub struct ReliableReaderProxy {
     reader_proxy: ReaderProxy,
@@ -296,8 +296,8 @@ mod tests {
     };
     use crate::types::{Locator, GUID};
 
-    use rust_dds_interface::cache_change::CacheChange;
-    use rust_dds_interface::types::ChangeKind;
+    use crate::structure::CacheChange;
+    use rust_dds_api::types::ChangeKind;
 
     #[test]
     fn produce_empty() {

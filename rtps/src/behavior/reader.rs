@@ -1,7 +1,7 @@
 use crate::structure::RtpsEndpoint;
 use crate::types::{ReliabilityKind, GUID};
-use rust_dds_interface::history_cache::HistoryCache;
-use rust_dds_interface::types::TopicKind;
+use crate::structure::HistoryCache;
+use rust_dds_api::types::TopicKind;
 
 pub struct RtpsReader {
     pub endpoint: RtpsEndpoint,

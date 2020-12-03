@@ -117,7 +117,7 @@ impl GUID {
     }
 }
 
-impl From<GUID> for rust_dds_interface::types::InstanceHandle {
+impl From<GUID> for rust_dds_api::types::InstanceHandle {
     fn from(guid: GUID) -> Self {
         let mut instance_handle = [0u8;16];
         instance_handle[0..12].copy_from_slice(&guid.prefix);
@@ -127,9 +127,9 @@ impl From<GUID> for rust_dds_interface::types::InstanceHandle {
     }
 }
 
-impl TryFrom<rust_dds_interface::types::InstanceHandle> for GUID {
+impl TryFrom<rust_dds_api::types::InstanceHandle> for GUID {
     type Error = ();
-    fn try_from(value: rust_dds_interface::types::InstanceHandle) -> Result<Self, Self::Error> {
+    fn try_from(value: rust_dds_api::types::InstanceHandle) -> Result<Self, Self::Error> {
         let prefix = value[0..12].try_into().unwrap();
         let entity_key = value[12..15].try_into().unwrap();
         let entity_kind = num::FromPrimitive::from_u8(value[15]).unwrap();
@@ -231,7 +231,7 @@ pub type VendorId = [u8; 2];
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rust_dds_interface::types::InstanceHandle;
+    use rust_dds_api::types::InstanceHandle;
 
     #[test]
     fn guid_to_instance_handle() {

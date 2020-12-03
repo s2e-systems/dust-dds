@@ -16,8 +16,8 @@ use crate::discovery::sedp::SimpleEndpointDiscoveryProtocol;
 use crate::publisher::Publisher;
 use crate::subscriber::Subscriber;
 
-use rust_dds_interface::qos::{DataWriterQos, DataReaderQos};
-use rust_dds_interface::types::{DomainId, InstanceHandle, ReturnCode, ReturnCodes, TopicKind, ChangeKind};
+use rust_dds_api::qos::{DataWriterQos, DataReaderQos};
+use rust_dds_api::types::{DomainId, InstanceHandle, ReturnCode, ReturnCodes, TopicKind, ChangeKind};
 
 pub struct Participant {
     participant: RtpsParticipant,
@@ -37,7 +37,7 @@ impl Participant {
         userdata_transport: impl Transport,
         metatraffic_transport: impl Transport,
         domain_tag: String,
-        lease_duration: rust_dds_interface::types::Duration,
+        lease_duration: rust_dds_api::types::Duration,
     ) -> Self {
         let guid_prefix = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]; //TODO: Should be uniquely generated
         let participant =
@@ -241,7 +241,7 @@ impl Participant {
 // fn create_delete_publisher() {
 //     let domain_id = 1;
 //     let domain_tag = "".to_string();
-//     let lease_duration = rust_dds_interface::types::Duration{sec: 30, nanosec: 0};
+//     let lease_duration = rust_dds_api::types::Duration{sec: 30, nanosec: 0};
 //     let mut protocol = RtpsProtocol::new(domain_id, MockTransport::new(), MockTransport::new(), domain_tag, lease_duration);
 
 //     assert_eq!(protocol.participant.mut_groups().len(), 0);
@@ -258,7 +258,7 @@ impl Participant {
 // fn create_delete_subscriber() {
 //     let domain_id = 1;
 //     let domain_tag = "".to_string();
-//     let lease_duration = rust_dds_interface::types::Duration{sec: 30, nanosec: 0};
+//     let lease_duration = rust_dds_api::types::Duration{sec: 30, nanosec: 0};
 //     let mut protocol = RtpsProtocol::new(domain_id, MockTransport::new(), MockTransport::new(), domain_tag, lease_duration);
 
 //     assert_eq!(protocol.participant.mut_groups().len(), 0);
@@ -275,7 +275,7 @@ impl Participant {
 // fn spdp_announce() {
 //     let domain_id = 0;
 //     let domain_tag = "".to_string();
-//     let lease_duration = rust_dds_interface::types::Duration{sec: 30, nanosec: 0};
+//     let lease_duration = rust_dds_api::types::Duration{sec: 30, nanosec: 0};
 //     let mut protocol = Participant::new(domain_id, MockTransport::new(), MockTransport::new(), domain_tag, lease_duration);
 //     protocol.send_metatraffic();
 // }
@@ -316,12 +316,12 @@ impl Participant {
 
 // #[test]
 // fn spdp_detect() {
-//     use rust_dds_interface::types::ParameterList;
+//     use rust_dds_api::types::ParameterList;
 //     use crate::messages::types::{StatusInfo, KeyHash, Endianness};
 
 //     let domain_id = 0;
 //     let domain_tag = "".to_string();
-//     let lease_duration = rust_dds_interface::types::Duration{sec: 30, nanosec: 0};
+//     let lease_duration = rust_dds_api::types::Duration{sec: 30, nanosec: 0};
 //     let transport = MockTransportDetect::new();
 
 //     let locator = Locator::new_udpv4(7401, [127,0,0,1]);

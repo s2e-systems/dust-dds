@@ -9,8 +9,8 @@ use crate::behavior::endpoint_traits::{DestinedMessages, CacheChangeReceiver, Ac
 use super::best_effort_writer_proxy::BestEffortWriterProxy;
 use super::reliable_writer_proxy::ReliableWriterProxy;
 
-use rust_dds_interface::types::TopicKind;
-use rust_dds_interface::history_cache::HistoryCache;
+use rust_dds_api::types::TopicKind;
+use crate::structure::HistoryCache;
 
 enum WriterProxyFlavor{
     BestEffort(BestEffortWriterProxy),

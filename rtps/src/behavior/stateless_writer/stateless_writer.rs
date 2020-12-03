@@ -4,8 +4,8 @@ use super::best_effort_reader_locator::BestEffortReaderLocator;
 use crate::behavior::endpoint_traits::{CacheChangeSender, DestinedMessages};
 use crate::behavior::RtpsWriter;
 use crate::types::{Locator, ReliabilityKind, GUID};
-use rust_dds_interface::history_cache::HistoryCache;
-use rust_dds_interface::types::TopicKind;
+use crate::structure::HistoryCache;
+use rust_dds_api::types::TopicKind;
 
 pub struct StatelessWriter {
     pub writer: RtpsWriter,
@@ -81,7 +81,7 @@ mod tests {
     use crate::messages::RtpsSubmessage;
     use crate::types::constants::{ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER, ENTITYID_UNKNOWN};
 
-    use rust_dds_interface::types::ChangeKind;
+    use rust_dds_api::types::ChangeKind;
     #[test]
     fn reader_locator_add() {
         let guid = GUID::new([1; 12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER);

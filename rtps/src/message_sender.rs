@@ -55,8 +55,8 @@ impl RtpsMessageSender {
 //         ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, };
 //     use crate::behavior::{StatelessWriter, StatefulWriter, ReaderProxy};
 
-//     use rust_dds_interface::qos::DataWriterQos;
-//     use rust_dds_interface::qos_policy::ReliabilityQosPolicyKind;
+//     use rust_dds_api::qos::DataWriterQos;
+//     use rust_dds_api::qos_policy::ReliabilityQosPolicyKind;
 
 //     #[test]
 //     fn stateless_writer_single_reader_locator() {

@@ -4,8 +4,8 @@ use crate::types::{EntityId, EntityKey, EntityKind, GuidPrefix, GUID};
 
 use crate::writer::Writer;
 
-use rust_dds_interface::qos::DataWriterQos;
-use rust_dds_interface::types::{InstanceHandle, TopicKind, ReturnCode, ReturnCodes};
+use rust_dds_api::qos::DataWriterQos;
+use rust_dds_api::types::{InstanceHandle, TopicKind, ReturnCode, ReturnCodes};
 
 struct PublisherInner {
     group: RtpsGroup,

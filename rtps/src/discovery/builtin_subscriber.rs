@@ -4,8 +4,8 @@ use crate::types::constants::{ENTITYID_SPDP_BUILTIN_PARTICIPANT_DETECTOR,
 use crate::behavior::types::Duration;
 use crate::behavior::{StatelessReader, StatefulReader};
 
-use rust_dds_interface::types::TopicKind;
-use rust_dds_interface::history_cache::HistoryCache;
+use rust_dds_api::types::TopicKind;
+use crate::structure::HistoryCache;
 
 
 pub struct BuiltInSubscriber {

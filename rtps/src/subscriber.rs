@@ -2,8 +2,8 @@ use crate::reader::Reader;
 use crate::structure::RtpsGroup;
 use crate::types::{EntityId, EntityKey, EntityKind, GuidPrefix, GUID};
 
-use rust_dds_interface::qos::DataReaderQos;
-use rust_dds_interface::types::{InstanceHandle, TopicKind, ReturnCode, ReturnCodes};
+use rust_dds_api::qos::DataReaderQos;
+use rust_dds_api::types::{InstanceHandle, TopicKind, ReturnCode, ReturnCodes};
 
 
 struct SubscriberInner {

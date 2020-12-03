@@ -1,6 +1,6 @@
 use crate::structure::RtpsEntity;
 use crate::types::{ReliabilityKind, GUID};
-use rust_dds_interface::types::TopicKind;
+use rust_dds_api::types::TopicKind;
 
 pub struct RtpsEndpoint {
     pub entity: RtpsEntity,

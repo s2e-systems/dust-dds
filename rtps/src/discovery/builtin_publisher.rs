@@ -3,8 +3,8 @@ use crate::types::constants::{ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, ENTIT
 use crate::behavior::types::Duration;
 use crate::behavior::{StatelessWriter, StatefulWriter};
 
-use rust_dds_interface::types::TopicKind;
-use rust_dds_interface::history_cache::HistoryCache;
+use rust_dds_api::types::TopicKind;
+use crate::structure::HistoryCache;
 
 pub struct BuiltInPublisher {
     guid: GUID,

@@ -2,11 +2,11 @@ use crate::behavior::stateful_reader::StatefulReader;
 use crate::behavior::types::Duration;
 use crate::types::{EntityId, EntityKey, EntityKind, GuidPrefix, ReliabilityKind, GUID};
 
-use rust_dds_interface::history_cache::HistoryCache;
-use rust_dds_interface::protocol::{ProtocolEntity, ProtocolReader};
-use rust_dds_interface::qos::DataReaderQos;
-use rust_dds_interface::qos_policy::ReliabilityQosPolicyKind;
-use rust_dds_interface::types::{InstanceHandle, TopicKind};
+use rust_dds_api::history_cache::HistoryCache;
+use rust_dds_api::protocol::{ProtocolEntity, ProtocolReader};
+use rust_dds_api::qos::DataReaderQos;
+use rust_dds_api::qos_policy::ReliabilityQosPolicyKind;
+use rust_dds_api::types::{InstanceHandle, TopicKind};
 
 pub struct Reader {
     pub stateful_reader: StatefulReader,

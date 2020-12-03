@@ -13,8 +13,8 @@ use crate::types::constants::{
     ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR,
 };
 
-use rust_dds_interface::types::{DomainId, ChangeKind, TopicKind, };
-use rust_dds_interface::history_cache::HistoryCache;
+use rust_dds_api::types::{DomainId, ChangeKind, TopicKind, };
+use crate::structure::HistoryCache;
 
 
 

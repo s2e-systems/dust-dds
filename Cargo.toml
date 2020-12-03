@@ -2,6 +2,6 @@
 
 members = [
     "dds",
-    "dds_interface",
+    "dds_api",
     "rtps"
 ]

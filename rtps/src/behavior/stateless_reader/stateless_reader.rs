@@ -5,8 +5,8 @@ use crate::messages::submessages::Data;
 use crate::messages::RtpsSubmessage;
 use crate::types::constants::ENTITYID_UNKNOWN;
 use crate::types::{GuidPrefix, ReliabilityKind, GUID};
-use rust_dds_interface::history_cache::HistoryCache;
-use rust_dds_interface::types::TopicKind;
+use crate::structure::HistoryCache;
+use rust_dds_api::types::TopicKind;
 
 pub struct StatelessReader {
     pub reader: RtpsReader,
@@ -72,7 +72,7 @@ impl CacheChangeReceiver for StatelessReader {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rust_dds_interface::types::ChangeKind;
+    use rust_dds_api::types::ChangeKind;
     use crate::types::constants::{
         ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER, ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER,
         ENTITYID_UNKNOWN,

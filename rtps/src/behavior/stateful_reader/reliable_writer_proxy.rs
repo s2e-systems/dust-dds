@@ -10,7 +10,7 @@ use crate::types::{EntityId, GuidPrefix, GUID};
 use crate::behavior::types::Duration;
 use crate::behavior::{cache_change_from_data, BEHAVIOR_ENDIANNESS};
 
-use rust_dds_interface::history_cache::HistoryCache;
+use crate::structure::HistoryCache;
 
 pub struct ReliableWriterProxy {
     writer_proxy: WriterProxy,
@@ -193,7 +193,7 @@ mod tests {
     };
     use crate::types::Locator;
 
-    use rust_dds_interface::types::{ChangeKind, ParameterList};
+    use rust_dds_api::types::{ChangeKind, ParameterList};
 
     #[test]
     fn process_none_submessage() {

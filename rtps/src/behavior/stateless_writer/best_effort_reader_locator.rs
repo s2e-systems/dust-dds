@@ -6,8 +6,8 @@ use crate::types::constants::ENTITYID_UNKNOWN;
 use crate::types::{EntityId, Locator};
 use std::collections::BTreeSet;
 
-use rust_dds_interface::history_cache::HistoryCache;
-use rust_dds_interface::types::SequenceNumber;
+use crate::structure::HistoryCache;
+use rust_dds_api::types::SequenceNumber;
 
 pub struct BestEffortReaderLocator(ReaderLocator);
 
@@ -94,8 +94,8 @@ mod tests {
     use crate::types::constants::ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER;
     use crate::types::GUID;
 
-    use rust_dds_interface::cache_change::CacheChange;
-    use rust_dds_interface::types::ChangeKind;
+    use crate::structure::CacheChange;
+    use rust_dds_api::types::ChangeKind;
 
     #[test]
     fn produce_empty() {

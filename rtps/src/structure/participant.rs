@@ -2,7 +2,7 @@ use crate::types::{ProtocolVersion, VendorId, GuidPrefix, GUID};
 use crate::types::constants::ENTITYID_PARTICIPANT;
 use crate::structure::RtpsEntity;
 
-use rust_dds_interface::types::DomainId;
+use rust_dds_api::types::DomainId;
 
 pub struct RtpsParticipant {
     pub entity: RtpsEntity,
