@@ -1,5 +1,5 @@
 use crate::types::{ReturnCode, InstanceHandle};
-use crate::infrastructure::status::StatusMask;
+use crate::dds_infrastructure::status::StatusMask;
 
 pub struct StatusCondition;
 

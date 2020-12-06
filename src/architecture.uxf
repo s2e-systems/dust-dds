@@ -1,0 +1,15 @@
+<diagram program="umletino" version="14.4.0-SNAPSHOT"><zoom_level>10</zoom_level><element><id>UMLPackage</id><coordinates><x>240</x><y>410</y><w>140</w><h>70</h></coordinates><panel_attributes>DDS infrastructure
+--
+-Content 1
++Content 2
+bg=gray
+fg=red</panel_attributes><additional_attributes></additional_attributes></element><element><id>UMLPackage</id><coordinates><x>470</x><y>410</y><w>140</w><h>70</h></coordinates><panel_attributes>RTPS
+--
+-Content 1
++Content 2
+bg=gray
+fg=red</panel_attributes><additional_attributes></additional_attributes></element><element><id>UMLPackage</id><coordinates><x>350</x><y>260</y><w>140</w><h>70</h></coordinates><panel_attributes>DDS
+--
+bg=orange</panel_attributes><additional_attributes></additional_attributes></element><element><id>Relation</id><coordinates><x>320</x><y>320</y><w>100</w><h>110</h></coordinates><panel_attributes>lt=&lt;&lt;&lt;-
+&lt;&lt;uses&gt;&gt;</panel_attributes><additional_attributes>10;90;70;10</additional_attributes></element><element><id>Relation</id><coordinates><x>430</x><y>320</y><w>100</w><h>110</h></coordinates><panel_attributes>lt=&lt;&lt;&lt;-
+&lt;&lt;uses&gt;&gt;</panel_attributes><additional_attributes>70;90;10;10</additional_attributes></element><element><id>UMLActor</id><coordinates><x>30</x><y>190</y><w>60</w><h>110</h></coordinates><panel_attributes>User</panel_attributes><additional_attributes></additional_attributes></element><element><id>Relation</id><coordinates><x>50</x><y>200</y><w>320</w><h>110</h></coordinates><panel_attributes>lt=-</panel_attributes><additional_attributes>300;90;10;10</additional_attributes></element><element><id>Relation</id><coordinates><x>50</x><y>200</y><w>240</w><h>230</h></coordinates><panel_attributes>lt=-</panel_attributes><additional_attributes>220;210;10;10</additional_attributes></element></diagram>
