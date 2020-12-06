@@ -1,1 +1,0 @@
-pub mod domain_participant_factory;

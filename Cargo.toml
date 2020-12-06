@@ -1,7 +1,23 @@
-[workspace]
+[package]
+name = "rust-rtps"
+version = "0.1.0"
+authors = ["Joao Rebelo <jrebelo@s2e-systems.com>",
+		   "Stefan Kimmer <skimmer@s2e-systems.com"]
+edition = "2018"
 
-members = [
-    "dds",
-    "dds_api",
-    "rtps"
-]
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+num-derive = "0.3"
+ipconfig = "0.2"
+net2 = "0.2"
+serde = { version = "1.0", features = ["derive"] }
+cdr = "0.2.3"
+
+[dependencies.num-traits]
+version = "0.2"
+default-features = false
+
+[dependencies.num]
+version = "0.2"
+default-features = false
