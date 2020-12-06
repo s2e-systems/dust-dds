@@ -24,16 +24,7 @@ pub struct RtpsProtocol {
 
 impl RtpsProtocol {
     pub fn new(domain_id: DomainId) -> Self {
-        let interface = "Ethernet";
-        let userdata_transport =
-            UdpTransport::default_userdata_transport(domain_id, interface).unwrap();
-        let metatraffic_transport =
-            UdpTransport::default_metatraffic_transport(domain_id, interface).unwrap();
-        let domain_tag = "".to_string();
-        let lease_duration = rust_dds_api::types::Duration {
-            sec: 30,
-            nanosec: 0,
-        };
+        
 
         // let participant = Participant::new(
         //     domain_id,

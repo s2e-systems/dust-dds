@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-mod types;
+pub mod types;
 mod rtps;
-mod dds_infrastructure;
-mod dds;
+pub mod dds_infrastructure;
+pub mod dds;

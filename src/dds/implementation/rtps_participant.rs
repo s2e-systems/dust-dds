@@ -1,6 +1,51 @@
-pub struct RtpsParticipant;
+use crate::types::DomainId;
 
-// impl RtpsParticipant {
+use crate::rtps::transport::Transport;
+use crate::rtps::transport::udp::UdpTransport;
+pub struct RtpsParticipant {
+    userdata_transport: Box<dyn Transport>,
+    metatraffic_transport: Box<dyn Transport>,
+}
+
+impl RtpsParticipant {
+    /// This operation creates a new DomainParticipant object. The DomainParticipant signifies that the calling application intends
+    /// to join the Domain identified by the domain_id argument.
+    /// If the specified QoS policies are not consistent, the operation will fail and no DomainParticipant will be created.
+    /// The special value PARTICIPANT_QOS_DEFAULT can be used to indicate that the DomainParticipant should be created
+    /// with the default DomainParticipant QoS set in the factory. The use of this value is equivalent to the application obtaining the
+    /// default DomainParticipant QoS by means of the operation get_default_participant_qos (2.2.2.2.2.6) and using the resulting
+    /// QoS to create the DomainParticipant.
+    /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
+    pub(crate) fn new (
+        domain_id: DomainId,
+    //     qos: DomainParticipantQos,
+    //     a_listener: impl DomainParticipantListener,
+    //     mask: StatusMask,
+    //     enabled: bool,
+    ) ->  Option<Self> {
+        let interface = "Ethernet";
+        let userdata_transport = Box::new(
+            UdpTransport::default_userdata_transport(domain_id, interface).unwrap());
+        let metatraffic_transport = Box::new(
+            UdpTransport::default_metatraffic_transport(domain_id, interface).unwrap());
+        // let domain_tag = "".to_string();
+        // let lease_duration = Duration {
+        //     sec: 30,
+        //     nanosec: 0,
+        // };
+        
+        // let participant = RtpsParticipant::new(domain_id);
+        
+        // // if enabled {
+        // //     new_participant.enable().ok()?;
+        // // }
+
+        Some(Self {
+            userdata_transport,
+            metatraffic_transport,
+        })
+    }
+
 //     /// This operation creates a Publisher with the desired QoS policies and attaches to it the specified PublisherListener.
 //     /// If the specified QoS policies are not consistent, the operation will fail and no Publisher will be created.
 //     /// The special value PUBLISHER_QOS_DEFAULT can be used to indicate that the Publisher should be created with the default
@@ -328,4 +373,4 @@ pub struct RtpsParticipant;
 //     /// This operation returns the current value of the time that the service uses to time-stamp data-writes and to set the reception timestamp
 //     /// for the data-updates it receives.
 //     fn get_current_time() -> ReturnCode<Time>;
-// }
+}

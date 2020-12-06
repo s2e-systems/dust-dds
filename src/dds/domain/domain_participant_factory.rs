@@ -1,6 +1,6 @@
-use rust_dds_api::domain::DomainParticipant;
-use rust_dds_api::types::DomainId;
-use rust_rtps::protocol::RtpsProtocol;
+use crate::types::DomainId;
+use crate::dds::domain::domain_participant::DomainParticipant;
+use crate::dds::implementation::rtps_participant::RtpsParticipant;
 
 /// The DomainParticipant object plays several roles:
 /// - It acts as a container for all other Entity objects.
@@ -33,39 +33,19 @@ impl DomainParticipantFactory {
     /// default DomainParticipant QoS by means of the operation get_default_participant_qos (2.2.2.2.2.6) and using the resulting
     /// QoS to create the DomainParticipant.
     /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
-    pub fn new (
+    pub fn create_participant (
         domain_id: DomainId,
-    //     qos: DomainParticipantQos,
-    //     a_listener: impl DomainParticipantListener,
-    //     mask: StatusMask,
+        // qos: DomainParticipantQos,
+        // a_listener: impl DomainParticipantListener,
+        // mask: StatusMask,
     //     enabled: bool,
-    ) ->  Option<impl DomainParticipant> {
-        // use rust_rtps::protocol::RtpsProtocol;
-
-        let name = "rtps";
-        let protocol = match name {         
-            "rtps" => RtpsProtocol::new(domain_id),
-            _ => panic!("Protocol not valid"),
-        };
-   
-        // let new_participant = DomainParticipant {
-        //     // domain_id,
-        //     // qos,
-        //     // a_listener: Box::new(a_listener),
-        //     // mask,
-        //     // publisher_list: Mutex::new(Vec::new()),
-        //     // default_publisher_qos: Mutex::new(PublisherQos::default()),
-        //     // subscriber_list: Mutex::new(Vec::new()),
-        //     // default_subscriber_qos: Mutex::new(SubscriberQos::default()),
-        //     // topic_list: Mutex::new(Vec::new()),
-        //     // default_topic_qos: Mutex::new(TopicQos::default()),
-        //     protocol_participant: Box::new(protocol),
-        // };
+    ) ->  Option<DomainParticipant> {
+        let rtps_participant = RtpsParticipant::new(domain_id)?;
         
         // if enabled {
         //     new_participant.enable().ok()?;
         // }
 
-        Some(protocol)
+        Some(DomainParticipant(rtps_participant))
     }
 }
