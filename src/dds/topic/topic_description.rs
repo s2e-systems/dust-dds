@@ -1,3 +1,4 @@
+use crate::dds::domain::domain_participant::DomainParticipant;
 use crate::types::ReturnCode;
 
 /// TopicDescription represents the fact that both publications and subscriptions are tied to a single data-type. Its attribute
@@ -6,7 +7,7 @@ use crate::types::ReturnCode;
 /// This class is an abstract class. It is the base class for Topic, ContentFilteredTopic, and MultiTopic.
 pub trait TopicDescription {
     /// This operation returns the DomainParticipant to which the TopicDescription belongs.
-    // fn get_participant(&self) -> Self::Participant;
+    fn get_participant(&self) -> &DomainParticipant;
 
     /// The type_name used to create the TopicDescription
     fn get_type_name(&self) -> ReturnCode<&str>;

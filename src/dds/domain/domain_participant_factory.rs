@@ -48,4 +48,10 @@ impl DomainParticipantFactory {
 
         Some(DomainParticipant(rtps_participant))
     }
+
+    pub fn delete_participant (
+        _a_participant: DomainParticipant,
+    ) {
+        
+    }
 }
