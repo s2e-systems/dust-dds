@@ -82,7 +82,7 @@ impl RtpsParticipant {
         todo!()
     }
 
-    pub fn lookup_topicdescription<T: DDSType>(&self, _name: &String) -> Option<RtpsTopic<T>> {
+    pub fn lookup_topicdescription<T: DDSType>(&self, _name: &str) -> Option<RtpsTopic<T>> {
         todo!()
     }
 
@@ -98,11 +98,11 @@ impl RtpsParticipant {
         todo!()
     }
 
-    pub fn ignore_publication(&self, handle: InstanceHandle) -> ReturnCode<()> {
+    pub fn ignore_publication(&self, _handle: InstanceHandle) -> ReturnCode<()> {
         todo!()
     }
 
-    pub fn ignore_subscription(&self, handle: InstanceHandle) -> ReturnCode<()> {
+    pub fn ignore_subscription(&self, _handle: InstanceHandle) -> ReturnCode<()> {
         todo!()
     }
 
@@ -118,7 +118,7 @@ impl RtpsParticipant {
         todo!()
     }
 
-    pub fn set_default_publisher_qos(&self, qos: Option<PublisherQos>) -> ReturnCode<()> {
+    pub fn set_default_publisher_qos(&self, _qos: Option<PublisherQos>) -> ReturnCode<()> {
         todo!()
     }
 
@@ -126,7 +126,7 @@ impl RtpsParticipant {
         todo!()
     }
 
-    pub fn set_default_subscriber_qos(&self, qos: Option<SubscriberQos>) -> ReturnCode<()> {
+    pub fn set_default_subscriber_qos(&self, _qos: Option<SubscriberQos>) -> ReturnCode<()> {
         todo!()
     }
 
@@ -134,7 +134,7 @@ impl RtpsParticipant {
         todo!()
     }
 
-    pub fn set_default_topic_qos(&self, qos: Option<TopicQos>) -> ReturnCode<()> {
+    pub fn set_default_topic_qos(&self, _qos: Option<TopicQos>) -> ReturnCode<()> {
         todo!()
     }
 
@@ -144,37 +144,37 @@ impl RtpsParticipant {
 
     pub fn get_discovered_participants(
         &self,
-        participant_handles: &mut [InstanceHandle],
+        _participant_handles: &mut [InstanceHandle],
     ) -> ReturnCode<()> {
         todo!()
     }
 
     pub fn get_discovered_participant_data(
         &self,
-        participant_data: ParticipantBuiltinTopicData,
-        participant_handle: InstanceHandle,
+        _participant_data: ParticipantBuiltinTopicData,
+        _participant_handle: InstanceHandle,
     ) -> ReturnCode<()> {
         todo!()
     }
 
     pub fn get_discovered_topics(
         &self,
-        topic_handles: &mut [InstanceHandle]
+        _topic_handles: &mut [InstanceHandle]
     ) -> ReturnCode<()> {
         todo!()
     }
 
     pub fn get_discovered_topic_data(
         &self,
-        topic_data: TopicBuiltinTopicData,
-        topic_handle: InstanceHandle
+        _topic_data: TopicBuiltinTopicData,
+        _topic_handle: InstanceHandle
     ) -> ReturnCode<()> {
         todo!()
     }
 
     pub fn contains_entity(
         &self,
-        a_handle: InstanceHandle
+        _a_handle: InstanceHandle
     ) -> bool {
         todo!()
     }

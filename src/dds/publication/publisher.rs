@@ -1,8 +1,8 @@
 use crate::dds::domain::domain_participant::DomainParticipant;
 use crate::dds::publication::data_writer::DataWriter;
 use crate::dds::topic::topic::Topic;
-use crate::types::DDSType;
-use crate::dds_infrastructure::qos::DataWriterQos;
+use crate::types::{DDSType, ReturnCode, Duration};
+use crate::dds_infrastructure::qos::{DataWriterQos, TopicQos};
 
 use crate::dds_rtps_implementation::rtps_publisher::RtpsPublisher;
 
@@ -40,135 +40,162 @@ impl<'a> Publisher<'a> {
     /// The Topic passed to this operation must have been created from the same DomainParticipant that was used to create this
     /// Publisher. If the Topic was created from a different DomainParticipant, the operation will fail and return a nil result.
     pub fn create_datawriter<T:DDSType>(
-        &self,
-        a_topic: &'a Topic<T>,
+        &'a self,
+        a_topic: Topic<'a, T>,
         _qos: Option<&DataWriterQos>,
         // _a_listener: impl DataWriterListener<T>,
         // _mask: StatusMask
     ) -> Option<DataWriter<T>> {
-        let rtps_data_writer = self.rtps_publisher.create_datawriter()?;
+        let rtps_datawriter = self.rtps_publisher.create_datawriter()?;
 
         Some(DataWriter {
             parent_publisher: self,
             topic: a_topic,
-            rtps_data_writer
+            rtps_datawriter
         })
     }
 
-//     /// This operation deletes a DataWriter that belongs to the Publisher.
-//     /// The delete_datawriter operation must be called on the same Publisher object used to create the DataWriter. If
-//     /// delete_datawriter is called on a different Publisher, the operation will have no effect and it will return
-//     /// PRECONDITION_NOT_MET.
-//     /// The deletion of the DataWriter will automatically unregister all instances. Depending on the settings of the
-//     /// WRITER_DATA_LIFECYCLE QosPolicy, the deletion of the DataWriter may also dispose all instances. Refer to 2.2.3.21 for
-//     /// details.
-//     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
-//     fn delete_datawriter(
-//         &self,
-//         a_datawriter: &mut Self::Writer
-//     ) -> ReturnCode<()>;
+    /// This operation deletes a DataWriter that belongs to the Publisher.
+    /// The delete_datawriter operation must be called on the same Publisher object used to create the DataWriter. If
+    /// delete_datawriter is called on a different Publisher, the operation will have no effect and it will return
+    /// PRECONDITION_NOT_MET.
+    /// The deletion of the DataWriter will automatically unregister all instances. Depending on the settings of the
+    /// WRITER_DATA_LIFECYCLE QosPolicy, the deletion of the DataWriter may also dispose all instances. Refer to 2.2.3.21 for
+    /// details.
+    /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
+    pub fn delete_datawriter<T: DDSType>(
+        &self,
+        a_datawriter: &DataWriter<T>
+    ) -> ReturnCode<()> {
+        self.rtps_publisher.delete_datawriter(&a_datawriter.rtps_datawriter)
+    }
 
-//     /// This operation retrieves a previously created DataWriter belonging to the Publisher that is attached to a Topic with a matching
-//     /// topic_name. If no such DataWriter exists, the operation will return ’nil.’
-//     /// If multiple DataWriter attached to the Publisher satisfy this condition, then the operation will return one of them. It is not
-//     /// specified which one.
-//     fn lookup_datawriter(
-//         &self,
-//         topic_name: &String,
-//     ) -> Option<Self::Writer>;
+    /// This operation retrieves a previously created DataWriter belonging to the Publisher that is attached to a Topic with a matching
+    /// topic_name. If no such DataWriter exists, the operation will return ’nil.’
+    /// If multiple DataWriter attached to the Publisher satisfy this condition, then the operation will return one of them. It is not
+    /// specified which one.
+    pub fn lookup_datawriter<T: DDSType>(
+        &self,
+        topic_name: &str,
+    ) -> Option<DataWriter<T>> {
+        let rtps_datawriter = self.rtps_publisher.lookup_datawriter(topic_name)?;
+        let a_topic = self.parent_participant.lookup_topicdescription(topic_name)?;
+        Some(DataWriter {
+            parent_publisher: self,
+            topic: a_topic,
+            rtps_datawriter
+        })
+    }
 
-//     /// This operation indicates to the Service that the application is about to make multiple modifications using DataWriter objects
-//     /// belonging to the Publisher.
-//     /// It is a hint to the Service so it can optimize its performance by e.g., holding the dissemination of the modifications and then
-//     /// batching them.
-//     /// It is not required that the Service use this hint in any way.
-//     /// The use of this operation must be matched by a corresponding call to resume_publications indicating that the set of
-//     /// modifications has completed. If the Publisher is deleted before resume_publications is called, any suspended updates yet to
-//     /// be published will be discarded.
-//     fn suspend_publications(&self) -> ReturnCode<()>;
+    /// This operation indicates to the Service that the application is about to make multiple modifications using DataWriter objects
+    /// belonging to the Publisher.
+    /// It is a hint to the Service so it can optimize its performance by e.g., holding the dissemination of the modifications and then
+    /// batching them.
+    /// It is not required that the Service use this hint in any way.
+    /// The use of this operation must be matched by a corresponding call to resume_publications indicating that the set of
+    /// modifications has completed. If the Publisher is deleted before resume_publications is called, any suspended updates yet to
+    /// be published will be discarded.
+    pub fn suspend_publications(&self) -> ReturnCode<()> {
+        self.rtps_publisher.suspend_publications()
+    }
 
-//     /// This operation indicates to the Service that the application has completed the multiple changes initiated by the previous
-//     /// suspend_publications. This is a hint to the Service that can be used by a Service implementation to e.g., batch all the
-//     /// modifications made since the suspend_publications.
-//     /// The call to resume_publications must match a previous call to suspend_publications. Otherwise the operation will return the
-//     /// error PRECONDITION_NOT_MET.
-//     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
-//     fn resume_publications(&self) -> ReturnCode<()>;
+    /// This operation indicates to the Service that the application has completed the multiple changes initiated by the previous
+    /// suspend_publications. This is a hint to the Service that can be used by a Service implementation to e.g., batch all the
+    /// modifications made since the suspend_publications.
+    /// The call to resume_publications must match a previous call to suspend_publications. Otherwise the operation will return the
+    /// error PRECONDITION_NOT_MET.
+    /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
+    pub fn resume_publications(&self) -> ReturnCode<()> {
+        self.rtps_publisher.resume_publications()
+    }
 
-//     /// This operation requests that the application will begin a ‘coherent set’ of modifications using DataWriter objects attached to
-//     /// the Publisher. The ‘coherent set’ will be completed by a matching call to end_coherent_changes.
-//     /// A ‘coherent set’ is a set of modifications that must be propagated in such a way that they are interpreted at the receivers’ side
-//     /// as a consistent set of modifications; that is, the receiver will only be able to access the data after all the modifications in the set
-//     /// are available at the receiver end. This does not imply that the middleware has to encapsulate all the modifications in a single message; it only implies that the
-//     /// receiving applications will behave as if this was the case.
-//     /// A connectivity change may occur in the middle of a set of coherent changes; for example, the set of partitions used by the
-//     /// Publisher or one of its Subscribers may change, a late-joining DataReader may appear on the network, or a communication
-//     /// failure may occur. In the event that such a change prevents an entity from receiving the entire set of coherent changes, that
-//     /// entity must behave as if it had received none of the set.
-//     /// These calls can be nested. In that case, the coherent set terminates only with the last call to end_coherent_ changes.
-//     /// The support for ‘coherent changes’ enables a publishing application to change the value of several data-instances that could
-//     /// belong to the same or different topics and have those changes be seen ‘atomically’ by the readers. This is useful in cases where
-//     /// the values are inter-related (for example, if there are two data-instances representing the ‘altitude’ and ‘velocity vector’ of the
-//     /// same aircraft and both are changed, it may be useful to communicate those values in a way the reader can see both together;
-//     /// otherwise, it may e.g., erroneously interpret that the aircraft is on a collision course).
-//     fn begin_coherent_changes(&self) -> ReturnCode<()>;
+    /// This operation requests that the application will begin a ‘coherent set’ of modifications using DataWriter objects attached to
+    /// the Publisher. The ‘coherent set’ will be completed by a matching call to end_coherent_changes.
+    /// A ‘coherent set’ is a set of modifications that must be propagated in such a way that they are interpreted at the receivers’ side
+    /// as a consistent set of modifications; that is, the receiver will only be able to access the data after all the modifications in the set
+    /// are available at the receiver end. This does not imply that the middleware has to encapsulate all the modifications in a single message; it only implies that the
+    /// receiving applications will behave as if this was the case.
+    /// A connectivity change may occur in the middle of a set of coherent changes; for example, the set of partitions used by the
+    /// Publisher or one of its Subscribers may change, a late-joining DataReader may appear on the network, or a communication
+    /// failure may occur. In the event that such a change prevents an entity from receiving the entire set of coherent changes, that
+    /// entity must behave as if it had received none of the set.
+    /// These calls can be nested. In that case, the coherent set terminates only with the last call to end_coherent_ changes.
+    /// The support for ‘coherent changes’ enables a publishing application to change the value of several data-instances that could
+    /// belong to the same or different topics and have those changes be seen ‘atomically’ by the readers. This is useful in cases where
+    /// the values are inter-related (for example, if there are two data-instances representing the ‘altitude’ and ‘velocity vector’ of the
+    /// same aircraft and both are changed, it may be useful to communicate those values in a way the reader can see both together;
+    /// otherwise, it may e.g., erroneously interpret that the aircraft is on a collision course).
+    pub fn begin_coherent_changes(&self) -> ReturnCode<()> {
+        self.rtps_publisher.begin_coherent_changes()
+    }
 
-//     /// This operation terminates the ‘coherent set’ initiated by the matching call to begin_coherent_ changes. If there is no matching
-//     /// call to begin_coherent_ changes, the operation will return the error PRECONDITION_NOT_MET.
-//     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET
-//     fn end_coherent_changes(&self) -> ReturnCode<()>;
+    /// This operation terminates the ‘coherent set’ initiated by the matching call to begin_coherent_ changes. If there is no matching
+    /// call to begin_coherent_ changes, the operation will return the error PRECONDITION_NOT_MET.
+    /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET
+    pub fn end_coherent_changes(&self) -> ReturnCode<()> {
+        self.rtps_publisher.end_coherent_changes()
+    }
 
-//     /// This operation blocks the calling thread until either all data written by the reliable DataWriter entities is acknowledged by all
-//     /// matched reliable DataReader entities, or else the duration specified by the max_wait parameter elapses, whichever happens
-//     /// first. A return value of OK indicates that all the samples written have been acknowledged by all reliable matched data readers;
-//     /// a return value of TIMEOUT indicates that max_wait elapsed before all the data was acknowledged.
-//     fn wait_for_acknowledgments(
-//         &self,
-//         _max_wait: Duration
-//     ) -> ReturnCode<()>;
+    /// This operation blocks the calling thread until either all data written by the reliable DataWriter entities is acknowledged by all
+    /// matched reliable DataReader entities, or else the duration specified by the max_wait parameter elapses, whichever happens
+    /// first. A return value of OK indicates that all the samples written have been acknowledged by all reliable matched data readers;
+    /// a return value of TIMEOUT indicates that max_wait elapsed before all the data was acknowledged.
+    pub fn wait_for_acknowledgments(
+        &self,
+        max_wait: Duration
+    ) -> ReturnCode<()> {
+        self.rtps_publisher.wait_for_acknowledgments(max_wait)
+    }
 
-//     /// This operation deletes all the entities that were created by means of the “create” operations on the Publisher. That is, it deletes
-//     /// all contained DataWriter objects.
-//     /// The operation will return PRECONDITION_NOT_MET if the any of the contained entities is in a state where it cannot be
-//     /// deleted.
-//     /// Once delete_contained_entities returns successfully, the application may delete the Publisher knowing that it has no
-//     /// contained DataWriter objects
-//     fn delete_contained_entities(&self) -> ReturnCode<()>;
+    /// This operation deletes all the entities that were created by means of the “create” operations on the Publisher. That is, it deletes
+    /// all contained DataWriter objects.
+    /// The operation will return PRECONDITION_NOT_MET if the any of the contained entities is in a state where it cannot be
+    /// deleted.
+    /// Once delete_contained_entities returns successfully, the application may delete the Publisher knowing that it has no
+    /// contained DataWriter objects
+    pub fn delete_contained_entities(&self) -> ReturnCode<()> {
+        self.rtps_publisher.delete_contained_entities()
+    }
 
-//     /// This operation sets a default value of the DataWriter QoS policies which will be used for newly created DataWriter entities in
-//     /// the case where the QoS policies are defaulted in the create_datawriter operation.
-//     /// This operation will check that the resulting policies are self consistent; if they are not, the operation will have no effect and
-//     /// return INCONSISTENT_POLICY.
-//     /// The special value DATAWRITER_QOS_DEFAULT may be passed to this operation to indicate that the default QoS should be
-//     /// reset back to the initial values the factory would use, that is the values that would be used if the set_default_datawriter_qos
-//     /// operation had never been called.
-//     fn set_default_datawriter_qos(
-//         &self,
-//         _qos_list: DataWriterQos,
-//     ) -> ReturnCode<()>;
+    /// This operation sets a default value of the DataWriter QoS policies which will be used for newly created DataWriter entities in
+    /// the case where the QoS policies are defaulted in the create_datawriter operation.
+    /// This operation will check that the resulting policies are self consistent; if they are not, the operation will have no effect and
+    /// return INCONSISTENT_POLICY.
+    /// The special value DATAWRITER_QOS_DEFAULT may be passed to this operation to indicate that the default QoS should be
+    /// reset back to the initial values the factory would use, that is the values that would be used if the set_default_datawriter_qos
+    /// operation had never been called.
+    pub fn set_default_datawriter_qos(
+        &self,
+        qos: DataWriterQos,
+    ) -> ReturnCode<()> {
+        self.rtps_publisher.set_default_datawriter_qos(qos)
+    }
 
-//     /// This operation retrieves the default value of the DataWriter QoS, that is, the QoS policies which will be used for newly created
-//     /// DataWriter entities in the case where the QoS policies are defaulted in the create_datawriter operation.
-//     /// The values retrieved by get_default_datawriter_qos will match the set of values specified on the last successful call to
-//     /// set_default_datawriter_qos, or else, if the call was never made, the default values listed in the QoS table in 2.2.3, Supported
-//     /// QoS.
-//     fn get_default_datawriter_qos (
-//         &self,
-//         _qos_list: &mut DataWriterQos,
-//     ) -> ReturnCode<()>;
+    /// This operation retrieves the default value of the DataWriter QoS, that is, the QoS policies which will be used for newly created
+    /// DataWriter entities in the case where the QoS policies are defaulted in the create_datawriter operation.
+    /// The values retrieved by get_default_datawriter_qos will match the set of values specified on the last successful call to
+    /// set_default_datawriter_qos, or else, if the call was never made, the default values listed in the QoS table in 2.2.3, Supported
+    /// QoS.
+    pub fn get_default_datawriter_qos (
+        &self
+    ) -> ReturnCode<DataWriterQos> {
+        self.rtps_publisher.get_default_datawriter_qos()
+    }
 
-//     /// This operation copies the policies in the a_topic_qos to the corresponding policies in the a_datawriter_qos (replacing values
-//     /// in the a_datawriter_qos, if present).
-//     /// This is a “convenience” operation most useful in combination with the operations get_default_datawriter_qos and
-//     /// Topic::get_qos. The operation copy_from_topic_qos can be used to merge the DataWriter default QoS policies with the
-//     /// corresponding ones on the Topic. The resulting QoS can then be used to create a new DataWriter, or set its QoS.
-//     /// This operation does not check the resulting a_datawriter_qos for consistency. This is because the ‘merged’ a_datawriter_qos
-//     /// may not be the final one, as the application can still modify some policies prior to applying the policies to the DataWriter.
-//     fn copy_from_topic_qos(
-//         &self,
-//         _a_datawriter_qos: &mut DataWriterQos,
-//         _a_topic_qos: &TopicQos,
-//     ) -> ReturnCode<()>;
+    /// This operation copies the policies in the a_topic_qos to the corresponding policies in the a_datawriter_qos (replacing values
+    /// in the a_datawriter_qos, if present).
+    /// This is a “convenience” operation most useful in combination with the operations get_default_datawriter_qos and
+    /// Topic::get_qos. The operation copy_from_topic_qos can be used to merge the DataWriter default QoS policies with the
+    /// corresponding ones on the Topic. The resulting QoS can then be used to create a new DataWriter, or set its QoS.
+    /// This operation does not check the resulting a_datawriter_qos for consistency. This is because the ‘merged’ a_datawriter_qos
+    /// may not be the final one, as the application can still modify some policies prior to applying the policies to the DataWriter.
+    pub fn copy_from_topic_qos(
+        &self,
+        a_datawriter_qos: &mut DataWriterQos,
+        a_topic_qos: &TopicQos,
+    ) -> ReturnCode<()> {
+        self.rtps_publisher.copy_from_topic_qos(a_datawriter_qos, a_topic_qos)
+    }
 
     /// This operation returns the DomainParticipant to which the Publisher belongs.
     pub fn get_participant(&self) -> &DomainParticipant {

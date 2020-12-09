@@ -157,7 +157,7 @@ impl DomainParticipant {
     /// If the operation fails to locate a TopicDescription, a ‘nil’ value (as specified by the platform) is returned.
     pub fn lookup_topicdescription<T:DDSType>(
         &self,
-        name: &String,
+        name: &str,
     ) -> Option<Topic<T>> { // TODO: Originally return dyn TopicDescription
         let rtps_topic = self.0.lookup_topicdescription(name)?;
 

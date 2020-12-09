@@ -135,7 +135,7 @@ impl SPDPdiscoveredParticipantData {
         self.domain_id
     }
 
-    pub fn domain_tag(&self) -> &String {
+    pub fn domain_tag(&self) -> String {
         &self.domain_tag
     }
 

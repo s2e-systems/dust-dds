@@ -6,8 +6,8 @@ use crate::dds_rtps_implementation::rtps_data_writer::RtpsDataWriter;
 
 pub struct DataWriter<'a, T: DDSType>{
     pub(crate) parent_publisher: &'a Publisher<'a>,
-    pub(crate) topic: &'a Topic<'a, T>,
-    pub(crate) rtps_data_writer: RtpsDataWriter<'a, T>
+    pub(crate) topic: Topic<'a, T>,
+    pub(crate) rtps_datawriter: RtpsDataWriter<'a, T>
 }
 
 impl<'a, T: DDSType> DataWriter<'a,T> {
@@ -257,7 +257,7 @@ impl<'a, T: DDSType> DataWriter<'a,T> {
 
     // /// This operation returns the Topic associated with the DataWriter. This is the same Topic that was used to create the DataWriter.
     fn get_topic(&self) -> &Topic<T> {
-        self.topic
+        &self.topic
     }
 
     /// This operation returns the Publisher to which the DataWriter belongs.

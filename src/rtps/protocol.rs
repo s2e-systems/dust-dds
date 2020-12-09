@@ -143,7 +143,7 @@ impl<T:DDSType> DomainParticipant<T> for RtpsProtocol {
 
     fn lookup_topicdescription<T: rust_dds_api::types::DDSType>(
         &self,
-        _name: &String,
+        _name: String,
     ) -> Option<&dyn rust_dds_api::topic::TopicDescription> {
         todo!()
     }

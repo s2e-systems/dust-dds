@@ -48,7 +48,7 @@ impl<'a> Subscriber<'a> {
     /// return a nil result.
     pub fn create_datareader<T: DDSType>(
         &self,
-        a_topic: &'a Topic<T>,
+        a_topic: Topic<'a, T>,
         qos: Option<&DataReaderQos>,
         // _a_listener: impl DataReaderListener<T>,
         // _mask: StatusMask
