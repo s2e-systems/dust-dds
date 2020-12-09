@@ -1,14 +1,14 @@
-use std::sync::{Arc,Weak,Mutex};
+use std::sync::{Arc};
 
-use crate::types::{DomainId, ReturnCode, ReturnCodes, DDSType};
+use crate::types::{DomainId, ReturnCode, DDSType};
 
 use crate::rtps::transport::Transport;
 use crate::rtps::transport::udp::UdpTransport;
 
-use crate::dds::implementation::rtps_subscriber::RtpsSubscriber;
-use crate::dds::implementation::rtps_publisher::{RtpsPublisher, RtpsPublisherInner};
-use crate::dds::implementation::rtps_topic::RtpsTopic;
-use crate::dds::implementation::rtps_object::RtpsObject;
+use crate::dds_rtps_implementation::rtps_subscriber::RtpsSubscriber;
+use crate::dds_rtps_implementation::rtps_publisher::{RtpsPublisher, RtpsPublisherInner};
+use crate::dds_rtps_implementation::rtps_topic::RtpsTopic;
+use crate::dds_rtps_implementation::rtps_object::RtpsObject;
 
 pub struct RtpsParticipant {
     userdata_transport: Box<dyn Transport>,
@@ -56,7 +56,7 @@ impl RtpsParticipant {
         todo!()
     }
 
-    pub fn create_topic<T:DDSType>(&self) -> Option<&RtpsTopic<T>> {
+    pub fn create_topic<T:DDSType>(&self) -> Option<RtpsTopic<T>> {
         todo!()
     }
 
@@ -64,7 +64,7 @@ impl RtpsParticipant {
         todo!()
     }
 
-    pub fn create_subscriber(&self) -> Option<&RtpsSubscriber> {
+    pub fn create_subscriber(&self) -> Option<RtpsSubscriber> {
         todo!()
     }
 

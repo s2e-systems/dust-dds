@@ -4,7 +4,7 @@ use crate::dds::topic::topic_description::TopicDescription;
 use crate::dds::subscription::subscriber::Subscriber;
 
 
-use crate::dds::implementation::rtps_data_reader::RtpsDataReader;
+use crate::dds_rtps_implementation::rtps_data_reader::RtpsDataReader;
 
 /// A DataReader allows the application (1) to declare the data it wishes to receive (i.e., make a subscription) and (2) to access the
 /// data received by the attached Subscriber.
@@ -20,7 +20,7 @@ use crate::dds::implementation::rtps_data_reader::RtpsDataReader;
 pub struct DataReader<'a, T: DDSType>{
     pub(crate) parent_subscriber: &'a Subscriber<'a>,
     pub(crate) topic: &'a Topic<'a, T>,
-    pub(crate) rtps_datareader: &'a RtpsDataReader<T>,
+    pub(crate) rtps_datareader: RtpsDataReader<'a, T>,
 }
 
 impl<'a, T: DDSType> DataReader<'a, T> {

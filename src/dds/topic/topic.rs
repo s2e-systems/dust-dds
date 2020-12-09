@@ -2,7 +2,7 @@ use crate::types::{DDSType, ReturnCode};
 use crate::dds::domain::domain_participant::DomainParticipant;
 use crate::dds::topic::topic_description::TopicDescription;
 
-use crate::dds::implementation::rtps_topic::RtpsTopic;
+use crate::dds_rtps_implementation::rtps_topic::RtpsTopic;
 
 /// Topic is the most basic description of the data to be published and subscribed.
 /// A Topic is identified by its name, which must be unique in the whole Domain. In addition (by virtue of extending
@@ -12,7 +12,7 @@ use crate::dds::implementation::rtps_topic::RtpsTopic;
 /// get_status_condition may return the value NOT_ENABLED.
 pub struct Topic<'a, T: DDSType> {
     pub(crate) parent_participant: &'a DomainParticipant,
-    pub(crate) rtps_topic: &'a RtpsTopic<T>,
+    pub(crate) rtps_topic: RtpsTopic<'a, T>,
 }
 
 

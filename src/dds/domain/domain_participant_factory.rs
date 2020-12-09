@@ -1,6 +1,6 @@
 use crate::types::DomainId;
 use crate::dds::domain::domain_participant::DomainParticipant;
-use crate::dds::implementation::rtps_participant::RtpsParticipant;
+use crate::dds_rtps_implementation::rtps_participant::RtpsParticipant;
 
 /// The DomainParticipant object plays several roles:
 /// - It acts as a container for all other Entity objects.

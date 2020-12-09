@@ -2,12 +2,12 @@ use crate::types::{DDSType, Time, ReturnCode, InstanceHandle};
 use crate::dds::publication::publisher::Publisher;
 use crate::dds::topic::topic::Topic;
 
-use crate::dds::implementation::rtps_data_writer::RtpsDataWriter;
+use crate::dds_rtps_implementation::rtps_data_writer::RtpsDataWriter;
 
 pub struct DataWriter<'a, T: DDSType>{
     pub(crate) parent_publisher: &'a Publisher<'a>,
     pub(crate) topic: &'a Topic<'a, T>,
-    pub(crate) rtps_data_writer: &'a RtpsDataWriter<T>
+    pub(crate) rtps_data_writer: RtpsDataWriter<'a, T>
 }
 
 impl<'a, T: DDSType> DataWriter<'a,T> {

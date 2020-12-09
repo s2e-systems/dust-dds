@@ -4,7 +4,7 @@ use crate::dds::topic::topic::Topic;
 use crate::types::DDSType;
 use crate::dds_infrastructure::qos::DataWriterQos;
 
-use crate::dds::implementation::rtps_publisher::RtpsPublisher;
+use crate::dds_rtps_implementation::rtps_publisher::RtpsPublisher;
 
 /// The Publisher acts on the behalf of one or several DataWriter objects that belong to it. When it is informed of a change to the
 /// data associated with one of its DataWriter objects, it decides when it is appropriate to actually send the data-update message.

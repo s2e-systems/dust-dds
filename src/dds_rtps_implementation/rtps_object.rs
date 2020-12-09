@@ -141,5 +141,19 @@ mod tests {
         }
         assert_eq!(object.is_empty(), true);
     }
+
+    #[test]
+    fn object_with_reference() {
+        #[derive(Default)]
+        struct TestObject<'a> {
+            value_ref: Option<&'a u32>,
+        }
+
+        let value = 5;
+
+        let object = RtpsObject::new(TestObject{value_ref: Some(&value)});
+        let object_ref = object.get_reference().unwrap();
+        println!("{:?}", object_ref.value().unwrap().value_ref.unwrap())
+    }
         
 }

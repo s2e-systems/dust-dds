@@ -4,7 +4,7 @@ use crate::dds::publication::publisher::Publisher;
 use crate::dds::subscription::subscriber::Subscriber;
 use crate::dds::topic::topic::Topic;
 
-use crate::dds::implementation::rtps_participant::RtpsParticipant;
+use crate::dds_rtps_implementation::rtps_participant::RtpsParticipant;
 
 pub struct DomainParticipant(pub(crate) RtpsParticipant);
 
@@ -77,7 +77,7 @@ impl DomainParticipant {
         &self,
         a_subscriber: &Subscriber,
     ) -> ReturnCode<()> {
-        self.0.delete_subscriber(a_subscriber.rtps_subscriber)
+        self.0.delete_subscriber(&a_subscriber.rtps_subscriber)
     }
 
     /// This operation creates a Topic with the desired QoS policies and attaches to it the specified TopicListener.
@@ -114,9 +114,9 @@ impl DomainParticipant {
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
     fn delete_topic<T:DDSType>(
         &self,
-        a_topic: & Topic<T>,
+        a_topic: &Topic<T>,
     ) -> ReturnCode<()> {
-        self.0.delete_topic(a_topic.rtps_topic)
+        self.0.delete_topic(&a_topic.rtps_topic)
     }
 
 //     /// The operation find_topic gives access to an existing (or ready to exist) enabled Topic, based on its name. The operation takes

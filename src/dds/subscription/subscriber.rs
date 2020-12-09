@@ -1,10 +1,10 @@
-use crate::types::DDSType;
+use crate::types::{DDSType, ReturnCode};
 use crate::dds::domain::domain_participant::DomainParticipant;
 use crate::dds::subscription::data_reader::DataReader;
 use crate::dds::topic::topic::Topic;
 use crate::dds_infrastructure::qos::DataReaderQos;
 
-use crate::dds::implementation::rtps_subscriber::RtpsSubscriber;
+use crate::dds_rtps_implementation::rtps_subscriber::RtpsSubscriber;
 /// A Subscriber is the object responsible for the actual reception of the data resulting from its subscriptions
 ///
 /// A Subscriber acts on the behalf of one or several DataReader objects that are related to it. When it receives data (from the
@@ -15,7 +15,7 @@ use crate::dds::implementation::rtps_subscriber::RtpsSubscriber;
 /// and create_datareader may return the value NOT_ENABLED.
 pub struct Subscriber<'a>{
     pub(crate) parent_participant : &'a DomainParticipant,
-    pub(crate) rtps_subscriber: &'a RtpsSubscriber,
+    pub(crate) rtps_subscriber: RtpsSubscriber<'a>,
 }
 
 impl<'a> Subscriber<'a> {
@@ -62,22 +62,24 @@ impl<'a> Subscriber<'a> {
         })
     }
 
-    // /// This operation deletes a DataReader that belongs to the Subscriber. If the DataReader does not belong to the Subscriber, the
-    // /// operation returns the error PRECONDITION_NOT_MET.
-    // /// The deletion of a DataReader is not allowed if there are any existing ReadCondition or QueryCondition objects that are
-    // /// attached to the DataReader. If the delete_datareader operation is called on a DataReader with any of these existing objects
-    // /// attached to it, it will return PRECONDITION_NOT_MET.
-    // /// The deletion of a DataReader is not allowed if it has any outstanding loans as a result of a call to read, take, or one of the
-    // /// variants thereof. If the delete_datareader operation is called on a DataReader with one or more outstanding loans, it will
-    // /// return PRECONDITION_NOT_MET.
-    // /// The delete_datareader operation must be called on the same Subscriber object used to create the DataReader. If
-    // /// delete_datareader is called on a different Subscriber, the operation will have no effect and it will return
-    // /// PRECONDITION_NOT_MET.
-    // /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
-    // fn delete_datareader(
-    //     &self,
-    //     a_datareader: &mut dyn DataReader<T>
-    // ) -> ReturnCode<()>;
+    /// This operation deletes a DataReader that belongs to the Subscriber. If the DataReader does not belong to the Subscriber, the
+    /// operation returns the error PRECONDITION_NOT_MET.
+    /// The deletion of a DataReader is not allowed if there are any existing ReadCondition or QueryCondition objects that are
+    /// attached to the DataReader. If the delete_datareader operation is called on a DataReader with any of these existing objects
+    /// attached to it, it will return PRECONDITION_NOT_MET.
+    /// The deletion of a DataReader is not allowed if it has any outstanding loans as a result of a call to read, take, or one of the
+    /// variants thereof. If the delete_datareader operation is called on a DataReader with one or more outstanding loans, it will
+    /// return PRECONDITION_NOT_MET.
+    /// The delete_datareader operation must be called on the same Subscriber object used to create the DataReader. If
+    /// delete_datareader is called on a different Subscriber, the operation will have no effect and it will return
+    /// PRECONDITION_NOT_MET.
+    /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
+    fn delete_datareader<T: DDSType>(
+        &self,
+        a_datareader: &DataReader<T>
+    ) -> ReturnCode<()> {
+        self.rtps_subscriber.delete_datareader(&a_datareader.rtps_datareader)
+    }
 
     // /// This operation retrieves a previously-created DataReader belonging to the Subscriber that is attached to a Topic with a
     // /// matching topic_name. If no such DataReader exists, the operation will return ’nil.’
