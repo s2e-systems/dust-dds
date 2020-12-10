@@ -11,7 +11,10 @@ use crate::dds_infrastructure::status::{
     LivelinessChangedStatus,
     RequestedDeadlineMissedStatus};
 use crate::dds_rtps_implementation::rtps_object::RtpsObjectReference;
-
+use crate::dds_infrastructure::qos::DataReaderQos;
+use crate::dds_infrastructure::data_reader_listener::DataReaderListener;
+use crate::dds_infrastructure::entity::{Entity, StatusCondition};
+use crate::dds_infrastructure::status::StatusMask;
 use crate::types::{DDSType, InstanceHandle, ReturnCode};
 use crate::builtin_topics::PublicationBuiltinTopicData;
 pub struct RtpsDataReaderInner<T: DDSType> {
@@ -244,6 +247,43 @@ impl<'a, T: DDSType> RtpsDataReader<'a, T> {
         &self,
         _publication_handles: &mut [InstanceHandle],
     ) -> ReturnCode<()> {
+        todo!()
+    }
+}
+
+impl<'a, T:DDSType> Entity for RtpsDataReader<'a, T> {
+    type Qos = DataReaderQos;
+    type Listener = Box<dyn DataReaderListener<T>>;
+
+    fn set_qos(&self, _qos: Self::Qos) -> ReturnCode<()> {
+        todo!()
+    }
+
+    fn get_qos(&self) -> ReturnCode<Self::Qos> {
+        todo!()
+    }
+
+    fn set_listener(&self, _a_listener: Self::Listener, _mask: StatusMask) -> ReturnCode<()> {
+        todo!()
+    }
+
+    fn get_listener(&self) -> &Self::Listener {
+        todo!()
+    }
+
+    fn get_statuscondition(&self) -> StatusCondition {
+        todo!()
+    }
+
+    fn get_status_changes(&self) -> StatusMask {
+        todo!()
+    }
+
+    fn enable(&self) -> ReturnCode<()> {
+        todo!()
+    }
+
+    fn get_instance_handle(&self) -> ReturnCode<InstanceHandle> {
         todo!()
     }
 }

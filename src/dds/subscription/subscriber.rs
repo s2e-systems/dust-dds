@@ -2,8 +2,10 @@ use crate::types::{DDSType, ReturnCode};
 use crate::dds::domain::domain_participant::DomainParticipant;
 use crate::dds::subscription::data_reader::DataReader;
 use crate::dds::topic::topic::Topic;
-use crate::dds_infrastructure::qos::{DataReaderQos, TopicQos};
+use crate::dds_infrastructure::qos::{SubscriberQos, DataReaderQos, TopicQos};
+use crate::dds_infrastructure::entity::Entity;
 use crate::dds_infrastructure::status::SampleLostStatus;
+use crate::dds_infrastructure::subscriber_listener::SubscriberListener;
 
 use crate::dds_rtps_implementation::rtps_subscriber::RtpsSubscriber;
 /// A Subscriber is the object responsible for the actual reception of the data resulting from its subscriptions
@@ -227,4 +229,10 @@ impl<'a> Subscriber<'a> {
         self.rtps_subscriber.copy_from_topic_qos(a_datareader_qos, a_topic_qos)
     }
 }
-    
+
+impl<'a> std::ops::Deref for Subscriber<'a> {
+    type Target = dyn Entity<Qos=SubscriberQos, Listener=Box<dyn SubscriberListener>> + 'a;
+    fn deref(&self) -> &Self::Target {
+        &self.rtps_subscriber
+    }
+}

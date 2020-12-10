@@ -1,8 +1,10 @@
-use crate::types::{DDSType, ReturnCode};
 use crate::dds::domain::domain_participant::DomainParticipant;
 use crate::dds::topic::topic_description::TopicDescription;
-
+use crate::dds_infrastructure::entity::Entity;
+use crate::dds_infrastructure::qos::TopicQos;
+use crate::dds_infrastructure::topic_listener::TopicListener;
 use crate::dds_rtps_implementation::rtps_topic::RtpsTopic;
+use crate::types::{DDSType, ReturnCode};
 
 /// Topic is the most basic description of the data to be published and subscribed.
 /// A Topic is identified by its name, which must be unique in the whole Domain. In addition (by virtue of extending
@@ -15,9 +17,7 @@ pub struct Topic<'a, T: DDSType> {
     pub(crate) rtps_topic: RtpsTopic<'a, T>,
 }
 
-
-impl<'a, T: DDSType> Topic<'a, T>
-{
+impl<'a, T: DDSType> Topic<'a, T> {
     // /// This method allows the application to retrieve the INCONSISTENT_TOPIC status of the Topic.
     // /// Each DomainEntity has a set of relevant communication statuses. A change of status causes the corresponding Listener to be
     // /// invoked and can also be monitored by means of the associated StatusCondition.
@@ -39,5 +39,12 @@ impl<'a, T: DDSType> TopicDescription for Topic<'a, T> {
 
     fn get_name(&self) -> ReturnCode<String> {
         todo!()
+    }
+}
+
+impl<'a, T: DDSType> std::ops::Deref for Topic<'a, T> {
+    type Target = dyn Entity<Qos = TopicQos, Listener = Box<dyn TopicListener<T>>> + 'a;
+    fn deref(&self) -> &Self::Target {
+        &self.rtps_topic
     }
 }

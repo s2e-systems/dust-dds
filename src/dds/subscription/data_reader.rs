@@ -2,7 +2,6 @@ use crate::types::{DDSType, ReturnCode, InstanceHandle};
 use crate::dds::topic::topic::Topic;
 use crate::dds::topic::topic_description::TopicDescription;
 use crate::dds::subscription::subscriber::Subscriber;
-
 use crate::dds_rtps_implementation::rtps_data_reader::RtpsDataReader;
 use crate::dds_infrastructure::status::{
     ViewStateKind,
@@ -16,6 +15,9 @@ use crate::dds_infrastructure::status::{
     RequestedDeadlineMissedStatus};
 use crate::dds_infrastructure::sample_info::SampleInfo;
 use crate::dds_infrastructure::read_condition::ReadCondition;
+use crate::dds_infrastructure::qos::DataReaderQos;
+use crate::dds_infrastructure::entity::Entity;
+use crate::dds_infrastructure::data_reader_listener::DataReaderListener;
 use crate::builtin_topics::PublicationBuiltinTopicData;
 
 /// A DataReader allows the application (1) to declare the data it wishes to receive (i.e., make a subscription) and (2) to access the
@@ -617,5 +619,12 @@ impl<'a, T: DDSType> DataReader<'a, T> {
         publication_handles: &mut [InstanceHandle],
     ) -> ReturnCode<()> {
         self.rtps_datareader.get_match_publication(publication_handles)
+    }
+}
+
+impl<'a, T:DDSType> std::ops::Deref for DataReader<'a, T> {
+    type Target = dyn Entity<Qos=DataReaderQos, Listener=Box<dyn DataReaderListener<T>>> + 'a;
+    fn deref(&self) -> &Self::Target {
+        &self.rtps_datareader
     }
 }

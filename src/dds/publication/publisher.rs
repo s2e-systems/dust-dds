@@ -2,7 +2,9 @@ use crate::dds::domain::domain_participant::DomainParticipant;
 use crate::dds::publication::data_writer::DataWriter;
 use crate::dds::topic::topic::Topic;
 use crate::types::{DDSType, ReturnCode, Duration};
-use crate::dds_infrastructure::qos::{DataWriterQos, TopicQos};
+use crate::dds_infrastructure::qos::{PublisherQos, DataWriterQos, TopicQos};
+use crate::dds_infrastructure::entity::Entity;
+use crate::dds_infrastructure::publisher_listener::PublisherListener;
 
 use crate::dds_rtps_implementation::rtps_publisher::RtpsPublisher;
 
@@ -200,5 +202,12 @@ impl<'a> Publisher<'a> {
     /// This operation returns the DomainParticipant to which the Publisher belongs.
     pub fn get_participant(&self) -> &DomainParticipant {
         self.parent_participant
+    }
+}
+
+impl<'a> std::ops::Deref for Publisher<'a> {
+    type Target = dyn Entity<Qos=PublisherQos, Listener=Box<dyn PublisherListener>> + 'a;
+    fn deref(&self) -> &Self::Target {
+        &self.rtps_publisher
     }
 }

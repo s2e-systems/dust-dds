@@ -1,7 +1,14 @@
 use crate::types::{DDSType, ReturnCode, InstanceHandle, Time, Duration};
-use crate::dds_infrastructure::status::{LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus};
-use crate::dds_rtps_implementation::rtps_object::RtpsObjectReference;
 use crate::builtin_topics::SubscriptionBuiltinTopicData;
+
+use crate::dds_infrastructure::status::{LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus};
+use crate::dds_infrastructure::qos::DataWriterQos;
+use crate::dds_infrastructure::data_writer_listener::DataWriterListener;
+use crate::dds_infrastructure::entity::{Entity, StatusCondition};
+use crate::dds_infrastructure::status::StatusMask;
+
+use crate::dds_rtps_implementation::rtps_object::RtpsObjectReference;
+
 pub struct RtpsDataWriterInner<T: DDSType>{
     marker: std::marker::PhantomData<T>
 }
@@ -153,3 +160,39 @@ impl<'a, T:DDSType> RtpsDataWriter<'a,T> {
     }
 }
 
+impl<'a, T:DDSType> Entity for RtpsDataWriter<'a, T> {
+    type Qos = DataWriterQos;
+    type Listener = Box<dyn DataWriterListener<T>>;
+
+    fn set_qos(&self, _qos: Self::Qos) -> ReturnCode<()> {
+        todo!()
+    }
+
+    fn get_qos(&self) -> ReturnCode<Self::Qos> {
+        todo!()
+    }
+
+    fn set_listener(&self, _a_listener: Self::Listener, _mask: StatusMask) -> ReturnCode<()> {
+        todo!()
+    }
+
+    fn get_listener(&self) -> &Self::Listener {
+        todo!()
+    }
+
+    fn get_statuscondition(&self) -> StatusCondition {
+        todo!()
+    }
+
+    fn get_status_changes(&self) -> StatusMask {
+        todo!()
+    }
+
+    fn enable(&self) -> ReturnCode<()> {
+        todo!()
+    }
+
+    fn get_instance_handle(&self) -> ReturnCode<InstanceHandle> {
+        todo!()
+    }
+}

@@ -4,6 +4,9 @@ use crate::dds::publication::publisher::Publisher;
 use crate::dds::topic::topic::Topic;
 
 use crate::dds_rtps_implementation::rtps_data_writer::RtpsDataWriter;
+use crate::dds_infrastructure::qos::DataWriterQos;
+use crate::dds_infrastructure::entity::Entity;
+use crate::dds_infrastructure::data_writer_listener::DataWriterListener;
 use crate::dds_infrastructure::status::{LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus};
 
 pub struct DataWriter<'a, T: DDSType>{
@@ -334,5 +337,12 @@ impl<'a, T: DDSType> DataWriter<'a,T> {
         subscription_handles: &mut [InstanceHandle],
     ) -> ReturnCode<()> {
         self.rtps_datawriter.get_matched_subscriptions(subscription_handles)
+    }
+}
+
+impl<'a, T:DDSType> std::ops::Deref for DataWriter<'a, T> {
+    type Target = dyn Entity<Qos=DataWriterQos, Listener=Box<dyn DataWriterListener<T>>> + 'a;
+    fn deref(&self) -> &Self::Target {
+        &self.rtps_datawriter
     }
 }
