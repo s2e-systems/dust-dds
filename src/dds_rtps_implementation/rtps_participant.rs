@@ -1,6 +1,10 @@
 use std::sync::Arc;
 
-use crate::dds_infrastructure::qos::{PublisherQos, SubscriberQos, TopicQos};
+use crate::dds_infrastructure::entity::{Entity, StatusCondition};
+use crate::dds_infrastructure::qos::{DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos};
+use crate::dds_infrastructure::domain_participant_listener::DomainParticipantListener;
+use crate::dds_infrastructure::status::StatusMask;
+
 use crate::types::{DDSType, DomainId, Duration, InstanceHandle, ReturnCode, Time};
 use crate::builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData};
 
@@ -180,6 +184,43 @@ impl RtpsParticipant {
     }
 
     pub fn get_current_time(&self) -> ReturnCode<Time> {
+        todo!()
+    }
+}
+
+impl Entity for RtpsParticipant {
+    type Qos = DomainParticipantQos;
+    type Listener = Box<dyn DomainParticipantListener>;
+
+    fn set_qos(&self, _qos: Self::Qos) -> ReturnCode<()> {
+        todo!()
+    }
+
+    fn get_qos(&self) -> ReturnCode<Self::Qos> {
+        todo!()
+    }
+
+    fn set_listener(&self, _a_listener: Self::Listener, _mask: StatusMask) -> ReturnCode<()> {
+        todo!()
+    }
+
+    fn get_listener(&self) -> &Self::Listener {
+        todo!()
+    }
+
+    fn get_statuscondition(&self) -> StatusCondition {
+        todo!()
+    }
+
+    fn get_status_changes(&self) -> StatusMask {
+        todo!()
+    }
+
+    fn enable(&self) -> ReturnCode<()> {
+        todo!()
+    }
+
+    fn get_instance_handle(&self) -> ReturnCode<InstanceHandle> {
         todo!()
     }
 }

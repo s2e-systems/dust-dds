@@ -1,9 +1,12 @@
 use crate::types::{ReturnCode, DDSType, Duration, InstanceHandle, DomainId, Time};
-use crate::dds_infrastructure::qos::{PublisherQos, TopicQos, SubscriberQos};
+use crate::dds_infrastructure::qos::{DomainParticipantQos, PublisherQos, TopicQos, SubscriberQos};
 use crate::dds::publication::publisher::Publisher;
 use crate::dds::subscription::subscriber::Subscriber;
 use crate::dds::topic::topic::Topic;
+
 use crate::builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData};
+use crate::dds_infrastructure::entity::Entity;
+use crate::dds_infrastructure::domain_participant_listener::DomainParticipantListener;
 
 use crate::dds_rtps_implementation::rtps_participant::RtpsParticipant;
 
@@ -422,5 +425,12 @@ impl DomainParticipant {
     /// for the data-updates it receives.
     pub fn get_current_time(&self) -> ReturnCode<Time> {
         self.0.get_current_time()
+    }
+}
+
+impl std::ops::Deref for DomainParticipant {
+    type Target = dyn Entity<Qos=DomainParticipantQos, Listener=Box<dyn DomainParticipantListener>>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
