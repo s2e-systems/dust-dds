@@ -74,6 +74,18 @@ impl<T: Default> RtpsObject<T> {
 
 pub struct RtpsObjectReference<'a, T: Default>(&'a RtpsObject<T>);
 
+impl<'a, T: Default> PartialEq<RtpsObject<T>> for RtpsObjectReference<'a, T> {
+    fn eq(&self, other: &RtpsObject<T>) -> bool {
+        std::ptr::eq(self.0, other)
+    }
+}
+
+impl<'a, T: Default> PartialEq<RtpsObjectReference<'a, T>> for RtpsObject<T> {
+    fn eq(&self, other: &RtpsObjectReference<'a, T>) -> bool {
+        std::ptr::eq(self, other.0)
+    }
+}
+
 impl<'a, T: Default> RtpsObjectReference<'a, T> {
     pub fn value(&'a self) -> ReturnCode<&T> {
         self.0.as_ref()

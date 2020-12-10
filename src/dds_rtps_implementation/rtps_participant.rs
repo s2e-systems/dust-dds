@@ -1,15 +1,12 @@
-use crate::dds_infrastructure::qos::{PublisherQos, SubscriberQos, TopicQos};
-
-use crate::types::{DDSType, DomainId, Duration, InstanceHandle, ReturnCode, Time};
 use crate::builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData};
-
-use crate::rtps::transport::udp::UdpTransport;
-use crate::rtps::transport::Transport;
-
+use crate::dds_infrastructure::qos::{PublisherQos, SubscriberQos, TopicQos};
 use crate::dds_rtps_implementation::rtps_object::RtpsObject;
 use crate::dds_rtps_implementation::rtps_publisher::{RtpsPublisher, RtpsPublisherInner};
 use crate::dds_rtps_implementation::rtps_subscriber::RtpsSubscriber;
 use crate::dds_rtps_implementation::rtps_topic::RtpsTopic;
+use crate::rtps::transport::udp::UdpTransport;
+use crate::rtps::transport::Transport;
+use crate::types::{DDSType, DomainId, Duration, InstanceHandle, ReturnCode, ReturnCodes, Time};
 
 pub struct RtpsParticipant {
     userdata_transport: Box<dyn Transport>,
@@ -49,18 +46,33 @@ impl RtpsParticipant {
         })
     }
 
-    pub fn create_publisher<'a>(&'a self, _qos: Option<&PublisherQos>) -> Option<RtpsPublisher<'a>> {
-        let publisher_object = self.publisher_list.iter().find(|x| x.is_empty())?;
+    pub fn create_publisher<'a>(
+        &'a self,
+        _qos: Option<&PublisherQos>,
+    ) -> Option<RtpsPublisher<'a>> {
+        let publisher_object = self.publisher_list.iter().find(|&x| x.is_empty())?;
         let new_publisher_inner = RtpsPublisherInner::default();
         publisher_object.initialize(new_publisher_inner).ok()?;
         publisher_object.get_reference().ok()
     }
 
-    pub fn delete_publisher(&self, _a_publisher: &RtpsPublisher) -> ReturnCode<()> {
-        todo!()
+    pub fn delete_publisher(&self, a_publisher: &RtpsPublisher) -> ReturnCode<()> {
+        let publisher_object = self
+            .publisher_list
+            .iter()
+            .find(|&x| x == a_publisher)
+            .ok_or(ReturnCodes::PreconditionNotMet(
+                "Publisher not found in participant",
+            ))?;
+        publisher_object.delete();
+        Ok(())
     }
 
-    pub fn create_topic<T: DDSType>(&self, _topic_name: String, _qos: Option<&TopicQos>,) -> Option<RtpsTopic<T>> {
+    pub fn create_topic<T: DDSType>(
+        &self,
+        _topic_name: String,
+        _qos: Option<&TopicQos>,
+    ) -> Option<RtpsTopic<T>> {
         todo!()
     }
 
@@ -159,25 +171,19 @@ impl RtpsParticipant {
         todo!()
     }
 
-    pub fn get_discovered_topics(
-        &self,
-        _topic_handles: &mut [InstanceHandle]
-    ) -> ReturnCode<()> {
+    pub fn get_discovered_topics(&self, _topic_handles: &mut [InstanceHandle]) -> ReturnCode<()> {
         todo!()
     }
 
     pub fn get_discovered_topic_data(
         &self,
         _topic_data: TopicBuiltinTopicData,
-        _topic_handle: InstanceHandle
+        _topic_handle: InstanceHandle,
     ) -> ReturnCode<()> {
         todo!()
     }
 
-    pub fn contains_entity(
-        &self,
-        _a_handle: InstanceHandle
-    ) -> bool {
+    pub fn contains_entity(&self, _a_handle: InstanceHandle) -> bool {
         todo!()
     }
 
