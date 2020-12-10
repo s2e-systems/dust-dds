@@ -30,7 +30,7 @@ use crate::types::{DDSType, InstanceHandle, ReturnCode};
 pub struct DataReader<'a, T: DDSType> {
     pub(crate) parent_subscriber: &'a Subscriber<'a>,
     pub(crate) topic: Topic<'a, T>,
-    pub(crate) rtps_datareader: RtpsDataReader<'a, T>,
+    pub(crate) rtps_datareader: RtpsDataReader<'a>,
 }
 
 impl<'a, T: DDSType> DataReader<'a, T> {
@@ -112,15 +112,16 @@ impl<'a, T: DDSType> DataReader<'a, T> {
     /// If the DataReader has no samples that meet the constraints, the return value will be NO_DATA.
     pub fn read(
         &self,
-        data_values: &mut [T],
+        _data_values: &mut [T],
         sample_infos: &mut [SampleInfo],
         max_samples: i32,
         sample_states: &[SampleStateKind],
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
     ) -> ReturnCode<()> {
+        let mut data = [Vec::new()];
         self.rtps_datareader.read(
-            data_values,
+            &mut data,
             sample_infos,
             max_samples,
             sample_states,
@@ -144,15 +145,16 @@ impl<'a, T: DDSType> DataReader<'a, T> {
     /// If the DataReader has no samples that meet the constraints, the return value will be NO_DATA.
     pub fn take(
         &self,
-        data_values: &mut [T],
+        _data_values: &mut [T],
         sample_infos: &mut [SampleInfo],
         max_samples: i32,
         sample_states: &[SampleStateKind],
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
     ) -> ReturnCode<()> {
+        let mut data = [Vec::new()];
         self.rtps_datareader.take(
-            data_values,
+            &mut data,
             sample_infos,
             max_samples,
             sample_states,
@@ -175,13 +177,14 @@ impl<'a, T: DDSType> DataReader<'a, T> {
     /// If the DataReader has no samples that meet the constraints, the return value will be NO_DATA.
     pub fn read_w_condition(
         &self,
-        data_values: &mut [T],
+        _data_values: &mut [T],
         sample_infos: &mut [SampleInfo],
         max_samples: i32,
         // a_condition: ReadCondition,
     ) -> ReturnCode<()> {
+        let mut data = [Vec::new()];
         self.rtps_datareader
-            .read_w_condition(data_values, sample_infos, max_samples)
+            .read_w_condition(&mut data, sample_infos, max_samples)
     }
 
     /// This operation is analogous to read_w_condition except it accesses samples via the ‘take’ operation.
@@ -194,13 +197,14 @@ impl<'a, T: DDSType> DataReader<'a, T> {
     /// If the DataReader has no samples that meet the constraints, the return value will be NO_DATA.
     pub fn take_w_condition(
         &self,
-        data_values: &mut [T],
+        _data_values: &mut [T],
         sample_infos: &mut [SampleInfo],
         max_samples: i32,
         a_condition: ReadCondition,
     ) -> ReturnCode<()> {
+        let mut data = [Vec::new()];
         self.rtps_datareader
-            .take_w_condition(data_values, sample_infos, max_samples, a_condition)
+            .take_w_condition(&mut data, sample_infos, max_samples, a_condition)
     }
 
     /// This operation copies the next, non-previously accessed Data value from the DataReader; the operation also copies the
@@ -214,11 +218,13 @@ impl<'a, T: DDSType> DataReader<'a, T> {
     /// If there is no unread data in the DataReader, the operation will return NO_DATA and nothing is copied.
     pub fn read_next_sample(
         &self,
-        data_value: &mut [T],
+        _data_value: &mut [T],
         sample_info: &mut [SampleInfo],
     ) -> ReturnCode<()> {
+        
+        let mut data = [Vec::new()];
         self.rtps_datareader
-            .read_next_sample(data_value, sample_info)
+            .read_next_sample(&mut data, sample_info)
     }
 
     /// This operation copies the next, non-previously accessed Data value from the DataReader and ‘removes’ it from the
@@ -231,11 +237,13 @@ impl<'a, T: DDSType> DataReader<'a, T> {
     /// If there is no unread data in the DataReader, the operation will return NO_DATA and nothing is copied.
     pub fn take_next_sample(
         &self,
-        data_value: &mut [T],
+        _data_value: &mut [T],
         sample_info: &mut [SampleInfo],
     ) -> ReturnCode<()> {
+        
+        let mut data = [Vec::new()];
         self.rtps_datareader
-            .take_next_sample(data_value, sample_info)
+            .take_next_sample(&mut data, sample_info)
     }
 
     /// This operation accesses a collection of Data values from the DataReader. The behavior is identical to read except that all
@@ -255,7 +263,7 @@ impl<'a, T: DDSType> DataReader<'a, T> {
     /// unspecified.
     pub fn read_instance(
         &self,
-        data_values: &mut [T],
+        _data_values: &mut [T],
         sample_infos: &mut [SampleInfo],
         max_samples: i32,
         a_handle: InstanceHandle,
@@ -263,8 +271,10 @@ impl<'a, T: DDSType> DataReader<'a, T> {
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
     ) -> ReturnCode<()> {
+        
+        let mut data = [Vec::new()];
         self.rtps_datareader.read_instance(
-            data_values,
+            &mut data,
             sample_infos,
             max_samples,
             a_handle,
@@ -289,7 +299,7 @@ impl<'a, T: DDSType> DataReader<'a, T> {
     /// unspecified.
     pub fn take_instance(
         &self,
-        data_values: &mut [T],
+        _data_values: &mut [T],
         sample_infos: &mut [SampleInfo],
         max_samples: i32,
         a_handle: InstanceHandle,
@@ -297,8 +307,10 @@ impl<'a, T: DDSType> DataReader<'a, T> {
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
     ) -> ReturnCode<()> {
+        
+        let mut data = [Vec::new()];
         self.rtps_datareader.take_instance(
-            data_values,
+            &mut data,
             sample_infos,
             max_samples,
             a_handle,
@@ -340,7 +352,7 @@ impl<'a, T: DDSType> DataReader<'a, T> {
     /// If the DataReader has no samples that meet the constraints, the return value will be NO_DATA.
     pub fn read_next_instance(
         &self,
-        data_values: &mut [T],
+        _data_values: &mut [T],
         sample_infos: &mut [SampleInfo],
         max_samples: i32,
         previous_handle: InstanceHandle,
@@ -348,8 +360,10 @@ impl<'a, T: DDSType> DataReader<'a, T> {
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
     ) -> ReturnCode<()> {
+        
+        let mut data = [Vec::new()];
         self.rtps_datareader.read_next_instance(
-            data_values,
+            &mut data,
             sample_infos,
             max_samples,
             previous_handle,
@@ -372,7 +386,7 @@ impl<'a, T: DDSType> DataReader<'a, T> {
     /// If the DataReader has no samples that meet the constraints, the return value will be NO_DATA.
     pub fn take_next_instance(
         &self,
-        data_values: &mut [T],
+        _data_values: &mut [T],
         sample_infos: &mut [SampleInfo],
         max_samples: i32,
         previous_handle: InstanceHandle,
@@ -380,8 +394,10 @@ impl<'a, T: DDSType> DataReader<'a, T> {
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
     ) -> ReturnCode<()> {
+        
+        let mut data = [Vec::new()];
         self.rtps_datareader.take_next_instance(
-            data_values,
+            &mut data,
             sample_infos,
             max_samples,
             previous_handle,
@@ -406,14 +422,16 @@ impl<'a, T: DDSType> DataReader<'a, T> {
     /// If the DataReader has no samples that meet the constraints, the return value will be NO_DATA.
     pub fn read_next_instance_w_condition(
         &self,
-        data_values: &mut [T],
+        _data_values: &mut [T],
         sample_infos: &mut [SampleInfo],
         max_samples: i32,
         previous_handle: InstanceHandle,
         a_condition: ReadCondition,
     ) -> ReturnCode<()> {
+        
+        let mut data = [Vec::new()];
         self.rtps_datareader.read_next_instance_w_condition(
-            data_values,
+            &mut data,
             sample_infos,
             max_samples,
             previous_handle,
@@ -435,14 +453,16 @@ impl<'a, T: DDSType> DataReader<'a, T> {
     /// If the DataReader has no samples that meet the constraints, the return value will be NO_DATA.
     pub fn take_next_instance_w_condition(
         &self,
-        data_values: &mut [T],
+        _data_values: &mut [T],
         sample_infos: &mut [SampleInfo],
         max_samples: i32,
         previous_handle: InstanceHandle,
         a_condition: ReadCondition,
     ) -> ReturnCode<()> {
+        
+        let mut data = [Vec::new()];
         self.rtps_datareader.take_next_instance_w_condition(
-            data_values,
+            &mut data,
             sample_infos,
             max_samples,
             previous_handle,
@@ -470,10 +490,12 @@ impl<'a, T: DDSType> DataReader<'a, T> {
     /// that is being taken.
     pub fn return_loan(
         &self,
-        data_values: &mut [T],
+        _data_values: &mut [T],
         sample_infos: &mut [SampleInfo],
     ) -> ReturnCode<()> {
-        self.rtps_datareader.return_loan(data_values, sample_infos)
+        
+        let mut data = [Vec::new()];
+        self.rtps_datareader.return_loan(&mut data, sample_infos)
     }
 
     /// This operation can be used to retrieve the instance key that corresponds to an instance_handle. The operation will only fill the
@@ -481,9 +503,9 @@ impl<'a, T: DDSType> DataReader<'a, T> {
     /// This operation may return BAD_PARAMETER if the InstanceHandle_t a_handle does not correspond to an existing dataobject
     /// known to the DataReader. If the implementation is not able to check invalid handles then the result in this situation is
     /// unspecified.
-    pub fn get_key_value(&self, key_holder: &mut T, handle: InstanceHandle) -> ReturnCode<()> {
-        self.rtps_datareader.get_key_value(key_holder, handle)
-    }
+    // pub fn get_key_value(&self, key_holder: &mut T, handle: InstanceHandle) -> ReturnCode<()> {
+    //     self.rtps_datareader.get_key_value(key_holder, handle)
+    // }
 
     /// This operation takes as a parameter an instance and returns a handle that can be used in subsequent operations that accept an
     /// instance handle as an argument. The instance parameter is only used for the purpose of examining the fields that define the
@@ -491,7 +513,7 @@ impl<'a, T: DDSType> DataReader<'a, T> {
     /// This operation does not register the instance in question. If the instance has not been previously registered, or if for any other
     /// reason the Service is unable to provide an instance handle, the Service will return the special value HANDLE_NIL.
     pub fn lookup_instance(&self, instance: &T) -> InstanceHandle {
-        self.rtps_datareader.lookup_instance(instance)
+        self.rtps_datareader.lookup_instance(&instance.instance_handle())
     }
 
     // /// This operation creates a ReadCondition. The returned ReadCondition will be attached and belong to the DataReader.

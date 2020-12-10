@@ -48,7 +48,7 @@ impl<'a> Publisher<'a> {
         // _a_listener: impl DataWriterListener<T>,
         // _mask: StatusMask
     ) -> Option<DataWriter<T>> {
-        let rtps_datawriter = self.rtps_publisher.value().ok()?.create_datawriter()?;
+        let rtps_datawriter = self.rtps_publisher.create_datawriter()?;
 
         Some(DataWriter {
             parent_publisher: self,
@@ -67,7 +67,6 @@ impl<'a> Publisher<'a> {
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
     pub fn delete_datawriter<T: DDSType>(&self, a_datawriter: &DataWriter<T>) -> ReturnCode<()> {
         self.rtps_publisher
-            .value()?
             .delete_datawriter(&a_datawriter.rtps_datawriter)
     }
 
@@ -76,7 +75,7 @@ impl<'a> Publisher<'a> {
     /// If multiple DataWriter attached to the Publisher satisfy this condition, then the operation will return one of them. It is not
     /// specified which one.
     pub fn lookup_datawriter<T: DDSType>(&self, topic_name: &str) -> Option<DataWriter<T>> {
-        let rtps_datawriter = self.rtps_publisher.value().ok()?.lookup_datawriter(topic_name)?;
+        let rtps_datawriter = self.rtps_publisher.lookup_datawriter(topic_name)?;
         let a_topic = self
             .parent_participant
             .lookup_topicdescription(topic_name)?;
@@ -96,7 +95,7 @@ impl<'a> Publisher<'a> {
     /// modifications has completed. If the Publisher is deleted before resume_publications is called, any suspended updates yet to
     /// be published will be discarded.
     pub fn suspend_publications(&self) -> ReturnCode<()> {
-        self.rtps_publisher.value()?.suspend_publications()
+        self.rtps_publisher.suspend_publications()
     }
 
     /// This operation indicates to the Service that the application has completed the multiple changes initiated by the previous
@@ -106,7 +105,7 @@ impl<'a> Publisher<'a> {
     /// error PRECONDITION_NOT_MET.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
     pub fn resume_publications(&self) -> ReturnCode<()> {
-        self.rtps_publisher.value()?.resume_publications()
+        self.rtps_publisher.resume_publications()
     }
 
     /// This operation requests that the application will begin a ‘coherent set’ of modifications using DataWriter objects attached to
@@ -126,14 +125,14 @@ impl<'a> Publisher<'a> {
     /// same aircraft and both are changed, it may be useful to communicate those values in a way the reader can see both together;
     /// otherwise, it may e.g., erroneously interpret that the aircraft is on a collision course).
     pub fn begin_coherent_changes(&self) -> ReturnCode<()> {
-        self.rtps_publisher.value()?.begin_coherent_changes()
+        self.rtps_publisher.begin_coherent_changes()
     }
 
     /// This operation terminates the ‘coherent set’ initiated by the matching call to begin_coherent_ changes. If there is no matching
     /// call to begin_coherent_ changes, the operation will return the error PRECONDITION_NOT_MET.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET
     pub fn end_coherent_changes(&self) -> ReturnCode<()> {
-        self.rtps_publisher.value()?.end_coherent_changes()
+        self.rtps_publisher.end_coherent_changes()
     }
 
     /// This operation blocks the calling thread until either all data written by the reliable DataWriter entities is acknowledged by all
@@ -141,7 +140,7 @@ impl<'a> Publisher<'a> {
     /// first. A return value of OK indicates that all the samples written have been acknowledged by all reliable matched data readers;
     /// a return value of TIMEOUT indicates that max_wait elapsed before all the data was acknowledged.
     pub fn wait_for_acknowledgments(&self, max_wait: Duration) -> ReturnCode<()> {
-        self.rtps_publisher.value()?.wait_for_acknowledgments(max_wait)
+        self.rtps_publisher.wait_for_acknowledgments(max_wait)
     }
 
     /// This operation deletes all the entities that were created by means of the “create” operations on the Publisher. That is, it deletes
@@ -151,7 +150,7 @@ impl<'a> Publisher<'a> {
     /// Once delete_contained_entities returns successfully, the application may delete the Publisher knowing that it has no
     /// contained DataWriter objects
     pub fn delete_contained_entities(&self) -> ReturnCode<()> {
-        self.rtps_publisher.value()?.delete_contained_entities()
+        self.rtps_publisher.delete_contained_entities()
     }
 
     /// This operation sets a default value of the DataWriter QoS policies which will be used for newly created DataWriter entities in
@@ -162,7 +161,7 @@ impl<'a> Publisher<'a> {
     /// reset back to the initial values the factory would use, that is the values that would be used if the set_default_datawriter_qos
     /// operation had never been called.
     pub fn set_default_datawriter_qos(&self, qos: DataWriterQos) -> ReturnCode<()> {
-        self.rtps_publisher.value()?.set_default_datawriter_qos(qos)
+        self.rtps_publisher.set_default_datawriter_qos(qos)
     }
 
     /// This operation retrieves the default value of the DataWriter QoS, that is, the QoS policies which will be used for newly created
@@ -171,7 +170,7 @@ impl<'a> Publisher<'a> {
     /// set_default_datawriter_qos, or else, if the call was never made, the default values listed in the QoS table in 2.2.3, Supported
     /// QoS.
     pub fn get_default_datawriter_qos(&self) -> ReturnCode<DataWriterQos> {
-        self.rtps_publisher.value()?.get_default_datawriter_qos()
+        self.rtps_publisher.get_default_datawriter_qos()
     }
 
     /// This operation copies the policies in the a_topic_qos to the corresponding policies in the a_datawriter_qos (replacing values
@@ -186,7 +185,7 @@ impl<'a> Publisher<'a> {
         a_datawriter_qos: &mut DataWriterQos,
         a_topic_qos: &TopicQos,
     ) -> ReturnCode<()> {
-        self.rtps_publisher.value()?
+        self.rtps_publisher
             .copy_from_topic_qos(a_datawriter_qos, a_topic_qos)
     }
 

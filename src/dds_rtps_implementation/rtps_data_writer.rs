@@ -1,14 +1,11 @@
-use crate::types::{DDSType, ReturnCode, InstanceHandle, Time, Duration, Data};
+use crate::types::{ReturnCode, InstanceHandle, Time, Duration, Data};
 use crate::builtin_topics::SubscriptionBuiltinTopicData;
 
 use crate::dds_infrastructure::status::{LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus};
-use crate::dds_infrastructure::qos::DataWriterQos;
-use crate::dds_infrastructure::data_writer_listener::DataWriterListener;
-use crate::dds_infrastructure::entity::{Entity, StatusCondition};
-use crate::dds_infrastructure::status::StatusMask;
 
 use crate::dds_rtps_implementation::rtps_object::RtpsObjectReference;
 
+#[derive(Default)]
 pub struct RtpsDataWriterInner{
 }
 

@@ -1,40 +1,27 @@
+use crate::builtin_topics::PublicationBuiltinTopicData;
 use crate::dds_infrastructure::read_condition::ReadCondition;
 use crate::dds_infrastructure::sample_info::SampleInfo;
 use crate::dds_infrastructure::status::{
-    ViewStateKind,
-    SampleStateKind,
-    InstanceStateKind,
-    SampleRejectedStatus,
-    SubscriptionMatchedStatus,
-    SampleLostStatus,
-    RequestedIncompatibleQosStatus,
-    LivelinessChangedStatus,
-    RequestedDeadlineMissedStatus};
+    InstanceStateKind, LivelinessChangedStatus, RequestedDeadlineMissedStatus,
+    RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus, SampleStateKind,
+    SubscriptionMatchedStatus, ViewStateKind,
+};
 use crate::dds_rtps_implementation::rtps_object::RtpsObjectReference;
-use crate::dds_infrastructure::qos::DataReaderQos;
-use crate::dds_infrastructure::data_reader_listener::DataReaderListener;
-use crate::dds_infrastructure::entity::{Entity, StatusCondition};
-use crate::dds_infrastructure::status::StatusMask;
-use crate::types::{DDSType, InstanceHandle, ReturnCode};
-use crate::builtin_topics::PublicationBuiltinTopicData;
-pub struct RtpsDataReaderInner<T: DDSType> {
-    marker: std::marker::PhantomData<T>,
-}
+use crate::types::{Data, InstanceHandle, ReturnCode};
+pub struct RtpsDataReaderInner {}
 
-impl<T: DDSType> Default for RtpsDataReaderInner<T> {
+impl Default for RtpsDataReaderInner {
     fn default() -> Self {
-        Self {
-            marker: std::marker::PhantomData,
-        }
+        Self {}
     }
 }
 
-pub type RtpsDataReader<'a, T> = RtpsObjectReference<'a, RtpsDataReaderInner<T>>;
+pub type RtpsDataReader<'a> = RtpsObjectReference<'a, RtpsDataReaderInner>;
 
-impl<'a, T: DDSType> RtpsDataReader<'a, T> {
+impl<'a> RtpsDataReader<'a> {
     pub fn read(
         &self,
-        _data_values: &mut [T],
+        _data_values: &mut [Data],
         _sample_infos: &mut [SampleInfo],
         _max_samples: i32,
         _sample_states: &[SampleStateKind],
@@ -46,7 +33,7 @@ impl<'a, T: DDSType> RtpsDataReader<'a, T> {
 
     pub fn take(
         &self,
-        _data_values: &mut [T],
+        _data_values: &mut [Data],
         _sample_infos: &mut [SampleInfo],
         _max_samples: i32,
         _sample_states: &[SampleStateKind],
@@ -58,7 +45,7 @@ impl<'a, T: DDSType> RtpsDataReader<'a, T> {
 
     pub fn read_w_condition(
         &self,
-        _data_values: &mut [T],
+        _data_values: &mut [Data],
         _sample_infos: &mut [SampleInfo],
         _max_samples: i32,
         // a_condition: ReadCondition,
@@ -68,7 +55,7 @@ impl<'a, T: DDSType> RtpsDataReader<'a, T> {
 
     pub fn take_w_condition(
         &self,
-        _data_values: &mut [T],
+        _data_values: &mut [Data],
         _sample_infos: &mut [SampleInfo],
         _max_samples: i32,
         _a_condition: ReadCondition,
@@ -78,7 +65,7 @@ impl<'a, T: DDSType> RtpsDataReader<'a, T> {
 
     pub fn read_next_sample(
         &self,
-        _data_value: &mut [T],
+        _data_value: &mut [Data],
         _sample_info: &mut [SampleInfo],
     ) -> ReturnCode<()> {
         todo!()
@@ -86,7 +73,7 @@ impl<'a, T: DDSType> RtpsDataReader<'a, T> {
 
     pub fn take_next_sample(
         &self,
-        _data_value: &mut [T],
+        _data_value: &mut [Data],
         _sample_info: &mut [SampleInfo],
     ) -> ReturnCode<()> {
         todo!()
@@ -94,7 +81,7 @@ impl<'a, T: DDSType> RtpsDataReader<'a, T> {
 
     pub fn read_instance(
         &self,
-        _data_values: &mut [T],
+        _data_values: &mut [Data],
         _sample_infos: &mut [SampleInfo],
         _max_samples: i32,
         _a_handle: InstanceHandle,
@@ -107,7 +94,7 @@ impl<'a, T: DDSType> RtpsDataReader<'a, T> {
 
     pub fn take_instance(
         &self,
-        _data_values: &mut [T],
+        _data_values: &mut [Data],
         _sample_infos: &mut [SampleInfo],
         _max_samples: i32,
         _a_handle: InstanceHandle,
@@ -120,7 +107,7 @@ impl<'a, T: DDSType> RtpsDataReader<'a, T> {
 
     pub fn read_next_instance(
         &self,
-        _data_values: &mut [T],
+        _data_values: &mut [Data],
         _sample_infos: &mut [SampleInfo],
         _max_samples: i32,
         _previous_handle: InstanceHandle,
@@ -133,7 +120,7 @@ impl<'a, T: DDSType> RtpsDataReader<'a, T> {
 
     pub fn take_next_instance(
         &self,
-        _data_values: &mut [T],
+        _data_values: &mut [Data],
         _sample_infos: &mut [SampleInfo],
         _max_samples: i32,
         _previous_handle: InstanceHandle,
@@ -146,7 +133,7 @@ impl<'a, T: DDSType> RtpsDataReader<'a, T> {
 
     pub fn read_next_instance_w_condition(
         &self,
-        _data_values: &mut [T],
+        _data_values: &mut [Data],
         _sample_infos: &mut [SampleInfo],
         _max_samples: i32,
         _previous_handle: InstanceHandle,
@@ -157,7 +144,7 @@ impl<'a, T: DDSType> RtpsDataReader<'a, T> {
 
     pub fn take_next_instance_w_condition(
         &self,
-        _data_values: &mut [T],
+        _data_values: &mut [Data],
         _sample_infos: &mut [SampleInfo],
         _max_samples: i32,
         _previous_handle: InstanceHandle,
@@ -168,61 +155,52 @@ impl<'a, T: DDSType> RtpsDataReader<'a, T> {
 
     pub fn return_loan(
         &self,
-        _data_values: &mut [T],
+        _data_values: &mut [Data],
         _sample_infos: &mut [SampleInfo],
     ) -> ReturnCode<()> {
         todo!()
     }
 
-    pub fn get_key_value(&self, _key_holder: &mut T, _handle: InstanceHandle) -> ReturnCode<()> {
-        todo!()
-    }
+    // pub fn get_key_value(&self, _key_holder: &mut T, _handle: InstanceHandle) -> ReturnCode<()> {
+    //     todo!()
+    // }
 
-    pub fn lookup_instance(
-        &self,
-        _instance: &T,
-    ) -> InstanceHandle {
+    pub fn lookup_instance(&self, _instance: &InstanceHandle) -> InstanceHandle {
         todo!()
     }
 
     pub fn get_liveliness_changed_status(
         &self,
-        _status: &mut LivelinessChangedStatus
+        _status: &mut LivelinessChangedStatus,
     ) -> ReturnCode<()> {
         todo!()
     }
 
     pub fn get_requested_deadline_missed_status(
         &self,
-        _status: &mut RequestedDeadlineMissedStatus
+        _status: &mut RequestedDeadlineMissedStatus,
     ) -> ReturnCode<()> {
         todo!()
     }
 
     pub fn get_requested_incompatible_qos_status(
         &self,
-        _status: &mut RequestedIncompatibleQosStatus
+        _status: &mut RequestedIncompatibleQosStatus,
     ) -> ReturnCode<()> {
         todo!()
     }
 
-    pub fn get_sample_lost_status(
-        &self,
-        _status: &mut SampleLostStatus
-    ) -> ReturnCode<()> {
+    pub fn get_sample_lost_status(&self, _status: &mut SampleLostStatus) -> ReturnCode<()> {
         todo!()
     }
 
-    pub fn get_sample_rejected_status(
-        &self,
-        _status: &mut SampleRejectedStatus
-    ) -> ReturnCode<()> {
+    pub fn get_sample_rejected_status(&self, _status: &mut SampleRejectedStatus) -> ReturnCode<()> {
         todo!()
     }
 
     pub fn get_subscription_matched_status(
         &self,
-        _status: &mut SubscriptionMatchedStatus
+        _status: &mut SubscriptionMatchedStatus,
     ) -> ReturnCode<()> {
         todo!()
     }

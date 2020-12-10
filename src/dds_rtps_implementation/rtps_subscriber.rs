@@ -5,7 +5,7 @@ use crate::dds_infrastructure::status::StatusMask;
 use crate::dds_infrastructure::subscriber_listener::SubscriberListener;
 use crate::dds_rtps_implementation::rtps_data_reader::RtpsDataReader;
 use crate::dds_rtps_implementation::rtps_object::RtpsObjectReference;
-use crate::types::{DDSType, InstanceHandle, ReturnCode};
+use crate::types::{InstanceHandle, ReturnCode};
 
 #[derive(Default)]
 pub struct RtpsSubscriberInner;
@@ -13,18 +13,18 @@ pub struct RtpsSubscriberInner;
 pub type RtpsSubscriber<'a> = RtpsObjectReference<'a, RtpsSubscriberInner>;
 
 impl<'a> RtpsSubscriber<'a> {
-    pub fn create_datareader<T: DDSType>(&self) -> Option<RtpsDataReader<T>> {
+    pub fn create_datareader(&self) -> Option<RtpsDataReader> {
         todo!()
     }
 
-    pub fn delete_datareader<T: DDSType>(
+    pub fn delete_datareader(
         &self,
-        _a_datareader: &RtpsDataReader<T>,
+        _a_datareader: &RtpsDataReader,
     ) -> ReturnCode<()> {
         todo!()
     }
 
-    pub fn lookup_datareader<T: DDSType>(&self, _topic_name: &str) -> Option<RtpsDataReader<T>> {
+    pub fn lookup_datareader(&self, _topic_name: &str) -> Option<RtpsDataReader> {
         todo!()
     }
 

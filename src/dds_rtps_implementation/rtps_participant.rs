@@ -1,9 +1,4 @@
-use std::sync::Arc;
-
-use crate::dds_infrastructure::entity::{Entity, StatusCondition};
-use crate::dds_infrastructure::qos::{DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos};
-use crate::dds_infrastructure::domain_participant_listener::DomainParticipantListener;
-use crate::dds_infrastructure::status::StatusMask;
+use crate::dds_infrastructure::qos::{PublisherQos, SubscriberQos, TopicQos};
 
 use crate::types::{DDSType, DomainId, Duration, InstanceHandle, ReturnCode, Time};
 use crate::builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData};
@@ -19,7 +14,7 @@ use crate::dds_rtps_implementation::rtps_topic::RtpsTopic;
 pub struct RtpsParticipant {
     userdata_transport: Box<dyn Transport>,
     metatraffic_transport: Box<dyn Transport>,
-    publisher_list: Arc<[RtpsObject<RtpsPublisherInner>; 32]>,
+    publisher_list: [RtpsObject<RtpsPublisherInner>; 32],
 }
 
 impl RtpsParticipant {
@@ -50,7 +45,7 @@ impl RtpsParticipant {
         Some(Self {
             userdata_transport,
             metatraffic_transport,
-            publisher_list: Arc::new(Default::default()),
+            publisher_list: Default::default(),
         })
     }
 

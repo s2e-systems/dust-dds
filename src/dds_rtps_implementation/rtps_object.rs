@@ -1,50 +1,27 @@
 use core::sync::atomic;
-use std::cell::RefCell;
-
+use std::cell::UnsafeCell;
 use crate::types::{ReturnCode, ReturnCodes};
 
-pub enum RtpsObjectStorage<T> {
-    Some(T),
-    None,
-}
-
-impl<T> Default for RtpsObjectStorage<T> {
-    fn default() -> Self {
-        RtpsObjectStorage::None
-    }
-}
-
-impl<T> std::ops::Deref for RtpsObjectStorage<T> {
-    type Target = T;
-
-    fn deref(&self) -> &Self::Target {
-        match self {
-            RtpsObjectStorage::Some(value) => value,
-            RtpsObjectStorage::None => panic!("Access prevented by the container!"),
-        }
-    }
-}
-
-pub struct RtpsObject<T> {
-    value: RefCell<RtpsObjectStorage<T>>,
+pub struct RtpsObject<T: Default> {
+    value: UnsafeCell<T>,
     valid: atomic::AtomicBool,
     reference_count: atomic::AtomicUsize,
 }
 
-impl<T> Default for RtpsObject<T> {
+impl<T: Default> Default for RtpsObject<T> {
     fn default() -> Self {
         Self {
-            value: RefCell::new(RtpsObjectStorage::default()),
+            value: UnsafeCell::new(T::default()),
             valid: atomic::AtomicBool::new(false),
             reference_count: atomic::AtomicUsize::new(0),
         }
     }
 }
 
-impl<T> RtpsObject<T> {
+impl<T: Default> RtpsObject<T> {
     pub fn new(value: T) -> Self {
         Self {
-            value: RefCell::new(RtpsObjectStorage::Some(value)),
+            value: UnsafeCell::new(value),
             valid: atomic::AtomicBool::new(true),
             reference_count: atomic::AtomicUsize::new(0),
         }
@@ -62,11 +39,19 @@ impl<T> RtpsObject<T> {
     pub fn initialize(&self, value:T) -> ReturnCode<()> {
         if self.is_empty(){
             // Initialize only gets here if there are no read references so it would be a panic to not be able to get the lock
-            *self.value.try_write().unwrap() = RtpsObjectStorage::Some(value);
+            unsafe { *self.value.get() = value};
             self.valid.store(true, atomic::Ordering::Release); // Inspired by std::sync::Arc
             Ok(())
         } else {
             Err(ReturnCodes::PreconditionNotMet("Object must be empty"))
+        }
+    }
+
+    pub fn as_ref(&self) -> ReturnCode<&T> {
+        if self.is_valid() {
+            Ok(unsafe{&*self.value.get()})
+        } else {
+            Err(ReturnCodes::AlreadyDeleted)
         }
     }
 
@@ -87,20 +72,15 @@ impl<T> RtpsObject<T> {
     }
 }
 
-pub struct RtpsObjectReference<'a, T>(&'a RtpsObject<T>);
+pub struct RtpsObjectReference<'a, T: Default>(&'a RtpsObject<T>);
 
-impl<'a, T> RtpsObjectReference<'a, T> {
-    pub fn value(&self) -> ReturnCode<RwLockReadGuard<RtpsObjectStorage<T>>> {
-        if self.0.is_valid() {
-            // Only read locks are present when the value is initialized so it would be a panic to not be able to get the lock
-            Ok(self.0.value.try_read().unwrap())
-        } else {
-            Err(ReturnCodes::AlreadyDeleted)
-        }
+impl<'a, T: Default> RtpsObjectReference<'a, T> {
+    pub fn value(&'a self) -> ReturnCode<&T> {
+        self.0.as_ref()
     }
 }
 
-impl<'a, T> std::ops::Drop for RtpsObjectReference<'a, T> {
+impl<'a, T: Default> std::ops::Drop for RtpsObjectReference<'a, T> {
     fn drop(&mut self) {
         self.0
             .reference_count
@@ -132,7 +112,7 @@ mod tests {
     fn deleted_object() {
         let object = RtpsObject::new(100i32);
         let reference = object.get_reference().expect("Valid reference expected");
-        assert_eq!(**reference.value().unwrap(), 100i32);
+        assert_eq!(*reference.value().unwrap(), 100i32);
         assert!(reference.value().unwrap().is_positive());
 
         object.delete();

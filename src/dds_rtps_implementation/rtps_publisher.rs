@@ -1,12 +1,9 @@
-use crate::dds_infrastructure::entity::{Entity, StatusCondition};
-use crate::dds_infrastructure::publisher_listener::PublisherListener;
-use crate::dds_infrastructure::qos::{DataWriterQos, PublisherQos, TopicQos};
-use crate::dds_infrastructure::status::StatusMask;
+use crate::dds_infrastructure::qos::{DataWriterQos, TopicQos};
 use crate::dds_rtps_implementation::rtps_data_writer::RtpsDataWriter;
 use crate::dds_rtps_implementation::rtps_data_writer::RtpsDataWriterInner;
 use crate::dds_rtps_implementation::rtps_object::RtpsObject;
 use crate::dds_rtps_implementation::rtps_object::RtpsObjectReference;
-use crate::types::{DDSType, Duration, InstanceHandle, ReturnCode};
+use crate::types::{Duration, ReturnCode};
 
 #[derive(Default)]
 pub struct RtpsPublisherInner {
@@ -15,14 +12,16 @@ pub struct RtpsPublisherInner {
 
 pub type RtpsPublisher<'a> = RtpsObjectReference<'a, RtpsPublisherInner>;
 
-impl RtpsPublisherInner {
+impl<'a> RtpsPublisher<'a> {
     pub fn create_datawriter(&self) -> Option<RtpsDataWriter> {
         let datawriter_object = self
+            .value()
+            .ok()?
             .writer_list
             .iter()
             .find(|x| x.is_empty())?;
         let new_datawriter_inner = RtpsDataWriterInner::new();
-        datawriter_object.initialize(new_datawriter_inner);
+        datawriter_object.initialize(new_datawriter_inner).ok()?;
         datawriter_object
             .get_reference()
             .ok()
