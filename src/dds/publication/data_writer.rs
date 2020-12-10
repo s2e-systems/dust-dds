@@ -5,14 +5,15 @@ use crate::dds::topic::topic::Topic;
 
 use crate::dds_rtps_implementation::rtps_data_writer::RtpsDataWriter;
 use crate::dds_infrastructure::qos::DataWriterQos;
-use crate::dds_infrastructure::entity::Entity;
+use crate::dds_infrastructure::entity::{Entity, StatusCondition};
+use crate::dds_infrastructure::status::StatusMask;
 use crate::dds_infrastructure::data_writer_listener::DataWriterListener;
 use crate::dds_infrastructure::status::{LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus};
 
 pub struct DataWriter<'a, T: DDSType>{
     pub(crate) parent_publisher: &'a Publisher<'a>,
     pub(crate) topic: Topic<'a, T>,
-    pub(crate) rtps_datawriter: RtpsDataWriter<'a, T>
+    pub(crate) rtps_datawriter: RtpsDataWriter<'a>
 }
 
 impl<'a, T: DDSType> DataWriter<'a,T> {
@@ -34,7 +35,7 @@ impl<'a, T: DDSType> DataWriter<'a,T> {
         &self,
         instance: T
     ) -> ReturnCode<Option<InstanceHandle>> {
-        self.rtps_datawriter.register_instance(instance)
+        self.rtps_datawriter.register_instance(instance.instance_handle())
     }
 
     /// This operation performs the same function as register_instance and can be used instead of register_instance in the cases
@@ -49,7 +50,7 @@ impl<'a, T: DDSType> DataWriter<'a,T> {
         instance: T,
         timestamp: Time,
     ) -> ReturnCode<Option<InstanceHandle>> {
-        self.rtps_datawriter.register_instance_w_timestamp(instance, timestamp)
+        self.rtps_datawriter.register_instance_w_timestamp(instance.instance_handle(), timestamp)
     }
 
     /// This operation reverses the action of register_instance. It should only be called on an instance that is currently registered.
@@ -84,7 +85,7 @@ impl<'a, T: DDSType> DataWriter<'a,T> {
         instance: T,
         handle: Option<InstanceHandle>
     ) -> ReturnCode<()> {
-        self.rtps_datawriter.unregister_instance(instance, handle)
+        self.rtps_datawriter.unregister_instance(instance.instance_handle(), handle)
     }
 
     /// This operation performs the same function as unregister_instance and can be used instead of unregister_instance in the cases
@@ -100,7 +101,7 @@ impl<'a, T: DDSType> DataWriter<'a,T> {
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> ReturnCode<()> {
-        self.rtps_datawriter.unregister_instance_w_timestamp(instance, handle, timestamp)
+        self.rtps_datawriter.unregister_instance_w_timestamp(instance.instance_handle(), handle, timestamp)
     }
 
     /// This operation can be used to retrieve the instance key that corresponds to an instance_handle. The operation will only fill the
@@ -110,10 +111,11 @@ impl<'a, T: DDSType> DataWriter<'a,T> {
     /// unspecified.
     pub fn get_key_value(
         &self,
-        key_holder: &mut T,
-        handle: InstanceHandle
+        _key_holder: &mut T,
+        _handle: InstanceHandle
     ) -> ReturnCode<()> {
-        self.rtps_datawriter.get_key_value(key_holder, handle)
+        // self.rtps_datawriter.get_key_value(key_holder.instance_handle(), handle)
+        todo!()
     }
 
     /// This operation takes as a parameter an instance and returns a handle that can be used in subsequent operations that accept an
@@ -125,7 +127,7 @@ impl<'a, T: DDSType> DataWriter<'a,T> {
         &self,
         instance: &T,
     ) -> ReturnCode<Option<InstanceHandle>> {
-        self.rtps_datawriter.lookup_instance(instance)
+        self.rtps_datawriter.lookup_instance(&instance.instance_handle())
     }
 
     /// This operation modifies the value of a data instance. When this operation is used, the Service will automatically supply the
@@ -171,7 +173,7 @@ impl<'a, T: DDSType> DataWriter<'a,T> {
         data: T,
         handle: Option<InstanceHandle>,
     ) -> ReturnCode<()> {
-        self.rtps_datawriter.write(data, handle)
+        self.rtps_datawriter.write(data.serialize(), handle)
     }
 
     /// This operation performs the same function as write except that it also provides the value for the source_timestamp that is made
@@ -193,7 +195,7 @@ impl<'a, T: DDSType> DataWriter<'a,T> {
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> ReturnCode<()> {
-        self.rtps_datawriter.write_w_timestamp(data, handle, timestamp)
+        self.rtps_datawriter.write_w_timestamp(data.serialize(), handle, timestamp)
     }
 
     /// This operation requests the middleware to delete the data (the actual deletion is postponed until there is no more use for that
@@ -213,7 +215,7 @@ impl<'a, T: DDSType> DataWriter<'a,T> {
         data: T,
         handle: Option<InstanceHandle>,
     ) -> ReturnCode<()> {
-        self.rtps_datawriter.dispose(data, handle)
+        self.rtps_datawriter.dispose(data.serialize(), handle)
     }
 
     /// This operation performs the same functions as dispose except that the application provides the value for the source_timestamp
@@ -235,7 +237,7 @@ impl<'a, T: DDSType> DataWriter<'a,T> {
         handle: Option<InstanceHandle>,
         timestamp: Time,
     ) -> ReturnCode<()> {
-        self.rtps_datawriter.dispose_w_timestamp(data, handle, timestamp)
+        self.rtps_datawriter.dispose_w_timestamp(data.serialize(), handle, timestamp)
     }
 
     /// This operation is intended to be used only if the DataWriter has RELIABILITY QoS kind set to RELIABLE. Otherwise the
@@ -340,9 +342,39 @@ impl<'a, T: DDSType> DataWriter<'a,T> {
     }
 }
 
-impl<'a, T:DDSType> std::ops::Deref for DataWriter<'a, T> {
-    type Target = dyn Entity<Qos=DataWriterQos, Listener=Box<dyn DataWriterListener<T>>> + 'a;
-    fn deref(&self) -> &Self::Target {
-        &self.rtps_datawriter
+impl<'a, T:DDSType> Entity for DataWriter<'a, T> {
+    type Qos = DataWriterQos;
+    type Listener = Box<dyn DataWriterListener<T>>;
+
+    fn set_qos(&self, _qos: Self::Qos) -> ReturnCode<()> {
+        todo!()
+    }
+
+    fn get_qos(&self) -> ReturnCode<Self::Qos> {
+        todo!()
+    }
+
+    fn set_listener(&self, _a_listener: Self::Listener, _mask: StatusMask) -> ReturnCode<()> {
+        todo!()
+    }
+
+    fn get_listener(&self) -> &Self::Listener {
+        todo!()
+    }
+
+    fn get_statuscondition(&self) -> StatusCondition {
+        todo!()
+    }
+
+    fn get_status_changes(&self) -> StatusMask {
+        todo!()
+    }
+
+    fn enable(&self) -> ReturnCode<()> {
+        todo!()
+    }
+
+    fn get_instance_handle(&self) -> ReturnCode<InstanceHandle> {
+        todo!()
     }
 }

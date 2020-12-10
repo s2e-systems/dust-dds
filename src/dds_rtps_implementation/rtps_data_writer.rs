@@ -1,4 +1,4 @@
-use crate::types::{DDSType, ReturnCode, InstanceHandle, Time, Duration};
+use crate::types::{DDSType, ReturnCode, InstanceHandle, Time, Duration, Data};
 use crate::builtin_topics::SubscriptionBuiltinTopicData;
 
 use crate::dds_infrastructure::status::{LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus};
@@ -9,31 +9,29 @@ use crate::dds_infrastructure::status::StatusMask;
 
 use crate::dds_rtps_implementation::rtps_object::RtpsObjectReference;
 
-pub struct RtpsDataWriterInner<T: DDSType>{
-    marker: std::marker::PhantomData<T>
+pub struct RtpsDataWriterInner{
 }
 
-impl<T: DDSType> Default for RtpsDataWriterInner<T> {
-    fn default() -> Self {
+impl RtpsDataWriterInner {
+    pub fn new() -> Self {
         Self {
-            marker: std::marker::PhantomData
         }
     }
 }
 
-pub type RtpsDataWriter<'a, T> = RtpsObjectReference<'a, RtpsDataWriterInner<T>>;
+pub type RtpsDataWriter<'a> = RtpsObjectReference<'a, RtpsDataWriterInner>;
 
-impl<'a, T:DDSType> RtpsDataWriter<'a,T> {
+impl<'a> RtpsDataWriter<'a> {
     pub fn register_instance(
         &self,
-        _instance: T
+        _instance: InstanceHandle
     ) -> ReturnCode<Option<InstanceHandle>> {
         todo!()
     }
 
     pub fn register_instance_w_timestamp(
         &self,
-        _instance: T,
+        _instance: InstanceHandle,
         _timestamp: Time,
     ) -> ReturnCode<Option<InstanceHandle>> {
         todo!()
@@ -41,7 +39,7 @@ impl<'a, T:DDSType> RtpsDataWriter<'a,T> {
 
     pub fn unregister_instance(
         &self,
-        _instance: T,
+        _instance: InstanceHandle,
         _handle: Option<InstanceHandle>
     ) -> ReturnCode<()> {
         todo!()
@@ -49,7 +47,7 @@ impl<'a, T:DDSType> RtpsDataWriter<'a,T> {
 
     pub fn unregister_instance_w_timestamp(
         &self,
-        _instance: T,
+        _instance: InstanceHandle,
         _handle: Option<InstanceHandle>,
         _timestamp: Time,
     ) -> ReturnCode<()> {
@@ -58,7 +56,7 @@ impl<'a, T:DDSType> RtpsDataWriter<'a,T> {
 
     pub fn get_key_value(
         &self,
-        _key_holder: &mut T,
+        _key_holder: &mut InstanceHandle,
         _handle: InstanceHandle
     ) -> ReturnCode<()> {
         todo!()
@@ -66,14 +64,14 @@ impl<'a, T:DDSType> RtpsDataWriter<'a,T> {
 
     pub fn lookup_instance(
         &self,
-        _instance: &T,
+        _instance: &InstanceHandle,
     ) -> ReturnCode<Option<InstanceHandle>> {
         todo!()
     }
 
     pub fn write (
         &self,
-        _data: T,
+        _data: Data,
         _handle: Option<InstanceHandle>,
     ) -> ReturnCode<()> {
         todo!()
@@ -81,7 +79,7 @@ impl<'a, T:DDSType> RtpsDataWriter<'a,T> {
 
     pub fn write_w_timestamp(
         &self,
-        _data: T,
+        _data: Data,
         _handle: Option<InstanceHandle>,
         _timestamp: Time,
     ) -> ReturnCode<()> {
@@ -90,7 +88,7 @@ impl<'a, T:DDSType> RtpsDataWriter<'a,T> {
 
     pub fn dispose(
         &self,
-        _data: T,
+        _data: Data,
         _handle: Option<InstanceHandle>,
     ) -> ReturnCode<()> {
         todo!()
@@ -98,7 +96,7 @@ impl<'a, T:DDSType> RtpsDataWriter<'a,T> {
 
     pub fn dispose_w_timestamp(
         &self,
-        _data: T,
+        _data: Data,
         _handle: Option<InstanceHandle>,
         _timestamp: Time,
     ) -> ReturnCode<()> {
@@ -156,43 +154,6 @@ impl<'a, T:DDSType> RtpsDataWriter<'a,T> {
         &self,
         _subscription_handles: &mut [InstanceHandle],
     ) -> ReturnCode<()> {
-        todo!()
-    }
-}
-
-impl<'a, T:DDSType> Entity for RtpsDataWriter<'a, T> {
-    type Qos = DataWriterQos;
-    type Listener = Box<dyn DataWriterListener<T>>;
-
-    fn set_qos(&self, _qos: Self::Qos) -> ReturnCode<()> {
-        todo!()
-    }
-
-    fn get_qos(&self) -> ReturnCode<Self::Qos> {
-        todo!()
-    }
-
-    fn set_listener(&self, _a_listener: Self::Listener, _mask: StatusMask) -> ReturnCode<()> {
-        todo!()
-    }
-
-    fn get_listener(&self) -> &Self::Listener {
-        todo!()
-    }
-
-    fn get_statuscondition(&self) -> StatusCondition {
-        todo!()
-    }
-
-    fn get_status_changes(&self) -> StatusMask {
-        todo!()
-    }
-
-    fn enable(&self) -> ReturnCode<()> {
-        todo!()
-    }
-
-    fn get_instance_handle(&self) -> ReturnCode<InstanceHandle> {
         todo!()
     }
 }

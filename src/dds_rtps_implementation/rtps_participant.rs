@@ -55,7 +55,10 @@ impl RtpsParticipant {
     }
 
     pub fn create_publisher<'a>(&'a self, _qos: Option<&PublisherQos>) -> Option<RtpsPublisher<'a>> {
-        todo!()
+        let publisher_object = self.publisher_list.iter().find(|x| x.is_empty())?;
+        let new_publisher_inner = RtpsPublisherInner::default();
+        publisher_object.initialize(new_publisher_inner).ok()?;
+        publisher_object.get_reference().ok()
     }
 
     pub fn delete_publisher(&self, _a_publisher: &RtpsPublisher) -> ReturnCode<()> {
@@ -184,43 +187,6 @@ impl RtpsParticipant {
     }
 
     pub fn get_current_time(&self) -> ReturnCode<Time> {
-        todo!()
-    }
-}
-
-impl Entity for RtpsParticipant {
-    type Qos = DomainParticipantQos;
-    type Listener = Box<dyn DomainParticipantListener>;
-
-    fn set_qos(&self, _qos: Self::Qos) -> ReturnCode<()> {
-        todo!()
-    }
-
-    fn get_qos(&self) -> ReturnCode<Self::Qos> {
-        todo!()
-    }
-
-    fn set_listener(&self, _a_listener: Self::Listener, _mask: StatusMask) -> ReturnCode<()> {
-        todo!()
-    }
-
-    fn get_listener(&self) -> &Self::Listener {
-        todo!()
-    }
-
-    fn get_statuscondition(&self) -> StatusCondition {
-        todo!()
-    }
-
-    fn get_status_changes(&self) -> StatusMask {
-        todo!()
-    }
-
-    fn enable(&self) -> ReturnCode<()> {
-        todo!()
-    }
-
-    fn get_instance_handle(&self) -> ReturnCode<InstanceHandle> {
         todo!()
     }
 }

@@ -1,31 +1,38 @@
-use crate::types::{DDSType, Duration, InstanceHandle, ReturnCode};
-
-use crate::dds_rtps_implementation::rtps_data_writer::RtpsDataWriter;
-use crate::dds_rtps_implementation::rtps_object::RtpsObjectReference;
-
 use crate::dds_infrastructure::entity::{Entity, StatusCondition};
 use crate::dds_infrastructure::publisher_listener::PublisherListener;
 use crate::dds_infrastructure::qos::{DataWriterQos, PublisherQos, TopicQos};
 use crate::dds_infrastructure::status::StatusMask;
+use crate::dds_rtps_implementation::rtps_data_writer::RtpsDataWriter;
+use crate::dds_rtps_implementation::rtps_data_writer::RtpsDataWriterInner;
+use crate::dds_rtps_implementation::rtps_object::RtpsObject;
+use crate::dds_rtps_implementation::rtps_object::RtpsObjectReference;
+use crate::types::{DDSType, Duration, InstanceHandle, ReturnCode};
 
 #[derive(Default)]
-pub struct RtpsPublisherInner;
+pub struct RtpsPublisherInner {
+    writer_list: [RtpsObject<RtpsDataWriterInner>; 32],
+}
 
 pub type RtpsPublisher<'a> = RtpsObjectReference<'a, RtpsPublisherInner>;
 
-impl<'a> RtpsPublisher<'a> {
-    pub fn create_datawriter<T: DDSType>(&self) -> Option<RtpsDataWriter<T>> {
+impl RtpsPublisherInner {
+    pub fn create_datawriter(&self) -> Option<RtpsDataWriter> {
+        let datawriter_object = self
+            .writer_list
+            .iter()
+            .find(|x| x.is_empty())?;
+        let new_datawriter_inner = RtpsDataWriterInner::new();
+        datawriter_object.initialize(new_datawriter_inner);
+        datawriter_object
+            .get_reference()
+            .ok()
+    }
+
+    pub fn delete_datawriter(&self, _a_datawriter: &RtpsDataWriter) -> ReturnCode<()> {
         todo!()
     }
 
-    pub fn delete_datawriter<T: DDSType>(
-        &self,
-        _a_datawriter: &RtpsDataWriter<T>,
-    ) -> ReturnCode<()> {
-        todo!()
-    }
-
-    pub fn lookup_datawriter<T: DDSType>(&self, _topic_name: &str) -> Option<RtpsDataWriter<T>> {
+    pub fn lookup_datawriter(&self, _topic_name: &str) -> Option<RtpsDataWriter> {
         todo!()
     }
 
@@ -66,43 +73,6 @@ impl<'a> RtpsPublisher<'a> {
         _a_datawriter_qos: &mut DataWriterQos,
         _a_topic_qos: &TopicQos,
     ) -> ReturnCode<()> {
-        todo!()
-    }
-}
-
-impl<'a> Entity for RtpsPublisher<'a> {
-    type Qos = PublisherQos;
-    type Listener = Box<dyn PublisherListener>;
-
-    fn set_qos(&self, _qos: Self::Qos) -> ReturnCode<()> {
-        todo!()
-    }
-
-    fn get_qos(&self) -> ReturnCode<Self::Qos> {
-        todo!()
-    }
-
-    fn set_listener(&self, _a_listener: Self::Listener, _mask: StatusMask) -> ReturnCode<()> {
-        todo!()
-    }
-
-    fn get_listener(&self) -> &Self::Listener {
-        todo!()
-    }
-
-    fn get_statuscondition(&self) -> StatusCondition {
-        todo!()
-    }
-
-    fn get_status_changes(&self) -> StatusMask {
-        todo!()
-    }
-
-    fn enable(&self) -> ReturnCode<()> {
-        todo!()
-    }
-
-    fn get_instance_handle(&self) -> ReturnCode<InstanceHandle> {
         todo!()
     }
 }

@@ -1,14 +1,13 @@
-use crate::types::{ReturnCode, DDSType, Duration, InstanceHandle, DomainId, Time};
-use crate::dds_infrastructure::qos::{DomainParticipantQos, PublisherQos, TopicQos, SubscriberQos};
+use crate::builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData};
 use crate::dds::publication::publisher::Publisher;
 use crate::dds::subscription::subscriber::Subscriber;
 use crate::dds::topic::topic::Topic;
-
-use crate::builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData};
-use crate::dds_infrastructure::entity::Entity;
 use crate::dds_infrastructure::domain_participant_listener::DomainParticipantListener;
-
+use crate::dds_infrastructure::entity::{Entity, StatusCondition};
+use crate::dds_infrastructure::qos::{DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos};
+use crate::dds_infrastructure::status::StatusMask;
 use crate::dds_rtps_implementation::rtps_participant::RtpsParticipant;
+use crate::types::{DDSType, DomainId, Duration, InstanceHandle, ReturnCode, Time};
 
 pub struct DomainParticipant(pub(crate) RtpsParticipant);
 
@@ -28,9 +27,9 @@ impl DomainParticipant {
     ) -> Option<Publisher> {
         let rtps_publisher = self.0.create_publisher(qos)?;
 
-        Some (Publisher {
+        Some(Publisher {
             parent_participant: self,
-            rtps_publisher
+            rtps_publisher,
         })
     }
 
@@ -41,10 +40,7 @@ impl DomainParticipant {
     /// delete_publisher is called on a different DomainParticipant, the operation will have no effect and it will return
     /// PRECONDITION_NOT_MET.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
-    pub fn delete_publisher(
-        &self,
-        a_publisher: &Publisher
-    ) -> ReturnCode<()>{
+    pub fn delete_publisher(&self, a_publisher: &Publisher) -> ReturnCode<()> {
         self.0.delete_publisher(&a_publisher.rtps_publisher)
     }
 
@@ -64,9 +60,9 @@ impl DomainParticipant {
     ) -> Option<Subscriber> {
         let rtps_subscriber = self.0.create_subscriber(qos)?;
 
-        Some (Subscriber {
+        Some(Subscriber {
             parent_participant: self,
-            rtps_subscriber
+            rtps_subscriber,
         })
     }
 
@@ -77,10 +73,7 @@ impl DomainParticipant {
     /// delete_subscriber is called on a different DomainParticipant, the operation will have no effect and it will return
     /// PRECONDITION_NOT_MET.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
-    pub fn delete_subscriber(
-        &self,
-        a_subscriber: &Subscriber,
-    ) -> ReturnCode<()> {
+    pub fn delete_subscriber(&self, a_subscriber: &Subscriber) -> ReturnCode<()> {
         self.0.delete_subscriber(&a_subscriber.rtps_subscriber)
     }
 
@@ -94,7 +87,7 @@ impl DomainParticipant {
     /// registered with the Service. This is done using the register_type operation on a derived class of the TypeSupport interface as
     /// described in 2.2.2.3.6, TypeSupport Interface.
     /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
-    pub fn create_topic<T:DDSType>(
+    pub fn create_topic<T: DDSType>(
         &self,
         topic_name: String,
         qos: Option<&TopicQos>,
@@ -116,10 +109,7 @@ impl DomainParticipant {
     /// The delete_topic operation must be called on the same DomainParticipant object used to create the Topic. If delete_topic is
     /// called on a different DomainParticipant, the operation will have no effect and it will return PRECONDITION_NOT_MET.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
-    pub fn delete_topic<T:DDSType>(
-        &self,
-        a_topic: &Topic<T>,
-    ) -> ReturnCode<()> {
+    pub fn delete_topic<T: DDSType>(&self, a_topic: &Topic<T>) -> ReturnCode<()> {
         self.0.delete_topic(&a_topic.rtps_topic)
     }
 
@@ -134,7 +124,7 @@ impl DomainParticipant {
     /// of times using delete_topic.
     /// Regardless of whether the middleware chooses to propagate topics, the delete_topic operation deletes only the local proxy.
     /// If the operation times-out, a ‘nil’ value (as specified by the platform) is returned.
-    pub fn find_topic<T:DDSType>(
+    pub fn find_topic<T: DDSType>(
         &self,
         topic_name: String,
         timeout: Duration,
@@ -158,10 +148,8 @@ impl DomainParticipant {
     /// deletion. It is still possible to delete the TopicDescription returned by lookup_topicdescription, provided it has no readers or
     /// writers, but then it is really deleted and subsequent lookups will fail.
     /// If the operation fails to locate a TopicDescription, a ‘nil’ value (as specified by the platform) is returned.
-    pub fn lookup_topicdescription<T:DDSType>(
-        &self,
-        name: &str,
-    ) -> Option<Topic<T>> { // TODO: Originally return dyn TopicDescription
+    pub fn lookup_topicdescription<T: DDSType>(&self, name: &str) -> Option<Topic<T>> {
+        // TODO: Originally return dyn TopicDescription
         let rtps_topic = self.0.lookup_topicdescription(name)?;
 
         Some(Topic {
@@ -179,7 +167,7 @@ impl DomainParticipant {
 
         Subscriber {
             parent_participant: self,
-            rtps_subscriber
+            rtps_subscriber,
         }
     }
 
@@ -197,10 +185,7 @@ impl DomainParticipant {
     /// described in 2.2.2.5, Subscription Module.
     /// The ignore_participant operation is not required to be reversible. The Service offers no means to reverse it.
     /// Possible error codes returned in addition to the standard ones: OUT_OF_RESOURCES.
-    pub fn ignore_participant(
-        &self,
-        handle: InstanceHandle
-    ) -> ReturnCode<()> {
+    pub fn ignore_participant(&self, handle: InstanceHandle) -> ReturnCode<()> {
         self.0.ignore_participant(handle)
     }
 
@@ -212,10 +197,7 @@ impl DomainParticipant {
     /// reading the data-samples from the built-in DataReader to the “DCPSTopic” topic.
     /// The ignore_topic operation is not required to be reversible. The Service offers no means to reverse it.
     /// Possible error codes returned in addition to the standard ones: OUT_OF_RESOURCES.
-    pub fn ignore_topic(
-        &self,
-        handle: InstanceHandle
-    ) -> ReturnCode<()> {
+    pub fn ignore_topic(&self, handle: InstanceHandle) -> ReturnCode<()> {
         self.0.ignore_topic(handle)
     }
 
@@ -226,10 +208,7 @@ impl DomainParticipant {
     /// when reading the data-samples from the built-in DataReader to the “DCPSPublication” topic.
     /// The ignore_publication operation is not required to be reversible. The Service offers no means to reverse it.
     /// Possible error codes returned in addition to the standard ones: OUT_OF_RESOURCES.
-    pub fn ignore_publication(
-        &self,
-        handle: InstanceHandle
-    ) -> ReturnCode<()> {
+    pub fn ignore_publication(&self, handle: InstanceHandle) -> ReturnCode<()> {
         self.0.ignore_publication(handle)
     }
 
@@ -240,10 +219,7 @@ impl DomainParticipant {
     /// retrieved when reading the data-samples from the built-in DataReader to the “DCPSSubscription” topic.
     /// The ignore_subscription operation is not required to be reversible. The Service offers no means to reverse it.
     /// Possible error codes returned in addition to the standard ones: OUT_OF_RESOURCES.
-    pub fn ignore_subscription(
-        &self,
-        handle: InstanceHandle
-    ) -> ReturnCode<()> {
+    pub fn ignore_subscription(&self, handle: InstanceHandle) -> ReturnCode<()> {
         self.0.ignore_subscription(handle)
     }
 
@@ -287,10 +263,7 @@ impl DomainParticipant {
     /// The special value PUBLISHER_QOS_DEFAULT may be passed to this operation to indicate that the default QoS should be
     /// reset back to the initial values the factory would use, that is the values that would be used if the set_default_publisher_qos
     /// operation had never been called.
-    pub fn set_default_publisher_qos(
-        &self,
-        qos: Option<PublisherQos>,
-    ) -> ReturnCode<()> {
+    pub fn set_default_publisher_qos(&self, qos: Option<PublisherQos>) -> ReturnCode<()> {
         self.0.set_default_publisher_qos(qos)
     }
 
@@ -299,9 +272,7 @@ impl DomainParticipant {
     /// The values retrieved get_default_publisher_qos will match the set of values specified on the last successful call to
     /// set_default_publisher_qos, or else, if the call was never made, the default values listed in the QoS table in 2.2.3, Supported
     /// QoS.
-    pub fn get_default_publisher_qos(
-        &self
-    ) -> PublisherQos {
+    pub fn get_default_publisher_qos(&self) -> PublisherQos {
         self.0.get_default_publisher_qos()
     }
 
@@ -312,10 +283,7 @@ impl DomainParticipant {
     /// The special value SUBSCRIBER_QOS_DEFAULT may be passed to this operation to indicate that the default QoS should be
     /// reset back to the initial values the factory would use, that is the values that would be used if the set_default_subscriber_qos
     /// operation had never been called.
-    pub fn set_default_subscriber_qos(
-        &self,
-        qos: Option<SubscriberQos>,
-    ) -> ReturnCode<()> {
+    pub fn set_default_subscriber_qos(&self, qos: Option<SubscriberQos>) -> ReturnCode<()> {
         self.0.set_default_subscriber_qos(qos)
     }
 
@@ -324,9 +292,7 @@ impl DomainParticipant {
     /// The values retrieved get_default_subscriber_qos will match the set of values specified on the last successful call to
     /// set_default_subscriber_qos, or else, if the call was never made, the default values listed in the QoS table in 2.2.3, Supported
     /// QoS.
-    pub fn get_default_subscriber_qos(
-        &self
-    ) -> SubscriberQos {
+    pub fn get_default_subscriber_qos(&self) -> SubscriberQos {
         self.0.get_default_subscriber_qos()
     }
 
@@ -337,10 +303,7 @@ impl DomainParticipant {
     /// The special value TOPIC_QOS_DEFAULT may be passed to this operation to indicate that the default QoS should be reset
     /// back to the initial values the factory would use, that is the values that would be used if the set_default_topic_qos operation
     /// had never been called.
-    pub fn set_default_topic_qos(
-        &self,
-        qos: Option<TopicQos>,
-    ) -> ReturnCode<()> {
+    pub fn set_default_topic_qos(&self, qos: Option<TopicQos>) -> ReturnCode<()> {
         self.0.set_default_topic_qos(qos)
     }
 
@@ -348,9 +311,7 @@ impl DomainParticipant {
     /// entities in the case where the QoS policies are defaulted in the create_topic operation.
     /// The values retrieved get_default_topic_qos will match the set of values specified on the last successful call to
     /// set_default_topic_qos, or else, if the call was never made, the default values listed in the QoS table in 2.2.3, Supported QoS.
-    pub fn get_default_topic_qos(
-        &self
-    ) -> TopicQos {
+    pub fn get_default_topic_qos(&self) -> TopicQos {
         self.0.get_default_topic_qos()
     }
 
@@ -360,7 +321,7 @@ impl DomainParticipant {
     /// will return UNSUPPORTED.
     pub fn get_discovered_participants(
         &self,
-        participant_handles: &mut [InstanceHandle]
+        participant_handles: &mut [InstanceHandle],
     ) -> ReturnCode<()> {
         self.0.get_discovered_participants(participant_handles)
     }
@@ -376,17 +337,15 @@ impl DomainParticipant {
     pub fn get_discovered_participant_data(
         &self,
         participant_data: ParticipantBuiltinTopicData,
-        participant_handle: InstanceHandle
+        participant_handle: InstanceHandle,
     ) -> ReturnCode<()> {
-        self.0.get_discovered_participant_data(participant_data, participant_handle)
+        self.0
+            .get_discovered_participant_data(participant_data, participant_handle)
     }
 
     /// This operation retrieves the list of Topics that have been discovered in the domain and that the application has not indicated
     /// should be “ignored” by means of the DomainParticipant ignore_topic operation.
-    pub fn get_discovered_topics(
-        &self,
-        topic_handles: &mut [InstanceHandle]
-    ) -> ReturnCode<()> {
+    pub fn get_discovered_topics(&self, topic_handles: &mut [InstanceHandle]) -> ReturnCode<()> {
         self.0.get_discovered_topics(topic_handles)
     }
 
@@ -403,7 +362,7 @@ impl DomainParticipant {
     pub fn get_discovered_topic_data(
         &self,
         topic_data: TopicBuiltinTopicData,
-        topic_handle: InstanceHandle
+        topic_handle: InstanceHandle,
     ) -> ReturnCode<()> {
         self.0.get_discovered_topic_data(topic_data, topic_handle)
     }
@@ -414,10 +373,7 @@ impl DomainParticipant {
     /// so forth.
     /// The instance handle for an Entity may be obtained from built-in topic data, from various statuses, or from the Entity operation
     /// get_instance_handle.
-    pub fn contains_entity(
-        &self,
-        a_handle: InstanceHandle
-    ) -> bool {
+    pub fn contains_entity(&self, a_handle: InstanceHandle) -> bool {
         self.0.contains_entity(a_handle)
     }
 
@@ -428,9 +384,39 @@ impl DomainParticipant {
     }
 }
 
-impl std::ops::Deref for DomainParticipant {
-    type Target = dyn Entity<Qos=DomainParticipantQos, Listener=Box<dyn DomainParticipantListener>>;
-    fn deref(&self) -> &Self::Target {
-        &self.0
+impl Entity for DomainParticipant {
+    type Qos = DomainParticipantQos;
+    type Listener = Box<dyn DomainParticipantListener>;
+
+    fn set_qos(&self, _qos: Self::Qos) -> ReturnCode<()> {
+        todo!()
+    }
+
+    fn get_qos(&self) -> ReturnCode<Self::Qos> {
+        todo!()
+    }
+
+    fn set_listener(&self, _a_listener: Self::Listener, _mask: StatusMask) -> ReturnCode<()> {
+        todo!()
+    }
+
+    fn get_listener(&self) -> &Self::Listener {
+        todo!()
+    }
+
+    fn get_statuscondition(&self) -> StatusCondition {
+        todo!()
+    }
+
+    fn get_status_changes(&self) -> StatusMask {
+        todo!()
+    }
+
+    fn enable(&self) -> ReturnCode<()> {
+        todo!()
+    }
+
+    fn get_instance_handle(&self) -> ReturnCode<InstanceHandle> {
+        todo!()
     }
 }

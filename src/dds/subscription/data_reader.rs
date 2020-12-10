@@ -1,24 +1,20 @@
-use crate::types::{DDSType, ReturnCode, InstanceHandle};
+use crate::builtin_topics::PublicationBuiltinTopicData;
+use crate::dds::subscription::subscriber::Subscriber;
 use crate::dds::topic::topic::Topic;
 use crate::dds::topic::topic_description::TopicDescription;
-use crate::dds::subscription::subscriber::Subscriber;
-use crate::dds_rtps_implementation::rtps_data_reader::RtpsDataReader;
-use crate::dds_infrastructure::status::{
-    ViewStateKind,
-    SampleStateKind,
-    InstanceStateKind,
-    SampleRejectedStatus,
-    SubscriptionMatchedStatus,
-    SampleLostStatus,
-    RequestedIncompatibleQosStatus,
-    LivelinessChangedStatus,
-    RequestedDeadlineMissedStatus};
-use crate::dds_infrastructure::sample_info::SampleInfo;
-use crate::dds_infrastructure::read_condition::ReadCondition;
-use crate::dds_infrastructure::qos::DataReaderQos;
-use crate::dds_infrastructure::entity::Entity;
 use crate::dds_infrastructure::data_reader_listener::DataReaderListener;
-use crate::builtin_topics::PublicationBuiltinTopicData;
+use crate::dds_infrastructure::entity::{Entity, StatusCondition};
+use crate::dds_infrastructure::qos::DataReaderQos;
+use crate::dds_infrastructure::read_condition::ReadCondition;
+use crate::dds_infrastructure::sample_info::SampleInfo;
+use crate::dds_infrastructure::status::StatusMask;
+use crate::dds_infrastructure::status::{
+    InstanceStateKind, LivelinessChangedStatus, RequestedDeadlineMissedStatus,
+    RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus, SampleStateKind,
+    SubscriptionMatchedStatus, ViewStateKind,
+};
+use crate::dds_rtps_implementation::rtps_data_reader::RtpsDataReader;
+use crate::types::{DDSType, InstanceHandle, ReturnCode};
 
 /// A DataReader allows the application (1) to declare the data it wishes to receive (i.e., make a subscription) and (2) to access the
 /// data received by the attached Subscriber.
@@ -31,7 +27,7 @@ use crate::builtin_topics::PublicationBuiltinTopicData;
 /// get_statuscondition may return the error NOT_ENABLED.
 /// All sample-accessing operations, namely all variants of read, take may return the error PRECONDITION_NOT_MET. The
 /// circumstances that result on this are described in 2.2.2.5.2.8.
-pub struct DataReader<'a, T: DDSType>{
+pub struct DataReader<'a, T: DDSType> {
     pub(crate) parent_subscriber: &'a Subscriber<'a>,
     pub(crate) topic: Topic<'a, T>,
     pub(crate) rtps_datareader: RtpsDataReader<'a, T>,
@@ -123,7 +119,14 @@ impl<'a, T: DDSType> DataReader<'a, T> {
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
     ) -> ReturnCode<()> {
-        self.rtps_datareader.read(data_values, sample_infos, max_samples, sample_states, view_states, instance_states)
+        self.rtps_datareader.read(
+            data_values,
+            sample_infos,
+            max_samples,
+            sample_states,
+            view_states,
+            instance_states,
+        )
     }
 
     /// This operation accesses a collection of data-samples from the DataReader and a corresponding collection of SampleInfo
@@ -148,9 +151,16 @@ impl<'a, T: DDSType> DataReader<'a, T> {
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
     ) -> ReturnCode<()> {
-        self.rtps_datareader.take(data_values, sample_infos, max_samples, sample_states, view_states, instance_states)
+        self.rtps_datareader.take(
+            data_values,
+            sample_infos,
+            max_samples,
+            sample_states,
+            view_states,
+            instance_states,
+        )
     }
-    
+
     /// This operation accesses via ‘read’ the samples that match the criteria specified in the ReadCondition. This operation is
     /// especially useful in combination with QueryCondition to filter data samples based on the content.
     /// The specified ReadCondition must be attached to the DataReader; otherwise the operation will fail and return
@@ -170,7 +180,8 @@ impl<'a, T: DDSType> DataReader<'a, T> {
         max_samples: i32,
         // a_condition: ReadCondition,
     ) -> ReturnCode<()> {
-        self.rtps_datareader.read_w_condition(data_values, sample_infos, max_samples)
+        self.rtps_datareader
+            .read_w_condition(data_values, sample_infos, max_samples)
     }
 
     /// This operation is analogous to read_w_condition except it accesses samples via the ‘take’ operation.
@@ -188,7 +199,8 @@ impl<'a, T: DDSType> DataReader<'a, T> {
         max_samples: i32,
         a_condition: ReadCondition,
     ) -> ReturnCode<()> {
-        self.rtps_datareader.take_w_condition(data_values, sample_infos, max_samples, a_condition)
+        self.rtps_datareader
+            .take_w_condition(data_values, sample_infos, max_samples, a_condition)
     }
 
     /// This operation copies the next, non-previously accessed Data value from the DataReader; the operation also copies the
@@ -205,7 +217,8 @@ impl<'a, T: DDSType> DataReader<'a, T> {
         data_value: &mut [T],
         sample_info: &mut [SampleInfo],
     ) -> ReturnCode<()> {
-        self.rtps_datareader.read_next_sample(data_value, sample_info)
+        self.rtps_datareader
+            .read_next_sample(data_value, sample_info)
     }
 
     /// This operation copies the next, non-previously accessed Data value from the DataReader and ‘removes’ it from the
@@ -221,7 +234,8 @@ impl<'a, T: DDSType> DataReader<'a, T> {
         data_value: &mut [T],
         sample_info: &mut [SampleInfo],
     ) -> ReturnCode<()> {
-        self.rtps_datareader.take_next_sample(data_value, sample_info)
+        self.rtps_datareader
+            .take_next_sample(data_value, sample_info)
     }
 
     /// This operation accesses a collection of Data values from the DataReader. The behavior is identical to read except that all
@@ -398,7 +412,13 @@ impl<'a, T: DDSType> DataReader<'a, T> {
         previous_handle: InstanceHandle,
         a_condition: ReadCondition,
     ) -> ReturnCode<()> {
-        self.rtps_datareader.read_next_instance_w_condition(data_values, sample_infos, max_samples, previous_handle, a_condition)
+        self.rtps_datareader.read_next_instance_w_condition(
+            data_values,
+            sample_infos,
+            max_samples,
+            previous_handle,
+            a_condition,
+        )
     }
 
     /// This operation accesses a collection of Data values from the DataReader and ‘removes’ them from the DataReader.
@@ -421,7 +441,13 @@ impl<'a, T: DDSType> DataReader<'a, T> {
         previous_handle: InstanceHandle,
         a_condition: ReadCondition,
     ) -> ReturnCode<()> {
-        self.rtps_datareader.take_next_instance_w_condition(data_values, sample_infos, max_samples, previous_handle, a_condition)
+        self.rtps_datareader.take_next_instance_w_condition(
+            data_values,
+            sample_infos,
+            max_samples,
+            previous_handle,
+            a_condition,
+        )
     }
 
     /// This operation indicates to the DataReader that the application is done accessing the collection of data_values and
@@ -443,23 +469,19 @@ impl<'a, T: DDSType> DataReader<'a, T> {
     /// Similar to read, this operation must be provided on the specialized class that is generated for the particular application datatype
     /// that is being taken.
     pub fn return_loan(
-        &self, 
+        &self,
         data_values: &mut [T],
         sample_infos: &mut [SampleInfo],
-     ) -> ReturnCode<()> {
+    ) -> ReturnCode<()> {
         self.rtps_datareader.return_loan(data_values, sample_infos)
-     }
+    }
 
     /// This operation can be used to retrieve the instance key that corresponds to an instance_handle. The operation will only fill the
     /// fields that form the key inside the key_holder instance.
     /// This operation may return BAD_PARAMETER if the InstanceHandle_t a_handle does not correspond to an existing dataobject
     /// known to the DataReader. If the implementation is not able to check invalid handles then the result in this situation is
     /// unspecified.
-    pub fn get_key_value(
-        &self,
-        key_holder: &mut T,
-        handle: InstanceHandle
-    ) -> ReturnCode<()> {
+    pub fn get_key_value(&self, key_holder: &mut T, handle: InstanceHandle) -> ReturnCode<()> {
         self.rtps_datareader.get_key_value(key_holder, handle)
     }
 
@@ -468,10 +490,7 @@ impl<'a, T: DDSType> DataReader<'a, T> {
     /// key.
     /// This operation does not register the instance in question. If the instance has not been previously registered, or if for any other
     /// reason the Service is unable to provide an instance handle, the Service will return the special value HANDLE_NIL.
-    pub fn lookup_instance(
-        &self,
-        instance: &T,
-    ) -> InstanceHandle {
+    pub fn lookup_instance(&self, instance: &T) -> InstanceHandle {
         self.rtps_datareader.lookup_instance(instance)
     }
 
@@ -509,7 +528,7 @@ impl<'a, T: DDSType> DataReader<'a, T> {
     /// in 2.2.4.1.
     pub fn get_liveliness_changed_status(
         &self,
-        status: &mut LivelinessChangedStatus
+        status: &mut LivelinessChangedStatus,
     ) -> ReturnCode<()> {
         self.rtps_datareader.get_liveliness_changed_status(status)
     }
@@ -518,34 +537,30 @@ impl<'a, T: DDSType> DataReader<'a, T> {
     /// described in 2.2.4.1.
     pub fn get_requested_deadline_missed_status(
         &self,
-        status: &mut RequestedDeadlineMissedStatus
+        status: &mut RequestedDeadlineMissedStatus,
     ) -> ReturnCode<()> {
-        self.rtps_datareader.get_requested_deadline_missed_status(status)
+        self.rtps_datareader
+            .get_requested_deadline_missed_status(status)
     }
 
     /// This operation allows access to the REQUESTED_INCOMPATIBLE_QOS communication status. Communication statuses
     /// are described in 2.2.4.1.
     pub fn get_requested_incompatible_qos_status(
         &self,
-        status: &mut RequestedIncompatibleQosStatus
+        status: &mut RequestedIncompatibleQosStatus,
     ) -> ReturnCode<()> {
-        self.rtps_datareader.get_requested_incompatible_qos_status(status)
+        self.rtps_datareader
+            .get_requested_incompatible_qos_status(status)
     }
 
     /// This operation allows access to the SAMPLE_LOST communication status. Communication statuses are described in 2.2.4.1.
-    pub fn get_sample_lost_status(
-        &self,
-        status: &mut SampleLostStatus
-    ) -> ReturnCode<()> {
+    pub fn get_sample_lost_status(&self, status: &mut SampleLostStatus) -> ReturnCode<()> {
         self.rtps_datareader.get_sample_lost_status(status)
     }
 
     /// This operation allows access to the SAMPLE_REJECTED communication status. Communication statuses are described in
     /// 2.2.4.1.
-    pub fn get_sample_rejected_status(
-        &self,
-        status: &mut SampleRejectedStatus
-    ) -> ReturnCode<()> {
+    pub fn get_sample_rejected_status(&self, status: &mut SampleRejectedStatus) -> ReturnCode<()> {
         self.rtps_datareader.get_sample_rejected_status(status)
     }
 
@@ -553,7 +568,7 @@ impl<'a, T: DDSType> DataReader<'a, T> {
     /// described in 2.2.4.1.
     pub fn get_subscription_matched_status(
         &self,
-        status: &mut SubscriptionMatchedStatus
+        status: &mut SubscriptionMatchedStatus,
     ) -> ReturnCode<()> {
         self.rtps_datareader.get_subscription_matched_status(status)
     }
@@ -604,7 +619,8 @@ impl<'a, T: DDSType> DataReader<'a, T> {
         publication_data: &mut PublicationBuiltinTopicData,
         publication_handle: InstanceHandle,
     ) -> ReturnCode<()> {
-        self.rtps_datareader.get_matched_publication_data(publication_data, publication_handle)
+        self.rtps_datareader
+            .get_matched_publication_data(publication_data, publication_handle)
     }
 
     /// This operation retrieves the list of publications currently “associated” with the DataReader; that is, publications that have a
@@ -618,13 +634,44 @@ impl<'a, T: DDSType> DataReader<'a, T> {
         &self,
         publication_handles: &mut [InstanceHandle],
     ) -> ReturnCode<()> {
-        self.rtps_datareader.get_match_publication(publication_handles)
+        self.rtps_datareader
+            .get_match_publication(publication_handles)
     }
 }
 
-impl<'a, T:DDSType> std::ops::Deref for DataReader<'a, T> {
-    type Target = dyn Entity<Qos=DataReaderQos, Listener=Box<dyn DataReaderListener<T>>> + 'a;
-    fn deref(&self) -> &Self::Target {
-        &self.rtps_datareader
+impl<'a, T: DDSType> Entity for DataReader<'a, T> {
+    type Qos = DataReaderQos;
+    type Listener = Box<dyn DataReaderListener<T>>;
+
+    fn set_qos(&self, _qos: Self::Qos) -> ReturnCode<()> {
+        todo!()
+    }
+
+    fn get_qos(&self) -> ReturnCode<Self::Qos> {
+        todo!()
+    }
+
+    fn set_listener(&self, _a_listener: Self::Listener, _mask: StatusMask) -> ReturnCode<()> {
+        todo!()
+    }
+
+    fn get_listener(&self) -> &Self::Listener {
+        todo!()
+    }
+
+    fn get_statuscondition(&self) -> StatusCondition {
+        todo!()
+    }
+
+    fn get_status_changes(&self) -> StatusMask {
+        todo!()
+    }
+
+    fn enable(&self) -> ReturnCode<()> {
+        todo!()
+    }
+
+    fn get_instance_handle(&self) -> ReturnCode<InstanceHandle> {
+        todo!()
     }
 }
