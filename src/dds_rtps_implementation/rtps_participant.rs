@@ -2,11 +2,11 @@ use crate::builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData};
 use crate::dds_infrastructure::qos::{PublisherQos, SubscriberQos, TopicQos};
 use crate::dds_rtps_implementation::rtps_object::RtpsObject;
 use crate::dds_rtps_implementation::rtps_publisher::{RtpsPublisher, RtpsPublisherInner};
-use crate::dds_rtps_implementation::rtps_subscriber::RtpsSubscriber;
+use crate::dds_rtps_implementation::rtps_subscriber::{RtpsSubscriber, RtpsSubscriberInner};
 use crate::dds_rtps_implementation::rtps_topic::RtpsTopic;
 use crate::rtps::transport::udp::UdpTransport;
 use crate::rtps::transport::Transport;
-use crate::types::{DDSType, DomainId, Duration, InstanceHandle, ReturnCode, ReturnCodes, Time};
+use crate::types::{DomainId, Duration, InstanceHandle, ReturnCode, ReturnCodes, Time};
 
 pub struct RtpsParticipant {
     userdata_transport: Box<dyn Transport>,
@@ -68,15 +68,15 @@ impl RtpsParticipant {
         Ok(())
     }
 
-    pub fn create_topic<T: DDSType>(
+    pub fn create_topic(
         &self,
         _topic_name: String,
         _qos: Option<&TopicQos>,
-    ) -> Option<RtpsTopic<T>> {
+    ) -> Option<RtpsTopic> {
         todo!()
     }
 
-    pub fn delete_topic<T: DDSType>(&self, _a_topic: &RtpsTopic<T>) -> ReturnCode<()> {
+    pub fn delete_topic(&self, _a_topic: &RtpsTopic) -> ReturnCode<()> {
         todo!()
     }
 
@@ -88,15 +88,15 @@ impl RtpsParticipant {
         todo!()
     }
 
-    pub fn find_topic<T: DDSType>(
+    pub fn find_topic(
         &self,
         _topic_name: String,
         _timeout: Duration,
-    ) -> Option<RtpsTopic<T>> {
+    ) -> Option<RtpsTopic> {
         todo!()
     }
 
-    pub fn lookup_topicdescription<T: DDSType>(&self, _name: &str) -> Option<RtpsTopic<T>> {
+    pub fn lookup_topicdescription(&self, _name: &str) -> Option<RtpsTopic> {
         todo!()
     }
 

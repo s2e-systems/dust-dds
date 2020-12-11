@@ -99,6 +99,7 @@ impl DomainParticipant {
         Some(Topic {
             parent_participant: self,
             rtps_topic,
+            marker: std::marker::PhantomData
         })
     }
 
@@ -134,6 +135,7 @@ impl DomainParticipant {
         Some(Topic {
             parent_participant: self,
             rtps_topic,
+            marker: std::marker::PhantomData
         })
     }
 
@@ -155,6 +157,7 @@ impl DomainParticipant {
         Some(Topic {
             parent_participant: self,
             rtps_topic,
+            marker: std::marker::PhantomData
         })
     }
 
