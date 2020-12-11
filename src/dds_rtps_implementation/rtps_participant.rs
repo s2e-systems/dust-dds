@@ -12,6 +12,7 @@ pub struct RtpsParticipant {
     userdata_transport: Box<dyn Transport>,
     metatraffic_transport: Box<dyn Transport>,
     publisher_list: [RtpsObject<RtpsPublisherInner>; 32],
+    subscriber_list: [RtpsObject<RtpsSubscriberInner>; 32],
 }
 
 impl RtpsParticipant {
@@ -43,6 +44,7 @@ impl RtpsParticipant {
             userdata_transport,
             metatraffic_transport,
             publisher_list: Default::default(),
+            subscriber_list: Default::default(),
         })
     }
 
@@ -68,6 +70,25 @@ impl RtpsParticipant {
         Ok(())
     }
 
+    pub fn create_subscriber(&self, _qos: Option<&SubscriberQos>) -> Option<RtpsSubscriber> {
+        let subscriber_object = self.subscriber_list.iter().find(|&x| x.is_empty())?;
+        let new_subscriber_inner = RtpsSubscriberInner::default();
+        subscriber_object.initialize(new_subscriber_inner).ok()?;
+        subscriber_object.get_reference().ok()
+    }
+
+    pub fn delete_subscriber(&self, a_subscriber: &RtpsSubscriber) -> ReturnCode<()> {
+        self
+            .subscriber_list
+            .iter()
+            .find(|&x| x == a_subscriber)
+            .ok_or(ReturnCodes::PreconditionNotMet(
+                "Publisher not found in participant",
+            ))?
+            .delete();
+        Ok(())
+    }
+
     pub fn create_topic(
         &self,
         _topic_name: String,
@@ -77,14 +98,6 @@ impl RtpsParticipant {
     }
 
     pub fn delete_topic(&self, _a_topic: &RtpsTopic) -> ReturnCode<()> {
-        todo!()
-    }
-
-    pub fn create_subscriber(&self, _qos: Option<&SubscriberQos>) -> Option<RtpsSubscriber> {
-        todo!()
-    }
-
-    pub fn delete_subscriber(&self, _a_subscriber: &RtpsSubscriber) -> ReturnCode<()> {
         todo!()
     }
 
