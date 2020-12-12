@@ -4,7 +4,7 @@ use crate::rtps::types::{ReliabilityKind, GUID, GuidPrefix };
 use crate::rtps::messages::RtpsSubmessage;
 
 use crate::rtps::behavior::types::Duration;
-use crate::rtps::behavior::{RtpsReader, WriterProxy};
+use crate::rtps::behavior::{Reader, WriterProxy};
 use crate::rtps::behavior::endpoint_traits::{DestinedMessages, CacheChangeReceiver, AcknowldegmentSender};
 use super::best_effort_writer_proxy::BestEffortWriterProxy;
 use super::reliable_writer_proxy::ReliableWriterProxy;
@@ -29,7 +29,7 @@ impl std::ops::Deref for WriterProxyFlavor {
 }
 
 pub struct StatefulReader {
-    pub reader: RtpsReader,
+    pub reader: Reader,
     pub heartbeat_response_delay: Duration,
     matched_writers: HashMap<GUID, WriterProxyFlavor>,
 }
@@ -44,7 +44,7 @@ impl StatefulReader {
         heartbeat_response_delay: Duration
         ) -> Self {
 
-            let reader = RtpsReader::new(guid, topic_kind, reliability_level, reader_cache, expects_inline_qos);
+            let reader = Reader::new(guid, topic_kind, reliability_level, reader_cache, expects_inline_qos);
             Self {
                 reader,
                 heartbeat_response_delay,

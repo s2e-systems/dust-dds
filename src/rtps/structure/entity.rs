@@ -1,10 +1,10 @@
 use crate::rtps::types::GUID;
 
-pub struct RtpsEntity {
+pub struct Entity {
     pub guid: GUID,
 }
 
-impl RtpsEntity {
+impl Entity {
     pub fn new(guid: GUID) -> Self {
         Self {
             guid

@@ -2,13 +2,13 @@ use std::collections::HashMap;
 
 use super::best_effort_reader_locator::BestEffortReaderLocator;
 use crate::rtps::behavior::endpoint_traits::{CacheChangeSender, DestinedMessages};
-use crate::rtps::behavior::RtpsWriter;
+use crate::rtps::behavior::Writer;
 use crate::rtps::types::{Locator, ReliabilityKind, GUID};
 use crate::rtps::structure::HistoryCache;
 use crate::types::TopicKind;
 
 pub struct StatelessWriter {
-    pub writer: RtpsWriter,
+    pub writer: Writer,
     reader_locators: HashMap<Locator, BestEffortReaderLocator>,
 }
 
@@ -26,7 +26,7 @@ impl StatelessWriter {
             "Only BestEffort is supported on stateless writer"
         );
 
-        let writer = RtpsWriter::new(
+        let writer = Writer::new(
             guid,
             topic_kind,
             reliability_level,

@@ -7,8 +7,8 @@ pub mod stateless_reader;
 pub mod stateless_writer;
 pub mod endpoint_traits;
 
-pub use writer::RtpsWriter;
-pub use reader::RtpsReader;
+pub use writer::Writer;
+pub use reader::Reader;
 pub use stateful_reader::{StatefulReader, WriterProxy};
 pub use stateful_writer::{StatefulWriter, ReaderProxy};
 pub use stateless_reader::StatelessReader;

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::rtps::types::{ReliabilityKind, GUID, GuidPrefix};
 use crate::rtps::messages::RtpsSubmessage;
-use crate::rtps::behavior::RtpsWriter;
+use crate::rtps::behavior::Writer;
 use crate::rtps::behavior::types::Duration;
 use crate::rtps::behavior::endpoint_traits::{DestinedMessages, AcknowldegmentReceiver, CacheChangeSender};
 
@@ -29,7 +29,7 @@ impl std::ops::Deref for ReaderProxyFlavor {
 }
 
 pub struct StatefulWriter {
-    pub writer: RtpsWriter,
+    pub writer: Writer,
     pub heartbeat_period: Duration,
     pub nack_response_delay: Duration,
     pub nack_suppression_duration: Duration,
@@ -49,7 +49,7 @@ impl StatefulWriter {
         nack_suppression_duration: Duration,
     ) -> Self {
         
-        let writer = RtpsWriter::new(guid, topic_kind, reliability_level, push_mode, writer_cache, data_max_sized_serialized);
+        let writer = Writer::new(guid, topic_kind, reliability_level, push_mode, writer_cache, data_max_sized_serialized);
             Self {
                 writer,
                 heartbeat_period,

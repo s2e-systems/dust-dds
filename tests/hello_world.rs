@@ -1,7 +1,8 @@
-use rust_rtps::types::{DDSType, TopicKind, InstanceHandle, Data, DURATION_ZERO, Time};
+use rust_rtps::types::{DDSType, TopicKind, InstanceHandle, Data}; /*, DURATION_ZERO, Time*/
 use rust_rtps::dds::domain::domain_participant_factory::DomainParticipantFactory;
-use rust_rtps::dds_infrastructure::qos::DataWriterQos;
-use rust_rtps::dds_infrastructure::qos_policy::{ReliabilityQosPolicy, ReliabilityQosPolicyKind};
+use rust_rtps::dds::topic::topic::Topic;
+// use rust_rtps::dds_infrastructure::qos::DataWriterQos;
+// use rust_rtps::dds_infrastructure::qos_policy::{ReliabilityQosPolicy, ReliabilityQosPolicyKind};
 
 struct HelloWorldType {
     id: u8,
@@ -36,7 +37,7 @@ fn hello_world() {
     
     let _publisher = participant.create_publisher(None).expect("Error creating publisher");
 
-//     let helloworld_topic= participant.create_topic("HelloWorld".to_string(), None).expect("Error creating topic");
+    let _helloworld_topic: Topic<HelloWorldType> = participant.create_topic("HelloWorld".to_string(), None).expect("Error creating topic");
 
 //     // let subscriber = participant.create_subscriber(None).expect("Error creating subscriber");
 //     // let _datareader = subscriber.create_datareader(helloworld_topic, None);

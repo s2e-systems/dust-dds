@@ -1,6 +1,6 @@
 use crate::rtps::behavior::cache_change_from_data;
 use crate::rtps::behavior::endpoint_traits::CacheChangeReceiver;
-use crate::rtps::behavior::RtpsReader;
+use crate::rtps::behavior::Reader;
 use crate::rtps::messages::submessages::Data;
 use crate::rtps::messages::RtpsSubmessage;
 use crate::rtps::types::constants::ENTITYID_UNKNOWN;
@@ -9,7 +9,7 @@ use crate::rtps::structure::HistoryCache;
 use crate::types::TopicKind;
 
 pub struct StatelessReader {
-    pub reader: RtpsReader,
+    pub reader: Reader,
 }
 
 impl StatelessReader {
@@ -25,7 +25,7 @@ impl StatelessReader {
             "Only BestEffort supported on stateless reader"
         );
 
-        let reader = RtpsReader::new(
+        let reader = Reader::new(
             guid,
             topic_kind,
             reliability_level,

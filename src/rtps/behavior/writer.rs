@@ -1,4 +1,4 @@
-use crate::rtps::structure::RtpsEndpoint;
+use crate::rtps::structure::Endpoint;
 use crate::rtps::types::{ReliabilityKind, GUID};
 
 use crate::rtps::structure::{CacheChange, HistoryCache};
@@ -6,15 +6,15 @@ use crate::types::{
     ChangeKind, InstanceHandle, ParameterList, SequenceNumber, TopicKind,
 };
 
-pub struct RtpsWriter {
-    pub endpoint: RtpsEndpoint,
+pub struct Writer {
+    pub endpoint: Endpoint,
     pub push_mode: bool,
     pub last_change_sequence_number: SequenceNumber,
     pub writer_cache: HistoryCache,
     pub data_max_sized_serialized: Option<i32>,
 }
 
-impl RtpsWriter {
+impl Writer {
     pub fn new(
         guid: GUID,
         topic_kind: TopicKind,
@@ -23,7 +23,7 @@ impl RtpsWriter {
         writer_cache: HistoryCache,
         data_max_sized_serialized: Option<i32>,
     ) -> Self {
-        let endpoint = RtpsEndpoint::new(guid, topic_kind, reliability_level);
+        let endpoint = Endpoint::new(guid, topic_kind, reliability_level);
         Self {
             endpoint,
             push_mode,
@@ -59,7 +59,7 @@ mod tests {
 
     #[test]
     fn new_change() {
-        let mut writer = RtpsWriter::new(
+        let mut writer = Writer::new(
             GUID::new([0; 12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
             TopicKind::WithKey,
             ReliabilityKind::BestEffort,

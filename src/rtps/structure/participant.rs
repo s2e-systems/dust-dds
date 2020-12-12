@@ -1,17 +1,17 @@
 use crate::rtps::types::{ProtocolVersion, VendorId, GuidPrefix, GUID};
 use crate::rtps::types::constants::ENTITYID_PARTICIPANT;
-use crate::rtps::structure::RtpsEntity;
+use crate::rtps::structure::Entity;
 
 use crate::types::DomainId;
 
-pub struct RtpsParticipant {
-    pub entity: RtpsEntity,
+pub struct Participant {
+    pub entity: Entity,
     pub domain_id: DomainId,
     pub protocol_version: ProtocolVersion,
     pub vendor_id: VendorId,
 }
 
-impl RtpsParticipant {
+impl Participant {
     pub fn new(
         guid_prefix: GuidPrefix,
         domain_id: DomainId,
@@ -19,7 +19,7 @@ impl RtpsParticipant {
         vendor_id: VendorId,
     ) -> Self {
         let guid = GUID::new(guid_prefix,ENTITYID_PARTICIPANT);
-        let entity = RtpsEntity::new(guid);
+        let entity = Entity::new(guid);
         Self {
             entity,
             domain_id,

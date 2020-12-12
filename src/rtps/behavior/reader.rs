@@ -1,15 +1,15 @@
-use crate::rtps::structure::RtpsEndpoint;
+use crate::rtps::structure::Endpoint;
 use crate::rtps::types::{ReliabilityKind, GUID};
 use crate::rtps::structure::HistoryCache;
 use crate::types::TopicKind;
 
-pub struct RtpsReader {
-    pub endpoint: RtpsEndpoint,
+pub struct Reader {
+    pub endpoint: Endpoint,
     pub reader_cache: HistoryCache,
     pub expects_inline_qos: bool,
 }
 
-impl RtpsReader {
+impl Reader {
     pub fn new(
         guid: GUID,
         topic_kind: TopicKind,
@@ -17,7 +17,7 @@ impl RtpsReader {
         reader_cache: HistoryCache,
         expects_inline_qos: bool,
     ) -> Self {
-        let endpoint = RtpsEndpoint::new(guid, topic_kind, reliability_level);
+        let endpoint = Endpoint::new(guid, topic_kind, reliability_level);
         Self {
             endpoint,
             reader_cache,
