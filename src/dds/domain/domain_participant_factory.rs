@@ -1,5 +1,6 @@
 use crate::types::DomainId;
 use crate::dds::domain::domain_participant::DomainParticipant;
+use crate::dds_infrastructure::qos::DomainParticipantQos;
 use crate::dds_rtps_implementation::rtps_participant::RtpsParticipant;
 
 /// The DomainParticipant object plays several roles:
@@ -35,12 +36,12 @@ impl DomainParticipantFactory {
     /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
     pub fn create_participant (
         domain_id: DomainId,
-        // qos: DomainParticipantQos,
+        qos: Option<DomainParticipantQos>,
         // a_listener: impl DomainParticipantListener,
         // mask: StatusMask,
     //     enabled: bool,
     ) ->  Option<DomainParticipant> {
-        let rtps_participant = RtpsParticipant::new(domain_id)?;
+        let rtps_participant = RtpsParticipant::new(domain_id, qos)?;
         
         // if enabled {
         //     new_participant.enable().ok()?;

@@ -1,14 +1,17 @@
 use crate::builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData};
-use crate::dds_infrastructure::qos::{PublisherQos, SubscriberQos, TopicQos};
+use crate::dds_infrastructure::qos::{DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos};
 use crate::dds_rtps_implementation::rtps_object::RtpsObject;
 use crate::dds_rtps_implementation::rtps_publisher::{RtpsPublisher, RtpsPublisherInner};
 use crate::dds_rtps_implementation::rtps_subscriber::{RtpsSubscriber, RtpsSubscriberInner};
 use crate::dds_rtps_implementation::rtps_topic::RtpsTopic;
+use crate::rtps::structure::Participant;
 use crate::rtps::transport::udp::UdpTransport;
 use crate::rtps::transport::Transport;
+use crate::rtps::types::constants::{PROTOCOL_VERSION_2_4, VENDOR_ID};
 use crate::types::{DomainId, Duration, InstanceHandle, ReturnCode, ReturnCodes, Time};
 
 pub struct RtpsParticipant {
+    participant: Participant,
     userdata_transport: Box<dyn Transport>,
     metatraffic_transport: Box<dyn Transport>,
     publisher_list: [RtpsObject<RtpsPublisherInner>; 32],
@@ -18,7 +21,7 @@ pub struct RtpsParticipant {
 impl RtpsParticipant {
     pub fn new(
         domain_id: DomainId,
-        //     qos: DomainParticipantQos,
+        _qos: Option<DomainParticipantQos>,
         //     a_listener: impl DomainParticipantListener,
         //     mask: StatusMask,
         //     enabled: bool,
@@ -33,14 +36,15 @@ impl RtpsParticipant {
         //     sec: 30,
         //     nanosec: 0,
         // };
-
-        // let participant = RtpsParticipant::new(domain_id);
+        let guid_prefix = [1; 12];
+        let participant = Participant::new(guid_prefix, domain_id, PROTOCOL_VERSION_2_4, VENDOR_ID);
 
         // // if enabled {
         // //     new_participant.enable().ok()?;
         // // }
 
         Some(Self {
+            participant,
             userdata_transport,
             metatraffic_transport,
             publisher_list: Default::default(),
@@ -78,8 +82,7 @@ impl RtpsParticipant {
     }
 
     pub fn delete_subscriber(&self, a_subscriber: &RtpsSubscriber) -> ReturnCode<()> {
-        self
-            .subscriber_list
+        self.subscriber_list
             .iter()
             .find(|&x| x == a_subscriber)
             .ok_or(ReturnCodes::PreconditionNotMet(
@@ -89,11 +92,7 @@ impl RtpsParticipant {
         Ok(())
     }
 
-    pub fn create_topic(
-        &self,
-        _topic_name: String,
-        _qos: Option<&TopicQos>,
-    ) -> Option<RtpsTopic> {
+    pub fn create_topic(&self, _topic_name: String, _qos: Option<&TopicQos>) -> Option<RtpsTopic> {
         todo!()
     }
 
@@ -101,11 +100,7 @@ impl RtpsParticipant {
         todo!()
     }
 
-    pub fn find_topic(
-        &self,
-        _topic_name: String,
-        _timeout: Duration,
-    ) -> Option<RtpsTopic> {
+    pub fn find_topic(&self, _topic_name: String, _timeout: Duration) -> Option<RtpsTopic> {
         todo!()
     }
 

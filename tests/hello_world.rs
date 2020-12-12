@@ -33,7 +33,7 @@ impl DDSType for HelloWorldType {
 
 #[test]
 fn hello_world() {
-    let participant = DomainParticipantFactory::create_participant(0).expect("Error creating participant");
+    let participant = DomainParticipantFactory::create_participant(0, None).expect("Error creating participant");
     
     let _publisher = participant.create_publisher(None).expect("Error creating publisher");
 
