@@ -1,9 +1,8 @@
 use crate::types::{ReturnCode, InstanceHandle, Time, Duration, Data};
 use crate::builtin_topics::SubscriptionBuiltinTopicData;
-
 use crate::dds_infrastructure::status::{LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus};
-
-use crate::dds_rtps_implementation::rtps_object::RtpsObjectReference;
+use crate::dds_rtps_implementation::rtps_object::RtpsObject;
+use std::cell::Ref;
 
 #[derive(Default)]
 pub struct RtpsDataWriterInner{
@@ -16,9 +15,9 @@ impl RtpsDataWriterInner {
     }
 }
 
-pub type RtpsDataWriter<'a> = RtpsObjectReference<'a, RtpsDataWriterInner>;
+pub type RtpsDataWriter<'a> = Ref<'a, RtpsObject<RtpsDataWriterInner>>;
 
-impl<'a> RtpsDataWriter<'a> {
+impl RtpsObject<RtpsDataWriterInner> {
     pub fn register_instance(
         &self,
         _instance: InstanceHandle

@@ -2,29 +2,30 @@ use crate::dds_infrastructure::qos::{DataWriterQos, TopicQos};
 use crate::dds_rtps_implementation::rtps_data_writer::RtpsDataWriter;
 use crate::dds_rtps_implementation::rtps_data_writer::RtpsDataWriterInner;
 use crate::dds_rtps_implementation::rtps_object::RtpsObject;
-use crate::dds_rtps_implementation::rtps_object::RtpsObjectReference;
 use crate::types::{Duration, ReturnCode};
+use std::cell::Ref;
 
 #[derive(Default)]
 pub struct RtpsPublisherInner {
     writer_list: [RtpsObject<RtpsDataWriterInner>; 32],
 }
 
-pub type RtpsPublisher<'a> = RtpsObjectReference<'a, RtpsPublisherInner>;
+pub type RtpsPublisher<'a> = Ref<'a, RtpsObject<RtpsPublisherInner>>;
 
-impl<'a> RtpsPublisher<'a> {
+impl RtpsObject<RtpsPublisherInner> {
     pub fn create_datawriter(&self) -> Option<RtpsDataWriter> {
-        let datawriter_object = self
-            .value()
-            .ok()?
-            .writer_list
-            .iter()
-            .find(|x| x.is_empty())?;
-        let new_datawriter_inner = RtpsDataWriterInner::new();
-        datawriter_object.initialize(new_datawriter_inner).ok()?;
-        datawriter_object
-            .get_reference()
-            .ok()
+        // let datawriter_object = self
+        //     .value()
+        //     .ok()?
+        //     .writer_list
+        //     .iter()
+        //     .find(|x| x.is_empty())?;
+        // let new_datawriter_inner = RtpsDataWriterInner::new();
+        // datawriter_object.initialize(new_datawriter_inner).ok()?;
+        // datawriter_object
+        //     .get_reference()
+        //     .ok()
+        todo!()
     }
 
     pub fn delete_datawriter(&self, _a_datawriter: &RtpsDataWriter) -> ReturnCode<()> {

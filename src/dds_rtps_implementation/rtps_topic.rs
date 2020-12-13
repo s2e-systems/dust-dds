@@ -1,4 +1,5 @@
-use crate::dds_rtps_implementation::rtps_object::RtpsObjectReference;
+use crate::dds_rtps_implementation::rtps_object::RtpsObject;
+use std::cell::Ref;
 
 pub struct RtpsTopicInner{
 }
@@ -10,6 +11,6 @@ impl Default for RtpsTopicInner {
     }
 }
 
-pub type RtpsTopic<'a> = RtpsObjectReference<'a, RtpsTopicInner>;
+pub type RtpsTopic<'a> = Ref<'a, RtpsObject<RtpsTopicInner>>;
 
-impl<'a> RtpsTopic<'a> {}
+impl RtpsObject<RtpsTopicInner> {}

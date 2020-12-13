@@ -6,7 +6,8 @@ use crate::dds_infrastructure::status::{
     RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus, SampleStateKind,
     SubscriptionMatchedStatus, ViewStateKind,
 };
-use crate::dds_rtps_implementation::rtps_object::RtpsObjectReference;
+use std::cell::Ref;
+use crate::dds_rtps_implementation::rtps_object::RtpsObject;
 use crate::types::{Data, InstanceHandle, ReturnCode};
 pub struct RtpsDataReaderInner {}
 
@@ -16,9 +17,9 @@ impl Default for RtpsDataReaderInner {
     }
 }
 
-pub type RtpsDataReader<'a> = RtpsObjectReference<'a, RtpsDataReaderInner>;
+pub type RtpsDataReader<'a> = Ref<'a, RtpsObject<RtpsDataReaderInner>>;
 
-impl<'a> RtpsDataReader<'a> {
+impl RtpsObject<RtpsDataReaderInner> {
     pub fn read(
         &self,
         _data_values: &mut [Data],

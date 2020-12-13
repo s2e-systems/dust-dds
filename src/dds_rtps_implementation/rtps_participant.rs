@@ -1,6 +1,6 @@
 use crate::builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData};
 use crate::dds_infrastructure::qos::{DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos};
-use crate::dds_rtps_implementation::rtps_object::RtpsObject;
+use crate::dds_rtps_implementation::rtps_object::RtpsObjectList;
 use crate::dds_rtps_implementation::rtps_publisher::{RtpsPublisher, RtpsPublisherInner};
 use crate::dds_rtps_implementation::rtps_subscriber::{RtpsSubscriber, RtpsSubscriberInner};
 use crate::dds_rtps_implementation::rtps_topic::RtpsTopic;
@@ -14,8 +14,8 @@ pub struct RtpsParticipant {
     participant: Participant,
     userdata_transport: Box<dyn Transport>,
     metatraffic_transport: Box<dyn Transport>,
-    publisher_list: [RtpsObject<RtpsPublisherInner>; 32],
-    subscriber_list: [RtpsObject<RtpsSubscriberInner>; 32],
+    publisher_list: RtpsObjectList<RtpsPublisherInner>,
+    subscriber_list: RtpsObjectList<RtpsSubscriberInner>,
 }
 
 impl RtpsParticipant {
@@ -56,39 +56,25 @@ impl RtpsParticipant {
         &'a self,
         _qos: Option<&PublisherQos>,
     ) -> Option<RtpsPublisher<'a>> {
-        let publisher_object = self.publisher_list.iter().find(|&x| x.is_empty())?;
-        let new_publisher_inner = RtpsPublisherInner::default();
-        publisher_object.initialize(new_publisher_inner).ok()?;
-        publisher_object.get_reference().ok()
+        let new_publisher = RtpsPublisherInner::default();
+        self.publisher_list.create(new_publisher)
     }
 
     pub fn delete_publisher(&self, a_publisher: &RtpsPublisher) -> ReturnCode<()> {
-        let publisher_object = self
-            .publisher_list
-            .iter()
-            .find(|&x| x == a_publisher)
-            .ok_or(ReturnCodes::PreconditionNotMet(
-                "Publisher not found in participant",
-            ))?;
-        publisher_object.delete();
+        a_publisher.delete();
         Ok(())
     }
 
     pub fn create_subscriber(&self, _qos: Option<&SubscriberQos>) -> Option<RtpsSubscriber> {
-        let subscriber_object = self.subscriber_list.iter().find(|&x| x.is_empty())?;
-        let new_subscriber_inner = RtpsSubscriberInner::default();
-        subscriber_object.initialize(new_subscriber_inner).ok()?;
-        subscriber_object.get_reference().ok()
+        todo!()
+        // let subscriber_object = self.subscriber_list.iter().find(|&x| x.is_empty())?;
+        // let new_subscriber_inner = RtpsSubscriberInner::default();
+        // subscriber_object.initialize(new_subscriber_inner).ok()?;
+        // subscriber_object.get_reference().ok()
     }
 
     pub fn delete_subscriber(&self, a_subscriber: &RtpsSubscriber) -> ReturnCode<()> {
-        self.subscriber_list
-            .iter()
-            .find(|&x| x == a_subscriber)
-            .ok_or(ReturnCodes::PreconditionNotMet(
-                "Publisher not found in participant",
-            ))?
-            .delete();
+        a_subscriber.delete();
         Ok(())
     }
 

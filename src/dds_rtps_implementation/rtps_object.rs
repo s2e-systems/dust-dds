@@ -1,181 +1,169 @@
 use core::sync::atomic;
-use std::cell::UnsafeCell;
+use std::cell::{RefCell, Ref};
 use crate::types::{ReturnCode, ReturnCodes};
 
-pub struct RtpsObject<T: Default> {
-    value: UnsafeCell<T>,
+pub struct RtpsObject<T> {
+    value: T,
     valid: atomic::AtomicBool,
-    reference_count: atomic::AtomicUsize,
 }
 
 impl<T: Default> Default for RtpsObject<T> {
     fn default() -> Self {
         Self {
-            value: UnsafeCell::new(T::default()),
+            value: T::default(),
             valid: atomic::AtomicBool::new(false),
-            reference_count: atomic::AtomicUsize::new(0),
         }
     }
 }
 
-impl<T: Default> RtpsObject<T> {
+impl<T> RtpsObject<T> {
     pub fn new(value: T) -> Self {
         Self {
-            value: UnsafeCell::new(value),
+            value,
             valid: atomic::AtomicBool::new(true),
-            reference_count: atomic::AtomicUsize::new(0),
         }
     }
 
-    pub fn get_reference(&self) -> ReturnCode<RtpsObjectReference<T>> {
+    pub fn value(&self) -> ReturnCode<&T> {
         if self.is_valid() {
-            self.reference_count.fetch_add(1, atomic::Ordering::Acquire); // Inspired by std::sync::Arc
-            Ok(RtpsObjectReference(self))
+            Ok(&self.value)
         } else {
             Err(ReturnCodes::AlreadyDeleted)
         }
     }
 
-    pub fn initialize(&self, value:T) -> ReturnCode<()> {
-        if self.is_empty(){
-            // Initialize only gets here if there are no read references so it would be a panic to not be able to get the lock
-            unsafe { *self.value.get() = value};
-            self.valid.store(true, atomic::Ordering::Release); // Inspired by std::sync::Arc
-            Ok(())
-        } else {
-            Err(ReturnCodes::PreconditionNotMet("Object must be empty"))
-        }
-    }
-
-    pub fn as_ref(&self) -> ReturnCode<&T> {
-        if self.is_valid() {
-            Ok(unsafe{&*self.value.get()})
-        } else {
-            Err(ReturnCodes::AlreadyDeleted)
-        }
-    }
-
-    fn is_valid(&self) -> bool {
-        self.valid.load(atomic::Ordering::SeqCst)
-    }
-
-    fn reference_count(&self) -> usize {
-        self.reference_count.load(atomic::Ordering::SeqCst)
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.is_valid() == false && self.reference_count() == 0
+    pub fn is_valid(&self) -> bool {
+        self.valid.load(atomic::Ordering::Acquire)
     }
 
     pub fn delete(&self) {
         self.valid.store(false, atomic::Ordering::Release) // Inspired by std::sync::Arc
     }
-}
 
-pub struct RtpsObjectReference<'a, T: Default>(&'a RtpsObject<T>);
-
-impl<'a, T: Default> PartialEq<RtpsObject<T>> for RtpsObjectReference<'a, T> {
-    fn eq(&self, other: &RtpsObject<T>) -> bool {
-        std::ptr::eq(self.0, other)
+    pub fn initialize(&mut self, value: T) {
+        self.value = value;
+        self.valid.store(true, atomic::Ordering::Release);
     }
 }
 
-impl<'a, T: Default> PartialEq<RtpsObjectReference<'a, T>> for RtpsObject<T> {
-    fn eq(&self, other: &RtpsObjectReference<'a, T>) -> bool {
-        std::ptr::eq(self, other.0)
+pub struct RtpsObjectList<T>([RefCell<RtpsObject<T>>;32]);
+
+impl<T: Default> Default for RtpsObjectList<T> {
+    fn default() -> Self {
+        Self(Default::default())
     }
 }
 
-impl<'a, T: Default> RtpsObjectReference<'a, T> {
-    pub fn value(&'a self) -> ReturnCode<&T> {
-        self.0.as_ref()
+impl<T> RtpsObjectList<T> {
+    pub fn create(&self, value: T) -> Option<Ref<RtpsObject<T>>> {
+        let index = self.initialize_free_object(value)?;
+        Some(self.0[index].borrow())
+    }
+
+    fn initialize_free_object(&self, value:T) -> Option<usize> {
+        // Find an object in the list which can be borrow mutably (meaning there are no other references to it)
+        // and that is marked as invalid (meaning that it has either been deleted on never initialized)
+        for (index, object) in self.0.iter().enumerate() {
+            if let Some(mut borrowed_object) = object.try_borrow_mut().ok() {
+                if !borrowed_object.is_valid() {
+                    borrowed_object.initialize(value);
+                    return Some(index);
+                }
+            }
+        }
+        // If it was never found then return None
+        return None;
     }
 }
 
-impl<'a, T: Default> std::ops::Drop for RtpsObjectReference<'a, T> {
-    fn drop(&mut self) {
-        self.0
-            .reference_count
-            .fetch_sub(1, atomic::Ordering::Acquire); // Inspired by std::sync::Arc
-    }
-}
+
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn reference_count() {
-        let object = RtpsObject::new(0);
-        assert_eq!(object.reference_count(), 0);
-        {
-            let _reference1 = object.get_reference();
-            assert_eq!(object.reference_count(), 1);
-            {
-                let _reference2 = object.get_reference();
-                assert_eq!(object.reference_count(), 2);
-            }
-            assert_eq!(object.reference_count(), 1);
-        }
-        assert_eq!(object.reference_count.load(atomic::Ordering::Relaxed), 0);
-    }
-
-    #[test]
-    fn deleted_object() {
-        let object = RtpsObject::new(100i32);
-        let reference = object.get_reference().expect("Valid reference expected");
-        assert_eq!(*reference.value().unwrap(), 100i32);
-        assert!(reference.value().unwrap().is_positive());
-
+    fn create_delete() {
+        let object = RtpsObject::new(10);
+        assert!(object.value().is_ok());
         object.delete();
-
-        match reference.value() {
-            Err(ReturnCodes::AlreadyDeleted) => assert!(true),
-            _ => assert!(false, "Value should return Already Deleted"),
-        };
-
-        match object.get_reference() {
-            Err(ReturnCodes::AlreadyDeleted) => assert!(true),
-            _ => assert!(false, "Object should return Already Deleted"),
-        };
+        assert!(object.value().is_err());
     }
 
     #[test]
-    fn empty_object() {
-        let object = RtpsObject::default();
-        assert_eq!(object.is_empty(), true);
+    fn value_ok() {
+        let object = RtpsObject::new(100i32);
+        assert_eq!(object.value().unwrap(), &100i32);
+    }
 
-        object.initialize(1.250).unwrap();
-        assert_eq!(object.is_empty(), false);
+    #[test]
+    fn value_deleted() {
+        let object = RtpsObject::new(100i32);
+        object.delete();
+        match object.value() {
+            Err(ReturnCodes::AlreadyDeleted) => assert!(true),
+            _ => assert!(false, "Expected error code AlreadyDeleted"),
+        }
+    }
+
+    #[test]
+    fn value_deleted_and_initialized() {
+        let mut object = RtpsObject::new(100i32);
+        object.delete();
+        object.initialize(-10i32);
+        assert_eq!(object.value().unwrap(), &-10i32);
+    }
+
+    #[test]
+    fn object_list_initialize_free_object_positions() {
+        let object_list: RtpsObjectList<i32> = RtpsObjectList::default();
+        let index0 = object_list.initialize_free_object(10).unwrap();
+        let index1 = object_list.initialize_free_object(20).unwrap();
+        let index2 = object_list.initialize_free_object(-5).unwrap();
+
+        assert_eq!(index0, 0);
+        assert_eq!(index1, 1);
+        assert_eq!(index2, 2);
+    }
+
+    #[test]
+    fn object_list_initialize_free_object_positions_with_deletion() {
+        let object_list: RtpsObjectList<i32> = RtpsObjectList::default();
         {
-            let _reference1 = object.get_reference();
-            assert_eq!(object.is_empty(), false);
+            let _object0 = object_list.create(0).unwrap();
+            let object1 = object_list.create(10).unwrap();
+            let _object2 = object_list.create(20).unwrap();
+            let object3 = object_list.create(30).unwrap();
 
-            object.delete();
-            assert_eq!(object.is_empty(), false);
+            object1.delete();
+            object3.delete();
         }
-        assert_eq!(object.is_empty(), true);
+
+        let index1 = object_list.initialize_free_object(10).unwrap();
+        let index3 = object_list.initialize_free_object(30).unwrap();
+        let index4 = object_list.initialize_free_object(40).unwrap();
+
+        assert_eq!(index1, 1);
+        assert_eq!(index3, 3);
+        assert_eq!(index4, 4);
     }
 
     #[test]
-    fn object_with_reference() {
-        #[derive(Default)]
-        struct TestObject<'a> {
-            value_ref: Option<&'a u32>,
-        }
-
-        impl<'a> TestObject<'a> {
-            fn my_value(&self) {
-                println!("{:?}", self.value_ref);
-            }
-        }
-
-        let value = 5;
-
-        let object = RtpsObject::new(TestObject{value_ref: Some(&value)});
-        let object_ref = object.get_reference().unwrap();
-        object_ref.value().unwrap().my_value();
-        println!("{:?}", object_ref.value().unwrap().value_ref.unwrap())
-    }
+    fn object_list_initialize_free_object_deleted_with_references() {
+        let object_list: RtpsObjectList<i32> = RtpsObjectList::default();
         
+        let _object0 = object_list.create(0).unwrap();
+        let object1 = object_list.create(10).unwrap();
+        let _object2 = object_list.create(20).unwrap();
+        let object3 = object_list.create(30).unwrap();
+
+        object1.delete();
+        object3.delete();
+
+        let index4 = object_list.initialize_free_object(10).unwrap();
+        let index5 = object_list.initialize_free_object(30).unwrap();
+
+        assert_eq!(index4, 4);
+        assert_eq!(index5, 5);
+    }
 }

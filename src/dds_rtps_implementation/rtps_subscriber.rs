@@ -4,15 +4,16 @@ use crate::dds_infrastructure::status::SampleLostStatus;
 use crate::dds_infrastructure::status::StatusMask;
 use crate::dds_infrastructure::subscriber_listener::SubscriberListener;
 use crate::dds_rtps_implementation::rtps_data_reader::RtpsDataReader;
-use crate::dds_rtps_implementation::rtps_object::RtpsObjectReference;
+use crate::dds_rtps_implementation::rtps_object::RtpsObject;
 use crate::types::{InstanceHandle, ReturnCode};
+use std::cell::Ref;
 
 #[derive(Default)]
 pub struct RtpsSubscriberInner;
 
-pub type RtpsSubscriber<'a> = RtpsObjectReference<'a, RtpsSubscriberInner>;
+pub type RtpsSubscriber<'a> = Ref<'a, RtpsObject<RtpsSubscriberInner>>;
 
-impl<'a> RtpsSubscriber<'a> {
+impl RtpsObject<RtpsSubscriberInner> {
     pub fn create_datareader(&self) -> Option<RtpsDataReader> {
         todo!()
     }
