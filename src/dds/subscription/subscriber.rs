@@ -1,11 +1,12 @@
-use crate::types::{DDSType, ReturnCode};
 use crate::dds::domain::domain_participant::DomainParticipant;
 use crate::dds::subscription::data_reader::DataReader;
 use crate::dds::topic::topic::Topic;
-use crate::dds_infrastructure::qos::{SubscriberQos, DataReaderQos, TopicQos};
-use crate::dds_infrastructure::entity::Entity;
+use crate::dds_infrastructure::entity::{Entity, StatusCondition};
+use crate::dds_infrastructure::qos::{DataReaderQos, SubscriberQos, TopicQos};
 use crate::dds_infrastructure::status::SampleLostStatus;
+use crate::dds_infrastructure::status::StatusMask;
 use crate::dds_infrastructure::subscriber_listener::SubscriberListener;
+use crate::types::{DDSType, ReturnCode, InstanceHandle};
 
 use crate::dds_rtps_implementation::rtps_subscriber::RtpsSubscriber;
 /// A Subscriber is the object responsible for the actual reception of the data resulting from its subscriptions
@@ -16,8 +17,8 @@ use crate::dds_rtps_implementation::rtps_subscriber::RtpsSubscriber;
 /// objects through the operation get_datareaders and then access the data available though operations on the DataReader.
 /// All operations except for the base-class operations set_qos, get_qos, set_listener, get_listener, enable, get_statuscondition,
 /// and create_datareader may return the value NOT_ENABLED.
-pub struct Subscriber<'a>{
-    pub(crate) parent_participant : &'a DomainParticipant,
+pub struct Subscriber<'a> {
+    pub(crate) parent_participant: &'a DomainParticipant,
     pub(crate) rtps_subscriber: RtpsSubscriber<'a>,
 }
 
@@ -77,11 +78,9 @@ impl<'a> Subscriber<'a> {
     /// delete_datareader is called on a different Subscriber, the operation will have no effect and it will return
     /// PRECONDITION_NOT_MET.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
-    fn delete_datareader<T: DDSType>(
-        &self,
-        a_datareader: &DataReader<T>
-    ) -> ReturnCode<()> {
-        self.rtps_subscriber.delete_datareader(&a_datareader.rtps_datareader)
+    fn delete_datareader<T: DDSType>(&self, a_datareader: &DataReader<T>) -> ReturnCode<()> {
+        self.rtps_subscriber
+            .delete_datareader(&a_datareader.rtps_datareader)
     }
 
     /// This operation retrieves a previously-created DataReader belonging to the Subscriber that is attached to a Topic with a
@@ -89,12 +88,11 @@ impl<'a> Subscriber<'a> {
     /// If multiple DataReaders attached to the Subscriber satisfy this condition, then the operation will return one of them. It is not
     /// specified which one.
     /// The use of this operation on the built-in Subscriber allows access to the built-in DataReader entities for the built-in topics
-    pub fn lookup_datareader<T: DDSType>(
-        &self,
-        topic_name: &str
-    ) -> Option<DataReader<T>> {
+    pub fn lookup_datareader<T: DDSType>(&self, topic_name: &str) -> Option<DataReader<T>> {
         let rtps_datareader = self.rtps_subscriber.lookup_datareader(topic_name)?;
-        let a_topic = self.parent_participant.lookup_topicdescription(topic_name)?;
+        let a_topic = self
+            .parent_participant
+            .lookup_topicdescription(topic_name)?;
 
         Some(DataReader {
             parent_subscriber: self,
@@ -133,7 +131,7 @@ impl<'a> Subscriber<'a> {
 
     /// This operation allows the application to access the DataReader objects that contain samples with the specified sample_states,
     /// view_states, and instance_states.
-    /// 
+    ///
     /// If the PRESENTATION QosPolicy of the Subscriber to which the DataReader belongs has the access_scope set to ‘GROUP.’
     /// This operation should only be invoked inside a begin_access/end_access block. Otherwise it will return the error
     /// PRECONDITION_NOT_MET.
@@ -196,10 +194,7 @@ impl<'a> Subscriber<'a> {
     /// The special value DATAREADER_QOS_DEFAULT may be passed to this operation to indicate that the default QoS should
     /// be reset back to the initial values the factory would use, that is the values that would be used if the
     /// set_default_datareader_qos operation had never been called.
-    pub fn set_default_datareader_qos(
-        &self,
-        qos: DataReaderQos,
-    ) -> ReturnCode<()> {
+    pub fn set_default_datareader_qos(&self, qos: DataReaderQos) -> ReturnCode<()> {
         self.rtps_subscriber.set_default_datareader_qos(qos)
     }
 
@@ -208,9 +203,7 @@ impl<'a> Subscriber<'a> {
     /// The values retrieved get_default_datareader_qos will match the set of values specified on the last successful call to
     /// get_default_datareader_qos, or else, if the call was never made, the default values listed in the QoS table in 2.2.3,
     /// Supported QoS.
-    pub fn get_default_datareader_qos(
-        &self
-    ) -> ReturnCode<DataReaderQos> {
+    pub fn get_default_datareader_qos(&self) -> ReturnCode<DataReaderQos> {
         self.rtps_subscriber.get_default_datareader_qos()
     }
 
@@ -226,13 +219,44 @@ impl<'a> Subscriber<'a> {
         a_datareader_qos: &mut DataReaderQos,
         a_topic_qos: &TopicQos,
     ) -> ReturnCode<()> {
-        self.rtps_subscriber.copy_from_topic_qos(a_datareader_qos, a_topic_qos)
+        self.rtps_subscriber
+            .copy_from_topic_qos(a_datareader_qos, a_topic_qos)
     }
 }
 
-impl<'a> std::ops::Deref for Subscriber<'a> {
-    type Target = dyn Entity<Qos=SubscriberQos, Listener=Box<dyn SubscriberListener>> + 'a;
-    fn deref(&self) -> &Self::Target {
-        &self.rtps_subscriber
+impl<'a> Entity for Subscriber<'a> {
+    type Qos = SubscriberQos;
+    type Listener = Box<dyn SubscriberListener>;
+
+    fn set_qos(&self, _qos: Self::Qos) -> ReturnCode<()> {
+        todo!()
+    }
+
+    fn get_qos(&self) -> ReturnCode<&Self::Qos> {
+        todo!()
+    }
+
+    fn set_listener(&self, _a_listener: Self::Listener, _mask: StatusMask) -> ReturnCode<()> {
+        todo!()
+    }
+
+    fn get_listener(&self) -> &Self::Listener {
+        todo!()
+    }
+
+    fn get_statuscondition(&self) -> StatusCondition {
+        todo!()
+    }
+
+    fn get_status_changes(&self) -> StatusMask {
+        todo!()
+    }
+
+    fn enable(&self) -> ReturnCode<()> {
+        todo!()
+    }
+
+    fn get_instance_handle(&self) -> ReturnCode<InstanceHandle> {
+        todo!()
     }
 }

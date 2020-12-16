@@ -195,7 +195,7 @@ impl<'a> Publisher<'a> {
     }
 }
 
-impl<'a> Entity for RtpsPublisher<'a> {
+impl<'a> Entity for Publisher<'a> {
     type Qos = PublisherQos;
     type Listener = Box<dyn PublisherListener>;
 
@@ -203,7 +203,7 @@ impl<'a> Entity for RtpsPublisher<'a> {
         todo!()
     }
 
-    fn get_qos(&self) -> ReturnCode<Self::Qos> {
+    fn get_qos(&self) -> ReturnCode<&Self::Qos> {
         todo!()
     }
 

@@ -350,7 +350,7 @@ impl<'a, T:DDSType> Entity for DataWriter<'a, T> {
         todo!()
     }
 
-    fn get_qos(&self) -> ReturnCode<Self::Qos> {
+    fn get_qos(&self) -> ReturnCode<&Self::Qos> {
         todo!()
     }
 

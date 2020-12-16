@@ -8,10 +8,11 @@ use crate::rtps::structure::Participant;
 use crate::rtps::transport::udp::UdpTransport;
 use crate::rtps::transport::Transport;
 use crate::rtps::types::constants::{PROTOCOL_VERSION_2_4, VENDOR_ID};
-use crate::types::{DomainId, Duration, InstanceHandle, ReturnCode, ReturnCodes, Time};
+use crate::types::{DomainId, Duration, InstanceHandle, ReturnCode, Time};
 
 pub struct RtpsParticipant {
     participant: Participant,
+    qos: DomainParticipantQos,
     userdata_transport: Box<dyn Transport>,
     metatraffic_transport: Box<dyn Transport>,
     publisher_list: RtpsObjectList<RtpsPublisherInner>,
@@ -21,7 +22,7 @@ pub struct RtpsParticipant {
 impl RtpsParticipant {
     pub fn new(
         domain_id: DomainId,
-        _qos: Option<DomainParticipantQos>,
+        qos: Option<DomainParticipantQos>,
         //     a_listener: impl DomainParticipantListener,
         //     mask: StatusMask,
         //     enabled: bool,
@@ -38,6 +39,7 @@ impl RtpsParticipant {
         // };
         let guid_prefix = [1; 12];
         let participant = Participant::new(guid_prefix, domain_id, PROTOCOL_VERSION_2_4, VENDOR_ID);
+        let qos = qos.unwrap_or_default();
 
         // // if enabled {
         // //     new_participant.enable().ok()?;
@@ -45,6 +47,7 @@ impl RtpsParticipant {
 
         Some(Self {
             participant,
+            qos,
             userdata_transport,
             metatraffic_transport,
             publisher_list: Default::default(),
@@ -182,6 +185,14 @@ impl RtpsParticipant {
     }
 
     pub fn get_current_time(&self) -> ReturnCode<Time> {
+        todo!()
+    }
+
+    pub fn set_qos(&self, _qos: DomainParticipantQos) -> ReturnCode<()> {
+        todo!()
+    }
+
+    pub fn get_qos(&self) -> ReturnCode<&DomainParticipantQos> {
         todo!()
     }
 }

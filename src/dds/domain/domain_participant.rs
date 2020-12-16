@@ -391,12 +391,12 @@ impl Entity for DomainParticipant {
     type Qos = DomainParticipantQos;
     type Listener = Box<dyn DomainParticipantListener>;
 
-    fn set_qos(&self, _qos: Self::Qos) -> ReturnCode<()> {
-        todo!()
+    fn set_qos(&self, qos: Self::Qos) -> ReturnCode<()> {
+        self.0.set_qos(qos)
     }
 
-    fn get_qos(&self) -> ReturnCode<Self::Qos> {
-        todo!()
+    fn get_qos(&self) -> ReturnCode<&Self::Qos> {
+        self.0.get_qos()
     }
 
     fn set_listener(&self, _a_listener: Self::Listener, _mask: StatusMask) -> ReturnCode<()> {
