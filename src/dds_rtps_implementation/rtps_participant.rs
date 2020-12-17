@@ -9,10 +9,11 @@ use crate::rtps::transport::udp::UdpTransport;
 use crate::rtps::transport::Transport;
 use crate::rtps::types::constants::{PROTOCOL_VERSION_2_4, VENDOR_ID};
 use crate::types::{DomainId, Duration, InstanceHandle, ReturnCode, Time};
+use std::sync::Mutex;
 
 pub struct RtpsParticipant {
     participant: Participant,
-    qos: DomainParticipantQos,
+    qos: Mutex<DomainParticipantQos>,
     userdata_transport: Box<dyn Transport>,
     metatraffic_transport: Box<dyn Transport>,
     publisher_list: RtpsObjectList<RtpsPublisherInner>,
@@ -47,7 +48,7 @@ impl RtpsParticipant {
 
         Some(Self {
             participant,
-            qos,
+            qos: Mutex::new(qos),
             userdata_transport,
             metatraffic_transport,
             publisher_list: Default::default(),
@@ -192,7 +193,11 @@ impl RtpsParticipant {
         todo!()
     }
 
-    pub fn get_qos(&self) -> ReturnCode<&DomainParticipantQos> {
-        todo!()
+    pub fn get_qos(&self) -> ReturnCode<DomainParticipantQos> {
+        Ok(self.qos.lock().unwrap().clone())
+    }
+
+    pub fn get_instance_handle(&self) -> ReturnCode<InstanceHandle> {
+        Ok(self.participant.entity.guid.into())
     }
 }

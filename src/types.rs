@@ -14,6 +14,7 @@ pub trait DDSType: 'static {
 pub type DomainId = i32;
 pub type InstanceHandle = [u8; 16];
 pub type Data = Vec<u8>;
+pub type BuiltInTopicKeyType = i32;
 
 pub type ReturnCode<T> = Result<T, ReturnCodes>;
 
@@ -126,6 +127,8 @@ impl ParameterList {
         }
     }
 }
+
+pub struct BuiltInTopicKey(pub [BuiltInTopicKeyType; 3]);
 
 //// From RTPS
 #[derive(Copy, Clone)]

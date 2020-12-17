@@ -232,7 +232,7 @@ impl<'a> Entity for Subscriber<'a> {
         todo!()
     }
 
-    fn get_qos(&self) -> ReturnCode<&Self::Qos> {
+    fn get_qos(&self) -> ReturnCode<Self::Qos> {
         todo!()
     }
 

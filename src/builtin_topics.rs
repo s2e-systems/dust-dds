@@ -1,4 +1,89 @@
-pub struct ParticipantBuiltinTopicData{/*TODO*/}
-pub struct TopicBuiltinTopicData{/*TODO*/}
-pub struct SubscriptionBuiltinTopicData {/*TODO*/}
-pub struct PublicationBuiltinTopicData {/*TODO*/}
+use crate::types::BuiltInTopicKey;
+use crate::dds_infrastructure::qos_policy::{
+    UserDataQosPolicy,
+    DurabilityQosPolicy,
+    DurabilityServiceQosPolicy,
+    DeadlineQosPolicy,
+    LatencyBudgetQosPolicy,
+    LivelinessQosPolicy,
+    ReliabilityQosPolicy,
+    TransportPriorityQosPolicy,
+    LifespanQosPolicy,
+    DestinationOrderQosPolicy,
+    HistoryQosPolicy,
+    ResourceLimitsQosPolicy,
+    OwnershipQosPolicy,
+    TopicDataQosPolicy,
+    OwnershipStrengthQosPolicy,
+    PresentationQosPolicy,
+    PartitionQosPolicy,
+    GroupDataQosPolicy,
+    TimeBasedFilterQosPolicy,
+};
+pub struct ParticipantBuiltinTopicData{
+    key: BuiltInTopicKey,
+    user_data: UserDataQosPolicy,
+}
+
+pub struct TopicBuiltinTopicData{
+    key: BuiltInTopicKey,
+    name: String,
+    type_name: String,
+    durability: DurabilityQosPolicy,
+    durability_service: DurabilityServiceQosPolicy,
+    deadline: DeadlineQosPolicy,
+    latency_budget: LatencyBudgetQosPolicy,
+    liveliness: LivelinessQosPolicy,
+    reliability: ReliabilityQosPolicy,
+    transport_priority: TransportPriorityQosPolicy,
+    lifespan: LifespanQosPolicy,
+    destination_order: DestinationOrderQosPolicy,
+    history: HistoryQosPolicy,
+    resource_limits: ResourceLimitsQosPolicy,
+    ownership: OwnershipQosPolicy,
+    topic_data: TopicDataQosPolicy,
+}
+pub struct PublicationBuiltinTopicData {
+    key: BuiltInTopicKey,
+    participant_key: BuiltInTopicKey,
+    topic_name: String,
+    type_name: String,
+
+    durability: DurabilityQosPolicy,
+    durability_service: DurabilityServiceQosPolicy,
+    deadline: DeadlineQosPolicy,
+    latency_budget: LatencyBudgetQosPolicy,
+    liveliness: LivelinessQosPolicy,
+    reliability: ReliabilityQosPolicy,
+    lifespan: LifespanQosPolicy,
+    user_data: UserDataQosPolicy,
+    ownership: OwnershipQosPolicy,
+    ownership_strength: OwnershipStrengthQosPolicy,
+    destination_order: DestinationOrderQosPolicy,
+
+    presentation: PresentationQosPolicy,
+    partition: PartitionQosPolicy,
+    topic_data: TopicDataQosPolicy,
+    group_data: GroupDataQosPolicy,
+}
+pub struct SubscriptionBuiltinTopicData {
+    key: BuiltInTopicKey,
+    participant_key: BuiltInTopicKey,
+    topic_name: String,
+    type_name: String,
+
+    durability: DurabilityQosPolicy,
+    deadline: DeadlineQosPolicy,
+    latency_budget: LatencyBudgetQosPolicy,
+    liveliness: LivelinessQosPolicy,
+    reliability: ReliabilityQosPolicy,
+    ownership: OwnershipQosPolicy,
+    destination_order: DestinationOrderQosPolicy,
+    user_data: UserDataQosPolicy,
+    time_based_filter: TimeBasedFilterQosPolicy,
+
+    presentation: PresentationQosPolicy,
+    partition: PartitionQosPolicy,
+    topic_data: TopicDataQosPolicy,
+    group_data: GroupDataQosPolicy,
+}

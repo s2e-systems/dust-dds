@@ -669,7 +669,7 @@ impl<'a, T: DDSType> Entity for DataReader<'a, T> {
         todo!()
     }
 
-    fn get_qos(&self) -> ReturnCode<&Self::Qos> {
+    fn get_qos(&self) -> ReturnCode<Self::Qos> {
         todo!()
     }
 

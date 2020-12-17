@@ -1,12 +1,12 @@
-use crate::types::{GuidPrefix, GUID, ReliabilityKind};
+use crate::rtps::types::{GuidPrefix, GUID, ReliabilityKind};
 
-use crate::discovery::spdp_data::SPDPdiscoveredParticipantData;
-use crate::endpoint_types::BuiltInEndpointSet;
-use crate::behavior::{StatelessWriter, StatelessReader};
-use crate::behavior::{ReaderProxy, WriterProxy};
+use crate::rtps::discovery::spdp_data::SPDPdiscoveredParticipantData;
+use crate::rtps::endpoint_types::BuiltInEndpointSet;
+use crate::rtps::behavior::{StatelessWriter, StatelessReader};
+use crate::rtps::behavior::{ReaderProxy, WriterProxy};
 use crate::discovery::sedp::SimpleEndpointDiscoveryProtocol;
 
-use crate::types::constants::{
+use crate::rtps::types::constants::{
     ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, ENTITYID_SPDP_BUILTIN_PARTICIPANT_DETECTOR,
     ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
     ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,

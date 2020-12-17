@@ -11,7 +11,7 @@ pub trait Entity {
 
     fn set_qos(&self, qos: Self::Qos) -> ReturnCode<()>;
 
-    fn get_qos(&self) -> ReturnCode<&Self::Qos>;
+    fn get_qos(&self) -> ReturnCode<Self::Qos>;
 
     fn set_listener(&self, a_listener: Self::Listener, mask: StatusMask) -> ReturnCode<()>;
 

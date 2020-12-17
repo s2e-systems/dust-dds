@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use crate::types::DomainId;
 use crate::dds::domain::domain_participant::DomainParticipant;
 use crate::dds_infrastructure::qos::DomainParticipantQos;
@@ -47,7 +48,7 @@ impl DomainParticipantFactory {
         //     new_participant.enable().ok()?;
         // }
 
-        Some(DomainParticipant(rtps_participant))
+        Some(DomainParticipant(Arc::new(rtps_participant)))
     }
 
     pub fn delete_participant (

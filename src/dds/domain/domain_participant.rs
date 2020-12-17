@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData};
 use crate::dds::publication::publisher::Publisher;
 use crate::dds::subscription::subscriber::Subscriber;
@@ -9,7 +11,7 @@ use crate::dds_infrastructure::status::StatusMask;
 use crate::dds_rtps_implementation::rtps_participant::RtpsParticipant;
 use crate::types::{DDSType, DomainId, Duration, InstanceHandle, ReturnCode, Time};
 
-pub struct DomainParticipant(pub(crate) RtpsParticipant);
+pub struct DomainParticipant(pub(crate) Arc<RtpsParticipant>);
 
 impl DomainParticipant {
     /// This operation creates a Publisher with the desired QoS policies and attaches to it the specified PublisherListener.
@@ -395,7 +397,7 @@ impl Entity for DomainParticipant {
         self.0.set_qos(qos)
     }
 
-    fn get_qos(&self) -> ReturnCode<&Self::Qos> {
+    fn get_qos(&self) -> ReturnCode<Self::Qos> {
         self.0.get_qos()
     }
 
@@ -420,6 +422,6 @@ impl Entity for DomainParticipant {
     }
 
     fn get_instance_handle(&self) -> ReturnCode<InstanceHandle> {
-        todo!()
+        self.0.get_instance_handle()
     }
 }
