@@ -1,4 +1,5 @@
 use crate::builtin_topics::PublicationBuiltinTopicData;
+use crate::dds_infrastructure::qos::DataReaderQos;
 use crate::dds_infrastructure::read_condition::ReadCondition;
 use crate::dds_infrastructure::sample_info::SampleInfo;
 use crate::dds_infrastructure::status::{
@@ -6,15 +7,12 @@ use crate::dds_infrastructure::status::{
     RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus, SampleStateKind,
     SubscriptionMatchedStatus, ViewStateKind,
 };
-use std::cell::Ref;
 use crate::dds_rtps_implementation::rtps_object::RtpsObject;
 use crate::types::{Data, InstanceHandle, ReturnCode};
-pub struct RtpsDataReaderInner {}
-
-impl Default for RtpsDataReaderInner {
-    fn default() -> Self {
-        Self {}
-    }
+use std::cell::Ref;
+#[derive(Default)]
+pub struct RtpsDataReaderInner {
+    qos: DataReaderQos,
 }
 
 pub type RtpsDataReader<'a> = Ref<'a, RtpsObject<RtpsDataReaderInner>>;

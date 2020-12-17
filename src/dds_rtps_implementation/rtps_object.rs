@@ -1,6 +1,6 @@
-use core::sync::atomic;
-use std::cell::{RefCell, Ref};
 use crate::types::{ReturnCode, ReturnCodes};
+use core::sync::atomic;
+use std::cell::{Ref, RefCell};
 
 pub struct RtpsObject<T> {
     value: T,
@@ -46,7 +46,7 @@ impl<T> RtpsObject<T> {
     }
 }
 
-pub struct RtpsObjectList<T>([RefCell<RtpsObject<T>>;32]);
+pub struct RtpsObjectList<T>([RefCell<RtpsObject<T>>; 32]);
 
 impl<T: Default> Default for RtpsObjectList<T> {
     fn default() -> Self {
@@ -60,7 +60,7 @@ impl<T> RtpsObjectList<T> {
         Some(self.0[index].borrow())
     }
 
-    fn initialize_free_object(&self, value:T) -> Option<usize> {
+    fn initialize_free_object(&self, value: T) -> Option<usize> {
         // Find an object in the list which can be borrow mutably (meaning there are no other references to it)
         // and that is marked as invalid (meaning that it has either been deleted on never initialized)
         for (index, object) in self.0.iter().enumerate() {
@@ -75,8 +75,6 @@ impl<T> RtpsObjectList<T> {
         return None;
     }
 }
-
-
 
 #[cfg(test)]
 mod tests {
@@ -151,7 +149,7 @@ mod tests {
     #[test]
     fn object_list_initialize_free_object_deleted_with_references() {
         let object_list: RtpsObjectList<i32> = RtpsObjectList::default();
-        
+
         let _object0 = object_list.create(0).unwrap();
         let object1 = object_list.create(10).unwrap();
         let _object2 = object_list.create(20).unwrap();

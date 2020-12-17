@@ -9,7 +9,9 @@ use crate::types::{InstanceHandle, ReturnCode};
 use std::cell::Ref;
 
 #[derive(Default)]
-pub struct RtpsSubscriberInner;
+pub struct RtpsSubscriberInner {
+    qos: SubscriberQos,
+}
 
 pub type RtpsSubscriber<'a> = Ref<'a, RtpsObject<RtpsSubscriberInner>>;
 
@@ -18,10 +20,7 @@ impl RtpsObject<RtpsSubscriberInner> {
         todo!()
     }
 
-    pub fn delete_datareader(
-        &self,
-        _a_datareader: &RtpsDataReader,
-    ) -> ReturnCode<()> {
+    pub fn delete_datareader(&self, _a_datareader: &RtpsDataReader) -> ReturnCode<()> {
         todo!()
     }
 

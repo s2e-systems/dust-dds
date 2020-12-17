@@ -1,4 +1,4 @@
-use crate::dds_infrastructure::qos::{DataWriterQos, TopicQos};
+use crate::dds_infrastructure::qos::{DataWriterQos, PublisherQos, TopicQos};
 use crate::dds_rtps_implementation::rtps_data_writer::RtpsDataWriter;
 use crate::dds_rtps_implementation::rtps_data_writer::RtpsDataWriterInner;
 use crate::dds_rtps_implementation::rtps_object::RtpsObject;
@@ -8,6 +8,7 @@ use std::cell::Ref;
 #[derive(Default)]
 pub struct RtpsPublisherInner {
     writer_list: [RtpsObject<RtpsDataWriterInner>; 32],
+    qos: PublisherQos,
 }
 
 pub type RtpsPublisher<'a> = Ref<'a, RtpsObject<RtpsPublisherInner>>;

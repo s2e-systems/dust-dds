@@ -1,17 +1,18 @@
-use crate::types::{ReturnCode, InstanceHandle, Time, Duration, Data};
 use crate::builtin_topics::SubscriptionBuiltinTopicData;
-use crate::dds_infrastructure::status::{LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus};
+use crate::dds_infrastructure::status::{
+    LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus,
+    PublicationMatchedStatus,
+};
 use crate::dds_rtps_implementation::rtps_object::RtpsObject;
+use crate::types::{Data, Duration, InstanceHandle, ReturnCode, Time};
 use std::cell::Ref;
 
 #[derive(Default)]
-pub struct RtpsDataWriterInner{
-}
+pub struct RtpsDataWriterInner {}
 
 impl RtpsDataWriterInner {
     pub fn new() -> Self {
-        Self {
-        }
+        Self {}
     }
 }
 
@@ -20,7 +21,7 @@ pub type RtpsDataWriter<'a> = Ref<'a, RtpsObject<RtpsDataWriterInner>>;
 impl RtpsObject<RtpsDataWriterInner> {
     pub fn register_instance(
         &self,
-        _instance: InstanceHandle
+        _instance: InstanceHandle,
     ) -> ReturnCode<Option<InstanceHandle>> {
         todo!()
     }
@@ -36,7 +37,7 @@ impl RtpsObject<RtpsDataWriterInner> {
     pub fn unregister_instance(
         &self,
         _instance: InstanceHandle,
-        _handle: Option<InstanceHandle>
+        _handle: Option<InstanceHandle>,
     ) -> ReturnCode<()> {
         todo!()
     }
@@ -53,7 +54,7 @@ impl RtpsObject<RtpsDataWriterInner> {
     pub fn get_key_value(
         &self,
         _key_holder: &mut InstanceHandle,
-        _handle: InstanceHandle
+        _handle: InstanceHandle,
     ) -> ReturnCode<()> {
         todo!()
     }
@@ -65,11 +66,7 @@ impl RtpsObject<RtpsDataWriterInner> {
         todo!()
     }
 
-    pub fn write (
-        &self,
-        _data: Data,
-        _handle: Option<InstanceHandle>,
-    ) -> ReturnCode<()> {
+    pub fn write(&self, _data: Data, _handle: Option<InstanceHandle>) -> ReturnCode<()> {
         todo!()
     }
 
@@ -82,11 +79,7 @@ impl RtpsObject<RtpsDataWriterInner> {
         todo!()
     }
 
-    pub fn dispose(
-        &self,
-        _data: Data,
-        _handle: Option<InstanceHandle>,
-    ) -> ReturnCode<()> {
+    pub fn dispose(&self, _data: Data, _handle: Option<InstanceHandle>) -> ReturnCode<()> {
         todo!()
     }
 
@@ -99,37 +92,31 @@ impl RtpsObject<RtpsDataWriterInner> {
         todo!()
     }
 
-    pub fn wait_for_acknowledgments(
-        &self,
-        _max_wait: Duration
-    ) -> ReturnCode<()> {
+    pub fn wait_for_acknowledgments(&self, _max_wait: Duration) -> ReturnCode<()> {
         todo!()
     }
 
-    pub fn get_liveliness_lost_status(
-        &self,
-        _status: &mut LivelinessLostStatus
-    ) -> ReturnCode<()> {
+    pub fn get_liveliness_lost_status(&self, _status: &mut LivelinessLostStatus) -> ReturnCode<()> {
         todo!()
     }
 
     pub fn get_offered_deadline_missed_status(
         &self,
-        _status: &mut OfferedDeadlineMissedStatus
+        _status: &mut OfferedDeadlineMissedStatus,
     ) -> ReturnCode<()> {
         todo!()
     }
 
     pub fn get_offered_incompatible_qos_status(
         &self,
-        _status: &mut OfferedIncompatibleQosStatus
+        _status: &mut OfferedIncompatibleQosStatus,
     ) -> ReturnCode<()> {
         todo!()
     }
 
     pub fn get_publication_matched_status(
         &self,
-        _status: &mut PublicationMatchedStatus
+        _status: &mut PublicationMatchedStatus,
     ) -> ReturnCode<()> {
         todo!()
     }
