@@ -76,6 +76,8 @@ impl<T> RtpsObjectList<T> {
     }
 }
 
+unsafe impl<T: Sync> Sync for RtpsObjectList<T>{}
+
 #[cfg(test)]
 mod tests {
     use super::*;

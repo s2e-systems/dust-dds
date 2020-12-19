@@ -9,15 +9,23 @@ use crate::rtps::transport::udp::UdpTransport;
 use crate::rtps::transport::Transport;
 use crate::rtps::types::constants::{PROTOCOL_VERSION_2_4, VENDOR_ID};
 use crate::types::{DomainId, Duration, InstanceHandle, ReturnCode, Time};
-use std::sync::Mutex;
+use std::cell::RefCell;
+use std::sync::{atomic, Arc, Mutex};
+use std::thread::JoinHandle;
 
-pub struct RtpsParticipant {
+pub struct RtpsParticipantInner {
     participant: Participant,
     qos: Mutex<DomainParticipantQos>,
     userdata_transport: Box<dyn Transport>,
     metatraffic_transport: Box<dyn Transport>,
     publisher_list: RtpsObjectList<RtpsPublisherInner>,
     subscriber_list: RtpsObjectList<RtpsSubscriberInner>,
+    enabled: atomic::AtomicBool,
+}
+
+pub struct RtpsParticipant {
+    inner: Arc<RtpsParticipantInner>,
+    thread_list: RefCell<Vec<JoinHandle<()>>>,
 }
 
 impl RtpsParticipant {
@@ -26,7 +34,6 @@ impl RtpsParticipant {
         qos: Option<DomainParticipantQos>,
         //     a_listener: impl DomainParticipantListener,
         //     mask: StatusMask,
-        //     enabled: bool,
     ) -> Option<Self> {
         let interface = "Ethernet";
         let userdata_transport =
@@ -41,19 +48,20 @@ impl RtpsParticipant {
         let guid_prefix = [1; 12];
         let participant = Participant::new(guid_prefix, domain_id, PROTOCOL_VERSION_2_4, VENDOR_ID);
         let qos = qos.unwrap_or_default();
+        let enabled = atomic::AtomicBool::new(false);
 
-        // // if enabled {
-        // //     new_participant.enable().ok()?;
-        // // }
-
-        Some(Self {
+        let inner = Arc::new(RtpsParticipantInner {
             participant,
             qos: Mutex::new(qos),
             userdata_transport,
             metatraffic_transport,
             publisher_list: Default::default(),
             subscriber_list: Default::default(),
-        })
+            enabled,
+        });
+
+        let thread_list = RefCell::new(Vec::new());
+        Some(Self { inner, thread_list })
     }
 
     pub fn create_publisher<'a>(
@@ -61,7 +69,7 @@ impl RtpsParticipant {
         _qos: Option<&PublisherQos>,
     ) -> Option<RtpsPublisher<'a>> {
         let new_publisher = RtpsPublisherInner::default();
-        self.publisher_list.create(new_publisher)
+        self.inner.publisher_list.create(new_publisher)
     }
 
     pub fn delete_publisher(&self, a_publisher: &RtpsPublisher) -> ReturnCode<()> {
@@ -194,10 +202,51 @@ impl RtpsParticipant {
     }
 
     pub fn get_qos(&self) -> ReturnCode<DomainParticipantQos> {
-        Ok(self.qos.lock().unwrap().clone())
+        Ok(self.inner.qos.lock().unwrap().clone())
     }
 
     pub fn get_instance_handle(&self) -> ReturnCode<InstanceHandle> {
-        Ok(self.participant.entity.guid.into())
+        Ok(self.inner.participant.entity.guid.into())
+    }
+
+    pub fn enable(&self) {
+        if self.inner.enabled.load(atomic::Ordering::Acquire) == false {
+            self.inner.enabled.store(true, atomic::Ordering::Release);
+
+            let mut thread_list = self.thread_list.borrow_mut();
+            let participant_inner = self.inner.clone();
+            thread_list.push(std::thread::spawn(move || {
+                while participant_inner.enabled.load(atomic::Ordering::Acquire) {
+                    println!("{:?}", participant_inner.participant.entity.guid);
+                    std::thread::sleep(std::time::Duration::from_secs(1))
+                }
+            }));
+        }
+    }
+}
+
+impl Drop for RtpsParticipant {
+    fn drop(&mut self) {
+        println!("Dropping");
+        self.inner.enabled.store(false, atomic::Ordering::Release);
+        for thread in self.thread_list.borrow_mut().drain(..) {
+            thread.join().ok();
+        }
+    }
+}
+
+fn process_metatraffic() {}
+
+fn process_user_traffic() {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn enable_threads() {
+        let participant = RtpsParticipant::new(0, None).unwrap();
+        participant.enable();
+        std::thread::sleep(std::time::Duration::from_secs(3));
     }
 }
