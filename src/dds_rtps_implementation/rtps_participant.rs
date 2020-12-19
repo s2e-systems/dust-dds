@@ -3,7 +3,7 @@ use crate::dds_infrastructure::qos::{DomainParticipantQos, PublisherQos, Subscri
 use crate::dds_rtps_implementation::rtps_object::RtpsObjectList;
 use crate::dds_rtps_implementation::rtps_publisher::{RtpsPublisher, RtpsPublisherInner};
 use crate::dds_rtps_implementation::rtps_subscriber::{RtpsSubscriber, RtpsSubscriberInner};
-use crate::dds_rtps_implementation::rtps_topic::RtpsTopic;
+use crate::dds_rtps_implementation::rtps_topic::{RtpsTopic, RtpsTopicInner};
 use crate::rtps::structure::Participant;
 use crate::rtps::transport::udp::UdpTransport;
 use crate::rtps::transport::Transport;
@@ -20,6 +20,7 @@ pub struct RtpsParticipantInner {
     metatraffic_transport: Box<dyn Transport>,
     publisher_list: RtpsObjectList<RtpsPublisherInner>,
     subscriber_list: RtpsObjectList<RtpsSubscriberInner>,
+    topic_list: RtpsObjectList<RtpsTopicInner>,
     enabled: atomic::AtomicBool,
 }
 
@@ -57,6 +58,7 @@ impl RtpsParticipant {
             metatraffic_transport,
             publisher_list: Default::default(),
             subscriber_list: Default::default(),
+            topic_list: Default::default(),
             enabled,
         });
 
@@ -247,6 +249,5 @@ mod tests {
     fn enable_threads() {
         let participant = RtpsParticipant::new(0, None).unwrap();
         participant.enable();
-        std::thread::sleep(std::time::Duration::from_secs(3));
     }
 }

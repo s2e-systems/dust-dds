@@ -1,14 +1,26 @@
 use crate::dds_infrastructure::qos::{DataWriterQos, PublisherQos, TopicQos};
 use crate::dds_rtps_implementation::rtps_data_writer::RtpsDataWriter;
 use crate::dds_rtps_implementation::rtps_data_writer::RtpsDataWriterInner;
-use crate::dds_rtps_implementation::rtps_object::RtpsObject;
+use crate::dds_rtps_implementation::rtps_object::{RtpsObject, RtpsObjectList};
+use crate::rtps::structure::Entity;
+use crate::rtps::types::constants::GUID_UNKNOWN;
 use crate::types::{Duration, ReturnCode};
 use std::cell::Ref;
 
-#[derive(Default)]
 pub struct RtpsPublisherInner {
-    writer_list: [RtpsObject<RtpsDataWriterInner>; 32],
+    entity: Entity,
+    writer_list: RtpsObjectList<RtpsDataWriterInner>,
     qos: PublisherQos,
+}
+
+impl Default for RtpsPublisherInner{
+    fn default() -> Self {
+        Self {
+            entity: Entity{guid: GUID_UNKNOWN},
+            writer_list: Default::default(),
+            qos: PublisherQos::default(),
+        }
+    }
 }
 
 pub type RtpsPublisher<'a> = Ref<'a, RtpsObject<RtpsPublisherInner>>;

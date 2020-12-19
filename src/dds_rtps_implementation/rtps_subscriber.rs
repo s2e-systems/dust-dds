@@ -1,16 +1,26 @@
-use crate::dds_infrastructure::entity::{Entity, StatusCondition};
 use crate::dds_infrastructure::qos::{DataReaderQos, SubscriberQos, TopicQos};
 use crate::dds_infrastructure::status::SampleLostStatus;
-use crate::dds_infrastructure::status::StatusMask;
-use crate::dds_infrastructure::subscriber_listener::SubscriberListener;
-use crate::dds_rtps_implementation::rtps_data_reader::RtpsDataReader;
-use crate::dds_rtps_implementation::rtps_object::RtpsObject;
-use crate::types::{InstanceHandle, ReturnCode};
+use crate::dds_rtps_implementation::rtps_data_reader::{RtpsDataReader, RtpsDataReaderInner};
+use crate::dds_rtps_implementation::rtps_object::{RtpsObject, RtpsObjectList};
+use crate::rtps::structure::Entity;
+use crate::rtps::types::constants::GUID_UNKNOWN;
+use crate::types::ReturnCode;
 use std::cell::Ref;
 
-#[derive(Default)]
 pub struct RtpsSubscriberInner {
+    entity: Entity,
+    reader_list: RtpsObjectList<RtpsDataReaderInner>,
     qos: SubscriberQos,
+}
+
+impl Default for RtpsSubscriberInner {
+    fn default() -> Self {
+        Self {
+            entity: Entity { guid: GUID_UNKNOWN },
+            reader_list: Default::default(),
+            qos: SubscriberQos::default(),
+        }
+    }
 }
 
 pub type RtpsSubscriber<'a> = Ref<'a, RtpsObject<RtpsSubscriberInner>>;
