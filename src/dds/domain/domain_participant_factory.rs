@@ -2,6 +2,7 @@ use crate::types::DomainId;
 use crate::dds::domain::domain_participant::DomainParticipant;
 use crate::dds_infrastructure::qos::DomainParticipantQos;
 use crate::dds_rtps_implementation::rtps_participant::RtpsParticipant;
+use crate::rtps::transport::udp::UdpTransport;
 
 /// The DomainParticipant object plays several roles:
 /// - It acts as a container for all other Entity objects.
@@ -41,7 +42,14 @@ impl DomainParticipantFactory {
         // mask: StatusMask,
     //     enabled: bool,
     ) ->  Option<DomainParticipant> {
-        let rtps_participant = RtpsParticipant::new(domain_id, qos)?;
+        let interface = "Ethernet";
+        let userdata_transport =
+            UdpTransport::default_userdata_transport(domain_id, interface).unwrap();
+        let metatraffic_transport =
+            UdpTransport::default_metatraffic_transport(domain_id, interface).unwrap();
+        let qos = qos.unwrap_or_default();
+
+        let rtps_participant = RtpsParticipant::new(domain_id, qos, userdata_transport, metatraffic_transport)?;
         
         // if enabled {
         //     new_participant.enable().ok()?;

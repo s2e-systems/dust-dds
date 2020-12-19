@@ -1,4 +1,4 @@
-use crate::types::{Duration, LENGTH_UNLIMITED};
+use crate::types::{Duration, LENGTH_UNLIMITED, ReturnCode, ReturnCodes};
 use crate::dds_infrastructure::qos_policy::{
     DurabilityQosPolicy,
     DurabilityServiceQosPolicy,
@@ -26,20 +26,10 @@ use crate::dds_infrastructure::qos_policy::{
     TopicDataQosPolicy,
 };
 
-pub trait QosList: Default {
-    fn is_consistent(&self) -> bool;
-}
-
 #[derive(Debug, Default, PartialEq, Clone)]
 pub struct DomainParticipantQos {
     pub user_data: UserDataQosPolicy,
     pub entity_factory: EntityFactoryQosPolicy,
-}
-
-impl QosList for DomainParticipantQos {
-    fn is_consistent(&self) -> bool {
-        true
-    }
 }
 
 #[derive(Debug, Default, PartialEq, Clone)]
@@ -49,13 +39,6 @@ pub struct PublisherQos {
     pub group_data: GroupDataQosPolicy,
     pub entity_factory: EntityFactoryQosPolicy,
 }
-
-impl QosList for PublisherQos {
-    fn is_consistent(&self) -> bool {
-        true
-    }
-}
-
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct DataWriterQos {
@@ -98,13 +81,13 @@ impl Default for DataWriterQos {
     }
 }
 
-impl QosList for DataWriterQos {
-    fn is_consistent(&self) -> bool {
+impl DataWriterQos {
+    pub fn is_consistent(&self) -> ReturnCode<()> {
         // The setting of RESOURCE_LIMITS max_samples must be consistent with the max_samples_per_instance. For these two
         // values to be consistent they must verify that “max_samples >= max_samples_per_instance.”
         if  self.resource_limits.max_samples_per_instance != LENGTH_UNLIMITED {
             if self.resource_limits.max_samples == LENGTH_UNLIMITED || self.resource_limits.max_samples < self.resource_limits.max_samples_per_instance {
-                return false
+                return Err(ReturnCodes::InconsistentPolicy)
             }
         }
 
@@ -112,11 +95,11 @@ impl QosList for DataWriterQos {
         // QoS to be consistent, they must verify that “depth <= max_samples_per_instance.”
         if self.history.kind == HistoryQosPolicyKind::KeepLastHistoryQoS && self.resource_limits.max_samples_per_instance != LENGTH_UNLIMITED {
             if self.history.depth == LENGTH_UNLIMITED || self.history.depth > self.resource_limits.max_samples_per_instance {
-                return false
+                return Err(ReturnCodes::InconsistentPolicy)
             }
         }
 
-        true
+        Ok(())
     }
 }
 
@@ -126,12 +109,6 @@ pub struct SubscriberQos {
     pub partition: PartitionQosPolicy,
     pub group_data: GroupDataQosPolicy,
     pub entity_factory: EntityFactoryQosPolicy,
-}
-
-impl QosList for SubscriberQos {
-    fn is_consistent(&self) -> bool {
-        true
-    }
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -169,13 +146,13 @@ impl Default for DataReaderQos {
     }
 }
 
-impl QosList for DataReaderQos {
-    fn is_consistent(&self) -> bool {
+impl DataReaderQos {
+    pub fn is_consistent(&self) -> ReturnCode<()> {
         // The setting of RESOURCE_LIMITS max_samples must be consistent with the max_samples_per_instance. For these two
         // values to be consistent they must verify that “max_samples >= max_samples_per_instance.”
         if  self.resource_limits.max_samples_per_instance != LENGTH_UNLIMITED {
             if self.resource_limits.max_samples == LENGTH_UNLIMITED || self.resource_limits.max_samples < self.resource_limits.max_samples_per_instance {
-                return false
+                return Err(ReturnCodes::InconsistentPolicy)
             }
         }
 
@@ -183,17 +160,17 @@ impl QosList for DataReaderQos {
         // QoS to be consistent, they must verify that “depth <= max_samples_per_instance.”
         if self.history.kind == HistoryQosPolicyKind::KeepLastHistoryQoS && self.resource_limits.max_samples_per_instance != LENGTH_UNLIMITED {
             if self.history.depth == LENGTH_UNLIMITED || self.history.depth > self.resource_limits.max_samples_per_instance {
-                return false
+                return Err(ReturnCodes::InconsistentPolicy)
             }
         }
 
         // The setting of the DEADLINE policy must be set consistently with that of the TIME_BASED_FILTER. For these two policies
         // to be consistent the settings must be such that “deadline period>= minimum_separation.”
         if self.deadline.period < self.time_based_filter.minimum_separation {
-            return false
+            return Err(ReturnCodes::InconsistentPolicy)
         }
 
-        true
+        Ok(())
     }
 }
 
@@ -234,13 +211,13 @@ impl Default for TopicQos {
     }
 }
 
-impl QosList for TopicQos {
-    fn is_consistent(&self) -> bool {
+impl TopicQos {
+    pub fn is_consistent(&self) -> ReturnCode<()> {
         // The setting of RESOURCE_LIMITS max_samples must be consistent with the max_samples_per_instance. For these two
         // values to be consistent they must verify that “max_samples >= max_samples_per_instance.”
         if  self.resource_limits.max_samples_per_instance != LENGTH_UNLIMITED {
             if self.resource_limits.max_samples == LENGTH_UNLIMITED || self.resource_limits.max_samples < self.resource_limits.max_samples_per_instance {
-                return false
+                return Err(ReturnCodes::InconsistentPolicy)
             }
         }
 
@@ -248,10 +225,10 @@ impl QosList for TopicQos {
         // QoS to be consistent, they must verify that “depth <= max_samples_per_instance.”
         if self.history.kind == HistoryQosPolicyKind::KeepLastHistoryQoS && self.resource_limits.max_samples_per_instance != LENGTH_UNLIMITED {
             if self.history.depth == LENGTH_UNLIMITED || self.history.depth > self.resource_limits.max_samples_per_instance {
-                return false
+                return Err(ReturnCodes::InconsistentPolicy)
             }
         }
 
-        true
+        Ok(())
     }
 }

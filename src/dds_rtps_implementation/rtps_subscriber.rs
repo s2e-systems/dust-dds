@@ -4,6 +4,7 @@ use crate::dds_rtps_implementation::rtps_data_reader::{RtpsDataReader, RtpsDataR
 use crate::dds_rtps_implementation::rtps_object::{RtpsObject, RtpsObjectList};
 use crate::rtps::structure::Entity;
 use crate::rtps::types::constants::GUID_UNKNOWN;
+use crate::rtps::types::GUID;
 use crate::types::ReturnCode;
 use std::cell::Ref;
 
@@ -19,6 +20,16 @@ impl Default for RtpsSubscriberInner {
             entity: Entity { guid: GUID_UNKNOWN },
             reader_list: Default::default(),
             qos: SubscriberQos::default(),
+        }
+    }
+}
+
+impl RtpsSubscriberInner {
+    pub fn new(guid: GUID, qos: SubscriberQos) -> Self {
+        Self {
+            entity: Entity { guid },
+            reader_list: Default::default(),
+            qos,
         }
     }
 }

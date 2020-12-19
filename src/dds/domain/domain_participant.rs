@@ -21,7 +21,7 @@ impl DomainParticipant {
     /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
     pub fn create_publisher(
         &self,
-        qos: Option<&PublisherQos>,
+        qos: Option<PublisherQos>,
         // _a_listener: impl PublisherListener,
         // _mask: StatusMask
     ) -> Option<Publisher> {
@@ -54,7 +54,7 @@ impl DomainParticipant {
     /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
     pub fn create_subscriber(
         &self,
-        qos: Option<&SubscriberQos>,
+        qos: Option<SubscriberQos>,
         // _a_listener: impl SubscriberListener,
         // _mask: StatusMask
     ) -> Option<Subscriber> {
@@ -90,11 +90,11 @@ impl DomainParticipant {
     pub fn create_topic<T: DDSType>(
         &self,
         topic_name: String,
-        qos: Option<&TopicQos>,
+        qos: Option<TopicQos>,
         // _a_listener: impl TopicListener<T>,
         // _mask: StatusMask
     ) -> Option<Topic<T>> {
-        let rtps_topic = self.0.create_topic(topic_name, qos)?;
+        let rtps_topic = self.0.create_topic(topic_name, T::type_name(), qos)?;
 
         Some(Topic {
             parent_participant: self,

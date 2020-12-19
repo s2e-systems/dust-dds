@@ -5,9 +5,9 @@ use crate::dds_rtps_implementation::rtps_publisher::{RtpsPublisher, RtpsPublishe
 use crate::dds_rtps_implementation::rtps_subscriber::{RtpsSubscriber, RtpsSubscriberInner};
 use crate::dds_rtps_implementation::rtps_topic::{RtpsTopic, RtpsTopicInner};
 use crate::rtps::structure::Participant;
-use crate::rtps::transport::udp::UdpTransport;
 use crate::rtps::transport::Transport;
-use crate::rtps::types::constants::{PROTOCOL_VERSION_2_4, VENDOR_ID};
+use crate::rtps::types::{GUID, EntityId, EntityKind};
+use crate::rtps::types::constants::{PROTOCOL_VERSION_2_4, VENDOR_ID,};
 use crate::types::{DomainId, Duration, InstanceHandle, ReturnCode, Time};
 use std::cell::RefCell;
 use std::sync::{atomic, Arc, Mutex};
@@ -16,11 +16,17 @@ use std::thread::JoinHandle;
 pub struct RtpsParticipantInner {
     participant: Participant,
     qos: Mutex<DomainParticipantQos>,
+    default_publisher_qos: Mutex<PublisherQos>,
+    default_subscriber_qos: Mutex<SubscriberQos>,
+    default_topic_qos: Mutex<TopicQos>,
     userdata_transport: Box<dyn Transport>,
     metatraffic_transport: Box<dyn Transport>,
     publisher_list: RtpsObjectList<RtpsPublisherInner>,
+    publisher_count: atomic::AtomicU8,
     subscriber_list: RtpsObjectList<RtpsSubscriberInner>,
+    subscriber_count: atomic::AtomicU8,
     topic_list: RtpsObjectList<RtpsTopicInner>,
+    topic_count: atomic::AtomicU8,
     enabled: atomic::AtomicBool,
 }
 
@@ -32,15 +38,12 @@ pub struct RtpsParticipant {
 impl RtpsParticipant {
     pub fn new(
         domain_id: DomainId,
-        qos: Option<DomainParticipantQos>,
+        qos: DomainParticipantQos,
+        userdata_transport: impl Transport,
+        metatraffic_transport: impl Transport,
         //     a_listener: impl DomainParticipantListener,
         //     mask: StatusMask,
     ) -> Option<Self> {
-        let interface = "Ethernet";
-        let userdata_transport =
-            Box::new(UdpTransport::default_userdata_transport(domain_id, interface).unwrap());
-        let metatraffic_transport =
-            Box::new(UdpTransport::default_metatraffic_transport(domain_id, interface).unwrap());
         // let domain_tag = "".to_string();
         // let lease_duration = Duration {
         //     sec: 30,
@@ -48,18 +51,22 @@ impl RtpsParticipant {
         // };
         let guid_prefix = [1; 12];
         let participant = Participant::new(guid_prefix, domain_id, PROTOCOL_VERSION_2_4, VENDOR_ID);
-        let qos = qos.unwrap_or_default();
-        let enabled = atomic::AtomicBool::new(false);
 
         let inner = Arc::new(RtpsParticipantInner {
             participant,
             qos: Mutex::new(qos),
-            userdata_transport,
-            metatraffic_transport,
+            default_publisher_qos: Mutex::new(PublisherQos::default()),
+            default_subscriber_qos: Mutex::new(SubscriberQos::default()),
+            default_topic_qos: Mutex::new(TopicQos::default()),
+            userdata_transport: Box::new(userdata_transport),
+            metatraffic_transport: Box::new(metatraffic_transport),
             publisher_list: Default::default(),
+            publisher_count: atomic::AtomicU8::new(0),
             subscriber_list: Default::default(),
+            subscriber_count: atomic::AtomicU8::new(0),
             topic_list: Default::default(),
-            enabled,
+            topic_count: atomic::AtomicU8::new(0),
+            enabled: atomic::AtomicBool::new(false),
         });
 
         let thread_list = RefCell::new(Vec::new());
@@ -68,10 +75,15 @@ impl RtpsParticipant {
 
     pub fn create_publisher<'a>(
         &'a self,
-        _qos: Option<&PublisherQos>,
+        qos: Option<PublisherQos>,
     ) -> Option<RtpsPublisher<'a>> {
-        let new_publisher = RtpsPublisherInner::default();
-        self.inner.publisher_list.create(new_publisher)
+        let guid_prefix = self.inner.participant.entity.guid.prefix();
+        let entity_key = [0, self.inner.publisher_count.fetch_add(1, atomic::Ordering::Relaxed), 0];
+        let entity_id = EntityId::new(entity_key, EntityKind::BuiltInWriterGroup);
+        let new_publisher_guid = GUID::new(guid_prefix, entity_id);
+        let new_publisher_qos = qos.unwrap_or(self.get_default_publisher_qos());
+        let new_publisher = RtpsPublisherInner::new(new_publisher_guid, new_publisher_qos);
+        self.inner.publisher_list.add(new_publisher)
     }
 
     pub fn delete_publisher(&self, a_publisher: &RtpsPublisher) -> ReturnCode<()> {
@@ -79,12 +91,14 @@ impl RtpsParticipant {
         Ok(())
     }
 
-    pub fn create_subscriber(&self, _qos: Option<&SubscriberQos>) -> Option<RtpsSubscriber> {
-        todo!()
-        // let subscriber_object = self.subscriber_list.iter().find(|&x| x.is_empty())?;
-        // let new_subscriber_inner = RtpsSubscriberInner::default();
-        // subscriber_object.initialize(new_subscriber_inner).ok()?;
-        // subscriber_object.get_reference().ok()
+    pub fn create_subscriber(&self, qos: Option<SubscriberQos>) -> Option<RtpsSubscriber> {
+        let guid_prefix = self.inner.participant.entity.guid.prefix();
+        let entity_key = [0, self.inner.subscriber_count.fetch_add(1, atomic::Ordering::Relaxed), 0];
+        let entity_id = EntityId::new(entity_key, EntityKind::BuiltInReaderGroup);
+        let new_subscriber_guid = GUID::new(guid_prefix, entity_id);
+        let new_subscriber_qos = qos.unwrap_or(self.get_default_subscriber_qos());
+        let new_subscriber = RtpsSubscriberInner::new(new_subscriber_guid, new_subscriber_qos);
+        self.inner.subscriber_list.add(new_subscriber)
     }
 
     pub fn delete_subscriber(&self, a_subscriber: &RtpsSubscriber) -> ReturnCode<()> {
@@ -92,8 +106,14 @@ impl RtpsParticipant {
         Ok(())
     }
 
-    pub fn create_topic(&self, _topic_name: String, _qos: Option<&TopicQos>) -> Option<RtpsTopic> {
-        todo!()
+    pub fn create_topic(&self, topic_name: String, type_name: &'static str, qos: Option<TopicQos>) -> Option<RtpsTopic> {
+        let guid_prefix = self.inner.participant.entity.guid.prefix();
+        let entity_key = [0, self.inner.topic_count.fetch_add(1, atomic::Ordering::Relaxed), 0];
+        let entity_id = EntityId::new(entity_key, EntityKind::UserDefinedUnknown);
+        let new_topic_guid = GUID::new(guid_prefix, entity_id);
+        let new_topic_qos = qos.unwrap_or(self.get_default_topic_qos());
+        let new_topic = RtpsTopicInner::new(new_topic_guid, topic_name, type_name, new_topic_qos);
+        self.inner.topic_list.add(new_topic)
     }
 
     pub fn delete_topic(&self, _a_topic: &RtpsTopic) -> ReturnCode<()> {
@@ -140,28 +160,35 @@ impl RtpsParticipant {
         todo!()
     }
 
-    pub fn set_default_publisher_qos(&self, _qos: Option<PublisherQos>) -> ReturnCode<()> {
-        todo!()
+    pub fn set_default_publisher_qos(&self, qos: Option<PublisherQos>) -> ReturnCode<()> {
+        let qos = qos.unwrap_or_default();
+        *self.inner.default_publisher_qos.lock().unwrap() = qos;
+        Ok(())
     }
 
     pub fn get_default_publisher_qos(&self) -> PublisherQos {
-        todo!()
+        self.inner.default_publisher_qos.lock().unwrap().clone()
     }
 
-    pub fn set_default_subscriber_qos(&self, _qos: Option<SubscriberQos>) -> ReturnCode<()> {
-        todo!()
+    pub fn set_default_subscriber_qos(&self, qos: Option<SubscriberQos>) -> ReturnCode<()> {
+        let qos = qos.unwrap_or_default();
+        *self.inner.default_subscriber_qos.lock().unwrap() = qos;
+        Ok(())
     }
 
     pub fn get_default_subscriber_qos(&self) -> SubscriberQos {
-        todo!()
+        self.inner.default_subscriber_qos.lock().unwrap().clone()
     }
 
-    pub fn set_default_topic_qos(&self, _qos: Option<TopicQos>) -> ReturnCode<()> {
-        todo!()
+    pub fn set_default_topic_qos(&self, qos: Option<TopicQos>) -> ReturnCode<()> {
+        let qos = qos.unwrap_or_default();
+        qos.is_consistent()?;
+        *self.inner.default_topic_qos.lock().unwrap() = qos;
+        Ok(())
     }
 
     pub fn get_default_topic_qos(&self) -> TopicQos {
-        todo!()
+        self.inner.default_topic_qos.lock().unwrap().clone()
     }
 
     pub fn get_discovered_participants(
@@ -229,7 +256,6 @@ impl RtpsParticipant {
 
 impl Drop for RtpsParticipant {
     fn drop(&mut self) {
-        println!("Dropping");
         self.inner.enabled.store(false, atomic::Ordering::Release);
         for thread in self.thread_list.borrow_mut().drain(..) {
             thread.join().ok();
@@ -244,10 +270,32 @@ fn process_user_traffic() {}
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::rtps::messages::RtpsMessage;
+    use crate::rtps::types::Locator;
+    use crate::rtps::transport::TransportResult;
+
+    struct MockTransport;
+    impl Transport for MockTransport {
+        fn write(&self, _message: RtpsMessage, _destination_locator: &Locator) {
+            todo!()
+        }
+
+        fn read(&self) -> TransportResult<Option<(RtpsMessage, Locator)>> {
+            todo!()
+        }
+
+        fn unicast_locator_list(&self) -> &Vec<Locator> {
+            todo!()
+        }
+
+        fn multicast_locator_list(&self) -> &Vec<Locator> {
+            todo!()
+        }
+    }
 
     #[test]
     fn enable_threads() {
-        let participant = RtpsParticipant::new(0, None).unwrap();
+        let participant = RtpsParticipant::new(0, DomainParticipantQos::default(), MockTransport, MockTransport).unwrap();
         participant.enable();
     }
 }

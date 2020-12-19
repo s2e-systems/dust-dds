@@ -3,6 +3,7 @@ use crate::dds_rtps_implementation::rtps_data_writer::RtpsDataWriter;
 use crate::dds_rtps_implementation::rtps_data_writer::RtpsDataWriterInner;
 use crate::dds_rtps_implementation::rtps_object::{RtpsObject, RtpsObjectList};
 use crate::rtps::structure::Entity;
+use crate::rtps::types::GUID;
 use crate::rtps::types::constants::GUID_UNKNOWN;
 use crate::types::{Duration, ReturnCode};
 use std::cell::Ref;
@@ -19,6 +20,16 @@ impl Default for RtpsPublisherInner{
             entity: Entity{guid: GUID_UNKNOWN},
             writer_list: Default::default(),
             qos: PublisherQos::default(),
+        }
+    }
+}
+
+impl RtpsPublisherInner {
+    pub fn new(guid: GUID, qos: PublisherQos) -> Self {
+        Self {
+            entity: Entity{guid},
+            writer_list: Default::default(),
+            qos
         }
     }
 }

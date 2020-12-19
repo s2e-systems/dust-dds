@@ -55,7 +55,7 @@ impl<T: Default> Default for RtpsObjectList<T> {
 }
 
 impl<T> RtpsObjectList<T> {
-    pub fn create(&self, value: T) -> Option<Ref<RtpsObject<T>>> {
+    pub fn add(&self, value: T) -> Option<Ref<RtpsObject<T>>> {
         let index = self.initialize_free_object(value)?;
         Some(self.0[index].borrow())
     }
@@ -130,10 +130,10 @@ mod tests {
     fn object_list_initialize_free_object_positions_with_deletion() {
         let object_list: RtpsObjectList<i32> = RtpsObjectList::default();
         {
-            let _object0 = object_list.create(0).unwrap();
-            let object1 = object_list.create(10).unwrap();
-            let _object2 = object_list.create(20).unwrap();
-            let object3 = object_list.create(30).unwrap();
+            let _object0 = object_list.add(0).unwrap();
+            let object1 = object_list.add(10).unwrap();
+            let _object2 = object_list.add(20).unwrap();
+            let object3 = object_list.add(30).unwrap();
 
             object1.delete();
             object3.delete();
@@ -152,10 +152,10 @@ mod tests {
     fn object_list_initialize_free_object_deleted_with_references() {
         let object_list: RtpsObjectList<i32> = RtpsObjectList::default();
 
-        let _object0 = object_list.create(0).unwrap();
-        let object1 = object_list.create(10).unwrap();
-        let _object2 = object_list.create(20).unwrap();
-        let object3 = object_list.create(30).unwrap();
+        let _object0 = object_list.add(0).unwrap();
+        let object1 = object_list.add(10).unwrap();
+        let _object2 = object_list.add(20).unwrap();
+        let object3 = object_list.add(30).unwrap();
 
         object1.delete();
         object3.delete();
