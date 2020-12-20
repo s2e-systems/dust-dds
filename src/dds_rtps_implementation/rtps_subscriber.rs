@@ -5,7 +5,7 @@ use crate::dds_rtps_implementation::rtps_object::{RtpsObject, RtpsObjectList};
 use crate::rtps::structure::Group;
 use crate::rtps::types::GUID;
 use crate::types::{ReturnCode, InstanceHandle};
-use std::cell::Ref;
+use std::sync::RwLockReadGuard;
 use std::sync::{atomic, Mutex};
 
 pub struct RtpsSubscriberInner {
@@ -28,7 +28,7 @@ impl RtpsSubscriberInner {
     }
 }
 
-pub type RtpsSubscriber<'a> = Ref<'a, RtpsObject<RtpsSubscriberInner>>;
+pub type RtpsSubscriber<'a> = RwLockReadGuard<'a, RtpsObject<RtpsSubscriberInner>>;
 
 impl RtpsObject<RtpsSubscriberInner> {
     pub fn create_datareader(&self) -> Option<RtpsDataReader> {

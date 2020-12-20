@@ -279,6 +279,7 @@ mod tests {
     use crate::rtps::messages::RtpsMessage;
     use crate::rtps::types::Locator;
     use crate::rtps::transport::TransportResult;
+    use crate::types::TopicKind;
 
     struct MockTransport;
     impl Transport for MockTransport {
@@ -324,17 +325,6 @@ mod tests {
     }
 
     #[test]
-    fn create_delete_publisher() {
-        let participant = RtpsParticipant::new(0, DomainParticipantQos::default(), MockTransport, MockTransport).unwrap();
-
-        let publisher = participant.create_publisher(None).unwrap();
-        participant.delete_publisher(&publisher).unwrap();
-
-        assert_eq!(publisher.get_qos(), Err(ReturnCodes::AlreadyDeleted));
-        assert_eq!(participant.delete_publisher(&publisher), Err(ReturnCodes::AlreadyDeleted));
-    }
-
-    #[test]
     fn create_subscriber() {
         let participant = RtpsParticipant::new(0, DomainParticipantQos::default(), MockTransport, MockTransport).unwrap();
 
@@ -359,6 +349,17 @@ mod tests {
     }
 
     #[test]
+    fn create_delete_publisher() {
+        let participant = RtpsParticipant::new(0, DomainParticipantQos::default(), MockTransport, MockTransport).unwrap();
+
+        let publisher = participant.create_publisher(None).unwrap();
+        participant.delete_publisher(&publisher).unwrap();
+
+        assert_eq!(publisher.get_qos(), Err(ReturnCodes::AlreadyDeleted));
+        assert_eq!(participant.delete_publisher(&publisher), Err(ReturnCodes::AlreadyDeleted));
+    }
+
+    #[test]
     fn create_delete_subscriber() {
         let participant = RtpsParticipant::new(0, DomainParticipantQos::default(), MockTransport, MockTransport).unwrap();
 
@@ -368,6 +369,27 @@ mod tests {
         assert_eq!(subscriber.get_qos(), Err(ReturnCodes::AlreadyDeleted));
         assert_eq!(participant.delete_subscriber(&subscriber), Err(ReturnCodes::AlreadyDeleted));
     }
+
+    #[test]
+    fn delete_publisher_with_writers() {
+        let participant = RtpsParticipant::new(0, DomainParticipantQos::default(), MockTransport, MockTransport).unwrap();
+
+        let publisher = participant.create_publisher(None).unwrap();
+        let _a_datawriter = publisher.create_datawriter(TopicKind::WithKey, None).unwrap();
+
+        assert_eq!(participant.delete_publisher(&publisher), Err(ReturnCodes::PreconditionNotMet("Publisher still contains data writers")));
+    }
+
+    #[test]
+    fn delete_publisher_with_created_and_deleted_writers() {
+        let participant = RtpsParticipant::new(0, DomainParticipantQos::default(), MockTransport, MockTransport).unwrap();
+
+        let publisher = participant.create_publisher(None).unwrap();
+        let a_datawriter = publisher.create_datawriter(TopicKind::WithKey, None).unwrap();
+        publisher.delete_datawriter(&a_datawriter).expect("Failed to delete datawriter");
+        assert_eq!(participant.delete_publisher(&publisher),Ok(()));
+    }
+    
 
     #[test]
     fn enable_threads() {

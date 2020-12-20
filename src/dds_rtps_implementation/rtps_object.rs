@@ -1,6 +1,6 @@
 use crate::types::{ReturnCode, ReturnCodes};
 use core::sync::atomic;
-use std::cell::{Ref, RefCell};
+use std::sync::{RwLock, RwLockReadGuard};
 
 pub struct RtpsObject<T> {
     value: Option<T>,
@@ -46,7 +46,7 @@ impl<T> RtpsObject<T> {
     }
 }
 
-pub struct RtpsObjectList<T>([RefCell<RtpsObject<T>>; 32]);
+pub struct RtpsObjectList<T>([RwLock<RtpsObject<T>>; 32]);
 
 impl<T> Default for RtpsObjectList<T> {
     fn default() -> Self {
@@ -55,20 +55,20 @@ impl<T> Default for RtpsObjectList<T> {
 }
 
 impl<T> RtpsObjectList<T> {
-    pub fn add(&self, value: T) -> Option<Ref<RtpsObject<T>>> {
+    pub fn add(&self, value: T) -> Option<RwLockReadGuard<RtpsObject<T>>> {
         let index = self.initialize_free_object(value)?;
-        Some(self.0[index].borrow())
+        Some(self.0[index].read().unwrap())
     }
 
     pub fn is_empty(&self) -> bool {
-        self.0.iter().find(|&x| x.borrow().is_valid()).is_none()
+        self.0.iter().find(|&x| x.read().unwrap().is_valid()).is_none()
     }
 
     fn initialize_free_object(&self, value: T) -> Option<usize> {
         // Find an object in the list which can be borrow mutably (meaning there are no other references to it)
         // and that is marked as invalid (meaning that it has either been deleted on never initialized)
         for (index, object) in self.0.iter().enumerate() {
-            if let Some(mut borrowed_object) = object.try_borrow_mut().ok() {
+            if let Some(mut borrowed_object) = object.try_write().ok() {
                 if !borrowed_object.is_valid() {
                     borrowed_object.initialize(value);
                     return Some(index);
@@ -79,8 +79,6 @@ impl<T> RtpsObjectList<T> {
         return None;
     }
 }
-
-unsafe impl<T: Sync> Sync for RtpsObjectList<T>{}
 
 #[cfg(test)]
 mod tests {

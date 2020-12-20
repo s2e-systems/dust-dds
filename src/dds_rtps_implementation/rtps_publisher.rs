@@ -5,8 +5,8 @@ use crate::dds_rtps_implementation::rtps_object::{RtpsObject, RtpsObjectList};
 use crate::rtps::structure::Group;
 use crate::rtps::types::{GUID, EntityId, EntityKind};
 use crate::types::{Duration, ReturnCode, InstanceHandle, TopicKind};
-use std::cell::Ref;
 use std::sync::{atomic, Mutex};
+use std::sync::RwLockReadGuard;
 
 pub struct RtpsPublisherInner {
     pub group: Group,
@@ -28,7 +28,7 @@ impl RtpsPublisherInner {
     }
 }
 
-pub type RtpsPublisher<'a> = Ref<'a, RtpsObject<RtpsPublisherInner>>;
+pub type RtpsPublisher<'a> = RwLockReadGuard<'a, RtpsObject<RtpsPublisherInner>>;
 
 impl RtpsObject<RtpsPublisherInner> {
     pub fn create_datawriter(&self, topic_kind: TopicKind,  qos: Option<DataWriterQos>) -> Option<RtpsDataWriter> {
@@ -46,8 +46,9 @@ impl RtpsObject<RtpsPublisherInner> {
         this.writer_list.add(new_writer)
     }
 
-    pub fn delete_datawriter(&self, _a_datawriter: &RtpsDataWriter) -> ReturnCode<()> {
-        todo!()
+    pub fn delete_datawriter(&self, a_datawriter: &RtpsDataWriter) -> ReturnCode<()> {
+        a_datawriter.delete();
+        Ok(())
     }
 
     pub fn lookup_datawriter(&self, _topic_name: &str) -> Option<RtpsDataWriter> {

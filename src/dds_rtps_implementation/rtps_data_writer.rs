@@ -10,7 +10,7 @@ use crate::rtps::behavior::StatefulWriter;
 use crate::rtps::behavior;
 use crate::rtps::types::{GUID, ReliabilityKind};
 use crate::types::{Data, Duration, InstanceHandle, ReturnCode, Time, TopicKind};
-use std::cell::Ref;
+use std::sync::RwLockReadGuard;
 
 pub struct RtpsDataWriterInner {
     pub writer: StatefulWriter,
@@ -46,7 +46,7 @@ impl RtpsDataWriterInner {
     }
 }
 
-pub type RtpsDataWriter<'a> = Ref<'a, RtpsObject<RtpsDataWriterInner>>;
+pub type RtpsDataWriter<'a> = RwLockReadGuard<'a, RtpsObject<RtpsDataWriterInner>>;
 
 impl RtpsObject<RtpsDataWriterInner> {
     pub fn register_instance(

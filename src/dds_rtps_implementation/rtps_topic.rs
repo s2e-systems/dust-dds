@@ -2,25 +2,13 @@ use crate::dds_infrastructure::qos::TopicQos;
 use crate::dds_rtps_implementation::rtps_object::RtpsObject;
 use crate::rtps::structure::Entity;
 use crate::rtps::types::GUID;
-use crate::rtps::types::constants::GUID_UNKNOWN;
-use std::cell::Ref;
+use std::sync::RwLockReadGuard;
 
 pub struct RtpsTopicInner {
     entity: Entity,
     topic_name: String,
     type_name: &'static str,
     qos: TopicQos,
-}
-
-impl Default for RtpsTopicInner {
-    fn default() -> Self {
-        Self {
-            entity: Entity{ guid: GUID_UNKNOWN},
-            topic_name: String::new(),
-            type_name: "",
-            qos: TopicQos::default(),
-        }
-    }
 }
 
 impl RtpsTopicInner {
@@ -34,6 +22,6 @@ impl RtpsTopicInner {
     }
 }
 
-pub type RtpsTopic<'a> = Ref<'a, RtpsObject<RtpsTopicInner>>;
+pub type RtpsTopic<'a> = RwLockReadGuard<'a, RtpsObject<RtpsTopicInner>>;
 
 impl RtpsObject<RtpsTopicInner> {}

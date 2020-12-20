@@ -13,7 +13,7 @@ use crate::rtps::behavior;
 use crate::rtps::behavior::StatefulReader;
 use crate::rtps::types::{ReliabilityKind, GUID};
 use crate::types::{Data, InstanceHandle, ReturnCode, TopicKind};
-use std::cell::Ref;
+use std::sync::RwLockReadGuard;
 
 pub struct RtpsDataReaderInner {
     pub reader: StatefulReader,
@@ -36,7 +36,7 @@ impl RtpsDataReaderInner {
     }
 }
 
-pub type RtpsDataReader<'a> = Ref<'a, RtpsObject<RtpsDataReaderInner>>;
+pub type RtpsDataReader<'a> = RwLockReadGuard<'a, RtpsObject<RtpsDataReaderInner>>;
 
 impl RtpsObject<RtpsDataReaderInner> {
     pub fn read(
