@@ -10,7 +10,7 @@ use crate::dds_infrastructure::status::{
 use crate::dds_rtps_implementation::rtps_object::RtpsObject;
 use crate::types::{Data, InstanceHandle, ReturnCode};
 use std::cell::Ref;
-#[derive(Default)]
+
 pub struct RtpsDataReaderInner {
     qos: DataReaderQos,
 }

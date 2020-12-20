@@ -1,18 +1,42 @@
 use crate::builtin_topics::SubscriptionBuiltinTopicData;
+use crate::dds_infrastructure::qos::DataWriterQos;
 use crate::dds_infrastructure::status::{
     LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus,
     PublicationMatchedStatus,
 };
 use crate::dds_rtps_implementation::rtps_object::RtpsObject;
-use crate::types::{Data, Duration, InstanceHandle, ReturnCode, Time};
+use crate::rtps::behavior::StatefulWriter;
+use crate::rtps::types::GUID;
+use crate::types::{Data, Duration, InstanceHandle, ReturnCode, Time, TopicKind};
 use std::cell::Ref;
 
-#[derive(Default)]
-pub struct RtpsDataWriterInner {}
+pub struct RtpsDataWriterInner {
+    // pub writer: StatefulWriter,
+    // pub qos: DataWriterQos,
+}
 
 impl RtpsDataWriterInner {
-    pub fn new() -> Self {
-        Self {}
+    pub fn new(guid: GUID, topic_kind: TopicKind, qos: DataWriterQos) -> Self {
+        qos.is_consistent()
+            .expect("RtpsDataWriterInner can only be created with consistent QoS");
+
+        // let reliablity_level =  match qos.reliability.kind {
+
+        // };
+        // let push_mode = true;
+        // let writer = StatefulWriter::new(
+        //     guid,
+        //     topic_kind,
+        //     reliability_level,
+        //     push_mode,
+        //     writer_cache,
+        //     data_max_sized_serialized,
+        //     heartbeat_period,
+        //     nack_response_delay,
+        //     nack_supression_duration,
+        // );
+
+        Self { }
     }
 }
 

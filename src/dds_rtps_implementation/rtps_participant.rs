@@ -8,7 +8,7 @@ use crate::rtps::structure::Participant;
 use crate::rtps::transport::Transport;
 use crate::rtps::types::{GUID, EntityId, EntityKind};
 use crate::rtps::types::constants::{PROTOCOL_VERSION_2_4, VENDOR_ID,};
-use crate::types::{DomainId, Duration, InstanceHandle, ReturnCode, Time};
+use crate::types::{DomainId, Duration, InstanceHandle, ReturnCode, Time, ReturnCodes};
 use std::cell::RefCell;
 use std::sync::{atomic, Arc, Mutex};
 use std::thread::JoinHandle;
@@ -79,7 +79,7 @@ impl RtpsParticipant {
     ) -> Option<RtpsPublisher<'a>> {
         let guid_prefix = self.inner.participant.entity.guid.prefix();
         let entity_key = [0, self.inner.publisher_count.fetch_add(1, atomic::Ordering::Relaxed), 0];
-        let entity_id = EntityId::new(entity_key, EntityKind::BuiltInWriterGroup);
+        let entity_id = EntityId::new(entity_key, EntityKind::UserDefinedWriterGroup);
         let new_publisher_guid = GUID::new(guid_prefix, entity_id);
         let new_publisher_qos = qos.unwrap_or(self.get_default_publisher_qos());
         let new_publisher = RtpsPublisherInner::new(new_publisher_guid, new_publisher_qos);
@@ -87,14 +87,18 @@ impl RtpsParticipant {
     }
 
     pub fn delete_publisher(&self, a_publisher: &RtpsPublisher) -> ReturnCode<()> {
-        a_publisher.delete();
-        Ok(())
+        if a_publisher.value()?.writer_list.is_empty() {
+            a_publisher.delete();
+            Ok(())
+        } else {
+            Err(ReturnCodes::PreconditionNotMet("Publisher still contains data writers"))
+        }
     }
 
     pub fn create_subscriber(&self, qos: Option<SubscriberQos>) -> Option<RtpsSubscriber> {
         let guid_prefix = self.inner.participant.entity.guid.prefix();
         let entity_key = [0, self.inner.subscriber_count.fetch_add(1, atomic::Ordering::Relaxed), 0];
-        let entity_id = EntityId::new(entity_key, EntityKind::BuiltInReaderGroup);
+        let entity_id = EntityId::new(entity_key, EntityKind::UserDefinedReaderGroup);
         let new_subscriber_guid = GUID::new(guid_prefix, entity_id);
         let new_subscriber_qos = qos.unwrap_or(self.get_default_subscriber_qos());
         let new_subscriber = RtpsSubscriberInner::new(new_subscriber_guid, new_subscriber_qos);
@@ -102,8 +106,12 @@ impl RtpsParticipant {
     }
 
     pub fn delete_subscriber(&self, a_subscriber: &RtpsSubscriber) -> ReturnCode<()> {
-        a_subscriber.delete();
-        Ok(())
+        if a_subscriber.value()?.reader_list.is_empty() {
+            a_subscriber.delete();
+            Ok(())
+        } else {
+            Err(ReturnCodes::PreconditionNotMet("Subscriber still contains data readers"))
+        }
     }
 
     pub fn create_topic(&self, topic_name: String, type_name: &'static str, qos: Option<TopicQos>) -> Option<RtpsTopic> {
@@ -238,7 +246,7 @@ impl RtpsParticipant {
         Ok(self.inner.participant.entity.guid.into())
     }
 
-    pub fn enable(&self) {
+    pub fn enable(&self) -> ReturnCode<()> {
         if self.inner.enabled.load(atomic::Ordering::Acquire) == false {
             self.inner.enabled.store(true, atomic::Ordering::Release);
 
@@ -251,6 +259,8 @@ impl RtpsParticipant {
                 }
             }));
         }
+
+        Ok(())
     }
 }
 
@@ -262,10 +272,6 @@ impl Drop for RtpsParticipant {
         }
     }
 }
-
-fn process_metatraffic() {}
-
-fn process_user_traffic() {}
 
 #[cfg(test)]
 mod tests {
@@ -294,8 +300,78 @@ mod tests {
     }
 
     #[test]
+    fn create_publisher() {
+        let participant = RtpsParticipant::new(0, DomainParticipantQos::default(), MockTransport, MockTransport).unwrap();
+
+        let publisher1_default_qos = participant.create_publisher(None).unwrap();
+        let publisher1_instance_handle = publisher1_default_qos.get_instance_handle().unwrap();
+
+        let mut qos = PublisherQos::default();
+        qos.partition.name = "Test".to_string();
+        let publisher2_custom_qos = participant.create_publisher(Some(qos.clone())).unwrap();
+        let publisher2_instance_handle = publisher2_custom_qos.get_instance_handle().unwrap();
+
+        // Test correct qos and instance handle
+        assert_eq!(publisher1_default_qos.get_qos().unwrap(), PublisherQos::default());
+        assert_eq!(publisher1_instance_handle[0..12], participant.inner.participant.entity.guid.prefix());
+        assert_eq!(publisher1_instance_handle[12..15], [0,0,0]);
+        assert_eq!(publisher1_instance_handle[15], 0x08);
+
+        assert_eq!(publisher2_custom_qos.get_qos().unwrap(), qos);
+        assert_eq!(publisher2_instance_handle[0..12], participant.inner.participant.entity.guid.prefix());
+        assert_eq!(publisher2_instance_handle[12..15], [0,1,0]);
+        assert_eq!(publisher1_instance_handle[15], 0x08);
+    }
+
+    #[test]
+    fn create_delete_publisher() {
+        let participant = RtpsParticipant::new(0, DomainParticipantQos::default(), MockTransport, MockTransport).unwrap();
+
+        let publisher = participant.create_publisher(None).unwrap();
+        participant.delete_publisher(&publisher).unwrap();
+
+        assert_eq!(publisher.get_qos(), Err(ReturnCodes::AlreadyDeleted));
+        assert_eq!(participant.delete_publisher(&publisher), Err(ReturnCodes::AlreadyDeleted));
+    }
+
+    #[test]
+    fn create_subscriber() {
+        let participant = RtpsParticipant::new(0, DomainParticipantQos::default(), MockTransport, MockTransport).unwrap();
+
+        let subscriber1_default_qos = participant.create_subscriber(None).unwrap();
+        let subscriber1_instance_handle = subscriber1_default_qos.get_instance_handle().unwrap();
+
+        let mut qos = SubscriberQos::default();
+        qos.partition.name = "Test".to_string();
+        let subscriber2_custom_qos = participant.create_subscriber(Some(qos.clone())).unwrap();
+        let subscriber2_instance_handle = subscriber2_custom_qos.get_instance_handle().unwrap();
+
+        // Test correct qos and instance handle
+        assert_eq!(subscriber1_default_qos.get_qos().unwrap(), SubscriberQos::default());
+        assert_eq!(subscriber1_instance_handle[0..12], participant.inner.participant.entity.guid.prefix());
+        assert_eq!(subscriber1_instance_handle[12..15], [0,0,0]);
+        assert_eq!(subscriber1_instance_handle[15], 0x09);
+
+        assert_eq!(subscriber2_custom_qos.get_qos().unwrap(), qos);
+        assert_eq!(subscriber2_instance_handle[0..12], participant.inner.participant.entity.guid.prefix());
+        assert_eq!(subscriber2_instance_handle[12..15], [0,1,0]);
+        assert_eq!(subscriber1_instance_handle[15], 0x09);
+    }
+
+    #[test]
+    fn create_delete_subscriber() {
+        let participant = RtpsParticipant::new(0, DomainParticipantQos::default(), MockTransport, MockTransport).unwrap();
+
+        let subscriber = participant.create_subscriber(None).unwrap();
+        participant.delete_subscriber(&subscriber).unwrap();
+
+        assert_eq!(subscriber.get_qos(), Err(ReturnCodes::AlreadyDeleted));
+        assert_eq!(participant.delete_subscriber(&subscriber), Err(ReturnCodes::AlreadyDeleted));
+    }
+
+    #[test]
     fn enable_threads() {
         let participant = RtpsParticipant::new(0, DomainParticipantQos::default(), MockTransport, MockTransport).unwrap();
-        participant.enable();
+        participant.enable().unwrap();
     }
 }

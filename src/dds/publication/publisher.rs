@@ -44,11 +44,11 @@ impl<'a> Publisher<'a> {
     pub fn create_datawriter<T: DDSType>(
         &'a self,
         a_topic: Topic<'a, T>,
-        _qos: Option<&DataWriterQos>,
+        qos: Option<DataWriterQos>,
         // _a_listener: impl DataWriterListener<T>,
         // _mask: StatusMask
     ) -> Option<DataWriter<T>> {
-        let rtps_datawriter = self.rtps_publisher.create_datawriter()?;
+        let rtps_datawriter = self.rtps_publisher.create_datawriter(T::topic_kind(), qos)?;
 
         Some(DataWriter {
             parent_publisher: self,
@@ -204,7 +204,7 @@ impl<'a> Entity for Publisher<'a> {
     }
 
     fn get_qos(&self) -> ReturnCode<Self::Qos> {
-        todo!()
+        self.rtps_publisher.get_qos()
     }
 
     fn set_listener(&self, _a_listener: Self::Listener, _mask: StatusMask) -> ReturnCode<()> {
@@ -228,6 +228,6 @@ impl<'a> Entity for Publisher<'a> {
     }
 
     fn get_instance_handle(&self) -> ReturnCode<InstanceHandle> {
-        todo!()
+        self.rtps_publisher.get_instance_handle()
     }
 }

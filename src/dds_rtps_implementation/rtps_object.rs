@@ -3,14 +3,14 @@ use core::sync::atomic;
 use std::cell::{Ref, RefCell};
 
 pub struct RtpsObject<T> {
-    value: T,
+    value: Option<T>,
     valid: atomic::AtomicBool,
 }
 
-impl<T: Default> Default for RtpsObject<T> {
+impl<T> Default for RtpsObject<T> {
     fn default() -> Self {
         Self {
-            value: T::default(),
+            value: None,
             valid: atomic::AtomicBool::new(false),
         }
     }
@@ -19,14 +19,14 @@ impl<T: Default> Default for RtpsObject<T> {
 impl<T> RtpsObject<T> {
     pub fn new(value: T) -> Self {
         Self {
-            value,
+            value: Some(value),
             valid: atomic::AtomicBool::new(true),
         }
     }
 
     pub fn value(&self) -> ReturnCode<&T> {
         if self.is_valid() {
-            Ok(&self.value)
+            Ok(self.value.as_ref().unwrap())
         } else {
             Err(ReturnCodes::AlreadyDeleted)
         }
@@ -41,14 +41,14 @@ impl<T> RtpsObject<T> {
     }
 
     pub fn initialize(&mut self, value: T) {
-        self.value = value;
+        self.value = Some(value);
         self.valid.store(true, atomic::Ordering::Release);
     }
 }
 
 pub struct RtpsObjectList<T>([RefCell<RtpsObject<T>>; 32]);
 
-impl<T: Default> Default for RtpsObjectList<T> {
+impl<T> Default for RtpsObjectList<T> {
     fn default() -> Self {
         Self(Default::default())
     }
@@ -58,6 +58,10 @@ impl<T> RtpsObjectList<T> {
     pub fn add(&self, value: T) -> Option<Ref<RtpsObject<T>>> {
         let index = self.initialize_free_object(value)?;
         Some(self.0[index].borrow())
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.iter().find(|&x| x.borrow().is_valid()).is_none()
     }
 
     fn initialize_free_object(&self, value: T) -> Option<usize> {

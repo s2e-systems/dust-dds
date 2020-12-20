@@ -2,34 +2,28 @@ use crate::dds_infrastructure::qos::{DataWriterQos, PublisherQos, TopicQos};
 use crate::dds_rtps_implementation::rtps_data_writer::RtpsDataWriter;
 use crate::dds_rtps_implementation::rtps_data_writer::RtpsDataWriterInner;
 use crate::dds_rtps_implementation::rtps_object::{RtpsObject, RtpsObjectList};
-use crate::rtps::structure::Entity;
-use crate::rtps::types::GUID;
-use crate::rtps::types::constants::GUID_UNKNOWN;
-use crate::types::{Duration, ReturnCode};
+use crate::rtps::structure::Group;
+use crate::rtps::types::{GUID, EntityId, EntityKind};
+use crate::types::{Duration, ReturnCode, InstanceHandle, TopicKind};
 use std::cell::Ref;
+use std::sync::{atomic, Mutex};
 
 pub struct RtpsPublisherInner {
-    entity: Entity,
-    writer_list: RtpsObjectList<RtpsDataWriterInner>,
-    qos: PublisherQos,
-}
-
-impl Default for RtpsPublisherInner{
-    fn default() -> Self {
-        Self {
-            entity: Entity{guid: GUID_UNKNOWN},
-            writer_list: Default::default(),
-            qos: PublisherQos::default(),
-        }
-    }
+    pub group: Group,
+    pub writer_list: RtpsObjectList<RtpsDataWriterInner>,
+    pub writer_count: atomic::AtomicU8,
+    pub default_datawriter_qos: Mutex<DataWriterQos>,
+    pub qos: PublisherQos,
 }
 
 impl RtpsPublisherInner {
     pub fn new(guid: GUID, qos: PublisherQos) -> Self {
         Self {
-            entity: Entity{guid},
+            group: Group::new(guid),
             writer_list: Default::default(),
-            qos
+            writer_count: atomic::AtomicU8::new(0),
+            default_datawriter_qos: Mutex::new(DataWriterQos::default()),
+            qos,
         }
     }
 }
@@ -37,19 +31,19 @@ impl RtpsPublisherInner {
 pub type RtpsPublisher<'a> = Ref<'a, RtpsObject<RtpsPublisherInner>>;
 
 impl RtpsObject<RtpsPublisherInner> {
-    pub fn create_datawriter(&self) -> Option<RtpsDataWriter> {
-        // let datawriter_object = self
-        //     .value()
-        //     .ok()?
-        //     .writer_list
-        //     .iter()
-        //     .find(|x| x.is_empty())?;
-        // let new_datawriter_inner = RtpsDataWriterInner::new();
-        // datawriter_object.initialize(new_datawriter_inner).ok()?;
-        // datawriter_object
-        //     .get_reference()
-        //     .ok()
-        todo!()
+    pub fn create_datawriter(&self, topic_kind: TopicKind,  qos: Option<DataWriterQos>) -> Option<RtpsDataWriter> {
+        let this =  self.value().ok()?;
+        let guid_prefix = this.group.entity.guid.prefix();
+        let entity_key = [0, this.writer_count.fetch_add(1, atomic::Ordering::Relaxed), 0];
+        let entity_kind = match topic_kind {
+            TopicKind::WithKey => EntityKind::UserDefinedWriterWithKey,
+            TopicKind::NoKey => EntityKind::UserDefinedWriterNoKey,
+        };
+        let entity_id = EntityId::new(entity_key, entity_kind);
+        let new_writer_guid = GUID::new(guid_prefix, entity_id);
+        let new_writer_qos = qos.unwrap_or(self.get_default_datawriter_qos().ok()?);
+        let new_writer = RtpsDataWriterInner::new(new_writer_guid, topic_kind, new_writer_qos);
+        this.writer_list.add(new_writer)
     }
 
     pub fn delete_datawriter(&self, _a_datawriter: &RtpsDataWriter) -> ReturnCode<()> {
@@ -89,7 +83,7 @@ impl RtpsObject<RtpsPublisherInner> {
     }
 
     pub fn get_default_datawriter_qos(&self) -> ReturnCode<DataWriterQos> {
-        todo!()
+        Ok(self.value()?.default_datawriter_qos.lock().unwrap().clone())
     }
 
     pub fn copy_from_topic_qos(
@@ -98,5 +92,13 @@ impl RtpsObject<RtpsPublisherInner> {
         _a_topic_qos: &TopicQos,
     ) -> ReturnCode<()> {
         todo!()
+    }
+
+    pub fn get_qos(&self) -> ReturnCode<PublisherQos> {
+        Ok(self.value()?.qos.clone())
+    }
+
+    pub fn get_instance_handle(&self) -> ReturnCode<InstanceHandle> {
+        Ok(self.value()?.group.entity.guid.into())
     }
 }

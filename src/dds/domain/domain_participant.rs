@@ -416,7 +416,7 @@ impl Entity for DomainParticipant {
     }
 
     fn enable(&self) -> ReturnCode<()> {
-        todo!()
+        self.0.enable()
     }
 
     fn get_instance_handle(&self) -> ReturnCode<InstanceHandle> {

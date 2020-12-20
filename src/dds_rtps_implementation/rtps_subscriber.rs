@@ -2,33 +2,27 @@ use crate::dds_infrastructure::qos::{DataReaderQos, SubscriberQos, TopicQos};
 use crate::dds_infrastructure::status::SampleLostStatus;
 use crate::dds_rtps_implementation::rtps_data_reader::{RtpsDataReader, RtpsDataReaderInner};
 use crate::dds_rtps_implementation::rtps_object::{RtpsObject, RtpsObjectList};
-use crate::rtps::structure::Entity;
-use crate::rtps::types::constants::GUID_UNKNOWN;
+use crate::rtps::structure::Group;
 use crate::rtps::types::GUID;
-use crate::types::ReturnCode;
+use crate::types::{ReturnCode, InstanceHandle};
 use std::cell::Ref;
+use std::sync::{atomic, Mutex};
 
 pub struct RtpsSubscriberInner {
-    entity: Entity,
-    reader_list: RtpsObjectList<RtpsDataReaderInner>,
-    qos: SubscriberQos,
-}
-
-impl Default for RtpsSubscriberInner {
-    fn default() -> Self {
-        Self {
-            entity: Entity { guid: GUID_UNKNOWN },
-            reader_list: Default::default(),
-            qos: SubscriberQos::default(),
-        }
-    }
+    pub group: Group,
+    pub reader_list: RtpsObjectList<RtpsDataReaderInner>,
+    pub reader_count: atomic::AtomicU8,
+    pub default_datareader_qos: Mutex<DataReaderQos>,
+    pub qos: SubscriberQos,
 }
 
 impl RtpsSubscriberInner {
     pub fn new(guid: GUID, qos: SubscriberQos) -> Self {
         Self {
-            entity: Entity { guid },
+            group: Group::new(guid),
             reader_list: Default::default(),
+            reader_count: atomic::AtomicU8::new(0),
+            default_datareader_qos: Mutex::new(DataReaderQos::default()),
             qos,
         }
     }
@@ -83,5 +77,13 @@ impl RtpsObject<RtpsSubscriberInner> {
         _a_topic_qos: &TopicQos,
     ) -> ReturnCode<()> {
         todo!()
+    }
+
+    pub fn get_qos(&self) -> ReturnCode<SubscriberQos> {
+        Ok(self.value()?.qos.clone())
+    }
+
+    pub fn get_instance_handle(&self) -> ReturnCode<InstanceHandle> {
+        Ok(self.value()?.group.entity.guid.into())
     }
 }

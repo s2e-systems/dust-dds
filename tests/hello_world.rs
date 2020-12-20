@@ -44,14 +44,14 @@ fn hello_world() {
 
     let mut data_writer_qos = DataWriterQos::default();
     data_writer_qos.reliability = ReliabilityQosPolicy{kind: ReliabilityQosPolicyKind::BestEffortReliabilityQos, max_blocking_time: DURATION_ZERO};
-    let datawriter = publisher.create_datawriter(helloworld_topic, Some(&data_writer_qos)).expect("Error creating data writer");
+    let datawriter = publisher.create_datawriter(helloworld_topic, Some(data_writer_qos)).expect("Error creating data writer");
 
 // // //     let datawriter2 = publisher.lookup_datawriter::<HelloWorldType>(&"HelloWorld".to_string());
 
-    let data = HelloWorldType{id: 1, _msg: "Hello World!".to_string()};
-    let handle = None;
-    let timestamp = Time{sec: 1, nanosec: 2};
-    datawriter.write_w_timestamp(data, handle, timestamp).expect("Error writing");
+    // let data = HelloWorldType{id: 1, _msg: "Hello World!".to_string()};
+    // let handle = None;
+    // let timestamp = Time{sec: 1, nanosec: 2};
+    // datawriter.write_w_timestamp(data, handle, timestamp).expect("Error writing");
 
 
 // //     std::thread::sleep(std::time::Duration::from_secs(5))
