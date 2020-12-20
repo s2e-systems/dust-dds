@@ -1,4 +1,5 @@
 use crate::builtin_topics::SubscriptionBuiltinTopicData;
+use crate::dds_infrastructure::qos_policy::ReliabilityQosPolicyKind;
 use crate::dds_infrastructure::qos::DataWriterQos;
 use crate::dds_infrastructure::status::{
     LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus,
@@ -6,13 +7,14 @@ use crate::dds_infrastructure::status::{
 };
 use crate::dds_rtps_implementation::rtps_object::RtpsObject;
 use crate::rtps::behavior::StatefulWriter;
-use crate::rtps::types::GUID;
+use crate::rtps::behavior;
+use crate::rtps::types::{GUID, ReliabilityKind};
 use crate::types::{Data, Duration, InstanceHandle, ReturnCode, Time, TopicKind};
 use std::cell::Ref;
 
 pub struct RtpsDataWriterInner {
-    // pub writer: StatefulWriter,
-    // pub qos: DataWriterQos,
+    pub writer: StatefulWriter,
+    pub qos: DataWriterQos,
 }
 
 impl RtpsDataWriterInner {
@@ -20,23 +22,27 @@ impl RtpsDataWriterInner {
         qos.is_consistent()
             .expect("RtpsDataWriterInner can only be created with consistent QoS");
 
-        // let reliablity_level =  match qos.reliability.kind {
+        let reliability_level =  match qos.reliability.kind {
+            ReliabilityQosPolicyKind::BestEffortReliabilityQos => ReliabilityKind::BestEffort,
+            ReliabilityQosPolicyKind::ReliableReliabilityQos => ReliabilityKind::Reliable,
+        };
+        let push_mode = true;
+        let data_max_sized_serialized = None;
+        let heartbeat_period = behavior::types::Duration::from_millis(500);
+        let nack_response_delay = behavior::types::constants::DURATION_ZERO;
+        let nack_supression_duration = behavior::types::constants::DURATION_ZERO;
+        let writer = StatefulWriter::new(
+            guid,
+            topic_kind,
+            reliability_level,
+            push_mode,
+            data_max_sized_serialized,
+            heartbeat_period,
+            nack_response_delay,
+            nack_supression_duration,
+        );
 
-        // };
-        // let push_mode = true;
-        // let writer = StatefulWriter::new(
-        //     guid,
-        //     topic_kind,
-        //     reliability_level,
-        //     push_mode,
-        //     writer_cache,
-        //     data_max_sized_serialized,
-        //     heartbeat_period,
-        //     nack_response_delay,
-        //     nack_supression_duration,
-        // );
-
-        Self { }
+        Self { writer, qos }
     }
 }
 

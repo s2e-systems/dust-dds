@@ -10,8 +10,6 @@ use super::best_effort_writer_proxy::BestEffortWriterProxy;
 use super::reliable_writer_proxy::ReliableWriterProxy;
 
 use crate::types::TopicKind;
-use crate::rtps::structure::HistoryCache;
-
 enum WriterProxyFlavor{
     BestEffort(BestEffortWriterProxy),
     Reliable(ReliableWriterProxy),
@@ -39,12 +37,11 @@ impl StatefulReader {
         guid: GUID,
         topic_kind: TopicKind,
         reliability_level: ReliabilityKind,
-        reader_cache: HistoryCache,
         expects_inline_qos: bool,
         heartbeat_response_delay: Duration
         ) -> Self {
 
-            let reader = Reader::new(guid, topic_kind, reliability_level, reader_cache, expects_inline_qos);
+            let reader = Reader::new(guid, topic_kind, reliability_level, expects_inline_qos);
             Self {
                 reader,
                 heartbeat_response_delay,

@@ -1,5 +1,6 @@
 use crate::builtin_topics::PublicationBuiltinTopicData;
 use crate::dds_infrastructure::qos::DataReaderQos;
+use crate::dds_infrastructure::qos_policy::ReliabilityQosPolicyKind;
 use crate::dds_infrastructure::read_condition::ReadCondition;
 use crate::dds_infrastructure::sample_info::SampleInfo;
 use crate::dds_infrastructure::status::{
@@ -8,11 +9,31 @@ use crate::dds_infrastructure::status::{
     SubscriptionMatchedStatus, ViewStateKind,
 };
 use crate::dds_rtps_implementation::rtps_object::RtpsObject;
-use crate::types::{Data, InstanceHandle, ReturnCode};
+use crate::rtps::behavior;
+use crate::rtps::behavior::StatefulReader;
+use crate::rtps::types::{ReliabilityKind, GUID};
+use crate::types::{Data, InstanceHandle, ReturnCode, TopicKind};
 use std::cell::Ref;
 
 pub struct RtpsDataReaderInner {
-    qos: DataReaderQos,
+    pub reader: StatefulReader,
+    pub qos: DataReaderQos,
+}
+
+impl RtpsDataReaderInner {
+    pub fn new(guid: GUID, topic_kind: TopicKind, qos: DataReaderQos) -> Self {
+        qos.is_consistent()
+            .expect("RtpsDataReaderInner can only be created with consistent QoS");
+
+        let reliability_level = match qos.reliability.kind {
+            ReliabilityQosPolicyKind::BestEffortReliabilityQos => ReliabilityKind::BestEffort,
+            ReliabilityQosPolicyKind::ReliableReliabilityQos => ReliabilityKind::Reliable,
+        };
+        let expects_inline_qos = false;
+        let heartbeat_response_delay = behavior::types::constants::DURATION_ZERO;
+        let reader = StatefulReader::new(guid, topic_kind, reliability_level, expects_inline_qos, heartbeat_response_delay);
+        Self { reader, qos }
+    }
 }
 
 pub type RtpsDataReader<'a> = Ref<'a, RtpsObject<RtpsDataReaderInner>>;

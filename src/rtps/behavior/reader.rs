@@ -14,13 +14,12 @@ impl Reader {
         guid: GUID,
         topic_kind: TopicKind,
         reliability_level: ReliabilityKind,
-        reader_cache: HistoryCache,
         expects_inline_qos: bool,
     ) -> Self {
         let endpoint = Endpoint::new(guid, topic_kind, reliability_level);
         Self {
             endpoint,
-            reader_cache,
+            reader_cache: HistoryCache::new(),
             expects_inline_qos,
         }
     }

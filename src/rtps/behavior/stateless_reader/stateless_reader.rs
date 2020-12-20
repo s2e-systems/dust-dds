@@ -5,7 +5,6 @@ use crate::rtps::messages::submessages::Data;
 use crate::rtps::messages::RtpsSubmessage;
 use crate::rtps::types::constants::ENTITYID_UNKNOWN;
 use crate::rtps::types::{GuidPrefix, ReliabilityKind, GUID};
-use crate::rtps::structure::HistoryCache;
 use crate::types::TopicKind;
 
 pub struct StatelessReader {
@@ -17,7 +16,6 @@ impl StatelessReader {
         guid: GUID,
         topic_kind: TopicKind,
         reliability_level: ReliabilityKind,
-        reader_cache: HistoryCache,
         expects_inline_qos: bool,
     ) -> Self {
         assert!(
@@ -29,7 +27,6 @@ impl StatelessReader {
             guid,
             topic_kind,
             reliability_level,
-            reader_cache,
             expects_inline_qos,
         );
         Self { reader }
@@ -89,13 +86,11 @@ mod tests {
         let guid = GUID::new([1; 12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER);
         let topic_kind = TopicKind::WithKey;
         let reliability_level = ReliabilityKind::BestEffort;
-        let reader_cache = HistoryCache::default();
         let expects_inline_qos = false;
         let mut stateless_reader = StatelessReader::new(
             guid,
             topic_kind,
             reliability_level,
-            reader_cache,
             expects_inline_qos,
         );
 
@@ -109,13 +104,11 @@ mod tests {
         let guid = GUID::new([1; 12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER);
         let topic_kind = TopicKind::WithKey;
         let reliability_level = ReliabilityKind::BestEffort;
-        let reader_cache = HistoryCache::default();
         let expects_inline_qos = false;
         let mut stateless_reader = StatelessReader::new(
             guid,
             topic_kind,
             reliability_level,
-            reader_cache,
             expects_inline_qos,
         );
 

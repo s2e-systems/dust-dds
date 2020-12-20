@@ -20,7 +20,6 @@ impl Writer {
         topic_kind: TopicKind,
         reliability_level: ReliabilityKind,
         push_mode: bool,
-        writer_cache: HistoryCache,
         data_max_sized_serialized: Option<i32>,
     ) -> Self {
         let endpoint = Endpoint::new(guid, topic_kind, reliability_level);
@@ -28,7 +27,7 @@ impl Writer {
             endpoint,
             push_mode,
             last_change_sequence_number: 0,
-            writer_cache,
+            writer_cache: HistoryCache::new(),
             data_max_sized_serialized,
         }
     }
@@ -64,7 +63,6 @@ mod tests {
             TopicKind::WithKey,
             ReliabilityKind::BestEffort,
             true,
-            HistoryCache::default(),
             None,
         );
 

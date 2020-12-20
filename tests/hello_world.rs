@@ -1,4 +1,4 @@
-use rust_rtps::types::{DDSType, TopicKind, InstanceHandle, Data, DURATION_ZERO, Time};
+use rust_rtps::types::{DDSType, TopicKind, InstanceHandle, Data, DURATION_ZERO};
 use rust_rtps::dds::domain::domain_participant_factory::DomainParticipantFactory;
 use rust_rtps::dds::topic::topic::Topic;
 use rust_rtps::dds_infrastructure::qos::DataWriterQos;
@@ -44,7 +44,7 @@ fn hello_world() {
 
     let mut data_writer_qos = DataWriterQos::default();
     data_writer_qos.reliability = ReliabilityQosPolicy{kind: ReliabilityQosPolicyKind::BestEffortReliabilityQos, max_blocking_time: DURATION_ZERO};
-    let datawriter = publisher.create_datawriter(helloworld_topic, Some(data_writer_qos)).expect("Error creating data writer");
+    let _datawriter = publisher.create_datawriter(helloworld_topic, Some(data_writer_qos)).expect("Error creating data writer");
 
 // // //     let datawriter2 = publisher.lookup_datawriter::<HelloWorldType>(&"HelloWorld".to_string());
 
