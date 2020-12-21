@@ -1,6 +1,7 @@
 use crate::dds::domain::domain_participant::DomainParticipant;
 use crate::dds::publication::data_writer::DataWriter;
 use crate::dds::topic::topic::Topic;
+use crate::dds::topic::topic_description::TopicDescription;
 use crate::dds_infrastructure::entity::{Entity, StatusCondition};
 use crate::dds_infrastructure::publisher_listener::PublisherListener;
 use crate::dds_infrastructure::qos::{DataWriterQos, PublisherQos, TopicQos};
@@ -43,7 +44,7 @@ impl<'a> Publisher<'a> {
     /// Publisher. If the Topic was created from a different DomainParticipant, the operation will fail and return a nil result.
     pub fn create_datawriter<T: DDSType>(
         &'a self,
-        a_topic: Topic<'a, T>,
+        a_topic: &'a Topic<'a, T>,
         qos: Option<DataWriterQos>,
         // _a_listener: impl DataWriterListener<T>,
         // _mask: StatusMask
@@ -74,14 +75,12 @@ impl<'a> Publisher<'a> {
     /// topic_name. If no such DataWriter exists, the operation will return ’nil.’
     /// If multiple DataWriter attached to the Publisher satisfy this condition, then the operation will return one of them. It is not
     /// specified which one.
-    pub fn lookup_datawriter<T: DDSType>(&self, topic_name: &str) -> Option<DataWriter<T>> {
-        let rtps_datawriter = self.rtps_publisher.lookup_datawriter(topic_name)?;
-        let a_topic = self
-            .parent_participant
-            .lookup_topicdescription(topic_name)?;
+    pub fn lookup_datawriter<T: DDSType>(&self, topic: &'a Topic<'a, T>) -> Option<DataWriter<T>> {
+        let rtps_datawriter = self.rtps_publisher.lookup_datawriter(&topic.get_name().ok()?)?;
+        
         Some(DataWriter {
             parent_publisher: self,
-            topic: a_topic,
+            topic,
             rtps_datawriter,
         })
     }

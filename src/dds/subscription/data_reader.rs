@@ -29,7 +29,7 @@ use crate::types::{DDSType, InstanceHandle, ReturnCode};
 /// circumstances that result on this are described in 2.2.2.5.2.8.
 pub struct DataReader<'a, T: DDSType> {
     pub(crate) parent_subscriber: &'a Subscriber<'a>,
-    pub(crate) topic: Topic<'a, T>,
+    pub(crate) topic: &'a Topic<'a, T>,
     pub(crate) rtps_datareader: RtpsDataReader<'a>,
 }
 
@@ -598,7 +598,7 @@ impl<'a, T: DDSType> DataReader<'a, T> {
     /// This operation returns the TopicDescription associated with the DataReader. This is the same TopicDescription that was used
     /// to create the DataReader.
     pub fn get_topicdescription(&self) -> &dyn TopicDescription {
-        &self.topic
+        self.topic
     }
 
     /// This operation returns the Subscriber to which the DataReader belongs.

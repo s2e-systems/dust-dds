@@ -1,6 +1,7 @@
 use crate::dds::domain::domain_participant::DomainParticipant;
 use crate::dds::subscription::data_reader::DataReader;
 use crate::dds::topic::topic::Topic;
+use crate::dds::topic::topic_description::TopicDescription;
 use crate::dds_infrastructure::entity::{Entity, StatusCondition};
 use crate::dds_infrastructure::qos::{DataReaderQos, SubscriberQos, TopicQos};
 use crate::dds_infrastructure::status::SampleLostStatus;
@@ -52,7 +53,7 @@ impl<'a> Subscriber<'a> {
     /// return a nil result.
     pub fn create_datareader<T: DDSType>(
         &self,
-        a_topic: Topic<'a, T>,
+        a_topic: &'a Topic<'a, T>,
         qos: Option<DataReaderQos>,
         // _a_listener: impl DataReaderListener<T>,
         // _mask: StatusMask
@@ -88,15 +89,12 @@ impl<'a> Subscriber<'a> {
     /// If multiple DataReaders attached to the Subscriber satisfy this condition, then the operation will return one of them. It is not
     /// specified which one.
     /// The use of this operation on the built-in Subscriber allows access to the built-in DataReader entities for the built-in topics
-    pub fn lookup_datareader<T: DDSType>(&self, topic_name: &str) -> Option<DataReader<T>> {
-        let rtps_datareader = self.rtps_subscriber.lookup_datareader(topic_name)?;
-        let a_topic = self
-            .parent_participant
-            .lookup_topicdescription(topic_name)?;
+    pub fn lookup_datareader<T: DDSType>(&self, topic: &'a Topic<'a, T>) -> Option<DataReader<T>> {
+        let rtps_datareader = self.rtps_subscriber.lookup_datareader(&topic.get_name().ok()?)?;
 
         Some(DataReader {
             parent_subscriber: self,
-            topic: a_topic,
+            topic,
             rtps_datareader,
         })
     }

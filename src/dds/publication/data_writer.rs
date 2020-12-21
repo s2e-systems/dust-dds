@@ -12,7 +12,7 @@ use crate::dds_infrastructure::status::{LivelinessLostStatus, OfferedDeadlineMis
 
 pub struct DataWriter<'a, T: DDSType>{
     pub(crate) parent_publisher: &'a Publisher<'a>,
-    pub(crate) topic: Topic<'a, T>,
+    pub(crate) topic: &'a Topic<'a, T>,
     pub(crate) rtps_datawriter: RtpsDataWriter<'a>
 }
 

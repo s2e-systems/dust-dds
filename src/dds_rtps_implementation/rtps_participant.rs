@@ -129,7 +129,7 @@ impl RtpsParticipant {
                 Ok(())
             } else {
                 Err(ReturnCodes::PreconditionNotMet(
-                    "Subscriber not found in this participant"
+                    "Subscriber not found in this participant",
                 ))
             }
         } else {
