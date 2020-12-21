@@ -10,7 +10,7 @@ pub struct RtpsTopicInner {
     topic_name: String,
     type_name: &'static str,
     qos: Mutex<TopicQos>,
-    reader_writer_reference_count: atomic::AtomicUsize, /* References to this topic from DataReaders and DataWriters */
+    reader_writer_reference_count: atomic::AtomicUsize, /* Reference count to this topic from DataReaders and DataWriters */
 }
 
 impl RtpsTopicInner {
@@ -24,6 +24,8 @@ impl RtpsTopicInner {
         }
     }
  
+    // These two functions are defined on the inner object since they are meant as an
+    // internal interface for this library
     pub fn increment_reference_count(&self) {
         self.reader_writer_reference_count.fetch_add(1, atomic::Ordering::Relaxed);
     }

@@ -85,8 +85,11 @@ impl RtpsObject<RtpsSubscriberInner> {
         todo!()
     }
 
-    pub fn set_default_datareader_qos(&self, _qos: DataReaderQos) -> ReturnCode<()> {
-        todo!()
+    pub fn set_default_datareader_qos(&self, qos: Option<DataReaderQos>) -> ReturnCode<()> {
+        let qos = qos.unwrap_or_default();
+        qos.is_consistent()?;
+        *self.value()?.default_datareader_qos.lock().unwrap() = qos;
+        Ok(())
     }
 
     pub fn get_default_datareader_qos(&self) -> ReturnCode<DataReaderQos> {

@@ -194,7 +194,7 @@ impl<'a> Subscriber<'a> {
     /// The special value DATAREADER_QOS_DEFAULT may be passed to this operation to indicate that the default QoS should
     /// be reset back to the initial values the factory would use, that is the values that would be used if the
     /// set_default_datareader_qos operation had never been called.
-    pub fn set_default_datareader_qos(&self, qos: DataReaderQos) -> ReturnCode<()> {
+    pub fn set_default_datareader_qos(&self, qos: Option<DataReaderQos>) -> ReturnCode<()> {
         self.rtps_subscriber.set_default_datareader_qos(qos)
     }
 
