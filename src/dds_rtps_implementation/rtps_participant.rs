@@ -6,9 +6,9 @@ use crate::dds_rtps_implementation::rtps_subscriber::{RtpsSubscriber, RtpsSubscr
 use crate::dds_rtps_implementation::rtps_topic::{RtpsTopic, RtpsTopicInner};
 use crate::rtps::structure::Participant;
 use crate::rtps::transport::Transport;
-use crate::rtps::types::{GUID, EntityId, EntityKind};
-use crate::rtps::types::constants::{PROTOCOL_VERSION_2_4, VENDOR_ID,};
-use crate::types::{DomainId, Duration, InstanceHandle, ReturnCode, Time, ReturnCodes};
+use crate::rtps::types::constants::{PROTOCOL_VERSION_2_4, VENDOR_ID};
+use crate::rtps::types::{EntityId, EntityKind, GUID};
+use crate::types::{DomainId, Duration, InstanceHandle, ReturnCode, ReturnCodes, Time};
 use std::cell::RefCell;
 use std::sync::{atomic, Arc, Mutex};
 use std::thread::JoinHandle;
@@ -73,12 +73,15 @@ impl RtpsParticipant {
         Some(Self { inner, thread_list })
     }
 
-    pub fn create_publisher<'a>(
-        &'a self,
-        qos: Option<PublisherQos>,
-    ) -> Option<RtpsPublisher<'a>> {
+    pub fn create_publisher<'a>(&'a self, qos: Option<PublisherQos>) -> Option<RtpsPublisher<'a>> {
         let guid_prefix = self.inner.participant.entity.guid.prefix();
-        let entity_key = [0, self.inner.publisher_count.fetch_add(1, atomic::Ordering::Relaxed), 0];
+        let entity_key = [
+            0,
+            self.inner
+                .publisher_count
+                .fetch_add(1, atomic::Ordering::Relaxed),
+            0,
+        ];
         let entity_id = EntityId::new(entity_key, EntityKind::UserDefinedWriterGroup);
         let new_publisher_guid = GUID::new(guid_prefix, entity_id);
         let new_publisher_qos = qos.unwrap_or(self.get_default_publisher_qos());
@@ -88,16 +91,30 @@ impl RtpsParticipant {
 
     pub fn delete_publisher(&self, a_publisher: &RtpsPublisher) -> ReturnCode<()> {
         if a_publisher.value()?.writer_list.is_empty() {
-            a_publisher.delete();
-            Ok(())
+            if self.inner.publisher_list.contains(a_publisher) {
+                a_publisher.delete();
+                Ok(())
+            } else {
+                Err(ReturnCodes::PreconditionNotMet(
+                    "Publisher not found in this participant",
+                ))
+            }
         } else {
-            Err(ReturnCodes::PreconditionNotMet("Publisher still contains data writers"))
+            Err(ReturnCodes::PreconditionNotMet(
+                "Publisher still contains data writers",
+            ))
         }
     }
 
     pub fn create_subscriber(&self, qos: Option<SubscriberQos>) -> Option<RtpsSubscriber> {
         let guid_prefix = self.inner.participant.entity.guid.prefix();
-        let entity_key = [0, self.inner.subscriber_count.fetch_add(1, atomic::Ordering::Relaxed), 0];
+        let entity_key = [
+            0,
+            self.inner
+                .subscriber_count
+                .fetch_add(1, atomic::Ordering::Relaxed),
+            0,
+        ];
         let entity_id = EntityId::new(entity_key, EntityKind::UserDefinedReaderGroup);
         let new_subscriber_guid = GUID::new(guid_prefix, entity_id);
         let new_subscriber_qos = qos.unwrap_or(self.get_default_subscriber_qos());
@@ -107,16 +124,35 @@ impl RtpsParticipant {
 
     pub fn delete_subscriber(&self, a_subscriber: &RtpsSubscriber) -> ReturnCode<()> {
         if a_subscriber.value()?.reader_list.is_empty() {
-            a_subscriber.delete();
-            Ok(())
+            if self.inner.subscriber_list.contains(a_subscriber) {
+                a_subscriber.delete();
+                Ok(())
+            } else {
+                Err(ReturnCodes::PreconditionNotMet(
+                    "Subscriber not found in this participant"
+                ))
+            }
         } else {
-            Err(ReturnCodes::PreconditionNotMet("Subscriber still contains data readers"))
+            Err(ReturnCodes::PreconditionNotMet(
+                "Subscriber still contains data readers",
+            ))
         }
     }
 
-    pub fn create_topic(&self, topic_name: String, type_name: &'static str, qos: Option<TopicQos>) -> Option<RtpsTopic> {
+    pub fn create_topic(
+        &self,
+        topic_name: String,
+        type_name: &'static str,
+        qos: Option<TopicQos>,
+    ) -> Option<RtpsTopic> {
         let guid_prefix = self.inner.participant.entity.guid.prefix();
-        let entity_key = [0, self.inner.topic_count.fetch_add(1, atomic::Ordering::Relaxed), 0];
+        let entity_key = [
+            0,
+            self.inner
+                .topic_count
+                .fetch_add(1, atomic::Ordering::Relaxed),
+            0,
+        ];
         let entity_id = EntityId::new(entity_key, EntityKind::UserDefinedUnknown);
         let new_topic_guid = GUID::new(guid_prefix, entity_id);
         let new_topic_qos = qos.unwrap_or(self.get_default_topic_qos());
@@ -277,8 +313,8 @@ impl Drop for RtpsParticipant {
 mod tests {
     use super::*;
     use crate::rtps::messages::RtpsMessage;
-    use crate::rtps::types::Locator;
     use crate::rtps::transport::TransportResult;
+    use crate::rtps::types::Locator;
     use crate::types::TopicKind;
 
     struct MockTransport;
@@ -302,7 +338,13 @@ mod tests {
 
     #[test]
     fn create_publisher() {
-        let participant = RtpsParticipant::new(0, DomainParticipantQos::default(), MockTransport, MockTransport).unwrap();
+        let participant = RtpsParticipant::new(
+            0,
+            DomainParticipantQos::default(),
+            MockTransport,
+            MockTransport,
+        )
+        .unwrap();
 
         let publisher1_default_qos = participant.create_publisher(None).unwrap();
         let publisher1_instance_handle = publisher1_default_qos.get_instance_handle().unwrap();
@@ -313,20 +355,35 @@ mod tests {
         let publisher2_instance_handle = publisher2_custom_qos.get_instance_handle().unwrap();
 
         // Test correct qos and instance handle
-        assert_eq!(publisher1_default_qos.get_qos().unwrap(), PublisherQos::default());
-        assert_eq!(publisher1_instance_handle[0..12], participant.inner.participant.entity.guid.prefix());
-        assert_eq!(publisher1_instance_handle[12..15], [0,0,0]);
+        assert_eq!(
+            publisher1_default_qos.get_qos().unwrap(),
+            PublisherQos::default()
+        );
+        assert_eq!(
+            publisher1_instance_handle[0..12],
+            participant.inner.participant.entity.guid.prefix()
+        );
+        assert_eq!(publisher1_instance_handle[12..15], [0, 0, 0]);
         assert_eq!(publisher1_instance_handle[15], 0x08);
 
         assert_eq!(publisher2_custom_qos.get_qos().unwrap(), qos);
-        assert_eq!(publisher2_instance_handle[0..12], participant.inner.participant.entity.guid.prefix());
-        assert_eq!(publisher2_instance_handle[12..15], [0,1,0]);
+        assert_eq!(
+            publisher2_instance_handle[0..12],
+            participant.inner.participant.entity.guid.prefix()
+        );
+        assert_eq!(publisher2_instance_handle[12..15], [0, 1, 0]);
         assert_eq!(publisher1_instance_handle[15], 0x08);
     }
 
     #[test]
     fn create_subscriber() {
-        let participant = RtpsParticipant::new(0, DomainParticipantQos::default(), MockTransport, MockTransport).unwrap();
+        let participant = RtpsParticipant::new(
+            0,
+            DomainParticipantQos::default(),
+            MockTransport,
+            MockTransport,
+        )
+        .unwrap();
 
         let subscriber1_default_qos = participant.create_subscriber(None).unwrap();
         let subscriber1_instance_handle = subscriber1_default_qos.get_instance_handle().unwrap();
@@ -337,83 +394,215 @@ mod tests {
         let subscriber2_instance_handle = subscriber2_custom_qos.get_instance_handle().unwrap();
 
         // Test correct qos and instance handle
-        assert_eq!(subscriber1_default_qos.get_qos().unwrap(), SubscriberQos::default());
-        assert_eq!(subscriber1_instance_handle[0..12], participant.inner.participant.entity.guid.prefix());
-        assert_eq!(subscriber1_instance_handle[12..15], [0,0,0]);
+        assert_eq!(
+            subscriber1_default_qos.get_qos().unwrap(),
+            SubscriberQos::default()
+        );
+        assert_eq!(
+            subscriber1_instance_handle[0..12],
+            participant.inner.participant.entity.guid.prefix()
+        );
+        assert_eq!(subscriber1_instance_handle[12..15], [0, 0, 0]);
         assert_eq!(subscriber1_instance_handle[15], 0x09);
 
         assert_eq!(subscriber2_custom_qos.get_qos().unwrap(), qos);
-        assert_eq!(subscriber2_instance_handle[0..12], participant.inner.participant.entity.guid.prefix());
-        assert_eq!(subscriber2_instance_handle[12..15], [0,1,0]);
+        assert_eq!(
+            subscriber2_instance_handle[0..12],
+            participant.inner.participant.entity.guid.prefix()
+        );
+        assert_eq!(subscriber2_instance_handle[12..15], [0, 1, 0]);
         assert_eq!(subscriber1_instance_handle[15], 0x09);
     }
 
     #[test]
     fn create_delete_publisher() {
-        let participant = RtpsParticipant::new(0, DomainParticipantQos::default(), MockTransport, MockTransport).unwrap();
+        let participant = RtpsParticipant::new(
+            0,
+            DomainParticipantQos::default(),
+            MockTransport,
+            MockTransport,
+        )
+        .unwrap();
 
         let publisher = participant.create_publisher(None).unwrap();
         participant.delete_publisher(&publisher).unwrap();
 
         assert_eq!(publisher.get_qos(), Err(ReturnCodes::AlreadyDeleted));
-        assert_eq!(participant.delete_publisher(&publisher), Err(ReturnCodes::AlreadyDeleted));
+        assert_eq!(
+            participant.delete_publisher(&publisher),
+            Err(ReturnCodes::AlreadyDeleted)
+        );
     }
 
     #[test]
     fn create_delete_subscriber() {
-        let participant = RtpsParticipant::new(0, DomainParticipantQos::default(), MockTransport, MockTransport).unwrap();
+        let participant = RtpsParticipant::new(
+            0,
+            DomainParticipantQos::default(),
+            MockTransport,
+            MockTransport,
+        )
+        .unwrap();
 
         let subscriber = participant.create_subscriber(None).unwrap();
         participant.delete_subscriber(&subscriber).unwrap();
 
         assert_eq!(subscriber.get_qos(), Err(ReturnCodes::AlreadyDeleted));
-        assert_eq!(participant.delete_subscriber(&subscriber), Err(ReturnCodes::AlreadyDeleted));
+        assert_eq!(
+            participant.delete_subscriber(&subscriber),
+            Err(ReturnCodes::AlreadyDeleted)
+        );
     }
 
     #[test]
     fn delete_publisher_with_writers() {
-        let participant = RtpsParticipant::new(0, DomainParticipantQos::default(), MockTransport, MockTransport).unwrap();
+        let participant = RtpsParticipant::new(
+            0,
+            DomainParticipantQos::default(),
+            MockTransport,
+            MockTransport,
+        )
+        .unwrap();
 
         let publisher = participant.create_publisher(None).unwrap();
-        let _a_datawriter = publisher.create_datawriter(TopicKind::WithKey, None).unwrap();
+        let _a_datawriter = publisher
+            .create_datawriter(TopicKind::WithKey, None)
+            .unwrap();
 
-        assert_eq!(participant.delete_publisher(&publisher), Err(ReturnCodes::PreconditionNotMet("Publisher still contains data writers")));
+        assert_eq!(
+            participant.delete_publisher(&publisher),
+            Err(ReturnCodes::PreconditionNotMet(
+                "Publisher still contains data writers"
+            ))
+        );
     }
 
     #[test]
     fn delete_subscriber_with_writers() {
-        let participant = RtpsParticipant::new(0, DomainParticipantQos::default(), MockTransport, MockTransport).unwrap();
-        let reader_topic = participant.create_topic("Test".to_string(), "TestType", None).expect("Error creating topic");
+        let participant = RtpsParticipant::new(
+            0,
+            DomainParticipantQos::default(),
+            MockTransport,
+            MockTransport,
+        )
+        .unwrap();
+        let reader_topic = participant
+            .create_topic("Test".to_string(), "TestType", None)
+            .expect("Error creating topic");
         let subscriber = participant.create_subscriber(None).unwrap();
-        let _a_datareader = subscriber.create_datareader(TopicKind::WithKey, None, &reader_topic).unwrap();
+        let _a_datareader = subscriber
+            .create_datareader(TopicKind::WithKey, None, &reader_topic)
+            .unwrap();
 
-        assert_eq!(participant.delete_subscriber(&subscriber), Err(ReturnCodes::PreconditionNotMet("Subscriber still contains data readers")));
+        assert_eq!(
+            participant.delete_subscriber(&subscriber),
+            Err(ReturnCodes::PreconditionNotMet(
+                "Subscriber still contains data readers"
+            ))
+        );
     }
 
     #[test]
     fn delete_publisher_with_created_and_deleted_writers() {
-        let participant = RtpsParticipant::new(0, DomainParticipantQos::default(), MockTransport, MockTransport).unwrap();
+        let participant = RtpsParticipant::new(
+            0,
+            DomainParticipantQos::default(),
+            MockTransport,
+            MockTransport,
+        )
+        .unwrap();
 
         let publisher = participant.create_publisher(None).unwrap();
-        let a_datawriter = publisher.create_datawriter(TopicKind::WithKey, None).unwrap();
-        publisher.delete_datawriter(&a_datawriter).expect("Failed to delete datawriter");
-        assert_eq!(participant.delete_publisher(&publisher),Ok(()));
+        let a_datawriter = publisher
+            .create_datawriter(TopicKind::WithKey, None)
+            .unwrap();
+        publisher
+            .delete_datawriter(&a_datawriter)
+            .expect("Failed to delete datawriter");
+        assert_eq!(participant.delete_publisher(&publisher), Ok(()));
     }
 
     #[test]
     fn delete_subscriber_with_created_and_deleted_writers() {
-        let participant = RtpsParticipant::new(0, DomainParticipantQos::default(), MockTransport, MockTransport).unwrap();
-        let reader_topic = participant.create_topic("Test".to_string(), "TestType", None).expect("Error creating topic");
+        let participant = RtpsParticipant::new(
+            0,
+            DomainParticipantQos::default(),
+            MockTransport,
+            MockTransport,
+        )
+        .unwrap();
+        let reader_topic = participant
+            .create_topic("Test".to_string(), "TestType", None)
+            .expect("Error creating topic");
         let subscriber = participant.create_subscriber(None).unwrap();
-        let a_datareader = subscriber.create_datareader(TopicKind::WithKey, None, &reader_topic).unwrap();
-        subscriber.delete_datareader(&a_datareader).expect("Failed to delete datareader");
-        assert_eq!(participant.delete_subscriber(&subscriber),Ok(()));
+        let a_datareader = subscriber
+            .create_datareader(TopicKind::WithKey, None, &reader_topic)
+            .unwrap();
+        subscriber
+            .delete_datareader(&a_datareader)
+            .expect("Failed to delete datareader");
+        assert_eq!(participant.delete_subscriber(&subscriber), Ok(()));
     }
-    
+
+    #[test]
+    fn delete_publisher_different_participant() {
+        let participant = RtpsParticipant::new(
+            0,
+            DomainParticipantQos::default(),
+            MockTransport,
+            MockTransport,
+        )
+        .unwrap();
+        let other_participant = RtpsParticipant::new(
+            1,
+            DomainParticipantQos::default(),
+            MockTransport,
+            MockTransport,
+        )
+        .unwrap();
+        let publisher = participant.create_publisher(None).unwrap();
+        assert_eq!(
+            other_participant.delete_publisher(&publisher),
+            Err(ReturnCodes::PreconditionNotMet(
+                "Publisher not found in this participant"
+            ))
+        );
+    }
+
+    #[test]
+    fn delete_subscriber_different_participant() {
+        let participant = RtpsParticipant::new(
+            0,
+            DomainParticipantQos::default(),
+            MockTransport,
+            MockTransport,
+        )
+        .unwrap();
+        let other_participant = RtpsParticipant::new(
+            1,
+            DomainParticipantQos::default(),
+            MockTransport,
+            MockTransport,
+        )
+        .unwrap();
+        let subscriber = participant.create_subscriber(None).unwrap();
+        assert_eq!(
+            other_participant.delete_subscriber(&subscriber),
+            Err(ReturnCodes::PreconditionNotMet(
+                "Subscriber not found in this participant"
+            ))
+        );
+    }
 
     #[test]
     fn enable_threads() {
-        let participant = RtpsParticipant::new(0, DomainParticipantQos::default(), MockTransport, MockTransport).unwrap();
+        let participant = RtpsParticipant::new(
+            0,
+            DomainParticipantQos::default(),
+            MockTransport,
+            MockTransport,
+        )
+        .unwrap();
         participant.enable().unwrap();
     }
 }

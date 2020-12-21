@@ -65,7 +65,7 @@ impl<T> RtpsObjectList<T> {
     }
 
     pub fn contains(&self, object: &RwLockReadGuard<RtpsObject<T>>) -> bool {
-        self.0.iter().find(|&x| std::ptr::eq(&x.read().unwrap(), object)).is_some()
+        self.0.iter().find(|&x| std::ptr::eq(&*x.read().unwrap(), &**object)).is_some()
     }
 
     fn initialize_free_object(&self, value: T) -> Option<usize> {
@@ -171,5 +171,19 @@ mod tests {
 
         assert_eq!(index4, 4);
         assert_eq!(index5, 5);
+    }
+
+    #[test]
+    fn contains() {
+        let object_list1: RtpsObjectList<i32> = RtpsObjectList::default();
+        let object_list2: RtpsObjectList<i32> = RtpsObjectList::default();
+
+        let object11 = object_list1.add(10).unwrap();
+        let object21 = object_list2.add(10).unwrap();
+
+        assert_eq!(object_list1.contains(&object11), true);
+        assert_eq!(object_list2.contains(&object21), true);
+        assert_eq!(object_list2.contains(&object11), false);
+        assert_eq!(object_list1.contains(&object21), false);
     }
 }
