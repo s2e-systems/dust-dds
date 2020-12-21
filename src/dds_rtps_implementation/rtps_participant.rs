@@ -124,8 +124,8 @@ impl RtpsParticipant {
         self.inner.topic_list.add(new_topic)
     }
 
-    pub fn delete_topic(&self, _a_topic: &RtpsTopic) -> ReturnCode<()> {
-        todo!()
+    pub fn delete_topic(&self, a_topic: &RtpsTopic) -> ReturnCode<()> {
+        Ok(a_topic.delete())
     }
 
     pub fn find_topic(&self, _topic_name: String, _timeout: Duration) -> Option<RtpsTopic> {
@@ -381,6 +381,16 @@ mod tests {
     }
 
     #[test]
+    fn delete_subscriber_with_writers() {
+        let participant = RtpsParticipant::new(0, DomainParticipantQos::default(), MockTransport, MockTransport).unwrap();
+
+        let subscriber = participant.create_subscriber(None).unwrap();
+        let _a_datareader = subscriber.create_datareader(TopicKind::WithKey, None).unwrap();
+
+        assert_eq!(participant.delete_subscriber(&subscriber), Err(ReturnCodes::PreconditionNotMet("Subscriber still contains data readers")));
+    }
+
+    #[test]
     fn delete_publisher_with_created_and_deleted_writers() {
         let participant = RtpsParticipant::new(0, DomainParticipantQos::default(), MockTransport, MockTransport).unwrap();
 
@@ -388,6 +398,16 @@ mod tests {
         let a_datawriter = publisher.create_datawriter(TopicKind::WithKey, None).unwrap();
         publisher.delete_datawriter(&a_datawriter).expect("Failed to delete datawriter");
         assert_eq!(participant.delete_publisher(&publisher),Ok(()));
+    }
+
+    #[test]
+    fn delete_subscriber_with_created_and_deleted_writers() {
+        let participant = RtpsParticipant::new(0, DomainParticipantQos::default(), MockTransport, MockTransport).unwrap();
+
+        let subscriber = participant.create_subscriber(None).unwrap();
+        let a_datareader = subscriber.create_datareader(TopicKind::WithKey, None).unwrap();
+        subscriber.delete_datareader(&a_datareader).expect("Failed to delete datareader");
+        assert_eq!(participant.delete_subscriber(&subscriber),Ok(()));
     }
     
 

@@ -36,11 +36,11 @@ impl<'a, T: DDSType> TopicDescription for Topic<'a, T> {
     }
 
     fn get_type_name(&self) -> ReturnCode<&str> {
-        todo!()
+        Ok(T::type_name())
     }
 
     fn get_name(&self) -> ReturnCode<String> {
-        todo!()
+        self.rtps_topic.get_name()
     }
 }
 

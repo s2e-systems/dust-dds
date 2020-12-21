@@ -53,11 +53,11 @@ impl<'a> Subscriber<'a> {
     pub fn create_datareader<T: DDSType>(
         &self,
         a_topic: Topic<'a, T>,
-        _qos: Option<&DataReaderQos>,
+        qos: Option<DataReaderQos>,
         // _a_listener: impl DataReaderListener<T>,
         // _mask: StatusMask
     ) -> Option<DataReader<T>> {
-        let rtps_datareader = self.rtps_subscriber.create_datareader()?;
+        let rtps_datareader = self.rtps_subscriber.create_datareader(T::topic_kind(), qos)?;
 
         Some(DataReader {
             parent_subscriber: self,

@@ -3,10 +3,10 @@ use crate::dds_rtps_implementation::rtps_data_writer::RtpsDataWriter;
 use crate::dds_rtps_implementation::rtps_data_writer::RtpsDataWriterInner;
 use crate::dds_rtps_implementation::rtps_object::{RtpsObject, RtpsObjectList};
 use crate::rtps::structure::Group;
-use crate::rtps::types::{GUID, EntityId, EntityKind};
-use crate::types::{Duration, ReturnCode, InstanceHandle, TopicKind};
-use std::sync::{atomic, Mutex};
+use crate::rtps::types::{EntityId, EntityKind, GUID};
+use crate::types::{Duration, InstanceHandle, ReturnCode, TopicKind};
 use std::sync::RwLockReadGuard;
+use std::sync::{atomic, Mutex};
 
 pub struct RtpsPublisherInner {
     pub group: Group,
@@ -31,10 +31,18 @@ impl RtpsPublisherInner {
 pub type RtpsPublisher<'a> = RwLockReadGuard<'a, RtpsObject<RtpsPublisherInner>>;
 
 impl RtpsObject<RtpsPublisherInner> {
-    pub fn create_datawriter(&self, topic_kind: TopicKind,  qos: Option<DataWriterQos>) -> Option<RtpsDataWriter> {
-        let this =  self.value().ok()?;
+    pub fn create_datawriter(
+        &self,
+        topic_kind: TopicKind,
+        qos: Option<DataWriterQos>,
+    ) -> Option<RtpsDataWriter> {
+        let this = self.value().ok()?;
         let guid_prefix = this.group.entity.guid.prefix();
-        let entity_key = [0, this.writer_count.fetch_add(1, atomic::Ordering::Relaxed), 0];
+        let entity_key = [
+            0,
+            this.writer_count.fetch_add(1, atomic::Ordering::Relaxed),
+            0,
+        ];
         let entity_kind = match topic_kind {
             TopicKind::WithKey => EntityKind::UserDefinedWriterWithKey,
             TopicKind::NoKey => EntityKind::UserDefinedWriterNoKey,

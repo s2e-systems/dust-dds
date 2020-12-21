@@ -64,6 +64,10 @@ impl<T> RtpsObjectList<T> {
         self.0.iter().find(|&x| x.read().unwrap().is_valid()).is_none()
     }
 
+    pub fn contains(&self, object: &RwLockReadGuard<RtpsObject<T>>) -> bool {
+        self.0.iter().find(|&x| std::ptr::eq(&x.read().unwrap(), object)).is_some()
+    }
+
     fn initialize_free_object(&self, value: T) -> Option<usize> {
         // Find an object in the list which can be borrow mutably (meaning there are no other references to it)
         // and that is marked as invalid (meaning that it has either been deleted on never initialized)

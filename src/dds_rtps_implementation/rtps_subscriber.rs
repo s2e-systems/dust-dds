@@ -3,8 +3,8 @@ use crate::dds_infrastructure::status::SampleLostStatus;
 use crate::dds_rtps_implementation::rtps_data_reader::{RtpsDataReader, RtpsDataReaderInner};
 use crate::dds_rtps_implementation::rtps_object::{RtpsObject, RtpsObjectList};
 use crate::rtps::structure::Group;
-use crate::rtps::types::GUID;
-use crate::types::{ReturnCode, InstanceHandle};
+use crate::rtps::types::{GUID, EntityId, EntityKind};
+use crate::types::{InstanceHandle, ReturnCode, TopicKind};
 use std::sync::RwLockReadGuard;
 use std::sync::{atomic, Mutex};
 
@@ -31,12 +31,32 @@ impl RtpsSubscriberInner {
 pub type RtpsSubscriber<'a> = RwLockReadGuard<'a, RtpsObject<RtpsSubscriberInner>>;
 
 impl RtpsObject<RtpsSubscriberInner> {
-    pub fn create_datareader(&self) -> Option<RtpsDataReader> {
-        todo!()
+    pub fn create_datareader(
+        &self,
+        topic_kind: TopicKind,
+        qos: Option<DataReaderQos>,
+    ) -> Option<RtpsDataReader> {
+        let this = self.value().ok()?;
+        let guid_prefix = this.group.entity.guid.prefix();
+        let entity_key = [
+            0,
+            this.reader_count.fetch_add(1, atomic::Ordering::Relaxed),
+            0,
+        ];
+        let entity_kind = match topic_kind {
+            TopicKind::WithKey => EntityKind::UserDefinedReaderWithKey,
+            TopicKind::NoKey => EntityKind::UserDefinedReaderNoKey,
+        };
+        let entity_id = EntityId::new(entity_key, entity_kind);
+        let new_reader_guid = GUID::new(guid_prefix, entity_id);
+        let new_reader_qos = qos.unwrap_or(self.get_default_datareader_qos().ok()?);
+        let new_reader = RtpsDataReaderInner::new(new_reader_guid, topic_kind, new_reader_qos);
+        this.reader_list.add(new_reader)
     }
 
-    pub fn delete_datareader(&self, _a_datareader: &RtpsDataReader) -> ReturnCode<()> {
-        todo!()
+    pub fn delete_datareader(&self, a_datareader: &RtpsDataReader) -> ReturnCode<()> {
+        a_datareader.delete();
+        Ok(())
     }
 
     pub fn lookup_datareader(&self, _topic_name: &str) -> Option<RtpsDataReader> {
@@ -68,7 +88,7 @@ impl RtpsObject<RtpsSubscriberInner> {
     }
 
     pub fn get_default_datareader_qos(&self) -> ReturnCode<DataReaderQos> {
-        todo!()
+        Ok(self.value()?.default_datareader_qos.lock().unwrap().clone())
     }
 
     pub fn copy_from_topic_qos(
