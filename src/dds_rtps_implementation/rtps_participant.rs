@@ -383,9 +383,9 @@ mod tests {
     #[test]
     fn delete_subscriber_with_writers() {
         let participant = RtpsParticipant::new(0, DomainParticipantQos::default(), MockTransport, MockTransport).unwrap();
-
+        let reader_topic = participant.create_topic("Test".to_string(), "TestType", None).expect("Error creating topic");
         let subscriber = participant.create_subscriber(None).unwrap();
-        let _a_datareader = subscriber.create_datareader(TopicKind::WithKey, None).unwrap();
+        let _a_datareader = subscriber.create_datareader(TopicKind::WithKey, None, &reader_topic).unwrap();
 
         assert_eq!(participant.delete_subscriber(&subscriber), Err(ReturnCodes::PreconditionNotMet("Subscriber still contains data readers")));
     }
@@ -403,9 +403,9 @@ mod tests {
     #[test]
     fn delete_subscriber_with_created_and_deleted_writers() {
         let participant = RtpsParticipant::new(0, DomainParticipantQos::default(), MockTransport, MockTransport).unwrap();
-
+        let reader_topic = participant.create_topic("Test".to_string(), "TestType", None).expect("Error creating topic");
         let subscriber = participant.create_subscriber(None).unwrap();
-        let a_datareader = subscriber.create_datareader(TopicKind::WithKey, None).unwrap();
+        let a_datareader = subscriber.create_datareader(TopicKind::WithKey, None, &reader_topic).unwrap();
         subscriber.delete_datareader(&a_datareader).expect("Failed to delete datareader");
         assert_eq!(participant.delete_subscriber(&subscriber),Ok(()));
     }

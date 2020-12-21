@@ -57,7 +57,7 @@ impl<'a> Subscriber<'a> {
         // _a_listener: impl DataReaderListener<T>,
         // _mask: StatusMask
     ) -> Option<DataReader<T>> {
-        let rtps_datareader = self.rtps_subscriber.create_datareader(T::topic_kind(), qos)?;
+        let rtps_datareader = self.rtps_subscriber.create_datareader(T::topic_kind(), qos, &a_topic.rtps_topic)?;
 
         Some(DataReader {
             parent_subscriber: self,

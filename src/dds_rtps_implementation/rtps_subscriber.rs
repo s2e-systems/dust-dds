@@ -2,11 +2,11 @@ use crate::dds_infrastructure::qos::{DataReaderQos, SubscriberQos, TopicQos};
 use crate::dds_infrastructure::status::SampleLostStatus;
 use crate::dds_rtps_implementation::rtps_data_reader::{RtpsDataReader, RtpsDataReaderInner};
 use crate::dds_rtps_implementation::rtps_object::{RtpsObject, RtpsObjectList};
+use crate::dds_rtps_implementation::rtps_topic::RtpsTopic;
 use crate::rtps::structure::Group;
-use crate::rtps::types::{GUID, EntityId, EntityKind};
+use crate::rtps::types::{EntityId, EntityKind, GUID};
 use crate::types::{InstanceHandle, ReturnCode, TopicKind};
-use std::sync::RwLockReadGuard;
-use std::sync::{atomic, Mutex};
+use std::sync::{atomic, Mutex, RwLockReadGuard};
 
 pub struct RtpsSubscriberInner {
     pub group: Group,
@@ -35,6 +35,7 @@ impl RtpsObject<RtpsSubscriberInner> {
         &self,
         topic_kind: TopicKind,
         qos: Option<DataReaderQos>,
+        topic: &RtpsTopic,
     ) -> Option<RtpsDataReader> {
         let this = self.value().ok()?;
         let guid_prefix = this.group.entity.guid.prefix();
@@ -51,6 +52,7 @@ impl RtpsObject<RtpsSubscriberInner> {
         let new_reader_guid = GUID::new(guid_prefix, entity_id);
         let new_reader_qos = qos.unwrap_or(self.get_default_datareader_qos().ok()?);
         let new_reader = RtpsDataReaderInner::new(new_reader_guid, topic_kind, new_reader_qos);
+        topic.value().ok()?.increment_reference_count();
         this.reader_list.add(new_reader)
     }
 
