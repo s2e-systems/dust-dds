@@ -4,6 +4,7 @@ use crate::dds_rtps_implementation::rtps_object::RtpsObjectList;
 use crate::dds_rtps_implementation::rtps_publisher::{RtpsPublisher, RtpsPublisherInner};
 use crate::dds_rtps_implementation::rtps_subscriber::{RtpsSubscriber, RtpsSubscriberInner};
 use crate::dds_rtps_implementation::rtps_topic::{RtpsTopic, RtpsTopicInner};
+use crate::dds_rtps_implementation::discovery::sedp::SimpleEndpointDiscoveryProtocol;
 use crate::rtps::structure::Participant;
 use crate::rtps::transport::Transport;
 use crate::rtps::types::constants::{PROTOCOL_VERSION_2_4, VENDOR_ID};
@@ -28,6 +29,7 @@ pub struct RtpsParticipantInner {
     topic_list: RtpsObjectList<Arc<RtpsTopicInner>>,
     topic_count: atomic::AtomicU8,
     enabled: atomic::AtomicBool,
+    sedp: SimpleEndpointDiscoveryProtocol,
 }
 
 pub struct RtpsParticipant {
@@ -51,6 +53,7 @@ impl RtpsParticipant {
         // };
         let guid_prefix = [1; 12];
         let participant = Participant::new(guid_prefix, domain_id, PROTOCOL_VERSION_2_4, VENDOR_ID);
+        let sedp = SimpleEndpointDiscoveryProtocol::new(guid_prefix);
 
         let inner = Arc::new(RtpsParticipantInner {
             participant,
@@ -67,6 +70,7 @@ impl RtpsParticipant {
             topic_list: Default::default(),
             topic_count: atomic::AtomicU8::new(0),
             enabled: atomic::AtomicBool::new(false),
+            sedp,
         });
 
         let thread_list = RefCell::new(Vec::new());
@@ -316,6 +320,10 @@ impl RtpsParticipant {
         }
 
         Ok(())
+    }
+
+    pub fn get_endpoint_discovery(&self) -> &SimpleEndpointDiscoveryProtocol {
+        &self.inner.sedp
     }
 }
 
@@ -633,7 +641,7 @@ mod tests {
             .create_topic("Test".to_string(), "TestType", TopicKind::WithKey, None)
             .expect("Error creating topic");
         let publisher = participant.create_publisher(None).unwrap();
-        let _a_datawriter = publisher.create_datawriter(&writer_topic, None).unwrap();
+        let _a_datawriter = publisher.create_datawriter(&writer_topic, None, participant.get_endpoint_discovery()).unwrap();
 
         assert_eq!(
             participant.delete_publisher(&publisher),
@@ -656,7 +664,7 @@ mod tests {
             .create_topic("Test".to_string(), "TestType", TopicKind::WithKey, None)
             .expect("Error creating topic");
         let subscriber = participant.create_subscriber(None).unwrap();
-        let _a_datareader = subscriber.create_datareader(&reader_topic, None).unwrap();
+        let _a_datareader = subscriber.create_datareader(&reader_topic, None, participant.get_endpoint_discovery()).unwrap();
 
         assert_eq!(
             participant.delete_subscriber(&subscriber),
@@ -679,7 +687,7 @@ mod tests {
             .create_topic("Test".to_string(), "TestType", TopicKind::WithKey, None)
             .expect("Error creating topic");
         let subscriber = participant.create_subscriber(None).unwrap();
-        let _a_datareader = subscriber.create_datareader(&reader_topic, None).unwrap();
+        let _a_datareader = subscriber.create_datareader(&reader_topic, None, participant.get_endpoint_discovery()).unwrap();
 
         assert_eq!(
             participant.delete_topic(&reader_topic),
@@ -702,7 +710,7 @@ mod tests {
             .create_topic("Test".to_string(), "TestType", TopicKind::WithKey, None)
             .expect("Error creating topic");
         let publisher = participant.create_publisher(None).unwrap();
-        let _a_datawriter = publisher.create_datawriter(&writer_topic, None).unwrap();
+        let _a_datawriter = publisher.create_datawriter(&writer_topic, None, participant.get_endpoint_discovery()).unwrap();
 
         assert_eq!(
             participant.delete_topic(&writer_topic),
@@ -725,9 +733,9 @@ mod tests {
             .create_topic("Test".to_string(), "TestType", TopicKind::WithKey, None)
             .expect("Error creating topic");
         let publisher = participant.create_publisher(None).unwrap();
-        let a_datawriter = publisher.create_datawriter(&writer_topic, None).unwrap();
+        let a_datawriter = publisher.create_datawriter(&writer_topic, None, participant.get_endpoint_discovery()).unwrap();
         publisher
-            .delete_datawriter(&a_datawriter)
+            .delete_datawriter(&a_datawriter, participant.get_endpoint_discovery())
             .expect("Failed to delete datawriter");
         assert_eq!(participant.delete_publisher(&publisher), Ok(()));
     }
@@ -745,9 +753,9 @@ mod tests {
             .create_topic("Test".to_string(), "TestType", TopicKind::WithKey, None)
             .expect("Error creating topic");
         let subscriber = participant.create_subscriber(None).unwrap();
-        let a_datareader = subscriber.create_datareader(&reader_topic, None).unwrap();
+        let a_datareader = subscriber.create_datareader(&reader_topic, None, participant.get_endpoint_discovery()).unwrap();
         subscriber
-            .delete_datareader(&a_datareader)
+            .delete_datareader(&a_datareader, participant.get_endpoint_discovery())
             .expect("Failed to delete datareader");
         assert_eq!(participant.delete_subscriber(&subscriber), Ok(()));
     }
@@ -765,9 +773,9 @@ mod tests {
             .create_topic("Test".to_string(), "TestType", TopicKind::WithKey, None)
             .expect("Error creating topic");
         let publisher = participant.create_publisher(None).unwrap();
-        let a_datawriter = publisher.create_datawriter(&writer_topic, None).unwrap();
+        let a_datawriter = publisher.create_datawriter(&writer_topic, None, participant.get_endpoint_discovery()).unwrap();
         publisher
-            .delete_datawriter(&a_datawriter)
+            .delete_datawriter(&a_datawriter, participant.get_endpoint_discovery())
             .expect("Failed to delete datawriter");
         assert_eq!(participant.delete_topic(&writer_topic), Ok(()));
     }
@@ -785,9 +793,9 @@ mod tests {
             .create_topic("Test".to_string(), "TestType", TopicKind::WithKey, None)
             .expect("Error creating topic");
         let subscriber = participant.create_subscriber(None).unwrap();
-        let a_datareader = subscriber.create_datareader(&reader_topic, None).unwrap();
+        let a_datareader = subscriber.create_datareader(&reader_topic, None, participant.get_endpoint_discovery()).unwrap();
         subscriber
-            .delete_datareader(&a_datareader)
+            .delete_datareader(&a_datareader, participant.get_endpoint_discovery())
             .expect("Failed to delete datareader");
         assert_eq!(participant.delete_topic(&reader_topic), Ok(()));
     }

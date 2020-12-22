@@ -1,5 +1,6 @@
 use crate::dds_infrastructure::qos::{DataReaderQos, SubscriberQos, TopicQos};
 use crate::dds_infrastructure::status::SampleLostStatus;
+use crate::dds_rtps_implementation::discovery::sedp::SimpleEndpointDiscoveryProtocol;
 use crate::dds_rtps_implementation::rtps_data_reader::{RtpsDataReader, RtpsDataReaderInner};
 use crate::dds_rtps_implementation::rtps_object::{RtpsObject, RtpsObjectList};
 use crate::dds_rtps_implementation::rtps_topic::RtpsTopic;
@@ -7,7 +8,6 @@ use crate::rtps::structure::Group;
 use crate::rtps::types::{EntityId, EntityKind, GUID};
 use crate::types::{InstanceHandle, ReturnCode, TopicKind};
 use std::sync::{atomic, Mutex, RwLockReadGuard};
-
 pub struct RtpsSubscriberInner {
     pub group: Group,
     pub reader_list: RtpsObjectList<RtpsDataReaderInner>,
@@ -35,6 +35,7 @@ impl RtpsObject<RtpsSubscriberInner> {
         &self,
         topic: &RtpsTopic,
         qos: Option<DataReaderQos>,
+        discovery: &SimpleEndpointDiscoveryProtocol,
     ) -> Option<RtpsDataReader> {
         let this = self.value().ok()?;
         let topic = topic.value().ok()?.clone();
@@ -52,16 +53,23 @@ impl RtpsObject<RtpsSubscriberInner> {
         let new_reader_guid = GUID::new(guid_prefix, entity_id);
         let new_reader_qos = qos.unwrap_or(self.get_default_datareader_qos().ok()?);
         let new_reader = RtpsDataReaderInner::new(new_reader_guid, topic, new_reader_qos);
-        this.reader_list.add(new_reader)
+        let datareader = this.reader_list.add(new_reader)?;
+        discovery.insert_reader(&datareader).ok()?;
+        Some(datareader)
     }
 
-    pub fn delete_datareader(&self, a_datareader: &RtpsDataReader) -> ReturnCode<()> {
+    pub fn delete_datareader(
+        &self,
+        a_datareader: &RtpsDataReader,
+        discovery: &SimpleEndpointDiscoveryProtocol,
+    ) -> ReturnCode<()> {
         a_datareader.value()?.topic.lock().unwrap().take(); // Drop the topic
+        discovery.remove_reader(a_datareader)?;
         a_datareader.delete();
         Ok(())
     }
 
-    pub fn lookup_datareader(&self, _topic_name: &str) -> Option<RtpsDataReader> {
+    pub fn lookup_datareader(&self, _topic: &RtpsTopic) -> Option<RtpsDataReader> {
         todo!()
     }
 

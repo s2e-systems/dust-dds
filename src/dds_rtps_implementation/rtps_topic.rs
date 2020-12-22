@@ -2,7 +2,7 @@ use crate::dds_infrastructure::qos::TopicQos;
 use crate::dds_rtps_implementation::rtps_object::RtpsObject;
 use crate::rtps::structure::Entity;
 use crate::rtps::types::GUID;
-use crate::types::{ReturnCode, TopicKind, InstanceHandle};
+use crate::types::{InstanceHandle, ReturnCode, TopicKind};
 use std::sync::{Arc, Mutex, RwLockReadGuard};
 
 pub struct RtpsTopicInner {
@@ -14,7 +14,13 @@ pub struct RtpsTopicInner {
 }
 
 impl RtpsTopicInner {
-    pub fn new(guid: GUID, topic_name: String, type_name: &'static str, topic_kind: TopicKind, qos: TopicQos) -> Self {
+    pub fn new(
+        guid: GUID,
+        topic_name: String,
+        type_name: &'static str,
+        topic_kind: TopicKind,
+        qos: TopicQos,
+    ) -> Self {
         Self {
             entity: Entity { guid },
             topic_name,

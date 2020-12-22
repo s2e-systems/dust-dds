@@ -1,7 +1,6 @@
 use crate::dds::domain::domain_participant::DomainParticipant;
 use crate::dds::publication::data_writer::DataWriter;
 use crate::dds::topic::topic::Topic;
-use crate::dds::topic::topic_description::TopicDescription;
 use crate::dds_infrastructure::entity::{Entity, StatusCondition};
 use crate::dds_infrastructure::publisher_listener::PublisherListener;
 use crate::dds_infrastructure::qos::{DataWriterQos, PublisherQos, TopicQos};
@@ -49,7 +48,8 @@ impl<'a> Publisher<'a> {
         // _a_listener: impl DataWriterListener<T>,
         // _mask: StatusMask
     ) -> Option<DataWriter<T>> {
-        let rtps_datawriter = self.rtps_publisher.create_datawriter(&a_topic.rtps_topic, qos)?;
+        let endpoint_discovery = self.parent_participant.0.get_endpoint_discovery();
+        let rtps_datawriter = self.rtps_publisher.create_datawriter(&a_topic.rtps_topic, qos, endpoint_discovery)?;
 
         Some(DataWriter {
             parent_publisher: self,
@@ -67,8 +67,9 @@ impl<'a> Publisher<'a> {
     /// details.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
     pub fn delete_datawriter<T: DDSType>(&self, a_datawriter: &DataWriter<T>) -> ReturnCode<()> {
+        let endpoint_discovery = self.parent_participant.0.get_endpoint_discovery();
         self.rtps_publisher
-            .delete_datawriter(&a_datawriter.rtps_datawriter)
+            .delete_datawriter(&a_datawriter.rtps_datawriter, endpoint_discovery)
     }
 
     /// This operation retrieves a previously created DataWriter belonging to the Publisher that is attached to a Topic with a matching
@@ -76,7 +77,7 @@ impl<'a> Publisher<'a> {
     /// If multiple DataWriter attached to the Publisher satisfy this condition, then the operation will return one of them. It is not
     /// specified which one.
     pub fn lookup_datawriter<T: DDSType>(&self, topic: &'a Topic<'a, T>) -> Option<DataWriter<T>> {
-        let rtps_datawriter = self.rtps_publisher.lookup_datawriter(&topic.get_name().ok()?)?;
+        let rtps_datawriter = self.rtps_publisher.lookup_datawriter(&topic.rtps_topic)?;
         
         Some(DataWriter {
             parent_publisher: self,

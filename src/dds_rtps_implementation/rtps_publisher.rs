@@ -1,4 +1,5 @@
 use crate::dds_infrastructure::qos::{DataWriterQos, PublisherQos, TopicQos};
+use crate::dds_rtps_implementation::discovery::sedp::SimpleEndpointDiscoveryProtocol;
 use crate::dds_rtps_implementation::rtps_data_writer::RtpsDataWriter;
 use crate::dds_rtps_implementation::rtps_data_writer::RtpsDataWriterInner;
 use crate::dds_rtps_implementation::rtps_object::{RtpsObject, RtpsObjectList};
@@ -36,6 +37,7 @@ impl RtpsObject<RtpsPublisherInner> {
         &self,
         topic: &RtpsTopic,
         qos: Option<DataWriterQos>,
+        discovery: &SimpleEndpointDiscoveryProtocol,
     ) -> Option<RtpsDataWriter> {
         let this = self.value().ok()?;
         let topic = topic.value().ok()?.clone();
@@ -53,16 +55,23 @@ impl RtpsObject<RtpsPublisherInner> {
         let new_writer_guid = GUID::new(guid_prefix, entity_id);
         let new_writer_qos = qos.unwrap_or(self.get_default_datawriter_qos().ok()?);
         let new_writer = RtpsDataWriterInner::new(new_writer_guid, topic, new_writer_qos);
-        this.writer_list.add(new_writer)
+        let datawriter = this.writer_list.add(new_writer)?;
+        discovery.insert_writer(&datawriter).ok()?;
+        Some(datawriter)
     }
 
-    pub fn delete_datawriter(&self, a_datawriter: &RtpsDataWriter) -> ReturnCode<()> {
+    pub fn delete_datawriter(
+        &self,
+        a_datawriter: &RtpsDataWriter,
+        discovery: &SimpleEndpointDiscoveryProtocol,
+    ) -> ReturnCode<()> {
         a_datawriter.value()?.topic.lock().unwrap().take(); // Drop the topic
+        discovery.remove_writer(a_datawriter)?;
         a_datawriter.delete();
         Ok(())
     }
 
-    pub fn lookup_datawriter(&self, _topic_name: &str) -> Option<RtpsDataWriter> {
+    pub fn lookup_datawriter(&self, _topic: &RtpsTopic) -> Option<RtpsDataWriter> {
         todo!()
     }
 

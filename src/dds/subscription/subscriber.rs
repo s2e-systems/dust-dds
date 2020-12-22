@@ -1,7 +1,6 @@
 use crate::dds::domain::domain_participant::DomainParticipant;
 use crate::dds::subscription::data_reader::DataReader;
 use crate::dds::topic::topic::Topic;
-use crate::dds::topic::topic_description::TopicDescription;
 use crate::dds_infrastructure::entity::{Entity, StatusCondition};
 use crate::dds_infrastructure::qos::{DataReaderQos, SubscriberQos, TopicQos};
 use crate::dds_infrastructure::status::SampleLostStatus;
@@ -58,7 +57,8 @@ impl<'a> Subscriber<'a> {
         // _a_listener: impl DataReaderListener<T>,
         // _mask: StatusMask
     ) -> Option<DataReader<T>> {
-        let rtps_datareader = self.rtps_subscriber.create_datareader(&a_topic.rtps_topic, qos)?;
+        let endpoint_discovery = self.parent_participant.0.get_endpoint_discovery();
+        let rtps_datareader = self.rtps_subscriber.create_datareader(&a_topic.rtps_topic, qos, endpoint_discovery)?;
 
         Some(DataReader {
             parent_subscriber: self,
@@ -80,8 +80,9 @@ impl<'a> Subscriber<'a> {
     /// PRECONDITION_NOT_MET.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
     fn delete_datareader<T: DDSType>(&self, a_datareader: &DataReader<T>) -> ReturnCode<()> {
+        let endpoint_discovery = self.parent_participant.0.get_endpoint_discovery();
         self.rtps_subscriber
-            .delete_datareader(&a_datareader.rtps_datareader)
+            .delete_datareader(&a_datareader.rtps_datareader, endpoint_discovery)
     }
 
     /// This operation retrieves a previously-created DataReader belonging to the Subscriber that is attached to a Topic with a
@@ -90,7 +91,7 @@ impl<'a> Subscriber<'a> {
     /// specified which one.
     /// The use of this operation on the built-in Subscriber allows access to the built-in DataReader entities for the built-in topics
     pub fn lookup_datareader<T: DDSType>(&self, topic: &'a Topic<'a, T>) -> Option<DataReader<T>> {
-        let rtps_datareader = self.rtps_subscriber.lookup_datareader(&topic.get_name().ok()?)?;
+        let rtps_datareader = self.rtps_subscriber.lookup_datareader(&topic.rtps_topic)?;
 
         Some(DataReader {
             parent_subscriber: self,
