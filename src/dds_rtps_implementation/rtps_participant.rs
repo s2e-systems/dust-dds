@@ -157,12 +157,30 @@ impl RtpsParticipant {
         let entity_id = EntityId::new(entity_key, EntityKind::UserDefinedUnknown);
         let new_topic_guid = GUID::new(guid_prefix, entity_id);
         let new_topic_qos = qos.unwrap_or(self.get_default_topic_qos());
-        let new_topic = Arc::new(RtpsTopicInner::new(new_topic_guid, topic_name, type_name, topic_kind, new_topic_qos));
+        let new_topic = Arc::new(RtpsTopicInner::new(
+            new_topic_guid,
+            topic_name,
+            type_name,
+            topic_kind,
+            new_topic_qos,
+        ));
         self.inner.topic_list.add(new_topic)
     }
 
     pub fn delete_topic(&self, a_topic: &RtpsTopic) -> ReturnCode<()> {
-        Ok(a_topic.delete())
+        if self.inner.topic_list.contains(a_topic) {
+            if Arc::strong_count(a_topic.value()?) == 1 {
+                Ok(a_topic.delete())
+            } else {
+                Err(ReturnCodes::PreconditionNotMet(
+                    "Topic still attached to some data reader or data writer",
+                ))
+            }
+        } else {
+            Err(ReturnCodes::PreconditionNotMet(
+                "Topic not found in this participant",
+            ))
+        }
     }
 
     pub fn find_topic(&self, _topic_name: String, _timeout: Duration) -> Option<RtpsTopic> {
@@ -316,7 +334,7 @@ mod tests {
     use crate::rtps::messages::RtpsMessage;
     use crate::rtps::transport::TransportResult;
     use crate::rtps::types::Locator;
-    use crate::types::TopicKind;
+    use crate::types::{Duration, TopicKind};
 
     struct MockTransport;
     impl Transport for MockTransport {
@@ -373,7 +391,7 @@ mod tests {
             participant.inner.participant.entity.guid.prefix()
         );
         assert_eq!(publisher2_instance_handle[12..15], [0, 1, 0]);
-        assert_eq!(publisher1_instance_handle[15], 0x08);
+        assert_eq!(publisher2_instance_handle[15], 0x08);
     }
 
     #[test]
@@ -412,7 +430,55 @@ mod tests {
             participant.inner.participant.entity.guid.prefix()
         );
         assert_eq!(subscriber2_instance_handle[12..15], [0, 1, 0]);
-        assert_eq!(subscriber1_instance_handle[15], 0x09);
+        assert_eq!(subscriber2_instance_handle[15], 0x09);
+    }
+
+    #[test]
+    fn create_topic() {
+        let participant = RtpsParticipant::new(
+            0,
+            DomainParticipantQos::default(),
+            MockTransport,
+            MockTransport,
+        )
+        .unwrap();
+
+        let topic1_default_qos = participant
+            .create_topic("abc".to_string(), "TestType", TopicKind::WithKey, None)
+            .unwrap();
+        let topic1_instance_handle = topic1_default_qos.get_instance_handle().unwrap();
+
+        let mut qos = TopicQos::default();
+        qos.deadline.period = Duration {
+            sec: 1,
+            nanosec: 10,
+        };
+        let topic2_custom_qos = participant
+            .create_topic(
+                "def".to_string(),
+                "TestType2",
+                TopicKind::WithKey,
+                Some(qos.clone()),
+            )
+            .unwrap();
+        let topic2_instance_handle = topic2_custom_qos.get_instance_handle().unwrap();
+
+        // Test correct qos and instance handle
+        assert_eq!(topic1_default_qos.get_qos().unwrap(), TopicQos::default());
+        assert_eq!(
+            topic1_instance_handle[0..12],
+            participant.inner.participant.entity.guid.prefix()
+        );
+        assert_eq!(topic1_instance_handle[12..15], [0, 0, 0]);
+        assert_eq!(topic1_instance_handle[15], 0x00);
+
+        assert_eq!(topic2_custom_qos.get_qos().unwrap(), qos);
+        assert_eq!(
+            topic2_instance_handle[0..12],
+            participant.inner.participant.entity.guid.prefix()
+        );
+        assert_eq!(topic2_instance_handle[12..15], [0, 1, 0]);
+        assert_eq!(topic2_instance_handle[15], 0x00);
     }
 
     #[test]
@@ -426,8 +492,8 @@ mod tests {
         .unwrap();
 
         let publisher = participant.create_publisher(None).unwrap();
-        participant.delete_publisher(&publisher).unwrap();
 
+        assert_eq!(participant.delete_publisher(&publisher), Ok(()));
         assert_eq!(publisher.get_qos(), Err(ReturnCodes::AlreadyDeleted));
         assert_eq!(
             participant.delete_publisher(&publisher),
@@ -446,8 +512,8 @@ mod tests {
         .unwrap();
 
         let subscriber = participant.create_subscriber(None).unwrap();
-        participant.delete_subscriber(&subscriber).unwrap();
-
+        
+        assert_eq!(participant.delete_subscriber(&subscriber), Ok(()));
         assert_eq!(subscriber.get_qos(), Err(ReturnCodes::AlreadyDeleted));
         assert_eq!(
             participant.delete_subscriber(&subscriber),
@@ -456,7 +522,7 @@ mod tests {
     }
 
     #[test]
-    fn delete_publisher_with_writers() {
+    fn create_delete_topic() {
         let participant = RtpsParticipant::new(
             0,
             DomainParticipantQos::default(),
@@ -464,93 +530,21 @@ mod tests {
             MockTransport,
         )
         .unwrap();
-        let writer_topic = participant
-        .create_topic("Test".to_string(), "TestType", TopicKind::WithKey, None)
-        .expect("Error creating topic");
-        let publisher = participant.create_publisher(None).unwrap();
-        let _a_datawriter = publisher
-            .create_datawriter(&writer_topic, None)
+
+        let topic = participant
+            .create_topic("abc".to_string(), "TestType", TopicKind::WithKey, None)
             .unwrap();
 
+        assert_eq!(participant.delete_topic(&topic), Ok(()));
+        assert_eq!(topic.get_qos(), Err(ReturnCodes::AlreadyDeleted));
         assert_eq!(
-            participant.delete_publisher(&publisher),
-            Err(ReturnCodes::PreconditionNotMet(
-                "Publisher still contains data writers"
-            ))
+            participant.delete_topic(&topic),
+            Err(ReturnCodes::AlreadyDeleted)
         );
     }
 
     #[test]
-    fn delete_subscriber_with_writers() {
-        let participant = RtpsParticipant::new(
-            0,
-            DomainParticipantQos::default(),
-            MockTransport,
-            MockTransport,
-        )
-        .unwrap();
-        let reader_topic = participant
-            .create_topic("Test".to_string(), "TestType", TopicKind::WithKey,None)
-            .expect("Error creating topic");
-        let subscriber = participant.create_subscriber(None).unwrap();
-        let _a_datareader = subscriber
-            .create_datareader(&reader_topic, None)
-            .unwrap();
-
-        assert_eq!(
-            participant.delete_subscriber(&subscriber),
-            Err(ReturnCodes::PreconditionNotMet(
-                "Subscriber still contains data readers"
-            ))
-        );
-    }
-
-    #[test]
-    fn delete_publisher_with_created_and_deleted_writers() {
-        let participant = RtpsParticipant::new(
-            0,
-            DomainParticipantQos::default(),
-            MockTransport,
-            MockTransport,
-        )
-        .unwrap();
-        let writer_topic = participant
-        .create_topic("Test".to_string(), "TestType", TopicKind::WithKey,None)
-        .expect("Error creating topic");
-        let publisher = participant.create_publisher(None).unwrap();
-        let a_datawriter = publisher
-            .create_datawriter(&writer_topic, None)
-            .unwrap();
-        publisher
-            .delete_datawriter(&a_datawriter)
-            .expect("Failed to delete datawriter");
-        assert_eq!(participant.delete_publisher(&publisher), Ok(()));
-    }
-
-    #[test]
-    fn delete_subscriber_with_created_and_deleted_writers() {
-        let participant = RtpsParticipant::new(
-            0,
-            DomainParticipantQos::default(),
-            MockTransport,
-            MockTransport,
-        )
-        .unwrap();
-        let reader_topic = participant
-            .create_topic("Test".to_string(), "TestType", TopicKind::WithKey,None)
-            .expect("Error creating topic");
-        let subscriber = participant.create_subscriber(None).unwrap();
-        let a_datareader = subscriber
-            .create_datareader(&reader_topic, None)
-            .unwrap();
-        subscriber
-            .delete_datareader(&a_datareader)
-            .expect("Failed to delete datareader");
-        assert_eq!(participant.delete_subscriber(&subscriber), Ok(()));
-    }
-
-    #[test]
-    fn delete_publisher_different_participant() {
+    fn not_allowed_to_delete_publisher_from_different_participant() {
         let participant = RtpsParticipant::new(
             0,
             DomainParticipantQos::default(),
@@ -575,7 +569,7 @@ mod tests {
     }
 
     #[test]
-    fn delete_subscriber_different_participant() {
+    fn not_allowed_to_delete_subscriber_from_different_participant() {
         let participant = RtpsParticipant::new(
             0,
             DomainParticipantQos::default(),
@@ -598,6 +592,207 @@ mod tests {
             ))
         );
     }
+
+    #[test]
+    fn not_allowed_to_delete_topic_from_different_participant() {
+        let participant = RtpsParticipant::new(
+            0,
+            DomainParticipantQos::default(),
+            MockTransport,
+            MockTransport,
+        )
+        .unwrap();
+        let other_participant = RtpsParticipant::new(
+            1,
+            DomainParticipantQos::default(),
+            MockTransport,
+            MockTransport,
+        )
+        .unwrap();
+        let topic = participant
+            .create_topic("abc".to_string(), "TestType", TopicKind::WithKey, None)
+            .unwrap();
+        assert_eq!(
+            other_participant.delete_topic(&topic),
+            Err(ReturnCodes::PreconditionNotMet(
+                "Topic not found in this participant"
+            ))
+        );
+    }
+
+    #[test]
+    fn not_allowed_to_delete_publisher_with_writer() {
+        let participant = RtpsParticipant::new(
+            0,
+            DomainParticipantQos::default(),
+            MockTransport,
+            MockTransport,
+        )
+        .unwrap();
+        let writer_topic = participant
+            .create_topic("Test".to_string(), "TestType", TopicKind::WithKey, None)
+            .expect("Error creating topic");
+        let publisher = participant.create_publisher(None).unwrap();
+        let _a_datawriter = publisher.create_datawriter(&writer_topic, None).unwrap();
+
+        assert_eq!(
+            participant.delete_publisher(&publisher),
+            Err(ReturnCodes::PreconditionNotMet(
+                "Publisher still contains data writers"
+            ))
+        );
+    }
+
+    #[test]
+    fn not_allowed_to_delete_subscriber_with_reader() {
+        let participant = RtpsParticipant::new(
+            0,
+            DomainParticipantQos::default(),
+            MockTransport,
+            MockTransport,
+        )
+        .unwrap();
+        let reader_topic = participant
+            .create_topic("Test".to_string(), "TestType", TopicKind::WithKey, None)
+            .expect("Error creating topic");
+        let subscriber = participant.create_subscriber(None).unwrap();
+        let _a_datareader = subscriber.create_datareader(&reader_topic, None).unwrap();
+
+        assert_eq!(
+            participant.delete_subscriber(&subscriber),
+            Err(ReturnCodes::PreconditionNotMet(
+                "Subscriber still contains data readers"
+            ))
+        );
+    }
+
+    #[test]
+    fn not_allowed_to_delete_topic_attached_to_reader() {
+        let participant = RtpsParticipant::new(
+            0,
+            DomainParticipantQos::default(),
+            MockTransport,
+            MockTransport,
+        )
+        .unwrap();
+        let reader_topic = participant
+            .create_topic("Test".to_string(), "TestType", TopicKind::WithKey, None)
+            .expect("Error creating topic");
+        let subscriber = participant.create_subscriber(None).unwrap();
+        let _a_datareader = subscriber.create_datareader(&reader_topic, None).unwrap();
+
+        assert_eq!(
+            participant.delete_topic(&reader_topic),
+            Err(ReturnCodes::PreconditionNotMet(
+                "Topic still attached to some data reader or data writer"
+            ))
+        );
+    }
+
+    #[test]
+    fn not_allowed_to_delete_topic_attached_to_writer() {
+        let participant = RtpsParticipant::new(
+            0,
+            DomainParticipantQos::default(),
+            MockTransport,
+            MockTransport,
+        )
+        .unwrap();
+        let writer_topic = participant
+            .create_topic("Test".to_string(), "TestType", TopicKind::WithKey, None)
+            .expect("Error creating topic");
+        let publisher = participant.create_publisher(None).unwrap();
+        let _a_datawriter = publisher.create_datawriter(&writer_topic, None).unwrap();
+
+        assert_eq!(
+            participant.delete_topic(&writer_topic),
+            Err(ReturnCodes::PreconditionNotMet(
+                "Topic still attached to some data reader or data writer"
+            ))
+        );
+    }
+
+    #[test]
+    fn allowed_to_delete_publisher_with_created_and_deleted_writer() {
+        let participant = RtpsParticipant::new(
+            0,
+            DomainParticipantQos::default(),
+            MockTransport,
+            MockTransport,
+        )
+        .unwrap();
+        let writer_topic = participant
+            .create_topic("Test".to_string(), "TestType", TopicKind::WithKey, None)
+            .expect("Error creating topic");
+        let publisher = participant.create_publisher(None).unwrap();
+        let a_datawriter = publisher.create_datawriter(&writer_topic, None).unwrap();
+        publisher
+            .delete_datawriter(&a_datawriter)
+            .expect("Failed to delete datawriter");
+        assert_eq!(participant.delete_publisher(&publisher), Ok(()));
+    }
+
+    #[test]
+    fn allowed_to_delete_subscriber_with_created_and_deleted_reader() {
+        let participant = RtpsParticipant::new(
+            0,
+            DomainParticipantQos::default(),
+            MockTransport,
+            MockTransport,
+        )
+        .unwrap();
+        let reader_topic = participant
+            .create_topic("Test".to_string(), "TestType", TopicKind::WithKey, None)
+            .expect("Error creating topic");
+        let subscriber = participant.create_subscriber(None).unwrap();
+        let a_datareader = subscriber.create_datareader(&reader_topic, None).unwrap();
+        subscriber
+            .delete_datareader(&a_datareader)
+            .expect("Failed to delete datareader");
+        assert_eq!(participant.delete_subscriber(&subscriber), Ok(()));
+    }
+
+    #[test]
+    fn allowed_to_delete_topic_with_created_and_deleted_writer() {
+        let participant = RtpsParticipant::new(
+            0,
+            DomainParticipantQos::default(),
+            MockTransport,
+            MockTransport,
+        )
+        .unwrap();
+        let writer_topic = participant
+            .create_topic("Test".to_string(), "TestType", TopicKind::WithKey, None)
+            .expect("Error creating topic");
+        let publisher = participant.create_publisher(None).unwrap();
+        let a_datawriter = publisher.create_datawriter(&writer_topic, None).unwrap();
+        publisher
+            .delete_datawriter(&a_datawriter)
+            .expect("Failed to delete datawriter");
+        assert_eq!(participant.delete_topic(&writer_topic), Ok(()));
+    }
+
+    #[test]
+    fn allowed_to_delete_topic_with_created_and_deleted_reader() {
+        let participant = RtpsParticipant::new(
+            0,
+            DomainParticipantQos::default(),
+            MockTransport,
+            MockTransport,
+        )
+        .unwrap();
+        let reader_topic = participant
+            .create_topic("Test".to_string(), "TestType", TopicKind::WithKey, None)
+            .expect("Error creating topic");
+        let subscriber = participant.create_subscriber(None).unwrap();
+        let a_datareader = subscriber.create_datareader(&reader_topic, None).unwrap();
+        subscriber
+            .delete_datareader(&a_datareader)
+            .expect("Failed to delete datareader");
+        assert_eq!(participant.delete_topic(&reader_topic), Ok(()));
+    }
+
+
 
     #[test]
     fn enable_threads() {

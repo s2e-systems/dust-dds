@@ -57,6 +57,7 @@ impl RtpsObject<RtpsPublisherInner> {
     }
 
     pub fn delete_datawriter(&self, a_datawriter: &RtpsDataWriter) -> ReturnCode<()> {
+        a_datawriter.value()?.topic.lock().unwrap().take(); // Drop the topic
         a_datawriter.delete();
         Ok(())
     }

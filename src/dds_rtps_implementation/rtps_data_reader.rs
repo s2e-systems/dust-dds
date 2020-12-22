@@ -14,12 +14,12 @@ use crate::rtps::behavior;
 use crate::rtps::behavior::StatefulReader;
 use crate::rtps::types::{ReliabilityKind, GUID};
 use crate::types::{Data, InstanceHandle, ReturnCode};
-use std::sync::{Arc, RwLockReadGuard};
+use std::sync::{Arc, Mutex, RwLockReadGuard};
 
 pub struct RtpsDataReaderInner {
     pub reader: StatefulReader,
     pub qos: DataReaderQos,
-    pub topic: Arc<RtpsTopicInner>,
+    pub topic: Mutex<Option<Arc<RtpsTopicInner>>>,
 }
 
 impl RtpsDataReaderInner {
@@ -41,7 +41,11 @@ impl RtpsDataReaderInner {
             expects_inline_qos,
             heartbeat_response_delay,
         );
-        Self { reader, qos, topic }
+        Self {
+            reader,
+            qos,
+            topic: Mutex::new(Some(topic)),
+        }
     }
 }
 

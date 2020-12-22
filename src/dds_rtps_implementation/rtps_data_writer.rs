@@ -11,12 +11,12 @@ use crate::rtps::behavior;
 use crate::rtps::behavior::StatefulWriter;
 use crate::rtps::types::{ReliabilityKind, GUID};
 use crate::types::{Data, Duration, InstanceHandle, ReturnCode, Time};
-use std::sync::{Arc, RwLockReadGuard};
+use std::sync::{Arc, Mutex, RwLockReadGuard};
 
 pub struct RtpsDataWriterInner {
     pub writer: StatefulWriter,
     pub qos: DataWriterQos,
-    pub topic: Arc<RtpsTopicInner>,
+    pub topic: Mutex<Option<Arc<RtpsTopicInner>>>,
 }
 
 impl RtpsDataWriterInner {
@@ -45,7 +45,11 @@ impl RtpsDataWriterInner {
             nack_supression_duration,
         );
 
-        Self { writer, qos, topic }
+        Self {
+            writer,
+            qos,
+            topic: Mutex::new(Some(topic)),
+        }
     }
 }
 

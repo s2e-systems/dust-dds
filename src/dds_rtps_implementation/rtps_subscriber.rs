@@ -56,6 +56,7 @@ impl RtpsObject<RtpsSubscriberInner> {
     }
 
     pub fn delete_datareader(&self, a_datareader: &RtpsDataReader) -> ReturnCode<()> {
+        a_datareader.value()?.topic.lock().unwrap().take(); // Drop the topic
         a_datareader.delete();
         Ok(())
     }

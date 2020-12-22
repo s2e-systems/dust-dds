@@ -53,7 +53,7 @@ impl<'a, T:DDSType> Entity for Topic<'a, T> {
     }
 
     fn get_qos(&self) -> ReturnCode<Self::Qos> {
-        todo!()
+        self.rtps_topic.get_qos()
     }
 
     fn set_listener(&self, _a_listener: Self::Listener, _mask: StatusMask) -> ReturnCode<()> {
@@ -73,10 +73,10 @@ impl<'a, T:DDSType> Entity for Topic<'a, T> {
     }
 
     fn enable(&self) -> ReturnCode<()> {
-        todo!()
+        self.rtps_topic.enable()
     }
 
     fn get_instance_handle(&self) -> ReturnCode<InstanceHandle> {
-        todo!()
+        self.rtps_topic.get_instance_handle()
     }
 }
