@@ -33,26 +33,25 @@ pub type RtpsSubscriber<'a> = RwLockReadGuard<'a, RtpsObject<RtpsSubscriberInner
 impl RtpsObject<RtpsSubscriberInner> {
     pub fn create_datareader(
         &self,
-        topic_kind: TopicKind,
-        qos: Option<DataReaderQos>,
         topic: &RtpsTopic,
+        qos: Option<DataReaderQos>,
     ) -> Option<RtpsDataReader> {
         let this = self.value().ok()?;
+        let topic = topic.value().ok()?.clone();
         let guid_prefix = this.group.entity.guid.prefix();
         let entity_key = [
             0,
             this.reader_count.fetch_add(1, atomic::Ordering::Relaxed),
             0,
         ];
-        let entity_kind = match topic_kind {
+        let entity_kind = match topic.topic_kind {
             TopicKind::WithKey => EntityKind::UserDefinedReaderWithKey,
             TopicKind::NoKey => EntityKind::UserDefinedReaderNoKey,
         };
         let entity_id = EntityId::new(entity_key, entity_kind);
         let new_reader_guid = GUID::new(guid_prefix, entity_id);
         let new_reader_qos = qos.unwrap_or(self.get_default_datareader_qos().ok()?);
-        let new_reader = RtpsDataReaderInner::new(new_reader_guid, topic_kind, new_reader_qos);
-        topic.value().ok()?.increment_reference_count();
+        let new_reader = RtpsDataReaderInner::new(new_reader_guid, topic, new_reader_qos);
         this.reader_list.add(new_reader)
     }
 

@@ -2,42 +2,32 @@ use crate::dds_infrastructure::qos::TopicQos;
 use crate::dds_rtps_implementation::rtps_object::RtpsObject;
 use crate::rtps::structure::Entity;
 use crate::rtps::types::GUID;
-use crate::types::ReturnCode;
-use std::sync::{atomic, Mutex, RwLockReadGuard};
+use crate::types::{ReturnCode, TopicKind};
+use std::sync::{Arc, Mutex, RwLockReadGuard};
 
 pub struct RtpsTopicInner {
-    entity: Entity,
-    topic_name: String,
-    type_name: &'static str,
-    qos: Mutex<TopicQos>,
-    reader_writer_reference_count: atomic::AtomicUsize, /* Reference count to this topic from DataReaders and DataWriters */
+    pub entity: Entity,
+    pub topic_name: String,
+    pub type_name: &'static str,
+    pub topic_kind: TopicKind,
+    pub qos: Mutex<TopicQos>,
 }
 
 impl RtpsTopicInner {
-    pub fn new(guid: GUID, topic_name: String, type_name: &'static str, qos: TopicQos) -> Self {
+    pub fn new(guid: GUID, topic_name: String, type_name: &'static str, topic_kind: TopicKind, qos: TopicQos) -> Self {
         Self {
             entity: Entity { guid },
             topic_name,
             type_name,
+            topic_kind,
             qos: Mutex::new(qos),
-            reader_writer_reference_count: atomic::AtomicUsize::new(0),
         }
-    }
- 
-    // These two functions are defined on the inner object since they are meant as an
-    // internal interface for this library
-    pub fn increment_reference_count(&self) {
-        self.reader_writer_reference_count.fetch_add(1, atomic::Ordering::Relaxed);
-    }
-
-    pub fn decrement_reference_count(&self) {
-        self.reader_writer_reference_count.fetch_sub(1, atomic::Ordering::Relaxed);
     }
 }
 
-pub type RtpsTopic<'a> = RwLockReadGuard<'a, RtpsObject<RtpsTopicInner>>;
+pub type RtpsTopic<'a> = RwLockReadGuard<'a, RtpsObject<Arc<RtpsTopicInner>>>;
 
-impl RtpsObject<RtpsTopicInner> {
+impl RtpsObject<Arc<RtpsTopicInner>> {
     pub fn get_name(&self) -> ReturnCode<String> {
         Ok(self.value()?.topic_name.clone())
     }

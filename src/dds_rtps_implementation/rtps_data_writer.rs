@@ -1,28 +1,31 @@
 use crate::builtin_topics::SubscriptionBuiltinTopicData;
-use crate::dds_infrastructure::qos_policy::ReliabilityQosPolicyKind;
 use crate::dds_infrastructure::qos::DataWriterQos;
+use crate::dds_infrastructure::qos_policy::ReliabilityQosPolicyKind;
 use crate::dds_infrastructure::status::{
     LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus,
     PublicationMatchedStatus,
 };
 use crate::dds_rtps_implementation::rtps_object::RtpsObject;
-use crate::rtps::behavior::StatefulWriter;
+use crate::dds_rtps_implementation::rtps_topic::RtpsTopicInner;
 use crate::rtps::behavior;
-use crate::rtps::types::{GUID, ReliabilityKind};
-use crate::types::{Data, Duration, InstanceHandle, ReturnCode, Time, TopicKind};
-use std::sync::RwLockReadGuard;
+use crate::rtps::behavior::StatefulWriter;
+use crate::rtps::types::{ReliabilityKind, GUID};
+use crate::types::{Data, Duration, InstanceHandle, ReturnCode, Time};
+use std::sync::{Arc, RwLockReadGuard};
 
 pub struct RtpsDataWriterInner {
     pub writer: StatefulWriter,
     pub qos: DataWriterQos,
+    pub topic: Arc<RtpsTopicInner>,
 }
 
 impl RtpsDataWriterInner {
-    pub fn new(guid: GUID, topic_kind: TopicKind, qos: DataWriterQos) -> Self {
+    pub fn new(guid: GUID, topic: Arc<RtpsTopicInner>, qos: DataWriterQos) -> Self {
         qos.is_consistent()
             .expect("RtpsDataWriterInner can only be created with consistent QoS");
 
-        let reliability_level =  match qos.reliability.kind {
+        let topic_kind = topic.topic_kind;
+        let reliability_level = match qos.reliability.kind {
             ReliabilityQosPolicyKind::BestEffortReliabilityQos => ReliabilityKind::BestEffort,
             ReliabilityQosPolicyKind::ReliableReliabilityQos => ReliabilityKind::Reliable,
         };
@@ -42,7 +45,7 @@ impl RtpsDataWriterInner {
             nack_supression_duration,
         );
 
-        Self { writer, qos }
+        Self { writer, qos, topic }
     }
 }
 

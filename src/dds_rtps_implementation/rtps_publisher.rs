@@ -2,6 +2,7 @@ use crate::dds_infrastructure::qos::{DataWriterQos, PublisherQos, TopicQos};
 use crate::dds_rtps_implementation::rtps_data_writer::RtpsDataWriter;
 use crate::dds_rtps_implementation::rtps_data_writer::RtpsDataWriterInner;
 use crate::dds_rtps_implementation::rtps_object::{RtpsObject, RtpsObjectList};
+use crate::dds_rtps_implementation::rtps_topic::RtpsTopic;
 use crate::rtps::structure::Group;
 use crate::rtps::types::{EntityId, EntityKind, GUID};
 use crate::types::{Duration, InstanceHandle, ReturnCode, TopicKind};
@@ -33,24 +34,25 @@ pub type RtpsPublisher<'a> = RwLockReadGuard<'a, RtpsObject<RtpsPublisherInner>>
 impl RtpsObject<RtpsPublisherInner> {
     pub fn create_datawriter(
         &self,
-        topic_kind: TopicKind,
+        topic: &RtpsTopic,
         qos: Option<DataWriterQos>,
     ) -> Option<RtpsDataWriter> {
         let this = self.value().ok()?;
+        let topic = topic.value().ok()?.clone();
         let guid_prefix = this.group.entity.guid.prefix();
         let entity_key = [
             0,
             this.writer_count.fetch_add(1, atomic::Ordering::Relaxed),
             0,
         ];
-        let entity_kind = match topic_kind {
+        let entity_kind = match topic.topic_kind {
             TopicKind::WithKey => EntityKind::UserDefinedWriterWithKey,
             TopicKind::NoKey => EntityKind::UserDefinedWriterNoKey,
         };
         let entity_id = EntityId::new(entity_key, entity_kind);
         let new_writer_guid = GUID::new(guid_prefix, entity_id);
         let new_writer_qos = qos.unwrap_or(self.get_default_datawriter_qos().ok()?);
-        let new_writer = RtpsDataWriterInner::new(new_writer_guid, topic_kind, new_writer_qos);
+        let new_writer = RtpsDataWriterInner::new(new_writer_guid, topic, new_writer_qos);
         this.writer_list.add(new_writer)
     }
 

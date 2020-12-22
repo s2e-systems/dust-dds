@@ -8,7 +8,7 @@ use crate::rtps::structure::Participant;
 use crate::rtps::transport::Transport;
 use crate::rtps::types::constants::{PROTOCOL_VERSION_2_4, VENDOR_ID};
 use crate::rtps::types::{EntityId, EntityKind, GUID};
-use crate::types::{DomainId, Duration, InstanceHandle, ReturnCode, ReturnCodes, Time};
+use crate::types::{DomainId, Duration, InstanceHandle, ReturnCode, ReturnCodes, Time, TopicKind};
 use std::cell::RefCell;
 use std::sync::{atomic, Arc, Mutex};
 use std::thread::JoinHandle;
@@ -25,7 +25,7 @@ pub struct RtpsParticipantInner {
     publisher_count: atomic::AtomicU8,
     subscriber_list: RtpsObjectList<RtpsSubscriberInner>,
     subscriber_count: atomic::AtomicU8,
-    topic_list: RtpsObjectList<RtpsTopicInner>,
+    topic_list: RtpsObjectList<Arc<RtpsTopicInner>>,
     topic_count: atomic::AtomicU8,
     enabled: atomic::AtomicBool,
 }
@@ -143,6 +143,7 @@ impl RtpsParticipant {
         &self,
         topic_name: String,
         type_name: &'static str,
+        topic_kind: TopicKind,
         qos: Option<TopicQos>,
     ) -> Option<RtpsTopic> {
         let guid_prefix = self.inner.participant.entity.guid.prefix();
@@ -156,7 +157,7 @@ impl RtpsParticipant {
         let entity_id = EntityId::new(entity_key, EntityKind::UserDefinedUnknown);
         let new_topic_guid = GUID::new(guid_prefix, entity_id);
         let new_topic_qos = qos.unwrap_or(self.get_default_topic_qos());
-        let new_topic = RtpsTopicInner::new(new_topic_guid, topic_name, type_name, new_topic_qos);
+        let new_topic = Arc::new(RtpsTopicInner::new(new_topic_guid, topic_name, type_name, topic_kind, new_topic_qos));
         self.inner.topic_list.add(new_topic)
     }
 
@@ -463,10 +464,12 @@ mod tests {
             MockTransport,
         )
         .unwrap();
-
+        let writer_topic = participant
+        .create_topic("Test".to_string(), "TestType", TopicKind::WithKey, None)
+        .expect("Error creating topic");
         let publisher = participant.create_publisher(None).unwrap();
         let _a_datawriter = publisher
-            .create_datawriter(TopicKind::WithKey, None)
+            .create_datawriter(&writer_topic, None)
             .unwrap();
 
         assert_eq!(
@@ -487,11 +490,11 @@ mod tests {
         )
         .unwrap();
         let reader_topic = participant
-            .create_topic("Test".to_string(), "TestType", None)
+            .create_topic("Test".to_string(), "TestType", TopicKind::WithKey,None)
             .expect("Error creating topic");
         let subscriber = participant.create_subscriber(None).unwrap();
         let _a_datareader = subscriber
-            .create_datareader(TopicKind::WithKey, None, &reader_topic)
+            .create_datareader(&reader_topic, None)
             .unwrap();
 
         assert_eq!(
@@ -511,10 +514,12 @@ mod tests {
             MockTransport,
         )
         .unwrap();
-
+        let writer_topic = participant
+        .create_topic("Test".to_string(), "TestType", TopicKind::WithKey,None)
+        .expect("Error creating topic");
         let publisher = participant.create_publisher(None).unwrap();
         let a_datawriter = publisher
-            .create_datawriter(TopicKind::WithKey, None)
+            .create_datawriter(&writer_topic, None)
             .unwrap();
         publisher
             .delete_datawriter(&a_datawriter)
@@ -532,11 +537,11 @@ mod tests {
         )
         .unwrap();
         let reader_topic = participant
-            .create_topic("Test".to_string(), "TestType", None)
+            .create_topic("Test".to_string(), "TestType", TopicKind::WithKey,None)
             .expect("Error creating topic");
         let subscriber = participant.create_subscriber(None).unwrap();
         let a_datareader = subscriber
-            .create_datareader(TopicKind::WithKey, None, &reader_topic)
+            .create_datareader(&reader_topic, None)
             .unwrap();
         subscriber
             .delete_datareader(&a_datareader)

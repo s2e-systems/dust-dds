@@ -94,7 +94,7 @@ impl DomainParticipant {
         // _a_listener: impl TopicListener<T>,
         // _mask: StatusMask
     ) -> Option<Topic<T>> {
-        let rtps_topic = self.0.create_topic(topic_name, T::type_name(), qos)?;
+        let rtps_topic = self.0.create_topic(topic_name, T::type_name(), T::topic_kind(), qos)?;
 
         Some(Topic {
             parent_participant: self,

@@ -49,7 +49,7 @@ impl<'a> Publisher<'a> {
         // _a_listener: impl DataWriterListener<T>,
         // _mask: StatusMask
     ) -> Option<DataWriter<T>> {
-        let rtps_datawriter = self.rtps_publisher.create_datawriter(T::topic_kind(), qos)?;
+        let rtps_datawriter = self.rtps_publisher.create_datawriter(&a_topic.rtps_topic, qos)?;
 
         Some(DataWriter {
             parent_publisher: self,
