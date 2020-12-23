@@ -665,12 +665,12 @@ impl<'a, T: DDSType> Entity for DataReader<'a, T> {
     type Qos = DataReaderQos;
     type Listener = Box<dyn DataReaderListener<T>>;
 
-    fn set_qos(&self, _qos: Self::Qos) -> ReturnCode<()> {
-        todo!()
+    fn set_qos(&self, qos: Self::Qos) -> ReturnCode<()> {
+        self.rtps_datareader.set_qos(qos, self.parent_subscriber.parent_participant.0.get_endpoint_discovery())
     }
 
     fn get_qos(&self) -> ReturnCode<Self::Qos> {
-        todo!()
+        self.rtps_datareader.get_qos()
     }
 
     fn set_listener(&self, _a_listener: Self::Listener, _mask: StatusMask) -> ReturnCode<()> {

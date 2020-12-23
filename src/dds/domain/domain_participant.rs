@@ -94,7 +94,7 @@ impl DomainParticipant {
         // _a_listener: impl TopicListener<T>,
         // _mask: StatusMask
     ) -> Option<Topic<T>> {
-        let rtps_topic = self.0.create_topic(topic_name, T::type_name(), T::topic_kind(), qos)?;
+        let rtps_topic = self.0.create_topic(topic_name, T::type_name(), T::topic_kind(), qos, self.0.get_endpoint_discovery())?;
 
         Some(Topic {
             parent_participant: self,
@@ -111,7 +111,7 @@ impl DomainParticipant {
     /// called on a different DomainParticipant, the operation will have no effect and it will return PRECONDITION_NOT_MET.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
     pub fn delete_topic<T: DDSType>(&self, a_topic: &Topic<T>) -> ReturnCode<()> {
-        self.0.delete_topic(&a_topic.rtps_topic)
+        self.0.delete_topic(&a_topic.rtps_topic, self.0.get_endpoint_discovery())
     }
 
     /// The operation find_topic gives access to an existing (or ready to exist) enabled Topic, based on its name. The operation takes

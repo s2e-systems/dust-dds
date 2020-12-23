@@ -55,9 +55,8 @@ impl RtpsObject<RtpsPublisherInner> {
         let new_writer_guid = GUID::new(guid_prefix, entity_id);
         let new_writer_qos = qos.unwrap_or(self.get_default_datawriter_qos().ok()?);
         let new_writer = RtpsDataWriterInner::new(new_writer_guid, topic, new_writer_qos);
-        let datawriter = this.writer_list.add(new_writer)?;
-        discovery.insert_writer(&datawriter).ok()?;
-        Some(datawriter)
+        discovery.insert_writer(&new_writer).ok()?;
+        this.writer_list.add(new_writer)
     }
 
     pub fn delete_datawriter(
@@ -65,8 +64,9 @@ impl RtpsObject<RtpsPublisherInner> {
         a_datawriter: &RtpsDataWriter,
         discovery: &SimpleEndpointDiscoveryProtocol,
     ) -> ReturnCode<()> {
-        a_datawriter.value()?.topic.lock().unwrap().take(); // Drop the topic
-        discovery.remove_writer(a_datawriter)?;
+        let datawriter = a_datawriter.value()?;
+        discovery.remove_writer(datawriter)?;
+        datawriter.topic.lock().unwrap().take(); // Drop the topic
         a_datawriter.delete();
         Ok(())
     }

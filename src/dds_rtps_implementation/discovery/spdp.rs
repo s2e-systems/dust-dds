@@ -16,8 +16,6 @@ use crate::rtps::types::constants::{
 use rust_dds_api::types::{DomainId, ChangeKind, TopicKind, };
 use crate::structure::HistoryCache;
 
-
-
 pub struct SimpleParticipantDiscovery {
     spdp_builtin_participant_writer: StatelessWriter,
     spdp_builtin_participant_reader: StatelessReader,

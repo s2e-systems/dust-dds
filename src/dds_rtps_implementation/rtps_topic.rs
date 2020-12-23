@@ -1,4 +1,5 @@
 use crate::dds_infrastructure::qos::TopicQos;
+use crate::dds_rtps_implementation::discovery::sedp::SimpleEndpointDiscoveryProtocol;
 use crate::dds_rtps_implementation::rtps_object::RtpsObject;
 use crate::rtps::structure::Entity;
 use crate::rtps::types::GUID;
@@ -38,8 +39,24 @@ impl RtpsObject<Arc<RtpsTopicInner>> {
         Ok(self.value()?.topic_name.clone())
     }
 
+    pub fn get_type_name(&self) -> ReturnCode<&str> {
+        Ok(self.value()?.type_name)
+    }
+
     pub fn get_qos(&self) -> ReturnCode<TopicQos> {
         Ok(self.value()?.qos.lock().unwrap().clone())
+    }
+
+    pub fn set_qos(
+        &self,
+        qos: TopicQos,
+        discovery: &SimpleEndpointDiscoveryProtocol,
+    ) -> ReturnCode<()> {
+        let topic = self.value()?;
+        qos.is_consistent()?;
+        *topic.qos.lock().unwrap() = qos;
+        discovery.update_topic(topic)?;
+        Ok(())
     }
 
     pub fn enable(&self) -> ReturnCode<()> {

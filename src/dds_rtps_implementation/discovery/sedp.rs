@@ -1,6 +1,6 @@
-use crate::dds_rtps_implementation::rtps_data_reader::RtpsDataReader;
-use crate::dds_rtps_implementation::rtps_data_writer::RtpsDataWriter;
-use crate::dds_rtps_implementation::rtps_topic::RtpsTopic;
+use crate::dds_rtps_implementation::rtps_data_reader::RtpsDataReaderInner;
+use crate::dds_rtps_implementation::rtps_data_writer::RtpsDataWriterInner;
+use crate::dds_rtps_implementation::rtps_topic::RtpsTopicInner;
 use crate::rtps::behavior::types::Duration;
 use crate::rtps::behavior::{StatefulReader, StatefulWriter};
 use crate::rtps::types::constants::{
@@ -113,39 +113,39 @@ impl SimpleEndpointDiscoveryProtocol {
         ]
     }
 
-    pub fn insert_writer(&self, _a_datawriter: &RtpsDataWriter) -> ReturnCode<()> {
+    pub fn insert_writer(&self, _a_datawriter: &RtpsDataWriterInner) -> ReturnCode<()> {
         Ok(())
     }
 
-    pub fn update_writer(&self, _a_datawriter: &RtpsDataWriter) -> ReturnCode<()> {
+    pub fn update_writer(&self, _a_datawriter: &RtpsDataWriterInner) -> ReturnCode<()> {
         Ok(())
     }
 
-    pub fn remove_writer(&self, _a_datawriter: &RtpsDataWriter) -> ReturnCode<()> {
+    pub fn remove_writer(&self, _a_datawriter: &RtpsDataWriterInner) -> ReturnCode<()> {
         Ok(())
     }
 
-    pub fn insert_reader(&self, _a_datareader: &RtpsDataReader) -> ReturnCode<()> {
+    pub fn insert_reader(&self, _a_datareader: &RtpsDataReaderInner) -> ReturnCode<()> {
         Ok(())
     }
 
-    pub fn update_reader(&self, _a_datareader: &RtpsDataReader) -> ReturnCode<()> {
+    pub fn update_reader(&self, _a_datareader: &RtpsDataReaderInner) -> ReturnCode<()> {
         Ok(())
     }
 
-    pub fn remove_reader(&self, _a_datareader: &RtpsDataReader) -> ReturnCode<()> {
+    pub fn remove_reader(&self, _a_datareader: &RtpsDataReaderInner) -> ReturnCode<()> {
         Ok(())
     }
 
-    pub fn insert_topic(&self, _a_topic: &RtpsTopic) -> ReturnCode<()> {
+    pub fn insert_topic(&self, _a_topic: &RtpsTopicInner) -> ReturnCode<()> {
         Ok(())
     }
 
-    pub fn update_topic(&self, _a_topic: &RtpsTopic) -> ReturnCode<()> {
+    pub fn update_topic(&self, _a_topic: &RtpsTopicInner) -> ReturnCode<()> {
         Ok(())
     }
 
-    pub fn remove_topic(&self, _a_topic: &RtpsTopic) -> ReturnCode<()> {
-        todo!()
+    pub fn remove_topic(&self, _a_topic: &RtpsTopicInner) -> ReturnCode<()> {
+        Ok(())
     }
 }

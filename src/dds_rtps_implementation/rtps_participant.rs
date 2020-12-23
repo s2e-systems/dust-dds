@@ -1,10 +1,10 @@
 use crate::builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData};
 use crate::dds_infrastructure::qos::{DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos};
+use crate::dds_rtps_implementation::discovery::sedp::SimpleEndpointDiscoveryProtocol;
 use crate::dds_rtps_implementation::rtps_object::RtpsObjectList;
 use crate::dds_rtps_implementation::rtps_publisher::{RtpsPublisher, RtpsPublisherInner};
 use crate::dds_rtps_implementation::rtps_subscriber::{RtpsSubscriber, RtpsSubscriberInner};
 use crate::dds_rtps_implementation::rtps_topic::{RtpsTopic, RtpsTopicInner};
-use crate::dds_rtps_implementation::discovery::sedp::SimpleEndpointDiscoveryProtocol;
 use crate::rtps::structure::Participant;
 use crate::rtps::transport::Transport;
 use crate::rtps::types::constants::{PROTOCOL_VERSION_2_4, VENDOR_ID};
@@ -149,6 +149,7 @@ impl RtpsParticipant {
         type_name: &'static str,
         topic_kind: TopicKind,
         qos: Option<TopicQos>,
+        discovery: &SimpleEndpointDiscoveryProtocol,
     ) -> Option<RtpsTopic> {
         let guid_prefix = self.inner.participant.entity.guid.prefix();
         let entity_key = [
@@ -168,13 +169,20 @@ impl RtpsParticipant {
             topic_kind,
             new_topic_qos,
         ));
+        discovery.insert_topic(&new_topic).ok()?;
         self.inner.topic_list.add(new_topic)
     }
 
-    pub fn delete_topic(&self, a_topic: &RtpsTopic) -> ReturnCode<()> {
+    pub fn delete_topic(
+        &self,
+        a_topic: &RtpsTopic,
+        discovery: &SimpleEndpointDiscoveryProtocol,
+    ) -> ReturnCode<()> {
         if self.inner.topic_list.contains(a_topic) {
             if Arc::strong_count(a_topic.value()?) == 1 {
-                Ok(a_topic.delete())
+                discovery.remove_topic(a_topic.value()?)?;
+                a_topic.delete();
+                Ok(())
             } else {
                 Err(ReturnCodes::PreconditionNotMet(
                     "Topic still attached to some data reader or data writer",
@@ -216,7 +224,7 @@ impl RtpsParticipant {
     }
 
     pub fn get_domain_id(&self) -> DomainId {
-        todo!()
+        self.inner.participant.domain_id
     }
 
     pub fn delete_contained_entities(&self) -> ReturnCode<()> {
@@ -452,7 +460,13 @@ mod tests {
         .unwrap();
 
         let topic1_default_qos = participant
-            .create_topic("abc".to_string(), "TestType", TopicKind::WithKey, None)
+            .create_topic(
+                "abc".to_string(),
+                "TestType",
+                TopicKind::WithKey,
+                None,
+                participant.get_endpoint_discovery(),
+            )
             .unwrap();
         let topic1_instance_handle = topic1_default_qos.get_instance_handle().unwrap();
 
@@ -467,6 +481,7 @@ mod tests {
                 "TestType2",
                 TopicKind::WithKey,
                 Some(qos.clone()),
+                participant.get_endpoint_discovery(),
             )
             .unwrap();
         let topic2_instance_handle = topic2_custom_qos.get_instance_handle().unwrap();
@@ -520,7 +535,7 @@ mod tests {
         .unwrap();
 
         let subscriber = participant.create_subscriber(None).unwrap();
-        
+
         assert_eq!(participant.delete_subscriber(&subscriber), Ok(()));
         assert_eq!(subscriber.get_qos(), Err(ReturnCodes::AlreadyDeleted));
         assert_eq!(
@@ -540,13 +555,19 @@ mod tests {
         .unwrap();
 
         let topic = participant
-            .create_topic("abc".to_string(), "TestType", TopicKind::WithKey, None)
+            .create_topic(
+                "abc".to_string(),
+                "TestType",
+                TopicKind::WithKey,
+                None,
+                participant.get_endpoint_discovery(),
+            )
             .unwrap();
 
-        assert_eq!(participant.delete_topic(&topic), Ok(()));
+        assert_eq!(participant.delete_topic(&topic, participant.get_endpoint_discovery()), Ok(()));
         assert_eq!(topic.get_qos(), Err(ReturnCodes::AlreadyDeleted));
         assert_eq!(
-            participant.delete_topic(&topic),
+            participant.delete_topic(&topic, participant.get_endpoint_discovery()),
             Err(ReturnCodes::AlreadyDeleted)
         );
     }
@@ -618,10 +639,16 @@ mod tests {
         )
         .unwrap();
         let topic = participant
-            .create_topic("abc".to_string(), "TestType", TopicKind::WithKey, None)
+            .create_topic(
+                "abc".to_string(),
+                "TestType",
+                TopicKind::WithKey,
+                None,
+                participant.get_endpoint_discovery(),
+            )
             .unwrap();
         assert_eq!(
-            other_participant.delete_topic(&topic),
+            other_participant.delete_topic(&topic, participant.get_endpoint_discovery()),
             Err(ReturnCodes::PreconditionNotMet(
                 "Topic not found in this participant"
             ))
@@ -638,10 +665,18 @@ mod tests {
         )
         .unwrap();
         let writer_topic = participant
-            .create_topic("Test".to_string(), "TestType", TopicKind::WithKey, None)
+            .create_topic(
+                "Test".to_string(),
+                "TestType",
+                TopicKind::WithKey,
+                None,
+                participant.get_endpoint_discovery(),
+            )
             .expect("Error creating topic");
         let publisher = participant.create_publisher(None).unwrap();
-        let _a_datawriter = publisher.create_datawriter(&writer_topic, None, participant.get_endpoint_discovery()).unwrap();
+        let _a_datawriter = publisher
+            .create_datawriter(&writer_topic, None, participant.get_endpoint_discovery())
+            .unwrap();
 
         assert_eq!(
             participant.delete_publisher(&publisher),
@@ -661,10 +696,18 @@ mod tests {
         )
         .unwrap();
         let reader_topic = participant
-            .create_topic("Test".to_string(), "TestType", TopicKind::WithKey, None)
+            .create_topic(
+                "Test".to_string(),
+                "TestType",
+                TopicKind::WithKey,
+                None,
+                participant.get_endpoint_discovery(),
+            )
             .expect("Error creating topic");
         let subscriber = participant.create_subscriber(None).unwrap();
-        let _a_datareader = subscriber.create_datareader(&reader_topic, None, participant.get_endpoint_discovery()).unwrap();
+        let _a_datareader = subscriber
+            .create_datareader(&reader_topic, None, participant.get_endpoint_discovery())
+            .unwrap();
 
         assert_eq!(
             participant.delete_subscriber(&subscriber),
@@ -684,13 +727,21 @@ mod tests {
         )
         .unwrap();
         let reader_topic = participant
-            .create_topic("Test".to_string(), "TestType", TopicKind::WithKey, None)
+            .create_topic(
+                "Test".to_string(),
+                "TestType",
+                TopicKind::WithKey,
+                None,
+                participant.get_endpoint_discovery(),
+            )
             .expect("Error creating topic");
         let subscriber = participant.create_subscriber(None).unwrap();
-        let _a_datareader = subscriber.create_datareader(&reader_topic, None, participant.get_endpoint_discovery()).unwrap();
+        let _a_datareader = subscriber
+            .create_datareader(&reader_topic, None, participant.get_endpoint_discovery())
+            .unwrap();
 
         assert_eq!(
-            participant.delete_topic(&reader_topic),
+            participant.delete_topic(&reader_topic, participant.get_endpoint_discovery()),
             Err(ReturnCodes::PreconditionNotMet(
                 "Topic still attached to some data reader or data writer"
             ))
@@ -707,13 +758,21 @@ mod tests {
         )
         .unwrap();
         let writer_topic = participant
-            .create_topic("Test".to_string(), "TestType", TopicKind::WithKey, None)
+            .create_topic(
+                "Test".to_string(),
+                "TestType",
+                TopicKind::WithKey,
+                None,
+                participant.get_endpoint_discovery(),
+            )
             .expect("Error creating topic");
         let publisher = participant.create_publisher(None).unwrap();
-        let _a_datawriter = publisher.create_datawriter(&writer_topic, None, participant.get_endpoint_discovery()).unwrap();
+        let _a_datawriter = publisher
+            .create_datawriter(&writer_topic, None, participant.get_endpoint_discovery())
+            .unwrap();
 
         assert_eq!(
-            participant.delete_topic(&writer_topic),
+            participant.delete_topic(&writer_topic, participant.get_endpoint_discovery()),
             Err(ReturnCodes::PreconditionNotMet(
                 "Topic still attached to some data reader or data writer"
             ))
@@ -730,10 +789,18 @@ mod tests {
         )
         .unwrap();
         let writer_topic = participant
-            .create_topic("Test".to_string(), "TestType", TopicKind::WithKey, None)
+            .create_topic(
+                "Test".to_string(),
+                "TestType",
+                TopicKind::WithKey,
+                None,
+                participant.get_endpoint_discovery(),
+            )
             .expect("Error creating topic");
         let publisher = participant.create_publisher(None).unwrap();
-        let a_datawriter = publisher.create_datawriter(&writer_topic, None, participant.get_endpoint_discovery()).unwrap();
+        let a_datawriter = publisher
+            .create_datawriter(&writer_topic, None, participant.get_endpoint_discovery())
+            .unwrap();
         publisher
             .delete_datawriter(&a_datawriter, participant.get_endpoint_discovery())
             .expect("Failed to delete datawriter");
@@ -750,10 +817,18 @@ mod tests {
         )
         .unwrap();
         let reader_topic = participant
-            .create_topic("Test".to_string(), "TestType", TopicKind::WithKey, None)
+            .create_topic(
+                "Test".to_string(),
+                "TestType",
+                TopicKind::WithKey,
+                None,
+                participant.get_endpoint_discovery(),
+            )
             .expect("Error creating topic");
         let subscriber = participant.create_subscriber(None).unwrap();
-        let a_datareader = subscriber.create_datareader(&reader_topic, None, participant.get_endpoint_discovery()).unwrap();
+        let a_datareader = subscriber
+            .create_datareader(&reader_topic, None, participant.get_endpoint_discovery())
+            .unwrap();
         subscriber
             .delete_datareader(&a_datareader, participant.get_endpoint_discovery())
             .expect("Failed to delete datareader");
@@ -770,14 +845,22 @@ mod tests {
         )
         .unwrap();
         let writer_topic = participant
-            .create_topic("Test".to_string(), "TestType", TopicKind::WithKey, None)
+            .create_topic(
+                "Test".to_string(),
+                "TestType",
+                TopicKind::WithKey,
+                None,
+                participant.get_endpoint_discovery(),
+            )
             .expect("Error creating topic");
         let publisher = participant.create_publisher(None).unwrap();
-        let a_datawriter = publisher.create_datawriter(&writer_topic, None, participant.get_endpoint_discovery()).unwrap();
+        let a_datawriter = publisher
+            .create_datawriter(&writer_topic, None, participant.get_endpoint_discovery())
+            .unwrap();
         publisher
             .delete_datawriter(&a_datawriter, participant.get_endpoint_discovery())
             .expect("Failed to delete datawriter");
-        assert_eq!(participant.delete_topic(&writer_topic), Ok(()));
+        assert_eq!(participant.delete_topic(&writer_topic, participant.get_endpoint_discovery()), Ok(()));
     }
 
     #[test]
@@ -790,17 +873,23 @@ mod tests {
         )
         .unwrap();
         let reader_topic = participant
-            .create_topic("Test".to_string(), "TestType", TopicKind::WithKey, None)
+            .create_topic(
+                "Test".to_string(),
+                "TestType",
+                TopicKind::WithKey,
+                None,
+                participant.get_endpoint_discovery(),
+            )
             .expect("Error creating topic");
         let subscriber = participant.create_subscriber(None).unwrap();
-        let a_datareader = subscriber.create_datareader(&reader_topic, None, participant.get_endpoint_discovery()).unwrap();
+        let a_datareader = subscriber
+            .create_datareader(&reader_topic, None, participant.get_endpoint_discovery())
+            .unwrap();
         subscriber
             .delete_datareader(&a_datareader, participant.get_endpoint_discovery())
             .expect("Failed to delete datareader");
-        assert_eq!(participant.delete_topic(&reader_topic), Ok(()));
+        assert_eq!(participant.delete_topic(&reader_topic, participant.get_endpoint_discovery()), Ok(()));
     }
-
-
 
     #[test]
     fn enable_threads() {

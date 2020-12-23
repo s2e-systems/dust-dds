@@ -7,6 +7,7 @@ use crate::dds_infrastructure::status::{
 };
 use crate::dds_rtps_implementation::rtps_object::RtpsObject;
 use crate::dds_rtps_implementation::rtps_topic::RtpsTopicInner;
+use crate::dds_rtps_implementation::discovery::sedp::SimpleEndpointDiscoveryProtocol;
 use crate::rtps::behavior;
 use crate::rtps::behavior::StatefulWriter;
 use crate::rtps::types::{ReliabilityKind, GUID};
@@ -15,7 +16,7 @@ use std::sync::{Arc, Mutex, RwLockReadGuard};
 
 pub struct RtpsDataWriterInner {
     pub writer: StatefulWriter,
-    pub qos: DataWriterQos,
+    pub qos: Mutex<DataWriterQos>,
     pub topic: Mutex<Option<Arc<RtpsTopicInner>>>,
 }
 
@@ -47,7 +48,7 @@ impl RtpsDataWriterInner {
 
         Self {
             writer,
-            qos,
+            qos: Mutex::new(qos),
             topic: Mutex::new(Some(topic)),
         }
     }
@@ -175,5 +176,21 @@ impl RtpsObject<RtpsDataWriterInner> {
         _subscription_handles: &mut [InstanceHandle],
     ) -> ReturnCode<()> {
         todo!()
+    }
+
+    pub fn get_qos(&self) -> ReturnCode<DataWriterQos> {
+        Ok(self.value()?.qos.lock().unwrap().clone())
+    }
+
+    pub fn set_qos(
+        &self,
+        qos: DataWriterQos,
+        discovery: &SimpleEndpointDiscoveryProtocol,
+    ) -> ReturnCode<()> {
+        let datawriter = self.value()?;
+        qos.is_consistent()?;
+        *datawriter.qos.lock().unwrap() = qos;
+        discovery.update_writer(datawriter)?;
+        Ok(())
     }
 }

@@ -346,12 +346,12 @@ impl<'a, T:DDSType> Entity for DataWriter<'a, T> {
     type Qos = DataWriterQos;
     type Listener = Box<dyn DataWriterListener<T>>;
 
-    fn set_qos(&self, _qos: Self::Qos) -> ReturnCode<()> {
-        todo!()
+    fn set_qos(&self, qos: Self::Qos) -> ReturnCode<()> {
+        self.rtps_datawriter.set_qos(qos, self.parent_publisher.parent_participant.0.get_endpoint_discovery())
     }
 
     fn get_qos(&self) -> ReturnCode<Self::Qos> {
-        todo!()
+        self.rtps_datawriter.get_qos()
     }
 
     fn set_listener(&self, _a_listener: Self::Listener, _mask: StatusMask) -> ReturnCode<()> {

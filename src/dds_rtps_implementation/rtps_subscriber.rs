@@ -53,9 +53,8 @@ impl RtpsObject<RtpsSubscriberInner> {
         let new_reader_guid = GUID::new(guid_prefix, entity_id);
         let new_reader_qos = qos.unwrap_or(self.get_default_datareader_qos().ok()?);
         let new_reader = RtpsDataReaderInner::new(new_reader_guid, topic, new_reader_qos);
-        let datareader = this.reader_list.add(new_reader)?;
-        discovery.insert_reader(&datareader).ok()?;
-        Some(datareader)
+        discovery.insert_reader(&new_reader).ok()?;
+        this.reader_list.add(new_reader)
     }
 
     pub fn delete_datareader(
@@ -63,8 +62,9 @@ impl RtpsObject<RtpsSubscriberInner> {
         a_datareader: &RtpsDataReader,
         discovery: &SimpleEndpointDiscoveryProtocol,
     ) -> ReturnCode<()> {
-        a_datareader.value()?.topic.lock().unwrap().take(); // Drop the topic
-        discovery.remove_reader(a_datareader)?;
+        let datareader = a_datareader.value()?;
+        discovery.remove_reader(datareader)?;
+        datareader.topic.lock().unwrap().take(); // Drop the topic
         a_datareader.delete();
         Ok(())
     }

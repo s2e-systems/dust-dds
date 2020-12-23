@@ -10,6 +10,7 @@ use crate::dds_infrastructure::status::{
 };
 use crate::dds_rtps_implementation::rtps_object::RtpsObject;
 use crate::dds_rtps_implementation::rtps_topic::RtpsTopicInner;
+use crate::dds_rtps_implementation::discovery::sedp::SimpleEndpointDiscoveryProtocol;
 use crate::rtps::behavior;
 use crate::rtps::behavior::StatefulReader;
 use crate::rtps::types::{ReliabilityKind, GUID};
@@ -18,7 +19,7 @@ use std::sync::{Arc, Mutex, RwLockReadGuard};
 
 pub struct RtpsDataReaderInner {
     pub reader: StatefulReader,
-    pub qos: DataReaderQos,
+    pub qos: Mutex<DataReaderQos>,
     pub topic: Mutex<Option<Arc<RtpsTopicInner>>>,
 }
 
@@ -43,7 +44,7 @@ impl RtpsDataReaderInner {
         );
         Self {
             reader,
-            qos,
+            qos: Mutex::new(qos),
             topic: Mutex::new(Some(topic)),
         }
     }
@@ -259,5 +260,21 @@ impl RtpsObject<RtpsDataReaderInner> {
         _publication_handles: &mut [InstanceHandle],
     ) -> ReturnCode<()> {
         todo!()
+    }
+
+    pub fn get_qos(&self) -> ReturnCode<DataReaderQos> {
+        Ok(self.value()?.qos.lock().unwrap().clone())
+    }
+
+    pub fn set_qos(
+        &self,
+        qos: DataReaderQos,
+        discovery: &SimpleEndpointDiscoveryProtocol,
+    ) -> ReturnCode<()> {
+        let datareader = self.value()?;
+        qos.is_consistent()?;
+        *datareader.qos.lock().unwrap() = qos;
+        discovery.update_reader(datareader)?;
+        Ok(())
     }
 }

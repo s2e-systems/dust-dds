@@ -36,7 +36,7 @@ impl<'a, T: DDSType> TopicDescription for Topic<'a, T> {
     }
 
     fn get_type_name(&self) -> ReturnCode<&str> {
-        Ok(T::type_name())
+        self.rtps_topic.get_type_name()
     }
 
     fn get_name(&self) -> ReturnCode<String> {
@@ -48,8 +48,8 @@ impl<'a, T:DDSType> Entity for Topic<'a, T> {
     type Qos = TopicQos;
     type Listener = Box<dyn TopicListener<T>>;
 
-    fn set_qos(&self, _qos: Self::Qos) -> ReturnCode<()> {
-        todo!()
+    fn set_qos(&self, qos: Self::Qos) -> ReturnCode<()> {
+        self.rtps_topic.set_qos(qos, self.parent_participant.0.get_endpoint_discovery())
     }
 
     fn get_qos(&self) -> ReturnCode<Self::Qos> {
