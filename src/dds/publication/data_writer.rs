@@ -2,13 +2,60 @@ use crate::types::{DDSType, Time, ReturnCode, InstanceHandle, Duration};
 use crate::builtin_topics::SubscriptionBuiltinTopicData;
 use crate::dds::publication::publisher::Publisher;
 use crate::dds::topic::topic::Topic;
-
-use crate::dds_rtps_implementation::rtps_data_writer::RtpsDataWriter;
 use crate::dds_infrastructure::qos::DataWriterQos;
 use crate::dds_infrastructure::entity::{Entity, StatusCondition};
 use crate::dds_infrastructure::status::StatusMask;
 use crate::dds_infrastructure::data_writer_listener::DataWriterListener;
 use crate::dds_infrastructure::status::{LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus};
+use crate::dds_infrastructure::qos_policy::ReliabilityQosPolicyKind;
+use crate::dds_rtps_implementation::rtps_object::RtpsObject;
+use crate::dds::topic::topic::RtpsTopicInner;
+use crate::rtps::behavior;
+use crate::rtps::behavior::StatefulWriter;
+use crate::rtps::types::{ReliabilityKind, GUID};
+use std::sync::{Arc, Mutex, RwLockReadGuard};
+
+pub struct RtpsDataWriterInner {
+    pub writer: StatefulWriter,
+    pub qos: Mutex<DataWriterQos>,
+    pub topic: Mutex<Option<Arc<RtpsTopicInner>>>,
+}
+
+impl RtpsDataWriterInner {
+    pub fn new(guid: GUID, topic: Arc<RtpsTopicInner>, qos: DataWriterQos) -> Self {
+        qos.is_consistent()
+            .expect("RtpsDataWriterInner can only be created with consistent QoS");
+
+        let topic_kind = topic.topic_kind;
+        let reliability_level = match qos.reliability.kind {
+            ReliabilityQosPolicyKind::BestEffortReliabilityQos => ReliabilityKind::BestEffort,
+            ReliabilityQosPolicyKind::ReliableReliabilityQos => ReliabilityKind::Reliable,
+        };
+        let push_mode = true;
+        let data_max_sized_serialized = None;
+        let heartbeat_period = behavior::types::Duration::from_millis(500);
+        let nack_response_delay = behavior::types::constants::DURATION_ZERO;
+        let nack_supression_duration = behavior::types::constants::DURATION_ZERO;
+        let writer = StatefulWriter::new(
+            guid,
+            topic_kind,
+            reliability_level,
+            push_mode,
+            data_max_sized_serialized,
+            heartbeat_period,
+            nack_response_delay,
+            nack_supression_duration,
+        );
+
+        Self {
+            writer,
+            qos: Mutex::new(qos),
+            topic: Mutex::new(Some(topic)),
+        }
+    }
+}
+
+pub type RtpsDataWriter<'a> = RwLockReadGuard<'a, RtpsObject<RtpsDataWriterInner>>;
 
 pub struct DataWriter<'a, T: DDSType>{
     pub(crate) parent_publisher: &'a Publisher<'a>,
@@ -33,9 +80,9 @@ impl<'a, T: DDSType> DataWriter<'a,T> {
     /// ‘key’ should be examined to identify the instance.
     pub fn register_instance(
         &self,
-        instance: T
+        _instance: T
     ) -> ReturnCode<Option<InstanceHandle>> {
-        self.rtps_datawriter.register_instance(instance.instance_handle())
+        todo!()
     }
 
     /// This operation performs the same function as register_instance and can be used instead of register_instance in the cases
@@ -47,10 +94,10 @@ impl<'a, T: DDSType> DataWriter<'a,T> {
     /// (2.2.2.4.2.11).
     pub fn register_instance_w_timestamp(
         &self,
-        instance: T,
-        timestamp: Time,
+        _instance: T,
+        _timestamp: Time,
     ) -> ReturnCode<Option<InstanceHandle>> {
-        self.rtps_datawriter.register_instance_w_timestamp(instance.instance_handle(), timestamp)
+        todo!()
     }
 
     /// This operation reverses the action of register_instance. It should only be called on an instance that is currently registered.
@@ -82,10 +129,10 @@ impl<'a, T: DDSType> DataWriter<'a,T> {
     /// Possible error codes returned in addition to the standard ones: TIMEOUT, PRECONDITION_NOT_MET.
     pub fn unregister_instance(
         &self,
-        instance: T,
-        handle: Option<InstanceHandle>
+        _instance: T,
+        _handle: Option<InstanceHandle>
     ) -> ReturnCode<()> {
-        self.rtps_datawriter.unregister_instance(instance.instance_handle(), handle)
+        todo!()
     }
 
     /// This operation performs the same function as unregister_instance and can be used instead of unregister_instance in the cases
@@ -97,11 +144,11 @@ impl<'a, T: DDSType> DataWriter<'a,T> {
     /// This operation may block and return TIMEOUT under the same circumstances described for the write operation (2.2.2.4.2.11).
     pub fn unregister_instance_w_timestamp(
         &self,
-        instance: T,
-        handle: Option<InstanceHandle>,
-        timestamp: Time,
+        _instance: T,
+        _handle: Option<InstanceHandle>,
+        _timestamp: Time,
     ) -> ReturnCode<()> {
-        self.rtps_datawriter.unregister_instance_w_timestamp(instance.instance_handle(), handle, timestamp)
+        todo!()
     }
 
     /// This operation can be used to retrieve the instance key that corresponds to an instance_handle. The operation will only fill the
@@ -125,9 +172,9 @@ impl<'a, T: DDSType> DataWriter<'a,T> {
     /// reason the Service is unable to provide an instance handle, the Service will return the special value HANDLE_NIL.
     pub fn lookup_instance(
         &self,
-        instance: &T,
+        _instance: &T,
     ) -> ReturnCode<Option<InstanceHandle>> {
-        self.rtps_datawriter.lookup_instance(&instance.instance_handle())
+        todo!()
     }
 
     /// This operation modifies the value of a data instance. When this operation is used, the Service will automatically supply the
@@ -170,10 +217,10 @@ impl<'a, T: DDSType> DataWriter<'a,T> {
     /// detectable the returned error-code will be BAD_PARAMETER.
     pub fn write (
         &self,
-        data: T,
-        handle: Option<InstanceHandle>,
+        _data: T,
+        _handle: Option<InstanceHandle>,
     ) -> ReturnCode<()> {
-        self.rtps_datawriter.write(data.serialize(), handle)
+        todo!()
     }
 
     /// This operation performs the same function as write except that it also provides the value for the source_timestamp that is made
@@ -191,11 +238,11 @@ impl<'a, T: DDSType> DataWriter<'a,T> {
     /// data-type that is being written.
     pub fn write_w_timestamp(
         &self,
-        data: T,
-        handle: Option<InstanceHandle>,
-        timestamp: Time,
+        _data: T,
+        _handle: Option<InstanceHandle>,
+        _timestamp: Time,
     ) -> ReturnCode<()> {
-        self.rtps_datawriter.write_w_timestamp(data.serialize(), handle, timestamp)
+        todo!()
     }
 
     /// This operation requests the middleware to delete the data (the actual deletion is postponed until there is no more use for that
@@ -212,10 +259,10 @@ impl<'a, T: DDSType> DataWriter<'a,T> {
     /// (2.2.2.4.2.11).
     pub fn dispose(
         &self,
-        data: T,
-        handle: Option<InstanceHandle>,
+        _data: T,
+        _handle: Option<InstanceHandle>,
     ) -> ReturnCode<()> {
-        self.rtps_datawriter.dispose(data.serialize(), handle)
+        todo!()
     }
 
     /// This operation performs the same functions as dispose except that the application provides the value for the source_timestamp
@@ -233,11 +280,11 @@ impl<'a, T: DDSType> DataWriter<'a,T> {
     /// Possible error codes returned in addition to the standard ones: TIMEOUT, PRECONDITION_NOT_MET.
     pub fn dispose_w_timestamp(
         &self,
-        data: T,
-        handle: Option<InstanceHandle>,
-        timestamp: Time,
+        _data: T,
+        _handle: Option<InstanceHandle>,
+        _timestamp: Time,
     ) -> ReturnCode<()> {
-        self.rtps_datawriter.dispose_w_timestamp(data.serialize(), handle, timestamp)
+        todo!()
     }
 
     /// This operation is intended to be used only if the DataWriter has RELIABILITY QoS kind set to RELIABLE. Otherwise the
@@ -249,45 +296,45 @@ impl<'a, T: DDSType> DataWriter<'a,T> {
     /// elapsed before all the data was acknowledged.
     pub fn wait_for_acknowledgments(
         &self,
-        max_wait: Duration
+        _max_wait: Duration
     ) -> ReturnCode<()> {
-        self.rtps_datawriter.wait_for_acknowledgments(max_wait)
+        todo!()
     }
 
     /// This operation allows access to the LIVELINESS_LOST communication status. Communication statuses are described in
     /// 2.2.4.1, Communication Status.
     pub fn get_liveliness_lost_status(
         &self,
-        status: &mut LivelinessLostStatus
+        _status: &mut LivelinessLostStatus
     ) -> ReturnCode<()> {
-        self.rtps_datawriter.get_liveliness_lost_status(status)
+        todo!()
     }
 
     /// This operation allows access to the OFFERED_DEADLINE_MISSED communication status. Communication statuses are
     /// described in 2.2.4.1, Communication Status.
     pub fn get_offered_deadline_missed_status(
         &self,
-        status: &mut OfferedDeadlineMissedStatus
+        _status: &mut OfferedDeadlineMissedStatus
     ) -> ReturnCode<()> {
-        self.rtps_datawriter.get_offered_deadline_missed_status(status)
+        todo!()
     }
 
     /// This operation allows access to the OFFERED_INCOMPATIBLE_QOS communication status. Communication statuses are
     /// described in 2.2.4.1, Communication Status.
     pub fn get_offered_incompatible_qos_status(
         &self,
-        status: &mut OfferedIncompatibleQosStatus
+        _status: &mut OfferedIncompatibleQosStatus
     ) -> ReturnCode<()> {
-        self.rtps_datawriter.get_offered_incompatible_qos_status(status)
+        todo!()
     }
 
     /// This operation allows access to the PUBLICATION_MATCHED communication status. Communication statuses are
     /// described in 2.2.4.1, Communication Status.
     pub fn get_publication_matched_status(
         &self,
-        status: &mut PublicationMatchedStatus
+        _status: &mut PublicationMatchedStatus
     ) -> ReturnCode<()> {
-        self.rtps_datawriter.get_publication_matched_status(status)
+        todo!()
     }
 
     // /// This operation returns the Topic associated with the DataWriter. This is the same Topic that was used to create the DataWriter.
@@ -308,7 +355,7 @@ impl<'a, T: DDSType> DataWriter<'a,T> {
     /// DomainParticipant. Consequently the use of assert_liveliness is only needed if the application is not writing data regularly.
     /// Complete details are provided in 2.2.3.11, LIVELINESS.
     pub fn assert_liveliness(&self) -> ReturnCode<()> {
-        self.rtps_datawriter.assert_liveliness()
+        todo!()
     }
 
     /// This operation retrieves information on a subscription that is currently “associated” with the DataWriter; that is, a subscription
@@ -321,10 +368,10 @@ impl<'a, T: DDSType> DataWriter<'a,T> {
     /// case the operation will return UNSUPPORTED.
     pub fn get_matched_subscription_data(
         &self,
-        subscription_data: SubscriptionBuiltinTopicData,
-        subscription_handle: InstanceHandle,
+        _subscription_data: SubscriptionBuiltinTopicData,
+        _subscription_handle: InstanceHandle,
     ) -> ReturnCode<()> {
-        self.rtps_datawriter.get_matched_subscription_data(subscription_data, subscription_handle)
+        todo!()
     }
 
     /// This operation retrieves the list of subscriptions currently “associated” with the DataWriter; that is, subscriptions that have a
@@ -336,9 +383,9 @@ impl<'a, T: DDSType> DataWriter<'a,T> {
     /// The operation may fail if the infrastructure does not locally maintain the connectivity information.
     pub fn get_matched_subscriptions(
         &self,
-        subscription_handles: &mut [InstanceHandle],
+        _subscription_handles: &mut [InstanceHandle],
     ) -> ReturnCode<()> {
-        self.rtps_datawriter.get_matched_subscriptions(subscription_handles)
+        todo!()
     }
 }
 
@@ -347,11 +394,14 @@ impl<'a, T:DDSType> Entity for DataWriter<'a, T> {
     type Listener = Box<dyn DataWriterListener<T>>;
 
     fn set_qos(&self, qos: Self::Qos) -> ReturnCode<()> {
-        self.rtps_datawriter.set_qos(qos, self.parent_publisher.parent_participant.0.get_endpoint_discovery())
+        qos.is_consistent()?;
+        *self.rtps_datawriter.value()?.qos.lock().unwrap() = qos;
+        // discovery.update_writer(datawriter)?;
+        Ok(())
     }
 
     fn get_qos(&self) -> ReturnCode<Self::Qos> {
-        self.rtps_datawriter.get_qos()
+        Ok(self.rtps_datawriter.value()?.qos.lock().unwrap().clone())
     }
 
     fn set_listener(&self, _a_listener: Self::Listener, _mask: StatusMask) -> ReturnCode<()> {

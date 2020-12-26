@@ -1,6 +1,6 @@
 use crate::dds_rtps_implementation::rtps_data_reader::RtpsDataReaderInner;
-use crate::dds_rtps_implementation::rtps_data_writer::RtpsDataWriterInner;
-use crate::dds_rtps_implementation::rtps_topic::RtpsTopicInner;
+use crate::dds::publication::data_writer::RtpsDataWriterInner;
+use crate::dds::topic::topic::RtpsTopicInner;
 use crate::rtps::behavior::types::Duration;
 use crate::rtps::behavior::{StatefulReader, StatefulWriter};
 use crate::rtps::types::constants::{

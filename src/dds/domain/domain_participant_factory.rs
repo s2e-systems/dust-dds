@@ -1,8 +1,9 @@
-use crate::types::DomainId;
-use crate::dds::domain::domain_participant::DomainParticipant;
+use crate::dds::domain::domain_participant::{DomainParticipant, RtpsParticipant};
 use crate::dds_infrastructure::qos::DomainParticipantQos;
-use crate::dds_rtps_implementation::rtps_participant::RtpsParticipant;
 use crate::rtps::transport::udp::UdpTransport;
+use crate::types::DomainId;
+use std::cell::RefCell;
+use std::sync::Arc;
 
 /// The DomainParticipant object plays several roles:
 /// - It acts as a container for all other Entity objects.
@@ -25,7 +26,6 @@ use crate::rtps::transport::udp::UdpTransport;
 /// - Operations that access the status: get_statuscondition
 pub struct DomainParticipantFactory;
 
-
 impl DomainParticipantFactory {
     /// This operation creates a new DomainParticipant object. The DomainParticipant signifies that the calling application intends
     /// to join the Domain identified by the domain_id argument.
@@ -35,13 +35,13 @@ impl DomainParticipantFactory {
     /// default DomainParticipant QoS by means of the operation get_default_participant_qos (2.2.2.2.2.6) and using the resulting
     /// QoS to create the DomainParticipant.
     /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
-    pub fn create_participant (
+    pub fn create_participant(
         domain_id: DomainId,
         qos: Option<DomainParticipantQos>,
         // a_listener: impl DomainParticipantListener,
         // mask: StatusMask,
-    //     enabled: bool,
-    ) ->  Option<DomainParticipant> {
+        //     enabled: bool,
+    ) -> Option<DomainParticipant> {
         let interface = "Ethernet";
         let userdata_transport =
             UdpTransport::default_userdata_transport(domain_id, interface).unwrap();
@@ -49,18 +49,18 @@ impl DomainParticipantFactory {
             UdpTransport::default_metatraffic_transport(domain_id, interface).unwrap();
         let qos = qos.unwrap_or_default();
 
-        let rtps_participant = RtpsParticipant::new(domain_id, qos, userdata_transport, metatraffic_transport)?;
-        
+        let rtps_participant =
+            RtpsParticipant::new(domain_id, qos, userdata_transport, metatraffic_transport);
+
         // if enabled {
         //     new_participant.enable().ok()?;
         // }
 
-        Some(DomainParticipant(rtps_participant))
+        Some(DomainParticipant {
+            inner: Arc::new(rtps_participant),
+            thread_list: RefCell::new(Vec::new()),
+        })
     }
 
-    pub fn delete_participant (
-        _a_participant: DomainParticipant,
-    ) {
-        
-    }
+    pub fn delete_participant(_a_participant: DomainParticipant) {}
 }

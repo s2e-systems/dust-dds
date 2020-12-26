@@ -4,8 +4,39 @@ use crate::dds_infrastructure::entity::{Entity, StatusCondition};
 use crate::dds_infrastructure::qos::TopicQos;
 use crate::dds_infrastructure::topic_listener::TopicListener;
 use crate::dds_infrastructure::status::StatusMask;
-use crate::dds_rtps_implementation::rtps_topic::RtpsTopic;
-use crate::types::{DDSType, ReturnCode,InstanceHandle};
+use crate::types::{DDSType, ReturnCode,InstanceHandle, TopicKind};
+use crate::dds_rtps_implementation::rtps_object::RtpsObject;
+use crate::rtps::types::GUID;
+use crate::rtps;
+use std::sync::{Arc, Mutex, RwLockReadGuard};
+
+pub struct RtpsTopicInner {
+    pub entity: rtps::structure::Entity,
+    pub topic_name: String,
+    pub type_name: &'static str,
+    pub topic_kind: TopicKind,
+    pub qos: Mutex<TopicQos>,
+}
+
+impl RtpsTopicInner {
+    pub fn new(
+        guid: GUID,
+        topic_name: String,
+        type_name: &'static str,
+        topic_kind: TopicKind,
+        qos: TopicQos,
+    ) -> Self {
+        Self {
+            entity: rtps::structure::Entity { guid },
+            topic_name,
+            type_name,
+            topic_kind,
+            qos: Mutex::new(qos),
+        }
+    }
+}
+
+pub type RtpsTopic<'a> = RwLockReadGuard<'a, RtpsObject<Arc<RtpsTopicInner>>>;
 
 /// Topic is the most basic description of the data to be published and subscribed.
 /// A Topic is identified by its name, which must be unique in the whole Domain. In addition (by virtue of extending
@@ -36,11 +67,11 @@ impl<'a, T: DDSType> TopicDescription for Topic<'a, T> {
     }
 
     fn get_type_name(&self) -> ReturnCode<&str> {
-        self.rtps_topic.get_type_name()
+        Ok(self.rtps_topic.value()?.type_name)
     }
 
     fn get_name(&self) -> ReturnCode<String> {
-        self.rtps_topic.get_name()
+        Ok(self.rtps_topic.value()?.topic_name.clone())
     }
 }
 
@@ -49,11 +80,14 @@ impl<'a, T:DDSType> Entity for Topic<'a, T> {
     type Listener = Box<dyn TopicListener<T>>;
 
     fn set_qos(&self, qos: Self::Qos) -> ReturnCode<()> {
-        self.rtps_topic.set_qos(qos, self.parent_participant.0.get_endpoint_discovery())
+        qos.is_consistent()?;
+        *self.rtps_topic.value()?.qos.lock().unwrap() = qos;
+        // discovery.update_topic(topic)?;
+        Ok(())
     }
 
     fn get_qos(&self) -> ReturnCode<Self::Qos> {
-        self.rtps_topic.get_qos()
+        Ok(self.rtps_topic.value()?.qos.lock().unwrap().clone())
     }
 
     fn set_listener(&self, _a_listener: Self::Listener, _mask: StatusMask) -> ReturnCode<()> {
@@ -73,10 +107,10 @@ impl<'a, T:DDSType> Entity for Topic<'a, T> {
     }
 
     fn enable(&self) -> ReturnCode<()> {
-        self.rtps_topic.enable()
+        todo!()
     }
 
     fn get_instance_handle(&self) -> ReturnCode<InstanceHandle> {
-        self.rtps_topic.get_instance_handle()
+        Ok(self.rtps_topic.value()?.entity.guid.into())
     }
 }

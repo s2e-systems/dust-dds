@@ -4,7 +4,7 @@ use crate::dds_infrastructure::status::{SampleStateKind, ViewStateKind, Instance
 pub struct SampleInfo {
     /// The sample_state (READ or NOT_READ) - indicates whether or not the corresponding data sample has already been read.
     sample_state: SampleStateKind,
-    /// The view_state, (NEW, or NOT_NEW) - indicates whether the DataReader has already seen samples for the mostcurrent generation of the related instance
+    /// The view_state, (NEW, or NOT_NEW) - indicates whether the DataReader has already seen samples for the most current generation of the related instance
     view_state: ViewStateKind,
     /// The instance_state (ALIVE, NOT_ALIVE_DISPOSED, or NOT_ALIVE_NO_WRITERS) - indicates whether the
     /// instance is currently in existence or, if it has been disposed, the reason why it was disposed.

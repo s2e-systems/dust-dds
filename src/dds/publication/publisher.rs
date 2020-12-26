@@ -1,12 +1,37 @@
 use crate::dds::domain::domain_participant::DomainParticipant;
-use crate::dds::publication::data_writer::DataWriter;
+use crate::dds::publication::data_writer::{DataWriter, RtpsDataWriterInner};
 use crate::dds::topic::topic::Topic;
 use crate::dds_infrastructure::entity::{Entity, StatusCondition};
 use crate::dds_infrastructure::publisher_listener::PublisherListener;
 use crate::dds_infrastructure::qos::{DataWriterQos, PublisherQos, TopicQos};
 use crate::dds_infrastructure::status::StatusMask;
-use crate::dds_rtps_implementation::rtps_publisher::RtpsPublisher;
-use crate::types::{DDSType, Duration, InstanceHandle, ReturnCode};
+use crate::dds_rtps_implementation::rtps_object::{RtpsObject, RtpsObjectList};
+use crate::rtps::structure::Group;
+use crate::rtps::types::{EntityId, EntityKind, GUID};
+use crate::types::{DDSType, Duration, InstanceHandle, ReturnCode, TopicKind};
+use std::sync::{atomic, Mutex, RwLockReadGuard};
+
+pub struct RtpsPublisherInner {
+    pub group: Group,
+    pub writer_list: RtpsObjectList<RtpsDataWriterInner>,
+    pub writer_count: atomic::AtomicU8,
+    pub default_datawriter_qos: Mutex<DataWriterQos>,
+    pub qos: PublisherQos,
+}
+
+impl RtpsPublisherInner {
+    pub fn new(guid: GUID, qos: PublisherQos) -> Self {
+        Self {
+            group: Group::new(guid),
+            writer_list: Default::default(),
+            writer_count: atomic::AtomicU8::new(0),
+            default_datawriter_qos: Mutex::new(DataWriterQos::default()),
+            qos,
+        }
+    }
+}
+
+pub type RtpsPublisher<'a> = RwLockReadGuard<'a, RtpsObject<RtpsPublisherInner>>;
 
 /// The Publisher acts on the behalf of one or several DataWriter objects that belong to it. When it is informed of a change to the
 /// data associated with one of its DataWriter objects, it decides when it is appropriate to actually send the data-update message.
@@ -48,8 +73,24 @@ impl<'a> Publisher<'a> {
         // _a_listener: impl DataWriterListener<T>,
         // _mask: StatusMask
     ) -> Option<DataWriter<T>> {
-        let endpoint_discovery = self.parent_participant.0.get_endpoint_discovery();
-        let rtps_datawriter = self.rtps_publisher.create_datawriter(&a_topic.rtps_topic, qos, endpoint_discovery)?;
+        let this = self.rtps_publisher.value().ok()?;
+        let topic = a_topic.rtps_topic.value().ok()?.clone();
+        let guid_prefix = this.group.entity.guid.prefix();
+        let entity_key = [
+            0,
+            this.writer_count.fetch_add(1, atomic::Ordering::Relaxed),
+            0,
+        ];
+        let entity_kind = match topic.topic_kind {
+            TopicKind::WithKey => EntityKind::UserDefinedWriterWithKey,
+            TopicKind::NoKey => EntityKind::UserDefinedWriterNoKey,
+        };
+        let entity_id = EntityId::new(entity_key, entity_kind);
+        let new_writer_guid = GUID::new(guid_prefix, entity_id);
+        let new_writer_qos = qos.unwrap_or(self.get_default_datawriter_qos().ok()?);
+        let new_writer = RtpsDataWriterInner::new(new_writer_guid, topic, new_writer_qos);
+        // discovery.insert_writer(&new_writer).ok()?;
+        let rtps_datawriter = this.writer_list.add(new_writer)?;
 
         Some(DataWriter {
             parent_publisher: self,
@@ -67,23 +108,17 @@ impl<'a> Publisher<'a> {
     /// details.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
     pub fn delete_datawriter<T: DDSType>(&self, a_datawriter: &DataWriter<T>) -> ReturnCode<()> {
-        let endpoint_discovery = self.parent_participant.0.get_endpoint_discovery();
-        self.rtps_publisher
-            .delete_datawriter(&a_datawriter.rtps_datawriter, endpoint_discovery)
+        a_datawriter.rtps_datawriter.value()?.topic.lock().unwrap().take(); // Drop the topic
+        a_datawriter.rtps_datawriter.delete();
+        Ok(())
     }
 
     /// This operation retrieves a previously created DataWriter belonging to the Publisher that is attached to a Topic with a matching
     /// topic_name. If no such DataWriter exists, the operation will return ’nil.’
     /// If multiple DataWriter attached to the Publisher satisfy this condition, then the operation will return one of them. It is not
     /// specified which one.
-    pub fn lookup_datawriter<T: DDSType>(&self, topic: &'a Topic<'a, T>) -> Option<DataWriter<T>> {
-        let rtps_datawriter = self.rtps_publisher.lookup_datawriter(&topic.rtps_topic)?;
-        
-        Some(DataWriter {
-            parent_publisher: self,
-            topic,
-            rtps_datawriter,
-        })
+    pub fn lookup_datawriter<T: DDSType>(&self, _topic: &'a Topic<'a, T>) -> Option<DataWriter<T>> {
+        todo!()
     }
 
     /// This operation indicates to the Service that the application is about to make multiple modifications using DataWriter objects
@@ -95,7 +130,7 @@ impl<'a> Publisher<'a> {
     /// modifications has completed. If the Publisher is deleted before resume_publications is called, any suspended updates yet to
     /// be published will be discarded.
     pub fn suspend_publications(&self) -> ReturnCode<()> {
-        self.rtps_publisher.suspend_publications()
+        todo!()
     }
 
     /// This operation indicates to the Service that the application has completed the multiple changes initiated by the previous
@@ -105,7 +140,7 @@ impl<'a> Publisher<'a> {
     /// error PRECONDITION_NOT_MET.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
     pub fn resume_publications(&self) -> ReturnCode<()> {
-        self.rtps_publisher.resume_publications()
+        todo!()
     }
 
     /// This operation requests that the application will begin a ‘coherent set’ of modifications using DataWriter objects attached to
@@ -125,22 +160,22 @@ impl<'a> Publisher<'a> {
     /// same aircraft and both are changed, it may be useful to communicate those values in a way the reader can see both together;
     /// otherwise, it may e.g., erroneously interpret that the aircraft is on a collision course).
     pub fn begin_coherent_changes(&self) -> ReturnCode<()> {
-        self.rtps_publisher.begin_coherent_changes()
+        todo!()
     }
 
     /// This operation terminates the ‘coherent set’ initiated by the matching call to begin_coherent_ changes. If there is no matching
     /// call to begin_coherent_ changes, the operation will return the error PRECONDITION_NOT_MET.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET
     pub fn end_coherent_changes(&self) -> ReturnCode<()> {
-        self.rtps_publisher.end_coherent_changes()
+        todo!()
     }
 
     /// This operation blocks the calling thread until either all data written by the reliable DataWriter entities is acknowledged by all
     /// matched reliable DataReader entities, or else the duration specified by the max_wait parameter elapses, whichever happens
     /// first. A return value of OK indicates that all the samples written have been acknowledged by all reliable matched data readers;
     /// a return value of TIMEOUT indicates that max_wait elapsed before all the data was acknowledged.
-    pub fn wait_for_acknowledgments(&self, max_wait: Duration) -> ReturnCode<()> {
-        self.rtps_publisher.wait_for_acknowledgments(max_wait)
+    pub fn wait_for_acknowledgments(&self, _max_wait: Duration) -> ReturnCode<()> {
+        todo!()
     }
 
     /// This operation deletes all the entities that were created by means of the “create” operations on the Publisher. That is, it deletes
@@ -150,7 +185,7 @@ impl<'a> Publisher<'a> {
     /// Once delete_contained_entities returns successfully, the application may delete the Publisher knowing that it has no
     /// contained DataWriter objects
     pub fn delete_contained_entities(&self) -> ReturnCode<()> {
-        self.rtps_publisher.delete_contained_entities()
+        todo!()
     }
 
     /// This operation sets a default value of the DataWriter QoS policies which will be used for newly created DataWriter entities in
@@ -160,8 +195,8 @@ impl<'a> Publisher<'a> {
     /// The special value DATAWRITER_QOS_DEFAULT may be passed to this operation to indicate that the default QoS should be
     /// reset back to the initial values the factory would use, that is the values that would be used if the set_default_datawriter_qos
     /// operation had never been called.
-    pub fn set_default_datawriter_qos(&self, qos: DataWriterQos) -> ReturnCode<()> {
-        self.rtps_publisher.set_default_datawriter_qos(qos)
+    pub fn set_default_datawriter_qos(&self, _qos: DataWriterQos) -> ReturnCode<()> {
+        todo!()
     }
 
     /// This operation retrieves the default value of the DataWriter QoS, that is, the QoS policies which will be used for newly created
@@ -170,7 +205,7 @@ impl<'a> Publisher<'a> {
     /// set_default_datawriter_qos, or else, if the call was never made, the default values listed in the QoS table in 2.2.3, Supported
     /// QoS.
     pub fn get_default_datawriter_qos(&self) -> ReturnCode<DataWriterQos> {
-        self.rtps_publisher.get_default_datawriter_qos()
+        Ok(self.rtps_publisher.value()?.default_datawriter_qos.lock().unwrap().clone())
     }
 
     /// This operation copies the policies in the a_topic_qos to the corresponding policies in the a_datawriter_qos (replacing values
@@ -182,11 +217,10 @@ impl<'a> Publisher<'a> {
     /// may not be the final one, as the application can still modify some policies prior to applying the policies to the DataWriter.
     pub fn copy_from_topic_qos(
         &self,
-        a_datawriter_qos: &mut DataWriterQos,
-        a_topic_qos: &TopicQos,
+        _a_datawriter_qos: &mut DataWriterQos,
+        _a_topic_qos: &TopicQos,
     ) -> ReturnCode<()> {
-        self.rtps_publisher
-            .copy_from_topic_qos(a_datawriter_qos, a_topic_qos)
+        todo!()
     }
 
     /// This operation returns the DomainParticipant to which the Publisher belongs.
@@ -204,7 +238,7 @@ impl<'a> Entity for Publisher<'a> {
     }
 
     fn get_qos(&self) -> ReturnCode<Self::Qos> {
-        self.rtps_publisher.get_qos()
+        Ok(self.rtps_publisher.value()?.qos.clone())
     }
 
     fn set_listener(&self, _a_listener: Self::Listener, _mask: StatusMask) -> ReturnCode<()> {
@@ -228,6 +262,6 @@ impl<'a> Entity for Publisher<'a> {
     }
 
     fn get_instance_handle(&self) -> ReturnCode<InstanceHandle> {
-        self.rtps_publisher.get_instance_handle()
+        Ok(self.rtps_publisher.value()?.group.entity.guid.into())
     }
 }

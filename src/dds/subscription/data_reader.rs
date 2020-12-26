@@ -1,10 +1,12 @@
 use crate::builtin_topics::PublicationBuiltinTopicData;
 use crate::dds::subscription::subscriber::Subscriber;
+use crate::dds::topic::topic::RtpsTopicInner;
 use crate::dds::topic::topic::Topic;
 use crate::dds::topic::topic_description::TopicDescription;
 use crate::dds_infrastructure::data_reader_listener::DataReaderListener;
 use crate::dds_infrastructure::entity::{Entity, StatusCondition};
 use crate::dds_infrastructure::qos::DataReaderQos;
+use crate::dds_infrastructure::qos_policy::ReliabilityQosPolicyKind;
 use crate::dds_infrastructure::read_condition::ReadCondition;
 use crate::dds_infrastructure::sample_info::SampleInfo;
 use crate::dds_infrastructure::status::StatusMask;
@@ -13,8 +15,47 @@ use crate::dds_infrastructure::status::{
     RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus, SampleStateKind,
     SubscriptionMatchedStatus, ViewStateKind,
 };
-use crate::dds_rtps_implementation::rtps_data_reader::RtpsDataReader;
+use crate::dds_rtps_implementation::rtps_object::RtpsObject;
+use crate::rtps::behavior;
+use crate::rtps::behavior::StatefulReader;
+use crate::rtps::types::{ReliabilityKind, GUID};
 use crate::types::{DDSType, InstanceHandle, ReturnCode};
+use std::sync::{Arc, Mutex, RwLockReadGuard};
+
+pub struct RtpsDataReaderInner {
+    pub reader: StatefulReader,
+    pub qos: Mutex<DataReaderQos>,
+    pub topic: Mutex<Option<Arc<RtpsTopicInner>>>,
+}
+
+impl RtpsDataReaderInner {
+    pub fn new(guid: GUID, topic: Arc<RtpsTopicInner>, qos: DataReaderQos) -> Self {
+        qos.is_consistent()
+            .expect("RtpsDataReaderInner can only be created with consistent QoS");
+
+        let topic_kind = topic.topic_kind;
+        let reliability_level = match qos.reliability.kind {
+            ReliabilityQosPolicyKind::BestEffortReliabilityQos => ReliabilityKind::BestEffort,
+            ReliabilityQosPolicyKind::ReliableReliabilityQos => ReliabilityKind::Reliable,
+        };
+        let expects_inline_qos = false;
+        let heartbeat_response_delay = behavior::types::constants::DURATION_ZERO;
+        let reader = StatefulReader::new(
+            guid,
+            topic_kind,
+            reliability_level,
+            expects_inline_qos,
+            heartbeat_response_delay,
+        );
+        Self {
+            reader,
+            qos: Mutex::new(qos),
+            topic: Mutex::new(Some(topic)),
+        }
+    }
+}
+
+pub type RtpsDataReader<'a> = RwLockReadGuard<'a, RtpsObject<RtpsDataReaderInner>>;
 
 /// A DataReader allows the application (1) to declare the data it wishes to receive (i.e., make a subscription) and (2) to access the
 /// data received by the attached Subscriber.
@@ -113,21 +154,13 @@ impl<'a, T: DDSType> DataReader<'a, T> {
     pub fn read(
         &self,
         _data_values: &mut [T],
-        sample_infos: &mut [SampleInfo],
-        max_samples: i32,
-        sample_states: &[SampleStateKind],
-        view_states: &[ViewStateKind],
-        instance_states: &[InstanceStateKind],
+        _sample_infos: &mut [SampleInfo],
+        _max_samples: i32,
+        _sample_states: &[SampleStateKind],
+        _view_states: &[ViewStateKind],
+        _instance_states: &[InstanceStateKind],
     ) -> ReturnCode<()> {
-        let mut data = [Vec::new()];
-        self.rtps_datareader.read(
-            &mut data,
-            sample_infos,
-            max_samples,
-            sample_states,
-            view_states,
-            instance_states,
-        )
+        todo!()
     }
 
     /// This operation accesses a collection of data-samples from the DataReader and a corresponding collection of SampleInfo
@@ -146,21 +179,13 @@ impl<'a, T: DDSType> DataReader<'a, T> {
     pub fn take(
         &self,
         _data_values: &mut [T],
-        sample_infos: &mut [SampleInfo],
-        max_samples: i32,
-        sample_states: &[SampleStateKind],
-        view_states: &[ViewStateKind],
-        instance_states: &[InstanceStateKind],
+        _sample_infos: &mut [SampleInfo],
+        _max_samples: i32,
+        _sample_states: &[SampleStateKind],
+        _view_states: &[ViewStateKind],
+        _instance_states: &[InstanceStateKind],
     ) -> ReturnCode<()> {
-        let mut data = [Vec::new()];
-        self.rtps_datareader.take(
-            &mut data,
-            sample_infos,
-            max_samples,
-            sample_states,
-            view_states,
-            instance_states,
-        )
+        todo!()
     }
 
     /// This operation accesses via ‘read’ the samples that match the criteria specified in the ReadCondition. This operation is
@@ -178,13 +203,11 @@ impl<'a, T: DDSType> DataReader<'a, T> {
     pub fn read_w_condition(
         &self,
         _data_values: &mut [T],
-        sample_infos: &mut [SampleInfo],
-        max_samples: i32,
+        _sample_infos: &mut [SampleInfo],
+        _max_samples: i32,
         // a_condition: ReadCondition,
     ) -> ReturnCode<()> {
-        let mut data = [Vec::new()];
-        self.rtps_datareader
-            .read_w_condition(&mut data, sample_infos, max_samples)
+        todo!()
     }
 
     /// This operation is analogous to read_w_condition except it accesses samples via the ‘take’ operation.
@@ -198,13 +221,11 @@ impl<'a, T: DDSType> DataReader<'a, T> {
     pub fn take_w_condition(
         &self,
         _data_values: &mut [T],
-        sample_infos: &mut [SampleInfo],
-        max_samples: i32,
-        a_condition: ReadCondition,
+        _sample_infos: &mut [SampleInfo],
+        _max_samples: i32,
+        _a_condition: ReadCondition,
     ) -> ReturnCode<()> {
-        let mut data = [Vec::new()];
-        self.rtps_datareader
-            .take_w_condition(&mut data, sample_infos, max_samples, a_condition)
+        todo!()
     }
 
     /// This operation copies the next, non-previously accessed Data value from the DataReader; the operation also copies the
@@ -219,12 +240,9 @@ impl<'a, T: DDSType> DataReader<'a, T> {
     pub fn read_next_sample(
         &self,
         _data_value: &mut [T],
-        sample_info: &mut [SampleInfo],
+        _sample_info: &mut [SampleInfo],
     ) -> ReturnCode<()> {
-        
-        let mut data = [Vec::new()];
-        self.rtps_datareader
-            .read_next_sample(&mut data, sample_info)
+        todo!()
     }
 
     /// This operation copies the next, non-previously accessed Data value from the DataReader and ‘removes’ it from the
@@ -238,12 +256,9 @@ impl<'a, T: DDSType> DataReader<'a, T> {
     pub fn take_next_sample(
         &self,
         _data_value: &mut [T],
-        sample_info: &mut [SampleInfo],
+        _sample_info: &mut [SampleInfo],
     ) -> ReturnCode<()> {
-        
-        let mut data = [Vec::new()];
-        self.rtps_datareader
-            .take_next_sample(&mut data, sample_info)
+        todo!()
     }
 
     /// This operation accesses a collection of Data values from the DataReader. The behavior is identical to read except that all
@@ -264,24 +279,14 @@ impl<'a, T: DDSType> DataReader<'a, T> {
     pub fn read_instance(
         &self,
         _data_values: &mut [T],
-        sample_infos: &mut [SampleInfo],
-        max_samples: i32,
-        a_handle: InstanceHandle,
-        sample_states: &[SampleStateKind],
-        view_states: &[ViewStateKind],
-        instance_states: &[InstanceStateKind],
+        _sample_infos: &mut [SampleInfo],
+        _max_samples: i32,
+        _a_handle: InstanceHandle,
+        _sample_states: &[SampleStateKind],
+        _view_states: &[ViewStateKind],
+        _instance_states: &[InstanceStateKind],
     ) -> ReturnCode<()> {
-        
-        let mut data = [Vec::new()];
-        self.rtps_datareader.read_instance(
-            &mut data,
-            sample_infos,
-            max_samples,
-            a_handle,
-            sample_states,
-            view_states,
-            instance_states,
-        )
+        todo!()
     }
 
     /// This operation accesses a collection of Data values from the DataReader. The behavior is identical to take except for that all
@@ -300,24 +305,14 @@ impl<'a, T: DDSType> DataReader<'a, T> {
     pub fn take_instance(
         &self,
         _data_values: &mut [T],
-        sample_infos: &mut [SampleInfo],
-        max_samples: i32,
-        a_handle: InstanceHandle,
-        sample_states: &[SampleStateKind],
-        view_states: &[ViewStateKind],
-        instance_states: &[InstanceStateKind],
+        _sample_infos: &mut [SampleInfo],
+        _max_samples: i32,
+        _a_handle: InstanceHandle,
+        _sample_states: &[SampleStateKind],
+        _view_states: &[ViewStateKind],
+        _instance_states: &[InstanceStateKind],
     ) -> ReturnCode<()> {
-        
-        let mut data = [Vec::new()];
-        self.rtps_datareader.take_instance(
-            &mut data,
-            sample_infos,
-            max_samples,
-            a_handle,
-            sample_states,
-            view_states,
-            instance_states,
-        )
+        todo!()
     }
 
     /// This operation accesses a collection of Data values from the DataReader where all the samples belong to a single instance.
@@ -353,24 +348,14 @@ impl<'a, T: DDSType> DataReader<'a, T> {
     pub fn read_next_instance(
         &self,
         _data_values: &mut [T],
-        sample_infos: &mut [SampleInfo],
-        max_samples: i32,
-        previous_handle: InstanceHandle,
-        sample_states: &[SampleStateKind],
-        view_states: &[ViewStateKind],
-        instance_states: &[InstanceStateKind],
+        _sample_infos: &mut [SampleInfo],
+        _max_samples: i32,
+        _previous_handle: InstanceHandle,
+        _sample_states: &[SampleStateKind],
+        _view_states: &[ViewStateKind],
+        _instance_states: &[InstanceStateKind],
     ) -> ReturnCode<()> {
-        
-        let mut data = [Vec::new()];
-        self.rtps_datareader.read_next_instance(
-            &mut data,
-            sample_infos,
-            max_samples,
-            previous_handle,
-            sample_states,
-            view_states,
-            instance_states,
-        )
+        todo!()
     }
 
     /// This operation accesses a collection of Data values from the DataReader and ‘removes’ them from the DataReader.
@@ -387,24 +372,14 @@ impl<'a, T: DDSType> DataReader<'a, T> {
     pub fn take_next_instance(
         &self,
         _data_values: &mut [T],
-        sample_infos: &mut [SampleInfo],
-        max_samples: i32,
-        previous_handle: InstanceHandle,
-        sample_states: &[SampleStateKind],
-        view_states: &[ViewStateKind],
-        instance_states: &[InstanceStateKind],
+        _sample_infos: &mut [SampleInfo],
+        _max_samples: i32,
+        _previous_handle: InstanceHandle,
+        _sample_states: &[SampleStateKind],
+        _view_states: &[ViewStateKind],
+        _instance_states: &[InstanceStateKind],
     ) -> ReturnCode<()> {
-        
-        let mut data = [Vec::new()];
-        self.rtps_datareader.take_next_instance(
-            &mut data,
-            sample_infos,
-            max_samples,
-            previous_handle,
-            sample_states,
-            view_states,
-            instance_states,
-        )
+        todo!()
     }
 
     /// This operation accesses a collection of Data values from the DataReader. The behavior is identical to read_next_instance
@@ -423,20 +398,12 @@ impl<'a, T: DDSType> DataReader<'a, T> {
     pub fn read_next_instance_w_condition(
         &self,
         _data_values: &mut [T],
-        sample_infos: &mut [SampleInfo],
-        max_samples: i32,
-        previous_handle: InstanceHandle,
-        a_condition: ReadCondition,
+        _sample_infos: &mut [SampleInfo],
+        _max_samples: i32,
+        _previous_handle: InstanceHandle,
+        _a_condition: ReadCondition,
     ) -> ReturnCode<()> {
-        
-        let mut data = [Vec::new()];
-        self.rtps_datareader.read_next_instance_w_condition(
-            &mut data,
-            sample_infos,
-            max_samples,
-            previous_handle,
-            a_condition,
-        )
+        todo!()
     }
 
     /// This operation accesses a collection of Data values from the DataReader and ‘removes’ them from the DataReader.
@@ -454,20 +421,12 @@ impl<'a, T: DDSType> DataReader<'a, T> {
     pub fn take_next_instance_w_condition(
         &self,
         _data_values: &mut [T],
-        sample_infos: &mut [SampleInfo],
-        max_samples: i32,
-        previous_handle: InstanceHandle,
-        a_condition: ReadCondition,
+        _sample_infos: &mut [SampleInfo],
+        _max_samples: i32,
+        _previous_handle: InstanceHandle,
+        _a_condition: ReadCondition,
     ) -> ReturnCode<()> {
-        
-        let mut data = [Vec::new()];
-        self.rtps_datareader.take_next_instance_w_condition(
-            &mut data,
-            sample_infos,
-            max_samples,
-            previous_handle,
-            a_condition,
-        )
+        todo!()
     }
 
     /// This operation indicates to the DataReader that the application is done accessing the collection of data_values and
@@ -491,11 +450,9 @@ impl<'a, T: DDSType> DataReader<'a, T> {
     pub fn return_loan(
         &self,
         _data_values: &mut [T],
-        sample_infos: &mut [SampleInfo],
+        _sample_infos: &mut [SampleInfo],
     ) -> ReturnCode<()> {
-        
-        let mut data = [Vec::new()];
-        self.rtps_datareader.return_loan(&mut data, sample_infos)
+        todo!()
     }
 
     /// This operation can be used to retrieve the instance key that corresponds to an instance_handle. The operation will only fill the
@@ -512,8 +469,8 @@ impl<'a, T: DDSType> DataReader<'a, T> {
     /// key.
     /// This operation does not register the instance in question. If the instance has not been previously registered, or if for any other
     /// reason the Service is unable to provide an instance handle, the Service will return the special value HANDLE_NIL.
-    pub fn lookup_instance(&self, instance: &T) -> InstanceHandle {
-        self.rtps_datareader.lookup_instance(&instance.instance_handle())
+    pub fn lookup_instance(&self, _instance: &T) -> InstanceHandle {
+        todo!()
     }
 
     // /// This operation creates a ReadCondition. The returned ReadCondition will be attached and belong to the DataReader.
@@ -550,49 +507,47 @@ impl<'a, T: DDSType> DataReader<'a, T> {
     /// in 2.2.4.1.
     pub fn get_liveliness_changed_status(
         &self,
-        status: &mut LivelinessChangedStatus,
+        _status: &mut LivelinessChangedStatus,
     ) -> ReturnCode<()> {
-        self.rtps_datareader.get_liveliness_changed_status(status)
+        todo!()
     }
 
     /// This operation allows access to the REQUESTED_DEADLINE_MISSED communication status. Communication statuses are
     /// described in 2.2.4.1.
     pub fn get_requested_deadline_missed_status(
         &self,
-        status: &mut RequestedDeadlineMissedStatus,
+        _status: &mut RequestedDeadlineMissedStatus,
     ) -> ReturnCode<()> {
-        self.rtps_datareader
-            .get_requested_deadline_missed_status(status)
+        todo!()
     }
 
     /// This operation allows access to the REQUESTED_INCOMPATIBLE_QOS communication status. Communication statuses
     /// are described in 2.2.4.1.
     pub fn get_requested_incompatible_qos_status(
         &self,
-        status: &mut RequestedIncompatibleQosStatus,
+        _status: &mut RequestedIncompatibleQosStatus,
     ) -> ReturnCode<()> {
-        self.rtps_datareader
-            .get_requested_incompatible_qos_status(status)
+        todo!()
     }
 
     /// This operation allows access to the SAMPLE_LOST communication status. Communication statuses are described in 2.2.4.1.
-    pub fn get_sample_lost_status(&self, status: &mut SampleLostStatus) -> ReturnCode<()> {
-        self.rtps_datareader.get_sample_lost_status(status)
+    pub fn get_sample_lost_status(&self, _status: &mut SampleLostStatus) -> ReturnCode<()> {
+        todo!()
     }
 
     /// This operation allows access to the SAMPLE_REJECTED communication status. Communication statuses are described in
     /// 2.2.4.1.
-    pub fn get_sample_rejected_status(&self, status: &mut SampleRejectedStatus) -> ReturnCode<()> {
-        self.rtps_datareader.get_sample_rejected_status(status)
+    pub fn get_sample_rejected_status(&self, _status: &mut SampleRejectedStatus) -> ReturnCode<()> {
+        todo!()
     }
 
     /// This operation allows access to the SUBSCRIPTION_MATCHED communication status. Communication statuses are
     /// described in 2.2.4.1.
     pub fn get_subscription_matched_status(
         &self,
-        status: &mut SubscriptionMatchedStatus,
+        _status: &mut SubscriptionMatchedStatus,
     ) -> ReturnCode<()> {
-        self.rtps_datareader.get_subscription_matched_status(status)
+        todo!()
     }
 
     /// This operation returns the TopicDescription associated with the DataReader. This is the same TopicDescription that was used
@@ -613,7 +568,7 @@ impl<'a, T: DDSType> DataReader<'a, T> {
     /// Once delete_contained_entities returns successfully, the application may delete the DataReader knowing that it has no
     /// contained ReadCondition and QueryCondition objects.
     pub fn delete_contained_entities(&self) -> ReturnCode<()> {
-        self.rtps_datareader.delete_contained_entities()
+        todo!()
     }
 
     /// This operation is intended only for DataReader entities that have a non-VOLATILE PERSISTENCE QoS kind.
@@ -625,7 +580,7 @@ impl<'a, T: DDSType> DataReader<'a, T> {
     /// duration specified by the max_wait parameter elapses, whichever happens first. A return value of OK indicates that all the
     /// “historical” data was received; a return value of TIMEOUT indicates that max_wait elapsed before all the data was received.
     pub fn wait_for_historical_data(&self) -> ReturnCode<()> {
-        self.rtps_datareader.wait_for_historical_data()
+        todo!()
     }
 
     /// This operation retrieves information on a publication that is currently “associated” with the DataReader; that is, a publication
@@ -638,11 +593,10 @@ impl<'a, T: DDSType> DataReader<'a, T> {
     /// case the operation will return UNSUPPORTED
     pub fn get_matched_publication_data(
         &self,
-        publication_data: &mut PublicationBuiltinTopicData,
-        publication_handle: InstanceHandle,
+        _publication_data: &mut PublicationBuiltinTopicData,
+        _publication_handle: InstanceHandle,
     ) -> ReturnCode<()> {
-        self.rtps_datareader
-            .get_matched_publication_data(publication_data, publication_handle)
+        todo!()
     }
 
     /// This operation retrieves the list of publications currently “associated” with the DataReader; that is, publications that have a
@@ -654,10 +608,9 @@ impl<'a, T: DDSType> DataReader<'a, T> {
     /// The operation may fail if the infrastructure does not locally maintain the connectivity information.
     pub fn get_match_publication(
         &self,
-        publication_handles: &mut [InstanceHandle],
+        _publication_handles: &mut [InstanceHandle],
     ) -> ReturnCode<()> {
-        self.rtps_datareader
-            .get_match_publication(publication_handles)
+        todo!()
     }
 }
 
@@ -666,11 +619,13 @@ impl<'a, T: DDSType> Entity for DataReader<'a, T> {
     type Listener = Box<dyn DataReaderListener<T>>;
 
     fn set_qos(&self, qos: Self::Qos) -> ReturnCode<()> {
-        self.rtps_datareader.set_qos(qos, self.parent_subscriber.parent_participant.0.get_endpoint_discovery())
+        *self.rtps_datareader.value()?.qos.lock().unwrap() = qos;
+        // discovery.update_reader(datareader)?;
+        Ok(())
     }
 
     fn get_qos(&self) -> ReturnCode<Self::Qos> {
-        self.rtps_datareader.get_qos()
+        Ok(self.rtps_datareader.value()?.qos.lock().unwrap().clone())
     }
 
     fn set_listener(&self, _a_listener: Self::Listener, _mask: StatusMask) -> ReturnCode<()> {
