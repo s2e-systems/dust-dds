@@ -1,5 +1,4 @@
 use crate::builtin_topics::SubscriptionBuiltinTopicData;
-use crate::dds::infrastructure::data_writer_listener::DataWriterListener;
 use crate::dds::infrastructure::entity::{Entity, StatusCondition};
 use crate::dds::infrastructure::qos::DataWriterQos;
 use crate::dds::infrastructure::qos_policy::ReliabilityQosPolicyKind;
@@ -9,6 +8,7 @@ use crate::dds::infrastructure::status::{
     PublicationMatchedStatus,
 };
 use crate::dds::publication::publisher::Publisher;
+use crate::dds::publication::data_writer_listener::DataWriterListener;
 use crate::dds::rtps_implementation::rtps_object::{RtpsObject, RtpsObjectRef};
 use crate::dds::topic::topic::RtpsTopic;
 use crate::dds::topic::topic::Topic;

@@ -1,12 +1,14 @@
 use crate::builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData};
-use crate::dds::publication::publisher::{Publisher, RtpsPublisher};
-use crate::dds::subscription::subscriber::{Subscriber, RtpsSubscriber};
-use crate::dds::topic::topic::{Topic, RtpsTopic};
-use crate::dds::infrastructure::domain_participant_listener::DomainParticipantListener;
+use crate::dds::domain::domain_participant_listener::DomainParticipantListener;
 use crate::dds::infrastructure::entity::{Entity, StatusCondition};
-use crate::dds::infrastructure::qos::{DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos};
+use crate::dds::infrastructure::qos::{
+    DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos,
+};
 use crate::dds::infrastructure::status::StatusMask;
+use crate::dds::publication::publisher::{Publisher, RtpsPublisher};
 use crate::dds::rtps_implementation::rtps_object::RtpsObjectList;
+use crate::dds::subscription::subscriber::{RtpsSubscriber, Subscriber};
+use crate::dds::topic::topic::{RtpsTopic, Topic};
 use crate::rtps::structure::Participant;
 use crate::rtps::transport::Transport;
 use crate::rtps::types::constants::{PROTOCOL_VERSION_2_4, VENDOR_ID};

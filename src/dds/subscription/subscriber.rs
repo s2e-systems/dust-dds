@@ -1,15 +1,15 @@
 use crate::dds::domain::domain_participant::DomainParticipant;
-use crate::dds::subscription::data_reader::{DataReader, RtpsDataReader};
-use crate::dds::topic::topic::Topic;
 use crate::dds::infrastructure::entity::{Entity, StatusCondition};
 use crate::dds::infrastructure::qos::{DataReaderQos, SubscriberQos, TopicQos};
 use crate::dds::infrastructure::status::SampleLostStatus;
 use crate::dds::infrastructure::status::StatusMask;
-use crate::dds::infrastructure::subscriber_listener::SubscriberListener;
-use crate::types::{DDSType, ReturnCode, InstanceHandle, TopicKind};
 use crate::dds::rtps_implementation::rtps_object::{RtpsObject, RtpsObjectList, RtpsObjectRef};
+use crate::dds::subscription::data_reader::{DataReader, RtpsDataReader};
+use crate::dds::subscription::subscriber_listener::SubscriberListener;
+use crate::dds::topic::topic::Topic;
 use crate::rtps::structure::Group;
 use crate::rtps::types::{EntityId, EntityKind, GUID};
+use crate::types::{DDSType, InstanceHandle, ReturnCode, TopicKind};
 use std::sync::{atomic, Mutex};
 
 pub struct RtpsSubscriber {
@@ -237,7 +237,12 @@ impl<'a> Subscriber<'a> {
     pub fn set_default_datareader_qos(&self, qos: Option<DataReaderQos>) -> ReturnCode<()> {
         let qos = qos.unwrap_or_default();
         qos.is_consistent()?;
-        *self.rtps_subscriber.value()?.default_datareader_qos.lock().unwrap() = qos;
+        *self
+            .rtps_subscriber
+            .value()?
+            .default_datareader_qos
+            .lock()
+            .unwrap() = qos;
         Ok(())
     }
 
@@ -247,7 +252,13 @@ impl<'a> Subscriber<'a> {
     /// get_default_datareader_qos, or else, if the call was never made, the default values listed in the QoS table in 2.2.3,
     /// Supported QoS.
     pub fn get_default_datareader_qos(&self) -> ReturnCode<DataReaderQos> {
-        Ok(self.rtps_subscriber.value()?.default_datareader_qos.lock().unwrap().clone())
+        Ok(self
+            .rtps_subscriber
+            .value()?
+            .default_datareader_qos
+            .lock()
+            .unwrap()
+            .clone())
     }
 
     /// This operation copies the policies in the a_topic_qos to the corresponding policies in the a_datareader_qos (replacing values

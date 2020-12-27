@@ -1,9 +1,4 @@
 use crate::builtin_topics::PublicationBuiltinTopicData;
-use crate::dds::subscription::subscriber::Subscriber;
-use crate::dds::topic::topic::RtpsTopic;
-use crate::dds::topic::topic::Topic;
-use crate::dds::topic::topic_description::TopicDescription;
-use crate::dds::infrastructure::data_reader_listener::DataReaderListener;
 use crate::dds::infrastructure::entity::{Entity, StatusCondition};
 use crate::dds::infrastructure::qos::DataReaderQos;
 use crate::dds::infrastructure::qos_policy::ReliabilityQosPolicyKind;
@@ -16,6 +11,11 @@ use crate::dds::infrastructure::status::{
     SubscriptionMatchedStatus, ViewStateKind,
 };
 use crate::dds::rtps_implementation::rtps_object::{RtpsObject, RtpsObjectRef};
+use crate::dds::subscription::data_reader_listener::DataReaderListener;
+use crate::dds::subscription::subscriber::Subscriber;
+use crate::dds::topic::topic::RtpsTopic;
+use crate::dds::topic::topic::Topic;
+use crate::dds::topic::topic_description::TopicDescription;
 use crate::rtps::behavior;
 use crate::rtps::behavior::StatefulReader;
 use crate::rtps::types::{ReliabilityKind, GUID};
@@ -30,7 +30,10 @@ pub struct RtpsDataReader {
 
 impl RtpsDataReader {
     pub fn new(guid: GUID, topic: Arc<RtpsTopic>, qos: DataReaderQos) -> Self {
-        assert!(qos.is_consistent().is_ok(), "RtpsDataReader can only be created with consistent QoS");
+        assert!(
+            qos.is_consistent().is_ok(),
+            "RtpsDataReader can only be created with consistent QoS"
+        );
 
         let topic_kind = topic.topic_kind;
         let reliability_level = match qos.reliability.kind {

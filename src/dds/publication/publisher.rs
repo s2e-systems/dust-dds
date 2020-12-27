@@ -1,11 +1,11 @@
 use crate::dds::domain::domain_participant::DomainParticipant;
-use crate::dds::publication::data_writer::{DataWriter, RtpsDataWriter};
-use crate::dds::topic::topic::Topic;
 use crate::dds::infrastructure::entity::{Entity, StatusCondition};
-use crate::dds::infrastructure::publisher_listener::PublisherListener;
 use crate::dds::infrastructure::qos::{DataWriterQos, PublisherQos, TopicQos};
 use crate::dds::infrastructure::status::StatusMask;
+use crate::dds::publication::data_writer::{DataWriter, RtpsDataWriter};
+use crate::dds::publication::publisher_listener::PublisherListener;
 use crate::dds::rtps_implementation::rtps_object::{RtpsObject, RtpsObjectList, RtpsObjectRef};
+use crate::dds::topic::topic::Topic;
 use crate::rtps::structure::Group;
 use crate::rtps::types::{EntityId, EntityKind, GUID};
 use crate::types::{DDSType, Duration, InstanceHandle, ReturnCode, TopicKind};
@@ -106,7 +106,13 @@ impl<'a> Publisher<'a> {
     /// details.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
     pub fn delete_datawriter<T: DDSType>(&self, a_datawriter: &DataWriter<T>) -> ReturnCode<()> {
-        a_datawriter.rtps_datawriter.value()?.topic.lock().unwrap().take(); // Drop the topic
+        a_datawriter
+            .rtps_datawriter
+            .value()?
+            .topic
+            .lock()
+            .unwrap()
+            .take(); // Drop the topic
         a_datawriter.rtps_datawriter.delete();
         Ok(())
     }
@@ -203,7 +209,13 @@ impl<'a> Publisher<'a> {
     /// set_default_datawriter_qos, or else, if the call was never made, the default values listed in the QoS table in 2.2.3, Supported
     /// QoS.
     pub fn get_default_datawriter_qos(&self) -> ReturnCode<DataWriterQos> {
-        Ok(self.rtps_publisher.value()?.default_datawriter_qos.lock().unwrap().clone())
+        Ok(self
+            .rtps_publisher
+            .value()?
+            .default_datawriter_qos
+            .lock()
+            .unwrap()
+            .clone())
     }
 
     /// This operation copies the policies in the a_topic_qos to the corresponding policies in the a_datawriter_qos (replacing values

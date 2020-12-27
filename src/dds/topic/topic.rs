@@ -1,13 +1,13 @@
 use crate::dds::domain::domain_participant::DomainParticipant;
-use crate::dds::topic::topic_description::TopicDescription;
 use crate::dds::infrastructure::entity::{Entity, StatusCondition};
 use crate::dds::infrastructure::qos::TopicQos;
-use crate::dds::infrastructure::topic_listener::TopicListener;
 use crate::dds::infrastructure::status::StatusMask;
-use crate::types::{DDSType, ReturnCode,InstanceHandle, TopicKind};
 use crate::dds::rtps_implementation::rtps_object::{RtpsObject, RtpsObjectRef};
-use crate::rtps::types::GUID;
+use crate::dds::topic::topic_description::TopicDescription;
+use crate::dds::topic::topic_listener::TopicListener;
 use crate::rtps;
+use crate::rtps::types::GUID;
+use crate::types::{DDSType, InstanceHandle, ReturnCode, TopicKind};
 use std::sync::{Arc, Mutex};
 
 pub struct RtpsTopic {
@@ -73,7 +73,7 @@ impl<'a, T: DDSType> TopicDescription for Topic<'a, T> {
     }
 }
 
-impl<'a, T:DDSType> Entity for Topic<'a, T> {
+impl<'a, T: DDSType> Entity for Topic<'a, T> {
     type Qos = TopicQos;
     type Listener = Box<dyn TopicListener<T>>;
 
