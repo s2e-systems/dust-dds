@@ -118,7 +118,7 @@ impl<'a> Subscriber<'a> {
     /// delete_datareader is called on a different Subscriber, the operation will have no effect and it will return
     /// PRECONDITION_NOT_MET.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
-    fn delete_datareader<T: DDSType>(&self, a_datareader: &DataReader<T>) -> ReturnCode<()> {
+    pub fn delete_datareader<T: DDSType>(&self, a_datareader: &DataReader<T>) -> ReturnCode<()> {
         let datareader = a_datareader.rtps_datareader.value()?;
         // discovery.remove_reader(datareader)?;
         datareader.topic.lock().unwrap().take(); // Drop the topic
