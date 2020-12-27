@@ -1,9 +1,9 @@
 use crate::dds::domain::domain_participant::DomainParticipant;
 use crate::dds::topic::topic_description::TopicDescription;
-use crate::dds_infrastructure::entity::{Entity, StatusCondition};
-use crate::dds_infrastructure::qos::TopicQos;
-use crate::dds_infrastructure::topic_listener::TopicListener;
-use crate::dds_infrastructure::status::StatusMask;
+use crate::dds::infrastructure::entity::{Entity, StatusCondition};
+use crate::dds::infrastructure::qos::TopicQos;
+use crate::dds::infrastructure::topic_listener::TopicListener;
+use crate::dds::infrastructure::status::StatusMask;
 use crate::types::{DDSType, ReturnCode,InstanceHandle, TopicKind};
 use crate::dds_rtps_implementation::rtps_object::RtpsObject;
 use crate::rtps::types::GUID;

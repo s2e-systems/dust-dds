@@ -1,5 +1,5 @@
 use crate::types::DDSType;
-use crate::dds_infrastructure::status::LivelinessLostStatus;
+use crate::dds::infrastructure::status::LivelinessLostStatus;
 // use crate::infrastructure::status::{LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus};
 // use crate::publication::data_writer::DataWriter;
 // use crate::infrastructure::qos::DataWriterQos;

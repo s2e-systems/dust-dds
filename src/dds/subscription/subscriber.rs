@@ -1,11 +1,11 @@
 use crate::dds::domain::domain_participant::DomainParticipant;
 use crate::dds::subscription::data_reader::{DataReader, RtpsDataReader};
 use crate::dds::topic::topic::Topic;
-use crate::dds_infrastructure::entity::{Entity, StatusCondition};
-use crate::dds_infrastructure::qos::{DataReaderQos, SubscriberQos, TopicQos};
-use crate::dds_infrastructure::status::SampleLostStatus;
-use crate::dds_infrastructure::status::StatusMask;
-use crate::dds_infrastructure::subscriber_listener::SubscriberListener;
+use crate::dds::infrastructure::entity::{Entity, StatusCondition};
+use crate::dds::infrastructure::qos::{DataReaderQos, SubscriberQos, TopicQos};
+use crate::dds::infrastructure::status::SampleLostStatus;
+use crate::dds::infrastructure::status::StatusMask;
+use crate::dds::infrastructure::subscriber_listener::SubscriberListener;
 use crate::types::{DDSType, ReturnCode, InstanceHandle, TopicKind};
 use crate::dds_rtps_implementation::rtps_object::{RtpsObject, RtpsObjectList};
 use crate::rtps::structure::Group;

@@ -1,5 +1,5 @@
 use crate::dds::domain::domain_participant::{DomainParticipant, RtpsParticipant};
-use crate::dds_infrastructure::qos::DomainParticipantQos;
+use crate::dds::infrastructure::qos::DomainParticipantQos;
 use crate::rtps::transport::udp::UdpTransport;
 use crate::types::DomainId;
 use std::cell::RefCell;

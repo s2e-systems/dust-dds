@@ -1,8 +1,8 @@
 use rust_rtps::types::{DDSType, TopicKind, InstanceHandle, Data, DURATION_ZERO};
 use rust_rtps::dds::domain::domain_participant_factory::DomainParticipantFactory;
 use rust_rtps::dds::topic::topic::Topic;
-use rust_rtps::dds_infrastructure::qos::DataWriterQos;
-use rust_rtps::dds_infrastructure::qos_policy::{ReliabilityQosPolicy, ReliabilityQosPolicyKind};
+use rust_rtps::dds::infrastructure::qos::DataWriterQos;
+use rust_rtps::dds::infrastructure::qos_policy::{ReliabilityQosPolicy, ReliabilityQosPolicyKind};
 
 struct HelloWorldType {
     id: u8,

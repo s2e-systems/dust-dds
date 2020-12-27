@@ -1,10 +1,10 @@
 use crate::dds::domain::domain_participant::DomainParticipant;
 use crate::dds::publication::data_writer::{DataWriter, RtpsDataWriter};
 use crate::dds::topic::topic::Topic;
-use crate::dds_infrastructure::entity::{Entity, StatusCondition};
-use crate::dds_infrastructure::publisher_listener::PublisherListener;
-use crate::dds_infrastructure::qos::{DataWriterQos, PublisherQos, TopicQos};
-use crate::dds_infrastructure::status::StatusMask;
+use crate::dds::infrastructure::entity::{Entity, StatusCondition};
+use crate::dds::infrastructure::publisher_listener::PublisherListener;
+use crate::dds::infrastructure::qos::{DataWriterQos, PublisherQos, TopicQos};
+use crate::dds::infrastructure::status::StatusMask;
 use crate::dds_rtps_implementation::rtps_object::{RtpsObject, RtpsObjectList};
 use crate::rtps::structure::Group;
 use crate::rtps::types::{EntityId, EntityKind, GUID};

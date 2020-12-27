@@ -1,5 +1,5 @@
 use crate::types::{Duration, LENGTH_UNLIMITED, ReturnCode, ReturnCodes};
-use crate::dds_infrastructure::qos_policy::{
+use crate::dds::infrastructure::qos_policy::{
     DurabilityQosPolicy,
     DurabilityServiceQosPolicy,
     DeadlineQosPolicy,

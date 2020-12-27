@@ -1,5 +1,5 @@
 use crate::types::InstanceHandle;
-use crate::dds_infrastructure::qos_policy::QosPolicyId;
+use crate::dds::infrastructure::qos_policy::QosPolicyId;
 
 pub type StatusMask = u32;
 

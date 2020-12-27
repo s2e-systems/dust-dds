@@ -3,14 +3,14 @@ use crate::dds::subscription::subscriber::Subscriber;
 use crate::dds::topic::topic::RtpsTopic;
 use crate::dds::topic::topic::Topic;
 use crate::dds::topic::topic_description::TopicDescription;
-use crate::dds_infrastructure::data_reader_listener::DataReaderListener;
-use crate::dds_infrastructure::entity::{Entity, StatusCondition};
-use crate::dds_infrastructure::qos::DataReaderQos;
-use crate::dds_infrastructure::qos_policy::ReliabilityQosPolicyKind;
-use crate::dds_infrastructure::read_condition::ReadCondition;
-use crate::dds_infrastructure::sample_info::SampleInfo;
-use crate::dds_infrastructure::status::StatusMask;
-use crate::dds_infrastructure::status::{
+use crate::dds::infrastructure::data_reader_listener::DataReaderListener;
+use crate::dds::infrastructure::entity::{Entity, StatusCondition};
+use crate::dds::infrastructure::qos::DataReaderQos;
+use crate::dds::infrastructure::qos_policy::ReliabilityQosPolicyKind;
+use crate::dds::infrastructure::read_condition::ReadCondition;
+use crate::dds::infrastructure::sample_info::SampleInfo;
+use crate::dds::infrastructure::status::StatusMask;
+use crate::dds::infrastructure::status::{
     InstanceStateKind, LivelinessChangedStatus, RequestedDeadlineMissedStatus,
     RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus, SampleStateKind,
     SubscriptionMatchedStatus, ViewStateKind,
