@@ -7,7 +7,7 @@ use crate::dds::infrastructure::status::SampleLostStatus;
 use crate::dds::infrastructure::status::StatusMask;
 use crate::dds::infrastructure::subscriber_listener::SubscriberListener;
 use crate::types::{DDSType, ReturnCode, InstanceHandle, TopicKind};
-use crate::dds_rtps_implementation::rtps_object::{RtpsObject, RtpsObjectList};
+use crate::dds::rtps_implementation::rtps_object::{RtpsObject, RtpsObjectList};
 use crate::rtps::structure::Group;
 use crate::rtps::types::{EntityId, EntityKind, GUID};
 use std::sync::{atomic, Mutex, RwLockReadGuard};

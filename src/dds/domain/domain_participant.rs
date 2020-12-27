@@ -6,7 +6,7 @@ use crate::dds::infrastructure::domain_participant_listener::DomainParticipantLi
 use crate::dds::infrastructure::entity::{Entity, StatusCondition};
 use crate::dds::infrastructure::qos::{DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos};
 use crate::dds::infrastructure::status::StatusMask;
-use crate::dds_rtps_implementation::rtps_object::RtpsObjectList;
+use crate::dds::rtps_implementation::rtps_object::RtpsObjectList;
 use crate::rtps::structure::Participant;
 use crate::rtps::transport::Transport;
 use crate::rtps::types::constants::{PROTOCOL_VERSION_2_4, VENDOR_ID};

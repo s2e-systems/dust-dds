@@ -5,7 +5,7 @@ use crate::dds::infrastructure::entity::{Entity, StatusCondition};
 use crate::dds::infrastructure::publisher_listener::PublisherListener;
 use crate::dds::infrastructure::qos::{DataWriterQos, PublisherQos, TopicQos};
 use crate::dds::infrastructure::status::StatusMask;
-use crate::dds_rtps_implementation::rtps_object::{RtpsObject, RtpsObjectList};
+use crate::dds::rtps_implementation::rtps_object::{RtpsObject, RtpsObjectList};
 use crate::rtps::structure::Group;
 use crate::rtps::types::{EntityId, EntityKind, GUID};
 use crate::types::{DDSType, Duration, InstanceHandle, ReturnCode, TopicKind};

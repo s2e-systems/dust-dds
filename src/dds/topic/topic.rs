@@ -5,7 +5,7 @@ use crate::dds::infrastructure::qos::TopicQos;
 use crate::dds::infrastructure::topic_listener::TopicListener;
 use crate::dds::infrastructure::status::StatusMask;
 use crate::types::{DDSType, ReturnCode,InstanceHandle, TopicKind};
-use crate::dds_rtps_implementation::rtps_object::RtpsObject;
+use crate::dds::rtps_implementation::rtps_object::RtpsObject;
 use crate::rtps::types::GUID;
 use crate::rtps;
 use std::sync::{Arc, Mutex, RwLockReadGuard};

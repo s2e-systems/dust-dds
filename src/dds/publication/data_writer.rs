@@ -8,7 +8,7 @@ use crate::dds::infrastructure::status::StatusMask;
 use crate::dds::infrastructure::data_writer_listener::DataWriterListener;
 use crate::dds::infrastructure::status::{LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus};
 use crate::dds::infrastructure::qos_policy::ReliabilityQosPolicyKind;
-use crate::dds_rtps_implementation::rtps_object::RtpsObject;
+use crate::dds::rtps_implementation::rtps_object::RtpsObject;
 use crate::dds::topic::topic::RtpsTopic;
 use crate::rtps::behavior;
 use crate::rtps::behavior::StatefulWriter;

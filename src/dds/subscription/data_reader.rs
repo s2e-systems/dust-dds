@@ -15,7 +15,7 @@ use crate::dds::infrastructure::status::{
     RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus, SampleStateKind,
     SubscriptionMatchedStatus, ViewStateKind,
 };
-use crate::dds_rtps_implementation::rtps_object::RtpsObject;
+use crate::dds::rtps_implementation::rtps_object::RtpsObject;
 use crate::rtps::behavior;
 use crate::rtps::behavior::StatefulReader;
 use crate::rtps::types::{ReliabilityKind, GUID};
