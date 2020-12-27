@@ -1,5 +1,5 @@
 use crate::dds::domain::domain_participant::DomainParticipant;
-use crate::dds::subscription::data_reader::{DataReader, RtpsDataReaderInner};
+use crate::dds::subscription::data_reader::{DataReader, RtpsDataReader};
 use crate::dds::topic::topic::Topic;
 use crate::dds_infrastructure::entity::{Entity, StatusCondition};
 use crate::dds_infrastructure::qos::{DataReaderQos, SubscriberQos, TopicQos};
@@ -12,15 +12,15 @@ use crate::rtps::structure::Group;
 use crate::rtps::types::{EntityId, EntityKind, GUID};
 use std::sync::{atomic, Mutex, RwLockReadGuard};
 
-pub struct RtpsSubscriberInner {
+pub struct RtpsSubscriber {
     pub group: Group,
-    pub reader_list: RtpsObjectList<RtpsDataReaderInner>,
+    pub reader_list: RtpsObjectList<RtpsDataReader>,
     pub reader_count: atomic::AtomicU8,
     pub default_datareader_qos: Mutex<DataReaderQos>,
     pub qos: SubscriberQos,
 }
 
-impl RtpsSubscriberInner {
+impl RtpsSubscriber {
     pub fn new(guid: GUID, qos: SubscriberQos) -> Self {
         Self {
             group: Group::new(guid),
@@ -32,8 +32,6 @@ impl RtpsSubscriberInner {
     }
 }
 
-pub type RtpsSubscriber<'a> = RwLockReadGuard<'a, RtpsObject<RtpsSubscriberInner>>;
-
 /// A Subscriber is the object responsible for the actual reception of the data resulting from its subscriptions
 ///
 /// A Subscriber acts on the behalf of one or several DataReader objects that are related to it. When it receives data (from the
@@ -44,7 +42,7 @@ pub type RtpsSubscriber<'a> = RwLockReadGuard<'a, RtpsObject<RtpsSubscriberInner
 /// and create_datareader may return the value NOT_ENABLED.
 pub struct Subscriber<'a> {
     pub(crate) parent_participant: &'a DomainParticipant,
-    pub(crate) rtps_subscriber: RtpsSubscriber<'a>,
+    pub(crate) rtps_subscriber: RwLockReadGuard<'a, RtpsObject<RtpsSubscriber>>,
 }
 
 impl<'a> Subscriber<'a> {
@@ -97,7 +95,7 @@ impl<'a> Subscriber<'a> {
         let entity_id = EntityId::new(entity_key, entity_kind);
         let new_reader_guid = GUID::new(guid_prefix, entity_id);
         let new_reader_qos = qos.unwrap_or(self.get_default_datareader_qos().ok()?);
-        let new_reader = RtpsDataReaderInner::new(new_reader_guid, topic, new_reader_qos);
+        let new_reader = RtpsDataReader::new(new_reader_guid, topic, new_reader_qos);
         // discovery.insert_reader(&new_reader).ok()?;
         let rtps_datareader = this.reader_list.add(new_reader)?;
 

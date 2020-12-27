@@ -1,7 +1,7 @@
 use crate::builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData};
-use crate::dds::publication::publisher::{Publisher, RtpsPublisherInner};
-use crate::dds::subscription::subscriber::{Subscriber, RtpsSubscriberInner};
-use crate::dds::topic::topic::{Topic, RtpsTopicInner};
+use crate::dds::publication::publisher::{Publisher, RtpsPublisher};
+use crate::dds::subscription::subscriber::{Subscriber, RtpsSubscriber};
+use crate::dds::topic::topic::{Topic, RtpsTopic};
 use crate::dds_infrastructure::domain_participant_listener::DomainParticipantListener;
 use crate::dds_infrastructure::entity::{Entity, StatusCondition};
 use crate::dds_infrastructure::qos::{DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos};
@@ -24,11 +24,11 @@ pub struct RtpsParticipant {
     default_topic_qos: Mutex<TopicQos>,
     userdata_transport: Box<dyn Transport>,
     metatraffic_transport: Box<dyn Transport>,
-    publisher_list: RtpsObjectList<RtpsPublisherInner>,
+    publisher_list: RtpsObjectList<RtpsPublisher>,
     publisher_count: atomic::AtomicU8,
-    subscriber_list: RtpsObjectList<RtpsSubscriberInner>,
+    subscriber_list: RtpsObjectList<RtpsSubscriber>,
     subscriber_count: atomic::AtomicU8,
-    topic_list: RtpsObjectList<Arc<RtpsTopicInner>>,
+    topic_list: RtpsObjectList<Arc<RtpsTopic>>,
     topic_count: atomic::AtomicU8,
     enabled: atomic::AtomicBool,
 }
@@ -101,7 +101,7 @@ impl DomainParticipant {
         let entity_id = EntityId::new(entity_key, EntityKind::UserDefinedWriterGroup);
         let new_publisher_guid = GUID::new(guid_prefix, entity_id);
         let new_publisher_qos = qos.unwrap_or(self.get_default_publisher_qos());
-        let new_publisher = RtpsPublisherInner::new(new_publisher_guid, new_publisher_qos);
+        let new_publisher = RtpsPublisher::new(new_publisher_guid, new_publisher_qos);
         let rtps_publisher = self.inner.publisher_list.add(new_publisher)?;
 
         Some(Publisher {
@@ -164,7 +164,7 @@ impl DomainParticipant {
         let entity_id = EntityId::new(entity_key, EntityKind::UserDefinedReaderGroup);
         let new_subscriber_guid = GUID::new(guid_prefix, entity_id);
         let new_subscriber_qos = qos.unwrap_or(self.get_default_subscriber_qos());
-        let new_subscriber = RtpsSubscriberInner::new(new_subscriber_guid, new_subscriber_qos);
+        let new_subscriber = RtpsSubscriber::new(new_subscriber_guid, new_subscriber_qos);
         let rtps_subscriber = self.inner.subscriber_list.add(new_subscriber)?;
 
         Some(Subscriber {
@@ -230,7 +230,7 @@ impl DomainParticipant {
         let entity_id = EntityId::new(entity_key, EntityKind::UserDefinedUnknown);
         let new_topic_guid = GUID::new(guid_prefix, entity_id);
         let new_topic_qos = qos.unwrap_or(self.get_default_topic_qos());
-        let new_topic = Arc::new(RtpsTopicInner::new(
+        let new_topic = Arc::new(RtpsTopic::new(
             new_topic_guid,
             topic_name,
             T::type_name(),

@@ -10,7 +10,7 @@ use crate::rtps::types::GUID;
 use crate::rtps;
 use std::sync::{Arc, Mutex, RwLockReadGuard};
 
-pub struct RtpsTopicInner {
+pub struct RtpsTopic {
     pub entity: rtps::structure::Entity,
     pub topic_name: String,
     pub type_name: &'static str,
@@ -18,7 +18,7 @@ pub struct RtpsTopicInner {
     pub qos: Mutex<TopicQos>,
 }
 
-impl RtpsTopicInner {
+impl RtpsTopic {
     pub fn new(
         guid: GUID,
         topic_name: String,
@@ -36,8 +36,6 @@ impl RtpsTopicInner {
     }
 }
 
-pub type RtpsTopic<'a> = RwLockReadGuard<'a, RtpsObject<Arc<RtpsTopicInner>>>;
-
 /// Topic is the most basic description of the data to be published and subscribed.
 /// A Topic is identified by its name, which must be unique in the whole Domain. In addition (by virtue of extending
 /// TopicDescription) it fully specifies the type of the data that can be communicated when publishing or subscribing to the Topic.
@@ -46,7 +44,7 @@ pub type RtpsTopic<'a> = RwLockReadGuard<'a, RtpsObject<Arc<RtpsTopicInner>>>;
 /// get_status_condition may return the value NOT_ENABLED.
 pub struct Topic<'a, T: DDSType> {
     pub(crate) parent_participant: &'a DomainParticipant,
-    pub(crate) rtps_topic: RtpsTopic<'a>,
+    pub(crate) rtps_topic: RwLockReadGuard<'a, RtpsObject<Arc<RtpsTopic>>>,
     pub(crate) marker: std::marker::PhantomData<T>,
 }
 

@@ -1,6 +1,6 @@
 use crate::builtin_topics::PublicationBuiltinTopicData;
 use crate::dds::subscription::subscriber::Subscriber;
-use crate::dds::topic::topic::RtpsTopicInner;
+use crate::dds::topic::topic::RtpsTopic;
 use crate::dds::topic::topic::Topic;
 use crate::dds::topic::topic_description::TopicDescription;
 use crate::dds_infrastructure::data_reader_listener::DataReaderListener;
@@ -22,16 +22,15 @@ use crate::rtps::types::{ReliabilityKind, GUID};
 use crate::types::{DDSType, InstanceHandle, ReturnCode};
 use std::sync::{Arc, Mutex, RwLockReadGuard};
 
-pub struct RtpsDataReaderInner {
+pub struct RtpsDataReader {
     pub reader: StatefulReader,
     pub qos: Mutex<DataReaderQos>,
-    pub topic: Mutex<Option<Arc<RtpsTopicInner>>>,
+    pub topic: Mutex<Option<Arc<RtpsTopic>>>,
 }
 
-impl RtpsDataReaderInner {
-    pub fn new(guid: GUID, topic: Arc<RtpsTopicInner>, qos: DataReaderQos) -> Self {
-        qos.is_consistent()
-            .expect("RtpsDataReaderInner can only be created with consistent QoS");
+impl RtpsDataReader {
+    pub fn new(guid: GUID, topic: Arc<RtpsTopic>, qos: DataReaderQos) -> Self {
+        assert!(qos.is_consistent().is_ok(), "RtpsDataReader can only be created with consistent QoS");
 
         let topic_kind = topic.topic_kind;
         let reliability_level = match qos.reliability.kind {
@@ -55,8 +54,6 @@ impl RtpsDataReaderInner {
     }
 }
 
-pub type RtpsDataReader<'a> = RwLockReadGuard<'a, RtpsObject<RtpsDataReaderInner>>;
-
 /// A DataReader allows the application (1) to declare the data it wishes to receive (i.e., make a subscription) and (2) to access the
 /// data received by the attached Subscriber.
 ///
@@ -71,7 +68,7 @@ pub type RtpsDataReader<'a> = RwLockReadGuard<'a, RtpsObject<RtpsDataReaderInner
 pub struct DataReader<'a, T: DDSType> {
     pub(crate) parent_subscriber: &'a Subscriber<'a>,
     pub(crate) topic: &'a Topic<'a, T>,
-    pub(crate) rtps_datareader: RtpsDataReader<'a>,
+    pub(crate) rtps_datareader: RwLockReadGuard<'a, RtpsObject<RtpsDataReader>>,
 }
 
 impl<'a, T: DDSType> DataReader<'a, T> {

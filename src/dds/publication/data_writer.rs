@@ -9,22 +9,21 @@ use crate::dds_infrastructure::data_writer_listener::DataWriterListener;
 use crate::dds_infrastructure::status::{LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus};
 use crate::dds_infrastructure::qos_policy::ReliabilityQosPolicyKind;
 use crate::dds_rtps_implementation::rtps_object::RtpsObject;
-use crate::dds::topic::topic::RtpsTopicInner;
+use crate::dds::topic::topic::RtpsTopic;
 use crate::rtps::behavior;
 use crate::rtps::behavior::StatefulWriter;
 use crate::rtps::types::{ReliabilityKind, GUID};
 use std::sync::{Arc, Mutex, RwLockReadGuard};
 
-pub struct RtpsDataWriterInner {
+pub struct RtpsDataWriter {
     pub writer: StatefulWriter,
     pub qos: Mutex<DataWriterQos>,
-    pub topic: Mutex<Option<Arc<RtpsTopicInner>>>,
+    pub topic: Mutex<Option<Arc<RtpsTopic>>>,
 }
 
-impl RtpsDataWriterInner {
-    pub fn new(guid: GUID, topic: Arc<RtpsTopicInner>, qos: DataWriterQos) -> Self {
-        qos.is_consistent()
-            .expect("RtpsDataWriterInner can only be created with consistent QoS");
+impl RtpsDataWriter {
+    pub fn new(guid: GUID, topic: Arc<RtpsTopic>, qos: DataWriterQos) -> Self {
+        assert!(qos.is_consistent().is_ok(), "RtpsDataWriter can only be created with consistent QoS");
 
         let topic_kind = topic.topic_kind;
         let reliability_level = match qos.reliability.kind {
@@ -55,12 +54,10 @@ impl RtpsDataWriterInner {
     }
 }
 
-pub type RtpsDataWriter<'a> = RwLockReadGuard<'a, RtpsObject<RtpsDataWriterInner>>;
-
 pub struct DataWriter<'a, T: DDSType>{
     pub(crate) parent_publisher: &'a Publisher<'a>,
     pub(crate) topic: &'a Topic<'a, T>,
-    pub(crate) rtps_datawriter: RtpsDataWriter<'a>
+    pub(crate) rtps_datawriter: RwLockReadGuard<'a, RtpsObject<RtpsDataWriter>>,
 }
 
 impl<'a, T: DDSType> DataWriter<'a,T> {

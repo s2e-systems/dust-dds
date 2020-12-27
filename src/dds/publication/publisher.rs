@@ -1,5 +1,5 @@
 use crate::dds::domain::domain_participant::DomainParticipant;
-use crate::dds::publication::data_writer::{DataWriter, RtpsDataWriterInner};
+use crate::dds::publication::data_writer::{DataWriter, RtpsDataWriter};
 use crate::dds::topic::topic::Topic;
 use crate::dds_infrastructure::entity::{Entity, StatusCondition};
 use crate::dds_infrastructure::publisher_listener::PublisherListener;
@@ -11,15 +11,15 @@ use crate::rtps::types::{EntityId, EntityKind, GUID};
 use crate::types::{DDSType, Duration, InstanceHandle, ReturnCode, TopicKind};
 use std::sync::{atomic, Mutex, RwLockReadGuard};
 
-pub struct RtpsPublisherInner {
+pub struct RtpsPublisher {
     pub group: Group,
-    pub writer_list: RtpsObjectList<RtpsDataWriterInner>,
+    pub writer_list: RtpsObjectList<RtpsDataWriter>,
     pub writer_count: atomic::AtomicU8,
     pub default_datawriter_qos: Mutex<DataWriterQos>,
     pub qos: PublisherQos,
 }
 
-impl RtpsPublisherInner {
+impl RtpsPublisher {
     pub fn new(guid: GUID, qos: PublisherQos) -> Self {
         Self {
             group: Group::new(guid),
@@ -31,8 +31,6 @@ impl RtpsPublisherInner {
     }
 }
 
-pub type RtpsPublisher<'a> = RwLockReadGuard<'a, RtpsObject<RtpsPublisherInner>>;
-
 /// The Publisher acts on the behalf of one or several DataWriter objects that belong to it. When it is informed of a change to the
 /// data associated with one of its DataWriter objects, it decides when it is appropriate to actually send the data-update message.
 /// In making this decision, it considers any extra information that goes with the data (timestamp, writer, etc.) as well as the QoS
@@ -41,7 +39,7 @@ pub type RtpsPublisher<'a> = RwLockReadGuard<'a, RtpsObject<RtpsPublisherInner>>
 /// create_datawriter, and delete_datawriter may return the value NOT_ENABLED.
 pub struct Publisher<'a> {
     pub(crate) parent_participant: &'a DomainParticipant,
-    pub(crate) rtps_publisher: RtpsPublisher<'a>,
+    pub(crate) rtps_publisher: RwLockReadGuard<'a, RtpsObject<RtpsPublisher>>,
 }
 
 impl<'a> Publisher<'a> {
@@ -88,7 +86,7 @@ impl<'a> Publisher<'a> {
         let entity_id = EntityId::new(entity_key, entity_kind);
         let new_writer_guid = GUID::new(guid_prefix, entity_id);
         let new_writer_qos = qos.unwrap_or(self.get_default_datawriter_qos().ok()?);
-        let new_writer = RtpsDataWriterInner::new(new_writer_guid, topic, new_writer_qos);
+        let new_writer = RtpsDataWriter::new(new_writer_guid, topic, new_writer_qos);
         // discovery.insert_writer(&new_writer).ok()?;
         let rtps_datawriter = this.writer_list.add(new_writer)?;
 
