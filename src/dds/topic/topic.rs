@@ -5,10 +5,10 @@ use crate::dds::infrastructure::qos::TopicQos;
 use crate::dds::infrastructure::topic_listener::TopicListener;
 use crate::dds::infrastructure::status::StatusMask;
 use crate::types::{DDSType, ReturnCode,InstanceHandle, TopicKind};
-use crate::dds::rtps_implementation::rtps_object::RtpsObject;
+use crate::dds::rtps_implementation::rtps_object::{RtpsObject, RtpsObjectRef};
 use crate::rtps::types::GUID;
 use crate::rtps;
-use std::sync::{Arc, Mutex, RwLockReadGuard};
+use std::sync::{Arc, Mutex};
 
 pub struct RtpsTopic {
     pub entity: rtps::structure::Entity,
@@ -44,7 +44,7 @@ impl RtpsTopic {
 /// get_status_condition may return the value NOT_ENABLED.
 pub struct Topic<'a, T: DDSType> {
     pub(crate) parent_participant: &'a DomainParticipant,
-    pub(crate) rtps_topic: RwLockReadGuard<'a, RtpsObject<Arc<RtpsTopic>>>,
+    pub(crate) rtps_topic: RtpsObjectRef<'a, RtpsObject<Arc<RtpsTopic>>>,
     pub(crate) marker: std::marker::PhantomData<T>,
 }
 

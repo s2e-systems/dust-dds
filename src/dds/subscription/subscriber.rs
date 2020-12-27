@@ -7,10 +7,10 @@ use crate::dds::infrastructure::status::SampleLostStatus;
 use crate::dds::infrastructure::status::StatusMask;
 use crate::dds::infrastructure::subscriber_listener::SubscriberListener;
 use crate::types::{DDSType, ReturnCode, InstanceHandle, TopicKind};
-use crate::dds::rtps_implementation::rtps_object::{RtpsObject, RtpsObjectList};
+use crate::dds::rtps_implementation::rtps_object::{RtpsObject, RtpsObjectList, RtpsObjectRef};
 use crate::rtps::structure::Group;
 use crate::rtps::types::{EntityId, EntityKind, GUID};
-use std::sync::{atomic, Mutex, RwLockReadGuard};
+use std::sync::{atomic, Mutex};
 
 pub struct RtpsSubscriber {
     pub group: Group,
@@ -42,7 +42,7 @@ impl RtpsSubscriber {
 /// and create_datareader may return the value NOT_ENABLED.
 pub struct Subscriber<'a> {
     pub(crate) parent_participant: &'a DomainParticipant,
-    pub(crate) rtps_subscriber: RwLockReadGuard<'a, RtpsObject<RtpsSubscriber>>,
+    pub(crate) rtps_subscriber: RtpsObjectRef<'a, RtpsObject<RtpsSubscriber>>,
 }
 
 impl<'a> Subscriber<'a> {

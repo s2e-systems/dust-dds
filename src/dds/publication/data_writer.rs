@@ -1,19 +1,22 @@
-use crate::types::{DDSType, Time, ReturnCode, InstanceHandle, Duration};
 use crate::builtin_topics::SubscriptionBuiltinTopicData;
-use crate::dds::publication::publisher::Publisher;
-use crate::dds::topic::topic::Topic;
-use crate::dds::infrastructure::qos::DataWriterQos;
-use crate::dds::infrastructure::entity::{Entity, StatusCondition};
-use crate::dds::infrastructure::status::StatusMask;
 use crate::dds::infrastructure::data_writer_listener::DataWriterListener;
-use crate::dds::infrastructure::status::{LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus};
+use crate::dds::infrastructure::entity::{Entity, StatusCondition};
+use crate::dds::infrastructure::qos::DataWriterQos;
 use crate::dds::infrastructure::qos_policy::ReliabilityQosPolicyKind;
-use crate::dds::rtps_implementation::rtps_object::RtpsObject;
+use crate::dds::infrastructure::status::StatusMask;
+use crate::dds::infrastructure::status::{
+    LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus,
+    PublicationMatchedStatus,
+};
+use crate::dds::publication::publisher::Publisher;
+use crate::dds::rtps_implementation::rtps_object::{RtpsObject, RtpsObjectRef};
 use crate::dds::topic::topic::RtpsTopic;
+use crate::dds::topic::topic::Topic;
 use crate::rtps::behavior;
 use crate::rtps::behavior::StatefulWriter;
 use crate::rtps::types::{ReliabilityKind, GUID};
-use std::sync::{Arc, Mutex, RwLockReadGuard};
+use crate::types::{DDSType, Duration, InstanceHandle, ReturnCode, Time};
+use std::sync::{Arc, Mutex};
 
 pub struct RtpsDataWriter {
     pub writer: StatefulWriter,
@@ -23,7 +26,10 @@ pub struct RtpsDataWriter {
 
 impl RtpsDataWriter {
     pub fn new(guid: GUID, topic: Arc<RtpsTopic>, qos: DataWriterQos) -> Self {
-        assert!(qos.is_consistent().is_ok(), "RtpsDataWriter can only be created with consistent QoS");
+        assert!(
+            qos.is_consistent().is_ok(),
+            "RtpsDataWriter can only be created with consistent QoS"
+        );
 
         let topic_kind = topic.topic_kind;
         let reliability_level = match qos.reliability.kind {
@@ -54,13 +60,13 @@ impl RtpsDataWriter {
     }
 }
 
-pub struct DataWriter<'a, T: DDSType>{
+pub struct DataWriter<'a, T: DDSType> {
     pub(crate) parent_publisher: &'a Publisher<'a>,
     pub(crate) topic: &'a Topic<'a, T>,
-    pub(crate) rtps_datawriter: RwLockReadGuard<'a, RtpsObject<RtpsDataWriter>>,
+    pub(crate) rtps_datawriter: RtpsObjectRef<'a, RtpsObject<RtpsDataWriter>>,
 }
 
-impl<'a, T: DDSType> DataWriter<'a,T> {
+impl<'a, T: DDSType> DataWriter<'a, T> {
     /// This operation informs the Service that the application will be modifying a particular instance. It gives an opportunity to the
     /// Service to pre-configure itself to improve performance.
     /// It takes as a parameter an instance (to get the key value) and returns a handle that can be used in successive write or dispose
@@ -75,10 +81,7 @@ impl<'a, T: DDSType> DataWriter<'a,T> {
     /// allocated handle. This may be used to lookup and retrieve the handle allocated to a given instance. The explicit use of this
     /// operation is optional as the application may call directly the write operation and specify a HANDLE_NIL to indicate that the
     /// ‘key’ should be examined to identify the instance.
-    pub fn register_instance(
-        &self,
-        _instance: T
-    ) -> ReturnCode<Option<InstanceHandle>> {
+    pub fn register_instance(&self, _instance: T) -> ReturnCode<Option<InstanceHandle>> {
         todo!()
     }
 
@@ -127,7 +130,7 @@ impl<'a, T: DDSType> DataWriter<'a,T> {
     pub fn unregister_instance(
         &self,
         _instance: T,
-        _handle: Option<InstanceHandle>
+        _handle: Option<InstanceHandle>,
     ) -> ReturnCode<()> {
         todo!()
     }
@@ -153,11 +156,7 @@ impl<'a, T: DDSType> DataWriter<'a,T> {
     /// This operation may return BAD_PARAMETER if the InstanceHandle_t a_handle does not correspond to an existing dataobject
     /// known to the DataWriter. If the implementation is not able to check invalid handles, then the result in this situation is
     /// unspecified.
-    pub fn get_key_value(
-        &self,
-        _key_holder: &mut T,
-        _handle: InstanceHandle
-    ) -> ReturnCode<()> {
+    pub fn get_key_value(&self, _key_holder: &mut T, _handle: InstanceHandle) -> ReturnCode<()> {
         // self.rtps_datawriter.get_key_value(key_holder.instance_handle(), handle)
         todo!()
     }
@@ -167,10 +166,7 @@ impl<'a, T: DDSType> DataWriter<'a,T> {
     /// key.
     /// This operation does not register the instance in question. If the instance has not been previously registered, or if for any other
     /// reason the Service is unable to provide an instance handle, the Service will return the special value HANDLE_NIL.
-    pub fn lookup_instance(
-        &self,
-        _instance: &T,
-    ) -> ReturnCode<Option<InstanceHandle>> {
+    pub fn lookup_instance(&self, _instance: &T) -> ReturnCode<Option<InstanceHandle>> {
         todo!()
     }
 
@@ -212,11 +208,7 @@ impl<'a, T: DDSType> DataWriter<'a,T> {
     /// by the ‘data’ parameter, the behavior is in general unspecified, but if detectable by the Service implementation, the return
     /// error-code will be PRECONDITION_NOT_MET. In case the handle is invalid, the behavior is in general unspecified, but if
     /// detectable the returned error-code will be BAD_PARAMETER.
-    pub fn write (
-        &self,
-        _data: T,
-        _handle: Option<InstanceHandle>,
-    ) -> ReturnCode<()> {
+    pub fn write(&self, _data: T, _handle: Option<InstanceHandle>) -> ReturnCode<()> {
         todo!()
     }
 
@@ -254,11 +246,7 @@ impl<'a, T: DDSType> DataWriter<'a,T> {
     /// This operation may block and return TIMEOUT under the same circumstances described for the write operation (2.2.2.4.2.11).
     /// This operation may return OUT_OF_RESOURCES under the same circumstances described for the write operation
     /// (2.2.2.4.2.11).
-    pub fn dispose(
-        &self,
-        _data: T,
-        _handle: Option<InstanceHandle>,
-    ) -> ReturnCode<()> {
+    pub fn dispose(&self, _data: T, _handle: Option<InstanceHandle>) -> ReturnCode<()> {
         todo!()
     }
 
@@ -291,19 +279,13 @@ impl<'a, T: DDSType> DataWriter<'a,T> {
     /// specified by the max_wait parameter elapses, whichever happens first. A return value of OK indicates that all the samples
     /// written have been acknowledged by all reliable matched data readers; a return value of TIMEOUT indicates that max_wait
     /// elapsed before all the data was acknowledged.
-    pub fn wait_for_acknowledgments(
-        &self,
-        _max_wait: Duration
-    ) -> ReturnCode<()> {
+    pub fn wait_for_acknowledgments(&self, _max_wait: Duration) -> ReturnCode<()> {
         todo!()
     }
 
     /// This operation allows access to the LIVELINESS_LOST communication status. Communication statuses are described in
     /// 2.2.4.1, Communication Status.
-    pub fn get_liveliness_lost_status(
-        &self,
-        _status: &mut LivelinessLostStatus
-    ) -> ReturnCode<()> {
+    pub fn get_liveliness_lost_status(&self, _status: &mut LivelinessLostStatus) -> ReturnCode<()> {
         todo!()
     }
 
@@ -311,7 +293,7 @@ impl<'a, T: DDSType> DataWriter<'a,T> {
     /// described in 2.2.4.1, Communication Status.
     pub fn get_offered_deadline_missed_status(
         &self,
-        _status: &mut OfferedDeadlineMissedStatus
+        _status: &mut OfferedDeadlineMissedStatus,
     ) -> ReturnCode<()> {
         todo!()
     }
@@ -320,7 +302,7 @@ impl<'a, T: DDSType> DataWriter<'a,T> {
     /// described in 2.2.4.1, Communication Status.
     pub fn get_offered_incompatible_qos_status(
         &self,
-        _status: &mut OfferedIncompatibleQosStatus
+        _status: &mut OfferedIncompatibleQosStatus,
     ) -> ReturnCode<()> {
         todo!()
     }
@@ -329,7 +311,7 @@ impl<'a, T: DDSType> DataWriter<'a,T> {
     /// described in 2.2.4.1, Communication Status.
     pub fn get_publication_matched_status(
         &self,
-        _status: &mut PublicationMatchedStatus
+        _status: &mut PublicationMatchedStatus,
     ) -> ReturnCode<()> {
         todo!()
     }
@@ -386,7 +368,7 @@ impl<'a, T: DDSType> DataWriter<'a,T> {
     }
 }
 
-impl<'a, T:DDSType> Entity for DataWriter<'a, T> {
+impl<'a, T: DDSType> Entity for DataWriter<'a, T> {
     type Qos = DataWriterQos;
     type Listener = Box<dyn DataWriterListener<T>>;
 

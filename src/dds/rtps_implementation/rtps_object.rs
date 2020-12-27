@@ -48,7 +48,7 @@ impl<T> RtpsObject<T> {
 
 pub struct RtpsObjectList<T>([RwLock<RtpsObject<T>>; 32]);
 
-pub type RtpsObjectGuard<'a, T> = RwLockReadGuard<'a, T>;
+pub type RtpsObjectRef<'a, T> = RwLockReadGuard<'a, T>;
 
 impl<T> Default for RtpsObjectList<T> {
     fn default() -> Self {

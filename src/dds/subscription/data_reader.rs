@@ -15,12 +15,12 @@ use crate::dds::infrastructure::status::{
     RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus, SampleStateKind,
     SubscriptionMatchedStatus, ViewStateKind,
 };
-use crate::dds::rtps_implementation::rtps_object::RtpsObject;
+use crate::dds::rtps_implementation::rtps_object::{RtpsObject, RtpsObjectRef};
 use crate::rtps::behavior;
 use crate::rtps::behavior::StatefulReader;
 use crate::rtps::types::{ReliabilityKind, GUID};
 use crate::types::{DDSType, InstanceHandle, ReturnCode};
-use std::sync::{Arc, Mutex, RwLockReadGuard};
+use std::sync::{Arc, Mutex};
 
 pub struct RtpsDataReader {
     pub reader: StatefulReader,
@@ -68,7 +68,7 @@ impl RtpsDataReader {
 pub struct DataReader<'a, T: DDSType> {
     pub(crate) parent_subscriber: &'a Subscriber<'a>,
     pub(crate) topic: &'a Topic<'a, T>,
-    pub(crate) rtps_datareader: RwLockReadGuard<'a, RtpsObject<RtpsDataReader>>,
+    pub(crate) rtps_datareader: RtpsObjectRef<'a, RtpsObject<RtpsDataReader>>,
 }
 
 impl<'a, T: DDSType> DataReader<'a, T> {

@@ -5,11 +5,11 @@ use crate::dds::infrastructure::entity::{Entity, StatusCondition};
 use crate::dds::infrastructure::publisher_listener::PublisherListener;
 use crate::dds::infrastructure::qos::{DataWriterQos, PublisherQos, TopicQos};
 use crate::dds::infrastructure::status::StatusMask;
-use crate::dds::rtps_implementation::rtps_object::{RtpsObject, RtpsObjectList};
+use crate::dds::rtps_implementation::rtps_object::{RtpsObject, RtpsObjectList, RtpsObjectRef};
 use crate::rtps::structure::Group;
 use crate::rtps::types::{EntityId, EntityKind, GUID};
 use crate::types::{DDSType, Duration, InstanceHandle, ReturnCode, TopicKind};
-use std::sync::{atomic, Mutex, RwLockReadGuard};
+use std::sync::{atomic, Mutex};
 
 pub struct RtpsPublisher {
     pub group: Group,
@@ -39,7 +39,7 @@ impl RtpsPublisher {
 /// create_datawriter, and delete_datawriter may return the value NOT_ENABLED.
 pub struct Publisher<'a> {
     pub(crate) parent_participant: &'a DomainParticipant,
-    pub(crate) rtps_publisher: RwLockReadGuard<'a, RtpsObject<RtpsPublisher>>,
+    pub(crate) rtps_publisher: RtpsObjectRef<'a, RtpsObject<RtpsPublisher>>,
 }
 
 impl<'a> Publisher<'a> {
