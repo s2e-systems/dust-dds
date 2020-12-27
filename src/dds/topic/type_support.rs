@@ -23,13 +23,13 @@ impl TypeSupport {
     pub fn register_type(
         &self,
         _participant: DomainParticipant,
-        _type_name: String,
+        _type_name: &str,
     ) -> ReturnCode<()> {
         todo!()
     }
 
     /// This operation returns the default name for the data-type represented by the TypeSupport.
-    pub fn get_type_name() -> String {
+    pub fn get_type_name(&self) -> String {
         todo!()
     }
 }

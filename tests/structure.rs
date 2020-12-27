@@ -53,7 +53,7 @@ fn create_delete_subscriber() {
 fn create_delete_topic() {
     let participant = DomainParticipantFactory::create_participant(0, None).unwrap();
     let topic = participant
-        .create_topic::<TestType>("abc".to_string(), None)
+        .create_topic::<TestType>("abc", None)
         .unwrap();
     assert_eq!(participant.delete_topic(&topic), Ok(()));
     assert_eq!(topic.get_qos(), Err(ReturnCodes::AlreadyDeleted));
@@ -94,7 +94,7 @@ fn not_allowed_to_delete_topic_from_different_participant() {
     let participant = DomainParticipantFactory::create_participant(0, None).unwrap();
     let other_participant = DomainParticipantFactory::create_participant(1, None).unwrap();
     let topic = participant
-        .create_topic::<TestType>("abc".to_string(), None)
+        .create_topic::<TestType>("abc", None)
         .unwrap();
     assert_eq!(
         other_participant.delete_topic(&topic),
@@ -108,7 +108,7 @@ fn not_allowed_to_delete_topic_from_different_participant() {
 fn not_allowed_to_delete_publisher_with_writer() {
     let participant = DomainParticipantFactory::create_participant(0, None).unwrap();
     let writer_topic = participant
-        .create_topic::<TestType>("Test".to_string(), None)
+        .create_topic::<TestType>("Test", None)
         .expect("Error creating topic");
     let publisher = participant.create_publisher(None).unwrap();
     let _a_datawriter = publisher.create_datawriter(&writer_topic, None).unwrap();
@@ -125,7 +125,7 @@ fn not_allowed_to_delete_publisher_with_writer() {
 fn not_allowed_to_delete_subscriber_with_reader() {
     let participant = DomainParticipantFactory::create_participant(0, None).unwrap();
     let reader_topic = participant
-        .create_topic::<TestType>("Test".to_string(), None)
+        .create_topic::<TestType>("Test", None)
         .expect("Error creating topic");
     let subscriber = participant.create_subscriber(None).unwrap();
     let _a_datareader = subscriber.create_datareader(&reader_topic, None).unwrap();
@@ -142,7 +142,7 @@ fn not_allowed_to_delete_subscriber_with_reader() {
 fn not_allowed_to_delete_topic_attached_to_reader() {
     let participant = DomainParticipantFactory::create_participant(0, None).unwrap();
     let reader_topic = participant
-        .create_topic::<TestType>("Test".to_string(), None)
+        .create_topic::<TestType>("Test", None)
         .expect("Error creating topic");
     let subscriber = participant.create_subscriber(None).unwrap();
     let _a_datareader = subscriber.create_datareader(&reader_topic, None).unwrap();
@@ -159,7 +159,7 @@ fn not_allowed_to_delete_topic_attached_to_reader() {
 fn not_allowed_to_delete_topic_attached_to_writer() {
     let participant = DomainParticipantFactory::create_participant(0, None).unwrap();
     let writer_topic = participant
-        .create_topic::<TestType>("Test".to_string(), None)
+        .create_topic::<TestType>("Test", None)
         .expect("Error creating topic");
     let publisher = participant.create_publisher(None).unwrap();
     let _a_datawriter = publisher.create_datawriter(&writer_topic, None).unwrap();
@@ -176,7 +176,7 @@ fn not_allowed_to_delete_topic_attached_to_writer() {
 fn allowed_to_delete_publisher_with_created_and_deleted_writer() {
     let participant = DomainParticipantFactory::create_participant(0, None).unwrap();
     let writer_topic = participant
-        .create_topic::<TestType>("Test".to_string(), None)
+        .create_topic::<TestType>("Test", None)
         .expect("Error creating topic");
     let publisher = participant.create_publisher(None).unwrap();
     let a_datawriter = publisher.create_datawriter(&writer_topic, None).unwrap();
@@ -190,7 +190,7 @@ fn allowed_to_delete_publisher_with_created_and_deleted_writer() {
 fn allowed_to_delete_subscriber_with_created_and_deleted_reader() {
     let participant = DomainParticipantFactory::create_participant(0, None).unwrap();
     let reader_topic = participant
-        .create_topic::<TestType>("Test".to_string(), None)
+        .create_topic::<TestType>("Test", None)
         .expect("Error creating topic");
     let subscriber = participant.create_subscriber(None).unwrap();
     let a_datareader = subscriber.create_datareader(&reader_topic, None).unwrap();
@@ -204,7 +204,7 @@ fn allowed_to_delete_subscriber_with_created_and_deleted_reader() {
 fn allowed_to_delete_topic_with_created_and_deleted_writer() {
     let participant = DomainParticipantFactory::create_participant(0, None).unwrap();
     let writer_topic = participant
-        .create_topic::<TestType>("Test".to_string(), None)
+        .create_topic::<TestType>("Test", None)
         .expect("Error creating topic");
     let publisher = participant.create_publisher(None).unwrap();
     let a_datawriter = publisher.create_datawriter(&writer_topic, None).unwrap();
@@ -218,7 +218,7 @@ fn allowed_to_delete_topic_with_created_and_deleted_writer() {
 fn allowed_to_delete_topic_with_created_and_deleted_reader() {
     let participant = DomainParticipantFactory::create_participant(0, None).unwrap();
     let reader_topic = participant
-        .create_topic::<TestType>("Test".to_string(), None)
+        .create_topic::<TestType>("Test", None)
         .expect("Error creating topic");
     let subscriber = participant.create_subscriber(None).unwrap();
     let a_datareader = subscriber.create_datareader(&reader_topic, None).unwrap();

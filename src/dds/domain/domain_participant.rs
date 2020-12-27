@@ -214,7 +214,7 @@ impl DomainParticipant {
     /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
     pub fn create_topic<T: DDSType>(
         &self,
-        topic_name: String,
+        topic_name: &str,
         qos: Option<TopicQos>,
         // _a_listener: impl TopicListener<T>,
         // _mask: StatusMask
@@ -232,7 +232,7 @@ impl DomainParticipant {
         let new_topic_qos = qos.unwrap_or(self.get_default_topic_qos());
         let new_topic = Arc::new(RtpsTopic::new(
             new_topic_guid,
-            topic_name,
+            topic_name.clone().into(),
             T::type_name(),
             T::topic_kind(),
             new_topic_qos,
@@ -286,7 +286,7 @@ impl DomainParticipant {
     /// If the operation times-out, a ‘nil’ value (as specified by the platform) is returned.
     pub fn find_topic<T: DDSType>(
         &self,
-        _topic_name: String,
+        _topic_name: &str,
         _timeout: Duration,
     ) -> Option<Topic<T>> {
         todo!()

@@ -37,7 +37,7 @@ fn hello_world() {
     
     let publisher = participant.create_publisher(None).expect("Error creating publisher");
 
-    let helloworld_topic: Topic<HelloWorldType> = participant.create_topic("HelloWorld".to_string(), None).expect("Error creating topic");
+    let helloworld_topic: Topic<HelloWorldType> = participant.create_topic("HelloWorld", None).expect("Error creating topic");
 
     // let subscriber = participant.create_subscriber(None).expect("Error creating subscriber");
     // let _datareader = subscriber.create_datareader(helloworld_topic, None);
