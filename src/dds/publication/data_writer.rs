@@ -7,8 +7,8 @@ use crate::dds::infrastructure::status::{
     LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus,
     PublicationMatchedStatus,
 };
-use crate::dds::publication::publisher::Publisher;
 use crate::dds::publication::data_writer_listener::DataWriterListener;
+use crate::dds::publication::publisher::Publisher;
 use crate::dds::rtps_implementation::rtps_object::{RtpsObject, RtpsObjectRef};
 use crate::dds::topic::topic::RtpsTopic;
 use crate::dds::topic::topic::Topic;
@@ -407,3 +407,7 @@ impl<'a, T: DDSType> Entity for DataWriter<'a, T> {
         todo!()
     }
 }
+
+pub trait AnyDataWriter {}
+
+impl<'a, T:DDSType> AnyDataWriter for DataWriter<'a, T> {}

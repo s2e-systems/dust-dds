@@ -652,3 +652,7 @@ impl<'a, T: DDSType> Entity for DataReader<'a, T> {
         todo!()
     }
 }
+
+pub trait AnyDataReader {}
+
+impl<'a, T: DDSType> AnyDataReader for DataReader<'a, T> {}
