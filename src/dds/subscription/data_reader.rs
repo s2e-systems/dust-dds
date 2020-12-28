@@ -27,11 +27,12 @@ pub struct RtpsDataReader<T: DDSType> {
     pub reader: StatefulReader,
     pub qos: Mutex<DataReaderQos>,
     pub topic: Mutex<Option<Arc<dyn AnyRtpsTopic>>>,
-    pub listener: Option<(Box<dyn DataReaderListener<T>>, StatusMask)>,
+    pub listener: Option<Box<dyn DataReaderListener<T>>>,
+    pub status_mask: StatusMask,
 }
 
 impl<T: DDSType> RtpsDataReader<T> {
-    pub fn new(guid: GUID, topic: Arc<dyn AnyRtpsTopic>, qos: DataReaderQos) -> Self {
+    pub fn new(guid: GUID, topic: Arc<dyn AnyRtpsTopic>, qos: DataReaderQos, listener: Option<Box<dyn DataReaderListener<T>>>, status_mask: StatusMask) -> Self {
         assert!(
             qos.is_consistent().is_ok(),
             "RtpsDataReader can only be created with consistent QoS"
@@ -55,7 +56,8 @@ impl<T: DDSType> RtpsDataReader<T> {
             reader,
             qos: Mutex::new(qos),
             topic: Mutex::new(Some(topic)),
-            listener: None,
+            listener,
+            status_mask,
         }
     }
 }

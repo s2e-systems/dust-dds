@@ -18,16 +18,20 @@ pub struct RtpsSubscriber {
     pub reader_count: atomic::AtomicU8,
     pub default_datareader_qos: Mutex<DataReaderQos>,
     pub qos: SubscriberQos,
+    pub listener: Option<Box<dyn SubscriberListener>>,
+    pub status_mask: StatusMask,
 }
 
 impl RtpsSubscriber {
-    pub fn new(guid: GUID, qos: SubscriberQos) -> Self {
+    pub fn new(guid: GUID, qos: SubscriberQos, listener: Option<Box<dyn SubscriberListener>>, status_mask: StatusMask) -> Self {
         Self {
             group: Group::new(guid),
             reader_list: Default::default(),
             reader_count: atomic::AtomicU8::new(0),
             default_datareader_qos: Mutex::new(DataReaderQos::default()),
             qos,
+            listener,
+            status_mask
         }
     }
 }
@@ -95,7 +99,7 @@ impl<'a> Subscriber<'a> {
         let entity_id = EntityId::new(entity_key, entity_kind);
         let new_reader_guid = GUID::new(guid_prefix, entity_id);
         let new_reader_qos = qos.unwrap_or(self.get_default_datareader_qos().ok()?);
-        let new_reader: Box<RtpsDataReader<T>> = Box::new(RtpsDataReader::new(new_reader_guid, topic, new_reader_qos));
+        let new_reader: Box<RtpsDataReader<T>> = Box::new(RtpsDataReader::new(new_reader_guid, topic, new_reader_qos, None, 0));
         // discovery.insert_reader(&new_reader).ok()?;
         let rtps_datareader = this.reader_list.add(new_reader)?;
 

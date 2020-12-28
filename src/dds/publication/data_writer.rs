@@ -23,7 +23,8 @@ pub struct RtpsDataWriter<T: DDSType> {
     pub writer: StatefulWriter,
     pub qos: Mutex<DataWriterQos>,
     pub topic: Mutex<Option<Arc<dyn AnyRtpsTopic>>>,
-    pub listener: Option<(Box<dyn DataWriterListener<T>>, StatusMask)>,
+    pub listener: Option<Box<dyn DataWriterListener<T>>>,
+    pub status_mask: StatusMask,
 }
 
 impl<T: DDSType> RtpsDataWriter<T> {
@@ -31,7 +32,8 @@ impl<T: DDSType> RtpsDataWriter<T> {
         guid: GUID,
         topic: Arc<dyn AnyRtpsTopic>,
         qos: DataWriterQos,
-        listener: Option<(Box<dyn DataWriterListener<T>>, StatusMask)>,
+        listener: Option<Box<dyn DataWriterListener<T>>>,
+        status_mask: StatusMask,
     ) -> Self {
         assert!(
             qos.is_consistent().is_ok(),
@@ -64,6 +66,7 @@ impl<T: DDSType> RtpsDataWriter<T> {
             qos: Mutex::new(qos),
             topic: Mutex::new(Some(topic)),
             listener,
+            status_mask,
         }
     }
 }

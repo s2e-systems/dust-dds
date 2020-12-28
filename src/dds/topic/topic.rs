@@ -17,7 +17,8 @@ pub struct RtpsTopic<T: DDSType> {
     pub type_name: &'static str,
     pub topic_kind: TopicKind,
     pub qos: Mutex<TopicQos>,
-    pub marker: std::marker::PhantomData<T>,
+    pub listener: Option<Box<dyn TopicListener<T>>>,
+    pub status_mask: StatusMask,
 }
 
 impl<T: DDSType> RtpsTopic<T> {
@@ -25,6 +26,8 @@ impl<T: DDSType> RtpsTopic<T> {
         guid: GUID,
         topic_name: String,
         qos: TopicQos,
+        listener: Option<Box<dyn TopicListener<T>>>,
+        status_mask: StatusMask,
     ) -> Self {
         Self {
             entity: rtps::structure::Entity { guid },
@@ -32,7 +35,8 @@ impl<T: DDSType> RtpsTopic<T> {
             type_name: T::type_name(),
             topic_kind: T::topic_kind(),
             qos: Mutex::new(qos),
-            marker: std::marker::PhantomData,
+            listener,
+            status_mask,
         }
     }
 }

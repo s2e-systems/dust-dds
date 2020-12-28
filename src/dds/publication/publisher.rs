@@ -17,16 +17,20 @@ pub struct RtpsPublisher {
     pub writer_count: atomic::AtomicU8,
     pub default_datawriter_qos: Mutex<DataWriterQos>,
     pub qos: PublisherQos,
+    pub listener: Option<Box<dyn PublisherListener>>,
+    pub status_mask: StatusMask,
 }
 
 impl RtpsPublisher {
-    pub fn new(guid: GUID, qos: PublisherQos) -> Self {
+    pub fn new(guid: GUID, qos: PublisherQos, listener: Option<Box<dyn PublisherListener>>, status_mask: StatusMask) -> Self {
         Self {
             group: Group::new(guid),
             writer_list: Default::default(),
             writer_count: atomic::AtomicU8::new(0),
             default_datawriter_qos: Mutex::new(DataWriterQos::default()),
             qos,
+            listener,
+            status_mask,
         }
     }
 }
@@ -86,7 +90,7 @@ impl<'a> Publisher<'a> {
         let entity_id = EntityId::new(entity_key, entity_kind);
         let new_writer_guid = GUID::new(guid_prefix, entity_id);
         let new_writer_qos = qos.unwrap_or(self.get_default_datawriter_qos().ok()?);
-        let new_writer: Box<RtpsDataWriter<T>> = Box::new(RtpsDataWriter::new(new_writer_guid, topic, new_writer_qos, None));
+        let new_writer: Box<RtpsDataWriter<T>> = Box::new(RtpsDataWriter::new(new_writer_guid, topic, new_writer_qos, None, 0));
         // discovery.insert_writer(&new_writer).ok()?;
         let rtps_datawriter = this.writer_list.add(new_writer)?;
 

@@ -103,7 +103,7 @@ impl DomainParticipant {
         let entity_id = EntityId::new(entity_key, EntityKind::UserDefinedWriterGroup);
         let new_publisher_guid = GUID::new(guid_prefix, entity_id);
         let new_publisher_qos = qos.unwrap_or(self.get_default_publisher_qos());
-        let new_publisher = Box::new(RtpsPublisher::new(new_publisher_guid, new_publisher_qos));
+        let new_publisher = Box::new(RtpsPublisher::new(new_publisher_guid, new_publisher_qos, None, 0));
         let rtps_publisher = self.inner.publisher_list.add(new_publisher)?;
 
         Some(Publisher {
@@ -166,7 +166,7 @@ impl DomainParticipant {
         let entity_id = EntityId::new(entity_key, EntityKind::UserDefinedReaderGroup);
         let new_subscriber_guid = GUID::new(guid_prefix, entity_id);
         let new_subscriber_qos = qos.unwrap_or(self.get_default_subscriber_qos());
-        let new_subscriber = Box::new(RtpsSubscriber::new(new_subscriber_guid, new_subscriber_qos));
+        let new_subscriber = Box::new(RtpsSubscriber::new(new_subscriber_guid, new_subscriber_qos, None, 0));
         let rtps_subscriber = self.inner.subscriber_list.add(new_subscriber)?;
 
         Some(Subscriber {
@@ -236,6 +236,8 @@ impl DomainParticipant {
             new_topic_guid,
             topic_name.clone().into(),
             new_topic_qos,
+            None,
+            0
         ));
         // discovery.insert_topic(&new_topic).ok()?;
         let rtps_topic = self.inner.topic_list.add(new_topic)?;
