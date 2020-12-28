@@ -26,9 +26,9 @@ pub struct RtpsParticipant {
     default_topic_qos: Mutex<TopicQos>,
     userdata_transport: Box<dyn Transport>,
     metatraffic_transport: Box<dyn Transport>,
-    publisher_list: RtpsObjectList<RtpsPublisher>,
+    publisher_list: RtpsObjectList<Box<RtpsPublisher>>,
     publisher_count: atomic::AtomicU8,
-    subscriber_list: RtpsObjectList<RtpsSubscriber>,
+    subscriber_list: RtpsObjectList<Box<RtpsSubscriber>>,
     subscriber_count: atomic::AtomicU8,
     topic_list: RtpsObjectList<Arc<dyn AnyRtpsTopic>>,
     topic_count: atomic::AtomicU8,
@@ -103,7 +103,7 @@ impl DomainParticipant {
         let entity_id = EntityId::new(entity_key, EntityKind::UserDefinedWriterGroup);
         let new_publisher_guid = GUID::new(guid_prefix, entity_id);
         let new_publisher_qos = qos.unwrap_or(self.get_default_publisher_qos());
-        let new_publisher = RtpsPublisher::new(new_publisher_guid, new_publisher_qos);
+        let new_publisher = Box::new(RtpsPublisher::new(new_publisher_guid, new_publisher_qos));
         let rtps_publisher = self.inner.publisher_list.add(new_publisher)?;
 
         Some(Publisher {
@@ -166,7 +166,7 @@ impl DomainParticipant {
         let entity_id = EntityId::new(entity_key, EntityKind::UserDefinedReaderGroup);
         let new_subscriber_guid = GUID::new(guid_prefix, entity_id);
         let new_subscriber_qos = qos.unwrap_or(self.get_default_subscriber_qos());
-        let new_subscriber = RtpsSubscriber::new(new_subscriber_guid, new_subscriber_qos);
+        let new_subscriber = Box::new(RtpsSubscriber::new(new_subscriber_guid, new_subscriber_qos));
         let rtps_subscriber = self.inner.subscriber_list.add(new_subscriber)?;
 
         Some(Subscriber {

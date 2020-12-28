@@ -42,7 +42,7 @@ impl RtpsSubscriber {
 /// and create_datareader may return the value NOT_ENABLED.
 pub struct Subscriber<'a> {
     pub(crate) parent_participant: &'a DomainParticipant,
-    pub(crate) rtps_subscriber: RtpsObjectRef<'a, RtpsObject<RtpsSubscriber>>,
+    pub(crate) rtps_subscriber: RtpsObjectRef<'a, RtpsObject<Box<RtpsSubscriber>>>,
 }
 
 impl<'a> Subscriber<'a> {

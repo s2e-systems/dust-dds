@@ -39,7 +39,7 @@ impl RtpsPublisher {
 /// create_datawriter, and delete_datawriter may return the value NOT_ENABLED.
 pub struct Publisher<'a> {
     pub(crate) parent_participant: &'a DomainParticipant,
-    pub(crate) rtps_publisher: RtpsObjectRef<'a, RtpsObject<RtpsPublisher>>,
+    pub(crate) rtps_publisher: RtpsObjectRef<'a, RtpsObject<Box<RtpsPublisher>>>,
 }
 
 impl<'a> Publisher<'a> {

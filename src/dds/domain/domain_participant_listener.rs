@@ -17,10 +17,10 @@ use crate::dds::topic::topic_description::TopicDescription;
 pub trait DomainParticipantListener {
     fn on_inconsistent_topic(
         &self,
-        _the_topic: dyn TopicDescription,
-        _status: InconsistentTopicStatus,
+        the_topic: dyn TopicDescription,
+        status: InconsistentTopicStatus,
     );
-    fn on_data_on_readers(&self, _the_subscriber: Subscriber);
+    fn on_data_on_readers(&self, the_subscriber: Subscriber);
     fn on_data_available(&self, the_reader: dyn AnyDataReader);
     fn on_sample_rejected(&self, the_reader: dyn AnyDataReader, status: SampleRejectedStatus);
     fn on_liveliness_changed(&self, the_reader: dyn AnyDataReader, status: LivelinessChangedStatus);
