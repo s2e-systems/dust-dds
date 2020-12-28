@@ -72,12 +72,32 @@ impl<T: DDSType> RtpsDataWriter<T> {
 }
 
 pub trait AnyRtpsWriter: Send + Sync {
+    fn writer(&self) -> &StatefulWriter;
+    fn qos(&self) -> &Mutex<DataWriterQos>;
+    fn topic(&self) -> &Mutex<Option<Arc<dyn AnyRtpsTopic>>>;
+    fn status_mask(&self) -> &StatusMask;
     fn as_any(&self) -> &dyn Any;
 }
 
 impl<T: DDSType + Sized> AnyRtpsWriter for RtpsDataWriter<T> {
     fn as_any(&self) -> &dyn Any {
         self
+    }
+
+    fn writer(&self) -> &StatefulWriter {
+        &self.writer
+    }
+
+    fn qos(&self) -> &Mutex<DataWriterQos> {
+        &self.qos
+    }
+
+    fn topic(&self) -> &Mutex<Option<Arc<dyn AnyRtpsTopic>>> {
+        &self.topic
+    }
+
+    fn status_mask(&self) -> &StatusMask {
+        &self.status_mask
     }
 }
 
@@ -401,13 +421,13 @@ impl<'a, T: DDSType> Entity for DataWriter<'a, T> {
 
     fn set_qos(&self, qos: Self::Qos) -> ReturnCode<()> {
         qos.is_consistent()?;
-        *self.rtps_datawriter.value_as::<RtpsDataWriter<T>>()?.qos.lock().unwrap() = qos;
+        *self.rtps_datawriter.value()?.qos().lock().unwrap() = qos;
         // discovery.update_writer(datawriter)?;
         Ok(())
     }
 
     fn get_qos(&self) -> ReturnCode<Self::Qos> {
-        Ok(self.rtps_datawriter.value_as::<RtpsDataWriter<T>>()?.qos.lock().unwrap().clone())
+        Ok(self.rtps_datawriter.value()?.qos().lock().unwrap().clone())
     }
 
     fn set_listener(&self, _a_listener: Self::Listener, _mask: StatusMask) -> ReturnCode<()> {

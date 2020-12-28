@@ -63,10 +63,30 @@ impl<T: DDSType> RtpsDataReader<T> {
 }
 
 pub trait AnyRtpsReader: Send + Sync {
+    fn reader(&self) -> &StatefulReader;
+    fn qos(&self) -> &Mutex<DataReaderQos>;
+    fn topic(&self) -> &Mutex<Option<Arc<dyn AnyRtpsTopic>>>;
+    fn status_mask(&self) -> &StatusMask;
     fn as_any(&self) -> &dyn Any;
 }
 
 impl<T: DDSType + Sized> AnyRtpsReader for RtpsDataReader<T> {
+    fn reader(&self) -> &StatefulReader {
+        &self.reader
+    }
+
+    fn qos(&self) -> &Mutex<DataReaderQos> {
+        &self.qos
+    }
+
+    fn topic(&self) -> &Mutex<Option<Arc<dyn AnyRtpsTopic>>> {
+        &self.topic
+    }
+
+    fn status_mask(&self) -> &StatusMask {
+        &self.status_mask
+    }
+
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -640,13 +660,13 @@ impl<'a, T: DDSType> Entity for DataReader<'a, T> {
     type Listener = Box<dyn DataReaderListener<T>>;
 
     fn set_qos(&self, qos: Self::Qos) -> ReturnCode<()> {
-        *self.rtps_datareader.value_as::<RtpsDataReader<T>>()?.qos.lock().unwrap() = qos;
+        *self.rtps_datareader.value()?.qos().lock().unwrap() = qos;
         // discovery.update_reader(datareader)?;
         Ok(())
     }
 
     fn get_qos(&self) -> ReturnCode<Self::Qos> {
-        Ok(self.rtps_datareader.value_as::<RtpsDataReader<T>>()?.qos.lock().unwrap().clone())
+        Ok(self.rtps_datareader.value()?.qos().lock().unwrap().clone())
     }
 
     fn set_listener(&self, _a_listener: Self::Listener, _mask: StatusMask) -> ReturnCode<()> {

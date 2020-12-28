@@ -12,7 +12,7 @@ use std::sync::{Arc, Mutex};
 use std::any::Any;
 
 pub struct RtpsTopic<T: DDSType> {
-    pub entity: rtps::structure::Entity,
+    pub rtps_entity: rtps::structure::Entity,
     pub topic_name: String,
     pub type_name: &'static str,
     pub topic_kind: TopicKind,
@@ -30,7 +30,7 @@ impl<T: DDSType> RtpsTopic<T> {
         status_mask: StatusMask,
     ) -> Self {
         Self {
-            entity: rtps::structure::Entity { guid },
+            rtps_entity: rtps::structure::Entity { guid },
             topic_name,
             type_name: T::type_name(),
             topic_kind: T::topic_kind(),
@@ -42,13 +42,33 @@ impl<T: DDSType> RtpsTopic<T> {
 }
 
 pub trait AnyRtpsTopic: Send + Sync {
+    fn rtps_entity(&self) -> &rtps::structure::Entity;
     fn topic_kind(&self) -> TopicKind;
+    fn type_name(&self) -> &'static str;
+    fn topic_name(&self) -> &String;
+    fn qos(&self) -> &Mutex<TopicQos>;
     fn as_any(&self) -> &dyn Any;
 }
 
 impl<T: DDSType + Sized> AnyRtpsTopic for RtpsTopic<T> {
+    fn rtps_entity(&self) -> &rtps::structure::Entity {
+        &self.rtps_entity
+    }
+
     fn topic_kind(&self) -> TopicKind {
         self.topic_kind
+    }
+
+    fn type_name(&self) -> &'static str {
+        &self.type_name
+    }
+
+    fn topic_name(&self) -> &String {
+        &self.topic_name
+    }
+
+    fn qos(&self) -> &Mutex<TopicQos> {
+        &self.qos
     }
 
     fn as_any(&self) -> &dyn Any {
@@ -91,11 +111,11 @@ impl<'a, T: DDSType> TopicDescription for Topic<'a, T> {
     }
 
     fn get_type_name(&self) -> ReturnCode<&str> {
-        Ok(self.rtps_topic.value_as::<RtpsTopic<T>>()?.type_name)
+        Ok(self.rtps_topic.value()?.type_name())
     }
 
     fn get_name(&self) -> ReturnCode<String> {
-        Ok(self.rtps_topic.value_as::<RtpsTopic<T>>()?.topic_name.clone())
+        Ok(self.rtps_topic.value()?.topic_name().clone())
     }
 }
 
@@ -105,13 +125,13 @@ impl<'a, T: DDSType> Entity for Topic<'a, T> {
 
     fn set_qos(&self, qos: Self::Qos) -> ReturnCode<()> {
         qos.is_consistent()?;
-        *self.rtps_topic.value_as::<RtpsTopic<T>>()?.qos.lock().unwrap() = qos;
+        *self.rtps_topic.value()?.qos().lock().unwrap() = qos;
         // discovery.update_topic(topic)?;
         Ok(())
     }
 
     fn get_qos(&self) -> ReturnCode<Self::Qos> {
-        Ok(self.rtps_topic.value_as::<RtpsTopic<T>>()?.qos.lock().unwrap().clone())
+        Ok(self.rtps_topic.value()?.qos().lock().unwrap().clone())
     }
 
     fn set_listener(&self, _a_listener: Self::Listener, _mask: StatusMask) -> ReturnCode<()> {
@@ -135,6 +155,6 @@ impl<'a, T: DDSType> Entity for Topic<'a, T> {
     }
 
     fn get_instance_handle(&self) -> ReturnCode<InstanceHandle> {
-        Ok(self.rtps_topic.value_as::<RtpsTopic<T>>()?.entity.guid.into())
+        Ok(self.rtps_topic.value()?.rtps_entity().guid.into())
     }
 }
