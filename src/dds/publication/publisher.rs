@@ -2,7 +2,7 @@ use crate::dds::domain::domain_participant::DomainParticipant;
 use crate::dds::infrastructure::entity::{Entity, StatusCondition};
 use crate::dds::infrastructure::qos::{DataWriterQos, PublisherQos, TopicQos};
 use crate::dds::infrastructure::status::StatusMask;
-use crate::dds::publication::data_writer::{DataWriter, RtpsDataWriter};
+use crate::dds::publication::data_writer::{AnyRtpsWriter, DataWriter, RtpsDataWriter};
 use crate::dds::publication::publisher_listener::PublisherListener;
 use crate::dds::rtps_implementation::rtps_object::{RtpsObject, RtpsObjectList, RtpsObjectRef};
 use crate::dds::topic::topic::Topic;
@@ -13,7 +13,7 @@ use std::sync::{atomic, Mutex};
 
 pub struct RtpsPublisher {
     pub group: Group,
-    pub writer_list: RtpsObjectList<RtpsDataWriter>,
+    pub writer_list: RtpsObjectList<Box<dyn AnyRtpsWriter>>,
     pub writer_count: atomic::AtomicU8,
     pub default_datawriter_qos: Mutex<DataWriterQos>,
     pub qos: PublisherQos,
@@ -79,14 +79,14 @@ impl<'a> Publisher<'a> {
             this.writer_count.fetch_add(1, atomic::Ordering::Relaxed),
             0,
         ];
-        let entity_kind = match topic.topic_kind {
+        let entity_kind = match topic.topic_kind() {
             TopicKind::WithKey => EntityKind::UserDefinedWriterWithKey,
             TopicKind::NoKey => EntityKind::UserDefinedWriterNoKey,
         };
         let entity_id = EntityId::new(entity_key, entity_kind);
         let new_writer_guid = GUID::new(guid_prefix, entity_id);
         let new_writer_qos = qos.unwrap_or(self.get_default_datawriter_qos().ok()?);
-        let new_writer = RtpsDataWriter::new(new_writer_guid, topic, new_writer_qos);
+        let new_writer: Box<RtpsDataWriter<T>> = Box::new(RtpsDataWriter::new(new_writer_guid, topic, new_writer_qos, None));
         // discovery.insert_writer(&new_writer).ok()?;
         let rtps_datawriter = this.writer_list.add(new_writer)?;
 
@@ -108,7 +108,7 @@ impl<'a> Publisher<'a> {
     pub fn delete_datawriter<T: DDSType>(&self, a_datawriter: &DataWriter<T>) -> ReturnCode<()> {
         a_datawriter
             .rtps_datawriter
-            .value()?
+            .value_as::<RtpsDataWriter<T>>()?
             .topic
             .lock()
             .unwrap()

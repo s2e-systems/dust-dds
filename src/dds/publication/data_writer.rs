@@ -10,28 +10,35 @@ use crate::dds::infrastructure::status::{
 use crate::dds::publication::data_writer_listener::DataWriterListener;
 use crate::dds::publication::publisher::Publisher;
 use crate::dds::rtps_implementation::rtps_object::{RtpsObject, RtpsObjectRef};
-use crate::dds::topic::topic::RtpsTopic;
+use crate::dds::topic::topic::AnyRtpsTopic;
 use crate::dds::topic::topic::Topic;
 use crate::rtps::behavior;
 use crate::rtps::behavior::StatefulWriter;
 use crate::rtps::types::{ReliabilityKind, GUID};
-use crate::types::{DDSType, Duration, InstanceHandle, ReturnCode, Time};
+use crate::types::{DDSType, Duration, InstanceHandle, ReturnCode, ReturnCodes, Time};
 use std::sync::{Arc, Mutex};
+use std::any::Any;
 
-pub struct RtpsDataWriter {
+pub struct RtpsDataWriter<T: DDSType> {
     pub writer: StatefulWriter,
     pub qos: Mutex<DataWriterQos>,
-    pub topic: Mutex<Option<Arc<RtpsTopic>>>,
+    pub topic: Mutex<Option<Arc<dyn AnyRtpsTopic>>>,
+    pub listener: Option<(Box<dyn DataWriterListener<T>>, StatusMask)>,
 }
 
-impl RtpsDataWriter {
-    pub fn new(guid: GUID, topic: Arc<RtpsTopic>, qos: DataWriterQos) -> Self {
+impl<T: DDSType> RtpsDataWriter<T> {
+    pub fn new(
+        guid: GUID,
+        topic: Arc<dyn AnyRtpsTopic>,
+        qos: DataWriterQos,
+        listener: Option<(Box<dyn DataWriterListener<T>>, StatusMask)>,
+    ) -> Self {
         assert!(
             qos.is_consistent().is_ok(),
             "RtpsDataWriter can only be created with consistent QoS"
         );
 
-        let topic_kind = topic.topic_kind;
+        let topic_kind = topic.topic_kind();
         let reliability_level = match qos.reliability.kind {
             ReliabilityQosPolicyKind::BestEffortReliabilityQos => ReliabilityKind::BestEffort,
             ReliabilityQosPolicyKind::ReliableReliabilityQos => ReliabilityKind::Reliable,
@@ -56,14 +63,31 @@ impl RtpsDataWriter {
             writer,
             qos: Mutex::new(qos),
             topic: Mutex::new(Some(topic)),
+            listener,
         }
+    }
+}
+
+pub trait AnyRtpsWriter: Send + Sync {
+    fn as_any(&self) -> &dyn Any;
+}
+
+impl<T: DDSType + Sized> AnyRtpsWriter for RtpsDataWriter<T> {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+impl<'a> RtpsObjectRef<'a, RtpsObject<Box<dyn AnyRtpsWriter>>> {
+    pub fn value_as<U: 'static>(&self) -> ReturnCode<&U> {
+        self.value()?.as_ref().as_any().downcast_ref::<U>().ok_or(ReturnCodes::Error)
     }
 }
 
 pub struct DataWriter<'a, T: DDSType> {
     pub(crate) parent_publisher: &'a Publisher<'a>,
     pub(crate) topic: &'a Topic<'a, T>,
-    pub(crate) rtps_datawriter: RtpsObjectRef<'a, RtpsObject<RtpsDataWriter>>,
+    pub(crate) rtps_datawriter: RtpsObjectRef<'a, RtpsObject<Box<dyn AnyRtpsWriter>>>,
 }
 
 impl<'a, T: DDSType> DataWriter<'a, T> {
@@ -374,13 +398,13 @@ impl<'a, T: DDSType> Entity for DataWriter<'a, T> {
 
     fn set_qos(&self, qos: Self::Qos) -> ReturnCode<()> {
         qos.is_consistent()?;
-        *self.rtps_datawriter.value()?.qos.lock().unwrap() = qos;
+        *self.rtps_datawriter.value_as::<RtpsDataWriter<T>>()?.qos.lock().unwrap() = qos;
         // discovery.update_writer(datawriter)?;
         Ok(())
     }
 
     fn get_qos(&self) -> ReturnCode<Self::Qos> {
-        Ok(self.rtps_datawriter.value()?.qos.lock().unwrap().clone())
+        Ok(self.rtps_datawriter.value_as::<RtpsDataWriter<T>>()?.qos.lock().unwrap().clone())
     }
 
     fn set_listener(&self, _a_listener: Self::Listener, _mask: StatusMask) -> ReturnCode<()> {
@@ -410,4 +434,4 @@ impl<'a, T: DDSType> Entity for DataWriter<'a, T> {
 
 pub trait AnyDataWriter {}
 
-impl<'a, T:DDSType> AnyDataWriter for DataWriter<'a, T> {}
+impl<'a, T: DDSType> AnyDataWriter for DataWriter<'a, T> {}

@@ -1,3 +1,4 @@
+use crate::dds::infrastructure::listener::Listener;
 use crate::dds::infrastructure::status::{
     LivelinessChangedStatus, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus,
     SampleLostStatus, SampleRejectedStatus, SubscriptionMatchedStatus,
@@ -5,7 +6,7 @@ use crate::dds::infrastructure::status::{
 use crate::dds::subscription::data_reader::DataReader;
 use crate::types::DDSType;
 
-pub trait DataReaderListener<T: DDSType> {
+pub trait DataReaderListener<T: DDSType> : Listener {
     fn on_data_available(&self, the_reader: DataReader<T>);
     fn on_sample_rejected(&self, the_reader: DataReader<T>, status: SampleRejectedStatus);
     fn on_liveliness_changed(&self, the_reader: DataReader<T>, status: LivelinessChangedStatus);

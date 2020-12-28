@@ -13,29 +13,31 @@ use crate::dds::infrastructure::status::{
 use crate::dds::rtps_implementation::rtps_object::{RtpsObject, RtpsObjectRef};
 use crate::dds::subscription::data_reader_listener::DataReaderListener;
 use crate::dds::subscription::subscriber::Subscriber;
-use crate::dds::topic::topic::RtpsTopic;
+use crate::dds::topic::topic::AnyRtpsTopic;
 use crate::dds::topic::topic::Topic;
 use crate::dds::topic::topic_description::TopicDescription;
 use crate::rtps::behavior;
 use crate::rtps::behavior::StatefulReader;
 use crate::rtps::types::{ReliabilityKind, GUID};
-use crate::types::{DDSType, InstanceHandle, ReturnCode};
+use crate::types::{DDSType, InstanceHandle, ReturnCode, ReturnCodes};
+use std::any::Any;
 use std::sync::{Arc, Mutex};
 
-pub struct RtpsDataReader {
+pub struct RtpsDataReader<T: DDSType> {
     pub reader: StatefulReader,
     pub qos: Mutex<DataReaderQos>,
-    pub topic: Mutex<Option<Arc<RtpsTopic>>>,
+    pub topic: Mutex<Option<Arc<dyn AnyRtpsTopic>>>,
+    pub listener: Option<(Box<dyn DataReaderListener<T>>, StatusMask)>,
 }
 
-impl RtpsDataReader {
-    pub fn new(guid: GUID, topic: Arc<RtpsTopic>, qos: DataReaderQos) -> Self {
+impl<T: DDSType> RtpsDataReader<T> {
+    pub fn new(guid: GUID, topic: Arc<dyn AnyRtpsTopic>, qos: DataReaderQos) -> Self {
         assert!(
             qos.is_consistent().is_ok(),
             "RtpsDataReader can only be created with consistent QoS"
         );
 
-        let topic_kind = topic.topic_kind;
+        let topic_kind = topic.topic_kind();
         let reliability_level = match qos.reliability.kind {
             ReliabilityQosPolicyKind::BestEffortReliabilityQos => ReliabilityKind::BestEffort,
             ReliabilityQosPolicyKind::ReliableReliabilityQos => ReliabilityKind::Reliable,
@@ -53,7 +55,24 @@ impl RtpsDataReader {
             reader,
             qos: Mutex::new(qos),
             topic: Mutex::new(Some(topic)),
+            listener: None,
         }
+    }
+}
+
+pub trait AnyRtpsReader: Send + Sync {
+    fn as_any(&self) -> &dyn Any;
+}
+
+impl<T: DDSType + Sized> AnyRtpsReader for RtpsDataReader<T> {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+impl<'a> RtpsObjectRef<'a, RtpsObject<Box<dyn AnyRtpsReader>>> {
+    pub fn value_as<U: 'static>(&self) -> ReturnCode<&U> {
+        self.value()?.as_ref().as_any().downcast_ref::<U>().ok_or(ReturnCodes::Error)
     }
 }
 
@@ -71,7 +90,7 @@ impl RtpsDataReader {
 pub struct DataReader<'a, T: DDSType> {
     pub(crate) parent_subscriber: &'a Subscriber<'a>,
     pub(crate) topic: &'a Topic<'a, T>,
-    pub(crate) rtps_datareader: RtpsObjectRef<'a, RtpsObject<RtpsDataReader>>,
+    pub(crate) rtps_datareader: RtpsObjectRef<'a, RtpsObject<Box<dyn AnyRtpsReader>>>,
 }
 
 impl<'a, T: DDSType> DataReader<'a, T> {
@@ -619,13 +638,13 @@ impl<'a, T: DDSType> Entity for DataReader<'a, T> {
     type Listener = Box<dyn DataReaderListener<T>>;
 
     fn set_qos(&self, qos: Self::Qos) -> ReturnCode<()> {
-        *self.rtps_datareader.value()?.qos.lock().unwrap() = qos;
+        *self.rtps_datareader.value_as::<RtpsDataReader<T>>()?.qos.lock().unwrap() = qos;
         // discovery.update_reader(datareader)?;
         Ok(())
     }
 
     fn get_qos(&self) -> ReturnCode<Self::Qos> {
-        Ok(self.rtps_datareader.value()?.qos.lock().unwrap().clone())
+        Ok(self.rtps_datareader.value_as::<RtpsDataReader<T>>()?.qos.lock().unwrap().clone())
     }
 
     fn set_listener(&self, _a_listener: Self::Listener, _mask: StatusMask) -> ReturnCode<()> {

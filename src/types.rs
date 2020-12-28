@@ -1,4 +1,4 @@
-pub trait DDSType: 'static {
+pub trait DDSType: 'static + Send + Sync {
     fn type_name() -> &'static str;
 
     fn topic_kind() -> TopicKind;

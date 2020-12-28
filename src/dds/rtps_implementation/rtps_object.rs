@@ -47,8 +47,15 @@ impl<T> RtpsObject<T> {
 }
 
 pub struct RtpsObjectList<T>([RwLock<RtpsObject<T>>; 32]);
+pub struct RtpsObjectRef<'a, T>(RwLockReadGuard<'a, T>);
 
-pub type RtpsObjectRef<'a, T> = RwLockReadGuard<'a, T>;
+impl<'a, T> std::ops::Deref for RtpsObjectRef<'a, T> {
+    type Target = RwLockReadGuard<'a, T>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
 
 impl<T> Default for RtpsObjectList<T> {
     fn default() -> Self {
@@ -57,17 +64,23 @@ impl<T> Default for RtpsObjectList<T> {
 }
 
 impl<T> RtpsObjectList<T> {
-    pub fn add(&self, value: T) -> Option<RwLockReadGuard<RtpsObject<T>>> {
+    pub fn add(&self, value: T) -> Option<RtpsObjectRef<RtpsObject<T>>> {
         let index = self.initialize_free_object(value)?;
-        Some(self.0[index].read().unwrap())
+        Some(RtpsObjectRef(self.0[index].read().unwrap()))
     }
 
     pub fn is_empty(&self) -> bool {
-        self.0.iter().find(|&x| x.read().unwrap().is_valid()).is_none()
+        self.0
+            .iter()
+            .find(|&x| x.read().unwrap().is_valid())
+            .is_none()
     }
 
-    pub fn contains(&self, object: &RwLockReadGuard<RtpsObject<T>>) -> bool {
-        self.0.iter().find(|&x| std::ptr::eq(&*x.read().unwrap(), &**object)).is_some()
+    pub fn contains(&self, object: &RtpsObjectRef<RtpsObject<T>>) -> bool {
+        self.0
+            .iter()
+            .find(|&x| std::ptr::eq(&*x.read().unwrap(), &*object.0))
+            .is_some()
     }
 
     fn initialize_free_object(&self, value: T) -> Option<usize> {

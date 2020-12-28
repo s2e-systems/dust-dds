@@ -8,7 +8,7 @@ use crate::dds::infrastructure::status::StatusMask;
 use crate::dds::publication::publisher::{Publisher, RtpsPublisher};
 use crate::dds::rtps_implementation::rtps_object::RtpsObjectList;
 use crate::dds::subscription::subscriber::{RtpsSubscriber, Subscriber};
-use crate::dds::topic::topic::{RtpsTopic, Topic};
+use crate::dds::topic::topic::{AnyRtpsTopic, RtpsTopic, Topic};
 use crate::rtps::structure::Participant;
 use crate::rtps::transport::Transport;
 use crate::rtps::types::constants::{PROTOCOL_VERSION_2_4, VENDOR_ID};
@@ -30,7 +30,7 @@ pub struct RtpsParticipant {
     publisher_count: atomic::AtomicU8,
     subscriber_list: RtpsObjectList<RtpsSubscriber>,
     subscriber_count: atomic::AtomicU8,
-    topic_list: RtpsObjectList<Arc<RtpsTopic>>,
+    topic_list: RtpsObjectList<Arc<dyn AnyRtpsTopic>>,
     topic_count: atomic::AtomicU8,
     enabled: atomic::AtomicBool,
 }
@@ -232,11 +232,9 @@ impl DomainParticipant {
         let entity_id = EntityId::new(entity_key, EntityKind::UserDefinedUnknown);
         let new_topic_guid = GUID::new(guid_prefix, entity_id);
         let new_topic_qos = qos.unwrap_or(self.get_default_topic_qos());
-        let new_topic = Arc::new(RtpsTopic::new(
+        let new_topic: Arc<RtpsTopic<T>> = Arc::new(RtpsTopic::new(
             new_topic_guid,
             topic_name.clone().into(),
-            T::type_name(),
-            T::topic_kind(),
             new_topic_qos,
         ));
         // discovery.insert_topic(&new_topic).ok()?;

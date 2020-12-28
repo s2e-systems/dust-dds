@@ -4,7 +4,7 @@ use crate::dds::infrastructure::qos::{DataReaderQos, SubscriberQos, TopicQos};
 use crate::dds::infrastructure::status::SampleLostStatus;
 use crate::dds::infrastructure::status::StatusMask;
 use crate::dds::rtps_implementation::rtps_object::{RtpsObject, RtpsObjectList, RtpsObjectRef};
-use crate::dds::subscription::data_reader::{DataReader, RtpsDataReader};
+use crate::dds::subscription::data_reader::{AnyRtpsReader, DataReader, RtpsDataReader};
 use crate::dds::subscription::subscriber_listener::SubscriberListener;
 use crate::dds::topic::topic::Topic;
 use crate::rtps::structure::Group;
@@ -14,7 +14,7 @@ use std::sync::{atomic, Mutex};
 
 pub struct RtpsSubscriber {
     pub group: Group,
-    pub reader_list: RtpsObjectList<RtpsDataReader>,
+    pub reader_list: RtpsObjectList<Box<dyn AnyRtpsReader>>,
     pub reader_count: atomic::AtomicU8,
     pub default_datareader_qos: Mutex<DataReaderQos>,
     pub qos: SubscriberQos,
@@ -88,14 +88,14 @@ impl<'a> Subscriber<'a> {
             this.reader_count.fetch_add(1, atomic::Ordering::Relaxed),
             0,
         ];
-        let entity_kind = match topic.topic_kind {
+        let entity_kind = match topic.topic_kind() {
             TopicKind::WithKey => EntityKind::UserDefinedReaderWithKey,
             TopicKind::NoKey => EntityKind::UserDefinedReaderNoKey,
         };
         let entity_id = EntityId::new(entity_key, entity_kind);
         let new_reader_guid = GUID::new(guid_prefix, entity_id);
         let new_reader_qos = qos.unwrap_or(self.get_default_datareader_qos().ok()?);
-        let new_reader = RtpsDataReader::new(new_reader_guid, topic, new_reader_qos);
+        let new_reader: Box<RtpsDataReader<T>> = Box::new(RtpsDataReader::new(new_reader_guid, topic, new_reader_qos));
         // discovery.insert_reader(&new_reader).ok()?;
         let rtps_datareader = this.reader_list.add(new_reader)?;
 
@@ -119,7 +119,7 @@ impl<'a> Subscriber<'a> {
     /// PRECONDITION_NOT_MET.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
     pub fn delete_datareader<T: DDSType>(&self, a_datareader: &DataReader<T>) -> ReturnCode<()> {
-        let datareader = a_datareader.rtps_datareader.value()?;
+        let datareader = a_datareader.rtps_datareader.value_as::<RtpsDataReader<T>>()?;
         // discovery.remove_reader(datareader)?;
         datareader.topic.lock().unwrap().take(); // Drop the topic
         a_datareader.rtps_datareader.delete();

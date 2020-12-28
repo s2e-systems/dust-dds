@@ -7,32 +7,54 @@ use crate::dds::topic::topic_description::TopicDescription;
 use crate::dds::topic::topic_listener::TopicListener;
 use crate::rtps;
 use crate::rtps::types::GUID;
-use crate::types::{DDSType, InstanceHandle, ReturnCode, TopicKind};
+use crate::types::{DDSType, InstanceHandle, ReturnCode, ReturnCodes, TopicKind };
 use std::sync::{Arc, Mutex};
+use std::any::Any;
 
-pub struct RtpsTopic {
+pub struct RtpsTopic<T: DDSType> {
     pub entity: rtps::structure::Entity,
     pub topic_name: String,
     pub type_name: &'static str,
     pub topic_kind: TopicKind,
     pub qos: Mutex<TopicQos>,
+    pub marker: std::marker::PhantomData<T>,
 }
 
-impl RtpsTopic {
+impl<T: DDSType> RtpsTopic<T> {
     pub fn new(
         guid: GUID,
         topic_name: String,
-        type_name: &'static str,
-        topic_kind: TopicKind,
         qos: TopicQos,
     ) -> Self {
         Self {
             entity: rtps::structure::Entity { guid },
             topic_name,
-            type_name,
-            topic_kind,
+            type_name: T::type_name(),
+            topic_kind: T::topic_kind(),
             qos: Mutex::new(qos),
+            marker: std::marker::PhantomData,
         }
+    }
+}
+
+pub trait AnyRtpsTopic: Send + Sync {
+    fn topic_kind(&self) -> TopicKind;
+    fn as_any(&self) -> &dyn Any;
+}
+
+impl<T: DDSType + Sized> AnyRtpsTopic for RtpsTopic<T> {
+    fn topic_kind(&self) -> TopicKind {
+        self.topic_kind
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+impl<'a> RtpsObjectRef<'a, RtpsObject<Arc<dyn AnyRtpsTopic>>> {
+    pub fn value_as<U: 'static>(&self) -> ReturnCode<&U> {
+        self.value()?.as_ref().as_any().downcast_ref::<U>().ok_or(ReturnCodes::Error)
     }
 }
 
@@ -44,7 +66,7 @@ impl RtpsTopic {
 /// get_status_condition may return the value NOT_ENABLED.
 pub struct Topic<'a, T: DDSType> {
     pub(crate) parent_participant: &'a DomainParticipant,
-    pub(crate) rtps_topic: RtpsObjectRef<'a, RtpsObject<Arc<RtpsTopic>>>,
+    pub(crate) rtps_topic: RtpsObjectRef<'a, RtpsObject<Arc<dyn AnyRtpsTopic>>>,
     pub(crate) marker: std::marker::PhantomData<T>,
 }
 
@@ -65,11 +87,11 @@ impl<'a, T: DDSType> TopicDescription for Topic<'a, T> {
     }
 
     fn get_type_name(&self) -> ReturnCode<&str> {
-        Ok(self.rtps_topic.value()?.type_name)
+        Ok(self.rtps_topic.value_as::<RtpsTopic<T>>()?.type_name)
     }
 
     fn get_name(&self) -> ReturnCode<String> {
-        Ok(self.rtps_topic.value()?.topic_name.clone())
+        Ok(self.rtps_topic.value_as::<RtpsTopic<T>>()?.topic_name.clone())
     }
 }
 
@@ -79,13 +101,13 @@ impl<'a, T: DDSType> Entity for Topic<'a, T> {
 
     fn set_qos(&self, qos: Self::Qos) -> ReturnCode<()> {
         qos.is_consistent()?;
-        *self.rtps_topic.value()?.qos.lock().unwrap() = qos;
+        *self.rtps_topic.value_as::<RtpsTopic<T>>()?.qos.lock().unwrap() = qos;
         // discovery.update_topic(topic)?;
         Ok(())
     }
 
     fn get_qos(&self) -> ReturnCode<Self::Qos> {
-        Ok(self.rtps_topic.value()?.qos.lock().unwrap().clone())
+        Ok(self.rtps_topic.value_as::<RtpsTopic<T>>()?.qos.lock().unwrap().clone())
     }
 
     fn set_listener(&self, _a_listener: Self::Listener, _mask: StatusMask) -> ReturnCode<()> {
@@ -109,6 +131,6 @@ impl<'a, T: DDSType> Entity for Topic<'a, T> {
     }
 
     fn get_instance_handle(&self) -> ReturnCode<InstanceHandle> {
-        Ok(self.rtps_topic.value()?.entity.guid.into())
+        Ok(self.rtps_topic.value_as::<RtpsTopic<T>>()?.entity.guid.into())
     }
 }
