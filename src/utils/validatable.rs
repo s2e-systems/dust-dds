@@ -2,12 +2,12 @@ use crate::types::{ReturnCode, ReturnCodes};
 use core::sync::atomic;
 use std::sync::{RwLock, RwLockReadGuard};
 
-pub struct RtpsObject<T> {
+pub struct Validatable<T> {
     value: Option<T>,
     valid: atomic::AtomicBool,
 }
 
-impl<T> Default for RtpsObject<T> {
+impl<T> Default for Validatable<T> {
     fn default() -> Self {
         Self {
             value: None,
@@ -16,7 +16,7 @@ impl<T> Default for RtpsObject<T> {
     }
 }
 
-impl<T> RtpsObject<T> {
+impl<T> Validatable<T> {
     pub fn new(value: T) -> Self {
         Self {
             value: Some(value),
@@ -46,10 +46,10 @@ impl<T> RtpsObject<T> {
     }
 }
 
-pub struct RtpsObjectList<T>([RwLock<RtpsObject<T>>; 32]);
-pub struct RtpsObjectRef<'a, T>(RwLockReadGuard<'a, T>);
+pub struct ListOfValidatables<T>([RwLock<Validatable<T>>; 32]);
+pub struct Ref<'a, T>(RwLockReadGuard<'a, T>);
 
-impl<'a, T> std::ops::Deref for RtpsObjectRef<'a, T> {
+impl<'a, T> std::ops::Deref for Ref<'a, T> {
     type Target = RwLockReadGuard<'a, T>;
 
     fn deref(&self) -> &Self::Target {
@@ -57,16 +57,16 @@ impl<'a, T> std::ops::Deref for RtpsObjectRef<'a, T> {
     }
 }
 
-impl<T> Default for RtpsObjectList<T> {
+impl<T> Default for ListOfValidatables<T> {
     fn default() -> Self {
         Self(Default::default())
     }
 }
 
-impl<T> RtpsObjectList<T> {
-    pub fn add(&self, value: T) -> Option<RtpsObjectRef<RtpsObject<T>>> {
+impl<T> ListOfValidatables<T> {
+    pub fn add(&self, value: T) -> Option<Ref<Validatable<T>>> {
         let index = self.initialize_free_object(value)?;
-        Some(RtpsObjectRef(self.0[index].read().unwrap()))
+        Some(Ref(self.0[index].read().unwrap()))
     }
 
     pub fn is_empty(&self) -> bool {
@@ -76,7 +76,7 @@ impl<T> RtpsObjectList<T> {
             .is_none()
     }
 
-    pub fn contains(&self, object: &RtpsObjectRef<RtpsObject<T>>) -> bool {
+    pub fn contains(&self, object: &Ref<Validatable<T>>) -> bool {
         self.0
             .iter()
             .find(|&x| std::ptr::eq(&*x.read().unwrap(), &*object.0))
@@ -105,7 +105,7 @@ mod tests {
 
     #[test]
     fn create_delete() {
-        let object = RtpsObject::new(10);
+        let object = Validatable::new(10);
         assert!(object.value().is_ok());
         object.delete();
         assert!(object.value().is_err());
@@ -113,13 +113,13 @@ mod tests {
 
     #[test]
     fn value_ok() {
-        let object = RtpsObject::new(100i32);
+        let object = Validatable::new(100i32);
         assert_eq!(object.value().unwrap(), &100i32);
     }
 
     #[test]
     fn value_deleted() {
-        let object = RtpsObject::new(100i32);
+        let object = Validatable::new(100i32);
         object.delete();
         match object.value() {
             Err(ReturnCodes::AlreadyDeleted) => assert!(true),
@@ -129,7 +129,7 @@ mod tests {
 
     #[test]
     fn value_deleted_and_initialized() {
-        let mut object = RtpsObject::new(100i32);
+        let mut object = Validatable::new(100i32);
         object.delete();
         object.initialize(-10i32);
         assert_eq!(object.value().unwrap(), &-10i32);
@@ -137,7 +137,7 @@ mod tests {
 
     #[test]
     fn object_list_initialize_free_object_positions() {
-        let object_list: RtpsObjectList<i32> = RtpsObjectList::default();
+        let object_list: ListOfValidatables<i32> = ListOfValidatables::default();
         let index0 = object_list.initialize_free_object(10).unwrap();
         let index1 = object_list.initialize_free_object(20).unwrap();
         let index2 = object_list.initialize_free_object(-5).unwrap();
@@ -149,7 +149,7 @@ mod tests {
 
     #[test]
     fn object_list_initialize_free_object_positions_with_deletion() {
-        let object_list: RtpsObjectList<i32> = RtpsObjectList::default();
+        let object_list: ListOfValidatables<i32> = ListOfValidatables::default();
         {
             let _object0 = object_list.add(0).unwrap();
             let object1 = object_list.add(10).unwrap();
@@ -171,7 +171,7 @@ mod tests {
 
     #[test]
     fn object_list_initialize_free_object_deleted_with_references() {
-        let object_list: RtpsObjectList<i32> = RtpsObjectList::default();
+        let object_list: ListOfValidatables<i32> = ListOfValidatables::default();
 
         let _object0 = object_list.add(0).unwrap();
         let object1 = object_list.add(10).unwrap();
@@ -190,8 +190,8 @@ mod tests {
 
     #[test]
     fn contains() {
-        let object_list1: RtpsObjectList<i32> = RtpsObjectList::default();
-        let object_list2: RtpsObjectList<i32> = RtpsObjectList::default();
+        let object_list1: ListOfValidatables<i32> = ListOfValidatables::default();
+        let object_list2: ListOfValidatables<i32> = ListOfValidatables::default();
 
         let object11 = object_list1.add(10).unwrap();
         let object21 = object_list2.add(10).unwrap();

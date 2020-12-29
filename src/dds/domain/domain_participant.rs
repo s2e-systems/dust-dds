@@ -6,7 +6,7 @@ use crate::dds::infrastructure::qos::{
 };
 use crate::dds::infrastructure::status::StatusMask;
 use crate::dds::publication::publisher::{Publisher, RtpsPublisher};
-use crate::utils::validatable::RtpsObjectList;
+use crate::utils::validatable::ListOfValidatables;
 use crate::dds::subscription::subscriber::{RtpsSubscriber, Subscriber};
 use crate::dds::topic::topic::{AnyRtpsTopic, RtpsTopic, Topic};
 use crate::rtps::structure::Participant;
@@ -26,11 +26,11 @@ pub struct RtpsParticipant {
     default_topic_qos: Mutex<TopicQos>,
     userdata_transport: Box<dyn Transport>,
     metatraffic_transport: Box<dyn Transport>,
-    publisher_list: RtpsObjectList<Box<RtpsPublisher>>,
+    publisher_list: ListOfValidatables<Box<RtpsPublisher>>,
     publisher_count: atomic::AtomicU8,
-    subscriber_list: RtpsObjectList<Box<RtpsSubscriber>>,
+    subscriber_list: ListOfValidatables<Box<RtpsSubscriber>>,
     subscriber_count: atomic::AtomicU8,
-    topic_list: RtpsObjectList<Arc<dyn AnyRtpsTopic>>,
+    topic_list: ListOfValidatables<Arc<dyn AnyRtpsTopic>>,
     topic_count: atomic::AtomicU8,
     enabled: atomic::AtomicBool,
 }

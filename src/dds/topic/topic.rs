@@ -2,7 +2,7 @@ use crate::dds::domain::domain_participant::DomainParticipant;
 use crate::dds::infrastructure::entity::{Entity, StatusCondition};
 use crate::dds::infrastructure::qos::TopicQos;
 use crate::dds::infrastructure::status::StatusMask;
-use crate::utils::validatable::{RtpsObject, RtpsObjectRef};
+use crate::utils::validatable::{Validatable, Ref};
 use crate::dds::topic::topic_description::TopicDescription;
 use crate::dds::topic::topic_listener::TopicListener;
 use crate::rtps;
@@ -76,7 +76,7 @@ impl<T: DDSType + Sized> AnyRtpsTopic for RtpsTopic<T> {
     }
 }
 
-impl<'a> RtpsObjectRef<'a, RtpsObject<Arc<dyn AnyRtpsTopic>>> {
+impl<'a> Ref<'a, Validatable<Arc<dyn AnyRtpsTopic>>> {
     pub fn value_as<U: 'static>(&self) -> ReturnCode<&U> {
         self.value()?.as_ref().as_any().downcast_ref::<U>().ok_or(ReturnCodes::Error)
     }
@@ -90,7 +90,7 @@ impl<'a> RtpsObjectRef<'a, RtpsObject<Arc<dyn AnyRtpsTopic>>> {
 /// get_status_condition may return the value NOT_ENABLED.
 pub struct Topic<'a, T: DDSType> {
     pub(crate) parent_participant: &'a DomainParticipant,
-    pub(crate) rtps_topic: RtpsObjectRef<'a, RtpsObject<Arc<dyn AnyRtpsTopic>>>,
+    pub(crate) rtps_topic: Ref<'a, Validatable<Arc<dyn AnyRtpsTopic>>>,
     pub(crate) marker: std::marker::PhantomData<T>,
 }
 

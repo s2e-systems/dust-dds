@@ -4,7 +4,7 @@ use crate::dds::infrastructure::qos::{DataWriterQos, PublisherQos, TopicQos};
 use crate::dds::infrastructure::status::StatusMask;
 use crate::dds::publication::data_writer::{AnyRtpsWriter, DataWriter, RtpsDataWriter};
 use crate::dds::publication::publisher_listener::PublisherListener;
-use crate::utils::validatable::{RtpsObject, RtpsObjectList, RtpsObjectRef};
+use crate::utils::validatable::{Validatable, ListOfValidatables, Ref};
 use crate::dds::topic::topic::Topic;
 use crate::rtps::structure::Group;
 use crate::rtps::types::{EntityId, EntityKind, GUID};
@@ -13,7 +13,7 @@ use std::sync::{atomic, Mutex};
 
 pub struct RtpsPublisher {
     pub group: Group,
-    pub writer_list: RtpsObjectList<Box<dyn AnyRtpsWriter>>,
+    pub writer_list: ListOfValidatables<Box<dyn AnyRtpsWriter>>,
     pub writer_count: atomic::AtomicU8,
     pub default_datawriter_qos: Mutex<DataWriterQos>,
     pub qos: PublisherQos,
@@ -43,7 +43,7 @@ impl RtpsPublisher {
 /// create_datawriter, and delete_datawriter may return the value NOT_ENABLED.
 pub struct Publisher<'a> {
     pub(crate) parent_participant: &'a DomainParticipant,
-    pub(crate) rtps_publisher: RtpsObjectRef<'a, RtpsObject<Box<RtpsPublisher>>>,
+    pub(crate) rtps_publisher: Ref<'a, Validatable<Box<RtpsPublisher>>>,
 }
 
 impl<'a> Publisher<'a> {
