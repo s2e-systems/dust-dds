@@ -9,7 +9,7 @@ use crate::dds::infrastructure::status::{
 };
 use crate::dds::publication::data_writer_listener::DataWriterListener;
 use crate::dds::publication::publisher::Publisher;
-use crate::dds::rtps_implementation::rtps_object::{RtpsObject, RtpsObjectRef};
+use crate::utils::validatable::{RtpsObject, RtpsObjectRef};
 use crate::dds::topic::topic::AnyRtpsTopic;
 use crate::dds::topic::topic::Topic;
 use crate::rtps::behavior;

@@ -3,7 +3,7 @@ use crate::dds::infrastructure::entity::{Entity, StatusCondition};
 use crate::dds::infrastructure::qos::{DataReaderQos, SubscriberQos, TopicQos};
 use crate::dds::infrastructure::status::SampleLostStatus;
 use crate::dds::infrastructure::status::StatusMask;
-use crate::dds::rtps_implementation::rtps_object::{RtpsObject, RtpsObjectList, RtpsObjectRef};
+use crate::utils::validatable::{RtpsObject, RtpsObjectList, RtpsObjectRef};
 use crate::dds::subscription::data_reader::{AnyRtpsReader, DataReader, RtpsDataReader};
 use crate::dds::subscription::subscriber_listener::SubscriberListener;
 use crate::dds::topic::topic::Topic;

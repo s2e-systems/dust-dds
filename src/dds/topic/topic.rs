@@ -2,7 +2,7 @@ use crate::dds::domain::domain_participant::DomainParticipant;
 use crate::dds::infrastructure::entity::{Entity, StatusCondition};
 use crate::dds::infrastructure::qos::TopicQos;
 use crate::dds::infrastructure::status::StatusMask;
-use crate::dds::rtps_implementation::rtps_object::{RtpsObject, RtpsObjectRef};
+use crate::utils::validatable::{RtpsObject, RtpsObjectRef};
 use crate::dds::topic::topic_description::TopicDescription;
 use crate::dds::topic::topic_listener::TopicListener;
 use crate::rtps;

@@ -4,4 +4,3 @@ pub mod infrastructure;
 pub mod topic;
 pub mod publication;
 pub mod subscription;
-pub mod rtps_implementation;

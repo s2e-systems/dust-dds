@@ -6,7 +6,7 @@ use crate::dds::infrastructure::qos::{
 };
 use crate::dds::infrastructure::status::StatusMask;
 use crate::dds::publication::publisher::{Publisher, RtpsPublisher};
-use crate::dds::rtps_implementation::rtps_object::RtpsObjectList;
+use crate::utils::validatable::RtpsObjectList;
 use crate::dds::subscription::subscriber::{RtpsSubscriber, Subscriber};
 use crate::dds::topic::topic::{AnyRtpsTopic, RtpsTopic, Topic};
 use crate::rtps::structure::Participant;

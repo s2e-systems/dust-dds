@@ -10,7 +10,7 @@ use crate::dds::infrastructure::status::{
     RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus, SampleStateKind,
     SubscriptionMatchedStatus, ViewStateKind,
 };
-use crate::dds::rtps_implementation::rtps_object::{RtpsObject, RtpsObjectRef};
+use crate::utils::validatable::{RtpsObject, RtpsObjectRef};
 use crate::dds::subscription::data_reader_listener::DataReaderListener;
 use crate::dds::subscription::subscriber::Subscriber;
 use crate::dds::topic::topic::AnyRtpsTopic;
