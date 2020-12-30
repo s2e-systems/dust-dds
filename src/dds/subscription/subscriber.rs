@@ -9,7 +9,7 @@ use crate::dds::subscription::subscriber_listener::SubscriberListener;
 use crate::dds::topic::topic::Topic;
 use crate::rtps::structure::Group;
 use crate::rtps::types::{EntityId, EntityKind, GUID};
-use crate::types::{DDSType, InstanceHandle, ReturnCode, TopicKind};
+use crate::types::{DDSType, InstanceHandle, ReturnCode, TopicKind, ReturnCodes};
 use std::sync::{atomic, Mutex};
 
 pub struct RtpsSubscriber {
@@ -33,6 +33,12 @@ impl RtpsSubscriber {
             listener,
             status_mask
         }
+    }
+}
+
+impl<'a> MaybeValidRef<'a, Box<RtpsSubscriber>> {
+    pub fn value(&self) -> ReturnCode<&Box<RtpsSubscriber>> {
+        self.get().ok_or(ReturnCodes::AlreadyDeleted)
     }
 }
 

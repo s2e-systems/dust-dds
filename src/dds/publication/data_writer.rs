@@ -102,6 +102,10 @@ impl<T: DDSType + Sized> AnyRtpsWriter for RtpsDataWriter<T> {
 }
 
 impl<'a> MaybeValidRef<'a, Box<dyn AnyRtpsWriter>> {
+    pub fn value(&self) -> ReturnCode<&Box<dyn AnyRtpsWriter>> {
+        self.get().ok_or(ReturnCodes::AlreadyDeleted)
+    }
+
     pub fn value_as<U: 'static>(&self) -> ReturnCode<&U> {
         self.value()?.as_ref().as_any().downcast_ref::<U>().ok_or(ReturnCodes::Error)
     }

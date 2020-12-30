@@ -8,7 +8,7 @@ use crate::utils::maybe_valid::{MaybeValidList, MaybeValidRef};
 use crate::dds::topic::topic::Topic;
 use crate::rtps::structure::Group;
 use crate::rtps::types::{EntityId, EntityKind, GUID};
-use crate::types::{DDSType, Duration, InstanceHandle, ReturnCode, TopicKind};
+use crate::types::{DDSType, Duration, InstanceHandle, ReturnCode, TopicKind, ReturnCodes};
 use std::sync::{atomic, Mutex};
 
 pub struct RtpsPublisher {
@@ -32,6 +32,12 @@ impl RtpsPublisher {
             listener,
             status_mask,
         }
+    }
+}
+
+impl<'a> MaybeValidRef<'a, Box<RtpsPublisher>> {
+    pub fn value(&self) -> ReturnCode<&Box<RtpsPublisher>> {
+        self.get().ok_or(ReturnCodes::AlreadyDeleted)
     }
 }
 

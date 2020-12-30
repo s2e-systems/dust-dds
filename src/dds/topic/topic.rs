@@ -77,6 +77,10 @@ impl<T: DDSType + Sized> AnyRtpsTopic for RtpsTopic<T> {
 }
 
 impl<'a> MaybeValidRef<'a, Arc<dyn AnyRtpsTopic>> {
+    pub fn value(&self) -> ReturnCode<&Arc<dyn AnyRtpsTopic>> {
+        self.get().ok_or(ReturnCodes::AlreadyDeleted)
+    }
+    
     pub fn value_as<U: 'static>(&self) -> ReturnCode<&U> {
         self.value()?.as_ref().as_any().downcast_ref::<U>().ok_or(ReturnCodes::Error)
     }

@@ -93,6 +93,10 @@ impl<T: DDSType + Sized> AnyRtpsReader for RtpsDataReader<T> {
 }
 
 impl<'a> MaybeValidRef<'a, Box<dyn AnyRtpsReader>> {
+    pub fn value(&self) -> ReturnCode<&Box<dyn AnyRtpsReader>> {
+        self.get().ok_or(ReturnCodes::AlreadyDeleted)
+    }
+
     pub fn value_as<U: 'static>(&self) -> ReturnCode<&U> {
         self.value()?.as_ref().as_any().downcast_ref::<U>().ok_or(ReturnCodes::Error)
     }

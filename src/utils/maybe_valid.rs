@@ -1,4 +1,3 @@
-use crate::types::{ReturnCode, ReturnCodes};
 use core::sync::atomic;
 use std::sync::{RwLock, RwLockReadGuard};
 
@@ -24,11 +23,11 @@ impl<T> MaybeValid<T> {
         }
     }
 
-    pub fn value(&self) -> ReturnCode<&T> {
+    pub fn get(&self) -> Option<&T> {
         if self.is_valid() {
-            Ok(self.value.as_ref().unwrap())
+            Some(self.value.as_ref().unwrap())
         } else {
-            Err(ReturnCodes::AlreadyDeleted)
+            None
         }
     }
 
@@ -106,25 +105,22 @@ mod tests {
     #[test]
     fn create_delete() {
         let object = MaybeValid::new(10);
-        assert!(object.value().is_ok());
+        assert!(object.get().is_some());
         object.delete();
-        assert!(object.value().is_err());
+        assert!(object.get().is_none());
     }
 
     #[test]
     fn value_ok() {
         let object = MaybeValid::new(100i32);
-        assert_eq!(object.value().unwrap(), &100i32);
+        assert_eq!(object.get().unwrap(), &100i32);
     }
 
     #[test]
     fn value_deleted() {
         let object = MaybeValid::new(100i32);
         object.delete();
-        match object.value() {
-            Err(ReturnCodes::AlreadyDeleted) => assert!(true),
-            _ => assert!(false, "Expected error code AlreadyDeleted"),
-        }
+        assert!(object.get().is_none());
     }
 
     #[test]
@@ -132,7 +128,7 @@ mod tests {
         let mut object = MaybeValid::new(100i32);
         object.delete();
         object.initialize(-10i32);
-        assert_eq!(object.value().unwrap(), &-10i32);
+        assert_eq!(object.get().unwrap(), &-10i32);
     }
 
     #[test]
