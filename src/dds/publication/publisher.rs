@@ -4,7 +4,7 @@ use crate::dds::infrastructure::qos::{DataWriterQos, PublisherQos, TopicQos};
 use crate::dds::infrastructure::status::StatusMask;
 use crate::dds::publication::data_writer::{AnyRtpsWriter, DataWriter, RtpsDataWriter};
 use crate::dds::publication::publisher_listener::PublisherListener;
-use crate::utils::maybe_valid::{MaybeValid, MaybeValidList, Ref};
+use crate::utils::maybe_valid::{MaybeValidList, MaybeValidRef};
 use crate::dds::topic::topic::Topic;
 use crate::rtps::structure::Group;
 use crate::rtps::types::{EntityId, EntityKind, GUID};
@@ -43,7 +43,7 @@ impl RtpsPublisher {
 /// create_datawriter, and delete_datawriter may return the value NOT_ENABLED.
 pub struct Publisher<'a> {
     pub(crate) parent_participant: &'a DomainParticipant,
-    pub(crate) rtps_publisher: Ref<'a, MaybeValid<Box<RtpsPublisher>>>,
+    pub(crate) rtps_publisher: MaybeValidRef<'a, Box<RtpsPublisher>>,
 }
 
 impl<'a> Publisher<'a> {

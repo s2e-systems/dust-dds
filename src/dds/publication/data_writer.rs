@@ -9,7 +9,7 @@ use crate::dds::infrastructure::status::{
 };
 use crate::dds::publication::data_writer_listener::DataWriterListener;
 use crate::dds::publication::publisher::Publisher;
-use crate::utils::maybe_valid::{MaybeValid, Ref};
+use crate::utils::maybe_valid::MaybeValidRef;
 use crate::dds::topic::topic::AnyRtpsTopic;
 use crate::dds::topic::topic::Topic;
 use crate::rtps::behavior;
@@ -101,7 +101,7 @@ impl<T: DDSType + Sized> AnyRtpsWriter for RtpsDataWriter<T> {
     }
 }
 
-impl<'a> Ref<'a, MaybeValid<Box<dyn AnyRtpsWriter>>> {
+impl<'a> MaybeValidRef<'a, Box<dyn AnyRtpsWriter>> {
     pub fn value_as<U: 'static>(&self) -> ReturnCode<&U> {
         self.value()?.as_ref().as_any().downcast_ref::<U>().ok_or(ReturnCodes::Error)
     }
@@ -110,7 +110,7 @@ impl<'a> Ref<'a, MaybeValid<Box<dyn AnyRtpsWriter>>> {
 pub struct DataWriter<'a, T: DDSType> {
     pub(crate) parent_publisher: &'a Publisher<'a>,
     pub(crate) topic: &'a Topic<'a, T>,
-    pub(crate) rtps_datawriter: Ref<'a, MaybeValid<Box<dyn AnyRtpsWriter>>>,
+    pub(crate) rtps_datawriter: MaybeValidRef<'a, Box<dyn AnyRtpsWriter>>,
 }
 
 impl<'a, T: DDSType> DataWriter<'a, T> {

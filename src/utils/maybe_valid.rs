@@ -47,10 +47,10 @@ impl<T> MaybeValid<T> {
 }
 
 pub struct MaybeValidList<T>([RwLock<MaybeValid<T>>; 32]);
-pub struct Ref<'a, T>(RwLockReadGuard<'a, T>);
+pub struct MaybeValidRef<'a, T>(RwLockReadGuard<'a, MaybeValid<T>>);
 
-impl<'a, T> std::ops::Deref for Ref<'a, T> {
-    type Target = RwLockReadGuard<'a, T>;
+impl<'a, T> std::ops::Deref for MaybeValidRef<'a, T> {
+    type Target = RwLockReadGuard<'a, MaybeValid<T>>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -64,9 +64,9 @@ impl<T> Default for MaybeValidList<T> {
 }
 
 impl<T> MaybeValidList<T> {
-    pub fn add(&self, value: T) -> Option<Ref<MaybeValid<T>>> {
+    pub fn add(&self, value: T) -> Option<MaybeValidRef<T>> {
         let index = self.initialize_free_object(value)?;
-        Some(Ref(self.0[index].read().unwrap()))
+        Some(MaybeValidRef(self.0[index].read().unwrap()))
     }
 
     pub fn is_empty(&self) -> bool {
@@ -76,7 +76,7 @@ impl<T> MaybeValidList<T> {
             .is_none()
     }
 
-    pub fn contains(&self, object: &Ref<MaybeValid<T>>) -> bool {
+    pub fn contains(&self, object: &MaybeValidRef<T>) -> bool {
         self.0
             .iter()
             .find(|&x| std::ptr::eq(&*x.read().unwrap(), &*object.0))
