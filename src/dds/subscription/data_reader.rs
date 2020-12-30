@@ -10,7 +10,7 @@ use crate::dds::infrastructure::status::{
     RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus, SampleStateKind,
     SubscriptionMatchedStatus, ViewStateKind,
 };
-use crate::utils::validatable::{Validatable, Ref};
+use crate::utils::maybe_valid::{MaybeValid, Ref};
 use crate::dds::subscription::data_reader_listener::DataReaderListener;
 use crate::dds::subscription::subscriber::Subscriber;
 use crate::dds::topic::topic::AnyRtpsTopic;
@@ -92,7 +92,7 @@ impl<T: DDSType + Sized> AnyRtpsReader for RtpsDataReader<T> {
     }
 }
 
-impl<'a> Ref<'a, Validatable<Box<dyn AnyRtpsReader>>> {
+impl<'a> Ref<'a, MaybeValid<Box<dyn AnyRtpsReader>>> {
     pub fn value_as<U: 'static>(&self) -> ReturnCode<&U> {
         self.value()?.as_ref().as_any().downcast_ref::<U>().ok_or(ReturnCodes::Error)
     }
@@ -112,7 +112,7 @@ impl<'a> Ref<'a, Validatable<Box<dyn AnyRtpsReader>>> {
 pub struct DataReader<'a, T: DDSType> {
     pub(crate) parent_subscriber: &'a Subscriber<'a>,
     pub(crate) topic: &'a Topic<'a, T>,
-    pub(crate) rtps_datareader: Ref<'a, Validatable<Box<dyn AnyRtpsReader>>>,
+    pub(crate) rtps_datareader: Ref<'a, MaybeValid<Box<dyn AnyRtpsReader>>>,
 }
 
 impl<'a, T: DDSType> DataReader<'a, T> {

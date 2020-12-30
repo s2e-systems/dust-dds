@@ -3,7 +3,7 @@ use crate::dds::infrastructure::entity::{Entity, StatusCondition};
 use crate::dds::infrastructure::qos::{DataReaderQos, SubscriberQos, TopicQos};
 use crate::dds::infrastructure::status::SampleLostStatus;
 use crate::dds::infrastructure::status::StatusMask;
-use crate::utils::validatable::{Validatable, ListOfValidatables, Ref};
+use crate::utils::maybe_valid::{MaybeValid, MaybeValidList, Ref};
 use crate::dds::subscription::data_reader::{AnyRtpsReader, DataReader, RtpsDataReader};
 use crate::dds::subscription::subscriber_listener::SubscriberListener;
 use crate::dds::topic::topic::Topic;
@@ -14,7 +14,7 @@ use std::sync::{atomic, Mutex};
 
 pub struct RtpsSubscriber {
     pub group: Group,
-    pub reader_list: ListOfValidatables<Box<dyn AnyRtpsReader>>,
+    pub reader_list: MaybeValidList<Box<dyn AnyRtpsReader>>,
     pub reader_count: atomic::AtomicU8,
     pub default_datareader_qos: Mutex<DataReaderQos>,
     pub qos: SubscriberQos,
@@ -46,7 +46,7 @@ impl RtpsSubscriber {
 /// and create_datareader may return the value NOT_ENABLED.
 pub struct Subscriber<'a> {
     pub(crate) parent_participant: &'a DomainParticipant,
-    pub(crate) rtps_subscriber: Ref<'a, Validatable<Box<RtpsSubscriber>>>,
+    pub(crate) rtps_subscriber: Ref<'a, MaybeValid<Box<RtpsSubscriber>>>,
 }
 
 impl<'a> Subscriber<'a> {
