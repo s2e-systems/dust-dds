@@ -624,7 +624,7 @@ impl Entity for DomainParticipant {
 
         let builtin_writer = RtpsDataWriter::<SpdpDiscoveredParticipantData>::new_stateless(
             builtin_writer_guid,
-            builtin_topic,
+            builtin_topic.clone(),
             builtin_writer_qos,
             None,
             0,
@@ -644,15 +644,13 @@ impl Entity for DomainParticipant {
             rtps_topic,
             marker: std::marker::PhantomData,
         };
-        let mdw = RwLock::new(MaybeValid::new(Box::new(builtin_writer.as_any())));
-        let dw = DataWriter {
+        let builtin_writer_box: Box<dyn AnyRtpsWriter> = Box::new(builtin_writer);
+        let rtps_datawriter= builtin_publisher.rtps_publisher.get().unwrap().writer_list.add(builtin_writer_box).unwrap();
+        let data_writer = DataWriter {
             parent_publisher: &builtin_publisher,
             topic: &topic,
-            rtps_datawriter: MaybeValidRef(mdw.read().unwrap()),
+            rtps_datawriter: rtps_datawriter,
         };
-        // let builtin_writer = builtin_publisher
-        //     .create_datawriter(&topic, Some(builtin_writer_qos))
-        //     .unwrap();
 
         let key = BuiltInTopicKey([1, 2, 3]);
         let user_data = UserDataQosPolicy { value: vec![] };
@@ -685,7 +683,7 @@ impl Entity for DomainParticipant {
             participant_proxy,
             lease_duration,
         };
-        dw.write_w_timestamp(data, None, TIME_INVALID);
+        data_writer.write_w_timestamp(data, None, TIME_INVALID).ok();
 
 
 
