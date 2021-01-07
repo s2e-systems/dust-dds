@@ -1,27 +1,31 @@
-use crate::{builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData}, dds::infrastructure::qos::DataWriterQos, rtps::types::constants::{ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, ENTITYID_UNKNOWN}};
-use crate::dds::domain::domain_participant_listener::DomainParticipantListener;
+use crate::{dds::{domain::domain_participant_listener::DomainParticipantListener, publication::data_writer::WriterFlavor}, rtps::types::Locator};
 use crate::dds::infrastructure::entity::{Entity, StatusCondition};
 use crate::dds::infrastructure::qos::{
     DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos,
 };
 use crate::dds::infrastructure::status::StatusMask;
-use crate::dds::publication::publisher::{Publisher, RtpsPublisher};
 use crate::dds::publication::data_writer::RtpsDataWriter;
-use crate::utils::maybe_valid::MaybeValidList;
+use crate::dds::publication::publisher::{Publisher, RtpsPublisher};
 use crate::dds::subscription::subscriber::{RtpsSubscriber, Subscriber};
 use crate::dds::topic::topic::{AnyRtpsTopic, RtpsTopic, Topic};
+use crate::rtps::behavior::endpoint_traits::{CacheChangeSender, DestinedMessages};
+use crate::rtps::message_sender::RtpsMessageSender;
 use crate::rtps::structure::Participant;
 use crate::rtps::transport::Transport;
 use crate::rtps::types::constants::{PROTOCOL_VERSION_2_4, VENDOR_ID};
 use crate::rtps::types::{EntityId, EntityKind, GUID};
 use crate::types::{DDSType, DomainId, Duration, InstanceHandle, ReturnCode, ReturnCodes, Time};
+use crate::utils::maybe_valid::MaybeValidList;
+use crate::{
+    builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
+    dds::infrastructure::qos::DataWriterQos,
+    discovery::types::SpdpDiscoveredParticipantData,
+    rtps::types::constants::{ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, ENTITYID_UNKNOWN},
+    dds::infrastructure::qos_policy::ReliabilityQosPolicyKind
+};
 use std::cell::RefCell;
 use std::sync::{atomic, Arc, Mutex};
 use std::thread::JoinHandle;
-
-use crate::rtps::message_sender::RtpsMessageSender;
-use crate::rtps::behavior::endpoint_traits::{CacheChangeSender, DestinedMessages};
-
 pub struct RtpsParticipant {
     participant: Participant,
     qos: Mutex<DomainParticipantQos>,
@@ -57,20 +61,42 @@ impl RtpsParticipant {
         let guid_prefix = [1; 12];
         let participant = Participant::new(guid_prefix, domain_id, PROTOCOL_VERSION_2_4, VENDOR_ID);
         // let sedp = SimpleEndpointDiscoveryProtocol::new(guid_prefix);
-        let entity_id= EntityId::new([0, 0, 0x01], EntityKind::BuiltInWriterGroup);
+        let entity_id = EntityId::new([0, 0, 0x01], EntityKind::BuiltInWriterGroup);
         let publisher_qos = PublisherQos::default();
-        let builtin_publisher = RtpsPublisher::new(GUID::new(guid_prefix, entity_id), publisher_qos, None, 0);
-        
+        let builtin_publisher =
+            RtpsPublisher::new(GUID::new(guid_prefix, entity_id), publisher_qos, None, 0);
+
         let builtin_topic_guid = GUID::new(guid_prefix, ENTITYID_UNKNOWN);
         let builtin_topic_name = "BuildinTopic".to_string();
-        let builtin_topic_qos = TopicQos::default();       
-        // let topic = RtpsTopic::new(builtin_topic_guid, builtin_topic_name, builtin_topic_qos, None, 0);
-        // let builtin_writer_guid = GUID::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER);
-        // let builtin_writer_qos = DataWriterQos::default();
+        let builtin_topic_qos = TopicQos::default();
+        let builtin_topic = RtpsTopic::<SpdpDiscoveredParticipantData>::new(
+            builtin_topic_guid,
+            builtin_topic_name,
+            builtin_topic_qos,
+            None,
+            0,
+        );
+        let builtin_writer_guid =
+            GUID::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER);
+        let mut builtin_writer_qos = DataWriterQos::default();
+        builtin_writer_qos.reliability.kind = ReliabilityQosPolicyKind::BestEffortReliabilityQos;
 
-        // let new_writer = RtpsDataWriter::new_stateless(builtin_writer_guid, topic, builtin_writer_qos, None, 0);
-        
-        // builtin_publisher.writer_list.add(Box::new(new_writer))?;
+        let builtin_writer = RtpsDataWriter::<SpdpDiscoveredParticipantData>::new_stateless(
+            builtin_writer_guid,
+            Arc::new(builtin_topic),
+            builtin_writer_qos,
+            None,
+            0,
+        );
+        {
+            let mut writer = builtin_writer.writer.lock().unwrap();
+            if let Some(writer) = writer.try_stateless() {
+                writer.reader_locator_add(Locator::new_udpv4(7400, [239,255,0,0]));
+                let change = writer.new_change(crate::types::ChangeKind::Alive, Some(vec![0,0,0,1,1,2,3,4]), None, [0;16]);
+                writer.writer_cache.add_change(change);
+            }
+        }
+        builtin_publisher.writer_list.add(Box::new(builtin_writer));
 
         RtpsParticipant {
             participant,
@@ -123,7 +149,12 @@ impl DomainParticipant {
         let entity_id = EntityId::new(entity_key, EntityKind::UserDefinedWriterGroup);
         let new_publisher_guid = GUID::new(guid_prefix, entity_id);
         let new_publisher_qos = qos.unwrap_or(self.get_default_publisher_qos());
-        let new_publisher = Box::new(RtpsPublisher::new(new_publisher_guid, new_publisher_qos, None, 0));
+        let new_publisher = Box::new(RtpsPublisher::new(
+            new_publisher_guid,
+            new_publisher_qos,
+            None,
+            0,
+        ));
         let rtps_publisher = self.inner.publisher_list.add(new_publisher)?;
 
         Some(Publisher {
@@ -186,7 +217,12 @@ impl DomainParticipant {
         let entity_id = EntityId::new(entity_key, EntityKind::UserDefinedReaderGroup);
         let new_subscriber_guid = GUID::new(guid_prefix, entity_id);
         let new_subscriber_qos = qos.unwrap_or(self.get_default_subscriber_qos());
-        let new_subscriber = Box::new(RtpsSubscriber::new(new_subscriber_guid, new_subscriber_qos, None, 0));
+        let new_subscriber = Box::new(RtpsSubscriber::new(
+            new_subscriber_guid,
+            new_subscriber_qos,
+            None,
+            0,
+        ));
         let rtps_subscriber = self.inner.subscriber_list.add(new_subscriber)?;
 
         Some(Subscriber {
@@ -257,7 +293,7 @@ impl DomainParticipant {
             topic_name.clone().into(),
             new_topic_qos,
             None,
-            0
+            0,
         ));
         // discovery.insert_topic(&new_topic).ok()?;
         let rtps_topic = self.inner.topic_list.add(new_topic)?;
@@ -585,30 +621,38 @@ impl Entity for DomainParticipant {
     }
 
     fn enable(&self) -> ReturnCode<()> {
-
         if self.inner.enabled.load(atomic::Ordering::Acquire) == false {
             self.inner.enabled.store(true, atomic::Ordering::Release);
 
             let mut thread_list = self.thread_list.borrow_mut();
             let participant_inner = self.inner.clone();
             thread_list.push(std::thread::spawn(move || {
-                while participant_inner.enabled.load(atomic::Ordering::Acquire) {                    
+                while participant_inner.enabled.load(atomic::Ordering::Acquire) {
                     let participant = &participant_inner.participant;
                     let participant_guid_prefix = participant.entity.guid.prefix();
-                    let transport = &participant_inner.userdata_transport;
+                    //let transport = &participant_inner.userdata_transport;
+                    let transport = &participant_inner.metatraffic_transport;
 
-                    for publisher in participant_inner.publisher_list.iter() {
-                        if let Some(publisher) = publisher.read().unwrap().get() {
+                    //for publisher in participant_inner.publisher_list.iter() {
+                    let publisher = &participant_inner.builtin_publisher;
+                        //if let Some(publisher) = publisher.read().unwrap().get() {
                             for writer in publisher.writer_list.iter() {
                                 if let Some(writer) = writer.read().unwrap().get() {
                                     let mut stateful_writer = writer.writer().lock().unwrap();
-                                    println!("last_change_sequence_number = {:?}", stateful_writer.last_change_sequence_number);
+                                    println!(
+                                        "last_change_sequence_number = {:?}",
+                                        stateful_writer.last_change_sequence_number
+                                    );
                                     let destined_messages = stateful_writer.produce_messages();
-                                    RtpsMessageSender::send_cache_change_messages(participant_guid_prefix, transport.as_ref(), destined_messages);
+                                    RtpsMessageSender::send_cache_change_messages(
+                                        participant_guid_prefix,
+                                        transport.as_ref(),
+                                        destined_messages,
+                                    );
                                 }
                             }
-                        }
-                    }
+                        //}
+                    //}
                     std::thread::sleep(std::time::Duration::from_secs(1))
                 }
             }));

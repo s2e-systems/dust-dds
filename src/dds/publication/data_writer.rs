@@ -18,12 +18,17 @@ use crate::rtps::behavior;
 use crate::rtps::behavior::{Writer, StatefulWriter, StatelessWriter};
 use crate::rtps::types::{ReliabilityKind, GUID};
 use crate::types::{DDSType, Duration, InstanceHandle, ReturnCode, ReturnCodes, Time};
-use std::{ops::{Deref, DerefMut}, sync::{Arc, Mutex}};
+use std::{convert::TryInto, ops::{Deref, DerefMut}, sync::{Arc, Mutex}};
 use std::any::Any;
 
 pub enum WriterFlavor {
     Stateful(StatefulWriter),
     Stateless(StatelessWriter)
+}
+impl WriterFlavor {
+    pub fn try_stateless(&mut self) -> Option<&mut StatelessWriter> {
+        match self {WriterFlavor::Stateless(writer) => Some(writer), _=>None}
+    }
 }
 impl Deref for WriterFlavor {
     type Target = Writer;
@@ -123,9 +128,6 @@ impl<T: DDSType> RtpsDataWriter<T> {
         };
         let push_mode = true;
         let data_max_sized_serialized = None;
-        let heartbeat_period = behavior::types::Duration::from_millis(500);
-        let nack_response_delay = behavior::types::constants::DURATION_ZERO;
-        let nack_supression_duration = behavior::types::constants::DURATION_ZERO;
         let writer = StatelessWriter::new(
             guid,
             topic_kind,

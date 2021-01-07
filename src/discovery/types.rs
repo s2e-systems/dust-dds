@@ -1,10 +1,10 @@
-use crate::builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData};
+use crate::{builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData}, types};
 use crate::rtps::behavior::types::Duration;
 use crate::rtps::behavior::{ReaderProxy, WriterProxy};
 use crate::rtps::messages::types::Count;
 use crate::rtps::types::{ProtocolVersion, GuidPrefix, Locator, VendorId};
 use crate::rtps::endpoint_types::BuiltInEndpointSet;
-use crate::types::DomainId;
+use crate::types::{DDSType, DomainId};
 
 pub struct ParticipantProxy {
     domain_id: DomainId,
@@ -26,6 +26,27 @@ pub struct SpdpDiscoveredParticipantData{
     pub dds_participant_data: ParticipantBuiltinTopicData,
     pub participant_proxy: ParticipantProxy,
     pub lease_duration: Duration,
+}
+impl DDSType for SpdpDiscoveredParticipantData {
+    fn type_name() -> &'static str {
+        "SpdpDiscoveredParticipantData"
+    }
+
+    fn topic_kind() -> types::TopicKind {
+        types::TopicKind::WithKey
+    }
+
+    fn instance_handle(&self) -> types::InstanceHandle {
+        todo!()
+    }
+
+    fn serialize(&self) -> types::Data {
+        todo!()
+    }
+
+    fn deserialize(data: types::Data) -> Self {
+        todo!()
+    }
 }
 
 pub struct DiscoveredTopicData {
