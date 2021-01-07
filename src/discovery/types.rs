@@ -1,4 +1,4 @@
-use crate::{builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData}, types};
+use crate::{builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData}, types::{self, Data}};
 use crate::rtps::behavior::types::Duration;
 use crate::rtps::behavior::{ReaderProxy, WriterProxy};
 use crate::rtps::messages::types::Count;
@@ -7,19 +7,19 @@ use crate::rtps::endpoint_types::BuiltInEndpointSet;
 use crate::types::{DDSType, DomainId};
 
 pub struct ParticipantProxy {
-    domain_id: DomainId,
-    domain_tag: String,
-    protocol_version: ProtocolVersion,
-    guid_prefix: GuidPrefix,
-    vendor_id: VendorId,
-    expects_inline_qos: bool,
-    available_built_in_endpoints: BuiltInEndpointSet,
+    pub domain_id: DomainId,
+    pub domain_tag: String,
+    pub protocol_version: ProtocolVersion,
+    pub guid_prefix: GuidPrefix,
+    pub vendor_id: VendorId,
+    pub expects_inline_qos: bool,
+    pub available_built_in_endpoints: BuiltInEndpointSet,
     // built_in_endpoint_qos: 
-    metatraffic_unicast_locator_list: Vec<Locator>,
-    metatraffic_multicast_locator_list: Vec<Locator>,
-    default_unicast_locator_list: Vec<Locator>,
-    default_multicast_locator_list: Vec<Locator>,
-    manual_liveliness_count: Count,
+    pub metatraffic_unicast_locator_list: Vec<Locator>,
+    pub metatraffic_multicast_locator_list: Vec<Locator>,
+    pub default_unicast_locator_list: Vec<Locator>,
+    pub default_multicast_locator_list: Vec<Locator>,
+    pub manual_liveliness_count: Count,
 }
 
 pub struct SpdpDiscoveredParticipantData{
@@ -37,11 +37,11 @@ impl DDSType for SpdpDiscoveredParticipantData {
     }
 
     fn instance_handle(&self) -> types::InstanceHandle {
-        todo!()
+        [5; 16]
     }
 
     fn serialize(&self) -> types::Data {
-        todo!()
+        vec![0,0,0,1, 1,2,3,4, 5, 6, 7, 8]
     }
 
     fn deserialize(data: types::Data) -> Self {

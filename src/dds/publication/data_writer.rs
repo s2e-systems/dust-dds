@@ -26,7 +26,7 @@ pub enum WriterFlavor {
     Stateless(StatelessWriter)
 }
 impl WriterFlavor {
-    pub fn try_stateless(&mut self) -> Option<&mut StatelessWriter> {
+    pub fn try_get_stateless(&mut self) -> Option<&mut StatelessWriter> {
         match self {WriterFlavor::Stateless(writer) => Some(writer), _=>None}
     }
 }

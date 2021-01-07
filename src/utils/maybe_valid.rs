@@ -46,7 +46,7 @@ impl<T> MaybeValid<T> {
 }
 
 pub struct MaybeValidList<T>([RwLock<MaybeValid<T>>; 32]);
-pub struct MaybeValidRef<'a, T>(RwLockReadGuard<'a, MaybeValid<T>>);
+pub struct MaybeValidRef<'a, T>(pub RwLockReadGuard<'a, MaybeValid<T>>);
 
 impl<'a, T> std::ops::Deref for MaybeValidRef<'a, T> {
     type Target = RwLockReadGuard<'a, MaybeValid<T>>;

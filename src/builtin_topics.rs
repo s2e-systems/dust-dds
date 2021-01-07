@@ -21,8 +21,8 @@ use crate::dds::infrastructure::qos_policy::{
     TimeBasedFilterQosPolicy,
 };
 pub struct ParticipantBuiltinTopicData{
-    key: BuiltInTopicKey,
-    user_data: UserDataQosPolicy,
+    pub key: BuiltInTopicKey,
+    pub user_data: UserDataQosPolicy,
 }
 
 pub struct TopicBuiltinTopicData{

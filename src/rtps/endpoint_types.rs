@@ -14,7 +14,7 @@ use crate::rtps::behavior::types::Duration;
 
 #[derive(PartialEq, Debug, Eq, Clone, Copy, Serialize, Deserialize)]
 pub struct BuiltInEndpointSet {
-    value: u32,
+    pub value: u32,
 }
 
 impl BuiltInEndpointSet {
