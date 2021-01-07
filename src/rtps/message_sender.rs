@@ -9,32 +9,29 @@ use crate::rtps::messages::RtpsMessage;
 pub struct RtpsMessageSender;
 
 impl RtpsMessageSender {
-    pub fn send_cache_change_messages(participant_guid_prefix: GuidPrefix, transport: &dyn Transport, sender_list: &mut [&mut dyn CacheChangeSender]) {
-        for sender in sender_list.iter_mut() {
-            let destined_messages = sender.produce_messages();
-            for destined_message in destined_messages{
-                match destined_message {
-                    DestinedMessages::SingleDestination{locator, messages} => {
-                        if messages.len() > 0 {
-                            let message = RtpsMessage::new(
-                                PROTOCOL_VERSION_2_4,
-                                VENDOR_ID,
-                                participant_guid_prefix, messages);
-                            transport.write(message, &locator);
-                        }
-                    }
-                    DestinedMessages::MultiDestination { unicast_locator_list, multicast_locator_list, messages} => {
-                        if messages.len() > 0 {
-                            let message = RtpsMessage::new(
+    pub fn send_cache_change_messages(participant_guid_prefix: GuidPrefix, transport: &dyn Transport, destined_messages: Vec<DestinedMessages>) {            
+        for destined_message in destined_messages{
+            match destined_message {
+                DestinedMessages::SingleDestination{locator, messages} => {
+                    if messages.len() > 0 {
+                        let message = RtpsMessage::new(
                             PROTOCOL_VERSION_2_4,
                             VENDOR_ID,
                             participant_guid_prefix, messages);
-        
-                            if !unicast_locator_list.is_empty() {
-                                transport.write(message, &unicast_locator_list[0]);
-                            } else if !multicast_locator_list.is_empty() {
-                                transport.write(message, &multicast_locator_list[0]);
-                            }
+                        transport.write(message, &locator);
+                    }
+                }
+                DestinedMessages::MultiDestination { unicast_locator_list, multicast_locator_list, messages} => {
+                    if messages.len() > 0 {
+                        let message = RtpsMessage::new(
+                        PROTOCOL_VERSION_2_4,
+                        VENDOR_ID,
+                        participant_guid_prefix, messages);
+    
+                        if !unicast_locator_list.is_empty() {
+                            transport.write(message, &unicast_locator_list[0]);
+                        } else if !multicast_locator_list.is_empty() {
+                            transport.write(message, &multicast_locator_list[0]);
                         }
                     }
                 }

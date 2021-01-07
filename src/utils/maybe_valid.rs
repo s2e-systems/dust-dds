@@ -1,5 +1,5 @@
 use core::sync::atomic;
-use std::sync::{RwLock, RwLockReadGuard};
+use std::{ops::{Deref, DerefMut}, sync::{RwLock, RwLockReadGuard}};
 
 pub struct MaybeValid<T> {
     value: Option<T>,
@@ -50,6 +50,14 @@ pub struct MaybeValidRef<'a, T>(RwLockReadGuard<'a, MaybeValid<T>>);
 
 impl<'a, T> std::ops::Deref for MaybeValidRef<'a, T> {
     type Target = RwLockReadGuard<'a, MaybeValid<T>>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<T> Deref for MaybeValidList<T> {
+    type Target = [RwLock<MaybeValid<T>>; 32];
 
     fn deref(&self) -> &Self::Target {
         &self.0

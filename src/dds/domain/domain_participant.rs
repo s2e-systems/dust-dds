@@ -18,6 +18,9 @@ use std::cell::RefCell;
 use std::sync::{atomic, Arc, Mutex};
 use std::thread::JoinHandle;
 
+use crate::rtps::message_sender::RtpsMessageSender;
+use crate::rtps::behavior::endpoint_traits::{CacheChangeSender, DestinedMessages};
+
 pub struct RtpsParticipant {
     participant: Participant,
     qos: Mutex<DomainParticipantQos>,
@@ -565,14 +568,30 @@ impl Entity for DomainParticipant {
     }
 
     fn enable(&self) -> ReturnCode<()> {
+
         if self.inner.enabled.load(atomic::Ordering::Acquire) == false {
             self.inner.enabled.store(true, atomic::Ordering::Release);
 
             let mut thread_list = self.thread_list.borrow_mut();
             let participant_inner = self.inner.clone();
             thread_list.push(std::thread::spawn(move || {
-                while participant_inner.enabled.load(atomic::Ordering::Acquire) {
-                    println!("{:?}", participant_inner.participant.entity.guid);
+                while participant_inner.enabled.load(atomic::Ordering::Acquire) {                    
+                    let participant = &participant_inner.participant;
+                    let participant_guid_prefix = participant.entity.guid.prefix();
+                    let transport = &participant_inner.userdata_transport;
+
+                    for publisher in participant_inner.publisher_list.iter() {
+                        if let Some(publisher) = publisher.read().unwrap().get() {
+                            for writer in publisher.writer_list.iter() {
+                                if let Some(writer) = writer.read().unwrap().get() {
+                                    let mut stateful_writer = writer.writer().lock().unwrap();
+                                    println!("last_change_sequence_number = {:?}", stateful_writer.writer.last_change_sequence_number);
+                                    let destined_messages = stateful_writer.produce_messages();
+                                    RtpsMessageSender::send_cache_change_messages(participant_guid_prefix, transport.as_ref(), destined_messages);
+                                }
+                            }
+                        }
+                    }
                     std::thread::sleep(std::time::Duration::from_secs(1))
                 }
             }));

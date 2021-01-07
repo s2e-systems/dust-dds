@@ -42,7 +42,7 @@ impl DomainParticipantFactory {
         // mask: StatusMask,
         //     enabled: bool,
     ) -> Option<DomainParticipant> {
-        let interface = "Ethernet";
+        let interface = "Wi-Fi";
         let userdata_transport =
             UdpTransport::default_userdata_transport(domain_id, interface).unwrap();
         let metatraffic_transport =

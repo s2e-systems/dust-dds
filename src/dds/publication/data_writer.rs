@@ -1,4 +1,4 @@
-use crate::builtin_topics::SubscriptionBuiltinTopicData;
+use crate::{builtin_topics::SubscriptionBuiltinTopicData, rtps::structure::HistoryCache};
 use crate::dds::infrastructure::entity::{Entity, StatusCondition};
 use crate::dds::infrastructure::qos::DataWriterQos;
 use crate::dds::infrastructure::qos_policy::ReliabilityQosPolicyKind;
@@ -20,7 +20,7 @@ use std::sync::{Arc, Mutex};
 use std::any::Any;
 
 pub struct RtpsDataWriter<T: DDSType> {
-    pub writer: StatefulWriter,
+    pub writer: Mutex<StatefulWriter>,
     pub qos: Mutex<DataWriterQos>,
     pub topic: Mutex<Option<Arc<dyn AnyRtpsTopic>>>,
     pub listener: Option<Box<dyn DataWriterListener<T>>>,
@@ -62,7 +62,7 @@ impl<T: DDSType> RtpsDataWriter<T> {
         );
 
         Self {
-            writer,
+            writer: Mutex::new(writer),
             qos: Mutex::new(qos),
             topic: Mutex::new(Some(topic)),
             listener,
@@ -72,7 +72,7 @@ impl<T: DDSType> RtpsDataWriter<T> {
 }
 
 pub trait AnyRtpsWriter: Send + Sync {
-    fn writer(&self) -> &StatefulWriter;
+    fn writer(&self) -> &Mutex<StatefulWriter>;
     fn qos(&self) -> &Mutex<DataWriterQos>;
     fn topic(&self) -> &Mutex<Option<Arc<dyn AnyRtpsTopic>>>;
     fn status_mask(&self) -> &StatusMask;
@@ -84,7 +84,7 @@ impl<T: DDSType + Sized> AnyRtpsWriter for RtpsDataWriter<T> {
         self
     }
 
-    fn writer(&self) -> &StatefulWriter {
+    fn writer(&self) -> &Mutex<StatefulWriter> {
         &self.writer
     }
 
@@ -278,11 +278,17 @@ impl<'a, T: DDSType> DataWriter<'a, T> {
     /// data-type that is being written.
     pub fn write_w_timestamp(
         &self,
-        _data: T,
+        data: T,
         _handle: Option<InstanceHandle>,
         _timestamp: Time,
     ) -> ReturnCode<()> {
-        todo!()
+        let writer = &mut self.rtps_datawriter.value()?.writer().lock().unwrap().writer;
+        let kind = crate::types::ChangeKind::Alive;
+        let inline_qos = None;
+        let change = writer.new_change(kind, Some(data.serialize()), inline_qos, data.instance_handle());
+        writer.writer_cache.add_change(change);
+
+        Ok(())
     }
 
     /// This operation requests the middleware to delete the data (the actual deletion is postponed until there is no more use for that

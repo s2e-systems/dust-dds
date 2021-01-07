@@ -30,9 +30,11 @@ impl DDSType for HelloWorldType {
         todo!()
     }
 }
-
 #[test]
 fn hello_world() {
+    use rust_rtps::types::Time;
+    use rust_rtps::dds::infrastructure::entity::Entity;
+
     let participant = DomainParticipantFactory::create_participant(0, None).expect("Error creating participant");
     
     let publisher = participant.create_publisher(None).expect("Error creating publisher");
@@ -44,15 +46,24 @@ fn hello_world() {
 
     let mut data_writer_qos = DataWriterQos::default();
     data_writer_qos.reliability = ReliabilityQosPolicy{kind: ReliabilityQosPolicyKind::BestEffortReliabilityQos, max_blocking_time: DURATION_ZERO};
-    let _datawriter = publisher.create_datawriter(&helloworld_topic, Some(data_writer_qos)).expect("Error creating data writer");
+    let datawriter = publisher.create_datawriter(&helloworld_topic, Some(data_writer_qos)).expect("Error creating data writer");
 
 // //     let datawriter2 = publisher.lookup_datawriter::<HelloWorldType>(&"HelloWorld".to_string());
 
-    // let data = HelloWorldType{id: 1, _msg: "Hello World!".to_string()};
-    // let handle = None;
-    // let timestamp = Time{sec: 1, nanosec: 2};
-    // datawriter.write_w_timestamp(data, handle, timestamp).expect("Error writing");
+    let data = HelloWorldType{id: 1, _msg: "Hello World!".to_string()};
+    let handle = None;
+    let timestamp = Time{sec: 1, nanosec: 2};
+    datawriter.write_w_timestamp(data, handle, timestamp).expect("Error writing");
 
+    participant.enable().expect("Error enabling participant");
 
-// //     std::thread::sleep(std::time::Duration::from_secs(5))
+    let data = HelloWorldType{id: 2, _msg: "Hello World!".to_string()};
+    datawriter.write_w_timestamp(data, handle, Time{sec: 1, nanosec: 2}).expect("Error writing");
+
+    std::thread::sleep(std::time::Duration::from_secs(5));
+
+    let data = HelloWorldType{id: 3, _msg: "Hello World!".to_string()};
+    datawriter.write_w_timestamp(data, handle, Time{sec: 1, nanosec: 2}).expect("Error writing");
+
+    std::thread::sleep(std::time::Duration::from_secs(5));
 }
