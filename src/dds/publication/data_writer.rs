@@ -1,3 +1,5 @@
+use behavior::endpoint_traits::CacheChangeSender;
+
 use crate::{builtin_topics::SubscriptionBuiltinTopicData, rtps::structure::HistoryCache};
 use crate::dds::infrastructure::entity::{Entity, StatusCondition};
 use crate::dds::infrastructure::qos::DataWriterQos;
@@ -13,14 +15,46 @@ use crate::utils::maybe_valid::MaybeValidRef;
 use crate::dds::topic::topic::AnyRtpsTopic;
 use crate::dds::topic::topic::Topic;
 use crate::rtps::behavior;
-use crate::rtps::behavior::StatefulWriter;
+use crate::rtps::behavior::{Writer, StatefulWriter, StatelessWriter};
 use crate::rtps::types::{ReliabilityKind, GUID};
 use crate::types::{DDSType, Duration, InstanceHandle, ReturnCode, ReturnCodes, Time};
-use std::sync::{Arc, Mutex};
+use std::{ops::{Deref, DerefMut}, sync::{Arc, Mutex}};
 use std::any::Any;
 
+pub enum WriterFlavor {
+    Stateful(StatefulWriter),
+    Stateless(StatelessWriter)
+}
+impl Deref for WriterFlavor {
+    type Target = Writer;
+
+    fn deref(&self) -> &Self::Target {
+       match self {
+            WriterFlavor::Stateful(writer) => writer,
+            WriterFlavor::Stateless(writer) => writer
+       }
+    }
+}
+impl DerefMut for WriterFlavor {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        match self {
+            WriterFlavor::Stateful(writer) => writer,
+            WriterFlavor::Stateless(writer) => writer
+       }
+    }
+}
+
+impl CacheChangeSender for WriterFlavor {
+    fn produce_messages(&mut self) -> Vec<behavior::endpoint_traits::DestinedMessages> {
+        match self {
+            WriterFlavor::Stateful(writer) => writer.produce_messages(),
+            WriterFlavor::Stateless(writer) => writer.produce_messages()
+       }
+    }
+}
+
 pub struct RtpsDataWriter<T: DDSType> {
-    pub writer: Mutex<StatefulWriter>,
+    pub writer: Mutex<WriterFlavor>,
     pub qos: Mutex<DataWriterQos>,
     pub topic: Mutex<Option<Arc<dyn AnyRtpsTopic>>>,
     pub listener: Option<Box<dyn DataWriterListener<T>>>,
@@ -28,7 +62,7 @@ pub struct RtpsDataWriter<T: DDSType> {
 }
 
 impl<T: DDSType> RtpsDataWriter<T> {
-    pub fn new(
+    pub fn new_stateful(
         guid: GUID,
         topic: Arc<dyn AnyRtpsTopic>,
         qos: DataWriterQos,
@@ -62,7 +96,46 @@ impl<T: DDSType> RtpsDataWriter<T> {
         );
 
         Self {
-            writer: Mutex::new(writer),
+            writer: Mutex::new(WriterFlavor::Stateful(writer)),
+            qos: Mutex::new(qos),
+            topic: Mutex::new(Some(topic)),
+            listener,
+            status_mask,
+        }
+    }
+
+    pub fn new_stateless(
+        guid: GUID,
+        topic: Arc<dyn AnyRtpsTopic>,
+        qos: DataWriterQos,
+        listener: Option<Box<dyn DataWriterListener<T>>>,
+        status_mask: StatusMask,
+    ) -> Self {
+        assert!(
+            qos.is_consistent().is_ok(),
+            "RtpsDataWriter can only be created with consistent QoS"
+        );
+
+        let topic_kind = topic.topic_kind();
+        let reliability_level = match qos.reliability.kind {
+            ReliabilityQosPolicyKind::BestEffortReliabilityQos => ReliabilityKind::BestEffort,
+            ReliabilityQosPolicyKind::ReliableReliabilityQos => ReliabilityKind::Reliable,
+        };
+        let push_mode = true;
+        let data_max_sized_serialized = None;
+        let heartbeat_period = behavior::types::Duration::from_millis(500);
+        let nack_response_delay = behavior::types::constants::DURATION_ZERO;
+        let nack_supression_duration = behavior::types::constants::DURATION_ZERO;
+        let writer = StatelessWriter::new(
+            guid,
+            topic_kind,
+            reliability_level,
+            push_mode,
+            data_max_sized_serialized
+        );
+
+        Self {
+            writer: Mutex::new(WriterFlavor::Stateless(writer)),
             qos: Mutex::new(qos),
             topic: Mutex::new(Some(topic)),
             listener,
@@ -72,7 +145,7 @@ impl<T: DDSType> RtpsDataWriter<T> {
 }
 
 pub trait AnyRtpsWriter: Send + Sync {
-    fn writer(&self) -> &Mutex<StatefulWriter>;
+    fn writer(&self) -> &Mutex<WriterFlavor>;
     fn qos(&self) -> &Mutex<DataWriterQos>;
     fn topic(&self) -> &Mutex<Option<Arc<dyn AnyRtpsTopic>>>;
     fn status_mask(&self) -> &StatusMask;
@@ -84,7 +157,7 @@ impl<T: DDSType + Sized> AnyRtpsWriter for RtpsDataWriter<T> {
         self
     }
 
-    fn writer(&self) -> &Mutex<StatefulWriter> {
+    fn writer(&self) -> &Mutex<WriterFlavor> {
         &self.writer
     }
 
@@ -282,7 +355,7 @@ impl<'a, T: DDSType> DataWriter<'a, T> {
         _handle: Option<InstanceHandle>,
         _timestamp: Time,
     ) -> ReturnCode<()> {
-        let writer = &mut self.rtps_datawriter.value()?.writer().lock().unwrap().writer;
+        let writer = &mut self.rtps_datawriter.value()?.writer().lock().unwrap();
         let kind = crate::types::ChangeKind::Alive;
         let inline_qos = None;
         let change = writer.new_change(kind, Some(data.serialize()), inline_qos, data.instance_handle());

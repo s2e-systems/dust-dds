@@ -96,7 +96,7 @@ impl<'a> Publisher<'a> {
         let entity_id = EntityId::new(entity_key, entity_kind);
         let new_writer_guid = GUID::new(guid_prefix, entity_id);
         let new_writer_qos = qos.unwrap_or(self.get_default_datawriter_qos().ok()?);
-        let new_writer: Box<RtpsDataWriter<T>> = Box::new(RtpsDataWriter::new(new_writer_guid, topic, new_writer_qos, None, 0));
+        let new_writer: Box<RtpsDataWriter<T>> = Box::new(RtpsDataWriter::new_stateful(new_writer_guid, topic, new_writer_qos, None, 0));
         // discovery.insert_writer(&new_writer).ok()?;
         let rtps_datawriter = this.writer_list.add(new_writer)?;
 

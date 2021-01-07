@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, ops::{Deref, DerefMut}};
 
 use crate::rtps::behavior::endpoint_traits::{
     AcknowldegmentReceiver, CacheChangeSender, DestinedMessages,
@@ -35,6 +35,18 @@ pub struct StatefulWriter {
     pub nack_response_delay: Duration,
     pub nack_suppression_duration: Duration,
     matched_readers: HashMap<GUID, ReaderProxyFlavor>,
+}
+
+impl Deref for StatefulWriter {
+    type Target = Writer;
+    fn deref(&self) -> &Self::Target {
+        &self.writer
+    }
+}
+impl DerefMut for StatefulWriter {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.writer
+    }
 }
 
 impl StatefulWriter {

@@ -1,4 +1,4 @@
-use crate::builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData};
+use crate::{builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData}, dds::infrastructure::qos::DataWriterQos, rtps::types::constants::{ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, ENTITYID_UNKNOWN}};
 use crate::dds::domain::domain_participant_listener::DomainParticipantListener;
 use crate::dds::infrastructure::entity::{Entity, StatusCondition};
 use crate::dds::infrastructure::qos::{
@@ -6,6 +6,7 @@ use crate::dds::infrastructure::qos::{
 };
 use crate::dds::infrastructure::status::StatusMask;
 use crate::dds::publication::publisher::{Publisher, RtpsPublisher};
+use crate::dds::publication::data_writer::RtpsDataWriter;
 use crate::utils::maybe_valid::MaybeValidList;
 use crate::dds::subscription::subscriber::{RtpsSubscriber, Subscriber};
 use crate::dds::topic::topic::{AnyRtpsTopic, RtpsTopic, Topic};
@@ -30,6 +31,7 @@ pub struct RtpsParticipant {
     userdata_transport: Box<dyn Transport>,
     metatraffic_transport: Box<dyn Transport>,
     publisher_list: MaybeValidList<Box<RtpsPublisher>>,
+    builtin_publisher: Box<RtpsPublisher>,
     publisher_count: atomic::AtomicU8,
     subscriber_list: MaybeValidList<Box<RtpsSubscriber>>,
     subscriber_count: atomic::AtomicU8,
@@ -55,6 +57,20 @@ impl RtpsParticipant {
         let guid_prefix = [1; 12];
         let participant = Participant::new(guid_prefix, domain_id, PROTOCOL_VERSION_2_4, VENDOR_ID);
         // let sedp = SimpleEndpointDiscoveryProtocol::new(guid_prefix);
+        let entity_id= EntityId::new([0, 0, 0x01], EntityKind::BuiltInWriterGroup);
+        let publisher_qos = PublisherQos::default();
+        let builtin_publisher = RtpsPublisher::new(GUID::new(guid_prefix, entity_id), publisher_qos, None, 0);
+        
+        let builtin_topic_guid = GUID::new(guid_prefix, ENTITYID_UNKNOWN);
+        let builtin_topic_name = "BuildinTopic".to_string();
+        let builtin_topic_qos = TopicQos::default();       
+        // let topic = RtpsTopic::new(builtin_topic_guid, builtin_topic_name, builtin_topic_qos, None, 0);
+        // let builtin_writer_guid = GUID::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER);
+        // let builtin_writer_qos = DataWriterQos::default();
+
+        // let new_writer = RtpsDataWriter::new_stateless(builtin_writer_guid, topic, builtin_writer_qos, None, 0);
+        
+        // builtin_publisher.writer_list.add(Box::new(new_writer))?;
 
         RtpsParticipant {
             participant,
@@ -65,6 +81,7 @@ impl RtpsParticipant {
             userdata_transport: Box::new(userdata_transport),
             metatraffic_transport: Box::new(metatraffic_transport),
             publisher_list: Default::default(),
+            builtin_publisher: Box::new(builtin_publisher),
             publisher_count: atomic::AtomicU8::new(0),
             subscriber_list: Default::default(),
             subscriber_count: atomic::AtomicU8::new(0),
@@ -585,7 +602,7 @@ impl Entity for DomainParticipant {
                             for writer in publisher.writer_list.iter() {
                                 if let Some(writer) = writer.read().unwrap().get() {
                                     let mut stateful_writer = writer.writer().lock().unwrap();
-                                    println!("last_change_sequence_number = {:?}", stateful_writer.writer.last_change_sequence_number);
+                                    println!("last_change_sequence_number = {:?}", stateful_writer.last_change_sequence_number);
                                     let destined_messages = stateful_writer.produce_messages();
                                     RtpsMessageSender::send_cache_change_messages(participant_guid_prefix, transport.as_ref(), destined_messages);
                                 }

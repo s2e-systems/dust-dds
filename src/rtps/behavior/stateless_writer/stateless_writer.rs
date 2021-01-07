@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, ops::{Deref, DerefMut}};
 
 use super::best_effort_reader_locator::BestEffortReaderLocator;
 use crate::rtps::behavior::endpoint_traits::{CacheChangeSender, DestinedMessages};
@@ -10,7 +10,17 @@ pub struct StatelessWriter {
     pub writer: Writer,
     reader_locators: HashMap<Locator, BestEffortReaderLocator>,
 }
-
+impl Deref for StatelessWriter {
+    type Target = Writer;
+    fn deref(&self) -> &Self::Target {
+        &self.writer
+    }
+}
+impl DerefMut for StatelessWriter {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.writer
+    }
+}
 impl StatelessWriter {
     pub fn new(
         guid: GUID,
