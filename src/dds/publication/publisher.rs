@@ -253,7 +253,7 @@ impl<'a> Entity for Publisher<'a> {
     type Qos = PublisherQos;
     type Listener = Box<dyn PublisherListener>;
 
-    fn set_qos(&self, _qos: Self::Qos) -> ReturnCode<()> {
+    fn set_qos(&self, _qos: Option<Self::Qos>) -> ReturnCode<()> {
         todo!()
     }
 

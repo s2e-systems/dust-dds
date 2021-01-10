@@ -9,7 +9,7 @@ pub trait Entity {
     type Qos;
     type Listener;
 
-    fn set_qos(&self, qos: Self::Qos) -> ReturnCode<()>;
+    fn set_qos(&self, qos: Option<Self::Qos>) -> ReturnCode<()>;
 
     fn get_qos(&self) -> ReturnCode<Self::Qos>;
 

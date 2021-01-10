@@ -1,6 +1,5 @@
 use behavior::endpoint_traits::CacheChangeSender;
 
-use crate::{builtin_topics::SubscriptionBuiltinTopicData, rtps::structure::HistoryCache};
 use crate::dds::infrastructure::entity::{Entity, StatusCondition};
 use crate::dds::infrastructure::qos::DataWriterQos;
 use crate::dds::infrastructure::qos_policy::ReliabilityQosPolicyKind;
@@ -11,41 +10,48 @@ use crate::dds::infrastructure::status::{
 };
 use crate::dds::publication::data_writer_listener::DataWriterListener;
 use crate::dds::publication::publisher::Publisher;
-use crate::utils::maybe_valid::MaybeValidRef;
 use crate::dds::topic::topic::AnyRtpsTopic;
 use crate::dds::topic::topic::Topic;
 use crate::rtps::behavior;
-use crate::rtps::behavior::{Writer, StatefulWriter, StatelessWriter};
+use crate::rtps::behavior::{StatefulWriter, StatelessWriter, Writer};
 use crate::rtps::types::{ReliabilityKind, GUID};
 use crate::types::{DDSType, Duration, InstanceHandle, ReturnCode, ReturnCodes, Time};
-use std::{convert::TryInto, ops::{Deref, DerefMut}, sync::{Arc, Mutex}};
+use crate::utils::maybe_valid::MaybeValidRef;
+use crate::{builtin_topics::SubscriptionBuiltinTopicData, rtps::structure::HistoryCache};
 use std::any::Any;
+use std::{
+    ops::{Deref, DerefMut},
+    sync::{Arc, Mutex},
+};
 
 pub enum WriterFlavor {
     Stateful(StatefulWriter),
-    Stateless(StatelessWriter)
+    Stateless(StatelessWriter),
 }
 impl WriterFlavor {
     pub fn try_get_stateless(&mut self) -> Option<&mut StatelessWriter> {
-        match self {WriterFlavor::Stateless(writer) => Some(writer), _=>None}
+        match self {
+            WriterFlavor::Stateless(writer) => Some(writer),
+            _ => None,
+        }
     }
 }
 impl Deref for WriterFlavor {
     type Target = Writer;
 
     fn deref(&self) -> &Self::Target {
-       match self {
+        match self {
             WriterFlavor::Stateful(writer) => writer,
-            WriterFlavor::Stateless(writer) => writer
-       }
+            WriterFlavor::Stateless(writer) => writer,
+        }
     }
 }
 impl DerefMut for WriterFlavor {
     fn deref_mut(&mut self) -> &mut Self::Target {
         match self {
             WriterFlavor::Stateful(writer) => writer,
-            WriterFlavor::Stateless(writer) => writer
-       }
+            WriterFlavor::Stateless(writer) => writer,
+        }
     }
 }
 
@@ -53,8 +59,8 @@ impl CacheChangeSender for WriterFlavor {
     fn produce_messages(&mut self) -> Vec<behavior::endpoint_traits::DestinedMessages> {
         match self {
             WriterFlavor::Stateful(writer) => writer.produce_messages(),
-            WriterFlavor::Stateless(writer) => writer.produce_messages()
-       }
+            WriterFlavor::Stateless(writer) => writer.produce_messages(),
+        }
     }
 }
 
@@ -133,7 +139,7 @@ impl<T: DDSType> RtpsDataWriter<T> {
             topic_kind,
             reliability_level,
             push_mode,
-            data_max_sized_serialized
+            data_max_sized_serialized,
         );
 
         Self {
@@ -144,35 +150,49 @@ impl<T: DDSType> RtpsDataWriter<T> {
             status_mask,
         }
     }
+
+    pub fn register_instance_w_timestamp(&self) {}
+
+    pub fn write_w_timestamp(
+        &self,
+        data: T,
+        _handle: Option<InstanceHandle>,
+        _timestamp: Time,
+    ) -> ReturnCode<()> {
+        let writer = &mut self.writer.lock().unwrap();
+        let kind = crate::types::ChangeKind::Alive;
+        let inline_qos = None;
+        let change = writer.new_change(
+            kind,
+            Some(data.serialize()),
+            inline_qos,
+            data.instance_handle(),
+        );
+        writer.writer_cache.add_change(change);
+
+        Ok(())
+    }
+
+    pub fn set_qos(&self, qos: Option<DataWriterQos>) -> ReturnCode<()> {
+        let qos = qos.unwrap_or_default();
+        qos.is_consistent()?;
+        *self.qos.lock().unwrap() =  qos;
+        Ok(())
+    }
+
+    pub fn get_qos(&self) -> ReturnCode<DataWriterQos> {
+        Ok(self.qos.lock().unwrap().clone())
+    }
+    
 }
 
 pub trait AnyRtpsWriter: Send + Sync {
-    fn writer(&self) -> &Mutex<WriterFlavor>;
-    fn qos(&self) -> &Mutex<DataWriterQos>;
-    fn topic(&self) -> &Mutex<Option<Arc<dyn AnyRtpsTopic>>>;
-    fn status_mask(&self) -> &StatusMask;
     fn as_any(&self) -> &dyn Any;
 }
 
 impl<T: DDSType + Sized> AnyRtpsWriter for RtpsDataWriter<T> {
     fn as_any(&self) -> &dyn Any {
         self
-    }
-
-    fn writer(&self) -> &Mutex<WriterFlavor> {
-        &self.writer
-    }
-
-    fn qos(&self) -> &Mutex<DataWriterQos> {
-        &self.qos
-    }
-
-    fn topic(&self) -> &Mutex<Option<Arc<dyn AnyRtpsTopic>>> {
-        &self.topic
-    }
-
-    fn status_mask(&self) -> &StatusMask {
-        &self.status_mask
     }
 }
 
@@ -182,7 +202,11 @@ impl<'a> MaybeValidRef<'a, Box<dyn AnyRtpsWriter>> {
     }
 
     pub fn value_as<U: 'static>(&self) -> ReturnCode<&U> {
-        self.value()?.as_ref().as_any().downcast_ref::<U>().ok_or(ReturnCodes::Error)
+        self.value()?
+            .as_ref()
+            .as_any()
+            .downcast_ref::<U>()
+            .ok_or(ReturnCodes::Error)
     }
 }
 
@@ -354,16 +378,12 @@ impl<'a, T: DDSType> DataWriter<'a, T> {
     pub fn write_w_timestamp(
         &self,
         data: T,
-        _handle: Option<InstanceHandle>,
-        _timestamp: Time,
+        handle: Option<InstanceHandle>,
+        timestamp: Time,
     ) -> ReturnCode<()> {
-        let writer = &mut self.rtps_datawriter.value()?.writer().lock().unwrap();
-        let kind = crate::types::ChangeKind::Alive;
-        let inline_qos = None;
-        let change = writer.new_change(kind, Some(data.serialize()), inline_qos, data.instance_handle());
-        writer.writer_cache.add_change(change);
-
-        Ok(())
+        self.rtps_datawriter
+            .value_as::<RtpsDataWriter<T>>()?
+            .write_w_timestamp(data, handle, timestamp)
     }
 
     /// This operation requests the middleware to delete the data (the actual deletion is postponed until there is no more use for that
@@ -504,15 +524,18 @@ impl<'a, T: DDSType> Entity for DataWriter<'a, T> {
     type Qos = DataWriterQos;
     type Listener = Box<dyn DataWriterListener<T>>;
 
-    fn set_qos(&self, qos: Self::Qos) -> ReturnCode<()> {
-        qos.is_consistent()?;
-        *self.rtps_datawriter.value()?.qos().lock().unwrap() = qos;
-        // discovery.update_writer(datawriter)?;
-        Ok(())
+    fn set_qos(&self, qos: Option<Self::Qos>) -> ReturnCode<()> {
+        self
+            .rtps_datawriter
+            .value_as::<RtpsDataWriter<T>>()?
+            .set_qos(qos)
     }
 
     fn get_qos(&self) -> ReturnCode<Self::Qos> {
-        Ok(self.rtps_datawriter.value()?.qos().lock().unwrap().clone())
+        self
+            .rtps_datawriter
+            .value_as::<RtpsDataWriter<T>>()?
+            .get_qos()
     }
 
     fn set_listener(&self, _a_listener: Self::Listener, _mask: StatusMask) -> ReturnCode<()> {

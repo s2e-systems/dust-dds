@@ -663,7 +663,8 @@ impl<'a, T: DDSType> Entity for DataReader<'a, T> {
     type Qos = DataReaderQos;
     type Listener = Box<dyn DataReaderListener<T>>;
 
-    fn set_qos(&self, qos: Self::Qos) -> ReturnCode<()> {
+    fn set_qos(&self, qos: Option<Self::Qos>) -> ReturnCode<()> {
+        let qos = qos.unwrap_or_default();
         *self.rtps_datareader.value()?.qos().lock().unwrap() = qos;
         // discovery.update_reader(datareader)?;
         Ok(())

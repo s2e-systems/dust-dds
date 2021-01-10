@@ -1,5 +1,5 @@
 use core::sync::atomic;
-use std::{ops::{Deref, DerefMut}, sync::{RwLock, RwLockReadGuard}};
+use std::{any::Any, ops::{Deref, DerefMut}, sync::{RwLock, RwLockReadGuard}};
 
 pub struct MaybeValid<T> {
     value: Option<T>,
@@ -44,8 +44,6 @@ impl<T> MaybeValid<T> {
         self.valid.store(true, atomic::Ordering::Release);
     }
 }
-
-pub struct MaybeValidList<T>([RwLock<MaybeValid<T>>; 32]);
 pub struct MaybeValidRef<'a, T>(pub RwLockReadGuard<'a, MaybeValid<T>>);
 
 impl<'a, T> std::ops::Deref for MaybeValidRef<'a, T> {
@@ -55,6 +53,8 @@ impl<'a, T> std::ops::Deref for MaybeValidRef<'a, T> {
         &self.0
     }
 }
+
+pub struct MaybeValidList<T>([RwLock<MaybeValid<T>>; 32]);
 
 impl<T> Deref for MaybeValidList<T> {
     type Target = [RwLock<MaybeValid<T>>; 32];

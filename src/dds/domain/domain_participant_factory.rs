@@ -49,15 +49,19 @@ impl DomainParticipantFactory {
             UdpTransport::default_metatraffic_transport(domain_id, interface).unwrap();
         let qos = qos.unwrap_or_default();
 
-        let rtps_participant =
-            RtpsParticipant::new(domain_id, qos, userdata_transport, metatraffic_transport);
+        let rtps_builtin_participant =
+            RtpsParticipant::new(domain_id, qos.clone(), metatraffic_transport);
+
+        let rtps_user_defined_participant =
+            RtpsParticipant::new(domain_id, qos, userdata_transport);            
 
         // if enabled {
         //     new_participant.enable().ok()?;
         // }
 
         Some(DomainParticipant {
-            inner: Arc::new(rtps_participant),
+            builtin_participant: Arc::new(rtps_builtin_participant),
+            user_defined_participant: Arc::new(rtps_user_defined_participant),
             thread_list: RefCell::new(Vec::new()),
         })
     }

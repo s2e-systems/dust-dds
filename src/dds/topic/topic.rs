@@ -127,7 +127,8 @@ impl<'a, T: DDSType> Entity for Topic<'a, T> {
     type Qos = TopicQos;
     type Listener = Box<dyn TopicListener<T>>;
 
-    fn set_qos(&self, qos: Self::Qos) -> ReturnCode<()> {
+    fn set_qos(&self, qos: Option<Self::Qos>) -> ReturnCode<()> {
+        let qos = qos.unwrap_or_default();
         qos.is_consistent()?;
         *self.rtps_topic.value()?.qos().lock().unwrap() = qos;
         // discovery.update_topic(topic)?;

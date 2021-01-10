@@ -291,7 +291,7 @@ impl<'a> Entity for Subscriber<'a> {
     type Qos = SubscriberQos;
     type Listener = Box<dyn SubscriberListener>;
 
-    fn set_qos(&self, _qos: Self::Qos) -> ReturnCode<()> {
+    fn set_qos(&self, _qos: Option<Self::Qos>) -> ReturnCode<()> {
         todo!()
     }
 
