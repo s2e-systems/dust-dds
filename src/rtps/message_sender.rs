@@ -1,7 +1,7 @@
 use crate::rtps::types::GuidPrefix;
 use crate::rtps::types::constants::{PROTOCOL_VERSION_2_4, VENDOR_ID};
 use crate::rtps::transport::Transport;
-use crate::rtps::behavior::endpoint_traits::{DestinedMessages,CacheChangeSender};
+use crate::rtps::behavior::endpoint_traits::{DestinedMessages};
 
 
 use crate::rtps::messages::RtpsMessage;

@@ -8,7 +8,6 @@ use crate::{
         implementation::rtps_participant::RtpsParticipant,
         infrastructure::qos::DomainParticipantQos,
     },
-    discovery::types::SpdpDiscoveredParticipantData,
     rtps::transport::udp::UdpTransport,
     types::DomainId,
 };

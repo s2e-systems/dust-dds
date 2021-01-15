@@ -1,10 +1,16 @@
-use crate::{builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData}, types::{self, Data}};
-use crate::rtps::behavior::types::Duration;
-use crate::rtps::behavior::{ReaderProxy, WriterProxy};
-use crate::rtps::messages::types::Count;
-use crate::rtps::types::{ProtocolVersion, GuidPrefix, Locator, VendorId};
-use crate::rtps::endpoint_types::BuiltInEndpointSet;
-use crate::types::{DDSType, DomainId};
+use crate::{
+    builtin_topics::{
+        ParticipantBuiltinTopicData, PublicationBuiltinTopicData, SubscriptionBuiltinTopicData,
+        TopicBuiltinTopicData,
+    },
+    rtps::{
+        behavior::{ReaderProxy, WriterProxy},
+        endpoint_types::BuiltInEndpointSet,
+        messages::types::Count,
+        types::{GuidPrefix, Locator, ProtocolVersion, VendorId},
+    },
+    types::{DDSType, Data, DomainId, Duration, InstanceHandle, TopicKind},
+};
 
 pub struct ParticipantProxy {
     pub domain_id: DomainId,
@@ -14,7 +20,7 @@ pub struct ParticipantProxy {
     pub vendor_id: VendorId,
     pub expects_inline_qos: bool,
     pub available_built_in_endpoints: BuiltInEndpointSet,
-    // built_in_endpoint_qos: 
+    // built_in_endpoint_qos:
     pub metatraffic_unicast_locator_list: Vec<Locator>,
     pub metatraffic_multicast_locator_list: Vec<Locator>,
     pub default_unicast_locator_list: Vec<Locator>,
@@ -22,7 +28,7 @@ pub struct ParticipantProxy {
     pub manual_liveliness_count: Count,
 }
 
-pub struct SpdpDiscoveredParticipantData{
+pub struct SpdpDiscoveredParticipantData {
     pub dds_participant_data: ParticipantBuiltinTopicData,
     pub participant_proxy: ParticipantProxy,
     pub lease_duration: Duration,
@@ -32,19 +38,25 @@ impl DDSType for SpdpDiscoveredParticipantData {
         "SpdpDiscoveredParticipantData"
     }
 
-    fn topic_kind() -> types::TopicKind {
-        types::TopicKind::WithKey
+    fn topic_kind() -> TopicKind {
+        TopicKind::WithKey
     }
 
-    fn instance_handle(&self) -> types::InstanceHandle {
-        [5; 16]
+    fn instance_handle(&self) -> InstanceHandle {
+        [
+            b't', b'o', b'd', b'o', b':', b'i', b'n', b's', b't', b'a', b'n', b'c', b'e', b'h',
+            b'a', b'n',
+        ]
     }
 
-    fn serialize(&self) -> types::Data {
-        vec![0,0,0,1, 1,2,3,4, 5, 6, 7, 8]
+    fn serialize(&self) -> Data {
+        vec![
+            b't', b'o', b'd', b'o', b':', b'i', b'm', b'p', b'l', b'e', b'm', b'e', b'n', b't',
+            b' ', b's', b'e', b'r', b'i', b'a', b'l', b'i', b'z', b'e',
+        ]
     }
 
-    fn deserialize(data: types::Data) -> Self {
+    fn deserialize(_data: Data) -> Self {
         todo!()
     }
 }

@@ -4,21 +4,15 @@ use std::{
     thread::JoinHandle,
 };
 
-use crate::{
-    builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
-    dds::{
-        implementation::rtps_participant::RtpsParticipant,
-        infrastructure::{
+use crate::{builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData}, dds::{implementation::{rtps_datawriter::RtpsDataWriter, rtps_participant::{proxy_from_rtp_participant, RtpsParticipant}}, infrastructure::{
             entity::{Entity, StatusCondition},
-            qos::{DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
+            qos::{DataWriterQos, DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
+            qos_policy::{ReliabilityQosPolicyKind, UserDataQosPolicy},
             status::StatusMask,
-        },
-        publication::publisher::Publisher,
-        subscription::subscriber::Subscriber,
-        topic::topic::Topic,
-    },
-    types::{DDSType, DomainId, Duration, InstanceHandle, ReturnCode, Time},
-};
+        }, publication::{publisher::Publisher}, subscription::subscriber::Subscriber, topic::topic::Topic}, discovery::types::{SpdpDiscoveredParticipantData}, rtps::types::Locator, types::{
+        BuiltInTopicKey, DDSType, DomainId, Duration, InstanceHandle, ReturnCode, Time,
+        DURATION_INFINITE, TIME_INVALID,
+    }};
 
 use super::domain_participant_listener::DomainParticipantListener;
 
@@ -43,7 +37,9 @@ impl DomainParticipant {
         // _a_listener: impl PublisherListener,
         // _mask: StatusMask
     ) -> Option<Publisher> {
-        let rtps_publisher = self.user_defined_participant.create_user_defined_publisher(qos)?;
+        let rtps_publisher = self
+            .user_defined_participant
+            .create_user_defined_publisher(qos)?;
 
         Some(Publisher {
             parent_participant: self,
@@ -77,7 +73,9 @@ impl DomainParticipant {
         // _a_listener: impl SubscriberListener,
         // _mask: StatusMask
     ) -> Option<Subscriber> {
-        let rtps_subscriber = self.user_defined_participant.create_user_defined_subscriber(qos)?;
+        let rtps_subscriber = self
+            .user_defined_participant
+            .create_user_defined_subscriber(qos)?;
 
         Some(Subscriber {
             parent_participant: self,
@@ -390,6 +388,20 @@ impl DomainParticipant {
     pub fn get_current_time(&self) -> ReturnCode<Time> {
         todo!()
     }
+
+    fn create_builtin_publisher(
+        &self,
+        qos: Option<PublisherQos>,
+        // _a_listener: impl PublisherListener,
+        // _mask: StatusMask
+    ) -> Option<Publisher> {
+        let rtps_publisher = self.builtin_participant.create_builtin_publisher(qos)?;
+
+        Some(Publisher {
+            parent_participant: self,
+            rtps_publisher,
+        })
+    }
 }
 
 impl Entity for DomainParticipant {
@@ -421,90 +433,36 @@ impl Entity for DomainParticipant {
     }
 
     fn enable(&self) -> ReturnCode<()> {
-        // let participant_inner = self.inner.clone();
-        // let rw_builtin_publisher = participant_inner.builtin_publisher.read().unwrap();
-        // let builtin_publisher = Publisher {
-        //     parent_participant: self,
-        //     rtps_publisher: MaybeValidRef(rw_builtin_publisher),
-        // };
-        // let guid_prefix = participant_inner.participant.entity.guid.prefix();
-        // let builtin_topic_guid = GUID::new(guid_prefix, ENTITYID_UNKNOWN);
-        // let builtin_topic_name = "BuildinTopic".to_string();
-        // let builtin_topic_qos = TopicQos::default();
-        // let builtin_topic = Arc::new(RtpsTopic::<SpdpDiscoveredParticipantData>::new(
-        //     builtin_topic_guid,
-        //     builtin_topic_name,
-        //     builtin_topic_qos,
-        //     None,
-        //     0,
-        // ));
-        // let builtin_writer_guid =
-        //     GUID::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER);
-        // let mut builtin_writer_qos = DataWriterQos::default();
-        // builtin_writer_qos.reliability.kind = ReliabilityQosPolicyKind::BestEffortReliabilityQos;
+        let key = BuiltInTopicKey([1, 2, 3]);
+        let user_data = UserDataQosPolicy { value: vec![] };
+        let dds_participant_data = ParticipantBuiltinTopicData { key, user_data };
+        let participant_proxy = proxy_from_rtp_participant(&self.builtin_participant);
+        let lease_duration = DURATION_INFINITE;
 
-        // let builtin_writer = RtpsDataWriter::<SpdpDiscoveredParticipantData>::new_stateless(
-        //     builtin_writer_guid,
-        //     builtin_topic.clone(),
-        //     builtin_writer_qos,
-        //     None,
-        //     0,
-        // );
-        // {
-        //     let mut writer = builtin_writer.writer.lock().unwrap();
-        //     if let Some(writer) = writer.try_get_stateless() {
-        //         writer.reader_locator_add(Locator::new_udpv4(7400, [239,255,0,0]));
-        //         // let change = writer.new_change(crate::types::ChangeKind::Alive, Some(vec![0,0,0,1,1,2,3,4]), None, [0;16]);
-        //         // writer.writer_cache.add_change(change);
-        //     }
-        // }
-        // let rtps_topic = self.inner.topic_list.add(builtin_topic.clone()).unwrap();
+        let data = SpdpDiscoveredParticipantData {
+            dds_participant_data,
+            participant_proxy,
+            lease_duration,
+        };
+        
+        let topic = self
+        .create_topic::<SpdpDiscoveredParticipantData>("BuildinTopic", None)
+        .unwrap();
 
-        // let topic: Topic<SpdpDiscoveredParticipantData> = Topic {
-        //     parent_participant: self,
-        //     rtps_topic,
-        //     marker: std::marker::PhantomData,
-        // };
-        // let builtin_writer_box: Box<dyn AnyRtpsWriter> = Box::new(builtin_writer);
-        // let rtps_datawriter= builtin_publisher.rtps_publisher.get().unwrap().writer_list.add(builtin_writer_box).unwrap();
-        // let data_writer = DataWriter {
-        //     parent_publisher: &builtin_publisher,
-        //     topic: &topic,
-        //     rtps_datawriter: rtps_datawriter,
-        // };
+        let mut builtin_writer_qos = DataWriterQos::default();
+        builtin_writer_qos.reliability.kind = ReliabilityQosPolicyKind::BestEffortReliabilityQos;
 
-        // let key = BuiltInTopicKey([1, 2, 3]);
-        // let user_data = UserDataQosPolicy { value: vec![] };
-        // let dds_participant_data = ParticipantBuiltinTopicData { key, user_data };
-        // let participant_proxy = ParticipantProxy {
-        //     domain_id: participant_inner.participant.domain_id,
-        //     domain_tag: "".to_string(),
-        //     protocol_version: participant_inner.participant.protocol_version,
-        //     guid_prefix: guid_prefix,
-        //     vendor_id: participant_inner.participant.vendor_id,
-        //     expects_inline_qos: true,
-        //     available_built_in_endpoints: BuiltInEndpointSet { value: 9 },
-        //     // built_in_endpoint_qos:
-        //     metatraffic_unicast_locator_list: participant_inner
-        //         .metatraffic_transport
-        //         .unicast_locator_list()
-        //         .clone(),
-        //     metatraffic_multicast_locator_list: participant_inner
-        //         .metatraffic_transport
-        //         .multicast_locator_list()
-        //         .clone(),
-        //     default_unicast_locator_list: vec![],
-        //     default_multicast_locator_list: vec![],
-        //     manual_liveliness_count: 8,
-        // };
-        // let lease_duration = DURATION_INFINITE;
+        let rtps_publisher = self.builtin_participant.create_builtin_publisher(None).unwrap();
+        let any_writer = rtps_publisher.get().unwrap().create_stateless_builtin_datawriter::<SpdpDiscoveredParticipantData>(topic.rtps_topic.get().unwrap().clone(), Some(builtin_writer_qos)).unwrap();
 
-        // let data = SpdpDiscoveredParticipantData {
-        //     dds_participant_data,
-        //     participant_proxy,
-        //     lease_duration,
-        // };
-        // data_writer.write_w_timestamp(data, None, TIME_INVALID).ok();
+        let rtps_writer = any_writer.value_as::<RtpsDataWriter<SpdpDiscoveredParticipantData>>().unwrap();
+
+        if let Some(stateless_writer) = rtps_writer.writer.lock().unwrap().try_get_stateless() {
+            stateless_writer.reader_locator_add(Locator::new_udpv4(7400, [239, 255, 0, 0]));
+        }
+
+        rtps_writer.write_w_timestamp(data, None, TIME_INVALID).ok();
+
 
         if self.enabled.load(atomic::Ordering::Acquire) == false {
             self.enabled.store(true, atomic::Ordering::Release);

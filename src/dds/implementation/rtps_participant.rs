@@ -1,24 +1,13 @@
 use std::sync::{atomic, Arc, Mutex};
 
-use crate::{
-    dds::infrastructure::qos::{DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
-    rtps::{
-        behavior::endpoint_traits::CacheChangeSender,
-        message_sender::RtpsMessageSender,
-        structure::Participant,
-        transport::Transport,
-        types::{
+use crate::{dds::infrastructure::qos::{DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos}, discovery::types::ParticipantProxy, rtps::{behavior::endpoint_traits::CacheChangeSender, endpoint_types::BuiltInEndpointSet, message_sender::RtpsMessageSender, structure::Participant, transport::Transport, types::{
             constants::{
                 ENTITY_KIND_BUILT_IN_READER_GROUP, ENTITY_KIND_BUILT_IN_WRITER_GROUP,
                 ENTITY_KIND_USER_DEFINED_READER_GROUP, ENTITY_KIND_USER_DEFINED_UNKNOWN,
                 ENTITY_KIND_USER_DEFINED_WRITER_GROUP, PROTOCOL_VERSION_2_4, VENDOR_ID,
             },
             EntityId, GUID,
-        },
-    },
-    types::{DDSType, DomainId, ReturnCode, ReturnCodes},
-    utils::maybe_valid::{MaybeValidList, MaybeValidRef},
-};
+        }}, types::{DDSType, DomainId, ReturnCode, ReturnCodes}, utils::maybe_valid::{MaybeValidList, MaybeValidRef}};
 
 use super::{
     rtps_publisher::RtpsPublisher,
@@ -44,6 +33,29 @@ pub struct RtpsParticipant {
     subscriber_count: atomic::AtomicU8,
     topic_list: MaybeValidList<Arc<dyn AnyRtpsTopic>>,
     topic_count: atomic::AtomicU8,
+}
+
+pub fn proxy_from_rtp_participant(rtps_participant: &RtpsParticipant) -> ParticipantProxy {
+    let participant = &rtps_participant.participant;
+    ParticipantProxy {
+        domain_id: participant.domain_id,
+        domain_tag: "".to_string(),
+        protocol_version: participant.protocol_version,
+        guid_prefix: participant.entity.guid.prefix(),
+        vendor_id: participant.vendor_id,
+        expects_inline_qos: true,
+        available_built_in_endpoints: BuiltInEndpointSet { value: 9 },
+        // built_in_endpoint_qos:
+        metatraffic_unicast_locator_list: rtps_participant.transport
+            .unicast_locator_list()
+            .clone(),
+        metatraffic_multicast_locator_list: rtps_participant.transport
+            .multicast_locator_list()
+            .clone(),
+        default_unicast_locator_list: vec![],
+        default_multicast_locator_list: vec![],
+        manual_liveliness_count: 8,
+    }
 }
 
 impl RtpsParticipant {

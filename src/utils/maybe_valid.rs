@@ -1,5 +1,5 @@
 use core::sync::atomic;
-use std::{any::Any, ops::{Deref, DerefMut}, sync::{RwLock, RwLockReadGuard}};
+use std::{ops::Deref, sync::{RwLock, RwLockReadGuard}};
 
 pub struct MaybeValid<T> {
     value: Option<T>,

@@ -13,8 +13,12 @@ use super::{
     rtps_topic::AnyRtpsTopic,
 };
 
+enum Statefulness {
+    Stateless,
+    Stateful
+}
 enum EntityType {
-    BuiltIn,
+    BuiltIn(Statefulness),
     UserDefined,
 }
 
@@ -46,14 +50,24 @@ impl RtpsPublisher {
         }
     }
 
-    pub fn create_builtin_datawriter<T: DDSType>(
+    pub fn create_stateful_builtin_datawriter<T: DDSType>(
         &self,
         a_topic: Arc<dyn AnyRtpsTopic>,
         qos: Option<DataWriterQos>,
         // _a_listener: impl DataWriterListener<T>,
         // _mask: StatusMask
     ) -> Option<MaybeValidRef<Box<dyn AnyRtpsWriter>>> {
-        self.create_datawriter::<T>(a_topic, qos, EntityType::BuiltIn)
+        self.create_datawriter::<T>(a_topic, qos, &EntityType::BuiltIn(Statefulness::Stateful))
+    }
+
+    pub fn create_stateless_builtin_datawriter<T: DDSType>(
+        &self,
+        a_topic: Arc<dyn AnyRtpsTopic>,
+        qos: Option<DataWriterQos>,
+        // _a_listener: impl DataWriterListener<T>,
+        // _mask: StatusMask
+    ) -> Option<MaybeValidRef<Box<dyn AnyRtpsWriter>>> {
+        self.create_datawriter::<T>(a_topic, qos, &EntityType::BuiltIn(Statefulness::Stateless))
     }
 
     pub fn create_user_defined_datawriter<T: DDSType>(
@@ -63,14 +77,14 @@ impl RtpsPublisher {
         // _a_listener: impl DataWriterListener<T>,
         // _mask: StatusMask
     ) -> Option<MaybeValidRef<Box<dyn AnyRtpsWriter>>> {
-        self.create_datawriter::<T>(a_topic, qos, EntityType::BuiltIn)
+        self.create_datawriter::<T>(a_topic, qos, &EntityType::UserDefined)
     }
 
     fn create_datawriter<T: DDSType>(
         &self,
         a_topic: Arc<dyn AnyRtpsTopic>,
         qos: Option<DataWriterQos>,
-        entity_type: EntityType,
+        entity_type: &EntityType,
         // _a_listener: impl DataWriterListener<T>,
         // _mask: StatusMask
     ) -> Option<MaybeValidRef<Box<dyn AnyRtpsWriter>>> {
@@ -80,24 +94,21 @@ impl RtpsPublisher {
             self.writer_count.fetch_add(1, atomic::Ordering::Relaxed),
             0,
         ];
-        let entity_kind = match (a_topic.topic_kind() , entity_type){
+        let entity_kind = match (a_topic.topic_kind(), entity_type){
             (TopicKind::WithKey, EntityType::UserDefined) => ENTITY_KIND_USER_DEFINED_WRITER_WITH_KEY,
             (TopicKind::NoKey, EntityType::UserDefined) => ENTITY_KIND_USER_DEFINED_WRITER_NO_KEY,
-            (TopicKind::WithKey, EntityType::BuiltIn) => ENTITY_KIND_BUILT_IN_WRITER_WITH_KEY,
-            (TopicKind::NoKey, EntityType::BuiltIn) => ENTITY_KIND_BUILT_IN_WRITER_NO_KEY,
+            (TopicKind::WithKey, EntityType::BuiltIn(_)) => ENTITY_KIND_BUILT_IN_WRITER_WITH_KEY,
+            (TopicKind::NoKey, EntityType::BuiltIn(_)) => ENTITY_KIND_BUILT_IN_WRITER_NO_KEY,
         };
         let entity_id = EntityId::new(entity_key, entity_kind);
-        let new_writer_guid = GUID::new(guid_prefix, entity_id);
-        let new_writer_qos = qos.unwrap_or(self.get_default_datawriter_qos());
-        let new_writer: Box<RtpsDataWriter<T>> = Box::new(RtpsDataWriter::new_stateful(
-            new_writer_guid,
-            a_topic,
-            new_writer_qos,
-            None,
-            0,
-        ));
-        // discovery.insert_writer(&new_writer).ok()?;
-        self.writer_list.add(new_writer)
+        let guid = GUID::new(guid_prefix, entity_id);
+        let qos = qos.unwrap_or(self.get_default_datawriter_qos());
+        let writer: RtpsDataWriter<T> = match entity_type {            
+            EntityType::UserDefined => RtpsDataWriter::new_stateful(guid, a_topic, qos, None, 0),
+            EntityType::BuiltIn(Statefulness::Stateful) => RtpsDataWriter::new_stateful(guid, a_topic, qos, None, 0),
+            EntityType::BuiltIn(Statefulness::Stateless) => RtpsDataWriter::new_stateless(guid, a_topic, qos, None, 0)
+        };
+        self.writer_list.add(Box::new(writer))
     }
 
     pub fn get_default_datawriter_qos(&self) -> DataWriterQos {

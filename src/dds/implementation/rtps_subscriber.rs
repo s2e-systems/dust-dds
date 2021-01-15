@@ -63,7 +63,7 @@ impl RtpsSubscriber {
         &self,
         a_topic: Arc<dyn AnyRtpsTopic>,
         qos: Option<DataReaderQos>,
-        // _a_listener: impl DataWriterListener<T>,
+        // _a_listener: impl DataReaderListener<T>,
         // _mask: StatusMask
     ) -> Option<MaybeValidRef<Box<dyn AnyRtpsReader>>> {
         self.create_datareader::<T>(a_topic, qos, EntityType::BuiltIn)
@@ -73,7 +73,7 @@ impl RtpsSubscriber {
         &self,
         a_topic: Arc<dyn AnyRtpsTopic>,
         qos: Option<DataReaderQos>,
-        // _a_listener: impl DataWriterListener<T>,
+        // _a_listener: impl DataReaderListener<T>,
         // _mask: StatusMask
     ) -> Option<MaybeValidRef<Box<dyn AnyRtpsReader>>> {
         self.create_datareader::<T>(a_topic, qos, EntityType::BuiltIn)
@@ -84,7 +84,7 @@ impl RtpsSubscriber {
         a_topic: Arc<dyn AnyRtpsTopic>,
         qos: Option<DataReaderQos>,
         entity_type: EntityType,
-        // _a_listener: impl DataWriterListener<T>,
+        // _a_listener: impl DataReaderListener<T>,
         // _mask: StatusMask
     ) -> Option<MaybeValidRef<Box<dyn AnyRtpsReader>>> {
         let guid_prefix = self.group.entity.guid.prefix();
@@ -111,7 +111,6 @@ impl RtpsSubscriber {
             None,
             0,
         ));
-        // discovery.insert_writer(&new_writer).ok()?;
         self.reader_list.add(new_reader)
     }
 
