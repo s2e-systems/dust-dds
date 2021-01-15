@@ -9,6 +9,7 @@ use crate::{
         transport::Transport,
         types::{
             constants::{
+                ENTITY_KIND_BUILT_IN_READER_GROUP, ENTITY_KIND_BUILT_IN_WRITER_GROUP,
                 ENTITY_KIND_USER_DEFINED_READER_GROUP, ENTITY_KIND_USER_DEFINED_UNKNOWN,
                 ENTITY_KIND_USER_DEFINED_WRITER_GROUP, PROTOCOL_VERSION_2_4, VENDOR_ID,
             },
@@ -24,6 +25,11 @@ use super::{
     rtps_subscriber::RtpsSubscriber,
     rtps_topic::{AnyRtpsTopic, RtpsTopic},
 };
+
+enum EntityType {
+    BuiltIn,
+    UserDefined,
+}
 
 pub struct RtpsParticipant {
     participant: Participant,
@@ -67,9 +73,24 @@ impl RtpsParticipant {
         }
     }
 
-    pub fn create_publisher(
+    pub fn create_builtin_publisher(
         &self,
         qos: Option<PublisherQos>,
+    ) -> Option<MaybeValidRef<Box<RtpsPublisher>>> {
+        self.create_publisher(qos, EntityType::BuiltIn)
+    }
+
+    pub fn create_user_defined_publisher(
+        &self,
+        qos: Option<PublisherQos>,
+    ) -> Option<MaybeValidRef<Box<RtpsPublisher>>> {
+        self.create_publisher(qos, EntityType::UserDefined)
+    }
+
+    fn create_publisher(
+        &self,
+        qos: Option<PublisherQos>,
+        entity_type: EntityType,
     ) -> Option<MaybeValidRef<Box<RtpsPublisher>>> {
         let guid_prefix = self.participant.entity.guid.prefix();
         let entity_key = [
@@ -77,7 +98,11 @@ impl RtpsParticipant {
             self.publisher_count.fetch_add(1, atomic::Ordering::Relaxed),
             0,
         ];
-        let entity_id = EntityId::new(entity_key, ENTITY_KIND_USER_DEFINED_WRITER_GROUP);
+        let entity_kind = match entity_type {
+            EntityType::BuiltIn => ENTITY_KIND_BUILT_IN_WRITER_GROUP,
+            EntityType::UserDefined => ENTITY_KIND_USER_DEFINED_WRITER_GROUP,
+        };
+        let entity_id = EntityId::new(entity_key, entity_kind);
         let new_publisher_guid = GUID::new(guid_prefix, entity_id);
         let new_publisher_qos = qos.unwrap_or(self.get_default_publisher_qos());
         let new_publisher = Box::new(RtpsPublisher::new(
@@ -110,11 +135,29 @@ impl RtpsParticipant {
         }
     }
 
-    pub fn create_subscriber(
+    pub fn create_builtin_subscriber(
         &self,
         qos: Option<SubscriberQos>,
         // _a_listener: impl SubscriberListener,
         // _mask: StatusMask
+    ) -> Option<MaybeValidRef<Box<RtpsSubscriber>>> {
+        self.create_subscriber(qos, EntityType::BuiltIn)
+    }
+
+    pub fn create_user_defined_subscriber(
+        &self,
+        qos: Option<SubscriberQos>,
+        // _a_listener: impl SubscriberListener,
+        // _mask: StatusMask
+    ) -> Option<MaybeValidRef<Box<RtpsSubscriber>>> {
+        self.create_subscriber(qos, EntityType::UserDefined)
+    }
+
+    fn create_subscriber(
+        &self,
+        qos: Option<SubscriberQos>,
+        entity_type: EntityType, // _a_listener: impl SubscriberListener,
+                                 // _mask: StatusMask
     ) -> Option<MaybeValidRef<Box<RtpsSubscriber>>> {
         let guid_prefix = self.participant.entity.guid.prefix();
         let entity_key = [
@@ -123,7 +166,11 @@ impl RtpsParticipant {
                 .fetch_add(1, atomic::Ordering::Relaxed),
             0,
         ];
-        let entity_id = EntityId::new(entity_key, ENTITY_KIND_USER_DEFINED_READER_GROUP);
+        let entity_kind = match entity_type {
+            EntityType::BuiltIn => ENTITY_KIND_BUILT_IN_READER_GROUP,
+            EntityType::UserDefined => ENTITY_KIND_USER_DEFINED_READER_GROUP,
+        };
+        let entity_id = EntityId::new(entity_key, entity_kind);
         let new_subscriber_guid = GUID::new(guid_prefix, entity_id);
         let new_subscriber_qos = qos.unwrap_or(self.get_default_subscriber_qos());
         let new_subscriber = Box::new(RtpsSubscriber::new(

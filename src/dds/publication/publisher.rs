@@ -62,7 +62,7 @@ impl<'a> Publisher<'a> {
             .rtps_publisher
             .value()
             .ok()?
-            .create_datawriter::<T>(rtps_topic, qos)?;
+            .create_user_defined_datawriter::<T>(rtps_topic, qos)?;
         // discovery.insert_writer(&new_writer).ok()?;
 
         Some(DataWriter {

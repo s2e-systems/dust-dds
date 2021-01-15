@@ -43,7 +43,7 @@ impl DomainParticipant {
         // _a_listener: impl PublisherListener,
         // _mask: StatusMask
     ) -> Option<Publisher> {
-        let rtps_publisher = self.user_defined_participant.create_publisher(qos)?;
+        let rtps_publisher = self.user_defined_participant.create_user_defined_publisher(qos)?;
 
         Some(Publisher {
             parent_participant: self,
@@ -77,7 +77,7 @@ impl DomainParticipant {
         // _a_listener: impl SubscriberListener,
         // _mask: StatusMask
     ) -> Option<Subscriber> {
-        let rtps_subscriber = self.user_defined_participant.create_subscriber(qos)?;
+        let rtps_subscriber = self.user_defined_participant.create_user_defined_subscriber(qos)?;
 
         Some(Subscriber {
             parent_participant: self,
