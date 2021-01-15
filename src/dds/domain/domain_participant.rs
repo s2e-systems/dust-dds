@@ -1,4 +1,8 @@
-use std::{cell::RefCell, sync::Arc, thread::JoinHandle};
+use std::{
+    cell::RefCell,
+    sync::{atomic, Arc},
+    thread::JoinHandle,
+};
 
 use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
@@ -21,6 +25,7 @@ use super::domain_participant_listener::DomainParticipantListener;
 pub struct DomainParticipant {
     pub(crate) user_defined_participant: Arc<RtpsParticipant>,
     pub(crate) builtin_participant: Arc<RtpsParticipant>,
+    pub(crate) enabled: atomic::AtomicBool,
     pub(crate) thread_list: RefCell<Vec<JoinHandle<()>>>,
 }
 
@@ -508,30 +513,7 @@ impl Entity for DomainParticipant {
         //     let participant_inner = self.inner.clone();
         //     thread_list.push(std::thread::spawn(move || {
         //         while participant_inner.enabled.load(atomic::Ordering::Acquire) {
-        //             let participant = &participant_inner.participant;
-        //             let participant_guid_prefix = participant.entity.guid.prefix();
-        //             //let transport = &participant_inner.userdata_transport;
-        //             let transport = &participant_inner.metatraffic_transport;
-
-        //             //for publisher in participant_inner.publisher_list.iter() {
-        //             let publisher_rw = participant_inner.builtin_publisher.read().unwrap();
-        //             let publisher = publisher_rw.get().unwrap();
-        //             //if let Some(publisher) = publisher.read().unwrap().get() {
-        //             for writer in publisher.writer_list.iter() {
-        //                 if let Some(writer) = writer.read().unwrap().get() {
-        //                     let mut stateful_writer = writer.writer().lock().unwrap();
-        //                     println!(
-        //                         "last_change_sequence_number = {:?}",
-        //                         stateful_writer.last_change_sequence_number
-        //                     );
-        //                     let destined_messages = stateful_writer.produce_messages();
-        //                     RtpsMessageSender::send_cache_change_messages(
-        //                         participant_guid_prefix,
-        //                         transport.as_ref(),
-        //                         destined_messages,
-        //                     );
-        //                 }
-        //             }
+        
         //             //}
         //             //}
         //             std::thread::sleep(std::time::Duration::from_secs(1))
@@ -549,13 +531,10 @@ impl Entity for DomainParticipant {
 
 impl Drop for DomainParticipant {
     fn drop(&mut self) {
-        todo!()
-        // self.user_defined_participant
-        //     .enabled
-        //     .store(false, atomic::Ordering::Release);
-        // for thread in self.thread_list.borrow_mut().drain(..) {
-        //     thread.join().ok();
-        // }
+        self.enabled.store(false, atomic::Ordering::Release);
+        for thread in self.thread_list.borrow_mut().drain(..) {
+            thread.join().ok();
+        }
     }
 }
 

@@ -184,11 +184,17 @@ impl<T: DDSType> RtpsDataWriter<T> {
 }
 
 pub trait AnyRtpsWriter: Send + Sync {
+    fn writer(&self) -> &Mutex<WriterFlavor>;
+
     fn as_any(&self) -> &dyn Any;
 }
 
 impl<T: DDSType + Sized> AnyRtpsWriter for RtpsDataWriter<T> {
     fn as_any(&self) -> &dyn Any {
         self
+    }
+
+    fn writer(&self) -> &Mutex<WriterFlavor> {
+        &self.writer
     }
 }

@@ -1,10 +1,10 @@
 use std::sync::{atomic, Arc, Mutex};
 
 use crate::{
-    dds::{
-        infrastructure::qos::{DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
-    },
+    dds::infrastructure::qos::{DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
     rtps::{
+        behavior::endpoint_traits::CacheChangeSender,
+        message_sender::RtpsMessageSender,
         structure::Participant,
         transport::Transport,
         types::{
@@ -16,7 +16,11 @@ use crate::{
     utils::maybe_valid::{MaybeValidList, MaybeValidRef},
 };
 
-use super::{rtps_publisher::RtpsPublisher, rtps_subscriber::RtpsSubscriber, rtps_topic::{AnyRtpsTopic, RtpsTopic}};
+use super::{
+    rtps_publisher::RtpsPublisher,
+    rtps_subscriber::RtpsSubscriber,
+    rtps_topic::{AnyRtpsTopic, RtpsTopic},
+};
 
 pub struct RtpsParticipant {
     participant: Participant,
@@ -31,7 +35,6 @@ pub struct RtpsParticipant {
     subscriber_count: atomic::AtomicU8,
     topic_list: MaybeValidList<Arc<dyn AnyRtpsTopic>>,
     topic_count: atomic::AtomicU8,
-    enabled: atomic::AtomicBool,
 }
 
 impl RtpsParticipant {
@@ -58,8 +61,6 @@ impl RtpsParticipant {
             subscriber_count: atomic::AtomicU8::new(0),
             topic_list: Default::default(),
             topic_count: atomic::AtomicU8::new(0),
-            enabled: atomic::AtomicBool::new(false),
-            // sedp,
         }
     }
 
@@ -244,5 +245,28 @@ impl RtpsParticipant {
 
     pub fn get_domain_id(&self) -> DomainId {
         self.participant.domain_id
+    }
+
+    pub fn send_data(&self) {
+        let participant_guid_prefix = self.participant.entity.guid.prefix();
+        for publisher in self.publisher_list.iter() {
+            if let Some(publisher) = publisher.read().unwrap().get() {
+                for writer in publisher.writer_list.iter() {
+                    if let Some(writer) = writer.read().unwrap().get() {
+                        let mut stateful_writer = writer.writer().lock().unwrap();
+                        println!(
+                            "last_change_sequence_number = {:?}",
+                            stateful_writer.last_change_sequence_number
+                        );
+                        let destined_messages = stateful_writer.produce_messages();
+                        RtpsMessageSender::send_cache_change_messages(
+                            participant_guid_prefix,
+                            self.transport.as_ref(),
+                            destined_messages,
+                        );
+                    }
+                }
+            }
+        }
     }
 }
