@@ -1,88 +1,27 @@
-use crate::dds::domain::domain_participant::DomainParticipant;
+use std::sync::Arc;
+
 use crate::dds::infrastructure::entity::{Entity, StatusCondition};
 use crate::dds::infrastructure::qos::TopicQos;
 use crate::dds::infrastructure::status::StatusMask;
-use crate::utils::maybe_valid::MaybeValidRef;
 use crate::dds::topic::topic_description::TopicDescription;
 use crate::dds::topic::topic_listener::TopicListener;
-use crate::rtps;
-use crate::rtps::types::GUID;
-use crate::types::{DDSType, InstanceHandle, ReturnCode, ReturnCodes, TopicKind };
-use std::sync::{Arc, Mutex};
-use std::any::Any;
-
-pub struct RtpsTopic<T: DDSType> {
-    pub rtps_entity: rtps::structure::Entity,
-    pub topic_name: String,
-    pub type_name: &'static str,
-    pub topic_kind: TopicKind,
-    pub qos: Mutex<TopicQos>,
-    pub listener: Option<Box<dyn TopicListener<T>>>,
-    pub status_mask: StatusMask,
-}
-
-impl<T: DDSType> RtpsTopic<T> {
-    pub fn new(
-        guid: GUID,
-        topic_name: String,
-        qos: TopicQos,
-        listener: Option<Box<dyn TopicListener<T>>>,
-        status_mask: StatusMask,
-    ) -> Self {
-        Self {
-            rtps_entity: rtps::structure::Entity { guid },
-            topic_name,
-            type_name: T::type_name(),
-            topic_kind: T::topic_kind(),
-            qos: Mutex::new(qos),
-            listener,
-            status_mask,
-        }
-    }
-}
-
-pub trait AnyRtpsTopic: Send + Sync {
-    fn rtps_entity(&self) -> &rtps::structure::Entity;
-    fn topic_kind(&self) -> TopicKind;
-    fn type_name(&self) -> &'static str;
-    fn topic_name(&self) -> &String;
-    fn qos(&self) -> &Mutex<TopicQos>;
-    fn as_any(&self) -> &dyn Any;
-}
-
-impl<T: DDSType + Sized> AnyRtpsTopic for RtpsTopic<T> {
-    fn rtps_entity(&self) -> &rtps::structure::Entity {
-        &self.rtps_entity
-    }
-
-    fn topic_kind(&self) -> TopicKind {
-        self.topic_kind
-    }
-
-    fn type_name(&self) -> &'static str {
-        &self.type_name
-    }
-
-    fn topic_name(&self) -> &String {
-        &self.topic_name
-    }
-
-    fn qos(&self) -> &Mutex<TopicQos> {
-        &self.qos
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-}
+use crate::dds::{
+    domain::domain_participant::DomainParticipant, implementation::rtps_topic::AnyRtpsTopic,
+};
+use crate::types::{DDSType, InstanceHandle, ReturnCode, ReturnCodes};
+use crate::utils::maybe_valid::MaybeValidRef;
 
 impl<'a> MaybeValidRef<'a, Arc<dyn AnyRtpsTopic>> {
     pub fn value(&self) -> ReturnCode<&Arc<dyn AnyRtpsTopic>> {
         self.get().ok_or(ReturnCodes::AlreadyDeleted)
     }
-    
+
     pub fn value_as<U: 'static>(&self) -> ReturnCode<&U> {
-        self.value()?.as_ref().as_any().downcast_ref::<U>().ok_or(ReturnCodes::Error)
+        self.value()?
+            .as_ref()
+            .as_any()
+            .downcast_ref::<U>()
+            .ok_or(ReturnCodes::Error)
     }
 }
 

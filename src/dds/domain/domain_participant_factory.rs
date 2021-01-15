@@ -1,9 +1,15 @@
-use crate::dds::domain::domain_participant::{DomainParticipant, RtpsParticipant};
-use crate::dds::infrastructure::qos::DomainParticipantQos;
-use crate::rtps::transport::udp::UdpTransport;
-use crate::types::DomainId;
-use std::cell::RefCell;
-use std::sync::Arc;
+use std::{cell::RefCell, sync::Arc};
+
+use crate::{
+    dds::{
+        implementation::rtps_participant::RtpsParticipant,
+        infrastructure::qos::DomainParticipantQos,
+    },
+    rtps::transport::udp::UdpTransport,
+    types::DomainId,
+};
+
+use super::domain_participant::DomainParticipant;
 
 /// The DomainParticipant object plays several roles:
 /// - It acts as a container for all other Entity objects.
@@ -53,7 +59,7 @@ impl DomainParticipantFactory {
             RtpsParticipant::new(domain_id, qos.clone(), metatraffic_transport);
 
         let rtps_user_defined_participant =
-            RtpsParticipant::new(domain_id, qos, userdata_transport);            
+            RtpsParticipant::new(domain_id, qos, userdata_transport);
 
         // if enabled {
         //     new_participant.enable().ok()?;

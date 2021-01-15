@@ -1,265 +1,22 @@
-use crate::dds::{infrastructure::entity::{Entity, StatusCondition}, publication::data_writer::DataWriter};
-use crate::dds::infrastructure::qos::{
-    DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos,
-};
-use crate::dds::infrastructure::status::StatusMask;
-use crate::dds::publication::data_writer::{RtpsDataWriter, AnyRtpsWriter};
-use crate::dds::publication::publisher::{Publisher, RtpsPublisher};
-use crate::dds::subscription::subscriber::{RtpsSubscriber, Subscriber};
-use crate::dds::topic::topic::{AnyRtpsTopic, RtpsTopic, Topic};
-use crate::rtps::behavior::endpoint_traits::{CacheChangeSender, DestinedMessages};
-use crate::rtps::behavior::types::constants::DURATION_INFINITE;
-use crate::rtps::message_sender::RtpsMessageSender;
-use crate::rtps::structure::Participant;
-use crate::rtps::transport::Transport;
-use crate::rtps::types::constants::{PROTOCOL_VERSION_2_4, VENDOR_ID};
-use crate::rtps::types::{EntityId, EntityKind, GUID};
-use crate::types::{DDSType, DomainId, Duration, InstanceHandle, ReturnCode, ReturnCodes, Time};
-use crate::utils::maybe_valid::MaybeValidList;
+use std::{cell::RefCell, sync::Arc, thread::JoinHandle};
+
 use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
-    dds::infrastructure::qos::DataWriterQos,
-    dds::infrastructure::qos_policy::ReliabilityQosPolicyKind,
-    discovery::types::SpdpDiscoveredParticipantData,
-    rtps::types::constants::{ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, ENTITYID_UNKNOWN},
-};
-use crate::{
     dds::{
-        domain::domain_participant_listener::DomainParticipantListener,
-        infrastructure::qos_policy::UserDataQosPolicy, publication::data_writer::WriterFlavor,
+        implementation::rtps_participant::RtpsParticipant,
+        infrastructure::{
+            entity::{Entity, StatusCondition},
+            qos::{DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
+            status::StatusMask,
+        },
+        publication::publisher::Publisher,
+        subscription::subscriber::Subscriber,
+        topic::topic::Topic,
     },
-    discovery::types::ParticipantProxy,
-    rtps::{endpoint_types::BuiltInEndpointSet, types::Locator},
-    types::{BuiltInTopicKey, TIME_INVALID},
-    utils::maybe_valid::{MaybeValid, MaybeValidRef},
+    types::{DDSType, DomainId, Duration, InstanceHandle, ReturnCode, Time},
 };
-use std::sync::{atomic, Arc, Mutex};
-use std::thread::JoinHandle;
-use std::{cell::RefCell, sync::RwLock};
 
-pub struct RtpsParticipant {
-    participant: Participant,
-    qos: Mutex<DomainParticipantQos>,
-    default_publisher_qos: Mutex<PublisherQos>,
-    default_subscriber_qos: Mutex<SubscriberQos>,
-    default_topic_qos: Mutex<TopicQos>,
-    transport: Box<dyn Transport>,
-    publisher_list: MaybeValidList<Box<RtpsPublisher>>,
-    publisher_count: atomic::AtomicU8,
-    subscriber_list: MaybeValidList<Box<RtpsSubscriber>>,
-    subscriber_count: atomic::AtomicU8,
-    topic_list: MaybeValidList<Arc<dyn AnyRtpsTopic>>,
-    topic_count: atomic::AtomicU8,
-    enabled: atomic::AtomicBool,
-}
-
-impl RtpsParticipant {
-    pub fn new(
-        domain_id: DomainId,
-        qos: DomainParticipantQos,
-        transport: impl Transport,
-        //     a_listener: impl DomainParticipantListener,
-        //     mask: StatusMask,
-    ) -> Self {
-        let guid_prefix = [1; 12];
-        let participant = Participant::new(guid_prefix, domain_id, PROTOCOL_VERSION_2_4, VENDOR_ID);
-
-        RtpsParticipant {
-            participant,
-            qos: Mutex::new(qos),
-            default_publisher_qos: Mutex::new(PublisherQos::default()),
-            default_subscriber_qos: Mutex::new(SubscriberQos::default()),
-            default_topic_qos: Mutex::new(TopicQos::default()),
-            transport: Box::new(transport),
-            publisher_list: Default::default(),
-            publisher_count: atomic::AtomicU8::new(0),
-            subscriber_list: Default::default(),
-            subscriber_count: atomic::AtomicU8::new(0),
-            topic_list: Default::default(),
-            topic_count: atomic::AtomicU8::new(0),
-            enabled: atomic::AtomicBool::new(false),
-            // sedp,
-        }
-    }
-
-    pub fn create_publisher(&self, qos: Option<PublisherQos>) -> Option<MaybeValidRef<Box<RtpsPublisher>>> {
-        let guid_prefix = self.participant.entity.guid.prefix();
-        let entity_key = [
-            0,
-            self
-                .publisher_count
-                .fetch_add(1, atomic::Ordering::Relaxed),
-            0,
-        ];
-        let entity_id = EntityId::new(entity_key, EntityKind::UserDefinedWriterGroup);
-        let new_publisher_guid = GUID::new(guid_prefix, entity_id);
-        let new_publisher_qos = qos.unwrap_or(self.get_default_publisher_qos());
-        let new_publisher = Box::new(RtpsPublisher::new(
-            new_publisher_guid,
-            new_publisher_qos,
-            None,
-            0,
-        ));
-        self.publisher_list.add(new_publisher)
-    }
-
-    pub fn delete_publisher(&self, a_publisher: &MaybeValidRef<Box<RtpsPublisher>>) -> ReturnCode<()> {
-        let rtps_publisher = a_publisher.value()?;
-        if rtps_publisher.writer_list.is_empty() {
-            if self
-                .publisher_list
-                .contains(&a_publisher)
-            {
-                a_publisher.delete();
-                Ok(())
-            } else {
-                Err(ReturnCodes::PreconditionNotMet(
-                    "Publisher not found in this participant",
-                ))
-            }
-        } else {
-            Err(ReturnCodes::PreconditionNotMet(
-                "Publisher still contains data writers",
-            ))
-        }
-    }
-
-    pub fn create_subscriber(
-        &self,
-        qos: Option<SubscriberQos>,
-        // _a_listener: impl SubscriberListener,
-        // _mask: StatusMask
-    ) -> Option<MaybeValidRef<Box<RtpsSubscriber>>> {
-        let guid_prefix = self.participant.entity.guid.prefix();
-        let entity_key = [
-            0,
-            self
-                .subscriber_count
-                .fetch_add(1, atomic::Ordering::Relaxed),
-            0,
-        ];
-        let entity_id = EntityId::new(entity_key, EntityKind::UserDefinedReaderGroup);
-        let new_subscriber_guid = GUID::new(guid_prefix, entity_id);
-        let new_subscriber_qos = qos.unwrap_or(self.get_default_subscriber_qos());
-        let new_subscriber = Box::new(RtpsSubscriber::new(
-            new_subscriber_guid,
-            new_subscriber_qos,
-            None,
-            0,
-        ));
-
-        self.subscriber_list.add(new_subscriber)
-    }
-
-    pub fn delete_subscriber(&self, a_subscriber: &MaybeValidRef<Box<RtpsSubscriber>>) -> ReturnCode<()> {
-        let rtps_subscriber = a_subscriber.value()?;
-        if rtps_subscriber.reader_list.is_empty() {
-            if self
-                .subscriber_list
-                .contains(&a_subscriber)
-            {
-                a_subscriber.delete();
-                Ok(())
-            } else {
-                Err(ReturnCodes::PreconditionNotMet(
-                    "Subscriber not found in this participant",
-                ))
-            }
-        } else {
-            Err(ReturnCodes::PreconditionNotMet(
-                "Subscriber still contains data readers",
-            ))
-        }
-    }
-
-    pub fn create_topic<T: DDSType>(
-        &self,
-        topic_name: &str,
-        qos: Option<TopicQos>,
-        // _a_listener: impl TopicListener<T>,
-        // _mask: StatusMask
-    ) -> Option<MaybeValidRef<Arc<dyn AnyRtpsTopic>>> {
-        let guid_prefix = self.participant.entity.guid.prefix();
-        let entity_key = [
-            0,
-            self
-                .topic_count
-                .fetch_add(1, atomic::Ordering::Relaxed),
-            0,
-        ];
-        let entity_id = EntityId::new(entity_key, EntityKind::UserDefinedUnknown);
-        let new_topic_guid = GUID::new(guid_prefix, entity_id);
-        let new_topic_qos = qos.unwrap_or(self.get_default_topic_qos());
-        let new_topic: Arc<RtpsTopic<T>> = Arc::new(RtpsTopic::new(
-            new_topic_guid,
-            topic_name.clone().into(),
-            new_topic_qos,
-            None,
-            0,
-        ));
-        self.topic_list.add(new_topic)
-    }
-
-    pub fn delete_topic<T: DDSType>(&self, a_topic: &MaybeValidRef<Arc<dyn AnyRtpsTopic>>) -> ReturnCode<()> {
-        let rtps_topic = a_topic.value()?;
-        if self.topic_list.contains(&a_topic) {
-            if Arc::strong_count(rtps_topic) == 1 {
-                // discovery.remove_topic(a_topic.value()?)?;
-                a_topic.delete();
-                Ok(())
-            } else {
-                Err(ReturnCodes::PreconditionNotMet(
-                    "Topic still attached to some data reader or data writer",
-                ))
-            }
-        } else {
-            Err(ReturnCodes::PreconditionNotMet(
-                "Topic not found in this participant",
-            ))
-        }
-    }
-
-    pub fn set_default_publisher_qos(&self, qos: Option<PublisherQos>) -> ReturnCode<()> {
-        let qos = qos.unwrap_or_default();
-        *self.default_publisher_qos.lock().unwrap() = qos;
-        Ok(())
-    }
-
-    pub fn get_default_publisher_qos(&self) -> PublisherQos {
-        self.default_publisher_qos.lock().unwrap().clone()
-    }
-
-    pub fn set_default_subscriber_qos(&self, qos: Option<SubscriberQos>) -> ReturnCode<()> {
-        let qos = qos.unwrap_or_default();
-        *self.default_subscriber_qos.lock().unwrap() = qos;
-        Ok(())
-    }
-
-    pub fn get_default_subscriber_qos(&self) -> SubscriberQos {
-        self.default_subscriber_qos.lock().unwrap().clone()
-    }
-
-    pub fn set_default_topic_qos(&self, qos: Option<TopicQos>) -> ReturnCode<()> {
-        let qos = qos.unwrap_or_default();
-        qos.is_consistent()?;
-        *self.default_topic_qos.lock().unwrap() = qos;
-        Ok(())
-    }
-
-    pub fn get_default_topic_qos(&self) -> TopicQos {
-        self.default_topic_qos.lock().unwrap().clone()
-    }
-
-    pub fn set_qos(&self, qos: Option<DomainParticipantQos>) -> ReturnCode<()> {
-        let qos = qos.unwrap_or_default();
-        *self.qos.lock().unwrap() = qos;
-        Ok(())
-    }
-
-    pub fn get_qos(&self) -> ReturnCode<DomainParticipantQos> {
-        Ok(self.qos.lock().unwrap().clone())
-    }
-}
+use super::domain_participant_listener::DomainParticipantListener;
 
 pub struct DomainParticipant {
     pub(crate) user_defined_participant: Arc<RtpsParticipant>,
@@ -297,7 +54,8 @@ impl DomainParticipant {
     /// PRECONDITION_NOT_MET.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
     pub fn delete_publisher(&self, a_publisher: &Publisher) -> ReturnCode<()> {
-        self.user_defined_participant.delete_publisher(&a_publisher.rtps_publisher)
+        self.user_defined_participant
+            .delete_publisher(&a_publisher.rtps_publisher)
     }
 
     /// This operation creates a Subscriber with the desired QoS policies and attaches to it the specified SubscriberListener.
@@ -330,7 +88,8 @@ impl DomainParticipant {
     /// PRECONDITION_NOT_MET.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
     pub fn delete_subscriber(&self, a_subscriber: &Subscriber) -> ReturnCode<()> {
-        self.user_defined_participant.delete_subscriber(&a_subscriber.rtps_subscriber)
+        self.user_defined_participant
+            .delete_subscriber(&a_subscriber.rtps_subscriber)
     }
 
     /// This operation creates a Topic with the desired QoS policies and attaches to it the specified TopicListener.
@@ -350,7 +109,9 @@ impl DomainParticipant {
         // _a_listener: impl TopicListener<T>,
         // _mask: StatusMask
     ) -> Option<Topic<T>> {
-        let rtps_topic = self.user_defined_participant.create_topic::<T>(topic_name, qos)?;
+        let rtps_topic = self
+            .user_defined_participant
+            .create_topic::<T>(topic_name, qos)?;
 
         Some(Topic {
             parent_participant: self,
@@ -367,7 +128,8 @@ impl DomainParticipant {
     /// called on a different DomainParticipant, the operation will have no effect and it will return PRECONDITION_NOT_MET.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
     pub fn delete_topic<T: DDSType>(&self, a_topic: &Topic<T>) -> ReturnCode<()> {
-        self.user_defined_participant.delete_topic::<T>(&a_topic.rtps_topic)
+        self.user_defined_participant
+            .delete_topic::<T>(&a_topic.rtps_topic)
     }
 
     /// The operation find_topic gives access to an existing (or ready to exist) enabled Topic, based on its name. The operation takes
@@ -468,7 +230,7 @@ impl DomainParticipant {
     /// which the DomainParticipant belongs. As described in the introduction to 2.2.2.2.1 each DDS domain represents a separate
     /// data “communication plane” isolated from other domains
     pub fn get_domain_id(&self) -> DomainId {
-        self.user_defined_participant.participant.domain_id
+        self.user_defined_participant.get_domain_id()
     }
 
     /// This operation deletes all the entities that were created by means of the “create” operations on the DomainParticipant. That is,
@@ -525,7 +287,8 @@ impl DomainParticipant {
     /// reset back to the initial values the factory would use, that is the values that would be used if the set_default_subscriber_qos
     /// operation had never been called.
     pub fn set_default_subscriber_qos(&self, qos: Option<SubscriberQos>) -> ReturnCode<()> {
-        self.user_defined_participant.set_default_subscriber_qos(qos)
+        self.user_defined_participant
+            .set_default_subscriber_qos(qos)
     }
 
     /// This operation retrieves the default value of the Subscriber QoS, that is, the QoS policies which will be used for newly created
@@ -738,10 +501,6 @@ impl Entity for DomainParticipant {
         // };
         // data_writer.write_w_timestamp(data, None, TIME_INVALID).ok();
 
-
-
-
-        
         // if self.inner.enabled.load(atomic::Ordering::Acquire) == false {
         //     self.inner.enabled.store(true, atomic::Ordering::Release);
 
@@ -784,16 +543,19 @@ impl Entity for DomainParticipant {
     }
 
     fn get_instance_handle(&self) -> ReturnCode<InstanceHandle> {
-        Ok(self.user_defined_participant.participant.entity.guid.into())
+        todo!()
     }
 }
 
 impl Drop for DomainParticipant {
     fn drop(&mut self) {
-        self.user_defined_participant.enabled.store(false, atomic::Ordering::Release);
-        for thread in self.thread_list.borrow_mut().drain(..) {
-            thread.join().ok();
-        }
+        todo!()
+        // self.user_defined_participant
+        //     .enabled
+        //     .store(false, atomic::Ordering::Release);
+        // for thread in self.thread_list.borrow_mut().drain(..) {
+        //     thread.join().ok();
+        // }
     }
 }
 

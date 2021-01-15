@@ -1,39 +1,15 @@
-use crate::dds::domain::domain_participant::DomainParticipant;
 use crate::dds::infrastructure::entity::{Entity, StatusCondition};
 use crate::dds::infrastructure::qos::{DataWriterQos, PublisherQos, TopicQos};
 use crate::dds::infrastructure::status::StatusMask;
-use crate::dds::publication::data_writer::{AnyRtpsWriter, DataWriter, RtpsDataWriter};
+use crate::dds::publication::data_writer::DataWriter;
 use crate::dds::publication::publisher_listener::PublisherListener;
-use crate::utils::maybe_valid::{MaybeValidList, MaybeValidRef};
 use crate::dds::topic::topic::Topic;
-use crate::rtps::structure::Group;
-use crate::rtps::types::{EntityId, EntityKind, GUID};
-use crate::types::{DDSType, Duration, InstanceHandle, ReturnCode, TopicKind, ReturnCodes};
-use std::sync::{atomic, Mutex};
-
-pub struct RtpsPublisher {
-    pub group: Group,
-    pub writer_list: MaybeValidList<Box<dyn AnyRtpsWriter>>,
-    pub writer_count: atomic::AtomicU8,
-    pub default_datawriter_qos: Mutex<DataWriterQos>,
-    pub qos: PublisherQos,
-    pub listener: Option<Box<dyn PublisherListener>>,
-    pub status_mask: StatusMask,
-}
-
-impl RtpsPublisher {
-    pub fn new(guid: GUID, qos: PublisherQos, listener: Option<Box<dyn PublisherListener>>, status_mask: StatusMask) -> Self {
-        Self {
-            group: Group::new(guid),
-            writer_list: Default::default(),
-            writer_count: atomic::AtomicU8::new(0),
-            default_datawriter_qos: Mutex::new(DataWriterQos::default()),
-            qos,
-            listener,
-            status_mask,
-        }
-    }
-}
+use crate::dds::{
+    domain::domain_participant::DomainParticipant,
+    implementation::{rtps_datawriter::RtpsDataWriter, rtps_publisher::RtpsPublisher},
+};
+use crate::types::{DDSType, Duration, InstanceHandle, ReturnCode, ReturnCodes};
+use crate::utils::maybe_valid::MaybeValidRef;
 
 impl<'a> MaybeValidRef<'a, Box<RtpsPublisher>> {
     pub fn value(&self) -> ReturnCode<&Box<RtpsPublisher>> {
@@ -81,24 +57,13 @@ impl<'a> Publisher<'a> {
         // _a_listener: impl DataWriterListener<T>,
         // _mask: StatusMask
     ) -> Option<DataWriter<T>> {
-        let this = self.rtps_publisher.value().ok()?;
-        let topic = a_topic.rtps_topic.value().ok()?.clone();
-        let guid_prefix = this.group.entity.guid.prefix();
-        let entity_key = [
-            0,
-            this.writer_count.fetch_add(1, atomic::Ordering::Relaxed),
-            0,
-        ];
-        let entity_kind = match topic.topic_kind() {
-            TopicKind::WithKey => EntityKind::UserDefinedWriterWithKey,
-            TopicKind::NoKey => EntityKind::UserDefinedWriterNoKey,
-        };
-        let entity_id = EntityId::new(entity_key, entity_kind);
-        let new_writer_guid = GUID::new(guid_prefix, entity_id);
-        let new_writer_qos = qos.unwrap_or(self.get_default_datawriter_qos().ok()?);
-        let new_writer: Box<RtpsDataWriter<T>> = Box::new(RtpsDataWriter::new_stateful(new_writer_guid, topic, new_writer_qos, None, 0));
+        let rtps_topic = a_topic.rtps_topic.value().ok()?.clone();
+        let rtps_datawriter = self
+            .rtps_publisher
+            .value()
+            .ok()?
+            .create_datawriter::<T>(rtps_topic, qos)?;
         // discovery.insert_writer(&new_writer).ok()?;
-        let rtps_datawriter = this.writer_list.add(new_writer)?;
 
         Some(DataWriter {
             parent_publisher: self,
@@ -209,7 +174,7 @@ impl<'a> Publisher<'a> {
     /// The special value DATAWRITER_QOS_DEFAULT may be passed to this operation to indicate that the default QoS should be
     /// reset back to the initial values the factory would use, that is the values that would be used if the set_default_datawriter_qos
     /// operation had never been called.
-    pub fn set_default_datawriter_qos(&self, _qos: DataWriterQos) -> ReturnCode<()> {
+    pub fn set_default_datawriter_qos(&self, _qos: Option<DataWriterQos>) -> ReturnCode<()> {
         todo!()
     }
 
@@ -219,13 +184,7 @@ impl<'a> Publisher<'a> {
     /// set_default_datawriter_qos, or else, if the call was never made, the default values listed in the QoS table in 2.2.3, Supported
     /// QoS.
     pub fn get_default_datawriter_qos(&self) -> ReturnCode<DataWriterQos> {
-        Ok(self
-            .rtps_publisher
-            .value()?
-            .default_datawriter_qos
-            .lock()
-            .unwrap()
-            .clone())
+        Ok(self.rtps_publisher.value()?.get_default_datawriter_qos())
     }
 
     /// This operation copies the policies in the a_topic_qos to the corresponding policies in the a_datawriter_qos (replacing values
