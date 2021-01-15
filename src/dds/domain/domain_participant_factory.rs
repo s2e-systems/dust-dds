@@ -68,7 +68,7 @@ impl DomainParticipantFactory {
         Some(DomainParticipant {
             builtin_participant: Arc::new(rtps_builtin_participant),
             user_defined_participant: Arc::new(rtps_user_defined_participant),
-            enabled: atomic::AtomicBool::new(false),
+            enabled: Arc::new(atomic::AtomicBool::new(false)),
             thread_list: RefCell::new(Vec::new()),
         })
     }

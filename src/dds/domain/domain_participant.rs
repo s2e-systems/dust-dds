@@ -25,7 +25,7 @@ use super::domain_participant_listener::DomainParticipantListener;
 pub struct DomainParticipant {
     pub(crate) user_defined_participant: Arc<RtpsParticipant>,
     pub(crate) builtin_participant: Arc<RtpsParticipant>,
-    pub(crate) enabled: atomic::AtomicBool,
+    pub(crate) enabled: Arc<atomic::AtomicBool>,
     pub(crate) thread_list: RefCell<Vec<JoinHandle<()>>>,
 }
 
@@ -506,20 +506,19 @@ impl Entity for DomainParticipant {
         // };
         // data_writer.write_w_timestamp(data, None, TIME_INVALID).ok();
 
-        // if self.inner.enabled.load(atomic::Ordering::Acquire) == false {
-        //     self.inner.enabled.store(true, atomic::Ordering::Release);
+        if self.enabled.load(atomic::Ordering::Acquire) == false {
+            self.enabled.store(true, atomic::Ordering::Release);
 
-        //     let mut thread_list = self.thread_list.borrow_mut();
-        //     let participant_inner = self.inner.clone();
-        //     thread_list.push(std::thread::spawn(move || {
-        //         while participant_inner.enabled.load(atomic::Ordering::Acquire) {
-        
-        //             //}
-        //             //}
-        //             std::thread::sleep(std::time::Duration::from_secs(1))
-        //         }
-        //     }));
-        // }
+            let mut thread_list = self.thread_list.borrow_mut();
+            let enabled = self.enabled.clone();
+            let builtin_participant = self.builtin_participant.clone();
+            thread_list.push(std::thread::spawn(move || {
+                while enabled.load(atomic::Ordering::Acquire) {
+                    builtin_participant.send_data();
+                    std::thread::sleep(std::time::Duration::from_secs(1));
+                }
+            }));
+        }
 
         Ok(())
     }
