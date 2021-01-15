@@ -1,4 +1,4 @@
-use crate::dds::infrastructure::entity::{Entity, StatusCondition};
+use crate::{dds::infrastructure::entity::{Entity, StatusCondition}, rtps::types::constants::{ENTITY_KIND_USER_DEFINED_READER_NO_KEY, ENTITY_KIND_USER_DEFINED_READER_WITH_KEY}};
 use crate::dds::infrastructure::qos::{DataReaderQos, SubscriberQos, TopicQos};
 use crate::dds::infrastructure::status::SampleLostStatus;
 use crate::dds::infrastructure::status::StatusMask;
@@ -9,7 +9,7 @@ use crate::dds::{
     domain::domain_participant::DomainParticipant,
     implementation::{rtps_datareader::RtpsDataReader, rtps_subscriber::RtpsSubscriber},
 };
-use crate::rtps::types::{EntityId, EntityKind, GUID};
+use crate::rtps::types::{EntityId, GUID};
 use crate::types::{DDSType, InstanceHandle, ReturnCode, ReturnCodes, TopicKind};
 use crate::utils::maybe_valid::MaybeValidRef;
 use std::sync::atomic;
@@ -77,8 +77,8 @@ impl<'a> Subscriber<'a> {
             0,
         ];
         let entity_kind = match topic.topic_kind() {
-            TopicKind::WithKey => EntityKind::UserDefinedReaderWithKey,
-            TopicKind::NoKey => EntityKind::UserDefinedReaderNoKey,
+            TopicKind::WithKey => ENTITY_KIND_USER_DEFINED_READER_WITH_KEY,
+            TopicKind::NoKey => ENTITY_KIND_USER_DEFINED_READER_NO_KEY,
         };
         let entity_id = EntityId::new(entity_key, entity_kind);
         let new_reader_guid = GUID::new(guid_prefix, entity_id);

@@ -41,7 +41,7 @@ pub fn deserialize_heartbeat(bytes: &[u8], header: SubmessageHeader) -> UdpPsmMa
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::rtps::types::{EntityKind, EntityId};
+    use crate::rtps::types::{EntityId, constants};
     use crate::rtps::messages::types::Endianness;
     use crate::rtps::messages::submessages::Submessage;
 
@@ -49,8 +49,8 @@ mod tests {
     fn test_serialize_deserialize_heartbeat() {
         let mut writer = Vec::new();
 
-        let reader_id = EntityId::new([0x10, 0x12, 0x14], EntityKind::UserDefinedReaderWithKey);
-        let writer_id = EntityId::new([0x26, 0x24, 0x22], EntityKind::UserDefinedWriterWithKey);
+        let reader_id = EntityId::new([0x10, 0x12, 0x14], constants::ENTITY_KIND_USER_DEFINED_READER_WITH_KEY);
+        let writer_id = EntityId::new([0x26, 0x24, 0x22], constants::ENTITY_KIND_USER_DEFINED_WRITER_WITH_KEY);
         let first_sn = 1233;
         let last_sn = 1237;
         let count = 8;

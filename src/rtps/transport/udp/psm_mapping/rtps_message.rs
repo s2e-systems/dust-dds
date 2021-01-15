@@ -65,7 +65,7 @@ pub fn deserialize_rtps_message(bytes: &[u8]) -> UdpPsmMappingResult<RtpsMessage
 mod tests {
     use super::*;
     use crate::rtps::types::constants::{ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, ENTITYID_UNKNOWN};
-    use crate::rtps::types::{EntityKind, };
+    use crate::rtps::types::constants;
     use crate::rtps::messages::types::Time;
     use crate::rtps::types;
     use crate::rtps::messages::submessages::data_submessage::Payload;
@@ -224,11 +224,11 @@ mod tests {
         ));
         let reader_id = types::EntityId::new(
             [0x10, 0x12, 0x14],
-            EntityKind::UserDefinedReaderWithKey,
+            constants::ENTITY_KIND_USER_DEFINED_READER_WITH_KEY,
         );
         let writer_id = types::EntityId::new(
             [0x26, 0x24, 0x22],
-            EntityKind::UserDefinedWriterWithKey,
+            constants::ENTITY_KIND_USER_DEFINED_WRITER_WITH_KEY,
         );
         let first_sn = 1233;
         let last_sn = 1237;

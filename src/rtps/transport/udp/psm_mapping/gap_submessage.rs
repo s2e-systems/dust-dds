@@ -36,7 +36,7 @@ pub fn deserialize_gap(bytes: &[u8], header: SubmessageHeader) -> UdpPsmMappingR
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::rtps::types::{EntityKind, EntityId};
+    use crate::rtps::types::{EntityId, constants};
     use crate::rtps::messages::types::Endianness;
     use crate::rtps::messages::submessages::Submessage;
     
@@ -56,8 +56,8 @@ mod tests {
 
         let gap = Gap::new(
             Endianness::BigEndian, 
-            EntityId::new([0x10, 0x12, 0x14], EntityKind::UserDefinedReaderWithKey),
-            EntityId::new([0x26, 0x24, 0x22], EntityKind::UserDefinedWriterWithKey),
+            EntityId::new([0x10, 0x12, 0x14], constants::ENTITY_KIND_USER_DEFINED_READER_WITH_KEY),
+            EntityId::new([0x26, 0x24, 0x22], constants::ENTITY_KIND_USER_DEFINED_WRITER_WITH_KEY),
             1200,
             [1234, 1235,].iter().cloned().collect(),
         );
@@ -86,8 +86,8 @@ mod tests {
 
         let gap = Gap::new(
             Endianness::LittleEndian, 
-            EntityId::new([0x10, 0x12, 0x14], EntityKind::UserDefinedReaderWithKey),
-            EntityId::new([0x26, 0x24, 0x22], EntityKind::UserDefinedWriterWithKey),
+            EntityId::new([0x10, 0x12, 0x14], constants::ENTITY_KIND_USER_DEFINED_READER_WITH_KEY),
+            EntityId::new([0x26, 0x24, 0x22], constants::ENTITY_KIND_USER_DEFINED_WRITER_WITH_KEY),
             1200,
             [1234, 1235,].iter().cloned().collect(),
         );

@@ -1,10 +1,14 @@
-use std::{cell::RefCell, sync::{Arc, atomic}};
+use std::{
+    cell::RefCell,
+    sync::{atomic, Arc},
+};
 
 use crate::{
     dds::{
         implementation::rtps_participant::RtpsParticipant,
         infrastructure::qos::DomainParticipantQos,
     },
+    discovery::types::SpdpDiscoveredParticipantData,
     rtps::transport::udp::UdpTransport,
     types::DomainId,
 };
@@ -60,6 +64,12 @@ impl DomainParticipantFactory {
 
         let rtps_user_defined_participant =
             RtpsParticipant::new(domain_id, qos, userdata_transport);
+
+        // let builtin_publisher = rtps_builtin_participant.create_publisher(None).unwrap();
+        // let builtin_topic = rtps_builtin_participant
+        //     .create_topic::<SpdpDiscoveredParticipantData>("BuildinTopic", None)
+        //     .unwrap();
+        // let builtin_writer = builtin_publisher.value().unwrap().create_datawriter(a_topic, qos)
 
         // if enabled {
         //     new_participant.enable().ok()?;

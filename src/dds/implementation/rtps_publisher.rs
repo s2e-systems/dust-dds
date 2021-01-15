@@ -10,13 +10,21 @@ use crate::{
     },
     rtps::{
         structure::Group,
-        types::{EntityId, EntityKind, GUID},
+        types::{
+            constants::{
+                ENTITY_KIND_USER_DEFINED_WRITER_NO_KEY, ENTITY_KIND_USER_DEFINED_WRITER_WITH_KEY,
+            },
+            EntityId, GUID,
+        },
     },
     types::{DDSType, ReturnCode, TopicKind},
     utils::maybe_valid::{MaybeValidList, MaybeValidRef},
 };
 
-use super::{rtps_datawriter::{AnyRtpsWriter, RtpsDataWriter}, rtps_topic::AnyRtpsTopic};
+use super::{
+    rtps_datawriter::{AnyRtpsWriter, RtpsDataWriter},
+    rtps_topic::AnyRtpsTopic,
+};
 
 pub struct RtpsPublisher {
     pub group: Group,
@@ -60,8 +68,8 @@ impl RtpsPublisher {
             0,
         ];
         let entity_kind = match a_topic.topic_kind() {
-            TopicKind::WithKey => EntityKind::UserDefinedWriterWithKey,
-            TopicKind::NoKey => EntityKind::UserDefinedWriterNoKey,
+            TopicKind::WithKey => ENTITY_KIND_USER_DEFINED_WRITER_WITH_KEY,
+            TopicKind::NoKey => ENTITY_KIND_USER_DEFINED_WRITER_NO_KEY,
         };
         let entity_id = EntityId::new(entity_key, entity_kind);
         let new_writer_guid = GUID::new(guid_prefix, entity_id);

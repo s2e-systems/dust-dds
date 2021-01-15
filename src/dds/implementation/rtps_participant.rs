@@ -8,8 +8,11 @@ use crate::{
         structure::Participant,
         transport::Transport,
         types::{
-            constants::{PROTOCOL_VERSION_2_4, VENDOR_ID},
-            EntityId, EntityKind, GUID,
+            constants::{
+                ENTITY_KIND_USER_DEFINED_READER_GROUP, ENTITY_KIND_USER_DEFINED_UNKNOWN,
+                ENTITY_KIND_USER_DEFINED_WRITER_GROUP, PROTOCOL_VERSION_2_4, VENDOR_ID,
+            },
+            EntityId, GUID,
         },
     },
     types::{DDSType, DomainId, ReturnCode, ReturnCodes},
@@ -74,7 +77,7 @@ impl RtpsParticipant {
             self.publisher_count.fetch_add(1, atomic::Ordering::Relaxed),
             0,
         ];
-        let entity_id = EntityId::new(entity_key, EntityKind::UserDefinedWriterGroup);
+        let entity_id = EntityId::new(entity_key, ENTITY_KIND_USER_DEFINED_WRITER_GROUP);
         let new_publisher_guid = GUID::new(guid_prefix, entity_id);
         let new_publisher_qos = qos.unwrap_or(self.get_default_publisher_qos());
         let new_publisher = Box::new(RtpsPublisher::new(
@@ -120,7 +123,7 @@ impl RtpsParticipant {
                 .fetch_add(1, atomic::Ordering::Relaxed),
             0,
         ];
-        let entity_id = EntityId::new(entity_key, EntityKind::UserDefinedReaderGroup);
+        let entity_id = EntityId::new(entity_key, ENTITY_KIND_USER_DEFINED_READER_GROUP);
         let new_subscriber_guid = GUID::new(guid_prefix, entity_id);
         let new_subscriber_qos = qos.unwrap_or(self.get_default_subscriber_qos());
         let new_subscriber = Box::new(RtpsSubscriber::new(
@@ -167,7 +170,7 @@ impl RtpsParticipant {
             self.topic_count.fetch_add(1, atomic::Ordering::Relaxed),
             0,
         ];
-        let entity_id = EntityId::new(entity_key, EntityKind::UserDefinedUnknown);
+        let entity_id = EntityId::new(entity_key, ENTITY_KIND_USER_DEFINED_UNKNOWN);
         let new_topic_guid = GUID::new(guid_prefix, entity_id);
         let new_topic_qos = qos.unwrap_or(self.get_default_topic_qos());
         let new_topic: Arc<RtpsTopic<T>> = Arc::new(RtpsTopic::new(
