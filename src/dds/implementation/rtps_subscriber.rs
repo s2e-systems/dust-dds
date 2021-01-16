@@ -23,7 +23,7 @@ use crate::{
 };
 
 use super::{
-    rtps_datareader::{AnyRtpsReader, RtpsDataReader},
+    rtps_datareader::{AnyRtpsReader, RtpsAnyDataReaderRef, RtpsDataReader},
     rtps_topic::AnyRtpsTopic,
 };
 
@@ -65,7 +65,7 @@ impl RtpsSubscriber {
         qos: Option<DataReaderQos>,
         // _a_listener: impl DataReaderListener<T>,
         // _mask: StatusMask
-    ) -> Option<MaybeValidRef<Box<dyn AnyRtpsReader>>> {
+    ) -> Option<RtpsAnyDataReaderRef> {
         self.create_datareader::<T>(a_topic, qos, EntityType::BuiltIn)
     }
 
@@ -75,7 +75,7 @@ impl RtpsSubscriber {
         qos: Option<DataReaderQos>,
         // _a_listener: impl DataReaderListener<T>,
         // _mask: StatusMask
-    ) -> Option<MaybeValidRef<Box<dyn AnyRtpsReader>>> {
+    ) -> Option<RtpsAnyDataReaderRef> {
         self.create_datareader::<T>(a_topic, qos, EntityType::BuiltIn)
     }
 
@@ -86,7 +86,7 @@ impl RtpsSubscriber {
         entity_type: EntityType,
         // _a_listener: impl DataReaderListener<T>,
         // _mask: StatusMask
-    ) -> Option<MaybeValidRef<Box<dyn AnyRtpsReader>>> {
+    ) -> Option<RtpsAnyDataReaderRef> {
         let guid_prefix = self.group.entity.guid.prefix();
         let entity_key = [
             0,
@@ -125,3 +125,5 @@ impl RtpsSubscriber {
         Ok(())
     }
 }
+
+pub type RtpsSubscriberRef<'a> = MaybeValidRef<'a, Box<RtpsSubscriber>>;

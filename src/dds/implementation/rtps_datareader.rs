@@ -15,6 +15,7 @@ use crate::{
         types::{ReliabilityKind, GUID},
     },
     types::DDSType,
+    utils::maybe_valid::MaybeValidRef,
 };
 
 use super::rtps_topic::AnyRtpsTopic;
@@ -93,3 +94,5 @@ impl<T: DDSType + Sized> AnyRtpsReader for RtpsDataReader<T> {
         self
     }
 }
+
+pub type RtpsAnyDataReaderRef<'a> = MaybeValidRef<'a, Box<dyn AnyRtpsReader>>;

@@ -6,10 +6,8 @@ use std::{
 
 use crate::{
     dds::infrastructure::qos::{DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
-    discovery::types::ParticipantProxy,
     rtps::{
         behavior::endpoint_traits::CacheChangeSender,
-        endpoint_types::BuiltInEndpointSet,
         message_sender::RtpsMessageSender,
         structure::Participant,
         transport::Transport,
@@ -27,8 +25,8 @@ use crate::{
 };
 
 use super::{
-    rtps_publisher::RtpsPublisher,
-    rtps_subscriber::RtpsSubscriber,
+    rtps_publisher::{RtpsPublisher, RtpsPublisherRef},
+    rtps_subscriber::{RtpsSubscriber, RtpsSubscriberRef},
     rtps_topic::{AnyRtpsTopic, RtpsTopic},
 };
 
@@ -61,7 +59,7 @@ impl RtpsParticipantGroup {
         qos: PublisherQos,
         guid_prefix: GuidPrefix,
         entity_type: EntityType,
-    ) -> Option<MaybeValidRef<Box<RtpsPublisher>>> {
+    ) -> Option<RtpsPublisherRef> {
         let entity_key = [
             0,
             self.publisher_count.fetch_add(1, atomic::Ordering::Relaxed),
@@ -77,10 +75,7 @@ impl RtpsParticipantGroup {
         self.publisher_list.add(new_publisher)
     }
 
-    pub fn delete_publisher(
-        &self,
-        a_publisher: &MaybeValidRef<Box<RtpsPublisher>>,
-    ) -> ReturnCode<()> {
+    pub fn delete_publisher(&self, a_publisher: &RtpsPublisherRef) -> ReturnCode<()> {
         let rtps_publisher = a_publisher.value()?;
         if rtps_publisher.writer_list.is_empty() {
             if self.publisher_list.contains(&a_publisher) {
@@ -104,7 +99,7 @@ impl RtpsParticipantGroup {
         guid_prefix: GuidPrefix,
         entity_type: EntityType, // _a_listener: impl SubscriberListener,
                                  // _mask: StatusMask
-    ) -> Option<MaybeValidRef<Box<RtpsSubscriber>>> {
+    ) -> Option<RtpsSubscriberRef> {
         let entity_key = [
             0,
             self.subscriber_count
@@ -122,10 +117,7 @@ impl RtpsParticipantGroup {
         self.subscriber_list.add(new_subscriber)
     }
 
-    pub fn delete_subscriber(
-        &self,
-        a_subscriber: &MaybeValidRef<Box<RtpsSubscriber>>,
-    ) -> ReturnCode<()> {
+    pub fn delete_subscriber(&self, a_subscriber: &RtpsSubscriberRef) -> ReturnCode<()> {
         let rtps_subscriber = a_subscriber.value()?;
         if rtps_subscriber.reader_list.is_empty() {
             if self.subscriber_list.contains(&a_subscriber) {
@@ -181,28 +173,6 @@ pub struct RtpsParticipant {
     thread_list: RefCell<Vec<JoinHandle<()>>>,
 }
 
-// pub fn proxy_from_rtp_participant(rtps_participant: &RtpsParticipant) -> ParticipantProxy {
-//     let participant = &rtps_participant.participant;
-//     ParticipantProxy {
-//         domain_id: participant.domain_id,
-//         domain_tag: "".to_string(),
-//         protocol_version: participant.protocol_version,
-//         guid_prefix: participant.entity.guid.prefix(),
-//         vendor_id: participant.vendor_id,
-//         expects_inline_qos: true,
-//         available_built_in_endpoints: BuiltInEndpointSet { value: 9 },
-//         // built_in_endpoint_qos:
-//         metatraffic_unicast_locator_list: rtps_participant.transport.unicast_locator_list().clone(),
-//         metatraffic_multicast_locator_list: rtps_participant
-//             .transport
-//             .multicast_locator_list()
-//             .clone(),
-//         default_unicast_locator_list: vec![],
-//         default_multicast_locator_list: vec![],
-//         manual_liveliness_count: 8,
-//     }
-// }
-
 impl RtpsParticipant {
     pub fn new(
         domain_id: DomainId,
@@ -215,14 +185,21 @@ impl RtpsParticipant {
         let guid_prefix = [1; 12];
         let participant = Participant::new(guid_prefix, domain_id, PROTOCOL_VERSION_2_4, VENDOR_ID);
 
+        let builtin_group = Arc::new(RtpsParticipantGroup::new(metatraffic_transport));
+        let user_defined_group = Arc::new(RtpsParticipantGroup::new(userdata_transport));
+
+        let builtin_publisher = builtin_group
+            .create_publisher(PublisherQos::default(), guid_prefix, EntityType::BuiltIn)
+            .expect("Error creating built-in publisher");
+
         RtpsParticipant {
             participant,
             qos: Mutex::new(qos),
             default_publisher_qos: Mutex::new(PublisherQos::default()),
             default_subscriber_qos: Mutex::new(SubscriberQos::default()),
             default_topic_qos: Mutex::new(TopicQos::default()),
-            builtin_group: Arc::new(RtpsParticipantGroup::new(metatraffic_transport)),
-            user_defined_group: Arc::new(RtpsParticipantGroup::new(userdata_transport)),
+            builtin_group: builtin_group.clone(), // Clone because entities have been created already so move is not possible
+            user_defined_group,
             topic_list: Default::default(),
             topic_count: atomic::AtomicU8::new(0),
             enabled: Arc::new(atomic::AtomicBool::new(false)),
@@ -230,10 +207,7 @@ impl RtpsParticipant {
         }
     }
 
-    pub fn create_builtin_publisher(
-        &self,
-        qos: Option<PublisherQos>,
-    ) -> Option<MaybeValidRef<Box<RtpsPublisher>>> {
+    pub fn create_builtin_publisher(&self, qos: Option<PublisherQos>) -> Option<RtpsPublisherRef> {
         let guid_prefix = self.participant.entity.guid.prefix();
         let qos = qos.unwrap_or_default();
         self.builtin_group
@@ -243,24 +217,18 @@ impl RtpsParticipant {
     pub fn create_user_defined_publisher(
         &self,
         qos: Option<PublisherQos>,
-    ) -> Option<MaybeValidRef<Box<RtpsPublisher>>> {
+    ) -> Option<RtpsPublisherRef> {
         let guid_prefix = self.participant.entity.guid.prefix();
         let qos = qos.unwrap_or_default();
         self.user_defined_group
             .create_publisher(qos, guid_prefix, EntityType::UserDefined)
     }
 
-    pub fn delete_builtin_publisher(
-        &self,
-        a_publisher: &MaybeValidRef<Box<RtpsPublisher>>,
-    ) -> ReturnCode<()> {
+    pub fn delete_builtin_publisher(&self, a_publisher: &RtpsPublisherRef) -> ReturnCode<()> {
         self.builtin_group.delete_publisher(a_publisher)
     }
 
-    pub fn delete_user_defined_publisher(
-        &self,
-        a_publisher: &MaybeValidRef<Box<RtpsPublisher>>,
-    ) -> ReturnCode<()> {
+    pub fn delete_user_defined_publisher(&self, a_publisher: &RtpsPublisherRef) -> ReturnCode<()> {
         self.user_defined_group.delete_publisher(a_publisher)
     }
 
@@ -269,7 +237,7 @@ impl RtpsParticipant {
         qos: Option<SubscriberQos>,
         // _a_listener: impl SubscriberListener,
         // _mask: StatusMask
-    ) -> Option<MaybeValidRef<Box<RtpsSubscriber>>> {
+    ) -> Option<RtpsSubscriberRef> {
         let guid_prefix = self.participant.entity.guid.prefix();
         let qos = qos.unwrap_or_default();
         self.builtin_group
@@ -281,23 +249,20 @@ impl RtpsParticipant {
         qos: Option<SubscriberQos>,
         // _a_listener: impl SubscriberListener,
         // _mask: StatusMask
-    ) -> Option<MaybeValidRef<Box<RtpsSubscriber>>> {
+    ) -> Option<RtpsSubscriberRef> {
         let guid_prefix = self.participant.entity.guid.prefix();
         let qos = qos.unwrap_or_default();
         self.user_defined_group
             .create_subscriber(qos, guid_prefix, EntityType::UserDefined)
     }
 
-    pub fn delete_builtin_subscriber(
-        &self,
-        a_subscriber: &MaybeValidRef<Box<RtpsSubscriber>>,
-    ) -> ReturnCode<()> {
+    pub fn delete_builtin_subscriber(&self, a_subscriber: &RtpsSubscriberRef) -> ReturnCode<()> {
         self.builtin_group.delete_subscriber(a_subscriber)
     }
 
     pub fn delete_user_defined_subscriber(
         &self,
-        a_subscriber: &MaybeValidRef<Box<RtpsSubscriber>>,
+        a_subscriber: &RtpsSubscriberRef,
     ) -> ReturnCode<()> {
         self.user_defined_group.delete_subscriber(a_subscriber)
     }

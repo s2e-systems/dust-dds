@@ -4,21 +4,17 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use crate::{
-    dds::{
+use crate::{dds::{
         infrastructure::{
             qos::DataWriterQos, qos_policy::ReliabilityQosPolicyKind, status::StatusMask,
         },
         publication::data_writer_listener::DataWriterListener,
-    },
-    rtps::{
+    }, rtps::{
         behavior::{
             self, endpoint_traits::CacheChangeSender, StatefulWriter, StatelessWriter, Writer,
         },
         types::{ReliabilityKind, GUID},
-    },
-    types::{DDSType, InstanceHandle, ReturnCode, Time},
-};
+    }, types::{DDSType, InstanceHandle, ReturnCode, Time}, utils::maybe_valid::MaybeValidRef};
 
 use super::rtps_topic::AnyRtpsTopic;
 
@@ -198,3 +194,5 @@ impl<T: DDSType + Sized> AnyRtpsWriter for RtpsDataWriter<T> {
         &self.writer
     }
 }
+
+pub type RtpsAnyDataWriterRef<'a> = MaybeValidRef<'a, Box<dyn AnyRtpsWriter>>;
