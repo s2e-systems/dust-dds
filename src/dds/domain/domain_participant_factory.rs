@@ -5,10 +5,14 @@ use std::{
 
 use crate::{
     dds::{
-        implementation::rtps_participant::RtpsParticipant,
-        infrastructure::qos::DomainParticipantQos,
+        implementation::{rtps_datawriter::RtpsDataWriter, rtps_participant::RtpsParticipant},
+        infrastructure::{
+            qos::{DataWriterQos, DomainParticipantQos},
+            qos_policy::ReliabilityQosPolicyKind,
+        },
     },
-    rtps::transport::udp::UdpTransport,
+    discovery::types::SpdpDiscoveredParticipantData,
+    rtps::{transport::udp::UdpTransport, types::Locator},
     types::DomainId,
 };
 
@@ -58,13 +62,37 @@ impl DomainParticipantFactory {
             UdpTransport::default_metatraffic_transport(domain_id, interface).unwrap();
         let qos = qos.unwrap_or_default();
 
-        let rtps_builtin_participant =
-            RtpsParticipant::new(domain_id, qos.clone(), metatraffic_transport);
+        let rtps_participant =
+            RtpsParticipant::new(domain_id, qos.clone(), userdata_transport, metatraffic_transport);
 
-        let rtps_user_defined_participant =
-            RtpsParticipant::new(domain_id, qos, userdata_transport);
+        // {
+        //     let builtin_publisher = rtps_builtin_participant
+        //         .create_builtin_publisher(None)
+        //         .unwrap();
+        //     let topic = rtps_builtin_participant
+        //         .create_topic::<SpdpDiscoveredParticipantData>("BuildinTopic", None)
+        //         .unwrap();
+        //     let mut builtin_writer_qos = DataWriterQos::default();
+        //     builtin_writer_qos.reliability.kind =
+        //         ReliabilityQosPolicyKind::BestEffortReliabilityQos;
+        //     let any_writer = builtin_publisher
+        //         .get()
+        //         .unwrap()
+        //         .create_stateless_builtin_datawriter::<SpdpDiscoveredParticipantData>(
+        //             topic.get().unwrap().clone(),
+        //             Some(builtin_writer_qos),
+        //         )
+        //         .unwrap();
 
-        // let builtin_publisher = rtps_builtin_participant.create_publisher(None).unwrap();
+        //     let rtps_writer = any_writer
+        //         .value_as::<RtpsDataWriter<SpdpDiscoveredParticipantData>>()
+        //         .unwrap();
+
+        //     let mut writer_flavor = rtps_writer.writer.lock().unwrap();
+        //     if let Some(stateless_writer) = writer_flavor.try_get_stateless() {
+        //         stateless_writer.reader_locator_add(Locator::new_udpv4(7400, [239, 255, 0, 0]));
+        //     }
+        // }
         // let builtin_topic = rtps_builtin_participant
         //     .create_topic::<SpdpDiscoveredParticipantData>("BuildinTopic", None)
         //     .unwrap();
@@ -74,12 +102,7 @@ impl DomainParticipantFactory {
         //     new_participant.enable().ok()?;
         // }
 
-        Some(DomainParticipant {
-            builtin_participant: Arc::new(rtps_builtin_participant),
-            user_defined_participant: Arc::new(rtps_user_defined_participant),
-            enabled: Arc::new(atomic::AtomicBool::new(false)),
-            thread_list: RefCell::new(Vec::new()),
-        })
+        Some(DomainParticipant(rtps_participant))
     }
 
     pub fn delete_participant(_a_participant: DomainParticipant) {}

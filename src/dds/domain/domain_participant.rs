@@ -1,27 +1,18 @@
-use std::{
-    cell::RefCell,
-    sync::{atomic, Arc},
-    thread::JoinHandle,
-};
-
-use crate::{builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData}, dds::{implementation::{rtps_datawriter::RtpsDataWriter, rtps_participant::{proxy_from_rtp_participant, RtpsParticipant}}, infrastructure::{
+use crate::{builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData}, dds::{
+        implementation::rtps_participant::RtpsParticipant,
+        infrastructure::{
             entity::{Entity, StatusCondition},
-            qos::{DataWriterQos, DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
-            qos_policy::{ReliabilityQosPolicyKind, UserDataQosPolicy},
+            qos::{DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
             status::StatusMask,
-        }, publication::{publisher::Publisher}, subscription::subscriber::Subscriber, topic::topic::Topic}, discovery::types::{SpdpDiscoveredParticipantData}, rtps::types::Locator, types::{
-        BuiltInTopicKey, DDSType, DomainId, Duration, InstanceHandle, ReturnCode, Time,
-        DURATION_INFINITE, TIME_INVALID,
-    }};
+        },
+        publication::publisher::Publisher,
+        subscription::subscriber::Subscriber,
+        topic::topic::Topic,
+    }, types::{DDSType, DomainId, Duration, InstanceHandle, ReturnCode, Time}};
 
 use super::domain_participant_listener::DomainParticipantListener;
 
-pub struct DomainParticipant {
-    pub(crate) user_defined_participant: Arc<RtpsParticipant>,
-    pub(crate) builtin_participant: Arc<RtpsParticipant>,
-    pub(crate) enabled: Arc<atomic::AtomicBool>,
-    pub(crate) thread_list: RefCell<Vec<JoinHandle<()>>>,
-}
+pub struct DomainParticipant(pub(crate) RtpsParticipant);
 
 impl DomainParticipant {
     /// This operation creates a Publisher with the desired QoS policies and attaches to it the specified PublisherListener.
@@ -37,9 +28,7 @@ impl DomainParticipant {
         // _a_listener: impl PublisherListener,
         // _mask: StatusMask
     ) -> Option<Publisher> {
-        let rtps_publisher = self
-            .user_defined_participant
-            .create_user_defined_publisher(qos)?;
+        let rtps_publisher = self.0.create_user_defined_publisher(qos)?;
 
         Some(Publisher {
             parent_participant: self,
@@ -55,8 +44,7 @@ impl DomainParticipant {
     /// PRECONDITION_NOT_MET.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
     pub fn delete_publisher(&self, a_publisher: &Publisher) -> ReturnCode<()> {
-        self.user_defined_participant
-            .delete_publisher(&a_publisher.rtps_publisher)
+        self.0.delete_user_defined_publisher(&a_publisher.rtps_publisher)
     }
 
     /// This operation creates a Subscriber with the desired QoS policies and attaches to it the specified SubscriberListener.
@@ -73,9 +61,7 @@ impl DomainParticipant {
         // _a_listener: impl SubscriberListener,
         // _mask: StatusMask
     ) -> Option<Subscriber> {
-        let rtps_subscriber = self
-            .user_defined_participant
-            .create_user_defined_subscriber(qos)?;
+        let rtps_subscriber = self.0.create_user_defined_subscriber(qos)?;
 
         Some(Subscriber {
             parent_participant: self,
@@ -91,8 +77,7 @@ impl DomainParticipant {
     /// PRECONDITION_NOT_MET.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
     pub fn delete_subscriber(&self, a_subscriber: &Subscriber) -> ReturnCode<()> {
-        self.user_defined_participant
-            .delete_subscriber(&a_subscriber.rtps_subscriber)
+        self.0.delete_user_defined_subscriber(&a_subscriber.rtps_subscriber)
     }
 
     /// This operation creates a Topic with the desired QoS policies and attaches to it the specified TopicListener.
@@ -112,9 +97,7 @@ impl DomainParticipant {
         // _a_listener: impl TopicListener<T>,
         // _mask: StatusMask
     ) -> Option<Topic<T>> {
-        let rtps_topic = self
-            .user_defined_participant
-            .create_topic::<T>(topic_name, qos)?;
+        let rtps_topic = self.0.create_topic::<T>(topic_name, qos)?;
 
         Some(Topic {
             parent_participant: self,
@@ -131,8 +114,7 @@ impl DomainParticipant {
     /// called on a different DomainParticipant, the operation will have no effect and it will return PRECONDITION_NOT_MET.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
     pub fn delete_topic<T: DDSType>(&self, a_topic: &Topic<T>) -> ReturnCode<()> {
-        self.user_defined_participant
-            .delete_topic::<T>(&a_topic.rtps_topic)
+        self.0.delete_topic::<T>(&a_topic.rtps_topic)
     }
 
     /// The operation find_topic gives access to an existing (or ready to exist) enabled Topic, based on its name. The operation takes
@@ -233,7 +215,7 @@ impl DomainParticipant {
     /// which the DomainParticipant belongs. As described in the introduction to 2.2.2.2.1 each DDS domain represents a separate
     /// data “communication plane” isolated from other domains
     pub fn get_domain_id(&self) -> DomainId {
-        self.user_defined_participant.get_domain_id()
+        self.0.get_domain_id()
     }
 
     /// This operation deletes all the entities that were created by means of the “create” operations on the DomainParticipant. That is,
@@ -270,7 +252,7 @@ impl DomainParticipant {
     /// reset back to the initial values the factory would use, that is the values that would be used if the set_default_publisher_qos
     /// operation had never been called.
     pub fn set_default_publisher_qos(&self, qos: Option<PublisherQos>) -> ReturnCode<()> {
-        self.user_defined_participant.set_default_publisher_qos(qos)
+        self.0.set_default_publisher_qos(qos)
     }
 
     /// This operation retrieves the default value of the Publisher QoS, that is, the QoS policies which will be used for newly created
@@ -279,7 +261,7 @@ impl DomainParticipant {
     /// set_default_publisher_qos, or else, if the call was never made, the default values listed in the QoS table in 2.2.3, Supported
     /// QoS.
     pub fn get_default_publisher_qos(&self) -> PublisherQos {
-        self.user_defined_participant.get_default_publisher_qos()
+        self.0.get_default_publisher_qos()
     }
 
     /// This operation sets a default value of the Subscriber QoS policies that will be used for newly created Subscriber entities in the
@@ -290,8 +272,7 @@ impl DomainParticipant {
     /// reset back to the initial values the factory would use, that is the values that would be used if the set_default_subscriber_qos
     /// operation had never been called.
     pub fn set_default_subscriber_qos(&self, qos: Option<SubscriberQos>) -> ReturnCode<()> {
-        self.user_defined_participant
-            .set_default_subscriber_qos(qos)
+        self.0.set_default_subscriber_qos(qos)
     }
 
     /// This operation retrieves the default value of the Subscriber QoS, that is, the QoS policies which will be used for newly created
@@ -300,7 +281,7 @@ impl DomainParticipant {
     /// set_default_subscriber_qos, or else, if the call was never made, the default values listed in the QoS table in 2.2.3, Supported
     /// QoS.
     pub fn get_default_subscriber_qos(&self) -> SubscriberQos {
-        self.user_defined_participant.get_default_subscriber_qos()
+        self.0.get_default_subscriber_qos()
     }
 
     /// This operation sets a default value of the Topic QoS policies which will be used for newly created Topic entities in the case
@@ -311,7 +292,7 @@ impl DomainParticipant {
     /// back to the initial values the factory would use, that is the values that would be used if the set_default_topic_qos operation
     /// had never been called.
     pub fn set_default_topic_qos(&self, qos: Option<TopicQos>) -> ReturnCode<()> {
-        self.user_defined_participant.set_default_topic_qos(qos)
+        self.0.set_default_topic_qos(qos)
     }
 
     /// This operation retrieves the default value of the Topic QoS, that is, the QoS policies that will be used for newly created Topic
@@ -319,7 +300,7 @@ impl DomainParticipant {
     /// The values retrieved get_default_topic_qos will match the set of values specified on the last successful call to
     /// set_default_topic_qos, or else, if the call was never made, the default values listed in the QoS table in 2.2.3, Supported QoS.
     pub fn get_default_topic_qos(&self) -> TopicQos {
-        self.user_defined_participant.get_default_topic_qos()
+        self.0.get_default_topic_qos()
     }
 
     /// This operation retrieves the list of DomainParticipants that have been discovered in the domain and that the application has not
@@ -395,7 +376,7 @@ impl DomainParticipant {
         // _a_listener: impl PublisherListener,
         // _mask: StatusMask
     ) -> Option<Publisher> {
-        let rtps_publisher = self.builtin_participant.create_builtin_publisher(qos)?;
+        let rtps_publisher = self.0.create_builtin_publisher(qos)?;
 
         Some(Publisher {
             parent_participant: self,
@@ -409,11 +390,11 @@ impl Entity for DomainParticipant {
     type Listener = Box<dyn DomainParticipantListener>;
 
     fn set_qos(&self, qos: Option<Self::Qos>) -> ReturnCode<()> {
-        self.user_defined_participant.set_qos(qos)
+        self.0.set_qos(qos)
     }
 
     fn get_qos(&self) -> ReturnCode<Self::Qos> {
-        self.user_defined_participant.get_qos()
+        self.0.get_qos()
     }
 
     fn set_listener(&self, _a_listener: Self::Listener, _mask: StatusMask) -> ReturnCode<()> {
@@ -433,65 +414,11 @@ impl Entity for DomainParticipant {
     }
 
     fn enable(&self) -> ReturnCode<()> {
-        let key = BuiltInTopicKey([1, 2, 3]);
-        let user_data = UserDataQosPolicy { value: vec![] };
-        let dds_participant_data = ParticipantBuiltinTopicData { key, user_data };
-        let participant_proxy = proxy_from_rtp_participant(&self.builtin_participant);
-        let lease_duration = DURATION_INFINITE;
-
-        let data = SpdpDiscoveredParticipantData {
-            dds_participant_data,
-            participant_proxy,
-            lease_duration,
-        };
-        
-        let topic = self
-        .create_topic::<SpdpDiscoveredParticipantData>("BuildinTopic", None)
-        .unwrap();
-
-        let mut builtin_writer_qos = DataWriterQos::default();
-        builtin_writer_qos.reliability.kind = ReliabilityQosPolicyKind::BestEffortReliabilityQos;
-
-        let rtps_publisher = self.builtin_participant.create_builtin_publisher(None).unwrap();
-        let any_writer = rtps_publisher.get().unwrap().create_stateless_builtin_datawriter::<SpdpDiscoveredParticipantData>(topic.rtps_topic.get().unwrap().clone(), Some(builtin_writer_qos)).unwrap();
-
-        let rtps_writer = any_writer.value_as::<RtpsDataWriter<SpdpDiscoveredParticipantData>>().unwrap();
-
-        if let Some(stateless_writer) = rtps_writer.writer.lock().unwrap().try_get_stateless() {
-            stateless_writer.reader_locator_add(Locator::new_udpv4(7400, [239, 255, 0, 0]));
-        }
-
-        rtps_writer.write_w_timestamp(data, None, TIME_INVALID).ok();
-
-
-        if self.enabled.load(atomic::Ordering::Acquire) == false {
-            self.enabled.store(true, atomic::Ordering::Release);
-
-            let mut thread_list = self.thread_list.borrow_mut();
-            let enabled = self.enabled.clone();
-            let builtin_participant = self.builtin_participant.clone();
-            thread_list.push(std::thread::spawn(move || {
-                while enabled.load(atomic::Ordering::Acquire) {
-                    builtin_participant.send_data();
-                    std::thread::sleep(std::time::Duration::from_secs(1));
-                }
-            }));
-        }
-
-        Ok(())
+        self.0.enable()
     }
 
     fn get_instance_handle(&self) -> ReturnCode<InstanceHandle> {
         todo!()
-    }
-}
-
-impl Drop for DomainParticipant {
-    fn drop(&mut self) {
-        self.enabled.store(false, atomic::Ordering::Release);
-        for thread in self.thread_list.borrow_mut().drain(..) {
-            thread.join().ok();
-        }
     }
 }
 
