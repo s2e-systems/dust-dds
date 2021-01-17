@@ -1,18 +1,9 @@
-use std::{
-    cell::RefCell,
-    sync::{atomic, Arc},
-};
-
 use crate::{
     dds::{
-        implementation::{rtps_datawriter::RtpsDataWriter, rtps_participant::RtpsParticipant},
-        infrastructure::{
-            qos::{DataWriterQos, DomainParticipantQos},
-            qos_policy::ReliabilityQosPolicyKind,
-        },
+        implementation::rtps_participant::RtpsParticipant,
+        infrastructure::qos::DomainParticipantQos,
     },
-    discovery::types::SpdpDiscoveredParticipantData,
-    rtps::{transport::udp::UdpTransport, types::Locator},
+    rtps::transport::udp::UdpTransport,
     types::DomainId,
 };
 
@@ -62,41 +53,12 @@ impl DomainParticipantFactory {
             UdpTransport::default_metatraffic_transport(domain_id, interface).unwrap();
         let qos = qos.unwrap_or_default();
 
-        let rtps_participant =
-            RtpsParticipant::new(domain_id, qos.clone(), userdata_transport, metatraffic_transport);
-
-        // {
-        //     let builtin_publisher = rtps_builtin_participant
-        //         .create_builtin_publisher(None)
-        //         .unwrap();
-        //     let topic = rtps_builtin_participant
-        //         .create_topic::<SpdpDiscoveredParticipantData>("BuildinTopic", None)
-        //         .unwrap();
-        //     let mut builtin_writer_qos = DataWriterQos::default();
-        //     builtin_writer_qos.reliability.kind =
-        //         ReliabilityQosPolicyKind::BestEffortReliabilityQos;
-        //     let any_writer = builtin_publisher
-        //         .get()
-        //         .unwrap()
-        //         .create_stateless_builtin_datawriter::<SpdpDiscoveredParticipantData>(
-        //             topic.get().unwrap().clone(),
-        //             Some(builtin_writer_qos),
-        //         )
-        //         .unwrap();
-
-        //     let rtps_writer = any_writer
-        //         .value_as::<RtpsDataWriter<SpdpDiscoveredParticipantData>>()
-        //         .unwrap();
-
-        //     let mut writer_flavor = rtps_writer.writer.lock().unwrap();
-        //     if let Some(stateless_writer) = writer_flavor.try_get_stateless() {
-        //         stateless_writer.reader_locator_add(Locator::new_udpv4(7400, [239, 255, 0, 0]));
-        //     }
-        // }
-        // let builtin_topic = rtps_builtin_participant
-        //     .create_topic::<SpdpDiscoveredParticipantData>("BuildinTopic", None)
-        //     .unwrap();
-        // let builtin_writer = builtin_publisher.value().unwrap().create_datawriter(a_topic, qos)
+        let rtps_participant = RtpsParticipant::new(
+            domain_id,
+            qos.clone(),
+            userdata_transport,
+            metatraffic_transport,
+        );
 
         // if enabled {
         //     new_participant.enable().ok()?;
