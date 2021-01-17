@@ -1,5 +1,5 @@
 use core::sync::atomic;
-use std::{ops::Deref, sync::{RwLock, RwLockReadGuard}};
+use std::sync::{RwLock, RwLockReadGuard};
 
 pub struct MaybeValid<T> {
     value: Option<T>,
@@ -54,13 +54,37 @@ impl<'a, T> std::ops::Deref for MaybeValidRef<'a, T> {
     }
 }
 
-pub struct MaybeValidList<T>([RwLock<MaybeValid<T>>; 32]);
+const MAYBE_VALID_LIST_SIZE: usize = 32;
+pub struct MaybeValidList<T>([RwLock<MaybeValid<T>>; MAYBE_VALID_LIST_SIZE]);
 
-impl<T> Deref for MaybeValidList<T> {
-    type Target = [RwLock<MaybeValid<T>>; 32];
+pub struct MaybeValidListIterator<'a, T> {
+    list: &'a MaybeValidList<T>,
+    index: usize,
+}
 
-    fn deref(&self) -> &Self::Target {
-        &self.0
+impl<'a, T> Iterator for MaybeValidListIterator<'a, T> {
+    type Item = MaybeValidRef<'a, T>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.index < MAYBE_VALID_LIST_SIZE {
+            let maybe_valid_ref = MaybeValidRef(self.list.0[self.index].read().ok()?);
+            self.index += 1;
+            Some(maybe_valid_ref)
+        } else {
+            None
+        }
+    }
+}
+
+impl<'a, T> IntoIterator for &'a MaybeValidList<T> {
+    type Item = MaybeValidRef<'a, T>;
+    type IntoIter = MaybeValidListIterator<'a, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        MaybeValidListIterator {
+            list: self,
+            index: 0,
+        }
     }
 }
 

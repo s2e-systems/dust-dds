@@ -188,10 +188,10 @@ impl RtpsParticipantEntities {
     }
 
     fn send_data(&self) {
-        for publisher in self.publisher_list.iter() {
-            if let Some(publisher) = publisher.read().unwrap().get() {
-                for writer in publisher.writer_list.iter() {
-                    if let Some(writer) = writer.read().unwrap().get() {
+        for publisher in self.publisher_list.into_iter() {
+            if let Some(publisher) = publisher.get() {
+                for writer in publisher.writer_list.into_iter() {
+                    if let Some(writer) = writer.get() {
                         let mut writer_flavor = writer.writer().lock().unwrap();
                         println!(
                             "last_change_sequence_number = {:?}",
