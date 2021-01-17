@@ -1,4 +1,4 @@
-use std::sync::{atomic, Arc, Mutex};
+use std::sync::{atomic, Mutex};
 
 use crate::{
     dds::{
@@ -24,7 +24,7 @@ use crate::{
 
 use super::{
     rtps_datawriter::{AnyRtpsWriter, RtpsAnyDataWriterRef, RtpsDataWriter},
-    rtps_topic::AnyRtpsTopic,
+    rtps_topic::RtpsTopicRef,
 };
 
 enum Statefulness {
@@ -65,7 +65,7 @@ impl RtpsPublisher {
 
     pub fn create_stateful_builtin_datawriter<T: DDSType>(
         &self,
-        a_topic: Arc<dyn AnyRtpsTopic>,
+        a_topic: &RtpsTopicRef,
         qos: Option<DataWriterQos>,
         // _a_listener: impl DataWriterListener<T>,
         // _mask: StatusMask
@@ -75,7 +75,7 @@ impl RtpsPublisher {
 
     pub fn create_stateless_builtin_datawriter<T: DDSType>(
         &self,
-        a_topic: Arc<dyn AnyRtpsTopic>,
+        a_topic: &RtpsTopicRef,
         qos: Option<DataWriterQos>,
         // _a_listener: impl DataWriterListener<T>,
         // _mask: StatusMask
@@ -85,7 +85,7 @@ impl RtpsPublisher {
 
     pub fn create_user_defined_datawriter<T: DDSType>(
         &self,
-        a_topic: Arc<dyn AnyRtpsTopic>,
+        a_topic: &RtpsTopicRef,
         qos: Option<DataWriterQos>,
         // _a_listener: impl DataWriterListener<T>,
         // _mask: StatusMask
@@ -95,19 +95,20 @@ impl RtpsPublisher {
 
     fn create_datawriter<T: DDSType>(
         &self,
-        a_topic: Arc<dyn AnyRtpsTopic>,
+        a_topic: &RtpsTopicRef,
         qos: Option<DataWriterQos>,
         entity_type: &EntityType,
         // _a_listener: impl DataWriterListener<T>,
         // _mask: StatusMask
     ) -> Option<RtpsAnyDataWriterRef> {
+        let topic = a_topic.get()?.clone();
         let guid_prefix = self.group.entity.guid.prefix();
         let entity_key = [
             0,
             self.writer_count.fetch_add(1, atomic::Ordering::Relaxed),
             0,
         ];
-        let entity_kind = match (a_topic.topic_kind(), entity_type) {
+        let entity_kind = match (topic.topic_kind(), entity_type) {
             (TopicKind::WithKey, EntityType::UserDefined) => {
                 ENTITY_KIND_USER_DEFINED_WRITER_WITH_KEY
             }

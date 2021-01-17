@@ -5,7 +5,10 @@ use std::{
 };
 
 use crate::{
-    dds::infrastructure::qos::{DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
+    dds::infrastructure::qos::{
+        DataWriterQos, DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos,
+    },
+    discovery::types::SpdpDiscoveredParticipantData,
     rtps::{
         behavior::endpoint_traits::CacheChangeSender,
         message_sender::RtpsMessageSender,
@@ -21,13 +24,13 @@ use crate::{
         },
     },
     types::{DDSType, DomainId, ReturnCode, ReturnCodes},
-    utils::maybe_valid::{MaybeValidList, MaybeValidRef},
+    utils::maybe_valid::MaybeValidList,
 };
 
 use super::{
     rtps_publisher::{RtpsPublisher, RtpsPublisherRef},
     rtps_subscriber::{RtpsSubscriber, RtpsSubscriberRef},
-    rtps_topic::{AnyRtpsTopic, RtpsTopic},
+    rtps_topic::{AnyRtpsTopic, RtpsTopic, RtpsTopicRef},
 };
 
 enum EntityType {
@@ -35,26 +38,30 @@ enum EntityType {
     UserDefined,
 }
 
-struct RtpsParticipantGroup {
+struct RtpsParticipantEntities {
     transport: Box<dyn Transport>,
     publisher_list: MaybeValidList<Box<RtpsPublisher>>,
     publisher_count: atomic::AtomicU8,
     subscriber_list: MaybeValidList<Box<RtpsSubscriber>>,
     subscriber_count: atomic::AtomicU8,
+    topic_list: MaybeValidList<Arc<dyn AnyRtpsTopic>>,
+    topic_count: atomic::AtomicU8,
 }
 
-impl RtpsParticipantGroup {
-    pub fn new(transport: impl Transport) -> Self {
+impl RtpsParticipantEntities {
+    fn new(transport: impl Transport) -> Self {
         Self {
             transport: Box::new(transport),
             publisher_list: Default::default(),
             publisher_count: atomic::AtomicU8::new(0),
             subscriber_list: Default::default(),
             subscriber_count: atomic::AtomicU8::new(0),
+            topic_list: Default::default(),
+            topic_count: atomic::AtomicU8::new(0),
         }
     }
 
-    pub fn create_publisher(
+    fn create_publisher(
         &self,
         qos: PublisherQos,
         guid_prefix: GuidPrefix,
@@ -75,7 +82,7 @@ impl RtpsParticipantGroup {
         self.publisher_list.add(new_publisher)
     }
 
-    pub fn delete_publisher(&self, a_publisher: &RtpsPublisherRef) -> ReturnCode<()> {
+    fn delete_publisher(&self, a_publisher: &RtpsPublisherRef) -> ReturnCode<()> {
         let rtps_publisher = a_publisher.value()?;
         if rtps_publisher.writer_list.is_empty() {
             if self.publisher_list.contains(&a_publisher) {
@@ -93,7 +100,7 @@ impl RtpsParticipantGroup {
         }
     }
 
-    pub fn create_subscriber(
+    fn create_subscriber(
         &self,
         qos: SubscriberQos,
         guid_prefix: GuidPrefix,
@@ -117,7 +124,7 @@ impl RtpsParticipantGroup {
         self.subscriber_list.add(new_subscriber)
     }
 
-    pub fn delete_subscriber(&self, a_subscriber: &RtpsSubscriberRef) -> ReturnCode<()> {
+    fn delete_subscriber(&self, a_subscriber: &RtpsSubscriberRef) -> ReturnCode<()> {
         let rtps_subscriber = a_subscriber.value()?;
         if rtps_subscriber.reader_list.is_empty() {
             if self.subscriber_list.contains(&a_subscriber) {
@@ -135,7 +142,52 @@ impl RtpsParticipantGroup {
         }
     }
 
-    pub fn send_data(&self) {
+    fn create_topic<T: DDSType>(
+        &self,
+        guid_prefix: GuidPrefix,
+        topic_name: &str,
+        qos: TopicQos,
+        // _a_listener: impl TopicListener<T>,
+        // _mask: StatusMask
+    ) -> Option<RtpsTopicRef> {
+        qos.is_consistent().ok()?;
+        let entity_key = [
+            0,
+            self.topic_count.fetch_add(1, atomic::Ordering::Relaxed),
+            0,
+        ];
+        let entity_id = EntityId::new(entity_key, ENTITY_KIND_USER_DEFINED_UNKNOWN);
+        let new_topic_guid = GUID::new(guid_prefix, entity_id);
+        let new_topic: Arc<RtpsTopic<T>> = Arc::new(RtpsTopic::new(
+            new_topic_guid,
+            topic_name.clone().into(),
+            qos,
+            None,
+            0,
+        ));
+        self.topic_list.add(new_topic)
+    }
+
+    fn delete_topic<T: DDSType>(&self, a_topic: &RtpsTopicRef) -> ReturnCode<()> {
+        let rtps_topic = a_topic.value()?;
+        if self.topic_list.contains(&a_topic) {
+            if Arc::strong_count(rtps_topic) == 1 {
+                // discovery.remove_topic(a_topic.value()?)?;
+                a_topic.delete();
+                Ok(())
+            } else {
+                Err(ReturnCodes::PreconditionNotMet(
+                    "Topic still attached to some data reader or data writer",
+                ))
+            }
+        } else {
+            Err(ReturnCodes::PreconditionNotMet(
+                "Topic not found in this participant",
+            ))
+        }
+    }
+
+    fn send_data(&self) {
         for publisher in self.publisher_list.iter() {
             if let Some(publisher) = publisher.read().unwrap().get() {
                 for writer in publisher.writer_list.iter() {
@@ -165,10 +217,8 @@ pub struct RtpsParticipant {
     default_publisher_qos: Mutex<PublisherQos>,
     default_subscriber_qos: Mutex<SubscriberQos>,
     default_topic_qos: Mutex<TopicQos>,
-    builtin_group: Arc<RtpsParticipantGroup>,
-    user_defined_group: Arc<RtpsParticipantGroup>,
-    topic_list: MaybeValidList<Arc<dyn AnyRtpsTopic>>,
-    topic_count: atomic::AtomicU8,
+    builtin_entities: Arc<RtpsParticipantEntities>,
+    user_defined_entities: Arc<RtpsParticipantEntities>,
     enabled: Arc<atomic::AtomicBool>,
     thread_list: RefCell<Vec<JoinHandle<()>>>,
 }
@@ -185,12 +235,28 @@ impl RtpsParticipant {
         let guid_prefix = [1; 12];
         let participant = Participant::new(guid_prefix, domain_id, PROTOCOL_VERSION_2_4, VENDOR_ID);
 
-        let builtin_group = Arc::new(RtpsParticipantGroup::new(metatraffic_transport));
-        let user_defined_group = Arc::new(RtpsParticipantGroup::new(userdata_transport));
+        let builtin_entities = Arc::new(RtpsParticipantEntities::new(metatraffic_transport));
+        let user_defined_entities = Arc::new(RtpsParticipantEntities::new(userdata_transport));
 
-        let builtin_publisher = builtin_group
+        let builtin_publisher = builtin_entities
             .create_publisher(PublisherQos::default(), guid_prefix, EntityType::BuiltIn)
             .expect("Error creating built-in publisher");
+
+        let spdp_topic_qos = TopicQos::default();
+        let spdp_topic = builtin_entities
+            .create_topic::<SpdpDiscoveredParticipantData>(guid_prefix, "SPDP", spdp_topic_qos)
+            .expect("Error creating SPDP topic");
+
+        let mut spdp_announcer_qos = DataWriterQos::default();
+        spdp_announcer_qos.reliability.kind = crate::dds::infrastructure::qos_policy::ReliabilityQosPolicyKind::BestEffortReliabilityQos;
+        builtin_publisher
+            .get()
+            .expect("Error retrieving built-in publisher")
+            .create_stateless_builtin_datawriter::<SpdpDiscoveredParticipantData>(
+                &spdp_topic,
+                Some(spdp_announcer_qos),
+            )
+            .expect("Error creating SPDP built-in writer");
 
         RtpsParticipant {
             participant,
@@ -198,41 +264,25 @@ impl RtpsParticipant {
             default_publisher_qos: Mutex::new(PublisherQos::default()),
             default_subscriber_qos: Mutex::new(SubscriberQos::default()),
             default_topic_qos: Mutex::new(TopicQos::default()),
-            builtin_group: builtin_group.clone(), // Clone because entities have been created already so move is not possible
-            user_defined_group,
-            topic_list: Default::default(),
-            topic_count: atomic::AtomicU8::new(0),
+            builtin_entities: builtin_entities.clone(), // Clone because entities have been created already so move is not possible
+            user_defined_entities,
             enabled: Arc::new(atomic::AtomicBool::new(false)),
             thread_list: RefCell::new(Vec::new()),
         }
     }
 
-    pub fn create_builtin_publisher(&self, qos: Option<PublisherQos>) -> Option<RtpsPublisherRef> {
+    pub fn create_publisher(&self, qos: Option<PublisherQos>) -> Option<RtpsPublisherRef> {
         let guid_prefix = self.participant.entity.guid.prefix();
         let qos = qos.unwrap_or_default();
-        self.builtin_group
-            .create_publisher(qos, guid_prefix, EntityType::BuiltIn)
-    }
-
-    pub fn create_user_defined_publisher(
-        &self,
-        qos: Option<PublisherQos>,
-    ) -> Option<RtpsPublisherRef> {
-        let guid_prefix = self.participant.entity.guid.prefix();
-        let qos = qos.unwrap_or_default();
-        self.user_defined_group
+        self.user_defined_entities
             .create_publisher(qos, guid_prefix, EntityType::UserDefined)
     }
 
-    pub fn delete_builtin_publisher(&self, a_publisher: &RtpsPublisherRef) -> ReturnCode<()> {
-        self.builtin_group.delete_publisher(a_publisher)
+    pub fn delete_publisher(&self, a_publisher: &RtpsPublisherRef) -> ReturnCode<()> {
+        self.user_defined_entities.delete_publisher(a_publisher)
     }
 
-    pub fn delete_user_defined_publisher(&self, a_publisher: &RtpsPublisherRef) -> ReturnCode<()> {
-        self.user_defined_group.delete_publisher(a_publisher)
-    }
-
-    pub fn create_builtin_subscriber(
+    pub fn create_subscriber(
         &self,
         qos: Option<SubscriberQos>,
         // _a_listener: impl SubscriberListener,
@@ -240,31 +290,12 @@ impl RtpsParticipant {
     ) -> Option<RtpsSubscriberRef> {
         let guid_prefix = self.participant.entity.guid.prefix();
         let qos = qos.unwrap_or_default();
-        self.builtin_group
-            .create_subscriber(qos, guid_prefix, EntityType::BuiltIn)
-    }
-
-    pub fn create_user_defined_subscriber(
-        &self,
-        qos: Option<SubscriberQos>,
-        // _a_listener: impl SubscriberListener,
-        // _mask: StatusMask
-    ) -> Option<RtpsSubscriberRef> {
-        let guid_prefix = self.participant.entity.guid.prefix();
-        let qos = qos.unwrap_or_default();
-        self.user_defined_group
+        self.user_defined_entities
             .create_subscriber(qos, guid_prefix, EntityType::UserDefined)
     }
 
-    pub fn delete_builtin_subscriber(&self, a_subscriber: &RtpsSubscriberRef) -> ReturnCode<()> {
-        self.builtin_group.delete_subscriber(a_subscriber)
-    }
-
-    pub fn delete_user_defined_subscriber(
-        &self,
-        a_subscriber: &RtpsSubscriberRef,
-    ) -> ReturnCode<()> {
-        self.user_defined_group.delete_subscriber(a_subscriber)
+    pub fn delete_subscriber(&self, a_subscriber: &RtpsSubscriberRef) -> ReturnCode<()> {
+        self.user_defined_entities.delete_subscriber(a_subscriber)
     }
 
     pub fn create_topic<T: DDSType>(
@@ -273,46 +304,16 @@ impl RtpsParticipant {
         qos: Option<TopicQos>,
         // _a_listener: impl TopicListener<T>,
         // _mask: StatusMask
-    ) -> Option<MaybeValidRef<Arc<dyn AnyRtpsTopic>>> {
+    ) -> Option<RtpsTopicRef> {
         let guid_prefix = self.participant.entity.guid.prefix();
-        let entity_key = [
-            0,
-            self.topic_count.fetch_add(1, atomic::Ordering::Relaxed),
-            0,
-        ];
-        let entity_id = EntityId::new(entity_key, ENTITY_KIND_USER_DEFINED_UNKNOWN);
-        let new_topic_guid = GUID::new(guid_prefix, entity_id);
-        let new_topic_qos = qos.unwrap_or(self.get_default_topic_qos());
-        let new_topic: Arc<RtpsTopic<T>> = Arc::new(RtpsTopic::new(
-            new_topic_guid,
-            topic_name.clone().into(),
-            new_topic_qos,
-            None,
-            0,
-        ));
-        self.topic_list.add(new_topic)
+        let qos = qos.unwrap_or_default();
+        qos.is_consistent().ok()?;
+        self.user_defined_entities
+            .create_topic::<T>(guid_prefix, topic_name, qos)
     }
 
-    pub fn delete_topic<T: DDSType>(
-        &self,
-        a_topic: &MaybeValidRef<Arc<dyn AnyRtpsTopic>>,
-    ) -> ReturnCode<()> {
-        let rtps_topic = a_topic.value()?;
-        if self.topic_list.contains(&a_topic) {
-            if Arc::strong_count(rtps_topic) == 1 {
-                // discovery.remove_topic(a_topic.value()?)?;
-                a_topic.delete();
-                Ok(())
-            } else {
-                Err(ReturnCodes::PreconditionNotMet(
-                    "Topic still attached to some data reader or data writer",
-                ))
-            }
-        } else {
-            Err(ReturnCodes::PreconditionNotMet(
-                "Topic not found in this participant",
-            ))
-        }
+    pub fn delete_topic<T: DDSType>(&self, a_topic: &RtpsTopicRef) -> ReturnCode<()> {
+        self.user_defined_entities.delete_topic::<T>(a_topic)
     }
 
     pub fn set_default_publisher_qos(&self, qos: Option<PublisherQos>) -> ReturnCode<()> {
@@ -361,6 +362,8 @@ impl RtpsParticipant {
     }
 
     pub fn enable(&self) -> ReturnCode<()> {
+        // self.builtin_entities.publisher_list[0].
+
         // let key = BuiltInTopicKey([1, 2, 3]);
         // let user_data = UserDataQosPolicy { value: vec![] };
         // let dds_participant_data = ParticipantBuiltinTopicData { key, user_data };
@@ -380,10 +383,10 @@ impl RtpsParticipant {
 
             let mut thread_list = self.thread_list.borrow_mut();
             let enabled = self.enabled.clone();
-            let builtin_group = self.builtin_group.clone();
+            let builtin_entities = self.builtin_entities.clone();
             thread_list.push(std::thread::spawn(move || {
                 while enabled.load(atomic::Ordering::Acquire) {
-                    builtin_group.send_data();
+                    builtin_entities.send_data();
                     std::thread::sleep(std::time::Duration::from_secs(1));
                 }
             }));

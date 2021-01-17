@@ -28,7 +28,7 @@ impl DomainParticipant {
         // _a_listener: impl PublisherListener,
         // _mask: StatusMask
     ) -> Option<Publisher> {
-        let rtps_publisher = self.0.create_user_defined_publisher(qos)?;
+        let rtps_publisher = self.0.create_publisher(qos)?;
 
         Some(Publisher {
             parent_participant: self,
@@ -44,7 +44,7 @@ impl DomainParticipant {
     /// PRECONDITION_NOT_MET.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
     pub fn delete_publisher(&self, a_publisher: &Publisher) -> ReturnCode<()> {
-        self.0.delete_user_defined_publisher(&a_publisher.rtps_publisher)
+        self.0.delete_publisher(&a_publisher.rtps_publisher)
     }
 
     /// This operation creates a Subscriber with the desired QoS policies and attaches to it the specified SubscriberListener.
@@ -61,7 +61,7 @@ impl DomainParticipant {
         // _a_listener: impl SubscriberListener,
         // _mask: StatusMask
     ) -> Option<Subscriber> {
-        let rtps_subscriber = self.0.create_user_defined_subscriber(qos)?;
+        let rtps_subscriber = self.0.create_subscriber(qos)?;
 
         Some(Subscriber {
             parent_participant: self,
@@ -77,7 +77,7 @@ impl DomainParticipant {
     /// PRECONDITION_NOT_MET.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
     pub fn delete_subscriber(&self, a_subscriber: &Subscriber) -> ReturnCode<()> {
-        self.0.delete_user_defined_subscriber(&a_subscriber.rtps_subscriber)
+        self.0.delete_subscriber(&a_subscriber.rtps_subscriber)
     }
 
     /// This operation creates a Topic with the desired QoS policies and attaches to it the specified TopicListener.
@@ -368,20 +368,6 @@ impl DomainParticipant {
     /// for the data-updates it receives.
     pub fn get_current_time(&self) -> ReturnCode<Time> {
         todo!()
-    }
-
-    fn create_builtin_publisher(
-        &self,
-        qos: Option<PublisherQos>,
-        // _a_listener: impl PublisherListener,
-        // _mask: StatusMask
-    ) -> Option<Publisher> {
-        let rtps_publisher = self.0.create_builtin_publisher(qos)?;
-
-        Some(Publisher {
-            parent_participant: self,
-            rtps_publisher,
-        })
     }
 }
 

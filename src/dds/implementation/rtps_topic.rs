@@ -1,13 +1,9 @@
-use std::{any::Any, sync::Mutex};
+use std::{any::Any, sync::{Arc, Mutex}};
 
-use crate::{
-    dds::{
+use crate::{dds::{
         infrastructure::{qos::TopicQos, status::StatusMask},
         topic::topic_listener::TopicListener,
-    },
-    rtps::{self, types::GUID},
-    types::{DDSType, TopicKind},
-};
+    }, rtps::{self, types::GUID}, types::{DDSType, TopicKind}, utils::maybe_valid::MaybeValidRef};
 
 pub struct RtpsTopic<T: DDSType> {
     pub rtps_entity: rtps::structure::Entity,
@@ -73,3 +69,5 @@ impl<T: DDSType + Sized> AnyRtpsTopic for RtpsTopic<T> {
         self
     }
 }
+
+pub type RtpsTopicRef<'a> = MaybeValidRef<'a, Arc<dyn AnyRtpsTopic>>;

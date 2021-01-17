@@ -57,7 +57,7 @@ impl<'a> Publisher<'a> {
         // _a_listener: impl DataWriterListener<T>,
         // _mask: StatusMask
     ) -> Option<DataWriter<T>> {
-        let rtps_topic = a_topic.rtps_topic.value().ok()?.clone();
+        let rtps_topic = &a_topic.rtps_topic;
         let rtps_datawriter = self
             .rtps_publisher
             .value()

@@ -16,7 +16,7 @@ use crate::{dds::{
         types::{ReliabilityKind, GUID},
     }, types::{DDSType, InstanceHandle, ReturnCode, Time}, utils::maybe_valid::MaybeValidRef};
 
-use super::rtps_topic::AnyRtpsTopic;
+use super::rtps_topic::{AnyRtpsTopic, RtpsTopicRef};
 
 pub enum WriterFlavor {
     Stateful(StatefulWriter),
@@ -69,7 +69,7 @@ pub struct RtpsDataWriter<T: DDSType> {
 impl<T: DDSType> RtpsDataWriter<T> {
     pub fn new_stateful(
         guid: GUID,
-        topic: Arc<dyn AnyRtpsTopic>,
+        topic: &RtpsTopicRef,
         qos: DataWriterQos,
         listener: Option<Box<dyn DataWriterListener<T>>>,
         status_mask: StatusMask,
@@ -78,7 +78,7 @@ impl<T: DDSType> RtpsDataWriter<T> {
             qos.is_consistent().is_ok(),
             "RtpsDataWriter can only be created with consistent QoS"
         );
-
+        let topic = topic.get().unwrap().clone();
         let topic_kind = topic.topic_kind();
         let reliability_level = match qos.reliability.kind {
             ReliabilityQosPolicyKind::BestEffortReliabilityQos => ReliabilityKind::BestEffort,
@@ -111,7 +111,7 @@ impl<T: DDSType> RtpsDataWriter<T> {
 
     pub fn new_stateless(
         guid: GUID,
-        topic: Arc<dyn AnyRtpsTopic>,
+        topic: &RtpsTopicRef,
         qos: DataWriterQos,
         listener: Option<Box<dyn DataWriterListener<T>>>,
         status_mask: StatusMask,
@@ -120,7 +120,7 @@ impl<T: DDSType> RtpsDataWriter<T> {
             qos.is_consistent().is_ok(),
             "RtpsDataWriter can only be created with consistent QoS"
         );
-
+        let topic = topic.get().unwrap().clone();
         let topic_kind = topic.topic_kind();
         let reliability_level = match qos.reliability.kind {
             ReliabilityQosPolicyKind::BestEffortReliabilityQos => ReliabilityKind::BestEffort,
