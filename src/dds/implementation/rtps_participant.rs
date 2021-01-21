@@ -4,17 +4,18 @@ use std::{
     thread::JoinHandle,
 };
 
-use crate::{builtin_topics::ParticipantBuiltinTopicData, dds::infrastructure::{qos::{
-        DataWriterQos, DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos,
-    }, qos_policy::UserDataQosPolicy}, discovery::types::{ParticipantProxy, SpdpDiscoveredParticipantData}, rtps::{behavior::endpoint_traits::CacheChangeSender, endpoint_types::BuiltInEndpointSet, message_sender::RtpsMessageSender, structure::Participant, transport::Transport, types::{
-            constants::{
+use crate::{builtin_topics::ParticipantBuiltinTopicData, dds::infrastructure::{
+        qos::{DataWriterQos, DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
+        qos_policy::UserDataQosPolicy,
+    }, discovery::types::{ParticipantProxy, SpdpDiscoveredParticipantData}, rtps::{behavior::endpoint_traits::CacheChangeSender, endpoint_types::BuiltInEndpointSet, message_sender::RtpsMessageSender, messages::submessages::submessage_elements::LocatorList, structure::Participant, transport::Transport, types::{EntityId, GUID, GuidPrefix, Locator, constants::{
                 ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, ENTITY_KIND_BUILT_IN_READER_GROUP,
                 ENTITY_KIND_BUILT_IN_WRITER_GROUP, ENTITY_KIND_USER_DEFINED_READER_GROUP,
                 ENTITY_KIND_USER_DEFINED_UNKNOWN, ENTITY_KIND_USER_DEFINED_WRITER_GROUP,
                 PROTOCOL_VERSION_2_4, VENDOR_ID,
-            },
-            EntityId, GuidPrefix, GUID,
-        }}, types::{BuiltInTopicKey, DDSType, DURATION_INFINITE, DomainId, ReturnCode, ReturnCodes, TIME_INVALID}, utils::maybe_valid::MaybeValidList};
+            }}}, types::{
+        BuiltInTopicKey, DDSType, DomainId, ReturnCode, ReturnCodes, DURATION_INFINITE,
+        TIME_INVALID,
+    }, utils::maybe_valid::MaybeValidList};
 
 use super::{
     rtps_datawriter::RtpsAnyDataWriterRef,
@@ -224,8 +225,13 @@ impl Into<ParticipantProxy> for &RtpsParticipant {
             expects_inline_qos: true,
             available_built_in_endpoints: BuiltInEndpointSet { value: 9 },
             // built_in_endpoint_qos:
-            metatraffic_unicast_locator_list: self.builtin_entities.transport.unicast_locator_list().clone(),
-            metatraffic_multicast_locator_list: self.builtin_entities
+            metatraffic_unicast_locator_list: self
+                .builtin_entities
+                .transport
+                .unicast_locator_list()
+                .clone(),
+            metatraffic_multicast_locator_list: self
+                .builtin_entities
                 .transport
                 .multicast_locator_list()
                 .clone(),
@@ -262,7 +268,7 @@ impl RtpsParticipant {
 
         let mut spdp_announcer_qos = DataWriterQos::default();
         spdp_announcer_qos.reliability.kind = crate::dds::infrastructure::qos_policy::ReliabilityQosPolicyKind::BestEffortReliabilityQos;
-        builtin_publisher
+        let spdp_announcer = builtin_publisher
             .get()
             .expect("Error retrieving built-in publisher")
             .create_stateless_builtin_datawriter::<SpdpDiscoveredParticipantData>(
@@ -270,6 +276,18 @@ impl RtpsParticipant {
                 Some(spdp_announcer_qos),
             )
             .expect("Error creating SPDP built-in writer");
+
+        let spdp_locator = Locator::new_udpv4(7400, [239,255,0,0]);
+
+        spdp_announcer
+            .get_as::<SpdpDiscoveredParticipantData>()
+            .unwrap()
+            .writer
+            .lock()
+            .unwrap()
+            .try_get_stateless()
+            .unwrap()
+            .reader_locator_add(spdp_locator);
 
         RtpsParticipant {
             participant,
@@ -397,7 +415,11 @@ impl RtpsParticipant {
                 lease_duration,
             };
 
-            spdp_announcer.get_as::<SpdpDiscoveredParticipantData>().unwrap().write_w_timestamp(data, None, TIME_INVALID).ok();
+            spdp_announcer
+                .get_as::<SpdpDiscoveredParticipantData>()
+                .unwrap()
+                .write_w_timestamp(data, None, TIME_INVALID)
+                .ok();
 
             let mut thread_list = self.thread_list.borrow_mut();
             let enabled = self.enabled.clone();
