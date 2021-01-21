@@ -1,9 +1,12 @@
-use std::{any::Any, sync::{Arc, Mutex}};
+use std::{
+    any::Any,
+    sync::{Arc, Mutex},
+};
 
 use crate::{dds::{
         infrastructure::{qos::TopicQos, status::StatusMask},
         topic::topic_listener::TopicListener,
-    }, rtps::{self, types::GUID}, types::{DDSType, ReturnCode, ReturnCodes, TopicKind}, utils::maybe_valid::{MaybeValid, MaybeValidRef}};
+    }, rtps::{self, types::GUID}, types::{DDSType, ReturnCode, ReturnCodes, TopicKind}, utils::{as_any::AsAny, maybe_valid::{MaybeValid, MaybeValidRef}}};
 
 pub struct RtpsTopic<T: DDSType> {
     pub rtps_entity: rtps::structure::Entity,
@@ -35,16 +38,15 @@ impl<T: DDSType> RtpsTopic<T> {
     }
 }
 
-pub trait AnyRtpsTopic: Any + Send + Sync {
+pub trait AnyRtpsTopic: AsAny + Send + Sync {
     fn rtps_entity(&self) -> &rtps::structure::Entity;
     fn topic_kind(&self) -> TopicKind;
     fn type_name(&self) -> &'static str;
     fn topic_name(&self) -> &String;
     fn qos(&self) -> &Mutex<TopicQos>;
-    fn as_any(&self) -> &dyn Any;
 }
 
-impl<T: DDSType + Sized> AnyRtpsTopic for RtpsTopic<T> {
+impl<T: DDSType> AnyRtpsTopic for RtpsTopic<T> {
     fn rtps_entity(&self) -> &rtps::structure::Entity {
         &self.rtps_entity
     }
@@ -64,7 +66,9 @@ impl<T: DDSType + Sized> AnyRtpsTopic for RtpsTopic<T> {
     fn qos(&self) -> &Mutex<TopicQos> {
         &self.qos
     }
+}
 
+impl<T:DDSType> AsAny for RtpsTopic<T> {
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -74,20 +78,26 @@ pub type RtpsAnyTopicRef<'a> = MaybeValidRef<'a, Arc<dyn AnyRtpsTopic>>;
 
 impl<'a> RtpsAnyTopicRef<'a> {
     pub fn get(&self) -> ReturnCode<&Arc<dyn AnyRtpsTopic>> {
-        MaybeValid::get(self)
-            .ok_or(ReturnCodes::AlreadyDeleted)
+        MaybeValid::get(self).ok_or(ReturnCodes::AlreadyDeleted)
     }
 
     pub fn get_as<U: DDSType>(&self) -> ReturnCode<&RtpsTopic<U>> {
-        MaybeValid::get(self)
-            .ok_or(ReturnCodes::AlreadyDeleted)?
+        self.get()?
             .as_ref()
             .as_any()
             .downcast_ref()
             .ok_or(ReturnCodes::Error)
     }
-    
-    pub fn delete(&self) {
-        MaybeValid::delete(self)
+
+    pub fn delete(&self) -> ReturnCode<()>{
+        let rtps_topic = self.get()?;
+        if Arc::strong_count(rtps_topic) == 1 {
+            MaybeValid::delete(self);
+            Ok(())
+        } else {
+            Err(ReturnCodes::PreconditionNotMet(
+                "Topic still attached to some data reader or data writer",
+            ))
+        }
     }
 }

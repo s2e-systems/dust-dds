@@ -1,20 +1,28 @@
 use std::{
     any::Any,
     ops::{Deref, DerefMut},
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex, MutexGuard},
 };
 
-use crate::{dds::{
+use crate::{
+    dds::{
         infrastructure::{
             qos::DataWriterQos, qos_policy::ReliabilityQosPolicyKind, status::StatusMask,
         },
         publication::data_writer_listener::DataWriterListener,
-    }, rtps::{
+    },
+    rtps::{
         behavior::{
             self, endpoint_traits::CacheChangeSender, StatefulWriter, StatelessWriter, Writer,
         },
         types::{ReliabilityKind, GUID},
-    }, types::{DDSType, InstanceHandle, ReturnCode, ReturnCodes, Time}, utils::{as_any::AsAny, maybe_valid::{MaybeValid, MaybeValidRef}}};
+    },
+    types::{DDSType, InstanceHandle, ReturnCode, ReturnCodes, Time},
+    utils::{
+        as_any::AsAny,
+        maybe_valid::{MaybeValid, MaybeValidRef},
+    },
+};
 
 use super::rtps_topic::{AnyRtpsTopic, RtpsAnyTopicRef};
 
@@ -180,12 +188,18 @@ impl<T: DDSType> RtpsDataWriter<T> {
 }
 
 pub trait AnyRtpsWriter: AsAny + Send + Sync {
-    fn writer(&self) -> &Mutex<WriterFlavor>;
+    fn writer(&self) -> MutexGuard<WriterFlavor>;
+
+    fn topic(&self) -> MutexGuard<Option<Arc<dyn AnyRtpsTopic>>>;
 }
 
 impl<T: DDSType + Sized> AnyRtpsWriter for RtpsDataWriter<T> {
-    fn writer(&self) -> &Mutex<WriterFlavor> {
-        &self.writer
+    fn writer(&self) -> MutexGuard<WriterFlavor> {
+        self.writer.lock().unwrap()
+    }
+
+    fn topic(&self) -> MutexGuard<Option<Arc<dyn AnyRtpsTopic>>> {
+        self.topic.lock().unwrap()
     }
 }
 
@@ -198,22 +212,21 @@ impl<T: DDSType + Sized> AsAny for RtpsDataWriter<T> {
 pub type RtpsAnyDataWriterRef<'a> = MaybeValidRef<'a, Box<dyn AnyRtpsWriter>>;
 
 impl<'a> RtpsAnyDataWriterRef<'a> {
-    pub fn get(&self) -> ReturnCode<&dyn AnyRtpsWriter> {
-        Ok(MaybeValid::get(self)
-            .ok_or(ReturnCodes::AlreadyDeleted)?
-            .as_ref())
+    pub fn get(&self) -> ReturnCode<&Box<dyn AnyRtpsWriter>> {
+        MaybeValid::get(self).ok_or(ReturnCodes::AlreadyDeleted)
     }
 
     pub fn get_as<U: DDSType>(&self) -> ReturnCode<&RtpsDataWriter<U>> {
-        MaybeValid::get(self)
-            .ok_or(ReturnCodes::AlreadyDeleted)?
+        self.get()?
             .as_ref()
             .as_any()
             .downcast_ref()
             .ok_or(ReturnCodes::Error)
     }
-    
-    pub fn delete(&self) {
-        MaybeValid::delete(self)
+
+    pub fn delete(&self) -> ReturnCode<()> {
+        self.get()?.topic().take(); // Drop the topic
+        MaybeValid::delete(self);
+        Ok(())
     }
 }

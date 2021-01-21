@@ -74,15 +74,7 @@ impl<'a> Publisher<'a> {
     /// details.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
     pub fn delete_datawriter<T: DDSType>(&self, a_datawriter: &DataWriter<T>) -> ReturnCode<()> {
-        a_datawriter
-            .rtps_datawriter
-            .get_as::<T>()?
-            .topic
-            .lock()
-            .unwrap()
-            .take(); // Drop the topic
-        a_datawriter.rtps_datawriter.delete();
-        Ok(())
+        a_datawriter.rtps_datawriter.delete()
     }
 
     /// This operation retrieves a previously created DataWriter belonging to the Publisher that is attached to a Topic with a matching

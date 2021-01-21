@@ -176,17 +176,8 @@ impl RtpsParticipantEntities {
     }
 
     fn delete_topic<T: DDSType>(&self, a_topic: &RtpsAnyTopicRef) -> ReturnCode<()> {
-        let rtps_topic = a_topic.get()?;
         if self.topic_list.contains(&a_topic) {
-            if Arc::strong_count(rtps_topic) == 1 {
-                // discovery.remove_topic(a_topic.value()?)?;
-                a_topic.delete();
-                Ok(())
-            } else {
-                Err(ReturnCodes::PreconditionNotMet(
-                    "Topic still attached to some data reader or data writer",
-                ))
-            }
+            a_topic.delete()
         } else {
             Err(ReturnCodes::PreconditionNotMet(
                 "Topic not found in this participant",
@@ -199,7 +190,7 @@ impl RtpsParticipantEntities {
             if let Some(publisher) = publisher.get().ok() {
                 for writer in publisher.writer_list.into_iter() {
                     if let Some(writer) = writer.get().ok() {
-                        let mut writer_flavor = writer.writer().lock().unwrap();
+                        let mut writer_flavor = writer.writer();
                         println!(
                             "last_change_sequence_number = {:?}",
                             writer_flavor.last_change_sequence_number
@@ -381,10 +372,11 @@ impl RtpsParticipant {
     pub fn enable(&self) -> ReturnCode<()> {
         self.enabled_function.call_once(||{
             let guid_prefix = self.participant.entity.guid.prefix();
-            let builtin_publisher = self
+            let builtin_publisher_ref = self
                 .builtin_entities
                 .create_publisher(PublisherQos::default(), guid_prefix, EntityType::BuiltIn)
                 .expect("Error creating built-in publisher");
+            let builtin_publisher = builtin_publisher_ref.get().expect("Error retrieving built-in publisher");
 
             let spdp_topic_qos = TopicQos::default();
             let spdp_topic = self.builtin_entities
@@ -393,9 +385,7 @@ impl RtpsParticipant {
 
             let mut spdp_announcer_qos = DataWriterQos::default();
             spdp_announcer_qos.reliability.kind = crate::dds::infrastructure::qos_policy::ReliabilityQosPolicyKind::BestEffortReliabilityQos;
-            let spdp_announcer = builtin_publisher
-                .get()
-                .expect("Error retrieving built-in publisher")
+            let spdp_announcer_anywriter_ref = builtin_publisher
                 .create_stateless_builtin_datawriter::<SpdpDiscoveredParticipantData>(
                     &spdp_topic,
                     Some(spdp_announcer_qos),
@@ -403,23 +393,12 @@ impl RtpsParticipant {
                 .expect("Error creating SPDP built-in writer");
 
             let spdp_locator = Locator::new_udpv4(7400, [239, 255, 0, 0]);
-
+            let spdp_announcer = spdp_announcer_anywriter_ref.get().expect("Error retrieving SPDP announcer");
             spdp_announcer
-                .get_as::<SpdpDiscoveredParticipantData>()
-                .unwrap()
-                .writer
-                .lock()
-                .unwrap()
+                .writer()
                 .try_get_stateless()
                 .unwrap()
                 .reader_locator_add(spdp_locator);
-
-            let builtin_publisher = self.get_builtin_publisher().unwrap();
-            let spdp_announcer = builtin_publisher
-                .get()
-                .unwrap()
-                .lookup_datawriter::<SpdpDiscoveredParticipantData>("SPDP")
-                .unwrap();
 
             let key = BuiltInTopicKey([1, 2, 3]);
             let user_data = UserDataQosPolicy { value: vec![] };
@@ -433,7 +412,7 @@ impl RtpsParticipant {
                 lease_duration,
             };
 
-            spdp_announcer
+            spdp_announcer_anywriter_ref
                 .get_as::<SpdpDiscoveredParticipantData>()
                 .unwrap()
                 .write_w_timestamp(data, None, TIME_INVALID)

@@ -3,15 +3,23 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use crate::{dds::{
+use crate::{
+    dds::{
         infrastructure::{
             qos::DataReaderQos, qos_policy::ReliabilityQosPolicyKind, status::StatusMask,
         },
         subscription::data_reader_listener::DataReaderListener,
-    }, rtps::{
+    },
+    rtps::{
         behavior::{self, StatefulReader},
         types::{ReliabilityKind, GUID},
-    }, types::{DDSType, ReturnCode, ReturnCodes}, utils::{as_any::AsAny, maybe_valid::{MaybeValid, MaybeValidRef}}};
+    },
+    types::{DDSType, ReturnCode, ReturnCodes},
+    utils::{
+        as_any::AsAny,
+        maybe_valid::{MaybeValid, MaybeValidRef},
+    },
+};
 
 use super::rtps_topic::AnyRtpsTopic;
 
@@ -94,21 +102,18 @@ impl<T: DDSType + Sized> AnyRtpsReader for RtpsDataReader<T> {
 pub type RtpsAnyDataReaderRef<'a> = MaybeValidRef<'a, Box<dyn AnyRtpsReader>>;
 
 impl<'a> RtpsAnyDataReaderRef<'a> {
-    pub fn get(&self) -> ReturnCode<&dyn AnyRtpsReader> {
-        Ok(MaybeValid::get(self)
-            .ok_or(ReturnCodes::AlreadyDeleted)?
-            .as_ref())
+    pub fn get(&self) -> ReturnCode<&Box<dyn AnyRtpsReader>> {
+        MaybeValid::get(self).ok_or(ReturnCodes::AlreadyDeleted)
     }
 
     pub fn get_as<U: DDSType>(&self) -> ReturnCode<&RtpsDataReader<U>> {
-        MaybeValid::get(self)
-            .ok_or(ReturnCodes::AlreadyDeleted)?
+        self.get()?
             .as_ref()
             .as_any()
             .downcast_ref()
             .ok_or(ReturnCodes::Error)
     }
-    
+
     pub fn delete(&self) {
         MaybeValid::delete(self)
     }
