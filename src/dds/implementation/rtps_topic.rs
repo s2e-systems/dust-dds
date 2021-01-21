@@ -3,7 +3,7 @@ use std::{any::Any, sync::{Arc, Mutex}};
 use crate::{dds::{
         infrastructure::{qos::TopicQos, status::StatusMask},
         topic::topic_listener::TopicListener,
-    }, rtps::{self, types::GUID}, types::{DDSType, ReturnCode, ReturnCodes, TopicKind}, utils::maybe_valid::MaybeValidRef};
+    }, rtps::{self, types::GUID}, types::{DDSType, ReturnCode, ReturnCodes, TopicKind}, utils::maybe_valid::{MaybeValid, MaybeValidRef}};
 
 pub struct RtpsTopic<T: DDSType> {
     pub rtps_entity: rtps::structure::Entity,
@@ -73,15 +73,21 @@ impl<T: DDSType + Sized> AnyRtpsTopic for RtpsTopic<T> {
 pub type RtpsAnyTopicRef<'a> = MaybeValidRef<'a, Arc<dyn AnyRtpsTopic>>;
 
 impl<'a> RtpsAnyTopicRef<'a> {
-    pub fn value(&self) -> ReturnCode<&Arc<dyn AnyRtpsTopic>> {
-        self.get().ok_or(ReturnCodes::AlreadyDeleted)
+    pub fn get(&self) -> ReturnCode<&Arc<dyn AnyRtpsTopic>> {
+        MaybeValid::get(self)
+            .ok_or(ReturnCodes::AlreadyDeleted)
     }
 
-    pub fn value_as<U: 'static>(&self) -> ReturnCode<&U> {
-        self.value()?
+    pub fn get_as<U: DDSType>(&self) -> ReturnCode<&RtpsTopic<U>> {
+        MaybeValid::get(self)
+            .ok_or(ReturnCodes::AlreadyDeleted)?
             .as_ref()
             .as_any()
-            .downcast_ref::<U>()
+            .downcast_ref()
             .ok_or(ReturnCodes::Error)
+    }
+    
+    pub fn delete(&self) {
+        MaybeValid::delete(self)
     }
 }

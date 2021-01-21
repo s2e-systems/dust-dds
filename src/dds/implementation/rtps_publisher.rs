@@ -1,14 +1,12 @@
 use std::sync::{atomic, Mutex};
 
-use crate::{
-    dds::{
+use crate::{dds::{
         infrastructure::{
             qos::{DataWriterQos, PublisherQos},
             status::StatusMask,
         },
         publication::publisher_listener::PublisherListener,
-    },
-    rtps::{
+    }, rtps::{
         structure::Group,
         types::{
             constants::{
@@ -17,10 +15,7 @@ use crate::{
             },
             EntityId, GUID,
         },
-    },
-    types::{DDSType, ReturnCode, ReturnCodes, TopicKind},
-    utils::maybe_valid::{MaybeValidList, MaybeValidRef},
-};
+    }, types::{DDSType, ReturnCode, ReturnCodes, TopicKind}, utils::maybe_valid::{MaybeValid, MaybeValidList, MaybeValidRef}};
 
 use super::{
     rtps_datawriter::{AnyRtpsWriter, RtpsAnyDataWriterRef, RtpsDataWriter},
@@ -101,7 +96,7 @@ impl RtpsPublisher {
         // _a_listener: impl DataWriterListener<T>,
         // _mask: StatusMask
     ) -> Option<RtpsAnyDataWriterRef> {
-        let topic = a_topic.get()?.clone();
+        let topic = a_topic.get().ok()?.clone();
         let guid_prefix = self.group.entity.guid.prefix();
         let entity_key = [
             0,
@@ -160,7 +155,13 @@ impl RtpsPublisher {
 pub type RtpsPublisherRef<'a> = MaybeValidRef<'a, Box<RtpsPublisher>>;
 
 impl<'a> RtpsPublisherRef<'a> {
-    pub fn value(&self) -> ReturnCode<&Box<RtpsPublisher>> {
-        self.get().ok_or(ReturnCodes::AlreadyDeleted)
+    pub fn get(&self) -> ReturnCode<&RtpsPublisher> {
+        Ok(MaybeValid::get(self)
+            .ok_or(ReturnCodes::AlreadyDeleted)?
+            .as_ref())
+    }
+
+    pub fn delete(&self) {
+        MaybeValid::delete(self)
     }
 }

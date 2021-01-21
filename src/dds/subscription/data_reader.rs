@@ -581,13 +581,13 @@ impl<'a, T: DDSType> Entity for DataReader<'a, T> {
 
     fn set_qos(&self, qos: Option<Self::Qos>) -> ReturnCode<()> {
         let qos = qos.unwrap_or_default();
-        *self.rtps_datareader.value()?.qos().lock().unwrap() = qos;
+        *self.rtps_datareader.get()?.qos().lock().unwrap() = qos;
         // discovery.update_reader(datareader)?;
         Ok(())
     }
 
     fn get_qos(&self) -> ReturnCode<Self::Qos> {
-        Ok(self.rtps_datareader.value()?.qos().lock().unwrap().clone())
+        Ok(self.rtps_datareader.get()?.qos().lock().unwrap().clone())
     }
 
     fn set_listener(&self, _a_listener: Self::Listener, _mask: StatusMask) -> ReturnCode<()> {

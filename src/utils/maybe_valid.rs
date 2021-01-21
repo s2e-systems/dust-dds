@@ -22,25 +22,25 @@ impl<T> MaybeValid<T> {
         }
     }
 
-    pub fn get(&self) -> Option<&T> {
-        if self.is_valid() {
-            Some(self.value.as_ref().unwrap())
+    pub fn get(this: &MaybeValid<T>) -> Option<&T> {
+        if MaybeValid::is_valid(this) {
+            Some(this.value.as_ref().unwrap())
         } else {
             None
         }
     }
 
-    pub fn is_valid(&self) -> bool {
-        self.valid.load(atomic::Ordering::Acquire)
+    pub fn is_valid(this: &MaybeValid<T>) -> bool {
+        this.valid.load(atomic::Ordering::Acquire)
     }
 
-    pub fn delete(&self) {
-        self.valid.store(false, atomic::Ordering::Release) // Inspired by std::sync::Arc
+    pub fn delete(this: &MaybeValid<T>) {
+        this.valid.store(false, atomic::Ordering::Release) // Inspired by std::sync::Arc
     }
 
-    pub fn initialize(&mut self, value: T) {
-        self.value = Some(value);
-        self.valid.store(true, atomic::Ordering::Release);
+    pub fn initialize(this: &mut MaybeValid<T>, value: T) {
+        this.value = Some(value);
+        this.valid.store(true, atomic::Ordering::Release);
     }
 }
 
@@ -103,7 +103,7 @@ impl<T> MaybeValidList<T> {
     pub fn is_empty(&self) -> bool {
         self.0
             .iter()
-            .find(|&x| x.read().unwrap().is_valid())
+            .find(|&x| MaybeValid::is_valid(&x.read().unwrap()))
             .is_none()
     }
 
@@ -119,8 +119,8 @@ impl<T> MaybeValidList<T> {
         // and that is marked as invalid (meaning that it has either been deleted on never initialized)
         for (index, object) in self.0.iter().enumerate() {
             if let Some(mut borrowed_object) = object.try_write().ok() {
-                if !borrowed_object.is_valid() {
-                    borrowed_object.initialize(value);
+                if !MaybeValid::is_valid(&borrowed_object) {
+                    MaybeValid::initialize(&mut borrowed_object, value);
                     return Some(index);
                 }
             }
@@ -137,30 +137,30 @@ mod tests {
     #[test]
     fn create_delete() {
         let object = MaybeValid::new(10);
-        assert!(object.get().is_some());
-        object.delete();
-        assert!(object.get().is_none());
+        assert!(MaybeValid::get(&object).is_some());
+        MaybeValid::delete(&object);
+        assert!(MaybeValid::get(&object).is_none());
     }
 
     #[test]
     fn value_ok() {
         let object = MaybeValid::new(100i32);
-        assert_eq!(object.get().unwrap(), &100i32);
+        assert_eq!(MaybeValid::get(&object).unwrap(), &100i32);
     }
 
     #[test]
     fn value_deleted() {
         let object = MaybeValid::new(100i32);
-        object.delete();
-        assert!(object.get().is_none());
+        MaybeValid::delete(&object);
+        assert!(MaybeValid::get(&object).is_none());
     }
 
     #[test]
     fn value_deleted_and_initialized() {
         let mut object = MaybeValid::new(100i32);
-        object.delete();
-        object.initialize(-10i32);
-        assert_eq!(object.get().unwrap(), &-10i32);
+        MaybeValid::delete(&object);
+        MaybeValid::initialize(&mut object, -10i32);
+        assert_eq!(MaybeValid::get(&object).unwrap(), &-10i32);
     }
 
     #[test]
@@ -184,8 +184,8 @@ mod tests {
             let _object2 = object_list.add(20).unwrap();
             let object3 = object_list.add(30).unwrap();
 
-            object1.delete();
-            object3.delete();
+            MaybeValid::delete(&object1);
+            MaybeValid::delete(&object3);
         }
 
         let index1 = object_list.initialize_free_object(10).unwrap();
@@ -206,8 +206,8 @@ mod tests {
         let _object2 = object_list.add(20).unwrap();
         let object3 = object_list.add(30).unwrap();
 
-        object1.delete();
-        object3.delete();
+        MaybeValid::delete(&object1);
+        MaybeValid::delete(&object3);
 
         let index4 = object_list.initialize_free_object(10).unwrap();
         let index5 = object_list.initialize_free_object(30).unwrap();

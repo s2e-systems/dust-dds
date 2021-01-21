@@ -68,8 +68,8 @@ impl<'a> Subscriber<'a> {
         // _a_listener: impl DataReaderListener<T>,
         // _mask: StatusMask
     ) -> Option<DataReader<T>> {
-        let this = self.rtps_subscriber.value().ok()?;
-        let topic = a_topic.rtps_topic.value().ok()?.clone();
+        let this = self.rtps_subscriber.get().ok()?;
+        let topic = a_topic.rtps_topic.get().ok()?.clone();
         let guid_prefix = this.group.entity.guid.prefix();
         let entity_key = [
             0,
@@ -115,7 +115,7 @@ impl<'a> Subscriber<'a> {
     pub fn delete_datareader<T: DDSType>(&self, a_datareader: &DataReader<T>) -> ReturnCode<()> {
         let datareader = a_datareader
             .rtps_datareader
-            .value_as::<RtpsDataReader<T>>()?;
+            .get_as::<T>()?;
         // discovery.remove_reader(datareader)?;
         datareader.topic.lock().unwrap().take(); // Drop the topic
         a_datareader.rtps_datareader.delete();
@@ -235,7 +235,7 @@ impl<'a> Subscriber<'a> {
         qos.is_consistent()?;
         *self
             .rtps_subscriber
-            .value()?
+            .get()?
             .default_datareader_qos
             .lock()
             .unwrap() = qos;
@@ -250,7 +250,7 @@ impl<'a> Subscriber<'a> {
     pub fn get_default_datareader_qos(&self) -> ReturnCode<DataReaderQos> {
         Ok(self
             .rtps_subscriber
-            .value()?
+            .get()?
             .default_datareader_qos
             .lock()
             .unwrap()
@@ -282,7 +282,7 @@ impl<'a> Entity for Subscriber<'a> {
     }
 
     fn get_qos(&self) -> ReturnCode<Self::Qos> {
-        Ok(self.rtps_subscriber.value()?.qos.clone())
+        Ok(self.rtps_subscriber.get()?.qos.clone())
     }
 
     fn set_listener(&self, _a_listener: Self::Listener, _mask: StatusMask) -> ReturnCode<()> {
@@ -306,6 +306,6 @@ impl<'a> Entity for Subscriber<'a> {
     }
 
     fn get_instance_handle(&self) -> ReturnCode<InstanceHandle> {
-        Ok(self.rtps_subscriber.value()?.group.entity.guid.into())
+        Ok(self.rtps_subscriber.get()?.group.entity.guid.into())
     }
 }

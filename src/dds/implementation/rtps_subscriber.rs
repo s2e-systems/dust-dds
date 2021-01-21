@@ -1,14 +1,12 @@
 use std::sync::{atomic, Arc, Mutex};
 
-use crate::{
-    dds::{
+use crate::{dds::{
         infrastructure::{
             qos::{DataReaderQos, SubscriberQos},
             status::StatusMask,
         },
         subscription::subscriber_listener::SubscriberListener,
-    },
-    rtps::{
+    }, rtps::{
         structure::Group,
         types::{
             constants::{
@@ -17,10 +15,7 @@ use crate::{
             },
             EntityId, GUID,
         },
-    },
-    types::{DDSType, ReturnCode, ReturnCodes, TopicKind},
-    utils::maybe_valid::{MaybeValidList, MaybeValidRef},
-};
+    }, types::{DDSType, ReturnCode, ReturnCodes, TopicKind}, utils::maybe_valid::{MaybeValid, MaybeValidList, MaybeValidRef}};
 
 use super::{
     rtps_datareader::{AnyRtpsReader, RtpsAnyDataReaderRef, RtpsDataReader},
@@ -129,7 +124,13 @@ impl RtpsSubscriber {
 pub type RtpsSubscriberRef<'a> = MaybeValidRef<'a, Box<RtpsSubscriber>>;
 
 impl<'a> RtpsSubscriberRef<'a> {
-    pub fn value(&self) -> ReturnCode<&Box<RtpsSubscriber>> {
-        self.get().ok_or(ReturnCodes::AlreadyDeleted)
+    pub fn get(&self) -> ReturnCode<&RtpsSubscriber> {
+        Ok(MaybeValid::get(self)
+            .ok_or(ReturnCodes::AlreadyDeleted)?
+            .as_ref())
+    }
+
+    pub fn delete(&self) {
+        MaybeValid::delete(self)
     }
 }

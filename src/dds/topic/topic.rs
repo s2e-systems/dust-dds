@@ -38,11 +38,11 @@ impl<'a, T: DDSType> TopicDescription for Topic<'a, T> {
     }
 
     fn get_type_name(&self) -> ReturnCode<&str> {
-        Ok(self.rtps_topic.value()?.type_name())
+        Ok(self.rtps_topic.get()?.type_name())
     }
 
     fn get_name(&self) -> ReturnCode<String> {
-        Ok(self.rtps_topic.value()?.topic_name().clone())
+        Ok(self.rtps_topic.get()?.topic_name().clone())
     }
 }
 
@@ -53,13 +53,13 @@ impl<'a, T: DDSType> Entity for Topic<'a, T> {
     fn set_qos(&self, qos: Option<Self::Qos>) -> ReturnCode<()> {
         let qos = qos.unwrap_or_default();
         qos.is_consistent()?;
-        *self.rtps_topic.value()?.qos().lock().unwrap() = qos;
+        *self.rtps_topic.get()?.qos().lock().unwrap() = qos;
         // discovery.update_topic(topic)?;
         Ok(())
     }
 
     fn get_qos(&self) -> ReturnCode<Self::Qos> {
-        Ok(self.rtps_topic.value()?.qos().lock().unwrap().clone())
+        Ok(self.rtps_topic.get()?.qos().lock().unwrap().clone())
     }
 
     fn set_listener(&self, _a_listener: Self::Listener, _mask: StatusMask) -> ReturnCode<()> {
@@ -83,6 +83,6 @@ impl<'a, T: DDSType> Entity for Topic<'a, T> {
     }
 
     fn get_instance_handle(&self) -> ReturnCode<InstanceHandle> {
-        Ok(self.rtps_topic.value()?.rtps_entity().guid.into())
+        Ok(self.rtps_topic.get()?.rtps_entity().guid.into())
     }
 }

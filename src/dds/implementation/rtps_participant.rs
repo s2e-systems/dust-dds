@@ -90,7 +90,7 @@ impl RtpsParticipantEntities {
     }
 
     fn delete_publisher(&self, a_publisher: &RtpsPublisherRef) -> ReturnCode<()> {
-        let rtps_publisher = a_publisher.value()?;
+        let rtps_publisher = a_publisher.get()?;
         if rtps_publisher.writer_list.is_empty() {
             if self.publisher_list.contains(&a_publisher) {
                 a_publisher.delete();
@@ -132,7 +132,7 @@ impl RtpsParticipantEntities {
     }
 
     fn delete_subscriber(&self, a_subscriber: &RtpsSubscriberRef) -> ReturnCode<()> {
-        let rtps_subscriber = a_subscriber.value()?;
+        let rtps_subscriber = a_subscriber.get()?;
         if rtps_subscriber.reader_list.is_empty() {
             if self.subscriber_list.contains(&a_subscriber) {
                 a_subscriber.delete();
@@ -176,7 +176,7 @@ impl RtpsParticipantEntities {
     }
 
     fn delete_topic<T: DDSType>(&self, a_topic: &RtpsAnyTopicRef) -> ReturnCode<()> {
-        let rtps_topic = a_topic.value()?;
+        let rtps_topic = a_topic.get()?;
         if self.topic_list.contains(&a_topic) {
             if Arc::strong_count(rtps_topic) == 1 {
                 // discovery.remove_topic(a_topic.value()?)?;
@@ -196,9 +196,9 @@ impl RtpsParticipantEntities {
 
     fn send_data(&self) {
         for publisher in self.publisher_list.into_iter() {
-            if let Some(publisher) = publisher.get() {
+            if let Some(publisher) = publisher.get().ok() {
                 for writer in publisher.writer_list.into_iter() {
-                    if let Some(writer) = writer.get() {
+                    if let Some(writer) = writer.get().ok() {
                         let mut writer_flavor = writer.writer().lock().unwrap();
                         println!(
                             "last_change_sequence_number = {:?}",
@@ -457,7 +457,7 @@ impl RtpsParticipant {
 
     pub fn get_builtin_publisher(&self) -> Option<RtpsPublisherRef> {
         self.builtin_entities.publisher_list.into_iter().find(|x| {
-            if let Some(publisher) = x.get() {
+            if let Some(publisher) = x.get().ok() {
                 publisher.group.entity.guid.entity_id().entity_kind()
                     == ENTITY_KIND_BUILT_IN_WRITER_GROUP
             } else {
@@ -468,7 +468,7 @@ impl RtpsParticipant {
 
     pub fn get_builtin_subscriber(&self) -> Option<RtpsSubscriberRef> {
         self.builtin_entities.subscriber_list.into_iter().find(|x| {
-            if let Some(subscriber) = x.get() {
+            if let Some(subscriber) = x.get().ok() {
                 subscriber.group.entity.guid.entity_id().entity_kind()
                     == ENTITY_KIND_BUILT_IN_READER_GROUP
             } else {

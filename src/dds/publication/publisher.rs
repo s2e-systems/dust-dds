@@ -53,7 +53,7 @@ impl<'a> Publisher<'a> {
         let rtps_topic = &a_topic.rtps_topic;
         let rtps_datawriter = self
             .rtps_publisher
-            .value()
+            .get()
             .ok()?
             .create_user_defined_datawriter::<T>(rtps_topic, qos)?;
         // discovery.insert_writer(&new_writer).ok()?;
@@ -177,7 +177,7 @@ impl<'a> Publisher<'a> {
     /// set_default_datawriter_qos, or else, if the call was never made, the default values listed in the QoS table in 2.2.3, Supported
     /// QoS.
     pub fn get_default_datawriter_qos(&self) -> ReturnCode<DataWriterQos> {
-        Ok(self.rtps_publisher.value()?.get_default_datawriter_qos())
+        Ok(self.rtps_publisher.get()?.get_default_datawriter_qos())
     }
 
     /// This operation copies the policies in the a_topic_qos to the corresponding policies in the a_datawriter_qos (replacing values
@@ -210,7 +210,7 @@ impl<'a> Entity for Publisher<'a> {
     }
 
     fn get_qos(&self) -> ReturnCode<Self::Qos> {
-        Ok(self.rtps_publisher.value()?.qos.clone())
+        Ok(self.rtps_publisher.get()?.qos.clone())
     }
 
     fn set_listener(&self, _a_listener: Self::Listener, _mask: StatusMask) -> ReturnCode<()> {
@@ -234,6 +234,6 @@ impl<'a> Entity for Publisher<'a> {
     }
 
     fn get_instance_handle(&self) -> ReturnCode<InstanceHandle> {
-        Ok(self.rtps_publisher.value()?.group.entity.guid.into())
+        Ok(self.rtps_publisher.get()?.group.entity.guid.into())
     }
 }

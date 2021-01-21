@@ -4,22 +4,17 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use crate::{
-    dds::{
+use crate::{dds::{
         infrastructure::{
             qos::DataWriterQos, qos_policy::ReliabilityQosPolicyKind, status::StatusMask,
         },
         publication::data_writer_listener::DataWriterListener,
-    },
-    rtps::{
+    }, rtps::{
         behavior::{
             self, endpoint_traits::CacheChangeSender, StatefulWriter, StatelessWriter, Writer,
         },
         types::{ReliabilityKind, GUID},
-    },
-    types::{DDSType, InstanceHandle, ReturnCode, ReturnCodes, Time},
-    utils::{as_any::AsAny, maybe_valid::MaybeValidRef},
-};
+    }, types::{DDSType, InstanceHandle, ReturnCode, ReturnCodes, Time}, utils::{as_any::AsAny, maybe_valid::{MaybeValid, MaybeValidRef}}};
 
 use super::rtps_topic::{AnyRtpsTopic, RtpsAnyTopicRef};
 
@@ -203,12 +198,22 @@ impl<T: DDSType + Sized> AsAny for RtpsDataWriter<T> {
 pub type RtpsAnyDataWriterRef<'a> = MaybeValidRef<'a, Box<dyn AnyRtpsWriter>>;
 
 impl<'a> RtpsAnyDataWriterRef<'a> {
+    pub fn get(&self) -> ReturnCode<&dyn AnyRtpsWriter> {
+        Ok(MaybeValid::get(self)
+            .ok_or(ReturnCodes::AlreadyDeleted)?
+            .as_ref())
+    }
+
     pub fn get_as<U: DDSType>(&self) -> ReturnCode<&RtpsDataWriter<U>> {
-        self.get()
+        MaybeValid::get(self)
             .ok_or(ReturnCodes::AlreadyDeleted)?
             .as_ref()
             .as_any()
             .downcast_ref()
             .ok_or(ReturnCodes::Error)
+    }
+    
+    pub fn delete(&self) {
+        MaybeValid::delete(self)
     }
 }

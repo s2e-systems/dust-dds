@@ -11,7 +11,7 @@ use crate::{dds::{
     }, rtps::{
         behavior::{self, StatefulReader},
         types::{ReliabilityKind, GUID},
-    }, types::{DDSType, ReturnCode, ReturnCodes}, utils::maybe_valid::MaybeValidRef};
+    }, types::{DDSType, ReturnCode, ReturnCodes}, utils::{as_any::AsAny, maybe_valid::{MaybeValid, MaybeValidRef}}};
 
 use super::rtps_topic::AnyRtpsTopic;
 
@@ -60,12 +60,17 @@ impl<T: DDSType> RtpsDataReader<T> {
     }
 }
 
-pub trait AnyRtpsReader: Send + Sync {
+pub trait AnyRtpsReader: AsAny + Send + Sync {
     fn reader(&self) -> &StatefulReader;
     fn qos(&self) -> &Mutex<DataReaderQos>;
     fn topic(&self) -> &Mutex<Option<Arc<dyn AnyRtpsTopic>>>;
     fn status_mask(&self) -> &StatusMask;
-    fn as_any(&self) -> &dyn Any;
+}
+
+impl<T: DDSType + Sized> AsAny for RtpsDataReader<T> {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
 }
 
 impl<T: DDSType + Sized> AnyRtpsReader for RtpsDataReader<T> {
@@ -84,25 +89,27 @@ impl<T: DDSType + Sized> AnyRtpsReader for RtpsDataReader<T> {
     fn status_mask(&self) -> &StatusMask {
         &self.status_mask
     }
-
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 pub type RtpsAnyDataReaderRef<'a> = MaybeValidRef<'a, Box<dyn AnyRtpsReader>>;
 
-
 impl<'a> RtpsAnyDataReaderRef<'a> {
-    pub fn value(&self) -> ReturnCode<&Box<dyn AnyRtpsReader>> {
-        self.get().ok_or(ReturnCodes::AlreadyDeleted)
+    pub fn get(&self) -> ReturnCode<&dyn AnyRtpsReader> {
+        Ok(MaybeValid::get(self)
+            .ok_or(ReturnCodes::AlreadyDeleted)?
+            .as_ref())
     }
 
-    pub fn value_as<U: 'static>(&self) -> ReturnCode<&U> {
-        self.value()?
+    pub fn get_as<U: DDSType>(&self) -> ReturnCode<&RtpsDataReader<U>> {
+        MaybeValid::get(self)
+            .ok_or(ReturnCodes::AlreadyDeleted)?
             .as_ref()
             .as_any()
-            .downcast_ref::<U>()
+            .downcast_ref()
             .ok_or(ReturnCodes::Error)
+    }
+    
+    pub fn delete(&self) {
+        MaybeValid::delete(self)
     }
 }
