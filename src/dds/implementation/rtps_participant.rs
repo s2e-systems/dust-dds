@@ -362,8 +362,6 @@ impl RtpsParticipant {
     }
 
     pub fn enable(&self) -> ReturnCode<()> {
-        // self.builtin_entities.publisher_list[0].
-
         // let key = BuiltInTopicKey([1, 2, 3]);
         // let user_data = UserDataQosPolicy { value: vec![] };
         // let dds_participant_data = ParticipantBuiltinTopicData { key, user_data };
@@ -393,6 +391,28 @@ impl RtpsParticipant {
         }
 
         Ok(())
+    }
+
+    pub fn get_builtin_publisher(&self) -> Option<RtpsPublisherRef> {
+        self.builtin_entities.publisher_list.into_iter().find(|x| {
+            if let Some(publisher) = x.get() {
+                publisher.group.entity.guid.entity_id().entity_kind()
+                    == ENTITY_KIND_BUILT_IN_WRITER_GROUP
+            } else {
+                false
+            }
+        })
+    }
+
+    pub fn get_builtin_subscriber(&self) -> Option<RtpsSubscriberRef> {
+        self.builtin_entities.subscriber_list.into_iter().find(|x| {
+            if let Some(subscriber) = x.get() {
+                subscriber.group.entity.guid.entity_id().entity_kind()
+                    == ENTITY_KIND_BUILT_IN_READER_GROUP
+            } else {
+                false
+            }
+        })
     }
 }
 
