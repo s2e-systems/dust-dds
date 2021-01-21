@@ -21,7 +21,7 @@ use crate::{
     utils::{as_any::AsAny, maybe_valid::MaybeValidRef},
 };
 
-use super::rtps_topic::{AnyRtpsTopic, RtpsTopicRef};
+use super::rtps_topic::{AnyRtpsTopic, RtpsAnyTopicRef};
 
 pub enum WriterFlavor {
     Stateful(StatefulWriter),
@@ -74,7 +74,7 @@ pub struct RtpsDataWriter<T: DDSType> {
 impl<T: DDSType> RtpsDataWriter<T> {
     pub fn new_stateful(
         guid: GUID,
-        topic: &RtpsTopicRef,
+        topic: &RtpsAnyTopicRef,
         qos: DataWriterQos,
         listener: Option<Box<dyn DataWriterListener<T>>>,
         status_mask: StatusMask,
@@ -116,7 +116,7 @@ impl<T: DDSType> RtpsDataWriter<T> {
 
     pub fn new_stateless(
         guid: GUID,
-        topic: &RtpsTopicRef,
+        topic: &RtpsAnyTopicRef,
         qos: DataWriterQos,
         listener: Option<Box<dyn DataWriterListener<T>>>,
         status_mask: StatusMask,

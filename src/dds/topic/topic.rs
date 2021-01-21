@@ -1,29 +1,13 @@
-use std::sync::Arc;
-
-use crate::dds::infrastructure::entity::{Entity, StatusCondition};
+use crate::dds::domain::domain_participant::DomainParticipant;
 use crate::dds::infrastructure::qos::TopicQos;
 use crate::dds::infrastructure::status::StatusMask;
 use crate::dds::topic::topic_description::TopicDescription;
 use crate::dds::topic::topic_listener::TopicListener;
 use crate::dds::{
-    domain::domain_participant::DomainParticipant, implementation::rtps_topic::AnyRtpsTopic,
+    implementation::rtps_topic::RtpsAnyTopicRef,
+    infrastructure::entity::{Entity, StatusCondition},
 };
-use crate::types::{DDSType, InstanceHandle, ReturnCode, ReturnCodes};
-use crate::utils::maybe_valid::MaybeValidRef;
-
-impl<'a> MaybeValidRef<'a, Arc<dyn AnyRtpsTopic>> {
-    pub fn value(&self) -> ReturnCode<&Arc<dyn AnyRtpsTopic>> {
-        self.get().ok_or(ReturnCodes::AlreadyDeleted)
-    }
-
-    pub fn value_as<U: 'static>(&self) -> ReturnCode<&U> {
-        self.value()?
-            .as_ref()
-            .as_any()
-            .downcast_ref::<U>()
-            .ok_or(ReturnCodes::Error)
-    }
-}
+use crate::types::{DDSType, InstanceHandle, ReturnCode};
 
 /// Topic is the most basic description of the data to be published and subscribed.
 /// A Topic is identified by its name, which must be unique in the whole Domain. In addition (by virtue of extending
@@ -33,7 +17,7 @@ impl<'a> MaybeValidRef<'a, Arc<dyn AnyRtpsTopic>> {
 /// get_status_condition may return the value NOT_ENABLED.
 pub struct Topic<'a, T: DDSType> {
     pub(crate) parent_participant: &'a DomainParticipant,
-    pub(crate) rtps_topic: MaybeValidRef<'a, Arc<dyn AnyRtpsTopic>>,
+    pub(crate) rtps_topic: RtpsAnyTopicRef<'a>,
     pub(crate) marker: std::marker::PhantomData<T>,
 }
 

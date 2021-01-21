@@ -1,27 +1,43 @@
 use std::{
     cell::RefCell,
-    sync::{atomic, Arc, Mutex},
+    sync::{atomic, Arc, Mutex, Once},
     thread::JoinHandle,
 };
 
-use crate::{builtin_topics::ParticipantBuiltinTopicData, dds::infrastructure::{
+use crate::{
+    builtin_topics::ParticipantBuiltinTopicData,
+    dds::infrastructure::{
         qos::{DataWriterQos, DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
         qos_policy::UserDataQosPolicy,
-    }, discovery::types::{ParticipantProxy, SpdpDiscoveredParticipantData}, rtps::{behavior::endpoint_traits::CacheChangeSender, endpoint_types::BuiltInEndpointSet, message_sender::RtpsMessageSender, messages::submessages::submessage_elements::LocatorList, structure::Participant, transport::Transport, types::{EntityId, GUID, GuidPrefix, Locator, constants::{
-                ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, ENTITY_KIND_BUILT_IN_READER_GROUP,
+    },
+    discovery::types::{ParticipantProxy, SpdpDiscoveredParticipantData},
+    rtps::{
+        behavior::endpoint_traits::CacheChangeSender,
+        endpoint_types::BuiltInEndpointSet,
+        message_sender::RtpsMessageSender,
+        structure::Participant,
+        transport::Transport,
+        types::{
+            constants::{
+                ENTITY_KIND_BUILT_IN_READER_GROUP,
                 ENTITY_KIND_BUILT_IN_WRITER_GROUP, ENTITY_KIND_USER_DEFINED_READER_GROUP,
                 ENTITY_KIND_USER_DEFINED_UNKNOWN, ENTITY_KIND_USER_DEFINED_WRITER_GROUP,
                 PROTOCOL_VERSION_2_4, VENDOR_ID,
-            }}}, types::{
+            },
+            EntityId, GuidPrefix, Locator, GUID,
+        },
+    },
+    types::{
         BuiltInTopicKey, DDSType, DomainId, ReturnCode, ReturnCodes, DURATION_INFINITE,
         TIME_INVALID,
-    }, utils::maybe_valid::MaybeValidList};
+    },
+    utils::maybe_valid::MaybeValidList,
+};
 
 use super::{
-    rtps_datawriter::RtpsAnyDataWriterRef,
     rtps_publisher::{RtpsPublisher, RtpsPublisherRef},
     rtps_subscriber::{RtpsSubscriber, RtpsSubscriberRef},
-    rtps_topic::{AnyRtpsTopic, RtpsTopic, RtpsTopicRef},
+    rtps_topic::{AnyRtpsTopic, RtpsTopic, RtpsAnyTopicRef},
 };
 
 enum EntityType {
@@ -140,7 +156,7 @@ impl RtpsParticipantEntities {
         qos: TopicQos,
         // _a_listener: impl TopicListener<T>,
         // _mask: StatusMask
-    ) -> Option<RtpsTopicRef> {
+    ) -> Option<RtpsAnyTopicRef> {
         qos.is_consistent().ok()?;
         let entity_key = [
             0,
@@ -159,7 +175,7 @@ impl RtpsParticipantEntities {
         self.topic_list.add(new_topic)
     }
 
-    fn delete_topic<T: DDSType>(&self, a_topic: &RtpsTopicRef) -> ReturnCode<()> {
+    fn delete_topic<T: DDSType>(&self, a_topic: &RtpsAnyTopicRef) -> ReturnCode<()> {
         let rtps_topic = a_topic.value()?;
         if self.topic_list.contains(&a_topic) {
             if Arc::strong_count(rtps_topic) == 1 {
@@ -211,6 +227,7 @@ pub struct RtpsParticipant {
     builtin_entities: Arc<RtpsParticipantEntities>,
     user_defined_entities: Arc<RtpsParticipantEntities>,
     enabled: Arc<atomic::AtomicBool>,
+    enabled_function: Once,
     thread_list: RefCell<Vec<JoinHandle<()>>>,
 }
 
@@ -257,47 +274,16 @@ impl RtpsParticipant {
         let builtin_entities = Arc::new(RtpsParticipantEntities::new(metatraffic_transport));
         let user_defined_entities = Arc::new(RtpsParticipantEntities::new(userdata_transport));
 
-        let builtin_publisher = builtin_entities
-            .create_publisher(PublisherQos::default(), guid_prefix, EntityType::BuiltIn)
-            .expect("Error creating built-in publisher");
-
-        let spdp_topic_qos = TopicQos::default();
-        let spdp_topic = builtin_entities
-            .create_topic::<SpdpDiscoveredParticipantData>(guid_prefix, "SPDP", spdp_topic_qos)
-            .expect("Error creating SPDP topic");
-
-        let mut spdp_announcer_qos = DataWriterQos::default();
-        spdp_announcer_qos.reliability.kind = crate::dds::infrastructure::qos_policy::ReliabilityQosPolicyKind::BestEffortReliabilityQos;
-        let spdp_announcer = builtin_publisher
-            .get()
-            .expect("Error retrieving built-in publisher")
-            .create_stateless_builtin_datawriter::<SpdpDiscoveredParticipantData>(
-                &spdp_topic,
-                Some(spdp_announcer_qos),
-            )
-            .expect("Error creating SPDP built-in writer");
-
-        let spdp_locator = Locator::new_udpv4(7400, [239,255,0,0]);
-
-        spdp_announcer
-            .get_as::<SpdpDiscoveredParticipantData>()
-            .unwrap()
-            .writer
-            .lock()
-            .unwrap()
-            .try_get_stateless()
-            .unwrap()
-            .reader_locator_add(spdp_locator);
-
         RtpsParticipant {
             participant,
             qos: Mutex::new(qos),
             default_publisher_qos: Mutex::new(PublisherQos::default()),
             default_subscriber_qos: Mutex::new(SubscriberQos::default()),
             default_topic_qos: Mutex::new(TopicQos::default()),
-            builtin_entities: builtin_entities.clone(), // Clone because entities have been created already so move is not possible
+            builtin_entities,
             user_defined_entities,
             enabled: Arc::new(atomic::AtomicBool::new(false)),
+            enabled_function: Once::new(),
             thread_list: RefCell::new(Vec::new()),
         }
     }
@@ -335,7 +321,7 @@ impl RtpsParticipant {
         qos: Option<TopicQos>,
         // _a_listener: impl TopicListener<T>,
         // _mask: StatusMask
-    ) -> Option<RtpsTopicRef> {
+    ) -> Option<RtpsAnyTopicRef> {
         let guid_prefix = self.participant.entity.guid.prefix();
         let qos = qos.unwrap_or_default();
         qos.is_consistent().ok()?;
@@ -343,7 +329,7 @@ impl RtpsParticipant {
             .create_topic::<T>(guid_prefix, topic_name, qos)
     }
 
-    pub fn delete_topic<T: DDSType>(&self, a_topic: &RtpsTopicRef) -> ReturnCode<()> {
+    pub fn delete_topic<T: DDSType>(&self, a_topic: &RtpsAnyTopicRef) -> ReturnCode<()> {
         self.user_defined_entities.delete_topic::<T>(a_topic)
     }
 
@@ -393,8 +379,40 @@ impl RtpsParticipant {
     }
 
     pub fn enable(&self) -> ReturnCode<()> {
-        if self.enabled.load(atomic::Ordering::Acquire) == false {
-            self.enabled.store(true, atomic::Ordering::Release);
+        self.enabled_function.call_once(||{
+            let guid_prefix = self.participant.entity.guid.prefix();
+            let builtin_publisher = self
+                .builtin_entities
+                .create_publisher(PublisherQos::default(), guid_prefix, EntityType::BuiltIn)
+                .expect("Error creating built-in publisher");
+
+            let spdp_topic_qos = TopicQos::default();
+            let spdp_topic = self.builtin_entities
+                .create_topic::<SpdpDiscoveredParticipantData>(guid_prefix, "SPDP", spdp_topic_qos)
+                .expect("Error creating SPDP topic");
+
+            let mut spdp_announcer_qos = DataWriterQos::default();
+            spdp_announcer_qos.reliability.kind = crate::dds::infrastructure::qos_policy::ReliabilityQosPolicyKind::BestEffortReliabilityQos;
+            let spdp_announcer = builtin_publisher
+                .get()
+                .expect("Error retrieving built-in publisher")
+                .create_stateless_builtin_datawriter::<SpdpDiscoveredParticipantData>(
+                    &spdp_topic,
+                    Some(spdp_announcer_qos),
+                )
+                .expect("Error creating SPDP built-in writer");
+
+            let spdp_locator = Locator::new_udpv4(7400, [239, 255, 0, 0]);
+
+            spdp_announcer
+                .get_as::<SpdpDiscoveredParticipantData>()
+                .unwrap()
+                .writer
+                .lock()
+                .unwrap()
+                .try_get_stateless()
+                .unwrap()
+                .reader_locator_add(spdp_locator);
 
             let builtin_publisher = self.get_builtin_publisher().unwrap();
             let spdp_announcer = builtin_publisher
@@ -424,13 +442,15 @@ impl RtpsParticipant {
             let mut thread_list = self.thread_list.borrow_mut();
             let enabled = self.enabled.clone();
             let builtin_entities = self.builtin_entities.clone();
+            self.enabled.store(true, atomic::Ordering::Release);
             thread_list.push(std::thread::spawn(move || {
                 while enabled.load(atomic::Ordering::Acquire) {
                     builtin_entities.send_data();
                     std::thread::sleep(std::time::Duration::from_secs(1));
                 }
             }));
-        }
+            
+        });
 
         Ok(())
     }

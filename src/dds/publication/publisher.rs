@@ -1,21 +1,14 @@
-use crate::dds::infrastructure::entity::{Entity, StatusCondition};
+use crate::dds::domain::domain_participant::DomainParticipant;
 use crate::dds::infrastructure::qos::{DataWriterQos, PublisherQos, TopicQos};
 use crate::dds::infrastructure::status::StatusMask;
 use crate::dds::publication::data_writer::DataWriter;
 use crate::dds::publication::publisher_listener::PublisherListener;
 use crate::dds::topic::topic::Topic;
 use crate::dds::{
-    domain::domain_participant::DomainParticipant,
-    implementation::{rtps_datawriter::RtpsDataWriter, rtps_publisher::RtpsPublisher},
+    implementation::rtps_publisher::RtpsPublisherRef,
+    infrastructure::entity::{Entity, StatusCondition},
 };
-use crate::types::{DDSType, Duration, InstanceHandle, ReturnCode, ReturnCodes};
-use crate::utils::maybe_valid::MaybeValidRef;
-
-impl<'a> MaybeValidRef<'a, Box<RtpsPublisher>> {
-    pub fn value(&self) -> ReturnCode<&Box<RtpsPublisher>> {
-        self.get().ok_or(ReturnCodes::AlreadyDeleted)
-    }
-}
+use crate::types::{DDSType, Duration, InstanceHandle, ReturnCode};
 
 /// The Publisher acts on the behalf of one or several DataWriter objects that belong to it. When it is informed of a change to the
 /// data associated with one of its DataWriter objects, it decides when it is appropriate to actually send the data-update message.
@@ -25,7 +18,7 @@ impl<'a> MaybeValidRef<'a, Box<RtpsPublisher>> {
 /// create_datawriter, and delete_datawriter may return the value NOT_ENABLED.
 pub struct Publisher<'a> {
     pub(crate) parent_participant: &'a DomainParticipant,
-    pub(crate) rtps_publisher: MaybeValidRef<'a, Box<RtpsPublisher>>,
+    pub(crate) rtps_publisher: RtpsPublisherRef<'a>,
 }
 
 impl<'a> Publisher<'a> {
@@ -96,7 +89,7 @@ impl<'a> Publisher<'a> {
     /// topic_name. If no such DataWriter exists, the operation will return ’nil.’
     /// If multiple DataWriter attached to the Publisher satisfy this condition, then the operation will return one of them. It is not
     /// specified which one.
-    pub fn lookup_datawriter<T: DDSType>(&self, topic_name: &str) -> Option<DataWriter<T>> {
+    pub fn lookup_datawriter<T: DDSType>(&self, _topic_name: &str) -> Option<DataWriter<T>> {
         todo!()
     }
 

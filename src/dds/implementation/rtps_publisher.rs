@@ -1,16 +1,30 @@
 use std::sync::{atomic, Mutex};
 
-use crate::{dds::{
+use crate::{
+    dds::{
         infrastructure::{
             qos::{DataWriterQos, PublisherQos},
             status::StatusMask,
         },
         publication::publisher_listener::PublisherListener,
-    }, rtps::{structure::Group, types::{EntityId, GUID, constants::{ENTITY_KIND_BUILT_IN_WRITER_NO_KEY, ENTITY_KIND_BUILT_IN_WRITER_WITH_KEY, ENTITY_KIND_USER_DEFINED_WRITER_GROUP, ENTITY_KIND_USER_DEFINED_WRITER_NO_KEY, ENTITY_KIND_USER_DEFINED_WRITER_WITH_KEY}}}, types::{DDSType, ReturnCode, TopicKind}, utils::maybe_valid::{MaybeValidList, MaybeValidRef}};
+    },
+    rtps::{
+        structure::Group,
+        types::{
+            constants::{
+                ENTITY_KIND_BUILT_IN_WRITER_NO_KEY, ENTITY_KIND_BUILT_IN_WRITER_WITH_KEY,
+                ENTITY_KIND_USER_DEFINED_WRITER_NO_KEY, ENTITY_KIND_USER_DEFINED_WRITER_WITH_KEY,
+            },
+            EntityId, GUID,
+        },
+    },
+    types::{DDSType, ReturnCode, ReturnCodes, TopicKind},
+    utils::maybe_valid::{MaybeValidList, MaybeValidRef},
+};
 
 use super::{
     rtps_datawriter::{AnyRtpsWriter, RtpsAnyDataWriterRef, RtpsDataWriter},
-    rtps_topic::RtpsTopicRef,
+    rtps_topic::RtpsAnyTopicRef,
 };
 
 enum Statefulness {
@@ -51,7 +65,7 @@ impl RtpsPublisher {
 
     pub fn create_stateful_builtin_datawriter<T: DDSType>(
         &self,
-        a_topic: &RtpsTopicRef,
+        a_topic: &RtpsAnyTopicRef,
         qos: Option<DataWriterQos>,
         // _a_listener: impl DataWriterListener<T>,
         // _mask: StatusMask
@@ -61,7 +75,7 @@ impl RtpsPublisher {
 
     pub fn create_stateless_builtin_datawriter<T: DDSType>(
         &self,
-        a_topic: &RtpsTopicRef,
+        a_topic: &RtpsAnyTopicRef,
         qos: Option<DataWriterQos>,
         // _a_listener: impl DataWriterListener<T>,
         // _mask: StatusMask
@@ -71,7 +85,7 @@ impl RtpsPublisher {
 
     pub fn create_user_defined_datawriter<T: DDSType>(
         &self,
-        a_topic: &RtpsTopicRef,
+        a_topic: &RtpsAnyTopicRef,
         qos: Option<DataWriterQos>,
         // _a_listener: impl DataWriterListener<T>,
         // _mask: StatusMask
@@ -81,7 +95,7 @@ impl RtpsPublisher {
 
     fn create_datawriter<T: DDSType>(
         &self,
-        a_topic: &RtpsTopicRef,
+        a_topic: &RtpsAnyTopicRef,
         qos: Option<DataWriterQos>,
         entity_type: &EntityType,
         // _a_listener: impl DataWriterListener<T>,
@@ -118,19 +132,16 @@ impl RtpsPublisher {
     }
 
     pub fn lookup_datawriter<T: DDSType>(&self, topic_name: &str) -> Option<RtpsAnyDataWriterRef> {
-        self.writer_list.into_iter().find(|writer|{
+        self.writer_list.into_iter().find(|writer| {
             if let Some(any_writer) = writer.get_as::<T>().ok() {
-                let topic_mutex_guard = any_writer
-                .topic
-                .lock()
-                .unwrap();
+                let topic_mutex_guard = any_writer.topic.lock().unwrap();
                 match &*topic_mutex_guard {
                     Some(any_topic) => any_topic.topic_name() == topic_name,
-                    _ => false
-                    }
+                    _ => false,
+                }
             } else {
                 false
-            }            
+            }
         })
     }
 
@@ -148,16 +159,8 @@ impl RtpsPublisher {
 
 pub type RtpsPublisherRef<'a> = MaybeValidRef<'a, Box<RtpsPublisher>>;
 
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::rtps::types::constants::*;
-
-    #[test]
-    fn lookup_datawriter() {
-        let guid = GUID::new(GUID_PREFIX_UNKNOWN, ENTITYID_UNKNOWN);    
-        let publisher = RtpsPublisher::new(guid,PublisherQos::default(), None, 0);
-        //publisher.create_datawriter(a_topic, qos, entity_type)
+impl<'a> RtpsPublisherRef<'a> {
+    pub fn value(&self) -> ReturnCode<&Box<RtpsPublisher>> {
+        self.get().ok_or(ReturnCodes::AlreadyDeleted)
     }
 }

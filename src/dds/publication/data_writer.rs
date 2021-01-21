@@ -1,4 +1,4 @@
-use crate::dds::{implementation::rtps_datawriter::{AnyRtpsWriter, RtpsDataWriter}, infrastructure::entity::{Entity, StatusCondition}};
+use crate::builtin_topics::SubscriptionBuiltinTopicData;
 use crate::dds::infrastructure::qos::DataWriterQos;
 use crate::dds::infrastructure::status::StatusMask;
 use crate::dds::infrastructure::status::{
@@ -8,14 +8,16 @@ use crate::dds::infrastructure::status::{
 use crate::dds::publication::data_writer_listener::DataWriterListener;
 use crate::dds::publication::publisher::Publisher;
 use crate::dds::topic::topic::Topic;
-use crate::types::{DDSType, Duration, InstanceHandle, ReturnCode, ReturnCodes, Time};
-use crate::utils::maybe_valid::MaybeValidRef;
-use crate::builtin_topics::SubscriptionBuiltinTopicData;
+use crate::dds::{
+    implementation::rtps_datawriter::RtpsAnyDataWriterRef,
+    infrastructure::entity::{Entity, StatusCondition},
+};
+use crate::types::{DDSType, Duration, InstanceHandle, ReturnCode, Time};
 
 pub struct DataWriter<'a, T: DDSType> {
     pub(crate) parent_publisher: &'a Publisher<'a>,
     pub(crate) topic: &'a Topic<'a, T>,
-    pub(crate) rtps_datawriter: MaybeValidRef<'a, Box<dyn AnyRtpsWriter>>,
+    pub(crate) rtps_datawriter: RtpsAnyDataWriterRef<'a>,
 }
 
 impl<'a, T: DDSType> DataWriter<'a, T> {
@@ -327,17 +329,11 @@ impl<'a, T: DDSType> Entity for DataWriter<'a, T> {
     type Listener = Box<dyn DataWriterListener<T>>;
 
     fn set_qos(&self, qos: Option<Self::Qos>) -> ReturnCode<()> {
-        self
-            .rtps_datawriter
-            .get_as::<T>()?
-            .set_qos(qos)
+        self.rtps_datawriter.get_as::<T>()?.set_qos(qos)
     }
 
     fn get_qos(&self) -> ReturnCode<Self::Qos> {
-        self
-            .rtps_datawriter
-            .get_as::<T>()?
-            .get_qos()
+        self.rtps_datawriter.get_as::<T>()?.get_qos()
     }
 
     fn set_listener(&self, _a_listener: Self::Listener, _mask: StatusMask) -> ReturnCode<()> {

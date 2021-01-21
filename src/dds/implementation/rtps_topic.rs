@@ -3,7 +3,7 @@ use std::{any::Any, sync::{Arc, Mutex}};
 use crate::{dds::{
         infrastructure::{qos::TopicQos, status::StatusMask},
         topic::topic_listener::TopicListener,
-    }, rtps::{self, types::GUID}, types::{DDSType, TopicKind}, utils::maybe_valid::MaybeValidRef};
+    }, rtps::{self, types::GUID}, types::{DDSType, ReturnCode, ReturnCodes, TopicKind}, utils::maybe_valid::MaybeValidRef};
 
 pub struct RtpsTopic<T: DDSType> {
     pub rtps_entity: rtps::structure::Entity,
@@ -70,4 +70,18 @@ impl<T: DDSType + Sized> AnyRtpsTopic for RtpsTopic<T> {
     }
 }
 
-pub type RtpsTopicRef<'a> = MaybeValidRef<'a, Arc<dyn AnyRtpsTopic>>;
+pub type RtpsAnyTopicRef<'a> = MaybeValidRef<'a, Arc<dyn AnyRtpsTopic>>;
+
+impl<'a> RtpsAnyTopicRef<'a> {
+    pub fn value(&self) -> ReturnCode<&Arc<dyn AnyRtpsTopic>> {
+        self.get().ok_or(ReturnCodes::AlreadyDeleted)
+    }
+
+    pub fn value_as<U: 'static>(&self) -> ReturnCode<&U> {
+        self.value()?
+            .as_ref()
+            .as_any()
+            .downcast_ref::<U>()
+            .ok_or(ReturnCodes::Error)
+    }
+}

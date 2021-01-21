@@ -1,8 +1,5 @@
 use core::sync::atomic;
 use std::sync::{RwLock, RwLockReadGuard};
-
-use super::as_any::AsAny;
-
 pub struct MaybeValid<T> {
     value: Option<T>,
     valid: atomic::AtomicBool,

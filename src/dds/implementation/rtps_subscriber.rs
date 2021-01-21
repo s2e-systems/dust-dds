@@ -18,7 +18,7 @@ use crate::{
             EntityId, GUID,
         },
     },
-    types::{DDSType, ReturnCode, TopicKind},
+    types::{DDSType, ReturnCode, ReturnCodes, TopicKind},
     utils::maybe_valid::{MaybeValidList, MaybeValidRef},
 };
 
@@ -127,3 +127,9 @@ impl RtpsSubscriber {
 }
 
 pub type RtpsSubscriberRef<'a> = MaybeValidRef<'a, Box<RtpsSubscriber>>;
+
+impl<'a> RtpsSubscriberRef<'a> {
+    pub fn value(&self) -> ReturnCode<&Box<RtpsSubscriber>> {
+        self.get().ok_or(ReturnCodes::AlreadyDeleted)
+    }
+}

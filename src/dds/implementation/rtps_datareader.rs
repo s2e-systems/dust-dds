@@ -3,20 +3,15 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use crate::{
-    dds::{
+use crate::{dds::{
         infrastructure::{
             qos::DataReaderQos, qos_policy::ReliabilityQosPolicyKind, status::StatusMask,
         },
         subscription::data_reader_listener::DataReaderListener,
-    },
-    rtps::{
+    }, rtps::{
         behavior::{self, StatefulReader},
         types::{ReliabilityKind, GUID},
-    },
-    types::DDSType,
-    utils::maybe_valid::MaybeValidRef,
-};
+    }, types::{DDSType, ReturnCode, ReturnCodes}, utils::maybe_valid::MaybeValidRef};
 
 use super::rtps_topic::AnyRtpsTopic;
 
@@ -96,3 +91,18 @@ impl<T: DDSType + Sized> AnyRtpsReader for RtpsDataReader<T> {
 }
 
 pub type RtpsAnyDataReaderRef<'a> = MaybeValidRef<'a, Box<dyn AnyRtpsReader>>;
+
+
+impl<'a> RtpsAnyDataReaderRef<'a> {
+    pub fn value(&self) -> ReturnCode<&Box<dyn AnyRtpsReader>> {
+        self.get().ok_or(ReturnCodes::AlreadyDeleted)
+    }
+
+    pub fn value_as<U: 'static>(&self) -> ReturnCode<&U> {
+        self.value()?
+            .as_ref()
+            .as_any()
+            .downcast_ref::<U>()
+            .ok_or(ReturnCodes::Error)
+    }
+}

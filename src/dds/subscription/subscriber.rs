@@ -1,4 +1,3 @@
-use crate::{dds::infrastructure::entity::{Entity, StatusCondition}, rtps::types::constants::{ENTITY_KIND_USER_DEFINED_READER_NO_KEY, ENTITY_KIND_USER_DEFINED_READER_WITH_KEY}};
 use crate::dds::infrastructure::qos::{DataReaderQos, SubscriberQos, TopicQos};
 use crate::dds::infrastructure::status::SampleLostStatus;
 use crate::dds::infrastructure::status::StatusMask;
@@ -6,19 +5,20 @@ use crate::dds::subscription::data_reader::DataReader;
 use crate::dds::subscription::subscriber_listener::SubscriberListener;
 use crate::dds::topic::topic::Topic;
 use crate::dds::{
-    domain::domain_participant::DomainParticipant,
-    implementation::{rtps_datareader::RtpsDataReader, rtps_subscriber::RtpsSubscriber},
+    domain::domain_participant::DomainParticipant, implementation::rtps_datareader::RtpsDataReader,
 };
 use crate::rtps::types::{EntityId, GUID};
-use crate::types::{DDSType, InstanceHandle, ReturnCode, ReturnCodes, TopicKind};
-use crate::utils::maybe_valid::MaybeValidRef;
+use crate::types::{DDSType, InstanceHandle, ReturnCode, TopicKind};
+use crate::{
+    dds::{
+        implementation::rtps_subscriber::RtpsSubscriberRef,
+        infrastructure::entity::{Entity, StatusCondition},
+    },
+    rtps::types::constants::{
+        ENTITY_KIND_USER_DEFINED_READER_NO_KEY, ENTITY_KIND_USER_DEFINED_READER_WITH_KEY,
+    },
+};
 use std::sync::atomic;
-
-impl<'a> MaybeValidRef<'a, Box<RtpsSubscriber>> {
-    pub fn value(&self) -> ReturnCode<&Box<RtpsSubscriber>> {
-        self.get().ok_or(ReturnCodes::AlreadyDeleted)
-    }
-}
 
 /// A Subscriber is the object responsible for the actual reception of the data resulting from its subscriptions
 ///
@@ -30,7 +30,7 @@ impl<'a> MaybeValidRef<'a, Box<RtpsSubscriber>> {
 /// and create_datareader may return the value NOT_ENABLED.
 pub struct Subscriber<'a> {
     pub(crate) parent_participant: &'a DomainParticipant,
-    pub(crate) rtps_subscriber: MaybeValidRef<'a, Box<RtpsSubscriber>>,
+    pub(crate) rtps_subscriber: RtpsSubscriberRef<'a>,
 }
 
 impl<'a> Subscriber<'a> {

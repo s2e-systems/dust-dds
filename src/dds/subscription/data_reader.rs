@@ -1,4 +1,4 @@
-use crate::dds::infrastructure::entity::{Entity, StatusCondition};
+use crate::builtin_topics::PublicationBuiltinTopicData;
 use crate::dds::infrastructure::qos::DataReaderQos;
 use crate::dds::infrastructure::read_condition::ReadCondition;
 use crate::dds::infrastructure::sample_info::SampleInfo;
@@ -12,26 +12,11 @@ use crate::dds::subscription::data_reader_listener::DataReaderListener;
 use crate::dds::subscription::subscriber::Subscriber;
 use crate::dds::topic::topic::Topic;
 use crate::dds::topic::topic_description::TopicDescription;
-use crate::types::{DDSType, InstanceHandle, ReturnCode, ReturnCodes};
-use crate::utils::maybe_valid::MaybeValidRef;
-use crate::{
-    builtin_topics::PublicationBuiltinTopicData,
-    dds::implementation::rtps_datareader::AnyRtpsReader,
+use crate::dds::{
+    implementation::rtps_datareader::RtpsAnyDataReaderRef,
+    infrastructure::entity::{Entity, StatusCondition},
 };
-
-impl<'a> MaybeValidRef<'a, Box<dyn AnyRtpsReader>> {
-    pub fn value(&self) -> ReturnCode<&Box<dyn AnyRtpsReader>> {
-        self.get().ok_or(ReturnCodes::AlreadyDeleted)
-    }
-
-    pub fn value_as<U: 'static>(&self) -> ReturnCode<&U> {
-        self.value()?
-            .as_ref()
-            .as_any()
-            .downcast_ref::<U>()
-            .ok_or(ReturnCodes::Error)
-    }
-}
+use crate::types::{DDSType, InstanceHandle, ReturnCode};
 
 /// A DataReader allows the application (1) to declare the data it wishes to receive (i.e., make a subscription) and (2) to access the
 /// data received by the attached Subscriber.
@@ -47,7 +32,7 @@ impl<'a> MaybeValidRef<'a, Box<dyn AnyRtpsReader>> {
 pub struct DataReader<'a, T: DDSType> {
     pub(crate) parent_subscriber: &'a Subscriber<'a>,
     pub(crate) topic: &'a Topic<'a, T>,
-    pub(crate) rtps_datareader: MaybeValidRef<'a, Box<dyn AnyRtpsReader>>,
+    pub(crate) rtps_datareader: RtpsAnyDataReaderRef<'a>,
 }
 
 impl<'a, T: DDSType> DataReader<'a, T> {
