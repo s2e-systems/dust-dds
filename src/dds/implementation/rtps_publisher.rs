@@ -1,26 +1,12 @@
 use std::sync::{atomic, Mutex};
 
-use crate::{
-    dds::{
+use crate::{dds::{
         infrastructure::{
             qos::{DataWriterQos, PublisherQos},
             status::StatusMask,
         },
         publication::publisher_listener::PublisherListener,
-    },
-    rtps::{
-        structure::Group,
-        types::{
-            constants::{
-                ENTITY_KIND_BUILT_IN_WRITER_NO_KEY, ENTITY_KIND_BUILT_IN_WRITER_WITH_KEY,
-                ENTITY_KIND_USER_DEFINED_WRITER_NO_KEY, ENTITY_KIND_USER_DEFINED_WRITER_WITH_KEY,
-            },
-            EntityId, GUID,
-        },
-    },
-    types::{DDSType, ReturnCode, TopicKind},
-    utils::maybe_valid::{MaybeValidList, MaybeValidRef},
-};
+    }, rtps::{structure::Group, types::{EntityId, GUID, constants::{ENTITY_KIND_BUILT_IN_WRITER_NO_KEY, ENTITY_KIND_BUILT_IN_WRITER_WITH_KEY, ENTITY_KIND_USER_DEFINED_WRITER_GROUP, ENTITY_KIND_USER_DEFINED_WRITER_NO_KEY, ENTITY_KIND_USER_DEFINED_WRITER_WITH_KEY}}}, types::{DDSType, ReturnCode, TopicKind}, utils::maybe_valid::{MaybeValidList, MaybeValidRef}};
 
 use super::{
     rtps_datawriter::{AnyRtpsWriter, RtpsAnyDataWriterRef, RtpsDataWriter},
@@ -132,10 +118,20 @@ impl RtpsPublisher {
     }
 
     pub fn lookup_datawriter<T: DDSType>(&self, topic_name: &str) -> Option<RtpsAnyDataWriterRef> {
-        // self.writer_list
-        //     .into_iter()
-        //     .find(|x| x.get_as::<Box<RtpsDataWriter<T>>>().is_some())
-        todo!()
+        self.writer_list.into_iter().find(|writer|{
+            if let Some(any_writer) = writer.get_as::<T>().ok() {
+                let topic_mutex_guard = any_writer
+                .topic
+                .lock()
+                .unwrap();
+                match &*topic_mutex_guard {
+                    Some(any_topic) => any_topic.topic_name() == topic_name,
+                    _ => false
+                    }
+            } else {
+                false
+            }            
+        })
     }
 
     pub fn get_default_datawriter_qos(&self) -> DataWriterQos {
@@ -151,3 +147,17 @@ impl RtpsPublisher {
 }
 
 pub type RtpsPublisherRef<'a> = MaybeValidRef<'a, Box<RtpsPublisher>>;
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::rtps::types::constants::*;
+
+    #[test]
+    fn lookup_datawriter() {
+        let guid = GUID::new(GUID_PREFIX_UNKNOWN, ENTITYID_UNKNOWN);    
+        let publisher = RtpsPublisher::new(guid,PublisherQos::default(), None, 0);
+        //publisher.create_datawriter(a_topic, qos, entity_type)
+    }
+}

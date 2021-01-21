@@ -4,17 +4,9 @@ use std::{
     thread::JoinHandle,
 };
 
-use crate::{
-    dds::infrastructure::qos::{
+use crate::{builtin_topics::ParticipantBuiltinTopicData, dds::infrastructure::{qos::{
         DataWriterQos, DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos,
-    },
-    discovery::types::SpdpDiscoveredParticipantData,
-    rtps::{
-        behavior::endpoint_traits::CacheChangeSender,
-        message_sender::RtpsMessageSender,
-        structure::Participant,
-        transport::Transport,
-        types::{
+    }, qos_policy::UserDataQosPolicy}, discovery::types::{ParticipantProxy, SpdpDiscoveredParticipantData}, rtps::{behavior::endpoint_traits::CacheChangeSender, endpoint_types::BuiltInEndpointSet, message_sender::RtpsMessageSender, structure::Participant, transport::Transport, types::{
             constants::{
                 ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, ENTITY_KIND_BUILT_IN_READER_GROUP,
                 ENTITY_KIND_BUILT_IN_WRITER_GROUP, ENTITY_KIND_USER_DEFINED_READER_GROUP,
@@ -22,11 +14,7 @@ use crate::{
                 PROTOCOL_VERSION_2_4, VENDOR_ID,
             },
             EntityId, GuidPrefix, GUID,
-        },
-    },
-    types::{DDSType, DomainId, ReturnCode, ReturnCodes},
-    utils::maybe_valid::MaybeValidList,
-};
+        }}, types::{BuiltInTopicKey, DDSType, DURATION_INFINITE, DomainId, ReturnCode, ReturnCodes, TIME_INVALID}, utils::maybe_valid::MaybeValidList};
 
 use super::{
     rtps_datawriter::RtpsAnyDataWriterRef,
@@ -225,6 +213,29 @@ pub struct RtpsParticipant {
     thread_list: RefCell<Vec<JoinHandle<()>>>,
 }
 
+impl Into<ParticipantProxy> for &RtpsParticipant {
+    fn into(self) -> ParticipantProxy {
+        ParticipantProxy {
+            domain_id: self.participant.domain_id,
+            domain_tag: "".to_string(),
+            protocol_version: self.participant.protocol_version,
+            guid_prefix: self.participant.entity.guid.prefix(),
+            vendor_id: self.participant.vendor_id,
+            expects_inline_qos: true,
+            available_built_in_endpoints: BuiltInEndpointSet { value: 9 },
+            // built_in_endpoint_qos:
+            metatraffic_unicast_locator_list: self.builtin_entities.transport.unicast_locator_list().clone(),
+            metatraffic_multicast_locator_list: self.builtin_entities
+                .transport
+                .multicast_locator_list()
+                .clone(),
+            default_unicast_locator_list: vec![],
+            default_multicast_locator_list: vec![],
+            manual_liveliness_count: 8,
+        }
+    }
+}
+
 impl RtpsParticipant {
     pub fn new(
         domain_id: DomainId,
@@ -367,26 +378,26 @@ impl RtpsParticipant {
         if self.enabled.load(atomic::Ordering::Acquire) == false {
             self.enabled.store(true, atomic::Ordering::Release);
 
-            // let builtin_publisher = self.get_builtin_publisher().unwrap();
-            // let spdp_announcer = builtin_publisher
-            //     .get()
-            //     .unwrap()
-            //     .lookup_datawriter::<SpdpDiscoveredParticipantData>("SPDP")
-            //     .unwrap();
+            let builtin_publisher = self.get_builtin_publisher().unwrap();
+            let spdp_announcer = builtin_publisher
+                .get()
+                .unwrap()
+                .lookup_datawriter::<SpdpDiscoveredParticipantData>("SPDP")
+                .unwrap();
 
-            // let key = BuiltInTopicKey([1, 2, 3]);
-            // let user_data = UserDataQosPolicy { value: vec![] };
-            // let dds_participant_data = ParticipantBuiltinTopicData { key, user_data };
-            // let participant_proxy = proxy_from_rtp_participant(&self.builtin_participant);
-            // let lease_duration = DURATION_INFINITE;
+            let key = BuiltInTopicKey([1, 2, 3]);
+            let user_data = UserDataQosPolicy { value: vec![] };
+            let dds_participant_data = ParticipantBuiltinTopicData { key, user_data };
+            let participant_proxy = self.into();
+            let lease_duration = DURATION_INFINITE;
 
-            // let data = SpdpDiscoveredParticipantData {
-            //     dds_participant_data,
-            //     participant_proxy,
-            //     lease_duration,
-            // };
+            let data = SpdpDiscoveredParticipantData {
+                dds_participant_data,
+                participant_proxy,
+                lease_duration,
+            };
 
-            // rtps_writer.write_w_timestamp(data, None, TIME_INVALID).ok();
+            spdp_announcer.get_as::<SpdpDiscoveredParticipantData>().unwrap().write_w_timestamp(data, None, TIME_INVALID).ok();
 
             let mut thread_list = self.thread_list.borrow_mut();
             let enabled = self.enabled.clone();
