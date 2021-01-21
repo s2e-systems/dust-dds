@@ -83,7 +83,7 @@ impl<'a> Publisher<'a> {
     pub fn delete_datawriter<T: DDSType>(&self, a_datawriter: &DataWriter<T>) -> ReturnCode<()> {
         a_datawriter
             .rtps_datawriter
-            .value_as::<RtpsDataWriter<T>>()?
+            .get_as::<T>()?
             .topic
             .lock()
             .unwrap()
@@ -96,7 +96,7 @@ impl<'a> Publisher<'a> {
     /// topic_name. If no such DataWriter exists, the operation will return ’nil.’
     /// If multiple DataWriter attached to the Publisher satisfy this condition, then the operation will return one of them. It is not
     /// specified which one.
-    pub fn lookup_datawriter<T: DDSType>(&self, _topic: &'a Topic<'a, T>) -> Option<DataWriter<T>> {
+    pub fn lookup_datawriter<T: DDSType>(&self, topic_name: &str) -> Option<DataWriter<T>> {
         todo!()
     }
 

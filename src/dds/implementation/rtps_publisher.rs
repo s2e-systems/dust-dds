@@ -131,6 +131,13 @@ impl RtpsPublisher {
         self.writer_list.add(Box::new(writer))
     }
 
+    pub fn lookup_datawriter<T: DDSType>(&self, topic_name: &str) -> Option<RtpsAnyDataWriterRef> {
+        // self.writer_list
+        //     .into_iter()
+        //     .find(|x| x.get_as::<Box<RtpsDataWriter<T>>>().is_some())
+        todo!()
+    }
+
     pub fn get_default_datawriter_qos(&self) -> DataWriterQos {
         self.default_datawriter_qos.lock().unwrap().clone()
     }

@@ -12,21 +12,6 @@ use crate::types::{DDSType, Duration, InstanceHandle, ReturnCode, ReturnCodes, T
 use crate::utils::maybe_valid::MaybeValidRef;
 use crate::builtin_topics::SubscriptionBuiltinTopicData;
 
-
-impl<'a> MaybeValidRef<'a, Box<dyn AnyRtpsWriter>> {
-    pub fn value(&self) -> ReturnCode<&Box<dyn AnyRtpsWriter>> {
-        self.get().ok_or(ReturnCodes::AlreadyDeleted)
-    }
-
-    pub fn value_as<U: 'static>(&self) -> ReturnCode<&U> {
-        self.value()?
-            .as_ref()
-            .as_any()
-            .downcast_ref::<U>()
-            .ok_or(ReturnCodes::Error)
-    }
-}
-
 pub struct DataWriter<'a, T: DDSType> {
     pub(crate) parent_publisher: &'a Publisher<'a>,
     pub(crate) topic: &'a Topic<'a, T>,
@@ -199,7 +184,7 @@ impl<'a, T: DDSType> DataWriter<'a, T> {
         timestamp: Time,
     ) -> ReturnCode<()> {
         self.rtps_datawriter
-            .value_as::<RtpsDataWriter<T>>()?
+            .get_as::<T>()?
             .write_w_timestamp(data, handle, timestamp)
     }
 
@@ -344,14 +329,14 @@ impl<'a, T: DDSType> Entity for DataWriter<'a, T> {
     fn set_qos(&self, qos: Option<Self::Qos>) -> ReturnCode<()> {
         self
             .rtps_datawriter
-            .value_as::<RtpsDataWriter<T>>()?
+            .get_as::<T>()?
             .set_qos(qos)
     }
 
     fn get_qos(&self) -> ReturnCode<Self::Qos> {
         self
             .rtps_datawriter
-            .value_as::<RtpsDataWriter<T>>()?
+            .get_as::<T>()?
             .get_qos()
     }
 

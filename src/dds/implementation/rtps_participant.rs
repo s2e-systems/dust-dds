@@ -16,9 +16,10 @@ use crate::{
         transport::Transport,
         types::{
             constants::{
-                ENTITY_KIND_BUILT_IN_READER_GROUP, ENTITY_KIND_BUILT_IN_WRITER_GROUP,
-                ENTITY_KIND_USER_DEFINED_READER_GROUP, ENTITY_KIND_USER_DEFINED_UNKNOWN,
-                ENTITY_KIND_USER_DEFINED_WRITER_GROUP, PROTOCOL_VERSION_2_4, VENDOR_ID,
+                ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, ENTITY_KIND_BUILT_IN_READER_GROUP,
+                ENTITY_KIND_BUILT_IN_WRITER_GROUP, ENTITY_KIND_USER_DEFINED_READER_GROUP,
+                ENTITY_KIND_USER_DEFINED_UNKNOWN, ENTITY_KIND_USER_DEFINED_WRITER_GROUP,
+                PROTOCOL_VERSION_2_4, VENDOR_ID,
             },
             EntityId, GuidPrefix, GUID,
         },
@@ -28,6 +29,7 @@ use crate::{
 };
 
 use super::{
+    rtps_datawriter::RtpsAnyDataWriterRef,
     rtps_publisher::{RtpsPublisher, RtpsPublisherRef},
     rtps_subscriber::{RtpsSubscriber, RtpsSubscriberRef},
     rtps_topic::{AnyRtpsTopic, RtpsTopic, RtpsTopicRef},
@@ -362,22 +364,29 @@ impl RtpsParticipant {
     }
 
     pub fn enable(&self) -> ReturnCode<()> {
-        // let key = BuiltInTopicKey([1, 2, 3]);
-        // let user_data = UserDataQosPolicy { value: vec![] };
-        // let dds_participant_data = ParticipantBuiltinTopicData { key, user_data };
-        // let participant_proxy = proxy_from_rtp_participant(&self.builtin_participant);
-        // let lease_duration = DURATION_INFINITE;
-
-        // let data = SpdpDiscoveredParticipantData {
-        //     dds_participant_data,
-        //     participant_proxy,
-        //     lease_duration,
-        // };
-
-        // rtps_writer.write_w_timestamp(data, None, TIME_INVALID).ok();
-
         if self.enabled.load(atomic::Ordering::Acquire) == false {
             self.enabled.store(true, atomic::Ordering::Release);
+
+            // let builtin_publisher = self.get_builtin_publisher().unwrap();
+            // let spdp_announcer = builtin_publisher
+            //     .get()
+            //     .unwrap()
+            //     .lookup_datawriter::<SpdpDiscoveredParticipantData>("SPDP")
+            //     .unwrap();
+
+            // let key = BuiltInTopicKey([1, 2, 3]);
+            // let user_data = UserDataQosPolicy { value: vec![] };
+            // let dds_participant_data = ParticipantBuiltinTopicData { key, user_data };
+            // let participant_proxy = proxy_from_rtp_participant(&self.builtin_participant);
+            // let lease_duration = DURATION_INFINITE;
+
+            // let data = SpdpDiscoveredParticipantData {
+            //     dds_participant_data,
+            //     participant_proxy,
+            //     lease_duration,
+            // };
+
+            // rtps_writer.write_w_timestamp(data, None, TIME_INVALID).ok();
 
             let mut thread_list = self.thread_list.borrow_mut();
             let enabled = self.enabled.clone();

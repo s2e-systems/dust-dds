@@ -1,6 +1,8 @@
 use core::sync::atomic;
 use std::sync::{RwLock, RwLockReadGuard};
 
+use super::as_any::AsAny;
+
 pub struct MaybeValid<T> {
     value: Option<T>,
     valid: atomic::AtomicBool,
@@ -44,6 +46,7 @@ impl<T> MaybeValid<T> {
         self.valid.store(true, atomic::Ordering::Release);
     }
 }
+
 pub struct MaybeValidRef<'a, T>(pub RwLockReadGuard<'a, MaybeValid<T>>);
 
 impl<'a, T> std::ops::Deref for MaybeValidRef<'a, T> {

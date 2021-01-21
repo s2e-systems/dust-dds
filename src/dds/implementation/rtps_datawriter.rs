@@ -4,17 +4,22 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use crate::{dds::{
+use crate::{
+    dds::{
         infrastructure::{
             qos::DataWriterQos, qos_policy::ReliabilityQosPolicyKind, status::StatusMask,
         },
         publication::data_writer_listener::DataWriterListener,
-    }, rtps::{
+    },
+    rtps::{
         behavior::{
             self, endpoint_traits::CacheChangeSender, StatefulWriter, StatelessWriter, Writer,
         },
         types::{ReliabilityKind, GUID},
-    }, types::{DDSType, InstanceHandle, ReturnCode, Time}, utils::maybe_valid::MaybeValidRef};
+    },
+    types::{DDSType, InstanceHandle, ReturnCode, ReturnCodes, Time},
+    utils::{as_any::AsAny, maybe_valid::MaybeValidRef},
+};
 
 use super::rtps_topic::{AnyRtpsTopic, RtpsTopicRef};
 
@@ -179,20 +184,31 @@ impl<T: DDSType> RtpsDataWriter<T> {
     }
 }
 
-pub trait AnyRtpsWriter: Send + Sync {
+pub trait AnyRtpsWriter: AsAny + Send + Sync {
     fn writer(&self) -> &Mutex<WriterFlavor>;
-
-    fn as_any(&self) -> &dyn Any;
 }
 
 impl<T: DDSType + Sized> AnyRtpsWriter for RtpsDataWriter<T> {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
     fn writer(&self) -> &Mutex<WriterFlavor> {
         &self.writer
     }
 }
 
+impl<T: DDSType + Sized> AsAny for RtpsDataWriter<T> {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
 pub type RtpsAnyDataWriterRef<'a> = MaybeValidRef<'a, Box<dyn AnyRtpsWriter>>;
+
+impl<'a> RtpsAnyDataWriterRef<'a> {
+    pub fn get_as<U: DDSType>(&self) -> ReturnCode<&RtpsDataWriter<U>> {
+        self.get()
+            .ok_or(ReturnCodes::AlreadyDeleted)?
+            .as_ref()
+            .as_any()
+            .downcast_ref()
+            .ok_or(ReturnCodes::Error)
+    }
+}
