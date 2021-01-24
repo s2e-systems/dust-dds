@@ -39,13 +39,13 @@ impl DomainParticipantFactory {
     /// default DomainParticipant QoS by means of the operation get_default_participant_qos (2.2.2.2.2.6) and using the resulting
     /// QoS to create the DomainParticipant.
     /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
-    pub fn create_participant(
+    pub fn create_participant<'a>(
         domain_id: DomainId,
         qos: Option<DomainParticipantQos>,
         // a_listener: impl DomainParticipantListener,
         // mask: StatusMask,
         //     enabled: bool,
-    ) -> Option<impl DomainParticipant> {
+    ) -> Option<RtpsParticipant<'a>> {
         let interface = "Wi-Fi";
         let userdata_transport =
             UdpTransport::default_userdata_transport(domain_id, interface).unwrap();

@@ -3,7 +3,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use crate::{dds::{domain::domain_participant::DomainParticipantNode, infrastructure::{entity::Entity, qos::TopicQos, status::StatusMask}, topic::{topic::Topic, topic_description::TopicDescription, topic_listener::TopicListener}}, rtps::{self, types::GUID}, types::{DDSType, ReturnCode, ReturnCodes, TopicKind}, utils::{
+use crate::{dds::{infrastructure::{entity::Entity, qos::TopicQos, status::StatusMask}, topic::{topic::Topic, topic_description::TopicDescription, topic_listener::TopicListener}}, rtps::{self, types::GUID}, types::{DDSType, ReturnCode, ReturnCodes, TopicKind}, utils::{
         as_any::AsAny,
         maybe_valid::{MaybeValid, MaybeValidNode, MaybeValidRef},
     }};
@@ -80,17 +80,14 @@ pub type RtpsAnyTopicNode<'a> = MaybeValidNode<'a, RtpsParticipant<'a>, Arc<dyn 
 
 pub type RtpsTopicNode<'a, T> = MaybeValidNode<'a, RtpsParticipant<'a>, Arc<RtpsTopic<T>>>;
 
-impl<'a, T:DDSType> DomainParticipantNode for RtpsTopicNode<'a, T> {
-    type DomainParticipantType = RtpsParticipant<'a>;
-}
-
 impl<'a, T: DDSType> Topic<T> for RtpsTopicNode<'a, T> {}
 
 impl<'a, T: DDSType> TopicDescription<T> for RtpsTopicNode<'a, T> {
+    type DomainParticipantType = RtpsParticipant<'a>;
 
-    // fn get_participant(&self) -> &Self::DomainParticipantType {
-    //     todo!()
-    // }
+    fn get_participant(&self) -> &Self::DomainParticipantType {
+        todo!()
+    }
 
     fn get_type_name(&self) -> ReturnCode<&str> {
         todo!()

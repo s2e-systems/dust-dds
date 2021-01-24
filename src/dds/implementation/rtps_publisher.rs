@@ -1,6 +1,6 @@
 use std::sync::{atomic, Arc, Mutex};
 
-use crate::{dds::{domain::domain_participant::DomainParticipantNode, infrastructure::{
+use crate::{dds::{domain::domain_participant::DomainParticipant, infrastructure::{
             entity::Entity,
             qos::{DataWriterQos, PublisherQos},
             status::StatusMask,
@@ -148,15 +148,12 @@ impl RtpsPublisher {
 
 pub type RtpsPublisherNode<'a> = MaybeValidNode<'a, RtpsParticipant<'a>, Box<RtpsPublisher>>;
 
-impl<'a> DomainParticipantNode for RtpsPublisherNode<'a> {
-    type DomainParticipantType = RtpsParticipant<'a>;
-}
-
 impl<'a> Publisher for RtpsPublisherNode<'a> {
+    type DomainParticipantType = RtpsParticipant<'a>;
 
     fn create_datawriter<T: DDSType>(
         &self,
-        a_topic: &Arc<dyn Topic<T>>,
+        a_topic: &Arc<dyn Topic<T, DomainParticipantType = Self::DomainParticipantType>>,
         qos: Option<DataWriterQos>,
         // _a_listener: impl DataWriterListener<T>,
         // _mask: StatusMask

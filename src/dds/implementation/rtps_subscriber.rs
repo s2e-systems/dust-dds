@@ -1,6 +1,6 @@
 use std::sync::{atomic, Arc, Mutex};
 
-use crate::{dds::{domain::domain_participant::DomainParticipantNode, infrastructure::{entity::Entity, qos::{DataReaderQos, SubscriberQos}, status::StatusMask}, subscription::{subscriber::Subscriber, subscriber_listener::SubscriberListener}, topic::topic::Topic}, rtps::{
+use crate::{dds::{domain::domain_participant::DomainParticipant, infrastructure::{entity::Entity, qos::{DataReaderQos, SubscriberQos}, status::StatusMask}, subscription::{subscriber::Subscriber, subscriber_listener::SubscriberListener}, topic::topic::Topic}, rtps::{
         structure::Group,
         types::{
             constants::{
@@ -118,14 +118,13 @@ impl RtpsSubscriber {
 
 pub type RtpsSubscriberNode<'a> = MaybeValidNode<'a, RtpsParticipant<'a>, Box<RtpsSubscriber>>;
 
-impl<'a> DomainParticipantNode for RtpsSubscriberNode<'a> {
-    type DomainParticipantType = RtpsParticipant<'a>;
-}
 
 impl<'a> Subscriber for RtpsSubscriberNode<'a> {
+    type DomainParticipantType = RtpsParticipant<'a>;
+
     fn create_datareader<T: DDSType>(
         &self,
-        a_topic: &Arc<dyn Topic<T>>,
+        a_topic: &Arc<dyn Topic<T, DomainParticipantType = Self::DomainParticipantType>>,
         qos: Option<DataReaderQos>,
         // _a_listener: impl DataReaderListener<T>,
         // _mask: StatusMask
@@ -137,7 +136,7 @@ impl<'a> Subscriber for RtpsSubscriberNode<'a> {
         todo!()
     }
 
-    fn lookup_datareader<T: DDSType>(&self, _topic: &Arc<dyn Topic<T>>) -> Option<Box<dyn crate::dds::subscription::data_reader::DataReader<T, SubscriberType=Self>>> {
+    fn lookup_datareader<T: DDSType>(&self, _topic: &Arc<dyn Topic<T, DomainParticipantType = Self::DomainParticipantType>>) -> Option<Box<dyn crate::dds::subscription::data_reader::DataReader<T, SubscriberType=Self>>> {
         todo!()
     }
 

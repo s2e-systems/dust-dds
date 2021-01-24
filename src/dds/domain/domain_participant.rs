@@ -1,17 +1,27 @@
 use std::sync::Arc;
 
-use crate::{builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData}, dds::{implementation::rtps_participant::RtpsParticipant, infrastructure::{
+use crate::{
+    builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
+    dds::{
+        infrastructure::{
             entity::{Entity, StatusCondition},
             qos::{DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
             status::StatusMask,
-        }, publication::{publisher::Publisher, publisher_listener::PublisherListener}, subscription::subscriber::Subscriber, topic::{topic::Topic, topic_description::TopicDescription}}, types::{DDSType, DomainId, Duration, InstanceHandle, ReturnCode, Time}};
+        },
+        publication::{publisher::Publisher, publisher_listener::PublisherListener},
+        subscription::subscriber::Subscriber,
+        topic::{topic::Topic, topic_description::TopicDescription},
+    },
+    types::{DDSType, DomainId, Duration, InstanceHandle, ReturnCode, Time},
+};
 
 use super::domain_participant_listener::DomainParticipantListener;
 
-
-pub trait DomainParticipant: Entity<Qos=DomainParticipantQos, Listener=Box<dyn DomainParticipantListener>> {
-    type PublisherType : Publisher;
-    type SubscriberType : Subscriber;
+pub trait DomainParticipant:
+    Entity<Qos = DomainParticipantQos, Listener = Box<dyn DomainParticipantListener>>
+{
+    type PublisherType: Publisher;
+    type SubscriberType: Subscriber;
 
     /// This operation creates a Publisher with the desired QoS policies and attaches to it the specified PublisherListener.
     /// If the specified QoS policies are not consistent, the operation will fail and no Publisher will be created.
@@ -76,7 +86,7 @@ pub trait DomainParticipant: Entity<Qos=DomainParticipantQos, Listener=Box<dyn D
         qos: Option<TopicQos>,
         // _a_listener: impl TopicListener<T>,
         // _mask: StatusMask
-    ) -> Option<Arc<dyn Topic<T>>>;
+    ) -> Option<Arc<dyn Topic<T, DomainParticipantType = Self>>>;
 
     /// This operation deletes a Topic.
     /// The deletion of a Topic is not allowed if there are any existing DataReader, DataWriter, ContentFilteredTopic, or MultiTopic
@@ -85,7 +95,7 @@ pub trait DomainParticipant: Entity<Qos=DomainParticipantQos, Listener=Box<dyn D
     /// The delete_topic operation must be called on the same DomainParticipant object used to create the Topic. If delete_topic is
     /// called on a different DomainParticipant, the operation will have no effect and it will return PRECONDITION_NOT_MET.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
-    fn delete_topic<T: DDSType>(&self, a_topic: &Arc<dyn Topic<T>>) -> ReturnCode<()>;
+    fn delete_topic<T: DDSType>(&self, a_topic: &Arc<dyn Topic<T, DomainParticipantType = Self>>) -> ReturnCode<()>;
 
     /// The operation find_topic gives access to an existing (or ready to exist) enabled Topic, based on its name. The operation takes
     /// as arguments the name of the Topic and a timeout.
@@ -102,7 +112,7 @@ pub trait DomainParticipant: Entity<Qos=DomainParticipantQos, Listener=Box<dyn D
         &self,
         _topic_name: &str,
         _timeout: Duration,
-    ) -> Option<Arc<dyn Topic<T>>>;
+    ) -> Option<Arc<dyn Topic<T, DomainParticipantType = Self>>>;
 
     /// The operation lookup_topicdescription gives access to an existing locally-created TopicDescription, based on its name. The
     /// operation takes as argument the name of the TopicDescription.
@@ -115,7 +125,10 @@ pub trait DomainParticipant: Entity<Qos=DomainParticipantQos, Listener=Box<dyn D
     /// deletion. It is still possible to delete the TopicDescription returned by lookup_topicdescription, provided it has no readers or
     /// writers, but then it is really deleted and subsequent lookups will fail.
     /// If the operation fails to locate a TopicDescription, a ‘nil’ value (as specified by the platform) is returned.
-    fn lookup_topicdescription<T: DDSType>(&self, _name: &str) -> Option<Arc<dyn TopicDescription<T>>>;
+    fn lookup_topicdescription<T: DDSType>(
+        &self,
+        _name: &str,
+    ) -> Option<Arc<dyn TopicDescription<T, DomainParticipantType = Self>>>;
 
     /// This operation allows access to the built-in Subscriber. Each DomainParticipant contains several built-in Topic objects as
     /// well as corresponding DataReader objects to access them. All these DataReader objects belong to a single built-in Subscriber.
@@ -295,8 +308,4 @@ pub trait DomainParticipant: Entity<Qos=DomainParticipantQos, Listener=Box<dyn D
     /// This operation returns the current value of the time that the service uses to time-stamp data-writes and to set the reception timestamp
     /// for the data-updates it receives.
     fn get_current_time(&self) -> ReturnCode<Time>;
-}
-
-pub trait DomainParticipantNode {
-    type DomainParticipantType;
 }

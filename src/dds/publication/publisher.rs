@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::dds::domain::domain_participant::{DomainParticipant, DomainParticipantNode};
+use crate::dds::domain::domain_participant::{DomainParticipant};
 use crate::dds::infrastructure::entity::{Entity, StatusCondition};
 use crate::dds::infrastructure::qos::{DataWriterQos, PublisherQos, TopicQos};
 use crate::dds::infrastructure::status::StatusMask;
@@ -15,7 +15,9 @@ use crate::types::{DDSType, Duration, ReturnCode};
 /// of the Publisher and the DataWriter.
 /// All operations except for the base-class operations set_qos, get_qos, set_listener, get_listener, enable, get_statuscondition,
 /// create_datawriter, and delete_datawriter may return the value NOT_ENABLED.
-pub trait Publisher: Entity<Qos = PublisherQos, Listener = Box<dyn PublisherListener>> + DomainParticipantNode {
+pub trait Publisher: Entity<Qos = PublisherQos, Listener = Box<dyn PublisherListener>> {
+    type DomainParticipantType;
+
     /// This operation creates a DataWriter. The returned DataWriter will be attached and belongs to the Publisher.
     /// The DataWriter returned by the create_datawriter operation will in fact be a derived class, specific to the data-type associated
     /// with the Topic. As described in 2.2.2.3.7, for each application-defined type “Foo” there is an implied, auto-generated class
@@ -39,7 +41,7 @@ pub trait Publisher: Entity<Qos = PublisherQos, Listener = Box<dyn PublisherList
     /// Publisher. If the Topic was created from a different DomainParticipant, the operation will fail and return a nil result.
     fn create_datawriter<T: DDSType>(
         &self,
-        a_topic: &Arc<dyn Topic<T>>,
+        a_topic: &Arc<dyn Topic<T, DomainParticipantType = Self::DomainParticipantType>>,
         qos: Option<DataWriterQos>,
         // _a_listener: impl DataWriterListener<T>,
         // _mask: StatusMask

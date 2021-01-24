@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::dds::{domain::domain_participant::DomainParticipantNode, infrastructure::entity::{Entity, StatusCondition}};
+use crate::dds::{infrastructure::entity::{Entity, StatusCondition}};
 use crate::dds::infrastructure::qos::{DataReaderQos, SubscriberQos, TopicQos};
 use crate::dds::infrastructure::status::SampleLostStatus;
 use crate::dds::infrastructure::status::StatusMask;
@@ -21,7 +21,8 @@ use crate::types::{DDSType, InstanceHandle, ReturnCode, TopicKind};
 /// objects through the operation get_datareaders and then access the data available though operations on the DataReader.
 /// All operations except for the base-class operations set_qos, get_qos, set_listener, get_listener, enable, get_statuscondition,
 /// and create_datareader may return the value NOT_ENABLED.
-pub trait Subscriber: Entity<Qos = SubscriberQos, Listener = Box<dyn SubscriberListener>> + DomainParticipantNode {
+pub trait Subscriber: Entity<Qos = SubscriberQos, Listener = Box<dyn SubscriberListener>>  {
+    type DomainParticipantType;
 
     /// This operation creates a DataReader. The returned DataReader will be attached and belong to the Subscriber.
     ///
@@ -52,7 +53,7 @@ pub trait Subscriber: Entity<Qos = SubscriberQos, Listener = Box<dyn SubscriberL
     /// return a nil result.
     fn create_datareader<T: DDSType>(
         &self,
-        a_topic: &Arc<dyn Topic<T>>,
+        a_topic: &Arc<dyn Topic<T, DomainParticipantType=Self::DomainParticipantType>>,
         qos: Option<DataReaderQos>,
         // _a_listener: impl DataReaderListener<T>,
         // _mask: StatusMask
@@ -82,7 +83,7 @@ pub trait Subscriber: Entity<Qos = SubscriberQos, Listener = Box<dyn SubscriberL
     /// The use of this operation on the built-in Subscriber allows access to the built-in DataReader entities for the built-in topics
     fn lookup_datareader<T: DDSType>(
         &self,
-        _topic: &Arc<dyn Topic<T>>,
+        _topic: &Arc<dyn Topic<T, DomainParticipantType = Self::DomainParticipantType>>,
     ) -> Option<Box<dyn DataReader<T, SubscriberType = Self>>>;
 
     /// This operation indicates that the application is about to access the data samples in any of the DataReader objects attached to

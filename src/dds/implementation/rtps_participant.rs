@@ -329,11 +329,11 @@ impl<'a> DomainParticipant for RtpsParticipant<'a> {
         qos: Option<TopicQos>,
         // _a_listener: impl TopicListener<T>,
         // _mask: StatusMask
-    ) -> Option<Arc<dyn Topic<T>>> {
+    ) -> Option<Arc<dyn Topic<T, DomainParticipantType = Self>>> {
         todo!()
     }
 
-    fn delete_topic<T: DDSType>(&self, a_topic: &Arc<dyn Topic<T>>) -> ReturnCode<()> {
+    fn delete_topic<T: DDSType>(&self, a_topic: &Arc<dyn Topic<T, DomainParticipantType = Self>>) -> ReturnCode<()> {
         todo!()
     }
 
@@ -341,11 +341,11 @@ impl<'a> DomainParticipant for RtpsParticipant<'a> {
         &self,
         _topic_name: &str,
         _timeout: crate::types::Duration,
-    ) -> Option<Arc<dyn Topic<T>>> {
+    ) -> Option<Arc<dyn Topic<T, DomainParticipantType = Self>>> {
         todo!()
     }
 
-    fn lookup_topicdescription<T: DDSType>(&self, _name: &str) -> Option<Arc<dyn TopicDescription<T>>> {
+    fn lookup_topicdescription<T: DDSType>(&self, _name: &str) -> Option<Arc<dyn TopicDescription<T, DomainParticipantType = Self>>> {
         todo!()
     }
 
