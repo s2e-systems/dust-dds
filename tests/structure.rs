@@ -1,5 +1,9 @@
-use rust_rtps::dds::domain::domain_participant_factory::DomainParticipantFactory;
+use rust_rtps::dds::domain::{
+    domain_participant::DomainParticipant, domain_participant_factory::DomainParticipantFactory,
+};
 use rust_rtps::dds::infrastructure::entity::Entity;
+use rust_rtps::dds::publication::publisher::Publisher;
+use rust_rtps::dds::subscription::subscriber::Subscriber;
 use rust_rtps::types::{DDSType, Data, InstanceHandle, ReturnCodes, TopicKind};
 
 struct TestType;
@@ -52,9 +56,7 @@ fn create_delete_subscriber() {
 #[test]
 fn create_delete_topic() {
     let participant = DomainParticipantFactory::create_participant(0, None).unwrap();
-    let topic = participant
-        .create_topic::<TestType>("abc", None)
-        .unwrap();
+    let topic = participant.create_topic::<TestType>("abc", None).unwrap();
     assert_eq!(participant.delete_topic(&topic), Ok(()));
     assert_eq!(topic.get_qos(), Err(ReturnCodes::AlreadyDeleted));
     assert_eq!(
@@ -93,9 +95,7 @@ fn not_allowed_to_delete_subscriber_from_different_participant() {
 fn not_allowed_to_delete_topic_from_different_participant() {
     let participant = DomainParticipantFactory::create_participant(0, None).unwrap();
     let other_participant = DomainParticipantFactory::create_participant(1, None).unwrap();
-    let topic = participant
-        .create_topic::<TestType>("abc", None)
-        .unwrap();
+    let topic = participant.create_topic::<TestType>("abc", None).unwrap();
     assert_eq!(
         other_participant.delete_topic(&topic),
         Err(ReturnCodes::PreconditionNotMet(
@@ -221,7 +221,9 @@ fn allowed_to_delete_topic_with_created_and_deleted_reader() {
         .create_topic::<TestType>("Test", None)
         .expect("Error creating topic");
     let subscriber = participant.create_subscriber(None).unwrap();
-    let a_datareader = subscriber.create_datareader(&reader_topic, None).unwrap();
+    let a_datareader = subscriber
+        .create_datareader::<TestType>(&reader_topic, None)
+        .unwrap();
     subscriber
         .delete_datareader(&a_datareader)
         .expect("Failed to delete datareader");

@@ -1,12 +1,9 @@
 use crate::dds::domain::domain_participant::DomainParticipant;
+use crate::dds::infrastructure::entity::{Entity, StatusCondition};
 use crate::dds::infrastructure::qos::TopicQos;
 use crate::dds::infrastructure::status::StatusMask;
 use crate::dds::topic::topic_description::TopicDescription;
 use crate::dds::topic::topic_listener::TopicListener;
-use crate::dds::{
-    implementation::rtps_topic::RtpsAnyTopicRef,
-    infrastructure::entity::{Entity, StatusCondition},
-};
 use crate::types::{DDSType, InstanceHandle, ReturnCode};
 
 /// Topic is the most basic description of the data to be published and subscribed.
@@ -15,13 +12,7 @@ use crate::types::{DDSType, InstanceHandle, ReturnCode};
 /// Topic is the only TopicDescription that can be used for publications and therefore associated to a DataWriter.
 /// All operations except for the base-class operations set_qos, get_qos, set_listener, get_listener, enable and
 /// get_status_condition may return the value NOT_ENABLED.
-pub struct Topic<'a, T: DDSType> {
-    pub(crate) parent_participant: &'a DomainParticipant,
-    pub(crate) rtps_topic: RtpsAnyTopicRef<'a>,
-    pub(crate) marker: std::marker::PhantomData<T>,
-}
-
-impl<'a, T: DDSType> Topic<'a, T> {
+pub trait Topic<T: DDSType> : TopicDescription<T>{
     // /// This method allows the application to retrieve the INCONSISTENT_TOPIC status of the Topic.
     // /// Each DomainEntity has a set of relevant communication statuses. A change of status causes the corresponding Listener to be
     // /// invoked and can also be monitored by means of the associated StatusCondition.
@@ -30,59 +21,4 @@ impl<'a, T: DDSType> Topic<'a, T> {
     // fn get_inconsistent_topic_status(
     //     &self, _status: &mut InconsistentTopicStatus,
     // ) -> ReturnCode<()>;
-}
-
-impl<'a, T: DDSType> TopicDescription for Topic<'a, T> {
-    fn get_participant(&self) -> &DomainParticipant {
-        self.parent_participant
-    }
-
-    fn get_type_name(&self) -> ReturnCode<&str> {
-        Ok(self.rtps_topic.get()?.type_name())
-    }
-
-    fn get_name(&self) -> ReturnCode<String> {
-        Ok(self.rtps_topic.get()?.topic_name().clone())
-    }
-}
-
-impl<'a, T: DDSType> Entity for Topic<'a, T> {
-    type Qos = TopicQos;
-    type Listener = Box<dyn TopicListener<T>>;
-
-    fn set_qos(&self, qos: Option<Self::Qos>) -> ReturnCode<()> {
-        let qos = qos.unwrap_or_default();
-        qos.is_consistent()?;
-        *self.rtps_topic.get()?.qos().lock().unwrap() = qos;
-        // discovery.update_topic(topic)?;
-        Ok(())
-    }
-
-    fn get_qos(&self) -> ReturnCode<Self::Qos> {
-        Ok(self.rtps_topic.get()?.qos().lock().unwrap().clone())
-    }
-
-    fn set_listener(&self, _a_listener: Self::Listener, _mask: StatusMask) -> ReturnCode<()> {
-        todo!()
-    }
-
-    fn get_listener(&self) -> &Self::Listener {
-        todo!()
-    }
-
-    fn get_statuscondition(&self) -> StatusCondition {
-        todo!()
-    }
-
-    fn get_status_changes(&self) -> StatusMask {
-        todo!()
-    }
-
-    fn enable(&self) -> ReturnCode<()> {
-        todo!()
-    }
-
-    fn get_instance_handle(&self) -> ReturnCode<InstanceHandle> {
-        Ok(self.rtps_topic.get()?.rtps_entity().guid.into())
-    }
 }

@@ -1,4 +1,5 @@
 use crate::builtin_topics::SubscriptionBuiltinTopicData;
+use crate::dds::infrastructure::entity::{Entity, StatusCondition};
 use crate::dds::infrastructure::qos::DataWriterQos;
 use crate::dds::infrastructure::status::StatusMask;
 use crate::dds::infrastructure::status::{
@@ -8,19 +9,13 @@ use crate::dds::infrastructure::status::{
 use crate::dds::publication::data_writer_listener::DataWriterListener;
 use crate::dds::publication::publisher::Publisher;
 use crate::dds::topic::topic::Topic;
-use crate::dds::{
-    implementation::rtps_datawriter::RtpsAnyDataWriterRef,
-    infrastructure::entity::{Entity, StatusCondition},
-};
 use crate::types::{DDSType, Duration, InstanceHandle, ReturnCode, Time};
 
-pub struct DataWriter<'a, T: DDSType> {
-    pub(crate) parent_publisher: &'a Publisher<'a>,
-    pub(crate) topic: &'a Topic<'a, T>,
-    pub(crate) rtps_datawriter: RtpsAnyDataWriterRef<'a>,
-}
+pub trait DataWriter<T: DDSType>:
+    Entity<Qos = DataWriterQos, Listener = Box<dyn DataWriterListener<T>>>
+{
+    type PublisherType : Publisher;
 
-impl<'a, T: DDSType> DataWriter<'a, T> {
     /// This operation informs the Service that the application will be modifying a particular instance. It gives an opportunity to the
     /// Service to pre-configure itself to improve performance.
     /// It takes as a parameter an instance (to get the key value) and returns a handle that can be used in successive write or dispose
@@ -35,9 +30,7 @@ impl<'a, T: DDSType> DataWriter<'a, T> {
     /// allocated handle. This may be used to lookup and retrieve the handle allocated to a given instance. The explicit use of this
     /// operation is optional as the application may call directly the write operation and specify a HANDLE_NIL to indicate that the
     /// ‘key’ should be examined to identify the instance.
-    pub fn register_instance(&self, _instance: T) -> ReturnCode<Option<InstanceHandle>> {
-        todo!()
-    }
+    fn register_instance(&self, _instance: T) -> ReturnCode<Option<InstanceHandle>>;
 
     /// This operation performs the same function as register_instance and can be used instead of register_instance in the cases
     /// where the application desires to specify the value for the source_timestamp. The source_timestamp potentially affects the
@@ -46,13 +39,11 @@ impl<'a, T: DDSType> DataWriter<'a, T> {
     /// This operation may block and return TIMEOUT under the same circumstances described for the write operation (2.2.2.4.2.11).
     /// This operation may return OUT_OF_RESOURCES under the same circumstances described for the write operation
     /// (2.2.2.4.2.11).
-    pub fn register_instance_w_timestamp(
+    fn register_instance_w_timestamp(
         &self,
         _instance: T,
         _timestamp: Time,
-    ) -> ReturnCode<Option<InstanceHandle>> {
-        todo!()
-    }
+    ) -> ReturnCode<Option<InstanceHandle>>;
 
     /// This operation reverses the action of register_instance. It should only be called on an instance that is currently registered.
     /// The operation unregister_instance should be called just once per instance, regardless of how many times register_instance
@@ -81,13 +72,7 @@ impl<'a, T: DDSType> DataWriter<'a, T> {
     /// This operation may block and return TIMEOUT under the same circumstances described for the write operation (2.2.2.4.2.11,
     /// write).
     /// Possible error codes returned in addition to the standard ones: TIMEOUT, PRECONDITION_NOT_MET.
-    pub fn unregister_instance(
-        &self,
-        _instance: T,
-        _handle: Option<InstanceHandle>,
-    ) -> ReturnCode<()> {
-        todo!()
-    }
+    fn unregister_instance(&self, _instance: T, _handle: Option<InstanceHandle>) -> ReturnCode<()>;
 
     /// This operation performs the same function as unregister_instance and can be used instead of unregister_instance in the cases
     /// where the application desires to specify the value for the source_timestamp. The source_timestamp potentially affects the
@@ -96,33 +81,26 @@ impl<'a, T: DDSType> DataWriter<'a, T> {
     /// The constraints on the values of the handle parameter and the corresponding error behavior are the same specified for the
     /// unregister_instance operation (2.2.2.4.2.7).
     /// This operation may block and return TIMEOUT under the same circumstances described for the write operation (2.2.2.4.2.11).
-    pub fn unregister_instance_w_timestamp(
+    fn unregister_instance_w_timestamp(
         &self,
         _instance: T,
         _handle: Option<InstanceHandle>,
         _timestamp: Time,
-    ) -> ReturnCode<()> {
-        todo!()
-    }
+    ) -> ReturnCode<()>;
 
     /// This operation can be used to retrieve the instance key that corresponds to an instance_handle. The operation will only fill the
     /// fields that form the key inside the key_holder instance.
     /// This operation may return BAD_PARAMETER if the InstanceHandle_t a_handle does not correspond to an existing dataobject
     /// known to the DataWriter. If the implementation is not able to check invalid handles, then the result in this situation is
     /// unspecified.
-    pub fn get_key_value(&self, _key_holder: &mut T, _handle: InstanceHandle) -> ReturnCode<()> {
-        // self.rtps_datawriter.get_key_value(key_holder.instance_handle(), handle)
-        todo!()
-    }
+    fn get_key_value(&self, _key_holder: &mut T, _handle: InstanceHandle) -> ReturnCode<()>;
 
     /// This operation takes as a parameter an instance and returns a handle that can be used in subsequent operations that accept an
     /// instance handle as an argument. The instance parameter is only used for the purpose of examining the fields that define the
     /// key.
     /// This operation does not register the instance in question. If the instance has not been previously registered, or if for any other
     /// reason the Service is unable to provide an instance handle, the Service will return the special value HANDLE_NIL.
-    pub fn lookup_instance(&self, _instance: &T) -> ReturnCode<Option<InstanceHandle>> {
-        todo!()
-    }
+    fn lookup_instance(&self, _instance: &T) -> ReturnCode<Option<InstanceHandle>>;
 
     /// This operation modifies the value of a data instance. When this operation is used, the Service will automatically supply the
     /// value of the source_timestamp that is made available to DataReader objects by means of the source_timestamp attribute
@@ -162,9 +140,7 @@ impl<'a, T: DDSType> DataWriter<'a, T> {
     /// by the ‘data’ parameter, the behavior is in general unspecified, but if detectable by the Service implementation, the return
     /// error-code will be PRECONDITION_NOT_MET. In case the handle is invalid, the behavior is in general unspecified, but if
     /// detectable the returned error-code will be BAD_PARAMETER.
-    pub fn write(&self, _data: T, _handle: Option<InstanceHandle>) -> ReturnCode<()> {
-        todo!()
-    }
+    fn write(&self, _data: T, _handle: Option<InstanceHandle>) -> ReturnCode<()>;
 
     /// This operation performs the same function as write except that it also provides the value for the source_timestamp that is made
     /// available to DataReader objects by means of the source_timestamp attribute inside the SampleInfo. See 2.2.2.5, Subscription
@@ -179,15 +155,12 @@ impl<'a, T: DDSType> DataWriter<'a, T> {
     /// This operation may return BAD_PARAMETER under the same circumstances described for the write operation (2.2.2.4.2.11).
     /// Similar to write, this operation must also be provided on the specialized class that is generated for the particular application
     /// data-type that is being written.
-    pub fn write_w_timestamp(
+    fn write_w_timestamp(
         &self,
         data: T,
         handle: Option<InstanceHandle>,
         timestamp: Time,
-    ) -> ReturnCode<()> {
-        self.rtps_datawriter
-            .write_w_timestamp(data, handle, timestamp)
-    }
+    ) -> ReturnCode<()>;
 
     /// This operation requests the middleware to delete the data (the actual deletion is postponed until there is no more use for that
     /// data in the whole system). In general, applications are made aware of the deletion by means of operations on the DataReader
@@ -201,9 +174,7 @@ impl<'a, T: DDSType> DataWriter<'a, T> {
     /// This operation may block and return TIMEOUT under the same circumstances described for the write operation (2.2.2.4.2.11).
     /// This operation may return OUT_OF_RESOURCES under the same circumstances described for the write operation
     /// (2.2.2.4.2.11).
-    pub fn dispose(&self, _data: T, _handle: Option<InstanceHandle>) -> ReturnCode<()> {
-        todo!()
-    }
+    fn dispose(&self, _data: T, _handle: Option<InstanceHandle>) -> ReturnCode<()>;
 
     /// This operation performs the same functions as dispose except that the application provides the value for the source_timestamp
     /// that is made available to DataReader objects by means of the source_timestamp attribute inside the SampleInfo (see 2.2.2.5,
@@ -218,14 +189,12 @@ impl<'a, T: DDSType> DataWriter<'a, T> {
     /// This operation may return OUT_OF_RESOURCES under the same circumstances described for the write operation
     /// (2.2.2.4.2.11).
     /// Possible error codes returned in addition to the standard ones: TIMEOUT, PRECONDITION_NOT_MET.
-    pub fn dispose_w_timestamp(
+    fn dispose_w_timestamp(
         &self,
         _data: T,
         _handle: Option<InstanceHandle>,
         _timestamp: Time,
-    ) -> ReturnCode<()> {
-        todo!()
-    }
+    ) -> ReturnCode<()>;
 
     /// This operation is intended to be used only if the DataWriter has RELIABILITY QoS kind set to RELIABLE. Otherwise the
     /// operation will return immediately with RETCODE_OK.
@@ -234,52 +203,38 @@ impl<'a, T: DDSType> DataWriter<'a, T> {
     /// specified by the max_wait parameter elapses, whichever happens first. A return value of OK indicates that all the samples
     /// written have been acknowledged by all reliable matched data readers; a return value of TIMEOUT indicates that max_wait
     /// elapsed before all the data was acknowledged.
-    pub fn wait_for_acknowledgments(&self, _max_wait: Duration) -> ReturnCode<()> {
-        todo!()
-    }
+    fn wait_for_acknowledgments(&self, _max_wait: Duration) -> ReturnCode<()>;
 
     /// This operation allows access to the LIVELINESS_LOST communication status. Communication statuses are described in
     /// 2.2.4.1, Communication Status.
-    pub fn get_liveliness_lost_status(&self, _status: &mut LivelinessLostStatus) -> ReturnCode<()> {
-        todo!()
-    }
+    fn get_liveliness_lost_status(&self, _status: &mut LivelinessLostStatus) -> ReturnCode<()>;
 
     /// This operation allows access to the OFFERED_DEADLINE_MISSED communication status. Communication statuses are
     /// described in 2.2.4.1, Communication Status.
-    pub fn get_offered_deadline_missed_status(
+    fn get_offered_deadline_missed_status(
         &self,
         _status: &mut OfferedDeadlineMissedStatus,
-    ) -> ReturnCode<()> {
-        todo!()
-    }
+    ) -> ReturnCode<()>;
 
     /// This operation allows access to the OFFERED_INCOMPATIBLE_QOS communication status. Communication statuses are
     /// described in 2.2.4.1, Communication Status.
-    pub fn get_offered_incompatible_qos_status(
+    fn get_offered_incompatible_qos_status(
         &self,
         _status: &mut OfferedIncompatibleQosStatus,
-    ) -> ReturnCode<()> {
-        todo!()
-    }
+    ) -> ReturnCode<()>;
 
     /// This operation allows access to the PUBLICATION_MATCHED communication status. Communication statuses are
     /// described in 2.2.4.1, Communication Status.
-    pub fn get_publication_matched_status(
+    fn get_publication_matched_status(
         &self,
         _status: &mut PublicationMatchedStatus,
-    ) -> ReturnCode<()> {
-        todo!()
-    }
+    ) -> ReturnCode<()>;
 
-    // /// This operation returns the Topic associated with the DataWriter. This is the same Topic that was used to create the DataWriter.
-    pub fn get_topic(&self) -> &Topic<T> {
-        &self.topic
-    }
+    /// This operation returns the Topic associated with the DataWriter. This is the same Topic that was used to create the DataWriter.
+    // fn get_topic(&self) -> &dyn Topic<T>;
 
     /// This operation returns the Publisher to which the DataWriter belongs.
-    pub fn get_publisher(&self) -> &Publisher {
-        self.parent_publisher
-    }
+    fn get_publisher(&self) -> &Self::PublisherType;
 
     /// This operation manually asserts the liveliness of the DataWriter. This is used in combination with the LIVELINESS QoS
     /// policy (see 2.2.3, Supported QoS) to indicate to the Service that the entity remains active.
@@ -288,9 +243,7 @@ impl<'a, T: DDSType> DataWriter<'a, T> {
     /// NOTE: Writing data via the write operation on a DataWriter asserts liveliness on the DataWriter itself and its
     /// DomainParticipant. Consequently the use of assert_liveliness is only needed if the application is not writing data regularly.
     /// Complete details are provided in 2.2.3.11, LIVELINESS.
-    pub fn assert_liveliness(&self) -> ReturnCode<()> {
-        todo!()
-    }
+    fn assert_liveliness(&self) -> ReturnCode<()>;
 
     /// This operation retrieves information on a subscription that is currently “associated” with the DataWriter; that is, a subscription
     /// with a matching Topic and compatible QoS that the application has not indicated should be “ignored” by means of the
@@ -300,13 +253,11 @@ impl<'a, T: DDSType> DataWriter<'a, T> {
     /// are currently matched with the DataWriter.
     /// The operation may also fail if the infrastructure does not hold the information necessary to fill in the subscription_data. In this
     /// case the operation will return UNSUPPORTED.
-    pub fn get_matched_subscription_data(
+    fn get_matched_subscription_data(
         &self,
         _subscription_data: SubscriptionBuiltinTopicData,
         _subscription_handle: InstanceHandle,
-    ) -> ReturnCode<()> {
-        todo!()
-    }
+    ) -> ReturnCode<()>;
 
     /// This operation retrieves the list of subscriptions currently “associated” with the DataWriter; that is, subscriptions that have a
     /// matching Topic and compatible QoS that the application has not indicated should be “ignored” by means of the
@@ -315,51 +266,11 @@ impl<'a, T: DDSType> DataWriter<'a, T> {
     /// identify the corresponding matched DataReader entities. These handles match the ones that appear in the ‘instance_handle’
     /// field of the SampleInfo when reading the “DCPSSubscriptions” builtin topic.
     /// The operation may fail if the infrastructure does not locally maintain the connectivity information.
-    pub fn get_matched_subscriptions(
+    fn get_matched_subscriptions(
         &self,
         _subscription_handles: &mut [InstanceHandle],
-    ) -> ReturnCode<()> {
-        todo!()
-    }
-}
-
-impl<'a, T: DDSType> Entity for DataWriter<'a, T> {
-    type Qos = DataWriterQos;
-    type Listener = Box<dyn DataWriterListener<T>>;
-
-    fn set_qos(&self, qos: Option<Self::Qos>) -> ReturnCode<()> {
-        self.rtps_datawriter.set_qos(qos)
-    }
-
-    fn get_qos(&self) -> ReturnCode<Self::Qos> {
-        self.rtps_datawriter.get_qos()
-    }
-
-    fn set_listener(&self, _a_listener: Self::Listener, _mask: StatusMask) -> ReturnCode<()> {
-        todo!()
-    }
-
-    fn get_listener(&self) -> &Self::Listener {
-        todo!()
-    }
-
-    fn get_statuscondition(&self) -> StatusCondition {
-        todo!()
-    }
-
-    fn get_status_changes(&self) -> StatusMask {
-        todo!()
-    }
-
-    fn enable(&self) -> ReturnCode<()> {
-        todo!()
-    }
-
-    fn get_instance_handle(&self) -> ReturnCode<InstanceHandle> {
-        todo!()
-    }
+    ) -> ReturnCode<()>;
 }
 
 pub trait AnyDataWriter {}
 
-impl<'a, T: DDSType> AnyDataWriter for DataWriter<'a, T> {}

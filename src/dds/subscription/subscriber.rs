@@ -1,3 +1,6 @@
+use std::sync::Arc;
+
+use crate::dds::{domain::domain_participant::DomainParticipantNode, infrastructure::entity::{Entity, StatusCondition}};
 use crate::dds::infrastructure::qos::{DataReaderQos, SubscriberQos, TopicQos};
 use crate::dds::infrastructure::status::SampleLostStatus;
 use crate::dds::infrastructure::status::StatusMask;
@@ -9,16 +12,6 @@ use crate::dds::{
 };
 use crate::rtps::types::{EntityId, GUID};
 use crate::types::{DDSType, InstanceHandle, ReturnCode, TopicKind};
-use crate::{
-    dds::{
-        implementation::rtps_subscriber::RtpsSubscriberRef,
-        infrastructure::entity::{Entity, StatusCondition},
-    },
-    rtps::types::constants::{
-        ENTITY_KIND_USER_DEFINED_READER_NO_KEY, ENTITY_KIND_USER_DEFINED_READER_WITH_KEY,
-    },
-};
-use std::sync::atomic;
 
 /// A Subscriber is the object responsible for the actual reception of the data resulting from its subscriptions
 ///
@@ -28,12 +21,8 @@ use std::sync::atomic;
 /// objects through the operation get_datareaders and then access the data available though operations on the DataReader.
 /// All operations except for the base-class operations set_qos, get_qos, set_listener, get_listener, enable, get_statuscondition,
 /// and create_datareader may return the value NOT_ENABLED.
-pub struct Subscriber<'a> {
-    pub(crate) parent_participant: &'a DomainParticipant,
-    pub(crate) rtps_subscriber: RtpsSubscriberRef<'a>,
-}
+pub trait Subscriber: Entity<Qos = SubscriberQos, Listener = Box<dyn SubscriberListener>> + DomainParticipantNode {
 
-impl<'a> Subscriber<'a> {
     /// This operation creates a DataReader. The returned DataReader will be attached and belong to the Subscriber.
     ///
     /// The DataReader returned by the create_datareader operation will in fact be a derived class, specific to the data-type
@@ -61,44 +50,13 @@ impl<'a> Subscriber<'a> {
     /// The TopicDescription passed to this operation must have been created from the same DomainParticipant that was used to
     /// create this Subscriber. If the TopicDescription was created from a different DomainParticipant, the operation will fail and
     /// return a nil result.
-    pub fn create_datareader<T: DDSType>(
+    fn create_datareader<T: DDSType>(
         &self,
-        a_topic: &'a Topic<'a, T>,
+        a_topic: &Arc<dyn Topic<T>>,
         qos: Option<DataReaderQos>,
         // _a_listener: impl DataReaderListener<T>,
         // _mask: StatusMask
-    ) -> Option<DataReader<T>> {
-        let this = self.rtps_subscriber.get().ok()?;
-        let topic = a_topic.rtps_topic.get().ok()?.clone();
-        let guid_prefix = this.group.entity.guid.prefix();
-        let entity_key = [
-            0,
-            this.reader_count.fetch_add(1, atomic::Ordering::Relaxed),
-            0,
-        ];
-        let entity_kind = match topic.topic_kind() {
-            TopicKind::WithKey => ENTITY_KIND_USER_DEFINED_READER_WITH_KEY,
-            TopicKind::NoKey => ENTITY_KIND_USER_DEFINED_READER_NO_KEY,
-        };
-        let entity_id = EntityId::new(entity_key, entity_kind);
-        let new_reader_guid = GUID::new(guid_prefix, entity_id);
-        let new_reader_qos = qos.unwrap_or(self.get_default_datareader_qos().ok()?);
-        let new_reader: Box<RtpsDataReader<T>> = Box::new(RtpsDataReader::new(
-            new_reader_guid,
-            topic,
-            new_reader_qos,
-            None,
-            0,
-        ));
-        // discovery.insert_reader(&new_reader).ok()?;
-        let rtps_datareader = this.reader_list.add(new_reader)?;
-
-        Some(DataReader {
-            parent_subscriber: self,
-            topic: a_topic,
-            rtps_datareader,
-        })
-    }
+    ) -> Option<Box<dyn DataReader<T, SubscriberType = Self>>>;
 
     /// This operation deletes a DataReader that belongs to the Subscriber. If the DataReader does not belong to the Subscriber, the
     /// operation returns the error PRECONDITION_NOT_MET.
@@ -112,30 +70,20 @@ impl<'a> Subscriber<'a> {
     /// delete_datareader is called on a different Subscriber, the operation will have no effect and it will return
     /// PRECONDITION_NOT_MET.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
-    pub fn delete_datareader<T: DDSType>(&self, a_datareader: &DataReader<T>) -> ReturnCode<()> {
-        let datareader = a_datareader
-            .rtps_datareader
-            .get_as::<T>()?;
-        // discovery.remove_reader(datareader)?;
-        datareader.topic.lock().unwrap().take(); // Drop the topic
-        a_datareader.rtps_datareader.delete();
-        Ok(())
-    }
+    fn delete_datareader<T: DDSType>(
+        &self,
+        a_datareader: &Box<dyn DataReader<T, SubscriberType = Self>>,
+    ) -> ReturnCode<()>;
 
     /// This operation retrieves a previously-created DataReader belonging to the Subscriber that is attached to a Topic with a
     /// matching topic_name. If no such DataReader exists, the operation will return ’nil.’
     /// If multiple DataReaders attached to the Subscriber satisfy this condition, then the operation will return one of them. It is not
     /// specified which one.
     /// The use of this operation on the built-in Subscriber allows access to the built-in DataReader entities for the built-in topics
-    pub fn lookup_datareader<T: DDSType>(&self, _topic: &'a Topic<'a, T>) -> Option<DataReader<T>> {
-        todo!()
-
-        // Some(DataReader {
-        //     parent_subscriber: self,
-        //     topic,
-        //     rtps_datareader,
-        // })
-    }
+    fn lookup_datareader<T: DDSType>(
+        &self,
+        _topic: &Arc<dyn Topic<T>>,
+    ) -> Option<Box<dyn DataReader<T, SubscriberType = Self>>>;
 
     /// This operation indicates that the application is about to access the data samples in any of the DataReader objects attached to
     /// the Subscriber.
@@ -151,9 +99,7 @@ impl<'a> Subscriber<'a> {
     /// The calls to begin_access/end_access may be nested. In that case, the application must call end_access as many times as it
     /// called begin_access.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
-    pub fn begin_access(&self) -> ReturnCode<()> {
-        todo!()
-    }
+    fn begin_access(&self) -> ReturnCode<()>;
 
     /// Indicates that the application has finished accessing the data samples in DataReader objects managed by the Subscriber.
     /// This operation must be used to ‘close’ a corresponding begin_access.
@@ -161,9 +107,7 @@ impl<'a> Subscriber<'a> {
     /// sample-accessing operations. This call must close a previous call to begin_access otherwise the operation will return the error
     /// PRECONDITION_NOT_MET.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
-    pub fn end_access(&self) -> ReturnCode<()> {
-        todo!()
-    }
+    fn end_access(&self) -> ReturnCode<()>;
 
     /// This operation allows the application to access the DataReader objects that contain samples with the specified sample_states,
     /// view_states, and instance_states.
@@ -187,28 +131,20 @@ impl<'a> Subscriber<'a> {
     //     sample_states: &[SampleStateKind],
     //     view_states: &[ViewStateKind],
     //     instance_states: &[InstanceStateKind],
-    // ) -> ReturnCode<()> {
-    //     self.rtps_subscriber.get_datareaders()
-    // }
+    // ) -> ReturnCode<()>;
 
     /// This operation invokes the operation on_data_available on the DataReaderListener objects attached to contained DataReader
     /// entities with a DATA_AVAILABLE status that is considered changed as described in 2.2.4.2.2, Changes in Read
     /// Communication Statuses.
     /// This operation is typically invoked from the on_data_on_readers operation in the SubscriberListener. That way the
     /// SubscriberListener can delegate to the DataReaderListener objects the handling of the data.
-    pub fn notify_datareaders(&self) -> ReturnCode<()> {
-        todo!()
-    }
+    fn notify_datareaders(&self) -> ReturnCode<()>;
 
     /// This operation allows access to the SAMPLE_LOST communication status. Communication statuses are described in 2.2.4.1
-    pub fn get_sample_lost_status(&self, _status: &mut SampleLostStatus) -> ReturnCode<()> {
-        todo!()
-    }
+    fn get_sample_lost_status(&self, _status: &mut SampleLostStatus) -> ReturnCode<()>;
 
     /// This operation returns the DomainParticipant to which the Subscriber belongs.
-    pub fn get_participant(&self) -> &DomainParticipant {
-        self.parent_participant
-    }
+    fn get_participant(&self) -> &Self::DomainParticipantType;
 
     /// This operation deletes all the entities that were created by means of the “create” operations on the Subscriber. That is, it
     /// deletes all contained DataReader objects. This pattern is applied recursively. In this manner the operation
@@ -219,9 +155,7 @@ impl<'a> Subscriber<'a> {
     /// operation and has not called the corresponding return_loan operation to return the loaned samples.
     /// Once delete_contained_entities returns successfully, the application may delete the Subscriber knowing that it has no
     /// contained DataReader objects.
-    pub fn delete_contained_entities(&self) -> ReturnCode<()> {
-        todo!()
-    }
+    fn delete_contained_entities(&self) -> ReturnCode<()>;
 
     /// This operation sets a default value of the DataReader QoS policies which will be used for newly created DataReader entities
     /// in the case where the QoS policies are defaulted in the create_datareader operation.
@@ -230,32 +164,14 @@ impl<'a> Subscriber<'a> {
     /// The special value DATAREADER_QOS_DEFAULT may be passed to this operation to indicate that the default QoS should
     /// be reset back to the initial values the factory would use, that is the values that would be used if the
     /// set_default_datareader_qos operation had never been called.
-    pub fn set_default_datareader_qos(&self, qos: Option<DataReaderQos>) -> ReturnCode<()> {
-        let qos = qos.unwrap_or_default();
-        qos.is_consistent()?;
-        *self
-            .rtps_subscriber
-            .get()?
-            .default_datareader_qos
-            .lock()
-            .unwrap() = qos;
-        Ok(())
-    }
+    fn set_default_datareader_qos(&self, qos: Option<DataReaderQos>) -> ReturnCode<()>;
 
     /// This operation retrieves the default value of the DataReader QoS, that is, the QoS policies which will be used for newly
     /// created DataReader entities in the case where the QoS policies are defaulted in the create_datareader operation.
     /// The values retrieved get_default_datareader_qos will match the set of values specified on the last successful call to
     /// get_default_datareader_qos, or else, if the call was never made, the default values listed in the QoS table in 2.2.3,
     /// Supported QoS.
-    pub fn get_default_datareader_qos(&self) -> ReturnCode<DataReaderQos> {
-        Ok(self
-            .rtps_subscriber
-            .get()?
-            .default_datareader_qos
-            .lock()
-            .unwrap()
-            .clone())
-    }
+    fn get_default_datareader_qos(&self) -> ReturnCode<DataReaderQos>;
 
     /// This operation copies the policies in the a_topic_qos to the corresponding policies in the a_datareader_qos (replacing values
     /// in the a_datareader_qos, if present).
@@ -264,48 +180,9 @@ impl<'a> Subscriber<'a> {
     /// corresponding ones on the Topic. The resulting QoS can then be used to create a new DataReader, or set its QoS.
     /// This operation does not check the resulting a_datareader_qos for consistency. This is because the ‘merged’ a_datareader_qos
     /// may not be the final one, as the application can still modify some policies prior to applying the policies to the DataReader.
-    pub fn copy_from_topic_qos(
+    fn copy_from_topic_qos(
         &self,
         _a_datareader_qos: &mut DataReaderQos,
         _a_topic_qos: &TopicQos,
-    ) -> ReturnCode<()> {
-        todo!()
-    }
-}
-
-impl<'a> Entity for Subscriber<'a> {
-    type Qos = SubscriberQos;
-    type Listener = Box<dyn SubscriberListener>;
-
-    fn set_qos(&self, _qos: Option<Self::Qos>) -> ReturnCode<()> {
-        todo!()
-    }
-
-    fn get_qos(&self) -> ReturnCode<Self::Qos> {
-        Ok(self.rtps_subscriber.get()?.qos.clone())
-    }
-
-    fn set_listener(&self, _a_listener: Self::Listener, _mask: StatusMask) -> ReturnCode<()> {
-        todo!()
-    }
-
-    fn get_listener(&self) -> &Self::Listener {
-        todo!()
-    }
-
-    fn get_statuscondition(&self) -> StatusCondition {
-        todo!()
-    }
-
-    fn get_status_changes(&self) -> StatusMask {
-        todo!()
-    }
-
-    fn enable(&self) -> ReturnCode<()> {
-        todo!()
-    }
-
-    fn get_instance_handle(&self) -> ReturnCode<InstanceHandle> {
-        Ok(self.rtps_subscriber.get()?.group.entity.guid.into())
-    }
+    ) -> ReturnCode<()>;
 }

@@ -1,14 +1,13 @@
-use crate::dds::domain::domain_participant::DomainParticipant;
+use std::sync::Arc;
+
+use crate::dds::domain::domain_participant::{DomainParticipant, DomainParticipantNode};
+use crate::dds::infrastructure::entity::{Entity, StatusCondition};
 use crate::dds::infrastructure::qos::{DataWriterQos, PublisherQos, TopicQos};
 use crate::dds::infrastructure::status::StatusMask;
 use crate::dds::publication::data_writer::DataWriter;
 use crate::dds::publication::publisher_listener::PublisherListener;
 use crate::dds::topic::topic::Topic;
-use crate::dds::{
-    implementation::rtps_publisher::RtpsPublisherRef,
-    infrastructure::entity::{Entity, StatusCondition},
-};
-use crate::types::{DDSType, Duration, InstanceHandle, ReturnCode};
+use crate::types::{DDSType, Duration, ReturnCode};
 
 /// The Publisher acts on the behalf of one or several DataWriter objects that belong to it. When it is informed of a change to the
 /// data associated with one of its DataWriter objects, it decides when it is appropriate to actually send the data-update message.
@@ -16,12 +15,7 @@ use crate::types::{DDSType, Duration, InstanceHandle, ReturnCode};
 /// of the Publisher and the DataWriter.
 /// All operations except for the base-class operations set_qos, get_qos, set_listener, get_listener, enable, get_statuscondition,
 /// create_datawriter, and delete_datawriter may return the value NOT_ENABLED.
-pub struct Publisher<'a> {
-    pub(crate) parent_participant: &'a DomainParticipant,
-    pub(crate) rtps_publisher: RtpsPublisherRef<'a>,
-}
-
-impl<'a> Publisher<'a> {
+pub trait Publisher: Entity<Qos = PublisherQos, Listener = Box<dyn PublisherListener>> + DomainParticipantNode {
     /// This operation creates a DataWriter. The returned DataWriter will be attached and belongs to the Publisher.
     /// The DataWriter returned by the create_datawriter operation will in fact be a derived class, specific to the data-type associated
     /// with the Topic. As described in 2.2.2.3.7, for each application-defined type “Foo” there is an implied, auto-generated class
@@ -43,25 +37,13 @@ impl<'a> Publisher<'a> {
     /// corresponding policy on the default QoS. The resulting QoS is then applied to the creation of the DataWriter.
     /// The Topic passed to this operation must have been created from the same DomainParticipant that was used to create this
     /// Publisher. If the Topic was created from a different DomainParticipant, the operation will fail and return a nil result.
-    pub fn create_datawriter<T: DDSType>(
-        &'a self,
-        a_topic: &'a Topic<'a, T>,
+    fn create_datawriter<T: DDSType>(
+        &self,
+        a_topic: &Arc<dyn Topic<T>>,
         qos: Option<DataWriterQos>,
         // _a_listener: impl DataWriterListener<T>,
         // _mask: StatusMask
-    ) -> Option<DataWriter<T>> {
-        let rtps_topic = &a_topic.rtps_topic;
-        let rtps_datawriter = self
-            .rtps_publisher
-            .create_datawriter::<T>(rtps_topic, qos)?;
-        // discovery.insert_writer(&new_writer).ok()?;
-
-        Some(DataWriter {
-            parent_publisher: self,
-            topic: a_topic,
-            rtps_datawriter,
-        })
-    }
+    ) -> Option<Box<dyn DataWriter<T, PublisherType = Self>>>;
 
     /// This operation deletes a DataWriter that belongs to the Publisher.
     /// The delete_datawriter operation must be called on the same Publisher object used to create the DataWriter. If
@@ -71,23 +53,19 @@ impl<'a> Publisher<'a> {
     /// WRITER_DATA_LIFECYCLE QosPolicy, the deletion of the DataWriter may also dispose all instances. Refer to 2.2.3.21 for
     /// details.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
-    pub fn delete_datawriter<T: DDSType>(&self, a_datawriter: &DataWriter<T>) -> ReturnCode<()> {
-        a_datawriter.rtps_datawriter.delete()
-    }
+    fn delete_datawriter<T: DDSType>(
+        &self,
+        a_datawriter: &Box<dyn DataWriter<T, PublisherType = Self>>,
+    ) -> ReturnCode<()>;
 
     /// This operation retrieves a previously created DataWriter belonging to the Publisher that is attached to a Topic with a matching
     /// topic_name. If no such DataWriter exists, the operation will return ’nil.’
     /// If multiple DataWriter attached to the Publisher satisfy this condition, then the operation will return one of them. It is not
     /// specified which one.
-    pub fn lookup_datawriter<T: DDSType>(&self, topic_name: &str) -> Option<DataWriter<T>> {
-        let rtps_datawriter = self.rtps_publisher.lookup_datawriter::<T>(topic_name)?;
-        todo!()
-        // Some(DataWriter {
-        //     parent_publisher: self,
-        //     topic: a_topic,
-        //     rtps_datawriter,
-        // })
-    }
+    fn lookup_datawriter<T: DDSType>(
+        &self,
+        topic_name: &str,
+    ) -> Option<Box<dyn DataWriter<T, PublisherType = Self>>>;
 
     /// This operation indicates to the Service that the application is about to make multiple modifications using DataWriter objects
     /// belonging to the Publisher.
@@ -97,9 +75,7 @@ impl<'a> Publisher<'a> {
     /// The use of this operation must be matched by a corresponding call to resume_publications indicating that the set of
     /// modifications has completed. If the Publisher is deleted before resume_publications is called, any suspended updates yet to
     /// be published will be discarded.
-    pub fn suspend_publications(&self) -> ReturnCode<()> {
-        todo!()
-    }
+    fn suspend_publications(&self) -> ReturnCode<()>;
 
     /// This operation indicates to the Service that the application has completed the multiple changes initiated by the previous
     /// suspend_publications. This is a hint to the Service that can be used by a Service implementation to e.g., batch all the
@@ -107,9 +83,7 @@ impl<'a> Publisher<'a> {
     /// The call to resume_publications must match a previous call to suspend_publications. Otherwise the operation will return the
     /// error PRECONDITION_NOT_MET.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
-    pub fn resume_publications(&self) -> ReturnCode<()> {
-        todo!()
-    }
+    fn resume_publications(&self) -> ReturnCode<()>;
 
     /// This operation requests that the application will begin a ‘coherent set’ of modifications using DataWriter objects attached to
     /// the Publisher. The ‘coherent set’ will be completed by a matching call to end_coherent_changes.
@@ -127,24 +101,18 @@ impl<'a> Publisher<'a> {
     /// the values are inter-related (for example, if there are two data-instances representing the ‘altitude’ and ‘velocity vector’ of the
     /// same aircraft and both are changed, it may be useful to communicate those values in a way the reader can see both together;
     /// otherwise, it may e.g., erroneously interpret that the aircraft is on a collision course).
-    pub fn begin_coherent_changes(&self) -> ReturnCode<()> {
-        todo!()
-    }
+    fn begin_coherent_changes(&self) -> ReturnCode<()>;
 
     /// This operation terminates the ‘coherent set’ initiated by the matching call to begin_coherent_ changes. If there is no matching
     /// call to begin_coherent_ changes, the operation will return the error PRECONDITION_NOT_MET.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET
-    pub fn end_coherent_changes(&self) -> ReturnCode<()> {
-        todo!()
-    }
+    fn end_coherent_changes(&self) -> ReturnCode<()>;
 
     /// This operation blocks the calling thread until either all data written by the reliable DataWriter entities is acknowledged by all
     /// matched reliable DataReader entities, or else the duration specified by the max_wait parameter elapses, whichever happens
     /// first. A return value of OK indicates that all the samples written have been acknowledged by all reliable matched data readers;
     /// a return value of TIMEOUT indicates that max_wait elapsed before all the data was acknowledged.
-    pub fn wait_for_acknowledgments(&self, _max_wait: Duration) -> ReturnCode<()> {
-        todo!()
-    }
+    fn wait_for_acknowledgments(&self, _max_wait: Duration) -> ReturnCode<()>;
 
     /// This operation deletes all the entities that were created by means of the “create” operations on the Publisher. That is, it deletes
     /// all contained DataWriter objects.
@@ -152,9 +120,7 @@ impl<'a> Publisher<'a> {
     /// deleted.
     /// Once delete_contained_entities returns successfully, the application may delete the Publisher knowing that it has no
     /// contained DataWriter objects
-    pub fn delete_contained_entities(&self) -> ReturnCode<()> {
-        todo!()
-    }
+    fn delete_contained_entities(&self) -> ReturnCode<()>;
 
     /// This operation sets a default value of the DataWriter QoS policies which will be used for newly created DataWriter entities in
     /// the case where the QoS policies are defaulted in the create_datawriter operation.
@@ -163,18 +129,14 @@ impl<'a> Publisher<'a> {
     /// The special value DATAWRITER_QOS_DEFAULT may be passed to this operation to indicate that the default QoS should be
     /// reset back to the initial values the factory would use, that is the values that would be used if the set_default_datawriter_qos
     /// operation had never been called.
-    pub fn set_default_datawriter_qos(&self, _qos: Option<DataWriterQos>) -> ReturnCode<()> {
-        todo!()
-    }
+    fn set_default_datawriter_qos(&self, _qos: Option<DataWriterQos>) -> ReturnCode<()>;
 
     /// This operation retrieves the default value of the DataWriter QoS, that is, the QoS policies which will be used for newly created
     /// DataWriter entities in the case where the QoS policies are defaulted in the create_datawriter operation.
     /// The values retrieved by get_default_datawriter_qos will match the set of values specified on the last successful call to
     /// set_default_datawriter_qos, or else, if the call was never made, the default values listed in the QoS table in 2.2.3, Supported
     /// QoS.
-    pub fn get_default_datawriter_qos(&self) -> ReturnCode<DataWriterQos> {
-        self.rtps_publisher.get_default_datawriter_qos()
-    }
+    fn get_default_datawriter_qos(&self) -> ReturnCode<DataWriterQos>;
 
     /// This operation copies the policies in the a_topic_qos to the corresponding policies in the a_datawriter_qos (replacing values
     /// in the a_datawriter_qos, if present).
@@ -183,53 +145,12 @@ impl<'a> Publisher<'a> {
     /// corresponding ones on the Topic. The resulting QoS can then be used to create a new DataWriter, or set its QoS.
     /// This operation does not check the resulting a_datawriter_qos for consistency. This is because the ‘merged’ a_datawriter_qos
     /// may not be the final one, as the application can still modify some policies prior to applying the policies to the DataWriter.
-    pub fn copy_from_topic_qos(
+    fn copy_from_topic_qos(
         &self,
         _a_datawriter_qos: &mut DataWriterQos,
         _a_topic_qos: &TopicQos,
-    ) -> ReturnCode<()> {
-        todo!()
-    }
+    ) -> ReturnCode<()>;
 
     /// This operation returns the DomainParticipant to which the Publisher belongs.
-    pub fn get_participant(&self) -> &DomainParticipant {
-        self.parent_participant
-    }
-}
-
-impl<'a> Entity for Publisher<'a> {
-    type Qos = PublisherQos;
-    type Listener = Box<dyn PublisherListener>;
-
-    fn set_qos(&self, _qos: Option<Self::Qos>) -> ReturnCode<()> {
-        todo!()
-    }
-
-    fn get_qos(&self) -> ReturnCode<Self::Qos> {
-        Ok(self.rtps_publisher.get()?.qos.clone())
-    }
-
-    fn set_listener(&self, _a_listener: Self::Listener, _mask: StatusMask) -> ReturnCode<()> {
-        todo!()
-    }
-
-    fn get_listener(&self) -> &Self::Listener {
-        todo!()
-    }
-
-    fn get_statuscondition(&self) -> StatusCondition {
-        todo!()
-    }
-
-    fn get_status_changes(&self) -> StatusMask {
-        todo!()
-    }
-
-    fn enable(&self) -> ReturnCode<()> {
-        todo!()
-    }
-
-    fn get_instance_handle(&self) -> ReturnCode<InstanceHandle> {
-        Ok(self.rtps_publisher.get()?.group.entity.guid.into())
-    }
+    fn get_participant(&self) -> &Self::DomainParticipantType;
 }

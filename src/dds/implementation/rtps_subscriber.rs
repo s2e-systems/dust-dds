@@ -1,12 +1,6 @@
 use std::sync::{atomic, Arc, Mutex};
 
-use crate::{dds::{
-        infrastructure::{
-            qos::{DataReaderQos, SubscriberQos},
-            status::StatusMask,
-        },
-        subscription::subscriber_listener::SubscriberListener,
-    }, rtps::{
+use crate::{dds::{domain::domain_participant::DomainParticipantNode, infrastructure::{entity::Entity, qos::{DataReaderQos, SubscriberQos}, status::StatusMask}, subscription::{subscriber::Subscriber, subscriber_listener::SubscriberListener}, topic::topic::Topic}, rtps::{
         structure::Group,
         types::{
             constants::{
@@ -15,10 +9,11 @@ use crate::{dds::{
             },
             EntityId, GUID,
         },
-    }, types::{DDSType, ReturnCode, ReturnCodes, TopicKind}, utils::maybe_valid::{MaybeValid, MaybeValidList, MaybeValidRef}};
+    }, types::{DDSType, ReturnCode, ReturnCodes, TopicKind}, utils::maybe_valid::{MaybeValid, MaybeValidList, MaybeValidNode, MaybeValidRef}};
 
 use super::{
     rtps_datareader::{AnyRtpsReader, RtpsAnyDataReaderRef, RtpsDataReader},
+    rtps_participant::RtpsParticipant,
     rtps_topic::AnyRtpsTopic,
 };
 
@@ -121,16 +116,105 @@ impl RtpsSubscriber {
     }
 }
 
-pub type RtpsSubscriberRef<'a> = MaybeValidRef<'a, Box<RtpsSubscriber>>;
+pub type RtpsSubscriberNode<'a> = MaybeValidNode<'a, RtpsParticipant<'a>, Box<RtpsSubscriber>>;
 
-impl<'a> RtpsSubscriberRef<'a> {
-    pub fn get(&self) -> ReturnCode<&RtpsSubscriber> {
-        Ok(MaybeValid::get(self)
-            .ok_or(ReturnCodes::AlreadyDeleted)?
-            .as_ref())
+impl<'a> DomainParticipantNode for RtpsSubscriberNode<'a> {
+    type DomainParticipantType = RtpsParticipant<'a>;
+}
+
+impl<'a> Subscriber for RtpsSubscriberNode<'a> {
+    fn create_datareader<T: DDSType>(
+        &self,
+        a_topic: &Arc<dyn Topic<T>>,
+        qos: Option<DataReaderQos>,
+        // _a_listener: impl DataReaderListener<T>,
+        // _mask: StatusMask
+    ) -> Option<Box<dyn crate::dds::subscription::data_reader::DataReader<T, SubscriberType=Self>>> {
+        todo!()
     }
 
-    pub fn delete(&self) {
-        MaybeValid::delete(self)
+    fn delete_datareader<T: DDSType>(&self, a_datareader: &Box<dyn crate::dds::subscription::data_reader::DataReader<T, SubscriberType=Self>>) -> ReturnCode<()> {
+        todo!()
+    }
+
+    fn lookup_datareader<T: DDSType>(&self, _topic: &Arc<dyn Topic<T>>) -> Option<Box<dyn crate::dds::subscription::data_reader::DataReader<T, SubscriberType=Self>>> {
+        todo!()
+    }
+
+    fn begin_access(&self) -> ReturnCode<()> {
+        todo!()
+    }
+
+    fn end_access(&self) -> ReturnCode<()> {
+        todo!()
+    }
+
+    fn notify_datareaders(&self) -> ReturnCode<()> {
+        todo!()
+    }
+
+    fn get_sample_lost_status(&self, _status: &mut crate::dds::infrastructure::status::SampleLostStatus) -> ReturnCode<()> {
+        todo!()
+    }
+
+    fn get_participant(&self) -> &Self::DomainParticipantType {
+        todo!()
+    }
+
+    fn delete_contained_entities(&self) -> ReturnCode<()> {
+        todo!()
+    }
+
+    fn set_default_datareader_qos(&self, qos: Option<DataReaderQos>) -> ReturnCode<()> {
+        todo!()
+    }
+
+    fn get_default_datareader_qos(&self) -> ReturnCode<DataReaderQos> {
+        todo!()
+    }
+
+    fn copy_from_topic_qos(
+        &self,
+        _a_datareader_qos: &mut DataReaderQos,
+        _a_topic_qos: &crate::dds::infrastructure::qos::TopicQos,
+    ) -> ReturnCode<()> {
+        todo!()
+    }
+}
+
+impl<'a> Entity for RtpsSubscriberNode<'a> {
+    type Qos = SubscriberQos;
+    type Listener = Box<dyn SubscriberListener>;
+
+    fn set_qos(&self, qos: Option<Self::Qos>) -> ReturnCode<()> {
+        todo!()
+    }
+
+    fn get_qos(&self) -> ReturnCode<Self::Qos> {
+        todo!()
+    }
+
+    fn set_listener(&self, a_listener: Self::Listener, mask: StatusMask) -> ReturnCode<()> {
+        todo!()
+    }
+
+    fn get_listener(&self) -> &Self::Listener {
+        todo!()
+    }
+
+    fn get_statuscondition(&self) -> crate::dds::infrastructure::entity::StatusCondition {
+        todo!()
+    }
+
+    fn get_status_changes(&self) -> StatusMask {
+        todo!()
+    }
+
+    fn enable(&self) -> ReturnCode<()> {
+        todo!()
+    }
+
+    fn get_instance_handle(&self) -> ReturnCode<crate::types::InstanceHandle> {
+        todo!()
     }
 }

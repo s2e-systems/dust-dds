@@ -45,7 +45,7 @@ impl DomainParticipantFactory {
         // a_listener: impl DomainParticipantListener,
         // mask: StatusMask,
         //     enabled: bool,
-    ) -> Option<DomainParticipant> {
+    ) -> Option<impl DomainParticipant> {
         let interface = "Wi-Fi";
         let userdata_transport =
             UdpTransport::default_userdata_transport(domain_id, interface).unwrap();
@@ -64,8 +64,8 @@ impl DomainParticipantFactory {
         //     new_participant.enable().ok()?;
         // }
 
-        Some(DomainParticipant(rtps_participant))
+        Some(rtps_participant)
     }
 
-    pub fn delete_participant(_a_participant: DomainParticipant) {}
+    pub fn delete_participant(_a_participant: impl DomainParticipant) {}
 }
