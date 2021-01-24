@@ -186,7 +186,6 @@ impl<'a, T: DDSType> DataWriter<'a, T> {
         timestamp: Time,
     ) -> ReturnCode<()> {
         self.rtps_datawriter
-            .get_as::<T>()?
             .write_w_timestamp(data, handle, timestamp)
     }
 
@@ -329,11 +328,11 @@ impl<'a, T: DDSType> Entity for DataWriter<'a, T> {
     type Listener = Box<dyn DataWriterListener<T>>;
 
     fn set_qos(&self, qos: Option<Self::Qos>) -> ReturnCode<()> {
-        self.rtps_datawriter.get_as::<T>()?.set_qos(qos)
+        self.rtps_datawriter.set_qos(qos)
     }
 
     fn get_qos(&self) -> ReturnCode<Self::Qos> {
-        self.rtps_datawriter.get_as::<T>()?.get_qos()
+        self.rtps_datawriter.get_qos()
     }
 
     fn set_listener(&self, _a_listener: Self::Listener, _mask: StatusMask) -> ReturnCode<()> {

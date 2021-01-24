@@ -1,14 +1,18 @@
-use crate::{builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData}, dds::{
+use crate::{
+    builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
+    dds::{
         implementation::rtps_participant::RtpsParticipant,
         infrastructure::{
             entity::{Entity, StatusCondition},
             qos::{DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
             status::StatusMask,
         },
-        publication::publisher::Publisher,
+        publication::{publisher::Publisher, publisher_listener::PublisherListener},
         subscription::subscriber::Subscriber,
         topic::topic::Topic,
-    }, types::{DDSType, DomainId, Duration, InstanceHandle, ReturnCode, Time}};
+    },
+    types::{DDSType, DomainId, Duration, InstanceHandle, ReturnCode, Time},
+};
 
 use super::domain_participant_listener::DomainParticipantListener;
 
@@ -25,8 +29,8 @@ impl DomainParticipant {
     pub fn create_publisher(
         &self,
         qos: Option<PublisherQos>,
-        // _a_listener: impl PublisherListener,
-        // _mask: StatusMask
+        // a_listener: Option<impl PublisherListener>,
+        // mask: StatusMask,
     ) -> Option<Publisher> {
         let rtps_publisher = self.0.create_publisher(qos)?;
 

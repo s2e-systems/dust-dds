@@ -53,9 +53,7 @@ impl<'a> Publisher<'a> {
         let rtps_topic = &a_topic.rtps_topic;
         let rtps_datawriter = self
             .rtps_publisher
-            .get()
-            .ok()?
-            .create_user_defined_datawriter::<T>(rtps_topic, qos)?;
+            .create_datawriter::<T>(rtps_topic, qos)?;
         // discovery.insert_writer(&new_writer).ok()?;
 
         Some(DataWriter {
@@ -81,8 +79,14 @@ impl<'a> Publisher<'a> {
     /// topic_name. If no such DataWriter exists, the operation will return ’nil.’
     /// If multiple DataWriter attached to the Publisher satisfy this condition, then the operation will return one of them. It is not
     /// specified which one.
-    pub fn lookup_datawriter<T: DDSType>(&self, _topic_name: &str) -> Option<DataWriter<T>> {
+    pub fn lookup_datawriter<T: DDSType>(&self, topic_name: &str) -> Option<DataWriter<T>> {
+        let rtps_datawriter = self.rtps_publisher.lookup_datawriter::<T>(topic_name)?;
         todo!()
+        // Some(DataWriter {
+        //     parent_publisher: self,
+        //     topic: a_topic,
+        //     rtps_datawriter,
+        // })
     }
 
     /// This operation indicates to the Service that the application is about to make multiple modifications using DataWriter objects
@@ -169,7 +173,7 @@ impl<'a> Publisher<'a> {
     /// set_default_datawriter_qos, or else, if the call was never made, the default values listed in the QoS table in 2.2.3, Supported
     /// QoS.
     pub fn get_default_datawriter_qos(&self) -> ReturnCode<DataWriterQos> {
-        Ok(self.rtps_publisher.get()?.get_default_datawriter_qos())
+        self.rtps_publisher.get_default_datawriter_qos()
     }
 
     /// This operation copies the policies in the a_topic_qos to the corresponding policies in the a_datawriter_qos (replacing values

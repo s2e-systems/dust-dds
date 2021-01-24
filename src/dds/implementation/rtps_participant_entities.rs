@@ -1,23 +1,16 @@
 use std::sync::{atomic, Arc};
 
-use crate::{
-    dds::infrastructure::qos::{PublisherQos, SubscriberQos, TopicQos},
-    rtps::{
-        behavior::endpoint_traits::CacheChangeSender,
+use crate::{dds::infrastructure::qos::{PublisherQos, SubscriberQos, TopicQos}, rtps::{
         message_sender::RtpsMessageSender,
         transport::Transport,
         types::{
             constants::{
-                ENTITY_KIND_BUILT_IN_READER_GROUP, ENTITY_KIND_BUILT_IN_WRITER_GROUP,
-                ENTITY_KIND_USER_DEFINED_READER_GROUP, ENTITY_KIND_USER_DEFINED_UNKNOWN,
-                ENTITY_KIND_USER_DEFINED_WRITER_GROUP,
+                ENTITY_KIND_BUILT_IN_READER_GROUP, ENTITY_KIND_USER_DEFINED_READER_GROUP,
+                ENTITY_KIND_USER_DEFINED_UNKNOWN,
             },
             EntityId, GuidPrefix, GUID,
         },
-    },
-    types::{DDSType, ReturnCode, ReturnCodes},
-    utils::maybe_valid::MaybeValidList,
-};
+    }, types::{DDSType, ReturnCode, ReturnCodes}, utils::maybe_valid::{MaybeValidList, MaybeValidNode, MaybeValidRef}};
 
 use super::{
     rtps_publisher::{RtpsPublisher, RtpsPublisherRef},
@@ -44,24 +37,18 @@ pub struct RtpsParticipantEntities {
 
 impl RtpsParticipantEntities {
     pub fn new_builtin(guid_prefix: GuidPrefix, transport: impl Transport) -> Self {
-        Self {
-            guid_prefix,
-            transport: Box::new(transport),
-            entity_type: EntityType::BuiltIn,
-            publisher_list: Default::default(),
-            publisher_count: atomic::AtomicU8::new(0),
-            subscriber_list: Default::default(),
-            subscriber_count: atomic::AtomicU8::new(0),
-            topic_list: Default::default(),
-            topic_count: atomic::AtomicU8::new(0),
-        }
+        Self::new(guid_prefix, transport, EntityType::BuiltIn)
     }
 
     pub fn new_user_defined(guid_prefix: GuidPrefix, transport: impl Transport) -> Self {
+        Self::new(guid_prefix, transport, EntityType::UserDefined)
+    }
+
+    fn new(guid_prefix: GuidPrefix, transport: impl Transport, entity_type: EntityType) -> Self {
         Self {
             guid_prefix,
             transport: Box::new(transport),
-            entity_type: EntityType::UserDefined,
+            entity_type,
             publisher_list: Default::default(),
             publisher_count: atomic::AtomicU8::new(0),
             subscriber_list: Default::default(),
@@ -89,27 +76,28 @@ impl RtpsParticipantEntities {
 
     pub fn create_publisher(
         &self,
-        qos: PublisherQos
-    ) -> Option<RtpsPublisherRef> {
+        qos: PublisherQos,
+        // listener: Option<impl PublisherListener>,
+        // status_mask: StatusMask,
+    ) -> Option<MaybeValidRef<Box<RtpsPublisher>>> {
         let entity_key = [
             0,
             self.publisher_count.fetch_add(1, atomic::Ordering::Relaxed),
             0,
         ];
-        let entity_kind = match self.entity_type {
-            EntityType::BuiltIn => ENTITY_KIND_BUILT_IN_WRITER_GROUP,
-            EntityType::UserDefined => ENTITY_KIND_USER_DEFINED_WRITER_GROUP,
+        let new_publisher = match self.entity_type {
+            EntityType::BuiltIn => RtpsPublisher::new_builtin(self.guid_prefix, entity_key, qos, None, 0),
+            EntityType::UserDefined => {
+                RtpsPublisher::new_user_defined(self.guid_prefix, entity_key, qos, None, 0)
+            }
         };
-        let entity_id = EntityId::new(entity_key, entity_kind);
-        let new_publisher_guid = GUID::new(self.guid_prefix, entity_id);
-        let new_publisher = Box::new(RtpsPublisher::new(new_publisher_guid, qos, None, 0));
-        self.publisher_list.add(new_publisher)
+        self.publisher_list.add(Box::new(new_publisher))
     }
 
     pub fn delete_publisher(&self, a_publisher: &RtpsPublisherRef) -> ReturnCode<()> {
         let rtps_publisher = a_publisher.get()?;
         if rtps_publisher.writer_list.is_empty() {
-            if self.publisher_list.contains(&a_publisher) {
+            if self.publisher_list.contains(&a_publisher.maybe_valid_ref) {
                 a_publisher.delete();
                 Ok(())
             } else {
@@ -126,8 +114,9 @@ impl RtpsParticipantEntities {
 
     pub fn create_subscriber(
         &self,
-        qos: SubscriberQos, // _a_listener: impl SubscriberListener,
-                                 // _mask: StatusMask
+        qos: SubscriberQos,
+        // _a_listener: impl SubscriberListener,
+        // _mask: StatusMask
     ) -> Option<RtpsSubscriberRef> {
         let entity_key = [
             0,
@@ -201,24 +190,21 @@ impl RtpsParticipantEntities {
 
     pub fn send_data(&self) {
         for publisher in self.publisher_list.into_iter() {
-            if let Some(publisher) = publisher.get().ok() {
-                for writer in publisher.writer_list.into_iter() {
-                    if let Some(writer) = writer.get().ok() {
-                        let mut writer_flavor = writer.writer();
-                        println!(
-                            "last_change_sequence_number = {:?}",
-                            writer_flavor.last_change_sequence_number
-                        );
-                        let destined_messages = writer_flavor.produce_messages();
-                        let participant_guid_prefix = writer_flavor.endpoint.entity.guid.prefix();
-                        RtpsMessageSender::send_cache_change_messages(
-                            participant_guid_prefix,
-                            self.transport.as_ref(),
-                            destined_messages,
-                        );
-                    }
-                }
-            }
+            // if let Some(publisher) = publisher.get().ok() {
+            //     for writer in publisher.writer_list.into_iter() {
+            //         // println!(
+            //         //     "last_change_sequence_number = {:?}",
+            //         //     writer_flavor.last_change_sequence_number
+            //         // );
+            //         let destined_messages = writer.produce_messages();
+            //         let participant_guid_prefix = self.guid_prefix;
+            //         RtpsMessageSender::send_cache_change_messages(
+            //             participant_guid_prefix,
+            //             self.transport.as_ref(),
+            //             destined_messages,
+            //         );
+            //     }
+            // }
         }
     }
 }

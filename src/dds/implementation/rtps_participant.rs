@@ -4,27 +4,24 @@ use std::{
     thread::JoinHandle,
 };
 
-use crate::{
-    dds::infrastructure::qos::{DataWriterQos, DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
-    discovery::types::SpdpDiscoveredParticipantData,
-    rtps::{
+use crate::{dds::{infrastructure::{qos::{
+        DataWriterQos, DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos,
+    }, status::StatusMask}, publication::publisher_listener::PublisherListener}, discovery::types::SpdpDiscoveredParticipantData, rtps::{
         structure::Participant,
         transport::Transport,
         types::{
             constants::{
-                ENTITY_KIND_BUILT_IN_READER_GROUP,
-                ENTITY_KIND_BUILT_IN_WRITER_GROUP, 
+                ENTITY_KIND_BUILT_IN_READER_GROUP, ENTITY_KIND_BUILT_IN_WRITER_GROUP,
                 PROTOCOL_VERSION_2_4, VENDOR_ID,
             },
             Locator,
         },
-    },
-    types::{
-        DDSType, DomainId, ReturnCode
-    },
-};
+    }, types::{DDSType, DomainId, ReturnCode}, utils::maybe_valid::MaybeValidNode};
 
-use super::{rtps_participant_entities::RtpsParticipantEntities, rtps_publisher::RtpsPublisherRef, rtps_subscriber::RtpsSubscriberRef, rtps_topic::RtpsAnyTopicRef};
+use super::{
+    rtps_participant_entities::RtpsParticipantEntities, rtps_publisher::RtpsPublisherRef,
+    rtps_subscriber::RtpsSubscriberRef, rtps_topic::RtpsAnyTopicRef,
+};
 
 pub struct RtpsParticipant {
     participant: Participant,
@@ -79,8 +76,14 @@ impl RtpsParticipant {
         let guid_prefix = [1; 12];
         let participant = Participant::new(guid_prefix, domain_id, PROTOCOL_VERSION_2_4, VENDOR_ID);
 
-        let builtin_entities = Arc::new(RtpsParticipantEntities::new_builtin(guid_prefix, metatraffic_transport));
-        let user_defined_entities = Arc::new(RtpsParticipantEntities::new_user_defined(guid_prefix, userdata_transport));
+        let builtin_entities = Arc::new(RtpsParticipantEntities::new_builtin(
+            guid_prefix,
+            metatraffic_transport,
+        ));
+        let user_defined_entities = Arc::new(RtpsParticipantEntities::new_user_defined(
+            guid_prefix,
+            userdata_transport,
+        ));
 
         RtpsParticipant {
             participant,
@@ -96,10 +99,15 @@ impl RtpsParticipant {
         }
     }
 
-    pub fn create_publisher(&self, qos: Option<PublisherQos>) -> Option<RtpsPublisherRef> {
+    pub fn create_publisher(
+        &self,
+        qos: Option<PublisherQos>,
+        // listener: Option<impl PublisherListener>,
+        // status_mask: StatusMask,
+    ) -> Option<RtpsPublisherRef> {
         let qos = qos.unwrap_or(self.get_default_publisher_qos());
-        self.user_defined_entities
-            .create_publisher(qos)
+        let publisher_ref = self.user_defined_entities.create_publisher(qos)?;
+        Some(MaybeValidNode::new(self, publisher_ref))
     }
 
     pub fn delete_publisher(&self, a_publisher: &RtpsPublisherRef) -> ReturnCode<()> {
@@ -113,8 +121,7 @@ impl RtpsParticipant {
         // _mask: StatusMask
     ) -> Option<RtpsSubscriberRef> {
         let qos = qos.unwrap_or(self.get_default_subscriber_qos());
-        self.user_defined_entities
-            .create_subscriber(qos)
+        self.user_defined_entities.create_subscriber(qos)
     }
 
     pub fn delete_subscriber(&self, a_subscriber: &RtpsSubscriberRef) -> ReturnCode<()> {
@@ -184,34 +191,34 @@ impl RtpsParticipant {
     }
 
     pub fn enable(&self) -> ReturnCode<()> {
-        self.enabled_function.call_once(||{
-            let builtin_publisher_ref = self
-                .builtin_entities
-                .create_publisher(PublisherQos::default())
-                .expect("Error creating built-in publisher");
-            let builtin_publisher = builtin_publisher_ref.get().expect("Error retrieving built-in publisher");
+        self.enabled_function.call_once(|| {
+            // let builtin_publisher_ref = self
+            //     .builtin_entities
+            //     .create_publisher(PublisherQos::default())
+            //     .expect("Error creating built-in publisher");
+            // let builtin_publisher = builtin_publisher_ref.get().expect("Error retrieving built-in publisher");
 
-            let spdp_topic_qos = TopicQos::default();
-            let spdp_topic = self.builtin_entities
-                .create_topic::<SpdpDiscoveredParticipantData>("SPDP", spdp_topic_qos)
-                .expect("Error creating SPDP topic");
+            // let spdp_topic_qos = TopicQos::default();
+            // let spdp_topic = self.builtin_entities
+            //     .create_topic::<SpdpDiscoveredParticipantData>("SPDP", spdp_topic_qos)
+            //     .expect("Error creating SPDP topic");
 
-            let mut spdp_announcer_qos = DataWriterQos::default();
-            spdp_announcer_qos.reliability.kind = crate::dds::infrastructure::qos_policy::ReliabilityQosPolicyKind::BestEffortReliabilityQos;
-            let spdp_announcer_anywriter_ref = builtin_publisher
-                .create_stateless_builtin_datawriter::<SpdpDiscoveredParticipantData>(
-                    &spdp_topic,
-                    Some(spdp_announcer_qos),
-                )
-                .expect("Error creating SPDP built-in writer");
+            // let mut spdp_announcer_qos = DataWriterQos::default();
+            // spdp_announcer_qos.reliability.kind = crate::dds::infrastructure::qos_policy::ReliabilityQosPolicyKind::BestEffortReliabilityQos;
+            // let _spdp_announcer_anywriter_ref = builtin_publisher
+            //     .create_stateless_builtin_datawriter::<SpdpDiscoveredParticipantData>(
+            //         &spdp_topic,
+            //         Some(spdp_announcer_qos),
+            //     )
+            //     .expect("Error creating SPDP built-in writer");
 
-            let spdp_locator = Locator::new_udpv4(7400, [239, 255, 0, 0]);
-            let spdp_announcer = spdp_announcer_anywriter_ref.get().expect("Error retrieving SPDP announcer");
-            spdp_announcer
-                .writer()
-                .try_get_stateless()
-                .unwrap()
-                .reader_locator_add(spdp_locator);
+            // let _spdp_locator = Locator::new_udpv4(7400, [239, 255, 0, 0]);
+            // let spdp_announcer = spdp_announcer_anywriter_ref.get().expect("Error retrieving SPDP announcer");
+            // spdp_announcer
+            //     .writer()
+            //     .try_get_stateless()
+            //     .unwrap()
+            //     .reader_locator_add(spdp_locator);
 
             // let key = BuiltInTopicKey([1, 2, 3]);
             // let user_data = UserDataQosPolicy { value: vec![] };
@@ -241,32 +248,38 @@ impl RtpsParticipant {
                     std::thread::sleep(std::time::Duration::from_secs(1));
                 }
             }));
-            
         });
 
         Ok(())
     }
 
     pub fn get_builtin_publisher(&self) -> Option<RtpsPublisherRef> {
-        self.builtin_entities.publisher_list().into_iter().find(|x| {
-            if let Some(publisher) = x.get().ok() {
-                publisher.group.entity.guid.entity_id().entity_kind()
-                    == ENTITY_KIND_BUILT_IN_WRITER_GROUP
-            } else {
-                false
-            }
-        })
+        // let publisher_ref = self.builtin_entities
+        //     .publisher_list()
+        //     .into_iter()
+        //     .find(|x| {
+        //         if let Some(publisher) = x.get().ok() {
+        //             publisher.group.entity.guid.entity_id().entity_kind()
+        //                 == ENTITY_KIND_BUILT_IN_WRITER_GROUP
+        //         } else {
+        //             false
+        //         }
+        //     })?;
+        todo!()
     }
 
     pub fn get_builtin_subscriber(&self) -> Option<RtpsSubscriberRef> {
-        self.builtin_entities.subscriber_list().into_iter().find(|x| {
-            if let Some(subscriber) = x.get().ok() {
-                subscriber.group.entity.guid.entity_id().entity_kind()
-                    == ENTITY_KIND_BUILT_IN_READER_GROUP
-            } else {
-                false
-            }
-        })
+        self.builtin_entities
+            .subscriber_list()
+            .into_iter()
+            .find(|x| {
+                if let Some(subscriber) = x.get().ok() {
+                    subscriber.group.entity.guid.entity_id().entity_kind()
+                        == ENTITY_KIND_BUILT_IN_READER_GROUP
+                } else {
+                    false
+                }
+            })
     }
 }
 
