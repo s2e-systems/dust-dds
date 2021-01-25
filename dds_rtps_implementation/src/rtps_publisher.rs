@@ -38,67 +38,67 @@ pub struct RtpsPublisher {
 }
 
 impl RtpsPublisher {
-    // pub fn new_builtin(
-    //     guid_prefix: GuidPrefix,
-    //     entity_key: EntityKey,
-    //     qos: PublisherQos,
-    //     listener: Option<Box<dyn PublisherListener>>,
-    //     status_mask: StatusMask,
-    // ) -> Self {
-    //     Self::new(
-    //         guid_prefix,
-    //         entity_key,
-    //         qos,
-    //         listener,
-    //         status_mask,
-    //         EntityType::BuiltIn,
-    //     )
-    // }
+    pub fn new_builtin(
+        guid_prefix: GuidPrefix,
+        entity_key: EntityKey,
+        qos: PublisherQos,
+        listener: Option<Box<dyn PublisherListener>>,
+        status_mask: StatusMask,
+    ) -> Self {
+        Self::new(
+            guid_prefix,
+            entity_key,
+            qos,
+            listener,
+            status_mask,
+            EntityType::BuiltIn,
+        )
+    }
 
-    // pub fn new_user_defined(
-    //     guid_prefix: GuidPrefix,
-    //     entity_key: EntityKey,
-    //     qos: PublisherQos,
-    //     listener: Option<Box<dyn PublisherListener>>,
-    //     status_mask: StatusMask,
-    // ) -> Self {
-    //     Self::new(
-    //         guid_prefix,
-    //         entity_key,
-    //         qos,
-    //         listener,
-    //         status_mask,
-    //         EntityType::UserDefined,
-    //     )
-    // }
+    pub fn new_user_defined(
+        guid_prefix: GuidPrefix,
+        entity_key: EntityKey,
+        qos: PublisherQos,
+        listener: Option<Box<dyn PublisherListener>>,
+        status_mask: StatusMask,
+    ) -> Self {
+        Self::new(
+            guid_prefix,
+            entity_key,
+            qos,
+            listener,
+            status_mask,
+            EntityType::UserDefined,
+        )
+    }
 
-    // fn new(
-    //     guid_prefix: GuidPrefix,
-    //     entity_key: EntityKey,
-    //     qos: PublisherQos,
-    //     listener: Option<Box<dyn PublisherListener>>,
-    //     status_mask: StatusMask,
-    //     entity_type: EntityType,
-    // ) -> Self {
-    //     let entity_id = match entity_type {
-    //         EntityType::BuiltIn => EntityId::new(entity_key, ENTITY_KIND_BUILT_IN_WRITER_GROUP),
-    //         EntityType::UserDefined => {
-    //             EntityId::new(entity_key, ENTITY_KIND_USER_DEFINED_WRITER_GROUP)
-    //         }
-    //     };
-    //     let guid = GUID::new(guid_prefix, entity_id);
+    fn new(
+        guid_prefix: GuidPrefix,
+        entity_key: EntityKey,
+        qos: PublisherQos,
+        listener: Option<Box<dyn PublisherListener>>,
+        status_mask: StatusMask,
+        entity_type: EntityType,
+    ) -> Self {
+        let entity_id = match entity_type {
+            EntityType::BuiltIn => EntityId::new(entity_key, ENTITY_KIND_BUILT_IN_WRITER_GROUP),
+            EntityType::UserDefined => {
+                EntityId::new(entity_key, ENTITY_KIND_USER_DEFINED_WRITER_GROUP)
+            }
+        };
+        let guid = GUID::new(guid_prefix, entity_id);
 
-    //     Self {
-    //         group: Group::new(guid),
-    //         entity_type,
-    //         writer_list: Default::default(),
-    //         writer_count: atomic::AtomicU8::new(0),
-    //         default_datawriter_qos: Mutex::new(DataWriterQos::default()),
-    //         qos,
-    //         listener,
-    //         status_mask,
-    //     }
-    // }
+        Self {
+            group: Group::new(guid),
+            entity_type,
+            writer_list: Default::default(),
+            writer_count: atomic::AtomicU8::new(0),
+            default_datawriter_qos: Mutex::new(DataWriterQos::default()),
+            qos,
+            listener,
+            status_mask,
+        }
+    }
 
     // pub fn create_stateful_datawriter<T: DDSType>(
     //     &self,
@@ -149,7 +149,7 @@ impl RtpsPublisher {
 
 pub type RtpsPublisherNode<'a> = MaybeValidNode<'a, RtpsParticipant<'a>, Box<RtpsPublisher>>;
 
-impl<'a> Publisher for RtpsPublisherNode<'a> {
+impl<'a> Publisher<'a> for RtpsPublisherNode<'a> {
     fn create_datawriter<T: DDSType>(
         &self,
         a_topic: &Box<dyn Topic<T>>,
@@ -216,7 +216,7 @@ impl<'a> Publisher for RtpsPublisherNode<'a> {
 
     fn get_participant(
         &self,
-    ) -> &dyn DomainParticipant<SubscriberType = dyn Subscriber, PublisherType = dyn Publisher>
+    ) -> &dyn DomainParticipant<SubscriberType = dyn Subscriber + 'a, PublisherType = dyn Publisher + 'a>
     {
         todo!()
     }

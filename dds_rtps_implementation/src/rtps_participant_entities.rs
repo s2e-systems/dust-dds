@@ -1,5 +1,5 @@
 use crate::utils::maybe_valid::{MaybeValidList, MaybeValidNode, MaybeValidRef};
-use rust_dds_api::infrastructure::qos::{PublisherQos, SubscriberQos, TopicQos};
+use rust_dds_api::{infrastructure::{qos::{PublisherQos, SubscriberQos, TopicQos}, status::StatusMask}, publication::publisher_listener::PublisherListener};
 use rust_dds_types::{DDSType, ReturnCode, ReturnCodes};
 use rust_rtps::{
     message_sender::RtpsMessageSender,
@@ -38,65 +38,65 @@ pub struct RtpsParticipantEntities {
 }
 
 impl RtpsParticipantEntities {
-    // pub fn new_builtin(guid_prefix: GuidPrefix, transport: impl Transport) -> Self {
-    //     Self::new(guid_prefix, transport, EntityType::BuiltIn)
-    // }
+    pub fn new_builtin(guid_prefix: GuidPrefix, transport: impl Transport) -> Self {
+        Self::new(guid_prefix, transport, EntityType::BuiltIn)
+    }
 
-    // pub fn new_user_defined(guid_prefix: GuidPrefix, transport: impl Transport) -> Self {
-    //     Self::new(guid_prefix, transport, EntityType::UserDefined)
-    // }
+    pub fn new_user_defined(guid_prefix: GuidPrefix, transport: impl Transport) -> Self {
+        Self::new(guid_prefix, transport, EntityType::UserDefined)
+    }
 
-    // fn new(guid_prefix: GuidPrefix, transport: impl Transport, entity_type: EntityType) -> Self {
-    //     Self {
-    //         guid_prefix,
-    //         transport: Box::new(transport),
-    //         entity_type,
-    //         publisher_list: Default::default(),
-    //         publisher_count: atomic::AtomicU8::new(0),
-    //         subscriber_list: Default::default(),
-    //         subscriber_count: atomic::AtomicU8::new(0),
-    //         topic_list: Default::default(),
-    //         topic_count: atomic::AtomicU8::new(0),
-    //     }
-    // }
+    fn new(guid_prefix: GuidPrefix, transport: impl Transport, entity_type: EntityType) -> Self {
+        Self {
+            guid_prefix,
+            transport: Box::new(transport),
+            entity_type,
+            publisher_list: Default::default(),
+            publisher_count: atomic::AtomicU8::new(0),
+            subscriber_list: Default::default(),
+            subscriber_count: atomic::AtomicU8::new(0),
+            topic_list: Default::default(),
+            topic_count: atomic::AtomicU8::new(0),
+        }
+    }
 
-    // pub fn publisher_list(&self) -> &MaybeValidList<Box<RtpsPublisher>> {
-    //     &self.publisher_list
-    // }
+    pub fn publisher_list(&self) -> &MaybeValidList<Box<RtpsPublisher>> {
+        &self.publisher_list
+    }
 
-    // pub fn subscriber_list(&self) -> &MaybeValidList<Box<RtpsSubscriber>> {
-    //     &self.subscriber_list
-    // }
+    pub fn subscriber_list(&self) -> &MaybeValidList<Box<RtpsSubscriber>> {
+        &self.subscriber_list
+    }
 
-    // pub fn topic_list(&self) -> &MaybeValidList<Arc<dyn AnyRtpsTopic>> {
-    //     &self.topic_list
-    // }
+    pub fn topic_list(&self) -> &MaybeValidList<Arc<dyn AnyRtpsTopic>> {
+        &self.topic_list
+    }
 
-    // pub fn transport(&self) -> &dyn Transport {
-    //     self.transport.as_ref()
-    // }
+    pub fn transport(&self) -> &dyn Transport {
+        self.transport.as_ref()
+    }
 
-    // pub fn create_publisher(
-    //     &self,
-    //     qos: PublisherQos,
-    //     // listener: Option<impl PublisherListener>,
-    //     // status_mask: StatusMask,
-    // ) -> Option<MaybeValidRef<Box<RtpsPublisher>>> {
-    //     let entity_key = [
-    //         0,
-    //         self.publisher_count.fetch_add(1, atomic::Ordering::Relaxed),
-    //         0,
-    //     ];
-    //     let new_publisher = match self.entity_type {
-    //         EntityType::BuiltIn => {
-    //             RtpsPublisher::new_builtin(self.guid_prefix, entity_key, qos, None, 0)
-    //         }
-    //         EntityType::UserDefined => {
-    //             RtpsPublisher::new_user_defined(self.guid_prefix, entity_key, qos, None, 0)
-    //         }
-    //     };
-    //     self.publisher_list.add(Box::new(new_publisher))
-    // }
+    pub fn create_publisher<'a>(
+        &'a self,
+        qos: PublisherQos,
+        listener: Option<Box<dyn PublisherListener>>,
+        status_mask: StatusMask,
+    ) -> Option<MaybeValidRef<'a, Box<RtpsPublisher>>> {
+        let entity_key = [
+            0,
+            self.publisher_count.fetch_add(1, atomic::Ordering::Relaxed),
+            0,
+        ];
+        let new_publisher = match self.entity_type {
+            EntityType::BuiltIn => {
+                RtpsPublisher::new_builtin(self.guid_prefix, entity_key, qos, None, 0)
+            }
+            EntityType::UserDefined => {
+                RtpsPublisher::new_user_defined(self.guid_prefix, entity_key, qos, None, 0)
+            }
+        };
+        self.publisher_list.add(Box::new(new_publisher))
+    }
 
     // pub fn delete_publisher(&self, a_publisher: &RtpsPublisherRef) -> ReturnCode<()> {
     //     let rtps_publisher = a_publisher.get()?;
@@ -119,8 +119,8 @@ impl RtpsParticipantEntities {
     // pub fn create_subscriber(
     //     &self,
     //     qos: SubscriberQos,
-    //     // _a_listener: impl SubscriberListener,
-    //     // _mask: StatusMask
+    //     a_listener: Option<Box<dyn SubscriberListener>>,
+    //     mask: StatusMask
     // ) -> Option<RtpsSubscriberRef> {
     //     let entity_key = [
     //         0,

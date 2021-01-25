@@ -30,6 +30,7 @@ use rust_rtps_transport_udp::UdpTransport;
 /// - Operations that access the status: get_statuscondition
 pub struct DomainParticipantFactory;
 
+
 impl DomainParticipantFactory {
     /// This operation creates a new DomainParticipant object. The DomainParticipant signifies that the calling application intends
     /// to join the Domain identified by the domain_id argument.
@@ -45,7 +46,7 @@ impl DomainParticipantFactory {
         a_listener: Option<Box<dyn DomainParticipantListener>>,
         mask: StatusMask,
         //     enabled: bool,
-    ) -> Option<impl DomainParticipant> {
+    ) -> Option<impl DomainParticipant<'a> + 'a > {
         let interface = "Wi-Fi";
         let userdata_transport =
             UdpTransport::default_userdata_transport(domain_id, interface).unwrap();
@@ -69,5 +70,5 @@ impl DomainParticipantFactory {
         Some(rtps_participant)
     }
 
-    pub fn delete_participant(_a_participant: impl DomainParticipant) {}
+    // pub fn delete_participant(_a_participant: impl DomainParticipant) {}
 }

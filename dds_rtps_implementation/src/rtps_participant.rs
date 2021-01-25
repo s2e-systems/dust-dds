@@ -5,10 +5,21 @@ use std::{
     thread::JoinHandle,
 };
 
-use rust_dds_api::{builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData}, domain::{
+use rust_dds_api::{
+    builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
+    domain::{
         domain_participant::DomainParticipant,
         domain_participant_listener::DomainParticipantListener,
-    }, infrastructure::{entity::{Entity, StatusCondition}, qos::{DataWriterQos, DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos}, status::StatusMask}, publication::publisher_listener::PublisherListener, subscription::subscriber_listener::SubscriberListener, topic::{topic::Topic, topic_description::TopicDescription, topic_listener::TopicListener}};
+    },
+    infrastructure::{
+        entity::{Entity, StatusCondition},
+        qos::{DataWriterQos, DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
+        status::StatusMask,
+    },
+    publication::publisher_listener::PublisherListener,
+    subscription::subscriber_listener::SubscriberListener,
+    topic::{topic::Topic, topic_description::TopicDescription, topic_listener::TopicListener},
+};
 use rust_rtps::{
     structure::Participant,
     transport::Transport,
@@ -41,6 +52,8 @@ pub struct RtpsParticipant<'a> {
     enabled: Arc<atomic::AtomicBool>,
     enabled_function: Once,
     thread_list: RefCell<Vec<JoinHandle<()>>>,
+    a_listener: Option<Box<dyn DomainParticipantListener>>,
+    mask: StatusMask,
     _lifetime: PhantomData<&'a ()>,
 }
 
@@ -74,39 +87,40 @@ pub struct RtpsParticipant<'a> {
 
 impl<'a> RtpsParticipant<'a> {
     pub fn new(
-        _domain_id: DomainId,
-        _qos: DomainParticipantQos,
-        _userdata_transport: impl Transport,
-        _metatraffic_transport: impl Transport,
-        _a_listener: Option<Box<dyn DomainParticipantListener>>,
-        _mask: StatusMask,
+        domain_id: DomainId,
+        qos: DomainParticipantQos,
+        userdata_transport: impl Transport,
+        metatraffic_transport: impl Transport,
+        a_listener: Option<Box<dyn DomainParticipantListener>>,
+        mask: StatusMask,
     ) -> Self {
-        // let guid_prefix = [1; 12];
-        // let participant = Participant::new(guid_prefix, domain_id, PROTOCOL_VERSION_2_4, VENDOR_ID);
+        let guid_prefix = [1; 12];
+        let participant = Participant::new(guid_prefix, domain_id, PROTOCOL_VERSION_2_4, VENDOR_ID);
 
-        // let builtin_entities = Arc::new(RtpsParticipantEntities::new_builtin(
-        //     guid_prefix,
-        //     metatraffic_transport,
-        // ));
-        // let user_defined_entities = Arc::new(RtpsParticipantEntities::new_user_defined(
-        //     guid_prefix,
-        //     userdata_transport,
-        // ));
+        let builtin_entities = Arc::new(RtpsParticipantEntities::new_builtin(
+            guid_prefix,
+            metatraffic_transport,
+        ));
+        let user_defined_entities = Arc::new(RtpsParticipantEntities::new_user_defined(
+            guid_prefix,
+            userdata_transport,
+        ));
 
-        // RtpsParticipant {
-        //     participant,
-        //     qos: Mutex::new(qos),
-        //     default_publisher_qos: Mutex::new(PublisherQos::default()),
-        //     default_subscriber_qos: Mutex::new(SubscriberQos::default()),
-        //     default_topic_qos: Mutex::new(TopicQos::default()),
-        //     builtin_entities,
-        //     user_defined_entities,
-        //     enabled: Arc::new(atomic::AtomicBool::new(false)),
-        //     enabled_function: Once::new(),
-        //     thread_list: RefCell::new(Vec::new()),
-        //     _lifetime: PhantomData,
-        // }
-        todo!()
+        RtpsParticipant {
+            participant,
+            qos: Mutex::new(qos),
+            default_publisher_qos: Mutex::new(PublisherQos::default()),
+            default_subscriber_qos: Mutex::new(SubscriberQos::default()),
+            default_topic_qos: Mutex::new(TopicQos::default()),
+            builtin_entities,
+            user_defined_entities,
+            enabled: Arc::new(atomic::AtomicBool::new(false)),
+            enabled_function: Once::new(),
+            thread_list: RefCell::new(Vec::new()),
+            a_listener,
+            mask,
+            _lifetime: PhantomData,
+        }
     }
 
     // pub fn create_publisher(
@@ -293,18 +307,21 @@ impl<'a> RtpsParticipant<'a> {
     // }
 }
 
-impl<'a> DomainParticipant for RtpsParticipant<'a> {
+impl<'a> DomainParticipant<'a> for RtpsParticipant<'a> {
     type PublisherType = RtpsPublisherNode<'a>;
-
     type SubscriberType = RtpsSubscriberNode<'a>;
 
-    fn create_publisher(
-        &self,
-        _qos: Option<PublisherQos>,
-        _a_listener: Option<Box<dyn PublisherListener>>,
-        _mask: StatusMask,
+    fn create_publisher<'b:'a>(
+        &'b self,
+        qos: Option<PublisherQos>,
+        a_listener: Option<Box<dyn PublisherListener>>,
+        mask: StatusMask,
     ) -> Option<Self::PublisherType> {
-        todo!()
+        let qos = qos.unwrap_or(self.get_default_publisher_qos());
+        let publisher_ref = self
+            .builtin_entities
+            .create_publisher(qos, a_listener, mask)?;
+        Some(RtpsPublisherNode::new(self, publisher_ref))
     }
 
     fn delete_publisher(&self, _a_publisher: &Self::PublisherType) -> ReturnCode<()> {
@@ -385,12 +402,14 @@ impl<'a> DomainParticipant for RtpsParticipant<'a> {
         todo!()
     }
 
-    fn set_default_publisher_qos(&self, _qos: Option<PublisherQos>) -> ReturnCode<()> {
-        todo!()
+    fn set_default_publisher_qos(&self, qos: Option<PublisherQos>) -> ReturnCode<()> {
+        let qos = qos.unwrap_or_default();
+        *self.default_publisher_qos.lock().unwrap() = qos;
+        Ok(())
     }
 
     fn get_default_publisher_qos(&self) -> PublisherQos {
-        todo!()
+        self.default_publisher_qos.lock().unwrap().clone()
     }
 
     fn set_default_subscriber_qos(&self, _qos: Option<SubscriberQos>) -> ReturnCode<()> {

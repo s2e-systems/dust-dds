@@ -93,7 +93,7 @@ pub type RtpsAnyTopicNode<'a> = MaybeValidNode<'a, RtpsParticipant<'a>, Arc<dyn 
 
 pub type RtpsTopicNode<'a, T> = MaybeValidNode<'a, RtpsParticipant<'a>, Arc<RtpsTopic<T>>>;
 
-impl<'a, T: DDSType> Topic<T> for RtpsTopicNode<'a, T> {
+impl<'a, T: DDSType> Topic<'a, T> for RtpsTopicNode<'a, T> {
     fn get_inconsistent_topic_status(
         &self,
         _status: &mut InconsistentTopicStatus,
@@ -102,10 +102,10 @@ impl<'a, T: DDSType> Topic<T> for RtpsTopicNode<'a, T> {
     }
 }
 
-impl<'a, T: DDSType> TopicDescription<T> for RtpsTopicNode<'a, T> {
+impl<'a, T: DDSType> TopicDescription<'a, T> for RtpsTopicNode<'a, T> {
     fn get_participant(
         &self,
-    ) -> &dyn DomainParticipant<SubscriberType = dyn Subscriber, PublisherType = dyn Publisher>
+    ) -> &dyn DomainParticipant<SubscriberType = dyn Subscriber + 'a, PublisherType = dyn Publisher + 'a>
     {
         todo!()
     }
