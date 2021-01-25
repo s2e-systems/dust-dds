@@ -39,14 +39,14 @@ fn hello_world() {
     use rust_rtps::types::Time;
 
     let participant =
-        DomainParticipantFactory::create_participant(0, None).expect("Error creating participant");
+        DomainParticipantFactory::create_participant(0, None, None, 0).expect("Error creating participant");
 
     let publisher = participant
-        .create_publisher(None)
+        .create_publisher(None, None, 0)
         .expect("Error creating publisher");
 
     let helloworld_topic = participant
-        .create_topic::<HelloWorldType>("HelloWorld", None)
+        .create_topic::<HelloWorldType>("HelloWorld", None, None, 0)
         .expect("Error creating topic");
 
     // let subscriber = participant.create_subscriber(None).expect("Error creating subscriber");

@@ -1,7 +1,4 @@
-use crate::{
-    dds::infrastructure::{entity::Entity, qos::TopicQos},
-    types::{DDSType, ReturnCode},
-};
+use crate::{dds::{domain::domain_participant::DomainParticipant, infrastructure::{entity::Entity, qos::TopicQos}, publication::publisher::Publisher, subscription::subscriber::Subscriber}, types::{DDSType, ReturnCode}};
 
 use super::topic_listener::TopicListener;
 
@@ -12,10 +9,8 @@ use super::topic_listener::TopicListener;
 pub trait TopicDescription<T: DDSType>:
     Entity<Qos = TopicQos, Listener = Box<dyn TopicListener<T>>>
 {
-    type DomainParticipantType;
-
     /// This operation returns the DomainParticipant to which the TopicDescription belongs.
-    fn get_participant(&self) -> &Self::DomainParticipantType;
+    fn get_participant(&self) -> &dyn DomainParticipant<SubscriberType = dyn Subscriber, PublisherType=dyn Publisher>;
 
     /// The type_name used to create the TopicDescription
     fn get_type_name(&self) -> ReturnCode<&str>;
@@ -23,3 +18,5 @@ pub trait TopicDescription<T: DDSType>:
     /// The name used to create the TopicDescription
     fn get_name(&self) -> ReturnCode<String>;
 }
+
+pub trait AnyTopic{}

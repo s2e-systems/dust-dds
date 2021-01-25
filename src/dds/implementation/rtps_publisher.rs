@@ -4,7 +4,7 @@ use crate::{dds::{domain::domain_participant::DomainParticipant, infrastructure:
             entity::Entity,
             qos::{DataWriterQos, PublisherQos},
             status::StatusMask,
-        }, publication::{publisher::Publisher, publisher_listener::PublisherListener}, topic::topic::Topic}, rtps::{
+        }, publication::{publisher::Publisher, publisher_listener::PublisherListener}, subscription::subscriber::Subscriber, topic::topic::Topic}, rtps::{
         structure::Group,
         types::{
             constants::{ENTITY_KIND_BUILT_IN_WRITER_GROUP, ENTITY_KIND_USER_DEFINED_WRITER_GROUP},
@@ -149,15 +149,13 @@ impl RtpsPublisher {
 pub type RtpsPublisherNode<'a> = MaybeValidNode<'a, RtpsParticipant<'a>, Box<RtpsPublisher>>;
 
 impl<'a> Publisher for RtpsPublisherNode<'a> {
-    type DomainParticipantType = RtpsParticipant<'a>;
-
     fn create_datawriter<T: DDSType>(
         &self,
-        a_topic: &Arc<dyn Topic<T, DomainParticipantType = Self::DomainParticipantType>>,
+        a_topic: &Arc<dyn Topic<T>>,
         qos: Option<DataWriterQos>,
         // _a_listener: impl DataWriterListener<T>,
         // _mask: StatusMask
-    ) -> Option<Box<dyn crate::dds::publication::data_writer::DataWriter<T, PublisherType = Self>>>
+    ) -> Option<Box<dyn crate::dds::publication::data_writer::DataWriter<T>>>
     {
         todo!()
     }
@@ -165,7 +163,7 @@ impl<'a> Publisher for RtpsPublisherNode<'a> {
     fn delete_datawriter<T: DDSType>(
         &self,
         a_datawriter: &Box<
-            dyn crate::dds::publication::data_writer::DataWriter<T, PublisherType = Self>,
+            dyn crate::dds::publication::data_writer::DataWriter<T>,
         >,
     ) -> ReturnCode<()> {
         todo!()
@@ -174,7 +172,7 @@ impl<'a> Publisher for RtpsPublisherNode<'a> {
     fn lookup_datawriter<T: DDSType>(
         &self,
         topic_name: &str,
-    ) -> Option<Box<dyn crate::dds::publication::data_writer::DataWriter<T, PublisherType = Self>>>
+    ) -> Option<Box<dyn crate::dds::publication::data_writer::DataWriter<T>>>
     {
         todo!()
     }
@@ -219,7 +217,7 @@ impl<'a> Publisher for RtpsPublisherNode<'a> {
         todo!()
     }
 
-    fn get_participant(&self) -> &Self::DomainParticipantType {
+    fn get_participant(&self) -> &dyn DomainParticipant<SubscriberType = dyn Subscriber, PublisherType=dyn Publisher> {
         todo!()
     }
 }

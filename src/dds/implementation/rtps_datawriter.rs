@@ -4,7 +4,7 @@ use std::{
     sync::{Arc, Mutex, MutexGuard},
 };
 
-use crate::{dds::{infrastructure::{entity::Entity, qos::DataWriterQos, qos_policy::ReliabilityQosPolicyKind, status::StatusMask}, publication::{data_writer::DataWriter, data_writer_listener::DataWriterListener}}, rtps::{
+use crate::{dds::{infrastructure::{entity::Entity, qos::DataWriterQos, qos_policy::ReliabilityQosPolicyKind, status::StatusMask}, publication::{data_writer::DataWriter, data_writer_listener::DataWriterListener, publisher::Publisher}, topic::topic::Topic}, rtps::{
         behavior::{
             self, endpoint_traits::CacheChangeSender, StatefulWriter, StatelessWriter, Writer,
         },
@@ -249,7 +249,6 @@ impl<T: DDSType + Sized> AsAny for RtpsDataWriter<T> {
 pub type RtpsDataWriterNode<'a, T:DDSType> = MaybeValidNode<'a, RtpsPublisherNode<'a>, Box<RtpsDataWriter<T>>>;
 
 impl<'a, T:DDSType> DataWriter<T> for RtpsDataWriterNode<'a, T> {
-    type PublisherType = RtpsPublisherNode<'a>;
 
     fn register_instance(&self, _instance: T) -> ReturnCode<Option<InstanceHandle>> {
         todo!()
@@ -339,11 +338,11 @@ impl<'a, T:DDSType> DataWriter<T> for RtpsDataWriterNode<'a, T> {
         todo!()
     }
 
-    // fn get_topic(&self) -> &crate::dds::topic::topic::Topic<T> {
-    //     todo!()
-    // }
+    fn get_topic(&self) -> &dyn Topic<T> {
+        todo!()
+    }
 
-    fn get_publisher(&self) -> &Self::PublisherType {
+    fn get_publisher(&self) -> &dyn Publisher {
         todo!()
     }
 

@@ -12,7 +12,7 @@ use crate::{dds::{domain::{
             entity::Entity,
             qos::{DataWriterQos, DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
             status::StatusMask,
-        }, publication::publisher_listener::PublisherListener, topic::{topic::Topic, topic_description::TopicDescription}}, discovery::types::SpdpDiscoveredParticipantData, rtps::{
+        }, publication::publisher_listener::PublisherListener, subscription::subscriber_listener::SubscriberListener, topic::{topic::Topic, topic_description::TopicDescription, topic_listener::TopicListener}}, discovery::types::SpdpDiscoveredParticipantData, rtps::{
         structure::Participant,
         transport::Transport,
         types::{
@@ -73,12 +73,12 @@ pub struct RtpsParticipant<'a> {
 
 impl<'a> RtpsParticipant<'a> {
     pub fn new(
-        domain_id: DomainId,
-        qos: DomainParticipantQos,
-        userdata_transport: impl Transport,
-        metatraffic_transport: impl Transport,
-        //     a_listener: impl DomainParticipantListener,
-        //     mask: StatusMask,
+        _domain_id: DomainId,
+        _qos: DomainParticipantQos,
+        _userdata_transport: impl Transport,
+        _metatraffic_transport: impl Transport,
+        _a_listener: Option<Box<dyn DomainParticipantListener>>,
+        _mask: StatusMask,
     ) -> Self {
         // let guid_prefix = [1; 12];
         // let participant = Participant::new(guid_prefix, domain_id, PROTOCOL_VERSION_2_4, VENDOR_ID);
@@ -299,41 +299,41 @@ impl<'a> DomainParticipant for RtpsParticipant<'a> {
 
     fn create_publisher(
         &self,
-        qos: Option<PublisherQos>,
-        // a_listener: Option<impl PublisherListener>,
-        // mask: StatusMask,
+        _qos: Option<PublisherQos>,
+        _a_listener: Option<Box<dyn PublisherListener>>,
+        _mask: StatusMask,
     ) -> Option<Self::PublisherType> {
         todo!()
     }
 
-    fn delete_publisher(&self, a_publisher: &Self::PublisherType) -> ReturnCode<()> {
+    fn delete_publisher(&self, _a_publisher: &Self::PublisherType) -> ReturnCode<()> {
         todo!()
     }
 
     fn create_subscriber(
         &self,
-        qos: Option<SubscriberQos>,
-        // _a_listener: impl SubscriberListener,
-        // _mask: StatusMask
+        _qos: Option<SubscriberQos>,
+        _a_listener: Option<Box<dyn SubscriberListener>>,
+        _mask: StatusMask
     ) -> Option<Self::SubscriberType> {
         todo!()
     }
 
-    fn delete_subscriber(&self, a_subscriber: &Self::SubscriberType) -> ReturnCode<()> {
+    fn delete_subscriber(&self, _a_subscriber: &Self::SubscriberType) -> ReturnCode<()> {
         todo!()
     }
 
     fn create_topic<T: DDSType>(
         &self,
-        topic_name: &str,
-        qos: Option<TopicQos>,
-        // _a_listener: impl TopicListener<T>,
-        // _mask: StatusMask
-    ) -> Option<Arc<dyn Topic<T, DomainParticipantType = Self>>> {
+        _topic_name: &str,
+        _qos: Option<TopicQos>,
+        _a_listener: Option<Box<dyn TopicListener<T>>>,
+        _mask: StatusMask
+    ) -> Option<Arc<dyn Topic<T>>> {
         todo!()
     }
 
-    fn delete_topic<T: DDSType>(&self, a_topic: &Arc<dyn Topic<T, DomainParticipantType = Self>>) -> ReturnCode<()> {
+    fn delete_topic<T: DDSType>(&self, _a_topic: &Arc<dyn Topic<T>>) -> ReturnCode<()> {
         todo!()
     }
 
@@ -341,11 +341,11 @@ impl<'a> DomainParticipant for RtpsParticipant<'a> {
         &self,
         _topic_name: &str,
         _timeout: crate::types::Duration,
-    ) -> Option<Arc<dyn Topic<T, DomainParticipantType = Self>>> {
+    ) -> Option<Arc<dyn Topic<T>>> {
         todo!()
     }
 
-    fn lookup_topicdescription<T: DDSType>(&self, _name: &str) -> Option<Arc<dyn TopicDescription<T, DomainParticipantType = Self>>> {
+    fn lookup_topicdescription<T: DDSType>(&self, _name: &str) -> Option<Arc<dyn TopicDescription<T>>> {
         todo!()
     }
 
@@ -381,7 +381,7 @@ impl<'a> DomainParticipant for RtpsParticipant<'a> {
         todo!()
     }
 
-    fn set_default_publisher_qos(&self, qos: Option<PublisherQos>) -> ReturnCode<()> {
+    fn set_default_publisher_qos(&self, _qos: Option<PublisherQos>) -> ReturnCode<()> {
         todo!()
     }
 
@@ -389,7 +389,7 @@ impl<'a> DomainParticipant for RtpsParticipant<'a> {
         todo!()
     }
 
-    fn set_default_subscriber_qos(&self, qos: Option<SubscriberQos>) -> ReturnCode<()> {
+    fn set_default_subscriber_qos(&self, _qos: Option<SubscriberQos>) -> ReturnCode<()> {
         todo!()
     }
 
@@ -397,7 +397,7 @@ impl<'a> DomainParticipant for RtpsParticipant<'a> {
         todo!()
     }
 
-    fn set_default_topic_qos(&self, qos: Option<TopicQos>) -> ReturnCode<()> {
+    fn set_default_topic_qos(&self, _qos: Option<TopicQos>) -> ReturnCode<()> {
         todo!()
     }
 
@@ -445,7 +445,7 @@ impl<'a> Entity for RtpsParticipant<'a> {
     type Qos = DomainParticipantQos;
     type Listener = Box<dyn DomainParticipantListener>;
 
-    fn set_qos(&self, qos: Option<Self::Qos>) -> ReturnCode<()> {
+    fn set_qos(&self, _qos: Option<Self::Qos>) -> ReturnCode<()> {
         todo!()
     }
 
@@ -453,7 +453,7 @@ impl<'a> Entity for RtpsParticipant<'a> {
         todo!()
     }
 
-    fn set_listener(&self, a_listener: Self::Listener, mask: StatusMask) -> ReturnCode<()> {
+    fn set_listener(&self, _a_listener: Self::Listener,_maskk: StatusMask) -> ReturnCode<()> {
         todo!()
     }
 

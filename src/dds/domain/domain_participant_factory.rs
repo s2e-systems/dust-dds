@@ -1,13 +1,6 @@
-use crate::{
-    dds::{
-        implementation::rtps_participant::RtpsParticipant,
-        infrastructure::qos::DomainParticipantQos,
-    },
-    rtps::transport::udp::UdpTransport,
-    types::DomainId,
-};
+use crate::{dds::{implementation::rtps_participant::RtpsParticipant, infrastructure::{qos::DomainParticipantQos, status::StatusMask}}, rtps::transport::udp::UdpTransport, types::DomainId};
 
-use super::domain_participant::DomainParticipant;
+use super::{domain_participant::DomainParticipant, domain_participant_listener::DomainParticipantListener};
 
 /// The DomainParticipant object plays several roles:
 /// - It acts as a container for all other Entity objects.
@@ -42,10 +35,10 @@ impl DomainParticipantFactory {
     pub fn create_participant<'a>(
         domain_id: DomainId,
         qos: Option<DomainParticipantQos>,
-        // a_listener: impl DomainParticipantListener,
-        // mask: StatusMask,
+        a_listener: Option<Box<dyn DomainParticipantListener>>,
+        mask: StatusMask,
         //     enabled: bool,
-    ) -> Option<RtpsParticipant<'a>> {
+    ) -> Option<impl DomainParticipant> {
         let interface = "Wi-Fi";
         let userdata_transport =
             UdpTransport::default_userdata_transport(domain_id, interface).unwrap();
@@ -58,6 +51,8 @@ impl DomainParticipantFactory {
             qos.clone(),
             userdata_transport,
             metatraffic_transport,
+            a_listener,
+            mask,
         );
 
         // if enabled {

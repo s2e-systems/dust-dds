@@ -14,8 +14,6 @@ use crate::types::{DDSType, Duration, InstanceHandle, ReturnCode, Time};
 pub trait DataWriter<T: DDSType>:
     Entity<Qos = DataWriterQos, Listener = Box<dyn DataWriterListener<T>>>
 {
-    type PublisherType : Publisher;
-
     /// This operation informs the Service that the application will be modifying a particular instance. It gives an opportunity to the
     /// Service to pre-configure itself to improve performance.
     /// It takes as a parameter an instance (to get the key value) and returns a handle that can be used in successive write or dispose
@@ -231,10 +229,10 @@ pub trait DataWriter<T: DDSType>:
     ) -> ReturnCode<()>;
 
     /// This operation returns the Topic associated with the DataWriter. This is the same Topic that was used to create the DataWriter.
-    // fn get_topic(&self) -> &dyn Topic<T>;
+    fn get_topic(&self) -> &dyn Topic<T>;
 
     /// This operation returns the Publisher to which the DataWriter belongs.
-    fn get_publisher(&self) -> &Self::PublisherType;
+    fn get_publisher(&self) -> &dyn Publisher;
 
     /// This operation manually asserts the liveliness of the DataWriter. This is used in combination with the LIVELINESS QoS
     /// policy (see 2.2.3, Supported QoS) to indicate to the Service that the entity remains active.

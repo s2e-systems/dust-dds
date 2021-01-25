@@ -4,13 +4,13 @@ use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
     dds::{
         infrastructure::{
-            entity::{Entity, StatusCondition},
+            entity::Entity,
             qos::{DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
             status::StatusMask,
         },
         publication::{publisher::Publisher, publisher_listener::PublisherListener},
-        subscription::subscriber::Subscriber,
-        topic::{topic::Topic, topic_description::TopicDescription},
+        subscription::{subscriber::Subscriber, subscriber_listener::SubscriberListener},
+        topic::{topic::Topic, topic_description::TopicDescription, topic_listener::TopicListener},
     },
     types::{DDSType, DomainId, Duration, InstanceHandle, ReturnCode, Time},
 };
@@ -33,8 +33,8 @@ pub trait DomainParticipant:
     fn create_publisher(
         &self,
         qos: Option<PublisherQos>,
-        // a_listener: Option<impl PublisherListener>,
-        // mask: StatusMask,
+        a_listener: Option<Box<dyn PublisherListener>>,
+        mask: StatusMask,
     ) -> Option<Self::PublisherType>;
 
     /// This operation deletes an existing Publisher.
@@ -57,8 +57,8 @@ pub trait DomainParticipant:
     fn create_subscriber(
         &self,
         qos: Option<SubscriberQos>,
-        // _a_listener: impl SubscriberListener,
-        // _mask: StatusMask
+        _a_listener: Option<Box<dyn SubscriberListener>>,
+        _mask: StatusMask,
     ) -> Option<Self::SubscriberType>;
 
     /// This operation deletes an existing Subscriber.
@@ -84,9 +84,11 @@ pub trait DomainParticipant:
         &self,
         topic_name: &str,
         qos: Option<TopicQos>,
-        // _a_listener: impl TopicListener<T>,
-        // _mask: StatusMask
-    ) -> Option<Arc<dyn Topic<T, DomainParticipantType = Self>>>;
+        _a_listener: Option<Box<dyn TopicListener<T>>>,
+        _mask: StatusMask,
+    ) -> Option<Arc<dyn Topic<T>>>
+    where
+        Self: Sized;
 
     /// This operation deletes a Topic.
     /// The deletion of a Topic is not allowed if there are any existing DataReader, DataWriter, ContentFilteredTopic, or MultiTopic
@@ -95,7 +97,9 @@ pub trait DomainParticipant:
     /// The delete_topic operation must be called on the same DomainParticipant object used to create the Topic. If delete_topic is
     /// called on a different DomainParticipant, the operation will have no effect and it will return PRECONDITION_NOT_MET.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
-    fn delete_topic<T: DDSType>(&self, a_topic: &Arc<dyn Topic<T, DomainParticipantType = Self>>) -> ReturnCode<()>;
+    fn delete_topic<T: DDSType>(&self, a_topic: &Arc<dyn Topic<T>>) -> ReturnCode<()>
+    where
+        Self: Sized;
 
     /// The operation find_topic gives access to an existing (or ready to exist) enabled Topic, based on its name. The operation takes
     /// as arguments the name of the Topic and a timeout.
@@ -112,7 +116,9 @@ pub trait DomainParticipant:
         &self,
         _topic_name: &str,
         _timeout: Duration,
-    ) -> Option<Arc<dyn Topic<T, DomainParticipantType = Self>>>;
+    ) -> Option<Arc<dyn Topic<T>>>
+    where
+        Self: Sized;
 
     /// The operation lookup_topicdescription gives access to an existing locally-created TopicDescription, based on its name. The
     /// operation takes as argument the name of the TopicDescription.
@@ -128,7 +134,9 @@ pub trait DomainParticipant:
     fn lookup_topicdescription<T: DDSType>(
         &self,
         _name: &str,
-    ) -> Option<Arc<dyn TopicDescription<T, DomainParticipantType = Self>>>;
+    ) -> Option<Arc<dyn TopicDescription<T>>>
+    where
+        Self: Sized;
 
     /// This operation allows access to the built-in Subscriber. Each DomainParticipant contains several built-in Topic objects as
     /// well as corresponding DataReader objects to access them. All these DataReader objects belong to a single built-in Subscriber.

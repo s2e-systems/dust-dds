@@ -32,8 +32,6 @@ use crate::types::{DDSType, InstanceHandle, ReturnCode};
 pub trait DataReader<T: DDSType>:
     Entity<Qos = DataReaderQos, Listener = Box<dyn DataReaderListener<T>>>
 {
-    type SubscriberType;
-
     /// This operation accesses a collection of Data values from the DataReader. The size of the returned collection will be limited to
     /// the specified max_samples. The properties of the data_values collection and the setting of the PRESENTATION QoS policy
     /// (see 2.2.3.6) may impose further limits on the size of the returned ‘list.’
@@ -474,7 +472,7 @@ pub trait DataReader<T: DDSType>:
     // fn get_topicdescription(&self) -> &dyn TopicDescription;
 
     /// This operation returns the Subscriber to which the DataReader belongs.
-    fn get_subscriber(&self) -> &Self::SubscriberType;
+    fn get_subscriber(&self) -> &dyn Subscriber;
 
     /// This operation deletes all the entities that were created by means of the “create” operations on the DataReader. That is, it
     /// deletes all contained ReadCondition and QueryCondition objects.
@@ -517,45 +515,5 @@ pub trait DataReader<T: DDSType>:
     /// The operation may fail if the infrastructure does not locally maintain the connectivity information.
     fn get_match_publication(&self, _publication_handles: &mut [InstanceHandle]) -> ReturnCode<()>;
 }
-
-// impl<'a, T: DDSType> Entity for DataReader<'a, T> {
-//     type Qos = DataReaderQos;
-//     type Listener = Box<dyn DataReaderListener<T>>;
-
-//     fn set_qos(&self, qos: Option<Self::Qos>) -> ReturnCode<()> {
-//         let qos = qos.unwrap_or_default();
-//         *self.rtps_datareader.get()?.qos().lock().unwrap() = qos;
-//         // discovery.update_reader(datareader)?;
-//         Ok(())
-//     }
-
-//     fn get_qos(&self) -> ReturnCode<Self::Qos> {
-//         Ok(self.rtps_datareader.get()?.qos().lock().unwrap().clone())
-//     }
-
-//     fn set_listener(&self, _a_listener: Self::Listener, _mask: StatusMask) -> ReturnCode<()> {
-//         todo!()
-//     }
-
-//     fn get_listener(&self) -> &Self::Listener {
-//         todo!()
-//     }
-
-//     fn get_statuscondition(&self) -> StatusCondition {
-//         todo!()
-//     }
-
-//     fn get_status_changes(&self) -> StatusMask {
-//         todo!()
-//     }
-
-//     fn enable(&self) -> ReturnCode<()> {
-//         todo!()
-//     }
-
-//     fn get_instance_handle(&self) -> ReturnCode<InstanceHandle> {
-//         todo!()
-//     }
-// }
 
 pub trait AnyDataReader {}

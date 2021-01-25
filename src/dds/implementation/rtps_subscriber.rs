@@ -1,6 +1,21 @@
 use std::sync::{atomic, Arc, Mutex};
 
-use crate::{dds::{domain::domain_participant::DomainParticipant, infrastructure::{entity::Entity, qos::{DataReaderQos, SubscriberQos}, status::StatusMask}, subscription::{subscriber::Subscriber, subscriber_listener::SubscriberListener}, topic::topic::Topic}, rtps::{
+use crate::{
+    dds::{
+        domain::domain_participant::DomainParticipant,
+        infrastructure::{
+            entity::Entity,
+            qos::{DataReaderQos, SubscriberQos},
+            status::StatusMask,
+        },
+        publication::publisher::Publisher,
+        subscription::{
+            data_reader::DataReader, subscriber::Subscriber,
+            subscriber_listener::SubscriberListener,
+        },
+        topic::topic::Topic,
+    },
+    rtps::{
         structure::Group,
         types::{
             constants::{
@@ -9,7 +24,10 @@ use crate::{dds::{domain::domain_participant::DomainParticipant, infrastructure:
             },
             EntityId, GUID,
         },
-    }, types::{DDSType, ReturnCode, ReturnCodes, TopicKind}, utils::maybe_valid::{MaybeValid, MaybeValidList, MaybeValidNode, MaybeValidRef}};
+    },
+    types::{DDSType, ReturnCode, ReturnCodes, TopicKind},
+    utils::maybe_valid::{MaybeValid, MaybeValidList, MaybeValidNode, MaybeValidRef},
+};
 
 use super::{
     rtps_datareader::{AnyRtpsReader, RtpsAnyDataReaderRef, RtpsDataReader},
@@ -118,25 +136,28 @@ impl RtpsSubscriber {
 
 pub type RtpsSubscriberNode<'a> = MaybeValidNode<'a, RtpsParticipant<'a>, Box<RtpsSubscriber>>;
 
-
 impl<'a> Subscriber for RtpsSubscriberNode<'a> {
-    type DomainParticipantType = RtpsParticipant<'a>;
-
     fn create_datareader<T: DDSType>(
         &self,
-        a_topic: &Arc<dyn Topic<T, DomainParticipantType = Self::DomainParticipantType>>,
+        a_topic: &Arc<dyn Topic<T>>,
         qos: Option<DataReaderQos>,
         // _a_listener: impl DataReaderListener<T>,
         // _mask: StatusMask
-    ) -> Option<Box<dyn crate::dds::subscription::data_reader::DataReader<T, SubscriberType=Self>>> {
+    ) -> Option<Box<dyn crate::dds::subscription::data_reader::DataReader<T>>> {
         todo!()
     }
 
-    fn delete_datareader<T: DDSType>(&self, a_datareader: &Box<dyn crate::dds::subscription::data_reader::DataReader<T, SubscriberType=Self>>) -> ReturnCode<()> {
+    fn delete_datareader<T: DDSType>(
+        &self,
+        _a_datareader: &Box<dyn DataReader<T>>,
+    ) -> ReturnCode<()> {
         todo!()
     }
 
-    fn lookup_datareader<T: DDSType>(&self, _topic: &Arc<dyn Topic<T, DomainParticipantType = Self::DomainParticipantType>>) -> Option<Box<dyn crate::dds::subscription::data_reader::DataReader<T, SubscriberType=Self>>> {
+    fn lookup_datareader<T: DDSType>(
+        &self,
+        _topic: &Arc<dyn Topic<T>>,
+    ) -> Option<Box<dyn DataReader<T>>> {
         todo!()
     }
 
@@ -152,11 +173,17 @@ impl<'a> Subscriber for RtpsSubscriberNode<'a> {
         todo!()
     }
 
-    fn get_sample_lost_status(&self, _status: &mut crate::dds::infrastructure::status::SampleLostStatus) -> ReturnCode<()> {
+    fn get_sample_lost_status(
+        &self,
+        _status: &mut crate::dds::infrastructure::status::SampleLostStatus,
+    ) -> ReturnCode<()> {
         todo!()
     }
 
-    fn get_participant(&self) -> &Self::DomainParticipantType {
+    fn get_participant(
+        &self,
+    ) -> &dyn DomainParticipant<SubscriberType = dyn Subscriber, PublisherType = dyn Publisher>
+    {
         todo!()
     }
 

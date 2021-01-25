@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::dds::{infrastructure::entity::{Entity, StatusCondition}};
+use crate::dds::{infrastructure::entity::{Entity, StatusCondition}, publication::publisher::Publisher};
 use crate::dds::infrastructure::qos::{DataReaderQos, SubscriberQos, TopicQos};
 use crate::dds::infrastructure::status::SampleLostStatus;
 use crate::dds::infrastructure::status::StatusMask;
@@ -22,8 +22,6 @@ use crate::types::{DDSType, InstanceHandle, ReturnCode, TopicKind};
 /// All operations except for the base-class operations set_qos, get_qos, set_listener, get_listener, enable, get_statuscondition,
 /// and create_datareader may return the value NOT_ENABLED.
 pub trait Subscriber: Entity<Qos = SubscriberQos, Listener = Box<dyn SubscriberListener>>  {
-    type DomainParticipantType;
-
     /// This operation creates a DataReader. The returned DataReader will be attached and belong to the Subscriber.
     ///
     /// The DataReader returned by the create_datareader operation will in fact be a derived class, specific to the data-type
@@ -53,11 +51,11 @@ pub trait Subscriber: Entity<Qos = SubscriberQos, Listener = Box<dyn SubscriberL
     /// return a nil result.
     fn create_datareader<T: DDSType>(
         &self,
-        a_topic: &Arc<dyn Topic<T, DomainParticipantType=Self::DomainParticipantType>>,
+        a_topic: &Arc<dyn Topic<T>>,
         qos: Option<DataReaderQos>,
         // _a_listener: impl DataReaderListener<T>,
         // _mask: StatusMask
-    ) -> Option<Box<dyn DataReader<T, SubscriberType = Self>>>;
+    ) -> Option<Box<dyn DataReader<T>>> where Self:Sized;
 
     /// This operation deletes a DataReader that belongs to the Subscriber. If the DataReader does not belong to the Subscriber, the
     /// operation returns the error PRECONDITION_NOT_MET.
@@ -73,8 +71,8 @@ pub trait Subscriber: Entity<Qos = SubscriberQos, Listener = Box<dyn SubscriberL
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
     fn delete_datareader<T: DDSType>(
         &self,
-        a_datareader: &Box<dyn DataReader<T, SubscriberType = Self>>,
-    ) -> ReturnCode<()>;
+        a_datareader: &Box<dyn DataReader<T>>,
+    ) -> ReturnCode<()> where Self:Sized;
 
     /// This operation retrieves a previously-created DataReader belonging to the Subscriber that is attached to a Topic with a
     /// matching topic_name. If no such DataReader exists, the operation will return ’nil.’
@@ -83,8 +81,8 @@ pub trait Subscriber: Entity<Qos = SubscriberQos, Listener = Box<dyn SubscriberL
     /// The use of this operation on the built-in Subscriber allows access to the built-in DataReader entities for the built-in topics
     fn lookup_datareader<T: DDSType>(
         &self,
-        _topic: &Arc<dyn Topic<T, DomainParticipantType = Self::DomainParticipantType>>,
-    ) -> Option<Box<dyn DataReader<T, SubscriberType = Self>>>;
+        _topic: &Arc<dyn Topic<T>>,
+    ) -> Option<Box<dyn DataReader<T>>> where Self:Sized;
 
     /// This operation indicates that the application is about to access the data samples in any of the DataReader objects attached to
     /// the Subscriber.
@@ -145,7 +143,7 @@ pub trait Subscriber: Entity<Qos = SubscriberQos, Listener = Box<dyn SubscriberL
     fn get_sample_lost_status(&self, _status: &mut SampleLostStatus) -> ReturnCode<()>;
 
     /// This operation returns the DomainParticipant to which the Subscriber belongs.
-    fn get_participant(&self) -> &Self::DomainParticipantType;
+    fn get_participant(&self) -> &dyn DomainParticipant<SubscriberType = dyn Subscriber, PublisherType=dyn Publisher>;
 
     /// This operation deletes all the entities that were created by means of the “create” operations on the Subscriber. That is, it
     /// deletes all contained DataReader objects. This pattern is applied recursively. In this manner the operation

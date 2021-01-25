@@ -3,7 +3,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use crate::{dds::{infrastructure::{entity::Entity, qos::TopicQos, status::StatusMask}, topic::{topic::Topic, topic_description::TopicDescription, topic_listener::TopicListener}}, rtps::{self, types::GUID}, types::{DDSType, ReturnCode, ReturnCodes, TopicKind}, utils::{
+use crate::{dds::{domain::domain_participant::DomainParticipant, infrastructure::{entity::Entity, qos::TopicQos, status::StatusMask}, publication::publisher::Publisher, subscription::subscriber::Subscriber, topic::{topic::Topic, topic_description::TopicDescription, topic_listener::TopicListener}}, rtps::{self, types::GUID}, types::{DDSType, ReturnCode, ReturnCodes, TopicKind}, utils::{
         as_any::AsAny,
         maybe_valid::{MaybeValid, MaybeValidNode, MaybeValidRef},
     }};
@@ -83,9 +83,10 @@ pub type RtpsTopicNode<'a, T> = MaybeValidNode<'a, RtpsParticipant<'a>, Arc<Rtps
 impl<'a, T: DDSType> Topic<T> for RtpsTopicNode<'a, T> {}
 
 impl<'a, T: DDSType> TopicDescription<T> for RtpsTopicNode<'a, T> {
-    type DomainParticipantType = RtpsParticipant<'a>;
-
-    fn get_participant(&self) -> &Self::DomainParticipantType {
+    fn get_participant(
+        &self,
+    ) -> &dyn DomainParticipant<SubscriberType = dyn Subscriber, PublisherType = dyn Publisher>
+    {
         todo!()
     }
 

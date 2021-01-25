@@ -4,5 +4,5 @@ use crate::dds::infrastructure::listener::Listener;
 use crate::dds::infrastructure::status::InconsistentTopicStatus;
 
 pub trait TopicListener<T: DDSType> : Listener{
-    // fn on_inconsistent_topic(&self, the_topic: dyn Topic<T>, status: InconsistentTopicStatus);
+    fn on_inconsistent_topic(&self, the_topic: &dyn Topic<T>, status: InconsistentTopicStatus);
 }
