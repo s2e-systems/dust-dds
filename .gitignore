@@ -3,5 +3,7 @@
 Cargo.lock
 .vscode/
 dds/target/
+dds_api/target/
+dds_rtps_implementation/target/
+dds_types/target/
 rtps/target/
-dds_interface/target

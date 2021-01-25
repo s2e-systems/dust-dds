@@ -1,0 +1,14 @@
+[package]
+name = "rust-dds"
+version = "0.1.0"
+authors = ["Joao Rebelo <jrebelo@s2e-systems.com>",
+		   "Stefan Kimmer <skimmer@s2e-systems.com"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+rust-dds-types = {path = "../dds_types"}
+rust-dds-api = {path = "../dds_api"}
+rust-dds-rtps-implementation = {path = "../dds_rtps_implementation"}
+rust-rtps-transport-udp = {path = "../rtps_transport_udp"}
