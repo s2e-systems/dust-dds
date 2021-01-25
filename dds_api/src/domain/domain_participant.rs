@@ -17,8 +17,8 @@ use super::domain_participant_listener::DomainParticipantListener;
 pub trait DomainParticipant<'a>:
     Entity<Qos = DomainParticipantQos, Listener = Box<dyn DomainParticipantListener>>
 {
-    type PublisherType: Publisher<'a>;
-    type SubscriberType: Subscriber<'a>;
+    type PublisherType: Publisher;
+    type SubscriberType: Subscriber;
 
     /// This operation creates a Publisher with the desired QoS policies and attaches to it the specified PublisherListener.
     /// If the specified QoS policies are not consistent, the operation will fail and no Publisher will be created.
@@ -27,8 +27,8 @@ pub trait DomainParticipant<'a>:
     /// means of the operation get_default_publisher_qos (2.2.2.2.1.21) and using the resulting QoS to create the Publisher.
     /// The created Publisher belongs to the DomainParticipant that is its factory
     /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
-    fn create_publisher<'b:'a>(
-        &'b self,
+    fn create_publisher(
+        &'a self,
         qos: Option<PublisherQos>,
         a_listener: Option<Box<dyn PublisherListener>>,
         mask: StatusMask,

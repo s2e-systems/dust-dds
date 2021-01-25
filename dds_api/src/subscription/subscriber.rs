@@ -25,7 +25,7 @@ use super::{
 /// objects through the operation get_datareaders and then access the data available though operations on the DataReader.
 /// All operations except for the base-class operations set_qos, get_qos, set_listener, get_listener, enable, get_statuscondition,
 /// and create_datareader may return the value NOT_ENABLED.
-pub trait Subscriber<'a>: Entity<Qos = SubscriberQos, Listener = Box<dyn SubscriberListener>> {
+pub trait Subscriber: Entity<Qos = SubscriberQos, Listener = Box<dyn SubscriberListener>> {
     /// This operation creates a DataReader. The returned DataReader will be attached and belong to the Subscriber.
     ///
     /// The DataReader returned by the create_datareader operation will in fact be a derived class, specific to the data-type
@@ -153,8 +153,8 @@ pub trait Subscriber<'a>: Entity<Qos = SubscriberQos, Listener = Box<dyn Subscri
     fn get_sample_lost_status(&self, status: &mut SampleLostStatus) -> ReturnCode<()>;
 
     /// This operation returns the DomainParticipant to which the Subscriber belongs.
-    fn get_participant(
-        &self,
+    fn get_participant<'a>(
+        &'a self,
     ) -> &dyn DomainParticipant<SubscriberType = dyn Subscriber + 'a, PublisherType = dyn Publisher + 'a>;
 
     /// This operation deletes all the entities that were created by means of the “create” operations on the Subscriber. That is, it

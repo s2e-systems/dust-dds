@@ -149,7 +149,7 @@ impl RtpsPublisher {
 
 pub type RtpsPublisherNode<'a> = MaybeValidNode<'a, RtpsParticipant<'a>, Box<RtpsPublisher>>;
 
-impl<'a> Publisher<'a> for RtpsPublisherNode<'a> {
+impl<'a> Publisher for RtpsPublisherNode<'a> {
     fn create_datawriter<T: DDSType>(
         &self,
         a_topic: &Box<dyn Topic<T>>,
@@ -214,9 +214,9 @@ impl<'a> Publisher<'a> for RtpsPublisherNode<'a> {
         todo!()
     }
 
-    fn get_participant(
-        &self,
-    ) -> &dyn DomainParticipant<SubscriberType = dyn Subscriber + 'a, PublisherType = dyn Publisher + 'a>
+    fn get_participant<'b>(
+        &'b self,
+    ) -> &dyn DomainParticipant<SubscriberType = dyn Subscriber+'b, PublisherType = dyn Publisher+'b>
     {
         todo!()
     }

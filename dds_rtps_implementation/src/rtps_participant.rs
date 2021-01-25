@@ -311,8 +311,8 @@ impl<'a> DomainParticipant<'a> for RtpsParticipant<'a> {
     type PublisherType = RtpsPublisherNode<'a>;
     type SubscriberType = RtpsSubscriberNode<'a>;
 
-    fn create_publisher<'b:'a>(
-        &'b self,
+    fn create_publisher(
+        &'a self,
         qos: Option<PublisherQos>,
         a_listener: Option<Box<dyn PublisherListener>>,
         mask: StatusMask,

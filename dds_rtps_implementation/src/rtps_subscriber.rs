@@ -121,7 +121,7 @@ impl RtpsSubscriber {
 
 pub type RtpsSubscriberNode<'a> = MaybeValidNode<'a, RtpsParticipant<'a>, Box<RtpsSubscriber>>;
 
-impl<'a> Subscriber<'a> for RtpsSubscriberNode<'a> {
+impl<'a> Subscriber for RtpsSubscriberNode<'a> {
     fn create_datareader<T: DDSType>(
         &self,
         a_topic: &Box<dyn Topic<T>>,
@@ -162,9 +162,9 @@ impl<'a> Subscriber<'a> for RtpsSubscriberNode<'a> {
         todo!()
     }
 
-    fn get_participant(
-        &self,
-    ) -> &dyn DomainParticipant<SubscriberType = dyn Subscriber + 'a, PublisherType = dyn Publisher + 'a>
+    fn get_participant<'b>(
+        &'b self,
+    ) -> &dyn DomainParticipant<SubscriberType = dyn Subscriber+'b, PublisherType = dyn Publisher+'b>
     {
         todo!()
     }

@@ -46,7 +46,7 @@ impl DomainParticipantFactory {
         a_listener: Option<Box<dyn DomainParticipantListener>>,
         mask: StatusMask,
         //     enabled: bool,
-    ) -> Option<impl DomainParticipant<'a> + 'a > {
+    ) -> Option<RtpsParticipant<'a>> {
         let interface = "Wi-Fi";
         let userdata_transport =
             UdpTransport::default_userdata_transport(domain_id, interface).unwrap();
