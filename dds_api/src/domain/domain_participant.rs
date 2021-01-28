@@ -14,12 +14,22 @@ use crate::{
 
 use super::domain_participant_listener::DomainParticipantListener;
 
+pub trait DomainParticipantChild {
+    type DomainParticipantType;
+
+    fn get_participant(&self) -> &Self::DomainParticipantType;
+}
+
 pub trait DomainParticipant<'a>:
     Entity<Qos = DomainParticipantQos, Listener = Box<dyn DomainParticipantListener>>
 {
-    type SubscriberType: Subscriber<'a> + DomainParticipantChildNode;
-    type PublisherType: Publisher<'a> + DomainParticipantChildNode;
-    // type TopicType<T: DDSType>: Topic<'a,T> + DomainParticipantChildNode;
+    type SubscriberType: Subscriber<'a> + DomainParticipantChild;
+    type PublisherType: Publisher<'a> + DomainParticipantChild;
+
+    // This concept can not yet be expressed in Rust because of the absence of Generic Associated Types
+    // https://github.com/rust-lang/rust/issues/44265
+    // As such the restriction of topic type is left out for now
+    // type TopicType<T: DDSType>: Topic<'a,T> + DomainParticipantChild;
 
     /// This operation creates a Publisher with the desired QoS policies and attaches to it the specified PublisherListener.
     /// If the specified QoS policies are not consistent, the operation will fail and no Publisher will be created.
@@ -95,7 +105,10 @@ pub trait DomainParticipant<'a>:
     /// The delete_topic operation must be called on the same DomainParticipant object used to create the Topic. If delete_topic is
     /// called on a different DomainParticipant, the operation will have no effect and it will return PRECONDITION_NOT_MET.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
-    fn delete_topic<T: DDSType>(&'a self, a_topic: &'a Box<dyn Topic<T> +'a>) -> ReturnCode<()>
+    fn delete_topic<T: DDSType>(
+        &'a self,
+        a_topic: &'a Box<dyn Topic<T> + 'a>,
+    ) -> ReturnCode<()>
     where
         Self: Sized;
 
@@ -314,10 +327,4 @@ pub trait DomainParticipant<'a>:
     /// This operation returns the current value of the time that the service uses to time-stamp data-writes and to set the reception timestamp
     /// for the data-updates it receives.
     fn get_current_time(&self) -> ReturnCode<Time>;
-}
-
-pub trait DomainParticipantChildNode {
-    type DomainParticipant;
-
-    fn get_participant(&self) -> &Self::DomainParticipant;
 }

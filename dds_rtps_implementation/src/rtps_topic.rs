@@ -4,7 +4,7 @@ use crate::utils::{
     as_any::AsAny,
     maybe_valid::{MaybeValid, MaybeValidRef},
 };
-use rust_dds_api::{domain::domain_participant::{DomainParticipant, DomainParticipantChildNode}, infrastructure::{
+use rust_dds_api::{domain::domain_participant::{DomainParticipant, DomainParticipantChild}, infrastructure::{
         entity::{Entity, StatusCondition},
         qos::TopicQos,
         status::{InconsistentTopicStatus, StatusMask},
@@ -88,10 +88,10 @@ pub struct RtpsTopicNode<'a, T:DDSType> {
     phantom_data: PhantomData<T>
 }
 
-impl<'a, T:DDSType> DomainParticipantChildNode for RtpsTopicNode<'a, T> {
-    type DomainParticipant = RtpsParticipant;
+impl<'a, T:DDSType> DomainParticipantChild for RtpsTopicNode<'a, T> {
+    type DomainParticipantType = RtpsParticipant;
 
-    fn get_participant(&self) -> &Self::DomainParticipant {
+    fn get_participant(&self) -> &Self::DomainParticipantType {
         &self.participant
     }
 }

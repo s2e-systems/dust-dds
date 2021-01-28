@@ -1,5 +1,5 @@
 use rust_dds::domain_participant_factory::DomainParticipantFactory;
-use rust_dds_api::{domain::domain_participant::{DomainParticipant, DomainParticipantChildNode}, infrastructure::entity::Entity, publication::publisher::Publisher, subscription::subscriber::Subscriber};
+use rust_dds_api::{domain::domain_participant::{DomainParticipant, DomainParticipantChild}, infrastructure::entity::Entity, publication::publisher::Publisher, subscription::subscriber::Subscriber};
 use rust_dds_types::{DDSType, Data, InstanceHandle, ReturnCodes, TopicKind};
 
 struct TestType;

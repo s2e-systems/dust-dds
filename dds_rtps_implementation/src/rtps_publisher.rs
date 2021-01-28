@@ -1,6 +1,6 @@
 use std::sync::{atomic, Arc, Mutex};
 
-use rust_dds_api::{domain::domain_participant::{DomainParticipant, DomainParticipantChildNode}, infrastructure::{
+use rust_dds_api::{domain::domain_participant::{DomainParticipant, DomainParticipantChild}, infrastructure::{
         entity::{Entity, StatusCondition},
         qos::{DataWriterQos, PublisherQos, TopicQos},
         status::StatusMask,
@@ -170,10 +170,10 @@ impl<'a> RtpsPublisherNode<'a> {
     }
 }
 
-impl<'a> DomainParticipantChildNode for RtpsPublisherNode<'a>{
-    type DomainParticipant = RtpsParticipant;
+impl<'a> DomainParticipantChild for RtpsPublisherNode<'a>{
+    type DomainParticipantType = RtpsParticipant;
 
-    fn get_participant(&self) -> &Self::DomainParticipant {
+    fn get_participant(&self) -> &Self::DomainParticipantType {
         &self.participant
     }
 }

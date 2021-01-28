@@ -1,11 +1,6 @@
 use rust_dds_types::{DDSType, ReturnCode};
 
-use crate::{
-    domain::domain_participant::DomainParticipant,
-    infrastructure::{entity::Entity, qos::TopicQos},
-    publication::publisher::Publisher,
-    subscription::subscriber::Subscriber,
-};
+use crate::infrastructure::{entity::Entity, qos::TopicQos};
 
 use super::topic_listener::TopicListener;
 

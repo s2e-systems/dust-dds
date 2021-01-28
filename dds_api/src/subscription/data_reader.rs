@@ -18,7 +18,6 @@ use crate::{
 
 use super::{
     data_reader_listener::DataReaderListener, query_condition::QueryCondition,
-    subscriber::Subscriber,
 };
 
 /// A DataReader allows the application (1) to declare the data it wishes to receive (i.e., make a subscription) and (2) to access the
@@ -463,9 +462,6 @@ pub trait DataReader<'a, T: DDSType>:
     /// This operation returns the TopicDescription associated with the DataReader. This is the same TopicDescription that was used
     /// to create the DataReader.
     fn get_topicdescription(&self) -> &dyn TopicDescription<T>;
-
-    /// This operation returns the Subscriber to which the DataReader belongs.
-    // fn get_subscriber(&self) -> &dyn Subscriber;
 
     /// This operation deletes all the entities that were created by means of the “create” operations on the DataReader. That is, it
     /// deletes all contained ReadCondition and QueryCondition objects.

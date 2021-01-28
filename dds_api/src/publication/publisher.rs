@@ -1,13 +1,11 @@
 use rust_dds_types::{DDSType, Duration, ReturnCode};
 
 use crate::{
-    domain::domain_participant::DomainParticipant,
     infrastructure::{
         entity::Entity,
         qos::{DataWriterQos, PublisherQos, TopicQos},
         status::StatusMask,
     },
-    subscription::subscriber::Subscriber,
     topic::topic::Topic,
 };
 
@@ -16,6 +14,13 @@ use super::{
     publisher_listener::PublisherListener,
 };
 
+pub trait PublisherChild<'a> {
+    type PublisherType: Publisher<'a>;
+
+    /// This operation returns the Publisher to which the publisher child object belongs.
+    fn get_publisher(&self) -> &Self::PublisherType;
+}
+
 /// The Publisher acts on the behalf of one or several DataWriter objects that belong to it. When it is informed of a change to the
 /// data associated with one of its DataWriter objects, it decides when it is appropriate to actually send the data-update message.
 /// In making this decision, it considers any extra information that goes with the data (timestamp, writer, etc.) as well as the QoS
@@ -23,6 +28,11 @@ use super::{
 /// All operations except for the base-class operations set_qos, get_qos, set_listener, get_listener, enable, get_statuscondition,
 /// create_datawriter, and delete_datawriter may return the value NOT_ENABLED.
 pub trait Publisher<'a>: Entity<Qos = PublisherQos, Listener = Box<dyn PublisherListener>> {
+    // This concept can not yet be expressed in Rust because of the absence of Generic Associated Types
+    // https://github.com/rust-lang/rust/issues/44265
+    // As such the restriction of the data writer type is left out for now
+    // type DataWriterType<T: DDSType>: DataWriter<'a,T> + PublisherChild;
+
     /// This operation creates a DataWriter. The returned DataWriter will be attached and belongs to the Publisher.
     /// The DataWriter returned by the create_datawriter operation will in fact be a derived class, specific to the data-type associated
     /// with the Topic. As described in 2.2.2.3.7, for each application-defined type “Foo” there is an implied, auto-generated class

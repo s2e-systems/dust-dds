@@ -1,18 +1,26 @@
-use std::{ops::Deref, sync::Arc};
-
 use rust_dds_types::{DDSType, ReturnCode};
 
-use crate::{domain::domain_participant::{DomainParticipant, DomainParticipantChildNode}, infrastructure::{
+use crate::{
+    infrastructure::{
         entity::Entity,
         qos::{DataReaderQos, SubscriberQos, TopicQos},
         status::{InstanceStateKind, SampleLostStatus, SampleStateKind, StatusMask, ViewStateKind},
-    }, publication::publisher::Publisher, topic::topic::Topic};
+    },
+    topic::topic::Topic,
+};
 
 use super::{
     data_reader::{AnyDataReader, DataReader},
     data_reader_listener::DataReaderListener,
     subscriber_listener::SubscriberListener,
 };
+
+pub trait SubscriberChild<'a> {
+    type SubscriberType: Subscriber<'a>;
+
+    /// This operation returns the Subscriber to which the subscriber child object belongs.
+    fn get_subscriber(&self) -> &Self::SubscriberType;
+}
 
 /// A Subscriber is the object responsible for the actual reception of the data resulting from its subscriptions
 ///
@@ -22,7 +30,14 @@ use super::{
 /// objects through the operation get_datareaders and then access the data available though operations on the DataReader.
 /// All operations except for the base-class operations set_qos, get_qos, set_listener, get_listener, enable, get_statuscondition,
 /// and create_datareader may return the value NOT_ENABLED.
-pub trait Subscriber<'a>: Entity<Qos = SubscriberQos, Listener = Box<dyn SubscriberListener>> {
+pub trait Subscriber<'a>:
+    Entity<Qos = SubscriberQos, Listener = Box<dyn SubscriberListener>>
+{
+    // This concept can not yet be expressed in Rust because of the absence of Generic Associated Types
+    // https://github.com/rust-lang/rust/issues/44265
+    // As such the restriction of data reader type is left out for now
+    // type DataReaderType<T: DDSType>: DataReader<'a,T> + SubscriberChild;
+
     /// This operation creates a DataReader. The returned DataReader will be attached and belong to the Subscriber.
     ///
     /// The DataReader returned by the create_datareader operation will in fact be a derived class, specific to the data-type

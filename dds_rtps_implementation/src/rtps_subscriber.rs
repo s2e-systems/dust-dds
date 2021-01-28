@@ -1,7 +1,7 @@
 use std::{ops::Deref, sync::{atomic, Arc, Mutex}};
 
 use crate::utils::maybe_valid::{MaybeValid, MaybeValidList, MaybeValidRef};
-use rust_dds_api::{domain::domain_participant::{DomainParticipant, DomainParticipantChildNode}, infrastructure::{
+use rust_dds_api::{domain::domain_participant::{DomainParticipant, DomainParticipantChild}, infrastructure::{
         entity::{Entity, StatusCondition},
         qos::{DataReaderQos, SubscriberQos, TopicQos},
         status::{InstanceStateKind, SampleLostStatus, SampleStateKind, StatusMask, ViewStateKind},
@@ -138,10 +138,10 @@ pub struct RtpsSubscriberNode<'a> {
     subscriber: RtpsSubscriberRef<'a>,
 }
 
-impl<'a> DomainParticipantChildNode for RtpsSubscriberNode<'a> {
-    type DomainParticipant = RtpsParticipant;
+impl<'a> DomainParticipantChild for RtpsSubscriberNode<'a> {
+    type DomainParticipantType = RtpsParticipant;
 
-    fn get_participant(&self) -> &Self::DomainParticipant {
+    fn get_participant(&self) -> &Self::DomainParticipantType {
         &self.parent
     }
 }
