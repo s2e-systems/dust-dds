@@ -1,9 +1,4 @@
-use crate::{
-    rtps_publisher::RtpsPublisherRef,
-    rtps_subscriber::RtpsSubscriberRef,
-    rtps_topic::RtpsAnyTopicRef,
-    utils::maybe_valid::{MaybeValidList, MaybeValidRef},
-};
+use crate::{rtps_publisher::{RtpsPublisherInner, RtpsPublisherRef}, rtps_subscriber::{RtpsSubscriberInner, RtpsSubscriberRef}, rtps_topic::RtpsAnyTopicRef, utils::maybe_valid::{MaybeValidList, MaybeValidRef}};
 use rust_dds_api::{
     infrastructure::{
         qos::{PublisherQos, SubscriberQos, TopicQos},
@@ -42,9 +37,9 @@ pub struct RtpsParticipantEntities {
     guid_prefix: GuidPrefix,
     transport: Box<dyn Transport>,
     entity_type: EntityType,
-    publisher_list: MaybeValidList<Box<RtpsPublisher>>,
+    publisher_list: MaybeValidList<Box<RtpsPublisherInner>>,
     publisher_count: atomic::AtomicU8,
-    subscriber_list: MaybeValidList<Box<RtpsSubscriber>>,
+    subscriber_list: MaybeValidList<Box<RtpsSubscriberInner>>,
     subscriber_count: atomic::AtomicU8,
     topic_list: MaybeValidList<Arc<dyn AnyRtpsTopic>>,
     topic_count: atomic::AtomicU8,
@@ -73,11 +68,11 @@ impl RtpsParticipantEntities {
         }
     }
 
-    pub fn publisher_list(&self) -> &MaybeValidList<Box<RtpsPublisher>> {
+    pub fn publisher_list(&self) -> &MaybeValidList<Box<RtpsPublisherInner>> {
         &self.publisher_list
     }
 
-    pub fn subscriber_list(&self) -> &MaybeValidList<Box<RtpsSubscriber>> {
+    pub fn subscriber_list(&self) -> &MaybeValidList<Box<RtpsSubscriberInner>> {
         &self.subscriber_list
     }
 
@@ -102,10 +97,10 @@ impl RtpsParticipantEntities {
         ];
         let new_publisher = match self.entity_type {
             EntityType::BuiltIn => {
-                RtpsPublisher::new_builtin(self.guid_prefix, entity_key, qos, None, 0)
+                RtpsPublisherInner::new_builtin(self.guid_prefix, entity_key, qos, None, 0)
             }
             EntityType::UserDefined => {
-                RtpsPublisher::new_user_defined(self.guid_prefix, entity_key, qos, None, 0)
+                RtpsPublisherInner::new_user_defined(self.guid_prefix, entity_key, qos, None, 0)
             }
         };
         self.publisher_list.add(Box::new(new_publisher))
@@ -147,7 +142,7 @@ impl RtpsParticipantEntities {
         };
         let entity_id = EntityId::new(entity_key, entity_kind);
         let new_subscriber_guid = GUID::new(self.guid_prefix, entity_id);
-        let new_subscriber = Box::new(RtpsSubscriber::new(new_subscriber_guid, qos, None, 0));
+        let new_subscriber = Box::new(RtpsSubscriberInner::new(new_subscriber_guid, qos, None, 0));
 
         self.subscriber_list.add(new_subscriber)
     }

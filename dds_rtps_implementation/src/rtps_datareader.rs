@@ -24,7 +24,7 @@ use crate::utils::{
 
 use super::rtps_topic::AnyRtpsTopic;
 
-pub struct RtpsDataReader<T: DDSType> {
+pub struct RtpsDataReaderInner<T: DDSType> {
     pub reader: StatefulReader,
     pub qos: Mutex<DataReaderQos>,
     pub topic: Mutex<Option<Arc<dyn AnyRtpsTopic>>>,
@@ -32,7 +32,7 @@ pub struct RtpsDataReader<T: DDSType> {
     pub status_mask: StatusMask,
 }
 
-impl<T: DDSType> RtpsDataReader<T> {
+impl<T: DDSType> RtpsDataReaderInner<T> {
     pub fn new(
         guid: GUID,
         topic: Arc<dyn AnyRtpsTopic>,
@@ -76,13 +76,13 @@ pub trait AnyRtpsReader: AsAny + Send + Sync {
     fn status_mask(&self) -> &StatusMask;
 }
 
-impl<T: DDSType + Sized> AsAny for RtpsDataReader<T> {
+impl<T: DDSType + Sized> AsAny for RtpsDataReaderInner<T> {
     fn as_any(&self) -> &dyn Any {
         self
     }
 }
 
-impl<T: DDSType + Sized> AnyRtpsReader for RtpsDataReader<T> {
+impl<T: DDSType + Sized> AnyRtpsReader for RtpsDataReaderInner<T> {
     fn reader(&self) -> &StatefulReader {
         &self.reader
     }
@@ -107,7 +107,7 @@ impl<'a> RtpsAnyDataReaderRef<'a> {
         MaybeValid::get(self).ok_or(ReturnCodes::AlreadyDeleted)
     }
 
-    pub fn get_as<U: DDSType>(&self) -> ReturnCode<&RtpsDataReader<U>> {
+    pub fn get_as<U: DDSType>(&self) -> ReturnCode<&RtpsDataReaderInner<U>> {
         self.get()?
             .as_ref()
             .as_any()

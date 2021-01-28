@@ -1,6 +1,5 @@
 use std::{
     cell::RefCell,
-    marker::PhantomData,
     sync::{atomic, Arc, Mutex, Once},
     thread::JoinHandle,
 };
@@ -35,8 +34,8 @@ use rust_rtps::{
 use rust_dds_types::{DDSType, DomainId, Duration, InstanceHandle, ReturnCode, Time};
 
 use crate::{
-    rtps_publisher::{RtpsPublisherNode, RtpsPublisherRef},
-    rtps_subscriber::{RtpsSubscriberNode, RtpsSubscriberRef},
+    rtps_publisher::{RtpsPublisher, RtpsPublisherRef},
+    rtps_subscriber::{RtpsSubscriber, RtpsSubscriberRef},
     rtps_topic::RtpsTopicNode,
 };
 
@@ -56,34 +55,6 @@ pub struct RtpsParticipant {
     a_listener: Option<Box<dyn DomainParticipantListener>>,
     mask: StatusMask,
 }
-
-// impl Into<ParticipantProxy> for &RtpsParticipant {
-//     fn into(self) -> ParticipantProxy {
-//         ParticipantProxy {
-//             domain_id: self.participant.domain_id,
-//             domain_tag: "".to_string(),
-//             protocol_version: self.participant.protocol_version,
-//             guid_prefix: self.participant.entity.guid.prefix(),
-//             vendor_id: self.participant.vendor_id,
-//             expects_inline_qos: true,
-//             available_built_in_endpoints: BuiltInEndpointSet { value: 9 },
-//             // built_in_endpoint_qos:
-//             metatraffic_unicast_locator_list: self
-//                 .builtin_entities
-//                 .transport
-//                 .unicast_locator_list()
-//                 .clone(),
-//             metatraffic_multicast_locator_list: self
-//                 .builtin_entities
-//                 .transport
-//                 .multicast_locator_list()
-//                 .clone(),
-//             default_unicast_locator_list: vec![],
-//             default_multicast_locator_list: vec![],
-//             manual_liveliness_count: 8,
-//         }
-//     }
-// }
 
 impl RtpsParticipant {
     pub fn new(
@@ -307,8 +278,8 @@ impl RtpsParticipant {
 }
 
 impl<'a> DomainParticipant<'a> for RtpsParticipant {
-    type PublisherType = RtpsPublisherNode<'a>;
-    type SubscriberType = RtpsSubscriberNode<'a>;
+    type PublisherType = RtpsPublisher<'a>;
+    type SubscriberType = RtpsSubscriber<'a>;
 
     fn create_publisher(
         &'a self,
@@ -320,7 +291,7 @@ impl<'a> DomainParticipant<'a> for RtpsParticipant {
         let publisher_ref = self
             .builtin_entities
             .create_publisher(qos, a_listener, mask)?;
-        Some(RtpsPublisherNode::new(self, publisher_ref))
+        Some(RtpsPublisher::new(self, publisher_ref))
     }
 
     fn delete_publisher(&self, _a_publisher: &Self::PublisherType) -> ReturnCode<()> {
@@ -337,7 +308,7 @@ impl<'a> DomainParticipant<'a> for RtpsParticipant {
         let subscriber_ref = self
             .builtin_entities
             .create_subscriber(qos, a_listener, mask)?;
-        Some(RtpsSubscriberNode::new(self, subscriber_ref))
+        Some(RtpsSubscriber::new(self, subscriber_ref))
     }
 
     fn delete_subscriber(&self, _a_subscriber: &Self::SubscriberType) -> ReturnCode<()> {
@@ -351,13 +322,12 @@ impl<'a> DomainParticipant<'a> for RtpsParticipant {
         a_listener: Option<Box<dyn TopicListener<T>>>,
         mask: StatusMask,
     ) -> Option<Box<dyn Topic<'a, T> + 'a>> {
-        todo!()
-        // let qos = qos.unwrap_or(self.get_default_topic_qos());
-        // qos.is_consistent().ok()?;
-        // let topic_ref = self
-        //     .builtin_entities
-        //     .create_topic(topic_name, qos, a_listener, mask)?;
-        // Some(Arc::new(RtpsTopicNode::new(self, topic_ref)))
+        let qos = qos.unwrap_or(self.get_default_topic_qos());
+        qos.is_consistent().ok()?;
+        let topic_ref = self
+            .builtin_entities
+            .create_topic(topic_name, qos, a_listener, mask)?;
+        Some(Box::new(RtpsTopicNode::new(self, topic_ref)))
     }
 
     fn delete_topic<T: DDSType>(&'a self, _a_topic: &'a Box<dyn Topic<T> + 'a>) -> ReturnCode<()> {
@@ -421,20 +391,25 @@ impl<'a> DomainParticipant<'a> for RtpsParticipant {
         self.default_publisher_qos.lock().unwrap().clone()
     }
 
-    fn set_default_subscriber_qos(&self, _qos: Option<SubscriberQos>) -> ReturnCode<()> {
-        todo!()
+    fn set_default_subscriber_qos(&self, qos: Option<SubscriberQos>) -> ReturnCode<()> {
+        let qos = qos.unwrap_or_default();
+        *self.default_subscriber_qos.lock().unwrap() = qos;
+        Ok(())
     }
 
     fn get_default_subscriber_qos(&self) -> SubscriberQos {
-        todo!()
+        self.default_subscriber_qos.lock().unwrap().clone()
     }
 
-    fn set_default_topic_qos(&self, _qos: Option<TopicQos>) -> ReturnCode<()> {
-        todo!()
+    fn set_default_topic_qos(&self, qos: Option<TopicQos>) -> ReturnCode<()> {
+        let qos = qos.unwrap_or_default();
+        qos.is_consistent()?;
+        *self.default_topic_qos.lock().unwrap() = qos;
+        Ok(())
     }
 
     fn get_default_topic_qos(&self) -> TopicQos {
-        todo!()
+        self.default_topic_qos.lock().unwrap().clone()
     }
 
     fn get_discovered_participants(
@@ -477,12 +452,14 @@ impl Entity for RtpsParticipant {
     type Qos = DomainParticipantQos;
     type Listener = Box<dyn DomainParticipantListener>;
 
-    fn set_qos(&self, _qos: Option<Self::Qos>) -> ReturnCode<()> {
-        todo!()
+    fn set_qos(&self, qos: Option<Self::Qos>) -> ReturnCode<()> {
+        let qos = qos.unwrap_or_default();
+        *self.qos.lock().unwrap() = qos;
+        Ok(())
     }
 
     fn get_qos(&self) -> ReturnCode<Self::Qos> {
-        todo!()
+        Ok(self.qos.lock().unwrap().clone())
     }
 
     fn set_listener(&self, _a_listener: Self::Listener, _maskk: StatusMask) -> ReturnCode<()> {

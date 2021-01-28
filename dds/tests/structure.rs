@@ -1,5 +1,8 @@
 use rust_dds::domain_participant_factory::DomainParticipantFactory;
-use rust_dds_api::{domain::domain_participant::{DomainParticipant, DomainParticipantChild}, infrastructure::entity::Entity, publication::publisher::Publisher, subscription::subscriber::Subscriber};
+use rust_dds_api::{
+    domain::domain_participant::DomainParticipant, infrastructure::entity::Entity,
+    publication::publisher::Publisher, subscription::subscriber::Subscriber,
+};
 use rust_dds_types::{DDSType, Data, InstanceHandle, ReturnCodes, TopicKind};
 
 struct TestType;
@@ -151,7 +154,9 @@ fn not_allowed_to_delete_topic_attached_to_reader() {
         .create_topic::<TestType>("Test", None, None, 0)
         .expect("Error creating topic");
     let subscriber = participant.create_subscriber(None, None, 0).unwrap();
-    let _a_datareader = subscriber.create_datareader(&reader_topic, None, None, 0).unwrap();
+    let _a_datareader = subscriber
+        .create_datareader(&reader_topic, None, None, 0)
+        .unwrap();
 
     assert_eq!(
         participant.delete_topic(&reader_topic),
@@ -168,7 +173,9 @@ fn not_allowed_to_delete_topic_attached_to_writer() {
         .create_topic::<TestType>("Test", None, None, 0)
         .expect("Error creating topic");
     let publisher = participant.create_publisher(None, None, 0).unwrap();
-    let _a_datawriter = publisher.create_datawriter(&writer_topic, None, None, 0).unwrap();
+    let _a_datawriter = publisher
+        .create_datawriter(&writer_topic, None, None, 0)
+        .unwrap();
 
     assert_eq!(
         participant.delete_topic(&writer_topic),
@@ -185,7 +192,9 @@ fn allowed_to_delete_publisher_with_created_and_deleted_writer() {
         .create_topic::<TestType>("Test", None, None, 0)
         .expect("Error creating topic");
     let publisher = participant.create_publisher(None, None, 0).unwrap();
-    let a_datawriter = publisher.create_datawriter(&writer_topic, None, None, 0).unwrap();
+    let a_datawriter = publisher
+        .create_datawriter(&writer_topic, None, None, 0)
+        .unwrap();
     publisher
         .delete_datawriter(&a_datawriter)
         .expect("Failed to delete datawriter");
@@ -199,7 +208,9 @@ fn allowed_to_delete_subscriber_with_created_and_deleted_reader() {
         .create_topic::<TestType>("Test", None, None, 0)
         .expect("Error creating topic");
     let subscriber = participant.create_subscriber(None, None, 0).unwrap();
-    let a_datareader = subscriber.create_datareader(&reader_topic, None, None, 0).unwrap();
+    let a_datareader = subscriber
+        .create_datareader(&reader_topic, None, None, 0)
+        .unwrap();
     subscriber
         .delete_datareader(&a_datareader)
         .expect("Failed to delete datareader");
@@ -213,7 +224,9 @@ fn allowed_to_delete_topic_with_created_and_deleted_writer() {
         .create_topic::<TestType>("Test", None, None, 0)
         .expect("Error creating topic");
     let publisher = participant.create_publisher(None, None, 0).unwrap();
-    let a_datawriter = publisher.create_datawriter(&writer_topic, None, None, 0).unwrap();
+    let a_datawriter = publisher
+        .create_datawriter(&writer_topic, None, None, 0)
+        .unwrap();
     publisher
         .delete_datawriter(&a_datawriter)
         .expect("Failed to delete datawriter");

@@ -82,7 +82,7 @@ enum EntityType {
     UserDefined,
 }
 
-pub struct RtpsDataWriter<T: DDSType> {
+pub struct RtpsDataWriterInner<T: DDSType> {
     pub writer: Mutex<WriterFlavor>,
     pub qos: Mutex<DataWriterQos>,
     pub topic: Mutex<Option<Arc<dyn AnyRtpsTopic>>>,
@@ -90,7 +90,7 @@ pub struct RtpsDataWriter<T: DDSType> {
     pub status_mask: StatusMask,
 }
 
-impl<T: DDSType> RtpsDataWriter<T> {
+impl<T: DDSType> RtpsDataWriterInner<T> {
     // pub fn new_builtin_stateless(
     //     guid_prefix: GuidPrefix,
     //     entity_key: EntityKey,
@@ -246,7 +246,7 @@ pub trait AnyRtpsWriter: AsAny + Send + Sync {
     fn qos(&self) -> MutexGuard<DataWriterQos>;
 }
 
-impl<T: DDSType + Sized> AnyRtpsWriter for RtpsDataWriter<T> {
+impl<T: DDSType + Sized> AnyRtpsWriter for RtpsDataWriterInner<T> {
     fn writer(&self) -> MutexGuard<WriterFlavor> {
         self.writer.lock().unwrap()
     }
@@ -260,7 +260,7 @@ impl<T: DDSType + Sized> AnyRtpsWriter for RtpsDataWriter<T> {
     }
 }
 
-impl<T: DDSType + Sized> AsAny for RtpsDataWriter<T> {
+impl<T: DDSType + Sized> AsAny for RtpsDataWriterInner<T> {
     fn as_any(&self) -> &dyn Any {
         self
     }

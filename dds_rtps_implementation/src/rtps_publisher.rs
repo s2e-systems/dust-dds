@@ -21,7 +21,7 @@ use rust_rtps::{
 use crate::utils::maybe_valid::{MaybeValid, MaybeValidList, MaybeValidRef};
 
 use super::{
-    rtps_datawriter::{AnyRtpsWriter, RtpsDataWriter},
+    rtps_datawriter::{AnyRtpsWriter, RtpsDataWriterInner},
     rtps_participant::RtpsParticipant,
 };
 
@@ -33,7 +33,7 @@ enum EntityType {
     BuiltIn,
     UserDefined,
 }
-pub struct RtpsPublisher {
+pub struct RtpsPublisherInner {
     pub group: Group,
     entity_type: EntityType,
     pub writer_list: MaybeValidList<Box<dyn AnyRtpsWriter>>,
@@ -44,7 +44,7 @@ pub struct RtpsPublisher {
     pub status_mask: StatusMask,
 }
 
-impl RtpsPublisher {
+impl RtpsPublisherInner {
     pub fn new_builtin(
         guid_prefix: GuidPrefix,
         entity_key: EntityKey,
@@ -154,14 +154,14 @@ impl RtpsPublisher {
     // }
 }
 
-pub type RtpsPublisherRef<'a> = MaybeValidRef<'a, Box<RtpsPublisher>>;
+pub type RtpsPublisherRef<'a> = MaybeValidRef<'a, Box<RtpsPublisherInner>>;
 
-pub struct RtpsPublisherNode<'a> {
+pub struct RtpsPublisher<'a> {
     participant: &'a RtpsParticipant,
     publisher_ref: RtpsPublisherRef<'a>,
 }
 
-impl<'a> RtpsPublisherNode<'a> {
+impl<'a> RtpsPublisher<'a> {
     pub fn new(participant: &'a RtpsParticipant, publisher_ref: RtpsPublisherRef<'a>) -> Self {
         Self {
             participant,
@@ -170,7 +170,7 @@ impl<'a> RtpsPublisherNode<'a> {
     }
 }
 
-impl<'a> DomainParticipantChild for RtpsPublisherNode<'a>{
+impl<'a> DomainParticipantChild for RtpsPublisher<'a>{
     type DomainParticipantType = RtpsParticipant;
 
     fn get_participant(&self) -> &Self::DomainParticipantType {
@@ -178,7 +178,7 @@ impl<'a> DomainParticipantChild for RtpsPublisherNode<'a>{
     }
 }
 
-impl<'a> Publisher<'a> for RtpsPublisherNode<'a> {
+impl<'a> Publisher<'a> for RtpsPublisher<'a> {
     fn create_datawriter<T: DDSType>(
         &'a self,
         a_topic: &'a Box<dyn Topic<T> + 'a>,
@@ -241,7 +241,7 @@ impl<'a> Publisher<'a> for RtpsPublisherNode<'a> {
     }
 }
 
-impl<'a> Entity for RtpsPublisherNode<'a> {
+impl<'a> Entity for RtpsPublisher<'a> {
     type Qos = PublisherQos;
     type Listener = Box<dyn PublisherListener>;
 

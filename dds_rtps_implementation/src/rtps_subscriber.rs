@@ -1,16 +1,28 @@
-use std::{ops::Deref, sync::{atomic, Arc, Mutex}};
+use std::{
+    ops::Deref,
+    sync::{atomic, Arc, Mutex},
+};
 
-use crate::utils::maybe_valid::{MaybeValid, MaybeValidList, MaybeValidRef};
-use rust_dds_api::{domain::domain_participant::{DomainParticipant, DomainParticipantChild}, infrastructure::{
+use crate::{
+    rtps_datareader::RtpsDataReaderInner,
+    utils::maybe_valid::{MaybeValid, MaybeValidList, MaybeValidRef},
+};
+use rust_dds_api::{
+    domain::domain_participant::{DomainParticipant, DomainParticipantChild},
+    infrastructure::{
         entity::{Entity, StatusCondition},
         qos::{DataReaderQos, SubscriberQos, TopicQos},
         status::{InstanceStateKind, SampleLostStatus, SampleStateKind, StatusMask, ViewStateKind},
-    }, publication::publisher::Publisher, subscription::{
+    },
+    publication::publisher::Publisher,
+    subscription::{
         data_reader::{AnyDataReader, DataReader},
         data_reader_listener::DataReaderListener,
         subscriber::Subscriber,
         subscriber_listener::SubscriberListener,
-    }, topic::topic::Topic};
+    },
+    topic::topic::Topic,
+};
 use rust_dds_types::{DDSType, InstanceHandle, ReturnCode, ReturnCodes, TopicKind};
 use rust_rtps::{
     structure::Group,
@@ -24,7 +36,7 @@ use rust_rtps::{
 };
 
 use super::{
-    rtps_datareader::{AnyRtpsReader, RtpsAnyDataReaderRef, RtpsDataReader},
+    rtps_datareader::{AnyRtpsReader, RtpsAnyDataReaderRef},
     rtps_participant::RtpsParticipant,
     rtps_topic::AnyRtpsTopic,
 };
@@ -33,7 +45,7 @@ enum EntityType {
     BuiltIn,
     UserDefined,
 }
-pub struct RtpsSubscriber {
+pub struct RtpsSubscriberInner {
     pub group: Group,
     pub reader_list: MaybeValidList<Box<dyn AnyRtpsReader>>,
     pub reader_count: atomic::AtomicU8,
@@ -43,7 +55,7 @@ pub struct RtpsSubscriber {
     pub status_mask: StatusMask,
 }
 
-impl RtpsSubscriber {
+impl RtpsSubscriberInner {
     pub fn new(
         guid: GUID,
         qos: SubscriberQos,
@@ -106,7 +118,7 @@ impl RtpsSubscriber {
         let entity_id = EntityId::new(entity_key, entity_kind);
         let new_reader_guid = GUID::new(guid_prefix, entity_id);
         let new_reader_qos = qos.unwrap_or(self.get_default_datareader_qos());
-        let new_reader: Box<RtpsDataReader<T>> = Box::new(RtpsDataReader::new(
+        let new_reader: Box<RtpsDataReaderInner<T>> = Box::new(RtpsDataReaderInner::new(
             new_reader_guid,
             a_topic,
             new_reader_qos,
@@ -128,17 +140,17 @@ impl RtpsSubscriber {
     }
 }
 
-pub type RtpsSubscriberRef<'a> = MaybeValidRef<'a, Box<RtpsSubscriber>>;
+pub type RtpsSubscriberRef<'a> = MaybeValidRef<'a, Box<RtpsSubscriberInner>>;
 
 // fn get_participant(&'a self) -> &dyn Deref<Target=dyn DomainParticipant<PublisherType = dyn Publisher<'a> + 'a, SubscriberType = dyn Subscriber<'a> + 'a>> {
 //     &self.parent
 // }
-pub struct RtpsSubscriberNode<'a> {
+pub struct RtpsSubscriber<'a> {
     parent: &'a RtpsParticipant,
     subscriber: RtpsSubscriberRef<'a>,
 }
 
-impl<'a> DomainParticipantChild for RtpsSubscriberNode<'a> {
+impl<'a> DomainParticipantChild for RtpsSubscriber<'a> {
     type DomainParticipantType = RtpsParticipant;
 
     fn get_participant(&self) -> &Self::DomainParticipantType {
@@ -146,13 +158,13 @@ impl<'a> DomainParticipantChild for RtpsSubscriberNode<'a> {
     }
 }
 
-impl<'a> RtpsSubscriberNode<'a> {
+impl<'a> RtpsSubscriber<'a> {
     pub fn new(parent: &'a RtpsParticipant, subscriber: RtpsSubscriberRef<'a>) -> Self {
         Self { parent, subscriber }
     }
 }
 
-impl<'a> Subscriber<'a> for RtpsSubscriberNode<'a> {
+impl<'a> Subscriber<'a> for RtpsSubscriber<'a> {
     fn create_datareader<T: DDSType>(
         &'a self,
         a_topic: &'a Box<dyn Topic<T> + 'a>,
@@ -224,7 +236,7 @@ impl<'a> Subscriber<'a> for RtpsSubscriberNode<'a> {
     }
 }
 
-impl<'a> Entity for RtpsSubscriberNode<'a> {
+impl<'a> Entity for RtpsSubscriber<'a> {
     type Qos = SubscriberQos;
     type Listener = Box<dyn SubscriberListener>;
 
