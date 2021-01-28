@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use ipconfig;
 use net2::UdpBuilder;
 use rust_dds_types::DomainId;

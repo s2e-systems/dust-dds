@@ -129,7 +129,7 @@ impl<'a, T: DDSType> Entity for RtpsTopicNode<'a, T> {
     type Qos = TopicQos;
     type Listener = Box<dyn TopicListener<T>>;
 
-    fn set_qos(&self, qos: Option<Self::Qos>) -> ReturnCode<()> {
+    fn set_qos(&self, _qos: Option<Self::Qos>) -> ReturnCode<()> {
         todo!()
     }
 
@@ -137,7 +137,7 @@ impl<'a, T: DDSType> Entity for RtpsTopicNode<'a, T> {
         todo!()
     }
 
-    fn set_listener(&self, a_listener: Self::Listener, mask: StatusMask) -> ReturnCode<()> {
+    fn set_listener(&self, _a_listener: Self::Listener, _mask: StatusMask) -> ReturnCode<()> {
         todo!()
     }
 

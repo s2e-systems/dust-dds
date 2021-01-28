@@ -167,8 +167,8 @@ impl<'a> RtpsSubscriber<'a> {
 impl<'a> Subscriber<'a> for RtpsSubscriber<'a> {
     fn create_datareader<T: DDSType>(
         &'a self,
-        a_topic: &'a Box<dyn Topic<T> + 'a>,
-        qos: Option<DataReaderQos>,
+        _a_topic: &'a Box<dyn Topic<T> + 'a>,
+        _qos: Option<DataReaderQos>,
         _a_listener: Option<Box<dyn DataReaderListener<T>>>,
         _mask: StatusMask,
     ) -> Option<Box<dyn DataReader<T> + 'a>> {
@@ -209,7 +209,7 @@ impl<'a> Subscriber<'a> for RtpsSubscriber<'a> {
         todo!()
     }
 
-    fn set_default_datareader_qos(&self, qos: Option<DataReaderQos>) -> ReturnCode<()> {
+    fn set_default_datareader_qos(&self, _qos: Option<DataReaderQos>) -> ReturnCode<()> {
         todo!()
     }
 
@@ -227,10 +227,10 @@ impl<'a> Subscriber<'a> for RtpsSubscriber<'a> {
 
     fn get_datareaders(
         &self,
-        readers: &mut [&mut dyn AnyDataReader],
-        sample_states: &[SampleStateKind],
-        view_states: &[ViewStateKind],
-        instance_states: &[InstanceStateKind],
+        _readers: &mut [&mut dyn AnyDataReader],
+        _sample_states: &[SampleStateKind],
+        _view_states: &[ViewStateKind],
+        _instance_states: &[InstanceStateKind],
     ) -> ReturnCode<()> {
         todo!()
     }
@@ -240,7 +240,7 @@ impl<'a> Entity for RtpsSubscriber<'a> {
     type Qos = SubscriberQos;
     type Listener = Box<dyn SubscriberListener>;
 
-    fn set_qos(&self, qos: Option<Self::Qos>) -> ReturnCode<()> {
+    fn set_qos(&self, _qos: Option<Self::Qos>) -> ReturnCode<()> {
         todo!()
     }
 
@@ -248,7 +248,7 @@ impl<'a> Entity for RtpsSubscriber<'a> {
         todo!()
     }
 
-    fn set_listener(&self, a_listener: Self::Listener, mask: StatusMask) -> ReturnCode<()> {
+    fn set_listener(&self, _a_listener: Self::Listener, _mask: StatusMask) -> ReturnCode<()> {
         todo!()
     }
 

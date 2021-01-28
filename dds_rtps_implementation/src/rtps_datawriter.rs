@@ -34,7 +34,7 @@ use rust_rtps::{
 
 use crate::utils::{
     as_any::AsAny,
-    maybe_valid::{MaybeValid, MaybeValidRef},
+    maybe_valid::{MaybeValidRef},
 };
 
 use super::rtps_topic::AnyRtpsTopic;

@@ -12,7 +12,7 @@ use rust_dds_api::{
     },
     infrastructure::{
         entity::{Entity, StatusCondition},
-        qos::{DataWriterQos, DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
+        qos::{DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
         status::StatusMask,
     },
     publication::publisher_listener::PublisherListener,
@@ -22,21 +22,13 @@ use rust_dds_api::{
 use rust_rtps::{
     structure::Participant,
     transport::Transport,
-    types::{
-        constants::{
-            ENTITY_KIND_BUILT_IN_READER_GROUP, ENTITY_KIND_BUILT_IN_WRITER_GROUP,
-            PROTOCOL_VERSION_2_4, VENDOR_ID,
-        },
-        Locator,
-    },
+    types::constants::{PROTOCOL_VERSION_2_4, VENDOR_ID},
 };
 
 use rust_dds_types::{DDSType, DomainId, Duration, InstanceHandle, ReturnCode, Time};
 
 use crate::{
-    rtps_publisher::{RtpsPublisher, RtpsPublisherRef},
-    rtps_subscriber::{RtpsSubscriber, RtpsSubscriberRef},
-    rtps_topic::RtpsTopicNode,
+    rtps_publisher::RtpsPublisher, rtps_subscriber::RtpsSubscriber, rtps_topic::RtpsTopicNode,
 };
 
 use super::rtps_participant_entities::RtpsParticipantEntities;

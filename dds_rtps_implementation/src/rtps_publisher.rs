@@ -181,8 +181,8 @@ impl<'a> DomainParticipantChild for RtpsPublisher<'a>{
 impl<'a> Publisher<'a> for RtpsPublisher<'a> {
     fn create_datawriter<T: DDSType>(
         &'a self,
-        a_topic: &'a Box<dyn Topic<T> + 'a>,
-        qos: Option<DataWriterQos>,
+        _a_topic: &'a Box<dyn Topic<T> + 'a>,
+        _qos: Option<DataWriterQos>,
         _a_listener: Option<Box<dyn DataWriterListener<T>>>,
         _mask: StatusMask,
     ) -> Option<Box<dyn DataWriter<T> + 'a>> {
@@ -191,12 +191,12 @@ impl<'a> Publisher<'a> for RtpsPublisher<'a> {
 
     fn delete_datawriter<T: DDSType>(
         &'a self,
-        a_datawriter: &'a Box<dyn DataWriter<T> + 'a>,
+        _a_datawriter: &'a Box<dyn DataWriter<T> + 'a>,
     ) -> ReturnCode<()> {
         todo!()
     }
 
-    fn lookup_datawriter<T: DDSType>(&self, topic_name: &str) -> Option<Box<dyn DataWriter<T>>> {
+    fn lookup_datawriter<T: DDSType>(&self, _topic_name: &str) -> Option<Box<dyn DataWriter<T>>> {
         todo!()
     }
 
@@ -245,7 +245,7 @@ impl<'a> Entity for RtpsPublisher<'a> {
     type Qos = PublisherQos;
     type Listener = Box<dyn PublisherListener>;
 
-    fn set_qos(&self, qos: Option<Self::Qos>) -> ReturnCode<()> {
+    fn set_qos(&self, _qos: Option<Self::Qos>) -> ReturnCode<()> {
         todo!()
     }
 
@@ -253,7 +253,7 @@ impl<'a> Entity for RtpsPublisher<'a> {
         todo!()
     }
 
-    fn set_listener(&self, a_listener: Self::Listener, mask: StatusMask) -> ReturnCode<()> {
+    fn set_listener(&self, _a_listener: Self::Listener, _mask: StatusMask) -> ReturnCode<()> {
         todo!()
     }
 

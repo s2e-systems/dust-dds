@@ -87,8 +87,8 @@ impl RtpsParticipantEntities {
     pub fn create_publisher(
         &self,
         qos: PublisherQos,
-        listener: Option<Box<dyn PublisherListener>>,
-        status_mask: StatusMask,
+        _listener: Option<Box<dyn PublisherListener>>,
+        _status_mask: StatusMask,
     ) -> Option<RtpsPublisherRef> {
         let entity_key = [
             0,
@@ -127,8 +127,8 @@ impl RtpsParticipantEntities {
     pub fn create_subscriber(
         &self,
         qos: SubscriberQos,
-        a_listener: Option<Box<dyn SubscriberListener>>,
-        mask: StatusMask,
+        _a_listener: Option<Box<dyn SubscriberListener>>,
+        _mask: StatusMask,
     ) -> Option<RtpsSubscriberRef> {
         let entity_key = [
             0,
