@@ -1,5 +1,18 @@
-use crate::utils::maybe_valid::{MaybeValidList, MaybeValidNode, MaybeValidRef};
-use rust_dds_api::{infrastructure::{qos::{PublisherQos, SubscriberQos, TopicQos}, status::StatusMask}, publication::publisher_listener::PublisherListener};
+use crate::{
+    rtps_publisher::RtpsPublisherRef,
+    rtps_subscriber::RtpsSubscriberRef,
+    rtps_topic::RtpsAnyTopicRef,
+    utils::maybe_valid::{MaybeValidList, MaybeValidRef},
+};
+use rust_dds_api::{
+    infrastructure::{
+        qos::{PublisherQos, SubscriberQos, TopicQos},
+        status::StatusMask,
+    },
+    publication::publisher_listener::PublisherListener,
+    subscription::subscriber_listener::SubscriberListener,
+    topic::topic_listener::TopicListener,
+};
 use rust_dds_types::{DDSType, ReturnCode, ReturnCodes};
 use rust_rtps::{
     message_sender::RtpsMessageSender,
@@ -76,12 +89,12 @@ impl RtpsParticipantEntities {
         self.transport.as_ref()
     }
 
-    pub fn create_publisher<'a>(
-        &'a self,
+    pub fn create_publisher(
+        &self,
         qos: PublisherQos,
         listener: Option<Box<dyn PublisherListener>>,
         status_mask: StatusMask,
-    ) -> Option<MaybeValidRef<'a, Box<RtpsPublisher>>> {
+    ) -> Option<RtpsPublisherRef> {
         let entity_key = [
             0,
             self.publisher_count.fetch_add(1, atomic::Ordering::Relaxed),
@@ -116,28 +129,28 @@ impl RtpsParticipantEntities {
     //     }
     // }
 
-    // pub fn create_subscriber(
-    //     &self,
-    //     qos: SubscriberQos,
-    //     a_listener: Option<Box<dyn SubscriberListener>>,
-    //     mask: StatusMask
-    // ) -> Option<RtpsSubscriberRef> {
-    //     let entity_key = [
-    //         0,
-    //         self.subscriber_count
-    //             .fetch_add(1, atomic::Ordering::Relaxed),
-    //         0,
-    //     ];
-    //     let entity_kind = match self.entity_type {
-    //         EntityType::BuiltIn => ENTITY_KIND_BUILT_IN_READER_GROUP,
-    //         EntityType::UserDefined => ENTITY_KIND_USER_DEFINED_READER_GROUP,
-    //     };
-    //     let entity_id = EntityId::new(entity_key, entity_kind);
-    //     let new_subscriber_guid = GUID::new(self.guid_prefix, entity_id);
-    //     let new_subscriber = Box::new(RtpsSubscriber::new(new_subscriber_guid, qos, None, 0));
+    pub fn create_subscriber(
+        &self,
+        qos: SubscriberQos,
+        a_listener: Option<Box<dyn SubscriberListener>>,
+        mask: StatusMask,
+    ) -> Option<RtpsSubscriberRef> {
+        let entity_key = [
+            0,
+            self.subscriber_count
+                .fetch_add(1, atomic::Ordering::Relaxed),
+            0,
+        ];
+        let entity_kind = match self.entity_type {
+            EntityType::BuiltIn => ENTITY_KIND_BUILT_IN_READER_GROUP,
+            EntityType::UserDefined => ENTITY_KIND_USER_DEFINED_READER_GROUP,
+        };
+        let entity_id = EntityId::new(entity_key, entity_kind);
+        let new_subscriber_guid = GUID::new(self.guid_prefix, entity_id);
+        let new_subscriber = Box::new(RtpsSubscriber::new(new_subscriber_guid, qos, None, 0));
 
-    //     self.subscriber_list.add(new_subscriber)
-    // }
+        self.subscriber_list.add(new_subscriber)
+    }
 
     // pub fn delete_subscriber(&self, a_subscriber: &RtpsSubscriberRef) -> ReturnCode<()> {
     //     let rtps_subscriber = a_subscriber.get()?;
@@ -157,30 +170,30 @@ impl RtpsParticipantEntities {
     //     }
     // }
 
-    // pub fn create_topic<T: DDSType>(
-    //     &self,
-    //     topic_name: &str,
-    //     qos: TopicQos,
-    //     // _a_listener: impl TopicListener<T>,
-    //     // _mask: StatusMask
-    // ) -> Option<RtpsAnyTopicRef> {
-    //     qos.is_consistent().ok()?;
-    //     let entity_key = [
-    //         0,
-    //         self.topic_count.fetch_add(1, atomic::Ordering::Relaxed),
-    //         0,
-    //     ];
-    //     let entity_id = EntityId::new(entity_key, ENTITY_KIND_USER_DEFINED_UNKNOWN);
-    //     let new_topic_guid = GUID::new(self.guid_prefix, entity_id);
-    //     let new_topic: Arc<RtpsTopic<T>> = Arc::new(RtpsTopic::new(
-    //         new_topic_guid,
-    //         topic_name.clone().into(),
-    //         qos,
-    //         None,
-    //         0,
-    //     ));
-    //     self.topic_list.add(new_topic)
-    // }
+    pub fn create_topic<'a, T: DDSType>(
+        &'a self,
+        topic_name: &str,
+        qos: TopicQos,
+        a_listener: Option<Box<dyn TopicListener<T>>>,
+        mask: StatusMask,
+    ) -> Option<RtpsAnyTopicRef<'a>> {
+        qos.is_consistent().ok()?;
+        let entity_key = [
+            0,
+            self.topic_count.fetch_add(1, atomic::Ordering::Relaxed),
+            0,
+        ];
+        let entity_id = EntityId::new(entity_key, ENTITY_KIND_USER_DEFINED_UNKNOWN);
+        let new_topic_guid = GUID::new(self.guid_prefix, entity_id);
+        let new_topic: Arc<RtpsTopic<T>> = Arc::new(RtpsTopic::new(
+            new_topic_guid,
+            topic_name.clone().into(),
+            qos,
+            a_listener,
+            mask,
+        ));
+        self.topic_list.add(new_topic)
+    }
 
     // pub fn delete_topic<T: DDSType>(&self, a_topic: &RtpsAnyTopicRef) -> ReturnCode<()> {
     //     if self.topic_list.contains(&a_topic) {

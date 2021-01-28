@@ -4,22 +4,40 @@ use std::{
     sync::{Arc, Mutex, MutexGuard},
 };
 
-use rust_dds_types::{DDSType, Duration, InstanceHandle, ReturnCode, ReturnCodes, Time, TopicKind};
-use rust_dds_api::{builtin_topics::SubscriptionBuiltinTopicData, infrastructure::{entity::{Entity, StatusCondition}, qos::DataWriterQos, qos_policy::ReliabilityQosPolicyKind, status::{LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus, StatusMask}}, publication::{data_writer::DataWriter, data_writer_listener::DataWriterListener, publisher::Publisher}, topic::topic::Topic};
-use rust_rtps::{ behavior::{
-    self, endpoint_traits::CacheChangeSender, StatefulWriter, StatelessWriter, Writer,
-},
-types::{
-    constants::{
-        ENTITY_KIND_BUILT_IN_WRITER_NO_KEY, ENTITY_KIND_BUILT_IN_WRITER_WITH_KEY,
-        ENTITY_KIND_USER_DEFINED_WRITER_NO_KEY, ENTITY_KIND_USER_DEFINED_WRITER_WITH_KEY,
+use rust_dds_api::{
+    builtin_topics::SubscriptionBuiltinTopicData,
+    infrastructure::{
+        entity::{Entity, StatusCondition},
+        qos::DataWriterQos,
+        qos_policy::ReliabilityQosPolicyKind,
+        status::{
+            LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus,
+            PublicationMatchedStatus, StatusMask,
+        },
     },
-    EntityId, EntityKey, GuidPrefix, ReliabilityKind, GUID,
-}};
+    publication::{
+        data_writer::DataWriter, data_writer_listener::DataWriterListener, publisher::Publisher,
+    },
+    topic::topic::Topic,
+};
+use rust_dds_types::{DDSType, Duration, InstanceHandle, ReturnCode, ReturnCodes, Time, TopicKind};
+use rust_rtps::{
+    behavior::{self, endpoint_traits::CacheChangeSender, StatefulWriter, StatelessWriter, Writer},
+    types::{
+        constants::{
+            ENTITY_KIND_BUILT_IN_WRITER_NO_KEY, ENTITY_KIND_BUILT_IN_WRITER_WITH_KEY,
+            ENTITY_KIND_USER_DEFINED_WRITER_NO_KEY, ENTITY_KIND_USER_DEFINED_WRITER_WITH_KEY,
+        },
+        EntityId, EntityKey, GuidPrefix, ReliabilityKind, GUID,
+    },
+};
 
-use crate::utils::{as_any::AsAny, maybe_valid::{MaybeValid, MaybeValidNode, MaybeValidRef}};
+use crate::utils::{
+    as_any::AsAny,
+    maybe_valid::{MaybeValid, MaybeValidRef},
+};
 
-use super::{rtps_publisher::RtpsPublisherNode, rtps_topic::AnyRtpsTopic};
+use super::rtps_topic::AnyRtpsTopic;
 
 pub enum WriterFlavor {
     Stateful(StatefulWriter),
@@ -248,163 +266,161 @@ impl<T: DDSType + Sized> AsAny for RtpsDataWriter<T> {
     }
 }
 
-pub type RtpsDataWriterNode<'a, T:DDSType> = MaybeValidNode<'a, RtpsPublisherNode<'a>, Box<RtpsDataWriter<T>>>;
+// impl<'a, T:DDSType> DataWriter<T> for RtpsDataWriterNode<'a, T> {
 
-impl<'a, T:DDSType> DataWriter<T> for RtpsDataWriterNode<'a, T> {
+//     fn register_instance(&self, _instance: T) -> ReturnCode<Option<InstanceHandle>> {
+//         todo!()
+//     }
 
-    fn register_instance(&self, _instance: T) -> ReturnCode<Option<InstanceHandle>> {
-        todo!()
-    }
+//     fn register_instance_w_timestamp(
+//         &self,
+//         _instance: T,
+//         _timestamp: Time,
+//     ) -> ReturnCode<Option<InstanceHandle>> {
+//         todo!()
+//     }
 
-    fn register_instance_w_timestamp(
-        &self,
-        _instance: T,
-        _timestamp: Time,
-    ) -> ReturnCode<Option<InstanceHandle>> {
-        todo!()
-    }
+//     fn unregister_instance(&self, _instance: T, _handle: Option<InstanceHandle>) -> ReturnCode<()> {
+//         todo!()
+//     }
 
-    fn unregister_instance(&self, _instance: T, _handle: Option<InstanceHandle>) -> ReturnCode<()> {
-        todo!()
-    }
+//     fn unregister_instance_w_timestamp(
+//         &self,
+//         _instance: T,
+//         _handle: Option<InstanceHandle>,
+//         _timestamp: Time,
+//     ) -> ReturnCode<()> {
+//         todo!()
+//     }
 
-    fn unregister_instance_w_timestamp(
-        &self,
-        _instance: T,
-        _handle: Option<InstanceHandle>,
-        _timestamp: Time,
-    ) -> ReturnCode<()> {
-        todo!()
-    }
+//     fn get_key_value(&self, _key_holder: &mut T, _handle: InstanceHandle) -> ReturnCode<()> {
+//         todo!()
+//     }
 
-    fn get_key_value(&self, _key_holder: &mut T, _handle: InstanceHandle) -> ReturnCode<()> {
-        todo!()
-    }
+//     fn lookup_instance(&self, _instance: &T) -> ReturnCode<Option<InstanceHandle>> {
+//         todo!()
+//     }
 
-    fn lookup_instance(&self, _instance: &T) -> ReturnCode<Option<InstanceHandle>> {
-        todo!()
-    }
+//     fn write(&self, _data: T, _handle: Option<InstanceHandle>) -> ReturnCode<()> {
+//         todo!()
+//     }
 
-    fn write(&self, _data: T, _handle: Option<InstanceHandle>) -> ReturnCode<()> {
-        todo!()
-    }
+//     fn write_w_timestamp(
+//         &self,
+//         data: T,
+//         handle: Option<InstanceHandle>,
+//         timestamp: Time,
+//     ) -> ReturnCode<()> {
+//         todo!()
+//     }
 
-    fn write_w_timestamp(
-        &self,
-        data: T,
-        handle: Option<InstanceHandle>,
-        timestamp: Time,
-    ) -> ReturnCode<()> {
-        todo!()
-    }
+//     fn dispose(&self, _data: T, _handle: Option<InstanceHandle>) -> ReturnCode<()> {
+//         todo!()
+//     }
 
-    fn dispose(&self, _data: T, _handle: Option<InstanceHandle>) -> ReturnCode<()> {
-        todo!()
-    }
+//     fn dispose_w_timestamp(
+//         &self,
+//         _data: T,
+//         _handle: Option<InstanceHandle>,
+//         _timestamp: Time,
+//     ) -> ReturnCode<()> {
+//         todo!()
+//     }
 
-    fn dispose_w_timestamp(
-        &self,
-        _data: T,
-        _handle: Option<InstanceHandle>,
-        _timestamp: Time,
-    ) -> ReturnCode<()> {
-        todo!()
-    }
+//     fn wait_for_acknowledgments(&self, _max_wait: Duration) -> ReturnCode<()> {
+//         todo!()
+//     }
 
-    fn wait_for_acknowledgments(&self, _max_wait: Duration) -> ReturnCode<()> {
-        todo!()
-    }
+//     fn get_liveliness_lost_status(&self, _status: &mut LivelinessLostStatus) -> ReturnCode<()> {
+//         todo!()
+//     }
 
-    fn get_liveliness_lost_status(&self, _status: &mut LivelinessLostStatus) -> ReturnCode<()> {
-        todo!()
-    }
+//     fn get_offered_deadline_missed_status(
+//         &self,
+//         _status: &mut OfferedDeadlineMissedStatus,
+//     ) -> ReturnCode<()> {
+//         todo!()
+//     }
 
-    fn get_offered_deadline_missed_status(
-        &self,
-        _status: &mut OfferedDeadlineMissedStatus,
-    ) -> ReturnCode<()> {
-        todo!()
-    }
+//     fn get_offered_incompatible_qos_status(
+//         &self,
+//         _status: &mut OfferedIncompatibleQosStatus,
+//     ) -> ReturnCode<()> {
+//         todo!()
+//     }
 
-    fn get_offered_incompatible_qos_status(
-        &self,
-        _status: &mut OfferedIncompatibleQosStatus,
-    ) -> ReturnCode<()> {
-        todo!()
-    }
+//     fn get_publication_matched_status(
+//         &self,
+//         _status: &mut PublicationMatchedStatus,
+//     ) -> ReturnCode<()> {
+//         todo!()
+//     }
 
-    fn get_publication_matched_status(
-        &self,
-        _status: &mut PublicationMatchedStatus,
-    ) -> ReturnCode<()> {
-        todo!()
-    }
+//     fn get_topic(&self) -> &dyn Topic<T> {
+//         todo!()
+//     }
 
-    fn get_topic(&self) -> &dyn Topic<T> {
-        todo!()
-    }
+//     fn get_publisher(&self) -> &dyn Publisher {
+//         todo!()
+//     }
 
-    fn get_publisher(&self) -> &dyn Publisher {
-        todo!()
-    }
+//     fn assert_liveliness(&self) -> ReturnCode<()> {
+//         todo!()
+//     }
 
-    fn assert_liveliness(&self) -> ReturnCode<()> {
-        todo!()
-    }
+//     fn get_matched_subscription_data(
+//         &self,
+//         _subscription_data: SubscriptionBuiltinTopicData,
+//         _subscription_handle: InstanceHandle,
+//     ) -> ReturnCode<()> {
+//         todo!()
+//     }
 
-    fn get_matched_subscription_data(
-        &self,
-        _subscription_data: SubscriptionBuiltinTopicData,
-        _subscription_handle: InstanceHandle,
-    ) -> ReturnCode<()> {
-        todo!()
-    }
+//     fn get_matched_subscriptions(
+//         &self,
+//         _subscription_handles: &mut [InstanceHandle],
+//     ) -> ReturnCode<()> {
+//         todo!()
+//     }
+// }
 
-    fn get_matched_subscriptions(
-        &self,
-        _subscription_handles: &mut [InstanceHandle],
-    ) -> ReturnCode<()> {
-        todo!()
-    }
-}
+// impl<'a, T:DDSType> Entity for RtpsDataWriterNode<'a, T> {
+//     type Qos = DataWriterQos;
 
-impl<'a, T:DDSType> Entity for RtpsDataWriterNode<'a, T> {
-    type Qos = DataWriterQos;
+//     type Listener = Box<dyn DataWriterListener<T>>;
 
-    type Listener = Box<dyn DataWriterListener<T>>;
+//     fn set_qos(&self, qos: Option<Self::Qos>) -> ReturnCode<()> {
+//         todo!()
+//     }
 
-    fn set_qos(&self, qos: Option<Self::Qos>) -> ReturnCode<()> {
-        todo!()
-    }
+//     fn get_qos(&self) -> ReturnCode<Self::Qos> {
+//         todo!()
+//     }
 
-    fn get_qos(&self) -> ReturnCode<Self::Qos> {
-        todo!()
-    }
+//     fn set_listener(&self, a_listener: Self::Listener, mask: StatusMask) -> ReturnCode<()> {
+//         todo!()
+//     }
 
-    fn set_listener(&self, a_listener: Self::Listener, mask: StatusMask) -> ReturnCode<()> {
-        todo!()
-    }
+//     fn get_listener(&self) -> &Self::Listener {
+//         todo!()
+//     }
 
-    fn get_listener(&self) -> &Self::Listener {
-        todo!()
-    }
+//     fn get_statuscondition(&self) -> StatusCondition {
+//         todo!()
+//     }
 
-    fn get_statuscondition(&self) -> StatusCondition {
-        todo!()
-    }
+//     fn get_status_changes(&self) -> StatusMask {
+//         todo!()
+//     }
 
-    fn get_status_changes(&self) -> StatusMask {
-        todo!()
-    }
+//     fn enable(&self) -> ReturnCode<()> {
+//         todo!()
+//     }
 
-    fn enable(&self) -> ReturnCode<()> {
-        todo!()
-    }
-
-    fn get_instance_handle(&self) -> ReturnCode<InstanceHandle> {
-        todo!()
-    }
-}
+//     fn get_instance_handle(&self) -> ReturnCode<InstanceHandle> {
+//         todo!()
+//     }
+// }
 
 // impl<'a> RtpsAnyDataWriterRef<'a> {
 //     fn get(&self) -> ReturnCode<&Box<dyn AnyRtpsWriter>> {

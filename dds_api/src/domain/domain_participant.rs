@@ -1,3 +1,5 @@
+use std::{env::consts::ARCH, ops::Deref, sync::Arc};
+
 use rust_dds_types::{DDSType, DomainId, Duration, InstanceHandle, ReturnCode, Time};
 
 use crate::{
@@ -15,10 +17,10 @@ use crate::{
 use super::domain_participant_listener::DomainParticipantListener;
 
 pub trait DomainParticipant<'a>:
-    Entity<Qos = DomainParticipantQos, Listener = Box<dyn DomainParticipantListener>>
+    Entity<'a, Qos = DomainParticipantQos, Listener = Box<dyn DomainParticipantListener>>
 {
-    type PublisherType: Publisher;
-    type SubscriberType: Subscriber;
+    type SubscriberType: Subscriber<'a>;
+    type PublisherType: Publisher<'a>;
 
     /// This operation creates a Publisher with the desired QoS policies and attaches to it the specified PublisherListener.
     /// If the specified QoS policies are not consistent, the operation will fail and no Publisher will be created.
@@ -32,7 +34,7 @@ pub trait DomainParticipant<'a>:
         qos: Option<PublisherQos>,
         a_listener: Option<Box<dyn PublisherListener>>,
         mask: StatusMask,
-    ) -> Option<Self::PublisherType>;
+    ) -> Option<Box<dyn DomainParticipantNode<ValueType = Self::PublisherType, DomainParticipantType=Self> + 'a >>;
 
     /// This operation deletes an existing Publisher.
     /// A Publisher cannot be deleted if it has any attached DataWriter objects. If delete_publisher is called on a Publisher with
@@ -52,10 +54,10 @@ pub trait DomainParticipant<'a>:
     /// The created Subscriber belongs to the DomainParticipant that is its factory.
     /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
     fn create_subscriber(
-        &self,
+        &'a self,
         qos: Option<SubscriberQos>,
-        _a_listener: Option<Box<dyn SubscriberListener>>,
-        _mask: StatusMask,
+        a_listener: Option<Box<dyn SubscriberListener>>,
+        mask: StatusMask,
     ) -> Option<Self::SubscriberType>;
 
     /// This operation deletes an existing Subscriber.
@@ -78,12 +80,12 @@ pub trait DomainParticipant<'a>:
     /// described in 2.2.2.3.6, TypeSupport Interface.
     /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
     fn create_topic<T: DDSType>(
-        &self,
+        &'a self,
         topic_name: &str,
         qos: Option<TopicQos>,
         a_listener: Option<Box<dyn TopicListener<T>>>,
         mask: StatusMask,
-    ) -> Option<Box<dyn Topic<T>>>
+    ) -> Option<Box<dyn Topic<'a, T> + 'a>>
     where
         Self: Sized;
 
@@ -94,7 +96,7 @@ pub trait DomainParticipant<'a>:
     /// The delete_topic operation must be called on the same DomainParticipant object used to create the Topic. If delete_topic is
     /// called on a different DomainParticipant, the operation will have no effect and it will return PRECONDITION_NOT_MET.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
-    fn delete_topic<T: DDSType>(&self, a_topic: &Box<dyn Topic<T>>) -> ReturnCode<()>
+    fn delete_topic<T: DDSType>(&'a self, a_topic: &'a Box<dyn Topic<T> + 'a>) -> ReturnCode<()>
     where
         Self: Sized;
 
@@ -313,4 +315,23 @@ pub trait DomainParticipant<'a>:
     /// This operation returns the current value of the time that the service uses to time-stamp data-writes and to set the reception timestamp
     /// for the data-updates it receives.
     fn get_current_time(&self) -> ReturnCode<Time>;
+}
+
+pub trait DomainParticipantNode{
+    type DomainParticipantType;
+    type ValueType;
+
+    /// This operation returns the DomainParticipant to which the Node belongs.
+    fn get_participant(&self) -> &Self::DomainParticipantType;
+
+    /// This operation returns a reference to the Node value
+    fn get_value(&self) -> &Self::ValueType;
+}
+
+impl<'a, P,T> Deref for dyn DomainParticipantNode<DomainParticipantType = P, ValueType = T> + 'a {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        self.get_value()
+    }
 }

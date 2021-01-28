@@ -22,7 +22,7 @@ use super::{
 /// of the Publisher and the DataWriter.
 /// All operations except for the base-class operations set_qos, get_qos, set_listener, get_listener, enable, get_statuscondition,
 /// create_datawriter, and delete_datawriter may return the value NOT_ENABLED.
-pub trait Publisher: Entity<Qos = PublisherQos, Listener = Box<dyn PublisherListener>> {
+pub trait Publisher<'a>: Entity<'a, Qos = PublisherQos, Listener = Box<dyn PublisherListener>> {
     /// This operation creates a DataWriter. The returned DataWriter will be attached and belongs to the Publisher.
     /// The DataWriter returned by the create_datawriter operation will in fact be a derived class, specific to the data-type associated
     /// with the Topic. As described in 2.2.2.3.7, for each application-defined type “Foo” there is an implied, auto-generated class
@@ -45,12 +45,12 @@ pub trait Publisher: Entity<Qos = PublisherQos, Listener = Box<dyn PublisherList
     /// The Topic passed to this operation must have been created from the same DomainParticipant that was used to create this
     /// Publisher. If the Topic was created from a different DomainParticipant, the operation will fail and return a nil result.
     fn create_datawriter<T: DDSType>(
-        &self,
-        a_topic: &Box<dyn Topic<T>>,
+        &'a self,
+        a_topic: &'a Box<dyn Topic<T> + 'a>,
         qos: Option<DataWriterQos>,
         a_listener: Option<Box<dyn DataWriterListener<T>>>,
         mask: StatusMask,
-    ) -> Option<Box<dyn DataWriter<T>>>
+    ) -> Option<Box<dyn DataWriter<T> + 'a>>
     where
         Self: Sized;
 
@@ -63,8 +63,8 @@ pub trait Publisher: Entity<Qos = PublisherQos, Listener = Box<dyn PublisherList
     /// details.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
     fn delete_datawriter<T: DDSType>(
-        &self,
-        a_datawriter: &Box<dyn DataWriter<T>>,
+        &'a self,
+        a_datawriter: &'a Box<dyn DataWriter<T> + 'a>,
     ) -> ReturnCode<()>
     where
         Self: Sized;
@@ -160,9 +160,4 @@ pub trait Publisher: Entity<Qos = PublisherQos, Listener = Box<dyn PublisherList
         _a_datawriter_qos: &mut DataWriterQos,
         _a_topic_qos: &TopicQos,
     ) -> ReturnCode<()>;
-
-    /// This operation returns the DomainParticipant to which the Publisher belongs.
-    fn get_participant<'a>(
-        &'a self,
-    ) -> &dyn DomainParticipant<SubscriberType = dyn Subscriber + 'a, PublisherType = dyn Publisher + 'a>;
 }

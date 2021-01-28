@@ -5,21 +5,11 @@ use std::{
     thread::JoinHandle,
 };
 
-use rust_dds_api::{
-    builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
-    domain::{
-        domain_participant::DomainParticipant,
-        domain_participant_listener::DomainParticipantListener,
-    },
-    infrastructure::{
+use rust_dds_api::{builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData}, domain::{domain_participant::{DomainParticipant, DomainParticipantNode}, domain_participant_listener::DomainParticipantListener}, infrastructure::{
         entity::{Entity, StatusCondition},
         qos::{DataWriterQos, DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
         status::StatusMask,
-    },
-    publication::publisher_listener::PublisherListener,
-    subscription::subscriber_listener::SubscriberListener,
-    topic::{topic::Topic, topic_description::TopicDescription, topic_listener::TopicListener},
-};
+    }, publication::publisher_listener::PublisherListener, subscription::subscriber_listener::SubscriberListener, topic::{topic::Topic, topic_description::TopicDescription, topic_listener::TopicListener}};
 use rust_rtps::{
     structure::Participant,
     transport::Transport,
@@ -34,14 +24,11 @@ use rust_rtps::{
 
 use rust_dds_types::{DDSType, DomainId, Duration, InstanceHandle, ReturnCode, Time};
 
-use crate::utils::maybe_valid::MaybeValidNode;
+use crate::{rtps_publisher::{RtpsPublisherNode, RtpsPublisherRef}, rtps_subscriber::{RtpsSubscriberNode, RtpsSubscriberRef}, rtps_topic::RtpsTopicNode};
 
-use super::{
-    rtps_participant_entities::RtpsParticipantEntities, rtps_publisher::RtpsPublisherNode,
-    rtps_subscriber::RtpsSubscriberNode, rtps_topic::RtpsAnyTopicNode,
-};
+use super::rtps_participant_entities::RtpsParticipantEntities;
 
-pub struct RtpsParticipant<'a> {
+pub struct RtpsParticipant {
     participant: Participant,
     qos: Mutex<DomainParticipantQos>,
     default_publisher_qos: Mutex<PublisherQos>,
@@ -54,7 +41,6 @@ pub struct RtpsParticipant<'a> {
     thread_list: RefCell<Vec<JoinHandle<()>>>,
     a_listener: Option<Box<dyn DomainParticipantListener>>,
     mask: StatusMask,
-    _lifetime: PhantomData<&'a ()>,
 }
 
 // impl Into<ParticipantProxy> for &RtpsParticipant {
@@ -85,7 +71,7 @@ pub struct RtpsParticipant<'a> {
 //     }
 // }
 
-impl<'a> RtpsParticipant<'a> {
+impl RtpsParticipant {
     pub fn new(
         domain_id: DomainId,
         qos: DomainParticipantQos,
@@ -119,7 +105,6 @@ impl<'a> RtpsParticipant<'a> {
             thread_list: RefCell::new(Vec::new()),
             a_listener,
             mask,
-            _lifetime: PhantomData,
         }
     }
 
@@ -307,8 +292,8 @@ impl<'a> RtpsParticipant<'a> {
     // }
 }
 
-impl<'a> DomainParticipant<'a> for RtpsParticipant<'a> {
-    type PublisherType = RtpsPublisherNode<'a>;
+impl<'a> DomainParticipant<'a> for RtpsParticipant {
+    type PublisherType = RtpsPublisherRef<'a>;
     type SubscriberType = RtpsSubscriberNode<'a>;
 
     fn create_publisher(
@@ -316,12 +301,12 @@ impl<'a> DomainParticipant<'a> for RtpsParticipant<'a> {
         qos: Option<PublisherQos>,
         a_listener: Option<Box<dyn PublisherListener>>,
         mask: StatusMask,
-    ) -> Option<Self::PublisherType> {
+    ) -> Option<Box<dyn DomainParticipantNode<ValueType = Self::PublisherType, DomainParticipantType=Self> + 'a >> {
         let qos = qos.unwrap_or(self.get_default_publisher_qos());
         let publisher_ref = self
             .builtin_entities
             .create_publisher(qos, a_listener, mask)?;
-        Some(RtpsPublisherNode::new(self, publisher_ref))
+        Some(Box::new(RtpsPublisherNode::new(self, publisher_ref)))
     }
 
     fn delete_publisher(&self, _a_publisher: &Self::PublisherType) -> ReturnCode<()> {
@@ -329,12 +314,16 @@ impl<'a> DomainParticipant<'a> for RtpsParticipant<'a> {
     }
 
     fn create_subscriber(
-        &self,
-        _qos: Option<SubscriberQos>,
-        _a_listener: Option<Box<dyn SubscriberListener>>,
-        _mask: StatusMask,
+        &'a self,
+        qos: Option<SubscriberQos>,
+        a_listener: Option<Box<dyn SubscriberListener>>,
+        mask: StatusMask,
     ) -> Option<Self::SubscriberType> {
-        todo!()
+        let qos = qos.unwrap_or(self.get_default_subscriber_qos());
+        let subscriber_ref = self
+            .builtin_entities
+            .create_subscriber(qos, a_listener, mask)?;
+        Some(RtpsSubscriberNode::new(self, subscriber_ref))
     }
 
     fn delete_subscriber(&self, _a_subscriber: &Self::SubscriberType) -> ReturnCode<()> {
@@ -342,16 +331,22 @@ impl<'a> DomainParticipant<'a> for RtpsParticipant<'a> {
     }
 
     fn create_topic<T: DDSType>(
-        &self,
-        _topic_name: &str,
-        _qos: Option<TopicQos>,
-        _a_listener: Option<Box<dyn TopicListener<T>>>,
-        _mask: StatusMask,
-    ) -> Option<Box<dyn Topic<T>>> {
+        &'a self,
+        topic_name: &str,
+        qos: Option<TopicQos>,
+        a_listener: Option<Box<dyn TopicListener<T>>>,
+        mask: StatusMask,
+    ) -> Option<Box<dyn Topic<'a, T> + 'a>> {
         todo!()
+        // let qos = qos.unwrap_or(self.get_default_topic_qos());
+        // qos.is_consistent().ok()?;
+        // let topic_ref = self
+        //     .builtin_entities
+        //     .create_topic(topic_name, qos, a_listener, mask)?;
+        // Some(Arc::new(RtpsTopicNode::new(self, topic_ref)))
     }
 
-    fn delete_topic<T: DDSType>(&self, _a_topic: &Box<dyn Topic<T>>) -> ReturnCode<()> {
+    fn delete_topic<T: DDSType>(&'a self, _a_topic: &'a Box<dyn Topic<T> + 'a>) -> ReturnCode<()> {
         todo!()
     }
 
@@ -464,7 +459,7 @@ impl<'a> DomainParticipant<'a> for RtpsParticipant<'a> {
     }
 }
 
-impl<'a> Entity for RtpsParticipant<'a> {
+impl<'a> Entity<'a> for RtpsParticipant {
     type Qos = DomainParticipantQos;
     type Listener = Box<dyn DomainParticipantListener>;
 
@@ -501,7 +496,7 @@ impl<'a> Entity for RtpsParticipant<'a> {
     }
 }
 
-impl<'a> Drop for RtpsParticipant<'a> {
+impl<'a> Drop for RtpsParticipant {
     fn drop(&mut self) {
         self.enabled.store(false, atomic::Ordering::Release);
         for thread in self.thread_list.borrow_mut().drain(..) {

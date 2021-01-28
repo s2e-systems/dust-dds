@@ -1,11 +1,8 @@
-use std::{
-    any::Any,
-    sync::{Arc, Mutex},
-};
+use std::{any::Any, marker::PhantomData, sync::{Arc, Mutex}};
 
 use crate::utils::{
     as_any::AsAny,
-    maybe_valid::{MaybeValid, MaybeValidNode, MaybeValidRef},
+    maybe_valid::{MaybeValid, MaybeValidRef},
 };
 use rust_dds_api::{
     domain::domain_participant::DomainParticipant,
@@ -89,9 +86,23 @@ impl<T: DDSType> AsAny for RtpsTopic<T> {
     }
 }
 
-pub type RtpsAnyTopicNode<'a> = MaybeValidNode<'a, RtpsParticipant<'a>, Arc<dyn AnyRtpsTopic>>;
+pub type RtpsAnyTopicRef<'a> = MaybeValidRef<'a, Arc<dyn AnyRtpsTopic>>;
 
-pub type RtpsTopicNode<'a, T> = MaybeValidNode<'a, RtpsParticipant<'a>, Arc<RtpsTopic<T>>>;
+pub struct RtpsTopicNode<'a, T:DDSType> {
+    participant: &'a RtpsParticipant,
+    topic_ref: RtpsAnyTopicRef<'a>,
+    phantom_data: PhantomData<T>
+}
+
+impl<'a,T:DDSType> RtpsTopicNode<'a,T>{
+    pub fn new(participant: &'a RtpsParticipant, topic_ref: RtpsAnyTopicRef<'a>) -> Self {
+        Self {
+            participant,
+            topic_ref,
+            phantom_data: PhantomData,
+        }
+    }
+}
 
 impl<'a, T: DDSType> Topic<'a, T> for RtpsTopicNode<'a, T> {
     fn get_inconsistent_topic_status(
@@ -102,14 +113,7 @@ impl<'a, T: DDSType> Topic<'a, T> for RtpsTopicNode<'a, T> {
     }
 }
 
-impl<'a, T: DDSType> TopicDescription<'a, T> for RtpsTopicNode<'a, T> {
-    fn get_participant(
-        &self,
-    ) -> &dyn DomainParticipant<SubscriberType = dyn Subscriber + 'a, PublisherType = dyn Publisher + 'a>
-    {
-        todo!()
-    }
-
+impl<'a, T: DDSType> TopicDescription<'a, T> for RtpsTopicNode<'a,T> {
     fn get_type_name(&self) -> ReturnCode<&str> {
         todo!()
     }
@@ -119,7 +123,7 @@ impl<'a, T: DDSType> TopicDescription<'a, T> for RtpsTopicNode<'a, T> {
     }
 }
 
-impl<'a, T: DDSType> Entity for RtpsTopicNode<'a, T> {
+impl<'a, T: DDSType> Entity<'a> for RtpsTopicNode<'a, T> {
     type Qos = TopicQos;
     type Listener = Box<dyn TopicListener<T>>;
 

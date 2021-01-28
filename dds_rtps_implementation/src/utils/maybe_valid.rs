@@ -54,20 +54,6 @@ impl<'a, T> std::ops::Deref for MaybeValidRef<'a, T> {
     }
 }
 
-pub struct MaybeValidNode<'a, P, T> {
-    pub parent: &'a P,
-    pub maybe_valid_ref: MaybeValidRef<'a, T>,
-}
-
-impl<'a, P, T> MaybeValidNode<'a, P, T> {
-    pub fn new(parent: &'a P, maybe_valid_ref: MaybeValidRef<'a, T>) -> Self {
-        Self{
-            parent,
-            maybe_valid_ref,
-        }
-    }
-}
-
 const MAYBE_VALID_LIST_SIZE: usize = 32;
 pub struct MaybeValidList<T>([RwLock<MaybeValid<T>>; MAYBE_VALID_LIST_SIZE]);
 

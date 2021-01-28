@@ -1,8 +1,5 @@
 use rust_dds_api::{
-    domain::{
-        domain_participant::DomainParticipant,
-        domain_participant_listener::DomainParticipantListener,
-    },
+    domain::domain_participant_listener::DomainParticipantListener,
     infrastructure::{qos::DomainParticipantQos, status::StatusMask},
 };
 use rust_dds_rtps_implementation::rtps_participant::RtpsParticipant;
@@ -30,7 +27,6 @@ use rust_rtps_transport_udp::UdpTransport;
 /// - Operations that access the status: get_statuscondition
 pub struct DomainParticipantFactory;
 
-
 impl DomainParticipantFactory {
     /// This operation creates a new DomainParticipant object. The DomainParticipant signifies that the calling application intends
     /// to join the Domain identified by the domain_id argument.
@@ -40,13 +36,13 @@ impl DomainParticipantFactory {
     /// default DomainParticipant QoS by means of the operation get_default_participant_qos (2.2.2.2.2.6) and using the resulting
     /// QoS to create the DomainParticipant.
     /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
-    pub fn create_participant<'a>(
+    pub fn create_participant(
         domain_id: DomainId,
         qos: Option<DomainParticipantQos>,
         a_listener: Option<Box<dyn DomainParticipantListener>>,
         mask: StatusMask,
         //     enabled: bool,
-    ) -> Option<RtpsParticipant<'a>> {
+    ) -> Option<RtpsParticipant> {
         let interface = "Wi-Fi";
         let userdata_transport =
             UdpTransport::default_userdata_transport(domain_id, interface).unwrap();

@@ -1,6 +1,13 @@
 use std::sync::{atomic, Arc, Mutex};
 
-use rust_dds_api::{domain::domain_participant::DomainParticipant, infrastructure::{entity::{Entity, StatusCondition}, qos::{DataWriterQos, PublisherQos, TopicQos}, status::StatusMask}, publication::{data_writer::DataWriter, data_writer_listener::DataWriterListener, publisher::Publisher, publisher_listener::PublisherListener}, subscription::subscriber::Subscriber, topic::topic::Topic};
+use rust_dds_api::{domain::domain_participant::{DomainParticipant, DomainParticipantNode}, infrastructure::{
+        entity::{Entity, StatusCondition},
+        qos::{DataWriterQos, PublisherQos, TopicQos},
+        status::StatusMask,
+    }, publication::{
+        data_writer::DataWriter, data_writer_listener::DataWriterListener, publisher::Publisher,
+        publisher_listener::PublisherListener,
+    }, subscription::subscriber::Subscriber, topic::topic::Topic};
 
 use rust_dds_types::{DDSType, Duration, InstanceHandle, ReturnCode, ReturnCodes};
 use rust_rtps::{
@@ -11,10 +18,10 @@ use rust_rtps::{
     },
 };
 
-use crate::utils::maybe_valid::{MaybeValid, MaybeValidList, MaybeValidNode};
+use crate::utils::maybe_valid::{MaybeValid, MaybeValidList, MaybeValidRef};
 
 use super::{
-    rtps_datawriter::{AnyRtpsWriter, RtpsDataWriter, RtpsDataWriterNode},
+    rtps_datawriter::{AnyRtpsWriter, RtpsDataWriter},
     rtps_participant::RtpsParticipant,
 };
 
@@ -147,30 +154,54 @@ impl RtpsPublisher {
     // }
 }
 
-pub type RtpsPublisherNode<'a> = MaybeValidNode<'a, RtpsParticipant<'a>, Box<RtpsPublisher>>;
+pub type RtpsPublisherRef<'a> = MaybeValidRef<'a, Box<RtpsPublisher>>;
 
-impl<'a> Publisher for RtpsPublisherNode<'a> {
+pub struct RtpsPublisherNode<'a> {
+    participant: &'a RtpsParticipant,
+    publisher_ref: RtpsPublisherRef<'a>,
+}
+
+impl<'a> RtpsPublisherNode<'a> {
+    pub fn new(participant: &'a RtpsParticipant, publisher_ref: RtpsPublisherRef<'a>) -> Self {
+        Self {
+            participant,
+            publisher_ref,
+        }
+    }
+}
+
+impl<'a> DomainParticipantNode for RtpsPublisherNode<'a> {
+    type DomainParticipantType = RtpsParticipant;
+    type ValueType = RtpsPublisherRef<'a>;
+
+    fn get_participant(&self) -> &Self::DomainParticipantType {
+        self.participant
+    }
+
+    fn get_value(&self) -> &Self::ValueType {
+        &self.publisher_ref
+    }
+}
+
+impl<'a> Publisher<'a> for RtpsPublisherRef<'a> {
     fn create_datawriter<T: DDSType>(
-        &self,
-        a_topic: &Box<dyn Topic<T>>,
+        &'a self,
+        a_topic: &'a Box<dyn Topic<T> + 'a>,
         qos: Option<DataWriterQos>,
         _a_listener: Option<Box<dyn DataWriterListener<T>>>,
-        _mask: StatusMask
-    ) -> Option<Box<dyn DataWriter<T>>> {
+        _mask: StatusMask,
+    ) -> Option<Box<dyn DataWriter<T> + 'a>> {
         todo!()
     }
 
     fn delete_datawriter<T: DDSType>(
-        &self,
-        a_datawriter: &Box<dyn DataWriter<T>>,
+        &'a self,
+        a_datawriter: &'a Box<dyn DataWriter<T> + 'a>,
     ) -> ReturnCode<()> {
         todo!()
     }
 
-    fn lookup_datawriter<T: DDSType>(
-        &self,
-        topic_name: &str,
-    ) -> Option<Box<dyn DataWriter<T>>> {
+    fn lookup_datawriter<T: DDSType>(&self, topic_name: &str) -> Option<Box<dyn DataWriter<T>>> {
         todo!()
     }
 
@@ -213,16 +244,9 @@ impl<'a> Publisher for RtpsPublisherNode<'a> {
     ) -> ReturnCode<()> {
         todo!()
     }
-
-    fn get_participant<'b>(
-        &'b self,
-    ) -> &dyn DomainParticipant<SubscriberType = dyn Subscriber+'b, PublisherType = dyn Publisher+'b>
-    {
-        todo!()
-    }
 }
 
-impl<'a> Entity for RtpsPublisherNode<'a> {
+impl<'a> Entity<'a> for RtpsPublisherRef<'a> {
     type Qos = PublisherQos;
     type Listener = Box<dyn PublisherListener>;
 

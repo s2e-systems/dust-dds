@@ -1,1 +1,1 @@
-pub trait Listener: Send + Sync + 'static {}
+pub trait Listener: Send + Sync {}

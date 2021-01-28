@@ -1,7 +1,22 @@
 use std::sync::{atomic, Arc, Mutex};
 
-use crate::utils::maybe_valid::{MaybeValid, MaybeValidList, MaybeValidNode, MaybeValidRef};
-use rust_dds_api::{domain::domain_participant::DomainParticipant, infrastructure::{entity::{Entity, StatusCondition}, qos::{DataReaderQos, SubscriberQos, TopicQos}, status::{InstanceStateKind, SampleLostStatus, SampleStateKind, StatusMask, ViewStateKind}}, publication::publisher::Publisher, subscription::{data_reader::{AnyDataReader, DataReader}, data_reader_listener::DataReaderListener, subscriber::Subscriber, subscriber_listener::SubscriberListener}, topic::topic::Topic};
+use crate::utils::maybe_valid::{MaybeValid, MaybeValidList, MaybeValidRef};
+use rust_dds_api::{
+    domain::domain_participant::DomainParticipant,
+    infrastructure::{
+        entity::{Entity, StatusCondition},
+        qos::{DataReaderQos, SubscriberQos, TopicQos},
+        status::{InstanceStateKind, SampleLostStatus, SampleStateKind, StatusMask, ViewStateKind},
+    },
+    publication::publisher::Publisher,
+    subscription::{
+        data_reader::{AnyDataReader, DataReader},
+        data_reader_listener::DataReaderListener,
+        subscriber::Subscriber,
+        subscriber_listener::SubscriberListener,
+    },
+    topic::topic::Topic,
+};
 use rust_dds_types::{DDSType, InstanceHandle, ReturnCode, ReturnCodes, TopicKind};
 use rust_rtps::{
     structure::Group,
@@ -119,22 +134,33 @@ impl RtpsSubscriber {
     }
 }
 
-pub type RtpsSubscriberNode<'a> = MaybeValidNode<'a, RtpsParticipant<'a>, Box<RtpsSubscriber>>;
+pub type RtpsSubscriberRef<'a> = MaybeValidRef<'a, Box<RtpsSubscriber>>;
 
-impl<'a> Subscriber for RtpsSubscriberNode<'a> {
+pub struct RtpsSubscriberNode<'a> {
+    parent: &'a RtpsParticipant,
+    subscriber: RtpsSubscriberRef<'a>,
+}
+
+impl<'a> RtpsSubscriberNode<'a> {
+    pub fn new(parent: &'a RtpsParticipant, subscriber: RtpsSubscriberRef<'a>) -> Self {
+        Self { parent, subscriber }
+    }
+}
+
+impl<'a> Subscriber<'a> for RtpsSubscriberNode<'a> {
     fn create_datareader<T: DDSType>(
-        &self,
-        a_topic: &Box<dyn Topic<T>>,
+        &'a self,
+        a_topic: &'a Box<dyn Topic<T> + 'a>,
         qos: Option<DataReaderQos>,
         _a_listener: Option<Box<dyn DataReaderListener<T>>>,
-        _mask: StatusMask
-    ) -> Option<Box<dyn DataReader<T>>> {
+        _mask: StatusMask,
+    ) -> Option<Box<dyn DataReader<T> + 'a>> {
         todo!()
     }
 
     fn delete_datareader<T: DDSType>(
-        &self,
-        _a_datareader: &Box<dyn DataReader<T>>,
+        &'a self,
+        _a_datareader: &'a Box<dyn DataReader<T> + 'a>,
     ) -> ReturnCode<()> {
         todo!()
     }
@@ -159,13 +185,6 @@ impl<'a> Subscriber for RtpsSubscriberNode<'a> {
     }
 
     fn get_sample_lost_status(&self, _status: &mut SampleLostStatus) -> ReturnCode<()> {
-        todo!()
-    }
-
-    fn get_participant<'b>(
-        &'b self,
-    ) -> &dyn DomainParticipant<SubscriberType = dyn Subscriber+'b, PublisherType = dyn Publisher+'b>
-    {
         todo!()
     }
 
@@ -200,7 +219,7 @@ impl<'a> Subscriber for RtpsSubscriberNode<'a> {
     }
 }
 
-impl<'a> Entity for RtpsSubscriberNode<'a> {
+impl<'a> Entity<'a> for RtpsSubscriberNode<'a> {
     type Qos = SubscriberQos;
     type Listener = Box<dyn SubscriberListener>;
 
