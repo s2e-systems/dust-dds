@@ -465,7 +465,7 @@ pub trait DataReader<'a, T: DDSType>:
     fn get_topicdescription(&self) -> &dyn TopicDescription<T>;
 
     /// This operation returns the Subscriber to which the DataReader belongs.
-    fn get_subscriber(&self) -> &dyn Subscriber;
+    // fn get_subscriber(&self) -> &dyn Subscriber;
 
     /// This operation deletes all the entities that were created by means of the “create” operations on the DataReader. That is, it
     /// deletes all contained ReadCondition and QueryCondition objects.

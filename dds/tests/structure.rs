@@ -1,9 +1,5 @@
 use rust_dds::domain_participant_factory::DomainParticipantFactory;
-use rust_dds_api::{
-    domain::domain_participant::DomainParticipant, infrastructure::entity::Entity,
-    publication::publisher::Publisher,
-    subscription::subscriber::Subscriber,
-};
+use rust_dds_api::{domain::domain_participant::{DomainParticipant, DomainParticipantChildNode}, infrastructure::entity::Entity, publication::publisher::Publisher, subscription::subscriber::Subscriber};
 use rust_dds_types::{DDSType, Data, InstanceHandle, ReturnCodes, TopicKind};
 
 struct TestType;
@@ -33,6 +29,7 @@ impl DDSType for TestType {
 fn create_delete_publisher() {
     let participant = DomainParticipantFactory::create_participant(0, None, None, 0).unwrap();
     let publisher = participant.create_publisher(None, None, 0).unwrap();
+
     assert_eq!(participant.delete_publisher(&publisher), Ok(()));
     assert_eq!(publisher.get_qos(), Err(ReturnCodes::AlreadyDeleted));
     assert_eq!(
@@ -59,6 +56,7 @@ fn create_delete_topic() {
     let topic = participant
         .create_topic::<TestType>("abc", None, None, 0)
         .unwrap();
+
     assert_eq!(participant.delete_topic(&topic), Ok(()));
     assert_eq!(topic.get_qos(), Err(ReturnCodes::AlreadyDeleted));
     assert_eq!(

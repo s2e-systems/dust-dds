@@ -170,11 +170,11 @@ impl<'a> RtpsPublisherNode<'a> {
     }
 }
 
-impl<'a> DomainParticipantChildNode for RtpsPublisherNode<'a> {
-    type DomainParticipantType = RtpsParticipant;
+impl<'a> DomainParticipantChildNode for RtpsPublisherNode<'a>{
+    type DomainParticipant = RtpsParticipant;
 
-    fn get_participant(&self) -> &Self::DomainParticipantType {
-        self.participant
+    fn get_participant(&self) -> &Self::DomainParticipant {
+        &self.participant
     }
 }
 

@@ -236,7 +236,7 @@ pub trait DataWriter<'a, T: DDSType>:
     fn get_topic(&self) -> &dyn Topic<T>;
 
     /// This operation returns the Publisher to which the DataWriter belongs.
-    fn get_publisher(&self) -> &dyn Publisher;
+    // fn get_publisher(&self) -> &dyn Publisher;
 
     /// This operation manually asserts the liveliness of the DataWriter. This is used in combination with the LIVELINESS QoS
     /// policy (see 2.2.3, Supported QoS) to indicate to the Service that the entity remains active.

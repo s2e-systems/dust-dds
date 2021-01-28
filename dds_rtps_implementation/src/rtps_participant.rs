@@ -8,7 +8,7 @@ use std::{
 use rust_dds_api::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
     domain::{
-        domain_participant::{DomainParticipant, DomainParticipantChildNode},
+        domain_participant::DomainParticipant,
         domain_participant_listener::DomainParticipantListener,
     },
     infrastructure::{

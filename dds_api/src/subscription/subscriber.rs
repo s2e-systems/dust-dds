@@ -1,17 +1,12 @@
-use std::sync::Arc;
+use std::{ops::Deref, sync::Arc};
 
 use rust_dds_types::{DDSType, ReturnCode};
 
-use crate::{
-    domain::domain_participant::DomainParticipant,
-    infrastructure::{
+use crate::{domain::domain_participant::{DomainParticipant, DomainParticipantChildNode}, infrastructure::{
         entity::Entity,
         qos::{DataReaderQos, SubscriberQos, TopicQos},
         status::{InstanceStateKind, SampleLostStatus, SampleStateKind, StatusMask, ViewStateKind},
-    },
-    publication::publisher::Publisher,
-    topic::topic::Topic,
-};
+    }, publication::publisher::Publisher, topic::topic::Topic};
 
 use super::{
     data_reader::{AnyDataReader, DataReader},

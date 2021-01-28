@@ -4,17 +4,11 @@ use crate::utils::{
     as_any::AsAny,
     maybe_valid::{MaybeValid, MaybeValidRef},
 };
-use rust_dds_api::{
-    domain::domain_participant::DomainParticipant,
-    infrastructure::{
+use rust_dds_api::{domain::domain_participant::{DomainParticipant, DomainParticipantChildNode}, infrastructure::{
         entity::{Entity, StatusCondition},
         qos::TopicQos,
         status::{InconsistentTopicStatus, StatusMask},
-    },
-    publication::publisher::Publisher,
-    subscription::subscriber::Subscriber,
-    topic::{topic::Topic, topic_description::TopicDescription, topic_listener::TopicListener},
-};
+    }, publication::publisher::Publisher, subscription::subscriber::Subscriber, topic::{topic::Topic, topic_description::TopicDescription, topic_listener::TopicListener}};
 use rust_dds_types::{DDSType, InstanceHandle, ReturnCode, ReturnCodes, TopicKind};
 use rust_rtps::types::GUID;
 
@@ -92,6 +86,14 @@ pub struct RtpsTopicNode<'a, T:DDSType> {
     participant: &'a RtpsParticipant,
     topic_ref: RtpsAnyTopicRef<'a>,
     phantom_data: PhantomData<T>
+}
+
+impl<'a, T:DDSType> DomainParticipantChildNode for RtpsTopicNode<'a, T> {
+    type DomainParticipant = RtpsParticipant;
+
+    fn get_participant(&self) -> &Self::DomainParticipant {
+        &self.participant
+    }
 }
 
 impl<'a,T:DDSType> RtpsTopicNode<'a,T>{

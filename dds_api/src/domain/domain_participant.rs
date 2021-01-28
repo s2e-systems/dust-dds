@@ -19,6 +19,7 @@ pub trait DomainParticipant<'a>:
 {
     type SubscriberType: Subscriber<'a> + DomainParticipantChildNode;
     type PublisherType: Publisher<'a> + DomainParticipantChildNode;
+    // type TopicType<T: DDSType>: Topic<'a,T> + DomainParticipantChildNode;
 
     /// This operation creates a Publisher with the desired QoS policies and attaches to it the specified PublisherListener.
     /// If the specified QoS policies are not consistent, the operation will fail and no Publisher will be created.
@@ -315,9 +316,8 @@ pub trait DomainParticipant<'a>:
     fn get_current_time(&self) -> ReturnCode<Time>;
 }
 
-pub trait DomainParticipantChildNode{
-    type DomainParticipantType;
+pub trait DomainParticipantChildNode {
+    type DomainParticipant;
 
-    /// This operation returns the DomainParticipant to which the Node belongs.
-    fn get_participant(&self) -> &Self::DomainParticipantType;
+    fn get_participant(&self) -> &Self::DomainParticipant;
 }

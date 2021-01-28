@@ -1,4 +1,4 @@
-use std::sync::{atomic, Arc, Mutex};
+use std::{ops::Deref, sync::{atomic, Arc, Mutex}};
 
 use crate::utils::maybe_valid::{MaybeValid, MaybeValidList, MaybeValidRef};
 use rust_dds_api::{domain::domain_participant::{DomainParticipant, DomainParticipantChildNode}, infrastructure::{
@@ -130,22 +130,25 @@ impl RtpsSubscriber {
 
 pub type RtpsSubscriberRef<'a> = MaybeValidRef<'a, Box<RtpsSubscriber>>;
 
+// fn get_participant(&'a self) -> &dyn Deref<Target=dyn DomainParticipant<PublisherType = dyn Publisher<'a> + 'a, SubscriberType = dyn Subscriber<'a> + 'a>> {
+//     &self.parent
+// }
 pub struct RtpsSubscriberNode<'a> {
     parent: &'a RtpsParticipant,
     subscriber: RtpsSubscriberRef<'a>,
 }
 
-impl<'a> RtpsSubscriberNode<'a> {
-    pub fn new(parent: &'a RtpsParticipant, subscriber: RtpsSubscriberRef<'a>) -> Self {
-        Self { parent, subscriber }
+impl<'a> DomainParticipantChildNode for RtpsSubscriberNode<'a> {
+    type DomainParticipant = RtpsParticipant;
+
+    fn get_participant(&self) -> &Self::DomainParticipant {
+        &self.parent
     }
 }
 
-impl<'a> DomainParticipantChildNode for RtpsSubscriberNode<'a> {
-    type DomainParticipantType = RtpsParticipant;
-
-    fn get_participant(&self) -> &Self::DomainParticipantType {
-        self.parent
+impl<'a> RtpsSubscriberNode<'a> {
+    pub fn new(parent: &'a RtpsParticipant, subscriber: RtpsSubscriberRef<'a>) -> Self {
+        Self { parent, subscriber }
     }
 }
 
