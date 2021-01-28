@@ -1,5 +1,3 @@
-use std::{env::consts::ARCH, ops::Deref, sync::Arc};
-
 use rust_dds_types::{DDSType, DomainId, Duration, InstanceHandle, ReturnCode, Time};
 
 use crate::{
@@ -17,10 +15,10 @@ use crate::{
 use super::domain_participant_listener::DomainParticipantListener;
 
 pub trait DomainParticipant<'a>:
-    Entity<'a, Qos = DomainParticipantQos, Listener = Box<dyn DomainParticipantListener>>
+    Entity<Qos = DomainParticipantQos, Listener = Box<dyn DomainParticipantListener>>
 {
-    type SubscriberType: Subscriber<'a>;
-    type PublisherType: Publisher<'a>;
+    type SubscriberType: Subscriber<'a> + DomainParticipantChildNode;
+    type PublisherType: Publisher<'a> + DomainParticipantChildNode;
 
     /// This operation creates a Publisher with the desired QoS policies and attaches to it the specified PublisherListener.
     /// If the specified QoS policies are not consistent, the operation will fail and no Publisher will be created.
@@ -34,7 +32,7 @@ pub trait DomainParticipant<'a>:
         qos: Option<PublisherQos>,
         a_listener: Option<Box<dyn PublisherListener>>,
         mask: StatusMask,
-    ) -> Option<Box<dyn DomainParticipantNode<ValueType = Self::PublisherType, DomainParticipantType=Self> + 'a >>;
+    ) -> Option<Self::PublisherType>;
 
     /// This operation deletes an existing Publisher.
     /// A Publisher cannot be deleted if it has any attached DataWriter objects. If delete_publisher is called on a Publisher with
@@ -96,7 +94,7 @@ pub trait DomainParticipant<'a>:
     /// The delete_topic operation must be called on the same DomainParticipant object used to create the Topic. If delete_topic is
     /// called on a different DomainParticipant, the operation will have no effect and it will return PRECONDITION_NOT_MET.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
-    fn delete_topic<T: DDSType>(&'a self, a_topic: &'a Box<dyn Topic<T> + 'a>) -> ReturnCode<()>
+    fn delete_topic<T: DDSType>(&'a self, a_topic: &'a Box<dyn Topic<T> +'a>) -> ReturnCode<()>
     where
         Self: Sized;
 
@@ -317,21 +315,9 @@ pub trait DomainParticipant<'a>:
     fn get_current_time(&self) -> ReturnCode<Time>;
 }
 
-pub trait DomainParticipantNode{
+pub trait DomainParticipantChildNode{
     type DomainParticipantType;
-    type ValueType;
 
     /// This operation returns the DomainParticipant to which the Node belongs.
     fn get_participant(&self) -> &Self::DomainParticipantType;
-
-    /// This operation returns a reference to the Node value
-    fn get_value(&self) -> &Self::ValueType;
-}
-
-impl<'a, P,T> Deref for dyn DomainParticipantNode<DomainParticipantType = P, ValueType = T> + 'a {
-    type Target = T;
-
-    fn deref(&self) -> &Self::Target {
-        self.get_value()
-    }
 }

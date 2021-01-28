@@ -1,22 +1,16 @@
 use std::sync::{atomic, Arc, Mutex};
 
 use crate::utils::maybe_valid::{MaybeValid, MaybeValidList, MaybeValidRef};
-use rust_dds_api::{
-    domain::domain_participant::DomainParticipant,
-    infrastructure::{
+use rust_dds_api::{domain::domain_participant::{DomainParticipant, DomainParticipantChildNode}, infrastructure::{
         entity::{Entity, StatusCondition},
         qos::{DataReaderQos, SubscriberQos, TopicQos},
         status::{InstanceStateKind, SampleLostStatus, SampleStateKind, StatusMask, ViewStateKind},
-    },
-    publication::publisher::Publisher,
-    subscription::{
+    }, publication::publisher::Publisher, subscription::{
         data_reader::{AnyDataReader, DataReader},
         data_reader_listener::DataReaderListener,
         subscriber::Subscriber,
         subscriber_listener::SubscriberListener,
-    },
-    topic::topic::Topic,
-};
+    }, topic::topic::Topic};
 use rust_dds_types::{DDSType, InstanceHandle, ReturnCode, ReturnCodes, TopicKind};
 use rust_rtps::{
     structure::Group,
@@ -147,6 +141,14 @@ impl<'a> RtpsSubscriberNode<'a> {
     }
 }
 
+impl<'a> DomainParticipantChildNode for RtpsSubscriberNode<'a> {
+    type DomainParticipantType = RtpsParticipant;
+
+    fn get_participant(&self) -> &Self::DomainParticipantType {
+        self.parent
+    }
+}
+
 impl<'a> Subscriber<'a> for RtpsSubscriberNode<'a> {
     fn create_datareader<T: DDSType>(
         &'a self,
@@ -219,7 +221,7 @@ impl<'a> Subscriber<'a> for RtpsSubscriberNode<'a> {
     }
 }
 
-impl<'a> Entity<'a> for RtpsSubscriberNode<'a> {
+impl<'a> Entity for RtpsSubscriberNode<'a> {
     type Qos = SubscriberQos;
     type Listener = Box<dyn SubscriberListener>;
 

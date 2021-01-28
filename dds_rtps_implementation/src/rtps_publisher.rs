@@ -1,6 +1,6 @@
 use std::sync::{atomic, Arc, Mutex};
 
-use rust_dds_api::{domain::domain_participant::{DomainParticipant, DomainParticipantNode}, infrastructure::{
+use rust_dds_api::{domain::domain_participant::{DomainParticipant, DomainParticipantChildNode}, infrastructure::{
         entity::{Entity, StatusCondition},
         qos::{DataWriterQos, PublisherQos, TopicQos},
         status::StatusMask,
@@ -170,20 +170,15 @@ impl<'a> RtpsPublisherNode<'a> {
     }
 }
 
-impl<'a> DomainParticipantNode for RtpsPublisherNode<'a> {
+impl<'a> DomainParticipantChildNode for RtpsPublisherNode<'a> {
     type DomainParticipantType = RtpsParticipant;
-    type ValueType = RtpsPublisherRef<'a>;
 
     fn get_participant(&self) -> &Self::DomainParticipantType {
         self.participant
     }
-
-    fn get_value(&self) -> &Self::ValueType {
-        &self.publisher_ref
-    }
 }
 
-impl<'a> Publisher<'a> for RtpsPublisherRef<'a> {
+impl<'a> Publisher<'a> for RtpsPublisherNode<'a> {
     fn create_datawriter<T: DDSType>(
         &'a self,
         a_topic: &'a Box<dyn Topic<T> + 'a>,
@@ -246,7 +241,7 @@ impl<'a> Publisher<'a> for RtpsPublisherRef<'a> {
     }
 }
 
-impl<'a> Entity<'a> for RtpsPublisherRef<'a> {
+impl<'a> Entity for RtpsPublisherNode<'a> {
     type Qos = PublisherQos;
     type Listener = Box<dyn PublisherListener>;
 

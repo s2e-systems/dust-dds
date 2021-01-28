@@ -123,7 +123,7 @@ impl<'a, T: DDSType> TopicDescription<'a, T> for RtpsTopicNode<'a,T> {
     }
 }
 
-impl<'a, T: DDSType> Entity<'a> for RtpsTopicNode<'a, T> {
+impl<'a, T: DDSType> Entity for RtpsTopicNode<'a, T> {
     type Qos = TopicQos;
     type Listener = Box<dyn TopicListener<T>>;
 

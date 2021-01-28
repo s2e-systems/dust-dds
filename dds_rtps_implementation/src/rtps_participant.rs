@@ -5,11 +5,21 @@ use std::{
     thread::JoinHandle,
 };
 
-use rust_dds_api::{builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData}, domain::{domain_participant::{DomainParticipant, DomainParticipantNode}, domain_participant_listener::DomainParticipantListener}, infrastructure::{
+use rust_dds_api::{
+    builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
+    domain::{
+        domain_participant::{DomainParticipant, DomainParticipantChildNode},
+        domain_participant_listener::DomainParticipantListener,
+    },
+    infrastructure::{
         entity::{Entity, StatusCondition},
         qos::{DataWriterQos, DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
         status::StatusMask,
-    }, publication::publisher_listener::PublisherListener, subscription::subscriber_listener::SubscriberListener, topic::{topic::Topic, topic_description::TopicDescription, topic_listener::TopicListener}};
+    },
+    publication::publisher_listener::PublisherListener,
+    subscription::subscriber_listener::SubscriberListener,
+    topic::{topic::Topic, topic_description::TopicDescription, topic_listener::TopicListener},
+};
 use rust_rtps::{
     structure::Participant,
     transport::Transport,
@@ -24,7 +34,11 @@ use rust_rtps::{
 
 use rust_dds_types::{DDSType, DomainId, Duration, InstanceHandle, ReturnCode, Time};
 
-use crate::{rtps_publisher::{RtpsPublisherNode, RtpsPublisherRef}, rtps_subscriber::{RtpsSubscriberNode, RtpsSubscriberRef}, rtps_topic::RtpsTopicNode};
+use crate::{
+    rtps_publisher::{RtpsPublisherNode, RtpsPublisherRef},
+    rtps_subscriber::{RtpsSubscriberNode, RtpsSubscriberRef},
+    rtps_topic::RtpsTopicNode,
+};
 
 use super::rtps_participant_entities::RtpsParticipantEntities;
 
@@ -293,7 +307,7 @@ impl RtpsParticipant {
 }
 
 impl<'a> DomainParticipant<'a> for RtpsParticipant {
-    type PublisherType = RtpsPublisherRef<'a>;
+    type PublisherType = RtpsPublisherNode<'a>;
     type SubscriberType = RtpsSubscriberNode<'a>;
 
     fn create_publisher(
@@ -301,12 +315,12 @@ impl<'a> DomainParticipant<'a> for RtpsParticipant {
         qos: Option<PublisherQos>,
         a_listener: Option<Box<dyn PublisherListener>>,
         mask: StatusMask,
-    ) -> Option<Box<dyn DomainParticipantNode<ValueType = Self::PublisherType, DomainParticipantType=Self> + 'a >> {
+    ) -> Option<Self::PublisherType> {
         let qos = qos.unwrap_or(self.get_default_publisher_qos());
         let publisher_ref = self
             .builtin_entities
             .create_publisher(qos, a_listener, mask)?;
-        Some(Box::new(RtpsPublisherNode::new(self, publisher_ref)))
+        Some(RtpsPublisherNode::new(self, publisher_ref))
     }
 
     fn delete_publisher(&self, _a_publisher: &Self::PublisherType) -> ReturnCode<()> {
@@ -459,7 +473,7 @@ impl<'a> DomainParticipant<'a> for RtpsParticipant {
     }
 }
 
-impl<'a> Entity<'a> for RtpsParticipant {
+impl Entity for RtpsParticipant {
     type Qos = DomainParticipantQos;
     type Listener = Box<dyn DomainParticipantListener>;
 

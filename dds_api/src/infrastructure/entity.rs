@@ -4,9 +4,9 @@ use super::status::StatusMask;
 
 pub struct StatusCondition;
 
-pub trait DomainEntity<'a>: Entity<'a> {}
+pub trait DomainEntity: Entity {}
 
-pub trait Entity<'a> {
+pub trait Entity {
     type Qos;
     type Listener;
 
