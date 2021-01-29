@@ -1,20 +1,30 @@
-use std::{any::Any, marker::PhantomData, sync::{Arc, Mutex}};
+use std::{
+    any::Any,
+    marker::PhantomData,
+    sync::{Arc, Mutex},
+};
 
 use crate::utils::{
     as_any::AsAny,
     maybe_valid::{MaybeValid, MaybeValidRef},
 };
-use rust_dds_api::{domain::domain_participant::{DomainParticipant, DomainParticipantChild}, infrastructure::{
+use rust_dds_api::{
+    domain::domain_participant::{DomainParticipant, DomainParticipantChild},
+    infrastructure::{
         entity::{Entity, StatusCondition},
         qos::TopicQos,
         status::{InconsistentTopicStatus, StatusMask},
-    }, publication::publisher::Publisher, subscription::subscriber::Subscriber, topic::{topic::Topic, topic_description::TopicDescription, topic_listener::TopicListener}};
+    },
+    publication::publisher::Publisher,
+    subscription::subscriber::Subscriber,
+    topic::{topic::Topic, topic_description::TopicDescription, topic_listener::TopicListener},
+};
 use rust_dds_types::{DDSType, InstanceHandle, ReturnCode, ReturnCodes, TopicKind};
 use rust_rtps::types::GUID;
 
 use super::rtps_participant::RtpsParticipant;
 
-pub struct RtpsTopic<T: DDSType> {
+pub struct RtpsTopicInner<T: DDSType> {
     pub rtps_entity: rust_rtps::structure::Entity,
     pub topic_name: String,
     pub type_name: &'static str,
@@ -24,7 +34,7 @@ pub struct RtpsTopic<T: DDSType> {
     pub status_mask: StatusMask,
 }
 
-impl<T: DDSType> RtpsTopic<T> {
+impl<T: DDSType> RtpsTopicInner<T> {
     pub fn new(
         guid: GUID,
         topic_name: String,
@@ -52,7 +62,7 @@ pub trait AnyRtpsTopic: AsAny + Send + Sync {
     fn qos(&self) -> &Mutex<TopicQos>;
 }
 
-impl<T: DDSType> AnyRtpsTopic for RtpsTopic<T> {
+impl<T: DDSType> AnyRtpsTopic for RtpsTopicInner<T> {
     fn rtps_entity(&self) -> &rust_rtps::structure::Entity {
         &self.rtps_entity
     }
@@ -74,7 +84,7 @@ impl<T: DDSType> AnyRtpsTopic for RtpsTopic<T> {
     }
 }
 
-impl<T: DDSType> AsAny for RtpsTopic<T> {
+impl<T: DDSType> AsAny for RtpsTopicInner<T> {
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -82,31 +92,49 @@ impl<T: DDSType> AsAny for RtpsTopic<T> {
 
 pub type RtpsAnyTopicRef<'a> = MaybeValidRef<'a, Arc<dyn AnyRtpsTopic>>;
 
-pub struct RtpsTopicNode<'a, T:DDSType> {
-    participant: &'a RtpsParticipant,
-    topic_ref: RtpsAnyTopicRef<'a>,
-    phantom_data: PhantomData<T>
-}
+impl<'a> RtpsAnyTopicRef<'a> {
+    pub(crate) fn get(&self) -> ReturnCode<&Arc<dyn AnyRtpsTopic>> {
+        MaybeValid::get(self).ok_or(ReturnCodes::AlreadyDeleted)
+    }
 
-impl<'a, T:DDSType> DomainParticipantChild for RtpsTopicNode<'a, T> {
-    type DomainParticipantType = RtpsParticipant;
-
-    fn get_participant(&self) -> &Self::DomainParticipantType {
-        &self.participant
+    pub(crate) fn delete(&self) -> ReturnCode<()> {
+        let rtps_topic = self.get()?;
+        if Arc::strong_count(rtps_topic) == 1 {
+            MaybeValid::delete(self);
+            Ok(())
+        } else {
+            Err(ReturnCodes::PreconditionNotMet(
+                "Topic still attached to some data reader or data writer",
+            ))
+        }
     }
 }
 
-impl<'a,T:DDSType> RtpsTopicNode<'a,T>{
-    pub fn new(participant: &'a RtpsParticipant, topic_ref: RtpsAnyTopicRef<'a>) -> Self {
+pub struct RtpsTopic<'a, T: DDSType> {
+    parent_participant: &'a RtpsParticipant,
+    topic_ref: RtpsAnyTopicRef<'a>,
+    phantom_data: PhantomData<T>,
+}
+
+impl<'a, T: DDSType> RtpsTopic<'a, T> {
+    pub fn new(parent_participant: &'a RtpsParticipant, topic_ref: RtpsAnyTopicRef<'a>) -> Self {
         Self {
-            participant,
+            parent_participant,
             topic_ref,
             phantom_data: PhantomData,
         }
     }
 }
 
-impl<'a, T: DDSType> Topic<'a, T> for RtpsTopicNode<'a, T> {
+impl<'a, T: DDSType> DomainParticipantChild for RtpsTopic<'a, T> {
+    type DomainParticipantType = RtpsParticipant;
+
+    fn get_participant(&self) -> &Self::DomainParticipantType {
+        &self.parent_participant
+    }
+}
+
+impl<'a, T: DDSType> Topic<'a, T> for RtpsTopic<'a, T> {
     fn get_inconsistent_topic_status(
         &self,
         _status: &mut InconsistentTopicStatus,
@@ -115,7 +143,7 @@ impl<'a, T: DDSType> Topic<'a, T> for RtpsTopicNode<'a, T> {
     }
 }
 
-impl<'a, T: DDSType> TopicDescription<'a, T> for RtpsTopicNode<'a,T> {
+impl<'a, T: DDSType> TopicDescription<'a, T> for RtpsTopic<'a, T> {
     fn get_type_name(&self) -> ReturnCode<&str> {
         todo!()
     }
@@ -125,7 +153,7 @@ impl<'a, T: DDSType> TopicDescription<'a, T> for RtpsTopicNode<'a,T> {
     }
 }
 
-impl<'a, T: DDSType> Entity for RtpsTopicNode<'a, T> {
+impl<'a, T: DDSType> Entity for RtpsTopic<'a, T> {
     type Qos = TopicQos;
     type Listener = Box<dyn TopicListener<T>>;
 
@@ -163,9 +191,6 @@ impl<'a, T: DDSType> Entity for RtpsTopicNode<'a, T> {
 }
 
 // impl<'a> RtpsAnyTopicRef<'a> {
-//     pub fn get(&self) -> ReturnCode<&Arc<dyn AnyRtpsTopic>> {
-//         MaybeValid::get(self).ok_or(ReturnCodes::AlreadyDeleted)
-//     }
 
 //     pub fn get_as<U: DDSType>(&self) -> ReturnCode<&RtpsTopic<U>> {
 //         self.get()?
@@ -173,17 +198,5 @@ impl<'a, T: DDSType> Entity for RtpsTopicNode<'a, T> {
 //             .as_any()
 //             .downcast_ref()
 //             .ok_or(ReturnCodes::Error)
-//     }
-
-//     pub fn delete(&self) -> ReturnCode<()>{
-//         let rtps_topic = self.get()?;
-//         if Arc::strong_count(rtps_topic) == 1 {
-//             MaybeValid::delete(self);
-//             Ok(())
-//         } else {
-//             Err(ReturnCodes::PreconditionNotMet(
-//                 "Topic still attached to some data reader or data writer",
-//             ))
-//         }
 //     }
 // }

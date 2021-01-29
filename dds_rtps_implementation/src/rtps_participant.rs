@@ -28,7 +28,7 @@ use rust_rtps::{
 use rust_dds_types::{DDSType, DomainId, Duration, InstanceHandle, ReturnCode, Time};
 
 use crate::{
-    rtps_publisher::RtpsPublisher, rtps_subscriber::RtpsSubscriber, rtps_topic::RtpsTopicNode,
+    rtps_publisher::RtpsPublisher, rtps_subscriber::RtpsSubscriber, rtps_topic::RtpsTopic,
 };
 
 use super::rtps_participant_entities::RtpsParticipantEntities;
@@ -176,69 +176,6 @@ impl RtpsParticipant {
     //     self.participant.domain_id
     // }
 
-    // pub fn enable(&self) -> ReturnCode<()> {
-    //     self.enabled_function.call_once(|| {
-    //         // let builtin_publisher_ref = self
-    //         //     .builtin_entities
-    //         //     .create_publisher(PublisherQos::default())
-    //         //     .expect("Error creating built-in publisher");
-    //         // let builtin_publisher = builtin_publisher_ref.get().expect("Error retrieving built-in publisher");
-
-    //         // let spdp_topic_qos = TopicQos::default();
-    //         // let spdp_topic = self.builtin_entities
-    //         //     .create_topic::<SpdpDiscoveredParticipantData>("SPDP", spdp_topic_qos)
-    //         //     .expect("Error creating SPDP topic");
-
-    //         // let mut spdp_announcer_qos = DataWriterQos::default();
-    //         // spdp_announcer_qos.reliability.kind = crate::dds::infrastructure::qos_policy::ReliabilityQosPolicyKind::BestEffortReliabilityQos;
-    //         // let _spdp_announcer_anywriter_ref = builtin_publisher
-    //         //     .create_stateless_builtin_datawriter::<SpdpDiscoveredParticipantData>(
-    //         //         &spdp_topic,
-    //         //         Some(spdp_announcer_qos),
-    //         //     )
-    //         //     .expect("Error creating SPDP built-in writer");
-
-    //         // let _spdp_locator = Locator::new_udpv4(7400, [239, 255, 0, 0]);
-    //         // let spdp_announcer = spdp_announcer_anywriter_ref.get().expect("Error retrieving SPDP announcer");
-    //         // spdp_announcer
-    //         //     .writer()
-    //         //     .try_get_stateless()
-    //         //     .unwrap()
-    //         //     .reader_locator_add(spdp_locator);
-
-    //         // let key = BuiltInTopicKey([1, 2, 3]);
-    //         // let user_data = UserDataQosPolicy { value: vec![] };
-    //         // let dds_participant_data = ParticipantBuiltinTopicData { key, user_data };
-    //         // let participant_proxy = self.into();
-    //         // let lease_duration = DURATION_INFINITE;
-
-    //         // let data = SpdpDiscoveredParticipantData {
-    //         //     dds_participant_data,
-    //         //     participant_proxy,
-    //         //     lease_duration,
-    //         // };
-
-    //         // spdp_announcer_anywriter_ref
-    //         //     .get_as::<SpdpDiscoveredParticipantData>()
-    //         //     .unwrap()
-    //         //     .write_w_timestamp(data, None, TIME_INVALID)
-    //         //     .ok();
-
-    //         let mut thread_list = self.thread_list.borrow_mut();
-    //         let enabled = self.enabled.clone();
-    //         let builtin_entities = self.builtin_entities.clone();
-    //         self.enabled.store(true, atomic::Ordering::Release);
-    //         thread_list.push(std::thread::spawn(move || {
-    //             while enabled.load(atomic::Ordering::Acquire) {
-    //                 builtin_entities.send_data();
-    //                 std::thread::sleep(std::time::Duration::from_secs(1));
-    //             }
-    //         }));
-    //     });
-
-    //     Ok(())
-    // }
-
     // pub fn get_builtin_publisher(&self) -> Option<RtpsPublisherRef> {
     //     // let publisher_ref = self.builtin_entities
     //     //     .publisher_list()
@@ -286,8 +223,8 @@ impl<'a> DomainParticipant<'a> for RtpsParticipant {
         Some(RtpsPublisher::new(self, publisher_ref))
     }
 
-    fn delete_publisher(&self, _a_publisher: &Self::PublisherType) -> ReturnCode<()> {
-        todo!()
+    fn delete_publisher(&self, a_publisher: &Self::PublisherType) -> ReturnCode<()> {
+        self.builtin_entities.delete_publisher(a_publisher.publisher_ref())
     }
 
     fn create_subscriber(
@@ -303,8 +240,8 @@ impl<'a> DomainParticipant<'a> for RtpsParticipant {
         Some(RtpsSubscriber::new(self, subscriber_ref))
     }
 
-    fn delete_subscriber(&self, _a_subscriber: &Self::SubscriberType) -> ReturnCode<()> {
-        todo!()
+    fn delete_subscriber(&self, a_subscriber: &Self::SubscriberType) -> ReturnCode<()> {
+        self.builtin_entities.delete_subscriber(a_subscriber.subscriber_ref())
     }
 
     fn create_topic<T: DDSType>(
@@ -319,11 +256,11 @@ impl<'a> DomainParticipant<'a> for RtpsParticipant {
         let topic_ref = self
             .builtin_entities
             .create_topic(topic_name, qos, a_listener, mask)?;
-        Some(Box::new(RtpsTopicNode::new(self, topic_ref)))
+        Some(Box::new(RtpsTopic::new(self, topic_ref)))
     }
 
-    fn delete_topic<T: DDSType>(&'a self, _a_topic: &'a Box<dyn Topic<T> + 'a>) -> ReturnCode<()> {
-        todo!()
+    fn delete_topic<T: DDSType>(&'a self, a_topic: &'a Box<dyn Topic<T> + 'a>) -> ReturnCode<()> {
+        self.builtin_entities.delete_topic(a_topic)
     }
 
     fn find_topic<T: DDSType>(
@@ -471,7 +408,66 @@ impl Entity for RtpsParticipant {
     }
 
     fn enable(&self) -> ReturnCode<()> {
-        todo!()
+        self.enabled_function.call_once(|| {
+            //         // let builtin_publisher_ref = self
+            //         //     .builtin_entities
+            //         //     .create_publisher(PublisherQos::default())
+            //         //     .expect("Error creating built-in publisher");
+            //         // let builtin_publisher = builtin_publisher_ref.get().expect("Error retrieving built-in publisher");
+
+            //         // let spdp_topic_qos = TopicQos::default();
+            //         // let spdp_topic = self.builtin_entities
+            //         //     .create_topic::<SpdpDiscoveredParticipantData>("SPDP", spdp_topic_qos)
+            //         //     .expect("Error creating SPDP topic");
+
+            //         // let mut spdp_announcer_qos = DataWriterQos::default();
+            //         // spdp_announcer_qos.reliability.kind = crate::dds::infrastructure::qos_policy::ReliabilityQosPolicyKind::BestEffortReliabilityQos;
+            //         // let _spdp_announcer_anywriter_ref = builtin_publisher
+            //         //     .create_stateless_builtin_datawriter::<SpdpDiscoveredParticipantData>(
+            //         //         &spdp_topic,
+            //         //         Some(spdp_announcer_qos),
+            //         //     )
+            //         //     .expect("Error creating SPDP built-in writer");
+
+            //         // let _spdp_locator = Locator::new_udpv4(7400, [239, 255, 0, 0]);
+            //         // let spdp_announcer = spdp_announcer_anywriter_ref.get().expect("Error retrieving SPDP announcer");
+            //         // spdp_announcer
+            //         //     .writer()
+            //         //     .try_get_stateless()
+            //         //     .unwrap()
+            //         //     .reader_locator_add(spdp_locator);
+
+            //         // let key = BuiltInTopicKey([1, 2, 3]);
+            //         // let user_data = UserDataQosPolicy { value: vec![] };
+            //         // let dds_participant_data = ParticipantBuiltinTopicData { key, user_data };
+            //         // let participant_proxy = self.into();
+            //         // let lease_duration = DURATION_INFINITE;
+
+            //         // let data = SpdpDiscoveredParticipantData {
+            //         //     dds_participant_data,
+            //         //     participant_proxy,
+            //         //     lease_duration,
+            //         // };
+
+            //         // spdp_announcer_anywriter_ref
+            //         //     .get_as::<SpdpDiscoveredParticipantData>()
+            //         //     .unwrap()
+            //         //     .write_w_timestamp(data, None, TIME_INVALID)
+            //         //     .ok();
+
+            //         let mut thread_list = self.thread_list.borrow_mut();
+            //         let enabled = self.enabled.clone();
+            //         let builtin_entities = self.builtin_entities.clone();
+            //         self.enabled.store(true, atomic::Ordering::Release);
+            //         thread_list.push(std::thread::spawn(move || {
+            //             while enabled.load(atomic::Ordering::Acquire) {
+            //                 builtin_entities.send_data();
+            //                 std::thread::sleep(std::time::Duration::from_secs(1));
+            //             }
+            //         }));
+        });
+
+        Ok(())
     }
 
     fn get_instance_handle(&self) -> ReturnCode<InstanceHandle> {

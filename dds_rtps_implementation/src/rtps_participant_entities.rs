@@ -1,4 +1,4 @@
-use crate::{rtps_publisher::{RtpsPublisherInner, RtpsPublisherRef}, rtps_subscriber::{RtpsSubscriberInner, RtpsSubscriberRef}, rtps_topic::RtpsAnyTopicRef, utils::maybe_valid::{MaybeValidList, MaybeValidRef}};
+use crate::{rtps_publisher::{RtpsPublisherInner, RtpsPublisherRef}, rtps_subscriber::{RtpsSubscriberInner, RtpsSubscriberRef}, rtps_topic::{RtpsAnyTopicRef, RtpsTopicInner}, utils::maybe_valid::{MaybeValidList, MaybeValidRef}};
 use rust_dds_api::{
     infrastructure::{
         qos::{PublisherQos, SubscriberQos, TopicQos},
@@ -106,23 +106,23 @@ impl RtpsParticipantEntities {
         self.publisher_list.add(Box::new(new_publisher))
     }
 
-    // pub fn delete_publisher(&self, a_publisher: &RtpsPublisherRef) -> ReturnCode<()> {
-    //     let rtps_publisher = a_publisher.get()?;
-    //     if rtps_publisher.writer_list.is_empty() {
-    //         if self.publisher_list.contains(&a_publisher.maybe_valid_ref) {
-    //             a_publisher.delete();
-    //             Ok(())
-    //         } else {
-    //             Err(ReturnCodes::PreconditionNotMet(
-    //                 "Publisher not found in this participant",
-    //             ))
-    //         }
-    //     } else {
-    //         Err(ReturnCodes::PreconditionNotMet(
-    //             "Publisher still contains data writers",
-    //         ))
-    //     }
-    // }
+    pub fn delete_publisher(&self, a_publisher: &RtpsPublisherRef) -> ReturnCode<()> {
+        let rtps_publisher = a_publisher.get()?;
+        if rtps_publisher.writer_list.is_empty() {
+            if self.publisher_list.contains(&a_publisher) {
+                a_publisher.delete();
+                Ok(())
+            } else {
+                Err(ReturnCodes::PreconditionNotMet(
+                    "Publisher not found in this participant",
+                ))
+            }
+        } else {
+            Err(ReturnCodes::PreconditionNotMet(
+                "Publisher still contains data writers",
+            ))
+        }
+    }
 
     pub fn create_subscriber(
         &self,
@@ -147,23 +147,23 @@ impl RtpsParticipantEntities {
         self.subscriber_list.add(new_subscriber)
     }
 
-    // pub fn delete_subscriber(&self, a_subscriber: &RtpsSubscriberRef) -> ReturnCode<()> {
-    //     let rtps_subscriber = a_subscriber.get()?;
-    //     if rtps_subscriber.reader_list.is_empty() {
-    //         if self.subscriber_list.contains(&a_subscriber) {
-    //             a_subscriber.delete();
-    //             Ok(())
-    //         } else {
-    //             Err(ReturnCodes::PreconditionNotMet(
-    //                 "Subscriber not found in this participant",
-    //             ))
-    //         }
-    //     } else {
-    //         Err(ReturnCodes::PreconditionNotMet(
-    //             "Subscriber still contains data readers",
-    //         ))
-    //     }
-    // }
+    pub fn delete_subscriber(&self, a_subscriber: &RtpsSubscriberRef) -> ReturnCode<()> {
+        let rtps_subscriber = a_subscriber.get()?;
+        if rtps_subscriber.reader_list.is_empty() {
+            if self.subscriber_list.contains(&a_subscriber) {
+                a_subscriber.delete();
+                Ok(())
+            } else {
+                Err(ReturnCodes::PreconditionNotMet(
+                    "Subscriber not found in this participant",
+                ))
+            }
+        } else {
+            Err(ReturnCodes::PreconditionNotMet(
+                "Subscriber still contains data readers",
+            ))
+        }
+    }
 
     pub fn create_topic<'a, T: DDSType>(
         &'a self,
@@ -180,7 +180,7 @@ impl RtpsParticipantEntities {
         ];
         let entity_id = EntityId::new(entity_key, ENTITY_KIND_USER_DEFINED_UNKNOWN);
         let new_topic_guid = GUID::new(self.guid_prefix, entity_id);
-        let new_topic: Arc<RtpsTopic<T>> = Arc::new(RtpsTopic::new(
+        let new_topic = Arc::new(RtpsTopicInner::new(
             new_topic_guid,
             topic_name.clone().into(),
             qos,
@@ -190,15 +190,15 @@ impl RtpsParticipantEntities {
         self.topic_list.add(new_topic)
     }
 
-    // pub fn delete_topic<T: DDSType>(&self, a_topic: &RtpsAnyTopicRef) -> ReturnCode<()> {
-    //     if self.topic_list.contains(&a_topic) {
-    //         a_topic.delete()
-    //     } else {
-    //         Err(ReturnCodes::PreconditionNotMet(
-    //             "Topic not found in this participant",
-    //         ))
-    //     }
-    // }
+    pub fn delete_topic<T: DDSType>(&self, a_topic: &RtpsAnyTopicRef) -> ReturnCode<()> {
+        if self.topic_list.contains(&a_topic) {
+            a_topic.delete()
+        } else {
+            Err(ReturnCodes::PreconditionNotMet(
+                "Topic not found in this participant",
+            ))
+        }
+    }
 
     // pub fn send_data(&self) {
     //     for publisher in self.publisher_list.into_iter() {

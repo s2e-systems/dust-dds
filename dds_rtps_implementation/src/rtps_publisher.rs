@@ -156,17 +156,35 @@ impl RtpsPublisherInner {
 
 pub type RtpsPublisherRef<'a> = MaybeValidRef<'a, Box<RtpsPublisherInner>>;
 
+impl<'a> RtpsPublisherRef<'a> {
+    pub fn get(&self) -> ReturnCode<&Box<RtpsPublisherInner>> {
+        MaybeValid::get(self).ok_or(ReturnCodes::AlreadyDeleted)
+    }
+
+    pub fn delete(&self) {
+        MaybeValid::delete(self)
+    }
+
+    pub fn get_qos(&self) -> ReturnCode<PublisherQos> {
+        Ok(self.get()?.qos.clone())
+    }
+}
+
 pub struct RtpsPublisher<'a> {
-    participant: &'a RtpsParticipant,
+    parent_participant: &'a RtpsParticipant,
     publisher_ref: RtpsPublisherRef<'a>,
 }
 
 impl<'a> RtpsPublisher<'a> {
-    pub fn new(participant: &'a RtpsParticipant, publisher_ref: RtpsPublisherRef<'a>) -> Self {
+    pub(crate) fn new(parent_participant: &'a RtpsParticipant, publisher_ref: RtpsPublisherRef<'a>) -> Self {
         Self {
-            participant,
+            parent_participant,
             publisher_ref,
         }
+    }
+
+    pub(crate) fn publisher_ref(&self) -> &RtpsPublisherRef<'a> {
+        &self.publisher_ref
     }
 }
 
@@ -174,7 +192,7 @@ impl<'a> DomainParticipantChild for RtpsPublisher<'a>{
     type DomainParticipantType = RtpsParticipant;
 
     fn get_participant(&self) -> &Self::DomainParticipantType {
-        &self.participant
+        &self.parent_participant
     }
 }
 
@@ -250,7 +268,7 @@ impl<'a> Entity for RtpsPublisher<'a> {
     }
 
     fn get_qos(&self) -> ReturnCode<Self::Qos> {
-        todo!()
+        self.publisher_ref.get_qos()
     }
 
     fn set_listener(&self, _a_listener: Self::Listener, _mask: StatusMask) -> ReturnCode<()> {

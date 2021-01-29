@@ -142,25 +142,40 @@ impl RtpsSubscriberInner {
 
 pub type RtpsSubscriberRef<'a> = MaybeValidRef<'a, Box<RtpsSubscriberInner>>;
 
-// fn get_participant(&'a self) -> &dyn Deref<Target=dyn DomainParticipant<PublisherType = dyn Publisher<'a> + 'a, SubscriberType = dyn Subscriber<'a> + 'a>> {
-//     &self.parent
-// }
+impl<'a> RtpsSubscriberRef<'a> {
+    pub(crate) fn get(&self) -> ReturnCode<&Box<RtpsSubscriberInner>> {
+        MaybeValid::get(self).ok_or(ReturnCodes::AlreadyDeleted)
+    }
+
+    pub(crate) fn delete(&self) {
+        MaybeValid::delete(self)
+    }
+
+    pub(crate) fn get_qos(&self) -> ReturnCode<SubscriberQos> {
+        Ok(self.get()?.qos.clone())
+    }
+}
+
 pub struct RtpsSubscriber<'a> {
-    parent: &'a RtpsParticipant,
-    subscriber: RtpsSubscriberRef<'a>,
+    parent_participant: &'a RtpsParticipant,
+    subscriber_ref: RtpsSubscriberRef<'a>,
+}
+
+impl<'a> RtpsSubscriber<'a> {
+    pub(crate) fn new(parent_participant: &'a RtpsParticipant, subscriber_ref: RtpsSubscriberRef<'a>) -> Self {
+        Self { parent_participant, subscriber_ref }
+    }
+
+    pub(crate) fn subscriber_ref(&self) -> &RtpsSubscriberRef<'a> {
+        &self.subscriber_ref
+    }
 }
 
 impl<'a> DomainParticipantChild for RtpsSubscriber<'a> {
     type DomainParticipantType = RtpsParticipant;
 
     fn get_participant(&self) -> &Self::DomainParticipantType {
-        &self.parent
-    }
-}
-
-impl<'a> RtpsSubscriber<'a> {
-    pub fn new(parent: &'a RtpsParticipant, subscriber: RtpsSubscriberRef<'a>) -> Self {
-        Self { parent, subscriber }
+        &self.parent_participant
     }
 }
 
@@ -245,7 +260,7 @@ impl<'a> Entity for RtpsSubscriber<'a> {
     }
 
     fn get_qos(&self) -> ReturnCode<Self::Qos> {
-        todo!()
+        self.subscriber_ref.get_qos()
     }
 
     fn set_listener(&self, _a_listener: Self::Listener, _mask: StatusMask) -> ReturnCode<()> {
