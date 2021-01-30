@@ -31,8 +31,8 @@ pub trait DomainParticipant<'a>:
 
     // This concept can not yet be expressed in Rust because of the absence of Generic Associated Types
     // https://github.com/rust-lang/rust/issues/44265
-    // As such the restriction of topic type is left out for now
-    // type TopicType<T: DDSType>: Topic<'a,T> + DomainParticipantChild;
+    // As such the restriction of Topic type is done outside using an additional separate trait
+    // type TopicType<T: DDSType>: Topic<'a,T>;
 
     /// This operation creates a Publisher with the desired QoS policies and attaches to it the specified PublisherListener.
     /// If the specified QoS policies are not consistent, the operation will fail and no Publisher will be created.

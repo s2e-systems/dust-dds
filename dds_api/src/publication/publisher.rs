@@ -1,10 +1,13 @@
 use rust_dds_types::{DDSType, Duration, ReturnCode};
 
-use crate::{domain::domain_participant::{DomainParticipantChild, TopicGAT}, infrastructure::{
+use crate::{
+    domain::domain_participant::{DomainParticipantChild, TopicGAT},
+    infrastructure::{
         entity::Entity,
         qos::{DataWriterQos, PublisherQos, TopicQos},
         status::StatusMask,
-    }};
+    },
+};
 
 use super::{
     data_writer::DataWriter, data_writer_listener::DataWriterListener,
@@ -12,7 +15,7 @@ use super::{
 };
 
 pub trait DataWriterGAT<'a, T: DDSType> {
-    type DataWriterType: DataWriter<'a, T> + PublisherChild<'a>;
+    type DataWriterType: DataWriter<'a, T>;
 }
 
 pub trait PublisherChild<'a> {
@@ -26,11 +29,6 @@ pub trait PublisherChild<'a> {
 /// All operations except for the base-class operations set_qos, get_qos, set_listener, get_listener, enable, get_statuscondition,
 /// create_datawriter, and delete_datawriter may return the value NOT_ENABLED.
 pub trait Publisher<'a>: Entity<Qos = PublisherQos, Listener = Box<dyn PublisherListener>> {
-    // This concept can not yet be expressed in Rust because of the absence of Generic Associated Types
-    // https://github.com/rust-lang/rust/issues/44265
-    // As such the restriction of the data writer type is left out for now
-    // type DataWriterType<T: DDSType>: DataWriter<'a,T> + PublisherChild;
-
     /// This operation creates a DataWriter. The returned DataWriter will be attached and belongs to the Publisher.
     /// The DataWriter returned by the create_datawriter operation will in fact be a derived class, specific to the data-type associated
     /// with the Topic. As described in 2.2.2.3.7, for each application-defined type “Foo” there is an implied, auto-generated class
@@ -58,9 +56,9 @@ pub trait Publisher<'a>: Entity<Qos = PublisherQos, Listener = Box<dyn Publisher
         qos: Option<DataWriterQos>,
         a_listener: Option<Box<dyn DataWriterListener<T>>>,
         mask: StatusMask,
-    ) -> Option<<Self as DataWriterGAT<'a,T>>::DataWriterType>
+    ) -> Option<<Self as DataWriterGAT<'a, T>>::DataWriterType>
     where
-        Self: DataWriterGAT<'a,T> + TopicGAT<'a, T> + Sized;
+        Self: DataWriterGAT<'a, T> + TopicGAT<'a, T> + Sized;
 
     /// This operation deletes a DataWriter that belongs to the Publisher.
     /// The delete_datawriter operation must be called on the same Publisher object used to create the DataWriter. If
@@ -72,18 +70,21 @@ pub trait Publisher<'a>: Entity<Qos = PublisherQos, Listener = Box<dyn Publisher
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
     fn delete_datawriter<T: DDSType>(
         &'a self,
-        a_datawriter: &'a <Self as DataWriterGAT<'a,T>>::DataWriterType,
+        a_datawriter: &'a <Self as DataWriterGAT<'a, T>>::DataWriterType,
     ) -> ReturnCode<()>
     where
-        Self: DataWriterGAT<'a,T> + Sized;
+        Self: DataWriterGAT<'a, T> + Sized;
 
     /// This operation retrieves a previously created DataWriter belonging to the Publisher that is attached to a Topic with a matching
     /// topic_name. If no such DataWriter exists, the operation will return ’nil.’
     /// If multiple DataWriter attached to the Publisher satisfy this condition, then the operation will return one of them. It is not
     /// specified which one.
-    fn lookup_datawriter<T: DDSType>(&self, topic_name: &str) -> Option<Box<dyn DataWriter<T>>>
+    fn lookup_datawriter<T: DDSType>(
+        &self,
+        topic_name: &str,
+    ) -> Option<<Self as DataWriterGAT<'a, T>>::DataWriterType>
     where
-        Self: Sized;
+        Self: DataWriterGAT<'a, T> + Sized;
 
     /// This operation indicates to the Service that the application is about to make multiple modifications using DataWriter objects
     /// belonging to the Publisher.

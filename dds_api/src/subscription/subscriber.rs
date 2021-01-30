@@ -12,11 +12,12 @@ use super::{
     subscriber_listener::SubscriberListener,
 };
 
+pub trait DataReaderGAT<'a, T: DDSType> {
+    type DataReaderType: DataReader<'a, T>;
+}
+
 pub trait SubscriberChild<'a> {
     type SubscriberType: Subscriber<'a>;
-
-    /// This operation returns the Subscriber to which the subscriber child object belongs.
-    fn get_subscriber(&self) -> &Self::SubscriberType;
 }
 
 /// A Subscriber is the object responsible for the actual reception of the data resulting from its subscriptions
@@ -30,11 +31,6 @@ pub trait SubscriberChild<'a> {
 pub trait Subscriber<'a>:
     Entity<Qos = SubscriberQos, Listener = Box<dyn SubscriberListener>>
 {
-    // This concept can not yet be expressed in Rust because of the absence of Generic Associated Types
-    // https://github.com/rust-lang/rust/issues/44265
-    // As such the restriction of data reader type is left out for now
-    // type DataReaderType<T: DDSType>: DataReader<'a,T> + SubscriberChild;
-
     /// This operation creates a DataReader. The returned DataReader will be attached and belong to the Subscriber.
     ///
     /// The DataReader returned by the create_datareader operation will in fact be a derived class, specific to the data-type
@@ -68,9 +64,9 @@ pub trait Subscriber<'a>:
         qos: Option<DataReaderQos>,
         a_listener: Option<Box<dyn DataReaderListener<T>>>,
         mask: StatusMask,
-    ) -> Option<Box<dyn DataReader<T> + 'a>>
+    ) -> Option<<Self as DataReaderGAT<'a, T>>::DataReaderType>
     where
-        Self: TopicGAT<'a,T> + Sized;
+        Self: DataReaderGAT<'a, T> + TopicGAT<'a,T> + Sized;
 
     /// This operation deletes a DataReader that belongs to the Subscriber. If the DataReader does not belong to the Subscriber, the
     /// operation returns the error PRECONDITION_NOT_MET.
@@ -86,10 +82,10 @@ pub trait Subscriber<'a>:
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
     fn delete_datareader<T: DDSType>(
         &'a self,
-        a_datareader: &'a Box<dyn DataReader<T> + 'a>,
+        a_datareader: &'a <Self as DataReaderGAT<'a, T>>::DataReaderType,
     ) -> ReturnCode<()>
     where
-        Self: Sized;
+        Self: DataReaderGAT<'a,T> +  Sized;
 
     /// This operation retrieves a previously-created DataReader belonging to the Subscriber that is attached to a Topic with a
     /// matching topic_name. If no such DataReader exists, the operation will return ’nil.’
@@ -98,10 +94,10 @@ pub trait Subscriber<'a>:
     /// The use of this operation on the built-in Subscriber allows access to the built-in DataReader entities for the built-in topics
     fn lookup_datareader<T: DDSType>(
         &self,
-        topic: &Box<dyn Topic<T>>,
-    ) -> Option<Box<dyn DataReader<T>>>
+        topic: &<Self as TopicGAT<'a,T>>::TopicType,
+    ) -> Option<<Self as DataReaderGAT<'a, T>>::DataReaderType>
     where
-        Self: Sized;
+        Self: DataReaderGAT<'a,T> + TopicGAT<'a,T> + Sized;
 
     /// This operation indicates that the application is about to access the data samples in any of the DataReader objects attached to
     /// the Subscriber.
