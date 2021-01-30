@@ -4,7 +4,7 @@ use crate::{domain::domain_participant::{DomainParticipantChild, TopicGAT}, infr
         entity::Entity,
         qos::{DataReaderQos, SubscriberQos, TopicQos},
         status::{InstanceStateKind, SampleLostStatus, SampleStateKind, StatusMask, ViewStateKind},
-    }, topic::topic::Topic};
+    }};
 
 use super::{
     data_reader::{AnyDataReader, DataReader},

@@ -32,7 +32,7 @@ use crate::{
 };
 
 use super::{
-    rtps_datawriter::{AnyRtpsWriter, RtpsDataWriterInner, RtpsDataWriter},
+    rtps_datawriter::{AnyRtpsWriter, RtpsDataWriter, RtpsDataWriterInner},
     rtps_participant::RtpsParticipant,
 };
 
@@ -232,7 +232,10 @@ impl<'a> Publisher<'a> for RtpsPublisher<'a> {
         todo!()
     }
 
-    fn lookup_datawriter<T: DDSType>(&self, _topic_name: &str) -> Option<Box<dyn DataWriter<T>>> {
+    fn lookup_datawriter<T: DDSType>(
+        &self,
+        _topic_name: &str,
+    ) -> Option<<Self as DataWriterGAT<'a, T>>::DataWriterType> {
         todo!()
     }
 
@@ -256,7 +259,7 @@ impl<'a> Publisher<'a> for RtpsPublisher<'a> {
         todo!()
     }
 
-    fn get_participant(&self) -> &<Self as DomainParticipantChild<'a>>::DomainParticipantType{
+    fn get_participant(&self) -> &<Self as DomainParticipantChild<'a>>::DomainParticipantType {
         &self.parent_participant
     }
 

@@ -3,27 +3,12 @@ use std::{
     sync::{atomic, Arc, Mutex},
 };
 
-use crate::{
-    rtps_datareader::RtpsDataReaderInner,
-    rtps_topic::RtpsTopic,
-    utils::maybe_valid::{MaybeValid, MaybeValidList, MaybeValidRef},
-};
-use rust_dds_api::{
-    domain::domain_participant::{DomainParticipant, DomainParticipantChild, TopicGAT},
-    infrastructure::{
+use crate::{rtps_datareader::{RtpsDataReader, RtpsDataReaderInner}, rtps_topic::RtpsTopic, utils::maybe_valid::{MaybeValid, MaybeValidList, MaybeValidRef}};
+use rust_dds_api::{domain::domain_participant::{DomainParticipant, DomainParticipantChild, TopicGAT}, infrastructure::{
         entity::{Entity, StatusCondition},
         qos::{DataReaderQos, SubscriberQos, TopicQos},
         status::{InstanceStateKind, SampleLostStatus, SampleStateKind, StatusMask, ViewStateKind},
-    },
-    publication::publisher::Publisher,
-    subscription::{
-        data_reader::{AnyDataReader, DataReader},
-        data_reader_listener::DataReaderListener,
-        subscriber::Subscriber,
-        subscriber_listener::SubscriberListener,
-    },
-    topic::topic::Topic,
-};
+    }, publication::publisher::Publisher, subscription::{data_reader::{AnyDataReader, DataReader}, data_reader_listener::DataReaderListener, subscriber::{DataReaderGAT, Subscriber}, subscriber_listener::SubscriberListener}, topic::topic::Topic};
 use rust_dds_types::{DDSType, InstanceHandle, ReturnCode, ReturnCodes, TopicKind};
 use rust_rtps::{
     structure::Group,
@@ -182,6 +167,10 @@ impl<'a, T: DDSType> TopicGAT<'a, T> for RtpsSubscriber<'a> {
     type TopicType = RtpsTopic<'a, T>;
 }
 
+impl<'a, T:DDSType> DataReaderGAT<'a,T> for RtpsSubscriber<'a> {
+    type DataReaderType = RtpsDataReader<'a,T>;
+}
+
 impl<'a> DomainParticipantChild<'a> for RtpsSubscriber<'a> {
     type DomainParticipantType = RtpsParticipant;
 }
@@ -193,21 +182,21 @@ impl<'a> Subscriber<'a> for RtpsSubscriber<'a> {
         _qos: Option<DataReaderQos>,
         _a_listener: Option<Box<dyn DataReaderListener<T>>>,
         _mask: StatusMask,
-    ) -> Option<Box<dyn DataReader<T> + 'a>> {
+    ) -> Option<<Self as DataReaderGAT<'a, T>>::DataReaderType> {
         todo!()
     }
 
     fn delete_datareader<T: DDSType>(
         &'a self,
-        _a_datareader: &'a Box<dyn DataReader<T> + 'a>,
+        _a_datareader: &'a <Self as DataReaderGAT<'a, T>>::DataReaderType,
     ) -> ReturnCode<()> {
         todo!()
     }
 
     fn lookup_datareader<T: DDSType>(
         &self,
-        _topic: &Box<dyn Topic<T>>,
-    ) -> Option<Box<dyn DataReader<T>>> {
+        _topic: &<Self as TopicGAT<'a,T>>::TopicType,
+    ) -> Option<<Self as DataReaderGAT<'a, T>>::DataReaderType> {
         todo!()
     }
 
