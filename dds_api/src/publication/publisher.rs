@@ -1,21 +1,25 @@
 use rust_dds_types::{DDSType, Duration, ReturnCode};
 
-use crate::{domain::domain_participant::TopicGAT, infrastructure::{
+use crate::{
+    domain::domain_participant::TopicGAT,
+    infrastructure::{
         entity::Entity,
         qos::{DataWriterQos, PublisherQos, TopicQos},
         status::StatusMask,
-    }, topic::topic::Topic};
+    },
+};
 
 use super::{
     data_writer::DataWriter, data_writer_listener::DataWriterListener,
     publisher_listener::PublisherListener,
 };
 
+pub trait DataWriterGAT<'a, T: DDSType> {
+    type DataWriterType: DataWriter<'a, T> + PublisherChild<'a>;
+}
+
 pub trait PublisherChild<'a> {
     type PublisherType: Publisher<'a>;
-
-    /// This operation returns the Publisher to which the publisher child object belongs.
-    fn get_publisher(&self) -> &Self::PublisherType;
 }
 
 /// The Publisher acts on the behalf of one or several DataWriter objects that belong to it. When it is informed of a change to the
@@ -53,13 +57,13 @@ pub trait Publisher<'a>: Entity<Qos = PublisherQos, Listener = Box<dyn Publisher
     /// Publisher. If the Topic was created from a different DomainParticipant, the operation will fail and return a nil result.
     fn create_datawriter<T: DDSType>(
         &'a self,
-        a_topic: &'a <Self as TopicGAT<'a,T>>::TopicType,
+        a_topic: &'a <Self as TopicGAT<'a, T>>::TopicType,
         qos: Option<DataWriterQos>,
         a_listener: Option<Box<dyn DataWriterListener<T>>>,
         mask: StatusMask,
-    ) -> Option<Box<dyn DataWriter<T> + 'a>>
+    ) -> Option<<Self as DataWriterGAT<'a,T>>::DataWriterType>
     where
-        Self: TopicGAT<'a,T> + Sized;
+        Self: DataWriterGAT<'a,T> + TopicGAT<'a, T> + Sized;
 
     /// This operation deletes a DataWriter that belongs to the Publisher.
     /// The delete_datawriter operation must be called on the same Publisher object used to create the DataWriter. If
@@ -71,10 +75,10 @@ pub trait Publisher<'a>: Entity<Qos = PublisherQos, Listener = Box<dyn Publisher
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
     fn delete_datawriter<T: DDSType>(
         &'a self,
-        a_datawriter: &'a Box<dyn DataWriter<T> + 'a>,
+        a_datawriter: &'a <Self as DataWriterGAT<'a,T>>::DataWriterType,
     ) -> ReturnCode<()>
     where
-        Self: Sized;
+        Self: DataWriterGAT<'a,T> + Sized;
 
     /// This operation retrieves a previously created DataWriter belonging to the Publisher that is attached to a Topic with a matching
     /// topic_name. If no such DataWriter exists, the operation will return ’nil.’
@@ -148,7 +152,7 @@ pub trait Publisher<'a>: Entity<Qos = PublisherQos, Listener = Box<dyn Publisher
     /// operation had never been called.
     fn set_default_datawriter_qos(&self, qos: Option<DataWriterQos>) -> ReturnCode<()>;
 
-    /// This operation retrieves the default value of the DataWriter QoS, that is, the QoS policies which will be used for newly created
+    /// This operation retrieves the dformalefault value of the DataWriter QoS, that is, the QoS policies which will be used for newly created
     /// DataWriter entities in the case where the QoS policies are defaulted in the create_datawriter operation.
     /// The values retrieved by get_default_datawriter_qos will match the set of values specified on the last successful call to
     /// set_default_datawriter_qos, or else, if the call was never made, the default values listed in the QoS table in 2.2.3, Supported

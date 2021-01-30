@@ -1,13 +1,21 @@
 use std::sync::{atomic, Arc, Mutex};
 
-use rust_dds_api::{domain::domain_participant::{DomainParticipant, DomainParticipantChild, TopicGAT}, infrastructure::{
+use rust_dds_api::{
+    domain::domain_participant::{DomainParticipant, DomainParticipantChild, TopicGAT},
+    infrastructure::{
         entity::{Entity, StatusCondition},
         qos::{DataWriterQos, PublisherQos, TopicQos},
         status::StatusMask,
-    }, publication::{
-        data_writer::DataWriter, data_writer_listener::DataWriterListener, publisher::Publisher,
+    },
+    publication::{
+        data_writer::DataWriter,
+        data_writer_listener::DataWriterListener,
+        publisher::{DataWriterGAT, Publisher},
         publisher_listener::PublisherListener,
-    }, subscription::subscriber::Subscriber, topic::topic::Topic};
+    },
+    subscription::subscriber::Subscriber,
+    topic::topic::Topic,
+};
 
 use rust_dds_types::{DDSType, Duration, InstanceHandle, ReturnCode, ReturnCodes};
 use rust_rtps::{
@@ -18,10 +26,13 @@ use rust_rtps::{
     },
 };
 
-use crate::{rtps_topic::RtpsTopic, utils::maybe_valid::{MaybeValid, MaybeValidList, MaybeValidRef}};
+use crate::{
+    rtps_topic::RtpsTopic,
+    utils::maybe_valid::{MaybeValid, MaybeValidList, MaybeValidRef},
+};
 
 use super::{
-    rtps_datawriter::{AnyRtpsWriter, RtpsDataWriterInner},
+    rtps_datawriter::{AnyRtpsWriter, RtpsDataWriterInner, RtpsDataWriter},
     rtps_participant::RtpsParticipant,
 };
 
@@ -176,7 +187,10 @@ pub struct RtpsPublisher<'a> {
 }
 
 impl<'a> RtpsPublisher<'a> {
-    pub(crate) fn new(parent_participant: &'a RtpsParticipant, publisher_ref: RtpsPublisherRef<'a>) -> Self {
+    pub(crate) fn new(
+        parent_participant: &'a RtpsParticipant,
+        publisher_ref: RtpsPublisherRef<'a>,
+    ) -> Self {
         Self {
             parent_participant,
             publisher_ref,
@@ -188,11 +202,15 @@ impl<'a> RtpsPublisher<'a> {
     }
 }
 
-impl<'a,T:DDSType> TopicGAT<'a,T> for RtpsPublisher<'a> {
+impl<'a, T: DDSType> TopicGAT<'a, T> for RtpsPublisher<'a> {
     type TopicType = RtpsTopic<'a, T>;
 }
 
-impl<'a> DomainParticipantChild for RtpsPublisher<'a>{
+impl<'a, T: DDSType> DataWriterGAT<'a, T> for RtpsPublisher<'a> {
+    type DataWriterType = RtpsDataWriter<'a, T>;
+}
+
+impl<'a> DomainParticipantChild for RtpsPublisher<'a> {
     type DomainParticipantType = RtpsParticipant;
 
     fn get_participant(&self) -> &Self::DomainParticipantType {
@@ -207,13 +225,13 @@ impl<'a> Publisher<'a> for RtpsPublisher<'a> {
         _qos: Option<DataWriterQos>,
         _a_listener: Option<Box<dyn DataWriterListener<T>>>,
         _mask: StatusMask,
-    ) -> Option<Box<dyn DataWriter<T> + 'a>> {
+    ) -> Option<<Self as DataWriterGAT<'a, T>>::DataWriterType> {
         todo!()
     }
 
     fn delete_datawriter<T: DDSType>(
         &'a self,
-        _a_datawriter: &'a Box<dyn DataWriter<T> + 'a>,
+        _a_datawriter: &'a <Self as DataWriterGAT<'a, T>>::DataWriterType,
     ) -> ReturnCode<()> {
         todo!()
     }

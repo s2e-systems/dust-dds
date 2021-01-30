@@ -2,6 +2,7 @@ use rust_dds_types::{DDSType, Duration, InstanceHandle, ReturnCode, Time};
 
 use crate::{
     builtin_topics::SubscriptionBuiltinTopicData,
+    domain::domain_participant::TopicGAT,
     infrastructure::{
         entity::Entity,
         qos::DataWriterQos,
@@ -10,10 +11,9 @@ use crate::{
             PublicationMatchedStatus,
         },
     },
-    topic::topic::Topic,
 };
 
-use super::data_writer_listener::DataWriterListener;
+use super::{data_writer_listener::DataWriterListener, publisher::PublisherChild};
 
 pub trait DataWriter<'a, T: DDSType>:
     Entity<Qos = DataWriterQos, Listener = Box<dyn DataWriterListener<T>>>
@@ -233,7 +233,14 @@ pub trait DataWriter<'a, T: DDSType>:
     ) -> ReturnCode<()>;
 
     /// This operation returns the Topic associated with the DataWriter. This is the same Topic that was used to create the DataWriter.
-    fn get_topic(&self) -> &dyn Topic<T>;
+    fn get_topic(&self) -> &<Self as TopicGAT<'a, T>>::TopicType
+    where
+        Self: TopicGAT<'a, T> + Sized;
+
+    /// This operation returns the Publisher to which the publisher child object belongs.
+    fn get_publisher(&self) -> &<Self as PublisherChild<'a>>::PublisherType
+    where
+        Self: PublisherChild<'a> + Sized;
 
     /// This operation manually asserts the liveliness of the DataWriter. This is used in combination with the LIVELINESS QoS
     /// policy (see 2.2.3, Supported QoS) to indicate to the Service that the entity remains active.

@@ -15,11 +15,12 @@ pub trait DomainParticipantChild {
 }
 
 // This is a workaround for the missing Generic Associated Type (GAT)
-// This trait needs to be used for every function that expects to interact
+// This trait needs to be used for every function that needs to interact
 // with the internals of the topic type inside the implementations of the API.
-// The trait is not directly bound to the other traits but rather to the function
+// The trait is not directly bound to the other API traits but rather to the function
 // where it is used. See for example create_topic below. 
 // Inspired by this thread: https://users.rust-lang.org/t/workaround-for-generic-associated-types/25920/14
+// The trait is placed here because the DomainParticipant is the factory of this type.
 pub trait TopicGAT<'a, T: DDSType> {
     type TopicType: Topic<'a,T> + DomainParticipantChild;
 }
