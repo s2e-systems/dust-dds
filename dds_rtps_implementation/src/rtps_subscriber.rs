@@ -5,10 +5,11 @@ use std::{
 
 use crate::{
     rtps_datareader::RtpsDataReaderInner,
+    rtps_topic::RtpsTopic,
     utils::maybe_valid::{MaybeValid, MaybeValidList, MaybeValidRef},
 };
 use rust_dds_api::{
-    domain::domain_participant::{DomainParticipant, DomainParticipantChild},
+    domain::domain_participant::{DomainParticipant, DomainParticipantChild, TopicGAT},
     infrastructure::{
         entity::{Entity, StatusCondition},
         qos::{DataReaderQos, SubscriberQos, TopicQos},
@@ -162,13 +163,23 @@ pub struct RtpsSubscriber<'a> {
 }
 
 impl<'a> RtpsSubscriber<'a> {
-    pub(crate) fn new(parent_participant: &'a RtpsParticipant, subscriber_ref: RtpsSubscriberRef<'a>) -> Self {
-        Self { parent_participant, subscriber_ref }
+    pub(crate) fn new(
+        parent_participant: &'a RtpsParticipant,
+        subscriber_ref: RtpsSubscriberRef<'a>,
+    ) -> Self {
+        Self {
+            parent_participant,
+            subscriber_ref,
+        }
     }
 
     pub(crate) fn subscriber_ref(&self) -> &RtpsSubscriberRef<'a> {
         &self.subscriber_ref
     }
+}
+
+impl<'a, T: DDSType> TopicGAT<'a, T> for RtpsSubscriber<'a> {
+    type TopicType = RtpsTopic<'a, T>;
 }
 
 impl<'a> DomainParticipantChild for RtpsSubscriber<'a> {
@@ -182,7 +193,7 @@ impl<'a> DomainParticipantChild for RtpsSubscriber<'a> {
 impl<'a> Subscriber<'a> for RtpsSubscriber<'a> {
     fn create_datareader<T: DDSType>(
         &'a self,
-        _a_topic: &'a Box<dyn Topic<T> + 'a>,
+        _a_topic: &'a <Self as TopicGAT<'a,T>>::TopicType,
         _qos: Option<DataReaderQos>,
         _a_listener: Option<Box<dyn DataReaderListener<T>>>,
         _mask: StatusMask,

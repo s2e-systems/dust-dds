@@ -1,6 +1,6 @@
 use std::sync::{atomic, Arc, Mutex};
 
-use rust_dds_api::{domain::domain_participant::{DomainParticipant, DomainParticipantChild}, infrastructure::{
+use rust_dds_api::{domain::domain_participant::{DomainParticipant, DomainParticipantChild, TopicGAT}, infrastructure::{
         entity::{Entity, StatusCondition},
         qos::{DataWriterQos, PublisherQos, TopicQos},
         status::StatusMask,
@@ -18,7 +18,7 @@ use rust_rtps::{
     },
 };
 
-use crate::utils::maybe_valid::{MaybeValid, MaybeValidList, MaybeValidRef};
+use crate::{rtps_topic::RtpsTopic, utils::maybe_valid::{MaybeValid, MaybeValidList, MaybeValidRef}};
 
 use super::{
     rtps_datawriter::{AnyRtpsWriter, RtpsDataWriterInner},
@@ -188,6 +188,10 @@ impl<'a> RtpsPublisher<'a> {
     }
 }
 
+impl<'a,T:DDSType> TopicGAT<'a,T> for RtpsPublisher<'a> {
+    type TopicType = RtpsTopic<'a, T>;
+}
+
 impl<'a> DomainParticipantChild for RtpsPublisher<'a>{
     type DomainParticipantType = RtpsParticipant;
 
@@ -199,7 +203,7 @@ impl<'a> DomainParticipantChild for RtpsPublisher<'a>{
 impl<'a> Publisher<'a> for RtpsPublisher<'a> {
     fn create_datawriter<T: DDSType>(
         &'a self,
-        _a_topic: &'a Box<dyn Topic<T> + 'a>,
+        _a_topic: &'a <Self as TopicGAT<'a, T>>::TopicType,
         _qos: Option<DataWriterQos>,
         _a_listener: Option<Box<dyn DataWriterListener<T>>>,
         _mask: StatusMask,

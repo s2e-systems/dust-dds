@@ -7,7 +7,7 @@ use std::{
 use rust_dds_api::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
     domain::{
-        domain_participant::DomainParticipant,
+        domain_participant::{DomainParticipant, TopicGAT},
         domain_participant_listener::DomainParticipantListener,
     },
     infrastructure::{
@@ -206,6 +206,10 @@ impl RtpsParticipant {
     // }
 }
 
+impl<'a, T: DDSType> TopicGAT<'a, T> for RtpsParticipant {
+    type TopicType = RtpsTopic<'a, T>;
+}
+
 impl<'a> DomainParticipant<'a> for RtpsParticipant {
     type PublisherType = RtpsPublisher<'a>;
     type SubscriberType = RtpsSubscriber<'a>;
@@ -224,7 +228,8 @@ impl<'a> DomainParticipant<'a> for RtpsParticipant {
     }
 
     fn delete_publisher(&self, a_publisher: &Self::PublisherType) -> ReturnCode<()> {
-        self.builtin_entities.delete_publisher(a_publisher.publisher_ref())
+        self.builtin_entities
+            .delete_publisher(a_publisher.publisher_ref())
     }
 
     fn create_subscriber(
@@ -241,7 +246,8 @@ impl<'a> DomainParticipant<'a> for RtpsParticipant {
     }
 
     fn delete_subscriber(&self, a_subscriber: &Self::SubscriberType) -> ReturnCode<()> {
-        self.builtin_entities.delete_subscriber(a_subscriber.subscriber_ref())
+        self.builtin_entities
+            .delete_subscriber(a_subscriber.subscriber_ref())
     }
 
     fn create_topic<T: DDSType>(
@@ -250,24 +256,27 @@ impl<'a> DomainParticipant<'a> for RtpsParticipant {
         qos: Option<TopicQos>,
         a_listener: Option<Box<dyn TopicListener<T>>>,
         mask: StatusMask,
-    ) -> Option<Box<dyn Topic<'a, T> + 'a>> {
+    ) -> Option<<Self as TopicGAT<'a,T>>::TopicType> {
         let qos = qos.unwrap_or(self.get_default_topic_qos());
         qos.is_consistent().ok()?;
         let topic_ref = self
             .builtin_entities
             .create_topic(topic_name, qos, a_listener, mask)?;
-        Some(Box::new(RtpsTopic::new(self, topic_ref)))
+        Some(RtpsTopic::new(self, topic_ref))
     }
 
-    fn delete_topic<T: DDSType>(&'a self, a_topic: &'a Box<dyn Topic<T> + 'a>) -> ReturnCode<()> {
-        self.builtin_entities.delete_topic(a_topic)
+    fn delete_topic<T: DDSType>(
+        &'a self,
+        a_topic: &<Self as TopicGAT<'a, T>>::TopicType,
+    ) -> ReturnCode<()> {
+        self.builtin_entities.delete_topic(a_topic.topic_ref())
     }
 
     fn find_topic<T: DDSType>(
         &self,
         _topic_name: &str,
         _timeout: Duration,
-    ) -> Option<Box<dyn Topic<T>>> {
+    ) -> Option<<Self as TopicGAT<'a, T>>::TopicType> {
         todo!()
     }
 

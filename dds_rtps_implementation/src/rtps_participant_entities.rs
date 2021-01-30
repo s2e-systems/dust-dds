@@ -190,7 +190,7 @@ impl RtpsParticipantEntities {
         self.topic_list.add(new_topic)
     }
 
-    pub fn delete_topic<T: DDSType>(&self, a_topic: &RtpsAnyTopicRef) -> ReturnCode<()> {
+    pub fn delete_topic(&self, a_topic: &RtpsAnyTopicRef) -> ReturnCode<()> {
         if self.topic_list.contains(&a_topic) {
             a_topic.delete()
         } else {

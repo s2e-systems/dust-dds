@@ -1,13 +1,10 @@
 use rust_dds_types::{DDSType, ReturnCode};
 
-use crate::{
-    infrastructure::{
+use crate::{domain::domain_participant::TopicGAT, infrastructure::{
         entity::Entity,
         qos::{DataReaderQos, SubscriberQos, TopicQos},
         status::{InstanceStateKind, SampleLostStatus, SampleStateKind, StatusMask, ViewStateKind},
-    },
-    topic::topic::Topic,
-};
+    }, topic::topic::Topic};
 
 use super::{
     data_reader::{AnyDataReader, DataReader},
@@ -67,13 +64,13 @@ pub trait Subscriber<'a>:
     /// return a nil result.
     fn create_datareader<T: DDSType>(
         &'a self,
-        a_topic: &'a Box<dyn Topic<T> + 'a>,
+        a_topic: &'a <Self as TopicGAT<'a,T>>::TopicType,
         qos: Option<DataReaderQos>,
         a_listener: Option<Box<dyn DataReaderListener<T>>>,
         mask: StatusMask,
     ) -> Option<Box<dyn DataReader<T> + 'a>>
     where
-        Self: Sized;
+        Self: TopicGAT<'a,T> + Sized;
 
     /// This operation deletes a DataReader that belongs to the Subscriber. If the DataReader does not belong to the Subscriber, the
     /// operation returns the error PRECONDITION_NOT_MET.

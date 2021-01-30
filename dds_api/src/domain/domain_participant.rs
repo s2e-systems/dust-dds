@@ -1,16 +1,10 @@
 use rust_dds_types::{DDSType, DomainId, Duration, InstanceHandle, ReturnCode, Time};
 
-use crate::{
-    builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
-    infrastructure::{
+use crate::{builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData}, infrastructure::{
         entity::Entity,
         qos::{DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
         status::StatusMask,
-    },
-    publication::{publisher::Publisher, publisher_listener::PublisherListener},
-    subscription::{subscriber::Subscriber, subscriber_listener::SubscriberListener},
-    topic::{topic::Topic, topic_description::TopicDescription, topic_listener::TopicListener},
-};
+    }, publication::{publisher::Publisher, publisher_listener::PublisherListener}, subscription::{subscriber::Subscriber, subscriber_listener::SubscriberListener}, topic::{topic::Topic, topic_description::TopicDescription, topic_listener::TopicListener}};
 
 use super::domain_participant_listener::DomainParticipantListener;
 
@@ -18,6 +12,16 @@ pub trait DomainParticipantChild {
     type DomainParticipantType;
 
     fn get_participant(&self) -> &Self::DomainParticipantType;
+}
+
+// This is a workaround for the missing Generic Associated Type (GAT)
+// This trait needs to be used for every function that expects to interact
+// with the internals of the topic type inside the implementations of the API.
+// The trait is not directly bound to the other traits but rather to the function
+// where it is used. See for example create_topic below. 
+// Inspired by this thread: https://users.rust-lang.org/t/workaround-for-generic-associated-types/25920/14
+pub trait TopicGAT<'a, T: DDSType> {
+    type TopicType: Topic<'a,T> + DomainParticipantChild;
 }
 
 pub trait DomainParticipant<'a>:
@@ -94,9 +98,9 @@ pub trait DomainParticipant<'a>:
         qos: Option<TopicQos>,
         a_listener: Option<Box<dyn TopicListener<T>>>,
         mask: StatusMask,
-    ) -> Option<Box<dyn Topic<'a, T> + 'a>>
+    ) -> Option<<Self as TopicGAT<'a, T>>::TopicType>
     where
-        Self: Sized;
+        Self: TopicGAT<'a, T>;
 
     /// This operation deletes a Topic.
     /// The deletion of a Topic is not allowed if there are any existing DataReader, DataWriter, ContentFilteredTopic, or MultiTopic
@@ -107,10 +111,10 @@ pub trait DomainParticipant<'a>:
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
     fn delete_topic<T: DDSType>(
         &'a self,
-        a_topic: &'a Box<dyn Topic<T> + 'a>,
+        a_topic: &<Self as TopicGAT<'a, T>>::TopicType,
     ) -> ReturnCode<()>
     where
-        Self: Sized;
+        Self: TopicGAT<'a, T>;
 
     /// The operation find_topic gives access to an existing (or ready to exist) enabled Topic, based on its name. The operation takes
     /// as arguments the name of the Topic and a timeout.
@@ -127,9 +131,9 @@ pub trait DomainParticipant<'a>:
         &self,
         topic_name: &str,
         timeout: Duration,
-    ) -> Option<Box<dyn Topic<T>>>
+    ) -> Option<<Self as TopicGAT<'a, T>>::TopicType>
     where
-        Self: Sized;
+        Self: TopicGAT<'a,T>;
 
     /// The operation lookup_topicdescription gives access to an existing locally-created TopicDescription, based on its name. The
     /// operation takes as argument the name of the TopicDescription.

@@ -117,12 +117,16 @@ pub struct RtpsTopic<'a, T: DDSType> {
 }
 
 impl<'a, T: DDSType> RtpsTopic<'a, T> {
-    pub fn new(parent_participant: &'a RtpsParticipant, topic_ref: RtpsAnyTopicRef<'a>) -> Self {
+    pub(crate) fn new(parent_participant: &'a RtpsParticipant, topic_ref: RtpsAnyTopicRef<'a>) -> Self {
         Self {
             parent_participant,
             topic_ref,
             phantom_data: PhantomData,
         }
+    }
+
+    pub(crate) fn topic_ref(&self) -> &RtpsAnyTopicRef<'a> {
+        &self.topic_ref
     }
 }
 

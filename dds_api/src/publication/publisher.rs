@@ -1,13 +1,10 @@
 use rust_dds_types::{DDSType, Duration, ReturnCode};
 
-use crate::{
-    infrastructure::{
+use crate::{domain::domain_participant::TopicGAT, infrastructure::{
         entity::Entity,
         qos::{DataWriterQos, PublisherQos, TopicQos},
         status::StatusMask,
-    },
-    topic::topic::Topic,
-};
+    }, topic::topic::Topic};
 
 use super::{
     data_writer::DataWriter, data_writer_listener::DataWriterListener,
@@ -56,13 +53,13 @@ pub trait Publisher<'a>: Entity<Qos = PublisherQos, Listener = Box<dyn Publisher
     /// Publisher. If the Topic was created from a different DomainParticipant, the operation will fail and return a nil result.
     fn create_datawriter<T: DDSType>(
         &'a self,
-        a_topic: &'a Box<dyn Topic<T> + 'a>,
+        a_topic: &'a <Self as TopicGAT<'a,T>>::TopicType,
         qos: Option<DataWriterQos>,
         a_listener: Option<Box<dyn DataWriterListener<T>>>,
         mask: StatusMask,
     ) -> Option<Box<dyn DataWriter<T> + 'a>>
     where
-        Self: Sized;
+        Self: TopicGAT<'a,T> + Sized;
 
     /// This operation deletes a DataWriter that belongs to the Publisher.
     /// The delete_datawriter operation must be called on the same Publisher object used to create the DataWriter. If
