@@ -210,12 +210,8 @@ impl<'a, T: DDSType> DataWriterGAT<'a, T> for RtpsPublisher<'a> {
     type DataWriterType = RtpsDataWriter<'a, T>;
 }
 
-impl<'a> DomainParticipantChild for RtpsPublisher<'a> {
+impl<'a> DomainParticipantChild<'a> for RtpsPublisher<'a> {
     type DomainParticipantType = RtpsParticipant;
-
-    fn get_participant(&self) -> &Self::DomainParticipantType {
-        &self.parent_participant
-    }
 }
 
 impl<'a> Publisher<'a> for RtpsPublisher<'a> {
@@ -258,6 +254,10 @@ impl<'a> Publisher<'a> for RtpsPublisher<'a> {
 
     fn wait_for_acknowledgments(&self, _max_wait: Duration) -> ReturnCode<()> {
         todo!()
+    }
+
+    fn get_participant(&self) -> &<Self as DomainParticipantChild<'a>>::DomainParticipantType{
+        &self.parent_participant
     }
 
     fn delete_contained_entities(&self) -> ReturnCode<()> {

@@ -182,12 +182,8 @@ impl<'a, T: DDSType> TopicGAT<'a, T> for RtpsSubscriber<'a> {
     type TopicType = RtpsTopic<'a, T>;
 }
 
-impl<'a> DomainParticipantChild for RtpsSubscriber<'a> {
+impl<'a> DomainParticipantChild<'a> for RtpsSubscriber<'a> {
     type DomainParticipantType = RtpsParticipant;
-
-    fn get_participant(&self) -> &Self::DomainParticipantType {
-        &self.parent_participant
-    }
 }
 
 impl<'a> Subscriber<'a> for RtpsSubscriber<'a> {
@@ -225,6 +221,10 @@ impl<'a> Subscriber<'a> for RtpsSubscriber<'a> {
 
     fn notify_datareaders(&self) -> ReturnCode<()> {
         todo!()
+    }
+
+    fn get_participant(&self) -> &<Self as DomainParticipantChild<'a>>::DomainParticipantType{
+        &self.parent_participant
     }
 
     fn get_sample_lost_status(&self, _status: &mut SampleLostStatus) -> ReturnCode<()> {

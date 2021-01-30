@@ -1,13 +1,10 @@
 use rust_dds_types::{DDSType, Duration, ReturnCode};
 
-use crate::{
-    domain::domain_participant::TopicGAT,
-    infrastructure::{
+use crate::{domain::domain_participant::{DomainParticipantChild, TopicGAT}, infrastructure::{
         entity::Entity,
         qos::{DataWriterQos, PublisherQos, TopicQos},
         status::StatusMask,
-    },
-};
+    }};
 
 use super::{
     data_writer::DataWriter, data_writer_listener::DataWriterListener,
@@ -134,6 +131,11 @@ pub trait Publisher<'a>: Entity<Qos = PublisherQos, Listener = Box<dyn Publisher
     /// first. A return value of OK indicates that all the samples written have been acknowledged by all reliable matched data readers;
     /// a return value of TIMEOUT indicates that max_wait elapsed before all the data was acknowledged.
     fn wait_for_acknowledgments(&self, max_wait: Duration) -> ReturnCode<()>;
+
+    /// This operation returns the DomainParticipant to which the Publisher belongs.
+    fn get_participant(&self) -> &<Self as DomainParticipantChild<'a>>::DomainParticipantType
+    where
+        Self: DomainParticipantChild<'a> + Sized;
 
     /// This operation deletes all the entities that were created by means of the “create” operations on the Publisher. That is, it deletes
     /// all contained DataWriter objects.

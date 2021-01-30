@@ -8,10 +8,8 @@ use crate::{builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData}
 
 use super::domain_participant_listener::DomainParticipantListener;
 
-pub trait DomainParticipantChild {
-    type DomainParticipantType;
-
-    fn get_participant(&self) -> &Self::DomainParticipantType;
+pub trait DomainParticipantChild<'a> {
+    type DomainParticipantType : DomainParticipant<'a>;
 }
 
 // This is a workaround for the missing Generic Associated Type (GAT)
@@ -22,14 +20,14 @@ pub trait DomainParticipantChild {
 // Inspired by this thread: https://users.rust-lang.org/t/workaround-for-generic-associated-types/25920/14
 // The trait is placed here because the DomainParticipant is the factory of this type.
 pub trait TopicGAT<'a, T: DDSType> {
-    type TopicType: Topic<'a,T> + DomainParticipantChild;
+    type TopicType: Topic<'a,T>;
 }
 
 pub trait DomainParticipant<'a>:
     Entity<Qos = DomainParticipantQos, Listener = Box<dyn DomainParticipantListener>>
 {
-    type SubscriberType: Subscriber<'a> + DomainParticipantChild;
-    type PublisherType: Publisher<'a> + DomainParticipantChild;
+    type SubscriberType: Subscriber<'a>;
+    type PublisherType: Publisher<'a>;
 
     // This concept can not yet be expressed in Rust because of the absence of Generic Associated Types
     // https://github.com/rust-lang/rust/issues/44265

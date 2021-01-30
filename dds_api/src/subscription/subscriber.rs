@@ -1,6 +1,6 @@
 use rust_dds_types::{DDSType, ReturnCode};
 
-use crate::{domain::domain_participant::TopicGAT, infrastructure::{
+use crate::{domain::domain_participant::{DomainParticipantChild, TopicGAT}, infrastructure::{
         entity::Entity,
         qos::{DataReaderQos, SubscriberQos, TopicQos},
         status::{InstanceStateKind, SampleLostStatus, SampleStateKind, StatusMask, ViewStateKind},
@@ -157,6 +157,11 @@ pub trait Subscriber<'a>:
     /// This operation is typically invoked from the on_data_on_readers operation in the SubscriberListener. That way the
     /// SubscriberListener can delegate to the DataReaderListener objects the handling of the data.
     fn notify_datareaders(&self) -> ReturnCode<()>;
+
+    /// This operation returns the DomainParticipant to which the Subscriber belongs.
+    fn get_participant(&self) -> &<Self as DomainParticipantChild<'a>>::DomainParticipantType
+    where
+        Self: DomainParticipantChild<'a> + Sized;
 
     /// This operation allows access to the SAMPLE_LOST communication status. Communication statuses are described in 2.2.4.1
     fn get_sample_lost_status(&self, status: &mut SampleLostStatus) -> ReturnCode<()>;

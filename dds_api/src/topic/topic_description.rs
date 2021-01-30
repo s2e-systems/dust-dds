@@ -1,6 +1,9 @@
 use rust_dds_types::{DDSType, ReturnCode};
 
-use crate::infrastructure::{entity::Entity, qos::TopicQos};
+use crate::{
+    domain::domain_participant::DomainParticipantChild,
+    infrastructure::{entity::Entity, qos::TopicQos},
+};
 
 use super::topic_listener::TopicListener;
 
@@ -11,6 +14,11 @@ use super::topic_listener::TopicListener;
 pub trait TopicDescription<'a, T: DDSType>:
     Entity<Qos = TopicQos, Listener = Box<dyn TopicListener<T>>>
 {
+    /// This operation returns the DomainParticipant to which the TopicDescription belongs
+    fn get_participant(&self) -> &<Self as DomainParticipantChild<'a>>::DomainParticipantType
+    where
+        Self: DomainParticipantChild<'a> + Sized;
+
     /// The type_name used to create the TopicDescription
     fn get_type_name(&self) -> ReturnCode<&str>;
 

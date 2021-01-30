@@ -130,12 +130,8 @@ impl<'a, T: DDSType> RtpsTopic<'a, T> {
     }
 }
 
-impl<'a, T: DDSType> DomainParticipantChild for RtpsTopic<'a, T> {
+impl<'a, T: DDSType> DomainParticipantChild<'a> for RtpsTopic<'a, T> {
     type DomainParticipantType = RtpsParticipant;
-
-    fn get_participant(&self) -> &Self::DomainParticipantType {
-        &self.parent_participant
-    }
 }
 
 impl<'a, T: DDSType> Topic<'a, T> for RtpsTopic<'a, T> {
@@ -148,6 +144,10 @@ impl<'a, T: DDSType> Topic<'a, T> for RtpsTopic<'a, T> {
 }
 
 impl<'a, T: DDSType> TopicDescription<'a, T> for RtpsTopic<'a, T> {
+    fn get_participant(&self) -> &<Self as DomainParticipantChild<'a>>::DomainParticipantType{
+        &self.parent_participant
+    }
+
     fn get_type_name(&self) -> ReturnCode<&str> {
         todo!()
     }
