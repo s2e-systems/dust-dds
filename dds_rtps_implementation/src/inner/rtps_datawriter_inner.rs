@@ -11,7 +11,9 @@ use rust_dds_api::{
 use rust_dds_types::DDSType;
 use rust_rtps::behavior::{StatefulWriter, StatelessWriter, Writer};
 
-use crate::{rtps_topic::AnyRtpsTopic, utils::as_any::AsAny};
+use crate::utils::as_any::AsAny;
+
+use super::rtps_topic_inner::AnyRtpsTopic;
 
 pub enum WriterFlavor {
     Stateful(StatefulWriter),

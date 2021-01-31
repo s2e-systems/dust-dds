@@ -37,7 +37,7 @@ use rust_rtps::{
     },
 };
 
-use super::{rtps_domain_participant::RtpsDomainParticipant, rtps_topic::AnyRtpsTopic};
+use super::rtps_domain_participant::RtpsDomainParticipant;
 
 pub struct RtpsSubscriber<'a> {
     parent_participant: &'a RtpsDomainParticipant,

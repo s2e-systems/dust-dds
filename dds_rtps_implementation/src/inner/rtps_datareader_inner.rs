@@ -1,10 +1,26 @@
-use std::{any::Any, sync::{Arc, Mutex}};
+use std::{
+    any::Any,
+    sync::{Arc, Mutex},
+};
 
-use rust_dds_api::{infrastructure::{qos::DataReaderQos, qos_policy::ReliabilityQosPolicyKind, status::StatusMask}, subscription::data_reader_listener::DataReaderListener};
+use rust_dds_api::{
+    infrastructure::{
+        qos::DataReaderQos, qos_policy::ReliabilityQosPolicyKind, status::StatusMask,
+    },
+    subscription::data_reader_listener::DataReaderListener,
+};
 use rust_dds_types::{DDSType, ReturnCode, ReturnCodes};
-use rust_rtps::{behavior::{self, StatefulReader}, types::{GUID, ReliabilityKind}};
+use rust_rtps::{
+    behavior::{self, StatefulReader},
+    types::{ReliabilityKind, GUID},
+};
 
-use crate::{rtps_topic::AnyRtpsTopic, utils::{as_any::AsAny, maybe_valid::{MaybeValid, MaybeValidRef}}};
+use crate::utils::{
+    as_any::AsAny,
+    maybe_valid::{MaybeValid, MaybeValidRef},
+};
+
+use super::rtps_topic_inner::AnyRtpsTopic;
 
 pub struct RtpsDataReaderInner<T: DDSType> {
     pub reader: StatefulReader,

@@ -35,6 +35,9 @@ use crate::{
 pub struct RtpsDomainParticipant {
     participant: Participant,
     qos: Mutex<DomainParticipantQos>,
+    publisher_count: atomic::AtomicU8,
+    subscriber_count: atomic::AtomicU8,
+    topic_count: atomic::AtomicU8,
     default_publisher_qos: Mutex<PublisherQos>,
     default_subscriber_qos: Mutex<SubscriberQos>,
     default_topic_qos: Mutex<TopicQos>,
@@ -59,18 +62,18 @@ impl RtpsDomainParticipant {
         let guid_prefix = [1; 12];
         let participant = Participant::new(guid_prefix, domain_id, PROTOCOL_VERSION_2_4, VENDOR_ID);
 
-        let builtin_entities = Arc::new(RtpsParticipantEntities::new_builtin(
-            guid_prefix,
-            metatraffic_transport,
-        ));
+        let builtin_entities =
+            Arc::new(RtpsParticipantEntities::new_builtin(metatraffic_transport));
         let user_defined_entities = Arc::new(RtpsParticipantEntities::new_user_defined(
-            guid_prefix,
             userdata_transport,
         ));
 
         RtpsDomainParticipant {
             participant,
             qos: Mutex::new(qos),
+            publisher_count: atomic::AtomicU8::new(0),
+            subscriber_count: atomic::AtomicU8::new(0),
+            topic_count: atomic::AtomicU8::new(0),
             default_publisher_qos: Mutex::new(PublisherQos::default()),
             default_subscriber_qos: Mutex::new(SubscriberQos::default()),
             default_topic_qos: Mutex::new(TopicQos::default()),
@@ -219,10 +222,20 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
         a_listener: Option<Box<dyn PublisherListener>>,
         mask: StatusMask,
     ) -> Option<Self::PublisherType> {
+        let entity_key = [
+            0,
+            self.publisher_count.fetch_add(1, atomic::Ordering::Relaxed),
+            0,
+        ];
+
         let qos = qos.unwrap_or(self.get_default_publisher_qos());
-        let publisher_ref = self
-            .builtin_entities
-            .create_publisher(qos, a_listener, mask)?;
+        let publisher_ref = self.builtin_entities.create_publisher(
+            self.participant.entity.guid.prefix(),
+            entity_key,
+            qos,
+            a_listener,
+            mask,
+        )?;
         Some(RtpsPublisher::new(self, publisher_ref))
     }
 
@@ -237,10 +250,20 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
         a_listener: Option<Box<dyn SubscriberListener>>,
         mask: StatusMask,
     ) -> Option<Self::SubscriberType> {
+        let entity_key = [
+            0,
+            self.subscriber_count
+                .fetch_add(1, atomic::Ordering::Relaxed),
+            0,
+        ];
         let qos = qos.unwrap_or(self.get_default_subscriber_qos());
-        let subscriber_ref = self
-            .builtin_entities
-            .create_subscriber(qos, a_listener, mask)?;
+        let subscriber_ref = self.builtin_entities.create_subscriber(
+            self.participant.entity.guid.prefix(),
+            entity_key,
+            qos,
+            a_listener,
+            mask,
+        )?;
         Some(RtpsSubscriber::new(self, subscriber_ref))
     }
 
@@ -256,11 +279,21 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
         a_listener: Option<Box<dyn TopicListener<T>>>,
         mask: StatusMask,
     ) -> Option<<Self as TopicGAT<'a, T>>::TopicType> {
+        let entity_key = [
+            0,
+            self.topic_count.fetch_add(1, atomic::Ordering::Relaxed),
+            0,
+        ];
         let qos = qos.unwrap_or(self.get_default_topic_qos());
         qos.is_consistent().ok()?;
-        let topic_ref = self
-            .builtin_entities
-            .create_topic(topic_name, qos, a_listener, mask)?;
+        let topic_ref = self.builtin_entities.create_topic(
+            self.participant.entity.guid.prefix(),
+            entity_key,
+            topic_name,
+            qos,
+            a_listener,
+            mask,
+        )?;
         Some(RtpsTopic::new(self, topic_ref))
     }
 
@@ -307,7 +340,7 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
     }
 
     fn get_domain_id(&self) -> DomainId {
-        todo!()
+        self.participant.domain_id
     }
 
     fn delete_contained_entities(&self) -> ReturnCode<()> {

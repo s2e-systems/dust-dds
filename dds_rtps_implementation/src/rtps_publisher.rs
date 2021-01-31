@@ -26,19 +26,19 @@ use rust_rtps::{
     },
 };
 
-use crate::{inner::{rtps_datawriter_inner::AnyRtpsWriter, rtps_publisher_inner::RtpsPublisherRef}, rtps_topic::RtpsTopic, utils::maybe_valid::{MaybeValid, MaybeValidList, MaybeValidRef}};
+use crate::{inner::{rtps_datawriter_inner::AnyRtpsWriter, rtps_publisher_inner::RtpsPublisherInnerRef}, rtps_topic::RtpsTopic, utils::maybe_valid::{MaybeValid, MaybeValidList, MaybeValidRef}};
 
 use super::{rtps_datawriter::RtpsDataWriter, rtps_domain_participant::RtpsDomainParticipant};
 
 pub struct RtpsPublisher<'a> {
     parent_participant: &'a RtpsDomainParticipant,
-    publisher_ref: RtpsPublisherRef<'a>,
+    publisher_ref: RtpsPublisherInnerRef<'a>,
 }
 
 impl<'a> RtpsPublisher<'a> {
     pub(crate) fn new(
         parent_participant: &'a RtpsDomainParticipant,
-        publisher_ref: RtpsPublisherRef<'a>,
+        publisher_ref: RtpsPublisherInnerRef<'a>,
     ) -> Self {
         Self {
             parent_participant,
@@ -46,7 +46,7 @@ impl<'a> RtpsPublisher<'a> {
         }
     }
 
-    pub(crate) fn publisher_ref(&self) -> &RtpsPublisherRef<'a> {
+    pub(crate) fn publisher_ref(&self) -> &RtpsPublisherInnerRef<'a> {
         &self.publisher_ref
     }
 }

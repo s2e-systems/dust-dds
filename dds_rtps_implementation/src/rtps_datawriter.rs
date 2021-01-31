@@ -38,7 +38,6 @@ use rust_rtps::{
 
 use crate::{inner::rtps_datawriter_inner::RtpsDataWriterRef, rtps_publisher::RtpsPublisher, rtps_topic::RtpsTopic, utils::{as_any::AsAny, maybe_valid::MaybeValidRef}};
 
-use super::rtps_topic::AnyRtpsTopic;
 
 pub struct RtpsDataWriter<'a, T: DDSType> {
     parent_publisher: &'a RtpsPublisher<'a>,

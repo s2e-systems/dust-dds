@@ -101,6 +101,23 @@ impl RtpsPublisherInner {
             status_mask,
         }
     }
+}
+
+pub type RtpsPublisherInnerRef<'a> = MaybeValidRef<'a, Box<RtpsPublisherInner>>;
+
+impl<'a> RtpsPublisherInnerRef<'a> {
+    pub fn get(&self) -> ReturnCode<&Box<RtpsPublisherInner>> {
+        MaybeValid::get(self).ok_or(ReturnCodes::AlreadyDeleted)
+    }
+
+    pub fn delete(&self) {
+        MaybeValid::delete(self)
+    }
+
+    pub fn get_qos(&self) -> ReturnCode<PublisherQos> {
+        Ok(self.get()?.qos.clone())
+    }
+}
 
     // pub fn create_stateful_datawriter<T: DDSType>(
     //     &self,
@@ -147,20 +164,3 @@ impl RtpsPublisherInner {
     //     };
     //     self.writer_list.add(Box::new(writer))
     // }
-}
-
-pub type RtpsPublisherRef<'a> = MaybeValidRef<'a, Box<RtpsPublisherInner>>;
-
-impl<'a> RtpsPublisherRef<'a> {
-    pub fn get(&self) -> ReturnCode<&Box<RtpsPublisherInner>> {
-        MaybeValid::get(self).ok_or(ReturnCodes::AlreadyDeleted)
-    }
-
-    pub fn delete(&self) {
-        MaybeValid::delete(self)
-    }
-
-    pub fn get_qos(&self) -> ReturnCode<PublisherQos> {
-        Ok(self.get()?.qos.clone())
-    }
-}

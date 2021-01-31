@@ -43,7 +43,6 @@ use crate::{
     },
 };
 
-use super::rtps_topic::AnyRtpsTopic;
 
 pub struct RtpsDataReader<'a, T: DDSType> {
     parent_subscriber: &'a RtpsSubscriber<'a>,

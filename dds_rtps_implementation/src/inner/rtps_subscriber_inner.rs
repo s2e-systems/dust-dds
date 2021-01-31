@@ -20,11 +20,10 @@ use rust_rtps::{
 };
 
 use crate::{
-    rtps_topic::AnyRtpsTopic,
     utils::maybe_valid::{MaybeValid, MaybeValidList, MaybeValidRef},
 };
 
-use super::rtps_datareader_inner::{AnyRtpsReader, RtpsAnyDataReaderRef, RtpsDataReaderInner};
+use super::{rtps_datareader_inner::{AnyRtpsReader, RtpsAnyDataReaderRef, RtpsDataReaderInner}, rtps_topic_inner::AnyRtpsTopic};
 
 enum EntityType {
     BuiltIn,
