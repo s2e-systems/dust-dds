@@ -28,12 +28,11 @@ use rust_rtps::{
 use rust_dds_types::{DDSType, DomainId, Duration, InstanceHandle, ReturnCode, Time};
 
 use crate::{
-    rtps_publisher::RtpsPublisher, rtps_subscriber::RtpsSubscriber, rtps_topic::RtpsTopic,
+    inner::rtps_participant_entities::RtpsParticipantEntities, rtps_publisher::RtpsPublisher,
+    rtps_subscriber::RtpsSubscriber, rtps_topic::RtpsTopic,
 };
 
-use super::rtps_participant_entities::RtpsParticipantEntities;
-
-pub struct RtpsParticipant {
+pub struct RtpsDomainParticipant {
     participant: Participant,
     qos: Mutex<DomainParticipantQos>,
     default_publisher_qos: Mutex<PublisherQos>,
@@ -48,7 +47,7 @@ pub struct RtpsParticipant {
     mask: StatusMask,
 }
 
-impl RtpsParticipant {
+impl RtpsDomainParticipant {
     pub fn new(
         domain_id: DomainId,
         qos: DomainParticipantQos,
@@ -69,7 +68,7 @@ impl RtpsParticipant {
             userdata_transport,
         ));
 
-        RtpsParticipant {
+        RtpsDomainParticipant {
             participant,
             qos: Mutex::new(qos),
             default_publisher_qos: Mutex::new(PublisherQos::default()),
@@ -206,11 +205,11 @@ impl RtpsParticipant {
     // }
 }
 
-impl<'a, T: DDSType> TopicGAT<'a, T> for RtpsParticipant {
+impl<'a, T: DDSType> TopicGAT<'a, T> for RtpsDomainParticipant {
     type TopicType = RtpsTopic<'a, T>;
 }
 
-impl<'a> DomainParticipant<'a> for RtpsParticipant {
+impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
     type PublisherType = RtpsPublisher<'a>;
     type SubscriberType = RtpsSubscriber<'a>;
 
@@ -256,7 +255,7 @@ impl<'a> DomainParticipant<'a> for RtpsParticipant {
         qos: Option<TopicQos>,
         a_listener: Option<Box<dyn TopicListener<T>>>,
         mask: StatusMask,
-    ) -> Option<<Self as TopicGAT<'a,T>>::TopicType> {
+    ) -> Option<<Self as TopicGAT<'a, T>>::TopicType> {
         let qos = qos.unwrap_or(self.get_default_topic_qos());
         qos.is_consistent().ok()?;
         let topic_ref = self
@@ -386,7 +385,7 @@ impl<'a> DomainParticipant<'a> for RtpsParticipant {
     }
 }
 
-impl Entity for RtpsParticipant {
+impl Entity for RtpsDomainParticipant {
     type Qos = DomainParticipantQos;
     type Listener = Box<dyn DomainParticipantListener>;
 
@@ -484,7 +483,7 @@ impl Entity for RtpsParticipant {
     }
 }
 
-impl<'a> Drop for RtpsParticipant {
+impl<'a> Drop for RtpsDomainParticipant {
     fn drop(&mut self) {
         self.enabled.store(false, atomic::Ordering::Release);
         for thread in self.thread_list.borrow_mut().drain(..) {

@@ -2,7 +2,7 @@ use rust_dds_api::{
     domain::domain_participant_listener::DomainParticipantListener,
     infrastructure::{qos::DomainParticipantQos, status::StatusMask},
 };
-use rust_dds_rtps_implementation::rtps_participant::RtpsParticipant;
+use rust_dds_rtps_implementation::rtps_domain_participant::RtpsDomainParticipant;
 use rust_dds_types::DomainId;
 use rust_rtps_transport_udp::UdpTransport;
 
@@ -42,7 +42,7 @@ impl DomainParticipantFactory {
         a_listener: Option<Box<dyn DomainParticipantListener>>,
         mask: StatusMask,
         //     enabled: bool,
-    ) -> Option<RtpsParticipant> {
+    ) -> Option<RtpsDomainParticipant> {
         let interface = "Wi-Fi";
         let userdata_transport =
             UdpTransport::default_userdata_transport(domain_id, interface).unwrap();
@@ -50,7 +50,7 @@ impl DomainParticipantFactory {
             UdpTransport::default_metatraffic_transport(domain_id, interface).unwrap();
         let qos = qos.unwrap_or_default();
 
-        let rtps_participant = RtpsParticipant::new(
+        let rtps_participant = RtpsDomainParticipant::new(
             domain_id,
             qos.clone(),
             userdata_transport,

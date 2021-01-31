@@ -1,4 +1,7 @@
-use crate::{rtps_publisher::{RtpsPublisherInner, RtpsPublisherRef}, rtps_subscriber::{RtpsSubscriberInner, RtpsSubscriberRef}, rtps_topic::{RtpsAnyTopicRef, RtpsTopicInner}, utils::maybe_valid::{MaybeValidList, MaybeValidRef}};
+use crate::{
+    rtps_topic::{AnyRtpsTopic, RtpsAnyTopicRef, RtpsTopicInner},
+    utils::maybe_valid::{MaybeValidList, MaybeValidRef},
+};
 use rust_dds_api::{
     infrastructure::{
         qos::{PublisherQos, SubscriberQos, TopicQos},
@@ -23,9 +26,8 @@ use rust_rtps::{
 use std::sync::{atomic, Arc};
 
 use super::{
-    rtps_publisher::RtpsPublisher,
-    rtps_subscriber::RtpsSubscriber,
-    rtps_topic::{AnyRtpsTopic, RtpsTopic},
+    rtps_publisher_inner::{RtpsPublisherInner, RtpsPublisherRef},
+    rtps_subscriber_inner::{RtpsSubscriberInner, RtpsSubscriberRef},
 };
 
 enum EntityType {

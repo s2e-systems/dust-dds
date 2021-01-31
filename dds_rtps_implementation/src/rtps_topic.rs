@@ -16,7 +16,7 @@ use rust_dds_api::{domain::domain_participant::{DomainParticipant, DomainPartici
 use rust_dds_types::{DDSType, InstanceHandle, ReturnCode, ReturnCodes, TopicKind};
 use rust_rtps::types::GUID;
 
-use super::rtps_participant::RtpsParticipant;
+use super::rtps_domain_participant::RtpsDomainParticipant;
 
 pub struct RtpsTopicInner<T: DDSType> {
     pub rtps_entity: rust_rtps::structure::Entity,
@@ -105,13 +105,13 @@ impl<'a> RtpsAnyTopicRef<'a> {
 }
 
 pub struct RtpsTopic<'a, T: DDSType> {
-    parent_participant: &'a RtpsParticipant,
+    parent_participant: &'a RtpsDomainParticipant,
     topic_ref: RtpsAnyTopicRef<'a>,
     phantom_data: PhantomData<T>,
 }
 
 impl<'a, T: DDSType> RtpsTopic<'a, T> {
-    pub(crate) fn new(parent_participant: &'a RtpsParticipant, topic_ref: RtpsAnyTopicRef<'a>) -> Self {
+    pub(crate) fn new(parent_participant: &'a RtpsDomainParticipant, topic_ref: RtpsAnyTopicRef<'a>) -> Self {
         Self {
             parent_participant,
             topic_ref,
@@ -125,7 +125,7 @@ impl<'a, T: DDSType> RtpsTopic<'a, T> {
 }
 
 impl<'a, T: DDSType> DomainParticipantChild<'a> for RtpsTopic<'a, T> {
-    type DomainParticipantType = RtpsParticipant;
+    type DomainParticipantType = RtpsDomainParticipant;
 }
 
 impl<'a, T: DDSType> Topic<'a, T> for RtpsTopic<'a, T> {
