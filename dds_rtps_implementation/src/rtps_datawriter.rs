@@ -13,11 +13,7 @@ use rust_dds_api::{builtin_topics::SubscriptionBuiltinTopicData, domain::domain_
             LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus,
             PublicationMatchedStatus, StatusMask,
         },
-    }, publication::{
-        data_writer::DataWriter,
-        data_writer_listener::DataWriterListener,
-        publisher::{Publisher, PublisherChild},
-    }, topic::topic::Topic};
+    }, publication::{data_writer::{AnyDataWriter, DataWriter}, data_writer_listener::DataWriterListener, publisher::{Publisher, PublisherChild}}, topic::topic::Topic};
 use rust_dds_types::{DDSType, Duration, InstanceHandle, ReturnCode, ReturnCodes, Time, TopicKind};
 use rust_rtps::{
     behavior::{self, endpoint_traits::CacheChangeSender, StatefulWriter, StatelessWriter, Writer},
@@ -495,3 +491,5 @@ impl<'a, T: DDSType> Entity for RtpsDataWriter<'a, T> {
         todo!()
     }
 }
+
+impl<'a,T:DDSType> AnyDataWriter for RtpsDataWriter<'a,T>{}

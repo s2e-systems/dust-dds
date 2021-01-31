@@ -13,7 +13,7 @@ use super::{
 };
 
 pub trait DataReaderGAT<'a, T: DDSType> {
-    type DataReaderType: DataReader<'a, T>;
+    type DataReaderType: DataReader<'a, T> + AnyDataReader;
 }
 
 pub trait SubscriberChild<'a> {

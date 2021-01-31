@@ -4,23 +4,23 @@ use crate::{builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData}
         entity::Entity,
         qos::{DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
         status::StatusMask,
-    }, publication::{publisher::Publisher, publisher_listener::PublisherListener}, subscription::{subscriber::Subscriber, subscriber_listener::SubscriberListener}, topic::{topic::Topic, topic_description::TopicDescription, topic_listener::TopicListener}};
+    }, publication::{publisher::Publisher, publisher_listener::PublisherListener}, subscription::{subscriber::Subscriber, subscriber_listener::SubscriberListener}, topic::{topic::Topic, topic_description::{AnyTopic, TopicDescription}, topic_listener::TopicListener}};
 
 use super::domain_participant_listener::DomainParticipantListener;
 
 pub trait DomainParticipantChild<'a> {
-    type DomainParticipantType : DomainParticipant<'a>;
+    type DomainParticipantType: DomainParticipant<'a>;
 }
 
 // This is a workaround for the missing Generic Associated Type (GAT)
 // This trait needs to be used for every function that needs to interact
 // with the internals of the topic type inside the implementations of the API.
 // The trait is not directly bound to the other API traits but rather to the function
-// where it is used. See for example create_topic below. 
+// where it is used. See for example create_topic below.
 // Inspired by this thread: https://users.rust-lang.org/t/workaround-for-generic-associated-types/25920/14
 // The trait is placed here because the DomainParticipant is the factory of this type.
 pub trait TopicGAT<'a, T: DDSType> {
-    type TopicType: Topic<'a,T>;
+    type TopicType: Topic<'a, T> + AnyTopic;
 }
 
 pub trait DomainParticipant<'a>:
@@ -132,7 +132,7 @@ pub trait DomainParticipant<'a>:
         timeout: Duration,
     ) -> Option<<Self as TopicGAT<'a, T>>::TopicType>
     where
-        Self: TopicGAT<'a,T>;
+        Self: TopicGAT<'a, T>;
 
     /// The operation lookup_topicdescription gives access to an existing locally-created TopicDescription, based on its name. The
     /// operation takes as argument the name of the TopicDescription.

@@ -4,9 +4,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use rust_dds_api::{
-    builtin_topics::PublicationBuiltinTopicData,
-    infrastructure::{
+use rust_dds_api::{builtin_topics::PublicationBuiltinTopicData, infrastructure::{
         entity::{Entity, StatusCondition},
         qos::{DataReaderQos, SubscriberQos},
         qos_policy::ReliabilityQosPolicyKind,
@@ -17,13 +15,7 @@ use rust_dds_api::{
             RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus,
             SampleStateKind, StatusMask, SubscriptionMatchedStatus, ViewStateKind,
         },
-    },
-    subscription::{
-        data_reader::DataReader, data_reader_listener::DataReaderListener,
-        query_condition::QueryCondition, subscriber::SubscriberChild,
-    },
-    topic::topic_description::TopicDescription,
-};
+    }, subscription::{data_reader::{AnyDataReader, DataReader}, data_reader_listener::DataReaderListener, query_condition::QueryCondition, subscriber::SubscriberChild}, topic::topic_description::TopicDescription};
 
 use rust_rtps::{
     behavior::{self, StatefulReader},
@@ -424,3 +416,5 @@ impl<'a, T: DDSType> Entity for RtpsDataReader<'a, T> {
         todo!()
     }
 }
+
+impl<'a,T:DDSType> AnyDataReader for RtpsDataReader<'a, T>{}

@@ -9,13 +9,10 @@ use crate::{
     },
 };
 
-use super::{
-    data_writer::DataWriter, data_writer_listener::DataWriterListener,
-    publisher_listener::PublisherListener,
-};
+use super::{data_writer::{AnyDataWriter, DataWriter}, data_writer_listener::DataWriterListener, publisher_listener::PublisherListener};
 
 pub trait DataWriterGAT<'a, T: DDSType> {
-    type DataWriterType: DataWriter<'a, T>;
+    type DataWriterType: DataWriter<'a, T> + AnyDataWriter;
 }
 
 pub trait PublisherChild<'a> {

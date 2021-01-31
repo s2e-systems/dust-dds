@@ -8,17 +8,11 @@ use crate::utils::{
     as_any::AsAny,
     maybe_valid::{MaybeValid, MaybeValidRef},
 };
-use rust_dds_api::{
-    domain::domain_participant::{DomainParticipant, DomainParticipantChild},
-    infrastructure::{
+use rust_dds_api::{domain::domain_participant::{DomainParticipant, DomainParticipantChild}, infrastructure::{
         entity::{Entity, StatusCondition},
         qos::TopicQos,
         status::{InconsistentTopicStatus, StatusMask},
-    },
-    publication::publisher::Publisher,
-    subscription::subscriber::Subscriber,
-    topic::{topic::Topic, topic_description::TopicDescription, topic_listener::TopicListener},
-};
+    }, publication::publisher::Publisher, subscription::subscriber::Subscriber, topic::{topic::Topic, topic_description::{AnyTopic, TopicDescription}, topic_listener::TopicListener}};
 use rust_dds_types::{DDSType, InstanceHandle, ReturnCode, ReturnCodes, TopicKind};
 use rust_rtps::types::GUID;
 
@@ -194,13 +188,4 @@ impl<'a, T: DDSType> Entity for RtpsTopic<'a, T> {
     }
 }
 
-// impl<'a> RtpsAnyTopicRef<'a> {
-
-//     pub fn get_as<U: DDSType>(&self) -> ReturnCode<&RtpsTopic<U>> {
-//         self.get()?
-//             .as_ref()
-//             .as_any()
-//             .downcast_ref()
-//             .ok_or(ReturnCodes::Error)
-//     }
-// }
+impl<'a,T: DDSType> AnyTopic for RtpsTopic<'a,T>{}
