@@ -5,7 +5,7 @@ use std::{
 };
 
 use crate::{
-    inner::rtps_topic_inner::RtpsAnyTopicRef,
+    inner::rtps_topic_inner::RtpsAnyTopicInnerRef,
     utils::{
         as_any::AsAny,
         maybe_valid::{MaybeValid, MaybeValidRef},
@@ -33,14 +33,14 @@ use super::rtps_domain_participant::RtpsDomainParticipant;
 
 pub struct RtpsTopic<'a, T: DDSType> {
     parent_participant: &'a RtpsDomainParticipant,
-    topic_ref: RtpsAnyTopicRef<'a>,
+    topic_ref: RtpsAnyTopicInnerRef<'a>,
     phantom_data: PhantomData<T>,
 }
 
 impl<'a, T: DDSType> RtpsTopic<'a, T> {
     pub(crate) fn new(
         parent_participant: &'a RtpsDomainParticipant,
-        topic_ref: RtpsAnyTopicRef<'a>,
+        topic_ref: RtpsAnyTopicInnerRef<'a>,
     ) -> Self {
         Self {
             parent_participant,
@@ -49,7 +49,7 @@ impl<'a, T: DDSType> RtpsTopic<'a, T> {
         }
     }
 
-    pub(crate) fn topic_ref(&self) -> &RtpsAnyTopicRef<'a> {
+    pub(crate) fn topic_ref(&self) -> &RtpsAnyTopicInnerRef<'a> {
         &self.topic_ref
     }
 }

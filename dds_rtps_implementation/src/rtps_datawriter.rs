@@ -36,12 +36,16 @@ use rust_rtps::{
     },
 };
 
-use crate::{inner::rtps_datawriter_inner::RtpsDataWriterRef, rtps_publisher::RtpsPublisher, rtps_topic::RtpsTopic, utils::{as_any::AsAny, maybe_valid::MaybeValidRef}};
-
+use crate::{
+    inner::rtps_datawriter_inner::RtpsAnyDataWriterInnerRef,
+    rtps_publisher::RtpsPublisher,
+    rtps_topic::RtpsTopic,
+    utils::{as_any::AsAny, maybe_valid::MaybeValidRef},
+};
 
 pub struct RtpsDataWriter<'a, T: DDSType> {
     parent_publisher: &'a RtpsPublisher<'a>,
-    data_writer_ref: RtpsDataWriterRef,
+    data_writer_ref: RtpsAnyDataWriterInnerRef<'a>,
     phantom_data: PhantomData<T>,
 }
 

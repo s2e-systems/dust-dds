@@ -7,7 +7,7 @@ use rust_dds_api::{
     },
     publication::publisher_listener::PublisherListener,
 };
-use rust_dds_types::{InstanceHandle, ReturnCode, ReturnCodes};
+use rust_dds_types::{DDSType, InstanceHandle, ReturnCode, ReturnCodes};
 use rust_rtps::{
     structure::Group,
     types::{
@@ -18,7 +18,12 @@ use rust_rtps::{
 
 use crate::utils::maybe_valid::{MaybeValid, MaybeValidList, MaybeValidRef};
 
-use super::rtps_datawriter_inner::AnyRtpsWriter;
+use super::{
+    rtps_datawriter_inner::{
+        RtpsAnyDataWriterInner, RtpsAnyDataWriterInnerRef, RtpsDataWriterInner,
+    },
+    rtps_topic_inner::RtpsAnyTopicInnerRef,
+};
 
 enum Statefulness {
     Stateless,
@@ -31,7 +36,7 @@ enum EntityType {
 pub struct RtpsPublisherInner {
     pub group: Group,
     entity_type: EntityType,
-    pub writer_list: MaybeValidList<Box<dyn AnyRtpsWriter>>,
+    pub writer_list: MaybeValidList<Box<dyn RtpsAnyDataWriterInner>>,
     pub writer_count: atomic::AtomicU8,
     pub default_datawriter_qos: Mutex<DataWriterQos>,
     pub qos: Mutex<PublisherQos>,
@@ -114,51 +119,63 @@ impl<'a> RtpsPublisherInnerRef<'a> {
         MaybeValid::delete(self)
     }
 
-    // pub fn create_stateful_datawriter<T: DDSType>(
-    //     &self,
-    //     guid_prefix: GuidPrefix,
-    //     entity_key: EntityKey,
-    //     a_topic: &RtpsAnyTopicRef,
-    //     qos: DataWriterQos,
-    // ) -> Option<RtpsAnyDataWriterRef> {
-    //     let writer: RtpsDataWriter<T> = match self.entity_type {
-    //         EntityType::UserDefined => RtpsDataWriter::new_user_defined_stateful(
-    //             guid_prefix,
-    //             entity_key,
-    //             a_topic,
-    //             qos,
-    //             None,
-    //             0,
-    //         ),
-    //         EntityType::BuiltIn => {
-    //             RtpsDataWriter::new_builtin_stateful(guid_prefix, entity_key, a_topic, qos, None, 0)
-    //         }
-    //     };
-    //     self.writer_list.add(Box::new(writer))
-    // }
+    pub fn create_stateful_datawriter<T: DDSType>(
+        &self,
+        guid_prefix: GuidPrefix,
+        entity_key: EntityKey,
+        a_topic: &RtpsAnyTopicInnerRef,
+        qos: DataWriterQos,
+    ) -> Option<RtpsAnyDataWriterInnerRef> {
+        let this = self.get().ok()?;
+        let writer: RtpsDataWriterInner<T> = match this.entity_type {
+            EntityType::UserDefined => RtpsDataWriterInner::new_user_defined_stateful(
+                guid_prefix,
+                entity_key,
+                a_topic,
+                qos,
+                None,
+                0,
+            ),
+            EntityType::BuiltIn => RtpsDataWriterInner::new_builtin_stateful(
+                guid_prefix,
+                entity_key,
+                a_topic,
+                qos,
+                None,
+                0,
+            ),
+        };
+        this.writer_list.add(Box::new(writer))
+    }
 
-    // pub fn create_stateless_datawriter<T: DDSType>(
-    //     &self,
-    //     guid_prefix: GuidPrefix,
-    //     entity_key: EntityKey,
-    //     a_topic: &RtpsAnyTopicRef,
-    //     qos: DataWriterQos,
-    // ) -> Option<RtpsAnyDataWriterRef> {
-    //     let writer: RtpsDataWriter<T> = match self.entity_type {
-    //         EntityType::UserDefined => RtpsDataWriter::new_user_defined_stateless(
-    //             guid_prefix,
-    //             entity_key,
-    //             a_topic,
-    //             qos,
-    //             None,
-    //             0,
-    //         ),
-    //         EntityType::BuiltIn => {
-    //             RtpsDataWriter::new_builtin_stateless(guid_prefix, entity_key, a_topic, qos, None, 0)
-    //         }
-    //     };
-    //     self.writer_list.add(Box::new(writer))
-    // }
+    pub fn create_stateless_datawriter<T: DDSType>(
+        &self,
+        guid_prefix: GuidPrefix,
+        entity_key: EntityKey,
+        a_topic: &RtpsAnyTopicInnerRef,
+        qos: DataWriterQos,
+    ) -> Option<RtpsAnyDataWriterInnerRef> {
+        let this = self.get().ok()?;
+        let writer: RtpsDataWriterInner<T> = match this.entity_type {
+            EntityType::UserDefined => RtpsDataWriterInner::new_user_defined_stateless(
+                guid_prefix,
+                entity_key,
+                a_topic,
+                qos,
+                None,
+                0,
+            ),
+            EntityType::BuiltIn => RtpsDataWriterInner::new_builtin_stateless(
+                guid_prefix,
+                entity_key,
+                a_topic,
+                qos,
+                None,
+                0,
+            ),
+        };
+        this.writer_list.add(Box::new(writer))
+    }
 
     pub fn set_default_datawriter_qos(&self, qos: Option<DataWriterQos>) -> ReturnCode<()> {
         let qos = qos.unwrap_or_default();
@@ -304,9 +321,8 @@ mod tests {
         let mut datawriter_qos = DataWriterQos::default();
         datawriter_qos.resource_limits.max_samples_per_instance = 10;
         datawriter_qos.resource_limits.max_samples = 2;
-        let result = publisher
-            .set_default_datawriter_qos(Some(datawriter_qos.clone()));
-        
+        let result = publisher.set_default_datawriter_qos(Some(datawriter_qos.clone()));
+
         match result {
             Err(ReturnCodes::InconsistentPolicy) => assert!(true),
             _ => assert!(false),

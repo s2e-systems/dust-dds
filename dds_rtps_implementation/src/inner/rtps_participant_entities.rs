@@ -25,7 +25,7 @@ use std::sync::{atomic, Arc};
 use super::{
     rtps_publisher_inner::{RtpsPublisherInner, RtpsPublisherInnerRef},
     rtps_subscriber_inner::{RtpsSubscriberInner, RtpsSubscriberRef},
-    rtps_topic_inner::{AnyRtpsTopic, RtpsAnyTopicRef, RtpsTopicInner},
+    rtps_topic_inner::{RtpsAnyTopicInner, RtpsAnyTopicInnerRef, RtpsTopicInner},
 };
 
 enum EntityType {
@@ -37,7 +37,7 @@ pub struct RtpsParticipantEntities {
     entity_type: EntityType,
     publisher_list: MaybeValidList<Box<RtpsPublisherInner>>,
     subscriber_list: MaybeValidList<Box<RtpsSubscriberInner>>,
-    topic_list: MaybeValidList<Arc<dyn AnyRtpsTopic>>,
+    topic_list: MaybeValidList<Arc<dyn RtpsAnyTopicInner>>,
     transport: Box<dyn Transport>,
 }
 
@@ -68,7 +68,7 @@ impl RtpsParticipantEntities {
         &self.subscriber_list
     }
 
-    pub fn topic_list(&self) -> &MaybeValidList<Arc<dyn AnyRtpsTopic>> {
+    pub fn topic_list(&self) -> &MaybeValidList<Arc<dyn RtpsAnyTopicInner>> {
         &self.topic_list
     }
 
@@ -158,7 +158,7 @@ impl RtpsParticipantEntities {
         qos: TopicQos,
         a_listener: Option<Box<dyn TopicListener<T>>>,
         mask: StatusMask,
-    ) -> Option<RtpsAnyTopicRef<'a>> {
+    ) -> Option<RtpsAnyTopicInnerRef<'a>> {
         qos.is_consistent().ok()?;
 
         let entity_id = EntityId::new(entity_key, ENTITY_KIND_USER_DEFINED_UNKNOWN);
@@ -173,7 +173,7 @@ impl RtpsParticipantEntities {
         self.topic_list.add(new_topic)
     }
 
-    pub fn delete_topic(&self, a_topic: &RtpsAnyTopicRef) -> ReturnCode<()> {
+    pub fn delete_topic(&self, a_topic: &RtpsAnyTopicInnerRef) -> ReturnCode<()> {
         if self.topic_list.contains(&a_topic) {
             a_topic.delete()
         } else {

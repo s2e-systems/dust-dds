@@ -23,7 +23,7 @@ use crate::{
     utils::maybe_valid::{MaybeValid, MaybeValidList, MaybeValidRef},
 };
 
-use super::{rtps_datareader_inner::{AnyRtpsReader, RtpsAnyDataReaderRef, RtpsDataReaderInner}, rtps_topic_inner::AnyRtpsTopic};
+use super::{rtps_datareader_inner::{AnyRtpsReader, RtpsAnyDataReaderRef, RtpsDataReaderInner}, rtps_topic_inner::RtpsAnyTopicInner};
 
 enum EntityType {
     BuiltIn,
@@ -59,7 +59,7 @@ impl RtpsSubscriberInner {
 
     pub fn create_builtin_datareader<T: DDSType>(
         &self,
-        a_topic: Arc<dyn AnyRtpsTopic>,
+        a_topic: Arc<dyn RtpsAnyTopicInner>,
         qos: Option<DataReaderQos>,
         // _a_listener: impl DataReaderListener<T>,
         // _mask: StatusMask
@@ -69,7 +69,7 @@ impl RtpsSubscriberInner {
 
     pub fn create_user_defined_datareader<T: DDSType>(
         &self,
-        a_topic: Arc<dyn AnyRtpsTopic>,
+        a_topic: Arc<dyn RtpsAnyTopicInner>,
         qos: Option<DataReaderQos>,
         // _a_listener: impl DataReaderListener<T>,
         // _mask: StatusMask
@@ -79,7 +79,7 @@ impl RtpsSubscriberInner {
 
     fn create_datareader<T: DDSType>(
         &self,
-        a_topic: Arc<dyn AnyRtpsTopic>,
+        a_topic: Arc<dyn RtpsAnyTopicInner>,
         qos: Option<DataReaderQos>,
         entity_type: EntityType,
         // _a_listener: impl DataReaderListener<T>,

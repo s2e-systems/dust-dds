@@ -26,7 +26,7 @@ use rust_rtps::{
     },
 };
 
-use crate::{inner::{rtps_datawriter_inner::AnyRtpsWriter, rtps_publisher_inner::RtpsPublisherInnerRef}, rtps_topic::RtpsTopic, utils::maybe_valid::{MaybeValid, MaybeValidList, MaybeValidRef}};
+use crate::{inner::{rtps_datawriter_inner::RtpsAnyDataWriterInnerRef, rtps_publisher_inner::RtpsPublisherInnerRef}, rtps_topic::RtpsTopic, utils::maybe_valid::{MaybeValid, MaybeValidList, MaybeValidRef}};
 
 use super::{rtps_datawriter::RtpsDataWriter, rtps_domain_participant::RtpsDomainParticipant};
 

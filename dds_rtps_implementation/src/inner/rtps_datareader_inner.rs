@@ -20,12 +20,12 @@ use crate::utils::{
     maybe_valid::{MaybeValid, MaybeValidRef},
 };
 
-use super::rtps_topic_inner::AnyRtpsTopic;
+use super::rtps_topic_inner::RtpsAnyTopicInner;
 
 pub struct RtpsDataReaderInner<T: DDSType> {
     pub reader: StatefulReader,
     pub qos: Mutex<DataReaderQos>,
-    pub topic: Mutex<Option<Arc<dyn AnyRtpsTopic>>>,
+    pub topic: Mutex<Option<Arc<dyn RtpsAnyTopicInner>>>,
     pub listener: Option<Box<dyn DataReaderListener<T>>>,
     pub status_mask: StatusMask,
 }
@@ -33,7 +33,7 @@ pub struct RtpsDataReaderInner<T: DDSType> {
 impl<T: DDSType> RtpsDataReaderInner<T> {
     pub fn new(
         guid: GUID,
-        topic: Arc<dyn AnyRtpsTopic>,
+        topic: Arc<dyn RtpsAnyTopicInner>,
         qos: DataReaderQos,
         listener: Option<Box<dyn DataReaderListener<T>>>,
         status_mask: StatusMask,
@@ -70,7 +70,7 @@ impl<T: DDSType> RtpsDataReaderInner<T> {
 pub trait AnyRtpsReader: AsAny + Send + Sync {
     fn reader(&self) -> &StatefulReader;
     fn qos(&self) -> &Mutex<DataReaderQos>;
-    fn topic(&self) -> &Mutex<Option<Arc<dyn AnyRtpsTopic>>>;
+    fn topic(&self) -> &Mutex<Option<Arc<dyn RtpsAnyTopicInner>>>;
     fn status_mask(&self) -> &StatusMask;
 }
 
@@ -89,7 +89,7 @@ impl<T: DDSType + Sized> AnyRtpsReader for RtpsDataReaderInner<T> {
         &self.qos
     }
 
-    fn topic(&self) -> &Mutex<Option<Arc<dyn AnyRtpsTopic>>> {
+    fn topic(&self) -> &Mutex<Option<Arc<dyn RtpsAnyTopicInner>>> {
         &self.topic
     }
 

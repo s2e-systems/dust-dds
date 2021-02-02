@@ -45,7 +45,7 @@ impl<T: DDSType> RtpsTopicInner<T> {
     }
 }
 
-pub trait AnyRtpsTopic: AsAny + Send + Sync {
+pub trait RtpsAnyTopicInner: AsAny + Send + Sync {
     fn rtps_entity(&self) -> &rust_rtps::structure::Entity;
     fn topic_kind(&self) -> TopicKind;
     fn type_name(&self) -> &'static str;
@@ -53,7 +53,7 @@ pub trait AnyRtpsTopic: AsAny + Send + Sync {
     fn qos(&self) -> &Mutex<TopicQos>;
 }
 
-impl<T: DDSType> AnyRtpsTopic for RtpsTopicInner<T> {
+impl<T: DDSType> RtpsAnyTopicInner for RtpsTopicInner<T> {
     fn rtps_entity(&self) -> &rust_rtps::structure::Entity {
         &self.rtps_entity
     }
@@ -81,10 +81,10 @@ impl<T: DDSType> AsAny for RtpsTopicInner<T> {
     }
 }
 
-pub type RtpsAnyTopicRef<'a> = MaybeValidRef<'a, Arc<dyn AnyRtpsTopic>>;
+pub type RtpsAnyTopicInnerRef<'a> = MaybeValidRef<'a, Arc<dyn RtpsAnyTopicInner>>;
 
-impl<'a> RtpsAnyTopicRef<'a> {
-    pub(crate) fn get(&self) -> ReturnCode<&Arc<dyn AnyRtpsTopic>> {
+impl<'a> RtpsAnyTopicInnerRef<'a> {
+    pub(crate) fn get(&self) -> ReturnCode<&Arc<dyn RtpsAnyTopicInner>> {
         MaybeValid::get(self).ok_or(ReturnCodes::AlreadyDeleted)
     }
 
