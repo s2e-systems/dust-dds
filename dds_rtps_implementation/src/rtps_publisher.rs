@@ -116,12 +116,12 @@ impl<'a> Publisher<'a> for RtpsPublisher<'a> {
         todo!()
     }
 
-    fn set_default_datawriter_qos(&self, _qos: Option<DataWriterQos>) -> ReturnCode<()> {
-        todo!()
+    fn set_default_datawriter_qos(&self, qos: Option<DataWriterQos>) -> ReturnCode<()> {
+        self.publisher_ref.set_default_datawriter_qos(qos)
     }
 
     fn get_default_datawriter_qos(&self) -> ReturnCode<DataWriterQos> {
-        todo!()
+        self.publisher_ref.get_default_datawriter_qos()
     }
 
     fn copy_from_topic_qos(
@@ -137,8 +137,8 @@ impl<'a> Entity for RtpsPublisher<'a> {
     type Qos = PublisherQos;
     type Listener = Box<dyn PublisherListener>;
 
-    fn set_qos(&self, _qos: Option<Self::Qos>) -> ReturnCode<()> {
-        todo!()
+    fn set_qos(&self, qos: Option<Self::Qos>) -> ReturnCode<()> {
+        self.publisher_ref.set_qos(qos)
     }
 
     fn get_qos(&self) -> ReturnCode<Self::Qos> {
@@ -166,7 +166,7 @@ impl<'a> Entity for RtpsPublisher<'a> {
     }
 
     fn get_instance_handle(&self) -> ReturnCode<InstanceHandle> {
-        todo!()
+        self.publisher_ref.get_instance_handle()
     }
 }
 

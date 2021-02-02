@@ -229,7 +229,7 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
         ];
 
         let qos = qos.unwrap_or(self.get_default_publisher_qos());
-        let publisher_ref = self.builtin_entities.create_publisher(
+        let publisher_ref = self.user_defined_entities.create_publisher(
             self.participant.entity.guid.prefix(),
             entity_key,
             qos,
@@ -240,7 +240,7 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
     }
 
     fn delete_publisher(&self, a_publisher: &Self::PublisherType) -> ReturnCode<()> {
-        self.builtin_entities
+        self.user_defined_entities
             .delete_publisher(a_publisher.publisher_ref())
     }
 
@@ -257,7 +257,7 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
             0,
         ];
         let qos = qos.unwrap_or(self.get_default_subscriber_qos());
-        let subscriber_ref = self.builtin_entities.create_subscriber(
+        let subscriber_ref = self.user_defined_entities.create_subscriber(
             self.participant.entity.guid.prefix(),
             entity_key,
             qos,
@@ -268,7 +268,7 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
     }
 
     fn delete_subscriber(&self, a_subscriber: &Self::SubscriberType) -> ReturnCode<()> {
-        self.builtin_entities
+        self.user_defined_entities
             .delete_subscriber(a_subscriber.subscriber_ref())
     }
 
@@ -286,7 +286,7 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
         ];
         let qos = qos.unwrap_or(self.get_default_topic_qos());
         qos.is_consistent().ok()?;
-        let topic_ref = self.builtin_entities.create_topic(
+        let topic_ref = self.user_defined_entities.create_topic(
             self.participant.entity.guid.prefix(),
             entity_key,
             topic_name,
@@ -301,7 +301,7 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
         &'a self,
         a_topic: &<Self as TopicGAT<'a, T>>::TopicType,
     ) -> ReturnCode<()> {
-        self.builtin_entities.delete_topic(a_topic.topic_ref())
+        self.user_defined_entities.delete_topic(a_topic.topic_ref())
     }
 
     fn find_topic<T: DDSType>(

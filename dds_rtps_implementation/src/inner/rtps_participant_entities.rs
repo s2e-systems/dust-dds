@@ -1,6 +1,4 @@
-use crate::{
-    utils::maybe_valid::{MaybeValidList, MaybeValidRef},
-};
+use crate::utils::maybe_valid::{MaybeValidList, MaybeValidRef};
 use rust_dds_api::{
     infrastructure::{
         qos::{PublisherQos, SubscriberQos, TopicQos},
@@ -11,13 +9,24 @@ use rust_dds_api::{
     topic::topic_listener::TopicListener,
 };
 use rust_dds_types::{DDSType, ReturnCode, ReturnCodes};
-use rust_rtps::{message_sender::RtpsMessageSender, transport::Transport, types::{EntityId, EntityKey, GUID, GuidPrefix, constants::{
+use rust_rtps::{
+    message_sender::RtpsMessageSender,
+    transport::Transport,
+    types::{
+        constants::{
             ENTITY_KIND_BUILT_IN_READER_GROUP, ENTITY_KIND_USER_DEFINED_READER_GROUP,
             ENTITY_KIND_USER_DEFINED_UNKNOWN,
-        }}};
+        },
+        EntityId, EntityKey, GuidPrefix, GUID,
+    },
+};
 use std::sync::{atomic, Arc};
 
-use super::{rtps_publisher_inner::{RtpsPublisherInner, RtpsPublisherInnerRef}, rtps_subscriber_inner::{RtpsSubscriberInner, RtpsSubscriberRef}, rtps_topic_inner::{AnyRtpsTopic, RtpsAnyTopicRef, RtpsTopicInner}};
+use super::{
+    rtps_publisher_inner::{RtpsPublisherInner, RtpsPublisherInnerRef},
+    rtps_subscriber_inner::{RtpsSubscriberInner, RtpsSubscriberRef},
+    rtps_topic_inner::{AnyRtpsTopic, RtpsAnyTopicRef, RtpsTopicInner},
+};
 
 enum EntityType {
     BuiltIn,
@@ -151,7 +160,7 @@ impl RtpsParticipantEntities {
         mask: StatusMask,
     ) -> Option<RtpsAnyTopicRef<'a>> {
         qos.is_consistent().ok()?;
-        
+
         let entity_id = EntityId::new(entity_key, ENTITY_KIND_USER_DEFINED_UNKNOWN);
         let new_topic_guid = GUID::new(guid_prefix, entity_id);
         let new_topic = Arc::new(RtpsTopicInner::new(
@@ -257,29 +266,47 @@ mod tests {
         let participant_entities = RtpsParticipantEntities::new_builtin(MockTransport);
 
         let publisher_qos = PublisherQos::default();
-        let publisher_entity_key = [0,1,0];
+        let publisher_entity_key = [0, 1, 0];
         let publisher_listener = None;
         let publisher_status_mask = 0;
         let _publisher = participant_entities
-            .create_publisher(guid_prefix,publisher_entity_key, publisher_qos, publisher_listener, publisher_status_mask)
+            .create_publisher(
+                guid_prefix,
+                publisher_entity_key,
+                publisher_qos,
+                publisher_listener,
+                publisher_status_mask,
+            )
             .expect("Error creating publisher");
 
         let subscriber_qos = SubscriberQos::default();
-        let subscriber_entity_key = [0,1,0];
+        let subscriber_entity_key = [0, 1, 0];
         let subscriber_listener = None;
         let subscriber_status_mask = 0;
         let _subscriber = participant_entities
-            .create_subscriber(guid_prefix,subscriber_entity_key, subscriber_qos, subscriber_listener, subscriber_status_mask)
+            .create_subscriber(
+                guid_prefix,
+                subscriber_entity_key,
+                subscriber_qos,
+                subscriber_listener,
+                subscriber_status_mask,
+            )
             .expect("Error creating subscriber");
 
-        
-        let topic_entity_key = [0,1,0];
+        let topic_entity_key = [0, 1, 0];
         let topic_with_key_name = "TopicWithKey";
         let topic_with_key_qos = TopicQos::default();
         let topic_with_key_listener = None;
         let topic_with_key_status_mask = 0;
         let _topic_with_key = participant_entities
-            .create_topic::<TestTypeWithKey>(guid_prefix,topic_entity_key, topic_with_key_name, topic_with_key_qos, topic_with_key_listener, topic_with_key_status_mask)
+            .create_topic::<TestTypeWithKey>(
+                guid_prefix,
+                topic_entity_key,
+                topic_with_key_name,
+                topic_with_key_qos,
+                topic_with_key_listener,
+                topic_with_key_status_mask,
+            )
             .expect("Error creating topic with key");
     }
 }
