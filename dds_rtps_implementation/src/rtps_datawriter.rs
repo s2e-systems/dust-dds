@@ -44,9 +44,22 @@ use crate::{
 };
 
 pub struct RtpsDataWriter<'a, T: DDSType> {
-    parent_publisher: &'a RtpsPublisher<'a>,
-    data_writer_ref: RtpsAnyDataWriterInnerRef<'a>,
-    phantom_data: PhantomData<T>,
+    pub(crate) parent_publisher: &'a RtpsPublisher<'a>,
+    pub(crate) data_writer_ref: RtpsAnyDataWriterInnerRef<'a>,
+    pub(crate) phantom_data: PhantomData<T>,
+}
+
+impl<'a, T: DDSType> RtpsDataWriter<'a, T> {
+    pub fn new(
+        parent_publisher: &'a RtpsPublisher<'a>,
+        data_writer_ref: RtpsAnyDataWriterInnerRef<'a>,
+    ) -> Self {
+        Self{
+            parent_publisher,
+            data_writer_ref,
+            phantom_data: PhantomData,
+        }
+    }
 }
 
 impl<'a, T: DDSType> PublisherChild<'a> for RtpsDataWriter<'a, T> {

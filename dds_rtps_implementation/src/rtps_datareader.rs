@@ -45,9 +45,9 @@ use crate::{
 
 
 pub struct RtpsDataReader<'a, T: DDSType> {
-    parent_subscriber: &'a RtpsSubscriber<'a>,
-    data_reader_ref: RtpsAnyDataReaderRef<'a>,
-    phantom_data: PhantomData<T>,
+    pub(crate) parent_subscriber: &'a RtpsSubscriber<'a>,
+    pub(crate) data_reader_ref: RtpsAnyDataReaderRef<'a>,
+    pub(crate) phantom_data: PhantomData<T>,
 }
 
 impl<'a, T: DDSType> DataReader<'a, T> for RtpsDataReader<'a, T> {

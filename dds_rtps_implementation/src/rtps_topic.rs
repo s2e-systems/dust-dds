@@ -32,13 +32,13 @@ use rust_rtps::types::GUID;
 use super::rtps_domain_participant::RtpsDomainParticipant;
 
 pub struct RtpsTopic<'a, T: DDSType> {
-    parent_participant: &'a RtpsDomainParticipant,
-    topic_ref: RtpsAnyTopicInnerRef<'a>,
-    phantom_data: PhantomData<T>,
+    pub(crate) parent_participant: &'a RtpsDomainParticipant,
+    pub(crate) topic_ref: RtpsAnyTopicInnerRef<'a>,
+    pub(crate) phantom_data: PhantomData<T>,
 }
 
 impl<'a, T: DDSType> RtpsTopic<'a, T> {
-    pub(crate) fn new(
+    pub fn new(
         parent_participant: &'a RtpsDomainParticipant,
         topic_ref: RtpsAnyTopicInnerRef<'a>,
     ) -> Self {
@@ -47,10 +47,6 @@ impl<'a, T: DDSType> RtpsTopic<'a, T> {
             topic_ref,
             phantom_data: PhantomData,
         }
-    }
-
-    pub(crate) fn topic_ref(&self) -> &RtpsAnyTopicInnerRef<'a> {
-        &self.topic_ref
     }
 }
 
@@ -85,12 +81,12 @@ impl<'a, T: DDSType> Entity for RtpsTopic<'a, T> {
     type Qos = TopicQos;
     type Listener = Box<dyn TopicListener<T>>;
 
-    fn set_qos(&self, _qos: Option<Self::Qos>) -> ReturnCode<()> {
-        todo!()
+    fn set_qos(&self, qos: Option<Self::Qos>) -> ReturnCode<()> {
+        self.topic_ref.set_qos(qos)
     }
 
     fn get_qos(&self) -> ReturnCode<Self::Qos> {
-        todo!()
+        self.topic_ref.get_qos()
     }
 
     fn set_listener(&self, _a_listener: Self::Listener, _mask: StatusMask) -> ReturnCode<()> {

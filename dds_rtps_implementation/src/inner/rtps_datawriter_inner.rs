@@ -10,7 +10,7 @@ use rust_dds_api::{
     },
     publication::data_writer_listener::DataWriterListener,
 };
-use rust_dds_types::{DDSType, TopicKind};
+use rust_dds_types::{DDSType, ReturnCode, ReturnCodes, TopicKind};
 use rust_rtps::{behavior::{self, StatefulWriter, StatelessWriter, Writer}, types::{EntityId, EntityKey, GUID, GuidPrefix, ReliabilityKind, constants::{
             ENTITY_KIND_BUILT_IN_WRITER_NO_KEY, ENTITY_KIND_BUILT_IN_WRITER_WITH_KEY,
             ENTITY_KIND_USER_DEFINED_WRITER_NO_KEY, ENTITY_KIND_USER_DEFINED_WRITER_WITH_KEY,
@@ -252,10 +252,10 @@ impl<T: DDSType + Sized> AsAny for RtpsDataWriterInner<T> {
 
 pub type RtpsAnyDataWriterInnerRef<'a> = MaybeValidRef<'a, Box<dyn RtpsAnyDataWriterInner>>;
 
-// impl<'a> RtpsAnyDataWriterRef<'a> {
-//     fn get(&self) -> ReturnCode<&Box<dyn AnyRtpsWriter>> {
-//         MaybeValid::get(self).ok_or(ReturnCodes::AlreadyDeleted)
-//     }
+impl<'a> RtpsAnyDataWriterInnerRef<'a> {
+    fn get(&self) -> ReturnCode<&Box<dyn RtpsAnyDataWriterInner>> {
+        MaybeValid::get(self).ok_or(ReturnCodes::AlreadyDeleted)
+    }
 
 //     pub fn get_as<U: DDSType>(&self) -> ReturnCode<&RtpsDataWriter<U>> {
 //         self.get()?
@@ -265,11 +265,11 @@ pub type RtpsAnyDataWriterInnerRef<'a> = MaybeValidRef<'a, Box<dyn RtpsAnyDataWr
 //             .ok_or(ReturnCodes::Error)
 //     }
 
-//     pub fn delete(&self) -> ReturnCode<()> {
-//         self.get()?.topic().take(); // Drop the topic
-//         MaybeValid::delete(self);
-//         Ok(())
-//     }
+    pub fn delete(&self) -> ReturnCode<()> {
+        self.get()?.topic().take(); // Drop the topic
+        MaybeValid::delete(self);
+        Ok(())
+    }
 
 //     pub fn write_w_timestamp<T: DDSType>(
 //         &self,
@@ -312,4 +312,4 @@ pub type RtpsAnyDataWriterInnerRef<'a> = MaybeValidRef<'a, Box<dyn RtpsAnyDataWr
 //             vec![]
 //         }
 //     }
-// }
+}

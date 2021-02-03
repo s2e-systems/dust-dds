@@ -40,8 +40,8 @@ use rust_rtps::{
 use super::rtps_domain_participant::RtpsDomainParticipant;
 
 pub struct RtpsSubscriber<'a> {
-    parent_participant: &'a RtpsDomainParticipant,
-    subscriber_ref: RtpsSubscriberRef<'a>,
+    pub(crate) parent_participant: &'a RtpsDomainParticipant,
+    pub(crate) subscriber_ref: RtpsSubscriberRef<'a>,
 }
 
 impl<'a> RtpsSubscriber<'a> {

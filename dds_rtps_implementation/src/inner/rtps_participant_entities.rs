@@ -161,10 +161,9 @@ impl RtpsParticipantEntities {
     ) -> Option<RtpsAnyTopicInnerRef<'a>> {
         qos.is_consistent().ok()?;
 
-        let entity_id = EntityId::new(entity_key, ENTITY_KIND_USER_DEFINED_UNKNOWN);
-        let new_topic_guid = GUID::new(guid_prefix, entity_id);
         let new_topic = Arc::new(RtpsTopicInner::new(
-            new_topic_guid,
+            guid_prefix,
+            entity_key,
             topic_name.clone().into(),
             qos,
             a_listener,

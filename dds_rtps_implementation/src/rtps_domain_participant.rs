@@ -301,7 +301,7 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
         &'a self,
         a_topic: &<Self as TopicGAT<'a, T>>::TopicType,
     ) -> ReturnCode<()> {
-        self.user_defined_entities.delete_topic(a_topic.topic_ref())
+        self.user_defined_entities.delete_topic(&a_topic.topic_ref)
     }
 
     fn find_topic<T: DDSType>(

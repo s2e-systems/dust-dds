@@ -26,13 +26,20 @@ use rust_rtps::{
     },
 };
 
-use crate::{inner::{rtps_datawriter_inner::RtpsAnyDataWriterInnerRef, rtps_publisher_inner::RtpsPublisherInnerRef}, rtps_topic::RtpsTopic, utils::maybe_valid::{MaybeValid, MaybeValidList, MaybeValidRef}};
+use crate::{
+    inner::{
+        rtps_datawriter_inner::RtpsAnyDataWriterInnerRef,
+        rtps_publisher_inner::RtpsPublisherInnerRef,
+    },
+    rtps_topic::RtpsTopic,
+    utils::maybe_valid::{MaybeValid, MaybeValidList, MaybeValidRef},
+};
 
 use super::{rtps_datawriter::RtpsDataWriter, rtps_domain_participant::RtpsDomainParticipant};
 
 pub struct RtpsPublisher<'a> {
-    parent_participant: &'a RtpsDomainParticipant,
-    publisher_ref: RtpsPublisherInnerRef<'a>,
+    pub(crate) parent_participant: &'a RtpsDomainParticipant,
+    pub(crate) publisher_ref: RtpsPublisherInnerRef<'a>,
 }
 
 impl<'a> RtpsPublisher<'a> {
@@ -66,19 +73,23 @@ impl<'a> DomainParticipantChild<'a> for RtpsPublisher<'a> {
 impl<'a> Publisher<'a> for RtpsPublisher<'a> {
     fn create_datawriter<T: DDSType>(
         &'a self,
-        _a_topic: &'a <Self as TopicGAT<'a, T>>::TopicType,
-        _qos: Option<DataWriterQos>,
-        _a_listener: Option<Box<dyn DataWriterListener<T>>>,
-        _mask: StatusMask,
+        a_topic: &'a <Self as TopicGAT<'a, T>>::TopicType,
+        qos: Option<DataWriterQos>,
+        a_listener: Option<Box<dyn DataWriterListener<T>>>,
+        mask: StatusMask,
     ) -> Option<<Self as DataWriterGAT<'a, T>>::DataWriterType> {
-        todo!()
+        let data_writer_ref =
+            self.publisher_ref
+                .create_datawriter(&a_topic.topic_ref, qos, a_listener, mask)?;
+
+        Some(RtpsDataWriter::new(self, data_writer_ref))
     }
 
     fn delete_datawriter<T: DDSType>(
         &'a self,
-        _a_datawriter: &'a <Self as DataWriterGAT<'a, T>>::DataWriterType,
+        a_datawriter: &'a <Self as DataWriterGAT<'a, T>>::DataWriterType,
     ) -> ReturnCode<()> {
-        todo!()
+        a_datawriter.data_writer_ref.delete()
     }
 
     fn lookup_datawriter<T: DDSType>(
