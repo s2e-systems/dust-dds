@@ -86,126 +86,6 @@ impl RtpsDomainParticipant {
             mask,
         }
     }
-
-    // pub fn create_publisher(
-    //     &self,
-    //     qos: Option<PublisherQos>,
-    //     // listener: Option<impl PublisherListener>,
-    //     // status_mask: StatusMask,
-    // ) -> Option<RtpsPublisherRef> {
-    //     let qos = qos.unwrap_or(self.get_default_publisher_qos());
-    //     let publisher_ref = self.user_defined_entities.create_publisher(qos)?;
-    //     Some(MaybeValidNode::new(self, publisher_ref))
-    // }
-
-    // pub fn delete_publisher(&self, a_publisher: &RtpsPublisherRef) -> ReturnCode<()> {
-    //     self.user_defined_entities.delete_publisher(a_publisher)
-    // }
-
-    // pub fn create_subscriber(
-    //     &self,
-    //     qos: Option<SubscriberQos>,
-    //     // _a_listener: impl SubscriberListener,
-    //     // _mask: StatusMask
-    // ) -> Option<RtpsSubscriberRef> {
-    //     let qos = qos.unwrap_or(self.get_default_subscriber_qos());
-    //     self.user_defined_entities.create_subscriber(qos)
-    // }
-
-    // pub fn delete_subscriber(&self, a_subscriber: &RtpsSubscriberRef) -> ReturnCode<()> {
-    //     self.user_defined_entities.delete_subscriber(a_subscriber)
-    // }
-
-    // pub fn create_topic<T: DDSType>(
-    //     &self,
-    //     topic_name: &str,
-    //     qos: Option<TopicQos>,
-    //     // _a_listener: impl TopicListener<T>,
-    //     // _mask: StatusMask
-    // ) -> Option<RtpsAnyTopicRef> {
-    //     let qos = qos.unwrap_or(self.get_default_topic_qos());
-    //     qos.is_consistent().ok()?;
-    //     self.user_defined_entities
-    //         .create_topic::<T>(topic_name, qos)
-    // }
-
-    // pub fn delete_topic<T: DDSType>(&self, a_topic: &RtpsAnyTopicRef) -> ReturnCode<()> {
-    //     self.user_defined_entities.delete_topic::<T>(a_topic)
-    // }
-
-    // pub fn set_default_publisher_qos(&self, qos: Option<PublisherQos>) -> ReturnCode<()> {
-    //     let qos = qos.unwrap_or_default();
-    //     *self.default_publisher_qos.lock().unwrap() = qos;
-    //     Ok(())
-    // }
-
-    // pub fn get_default_publisher_qos(&self) -> PublisherQos {
-    //     self.default_publisher_qos.lock().unwrap().clone()
-    // }
-
-    // pub fn set_default_subscriber_qos(&self, qos: Option<SubscriberQos>) -> ReturnCode<()> {
-    //     let qos = qos.unwrap_or_default();
-    //     *self.default_subscriber_qos.lock().unwrap() = qos;
-    //     Ok(())
-    // }
-
-    // pub fn get_default_subscriber_qos(&self) -> SubscriberQos {
-    //     self.default_subscriber_qos.lock().unwrap().clone()
-    // }
-
-    // pub fn set_default_topic_qos(&self, qos: Option<TopicQos>) -> ReturnCode<()> {
-    //     let qos = qos.unwrap_or_default();
-    //     qos.is_consistent()?;
-    //     *self.default_topic_qos.lock().unwrap() = qos;
-    //     Ok(())
-    // }
-
-    // pub fn get_default_topic_qos(&self) -> TopicQos {
-    //     self.default_topic_qos.lock().unwrap().clone()
-    // }
-
-    // pub fn set_qos(&self, qos: Option<DomainParticipantQos>) -> ReturnCode<()> {
-    //     let qos = qos.unwrap_or_default();
-    //     *self.qos.lock().unwrap() = qos;
-    //     Ok(())
-    // }
-
-    // pub fn get_qos(&self) -> ReturnCode<DomainParticipantQos> {
-    //     Ok(self.qos.lock().unwrap().clone())
-    // }
-
-    // pub fn get_domain_id(&self) -> DomainId {
-    //     self.participant.domain_id
-    // }
-
-    // pub fn get_builtin_publisher(&self) -> Option<RtpsPublisherRef> {
-    //     // let publisher_ref = self.builtin_entities
-    //     //     .publisher_list()
-    //     //     .into_iter()
-    //     //     .find(|x| {
-    //     //         if let Some(publisher) = x.get().ok() {
-    //     //             publisher.group.entity.guid.entity_id().entity_kind()
-    //     //                 == ENTITY_KIND_BUILT_IN_WRITER_GROUP
-    //     //         } else {
-    //     //             false
-    //     //         }
-    //     //     })?;
-    //     todo!()
-    // }
-
-    // pub fn get_builtin_subscriber(&self) -> Option<RtpsSubscriberRef> {
-    //     self.builtin_entities
-    //         .subscriber_list()
-    //         .into_iter()
-    //         .find(|x| {
-    //             if let Some(subscriber) = x.get().ok() {
-    //                 subscriber.group.entity.guid.entity_id().entity_kind()
-    //                     == ENTITY_KIND_BUILT_IN_READER_GROUP
-    //             } else {
-    //                 false
-    //             }
-    //         })
-    // }
 }
 
 impl<'a, T: DDSType> TopicGAT<'a, T> for RtpsDomainParticipant {
@@ -236,7 +116,10 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
             a_listener,
             mask,
         )?;
-        Some(RtpsPublisher{parent_participant:self, publisher_ref})
+        Some(RtpsPublisher {
+            parent_participant: self,
+            publisher_ref,
+        })
     }
 
     fn delete_publisher(&self, a_publisher: &Self::PublisherType) -> ReturnCode<()> {
@@ -321,6 +204,18 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
 
     fn get_builtin_subscriber(&self) -> Self::SubscriberType {
         todo!()
+        //     self.builtin_entities
+        //         .subscriber_list()
+        //         .into_iter()
+        //         .find(|x| {
+        //             if let Some(subscriber) = x.get().ok() {
+        //                 subscriber.group.entity.guid.entity_id().entity_kind()
+        //                     == ENTITY_KIND_BUILT_IN_READER_GROUP
+        //             } else {
+        //                 false
+        //             }
+        //         })
+        // }
     }
 
     fn ignore_participant(&self, _handle: InstanceHandle) -> ReturnCode<()> {
