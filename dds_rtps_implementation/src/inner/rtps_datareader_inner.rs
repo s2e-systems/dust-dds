@@ -1,7 +1,7 @@
 use std::{
     any::Any,
     ops::{Deref, DerefMut},
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex, MutexGuard},
 };
 
 use rust_dds_api::{
@@ -213,7 +213,7 @@ impl<T: DDSType> RtpsDataReaderInner<T> {
 pub trait RtpsAnyDataReaderInner: AsAny + Send + Sync {
     fn reader(&self) -> &Mutex<ReaderFlavor>;
     fn qos(&self) -> &Mutex<DataReaderQos>;
-    fn topic(&self) -> &Mutex<Option<Arc<dyn RtpsAnyTopicInner>>>;
+    fn topic(&self) -> MutexGuard<Option<Arc<dyn RtpsAnyTopicInner>>>;
     fn status_mask(&self) -> &StatusMask;
 }
 
@@ -226,8 +226,8 @@ impl<T: DDSType + Sized> RtpsAnyDataReaderInner for RtpsDataReaderInner<T> {
         &self.qos
     }
 
-    fn topic(&self) -> &Mutex<Option<Arc<dyn RtpsAnyTopicInner>>> {
-        &self.topic
+    fn topic(&self) -> MutexGuard<Option<Arc<dyn RtpsAnyTopicInner>>> {
+        self.topic.lock().unwrap()
     }
 
     fn status_mask(&self) -> &StatusMask {
@@ -256,7 +256,9 @@ impl<'a> RtpsAnyDataReaderInnerRef<'a> {
             .ok_or(ReturnCodes::Error)
     }
 
-    pub fn delete(&self) {
-        MaybeValid::delete(self)
+    pub fn delete(&self) -> ReturnCode<()> {
+        self.get()?.topic().take(); // Drop the topic
+        MaybeValid::delete(self);
+        Ok(())
     }
 }
