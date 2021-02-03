@@ -1,10 +1,7 @@
-use std::{
-    ops::Deref,
-    sync::{atomic, Arc, Mutex},
-};
+use std::{marker::PhantomData, ops::Deref, sync::{atomic, Arc, Mutex}};
 
 use crate::{
-    inner::rtps_subscriber_inner::RtpsSubscriberRef,
+    inner::rtps_subscriber_inner::RtpsSubscriberInnerRef,
     rtps_datareader::RtpsDataReader,
     rtps_topic::RtpsTopic,
     utils::maybe_valid::{MaybeValid, MaybeValidList, MaybeValidRef},
@@ -41,13 +38,13 @@ use super::rtps_domain_participant::RtpsDomainParticipant;
 
 pub struct RtpsSubscriber<'a> {
     pub(crate) parent_participant: &'a RtpsDomainParticipant,
-    pub(crate) subscriber_ref: RtpsSubscriberRef<'a>,
+    pub(crate) subscriber_ref: RtpsSubscriberInnerRef<'a>,
 }
 
 impl<'a> RtpsSubscriber<'a> {
     pub(crate) fn new(
         parent_participant: &'a RtpsDomainParticipant,
-        subscriber_ref: RtpsSubscriberRef<'a>,
+        subscriber_ref: RtpsSubscriberInnerRef<'a>,
     ) -> Self {
         Self {
             parent_participant,
@@ -55,7 +52,7 @@ impl<'a> RtpsSubscriber<'a> {
         }
     }
 
-    pub(crate) fn subscriber_ref(&self) -> &RtpsSubscriberRef<'a> {
+    pub(crate) fn subscriber_ref(&self) -> &RtpsSubscriberInnerRef<'a> {
         &self.subscriber_ref
     }
 }
@@ -75,12 +72,16 @@ impl<'a> DomainParticipantChild<'a> for RtpsSubscriber<'a> {
 impl<'a> Subscriber<'a> for RtpsSubscriber<'a> {
     fn create_datareader<T: DDSType>(
         &'a self,
-        _a_topic: &'a <Self as TopicGAT<'a, T>>::TopicType,
-        _qos: Option<DataReaderQos>,
-        _a_listener: Option<Box<dyn DataReaderListener<T>>>,
-        _mask: StatusMask,
+        a_topic: &'a <Self as TopicGAT<'a, T>>::TopicType,
+        qos: Option<DataReaderQos>,
+        a_listener: Option<Box<dyn DataReaderListener<T>>>,
+        mask: StatusMask,
     ) -> Option<<Self as DataReaderGAT<'a, T>>::DataReaderType> {
-        todo!()
+        let data_reader_ref =
+            self.subscriber_ref
+                .create_datareader(&a_topic.topic_ref, qos, a_listener, mask)?;
+
+        Some(RtpsDataReader{parent_subscriber:self, data_reader_ref, phantom_data: PhantomData})
     }
 
     fn delete_datareader<T: DDSType>(

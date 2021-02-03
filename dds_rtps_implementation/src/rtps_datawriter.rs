@@ -49,19 +49,6 @@ pub struct RtpsDataWriter<'a, T: DDSType> {
     pub(crate) phantom_data: PhantomData<T>,
 }
 
-impl<'a, T: DDSType> RtpsDataWriter<'a, T> {
-    pub fn new(
-        parent_publisher: &'a RtpsPublisher<'a>,
-        data_writer_ref: RtpsAnyDataWriterInnerRef<'a>,
-    ) -> Self {
-        Self{
-            parent_publisher,
-            data_writer_ref,
-            phantom_data: PhantomData,
-        }
-    }
-}
-
 impl<'a, T: DDSType> PublisherChild<'a> for RtpsDataWriter<'a, T> {
     type PublisherType = RtpsPublisher<'a>;
 }

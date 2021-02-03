@@ -35,7 +35,7 @@ use rust_rtps::{
 use rust_dds_types::{DDSType, InstanceHandle, ReturnCode, ReturnCodes};
 
 use crate::{
-    inner::rtps_datareader_inner::RtpsAnyDataReaderRef,
+    inner::rtps_datareader_inner::RtpsAnyDataReaderInnerRef,
     rtps_subscriber::RtpsSubscriber,
     utils::{
         as_any::AsAny,
@@ -43,10 +43,9 @@ use crate::{
     },
 };
 
-
 pub struct RtpsDataReader<'a, T: DDSType> {
     pub(crate) parent_subscriber: &'a RtpsSubscriber<'a>,
-    pub(crate) data_reader_ref: RtpsAnyDataReaderRef<'a>,
+    pub(crate) data_reader_ref: RtpsAnyDataReaderInnerRef<'a>,
     pub(crate) phantom_data: PhantomData<T>,
 }
 

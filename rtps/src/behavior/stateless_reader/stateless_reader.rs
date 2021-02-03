@@ -1,3 +1,5 @@
+use std::ops::{Deref, DerefMut};
+
 use rust_dds_types::TopicKind;
 
 use crate::{
@@ -8,6 +10,18 @@ use crate::{
 
 pub struct StatelessReader {
     pub reader: Reader,
+}
+
+impl Deref for StatelessReader {
+    type Target = Reader;
+    fn deref(&self) -> &Self::Target {
+        &self.reader
+    }
+}
+impl DerefMut for StatelessReader {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.reader
+    }
 }
 
 impl StatelessReader {

@@ -1,4 +1,4 @@
-use std::sync::{atomic, Arc, Mutex};
+use std::{marker::PhantomData, sync::{atomic, Arc, Mutex}};
 
 use rust_dds_api::{
     domain::domain_participant::{DomainParticipant, DomainParticipantChild, TopicGAT},
@@ -42,22 +42,6 @@ pub struct RtpsPublisher<'a> {
     pub(crate) publisher_ref: RtpsPublisherInnerRef<'a>,
 }
 
-impl<'a> RtpsPublisher<'a> {
-    pub(crate) fn new(
-        parent_participant: &'a RtpsDomainParticipant,
-        publisher_ref: RtpsPublisherInnerRef<'a>,
-    ) -> Self {
-        Self {
-            parent_participant,
-            publisher_ref,
-        }
-    }
-
-    pub(crate) fn publisher_ref(&self) -> &RtpsPublisherInnerRef<'a> {
-        &self.publisher_ref
-    }
-}
-
 impl<'a, T: DDSType> TopicGAT<'a, T> for RtpsPublisher<'a> {
     type TopicType = RtpsTopic<'a, T>;
 }
@@ -82,7 +66,7 @@ impl<'a> Publisher<'a> for RtpsPublisher<'a> {
             self.publisher_ref
                 .create_datawriter(&a_topic.topic_ref, qos, a_listener, mask)?;
 
-        Some(RtpsDataWriter::new(self, data_writer_ref))
+        Some(RtpsDataWriter{parent_publisher:self, data_writer_ref, phantom_data: PhantomData})
     }
 
     fn delete_datawriter<T: DDSType>(

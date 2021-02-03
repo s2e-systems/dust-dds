@@ -24,7 +24,7 @@ use std::sync::{atomic, Arc};
 
 use super::{
     rtps_publisher_inner::{RtpsPublisherInner, RtpsPublisherInnerRef},
-    rtps_subscriber_inner::{RtpsSubscriberInner, RtpsSubscriberRef},
+    rtps_subscriber_inner::{RtpsSubscriberInner, RtpsSubscriberInnerRef},
     rtps_topic_inner::{RtpsAnyTopicInner, RtpsAnyTopicInnerRef, RtpsTopicInner},
 };
 
@@ -120,19 +120,19 @@ impl RtpsParticipantEntities {
         qos: SubscriberQos,
         _a_listener: Option<Box<dyn SubscriberListener>>,
         _mask: StatusMask,
-    ) -> Option<RtpsSubscriberRef> {
-        let entity_kind = match self.entity_type {
-            EntityType::BuiltIn => ENTITY_KIND_BUILT_IN_READER_GROUP,
-            EntityType::UserDefined => ENTITY_KIND_USER_DEFINED_READER_GROUP,
+    ) -> Option<RtpsSubscriberInnerRef> {
+        let new_subscriber = match self.entity_type {
+            EntityType::BuiltIn => {
+                RtpsSubscriberInner::new_builtin(guid_prefix, entity_key, qos, None, 0)
+            }
+            EntityType::UserDefined => {
+                RtpsSubscriberInner::new_user_defined(guid_prefix, entity_key, qos, None, 0)
+            }
         };
-        let entity_id = EntityId::new(entity_key, entity_kind);
-        let new_subscriber_guid = GUID::new(guid_prefix, entity_id);
-        let new_subscriber = Box::new(RtpsSubscriberInner::new(new_subscriber_guid, qos, None, 0));
-
-        self.subscriber_list.add(new_subscriber)
+        self.subscriber_list.add(Box::new(new_subscriber))
     }
 
-    pub fn delete_subscriber(&self, a_subscriber: &RtpsSubscriberRef) -> ReturnCode<()> {
+    pub fn delete_subscriber(&self, a_subscriber: &RtpsSubscriberInnerRef) -> ReturnCode<()> {
         let rtps_subscriber = a_subscriber.get()?;
         if rtps_subscriber.reader_list.is_empty() {
             if self.subscriber_list.contains(&a_subscriber) {

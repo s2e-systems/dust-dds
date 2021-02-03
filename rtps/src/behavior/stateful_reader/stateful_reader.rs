@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, ops::{Deref, DerefMut}};
 
 use rust_dds_types::TopicKind;
 
@@ -37,6 +37,18 @@ pub struct StatefulReader {
     pub reader: Reader,
     pub heartbeat_response_delay: Duration,
     matched_writers: HashMap<GUID, WriterProxyFlavor>,
+}
+
+impl Deref for StatefulReader {
+    type Target = Reader;
+    fn deref(&self) -> &Self::Target {
+        &self.reader
+    }
+}
+impl DerefMut for StatefulReader {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.reader
+    }
 }
 
 impl StatefulReader {

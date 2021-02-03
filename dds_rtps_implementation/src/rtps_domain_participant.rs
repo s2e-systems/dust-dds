@@ -236,12 +236,12 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
             a_listener,
             mask,
         )?;
-        Some(RtpsPublisher::new(self, publisher_ref))
+        Some(RtpsPublisher{parent_participant:self, publisher_ref})
     }
 
     fn delete_publisher(&self, a_publisher: &Self::PublisherType) -> ReturnCode<()> {
         self.user_defined_entities
-            .delete_publisher(a_publisher.publisher_ref())
+            .delete_publisher(&a_publisher.publisher_ref)
     }
 
     fn create_subscriber(
