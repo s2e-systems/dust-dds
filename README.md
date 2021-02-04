@@ -12,7 +12,6 @@ This section briefly describes the high-level architecture at crate level. The i
 ![Project architecture](./architecture.png)
 
 The crates are divided as:
-0. **DDS Types**: This crate contains definitions of basic types. The crate is imported and used in all the other crates. It is numbered 0 since it is a single module defining only basic types. *For now it also defines the DDSType trait which identifies data structs which can be communicated using DDS.*
 1. **DDS API**: This crate implements the [OMG DDS standard](https://www.omg.org/spec/DDS/1.4/PDF). It is structured following the standard and is essentially divided in two parts:
     1. Infrastructure: The infrastructure folder defines and implements functional components that are used in the API. Examples of this are Quality of Service (QoS) structures and basic listener and entity traits. Built-in topic types are also defined as part of the infrastructure since their definition is done as part of the standard.
     2. API: The remaining folders contain the API definition using traits.
