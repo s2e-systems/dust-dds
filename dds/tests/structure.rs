@@ -75,7 +75,7 @@ fn not_allowed_to_delete_publisher_from_different_participant() {
     assert_eq!(
         other_participant.delete_publisher(&publisher),
         Err(DDSError::PreconditionNotMet(
-            "Publisher not found in this participant"
+            "Publisher can only be deleted from its parent participant"
         ))
     );
 }
@@ -88,7 +88,7 @@ fn not_allowed_to_delete_subscriber_from_different_participant() {
     assert_eq!(
         other_participant.delete_subscriber(&subscriber),
         Err(DDSError::PreconditionNotMet(
-            "Subscriber not found in this participant"
+            "Subscriber can only be deleted from its parent participant"
         ))
     );
 }
@@ -103,7 +103,7 @@ fn not_allowed_to_delete_topic_from_different_participant() {
     assert_eq!(
         other_participant.delete_topic(&topic),
         Err(DDSError::PreconditionNotMet(
-            "Topic not found in this participant"
+            "Topic can only be deleted from its parent participant"
         ))
     );
 }

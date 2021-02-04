@@ -94,8 +94,7 @@ impl<'a> RtpsAnyTopicInnerRef<'a> {
     }
 
     pub fn delete(&self) -> DDSResult<()> {
-        let rtps_topic = self.get()?;
-        if Arc::strong_count(rtps_topic) == 1 {
+        if Arc::strong_count(self.get()?) == 1 {
             MaybeValid::delete(self);
             Ok(())
         } else {

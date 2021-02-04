@@ -102,8 +102,15 @@ impl<'a> RtpsSubscriberInnerRef<'a> {
         MaybeValid::get(self).ok_or(DDSError::AlreadyDeleted)
     }
 
-    pub fn delete(&self) {
-        MaybeValid::delete(self)
+    pub fn delete(&self) -> DDSResult<()> {
+        if self.get()?.reader_list.is_empty() {
+            MaybeValid::delete(self);
+            Ok(())
+        } else {
+            Err(DDSError::PreconditionNotMet(
+                "Subscriber still contains data readers",
+            ))
+        }
     }
 
     pub fn create_datareader<T: DDSType>(

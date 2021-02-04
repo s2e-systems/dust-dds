@@ -1,8 +1,14 @@
 use std::sync::{atomic, Mutex};
 
-use rust_dds_api::{dcps_psm::{InstanceHandle, StatusMask}, dds_type::DDSType, infrastructure::{
-        qos::{DataWriterQos, PublisherQos},
-    }, publication::{data_writer_listener::DataWriterListener, publisher_listener::PublisherListener}, return_type::{DDSError, DDSResult}};
+use rust_dds_api::{
+    dcps_psm::{InstanceHandle, StatusMask},
+    dds_type::DDSType,
+    infrastructure::qos::{DataWriterQos, PublisherQos},
+    publication::{
+        data_writer_listener::DataWriterListener, publisher_listener::PublisherListener,
+    },
+    return_type::{DDSError, DDSResult},
+};
 use rust_rtps::{
     structure::Group,
     types::{
@@ -20,26 +26,25 @@ use super::{
     rtps_topic_inner::RtpsAnyTopicInnerRef,
 };
 
-
 enum EntityType {
     BuiltIn,
     UserDefined,
 }
 pub struct RtpsPublisherInner {
-    pub group: Group,
+    group: Group,
     entity_type: EntityType,
-    pub writer_list: MaybeValidList<Box<dyn RtpsAnyDataWriterInner>>,
-    pub writer_count: atomic::AtomicU8,
-    pub default_datawriter_qos: Mutex<DataWriterQos>,
-    pub qos: Mutex<PublisherQos>,
-    pub listener: Option<Box<dyn PublisherListener>>,
-    pub status_mask: StatusMask,
+    writer_list: MaybeValidList<Box<dyn RtpsAnyDataWriterInner>>,
+    writer_count: atomic::AtomicU8,
+    default_datawriter_qos: Mutex<DataWriterQos>,
+    qos: Mutex<PublisherQos>,
+    listener: Option<Box<dyn PublisherListener>>,
+    status_mask: StatusMask,
 }
 
 impl RtpsPublisherInner {
     pub fn new_builtin(
         guid_prefix: GuidPrefix,
-        entity_key: [u8;3],
+        entity_key: [u8; 3],
         qos: PublisherQos,
         listener: Option<Box<dyn PublisherListener>>,
         status_mask: StatusMask,
@@ -56,7 +61,7 @@ impl RtpsPublisherInner {
 
     pub fn new_user_defined(
         guid_prefix: GuidPrefix,
-        entity_key: [u8;3],
+        entity_key: [u8; 3],
         qos: PublisherQos,
         listener: Option<Box<dyn PublisherListener>>,
         status_mask: StatusMask,
@@ -73,7 +78,7 @@ impl RtpsPublisherInner {
 
     fn new(
         guid_prefix: GuidPrefix,
-        entity_key: [u8;3],
+        entity_key: [u8; 3],
         qos: PublisherQos,
         listener: Option<Box<dyn PublisherListener>>,
         status_mask: StatusMask,
@@ -107,8 +112,15 @@ impl<'a> RtpsPublisherInnerRef<'a> {
         MaybeValid::get(self).ok_or(DDSError::AlreadyDeleted)
     }
 
-    pub fn delete(&self) {
-        MaybeValid::delete(self)
+    pub fn delete(&self) -> DDSResult<()> {
+        if self.get()?.writer_list.is_empty() {
+            MaybeValid::delete(self);
+            Ok(())
+        } else {
+            Err(DDSError::PreconditionNotMet(
+                "Publisher still contains data writers",
+            ))
+        }
     }
 
     pub fn create_datawriter<T: DDSType>(
@@ -120,7 +132,9 @@ impl<'a> RtpsPublisherInnerRef<'a> {
     ) -> Option<RtpsAnyDataWriterInnerRef> {
         let entity_key = [
             0,
-            self.get().ok()?.writer_count
+            self.get()
+                .ok()?
+                .writer_count
                 .fetch_add(1, atomic::Ordering::Relaxed),
             0,
         ];
@@ -129,7 +143,7 @@ impl<'a> RtpsPublisherInnerRef<'a> {
 
     pub fn create_stateful_datawriter<T: DDSType>(
         &self,
-        entity_key: [u8;3],
+        entity_key: [u8; 3],
         a_topic: &RtpsAnyTopicInnerRef,
         qos: Option<DataWriterQos>,
         a_listener: Option<Box<dyn DataWriterListener<T>>>,
@@ -161,7 +175,7 @@ impl<'a> RtpsPublisherInnerRef<'a> {
 
     pub fn create_stateless_datawriter<T: DDSType>(
         &self,
-        entity_key: [u8;3],
+        entity_key: [u8; 3],
         a_topic: &RtpsAnyTopicInnerRef,
         qos: Option<DataWriterQos>,
         a_listener: Option<Box<dyn DataWriterListener<T>>>,
