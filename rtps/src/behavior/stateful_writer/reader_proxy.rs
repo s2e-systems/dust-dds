@@ -1,8 +1,7 @@
 use std::collections::BTreeSet;
 
-use crate::types::{Locator, GUID};
+use crate::types::{GUID, Locator, SequenceNumber};
 
-use rust_dds_types::SequenceNumber;
 struct ChangeForReader {
     highest_sequence_number_sent: SequenceNumber,
     highest_sequence_number_acknowledged: SequenceNumber,

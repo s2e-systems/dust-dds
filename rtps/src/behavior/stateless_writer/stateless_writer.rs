@@ -3,9 +3,13 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-use rust_dds_types::TopicKind;
-
-use crate::{behavior::{Writer, endpoint_traits::{CacheChangeSender, DestinedMessages}}, types::{GUID, Locator, ReliabilityKind}};
+use crate::{
+    behavior::{
+        endpoint_traits::{CacheChangeSender, DestinedMessages},
+        Writer,
+    },
+    types::{Locator, ReliabilityKind, TopicKind, GUID},
+};
 
 use super::best_effort_reader_locator::BestEffortReaderLocator;
 
@@ -87,13 +91,10 @@ impl CacheChangeSender for StatelessWriter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::behavior::data_from_cache_change;
-    use crate::messages::RtpsSubmessage;
-    use crate::types::constants::{
-        ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER, ENTITYID_UNKNOWN,
-    };
+    use crate::types::constants::{ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER, ENTITYID_UNKNOWN};
+    use crate::{behavior::data_from_cache_change, types::TopicKind};
+    use crate::{messages::RtpsSubmessage, types::ChangeKind};
 
-    use rust_dds_types::ChangeKind;
     #[test]
     fn reader_locator_add() {
         let guid = GUID::new([1; 12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER);

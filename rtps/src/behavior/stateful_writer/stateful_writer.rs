@@ -3,17 +3,12 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-use rust_dds_types::TopicKind;
 
-use crate::{
-    behavior::{
+use crate::{behavior::{
         endpoint_traits::{AcknowldegmentReceiver, CacheChangeSender, DestinedMessages},
         types::Duration,
         Writer,
-    },
-    messages::RtpsSubmessage,
-    types::{GuidPrefix, ReliabilityKind, GUID},
-};
+    }, messages::RtpsSubmessage, types::{GUID, GuidPrefix, ReliabilityKind, TopicKind}};
 
 use super::{
     best_effort_reader_proxy::BestEffortReaderProxy, reliable_reader_proxy::ReliableReaderProxy,

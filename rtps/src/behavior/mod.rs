@@ -16,13 +16,12 @@ pub use stateless_writer::StatelessWriter;
 
 use std::convert::TryInto;
 
-use crate::types::{GUID, GuidPrefix, EntityId};
+use crate::{messages::submessages::submessage_elements::ParameterList, types::{ChangeKind, EntityId, GUID, GuidPrefix}};
 use crate::messages::types::Endianness;
 use crate::messages::submessages::Data;
 use crate::messages::submessages::data_submessage::Payload;
 use crate::messages::types::{KeyHash, StatusInfo, PID_KEY_HASH, PID_STATUS_INFO};
 
-use rust_dds_types::{ChangeKind,ParameterList};
 use crate::structure::CacheChange;
 
 pub const BEHAVIOR_ENDIANNESS: Endianness = Endianness::LittleEndian;

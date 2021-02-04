@@ -1,17 +1,11 @@
 use std::{collections::BTreeSet, convert::TryInto, time::Instant};
 
-use rust_dds_types::SequenceNumber;
 
-use crate::{
-    behavior::{data_from_cache_change, types::Duration, BEHAVIOR_ENDIANNESS},
-    messages::{
+use crate::{behavior::{data_from_cache_change, types::Duration, BEHAVIOR_ENDIANNESS}, messages::{
         submessages::{AckNack, Gap, Heartbeat},
         types::Count,
         RtpsSubmessage,
-    },
-    structure::HistoryCache,
-    types::{EntityId, GuidPrefix, GUID},
-};
+    }, structure::HistoryCache, types::{EntityId, GUID, GuidPrefix, SequenceNumber}};
 
 use super::ReaderProxy;
 
@@ -291,14 +285,13 @@ impl std::ops::DerefMut for ReliableReaderProxy {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::messages::types::Endianness;
+    use crate::{messages::types::Endianness, types::ChangeKind};
     use crate::types::constants::{
         ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER, ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER,
     };
     use crate::types::{Locator, GUID};
 
     use crate::structure::CacheChange;
-    use rust_dds_types::ChangeKind;
 
     #[test]
     fn produce_empty() {

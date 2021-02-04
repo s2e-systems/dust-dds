@@ -19,8 +19,8 @@ impl RtpsMessageReceiver {
             let _source_vendor_id = message.header().vendor_id();
             let source_guid_prefix = message.header().guid_prefix();
             let _dest_guid_prefix = participant_guid_prefix;
-            let _unicast_reply_locator_list = vec![Locator::new(0, 0, [0; 16])];
-            let _multicast_reply_locator_list = vec![Locator::new(0, 0, [0; 16])];
+            let _unicast_reply_locator_list = vec![Locator{kind:0, port:0, address: [0; 16]}];
+            let _multicast_reply_locator_list = vec![Locator{kind:0, port:0, address:[0; 16]}];
             let mut _timestamp = None;
             let _message_length = 0;
 

@@ -5,8 +5,6 @@
 
 use std::convert::{TryInto, TryFrom, From};
 
-use serde::{Serialize, Deserialize};
-
 pub mod constants {
     use super::Duration;
 
@@ -22,7 +20,7 @@ pub mod constants {
 }
 
 
-#[derive(PartialEq, Eq, PartialOrd, Hash, Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, PartialOrd, Hash, Debug, Clone, Copy)]
 pub struct Duration {
     seconds: i32,
     fraction: u32,
@@ -54,7 +52,6 @@ impl From<Duration> for std::time::Duration {
         std::time::Duration::new(value.seconds as u64, nanoseconds)
     }
 }
-
 
 
 #[derive(Hash, Eq, PartialEq, Debug, Clone)]

@@ -1,7 +1,8 @@
-use rust_dds_types::{ChangeKind, InstanceHandle, ParameterList, SequenceNumber, TopicKind};
-
-use crate::{structure::{CacheChange, Endpoint, HistoryCache}, types::{GUID, ReliabilityKind}};
-
+use crate::{
+    messages::submessages::submessage_elements::ParameterList,
+    structure::{CacheChange, Endpoint, HistoryCache},
+    types::{ChangeKind, InstanceHandle, ReliabilityKind, SequenceNumber, TopicKind, GUID},
+};
 
 pub struct Writer {
     pub endpoint: Endpoint,
@@ -67,8 +68,8 @@ mod tests {
             writer.new_change(ChangeKind::Alive, Some(vec![1, 2, 3]), None, [1; 16]);
 
         let cache_change_seq2 =
-        writer.new_change(ChangeKind::NotAliveUnregistered, None, None, [1; 16]);
-        
+            writer.new_change(ChangeKind::NotAliveUnregistered, None, None, [1; 16]);
+
         assert_eq!(cache_change_seq1.sequence_number(), 1);
         assert_eq!(cache_change_seq1.change_kind(), ChangeKind::Alive);
         assert_eq!(cache_change_seq1.inline_qos(), None);

@@ -1,12 +1,13 @@
 use std::collections::BTreeSet;
 
-use rust_dds_types::SequenceNumber;
-
-use crate::{behavior::{BEHAVIOR_ENDIANNESS, data_from_cache_change}, messages::{RtpsSubmessage, submessages::Gap}, structure::HistoryCache, types::{EntityId, Locator, constants::ENTITYID_UNKNOWN}};
+use crate::{
+    behavior::{data_from_cache_change, BEHAVIOR_ENDIANNESS},
+    messages::{submessages::Gap, RtpsSubmessage},
+    structure::HistoryCache,
+    types::{constants::ENTITYID_UNKNOWN, EntityId, Locator, SequenceNumber},
+};
 
 use super::reader_locator::ReaderLocator;
-
-
 
 pub struct BestEffortReaderLocator(ReaderLocator);
 
@@ -90,11 +91,10 @@ impl BestEffortReaderLocator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::constants::ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER;
     use crate::types::GUID;
+    use crate::types::{constants::ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER, ChangeKind};
 
     use crate::structure::CacheChange;
-    use rust_dds_types::ChangeKind;
 
     #[test]
     fn produce_empty() {
@@ -142,7 +142,8 @@ mod tests {
             last_change_sequence_number,
         );
 
-        let expected_data_submessage = RtpsSubmessage::Data(data_from_cache_change(&cache_change1, ENTITYID_UNKNOWN));
+        let expected_data_submessage =
+            RtpsSubmessage::Data(data_from_cache_change(&cache_change1, ENTITYID_UNKNOWN));
         assert_eq!(messages_vec.len(), 1);
         assert!(messages_vec.contains(&expected_data_submessage));
     }
@@ -201,7 +202,8 @@ mod tests {
             last_change_sequence_number,
         );
 
-        let expected_data_submessage = RtpsSubmessage::Data(data_from_cache_change(&cache_change1, ENTITYID_UNKNOWN));
+        let expected_data_submessage =
+            RtpsSubmessage::Data(data_from_cache_change(&cache_change1, ENTITYID_UNKNOWN));
         let expected_gap_submessage = RtpsSubmessage::Gap(Gap::new(
             BEHAVIOR_ENDIANNESS,
             ENTITYID_UNKNOWN,

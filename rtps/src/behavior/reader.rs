@@ -1,8 +1,6 @@
-use rust_dds_types::TopicKind;
-
 use crate::{
     structure::{Endpoint, HistoryCache},
-    types::{ReliabilityKind, GUID},
+    types::{ReliabilityKind, TopicKind, GUID},
 };
 
 pub struct Reader {

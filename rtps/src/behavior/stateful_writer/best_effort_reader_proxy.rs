@@ -1,8 +1,7 @@
 use std::collections::BTreeSet;
 
-use rust_dds_types::SequenceNumber;
 
-use crate::{behavior::{BEHAVIOR_ENDIANNESS, data_from_cache_change}, messages::{RtpsSubmessage, submessages::Gap}, structure::HistoryCache, types::EntityId};
+use crate::{behavior::{BEHAVIOR_ENDIANNESS, data_from_cache_change}, messages::{RtpsSubmessage, submessages::Gap}, structure::HistoryCache, types::{EntityId, SequenceNumber}};
 
 use super::ReaderProxy;
 
@@ -95,13 +94,12 @@ impl std::ops::DerefMut for BestEffortReaderProxy {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::constants::{
+    use crate::types::{ChangeKind, constants::{
         ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER, ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER,
-    };
+    }};
     use crate::types::{Locator, GUID};
 
     use crate::structure::CacheChange;
-    use rust_dds_types::ChangeKind;
 
     #[test]
     fn produce_empty() {

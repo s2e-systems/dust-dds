@@ -1,12 +1,6 @@
-use rust_dds_types::{DomainId, ParameterId};
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    behavior::types::Duration,
-    messages::types::Count,
-    serialized_payload::Pid,
-    types::{Locator, ProtocolVersion, VendorId, GUID},
-};
+use crate::{behavior::types::Duration, messages::types::Count, serialized_payload::Pid, types::{GUID, Locator, ParameterId, ProtocolVersion, VendorId}};
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
 /// in the sub clauses of 9.6.2 Data representation for the built-in Endpoints
 ///

@@ -31,8 +31,8 @@ impl Heartbeat {
         endianness: Endianness,
         reader_id: types::EntityId,
         writer_id: types::EntityId,
-        first_sn: rust_dds_types::SequenceNumber,
-        last_sn: rust_dds_types::SequenceNumber,
+        first_sn: types::SequenceNumber,
+        last_sn: types::SequenceNumber,
         count: messages::types::Count,
         final_flag: bool,
         manual_liveliness: bool) -> Self {

@@ -24,8 +24,8 @@ impl Gap {
         endianness: Endianness,
         reader_id: types::EntityId,
         writer_id: types::EntityId,
-        gap_start: rust_dds_types::SequenceNumber,
-        gap_list: BTreeSet<rust_dds_types::SequenceNumber>) -> Self {
+        gap_start: types::SequenceNumber,
+        gap_list: BTreeSet<types::SequenceNumber>) -> Self {
 
             Gap {
                 endianness_flag: endianness.into(),

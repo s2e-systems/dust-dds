@@ -1,7 +1,7 @@
 use std::convert::{TryFrom, TryInto};
-use std::time::SystemTime;
 
-use rust_dds_types::{Parameter, ParameterId};
+use super::submessages::submessage_elements::Parameter;
+
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
 /// Table 8.13 - Types used to define RTPS messages
 ///  
@@ -85,23 +85,13 @@ impl Time {
     pub fn fraction(&self) -> u32 {
         self.fraction
     }
-    pub fn now() -> Self {
-        let current_time = SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .unwrap();
-        Time {
-            seconds: current_time.as_secs() as u32,
-            fraction: current_time.subsec_nanos() as u32,
-        }
-    }
 }
 
 pub type Count = i32;
 
 pub type FragmentNumber = u32;
 
-// /////////// GroupDigest_t /////////
-//  todo
+pub type ParameterId = u16;
 
 // /////////// KeyHash and StatusInfo /////////////
 

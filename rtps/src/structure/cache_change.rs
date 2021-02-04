@@ -1,25 +1,27 @@
 use std::cmp::Ordering;
 
-use rust_dds_types::{ChangeKind, Data, InstanceHandle, ParameterList, SequenceNumber};
-
+use crate::{
+    messages::submessages::submessage_elements::{ParameterList, SerializedData},
+    types::{ChangeKind, InstanceHandle, SequenceNumber, GUID},
+};
 
 #[derive(Debug, Clone)]
 pub struct CacheChange {
     kind: ChangeKind,
-    writer_guid: InstanceHandle /*GUID*/,
+    writer_guid: GUID,
     instance_handle: InstanceHandle,
     sequence_number: SequenceNumber,
-    data_value: Option<Data>,
+    data_value: Option<SerializedData>, /*Originally in the standard Data*/
     inline_qos: Option<ParameterList>,
 }
 
 impl CacheChange {
     pub fn new(
         kind: ChangeKind,
-        writer_guid: InstanceHandle /*GUID*/,
+        writer_guid: GUID,
         instance_handle: InstanceHandle,
         sequence_number: SequenceNumber,
-        data_value: Option<Data>,
+        data_value: Option<SerializedData>,
         inline_qos: Option<ParameterList>,
     ) -> CacheChange {
         CacheChange {
@@ -36,7 +38,7 @@ impl CacheChange {
         self.kind
     }
 
-    pub fn writer_guid(&self) -> InstanceHandle /*GUID*/ {
+    pub fn writer_guid(&self) -> GUID {
         self.writer_guid
     }
 
@@ -52,11 +54,10 @@ impl CacheChange {
         self.inline_qos.as_ref()
     }
 
-    pub fn data_value(&self) -> Option<&Data> {
+    pub fn data_value(&self) -> Option<&SerializedData> {
         self.data_value.as_ref()
     }
 }
-
 
 // Cache changes are explcitly ordered by their sequence number
 impl Ord for CacheChange {
@@ -124,5 +125,5 @@ impl Eq for CacheChange {}
 //         // Cache changes are ordered by the sequence number
 //         assert!(cc3>cc1);
 //     }
-    
+
 // }

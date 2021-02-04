@@ -1,6 +1,4 @@
-use rust_dds_types::TopicKind;
-
-use crate::types::{GUID, ReliabilityKind};
+use crate::types::{ReliabilityKind, TopicKind, GUID};
 
 use super::Entity;
 

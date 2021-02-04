@@ -1,12 +1,7 @@
 use std::ops::{Deref, DerefMut};
 
-use rust_dds_types::TopicKind;
 
-use crate::{
-    behavior::{cache_change_from_data, endpoint_traits::CacheChangeReceiver, Reader},
-    messages::{submessages::Data, RtpsSubmessage},
-    types::{constants::ENTITYID_UNKNOWN, GuidPrefix, ReliabilityKind, GUID},
-};
+use crate::{behavior::{cache_change_from_data, endpoint_traits::CacheChangeReceiver, Reader}, messages::{submessages::Data, RtpsSubmessage}, types::{GUID, GuidPrefix, ReliabilityKind, TopicKind, constants::ENTITYID_UNKNOWN}};
 
 pub struct StatelessReader {
     pub reader: Reader,
@@ -77,11 +72,10 @@ impl CacheChangeReceiver for StatelessReader {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::constants::{
+    use crate::types::{ChangeKind, TopicKind, constants::{
         ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER, ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER,
         ENTITYID_UNKNOWN,
-    };
-    use rust_dds_types::ChangeKind;
+    }};
 
     use crate::behavior::change_kind_to_status_info;
     use crate::messages::submessages::data_submessage::Payload;

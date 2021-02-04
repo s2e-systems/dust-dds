@@ -186,15 +186,16 @@ impl std::ops::DerefMut for ReliableWriterProxy {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::behavior::change_kind_to_status_info;
     use crate::messages::submessages::data_submessage::Payload;
     use crate::messages::types::{Endianness, KeyHash};
     use crate::types::constants::{
         ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER, ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER,
     };
     use crate::types::Locator;
-
-    use rust_dds_types::{ChangeKind, ParameterList};
+    use crate::{
+        behavior::change_kind_to_status_info,
+        messages::submessages::submessage_elements::ParameterList, types::ChangeKind,
+    };
 
     #[test]
     fn process_none_submessage() {

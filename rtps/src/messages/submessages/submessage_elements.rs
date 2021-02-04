@@ -1,61 +1,47 @@
-/// 
+///
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
 /// 8.3.5 RTPS SubmessageElements
 ///  
-
 use std::collections::BTreeSet;
 
-use crate::{types, messages};
+use crate::{
+    messages,
+    types,
+};
 
 pub type Long = i32;
-
 pub type ULong = u32;
-
 pub type Short = i16;
-
 pub type UShort = u16;
 
-// ///////// The GuidPrefix, and EntityId  ////////////////////////////////////
 pub type GuidPrefix = types::GuidPrefix;
-
 pub type EntityId = types::EntityId;
-
-// /////////  VendorId ////////////////////////////////////////////////////////
 pub type VendorId = types::VendorId;
-
-// ///////// ProtocolVersion //////////////////////////////////////////////////
 pub type ProtocolVersion = types::ProtocolVersion;
 
-//  /////////   SequenceNumber
-pub type SequenceNumber = rust_dds_types::SequenceNumber;
+pub type SequenceNumber = types::SequenceNumber;
 
-pub type ParameterList = rust_dds_types::ParameterList;
-
-//  /////////   SequenceNumberSet
 #[derive(PartialEq, Debug)]
 pub struct SequenceNumberSet {
-    base: rust_dds_types::SequenceNumber,
-    set: BTreeSet<rust_dds_types::SequenceNumber>,
+    base: types::SequenceNumber,
+    set: BTreeSet<types::SequenceNumber>,
 }
 
 impl SequenceNumberSet {
-    pub fn new(base: rust_dds_types::SequenceNumber, set: BTreeSet<rust_dds_types::SequenceNumber>) -> Self {
-        SequenceNumberSet {
-            base,
-            set,
-        }
+    pub fn new(base: types::SequenceNumber, set: BTreeSet<types::SequenceNumber>) -> Self {
+        SequenceNumberSet { base, set }
     }
 
-    pub fn from_set(set: BTreeSet<rust_dds_types::SequenceNumber>) -> Self { 
+    pub fn from_set(set: BTreeSet<types::SequenceNumber>) -> Self {
         let base = *set.iter().next().unwrap_or(&0);
-        Self {base, set } 
+        Self { base, set }
     }
 
-    pub fn base(&self) -> &rust_dds_types::SequenceNumber {
+    pub fn base(&self) -> &types::SequenceNumber {
         &self.base
     }
 
-    pub fn set(&self) -> &BTreeSet<rust_dds_types::SequenceNumber> {
+    pub fn set(&self) -> &BTreeSet<types::SequenceNumber> {
         &self.set
     }
 
@@ -71,11 +57,7 @@ impl SequenceNumberSet {
     }
 }
 
-
-//  /////////   FragmentNumber
 pub type FragmentNumber = messages::types::FragmentNumber;
-
-//  ////////    FragmentNumberSet
 
 #[derive(PartialEq, Debug)]
 pub struct FragmentNumberSet {
@@ -85,15 +67,12 @@ pub struct FragmentNumberSet {
 
 impl FragmentNumberSet {
     pub fn new(base: FragmentNumber, set: BTreeSet<FragmentNumber>) -> Self {
-        Self{
-            base,
-            set
-        }
+        Self { base, set }
     }
 
-    pub fn from_set(set: BTreeSet<FragmentNumber>) -> Self { 
+    pub fn from_set(set: BTreeSet<FragmentNumber>) -> Self {
         let base = *set.iter().next().unwrap_or(&0);
-        Self {base, set } 
+        Self { base, set }
     }
 
     pub fn base(&self) -> FragmentNumber {
@@ -108,7 +87,7 @@ impl FragmentNumberSet {
         let min = *self.set.iter().next().unwrap(); // First element. Must exist by the invariant
         let max = *self.set.iter().next_back().unwrap(); // Last element. Must exist by the invariant
 
-        if min >= 1 && max- min < 256 {
+        if min >= 1 && max - min < 256 {
             true
         } else {
             false
@@ -116,25 +95,56 @@ impl FragmentNumberSet {
     }
 }
 
-// //////////// Timestamp ////////////////
 pub type Timestamp = messages::types::Time;
 
-//  /////////// Count ///////////
+#[derive(Debug, PartialEq, Clone)]
+pub struct Parameter {
+    parameter_id: messages::types::ParameterId,
+    length: i16, // length is rounded up to multple of 4
+    value: Vec<u8>,
+}
+
+impl Parameter {
+    pub fn new(parameter_id: messages::types::ParameterId, value: Vec<u8>) -> Self {
+        Self {
+            parameter_id,
+            length: (value.len() + 3 & !3) as i16,
+            value,
+        }
+    }
+
+    pub fn parameter_id(&self) -> messages::types::ParameterId {
+        self.parameter_id
+    }
+
+    pub fn length(&self) -> i16 {
+        self.length
+    }
+
+    pub fn value(&self) -> &Vec<u8> {
+        &self.value
+    }
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct ParameterList {
+    pub parameter: Vec<Parameter>,
+}
+
+impl ParameterList {
+    pub fn new() -> Self {
+        Self {
+            parameter: Vec::new(),
+        }
+    }
+}
+
 pub type Count = messages::types::Count;
-
-
-// /////////// LocatorList ////////////////////////////////////////////////////
 pub type LocatorList = Vec<types::Locator>;
-
-//  ///////////   SerializedData   //////////////////
 pub type SerializedData = Vec<u8>;
-
-//  ///////////   SerializedDataFragment  ///////////
 pub type SerializedDataFragment = Vec<u8>;
 
-//  ///////////   GroupDigest   //////////////////////
-// todo
-
+// pub type GroupDigest = TBD
 
 #[cfg(test)]
 mod tests {
@@ -144,19 +154,19 @@ mod tests {
 
     #[test]
     fn sequence_number_set_constructor() {
-        let expected = SequenceNumberSet{
+        let expected = SequenceNumberSet {
             base: 1001,
-            set:  [1001, 1003].iter().cloned().collect(),
+            set: [1001, 1003].iter().cloned().collect(),
         };
         let result = SequenceNumberSet::from_set([1001, 1003].iter().cloned().collect());
         assert_eq!(expected, result);
     }
 
     #[test]
-    fn sequence_number_set_constructor_empty_set() {        
-        let expected = SequenceNumberSet{
+    fn sequence_number_set_constructor_empty_set() {
+        let expected = SequenceNumberSet {
             base: 0,
-            set:  [].iter().cloned().collect(),
+            set: [].iter().cloned().collect(),
         };
         let result = SequenceNumberSet::from_set([].iter().cloned().collect());
         assert_eq!(expected, result);
@@ -166,9 +176,9 @@ mod tests {
 
     #[test]
     fn fragment_number_set_constructor() {
-        let expected = FragmentNumberSet{
+        let expected = FragmentNumberSet {
             base: 1001,
-            set:  [1001, 1003].iter().cloned().collect(),
+            set: [1001, 1003].iter().cloned().collect(),
         };
         let result = FragmentNumberSet::from_set([1001, 1003].iter().cloned().collect());
         assert_eq!(expected, result);

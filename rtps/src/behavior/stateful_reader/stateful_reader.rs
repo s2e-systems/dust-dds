@@ -1,16 +1,9 @@
 use std::{collections::HashMap, ops::{Deref, DerefMut}};
-
-use rust_dds_types::TopicKind;
-
-use crate::{
-    behavior::{
+use crate::{behavior::{
         endpoint_traits::{AcknowldegmentSender, CacheChangeReceiver, DestinedMessages},
         types::Duration,
         Reader,
-    },
-    messages::RtpsSubmessage,
-    types::{GuidPrefix, ReliabilityKind, GUID},
-};
+    }, messages::RtpsSubmessage, types::{GUID, GuidPrefix, ReliabilityKind, TopicKind}};
 
 use super::{
     best_effort_writer_proxy::BestEffortWriterProxy, reliable_writer_proxy::ReliableWriterProxy,

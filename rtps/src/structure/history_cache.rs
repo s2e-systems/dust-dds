@@ -1,7 +1,6 @@
-use rust_dds_types::SequenceNumber;
+use crate::types::SequenceNumber;
 
 use super::CacheChange;
-
 pub struct HistoryCache {
     changes: Vec<CacheChange>,
 }

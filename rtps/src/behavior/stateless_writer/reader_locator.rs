@@ -1,8 +1,6 @@
 use std::collections::BTreeSet;
 
-use rust_dds_types::SequenceNumber;
-
-use crate::types::Locator;
+use crate::types::{Locator, SequenceNumber};
 
 pub struct ReaderLocator {
     //requested_changes: HashSet<CacheChange>,
