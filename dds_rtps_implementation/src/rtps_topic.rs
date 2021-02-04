@@ -37,19 +37,6 @@ pub struct RtpsTopic<'a, T: DDSType> {
     pub(crate) phantom_data: PhantomData<T>,
 }
 
-impl<'a, T: DDSType> RtpsTopic<'a, T> {
-    pub fn new(
-        parent_participant: &'a RtpsDomainParticipant,
-        topic_ref: RtpsAnyTopicInnerRef<'a>,
-    ) -> Self {
-        Self {
-            parent_participant,
-            topic_ref,
-            phantom_data: PhantomData,
-        }
-    }
-}
-
 impl<'a, T: DDSType> DomainParticipantChild<'a> for RtpsTopic<'a, T> {
     type DomainParticipantType = RtpsDomainParticipant;
 }

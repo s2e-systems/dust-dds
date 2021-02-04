@@ -41,22 +41,6 @@ pub struct RtpsSubscriber<'a> {
     pub(crate) subscriber_ref: RtpsSubscriberInnerRef<'a>,
 }
 
-impl<'a> RtpsSubscriber<'a> {
-    pub(crate) fn new(
-        parent_participant: &'a RtpsDomainParticipant,
-        subscriber_ref: RtpsSubscriberInnerRef<'a>,
-    ) -> Self {
-        Self {
-            parent_participant,
-            subscriber_ref,
-        }
-    }
-
-    pub(crate) fn subscriber_ref(&self) -> &RtpsSubscriberInnerRef<'a> {
-        &self.subscriber_ref
-    }
-}
-
 impl<'a, T: DDSType> TopicGAT<'a, T> for RtpsSubscriber<'a> {
     type TopicType = RtpsTopic<'a, T>;
 }

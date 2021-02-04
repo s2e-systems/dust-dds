@@ -1,8 +1,4 @@
-use std::{
-    cell::RefCell,
-    sync::{atomic, Arc, Mutex, Once},
-    thread::JoinHandle,
-};
+use std::{cell::RefCell, marker::PhantomData, sync::{atomic, Arc, Mutex, Once}, thread::JoinHandle};
 
 use rust_dds_api::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
@@ -169,12 +165,12 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
             a_listener,
             mask,
         )?;
-        Some(RtpsSubscriber::new(self, subscriber_ref))
+        Some(RtpsSubscriber{parent_participant: self, subscriber_ref})
     }
 
     fn delete_subscriber(&self, a_subscriber: &Self::SubscriberType) -> ReturnCode<()> {
         self.user_defined_entities
-            .delete_subscriber(a_subscriber.subscriber_ref())
+            .delete_subscriber(&a_subscriber.subscriber_ref)
     }
 
     fn create_topic<T: DDSType>(
@@ -199,7 +195,7 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
             a_listener,
             mask,
         )?;
-        Some(RtpsTopic::new(self, topic_ref))
+        Some(RtpsTopic{parent_participant:self, topic_ref, phantom_data:PhantomData})
     }
 
     fn delete_topic<T: DDSType>(
@@ -349,7 +345,7 @@ impl Entity for RtpsDomainParticipant {
         Ok(self.qos.lock().unwrap().clone())
     }
 
-    fn set_listener(&self, _a_listener: Self::Listener, _maskk: StatusMask) -> ReturnCode<()> {
+    fn set_listener(&self, _a_listener: Self::Listener, _mask: StatusMask) -> ReturnCode<()> {
         todo!()
     }
 
@@ -442,7 +438,7 @@ impl Entity for RtpsDomainParticipant {
     }
 
     fn get_instance_handle(&self) -> ReturnCode<InstanceHandle> {
-        todo!()
+        Ok(self.participant.entity.guid.into())
     }
 }
 
