@@ -24,7 +24,7 @@ The crates are divided as:
 
 This section described some of the detailed design decisions on the different crates in particular on the DDS API and DDS RTPS implementation. The DDS standard describes a hierarchy which is shown in the following figure.
 
-![DDS hierarchy](C:\workcopies\rust-rtps\dds_hierarchy.png)
+![DDS hierarchy](.\dds_hierarchy.png)
 
 The Domain Participant is the first entity created by the user which registers the intent of participating in a given communication domain identified by an ID. This Domain Participant is a factory for Publishers, Topics and Subscribers. In turn, the Publisher is a factory for Data Writers which allows the user to update information on a given associated topic (the associated topic is shown in a dashed line.) The Subscriber is a factory for Data Readers which allows the user to receive information from a given associated topic. Topics, Data Readers and Data Writers have a generic type T associated to them which is defined at run-time and must be a data structure which can be communicated over DDS. All of the DDS types are also Entities, each with its own associated QoS and listener type.
 
@@ -131,7 +131,7 @@ in a similar way to the GAT traits. The drawback of this solution is that these 
 
 The RTPS implementation of the DDS API follows in parallel to the API itself. For each of the types of the API, a type with RTPS pre-pended to it was created as shown in the next image.
 
-![DDS RTPS hierarchy](C:\workcopies\rust-rtps\dds_rtps_hierarchy.png)
+![DDS RTPS hierarchy](.\dds_rtps_hierarchy.png)
 
 The DomainParticipant is design to live on the stack and as such its implemented in a manner which is different than the other types. All other types are effectively two references: a regular reference to its parent node and a "maybe-valid" smart reference to the internals of the type. This "maybe-valid" reference is a custom made type which enables creating the creation, deletion and access behavior described in the DDS API documentation which is common to all types. In addition, the generic types over T have an additional phantom field to allow keeping the type information, which is hidden away on the implementation type. The definition of the `RTPSDataWriter` is:
 
