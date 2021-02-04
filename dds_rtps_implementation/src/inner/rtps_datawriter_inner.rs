@@ -10,8 +10,8 @@ use rust_dds_api::{
     },
     publication::data_writer_listener::DataWriterListener,
 };
-use rust_dds_types::{DDSType, ReturnCode, ReturnCodes, TopicKind};
-use rust_rtps::{behavior::{self, StatefulWriter, StatelessWriter, Writer}, types::{EntityId, EntityKey, GUID, GuidPrefix, ReliabilityKind, constants::{
+use rust_dds_types::{ChangeKind, DDSType, InstanceHandle, ReturnCode, ReturnCodes, Time, TopicKind};
+use rust_rtps::{behavior::{self, StatefulWriter, StatelessWriter, Writer, endpoint_traits::CacheChangeSender}, types::{EntityId, EntityKey, GUID, GuidPrefix, ReliabilityKind, constants::{
             ENTITY_KIND_BUILT_IN_WRITER_NO_KEY, ENTITY_KIND_BUILT_IN_WRITER_WITH_KEY,
             ENTITY_KIND_USER_DEFINED_WRITER_NO_KEY, ENTITY_KIND_USER_DEFINED_WRITER_WITH_KEY,
         }}};
@@ -253,7 +253,7 @@ impl<T: DDSType + Sized> AsAny for RtpsDataWriterInner<T> {
 pub type RtpsAnyDataWriterInnerRef<'a> = MaybeValidRef<'a, Box<dyn RtpsAnyDataWriterInner>>;
 
 impl<'a> RtpsAnyDataWriterInnerRef<'a> {
-    fn get(&self) -> ReturnCode<&Box<dyn RtpsAnyDataWriterInner>> {
+    pub fn get(&self) -> ReturnCode<&Box<dyn RtpsAnyDataWriterInner>> {
         MaybeValid::get(self).ok_or(ReturnCodes::AlreadyDeleted)
     }
 
@@ -271,25 +271,25 @@ impl<'a> RtpsAnyDataWriterInnerRef<'a> {
         Ok(())
     }
 
-//     pub fn write_w_timestamp<T: DDSType>(
-//         &self,
-//         data: T,
-//         _handle: Option<InstanceHandle>,
-//         _timestamp: Time,
-//     ) -> ReturnCode<()> {
-//         let writer = &mut self.get()?.writer();
-//         let kind = crate::types::ChangeKind::Alive;
-//         let inline_qos = None;
-//         let change = writer.new_change(
-//             kind,
-//             Some(data.serialize()),
-//             inline_qos,
-//             data.instance_handle(),
-//         );
-//         writer.writer_cache.add_change(change);
+    pub fn write_w_timestamp<T: DDSType>(
+        &self,
+        data: T,
+        _handle: Option<InstanceHandle>,
+        _timestamp: Time,
+    ) -> ReturnCode<()> {
+        let writer = &mut self.get()?.writer();
+        let kind = ChangeKind::Alive;
+        let inline_qos = None;
+        let change = writer.new_change(
+            kind,
+            Some(data.serialize()),
+            inline_qos,
+            data.instance_handle(),
+        );
+        writer.writer_cache.add_change(change);
 
-//         Ok(())
-//     }
+        Ok(())
+    }
 
 //     pub fn get_qos(&self) -> ReturnCode<DataWriterQos> {
 //         Ok(self.get()?.qos().clone())
@@ -302,14 +302,14 @@ impl<'a> RtpsAnyDataWriterInnerRef<'a> {
 //         Ok(())
 //     }
 
-//     pub fn produce_messages(&self) -> Vec<behavior::endpoint_traits::DestinedMessages> {
-//         if let Some(rtps_writer) = self.get().ok() {
-//             match &mut *rtps_writer.writer() {
-//                 WriterFlavor::Stateful(writer) => writer.produce_messages(),
-//                 WriterFlavor::Stateless(writer) => writer.produce_messages(),
-//             }
-//         } else {
-//             vec![]
-//         }
-//     }
+    pub fn produce_messages(&self) -> Vec<behavior::endpoint_traits::DestinedMessages> {
+        if let Some(rtps_writer) = self.get().ok() {
+            match &mut *rtps_writer.writer() {
+                WriterFlavor::Stateful(writer) => writer.produce_messages(),
+                WriterFlavor::Stateless(writer) => writer.produce_messages(),
+            }
+        } else {
+            vec![]
+        }
+    }
 }

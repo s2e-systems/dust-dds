@@ -182,25 +182,21 @@ impl RtpsParticipantEntities {
         }
     }
 
-    // pub fn send_data(&self) {
-    //     for publisher in self.publisher_list.into_iter() {
-    //         // if let Some(publisher) = publisher.get().ok() {
-    //         //     for writer in publisher.writer_list.into_iter() {
-    //         //         // println!(
-    //         //         //     "last_change_sequence_number = {:?}",
-    //         //         //     writer_flavor.last_change_sequence_number
-    //         //         // );
-    //         //         let destined_messages = writer.produce_messages();
-    //         //         let participant_guid_prefix = self.guid_prefix;
-    //         //         RtpsMessageSender::send_cache_change_messages(
-    //         //             participant_guid_prefix,
-    //         //             self.transport.as_ref(),
-    //         //             destined_messages,
-    //         //         );
-    //         //     }
-    //         // }
-    //     }
-    // }
+    pub fn send_data(&self, guid_prefix: GuidPrefix) {
+        for publisher in self.publisher_list.into_iter() {
+            if let Some(publisher) = publisher.get().ok() {
+                for writer in publisher.writer_list.into_iter() {
+                    let destined_messages = writer.produce_messages();
+                    let participant_guid_prefix = guid_prefix;
+                    RtpsMessageSender::send_cache_change_messages(
+                        participant_guid_prefix,
+                        self.transport.as_ref(),
+                        destined_messages,
+                    );
+                }
+            }
+        }
+    }
 }
 
 #[cfg(test)]

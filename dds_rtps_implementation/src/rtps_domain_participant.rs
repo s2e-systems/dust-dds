@@ -12,18 +12,14 @@ use rust_dds_api::{
     },
     infrastructure::{
         entity::{Entity, StatusCondition},
-        qos::{DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
+        qos::{DataWriterQos, DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
         status::StatusMask,
     },
     publication::publisher_listener::PublisherListener,
     subscription::subscriber_listener::SubscriberListener,
     topic::{topic::Topic, topic_description::TopicDescription, topic_listener::TopicListener},
 };
-use rust_rtps::{
-    structure::Participant,
-    transport::Transport,
-    types::constants::{PROTOCOL_VERSION_2_4, VENDOR_ID},
-};
+use rust_rtps::{structure::Participant, transport::Transport, types::{Locator, constants::{ENTITYKEY_SPDP_BUILTIN_PARTICIPANT, PROTOCOL_VERSION_2_4, VENDOR_ID}}};
 
 use rust_dds_types::{DDSType, DomainId, Duration, InstanceHandle, ReturnCode, Time};
 
@@ -31,6 +27,32 @@ use crate::{
     inner::rtps_participant_entities::RtpsParticipantEntities, rtps_publisher::RtpsPublisher,
     rtps_subscriber::RtpsSubscriber, rtps_topic::RtpsTopic,
 };
+
+struct SpdpDiscoveredParticipantData {
+    value: u8,
+}
+
+impl DDSType for SpdpDiscoveredParticipantData {
+    fn type_name() -> &'static str {
+        "SpdpDiscoveredParticipantData"
+    }
+
+    fn topic_kind() -> rust_dds_types::TopicKind {
+        rust_dds_types::TopicKind::WithKey
+    }
+
+    fn instance_handle(&self) -> InstanceHandle {
+        [1; 16]
+    }
+
+    fn serialize(&self) -> rust_dds_types::Data {
+        vec![0, 0, 0, 0, 1, 2, 3, 4]
+    }
+
+    fn deserialize(_data: rust_dds_types::Data) -> Self {
+        todo!()
+    }
+}
 
 pub struct RtpsDomainParticipant {
     participant: Participant,
@@ -345,33 +367,46 @@ impl Entity for RtpsDomainParticipant {
 
     fn enable(&self) -> ReturnCode<()> {
         self.enabled_function.call_once(|| {
-            //         // let builtin_publisher_ref = self
-            //         //     .builtin_entities
-            //         //     .create_publisher(PublisherQos::default())
-            //         //     .expect("Error creating built-in publisher");
-            //         // let builtin_publisher = builtin_publisher_ref.get().expect("Error retrieving built-in publisher");
+            let guid_prefix = self.participant.entity.guid.prefix();
+            let builtin_publisher = self
+                .builtin_entities
+                .create_publisher(guid_prefix, [0, 0, 0], PublisherQos::default(), None, 0)
+                .expect("Error creating built-in publisher");
 
-            //         // let spdp_topic_qos = TopicQos::default();
-            //         // let spdp_topic = self.builtin_entities
-            //         //     .create_topic::<SpdpDiscoveredParticipantData>("SPDP", spdp_topic_qos)
-            //         //     .expect("Error creating SPDP topic");
+            let spdp_topic_qos = TopicQos::default();
+            let spdp_topic = self
+                .builtin_entities
+                .create_topic::<SpdpDiscoveredParticipantData>(
+                    guid_prefix,
+                    ENTITYKEY_SPDP_BUILTIN_PARTICIPANT,
+                    "SPDP",
+                    spdp_topic_qos,
+                    None,
+                    0,
+                )
+                .expect("Error creating SPDP topic");
 
-            //         // let mut spdp_announcer_qos = DataWriterQos::default();
-            //         // spdp_announcer_qos.reliability.kind = crate::dds::infrastructure::qos_policy::ReliabilityQosPolicyKind::BestEffortReliabilityQos;
-            //         // let _spdp_announcer_anywriter_ref = builtin_publisher
-            //         //     .create_stateless_builtin_datawriter::<SpdpDiscoveredParticipantData>(
-            //         //         &spdp_topic,
-            //         //         Some(spdp_announcer_qos),
-            //         //     )
-            //         //     .expect("Error creating SPDP built-in writer");
+                let mut spdp_announcer_qos = DataWriterQos::default();
+                spdp_announcer_qos.reliability.kind = rust_dds_api::infrastructure::qos_policy::ReliabilityQosPolicyKind::BestEffortReliabilityQos;
+                let spdp_announcer = builtin_publisher
+                    .create_stateless_datawriter::<SpdpDiscoveredParticipantData>(
+                        ENTITYKEY_SPDP_BUILTIN_PARTICIPANT,
+                        &spdp_topic,
+                        Some(spdp_announcer_qos),
+                        None,
+                        0
+                    )
+                    .expect("Error creating SPDP built-in writer");
 
-            //         // let _spdp_locator = Locator::new_udpv4(7400, [239, 255, 0, 0]);
-            //         // let spdp_announcer = spdp_announcer_anywriter_ref.get().expect("Error retrieving SPDP announcer");
-            //         // spdp_announcer
-            //         //     .writer()
-            //         //     .try_get_stateless()
-            //         //     .unwrap()
-            //         //     .reader_locator_add(spdp_locator);
+                let spdp_locator = Locator::new_udpv4(7400, [239, 255, 0, 0]);
+                
+                spdp_announcer.get().expect("Error retrieven SPDP announcer")
+                    .writer()
+                    .try_get_stateless()
+                    .unwrap()
+                    .reader_locator_add(spdp_locator);
+                
+                spdp_announcer.write_w_timestamp::<SpdpDiscoveredParticipantData>(SpdpDiscoveredParticipantData{value:5}, None, Time{sec:10, nanosec:0}).expect("Error announcing participant");
 
             //         // let key = BuiltInTopicKey([1, 2, 3]);
             //         // let user_data = UserDataQosPolicy { value: vec![] };
@@ -391,16 +426,16 @@ impl Entity for RtpsDomainParticipant {
             //         //     .write_w_timestamp(data, None, TIME_INVALID)
             //         //     .ok();
 
-            //         let mut thread_list = self.thread_list.borrow_mut();
-            //         let enabled = self.enabled.clone();
-            //         let builtin_entities = self.builtin_entities.clone();
-            //         self.enabled.store(true, atomic::Ordering::Release);
-            //         thread_list.push(std::thread::spawn(move || {
-            //             while enabled.load(atomic::Ordering::Acquire) {
-            //                 builtin_entities.send_data();
-            //                 std::thread::sleep(std::time::Duration::from_secs(1));
-            //             }
-            //         }));
+                    let mut thread_list = self.thread_list.borrow_mut();
+                    let enabled = self.enabled.clone();
+                    let builtin_entities = self.builtin_entities.clone();
+                    self.enabled.store(true, atomic::Ordering::Release);
+                    thread_list.push(std::thread::spawn(move || {
+                        while enabled.load(atomic::Ordering::Acquire) {
+                            builtin_entities.send_data(guid_prefix);
+                            std::thread::sleep(std::time::Duration::from_secs(1));
+                        }
+                    }));
         });
 
         Ok(())

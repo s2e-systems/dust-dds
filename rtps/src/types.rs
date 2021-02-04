@@ -7,7 +7,9 @@ use std::convert::{TryFrom, TryInto};
 ///  
 
 pub mod constants {
-    use super::{EntityId, EntityKind, GuidPrefix, Locator, ProtocolVersion, VendorId, GUID};
+    use super::{
+        EntityId, EntityKey, EntityKind, GuidPrefix, Locator, ProtocolVersion, VendorId, GUID,
+    };
 
     pub const VENDOR_ID: VendorId = [99, 99];
 
@@ -57,53 +59,54 @@ pub mod constants {
         entity_kind: ENTITY_KIND_BUILT_IN_PARTICIPANT,
     };
 
+    pub const ENTITYKEY_SEDP_BUILTIN_TOPICS: EntityKey = [0, 0, 0x02];
     pub const ENTITYID_SEDP_BUILTIN_TOPICS_ANNOUNCER: EntityId = EntityId {
-        entity_key: [0, 0, 0x02],
+        entity_key: ENTITYKEY_SEDP_BUILTIN_TOPICS,
         entity_kind: ENTITY_KIND_BUILT_IN_WRITER_WITH_KEY,
     };
-
     pub const ENTITYID_SEDP_BUILTIN_TOPICS_DETECTOR: EntityId = EntityId {
-        entity_key: [0, 0, 0x02],
+        entity_key: ENTITYKEY_SEDP_BUILTIN_TOPICS,
         entity_kind: ENTITY_KIND_BUILT_IN_READER_WITH_KEY,
     };
 
+    pub const ENTITYKEY_SEDP_BUILTIN_PUBLICATIONS: EntityKey = [0, 0, 0x03];
     pub const ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER: EntityId = EntityId {
-        entity_key: [0, 0, 0x03],
+        entity_key: ENTITYKEY_SEDP_BUILTIN_PUBLICATIONS,
         entity_kind: ENTITY_KIND_BUILT_IN_WRITER_WITH_KEY,
     };
-
     pub const ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR: EntityId = EntityId {
-        entity_key: [0, 0, 0x03],
+        entity_key: ENTITYKEY_SEDP_BUILTIN_PUBLICATIONS,
         entity_kind: ENTITY_KIND_BUILT_IN_READER_WITH_KEY,
     };
 
+    pub const ENTITYKEY_SEDP_BUILTIN_SUBSCRIPTIONS: EntityKey = [0, 0, 0x04];
     pub const ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER: EntityId = EntityId {
-        entity_key: [0, 0, 0x04],
+        entity_key: ENTITYKEY_SEDP_BUILTIN_SUBSCRIPTIONS,
         entity_kind: ENTITY_KIND_BUILT_IN_WRITER_WITH_KEY,
     };
-
     pub const ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR: EntityId = EntityId {
-        entity_key: [0, 0, 0x04],
+        entity_key: ENTITYKEY_SEDP_BUILTIN_SUBSCRIPTIONS,
         entity_kind: ENTITY_KIND_BUILT_IN_READER_WITH_KEY,
     };
 
+    pub const ENTITYKEY_SPDP_BUILTIN_PARTICIPANT: EntityKey = [0, 0x01, 0x00];
     pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER: EntityId = EntityId {
-        entity_key: [0, 0x01, 0x00],
+        entity_key: ENTITYKEY_SPDP_BUILTIN_PARTICIPANT,
         entity_kind: ENTITY_KIND_BUILT_IN_WRITER_WITH_KEY,
     };
 
     pub const ENTITYID_SPDP_BUILTIN_PARTICIPANT_DETECTOR: EntityId = EntityId {
-        entity_key: [0, 0x01, 0x00],
+        entity_key: ENTITYKEY_SPDP_BUILTIN_PARTICIPANT,
         entity_kind: ENTITY_KIND_BUILT_IN_READER_WITH_KEY,
     };
 
+    pub const ENTITYKEY_BUILTIN_PARTICIPANT_MESSAGE: EntityKey = [0, 0x02, 0x00];
     pub const ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER: EntityId = EntityId {
-        entity_key: [0, 0x02, 0x00],
+        entity_key: ENTITYKEY_BUILTIN_PARTICIPANT_MESSAGE,
         entity_kind: ENTITY_KIND_BUILT_IN_WRITER_WITH_KEY,
     };
-
     pub const ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER: EntityId = EntityId {
-        entity_key: [0, 0x02, 0x00],
+        entity_key: ENTITYKEY_BUILTIN_PARTICIPANT_MESSAGE,
         entity_kind: ENTITY_KIND_BUILT_IN_READER_WITH_KEY,
     };
 
