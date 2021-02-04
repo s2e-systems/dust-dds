@@ -64,11 +64,11 @@ impl DerefMut for WriterFlavor {
 }
 
 pub struct RtpsDataWriterInner<T: DDSType> {
-    pub writer: Mutex<WriterFlavor>,
-    pub qos: Mutex<DataWriterQos>,
-    pub topic: Mutex<Option<Arc<dyn RtpsAnyTopicInner>>>,
-    pub listener: Option<Box<dyn DataWriterListener<T>>>,
-    pub status_mask: StatusMask,
+    writer: Mutex<WriterFlavor>,
+    qos: Mutex<DataWriterQos>,
+    topic: Mutex<Option<Arc<dyn RtpsAnyTopicInner>>>,
+    listener: Option<Box<dyn DataWriterListener<T>>>,
+    status_mask: StatusMask,
 }
 
 impl<T: DDSType> RtpsDataWriterInner<T> {

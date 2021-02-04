@@ -21,14 +21,14 @@ enum EntityType {
     UserDefined,
 }
 pub struct RtpsSubscriberInner {
-    pub group: Group,
+    group: Group,
     entity_type: EntityType,
-    pub reader_list: MaybeValidList<Box<dyn RtpsAnyDataReaderInner>>,
-    pub reader_count: atomic::AtomicU8,
-    pub default_datareader_qos: Mutex<DataReaderQos>,
-    pub qos: Mutex<SubscriberQos>,
-    pub listener: Option<Box<dyn SubscriberListener>>,
-    pub status_mask: StatusMask,
+    reader_list: MaybeValidList<Box<dyn RtpsAnyDataReaderInner>>,
+    reader_count: atomic::AtomicU8,
+    default_datareader_qos: Mutex<DataReaderQos>,
+    qos: Mutex<SubscriberQos>,
+    listener: Option<Box<dyn SubscriberListener>>,
+    status_mask: StatusMask,
 }
 
 impl RtpsSubscriberInner {

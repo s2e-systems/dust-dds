@@ -58,11 +58,11 @@ impl DerefMut for ReaderFlavor {
 }
 
 pub struct RtpsDataReaderInner<T: DDSType> {
-    pub reader: Mutex<ReaderFlavor>,
-    pub qos: Mutex<DataReaderQos>,
-    pub topic: Mutex<Option<Arc<dyn RtpsAnyTopicInner>>>,
-    pub listener: Option<Box<dyn DataReaderListener<T>>>,
-    pub status_mask: StatusMask,
+    reader: Mutex<ReaderFlavor>,
+    qos: Mutex<DataReaderQos>,
+    topic: Mutex<Option<Arc<dyn RtpsAnyTopicInner>>>,
+    listener: Option<Box<dyn DataReaderListener<T>>>,
+    status_mask: StatusMask,
 }
 
 impl<T: DDSType> RtpsDataReaderInner<T> {

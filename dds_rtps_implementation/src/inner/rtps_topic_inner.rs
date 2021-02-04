@@ -19,13 +19,13 @@ fn topic_kind_from_dds_type<T: DDSType>() -> TopicKind {
 }
 
 pub struct RtpsTopicInner<T: DDSType> {
-    pub rtps_entity: rust_rtps::structure::Entity,
-    pub topic_name: String,
-    pub type_name: &'static str,
-    pub topic_kind: TopicKind,
-    pub qos: Mutex<TopicQos>,
-    pub listener: Option<Box<dyn TopicListener<T>>>,
-    pub status_mask: StatusMask,
+    rtps_entity: rust_rtps::structure::Entity,
+    topic_name: String,
+    type_name: &'static str,
+    topic_kind: TopicKind,
+    qos: Mutex<TopicQos>,
+    listener: Option<Box<dyn TopicListener<T>>>,
+    status_mask: StatusMask,
 }
 
 impl<T: DDSType> RtpsTopicInner<T> {
