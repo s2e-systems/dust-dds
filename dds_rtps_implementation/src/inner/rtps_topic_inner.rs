@@ -11,6 +11,13 @@ use crate::utils::{
     maybe_valid::{MaybeValid, MaybeValidRef},
 };
 
+fn topic_kind_from_dds_type<T: DDSType>() -> TopicKind {
+    match T::has_key() {
+        false => TopicKind::NoKey,
+        true => TopicKind::WithKey
+    }
+}
+
 pub struct RtpsTopicInner<T: DDSType> {
     pub rtps_entity: rust_rtps::structure::Entity,
     pub topic_name: String,
@@ -30,17 +37,16 @@ impl<T: DDSType> RtpsTopicInner<T> {
         listener: Option<Box<dyn TopicListener<T>>>,
         status_mask: StatusMask,
     ) -> Self {
-        todo!()
-        // let guid = GUID::new(guid_prefix, EntityId::new(entity_key, ENTITY_KIND_USER_DEFINED_UNKNOWN));
-        // Self {
-        //     rtps_entity: rust_rtps::structure::Entity { guid },
-        //     topic_name,
-        //     type_name: T::type_name(),
-        //     topic_kind: T::topic_kind(),
-        //     qos: Mutex::new(qos),
-        //     listener,
-        //     status_mask,
-        // }
+        let guid = GUID::new(guid_prefix, EntityId::new(entity_key, ENTITY_KIND_USER_DEFINED_UNKNOWN));
+        Self {
+            rtps_entity: rust_rtps::structure::Entity { guid },
+            topic_name,
+            type_name: T::type_name(),
+            topic_kind: topic_kind_from_dds_type::<T>(),
+            qos: Mutex::new(qos),
+            listener,
+            status_mask,
+        }
     }
 }
 

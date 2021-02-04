@@ -23,6 +23,10 @@ impl DDSType for SpdpDiscoveredParticipantData {
     fn type_name() -> &'static str {
         "SpdpDiscoveredParticipantData"
     }
+    
+    fn has_key() -> bool {
+        false
+    }
 
     fn key(&self) -> Vec<u8> {
         vec![]
@@ -32,12 +36,13 @@ impl DDSType for SpdpDiscoveredParticipantData {
         vec![0,0,0,0,1,2,3,4]
     }
 
-    fn deserialize(data: Vec<u8>) -> Self {
+    fn deserialize(_data: Vec<u8>) -> Self {
         todo!()
     }
 }
 
 pub struct RtpsDomainParticipant {
+    domain_id: DomainId,
     participant: Participant,
     qos: Mutex<DomainParticipantQos>,
     publisher_count: atomic::AtomicU8,
@@ -64,33 +69,33 @@ impl RtpsDomainParticipant {
         a_listener: Option<Box<dyn DomainParticipantListener>>,
         mask: StatusMask,
     ) -> Self {
-        let guid_prefix = [1; 12];
-        todo!()
-        // let participant = Participant::new(guid_prefix, domain_id, PROTOCOL_VERSION_2_4, VENDOR_ID);
+        let guid_prefix = [1; 12];        
+        let participant = Participant::new(guid_prefix, userdata_transport.unicast_locator_list().clone(), userdata_transport.multicast_locator_list().clone(), PROTOCOL_VERSION_2_4, VENDOR_ID);
 
-        // let builtin_entities =
-        //     Arc::new(RtpsParticipantEntities::new_builtin(metatraffic_transport));
-        // let user_defined_entities = Arc::new(RtpsParticipantEntities::new_user_defined(
-        //     userdata_transport,
-        // ));
+        let builtin_entities =
+            Arc::new(RtpsParticipantEntities::new_builtin(metatraffic_transport));
+        let user_defined_entities = Arc::new(RtpsParticipantEntities::new_user_defined(
+            userdata_transport,
+        ));
 
-        // RtpsDomainParticipant {
-        //     participant,
-        //     qos: Mutex::new(qos),
-        //     publisher_count: atomic::AtomicU8::new(0),
-        //     subscriber_count: atomic::AtomicU8::new(0),
-        //     topic_count: atomic::AtomicU8::new(0),
-        //     default_publisher_qos: Mutex::new(PublisherQos::default()),
-        //     default_subscriber_qos: Mutex::new(SubscriberQos::default()),
-        //     default_topic_qos: Mutex::new(TopicQos::default()),
-        //     builtin_entities,
-        //     user_defined_entities,
-        //     enabled: Arc::new(atomic::AtomicBool::new(false)),
-        //     enabled_function: Once::new(),
-        //     thread_list: RefCell::new(Vec::new()),
-        //     a_listener,
-        //     mask,
-        // }
+        RtpsDomainParticipant {
+            domain_id,
+            participant,
+            qos: Mutex::new(qos),
+            publisher_count: atomic::AtomicU8::new(0),
+            subscriber_count: atomic::AtomicU8::new(0),
+            topic_count: atomic::AtomicU8::new(0),
+            default_publisher_qos: Mutex::new(PublisherQos::default()),
+            default_subscriber_qos: Mutex::new(SubscriberQos::default()),
+            default_topic_qos: Mutex::new(TopicQos::default()),
+            builtin_entities,
+            user_defined_entities,
+            enabled: Arc::new(atomic::AtomicBool::new(false)),
+            enabled_function: Once::new(),
+            thread_list: RefCell::new(Vec::new()),
+            a_listener,
+            mask,
+        }
     }
 }
 

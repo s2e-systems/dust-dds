@@ -231,6 +231,10 @@ mod tests {
             "TestType"
         }
 
+        fn has_key() -> bool {
+            true
+        }
+
         fn key(&self) -> Vec<u8> {
             todo!()
         }
@@ -239,7 +243,7 @@ mod tests {
             todo!()
         }
 
-        fn deserialize(data: Vec<u8>) -> Self {
+        fn deserialize(_data: Vec<u8>) -> Self {
             todo!()
         }
     }

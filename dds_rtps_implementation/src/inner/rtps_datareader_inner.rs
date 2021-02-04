@@ -74,9 +74,9 @@ impl<T: DDSType> RtpsDataReaderInner<T> {
         listener: Option<Box<dyn DataReaderListener<T>>>,
         status_mask: StatusMask,
     ) -> Self {
-        let entity_kind = match T::topic_kind() {
-            TopicKind::NoKey => ENTITY_KIND_BUILT_IN_READER_NO_KEY,
-            TopicKind::WithKey => ENTITY_KIND_BUILT_IN_READER_WITH_KEY,
+        let entity_kind = match T::has_key() {
+            false => ENTITY_KIND_BUILT_IN_READER_NO_KEY,
+            true => ENTITY_KIND_BUILT_IN_READER_WITH_KEY,
         };
         let entity_id = EntityId::new(entity_key, entity_kind);
         let guid = GUID::new(guid_prefix, entity_id);
@@ -91,9 +91,9 @@ impl<T: DDSType> RtpsDataReaderInner<T> {
         listener: Option<Box<dyn DataReaderListener<T>>>,
         status_mask: StatusMask,
     ) -> Self {
-        let entity_kind = match T::topic_kind() {
-            TopicKind::NoKey => ENTITY_KIND_USER_DEFINED_READER_NO_KEY,
-            TopicKind::WithKey => ENTITY_KIND_USER_DEFINED_READER_WITH_KEY,
+        let entity_kind = match T::has_key() {
+            false => ENTITY_KIND_USER_DEFINED_READER_NO_KEY,
+            true => ENTITY_KIND_USER_DEFINED_READER_WITH_KEY,
         };
         let entity_id = EntityId::new(entity_key, entity_kind);
         let guid = GUID::new(guid_prefix, entity_id);
@@ -108,9 +108,9 @@ impl<T: DDSType> RtpsDataReaderInner<T> {
         listener: Option<Box<dyn DataReaderListener<T>>>,
         status_mask: StatusMask,
     ) -> Self {
-        let entity_kind = match T::topic_kind() {
-            TopicKind::NoKey => ENTITY_KIND_BUILT_IN_READER_NO_KEY,
-            TopicKind::WithKey => ENTITY_KIND_BUILT_IN_READER_WITH_KEY,
+        let entity_kind = match T::has_key() {
+            false => ENTITY_KIND_BUILT_IN_READER_NO_KEY,
+            true => ENTITY_KIND_BUILT_IN_READER_WITH_KEY,
         };
         let entity_id = EntityId::new(entity_key, entity_kind);
         let guid = GUID::new(guid_prefix, entity_id);
@@ -125,9 +125,9 @@ impl<T: DDSType> RtpsDataReaderInner<T> {
         listener: Option<Box<dyn DataReaderListener<T>>>,
         status_mask: StatusMask,
     ) -> Self {
-        let entity_kind = match T::topic_kind() {
-            TopicKind::NoKey => ENTITY_KIND_BUILT_IN_READER_NO_KEY,
-            TopicKind::WithKey => ENTITY_KIND_BUILT_IN_READER_WITH_KEY,
+        let entity_kind = match T::has_key() {
+            false => ENTITY_KIND_BUILT_IN_READER_NO_KEY,
+            true => ENTITY_KIND_BUILT_IN_READER_WITH_KEY,
         };
         let entity_id = EntityId::new(entity_key, entity_kind);
         let guid = GUID::new(guid_prefix, entity_id);

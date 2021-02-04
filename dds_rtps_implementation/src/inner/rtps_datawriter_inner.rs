@@ -1,8 +1,4 @@
-use std::{
-    any::Any,
-    ops::{Deref, DerefMut},
-    sync::{Arc, Mutex, MutexGuard},
-};
+use std::{any::Any, convert::TryInto, ops::{Deref, DerefMut}, sync::{Arc, Mutex, MutexGuard}};
 
 use rust_dds_api::{
     dcps_psm::{InstanceHandle, StatusMask, Time},
@@ -90,8 +86,8 @@ impl<T: DDSType> RtpsDataWriterInner<T> {
         status_mask: StatusMask,
     ) -> Self {
         let entity_kind = match T::has_key() {
-            TopicKind::NoKey => ENTITY_KIND_BUILT_IN_WRITER_NO_KEY,
-            TopicKind::WithKey => ENTITY_KIND_BUILT_IN_WRITER_WITH_KEY,
+            false => ENTITY_KIND_BUILT_IN_WRITER_NO_KEY,
+            true => ENTITY_KIND_BUILT_IN_WRITER_WITH_KEY,
         };
         let entity_id = EntityId::new(entity_key, entity_kind);
         let guid = GUID::new(guid_prefix, entity_id);
@@ -107,8 +103,8 @@ impl<T: DDSType> RtpsDataWriterInner<T> {
         status_mask: StatusMask,
     ) -> Self {
         let entity_kind = match T::has_key() {
-            TopicKind::NoKey => ENTITY_KIND_USER_DEFINED_WRITER_NO_KEY,
-            TopicKind::WithKey => ENTITY_KIND_USER_DEFINED_WRITER_WITH_KEY,
+            false => ENTITY_KIND_USER_DEFINED_WRITER_NO_KEY,
+            true => ENTITY_KIND_USER_DEFINED_WRITER_WITH_KEY,
         };
         let entity_id = EntityId::new(entity_key, entity_kind);
         let guid = GUID::new(guid_prefix, entity_id);
@@ -124,8 +120,8 @@ impl<T: DDSType> RtpsDataWriterInner<T> {
         status_mask: StatusMask,
     ) -> Self {
         let entity_kind = match T::has_key() {
-            TopicKind::NoKey => ENTITY_KIND_BUILT_IN_WRITER_NO_KEY,
-            TopicKind::WithKey => ENTITY_KIND_BUILT_IN_WRITER_WITH_KEY,
+            false => ENTITY_KIND_BUILT_IN_WRITER_NO_KEY,
+            true => ENTITY_KIND_BUILT_IN_WRITER_WITH_KEY,
         };
         let entity_id = EntityId::new(entity_key, entity_kind);
         let guid = GUID::new(guid_prefix, entity_id);
@@ -141,8 +137,8 @@ impl<T: DDSType> RtpsDataWriterInner<T> {
         status_mask: StatusMask,
     ) -> Self {
         let entity_kind = match T::has_key() {
-            TopicKind::NoKey => ENTITY_KIND_BUILT_IN_WRITER_NO_KEY,
-            TopicKind::WithKey => ENTITY_KIND_BUILT_IN_WRITER_WITH_KEY,
+            false => ENTITY_KIND_BUILT_IN_WRITER_NO_KEY,
+            true => ENTITY_KIND_BUILT_IN_WRITER_WITH_KEY,
         };
         let entity_id = EntityId::new(entity_key, entity_kind);
         let guid = GUID::new(guid_prefix, entity_id);
@@ -256,6 +252,16 @@ impl<T: DDSType + Sized> AsAny for RtpsDataWriterInner<T> {
     }
 }
 
+fn instance_handle_from_dds_type<T: DDSType>(data: T) -> rust_rtps::types::InstanceHandle {
+    if data.key().is_empty() {
+        [0; 16]
+    } else {
+        let mut key = data.key();
+        key.resize_with(16, Default::default);
+        key.try_into().unwrap()
+    }
+}
+
 pub type RtpsAnyDataWriterInnerRef<'a> = MaybeValidRef<'a, Box<dyn RtpsAnyDataWriterInner>>;
 
 impl<'a> RtpsAnyDataWriterInnerRef<'a> {
@@ -283,19 +289,18 @@ impl<'a> RtpsAnyDataWriterInnerRef<'a> {
         _handle: Option<InstanceHandle>,
         _timestamp: Time,
     ) -> DDSResult<()> {
-        todo!()
-        // let writer = &mut self.get()?.writer();
-        // let kind = ChangeKind::Alive;
-        // let inline_qos = None;
-        // let change = writer.new_change(
-        //     kind,
-        //     Some(data.serialize()),
-        //     inline_qos,
-        //     data.instance_handle(),
-        // );
-        // writer.writer_cache.add_change(change);
+        let writer = &mut self.get()?.writer();
+        let kind = ChangeKind::Alive;
+        let inline_qos = None;
+        let change = writer.new_change(
+            kind,
+            Some(data.serialize()),
+            inline_qos,
+            instance_handle_from_dds_type(data),
+        );
+        writer.writer_cache.add_change(change);
 
-        // Ok(())
+        Ok(())
     }
 
     //     pub fn get_qos(&self) -> DDSResult<DataWriterQos> {
