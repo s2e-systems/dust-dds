@@ -1,14 +1,8 @@
-use std::{
-    marker::PhantomData,
-    ops::Deref,
-    sync::{atomic, Arc, Mutex},
-};
+use std::marker::PhantomData;
 
 use crate::{
-    inner::rtps_subscriber_inner::RtpsSubscriberInnerRef,
-    rtps_datareader::RtpsDataReader,
+    inner::rtps_subscriber_inner::RtpsSubscriberInnerRef, rtps_datareader::RtpsDataReader,
     rtps_topic::RtpsTopic,
-    utils::maybe_valid::{MaybeValid, MaybeValidList, MaybeValidRef},
 };
 use rust_dds_api::{
     dcps_psm::{
@@ -16,29 +10,17 @@ use rust_dds_api::{
         ViewStateKind,
     },
     dds_type::DDSType,
-    domain::domain_participant::{DomainParticipant, DomainParticipantChild, TopicGAT},
+    domain::domain_participant::{DomainParticipantChild, TopicGAT},
     infrastructure::{
         entity::{Entity, StatusCondition},
         qos::{DataReaderQos, SubscriberQos, TopicQos},
     },
-    publication::publisher::Publisher,
     return_type::DDSResult,
     subscription::{
-        data_reader::{AnyDataReader, DataReader},
+        data_reader::AnyDataReader,
         data_reader_listener::DataReaderListener,
         subscriber::{DataReaderGAT, Subscriber},
         subscriber_listener::SubscriberListener,
-    },
-    topic::topic::Topic,
-};
-use rust_rtps::{
-    structure::Group,
-    types::{
-        constants::{
-            ENTITY_KIND_BUILT_IN_READER_WITH_KEY, ENTITY_KIND_USER_DEFINED_READER_NO_KEY,
-            ENTITY_KIND_USER_DEFINED_READER_WITH_KEY,
-        },
-        EntityId, GUID,
     },
 };
 

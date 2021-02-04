@@ -1,35 +1,28 @@
-use std::{
-    any::Any,
-    marker::PhantomData,
-    ops::{Deref, DerefMut},
-    sync::{Arc, Mutex, MutexGuard},
-};
+use std::marker::PhantomData;
 
-use rust_dds_api::{builtin_topics::SubscriptionBuiltinTopicData, dcps_psm::{Duration, InstanceHandle, LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus, StatusMask, Time}, dds_type::DDSType, domain::domain_participant::TopicGAT, infrastructure::{
+use rust_dds_api::{
+    builtin_topics::SubscriptionBuiltinTopicData,
+    dcps_psm::{
+        Duration, InstanceHandle, LivelinessLostStatus, OfferedDeadlineMissedStatus,
+        OfferedIncompatibleQosStatus, PublicationMatchedStatus, StatusMask, Time,
+    },
+    dds_type::DDSType,
+    domain::domain_participant::TopicGAT,
+    infrastructure::{
         entity::{Entity, StatusCondition},
         qos::DataWriterQos,
-        qos_policy::ReliabilityQosPolicyKind,
-    }, publication::{
+    },
+    publication::{
         data_writer::{AnyDataWriter, DataWriter},
         data_writer_listener::DataWriterListener,
-        publisher::{Publisher, PublisherChild},
-    }, return_type::DDSResult, topic::topic::Topic};
-use rust_rtps::{
-    behavior::{self, endpoint_traits::CacheChangeSender, StatefulWriter, StatelessWriter, Writer},
-    types::{
-        constants::{
-            ENTITY_KIND_BUILT_IN_WRITER_NO_KEY, ENTITY_KIND_BUILT_IN_WRITER_WITH_KEY,
-            ENTITY_KIND_USER_DEFINED_WRITER_NO_KEY, ENTITY_KIND_USER_DEFINED_WRITER_WITH_KEY,
-        },
-        EntityId, GuidPrefix, ReliabilityKind, GUID,
+        publisher::PublisherChild,
     },
+    return_type::DDSResult,
 };
 
 use crate::{
-    inner::rtps_datawriter_inner::RtpsAnyDataWriterInnerRef,
-    rtps_publisher::RtpsPublisher,
+    inner::rtps_datawriter_inner::RtpsAnyDataWriterInnerRef, rtps_publisher::RtpsPublisher,
     rtps_topic::RtpsTopic,
-    utils::{as_any::AsAny, maybe_valid::MaybeValidRef},
 };
 
 pub struct RtpsDataWriter<'a, T: DDSType> {

@@ -20,10 +20,7 @@ use super::{
     rtps_topic_inner::RtpsAnyTopicInnerRef,
 };
 
-enum Statefulness {
-    Stateless,
-    Stateful,
-}
+
 enum EntityType {
     BuiltIn,
     UserDefined,

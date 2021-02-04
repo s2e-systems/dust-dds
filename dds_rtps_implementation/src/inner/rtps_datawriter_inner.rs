@@ -14,7 +14,7 @@ use rust_rtps::{
             ENTITY_KIND_BUILT_IN_WRITER_NO_KEY, ENTITY_KIND_BUILT_IN_WRITER_WITH_KEY,
             ENTITY_KIND_USER_DEFINED_WRITER_NO_KEY, ENTITY_KIND_USER_DEFINED_WRITER_WITH_KEY,
         },
-        ChangeKind, EntityId, GuidPrefix, ReliabilityKind, TopicKind, GUID,
+        ChangeKind, EntityId, GuidPrefix, ReliabilityKind, GUID,
     },
 };
 
@@ -61,11 +61,6 @@ impl DerefMut for WriterFlavor {
             WriterFlavor::Stateless(writer) => writer,
         }
     }
-}
-
-enum EntityType {
-    BuiltIn,
-    UserDefined,
 }
 
 pub struct RtpsDataWriterInner<T: DDSType> {

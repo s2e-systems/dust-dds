@@ -7,7 +7,7 @@ use std::{
 use rust_dds_api::{dcps_psm::StatusMask, dds_type::DDSType, infrastructure::{
         qos::DataReaderQos, qos_policy::ReliabilityQosPolicyKind, 
     }, return_type::{DDSError, DDSResult}, subscription::data_reader_listener::DataReaderListener};
-use rust_rtps::{behavior::{self, Reader, StatefulReader, StatelessReader}, types::{EntityId, GUID, GuidPrefix, ReliabilityKind, TopicKind, constants::{
+use rust_rtps::{behavior::{self, Reader, StatefulReader, StatelessReader}, types::{EntityId, GUID, GuidPrefix, ReliabilityKind, constants::{
             ENTITY_KIND_BUILT_IN_READER_NO_KEY, ENTITY_KIND_BUILT_IN_READER_WITH_KEY,
             ENTITY_KIND_USER_DEFINED_READER_NO_KEY, ENTITY_KIND_USER_DEFINED_READER_WITH_KEY,
         }}};

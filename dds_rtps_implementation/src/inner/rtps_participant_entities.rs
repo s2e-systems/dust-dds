@@ -1,19 +1,19 @@
-use crate::utils::maybe_valid::{MaybeValidList, MaybeValidRef};
-use rust_dds_api::{dcps_psm::StatusMask, dds_type::DDSType, infrastructure::{
-        qos::{PublisherQos, SubscriberQos, TopicQos},
-    }, publication::publisher_listener::PublisherListener, return_type::{DDSError, DDSResult}, subscription::subscriber_listener::SubscriberListener, topic::topic_listener::TopicListener};
+use crate::utils::maybe_valid::MaybeValidList;
+use rust_dds_api::{
+    dcps_psm::StatusMask,
+    dds_type::DDSType,
+    infrastructure::qos::{PublisherQos, SubscriberQos, TopicQos},
+    publication::publisher_listener::PublisherListener,
+    return_type::{DDSError, DDSResult},
+    subscription::subscriber_listener::SubscriberListener,
+    topic::topic_listener::TopicListener,
+};
 use rust_rtps::{
     message_sender::RtpsMessageSender,
     transport::Transport,
-    types::{
-        constants::{
-            ENTITY_KIND_BUILT_IN_READER_GROUP, ENTITY_KIND_USER_DEFINED_READER_GROUP,
-            ENTITY_KIND_USER_DEFINED_UNKNOWN,
-        },
-        EntityId, GuidPrefix, GUID,
-    },
+    types::{ GuidPrefix},
 };
-use std::sync::{atomic, Arc};
+use std::sync::Arc;
 
 use super::{
     rtps_publisher_inner::{RtpsPublisherInner, RtpsPublisherInnerRef},
@@ -72,7 +72,7 @@ impl RtpsParticipantEntities {
     pub fn create_publisher(
         &self,
         guid_prefix: GuidPrefix,
-        entity_key: [u8;3],
+        entity_key: [u8; 3],
         qos: PublisherQos,
         _listener: Option<Box<dyn PublisherListener>>,
         _status_mask: StatusMask,
@@ -109,7 +109,7 @@ impl RtpsParticipantEntities {
     pub fn create_subscriber(
         &self,
         guid_prefix: GuidPrefix,
-        entity_key: [u8;3],
+        entity_key: [u8; 3],
         qos: SubscriberQos,
         _a_listener: Option<Box<dyn SubscriberListener>>,
         _mask: StatusMask,
@@ -146,7 +146,7 @@ impl RtpsParticipantEntities {
     pub fn create_topic<'a, T: DDSType>(
         &'a self,
         guid_prefix: GuidPrefix,
-        entity_key: [u8;3],
+        entity_key: [u8; 3],
         topic_name: &str,
         qos: TopicQos,
         a_listener: Option<Box<dyn TopicListener<T>>>,

@@ -6,7 +6,7 @@ use rust_dds_api::{builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTop
     }, infrastructure::{
         entity::{Entity, StatusCondition},
         qos::{DataWriterQos, DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
-    }, publication::publisher_listener::PublisherListener, return_type::DDSResult, subscription::subscriber_listener::SubscriberListener, topic::{topic::Topic, topic_description::TopicDescription, topic_listener::TopicListener}};
+    }, publication::publisher_listener::PublisherListener, return_type::DDSResult, subscription::subscriber_listener::SubscriberListener, topic::{ topic_description::TopicDescription, topic_listener::TopicListener}};
 use rust_rtps::{structure::Participant, transport::Transport, types::{Locator, constants::{ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, PROTOCOL_VERSION_2_4, VENDOR_ID}}};
 
 

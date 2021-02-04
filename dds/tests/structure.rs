@@ -22,7 +22,7 @@ impl DDSType for TestType {
         todo!()
     }
 
-    fn deserialize(data: Vec<u8>) -> Self {
+    fn deserialize(_data: Vec<u8>) -> Self {
         todo!()
     }
 }

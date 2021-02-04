@@ -1,34 +1,31 @@
-use std::{
-    any::Any,
-    marker::PhantomData,
-    sync::{Arc, Mutex},
-};
+use std::marker::PhantomData;
 
-use rust_dds_api::{builtin_topics::PublicationBuiltinTopicData, dcps_psm::{InstanceHandle, InstanceStateKind, LivelinessChangedStatus, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus, SampleStateKind, StatusMask, SubscriptionMatchedStatus, ViewStateKind}, dds_type::DDSType, infrastructure::{
+use rust_dds_api::{
+    builtin_topics::PublicationBuiltinTopicData,
+    dcps_psm::{
+        InstanceHandle, InstanceStateKind, LivelinessChangedStatus, RequestedDeadlineMissedStatus,
+        RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus, SampleStateKind,
+        StatusMask, SubscriptionMatchedStatus, ViewStateKind,
+    },
+    dds_type::DDSType,
+    infrastructure::{
         entity::{Entity, StatusCondition},
-        qos::{DataReaderQos, SubscriberQos},
-        qos_policy::ReliabilityQosPolicyKind,
+        qos::DataReaderQos,
         read_condition::ReadCondition,
         sample_info::SampleInfo,
-    }, return_type::DDSResult, subscription::{
+    },
+    return_type::DDSResult,
+    subscription::{
         data_reader::{AnyDataReader, DataReader},
         data_reader_listener::DataReaderListener,
         query_condition::QueryCondition,
         subscriber::SubscriberChild,
-    }, topic::topic_description::TopicDescription};
-
-use rust_rtps::{
-    behavior::{self, StatefulReader},
-    types::{ReliabilityKind, GUID},
+    },
+    topic::topic_description::TopicDescription,
 };
 
 use crate::{
-    inner::rtps_datareader_inner::RtpsAnyDataReaderInnerRef,
-    rtps_subscriber::RtpsSubscriber,
-    utils::{
-        as_any::AsAny,
-        maybe_valid::{MaybeValid, MaybeValidRef},
-    },
+    inner::rtps_datareader_inner::RtpsAnyDataReaderInnerRef, rtps_subscriber::RtpsSubscriber,
 };
 
 pub struct RtpsDataReader<'a, T: DDSType> {

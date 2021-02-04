@@ -1,25 +1,21 @@
-use std::{
-    any::Any,
-    marker::PhantomData,
-    sync::{Arc, Mutex},
-};
+use std::marker::PhantomData;
 
-use crate::{
-    inner::rtps_topic_inner::RtpsAnyTopicInnerRef,
-    utils::{
-        as_any::AsAny,
-        maybe_valid::{MaybeValid, MaybeValidRef},
-    },
-};
-use rust_dds_api::{dcps_psm::{InconsistentTopicStatus, InstanceHandle, StatusMask}, dds_type::DDSType, domain::domain_participant::{DomainParticipant, DomainParticipantChild}, infrastructure::{
+use crate::inner::rtps_topic_inner::RtpsAnyTopicInnerRef;
+use rust_dds_api::{
+    dcps_psm::{InconsistentTopicStatus, InstanceHandle, StatusMask},
+    dds_type::DDSType,
+    domain::domain_participant::DomainParticipantChild,
+    infrastructure::{
         entity::{Entity, StatusCondition},
         qos::TopicQos,
-    }, publication::publisher::Publisher, return_type::DDSResult, subscription::subscriber::Subscriber, topic::{
+    },
+    return_type::DDSResult,
+    topic::{
         topic::Topic,
         topic_description::{AnyTopic, TopicDescription},
         topic_listener::TopicListener,
-    }};
-use rust_rtps::types::GUID;
+    },
+};
 
 use super::rtps_domain_participant::RtpsDomainParticipant;
 

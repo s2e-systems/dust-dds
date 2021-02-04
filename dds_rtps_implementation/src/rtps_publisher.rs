@@ -1,31 +1,22 @@
-use std::{marker::PhantomData, sync::{atomic, Arc, Mutex}};
+use std::marker::PhantomData;
 
-use rust_dds_api::{dcps_psm::{Duration, InstanceHandle, StatusMask}, dds_type::DDSType, domain::domain_participant::{DomainParticipant, DomainParticipantChild, TopicGAT}, infrastructure::{
+use rust_dds_api::{
+    dcps_psm::{Duration, InstanceHandle, StatusMask},
+    dds_type::DDSType,
+    domain::domain_participant::{DomainParticipantChild, TopicGAT},
+    infrastructure::{
         entity::{Entity, StatusCondition},
         qos::{DataWriterQos, PublisherQos, TopicQos},
-    }, publication::{
-        data_writer::DataWriter,
+    },
+    publication::{
         data_writer_listener::DataWriterListener,
         publisher::{DataWriterGAT, Publisher},
         publisher_listener::PublisherListener,
-    }, return_type::DDSResult, subscription::subscriber::Subscriber, topic::topic::Topic};
-
-use rust_rtps::{
-    structure::Group,
-    types::{
-        constants::{ENTITY_KIND_BUILT_IN_WRITER_GROUP, ENTITY_KIND_USER_DEFINED_WRITER_GROUP},
-        EntityId, GuidPrefix, GUID,
     },
+    return_type::DDSResult,
 };
 
-use crate::{
-    inner::{
-        rtps_datawriter_inner::RtpsAnyDataWriterInnerRef,
-        rtps_publisher_inner::RtpsPublisherInnerRef,
-    },
-    rtps_topic::RtpsTopic,
-    utils::maybe_valid::{MaybeValid, MaybeValidList, MaybeValidRef},
-};
+use crate::{inner::rtps_publisher_inner::RtpsPublisherInnerRef, rtps_topic::RtpsTopic};
 
 use super::{rtps_datawriter::RtpsDataWriter, rtps_domain_participant::RtpsDomainParticipant};
 
@@ -58,7 +49,11 @@ impl<'a> Publisher<'a> for RtpsPublisher<'a> {
             self.publisher_ref
                 .create_datawriter(&a_topic.topic_ref, qos, a_listener, mask)?;
 
-        Some(RtpsDataWriter{parent_publisher:self, data_writer_ref, phantom_data: PhantomData})
+        Some(RtpsDataWriter {
+            parent_publisher: self,
+            data_writer_ref,
+            phantom_data: PhantomData,
+        })
     }
 
     fn delete_datawriter<T: DDSType>(

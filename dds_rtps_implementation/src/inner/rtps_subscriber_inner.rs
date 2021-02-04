@@ -1,11 +1,11 @@
-use std::sync::{atomic, Arc, Mutex};
+use std::sync::{atomic, Mutex};
 
 use rust_dds_api::{dcps_psm::StatusMask, dds_type::DDSType, infrastructure::{
         qos::{DataReaderQos, SubscriberQos},
     }, return_type::{DDSError, DDSResult}, subscription::{
         data_reader_listener::DataReaderListener, subscriber_listener::SubscriberListener,
     }};
-use rust_rtps::{structure::Group, types::{EntityId, GUID, GuidPrefix, constants::{ENTITY_KIND_BUILT_IN_READER_GROUP, ENTITY_KIND_BUILT_IN_READER_NO_KEY, ENTITY_KIND_BUILT_IN_READER_WITH_KEY, ENTITY_KIND_USER_DEFINED_READER_GROUP, ENTITY_KIND_USER_DEFINED_READER_NO_KEY, ENTITY_KIND_USER_DEFINED_READER_WITH_KEY}}};
+use rust_rtps::{structure::Group, types::{EntityId, GUID, GuidPrefix, constants::{ENTITY_KIND_BUILT_IN_READER_GROUP, ENTITY_KIND_USER_DEFINED_READER_GROUP}}};
 
 use crate::utils::maybe_valid::{MaybeValid, MaybeValidList, MaybeValidRef};
 
@@ -13,7 +13,7 @@ use super::{
     rtps_datareader_inner::{
         RtpsAnyDataReaderInner, RtpsAnyDataReaderInnerRef, RtpsDataReaderInner,
     },
-    rtps_topic_inner::{RtpsAnyTopicInner, RtpsAnyTopicInnerRef},
+    rtps_topic_inner::{ RtpsAnyTopicInnerRef},
 };
 
 enum EntityType {
