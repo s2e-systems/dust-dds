@@ -1,15 +1,13 @@
 use std::sync::{atomic, Mutex};
 
-use rust_dds_api::{infrastructure::{
+use rust_dds_api::{dcps_psm::{InstanceHandle, StatusMask}, dds_type::DDSType, infrastructure::{
         qos::{DataWriterQos, PublisherQos},
-        status::StatusMask,
-    }, publication::{data_writer_listener::DataWriterListener, publisher_listener::PublisherListener}};
-use rust_dds_types::{DDSType, InstanceHandle, ReturnCode, ReturnCodes};
+    }, publication::{data_writer_listener::DataWriterListener, publisher_listener::PublisherListener}, return_type::{DDSError, DDSResult}};
 use rust_rtps::{
     structure::Group,
     types::{
         constants::{ENTITY_KIND_BUILT_IN_WRITER_GROUP, ENTITY_KIND_USER_DEFINED_WRITER_GROUP},
-        EntityId, EntityKey, GuidPrefix, GUID,
+        EntityId, GuidPrefix, GUID,
     },
 };
 
@@ -44,7 +42,7 @@ pub struct RtpsPublisherInner {
 impl RtpsPublisherInner {
     pub fn new_builtin(
         guid_prefix: GuidPrefix,
-        entity_key: EntityKey,
+        entity_key: [u8;3],
         qos: PublisherQos,
         listener: Option<Box<dyn PublisherListener>>,
         status_mask: StatusMask,
@@ -61,7 +59,7 @@ impl RtpsPublisherInner {
 
     pub fn new_user_defined(
         guid_prefix: GuidPrefix,
-        entity_key: EntityKey,
+        entity_key: [u8;3],
         qos: PublisherQos,
         listener: Option<Box<dyn PublisherListener>>,
         status_mask: StatusMask,
@@ -78,7 +76,7 @@ impl RtpsPublisherInner {
 
     fn new(
         guid_prefix: GuidPrefix,
-        entity_key: EntityKey,
+        entity_key: [u8;3],
         qos: PublisherQos,
         listener: Option<Box<dyn PublisherListener>>,
         status_mask: StatusMask,
@@ -108,8 +106,8 @@ impl RtpsPublisherInner {
 pub type RtpsPublisherInnerRef<'a> = MaybeValidRef<'a, Box<RtpsPublisherInner>>;
 
 impl<'a> RtpsPublisherInnerRef<'a> {
-    pub fn get(&self) -> ReturnCode<&Box<RtpsPublisherInner>> {
-        MaybeValid::get(self).ok_or(ReturnCodes::AlreadyDeleted)
+    pub fn get(&self) -> DDSResult<&Box<RtpsPublisherInner>> {
+        MaybeValid::get(self).ok_or(DDSError::AlreadyDeleted)
     }
 
     pub fn delete(&self) {
@@ -134,7 +132,7 @@ impl<'a> RtpsPublisherInnerRef<'a> {
 
     pub fn create_stateful_datawriter<T: DDSType>(
         &self,
-        entity_key: EntityKey,
+        entity_key: [u8;3],
         a_topic: &RtpsAnyTopicInnerRef,
         qos: Option<DataWriterQos>,
         a_listener: Option<Box<dyn DataWriterListener<T>>>,
@@ -166,7 +164,7 @@ impl<'a> RtpsPublisherInnerRef<'a> {
 
     pub fn create_stateless_datawriter<T: DDSType>(
         &self,
-        entity_key: EntityKey,
+        entity_key: [u8;3],
         a_topic: &RtpsAnyTopicInnerRef,
         qos: Option<DataWriterQos>,
         a_listener: Option<Box<dyn DataWriterListener<T>>>,
@@ -196,29 +194,29 @@ impl<'a> RtpsPublisherInnerRef<'a> {
         this.writer_list.add(Box::new(writer))
     }
 
-    pub fn set_default_datawriter_qos(&self, qos: Option<DataWriterQos>) -> ReturnCode<()> {
+    pub fn set_default_datawriter_qos(&self, qos: Option<DataWriterQos>) -> DDSResult<()> {
         let qos = qos.unwrap_or_default();
         qos.is_consistent()?;
         *self.get()?.default_datawriter_qos.lock().unwrap() = qos;
         Ok(())
     }
 
-    pub fn get_default_datawriter_qos(&self) -> ReturnCode<DataWriterQos> {
+    pub fn get_default_datawriter_qos(&self) -> DDSResult<DataWriterQos> {
         Ok(self.get()?.default_datawriter_qos.lock().unwrap().clone())
     }
 
-    pub fn get_qos(&self) -> ReturnCode<PublisherQos> {
+    pub fn get_qos(&self) -> DDSResult<PublisherQos> {
         Ok(self.get()?.qos.lock().unwrap().clone())
     }
 
-    pub fn set_qos(&self, qos: Option<PublisherQos>) -> ReturnCode<()> {
+    pub fn set_qos(&self, qos: Option<PublisherQos>) -> DDSResult<()> {
         let qos = qos.unwrap_or_default();
         *self.get()?.qos.lock().unwrap() = qos;
         Ok(())
     }
 
-    pub fn get_instance_handle(&self) -> ReturnCode<InstanceHandle> {
-        Ok(self.get()?.group.entity.guid.into())
+    pub fn get_instance_handle(&self) -> DDSResult<InstanceHandle> {
+        todo!()
     }
 }
 
@@ -226,7 +224,6 @@ impl<'a> RtpsPublisherInnerRef<'a> {
 mod tests {
     use super::*;
     use rust_dds_api::infrastructure::qos_policy::ReliabilityQosPolicyKind;
-    use rust_dds_types::Duration;
 
     #[test]
     fn set_and_get_qos() {
@@ -343,7 +340,7 @@ mod tests {
         let result = publisher.set_default_datawriter_qos(Some(datawriter_qos.clone()));
 
         match result {
-            Err(ReturnCodes::InconsistentPolicy) => assert!(true),
+            Err(DDSError::InconsistentPolicy) => assert!(true),
             _ => assert!(false),
         }
     }

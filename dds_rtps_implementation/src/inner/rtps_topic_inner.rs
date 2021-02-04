@@ -3,12 +3,8 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use rust_dds_api::{
-    infrastructure::{qos::TopicQos, status::StatusMask},
-    topic::topic_listener::TopicListener,
-};
-use rust_dds_types::{DDSType, ReturnCode, ReturnCodes, TopicKind};
-use rust_rtps::types::{EntityId, EntityKey, GUID, GuidPrefix, constants::ENTITY_KIND_USER_DEFINED_UNKNOWN};
+use rust_dds_api::{dcps_psm::StatusMask, dds_type::DDSType, infrastructure::{qos::TopicQos}, return_type::{DDSError, DDSResult}, topic::topic_listener::TopicListener};
+use rust_rtps::types::{EntityId, GUID, GuidPrefix, TopicKind, constants::ENTITY_KIND_USER_DEFINED_UNKNOWN};
 
 use crate::utils::{
     as_any::AsAny,
@@ -28,22 +24,23 @@ pub struct RtpsTopicInner<T: DDSType> {
 impl<T: DDSType> RtpsTopicInner<T> {
     pub fn new(
         guid_prefix: GuidPrefix,
-        entity_key: EntityKey,
+        entity_key: [u8;3],
         topic_name: String,
         qos: TopicQos,
         listener: Option<Box<dyn TopicListener<T>>>,
         status_mask: StatusMask,
     ) -> Self {
-        let guid = GUID::new(guid_prefix, EntityId::new(entity_key, ENTITY_KIND_USER_DEFINED_UNKNOWN));
-        Self {
-            rtps_entity: rust_rtps::structure::Entity { guid },
-            topic_name,
-            type_name: T::type_name(),
-            topic_kind: T::topic_kind(),
-            qos: Mutex::new(qos),
-            listener,
-            status_mask,
-        }
+        todo!()
+        // let guid = GUID::new(guid_prefix, EntityId::new(entity_key, ENTITY_KIND_USER_DEFINED_UNKNOWN));
+        // Self {
+        //     rtps_entity: rust_rtps::structure::Entity { guid },
+        //     topic_name,
+        //     type_name: T::type_name(),
+        //     topic_kind: T::topic_kind(),
+        //     qos: Mutex::new(qos),
+        //     listener,
+        //     status_mask,
+        // }
     }
 }
 
@@ -86,30 +83,30 @@ impl<T: DDSType> AsAny for RtpsTopicInner<T> {
 pub type RtpsAnyTopicInnerRef<'a> = MaybeValidRef<'a, Arc<dyn RtpsAnyTopicInner>>;
 
 impl<'a> RtpsAnyTopicInnerRef<'a> {
-    pub fn get(&self) -> ReturnCode<&Arc<dyn RtpsAnyTopicInner>> {
-        MaybeValid::get(self).ok_or(ReturnCodes::AlreadyDeleted)
+    pub fn get(&self) -> DDSResult<&Arc<dyn RtpsAnyTopicInner>> {
+        MaybeValid::get(self).ok_or(DDSError::AlreadyDeleted)
     }
 
-    pub fn delete(&self) -> ReturnCode<()> {
+    pub fn delete(&self) -> DDSResult<()> {
         let rtps_topic = self.get()?;
         if Arc::strong_count(rtps_topic) == 1 {
             MaybeValid::delete(self);
             Ok(())
         } else {
-            Err(ReturnCodes::PreconditionNotMet(
+            Err(DDSError::PreconditionNotMet(
                 "Topic still attached to some data reader or data writer",
             ))
         }
     }
 
-    pub fn set_qos(&self, qos: Option<TopicQos>) -> ReturnCode<()> {
+    pub fn set_qos(&self, qos: Option<TopicQos>) -> DDSResult<()> {
         let qos = qos.unwrap_or_default();
         qos.is_consistent()?;
         *self.get()?.qos().lock().unwrap() = qos;
         Ok(())
     }
 
-    pub fn get_qos(&self) -> ReturnCode<TopicQos> {
+    pub fn get_qos(&self) -> DDSResult<TopicQos> {
         Ok(self.get()?.qos().lock().unwrap().clone())
     }
 }

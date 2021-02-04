@@ -4,35 +4,23 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use rust_dds_api::{
-    builtin_topics::PublicationBuiltinTopicData,
-    infrastructure::{
+use rust_dds_api::{builtin_topics::PublicationBuiltinTopicData, dcps_psm::{InstanceHandle, InstanceStateKind, LivelinessChangedStatus, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus, SampleStateKind, StatusMask, SubscriptionMatchedStatus, ViewStateKind}, dds_type::DDSType, infrastructure::{
         entity::{Entity, StatusCondition},
         qos::{DataReaderQos, SubscriberQos},
         qos_policy::ReliabilityQosPolicyKind,
         read_condition::ReadCondition,
         sample_info::SampleInfo,
-        status::{
-            InstanceStateKind, LivelinessChangedStatus, RequestedDeadlineMissedStatus,
-            RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus,
-            SampleStateKind, StatusMask, SubscriptionMatchedStatus, ViewStateKind,
-        },
-    },
-    subscription::{
+    }, return_type::DDSResult, subscription::{
         data_reader::{AnyDataReader, DataReader},
         data_reader_listener::DataReaderListener,
         query_condition::QueryCondition,
         subscriber::SubscriberChild,
-    },
-    topic::topic_description::TopicDescription,
-};
+    }, topic::topic_description::TopicDescription};
 
 use rust_rtps::{
     behavior::{self, StatefulReader},
     types::{ReliabilityKind, GUID},
 };
-
-use rust_dds_types::{DDSType, InstanceHandle, ReturnCode, ReturnCodes};
 
 use crate::{
     inner::rtps_datareader_inner::RtpsAnyDataReaderInnerRef,
@@ -58,7 +46,7 @@ impl<'a, T: DDSType> DataReader<'a, T> for RtpsDataReader<'a, T> {
         _sample_states: &[SampleStateKind],
         _view_states: &[ViewStateKind],
         _instance_states: &[InstanceStateKind],
-    ) -> ReturnCode<()> {
+    ) -> DDSResult<()> {
         todo!()
     }
 
@@ -70,7 +58,7 @@ impl<'a, T: DDSType> DataReader<'a, T> for RtpsDataReader<'a, T> {
         _sample_states: &[SampleStateKind],
         _view_states: &[ViewStateKind],
         _instance_states: &[InstanceStateKind],
-    ) -> ReturnCode<()> {
+    ) -> DDSResult<()> {
         todo!()
     }
 
@@ -80,7 +68,7 @@ impl<'a, T: DDSType> DataReader<'a, T> for RtpsDataReader<'a, T> {
         _sample_infos: &mut [SampleInfo],
         _max_samples: i32,
         _a_condition: ReadCondition,
-    ) -> ReturnCode<()> {
+    ) -> DDSResult<()> {
         todo!()
     }
 
@@ -90,7 +78,7 @@ impl<'a, T: DDSType> DataReader<'a, T> for RtpsDataReader<'a, T> {
         _sample_infos: &mut [SampleInfo],
         _max_samples: i32,
         _a_condition: ReadCondition,
-    ) -> ReturnCode<()> {
+    ) -> DDSResult<()> {
         todo!()
     }
 
@@ -98,7 +86,7 @@ impl<'a, T: DDSType> DataReader<'a, T> for RtpsDataReader<'a, T> {
         &self,
         _data_value: &mut [T],
         _sample_info: &mut [SampleInfo],
-    ) -> ReturnCode<()> {
+    ) -> DDSResult<()> {
         todo!()
     }
 
@@ -106,7 +94,7 @@ impl<'a, T: DDSType> DataReader<'a, T> for RtpsDataReader<'a, T> {
         &self,
         _data_value: &mut [T],
         _sample_info: &mut [SampleInfo],
-    ) -> ReturnCode<()> {
+    ) -> DDSResult<()> {
         todo!()
     }
 
@@ -119,7 +107,7 @@ impl<'a, T: DDSType> DataReader<'a, T> for RtpsDataReader<'a, T> {
         _sample_states: &[SampleStateKind],
         _view_states: &[ViewStateKind],
         _instance_states: &[InstanceStateKind],
-    ) -> ReturnCode<()> {
+    ) -> DDSResult<()> {
         todo!()
     }
 
@@ -132,7 +120,7 @@ impl<'a, T: DDSType> DataReader<'a, T> for RtpsDataReader<'a, T> {
         _sample_states: &[SampleStateKind],
         _view_states: &[ViewStateKind],
         _instance_states: &[InstanceStateKind],
-    ) -> ReturnCode<()> {
+    ) -> DDSResult<()> {
         todo!()
     }
 
@@ -145,7 +133,7 @@ impl<'a, T: DDSType> DataReader<'a, T> for RtpsDataReader<'a, T> {
         _sample_states: &[SampleStateKind],
         _view_states: &[ViewStateKind],
         _instance_states: &[InstanceStateKind],
-    ) -> ReturnCode<()> {
+    ) -> DDSResult<()> {
         todo!()
     }
 
@@ -158,7 +146,7 @@ impl<'a, T: DDSType> DataReader<'a, T> for RtpsDataReader<'a, T> {
         _sample_states: &[SampleStateKind],
         _view_states: &[ViewStateKind],
         _instance_states: &[InstanceStateKind],
-    ) -> ReturnCode<()> {
+    ) -> DDSResult<()> {
         todo!()
     }
 
@@ -169,7 +157,7 @@ impl<'a, T: DDSType> DataReader<'a, T> for RtpsDataReader<'a, T> {
         _max_samples: i32,
         _previous_handle: InstanceHandle,
         _a_condition: ReadCondition,
-    ) -> ReturnCode<()> {
+    ) -> DDSResult<()> {
         todo!()
     }
 
@@ -180,7 +168,7 @@ impl<'a, T: DDSType> DataReader<'a, T> for RtpsDataReader<'a, T> {
         _max_samples: i32,
         _previous_handle: InstanceHandle,
         _a_condition: ReadCondition,
-    ) -> ReturnCode<()> {
+    ) -> DDSResult<()> {
         todo!()
     }
 
@@ -188,11 +176,11 @@ impl<'a, T: DDSType> DataReader<'a, T> for RtpsDataReader<'a, T> {
         &self,
         _data_values: &mut [T],
         _sample_infos: &mut [SampleInfo],
-    ) -> ReturnCode<()> {
+    ) -> DDSResult<()> {
         todo!()
     }
 
-    fn get_key_value(&self, _key_holder: &mut T, _handle: InstanceHandle) -> ReturnCode<()> {
+    fn get_key_value(&self, _key_holder: &mut T, _handle: InstanceHandle) -> DDSResult<()> {
         todo!()
     }
 
@@ -220,43 +208,43 @@ impl<'a, T: DDSType> DataReader<'a, T> for RtpsDataReader<'a, T> {
         todo!()
     }
 
-    fn delete_readcondition(&self, _a_condition: ReadCondition) -> ReturnCode<()> {
+    fn delete_readcondition(&self, _a_condition: ReadCondition) -> DDSResult<()> {
         todo!()
     }
 
     fn get_liveliness_changed_status(
         &self,
         _status: &mut LivelinessChangedStatus,
-    ) -> ReturnCode<()> {
+    ) -> DDSResult<()> {
         todo!()
     }
 
     fn get_requested_deadline_missed_status(
         &self,
         _status: &mut RequestedDeadlineMissedStatus,
-    ) -> ReturnCode<()> {
+    ) -> DDSResult<()> {
         todo!()
     }
 
     fn get_requested_incompatible_qos_status(
         &self,
         _status: &mut RequestedIncompatibleQosStatus,
-    ) -> ReturnCode<()> {
+    ) -> DDSResult<()> {
         todo!()
     }
 
-    fn get_sample_lost_status(&self, _status: &mut SampleLostStatus) -> ReturnCode<()> {
+    fn get_sample_lost_status(&self, _status: &mut SampleLostStatus) -> DDSResult<()> {
         todo!()
     }
 
-    fn get_sample_rejected_status(&self, _status: &mut SampleRejectedStatus) -> ReturnCode<()> {
+    fn get_sample_rejected_status(&self, _status: &mut SampleRejectedStatus) -> DDSResult<()> {
         todo!()
     }
 
     fn get_subscription_matched_status(
         &self,
         _status: &mut SubscriptionMatchedStatus,
-    ) -> ReturnCode<()> {
+    ) -> DDSResult<()> {
         todo!()
     }
 
@@ -271,11 +259,11 @@ impl<'a, T: DDSType> DataReader<'a, T> for RtpsDataReader<'a, T> {
         todo!()
     }
 
-    fn delete_contained_entities(&self) -> ReturnCode<()> {
+    fn delete_contained_entities(&self) -> DDSResult<()> {
         todo!()
     }
 
-    fn wait_for_historical_data(&self) -> ReturnCode<()> {
+    fn wait_for_historical_data(&self) -> DDSResult<()> {
         todo!()
     }
 
@@ -283,11 +271,11 @@ impl<'a, T: DDSType> DataReader<'a, T> for RtpsDataReader<'a, T> {
         &self,
         _publication_data: &mut PublicationBuiltinTopicData,
         _publication_handle: InstanceHandle,
-    ) -> ReturnCode<()> {
+    ) -> DDSResult<()> {
         todo!()
     }
 
-    fn get_match_publication(&self, _publication_handles: &mut [InstanceHandle]) -> ReturnCode<()> {
+    fn get_match_publication(&self, _publication_handles: &mut [InstanceHandle]) -> DDSResult<()> {
         todo!()
     }
 }
@@ -297,15 +285,15 @@ impl<'a, T: DDSType> Entity for RtpsDataReader<'a, T> {
 
     type Listener = Box<dyn DataReaderListener<T>>;
 
-    fn set_qos(&self, _qos: Option<Self::Qos>) -> ReturnCode<()> {
+    fn set_qos(&self, _qos: Option<Self::Qos>) -> DDSResult<()> {
         todo!()
     }
 
-    fn get_qos(&self) -> ReturnCode<Self::Qos> {
+    fn get_qos(&self) -> DDSResult<Self::Qos> {
         todo!()
     }
 
-    fn set_listener(&self, _a_listener: Self::Listener, _mask: StatusMask) -> ReturnCode<()> {
+    fn set_listener(&self, _a_listener: Self::Listener, _mask: StatusMask) -> DDSResult<()> {
         todo!()
     }
 
@@ -321,11 +309,11 @@ impl<'a, T: DDSType> Entity for RtpsDataReader<'a, T> {
         todo!()
     }
 
-    fn enable(&self) -> ReturnCode<()> {
+    fn enable(&self) -> DDSResult<()> {
         todo!()
     }
 
-    fn get_instance_handle(&self) -> ReturnCode<InstanceHandle> {
+    fn get_instance_handle(&self) -> DDSResult<InstanceHandle> {
         todo!()
     }
 }

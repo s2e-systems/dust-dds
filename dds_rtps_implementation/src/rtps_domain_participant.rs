@@ -1,23 +1,14 @@
 use std::{cell::RefCell, marker::PhantomData, sync::{atomic, Arc, Mutex, Once}, thread::JoinHandle};
 
-use rust_dds_api::{
-    builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
-    domain::{
+use rust_dds_api::{builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData}, dcps_psm::{DomainId, Duration, InstanceHandle, StatusMask, Time}, dds_type::DDSType, domain::{
         domain_participant::{DomainParticipant, TopicGAT},
         domain_participant_listener::DomainParticipantListener,
-    },
-    infrastructure::{
+    }, infrastructure::{
         entity::{Entity, StatusCondition},
         qos::{DataWriterQos, DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
-        status::StatusMask,
-    },
-    publication::publisher_listener::PublisherListener,
-    subscription::subscriber_listener::SubscriberListener,
-    topic::{topic::Topic, topic_description::TopicDescription, topic_listener::TopicListener},
-};
-use rust_rtps::{structure::Participant, transport::Transport, types::{Locator, constants::{ENTITYKEY_SPDP_BUILTIN_PARTICIPANT, PROTOCOL_VERSION_2_4, VENDOR_ID}}};
+    }, publication::publisher_listener::PublisherListener, return_type::DDSResult, subscription::subscriber_listener::SubscriberListener, topic::{topic::Topic, topic_description::TopicDescription, topic_listener::TopicListener}};
+use rust_rtps::{structure::Participant, transport::Transport, types::{Locator, constants::{ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, PROTOCOL_VERSION_2_4, VENDOR_ID}}};
 
-use rust_dds_types::{DDSType, DomainId, Duration, InstanceHandle, ReturnCode, Time};
 
 use crate::{
     inner::rtps_participant_entities::RtpsParticipantEntities, rtps_publisher::RtpsPublisher,
@@ -33,19 +24,15 @@ impl DDSType for SpdpDiscoveredParticipantData {
         "SpdpDiscoveredParticipantData"
     }
 
-    fn topic_kind() -> rust_dds_types::TopicKind {
-        rust_dds_types::TopicKind::WithKey
+    fn key(&self) -> Vec<u8> {
+        vec![]
     }
 
-    fn instance_handle(&self) -> InstanceHandle {
-        [1; 16]
+    fn serialize(&self) -> Vec<u8> {
+        vec![0,0,0,0,1,2,3,4]
     }
 
-    fn serialize(&self) -> rust_dds_types::Data {
-        vec![0, 0, 0, 0, 1, 2, 3, 4]
-    }
-
-    fn deserialize(_data: rust_dds_types::Data) -> Self {
+    fn deserialize(data: Vec<u8>) -> Self {
         todo!()
     }
 }
@@ -78,31 +65,32 @@ impl RtpsDomainParticipant {
         mask: StatusMask,
     ) -> Self {
         let guid_prefix = [1; 12];
-        let participant = Participant::new(guid_prefix, domain_id, PROTOCOL_VERSION_2_4, VENDOR_ID);
+        todo!()
+        // let participant = Participant::new(guid_prefix, domain_id, PROTOCOL_VERSION_2_4, VENDOR_ID);
 
-        let builtin_entities =
-            Arc::new(RtpsParticipantEntities::new_builtin(metatraffic_transport));
-        let user_defined_entities = Arc::new(RtpsParticipantEntities::new_user_defined(
-            userdata_transport,
-        ));
+        // let builtin_entities =
+        //     Arc::new(RtpsParticipantEntities::new_builtin(metatraffic_transport));
+        // let user_defined_entities = Arc::new(RtpsParticipantEntities::new_user_defined(
+        //     userdata_transport,
+        // ));
 
-        RtpsDomainParticipant {
-            participant,
-            qos: Mutex::new(qos),
-            publisher_count: atomic::AtomicU8::new(0),
-            subscriber_count: atomic::AtomicU8::new(0),
-            topic_count: atomic::AtomicU8::new(0),
-            default_publisher_qos: Mutex::new(PublisherQos::default()),
-            default_subscriber_qos: Mutex::new(SubscriberQos::default()),
-            default_topic_qos: Mutex::new(TopicQos::default()),
-            builtin_entities,
-            user_defined_entities,
-            enabled: Arc::new(atomic::AtomicBool::new(false)),
-            enabled_function: Once::new(),
-            thread_list: RefCell::new(Vec::new()),
-            a_listener,
-            mask,
-        }
+        // RtpsDomainParticipant {
+        //     participant,
+        //     qos: Mutex::new(qos),
+        //     publisher_count: atomic::AtomicU8::new(0),
+        //     subscriber_count: atomic::AtomicU8::new(0),
+        //     topic_count: atomic::AtomicU8::new(0),
+        //     default_publisher_qos: Mutex::new(PublisherQos::default()),
+        //     default_subscriber_qos: Mutex::new(SubscriberQos::default()),
+        //     default_topic_qos: Mutex::new(TopicQos::default()),
+        //     builtin_entities,
+        //     user_defined_entities,
+        //     enabled: Arc::new(atomic::AtomicBool::new(false)),
+        //     enabled_function: Once::new(),
+        //     thread_list: RefCell::new(Vec::new()),
+        //     a_listener,
+        //     mask,
+        // }
     }
 }
 
@@ -140,7 +128,7 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
         })
     }
 
-    fn delete_publisher(&self, a_publisher: &Self::PublisherType) -> ReturnCode<()> {
+    fn delete_publisher(&self, a_publisher: &Self::PublisherType) -> DDSResult<()> {
         self.user_defined_entities
             .delete_publisher(&a_publisher.publisher_ref)
     }
@@ -168,7 +156,7 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
         Some(RtpsSubscriber{parent_participant: self, subscriber_ref})
     }
 
-    fn delete_subscriber(&self, a_subscriber: &Self::SubscriberType) -> ReturnCode<()> {
+    fn delete_subscriber(&self, a_subscriber: &Self::SubscriberType) -> DDSResult<()> {
         self.user_defined_entities
             .delete_subscriber(&a_subscriber.subscriber_ref)
     }
@@ -201,7 +189,7 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
     fn delete_topic<T: DDSType>(
         &'a self,
         a_topic: &<Self as TopicGAT<'a, T>>::TopicType,
-    ) -> ReturnCode<()> {
+    ) -> DDSResult<()> {
         self.user_defined_entities.delete_topic(&a_topic.topic_ref)
     }
 
@@ -236,35 +224,35 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
         // }
     }
 
-    fn ignore_participant(&self, _handle: InstanceHandle) -> ReturnCode<()> {
+    fn ignore_participant(&self, _handle: InstanceHandle) -> DDSResult<()> {
         todo!()
     }
 
-    fn ignore_topic(&self, _handle: InstanceHandle) -> ReturnCode<()> {
+    fn ignore_topic(&self, _handle: InstanceHandle) -> DDSResult<()> {
         todo!()
     }
 
-    fn ignore_publication(&self, _handle: InstanceHandle) -> ReturnCode<()> {
+    fn ignore_publication(&self, _handle: InstanceHandle) -> DDSResult<()> {
         todo!()
     }
 
-    fn ignore_subscription(&self, _handle: InstanceHandle) -> ReturnCode<()> {
+    fn ignore_subscription(&self, _handle: InstanceHandle) -> DDSResult<()> {
         todo!()
     }
 
     fn get_domain_id(&self) -> DomainId {
-        self.participant.domain_id
-    }
-
-    fn delete_contained_entities(&self) -> ReturnCode<()> {
         todo!()
     }
 
-    fn assert_liveliness(&self) -> ReturnCode<()> {
+    fn delete_contained_entities(&self) -> DDSResult<()> {
         todo!()
     }
 
-    fn set_default_publisher_qos(&self, qos: Option<PublisherQos>) -> ReturnCode<()> {
+    fn assert_liveliness(&self) -> DDSResult<()> {
+        todo!()
+    }
+
+    fn set_default_publisher_qos(&self, qos: Option<PublisherQos>) -> DDSResult<()> {
         let qos = qos.unwrap_or_default();
         *self.default_publisher_qos.lock().unwrap() = qos;
         Ok(())
@@ -274,7 +262,7 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
         self.default_publisher_qos.lock().unwrap().clone()
     }
 
-    fn set_default_subscriber_qos(&self, qos: Option<SubscriberQos>) -> ReturnCode<()> {
+    fn set_default_subscriber_qos(&self, qos: Option<SubscriberQos>) -> DDSResult<()> {
         let qos = qos.unwrap_or_default();
         *self.default_subscriber_qos.lock().unwrap() = qos;
         Ok(())
@@ -284,7 +272,7 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
         self.default_subscriber_qos.lock().unwrap().clone()
     }
 
-    fn set_default_topic_qos(&self, qos: Option<TopicQos>) -> ReturnCode<()> {
+    fn set_default_topic_qos(&self, qos: Option<TopicQos>) -> DDSResult<()> {
         let qos = qos.unwrap_or_default();
         qos.is_consistent()?;
         *self.default_topic_qos.lock().unwrap() = qos;
@@ -298,7 +286,7 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
     fn get_discovered_participants(
         &self,
         _participant_handles: &mut [InstanceHandle],
-    ) -> ReturnCode<()> {
+    ) -> DDSResult<()> {
         todo!()
     }
 
@@ -306,11 +294,11 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
         &self,
         _participant_data: ParticipantBuiltinTopicData,
         _participant_handle: InstanceHandle,
-    ) -> ReturnCode<()> {
+    ) -> DDSResult<()> {
         todo!()
     }
 
-    fn get_discovered_topics(&self, _topic_handles: &mut [InstanceHandle]) -> ReturnCode<()> {
+    fn get_discovered_topics(&self, _topic_handles: &mut [InstanceHandle]) -> DDSResult<()> {
         todo!()
     }
 
@@ -318,7 +306,7 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
         &self,
         _topic_data: TopicBuiltinTopicData,
         _topic_handle: InstanceHandle,
-    ) -> ReturnCode<()> {
+    ) -> DDSResult<()> {
         todo!()
     }
 
@@ -326,7 +314,7 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
         todo!()
     }
 
-    fn get_current_time(&self) -> ReturnCode<Time> {
+    fn get_current_time(&self) -> DDSResult<Time> {
         todo!()
     }
 }
@@ -335,17 +323,17 @@ impl Entity for RtpsDomainParticipant {
     type Qos = DomainParticipantQos;
     type Listener = Box<dyn DomainParticipantListener>;
 
-    fn set_qos(&self, qos: Option<Self::Qos>) -> ReturnCode<()> {
+    fn set_qos(&self, qos: Option<Self::Qos>) -> DDSResult<()> {
         let qos = qos.unwrap_or_default();
         *self.qos.lock().unwrap() = qos;
         Ok(())
     }
 
-    fn get_qos(&self) -> ReturnCode<Self::Qos> {
+    fn get_qos(&self) -> DDSResult<Self::Qos> {
         Ok(self.qos.lock().unwrap().clone())
     }
 
-    fn set_listener(&self, _a_listener: Self::Listener, _mask: StatusMask) -> ReturnCode<()> {
+    fn set_listener(&self, _a_listener: Self::Listener, _mask: StatusMask) -> DDSResult<()> {
         todo!()
     }
 
@@ -361,7 +349,7 @@ impl Entity for RtpsDomainParticipant {
         todo!()
     }
 
-    fn enable(&self) -> ReturnCode<()> {
+    fn enable(&self) -> DDSResult<()> {
         self.enabled_function.call_once(|| {
             let guid_prefix = self.participant.entity.guid.prefix();
             let builtin_publisher = self
@@ -374,7 +362,7 @@ impl Entity for RtpsDomainParticipant {
                 .builtin_entities
                 .create_topic::<SpdpDiscoveredParticipantData>(
                     guid_prefix,
-                    ENTITYKEY_SPDP_BUILTIN_PARTICIPANT,
+                    ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER.entity_key(),
                     "SPDP",
                     spdp_topic_qos,
                     None,
@@ -386,7 +374,7 @@ impl Entity for RtpsDomainParticipant {
                 spdp_announcer_qos.reliability.kind = rust_dds_api::infrastructure::qos_policy::ReliabilityQosPolicyKind::BestEffortReliabilityQos;
                 let spdp_announcer = builtin_publisher
                     .create_stateless_datawriter::<SpdpDiscoveredParticipantData>(
-                        ENTITYKEY_SPDP_BUILTIN_PARTICIPANT,
+                        ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER.entity_key(),
                         &spdp_topic,
                         Some(spdp_announcer_qos),
                         None,
@@ -437,8 +425,8 @@ impl Entity for RtpsDomainParticipant {
         Ok(())
     }
 
-    fn get_instance_handle(&self) -> ReturnCode<InstanceHandle> {
-        Ok(self.participant.entity.guid.into())
+    fn get_instance_handle(&self) -> DDSResult<InstanceHandle> {
+        todo!()
     }
 }
 

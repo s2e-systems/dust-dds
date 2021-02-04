@@ -1,28 +1,20 @@
 use std::{marker::PhantomData, sync::{atomic, Arc, Mutex}};
 
-use rust_dds_api::{
-    domain::domain_participant::{DomainParticipant, DomainParticipantChild, TopicGAT},
-    infrastructure::{
+use rust_dds_api::{dcps_psm::{Duration, InstanceHandle, StatusMask}, dds_type::DDSType, domain::domain_participant::{DomainParticipant, DomainParticipantChild, TopicGAT}, infrastructure::{
         entity::{Entity, StatusCondition},
         qos::{DataWriterQos, PublisherQos, TopicQos},
-        status::StatusMask,
-    },
-    publication::{
+    }, publication::{
         data_writer::DataWriter,
         data_writer_listener::DataWriterListener,
         publisher::{DataWriterGAT, Publisher},
         publisher_listener::PublisherListener,
-    },
-    subscription::subscriber::Subscriber,
-    topic::topic::Topic,
-};
+    }, return_type::DDSResult, subscription::subscriber::Subscriber, topic::topic::Topic};
 
-use rust_dds_types::{DDSType, Duration, InstanceHandle, ReturnCode, ReturnCodes};
 use rust_rtps::{
     structure::Group,
     types::{
         constants::{ENTITY_KIND_BUILT_IN_WRITER_GROUP, ENTITY_KIND_USER_DEFINED_WRITER_GROUP},
-        EntityId, EntityKey, GuidPrefix, GUID,
+        EntityId, GuidPrefix, GUID,
     },
 };
 
@@ -72,7 +64,7 @@ impl<'a> Publisher<'a> for RtpsPublisher<'a> {
     fn delete_datawriter<T: DDSType>(
         &'a self,
         a_datawriter: &'a <Self as DataWriterGAT<'a, T>>::DataWriterType,
-    ) -> ReturnCode<()> {
+    ) -> DDSResult<()> {
         a_datawriter.data_writer_ref.delete()
     }
 
@@ -83,23 +75,23 @@ impl<'a> Publisher<'a> for RtpsPublisher<'a> {
         todo!()
     }
 
-    fn suspend_publications(&self) -> ReturnCode<()> {
+    fn suspend_publications(&self) -> DDSResult<()> {
         todo!()
     }
 
-    fn resume_publications(&self) -> ReturnCode<()> {
+    fn resume_publications(&self) -> DDSResult<()> {
         todo!()
     }
 
-    fn begin_coherent_changes(&self) -> ReturnCode<()> {
+    fn begin_coherent_changes(&self) -> DDSResult<()> {
         todo!()
     }
 
-    fn end_coherent_changes(&self) -> ReturnCode<()> {
+    fn end_coherent_changes(&self) -> DDSResult<()> {
         todo!()
     }
 
-    fn wait_for_acknowledgments(&self, _max_wait: Duration) -> ReturnCode<()> {
+    fn wait_for_acknowledgments(&self, _max_wait: Duration) -> DDSResult<()> {
         todo!()
     }
 
@@ -107,15 +99,15 @@ impl<'a> Publisher<'a> for RtpsPublisher<'a> {
         &self.parent_participant
     }
 
-    fn delete_contained_entities(&self) -> ReturnCode<()> {
+    fn delete_contained_entities(&self) -> DDSResult<()> {
         todo!()
     }
 
-    fn set_default_datawriter_qos(&self, qos: Option<DataWriterQos>) -> ReturnCode<()> {
+    fn set_default_datawriter_qos(&self, qos: Option<DataWriterQos>) -> DDSResult<()> {
         self.publisher_ref.set_default_datawriter_qos(qos)
     }
 
-    fn get_default_datawriter_qos(&self) -> ReturnCode<DataWriterQos> {
+    fn get_default_datawriter_qos(&self) -> DDSResult<DataWriterQos> {
         self.publisher_ref.get_default_datawriter_qos()
     }
 
@@ -123,7 +115,7 @@ impl<'a> Publisher<'a> for RtpsPublisher<'a> {
         &self,
         _a_datawriter_qos: &mut DataWriterQos,
         _a_topic_qos: &TopicQos,
-    ) -> ReturnCode<()> {
+    ) -> DDSResult<()> {
         todo!()
     }
 }
@@ -132,15 +124,15 @@ impl<'a> Entity for RtpsPublisher<'a> {
     type Qos = PublisherQos;
     type Listener = Box<dyn PublisherListener>;
 
-    fn set_qos(&self, qos: Option<Self::Qos>) -> ReturnCode<()> {
+    fn set_qos(&self, qos: Option<Self::Qos>) -> DDSResult<()> {
         self.publisher_ref.set_qos(qos)
     }
 
-    fn get_qos(&self) -> ReturnCode<Self::Qos> {
+    fn get_qos(&self) -> DDSResult<Self::Qos> {
         self.publisher_ref.get_qos()
     }
 
-    fn set_listener(&self, _a_listener: Self::Listener, _mask: StatusMask) -> ReturnCode<()> {
+    fn set_listener(&self, _a_listener: Self::Listener, _mask: StatusMask) -> DDSResult<()> {
         todo!()
     }
 
@@ -156,19 +148,19 @@ impl<'a> Entity for RtpsPublisher<'a> {
         todo!()
     }
 
-    fn enable(&self) -> ReturnCode<()> {
+    fn enable(&self) -> DDSResult<()> {
         todo!()
     }
 
-    fn get_instance_handle(&self) -> ReturnCode<InstanceHandle> {
+    fn get_instance_handle(&self) -> DDSResult<InstanceHandle> {
         self.publisher_ref.get_instance_handle()
     }
 }
 
 // impl<'a> RtpsPublisherNode<'a> {
-// pub fn get(&self) -> ReturnCode<&RtpsPublisher> {
+// pub fn get(&self) -> DDSResult<&RtpsPublisher> {
 //     Ok(MaybeValid::get(&self.maybe_valid_ref)
-//         .ok_or(ReturnCodes::AlreadyDeleted)?
+//         .ok_or(DDSError::AlreadyDeleted)?
 //         .as_ref())
 // }
 
@@ -204,11 +196,11 @@ impl<'a> Entity for RtpsPublisher<'a> {
 //     })
 // }
 
-// pub fn get_default_datawriter_qos(&self) -> ReturnCode<DataWriterQos> {
+// pub fn get_default_datawriter_qos(&self) -> DDSResult<DataWriterQos> {
 //     Ok(self.get()?.default_datawriter_qos.lock().unwrap().clone())
 // }
 
-// pub fn set_default_datawriter_qos(&self, qos: Option<DataWriterQos>) -> ReturnCode<()> {
+// pub fn set_default_datawriter_qos(&self, qos: Option<DataWriterQos>) -> DDSResult<()> {
 //     let datawriter_qos = qos.unwrap_or_default();
 //     datawriter_qos.is_consistent()?;
 //     *self.get()?.default_datawriter_qos.lock().unwrap() = datawriter_qos;

@@ -5,16 +5,22 @@ use std::{
 };
 
 use rust_dds_api::{
-    infrastructure::{
-        qos::DataWriterQos, qos_policy::ReliabilityQosPolicyKind, status::StatusMask,
-    },
+    dcps_psm::{InstanceHandle, StatusMask, Time},
+    dds_type::DDSType,
+    infrastructure::{qos::DataWriterQos, qos_policy::ReliabilityQosPolicyKind},
     publication::data_writer_listener::DataWriterListener,
+    return_type::{DDSError, DDSResult},
 };
-use rust_dds_types::{ChangeKind, DDSType, InstanceHandle, ReturnCode, ReturnCodes, Time, TopicKind};
-use rust_rtps::{behavior::{self, StatefulWriter, StatelessWriter, Writer, endpoint_traits::CacheChangeSender}, types::{EntityId, EntityKey, GUID, GuidPrefix, ReliabilityKind, constants::{
+use rust_rtps::{
+    behavior::{self, endpoint_traits::CacheChangeSender, StatefulWriter, StatelessWriter, Writer},
+    types::{
+        constants::{
             ENTITY_KIND_BUILT_IN_WRITER_NO_KEY, ENTITY_KIND_BUILT_IN_WRITER_WITH_KEY,
             ENTITY_KIND_USER_DEFINED_WRITER_NO_KEY, ENTITY_KIND_USER_DEFINED_WRITER_WITH_KEY,
-        }}};
+        },
+        ChangeKind, EntityId, GuidPrefix, ReliabilityKind, TopicKind, GUID,
+    },
+};
 
 use crate::utils::{
     as_any::AsAny,
@@ -77,13 +83,13 @@ pub struct RtpsDataWriterInner<T: DDSType> {
 impl<T: DDSType> RtpsDataWriterInner<T> {
     pub fn new_builtin_stateless(
         guid_prefix: GuidPrefix,
-        entity_key: EntityKey,
+        entity_key: [u8;3],
         topic: &RtpsAnyTopicInnerRef,
         qos: DataWriterQos,
         listener: Option<Box<dyn DataWriterListener<T>>>,
         status_mask: StatusMask,
     ) -> Self {
-        let entity_kind = match T::topic_kind() {
+        let entity_kind = match T::has_key() {
             TopicKind::NoKey => ENTITY_KIND_BUILT_IN_WRITER_NO_KEY,
             TopicKind::WithKey => ENTITY_KIND_BUILT_IN_WRITER_WITH_KEY,
         };
@@ -94,13 +100,13 @@ impl<T: DDSType> RtpsDataWriterInner<T> {
 
     pub fn new_user_defined_stateless(
         guid_prefix: GuidPrefix,
-        entity_key: EntityKey,
+        entity_key: [u8;3],
         topic: &RtpsAnyTopicInnerRef,
         qos: DataWriterQos,
         listener: Option<Box<dyn DataWriterListener<T>>>,
         status_mask: StatusMask,
     ) -> Self {
-        let entity_kind = match T::topic_kind() {
+        let entity_kind = match T::has_key() {
             TopicKind::NoKey => ENTITY_KIND_USER_DEFINED_WRITER_NO_KEY,
             TopicKind::WithKey => ENTITY_KIND_USER_DEFINED_WRITER_WITH_KEY,
         };
@@ -111,13 +117,13 @@ impl<T: DDSType> RtpsDataWriterInner<T> {
 
     pub fn new_builtin_stateful(
         guid_prefix: GuidPrefix,
-        entity_key: EntityKey,
+        entity_key: [u8;3],
         topic: &RtpsAnyTopicInnerRef,
         qos: DataWriterQos,
         listener: Option<Box<dyn DataWriterListener<T>>>,
         status_mask: StatusMask,
     ) -> Self {
-        let entity_kind = match T::topic_kind() {
+        let entity_kind = match T::has_key() {
             TopicKind::NoKey => ENTITY_KIND_BUILT_IN_WRITER_NO_KEY,
             TopicKind::WithKey => ENTITY_KIND_BUILT_IN_WRITER_WITH_KEY,
         };
@@ -128,13 +134,13 @@ impl<T: DDSType> RtpsDataWriterInner<T> {
 
     pub fn new_user_defined_stateful(
         guid_prefix: GuidPrefix,
-        entity_key: EntityKey,
+        entity_key: [u8;3],
         topic: &RtpsAnyTopicInnerRef,
         qos: DataWriterQos,
         listener: Option<Box<dyn DataWriterListener<T>>>,
         status_mask: StatusMask,
     ) -> Self {
-        let entity_kind = match T::topic_kind() {
+        let entity_kind = match T::has_key() {
             TopicKind::NoKey => ENTITY_KIND_BUILT_IN_WRITER_NO_KEY,
             TopicKind::WithKey => ENTITY_KIND_BUILT_IN_WRITER_WITH_KEY,
         };
@@ -253,19 +259,19 @@ impl<T: DDSType + Sized> AsAny for RtpsDataWriterInner<T> {
 pub type RtpsAnyDataWriterInnerRef<'a> = MaybeValidRef<'a, Box<dyn RtpsAnyDataWriterInner>>;
 
 impl<'a> RtpsAnyDataWriterInnerRef<'a> {
-    pub fn get(&self) -> ReturnCode<&Box<dyn RtpsAnyDataWriterInner>> {
-        MaybeValid::get(self).ok_or(ReturnCodes::AlreadyDeleted)
+    pub fn get(&self) -> DDSResult<&Box<dyn RtpsAnyDataWriterInner>> {
+        MaybeValid::get(self).ok_or(DDSError::AlreadyDeleted)
     }
 
-//     pub fn get_as<U: DDSType>(&self) -> ReturnCode<&RtpsDataWriter<U>> {
-//         self.get()?
-//             .as_ref()
-//             .as_any()
-//             .downcast_ref()
-//             .ok_or(ReturnCodes::Error)
-//     }
+    //     pub fn get_as<U: DDSType>(&self) -> DDSResult<&RtpsDataWriter<U>> {
+    //         self.get()?
+    //             .as_ref()
+    //             .as_any()
+    //             .downcast_ref()
+    //             .ok_or(DDSError::Error)
+    //     }
 
-    pub fn delete(&self) -> ReturnCode<()> {
+    pub fn delete(&self) -> DDSResult<()> {
         self.get()?.topic().take(); // Drop the topic
         MaybeValid::delete(self);
         Ok(())
@@ -276,31 +282,32 @@ impl<'a> RtpsAnyDataWriterInnerRef<'a> {
         data: T,
         _handle: Option<InstanceHandle>,
         _timestamp: Time,
-    ) -> ReturnCode<()> {
-        let writer = &mut self.get()?.writer();
-        let kind = ChangeKind::Alive;
-        let inline_qos = None;
-        let change = writer.new_change(
-            kind,
-            Some(data.serialize()),
-            inline_qos,
-            data.instance_handle(),
-        );
-        writer.writer_cache.add_change(change);
+    ) -> DDSResult<()> {
+        todo!()
+        // let writer = &mut self.get()?.writer();
+        // let kind = ChangeKind::Alive;
+        // let inline_qos = None;
+        // let change = writer.new_change(
+        //     kind,
+        //     Some(data.serialize()),
+        //     inline_qos,
+        //     data.instance_handle(),
+        // );
+        // writer.writer_cache.add_change(change);
 
-        Ok(())
+        // Ok(())
     }
 
-//     pub fn get_qos(&self) -> ReturnCode<DataWriterQos> {
-//         Ok(self.get()?.qos().clone())
-//     }
+    //     pub fn get_qos(&self) -> DDSResult<DataWriterQos> {
+    //         Ok(self.get()?.qos().clone())
+    //     }
 
-//     pub fn set_qos(&self, qos: Option<DataWriterQos>) -> ReturnCode<()> {
-//         let qos = qos.unwrap_or_default();
-//         qos.is_consistent()?;
-//         *self.get()?.qos() = qos;
-//         Ok(())
-//     }
+    //     pub fn set_qos(&self, qos: Option<DataWriterQos>) -> DDSResult<()> {
+    //         let qos = qos.unwrap_or_default();
+    //         qos.is_consistent()?;
+    //         *self.get()?.qos() = qos;
+    //         Ok(())
+    //     }
 
     pub fn produce_messages(&self) -> Vec<behavior::endpoint_traits::DestinedMessages> {
         if let Some(rtps_writer) = self.get().ok() {

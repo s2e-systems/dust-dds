@@ -1,16 +1,11 @@
 use std::sync::{atomic, Arc, Mutex};
 
-use rust_dds_api::{
-    infrastructure::{
+use rust_dds_api::{dcps_psm::StatusMask, dds_type::DDSType, infrastructure::{
         qos::{DataReaderQos, SubscriberQos},
-        status::StatusMask,
-    },
-    subscription::{
+    }, return_type::{DDSError, DDSResult}, subscription::{
         data_reader_listener::DataReaderListener, subscriber_listener::SubscriberListener,
-    },
-};
-use rust_dds_types::{DDSType, ReturnCode, ReturnCodes, TopicKind};
-use rust_rtps::{structure::Group, types::{EntityId, EntityKey, GUID, GuidPrefix, constants::{ENTITY_KIND_BUILT_IN_READER_GROUP, ENTITY_KIND_BUILT_IN_READER_NO_KEY, ENTITY_KIND_BUILT_IN_READER_WITH_KEY, ENTITY_KIND_USER_DEFINED_READER_GROUP, ENTITY_KIND_USER_DEFINED_READER_NO_KEY, ENTITY_KIND_USER_DEFINED_READER_WITH_KEY}}};
+    }};
+use rust_rtps::{structure::Group, types::{EntityId, GUID, GuidPrefix, constants::{ENTITY_KIND_BUILT_IN_READER_GROUP, ENTITY_KIND_BUILT_IN_READER_NO_KEY, ENTITY_KIND_BUILT_IN_READER_WITH_KEY, ENTITY_KIND_USER_DEFINED_READER_GROUP, ENTITY_KIND_USER_DEFINED_READER_NO_KEY, ENTITY_KIND_USER_DEFINED_READER_WITH_KEY}}};
 
 use crate::utils::maybe_valid::{MaybeValid, MaybeValidList, MaybeValidRef};
 
@@ -39,7 +34,7 @@ pub struct RtpsSubscriberInner {
 impl RtpsSubscriberInner {
     pub fn new_builtin(
         guid_prefix: GuidPrefix,
-        entity_key: EntityKey,
+        entity_key: [u8;3],
         qos: SubscriberQos,
         listener: Option<Box<dyn SubscriberListener>>,
         status_mask: StatusMask,
@@ -56,7 +51,7 @@ impl RtpsSubscriberInner {
 
     pub fn new_user_defined(
         guid_prefix: GuidPrefix,
-        entity_key: EntityKey,
+        entity_key: [u8;3],
         qos: SubscriberQos,
         listener: Option<Box<dyn SubscriberListener>>,
         status_mask: StatusMask,
@@ -73,7 +68,7 @@ impl RtpsSubscriberInner {
 
     fn new(
         guid_prefix: GuidPrefix,
-        entity_key: EntityKey,
+        entity_key: [u8;3],
         qos: SubscriberQos,
         listener: Option<Box<dyn SubscriberListener>>,
         status_mask: StatusMask,
@@ -103,8 +98,8 @@ impl RtpsSubscriberInner {
 pub type RtpsSubscriberInnerRef<'a> = MaybeValidRef<'a, Box<RtpsSubscriberInner>>;
 
 impl<'a> RtpsSubscriberInnerRef<'a> {
-    pub fn get(&self) -> ReturnCode<&Box<RtpsSubscriberInner>> {
-        MaybeValid::get(self).ok_or(ReturnCodes::AlreadyDeleted)
+    pub fn get(&self) -> DDSResult<&Box<RtpsSubscriberInner>> {
+        MaybeValid::get(self).ok_or(DDSError::AlreadyDeleted)
     }
 
     pub fn delete(&self) {
@@ -131,7 +126,7 @@ impl<'a> RtpsSubscriberInnerRef<'a> {
 
     pub fn create_stateful_datareader<T: DDSType>(
         &self,
-        entity_key: EntityKey,
+        entity_key: [u8;3],
         a_topic: &RtpsAnyTopicInnerRef,
         qos: Option<DataReaderQos>,
         a_listener: Option<Box<dyn DataReaderListener<T>>>,
@@ -163,7 +158,7 @@ impl<'a> RtpsSubscriberInnerRef<'a> {
 
     pub fn create_stateless_datareader<T: DDSType>(
         &self,
-        entity_key: EntityKey,
+        entity_key: [u8;3],
         a_topic: &RtpsAnyTopicInnerRef,
         qos: Option<DataReaderQos>,
         a_listener: Option<Box<dyn DataReaderListener<T>>>,
@@ -193,15 +188,15 @@ impl<'a> RtpsSubscriberInnerRef<'a> {
         this.reader_list.add(Box::new(reader))
     }
 
-    pub fn get_qos(&self) -> ReturnCode<SubscriberQos> {
+    pub fn get_qos(&self) -> DDSResult<SubscriberQos> {
         Ok(self.get()?.qos.lock().unwrap().clone())
     }
 
-    pub fn get_default_datareader_qos(&self) -> ReturnCode<DataReaderQos> {
+    pub fn get_default_datareader_qos(&self) -> DDSResult<DataReaderQos> {
         Ok(self.get()?.default_datareader_qos.lock().unwrap().clone())
     }
 
-    pub fn set_default_datareader_qos(&self, qos: Option<DataReaderQos>) -> ReturnCode<()> {
+    pub fn set_default_datareader_qos(&self, qos: Option<DataReaderQos>) -> DDSResult<()> {
         let datareader_qos = qos.unwrap_or_default();
         datareader_qos.is_consistent()?;
         *self.get()?.default_datareader_qos.lock().unwrap() = datareader_qos;

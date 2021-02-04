@@ -11,22 +11,14 @@ use crate::{
         maybe_valid::{MaybeValid, MaybeValidRef},
     },
 };
-use rust_dds_api::{
-    domain::domain_participant::{DomainParticipant, DomainParticipantChild},
-    infrastructure::{
+use rust_dds_api::{dcps_psm::{InconsistentTopicStatus, InstanceHandle, StatusMask}, dds_type::DDSType, domain::domain_participant::{DomainParticipant, DomainParticipantChild}, infrastructure::{
         entity::{Entity, StatusCondition},
         qos::TopicQos,
-        status::{InconsistentTopicStatus, StatusMask},
-    },
-    publication::publisher::Publisher,
-    subscription::subscriber::Subscriber,
-    topic::{
+    }, publication::publisher::Publisher, return_type::DDSResult, subscription::subscriber::Subscriber, topic::{
         topic::Topic,
         topic_description::{AnyTopic, TopicDescription},
         topic_listener::TopicListener,
-    },
-};
-use rust_dds_types::{DDSType, InstanceHandle, ReturnCode, ReturnCodes, TopicKind};
+    }};
 use rust_rtps::types::GUID;
 
 use super::rtps_domain_participant::RtpsDomainParticipant;
@@ -45,7 +37,7 @@ impl<'a, T: DDSType> Topic<'a, T> for RtpsTopic<'a, T> {
     fn get_inconsistent_topic_status(
         &self,
         _status: &mut InconsistentTopicStatus,
-    ) -> ReturnCode<()> {
+    ) -> DDSResult<()> {
         todo!()
     }
 }
@@ -55,11 +47,11 @@ impl<'a, T: DDSType> TopicDescription<'a, T> for RtpsTopic<'a, T> {
         &self.parent_participant
     }
 
-    fn get_type_name(&self) -> ReturnCode<&str> {
+    fn get_type_name(&self) -> DDSResult<&str> {
         todo!()
     }
 
-    fn get_name(&self) -> ReturnCode<String> {
+    fn get_name(&self) -> DDSResult<String> {
         todo!()
     }
 }
@@ -68,15 +60,15 @@ impl<'a, T: DDSType> Entity for RtpsTopic<'a, T> {
     type Qos = TopicQos;
     type Listener = Box<dyn TopicListener<T>>;
 
-    fn set_qos(&self, qos: Option<Self::Qos>) -> ReturnCode<()> {
+    fn set_qos(&self, qos: Option<Self::Qos>) -> DDSResult<()> {
         self.topic_ref.set_qos(qos)
     }
 
-    fn get_qos(&self) -> ReturnCode<Self::Qos> {
+    fn get_qos(&self) -> DDSResult<Self::Qos> {
         self.topic_ref.get_qos()
     }
 
-    fn set_listener(&self, _a_listener: Self::Listener, _mask: StatusMask) -> ReturnCode<()> {
+    fn set_listener(&self, _a_listener: Self::Listener, _mask: StatusMask) -> DDSResult<()> {
         todo!()
     }
 
@@ -92,11 +84,11 @@ impl<'a, T: DDSType> Entity for RtpsTopic<'a, T> {
         todo!()
     }
 
-    fn enable(&self) -> ReturnCode<()> {
+    fn enable(&self) -> DDSResult<()> {
         todo!()
     }
 
-    fn get_instance_handle(&self) -> ReturnCode<InstanceHandle> {
+    fn get_instance_handle(&self) -> DDSResult<InstanceHandle> {
         todo!()
     }
 }

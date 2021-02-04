@@ -4,23 +4,13 @@ use std::{
     sync::{Arc, Mutex, MutexGuard},
 };
 
-use rust_dds_api::{
-    infrastructure::{
-        qos::DataReaderQos, qos_policy::ReliabilityQosPolicyKind, status::StatusMask,
-    },
-    subscription::data_reader_listener::DataReaderListener,
-};
-use rust_dds_types::{DDSType, ReturnCode, ReturnCodes, TopicKind};
-use rust_rtps::{
-    behavior::{self, Reader, StatefulReader, StatelessReader},
-    types::{
-        constants::{
+use rust_dds_api::{dcps_psm::StatusMask, dds_type::DDSType, infrastructure::{
+        qos::DataReaderQos, qos_policy::ReliabilityQosPolicyKind, 
+    }, return_type::{DDSError, DDSResult}, subscription::data_reader_listener::DataReaderListener};
+use rust_rtps::{behavior::{self, Reader, StatefulReader, StatelessReader}, types::{EntityId, GUID, GuidPrefix, ReliabilityKind, TopicKind, constants::{
             ENTITY_KIND_BUILT_IN_READER_NO_KEY, ENTITY_KIND_BUILT_IN_READER_WITH_KEY,
             ENTITY_KIND_USER_DEFINED_READER_NO_KEY, ENTITY_KIND_USER_DEFINED_READER_WITH_KEY,
-        },
-        EntityId, EntityKey, GuidPrefix, ReliabilityKind, GUID,
-    },
-};
+        }}};
 
 use crate::utils::{
     as_any::AsAny,
@@ -78,7 +68,7 @@ pub struct RtpsDataReaderInner<T: DDSType> {
 impl<T: DDSType> RtpsDataReaderInner<T> {
     pub fn new_builtin_stateless(
         guid_prefix: GuidPrefix,
-        entity_key: EntityKey,
+        entity_key: [u8;3],
         topic: &RtpsAnyTopicInnerRef,
         qos: DataReaderQos,
         listener: Option<Box<dyn DataReaderListener<T>>>,
@@ -95,7 +85,7 @@ impl<T: DDSType> RtpsDataReaderInner<T> {
 
     pub fn new_user_defined_stateless(
         guid_prefix: GuidPrefix,
-        entity_key: EntityKey,
+        entity_key: [u8;3],
         topic: &RtpsAnyTopicInnerRef,
         qos: DataReaderQos,
         listener: Option<Box<dyn DataReaderListener<T>>>,
@@ -112,7 +102,7 @@ impl<T: DDSType> RtpsDataReaderInner<T> {
 
     pub fn new_builtin_stateful(
         guid_prefix: GuidPrefix,
-        entity_key: EntityKey,
+        entity_key: [u8;3],
         topic: &RtpsAnyTopicInnerRef,
         qos: DataReaderQos,
         listener: Option<Box<dyn DataReaderListener<T>>>,
@@ -129,7 +119,7 @@ impl<T: DDSType> RtpsDataReaderInner<T> {
 
     pub fn new_user_defined_stateful(
         guid_prefix: GuidPrefix,
-        entity_key: EntityKey,
+        entity_key: [u8;3],
         topic: &RtpsAnyTopicInnerRef,
         qos: DataReaderQos,
         listener: Option<Box<dyn DataReaderListener<T>>>,
@@ -244,19 +234,19 @@ impl<T: DDSType + Sized> AsAny for RtpsDataReaderInner<T> {
 pub type RtpsAnyDataReaderInnerRef<'a> = MaybeValidRef<'a, Box<dyn RtpsAnyDataReaderInner>>;
 
 impl<'a> RtpsAnyDataReaderInnerRef<'a> {
-    pub fn get(&self) -> ReturnCode<&Box<dyn RtpsAnyDataReaderInner>> {
-        MaybeValid::get(self).ok_or(ReturnCodes::AlreadyDeleted)
+    pub fn get(&self) -> DDSResult<&Box<dyn RtpsAnyDataReaderInner>> {
+        MaybeValid::get(self).ok_or(DDSError::AlreadyDeleted)
     }
 
-    pub fn get_as<U: DDSType>(&self) -> ReturnCode<&RtpsDataReaderInner<U>> {
+    pub fn get_as<U: DDSType>(&self) -> DDSResult<&RtpsDataReaderInner<U>> {
         self.get()?
             .as_ref()
             .as_any()
             .downcast_ref()
-            .ok_or(ReturnCodes::Error)
+            .ok_or(DDSError::Error)
     }
 
-    pub fn delete(&self) -> ReturnCode<()> {
+    pub fn delete(&self) -> DDSResult<()> {
         self.get()?.topic().take(); // Drop the topic
         MaybeValid::delete(self);
         Ok(())

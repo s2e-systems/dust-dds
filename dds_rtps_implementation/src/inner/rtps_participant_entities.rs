@@ -1,14 +1,7 @@
 use crate::utils::maybe_valid::{MaybeValidList, MaybeValidRef};
-use rust_dds_api::{
-    infrastructure::{
+use rust_dds_api::{dcps_psm::StatusMask, dds_type::DDSType, infrastructure::{
         qos::{PublisherQos, SubscriberQos, TopicQos},
-        status::StatusMask,
-    },
-    publication::publisher_listener::PublisherListener,
-    subscription::subscriber_listener::SubscriberListener,
-    topic::topic_listener::TopicListener,
-};
-use rust_dds_types::{DDSType, ReturnCode, ReturnCodes};
+    }, publication::publisher_listener::PublisherListener, return_type::{DDSError, DDSResult}, subscription::subscriber_listener::SubscriberListener, topic::topic_listener::TopicListener};
 use rust_rtps::{
     message_sender::RtpsMessageSender,
     transport::Transport,
@@ -17,7 +10,7 @@ use rust_rtps::{
             ENTITY_KIND_BUILT_IN_READER_GROUP, ENTITY_KIND_USER_DEFINED_READER_GROUP,
             ENTITY_KIND_USER_DEFINED_UNKNOWN,
         },
-        EntityId, EntityKey, GuidPrefix, GUID,
+        EntityId, GuidPrefix, GUID,
     },
 };
 use std::sync::{atomic, Arc};
@@ -79,7 +72,7 @@ impl RtpsParticipantEntities {
     pub fn create_publisher(
         &self,
         guid_prefix: GuidPrefix,
-        entity_key: EntityKey,
+        entity_key: [u8;3],
         qos: PublisherQos,
         _listener: Option<Box<dyn PublisherListener>>,
         _status_mask: StatusMask,
@@ -95,19 +88,19 @@ impl RtpsParticipantEntities {
         self.publisher_list.add(Box::new(new_publisher))
     }
 
-    pub fn delete_publisher(&self, a_publisher: &RtpsPublisherInnerRef) -> ReturnCode<()> {
+    pub fn delete_publisher(&self, a_publisher: &RtpsPublisherInnerRef) -> DDSResult<()> {
         let rtps_publisher = a_publisher.get()?;
         if rtps_publisher.writer_list.is_empty() {
             if self.publisher_list.contains(&a_publisher) {
                 a_publisher.delete();
                 Ok(())
             } else {
-                Err(ReturnCodes::PreconditionNotMet(
+                Err(DDSError::PreconditionNotMet(
                     "Publisher not found in this participant",
                 ))
             }
         } else {
-            Err(ReturnCodes::PreconditionNotMet(
+            Err(DDSError::PreconditionNotMet(
                 "Publisher still contains data writers",
             ))
         }
@@ -116,7 +109,7 @@ impl RtpsParticipantEntities {
     pub fn create_subscriber(
         &self,
         guid_prefix: GuidPrefix,
-        entity_key: EntityKey,
+        entity_key: [u8;3],
         qos: SubscriberQos,
         _a_listener: Option<Box<dyn SubscriberListener>>,
         _mask: StatusMask,
@@ -132,19 +125,19 @@ impl RtpsParticipantEntities {
         self.subscriber_list.add(Box::new(new_subscriber))
     }
 
-    pub fn delete_subscriber(&self, a_subscriber: &RtpsSubscriberInnerRef) -> ReturnCode<()> {
+    pub fn delete_subscriber(&self, a_subscriber: &RtpsSubscriberInnerRef) -> DDSResult<()> {
         let rtps_subscriber = a_subscriber.get()?;
         if rtps_subscriber.reader_list.is_empty() {
             if self.subscriber_list.contains(&a_subscriber) {
                 a_subscriber.delete();
                 Ok(())
             } else {
-                Err(ReturnCodes::PreconditionNotMet(
+                Err(DDSError::PreconditionNotMet(
                     "Subscriber not found in this participant",
                 ))
             }
         } else {
-            Err(ReturnCodes::PreconditionNotMet(
+            Err(DDSError::PreconditionNotMet(
                 "Subscriber still contains data readers",
             ))
         }
@@ -153,7 +146,7 @@ impl RtpsParticipantEntities {
     pub fn create_topic<'a, T: DDSType>(
         &'a self,
         guid_prefix: GuidPrefix,
-        entity_key: EntityKey,
+        entity_key: [u8;3],
         topic_name: &str,
         qos: TopicQos,
         a_listener: Option<Box<dyn TopicListener<T>>>,
@@ -172,11 +165,11 @@ impl RtpsParticipantEntities {
         self.topic_list.add(new_topic)
     }
 
-    pub fn delete_topic(&self, a_topic: &RtpsAnyTopicInnerRef) -> ReturnCode<()> {
+    pub fn delete_topic(&self, a_topic: &RtpsAnyTopicInnerRef) -> DDSResult<()> {
         if self.topic_list.contains(&a_topic) {
             a_topic.delete()
         } else {
-            Err(ReturnCodes::PreconditionNotMet(
+            Err(DDSError::PreconditionNotMet(
                 "Topic not found in this participant",
             ))
         }
@@ -238,19 +231,15 @@ mod tests {
             "TestType"
         }
 
-        fn topic_kind() -> rust_dds_types::TopicKind {
-            rust_dds_types::TopicKind::WithKey
-        }
-
-        fn instance_handle(&self) -> rust_dds_types::InstanceHandle {
+        fn key(&self) -> Vec<u8> {
             todo!()
         }
 
-        fn serialize(&self) -> rust_dds_types::Data {
+        fn serialize(&self) -> Vec<u8> {
             todo!()
         }
 
-        fn deserialize(_data: rust_dds_types::Data) -> Self {
+        fn deserialize(data: Vec<u8>) -> Self {
             todo!()
         }
     }

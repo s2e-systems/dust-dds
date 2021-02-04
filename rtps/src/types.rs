@@ -129,9 +129,28 @@ pub type GuidPrefix = [u8; 12];
 
 #[derive(Hash, Eq, PartialEq, Debug, Clone, Copy)]
 pub struct EntityId {
-    pub entity_key: [u8; 3],
-    pub entity_kind: u8,
+    entity_key: [u8; 3],
+    entity_kind: u8,
 }
+
+impl EntityId {
+    pub fn new(entity_key: [u8; 3], entity_kind: u8,) -> Self {
+        Self{
+            entity_key,
+            entity_kind
+        }
+    }
+
+    pub fn entity_key(&self) -> [u8; 3] {
+        self.entity_key
+    }
+
+    pub fn entity_kind(&self) -> u8 {
+        self.entity_kind
+    }
+
+}
+
 
 pub type SequenceNumber = i64;
 

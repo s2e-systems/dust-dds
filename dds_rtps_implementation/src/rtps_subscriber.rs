@@ -1,4 +1,8 @@
-use std::{marker::PhantomData, ops::Deref, sync::{atomic, Arc, Mutex}};
+use std::{
+    marker::PhantomData,
+    ops::Deref,
+    sync::{atomic, Arc, Mutex},
+};
 
 use crate::{
     inner::rtps_subscriber_inner::RtpsSubscriberInnerRef,
@@ -7,13 +11,18 @@ use crate::{
     utils::maybe_valid::{MaybeValid, MaybeValidList, MaybeValidRef},
 };
 use rust_dds_api::{
+    dcps_psm::{
+        InstanceHandle, InstanceStateKind, SampleLostStatus, SampleStateKind, StatusMask,
+        ViewStateKind,
+    },
+    dds_type::DDSType,
     domain::domain_participant::{DomainParticipant, DomainParticipantChild, TopicGAT},
     infrastructure::{
         entity::{Entity, StatusCondition},
         qos::{DataReaderQos, SubscriberQos, TopicQos},
-        status::{InstanceStateKind, SampleLostStatus, SampleStateKind, StatusMask, ViewStateKind},
     },
     publication::publisher::Publisher,
+    return_type::DDSResult,
     subscription::{
         data_reader::{AnyDataReader, DataReader},
         data_reader_listener::DataReaderListener,
@@ -22,7 +31,6 @@ use rust_dds_api::{
     },
     topic::topic::Topic,
 };
-use rust_dds_types::{DDSType, InstanceHandle, ReturnCode, ReturnCodes, TopicKind};
 use rust_rtps::{
     structure::Group,
     types::{
@@ -65,13 +73,17 @@ impl<'a> Subscriber<'a> for RtpsSubscriber<'a> {
             self.subscriber_ref
                 .create_datareader(&a_topic.topic_ref, qos, a_listener, mask)?;
 
-        Some(RtpsDataReader{parent_subscriber:self, data_reader_ref, phantom_data: PhantomData})
+        Some(RtpsDataReader {
+            parent_subscriber: self,
+            data_reader_ref,
+            phantom_data: PhantomData,
+        })
     }
 
     fn delete_datareader<T: DDSType>(
         &'a self,
         a_datareader: &'a <Self as DataReaderGAT<'a, T>>::DataReaderType,
-    ) -> ReturnCode<()> {
+    ) -> DDSResult<()> {
         a_datareader.data_reader_ref.delete()
     }
 
@@ -82,15 +94,15 @@ impl<'a> Subscriber<'a> for RtpsSubscriber<'a> {
         todo!()
     }
 
-    fn begin_access(&self) -> ReturnCode<()> {
+    fn begin_access(&self) -> DDSResult<()> {
         todo!()
     }
 
-    fn end_access(&self) -> ReturnCode<()> {
+    fn end_access(&self) -> DDSResult<()> {
         todo!()
     }
 
-    fn notify_datareaders(&self) -> ReturnCode<()> {
+    fn notify_datareaders(&self) -> DDSResult<()> {
         todo!()
     }
 
@@ -98,19 +110,19 @@ impl<'a> Subscriber<'a> for RtpsSubscriber<'a> {
         &self.parent_participant
     }
 
-    fn get_sample_lost_status(&self, _status: &mut SampleLostStatus) -> ReturnCode<()> {
+    fn get_sample_lost_status(&self, _status: &mut SampleLostStatus) -> DDSResult<()> {
         todo!()
     }
 
-    fn delete_contained_entities(&self) -> ReturnCode<()> {
+    fn delete_contained_entities(&self) -> DDSResult<()> {
         todo!()
     }
 
-    fn set_default_datareader_qos(&self, _qos: Option<DataReaderQos>) -> ReturnCode<()> {
+    fn set_default_datareader_qos(&self, _qos: Option<DataReaderQos>) -> DDSResult<()> {
         todo!()
     }
 
-    fn get_default_datareader_qos(&self) -> ReturnCode<DataReaderQos> {
+    fn get_default_datareader_qos(&self) -> DDSResult<DataReaderQos> {
         todo!()
     }
 
@@ -118,7 +130,7 @@ impl<'a> Subscriber<'a> for RtpsSubscriber<'a> {
         &self,
         _a_datareader_qos: &mut DataReaderQos,
         _a_topic_qos: &TopicQos,
-    ) -> ReturnCode<()> {
+    ) -> DDSResult<()> {
         todo!()
     }
 
@@ -128,7 +140,7 @@ impl<'a> Subscriber<'a> for RtpsSubscriber<'a> {
         _sample_states: &[SampleStateKind],
         _view_states: &[ViewStateKind],
         _instance_states: &[InstanceStateKind],
-    ) -> ReturnCode<()> {
+    ) -> DDSResult<()> {
         todo!()
     }
 }
@@ -137,15 +149,15 @@ impl<'a> Entity for RtpsSubscriber<'a> {
     type Qos = SubscriberQos;
     type Listener = Box<dyn SubscriberListener>;
 
-    fn set_qos(&self, _qos: Option<Self::Qos>) -> ReturnCode<()> {
+    fn set_qos(&self, _qos: Option<Self::Qos>) -> DDSResult<()> {
         todo!()
     }
 
-    fn get_qos(&self) -> ReturnCode<Self::Qos> {
+    fn get_qos(&self) -> DDSResult<Self::Qos> {
         self.subscriber_ref.get_qos()
     }
 
-    fn set_listener(&self, _a_listener: Self::Listener, _mask: StatusMask) -> ReturnCode<()> {
+    fn set_listener(&self, _a_listener: Self::Listener, _mask: StatusMask) -> DDSResult<()> {
         todo!()
     }
 
@@ -161,11 +173,11 @@ impl<'a> Entity for RtpsSubscriber<'a> {
         todo!()
     }
 
-    fn enable(&self) -> ReturnCode<()> {
+    fn enable(&self) -> DDSResult<()> {
         todo!()
     }
 
-    fn get_instance_handle(&self) -> ReturnCode<InstanceHandle> {
+    fn get_instance_handle(&self) -> DDSResult<InstanceHandle> {
         todo!()
     }
 }

@@ -5,26 +5,15 @@ use std::{
     sync::{Arc, Mutex, MutexGuard},
 };
 
-use rust_dds_api::{
-    builtin_topics::SubscriptionBuiltinTopicData,
-    domain::domain_participant::TopicGAT,
-    infrastructure::{
+use rust_dds_api::{builtin_topics::SubscriptionBuiltinTopicData, dcps_psm::{Duration, InstanceHandle, LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus, StatusMask, Time}, dds_type::DDSType, domain::domain_participant::TopicGAT, infrastructure::{
         entity::{Entity, StatusCondition},
         qos::DataWriterQos,
         qos_policy::ReliabilityQosPolicyKind,
-        status::{
-            LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus,
-            PublicationMatchedStatus, StatusMask,
-        },
-    },
-    publication::{
+    }, publication::{
         data_writer::{AnyDataWriter, DataWriter},
         data_writer_listener::DataWriterListener,
         publisher::{Publisher, PublisherChild},
-    },
-    topic::topic::Topic,
-};
-use rust_dds_types::{DDSType, Duration, InstanceHandle, ReturnCode, ReturnCodes, Time, TopicKind};
+    }, return_type::DDSResult, topic::topic::Topic};
 use rust_rtps::{
     behavior::{self, endpoint_traits::CacheChangeSender, StatefulWriter, StatelessWriter, Writer},
     types::{
@@ -32,7 +21,7 @@ use rust_rtps::{
             ENTITY_KIND_BUILT_IN_WRITER_NO_KEY, ENTITY_KIND_BUILT_IN_WRITER_WITH_KEY,
             ENTITY_KIND_USER_DEFINED_WRITER_NO_KEY, ENTITY_KIND_USER_DEFINED_WRITER_WITH_KEY,
         },
-        EntityId, EntityKey, GuidPrefix, ReliabilityKind, GUID,
+        EntityId, GuidPrefix, ReliabilityKind, GUID,
     },
 };
 
@@ -58,7 +47,7 @@ impl<'a, T: DDSType> TopicGAT<'a, T> for RtpsDataWriter<'a, T> {
 }
 
 impl<'a, T: DDSType> DataWriter<'a, T> for RtpsDataWriter<'a, T> {
-    fn register_instance(&self, _instance: T) -> ReturnCode<Option<InstanceHandle>> {
+    fn register_instance(&self, _instance: T) -> DDSResult<Option<InstanceHandle>> {
         todo!()
     }
 
@@ -66,11 +55,11 @@ impl<'a, T: DDSType> DataWriter<'a, T> for RtpsDataWriter<'a, T> {
         &self,
         _instance: T,
         _timestamp: Time,
-    ) -> ReturnCode<Option<InstanceHandle>> {
+    ) -> DDSResult<Option<InstanceHandle>> {
         todo!()
     }
 
-    fn unregister_instance(&self, _instance: T, _handle: Option<InstanceHandle>) -> ReturnCode<()> {
+    fn unregister_instance(&self, _instance: T, _handle: Option<InstanceHandle>) -> DDSResult<()> {
         todo!()
     }
 
@@ -79,19 +68,19 @@ impl<'a, T: DDSType> DataWriter<'a, T> for RtpsDataWriter<'a, T> {
         _instance: T,
         _handle: Option<InstanceHandle>,
         _timestamp: Time,
-    ) -> ReturnCode<()> {
+    ) -> DDSResult<()> {
         todo!()
     }
 
-    fn get_key_value(&self, _key_holder: &mut T, _handle: InstanceHandle) -> ReturnCode<()> {
+    fn get_key_value(&self, _key_holder: &mut T, _handle: InstanceHandle) -> DDSResult<()> {
         todo!()
     }
 
-    fn lookup_instance(&self, _instance: &T) -> ReturnCode<Option<InstanceHandle>> {
+    fn lookup_instance(&self, _instance: &T) -> DDSResult<Option<InstanceHandle>> {
         todo!()
     }
 
-    fn write(&self, _data: T, _handle: Option<InstanceHandle>) -> ReturnCode<()> {
+    fn write(&self, _data: T, _handle: Option<InstanceHandle>) -> DDSResult<()> {
         todo!()
     }
 
@@ -100,11 +89,11 @@ impl<'a, T: DDSType> DataWriter<'a, T> for RtpsDataWriter<'a, T> {
         _data: T,
         _handle: Option<InstanceHandle>,
         _timestamp: Time,
-    ) -> ReturnCode<()> {
+    ) -> DDSResult<()> {
         todo!()
     }
 
-    fn dispose(&self, _data: T, _handle: Option<InstanceHandle>) -> ReturnCode<()> {
+    fn dispose(&self, _data: T, _handle: Option<InstanceHandle>) -> DDSResult<()> {
         todo!()
     }
 
@@ -113,36 +102,36 @@ impl<'a, T: DDSType> DataWriter<'a, T> for RtpsDataWriter<'a, T> {
         _data: T,
         _handle: Option<InstanceHandle>,
         _timestamp: Time,
-    ) -> ReturnCode<()> {
+    ) -> DDSResult<()> {
         todo!()
     }
 
-    fn wait_for_acknowledgments(&self, _max_wait: Duration) -> ReturnCode<()> {
+    fn wait_for_acknowledgments(&self, _max_wait: Duration) -> DDSResult<()> {
         todo!()
     }
 
-    fn get_liveliness_lost_status(&self, _status: &mut LivelinessLostStatus) -> ReturnCode<()> {
+    fn get_liveliness_lost_status(&self, _status: &mut LivelinessLostStatus) -> DDSResult<()> {
         todo!()
     }
 
     fn get_offered_deadline_missed_status(
         &self,
         _status: &mut OfferedDeadlineMissedStatus,
-    ) -> ReturnCode<()> {
+    ) -> DDSResult<()> {
         todo!()
     }
 
     fn get_offered_incompatible_qos_status(
         &self,
         _status: &mut OfferedIncompatibleQosStatus,
-    ) -> ReturnCode<()> {
+    ) -> DDSResult<()> {
         todo!()
     }
 
     fn get_publication_matched_status(
         &self,
         _status: &mut PublicationMatchedStatus,
-    ) -> ReturnCode<()> {
+    ) -> DDSResult<()> {
         todo!()
     }
 
@@ -156,7 +145,7 @@ impl<'a, T: DDSType> DataWriter<'a, T> for RtpsDataWriter<'a, T> {
         todo!()
     }
 
-    fn assert_liveliness(&self) -> ReturnCode<()> {
+    fn assert_liveliness(&self) -> DDSResult<()> {
         todo!()
     }
 
@@ -164,14 +153,14 @@ impl<'a, T: DDSType> DataWriter<'a, T> for RtpsDataWriter<'a, T> {
         &self,
         _subscription_data: SubscriptionBuiltinTopicData,
         _subscription_handle: InstanceHandle,
-    ) -> ReturnCode<()> {
+    ) -> DDSResult<()> {
         todo!()
     }
 
     fn get_matched_subscriptions(
         &self,
         _subscription_handles: &mut [InstanceHandle],
-    ) -> ReturnCode<()> {
+    ) -> DDSResult<()> {
         todo!()
     }
 }
@@ -181,15 +170,15 @@ impl<'a, T: DDSType> Entity for RtpsDataWriter<'a, T> {
 
     type Listener = Box<dyn DataWriterListener<T>>;
 
-    fn set_qos(&self, _qos: Option<Self::Qos>) -> ReturnCode<()> {
+    fn set_qos(&self, _qos: Option<Self::Qos>) -> DDSResult<()> {
         todo!()
     }
 
-    fn get_qos(&self) -> ReturnCode<Self::Qos> {
+    fn get_qos(&self) -> DDSResult<Self::Qos> {
         todo!()
     }
 
-    fn set_listener(&self, _a_listener: Self::Listener, _mask: StatusMask) -> ReturnCode<()> {
+    fn set_listener(&self, _a_listener: Self::Listener, _mask: StatusMask) -> DDSResult<()> {
         todo!()
     }
 
@@ -205,11 +194,11 @@ impl<'a, T: DDSType> Entity for RtpsDataWriter<'a, T> {
         todo!()
     }
 
-    fn enable(&self) -> ReturnCode<()> {
+    fn enable(&self) -> DDSResult<()> {
         todo!()
     }
 
-    fn get_instance_handle(&self) -> ReturnCode<InstanceHandle> {
+    fn get_instance_handle(&self) -> DDSResult<InstanceHandle> {
         todo!()
     }
 }
