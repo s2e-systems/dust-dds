@@ -91,7 +91,7 @@ pub type Count = i32;
 
 pub type FragmentNumber = u32;
 
-pub type ParameterId = u16;
+pub type ParameterId = i16;
 
 // /////////// KeyHash and StatusInfo /////////////
 

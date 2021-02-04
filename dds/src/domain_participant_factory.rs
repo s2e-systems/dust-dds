@@ -1,9 +1,5 @@
-use rust_dds_api::{
-    domain::domain_participant_listener::DomainParticipantListener,
-    infrastructure::{qos::DomainParticipantQos, status::StatusMask},
-};
+use rust_dds_api::{dcps_psm::{DomainId, StatusMask}, domain::domain_participant_listener::DomainParticipantListener, infrastructure::{qos::DomainParticipantQos}};
 use rust_dds_rtps_implementation::rtps_domain_participant::RtpsDomainParticipant;
-use rust_dds_types::DomainId;
 use rust_rtps_transport_udp::UdpTransport;
 
 /// The DomainParticipant object plays several roles:

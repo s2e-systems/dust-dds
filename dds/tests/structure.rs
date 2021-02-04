@@ -1,10 +1,7 @@
 use rust_dds::{
     domain::domain_participant::DomainParticipant,
-    domain_participant_factory::DomainParticipantFactory,
-    infrastructure::entity::Entity,
-    publication::publisher::Publisher,
-    subscription::subscriber::Subscriber,
-    types::{DDSType, Data, InstanceHandle, ReturnCodes, TopicKind},
+    domain_participant_factory::DomainParticipantFactory, infrastructure::entity::Entity,
+    publication::publisher::Publisher, subscription::subscriber::Subscriber, DDSError, DDSType,
 };
 
 struct TestType;
@@ -13,19 +10,19 @@ impl DDSType for TestType {
         "TestType"
     }
 
-    fn topic_kind() -> TopicKind {
-        TopicKind::WithKey
+    fn has_key() -> bool {
+        true
     }
 
-    fn instance_handle(&self) -> InstanceHandle {
+    fn key(&self) -> Vec<u8> {
         todo!()
     }
 
-    fn serialize(&self) -> Data {
+    fn serialize(&self) -> Vec<u8> {
         todo!()
     }
 
-    fn deserialize(_data: Data) -> Self {
+    fn deserialize(data: Vec<u8>) -> Self {
         todo!()
     }
 }
@@ -36,10 +33,10 @@ fn create_delete_publisher() {
     let publisher = participant.create_publisher(None, None, 0).unwrap();
 
     assert_eq!(participant.delete_publisher(&publisher), Ok(()));
-    assert_eq!(publisher.get_qos(), Err(ReturnCodes::AlreadyDeleted));
+    assert_eq!(publisher.get_qos(), Err(DDSError::AlreadyDeleted));
     assert_eq!(
         participant.delete_publisher(&publisher),
-        Err(ReturnCodes::AlreadyDeleted)
+        Err(DDSError::AlreadyDeleted)
     );
 }
 
@@ -48,10 +45,10 @@ fn create_delete_subscriber() {
     let participant = DomainParticipantFactory::create_participant(0, None, None, 0).unwrap();
     let subscriber = participant.create_subscriber(None, None, 0).unwrap();
     assert_eq!(participant.delete_subscriber(&subscriber), Ok(()));
-    assert_eq!(subscriber.get_qos(), Err(ReturnCodes::AlreadyDeleted));
+    assert_eq!(subscriber.get_qos(), Err(DDSError::AlreadyDeleted));
     assert_eq!(
         participant.delete_subscriber(&subscriber),
-        Err(ReturnCodes::AlreadyDeleted)
+        Err(DDSError::AlreadyDeleted)
     );
 }
 
@@ -63,10 +60,10 @@ fn create_delete_topic() {
         .unwrap();
 
     assert_eq!(participant.delete_topic(&topic), Ok(()));
-    assert_eq!(topic.get_qos(), Err(ReturnCodes::AlreadyDeleted));
+    assert_eq!(topic.get_qos(), Err(DDSError::AlreadyDeleted));
     assert_eq!(
         participant.delete_topic(&topic),
-        Err(ReturnCodes::AlreadyDeleted)
+        Err(DDSError::AlreadyDeleted)
     );
 }
 
@@ -77,7 +74,7 @@ fn not_allowed_to_delete_publisher_from_different_participant() {
     let publisher = participant.create_publisher(None, None, 0).unwrap();
     assert_eq!(
         other_participant.delete_publisher(&publisher),
-        Err(ReturnCodes::PreconditionNotMet(
+        Err(DDSError::PreconditionNotMet(
             "Publisher not found in this participant"
         ))
     );
@@ -90,7 +87,7 @@ fn not_allowed_to_delete_subscriber_from_different_participant() {
     let subscriber = participant.create_subscriber(None, None, 0).unwrap();
     assert_eq!(
         other_participant.delete_subscriber(&subscriber),
-        Err(ReturnCodes::PreconditionNotMet(
+        Err(DDSError::PreconditionNotMet(
             "Subscriber not found in this participant"
         ))
     );
@@ -105,7 +102,7 @@ fn not_allowed_to_delete_topic_from_different_participant() {
         .unwrap();
     assert_eq!(
         other_participant.delete_topic(&topic),
-        Err(ReturnCodes::PreconditionNotMet(
+        Err(DDSError::PreconditionNotMet(
             "Topic not found in this participant"
         ))
     );
@@ -124,7 +121,7 @@ fn not_allowed_to_delete_publisher_with_writer() {
 
     assert_eq!(
         participant.delete_publisher(&publisher),
-        Err(ReturnCodes::PreconditionNotMet(
+        Err(DDSError::PreconditionNotMet(
             "Publisher still contains data writers"
         ))
     );
@@ -143,7 +140,7 @@ fn not_allowed_to_delete_subscriber_with_reader() {
 
     assert_eq!(
         participant.delete_subscriber(&subscriber),
-        Err(ReturnCodes::PreconditionNotMet(
+        Err(DDSError::PreconditionNotMet(
             "Subscriber still contains data readers"
         ))
     );
@@ -162,7 +159,7 @@ fn not_allowed_to_delete_topic_attached_to_reader() {
 
     assert_eq!(
         participant.delete_topic(&reader_topic),
-        Err(ReturnCodes::PreconditionNotMet(
+        Err(DDSError::PreconditionNotMet(
             "Topic still attached to some data reader or data writer"
         ))
     );
@@ -181,7 +178,7 @@ fn not_allowed_to_delete_topic_attached_to_writer() {
 
     assert_eq!(
         participant.delete_topic(&writer_topic),
-        Err(ReturnCodes::PreconditionNotMet(
+        Err(DDSError::PreconditionNotMet(
             "Topic still attached to some data reader or data writer"
         ))
     );

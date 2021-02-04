@@ -1,6 +1,4 @@
-use rust_dds::{
-    domain_participant_factory::DomainParticipantFactory,// publication::data_writer::DataWriter,
-};
+use rust_dds::{DDSType, domain_participant_factory::DomainParticipantFactory, types::DURATION_ZERO};
 use rust_dds_api::{
     domain::domain_participant::DomainParticipant,
     infrastructure::{
@@ -9,8 +7,6 @@ use rust_dds_api::{
     },
     publication::publisher::Publisher,
 };
-use rust_dds_types::{DDSType, Data, InstanceHandle, TopicKind, DURATION_ZERO};
-
 struct HelloWorldType {
     id: u8,
     _msg: String,
@@ -21,19 +17,19 @@ impl DDSType for HelloWorldType {
         "HelloWorldType"
     }
 
-    fn topic_kind() -> TopicKind {
-        TopicKind::WithKey
+    fn has_key() -> bool {
+        true
     }
 
-    fn instance_handle(&self) -> InstanceHandle {
-        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, self.id]
+    fn key(&self) -> Vec<u8> {
+        vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, self.id]
     }
 
-    fn serialize(&self) -> Data {
+    fn serialize(&self) -> Vec<u8> {
         vec![self.id]
     }
 
-    fn deserialize(_data: Data) -> Self {
+    fn deserialize(_data: Vec<u8>) -> Self {
         todo!()
     }
 }

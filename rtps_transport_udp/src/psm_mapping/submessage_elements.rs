@@ -2,13 +2,14 @@ use std::convert::TryInto;
 
 use std::collections::BTreeSet;
 
-use rust_dds_types::Parameter;
-use rust_rtps::messages::submessages::submessage_elements::{Long, Short, ULong, UShort, Timestamp, GuidPrefix, EntityId, VendorId, ProtocolVersion, SequenceNumber, SequenceNumberSet, FragmentNumber, FragmentNumberSet, LocatorList, Count, SerializedData, ParameterList};
-use rust_rtps::messages::types::Time;
+use rust_rtps::messages::submessages::submessage_elements::{Count, EntityId, FragmentNumber, FragmentNumberSet, GuidPrefix, LocatorList, Long, Parameter, ParameterList, ProtocolVersion, SequenceNumber, SequenceNumberSet, SerializedData, Short, Timestamp, ULong, UShort, VendorId};
+use rust_rtps::messages::types::{Time, ParameterId};
 use rust_rtps::types;
 use rust_rtps::messages::types::Endianness;
 
 use super::{SizeCheck, UdpPsmMappingResult, UdpPsmMappingError};
+
+const PID_SENTINEL : ParameterId = 1;
 
 pub fn serialize_long(
     long: &Long,
@@ -350,7 +351,7 @@ pub fn serialize_parameter_list(parameter_list: &ParameterList, writer: &mut imp
         serialize_short(&parameter.length(), writer, endianness)?;
         writer.write(parameter.value())?;
     }
-    serialize_ushort(&1, writer, endianness)?; // PID_SENTINEL
+    serialize_short(&PID_SENTINEL, writer, endianness)?; 
     writer.write(&[0,0])?;  // LENGTH
     Ok(())
 }
@@ -372,7 +373,7 @@ pub fn deserialize_parameter_list(bytes: &[u8], endianness: Endianness) -> UdpPs
             },
         };
 
-        if parameter_id == ParameterList::PID_SENTINEL {
+        if parameter_id == PID_SENTINEL {
             break;
         }     
 

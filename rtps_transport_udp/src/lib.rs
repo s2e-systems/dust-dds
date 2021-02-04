@@ -2,7 +2,6 @@
 
 use ipconfig;
 use net2::UdpBuilder;
-use rust_dds_types::DomainId;
 use rust_rtps::{messages::RtpsMessage, transport::{Transport, TransportError, TransportResult}, types::{Locator, constants::LOCATOR_KIND_UDPv4}};
 
 use std::{convert::TryInto, net::{UdpSocket, IpAddr, Ipv4Addr, SocketAddr}};
@@ -54,7 +53,7 @@ impl UdpTransport {
         })
     }
 
-    pub fn default_metatraffic_transport(domain_id: DomainId, interface: &str) -> TransportResult<Self> {
+    pub fn default_metatraffic_transport(domain_id: i32, interface: &str) -> TransportResult<Self> {
         let spdp_well_known_multicast_port = (UdpTransport::PB + UdpTransport::DG * domain_id + UdpTransport::D0) as u32;
 
         let metatraffic_unicast_locator = Locator::new(
@@ -72,7 +71,7 @@ impl UdpTransport {
         UdpTransport::new(metatraffic_unicast_locator, vec![metatraffic_multicast_locator])
     }
 
-    pub fn default_userdata_transport(domain_id: DomainId, interface: &str) -> TransportResult<Self> {
+    pub fn default_userdata_transport(domain_id: i32, interface: &str) -> TransportResult<Self> {
         let userdata_multicast_port = (UdpTransport::PB + UdpTransport::DG * domain_id + UdpTransport::D2) as u32;
 
         let userdata_unicast_locator = Locator::new(

@@ -156,12 +156,14 @@ pub type SequenceNumber = i64;
 
 #[derive(PartialEq, Hash, Eq, Debug, Copy, Clone)]
 pub struct Locator {
-    pub kind: i32,
-    pub port: u32,
-    pub address: [u8; 16],
+    kind: i32,
+    port: u32,
+    address: [u8; 16],
 }
 
 impl Locator {
+    pub fn new(kind: i32, port: u32, address: [u8; 16]) -> Self { Self { kind, port, address } }
+
     pub const fn new_udpv4(port: u16, address: [u8; 4]) -> Locator {
         let address: [u8; 16] = [
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, address[0], address[1], address[2], address[3],
@@ -171,6 +173,15 @@ impl Locator {
             port: port as u32,
             address,
         }
+    }
+    pub fn kind(&self) -> i32 {
+        self.kind
+    }
+    pub fn port(&self) -> u32 {
+        self.port
+    }
+    pub fn address(&self) -> &[u8; 16] {
+        &self.address
     }
 }
 

@@ -1,5 +1,3 @@
-#![allow(dead_code, unused_imports)]
-
 pub mod rtps_domain_participant;
 pub mod rtps_topic;
 pub mod rtps_publisher;
