@@ -1,11 +1,10 @@
-use rust_dds_types::DDSType;
-
-use crate::infrastructure::{
-    listener::Listener,
-    status::{
+use crate::{
+    dcps_psm::{
         LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus,
         PublicationMatchedStatus,
     },
+    dds_type::DDSType,
+    infrastructure::listener::Listener,
 };
 
 use super::data_writer::DataWriter;

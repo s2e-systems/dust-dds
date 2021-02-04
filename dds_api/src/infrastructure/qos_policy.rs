@@ -1,5 +1,6 @@
-use rust_dds_types::{Duration, DURATION_INFINITE, DURATION_ZERO, LENGTH_UNLIMITED};
 use std::cmp::Ordering;
+
+use crate::dcps_psm::{DURATION_INFINITE, DURATION_ZERO, Duration, LENGTH_UNLIMITED};
 
 pub type QosPolicyId = i32;
 

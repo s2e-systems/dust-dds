@@ -1,13 +1,11 @@
 use crate::{
-    infrastructure::{
-        listener::Listener,
-        status::{
-            InconsistentTopicStatus, LivelinessChangedStatus, LivelinessLostStatus,
-            OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus,
-            RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus, SampleLostStatus,
-            SampleRejectedStatus, SubscriptionMatchedStatus,
-        },
+    dcps_psm::{
+        InconsistentTopicStatus, LivelinessChangedStatus, LivelinessLostStatus,
+        OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus,
+        RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus, SampleLostStatus,
+        SampleRejectedStatus, SubscriptionMatchedStatus,
     },
+    infrastructure::listener::Listener,
     publication::data_writer::AnyDataWriter,
     subscription::{data_reader::AnyDataReader, subscriber::Subscriber},
     topic::topic_description::AnyTopic,

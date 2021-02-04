@@ -1,6 +1,6 @@
-use rust_dds_types::DDSType;
-
-use crate::infrastructure::{listener::Listener, status::InconsistentTopicStatus};
+use crate::{
+    dcps_psm::InconsistentTopicStatus, dds_type::DDSType, infrastructure::listener::Listener,
+};
 
 use super::topic::Topic;
 

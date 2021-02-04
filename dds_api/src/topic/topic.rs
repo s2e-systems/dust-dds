@@ -1,6 +1,4 @@
-use rust_dds_types::{DDSType, ReturnCode};
-
-use crate::infrastructure::status::InconsistentTopicStatus;
+use crate::{dcps_psm::InconsistentTopicStatus, dds_type::DDSType, return_type::DDSResult};
 
 use super::topic_description::TopicDescription;
 
@@ -16,6 +14,5 @@ pub trait Topic<'a, T: DDSType>: TopicDescription<'a, T> {
     /// invoked and can also be monitored by means of the associated StatusCondition.
     /// The complete list of communication status, their values, and the DomainEntities they apply to is provided in 2.2.4.1,
     /// Communication Status.
-    fn get_inconsistent_topic_status(&self, status: &mut InconsistentTopicStatus)
-        -> ReturnCode<()>;
+    fn get_inconsistent_topic_status(&self, status: &mut InconsistentTopicStatus) -> DDSResult<()>;
 }

@@ -1,12 +1,4 @@
-use rust_dds_types::DDSType;
-
-use crate::infrastructure::{
-    listener::Listener,
-    status::{
-        LivelinessChangedStatus, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus,
-        SampleLostStatus, SampleRejectedStatus, SubscriptionMatchedStatus,
-    },
-};
+use crate::{dcps_psm::{LivelinessChangedStatus, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus, SubscriptionMatchedStatus}, dds_type::DDSType, infrastructure::listener::Listener};
 
 use super::data_reader::DataReader;
 

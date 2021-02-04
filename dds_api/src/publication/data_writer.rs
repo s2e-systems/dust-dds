@@ -1,17 +1,4 @@
-use rust_dds_types::{DDSType, Duration, InstanceHandle, ReturnCode, Time};
-
-use crate::{
-    builtin_topics::SubscriptionBuiltinTopicData,
-    domain::domain_participant::TopicGAT,
-    infrastructure::{
-        entity::Entity,
-        qos::DataWriterQos,
-        status::{
-            LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus,
-            PublicationMatchedStatus,
-        },
-    },
-};
+use crate::{builtin_topics::SubscriptionBuiltinTopicData, dcps_psm::{Duration, InstanceHandle, LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus, Time}, dds_type::DDSType, domain::domain_participant::TopicGAT, infrastructure::{entity::Entity, qos::DataWriterQos}, return_type::DDSResult};
 
 use super::{data_writer_listener::DataWriterListener, publisher::PublisherChild};
 
@@ -32,7 +19,7 @@ pub trait DataWriter<'a, T: DDSType>:
     /// allocated handle. This may be used to lookup and retrieve the handle allocated to a given instance. The explicit use of this
     /// operation is optional as the application may call directly the write operation and specify a HANDLE_NIL to indicate that the
     /// ‘key’ should be examined to identify the instance.
-    fn register_instance(&self, instance: T) -> ReturnCode<Option<InstanceHandle>>;
+    fn register_instance(&self, instance: T) -> DDSResult<Option<InstanceHandle>>;
 
     /// This operation performs the same function as register_instance and can be used instead of register_instance in the cases
     /// where the application desires to specify the value for the source_timestamp. The source_timestamp potentially affects the
@@ -45,7 +32,7 @@ pub trait DataWriter<'a, T: DDSType>:
         &self,
         instance: T,
         timestamp: Time,
-    ) -> ReturnCode<Option<InstanceHandle>>;
+    ) -> DDSResult<Option<InstanceHandle>>;
 
     /// This operation reverses the action of register_instance. It should only be called on an instance that is currently registered.
     /// The operation unregister_instance should be called just once per instance, regardless of how many times register_instance
@@ -74,7 +61,7 @@ pub trait DataWriter<'a, T: DDSType>:
     /// This operation may block and return TIMEOUT under the same circumstances described for the write operation (2.2.2.4.2.11,
     /// write).
     /// Possible error codes returned in addition to the standard ones: TIMEOUT, PRECONDITION_NOT_MET.
-    fn unregister_instance(&self, instance: T, handle: Option<InstanceHandle>) -> ReturnCode<()>;
+    fn unregister_instance(&self, instance: T, handle: Option<InstanceHandle>) -> DDSResult<()>;
 
     /// This operation performs the same function as unregister_instance and can be used instead of unregister_instance in the cases
     /// where the application desires to specify the value for the source_timestamp. The source_timestamp potentially affects the
@@ -88,21 +75,21 @@ pub trait DataWriter<'a, T: DDSType>:
         instance: T,
         handle: Option<InstanceHandle>,
         timestamp: Time,
-    ) -> ReturnCode<()>;
+    ) -> DDSResult<()>;
 
     /// This operation can be used to retrieve the instance key that corresponds to an instance_handle. The operation will only fill the
     /// fields that form the key inside the key_holder instance.
     /// This operation may return BAD_PARAMETER if the InstanceHandle_t a_handle does not correspond to an existing dataobject
     /// known to the DataWriter. If the implementation is not able to check invalid handles, then the result in this situation is
     /// unspecified.
-    fn get_key_value(&self, key_holder: &mut T, handle: InstanceHandle) -> ReturnCode<()>;
+    fn get_key_value(&self, key_holder: &mut T, handle: InstanceHandle) -> DDSResult<()>;
 
     /// This operation takes as a parameter an instance and returns a handle that can be used in subsequent operations that accept an
     /// instance handle as an argument. The instance parameter is only used for the purpose of examining the fields that define the
     /// key.
     /// This operation does not register the instance in question. If the instance has not been previously registered, or if for any other
     /// reason the Service is unable to provide an instance handle, the Service will return the special value HANDLE_NIL.
-    fn lookup_instance(&self, instance: &T) -> ReturnCode<Option<InstanceHandle>>;
+    fn lookup_instance(&self, instance: &T) -> DDSResult<Option<InstanceHandle>>;
 
     /// This operation modifies the value of a data instance. When this operation is used, the Service will automatically supply the
     /// value of the source_timestamp that is made available to DataReader objects by means of the source_timestamp attribute
@@ -142,7 +129,7 @@ pub trait DataWriter<'a, T: DDSType>:
     /// by the ‘data’ parameter, the behavior is in general unspecified, but if detectable by the Service implementation, the return
     /// error-code will be PRECONDITION_NOT_MET. In case the handle is invalid, the behavior is in general unspecified, but if
     /// detectable the returned error-code will be BAD_PARAMETER.
-    fn write(&self, data: T, handle: Option<InstanceHandle>) -> ReturnCode<()>;
+    fn write(&self, data: T, handle: Option<InstanceHandle>) -> DDSResult<()>;
 
     /// This operation performs the same function as write except that it also provides the value for the source_timestamp that is made
     /// available to DataReader objects by means of the source_timestamp attribute inside the SampleInfo. See 2.2.2.5, Subscription
@@ -162,7 +149,7 @@ pub trait DataWriter<'a, T: DDSType>:
         data: T,
         handle: Option<InstanceHandle>,
         timestamp: Time,
-    ) -> ReturnCode<()>;
+    ) -> DDSResult<()>;
 
     /// This operation requests the middleware to delete the data (the actual deletion is postponed until there is no more use for that
     /// data in the whole system). In general, applications are made aware of the deletion by means of operations on the DataReader
@@ -176,7 +163,7 @@ pub trait DataWriter<'a, T: DDSType>:
     /// This operation may block and return TIMEOUT under the same circumstances described for the write operation (2.2.2.4.2.11).
     /// This operation may return OUT_OF_RESOURCES under the same circumstances described for the write operation
     /// (2.2.2.4.2.11).
-    fn dispose(&self, data: T, handle: Option<InstanceHandle>) -> ReturnCode<()>;
+    fn dispose(&self, data: T, handle: Option<InstanceHandle>) -> DDSResult<()>;
 
     /// This operation performs the same functions as dispose except that the application provides the value for the source_timestamp
     /// that is made available to DataReader objects by means of the source_timestamp attribute inside the SampleInfo (see 2.2.2.5,
@@ -196,7 +183,7 @@ pub trait DataWriter<'a, T: DDSType>:
         data: T,
         handle: Option<InstanceHandle>,
         timestamp: Time,
-    ) -> ReturnCode<()>;
+    ) -> DDSResult<()>;
 
     /// This operation is intended to be used only if the DataWriter has RELIABILITY QoS kind set to RELIABLE. Otherwise the
     /// operation will return immediately with RETCODE_OK.
@@ -205,32 +192,32 @@ pub trait DataWriter<'a, T: DDSType>:
     /// specified by the max_wait parameter elapses, whichever happens first. A return value of OK indicates that all the samples
     /// written have been acknowledged by all reliable matched data readers; a return value of TIMEOUT indicates that max_wait
     /// elapsed before all the data was acknowledged.
-    fn wait_for_acknowledgments(&self, max_wait: Duration) -> ReturnCode<()>;
+    fn wait_for_acknowledgments(&self, max_wait: Duration) -> DDSResult<()>;
 
     /// This operation allows access to the LIVELINESS_LOST communication status. Communication statuses are described in
     /// 2.2.4.1, Communication Status.
-    fn get_liveliness_lost_status(&self, status: &mut LivelinessLostStatus) -> ReturnCode<()>;
+    fn get_liveliness_lost_status(&self, status: &mut LivelinessLostStatus) -> DDSResult<()>;
 
     /// This operation allows access to the OFFERED_DEADLINE_MISSED communication status. Communication statuses are
     /// described in 2.2.4.1, Communication Status.
     fn get_offered_deadline_missed_status(
         &self,
         status: &mut OfferedDeadlineMissedStatus,
-    ) -> ReturnCode<()>;
+    ) -> DDSResult<()>;
 
     /// This operation allows access to the OFFERED_INCOMPATIBLE_QOS communication status. Communication statuses are
     /// described in 2.2.4.1, Communication Status.
     fn get_offered_incompatible_qos_status(
         &self,
         status: &mut OfferedIncompatibleQosStatus,
-    ) -> ReturnCode<()>;
+    ) -> DDSResult<()>;
 
     /// This operation allows access to the PUBLICATION_MATCHED communication status. Communication statuses are
     /// described in 2.2.4.1, Communication Status.
     fn get_publication_matched_status(
         &self,
         status: &mut PublicationMatchedStatus,
-    ) -> ReturnCode<()>;
+    ) -> DDSResult<()>;
 
     /// This operation returns the Topic associated with the DataWriter. This is the same Topic that was used to create the DataWriter.
     fn get_topic(&self) -> &<Self as TopicGAT<'a, T>>::TopicType
@@ -249,7 +236,7 @@ pub trait DataWriter<'a, T: DDSType>:
     /// NOTE: Writing data via the write operation on a DataWriter asserts liveliness on the DataWriter itself and its
     /// DomainParticipant. Consequently the use of assert_liveliness is only needed if the application is not writing data regularly.
     /// Complete details are provided in 2.2.3.11, LIVELINESS.
-    fn assert_liveliness(&self) -> ReturnCode<()>;
+    fn assert_liveliness(&self) -> DDSResult<()>;
 
     /// This operation retrieves information on a subscription that is currently “associated” with the DataWriter; that is, a subscription
     /// with a matching Topic and compatible QoS that the application has not indicated should be “ignored” by means of the
@@ -263,7 +250,7 @@ pub trait DataWriter<'a, T: DDSType>:
         &self,
         subscription_data: SubscriptionBuiltinTopicData,
         subscription_handle: InstanceHandle,
-    ) -> ReturnCode<()>;
+    ) -> DDSResult<()>;
 
     /// This operation retrieves the list of subscriptions currently “associated” with the DataWriter; that is, subscriptions that have a
     /// matching Topic and compatible QoS that the application has not indicated should be “ignored” by means of the
@@ -275,7 +262,7 @@ pub trait DataWriter<'a, T: DDSType>:
     fn get_matched_subscriptions(
         &self,
         _subscription_handles: &mut [InstanceHandle],
-    ) -> ReturnCode<()>;
+    ) -> DDSResult<()>;
 }
 
 pub trait AnyDataWriter {}

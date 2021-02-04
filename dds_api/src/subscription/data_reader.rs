@@ -1,20 +1,9 @@
-use rust_dds_types::{DDSType, InstanceHandle, ReturnCode};
-
-use crate::{
-    builtin_topics::PublicationBuiltinTopicData,
-    infrastructure::{
+use crate::{builtin_topics::PublicationBuiltinTopicData, dcps_psm::{InstanceHandle, InstanceStateKind, LivelinessChangedStatus, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus, SampleStateKind, SubscriptionMatchedStatus, ViewStateKind}, dds_type::DDSType, infrastructure::{
         entity::Entity,
         qos::DataReaderQos,
         read_condition::ReadCondition,
         sample_info::SampleInfo,
-        status::{
-            InstanceStateKind, LivelinessChangedStatus, RequestedDeadlineMissedStatus,
-            RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus,
-            SampleStateKind, SubscriptionMatchedStatus, ViewStateKind,
-        },
-    },
-    topic::topic_description::TopicDescription,
-};
+    }, return_type::DDSResult, topic::topic_description::TopicDescription};
 
 use super::{
     data_reader_listener::DataReaderListener, query_condition::QueryCondition,
@@ -119,7 +108,7 @@ pub trait DataReader<'a, T: DDSType>:
         sample_states: &[SampleStateKind],
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
-    ) -> ReturnCode<()>;
+    ) -> DDSResult<()>;
 
     /// This operation accesses a collection of data-samples from the DataReader and a corresponding collection of SampleInfo
     /// structures. The operation will return either a ‘list’ of samples or else a single sample. This is controlled by the
@@ -142,7 +131,7 @@ pub trait DataReader<'a, T: DDSType>:
         sample_states: &[SampleStateKind],
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
-    ) -> ReturnCode<()>;
+    ) -> DDSResult<()>;
 
     /// This operation accesses via ‘read’ the samples that match the criteria specified in the ReadCondition. This operation is
     /// especially useful in combination with QueryCondition to filter data samples based on the content.
@@ -162,7 +151,7 @@ pub trait DataReader<'a, T: DDSType>:
         sample_infos: &mut [SampleInfo],
         max_samples: i32,
         a_condition: ReadCondition,
-    ) -> ReturnCode<()>;
+    ) -> DDSResult<()>;
 
     /// This operation is analogous to read_w_condition except it accesses samples via the ‘take’ operation.
     /// The specified ReadCondition must be attached to the DataReader; otherwise the operation will fail and return
@@ -178,7 +167,7 @@ pub trait DataReader<'a, T: DDSType>:
         sample_infos: &mut [SampleInfo],
         max_samples: i32,
         a_condition: ReadCondition,
-    ) -> ReturnCode<()>;
+    ) -> DDSResult<()>;
 
     /// This operation copies the next, non-previously accessed Data value from the DataReader; the operation also copies the
     /// corresponding SampleInfo. The implied order among the samples stored in the DataReader is the same as for the read
@@ -193,7 +182,7 @@ pub trait DataReader<'a, T: DDSType>:
         &self,
         data_value: &mut [T],
         sample_info: &mut [SampleInfo],
-    ) -> ReturnCode<()>;
+    ) -> DDSResult<()>;
 
     /// This operation copies the next, non-previously accessed Data value from the DataReader and ‘removes’ it from the
     /// DataReader so it is no longer accessible. The operation also copies the corresponding SampleInfo. This operation is
@@ -207,7 +196,7 @@ pub trait DataReader<'a, T: DDSType>:
         &self,
         data_value: &mut [T],
         sample_info: &mut [SampleInfo],
-    ) -> ReturnCode<()>;
+    ) -> DDSResult<()>;
 
     /// This operation accesses a collection of Data values from the DataReader. The behavior is identical to read except that all
     /// samples returned belong to the single specified instance whose handle is a_handle.
@@ -233,7 +222,7 @@ pub trait DataReader<'a, T: DDSType>:
         sample_states: &[SampleStateKind],
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
-    ) -> ReturnCode<()>;
+    ) -> DDSResult<()>;
 
     /// This operation accesses a collection of Data values from the DataReader. The behavior is identical to take except for that all
     /// samples returned belong to the single specified instance whose handle is a_handle.
@@ -257,7 +246,7 @@ pub trait DataReader<'a, T: DDSType>:
         sample_states: &[SampleStateKind],
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
-    ) -> ReturnCode<()>;
+    ) -> DDSResult<()>;
 
     /// This operation accesses a collection of Data values from the DataReader where all the samples belong to a single instance.
     /// The behavior is similar to read_instance except that the actual instance is not directly specified. Rather the samples will all
@@ -298,7 +287,7 @@ pub trait DataReader<'a, T: DDSType>:
         sample_states: &[SampleStateKind],
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
-    ) -> ReturnCode<()>;
+    ) -> DDSResult<()>;
 
     /// This operation accesses a collection of Data values from the DataReader and ‘removes’ them from the DataReader.
     /// This operation has the same behavior as read_next_instance except that the samples are ‘taken’ from the DataReader such
@@ -320,7 +309,7 @@ pub trait DataReader<'a, T: DDSType>:
         sample_states: &[SampleStateKind],
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
-    ) -> ReturnCode<()>;
+    ) -> DDSResult<()>;
 
     /// This operation accesses a collection of Data values from the DataReader. The behavior is identical to read_next_instance
     /// except that all samples returned satisfy the specified condition. In other words, on success all returned samples belong to the
@@ -342,7 +331,7 @@ pub trait DataReader<'a, T: DDSType>:
         max_samples: i32,
         previous_handle: InstanceHandle,
         a_condition: ReadCondition,
-    ) -> ReturnCode<()>;
+    ) -> DDSResult<()>;
 
     /// This operation accesses a collection of Data values from the DataReader and ‘removes’ them from the DataReader.
     /// This operation has the same behavior as read_next_instance_w_condition except that the samples are ‘taken’ from the
@@ -363,7 +352,7 @@ pub trait DataReader<'a, T: DDSType>:
         max_samples: i32,
         previous_handle: InstanceHandle,
         a_condition: ReadCondition,
-    ) -> ReturnCode<()>;
+    ) -> DDSResult<()>;
 
     /// This operation indicates to the DataReader that the application is done accessing the collection of data_values and
     /// sample_infos obtained by some earlier invocation of read or take on the DataReader.
@@ -383,15 +372,14 @@ pub trait DataReader<'a, T: DDSType>:
     /// If the collections had a loan, upon return from return_loan the collections will have max_len=0.
     /// Similar to read, this operation must be provided on the specialized class that is generated for the particular application datatype
     /// that is being taken.
-    fn return_loan(&self, data_values: &mut [T], sample_infos: &mut [SampleInfo])
-        -> ReturnCode<()>;
+    fn return_loan(&self, data_values: &mut [T], sample_infos: &mut [SampleInfo]) -> DDSResult<()>;
 
     /// This operation can be used to retrieve the instance key that corresponds to an instance_handle. The operation will only fill the
     /// fields that form the key inside the key_holder instance.
     /// This operation may return BAD_PARAMETER if the InstanceHandle_t a_handle does not correspond to an existing dataobject
     /// known to the DataReader. If the implementation is not able to check invalid handles then the result in this situation is
     /// unspecified.
-    fn get_key_value(&self, key_holder: &mut T, handle: InstanceHandle) -> ReturnCode<()>;
+    fn get_key_value(&self, key_holder: &mut T, handle: InstanceHandle) -> DDSResult<()>;
 
     /// This operation takes as a parameter an instance and returns a handle that can be used in subsequent operations that accept an
     /// instance handle as an argument. The instance parameter is only used for the purpose of examining the fields that define the
@@ -425,40 +413,39 @@ pub trait DataReader<'a, T: DDSType>:
     /// also be used to delete a QueryCondition. If the ReadCondition is not attached to the DataReader, the operation will return the
     /// error PRECONDITION_NOT_MET.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET
-    fn delete_readcondition(&self, a_condition: ReadCondition) -> ReturnCode<()>;
+    fn delete_readcondition(&self, a_condition: ReadCondition) -> DDSResult<()>;
 
     /// This operation allows access to the LIVELINESS_CHANGED communication status. Communication statuses are described
     /// in 2.2.4.1.
-    fn get_liveliness_changed_status(&self, status: &mut LivelinessChangedStatus)
-        -> ReturnCode<()>;
+    fn get_liveliness_changed_status(&self, status: &mut LivelinessChangedStatus) -> DDSResult<()>;
 
     /// This operation allows access to the REQUESTED_DEADLINE_MISSED communication status. Communication statuses are
     /// described in 2.2.4.1.
     fn get_requested_deadline_missed_status(
         &self,
         status: &mut RequestedDeadlineMissedStatus,
-    ) -> ReturnCode<()>;
+    ) -> DDSResult<()>;
 
     /// This operation allows access to the REQUESTED_INCOMPATIBLE_QOS communication status. Communication statuses
     /// are described in 2.2.4.1.
     fn get_requested_incompatible_qos_status(
         &self,
         status: &mut RequestedIncompatibleQosStatus,
-    ) -> ReturnCode<()>;
+    ) -> DDSResult<()>;
 
     /// This operation allows access to the SAMPLE_LOST communication status. Communication statuses are described in 2.2.4.1.
-    fn get_sample_lost_status(&self, status: &mut SampleLostStatus) -> ReturnCode<()>;
+    fn get_sample_lost_status(&self, status: &mut SampleLostStatus) -> DDSResult<()>;
 
     /// This operation allows access to the SAMPLE_REJECTED communication status. Communication statuses are described in
     /// 2.2.4.1.
-    fn get_sample_rejected_status(&self, status: &mut SampleRejectedStatus) -> ReturnCode<()>;
+    fn get_sample_rejected_status(&self, status: &mut SampleRejectedStatus) -> DDSResult<()>;
 
     /// This operation allows access to the SUBSCRIPTION_MATCHED communication status. Communication statuses are
     /// described in 2.2.4.1.
     fn get_subscription_matched_status(
         &self,
         status: &mut SubscriptionMatchedStatus,
-    ) -> ReturnCode<()>;
+    ) -> DDSResult<()>;
 
     /// This operation returns the TopicDescription associated with the DataReader. This is the same TopicDescription that was used
     /// to create the DataReader.
@@ -475,7 +462,7 @@ pub trait DataReader<'a, T: DDSType>:
     /// deleted.
     /// Once delete_contained_entities returns successfully, the application may delete the DataReader knowing that it has no
     /// contained ReadCondition and QueryCondition objects.
-    fn delete_contained_entities(&self) -> ReturnCode<()>;
+    fn delete_contained_entities(&self) -> DDSResult<()>;
 
     /// This operation is intended only for DataReader entities that have a non-VOLATILE PERSISTENCE QoS kind.
     /// As soon as an application enables a non-VOLATILE DataReader it will start receiving both “historical” data, i.e., the data that
@@ -485,7 +472,7 @@ pub trait DataReader<'a, T: DDSType>:
     /// The operation wait_for_historical_data blocks the calling thread until either all “historical” data is received, or else the
     /// duration specified by the max_wait parameter elapses, whichever happens first. A return value of OK indicates that all the
     /// “historical” data was received; a return value of TIMEOUT indicates that max_wait elapsed before all the data was received.
-    fn wait_for_historical_data(&self) -> ReturnCode<()>;
+    fn wait_for_historical_data(&self) -> DDSResult<()>;
 
     /// This operation retrieves information on a publication that is currently “associated” with the DataReader; that is, a publication
     /// with a matching Topic and compatible QoS that the application has not indicated should be “ignored” by means of the
@@ -499,7 +486,7 @@ pub trait DataReader<'a, T: DDSType>:
         &self,
         publication_data: &mut PublicationBuiltinTopicData,
         publication_handle: InstanceHandle,
-    ) -> ReturnCode<()>;
+    ) -> DDSResult<()>;
 
     /// This operation retrieves the list of publications currently “associated” with the DataReader; that is, publications that have a
     /// matching Topic and compatible QoS that the application has not indicated should be “ignored” by means of the
@@ -508,7 +495,7 @@ pub trait DataReader<'a, T: DDSType>:
     /// the corresponding matched DataWriter entities. These handles match the ones that appear in the ‘instance_handle’ field of the
     /// SampleInfo when reading the “DCPSPublications” builtin topic
     /// The operation may fail if the infrastructure does not locally maintain the connectivity information.
-    fn get_match_publication(&self, publication_handles: &mut [InstanceHandle]) -> ReturnCode<()>;
+    fn get_match_publication(&self, publication_handles: &mut [InstanceHandle]) -> DDSResult<()>;
 }
 
 pub trait AnyDataReader {}

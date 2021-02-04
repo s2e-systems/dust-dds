@@ -24,7 +24,7 @@ impl TypeSupport {
         &self,
         _participant: DomainParticipant,
         _type_name: &str,
-    ) -> ReturnCode<()> {
+    ) -> DDSResult<()> {
         todo!()
     }
 

@@ -1,7 +1,68 @@
-use rust_dds_types::InstanceHandle;
+pub type DomainIdTypeNative = i32;
+pub type HandleTypeNative = i32;
+pub const HANDLE_NIL_NATIVE: HandleTypeNative = 0;
+pub type BuiltInTopicKeyTypeNative = i32;
 
-use super::qos_policy::QosPolicyId;
+pub type DomainId = DomainIdTypeNative;
+pub type InstanceHandle = HandleTypeNative;
 
+pub struct BuiltInTopicKey {
+    pub value: [BuiltInTopicKeyTypeNative; 3],
+}
+
+pub type InstanceHandleSeq = Vec<InstanceHandle>;
+pub type ReturnCode = i32;
+pub type QosPolicyId = i32;
+pub type StringSeq = Vec<String>;
+
+#[derive(PartialOrd, PartialEq, Debug, Clone)]
+pub struct Duration {
+    pub sec: i32,
+    pub nanosec: u32,
+}
+
+pub struct Time {
+    pub sec: i32,
+    pub nanosec: u32,
+}
+
+// ----------------------------------------------------------------------
+// Pre-defined values
+// ----------------------------------------------------------------------
+pub const HANDLE_NIL: InstanceHandle = HANDLE_NIL_NATIVE;
+pub const LENGTH_UNLIMITED: i32 = -1;
+
+pub const DURATION_INFINITE: Duration = Duration {
+    sec: 0x7fffffff,
+    nanosec: 0x7fffffff,
+};
+pub const DURATION_ZERO: Duration = Duration { sec: 0, nanosec: 0 };
+pub const TIME_INVALID: Time = Time {
+    sec: -1,
+    nanosec: 0xffffffff,
+};
+
+// ----------------------------------------------------------------------
+// Return codes
+// ----------------------------------------------------------------------
+pub const RETCODE_OK: ReturnCode = 0;
+pub const RETCODE_ERROR: ReturnCode = 1;
+pub const RETCODE_UNSUPPORTED: ReturnCode = 2;
+pub const RETCODE_BAD_PARAMETER: ReturnCode = 3;
+pub const RETCODE_PRECONDITION_NOT_MET: ReturnCode = 4;
+pub const RETCODE_OUT_OF_RESOURCES: ReturnCode = 5;
+pub const RETCODE_NOT_ENABLED: ReturnCode = 6;
+pub const RETCODE_IMMUTABLE_POLICY: ReturnCode = 7;
+pub const RETCODE_INCONSISTENT_POLICY: ReturnCode = 8;
+pub const RETCODE_ALREADY_DELETED: ReturnCode = 9;
+pub const RETCODE_TIMEOUT: ReturnCode = 10;
+pub const RETCODE_NO_DATA: ReturnCode = 11;
+pub const RETCODE_ILLEGAL_OPERATION: ReturnCode = 12;
+
+// ----------------------------------------------------------------------
+// Status to support listeners and conditions
+// ----------------------------------------------------------------------
+pub type StatusKind = u32;
 pub type StatusMask = u32;
 
 pub const INCONSISTENT_TOPIC_STATUS: StatusMask = 0x0001 << 0;
@@ -18,20 +79,13 @@ pub const LIVELINESS_CHANGED_STATUS: StatusMask = 0x0001 << 12;
 pub const PUBLICATION_MATCHED_STATUS: StatusMask = 0x0001 << 13;
 pub const SUBSCRIPTION_MATCHED_STATUS: StatusMask = 0x0001 << 14;
 
-pub type SampleStateKind = u32;
-pub type ViewStateKind = u32;
-pub type InstanceStateKind = u32;
-
-pub enum SampleRejectedStatusKind {
-    NotRejected,
-    RejectedByInstancesLimit,
-    RejectedBySamplesLimit,
-    RejectedBySamplesPerInstanceLimit,
-}
-
-pub struct QosPolicyCount {
-    pub policy_id: QosPolicyId,
-    pub count: i32,
+pub struct InconsistentTopicStatus {
+    /// Total cumulative count of the Topics discovered whose name matches
+    /// the Topic to which this status is attached and whose type is inconsistent with the Topic.
+    pub total_count: i32,
+    /// The incremental number of inconsistent topics discovered since the
+    /// last time the listener was called or the status was read.
+    pub total_count_change: i32,
 }
 
 pub struct SampleLostStatus {
@@ -39,6 +93,13 @@ pub struct SampleLostStatus {
     pub total_count: i32,
     /// The incremental number of samples lost since the last time the listener was called or the status was read.
     pub total_count_change: i32,
+}
+
+pub enum SampleRejectedStatusKind {
+    NotRejected,
+    RejectedByInstancesLimit,
+    RejectedBySamplesLimit,
+    RejectedBySamplesPerInstanceLimit,
 }
 
 pub struct SampleRejectedStatus {
@@ -51,12 +112,16 @@ pub struct SampleRejectedStatus {
     /// Handle to the instance being updated by the last sample that was rejected.
     pub last_instance_handle: InstanceHandle,
 }
-pub struct InconsistentTopicStatus {
-    /// Total cumulative count of the Topics discovered whose name matches
-    /// the Topic to which this status is attached and whose type is inconsistent with the Topic.
+
+pub struct LivelinessLostStatus {
+    /// Total cumulative number of times that a previously-alive DataWriter
+    /// became not alive due to a failure to actively signal its liveliness within
+    /// its offered liveliness period. This count does not change when an
+    /// already not alive DataWriter simply remains not alive for another
+    /// liveliness period.
     pub total_count: i32,
-    /// The incremental number of inconsistent topics discovered since the
-    /// last time the listener was called or the status was read.
+    /// The change in total_count since the last time the listener was called or
+    /// the status was read.
     pub total_count_change: i32,
 }
 
@@ -87,6 +152,20 @@ pub struct LivelinessChangedStatus {
     pub last_publication_handle: InstanceHandle,
 }
 
+pub struct OfferedDeadlineMissedStatus {
+    /// Total cumulative number of offered deadline periods elapsed during
+    /// which a DataWriter failed to provide data. Missed deadlines
+    /// accumulate; that is, each deadline period the total_count will be
+    /// incremented by one.
+    pub total_count: i32,
+    /// The change in total_count since the last time the listener was called or
+    /// the status was read.
+    pub total_count_change: i32,
+    /// Handle to the last instance in the DataWriter for which an offered
+    /// deadline was missed.
+    pub last_instance_handle: InstanceHandle,
+}
+
 pub struct RequestedDeadlineMissedStatus {
     /// Total cumulative number of missed deadlines detected for any instance
     /// read by the DataReader. Missed deadlines accumulate; that is, each
@@ -98,6 +177,31 @@ pub struct RequestedDeadlineMissedStatus {
     pub total_count_change: i32,
     /// Handle to the last instance in the DataReader for which a deadline was detected
     pub last_instance_handle: InstanceHandle,
+}
+
+pub struct QosPolicyCount {
+    pub policy_id: QosPolicyId,
+    pub count: i32,
+}
+
+pub type QosPolicyCountSeq = Vec<QosPolicyCount>;
+
+pub struct OfferedIncompatibleQosStatus {
+    /// Total cumulative number of times the concerned DataWriter
+    /// discovered a DataReader for the same Topic with a requested QoS that
+    /// is incompatible with that offered by the DataWriter.
+    pub total_count: i32,
+    /// The change in total_count since the last time the listener was called or
+    /// the status was read.
+    pub total_count_change: i32,
+    /// The PolicyId_t of one of the policies that was found to be
+    /// incompatible the last time an incompatibility was detected.
+    pub last_policy_id: QosPolicyId,
+    /// A list containing for each policy the total number of times that the
+    /// concerned DataWriter discovered a DataReader for the same Topic
+    /// with a requested QoS that is incompatible with that offered by the
+    /// DataWriter.
+    pub policies: Vec<QosPolicyCount>,
 }
 
 pub struct RequestedIncompatibleQosStatus {
@@ -115,50 +219,6 @@ pub struct RequestedIncompatibleQosStatus {
     /// concerned DataReader discovered a DataWriter for the same Topic
     /// with an offered QoS that is incompatible with that requested by the
     /// DataReader.
-    pub policies: Vec<QosPolicyCount>,
-}
-
-pub struct LivelinessLostStatus {
-    /// Total cumulative number of times that a previously-alive DataWriter
-    /// became not alive due to a failure to actively signal its liveliness within
-    /// its offered liveliness period. This count does not change when an
-    /// already not alive DataWriter simply remains not alive for another
-    /// liveliness period.
-    pub total_count: i32,
-    /// The change in total_count since the last time the listener was called or
-    /// the status was read.
-    pub total_count_change: i32,
-}
-
-pub struct OfferedDeadlineMissedStatus {
-    /// Total cumulative number of offered deadline periods elapsed during
-    /// which a DataWriter failed to provide data. Missed deadlines
-    /// accumulate; that is, each deadline period the total_count will be
-    /// incremented by one.
-    pub total_count: i32,
-    /// The change in total_count since the last time the listener was called or
-    /// the status was read.
-    pub total_count_change: i32,
-    /// Handle to the last instance in the DataWriter for which an offered
-    /// deadline was missed.
-    pub last_instance_handle: InstanceHandle,
-}
-
-pub struct OfferedIncompatibleQosStatus {
-    /// Total cumulative number of times the concerned DataWriter
-    /// discovered a DataReader for the same Topic with a requested QoS that
-    /// is incompatible with that offered by the DataWriter.
-    pub total_count: i32,
-    /// The change in total_count since the last time the listener was called or
-    /// the status was read.
-    pub total_count_change: i32,
-    /// The PolicyId_t of one of the policies that was found to be
-    /// incompatible the last time an incompatibility was detected.
-    pub last_policy_id: QosPolicyId,
-    /// A list containing for each policy the total number of times that the
-    /// concerned DataWriter discovered a DataReader for the same Topic
-    /// with a requested QoS that is incompatible with that offered by the
-    /// DataWriter.
     pub policies: Vec<QosPolicyCount>,
 }
 
@@ -201,3 +261,7 @@ pub struct SubscriptionMatchedStatus {
     /// or the status was read.
     pub current_count_change: i32,
 }
+
+pub type SampleStateKind = u32;
+pub type ViewStateKind = u32;
+pub type InstanceStateKind = u32;

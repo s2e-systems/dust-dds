@@ -1,3 +1,5 @@
+use crate::{dcps_psm::{Duration, LENGTH_UNLIMITED}, return_type::{DDSError, DDSResult}};
+
 use super::qos_policy::{
     DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, DurabilityServiceQosPolicy,
     EntityFactoryQosPolicy, GroupDataQosPolicy, HistoryQosPolicy, HistoryQosPolicyKind,
@@ -7,7 +9,6 @@ use super::qos_policy::{
     ResourceLimitsQosPolicy, TimeBasedFilterQosPolicy, TopicDataQosPolicy,
     TransportPriorityQosPolicy, UserDataQosPolicy, WriterDataLifecycleQosPolicy,
 };
-use rust_dds_types::{Duration, ReturnCode, ReturnCodes, LENGTH_UNLIMITED};
 
 #[derive(Debug, Default, PartialEq, Clone)]
 pub struct DomainParticipantQos {
@@ -71,14 +72,14 @@ impl Default for DataWriterQos {
 }
 
 impl DataWriterQos {
-    pub fn is_consistent(&self) -> ReturnCode<()> {
+    pub fn is_consistent(&self) -> DDSResult<()> {
         // The setting of RESOURCE_LIMITS max_samples must be consistent with the max_samples_per_instance. For these two
         // values to be consistent they must verify that “max_samples >= max_samples_per_instance.”
         if self.resource_limits.max_samples_per_instance != LENGTH_UNLIMITED {
             if self.resource_limits.max_samples == LENGTH_UNLIMITED
                 || self.resource_limits.max_samples < self.resource_limits.max_samples_per_instance
             {
-                return Err(ReturnCodes::InconsistentPolicy);
+                return Err(DDSError::InconsistentPolicy);
             }
         }
 
@@ -90,7 +91,7 @@ impl DataWriterQos {
             if self.history.depth == LENGTH_UNLIMITED
                 || self.history.depth > self.resource_limits.max_samples_per_instance
             {
-                return Err(ReturnCodes::InconsistentPolicy);
+                return Err(DDSError::InconsistentPolicy);
             }
         }
 
@@ -148,14 +149,14 @@ impl Default for DataReaderQos {
 }
 
 impl DataReaderQos {
-    pub fn is_consistent(&self) -> ReturnCode<()> {
+    pub fn is_consistent(&self) -> DDSResult<()> {
         // The setting of RESOURCE_LIMITS max_samples must be consistent with the max_samples_per_instance. For these two
         // values to be consistent they must verify that “max_samples >= max_samples_per_instance.”
         if self.resource_limits.max_samples_per_instance != LENGTH_UNLIMITED {
             if self.resource_limits.max_samples == LENGTH_UNLIMITED
                 || self.resource_limits.max_samples < self.resource_limits.max_samples_per_instance
             {
-                return Err(ReturnCodes::InconsistentPolicy);
+                return Err(DDSError::InconsistentPolicy);
             }
         }
 
@@ -167,14 +168,14 @@ impl DataReaderQos {
             if self.history.depth == LENGTH_UNLIMITED
                 || self.history.depth > self.resource_limits.max_samples_per_instance
             {
-                return Err(ReturnCodes::InconsistentPolicy);
+                return Err(DDSError::InconsistentPolicy);
             }
         }
 
         // The setting of the DEADLINE policy must be set consistently with that of the TIME_BASED_FILTER. For these two policies
         // to be consistent the settings must be such that “deadline period>= minimum_separation.”
         if self.deadline.period < self.time_based_filter.minimum_separation {
-            return Err(ReturnCodes::InconsistentPolicy);
+            return Err(DDSError::InconsistentPolicy);
         }
 
         Ok(())
@@ -225,14 +226,14 @@ impl Default for TopicQos {
 }
 
 impl TopicQos {
-    pub fn is_consistent(&self) -> ReturnCode<()> {
+    pub fn is_consistent(&self) -> DDSResult<()> {
         // The setting of RESOURCE_LIMITS max_samples must be consistent with the max_samples_per_instance. For these two
         // values to be consistent they must verify that “max_samples >= max_samples_per_instance.”
         if self.resource_limits.max_samples_per_instance != LENGTH_UNLIMITED {
             if self.resource_limits.max_samples == LENGTH_UNLIMITED
                 || self.resource_limits.max_samples < self.resource_limits.max_samples_per_instance
             {
-                return Err(ReturnCodes::InconsistentPolicy);
+                return Err(DDSError::InconsistentPolicy);
             }
         }
 
@@ -244,7 +245,7 @@ impl TopicQos {
             if self.history.depth == LENGTH_UNLIMITED
                 || self.history.depth > self.resource_limits.max_samples_per_instance
             {
-                return Err(ReturnCodes::InconsistentPolicy);
+                return Err(DDSError::InconsistentPolicy);
             }
         }
 

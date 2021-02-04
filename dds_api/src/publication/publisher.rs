@@ -1,15 +1,19 @@
-use rust_dds_types::{DDSType, Duration, ReturnCode};
-
 use crate::{
+    dcps_psm::{Duration, StatusMask},
+    dds_type::DDSType,
     domain::domain_participant::{DomainParticipantChild, TopicGAT},
     infrastructure::{
         entity::Entity,
         qos::{DataWriterQos, PublisherQos, TopicQos},
-        status::StatusMask,
     },
+    return_type::DDSResult,
 };
 
-use super::{data_writer::{AnyDataWriter, DataWriter}, data_writer_listener::DataWriterListener, publisher_listener::PublisherListener};
+use super::{
+    data_writer::{AnyDataWriter, DataWriter},
+    data_writer_listener::DataWriterListener,
+    publisher_listener::PublisherListener,
+};
 
 pub trait DataWriterGAT<'a, T: DDSType> {
     type DataWriterType: DataWriter<'a, T> + AnyDataWriter;
@@ -68,7 +72,7 @@ pub trait Publisher<'a>: Entity<Qos = PublisherQos, Listener = Box<dyn Publisher
     fn delete_datawriter<T: DDSType>(
         &'a self,
         a_datawriter: &'a <Self as DataWriterGAT<'a, T>>::DataWriterType,
-    ) -> ReturnCode<()>
+    ) -> DDSResult<()>
     where
         Self: DataWriterGAT<'a, T> + Sized;
 
@@ -91,7 +95,7 @@ pub trait Publisher<'a>: Entity<Qos = PublisherQos, Listener = Box<dyn Publisher
     /// The use of this operation must be matched by a corresponding call to resume_publications indicating that the set of
     /// modifications has completed. If the Publisher is deleted before resume_publications is called, any suspended updates yet to
     /// be published will be discarded.
-    fn suspend_publications(&self) -> ReturnCode<()>;
+    fn suspend_publications(&self) -> DDSResult<()>;
 
     /// This operation indicates to the Service that the application has completed the multiple changes initiated by the previous
     /// suspend_publications. This is a hint to the Service that can be used by a Service implementation to e.g., batch all the
@@ -99,7 +103,7 @@ pub trait Publisher<'a>: Entity<Qos = PublisherQos, Listener = Box<dyn Publisher
     /// The call to resume_publications must match a previous call to suspend_publications. Otherwise the operation will return the
     /// error PRECONDITION_NOT_MET.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
-    fn resume_publications(&self) -> ReturnCode<()>;
+    fn resume_publications(&self) -> DDSResult<()>;
 
     /// This operation requests that the application will begin a ‘coherent set’ of modifications using DataWriter objects attached to
     /// the Publisher. The ‘coherent set’ will be completed by a matching call to end_coherent_changes.
@@ -117,18 +121,18 @@ pub trait Publisher<'a>: Entity<Qos = PublisherQos, Listener = Box<dyn Publisher
     /// the values are inter-related (for example, if there are two data-instances representing the ‘altitude’ and ‘velocity vector’ of the
     /// same aircraft and both are changed, it may be useful to communicate those values in a way the reader can see both together;
     /// otherwise, it may e.g., erroneously interpret that the aircraft is on a collision course).
-    fn begin_coherent_changes(&self) -> ReturnCode<()>;
+    fn begin_coherent_changes(&self) -> DDSResult<()>;
 
     /// This operation terminates the ‘coherent set’ initiated by the matching call to begin_coherent_ changes. If there is no matching
     /// call to begin_coherent_ changes, the operation will return the error PRECONDITION_NOT_MET.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET
-    fn end_coherent_changes(&self) -> ReturnCode<()>;
+    fn end_coherent_changes(&self) -> DDSResult<()>;
 
     /// This operation blocks the calling thread until either all data written by the reliable DataWriter entities is acknowledged by all
     /// matched reliable DataReader entities, or else the duration specified by the max_wait parameter elapses, whichever happens
     /// first. A return value of OK indicates that all the samples written have been acknowledged by all reliable matched data readers;
     /// a return value of TIMEOUT indicates that max_wait elapsed before all the data was acknowledged.
-    fn wait_for_acknowledgments(&self, max_wait: Duration) -> ReturnCode<()>;
+    fn wait_for_acknowledgments(&self, max_wait: Duration) -> DDSResult<()>;
 
     /// This operation returns the DomainParticipant to which the Publisher belongs.
     fn get_participant(&self) -> &<Self as DomainParticipantChild<'a>>::DomainParticipantType
@@ -141,7 +145,7 @@ pub trait Publisher<'a>: Entity<Qos = PublisherQos, Listener = Box<dyn Publisher
     /// deleted.
     /// Once delete_contained_entities returns successfully, the application may delete the Publisher knowing that it has no
     /// contained DataWriter objects
-    fn delete_contained_entities(&self) -> ReturnCode<()>;
+    fn delete_contained_entities(&self) -> DDSResult<()>;
 
     /// This operation sets a default value of the DataWriter QoS policies which will be used for newly created DataWriter entities in
     /// the case where the QoS policies are defaulted in the create_datawriter operation.
@@ -150,14 +154,14 @@ pub trait Publisher<'a>: Entity<Qos = PublisherQos, Listener = Box<dyn Publisher
     /// The special value DATAWRITER_QOS_DEFAULT may be passed to this operation to indicate that the default QoS should be
     /// reset back to the initial values the factory would use, that is the values that would be used if the set_default_datawriter_qos
     /// operation had never been called.
-    fn set_default_datawriter_qos(&self, qos: Option<DataWriterQos>) -> ReturnCode<()>;
+    fn set_default_datawriter_qos(&self, qos: Option<DataWriterQos>) -> DDSResult<()>;
 
     /// This operation retrieves the dformalefault value of the DataWriter QoS, that is, the QoS policies which will be used for newly created
     /// DataWriter entities in the case where the QoS policies are defaulted in the create_datawriter operation.
     /// The values retrieved by get_default_datawriter_qos will match the set of values specified on the last successful call to
     /// set_default_datawriter_qos, or else, if the call was never made, the default values listed in the QoS table in 2.2.3, Supported
     /// QoS.
-    fn get_default_datawriter_qos(&self) -> ReturnCode<DataWriterQos>;
+    fn get_default_datawriter_qos(&self) -> DDSResult<DataWriterQos>;
 
     /// This operation copies the policies in the a_topic_qos to the corresponding policies in the a_datawriter_qos (replacing values
     /// in the a_datawriter_qos, if present).
@@ -170,5 +174,5 @@ pub trait Publisher<'a>: Entity<Qos = PublisherQos, Listener = Box<dyn Publisher
         &self,
         _a_datawriter_qos: &mut DataWriterQos,
         _a_topic_qos: &TopicQos,
-    ) -> ReturnCode<()>;
+    ) -> DDSResult<()>;
 }

@@ -235,6 +235,73 @@ pub struct ProtocolVersion {
 
 pub type VendorId = [u8; 2];
 
+
+
+pub type SequenceNumber = i64;
+
+pub const SEQUENCE_NUMBER_UNKNOWN: SequenceNumber = std::i64::MIN;
+
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+pub enum ChangeKind {
+    Alive,
+    AliveFiltered,
+    NotAliveDisposed,
+    NotAliveUnregistered,
+}
+
+pub type ParameterId = i16;
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct Parameter {
+    parameter_id: ParameterId,
+    length: i16, // length is rounded up to multple of 4
+    value: Vec<u8>,
+}
+
+impl Parameter {
+    pub fn new(parameter_id: ParameterId, value: Vec<u8>) -> Self {
+        Self {
+            parameter_id,
+            length: (value.len() + 3 & !3) as i16,
+            value,
+        }
+    }
+
+    pub fn parameter_id(&self) -> ParameterId {
+        self.parameter_id
+    }
+
+    pub fn length(&self) -> i16 {
+        self.length
+    }
+
+    pub fn value(&self) -> &Vec<u8> {
+        &self.value
+    }
+}
+#[derive(Debug, PartialEq, Clone)]
+pub struct ParameterList {
+    pub parameter: Vec<Parameter>,
+}
+
+impl ParameterList {
+    pub const PID_SENTINEL: ParameterId = 0x0001;
+
+    pub fn new() -> Self {
+        Self {
+            parameter: Vec::new(),
+        }
+    }
+}
+
+//// From RTPS
+#[derive(Copy, Clone)]
+pub enum TopicKind {
+    NoKey,
+    WithKey,
+}
+
+
 #[cfg(test)]
 mod tests {
     use super::*;

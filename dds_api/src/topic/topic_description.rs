@@ -1,8 +1,8 @@
-use rust_dds_types::{DDSType, ReturnCode};
-
 use crate::{
+    dds_type::DDSType,
     domain::domain_participant::DomainParticipantChild,
     infrastructure::{entity::Entity, qos::TopicQos},
+    return_type::DDSResult,
 };
 
 use super::topic_listener::TopicListener;
@@ -20,10 +20,10 @@ pub trait TopicDescription<'a, T: DDSType>:
         Self: DomainParticipantChild<'a> + Sized;
 
     /// The type_name used to create the TopicDescription
-    fn get_type_name(&self) -> ReturnCode<&str>;
+    fn get_type_name(&self) -> DDSResult<&str>;
 
     /// The name used to create the TopicDescription
-    fn get_name(&self) -> ReturnCode<String>;
+    fn get_name(&self) -> DDSResult<String>;
 }
 
 pub trait AnyTopic {}

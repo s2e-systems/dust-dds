@@ -1,6 +1,4 @@
-use rust_dds_types::{InstanceHandle, ReturnCode};
-
-use super::status::StatusMask;
+use crate::{dcps_psm::{InstanceHandle, StatusMask}, return_type::DDSResult};
 
 pub struct StatusCondition;
 
@@ -10,11 +8,11 @@ pub trait Entity {
     type Qos;
     type Listener;
 
-    fn set_qos(&self, qos: Option<Self::Qos>) -> ReturnCode<()>;
+    fn set_qos(&self, qos: Option<Self::Qos>) -> DDSResult<()>;
 
-    fn get_qos(&self) -> ReturnCode<Self::Qos>;
+    fn get_qos(&self) -> DDSResult<Self::Qos>;
 
-    fn set_listener(&self, a_listener: Self::Listener, mask: StatusMask) -> ReturnCode<()>;
+    fn set_listener(&self, a_listener: Self::Listener, mask: StatusMask) -> DDSResult<()>;
 
     fn get_listener(&self) -> &Self::Listener;
 
@@ -22,7 +20,7 @@ pub trait Entity {
 
     fn get_status_changes(&self) -> StatusMask;
 
-    fn enable(&self) -> ReturnCode<()>;
+    fn enable(&self) -> DDSResult<()>;
 
-    fn get_instance_handle(&self) -> ReturnCode<InstanceHandle>;
+    fn get_instance_handle(&self) -> DDSResult<InstanceHandle>;
 }

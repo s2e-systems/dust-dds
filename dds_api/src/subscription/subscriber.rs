@@ -1,10 +1,13 @@
-use rust_dds_types::{DDSType, ReturnCode};
-
-use crate::{domain::domain_participant::{DomainParticipantChild, TopicGAT}, infrastructure::{
+use crate::{
+    dcps_psm::{InstanceStateKind, SampleLostStatus, SampleStateKind, StatusMask, ViewStateKind},
+    dds_type::DDSType,
+    domain::domain_participant::{DomainParticipantChild, TopicGAT},
+    infrastructure::{
         entity::Entity,
         qos::{DataReaderQos, SubscriberQos, TopicQos},
-        status::{InstanceStateKind, SampleLostStatus, SampleStateKind, StatusMask, ViewStateKind},
-    }};
+    },
+    return_type::DDSResult,
+};
 
 use super::{
     data_reader::{AnyDataReader, DataReader},
@@ -60,13 +63,13 @@ pub trait Subscriber<'a>:
     /// return a nil result.
     fn create_datareader<T: DDSType>(
         &'a self,
-        a_topic: &'a <Self as TopicGAT<'a,T>>::TopicType,
+        a_topic: &'a <Self as TopicGAT<'a, T>>::TopicType,
         qos: Option<DataReaderQos>,
         a_listener: Option<Box<dyn DataReaderListener<T>>>,
         mask: StatusMask,
     ) -> Option<<Self as DataReaderGAT<'a, T>>::DataReaderType>
     where
-        Self: DataReaderGAT<'a, T> + TopicGAT<'a,T> + Sized;
+        Self: DataReaderGAT<'a, T> + TopicGAT<'a, T> + Sized;
 
     /// This operation deletes a DataReader that belongs to the Subscriber. If the DataReader does not belong to the Subscriber, the
     /// operation returns the error PRECONDITION_NOT_MET.
@@ -83,9 +86,9 @@ pub trait Subscriber<'a>:
     fn delete_datareader<T: DDSType>(
         &'a self,
         a_datareader: &'a <Self as DataReaderGAT<'a, T>>::DataReaderType,
-    ) -> ReturnCode<()>
+    ) -> DDSResult<()>
     where
-        Self: DataReaderGAT<'a,T> +  Sized;
+        Self: DataReaderGAT<'a, T> + Sized;
 
     /// This operation retrieves a previously-created DataReader belonging to the Subscriber that is attached to a Topic with a
     /// matching topic_name. If no such DataReader exists, the operation will return ’nil.’
@@ -94,10 +97,10 @@ pub trait Subscriber<'a>:
     /// The use of this operation on the built-in Subscriber allows access to the built-in DataReader entities for the built-in topics
     fn lookup_datareader<T: DDSType>(
         &self,
-        topic: &<Self as TopicGAT<'a,T>>::TopicType,
+        topic: &<Self as TopicGAT<'a, T>>::TopicType,
     ) -> Option<<Self as DataReaderGAT<'a, T>>::DataReaderType>
     where
-        Self: DataReaderGAT<'a,T> + TopicGAT<'a,T> + Sized;
+        Self: DataReaderGAT<'a, T> + TopicGAT<'a, T> + Sized;
 
     /// This operation indicates that the application is about to access the data samples in any of the DataReader objects attached to
     /// the Subscriber.
@@ -113,7 +116,7 @@ pub trait Subscriber<'a>:
     /// The calls to begin_access/end_access may be nested. In that case, the application must call end_access as many times as it
     /// called begin_access.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
-    fn begin_access(&self) -> ReturnCode<()>;
+    fn begin_access(&self) -> DDSResult<()>;
 
     /// Indicates that the application has finished accessing the data samples in DataReader objects managed by the Subscriber.
     /// This operation must be used to ‘close’ a corresponding begin_access.
@@ -121,7 +124,7 @@ pub trait Subscriber<'a>:
     /// sample-accessing operations. This call must close a previous call to begin_access otherwise the operation will return the error
     /// PRECONDITION_NOT_MET.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
-    fn end_access(&self) -> ReturnCode<()>;
+    fn end_access(&self) -> DDSResult<()>;
 
     /// This operation allows the application to access the DataReader objects that contain samples with the specified sample_states,
     /// view_states, and instance_states.
@@ -145,14 +148,14 @@ pub trait Subscriber<'a>:
         sample_states: &[SampleStateKind],
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
-    ) -> ReturnCode<()>;
+    ) -> DDSResult<()>;
 
     /// This operation invokes the operation on_data_available on the DataReaderListener objects attached to contained DataReader
     /// entities with a DATA_AVAILABLE status that is considered changed as described in 2.2.4.2.2, Changes in Read
     /// Communication Statuses.
     /// This operation is typically invoked from the on_data_on_readers operation in the SubscriberListener. That way the
     /// SubscriberListener can delegate to the DataReaderListener objects the handling of the data.
-    fn notify_datareaders(&self) -> ReturnCode<()>;
+    fn notify_datareaders(&self) -> DDSResult<()>;
 
     /// This operation returns the DomainParticipant to which the Subscriber belongs.
     fn get_participant(&self) -> &<Self as DomainParticipantChild<'a>>::DomainParticipantType
@@ -160,7 +163,7 @@ pub trait Subscriber<'a>:
         Self: DomainParticipantChild<'a> + Sized;
 
     /// This operation allows access to the SAMPLE_LOST communication status. Communication statuses are described in 2.2.4.1
-    fn get_sample_lost_status(&self, status: &mut SampleLostStatus) -> ReturnCode<()>;
+    fn get_sample_lost_status(&self, status: &mut SampleLostStatus) -> DDSResult<()>;
 
     /// This operation deletes all the entities that were created by means of the “create” operations on the Subscriber. That is, it
     /// deletes all contained DataReader objects. This pattern is applied recursively. In this manner the operation
@@ -171,7 +174,7 @@ pub trait Subscriber<'a>:
     /// operation and has not called the corresponding return_loan operation to return the loaned samples.
     /// Once delete_contained_entities returns successfully, the application may delete the Subscriber knowing that it has no
     /// contained DataReader objects.
-    fn delete_contained_entities(&self) -> ReturnCode<()>;
+    fn delete_contained_entities(&self) -> DDSResult<()>;
 
     /// This operation sets a default value of the DataReader QoS policies which will be used for newly created DataReader entities
     /// in the case where the QoS policies are defaulted in the create_datareader operation.
@@ -180,14 +183,14 @@ pub trait Subscriber<'a>:
     /// The special value DATAREADER_QOS_DEFAULT may be passed to this operation to indicate that the default QoS should
     /// be reset back to the initial values the factory would use, that is the values that would be used if the
     /// set_default_datareader_qos operation had never been called.
-    fn set_default_datareader_qos(&self, qos: Option<DataReaderQos>) -> ReturnCode<()>;
+    fn set_default_datareader_qos(&self, qos: Option<DataReaderQos>) -> DDSResult<()>;
 
     /// This operation retrieves the default value of the DataReader QoS, that is, the QoS policies which will be used for newly
     /// created DataReader entities in the case where the QoS policies are defaulted in the create_datareader operation.
     /// The values retrieved get_default_datareader_qos will match the set of values specified on the last successful call to
     /// get_default_datareader_qos, or else, if the call was never made, the default values listed in the QoS table in 2.2.3,
     /// Supported QoS.
-    fn get_default_datareader_qos(&self) -> ReturnCode<DataReaderQos>;
+    fn get_default_datareader_qos(&self) -> DDSResult<DataReaderQos>;
 
     /// This operation copies the policies in the a_topic_qos to the corresponding policies in the a_datareader_qos (replacing values
     /// in the a_datareader_qos, if present).
@@ -200,5 +203,5 @@ pub trait Subscriber<'a>:
         &self,
         a_datareader_qos: &mut DataReaderQos,
         a_topic_qos: &TopicQos,
-    ) -> ReturnCode<()>;
+    ) -> DDSResult<()>;
 }

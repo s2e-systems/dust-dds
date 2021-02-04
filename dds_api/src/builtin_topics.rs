@@ -1,11 +1,10 @@
-use crate::infrastructure::qos_policy::{
+use crate::{dcps_psm::BuiltInTopicKey, infrastructure::qos_policy::{
     DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, DurabilityServiceQosPolicy,
     GroupDataQosPolicy, HistoryQosPolicy, LatencyBudgetQosPolicy, LifespanQosPolicy,
     LivelinessQosPolicy, OwnershipQosPolicy, OwnershipStrengthQosPolicy, PartitionQosPolicy,
     PresentationQosPolicy, ReliabilityQosPolicy, ResourceLimitsQosPolicy, TimeBasedFilterQosPolicy,
     TopicDataQosPolicy, TransportPriorityQosPolicy, UserDataQosPolicy,
-};
-use rust_dds_types::BuiltInTopicKey;
+}};
 
 pub struct ParticipantBuiltinTopicData {
     pub key: BuiltInTopicKey,

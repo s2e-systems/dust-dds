@@ -1,6 +1,5 @@
-use rust_dds_types::{InstanceHandle, Time};
+use crate::dcps_psm::{InstanceHandle, InstanceStateKind, SampleStateKind, Time, ViewStateKind};
 
-use super::status::{InstanceStateKind, SampleStateKind, ViewStateKind};
 
 pub struct SampleInfo {
     /// The sample_state (READ or NOT_READ) - indicates whether or not the corresponding data sample has already been read.
