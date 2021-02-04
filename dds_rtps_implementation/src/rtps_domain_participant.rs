@@ -1,14 +1,35 @@
-use std::{cell::RefCell, marker::PhantomData, sync::{atomic, Arc, Mutex, Once}, thread::JoinHandle};
+use std::{
+    cell::RefCell,
+    marker::PhantomData,
+    sync::{atomic, Arc, Mutex, Once},
+    thread::JoinHandle,
+};
 
-use rust_dds_api::{builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData}, dcps_psm::{DomainId, Duration, InstanceHandle, StatusMask, Time}, dds_type::DDSType, domain::{
+use rust_dds_api::{
+    builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
+    dcps_psm::{DomainId, Duration, InstanceHandle, StatusMask, Time},
+    dds_type::DDSType,
+    domain::{
         domain_participant::{DomainParticipant, TopicGAT},
         domain_participant_listener::DomainParticipantListener,
-    }, infrastructure::{
+    },
+    infrastructure::{
         entity::{Entity, StatusCondition},
         qos::{DataWriterQos, DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
-    }, publication::publisher_listener::PublisherListener, return_type::DDSResult, subscription::subscriber_listener::SubscriberListener, topic::{ topic_description::TopicDescription, topic_listener::TopicListener}};
-use rust_rtps::{structure::Participant, transport::Transport, types::{Locator, constants::{ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, PROTOCOL_VERSION_2_4, VENDOR_ID}}};
-
+    },
+    publication::publisher_listener::PublisherListener,
+    return_type::DDSResult,
+    subscription::subscriber_listener::SubscriberListener,
+    topic::{topic_description::TopicDescription, topic_listener::TopicListener},
+};
+use rust_rtps::{
+    structure::Participant,
+    transport::Transport,
+    types::{
+        constants::{ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, PROTOCOL_VERSION_2_4, VENDOR_ID},
+        Locator,
+    },
+};
 
 use crate::{
     inner::rtps_participant_entities::RtpsParticipantEntities, rtps_publisher::RtpsPublisher,
@@ -23,7 +44,7 @@ impl DDSType for SpdpDiscoveredParticipantData {
     fn type_name() -> &'static str {
         "SpdpDiscoveredParticipantData"
     }
-    
+
     fn has_key() -> bool {
         false
     }
@@ -33,7 +54,7 @@ impl DDSType for SpdpDiscoveredParticipantData {
     }
 
     fn serialize(&self) -> Vec<u8> {
-        vec![0,0,0,0,1,2,3,4]
+        vec![0, 0, 0, 0, 1, 2, 3, 4]
     }
 
     fn deserialize(_data: Vec<u8>) -> Self {
@@ -69,8 +90,14 @@ impl RtpsDomainParticipant {
         a_listener: Option<Box<dyn DomainParticipantListener>>,
         mask: StatusMask,
     ) -> Self {
-        let guid_prefix = [1; 12];        
-        let participant = Participant::new(guid_prefix, userdata_transport.unicast_locator_list().clone(), userdata_transport.multicast_locator_list().clone(), PROTOCOL_VERSION_2_4, VENDOR_ID);
+        let guid_prefix = [1; 12];
+        let participant = Participant::new(
+            guid_prefix,
+            userdata_transport.unicast_locator_list().clone(),
+            userdata_transport.multicast_locator_list().clone(),
+            PROTOCOL_VERSION_2_4,
+            VENDOR_ID,
+        );
 
         let builtin_entities =
             Arc::new(RtpsParticipantEntities::new_builtin(metatraffic_transport));
@@ -158,7 +185,10 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
             a_listener,
             mask,
         )?;
-        Some(RtpsSubscriber{parent_participant: self, subscriber_ref})
+        Some(RtpsSubscriber {
+            parent_participant: self,
+            subscriber_ref,
+        })
     }
 
     fn delete_subscriber(&self, a_subscriber: &Self::SubscriberType) -> DDSResult<()> {
@@ -188,7 +218,11 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
             a_listener,
             mask,
         )?;
-        Some(RtpsTopic{parent_participant:self, topic_ref, phantom_data:PhantomData})
+        Some(RtpsTopic {
+            parent_participant: self,
+            topic_ref,
+            phantom_data: PhantomData,
+        })
     }
 
     fn delete_topic<T: DDSType>(
@@ -388,13 +422,13 @@ impl Entity for RtpsDomainParticipant {
                     .expect("Error creating SPDP built-in writer");
 
                 let spdp_locator = Locator::new_udpv4(7400, [239, 255, 0, 0]);
-                
+
                 spdp_announcer.get().expect("Error retrieven SPDP announcer")
                     .writer()
                     .try_get_stateless()
                     .unwrap()
                     .reader_locator_add(spdp_locator);
-                
+
                 spdp_announcer.write_w_timestamp::<SpdpDiscoveredParticipantData>(SpdpDiscoveredParticipantData{value:5}, None, Time{sec:10, nanosec:0}).expect("Error announcing participant");
 
             //         // let key = BuiltInTopicKey([1, 2, 3]);
