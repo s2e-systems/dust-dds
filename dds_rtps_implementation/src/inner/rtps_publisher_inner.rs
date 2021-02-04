@@ -10,7 +10,9 @@ use rust_dds_api::{
     return_type::{DDSError, DDSResult},
 };
 use rust_rtps::{
+    message_sender::RtpsMessageSender,
     structure::Group,
+    transport::Transport,
     types::{
         constants::{ENTITY_KIND_BUILT_IN_WRITER_GROUP, ENTITY_KIND_USER_DEFINED_WRITER_GROUP},
         EntityId, GuidPrefix, GUID,
@@ -108,7 +110,7 @@ impl RtpsPublisherInner {
 pub type RtpsPublisherInnerRef<'a> = MaybeValidRef<'a, Box<RtpsPublisherInner>>;
 
 impl<'a> RtpsPublisherInnerRef<'a> {
-    pub fn get(&self) -> DDSResult<&Box<RtpsPublisherInner>> {
+    fn get(&self) -> DDSResult<&Box<RtpsPublisherInner>> {
         MaybeValid::get(self).ok_or(DDSError::AlreadyDeleted)
     }
 
@@ -228,6 +230,20 @@ impl<'a> RtpsPublisherInnerRef<'a> {
 
     pub fn get_instance_handle(&self) -> DDSResult<InstanceHandle> {
         todo!()
+    }
+
+    pub fn send_data(&self, transport: &dyn Transport) {
+        if let Some(publisher) = self.get().ok() {
+            for writer in publisher.writer_list.into_iter() {
+                let destined_messages = writer.produce_messages();
+                let participant_guid_prefix = publisher.group.entity.guid.prefix();
+                RtpsMessageSender::send_cache_change_messages(
+                    participant_guid_prefix,
+                    transport,
+                    destined_messages,
+                );
+            }
+        }
     }
 }
 
