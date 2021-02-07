@@ -127,7 +127,7 @@ impl<'a> RtpsSubscriberInnerRef<'a> {
         &self,
         a_topic: &RtpsTopicInnerRef,
         qos: Option<DataReaderQos>,
-        a_listener: Option<Box<dyn DataReaderListener<T>>>,
+        a_listener: Option<Box<dyn DataReaderListener<DataType=T>>>,
         status_mask: StatusMask,
     ) -> Option<RtpsAnyDataReaderInnerRef> {
         let entity_key = [
@@ -146,7 +146,7 @@ impl<'a> RtpsSubscriberInnerRef<'a> {
         entity_key: [u8; 3],
         a_topic: &RtpsTopicInnerRef,
         qos: Option<DataReaderQos>,
-        a_listener: Option<Box<dyn DataReaderListener<T>>>,
+        a_listener: Option<Box<dyn DataReaderListener<DataType=T>>>,
         status_mask: StatusMask,
     ) -> Option<RtpsAnyDataReaderInnerRef> {
         let this = self.get().ok()?;
@@ -178,7 +178,7 @@ impl<'a> RtpsSubscriberInnerRef<'a> {
         entity_key: [u8; 3],
         a_topic: &RtpsTopicInnerRef,
         qos: Option<DataReaderQos>,
-        a_listener: Option<Box<dyn DataReaderListener<T>>>,
+        a_listener: Option<Box<dyn DataReaderListener<DataType=T>>>,
         status_mask: StatusMask,
     ) -> Option<RtpsAnyDataReaderInnerRef> {
         let this = self.get().ok()?;

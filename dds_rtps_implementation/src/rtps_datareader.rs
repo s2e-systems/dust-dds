@@ -280,7 +280,7 @@ impl<'a, T: DDSType> DataReader<'a, T> for RtpsDataReader<'a, T> {
 impl<'a, T: DDSType> Entity for RtpsDataReader<'a, T> {
     type Qos = DataReaderQos;
 
-    type Listener = Box<dyn DataReaderListener<T>>;
+    type Listener = Box<dyn DataReaderListener<DataType=T>>;
 
     fn set_qos(&self, _qos: Option<Self::Qos>) -> DDSResult<()> {
         todo!()

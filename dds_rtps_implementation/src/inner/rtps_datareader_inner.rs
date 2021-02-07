@@ -61,7 +61,7 @@ pub struct RtpsDataReaderInner<T: DDSType> {
     reader: Mutex<ReaderFlavor>,
     qos: Mutex<DataReaderQos>,
     topic: Mutex<Option<Arc<RtpsTopicInner>>>,
-    listener: Option<Box<dyn DataReaderListener<T>>>,
+    listener: Option<Box<dyn DataReaderListener<DataType=T>>>,
     status_mask: StatusMask,
 }
 
@@ -71,7 +71,7 @@ impl<T: DDSType> RtpsDataReaderInner<T> {
         entity_key: [u8;3],
         topic: &RtpsTopicInnerRef,
         qos: DataReaderQos,
-        listener: Option<Box<dyn DataReaderListener<T>>>,
+        listener: Option<Box<dyn DataReaderListener<DataType=T>>>,
         status_mask: StatusMask,
     ) -> Self {
         let entity_kind = match T::has_key() {
@@ -88,7 +88,7 @@ impl<T: DDSType> RtpsDataReaderInner<T> {
         entity_key: [u8;3],
         topic: &RtpsTopicInnerRef,
         qos: DataReaderQos,
-        listener: Option<Box<dyn DataReaderListener<T>>>,
+        listener: Option<Box<dyn DataReaderListener<DataType=T>>>,
         status_mask: StatusMask,
     ) -> Self {
         let entity_kind = match T::has_key() {
@@ -105,7 +105,7 @@ impl<T: DDSType> RtpsDataReaderInner<T> {
         entity_key: [u8;3],
         topic: &RtpsTopicInnerRef,
         qos: DataReaderQos,
-        listener: Option<Box<dyn DataReaderListener<T>>>,
+        listener: Option<Box<dyn DataReaderListener<DataType=T>>>,
         status_mask: StatusMask,
     ) -> Self {
         let entity_kind = match T::has_key() {
@@ -122,7 +122,7 @@ impl<T: DDSType> RtpsDataReaderInner<T> {
         entity_key: [u8;3],
         topic: &RtpsTopicInnerRef,
         qos: DataReaderQos,
-        listener: Option<Box<dyn DataReaderListener<T>>>,
+        listener: Option<Box<dyn DataReaderListener<DataType=T>>>,
         status_mask: StatusMask,
     ) -> Self {
         let entity_kind = match T::has_key() {
@@ -138,7 +138,7 @@ impl<T: DDSType> RtpsDataReaderInner<T> {
         guid: GUID,
         topic: &RtpsTopicInnerRef,
         qos: DataReaderQos,
-        listener: Option<Box<dyn DataReaderListener<T>>>,
+        listener: Option<Box<dyn DataReaderListener<DataType=T>>>,
         status_mask: StatusMask,
     ) -> Self {
         assert!(
@@ -174,7 +174,7 @@ impl<T: DDSType> RtpsDataReaderInner<T> {
         guid: GUID,
         topic: &RtpsTopicInnerRef,
         qos: DataReaderQos,
-        listener: Option<Box<dyn DataReaderListener<T>>>,
+        listener: Option<Box<dyn DataReaderListener<DataType=T>>>,
         status_mask: StatusMask,
     ) -> Self {
         assert!(

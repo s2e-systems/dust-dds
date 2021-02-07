@@ -65,7 +65,7 @@ pub trait Subscriber<'a>:
         &'a self,
         a_topic: &'a <Self as TopicGAT<'a, T>>::TopicType,
         qos: Option<DataReaderQos>,
-        a_listener: Option<Box<dyn DataReaderListener<T>>>,
+        a_listener: Option<Box<dyn DataReaderListener<DataType=T>>>,
         mask: StatusMask,
     ) -> Option<<Self as DataReaderGAT<'a, T>>::DataReaderType>
     where
