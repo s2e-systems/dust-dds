@@ -153,7 +153,7 @@ impl<'a, T: DDSType> DataWriter<'a, T> for RtpsDataWriter<'a, T> {
 impl<'a, T: DDSType> Entity for RtpsDataWriter<'a, T> {
     type Qos = DataWriterQos;
 
-    type Listener = Box<dyn DataWriterListener<T>>;
+    type Listener = Box<dyn DataWriterListener<T> + 'a>;
 
     fn set_qos(&self, _qos: Option<Self::Qos>) -> DDSResult<()> {
         todo!()

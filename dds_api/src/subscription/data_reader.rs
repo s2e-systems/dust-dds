@@ -22,7 +22,7 @@ use super::{
 /// All sample-accessing operations, namely all variants of read, take may return the error PRECONDITION_NOT_MET. The
 /// circumstances that result on this are described in 2.2.2.5.2.8.
 pub trait DataReader<'a, T: DDSType>:
-    Entity<Qos = DataReaderQos, Listener = Box<dyn DataReaderListener<DataType=T>>>
+    Entity<Qos = DataReaderQos, Listener = Box<dyn DataReaderListener<DataType=T>  + 'a>>
 {
     /// This operation accesses a collection of Data values from the DataReader. The size of the returned collection will be limited to
     /// the specified max_samples. The properties of the data_values collection and the setting of the PRESENTATION QoS policy

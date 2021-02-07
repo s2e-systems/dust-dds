@@ -29,7 +29,7 @@ pub trait PublisherChild<'a> {
 /// of the Publisher and the DataWriter.
 /// All operations except for the base-class operations set_qos, get_qos, set_listener, get_listener, enable, get_statuscondition,
 /// create_datawriter, and delete_datawriter may return the value NOT_ENABLED.
-pub trait Publisher<'a>: Entity<Qos = PublisherQos, Listener = Box<dyn PublisherListener>> {
+pub trait Publisher<'a>: Entity<Qos = PublisherQos, Listener = Box<dyn PublisherListener + 'a>> {
     /// This operation creates a DataWriter. The returned DataWriter will be attached and belongs to the Publisher.
     /// The DataWriter returned by the create_datawriter operation will in fact be a derived class, specific to the data-type associated
     /// with the Topic. As described in 2.2.2.3.7, for each application-defined type “Foo” there is an implied, auto-generated class

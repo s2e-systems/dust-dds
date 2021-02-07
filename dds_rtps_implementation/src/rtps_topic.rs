@@ -50,7 +50,7 @@ impl<'a, T: DDSType> TopicDescription<'a> for RtpsTopic<'a, T> {
 
 impl<'a, T: DDSType> Entity for RtpsTopic<'a, T> {
     type Qos = TopicQos;
-    type Listener = Box<dyn TopicListener>;
+    type Listener = Box<dyn TopicListener + 'a>;
 
     fn set_qos(&self, qos: Option<Self::Qos>) -> DDSResult<()> {
         self.topic_ref.set_qos(qos)

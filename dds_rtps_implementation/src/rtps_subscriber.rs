@@ -129,7 +129,7 @@ impl<'a> Subscriber<'a> for RtpsSubscriber<'a> {
 
 impl<'a> Entity for RtpsSubscriber<'a> {
     type Qos = SubscriberQos;
-    type Listener = Box<dyn SubscriberListener>;
+    type Listener = Box<dyn SubscriberListener + 'a>;
 
     fn set_qos(&self, _qos: Option<Self::Qos>) -> DDSResult<()> {
         todo!()

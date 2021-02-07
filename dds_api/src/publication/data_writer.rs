@@ -13,7 +13,7 @@ use crate::{
 use super::{data_writer_listener::DataWriterListener, publisher::PublisherChild};
 
 pub trait DataWriter<'a, T: DDSType>:
-    Entity<Qos = DataWriterQos, Listener = Box<dyn DataWriterListener<T>>>
+    Entity<Qos = DataWriterQos, Listener = Box<dyn DataWriterListener<T> + 'a>>
 {
     /// This operation informs the Service that the application will be modifying a particular instance. It gives an opportunity to the
     /// Service to pre-configure itself to improve performance.

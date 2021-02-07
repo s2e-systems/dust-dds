@@ -117,7 +117,7 @@ impl<'a> Publisher<'a> for RtpsPublisher<'a> {
 
 impl<'a> Entity for RtpsPublisher<'a> {
     type Qos = PublisherQos;
-    type Listener = Box<dyn PublisherListener>;
+    type Listener = Box<dyn PublisherListener + 'a>;
 
     fn set_qos(&self, qos: Option<Self::Qos>) -> DDSResult<()> {
         self.publisher_ref.set_qos(qos)
