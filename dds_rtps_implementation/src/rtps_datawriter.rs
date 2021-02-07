@@ -1,24 +1,16 @@
 use std::marker::PhantomData;
 
-use rust_dds_api::{
-    builtin_topics::SubscriptionBuiltinTopicData,
-    dcps_psm::{
+use rust_dds_api::{builtin_topics::SubscriptionBuiltinTopicData, dcps_psm::{
         Duration, InstanceHandle, LivelinessLostStatus, OfferedDeadlineMissedStatus,
         OfferedIncompatibleQosStatus, PublicationMatchedStatus, StatusMask, Time,
-    },
-    dds_type::DDSType,
-    domain::domain_participant::TopicGAT,
-    infrastructure::{
+    }, dds_type::DDSType, domain::domain_participant::TopicGAT, infrastructure::{
         entity::{Entity, StatusCondition},
         qos::DataWriterQos,
-    },
-    publication::{
+    }, publication::{
         data_writer::{AnyDataWriter, DataWriter},
         data_writer_listener::DataWriterListener,
         publisher::PublisherChild,
-    },
-    return_type::DDSResult,
-};
+    }, return_type::DDSResult, topic::topic::Topic};
 
 use crate::{
     inner::rtps_datawriter_inner::RtpsAnyDataWriterInnerRef, rtps_publisher::RtpsPublisher,
@@ -129,7 +121,7 @@ impl<'a, T: DDSType> DataWriter<'a, T> for RtpsDataWriter<'a, T> {
     }
 
     /// This operation returns the Topic associated with the DataWriter. This is the same Topic that was used to create the DataWriter.
-    fn get_topic(&self) -> &<Self as TopicGAT<'a, T>>::TopicType {
+    fn get_topic(&self) -> &dyn Topic {
         todo!()
     }
 

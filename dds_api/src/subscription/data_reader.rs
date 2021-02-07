@@ -449,7 +449,7 @@ pub trait DataReader<'a, T: DDSType>:
 
     /// This operation returns the TopicDescription associated with the DataReader. This is the same TopicDescription that was used
     /// to create the DataReader.
-    fn get_topicdescription(&self) -> &dyn TopicDescription<T>;
+    fn get_topicdescription(&self) -> &dyn TopicDescription;
 
     /// This operation returns the Subscriber to which the DataReader belongs.
     fn get_subscriber(&self) -> <Self as SubscriberChild<'a>>::SubscriberType

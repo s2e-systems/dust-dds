@@ -25,7 +25,7 @@ use super::{
     rtps_datawriter_inner::{
         RtpsAnyDataWriterInner, RtpsAnyDataWriterInnerRef, RtpsDataWriterInner,
     },
-    rtps_topic_inner::RtpsAnyTopicInnerRef,
+    rtps_topic_inner::RtpsTopicInnerRef,
 };
 
 enum EntityType {
@@ -127,7 +127,7 @@ impl<'a> RtpsPublisherInnerRef<'a> {
 
     pub fn create_datawriter<T: DDSType>(
         &self,
-        a_topic: &RtpsAnyTopicInnerRef,
+        a_topic: &RtpsTopicInnerRef,
         qos: Option<DataWriterQos>,
         a_listener: Option<Box<dyn DataWriterListener<T>>>,
         status_mask: StatusMask,
@@ -146,7 +146,7 @@ impl<'a> RtpsPublisherInnerRef<'a> {
     pub fn create_stateful_datawriter<T: DDSType>(
         &self,
         entity_key: [u8; 3],
-        a_topic: &RtpsAnyTopicInnerRef,
+        a_topic: &RtpsTopicInnerRef,
         qos: Option<DataWriterQos>,
         a_listener: Option<Box<dyn DataWriterListener<T>>>,
         status_mask: StatusMask,
@@ -178,7 +178,7 @@ impl<'a> RtpsPublisherInnerRef<'a> {
     pub fn create_stateless_datawriter<T: DDSType>(
         &self,
         entity_key: [u8; 3],
-        a_topic: &RtpsAnyTopicInnerRef,
+        a_topic: &RtpsTopicInnerRef,
         qos: Option<DataWriterQos>,
         a_listener: Option<Box<dyn DataWriterListener<T>>>,
         status_mask: StatusMask,

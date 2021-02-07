@@ -245,7 +245,7 @@ impl<'a, T: DDSType> DataReader<'a, T> for RtpsDataReader<'a, T> {
         todo!()
     }
 
-    fn get_topicdescription(&self) -> &dyn TopicDescription<T> {
+    fn get_topicdescription(&self) -> &dyn TopicDescription {
         todo!()
     }
 

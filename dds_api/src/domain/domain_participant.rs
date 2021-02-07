@@ -17,7 +17,7 @@ pub trait DomainParticipantChild<'a> {
 // Inspired by this thread: https://users.rust-lang.org/t/workaround-for-generic-associated-types/25920/14
 // The trait is placed here because the DomainParticipant is the factory of this type.
 pub trait TopicGAT<'a, T: DDSType> {
-    type TopicType: Topic<'a, T> + AnyTopic;
+    type TopicType: Topic<'a> + AnyTopic;
 }
 
 pub trait DomainParticipant<'a>:
@@ -92,7 +92,7 @@ pub trait DomainParticipant<'a>:
         &'a self,
         topic_name: &str,
         qos: Option<TopicQos>,
-        a_listener: Option<Box<dyn TopicListener<T>>>,
+        a_listener: Option<Box<dyn TopicListener>>,
         mask: StatusMask,
     ) -> Option<<Self as TopicGAT<'a, T>>::TopicType>
     where
@@ -145,7 +145,7 @@ pub trait DomainParticipant<'a>:
     fn lookup_topicdescription<T: DDSType>(
         &self,
         _name: &str,
-    ) -> Option<Box<dyn TopicDescription<T>>>
+    ) -> Option<Box<dyn TopicDescription>>
     where
         Self: Sized;
 

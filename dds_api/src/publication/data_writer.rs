@@ -1,4 +1,14 @@
-use crate::{builtin_topics::SubscriptionBuiltinTopicData, dcps_psm::{Duration, InstanceHandle, LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus, Time}, dds_type::DDSType, domain::domain_participant::TopicGAT, infrastructure::{entity::Entity, qos::DataWriterQos}, return_type::DDSResult};
+use crate::{
+    builtin_topics::SubscriptionBuiltinTopicData,
+    dcps_psm::{
+        Duration, InstanceHandle, LivelinessLostStatus, OfferedDeadlineMissedStatus,
+        OfferedIncompatibleQosStatus, PublicationMatchedStatus, Time,
+    },
+    dds_type::DDSType,
+    infrastructure::{entity::Entity, qos::DataWriterQos},
+    return_type::DDSResult,
+    topic::topic::Topic,
+};
 
 use super::{data_writer_listener::DataWriterListener, publisher::PublisherChild};
 
@@ -220,9 +230,7 @@ pub trait DataWriter<'a, T: DDSType>:
     ) -> DDSResult<()>;
 
     /// This operation returns the Topic associated with the DataWriter. This is the same Topic that was used to create the DataWriter.
-    fn get_topic(&self) -> &<Self as TopicGAT<'a, T>>::TopicType
-    where
-        Self: TopicGAT<'a, T> + Sized;
+    fn get_topic(&self) -> &dyn Topic;
 
     /// This operation returns the Publisher to which the publisher child object belongs.
     fn get_publisher(&self) -> &<Self as PublisherChild<'a>>::PublisherType
