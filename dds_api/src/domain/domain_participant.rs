@@ -1,7 +1,16 @@
-use crate::{builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData}, dcps_psm::{DomainId, Duration, InstanceHandle, StatusMask, Time}, dds_type::DDSType, infrastructure::{
+use crate::{
+    builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
+    dcps_psm::{DomainId, Duration, InstanceHandle, StatusMask, Time},
+    dds_type::DDSType,
+    infrastructure::{
         entity::Entity,
         qos::{DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
-    }, publication::{publisher::Publisher, publisher_listener::PublisherListener}, return_type::DDSResult, subscription::{subscriber::Subscriber, subscriber_listener::SubscriberListener}, topic::{topic::Topic, topic_description::{AnyTopic, TopicDescription}, topic_listener::TopicListener}};
+    },
+    publication::{publisher::Publisher, publisher_listener::PublisherListener},
+    return_type::DDSResult,
+    subscription::{subscriber::Subscriber, subscriber_listener::SubscriberListener},
+    topic::{topic::Topic, topic_description::TopicDescription, topic_listener::TopicListener},
+};
 
 use super::domain_participant_listener::DomainParticipantListener;
 
@@ -17,7 +26,7 @@ pub trait DomainParticipantChild<'a> {
 // Inspired by this thread: https://users.rust-lang.org/t/workaround-for-generic-associated-types/25920/14
 // The trait is placed here because the DomainParticipant is the factory of this type.
 pub trait TopicGAT<'a, T: DDSType> {
-    type TopicType: Topic<'a> + AnyTopic;
+    type TopicType: Topic<'a>;
 }
 
 pub trait DomainParticipant<'a>:
@@ -142,10 +151,7 @@ pub trait DomainParticipant<'a>:
     /// deletion. It is still possible to delete the TopicDescription returned by lookup_topicdescription, provided it has no readers or
     /// writers, but then it is really deleted and subsequent lookups will fail.
     /// If the operation fails to locate a TopicDescription, a ‘nil’ value (as specified by the platform) is returned.
-    fn lookup_topicdescription<T: DDSType>(
-        &self,
-        _name: &str,
-    ) -> Option<Box<dyn TopicDescription>>
+    fn lookup_topicdescription<T: DDSType>(&self, _name: &str) -> Option<Box<dyn TopicDescription>>
     where
         Self: Sized;
 

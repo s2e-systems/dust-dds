@@ -10,11 +10,7 @@ use rust_dds_api::{
         qos::TopicQos,
     },
     return_type::DDSResult,
-    topic::{
-        topic::Topic,
-        topic_description::{AnyTopic, TopicDescription},
-        topic_listener::TopicListener,
-    },
+    topic::{topic::Topic, topic_description::TopicDescription, topic_listener::TopicListener},
 };
 
 use super::rtps_domain_participant::RtpsDomainParticipant;
@@ -88,5 +84,3 @@ impl<'a, T: DDSType> Entity for RtpsTopic<'a, T> {
         todo!()
     }
 }
-
-impl<'a, T: DDSType> AnyTopic for RtpsTopic<'a, T> {}

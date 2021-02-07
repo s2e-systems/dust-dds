@@ -24,5 +24,3 @@ pub trait TopicDescription<'a>:
     /// The name used to create the TopicDescription
     fn get_name(&self) -> DDSResult<String>;
 }
-
-pub trait AnyTopic {}
