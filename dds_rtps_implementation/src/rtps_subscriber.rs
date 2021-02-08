@@ -56,7 +56,7 @@ impl<'a> Subscriber<'a> for RtpsSubscriber<'a> {
                 .create_datareader(&a_topic.topic_ref, qos, a_listener, mask)?;
 
         Some(RtpsDataReader {
-            parent_subscriber: self,
+            parent_subscriber: Some(self),
             data_reader_ref,
             phantom_data: PhantomData,
         })

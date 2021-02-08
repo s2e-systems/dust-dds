@@ -29,7 +29,7 @@ use crate::{
 };
 
 pub struct RtpsDataReader<'a, T: DDSType> {
-    pub(crate) parent_subscriber: &'a RtpsSubscriber<'a>,
+    pub(crate) parent_subscriber: Option<&'a RtpsSubscriber<'a>>,
     pub(crate) data_reader_ref: RtpsAnyDataReaderInnerRef<'a>,
     pub(crate) phantom_data: PhantomData<T>,
 }
