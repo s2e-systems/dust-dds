@@ -129,7 +129,7 @@ impl<'a> RtpsPublisherInnerRef<'a> {
         &self,
         a_topic: &RtpsTopicInnerRef,
         qos: Option<DataWriterQos>,
-        a_listener: Option<Box<dyn DataWriterListener<T>>>,
+        a_listener: Option<Box<dyn DataWriterListener<DataType=T>>>,
         status_mask: StatusMask,
     ) -> Option<RtpsAnyDataWriterInnerRef> {
         let entity_key = [
@@ -148,7 +148,7 @@ impl<'a> RtpsPublisherInnerRef<'a> {
         entity_key: [u8; 3],
         a_topic: &RtpsTopicInnerRef,
         qos: Option<DataWriterQos>,
-        a_listener: Option<Box<dyn DataWriterListener<T>>>,
+        a_listener: Option<Box<dyn DataWriterListener<DataType=T>>>,
         status_mask: StatusMask,
     ) -> Option<RtpsAnyDataWriterInnerRef> {
         let this = self.get().ok()?;
@@ -180,7 +180,7 @@ impl<'a> RtpsPublisherInnerRef<'a> {
         entity_key: [u8; 3],
         a_topic: &RtpsTopicInnerRef,
         qos: Option<DataWriterQos>,
-        a_listener: Option<Box<dyn DataWriterListener<T>>>,
+        a_listener: Option<Box<dyn DataWriterListener<DataType=T>>>,
         status_mask: StatusMask,
     ) -> Option<RtpsAnyDataWriterInnerRef> {
         let this = self.get().ok()?;

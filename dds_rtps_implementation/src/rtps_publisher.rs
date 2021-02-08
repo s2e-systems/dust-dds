@@ -42,7 +42,7 @@ impl<'a> Publisher<'a> for RtpsPublisher<'a> {
         &'a self,
         a_topic: &'a <Self as TopicGAT<'a, T>>::TopicType,
         qos: Option<DataWriterQos>,
-        a_listener: Option<Box<dyn DataWriterListener<T>>>,
+        a_listener: Option<Box<dyn DataWriterListener<DataType=T>>>,
         mask: StatusMask,
     ) -> Option<<Self as DataWriterGAT<'a, T>>::DataWriterType> {
         let data_writer_ref =

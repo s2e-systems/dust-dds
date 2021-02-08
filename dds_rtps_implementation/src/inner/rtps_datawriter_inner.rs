@@ -67,7 +67,7 @@ pub struct RtpsDataWriterInner<T: DDSType> {
     writer: Mutex<WriterFlavor>,
     qos: Mutex<DataWriterQos>,
     topic: Mutex<Option<Arc<RtpsTopicInner>>>,
-    listener: Option<Box<dyn DataWriterListener<T>>>,
+    listener: Option<Box<dyn DataWriterListener<DataType=T>>>,
     status_mask: StatusMask,
 }
 
@@ -77,7 +77,7 @@ impl<T: DDSType> RtpsDataWriterInner<T> {
         entity_key: [u8;3],
         topic: &RtpsTopicInnerRef,
         qos: DataWriterQos,
-        listener: Option<Box<dyn DataWriterListener<T>>>,
+        listener: Option<Box<dyn DataWriterListener<DataType=T>>>,
         status_mask: StatusMask,
     ) -> Self {
         let entity_kind = match T::has_key() {
@@ -94,7 +94,7 @@ impl<T: DDSType> RtpsDataWriterInner<T> {
         entity_key: [u8;3],
         topic: &RtpsTopicInnerRef,
         qos: DataWriterQos,
-        listener: Option<Box<dyn DataWriterListener<T>>>,
+        listener: Option<Box<dyn DataWriterListener<DataType=T>>>,
         status_mask: StatusMask,
     ) -> Self {
         let entity_kind = match T::has_key() {
@@ -111,7 +111,7 @@ impl<T: DDSType> RtpsDataWriterInner<T> {
         entity_key: [u8;3],
         topic: &RtpsTopicInnerRef,
         qos: DataWriterQos,
-        listener: Option<Box<dyn DataWriterListener<T>>>,
+        listener: Option<Box<dyn DataWriterListener<DataType=T>>>,
         status_mask: StatusMask,
     ) -> Self {
         let entity_kind = match T::has_key() {
@@ -128,7 +128,7 @@ impl<T: DDSType> RtpsDataWriterInner<T> {
         entity_key: [u8;3],
         topic: &RtpsTopicInnerRef,
         qos: DataWriterQos,
-        listener: Option<Box<dyn DataWriterListener<T>>>,
+        listener: Option<Box<dyn DataWriterListener<DataType=T>>>,
         status_mask: StatusMask,
     ) -> Self {
         let entity_kind = match T::has_key() {
@@ -144,7 +144,7 @@ impl<T: DDSType> RtpsDataWriterInner<T> {
         guid: GUID,
         topic: &RtpsTopicInnerRef,
         qos: DataWriterQos,
-        listener: Option<Box<dyn DataWriterListener<T>>>,
+        listener: Option<Box<dyn DataWriterListener<DataType=T>>>,
         status_mask: StatusMask,
     ) -> Self {
         assert!(
@@ -186,7 +186,7 @@ impl<T: DDSType> RtpsDataWriterInner<T> {
         guid: GUID,
         topic: &RtpsTopicInnerRef,
         qos: DataWriterQos,
-        listener: Option<Box<dyn DataWriterListener<T>>>,
+        listener: Option<Box<dyn DataWriterListener<DataType=T>>>,
         status_mask: StatusMask,
     ) -> Self {
         assert!(

@@ -55,7 +55,7 @@ pub trait Publisher<'a>: Entity<Qos = PublisherQos, Listener = Box<dyn Publisher
         &'a self,
         a_topic: &'a <Self as TopicGAT<'a, T>>::TopicType,
         qos: Option<DataWriterQos>,
-        a_listener: Option<Box<dyn DataWriterListener<T>>>,
+        a_listener: Option<Box<dyn DataWriterListener<DataType=T>>>,
         mask: StatusMask,
     ) -> Option<<Self as DataWriterGAT<'a, T>>::DataWriterType>
     where
