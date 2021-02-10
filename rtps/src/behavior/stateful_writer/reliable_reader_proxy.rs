@@ -1,80 +1,72 @@
 use std::{collections::BTreeSet, convert::TryInto, time::Instant};
 
-
-use crate::{behavior::{data_from_cache_change, types::Duration, BEHAVIOR_ENDIANNESS}, messages::{
+use crate::{
+    behavior::{data_from_cache_change, types::Duration, BEHAVIOR_ENDIANNESS},
+    messages::{
         submessages::{AckNack, Gap, Heartbeat},
         types::Count,
         RtpsSubmessage,
-    }, structure::HistoryCache, types::{EntityId, GUID, GuidPrefix, SequenceNumber}};
+    },
+    structure::HistoryCache,
+    types::{EntityId, GuidPrefix, SequenceNumber, GUID},
+};
 
 use super::ReaderProxy;
 
-pub struct ReliableReaderProxy {
-    reader_proxy: ReaderProxy,
+pub struct ReliableReaderProxyBehavior;
 
-    heartbeat_count: Count,
-    time_last_sent_data: Instant,
-    time_nack_received: Instant,
-    highest_nack_count_received: Count,
-}
-
-impl ReliableReaderProxy {
-    pub fn new(reader_proxy: ReaderProxy) -> Self {
-        Self {
-            reader_proxy,
-            heartbeat_count: 0,
-            time_last_sent_data: Instant::now(),
-            time_nack_received: Instant::now(),
-            highest_nack_count_received: 0,
-        }
-    }
-
+impl ReliableReaderProxyBehavior {
     pub fn produce_messages(
-        &mut self,
+        reader_proxy: &mut ReaderProxy,
         history_cache: &HistoryCache,
         writer_entity_id: EntityId,
         last_change_sequence_number: SequenceNumber,
         heartbeat_period: Duration,
         nack_response_delay: Duration,
+        heartbeat_count: &mut Count,
+        time_last_sent_data: &mut Instant,
+        time_nack_received: &mut Instant,
     ) -> Vec<RtpsSubmessage> {
         let mut message_queue = Vec::new();
 
-        if self
-            .reader_proxy
+        if reader_proxy
             .unacked_changes(last_change_sequence_number)
             .is_empty()
         {
             // Idle
-        } else if !self
-            .reader_proxy
+        } else if !reader_proxy
             .unsent_changes(last_change_sequence_number)
             .is_empty()
         {
-            self.pushing_state(
+            Self::pushing_state(
+                reader_proxy,
                 history_cache,
                 last_change_sequence_number,
                 writer_entity_id,
                 &mut message_queue,
+                time_last_sent_data,
             );
-        } else if !self
-            .reader_proxy
+        } else if !reader_proxy
             .unacked_changes(last_change_sequence_number)
             .is_empty()
         {
-            self.announcing_state(
+            Self::announcing_state(
+                reader_proxy,
                 history_cache,
                 last_change_sequence_number,
                 writer_entity_id,
                 heartbeat_period,
                 &mut message_queue,
+                time_last_sent_data,
+                heartbeat_count,
             );
         }
 
-        if !self.reader_proxy.requested_changes().is_empty() {
+        if !reader_proxy.requested_changes().is_empty() {
             let duration_since_nack_received: Duration =
-                self.time_nack_received.elapsed().try_into().unwrap();
+                time_nack_received.elapsed().try_into().unwrap();
             if duration_since_nack_received > nack_response_delay {
-                self.repairing_state(history_cache, writer_entity_id, &mut message_queue);
+                Self::repairing_state(reader_proxy, history_cache, writer_entity_id, &mut message_queue);
             }
         }
 
@@ -82,20 +74,22 @@ impl ReliableReaderProxy {
     }
 
     pub fn try_process_message(
-        &mut self,
+        reader_proxy: &mut ReaderProxy,
         src_guid_prefix: GuidPrefix,
         submessage: &mut Option<RtpsSubmessage>,
+        highest_nack_count_received: &mut Count,
+        time_nack_received: &mut Instant,
     ) {
         if let Some(RtpsSubmessage::AckNack(acknack)) = submessage {
             let reader_guid = GUID::new(src_guid_prefix, acknack.reader_id());
-            if self.reader_proxy.remote_reader_guid == reader_guid {
+            if reader_proxy.remote_reader_guid == reader_guid {
                 if let RtpsSubmessage::AckNack(acknack) = submessage.take().unwrap() {
-                    if acknack.count() > self.highest_nack_count_received {
-                        self.highest_nack_count_received = acknack.count();
-                        if self.reader_proxy.requested_changes().is_empty() {
-                            self.waiting_state(acknack);
+                    if &acknack.count() > highest_nack_count_received {
+                        *highest_nack_count_received = acknack.count();
+                        if reader_proxy.requested_changes().is_empty() {
+                            Self::waiting_state(reader_proxy, acknack, time_nack_received);
                         } else {
-                            self.must_repair_state(acknack);
+                            Self::must_repair_state(reader_proxy, acknack);
                         }
                     }
                 }
@@ -104,136 +98,141 @@ impl ReliableReaderProxy {
     }
 
     fn pushing_state(
-        &mut self,
+        reader_proxy: &mut ReaderProxy,
         history_cache: &HistoryCache,
         last_change_sequence_number: SequenceNumber,
         writer_entity_id: EntityId,
         message_queue: &mut Vec<RtpsSubmessage>,
+        time_last_sent_data: &mut Instant,
     ) {
-        while let Some(next_unsent_seq_num) = self
-            .reader_proxy
+        while let Some(next_unsent_seq_num) = reader_proxy
             .next_unsent_change(last_change_sequence_number)
         {
-            self.transition_t4(
+            Self::transition_t4(
+                reader_proxy,
                 history_cache,
                 next_unsent_seq_num,
                 writer_entity_id,
                 message_queue,
             );
         }
-        self.time_last_sent_data = Instant::now();
+        *time_last_sent_data = Instant::now();
     }
 
     fn transition_t4(
-        &mut self,
+        reader_proxy: &mut ReaderProxy,
         history_cache: &HistoryCache,
         next_unsent_seq_num: SequenceNumber,
         writer_entity_id: EntityId,
         message_queue: &mut Vec<RtpsSubmessage>,
     ) {
         if let Some(cache_change) = history_cache.get_change(next_unsent_seq_num) {
-            let reader_id = self.reader_proxy.remote_reader_guid.entity_id();
+            let reader_id = reader_proxy.remote_reader_guid.entity_id();
             let data = data_from_cache_change(cache_change, reader_id);
-            let mut dst_locator = self.reader_proxy.unicast_locator_list.clone();
-            dst_locator.extend(&self.reader_proxy.unicast_locator_list);
-            dst_locator.extend(&self.reader_proxy.multicast_locator_list);
+            let mut dst_locator = reader_proxy.unicast_locator_list.clone();
+            dst_locator.extend(&reader_proxy.unicast_locator_list);
+            dst_locator.extend(&reader_proxy.multicast_locator_list);
             message_queue.push(RtpsSubmessage::Data(data));
         } else {
             let gap = Gap::new(
                 BEHAVIOR_ENDIANNESS,
-                self.reader_proxy.remote_reader_guid.entity_id(),
+                reader_proxy.remote_reader_guid.entity_id(),
                 writer_entity_id,
                 next_unsent_seq_num,
                 BTreeSet::new(),
             );
 
-            let mut dst_locator = self.reader_proxy.unicast_locator_list.clone();
-            dst_locator.extend(&self.reader_proxy.unicast_locator_list);
-            dst_locator.extend(&self.reader_proxy.multicast_locator_list);
+            let mut dst_locator = reader_proxy.unicast_locator_list.clone();
+            dst_locator.extend(&reader_proxy.unicast_locator_list);
+            dst_locator.extend(&reader_proxy.multicast_locator_list);
             message_queue.push(RtpsSubmessage::Gap(gap));
         }
     }
 
     fn announcing_state(
-        &mut self,
+        reader_proxy: &mut ReaderProxy,
         history_cache: &HistoryCache,
         last_change_sequence_number: SequenceNumber,
         writer_entity_id: EntityId,
         heartbeat_period: Duration,
         message_queue: &mut Vec<RtpsSubmessage>,
+        time_last_sent_data: &mut Instant,
+        heartbeat_count: &mut Count,
     ) {
         let duration_since_last_sent_data: Duration =
-            self.time_last_sent_data.elapsed().try_into().unwrap();
+            time_last_sent_data.elapsed().try_into().unwrap();
         if duration_since_last_sent_data > heartbeat_period {
-            self.transition_t7(
+            Self::transition_t7(
+                reader_proxy,
                 history_cache,
                 last_change_sequence_number,
                 writer_entity_id,
                 message_queue,
+                heartbeat_count,
             );
-            self.time_last_sent_data = Instant::now();
+            *time_last_sent_data = Instant::now();
         }
     }
 
     fn transition_t7(
-        &mut self,
+        reader_proxy: &mut ReaderProxy,
         history_cache: &HistoryCache,
         last_change_sequence_number: SequenceNumber,
         writer_entity_id: EntityId,
         message_queue: &mut Vec<RtpsSubmessage>,
+        heartbeat_count: &mut Count,
+
     ) {
         let first_sn = if let Some(seq_num) = history_cache.get_seq_num_min() {
             seq_num
         } else {
             last_change_sequence_number + 1
         };
-        self.heartbeat_count += 1;
+        *heartbeat_count += 1;
 
         let heartbeat = Heartbeat::new(
             BEHAVIOR_ENDIANNESS,
-            self.reader_proxy.remote_reader_guid.entity_id(),
+            reader_proxy.remote_reader_guid.entity_id(),
             writer_entity_id,
             first_sn,
             last_change_sequence_number,
-            self.heartbeat_count,
+            *heartbeat_count,
             false,
             false,
         );
 
-        let mut dst_locator = self.reader_proxy.unicast_locator_list.clone();
-        dst_locator.extend(&self.reader_proxy.unicast_locator_list);
-        dst_locator.extend(&self.reader_proxy.multicast_locator_list);
+        let mut dst_locator = reader_proxy.unicast_locator_list.clone();
+        dst_locator.extend(&reader_proxy.unicast_locator_list);
+        dst_locator.extend(&reader_proxy.multicast_locator_list);
 
         message_queue.push(RtpsSubmessage::Heartbeat(heartbeat));
     }
 
-    fn waiting_state(&mut self, acknack: AckNack) {
-        self.transition_t8(acknack);
-        self.time_nack_received = Instant::now();
+    fn waiting_state(reader_proxy: &mut ReaderProxy, acknack: AckNack, time_nack_received: &mut Instant) {
+        Self::transition_t8(reader_proxy, acknack);
+        *time_nack_received = Instant::now();
     }
 
-    fn transition_t8(&mut self, acknack: AckNack) {
-        self.reader_proxy
+    fn transition_t8(reader_proxy: &mut ReaderProxy, acknack: AckNack) {
+        reader_proxy
             .acked_changes_set(acknack.reader_sn_state().base() - 1);
-        self.reader_proxy
+        reader_proxy
             .requested_changes_set(acknack.reader_sn_state().set().clone());
     }
 
-    fn must_repair_state(&mut self, acknack: AckNack) {
-        self.transition_t8(acknack);
+    fn must_repair_state(reader_proxy: &mut ReaderProxy, acknack: AckNack) {
+        Self::transition_t8(reader_proxy, acknack);
     }
 
     fn repairing_state(
-        &mut self,
+        reader_proxy: &mut ReaderProxy,
         history_cache: &HistoryCache,
         writer_entity_id: EntityId,
         message_queue: &mut Vec<RtpsSubmessage>,
     ) {
-        // This state is only valid if there are requested changes
-        debug_assert!(!self.reader_proxy.requested_changes().is_empty());
-
-        while let Some(next_requested_seq_num) = self.reader_proxy.next_requested_change() {
-            self.transition_t12(
+        while let Some(next_requested_seq_num) = reader_proxy.next_requested_change() {
+            Self::transition_t12(
+                reader_proxy,
                 history_cache,
                 next_requested_seq_num,
                 writer_entity_id,
@@ -243,7 +242,7 @@ impl ReliableReaderProxy {
     }
 
     fn transition_t12(
-        &mut self,
+        reader_proxy: &mut ReaderProxy,
         history_cache: &HistoryCache,
         next_requested_seq_num: SequenceNumber,
         writer_entity_id: EntityId,
@@ -252,13 +251,13 @@ impl ReliableReaderProxy {
         if let Some(cache_change) = history_cache.get_change(next_requested_seq_num) {
             let data = data_from_cache_change(
                 cache_change,
-                self.reader_proxy.remote_reader_guid.entity_id(),
+                reader_proxy.remote_reader_guid.entity_id(),
             );
             message_queue.push(RtpsSubmessage::Data(data));
         } else {
             let gap = Gap::new(
                 BEHAVIOR_ENDIANNESS,
-                self.reader_proxy.remote_reader_guid.entity_id(),
+                reader_proxy.remote_reader_guid.entity_id(),
                 writer_entity_id,
                 next_requested_seq_num,
                 BTreeSet::new(),
@@ -268,28 +267,14 @@ impl ReliableReaderProxy {
     }
 }
 
-impl std::ops::Deref for ReliableReaderProxy {
-    type Target = ReaderProxy;
-
-    fn deref(&self) -> &Self::Target {
-        &self.reader_proxy
-    }
-}
-
-impl std::ops::DerefMut for ReliableReaderProxy {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.reader_proxy
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{messages::types::Endianness, types::ChangeKind};
     use crate::types::constants::{
         ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER, ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER,
     };
     use crate::types::{Locator, GUID};
+    use crate::{messages::types::Endianness, types::ChangeKind};
 
     use crate::structure::CacheChange;
 
@@ -300,14 +285,13 @@ mod tests {
         let multicast_locator_list = vec![];
         let expects_inline_qos = false;
         let is_active = true;
-        let reader_proxy = ReaderProxy::new(
+        let mut reader_proxy = ReaderProxy::new(
             remote_reader_guid,
             unicast_locator_list,
             multicast_locator_list,
             expects_inline_qos,
             is_active,
         );
-        let mut reliable_reader_proxy = ReliableReaderProxy::new(reader_proxy);
 
         let writer_entity_id = ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER;
         let history_cache = HistoryCache::default();
@@ -316,12 +300,19 @@ mod tests {
         let heartbeat_period = Duration::from_secs(1);
         let nack_response_delay = Duration::from_secs(1);
         let last_change_sequence_number = 0;
-        let messages_vec = reliable_reader_proxy.produce_messages(
+        let mut heartbeat_count = 0;
+        let mut time_last_sent_data = Instant::now();
+        let mut time_nack_received = Instant::now();
+        let messages_vec = ReliableReaderProxyBehavior::produce_messages(
+            &mut reader_proxy,
             &history_cache,
             writer_entity_id,
             last_change_sequence_number,
             heartbeat_period,
             nack_response_delay,
+            &mut heartbeat_count,
+            &mut time_last_sent_data,
+            &mut time_nack_received,
         );
 
         assert!(messages_vec.is_empty());
@@ -334,14 +325,13 @@ mod tests {
         let multicast_locator_list = vec![];
         let expects_inline_qos = false;
         let is_active = true;
-        let reader_proxy = ReaderProxy::new(
+        let mut reader_proxy = ReaderProxy::new(
             remote_reader_guid,
             unicast_locator_list,
             multicast_locator_list,
             expects_inline_qos,
             is_active,
         );
-        let mut reliable_reader_proxy = ReliableReaderProxy::new(reader_proxy);
 
         let writer_entity_id = ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER;
         let mut history_cache = HistoryCache::default();
@@ -363,12 +353,20 @@ mod tests {
         let last_change_sequence_number = 1;
         let heartbeat_period = Duration::from_secs(1);
         let nack_response_delay = Duration::from_secs(1);
-        let messages_vec = reliable_reader_proxy.produce_messages(
+        let mut heartbeat_count = 0;
+        let mut time_last_sent_data = Instant::now();
+        let mut time_nack_received = Instant::now();
+
+        let messages_vec = ReliableReaderProxyBehavior::produce_messages(
+            &mut reader_proxy,
             &history_cache,
             writer_entity_id,
             last_change_sequence_number,
             heartbeat_period,
             nack_response_delay,
+            &mut heartbeat_count,
+            &mut time_last_sent_data,
+            &mut time_nack_received,
         );
 
         let expected_data_submessage = RtpsSubmessage::Data(data_from_cache_change(
@@ -386,14 +384,13 @@ mod tests {
         let multicast_locator_list = vec![];
         let expects_inline_qos = false;
         let is_active = true;
-        let reader_proxy = ReaderProxy::new(
+        let mut reader_proxy = ReaderProxy::new(
             remote_reader_guid,
             unicast_locator_list,
             multicast_locator_list,
             expects_inline_qos,
             is_active,
         );
-        let mut reliable_reader_proxy = ReliableReaderProxy::new(reader_proxy);
 
         let writer_entity_id = ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER;
         let history_cache = HistoryCache::default();
@@ -402,12 +399,19 @@ mod tests {
         let last_change_sequence_number = 1;
         let heartbeat_period = Duration::from_secs(1);
         let nack_response_delay = Duration::from_secs(1);
-        let messages_vec = reliable_reader_proxy.produce_messages(
+        let mut heartbeat_count = 0;
+        let mut time_last_sent_data = Instant::now();
+        let mut time_nack_received = Instant::now();
+        let messages_vec = ReliableReaderProxyBehavior::produce_messages(
+            &mut reader_proxy,
             &history_cache,
             writer_entity_id,
             last_change_sequence_number,
             heartbeat_period,
             nack_response_delay,
+            &mut heartbeat_count,
+            &mut time_last_sent_data,
+            &mut time_nack_received,
         );
 
         let expected_gap_submessage = RtpsSubmessage::Gap(Gap::new(
@@ -428,14 +432,13 @@ mod tests {
         let multicast_locator_list = vec![];
         let expects_inline_qos = false;
         let is_active = true;
-        let reader_proxy = ReaderProxy::new(
+        let mut reader_proxy = ReaderProxy::new(
             remote_reader_guid,
             unicast_locator_list,
             multicast_locator_list,
             expects_inline_qos,
             is_active,
         );
-        let mut reliable_reader_proxy = ReliableReaderProxy::new(reader_proxy);
 
         let writer_entity_id = ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER;
         let mut history_cache = HistoryCache::default();
@@ -457,12 +460,20 @@ mod tests {
         let last_change_sequence_number = 2;
         let heartbeat_period = Duration::from_secs(1);
         let nack_response_delay = Duration::from_secs(1);
-        let messages_vec = reliable_reader_proxy.produce_messages(
+        let mut heartbeat_count = 0;
+        let mut time_last_sent_data = Instant::now();
+        let mut time_nack_received = Instant::now();
+
+        let messages_vec = ReliableReaderProxyBehavior::produce_messages(
+            &mut reader_proxy,
             &history_cache,
             writer_entity_id,
             last_change_sequence_number,
             heartbeat_period,
             nack_response_delay,
+            &mut heartbeat_count,
+            &mut time_last_sent_data,
+            &mut time_nack_received,
         );
 
         let expected_data_submessage = RtpsSubmessage::Data(data_from_cache_change(
@@ -490,14 +501,13 @@ mod tests {
         let multicast_locator_list = vec![];
         let expects_inline_qos = false;
         let is_active = true;
-        let reader_proxy = ReaderProxy::new(
+        let mut reader_proxy = ReaderProxy::new(
             remote_reader_guid,
             unicast_locator_list,
             multicast_locator_list,
             expects_inline_qos,
             is_active,
         );
-        let mut reliable_reader_proxy = ReliableReaderProxy::new(reader_proxy);
 
         let writer_entity_id = ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER;
 
@@ -511,18 +521,22 @@ mod tests {
             true,
         );
 
-        reliable_reader_proxy.try_process_message(
+        let mut highest_nack_count_received = 0;
+        let mut time_nack_received = Instant::now();
+
+        ReliableReaderProxyBehavior::try_process_message(
+            &mut reader_proxy,
             remote_reader_guid_prefix,
             &mut Some(RtpsSubmessage::AckNack(acknack)),
+            &mut highest_nack_count_received,
+            &mut time_nack_received,
         );
 
-        assert_eq!(reliable_reader_proxy.highest_nack_count_received, 1);
-        assert!(reliable_reader_proxy
-            .reader_proxy
+        assert_eq!(highest_nack_count_received, 1);
+        assert!(reader_proxy
             .unacked_changes(1)
             .is_empty()); // If 1 is the last change sequence number there are no unacked changes
-        assert!(reliable_reader_proxy
-            .reader_proxy
+        assert!(reader_proxy
             .unacked_changes(2)
             .contains(&2)); // If 2 is the last change sequence number, then 2 is an unacked change
     }
@@ -536,14 +550,13 @@ mod tests {
         let multicast_locator_list = vec![];
         let expects_inline_qos = false;
         let is_active = true;
-        let reader_proxy = ReaderProxy::new(
+        let mut reader_proxy = ReaderProxy::new(
             remote_reader_guid,
             unicast_locator_list,
             multicast_locator_list,
             expects_inline_qos,
             is_active,
         );
-        let mut reliable_reader_proxy = ReliableReaderProxy::new(reader_proxy);
 
         let writer_entity_id = ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER;
 
@@ -557,12 +570,18 @@ mod tests {
             true,
         );
 
-        reliable_reader_proxy.try_process_message(
+        let mut highest_nack_count_received = 0;
+        let mut time_nack_received = Instant::now();
+
+        ReliableReaderProxyBehavior::try_process_message(
+            &mut reader_proxy,
             remote_reader_guid_prefix,
             &mut Some(RtpsSubmessage::AckNack(acknack)),
+            &mut highest_nack_count_received,
+            &mut time_nack_received,
         );
 
-        let requested_changes = reliable_reader_proxy.reader_proxy.requested_changes();
+        let requested_changes = reader_proxy.requested_changes();
         assert!(requested_changes.contains(&1));
         assert!(requested_changes.contains(&3));
     }
@@ -576,14 +595,13 @@ mod tests {
         let multicast_locator_list = vec![];
         let expects_inline_qos = false;
         let is_active = true;
-        let reader_proxy = ReaderProxy::new(
+        let mut reader_proxy = ReaderProxy::new(
             remote_reader_guid,
             unicast_locator_list,
             multicast_locator_list,
             expects_inline_qos,
             is_active,
         );
-        let mut reliable_reader_proxy = ReliableReaderProxy::new(reader_proxy);
 
         let writer_entity_id = ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER;
 
@@ -597,9 +615,15 @@ mod tests {
             true,
         );
 
-        reliable_reader_proxy.try_process_message(
+        let mut highest_nack_count_received = 0;
+        let mut time_nack_received = Instant::now();
+
+        ReliableReaderProxyBehavior::try_process_message(
+            &mut reader_proxy,
             remote_reader_guid_prefix,
             &mut Some(RtpsSubmessage::AckNack(acknack)),
+            &mut highest_nack_count_received,
+            &mut time_nack_received,
         );
 
         let acknack_same_count = AckNack::new(
@@ -612,13 +636,19 @@ mod tests {
             true,
         );
 
-        reliable_reader_proxy.try_process_message(
+        let mut highest_nack_count_received = 0;
+        let mut time_nack_received = Instant::now();
+
+        ReliableReaderProxyBehavior::try_process_message(
+            &mut reader_proxy,
             remote_reader_guid_prefix,
             &mut Some(RtpsSubmessage::AckNack(acknack_same_count)),
+            &mut highest_nack_count_received,
+            &mut time_nack_received,
         );
 
-        assert_eq!(reliable_reader_proxy.highest_nack_count_received, 1);
-        let requested_changes = reliable_reader_proxy.reader_proxy.requested_changes();
+        assert_eq!(highest_nack_count_received, 1);
+        let requested_changes = reader_proxy.requested_changes();
         assert!(requested_changes.contains(&1));
         assert!(requested_changes.contains(&3));
     }
@@ -630,14 +660,13 @@ mod tests {
         let multicast_locator_list = vec![];
         let expects_inline_qos = false;
         let is_active = true;
-        let reader_proxy = ReaderProxy::new(
+        let mut reader_proxy = ReaderProxy::new(
             remote_reader_guid,
             unicast_locator_list,
             multicast_locator_list,
             expects_inline_qos,
             is_active,
         );
-        let mut reliable_reader_proxy = ReliableReaderProxy::new(reader_proxy);
 
         let writer_entity_id = ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER;
         let mut history_cache = HistoryCache::default();
@@ -670,30 +699,45 @@ mod tests {
         let last_change_sequence_number = 2;
         let heartbeat_period = Duration::from_secs(0);
         let nack_response_delay = Duration::from_secs(1);
+        let mut heartbeat_count = 0;
+        let mut time_last_sent_data = Instant::now();
+        let mut time_nack_received = Instant::now();
 
         // The first produce should generate the data/gap messages and no heartbeat so we ignore it
-        reliable_reader_proxy.produce_messages(
+        ReliableReaderProxyBehavior::produce_messages(
+            &mut reader_proxy,
             &history_cache,
             writer_entity_id,
             last_change_sequence_number,
             heartbeat_period,
             nack_response_delay,
+            &mut heartbeat_count,
+            &mut time_last_sent_data,
+            &mut time_nack_received,
         );
 
-        let messages_vec1 = reliable_reader_proxy.produce_messages(
+        let messages_vec1 = ReliableReaderProxyBehavior::produce_messages(
+            &mut reader_proxy,
             &history_cache,
             writer_entity_id,
             last_change_sequence_number,
             heartbeat_period,
             nack_response_delay,
+            &mut heartbeat_count,
+            &mut time_last_sent_data,
+            &mut time_nack_received,
         );
 
-        let messages_vec2 = reliable_reader_proxy.produce_messages(
+        let messages_vec2 = ReliableReaderProxyBehavior::produce_messages(
+            &mut reader_proxy,
             &history_cache,
             writer_entity_id,
             last_change_sequence_number,
             heartbeat_period,
             nack_response_delay,
+            &mut heartbeat_count,
+            &mut time_last_sent_data,
+            &mut time_nack_received,
         );
 
         let expected_heartbeat_message1 = RtpsSubmessage::Heartbeat(Heartbeat::new(
@@ -731,14 +775,13 @@ mod tests {
         let multicast_locator_list = vec![];
         let expects_inline_qos = false;
         let is_active = true;
-        let reader_proxy = ReaderProxy::new(
+        let mut reader_proxy = ReaderProxy::new(
             remote_reader_guid,
             unicast_locator_list,
             multicast_locator_list,
             expects_inline_qos,
             is_active,
         );
-        let mut reliable_reader_proxy = ReliableReaderProxy::new(reader_proxy);
 
         let writer_entity_id = ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER;
         let mut history_cache = HistoryCache::default();
@@ -771,32 +814,47 @@ mod tests {
         let last_change_sequence_number = 2;
         let heartbeat_period = Duration::from_millis(200);
         let nack_response_delay = Duration::from_secs(1);
+        let mut heartbeat_count = 0;
+        let mut time_last_sent_data = Instant::now();
+        let mut time_nack_received = Instant::now();
 
         // The first produce should generate the data/gap messages and no heartbeat so we ignore it
-        reliable_reader_proxy.produce_messages(
+        ReliableReaderProxyBehavior::produce_messages(
+            &mut reader_proxy,
             &history_cache,
             writer_entity_id,
             last_change_sequence_number,
             heartbeat_period,
             nack_response_delay,
+            &mut heartbeat_count,
+            &mut time_last_sent_data,
+            &mut time_nack_received,
         );
 
-        let messages_vec1 = reliable_reader_proxy.produce_messages(
+        let messages_vec1 = ReliableReaderProxyBehavior::produce_messages(
+            &mut reader_proxy,
             &history_cache,
             writer_entity_id,
             last_change_sequence_number,
             heartbeat_period,
             nack_response_delay,
+            &mut heartbeat_count,
+            &mut time_last_sent_data,
+            &mut time_nack_received,
         );
 
         std::thread::sleep(heartbeat_period.into());
 
-        let messages_vec2 = reliable_reader_proxy.produce_messages(
+        let messages_vec2 = ReliableReaderProxyBehavior::produce_messages(
+            &mut reader_proxy,
             &history_cache,
             writer_entity_id,
             last_change_sequence_number,
             heartbeat_period,
             nack_response_delay,
+            &mut heartbeat_count,
+            &mut time_last_sent_data,
+            &mut time_nack_received,
         );
 
         let expected_heartbeat_message = RtpsSubmessage::Heartbeat(Heartbeat::new(
@@ -824,14 +882,13 @@ mod tests {
         let multicast_locator_list = vec![];
         let expects_inline_qos = false;
         let is_active = true;
-        let reader_proxy = ReaderProxy::new(
+        let mut reader_proxy = ReaderProxy::new(
             remote_reader_guid,
             unicast_locator_list,
             multicast_locator_list,
             expects_inline_qos,
             is_active,
         );
-        let mut reliable_reader_proxy = ReliableReaderProxy::new(reader_proxy);
 
         let writer_entity_id = ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER;
         let mut history_cache = HistoryCache::default();
@@ -864,6 +921,9 @@ mod tests {
         let last_change_sequence_number = 2;
         let heartbeat_period = Duration::from_secs(1);
         let nack_response_delay = Duration::from_secs(0);
+        let mut heartbeat_count = 0;
+        let mut time_last_sent_data = Instant::now();
+        let mut time_nack_received = Instant::now();
 
         let acknack = AckNack::new(
             Endianness::LittleEndian,
@@ -875,25 +935,39 @@ mod tests {
             true,
         );
 
-        reliable_reader_proxy.produce_messages(
+        ReliableReaderProxyBehavior::produce_messages(
+            &mut reader_proxy,
             &history_cache,
             writer_entity_id,
             last_change_sequence_number,
             heartbeat_period,
             nack_response_delay,
+            &mut heartbeat_count,
+            &mut time_last_sent_data,
+            &mut time_nack_received,
         );
 
-        reliable_reader_proxy.try_process_message(
+        let mut highest_nack_count_received = 0;
+        let mut time_nack_received = Instant::now();
+
+        ReliableReaderProxyBehavior::try_process_message(
+            &mut reader_proxy,
             remote_reader_guid_prefix,
             &mut Some(RtpsSubmessage::AckNack(acknack)),
+            &mut highest_nack_count_received,
+            &mut time_nack_received,
         );
 
-        let messages_vec = reliable_reader_proxy.produce_messages(
+        let messages_vec = ReliableReaderProxyBehavior::produce_messages(
+            &mut reader_proxy,
             &history_cache,
             writer_entity_id,
             last_change_sequence_number,
             heartbeat_period,
             nack_response_delay,
+            &mut heartbeat_count,
+            &mut time_last_sent_data,
+            &mut time_nack_received,
         );
 
         let expected_data_submessage = RtpsSubmessage::Data(data_from_cache_change(
@@ -913,14 +987,13 @@ mod tests {
         let multicast_locator_list = vec![];
         let expects_inline_qos = false;
         let is_active = true;
-        let reader_proxy = ReaderProxy::new(
+        let mut reader_proxy = ReaderProxy::new(
             remote_reader_guid,
             unicast_locator_list,
             multicast_locator_list,
             expects_inline_qos,
             is_active,
         );
-        let mut reliable_reader_proxy = ReliableReaderProxy::new(reader_proxy);
 
         let writer_entity_id = ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER;
         let mut history_cache = HistoryCache::default();
@@ -953,6 +1026,9 @@ mod tests {
         let last_change_sequence_number = 2;
         let heartbeat_period = Duration::from_secs(1);
         let nack_response_delay = Duration::from_millis(200);
+        let mut heartbeat_count = 0;
+        let mut time_last_sent_data = Instant::now();
+        let mut time_nack_received = Instant::now();
 
         let acknack = AckNack::new(
             Endianness::LittleEndian,
@@ -964,35 +1040,53 @@ mod tests {
             true,
         );
 
-        reliable_reader_proxy.produce_messages(
+        ReliableReaderProxyBehavior::produce_messages(
+            &mut reader_proxy,
             &history_cache,
             writer_entity_id,
             last_change_sequence_number,
             heartbeat_period,
             nack_response_delay,
+            &mut heartbeat_count,
+            &mut time_last_sent_data,
+            &mut time_nack_received,
         );
 
-        reliable_reader_proxy.try_process_message(
+        let mut highest_nack_count_received = 0;
+        let mut time_nack_received = Instant::now();
+
+        ReliableReaderProxyBehavior::try_process_message(
+            &mut reader_proxy,
             remote_reader_guid_prefix,
             &mut Some(RtpsSubmessage::AckNack(acknack)),
+            &mut highest_nack_count_received,
+            &mut time_nack_received,
         );
 
-        let messages_vec_expected_empty = reliable_reader_proxy.produce_messages(
+        let messages_vec_expected_empty = ReliableReaderProxyBehavior::produce_messages(
+            &mut reader_proxy,
             &history_cache,
             writer_entity_id,
             last_change_sequence_number,
             heartbeat_period,
             nack_response_delay,
+            &mut heartbeat_count,
+            &mut time_last_sent_data,
+            &mut time_nack_received,
         );
 
         std::thread::sleep(nack_response_delay.into());
 
-        let messages_vec = reliable_reader_proxy.produce_messages(
+        let messages_vec = ReliableReaderProxyBehavior::produce_messages(
+            &mut reader_proxy,
             &history_cache,
             writer_entity_id,
             last_change_sequence_number,
             heartbeat_period,
             nack_response_delay,
+            &mut heartbeat_count,
+            &mut time_last_sent_data,
+            &mut time_nack_received,
         );
 
         let expected_data_submessage = RtpsSubmessage::Data(data_from_cache_change(

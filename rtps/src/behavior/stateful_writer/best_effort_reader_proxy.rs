@@ -5,22 +5,19 @@ use crate::{behavior::{BEHAVIOR_ENDIANNESS, data_from_cache_change}, messages::{
 
 use super::ReaderProxy;
 
-pub struct BestEffortReaderProxy(ReaderProxy);
+pub struct BestEffortReaderProxyBehavior;
 
-impl BestEffortReaderProxy {
-    pub fn new(reader_proxy: ReaderProxy) -> Self {
-        Self(reader_proxy)
-    }
-
+impl BestEffortReaderProxyBehavior {
     pub fn produce_messages(
-        &mut self,
+        reader_proxy: &mut ReaderProxy,
         history_cache: &HistoryCache,
         writer_entity_id: EntityId,
         last_change_sequence_number: SequenceNumber,
     ) -> Vec<RtpsSubmessage> {
         let mut messages = Vec::new();
-        if !self.unsent_changes(last_change_sequence_number).is_empty() {
-            self.pushing_state(
+        if !reader_proxy.unsent_changes(last_change_sequence_number).is_empty() {
+            Self::pushing_state(
+                reader_proxy,
                 history_cache,
                 last_change_sequence_number,
                 writer_entity_id,
@@ -31,14 +28,15 @@ impl BestEffortReaderProxy {
     }
 
     fn pushing_state(
-        &mut self,
+        reader_proxy: &mut ReaderProxy,
         history_cache: &HistoryCache,
         last_change_sequence_number: SequenceNumber,
         writer_entity_id: EntityId,
         message_queue: &mut Vec<RtpsSubmessage>,
     ) {
-        while let Some(next_unsent_seq_num) = self.next_unsent_change(last_change_sequence_number) {
-            self.transition_t4(
+        while let Some(next_unsent_seq_num) = reader_proxy.next_unsent_change(last_change_sequence_number) {
+            Self::transition_t4(
+                reader_proxy,
                 history_cache,
                 next_unsent_seq_num,
                 writer_entity_id,
@@ -48,46 +46,32 @@ impl BestEffortReaderProxy {
     }
 
     fn transition_t4(
-        &mut self,
+        reader_proxy: &mut ReaderProxy,
         history_cache: &HistoryCache,
         next_unsent_seq_num: SequenceNumber,
         writer_entity_id: EntityId,
         message_queue: &mut Vec<RtpsSubmessage>,
     ) {
         if let Some(cache_change) = history_cache.get_change(next_unsent_seq_num) {
-            let reader_id = self.remote_reader_guid.entity_id();
+            let reader_id = reader_proxy.remote_reader_guid.entity_id();
             let data = data_from_cache_change(cache_change, reader_id);
-            let mut dst_locator = self.unicast_locator_list.clone();
-            dst_locator.extend(&self.unicast_locator_list);
-            dst_locator.extend(&self.multicast_locator_list);
+            let mut dst_locator = reader_proxy.unicast_locator_list.clone();
+            dst_locator.extend(&reader_proxy.unicast_locator_list);
+            dst_locator.extend(&reader_proxy.multicast_locator_list);
             message_queue.push(RtpsSubmessage::Data(data));
         } else {
             let gap = Gap::new(
                 BEHAVIOR_ENDIANNESS,
-                self.remote_reader_guid.entity_id(),
+                reader_proxy.remote_reader_guid.entity_id(),
                 writer_entity_id,
                 next_unsent_seq_num,
                 BTreeSet::new(),
             );
-            let mut dst_locator = self.unicast_locator_list.clone();
-            dst_locator.extend(&self.unicast_locator_list);
-            dst_locator.extend(&self.multicast_locator_list);
+            let mut dst_locator = reader_proxy.unicast_locator_list.clone();
+            dst_locator.extend(&reader_proxy.unicast_locator_list);
+            dst_locator.extend(&reader_proxy.multicast_locator_list);
             message_queue.push(RtpsSubmessage::Gap(gap));
         }
-    }
-}
-
-impl std::ops::Deref for BestEffortReaderProxy {
-    type Target = ReaderProxy;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl std::ops::DerefMut for BestEffortReaderProxy {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
     }
 }
 
@@ -108,21 +92,21 @@ mod tests {
         let multicast_locator_list = vec![];
         let expects_inline_qos = false;
         let is_active = true;
-        let reader_proxy = ReaderProxy::new(
+        let mut reader_proxy = ReaderProxy::new(
             remote_reader_guid,
             unicast_locator_list,
             multicast_locator_list,
             expects_inline_qos,
             is_active,
         );
-        let mut best_effort_reader_proxy = BestEffortReaderProxy::new(reader_proxy);
 
         let writer_entity_id = ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER;
         let history_cache = HistoryCache::default();
 
         // Run without any change being created or added in the cache
         let last_change_sequence_number = 0;
-        let messages_vec = best_effort_reader_proxy.produce_messages(
+        let messages_vec = BestEffortReaderProxyBehavior::produce_messages(
+            &mut reader_proxy,
             &history_cache,
             writer_entity_id,
             last_change_sequence_number,
@@ -138,14 +122,13 @@ mod tests {
         let multicast_locator_list = vec![];
         let expects_inline_qos = false;
         let is_active = true;
-        let reader_proxy = ReaderProxy::new(
+        let mut reader_proxy = ReaderProxy::new(
             remote_reader_guid,
             unicast_locator_list,
             multicast_locator_list,
             expects_inline_qos,
             is_active,
         );
-        let mut best_effort_reader_proxy = BestEffortReaderProxy::new(reader_proxy);
 
         let writer_entity_id = ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER;
         let mut history_cache = HistoryCache::default();
@@ -165,7 +148,8 @@ mod tests {
 
         // Run with the last change sequence number equal to the added cache change
         let last_change_sequence_number = 1;
-        let messages_vec = best_effort_reader_proxy.produce_messages(
+        let messages_vec = BestEffortReaderProxyBehavior::produce_messages(
+            &mut reader_proxy,
             &history_cache,
             writer_entity_id,
             last_change_sequence_number,
@@ -186,21 +170,21 @@ mod tests {
         let multicast_locator_list = vec![];
         let expects_inline_qos = false;
         let is_active = true;
-        let reader_proxy = ReaderProxy::new(
+        let mut reader_proxy = ReaderProxy::new(
             remote_reader_guid,
             unicast_locator_list,
             multicast_locator_list,
             expects_inline_qos,
             is_active,
         );
-        let mut best_effort_reader_proxy = BestEffortReaderProxy::new(reader_proxy);
 
         let writer_entity_id = ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER;
         let history_cache = HistoryCache::default();
 
         // Run with the a sequence number of 1 without adding any change to the history cache
         let last_change_sequence_number = 1;
-        let messages_vec = best_effort_reader_proxy.produce_messages(
+        let messages_vec = BestEffortReaderProxyBehavior::produce_messages(
+            &mut reader_proxy,
             &history_cache,
             writer_entity_id,
             last_change_sequence_number,
@@ -224,14 +208,13 @@ mod tests {
         let multicast_locator_list = vec![];
         let expects_inline_qos = false;
         let is_active = true;
-        let reader_proxy = ReaderProxy::new(
+        let mut reader_proxy = ReaderProxy::new(
             remote_reader_guid,
             unicast_locator_list,
             multicast_locator_list,
             expects_inline_qos,
             is_active,
         );
-        let mut best_effort_reader_proxy = BestEffortReaderProxy::new(reader_proxy);
 
         let writer_entity_id = ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER;
         let mut history_cache = HistoryCache::default();
@@ -251,7 +234,8 @@ mod tests {
 
         // Run with the last change sequence number one above the added cache change
         let last_change_sequence_number = 2;
-        let messages_vec = best_effort_reader_proxy.produce_messages(
+        let messages_vec = BestEffortReaderProxyBehavior::produce_messages(
+            &mut reader_proxy,
             &history_cache,
             writer_entity_id,
             last_change_sequence_number,

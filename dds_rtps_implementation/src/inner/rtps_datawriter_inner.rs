@@ -1,14 +1,9 @@
 use std::{any::Any, convert::TryInto, ops::{Deref, DerefMut}, sync::{Arc, Mutex, MutexGuard}};
 
-use rust_dds_api::{
-    dcps_psm::{InstanceHandle, StatusMask, Time},
-    dds_type::DDSType,
-    infrastructure::{qos::DataWriterQos, qos_policy::ReliabilityQosPolicyKind},
-    publication::data_writer_listener::DataWriterListener,
-    return_type::{DDSError, DDSResult},
-};
+use behavior::types::{Duration, constants::DURATION_ZERO};
+use rust_dds_api::{dcps_psm::{InstanceHandle, StatusMask, Time}, dds_type::DDSType, infrastructure::{qos::DataWriterQos, qos_policy::ReliabilityQosPolicyKind}, publication::data_writer_listener::DataWriterListener, return_type::{DDSError, DDSResult}};
 use rust_rtps::{
-    behavior::{self, endpoint_traits::CacheChangeSender, StatefulWriter, StatelessWriter, Writer},
+    behavior::{self, StatefulWriter, StatelessWriter, Writer},
     types::{
         constants::{
             ENTITY_KIND_BUILT_IN_WRITER_NO_KEY, ENTITY_KIND_BUILT_IN_WRITER_WITH_KEY,
@@ -200,11 +195,17 @@ impl<T: DDSType> RtpsDataWriterInner<T> {
         };
         let push_mode = true;
         let data_max_sized_serialized = None;
+        let heartbeat_period = Duration::from_millis(200);
+        let nack_response_delay = DURATION_ZERO;
+        let nack_supression_duration = DURATION_ZERO;
         let writer = StatelessWriter::new(
             guid,
             topic_kind,
             reliability_level,
             push_mode,
+            heartbeat_period,
+            nack_response_delay,
+            nack_supression_duration,
             data_max_sized_serialized,
         );
         let topic = topic.get().unwrap().clone();
@@ -310,13 +311,14 @@ impl<'a> RtpsAnyDataWriterInnerRef<'a> {
     //     }
 
     pub fn produce_messages(&self) -> Vec<behavior::endpoint_traits::DestinedMessages> {
-        if let Some(rtps_writer) = self.get().ok() {
-            match &mut *rtps_writer.writer() {
-                WriterFlavor::Stateful(writer) => writer.produce_messages(),
-                WriterFlavor::Stateless(writer) => writer.produce_messages(),
-            }
-        } else {
-            vec![]
-        }
+        todo!()
+        // if let Some(rtps_writer) = self.get().ok() {
+        //     match &mut *rtps_writer.writer() {
+        //         WriterFlavor::Stateful(writer) => writer.produce_messages(),
+        //         WriterFlavor::Stateless(writer) => writer.produce_messages(),
+        //     }
+        // } else {
+        //     vec![]
+        // }
     }
 }

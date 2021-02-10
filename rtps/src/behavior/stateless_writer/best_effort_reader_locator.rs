@@ -4,41 +4,24 @@ use crate::{
     behavior::{data_from_cache_change, BEHAVIOR_ENDIANNESS},
     messages::{submessages::Gap, RtpsSubmessage},
     structure::HistoryCache,
-    types::{constants::ENTITYID_UNKNOWN, EntityId, Locator, SequenceNumber},
+    types::{constants::ENTITYID_UNKNOWN, EntityId, SequenceNumber},
 };
 
 use super::reader_locator::ReaderLocator;
 
-pub struct BestEffortReaderLocator(ReaderLocator);
+pub struct BestEffortReaderLocatorBehavior;
 
-impl std::ops::Deref for BestEffortReaderLocator {
-    type Target = ReaderLocator;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl std::ops::DerefMut for BestEffortReaderLocator {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-
-impl BestEffortReaderLocator {
-    pub fn new(locator: Locator) -> Self {
-        Self(ReaderLocator::new(locator))
-    }
-
+impl BestEffortReaderLocatorBehavior {
     pub fn produce_messages(
-        &mut self,
+        reader_locator: &mut ReaderLocator,
         history_cache: &HistoryCache,
         writer_entity_id: EntityId,
         last_change_sequence_number: SequenceNumber,
     ) -> Vec<RtpsSubmessage> {
         let mut message_queue = Vec::new();
-        if !self.unsent_changes(last_change_sequence_number).is_empty() {
-            self.pushing_state(
+        if !reader_locator.unsent_changes(last_change_sequence_number).is_empty() {
+            Self::pushing_state(
+                reader_locator,
                 history_cache,
                 writer_entity_id,
                 last_change_sequence_number,
@@ -49,14 +32,15 @@ impl BestEffortReaderLocator {
     }
 
     fn pushing_state(
-        &mut self,
+        reader_locator: &mut ReaderLocator,
         history_cache: &HistoryCache,
         writer_entity_id: EntityId,
         last_change_sequence_number: SequenceNumber,
         message_queue: &mut Vec<RtpsSubmessage>,
     ) {
-        while let Some(next_unsent_seq_num) = self.next_unsent_change(last_change_sequence_number) {
-            self.transition_t4(
+        while let Some(next_unsent_seq_num) = reader_locator.next_unsent_change(last_change_sequence_number) {
+            Self::transition_t4(
+                reader_locator,
                 history_cache,
                 writer_entity_id,
                 next_unsent_seq_num,
@@ -66,7 +50,7 @@ impl BestEffortReaderLocator {
     }
 
     fn transition_t4(
-        &mut self,
+        _reader_locator: &mut ReaderLocator,
         history_cache: &HistoryCache,
         writer_entity_id: EntityId,
         next_unsent_seq_num: SequenceNumber,
@@ -91,7 +75,7 @@ impl BestEffortReaderLocator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::GUID;
+    use crate::types::{GUID, Locator};
     use crate::types::{constants::ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER, ChangeKind};
 
     use crate::structure::CacheChange;
@@ -99,13 +83,14 @@ mod tests {
     #[test]
     fn produce_empty() {
         let locator = Locator::new_udpv4(7400, [127, 0, 0, 1]);
-        let mut best_effort_reader_locator = BestEffortReaderLocator::new(locator);
+        let mut reader_locator = ReaderLocator::new(locator);
         let writer_entity_id = ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER;
         let history_cache = HistoryCache::default();
 
         // Run without any change being created or added in the cache
         let last_change_sequence_number = 0;
-        let messages_vec = best_effort_reader_locator.produce_messages(
+        let messages_vec = BestEffortReaderLocatorBehavior::produce_messages(
+            &mut reader_locator,
             &history_cache,
             writer_entity_id,
             last_change_sequence_number,
@@ -117,7 +102,7 @@ mod tests {
     #[test]
     fn produce_data_message() {
         let locator = Locator::new_udpv4(7400, [127, 0, 0, 1]);
-        let mut best_effort_reader_locator = BestEffortReaderLocator::new(locator);
+        let mut reader_locator = ReaderLocator::new(locator);
         let writer_entity_id = ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER;
         let mut history_cache = HistoryCache::default();
 
@@ -136,7 +121,8 @@ mod tests {
 
         // Run with the last change sequence number equal to the added cache change
         let last_change_sequence_number = 1;
-        let messages_vec = best_effort_reader_locator.produce_messages(
+        let messages_vec = BestEffortReaderLocatorBehavior::produce_messages(
+            &mut reader_locator,
             &history_cache,
             writer_entity_id,
             last_change_sequence_number,
@@ -151,13 +137,14 @@ mod tests {
     #[test]
     fn produce_gap_message() {
         let locator = Locator::new_udpv4(7400, [127, 0, 0, 1]);
-        let mut best_effort_reader_locator = BestEffortReaderLocator::new(locator);
+        let mut reader_locator = ReaderLocator::new(locator);
         let writer_entity_id = ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER;
         let history_cache = HistoryCache::default();
 
         // Run with the a sequence number of 1 without adding any change to the history cache
         let last_change_sequence_number = 1;
-        let messages_vec = best_effort_reader_locator.produce_messages(
+        let messages_vec = BestEffortReaderLocatorBehavior::produce_messages(
+            &mut reader_locator,
             &history_cache,
             writer_entity_id,
             last_change_sequence_number,
@@ -177,7 +164,7 @@ mod tests {
     #[test]
     fn produce_data_and_gap_messages() {
         let locator = Locator::new_udpv4(7400, [127, 0, 0, 1]);
-        let mut best_effort_reader_locator = BestEffortReaderLocator::new(locator);
+        let mut reader_locator = ReaderLocator::new(locator);
         let writer_entity_id = ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER;
         let mut history_cache = HistoryCache::default();
 
@@ -196,7 +183,8 @@ mod tests {
 
         // Run with the last change sequence number one above the added cache change
         let last_change_sequence_number = 2;
-        let messages_vec = best_effort_reader_locator.produce_messages(
+        let messages_vec = BestEffortReaderLocatorBehavior::produce_messages(
+            &mut reader_locator,
             &history_cache,
             writer_entity_id,
             last_change_sequence_number,
