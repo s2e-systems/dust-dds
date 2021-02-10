@@ -5,7 +5,6 @@ pub mod stateful_reader;
 pub mod stateful_writer;
 pub mod stateless_reader;
 pub mod stateless_writer;
-pub mod endpoint_traits;
 
 pub use writer::Writer;
 pub use reader::Reader;

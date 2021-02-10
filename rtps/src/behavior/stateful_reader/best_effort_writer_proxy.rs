@@ -10,61 +10,58 @@ use crate::{
 
 use super::WriterProxy;
 
-pub struct BestEffortWriterProxy(WriterProxy);
+pub struct BestEffortWriterProxyBehavior;
 
-impl BestEffortWriterProxy {
-    pub fn new(writer_proxy: WriterProxy) -> Self {
-        Self(writer_proxy)
-    }
+impl BestEffortWriterProxyBehavior {
 
     pub fn try_process_message(
-        &mut self,
+        writer_proxy: &mut WriterProxy,
         src_guid_prefix: GuidPrefix,
         submessage: &mut Option<RtpsSubmessage>,
         history_cache: &mut HistoryCache,
     ) {
-        self.waiting_state(src_guid_prefix, submessage, history_cache);
+        Self::waiting_state(writer_proxy, src_guid_prefix, submessage, history_cache);
     }
 
     fn waiting_state(
-        &mut self,
+        writer_proxy: &mut WriterProxy,
         src_guid_prefix: GuidPrefix,
         submessage: &mut Option<RtpsSubmessage>,
         history_cache: &mut HistoryCache,
     ) {
         if let Some(inner_submessage) = submessage {
-            if self.is_submessage_destination(src_guid_prefix, inner_submessage) {
+            if Self::is_submessage_destination(writer_proxy, src_guid_prefix, inner_submessage) {
                 match submessage.take().unwrap() {
-                    RtpsSubmessage::Data(data) => self.transition_t2(history_cache, data),
-                    RtpsSubmessage::Gap(gap) => self.transition_t4(gap),
+                    RtpsSubmessage::Data(data) => Self::transition_t2(writer_proxy, history_cache, data),
+                    RtpsSubmessage::Gap(gap) => Self::transition_t4(writer_proxy, gap),
                     _ => panic!("Unexpected reader message received"),
                 }
             }
         }
     }
 
-    fn transition_t2(&mut self, history_cache: &mut HistoryCache, data: Data) {
-        let expected_seq_number = self.available_changes_max() + 1;
+    fn transition_t2(writer_proxy: &mut WriterProxy, history_cache: &mut HistoryCache, data: Data) {
+        let expected_seq_number = writer_proxy.available_changes_max() + 1;
         if data.writer_sn() >= expected_seq_number {
-            self.received_change_set(data.writer_sn());
-            self.lost_changes_update(data.writer_sn());
-            let cache_change = cache_change_from_data(data, &self.remote_writer_guid.prefix());
+            writer_proxy.received_change_set(data.writer_sn());
+            writer_proxy.lost_changes_update(data.writer_sn());
+            let cache_change = cache_change_from_data(data, &writer_proxy.remote_writer_guid.prefix());
             history_cache.add_change(cache_change);
         }
     }
 
-    fn transition_t4(&mut self, gap: Gap) {
+    fn transition_t4(writer_proxy: &mut WriterProxy, gap: Gap) {
         for seq_num in gap.gap_start()..gap.gap_list().base() - 1 {
-            self.irrelevant_change_set(seq_num);
+            writer_proxy.irrelevant_change_set(seq_num);
         }
 
         for &seq_num in gap.gap_list().set() {
-            self.irrelevant_change_set(seq_num);
+            writer_proxy.irrelevant_change_set(seq_num);
         }
     }
 
     fn is_submessage_destination(
-        &self,
+        writer_proxy: &mut WriterProxy,
         src_guid_prefix: GuidPrefix,
         submessage: &RtpsSubmessage,
     ) -> bool {
@@ -75,25 +72,11 @@ impl BestEffortWriterProxy {
         };
 
         let writer_guid = GUID::new(src_guid_prefix, writer_id);
-        if self.remote_writer_guid == writer_guid {
+        if writer_proxy.remote_writer_guid == writer_guid {
             true
         } else {
             false
         }
-    }
-}
-
-impl std::ops::Deref for BestEffortWriterProxy {
-    type Target = WriterProxy;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl std::ops::DerefMut for BestEffortWriterProxy {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
     }
 }
 
@@ -113,18 +96,18 @@ mod tests {
         let remote_writer_guid = GUID::new([5; 12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER);
         let unicast_locator_list = vec![Locator::new_udpv4(7400, [127, 0, 0, 1])];
         let multicast_locator_list = vec![];
-        let writer_proxy = WriterProxy::new(
+        let mut writer_proxy = WriterProxy::new(
             remote_writer_guid,
             unicast_locator_list,
             multicast_locator_list,
         );
-        let mut best_effort_writer_proxy = BestEffortWriterProxy::new(writer_proxy);
 
         let mut history_cache = HistoryCache::default();
 
         let source_guid_prefix = [5; 12];
         let mut submessage = None;
-        best_effort_writer_proxy.try_process_message(
+        BestEffortWriterProxyBehavior::try_process_message(
+            &mut writer_proxy,
             source_guid_prefix,
             &mut submessage,
             &mut history_cache,
@@ -136,12 +119,11 @@ mod tests {
         let remote_writer_guid = GUID::new([5; 12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER);
         let unicast_locator_list = vec![Locator::new_udpv4(7400, [127, 0, 0, 1])];
         let multicast_locator_list = vec![];
-        let writer_proxy = WriterProxy::new(
+        let mut writer_proxy = WriterProxy::new(
             remote_writer_guid,
             unicast_locator_list,
             multicast_locator_list,
         );
-        let mut best_effort_writer_proxy = BestEffortWriterProxy::new(writer_proxy);
 
         let mut history_cache = HistoryCache::default();
 
@@ -162,7 +144,8 @@ mod tests {
         let expected_cache_change =
             cache_change_from_data(data_submessage.clone(), &source_guid_prefix);
 
-        best_effort_writer_proxy.try_process_message(
+        BestEffortWriterProxyBehavior::try_process_message(
+            &mut writer_proxy,
             source_guid_prefix,
             &mut Some(RtpsSubmessage::Data(data_submessage)),
             &mut history_cache,

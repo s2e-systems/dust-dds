@@ -4,6 +4,7 @@ use std::{
     sync::{Arc, Mutex, MutexGuard},
 };
 
+use behavior::types::constants::DURATION_ZERO;
 use rust_dds_api::{
     dcps_psm::StatusMask,
     dds_type::DDSType,
@@ -162,12 +163,14 @@ impl<'a, T: DDSType> RtpsDataReaderInner<'a, T> {
         };
         let expects_inline_qos = false;
         let heartbeat_response_delay = behavior::types::Duration::from_millis(200);
+        let heartbeat_supression_duration = DURATION_ZERO;
         let reader = StatefulReader::new(
             guid,
             topic_kind,
             reliability_level,
             expects_inline_qos,
             heartbeat_response_delay,
+            heartbeat_supression_duration,
         );
         let topic = topic.get().unwrap().clone();
 
@@ -197,7 +200,16 @@ impl<'a, T: DDSType> RtpsDataReaderInner<'a, T> {
             ReliabilityQosPolicyKind::ReliableReliabilityQos => ReliabilityKind::Reliable,
         };
         let expects_inline_qos = false;
-        let reader = StatelessReader::new(guid, topic_kind, reliability_level, expects_inline_qos);
+        let heartbeat_response_delay = behavior::types::Duration::from_millis(200);
+        let heartbeat_supression_duration = DURATION_ZERO;
+        let reader = StatelessReader::new(
+            guid,
+            topic_kind,
+            reliability_level,
+            expects_inline_qos,
+            heartbeat_response_delay,
+            heartbeat_supression_duration,
+        );
         let topic = topic.get().unwrap().clone();
 
         Self {

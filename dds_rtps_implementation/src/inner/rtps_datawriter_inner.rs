@@ -310,8 +310,8 @@ impl<'a> RtpsAnyDataWriterInnerRef<'a> {
     //         Ok(())
     //     }
 
-    pub fn produce_messages(&self) -> Vec<behavior::endpoint_traits::DestinedMessages> {
-        todo!()
+    // pub fn produce_messages(&self) -> Vec<behavior::endpoint_traits::DestinedMessages> {
+        // todo!()
         // if let Some(rtps_writer) = self.get().ok() {
         //     match &mut *rtps_writer.writer() {
         //         WriterFlavor::Stateful(writer) => writer.produce_messages(),
@@ -320,5 +320,5 @@ impl<'a> RtpsAnyDataWriterInnerRef<'a> {
         // } else {
         //     vec![]
         // }
-    }
+    // }
 }
