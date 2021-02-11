@@ -35,7 +35,7 @@ enum EntityType {
 pub struct RtpsPublisherInner {
     group: Group,
     entity_type: EntityType,
-    writer_list: MaybeValidList<Box<RtpsDataWriterFlavor>>,
+    writer_list: MaybeValidList<Mutex<RtpsDataWriterFlavor>>,
     writer_count: atomic::AtomicU8,
     default_datawriter_qos: Mutex<DataWriterQos>,
     qos: Mutex<PublisherQos>,
@@ -177,14 +177,10 @@ impl<'a> RtpsPublisherInnerRef<'a> {
         todo!()
     }
 
-    pub fn create_stateless_datawriter<T: DDSType>(
-        &self,
-        entity_key: [u8; 3],
-        a_topic: &RtpsTopicInnerRef,
-        qos: Option<DataWriterQos>,
-        a_listener: Option<Box<dyn DataWriterListener<DataType = T>>>,
-        status_mask: StatusMask,
-    ) -> Option<RtpsAnyDataWriterInnerRef> {
+    // pub fn add_stateless_datawriter<T: DDSType>(
+        // &self,
+        // stateless_datawriter: StatelessDataWriterInner,
+    // ) -> Option<RtpsAnyDataWriterInnerRef> {
         // let this = self.get().ok()?;
         // let a_topic = a_topic.get().ok()?;
         // let qos = qos.unwrap_or(self.get_default_datawriter_qos().ok()?);
@@ -208,8 +204,8 @@ impl<'a> RtpsPublisherInnerRef<'a> {
         //     ),
         // };
         // this.writer_list.add(Box::new(writer))
-        todo!()
-    }
+        // todo!()
+    // }
 
     pub fn set_default_datawriter_qos(&self, qos: Option<DataWriterQos>) -> DDSResult<()> {
         let qos = qos.unwrap_or_default();

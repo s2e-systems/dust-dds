@@ -1,26 +1,50 @@
-use std::{any::Any, convert::TryInto, ops::{Deref, DerefMut}, sync::{Arc, Mutex, MutexGuard}};
+use std::{
+    convert::TryInto,
+    ops::{Deref, DerefMut},
+    sync::{Arc, Mutex},
+};
 
-use behavior::{StatefulWriter, StatelessWriter};
 use rust_dds_api::{
     dcps_psm::{InstanceHandle, StatusMask, Time},
     dds_type::DDSType,
-    infrastructure::{qos::DataWriterQos, qos_policy::ReliabilityQosPolicyKind},
+    infrastructure::qos::DataWriterQos,
     publication::data_writer_listener::DataWriterListener,
     return_type::{DDSError, DDSResult},
 };
-use rust_rtps::{behavior::{self, Writer}, types::{ChangeKind, EntityId, GUID, GuidPrefix, ReliabilityKind}};
+use rust_rtps::{behavior::Writer, types::ChangeKind};
 
-use crate::utils::{
-    as_any::AsAny,
-    maybe_valid::{MaybeValid, MaybeValidRef},
-};
+use crate::utils::maybe_valid::{MaybeValid, MaybeValidRef};
 
-use super::rtps_topic_inner::RtpsTopicInner;
+use super::{rtps_stateful_datawriter_inner::RtpsStatefulDataWriterInner, rtps_stateless_datawriter_inner::RtpsStatelessDataWriterInner, rtps_topic_inner::RtpsTopicInner};
 
+pub trait AnyDataWriterListener: Send + Sync {}
 
-pub trait AnyDataWriterListener: Send + Sync{}
+impl<T: DDSType> AnyDataWriterListener for dyn DataWriterListener<DataType = T> {}
 
-impl<T:DDSType> AnyDataWriterListener for dyn DataWriterListener<DataType = T> {}
+pub struct RtpsDataWriterInner {
+    qos: DataWriterQos,
+    topic: Option<Arc<RtpsTopicInner>>,
+    listener: Option<Box<dyn AnyDataWriterListener>>,
+    status_mask: StatusMask,
+}
+
+impl RtpsDataWriterInner {
+    pub fn new(
+        topic: &Arc<RtpsTopicInner>,
+        qos: DataWriterQos,
+        listener: Option<Box<dyn AnyDataWriterListener>>,
+        status_mask: StatusMask,
+    ) -> Self {
+        let topic = Some(topic.clone());
+
+        Self {
+            qos,
+            topic,
+            listener,
+            status_mask,
+        }
+    }
+}
 
 pub enum RtpsDataWriterFlavor {
     Stateful(RtpsStatefulDataWriterInner),
@@ -29,7 +53,7 @@ pub enum RtpsDataWriterFlavor {
 
 impl RtpsDataWriterFlavor {
     pub fn topic(&mut self) -> &mut Option<Arc<RtpsTopicInner>> {
-        match self{
+        match self {
             Self::Stateful(stateful) => &mut stateful.inner.topic,
             Self::Stateless(stateless) => &mut stateless.inner.topic,
         }
@@ -53,44 +77,6 @@ impl DerefMut for RtpsDataWriterFlavor {
             Self::Stateful(stateful) => &mut stateful.stateful_writer,
             Self::Stateless(stateless) => &mut stateless.stateless_writer,
         }
-    }
-}
-
-pub struct RtpsStatefulDataWriterInner {
-    stateful_writer: StatefulWriter,
-    inner: RtpsDataWriterInner,
-}
-
-impl Deref for RtpsStatefulDataWriterInner {
-    type Target = StatefulWriter;
-
-    fn deref(&self) -> &Self::Target {
-        &self.stateful_writer
-    }
-}
-
-impl DerefMut for RtpsStatefulDataWriterInner {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.stateful_writer
-    }
-}
-
-pub struct RtpsStatelessDataWriterInner {
-    stateless_writer: StatelessWriter,
-    inner: RtpsDataWriterInner,
-}
-
-impl Deref for RtpsStatelessDataWriterInner {
-    type Target = StatelessWriter;
-
-    fn deref(&self) -> &Self::Target {
-        &self.stateless_writer
-    }
-}
-
-impl DerefMut for RtpsStatelessDataWriterInner {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.stateless_writer
     }
 }
 
@@ -128,49 +114,6 @@ impl DerefMut for RtpsStatelessDataWriterInner {
 //         );
 //     }
 // }
-
-pub struct RtpsDataWriterInner {
-    qos: DataWriterQos,
-    topic: Option<Arc<RtpsTopicInner>>,
-    listener: Option<Box<dyn AnyDataWriterListener>>,
-    status_mask: StatusMask,
-}
-
-// impl RtpsDataWriterInner {
-//     pub fn new(
-//         topic: &Arc<RtpsTopicInner>,
-//         qos: DataWriterQos,
-//         listener: Option<Box<dyn AnyDataWriterListener>>,
-//         status_mask: StatusMask,
-//     ) -> Self {
-//         let topic = topic.clone();
-
-//         Self {
-//             qos: Mutex::new(qos),
-//             topic: Mutex::new(Some(topic)),
-//             listener,
-//             status_mask,
-//         }
-//     }
-
-//     pub fn qos(&self) -> &Mutex<DataWriterQos> {
-//         &self.qos
-//     }
-
-//     pub fn topic(&self) -> &Mutex<Option<Arc<RtpsTopicInner>>> {
-//         &self.topic
-//     }
-
-//     pub fn listener(&self) -> &Option<Box<dyn AnyDataWriterListener>> {
-//         &self.listener
-//     }
-
-//     pub fn status_mask(&self) -> &StatusMask {
-//         &self.status_mask
-//     }
-// }
-
-
 
 fn instance_handle_from_dds_type<T: DDSType>(data: T) -> rust_rtps::types::InstanceHandle {
     if data.key().is_empty() {

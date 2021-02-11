@@ -1,6 +1,12 @@
-use std::{collections::HashMap, ops::{Deref, DerefMut}};
+use std::{
+    collections::HashMap,
+    ops::{Deref, DerefMut},
+};
 
-use crate::{behavior::Writer, types::Locator};
+use crate::{
+    behavior::{types::Duration, Writer},
+    types::{Locator, ReliabilityKind, TopicKind, GUID},
+};
 
 use super::ReaderLocator;
 
@@ -22,6 +28,32 @@ impl DerefMut for StatelessWriter {
 }
 
 impl StatelessWriter {
+    pub fn new(
+        guid: GUID,
+        topic_kind: TopicKind,
+        reliability_level: ReliabilityKind,
+        push_mode: bool,
+        heartbeat_period: Duration,
+        nack_response_delay: Duration,
+        nack_suppression_duration: Duration,
+        data_max_sized_serialized: Option<i32>,
+    ) -> Self {
+        let writer = Writer::new(
+            guid,
+            topic_kind,
+            reliability_level,
+            push_mode,
+            heartbeat_period,
+            nack_response_delay,
+            nack_suppression_duration,
+            data_max_sized_serialized,
+        );
+
+        Self {
+            writer,
+            reader_locators: HashMap::new(),
+        }
+    }
     pub fn reader_locator_add(&mut self, a_locator: Locator) {
         self.reader_locators
             .insert(a_locator, ReaderLocator::new(a_locator));

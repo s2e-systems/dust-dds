@@ -470,19 +470,19 @@ impl Entity for RtpsDomainParticipant {
                 .add(Arc::new(spdp_topic))
                 .expect("Error creating SPDP topic");
 
-            let mut spdp_announcer_qos = DataWriterQos::default();
-            spdp_announcer_qos.reliability.kind = rust_dds_api::infrastructure::qos_policy::ReliabilityQosPolicyKind::BestEffortReliabilityQos;
-            let spdp_announcer = builtin_publisher_ref
-                .create_stateless_datawriter::<SpdpDiscoveredParticipantData>(
-                    ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER.entity_key(),
-                    &spdp_topic_ref,
-                    Some(spdp_announcer_qos),
-                    None,
-                    0
-                )
-                .expect("Error creating SPDP built-in writer");
+            // let mut spdp_announcer_qos = DataWriterQos::default();
+            // spdp_announcer_qos.reliability.kind = rust_dds_api::infrastructure::qos_policy::ReliabilityQosPolicyKind::BestEffortReliabilityQos;
+            // let spdp_announcer = builtin_publisher_ref
+            //     .create_stateless_datawriter::<SpdpDiscoveredParticipantData>(
+            //         ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER.entity_key(),
+            //         &spdp_topic_ref,
+            //         Some(spdp_announcer_qos),
+            //         None,
+            //         0
+            //     )
+            //     .expect("Error creating SPDP built-in writer");
 
-            let spdp_locator = Locator::new_udpv4(7400, [239, 255, 0, 0]);
+            // let spdp_locator = Locator::new_udpv4(7400, [239, 255, 0, 0]);
 
             // spdp_announcer
             //     .try_get_stateless()
