@@ -187,17 +187,16 @@ impl<'a> RtpsPublisherInnerRef<'a> {
         todo!()
     }
 
-    pub fn send_data(&self, _transport: &dyn Transport) {
+    pub fn send_data(&self, transport: &dyn Transport) {
         if let Some(publisher) = self.get().ok() {
-            for _writer in publisher.writer_list.into_iter() {
-                todo!()
-                // let destined_messages = writer.produce_messages();
-                // let participant_guid_prefix = publisher.group.entity.guid.prefix();
-                // RtpsMessageSender::send_cache_change_messages(
-                //     participant_guid_prefix,
-                //     transport,
-                //     destined_messages,
-                // );
+            for writer in publisher.writer_list.into_iter() {
+                let destined_messages = writer.produce_messages();
+                let participant_guid_prefix = publisher.group.entity.guid.prefix();
+                RtpsMessageSender::send_cache_change_messages(
+                    participant_guid_prefix,
+                    transport,
+                    destined_messages,
+                );
             }
         }
     }
