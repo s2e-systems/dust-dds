@@ -3,6 +3,7 @@ use std::{
     sync::Arc,
 };
 
+use behavior::stateful_reader::best_effort_writer_proxy::BestEffortWriterProxyBehavior;
 use rust_dds_api::{
     dcps_psm::StatusMask,
     dds_type::DDSType,
@@ -10,7 +11,10 @@ use rust_dds_api::{
     publication::data_writer_listener::DataWriterListener,
 };
 use rust_rtps::{
-    behavior::{self, StatefulWriter},
+    behavior::{
+        self, stateful_writer::best_effort_reader_proxy::BestEffortReaderProxyBehavior,
+        StatefulWriter,
+    },
     types::{
         constants::{
             ENTITY_KIND_BUILT_IN_WRITER_NO_KEY, ENTITY_KIND_BUILT_IN_WRITER_WITH_KEY,
@@ -116,6 +120,21 @@ impl RtpsStatefulDataWriterInner {
         Self {
             stateful_writer,
             inner,
+        }
+    }
+
+    pub fn produce_messages(&mut self) {
+        let matched_readers = &mut self.stateful_writer.matched_readers;
+        let writer = &self.stateful_writer.writer;
+        for (&guid, reader_proxy) in matched_readers.iter_mut() {
+            BestEffortReaderProxyBehavior::produce_messages(
+                reader_proxy,
+                &writer.writer_cache,
+                writer.endpoint.entity.guid.entity_id(),
+                writer.last_change_sequence_number,
+            );
+            // reader_proxy.unicast_locator_list;
+            // reader_proxy.multicast_locator_list;
         }
     }
 }

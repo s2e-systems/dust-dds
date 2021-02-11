@@ -11,8 +11,8 @@ use crate::{
 use super::ReaderLocator;
 
 pub struct StatelessWriter {
-    writer: Writer,
-    reader_locators: HashMap<Locator, ReaderLocator>,
+    pub writer: Writer,
+    pub reader_locators: HashMap<Locator, ReaderLocator>,
 }
 
 impl Deref for StatelessWriter {

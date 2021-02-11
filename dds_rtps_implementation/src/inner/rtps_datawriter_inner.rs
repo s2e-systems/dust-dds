@@ -1,4 +1,8 @@
-use std::{convert::TryInto, ops::{Deref, DerefMut}, sync::{Arc, Mutex, MutexGuard}};
+use std::{
+    convert::TryInto,
+    ops::{Deref, DerefMut},
+    sync::{Arc, Mutex, MutexGuard},
+};
 
 use rust_dds_api::{
     dcps_psm::{InstanceHandle, StatusMask, Time},
@@ -116,7 +120,10 @@ pub type RtpsAnyDataWriterInnerRef<'a> = MaybeValidRef<'a, Mutex<RtpsDataWriterF
 
 impl<'a> RtpsAnyDataWriterInnerRef<'a> {
     pub fn get(&self) -> DDSResult<MutexGuard<RtpsDataWriterFlavor>> {
-        Ok(MaybeValid::get(self).ok_or(DDSError::AlreadyDeleted)?.lock().unwrap())
+        Ok(MaybeValid::get(self)
+            .ok_or(DDSError::AlreadyDeleted)?
+            .lock()
+            .unwrap())
     }
 
     pub fn delete(&self) -> DDSResult<()> {
@@ -156,15 +163,33 @@ impl<'a> RtpsAnyDataWriterInnerRef<'a> {
         Ok(())
     }
 
-    // pub fn produce_messages(&self) -> Vec<behavior::endpoint_traits::DestinedMessages> {
-    // todo!()
-    // if let Some(rtps_writer) = self.get().ok() {
-    //     match &mut *rtps_writer.writer() {
-    //         WriterFlavor::Stateful(writer) => writer.produce_messages(),
-    //         WriterFlavor::Stateless(writer) => writer.produce_messages(),
-    //     }
-    // } else {
-    //     vec![]
-    // }
-    // }
+    pub fn produce_messages(&self) {
+        let this = self.get().ok();
+        if let Some(mut rtps_writer) = this {
+            match &mut *rtps_writer {
+                RtpsDataWriterFlavor::Stateful(stateful_writer) => {
+                    stateful_writer.produce_messages()
+                }
+                RtpsDataWriterFlavor::Stateless(stateless_writer) => {
+                    stateless_writer.produce_messages()
+                }
+            }
+        }
+        // else {
+        //  vec![]
+        // }
+    }
+
+    pub fn try_receive_message(&self, _message: u8) {
+        todo!()
+        // let this = self.get().ok();
+        // if let Some(mut rtps_writer) = this {
+        //     match &mut *rtps_writer {
+        //         RtpsDataWriterFlavor::Stateful(stateful_writer) => {
+        //             stateful_writer.try_receive_message()
+        //         }
+        //         _ => (),
+        //     }
+        // }
+    }
 }

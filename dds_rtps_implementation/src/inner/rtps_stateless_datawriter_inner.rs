@@ -1,9 +1,30 @@
-use std::{ops::{Deref, DerefMut}, sync::Arc};
+use std::{
+    ops::{Deref, DerefMut},
+    sync::Arc,
+};
 
-use rust_dds_api::{dcps_psm::StatusMask, dds_type::DDSType, infrastructure::{qos::DataWriterQos, qos_policy::ReliabilityQosPolicyKind}, publication::data_writer_listener::DataWriterListener};
-use rust_rtps::{behavior::{self, StatelessWriter}, types::{EntityId, GUID, GuidPrefix, ReliabilityKind, TopicKind, constants::{ENTITY_KIND_BUILT_IN_WRITER_NO_KEY, ENTITY_KIND_BUILT_IN_WRITER_WITH_KEY, ENTITY_KIND_USER_DEFINED_WRITER_NO_KEY, ENTITY_KIND_USER_DEFINED_WRITER_WITH_KEY}}};
+use behavior::reader;
+use rust_dds_api::{
+    dcps_psm::StatusMask,
+    dds_type::DDSType,
+    infrastructure::{qos::DataWriterQos, qos_policy::ReliabilityQosPolicyKind},
+    publication::data_writer_listener::DataWriterListener,
+};
+use rust_rtps::{
+    behavior::{self, stateless_writer::BestEffortReaderLocatorBehavior, StatelessWriter},
+    types::{
+        constants::{
+            ENTITY_KIND_BUILT_IN_WRITER_NO_KEY, ENTITY_KIND_BUILT_IN_WRITER_WITH_KEY,
+            ENTITY_KIND_USER_DEFINED_WRITER_NO_KEY, ENTITY_KIND_USER_DEFINED_WRITER_WITH_KEY,
+        },
+        EntityId, GuidPrefix, ReliabilityKind, TopicKind, GUID,
+    },
+};
 
-use super::{rtps_datawriter_inner::{AnyRtpsDataWriterInner, RtpsDataWriterInner}, rtps_topic_inner::RtpsTopicInner};
+use super::{
+    rtps_datawriter_inner::{AnyRtpsDataWriterInner, RtpsDataWriterInner},
+    rtps_topic_inner::RtpsTopicInner,
+};
 
 pub struct RtpsStatelessDataWriterInner {
     pub stateless_writer: StatelessWriter,
@@ -25,12 +46,12 @@ impl DerefMut for RtpsStatelessDataWriterInner {
 }
 
 impl RtpsStatelessDataWriterInner {
-    pub fn new_builtin<T:DDSType>(
+    pub fn new_builtin<T: DDSType>(
         guid_prefix: GuidPrefix,
-        entity_key: [u8;3],
+        entity_key: [u8; 3],
         topic: &Arc<RtpsTopicInner>,
         qos: DataWriterQos,
-        listener: Option<Box<dyn DataWriterListener<DataType=T>>>,
+        listener: Option<Box<dyn DataWriterListener<DataType = T>>>,
         status_mask: StatusMask,
     ) -> Self {
         let entity_kind = match topic.topic_kind() {
@@ -41,12 +62,12 @@ impl RtpsStatelessDataWriterInner {
         Self::new(guid_prefix, entity_id, topic, qos, listener, status_mask)
     }
 
-    pub fn new_user_defined<T:DDSType>(
+    pub fn new_user_defined<T: DDSType>(
         guid_prefix: GuidPrefix,
-        entity_key: [u8;3],
+        entity_key: [u8; 3],
         topic: &Arc<RtpsTopicInner>,
         qos: DataWriterQos,
-        listener: Option<Box<dyn DataWriterListener<DataType=T>>>,
+        listener: Option<Box<dyn DataWriterListener<DataType = T>>>,
         status_mask: StatusMask,
     ) -> Self {
         let entity_kind = match topic.topic_kind() {
@@ -57,12 +78,12 @@ impl RtpsStatelessDataWriterInner {
         Self::new(guid_prefix, entity_id, topic, qos, listener, status_mask)
     }
 
-    fn new<T:DDSType>(
+    fn new<T: DDSType>(
         guid_prefix: GuidPrefix,
         entity_id: EntityId,
         topic: &Arc<RtpsTopicInner>,
         qos: DataWriterQos,
-        listener: Option<Box<dyn DataWriterListener<DataType=T>>>,
+        listener: Option<Box<dyn DataWriterListener<DataType = T>>>,
         status_mask: StatusMask,
     ) -> Self {
         assert!(
@@ -97,5 +118,28 @@ impl RtpsStatelessDataWriterInner {
             stateless_writer,
             inner,
         }
+    }
+
+    pub fn produce_messages(&mut self) {
+        // let mut output = Vec::new();
+        let reader_locators = &mut self.stateless_writer.reader_locators;
+        let writer = &self.stateless_writer.writer;
+        for (&locator, reader_locator) in reader_locators.iter_mut() {
+            BestEffortReaderLocatorBehavior::produce_messages(
+                reader_locator,
+                &writer.writer_cache,
+                writer.endpoint.entity.guid.entity_id(),
+                writer.last_change_sequence_number,
+            );
+            // let messages = reader_locator.produce_messages(
+            //     &self.writer.writer_cache,
+            //     self.writer.endpoint.entity.guid.entity_id(),
+            //     self.writer.last_change_sequence_number,
+            // );
+            // if !messages.is_empty() {
+            //     output.push(DestinedMessages::SingleDestination { locator, messages });
+            // }
+        }
+        // output
     }
 }
