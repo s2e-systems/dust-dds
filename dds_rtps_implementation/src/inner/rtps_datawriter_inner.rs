@@ -1,152 +1,47 @@
-use std::{any::Any, convert::TryInto, ops::{Deref, DerefMut}, sync::{Arc, Mutex, MutexGuard}};
+use std::{any::Any, convert::TryInto, sync::{Arc, Mutex, MutexGuard}};
 
-use behavior::types::{Duration, constants::DURATION_ZERO};
-use rust_dds_api::{dcps_psm::{InstanceHandle, StatusMask, Time}, dds_type::DDSType, infrastructure::{qos::DataWriterQos, qos_policy::ReliabilityQosPolicyKind}, publication::data_writer_listener::DataWriterListener, return_type::{DDSError, DDSResult}};
-use rust_rtps::{
-    behavior::{self, StatefulWriter, StatelessWriter, Writer},
-    types::{
-        constants::{
-            ENTITY_KIND_BUILT_IN_WRITER_NO_KEY, ENTITY_KIND_BUILT_IN_WRITER_WITH_KEY,
-            ENTITY_KIND_USER_DEFINED_WRITER_NO_KEY, ENTITY_KIND_USER_DEFINED_WRITER_WITH_KEY,
-        },
-        ChangeKind, EntityId, GuidPrefix, ReliabilityKind, GUID,
-    },
+use behavior::StatelessWriter;
+use rust_dds_api::{
+    dcps_psm::{InstanceHandle, StatusMask, Time},
+    dds_type::DDSType,
+    infrastructure::{qos::DataWriterQos, qos_policy::ReliabilityQosPolicyKind},
+    publication::data_writer_listener::DataWriterListener,
+    return_type::{DDSError, DDSResult},
 };
+use rust_rtps::{behavior::{self, Writer}, types::{ChangeKind, EntityId, GUID, GuidPrefix, ReliabilityKind}};
 
 use crate::utils::{
     as_any::AsAny,
     maybe_valid::{MaybeValid, MaybeValidRef},
 };
 
-use super::rtps_topic_inner::{RtpsTopicInner, RtpsTopicInnerRef};
-
-pub enum WriterFlavor {
-    Stateful(StatefulWriter),
-    Stateless(StatelessWriter),
-}
-impl WriterFlavor {
-    pub fn try_get_stateless(&mut self) -> Option<&mut StatelessWriter> {
-        match self {
-            WriterFlavor::Stateless(writer) => Some(writer),
-            WriterFlavor::Stateful(_) => None,
-        }
-    }
-
-    pub fn try_get_stateful(&mut self) -> Option<&mut StatefulWriter> {
-        match self {
-            WriterFlavor::Stateless(_) => None,
-            WriterFlavor::Stateful(writer) => Some(writer),
-        }
-    }
-}
-impl Deref for WriterFlavor {
-    type Target = Writer;
-
-    fn deref(&self) -> &Self::Target {
-        match self {
-            WriterFlavor::Stateful(writer) => writer,
-            WriterFlavor::Stateless(writer) => writer,
-        }
-    }
-}
-impl DerefMut for WriterFlavor {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        match self {
-            WriterFlavor::Stateful(writer) => writer,
-            WriterFlavor::Stateless(writer) => writer,
-        }
-    }
-}
+use super::rtps_topic_inner::RtpsTopicInner;
 
 pub struct RtpsDataWriterInner<T: DDSType> {
-    writer: Mutex<WriterFlavor>,
+    writer: Mutex<Writer>,
     qos: Mutex<DataWriterQos>,
     topic: Mutex<Option<Arc<RtpsTopicInner>>>,
-    listener: Option<Box<dyn DataWriterListener<DataType=T>>>,
+    listener: Option<Box<dyn DataWriterListener<DataType = T>>>,
     status_mask: StatusMask,
 }
 
 impl<T: DDSType> RtpsDataWriterInner<T> {
-    pub fn new_builtin_stateless(
+    pub fn new(
         guid_prefix: GuidPrefix,
-        entity_key: [u8;3],
-        topic: &RtpsTopicInnerRef,
+        entity_id: EntityId,
+        topic: &Arc<RtpsTopicInner>,
         qos: DataWriterQos,
-        listener: Option<Box<dyn DataWriterListener<DataType=T>>>,
+        listener: Option<Box<dyn DataWriterListener<DataType = T>>>,
         status_mask: StatusMask,
     ) -> Self {
-        let entity_kind = match T::has_key() {
-            false => ENTITY_KIND_BUILT_IN_WRITER_NO_KEY,
-            true => ENTITY_KIND_BUILT_IN_WRITER_WITH_KEY,
-        };
-        let entity_id = EntityId::new(entity_key, entity_kind);
-        let guid = GUID::new(guid_prefix, entity_id);
-        Self::new_stateless(guid, topic, qos, listener, status_mask)
-    }
+        let topic = topic.clone();
 
-    pub fn new_user_defined_stateless(
-        guid_prefix: GuidPrefix,
-        entity_key: [u8;3],
-        topic: &RtpsTopicInnerRef,
-        qos: DataWriterQos,
-        listener: Option<Box<dyn DataWriterListener<DataType=T>>>,
-        status_mask: StatusMask,
-    ) -> Self {
-        let entity_kind = match T::has_key() {
-            false => ENTITY_KIND_USER_DEFINED_WRITER_NO_KEY,
-            true => ENTITY_KIND_USER_DEFINED_WRITER_WITH_KEY,
-        };
-        let entity_id = EntityId::new(entity_key, entity_kind);
-        let guid = GUID::new(guid_prefix, entity_id);
-        Self::new_stateless(guid, topic, qos, listener, status_mask)
-    }
-
-    pub fn new_builtin_stateful(
-        guid_prefix: GuidPrefix,
-        entity_key: [u8;3],
-        topic: &RtpsTopicInnerRef,
-        qos: DataWriterQos,
-        listener: Option<Box<dyn DataWriterListener<DataType=T>>>,
-        status_mask: StatusMask,
-    ) -> Self {
-        let entity_kind = match T::has_key() {
-            false => ENTITY_KIND_BUILT_IN_WRITER_NO_KEY,
-            true => ENTITY_KIND_BUILT_IN_WRITER_WITH_KEY,
-        };
-        let entity_id = EntityId::new(entity_key, entity_kind);
-        let guid = GUID::new(guid_prefix, entity_id);
-        Self::new_stateful(guid, topic, qos, listener, status_mask)
-    }
-
-    pub fn new_user_defined_stateful(
-        guid_prefix: GuidPrefix,
-        entity_key: [u8;3],
-        topic: &RtpsTopicInnerRef,
-        qos: DataWriterQos,
-        listener: Option<Box<dyn DataWriterListener<DataType=T>>>,
-        status_mask: StatusMask,
-    ) -> Self {
-        let entity_kind = match T::has_key() {
-            false => ENTITY_KIND_BUILT_IN_WRITER_NO_KEY,
-            true => ENTITY_KIND_BUILT_IN_WRITER_WITH_KEY,
-        };
-        let entity_id = EntityId::new(entity_key, entity_kind);
-        let guid = GUID::new(guid_prefix, entity_id);
-        Self::new_stateful(guid, topic, qos, listener, status_mask)
-    }
-
-    fn new_stateful(
-        guid: GUID,
-        topic: &RtpsTopicInnerRef,
-        qos: DataWriterQos,
-        listener: Option<Box<dyn DataWriterListener<DataType=T>>>,
-        status_mask: StatusMask,
-    ) -> Self {
         assert!(
             qos.is_consistent().is_ok(),
             "RtpsDataWriter can only be created with consistent QoS"
         );
-        let topic_kind = topic.topic_kind().unwrap();
+        let guid = GUID::new(guid_prefix, entity_id);
+        let topic_kind = topic.topic_kind();
         let reliability_level = match qos.reliability.kind {
             ReliabilityQosPolicyKind::BestEffortReliabilityQos => ReliabilityKind::BestEffort,
             ReliabilityQosPolicyKind::ReliableReliabilityQos => ReliabilityKind::Reliable,
@@ -156,20 +51,19 @@ impl<T: DDSType> RtpsDataWriterInner<T> {
         let heartbeat_period = behavior::types::Duration::from_millis(500);
         let nack_response_delay = behavior::types::constants::DURATION_ZERO;
         let nack_supression_duration = behavior::types::constants::DURATION_ZERO;
-        let writer = StatefulWriter::new(
+        let writer = Writer::new(
             guid,
             topic_kind,
             reliability_level,
             push_mode,
-            data_max_sized_serialized,
             heartbeat_period,
             nack_response_delay,
             nack_supression_duration,
+            data_max_sized_serialized,
         );
-        let topic = topic.get().unwrap().clone();
 
         Self {
-            writer: Mutex::new(WriterFlavor::Stateful(writer)),
+            writer: Mutex::new(writer),
             qos: Mutex::new(qos),
             topic: Mutex::new(Some(topic)),
             listener,
@@ -177,59 +71,38 @@ impl<T: DDSType> RtpsDataWriterInner<T> {
         }
     }
 
-    fn new_stateless(
-        guid: GUID,
-        topic: &RtpsTopicInnerRef,
-        qos: DataWriterQos,
-        listener: Option<Box<dyn DataWriterListener<DataType=T>>>,
-        status_mask: StatusMask,
-    ) -> Self {
-        assert!(
-            qos.is_consistent().is_ok(),
-            "RtpsDataWriter can only be created with consistent QoS"
-        );
-        let topic_kind = topic.topic_kind().unwrap();
-        let reliability_level = match qos.reliability.kind {
-            ReliabilityQosPolicyKind::BestEffortReliabilityQos => ReliabilityKind::BestEffort,
-            ReliabilityQosPolicyKind::ReliableReliabilityQos => ReliabilityKind::Reliable,
-        };
-        let push_mode = true;
-        let data_max_sized_serialized = None;
-        let heartbeat_period = Duration::from_millis(200);
-        let nack_response_delay = DURATION_ZERO;
-        let nack_supression_duration = DURATION_ZERO;
-        let writer = StatelessWriter::new(
-            guid,
-            topic_kind,
-            reliability_level,
-            push_mode,
-            heartbeat_period,
-            nack_response_delay,
-            nack_supression_duration,
-            data_max_sized_serialized,
-        );
-        let topic = topic.get().unwrap().clone();
+    pub fn writer(&self) -> &Mutex<Writer> {
+        &self.writer
+    }
 
-        Self {
-            writer: Mutex::new(WriterFlavor::Stateless(writer)),
-            qos: Mutex::new(qos),
-            topic: Mutex::new(Some(topic)),
-            listener,
-            status_mask,
-        }
+    pub fn qos(&self) -> &Mutex<DataWriterQos> {
+        &self.qos
+    }
+
+    pub fn topic(&self) -> &Mutex<Option<Arc<RtpsTopicInner>>> {
+        &self.topic
+    }
+
+    pub fn listener(&self) -> &Option<Box<dyn DataWriterListener<DataType = T>>> {
+        &self.listener
+    }
+
+    pub fn status_mask(&self) -> &StatusMask {
+        &self.status_mask
     }
 }
 
 pub trait RtpsAnyDataWriterInner: AsAny + Send + Sync {
-    fn writer(&self) -> MutexGuard<WriterFlavor>;
+    fn writer(&self) -> MutexGuard<Writer>;
 
     fn topic(&self) -> MutexGuard<Option<Arc<RtpsTopicInner>>>;
 
     fn qos(&self) -> MutexGuard<DataWriterQos>;
 }
 
+
 impl<T: DDSType + Sized> RtpsAnyDataWriterInner for RtpsDataWriterInner<T> {
-    fn writer(&self) -> MutexGuard<WriterFlavor> {
+    fn writer(&self) -> MutexGuard<Writer> {
         self.writer.lock().unwrap()
     }
 
@@ -273,6 +146,10 @@ impl<'a> RtpsAnyDataWriterInnerRef<'a> {
     //             .ok_or(DDSError::Error)
     //     }
 
+    pub fn try_get_stateless(&self) -> DDSResult<Option<&Box<dyn StatelessWriter>>> {
+        Ok(self.get()?.as_ref().as_any().downcast_ref())
+    }
+
     pub fn delete(&self) -> DDSResult<()> {
         self.get()?.topic().take(); // Drop the topic
         MaybeValid::delete(self);
@@ -285,16 +162,16 @@ impl<'a> RtpsAnyDataWriterInnerRef<'a> {
         _handle: Option<InstanceHandle>,
         _timestamp: Time,
     ) -> DDSResult<()> {
-        let writer = &mut self.get()?.writer();
+        let this = self.get()?;
         let kind = ChangeKind::Alive;
         let inline_qos = None;
-        let change = writer.new_change(
+        let change = this.writer().new_change(
             kind,
             Some(data.serialize()),
             inline_qos,
             instance_handle_from_dds_type(data),
         );
-        writer.writer_cache.add_change(change);
+        this.writer().writer_cache.add_change(change);
 
         Ok(())
     }
@@ -311,14 +188,14 @@ impl<'a> RtpsAnyDataWriterInnerRef<'a> {
     //     }
 
     // pub fn produce_messages(&self) -> Vec<behavior::endpoint_traits::DestinedMessages> {
-        // todo!()
-        // if let Some(rtps_writer) = self.get().ok() {
-        //     match &mut *rtps_writer.writer() {
-        //         WriterFlavor::Stateful(writer) => writer.produce_messages(),
-        //         WriterFlavor::Stateless(writer) => writer.produce_messages(),
-        //     }
-        // } else {
-        //     vec![]
-        // }
+    // todo!()
+    // if let Some(rtps_writer) = self.get().ok() {
+    //     match &mut *rtps_writer.writer() {
+    //         WriterFlavor::Stateful(writer) => writer.produce_messages(),
+    //         WriterFlavor::Stateless(writer) => writer.produce_messages(),
+    //     }
+    // } else {
+    //     vec![]
+    // }
     // }
 }

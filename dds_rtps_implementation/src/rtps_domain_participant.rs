@@ -484,13 +484,13 @@ impl Entity for RtpsDomainParticipant {
 
             let spdp_locator = Locator::new_udpv4(7400, [239, 255, 0, 0]);
 
-            spdp_announcer.get().expect("Error retrieven SPDP announcer")
-                .writer()
+            spdp_announcer
                 .try_get_stateless()
+                .expect("Error retrieving SPDP announcer")
                 .unwrap()
                 .reader_locator_add(spdp_locator);
 
-            spdp_announcer.write_w_timestamp::<SpdpDiscoveredParticipantData>(SpdpDiscoveredParticipantData{value:5}, None, Time{sec:10, nanosec:0}).expect("Error announcing participant");
+            // spdp_announcer.write_w_timestamp::<SpdpDiscoveredParticipantData>(SpdpDiscoveredParticipantData{value:5}, None, Time{sec:10, nanosec:0}).expect("Error announcing participant");
 
             //         // let key = BuiltInTopicKey([1, 2, 3]);
             //         // let user_data = UserDataQosPolicy { value: vec![] };

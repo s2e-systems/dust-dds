@@ -63,7 +63,10 @@ impl Writer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{behavior::types::constants::DURATION_ZERO, types::constants::ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER};
+    use crate::{
+        behavior::types::constants::DURATION_ZERO,
+        types::constants::ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER,
+    };
 
     #[test]
     fn new_change() {

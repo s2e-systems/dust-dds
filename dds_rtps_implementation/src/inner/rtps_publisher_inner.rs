@@ -20,12 +20,9 @@ use rust_rtps::{
 
 use crate::utils::maybe_valid::{MaybeValid, MaybeValidList, MaybeValidRef};
 
-use super::{
-    rtps_datawriter_inner::{
-        RtpsAnyDataWriterInner, RtpsAnyDataWriterInnerRef, RtpsDataWriterInner,
-    },
-    rtps_topic_inner::RtpsTopicInnerRef,
-};
+use super::{rtps_datawriter_inner::{
+        RtpsAnyDataWriterInner, RtpsAnyDataWriterInnerRef,
+    }, rtps_stateful_datawriter_inner::RtpsStatefulDataWriterInner, rtps_stateless_datawriter_inner::RtpsStatelessDataWriterInner, rtps_topic_inner::RtpsTopicInnerRef};
 
 enum EntityType {
     BuiltIn,
@@ -151,10 +148,11 @@ impl<'a> RtpsPublisherInnerRef<'a> {
         status_mask: StatusMask,
     ) -> Option<RtpsAnyDataWriterInnerRef> {
         let this = self.get().ok()?;
+        let a_topic = a_topic.get().ok()?;
         let qos = qos.unwrap_or(self.get_default_datawriter_qos().ok()?);
         let guid_prefix = this.group.entity.guid.prefix();
-        let writer: RtpsDataWriterInner<T> = match this.entity_type {
-            EntityType::UserDefined => RtpsDataWriterInner::new_user_defined_stateful(
+        let writer: RtpsStatefulDataWriterInner = match this.entity_type {
+            EntityType::UserDefined => RtpsStatefulDataWriterInner::new_user_defined::<T>(
                 guid_prefix,
                 entity_key,
                 a_topic,
@@ -162,7 +160,7 @@ impl<'a> RtpsPublisherInnerRef<'a> {
                 a_listener,
                 status_mask,
             ),
-            EntityType::BuiltIn => RtpsDataWriterInner::new_builtin_stateful(
+            EntityType::BuiltIn => RtpsStatefulDataWriterInner::new_builtin::<T>(
                 guid_prefix,
                 entity_key,
                 a_topic,
@@ -183,10 +181,11 @@ impl<'a> RtpsPublisherInnerRef<'a> {
         status_mask: StatusMask,
     ) -> Option<RtpsAnyDataWriterInnerRef> {
         let this = self.get().ok()?;
+        let a_topic = a_topic.get().ok()?;
         let qos = qos.unwrap_or(self.get_default_datawriter_qos().ok()?);
         let guid_prefix = this.group.entity.guid.prefix();
-        let writer: RtpsDataWriterInner<T> = match this.entity_type {
-            EntityType::UserDefined => RtpsDataWriterInner::new_user_defined_stateless(
+        let writer: RtpsStatelessDataWriterInner = match this.entity_type {
+            EntityType::UserDefined => RtpsStatelessDataWriterInner::new_user_defined::<T>(
                 guid_prefix,
                 entity_key,
                 a_topic,
@@ -194,7 +193,7 @@ impl<'a> RtpsPublisherInnerRef<'a> {
                 a_listener,
                 status_mask,
             ),
-            EntityType::BuiltIn => RtpsDataWriterInner::new_builtin_stateless(
+            EntityType::BuiltIn => RtpsStatelessDataWriterInner::new_builtin::<T>(
                 guid_prefix,
                 entity_key,
                 a_topic,

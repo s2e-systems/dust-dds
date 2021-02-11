@@ -55,6 +55,10 @@ impl RtpsTopicInner {
             status_mask,
         }
     }
+
+    pub fn topic_kind(&self) -> TopicKind {
+        self.topic_kind
+    }
 }
 
 pub type RtpsTopicInnerRef<'a> = MaybeValidRef<'a, Arc<RtpsTopicInner>>;
