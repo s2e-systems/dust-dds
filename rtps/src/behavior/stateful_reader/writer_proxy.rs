@@ -1,13 +1,31 @@
-use std::collections::BTreeSet;
+use std::{collections::BTreeSet, time::Instant};
 
-use crate::types::{Locator, SequenceNumber, GUID};
+use crate::{messages::types::Count, types::{Locator, SequenceNumber, GUID}};
 
+/// This struct is a non-standard addition to support the 
+/// behavior implementation on the StatefulReader
 struct ChangesFromWriter {
     highest_processed_sequence_number: SequenceNumber,
     unknown_changes: BTreeSet<SequenceNumber>,
     lost_changes: BTreeSet<SequenceNumber>,
     missing_changes: BTreeSet<SequenceNumber>,
     irrelevant_changes: BTreeSet<SequenceNumber>,
+}
+
+pub struct WriterProxyBehavior {
+    pub must_send_ack: bool,
+    pub time_heartbeat_received: Instant,
+    pub ackanck_count: Count,
+}
+
+impl WriterProxyBehavior {
+    pub fn new() -> Self {
+        Self {
+            must_send_ack: false,
+            time_heartbeat_received: Instant::now(),
+            ackanck_count: 0,
+        }
+    }
 }
 
 pub struct WriterProxy {
@@ -18,6 +36,8 @@ pub struct WriterProxy {
     pub multicast_locator_list: Vec<Locator>,
     // data_max_size_serialized: Long,
     changes_from_writer: ChangesFromWriter,
+    // Non-standard addition
+    pub behavior: WriterProxyBehavior,
 }
 
 impl WriterProxy {
@@ -34,11 +54,14 @@ impl WriterProxy {
             irrelevant_changes: BTreeSet::new(),
         };
 
+        let behavior = WriterProxyBehavior::new();
+
         Self {
             remote_writer_guid,
             unicast_locator_list,
             multicast_locator_list,
             changes_from_writer,
+            behavior,
         }
     }
 

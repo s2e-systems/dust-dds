@@ -60,9 +60,6 @@ impl StatefulReader {
     }
 
     pub fn matched_writer_lookup(&self, a_writer_guid: GUID) -> Option<&WriterProxy> {
-        match self.matched_writers.get(&a_writer_guid) {
-            Some(writer_proxy_flavor) => Some(writer_proxy_flavor),
-            None => None,
-        }
+        self.matched_writers.get(&a_writer_guid)
     }
 }

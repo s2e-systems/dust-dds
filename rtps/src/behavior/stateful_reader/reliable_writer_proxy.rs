@@ -4,7 +4,6 @@ use crate::{
     behavior::{cache_change_from_data, types::Duration, BEHAVIOR_ENDIANNESS},
     messages::{
         submessages::{AckNack, Data, Gap, Heartbeat},
-        types::Count,
         RtpsSubmessage,
     },
     structure::HistoryCache,
@@ -16,27 +15,19 @@ use super::WriterProxy;
 pub struct ReliableWriterProxyBehavior;
 
 impl ReliableWriterProxyBehavior {
-    // must_send_ack: bool,
-    // time_heartbeat_received: Instant,
-    // ackanck_count: Count,
-
     pub fn try_process_message(
         writer_proxy: &mut WriterProxy,
         src_guid_prefix: GuidPrefix,
         submessage: &mut Option<RtpsSubmessage>,
         history_cache: &mut HistoryCache,
-        must_send_ack: &mut bool,
-        time_heartbeat_received: &mut Instant,
     ) {
         if let Some(inner_submessage) = submessage {
             if Self::is_submessage_destination(writer_proxy, src_guid_prefix, inner_submessage) {
                 // If Waiting state (marked by the must_send_ack flag)
-                if !*must_send_ack {
+                if !writer_proxy.behavior.must_send_ack {
                     Self::waiting_heartbeat_state(
                         writer_proxy,
                         inner_submessage,
-                        must_send_ack,
-                        time_heartbeat_received,
                     );
                 }
 
@@ -49,20 +40,14 @@ impl ReliableWriterProxyBehavior {
         writer_proxy: &mut WriterProxy,
         reader_entity_id: EntityId,
         heartbeat_response_delay: Duration,
-        must_send_ack: &mut bool,
-        time_heartbeat_received: &Instant,
-        ackanck_count: &mut Count,
     ) -> Vec<RtpsSubmessage> {
         let mut output_queue = Vec::new();
-        if *must_send_ack {
+        if writer_proxy.behavior.must_send_ack {
             Self::must_send_ack_state(
                 writer_proxy,
                 reader_entity_id,
                 heartbeat_response_delay,
                 &mut output_queue,
-                time_heartbeat_received,
-                must_send_ack,
-                ackanck_count,
             );
         }
         output_queue
@@ -129,15 +114,13 @@ impl ReliableWriterProxyBehavior {
     fn waiting_heartbeat_state(
         writer_proxy: &mut WriterProxy,
         submessage: &RtpsSubmessage,
-        must_send_ack: &mut bool,
-        time_heartbeat_received: &mut Instant,
     ) {
         if let RtpsSubmessage::Heartbeat(heartbeat) = submessage {
             if !heartbeat.is_final()
                 || (heartbeat.is_final() && !writer_proxy.missing_changes().is_empty())
             {
-                *time_heartbeat_received = Instant::now();
-                *must_send_ack = true;
+                writer_proxy.behavior.time_heartbeat_received = Instant::now();
+                writer_proxy.behavior.must_send_ack = true;
             }
         }
     }
@@ -147,19 +130,14 @@ impl ReliableWriterProxyBehavior {
         reader_entity_id: EntityId,
         heartbeat_response_delay: Duration,
         output_queue: &mut Vec<RtpsSubmessage>,
-        time_heartbeat_received: &Instant,
-        must_send_ack: &mut bool,
-        ackanck_count: &mut Count,
     ) {
         let duration_since_heartbeat_received: Duration =
-            time_heartbeat_received.elapsed().try_into().unwrap();
+        writer_proxy.behavior.time_heartbeat_received.elapsed().try_into().unwrap();
         if duration_since_heartbeat_received > heartbeat_response_delay {
             Self::transition_t5(
                 writer_proxy,
                 reader_entity_id,
                 output_queue,
-                must_send_ack,
-                ackanck_count,
             )
         }
     }
@@ -168,19 +146,17 @@ impl ReliableWriterProxyBehavior {
         writer_proxy: &mut WriterProxy,
         reader_entity_id: EntityId,
         output_queue: &mut Vec<RtpsSubmessage>,
-        must_send_ack: &mut bool,
-        ackanck_count: &mut Count,
     ) {
-        *must_send_ack = false;
+        writer_proxy.behavior.must_send_ack = false;
 
-        *ackanck_count += 1;
+        writer_proxy.behavior.ackanck_count += 1;
         let acknack = AckNack::new(
             BEHAVIOR_ENDIANNESS,
             reader_entity_id,
             writer_proxy.remote_writer_guid.entity_id(),
             writer_proxy.available_changes_max(),
             writer_proxy.missing_changes().clone(),
-            *ackanck_count,
+            writer_proxy.behavior.ackanck_count,
             true,
         );
 
@@ -217,15 +193,11 @@ mod tests {
 
         let source_guid_prefix = [5; 12];
         let mut submessage = None;
-        let mut must_send_ack = false;
-        let mut time_heartbeat_received = Instant::now();
         ReliableWriterProxyBehavior::try_process_message(
             &mut writer_proxy,
             source_guid_prefix,
             &mut submessage,
             &mut history_cache,
-            &mut must_send_ack,
-            &mut time_heartbeat_received,
         );
     }
 
@@ -259,15 +231,11 @@ mod tests {
         let expected_cache_change =
             cache_change_from_data(data_submessage.clone(), &source_guid_prefix);
 
-        let mut must_send_ack = false;
-        let mut time_heartbeat_received = Instant::now();
         ReliableWriterProxyBehavior::try_process_message(
             &mut writer_proxy,
             source_guid_prefix,
             &mut Some(RtpsSubmessage::Data(data_submessage)),
             &mut history_cache,
-            &mut must_send_ack,
-            &mut time_heartbeat_received,
         );
         let received_change = history_cache.get_change(1).unwrap();
         assert_eq!(received_change, &expected_cache_change);
@@ -299,22 +267,18 @@ mod tests {
 
         let source_guid_prefix = [5; 12];
 
-        let mut must_send_ack = false;
-        let mut time_heartbeat_received = Instant::now();
         ReliableWriterProxyBehavior::try_process_message(
             &mut writer_proxy,
             source_guid_prefix,
             &mut Some(RtpsSubmessage::Heartbeat(heartbeat_submessage)),
             &mut history_cache,
-            &mut must_send_ack,
-            &mut time_heartbeat_received,
         );
 
         assert_eq!(
             writer_proxy.missing_changes(),
             [3, 4, 5, 6].iter().cloned().collect()
         );
-        assert_eq!(must_send_ack, true);
+        assert_eq!(writer_proxy.behavior.must_send_ack, true);
     }
 
     #[test]
@@ -342,22 +306,18 @@ mod tests {
         );
 
         let source_guid_prefix = [5; 12];
-        let mut must_send_ack = false;
-        let mut time_heartbeat_received = Instant::now();
         ReliableWriterProxyBehavior::try_process_message(
             &mut writer_proxy,
             source_guid_prefix,
             &mut Some(RtpsSubmessage::Heartbeat(heartbeat_submessage)),
             &mut history_cache,
-            &mut must_send_ack,
-            &mut time_heartbeat_received,
         );
 
         assert_eq!(
             writer_proxy.missing_changes(),
             [3, 4, 5, 6].iter().cloned().collect()
         );
-        assert_eq!(must_send_ack, false);
+        assert_eq!(writer_proxy.behavior.must_send_ack, false);
     }
 
     #[test]
@@ -385,15 +345,11 @@ mod tests {
         );
 
         let source_guid_prefix = [5; 12];
-        let mut must_send_ack = false;
-        let mut time_heartbeat_received = Instant::now();
         ReliableWriterProxyBehavior::try_process_message(
             &mut writer_proxy,
             source_guid_prefix,
             &mut Some(RtpsSubmessage::Heartbeat(heartbeat_submessage)),
             &mut history_cache,
-            &mut must_send_ack,
-            &mut time_heartbeat_received,
         );
 
 
@@ -401,7 +357,7 @@ mod tests {
             writer_proxy.missing_changes(),
             [].iter().cloned().collect()
         );
-        assert_eq!(must_send_ack, false);
+        assert_eq!(writer_proxy.behavior.must_send_ack, false);
     }
 
     #[test]
@@ -429,39 +385,27 @@ mod tests {
         );
 
         let source_guid_prefix = [5; 12];
-        let mut must_send_ack = false;
-        let mut time_heartbeat_received = Instant::now();
         ReliableWriterProxyBehavior::try_process_message(
             &mut writer_proxy,
             source_guid_prefix,
             &mut Some(RtpsSubmessage::Heartbeat(heartbeat_submessage)),
             &mut history_cache,
-            &mut must_send_ack,
-            &mut time_heartbeat_received,
         );
 
 
         let heartbeat_response_delay = Duration::from_millis(200);
-        let mut acknack_count = 0;
         let produced_messages_empty = ReliableWriterProxyBehavior::produce_messages(
             &mut writer_proxy,
             ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER,
             heartbeat_response_delay,
-            &mut must_send_ack,
-            &time_heartbeat_received,
-            &mut acknack_count,
         );
 
         std::thread::sleep(heartbeat_response_delay.into());
 
-        let mut acknack_count = 0;
         let produced_messages = ReliableWriterProxyBehavior::produce_messages(
             &mut writer_proxy,
             ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER,
             heartbeat_response_delay,
-            &mut must_send_ack,
-            &time_heartbeat_received,
-            &mut acknack_count,
         );
 
         let expected_acknack_submessage = RtpsSubmessage::AckNack(AckNack::new(
@@ -504,27 +448,19 @@ mod tests {
         );
 
         let source_guid_prefix = [5; 12];
-        let mut must_send_ack = false;
-        let mut time_heartbeat_received = Instant::now();
         ReliableWriterProxyBehavior::try_process_message(
             &mut writer_proxy,
             source_guid_prefix,
             &mut Some(RtpsSubmessage::Heartbeat(heartbeat_submessage)),
             &mut history_cache,
-            &mut must_send_ack,
-            &mut time_heartbeat_received,
         );
 
 
         let heartbeat_response_delay = Duration::from_millis(0);
-        let mut acknack_count = 0;
         let produced_messages = ReliableWriterProxyBehavior::produce_messages(
             &mut writer_proxy,
             ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER,
             heartbeat_response_delay,
-            &mut must_send_ack,
-            &time_heartbeat_received,
-            &mut acknack_count,
         );
 
         let expected_acknack_submessage = RtpsSubmessage::AckNack(AckNack::new(
@@ -571,27 +507,19 @@ mod tests {
         );
 
         let source_guid_prefix = [5; 12];
-        let mut must_send_ack = false;
-        let mut time_heartbeat_received = Instant::now();
         ReliableWriterProxyBehavior::try_process_message(
             &mut writer_proxy,
             source_guid_prefix,
             &mut Some(RtpsSubmessage::Heartbeat(heartbeat_submessage)),
             &mut history_cache,
-            &mut must_send_ack,
-            &mut time_heartbeat_received,
         );
 
 
         let heartbeat_response_delay = Duration::from_millis(0);
-        let mut acknack_count = 0;
         let produced_messages = ReliableWriterProxyBehavior::produce_messages(
             &mut writer_proxy,
             ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER,
             heartbeat_response_delay,
-            &mut must_send_ack,
-            &time_heartbeat_received,
-            &mut acknack_count,
         );
         
 
