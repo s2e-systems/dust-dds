@@ -1,7 +1,7 @@
 use std::{ops::{Deref, DerefMut}, sync::Arc};
 
 use rust_dds_api::{dcps_psm::StatusMask, infrastructure::{qos::DataWriterQos, qos_policy::ReliabilityQosPolicyKind}};
-use rust_rtps::{behavior::{self, StatelessWriter}, types::{EntityId, GUID, GuidPrefix, ReliabilityKind}};
+use rust_rtps::{behavior::{self, StatelessWriter}, types::{EntityId, GUID, GuidPrefix, ReliabilityKind, TopicKind, constants::{ENTITY_KIND_BUILT_IN_WRITER_NO_KEY, ENTITY_KIND_BUILT_IN_WRITER_WITH_KEY, ENTITY_KIND_USER_DEFINED_WRITER_NO_KEY, ENTITY_KIND_USER_DEFINED_WRITER_WITH_KEY}}};
 
 use super::{rtps_datawriter_inner::{AnyDataWriterListener, RtpsDataWriterInner}, rtps_topic_inner::RtpsTopicInner};
 
@@ -25,11 +25,39 @@ impl DerefMut for RtpsStatelessDataWriterInner {
 }
 
 impl RtpsStatelessDataWriterInner {
-    pub fn new_builtin() -> Self {
-        todo!()
+    pub fn new_builtin(
+        guid_prefix: GuidPrefix,
+        entity_key: [u8;3],
+        topic: &Arc<RtpsTopicInner>,
+        qos: DataWriterQos,
+        listener: Option<Box<dyn AnyDataWriterListener>>,
+        status_mask: StatusMask,
+    ) -> Self {
+        let entity_kind = match topic.topic_kind() {
+            TopicKind::NoKey => ENTITY_KIND_BUILT_IN_WRITER_NO_KEY,
+            TopicKind::WithKey => ENTITY_KIND_BUILT_IN_WRITER_WITH_KEY,
+        };
+        let entity_id = EntityId::new(entity_key, entity_kind);
+        Self::new(guid_prefix, entity_id, topic, qos, listener, status_mask)
     }
 
-    pub fn new(
+    pub fn new_user_defined(
+        guid_prefix: GuidPrefix,
+        entity_key: [u8;3],
+        topic: &Arc<RtpsTopicInner>,
+        qos: DataWriterQos,
+        listener: Option<Box<dyn AnyDataWriterListener>>,
+        status_mask: StatusMask,
+    ) -> Self {
+        let entity_kind = match topic.topic_kind() {
+            TopicKind::NoKey => ENTITY_KIND_USER_DEFINED_WRITER_NO_KEY,
+            TopicKind::WithKey => ENTITY_KIND_USER_DEFINED_WRITER_WITH_KEY,
+        };
+        let entity_id = EntityId::new(entity_key, entity_kind);
+        Self::new(guid_prefix, entity_id, topic, qos, listener, status_mask)
+    }
+
+    fn new(
         guid_prefix: GuidPrefix,
         entity_id: EntityId,
         topic: &Arc<RtpsTopicInner>,
