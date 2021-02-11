@@ -1,11 +1,30 @@
-use std::collections::BTreeSet;
+use std::{collections::BTreeSet, time::Instant};
 
-use crate::types::{GUID, Locator, SequenceNumber};
+use crate::{
+    messages::types::Count,
+    types::{Locator, SequenceNumber, GUID},
+};
 
 struct ChangeForReader {
     highest_sequence_number_sent: SequenceNumber,
     highest_sequence_number_acknowledged: SequenceNumber,
     sequence_numbers_requested: BTreeSet<SequenceNumber>,
+}
+
+pub struct ReaderProxyBehavior {
+    pub heartbeat_count: Count,
+    pub time_last_sent_data: Instant,
+    pub time_nack_received: Instant,
+}
+
+impl ReaderProxyBehavior {
+    fn new() -> Self {
+        Self {
+            heartbeat_count: 0,
+            time_last_sent_data: Instant::now(),
+            time_nack_received: Instant::now(),
+        }
+    }
 }
 
 pub struct ReaderProxy {
@@ -16,6 +35,7 @@ pub struct ReaderProxy {
     changes_for_reader: ChangeForReader,
     pub expects_inline_qos: bool,
     pub is_active: bool,
+    pub behavior: ReaderProxyBehavior,
 }
 
 impl ReaderProxy {
@@ -32,6 +52,8 @@ impl ReaderProxy {
             sequence_numbers_requested: BTreeSet::new(),
         };
 
+        let behavior = ReaderProxyBehavior::new();
+
         Self {
             remote_reader_guid,
             unicast_locator_list,
@@ -39,6 +61,7 @@ impl ReaderProxy {
             expects_inline_qos,
             is_active,
             changes_for_reader,
+            behavior,
         }
     }
 

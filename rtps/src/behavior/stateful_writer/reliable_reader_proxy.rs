@@ -23,9 +23,6 @@ impl ReliableReaderProxyBehavior {
         last_change_sequence_number: SequenceNumber,
         heartbeat_period: Duration,
         nack_response_delay: Duration,
-        heartbeat_count: &mut Count,
-        time_last_sent_data: &mut Instant,
-        time_nack_received: &mut Instant,
     ) -> Vec<RtpsSubmessage> {
         let mut message_queue = Vec::new();
 
@@ -44,7 +41,6 @@ impl ReliableReaderProxyBehavior {
                 last_change_sequence_number,
                 writer_entity_id,
                 &mut message_queue,
-                time_last_sent_data,
             );
         } else if !reader_proxy
             .unacked_changes(last_change_sequence_number)
@@ -57,16 +53,23 @@ impl ReliableReaderProxyBehavior {
                 writer_entity_id,
                 heartbeat_period,
                 &mut message_queue,
-                time_last_sent_data,
-                heartbeat_count,
             );
         }
 
         if !reader_proxy.requested_changes().is_empty() {
-            let duration_since_nack_received: Duration =
-                time_nack_received.elapsed().try_into().unwrap();
+            let duration_since_nack_received: Duration = reader_proxy
+                .behavior
+                .time_nack_received
+                .elapsed()
+                .try_into()
+                .unwrap();
             if duration_since_nack_received > nack_response_delay {
-                Self::repairing_state(reader_proxy, history_cache, writer_entity_id, &mut message_queue);
+                Self::repairing_state(
+                    reader_proxy,
+                    history_cache,
+                    writer_entity_id,
+                    &mut message_queue,
+                );
             }
         }
 
@@ -103,10 +106,9 @@ impl ReliableReaderProxyBehavior {
         last_change_sequence_number: SequenceNumber,
         writer_entity_id: EntityId,
         message_queue: &mut Vec<RtpsSubmessage>,
-        time_last_sent_data: &mut Instant,
     ) {
-        while let Some(next_unsent_seq_num) = reader_proxy
-            .next_unsent_change(last_change_sequence_number)
+        while let Some(next_unsent_seq_num) =
+            reader_proxy.next_unsent_change(last_change_sequence_number)
         {
             Self::transition_t4(
                 reader_proxy,
@@ -116,7 +118,7 @@ impl ReliableReaderProxyBehavior {
                 message_queue,
             );
         }
-        *time_last_sent_data = Instant::now();
+        reader_proxy.behavior.time_last_sent_data = Instant::now();
     }
 
     fn transition_t4(
@@ -156,11 +158,13 @@ impl ReliableReaderProxyBehavior {
         writer_entity_id: EntityId,
         heartbeat_period: Duration,
         message_queue: &mut Vec<RtpsSubmessage>,
-        time_last_sent_data: &mut Instant,
-        heartbeat_count: &mut Count,
     ) {
-        let duration_since_last_sent_data: Duration =
-            time_last_sent_data.elapsed().try_into().unwrap();
+        let duration_since_last_sent_data: Duration = reader_proxy
+            .behavior
+            .time_last_sent_data
+            .elapsed()
+            .try_into()
+            .unwrap();
         if duration_since_last_sent_data > heartbeat_period {
             Self::transition_t7(
                 reader_proxy,
@@ -168,9 +172,8 @@ impl ReliableReaderProxyBehavior {
                 last_change_sequence_number,
                 writer_entity_id,
                 message_queue,
-                heartbeat_count,
             );
-            *time_last_sent_data = Instant::now();
+            reader_proxy.behavior.time_last_sent_data = Instant::now();
         }
     }
 
@@ -180,15 +183,13 @@ impl ReliableReaderProxyBehavior {
         last_change_sequence_number: SequenceNumber,
         writer_entity_id: EntityId,
         message_queue: &mut Vec<RtpsSubmessage>,
-        heartbeat_count: &mut Count,
-
     ) {
         let first_sn = if let Some(seq_num) = history_cache.get_seq_num_min() {
             seq_num
         } else {
             last_change_sequence_number + 1
         };
-        *heartbeat_count += 1;
+        reader_proxy.behavior.heartbeat_count += 1;
 
         let heartbeat = Heartbeat::new(
             BEHAVIOR_ENDIANNESS,
@@ -196,7 +197,7 @@ impl ReliableReaderProxyBehavior {
             writer_entity_id,
             first_sn,
             last_change_sequence_number,
-            *heartbeat_count,
+            reader_proxy.behavior.heartbeat_count,
             false,
             false,
         );
@@ -208,16 +209,18 @@ impl ReliableReaderProxyBehavior {
         message_queue.push(RtpsSubmessage::Heartbeat(heartbeat));
     }
 
-    fn waiting_state(reader_proxy: &mut ReaderProxy, acknack: AckNack, time_nack_received: &mut Instant) {
+    fn waiting_state(
+        reader_proxy: &mut ReaderProxy,
+        acknack: AckNack,
+        time_nack_received: &mut Instant,
+    ) {
         Self::transition_t8(reader_proxy, acknack);
         *time_nack_received = Instant::now();
     }
 
     fn transition_t8(reader_proxy: &mut ReaderProxy, acknack: AckNack) {
-        reader_proxy
-            .acked_changes_set(acknack.reader_sn_state().base() - 1);
-        reader_proxy
-            .requested_changes_set(acknack.reader_sn_state().set().clone());
+        reader_proxy.acked_changes_set(acknack.reader_sn_state().base() - 1);
+        reader_proxy.requested_changes_set(acknack.reader_sn_state().set().clone());
     }
 
     fn must_repair_state(reader_proxy: &mut ReaderProxy, acknack: AckNack) {
@@ -249,10 +252,8 @@ impl ReliableReaderProxyBehavior {
         message_queue: &mut Vec<RtpsSubmessage>,
     ) {
         if let Some(cache_change) = history_cache.get_change(next_requested_seq_num) {
-            let data = data_from_cache_change(
-                cache_change,
-                reader_proxy.remote_reader_guid.entity_id(),
-            );
+            let data =
+                data_from_cache_change(cache_change, reader_proxy.remote_reader_guid.entity_id());
             message_queue.push(RtpsSubmessage::Data(data));
         } else {
             let gap = Gap::new(
@@ -300,9 +301,6 @@ mod tests {
         let heartbeat_period = Duration::from_secs(1);
         let nack_response_delay = Duration::from_secs(1);
         let last_change_sequence_number = 0;
-        let mut heartbeat_count = 0;
-        let mut time_last_sent_data = Instant::now();
-        let mut time_nack_received = Instant::now();
         let messages_vec = ReliableReaderProxyBehavior::produce_messages(
             &mut reader_proxy,
             &history_cache,
@@ -310,9 +308,6 @@ mod tests {
             last_change_sequence_number,
             heartbeat_period,
             nack_response_delay,
-            &mut heartbeat_count,
-            &mut time_last_sent_data,
-            &mut time_nack_received,
         );
 
         assert!(messages_vec.is_empty());
@@ -353,9 +348,6 @@ mod tests {
         let last_change_sequence_number = 1;
         let heartbeat_period = Duration::from_secs(1);
         let nack_response_delay = Duration::from_secs(1);
-        let mut heartbeat_count = 0;
-        let mut time_last_sent_data = Instant::now();
-        let mut time_nack_received = Instant::now();
 
         let messages_vec = ReliableReaderProxyBehavior::produce_messages(
             &mut reader_proxy,
@@ -364,9 +356,6 @@ mod tests {
             last_change_sequence_number,
             heartbeat_period,
             nack_response_delay,
-            &mut heartbeat_count,
-            &mut time_last_sent_data,
-            &mut time_nack_received,
         );
 
         let expected_data_submessage = RtpsSubmessage::Data(data_from_cache_change(
@@ -399,9 +388,6 @@ mod tests {
         let last_change_sequence_number = 1;
         let heartbeat_period = Duration::from_secs(1);
         let nack_response_delay = Duration::from_secs(1);
-        let mut heartbeat_count = 0;
-        let mut time_last_sent_data = Instant::now();
-        let mut time_nack_received = Instant::now();
         let messages_vec = ReliableReaderProxyBehavior::produce_messages(
             &mut reader_proxy,
             &history_cache,
@@ -409,9 +395,6 @@ mod tests {
             last_change_sequence_number,
             heartbeat_period,
             nack_response_delay,
-            &mut heartbeat_count,
-            &mut time_last_sent_data,
-            &mut time_nack_received,
         );
 
         let expected_gap_submessage = RtpsSubmessage::Gap(Gap::new(
@@ -460,10 +443,6 @@ mod tests {
         let last_change_sequence_number = 2;
         let heartbeat_period = Duration::from_secs(1);
         let nack_response_delay = Duration::from_secs(1);
-        let mut heartbeat_count = 0;
-        let mut time_last_sent_data = Instant::now();
-        let mut time_nack_received = Instant::now();
-
         let messages_vec = ReliableReaderProxyBehavior::produce_messages(
             &mut reader_proxy,
             &history_cache,
@@ -471,9 +450,6 @@ mod tests {
             last_change_sequence_number,
             heartbeat_period,
             nack_response_delay,
-            &mut heartbeat_count,
-            &mut time_last_sent_data,
-            &mut time_nack_received,
         );
 
         let expected_data_submessage = RtpsSubmessage::Data(data_from_cache_change(
@@ -533,12 +509,8 @@ mod tests {
         );
 
         assert_eq!(highest_nack_count_received, 1);
-        assert!(reader_proxy
-            .unacked_changes(1)
-            .is_empty()); // If 1 is the last change sequence number there are no unacked changes
-        assert!(reader_proxy
-            .unacked_changes(2)
-            .contains(&2)); // If 2 is the last change sequence number, then 2 is an unacked change
+        assert!(reader_proxy.unacked_changes(1).is_empty()); // If 1 is the last change sequence number there are no unacked changes
+        assert!(reader_proxy.unacked_changes(2).contains(&2)); // If 2 is the last change sequence number, then 2 is an unacked change
     }
 
     #[test]
@@ -699,9 +671,6 @@ mod tests {
         let last_change_sequence_number = 2;
         let heartbeat_period = Duration::from_secs(0);
         let nack_response_delay = Duration::from_secs(1);
-        let mut heartbeat_count = 0;
-        let mut time_last_sent_data = Instant::now();
-        let mut time_nack_received = Instant::now();
 
         // The first produce should generate the data/gap messages and no heartbeat so we ignore it
         ReliableReaderProxyBehavior::produce_messages(
@@ -711,9 +680,6 @@ mod tests {
             last_change_sequence_number,
             heartbeat_period,
             nack_response_delay,
-            &mut heartbeat_count,
-            &mut time_last_sent_data,
-            &mut time_nack_received,
         );
 
         let messages_vec1 = ReliableReaderProxyBehavior::produce_messages(
@@ -723,9 +689,6 @@ mod tests {
             last_change_sequence_number,
             heartbeat_period,
             nack_response_delay,
-            &mut heartbeat_count,
-            &mut time_last_sent_data,
-            &mut time_nack_received,
         );
 
         let messages_vec2 = ReliableReaderProxyBehavior::produce_messages(
@@ -735,9 +698,6 @@ mod tests {
             last_change_sequence_number,
             heartbeat_period,
             nack_response_delay,
-            &mut heartbeat_count,
-            &mut time_last_sent_data,
-            &mut time_nack_received,
         );
 
         let expected_heartbeat_message1 = RtpsSubmessage::Heartbeat(Heartbeat::new(
@@ -814,9 +774,6 @@ mod tests {
         let last_change_sequence_number = 2;
         let heartbeat_period = Duration::from_millis(200);
         let nack_response_delay = Duration::from_secs(1);
-        let mut heartbeat_count = 0;
-        let mut time_last_sent_data = Instant::now();
-        let mut time_nack_received = Instant::now();
 
         // The first produce should generate the data/gap messages and no heartbeat so we ignore it
         ReliableReaderProxyBehavior::produce_messages(
@@ -826,9 +783,6 @@ mod tests {
             last_change_sequence_number,
             heartbeat_period,
             nack_response_delay,
-            &mut heartbeat_count,
-            &mut time_last_sent_data,
-            &mut time_nack_received,
         );
 
         let messages_vec1 = ReliableReaderProxyBehavior::produce_messages(
@@ -838,9 +792,6 @@ mod tests {
             last_change_sequence_number,
             heartbeat_period,
             nack_response_delay,
-            &mut heartbeat_count,
-            &mut time_last_sent_data,
-            &mut time_nack_received,
         );
 
         std::thread::sleep(heartbeat_period.into());
@@ -852,9 +803,6 @@ mod tests {
             last_change_sequence_number,
             heartbeat_period,
             nack_response_delay,
-            &mut heartbeat_count,
-            &mut time_last_sent_data,
-            &mut time_nack_received,
         );
 
         let expected_heartbeat_message = RtpsSubmessage::Heartbeat(Heartbeat::new(
@@ -921,9 +869,6 @@ mod tests {
         let last_change_sequence_number = 2;
         let heartbeat_period = Duration::from_secs(1);
         let nack_response_delay = Duration::from_secs(0);
-        let mut heartbeat_count = 0;
-        let mut time_last_sent_data = Instant::now();
-        let mut time_nack_received = Instant::now();
 
         let acknack = AckNack::new(
             Endianness::LittleEndian,
@@ -942,9 +887,6 @@ mod tests {
             last_change_sequence_number,
             heartbeat_period,
             nack_response_delay,
-            &mut heartbeat_count,
-            &mut time_last_sent_data,
-            &mut time_nack_received,
         );
 
         let mut highest_nack_count_received = 0;
@@ -965,9 +907,6 @@ mod tests {
             last_change_sequence_number,
             heartbeat_period,
             nack_response_delay,
-            &mut heartbeat_count,
-            &mut time_last_sent_data,
-            &mut time_nack_received,
         );
 
         let expected_data_submessage = RtpsSubmessage::Data(data_from_cache_change(
@@ -1026,9 +965,6 @@ mod tests {
         let last_change_sequence_number = 2;
         let heartbeat_period = Duration::from_secs(1);
         let nack_response_delay = Duration::from_millis(200);
-        let mut heartbeat_count = 0;
-        let mut time_last_sent_data = Instant::now();
-        let mut time_nack_received = Instant::now();
 
         let acknack = AckNack::new(
             Endianness::LittleEndian,
@@ -1047,9 +983,6 @@ mod tests {
             last_change_sequence_number,
             heartbeat_period,
             nack_response_delay,
-            &mut heartbeat_count,
-            &mut time_last_sent_data,
-            &mut time_nack_received,
         );
 
         let mut highest_nack_count_received = 0;
@@ -1070,9 +1003,6 @@ mod tests {
             last_change_sequence_number,
             heartbeat_period,
             nack_response_delay,
-            &mut heartbeat_count,
-            &mut time_last_sent_data,
-            &mut time_nack_received,
         );
 
         std::thread::sleep(nack_response_delay.into());
@@ -1084,9 +1014,6 @@ mod tests {
             last_change_sequence_number,
             heartbeat_period,
             nack_response_delay,
-            &mut heartbeat_count,
-            &mut time_last_sent_data,
-            &mut time_nack_received,
         );
 
         let expected_data_submessage = RtpsSubmessage::Data(data_from_cache_change(

@@ -3,7 +3,6 @@ use std::{
     sync::Arc,
 };
 
-use behavior::reader;
 use rust_dds_api::{
     dcps_psm::StatusMask,
     dds_type::DDSType,
@@ -21,10 +20,7 @@ use rust_rtps::{
     },
 };
 
-use super::{
-    rtps_datawriter_inner::{AnyRtpsDataWriterInner, RtpsDataWriterInner},
-    rtps_topic_inner::RtpsTopicInner,
-};
+use super::{endpoint_traits::DestinedMessages, rtps_datawriter_inner::{AnyRtpsDataWriterInner, RtpsDataWriterInner}, rtps_topic_inner::RtpsTopicInner};
 
 pub struct RtpsStatelessDataWriterInner {
     pub stateless_writer: StatelessWriter,
@@ -120,26 +116,21 @@ impl RtpsStatelessDataWriterInner {
         }
     }
 
-    pub fn produce_messages(&mut self) {
-        // let mut output = Vec::new();
+    pub fn produce_messages(&mut self) -> Vec<DestinedMessages> {
+        let mut output = Vec::new();
         let reader_locators = &mut self.stateless_writer.reader_locators;
         let writer = &self.stateless_writer.writer;
         for (&locator, reader_locator) in reader_locators.iter_mut() {
-            BestEffortReaderLocatorBehavior::produce_messages(
+            let messages = BestEffortReaderLocatorBehavior::produce_messages(
                 reader_locator,
                 &writer.writer_cache,
                 writer.endpoint.entity.guid.entity_id(),
                 writer.last_change_sequence_number,
             );
-            // let messages = reader_locator.produce_messages(
-            //     &self.writer.writer_cache,
-            //     self.writer.endpoint.entity.guid.entity_id(),
-            //     self.writer.last_change_sequence_number,
-            // );
-            // if !messages.is_empty() {
-            //     output.push(DestinedMessages::SingleDestination { locator, messages });
-            // }
+            if !messages.is_empty() {
+                output.push(DestinedMessages::SingleDestination{locator, messages});
+            }
         }
-        // output
+        output
     }
 }

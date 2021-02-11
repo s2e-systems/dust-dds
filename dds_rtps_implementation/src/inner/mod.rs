@@ -5,3 +5,4 @@ pub mod rtps_stateless_datawriter_inner;
 pub mod rtps_publisher_inner;
 pub mod rtps_subscriber_inner;
 pub mod rtps_topic_inner;
+pub mod endpoint_traits;

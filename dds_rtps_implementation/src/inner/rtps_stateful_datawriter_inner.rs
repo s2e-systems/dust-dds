@@ -1,9 +1,10 @@
 use std::{
     ops::{Deref, DerefMut},
     sync::Arc,
+    time::Instant,
 };
 
-use behavior::stateful_reader::best_effort_writer_proxy::BestEffortWriterProxyBehavior;
+use behavior::stateful_writer::reliable_reader_proxy::ReliableReaderProxyBehavior;
 use rust_dds_api::{
     dcps_psm::StatusMask,
     dds_type::DDSType,
@@ -15,6 +16,7 @@ use rust_rtps::{
         self, stateful_writer::best_effort_reader_proxy::BestEffortReaderProxyBehavior,
         StatefulWriter,
     },
+    messages::types::Count,
     types::{
         constants::{
             ENTITY_KIND_BUILT_IN_WRITER_NO_KEY, ENTITY_KIND_BUILT_IN_WRITER_WITH_KEY,
@@ -25,6 +27,7 @@ use rust_rtps::{
 };
 
 use super::{
+    endpoint_traits::DestinedMessages,
     rtps_datawriter_inner::{AnyRtpsDataWriterInner, RtpsDataWriterInner},
     rtps_topic_inner::RtpsTopicInner,
 };
@@ -123,18 +126,60 @@ impl RtpsStatefulDataWriterInner {
         }
     }
 
-    pub fn produce_messages(&mut self) {
+    pub fn produce_messages(&mut self) -> Vec<DestinedMessages> {
+        let mut output = Vec::new();
         let matched_readers = &mut self.stateful_writer.matched_readers;
         let writer = &self.stateful_writer.writer;
         for (&guid, reader_proxy) in matched_readers.iter_mut() {
-            BestEffortReaderProxyBehavior::produce_messages(
-                reader_proxy,
-                &writer.writer_cache,
-                writer.endpoint.entity.guid.entity_id(),
-                writer.last_change_sequence_number,
-            );
+            match writer.endpoint.reliability_level {
+                ReliabilityKind::BestEffort => BestEffortReaderProxyBehavior::produce_messages(
+                    reader_proxy,
+                    &writer.writer_cache,
+                    writer.endpoint.entity.guid.entity_id(),
+                    writer.last_change_sequence_number,
+                ),
+                ReliabilityKind::Reliable => ReliableReaderProxyBehavior::produce_messages(
+                    reader_proxy,
+                    &writer.writer_cache,
+                    writer.endpoint.entity.guid.entity_id(),
+                    writer.last_change_sequence_number,
+                    writer.heartbeat_period,
+                    writer.nack_response_delay,
+                ),
+            };
+
             // reader_proxy.unicast_locator_list;
             // reader_proxy.multicast_locator_list;
         }
+        output
+
+        // let mut output = Vec::new();
+        // for (_reader_guid, reader_proxy) in self.matched_readers.iter_mut() {
+        //     let messages = match reader_proxy {
+        //         ReaderProxyFlavor::Reliable(reliable_reader_proxy) => reliable_reader_proxy
+        //             .produce_messages(
+        //                 &self.writer.writer_cache,
+        //                 self.writer.endpoint.entity.guid.entity_id(),
+        //                 self.writer.last_change_sequence_number,
+        //                 self.heartbeat_period,
+        //                 self.nack_response_delay,
+        //             ),
+        //         ReaderProxyFlavor::BestEffort(best_effort_reader_proxy) => best_effort_reader_proxy
+        //             .produce_messages(
+        //                 &self.writer.writer_cache,
+        //                 self.writer.endpoint.entity.guid.entity_id(),
+        //                 self.writer.last_change_sequence_number,
+        //             ),
+        //     };
+
+        //     if !messages.is_empty() {
+        //         output.push(DestinedMessages::MultiDestination {
+        //             unicast_locator_list: reader_proxy.unicast_locator_list.clone(),
+        //             multicast_locator_list: reader_proxy.multicast_locator_list.clone(),
+        //             messages,
+        //         });
+        //     }
+        // }
+        // output
     }
 }

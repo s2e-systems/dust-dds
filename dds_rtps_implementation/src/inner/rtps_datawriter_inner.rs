@@ -168,10 +168,10 @@ impl<'a> RtpsAnyDataWriterInnerRef<'a> {
         if let Some(mut rtps_writer) = this {
             match &mut *rtps_writer {
                 RtpsDataWriterFlavor::Stateful(stateful_writer) => {
-                    stateful_writer.produce_messages()
+                    stateful_writer.produce_messages();
                 }
                 RtpsDataWriterFlavor::Stateless(stateless_writer) => {
-                    stateless_writer.produce_messages()
+                    stateless_writer.produce_messages();
                 }
             }
         }
