@@ -468,12 +468,12 @@ impl Entity for RtpsDomainParticipant {
 
             let mut spdp_announcer_qos = DataWriterQos::default();
             spdp_announcer_qos.reliability.kind = rust_dds_api::infrastructure::qos_policy::ReliabilityQosPolicyKind::BestEffortReliabilityQos;
-            let mut spdp_announcer = RtpsStatelessDataWriterInner::new_builtin(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER.entity_key(), &spdp_topic, spdp_announcer_qos, None, 0);
+            let mut spdp_announcer = RtpsStatelessDataWriterInner::new_builtin::<SpdpDiscoveredParticipantData>(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER.entity_key(), &spdp_topic, spdp_announcer_qos, None, 0);
 
             let spdp_locator = Locator::new_udpv4(7400, [239, 255, 0, 0]);
 
             spdp_announcer.reader_locator_add(spdp_locator);
-            
+
             {
                 let spdp_announcer_ref = builtin_publisher.writer_list().add(Mutex::new(RtpsDataWriterFlavor::Stateless(spdp_announcer))).expect("Error adding SPDP writer to built_in publisher");
                 spdp_announcer_ref.write_w_timestamp::<SpdpDiscoveredParticipantData>(SpdpDiscoveredParticipantData{value:5}, None, Time{sec:10, nanosec:0}).expect("Error announcing participant");

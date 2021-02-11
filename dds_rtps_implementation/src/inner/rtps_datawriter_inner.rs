@@ -15,24 +15,20 @@ use rust_rtps::{behavior::Writer, types::ChangeKind};
 
 use crate::utils::maybe_valid::{MaybeValid, MaybeValidRef};
 
-use super::{rtps_stateful_datawriter_inner::RtpsStatefulDataWriterInner, rtps_stateless_datawriter_inner::RtpsStatelessDataWriterInner, rtps_topic_inner::RtpsTopicInner};
+use super::{rtps_datareader_inner::RtpsDataReaderInner, rtps_stateful_datawriter_inner::RtpsStatefulDataWriterInner, rtps_stateless_datawriter_inner::RtpsStatelessDataWriterInner, rtps_topic_inner::RtpsTopicInner};
 
-pub trait AnyDataWriterListener: Send + Sync {}
-
-impl<T: DDSType> AnyDataWriterListener for dyn DataWriterListener<DataType = T> {}
-
-pub struct RtpsDataWriterInner {
+pub struct RtpsDataWriterInner<T: DDSType> {
     qos: DataWriterQos,
     topic: Option<Arc<RtpsTopicInner>>,
-    listener: Option<Box<dyn AnyDataWriterListener>>,
+    listener: Option<Box<dyn DataWriterListener<DataType = T>>>,
     status_mask: StatusMask,
 }
 
-impl RtpsDataWriterInner {
+impl<T: DDSType> RtpsDataWriterInner<T> {
     pub fn new(
         topic: &Arc<RtpsTopicInner>,
         qos: DataWriterQos,
-        listener: Option<Box<dyn AnyDataWriterListener>>,
+        listener: Option<Box<dyn DataWriterListener<DataType = T>>>,
         status_mask: StatusMask,
     ) -> Self {
         let topic = Some(topic.clone());
@@ -46,6 +42,16 @@ impl RtpsDataWriterInner {
     }
 }
 
+pub trait AnyRtpsDataWriterInner : Send + Sync{
+    fn topic(&mut self) -> &mut Option<Arc<RtpsTopicInner>>;
+}
+
+impl<T:DDSType> AnyRtpsDataWriterInner for RtpsDataWriterInner<T>{
+    fn topic(&mut self) -> &mut Option<Arc<RtpsTopicInner>> {
+        &mut self.topic
+    }
+}
+
 pub enum RtpsDataWriterFlavor {
     Stateful(RtpsStatefulDataWriterInner),
     Stateless(RtpsStatelessDataWriterInner),
@@ -54,8 +60,8 @@ pub enum RtpsDataWriterFlavor {
 impl RtpsDataWriterFlavor {
     pub fn topic(&mut self) -> &mut Option<Arc<RtpsTopicInner>> {
         match self {
-            Self::Stateful(stateful) => &mut stateful.inner.topic,
-            Self::Stateless(stateless) => &mut stateless.inner.topic,
+            Self::Stateful(stateful) => &mut stateful.inner.topic(),
+            Self::Stateless(stateless) => &mut stateless.inner.topic(),
         }
     }
 }

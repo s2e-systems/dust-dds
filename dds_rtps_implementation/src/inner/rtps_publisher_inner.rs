@@ -1,4 +1,7 @@
-use std::{ops::Deref, sync::{atomic, Mutex}};
+use std::{
+    ops::Deref,
+    sync::{atomic, Mutex},
+};
 
 use rust_dds_api::{
     dcps_psm::{InstanceHandle, StatusMask},
@@ -20,7 +23,11 @@ use rust_rtps::{
 
 use crate::utils::maybe_valid::{MaybeValid, MaybeValidList, MaybeValidRef};
 
-use super::{rtps_datawriter_inner::{AnyDataWriterListener, RtpsAnyDataWriterInnerRef, RtpsDataWriterFlavor}, rtps_stateful_datawriter_inner::RtpsStatefulDataWriterInner, rtps_topic_inner::RtpsTopicInnerRef};
+use super::{
+    rtps_datawriter_inner::{RtpsAnyDataWriterInnerRef, RtpsDataWriterFlavor},
+    rtps_stateful_datawriter_inner::RtpsStatefulDataWriterInner,
+    rtps_topic_inner::RtpsTopicInnerRef,
+};
 
 enum EntityType {
     BuiltIn,
@@ -128,20 +135,19 @@ impl<'a> RtpsPublisherInnerRef<'a> {
         &self,
         a_topic: &RtpsTopicInnerRef,
         qos: Option<DataWriterQos>,
-        a_listener: Option<Box<dyn AnyDataWriterListener>>,
+        a_listener: Option<Box<dyn DataWriterListener<DataType=T>>>,
         status_mask: StatusMask,
     ) -> Option<RtpsAnyDataWriterInnerRef> {
         let this = self.get().ok()?;
         let topic = a_topic.get().ok()?;
         let entity_key = [
             0,
-            this
-                .writer_count
-                .fetch_add(1, atomic::Ordering::Relaxed),
+            this.writer_count.fetch_add(1, atomic::Ordering::Relaxed),
             0,
         ];
         let guid_prefix = this.group.entity.guid.prefix();
         let qos = qos.unwrap_or(this.default_datawriter_qos.lock().unwrap().clone());
+
         let data_writer_inner = RtpsStatefulDataWriterInner::new_user_defined(
             guid_prefix,
             entity_key,
