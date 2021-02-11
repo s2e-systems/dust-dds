@@ -33,8 +33,9 @@ use rust_rtps::{
 
 use crate::{
     inner::{
-        rtps_publisher_inner::RtpsPublisherInner, rtps_subscriber_inner::RtpsSubscriberInner,
-        rtps_topic_inner::RtpsTopicInner,
+        rtps_datawriter_inner::RtpsDataWriterFlavor, rtps_publisher_inner::RtpsPublisherInner,
+        rtps_stateless_datawriter_inner::RtpsStatelessDataWriterInner,
+        rtps_subscriber_inner::RtpsSubscriberInner, rtps_topic_inner::RtpsTopicInner,
     },
     rtps_publisher::RtpsPublisher,
     rtps_subscriber::RtpsSubscriber,
@@ -447,14 +448,9 @@ impl Entity for RtpsDomainParticipant {
                 None,
                 0,
             );
-            let builtin_publisher_ref = self
-                .builtin_entities
-                .publisher_list
-                .add(Box::new(builtin_publisher))
-                .expect("Error creating built-in publisher");
 
             let spdp_topic_qos = TopicQos::default();
-            let spdp_topic = RtpsTopicInner::new(
+            let spdp_topic = Arc::new(RtpsTopicInner::new(
                 guid_prefix,
                 ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER.entity_key(),
                 "SPDP".to_string(),
@@ -463,17 +459,34 @@ impl Entity for RtpsDomainParticipant {
                 spdp_topic_qos,
                 None,
                 0,
-            );
-            let spdp_topic_ref = self
-                .builtin_entities
-                .topic_list
-                .add(Arc::new(spdp_topic))
-                .expect("Error creating SPDP topic");
+            ));
+            // let _spdp_topic_ref = self
+            //     .builtin_entities
+            //     .topic_list
+            //     .add(spdp_topic.clone())
+            //     .expect("Error creating SPDP topic");
 
-            // let mut spdp_announcer_qos = DataWriterQos::default();
-            // spdp_announcer_qos.reliability.kind = rust_dds_api::infrastructure::qos_policy::ReliabilityQosPolicyKind::BestEffortReliabilityQos;
+            let mut spdp_announcer_qos = DataWriterQos::default();
+            spdp_announcer_qos.reliability.kind = rust_dds_api::infrastructure::qos_policy::ReliabilityQosPolicyKind::BestEffortReliabilityQos;
+            let mut spdp_announcer = RtpsStatelessDataWriterInner::new_builtin(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER.entity_key(), &spdp_topic, spdp_announcer_qos, None, 0);
+
+            let spdp_locator = Locator::new_udpv4(7400, [239, 255, 0, 0]);
+
+            spdp_announcer.reader_locator_add(spdp_locator);
+            
+            {
+                let spdp_announcer_ref = builtin_publisher.writer_list().add(Mutex::new(RtpsDataWriterFlavor::Stateless(spdp_announcer))).expect("Error adding SPDP writer to built_in publisher");
+                spdp_announcer_ref.write_w_timestamp::<SpdpDiscoveredParticipantData>(SpdpDiscoveredParticipantData{value:5}, None, Time{sec:10, nanosec:0}).expect("Error announcing participant");
+            }
+
+            self
+                .builtin_entities
+                .publisher_list
+                .add(Box::new(builtin_publisher))
+                .expect("Error creating built-in publisher");
+
             // let spdp_announcer = builtin_publisher_ref
-            //     .create_stateless_datawriter::<SpdpDiscoveredParticipantData>(
+            //     .add_stateless_datawriter::<SpdpDiscoveredParticipantData>(
             //         ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER.entity_key(),
             //         &spdp_topic_ref,
             //         Some(spdp_announcer_qos),
@@ -482,15 +495,11 @@ impl Entity for RtpsDomainParticipant {
             //     )
             //     .expect("Error creating SPDP built-in writer");
 
-            // let spdp_locator = Locator::new_udpv4(7400, [239, 255, 0, 0]);
-
-            // spdp_announcer
             //     .try_get_stateless()
             //     .expect("Error retrieving SPDP announcer")
             //     .unwrap()
             //     .reader_locator_add(spdp_locator);
-
-            // spdp_announcer.write_w_timestamp::<SpdpDiscoveredParticipantData>(SpdpDiscoveredParticipantData{value:5}, None, Time{sec:10, nanosec:0}).expect("Error announcing participant");
+            
 
             //         // let key = BuiltInTopicKey([1, 2, 3]);
             //         // let user_data = UserDataQosPolicy { value: vec![] };

@@ -80,41 +80,6 @@ impl DerefMut for RtpsDataWriterFlavor {
     }
 }
 
-// impl RtpsDataWriterFlavor {
-//     pub fn new_stateless(guid_prefix: GuidPrefix,
-//         entity_id: EntityId,
-//         topic: &Arc<RtpsTopicInner>,
-//         qos: DataWriterQos,
-//         listener: Option<Box<dyn AnyDataWriterListener>>,
-//         status_mask: StatusMask,) -> Self {
-//         assert!(
-//             qos.is_consistent().is_ok(),
-//             "RtpsDataWriter can only be created with consistent QoS"
-//         );
-//         let guid = GUID::new(guid_prefix, entity_id);
-//         let topic_kind = topic.topic_kind();
-//         let reliability_level = match qos.reliability.kind {
-//             ReliabilityQosPolicyKind::BestEffortReliabilityQos => ReliabilityKind::BestEffort,
-//             ReliabilityQosPolicyKind::ReliableReliabilityQos => ReliabilityKind::Reliable,
-//         };
-//         let push_mode = true;
-//         let data_max_sized_serialized = None;
-//         let heartbeat_period = behavior::types::Duration::from_millis(500);
-//         let nack_response_delay = behavior::types::constants::DURATION_ZERO;
-//         let nack_supression_duration = behavior::types::constants::DURATION_ZERO;
-//         let writer = Writer::new(
-//             guid,
-//             topic_kind,
-//             reliability_level,
-//             push_mode,
-//             heartbeat_period,
-//             nack_response_delay,
-//             nack_supression_duration,
-//             data_max_sized_serialized,
-//         );
-//     }
-// }
-
 fn instance_handle_from_dds_type<T: DDSType>(data: T) -> rust_rtps::types::InstanceHandle {
     if data.key().is_empty() {
         [0; 16]
