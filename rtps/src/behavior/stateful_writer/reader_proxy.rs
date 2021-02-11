@@ -11,6 +11,8 @@ struct ChangeForReader {
     sequence_numbers_requested: BTreeSet<SequenceNumber>,
 }
 
+/// This struct is a non-standard addition to support the 
+/// behavior implementation on the StatefulWriter
 pub struct ReaderProxyBehavior {
     pub heartbeat_count: Count,
     pub time_last_sent_data: Instant,
@@ -35,6 +37,7 @@ pub struct ReaderProxy {
     changes_for_reader: ChangeForReader,
     pub expects_inline_qos: bool,
     pub is_active: bool,
+    // Non-standard addition
     pub behavior: ReaderProxyBehavior,
 }
 

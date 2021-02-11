@@ -6,3 +6,4 @@ pub mod rtps_publisher_inner;
 pub mod rtps_subscriber_inner;
 pub mod rtps_topic_inner;
 pub mod endpoint_traits;
+pub mod message_sender;

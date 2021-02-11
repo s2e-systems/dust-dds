@@ -16,7 +16,7 @@ use rust_rtps::{behavior::Writer, types::ChangeKind};
 use crate::utils::maybe_valid::{MaybeValid, MaybeValidRef};
 
 use super::{
-    rtps_stateful_datawriter_inner::RtpsStatefulDataWriterInner,
+    endpoint_traits::DestinedMessages, rtps_stateful_datawriter_inner::RtpsStatefulDataWriterInner,
     rtps_stateless_datawriter_inner::RtpsStatelessDataWriterInner,
     rtps_topic_inner::RtpsTopicInner,
 };
@@ -163,21 +163,20 @@ impl<'a> RtpsAnyDataWriterInnerRef<'a> {
         Ok(())
     }
 
-    pub fn produce_messages(&self) {
+    pub fn produce_messages(&self) -> Vec<DestinedMessages> {
         let this = self.get().ok();
         if let Some(mut rtps_writer) = this {
             match &mut *rtps_writer {
                 RtpsDataWriterFlavor::Stateful(stateful_writer) => {
-                    stateful_writer.produce_messages();
+                    stateful_writer.produce_messages()
                 }
                 RtpsDataWriterFlavor::Stateless(stateless_writer) => {
-                    stateless_writer.produce_messages();
+                    stateless_writer.produce_messages()
                 }
             }
+        } else {
+            vec![]
         }
-        // else {
-        //  vec![]
-        // }
     }
 
     pub fn try_receive_message(&self, _message: u8) {

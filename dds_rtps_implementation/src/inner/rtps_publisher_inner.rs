@@ -21,6 +21,7 @@ use rust_rtps::{
 use crate::utils::maybe_valid::{MaybeValid, MaybeValidList, MaybeValidRef};
 
 use super::{
+    message_sender::RtpsMessageSender,
     rtps_datawriter_inner::{RtpsAnyDataWriterInnerRef, RtpsDataWriterFlavor},
     rtps_stateful_datawriter_inner::RtpsStatefulDataWriterInner,
     rtps_topic_inner::RtpsTopicInnerRef,
