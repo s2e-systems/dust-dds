@@ -20,18 +20,22 @@ use rust_rtps::{
 
 use crate::utils::maybe_valid::{MaybeValid, MaybeValidList, MaybeValidRef};
 
-use super::{rtps_datawriter_inner::{
-        RtpsAnyDataWriterInner, RtpsAnyDataWriterInnerRef,
-    }, rtps_stateful_datawriter_inner::RtpsStatefulDataWriterInner, rtps_stateless_datawriter_inner::RtpsStatelessDataWriterInner, rtps_topic_inner::RtpsTopicInnerRef};
+use super::{
+    rtps_datawriter_inner::{
+        RtpsAnyDataWriterInnerRef, RtpsDataWriterFlavor,
+    },
+    rtps_topic_inner::RtpsTopicInnerRef,
+};
 
 enum EntityType {
     BuiltIn,
     UserDefined,
 }
+
 pub struct RtpsPublisherInner {
     group: Group,
     entity_type: EntityType,
-    writer_list: MaybeValidList<Box<dyn RtpsAnyDataWriterInner>>,
+    writer_list: MaybeValidList<Box<RtpsDataWriterFlavor>>,
     writer_count: atomic::AtomicU8,
     default_datawriter_qos: Mutex<DataWriterQos>,
     qos: Mutex<PublisherQos>,
@@ -125,7 +129,7 @@ impl<'a> RtpsPublisherInnerRef<'a> {
         &self,
         a_topic: &RtpsTopicInnerRef,
         qos: Option<DataWriterQos>,
-        a_listener: Option<Box<dyn DataWriterListener<DataType=T>>>,
+        a_listener: Option<Box<dyn DataWriterListener<DataType = T>>>,
         status_mask: StatusMask,
     ) -> Option<RtpsAnyDataWriterInnerRef> {
         let entity_key = [
@@ -144,32 +148,33 @@ impl<'a> RtpsPublisherInnerRef<'a> {
         entity_key: [u8; 3],
         a_topic: &RtpsTopicInnerRef,
         qos: Option<DataWriterQos>,
-        a_listener: Option<Box<dyn DataWriterListener<DataType=T>>>,
+        a_listener: Option<Box<dyn DataWriterListener<DataType = T>>>,
         status_mask: StatusMask,
     ) -> Option<RtpsAnyDataWriterInnerRef> {
-        let this = self.get().ok()?;
-        let a_topic = a_topic.get().ok()?;
-        let qos = qos.unwrap_or(self.get_default_datawriter_qos().ok()?);
-        let guid_prefix = this.group.entity.guid.prefix();
-        let writer: RtpsStatefulDataWriterInner = match this.entity_type {
-            EntityType::UserDefined => RtpsStatefulDataWriterInner::new_user_defined::<T>(
-                guid_prefix,
-                entity_key,
-                a_topic,
-                qos,
-                a_listener,
-                status_mask,
-            ),
-            EntityType::BuiltIn => RtpsStatefulDataWriterInner::new_builtin::<T>(
-                guid_prefix,
-                entity_key,
-                a_topic,
-                qos,
-                a_listener,
-                status_mask,
-            ),
-        };
-        this.writer_list.add(Box::new(writer))
+        // let this = self.get().ok()?;
+        // let a_topic = a_topic.get().ok()?;
+        // let qos = qos.unwrap_or(self.get_default_datawriter_qos().ok()?);
+        // let guid_prefix = this.group.entity.guid.prefix();
+        // let writer: RtpsStatefulDataWriterInner = match this.entity_type {
+        //     EntityType::UserDefined => RtpsStatefulDataWriterInner::new_user_defined::<T>(
+        //         guid_prefix,
+        //         entity_key,
+        //         a_topic,
+        //         qos,
+        //         a_listener,
+        //         status_mask,
+        //     ),
+        //     EntityType::BuiltIn => RtpsStatefulDataWriterInner::new_builtin::<T>(
+        //         guid_prefix,
+        //         entity_key,
+        //         a_topic,
+        //         qos,
+        //         a_listener,
+        //         status_mask,
+        //     ),
+        // };
+        // this.writer_list.add(Box::new(writer))
+        todo!()
     }
 
     pub fn create_stateless_datawriter<T: DDSType>(
@@ -177,32 +182,33 @@ impl<'a> RtpsPublisherInnerRef<'a> {
         entity_key: [u8; 3],
         a_topic: &RtpsTopicInnerRef,
         qos: Option<DataWriterQos>,
-        a_listener: Option<Box<dyn DataWriterListener<DataType=T>>>,
+        a_listener: Option<Box<dyn DataWriterListener<DataType = T>>>,
         status_mask: StatusMask,
     ) -> Option<RtpsAnyDataWriterInnerRef> {
-        let this = self.get().ok()?;
-        let a_topic = a_topic.get().ok()?;
-        let qos = qos.unwrap_or(self.get_default_datawriter_qos().ok()?);
-        let guid_prefix = this.group.entity.guid.prefix();
-        let writer: RtpsStatelessDataWriterInner = match this.entity_type {
-            EntityType::UserDefined => RtpsStatelessDataWriterInner::new_user_defined::<T>(
-                guid_prefix,
-                entity_key,
-                a_topic,
-                qos,
-                a_listener,
-                status_mask,
-            ),
-            EntityType::BuiltIn => RtpsStatelessDataWriterInner::new_builtin::<T>(
-                guid_prefix,
-                entity_key,
-                a_topic,
-                qos,
-                a_listener,
-                status_mask,
-            ),
-        };
-        this.writer_list.add(Box::new(writer))
+        // let this = self.get().ok()?;
+        // let a_topic = a_topic.get().ok()?;
+        // let qos = qos.unwrap_or(self.get_default_datawriter_qos().ok()?);
+        // let guid_prefix = this.group.entity.guid.prefix();
+        // let writer: RtpsStatelessDataWriterInner = match this.entity_type {
+        //     EntityType::UserDefined => RtpsStatelessDataWriterInner::new_user_defined::<T>(
+        //         guid_prefix,
+        //         entity_key,
+        //         a_topic,
+        //         qos,
+        //         a_listener,
+        //         status_mask,
+        //     ),
+        //     EntityType::BuiltIn => RtpsStatelessDataWriterInner::new_builtin::<T>(
+        //         guid_prefix,
+        //         entity_key,
+        //         a_topic,
+        //         qos,
+        //         a_listener,
+        //         status_mask,
+        //     ),
+        // };
+        // this.writer_list.add(Box::new(writer))
+        todo!()
     }
 
     pub fn set_default_datawriter_qos(&self, qos: Option<DataWriterQos>) -> DDSResult<()> {

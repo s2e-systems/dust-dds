@@ -1,6 +1,10 @@
-use crate::{dcps_psm::{LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus, PublicationMatchedStatus}, infrastructure::{
-    listener::Listener,
-}};
+use crate::{
+    dcps_psm::{
+        LivelinessLostStatus, OfferedDeadlineMissedStatus, OfferedIncompatibleQosStatus,
+        PublicationMatchedStatus,
+    },
+    infrastructure::listener::Listener,
+};
 
 use super::data_writer::AnyDataWriter;
 

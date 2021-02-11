@@ -1,13 +1,74 @@
-use crate::types::GUID;
+use std::{
+    collections::HashMap,
+    ops::{Deref, DerefMut},
+};
+
+use crate::{
+    behavior::{types::Duration, Writer},
+    types::{ReliabilityKind, TopicKind, GUID},
+};
 
 use super::ReaderProxy;
 
-pub trait StatefulWriter {
-    fn matched_reader_add(&self, a_reader_proxy: ReaderProxy);
+pub struct StatefulWriter {
+    pub writer: Writer,
+    pub matched_readers: HashMap<GUID, ReaderProxy>,
+}
 
-    fn matched_reader_remove(&self, reader_proxy_guid: &GUID);
+impl Deref for StatefulWriter {
+    type Target = Writer;
+    fn deref(&self) -> &Self::Target {
+        &self.writer
+    }
+}
+impl DerefMut for StatefulWriter {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.writer
+    }
+}
 
-    fn matched_reader_lookup(&self, a_reader_guid: GUID) -> Option<&ReaderProxy>;
+impl StatefulWriter {
+    pub fn new(
+        guid: GUID,
+        topic_kind: TopicKind,
+        reliability_level: ReliabilityKind,
+        push_mode: bool,
+        heartbeat_period: Duration,
+        nack_response_delay: Duration,
+        nack_suppression_duration: Duration,
+        data_max_sized_serialized: Option<i32>,
+    ) -> Self {
+        let writer = Writer::new(
+            guid,
+            topic_kind,
+            reliability_level,
+            push_mode,
+            heartbeat_period,
+            nack_response_delay,
+            nack_suppression_duration,
+            data_max_sized_serialized,
+        );
+        Self {
+            writer,
+            matched_readers: HashMap::new(),
+        }
+    }
 
-    fn is_acked_by_all(&self) -> bool;
+    pub fn matched_reader_add(&mut self, a_reader_proxy: ReaderProxy) {
+        let remote_reader_guid = a_reader_proxy.remote_reader_guid;
+        self.matched_readers
+            .insert(remote_reader_guid, a_reader_proxy);
+    }
+
+    pub fn matched_reader_remove(&mut self, reader_proxy_guid: &GUID) {
+        self.matched_readers.remove(reader_proxy_guid);
+    }
+
+    pub fn matched_reader_lookup(&self, a_reader_guid: GUID) -> Option<&ReaderProxy> {
+        self.matched_readers.get(&a_reader_guid)
+    }
+
+    pub fn is_acked_by_all(&self) -> bool {
+        todo!()
+    }
 }
