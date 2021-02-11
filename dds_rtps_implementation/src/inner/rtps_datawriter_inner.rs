@@ -1,8 +1,4 @@
-use std::{
-    convert::TryInto,
-    ops::{Deref, DerefMut},
-    sync::{Arc, Mutex},
-};
+use std::{convert::TryInto, ops::{Deref, DerefMut}, sync::{Arc, Mutex, MutexGuard}};
 
 use rust_dds_api::{
     dcps_psm::{InstanceHandle, StatusMask, Time},
@@ -15,7 +11,11 @@ use rust_rtps::{behavior::Writer, types::ChangeKind};
 
 use crate::utils::maybe_valid::{MaybeValid, MaybeValidRef};
 
-use super::{rtps_datareader_inner::RtpsDataReaderInner, rtps_stateful_datawriter_inner::RtpsStatefulDataWriterInner, rtps_stateless_datawriter_inner::RtpsStatelessDataWriterInner, rtps_topic_inner::RtpsTopicInner};
+use super::{
+    rtps_stateful_datawriter_inner::RtpsStatefulDataWriterInner,
+    rtps_stateless_datawriter_inner::RtpsStatelessDataWriterInner,
+    rtps_topic_inner::RtpsTopicInner,
+};
 
 pub struct RtpsDataWriterInner<T: DDSType> {
     qos: DataWriterQos,
@@ -42,13 +42,19 @@ impl<T: DDSType> RtpsDataWriterInner<T> {
     }
 }
 
-pub trait AnyRtpsDataWriterInner : Send + Sync{
+pub trait AnyRtpsDataWriterInner: Send + Sync {
     fn topic(&mut self) -> &mut Option<Arc<RtpsTopicInner>>;
+
+    fn qos(&mut self) -> &mut DataWriterQos;
 }
 
-impl<T:DDSType> AnyRtpsDataWriterInner for RtpsDataWriterInner<T>{
+impl<T: DDSType> AnyRtpsDataWriterInner for RtpsDataWriterInner<T> {
     fn topic(&mut self) -> &mut Option<Arc<RtpsTopicInner>> {
         &mut self.topic
+    }
+
+    fn qos(&mut self) -> &mut DataWriterQos {
+        &mut self.qos
     }
 }
 
@@ -58,11 +64,21 @@ pub enum RtpsDataWriterFlavor {
 }
 
 impl RtpsDataWriterFlavor {
-    pub fn topic(&mut self) -> &mut Option<Arc<RtpsTopicInner>> {
+    fn inner(&mut self) -> &mut dyn AnyRtpsDataWriterInner {
         match self {
-            Self::Stateful(stateful) => &mut stateful.inner.topic(),
-            Self::Stateless(stateless) => &mut stateless.inner.topic(),
+            Self::Stateful(stateful) => stateful.inner.as_mut(),
+            Self::Stateless(stateless) => stateless.inner.as_mut(),
         }
+    }
+}
+
+impl AnyRtpsDataWriterInner for RtpsDataWriterFlavor {
+    fn topic(&mut self) -> &mut Option<Arc<RtpsTopicInner>> {
+        self.inner().topic()
+    }
+
+    fn qos(&mut self) -> &mut DataWriterQos {
+        self.inner().qos()
     }
 }
 
@@ -99,20 +115,12 @@ fn instance_handle_from_dds_type<T: DDSType>(data: T) -> rust_rtps::types::Insta
 pub type RtpsAnyDataWriterInnerRef<'a> = MaybeValidRef<'a, Mutex<RtpsDataWriterFlavor>>;
 
 impl<'a> RtpsAnyDataWriterInnerRef<'a> {
-    pub fn get(&self) -> DDSResult<&Mutex<RtpsDataWriterFlavor>> {
-        MaybeValid::get(self).ok_or(DDSError::AlreadyDeleted)
+    pub fn get(&self) -> DDSResult<MutexGuard<RtpsDataWriterFlavor>> {
+        Ok(MaybeValid::get(self).ok_or(DDSError::AlreadyDeleted)?.lock().unwrap())
     }
 
-    //     pub fn get_as<U: DDSType>(&self) -> DDSResult<&RtpsDataWriter<U>> {
-    //         self.get()?
-    //             .as_ref()
-    //             .as_any()
-    //             .downcast_ref()
-    //             .ok_or(DDSError::Error)
-    //     }
-
     pub fn delete(&self) -> DDSResult<()> {
-        self.get()?.lock().unwrap().topic().take(); // Drop the topic
+        self.get()?.topic().take(); // Drop the topic
         MaybeValid::delete(self);
         Ok(())
     }
@@ -123,7 +131,7 @@ impl<'a> RtpsAnyDataWriterInnerRef<'a> {
         _handle: Option<InstanceHandle>,
         _timestamp: Time,
     ) -> DDSResult<()> {
-        let mut this = self.get()?.lock().unwrap();
+        let mut this = self.get()?;
         let kind = ChangeKind::Alive;
         let inline_qos = None;
         let change = this.new_change(
@@ -137,16 +145,16 @@ impl<'a> RtpsAnyDataWriterInnerRef<'a> {
         Ok(())
     }
 
-    //     pub fn get_qos(&self) -> DDSResult<DataWriterQos> {
-    //         Ok(self.get()?.qos().clone())
-    //     }
+    pub fn get_qos(&self) -> DDSResult<DataWriterQos> {
+        Ok(self.get()?.qos().clone())
+    }
 
-    //     pub fn set_qos(&self, qos: Option<DataWriterQos>) -> DDSResult<()> {
-    //         let qos = qos.unwrap_or_default();
-    //         qos.is_consistent()?;
-    //         *self.get()?.qos() = qos;
-    //         Ok(())
-    //     }
+    pub fn set_qos(&self, qos: Option<DataWriterQos>) -> DDSResult<()> {
+        let qos = qos.unwrap_or_default();
+        qos.is_consistent()?;
+        *self.get()?.qos() = qos;
+        Ok(())
+    }
 
     // pub fn produce_messages(&self) -> Vec<behavior::endpoint_traits::DestinedMessages> {
     // todo!()

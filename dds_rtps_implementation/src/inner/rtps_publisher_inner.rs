@@ -1,7 +1,4 @@
-use std::{
-    ops::Deref,
-    sync::{atomic, Mutex},
-};
+use std::sync::{atomic, Mutex};
 
 use rust_dds_api::{
     dcps_psm::{InstanceHandle, StatusMask},
@@ -135,7 +132,7 @@ impl<'a> RtpsPublisherInnerRef<'a> {
         &self,
         a_topic: &RtpsTopicInnerRef,
         qos: Option<DataWriterQos>,
-        a_listener: Option<Box<dyn DataWriterListener<DataType=T>>>,
+        a_listener: Option<Box<dyn DataWriterListener<DataType = T>>>,
         status_mask: StatusMask,
     ) -> Option<RtpsAnyDataWriterInnerRef> {
         let this = self.get().ok()?;

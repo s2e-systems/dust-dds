@@ -1,9 +1,29 @@
-use std::{ops::{Deref, DerefMut}, sync::Arc};
+use std::{
+    ops::{Deref, DerefMut},
+    sync::Arc,
+};
 
-use rust_dds_api::{dcps_psm::StatusMask, dds_type::DDSType, infrastructure::{qos::DataWriterQos, qos_policy::ReliabilityQosPolicyKind}, publication::data_writer_listener::DataWriterListener};
-use rust_rtps::{behavior::{self, StatefulWriter}, types::{EntityId, GUID, GuidPrefix, ReliabilityKind, TopicKind, constants::{ENTITY_KIND_BUILT_IN_WRITER_NO_KEY, ENTITY_KIND_BUILT_IN_WRITER_WITH_KEY, ENTITY_KIND_USER_DEFINED_WRITER_NO_KEY, ENTITY_KIND_USER_DEFINED_WRITER_WITH_KEY}}};
+use rust_dds_api::{
+    dcps_psm::StatusMask,
+    dds_type::DDSType,
+    infrastructure::{qos::DataWriterQos, qos_policy::ReliabilityQosPolicyKind},
+    publication::data_writer_listener::DataWriterListener,
+};
+use rust_rtps::{
+    behavior::{self, StatefulWriter},
+    types::{
+        constants::{
+            ENTITY_KIND_BUILT_IN_WRITER_NO_KEY, ENTITY_KIND_BUILT_IN_WRITER_WITH_KEY,
+            ENTITY_KIND_USER_DEFINED_WRITER_NO_KEY, ENTITY_KIND_USER_DEFINED_WRITER_WITH_KEY,
+        },
+        EntityId, GuidPrefix, ReliabilityKind, TopicKind, GUID,
+    },
+};
 
-use super::{rtps_datawriter_inner::{AnyRtpsDataWriterInner, RtpsDataWriterInner}, rtps_topic_inner::RtpsTopicInner};
+use super::{
+    rtps_datawriter_inner::{AnyRtpsDataWriterInner, RtpsDataWriterInner},
+    rtps_topic_inner::RtpsTopicInner,
+};
 
 pub struct RtpsStatefulDataWriterInner {
     pub stateful_writer: StatefulWriter,
@@ -25,12 +45,12 @@ impl DerefMut for RtpsStatefulDataWriterInner {
 }
 
 impl RtpsStatefulDataWriterInner {
-    pub fn new_builtin<T:DDSType>(
+    pub fn new_builtin<T: DDSType>(
         guid_prefix: GuidPrefix,
-        entity_key: [u8;3],
+        entity_key: [u8; 3],
         topic: &Arc<RtpsTopicInner>,
         qos: DataWriterQos,
-        listener: Option<Box<dyn DataWriterListener<DataType=T>>>,
+        listener: Option<Box<dyn DataWriterListener<DataType = T>>>,
         status_mask: StatusMask,
     ) -> Self {
         let entity_kind = match topic.topic_kind() {
@@ -41,12 +61,12 @@ impl RtpsStatefulDataWriterInner {
         Self::new(guid_prefix, entity_id, topic, qos, listener, status_mask)
     }
 
-    pub fn new_user_defined<T:DDSType>(
+    pub fn new_user_defined<T: DDSType>(
         guid_prefix: GuidPrefix,
-        entity_key: [u8;3],
+        entity_key: [u8; 3],
         topic: &Arc<RtpsTopicInner>,
         qos: DataWriterQos,
-        listener: Option<Box<dyn DataWriterListener<DataType=T>>>,
+        listener: Option<Box<dyn DataWriterListener<DataType = T>>>,
         status_mask: StatusMask,
     ) -> Self {
         let entity_kind = match topic.topic_kind() {
@@ -57,12 +77,12 @@ impl RtpsStatefulDataWriterInner {
         Self::new(guid_prefix, entity_id, topic, qos, listener, status_mask)
     }
 
-    fn new<T:DDSType>(
+    fn new<T: DDSType>(
         guid_prefix: GuidPrefix,
         entity_id: EntityId,
         topic: &Arc<RtpsTopicInner>,
         qos: DataWriterQos,
-        listener: Option<Box<dyn DataWriterListener<DataType=T>>>,
+        listener: Option<Box<dyn DataWriterListener<DataType = T>>>,
         status_mask: StatusMask,
     ) -> Self {
         assert!(
