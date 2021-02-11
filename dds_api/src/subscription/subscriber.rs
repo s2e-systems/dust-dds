@@ -32,7 +32,7 @@ pub trait SubscriberChild<'a> {
 /// All operations except for the base-class operations set_qos, get_qos, set_listener, get_listener, enable, get_statuscondition,
 /// and create_datareader may return the value NOT_ENABLED.
 pub trait Subscriber<'a>:
-    Entity<Qos = SubscriberQos, Listener = Box<dyn SubscriberListener>>
+    Entity<Qos = SubscriberQos, Listener = Box<dyn SubscriberListener + 'a>>
 {
     /// This operation creates a DataReader. The returned DataReader will be attached and belong to the Subscriber.
     ///
@@ -65,7 +65,7 @@ pub trait Subscriber<'a>:
         &'a self,
         a_topic: &'a <Self as TopicGAT<'a, T>>::TopicType,
         qos: Option<DataReaderQos>,
-        a_listener: Option<Box<dyn DataReaderListener<T>>>,
+        a_listener: Option<Box<dyn DataReaderListener<DataType=T>>>,
         mask: StatusMask,
     ) -> Option<<Self as DataReaderGAT<'a, T>>::DataReaderType>
     where

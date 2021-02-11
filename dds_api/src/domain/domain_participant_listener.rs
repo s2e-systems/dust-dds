@@ -8,7 +8,7 @@ use crate::{
     infrastructure::listener::Listener,
     publication::data_writer::AnyDataWriter,
     subscription::{data_reader::AnyDataReader, subscriber::Subscriber},
-    topic::topic_description::AnyTopic,
+    topic::topic_description::TopicDescription,
 };
 
 /// The purpose of the DomainParticipantListener is to be the listener of last resort that is notified of all status changes not
@@ -16,7 +16,11 @@ use crate::{
 /// Service will first attempt to notify the listener attached to the concerned DomainEntity if one is installed. Otherwise, the
 /// DCPS Service will notify the Listener attached to the DomainParticipant.
 pub trait DomainParticipantListener: Listener {
-    fn on_inconsistent_topic(&self, the_topic: &dyn AnyTopic, status: InconsistentTopicStatus);
+    fn on_inconsistent_topic(
+        &self,
+        the_topic: &dyn TopicDescription,
+        status: InconsistentTopicStatus,
+    );
     fn on_data_on_readers(&self, the_subscriber: &dyn Subscriber);
     fn on_data_available(&self, the_reader: &dyn AnyDataReader);
     fn on_sample_rejected(&self, the_reader: &dyn AnyDataReader, status: SampleRejectedStatus);

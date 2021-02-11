@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use crate::inner::rtps_topic_inner::RtpsAnyTopicInnerRef;
+use crate::inner::rtps_topic_inner::RtpsTopicInnerRef;
 use rust_dds_api::{
     dcps_psm::{InconsistentTopicStatus, InstanceHandle, StatusMask},
     dds_type::DDSType,
@@ -10,18 +10,14 @@ use rust_dds_api::{
         qos::TopicQos,
     },
     return_type::DDSResult,
-    topic::{
-        topic::Topic,
-        topic_description::{AnyTopic, TopicDescription},
-        topic_listener::TopicListener,
-    },
+    topic::{topic::Topic, topic_description::TopicDescription, topic_listener::TopicListener},
 };
 
 use super::rtps_domain_participant::RtpsDomainParticipant;
 
 pub struct RtpsTopic<'a, T: DDSType> {
     pub(crate) parent_participant: &'a RtpsDomainParticipant,
-    pub(crate) topic_ref: RtpsAnyTopicInnerRef<'a>,
+    pub(crate) topic_ref: RtpsTopicInnerRef<'a>,
     pub(crate) phantom_data: PhantomData<T>,
 }
 
@@ -29,7 +25,7 @@ impl<'a, T: DDSType> DomainParticipantChild<'a> for RtpsTopic<'a, T> {
     type DomainParticipantType = RtpsDomainParticipant;
 }
 
-impl<'a, T: DDSType> Topic<'a, T> for RtpsTopic<'a, T> {
+impl<'a, T: DDSType> Topic<'a> for RtpsTopic<'a, T> {
     fn get_inconsistent_topic_status(
         &self,
         _status: &mut InconsistentTopicStatus,
@@ -38,7 +34,7 @@ impl<'a, T: DDSType> Topic<'a, T> for RtpsTopic<'a, T> {
     }
 }
 
-impl<'a, T: DDSType> TopicDescription<'a, T> for RtpsTopic<'a, T> {
+impl<'a, T: DDSType> TopicDescription<'a> for RtpsTopic<'a, T> {
     fn get_participant(&self) -> &<Self as DomainParticipantChild<'a>>::DomainParticipantType {
         &self.parent_participant
     }
@@ -54,7 +50,7 @@ impl<'a, T: DDSType> TopicDescription<'a, T> for RtpsTopic<'a, T> {
 
 impl<'a, T: DDSType> Entity for RtpsTopic<'a, T> {
     type Qos = TopicQos;
-    type Listener = Box<dyn TopicListener<T>>;
+    type Listener = Box<dyn TopicListener + 'a>;
 
     fn set_qos(&self, qos: Option<Self::Qos>) -> DDSResult<()> {
         self.topic_ref.set_qos(qos)
@@ -88,5 +84,3 @@ impl<'a, T: DDSType> Entity for RtpsTopic<'a, T> {
         todo!()
     }
 }
-
-impl<'a, T: DDSType> AnyTopic for RtpsTopic<'a, T> {}

@@ -29,7 +29,7 @@ use crate::{
 };
 
 pub struct RtpsDataReader<'a, T: DDSType> {
-    pub(crate) parent_subscriber: &'a RtpsSubscriber<'a>,
+    pub(crate) parent_subscriber: Option<&'a RtpsSubscriber<'a>>,
     pub(crate) data_reader_ref: RtpsAnyDataReaderInnerRef<'a>,
     pub(crate) phantom_data: PhantomData<T>,
 }
@@ -245,7 +245,7 @@ impl<'a, T: DDSType> DataReader<'a, T> for RtpsDataReader<'a, T> {
         todo!()
     }
 
-    fn get_topicdescription(&self) -> &dyn TopicDescription<T> {
+    fn get_topicdescription(&self) -> &dyn TopicDescription {
         todo!()
     }
 
@@ -280,7 +280,7 @@ impl<'a, T: DDSType> DataReader<'a, T> for RtpsDataReader<'a, T> {
 impl<'a, T: DDSType> Entity for RtpsDataReader<'a, T> {
     type Qos = DataReaderQos;
 
-    type Listener = Box<dyn DataReaderListener<T>>;
+    type Listener = Box<dyn DataReaderListener<DataType=T> + 'a>;
 
     fn set_qos(&self, _qos: Option<Self::Qos>) -> DDSResult<()> {
         todo!()

@@ -48,7 +48,7 @@ impl<'a> Subscriber<'a> for RtpsSubscriber<'a> {
         &'a self,
         a_topic: &'a <Self as TopicGAT<'a, T>>::TopicType,
         qos: Option<DataReaderQos>,
-        a_listener: Option<Box<dyn DataReaderListener<T>>>,
+        a_listener: Option<Box<dyn DataReaderListener<DataType=T>>>,
         mask: StatusMask,
     ) -> Option<<Self as DataReaderGAT<'a, T>>::DataReaderType> {
         let data_reader_ref =
@@ -56,7 +56,7 @@ impl<'a> Subscriber<'a> for RtpsSubscriber<'a> {
                 .create_datareader(&a_topic.topic_ref, qos, a_listener, mask)?;
 
         Some(RtpsDataReader {
-            parent_subscriber: self,
+            parent_subscriber: Some(self),
             data_reader_ref,
             phantom_data: PhantomData,
         })
@@ -129,7 +129,7 @@ impl<'a> Subscriber<'a> for RtpsSubscriber<'a> {
 
 impl<'a> Entity for RtpsSubscriber<'a> {
     type Qos = SubscriberQos;
-    type Listener = Box<dyn SubscriberListener>;
+    type Listener = Box<dyn SubscriberListener + 'a>;
 
     fn set_qos(&self, _qos: Option<Self::Qos>) -> DDSResult<()> {
         todo!()

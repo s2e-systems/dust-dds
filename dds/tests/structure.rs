@@ -27,6 +27,29 @@ impl DDSType for TestType {
     }
 }
 
+struct OtherTestType;
+impl DDSType for OtherTestType {
+    fn type_name() -> &'static str {
+        "TestType"
+    }
+
+    fn has_key() -> bool {
+        true
+    }
+
+    fn key(&self) -> Vec<u8> {
+        todo!()
+    }
+
+    fn serialize(&self) -> Vec<u8> {
+        todo!()
+    }
+
+    fn deserialize(_data: Vec<u8>) -> Self {
+        todo!()
+    }
+}
+
 #[test]
 fn create_delete_publisher() {
     let participant = DomainParticipantFactory::create_participant(0, None, None, 0).unwrap();

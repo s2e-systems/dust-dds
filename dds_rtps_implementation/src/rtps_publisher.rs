@@ -42,7 +42,7 @@ impl<'a> Publisher<'a> for RtpsPublisher<'a> {
         &'a self,
         a_topic: &'a <Self as TopicGAT<'a, T>>::TopicType,
         qos: Option<DataWriterQos>,
-        a_listener: Option<Box<dyn DataWriterListener<T>>>,
+        a_listener: Option<Box<dyn DataWriterListener<DataType=T>>>,
         mask: StatusMask,
     ) -> Option<<Self as DataWriterGAT<'a, T>>::DataWriterType> {
         let data_writer_ref =
@@ -117,7 +117,7 @@ impl<'a> Publisher<'a> for RtpsPublisher<'a> {
 
 impl<'a> Entity for RtpsPublisher<'a> {
     type Qos = PublisherQos;
-    type Listener = Box<dyn PublisherListener>;
+    type Listener = Box<dyn PublisherListener + 'a>;
 
     fn set_qos(&self, qos: Option<Self::Qos>) -> DDSResult<()> {
         self.publisher_ref.set_qos(qos)

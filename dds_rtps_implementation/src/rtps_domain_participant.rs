@@ -22,13 +22,19 @@ use rust_dds_api::{
     subscription::subscriber_listener::SubscriberListener,
     topic::{topic_description::TopicDescription, topic_listener::TopicListener},
 };
-use rust_rtps::{structure::Participant, transport::Transport, types::{GuidPrefix, Locator, constants::{ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, PROTOCOL_VERSION_2_4, VENDOR_ID}}};
+use rust_rtps::{
+    structure::Participant,
+    transport::Transport,
+    types::{
+        constants::{ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, PROTOCOL_VERSION_2_4, VENDOR_ID},
+        GuidPrefix, Locator,
+    },
+};
 
 use crate::{
     inner::{
-        rtps_publisher_inner::RtpsPublisherInner,
-        rtps_subscriber_inner::RtpsSubscriberInner,
-        rtps_topic_inner::{RtpsAnyTopicInner, RtpsTopicInner},
+        rtps_publisher_inner::RtpsPublisherInner, rtps_subscriber_inner::RtpsSubscriberInner,
+        rtps_topic_inner::RtpsTopicInner,
     },
     rtps_publisher::RtpsPublisher,
     rtps_subscriber::RtpsSubscriber,
@@ -65,7 +71,7 @@ impl DDSType for SpdpDiscoveredParticipantData {
 struct RtpsParticipantEntities {
     publisher_list: MaybeValidList<Box<RtpsPublisherInner>>,
     subscriber_list: MaybeValidList<Box<RtpsSubscriberInner>>,
-    topic_list: MaybeValidList<Arc<dyn RtpsAnyTopicInner>>,
+    topic_list: MaybeValidList<Arc<RtpsTopicInner>>,
     transport: Box<dyn Transport>,
 }
 
@@ -233,7 +239,7 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
         &'a self,
         topic_name: &str,
         qos: Option<TopicQos>,
-        a_listener: Option<Box<dyn TopicListener<T>>>,
+        a_listener: Option<Box<dyn TopicListener>>,
         mask: StatusMask,
     ) -> Option<<Self as TopicGAT<'a, T>>::TopicType> {
         let entity_key = [
@@ -248,6 +254,8 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
             guid_prefix,
             entity_key,
             topic_name.clone().into(),
+            T::type_name(),
+            rust_rtps::types::TopicKind::WithKey,
             qos,
             a_listener,
             mask,
@@ -284,7 +292,7 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
     fn lookup_topicdescription<T: DDSType>(
         &self,
         _name: &str,
-    ) -> Option<Box<dyn TopicDescription<T>>> {
+    ) -> Option<Box<dyn TopicDescription>> {
         todo!()
     }
 
@@ -446,10 +454,12 @@ impl Entity for RtpsDomainParticipant {
                 .expect("Error creating built-in publisher");
 
             let spdp_topic_qos = TopicQos::default();
-            let spdp_topic: RtpsTopicInner<SpdpDiscoveredParticipantData> = RtpsTopicInner::new(
+            let spdp_topic = RtpsTopicInner::new(
                 guid_prefix,
                 ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER.entity_key(),
                 "SPDP".to_string(),
+                SpdpDiscoveredParticipantData::type_name(),
+                rust_rtps::types::TopicKind::WithKey,
                 spdp_topic_qos,
                 None,
                 0,

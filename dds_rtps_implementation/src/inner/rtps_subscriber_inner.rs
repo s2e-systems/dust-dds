@@ -1,11 +1,21 @@
 use std::sync::{atomic, Mutex};
 
-use rust_dds_api::{dcps_psm::StatusMask, dds_type::DDSType, infrastructure::{
-        qos::{DataReaderQos, SubscriberQos},
-    }, return_type::{DDSError, DDSResult}, subscription::{
+use rust_dds_api::{
+    dcps_psm::StatusMask,
+    dds_type::DDSType,
+    infrastructure::qos::{DataReaderQos, SubscriberQos},
+    return_type::{DDSError, DDSResult},
+    subscription::{
         data_reader_listener::DataReaderListener, subscriber_listener::SubscriberListener,
-    }};
-use rust_rtps::{structure::Group, types::{EntityId, GUID, GuidPrefix, constants::{ENTITY_KIND_BUILT_IN_READER_GROUP, ENTITY_KIND_USER_DEFINED_READER_GROUP}}};
+    },
+};
+use rust_rtps::{
+    structure::Group,
+    types::{
+        constants::{ENTITY_KIND_BUILT_IN_READER_GROUP, ENTITY_KIND_USER_DEFINED_READER_GROUP},
+        EntityId, GuidPrefix, GUID,
+    },
+};
 
 use crate::utils::maybe_valid::{MaybeValid, MaybeValidList, MaybeValidRef};
 
@@ -13,7 +23,7 @@ use super::{
     rtps_datareader_inner::{
         RtpsAnyDataReaderInner, RtpsAnyDataReaderInnerRef, RtpsDataReaderInner,
     },
-    rtps_topic_inner::{ RtpsAnyTopicInnerRef},
+    rtps_topic_inner::RtpsTopicInnerRef,
 };
 
 enum EntityType {
@@ -34,7 +44,7 @@ pub struct RtpsSubscriberInner {
 impl RtpsSubscriberInner {
     pub fn new_builtin(
         guid_prefix: GuidPrefix,
-        entity_key: [u8;3],
+        entity_key: [u8; 3],
         qos: SubscriberQos,
         listener: Option<Box<dyn SubscriberListener>>,
         status_mask: StatusMask,
@@ -51,7 +61,7 @@ impl RtpsSubscriberInner {
 
     pub fn new_user_defined(
         guid_prefix: GuidPrefix,
-        entity_key: [u8;3],
+        entity_key: [u8; 3],
         qos: SubscriberQos,
         listener: Option<Box<dyn SubscriberListener>>,
         status_mask: StatusMask,
@@ -68,7 +78,7 @@ impl RtpsSubscriberInner {
 
     fn new(
         guid_prefix: GuidPrefix,
-        entity_key: [u8;3],
+        entity_key: [u8; 3],
         qos: SubscriberQos,
         listener: Option<Box<dyn SubscriberListener>>,
         status_mask: StatusMask,
@@ -115,9 +125,9 @@ impl<'a> RtpsSubscriberInnerRef<'a> {
 
     pub fn create_datareader<T: DDSType>(
         &self,
-        a_topic: &RtpsAnyTopicInnerRef,
+        a_topic: &RtpsTopicInnerRef,
         qos: Option<DataReaderQos>,
-        a_listener: Option<Box<dyn DataReaderListener<T>>>,
+        a_listener: Option<Box<dyn DataReaderListener<DataType=T>>>,
         status_mask: StatusMask,
     ) -> Option<RtpsAnyDataReaderInnerRef> {
         let entity_key = [
@@ -133,10 +143,10 @@ impl<'a> RtpsSubscriberInnerRef<'a> {
 
     pub fn create_stateful_datareader<T: DDSType>(
         &self,
-        entity_key: [u8;3],
-        a_topic: &RtpsAnyTopicInnerRef,
+        entity_key: [u8; 3],
+        a_topic: &RtpsTopicInnerRef,
         qos: Option<DataReaderQos>,
-        a_listener: Option<Box<dyn DataReaderListener<T>>>,
+        a_listener: Option<Box<dyn DataReaderListener<DataType=T>>>,
         status_mask: StatusMask,
     ) -> Option<RtpsAnyDataReaderInnerRef> {
         let this = self.get().ok()?;
@@ -165,10 +175,10 @@ impl<'a> RtpsSubscriberInnerRef<'a> {
 
     pub fn create_stateless_datareader<T: DDSType>(
         &self,
-        entity_key: [u8;3],
-        a_topic: &RtpsAnyTopicInnerRef,
+        entity_key: [u8; 3],
+        a_topic: &RtpsTopicInnerRef,
         qos: Option<DataReaderQos>,
-        a_listener: Option<Box<dyn DataReaderListener<T>>>,
+        a_listener: Option<Box<dyn DataReaderListener<DataType=T>>>,
         status_mask: StatusMask,
     ) -> Option<RtpsAnyDataReaderInnerRef> {
         let this = self.get().ok()?;

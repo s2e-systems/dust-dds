@@ -1,23 +1,33 @@
 use std::{
-    any::Any,
+    marker::PhantomData,
     ops::{Deref, DerefMut},
     sync::{Arc, Mutex, MutexGuard},
 };
 
-use rust_dds_api::{dcps_psm::StatusMask, dds_type::DDSType, infrastructure::{
-        qos::DataReaderQos, qos_policy::ReliabilityQosPolicyKind, 
-    }, return_type::{DDSError, DDSResult}, subscription::data_reader_listener::DataReaderListener};
-use rust_rtps::{behavior::{self, Reader, StatefulReader, StatelessReader}, types::{EntityId, GUID, GuidPrefix, ReliabilityKind, constants::{
+use rust_dds_api::{
+    dcps_psm::StatusMask,
+    dds_type::DDSType,
+    infrastructure::{qos::DataReaderQos, qos_policy::ReliabilityQosPolicyKind},
+    return_type::{DDSError, DDSResult},
+    subscription::data_reader_listener::DataReaderListener,
+};
+use rust_rtps::{
+    behavior::{self, Reader, StatefulReader, StatelessReader},
+    types::{
+        constants::{
             ENTITY_KIND_BUILT_IN_READER_NO_KEY, ENTITY_KIND_BUILT_IN_READER_WITH_KEY,
             ENTITY_KIND_USER_DEFINED_READER_NO_KEY, ENTITY_KIND_USER_DEFINED_READER_WITH_KEY,
-        }}};
-
-use crate::utils::{
-    as_any::AsAny,
-    maybe_valid::{MaybeValid, MaybeValidRef},
+        },
+        EntityId, GuidPrefix, ReliabilityKind, GUID,
+    },
 };
 
-use super::rtps_topic_inner::{RtpsAnyTopicInner, RtpsAnyTopicInnerRef};
+use crate::{
+    rtps_datareader::RtpsDataReader,
+    utils::maybe_valid::{MaybeValid, MaybeValidRef},
+};
+
+use super::rtps_topic_inner::{RtpsTopicInner, RtpsTopicInnerRef};
 
 pub enum ReaderFlavor {
     Stateful(StatefulReader),
@@ -57,21 +67,21 @@ impl DerefMut for ReaderFlavor {
     }
 }
 
-pub struct RtpsDataReaderInner<T: DDSType> {
+pub struct RtpsDataReaderInner<'a, T: DDSType> {
     reader: Mutex<ReaderFlavor>,
     qos: Mutex<DataReaderQos>,
-    topic: Mutex<Option<Arc<dyn RtpsAnyTopicInner>>>,
-    listener: Option<Box<dyn DataReaderListener<T>>>,
+    topic: Mutex<Option<Arc<RtpsTopicInner>>>,
+    listener: Option<Box<dyn DataReaderListener<DataType = T> + 'a>>,
     status_mask: StatusMask,
 }
 
-impl<T: DDSType> RtpsDataReaderInner<T> {
+impl<'a, T: DDSType> RtpsDataReaderInner<'a, T> {
     pub fn new_builtin_stateless(
         guid_prefix: GuidPrefix,
-        entity_key: [u8;3],
-        topic: &RtpsAnyTopicInnerRef,
+        entity_key: [u8; 3],
+        topic: &RtpsTopicInnerRef,
         qos: DataReaderQos,
-        listener: Option<Box<dyn DataReaderListener<T>>>,
+        listener: Option<Box<dyn DataReaderListener<DataType = T>>>,
         status_mask: StatusMask,
     ) -> Self {
         let entity_kind = match T::has_key() {
@@ -85,10 +95,10 @@ impl<T: DDSType> RtpsDataReaderInner<T> {
 
     pub fn new_user_defined_stateless(
         guid_prefix: GuidPrefix,
-        entity_key: [u8;3],
-        topic: &RtpsAnyTopicInnerRef,
+        entity_key: [u8; 3],
+        topic: &RtpsTopicInnerRef,
         qos: DataReaderQos,
-        listener: Option<Box<dyn DataReaderListener<T>>>,
+        listener: Option<Box<dyn DataReaderListener<DataType = T>>>,
         status_mask: StatusMask,
     ) -> Self {
         let entity_kind = match T::has_key() {
@@ -102,10 +112,10 @@ impl<T: DDSType> RtpsDataReaderInner<T> {
 
     pub fn new_builtin_stateful(
         guid_prefix: GuidPrefix,
-        entity_key: [u8;3],
-        topic: &RtpsAnyTopicInnerRef,
+        entity_key: [u8; 3],
+        topic: &RtpsTopicInnerRef,
         qos: DataReaderQos,
-        listener: Option<Box<dyn DataReaderListener<T>>>,
+        listener: Option<Box<dyn DataReaderListener<DataType = T>>>,
         status_mask: StatusMask,
     ) -> Self {
         let entity_kind = match T::has_key() {
@@ -119,10 +129,10 @@ impl<T: DDSType> RtpsDataReaderInner<T> {
 
     pub fn new_user_defined_stateful(
         guid_prefix: GuidPrefix,
-        entity_key: [u8;3],
-        topic: &RtpsAnyTopicInnerRef,
+        entity_key: [u8; 3],
+        topic: &RtpsTopicInnerRef,
         qos: DataReaderQos,
-        listener: Option<Box<dyn DataReaderListener<T>>>,
+        listener: Option<Box<dyn DataReaderListener<DataType = T>>>,
         status_mask: StatusMask,
     ) -> Self {
         let entity_kind = match T::has_key() {
@@ -136,17 +146,16 @@ impl<T: DDSType> RtpsDataReaderInner<T> {
 
     fn new_stateful(
         guid: GUID,
-        topic: &RtpsAnyTopicInnerRef,
+        topic: &RtpsTopicInnerRef,
         qos: DataReaderQos,
-        listener: Option<Box<dyn DataReaderListener<T>>>,
+        listener: Option<Box<dyn DataReaderListener<DataType = T>>>,
         status_mask: StatusMask,
     ) -> Self {
         assert!(
             qos.is_consistent().is_ok(),
             "RtpsDataReader can only be created with consistent QoS"
         );
-        let topic = topic.get().unwrap().clone();
-        let topic_kind = topic.topic_kind();
+        let topic_kind = topic.topic_kind().unwrap();
         let reliability_level = match qos.reliability.kind {
             ReliabilityQosPolicyKind::BestEffortReliabilityQos => ReliabilityKind::BestEffort,
             ReliabilityQosPolicyKind::ReliableReliabilityQos => ReliabilityKind::Reliable,
@@ -160,6 +169,7 @@ impl<T: DDSType> RtpsDataReaderInner<T> {
             expects_inline_qos,
             heartbeat_response_delay,
         );
+        let topic = topic.get().unwrap().clone();
 
         Self {
             reader: Mutex::new(ReaderFlavor::Stateful(reader)),
@@ -172,23 +182,23 @@ impl<T: DDSType> RtpsDataReaderInner<T> {
 
     fn new_stateless(
         guid: GUID,
-        topic: &RtpsAnyTopicInnerRef,
+        topic: &RtpsTopicInnerRef,
         qos: DataReaderQos,
-        listener: Option<Box<dyn DataReaderListener<T>>>,
+        listener: Option<Box<dyn DataReaderListener<DataType = T>>>,
         status_mask: StatusMask,
     ) -> Self {
         assert!(
             qos.is_consistent().is_ok(),
             "RtpsDataReader can only be created with consistent QoS"
         );
-        let topic = topic.get().unwrap().clone();
-        let topic_kind = topic.topic_kind();
+        let topic_kind = topic.topic_kind().unwrap();
         let reliability_level = match qos.reliability.kind {
             ReliabilityQosPolicyKind::BestEffortReliabilityQos => ReliabilityKind::BestEffort,
             ReliabilityQosPolicyKind::ReliableReliabilityQos => ReliabilityKind::Reliable,
         };
         let expects_inline_qos = false;
         let reader = StatelessReader::new(guid, topic_kind, reliability_level, expects_inline_qos);
+        let topic = topic.get().unwrap().clone();
 
         Self {
             reader: Mutex::new(ReaderFlavor::Stateless(reader)),
@@ -200,14 +210,15 @@ impl<T: DDSType> RtpsDataReaderInner<T> {
     }
 }
 
-pub trait RtpsAnyDataReaderInner: AsAny + Send + Sync {
+pub trait RtpsAnyDataReaderInner: Send + Sync {
     fn reader(&self) -> &Mutex<ReaderFlavor>;
     fn qos(&self) -> &Mutex<DataReaderQos>;
-    fn topic(&self) -> MutexGuard<Option<Arc<dyn RtpsAnyTopicInner>>>;
+    fn topic(&self) -> MutexGuard<Option<Arc<RtpsTopicInner>>>;
     fn status_mask(&self) -> &StatusMask;
+    fn on_data_available(&self, data_reader_ref: RtpsAnyDataReaderInnerRef);
 }
 
-impl<T: DDSType + Sized> RtpsAnyDataReaderInner for RtpsDataReaderInner<T> {
+impl<'a, T: DDSType + Sized> RtpsAnyDataReaderInner for RtpsDataReaderInner<'a, T> {
     fn reader(&self) -> &Mutex<ReaderFlavor> {
         &self.reader
     }
@@ -216,18 +227,24 @@ impl<T: DDSType + Sized> RtpsAnyDataReaderInner for RtpsDataReaderInner<T> {
         &self.qos
     }
 
-    fn topic(&self) -> MutexGuard<Option<Arc<dyn RtpsAnyTopicInner>>> {
+    fn topic(&self) -> MutexGuard<Option<Arc<RtpsTopicInner>>> {
         self.topic.lock().unwrap()
     }
 
     fn status_mask(&self) -> &StatusMask {
         &self.status_mask
     }
-}
 
-impl<T: DDSType + Sized> AsAny for RtpsDataReaderInner<T> {
-    fn as_any(&self) -> &dyn Any {
-        self
+    fn on_data_available(&self, data_reader_ref: RtpsAnyDataReaderInnerRef) {
+        let the_reader = RtpsDataReader {
+            parent_subscriber: None,
+            data_reader_ref,
+            phantom_data: PhantomData,
+        };
+        self.listener
+            .as_ref()
+            .unwrap()
+            .on_data_available(&the_reader)
     }
 }
 
@@ -236,14 +253,6 @@ pub type RtpsAnyDataReaderInnerRef<'a> = MaybeValidRef<'a, Box<dyn RtpsAnyDataRe
 impl<'a> RtpsAnyDataReaderInnerRef<'a> {
     pub fn get(&self) -> DDSResult<&Box<dyn RtpsAnyDataReaderInner>> {
         MaybeValid::get(self).ok_or(DDSError::AlreadyDeleted)
-    }
-
-    pub fn get_as<U: DDSType>(&self) -> DDSResult<&RtpsDataReaderInner<U>> {
-        self.get()?
-            .as_ref()
-            .as_any()
-            .downcast_ref()
-            .ok_or(DDSError::Error)
     }
 
     pub fn delete(&self) -> DDSResult<()> {

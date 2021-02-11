@@ -22,7 +22,7 @@ use super::{
 /// All sample-accessing operations, namely all variants of read, take may return the error PRECONDITION_NOT_MET. The
 /// circumstances that result on this are described in 2.2.2.5.2.8.
 pub trait DataReader<'a, T: DDSType>:
-    Entity<Qos = DataReaderQos, Listener = Box<dyn DataReaderListener<T>>>
+    Entity<Qos = DataReaderQos, Listener = Box<dyn DataReaderListener<DataType=T>  + 'a>>
 {
     /// This operation accesses a collection of Data values from the DataReader. The size of the returned collection will be limited to
     /// the specified max_samples. The properties of the data_values collection and the setting of the PRESENTATION QoS policy
@@ -449,7 +449,7 @@ pub trait DataReader<'a, T: DDSType>:
 
     /// This operation returns the TopicDescription associated with the DataReader. This is the same TopicDescription that was used
     /// to create the DataReader.
-    fn get_topicdescription(&self) -> &dyn TopicDescription<T>;
+    fn get_topicdescription(&self) -> &dyn TopicDescription;
 
     /// This operation returns the Subscriber to which the DataReader belongs.
     fn get_subscriber(&self) -> <Self as SubscriberChild<'a>>::SubscriberType
