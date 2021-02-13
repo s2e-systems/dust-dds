@@ -20,7 +20,8 @@ use rust_rtps::{
 use crate::utils::maybe_valid::{MaybeValid, MaybeValidList, MaybeValidRef};
 
 use super::{
-    rtps_datareader_inner::{RtpsAnyDataReaderInnerRef, RtpsDataReaderFlavor, RtpsDataReaderInner},
+    rtps_datareader_inner::{RtpsAnyDataReaderInnerRef, RtpsDataReaderFlavor},
+    rtps_stateful_datareader_inner::RtpsStatefulDataReaderInner,
     rtps_topic_inner::RtpsTopicInnerRef,
 };
 
@@ -128,6 +129,8 @@ impl<'a> RtpsSubscriberInnerRef<'a> {
         a_listener: Option<Box<dyn DataReaderListener<DataType = T>>>,
         status_mask: StatusMask,
     ) -> Option<RtpsAnyDataReaderInnerRef> {
+        let this = self.get().ok()?;
+        let topic = a_topic.get().ok()?;
         let entity_key = [
             0,
             self.get()
@@ -136,8 +139,24 @@ impl<'a> RtpsSubscriberInnerRef<'a> {
                 .fetch_add(1, atomic::Ordering::Relaxed),
             0,
         ];
-        todo!()
-        // self.create_stateful_datareader(entity_key, a_topic, qos, a_listener, status_mask)
+        let guid_prefix = this.group.entity.guid.prefix();
+        let qos = qos.unwrap_or(this.default_datareader_qos.lock().unwrap().clone());
+
+        let data_reader_inner = RtpsStatefulDataReaderInner::new_user_defined(
+            guid_prefix,
+            entity_key,
+            topic,
+            qos,
+            a_listener,
+            status_mask,
+        );
+
+        self.get()
+            .ok()?
+            .reader_list
+            .add(Mutex::new(RtpsDataReaderFlavor::Stateful(
+                data_reader_inner,
+            )))
     }
 
     pub fn get_qos(&self) -> DDSResult<SubscriberQos> {

@@ -67,7 +67,7 @@ impl RtpsStatelessDataReaderInner {
     ) -> Self {
         assert!(
             qos.is_consistent().is_ok(),
-            "RtpsDataWriter can only be created with consistent QoS"
+            "RtpsDataReader can only be created with consistent QoS"
         );
         let guid = GUID::new(guid_prefix, entity_id);
         let topic_kind = topic.topic_kind();
