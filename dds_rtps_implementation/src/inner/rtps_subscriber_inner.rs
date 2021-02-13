@@ -20,9 +20,7 @@ use rust_rtps::{
 use crate::utils::maybe_valid::{MaybeValid, MaybeValidList, MaybeValidRef};
 
 use super::{
-    rtps_datareader_inner::{
-        RtpsAnyDataReaderInner, RtpsAnyDataReaderInnerRef, RtpsDataReaderInner,
-    },
+    rtps_datareader_inner::{RtpsAnyDataReaderInnerRef, RtpsDataReaderFlavor, RtpsDataReaderInner},
     rtps_topic_inner::RtpsTopicInnerRef,
 };
 
@@ -33,7 +31,7 @@ enum EntityType {
 pub struct RtpsSubscriberInner {
     group: Group,
     entity_type: EntityType,
-    reader_list: MaybeValidList<Box<dyn RtpsAnyDataReaderInner>>,
+    reader_list: MaybeValidList<Mutex<RtpsDataReaderFlavor>>,
     reader_count: atomic::AtomicU8,
     default_datareader_qos: Mutex<DataReaderQos>,
     qos: Mutex<SubscriberQos>,
@@ -127,7 +125,7 @@ impl<'a> RtpsSubscriberInnerRef<'a> {
         &self,
         a_topic: &RtpsTopicInnerRef,
         qos: Option<DataReaderQos>,
-        a_listener: Option<Box<dyn DataReaderListener<DataType=T>>>,
+        a_listener: Option<Box<dyn DataReaderListener<DataType = T>>>,
         status_mask: StatusMask,
     ) -> Option<RtpsAnyDataReaderInnerRef> {
         let entity_key = [
@@ -138,71 +136,8 @@ impl<'a> RtpsSubscriberInnerRef<'a> {
                 .fetch_add(1, atomic::Ordering::Relaxed),
             0,
         ];
-        self.create_stateful_datareader(entity_key, a_topic, qos, a_listener, status_mask)
-    }
-
-    pub fn create_stateful_datareader<T: DDSType>(
-        &self,
-        entity_key: [u8; 3],
-        a_topic: &RtpsTopicInnerRef,
-        qos: Option<DataReaderQos>,
-        a_listener: Option<Box<dyn DataReaderListener<DataType=T>>>,
-        status_mask: StatusMask,
-    ) -> Option<RtpsAnyDataReaderInnerRef> {
-        let this = self.get().ok()?;
-        let qos = qos.unwrap_or(self.get_default_datareader_qos().ok()?);
-        let guid_prefix = this.group.entity.guid.prefix();
-        let reader: RtpsDataReaderInner<T> = match this.entity_type {
-            EntityType::UserDefined => RtpsDataReaderInner::new_user_defined_stateful(
-                guid_prefix,
-                entity_key,
-                a_topic,
-                qos,
-                a_listener,
-                status_mask,
-            ),
-            EntityType::BuiltIn => RtpsDataReaderInner::new_builtin_stateful(
-                guid_prefix,
-                entity_key,
-                a_topic,
-                qos,
-                a_listener,
-                status_mask,
-            ),
-        };
-        this.reader_list.add(Box::new(reader))
-    }
-
-    pub fn create_stateless_datareader<T: DDSType>(
-        &self,
-        entity_key: [u8; 3],
-        a_topic: &RtpsTopicInnerRef,
-        qos: Option<DataReaderQos>,
-        a_listener: Option<Box<dyn DataReaderListener<DataType=T>>>,
-        status_mask: StatusMask,
-    ) -> Option<RtpsAnyDataReaderInnerRef> {
-        let this = self.get().ok()?;
-        let qos = qos.unwrap_or(self.get_default_datareader_qos().ok()?);
-        let guid_prefix = this.group.entity.guid.prefix();
-        let reader: RtpsDataReaderInner<T> = match this.entity_type {
-            EntityType::UserDefined => RtpsDataReaderInner::new_user_defined_stateless(
-                guid_prefix,
-                entity_key,
-                a_topic,
-                qos,
-                a_listener,
-                status_mask,
-            ),
-            EntityType::BuiltIn => RtpsDataReaderInner::new_builtin_stateless(
-                guid_prefix,
-                entity_key,
-                a_topic,
-                qos,
-                a_listener,
-                status_mask,
-            ),
-        };
-        this.reader_list.add(Box::new(reader))
+        todo!()
+        // self.create_stateful_datareader(entity_key, a_topic, qos, a_listener, status_mask)
     }
 
     pub fn get_qos(&self) -> DDSResult<SubscriberQos> {
