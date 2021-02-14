@@ -5,7 +5,7 @@ use std::{
 
 use crate::{
     behavior::{types::Duration, Writer},
-    types::{ReliabilityKind, TopicKind, GUID},
+    types::{Locator, ReliabilityKind, TopicKind, GUID},
 };
 
 use super::ReaderProxy;
@@ -30,6 +30,8 @@ impl DerefMut for StatefulWriter {
 impl StatefulWriter {
     pub fn new(
         guid: GUID,
+        unicast_locator_list: Vec<Locator>,
+        multicast_locator_list: Vec<Locator>,
         topic_kind: TopicKind,
         reliability_level: ReliabilityKind,
         push_mode: bool,
@@ -40,6 +42,8 @@ impl StatefulWriter {
     ) -> Self {
         let writer = Writer::new(
             guid,
+            unicast_locator_list,
+            multicast_locator_list,
             topic_kind,
             reliability_level,
             push_mode,

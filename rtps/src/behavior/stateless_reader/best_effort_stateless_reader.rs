@@ -71,6 +71,8 @@ mod tests {
         let heartbeat_supression_duration = DURATION_ZERO;
         let mut stateless_reader = StatelessReader::new(
             guid,
+            vec![],
+            vec![],
             topic_kind,
             reliability_level,
             expects_inline_qos,
@@ -97,6 +99,8 @@ mod tests {
         let heartbeat_supression_duration = DURATION_ZERO;
         let mut stateless_reader = StatelessReader::new(
             guid,
+            vec![],
+            vec![],
             topic_kind,
             reliability_level,
             expects_inline_qos,

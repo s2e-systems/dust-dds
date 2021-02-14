@@ -1,6 +1,6 @@
 use crate::{
     behavior::{types::Duration, Reader},
-    types::{ReliabilityKind, TopicKind, GUID},
+    types::{Locator, ReliabilityKind, TopicKind, GUID},
 };
 use std::{
     collections::HashMap,
@@ -29,6 +29,8 @@ impl DerefMut for StatefulReader {
 impl StatefulReader {
     pub fn new(
         guid: GUID,
+        unicast_locator_list: Vec<Locator>,
+        multicast_locator_list: Vec<Locator>,
         topic_kind: TopicKind,
         reliability_level: ReliabilityKind,
         expects_inline_qos: bool,
@@ -37,6 +39,8 @@ impl StatefulReader {
     ) -> Self {
         let reader = Reader::new(
             guid,
+            unicast_locator_list,
+            multicast_locator_list,
             topic_kind,
             reliability_level,
             expects_inline_qos,

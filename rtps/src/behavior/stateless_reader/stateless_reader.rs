@@ -1,9 +1,6 @@
 use std::ops::{Deref, DerefMut};
 
-use crate::{
-    behavior::{types::Duration, Reader},
-    types::{ReliabilityKind, TopicKind, GUID},
-};
+use crate::{behavior::{types::Duration, Reader}, types::{GUID, Locator, ReliabilityKind, TopicKind}};
 
 pub struct StatelessReader {
     pub reader: Reader,
@@ -24,6 +21,8 @@ impl DerefMut for StatelessReader {
 impl StatelessReader {
     pub fn new(
         guid: GUID,
+        unicast_locator_list: Vec<Locator>,
+        multicast_locator_list: Vec<Locator>,
         topic_kind: TopicKind,
         reliability_level: ReliabilityKind,
         expects_inline_qos: bool,
@@ -37,6 +36,8 @@ impl StatelessReader {
 
         let reader = Reader::new(
             guid,
+            unicast_locator_list,
+            multicast_locator_list,
             topic_kind,
             reliability_level,
             expects_inline_qos,

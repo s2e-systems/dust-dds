@@ -468,7 +468,7 @@ impl Entity for RtpsDomainParticipant {
 
             let mut spdp_announcer_qos = DataWriterQos::default();
             spdp_announcer_qos.reliability.kind = rust_dds_api::infrastructure::qos_policy::ReliabilityQosPolicyKind::BestEffortReliabilityQos;
-            let mut spdp_announcer = RtpsStatelessDataWriterInner::new_builtin::<SpdpDiscoveredParticipantData>(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER.entity_key(), &spdp_topic, spdp_announcer_qos, None, 0);
+            let mut spdp_announcer = RtpsStatelessDataWriterInner::new_builtin::<SpdpDiscoveredParticipantData>(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER.entity_key(),  self.builtin_entities.transport.unicast_locator_list().clone(), self.builtin_entities.transport.multicast_locator_list().clone(), &spdp_topic, spdp_announcer_qos, None, 0);
 
             let spdp_locator = Locator::new_udpv4(7400, [239, 255, 0, 0]);
 
