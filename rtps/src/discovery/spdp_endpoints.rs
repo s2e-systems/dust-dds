@@ -22,7 +22,7 @@ impl SPDPbuiltinParticipantWriter {
         guid_prefix: GuidPrefix,
         unicast_locator_list: Vec<Locator>,
         multicast_locator_list: Vec<Locator>,
-        resend_period: Duration,
+        _resend_period: Duration,
         reader_locator: Vec<ReaderLocator>,
     ) -> StatelessWriter {
         let guid = GUID::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER);
@@ -37,7 +37,7 @@ impl SPDPbuiltinParticipantWriter {
         let nack_suppression_duration = DURATION_ZERO;
         let data_max_sized_serialized = None;
 
-        let spdp_builtin_participant_writer = StatelessWriter::new(
+        let mut spdp_builtin_participant_writer = StatelessWriter::new(
             guid,
             unicast_locator_list,
             multicast_locator_list,
@@ -49,6 +49,10 @@ impl SPDPbuiltinParticipantWriter {
             nack_suppression_duration,
             data_max_sized_serialized,
         );
+
+        for locator in reader_locator{
+            spdp_builtin_participant_writer.reader_locator_add(locator);
+        }
 
         spdp_builtin_participant_writer
     }

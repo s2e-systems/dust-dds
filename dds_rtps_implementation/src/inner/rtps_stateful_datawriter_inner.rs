@@ -154,7 +154,7 @@ impl RtpsStatefulDataWriterInner {
         let mut output = Vec::new();
         let matched_readers = &mut self.stateful_writer.matched_readers;
         let writer = &self.stateful_writer.writer;
-        for (&_guid, reader_proxy) in matched_readers.iter_mut() {
+        for reader_proxy in matched_readers.iter_mut() {
             let messages = match writer.endpoint.reliability_level {
                 ReliabilityKind::BestEffort => BestEffortReaderProxyBehavior::produce_messages(
                     reader_proxy,

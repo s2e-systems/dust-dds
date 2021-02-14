@@ -150,7 +150,7 @@ impl RtpsStatelessDataWriterInner {
         let mut output = Vec::new();
         let reader_locators = &mut self.stateless_writer.reader_locators;
         let writer = &self.stateless_writer.writer;
-        for (&locator, reader_locator) in reader_locators.iter_mut() {
+        for reader_locator in reader_locators.iter_mut() {
             let messages = BestEffortReaderLocatorBehavior::produce_messages(
                 reader_locator,
                 &writer.writer_cache,
@@ -158,6 +158,7 @@ impl RtpsStatelessDataWriterInner {
                 writer.last_change_sequence_number,
             );
             if !messages.is_empty() {
+                let locator = reader_locator.locator;
                 output.push(DestinedMessages::SingleDestination { locator, messages });
             }
         }
