@@ -1,7 +1,4 @@
-use crate::{
-    structure::{Endpoint, HistoryCache},
-    types::{ReliabilityKind, TopicKind, GUID},
-};
+use crate::{structure::{Endpoint, HistoryCache}, types::{GUID, Locator, ReliabilityKind, TopicKind}};
 
 use super::types::Duration;
 
@@ -16,13 +13,15 @@ pub struct Reader {
 impl Reader {
     pub fn new(
         guid: GUID,
+        unicast_locator_list: Vec<Locator>,
+        multicast_locator_list: Vec<Locator>,
         topic_kind: TopicKind,
         reliability_level: ReliabilityKind,
         expects_inline_qos: bool,
         heartbeat_response_delay: Duration,
         heartbeat_supression_duration: Duration,
     ) -> Self {
-        let endpoint = Endpoint::new(guid, topic_kind, reliability_level);
+        let endpoint = Endpoint::new(guid, unicast_locator_list, multicast_locator_list, topic_kind, reliability_level);
         Self {
             endpoint,
             reader_cache: HistoryCache::new(),

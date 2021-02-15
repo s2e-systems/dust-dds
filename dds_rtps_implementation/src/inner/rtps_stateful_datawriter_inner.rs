@@ -20,7 +20,7 @@ use rust_rtps::{
             ENTITY_KIND_BUILT_IN_WRITER_NO_KEY, ENTITY_KIND_BUILT_IN_WRITER_WITH_KEY,
             ENTITY_KIND_USER_DEFINED_WRITER_NO_KEY, ENTITY_KIND_USER_DEFINED_WRITER_WITH_KEY,
         },
-        EntityId, GuidPrefix, ReliabilityKind, TopicKind, GUID,
+        EntityId, GuidPrefix, Locator, ReliabilityKind, TopicKind, GUID,
     },
 };
 
@@ -53,6 +53,8 @@ impl RtpsStatefulDataWriterInner {
     pub fn new_builtin<T: DDSType>(
         guid_prefix: GuidPrefix,
         entity_key: [u8; 3],
+        unicast_locator_list: Vec<Locator>,
+        multicast_locator_list: Vec<Locator>,
         topic: &Arc<RtpsTopicInner>,
         qos: DataWriterQos,
         listener: Option<Box<dyn DataWriterListener<DataType = T>>>,
@@ -63,12 +65,23 @@ impl RtpsStatefulDataWriterInner {
             TopicKind::WithKey => ENTITY_KIND_BUILT_IN_WRITER_WITH_KEY,
         };
         let entity_id = EntityId::new(entity_key, entity_kind);
-        Self::new(guid_prefix, entity_id, topic, qos, listener, status_mask)
+        Self::new(
+            guid_prefix,
+            entity_id,
+            unicast_locator_list,
+            multicast_locator_list,
+            topic,
+            qos,
+            listener,
+            status_mask,
+        )
     }
 
     pub fn new_user_defined<T: DDSType>(
         guid_prefix: GuidPrefix,
         entity_key: [u8; 3],
+        unicast_locator_list: Vec<Locator>,
+        multicast_locator_list: Vec<Locator>,
         topic: &Arc<RtpsTopicInner>,
         qos: DataWriterQos,
         listener: Option<Box<dyn DataWriterListener<DataType = T>>>,
@@ -79,12 +92,23 @@ impl RtpsStatefulDataWriterInner {
             TopicKind::WithKey => ENTITY_KIND_USER_DEFINED_WRITER_WITH_KEY,
         };
         let entity_id = EntityId::new(entity_key, entity_kind);
-        Self::new(guid_prefix, entity_id, topic, qos, listener, status_mask)
+        Self::new(
+            guid_prefix,
+            entity_id,
+            unicast_locator_list,
+            multicast_locator_list,
+            topic,
+            qos,
+            listener,
+            status_mask,
+        )
     }
 
     fn new<T: DDSType>(
         guid_prefix: GuidPrefix,
         entity_id: EntityId,
+        unicast_locator_list: Vec<Locator>,
+        multicast_locator_list: Vec<Locator>,
         topic: &Arc<RtpsTopicInner>,
         qos: DataWriterQos,
         listener: Option<Box<dyn DataWriterListener<DataType = T>>>,
@@ -107,6 +131,8 @@ impl RtpsStatefulDataWriterInner {
         let nack_supression_duration = behavior::types::constants::DURATION_ZERO;
         let stateful_writer = StatefulWriter::new(
             guid,
+            unicast_locator_list,
+            multicast_locator_list,
             topic_kind,
             reliability_level,
             push_mode,
@@ -128,7 +154,7 @@ impl RtpsStatefulDataWriterInner {
         let mut output = Vec::new();
         let matched_readers = &mut self.stateful_writer.matched_readers;
         let writer = &self.stateful_writer.writer;
-        for (&_guid, reader_proxy) in matched_readers.iter_mut() {
+        for reader_proxy in matched_readers.iter_mut() {
             let messages = match writer.endpoint.reliability_level {
                 ReliabilityKind::BestEffort => BestEffortReaderProxyBehavior::produce_messages(
                     reader_proxy,

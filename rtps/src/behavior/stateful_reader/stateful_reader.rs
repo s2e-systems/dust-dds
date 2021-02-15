@@ -1,17 +1,14 @@
 use crate::{
     behavior::{types::Duration, Reader},
-    types::{ReliabilityKind, TopicKind, GUID},
+    types::{Locator, ReliabilityKind, TopicKind, GUID},
 };
-use std::{
-    collections::HashMap,
-    ops::{Deref, DerefMut},
-};
+use std::ops::{Deref, DerefMut};
 
 use super::WriterProxy;
 
 pub struct StatefulReader {
     pub reader: Reader,
-    matched_writers: HashMap<GUID, WriterProxy>,
+    matched_writers: Vec<WriterProxy>,
 }
 
 impl Deref for StatefulReader {
@@ -29,6 +26,8 @@ impl DerefMut for StatefulReader {
 impl StatefulReader {
     pub fn new(
         guid: GUID,
+        unicast_locator_list: Vec<Locator>,
+        multicast_locator_list: Vec<Locator>,
         topic_kind: TopicKind,
         reliability_level: ReliabilityKind,
         expects_inline_qos: bool,
@@ -37,6 +36,8 @@ impl StatefulReader {
     ) -> Self {
         let reader = Reader::new(
             guid,
+            unicast_locator_list,
+            multicast_locator_list,
             topic_kind,
             reliability_level,
             expects_inline_qos,
@@ -45,21 +46,22 @@ impl StatefulReader {
         );
         Self {
             reader,
-            matched_writers: HashMap::new(),
+            matched_writers: Vec::new(),
         }
     }
 
     pub fn matched_writer_add(&mut self, a_writer_proxy: WriterProxy) {
-        let remote_writer_guid = a_writer_proxy.remote_writer_guid.clone();
-        self.matched_writers
-            .insert(remote_writer_guid, a_writer_proxy);
+        self.matched_writers.push(a_writer_proxy);
     }
 
     pub fn matched_writer_remove(&mut self, writer_proxy_guid: &GUID) {
-        self.matched_writers.remove(writer_proxy_guid);
+        self.matched_writers
+            .retain(|wp| &wp.remote_writer_guid != writer_proxy_guid);
     }
 
     pub fn matched_writer_lookup(&self, a_writer_guid: GUID) -> Option<&WriterProxy> {
-        self.matched_writers.get(&a_writer_guid)
+        self.matched_writers
+            .iter()
+            .find(|&wp| &wp.remote_writer_guid == &a_writer_guid)
     }
 }

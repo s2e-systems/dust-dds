@@ -1,7 +1,4 @@
-use std::{
-    collections::HashMap,
-    ops::{Deref, DerefMut},
-};
+use std::ops::{Deref, DerefMut};
 
 use crate::{
     behavior::{types::Duration, Writer},
@@ -12,7 +9,7 @@ use super::ReaderLocator;
 
 pub struct StatelessWriter {
     pub writer: Writer,
-    pub reader_locators: HashMap<Locator, ReaderLocator>,
+    pub reader_locators: Vec<ReaderLocator>,
 }
 
 impl Deref for StatelessWriter {
@@ -30,6 +27,8 @@ impl DerefMut for StatelessWriter {
 impl StatelessWriter {
     pub fn new(
         guid: GUID,
+        unicast_locator_list: Vec<Locator>,
+        multicast_locator_list: Vec<Locator>,
         topic_kind: TopicKind,
         reliability_level: ReliabilityKind,
         push_mode: bool,
@@ -40,6 +39,8 @@ impl StatelessWriter {
     ) -> Self {
         let writer = Writer::new(
             guid,
+            unicast_locator_list,
+            multicast_locator_list,
             topic_kind,
             reliability_level,
             push_mode,
@@ -51,20 +52,19 @@ impl StatelessWriter {
 
         Self {
             writer,
-            reader_locators: HashMap::new(),
+            reader_locators: Vec::new(),
         }
     }
-    pub fn reader_locator_add(&mut self, a_locator: Locator) {
-        self.reader_locators
-            .insert(a_locator, ReaderLocator::new(a_locator));
+    pub fn reader_locator_add(&mut self, a_locator: ReaderLocator) {
+        self.reader_locators.push(a_locator);
     }
 
     pub fn reader_locator_remove(&mut self, a_locator: &Locator) {
-        self.reader_locators.remove(a_locator);
+        self.reader_locators.retain(|rl| &rl.locator != a_locator);
     }
 
     pub fn unsent_changes_reset(&mut self) {
-        for (_, rl) in self.reader_locators.iter_mut() {
+        for rl in self.reader_locators.iter_mut() {
             rl.unsent_changes_reset();
         }
     }

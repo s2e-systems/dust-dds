@@ -149,6 +149,8 @@ impl<'a> RtpsPublisherInnerRef<'a> {
         let data_writer_inner = RtpsStatefulDataWriterInner::new_user_defined(
             guid_prefix,
             entity_key,
+            vec![],
+            vec![],
             topic,
             qos,
             a_listener,

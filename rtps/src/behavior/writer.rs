@@ -1,7 +1,9 @@
 use crate::{
     messages::submessages::submessage_elements::ParameterList,
     structure::{CacheChange, Endpoint, HistoryCache},
-    types::{ChangeKind, InstanceHandle, ReliabilityKind, SequenceNumber, TopicKind, GUID},
+    types::{
+        ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID,
+    },
 };
 
 use super::types::Duration;
@@ -20,6 +22,8 @@ pub struct Writer {
 impl Writer {
     pub fn new(
         guid: GUID,
+        unicast_locator_list: Vec<Locator>,
+        multicast_locator_list: Vec<Locator>,
         topic_kind: TopicKind,
         reliability_level: ReliabilityKind,
         push_mode: bool,
@@ -28,7 +32,13 @@ impl Writer {
         nack_suppression_duration: Duration,
         data_max_sized_serialized: Option<i32>,
     ) -> Self {
-        let endpoint = Endpoint::new(guid, topic_kind, reliability_level);
+        let endpoint = Endpoint::new(
+            guid,
+            unicast_locator_list,
+            multicast_locator_list,
+            topic_kind,
+            reliability_level,
+        );
         Self {
             endpoint,
             push_mode,
@@ -72,6 +82,8 @@ mod tests {
     fn new_change() {
         let mut writer = Writer::new(
             GUID::new([0; 12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
+            vec![],
+            vec![],
             TopicKind::WithKey,
             ReliabilityKind::BestEffort,
             true,

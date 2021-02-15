@@ -145,6 +145,8 @@ impl<'a> RtpsSubscriberInnerRef<'a> {
         let data_reader_inner = RtpsStatefulDataReaderInner::new_user_defined(
             guid_prefix,
             entity_key,
+            vec![],
+            vec![],
             topic,
             qos,
             a_listener,

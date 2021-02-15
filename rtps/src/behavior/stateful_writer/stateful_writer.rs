@@ -1,18 +1,15 @@
-use std::{
-    collections::HashMap,
-    ops::{Deref, DerefMut},
-};
+use std::ops::{Deref, DerefMut};
 
 use crate::{
     behavior::{types::Duration, Writer},
-    types::{ReliabilityKind, TopicKind, GUID},
+    types::{Locator, ReliabilityKind, TopicKind, GUID},
 };
 
 use super::ReaderProxy;
 
 pub struct StatefulWriter {
     pub writer: Writer,
-    pub matched_readers: HashMap<GUID, ReaderProxy>,
+    pub matched_readers: Vec<ReaderProxy>,
 }
 
 impl Deref for StatefulWriter {
@@ -30,6 +27,8 @@ impl DerefMut for StatefulWriter {
 impl StatefulWriter {
     pub fn new(
         guid: GUID,
+        unicast_locator_list: Vec<Locator>,
+        multicast_locator_list: Vec<Locator>,
         topic_kind: TopicKind,
         reliability_level: ReliabilityKind,
         push_mode: bool,
@@ -40,6 +39,8 @@ impl StatefulWriter {
     ) -> Self {
         let writer = Writer::new(
             guid,
+            unicast_locator_list,
+            multicast_locator_list,
             topic_kind,
             reliability_level,
             push_mode,
@@ -50,22 +51,23 @@ impl StatefulWriter {
         );
         Self {
             writer,
-            matched_readers: HashMap::new(),
+            matched_readers: Vec::new(),
         }
     }
 
     pub fn matched_reader_add(&mut self, a_reader_proxy: ReaderProxy) {
-        let remote_reader_guid = a_reader_proxy.remote_reader_guid;
-        self.matched_readers
-            .insert(remote_reader_guid, a_reader_proxy);
+        self.matched_readers.push(a_reader_proxy);
     }
 
     pub fn matched_reader_remove(&mut self, reader_proxy_guid: &GUID) {
-        self.matched_readers.remove(reader_proxy_guid);
+        self.matched_readers
+            .retain(|rp| &rp.remote_reader_guid != reader_proxy_guid);
     }
 
     pub fn matched_reader_lookup(&self, a_reader_guid: GUID) -> Option<&ReaderProxy> {
-        self.matched_readers.get(&a_reader_guid)
+        self.matched_readers
+            .iter()
+            .find(|&rp| &rp.remote_reader_guid == &a_reader_guid)
     }
 
     pub fn is_acked_by_all(&self) -> bool {

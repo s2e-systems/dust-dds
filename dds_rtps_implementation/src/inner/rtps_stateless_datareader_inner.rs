@@ -1,9 +1,26 @@
-use std::{ops::{Deref, DerefMut}, sync::Arc};
+use std::{
+    ops::{Deref, DerefMut},
+    sync::Arc,
+};
 
-use rust_dds_api::{dcps_psm::StatusMask, dds_type::DDSType, infrastructure::{qos::DataReaderQos, qos_policy::ReliabilityQosPolicyKind}, subscription::data_reader_listener::DataReaderListener};
-use rust_rtps::{behavior::{self, StatelessReader, types::Duration}, types::{EntityId, GUID, GuidPrefix, ReliabilityKind, TopicKind, constants::ENTITY_KIND_BUILT_IN_READER_NO_KEY}};
+use rust_dds_api::{
+    dcps_psm::StatusMask,
+    dds_type::DDSType,
+    infrastructure::{qos::DataReaderQos, qos_policy::ReliabilityQosPolicyKind},
+    subscription::data_reader_listener::DataReaderListener,
+};
+use rust_rtps::{
+    behavior::{self, types::Duration, StatelessReader},
+    types::{
+        constants::ENTITY_KIND_BUILT_IN_READER_NO_KEY, EntityId, GuidPrefix, Locator,
+        ReliabilityKind, TopicKind, GUID,
+    },
+};
 
-use super::{rtps_datareader_inner::{AnyRtpsDataReaderInner, RtpsDataReaderInner}, rtps_topic_inner::RtpsTopicInner};
+use super::{
+    rtps_datareader_inner::{AnyRtpsDataReaderInner, RtpsDataReaderInner},
+    rtps_topic_inner::RtpsTopicInner,
+};
 
 pub struct RtpsStatelessDataReaderInner {
     pub stateless_reader: StatelessReader,
@@ -28,6 +45,8 @@ impl RtpsStatelessDataReaderInner {
     pub fn new_builtin<T: DDSType>(
         guid_prefix: GuidPrefix,
         entity_key: [u8; 3],
+        unicast_locator_list: Vec<Locator>,
+        multicast_locator_list: Vec<Locator>,
         topic: &Arc<RtpsTopicInner>,
         qos: DataReaderQos,
         listener: Option<Box<dyn DataReaderListener<DataType = T>>>,
@@ -38,12 +57,23 @@ impl RtpsStatelessDataReaderInner {
             TopicKind::WithKey => ENTITY_KIND_BUILT_IN_READER_NO_KEY,
         };
         let entity_id = EntityId::new(entity_key, entity_kind);
-        Self::new(guid_prefix, entity_id, topic, qos, listener, status_mask)
+        Self::new(
+            guid_prefix,
+            entity_id,
+            unicast_locator_list,
+            multicast_locator_list,
+            topic,
+            qos,
+            listener,
+            status_mask,
+        )
     }
 
     pub fn new_user_defined<T: DDSType>(
         guid_prefix: GuidPrefix,
         entity_key: [u8; 3],
+        unicast_locator_list: Vec<Locator>,
+        multicast_locator_list: Vec<Locator>,
         topic: &Arc<RtpsTopicInner>,
         qos: DataReaderQos,
         listener: Option<Box<dyn DataReaderListener<DataType = T>>>,
@@ -54,12 +84,23 @@ impl RtpsStatelessDataReaderInner {
             TopicKind::WithKey => ENTITY_KIND_BUILT_IN_READER_NO_KEY,
         };
         let entity_id = EntityId::new(entity_key, entity_kind);
-        Self::new(guid_prefix, entity_id, topic, qos, listener, status_mask)
+        Self::new(
+            guid_prefix,
+            entity_id,
+            unicast_locator_list,
+            multicast_locator_list,
+            topic,
+            qos,
+            listener,
+            status_mask,
+        )
     }
 
     fn new<T: DDSType>(
         guid_prefix: GuidPrefix,
         entity_id: EntityId,
+        unicast_locator_list: Vec<Locator>,
+        multicast_locator_list: Vec<Locator>,
         topic: &Arc<RtpsTopicInner>,
         qos: DataReaderQos,
         listener: Option<Box<dyn DataReaderListener<DataType = T>>>,
@@ -80,6 +121,8 @@ impl RtpsStatelessDataReaderInner {
         let heartbeat_supression_duration = behavior::types::constants::DURATION_ZERO;
         let stateless_reader = StatelessReader::new(
             guid,
+            unicast_locator_list,
+            multicast_locator_list,
             topic_kind,
             reliability_level,
             expects_inline_qos,
