@@ -27,7 +27,7 @@ use rust_rtps::{behavior::{stateless_writer::ReaderLocator}, discovery::spdp_end
         GuidPrefix, Locator,
     }};
 
-use crate::{inner::{rtps_datawriter_inner::{RtpsDataWriterImpl, RtpsWriterFlavor}, rtps_publisher_inner::RtpsPublisherInner, rtps_subscriber_inner::RtpsSubscriberInner, rtps_topic_inner::RtpsTopicInner}, rtps_publisher::RtpsPublisher, rtps_subscriber::RtpsSubscriber, rtps_topic::RtpsTopic, utils::maybe_valid::MaybeValidList};
+use crate::{inner::{rtps_datawriter_impl::{RtpsDataWriterImpl, RtpsWriterFlavor}, rtps_publisher_inner::RtpsPublisherInner, rtps_subscriber_inner::RtpsSubscriberInner, rtps_topic_inner::RtpsTopicInner}, rtps_publisher::RtpsPublisher, rtps_subscriber::RtpsSubscriber, rtps_topic::RtpsTopic, utils::maybe_valid::MaybeValidList};
 
 struct SpdpDiscoveredParticipantData {
     value: u8,

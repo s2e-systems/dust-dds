@@ -13,7 +13,7 @@ use rust_dds_api::{builtin_topics::SubscriptionBuiltinTopicData, dcps_psm::{
     }, return_type::DDSResult, topic::topic::Topic};
 
 use crate::{
-    inner::rtps_datawriter_inner::RtpsAnyDataWriterImplRef, rtps_publisher::RtpsPublisher,
+    inner::rtps_datawriter_impl::RtpsAnyDataWriterImplRef, rtps_publisher::RtpsPublisher,
     rtps_topic::RtpsTopic,
 };
 

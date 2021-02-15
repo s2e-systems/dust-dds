@@ -29,7 +29,7 @@ use crate::utils::maybe_valid::{MaybeValid, MaybeValidList, MaybeValidRef};
 
 use super::{
     message_sender::RtpsMessageSender,
-    rtps_datawriter_inner::{RtpsAnyDataWriterImplRef, RtpsDataWriterImpl, RtpsWriterFlavor},
+    rtps_datawriter_impl::{RtpsAnyDataWriterImplRef, RtpsDataWriterImpl, RtpsWriterFlavor},
     rtps_topic_inner::RtpsTopicInnerRef,
 };
 
