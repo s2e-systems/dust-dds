@@ -11,100 +11,21 @@ use rust_dds_api::{
     publication::data_writer_listener::DataWriterListener,
     return_type::{DDSError, DDSResult},
 };
-use rust_rtps::{behavior::Writer, types::ChangeKind};
+use rust_rtps::{
+    behavior::{
+        stateful_writer::{
+            best_effort_reader_proxy::BestEffortReaderProxyBehavior,
+            reliable_reader_proxy::ReliableReaderProxyBehavior,
+        },
+        stateless_writer::BestEffortReaderLocatorBehavior,
+        StatefulWriter, StatelessWriter, Writer,
+    },
+    types::{ChangeKind, ReliabilityKind},
+};
 
 use crate::utils::maybe_valid::{MaybeValid, MaybeValidRef};
 
-use super::{
-    endpoint_traits::DestinedMessages, rtps_stateful_datawriter_inner::RtpsStatefulDataWriterInner,
-    rtps_stateless_datawriter_inner::RtpsStatelessDataWriterInner,
-    rtps_topic_inner::RtpsTopicInner,
-};
-
-pub struct RtpsDataWriterInner<T: DDSType> {
-    qos: DataWriterQos,
-    topic: Option<Arc<RtpsTopicInner>>,
-    listener: Option<Box<dyn DataWriterListener<DataType = T>>>,
-    status_mask: StatusMask,
-}
-
-impl<T: DDSType> RtpsDataWriterInner<T> {
-    pub fn new(
-        topic: &Arc<RtpsTopicInner>,
-        qos: DataWriterQos,
-        listener: Option<Box<dyn DataWriterListener<DataType = T>>>,
-        status_mask: StatusMask,
-    ) -> Self {
-        let topic = Some(topic.clone());
-
-        Self {
-            qos,
-            topic,
-            listener,
-            status_mask,
-        }
-    }
-}
-
-pub trait AnyRtpsDataWriterInner: Send + Sync {
-    fn topic(&mut self) -> &mut Option<Arc<RtpsTopicInner>>;
-
-    fn qos(&mut self) -> &mut DataWriterQos;
-}
-
-impl<T: DDSType> AnyRtpsDataWriterInner for RtpsDataWriterInner<T> {
-    fn topic(&mut self) -> &mut Option<Arc<RtpsTopicInner>> {
-        &mut self.topic
-    }
-
-    fn qos(&mut self) -> &mut DataWriterQos {
-        &mut self.qos
-    }
-}
-
-pub enum RtpsDataWriterFlavor {
-    Stateful(RtpsStatefulDataWriterInner),
-    Stateless(RtpsStatelessDataWriterInner),
-}
-
-impl RtpsDataWriterFlavor {
-    fn inner(&mut self) -> &mut dyn AnyRtpsDataWriterInner {
-        match self {
-            Self::Stateful(stateful) => stateful.inner.as_mut(),
-            Self::Stateless(stateless) => stateless.inner.as_mut(),
-        }
-    }
-}
-
-impl AnyRtpsDataWriterInner for RtpsDataWriterFlavor {
-    fn topic(&mut self) -> &mut Option<Arc<RtpsTopicInner>> {
-        self.inner().topic()
-    }
-
-    fn qos(&mut self) -> &mut DataWriterQos {
-        self.inner().qos()
-    }
-}
-
-impl Deref for RtpsDataWriterFlavor {
-    type Target = Writer;
-
-    fn deref(&self) -> &Self::Target {
-        match self {
-            Self::Stateful(stateful) => &stateful.stateful_writer,
-            Self::Stateless(stateless) => &stateless.stateless_writer,
-        }
-    }
-}
-
-impl DerefMut for RtpsDataWriterFlavor {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        match self {
-            Self::Stateful(stateful) => &mut stateful.stateful_writer,
-            Self::Stateless(stateless) => &mut stateless.stateless_writer,
-        }
-    }
-}
+use super::{endpoint_traits::DestinedMessages, rtps_topic_inner::RtpsTopicInner};
 
 fn instance_handle_from_dds_type<T: DDSType>(data: T) -> rust_rtps::types::InstanceHandle {
     if data.key().is_empty() {
@@ -116,18 +37,84 @@ fn instance_handle_from_dds_type<T: DDSType>(data: T) -> rust_rtps::types::Insta
     }
 }
 
-pub type RtpsAnyDataWriterInnerRef<'a> = MaybeValidRef<'a, Mutex<RtpsDataWriterFlavor>>;
+struct RtpsDataWriterListener<T: DDSType>(Box<dyn DataWriterListener<DataType = T>>);
 
-impl<'a> RtpsAnyDataWriterInnerRef<'a> {
-    pub fn get(&self) -> DDSResult<MutexGuard<RtpsDataWriterFlavor>> {
+trait AnyRtpsDataWriterListener: Send + Sync {}
+
+impl<T: DDSType> AnyRtpsDataWriterListener for RtpsDataWriterListener<T> {}
+
+pub enum RtpsWriterFlavor {
+    Stateful(StatefulWriter),
+    Stateless(StatelessWriter),
+}
+
+impl Deref for RtpsWriterFlavor {
+    type Target = Writer;
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            Self::Stateful(stateful_writer) => stateful_writer,
+            Self::Stateless(stateless_writer) => stateless_writer,
+        }
+    }
+}
+
+impl DerefMut for RtpsWriterFlavor {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        match self {
+            Self::Stateful(stateful_writer) => stateful_writer,
+            Self::Stateless(stateless_writer) => stateless_writer,
+        }
+    }
+}
+
+struct RtpsDataWriterInner {
+    rtps_writer_flavor: RtpsWriterFlavor,
+    topic: Option<Arc<RtpsTopicInner>>,
+    qos: DataWriterQos,
+    listener: Option<Box<dyn AnyRtpsDataWriterListener>>,
+    status_mask: StatusMask,
+}
+
+pub struct RtpsDataWriterImpl(Mutex<RtpsDataWriterInner>);
+
+impl RtpsDataWriterImpl {
+    pub fn new<T: DDSType>(
+        rtps_writer_flavor: RtpsWriterFlavor,
+        topic: &Arc<RtpsTopicInner>,
+        qos: DataWriterQos,
+        listener: Option<Box<dyn DataWriterListener<DataType = T>>>,
+        status_mask: StatusMask,
+    ) -> Self {
+        let topic = Some(topic.clone());
+        let listener: Option<Box<dyn AnyRtpsDataWriterListener>> = match listener {
+            Some(listener) => Some(Box::new(RtpsDataWriterListener(listener))),
+            None => None,
+        };
+
+        Self(Mutex::new(RtpsDataWriterInner {
+            rtps_writer_flavor,
+            qos,
+            topic,
+            listener,
+            status_mask,
+        }))
+    }
+}
+
+pub type RtpsAnyDataWriterImplRef<'a> = MaybeValidRef<'a, RtpsDataWriterImpl>;
+
+impl<'a> RtpsAnyDataWriterImplRef<'a> {
+    fn get(&self) -> DDSResult<MutexGuard<RtpsDataWriterInner>> {
         Ok(MaybeValid::get(self)
             .ok_or(DDSError::AlreadyDeleted)?
+            .0
             .lock()
             .unwrap())
     }
 
     pub fn delete(&self) -> DDSResult<()> {
-        self.get()?.topic().take(); // Drop the topic
+        self.get()?.topic.take(); // Drop the topic
         MaybeValid::delete(self);
         Ok(())
     }
@@ -141,42 +128,84 @@ impl<'a> RtpsAnyDataWriterInnerRef<'a> {
         let mut this = self.get()?;
         let kind = ChangeKind::Alive;
         let inline_qos = None;
-        let change = this.new_change(
+        let change = this.rtps_writer_flavor.new_change(
             kind,
             Some(data.serialize()),
             inline_qos,
             instance_handle_from_dds_type(data),
         );
-        this.writer_cache.add_change(change);
+        this.rtps_writer_flavor.writer_cache.add_change(change);
 
         Ok(())
     }
 
     pub fn get_qos(&self) -> DDSResult<DataWriterQos> {
-        Ok(self.get()?.qos().clone())
+        Ok(self.get()?.qos.clone())
     }
 
     pub fn set_qos(&self, qos: Option<DataWriterQos>) -> DDSResult<()> {
         let qos = qos.unwrap_or_default();
         qos.is_consistent()?;
-        *self.get()?.qos() = qos;
+        self.get()?.qos = qos;
         Ok(())
     }
 
     pub fn produce_messages(&self) -> Vec<DestinedMessages> {
-        let this = self.get().ok();
-        if let Some(mut rtps_writer) = this {
-            match &mut *rtps_writer {
-                RtpsDataWriterFlavor::Stateful(stateful_writer) => {
-                    stateful_writer.produce_messages()
+        let mut output = Vec::new();
+        if let Some(mut rtps_data_writer_inner) = self.get().ok() {
+            match &mut rtps_data_writer_inner.rtps_writer_flavor {
+                RtpsWriterFlavor::Stateful(stateful_writer) => {
+                    let matched_readers = &mut stateful_writer.matched_readers;
+                    let writer = &stateful_writer.writer;
+                    for reader_proxy in matched_readers.iter_mut() {
+                        let messages = match writer.endpoint.reliability_level {
+                            ReliabilityKind::BestEffort => {
+                                BestEffortReaderProxyBehavior::produce_messages(
+                                    reader_proxy,
+                                    &writer.writer_cache,
+                                    writer.endpoint.entity.guid.entity_id(),
+                                    writer.last_change_sequence_number,
+                                )
+                            }
+                            ReliabilityKind::Reliable => {
+                                ReliableReaderProxyBehavior::produce_messages(
+                                    reader_proxy,
+                                    &writer.writer_cache,
+                                    writer.endpoint.entity.guid.entity_id(),
+                                    writer.last_change_sequence_number,
+                                    writer.heartbeat_period,
+                                    writer.nack_response_delay,
+                                )
+                            }
+                        };
+                        if !messages.is_empty() {
+                            output.push(DestinedMessages::MultiDestination {
+                                unicast_locator_list: reader_proxy.unicast_locator_list.clone(),
+                                multicast_locator_list: reader_proxy.multicast_locator_list.clone(),
+                                messages,
+                            });
+                        }
+                    }
                 }
-                RtpsDataWriterFlavor::Stateless(stateless_writer) => {
-                    stateless_writer.produce_messages()
+                RtpsWriterFlavor::Stateless(stateless_writer) => {
+                    let reader_locators = &mut stateless_writer.reader_locators;
+                    let writer = &stateless_writer.writer;
+                    for reader_locator in reader_locators.iter_mut() {
+                        let messages = BestEffortReaderLocatorBehavior::produce_messages(
+                            reader_locator,
+                            &writer.writer_cache,
+                            writer.endpoint.entity.guid.entity_id(),
+                            writer.last_change_sequence_number,
+                        );
+                        if !messages.is_empty() {
+                            let locator = reader_locator.locator;
+                            output.push(DestinedMessages::SingleDestination { locator, messages });
+                        }
+                    }
                 }
             }
-        } else {
-            vec![]
         }
+        output
     }
 
     pub fn try_receive_message(&self, _message: u8) {

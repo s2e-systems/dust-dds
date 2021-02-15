@@ -22,22 +22,12 @@ use rust_dds_api::{
     subscription::subscriber_listener::SubscriberListener,
     topic::{topic_description::TopicDescription, topic_listener::TopicListener},
 };
-use rust_rtps::{behavior::stateless_writer::ReaderLocator, structure::Participant, transport::Transport, types::{
+use rust_rtps::{behavior::{stateless_writer::ReaderLocator}, discovery::spdp_endpoints::SPDPbuiltinParticipantWriter, structure::Participant, transport::Transport, types::{
         constants::{ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, PROTOCOL_VERSION_2_4, VENDOR_ID},
         GuidPrefix, Locator,
     }};
 
-use crate::{
-    inner::{
-        rtps_datawriter_inner::RtpsDataWriterFlavor, rtps_publisher_inner::RtpsPublisherInner,
-        rtps_stateless_datawriter_inner::RtpsStatelessDataWriterInner,
-        rtps_subscriber_inner::RtpsSubscriberInner, rtps_topic_inner::RtpsTopicInner,
-    },
-    rtps_publisher::RtpsPublisher,
-    rtps_subscriber::RtpsSubscriber,
-    rtps_topic::RtpsTopic,
-    utils::maybe_valid::MaybeValidList,
-};
+use crate::{inner::{rtps_datawriter_inner::{RtpsDataWriterImpl, RtpsWriterFlavor}, rtps_publisher_inner::RtpsPublisherInner, rtps_subscriber_inner::RtpsSubscriberInner, rtps_topic_inner::RtpsTopicInner}, rtps_publisher::RtpsPublisher, rtps_subscriber::RtpsSubscriber, rtps_topic::RtpsTopic, utils::maybe_valid::MaybeValidList};
 
 struct SpdpDiscoveredParticipantData {
     value: u8,
@@ -456,22 +446,24 @@ impl Entity for RtpsDomainParticipant {
                 None,
                 0,
             ));
-            // let _spdp_topic_ref = self
-            //     .builtin_entities
-            //     .topic_list
-            //     .add(spdp_topic.clone())
-            //     .expect("Error creating SPDP topic");
+            // // let _spdp_topic_ref = self
+            // //     .builtin_entities
+            // //     .topic_list
+            // //     .add(spdp_topic.clone())
+            // //     .expect("Error creating SPDP topic");
+
+            let spdp_unicast_locator_list = self.builtin_entities.transport.unicast_locator_list().clone();
+            let spdp_multicast_locator_list = self.builtin_entities.transport.multicast_locator_list().clone();
+            let spdp_resend_period = rust_rtps::behavior::types::Duration::from_secs(30);
+            let spdp_reader_locators = vec![ReaderLocator::new(Locator::new_udpv4(7400, [239, 255, 0, 0]))];
 
             let mut spdp_announcer_qos = DataWriterQos::default();
             spdp_announcer_qos.reliability.kind = rust_dds_api::infrastructure::qos_policy::ReliabilityQosPolicyKind::BestEffortReliabilityQos;
-            let mut spdp_announcer = RtpsStatelessDataWriterInner::new_builtin::<SpdpDiscoveredParticipantData>(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER.entity_key(),  self.builtin_entities.transport.unicast_locator_list().clone(), self.builtin_entities.transport.multicast_locator_list().clone(), &spdp_topic, spdp_announcer_qos, None, 0);
+            let spdp_announcer = RtpsDataWriterImpl::new::<SpdpDiscoveredParticipantData>(RtpsWriterFlavor::Stateless(SPDPbuiltinParticipantWriter::new(guid_prefix, spdp_unicast_locator_list, spdp_multicast_locator_list, spdp_resend_period, spdp_reader_locators)), &spdp_topic, spdp_announcer_qos, None, 0);
 
-            let spdp_locator = ReaderLocator::new(Locator::new_udpv4(7400, [239, 255, 0, 0]));
-
-            spdp_announcer.reader_locator_add(spdp_locator);
 
             {
-                let spdp_announcer_ref = builtin_publisher.writer_list().add(Mutex::new(RtpsDataWriterFlavor::Stateless(spdp_announcer))).expect("Error adding SPDP writer to built_in publisher");
+                let spdp_announcer_ref = builtin_publisher.writer_list().add(spdp_announcer).expect("Error adding SPDP writer to built_in publisher");
                 spdp_announcer_ref.write_w_timestamp::<SpdpDiscoveredParticipantData>(SpdpDiscoveredParticipantData{value:5}, None, Time{sec:10, nanosec:0}).expect("Error announcing participant");
             }
 
@@ -480,40 +472,6 @@ impl Entity for RtpsDomainParticipant {
                 .publisher_list
                 .add(Box::new(builtin_publisher))
                 .expect("Error creating built-in publisher");
-
-            // let spdp_announcer = builtin_publisher_ref
-            //     .add_stateless_datawriter::<SpdpDiscoveredParticipantData>(
-            //         ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER.entity_key(),
-            //         &spdp_topic_ref,
-            //         Some(spdp_announcer_qos),
-            //         None,
-            //         0
-            //     )
-            //     .expect("Error creating SPDP built-in writer");
-
-            //     .try_get_stateless()
-            //     .expect("Error retrieving SPDP announcer")
-            //     .unwrap()
-            //     .reader_locator_add(spdp_locator);
-            
-
-            //         // let key = BuiltInTopicKey([1, 2, 3]);
-            //         // let user_data = UserDataQosPolicy { value: vec![] };
-            //         // let dds_participant_data = ParticipantBuiltinTopicData { key, user_data };
-            //         // let participant_proxy = self.into();
-            //         // let lease_duration = DURATION_INFINITE;
-
-            //         // let data = SpdpDiscoveredParticipantData {
-            //         //     dds_participant_data,
-            //         //     participant_proxy,
-            //         //     lease_duration,
-            //         // };
-
-            //         // spdp_announcer_anywriter_ref
-            //         //     .get_as::<SpdpDiscoveredParticipantData>()
-            //         //     .unwrap()
-            //         //     .write_w_timestamp(data, None, TIME_INVALID)
-            //         //     .ok();
 
             let mut thread_list = self.thread_list.borrow_mut();
             let enabled = self.enabled.clone();

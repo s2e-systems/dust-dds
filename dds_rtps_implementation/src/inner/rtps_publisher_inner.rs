@@ -3,18 +3,25 @@ use std::sync::{atomic, Mutex};
 use rust_dds_api::{
     dcps_psm::{InstanceHandle, StatusMask},
     dds_type::DDSType,
-    infrastructure::qos::{DataWriterQos, PublisherQos},
+    infrastructure::{
+        qos::{DataWriterQos, PublisherQos},
+        qos_policy::ReliabilityQosPolicyKind,
+    },
     publication::{
         data_writer_listener::DataWriterListener, publisher_listener::PublisherListener,
     },
     return_type::{DDSError, DDSResult},
 };
 use rust_rtps::{
+    behavior::StatefulWriter,
     structure::Group,
     transport::Transport,
     types::{
-        constants::{ENTITY_KIND_BUILT_IN_WRITER_GROUP, ENTITY_KIND_USER_DEFINED_WRITER_GROUP},
-        EntityId, GuidPrefix, GUID,
+        constants::{
+            ENTITY_KIND_BUILT_IN_WRITER_GROUP, ENTITY_KIND_USER_DEFINED_WRITER_GROUP,
+            ENTITY_KIND_USER_DEFINED_WRITER_NO_KEY, ENTITY_KIND_USER_DEFINED_WRITER_WITH_KEY,
+        },
+        EntityId, GuidPrefix, ReliabilityKind, TopicKind, GUID,
     },
 };
 
@@ -22,8 +29,7 @@ use crate::utils::maybe_valid::{MaybeValid, MaybeValidList, MaybeValidRef};
 
 use super::{
     message_sender::RtpsMessageSender,
-    rtps_datawriter_inner::{RtpsAnyDataWriterInnerRef, RtpsDataWriterFlavor},
-    rtps_stateful_datawriter_inner::RtpsStatefulDataWriterInner,
+    rtps_datawriter_inner::{RtpsAnyDataWriterImplRef, RtpsDataWriterImpl, RtpsWriterFlavor},
     rtps_topic_inner::RtpsTopicInnerRef,
 };
 
@@ -35,7 +41,7 @@ enum EntityType {
 pub struct RtpsPublisherInner {
     group: Group,
     entity_type: EntityType,
-    writer_list: MaybeValidList<Mutex<RtpsDataWriterFlavor>>,
+    writer_list: MaybeValidList<RtpsDataWriterImpl>,
     writer_count: atomic::AtomicU8,
     default_datawriter_qos: Mutex<DataWriterQos>,
     qos: Mutex<PublisherQos>,
@@ -106,7 +112,7 @@ impl RtpsPublisherInner {
         }
     }
 
-    pub fn writer_list(&self) -> &MaybeValidList<Mutex<RtpsDataWriterFlavor>> {
+    pub fn writer_list(&self) -> &MaybeValidList<RtpsDataWriterImpl> {
         &self.writer_list
     }
 }
@@ -135,34 +141,60 @@ impl<'a> RtpsPublisherInnerRef<'a> {
         qos: Option<DataWriterQos>,
         a_listener: Option<Box<dyn DataWriterListener<DataType = T>>>,
         status_mask: StatusMask,
-    ) -> Option<RtpsAnyDataWriterInnerRef> {
+    ) -> Option<RtpsAnyDataWriterImplRef> {
         let this = self.get().ok()?;
         let topic = a_topic.get().ok()?;
+        let qos = qos.unwrap_or(this.default_datawriter_qos.lock().unwrap().clone());
+        qos.is_consistent().ok()?;
+
         let entity_key = [
             0,
             this.writer_count.fetch_add(1, atomic::Ordering::Relaxed),
             0,
         ];
         let guid_prefix = this.group.entity.guid.prefix();
-        let qos = qos.unwrap_or(this.default_datawriter_qos.lock().unwrap().clone());
+        let entity_kind = match T::has_key() {
+            true => ENTITY_KIND_USER_DEFINED_WRITER_WITH_KEY,
+            false => ENTITY_KIND_USER_DEFINED_WRITER_NO_KEY,
+        };
+        let guid = GUID::new(guid_prefix, EntityId::new(entity_key, entity_kind));
+        let unicast_locator_list = vec![];
+        let multicast_locator_list = vec![];
+        let topic_kind = match T::has_key() {
+            true => TopicKind::WithKey,
+            false => TopicKind::NoKey,
+        };
+        let reliability_level = match qos.reliability.kind {
+            ReliabilityQosPolicyKind::BestEffortReliabilityQos => ReliabilityKind::BestEffort,
+            ReliabilityQosPolicyKind::ReliableReliabilityQos => ReliabilityKind::Reliable,
+        };
+        let push_mode = true;
+        let heartbeat_period = rust_rtps::behavior::types::Duration::from_millis(500);
+        let nack_response_delay = rust_rtps::behavior::types::constants::DURATION_ZERO;
+        let nack_suppression_duration = rust_rtps::behavior::types::constants::DURATION_ZERO;
+        let data_max_sized_serialized = None;
+        let stateful_writer = StatefulWriter::new(
+            guid,
+            unicast_locator_list,
+            multicast_locator_list,
+            topic_kind,
+            reliability_level,
+            push_mode,
+            heartbeat_period,
+            nack_response_delay,
+            nack_suppression_duration,
+            data_max_sized_serialized,
+        );
 
-        let data_writer_inner = RtpsStatefulDataWriterInner::new_user_defined(
-            guid_prefix,
-            entity_key,
-            vec![],
-            vec![],
+        let data_writer_impl = RtpsDataWriterImpl::new(
+            RtpsWriterFlavor::Stateful(stateful_writer),
             topic,
             qos,
             a_listener,
             status_mask,
         );
 
-        self.get()
-            .ok()?
-            .writer_list
-            .add(Mutex::new(RtpsDataWriterFlavor::Stateful(
-                data_writer_inner,
-            )))
+        this.writer_list.add(data_writer_impl)
     }
 
     pub fn set_default_datawriter_qos(&self, qos: Option<DataWriterQos>) -> DDSResult<()> {
