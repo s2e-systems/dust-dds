@@ -17,16 +17,33 @@ use rust_dds_api::{
         qos::{DataWriterQos, DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
     },
     publication::publisher_listener::PublisherListener,
-    return_type::{DDSResult},
+    return_type::DDSResult,
     subscription::subscriber_listener::SubscriberListener,
     topic::{topic_description::TopicDescription, topic_listener::TopicListener},
 };
-use rust_rtps::{behavior::{stateless_writer::ReaderLocator}, discovery::spdp_endpoints::SPDPbuiltinParticipantWriter, structure::Participant, transport::Transport, types::{
+use rust_rtps::{
+    behavior::stateless_writer::ReaderLocator,
+    discovery::spdp_endpoints::SPDPbuiltinParticipantWriter,
+    structure::Participant,
+    transport::Transport,
+    types::{
         constants::{ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, PROTOCOL_VERSION_2_4, VENDOR_ID},
         GuidPrefix, Locator,
-    }};
+    },
+};
 
-use crate::{inner::{rtps_datawriter_impl::{RtpsDataWriterImpl, RtpsWriterFlavor}, rtps_publisher_inner::RtpsPublisherInner, rtps_subscriber_inner::RtpsSubscriberInner, rtps_topic_inner::RtpsTopicInner}, rtps_publisher::RtpsPublisher, rtps_subscriber::RtpsSubscriber, rtps_topic::RtpsTopic, utils::maybe_valid::MaybeValidList};
+use crate::{
+    inner::{
+        rtps_datawriter_impl::{RtpsDataWriterImpl, RtpsWriterFlavor},
+        rtps_publisher_inner::RtpsPublisherInner,
+        rtps_subscriber_inner::RtpsSubscriberInner,
+        rtps_topic_inner::RtpsTopicInner,
+    },
+    rtps_publisher::RtpsPublisher,
+    rtps_subscriber::RtpsSubscriber,
+    rtps_topic::RtpsTopic,
+    utils::maybe_valid::MaybeValidList,
+};
 
 struct SpdpDiscoveredParticipantData {
     value: u8,

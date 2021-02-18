@@ -235,7 +235,7 @@ mod tests {
     use rust_dds_api::{
         domain::domain_participant::DomainParticipant, infrastructure::qos::DomainParticipantQos,
     };
-    use rust_rtps::transport::Transport;
+    use rust_rtps::{transport::Transport, types::Locator};
 
     struct TestType;
 
@@ -262,7 +262,11 @@ mod tests {
     }
 
     fn create_test_participant() -> RtpsDomainParticipant {
-        struct MockTransport;
+        #[derive(Default)]
+        struct MockTransport{
+            unicast_locator_list: Vec<Locator>,
+            multicast_locator_list: Vec<Locator>,
+        };
 
         impl Transport for MockTransport {
             fn write(
@@ -282,18 +286,18 @@ mod tests {
             }
 
             fn unicast_locator_list(&self) -> &Vec<rust_rtps::types::Locator> {
-                todo!()
+                &self.unicast_locator_list
             }
 
             fn multicast_locator_list(&self) -> &Vec<rust_rtps::types::Locator> {
-                todo!()
+                &self.multicast_locator_list
             }
         }
 
         let domain_id = 0;
         let qos = DomainParticipantQos::default();
-        let userdata_transport = MockTransport;
-        let metatraffic_transport = MockTransport;
+        let userdata_transport = MockTransport::default();
+        let metatraffic_transport = MockTransport::default();
         let a_listener = None;
         let mask = 0;
         RtpsDomainParticipant::new(
@@ -314,7 +318,7 @@ mod tests {
         let mask = 0;
         let publisher = domain_participant
             .create_publisher(qos, a_listener, mask)
-            .expect("Error creating publisher");
+            .unwrap();
 
         let topic_name = "Test";
         let qos = None;
@@ -322,12 +326,13 @@ mod tests {
         let mask = 0;
         let topic = domain_participant
             .create_topic(topic_name, qos, a_listener, mask)
-            .expect("Error creating topic");
+            .unwrap();
 
         let qos = None;
         let a_listener = None;
         let mask = 0;
-        let datawriter = publisher.create_datawriter::<TestType>(&topic, qos, a_listener, mask);
+        let datawriter 
+            = publisher.create_datawriter::<TestType>(&topic, qos, a_listener, mask);
 
         assert!(datawriter.is_some());
     }
