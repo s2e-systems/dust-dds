@@ -47,6 +47,10 @@ impl RtpsTopicImpl {
     pub fn get_type_name(&self) -> &str {
         self.type_name
     }
+
+    pub fn get_name(&self) -> &str {
+        &self.topic_name
+    }
 }
 
 fn topic_kind_from_dds_type<T: DDSType>() -> TopicKind {
@@ -95,6 +99,8 @@ impl RtpsTopicInner {
     pub fn topic_kind(&self) -> TopicKind {
         self.topic_kind
     }
+
+    
 }
 
 pub type RtpsTopicInnerRef<'a> = MaybeValidRef<'a, Arc<RtpsTopicInner>>;
@@ -148,5 +154,20 @@ mod tests {
         let topic = RtpsTopicImpl::new(entity, type_name, topic_name, qos, listener, status_mask);
 
         assert_eq!(topic.get_type_name(), type_name);
+    }
+
+    #[test]
+    fn get_name(){
+        let entity_id = EntityId::new([1;3], ENTITY_KIND_USER_DEFINED_UNKNOWN);
+        let guid = GUID::new([1;12], entity_id);
+        let entity = Entity::new(guid);
+        let type_name = "TestType";
+        let topic_name = "TestTopic";
+        let qos = TopicQos::default();
+        let listener = None;
+        let status_mask = 0;
+        let topic = RtpsTopicImpl::new(entity, type_name, topic_name, qos, listener, status_mask);
+
+        assert_eq!(topic.get_name(), topic_name);
     }
 }

@@ -22,5 +22,5 @@ pub trait TopicDescription<'a>:
     fn get_type_name(&self) -> DDSResult<&str>;
 
     /// The name used to create the TopicDescription
-    fn get_name(&self) -> DDSResult<String>;
+    fn get_name(&self) -> DDSResult<&str>;
 }
