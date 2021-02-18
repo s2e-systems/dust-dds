@@ -1,8 +1,6 @@
-use std::marker::PhantomData;
-
 use crate::{
-    inner::rtps_subscriber_inner::RtpsSubscriberInnerRef, rtps_datareader::RtpsDataReader,
-    rtps_topic::RtpsTopic,
+    inner::rtps_subscriber_inner::RtpsSubscriberInner, rtps_datareader::RtpsDataReader,
+    rtps_topic::RtpsTopic, utils::node::Node,
 };
 use rust_dds_api::{
     dcps_psm::{
@@ -26,10 +24,7 @@ use rust_dds_api::{
 
 use super::rtps_domain_participant::RtpsDomainParticipant;
 
-pub struct RtpsSubscriber<'a> {
-    pub(crate) parent_participant: &'a RtpsDomainParticipant,
-    pub(crate) subscriber_ref: RtpsSubscriberInnerRef<'a>,
-}
+pub type RtpsSubscriber<'a> = Node<'a, RtpsDomainParticipant, RtpsSubscriberInner>;
 
 impl<'a, T: DDSType> TopicGAT<'a, T> for RtpsSubscriber<'a> {
     type TopicType = RtpsTopic<'a, T>;
@@ -48,25 +43,28 @@ impl<'a> Subscriber<'a> for RtpsSubscriber<'a> {
         &'a self,
         a_topic: &'a <Self as TopicGAT<'a, T>>::TopicType,
         qos: Option<DataReaderQos>,
-        a_listener: Option<Box<dyn DataReaderListener<DataType=T>>>,
+        a_listener: Option<Box<dyn DataReaderListener<DataType = T>>>,
         mask: StatusMask,
     ) -> Option<<Self as DataReaderGAT<'a, T>>::DataReaderType> {
-        let data_reader_ref =
-            self.subscriber_ref
-                .create_datareader(&a_topic.topic_ref, qos, a_listener, mask)?;
+        todo!()
+        // let data_reader_ref =
+        //     self.get_impl()
+        //         .ok()?
+        //         .create_datareader(&a_topic.topic_ref, qos, a_listener, mask)?;
 
-        Some(RtpsDataReader {
-            parent_subscriber: Some(self),
-            data_reader_ref,
-            phantom_data: PhantomData,
-        })
+        // Some(RtpsDataReader {
+        //     parent_subscriber: self,
+        //     data_reader_ref,
+        //     phantom_data: PhantomData,
+        // })
     }
 
     fn delete_datareader<T: DDSType>(
         &'a self,
         a_datareader: &'a <Self as DataReaderGAT<'a, T>>::DataReaderType,
     ) -> DDSResult<()> {
-        a_datareader.data_reader_ref.delete()
+        // a_datareader.data_reader_ref.delete()
+        todo!()
     }
 
     fn lookup_datareader<T: DDSType>(
@@ -89,7 +87,7 @@ impl<'a> Subscriber<'a> for RtpsSubscriber<'a> {
     }
 
     fn get_participant(&self) -> &<Self as DomainParticipantChild<'a>>::DomainParticipantType {
-        &self.parent_participant
+        &self.get_parent()
     }
 
     fn get_sample_lost_status(&self, _status: &mut SampleLostStatus) -> DDSResult<()> {
@@ -136,7 +134,8 @@ impl<'a> Entity for RtpsSubscriber<'a> {
     }
 
     fn get_qos(&self) -> DDSResult<Self::Qos> {
-        self.subscriber_ref.get_qos()
+        // self.subscriber_ref.get_qos()
+        todo!()
     }
 
     fn set_listener(&self, _a_listener: Self::Listener, _mask: StatusMask) -> DDSResult<()> {

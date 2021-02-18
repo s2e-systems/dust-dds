@@ -25,14 +25,11 @@ use rust_dds_api::{
 };
 
 use crate::{
-    inner::rtps_datareader_inner::RtpsAnyDataReaderInnerRef, rtps_subscriber::RtpsSubscriber,
+    inner::rtps_datareader_inner::RtpsDataReaderImpl, rtps_subscriber::RtpsSubscriber,
+    utils::node::Node,
 };
 
-pub struct RtpsDataReader<'a, T: DDSType> {
-    pub(crate) parent_subscriber: Option<&'a RtpsSubscriber<'a>>,
-    pub(crate) data_reader_ref: RtpsAnyDataReaderInnerRef<'a>,
-    pub(crate) phantom_data: PhantomData<T>,
-}
+pub type RtpsDataReader<'a, T: DDSType> = Node<'a, RtpsSubscriber<'a>, RtpsDataReaderImpl<T>>;
 
 impl<'a, T: DDSType> DataReader<'a, T> for RtpsDataReader<'a, T> {
     fn read(
@@ -280,7 +277,7 @@ impl<'a, T: DDSType> DataReader<'a, T> for RtpsDataReader<'a, T> {
 impl<'a, T: DDSType> Entity for RtpsDataReader<'a, T> {
     type Qos = DataReaderQos;
 
-    type Listener = Box<dyn DataReaderListener<DataType=T> + 'a>;
+    type Listener = Box<dyn DataReaderListener<DataType = T> + 'a>;
 
     fn set_qos(&self, _qos: Option<Self::Qos>) -> DDSResult<()> {
         todo!()

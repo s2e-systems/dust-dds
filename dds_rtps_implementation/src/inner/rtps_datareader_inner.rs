@@ -62,15 +62,16 @@ impl<T: DDSType> AnyRtpsDataReaderInner for RtpsDataReaderInner<T> {
     }
 
     fn on_data_available(&self, data_reader_ref: RtpsAnyDataReaderInnerRef) {
-        let the_reader = RtpsDataReader {
-            parent_subscriber: None,
-            data_reader_ref,
-            phantom_data: PhantomData,
-        };
-        self.listener
-            .as_ref()
-            .unwrap()
-            .on_data_available(&the_reader)
+        // let the_reader = RtpsDataReader {
+        //     parent_subscriber: None,
+        //     data_reader_ref,
+        //     phantom_data: PhantomData,
+        // };
+        // self.listener
+        //     .as_ref()
+        //     .unwrap()
+        //     .on_data_available(&the_reader)
+        todo!()
     }
 }
 
@@ -134,4 +135,8 @@ impl<'a> RtpsAnyDataReaderInnerRef<'a> {
         MaybeValid::delete(self);
         Ok(())
     }
+}
+
+pub struct RtpsDataReaderImpl<T:DDSType> {
+    phantom_data: PhantomData<T>,
 }

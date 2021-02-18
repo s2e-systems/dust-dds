@@ -1,8 +1,4 @@
-use std::{
-    convert::TryInto,
-    ops::{Deref, DerefMut},
-    sync::{Arc, Mutex, MutexGuard},
-};
+use std::{convert::TryInto, marker::PhantomData, ops::{Deref, DerefMut}, sync::{Arc, Mutex, MutexGuard}};
 
 use rust_dds_api::{
     dcps_psm::{InstanceHandle, StatusMask, Time},
@@ -220,4 +216,8 @@ impl<'a> RtpsAnyDataWriterImplRef<'a> {
         //     }
         // }
     }
+}
+
+pub struct RtpsDataWriterImplPhantom<T> {
+    phantom_data: PhantomData<T>,
 }

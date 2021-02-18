@@ -1,27 +1,30 @@
-use std::marker::PhantomData;
-
-use rust_dds_api::{builtin_topics::SubscriptionBuiltinTopicData, dcps_psm::{
+use rust_dds_api::{
+    builtin_topics::SubscriptionBuiltinTopicData,
+    dcps_psm::{
         Duration, InstanceHandle, LivelinessLostStatus, OfferedDeadlineMissedStatus,
         OfferedIncompatibleQosStatus, PublicationMatchedStatus, StatusMask, Time,
-    }, dds_type::DDSType, domain::domain_participant::TopicGAT, infrastructure::{
+    },
+    dds_type::DDSType,
+    domain::domain_participant::TopicGAT,
+    infrastructure::{
         entity::{Entity, StatusCondition},
         qos::DataWriterQos,
-    }, publication::{
+    },
+    publication::{
         data_writer::{AnyDataWriter, DataWriter},
         data_writer_listener::DataWriterListener,
         publisher::PublisherChild,
-    }, return_type::DDSResult, topic::topic::Topic};
-
-use crate::{
-    inner::rtps_datawriter_impl::RtpsAnyDataWriterImplRef, rtps_publisher::RtpsPublisher,
-    rtps_topic::RtpsTopic,
+    },
+    return_type::DDSResult,
+    topic::topic::Topic,
 };
 
-pub struct RtpsDataWriter<'a, T: DDSType> {
-    pub(crate) parent_publisher: &'a RtpsPublisher<'a>,
-    pub(crate) data_writer_ref: RtpsAnyDataWriterImplRef<'a>,
-    pub(crate) phantom_data: PhantomData<T>,
-}
+use crate::{
+    inner::rtps_datawriter_impl::RtpsDataWriterImplPhantom, rtps_publisher::RtpsPublisher,
+    rtps_topic::RtpsTopic, utils::node::Node,
+};
+
+pub type RtpsDataWriter<'a, T: DDSType> = Node<'a, RtpsPublisher<'a>, RtpsDataWriterImplPhantom<T>>;
 
 impl<'a, T: DDSType> PublisherChild<'a> for RtpsDataWriter<'a, T> {
     type PublisherType = RtpsPublisher<'a>;
@@ -153,7 +156,7 @@ impl<'a, T: DDSType> DataWriter<'a, T> for RtpsDataWriter<'a, T> {
 impl<'a, T: DDSType> Entity for RtpsDataWriter<'a, T> {
     type Qos = DataWriterQos;
 
-    type Listener = Box<dyn DataWriterListener<DataType=T> + 'a>;
+    type Listener = Box<dyn DataWriterListener<DataType = T> + 'a>;
 
     fn set_qos(&self, _qos: Option<Self::Qos>) -> DDSResult<()> {
         todo!()

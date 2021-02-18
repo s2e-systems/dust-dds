@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex};
+use std::{marker::PhantomData, sync::{Arc, Mutex}};
 
 use rust_dds_api::{
     dcps_psm::StatusMask,
@@ -93,4 +93,8 @@ impl<'a> RtpsTopicInnerRef<'a> {
     pub fn get_qos(&self) -> DDSResult<TopicQos> {
         Ok(self.get()?.qos.lock().unwrap().clone())
     }
+}
+
+pub struct RtpsTopicImpl<T: DDSType>{
+    phantom_data: PhantomData<T>,
 }

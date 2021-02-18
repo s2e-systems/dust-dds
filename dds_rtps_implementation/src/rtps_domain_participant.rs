@@ -169,20 +169,23 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
             .publisher_list
             .add(Box::new(publisher))?;
 
-        Some(RtpsPublisher {
-            parent_participant: self,
-            publisher_ref,
-        })
+        todo!()
+        // Some(RtpsPublisher {
+        //     parent_participant: self,
+        //     publisher_ref,
+        // })
     }
 
     fn delete_publisher(&self, a_publisher: &Self::PublisherType) -> DDSResult<()> {
-        if std::ptr::eq(a_publisher.parent_participant, self) {
-            a_publisher.publisher_ref.delete()
-        } else {
-            Err(DDSError::PreconditionNotMet(
-                "Publisher can only be deleted from its parent participant",
-            ))
-        }
+        // if std::ptr::eq(a_publisher.parent_participant, self) {
+        //     a_publisher.publisher_ref.delete()
+        // } else {
+        //     Err(DDSError::PreconditionNotMet(
+        //         "Publisher can only be deleted from its parent participant",
+        //     ))
+        // }
+
+        todo!()
     }
 
     fn create_subscriber(
@@ -206,20 +209,22 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
             .subscriber_list
             .add(Box::new(subscriber))?;
 
-        Some(RtpsSubscriber {
-            parent_participant: self,
-            subscriber_ref,
-        })
+        todo!()
+        // Some(RtpsSubscriber {
+        //     parent_participant: self,
+        //     subscriber_ref,
+        // })
     }
 
     fn delete_subscriber(&self, a_subscriber: &Self::SubscriberType) -> DDSResult<()> {
-        if std::ptr::eq(a_subscriber.parent_participant, self) {
-            a_subscriber.subscriber_ref.delete()
-        } else {
-            Err(DDSError::PreconditionNotMet(
-                "Subscriber can only be deleted from its parent participant",
-            ))
-        }
+        // if std::ptr::eq(a_subscriber.parent_participant, self) {
+        //     a_subscriber.subscriber_ref.delete()
+        // } else {
+        //     Err(DDSError::PreconditionNotMet(
+        //         "Subscriber can only be deleted from its parent participant",
+        //     ))
+        // }
+        todo!()
     }
 
     fn create_topic<T: DDSType>(
@@ -248,24 +253,26 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
             mask,
         );
         let topic_ref = self.user_defined_entities.topic_list.add(Arc::new(topic))?;
-        Some(RtpsTopic {
-            parent_participant: self,
-            topic_ref,
-            phantom_data: PhantomData,
-        })
+        // Some(RtpsTopic {
+        //     parent_participant: self,
+        //     topic_ref,
+        //     phantom_data: PhantomData,
+        // })
+        todo!()
     }
 
     fn delete_topic<T: DDSType>(
         &'a self,
         a_topic: &<Self as TopicGAT<'a, T>>::TopicType,
     ) -> DDSResult<()> {
-        if std::ptr::eq(a_topic.parent_participant, self) {
-            a_topic.topic_ref.delete()
-        } else {
-            Err(DDSError::PreconditionNotMet(
-                "Topic can only be deleted from its parent participant",
-            ))
-        }
+        // if std::ptr::eq(a_topic.parent_participant, self) {
+        //     a_topic.topic_ref.delete()
+        // } else {
+        //     Err(DDSError::PreconditionNotMet(
+        //         "Topic can only be deleted from its parent participant",
+        //     ))
+        // }
+        todo!()
     }
 
     fn find_topic<T: DDSType>(
