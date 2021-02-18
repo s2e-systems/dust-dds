@@ -35,7 +35,7 @@ use rust_rtps::{
 use crate::{
     impls::{
         rtps_datawriter_impl::{RtpsDataWriterImpl, RtpsWriterFlavor},
-        rtps_publisher_inner::RtpsPublisherInner,
+        rtps_publisher_impl::RtpsPublisherInner,
         rtps_subscriber_inner::RtpsSubscriberInner,
         rtps_topic_inner::RtpsTopicInner,
     },

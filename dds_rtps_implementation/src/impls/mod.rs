@@ -4,7 +4,7 @@ pub mod rtps_stateless_datareader_inner;
 pub mod rtps_subscriber_inner;
 
 pub mod rtps_datawriter_impl;
-pub mod rtps_publisher_inner;
+pub mod rtps_publisher_impl;
 
 pub mod endpoint_traits;
 pub mod message_sender;

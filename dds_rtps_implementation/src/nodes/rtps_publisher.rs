@@ -15,7 +15,7 @@ use rust_dds_api::{
 };
 
 use crate::{
-    impls::rtps_publisher_inner::RtpsPublisherImpl, rtps_domain_participant::RtpsDomainParticipant,
+    impls::rtps_publisher_impl::RtpsPublisherImpl, rtps_domain_participant::RtpsDomainParticipant,
     utils::node::Node,
 };
 
