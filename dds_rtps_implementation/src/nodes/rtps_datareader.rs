@@ -285,11 +285,11 @@ impl<'a, T: DDSType> Entity for RtpsDataReader<'a, T> {
         todo!()
     }
 
-    fn set_listener(&self, _a_listener: Self::Listener, _mask: StatusMask) -> DDSResult<()> {
+    fn set_listener(&self, _a_listener: Option<Self::Listener>, _mask: StatusMask) -> DDSResult<()> {
         todo!()
     }
 
-    fn get_listener(&self) -> &Self::Listener {
+    fn get_listener(&self) -> DDSResult<Option<Self::Listener>> {
         todo!()
     }
 

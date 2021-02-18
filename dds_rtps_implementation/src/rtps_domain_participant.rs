@@ -407,11 +407,11 @@ impl Entity for RtpsDomainParticipant {
         Ok(self.qos.lock().unwrap().clone())
     }
 
-    fn set_listener(&self, _a_listener: Self::Listener, _mask: StatusMask) -> DDSResult<()> {
+    fn set_listener(&self, _a_listener: Option<Self::Listener>, _mask: StatusMask) -> DDSResult<()> {
         todo!()
     }
 
-    fn get_listener(&self) -> &Self::Listener {
+    fn get_listener(&self) -> DDSResult<Option<Self::Listener>> {
         todo!()
     }
 
@@ -523,7 +523,7 @@ mod tests {
             todo!()
         }
 
-        fn deserialize(data: Vec<u8>) -> Self {
+        fn deserialize(_data: Vec<u8>) -> Self {
             todo!()
         }
     }
