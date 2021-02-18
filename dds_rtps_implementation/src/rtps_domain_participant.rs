@@ -39,9 +39,9 @@ use crate::{
         rtps_subscriber_inner::RtpsSubscriberInner,
         rtps_topic_inner::RtpsTopicInner,
     },
-    rtps_publisher::RtpsPublisher,
-    rtps_subscriber::RtpsSubscriber,
-    rtps_topic::RtpsTopic,
+    nodes::{
+        rtps_publisher::RtpsPublisher, rtps_subscriber::RtpsSubscriber, rtps_topic::RtpsTopic,
+    },
     utils::maybe_valid::MaybeValidList,
 };
 
@@ -522,5 +522,15 @@ impl<'a> Drop for RtpsDomainParticipant {
         for thread in self.thread_list.borrow_mut().drain(..) {
             thread.join().ok();
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn create_publisher_default_qos() {
+        let participant = RtpsDomainParticipant::new(domain_id, qos, userdata_transport, metatraffic_transport, a_listener, mask);
     }
 }

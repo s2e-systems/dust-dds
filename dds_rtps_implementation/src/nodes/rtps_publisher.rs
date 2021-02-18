@@ -15,10 +15,11 @@ use rust_dds_api::{
 };
 
 use crate::{
-    inner::rtps_publisher_inner::RtpsPublisherImpl, rtps_topic::RtpsTopic, utils::node::Node,
+    inner::rtps_publisher_inner::RtpsPublisherImpl, rtps_domain_participant::RtpsDomainParticipant,
+    utils::node::Node,
 };
 
-use super::{rtps_datawriter::RtpsDataWriter, rtps_domain_participant::RtpsDomainParticipant};
+use super::{rtps_datawriter::RtpsDataWriter, rtps_topic::RtpsTopic};
 
 pub type RtpsPublisher<'a> = Node<'a, &'a RtpsDomainParticipant, RtpsPublisherImpl>;
 
@@ -263,7 +264,7 @@ mod tests {
 
     fn create_test_participant() -> RtpsDomainParticipant {
         #[derive(Default)]
-        struct MockTransport{
+        struct MockTransport {
             unicast_locator_list: Vec<Locator>,
             multicast_locator_list: Vec<Locator>,
         };
@@ -331,8 +332,7 @@ mod tests {
         let qos = None;
         let a_listener = None;
         let mask = 0;
-        let datawriter 
-            = publisher.create_datawriter::<TestType>(&topic, qos, a_listener, mask);
+        let datawriter = publisher.create_datawriter::<TestType>(&topic, qos, a_listener, mask);
 
         assert!(datawriter.is_some());
     }

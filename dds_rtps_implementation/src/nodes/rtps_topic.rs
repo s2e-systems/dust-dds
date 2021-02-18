@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{inner::rtps_topic_inner::RtpsTopicImpl, utils::node::Node};
+use crate::{inner::rtps_topic_inner::RtpsTopicImpl, rtps_domain_participant::RtpsDomainParticipant, utils::node::Node};
 use rust_dds_api::{
     dcps_psm::{InconsistentTopicStatus, InstanceHandle, StatusMask},
     dds_type::DDSType,
@@ -12,8 +12,6 @@ use rust_dds_api::{
     return_type::{DDSResult},
     topic::{topic::Topic, topic_description::TopicDescription, topic_listener::TopicListener},
 };
-
-use super::rtps_domain_participant::RtpsDomainParticipant;
 
 pub type RtpsTopic<'a, T> = Node<'a, &'a RtpsDomainParticipant, Arc<RtpsTopicImpl<T>>>;
 

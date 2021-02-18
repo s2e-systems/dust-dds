@@ -1,6 +1,6 @@
 use crate::{
-    inner::rtps_subscriber_inner::RtpsSubscriberInner, rtps_datareader::RtpsDataReader,
-    rtps_topic::RtpsTopic, utils::node::Node,
+    inner::rtps_subscriber_inner::RtpsSubscriberInner,
+    rtps_domain_participant::RtpsDomainParticipant, utils::node::Node,
 };
 use rust_dds_api::{
     dcps_psm::{
@@ -22,7 +22,7 @@ use rust_dds_api::{
     },
 };
 
-use super::rtps_domain_participant::RtpsDomainParticipant;
+use super::{rtps_datareader::RtpsDataReader, rtps_topic::RtpsTopic};
 
 pub type RtpsSubscriber<'a> = Node<'a, &'a RtpsDomainParticipant, RtpsSubscriberInner>;
 

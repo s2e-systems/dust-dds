@@ -22,10 +22,9 @@ use rust_dds_api::{
     topic::topic_description::TopicDescription,
 };
 
-use crate::{
-    inner::rtps_datareader_inner::RtpsDataReaderImpl, rtps_subscriber::RtpsSubscriber,
-    rtps_topic::RtpsTopic, utils::node::Node,
-};
+use crate::{inner::rtps_datareader_inner::RtpsDataReaderImpl, utils::node::Node};
+
+use super::{rtps_subscriber::RtpsSubscriber, rtps_topic::RtpsTopic};
 
 pub type RtpsDataReader<'a, T> =
     Node<'a, (&'a RtpsSubscriber<'a>, &'a RtpsTopic<'a, T>), RtpsDataReaderImpl<T>>;
