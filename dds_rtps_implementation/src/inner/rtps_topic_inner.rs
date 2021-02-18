@@ -98,3 +98,11 @@ impl<'a> RtpsTopicInnerRef<'a> {
 pub struct RtpsTopicImpl<T: DDSType>{
     phantom_data: PhantomData<T>,
 }
+
+impl<T: DDSType> RtpsTopicImpl<T> {
+    pub fn new() -> Self {
+        Self {
+            phantom_data: PhantomData
+        }
+    }
+}

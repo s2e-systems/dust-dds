@@ -24,12 +24,9 @@ use rust_dds_api::{
     topic::topic_description::TopicDescription,
 };
 
-use crate::{
-    inner::rtps_datareader_inner::RtpsDataReaderImpl, rtps_subscriber::RtpsSubscriber,
-    utils::node::Node,
-};
+use crate::{inner::rtps_datareader_inner::RtpsDataReaderImpl, rtps_subscriber::RtpsSubscriber, rtps_topic::RtpsTopic, utils::node::Node};
 
-pub type RtpsDataReader<'a, T: DDSType> = Node<'a, RtpsSubscriber<'a>, RtpsDataReaderImpl<T>>;
+pub type RtpsDataReader<'a, T> = Node<'a, (&'a RtpsSubscriber<'a>, &'a RtpsTopic<'a,T>), RtpsDataReaderImpl<T>>;
 
 impl<'a, T: DDSType> DataReader<'a, T> for RtpsDataReader<'a, T> {
     fn read(

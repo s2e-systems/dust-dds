@@ -3,12 +3,12 @@ use rust_dds_api::return_type::{DDSError, DDSResult};
 use crate::utils::maybe_valid::{MaybeValid, MaybeValidRef};
 
 pub struct Node<'a, P, I> {
-    parent: &'a P,
+    parent: P,
     impl_ref: MaybeValidRef<'a, I>,
 }
 
 impl<'a, P, I> Node<'a, P, I> {
-    pub fn new(parent: &'a P, impl_ref: MaybeValidRef<'a, I>,) -> Self {
+    pub fn new(parent: P, impl_ref: MaybeValidRef<'a, I>,) -> Self {
         Self {
             parent,
             impl_ref,
@@ -20,6 +20,6 @@ impl<'a, P, I> Node<'a, P, I> {
     }
 
     pub fn get_parent(&self) -> &P {
-        self.parent
+        &self.parent
     }
 }

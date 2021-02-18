@@ -24,7 +24,7 @@ use rust_dds_api::{
 
 use super::rtps_domain_participant::RtpsDomainParticipant;
 
-pub type RtpsSubscriber<'a> = Node<'a, RtpsDomainParticipant, RtpsSubscriberInner>;
+pub type RtpsSubscriber<'a> = Node<'a, &'a RtpsDomainParticipant, RtpsSubscriberInner>;
 
 impl<'a, T: DDSType> TopicGAT<'a, T> for RtpsSubscriber<'a> {
     type TopicType = RtpsTopic<'a, T>;

@@ -24,7 +24,7 @@ use crate::{
     rtps_topic::RtpsTopic, utils::node::Node,
 };
 
-pub type RtpsDataWriter<'a, T: DDSType> = Node<'a, RtpsPublisher<'a>, RtpsDataWriterImplPhantom<T>>;
+pub type RtpsDataWriter<'a, T> = Node<'a, (&'a RtpsPublisher<'a>, &'a RtpsTopic<'a, T>), RtpsDataWriterImplPhantom<T>>;
 
 impl<'a, T: DDSType> PublisherChild<'a> for RtpsDataWriter<'a, T> {
     type PublisherType = RtpsPublisher<'a>;

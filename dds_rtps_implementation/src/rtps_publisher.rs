@@ -15,12 +15,12 @@ use rust_dds_api::{
 };
 
 use crate::{
-    inner::rtps_publisher_inner::RtpsPublisherInner, rtps_topic::RtpsTopic, utils::node::Node,
+    inner::rtps_publisher_inner::RtpsPublisherImpl, rtps_topic::RtpsTopic, utils::node::Node,
 };
 
 use super::{rtps_datawriter::RtpsDataWriter, rtps_domain_participant::RtpsDomainParticipant};
 
-pub type RtpsPublisher<'a> = Node<'a, RtpsDomainParticipant, RtpsPublisherInner>;
+pub type RtpsPublisher<'a> = Node<'a, &'a RtpsDomainParticipant, RtpsPublisherImpl>;
 
 impl<'a, T: DDSType> TopicGAT<'a, T> for RtpsPublisher<'a> {
     type TopicType = RtpsTopic<'a, T>;
@@ -42,16 +42,14 @@ impl<'a> Publisher<'a> for RtpsPublisher<'a> {
         a_listener: Option<Box<dyn DataWriterListener<DataType = T>>>,
         mask: StatusMask,
     ) -> Option<<Self as DataWriterGAT<'a, T>>::DataWriterType> {
-        todo!()
-        // let data_writer_ref =
-        //     self.publisher_ref
-        //         .create_datawriter(&a_topic.topic_ref, qos, a_listener, mask)?;
+        let topic = a_topic.get_impl().ok()?;
 
-        // Some(RtpsDataWriter {
-        //     parent_publisher: self,
-        //     data_writer_ref,
-        //     phantom_data: PhantomData,
-        // })
+        let data_writer_ref = self
+            .get_impl()
+            .ok()?
+            .create_datawriter(topic, qos, a_listener, mask)?;
+
+        Some(RtpsDataWriter::new((self, a_topic), data_writer_ref))
     }
 
     fn delete_datawriter<T: DDSType>(
@@ -230,3 +228,107 @@ impl<'a> Entity for RtpsPublisher<'a> {
 //     self.create_datawriter::<T>(a_topic, qos, Statefulness::Stateless)
 // }
 // }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rust_dds_api::{
+        domain::domain_participant::DomainParticipant, infrastructure::qos::DomainParticipantQos,
+    };
+    use rust_rtps::transport::Transport;
+
+    struct TestType;
+
+    impl DDSType for TestType {
+        fn type_name() -> &'static str {
+            todo!()
+        }
+
+        fn has_key() -> bool {
+            todo!()
+        }
+
+        fn key(&self) -> Vec<u8> {
+            todo!()
+        }
+
+        fn serialize(&self) -> Vec<u8> {
+            todo!()
+        }
+
+        fn deserialize(_data: Vec<u8>) -> Self {
+            todo!()
+        }
+    }
+
+    fn create_test_participant() -> RtpsDomainParticipant {
+        struct MockTransport;
+
+        impl Transport for MockTransport {
+            fn write(
+                &self,
+                _message: rust_rtps::messages::RtpsMessage,
+                _destination_locator: &rust_rtps::types::Locator,
+            ) {
+                todo!()
+            }
+
+            fn read(
+                &self,
+            ) -> rust_rtps::transport::TransportResult<
+                Option<(rust_rtps::messages::RtpsMessage, rust_rtps::types::Locator)>,
+            > {
+                todo!()
+            }
+
+            fn unicast_locator_list(&self) -> &Vec<rust_rtps::types::Locator> {
+                todo!()
+            }
+
+            fn multicast_locator_list(&self) -> &Vec<rust_rtps::types::Locator> {
+                todo!()
+            }
+        }
+
+        let domain_id = 0;
+        let qos = DomainParticipantQos::default();
+        let userdata_transport = MockTransport;
+        let metatraffic_transport = MockTransport;
+        let a_listener = None;
+        let mask = 0;
+        RtpsDomainParticipant::new(
+            domain_id,
+            qos,
+            userdata_transport,
+            metatraffic_transport,
+            a_listener,
+            mask,
+        )
+    }
+
+    #[test]
+    fn create_datawriter_default_qos() {
+        let domain_participant = create_test_participant();
+        let qos = None;
+        let a_listener = None;
+        let mask = 0;
+        let publisher = domain_participant
+            .create_publisher(qos, a_listener, mask)
+            .expect("Error creating publisher");
+
+        let topic_name = "Test";
+        let qos = None;
+        let a_listener = None;
+        let mask = 0;
+        let topic = domain_participant
+            .create_topic(topic_name, qos, a_listener, mask)
+            .expect("Error creating topic");
+
+        let qos = None;
+        let a_listener = None;
+        let mask = 0;
+        let datawriter = publisher.create_datawriter::<TestType>(&topic, qos, a_listener, mask);
+
+        assert!(datawriter.is_some());
+    }
+}

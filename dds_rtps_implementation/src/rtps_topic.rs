@@ -15,7 +15,7 @@ use rust_dds_api::{
 
 use super::rtps_domain_participant::RtpsDomainParticipant;
 
-pub type RtpsTopic<'a, T: DDSType> = Node<'a, RtpsDomainParticipant, Arc<RtpsTopicImpl<T>>>;
+pub type RtpsTopic<'a, T> = Node<'a, &'a RtpsDomainParticipant, Arc<RtpsTopicImpl<T>>>;
 
 impl<'a, T: DDSType> DomainParticipantChild<'a> for RtpsTopic<'a, T> {
     type DomainParticipantType = RtpsDomainParticipant;
