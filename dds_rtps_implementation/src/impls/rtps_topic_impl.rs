@@ -130,3 +130,23 @@ impl<'a> RtpsTopicInnerRef<'a> {
         Ok(self.get()?.qos.lock().unwrap().clone())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn get_type_name(){
+        let entity_id = EntityId::new([1;3], ENTITY_KIND_USER_DEFINED_UNKNOWN);
+        let guid = GUID::new([1;12], entity_id);
+        let entity = Entity::new(guid);
+        let type_name = "TestType";
+        let topic_name = "TestTopic";
+        let qos = TopicQos::default();
+        let listener = None;
+        let status_mask = 0;
+        let topic = RtpsTopicImpl::new(entity, type_name, topic_name, qos, listener, status_mask);
+
+        assert_eq!(topic.get_type_name(), type_name);
+    }
+}
