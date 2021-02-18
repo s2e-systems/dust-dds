@@ -70,14 +70,12 @@ impl<'a, T: DDSType> Entity for RtpsTopic<'a, T> {
     type Qos = TopicQos;
     type Listener = Box<dyn TopicListener + 'a>;
 
-    fn set_qos(&self, _qos: Option<Self::Qos>) -> DDSResult<()> {
-        // self.topic_ref.set_qos(qos)
-        todo!()
+    fn set_qos(&self, qos: Option<Self::Qos>) -> DDSResult<()> {
+        self._impl()?.set_qos(qos)
     }
 
     fn get_qos(&self) -> DDSResult<Self::Qos> {
-        // self.topic_ref.get_qos()
-        todo!()
+        Ok(self._impl()?.get_qos())
     }
 
     fn set_listener(&self, _a_listener: Self::Listener, _mask: StatusMask) -> DDSResult<()> {

@@ -1,7 +1,4 @@
-use std::{
-    marker::PhantomData,
-    sync::{Arc, Mutex},
-};
+use std::sync::{Arc, Mutex};
 
 use rust_dds_api::{
     dcps_psm::StatusMask,
@@ -10,9 +7,10 @@ use rust_dds_api::{
     return_type::{DDSError, DDSResult},
     topic::topic_listener::TopicListener,
 };
-use rust_rtps::{structure::Entity, types::{
-    constants::ENTITY_KIND_USER_DEFINED_UNKNOWN, EntityId, GuidPrefix, TopicKind, GUID,
-}};
+use rust_rtps::{
+    structure::Entity,
+    types::{constants::ENTITY_KIND_USER_DEFINED_UNKNOWN, EntityId, GuidPrefix, TopicKind, GUID},
+};
 
 use crate::utils::maybe_valid::{MaybeValid, MaybeValidRef};
 
@@ -20,7 +18,7 @@ pub struct RtpsTopicImpl {
     entity: Entity,
     topic_name: String,
     type_name: &'static str,
-    qos: TopicQos,
+    qos: Mutex<TopicQos>,
     listener: Option<Box<dyn TopicListener>>,
     status_mask: StatusMask,
 }
@@ -38,7 +36,7 @@ impl RtpsTopicImpl {
             entity,
             topic_name: topic_name.to_string(),
             type_name,
-            qos,
+            qos: Mutex::new(qos),
             listener,
             status_mask,
         }
@@ -50,6 +48,17 @@ impl RtpsTopicImpl {
 
     pub fn get_name(&self) -> &str {
         &self.topic_name
+    }
+
+    pub fn set_qos(&self, qos: Option<TopicQos>) -> DDSResult<()> {
+        let qos = qos.unwrap_or_default();
+        qos.is_consistent()?;
+        *self.qos.lock().unwrap() = qos;
+        Ok(())
+    }
+
+    pub fn get_qos(&self) -> TopicQos {
+        self.qos.lock().unwrap().clone()
     }
 }
 
@@ -99,8 +108,6 @@ impl RtpsTopicInner {
     pub fn topic_kind(&self) -> TopicKind {
         self.topic_kind
     }
-
-    
 }
 
 pub type RtpsTopicInnerRef<'a> = MaybeValidRef<'a, Arc<RtpsTopicInner>>;
@@ -120,21 +127,6 @@ impl<'a> RtpsTopicInnerRef<'a> {
             ))
         }
     }
-
-    pub fn topic_kind(&self) -> DDSResult<TopicKind> {
-        Ok(self.get()?.topic_kind)
-    }
-
-    pub fn set_qos(&self, qos: Option<TopicQos>) -> DDSResult<()> {
-        let qos = qos.unwrap_or_default();
-        qos.is_consistent()?;
-        *self.get()?.qos.lock().unwrap() = qos;
-        Ok(())
-    }
-
-    pub fn get_qos(&self) -> DDSResult<TopicQos> {
-        Ok(self.get()?.qos.lock().unwrap().clone())
-    }
 }
 
 #[cfg(test)]
@@ -142,9 +134,9 @@ mod tests {
     use super::*;
 
     #[test]
-    fn get_type_name(){
-        let entity_id = EntityId::new([1;3], ENTITY_KIND_USER_DEFINED_UNKNOWN);
-        let guid = GUID::new([1;12], entity_id);
+    fn get_type_name() {
+        let entity_id = EntityId::new([1; 3], ENTITY_KIND_USER_DEFINED_UNKNOWN);
+        let guid = GUID::new([1; 12], entity_id);
         let entity = Entity::new(guid);
         let type_name = "TestType";
         let topic_name = "TestTopic";
@@ -157,9 +149,9 @@ mod tests {
     }
 
     #[test]
-    fn get_name(){
-        let entity_id = EntityId::new([1;3], ENTITY_KIND_USER_DEFINED_UNKNOWN);
-        let guid = GUID::new([1;12], entity_id);
+    fn get_name() {
+        let entity_id = EntityId::new([1; 3], ENTITY_KIND_USER_DEFINED_UNKNOWN);
+        let guid = GUID::new([1; 12], entity_id);
         let entity = Entity::new(guid);
         let type_name = "TestType";
         let topic_name = "TestTopic";
@@ -169,5 +161,56 @@ mod tests {
         let topic = RtpsTopicImpl::new(entity, type_name, topic_name, qos, listener, status_mask);
 
         assert_eq!(topic.get_name(), topic_name);
+    }
+
+    #[test]
+    fn get_qos() {
+        let entity_id = EntityId::new([1; 3], ENTITY_KIND_USER_DEFINED_UNKNOWN);
+        let guid = GUID::new([1; 12], entity_id);
+        let entity = Entity::new(guid);
+        let type_name = "TestType";
+        let topic_name = "TestTopic";
+        let mut qos = TopicQos::default();
+        qos.topic_data.value = vec![1,2,3,4];
+        let listener = None;
+        let status_mask = 0;
+        let topic = RtpsTopicImpl::new(entity, type_name, topic_name, qos.clone(), listener, status_mask);
+
+        assert_eq!(topic.get_qos(), qos);
+    }
+
+    #[test]
+    fn set_qos() {
+        let entity_id = EntityId::new([1; 3], ENTITY_KIND_USER_DEFINED_UNKNOWN);
+        let guid = GUID::new([1; 12], entity_id);
+        let entity = Entity::new(guid);
+        let type_name = "TestType";
+        let topic_name = "TestTopic";
+        let mut qos = TopicQos::default();
+        qos.topic_data.value = vec![1,2,3,4];
+        let listener = None;
+        let status_mask = 0;
+        let topic = RtpsTopicImpl::new(entity, type_name, topic_name, TopicQos::default(), listener, status_mask);
+
+        topic.set_qos(Some(qos.clone())).expect("Error setting Topic QoS");
+        assert_eq!(topic.get_qos(), qos);
+    }
+
+    #[test]
+    fn set_inconsistent_qos() {
+        let entity_id = EntityId::new([1; 3], ENTITY_KIND_USER_DEFINED_UNKNOWN);
+        let guid = GUID::new([1; 12], entity_id);
+        let entity = Entity::new(guid);
+        let type_name = "TestType";
+        let topic_name = "TestTopic";
+        let mut inconsistent_qos = TopicQos::default();
+        inconsistent_qos.resource_limits.max_samples_per_instance=10;
+        inconsistent_qos.resource_limits.max_samples = 5;
+        let listener = None;
+        let status_mask = 0;
+        let topic = RtpsTopicImpl::new(entity, type_name, topic_name, TopicQos::default(), listener, status_mask);
+        
+        let result = topic.set_qos(Some(inconsistent_qos));
+        assert_eq!(result, Err(DDSError::InconsistentPolicy));
     }
 }
