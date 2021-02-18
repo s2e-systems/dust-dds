@@ -27,7 +27,7 @@ use crate::{impls::rtps_datareader_inner::RtpsDataReaderImpl, utils::node::Node}
 use super::{rtps_subscriber::RtpsSubscriber, rtps_topic::RtpsTopic};
 
 pub type RtpsDataReader<'a, T> =
-    Node<'a, (&'a RtpsSubscriber<'a>, &'a RtpsTopic<'a, T>), RtpsDataReaderImpl<T>>;
+    Node<'a, (&'a RtpsSubscriber<'a>, &'a RtpsTopic<'a, T>), RtpsDataReaderImpl>;
 
 impl<'a, T: DDSType> DataReader<'a, T> for RtpsDataReader<'a, T> {
     fn read(

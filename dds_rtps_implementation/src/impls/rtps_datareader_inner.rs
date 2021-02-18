@@ -136,6 +136,4 @@ impl<'a> RtpsAnyDataReaderInnerRef<'a> {
     }
 }
 
-pub struct RtpsDataReaderImpl<T:DDSType> {
-    phantom_data: PhantomData<T>,
-}
+pub struct RtpsDataReaderImpl;

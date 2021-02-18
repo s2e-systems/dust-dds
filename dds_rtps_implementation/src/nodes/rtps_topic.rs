@@ -1,6 +1,9 @@
-use std::sync::Arc;
+use std::{marker::PhantomData, ops::Deref};
 
-use crate::{impls::rtps_topic_inner::RtpsTopicImpl, rtps_domain_participant::RtpsDomainParticipant, utils::node::Node};
+use crate::{
+    impls::rtps_topic_inner::RtpsTopicImpl, rtps_domain_participant::RtpsDomainParticipant,
+    utils::node::Node,
+};
 use rust_dds_api::{
     dcps_psm::{InconsistentTopicStatus, InstanceHandle, StatusMask},
     dds_type::DDSType,
@@ -9,11 +12,32 @@ use rust_dds_api::{
         entity::{Entity, StatusCondition},
         qos::TopicQos,
     },
-    return_type::{DDSResult},
+    return_type::DDSResult,
     topic::{topic::Topic, topic_description::TopicDescription, topic_listener::TopicListener},
 };
 
-pub type RtpsTopic<'a, T> = Node<'a, &'a RtpsDomainParticipant, Arc<RtpsTopicImpl<T>>>;
+pub struct RtpsTopic<'a, T> {
+    node: Node<'a, &'a RtpsDomainParticipant, RtpsTopicImpl>,
+    phantom_data: PhantomData<&'a T>,
+}
+
+impl<'a, T> RtpsTopic<'a, T> {
+    pub fn new(node: Node<'a, &'a RtpsDomainParticipant, RtpsTopicImpl>) -> Self {
+        Self {
+            node,
+            phantom_data: PhantomData,
+        }
+    }
+}
+
+impl<'a,T> Deref for RtpsTopic<'a, T>{
+    type Target = Node<'a, &'a RtpsDomainParticipant, RtpsTopicImpl>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.node
+    }
+}
+
 
 impl<'a, T: DDSType> DomainParticipantChild<'a> for RtpsTopic<'a, T> {
     type DomainParticipantType = RtpsDomainParticipant;
@@ -30,7 +54,7 @@ impl<'a, T: DDSType> Topic<'a> for RtpsTopic<'a, T> {
 
 impl<'a, T: DDSType> TopicDescription<'a> for RtpsTopic<'a, T> {
     fn get_participant(&self) -> &<Self as DomainParticipantChild<'a>>::DomainParticipantType {
-        &self.get_parent()
+        &self.node._parent()
     }
 
     fn get_type_name(&self) -> DDSResult<&str> {

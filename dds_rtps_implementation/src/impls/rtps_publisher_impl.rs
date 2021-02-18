@@ -13,9 +13,7 @@ use rust_rtps::{
     structure::Group,
     transport::Transport,
     types::{
-        constants::{
-            ENTITY_KIND_BUILT_IN_WRITER_GROUP, ENTITY_KIND_USER_DEFINED_WRITER_GROUP,
-        },
+        constants::{ENTITY_KIND_BUILT_IN_WRITER_GROUP, ENTITY_KIND_USER_DEFINED_WRITER_GROUP},
         EntityId, GuidPrefix, GUID,
     },
 };
@@ -28,6 +26,104 @@ use super::{
     },
     rtps_topic_inner::{RtpsTopicImpl, RtpsTopicInnerRef},
 };
+
+
+struct AtomicPublisherQos {
+
+}
+
+pub struct RtpsPublisherImpl {
+    group: Group,
+    default_datawriter_qos: DataWriterQos,
+    qos: Mutex<PublisherQos>,
+    listener: Option<Box<dyn PublisherListener>>,
+    status_mask: StatusMask,
+}
+
+impl RtpsPublisherImpl {
+    pub fn new(group: Group, qos: PublisherQos, listener: Option<Box<dyn PublisherListener>>, status_mask: StatusMask) -> Self {
+        Self{
+            group,
+            default_datawriter_qos: DataWriterQos::default(),
+            qos: Mutex::new(qos),
+            listener,
+            status_mask,
+        }
+    }
+
+    pub fn create_datawriter<'a, T: DDSType>(
+        &'a self,
+        _a_topic: &'a RtpsTopicImpl,
+        _qos: Option<DataWriterQos>,
+        _a_listener: Option<Box<dyn DataWriterListener<DataType = T>>>,
+        _mask: StatusMask,
+    ) -> Option<MaybeValidRef<'a, RtpsDataWriterImplPhantom<T>>> {
+        todo!()
+        // let topic = a_topic.get_impl().ok()?;
+        // let qos = qos.unwrap_or(self.default_datawriter_qos.lock().unwrap().clone());
+        // qos.is_consistent().ok()?;
+
+        // let entity_key = [
+        //     0,
+        //     self.writer_count.fetch_add(1, atomic::Ordering::Relaxed),
+        //     0,
+        // ];
+        // let guid_prefix = self.group.entity.guid.prefix();
+        // let entity_kind = match T::has_key() {
+        //     true => ENTITY_KIND_USER_DEFINED_WRITER_WITH_KEY,
+        //     false => ENTITY_KIND_USER_DEFINED_WRITER_NO_KEY,
+        // };
+        // let guid = GUID::new(guid_prefix, EntityId::new(entity_key, entity_kind));
+        // let unicast_locator_list = vec![];
+        // let multicast_locator_list = vec![];
+        // let topic_kind = match T::has_key() {
+        //     true => TopicKind::WithKey,
+        //     false => TopicKind::NoKey,
+        // };
+        // let reliability_level = match qos.reliability.kind {
+        //     ReliabilityQosPolicyKind::BestEffortReliabilityQos => ReliabilityKind::BestEffort,
+        //     ReliabilityQosPolicyKind::ReliableReliabilityQos => ReliabilityKind::Reliable,
+        // };
+        // let push_mode = true;
+        // let heartbeat_period = rust_rtps::behavior::types::Duration::from_millis(500);
+        // let nack_response_delay = rust_rtps::behavior::types::constants::DURATION_ZERO;
+        // let nack_suppression_duration = rust_rtps::behavior::types::constants::DURATION_ZERO;
+        // let data_max_sized_serialized = None;
+        // let stateful_writer = StatefulWriter::new(
+        //     guid,
+        //     unicast_locator_list,
+        //     multicast_locator_list,
+        //     topic_kind,
+        //     reliability_level,
+        //     push_mode,
+        //     heartbeat_period,
+        //     nack_response_delay,
+        //     nack_suppression_duration,
+        //     data_max_sized_serialized,
+        // );
+
+        // let data_writer_impl = RtpsDataWriterImpl::new(
+        //     RtpsWriterFlavor::Stateful(stateful_writer),
+        //     topic,
+        //     qos,
+        //     a_listener,
+        //     status_mask,
+        // );
+
+        // let data_writer_ref = self.writer_list.add(data_writer_impl);
+
+        // Some(RtpsDataWriter::new(parent_publisher, data_writer_ref))
+    }
+
+    pub fn get_qos(&self) -> PublisherQos {
+        self.qos.lock().unwrap().clone()
+    }
+
+    pub fn set_qos(&self, qos: Option<PublisherQos>) {
+        let qos = qos.unwrap_or_default();
+        *self.qos.lock().unwrap() = qos;
+    }
+}
 
 enum EntityType {
     BuiltIn,
@@ -235,74 +331,6 @@ impl<'a> RtpsPublisherInnerRef<'a> {
     }
 }
 
-pub struct RtpsPublisherImpl;
-
-impl RtpsPublisherImpl {
-    pub fn create_datawriter<'a, T: DDSType>(
-        &'a self,
-        _a_topic: &'a RtpsTopicImpl<T>,
-        _qos: Option<DataWriterQos>,
-        _a_listener: Option<Box<dyn DataWriterListener<DataType = T>>>,
-        _mask: StatusMask,
-    ) -> Option<MaybeValidRef<'a, RtpsDataWriterImplPhantom<T>>> {
-        todo!()
-        // let topic = a_topic.get_impl().ok()?;
-        // let qos = qos.unwrap_or(self.default_datawriter_qos.lock().unwrap().clone());
-        // qos.is_consistent().ok()?;
-
-        // let entity_key = [
-        //     0,
-        //     self.writer_count.fetch_add(1, atomic::Ordering::Relaxed),
-        //     0,
-        // ];
-        // let guid_prefix = self.group.entity.guid.prefix();
-        // let entity_kind = match T::has_key() {
-        //     true => ENTITY_KIND_USER_DEFINED_WRITER_WITH_KEY,
-        //     false => ENTITY_KIND_USER_DEFINED_WRITER_NO_KEY,
-        // };
-        // let guid = GUID::new(guid_prefix, EntityId::new(entity_key, entity_kind));
-        // let unicast_locator_list = vec![];
-        // let multicast_locator_list = vec![];
-        // let topic_kind = match T::has_key() {
-        //     true => TopicKind::WithKey,
-        //     false => TopicKind::NoKey,
-        // };
-        // let reliability_level = match qos.reliability.kind {
-        //     ReliabilityQosPolicyKind::BestEffortReliabilityQos => ReliabilityKind::BestEffort,
-        //     ReliabilityQosPolicyKind::ReliableReliabilityQos => ReliabilityKind::Reliable,
-        // };
-        // let push_mode = true;
-        // let heartbeat_period = rust_rtps::behavior::types::Duration::from_millis(500);
-        // let nack_response_delay = rust_rtps::behavior::types::constants::DURATION_ZERO;
-        // let nack_suppression_duration = rust_rtps::behavior::types::constants::DURATION_ZERO;
-        // let data_max_sized_serialized = None;
-        // let stateful_writer = StatefulWriter::new(
-        //     guid,
-        //     unicast_locator_list,
-        //     multicast_locator_list,
-        //     topic_kind,
-        //     reliability_level,
-        //     push_mode,
-        //     heartbeat_period,
-        //     nack_response_delay,
-        //     nack_suppression_duration,
-        //     data_max_sized_serialized,
-        // );
-
-        // let data_writer_impl = RtpsDataWriterImpl::new(
-        //     RtpsWriterFlavor::Stateful(stateful_writer),
-        //     topic,
-        //     qos,
-        //     a_listener,
-        //     status_mask,
-        // );
-
-        // let data_writer_ref = self.writer_list.add(data_writer_impl);
-
-        // Some(RtpsDataWriter::new(parent_publisher, data_writer_ref))
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -333,17 +361,17 @@ mod tests {
         }
     }
 
-    #[test]
-    fn create_datawriter_simple() {
-        let publisher_impl = RtpsPublisherImpl;
-        let a_topic = RtpsTopicImpl::new();
-        let qos = None;
-        let a_listener = None;
-        let mask = 0;
-        let data_writer =
-            publisher_impl.create_datawriter::<TestType>(&a_topic, qos, a_listener, mask);
-        assert!(data_writer.is_some());
-    }
+    // #[test]
+    // fn create_datawriter_simple() {
+    //     let publisher_impl = RtpsPublisherImpl::new();
+    //     let a_topic = RtpsTopicImpl::new();
+    //     let qos = None;
+    //     let a_listener = None;
+    //     let mask = 0;
+    //     let data_writer =
+    //         publisher_impl.create_datawriter::<TestType>(&a_topic, qos, a_listener, mask);
+    //     assert!(data_writer.is_some());
+    // }
     // #[test]
     // fn set_and_get_qos() {
     //     let publisher_list = MaybeValidList::default();

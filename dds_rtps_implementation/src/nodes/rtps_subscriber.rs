@@ -87,7 +87,7 @@ impl<'a> Subscriber<'a> for RtpsSubscriber<'a> {
     }
 
     fn get_participant(&self) -> &<Self as DomainParticipantChild<'a>>::DomainParticipantType {
-        &self.get_parent()
+        &self._parent()
     }
 
     fn get_sample_lost_status(&self, _status: &mut SampleLostStatus) -> DDSResult<()> {

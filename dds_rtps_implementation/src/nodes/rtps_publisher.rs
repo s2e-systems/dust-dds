@@ -43,14 +43,15 @@ impl<'a> Publisher<'a> for RtpsPublisher<'a> {
         a_listener: Option<Box<dyn DataWriterListener<DataType = T>>>,
         mask: StatusMask,
     ) -> Option<<Self as DataWriterGAT<'a, T>>::DataWriterType> {
-        let topic = a_topic.get_impl().ok()?;
+        todo!()
+        // let topic = a_topic._impl().ok()?;
 
-        let data_writer_ref = self
-            .get_impl()
-            .ok()?
-            .create_datawriter(topic, qos, a_listener, mask)?;
+        // let data_writer_ref = self
+        //     ._impl()
+        //     .ok()?
+        //     .create_datawriter(topic, qos, a_listener, mask)?;
 
-        Some(RtpsDataWriter::new((self, a_topic), data_writer_ref))
+        // Some(RtpsDataWriter::new((self, a_topic), data_writer_ref))
     }
 
     fn delete_datawriter<T: DDSType>(
@@ -89,7 +90,7 @@ impl<'a> Publisher<'a> for RtpsPublisher<'a> {
     }
 
     fn get_participant(&self) -> &<Self as DomainParticipantChild<'a>>::DomainParticipantType {
-        &self.get_parent()
+        &self._parent()
     }
 
     fn delete_contained_entities(&self) -> DDSResult<()> {
@@ -119,14 +120,12 @@ impl<'a> Entity for RtpsPublisher<'a> {
     type Qos = PublisherQos;
     type Listener = Box<dyn PublisherListener + 'a>;
 
-    fn set_qos(&self, _qos: Option<Self::Qos>) -> DDSResult<()> {
-        // self.publisher_ref.set_qos(qos)
-        todo!()
+    fn set_qos(&self, qos: Option<Self::Qos>) -> DDSResult<()> {
+        Ok(self._impl()?.set_qos(qos))
     }
 
     fn get_qos(&self) -> DDSResult<Self::Qos> {
-        // self.publisher_ref.get_qos()
-        todo!()
+        Ok(self._impl()?.get_qos().clone())
     }
 
     fn set_listener(&self, _a_listener: Self::Listener, _mask: StatusMask) -> DDSResult<()> {
@@ -242,7 +241,7 @@ mod tests {
 
     impl DDSType for TestType {
         fn type_name() -> &'static str {
-            todo!()
+            "TestType"
         }
 
         fn has_key() -> bool {

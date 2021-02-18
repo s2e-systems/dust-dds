@@ -19,12 +19,12 @@ use rust_dds_api::{
     topic::topic::Topic,
 };
 
-use crate::{impls::rtps_datawriter_impl::RtpsDataWriterImplPhantom, utils::node::Node};
+use crate::{impls::rtps_datawriter_impl::RtpsDataWriterImpl, utils::node::Node};
 
 use super::{rtps_publisher::RtpsPublisher, rtps_topic::RtpsTopic};
 
 pub type RtpsDataWriter<'a, T> =
-    Node<'a, (&'a RtpsPublisher<'a>, &'a RtpsTopic<'a, T>), RtpsDataWriterImplPhantom<T>>;
+    Node<'a, (&'a RtpsPublisher<'a>, &'a RtpsTopic<'a, T>), RtpsDataWriterImpl>;
 
 impl<'a, T: DDSType> PublisherChild<'a> for RtpsDataWriter<'a, T> {
     type PublisherType = RtpsPublisher<'a>;

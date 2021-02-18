@@ -5,6 +5,7 @@ use crate::utils::maybe_valid::{MaybeValid, MaybeValidRef};
 pub struct Node<'a, P, I> {
     parent: P,
     impl_ref: MaybeValidRef<'a, I>,
+    
 }
 
 impl<'a, P, I> Node<'a, P, I> {
@@ -15,11 +16,15 @@ impl<'a, P, I> Node<'a, P, I> {
         }
     }
 
-    pub fn get_impl(&self) -> DDSResult<&I> {
+    pub fn _impl(&self) -> DDSResult<&I> {
         MaybeValid::get(&self.impl_ref).ok_or(DDSError::AlreadyDeleted)
     }
 
-    pub fn get_parent(&self) -> &P {
+    pub fn _parent(&self) -> &P {
         &self.parent
+    }
+
+    pub fn _impl_ref(&self) -> &MaybeValidRef<'a, I> {
+        &self.impl_ref
     }
 }

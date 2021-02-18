@@ -95,14 +95,13 @@ impl<'a> RtpsTopicInnerRef<'a> {
     }
 }
 
-pub struct RtpsTopicImpl<T: DDSType>{
-    phantom_data: PhantomData<T>,
+#[derive(Clone)]
+pub struct RtpsTopicImpl{
 }
 
-impl<T: DDSType> RtpsTopicImpl<T> {
+impl RtpsTopicImpl {
     pub fn new() -> Self {
         Self {
-            phantom_data: PhantomData
         }
     }
 }
