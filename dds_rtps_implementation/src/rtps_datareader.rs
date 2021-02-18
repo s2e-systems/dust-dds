@@ -1,5 +1,3 @@
-use std::marker::PhantomData;
-
 use rust_dds_api::{
     builtin_topics::PublicationBuiltinTopicData,
     dcps_psm::{
@@ -24,9 +22,13 @@ use rust_dds_api::{
     topic::topic_description::TopicDescription,
 };
 
-use crate::{inner::rtps_datareader_inner::RtpsDataReaderImpl, rtps_subscriber::RtpsSubscriber, rtps_topic::RtpsTopic, utils::node::Node};
+use crate::{
+    inner::rtps_datareader_inner::RtpsDataReaderImpl, rtps_subscriber::RtpsSubscriber,
+    rtps_topic::RtpsTopic, utils::node::Node,
+};
 
-pub type RtpsDataReader<'a, T> = Node<'a, (&'a RtpsSubscriber<'a>, &'a RtpsTopic<'a,T>), RtpsDataReaderImpl<T>>;
+pub type RtpsDataReader<'a, T> =
+    Node<'a, (&'a RtpsSubscriber<'a>, &'a RtpsTopic<'a, T>), RtpsDataReaderImpl<T>>;
 
 impl<'a, T: DDSType> DataReader<'a, T> for RtpsDataReader<'a, T> {
     fn read(

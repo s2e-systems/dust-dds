@@ -48,7 +48,7 @@ impl<'a, T: DDSType> Entity for RtpsTopic<'a, T> {
     type Qos = TopicQos;
     type Listener = Box<dyn TopicListener + 'a>;
 
-    fn set_qos(&self, qos: Option<Self::Qos>) -> DDSResult<()> {
+    fn set_qos(&self, _qos: Option<Self::Qos>) -> DDSResult<()> {
         // self.topic_ref.set_qos(qos)
         todo!()
     }
@@ -80,17 +80,5 @@ impl<'a, T: DDSType> Entity for RtpsTopic<'a, T> {
 
     fn get_instance_handle(&self) -> DDSResult<InstanceHandle> {
         todo!()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn get_type_name() {
-        // let parent_participant = RtpsDomainParticipant::new(domain_id, qos, userdata_transport, metatraffic_transport, a_listener, mask);
-        // let topic_ref =
-        // let topic = RtpsTopic{parent_participant, topic_ref, phantom_data:PhantomData};
     }
 }

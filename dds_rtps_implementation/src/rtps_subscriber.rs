@@ -41,10 +41,10 @@ impl<'a> DomainParticipantChild<'a> for RtpsSubscriber<'a> {
 impl<'a> Subscriber<'a> for RtpsSubscriber<'a> {
     fn create_datareader<T: DDSType>(
         &'a self,
-        a_topic: &'a <Self as TopicGAT<'a, T>>::TopicType,
-        qos: Option<DataReaderQos>,
-        a_listener: Option<Box<dyn DataReaderListener<DataType = T>>>,
-        mask: StatusMask,
+        _a_topic: &'a <Self as TopicGAT<'a, T>>::TopicType,
+        _qos: Option<DataReaderQos>,
+        _a_listener: Option<Box<dyn DataReaderListener<DataType = T>>>,
+        _mask: StatusMask,
     ) -> Option<<Self as DataReaderGAT<'a, T>>::DataReaderType> {
         todo!()
         // let data_reader_ref =
@@ -61,7 +61,7 @@ impl<'a> Subscriber<'a> for RtpsSubscriber<'a> {
 
     fn delete_datareader<T: DDSType>(
         &'a self,
-        a_datareader: &'a <Self as DataReaderGAT<'a, T>>::DataReaderType,
+        _a_datareader: &'a <Self as DataReaderGAT<'a, T>>::DataReaderType,
     ) -> DDSResult<()> {
         // a_datareader.data_reader_ref.delete()
         todo!()

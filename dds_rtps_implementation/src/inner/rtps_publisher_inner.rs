@@ -3,36 +3,31 @@ use std::sync::{atomic, Mutex};
 use rust_dds_api::{
     dcps_psm::{InstanceHandle, StatusMask},
     dds_type::DDSType,
-    infrastructure::{
-        qos::{DataWriterQos, PublisherQos},
-        qos_policy::ReliabilityQosPolicyKind,
-    },
+    infrastructure::qos::{DataWriterQos, PublisherQos},
     publication::{
         data_writer_listener::DataWriterListener, publisher_listener::PublisherListener,
     },
-    return_type::{DDSError, DDSResult},
+    return_type::DDSResult,
 };
 use rust_rtps::{
-    behavior::StatefulWriter,
     structure::Group,
     transport::Transport,
     types::{
         constants::{
             ENTITY_KIND_BUILT_IN_WRITER_GROUP, ENTITY_KIND_USER_DEFINED_WRITER_GROUP,
-            ENTITY_KIND_USER_DEFINED_WRITER_NO_KEY, ENTITY_KIND_USER_DEFINED_WRITER_WITH_KEY,
         },
-        EntityId, GuidPrefix, ReliabilityKind, TopicKind, GUID,
+        EntityId, GuidPrefix, GUID,
     },
 };
 
-use crate::{
-    rtps_datawriter::RtpsDataWriter,
-    rtps_publisher::RtpsPublisher,
-    rtps_topic::RtpsTopic,
-    utils::maybe_valid::{MaybeValid, MaybeValidList, MaybeValidRef},
-};
+use crate::utils::maybe_valid::{MaybeValidList, MaybeValidRef};
 
-use super::{message_sender::RtpsMessageSender, rtps_datawriter_impl::{RtpsAnyDataWriterImplRef, RtpsDataWriterImpl, RtpsDataWriterImplPhantom, RtpsWriterFlavor}, rtps_topic_inner::{RtpsTopicImpl, RtpsTopicInnerRef}};
+use super::{
+    rtps_datawriter_impl::{
+        RtpsAnyDataWriterImplRef, RtpsDataWriterImpl, RtpsDataWriterImplPhantom,
+    },
+    rtps_topic_inner::{RtpsTopicImpl, RtpsTopicInnerRef},
+};
 
 enum EntityType {
     BuiltIn,
@@ -135,10 +130,10 @@ impl<'a> RtpsPublisherInnerRef<'a> {
 
     pub fn create_datawriter<T: DDSType>(
         &self,
-        a_topic: &RtpsTopicInnerRef,
-        qos: Option<DataWriterQos>,
-        a_listener: Option<Box<dyn DataWriterListener<DataType = T>>>,
-        status_mask: StatusMask,
+        _a_topic: &RtpsTopicInnerRef,
+        _qos: Option<DataWriterQos>,
+        _a_listener: Option<Box<dyn DataWriterListener<DataType = T>>>,
+        _status_mask: StatusMask,
     ) -> Option<RtpsAnyDataWriterImplRef> {
         // let this = self.get().ok()?;
         // let topic = a_topic.get().ok()?;
@@ -196,7 +191,7 @@ impl<'a> RtpsPublisherInnerRef<'a> {
         todo!()
     }
 
-    pub fn set_default_datawriter_qos(&self, qos: Option<DataWriterQos>) -> DDSResult<()> {
+    pub fn set_default_datawriter_qos(&self, _qos: Option<DataWriterQos>) -> DDSResult<()> {
         // let qos = qos.unwrap_or_default();
         // qos.is_consistent()?;
         // *self.get()?.default_datawriter_qos.lock().unwrap() = qos;
@@ -214,7 +209,7 @@ impl<'a> RtpsPublisherInnerRef<'a> {
         todo!()
     }
 
-    pub fn set_qos(&self, qos: Option<PublisherQos>) -> DDSResult<()> {
+    pub fn set_qos(&self, _qos: Option<PublisherQos>) -> DDSResult<()> {
         // let qos = qos.unwrap_or_default();
         // *self.get()?.qos.lock().unwrap() = qos;
         // Ok(())
@@ -225,7 +220,7 @@ impl<'a> RtpsPublisherInnerRef<'a> {
         todo!()
     }
 
-    pub fn send_data(&self, transport: &dyn Transport) {
+    pub fn send_data(&self, _transport: &dyn Transport) {
         // if let Some(publisher) = self.get().ok() {
         //     for writer in publisher.writer_list.into_iter() {
         //         let destined_messages = writer.produce_messages();
@@ -245,10 +240,10 @@ pub struct RtpsPublisherImpl;
 impl RtpsPublisherImpl {
     pub fn create_datawriter<'a, T: DDSType>(
         &'a self,
-        a_topic: &'a RtpsTopicImpl<T>,
-        qos: Option<DataWriterQos>,
-        a_listener: Option<Box<dyn DataWriterListener<DataType = T>>>,
-        mask: StatusMask,
+        _a_topic: &'a RtpsTopicImpl<T>,
+        _qos: Option<DataWriterQos>,
+        _a_listener: Option<Box<dyn DataWriterListener<DataType = T>>>,
+        _mask: StatusMask,
     ) -> Option<MaybeValidRef<'a, RtpsDataWriterImplPhantom<T>>> {
         todo!()
         // let topic = a_topic.get_impl().ok()?;
@@ -311,8 +306,8 @@ impl RtpsPublisherImpl {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rust_dds_api::{domain::domain_participant::DomainParticipant, infrastructure::qos_policy::ReliabilityQosPolicyKind};
-    use crate::utils::node::Node;
+    // use rust_dds_api::{domain::domain_participant::DomainParticipant, infrastructure::qos_policy::ReliabilityQosPolicyKind};
+    // use crate::utils::node::Node;
 
     struct TestType;
 
@@ -333,7 +328,7 @@ mod tests {
             todo!()
         }
 
-        fn deserialize(data: Vec<u8>) -> Self {
+        fn deserialize(_data: Vec<u8>) -> Self {
             todo!()
         }
     }
@@ -341,7 +336,7 @@ mod tests {
     #[test]
     fn create_datawriter_simple() {
         let publisher_impl = RtpsPublisherImpl;
-        let a_topic  = RtpsTopicImpl::new();
+        let a_topic = RtpsTopicImpl::new();
         let qos = None;
         let a_listener = None;
         let mask = 0;

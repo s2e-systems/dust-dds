@@ -9,7 +9,6 @@ use rust_rtps::behavior::Reader;
 use std::{marker::PhantomData, ops::{Deref, DerefMut}, sync::{Arc, Mutex, MutexGuard}};
 
 use crate::{
-    rtps_datareader::RtpsDataReader,
     utils::maybe_valid::{MaybeValid, MaybeValidRef},
 };
 
@@ -61,7 +60,7 @@ impl<T: DDSType> AnyRtpsDataReaderInner for RtpsDataReaderInner<T> {
         &mut self.qos
     }
 
-    fn on_data_available(&self, data_reader_ref: RtpsAnyDataReaderInnerRef) {
+    fn on_data_available(&self, _data_reader_ref: RtpsAnyDataReaderInnerRef) {
         // let the_reader = RtpsDataReader {
         //     parent_subscriber: None,
         //     data_reader_ref,

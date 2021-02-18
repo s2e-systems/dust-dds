@@ -54,7 +54,7 @@ impl<'a> Publisher<'a> for RtpsPublisher<'a> {
 
     fn delete_datawriter<T: DDSType>(
         &'a self,
-        a_datawriter: &'a <Self as DataWriterGAT<'a, T>>::DataWriterType,
+        _a_datawriter: &'a <Self as DataWriterGAT<'a, T>>::DataWriterType,
     ) -> DDSResult<()> {
         // a_datawriter.data_writer_ref.delete()
         todo!()
@@ -95,7 +95,7 @@ impl<'a> Publisher<'a> for RtpsPublisher<'a> {
         todo!()
     }
 
-    fn set_default_datawriter_qos(&self, qos: Option<DataWriterQos>) -> DDSResult<()> {
+    fn set_default_datawriter_qos(&self, _qos: Option<DataWriterQos>) -> DDSResult<()> {
         // self.publisher_ref.set_default_datawriter_qos(qos)
         todo!()
     }
@@ -118,7 +118,7 @@ impl<'a> Entity for RtpsPublisher<'a> {
     type Qos = PublisherQos;
     type Listener = Box<dyn PublisherListener + 'a>;
 
-    fn set_qos(&self, qos: Option<Self::Qos>) -> DDSResult<()> {
+    fn set_qos(&self, _qos: Option<Self::Qos>) -> DDSResult<()> {
         // self.publisher_ref.set_qos(qos)
         todo!()
     }

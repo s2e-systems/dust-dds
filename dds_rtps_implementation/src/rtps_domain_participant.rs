@@ -1,6 +1,5 @@
 use std::{
     cell::RefCell,
-    marker::PhantomData,
     sync::{atomic, Arc, Mutex, Once},
     thread::JoinHandle,
 };
@@ -18,7 +17,7 @@ use rust_dds_api::{
         qos::{DataWriterQos, DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
     },
     publication::publisher_listener::PublisherListener,
-    return_type::{DDSError, DDSResult},
+    return_type::{DDSResult},
     subscription::subscriber_listener::SubscriberListener,
     topic::{topic_description::TopicDescription, topic_listener::TopicListener},
 };
@@ -150,24 +149,24 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
 
     fn create_publisher(
         &'a self,
-        qos: Option<PublisherQos>,
-        a_listener: Option<Box<dyn PublisherListener>>,
-        mask: StatusMask,
+        _qos: Option<PublisherQos>,
+        _a_listener: Option<Box<dyn PublisherListener>>,
+        _mask: StatusMask,
     ) -> Option<Self::PublisherType> {
-        let entity_key = [
-            0,
-            self.publisher_count.fetch_add(1, atomic::Ordering::Relaxed),
-            0,
-        ];
+        // let entity_key = [
+        //     0,
+        //     self.publisher_count.fetch_add(1, atomic::Ordering::Relaxed),
+        //     0,
+        // ];
 
-        let qos = qos.unwrap_or(self.get_default_publisher_qos());
-        let guid_prefix = self.participant.entity.guid.prefix();
-        let publisher =
-            RtpsPublisherInner::new_user_defined(guid_prefix, entity_key, qos, a_listener, mask);
-        let publisher_ref = self
-            .user_defined_entities
-            .publisher_list
-            .add(Box::new(publisher))?;
+        // let qos = qos.unwrap_or(self.get_default_publisher_qos());
+        // let guid_prefix = self.participant.entity.guid.prefix();
+        // let publisher =
+        //     RtpsPublisherInner::new_user_defined(guid_prefix, entity_key, qos, a_listener, mask);
+        // let publisher_ref = self
+        //     .user_defined_entities
+        //     .publisher_list
+        //     .add(Box::new(publisher))?;
 
         todo!()
         // Some(RtpsPublisher {
@@ -176,7 +175,7 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
         // })
     }
 
-    fn delete_publisher(&self, a_publisher: &Self::PublisherType) -> DDSResult<()> {
+    fn delete_publisher(&self, _a_publisher: &Self::PublisherType) -> DDSResult<()> {
         // if std::ptr::eq(a_publisher.parent_participant, self) {
         //     a_publisher.publisher_ref.delete()
         // } else {
@@ -204,7 +203,7 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
         let guid_prefix = self.participant.entity.guid.prefix();
         let subscriber =
             RtpsSubscriberInner::new_user_defined(guid_prefix, entity_key, qos, a_listener, mask);
-        let subscriber_ref = self
+        let _subscriber_ref = self
             .user_defined_entities
             .subscriber_list
             .add(Box::new(subscriber))?;
@@ -216,7 +215,7 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
         // })
     }
 
-    fn delete_subscriber(&self, a_subscriber: &Self::SubscriberType) -> DDSResult<()> {
+    fn delete_subscriber(&self, _a_subscriber: &Self::SubscriberType) -> DDSResult<()> {
         // if std::ptr::eq(a_subscriber.parent_participant, self) {
         //     a_subscriber.subscriber_ref.delete()
         // } else {
@@ -252,7 +251,7 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
             a_listener,
             mask,
         );
-        let topic_ref = self.user_defined_entities.topic_list.add(Arc::new(topic))?;
+        let _topic_ref = self.user_defined_entities.topic_list.add(Arc::new(topic))?;
         // Some(RtpsTopic {
         //     parent_participant: self,
         //     topic_ref,
@@ -263,7 +262,7 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
 
     fn delete_topic<T: DDSType>(
         &'a self,
-        a_topic: &<Self as TopicGAT<'a, T>>::TopicType,
+        _a_topic: &<Self as TopicGAT<'a, T>>::TopicType,
     ) -> DDSResult<()> {
         // if std::ptr::eq(a_topic.parent_participant, self) {
         //     a_topic.topic_ref.delete()
