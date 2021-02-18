@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, ops::Deref};
+use std::marker::PhantomData;
 
 use crate::{
     impls::rtps_topic_impl::RtpsTopicImpl, rtps_domain_participant::RtpsDomainParticipant,
@@ -12,7 +12,7 @@ use rust_dds_api::{
         entity::{Entity, StatusCondition},
         qos::TopicQos,
     },
-    return_type::DDSResult,
+    return_type::{DDSError, DDSResult},
     topic::{topic::Topic, topic_description::TopicDescription, topic_listener::TopicListener},
 };
 
@@ -28,16 +28,11 @@ impl<'a, T> RtpsTopic<'a, T> {
             phantom_data: PhantomData,
         }
     }
-}
 
-impl<'a,T> Deref for RtpsTopic<'a, T>{
-    type Target = Node<'a, &'a RtpsDomainParticipant, RtpsTopicImpl>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.node
+    fn get(&self) -> DDSResult<&RtpsTopicImpl> {
+        self.node.get().ok_or(DDSError::AlreadyDeleted)
     }
 }
-
 
 impl<'a, T: DDSType> DomainParticipantChild<'a> for RtpsTopic<'a, T> {
     type DomainParticipantType = RtpsDomainParticipant;
@@ -54,15 +49,15 @@ impl<'a, T: DDSType> Topic<'a> for RtpsTopic<'a, T> {
 
 impl<'a, T: DDSType> TopicDescription<'a> for RtpsTopic<'a, T> {
     fn get_participant(&self) -> &<Self as DomainParticipantChild<'a>>::DomainParticipantType {
-        &self._parent()
+        &self.node.parent()
     }
 
     fn get_type_name(&self) -> DDSResult<&str> {
-        Ok(self._impl()?.get_type_name())
+        Ok(self.get()?.get_type_name())
     }
 
     fn get_name(&self) -> DDSResult<&str> {
-        Ok(self._impl()?.get_name())
+        Ok(self.get()?.get_name())
     }
 }
 
@@ -71,19 +66,19 @@ impl<'a, T: DDSType> Entity for RtpsTopic<'a, T> {
     type Listener = Box<dyn TopicListener>;
 
     fn set_qos(&self, qos: Option<Self::Qos>) -> DDSResult<()> {
-        self._impl()?.set_qos(qos)
+        self.get()?.set_qos(qos)
     }
 
     fn get_qos(&self) -> DDSResult<Self::Qos> {
-        Ok(self._impl()?.get_qos())
+        Ok(self.get()?.get_qos())
     }
 
     fn set_listener(&self, a_listener: Option<Self::Listener>, mask: StatusMask) -> DDSResult<()> {
-        Ok(self._impl()?.set_listener(a_listener, mask))
+        Ok(self.get()?.set_listener(a_listener, mask))
     }
 
     fn get_listener(&self) -> DDSResult<Option<Self::Listener>> {
-        Ok(self._impl()?.get_listener())
+        Ok(self.get()?.get_listener())
     }
 
     fn get_statuscondition(&self) -> StatusCondition {

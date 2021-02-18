@@ -188,7 +188,7 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
                 publisher_write_ref.set(publisher);
                 std::mem::drop(publisher_write_ref);
                 let publisher_ref = publisher_item.try_read()?;
-                return Some(RtpsPublisher::new(self, publisher_ref));
+                return Some(RtpsPublisher::new(Node::new(self, publisher_ref)));
             }
         }
         None
@@ -231,7 +231,7 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
                 subscriber_write_ref.set(subscriber);
                 std::mem::drop(subscriber_write_ref);
                 let subscriber_ref = subscriber_item.try_read()?;
-                return Some(RtpsSubscriber::new(self, subscriber_ref));
+                return Some(RtpsSubscriber::new(Node::new(self, subscriber_ref)));
             }
         }
         None
@@ -614,14 +614,9 @@ mod tests {
         let qos = Some(PublisherQos::default());
         let a_listener = None;
         let mask = 0;
-        let publisher = participant
+        let _publisher = participant
             .create_publisher(qos, a_listener, mask)
             .expect("Error creating publisher");
-
-        // assert!(participant
-        //     .user_defined_entities
-        //     .publisher_list
-        //     .contains(publisher._impl_ref()))
     }
 
     #[test]
@@ -673,7 +668,7 @@ mod tests {
         let qos = Some(SubscriberQos::default());
         let a_listener = None;
         let mask = 0;
-        let subscriber = participant
+        let _subscriber = participant
             .create_subscriber(qos, a_listener, mask)
             .expect("Error creating subscriber");
 
@@ -705,7 +700,7 @@ mod tests {
         let qos = Some(TopicQos::default());
         let a_listener = None;
         let mask = 0;
-        let topic = participant
+        let _topic = participant
             .create_topic::<TestType>(topic_name, qos, a_listener, mask)
             .expect("Error creating subscriber");
 

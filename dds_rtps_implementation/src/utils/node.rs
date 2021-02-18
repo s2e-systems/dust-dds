@@ -1,5 +1,3 @@
-use rust_dds_api::return_type::{DDSError, DDSResult};
-
 use super::shared_maybe_valid::MaybeValidReadRef;
 
 pub struct Node<'a, P, I> {
@@ -12,15 +10,15 @@ impl<'a, P, I> Node<'a, P, I> {
         Self { parent, impl_ref }
     }
 
-    pub fn _impl(&self) -> DDSResult<&I> {
-        self.impl_ref.get().ok_or(DDSError::AlreadyDeleted)
-    }
-
-    pub fn _parent(&self) -> &P {
+    pub fn parent(&self) -> &P {
         &self.parent
     }
 
-    pub fn _impl_ref(&self) -> &MaybeValidReadRef<'a, I> {
+    pub fn impl_ref(&self) -> &MaybeValidReadRef<'a, I> {
         &self.impl_ref
+    }
+
+    pub fn get(&self) -> Option<&I> {
+        self.impl_ref.get()
     }
 }

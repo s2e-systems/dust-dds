@@ -1,18 +1,11 @@
-use rust_dds_api::{
-    dcps_psm::{Duration, InstanceHandle, StatusMask},
-    dds_type::DDSType,
-    domain::domain_participant::{DomainParticipantChild, TopicGAT},
-    infrastructure::{
+use rust_dds_api::{dcps_psm::{Duration, InstanceHandle, StatusMask}, dds_type::DDSType, domain::domain_participant::{DomainParticipantChild, TopicGAT}, infrastructure::{
         entity::{Entity, StatusCondition},
         qos::{DataWriterQos, PublisherQos, TopicQos},
-    },
-    publication::{
+    }, publication::{
         data_writer_listener::DataWriterListener,
         publisher::{DataWriterGAT, Publisher},
         publisher_listener::PublisherListener,
-    },
-    return_type::DDSResult,
-};
+    }, return_type::{DDSError, DDSResult}};
 
 use crate::{
     impls::rtps_publisher_impl::RtpsPublisherImpl, rtps_domain_participant::RtpsDomainParticipant,
@@ -21,7 +14,17 @@ use crate::{
 
 use super::{rtps_datawriter::RtpsDataWriter, rtps_topic::RtpsTopic};
 
-pub type RtpsPublisher<'a> = Node<'a, &'a RtpsDomainParticipant, RtpsPublisherImpl>;
+pub struct RtpsPublisher<'a>(Node<'a, &'a RtpsDomainParticipant, RtpsPublisherImpl>);
+
+impl<'a> RtpsPublisher<'a> {
+    pub fn new(node: Node<'a, &'a RtpsDomainParticipant, RtpsPublisherImpl>) -> Self {
+        Self(node)
+    }
+
+    fn get(&self) -> DDSResult<&RtpsPublisherImpl> {
+        self.0.get().ok_or(DDSError::AlreadyDeleted)
+    }
+}
 
 impl<'a, T: DDSType> TopicGAT<'a, T> for RtpsPublisher<'a> {
     type TopicType = RtpsTopic<'a, T>;
@@ -90,7 +93,7 @@ impl<'a> Publisher<'a> for RtpsPublisher<'a> {
     }
 
     fn get_participant(&self) -> &<Self as DomainParticipantChild<'a>>::DomainParticipantType {
-        &self._parent()
+        &self.0.parent()
     }
 
     fn delete_contained_entities(&self) -> DDSResult<()> {
@@ -121,11 +124,11 @@ impl<'a> Entity for RtpsPublisher<'a> {
     type Listener = Box<dyn PublisherListener + 'a>;
 
     fn set_qos(&self, qos: Option<Self::Qos>) -> DDSResult<()> {
-        Ok(self._impl()?.set_qos(qos))
+        Ok(self.get()?.set_qos(qos))
     }
 
     fn get_qos(&self) -> DDSResult<Self::Qos> {
-        Ok(self._impl()?.get_qos().clone())
+        Ok(self.get()?.get_qos().clone())
     }
 
     fn set_listener(&self, _a_listener: Option<Self::Listener>, _mask: StatusMask) -> DDSResult<()> {

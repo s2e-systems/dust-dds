@@ -13,7 +13,7 @@ use rust_dds_api::{
         entity::{Entity, StatusCondition},
         qos::{DataReaderQos, SubscriberQos, TopicQos},
     },
-    return_type::DDSResult,
+    return_type::{DDSError, DDSResult},
     subscription::{
         data_reader::AnyDataReader,
         data_reader_listener::DataReaderListener,
@@ -24,7 +24,17 @@ use rust_dds_api::{
 
 use super::{rtps_datareader::RtpsDataReader, rtps_topic::RtpsTopic};
 
-pub type RtpsSubscriber<'a> = Node<'a, &'a RtpsDomainParticipant, RtpsSubscriberImpl>;
+pub struct RtpsSubscriber<'a>(Node<'a, &'a RtpsDomainParticipant, RtpsSubscriberImpl>);
+
+impl<'a> RtpsSubscriber<'a> {
+    pub fn new(node: Node<'a, &'a RtpsDomainParticipant, RtpsSubscriberImpl>) -> Self {
+        Self(node)
+    }
+
+    fn get(&self) -> DDSResult<&RtpsSubscriberImpl> {
+        self.0.get().ok_or(DDSError::AlreadyDeleted)
+    }
+}
 
 impl<'a, T: DDSType> TopicGAT<'a, T> for RtpsSubscriber<'a> {
     type TopicType = RtpsTopic<'a, T>;
@@ -87,7 +97,7 @@ impl<'a> Subscriber<'a> for RtpsSubscriber<'a> {
     }
 
     fn get_participant(&self) -> &<Self as DomainParticipantChild<'a>>::DomainParticipantType {
-        &self._parent()
+        &self.0.parent()
     }
 
     fn get_sample_lost_status(&self, _status: &mut SampleLostStatus) -> DDSResult<()> {
@@ -138,7 +148,11 @@ impl<'a> Entity for RtpsSubscriber<'a> {
         todo!()
     }
 
-    fn set_listener(&self, _a_listener: Option<Self::Listener>, _mask: StatusMask) -> DDSResult<()> {
+    fn set_listener(
+        &self,
+        _a_listener: Option<Self::Listener>,
+        _mask: StatusMask,
+    ) -> DDSResult<()> {
         todo!()
     }
 
