@@ -33,7 +33,7 @@ use rust_rtps::{
 };
 
 use crate::{
-    inner::{
+    impls::{
         rtps_datawriter_impl::{RtpsDataWriterImpl, RtpsWriterFlavor},
         rtps_publisher_inner::RtpsPublisherInner,
         rtps_subscriber_inner::RtpsSubscriberInner,
@@ -170,6 +170,12 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
         _a_listener: Option<Box<dyn PublisherListener>>,
         _mask: StatusMask,
     ) -> Option<Self::PublisherType> {
+
+        // Steps
+        //  1. Create the PublisherImpl
+        //  2. Store the PublisherImpl in a MaybeValid
+        //  3. Create and return the Node
+
         // let entity_key = [
         //     0,
         //     self.publisher_count.fetch_add(1, atomic::Ordering::Relaxed),
@@ -529,8 +535,61 @@ impl<'a> Drop for RtpsDomainParticipant {
 mod tests {
     use super::*;
 
+    #[derive(Default)]
+    struct MockTransport {
+        unicast_locator_list: Vec<Locator>,
+        multicast_locator_list: Vec<Locator>,
+    }
+
+    impl Transport for MockTransport {
+        fn write(
+            &self,
+            _message: rust_rtps::messages::RtpsMessage,
+            _destination_locator: &rust_rtps::types::Locator,
+        ) {
+            todo!()
+        }
+
+        fn read(
+            &self,
+        ) -> rust_rtps::transport::TransportResult<
+            Option<(rust_rtps::messages::RtpsMessage, rust_rtps::types::Locator)>,
+        > {
+            todo!()
+        }
+
+        fn unicast_locator_list(&self) -> &Vec<rust_rtps::types::Locator> {
+            &self.unicast_locator_list
+        }
+
+        fn multicast_locator_list(&self) -> &Vec<rust_rtps::types::Locator> {
+            &self.multicast_locator_list
+        }
+    }
+
     #[test]
     fn create_publisher_default_qos() {
-        let participant = RtpsDomainParticipant::new(domain_id, qos, userdata_transport, metatraffic_transport, a_listener, mask);
+        let domain_id = 0;
+        let qos = DomainParticipantQos::default();
+        let userdata_transport = MockTransport::default();
+        let metatraffic_transport = MockTransport::default();
+        let a_listener = None;
+        let mask = 0;
+
+        let participant = RtpsDomainParticipant::new(
+            domain_id,
+            qos,
+            userdata_transport,
+            metatraffic_transport,
+            a_listener,
+            mask,
+        );
+
+        let qos = None;
+        let a_listener = None;
+        let mask = 0;
+        let _publisher = participant
+            .create_publisher(qos, a_listener, mask)
+            .expect("Error creating publisher");
     }
 }

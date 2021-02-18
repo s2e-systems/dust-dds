@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{inner::rtps_topic_inner::RtpsTopicImpl, rtps_domain_participant::RtpsDomainParticipant, utils::node::Node};
+use crate::{impls::rtps_topic_inner::RtpsTopicImpl, rtps_domain_participant::RtpsDomainParticipant, utils::node::Node};
 use rust_dds_api::{
     dcps_psm::{InconsistentTopicStatus, InstanceHandle, StatusMask},
     dds_type::DDSType,

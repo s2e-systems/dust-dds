@@ -19,7 +19,7 @@ use rust_dds_api::{
     topic::topic::Topic,
 };
 
-use crate::{inner::rtps_datawriter_impl::RtpsDataWriterImplPhantom, utils::node::Node};
+use crate::{impls::rtps_datawriter_impl::RtpsDataWriterImplPhantom, utils::node::Node};
 
 use super::{rtps_publisher::RtpsPublisher, rtps_topic::RtpsTopic};
 

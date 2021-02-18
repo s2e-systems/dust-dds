@@ -1,5 +1,5 @@
 use crate::{
-    inner::rtps_subscriber_inner::RtpsSubscriberInner,
+    impls::rtps_subscriber_inner::RtpsSubscriberInner,
     rtps_domain_participant::RtpsDomainParticipant, utils::node::Node,
 };
 use rust_dds_api::{
