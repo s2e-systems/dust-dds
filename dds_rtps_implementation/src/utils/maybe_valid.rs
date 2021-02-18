@@ -22,25 +22,25 @@ impl<T> MaybeValid<T> {
         }
     }
 
-    pub fn get(this: &MaybeValid<T>) -> Option<&T> {
-        if MaybeValid::is_valid(this) {
-            Some(this.value.as_ref().unwrap())
+    pub fn is_valid(&self) -> bool {
+        self.valid.load(atomic::Ordering::Acquire)
+    }
+
+    pub fn get(&self) -> Option<&T> {
+        if self.is_valid() {
+            Some(self.value.as_ref().unwrap())
         } else {
             None
         }
     }
 
-    pub fn is_valid(this: &MaybeValid<T>) -> bool {
-        this.valid.load(atomic::Ordering::Acquire)
+    pub fn invalidate(&self) {
+        self.valid.store(false, atomic::Ordering::Release) // Inspired by std::sync::Arc
     }
 
-    pub fn delete(this: &MaybeValid<T>) {
-        this.valid.store(false, atomic::Ordering::Release) // Inspired by std::sync::Arc
-    }
-
-    pub fn initialize(this: &mut MaybeValid<T>, value: T) {
-        this.value = Some(value);
-        this.valid.store(true, atomic::Ordering::Release);
+    pub fn initialize(&mut self, value: T) {
+        self.value = Some(value);
+        self.valid.store(true, atomic::Ordering::Release);
     }
 }
 
@@ -138,7 +138,7 @@ mod tests {
     fn create_delete() {
         let object = MaybeValid::new(10);
         assert!(MaybeValid::get(&object).is_some());
-        MaybeValid::delete(&object);
+        object.invalidate();
         assert!(MaybeValid::get(&object).is_none());
     }
 
@@ -149,16 +149,16 @@ mod tests {
     }
 
     #[test]
-    fn value_deleted() {
+    fn value_invalidated() {
         let object = MaybeValid::new(100i32);
-        MaybeValid::delete(&object);
+        object.invalidate();
         assert!(MaybeValid::get(&object).is_none());
     }
 
     #[test]
-    fn value_deleted_and_initialized() {
+    fn value_invalidated_and_initialized() {
         let mut object = MaybeValid::new(100i32);
-        MaybeValid::delete(&object);
+        object.invalidate();
         MaybeValid::initialize(&mut object, -10i32);
         assert_eq!(MaybeValid::get(&object).unwrap(), &-10i32);
     }
