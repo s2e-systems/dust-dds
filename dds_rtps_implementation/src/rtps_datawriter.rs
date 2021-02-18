@@ -13,13 +13,13 @@ use rust_dds_api::{builtin_topics::SubscriptionBuiltinTopicData, dcps_psm::{
     }, return_type::DDSResult, topic::topic::Topic};
 
 use crate::{
-    inner::rtps_datawriter_inner::RtpsAnyDataWriterInnerRef, rtps_publisher::RtpsPublisher,
+    inner::rtps_datawriter_impl::RtpsAnyDataWriterImplRef, rtps_publisher::RtpsPublisher,
     rtps_topic::RtpsTopic,
 };
 
 pub struct RtpsDataWriter<'a, T: DDSType> {
     pub(crate) parent_publisher: &'a RtpsPublisher<'a>,
-    pub(crate) data_writer_ref: RtpsAnyDataWriterInnerRef<'a>,
+    pub(crate) data_writer_ref: RtpsAnyDataWriterImplRef<'a>,
     pub(crate) phantom_data: PhantomData<T>,
 }
 
