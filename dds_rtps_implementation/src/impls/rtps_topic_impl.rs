@@ -1,18 +1,13 @@
-use std::sync::{Arc, Mutex};
+use std::sync::Mutex;
 
 use rust_dds_api::{
-    dcps_psm::StatusMask,
-    dds_type::DDSType,
-    infrastructure::qos::TopicQos,
-    return_type::{DDSError, DDSResult},
+    dcps_psm::StatusMask, dds_type::DDSType, infrastructure::qos::TopicQos, return_type::DDSResult,
     topic::topic_listener::TopicListener,
 };
 use rust_rtps::{
     structure::Entity,
     types::{constants::ENTITY_KIND_USER_DEFINED_UNKNOWN, EntityId, GuidPrefix, TopicKind, GUID},
 };
-
-use crate::utils::maybe_valid::{MaybeValid, MaybeValidRef};
 
 use super::mask_listener::MaskListener;
 
@@ -116,30 +111,22 @@ impl RtpsTopicInner {
     pub fn topic_kind(&self) -> TopicKind {
         self.topic_kind
     }
-}
 
-pub type RtpsTopicInnerRef<'a> = MaybeValidRef<'a, Arc<RtpsTopicInner>>;
-
-impl<'a> RtpsTopicInnerRef<'a> {
-    pub fn get(&self) -> DDSResult<&Arc<RtpsTopicInner>> {
-        MaybeValid::get(self).ok_or(DDSError::AlreadyDeleted)
-    }
-
-    pub fn delete(&self) -> DDSResult<()> {
-        if Arc::strong_count(self.get()?) == 1 {
-            MaybeValid::delete(self);
-            Ok(())
-        } else {
-            Err(DDSError::PreconditionNotMet(
-                "Topic still attached to some data reader or data writer",
-            ))
-        }
-    }
+    // pub fn delete(&self) -> DDSResult<()> {
+    //     if Arc::strong_count(self.get()?) == 1 {
+    //         MaybeValid::delete(self);
+    //         Ok(())
+    //     } else {
+    //         Err(DDSError::PreconditionNotMet(
+    //             "Topic still attached to some data reader or data writer",
+    //         ))
+    //     }
+    // }
 }
 
 #[cfg(test)]
 mod tests {
-    use rust_dds_api::infrastructure::listener::Listener;
+    use rust_dds_api::{infrastructure::listener::Listener, return_type::DDSError};
 
     use super::*;
 

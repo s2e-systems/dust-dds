@@ -14,21 +14,29 @@ use rust_dds_api::{
     },
     infrastructure::{
         entity::{Entity, StatusCondition},
-        qos::{DataWriterQos, DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
+        qos::{DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
     },
     publication::publisher_listener::PublisherListener,
     return_type::DDSResult,
     subscription::subscriber_listener::SubscriberListener,
     topic::{topic_description::TopicDescription, topic_listener::TopicListener},
 };
-use rust_rtps::{behavior::stateless_writer::ReaderLocator, discovery::spdp_endpoints::SPDPbuiltinParticipantWriter, structure::Participant, transport::Transport, types::{EntityId, GUID, GuidPrefix, Locator, constants::{ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, ENTITY_KIND_BUILT_IN_READER_GROUP, ENTITY_KIND_BUILT_IN_WRITER_GROUP, ENTITY_KIND_USER_DEFINED_READER_GROUP, ENTITY_KIND_USER_DEFINED_UNKNOWN, PROTOCOL_VERSION_2_4, VENDOR_ID}}};
+use rust_rtps::{
+    structure::Participant,
+    transport::Transport,
+    types::{
+        constants::{
+            ENTITY_KIND_USER_DEFINED_READER_GROUP, ENTITY_KIND_USER_DEFINED_UNKNOWN,
+            PROTOCOL_VERSION_2_4, VENDOR_ID,
+        },
+        EntityId, GuidPrefix, GUID,
+    },
+};
 
 use crate::{
     impls::{
-        rtps_datawriter_impl::{RtpsDataWriterImpl, RtpsWriterFlavor},
-        rtps_publisher_impl::{RtpsPublisherImpl, RtpsPublisherInner},
-        rtps_subscriber_impl::{RtpsSubscriberImpl, RtpsSubscriberInner},
-        rtps_topic_impl::{RtpsTopicImpl, RtpsTopicInner},
+        rtps_publisher_impl::RtpsPublisherImpl, rtps_subscriber_impl::RtpsSubscriberImpl,
+        rtps_topic_impl::RtpsTopicImpl,
     },
     nodes::{
         rtps_publisher::RtpsPublisher, rtps_subscriber::RtpsSubscriber, rtps_topic::RtpsTopic,
@@ -201,7 +209,8 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
         let guid_prefix = self.participant.entity.guid.prefix();
         let entity_key = [
             0,
-            self.subscriber_count.fetch_add(1, atomic::Ordering::Relaxed),
+            self.subscriber_count
+                .fetch_add(1, atomic::Ordering::Relaxed),
             0,
         ];
         let entity_kind = ENTITY_KIND_USER_DEFINED_READER_GROUP;
@@ -407,7 +416,11 @@ impl Entity for RtpsDomainParticipant {
         Ok(self.qos.lock().unwrap().clone())
     }
 
-    fn set_listener(&self, _a_listener: Option<Self::Listener>, _mask: StatusMask) -> DDSResult<()> {
+    fn set_listener(
+        &self,
+        _a_listener: Option<Self::Listener>,
+        _mask: StatusMask,
+    ) -> DDSResult<()> {
         todo!()
     }
 
@@ -502,6 +515,8 @@ impl<'a> Drop for RtpsDomainParticipant {
 
 #[cfg(test)]
 mod tests {
+    use rust_rtps::types::Locator;
+
     use super::*;
 
     struct TestType;
