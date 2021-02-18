@@ -21,7 +21,7 @@ use rust_rtps::{
 
 use crate::utils::maybe_valid::{MaybeValid, MaybeValidRef};
 
-use super::{endpoint_traits::DestinedMessages, rtps_topic_inner::RtpsTopicInner};
+use super::{endpoint_traits::DestinedMessages, rtps_topic_impl::RtpsTopicInner};
 
 fn instance_handle_from_dds_type<T: DDSType>(data: T) -> rust_rtps::types::InstanceHandle {
     if data.key().is_empty() {

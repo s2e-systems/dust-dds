@@ -22,7 +22,7 @@ use crate::utils::maybe_valid::{MaybeValid, MaybeValidList, MaybeValidRef};
 use super::{
     rtps_datareader_inner::{RtpsAnyDataReaderInnerRef, RtpsDataReaderFlavor},
     rtps_stateful_datareader_inner::RtpsStatefulDataReaderInner,
-    rtps_topic_inner::RtpsTopicInnerRef,
+    rtps_topic_impl::RtpsTopicInnerRef,
 };
 
 pub struct RtpsSubscriberImpl{

@@ -1,7 +1,7 @@
 use std::{marker::PhantomData, ops::Deref};
 
 use crate::{
-    impls::rtps_topic_inner::RtpsTopicImpl, rtps_domain_participant::RtpsDomainParticipant,
+    impls::rtps_topic_impl::RtpsTopicImpl, rtps_domain_participant::RtpsDomainParticipant,
     utils::node::Node,
 };
 use rust_dds_api::{

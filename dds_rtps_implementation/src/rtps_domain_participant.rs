@@ -28,7 +28,7 @@ use crate::{
         rtps_datawriter_impl::{RtpsDataWriterImpl, RtpsWriterFlavor},
         rtps_publisher_impl::{RtpsPublisherImpl, RtpsPublisherInner},
         rtps_subscriber_impl::{RtpsSubscriberImpl, RtpsSubscriberInner},
-        rtps_topic_inner::{RtpsTopicImpl, RtpsTopicInner},
+        rtps_topic_impl::{RtpsTopicImpl, RtpsTopicInner},
     },
     nodes::{
         rtps_publisher::RtpsPublisher, rtps_subscriber::RtpsSubscriber, rtps_topic::RtpsTopic,

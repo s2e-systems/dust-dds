@@ -19,7 +19,7 @@ use rust_rtps::{
 
 use super::{
     rtps_datareader_inner::{AnyRtpsDataReaderInner, RtpsDataReaderInner},
-    rtps_topic_inner::RtpsTopicInner,
+    rtps_topic_impl::RtpsTopicInner,
 };
 
 pub struct RtpsStatelessDataReaderInner {

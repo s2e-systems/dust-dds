@@ -15,7 +15,7 @@ use crate::{
 use super::{
     rtps_stateful_datareader_inner::RtpsStatefulDataReaderInner,
     rtps_stateless_datareader_inner::RtpsStatelessDataReaderInner,
-    rtps_topic_inner::RtpsTopicInner,
+    rtps_topic_impl::RtpsTopicInner,
 };
 
 pub struct RtpsDataReaderInner<T: DDSType> {

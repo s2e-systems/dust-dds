@@ -24,7 +24,7 @@ use super::{
     rtps_datawriter_impl::{
         RtpsAnyDataWriterImplRef, RtpsDataWriterImpl, RtpsDataWriterImplPhantom,
     },
-    rtps_topic_inner::{RtpsTopicImpl, RtpsTopicInnerRef},
+    rtps_topic_impl::{RtpsTopicImpl, RtpsTopicInnerRef},
 };
 
 
