@@ -1,14 +1,14 @@
 use rust_dds_api::return_type::{DDSError, DDSResult};
 
-use crate::utils::maybe_valid::MaybeValidRef;
+use super::shared_maybe_valid::MaybeValidReadRef;
 
 pub struct Node<'a, P, I> {
     parent: P,
-    impl_ref: MaybeValidRef<'a, I>,
+    impl_ref: MaybeValidReadRef<'a, I>,
 }
 
 impl<'a, P, I> Node<'a, P, I> {
-    pub fn new(parent: P, impl_ref: MaybeValidRef<'a, I>) -> Self {
+    pub fn new(parent: P, impl_ref: MaybeValidReadRef<'a, I>) -> Self {
         Self { parent, impl_ref }
     }
 
@@ -20,7 +20,7 @@ impl<'a, P, I> Node<'a, P, I> {
         &self.parent
     }
 
-    pub fn _impl_ref(&self) -> &MaybeValidRef<'a, I> {
+    pub fn _impl_ref(&self) -> &MaybeValidReadRef<'a, I> {
         &self.impl_ref
     }
 }

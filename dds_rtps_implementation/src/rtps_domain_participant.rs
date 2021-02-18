@@ -33,16 +33,12 @@ use rust_rtps::{
     },
 };
 
-use crate::{
-    impls::{
+use crate::{impls::{
         rtps_publisher_impl::RtpsPublisherImpl, rtps_subscriber_impl::RtpsSubscriberImpl,
         rtps_topic_impl::RtpsTopicImpl,
-    },
-    nodes::{
+    }, nodes::{
         rtps_publisher::RtpsPublisher, rtps_subscriber::RtpsSubscriber, rtps_topic::RtpsTopic,
-    },
-    utils::{maybe_valid::MaybeValidList, node::Node},
-};
+    }, utils::{node::Node, shared_maybe_valid::SharedMaybeValid}};
 
 struct SpdpDiscoveredParticipantData {
     value: u8,
@@ -71,9 +67,9 @@ impl DDSType for SpdpDiscoveredParticipantData {
 }
 
 struct RtpsParticipantEntities {
-    publisher_list: MaybeValidList<RtpsPublisherImpl>,
-    subscriber_list: MaybeValidList<RtpsSubscriberImpl>,
-    topic_list: MaybeValidList<RtpsTopicImpl>,
+    publisher_list: [SharedMaybeValid<RtpsPublisherImpl>;32],
+    subscriber_list: [SharedMaybeValid<RtpsSubscriberImpl>;32],
+    topic_list: [SharedMaybeValid<RtpsTopicImpl>;32],
     transport: Box<dyn Transport>,
 }
 
