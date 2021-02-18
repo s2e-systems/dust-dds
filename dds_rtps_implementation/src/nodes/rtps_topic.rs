@@ -68,7 +68,7 @@ impl<'a, T: DDSType> TopicDescription<'a> for RtpsTopic<'a, T> {
 
 impl<'a, T: DDSType> Entity for RtpsTopic<'a, T> {
     type Qos = TopicQos;
-    type Listener = Box<dyn TopicListener + 'a>;
+    type Listener = Box<dyn TopicListener>;
 
     fn set_qos(&self, qos: Option<Self::Qos>) -> DDSResult<()> {
         self._impl()?.set_qos(qos)
@@ -78,12 +78,12 @@ impl<'a, T: DDSType> Entity for RtpsTopic<'a, T> {
         Ok(self._impl()?.get_qos())
     }
 
-    fn set_listener(&self, _a_listener: Option<Self::Listener>, _mask: StatusMask) -> DDSResult<()> {
-        todo!()
+    fn set_listener(&self, a_listener: Option<Self::Listener>, mask: StatusMask) -> DDSResult<()> {
+        Ok(self._impl()?.set_listener(a_listener, mask))
     }
 
     fn get_listener(&self) -> DDSResult<Option<Self::Listener>> {
-        todo!()
+        Ok(self._impl()?.get_listener())
     }
 
     fn get_statuscondition(&self) -> StatusCondition {

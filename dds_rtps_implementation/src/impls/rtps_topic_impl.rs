@@ -14,13 +14,14 @@ use rust_rtps::{
 
 use crate::utils::maybe_valid::{MaybeValid, MaybeValidRef};
 
+use super::mask_listener::MaskListener;
+
 pub struct RtpsTopicImpl {
     entity: Entity,
     topic_name: String,
     type_name: &'static str,
     qos: Mutex<TopicQos>,
-    listener: Option<Box<dyn TopicListener>>,
-    status_mask: StatusMask,
+    listener: Mutex<MaskListener<Box<dyn TopicListener>>>,
 }
 
 impl RtpsTopicImpl {
@@ -37,8 +38,7 @@ impl RtpsTopicImpl {
             topic_name: topic_name.to_string(),
             type_name,
             qos: Mutex::new(qos),
-            listener,
-            status_mask,
+            listener: Mutex::new(MaskListener::new(listener, status_mask)),
         }
     }
 
@@ -59,6 +59,14 @@ impl RtpsTopicImpl {
 
     pub fn get_qos(&self) -> TopicQos {
         self.qos.lock().unwrap().clone()
+    }
+
+    pub fn get_listener(&self) -> Option<Box<dyn TopicListener>> {
+        self.listener.lock().unwrap().take()
+    }
+
+    pub fn set_listener(&self, a_listener: Option<Box<dyn TopicListener>>, mask: StatusMask) {
+        self.listener.lock().unwrap().set(a_listener, mask)
     }
 }
 
@@ -131,6 +139,8 @@ impl<'a> RtpsTopicInnerRef<'a> {
 
 #[cfg(test)]
 mod tests {
+    use rust_dds_api::infrastructure::listener::Listener;
+
     use super::*;
 
     #[test]
@@ -171,10 +181,17 @@ mod tests {
         let type_name = "TestType";
         let topic_name = "TestTopic";
         let mut qos = TopicQos::default();
-        qos.topic_data.value = vec![1,2,3,4];
+        qos.topic_data.value = vec![1, 2, 3, 4];
         let listener = None;
         let status_mask = 0;
-        let topic = RtpsTopicImpl::new(entity, type_name, topic_name, qos.clone(), listener, status_mask);
+        let topic = RtpsTopicImpl::new(
+            entity,
+            type_name,
+            topic_name,
+            qos.clone(),
+            listener,
+            status_mask,
+        );
 
         assert_eq!(topic.get_qos(), qos);
     }
@@ -187,12 +204,21 @@ mod tests {
         let type_name = "TestType";
         let topic_name = "TestTopic";
         let mut qos = TopicQos::default();
-        qos.topic_data.value = vec![1,2,3,4];
+        qos.topic_data.value = vec![1, 2, 3, 4];
         let listener = None;
         let status_mask = 0;
-        let topic = RtpsTopicImpl::new(entity, type_name, topic_name, TopicQos::default(), listener, status_mask);
+        let topic = RtpsTopicImpl::new(
+            entity,
+            type_name,
+            topic_name,
+            TopicQos::default(),
+            listener,
+            status_mask,
+        );
 
-        topic.set_qos(Some(qos.clone())).expect("Error setting Topic QoS");
+        topic
+            .set_qos(Some(qos.clone()))
+            .expect("Error setting Topic QoS");
         assert_eq!(topic.get_qos(), qos);
     }
 
@@ -204,13 +230,61 @@ mod tests {
         let type_name = "TestType";
         let topic_name = "TestTopic";
         let mut inconsistent_qos = TopicQos::default();
-        inconsistent_qos.resource_limits.max_samples_per_instance=10;
+        inconsistent_qos.resource_limits.max_samples_per_instance = 10;
         inconsistent_qos.resource_limits.max_samples = 5;
         let listener = None;
         let status_mask = 0;
-        let topic = RtpsTopicImpl::new(entity, type_name, topic_name, TopicQos::default(), listener, status_mask);
-        
+        let topic = RtpsTopicImpl::new(
+            entity,
+            type_name,
+            topic_name,
+            TopicQos::default(),
+            listener,
+            status_mask,
+        );
+
         let result = topic.set_qos(Some(inconsistent_qos));
         assert_eq!(result, Err(DDSError::InconsistentPolicy));
+    }
+
+    #[test]
+    fn set_and_get_listener() {
+        struct TestListener;
+
+        impl Listener for TestListener {}
+
+        impl TopicListener for TestListener {
+            fn on_inconsistent_topic(
+                &self,
+                _the_topic: &dyn rust_dds_api::topic::topic::Topic,
+                _status: rust_dds_api::dcps_psm::InconsistentTopicStatus,
+            ) {
+                todo!()
+            }
+        }
+
+        let entity_id = EntityId::new([1; 3], ENTITY_KIND_USER_DEFINED_UNKNOWN);
+        let guid = GUID::new([1; 12], entity_id);
+        let entity = Entity::new(guid);
+        let type_name = "TestType";
+        let topic_name = "TestTopic";
+        let qos = TopicQos::default();
+        let listener = Box::new(TestListener);
+        let status_mask = 0;
+        let topic = RtpsTopicImpl::new(
+            entity,
+            type_name,
+            topic_name,
+            qos.clone(),
+            Some(listener),
+            status_mask,
+        );
+
+        assert!(topic.get_listener().is_some());
+        // Get listener is a take operation so it leaves no listener behind
+        assert!(topic.get_listener().is_none());
+
+        topic.set_listener(Some(Box::new(TestListener)), 10);
+        assert!(topic.get_listener().is_some());
     }
 }

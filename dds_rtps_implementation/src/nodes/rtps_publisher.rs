@@ -38,10 +38,10 @@ impl<'a> DomainParticipantChild<'a> for RtpsPublisher<'a> {
 impl<'a> Publisher<'a> for RtpsPublisher<'a> {
     fn create_datawriter<T: DDSType>(
         &'a self,
-        a_topic: &'a <Self as TopicGAT<'a, T>>::TopicType,
-        qos: Option<DataWriterQos>,
-        a_listener: Option<Box<dyn DataWriterListener<DataType = T>>>,
-        mask: StatusMask,
+        _a_topic: &'a <Self as TopicGAT<'a, T>>::TopicType,
+        _qos: Option<DataWriterQos>,
+        _a_listener: Option<Box<dyn DataWriterListener<DataType = T>>>,
+        _mask: StatusMask,
     ) -> Option<<Self as DataWriterGAT<'a, T>>::DataWriterType> {
         todo!()
         // let topic = a_topic._impl().ok()?;

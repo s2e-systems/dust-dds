@@ -11,7 +11,7 @@ use super::topic_listener::TopicListener;
 /// with a TypeSupport. TopicDescription has also a name that allows it to be retrieved locally.
 /// This class is an abstract class. It is the base class for Topic, ContentFilteredTopic, and MultiTopic.
 pub trait TopicDescription<'a>:
-    Entity<Qos = TopicQos, Listener = Box<dyn TopicListener + 'a>>
+    Entity<Qos = TopicQos, Listener = Box<dyn TopicListener>>
 {
     /// This operation returns the DomainParticipant to which the TopicDescription belongs
     fn get_participant(&self) -> &<Self as DomainParticipantChild<'a>>::DomainParticipantType
