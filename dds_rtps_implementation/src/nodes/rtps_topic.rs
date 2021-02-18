@@ -54,11 +54,11 @@ impl<'a, T: DDSType> Topic<'a> for RtpsTopic<'a, T> {
 
 impl<'a, T: DDSType> TopicDescription<'a> for RtpsTopic<'a, T> {
     fn get_participant(&self) -> &<Self as DomainParticipantChild<'a>>::DomainParticipantType {
-        &self.node._parent()
+        &self._parent()
     }
 
     fn get_type_name(&self) -> DDSResult<&str> {
-        todo!()
+        Ok(&self._impl()?.get_type_name())
     }
 
     fn get_name(&self) -> DDSResult<String> {

@@ -25,6 +25,26 @@ use super::{
     rtps_topic_inner::RtpsTopicInnerRef,
 };
 
+pub struct RtpsSubscriberImpl{
+    group: Group,
+    default_datareader_qos: DataReaderQos,
+    qos: Mutex<SubscriberQos>,
+    listener: Option<Box<dyn SubscriberListener>>,
+    status_mask: StatusMask,
+}
+
+impl RtpsSubscriberImpl {
+    pub fn new(group: Group, qos: SubscriberQos, listener: Option<Box<dyn SubscriberListener>>, status_mask: StatusMask) -> Self {
+        Self{
+            group,
+            default_datareader_qos: DataReaderQos::default(),
+            qos: Mutex::new(qos),
+            listener,
+            status_mask,
+        }
+    }
+}
+
 enum EntityType {
     BuiltIn,
     UserDefined,

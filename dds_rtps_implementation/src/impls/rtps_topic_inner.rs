@@ -1,4 +1,7 @@
-use std::{marker::PhantomData, sync::{Arc, Mutex}};
+use std::{
+    marker::PhantomData,
+    sync::{Arc, Mutex},
+};
 
 use rust_dds_api::{
     dcps_psm::StatusMask,
@@ -7,11 +10,44 @@ use rust_dds_api::{
     return_type::{DDSError, DDSResult},
     topic::topic_listener::TopicListener,
 };
-use rust_rtps::types::{
+use rust_rtps::{structure::Entity, types::{
     constants::ENTITY_KIND_USER_DEFINED_UNKNOWN, EntityId, GuidPrefix, TopicKind, GUID,
-};
+}};
 
 use crate::utils::maybe_valid::{MaybeValid, MaybeValidRef};
+
+pub struct RtpsTopicImpl {
+    entity: Entity,
+    topic_name: String,
+    type_name: &'static str,
+    qos: TopicQos,
+    listener: Option<Box<dyn TopicListener>>,
+    status_mask: StatusMask,
+}
+
+impl RtpsTopicImpl {
+    pub fn new(
+        entity: Entity,
+        type_name: &'static str,
+        topic_name: &str,
+        qos: TopicQos,
+        listener: Option<Box<dyn TopicListener>>,
+        status_mask: StatusMask,
+    ) -> Self {
+        Self {
+            entity,
+            topic_name: topic_name.to_string(),
+            type_name,
+            qos,
+            listener,
+            status_mask,
+        }
+    }
+
+    pub fn get_type_name(&self) -> &str {
+        self.type_name
+    }
+}
 
 fn topic_kind_from_dds_type<T: DDSType>() -> TopicKind {
     match T::has_key() {
@@ -92,16 +128,5 @@ impl<'a> RtpsTopicInnerRef<'a> {
 
     pub fn get_qos(&self) -> DDSResult<TopicQos> {
         Ok(self.get()?.qos.lock().unwrap().clone())
-    }
-}
-
-#[derive(Clone)]
-pub struct RtpsTopicImpl{
-}
-
-impl RtpsTopicImpl {
-    pub fn new() -> Self {
-        Self {
-        }
     }
 }

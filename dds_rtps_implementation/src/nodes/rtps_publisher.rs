@@ -331,8 +331,8 @@ mod tests {
         let qos = None;
         let a_listener = None;
         let mask = 0;
-        let datawriter = publisher.create_datawriter::<TestType>(&topic, qos, a_listener, mask);
+        let _datawriter = publisher.create_datawriter::<TestType>(&topic, qos, a_listener, mask).expect("Error creating data writer");
 
-        assert!(datawriter.is_some());
+        // assert!(datawriter.is_some());
     }
 }

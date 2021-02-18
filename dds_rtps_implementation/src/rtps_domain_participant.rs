@@ -21,11 +21,20 @@ use rust_dds_api::{
     subscription::subscriber_listener::SubscriberListener,
     topic::{topic_description::TopicDescription, topic_listener::TopicListener},
 };
-use rust_rtps::{behavior::stateless_writer::ReaderLocator, discovery::spdp_endpoints::SPDPbuiltinParticipantWriter, structure::Participant, transport::Transport, types::{EntityId, GUID, GuidPrefix, Locator, constants::{ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, ENTITY_KIND_BUILT_IN_WRITER_GROUP, PROTOCOL_VERSION_2_4, VENDOR_ID}}};
+use rust_rtps::{behavior::stateless_writer::ReaderLocator, discovery::spdp_endpoints::SPDPbuiltinParticipantWriter, structure::Participant, transport::Transport, types::{EntityId, GUID, GuidPrefix, Locator, constants::{ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER, ENTITY_KIND_BUILT_IN_READER_GROUP, ENTITY_KIND_BUILT_IN_WRITER_GROUP, ENTITY_KIND_USER_DEFINED_READER_GROUP, ENTITY_KIND_USER_DEFINED_UNKNOWN, PROTOCOL_VERSION_2_4, VENDOR_ID}}};
 
-use crate::{impls::{rtps_datawriter_impl::{RtpsDataWriterImpl, RtpsWriterFlavor}, rtps_publisher_impl::{RtpsPublisherImpl, RtpsPublisherInner}, rtps_subscriber_inner::RtpsSubscriberInner, rtps_topic_inner::{RtpsTopicImpl, RtpsTopicInner}}, nodes::{
+use crate::{
+    impls::{
+        rtps_datawriter_impl::{RtpsDataWriterImpl, RtpsWriterFlavor},
+        rtps_publisher_impl::{RtpsPublisherImpl, RtpsPublisherInner},
+        rtps_subscriber_impl::{RtpsSubscriberImpl, RtpsSubscriberInner},
+        rtps_topic_inner::{RtpsTopicImpl, RtpsTopicInner},
+    },
+    nodes::{
         rtps_publisher::RtpsPublisher, rtps_subscriber::RtpsSubscriber, rtps_topic::RtpsTopic,
-    }, utils::{maybe_valid::MaybeValidList, node::Node}};
+    },
+    utils::{maybe_valid::MaybeValidList, node::Node},
+};
 
 struct SpdpDiscoveredParticipantData {
     value: u8,
@@ -55,7 +64,7 @@ impl DDSType for SpdpDiscoveredParticipantData {
 
 struct RtpsParticipantEntities {
     publisher_list: MaybeValidList<RtpsPublisherImpl>,
-    subscriber_list: MaybeValidList<Box<RtpsSubscriberInner>>,
+    subscriber_list: MaybeValidList<RtpsSubscriberImpl>,
     topic_list: MaybeValidList<RtpsTopicImpl>,
     transport: Box<dyn Transport>,
 }
@@ -159,32 +168,14 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
             self.publisher_count.fetch_add(1, atomic::Ordering::Relaxed),
             0,
         ];
-        let entity_kind = ENTITY_KIND_BUILT_IN_WRITER_GROUP;
+        let entity_kind = ENTITY_KIND_USER_DEFINED_READER_GROUP;
         let entity_id = EntityId::new(entity_key, entity_kind);
         let guid = GUID::new(guid_prefix, entity_id);
         let group = rust_rtps::structure::Group::new(guid);
         let qos = qos.unwrap_or(self.get_default_publisher_qos());
         let publisher = RtpsPublisherImpl::new(group, qos, a_listener, mask);
 
-        // Steps
-        //  1. Create the PublisherImpl
-        //  2. Store the PublisherImpl in a MaybeValid
-        //  3. Create and return the Node
-
-        // let entity_key = [
-        //     0,
-        //     self.publisher_count.fetch_add(1, atomic::Ordering::Relaxed),
-        //     0,
-        // ];
-
-        
-        // let guid_prefix = self.participant.entity.guid.prefix();
-        // let publisher =
-        //     RtpsPublisherInner::new_user_defined(guid_prefix, entity_key, qos, a_listener, mask);
-        let publisher_ref = self
-            .user_defined_entities
-            .publisher_list
-            .add(publisher)?;
+        let publisher_ref = self.user_defined_entities.publisher_list.add(publisher)?;
 
         Some(RtpsPublisher::new(self, publisher_ref))
     }
@@ -207,26 +198,22 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
         a_listener: Option<Box<dyn SubscriberListener>>,
         mask: StatusMask,
     ) -> Option<Self::SubscriberType> {
+        let guid_prefix = self.participant.entity.guid.prefix();
         let entity_key = [
             0,
-            self.subscriber_count
-                .fetch_add(1, atomic::Ordering::Relaxed),
+            self.subscriber_count.fetch_add(1, atomic::Ordering::Relaxed),
             0,
         ];
+        let entity_kind = ENTITY_KIND_USER_DEFINED_READER_GROUP;
+        let entity_id = EntityId::new(entity_key, entity_kind);
+        let guid = GUID::new(guid_prefix, entity_id);
+        let group = rust_rtps::structure::Group::new(guid);
         let qos = qos.unwrap_or(self.get_default_subscriber_qos());
-        let guid_prefix = self.participant.entity.guid.prefix();
-        let subscriber =
-            RtpsSubscriberInner::new_user_defined(guid_prefix, entity_key, qos, a_listener, mask);
-        let _subscriber_ref = self
-            .user_defined_entities
-            .subscriber_list
-            .add(Box::new(subscriber))?;
+        let subscriber = RtpsSubscriberImpl::new(group, qos, a_listener, mask);
 
-        todo!()
-        // Some(RtpsSubscriber {
-        //     parent_participant: self,
-        //     subscriber_ref,
-        // })
+        let subscriber_ref = self.user_defined_entities.subscriber_list.add(subscriber)?;
+
+        Some(RtpsSubscriber::new(self, subscriber_ref))
     }
 
     fn delete_subscriber(&self, _a_subscriber: &Self::SubscriberType) -> DDSResult<()> {
@@ -247,27 +234,23 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
         a_listener: Option<Box<dyn TopicListener>>,
         mask: StatusMask,
     ) -> Option<<Self as TopicGAT<'a, T>>::TopicType> {
-        // let entity_key = [
-        //     0,
-        //     self.topic_count.fetch_add(1, atomic::Ordering::Relaxed),
-        //     0,
-        // ];
-        // let qos = qos.unwrap_or(self.get_default_topic_qos());
-        // qos.is_consistent().ok()?;
-        // let guid_prefix = self.participant.entity.guid.prefix();
-        // let topic = RtpsTopicImpl::new(
-        //     guid_prefix,
-        //     entity_key,
-        //     topic_name.clone().into(),
-        //     T::type_name(),
-        //     rust_rtps::types::TopicKind::WithKey,
-        //     qos,
-        //     a_listener,
-        //     mask,
-        // );
-        // let topic_ref = self.user_defined_entities.topic_list.add(topic)?;
-        // Some(RtpsTopic::new(Node::new(self,topic_ref)))
-        todo!()
+        let guid_prefix = self.participant.entity.guid.prefix();
+        let entity_key = [
+            0,
+            self.topic_count.fetch_add(1, atomic::Ordering::Relaxed),
+            0,
+        ];
+        let entity_kind = ENTITY_KIND_USER_DEFINED_UNKNOWN;
+        let entity_id = EntityId::new(entity_key, entity_kind);
+        let guid = GUID::new(guid_prefix, entity_id);
+        let entity = rust_rtps::structure::Entity::new(guid);
+        let type_name = T::type_name();
+        let qos = qos.unwrap_or(self.get_default_topic_qos());
+        let topic = RtpsTopicImpl::new(entity, type_name, topic_name, qos, a_listener, mask);
+
+        let topic_ref = self.user_defined_entities.topic_list.add(topic)?;
+
+        Some(RtpsTopic::new(Node::new(self, topic_ref)))
     }
 
     fn delete_topic<T: DDSType>(
@@ -477,7 +460,6 @@ impl Entity for RtpsDomainParticipant {
         //     spdp_announcer_qos.reliability.kind = rust_dds_api::infrastructure::qos_policy::ReliabilityQosPolicyKind::BestEffortReliabilityQos;
         //     let spdp_announcer = RtpsDataWriterImpl::new::<SpdpDiscoveredParticipantData>(RtpsWriterFlavor::Stateless(SPDPbuiltinParticipantWriter::new(guid_prefix, spdp_unicast_locator_list, spdp_multicast_locator_list, spdp_resend_period, spdp_reader_locators)), &spdp_topic, spdp_announcer_qos, None, 0);
 
-
         //     {
         //         let spdp_announcer_ref = builtin_publisher.writer_list().add(spdp_announcer).expect("Error adding SPDP writer to built_in publisher");
         //         spdp_announcer_ref.write_w_timestamp::<SpdpDiscoveredParticipantData>(SpdpDiscoveredParticipantData{value:5}, None, Time{sec:10, nanosec:0}).expect("Error announcing participant");
@@ -521,6 +503,30 @@ impl<'a> Drop for RtpsDomainParticipant {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    struct TestType;
+
+    impl DDSType for TestType {
+        fn type_name() -> &'static str {
+            "TestType"
+        }
+
+        fn has_key() -> bool {
+            todo!()
+        }
+
+        fn key(&self) -> Vec<u8> {
+            todo!()
+        }
+
+        fn serialize(&self) -> Vec<u8> {
+            todo!()
+        }
+
+        fn deserialize(data: Vec<u8>) -> Self {
+            todo!()
+        }
+    }
 
     #[derive(Default)]
     struct MockTransport {
@@ -579,7 +585,10 @@ mod tests {
             .create_publisher(qos, a_listener, mask)
             .expect("Error creating publisher");
 
-        assert!(participant.user_defined_entities.publisher_list.contains(publisher._impl_ref()))
+        assert!(participant
+            .user_defined_entities
+            .publisher_list
+            .contains(publisher._impl_ref()))
     }
 
     #[test]
@@ -607,6 +616,69 @@ mod tests {
             .create_publisher(qos, a_listener, mask)
             .expect("Error creating publisher");
 
-        assert_eq!(publisher.get_qos().unwrap(),PublisherQos::default());
+        assert_eq!(publisher.get_qos().unwrap(), PublisherQos::default());
+    }
+
+    #[test]
+    fn create_subscriber_creation_and_storage() {
+        let domain_id = 0;
+        let qos = DomainParticipantQos::default();
+        let userdata_transport = MockTransport::default();
+        let metatraffic_transport = MockTransport::default();
+        let a_listener = None;
+        let mask = 0;
+
+        let participant = RtpsDomainParticipant::new(
+            domain_id,
+            qos,
+            userdata_transport,
+            metatraffic_transport,
+            a_listener,
+            mask,
+        );
+
+        let qos = Some(SubscriberQos::default());
+        let a_listener = None;
+        let mask = 0;
+        let subscriber = participant
+            .create_subscriber(qos, a_listener, mask)
+            .expect("Error creating subscriber");
+
+        assert!(participant
+            .user_defined_entities
+            .subscriber_list
+            .contains(subscriber._impl_ref()))
+    }
+
+    #[test]
+    fn create_topic_creation_and_storage() {
+        let domain_id = 0;
+        let qos = DomainParticipantQos::default();
+        let userdata_transport = MockTransport::default();
+        let metatraffic_transport = MockTransport::default();
+        let a_listener = None;
+        let mask = 0;
+
+        let participant = RtpsDomainParticipant::new(
+            domain_id,
+            qos,
+            userdata_transport,
+            metatraffic_transport,
+            a_listener,
+            mask,
+        );
+
+        let topic_name = "Test";
+        let qos = Some(TopicQos::default());
+        let a_listener = None;
+        let mask = 0;
+        let topic = participant
+            .create_topic::<TestType>(topic_name, qos, a_listener, mask)
+            .expect("Error creating subscriber");
+
+        assert!(participant
+            .user_defined_entities
+            .topic_list
+            .contains(topic._impl_ref()))
     }
 }
