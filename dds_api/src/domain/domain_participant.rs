@@ -61,7 +61,7 @@ pub trait DomainParticipant<'a>:
     /// delete_publisher is called on a different DomainParticipant, the operation will have no effect and it will return
     /// PRECONDITION_NOT_MET.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
-    fn delete_publisher(&self, a_publisher: &Self::PublisherType) -> DDSResult<()>;
+    fn delete_publisher(&self, a_publisher: Self::PublisherType) -> DDSResult<()>;
 
     /// This operation creates a Subscriber with the desired QoS policies and attaches to it the specified SubscriberListener.
     /// If the specified QoS policies are not consistent, the operation will fail and no Subscriber will be created.
@@ -85,7 +85,7 @@ pub trait DomainParticipant<'a>:
     /// delete_subscriber is called on a different DomainParticipant, the operation will have no effect and it will return
     /// PRECONDITION_NOT_MET.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
-    fn delete_subscriber(&self, a_subscriber: &Self::SubscriberType) -> DDSResult<()>;
+    fn delete_subscriber(&self, a_subscriber: Self::SubscriberType) -> DDSResult<()>;
 
     /// This operation creates a Topic with the desired QoS policies and attaches to it the specified TopicListener.
     /// If the specified QoS policies are not consistent, the operation will fail and no Topic will be created.
@@ -116,7 +116,7 @@ pub trait DomainParticipant<'a>:
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
     fn delete_topic<T: DDSType>(
         &'a self,
-        a_topic: &<Self as TopicGAT<'a, T>>::TopicType,
+        a_topic: <Self as TopicGAT<'a, T>>::TopicType,
     ) -> DDSResult<()>
     where
         Self: TopicGAT<'a, T>;

@@ -71,7 +71,7 @@ impl<'a> Subscriber<'a> for RtpsSubscriber<'a> {
 
     fn delete_datareader<T: DDSType>(
         &'a self,
-        _a_datareader: &'a <Self as DataReaderGAT<'a, T>>::DataReaderType,
+        _a_datareader: <Self as DataReaderGAT<'a, T>>::DataReaderType,
     ) -> DDSResult<()> {
         // a_datareader.data_reader_ref.delete()
         todo!()

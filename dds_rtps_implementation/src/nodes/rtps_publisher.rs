@@ -60,7 +60,7 @@ impl<'a> Publisher<'a> for RtpsPublisher<'a> {
 
     fn delete_datawriter<T: DDSType>(
         &'a self,
-        _a_datawriter: &'a <Self as DataWriterGAT<'a, T>>::DataWriterType,
+        _a_datawriter: <Self as DataWriterGAT<'a, T>>::DataWriterType,
     ) -> DDSResult<()> {
         // a_datawriter.data_writer_ref.delete()
         todo!()

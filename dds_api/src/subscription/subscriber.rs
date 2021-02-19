@@ -85,7 +85,7 @@ pub trait Subscriber<'a>:
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
     fn delete_datareader<T: DDSType>(
         &'a self,
-        a_datareader: &'a <Self as DataReaderGAT<'a, T>>::DataReaderType,
+        a_datareader: <Self as DataReaderGAT<'a, T>>::DataReaderType,
     ) -> DDSResult<()>
     where
         Self: DataReaderGAT<'a, T> + Sized;

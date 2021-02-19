@@ -194,7 +194,7 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
         None
     }
 
-    fn delete_publisher(&self, a_publisher: &Self::PublisherType) -> DDSResult<()> {
+    fn delete_publisher(&self, a_publisher: Self::PublisherType) -> DDSResult<()> {
         if std::ptr::eq(a_publisher.get_participant(), self) {
             a_publisher.0.impl_ref().invalidate();
             Ok(())
@@ -236,7 +236,7 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
         None
     }
 
-    fn delete_subscriber(&self, _a_subscriber: &Self::SubscriberType) -> DDSResult<()> {
+    fn delete_subscriber(&self, _a_subscriber: Self::SubscriberType) -> DDSResult<()> {
         // if std::ptr::eq(a_subscriber.parent_participant, self) {
         //     a_subscriber.subscriber_ref.delete()
         // } else {
@@ -281,7 +281,7 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
 
     fn delete_topic<T: DDSType>(
         &'a self,
-        _a_topic: &<Self as TopicGAT<'a, T>>::TopicType,
+        _a_topic: <Self as TopicGAT<'a, T>>::TopicType,
     ) -> DDSResult<()> {
         // if std::ptr::eq(a_topic.parent_participant, self) {
         //     a_topic.topic_ref.delete()
@@ -642,7 +642,7 @@ mod tests {
         let a_publisher = participant.create_publisher(qos, a_listener, mask).unwrap();
 
         participant
-            .delete_publisher(&a_publisher)
+            .delete_publisher(a_publisher)
             .expect("Error deleting publisher");
     }
 
