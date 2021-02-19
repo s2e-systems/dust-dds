@@ -1,12 +1,15 @@
-use std::{convert::TryInto, sync::Arc};
+use std::{
+    convert::TryInto,
+    ops::{Deref, DerefMut},
+};
 
 use rust_dds_api::{
     dcps_psm::StatusMask, dds_type::DDSType, infrastructure::qos::DataWriterQos,
     publication::data_writer_listener::DataWriterListener,
 };
-use rust_rtps::behavior::{StatefulWriter, StatelessWriter};
+use rust_rtps::behavior::{StatefulWriter, StatelessWriter, Writer};
 
-use super::rtps_topic_impl::RtpsTopicInner;
+use super::{mask_listener::MaskListener, rtps_topic_impl::RtpsTopicImpl};
 
 fn instance_handle_from_dds_type<T: DDSType>(data: T) -> rust_rtps::types::InstanceHandle {
     if data.key().is_empty() {
@@ -19,68 +22,62 @@ fn instance_handle_from_dds_type<T: DDSType>(data: T) -> rust_rtps::types::Insta
 }
 
 struct RtpsDataWriterListener<T: DDSType>(Box<dyn DataWriterListener<DataType = T>>);
+trait AnyDataWriterListener: Send + Sync {}
 
-trait AnyRtpsDataWriterListener: Send + Sync {}
-
-impl<T: DDSType> AnyRtpsDataWriterListener for RtpsDataWriterListener<T> {}
+impl<T: DDSType> AnyDataWriterListener for RtpsDataWriterListener<T> {}
 
 pub enum RtpsWriterFlavor {
     Stateful(StatefulWriter),
     Stateless(StatelessWriter),
 }
 
-// impl Deref for RtpsWriterFlavor {
-//     type Target = Writer;
+impl Deref for RtpsWriterFlavor {
+    type Target = Writer;
 
-//     fn deref(&self) -> &Self::Target {
-//         match self {
-//             Self::Stateful(stateful_writer) => stateful_writer,
-//             Self::Stateless(stateless_writer) => stateless_writer,
-//         }
-//     }
-// }
+    fn deref(&self) -> &Self::Target {
+        match self {
+            Self::Stateful(stateful_writer) => stateful_writer,
+            Self::Stateless(stateless_writer) => stateless_writer,
+        }
+    }
+}
 
-// impl DerefMut for RtpsWriterFlavor {
-//     fn deref_mut(&mut self) -> &mut Self::Target {
-//         match self {
-//             Self::Stateful(stateful_writer) => stateful_writer,
-//             Self::Stateless(stateless_writer) => stateless_writer,
-//         }
-//     }
-// }
+impl DerefMut for RtpsWriterFlavor {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        match self {
+            Self::Stateful(stateful_writer) => stateful_writer,
+            Self::Stateless(stateless_writer) => stateless_writer,
+        }
+    }
+}
 
-// struct RtpsDataWriterInner {
-//     rtps_writer_flavor: RtpsWriterFlavor,
-//     topic: Option<Arc<RtpsTopicInner>>,
-//     qos: DataWriterQos,
-//     listener: Option<Box<dyn AnyRtpsDataWriterListener>>,
-//     status_mask: StatusMask,
-// }
-
-pub struct RtpsDataWriterImpl;
+pub struct RtpsDataWriterImpl {
+    rtps_writer_flavor: RtpsWriterFlavor,
+    topic: Option<RtpsTopicImpl>,
+    qos: DataWriterQos,
+    mask_listener: MaskListener<Box<dyn AnyDataWriterListener>>,
+}
 
 impl RtpsDataWriterImpl {
     pub fn new<T: DDSType>(
-        _rtps_writer_flavor: RtpsWriterFlavor,
-        _topic: &Arc<RtpsTopicInner>,
-        _qos: DataWriterQos,
-        _listener: Option<Box<dyn DataWriterListener<DataType = T>>>,
-        _status_mask: StatusMask,
+        rtps_writer_flavor: RtpsWriterFlavor,
+        topic: &RtpsTopicImpl,
+        qos: DataWriterQos,
+        listener: Option<Box<dyn DataWriterListener<DataType = T>>>,
+        status_mask: StatusMask,
     ) -> Self {
-        todo!()
-        // let topic = Some(topic.clone());
-        // let listener: Option<Box<dyn AnyRtpsDataWriterListener>> = match listener {
-        //     Some(listener) => Some(Box::new(RtpsDataWriterListener(listener))),
-        //     None => None,
-        // };
-
-        // Self(Mutex::new(RtpsDataWriterInner {
-        //     rtps_writer_flavor,
-        //     qos,
-        //     topic,
-        //     listener,
-        //     status_mask,
-        // }))
+        let topic = Some(topic.clone());
+        let listener: Option<Box<dyn AnyDataWriterListener>> = match listener {
+            Some(listener) => Some(Box::new(RtpsDataWriterListener(listener))),
+            None => None,
+        };
+        let mask_listener = MaskListener::new(listener, status_mask);
+        Self {
+            rtps_writer_flavor,
+            qos,
+            topic,
+            mask_listener,
+        }
     }
 }
 

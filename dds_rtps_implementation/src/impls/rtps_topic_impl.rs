@@ -1,4 +1,4 @@
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use rust_dds_api::{
     dcps_psm::StatusMask, dds_type::DDSType, infrastructure::qos::TopicQos, return_type::DDSResult,
@@ -11,13 +11,16 @@ use rust_rtps::{
 
 use super::mask_listener::MaskListener;
 
-pub struct RtpsTopicImpl {
+struct RtpsTopicDataMembers {
     entity: Entity,
     topic_name: String,
     type_name: &'static str,
     qos: Mutex<TopicQos>,
     listener: Mutex<MaskListener<Box<dyn TopicListener>>>,
 }
+
+#[derive(Clone)]
+pub struct RtpsTopicImpl(Arc<RtpsTopicDataMembers>);
 
 impl RtpsTopicImpl {
     pub fn new(
@@ -28,40 +31,40 @@ impl RtpsTopicImpl {
         listener: Option<Box<dyn TopicListener>>,
         status_mask: StatusMask,
     ) -> Self {
-        Self {
+        Self(Arc::new(RtpsTopicDataMembers {
             entity,
             topic_name: topic_name.to_string(),
             type_name,
             qos: Mutex::new(qos),
             listener: Mutex::new(MaskListener::new(listener, status_mask)),
-        }
+        }))
     }
 
     pub fn get_type_name(&self) -> &str {
-        self.type_name
+        self.0.type_name
     }
 
     pub fn get_name(&self) -> &str {
-        &self.topic_name
+        &self.0.topic_name
     }
 
     pub fn set_qos(&self, qos: Option<TopicQos>) -> DDSResult<()> {
         let qos = qos.unwrap_or_default();
         qos.is_consistent()?;
-        *self.qos.lock().unwrap() = qos;
+        *self.0.qos.lock().unwrap() = qos;
         Ok(())
     }
 
     pub fn get_qos(&self) -> TopicQos {
-        self.qos.lock().unwrap().clone()
+        self.0.qos.lock().unwrap().clone()
     }
 
     pub fn get_listener(&self) -> Option<Box<dyn TopicListener>> {
-        self.listener.lock().unwrap().take()
+        self.0.listener.lock().unwrap().take()
     }
 
     pub fn set_listener(&self, a_listener: Option<Box<dyn TopicListener>>, mask: StatusMask) {
-        self.listener.lock().unwrap().set(a_listener, mask)
+        self.0.listener.lock().unwrap().set(a_listener, mask)
     }
 }
 

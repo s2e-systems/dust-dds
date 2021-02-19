@@ -17,7 +17,7 @@ use rust_dds_api::{
 };
 
 pub struct RtpsTopic<'a, T> {
-    node: Node<'a, &'a RtpsDomainParticipant, RtpsTopicImpl>,
+    pub(crate) node: Node<'a, &'a RtpsDomainParticipant, RtpsTopicImpl>,
     phantom_data: PhantomData<&'a T>,
 }
 

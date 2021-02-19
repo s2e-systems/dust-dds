@@ -44,20 +44,18 @@ impl<'a> DomainParticipantChild<'a> for RtpsPublisher<'a> {
 impl<'a> Publisher<'a> for RtpsPublisher<'a> {
     fn create_datawriter<T: DDSType>(
         &'a self,
-        _a_topic: &'a <Self as TopicGAT<'a, T>>::TopicType,
-        _qos: Option<DataWriterQos>,
-        _a_listener: Option<Box<dyn DataWriterListener<DataType = T>>>,
-        _mask: StatusMask,
+        a_topic: &'a <Self as TopicGAT<'a, T>>::TopicType,
+        qos: Option<DataWriterQos>,
+        a_listener: Option<Box<dyn DataWriterListener<DataType = T>>>,
+        mask: StatusMask,
     ) -> Option<<Self as DataWriterGAT<'a, T>>::DataWriterType> {
-        todo!()
-        // let topic = a_topic._impl().ok()?;
+        let topic = a_topic.node.get()?;
 
-        // let data_writer_ref = self
-        //     ._impl()
-        //     .ok()?
-        //     .create_datawriter(topic, qos, a_listener, mask)?;
+        let data_writer_ref = self
+            .0.get()?
+            .create_datawriter(topic, qos, a_listener, mask)?;
 
-        // Some(RtpsDataWriter::new((self, a_topic), data_writer_ref))
+        Some(RtpsDataWriter::new((self, a_topic), data_writer_ref))
     }
 
     fn delete_datawriter<T: DDSType>(
@@ -255,7 +253,7 @@ mod tests {
         }
 
         fn has_key() -> bool {
-            todo!()
+            true
         }
 
         fn key(&self) -> Vec<u8> {
@@ -344,7 +342,5 @@ mod tests {
         let _datawriter = publisher
             .create_datawriter::<TestType>(&topic, qos, a_listener, mask)
             .expect("Error creating data writer");
-
-        // assert!(datawriter.is_some());
     }
 }

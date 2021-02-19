@@ -33,8 +33,8 @@ impl DDSType for HelloWorldType {
         todo!()
     }
 }
-#[test]
-fn hello_world() {
+
+fn main() {
     use rust_dds_api::infrastructure::entity::Entity;
     // use rust_dds_types::Time;
 
