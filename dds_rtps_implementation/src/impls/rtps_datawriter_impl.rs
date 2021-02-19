@@ -66,18 +66,19 @@ impl RtpsDataWriterImpl {
         listener: Option<Box<dyn DataWriterListener<DataType = T>>>,
         status_mask: StatusMask,
     ) -> Self {
-        let topic = Some(topic.clone());
-        let listener: Option<Box<dyn AnyDataWriterListener>> = match listener {
-            Some(listener) => Some(Box::new(RtpsDataWriterListener(listener))),
-            None => None,
-        };
-        let mask_listener = MaskListener::new(listener, status_mask);
-        Self {
-            rtps_writer_flavor,
-            qos,
-            topic,
-            mask_listener,
-        }
+        todo!()
+        // let topic = Some(topic.clone());
+        // let listener: Option<Box<dyn AnyDataWriterListener>> = match listener {
+        //     Some(listener) => Some(Box::new(RtpsDataWriterListener(listener))),
+        //     None => None,
+        // };
+        // let mask_listener = MaskListener::new(listener, status_mask);
+        // Self {
+        //     rtps_writer_flavor,
+        //     qos,
+        //     topic,
+        //     mask_listener,
+        // }
     }
 }
 

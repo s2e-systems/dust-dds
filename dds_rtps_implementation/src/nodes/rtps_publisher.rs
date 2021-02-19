@@ -11,7 +11,7 @@ use rust_dds_api::{
         publisher::{DataWriterGAT, Publisher},
         publisher_listener::PublisherListener,
     },
-    return_type::{DDSError, DDSResult},
+    return_type::DDSResult,
 };
 
 use crate::{
@@ -22,12 +22,6 @@ use crate::{
 use super::{rtps_datawriter::RtpsDataWriter, rtps_topic::RtpsTopic};
 
 pub struct RtpsPublisher<'a>(pub(crate) Node<'a, &'a RtpsDomainParticipant, RtpsPublisherImpl>);
-
-impl<'a> RtpsPublisher<'a> {
-    fn get(&self) -> DDSResult<&RtpsPublisherImpl> {
-        self.0.get().ok_or(DDSError::AlreadyDeleted)
-    }
-}
 
 impl<'a, T: DDSType> TopicGAT<'a, T> for RtpsPublisher<'a> {
     type TopicType = RtpsTopic<'a, T>;
@@ -49,13 +43,12 @@ impl<'a> Publisher<'a> for RtpsPublisher<'a> {
         a_listener: Option<Box<dyn DataWriterListener<DataType = T>>>,
         mask: StatusMask,
     ) -> Option<<Self as DataWriterGAT<'a, T>>::DataWriterType> {
-        let topic = a_topic.node.get()?;
+        // let topic = a_topic.node;
 
-        let data_writer_ref = self
-            .0.get()?
-            .create_datawriter(topic, qos, a_listener, mask)?;
+        todo!()
+        // let data_writer_ref = self.0.create_datawriter(topic, qos, a_listener, mask)?;
 
-        Some(RtpsDataWriter::new((self, a_topic), data_writer_ref))
+        // Some(RtpsDataWriter::new((self, a_topic), data_writer_ref))
     }
 
     fn delete_datawriter<T: DDSType>(
@@ -125,11 +118,11 @@ impl<'a> Entity for RtpsPublisher<'a> {
     type Listener = Box<dyn PublisherListener + 'a>;
 
     fn set_qos(&self, qos: Option<Self::Qos>) -> DDSResult<()> {
-        Ok(self.get()?.set_qos(qos))
+        Ok(self.0.set_qos(qos))
     }
 
     fn get_qos(&self) -> DDSResult<Self::Qos> {
-        Ok(self.get()?.get_qos().clone())
+        Ok(self.0.get_qos().clone())
     }
 
     fn set_listener(

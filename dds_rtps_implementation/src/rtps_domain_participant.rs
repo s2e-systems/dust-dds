@@ -33,16 +33,12 @@ use rust_rtps::{
     },
 };
 
-use crate::{
-    impls::{
+use crate::{impls::{
         rtps_publisher_impl::RtpsPublisherImpl, rtps_subscriber_impl::RtpsSubscriberImpl,
         rtps_topic_impl::RtpsTopicImpl,
-    },
-    nodes::{
+    }, nodes::{
         rtps_publisher::RtpsPublisher, rtps_subscriber::RtpsSubscriber, rtps_topic::RtpsTopic,
-    },
-    utils::{node::Node, shared_maybe_valid::SharedMaybeValid},
-};
+    }, utils::{node::Node, shared_option::SharedOption}};
 
 struct SpdpDiscoveredParticipantData {
     value: u8,
@@ -71,9 +67,9 @@ impl DDSType for SpdpDiscoveredParticipantData {
 }
 
 struct RtpsParticipantEntities {
-    publisher_list: [SharedMaybeValid<RtpsPublisherImpl>; 32],
-    subscriber_list: [SharedMaybeValid<RtpsSubscriberImpl>; 32],
-    topic_list: [SharedMaybeValid<RtpsTopicImpl>; 32],
+    publisher_list: [SharedOption<RtpsPublisherImpl>; 32],
+    subscriber_list: [SharedOption<RtpsSubscriberImpl>; 32],
+    topic_list: [SharedOption<RtpsTopicImpl>; 32],
     transport: Box<dyn Transport>,
 }
 
@@ -185,7 +181,7 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
 
         for publisher_item in self.user_defined_entities.publisher_list.iter() {
             if let Some(mut publisher_write_ref) = publisher_item.try_write() {
-                publisher_write_ref.set(publisher);
+                publisher_write_ref.replace(publisher);
                 std::mem::drop(publisher_write_ref);
                 let publisher_ref = publisher_item.try_read()?;
                 return Some(RtpsPublisher(Node::new(self, publisher_ref)));
@@ -196,8 +192,8 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
 
     fn delete_publisher(&self, a_publisher: Self::PublisherType) -> DDSResult<()> {
         if std::ptr::eq(a_publisher.get_participant(), self) {
-            a_publisher.0.impl_ref().invalidate();
-            Ok(())
+            todo!();
+            // Ok(())
         } else {
             Err(DDSError::PreconditionNotMet(
                 "Publisher can only be deleted from its parent participant",
@@ -227,7 +223,7 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
 
         for subscriber_item in self.user_defined_entities.subscriber_list.iter() {
             if let Some(mut subscriber_write_ref) = subscriber_item.try_write() {
-                subscriber_write_ref.set(subscriber);
+                subscriber_write_ref.replace(subscriber);
                 std::mem::drop(subscriber_write_ref);
                 let subscriber_ref = subscriber_item.try_read()?;
                 return Some(RtpsSubscriber::new(Node::new(self, subscriber_ref)));
@@ -270,7 +266,7 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
 
         for topic_item in self.user_defined_entities.topic_list.iter() {
             if let Some(mut topic_write_ref) = topic_item.try_write() {
-                topic_write_ref.set(topic);
+                topic_write_ref.replace(topic);
                 std::mem::drop(topic_write_ref);
                 let topic_ref = topic_item.try_read()?;
                 return Some(RtpsTopic::new(Node::new(self, topic_ref)));

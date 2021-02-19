@@ -28,10 +28,6 @@ impl<'a, T> RtpsTopic<'a, T> {
             phantom_data: PhantomData,
         }
     }
-
-    fn get(&self) -> DDSResult<&RtpsTopicImpl> {
-        self.node.get().ok_or(DDSError::AlreadyDeleted)
-    }
 }
 
 impl<'a, T: DDSType> DomainParticipantChild<'a> for RtpsTopic<'a, T> {
@@ -53,11 +49,11 @@ impl<'a, T: DDSType> TopicDescription<'a> for RtpsTopic<'a, T> {
     }
 
     fn get_type_name(&self) -> DDSResult<&str> {
-        Ok(self.get()?.get_type_name())
+        Ok(self.node.get_type_name())
     }
 
     fn get_name(&self) -> DDSResult<&str> {
-        Ok(self.get()?.get_name())
+        Ok(self.node.get_name())
     }
 }
 
@@ -66,19 +62,19 @@ impl<'a, T: DDSType> Entity for RtpsTopic<'a, T> {
     type Listener = Box<dyn TopicListener>;
 
     fn set_qos(&self, qos: Option<Self::Qos>) -> DDSResult<()> {
-        self.get()?.set_qos(qos)
+        self.node.set_qos(qos)
     }
 
     fn get_qos(&self) -> DDSResult<Self::Qos> {
-        Ok(self.get()?.get_qos())
+        Ok(self.node.get_qos())
     }
 
     fn set_listener(&self, a_listener: Option<Self::Listener>, mask: StatusMask) -> DDSResult<()> {
-        Ok(self.get()?.set_listener(a_listener, mask))
+        Ok(self.node.set_listener(a_listener, mask))
     }
 
     fn get_listener(&self) -> DDSResult<Option<Self::Listener>> {
-        Ok(self.get()?.get_listener())
+        Ok(self.node.get_listener())
     }
 
     fn get_statuscondition(&self) -> StatusCondition {

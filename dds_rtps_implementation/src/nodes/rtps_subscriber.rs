@@ -30,10 +30,6 @@ impl<'a> RtpsSubscriber<'a> {
     pub fn new(node: Node<'a, &'a RtpsDomainParticipant, RtpsSubscriberImpl>) -> Self {
         Self(node)
     }
-
-    fn get(&self) -> DDSResult<&RtpsSubscriberImpl> {
-        self.0.get().ok_or(DDSError::AlreadyDeleted)
-    }
 }
 
 impl<'a, T: DDSType> TopicGAT<'a, T> for RtpsSubscriber<'a> {
