@@ -1,11 +1,18 @@
-use rust_dds_api::{dcps_psm::{Duration, InstanceHandle, StatusMask}, dds_type::DDSType, domain::domain_participant::{DomainParticipantChild, TopicGAT}, infrastructure::{
+use rust_dds_api::{
+    dcps_psm::{Duration, InstanceHandle, StatusMask},
+    dds_type::DDSType,
+    domain::domain_participant::{DomainParticipantChild, TopicGAT},
+    infrastructure::{
         entity::{Entity, StatusCondition},
         qos::{DataWriterQos, PublisherQos, TopicQos},
-    }, publication::{
+    },
+    publication::{
         data_writer_listener::DataWriterListener,
         publisher::{DataWriterGAT, Publisher},
         publisher_listener::PublisherListener,
-    }, return_type::{DDSError, DDSResult}};
+    },
+    return_type::{DDSError, DDSResult},
+};
 
 use crate::{
     impls::rtps_publisher_impl::RtpsPublisherImpl, rtps_domain_participant::RtpsDomainParticipant,
@@ -14,13 +21,9 @@ use crate::{
 
 use super::{rtps_datawriter::RtpsDataWriter, rtps_topic::RtpsTopic};
 
-pub struct RtpsPublisher<'a>(Node<'a, &'a RtpsDomainParticipant, RtpsPublisherImpl>);
+pub struct RtpsPublisher<'a>(pub(crate) Node<'a, &'a RtpsDomainParticipant, RtpsPublisherImpl>);
 
 impl<'a> RtpsPublisher<'a> {
-    pub fn new(node: Node<'a, &'a RtpsDomainParticipant, RtpsPublisherImpl>) -> Self {
-        Self(node)
-    }
-
     fn get(&self) -> DDSResult<&RtpsPublisherImpl> {
         self.0.get().ok_or(DDSError::AlreadyDeleted)
     }
@@ -131,7 +134,11 @@ impl<'a> Entity for RtpsPublisher<'a> {
         Ok(self.get()?.get_qos().clone())
     }
 
-    fn set_listener(&self, _a_listener: Option<Self::Listener>, _mask: StatusMask) -> DDSResult<()> {
+    fn set_listener(
+        &self,
+        _a_listener: Option<Self::Listener>,
+        _mask: StatusMask,
+    ) -> DDSResult<()> {
         todo!()
     }
 
@@ -334,7 +341,9 @@ mod tests {
         let qos = None;
         let a_listener = None;
         let mask = 0;
-        let _datawriter = publisher.create_datawriter::<TestType>(&topic, qos, a_listener, mask).expect("Error creating data writer");
+        let _datawriter = publisher
+            .create_datawriter::<TestType>(&topic, qos, a_listener, mask)
+            .expect("Error creating data writer");
 
         // assert!(datawriter.is_some());
     }

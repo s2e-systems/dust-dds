@@ -16,8 +16,8 @@ use rust_dds_api::{
         entity::{Entity, StatusCondition},
         qos::{DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
     },
-    publication::publisher_listener::PublisherListener,
-    return_type::DDSResult,
+    publication::{publisher::Publisher, publisher_listener::PublisherListener},
+    return_type::{DDSError, DDSResult},
     subscription::subscriber_listener::SubscriberListener,
     topic::{topic_description::TopicDescription, topic_listener::TopicListener},
 };
@@ -188,22 +188,21 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
                 publisher_write_ref.set(publisher);
                 std::mem::drop(publisher_write_ref);
                 let publisher_ref = publisher_item.try_read()?;
-                return Some(RtpsPublisher::new(Node::new(self, publisher_ref)));
+                return Some(RtpsPublisher(Node::new(self, publisher_ref)));
             }
         }
         None
     }
 
-    fn delete_publisher(&self, _a_publisher: &Self::PublisherType) -> DDSResult<()> {
-        // if std::ptr::eq(a_publisher.parent_participant, self) {
-        //     a_publisher.publisher_ref.delete()
-        // } else {
-        //     Err(DDSError::PreconditionNotMet(
-        //         "Publisher can only be deleted from its parent participant",
-        //     ))
-        // }
-
-        todo!()
+    fn delete_publisher(&self, a_publisher: &Self::PublisherType) -> DDSResult<()> {
+        if std::ptr::eq(a_publisher.get_participant(), self) {
+            a_publisher.0.impl_ref().invalidate();
+            Ok(())
+        } else {
+            Err(DDSError::PreconditionNotMet(
+                "Publisher can only be deleted from its parent participant",
+            ))
+        }
     }
 
     fn create_subscriber(
@@ -594,7 +593,7 @@ mod tests {
     }
 
     #[test]
-    fn create_publisher_creation_and_storage() {
+    fn create_publisher() {
         let domain_id = 0;
         let qos = DomainParticipantQos::default();
         let userdata_transport = MockTransport::default();
@@ -614,9 +613,90 @@ mod tests {
         let qos = Some(PublisherQos::default());
         let a_listener = None;
         let mask = 0;
-        let _publisher = participant
+        participant
             .create_publisher(qos, a_listener, mask)
             .expect("Error creating publisher");
+    }
+
+    #[test]
+    fn create_delete_publisher() {
+        let domain_id = 0;
+        let qos = DomainParticipantQos::default();
+        let userdata_transport = MockTransport::default();
+        let metatraffic_transport = MockTransport::default();
+        let a_listener = None;
+        let mask = 0;
+
+        let participant = RtpsDomainParticipant::new(
+            domain_id,
+            qos,
+            userdata_transport,
+            metatraffic_transport,
+            a_listener,
+            mask,
+        );
+
+        let qos = Some(PublisherQos::default());
+        let a_listener = None;
+        let mask = 0;
+        let a_publisher = participant.create_publisher(qos, a_listener, mask).unwrap();
+
+        participant
+            .delete_publisher(&a_publisher)
+            .expect("Error deleting publisher");
+    }
+
+    #[test]
+    fn create_subscriber() {
+        let domain_id = 0;
+        let qos = DomainParticipantQos::default();
+        let userdata_transport = MockTransport::default();
+        let metatraffic_transport = MockTransport::default();
+        let a_listener = None;
+        let mask = 0;
+
+        let participant = RtpsDomainParticipant::new(
+            domain_id,
+            qos,
+            userdata_transport,
+            metatraffic_transport,
+            a_listener,
+            mask,
+        );
+
+        let qos = Some(SubscriberQos::default());
+        let a_listener = None;
+        let mask = 0;
+        participant
+            .create_subscriber(qos, a_listener, mask)
+            .expect("Error creating subscriber");
+    }
+
+    #[test]
+    fn create_topic() {
+        let domain_id = 0;
+        let qos = DomainParticipantQos::default();
+        let userdata_transport = MockTransport::default();
+        let metatraffic_transport = MockTransport::default();
+        let a_listener = None;
+        let mask = 0;
+
+        let participant = RtpsDomainParticipant::new(
+            domain_id,
+            qos,
+            userdata_transport,
+            metatraffic_transport,
+            a_listener,
+            mask,
+        );
+
+        let topic_name = "Test";
+        let qos = Some(TopicQos::default());
+        let a_listener = None;
+        let mask = 0;
+        participant
+            .create_topic::<TestType>(topic_name, qos, a_listener, mask)
+            .expect("Error creating topic");
     }
 
     #[test]
@@ -645,68 +725,5 @@ mod tests {
             .expect("Error creating publisher");
 
         assert_eq!(publisher.get_qos().unwrap(), PublisherQos::default());
-    }
-
-    #[test]
-    fn create_subscriber_creation_and_storage() {
-        let domain_id = 0;
-        let qos = DomainParticipantQos::default();
-        let userdata_transport = MockTransport::default();
-        let metatraffic_transport = MockTransport::default();
-        let a_listener = None;
-        let mask = 0;
-
-        let participant = RtpsDomainParticipant::new(
-            domain_id,
-            qos,
-            userdata_transport,
-            metatraffic_transport,
-            a_listener,
-            mask,
-        );
-
-        let qos = Some(SubscriberQos::default());
-        let a_listener = None;
-        let mask = 0;
-        let _subscriber = participant
-            .create_subscriber(qos, a_listener, mask)
-            .expect("Error creating subscriber");
-
-        // assert!(participant
-        //     .user_defined_entities
-        //     .subscriber_list
-        //     .contains(subscriber._impl_ref()))
-    }
-
-    #[test]
-    fn create_topic_creation_and_storage() {
-        let domain_id = 0;
-        let qos = DomainParticipantQos::default();
-        let userdata_transport = MockTransport::default();
-        let metatraffic_transport = MockTransport::default();
-        let a_listener = None;
-        let mask = 0;
-
-        let participant = RtpsDomainParticipant::new(
-            domain_id,
-            qos,
-            userdata_transport,
-            metatraffic_transport,
-            a_listener,
-            mask,
-        );
-
-        let topic_name = "Test";
-        let qos = Some(TopicQos::default());
-        let a_listener = None;
-        let mask = 0;
-        let _topic = participant
-            .create_topic::<TestType>(topic_name, qos, a_listener, mask)
-            .expect("Error creating subscriber");
-
-        // assert!(participant
-        //     .user_defined_entities
-        //     .topic_list
-        //     .contains(topic._impl_ref()))
     }
 }
