@@ -22,12 +22,17 @@ use rust_dds_api::{
     topic::topic_description::TopicDescription,
 };
 
-use crate::{impls::rtps_datareader_impl::RtpsDataReaderImpl, utils::node::Node};
+use crate::{
+    impls::rtps_datareader_impl::RtpsDataReaderImpl,
+    utils::{node::Node, shared_option::SharedOptionReadRef},
+};
 
 use super::{rtps_subscriber::RtpsSubscriber, rtps_topic::RtpsTopic};
 
-pub type RtpsDataReader<'a, T> =
-    Node<'a, (&'a RtpsSubscriber<'a>, &'a RtpsTopic<'a, T>), RtpsDataReaderImpl>;
+pub type RtpsDataReader<'a, T> = Node<
+    (&'a RtpsSubscriber<'a>, &'a RtpsTopic<'a, T>),
+    SharedOptionReadRef<'a, RtpsDataReaderImpl>,
+>;
 
 impl<'a, T: DDSType> DataReader<'a, T> for RtpsDataReader<'a, T> {
     fn read(
@@ -285,7 +290,11 @@ impl<'a, T: DDSType> Entity for RtpsDataReader<'a, T> {
         todo!()
     }
 
-    fn set_listener(&self, _a_listener: Option<Self::Listener>, _mask: StatusMask) -> DDSResult<()> {
+    fn set_listener(
+        &self,
+        _a_listener: Option<Self::Listener>,
+        _mask: StatusMask,
+    ) -> DDSResult<()> {
         todo!()
     }
 

@@ -1,25 +1,23 @@
-use std::sync::Mutex;
+use std::{marker::PhantomData, sync::Mutex};
 
 use rust_dds_api::{
     dcps_psm::StatusMask, dds_type::DDSType, infrastructure::qos::TopicQos, return_type::DDSResult,
     topic::topic_listener::TopicListener,
 };
-use rust_rtps::{
-    structure::Entity,
-    types::{constants::ENTITY_KIND_USER_DEFINED_UNKNOWN, EntityId, GuidPrefix, TopicKind, GUID},
-};
+use rust_rtps::structure::Entity;
 
 use super::mask_listener::MaskListener;
 
-pub struct RtpsTopicImpl {
+pub struct RtpsTopicImpl<'a, T: DDSType> {
     entity: Entity,
     topic_name: String,
     type_name: &'static str,
     qos: Mutex<TopicQos>,
     listener: Mutex<MaskListener<Box<dyn TopicListener>>>,
+    phantom_data: PhantomData<&'a T>,
 }
 
-impl RtpsTopicImpl {
+impl<'a, T: DDSType> RtpsTopicImpl<'a, T> {
     pub fn new(
         entity: Entity,
         type_name: &'static str,
@@ -34,6 +32,7 @@ impl RtpsTopicImpl {
             type_name,
             qos: Mutex::new(qos),
             listener: Mutex::new(MaskListener::new(listener, status_mask)),
+            phantom_data: PhantomData,
         }
     }
 
@@ -65,70 +64,95 @@ impl RtpsTopicImpl {
     }
 }
 
-fn topic_kind_from_dds_type<T: DDSType>() -> TopicKind {
-    match T::has_key() {
-        false => TopicKind::NoKey,
-        true => TopicKind::WithKey,
-    }
-}
+// fn topic_kind_from_dds_type<T: DDSType>() -> TopicKind {
+//     match T::has_key() {
+//         false => TopicKind::NoKey,
+//         true => TopicKind::WithKey,
+//     }
+// }
 
-pub struct RtpsTopicInner {
-    rtps_entity: rust_rtps::structure::Entity,
-    topic_name: String,
-    type_name: &'static str,
-    topic_kind: TopicKind,
-    qos: Mutex<TopicQos>,
-    listener: Option<Box<dyn TopicListener>>,
-    status_mask: StatusMask,
-}
+// pub struct RtpsTopicInner {
+//     rtps_entity: rust_rtps::structure::Entity,
+//     topic_name: String,
+//     type_name: &'static str,
+//     topic_kind: TopicKind,
+//     qos: Mutex<TopicQos>,
+//     listener: Option<Box<dyn TopicListener>>,
+//     status_mask: StatusMask,
+// }
 
-impl RtpsTopicInner {
-    pub fn new(
-        guid_prefix: GuidPrefix,
-        entity_key: [u8; 3],
-        topic_name: String,
-        type_name: &'static str,
-        topic_kind: TopicKind,
-        qos: TopicQos,
-        listener: Option<Box<dyn TopicListener>>,
-        status_mask: StatusMask,
-    ) -> Self {
-        let guid = GUID::new(
-            guid_prefix,
-            EntityId::new(entity_key, ENTITY_KIND_USER_DEFINED_UNKNOWN),
-        );
-        Self {
-            rtps_entity: rust_rtps::structure::Entity { guid },
-            topic_name,
-            type_name,
-            topic_kind,
-            qos: Mutex::new(qos),
-            listener,
-            status_mask,
-        }
-    }
+// impl RtpsTopicInner {
+//     pub fn new(
+//         guid_prefix: GuidPrefix,
+//         entity_key: [u8; 3],
+//         topic_name: String,
+//         type_name: &'static str,
+//         topic_kind: TopicKind,
+//         qos: TopicQos,
+//         listener: Option<Box<dyn TopicListener>>,
+//         status_mask: StatusMask,
+//     ) -> Self {
+//         let guid = GUID::new(
+//             guid_prefix,
+//             EntityId::new(entity_key, ENTITY_KIND_USER_DEFINED_UNKNOWN),
+//         );
+//         Self {
+//             rtps_entity: rust_rtps::structure::Entity { guid },
+//             topic_name,
+//             type_name,
+//             topic_kind,
+//             qos: Mutex::new(qos),
+//             listener,
+//             status_mask,
+//         }
+//     }
 
-    pub fn topic_kind(&self) -> TopicKind {
-        self.topic_kind
-    }
+//     pub fn topic_kind(&self) -> TopicKind {
+//         self.topic_kind
+//     }
 
-    // pub fn delete(&self) -> DDSResult<()> {
-    //     if Arc::strong_count(self.get()?) == 1 {
-    //         MaybeValid::delete(self);
-    //         Ok(())
-    //     } else {
-    //         Err(DDSError::PreconditionNotMet(
-    //             "Topic still attached to some data reader or data writer",
-    //         ))
-    //     }
-    // }
-}
+// pub fn delete(&self) -> DDSResult<()> {
+//     if Arc::strong_count(self.get()?) == 1 {
+//         MaybeValid::delete(self);
+//         Ok(())
+//     } else {
+//         Err(DDSError::PreconditionNotMet(
+//             "Topic still attached to some data reader or data writer",
+//         ))
+//     }
+// }
+// }
 
 #[cfg(test)]
 mod tests {
     use rust_dds_api::{infrastructure::listener::Listener, return_type::DDSError};
+    use rust_rtps::types::{constants::ENTITY_KIND_USER_DEFINED_UNKNOWN, EntityId, GUID};
 
     use super::*;
+
+    pub struct TestType(u8);
+
+    impl DDSType for TestType {
+        fn type_name() -> &'static str {
+            "TestType"
+        }
+
+        fn has_key() -> bool {
+            true
+        }
+
+        fn key(&self) -> Vec<u8> {
+            todo!()
+        }
+
+        fn serialize(&self) -> Vec<u8> {
+            todo!()
+        }
+
+        fn deserialize(_data: Vec<u8>) -> Self {
+            todo!()
+        }
+    }
 
     #[test]
     fn get_type_name() {
@@ -140,7 +164,7 @@ mod tests {
         let qos = TopicQos::default();
         let listener = None;
         let status_mask = 0;
-        let topic = RtpsTopicImpl::new(entity, type_name, topic_name, qos, listener, status_mask);
+        let topic = RtpsTopicImpl::<TestType>::new(entity, type_name, topic_name, qos, listener, status_mask);
 
         assert_eq!(topic.get_type_name(), type_name);
     }
@@ -155,7 +179,7 @@ mod tests {
         let qos = TopicQos::default();
         let listener = None;
         let status_mask = 0;
-        let topic = RtpsTopicImpl::new(entity, type_name, topic_name, qos, listener, status_mask);
+        let topic = RtpsTopicImpl::<TestType>::new(entity, type_name, topic_name, qos, listener, status_mask);
 
         assert_eq!(topic.get_name(), topic_name);
     }
@@ -171,7 +195,7 @@ mod tests {
         qos.topic_data.value = vec![1, 2, 3, 4];
         let listener = None;
         let status_mask = 0;
-        let topic = RtpsTopicImpl::new(
+        let topic = RtpsTopicImpl::<TestType>::new(
             entity,
             type_name,
             topic_name,
@@ -194,7 +218,7 @@ mod tests {
         qos.topic_data.value = vec![1, 2, 3, 4];
         let listener = None;
         let status_mask = 0;
-        let topic = RtpsTopicImpl::new(
+        let topic = RtpsTopicImpl::<TestType>::new(
             entity,
             type_name,
             topic_name,
@@ -221,7 +245,7 @@ mod tests {
         inconsistent_qos.resource_limits.max_samples = 5;
         let listener = None;
         let status_mask = 0;
-        let topic = RtpsTopicImpl::new(
+        let topic = RtpsTopicImpl::<TestType>::new(
             entity,
             type_name,
             topic_name,
@@ -258,7 +282,7 @@ mod tests {
         let qos = TopicQos::default();
         let listener = Box::new(TestListener);
         let status_mask = 0;
-        let topic = RtpsTopicImpl::new(
+        let topic = RtpsTopicImpl::<TestType>::new(
             entity,
             type_name,
             topic_name,

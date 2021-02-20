@@ -14,14 +14,11 @@ use rust_dds_api::{
     return_type::DDSResult,
 };
 
-use crate::{
-    impls::rtps_publisher_impl::RtpsPublisherImpl, rtps_domain_participant::RtpsDomainParticipant,
-    utils::node::Node,
-};
+use crate::{impls::rtps_publisher_impl::RtpsPublisherImpl, rtps_domain_participant::RtpsDomainParticipant, utils::{node::Node, shared_option::SharedOptionReadRef}};
 
 use super::{rtps_datawriter::RtpsDataWriter, rtps_topic::RtpsTopic};
 
-pub type RtpsPublisher<'a> = Node<'a, &'a RtpsDomainParticipant, RtpsPublisherImpl>;
+pub type RtpsPublisher<'a> = Node<&'a RtpsDomainParticipant, SharedOptionReadRef<'a, RtpsPublisherImpl>>;
 
 impl<'a, T: DDSType> TopicGAT<'a, T> for RtpsPublisher<'a> {
     type TopicType = RtpsTopic<'a, T>;

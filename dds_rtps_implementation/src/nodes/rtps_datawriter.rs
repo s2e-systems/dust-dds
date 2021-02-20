@@ -19,12 +19,17 @@ use rust_dds_api::{
     topic::topic::Topic,
 };
 
-use crate::{impls::rtps_datawriter_impl::RtpsDataWriterImpl, utils::node::Node};
+use crate::{
+    impls::rtps_datawriter_impl::RtpsDataWriterImpl,
+    utils::{node::Node, shared_option::SharedOptionReadRef},
+};
 
 use super::{rtps_publisher::RtpsPublisher, rtps_topic::RtpsTopic};
 
-pub type RtpsDataWriter<'a, T> =
-    Node<'a, (&'a RtpsPublisher<'a>, &'a RtpsTopic<'a, T>), RtpsDataWriterImpl>;
+pub type RtpsDataWriter<'a, T> = Node<
+    (&'a RtpsPublisher<'a>, &'a RtpsTopic<'a, T>),
+    SharedOptionReadRef<'a, RtpsDataWriterImpl>,
+>;
 
 impl<'a, T: DDSType> PublisherChild<'a> for RtpsDataWriter<'a, T> {
     type PublisherType = RtpsPublisher<'a>;
@@ -166,7 +171,11 @@ impl<'a, T: DDSType> Entity for RtpsDataWriter<'a, T> {
         todo!()
     }
 
-    fn set_listener(&self, _a_listener: Option<Self::Listener>, _mask: StatusMask) -> DDSResult<()> {
+    fn set_listener(
+        &self,
+        _a_listener: Option<Self::Listener>,
+        _mask: StatusMask,
+    ) -> DDSResult<()> {
         todo!()
     }
 

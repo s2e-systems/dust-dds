@@ -1,6 +1,7 @@
 use crate::{
     impls::rtps_subscriber_impl::RtpsSubscriberImpl,
-    rtps_domain_participant::RtpsDomainParticipant, utils::node::Node,
+    rtps_domain_participant::RtpsDomainParticipant,
+    utils::{node::Node, shared_option::SharedOptionReadRef},
 };
 use rust_dds_api::{
     dcps_psm::{
@@ -24,7 +25,8 @@ use rust_dds_api::{
 
 use super::{rtps_datareader::RtpsDataReader, rtps_topic::RtpsTopic};
 
-pub type RtpsSubscriber<'a> = Node<'a, &'a RtpsDomainParticipant, RtpsSubscriberImpl>;
+pub type RtpsSubscriber<'a> =
+    Node<&'a RtpsDomainParticipant, SharedOptionReadRef<'a, RtpsSubscriberImpl>>;
 
 impl<'a, T: DDSType> TopicGAT<'a, T> for RtpsSubscriber<'a> {
     type TopicType = RtpsTopic<'a, T>;
