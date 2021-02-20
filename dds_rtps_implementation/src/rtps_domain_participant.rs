@@ -268,9 +268,8 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
         let entity_id = EntityId::new(entity_key, entity_kind);
         let guid = GUID::new(guid_prefix, entity_id);
         let entity = rust_rtps::structure::Entity::new(guid);
-        let type_name = T::type_name();
         let qos = qos.unwrap_or(self.get_default_topic_qos());
-        let topic = RtpsTopicImpl::new(entity, type_name, topic_name, qos, a_listener, mask);
+        let topic = RtpsTopicImpl::new(entity, topic_name, qos, a_listener, mask);
 
         Some(Node {
             parent: self,

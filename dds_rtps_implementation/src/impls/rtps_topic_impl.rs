@@ -11,7 +11,6 @@ use super::mask_listener::MaskListener;
 pub struct RtpsTopicImpl<'a, T: DDSType> {
     entity: Entity,
     topic_name: String,
-    type_name: &'static str,
     qos: Mutex<TopicQos>,
     listener: Mutex<MaskListener<Box<dyn TopicListener>>>,
     phantom_data: PhantomData<&'a T>,
@@ -20,7 +19,6 @@ pub struct RtpsTopicImpl<'a, T: DDSType> {
 impl<'a, T: DDSType> RtpsTopicImpl<'a, T> {
     pub fn new(
         entity: Entity,
-        type_name: &'static str,
         topic_name: &str,
         qos: TopicQos,
         listener: Option<Box<dyn TopicListener>>,
@@ -29,7 +27,6 @@ impl<'a, T: DDSType> RtpsTopicImpl<'a, T> {
         Self {
             entity,
             topic_name: topic_name.to_string(),
-            type_name,
             qos: Mutex::new(qos),
             listener: Mutex::new(MaskListener::new(listener, status_mask)),
             phantom_data: PhantomData,
@@ -37,7 +34,7 @@ impl<'a, T: DDSType> RtpsTopicImpl<'a, T> {
     }
 
     pub fn get_type_name(&self) -> &str {
-        self.type_name
+        T::type_name()
     }
 
     pub fn get_name(&self) -> &str {
@@ -159,14 +156,13 @@ mod tests {
         let entity_id = EntityId::new([1; 3], ENTITY_KIND_USER_DEFINED_UNKNOWN);
         let guid = GUID::new([1; 12], entity_id);
         let entity = Entity::new(guid);
-        let type_name = "TestType";
         let topic_name = "TestTopic";
         let qos = TopicQos::default();
         let listener = None;
         let status_mask = 0;
-        let topic = RtpsTopicImpl::<TestType>::new(entity, type_name, topic_name, qos, listener, status_mask);
+        let topic = RtpsTopicImpl::<TestType>::new(entity, topic_name, qos, listener, status_mask);
 
-        assert_eq!(topic.get_type_name(), type_name);
+        assert_eq!(topic.get_type_name(), TestType::type_name());
     }
 
     #[test]
@@ -174,12 +170,11 @@ mod tests {
         let entity_id = EntityId::new([1; 3], ENTITY_KIND_USER_DEFINED_UNKNOWN);
         let guid = GUID::new([1; 12], entity_id);
         let entity = Entity::new(guid);
-        let type_name = "TestType";
         let topic_name = "TestTopic";
         let qos = TopicQos::default();
         let listener = None;
         let status_mask = 0;
-        let topic = RtpsTopicImpl::<TestType>::new(entity, type_name, topic_name, qos, listener, status_mask);
+        let topic = RtpsTopicImpl::<TestType>::new(entity, topic_name, qos, listener, status_mask);
 
         assert_eq!(topic.get_name(), topic_name);
     }
@@ -189,7 +184,6 @@ mod tests {
         let entity_id = EntityId::new([1; 3], ENTITY_KIND_USER_DEFINED_UNKNOWN);
         let guid = GUID::new([1; 12], entity_id);
         let entity = Entity::new(guid);
-        let type_name = "TestType";
         let topic_name = "TestTopic";
         let mut qos = TopicQos::default();
         qos.topic_data.value = vec![1, 2, 3, 4];
@@ -197,7 +191,6 @@ mod tests {
         let status_mask = 0;
         let topic = RtpsTopicImpl::<TestType>::new(
             entity,
-            type_name,
             topic_name,
             qos.clone(),
             listener,
@@ -212,7 +205,6 @@ mod tests {
         let entity_id = EntityId::new([1; 3], ENTITY_KIND_USER_DEFINED_UNKNOWN);
         let guid = GUID::new([1; 12], entity_id);
         let entity = Entity::new(guid);
-        let type_name = "TestType";
         let topic_name = "TestTopic";
         let mut qos = TopicQos::default();
         qos.topic_data.value = vec![1, 2, 3, 4];
@@ -220,7 +212,6 @@ mod tests {
         let status_mask = 0;
         let topic = RtpsTopicImpl::<TestType>::new(
             entity,
-            type_name,
             topic_name,
             TopicQos::default(),
             listener,
@@ -238,7 +229,6 @@ mod tests {
         let entity_id = EntityId::new([1; 3], ENTITY_KIND_USER_DEFINED_UNKNOWN);
         let guid = GUID::new([1; 12], entity_id);
         let entity = Entity::new(guid);
-        let type_name = "TestType";
         let topic_name = "TestTopic";
         let mut inconsistent_qos = TopicQos::default();
         inconsistent_qos.resource_limits.max_samples_per_instance = 10;
@@ -247,7 +237,6 @@ mod tests {
         let status_mask = 0;
         let topic = RtpsTopicImpl::<TestType>::new(
             entity,
-            type_name,
             topic_name,
             TopicQos::default(),
             listener,
@@ -277,14 +266,12 @@ mod tests {
         let entity_id = EntityId::new([1; 3], ENTITY_KIND_USER_DEFINED_UNKNOWN);
         let guid = GUID::new([1; 12], entity_id);
         let entity = Entity::new(guid);
-        let type_name = "TestType";
         let topic_name = "TestTopic";
         let qos = TopicQos::default();
         let listener = Box::new(TestListener);
         let status_mask = 0;
         let topic = RtpsTopicImpl::<TestType>::new(
             entity,
-            type_name,
             topic_name,
             qos.clone(),
             Some(listener),
