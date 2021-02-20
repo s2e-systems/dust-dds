@@ -1,13 +1,30 @@
-use std::sync::{Mutex, atomic};
+use std::sync::{atomic, Mutex};
 
-use rust_dds_api::{dcps_psm::StatusMask, dds_type::DDSType, infrastructure::{qos::{DataWriterQos, PublisherQos}, qos_policy::ReliabilityQosPolicyKind}, publication::{
+use rust_dds_api::{
+    dcps_psm::StatusMask,
+    dds_type::DDSType,
+    infrastructure::{
+        qos::{DataWriterQos, PublisherQos},
+        qos_policy::ReliabilityQosPolicyKind,
+    },
+    publication::{
         data_writer_listener::DataWriterListener, publisher_listener::PublisherListener,
-    }};
-use rust_rtps::{behavior::StatefulWriter, structure::Group, types::{EntityId, GUID, ReliabilityKind, TopicKind, constants::{ENTITY_KIND_USER_DEFINED_WRITER_NO_KEY, ENTITY_KIND_USER_DEFINED_WRITER_WITH_KEY}}};
+    },
+};
+use rust_rtps::{
+    behavior::StatefulWriter,
+    structure::Group,
+    types::{
+        constants::{
+            ENTITY_KIND_USER_DEFINED_WRITER_NO_KEY, ENTITY_KIND_USER_DEFINED_WRITER_WITH_KEY,
+        },
+        EntityId, ReliabilityKind, TopicKind, GUID,
+    },
+};
 
-use crate::utils::{shared_option::{SharedOption, SharedOptionReadRef}};
+use crate::utils::shared_option::{SharedOption, SharedOptionReadRef};
 
-use super::{rtps_datawriter_impl::{RtpsDataWriterImpl, RtpsWriterFlavor}, rtps_topic_impl::RtpsTopicImpl};
+use super::rtps_datawriter_impl::{RtpsDataWriterImpl, RtpsWriterFlavor};
 
 struct AtomicPublisherQos {}
 
@@ -41,7 +58,6 @@ impl RtpsPublisherImpl {
 
     pub fn create_datawriter<'a, T: DDSType>(
         &'a self,
-        a_topic: &'a RtpsTopicImpl,
         qos: Option<DataWriterQos>,
         a_listener: Option<Box<dyn DataWriterListener<DataType = T>>>,
         mask: StatusMask,
@@ -91,7 +107,6 @@ impl RtpsPublisherImpl {
 
         let data_writer = RtpsDataWriterImpl::new(
             RtpsWriterFlavor::Stateful(stateful_writer),
-            a_topic,
             qos,
             a_listener,
             mask,

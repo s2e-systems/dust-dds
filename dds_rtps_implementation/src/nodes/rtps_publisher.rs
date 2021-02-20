@@ -21,7 +21,7 @@ use crate::{
 
 use super::{rtps_datawriter::RtpsDataWriter, rtps_topic::RtpsTopic};
 
-pub struct RtpsPublisher<'a>(pub(crate) Node<'a, &'a RtpsDomainParticipant, RtpsPublisherImpl>);
+pub type RtpsPublisher<'a> = Node<'a, &'a RtpsDomainParticipant, RtpsPublisherImpl>;
 
 impl<'a, T: DDSType> TopicGAT<'a, T> for RtpsPublisher<'a> {
     type TopicType = RtpsTopic<'a, T>;
@@ -43,12 +43,9 @@ impl<'a> Publisher<'a> for RtpsPublisher<'a> {
         a_listener: Option<Box<dyn DataWriterListener<DataType = T>>>,
         mask: StatusMask,
     ) -> Option<<Self as DataWriterGAT<'a, T>>::DataWriterType> {
-        // let topic = a_topic.node;
+        let data_writer_ref = self.impl_ref.create_datawriter(qos, a_listener, mask)?;
 
-        todo!()
-        // let data_writer_ref = self.0.create_datawriter(topic, qos, a_listener, mask)?;
-
-        // Some(RtpsDataWriter::new((self, a_topic), data_writer_ref))
+        Some(Node{parent:(self,a_topic), impl_ref: data_writer_ref})
     }
 
     fn delete_datawriter<T: DDSType>(
@@ -87,7 +84,7 @@ impl<'a> Publisher<'a> for RtpsPublisher<'a> {
     }
 
     fn get_participant(&self) -> &<Self as DomainParticipantChild<'a>>::DomainParticipantType {
-        &self.0.parent()
+        self.parent
     }
 
     fn delete_contained_entities(&self) -> DDSResult<()> {
@@ -118,11 +115,11 @@ impl<'a> Entity for RtpsPublisher<'a> {
     type Listener = Box<dyn PublisherListener + 'a>;
 
     fn set_qos(&self, qos: Option<Self::Qos>) -> DDSResult<()> {
-        Ok(self.0.set_qos(qos))
+        Ok(self.impl_ref.set_qos(qos))
     }
 
     fn get_qos(&self) -> DDSResult<Self::Qos> {
-        Ok(self.0.get_qos().clone())
+        Ok(self.impl_ref.get_qos().clone())
     }
 
     fn set_listener(

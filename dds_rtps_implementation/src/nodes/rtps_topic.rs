@@ -12,7 +12,7 @@ use rust_dds_api::{
         entity::{Entity, StatusCondition},
         qos::TopicQos,
     },
-    return_type::{DDSError, DDSResult},
+    return_type::DDSResult,
     topic::{topic::Topic, topic_description::TopicDescription, topic_listener::TopicListener},
 };
 
@@ -45,7 +45,7 @@ impl<'a, T: DDSType> Topic<'a> for RtpsTopic<'a, T> {
 
 impl<'a, T: DDSType> TopicDescription<'a> for RtpsTopic<'a, T> {
     fn get_participant(&self) -> &<Self as DomainParticipantChild<'a>>::DomainParticipantType {
-        &self.node.parent()
+        self.node.parent
     }
 
     fn get_type_name(&self) -> DDSResult<&str> {

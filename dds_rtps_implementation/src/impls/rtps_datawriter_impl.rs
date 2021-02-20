@@ -9,7 +9,7 @@ use rust_dds_api::{
 };
 use rust_rtps::behavior::{StatefulWriter, StatelessWriter, Writer};
 
-use super::{mask_listener::MaskListener, rtps_topic_impl::RtpsTopicImpl};
+use super::mask_listener::MaskListener;
 
 fn instance_handle_from_dds_type<T: DDSType>(data: T) -> rust_rtps::types::InstanceHandle {
     if data.key().is_empty() {
@@ -53,7 +53,6 @@ impl DerefMut for RtpsWriterFlavor {
 
 pub struct RtpsDataWriterImpl {
     rtps_writer_flavor: RtpsWriterFlavor,
-    topic: Option<RtpsTopicImpl>,
     qos: DataWriterQos,
     mask_listener: MaskListener<Box<dyn AnyDataWriterListener>>,
 }
@@ -61,24 +60,20 @@ pub struct RtpsDataWriterImpl {
 impl RtpsDataWriterImpl {
     pub fn new<T: DDSType>(
         rtps_writer_flavor: RtpsWriterFlavor,
-        topic: &RtpsTopicImpl,
         qos: DataWriterQos,
         listener: Option<Box<dyn DataWriterListener<DataType = T>>>,
         status_mask: StatusMask,
     ) -> Self {
-        todo!()
-        // let topic = Some(topic.clone());
-        // let listener: Option<Box<dyn AnyDataWriterListener>> = match listener {
-        //     Some(listener) => Some(Box::new(RtpsDataWriterListener(listener))),
-        //     None => None,
-        // };
-        // let mask_listener = MaskListener::new(listener, status_mask);
-        // Self {
-        //     rtps_writer_flavor,
-        //     qos,
-        //     topic,
-        //     mask_listener,
-        // }
+        let listener: Option<Box<dyn AnyDataWriterListener>> = match listener {
+            Some(listener) => Some(Box::new(RtpsDataWriterListener(listener))),
+            None => None,
+        };
+        let mask_listener = MaskListener::new(listener, status_mask);
+        Self {
+            rtps_writer_flavor,
+            qos,
+            mask_listener,
+        }
     }
 }
 

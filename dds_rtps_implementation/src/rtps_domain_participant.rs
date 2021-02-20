@@ -184,7 +184,7 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
                 publisher_write_ref.replace(publisher);
                 std::mem::drop(publisher_write_ref);
                 let publisher_ref = publisher_item.try_read()?;
-                return Some(RtpsPublisher(Node::new(self, publisher_ref)));
+                return Some(Node{parent: self, impl_ref: publisher_ref});
             }
         }
         None
@@ -226,7 +226,7 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
                 subscriber_write_ref.replace(subscriber);
                 std::mem::drop(subscriber_write_ref);
                 let subscriber_ref = subscriber_item.try_read()?;
-                return Some(RtpsSubscriber::new(Node::new(self, subscriber_ref)));
+                return Some(Node{parent: self, impl_ref: subscriber_ref});
             }
         }
         None
@@ -269,7 +269,7 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
                 topic_write_ref.replace(topic);
                 std::mem::drop(topic_write_ref);
                 let topic_ref = topic_item.try_read()?;
-                return Some(RtpsTopic::new(Node::new(self, topic_ref)));
+                return Some(RtpsTopic::new(Node{parent: self, impl_ref: topic_ref}));
             }
         }
         None
