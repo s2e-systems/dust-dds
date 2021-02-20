@@ -18,7 +18,7 @@ use rust_dds_api::{
     },
     publication::{publisher::Publisher, publisher_listener::PublisherListener},
     return_type::{DDSError, DDSResult},
-    subscription::subscriber_listener::SubscriberListener,
+    subscription::{subscriber::Subscriber, subscriber_listener::SubscriberListener},
     topic::{topic_description::TopicDescription, topic_listener::TopicListener},
 };
 use rust_rtps::{
@@ -197,8 +197,20 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
 
     fn delete_publisher(&self, a_publisher: Self::PublisherType) -> DDSResult<()> {
         if std::ptr::eq(a_publisher.get_participant(), self) {
-            todo!();
-        // Ok(())
+            let index = self
+                .user_defined_entities
+                .publisher_list
+                .iter()
+                .filter_map(|x| x.try_read())
+                .position(|x| std::ptr::eq(&*x, &*a_publisher.impl_ref))
+                .ok_or(DDSError::PreconditionNotMet(
+                    "Publisher object not found in participant",
+                ))?;
+            std::mem::drop(a_publisher);
+            self.user_defined_entities.publisher_list[index]
+                .write()
+                .take();
+            Ok(())
         } else {
             Err(DDSError::PreconditionNotMet(
                 "Publisher can only be deleted from its parent participant",
@@ -240,15 +252,27 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
         None
     }
 
-    fn delete_subscriber(&self, _a_subscriber: Self::SubscriberType) -> DDSResult<()> {
-        // if std::ptr::eq(a_subscriber.parent_participant, self) {
-        //     a_subscriber.subscriber_ref.delete()
-        // } else {
-        //     Err(DDSError::PreconditionNotMet(
-        //         "Subscriber can only be deleted from its parent participant",
-        //     ))
-        // }
-        todo!()
+    fn delete_subscriber(&self, a_subscriber: Self::SubscriberType) -> DDSResult<()> {
+        if std::ptr::eq(a_subscriber.get_participant(), self) {
+            let index = self
+                .user_defined_entities
+                .subscriber_list
+                .iter()
+                .filter_map(|x| x.try_read())
+                .position(|x| std::ptr::eq(&*x, &*a_subscriber.impl_ref))
+                .ok_or(DDSError::PreconditionNotMet(
+                    "Subscriber object not found in participant",
+                ))?;
+            std::mem::drop(a_subscriber);
+            self.user_defined_entities.subscriber_list[index]
+                .write()
+                .take();
+            Ok(())
+        } else {
+            Err(DDSError::PreconditionNotMet(
+                "Subscriber can only be deleted from its parent participant",
+            ))
+        }
     }
 
     fn create_topic<T: DDSType>(
@@ -279,16 +303,16 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
 
     fn delete_topic<T: DDSType>(
         &'a self,
-        _a_topic: <Self as TopicGAT<'a, T>>::TopicType,
+        a_topic: <Self as TopicGAT<'a, T>>::TopicType,
     ) -> DDSResult<()> {
-        // if std::ptr::eq(a_topic.parent_participant, self) {
-        //     a_topic.topic_ref.delete()
-        // } else {
-        //     Err(DDSError::PreconditionNotMet(
-        //         "Topic can only be deleted from its parent participant",
-        //     ))
-        // }
-        todo!()
+        if std::ptr::eq(a_topic.get_participant(), self) {
+            // Do nothing more than dropping for now
+            Ok(())
+        } else {
+            Err(DDSError::PreconditionNotMet(
+                "Topic can only be deleted from its parent participant",
+            ))
+        }
     }
 
     fn find_topic<T: DDSType>(
@@ -671,6 +695,36 @@ mod tests {
     }
 
     #[test]
+    fn create_delete_subscriber() {
+        let domain_id = 0;
+        let qos = DomainParticipantQos::default();
+        let userdata_transport = MockTransport::default();
+        let metatraffic_transport = MockTransport::default();
+        let a_listener = None;
+        let mask = 0;
+
+        let participant = RtpsDomainParticipant::new(
+            domain_id,
+            qos,
+            userdata_transport,
+            metatraffic_transport,
+            a_listener,
+            mask,
+        );
+
+        let qos = Some(SubscriberQos::default());
+        let a_listener = None;
+        let mask = 0;
+        let a_subscriber = participant
+            .create_subscriber(qos, a_listener, mask)
+            .unwrap();
+
+        participant
+            .delete_subscriber(a_subscriber)
+            .expect("Error deleting subscriber");
+    }
+
+    #[test]
     fn create_topic() {
         let domain_id = 0;
         let qos = DomainParticipantQos::default();
@@ -695,6 +749,35 @@ mod tests {
         participant
             .create_topic::<TestType>(topic_name, qos, a_listener, mask)
             .expect("Error creating topic");
+    }
+
+    #[test]
+    fn create_delete_topic() {
+        let domain_id = 0;
+        let qos = DomainParticipantQos::default();
+        let userdata_transport = MockTransport::default();
+        let metatraffic_transport = MockTransport::default();
+        let a_listener = None;
+        let mask = 0;
+
+        let participant = RtpsDomainParticipant::new(
+            domain_id,
+            qos,
+            userdata_transport,
+            metatraffic_transport,
+            a_listener,
+            mask,
+        );
+
+        let topic_name = "Test";
+        let qos = Some(TopicQos::default());
+        let a_listener = None;
+        let mask = 0;
+        let a_topic = participant
+            .create_topic::<TestType>(topic_name, qos, a_listener, mask)
+            .unwrap();
+
+        participant.delete_topic(a_topic).expect("Error deleting topic")
     }
 
     #[test]

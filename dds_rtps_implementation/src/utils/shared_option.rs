@@ -27,6 +27,10 @@ impl<T> SharedOption<T> {
         }
     }
 
+    pub fn write(&self) -> SharedOptionWriteRef<T> {
+        SharedOptionWriteRef(self.0.write().unwrap())
+    }
+
     pub fn try_write(&self) -> Option<SharedOptionWriteRef<T>> {
         if let Some(writer_guard) = self.0.try_write().ok() {
             Some(SharedOptionWriteRef(writer_guard))
