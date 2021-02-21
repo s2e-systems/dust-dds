@@ -82,10 +82,10 @@ pub trait Publisher<'a>: Entity<Qos = PublisherQos, Listener = Box<dyn Publisher
     /// specified which one.
     fn lookup_datawriter<T: DDSType>(
         &self,
-        topic_name: &str,
+        topic: &<Self as TopicGAT<'a, T>>::TopicType,
     ) -> Option<<Self as DataWriterGAT<'a, T>>::DataWriterType>
     where
-        Self: DataWriterGAT<'a, T> + Sized;
+        Self: DataWriterGAT<'a, T> + TopicGAT<'a, T> + Sized;
 
     /// This operation indicates to the Service that the application is about to make multiple modifications using DataWriter objects
     /// belonging to the Publisher.

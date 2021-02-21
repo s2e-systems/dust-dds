@@ -55,7 +55,7 @@ impl<'a> Publisher<'a> for RtpsPublisher<'a> {
 
     fn lookup_datawriter<T: DDSType>(
         &self,
-        _topic_name: &str,
+        _topic: &<Self as TopicGAT<'a, T>>::TopicType,
     ) -> Option<<Self as DataWriterGAT<'a, T>>::DataWriterType> {
         todo!()
     }
