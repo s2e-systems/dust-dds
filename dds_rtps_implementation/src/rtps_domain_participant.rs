@@ -16,9 +16,9 @@ use rust_dds_api::{
         entity::{Entity, StatusCondition},
         qos::{DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
     },
-    publication::{publisher::Publisher, publisher_listener::PublisherListener},
+    publication::publisher_listener::PublisherListener,
     return_type::{DDSError, DDSResult},
-    subscription::{subscriber::Subscriber, subscriber_listener::SubscriberListener},
+    subscription::subscriber_listener::SubscriberListener,
     topic::{topic_description::TopicDescription, topic_listener::TopicListener},
 };
 use rust_rtps::{
@@ -33,16 +33,12 @@ use rust_rtps::{
     },
 };
 
-use crate::{
-    impls::{
+use crate::{impls::{
         rtps_publisher_impl::RtpsPublisherImpl, rtps_subscriber_impl::RtpsSubscriberImpl,
         rtps_topic_impl::RtpsTopicImpl,
-    },
-    nodes::{
+    }, nodes::{
         rtps_publisher::RtpsPublisher, rtps_subscriber::RtpsSubscriber, rtps_topic::RtpsTopic,
-    },
-    utils::{node::Node, shared_option::SharedOption},
-};
+    }, utils::{node::Node, shared_option::SharedOption, shared_option_list::SharedOptionList}};
 
 struct SpdpDiscoveredParticipantData {
     value: u8,
@@ -71,8 +67,8 @@ impl DDSType for SpdpDiscoveredParticipantData {
 }
 
 struct RtpsParticipantEntities {
-    publisher_list: [SharedOption<RtpsPublisherImpl>; 32],
-    subscriber_list: [SharedOption<RtpsSubscriberImpl>; 32],
+    publisher_list: SharedOptionList<RtpsPublisherImpl>,
+    subscriber_list: SharedOptionList<RtpsSubscriberImpl>,
     transport: Box<dyn Transport>,
 }
 
@@ -196,7 +192,7 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
     }
 
     fn delete_publisher(&self, a_publisher: Self::PublisherType) -> DDSResult<()> {
-        if std::ptr::eq(a_publisher.get_participant(), self) {
+        if std::ptr::eq(a_publisher.parent, self) {
             let index = self
                 .user_defined_entities
                 .publisher_list
@@ -253,7 +249,7 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
     }
 
     fn delete_subscriber(&self, a_subscriber: Self::SubscriberType) -> DDSResult<()> {
-        if std::ptr::eq(a_subscriber.get_participant(), self) {
+        if std::ptr::eq(a_subscriber.parent, self) {
             let index = self
                 .user_defined_entities
                 .subscriber_list
@@ -305,7 +301,7 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
         &'a self,
         a_topic: <Self as TopicGAT<'a, T>>::TopicType,
     ) -> DDSResult<()> {
-        if std::ptr::eq(a_topic.get_participant(), self) {
+        if std::ptr::eq(a_topic.parent, self) {
             // Do nothing more than dropping for now
             Ok(())
         } else {
@@ -777,7 +773,9 @@ mod tests {
             .create_topic::<TestType>(topic_name, qos, a_listener, mask)
             .unwrap();
 
-        participant.delete_topic(a_topic).expect("Error deleting topic")
+        participant
+            .delete_topic(a_topic)
+            .expect("Error deleting topic")
     }
 
     #[test]
