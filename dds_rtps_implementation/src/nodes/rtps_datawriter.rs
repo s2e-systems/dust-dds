@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use rust_dds_api::{
     builtin_topics::SubscriptionBuiltinTopicData,
     dcps_psm::{
@@ -19,17 +21,12 @@ use rust_dds_api::{
     topic::topic::Topic,
 };
 
-use crate::{
-    impls::rtps_datawriter_impl::RtpsDataWriterImpl,
-    utils::{node::Node, shared_option::SharedOptionReadRef},
-};
+use crate::{impls::rtps_datawriter_impl::RtpsDataWriterImpl, utils::node::Node};
 
 use super::{rtps_publisher::RtpsPublisher, rtps_topic::RtpsTopic};
 
-pub type RtpsDataWriter<'a, T> = Node<
-    (&'a RtpsPublisher<'a>, &'a RtpsTopic<'a, T>),
-    SharedOptionReadRef<'a, RtpsDataWriterImpl>,
->;
+pub type RtpsDataWriter<'a, T> =
+    Node<(&'a RtpsPublisher<'a>, &'a RtpsTopic<'a, T>), Arc<RtpsDataWriterImpl>>;
 
 impl<'a, T: DDSType> PublisherChild<'a> for RtpsDataWriter<'a, T> {
     type PublisherType = RtpsPublisher<'a>;

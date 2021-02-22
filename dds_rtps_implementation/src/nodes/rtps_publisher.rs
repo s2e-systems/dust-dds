@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use rust_dds_api::{
     dcps_psm::{Duration, InstanceHandle, StatusMask},
     dds_type::DDSType,
@@ -14,11 +16,14 @@ use rust_dds_api::{
     return_type::DDSResult,
 };
 
-use crate::{impls::rtps_publisher_impl::RtpsPublisherImpl, rtps_domain_participant::RtpsDomainParticipant, utils::{node::Node, shared_option::SharedOptionReadRef}};
+use crate::{
+    impls::rtps_publisher_impl::RtpsPublisherImpl, rtps_domain_participant::RtpsDomainParticipant,
+    utils::node::Node,
+};
 
 use super::{rtps_datawriter::RtpsDataWriter, rtps_topic::RtpsTopic};
 
-pub type RtpsPublisher<'a> = Node<&'a RtpsDomainParticipant, SharedOptionReadRef<'a, RtpsPublisherImpl>>;
+pub type RtpsPublisher<'a> = Node<&'a RtpsDomainParticipant, Arc<RtpsPublisherImpl>>;
 
 impl<'a, T: DDSType> TopicGAT<'a, T> for RtpsPublisher<'a> {
     type TopicType = RtpsTopic<'a, T>;
@@ -42,7 +47,10 @@ impl<'a> Publisher<'a> for RtpsPublisher<'a> {
     ) -> Option<<Self as DataWriterGAT<'a, T>>::DataWriterType> {
         let data_writer_ref = self.impl_ref.create_datawriter(qos, a_listener, mask)?;
 
-        Some(Node{parent:(self,a_topic), impl_ref: data_writer_ref})
+        Some(Node {
+            parent: (self, a_topic),
+            impl_ref: data_writer_ref,
+        })
     }
 
     fn delete_datawriter<T: DDSType>(

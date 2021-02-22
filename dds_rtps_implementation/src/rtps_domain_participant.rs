@@ -33,12 +33,16 @@ use rust_rtps::{
     },
 };
 
-use crate::{impls::{
+use crate::{
+    impls::{
         rtps_publisher_impl::RtpsPublisherImpl, rtps_subscriber_impl::RtpsSubscriberImpl,
         rtps_topic_impl::RtpsTopicImpl,
-    }, nodes::{
+    },
+    nodes::{
         rtps_publisher::RtpsPublisher, rtps_subscriber::RtpsSubscriber, rtps_topic::RtpsTopic,
-    }, utils::{node::Node, shared_option::SharedOption, shared_option_list::SharedOptionList}};
+    },
+    utils::node::Node,
+};
 
 struct SpdpDiscoveredParticipantData {
     value: u8,
@@ -67,8 +71,8 @@ impl DDSType for SpdpDiscoveredParticipantData {
 }
 
 struct RtpsParticipantEntities {
-    publisher_list: SharedOptionList<RtpsPublisherImpl>,
-    subscriber_list: SharedOptionList<RtpsSubscriberImpl>,
+    publisher_list: Vec<Arc<RtpsPublisherImpl>>,
+    subscriber_list: Vec<Arc<RtpsSubscriberImpl>>,
     transport: Box<dyn Transport>,
 }
 
@@ -177,36 +181,13 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
         let qos = qos.unwrap_or(self.get_default_publisher_qos());
         let publisher = RtpsPublisherImpl::new(group, qos, a_listener, mask);
 
-        for publisher_item in self.user_defined_entities.publisher_list.iter() {
-            if let Some(mut publisher_write_ref) = publisher_item.try_write() {
-                publisher_write_ref.replace(publisher);
-                std::mem::drop(publisher_write_ref);
-                let publisher_ref = publisher_item.try_read()?;
-                return Some(Node {
-                    parent: self,
-                    impl_ref: publisher_ref,
-                });
-            }
-        }
-        None
+        todo!()
     }
 
     fn delete_publisher(&self, a_publisher: Self::PublisherType) -> DDSResult<()> {
         if std::ptr::eq(a_publisher.parent, self) {
-            let index = self
-                .user_defined_entities
-                .publisher_list
-                .iter()
-                .filter_map(|x| x.try_read())
-                .position(|x| std::ptr::eq(&*x, &*a_publisher.impl_ref))
-                .ok_or(DDSError::PreconditionNotMet(
-                    "Publisher object not found in participant",
-                ))?;
-            std::mem::drop(a_publisher);
-            self.user_defined_entities.publisher_list[index]
-                .write()
-                .take();
-            Ok(())
+            todo!()
+            // Ok(())
         } else {
             Err(DDSError::PreconditionNotMet(
                 "Publisher can only be deleted from its parent participant",
@@ -234,36 +215,13 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
         let qos = qos.unwrap_or(self.get_default_subscriber_qos());
         let subscriber = RtpsSubscriberImpl::new(group, qos, a_listener, mask);
 
-        for subscriber_item in self.user_defined_entities.subscriber_list.iter() {
-            if let Some(mut subscriber_write_ref) = subscriber_item.try_write() {
-                subscriber_write_ref.replace(subscriber);
-                std::mem::drop(subscriber_write_ref);
-                let subscriber_ref = subscriber_item.try_read()?;
-                return Some(Node {
-                    parent: self,
-                    impl_ref: subscriber_ref,
-                });
-            }
-        }
-        None
+        todo!()
     }
 
     fn delete_subscriber(&self, a_subscriber: Self::SubscriberType) -> DDSResult<()> {
         if std::ptr::eq(a_subscriber.parent, self) {
-            let index = self
-                .user_defined_entities
-                .subscriber_list
-                .iter()
-                .filter_map(|x| x.try_read())
-                .position(|x| std::ptr::eq(&*x, &*a_subscriber.impl_ref))
-                .ok_or(DDSError::PreconditionNotMet(
-                    "Subscriber object not found in participant",
-                ))?;
-            std::mem::drop(a_subscriber);
-            self.user_defined_entities.subscriber_list[index]
-                .write()
-                .take();
-            Ok(())
+            todo!()
+            // Ok(())
         } else {
             Err(DDSError::PreconditionNotMet(
                 "Subscriber can only be deleted from its parent participant",

@@ -1,4 +1,4 @@
-use std::sync::{atomic, Mutex};
+use std::sync::{atomic, Arc, Mutex};
 
 use rust_dds_api::{
     dcps_psm::StatusMask,
@@ -22,15 +22,13 @@ use rust_rtps::{
     },
 };
 
-use crate::utils::shared_option::{SharedOption, SharedOptionReadRef};
-
 use super::rtps_datawriter_impl::{RtpsDataWriterImpl, RtpsWriterFlavor};
 
 struct AtomicPublisherQos {}
 
 pub struct RtpsPublisherImpl {
     group: Group,
-    writer_list: [SharedOption<RtpsDataWriterImpl>; 32],
+    writer_list: Vec<Arc<RtpsDataWriterImpl>>,
     writer_count: atomic::AtomicU8,
     default_datawriter_qos: DataWriterQos,
     qos: Mutex<PublisherQos>,
@@ -47,7 +45,7 @@ impl RtpsPublisherImpl {
     ) -> Self {
         Self {
             group,
-            writer_list: Default::default(),
+            writer_list: Vec::new(),
             writer_count: atomic::AtomicU8::new(0),
             default_datawriter_qos: DataWriterQos::default(),
             qos: Mutex::new(qos),
@@ -61,7 +59,7 @@ impl RtpsPublisherImpl {
         qos: Option<DataWriterQos>,
         a_listener: Option<Box<dyn DataWriterListener<DataType = T>>>,
         mask: StatusMask,
-    ) -> Option<SharedOptionReadRef<'a, RtpsDataWriterImpl>> {
+    ) -> Option<Arc<RtpsDataWriterImpl>> {
         let qos = qos.unwrap_or(self.default_datawriter_qos.clone());
         qos.is_consistent().ok()?;
 
@@ -111,17 +109,18 @@ impl RtpsPublisherImpl {
             a_listener,
             mask,
         );
+        todo!()
 
-        for writer_item in self.writer_list.iter() {
-            if let Some(mut data_writer_write_ref) = writer_item.try_write() {
-                data_writer_write_ref.replace(data_writer);
-                std::mem::drop(data_writer_write_ref);
-                let publisher_ref = writer_item.try_read()?;
-                return Some(publisher_ref);
-            }
-        }
-        // No available storage for the object. Return None
-        None
+        // for writer_item in self.writer_list.iter() {
+        //     if let Some(mut data_writer_write_ref) = writer_item.try_write() {
+        //         data_writer_write_ref.replace(data_writer);
+        //         std::mem::drop(data_writer_write_ref);
+        //         let publisher_ref = writer_item.try_read()?;
+        //         return Some(publisher_ref);
+        //     }
+        // }
+        // // No available storage for the object. Return None
+        // None
     }
 
     pub fn get_qos(&self) -> PublisherQos {
