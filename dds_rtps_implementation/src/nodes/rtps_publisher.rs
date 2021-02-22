@@ -13,7 +13,7 @@ use rust_dds_api::{
         publisher::{DataWriterGAT, Publisher},
         publisher_listener::PublisherListener,
     },
-    return_type::DDSResult,
+    return_type::{DDSError, DDSResult},
 };
 
 use crate::{
@@ -55,10 +55,15 @@ impl<'a> Publisher<'a> for RtpsPublisher<'a> {
 
     fn delete_datawriter<T: DDSType>(
         &'a self,
-        _a_datawriter: <Self as DataWriterGAT<'a, T>>::DataWriterType,
+        a_datawriter: <Self as DataWriterGAT<'a, T>>::DataWriterType,
     ) -> DDSResult<()> {
-        // a_datawriter.data_writer_ref.delete()
-        todo!()
+        if std::ptr::eq(a_datawriter.parent.0, self) {
+            self.impl_ref.delete_datawriter(a_datawriter.impl_ref)
+        } else {
+            Err(DDSError::PreconditionNotMet(
+                "Publisher can only be deleted from its parent participant",
+            ))
+        }
     }
 
     fn lookup_datawriter<T: DDSType>(

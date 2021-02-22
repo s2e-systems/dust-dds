@@ -10,6 +10,7 @@ use rust_dds_api::{
     publication::{
         data_writer_listener::DataWriterListener, publisher_listener::PublisherListener,
     },
+    return_type::{DDSError, DDSResult},
 };
 use rust_rtps::{
     behavior::StatefulWriter,
@@ -28,7 +29,7 @@ struct AtomicPublisherQos {}
 
 pub struct RtpsPublisherImpl {
     group: Group,
-    writer_list: Vec<Arc<RtpsDataWriterImpl>>,
+    writer_list: Mutex<Vec<Arc<RtpsDataWriterImpl>>>,
     writer_count: atomic::AtomicU8,
     default_datawriter_qos: DataWriterQos,
     qos: Mutex<PublisherQos>,
@@ -45,7 +46,7 @@ impl RtpsPublisherImpl {
     ) -> Self {
         Self {
             group,
-            writer_list: Vec::new(),
+            writer_list: Default::default(),
             writer_count: atomic::AtomicU8::new(0),
             default_datawriter_qos: DataWriterQos::default(),
             qos: Mutex::new(qos),
@@ -103,24 +104,30 @@ impl RtpsPublisherImpl {
             data_max_sized_serialized,
         );
 
-        let data_writer = RtpsDataWriterImpl::new(
+        let data_writer = Arc::new(RtpsDataWriterImpl::new(
             RtpsWriterFlavor::Stateful(stateful_writer),
             qos,
             a_listener,
             mask,
-        );
-        todo!()
+        ));
 
-        // for writer_item in self.writer_list.iter() {
-        //     if let Some(mut data_writer_write_ref) = writer_item.try_write() {
-        //         data_writer_write_ref.replace(data_writer);
-        //         std::mem::drop(data_writer_write_ref);
-        //         let publisher_ref = writer_item.try_read()?;
-        //         return Some(publisher_ref);
-        //     }
-        // }
-        // // No available storage for the object. Return None
-        // None
+        self.writer_list.lock().unwrap().push(data_writer.clone());
+
+        Some(data_writer)
+    }
+
+    pub fn delete_datawriter(&self, a_datawriter: Arc<RtpsDataWriterImpl>) -> DDSResult<()> {
+        let mut writer_list = self.writer_list.lock().unwrap();
+        // If there are two references, i.e. the one that is going to be deleted and the one in the
+        // vector then we are sure no other is left for the user and they can both be dropped
+        if Arc::strong_count(&a_datawriter) == 2 {
+            writer_list.retain(|x| std::ptr::eq(x.as_ref(), a_datawriter.as_ref()));
+            Ok(())
+        } else {
+            Err(DDSError::PreconditionNotMet(
+                "More instances of this writer are available. Resources will not be freed.",
+            ))
+        }
     }
 
     pub fn get_qos(&self) -> PublisherQos {

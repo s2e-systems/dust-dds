@@ -71,8 +71,8 @@ impl DDSType for SpdpDiscoveredParticipantData {
 }
 
 struct RtpsParticipantEntities {
-    publisher_list: Vec<Arc<RtpsPublisherImpl>>,
-    subscriber_list: Vec<Arc<RtpsSubscriberImpl>>,
+    publisher_list: Mutex<Vec<Arc<RtpsPublisherImpl>>>,
+    subscriber_list: Mutex<Vec<Arc<RtpsSubscriberImpl>>>,
     transport: Box<dyn Transport>,
 }
 
@@ -86,7 +86,8 @@ impl RtpsParticipantEntities {
     }
 
     pub fn send_data(&self, _guid_prefix: GuidPrefix) {
-        for _publisher in self.publisher_list.iter() {
+        let publisher_list = self.publisher_list.lock().unwrap();
+        for _publisher in publisher_list.iter() {
             // publisher.send_data(self.transport.as_ref());
             todo!()
         }
@@ -179,15 +180,28 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
         let guid = GUID::new(guid_prefix, entity_id);
         let group = rust_rtps::structure::Group::new(guid);
         let qos = qos.unwrap_or(self.get_default_publisher_qos());
-        let publisher = RtpsPublisherImpl::new(group, qos, a_listener, mask);
+        let publisher = Arc::new(RtpsPublisherImpl::new(group, qos, a_listener, mask));
 
-        todo!()
+        self.user_defined_entities
+            .publisher_list
+            .lock()
+            .unwrap()
+            .push(publisher.clone());
+
+        Some(Node {
+            parent: self,
+            impl_ref: publisher,
+        })
     }
 
     fn delete_publisher(&self, a_publisher: Self::PublisherType) -> DDSResult<()> {
         if std::ptr::eq(a_publisher.parent, self) {
-            todo!()
-            // Ok(())
+            self.user_defined_entities
+                .publisher_list
+                .lock()
+                .unwrap()
+                .retain(|x| std::ptr::eq(x.as_ref(), a_publisher.impl_ref.as_ref()));
+            Ok(())
         } else {
             Err(DDSError::PreconditionNotMet(
                 "Publisher can only be deleted from its parent participant",
@@ -213,15 +227,28 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
         let guid = GUID::new(guid_prefix, entity_id);
         let group = rust_rtps::structure::Group::new(guid);
         let qos = qos.unwrap_or(self.get_default_subscriber_qos());
-        let subscriber = RtpsSubscriberImpl::new(group, qos, a_listener, mask);
+        let subscriber = Arc::new(RtpsSubscriberImpl::new(group, qos, a_listener, mask));
 
-        todo!()
+        self.user_defined_entities
+            .subscriber_list
+            .lock()
+            .unwrap()
+            .push(subscriber.clone());
+
+        Some(Node {
+            parent: self,
+            impl_ref: subscriber,
+        })
     }
 
     fn delete_subscriber(&self, a_subscriber: Self::SubscriberType) -> DDSResult<()> {
         if std::ptr::eq(a_subscriber.parent, self) {
-            todo!()
-            // Ok(())
+            self.user_defined_entities
+                .subscriber_list
+                .lock()
+                .unwrap()
+                .retain(|x| std::ptr::eq(x.as_ref(), a_subscriber.impl_ref.as_ref()));
+            Ok(())
         } else {
             Err(DDSError::PreconditionNotMet(
                 "Subscriber can only be deleted from its parent participant",
