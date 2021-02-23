@@ -1,5 +1,3 @@
-use std::sync::Weak;
-
 use rust_dds_api::{
     builtin_topics::SubscriptionBuiltinTopicData,
     dcps_psm::{
@@ -26,7 +24,7 @@ use crate::{impls::rtps_datawriter_impl::RtpsDataWriterImpl, utils::node::Node};
 use super::{rtps_publisher::RtpsPublisher, rtps_topic::RtpsTopic};
 
 pub type RtpsDataWriter<'a, T> =
-    Node<(&'a RtpsPublisher<'a>, &'a RtpsTopic<'a, T>), Weak<RtpsDataWriterImpl>>;
+    Node<(&'a RtpsPublisher<'a>, &'a RtpsTopic<'a, T>), RtpsDataWriterImpl>;
 
 impl<'a, T: DDSType> PublisherChild<'a> for RtpsDataWriter<'a, T> {
     type PublisherType = RtpsPublisher<'a>;

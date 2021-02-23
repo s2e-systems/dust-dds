@@ -275,8 +275,8 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
             .push(topic.clone());
 
         Some(Node {
-            parent: self,
-            impl_ref: (Arc::downgrade(&topic), PhantomData),
+            parent: (self, PhantomData),
+            impl_ref: Arc::downgrade(&topic),
         })
     }
 
@@ -284,12 +284,8 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
         &'a self,
         a_topic: <Self as TopicGAT<'a, T>>::TopicType,
     ) -> DDSResult<()> {
-        if std::ptr::eq(a_topic.parent, self) {
-            let topic_impl = a_topic
-                .impl_ref
-                .0
-                .upgrade()
-                .ok_or(DDSError::AlreadyDeleted)?;
+        if std::ptr::eq(a_topic.parent.0, self) {
+            let topic_impl = a_topic.impl_ref.upgrade().ok_or(DDSError::AlreadyDeleted)?;
             self.user_defined_entities
                 .topic_list
                 .lock()
@@ -997,6 +993,4 @@ mod tests {
 
         assert_eq!(participant.get_domain_id(), 0);
     }
-
-
 }

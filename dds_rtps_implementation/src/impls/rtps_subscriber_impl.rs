@@ -113,16 +113,8 @@ impl RtpsSubscriberImpl {
     pub fn delete_datareader(&self, a_datareader: &Weak<RtpsDataReaderImpl>) -> DDSResult<()> {
         let datareader_impl = a_datareader.upgrade().ok_or(DDSError::AlreadyDeleted)?;
         let mut reader_list = self.reader_list.lock().unwrap();
-        // If there are two references, i.e. the one that is going to be deleted and the one in the
-        // vector then we are sure no other is left for the user and they can both be dropped
-        if Arc::strong_count(&datareader_impl) == 2 {
-            reader_list.retain(|x| !std::ptr::eq(x.as_ref(), datareader_impl.as_ref()));
-            Ok(())
-        } else {
-            Err(DDSError::PreconditionNotMet(
-                "More instances of this writer are available. Resources will not be freed.",
-            ))
-        }
+        reader_list.retain(|x| !std::ptr::eq(x.as_ref(), datareader_impl.as_ref()));
+        Ok(())
     }
 
     pub fn get_qos(&self) -> SubscriberQos {

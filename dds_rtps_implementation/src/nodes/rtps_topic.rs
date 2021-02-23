@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, sync::Weak};
+use std::marker::PhantomData;
 
 use crate::{
     impls::rtps_topic_impl::RtpsTopicImpl, rtps_domain_participant::RtpsDomainParticipant,
@@ -16,8 +16,7 @@ use rust_dds_api::{
     topic::{topic::Topic, topic_description::TopicDescription, topic_listener::TopicListener},
 };
 
-pub type RtpsTopic<'a, T> =
-    Node<&'a RtpsDomainParticipant, (Weak<RtpsTopicImpl>, PhantomData<&'a T>)>;
+pub type RtpsTopic<'a, T> = Node<(&'a RtpsDomainParticipant, PhantomData<&'a T>), RtpsTopicImpl>;
 
 impl<'a, T: DDSType> DomainParticipantChild<'a> for RtpsTopic<'a, T> {
     type DomainParticipantType = RtpsDomainParticipant;
@@ -34,13 +33,12 @@ impl<'a, T: DDSType> Topic<'a> for RtpsTopic<'a, T> {
 
 impl<'a, T: DDSType> TopicDescription<'a> for RtpsTopic<'a, T> {
     fn get_participant(&self) -> &<Self as DomainParticipantChild<'a>>::DomainParticipantType {
-        self.parent
+        self.parent.0
     }
 
     fn get_type_name(&self) -> DDSResult<&'static str> {
         Ok(self
             .impl_ref
-            .0
             .upgrade()
             .ok_or(DDSError::AlreadyDeleted)?
             .get_type_name())
@@ -49,7 +47,6 @@ impl<'a, T: DDSType> TopicDescription<'a> for RtpsTopic<'a, T> {
     fn get_name(&self) -> DDSResult<String> {
         Ok(self
             .impl_ref
-            .0
             .upgrade()
             .ok_or(DDSError::AlreadyDeleted)?
             .get_name())
@@ -62,7 +59,6 @@ impl<'a, T: DDSType> Entity for RtpsTopic<'a, T> {
 
     fn set_qos(&self, qos: Option<Self::Qos>) -> DDSResult<()> {
         self.impl_ref
-            .0
             .upgrade()
             .ok_or(DDSError::AlreadyDeleted)?
             .set_qos(qos)
@@ -71,7 +67,6 @@ impl<'a, T: DDSType> Entity for RtpsTopic<'a, T> {
     fn get_qos(&self) -> DDSResult<Self::Qos> {
         Ok(self
             .impl_ref
-            .0
             .upgrade()
             .ok_or(DDSError::AlreadyDeleted)?
             .get_qos())
@@ -80,7 +75,6 @@ impl<'a, T: DDSType> Entity for RtpsTopic<'a, T> {
     fn set_listener(&self, a_listener: Option<Self::Listener>, mask: StatusMask) -> DDSResult<()> {
         Ok(self
             .impl_ref
-            .0
             .upgrade()
             .ok_or(DDSError::AlreadyDeleted)?
             .set_listener(a_listener, mask))
@@ -89,7 +83,6 @@ impl<'a, T: DDSType> Entity for RtpsTopic<'a, T> {
     fn get_listener(&self) -> DDSResult<Option<Self::Listener>> {
         Ok(self
             .impl_ref
-            .0
             .upgrade()
             .ok_or(DDSError::AlreadyDeleted)?
             .get_listener())

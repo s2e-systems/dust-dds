@@ -1,5 +1,3 @@
-use std::sync::Weak;
-
 use rust_dds_api::{
     dcps_psm::{Duration, InstanceHandle, StatusMask},
     dds_type::DDSType,
@@ -23,7 +21,7 @@ use crate::{
 
 use super::{rtps_datawriter::RtpsDataWriter, rtps_topic::RtpsTopic};
 
-pub type RtpsPublisher<'a> = Node<&'a RtpsDomainParticipant, Weak<RtpsPublisherImpl>>;
+pub type RtpsPublisher<'a> = Node<&'a RtpsDomainParticipant, RtpsPublisherImpl>;
 
 impl<'a, T: DDSType> TopicGAT<'a, T> for RtpsPublisher<'a> {
     type TopicType = RtpsTopic<'a, T>;
@@ -176,81 +174,6 @@ impl<'a> Entity for RtpsPublisher<'a> {
         todo!()
     }
 }
-
-// impl<'a> RtpsPublisherNode<'a> {
-// pub fn get(&self) -> DDSResult<&RtpsPublisher> {
-//     Ok(MaybeValid::get(&self.maybe_valid_ref)
-//         .ok_or(DDSError::AlreadyDeleted)?
-//         .as_ref())
-// }
-
-// pub fn create_datawriter<T: DDSType>(
-//     &self,
-//     a_topic: &RtpsAnyTopicRef,
-//     qos: Option<DataWriterQos>,
-//     // _a_listener: impl DataWriterListener<T>,
-//     // _mask: StatusMask
-// ) -> Option<RtpsAnyDataWriterRef> {
-//     let this = self.get().ok()?;
-//     let qos = qos.unwrap_or(self.get_default_datawriter_qos().ok()?);
-//     let guid_prefix = this.group.entity.guid.prefix();
-//     let entity_key = [
-//         0,
-//         this.writer_count.fetch_add(1, atomic::Ordering::Relaxed),
-//         0,
-//     ];
-//     this.create_stateful_datawriter::<T>(guid_prefix, entity_key, a_topic, qos)
-// }
-
-// pub fn lookup_datawriter<T: DDSType>(&self, topic_name: &str) -> Option<RtpsAnyDataWriterRef> {
-//     self.get().ok()?.writer_list.into_iter().find(|writer| {
-//         if let Some(any_writer) = writer.get_as::<T>().ok() {
-//             let topic_mutex_guard = any_writer.topic.lock().unwrap();
-//             match &*topic_mutex_guard {
-//                 Some(any_topic) => any_topic.topic_name() == topic_name,
-//                 _ => false,
-//             }
-//         } else {
-//             false
-//         }
-//     })
-// }
-
-// pub fn get_default_datawriter_qos(&self) -> DDSResult<DataWriterQos> {
-//     Ok(self.get()?.default_datawriter_qos.lock().unwrap().clone())
-// }
-
-// pub fn set_default_datawriter_qos(&self, qos: Option<DataWriterQos>) -> DDSResult<()> {
-//     let datawriter_qos = qos.unwrap_or_default();
-//     datawriter_qos.is_consistent()?;
-//     *self.get()?.default_datawriter_qos.lock().unwrap() = datawriter_qos;
-//     Ok(())
-// }
-
-// pub fn delete(&self) {
-//     MaybeValid::delete(&self.maybe_valid_ref)
-// }
-
-// pub fn create_stateful_datawriter<T: DDSType>(
-//     &self,
-//     a_topic: &RtpsAnyTopicRef,
-//     qos: Option<DataWriterQos>,
-//     // _a_listener: impl DataWriterListener<T>,
-//     // _mask: StatusMask
-// ) -> Option<RtpsAnyDataWriterRef> {
-//     self.create_datawriter::<T>(a_topic, qos, Statefulness::Stateful)
-// }
-
-// pub fn create_stateless_datawriter<T: DDSType>(
-//     &self,
-//     a_topic: &RtpsAnyTopicRef,
-//     qos: Option<DataWriterQos>,
-//     // _a_listener: impl DataWriterListener<T>,
-//     // _mask: StatusMask
-// ) -> Option<RtpsAnyDataWriterRef> {
-//     self.create_datawriter::<T>(a_topic, qos, Statefulness::Stateless)
-// }
-// }
 
 #[cfg(test)]
 mod tests {
