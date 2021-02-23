@@ -45,32 +45,6 @@ use crate::{
     utils::node::Node,
 };
 
-struct SpdpDiscoveredParticipantData {
-    value: u8,
-}
-
-impl DDSType for SpdpDiscoveredParticipantData {
-    fn type_name() -> &'static str {
-        "SpdpDiscoveredParticipantData"
-    }
-
-    fn has_key() -> bool {
-        false
-    }
-
-    fn key(&self) -> Vec<u8> {
-        vec![]
-    }
-
-    fn serialize(&self) -> Vec<u8> {
-        vec![0, 0, 0, 0, 1, 2, 3, 4]
-    }
-
-    fn deserialize(_data: Vec<u8>) -> Self {
-        todo!()
-    }
-}
-
 struct RtpsParticipantEntities {
     publisher_list: Mutex<Vec<Arc<RtpsPublisherImpl>>>,
     subscriber_list: Mutex<Vec<Arc<RtpsSubscriberImpl>>>,
@@ -630,20 +604,13 @@ mod tests {
 
     #[test]
     fn create_publisher() {
-        let domain_id = 0;
-        let qos = DomainParticipantQos::default();
-        let userdata_transport = MockTransport::default();
-        let metatraffic_transport = MockTransport::default();
-        let a_listener = None;
-        let mask = 0;
-
         let participant = RtpsDomainParticipant::new(
-            domain_id,
-            qos,
-            userdata_transport,
-            metatraffic_transport,
-            a_listener,
-            mask,
+            0,
+            DomainParticipantQos::default(),
+            MockTransport::default(),
+            MockTransport::default(),
+            None,
+            0,
         );
 
         let qos = Some(PublisherQos::default());
@@ -666,20 +633,13 @@ mod tests {
 
     #[test]
     fn create_delete_publisher() {
-        let domain_id = 0;
-        let qos = DomainParticipantQos::default();
-        let userdata_transport = MockTransport::default();
-        let metatraffic_transport = MockTransport::default();
-        let a_listener = None;
-        let mask = 0;
-
         let participant = RtpsDomainParticipant::new(
-            domain_id,
-            qos,
-            userdata_transport,
-            metatraffic_transport,
-            a_listener,
-            mask,
+            0,
+            DomainParticipantQos::default(),
+            MockTransport::default(),
+            MockTransport::default(),
+            None,
+            0,
         );
 
         let qos = Some(PublisherQos::default());
@@ -803,6 +763,144 @@ mod tests {
         participant
             .delete_topic(a_topic)
             .expect("Error deleting topic")
+    }
+
+    #[test]
+    fn set_get_default_publisher_qos() {
+        let participant = RtpsDomainParticipant::new(
+            0,
+            DomainParticipantQos::default(),
+            MockTransport::default(),
+            MockTransport::default(),
+            None,
+            0,
+        );
+
+        let mut publisher_qos = PublisherQos::default();
+        publisher_qos.group_data.value = vec![b'a', b'b', b'c'];
+        participant
+            .set_default_publisher_qos(Some(publisher_qos.clone()))
+            .expect("Error setting default publisher qos");
+
+        assert_eq!(publisher_qos, participant.get_default_publisher_qos())
+    }
+
+    #[test]
+    fn set_get_default_subscriber_qos() {
+        let participant = RtpsDomainParticipant::new(
+            0,
+            DomainParticipantQos::default(),
+            MockTransport::default(),
+            MockTransport::default(),
+            None,
+            0,
+        );
+
+        let mut subscriber_qos = SubscriberQos::default();
+        subscriber_qos.group_data.value = vec![b'a', b'b', b'c'];
+        participant
+            .set_default_subscriber_qos(Some(subscriber_qos.clone()))
+            .expect("Error setting default subscriber qos");
+
+        assert_eq!(subscriber_qos, participant.get_default_subscriber_qos())
+    }
+
+    #[test]
+    fn set_get_default_topic_qos() {
+        let participant = RtpsDomainParticipant::new(
+            0,
+            DomainParticipantQos::default(),
+            MockTransport::default(),
+            MockTransport::default(),
+            None,
+            0,
+        );
+
+        let mut topic_qos = TopicQos::default();
+        topic_qos.topic_data.value = vec![b'a', b'b', b'c'];
+        participant
+            .set_default_topic_qos(Some(topic_qos.clone()))
+            .expect("Error setting default subscriber qos");
+
+        assert_eq!(topic_qos, participant.get_default_topic_qos())
+    }
+
+    #[test]
+    fn set_default_publisher_qos_to_default_value() {
+        let participant = RtpsDomainParticipant::new(
+            0,
+            DomainParticipantQos::default(),
+            MockTransport::default(),
+            MockTransport::default(),
+            None,
+            0,
+        );
+
+        let mut publisher_qos = PublisherQos::default();
+        publisher_qos.group_data.value = vec![b'a', b'b', b'c'];
+        participant
+            .set_default_publisher_qos(Some(publisher_qos.clone()))
+            .unwrap();
+
+        participant
+            .set_default_publisher_qos(None)
+            .expect("Error setting default publisher qos");
+
+        assert_eq!(
+            PublisherQos::default(),
+            participant.get_default_publisher_qos()
+        )
+    }
+
+    #[test]
+    fn set_default_subscriber_qos_to_default_value() {
+        let participant = RtpsDomainParticipant::new(
+            0,
+            DomainParticipantQos::default(),
+            MockTransport::default(),
+            MockTransport::default(),
+            None,
+            0,
+        );
+
+        let mut subscriber_qos = SubscriberQos::default();
+        subscriber_qos.group_data.value = vec![b'a', b'b', b'c'];
+        participant
+            .set_default_subscriber_qos(Some(subscriber_qos.clone()))
+            .unwrap();
+
+        participant
+            .set_default_subscriber_qos(None)
+            .expect("Error setting default subscriber qos");
+
+        assert_eq!(
+            SubscriberQos::default(),
+            participant.get_default_subscriber_qos()
+        )
+    }
+
+    #[test]
+    fn set_default_topic_qos_to_default_value() {
+        let participant = RtpsDomainParticipant::new(
+            0,
+            DomainParticipantQos::default(),
+            MockTransport::default(),
+            MockTransport::default(),
+            None,
+            0,
+        );
+
+        let mut topic_qos = TopicQos::default();
+        topic_qos.topic_data.value = vec![b'a', b'b', b'c'];
+        participant
+            .set_default_topic_qos(Some(topic_qos.clone()))
+            .unwrap();
+
+        participant
+            .set_default_topic_qos(None)
+            .expect("Error setting default subscriber qos");
+
+        assert_eq!(TopicQos::default(), participant.get_default_topic_qos())
     }
 
     #[test]
