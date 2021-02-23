@@ -351,7 +351,7 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
     }
 
     fn get_domain_id(&self) -> DomainId {
-        todo!()
+        self.domain_id
     }
 
     fn delete_contained_entities(&self) -> DDSResult<()> {
@@ -914,6 +914,12 @@ mod tests {
             0,
         );
 
+        let mut publisher_qos = PublisherQos::default();
+        publisher_qos.group_data.value = vec![b'a', b'b', b'c'];
+        participant
+            .set_default_publisher_qos(Some(publisher_qos.clone()))
+            .unwrap();
+
         let qos = None;
         let a_listener = None;
         let mask = 0;
@@ -921,6 +927,61 @@ mod tests {
             .create_publisher(qos, a_listener, mask)
             .expect("Error creating publisher");
 
-        assert_eq!(publisher.get_qos().unwrap(), PublisherQos::default());
+        assert_eq!(publisher.get_qos().unwrap(), publisher_qos);
     }
+
+    #[test]
+    fn create_subscriber_factory_default_qos() {
+        let participant = RtpsDomainParticipant::new(
+            0,
+            DomainParticipantQos::default(),
+            MockTransport::default(),
+            MockTransport::default(),
+            None,
+            0,
+        );
+
+        let mut subscriber_qos = SubscriberQos::default();
+        subscriber_qos.group_data.value = vec![b'a', b'b', b'c'];
+        participant
+            .set_default_subscriber_qos(Some(subscriber_qos.clone()))
+            .unwrap();
+
+        let qos = None;
+        let a_listener = None;
+        let mask = 0;
+        let subscriber = participant
+            .create_subscriber(qos, a_listener, mask)
+            .expect("Error creating publisher");
+
+        assert_eq!(subscriber.get_qos().unwrap(), subscriber_qos);
+    }
+
+    #[test]
+    fn create_topic_factory_default_qos() {
+        let participant = RtpsDomainParticipant::new(
+            0,
+            DomainParticipantQos::default(),
+            MockTransport::default(),
+            MockTransport::default(),
+            None,
+            0,
+        );
+
+        let mut topic_qos = TopicQos::default();
+        topic_qos.topic_data.value = vec![b'a', b'b', b'c'];
+        participant
+            .set_default_topic_qos(Some(topic_qos.clone()))
+            .unwrap();
+
+        let qos = None;
+        let a_listener = None;
+        let mask = 0;
+        let topic = participant
+            .create_topic::<TestType>("name", qos, a_listener, mask)
+            .expect("Error creating publisher");
+
+        assert_eq!(topic.get_qos().unwrap(), topic_qos);
+    }
+
 }
