@@ -1,5 +1,6 @@
 use std::{
     cell::RefCell,
+    marker::PhantomData,
     sync::{atomic, Arc, Mutex, Once},
     thread::JoinHandle,
 };
@@ -73,6 +74,7 @@ impl DDSType for SpdpDiscoveredParticipantData {
 struct RtpsParticipantEntities {
     publisher_list: Mutex<Vec<Arc<RtpsPublisherImpl>>>,
     subscriber_list: Mutex<Vec<Arc<RtpsSubscriberImpl>>>,
+    topic_list: Mutex<Vec<Arc<RtpsTopicImpl>>>,
     transport: Box<dyn Transport>,
 }
 
@@ -81,6 +83,7 @@ impl RtpsParticipantEntities {
         Self {
             publisher_list: Default::default(),
             subscriber_list: Default::default(),
+            topic_list: Default::default(),
             transport: Box::new(transport),
         }
     }
@@ -195,11 +198,11 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
     }
 
     fn delete_publisher(&self, a_publisher: Self::PublisherType) -> DDSResult<()> {
-        let publisher_impl = a_publisher
-            .impl_ref
-            .upgrade()
-            .ok_or(DDSError::AlreadyDeleted)?;
         if std::ptr::eq(a_publisher.parent, self) {
+            let publisher_impl = a_publisher
+                .impl_ref
+                .upgrade()
+                .ok_or(DDSError::AlreadyDeleted)?;
             self.user_defined_entities
                 .publisher_list
                 .lock()
@@ -246,11 +249,11 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
     }
 
     fn delete_subscriber(&self, a_subscriber: Self::SubscriberType) -> DDSResult<()> {
-        let subscriber_impl = a_subscriber
-            .impl_ref
-            .upgrade()
-            .ok_or(DDSError::AlreadyDeleted)?;
         if std::ptr::eq(a_subscriber.parent, self) {
+            let subscriber_impl = a_subscriber
+                .impl_ref
+                .upgrade()
+                .ok_or(DDSError::AlreadyDeleted)?;
             self.user_defined_entities
                 .subscriber_list
                 .lock()
@@ -282,11 +285,24 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
         let guid = GUID::new(guid_prefix, entity_id);
         let entity = rust_rtps::structure::Entity::new(guid);
         let qos = qos.unwrap_or(self.get_default_topic_qos());
-        let topic = RtpsTopicImpl::new(entity, topic_name, qos, a_listener, mask);
+        let topic = Arc::new(RtpsTopicImpl::new(
+            entity,
+            topic_name,
+            T::type_name(),
+            qos,
+            a_listener,
+            mask,
+        ));
+
+        self.user_defined_entities
+            .topic_list
+            .lock()
+            .unwrap()
+            .push(topic.clone());
 
         Some(Node {
             parent: self,
-            impl_ref: topic,
+            impl_ref: (Arc::downgrade(&topic), PhantomData),
         })
     }
 
@@ -295,7 +311,16 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
         a_topic: <Self as TopicGAT<'a, T>>::TopicType,
     ) -> DDSResult<()> {
         if std::ptr::eq(a_topic.parent, self) {
-            // Do nothing more than dropping for now
+            let topic_impl = a_topic
+                .impl_ref
+                .0
+                .upgrade()
+                .ok_or(DDSError::AlreadyDeleted)?;
+            self.user_defined_entities
+                .topic_list
+                .lock()
+                .unwrap()
+                .retain(|x| !std::ptr::eq(x.as_ref(), topic_impl.as_ref()));
             Ok(())
         } else {
             Err(DDSError::PreconditionNotMet(
@@ -678,20 +703,13 @@ mod tests {
 
     #[test]
     fn create_subscriber() {
-        let domain_id = 0;
-        let qos = DomainParticipantQos::default();
-        let userdata_transport = MockTransport::default();
-        let metatraffic_transport = MockTransport::default();
-        let a_listener = None;
-        let mask = 0;
-
         let participant = RtpsDomainParticipant::new(
-            domain_id,
-            qos,
-            userdata_transport,
-            metatraffic_transport,
-            a_listener,
-            mask,
+            0,
+            DomainParticipantQos::default(),
+            MockTransport::default(),
+            MockTransport::default(),
+            None,
+            0,
         );
 
         let qos = Some(SubscriberQos::default());
@@ -713,20 +731,13 @@ mod tests {
 
     #[test]
     fn create_delete_subscriber() {
-        let domain_id = 0;
-        let qos = DomainParticipantQos::default();
-        let userdata_transport = MockTransport::default();
-        let metatraffic_transport = MockTransport::default();
-        let a_listener = None;
-        let mask = 0;
-
         let participant = RtpsDomainParticipant::new(
-            domain_id,
-            qos,
-            userdata_transport,
-            metatraffic_transport,
-            a_listener,
-            mask,
+            0,
+            DomainParticipantQos::default(),
+            MockTransport::default(),
+            MockTransport::default(),
+            None,
+            0,
         );
 
         let qos = Some(SubscriberQos::default());
@@ -752,20 +763,13 @@ mod tests {
 
     #[test]
     fn create_topic() {
-        let domain_id = 0;
-        let qos = DomainParticipantQos::default();
-        let userdata_transport = MockTransport::default();
-        let metatraffic_transport = MockTransport::default();
-        let a_listener = None;
-        let mask = 0;
-
         let participant = RtpsDomainParticipant::new(
-            domain_id,
-            qos,
-            userdata_transport,
-            metatraffic_transport,
-            a_listener,
-            mask,
+            0,
+            DomainParticipantQos::default(),
+            MockTransport::default(),
+            MockTransport::default(),
+            None,
+            0,
         );
 
         let topic_name = "Test";
@@ -779,20 +783,13 @@ mod tests {
 
     #[test]
     fn create_delete_topic() {
-        let domain_id = 0;
-        let qos = DomainParticipantQos::default();
-        let userdata_transport = MockTransport::default();
-        let metatraffic_transport = MockTransport::default();
-        let a_listener = None;
-        let mask = 0;
-
         let participant = RtpsDomainParticipant::new(
-            domain_id,
-            qos,
-            userdata_transport,
-            metatraffic_transport,
-            a_listener,
-            mask,
+            0,
+            DomainParticipantQos::default(),
+            MockTransport::default(),
+            MockTransport::default(),
+            None,
+            0,
         );
 
         let topic_name = "Test";
@@ -810,20 +807,13 @@ mod tests {
 
     #[test]
     fn create_publisher_factory_default_qos() {
-        let domain_id = 0;
-        let qos = DomainParticipantQos::default();
-        let userdata_transport = MockTransport::default();
-        let metatraffic_transport = MockTransport::default();
-        let a_listener = None;
-        let mask = 0;
-
         let participant = RtpsDomainParticipant::new(
-            domain_id,
-            qos,
-            userdata_transport,
-            metatraffic_transport,
-            a_listener,
-            mask,
+            0,
+            DomainParticipantQos::default(),
+            MockTransport::default(),
+            MockTransport::default(),
+            None,
+            0,
         );
 
         let qos = None;

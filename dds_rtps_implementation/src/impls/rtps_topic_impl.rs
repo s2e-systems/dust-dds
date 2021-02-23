@@ -1,25 +1,26 @@
-use std::{marker::PhantomData, sync::Mutex};
+use std::sync::Mutex;
 
 use rust_dds_api::{
-    dcps_psm::StatusMask, dds_type::DDSType, infrastructure::qos::TopicQos, return_type::DDSResult,
+    dcps_psm::StatusMask, infrastructure::qos::TopicQos, return_type::DDSResult,
     topic::topic_listener::TopicListener,
 };
 use rust_rtps::structure::Entity;
 
 use super::mask_listener::MaskListener;
 
-pub struct RtpsTopicImpl<'a, T: DDSType> {
+pub struct RtpsTopicImpl {
     entity: Entity,
     topic_name: String,
+    type_name: &'static str,
     qos: Mutex<TopicQos>,
     listener: Mutex<MaskListener<Box<dyn TopicListener>>>,
-    phantom_data: PhantomData<&'a T>,
 }
 
-impl<'a, T: DDSType> RtpsTopicImpl<'a, T> {
+impl RtpsTopicImpl {
     pub fn new(
         entity: Entity,
         topic_name: &str,
+        type_name: &'static str,
         qos: TopicQos,
         listener: Option<Box<dyn TopicListener>>,
         status_mask: StatusMask,
@@ -27,18 +28,18 @@ impl<'a, T: DDSType> RtpsTopicImpl<'a, T> {
         Self {
             entity,
             topic_name: topic_name.to_string(),
+            type_name,
             qos: Mutex::new(qos),
             listener: Mutex::new(MaskListener::new(listener, status_mask)),
-            phantom_data: PhantomData,
         }
     }
 
-    pub fn get_type_name(&self) -> &str {
-        T::type_name()
+    pub fn get_type_name(&self) -> &'static str {
+        self.type_name
     }
 
-    pub fn get_name(&self) -> &str {
-        &self.topic_name
+    pub fn get_name(&self) -> String {
+        self.topic_name.clone()
     }
 
     pub fn set_qos(&self, qos: Option<TopicQos>) -> DDSResult<()> {
@@ -127,30 +128,6 @@ mod tests {
 
     use super::*;
 
-    pub struct TestType(u8);
-
-    impl DDSType for TestType {
-        fn type_name() -> &'static str {
-            "TestType"
-        }
-
-        fn has_key() -> bool {
-            true
-        }
-
-        fn key(&self) -> Vec<u8> {
-            todo!()
-        }
-
-        fn serialize(&self) -> Vec<u8> {
-            todo!()
-        }
-
-        fn deserialize(_data: Vec<u8>) -> Self {
-            todo!()
-        }
-    }
-
     #[test]
     fn get_type_name() {
         let entity_id = EntityId::new([1; 3], ENTITY_KIND_USER_DEFINED_UNKNOWN);
@@ -160,9 +137,9 @@ mod tests {
         let qos = TopicQos::default();
         let listener = None;
         let status_mask = 0;
-        let topic = RtpsTopicImpl::<TestType>::new(entity, topic_name, qos, listener, status_mask);
+        let topic = RtpsTopicImpl::new(entity, topic_name, "TestType", qos, listener, status_mask);
 
-        assert_eq!(topic.get_type_name(), TestType::type_name());
+        assert_eq!(topic.get_type_name(), "TestType");
     }
 
     #[test]
@@ -174,7 +151,7 @@ mod tests {
         let qos = TopicQos::default();
         let listener = None;
         let status_mask = 0;
-        let topic = RtpsTopicImpl::<TestType>::new(entity, topic_name, qos, listener, status_mask);
+        let topic = RtpsTopicImpl::new(entity, topic_name, "TestType", qos, listener, status_mask);
 
         assert_eq!(topic.get_name(), topic_name);
     }
@@ -189,9 +166,10 @@ mod tests {
         qos.topic_data.value = vec![1, 2, 3, 4];
         let listener = None;
         let status_mask = 0;
-        let topic = RtpsTopicImpl::<TestType>::new(
+        let topic = RtpsTopicImpl::new(
             entity,
             topic_name,
+            "TestType",
             qos.clone(),
             listener,
             status_mask,
@@ -210,9 +188,10 @@ mod tests {
         qos.topic_data.value = vec![1, 2, 3, 4];
         let listener = None;
         let status_mask = 0;
-        let topic = RtpsTopicImpl::<TestType>::new(
+        let topic = RtpsTopicImpl::new(
             entity,
             topic_name,
+            "TestType",
             TopicQos::default(),
             listener,
             status_mask,
@@ -235,9 +214,10 @@ mod tests {
         inconsistent_qos.resource_limits.max_samples = 5;
         let listener = None;
         let status_mask = 0;
-        let topic = RtpsTopicImpl::<TestType>::new(
+        let topic = RtpsTopicImpl::new(
             entity,
             topic_name,
+            "TestType",
             TopicQos::default(),
             listener,
             status_mask,
@@ -270,9 +250,10 @@ mod tests {
         let qos = TopicQos::default();
         let listener = Box::new(TestListener);
         let status_mask = 0;
-        let topic = RtpsTopicImpl::<TestType>::new(
+        let topic = RtpsTopicImpl::new(
             entity,
             topic_name,
+            "TestType",
             qos.clone(),
             Some(listener),
             status_mask,
