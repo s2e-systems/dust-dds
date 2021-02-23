@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::sync::Weak;
 
 use rust_dds_api::{
     builtin_topics::PublicationBuiltinTopicData,
@@ -29,7 +29,7 @@ use crate::{impls::rtps_datareader_impl::RtpsDataReaderImpl, utils::node::Node};
 use super::{rtps_subscriber::RtpsSubscriber, rtps_topic::RtpsTopic};
 
 pub type RtpsDataReader<'a, T> =
-    Node<(&'a RtpsSubscriber<'a>, &'a RtpsTopic<'a, T>), Arc<RtpsDataReaderImpl>>;
+    Node<(&'a RtpsSubscriber<'a>, &'a RtpsTopic<'a, T>), Weak<RtpsDataReaderImpl>>;
 
 impl<'a, T: DDSType> DataReader<'a, T> for RtpsDataReader<'a, T> {
     fn read(

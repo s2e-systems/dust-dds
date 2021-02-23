@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::sync::{Arc, Weak};
 
 use rust_dds_api::{
     dcps_psm::{Duration, InstanceHandle, StatusMask},
@@ -23,7 +23,7 @@ use crate::{
 
 use super::{rtps_datawriter::RtpsDataWriter, rtps_topic::RtpsTopic};
 
-pub type RtpsPublisher<'a> = Node<&'a RtpsDomainParticipant, Arc<RtpsPublisherImpl>>;
+pub type RtpsPublisher<'a> = Node<&'a RtpsDomainParticipant, Weak<RtpsPublisherImpl>>;
 
 impl<'a, T: DDSType> TopicGAT<'a, T> for RtpsPublisher<'a> {
     type TopicType = RtpsTopic<'a, T>;
@@ -45,11 +45,14 @@ impl<'a> Publisher<'a> for RtpsPublisher<'a> {
         a_listener: Option<Box<dyn DataWriterListener<DataType = T>>>,
         mask: StatusMask,
     ) -> Option<<Self as DataWriterGAT<'a, T>>::DataWriterType> {
-        let data_writer_ref = self.impl_ref.create_datawriter(qos, a_listener, mask)?;
+        let data_writer_ref = self
+            .impl_ref
+            .upgrade()?
+            .create_datawriter(qos, a_listener, mask)?;
 
         Some(Node {
             parent: (self, a_topic),
-            impl_ref: data_writer_ref,
+            impl_ref: Arc::downgrade(&data_writer_ref),
         })
     }
 
@@ -58,7 +61,10 @@ impl<'a> Publisher<'a> for RtpsPublisher<'a> {
         a_datawriter: <Self as DataWriterGAT<'a, T>>::DataWriterType,
     ) -> DDSResult<()> {
         if std::ptr::eq(a_datawriter.parent.0, self) {
-            self.impl_ref.delete_datawriter(a_datawriter.impl_ref)
+            self.impl_ref
+                .upgrade()
+                .ok_or(DDSError::AlreadyDeleted)?
+                .delete_datawriter(&a_datawriter.impl_ref)
         } else {
             Err(DDSError::PreconditionNotMet(
                 "Publisher can only be deleted from its parent participant",
@@ -125,11 +131,20 @@ impl<'a> Entity for RtpsPublisher<'a> {
     type Listener = Box<dyn PublisherListener + 'a>;
 
     fn set_qos(&self, qos: Option<Self::Qos>) -> DDSResult<()> {
-        Ok(self.impl_ref.set_qos(qos))
+        Ok(self
+            .impl_ref
+            .upgrade()
+            .ok_or(DDSError::AlreadyDeleted)?
+            .set_qos(qos))
     }
 
     fn get_qos(&self) -> DDSResult<Self::Qos> {
-        Ok(self.impl_ref.get_qos().clone())
+        Ok(self
+            .impl_ref
+            .upgrade()
+            .ok_or(DDSError::AlreadyDeleted)?
+            .get_qos()
+            .clone())
     }
 
     fn set_listener(

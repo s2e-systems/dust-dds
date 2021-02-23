@@ -190,17 +190,21 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
 
         Some(Node {
             parent: self,
-            impl_ref: publisher,
+            impl_ref: Arc::downgrade(&publisher),
         })
     }
 
     fn delete_publisher(&self, a_publisher: Self::PublisherType) -> DDSResult<()> {
+        let publisher_impl = a_publisher
+            .impl_ref
+            .upgrade()
+            .ok_or(DDSError::AlreadyDeleted)?;
         if std::ptr::eq(a_publisher.parent, self) {
             self.user_defined_entities
                 .publisher_list
                 .lock()
                 .unwrap()
-                .retain(|x| std::ptr::eq(x.as_ref(), a_publisher.impl_ref.as_ref()));
+                .retain(|x| !std::ptr::eq(x.as_ref(), publisher_impl.as_ref()));
             Ok(())
         } else {
             Err(DDSError::PreconditionNotMet(
@@ -237,17 +241,21 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
 
         Some(Node {
             parent: self,
-            impl_ref: subscriber,
+            impl_ref: Arc::downgrade(&subscriber),
         })
     }
 
     fn delete_subscriber(&self, a_subscriber: Self::SubscriberType) -> DDSResult<()> {
+        let subscriber_impl = a_subscriber
+            .impl_ref
+            .upgrade()
+            .ok_or(DDSError::AlreadyDeleted)?;
         if std::ptr::eq(a_subscriber.parent, self) {
             self.user_defined_entities
                 .subscriber_list
                 .lock()
                 .unwrap()
-                .retain(|x| std::ptr::eq(x.as_ref(), a_subscriber.impl_ref.as_ref()));
+                .retain(|x| !std::ptr::eq(x.as_ref(), subscriber_impl.as_ref()));
             Ok(())
         } else {
             Err(DDSError::PreconditionNotMet(
@@ -619,6 +627,16 @@ mod tests {
         participant
             .create_publisher(qos, a_listener, mask)
             .expect("Error creating publisher");
+
+        assert_eq!(
+            participant
+                .user_defined_entities
+                .publisher_list
+                .lock()
+                .unwrap()
+                .len(),
+            1
+        );
     }
 
     #[test]
@@ -647,6 +665,15 @@ mod tests {
         participant
             .delete_publisher(a_publisher)
             .expect("Error deleting publisher");
+        assert_eq!(
+            participant
+                .user_defined_entities
+                .publisher_list
+                .lock()
+                .unwrap()
+                .len(),
+            0
+        );
     }
 
     #[test]
@@ -673,6 +700,15 @@ mod tests {
         participant
             .create_subscriber(qos, a_listener, mask)
             .expect("Error creating subscriber");
+        assert_eq!(
+            participant
+                .user_defined_entities
+                .subscriber_list
+                .lock()
+                .unwrap()
+                .len(),
+            1
+        );
     }
 
     #[test]
@@ -703,6 +739,15 @@ mod tests {
         participant
             .delete_subscriber(a_subscriber)
             .expect("Error deleting subscriber");
+        assert_eq!(
+            participant
+                .user_defined_entities
+                .subscriber_list
+                .lock()
+                .unwrap()
+                .len(),
+            0
+        );
     }
 
     #[test]

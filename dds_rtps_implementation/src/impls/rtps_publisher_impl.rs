@@ -1,4 +1,4 @@
-use std::sync::{atomic, Arc, Mutex};
+use std::sync::{Arc, Mutex, Weak, atomic};
 
 use rust_dds_api::{
     dcps_psm::StatusMask,
@@ -116,12 +116,13 @@ impl RtpsPublisherImpl {
         Some(data_writer)
     }
 
-    pub fn delete_datawriter(&self, a_datawriter: Arc<RtpsDataWriterImpl>) -> DDSResult<()> {
+    pub fn delete_datawriter(&self, a_datawriter: &Weak<RtpsDataWriterImpl>) -> DDSResult<()> {
+        let datawriter_impl = a_datawriter.upgrade().ok_or(DDSError::AlreadyDeleted)?;
         let mut writer_list = self.writer_list.lock().unwrap();
         // If there are two references, i.e. the one that is going to be deleted and the one in the
         // vector then we are sure no other is left for the user and they can both be dropped
-        if Arc::strong_count(&a_datawriter) == 2 {
-            writer_list.retain(|x| std::ptr::eq(x.as_ref(), a_datawriter.as_ref()));
+        if Arc::strong_count(&datawriter_impl) == 2 {
+            writer_list.retain(|x| !std::ptr::eq(x.as_ref(), datawriter_impl.as_ref()));
             Ok(())
         } else {
             Err(DDSError::PreconditionNotMet(

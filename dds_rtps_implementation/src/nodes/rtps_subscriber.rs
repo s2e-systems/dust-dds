@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::sync::Weak;
 
 use crate::{
     impls::rtps_subscriber_impl::RtpsSubscriberImpl,
@@ -26,7 +26,7 @@ use rust_dds_api::{
 
 use super::{rtps_datareader::RtpsDataReader, rtps_topic::RtpsTopic};
 
-pub type RtpsSubscriber<'a> = Node<&'a RtpsDomainParticipant, Arc<RtpsSubscriberImpl>>;
+pub type RtpsSubscriber<'a> = Node<&'a RtpsDomainParticipant, Weak<RtpsSubscriberImpl>>;
 
 impl<'a, T: DDSType> TopicGAT<'a, T> for RtpsSubscriber<'a> {
     type TopicType = RtpsTopic<'a, T>;
