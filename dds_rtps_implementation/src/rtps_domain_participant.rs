@@ -984,4 +984,19 @@ mod tests {
         assert_eq!(topic.get_qos().unwrap(), topic_qos);
     }
 
+    #[test]
+    fn get_domain_id() {
+        let participant = RtpsDomainParticipant::new(
+            0,
+            DomainParticipantQos::default(),
+            MockTransport::default(),
+            MockTransport::default(),
+            None,
+            0,
+        );
+
+        assert_eq!(participant.get_domain_id(), 0);
+    }
+
+
 }

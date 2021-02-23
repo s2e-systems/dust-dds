@@ -1,4 +1,4 @@
-use std::sync::{Arc, Weak};
+use std::sync::Weak;
 
 use rust_dds_api::{
     dcps_psm::{Duration, InstanceHandle, StatusMask},
@@ -52,7 +52,7 @@ impl<'a> Publisher<'a> for RtpsPublisher<'a> {
 
         Some(Node {
             parent: (self, a_topic),
-            impl_ref: Arc::downgrade(&data_writer_ref),
+            impl_ref: data_writer_ref,
         })
     }
 
@@ -260,6 +260,38 @@ mod tests {
     };
     use rust_rtps::{transport::Transport, types::Locator};
 
+    #[derive(Default)]
+    struct MockTransport {
+        unicast_locator_list: Vec<Locator>,
+        multicast_locator_list: Vec<Locator>,
+    }
+
+    impl Transport for MockTransport {
+        fn write(
+            &self,
+            _message: rust_rtps::messages::RtpsMessage,
+            _destination_locator: &rust_rtps::types::Locator,
+        ) {
+            todo!()
+        }
+
+        fn read(
+            &self,
+        ) -> rust_rtps::transport::TransportResult<
+            Option<(rust_rtps::messages::RtpsMessage, rust_rtps::types::Locator)>,
+        > {
+            todo!()
+        }
+
+        fn unicast_locator_list(&self) -> &Vec<rust_rtps::types::Locator> {
+            &self.unicast_locator_list
+        }
+
+        fn multicast_locator_list(&self) -> &Vec<rust_rtps::types::Locator> {
+            &self.multicast_locator_list
+        }
+    }
+
     struct TestType;
 
     impl DDSType for TestType {
@@ -284,71 +316,19 @@ mod tests {
         }
     }
 
-    fn create_test_participant() -> RtpsDomainParticipant {
-        #[derive(Default)]
-        struct MockTransport {
-            unicast_locator_list: Vec<Locator>,
-            multicast_locator_list: Vec<Locator>,
-        };
-
-        impl Transport for MockTransport {
-            fn write(
-                &self,
-                _message: rust_rtps::messages::RtpsMessage,
-                _destination_locator: &rust_rtps::types::Locator,
-            ) {
-                todo!()
-            }
-
-            fn read(
-                &self,
-            ) -> rust_rtps::transport::TransportResult<
-                Option<(rust_rtps::messages::RtpsMessage, rust_rtps::types::Locator)>,
-            > {
-                todo!()
-            }
-
-            fn unicast_locator_list(&self) -> &Vec<rust_rtps::types::Locator> {
-                &self.unicast_locator_list
-            }
-
-            fn multicast_locator_list(&self) -> &Vec<rust_rtps::types::Locator> {
-                &self.multicast_locator_list
-            }
-        }
-
-        let domain_id = 0;
-        let qos = DomainParticipantQos::default();
-        let userdata_transport = MockTransport::default();
-        let metatraffic_transport = MockTransport::default();
-        let a_listener = None;
-        let mask = 0;
-        RtpsDomainParticipant::new(
-            domain_id,
-            qos,
-            userdata_transport,
-            metatraffic_transport,
-            a_listener,
-            mask,
-        )
-    }
-
     #[test]
     fn create_datawriter_default_qos() {
-        let domain_participant = create_test_participant();
-        let qos = None;
-        let a_listener = None;
-        let mask = 0;
-        let publisher = domain_participant
-            .create_publisher(qos, a_listener, mask)
-            .unwrap();
-
-        let topic_name = "Test";
-        let qos = None;
-        let a_listener = None;
-        let mask = 0;
+        let domain_participant = RtpsDomainParticipant::new(
+            0,
+            DomainParticipantQos::default(),
+            MockTransport::default(),
+            MockTransport::default(),
+            None,
+            0,
+        );
+        let publisher = domain_participant.create_publisher(None, None, 0).unwrap();
         let topic = domain_participant
-            .create_topic(topic_name, qos, a_listener, mask)
+            .create_topic("Test", None, None, 0)
             .unwrap();
 
         let qos = None;
@@ -357,5 +337,28 @@ mod tests {
         let _datawriter = publisher
             .create_datawriter::<TestType>(&topic, qos, a_listener, mask)
             .expect("Error creating data writer");
+    }
+
+    #[test]
+    fn set_and_get_qos() {
+        let domain_participant = RtpsDomainParticipant::new(
+            0,
+            DomainParticipantQos::default(),
+            MockTransport::default(),
+            MockTransport::default(),
+            None,
+            0,
+        );
+        let publisher = domain_participant.create_publisher(None, None, 0).unwrap();
+
+        let mut publisher_qos = PublisherQos::default();
+        publisher_qos.group_data.value = vec![1, 2, 3, 4];
+        publisher
+            .set_qos(Some(publisher_qos.clone()))
+            .expect("Error setting publisher qos");
+        assert_eq!(
+            publisher.get_qos().expect("Error getting publisher qos"),
+            publisher_qos
+        );
     }
 }

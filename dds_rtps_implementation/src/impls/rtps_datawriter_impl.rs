@@ -1,7 +1,4 @@
-use std::{
-    convert::TryInto,
-    ops::{Deref, DerefMut},
-};
+use std::ops::{Deref, DerefMut};
 
 use rust_dds_api::{
     dcps_psm::StatusMask, dds_type::DDSType, infrastructure::qos::DataWriterQos,
@@ -10,17 +7,6 @@ use rust_dds_api::{
 use rust_rtps::behavior::{StatefulWriter, StatelessWriter, Writer};
 
 use super::mask_listener::MaskListener;
-
-fn instance_handle_from_dds_type<T: DDSType>(data: T) -> rust_rtps::types::InstanceHandle {
-    if data.key().is_empty() {
-        [0; 16]
-    } else {
-        let mut key = data.key();
-        key.resize_with(16, Default::default);
-        key.try_into().unwrap()
-    }
-}
-
 struct RtpsDataWriterListener<T: DDSType>(Box<dyn DataWriterListener<DataType = T>>);
 trait AnyDataWriterListener: Send + Sync {}
 

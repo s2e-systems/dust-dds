@@ -60,7 +60,7 @@ impl RtpsPublisherImpl {
         qos: Option<DataWriterQos>,
         a_listener: Option<Box<dyn DataWriterListener<DataType = T>>>,
         mask: StatusMask,
-    ) -> Option<Arc<RtpsDataWriterImpl>> {
+    ) -> Option<Weak<RtpsDataWriterImpl>> {
         let qos = qos.unwrap_or(self.default_datawriter_qos.clone());
         qos.is_consistent().ok()?;
 
@@ -113,7 +113,7 @@ impl RtpsPublisherImpl {
 
         self.writer_list.lock().unwrap().push(data_writer.clone());
 
-        Some(data_writer)
+        Some(Arc::downgrade(&data_writer))
     }
 
     pub fn delete_datawriter(&self, a_datawriter: &Weak<RtpsDataWriterImpl>) -> DDSResult<()> {

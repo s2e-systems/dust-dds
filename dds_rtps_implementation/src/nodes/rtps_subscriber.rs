@@ -15,7 +15,7 @@ use rust_dds_api::{
         entity::{Entity, StatusCondition},
         qos::{DataReaderQos, SubscriberQos, TopicQos},
     },
-    return_type::DDSResult,
+    return_type::{DDSError, DDSResult},
     subscription::{
         data_reader::AnyDataReader,
         data_reader_listener::DataReaderListener,
@@ -43,30 +43,36 @@ impl<'a> DomainParticipantChild<'a> for RtpsSubscriber<'a> {
 impl<'a> Subscriber<'a> for RtpsSubscriber<'a> {
     fn create_datareader<T: DDSType>(
         &'a self,
-        _a_topic: &'a <Self as TopicGAT<'a, T>>::TopicType,
-        _qos: Option<DataReaderQos>,
-        _a_listener: Option<Box<dyn DataReaderListener<DataType = T>>>,
-        _mask: StatusMask,
+        a_topic: &'a <Self as TopicGAT<'a, T>>::TopicType,
+        qos: Option<DataReaderQos>,
+        a_listener: Option<Box<dyn DataReaderListener<DataType = T>>>,
+        mask: StatusMask,
     ) -> Option<<Self as DataReaderGAT<'a, T>>::DataReaderType> {
-        todo!()
-        // let data_reader_ref =
-        //     self.get_impl()
-        //         .ok()?
-        //         .create_datareader(&a_topic.topic_ref, qos, a_listener, mask)?;
+        let data_reader_ref = self
+            .impl_ref
+            .upgrade()?
+            .create_datareader(qos, a_listener, mask)?;
 
-        // Some(RtpsDataReader {
-        //     parent_subscriber: self,
-        //     data_reader_ref,
-        //     phantom_data: PhantomData,
-        // })
+        Some(Node {
+            parent: (self, a_topic),
+            impl_ref: data_reader_ref,
+        })
     }
 
     fn delete_datareader<T: DDSType>(
         &'a self,
-        _a_datareader: <Self as DataReaderGAT<'a, T>>::DataReaderType,
+        a_datareader: <Self as DataReaderGAT<'a, T>>::DataReaderType,
     ) -> DDSResult<()> {
-        // a_datareader.data_reader_ref.delete()
-        todo!()
+        if std::ptr::eq(a_datareader.parent.0, self) {
+            self.impl_ref
+                .upgrade()
+                .ok_or(DDSError::AlreadyDeleted)?
+                .delete_datareader(&a_datareader.impl_ref)
+        } else {
+            Err(DDSError::PreconditionNotMet(
+                "Publisher can only be deleted from its parent participant",
+            ))
+        }
     }
 
     fn lookup_datareader<T: DDSType>(
@@ -131,13 +137,21 @@ impl<'a> Entity for RtpsSubscriber<'a> {
     type Qos = SubscriberQos;
     type Listener = Box<dyn SubscriberListener + 'a>;
 
-    fn set_qos(&self, _qos: Option<Self::Qos>) -> DDSResult<()> {
-        todo!()
+    fn set_qos(&self, qos: Option<Self::Qos>) -> DDSResult<()> {
+        Ok(self
+            .impl_ref
+            .upgrade()
+            .ok_or(DDSError::AlreadyDeleted)?
+            .set_qos(qos))
     }
 
     fn get_qos(&self) -> DDSResult<Self::Qos> {
-        // self.subscriber_ref.get_qos()
-        todo!()
+        Ok(self
+            .impl_ref
+            .upgrade()
+            .ok_or(DDSError::AlreadyDeleted)?
+            .get_qos()
+            .clone())
     }
 
     fn set_listener(
@@ -166,5 +180,93 @@ impl<'a> Entity for RtpsSubscriber<'a> {
 
     fn get_instance_handle(&self) -> DDSResult<InstanceHandle> {
         todo!()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rust_dds_api::{
+        domain::domain_participant::DomainParticipant, infrastructure::qos::DomainParticipantQos,
+    };
+    use rust_rtps::{transport::Transport, types::Locator};
+
+    #[derive(Default)]
+    struct MockTransport {
+        unicast_locator_list: Vec<Locator>,
+        multicast_locator_list: Vec<Locator>,
+    }
+
+    impl Transport for MockTransport {
+        fn write(
+            &self,
+            _message: rust_rtps::messages::RtpsMessage,
+            _destination_locator: &rust_rtps::types::Locator,
+        ) {
+            todo!()
+        }
+
+        fn read(
+            &self,
+        ) -> rust_rtps::transport::TransportResult<
+            Option<(rust_rtps::messages::RtpsMessage, rust_rtps::types::Locator)>,
+        > {
+            todo!()
+        }
+
+        fn unicast_locator_list(&self) -> &Vec<rust_rtps::types::Locator> {
+            &self.unicast_locator_list
+        }
+
+        fn multicast_locator_list(&self) -> &Vec<rust_rtps::types::Locator> {
+            &self.multicast_locator_list
+        }
+    }
+
+    struct TestType;
+
+    impl DDSType for TestType {
+        fn type_name() -> &'static str {
+            "TestType"
+        }
+
+        fn has_key() -> bool {
+            true
+        }
+
+        fn key(&self) -> Vec<u8> {
+            todo!()
+        }
+
+        fn serialize(&self) -> Vec<u8> {
+            todo!()
+        }
+
+        fn deserialize(_data: Vec<u8>) -> Self {
+            todo!()
+        }
+    }
+
+    #[test]
+    fn set_and_get_subscriber_qos() {
+        let domain_participant = RtpsDomainParticipant::new(
+            0,
+            DomainParticipantQos::default(),
+            MockTransport::default(),
+            MockTransport::default(),
+            None,
+            0,
+        );
+        let subscriber = domain_participant.create_subscriber(None, None, 0).unwrap();
+
+        let mut subscriber_qos = SubscriberQos::default();
+        subscriber_qos.group_data.value = vec![1, 2, 3, 4];
+        subscriber
+            .set_qos(Some(subscriber_qos.clone()))
+            .expect("Error setting publisher qos");
+        assert_eq!(
+            subscriber.get_qos().expect("Error getting publisher qos"),
+            subscriber_qos
+        );
     }
 }
