@@ -1,5 +1,3 @@
-use std::sync::Mutex;
-
 use rust_dds_api::{
     dcps_psm::StatusMask, infrastructure::qos::TopicQos, return_type::DDSResult,
     topic::topic_listener::TopicListener,
@@ -12,8 +10,8 @@ pub struct RtpsTopicImpl {
     entity: Entity,
     topic_name: String,
     type_name: &'static str,
-    qos: Mutex<TopicQos>,
-    listener: Mutex<MaskListener<Box<dyn TopicListener>>>,
+    qos: TopicQos,
+    listener: MaskListener<Box<dyn TopicListener>>,
 }
 
 impl RtpsTopicImpl {
@@ -29,8 +27,8 @@ impl RtpsTopicImpl {
             entity,
             topic_name: topic_name.to_string(),
             type_name,
-            qos: Mutex::new(qos),
-            listener: Mutex::new(MaskListener::new(listener, status_mask)),
+            qos,
+            listener: MaskListener::new(listener, status_mask),
         }
     }
 
@@ -42,23 +40,23 @@ impl RtpsTopicImpl {
         self.topic_name.clone()
     }
 
-    pub fn set_qos(&self, qos: Option<TopicQos>) -> DDSResult<()> {
+    pub fn set_qos(&mut self, qos: Option<TopicQos>) -> DDSResult<()> {
         let qos = qos.unwrap_or_default();
         qos.is_consistent()?;
-        *self.qos.lock().unwrap() = qos;
+        self.qos = qos;
         Ok(())
     }
 
     pub fn get_qos(&self) -> TopicQos {
-        self.qos.lock().unwrap().clone()
+        self.qos.clone()
     }
 
-    pub fn get_listener(&self) -> Option<Box<dyn TopicListener>> {
-        self.listener.lock().unwrap().take()
+    pub fn get_listener(&mut self) -> Option<Box<dyn TopicListener>> {
+        self.listener.take()
     }
 
-    pub fn set_listener(&self, a_listener: Option<Box<dyn TopicListener>>, mask: StatusMask) {
-        self.listener.lock().unwrap().set(a_listener, mask)
+    pub fn set_listener(&mut self, a_listener: Option<Box<dyn TopicListener>>, mask: StatusMask) {
+        self.listener.set(a_listener, mask)
     }
 }
 
@@ -129,7 +127,7 @@ mod tests {
         qos.topic_data.value = vec![1, 2, 3, 4];
         let listener = None;
         let status_mask = 0;
-        let topic = RtpsTopicImpl::new(
+        let mut topic = RtpsTopicImpl::new(
             entity,
             topic_name,
             "TestType",
@@ -155,7 +153,7 @@ mod tests {
         inconsistent_qos.resource_limits.max_samples = 5;
         let listener = None;
         let status_mask = 0;
-        let topic = RtpsTopicImpl::new(
+        let mut topic = RtpsTopicImpl::new(
             entity,
             topic_name,
             "TestType",
@@ -191,7 +189,7 @@ mod tests {
         let qos = TopicQos::default();
         let listener = Box::new(TestListener);
         let status_mask = 0;
-        let topic = RtpsTopicImpl::new(
+        let mut topic = RtpsTopicImpl::new(
             entity,
             topic_name,
             "TestType",
