@@ -12,16 +12,12 @@ use rust_dds_api::{
     },
     return_type::{DDSError, DDSResult},
 };
-use rust_rtps::{
-    behavior::StatefulWriter,
-    structure::Group,
-    types::{
+use rust_rtps::{behavior::{StatefulWriter, Writer}, structure::Group, types::{
         constants::{
             ENTITY_KIND_USER_DEFINED_WRITER_NO_KEY, ENTITY_KIND_USER_DEFINED_WRITER_WITH_KEY,
         },
         EntityId, ReliabilityKind, TopicKind, GUID,
-    },
-};
+    }};
 
 use super::{
     rtps_datawriter_impl::{RtpsDataWriterImpl, RtpsWriterFlavor},
@@ -99,7 +95,7 @@ impl RtpsPublisherImpl {
         let nack_response_delay = rust_rtps::behavior::types::constants::DURATION_ZERO;
         let nack_suppression_duration = rust_rtps::behavior::types::constants::DURATION_ZERO;
         let data_max_sized_serialized = None;
-        let stateful_writer = StatefulWriter::new(
+        let writer = Writer::new(
             guid,
             unicast_locator_list,
             multicast_locator_list,
@@ -111,9 +107,10 @@ impl RtpsPublisherImpl {
             nack_suppression_duration,
             data_max_sized_serialized,
         );
-
+        let rtps_writer_flavor = RtpsWriterFlavor::Stateful(StatefulWriter::new());
         let data_writer = Arc::new(Mutex::new(RtpsDataWriterImpl::new(
-            RtpsWriterFlavor::Stateful(stateful_writer),
+            writer,
+            rtps_writer_flavor,
             topic,
             qos,
             a_listener,
@@ -143,6 +140,8 @@ impl RtpsPublisherImpl {
         let qos = qos.unwrap_or_default();
         self.qos = qos;
     }
+
+    
 }
 
 #[cfg(test)]

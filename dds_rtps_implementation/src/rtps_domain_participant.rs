@@ -6,6 +6,7 @@ use std::{
     thread::JoinHandle,
 };
 
+
 use rust_dds_api::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
     dcps_psm::{DomainId, Duration, InstanceHandle, StatusMask, Time},
@@ -39,6 +40,7 @@ use crate::{
     impls::{
         rtps_publisher_impl::RtpsPublisherImpl, rtps_subscriber_impl::RtpsSubscriberImpl,
         rtps_topic_impl::RtpsTopicImpl,
+        message_sender::RtpsMessageSender,
     },
     utils::node::Node,
 };
@@ -90,11 +92,14 @@ impl RtpsParticipantEntities {
         }
     }
 
-    pub fn send_data(&self, _guid_prefix: GuidPrefix) {
+    pub fn send_data(&self, participant_guid_prefix: GuidPrefix) {
+        let transport = &self.transport;
         let publisher_list = self.publisher_list.lock().unwrap();
-        for _publisher in publisher_list.iter() {
-            // publisher.send_data(self.transport.as_ref());
-            todo!()
+        for publisher in publisher_list.iter() {
+            for writer in publisher.lock().unwrap().writer_list() {
+                let destined_messages = writer.lock().unwrap().produce_messages();
+                RtpsMessageSender::send_cache_change_messages(participant_guid_prefix, transport.as_ref(), destined_messages);
+            }
         }
     }
 }

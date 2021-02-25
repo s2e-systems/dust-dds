@@ -114,7 +114,7 @@ impl ReaderProxy {
         unsent_changes_set
     }
 
-    pub fn requested_changes(&mut self) -> BTreeSet<SequenceNumber> {
+    pub fn requested_changes(&self) -> BTreeSet<SequenceNumber> {
         self.changes_for_reader.sequence_numbers_requested.clone()
     }
 
@@ -126,7 +126,7 @@ impl ReaderProxy {
     }
 
     pub fn unacked_changes(
-        &mut self,
+        &self,
         last_change_sequence_number: SequenceNumber,
     ) -> BTreeSet<SequenceNumber> {
         let mut unacked_changes_set = BTreeSet::new();
