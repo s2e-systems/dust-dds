@@ -71,7 +71,7 @@ pub trait Publisher<'a>: Entity<Qos = PublisherQos, Listener = Box<dyn Publisher
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
     fn delete_datawriter<T: DDSType>(
         &'a self,
-        a_datawriter: <Self as DataWriterGAT<'a, T>>::DataWriterType,
+        a_datawriter: &<Self as DataWriterGAT<'a, T>>::DataWriterType,
     ) -> DDSResult<()>
     where
         Self: DataWriterGAT<'a, T> + Sized;

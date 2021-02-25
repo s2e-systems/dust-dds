@@ -1,3 +1,5 @@
+use std::ops::Deref;
+
 use rust_dds_api::{
     dcps_psm::{Duration, InstanceHandle, StatusMask},
     dds_type::DDSType,
@@ -15,13 +17,20 @@ use rust_dds_api::{
 };
 
 use crate::{
-    impls::rtps_publisher_impl::RtpsPublisherImpl, rtps_domain_participant::RtpsDomainParticipant,
+    impls::rtps_datawriter_impl::RtpsDataWriterImpl,
+    rtps_domain_participant::{RtpsDomainParticipant, RtpsPublisher, RtpsTopic},
     utils::node::Node,
 };
 
-use super::{rtps_datawriter::RtpsDataWriter, rtps_topic::RtpsTopic};
+pub struct RtpsDataWriter<'a, T: DDSType>(<Self as Deref>::Target);
 
-pub type RtpsPublisher<'a> = Node<&'a RtpsDomainParticipant, RtpsPublisherImpl>;
+impl<'a, T: DDSType> Deref for RtpsDataWriter<'a, T> {
+    type Target = Node<(&'a RtpsPublisher<'a>, &'a RtpsTopic<'a, T>), RtpsDataWriterImpl>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
 
 impl<'a, T: DDSType> TopicGAT<'a, T> for RtpsPublisher<'a> {
     type TopicType = RtpsTopic<'a, T>;
@@ -48,15 +57,15 @@ impl<'a> Publisher<'a> for RtpsPublisher<'a> {
             .upgrade()?
             .create_datawriter(qos, a_listener, mask)?;
 
-        Some(Node {
+        Some(RtpsDataWriter(Node {
             parent: (self, a_topic),
             impl_ref: data_writer_ref,
-        })
+        }))
     }
 
     fn delete_datawriter<T: DDSType>(
         &'a self,
-        a_datawriter: <Self as DataWriterGAT<'a, T>>::DataWriterType,
+        a_datawriter: &<Self as DataWriterGAT<'a, T>>::DataWriterType,
     ) -> DDSResult<()> {
         if std::ptr::eq(a_datawriter.parent.0, self) {
             self.impl_ref

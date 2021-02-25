@@ -1,9 +1,4 @@
-use std::marker::PhantomData;
-
-use crate::{
-    impls::rtps_topic_impl::RtpsTopicImpl, rtps_domain_participant::RtpsDomainParticipant,
-    utils::node::Node,
-};
+use crate::rtps_domain_participant::{RtpsDomainParticipant, RtpsTopic};
 use rust_dds_api::{
     dcps_psm::{InconsistentTopicStatus, InstanceHandle, StatusMask},
     dds_type::DDSType,
@@ -15,8 +10,6 @@ use rust_dds_api::{
     return_type::{DDSError, DDSResult},
     topic::{topic::Topic, topic_description::TopicDescription, topic_listener::TopicListener},
 };
-
-pub type RtpsTopic<'a, T> = Node<(&'a RtpsDomainParticipant, PhantomData<&'a T>), RtpsTopicImpl>;
 
 impl<'a, T: DDSType> DomainParticipantChild<'a> for RtpsTopic<'a, T> {
     type DomainParticipantType = RtpsDomainParticipant;

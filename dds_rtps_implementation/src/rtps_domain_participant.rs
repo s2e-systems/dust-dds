@@ -1,6 +1,7 @@
 use std::{
     cell::RefCell,
     marker::PhantomData,
+    ops::Deref,
     sync::{atomic, Arc, Mutex, Once},
     thread::JoinHandle,
 };
@@ -39,11 +40,38 @@ use crate::{
         rtps_publisher_impl::RtpsPublisherImpl, rtps_subscriber_impl::RtpsSubscriberImpl,
         rtps_topic_impl::RtpsTopicImpl,
     },
-    nodes::{
-        rtps_publisher::RtpsPublisher, rtps_subscriber::RtpsSubscriber, rtps_topic::RtpsTopic,
-    },
     utils::node::Node,
 };
+
+pub struct RtpsPublisher<'a>(<Self as Deref>::Target);
+
+impl<'a> Deref for RtpsPublisher<'a> {
+    type Target = Node<&'a RtpsDomainParticipant, RtpsPublisherImpl>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+pub struct RtpsSubscriber<'a>(<Self as Deref>::Target);
+
+impl<'a> Deref for RtpsSubscriber<'a> {
+    type Target = Node<&'a RtpsDomainParticipant, RtpsSubscriberImpl>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+pub struct RtpsTopic<'a, T: DDSType>(<Self as Deref>::Target);
+
+impl<'a, T: DDSType> Deref for RtpsTopic<'a, T> {
+    type Target = Node<(&'a RtpsDomainParticipant, PhantomData<&'a T>), RtpsTopicImpl>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
 
 struct RtpsParticipantEntities {
     publisher_list: Mutex<Vec<Arc<RtpsPublisherImpl>>>,
@@ -165,15 +193,16 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
             .unwrap()
             .push(publisher.clone());
 
-        Some(Node {
+        Some(RtpsPublisher(Node {
             parent: self,
             impl_ref: Arc::downgrade(&publisher),
-        })
+        }))
     }
 
-    fn delete_publisher(&self, a_publisher: Self::PublisherType) -> DDSResult<()> {
-        if std::ptr::eq(a_publisher.parent, self) {
+    fn delete_publisher(&self, a_publisher: &Self::PublisherType) -> DDSResult<()> {
+        if std::ptr::eq(a_publisher.0.parent, self) {
             let publisher_impl = a_publisher
+                .0
                 .impl_ref
                 .upgrade()
                 .ok_or(DDSError::AlreadyDeleted)?;
@@ -216,13 +245,13 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
             .unwrap()
             .push(subscriber.clone());
 
-        Some(Node {
+        Some(RtpsSubscriber(Node {
             parent: self,
             impl_ref: Arc::downgrade(&subscriber),
-        })
+        }))
     }
 
-    fn delete_subscriber(&self, a_subscriber: Self::SubscriberType) -> DDSResult<()> {
+    fn delete_subscriber(&self, a_subscriber: &Self::SubscriberType) -> DDSResult<()> {
         if std::ptr::eq(a_subscriber.parent, self) {
             let subscriber_impl = a_subscriber
                 .impl_ref
@@ -274,15 +303,15 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
             .unwrap()
             .push(topic.clone());
 
-        Some(Node {
+        Some(RtpsTopic(Node {
             parent: (self, PhantomData),
             impl_ref: Arc::downgrade(&topic),
-        })
+        }))
     }
 
     fn delete_topic<T: DDSType>(
         &'a self,
-        a_topic: <Self as TopicGAT<'a, T>>::TopicType,
+        a_topic: &<Self as TopicGAT<'a, T>>::TopicType,
     ) -> DDSResult<()> {
         if std::ptr::eq(a_topic.parent.0, self) {
             let topic_impl = a_topic.impl_ref.upgrade().ok_or(DDSError::AlreadyDeleted)?;
@@ -644,7 +673,7 @@ mod tests {
         let a_publisher = participant.create_publisher(qos, a_listener, mask).unwrap();
 
         participant
-            .delete_publisher(a_publisher)
+            .delete_publisher(&a_publisher)
             .expect("Error deleting publisher");
         assert_eq!(
             participant
@@ -704,7 +733,7 @@ mod tests {
             .unwrap();
 
         participant
-            .delete_subscriber(a_subscriber)
+            .delete_subscriber(&a_subscriber)
             .expect("Error deleting subscriber");
         assert_eq!(
             participant
@@ -757,7 +786,7 @@ mod tests {
             .unwrap();
 
         participant
-            .delete_topic(a_topic)
+            .delete_topic(&a_topic)
             .expect("Error deleting topic")
     }
 

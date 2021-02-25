@@ -2,7 +2,6 @@ use rust_rtps::{messages::RtpsMessage, transport::Transport, types::{GuidPrefix,
 
 use super::endpoint_traits::DestinedMessages;
 
-
 pub struct RtpsMessageSender;
 
 impl RtpsMessageSender {

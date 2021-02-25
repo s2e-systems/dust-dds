@@ -1,6 +1,9 @@
+use std::ops::Deref;
+
 use crate::{
-    impls::rtps_subscriber_impl::RtpsSubscriberImpl,
-    rtps_domain_participant::RtpsDomainParticipant, utils::node::Node,
+    impls::rtps_datareader_impl::RtpsDataReaderImpl,
+    rtps_domain_participant::{RtpsDomainParticipant, RtpsSubscriber, RtpsTopic},
+    utils::node::Node,
 };
 use rust_dds_api::{
     dcps_psm::{
@@ -22,9 +25,15 @@ use rust_dds_api::{
     },
 };
 
-use super::{rtps_datareader::RtpsDataReader, rtps_topic::RtpsTopic};
+pub struct RtpsDataReader<'a, T: DDSType>(<Self as Deref>::Target);
 
-pub type RtpsSubscriber<'a> = Node<&'a RtpsDomainParticipant, RtpsSubscriberImpl>;
+impl<'a, T: DDSType> Deref for RtpsDataReader<'a, T> {
+    type Target = Node<(&'a RtpsSubscriber<'a>, &'a RtpsTopic<'a, T>), RtpsDataReaderImpl>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
 
 impl<'a, T: DDSType> TopicGAT<'a, T> for RtpsSubscriber<'a> {
     type TopicType = RtpsTopic<'a, T>;
@@ -51,15 +60,15 @@ impl<'a> Subscriber<'a> for RtpsSubscriber<'a> {
             .upgrade()?
             .create_datareader(qos, a_listener, mask)?;
 
-        Some(Node {
+        Some(RtpsDataReader(Node {
             parent: (self, a_topic),
             impl_ref: data_reader_ref,
-        })
+        }))
     }
 
     fn delete_datareader<T: DDSType>(
         &'a self,
-        a_datareader: <Self as DataReaderGAT<'a, T>>::DataReaderType,
+        a_datareader: &<Self as DataReaderGAT<'a, T>>::DataReaderType,
     ) -> DDSResult<()> {
         if std::ptr::eq(a_datareader.parent.0, self) {
             self.impl_ref
