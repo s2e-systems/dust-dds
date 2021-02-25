@@ -2,7 +2,7 @@ use std::{
     cell::RefCell,
     marker::PhantomData,
     ops::Deref,
-    sync::{atomic, Arc, Mutex, Once},
+    sync::{atomic, Arc, Mutex, Once, Weak},
     thread::JoinHandle,
 };
 
@@ -213,7 +213,7 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
                     .publisher_list
                     .lock()
                     .unwrap()
-                    .retain(|x| !std::ptr::eq(x.as_ref(), publisher_impl.as_ref()));
+                    .retain(|x| !Arc::ptr_eq(x, &publisher_impl));
                 Ok(())
             } else {
                 Err(DDSError::PreconditionNotMet(
@@ -269,17 +269,16 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
                 .ok_or(DDSError::AlreadyDeleted)?;
             if subscriber_impl.lock().unwrap().reader_list().is_empty() {
                 self.user_defined_entities
-                .subscriber_list
-                .lock()
-                .unwrap()
-                .retain(|x| !std::ptr::eq(x.as_ref(), subscriber_impl.as_ref()));
-            Ok(())
+                    .subscriber_list
+                    .lock()
+                    .unwrap()
+                    .retain(|x| !Arc::ptr_eq(x, &subscriber_impl));
+                Ok(())
             } else {
                 Err(DDSError::PreconditionNotMet(
                     "Subscriber still contains data readers",
                 ))
             }
-            
         } else {
             Err(DDSError::PreconditionNotMet(
                 "Subscriber can only be deleted from its parent participant",
@@ -331,13 +330,19 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
         a_topic: &<Self as TopicGAT<'a, T>>::TopicType,
     ) -> DDSResult<()> {
         if std::ptr::eq(a_topic.parent.0, self) {
-            let topic_impl = a_topic.impl_ref.upgrade().ok_or(DDSError::AlreadyDeleted)?;
-            self.user_defined_entities
-                .topic_list
-                .lock()
-                .unwrap()
-                .retain(|x| !std::ptr::eq(x.as_ref(), topic_impl.as_ref()));
-            Ok(())
+            a_topic.impl_ref.upgrade().ok_or(DDSError::AlreadyDeleted)?; // Just to check if already deleted
+            if Weak::strong_count(&a_topic.impl_ref) == 1 {
+                self.user_defined_entities
+                    .topic_list
+                    .lock()
+                    .unwrap()
+                    .retain(|x| !Weak::ptr_eq(&Arc::downgrade(x), &a_topic.impl_ref));
+                Ok(())
+            } else {
+                Err(DDSError::PreconditionNotMet(
+                    "Topic still attached to some data reader or data writer",
+                ))
+            }
         } else {
             Err(DDSError::PreconditionNotMet(
                 "Topic can only be deleted from its parent participant",

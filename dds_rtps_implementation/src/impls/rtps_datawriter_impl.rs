@@ -1,4 +1,7 @@
-use std::ops::{Deref, DerefMut};
+use std::{
+    ops::{Deref, DerefMut},
+    sync::{Arc, Mutex},
+};
 
 use rust_dds_api::{
     dcps_psm::StatusMask, dds_type::DDSType, infrastructure::qos::DataWriterQos,
@@ -6,7 +9,7 @@ use rust_dds_api::{
 };
 use rust_rtps::behavior::{StatefulWriter, StatelessWriter, Writer};
 
-use super::mask_listener::MaskListener;
+use super::{mask_listener::MaskListener, rtps_topic_impl::RtpsTopicImpl};
 struct RtpsDataWriterListener<T: DDSType>(Box<dyn DataWriterListener<DataType = T>>);
 trait AnyDataWriterListener: Send + Sync {}
 
@@ -41,11 +44,13 @@ pub struct RtpsDataWriterImpl {
     rtps_writer_flavor: RtpsWriterFlavor,
     qos: DataWriterQos,
     mask_listener: MaskListener<Box<dyn AnyDataWriterListener>>,
+    topic: Arc<Mutex<RtpsTopicImpl>>,
 }
 
 impl RtpsDataWriterImpl {
     pub fn new<T: DDSType>(
         rtps_writer_flavor: RtpsWriterFlavor,
+        topic: Arc<Mutex<RtpsTopicImpl>>,
         qos: DataWriterQos,
         listener: Option<Box<dyn DataWriterListener<DataType = T>>>,
         status_mask: StatusMask,
@@ -59,6 +64,7 @@ impl RtpsDataWriterImpl {
             rtps_writer_flavor,
             qos,
             mask_listener,
+            topic,
         }
     }
 }

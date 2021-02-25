@@ -180,8 +180,6 @@ fn not_allowed_to_delete_topic_attached_to_reader() {
         .create_datareader(&reader_topic, None, None, 0)
         .unwrap();
 
-    // a_datareader.get_listener();
-
     assert_eq!(
         participant.delete_topic(&reader_topic),
         Err(DDSError::PreconditionNotMet(

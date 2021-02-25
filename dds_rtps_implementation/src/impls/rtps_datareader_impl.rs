@@ -1,4 +1,7 @@
-use std::ops::{Deref, DerefMut};
+use std::{
+    ops::{Deref, DerefMut},
+    sync::{Arc, Mutex},
+};
 
 use rust_dds_api::{
     dcps_psm::StatusMask, dds_type::DDSType, infrastructure::qos::DataReaderQos,
@@ -6,7 +9,7 @@ use rust_dds_api::{
 };
 use rust_rtps::behavior::{Reader, StatefulReader, StatelessReader};
 
-use super::mask_listener::MaskListener;
+use super::{mask_listener::MaskListener, rtps_topic_impl::RtpsTopicImpl};
 
 struct RtpsDataReaderListener<T: DDSType>(Box<dyn DataReaderListener<DataType = T>>);
 trait AnyDataReaderListener: Send + Sync {}
@@ -41,11 +44,13 @@ pub struct RtpsDataReaderImpl {
     rtps_reader_flavor: RtpsReaderFlavor,
     qos: DataReaderQos,
     mask_listener: MaskListener<Box<dyn AnyDataReaderListener>>,
+    topic: Arc<Mutex<RtpsTopicImpl>>,
 }
 
 impl RtpsDataReaderImpl {
     pub fn new<T: DDSType>(
         rtps_reader_flavor: RtpsReaderFlavor,
+        topic: Arc<Mutex<RtpsTopicImpl>>,
         qos: DataReaderQos,
         listener: Option<Box<dyn DataReaderListener<DataType = T>>>,
         status_mask: StatusMask,
@@ -59,6 +64,7 @@ impl RtpsDataReaderImpl {
             rtps_reader_flavor,
             qos,
             mask_listener,
+            topic,
         }
     }
 }

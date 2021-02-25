@@ -55,12 +55,13 @@ impl<'a> Subscriber<'a> for RtpsSubscriber<'a> {
         a_listener: Option<Box<dyn DataReaderListener<DataType = T>>>,
         mask: StatusMask,
     ) -> Option<<Self as DataReaderGAT<'a, T>>::DataReaderType> {
+        let topic = a_topic.impl_ref.upgrade()?;
         let data_reader_ref = self
             .impl_ref
             .upgrade()?
             .lock()
             .unwrap()
-            .create_datareader(qos, a_listener, mask)?;
+            .create_datareader(topic, qos, a_listener, mask)?;
 
         Some(RtpsDataReader(Node {
             parent: (self, a_topic),

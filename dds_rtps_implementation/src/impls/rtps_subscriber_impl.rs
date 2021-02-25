@@ -23,7 +23,7 @@ use rust_rtps::{
     },
 };
 
-use super::rtps_datareader_impl::{RtpsDataReaderImpl, RtpsReaderFlavor};
+use super::{rtps_datareader_impl::{RtpsDataReaderImpl, RtpsReaderFlavor}, rtps_topic_impl::RtpsTopicImpl};
 
 pub struct RtpsSubscriberImpl {
     group: Group,
@@ -59,6 +59,7 @@ impl RtpsSubscriberImpl {
 
     pub fn create_datareader<'a, T: DDSType>(
         &'a mut self,
+        topic: Arc<Mutex<RtpsTopicImpl>>,
         qos: Option<DataReaderQos>,
         a_listener: Option<Box<dyn DataReaderListener<DataType = T>>>,
         mask: StatusMask,
@@ -104,6 +105,7 @@ impl RtpsSubscriberImpl {
 
         let data_reader = Arc::new(Mutex::new(RtpsDataReaderImpl::new(
             RtpsReaderFlavor::Stateful(stateful_reader),
+            topic,
             qos,
             a_listener,
             mask,

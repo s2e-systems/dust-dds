@@ -23,7 +23,10 @@ use rust_rtps::{
     },
 };
 
-use super::rtps_datawriter_impl::{RtpsDataWriterImpl, RtpsWriterFlavor};
+use super::{
+    rtps_datawriter_impl::{RtpsDataWriterImpl, RtpsWriterFlavor},
+    rtps_topic_impl::RtpsTopicImpl,
+};
 
 struct AtomicPublisherQos {}
 
@@ -61,6 +64,7 @@ impl RtpsPublisherImpl {
 
     pub fn create_datawriter<'a, T: DDSType>(
         &'a mut self,
+        topic: Arc<Mutex<RtpsTopicImpl>>,
         qos: Option<DataWriterQos>,
         a_listener: Option<Box<dyn DataWriterListener<DataType = T>>>,
         mask: StatusMask,
@@ -110,6 +114,7 @@ impl RtpsPublisherImpl {
 
         let data_writer = Arc::new(Mutex::new(RtpsDataWriterImpl::new(
             RtpsWriterFlavor::Stateful(stateful_writer),
+            topic,
             qos,
             a_listener,
             mask,

@@ -52,12 +52,13 @@ impl<'a> Publisher<'a> for RtpsPublisher<'a> {
         a_listener: Option<Box<dyn DataWriterListener<DataType = T>>>,
         mask: StatusMask,
     ) -> Option<<Self as DataWriterGAT<'a, T>>::DataWriterType> {
+        let topic = a_topic.impl_ref.upgrade()?;
         let data_writer_ref = self
             .impl_ref
             .upgrade()?
             .lock()
             .unwrap()
-            .create_datawriter(qos, a_listener, mask)?;
+            .create_datawriter(topic, qos, a_listener, mask)?;
 
         Some(RtpsDataWriter(Node {
             parent: (self, a_topic),
