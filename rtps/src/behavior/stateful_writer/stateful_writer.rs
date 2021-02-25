@@ -1,9 +1,4 @@
-use std::ops::{Deref, DerefMut};
-
-use crate::{
-    behavior::{types::Duration, Writer},
-    types::{Locator, ReliabilityKind, TopicKind, GUID},
-};
+use crate::types::GUID;
 
 use super::ReaderProxy;
 
@@ -11,10 +6,8 @@ pub struct StatefulWriter {
     pub matched_readers: Vec<ReaderProxy>,
 }
 
-
-
 impl StatefulWriter {
-    pub fn new() -> Self {       
+    pub fn new() -> Self {
         Self {
             matched_readers: Vec::new(),
         }

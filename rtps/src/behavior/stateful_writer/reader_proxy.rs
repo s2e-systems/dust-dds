@@ -242,7 +242,7 @@ mod tests {
             [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
             ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_DETECTOR,
         );
-        let mut reader_proxy = ReaderProxy::new(remote_reader_guid, vec![], vec![], false, true);
+        let reader_proxy = ReaderProxy::new(remote_reader_guid, vec![], vec![], false, true);
 
         let unacked_changes = reader_proxy.unacked_changes(2);
         assert!(unacked_changes.contains(&1));

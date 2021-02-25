@@ -1,8 +1,4 @@
-use std::{
-    io::Write,
-    ops::{Deref, DerefMut},
-    sync::{Arc, Mutex},
-};
+use std::sync::{Arc, Mutex};
 
 use rust_dds_api::{
     dcps_psm::StatusMask, dds_type::DDSType, infrastructure::qos::DataWriterQos,
@@ -10,8 +6,7 @@ use rust_dds_api::{
 };
 use rust_rtps::behavior::{
     stateful_writer::reliable_reader_proxy::ReliableReaderProxyBehavior,
-    stateless_writer::BestEffortReaderLocatorBehavior, ReaderProxy, StatefulWriter,
-    StatelessWriter, Writer,
+    stateless_writer::BestEffortReaderLocatorBehavior, StatefulWriter, StatelessWriter, Writer,
 };
 
 use super::{
@@ -156,7 +151,16 @@ impl RtpsDataWriterImpl {
 mod tests {
     use core::panic;
 
-    use rust_rtps::{behavior::{stateless_writer::ReaderLocator, types::{Duration, constants::DURATION_ZERO}}, messages::{RtpsMessage, RtpsSubmessage, submessages::{Data, data_submessage::Payload}}, structure::CacheChange, types::{ChangeKind, GUID, Locator, ReliabilityKind, TopicKind, constants::{ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER, ENTITYID_UNKNOWN}}};
+    use rust_rtps::{
+        behavior::{
+            stateless_writer::ReaderLocator,
+            types::{constants::DURATION_ZERO, Duration},
+        },
+        types::{
+            constants::ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER, ChangeKind, Locator,
+            ReliabilityKind, TopicKind, GUID,
+        },
+    };
 
     use super::*;
     #[test]
@@ -179,22 +183,26 @@ mod tests {
 
         assert_eq!(messages.len(), 0);
 
-        let cache_change =
-            writer.new_change(ChangeKind::Alive, Some(vec![1, 2, 3]), None, [1; 16]);
+        let cache_change = writer.new_change(ChangeKind::Alive, Some(vec![1, 2, 3]), None, [1; 16]);
         writer.writer_cache.add_change(cache_change);
-        
+
         let mut stateless_writer = StatelessWriter::new();
-        let locator_expected = Locator::new_udpv4(1000, [1,2,3,4]);
+        let locator_expected = Locator::new_udpv4(1000, [1, 2, 3, 4]);
         stateless_writer.reader_locator_add(ReaderLocator::new(locator_expected));
         let mut flavor = RtpsWriterFlavor::Stateless(stateless_writer);
         let messages_result = flavor.produce_messages(&writer);
         assert_eq!(messages_result.len(), 1);
 
         match &messages_result[0] {
-            DestinedMessages::SingleDestination { locator: locator_result, messages: _ } => {
-                assert_eq!(locator_result, &locator_expected);                
+            DestinedMessages::SingleDestination {
+                locator: locator_result,
+                messages: _,
+            } => {
+                assert_eq!(locator_result, &locator_expected);
             }
-            _ => {panic!()}
-        }  
+            _ => {
+                panic!()
+            }
+        }
     }
 }
