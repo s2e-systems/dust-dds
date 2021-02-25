@@ -489,8 +489,8 @@ impl Entity for RtpsDomainParticipant {
     }
 
     fn enable(&self) -> DDSResult<()> {
-        // self.enabled_function.call_once(|| {
-        //     let guid_prefix = self.participant.entity.guid.prefix();
+        self.enabled_function.call_once(|| {
+            let guid_prefix = self.participant.entity.guid.prefix();
         //     let builtin_publisher = RtpsPublisherInner::new_builtin(
         //         guid_prefix,
         //         [0, 0, 0],
@@ -536,17 +536,17 @@ impl Entity for RtpsDomainParticipant {
         //         .add(Box::new(builtin_publisher))
         //         .expect("Error creating built-in publisher");
 
-        //     let mut thread_list = self.thread_list.borrow_mut();
-        //     let enabled = self.enabled.clone();
-        //     let builtin_entities = self.builtin_entities.clone();
-        //     self.enabled.store(true, atomic::Ordering::Release);
-        //     thread_list.push(std::thread::spawn(move || {
-        //         while enabled.load(atomic::Ordering::Acquire) {
-        //             builtin_entities.send_data(guid_prefix);
-        //             std::thread::sleep(std::time::Duration::from_secs(1));
-        //         }
-        //     }));
-        // });
+            let mut thread_list = self.thread_list.borrow_mut();
+            let enabled = self.enabled.clone();
+            let builtin_entities = self.builtin_entities.clone();
+            self.enabled.store(true, atomic::Ordering::Release);
+            thread_list.push(std::thread::spawn(move || {
+                while enabled.load(atomic::Ordering::Acquire) {
+                    builtin_entities.send_data(guid_prefix);
+                    std::thread::sleep(std::time::Duration::from_secs(1));
+                }
+            }));
+        });
 
         Ok(())
     }
