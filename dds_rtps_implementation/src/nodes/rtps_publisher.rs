@@ -55,6 +55,8 @@ impl<'a> Publisher<'a> for RtpsPublisher<'a> {
         let data_writer_ref = self
             .impl_ref
             .upgrade()?
+            .lock()
+            .unwrap()
             .create_datawriter(qos, a_listener, mask)?;
 
         Some(RtpsDataWriter(Node {
@@ -71,6 +73,8 @@ impl<'a> Publisher<'a> for RtpsPublisher<'a> {
             self.impl_ref
                 .upgrade()
                 .ok_or(DDSError::AlreadyDeleted)?
+                .lock()
+                .unwrap()
                 .delete_datawriter(&a_datawriter.impl_ref)
         } else {
             Err(DDSError::PreconditionNotMet(
@@ -141,7 +145,8 @@ impl<'a> Entity for RtpsPublisher<'a> {
         Ok(self
             .impl_ref
             .upgrade()
-            .ok_or(DDSError::AlreadyDeleted)?
+            .ok_or(DDSError::AlreadyDeleted)?.lock()
+            .unwrap()
             .set_qos(qos))
     }
 
@@ -149,7 +154,8 @@ impl<'a> Entity for RtpsPublisher<'a> {
         Ok(self
             .impl_ref
             .upgrade()
-            .ok_or(DDSError::AlreadyDeleted)?
+            .ok_or(DDSError::AlreadyDeleted)?.lock()
+            .unwrap()
             .get_qos()
             .clone())
     }

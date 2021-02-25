@@ -27,10 +27,10 @@ use super::rtps_datareader_impl::{RtpsDataReaderImpl, RtpsReaderFlavor};
 
 pub struct RtpsSubscriberImpl {
     group: Group,
-    reader_list: Mutex<Vec<Arc<RtpsDataReaderImpl>>>,
+    reader_list: Vec<Arc<Mutex<RtpsDataReaderImpl>>>,
     reader_count: atomic::AtomicU8,
-    default_datareader_qos: Mutex<DataReaderQos>,
-    qos: Mutex<SubscriberQos>,
+    default_datareader_qos: DataReaderQos,
+    qos: SubscriberQos,
     listener: Option<Box<dyn SubscriberListener>>,
     status_mask: StatusMask,
 }
@@ -46,20 +46,24 @@ impl RtpsSubscriberImpl {
             group,
             reader_list: Default::default(),
             reader_count: atomic::AtomicU8::new(0),
-            default_datareader_qos: Mutex::new(DataReaderQos::default()),
-            qos: Mutex::new(qos),
+            default_datareader_qos: DataReaderQos::default(),
+            qos,
             listener,
             status_mask,
         }
     }
 
+    pub fn reader_list(&self) -> &Vec<Arc<Mutex<RtpsDataReaderImpl>>> {
+        &self.reader_list
+    }
+
     pub fn create_datareader<'a, T: DDSType>(
-        &'a self,
+        &'a mut self,
         qos: Option<DataReaderQos>,
         a_listener: Option<Box<dyn DataReaderListener<DataType = T>>>,
         mask: StatusMask,
-    ) -> Option<Weak<RtpsDataReaderImpl>> {
-        let qos = qos.unwrap_or(self.default_datareader_qos.lock().unwrap().clone());
+    ) -> Option<Weak<Mutex<RtpsDataReaderImpl>>> {
+        let qos = qos.unwrap_or(self.default_datareader_qos.clone());
         qos.is_consistent().ok()?;
 
         let entity_key = [
@@ -98,31 +102,33 @@ impl RtpsSubscriberImpl {
             heartbeat_supression_duration,
         );
 
-        let data_reader = Arc::new(RtpsDataReaderImpl::new(
+        let data_reader = Arc::new(Mutex::new(RtpsDataReaderImpl::new(
             RtpsReaderFlavor::Stateful(stateful_reader),
             qos,
             a_listener,
             mask,
-        ));
+        )));
 
-        self.reader_list.lock().unwrap().push(data_reader.clone());
+        self.reader_list.push(data_reader.clone());
 
         Some(Arc::downgrade(&data_reader))
     }
 
-    pub fn delete_datareader(&self, a_datareader: &Weak<RtpsDataReaderImpl>) -> DDSResult<()> {
+    pub fn delete_datareader(
+        &mut self,
+        a_datareader: &Weak<Mutex<RtpsDataReaderImpl>>,
+    ) -> DDSResult<()> {
         let datareader_impl = a_datareader.upgrade().ok_or(DDSError::AlreadyDeleted)?;
-        let mut reader_list = self.reader_list.lock().unwrap();
-        reader_list.retain(|x| !std::ptr::eq(x.as_ref(), datareader_impl.as_ref()));
+        self.reader_list.retain(|x| !std::ptr::eq(x.as_ref(), datareader_impl.as_ref()));
         Ok(())
     }
 
     pub fn get_qos(&self) -> SubscriberQos {
-        self.qos.lock().unwrap().clone()
+        self.qos.clone()
     }
 
-    pub fn set_qos(&self, qos: Option<SubscriberQos>) {
+    pub fn set_qos(&mut self, qos: Option<SubscriberQos>) {
         let qos = qos.unwrap_or_default();
-        *self.qos.lock().unwrap() = qos;
+        self.qos = qos;
     }
 }

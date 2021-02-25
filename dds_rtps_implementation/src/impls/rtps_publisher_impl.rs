@@ -29,10 +29,10 @@ struct AtomicPublisherQos {}
 
 pub struct RtpsPublisherImpl {
     group: Group,
-    writer_list: Mutex<Vec<Arc<RtpsDataWriterImpl>>>,
+    writer_list: Vec<Arc<Mutex<RtpsDataWriterImpl>>>,
     writer_count: atomic::AtomicU8,
     default_datawriter_qos: DataWriterQos,
-    qos: Mutex<PublisherQos>,
+    qos: PublisherQos,
     listener: Option<Box<dyn PublisherListener>>,
     status_mask: StatusMask,
 }
@@ -49,18 +49,22 @@ impl RtpsPublisherImpl {
             writer_list: Default::default(),
             writer_count: atomic::AtomicU8::new(0),
             default_datawriter_qos: DataWriterQos::default(),
-            qos: Mutex::new(qos),
+            qos,
             listener,
             status_mask,
         }
     }
 
+    pub fn writer_list(&self) -> &Vec<Arc<Mutex<RtpsDataWriterImpl>>> {
+        &self.writer_list
+    }
+
     pub fn create_datawriter<'a, T: DDSType>(
-        &'a self,
+        &'a mut self,
         qos: Option<DataWriterQos>,
         a_listener: Option<Box<dyn DataWriterListener<DataType = T>>>,
         mask: StatusMask,
-    ) -> Option<Weak<RtpsDataWriterImpl>> {
+    ) -> Option<Weak<Mutex<RtpsDataWriterImpl>>> {
         let qos = qos.unwrap_or(self.default_datawriter_qos.clone());
         qos.is_consistent().ok()?;
 
@@ -104,32 +108,35 @@ impl RtpsPublisherImpl {
             data_max_sized_serialized,
         );
 
-        let data_writer = Arc::new(RtpsDataWriterImpl::new(
+        let data_writer = Arc::new(Mutex::new(RtpsDataWriterImpl::new(
             RtpsWriterFlavor::Stateful(stateful_writer),
             qos,
             a_listener,
             mask,
-        ));
+        )));
 
-        self.writer_list.lock().unwrap().push(data_writer.clone());
+        self.writer_list.push(data_writer.clone());
 
         Some(Arc::downgrade(&data_writer))
     }
 
-    pub fn delete_datawriter(&self, a_datawriter: &Weak<RtpsDataWriterImpl>) -> DDSResult<()> {
+    pub fn delete_datawriter(
+        &mut self,
+        a_datawriter: &Weak<Mutex<RtpsDataWriterImpl>>,
+    ) -> DDSResult<()> {
         let datawriter_impl = a_datawriter.upgrade().ok_or(DDSError::AlreadyDeleted)?;
-        let mut writer_list = self.writer_list.lock().unwrap();
-        writer_list.retain(|x| !std::ptr::eq(x.as_ref(), datawriter_impl.as_ref()));
+        self.writer_list
+            .retain(|x| !std::ptr::eq(x.as_ref(), datawriter_impl.as_ref()));
         Ok(())
     }
 
     pub fn get_qos(&self) -> PublisherQos {
-        self.qos.lock().unwrap().clone()
+        self.qos.clone()
     }
 
-    pub fn set_qos(&self, qos: Option<PublisherQos>) {
+    pub fn set_qos(&mut self, qos: Option<PublisherQos>) {
         let qos = qos.unwrap_or_default();
-        *self.qos.lock().unwrap() = qos;
+        self.qos = qos;
     }
 }
 

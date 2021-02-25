@@ -34,6 +34,8 @@ impl<'a, T: DDSType> TopicDescription<'a> for RtpsTopic<'a, T> {
             .impl_ref
             .upgrade()
             .ok_or(DDSError::AlreadyDeleted)?
+            .lock()
+            .unwrap()
             .get_type_name())
     }
 
@@ -42,6 +44,8 @@ impl<'a, T: DDSType> TopicDescription<'a> for RtpsTopic<'a, T> {
             .impl_ref
             .upgrade()
             .ok_or(DDSError::AlreadyDeleted)?
+            .lock()
+            .unwrap()
             .get_name())
     }
 }
@@ -54,6 +58,8 @@ impl<'a, T: DDSType> Entity for RtpsTopic<'a, T> {
         self.impl_ref
             .upgrade()
             .ok_or(DDSError::AlreadyDeleted)?
+            .lock()
+            .unwrap()
             .set_qos(qos)
     }
 
@@ -62,6 +68,8 @@ impl<'a, T: DDSType> Entity for RtpsTopic<'a, T> {
             .impl_ref
             .upgrade()
             .ok_or(DDSError::AlreadyDeleted)?
+            .lock()
+            .unwrap()
             .get_qos())
     }
 
@@ -70,6 +78,8 @@ impl<'a, T: DDSType> Entity for RtpsTopic<'a, T> {
             .impl_ref
             .upgrade()
             .ok_or(DDSError::AlreadyDeleted)?
+            .lock()
+            .unwrap()
             .set_listener(a_listener, mask))
     }
 
@@ -78,6 +88,8 @@ impl<'a, T: DDSType> Entity for RtpsTopic<'a, T> {
             .impl_ref
             .upgrade()
             .ok_or(DDSError::AlreadyDeleted)?
+            .lock()
+            .unwrap()
             .get_listener())
     }
 

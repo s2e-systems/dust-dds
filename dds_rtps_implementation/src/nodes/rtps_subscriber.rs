@@ -58,6 +58,8 @@ impl<'a> Subscriber<'a> for RtpsSubscriber<'a> {
         let data_reader_ref = self
             .impl_ref
             .upgrade()?
+            .lock()
+            .unwrap()
             .create_datareader(qos, a_listener, mask)?;
 
         Some(RtpsDataReader(Node {
@@ -74,6 +76,8 @@ impl<'a> Subscriber<'a> for RtpsSubscriber<'a> {
             self.impl_ref
                 .upgrade()
                 .ok_or(DDSError::AlreadyDeleted)?
+                .lock()
+                .unwrap()
                 .delete_datareader(&a_datareader.impl_ref)
         } else {
             Err(DDSError::PreconditionNotMet(
@@ -148,7 +152,8 @@ impl<'a> Entity for RtpsSubscriber<'a> {
         Ok(self
             .impl_ref
             .upgrade()
-            .ok_or(DDSError::AlreadyDeleted)?
+            .ok_or(DDSError::AlreadyDeleted)?.lock()
+            .unwrap()
             .set_qos(qos))
     }
 
@@ -156,7 +161,8 @@ impl<'a> Entity for RtpsSubscriber<'a> {
         Ok(self
             .impl_ref
             .upgrade()
-            .ok_or(DDSError::AlreadyDeleted)?
+            .ok_or(DDSError::AlreadyDeleted)?.lock()
+            .unwrap()
             .get_qos()
             .clone())
     }
