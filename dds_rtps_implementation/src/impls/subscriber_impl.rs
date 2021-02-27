@@ -9,12 +9,12 @@ use rust_dds_api::{
         data_reader_listener::DataReaderListener, subscriber_listener::SubscriberListener,
     },
 };
-use rust_rtps::types::GUID;
+use rust_rtps::{structure::{Entity, Group}, types::GUID};
 
-use super::{rtps_datareader_impl::RtpsStatefulDataReaderImpl, rtps_topic_impl::RtpsTopicImpl};
+use super::{datareader_impl::StatefulDataReaderImpl, topic_impl::TopicImpl};
 
-pub struct RtpsSubscriberImpl {
-    reader_list: Vec<Arc<Mutex<RtpsStatefulDataReaderImpl>>>,
+pub struct SubscriberImpl {
+    reader_list: Vec<Arc<Mutex<StatefulDataReaderImpl>>>,
     reader_count: atomic::AtomicU8,
     default_datareader_qos: DataReaderQos,
     qos: SubscriberQos,
@@ -22,7 +22,7 @@ pub struct RtpsSubscriberImpl {
     status_mask: StatusMask,
 }
 
-impl RtpsSubscriberImpl {
+impl SubscriberImpl {
     pub fn new(
         qos: SubscriberQos,
         listener: Option<Box<dyn SubscriberListener>>,
@@ -38,21 +38,21 @@ impl RtpsSubscriberImpl {
         }
     }
 
-    pub fn reader_list(&self) -> &Vec<Arc<Mutex<RtpsStatefulDataReaderImpl>>> {
+    pub fn reader_list(&self) -> &Vec<Arc<Mutex<StatefulDataReaderImpl>>> {
         &self.reader_list
     }
 
     pub fn create_datareader<'a, T: DDSType>(
         &'a mut self,
-        topic: Arc<Mutex<RtpsTopicImpl>>,
+        topic: Arc<Mutex<TopicImpl>>,
         qos: Option<DataReaderQos>,
         a_listener: Option<Box<dyn DataReaderListener<DataType = T>>>,
         mask: StatusMask,
-    ) -> Option<Weak<Mutex<RtpsStatefulDataReaderImpl>>> {
+    ) -> Option<Weak<Mutex<StatefulDataReaderImpl>>> {
         let qos = qos.unwrap_or(self.default_datareader_qos.clone());
         qos.is_consistent().ok()?;
 
-        let data_reader = Arc::new(Mutex::new(RtpsStatefulDataReaderImpl::new(
+        let data_reader = Arc::new(Mutex::new(StatefulDataReaderImpl::new(
             topic, qos, a_listener, mask,
         )));
 
@@ -63,7 +63,7 @@ impl RtpsSubscriberImpl {
 
     pub fn delete_datareader(
         &mut self,
-        a_datareader: &Weak<Mutex<RtpsStatefulDataReaderImpl>>,
+        a_datareader: &Weak<Mutex<StatefulDataReaderImpl>>,
     ) -> DDSResult<()> {
         let datareader_impl = a_datareader.upgrade().ok_or(DDSError::AlreadyDeleted)?;
         self.reader_list
@@ -81,10 +81,10 @@ impl RtpsSubscriberImpl {
     }
 }
 
-impl rust_rtps::structure::Entity for RtpsSubscriberImpl {
+impl Entity for SubscriberImpl {
     fn guid(&self) -> GUID {
         todo!()
     }
 }
 
-impl rust_rtps::structure::Group for RtpsSubscriberImpl {}
+impl Group for SubscriberImpl {}

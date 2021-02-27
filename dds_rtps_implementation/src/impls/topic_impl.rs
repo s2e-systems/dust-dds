@@ -2,17 +2,18 @@ use rust_dds_api::{
     dcps_psm::StatusMask, infrastructure::qos::TopicQos, return_type::DDSResult,
     topic::topic_listener::TopicListener,
 };
+use rust_rtps::structure::Entity;
 
 use super::mask_listener::MaskListener;
 
-pub struct RtpsTopicImpl {
+pub struct TopicImpl {
     topic_name: String,
     type_name: &'static str,
     qos: TopicQos,
     listener: MaskListener<Box<dyn TopicListener>>,
 }
 
-impl RtpsTopicImpl {
+impl TopicImpl {
     pub fn new(
         topic_name: &str,
         type_name: &'static str,
@@ -56,7 +57,7 @@ impl RtpsTopicImpl {
     }
 }
 
-impl rust_rtps::structure::Entity for RtpsTopicImpl {
+impl Entity for TopicImpl {
     fn guid(&self) -> rust_rtps::types::GUID {
         todo!()
     }
@@ -77,7 +78,7 @@ mod tests {
         let qos = TopicQos::default();
         let listener = None;
         let status_mask = 0;
-        let topic = RtpsTopicImpl::new(topic_name, "TestType", qos, listener, status_mask);
+        let topic = TopicImpl::new(topic_name, "TestType", qos, listener, status_mask);
 
         assert_eq!(topic.get_type_name(), "TestType");
     }
@@ -90,7 +91,7 @@ mod tests {
         let qos = TopicQos::default();
         let listener = None;
         let status_mask = 0;
-        let topic = RtpsTopicImpl::new(topic_name, "TestType", qos, listener, status_mask);
+        let topic = TopicImpl::new(topic_name, "TestType", qos, listener, status_mask);
 
         assert_eq!(topic.get_name(), topic_name);
     }
@@ -104,7 +105,7 @@ mod tests {
         qos.topic_data.value = vec![1, 2, 3, 4];
         let listener = None;
         let status_mask = 0;
-        let topic = RtpsTopicImpl::new(
+        let topic = TopicImpl::new(
             topic_name,
             "TestType",
             qos.clone(),
@@ -124,7 +125,7 @@ mod tests {
         qos.topic_data.value = vec![1, 2, 3, 4];
         let listener = None;
         let status_mask = 0;
-        let mut topic = RtpsTopicImpl::new(
+        let mut topic = TopicImpl::new(
             topic_name,
             "TestType",
             TopicQos::default(),
@@ -148,7 +149,7 @@ mod tests {
         inconsistent_qos.resource_limits.max_samples = 5;
         let listener = None;
         let status_mask = 0;
-        let mut topic = RtpsTopicImpl::new(
+        let mut topic = TopicImpl::new(
             topic_name,
             "TestType",
             TopicQos::default(),
@@ -182,7 +183,7 @@ mod tests {
         let qos = TopicQos::default();
         let listener = Box::new(TestListener);
         let status_mask = 0;
-        let mut topic = RtpsTopicImpl::new(
+        let mut topic = TopicImpl::new(
             topic_name,
             "TestType",
             qos.clone(),

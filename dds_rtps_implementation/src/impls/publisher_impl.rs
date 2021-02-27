@@ -11,12 +11,10 @@ use rust_dds_api::{
 };
 use rust_rtps::types::GUID;
 
-use super::{rtps_datawriter_impl::RtpsStatefulDataWriterImpl, rtps_topic_impl::RtpsTopicImpl};
+use super::{datawriter_impl::StatefulDataWriterImpl, topic_impl::TopicImpl};
 
-struct AtomicPublisherQos {}
-
-pub struct RtpsPublisherImpl {
-    writer_list: Vec<Arc<Mutex<RtpsStatefulDataWriterImpl>>>,
+pub struct PublisherImpl {
+    writer_list: Vec<Arc<Mutex<StatefulDataWriterImpl>>>,
     writer_count: atomic::AtomicU8,
     default_datawriter_qos: DataWriterQos,
     qos: PublisherQos,
@@ -24,7 +22,7 @@ pub struct RtpsPublisherImpl {
     status_mask: StatusMask,
 }
 
-impl RtpsPublisherImpl {
+impl PublisherImpl {
     pub fn new(
         qos: PublisherQos,
         listener: Option<Box<dyn PublisherListener>>,
@@ -40,21 +38,21 @@ impl RtpsPublisherImpl {
         }
     }
 
-    pub fn writer_list(&self) -> &Vec<Arc<Mutex<RtpsStatefulDataWriterImpl>>> {
+    pub fn writer_list(&self) -> &Vec<Arc<Mutex<StatefulDataWriterImpl>>> {
         &self.writer_list
     }
 
     pub fn create_datawriter<'a, T: DDSType>(
         &'a mut self,
-        topic: Arc<Mutex<RtpsTopicImpl>>,
+        topic: Arc<Mutex<TopicImpl>>,
         qos: Option<DataWriterQos>,
         a_listener: Option<Box<dyn DataWriterListener<DataType = T>>>,
         mask: StatusMask,
-    ) -> Option<Weak<Mutex<RtpsStatefulDataWriterImpl>>> {
+    ) -> Option<Weak<Mutex<StatefulDataWriterImpl>>> {
         let qos = qos.unwrap_or(self.default_datawriter_qos.clone());
         qos.is_consistent().ok()?;
 
-        let data_writer = Arc::new(Mutex::new(RtpsStatefulDataWriterImpl::new(
+        let data_writer = Arc::new(Mutex::new(StatefulDataWriterImpl::new(
             topic, qos, a_listener, mask,
         )));
 
@@ -65,7 +63,7 @@ impl RtpsPublisherImpl {
 
     pub fn delete_datawriter(
         &mut self,
-        a_datawriter: &Weak<Mutex<RtpsStatefulDataWriterImpl>>,
+        a_datawriter: &Weak<Mutex<StatefulDataWriterImpl>>,
     ) -> DDSResult<()> {
         let datawriter_impl = a_datawriter.upgrade().ok_or(DDSError::AlreadyDeleted)?;
         self.writer_list
@@ -83,13 +81,13 @@ impl RtpsPublisherImpl {
     }
 }
 
-impl rust_rtps::structure::Entity for RtpsPublisherImpl {
+impl rust_rtps::structure::Entity for PublisherImpl {
     fn guid(&self) -> GUID {
         todo!()
     }
 }
 
-impl rust_rtps::structure::Group for RtpsPublisherImpl {}
+impl rust_rtps::structure::Group for PublisherImpl {}
 
 #[cfg(test)]
 mod tests {

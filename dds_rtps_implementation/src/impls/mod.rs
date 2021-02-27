@@ -1,8 +1,9 @@
-pub mod rtps_datareader_impl;
-pub mod rtps_datawriter_impl;
-pub mod rtps_publisher_impl;
-pub mod rtps_subscriber_impl;
-pub mod rtps_topic_impl;
+pub mod domain_participant_impl;
+pub mod datareader_impl;
+pub mod datawriter_impl;
+pub mod publisher_impl;
+pub mod subscriber_impl;
+pub mod topic_impl;
 
 pub mod endpoint_traits;
 pub mod mask_listener;

@@ -9,22 +9,22 @@ use rust_rtps::{
     structure::{Endpoint, Entity},
 };
 
-use super::{mask_listener::MaskListener, rtps_topic_impl::RtpsTopicImpl};
+use super::{mask_listener::MaskListener, topic_impl::TopicImpl};
 
 struct RtpsDataReaderListener<T: DDSType>(Box<dyn DataReaderListener<DataType = T>>);
 trait AnyDataReaderListener: Send + Sync {}
 
 impl<T: DDSType> AnyDataReaderListener for RtpsDataReaderListener<T> {}
 
-pub struct RtpsStatefulDataReaderImpl {
+pub struct StatefulDataReaderImpl {
     qos: DataReaderQos,
     mask_listener: MaskListener<Box<dyn AnyDataReaderListener>>,
-    topic: Arc<Mutex<RtpsTopicImpl>>,
+    topic: Arc<Mutex<TopicImpl>>,
 }
 
-impl RtpsStatefulDataReaderImpl {
+impl StatefulDataReaderImpl {
     pub fn new<T: DDSType>(
-        topic: Arc<Mutex<RtpsTopicImpl>>,
+        topic: Arc<Mutex<TopicImpl>>,
         qos: DataReaderQos,
         listener: Option<Box<dyn DataReaderListener<DataType = T>>>,
         status_mask: StatusMask,
@@ -42,13 +42,13 @@ impl RtpsStatefulDataReaderImpl {
     }
 }
 
-impl Entity for RtpsStatefulDataReaderImpl {
+impl Entity for StatefulDataReaderImpl {
     fn guid(&self) -> rust_rtps::types::GUID {
         todo!()
     }
 }
 
-impl Endpoint for RtpsStatefulDataReaderImpl {
+impl Endpoint for StatefulDataReaderImpl {
     fn unicast_locator_list(&self) -> &[rust_rtps::types::Locator] {
         todo!()
     }
@@ -66,7 +66,7 @@ impl Endpoint for RtpsStatefulDataReaderImpl {
     }
 }
 
-impl Reader for RtpsStatefulDataReaderImpl {
+impl Reader for StatefulDataReaderImpl {
     fn heartbeat_response_delay(&self) -> rust_rtps::behavior::types::Duration {
         todo!()
     }
@@ -84,7 +84,7 @@ impl Reader for RtpsStatefulDataReaderImpl {
     }
 }
 
-impl StatefulReader for RtpsStatefulDataReaderImpl {
+impl StatefulReader for StatefulDataReaderImpl {
     fn matched_writers(&self) -> &[rust_rtps::behavior::WriterProxy] {
         todo!()
     }

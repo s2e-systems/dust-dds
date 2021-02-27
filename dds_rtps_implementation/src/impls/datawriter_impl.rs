@@ -9,7 +9,7 @@ use rust_rtps::{
     structure::{Endpoint, Entity},
 };
 
-use super::{mask_listener::MaskListener, rtps_topic_impl::RtpsTopicImpl};
+use super::{mask_listener::MaskListener, topic_impl::TopicImpl};
 struct RtpsDataWriterListener<T: DDSType>(Box<dyn DataWriterListener<DataType = T>>);
 trait AnyDataWriterListener: Send + Sync {}
 
@@ -67,15 +67,15 @@ impl<T: DDSType> AnyDataWriterListener for RtpsDataWriterListener<T> {}
 //     }
 // }
 
-pub struct RtpsStatefulDataWriterImpl {
+pub struct StatefulDataWriterImpl {
     qos: DataWriterQos,
     mask_listener: MaskListener<Box<dyn AnyDataWriterListener>>,
-    topic: Arc<Mutex<RtpsTopicImpl>>,
+    topic: Arc<Mutex<TopicImpl>>,
 }
 
-impl RtpsStatefulDataWriterImpl {
+impl StatefulDataWriterImpl {
     pub fn new<T: DDSType>(
-        topic: Arc<Mutex<RtpsTopicImpl>>,
+        topic: Arc<Mutex<TopicImpl>>,
         qos: DataWriterQos,
         listener: Option<Box<dyn DataWriterListener<DataType = T>>>,
         status_mask: StatusMask,
@@ -139,13 +139,13 @@ impl RtpsStatefulDataWriterImpl {
     // }
 }
 
-impl Entity for RtpsStatefulDataWriterImpl {
+impl Entity for StatefulDataWriterImpl {
     fn guid(&self) -> rust_rtps::types::GUID {
         todo!()
     }
 }
 
-impl Endpoint for RtpsStatefulDataWriterImpl {
+impl Endpoint for StatefulDataWriterImpl {
     fn unicast_locator_list(&self) -> &[rust_rtps::types::Locator] {
         todo!()
     }
@@ -163,7 +163,7 @@ impl Endpoint for RtpsStatefulDataWriterImpl {
     }
 }
 
-impl Writer for RtpsStatefulDataWriterImpl {
+impl Writer for StatefulDataWriterImpl {
     fn push_mode(&self) -> bool {
         todo!()
     }
@@ -203,7 +203,7 @@ impl Writer for RtpsStatefulDataWriterImpl {
     }
 }
 
-impl StatefulWriter for RtpsStatefulDataWriterImpl {
+impl StatefulWriter for StatefulDataWriterImpl {
     fn matched_readers(&self) -> &[rust_rtps::behavior::ReaderProxy] {
         todo!()
     }
