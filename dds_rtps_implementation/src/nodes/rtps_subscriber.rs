@@ -1,7 +1,7 @@
 use std::ops::Deref;
 
 use crate::{
-    impls::rtps_datareader_impl::RtpsDataReaderImpl,
+    impls::rtps_datareader_impl::RtpsStatefulDataReaderImpl,
     rtps_domain_participant::{RtpsDomainParticipant, RtpsSubscriber, RtpsTopic},
     utils::node::Node,
 };
@@ -28,7 +28,7 @@ use rust_dds_api::{
 pub struct RtpsDataReader<'a, T: DDSType>(<Self as Deref>::Target);
 
 impl<'a, T: DDSType> Deref for RtpsDataReader<'a, T> {
-    type Target = Node<(&'a RtpsSubscriber<'a>, &'a RtpsTopic<'a, T>), RtpsDataReaderImpl>;
+    type Target = Node<(&'a RtpsSubscriber<'a>, &'a RtpsTopic<'a, T>), RtpsStatefulDataReaderImpl>;
 
     fn deref(&self) -> &Self::Target {
         &self.0

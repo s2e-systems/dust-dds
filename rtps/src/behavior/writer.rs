@@ -1,115 +1,24 @@
 use crate::{
-    messages::submessages::submessage_elements::ParameterList,
+    messages::submessages::submessage_elements::{ParameterList, SerializedData},
     structure::{CacheChange, Endpoint, HistoryCache},
-    types::{
-        ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID,
-    },
+    types::{ChangeKind, InstanceHandle, SequenceNumber},
 };
 
 use super::types::Duration;
 
-pub struct Writer {
-    pub endpoint: Endpoint,
-    pub push_mode: bool,
-    pub heartbeat_period: Duration,
-    pub nack_response_delay: Duration,
-    pub nack_suppression_duration: Duration,
-    pub last_change_sequence_number: SequenceNumber,
-    pub writer_cache: HistoryCache,
-    pub data_max_sized_serialized: Option<i32>,
-}
-
-impl Writer {
-    pub fn new(
-        guid: GUID,
-        unicast_locator_list: Vec<Locator>,
-        multicast_locator_list: Vec<Locator>,
-        topic_kind: TopicKind,
-        reliability_level: ReliabilityKind,
-        push_mode: bool,
-        heartbeat_period: Duration,
-        nack_response_delay: Duration,
-        nack_suppression_duration: Duration,
-        data_max_sized_serialized: Option<i32>,
-    ) -> Self {
-        let endpoint = Endpoint::new(
-            guid,
-            unicast_locator_list,
-            multicast_locator_list,
-            topic_kind,
-            reliability_level,
-        );
-        Self {
-            endpoint,
-            push_mode,
-            heartbeat_period,
-            nack_response_delay,
-            nack_suppression_duration,
-            last_change_sequence_number: 0,
-            writer_cache: HistoryCache::new(),
-            data_max_sized_serialized,
-        }
-    }
-
-    pub fn new_change(
+pub trait Writer: Endpoint {
+    fn push_mode(&self) -> bool;
+    fn heartbeat_period(&self) -> Duration;
+    fn nack_response_delay(&self) -> Duration;
+    fn nack_suppression_duration(&self) -> Duration;
+    fn last_change_sequence_number(&self) -> SequenceNumber;
+    fn writer_cache(&mut self) -> &mut HistoryCache;
+    fn data_max_sized_serialized(&self) -> i32;
+    fn new_change(
         &mut self,
         kind: ChangeKind,
-        data: Option<Vec<u8>>,
-        inline_qos: Option<ParameterList>,
+        data: SerializedData,
+        inline_qos: ParameterList,
         handle: InstanceHandle,
-    ) -> CacheChange {
-        self.last_change_sequence_number += 1;
-        CacheChange::new(
-            kind,
-            self.endpoint.entity.guid.into(),
-            handle,
-            self.last_change_sequence_number,
-            data,
-            inline_qos,
-        )
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::{
-        behavior::types::constants::DURATION_ZERO,
-        types::constants::ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER,
-    };
-
-    #[test]
-    fn new_change() {
-        let mut writer = Writer::new(
-            GUID::new([0; 12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
-            vec![],
-            vec![],
-            TopicKind::WithKey,
-            ReliabilityKind::BestEffort,
-            true,
-            DURATION_ZERO,
-            Duration::from_millis(200),
-            DURATION_ZERO,
-            None,
-        );
-
-        let cache_change_seq1 =
-            writer.new_change(ChangeKind::Alive, Some(vec![1, 2, 3]), None, [1; 16]);
-
-        let cache_change_seq2 =
-            writer.new_change(ChangeKind::NotAliveUnregistered, None, None, [1; 16]);
-
-        assert_eq!(cache_change_seq1.sequence_number(), 1);
-        assert_eq!(cache_change_seq1.change_kind(), ChangeKind::Alive);
-        assert_eq!(cache_change_seq1.inline_qos(), None);
-        assert_eq!(cache_change_seq1.instance_handle(), [1; 16]);
-
-        assert_eq!(cache_change_seq2.sequence_number(), 2);
-        assert_eq!(
-            cache_change_seq2.change_kind(),
-            ChangeKind::NotAliveUnregistered
-        );
-        assert_eq!(cache_change_seq2.inline_qos(), None);
-        assert_eq!(cache_change_seq2.instance_handle(), [1; 16]);
-    }
+    ) -> CacheChange;
 }

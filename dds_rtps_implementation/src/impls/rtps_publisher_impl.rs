@@ -3,32 +3,20 @@ use std::sync::{atomic, Arc, Mutex, Weak};
 use rust_dds_api::{
     dcps_psm::StatusMask,
     dds_type::DDSType,
-    infrastructure::{
-        qos::{DataWriterQos, PublisherQos},
-        qos_policy::ReliabilityQosPolicyKind,
-    },
+    infrastructure::qos::{DataWriterQos, PublisherQos},
     publication::{
         data_writer_listener::DataWriterListener, publisher_listener::PublisherListener,
     },
     return_type::{DDSError, DDSResult},
 };
-use rust_rtps::{behavior::{StatefulWriter, Writer}, structure::Group, types::{
-        constants::{
-            ENTITY_KIND_USER_DEFINED_WRITER_NO_KEY, ENTITY_KIND_USER_DEFINED_WRITER_WITH_KEY,
-        },
-        EntityId, ReliabilityKind, TopicKind, GUID,
-    }};
+use rust_rtps::types::GUID;
 
-use super::{
-    rtps_datawriter_impl::{RtpsDataWriterImpl, RtpsWriterFlavor},
-    rtps_topic_impl::RtpsTopicImpl,
-};
+use super::{rtps_datawriter_impl::RtpsStatefulDataWriterImpl, rtps_topic_impl::RtpsTopicImpl};
 
 struct AtomicPublisherQos {}
 
 pub struct RtpsPublisherImpl {
-    group: Group,
-    writer_list: Vec<Arc<Mutex<RtpsDataWriterImpl>>>,
+    writer_list: Vec<Arc<Mutex<RtpsStatefulDataWriterImpl>>>,
     writer_count: atomic::AtomicU8,
     default_datawriter_qos: DataWriterQos,
     qos: PublisherQos,
@@ -38,13 +26,11 @@ pub struct RtpsPublisherImpl {
 
 impl RtpsPublisherImpl {
     pub fn new(
-        group: Group,
         qos: PublisherQos,
         listener: Option<Box<dyn PublisherListener>>,
         status_mask: StatusMask,
     ) -> Self {
         Self {
-            group,
             writer_list: Default::default(),
             writer_count: atomic::AtomicU8::new(0),
             default_datawriter_qos: DataWriterQos::default(),
@@ -54,7 +40,7 @@ impl RtpsPublisherImpl {
         }
     }
 
-    pub fn writer_list(&self) -> &Vec<Arc<Mutex<RtpsDataWriterImpl>>> {
+    pub fn writer_list(&self) -> &Vec<Arc<Mutex<RtpsStatefulDataWriterImpl>>> {
         &self.writer_list
     }
 
@@ -64,57 +50,12 @@ impl RtpsPublisherImpl {
         qos: Option<DataWriterQos>,
         a_listener: Option<Box<dyn DataWriterListener<DataType = T>>>,
         mask: StatusMask,
-    ) -> Option<Weak<Mutex<RtpsDataWriterImpl>>> {
+    ) -> Option<Weak<Mutex<RtpsStatefulDataWriterImpl>>> {
         let qos = qos.unwrap_or(self.default_datawriter_qos.clone());
         qos.is_consistent().ok()?;
 
-        let entity_key = [
-            0,
-            self.writer_count.fetch_add(1, atomic::Ordering::Relaxed),
-            0,
-        ];
-        let guid_prefix = self.group.entity.guid.prefix();
-        let entity_kind = match T::has_key() {
-            true => ENTITY_KIND_USER_DEFINED_WRITER_WITH_KEY,
-            false => ENTITY_KIND_USER_DEFINED_WRITER_NO_KEY,
-        };
-        let entity_id = EntityId::new(entity_key, entity_kind);
-        let guid = GUID::new(guid_prefix, entity_id);
-        let unicast_locator_list = vec![];
-        let multicast_locator_list = vec![];
-        let topic_kind = match T::has_key() {
-            true => TopicKind::WithKey,
-            false => TopicKind::NoKey,
-        };
-        let reliability_level = match qos.reliability.kind {
-            ReliabilityQosPolicyKind::BestEffortReliabilityQos => ReliabilityKind::BestEffort,
-            ReliabilityQosPolicyKind::ReliableReliabilityQos => ReliabilityKind::Reliable,
-        };
-        let push_mode = true;
-        let heartbeat_period = rust_rtps::behavior::types::Duration::from_millis(500);
-        let nack_response_delay = rust_rtps::behavior::types::constants::DURATION_ZERO;
-        let nack_suppression_duration = rust_rtps::behavior::types::constants::DURATION_ZERO;
-        let data_max_sized_serialized = None;
-        let writer = Writer::new(
-            guid,
-            unicast_locator_list,
-            multicast_locator_list,
-            topic_kind,
-            reliability_level,
-            push_mode,
-            heartbeat_period,
-            nack_response_delay,
-            nack_suppression_duration,
-            data_max_sized_serialized,
-        );
-        let rtps_writer_flavor = RtpsWriterFlavor::Stateful(StatefulWriter::new());
-        let data_writer = Arc::new(Mutex::new(RtpsDataWriterImpl::new(
-            writer,
-            rtps_writer_flavor,
-            topic,
-            qos,
-            a_listener,
-            mask,
+        let data_writer = Arc::new(Mutex::new(RtpsStatefulDataWriterImpl::new(
+            topic, qos, a_listener, mask,
         )));
 
         self.writer_list.push(data_writer.clone());
@@ -124,7 +65,7 @@ impl RtpsPublisherImpl {
 
     pub fn delete_datawriter(
         &mut self,
-        a_datawriter: &Weak<Mutex<RtpsDataWriterImpl>>,
+        a_datawriter: &Weak<Mutex<RtpsStatefulDataWriterImpl>>,
     ) -> DDSResult<()> {
         let datawriter_impl = a_datawriter.upgrade().ok_or(DDSError::AlreadyDeleted)?;
         self.writer_list
@@ -140,9 +81,15 @@ impl RtpsPublisherImpl {
         let qos = qos.unwrap_or_default();
         self.qos = qos;
     }
-
-    
 }
+
+impl rust_rtps::structure::Entity for RtpsPublisherImpl {
+    fn guid(&self) -> GUID {
+        todo!()
+    }
+}
+
+impl rust_rtps::structure::Group for RtpsPublisherImpl {}
 
 #[cfg(test)]
 mod tests {

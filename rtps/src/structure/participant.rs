@@ -1,33 +1,10 @@
-use crate::types::{
-    constants::ENTITYID_PARTICIPANT, GuidPrefix, Locator, ProtocolVersion, VendorId, GUID,
-};
+use crate::types::{Locator, ProtocolVersion, VendorId};
 
 use super::Entity;
 
-pub struct Participant {
-    pub entity: Entity,
-    pub default_unicast_locator_list: Vec<Locator>,
-    pub default_multicast_locator_list: Vec<Locator>,
-    pub protocol_version: ProtocolVersion,
-    pub vendor_id: VendorId,
-}
-
-impl Participant {
-    pub fn new(
-        guid_prefix: GuidPrefix,
-        default_unicast_locator_list: Vec<Locator>,
-        default_multicast_locator_list: Vec<Locator>,
-        protocol_version: ProtocolVersion,
-        vendor_id: VendorId,
-    ) -> Self {
-        let guid = GUID::new(guid_prefix, ENTITYID_PARTICIPANT);
-        let entity = Entity::new(guid);
-        Self {
-            entity,
-            default_unicast_locator_list,
-            default_multicast_locator_list,
-            protocol_version,
-            vendor_id,
-        }
-    }
+pub trait Participant: Entity {
+    fn default_unicast_locator_list(&self) -> &[Locator];
+    fn default_multicast_locator_list(&self) -> &[Locator];
+    fn protocol_version(&self) -> ProtocolVersion;
+    fn vendor_id(&self) -> VendorId;
 }

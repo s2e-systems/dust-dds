@@ -17,7 +17,7 @@ use rust_dds_api::{
 };
 
 use crate::{
-    impls::rtps_datawriter_impl::RtpsDataWriterImpl,
+    impls::rtps_datawriter_impl::RtpsStatefulDataWriterImpl,
     rtps_domain_participant::{RtpsDomainParticipant, RtpsPublisher, RtpsTopic},
     utils::node::Node,
 };
@@ -25,7 +25,7 @@ use crate::{
 pub struct RtpsDataWriter<'a, T: DDSType>(<Self as Deref>::Target);
 
 impl<'a, T: DDSType> Deref for RtpsDataWriter<'a, T> {
-    type Target = Node<(&'a RtpsPublisher<'a>, &'a RtpsTopic<'a, T>), RtpsDataWriterImpl>;
+    type Target = Node<(&'a RtpsPublisher<'a>, &'a RtpsTopic<'a, T>), RtpsStatefulDataWriterImpl>;
 
     fn deref(&self) -> &Self::Target {
         &self.0

@@ -6,7 +6,6 @@ use std::{
     thread::JoinHandle,
 };
 
-
 use rust_dds_api::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
     dcps_psm::{DomainId, Duration, InstanceHandle, StatusMask, Time},
@@ -25,14 +24,10 @@ use rust_dds_api::{
     topic::{topic_description::TopicDescription, topic_listener::TopicListener},
 };
 use rust_rtps::{
-    structure::Participant,
     transport::Transport,
     types::{
-        constants::{
-            ENTITY_KIND_USER_DEFINED_READER_GROUP, ENTITY_KIND_USER_DEFINED_UNKNOWN,
-            PROTOCOL_VERSION_2_4, VENDOR_ID,
-        },
-        EntityId, GuidPrefix, GUID,
+        constants::{PROTOCOL_VERSION_2_4, VENDOR_ID},
+        GuidPrefix, Locator, ProtocolVersion, VendorId, GUID,
     },
 };
 
@@ -40,7 +35,6 @@ use crate::{
     impls::{
         rtps_publisher_impl::RtpsPublisherImpl, rtps_subscriber_impl::RtpsSubscriberImpl,
         rtps_topic_impl::RtpsTopicImpl,
-        message_sender::RtpsMessageSender,
     },
     utils::node::Node,
 };
@@ -92,13 +86,18 @@ impl RtpsParticipantEntities {
         }
     }
 
-    pub fn send_data(&self, participant_guid_prefix: GuidPrefix) {
-        let transport = &self.transport;
+    pub fn send_data(&self, _participant_guid_prefix: GuidPrefix) {
+        let _transport = &self.transport;
         let publisher_list = self.publisher_list.lock().unwrap();
         for publisher in publisher_list.iter() {
-            for writer in publisher.lock().unwrap().writer_list() {
-                let destined_messages = writer.lock().unwrap().produce_messages();
-                RtpsMessageSender::send_cache_change_messages(participant_guid_prefix, transport.as_ref(), destined_messages);
+            for _writer in publisher.lock().unwrap().writer_list() {
+                todo!()
+                // let destined_messages = writer.lock().unwrap().produce_messages();
+                // RtpsMessageSender::send_cache_change_messages(
+                //     participant_guid_prefix,
+                //     transport.as_ref(),
+                //     destined_messages,
+                // );
             }
         }
     }
@@ -106,7 +105,6 @@ impl RtpsParticipantEntities {
 
 pub struct RtpsDomainParticipant {
     domain_id: DomainId,
-    participant: Participant,
     qos: Mutex<DomainParticipantQos>,
     publisher_count: atomic::AtomicU8,
     subscriber_count: atomic::AtomicU8,
@@ -132,21 +130,13 @@ impl RtpsDomainParticipant {
         a_listener: Option<Box<dyn DomainParticipantListener>>,
         mask: StatusMask,
     ) -> Self {
-        let guid_prefix = [1; 12];
-        let participant = Participant::new(
-            guid_prefix,
-            userdata_transport.unicast_locator_list().clone(),
-            userdata_transport.multicast_locator_list().clone(),
-            PROTOCOL_VERSION_2_4,
-            VENDOR_ID,
-        );
+        let _guid_prefix = [1; 12];
 
         let builtin_entities = Arc::new(RtpsParticipantEntities::new(metatraffic_transport));
         let user_defined_entities = Arc::new(RtpsParticipantEntities::new(userdata_transport));
 
         RtpsDomainParticipant {
             domain_id,
-            participant,
             qos: Mutex::new(qos),
             publisher_count: atomic::AtomicU8::new(0),
             subscriber_count: atomic::AtomicU8::new(0),
@@ -165,6 +155,30 @@ impl RtpsDomainParticipant {
     }
 }
 
+impl rust_rtps::structure::Entity for RtpsDomainParticipant {
+    fn guid(&self) -> GUID {
+        todo!()
+    }
+}
+
+impl rust_rtps::structure::Participant for RtpsDomainParticipant {
+    fn default_unicast_locator_list(&self) -> &[Locator] {
+        todo!()
+    }
+
+    fn default_multicast_locator_list(&self) -> &[Locator] {
+        todo!()
+    }
+
+    fn protocol_version(&self) -> ProtocolVersion {
+        PROTOCOL_VERSION_2_4
+    }
+
+    fn vendor_id(&self) -> VendorId {
+        VENDOR_ID
+    }
+}
+
 impl<'a, T: DDSType> TopicGAT<'a, T> for RtpsDomainParticipant {
     type TopicType = RtpsTopic<'a, T>;
 }
@@ -179,20 +193,9 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
         a_listener: Option<Box<dyn PublisherListener>>,
         mask: StatusMask,
     ) -> Option<Self::PublisherType> {
-        let guid_prefix = self.participant.entity.guid.prefix();
-        let entity_key = [
-            0,
-            self.publisher_count.fetch_add(1, atomic::Ordering::Relaxed),
-            0,
-        ];
-        let entity_kind = ENTITY_KIND_USER_DEFINED_READER_GROUP;
-        let entity_id = EntityId::new(entity_key, entity_kind);
-        let guid = GUID::new(guid_prefix, entity_id);
-        let group = rust_rtps::structure::Group::new(guid);
+        // let guid_prefix = self.participant.entity.guid.prefix();
         let qos = qos.unwrap_or(self.get_default_publisher_qos());
-        let publisher = Arc::new(Mutex::new(RtpsPublisherImpl::new(
-            group, qos, a_listener, mask,
-        )));
+        let publisher = Arc::new(Mutex::new(RtpsPublisherImpl::new(qos, a_listener, mask)));
 
         self.user_defined_entities
             .publisher_list
@@ -238,21 +241,19 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
         a_listener: Option<Box<dyn SubscriberListener>>,
         mask: StatusMask,
     ) -> Option<Self::SubscriberType> {
-        let guid_prefix = self.participant.entity.guid.prefix();
-        let entity_key = [
-            0,
-            self.subscriber_count
-                .fetch_add(1, atomic::Ordering::Relaxed),
-            0,
-        ];
-        let entity_kind = ENTITY_KIND_USER_DEFINED_READER_GROUP;
-        let entity_id = EntityId::new(entity_key, entity_kind);
-        let guid = GUID::new(guid_prefix, entity_id);
-        let group = rust_rtps::structure::Group::new(guid);
+        // let guid_prefix = self.participant.entity.guid.prefix();
+        // let entity_key = [
+        //     0,
+        //     self.subscriber_count
+        //         .fetch_add(1, atomic::Ordering::Relaxed),
+        //     0,
+        // ];
+        // let entity_kind = ENTITY_KIND_USER_DEFINED_READER_GROUP;
+        // let entity_id = EntityId::new(entity_key, entity_kind);
+        // let guid = GUID::new(guid_prefix, entity_id);
+        // let group = rust_rtps::structure::Group::new(guid);
         let qos = qos.unwrap_or(self.get_default_subscriber_qos());
-        let subscriber = Arc::new(Mutex::new(RtpsSubscriberImpl::new(
-            group, qos, a_listener, mask,
-        )));
+        let subscriber = Arc::new(Mutex::new(RtpsSubscriberImpl::new(qos, a_listener, mask)));
 
         self.user_defined_entities
             .subscriber_list
@@ -298,19 +299,19 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
         a_listener: Option<Box<dyn TopicListener>>,
         mask: StatusMask,
     ) -> Option<<Self as TopicGAT<'a, T>>::TopicType> {
-        let guid_prefix = self.participant.entity.guid.prefix();
-        let entity_key = [
-            0,
-            self.topic_count.fetch_add(1, atomic::Ordering::Relaxed),
-            0,
-        ];
-        let entity_kind = ENTITY_KIND_USER_DEFINED_UNKNOWN;
-        let entity_id = EntityId::new(entity_key, entity_kind);
-        let guid = GUID::new(guid_prefix, entity_id);
-        let entity = rust_rtps::structure::Entity::new(guid);
+        // let guid_prefix = self.participant.entity.guid.prefix();
+        // let entity_key = [
+        //     0,
+        //     self.topic_count.fetch_add(1, atomic::Ordering::Relaxed),
+        //     0,
+        // ];
+        // let entity_kind = ENTITY_KIND_USER_DEFINED_UNKNOWN;
+        // let entity_id = EntityId::new(entity_key, entity_kind);
+        // let guid = GUID::new(guid_prefix, entity_id);
+        // let entity = rust_rtps::structure::Entity::new(guid);
         let qos = qos.unwrap_or(self.get_default_topic_qos());
+        qos.is_consistent().ok()?;
         let topic = Arc::new(Mutex::new(RtpsTopicImpl::new(
-            entity,
             topic_name,
             T::type_name(),
             qos,
@@ -517,7 +518,8 @@ impl Entity for RtpsDomainParticipant {
 
     fn enable(&self) -> DDSResult<()> {
         self.enabled_function.call_once(|| {
-            let guid_prefix = self.participant.entity.guid.prefix();
+            use rust_rtps::structure::Entity;
+            let guid_prefix = self.guid().prefix();
             //     let builtin_publisher = RtpsPublisherInner::new_builtin(
             //         guid_prefix,
             //         [0, 0, 0],
