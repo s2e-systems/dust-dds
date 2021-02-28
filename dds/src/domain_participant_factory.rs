@@ -1,4 +1,8 @@
-use rust_dds_api::{dcps_psm::{DomainId, StatusMask}, domain::domain_participant_listener::DomainParticipantListener, infrastructure::{qos::DomainParticipantQos}};
+use rust_dds_api::{
+    dcps_psm::{DomainId, StatusMask},
+    domain::domain_participant_listener::DomainParticipantListener,
+    infrastructure::qos::DomainParticipantQos,
+};
 use rust_dds_rtps_implementation::rtps_domain_participant::RtpsDomainParticipant;
 use rust_rtps_transport_udp::UdpTransport;
 
@@ -35,33 +39,31 @@ impl DomainParticipantFactory {
     pub fn create_participant(
         domain_id: DomainId,
         qos: Option<DomainParticipantQos>,
-        _a_listener: Option<Box<dyn DomainParticipantListener>>,
-        _mask: StatusMask,
+        a_listener: Option<Box<dyn DomainParticipantListener>>,
+        mask: StatusMask,
         //     enabled: bool,
     ) -> Option<RtpsDomainParticipant> {
         let interface = "Wi-Fi";
-        let _userdata_transport =
+        let userdata_transport =
             UdpTransport::default_userdata_transport(domain_id, interface).unwrap();
-        let _metatraffic_transport =
+        let metatraffic_transport =
             UdpTransport::default_metatraffic_transport(domain_id, interface).unwrap();
-        let _qos = qos.unwrap_or_default();
+        let qos = qos.unwrap_or_default();
 
-        // let rtps_participant = RtpsDomainParticipant::new(
-        //     domain_id,
-        //     qos.clone(),
-        //     userdata_transport,
-        //     metatraffic_transport,
-        //     a_listener,
-        //     mask,
-        // );
-
-        todo!()
+        let rtps_participant = RtpsDomainParticipant::new(
+            domain_id,
+            qos.clone(),
+            userdata_transport,
+            metatraffic_transport,
+            a_listener,
+            mask,
+        );
 
         // if enabled {
         //     new_participant.enable().ok()?;
         // }
 
-        // Some(rtps_participant)
+        Some(rtps_participant)
     }
 
     // pub fn delete_participant(_a_participant: impl DomainParticipant) {}

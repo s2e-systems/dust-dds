@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, ops::Deref};
+use std::{marker::PhantomData, ops::Deref, sync::Mutex};
 
 use rust_dds_api::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
@@ -17,6 +17,7 @@ use rust_dds_api::{
     subscription::subscriber_listener::SubscriberListener,
     topic::{topic_description::TopicDescription, topic_listener::TopicListener},
 };
+use rust_rtps::transport::Transport;
 
 use crate::{
     impls::{
@@ -56,11 +57,25 @@ impl<'a, T: DDSType> Deref for RtpsTopic<'a, T> {
     }
 }
 
-pub struct RtpsDomainParticipant(DomainParticipantImpl);
+pub struct RtpsDomainParticipant(Mutex<DomainParticipantImpl>);
 
 impl RtpsDomainParticipant {
-    pub fn new(domain_participant_impl: DomainParticipantImpl) -> Self {
-        Self(domain_participant_impl)
+    pub fn new(
+        domain_id: DomainId,
+        qos: DomainParticipantQos,
+        userdata_transport: impl Transport,
+        metatraffic_transport: impl Transport,
+        a_listener: Option<Box<dyn DomainParticipantListener>>,
+        mask: StatusMask,
+    ) -> Self {
+        Self(Mutex::new(DomainParticipantImpl::new(
+            domain_id,
+            qos,
+            userdata_transport,
+            metatraffic_transport,
+            a_listener,
+            mask,
+        )))
     }
 }
 
@@ -78,7 +93,12 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
         a_listener: Option<Box<dyn PublisherListener>>,
         mask: StatusMask,
     ) -> Option<Self::PublisherType> {
-        let impl_ref = self.0.create_publisher(qos, a_listener, mask).ok()?;
+        let impl_ref = self
+            .0
+            .lock()
+            .unwrap()
+            .create_publisher(qos, a_listener, mask)
+            .ok()?;
 
         Some(RtpsPublisher(Node {
             parent: self,
@@ -88,7 +108,10 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
 
     fn delete_publisher(&self, a_publisher: &Self::PublisherType) -> DDSResult<()> {
         if std::ptr::eq(a_publisher.0.parent, self) {
-            self.0.delete_publisher(&a_publisher.impl_ref)
+            self.0
+                .lock()
+                .unwrap()
+                .delete_publisher(&a_publisher.impl_ref)
         } else {
             Err(DDSError::PreconditionNotMet(
                 "Publisher can only be deleted from its parent participant",
@@ -102,7 +125,12 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
         a_listener: Option<Box<dyn SubscriberListener>>,
         mask: StatusMask,
     ) -> Option<Self::SubscriberType> {
-        let impl_ref = self.0.create_subscriber(qos, a_listener, mask).ok()?;
+        let impl_ref = self
+            .0
+            .lock()
+            .unwrap()
+            .create_subscriber(qos, a_listener, mask)
+            .ok()?;
 
         Some(RtpsSubscriber(Node {
             parent: self,
@@ -112,7 +140,10 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
 
     fn delete_subscriber(&self, a_subscriber: &Self::SubscriberType) -> DDSResult<()> {
         if std::ptr::eq(a_subscriber.parent, self) {
-            self.0.delete_subscriber(&a_subscriber.impl_ref)
+            self.0
+                .lock()
+                .unwrap()
+                .delete_subscriber(&a_subscriber.impl_ref)
         } else {
             Err(DDSError::PreconditionNotMet(
                 "Subscriber can only be deleted from its parent participant",
@@ -127,7 +158,12 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
         a_listener: Option<Box<dyn TopicListener>>,
         mask: StatusMask,
     ) -> Option<<Self as TopicGAT<'a, T>>::TopicType> {
-        let impl_ref = self.0.create_topic::<T>(topic_name, qos, a_listener, mask).ok()?;
+        let impl_ref = self
+            .0
+            .lock()
+            .unwrap()
+            .create_topic::<T>(topic_name, qos, a_listener, mask)
+            .ok()?;
         Some(RtpsTopic(Node {
             parent: (self, PhantomData),
             impl_ref,
@@ -139,7 +175,7 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
         a_topic: &<Self as TopicGAT<'a, T>>::TopicType,
     ) -> DDSResult<()> {
         if std::ptr::eq(a_topic.parent.0, self) {
-            self.0.delete_topic(&a_topic.impl_ref)
+            self.0.lock().unwrap().delete_topic(&a_topic.impl_ref)
         } else {
             Err(DDSError::PreconditionNotMet(
                 "Topic can only be deleted from its parent participant",
@@ -208,40 +244,27 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
     }
 
     fn set_default_publisher_qos(&self, qos: Option<PublisherQos>) -> DDSResult<()> {
-        // let qos = qos.unwrap_or_default();
-        // *self.default_publisher_qos.lock().unwrap() = qos;
-        // Ok(())
-        todo!()
+        self.0.lock().unwrap().set_default_publisher_qos(qos)
     }
 
     fn get_default_publisher_qos(&self) -> PublisherQos {
-        // self.default_publisher_qos.lock().unwrap().clone()
-        todo!()
+        self.0.lock().unwrap().get_default_publisher_qos()
     }
 
     fn set_default_subscriber_qos(&self, qos: Option<SubscriberQos>) -> DDSResult<()> {
-        // let qos = qos.unwrap_or_default();
-        // *self.default_subscriber_qos.lock().unwrap() = qos;
-        // Ok(())
-        todo!()
+        self.0.lock().unwrap().set_default_subscriber_qos(qos)
     }
 
     fn get_default_subscriber_qos(&self) -> SubscriberQos {
-        // self.default_subscriber_qos.lock().unwrap().clone()
-        todo!()
+        self.0.lock().unwrap().get_default_subscriber_qos()
     }
 
     fn set_default_topic_qos(&self, qos: Option<TopicQos>) -> DDSResult<()> {
-        // let qos = qos.unwrap_or_default();
-        // qos.is_consistent()?;
-        // *self.default_topic_qos.lock().unwrap() = qos;
-        // Ok(())
-        todo!()
+        self.0.lock().unwrap().set_default_topic_qos(qos)
     }
 
     fn get_default_topic_qos(&self) -> TopicQos {
-        // self.default_topic_qos.lock().unwrap().clone()
-        todo!()
+        self.0.lock().unwrap().get_default_topic_qos()
     }
 
     fn get_discovered_participants(
@@ -285,15 +308,11 @@ impl Entity for RtpsDomainParticipant {
     type Listener = Box<dyn DomainParticipantListener>;
 
     fn set_qos(&self, qos: Option<Self::Qos>) -> DDSResult<()> {
-        // let qos = qos.unwrap_or_default();
-        // *self.qos.lock().unwrap() = qos;
-        // Ok(())
-        todo!()
+        self.0.lock().unwrap().set_qos(qos)
     }
 
     fn get_qos(&self) -> DDSResult<Self::Qos> {
-        // Ok(self.qos.lock().unwrap().clone())
-        todo!()
+        Ok(self.0.lock().unwrap().get_qos())
     }
 
     fn set_listener(
@@ -385,462 +404,3 @@ impl Entity for RtpsDomainParticipant {
         todo!()
     }
 }
-
-// #[cfg(test)]
-// mod tests {
-//     use rust_rtps::types::Locator;
-
-//     use super::*;
-
-//     struct TestType;
-
-//     impl DDSType for TestType {
-//         fn type_name() -> &'static str {
-//             "TestType"
-//         }
-
-//         fn has_key() -> bool {
-//             todo!()
-//         }
-
-//         fn key(&self) -> Vec<u8> {
-//             todo!()
-//         }
-
-//         fn serialize(&self) -> Vec<u8> {
-//             todo!()
-//         }
-
-//         fn deserialize(_data: Vec<u8>) -> Self {
-//             todo!()
-//         }
-//     }
-
-//     #[derive(Default)]
-//     struct MockTransport {
-//         unicast_locator_list: Vec<Locator>,
-//         multicast_locator_list: Vec<Locator>,
-//     }
-
-//     impl Transport for MockTransport {
-//         fn write(
-//             &self,
-//             _message: rust_rtps::messages::RtpsMessage,
-//             _destination_locator: &rust_rtps::types::Locator,
-//         ) {
-//             todo!()
-//         }
-
-//         fn read(
-//             &self,
-//         ) -> rust_rtps::transport::TransportResult<
-//             Option<(rust_rtps::messages::RtpsMessage, rust_rtps::types::Locator)>,
-//         > {
-//             todo!()
-//         }
-
-//         fn unicast_locator_list(&self) -> &Vec<rust_rtps::types::Locator> {
-//             &self.unicast_locator_list
-//         }
-
-//         fn multicast_locator_list(&self) -> &Vec<rust_rtps::types::Locator> {
-//             &self.multicast_locator_list
-//         }
-//     }
-
-//     #[test]
-//     fn create_publisher() {
-//         let participant = RtpsDomainParticipant::new(
-//             0,
-//             DomainParticipantQos::default(),
-//             MockTransport::default(),
-//             MockTransport::default(),
-//             None,
-//             0,
-//         );
-
-//         let qos = Some(PublisherQos::default());
-//         let a_listener = None;
-//         let mask = 0;
-//         participant
-//             .create_publisher(qos, a_listener, mask)
-//             .expect("Error creating publisher");
-
-//         assert_eq!(
-//             participant
-//                 .user_defined_entities
-//                 .publisher_list
-//                 .lock()
-//                 .unwrap()
-//                 .len(),
-//             1
-//         );
-//     }
-
-//     #[test]
-//     fn create_delete_publisher() {
-//         let participant = RtpsDomainParticipant::new(
-//             0,
-//             DomainParticipantQos::default(),
-//             MockTransport::default(),
-//             MockTransport::default(),
-//             None,
-//             0,
-//         );
-
-//         let qos = Some(PublisherQos::default());
-//         let a_listener = None;
-//         let mask = 0;
-//         let a_publisher = participant.create_publisher(qos, a_listener, mask).unwrap();
-
-//         participant
-//             .delete_publisher(&a_publisher)
-//             .expect("Error deleting publisher");
-//         assert_eq!(
-//             participant
-//                 .user_defined_entities
-//                 .publisher_list
-//                 .lock()
-//                 .unwrap()
-//                 .len(),
-//             0
-//         );
-//     }
-
-//     #[test]
-//     fn create_subscriber() {
-//         let participant = RtpsDomainParticipant::new(
-//             0,
-//             DomainParticipantQos::default(),
-//             MockTransport::default(),
-//             MockTransport::default(),
-//             None,
-//             0,
-//         );
-
-//         let qos = Some(SubscriberQos::default());
-//         let a_listener = None;
-//         let mask = 0;
-//         participant
-//             .create_subscriber(qos, a_listener, mask)
-//             .expect("Error creating subscriber");
-//         assert_eq!(
-//             participant
-//                 .user_defined_entities
-//                 .subscriber_list
-//                 .lock()
-//                 .unwrap()
-//                 .len(),
-//             1
-//         );
-//     }
-
-//     #[test]
-//     fn create_delete_subscriber() {
-//         let participant = RtpsDomainParticipant::new(
-//             0,
-//             DomainParticipantQos::default(),
-//             MockTransport::default(),
-//             MockTransport::default(),
-//             None,
-//             0,
-//         );
-
-//         let qos = Some(SubscriberQos::default());
-//         let a_listener = None;
-//         let mask = 0;
-//         let a_subscriber = participant
-//             .create_subscriber(qos, a_listener, mask)
-//             .unwrap();
-
-//         participant
-//             .delete_subscriber(&a_subscriber)
-//             .expect("Error deleting subscriber");
-//         assert_eq!(
-//             participant
-//                 .user_defined_entities
-//                 .subscriber_list
-//                 .lock()
-//                 .unwrap()
-//                 .len(),
-//             0
-//         );
-//     }
-
-//     #[test]
-//     fn create_topic() {
-//         let participant = RtpsDomainParticipant::new(
-//             0,
-//             DomainParticipantQos::default(),
-//             MockTransport::default(),
-//             MockTransport::default(),
-//             None,
-//             0,
-//         );
-
-//         let topic_name = "Test";
-//         let qos = Some(TopicQos::default());
-//         let a_listener = None;
-//         let mask = 0;
-//         participant
-//             .create_topic::<TestType>(topic_name, qos, a_listener, mask)
-//             .expect("Error creating topic");
-//     }
-
-//     #[test]
-//     fn create_delete_topic() {
-//         let participant = RtpsDomainParticipant::new(
-//             0,
-//             DomainParticipantQos::default(),
-//             MockTransport::default(),
-//             MockTransport::default(),
-//             None,
-//             0,
-//         );
-
-//         let topic_name = "Test";
-//         let qos = Some(TopicQos::default());
-//         let a_listener = None;
-//         let mask = 0;
-//         let a_topic = participant
-//             .create_topic::<TestType>(topic_name, qos, a_listener, mask)
-//             .unwrap();
-
-//         participant
-//             .delete_topic(&a_topic)
-//             .expect("Error deleting topic")
-//     }
-
-//     #[test]
-//     fn set_get_default_publisher_qos() {
-//         let participant = RtpsDomainParticipant::new(
-//             0,
-//             DomainParticipantQos::default(),
-//             MockTransport::default(),
-//             MockTransport::default(),
-//             None,
-//             0,
-//         );
-
-//         let mut publisher_qos = PublisherQos::default();
-//         publisher_qos.group_data.value = vec![b'a', b'b', b'c'];
-//         participant
-//             .set_default_publisher_qos(Some(publisher_qos.clone()))
-//             .expect("Error setting default publisher qos");
-
-//         assert_eq!(publisher_qos, participant.get_default_publisher_qos())
-//     }
-
-//     #[test]
-//     fn set_get_default_subscriber_qos() {
-//         let participant = RtpsDomainParticipant::new(
-//             0,
-//             DomainParticipantQos::default(),
-//             MockTransport::default(),
-//             MockTransport::default(),
-//             None,
-//             0,
-//         );
-
-//         let mut subscriber_qos = SubscriberQos::default();
-//         subscriber_qos.group_data.value = vec![b'a', b'b', b'c'];
-//         participant
-//             .set_default_subscriber_qos(Some(subscriber_qos.clone()))
-//             .expect("Error setting default subscriber qos");
-
-//         assert_eq!(subscriber_qos, participant.get_default_subscriber_qos())
-//     }
-
-//     #[test]
-//     fn set_get_default_topic_qos() {
-//         let participant = RtpsDomainParticipant::new(
-//             0,
-//             DomainParticipantQos::default(),
-//             MockTransport::default(),
-//             MockTransport::default(),
-//             None,
-//             0,
-//         );
-
-//         let mut topic_qos = TopicQos::default();
-//         topic_qos.topic_data.value = vec![b'a', b'b', b'c'];
-//         participant
-//             .set_default_topic_qos(Some(topic_qos.clone()))
-//             .expect("Error setting default subscriber qos");
-
-//         assert_eq!(topic_qos, participant.get_default_topic_qos())
-//     }
-
-//     #[test]
-//     fn set_default_publisher_qos_to_default_value() {
-//         let participant = RtpsDomainParticipant::new(
-//             0,
-//             DomainParticipantQos::default(),
-//             MockTransport::default(),
-//             MockTransport::default(),
-//             None,
-//             0,
-//         );
-
-//         let mut publisher_qos = PublisherQos::default();
-//         publisher_qos.group_data.value = vec![b'a', b'b', b'c'];
-//         participant
-//             .set_default_publisher_qos(Some(publisher_qos.clone()))
-//             .unwrap();
-
-//         participant
-//             .set_default_publisher_qos(None)
-//             .expect("Error setting default publisher qos");
-
-//         assert_eq!(
-//             PublisherQos::default(),
-//             participant.get_default_publisher_qos()
-//         )
-//     }
-
-//     #[test]
-//     fn set_default_subscriber_qos_to_default_value() {
-//         let participant = RtpsDomainParticipant::new(
-//             0,
-//             DomainParticipantQos::default(),
-//             MockTransport::default(),
-//             MockTransport::default(),
-//             None,
-//             0,
-//         );
-
-//         let mut subscriber_qos = SubscriberQos::default();
-//         subscriber_qos.group_data.value = vec![b'a', b'b', b'c'];
-//         participant
-//             .set_default_subscriber_qos(Some(subscriber_qos.clone()))
-//             .unwrap();
-
-//         participant
-//             .set_default_subscriber_qos(None)
-//             .expect("Error setting default subscriber qos");
-
-//         assert_eq!(
-//             SubscriberQos::default(),
-//             participant.get_default_subscriber_qos()
-//         )
-//     }
-
-//     #[test]
-//     fn set_default_topic_qos_to_default_value() {
-//         let participant = RtpsDomainParticipant::new(
-//             0,
-//             DomainParticipantQos::default(),
-//             MockTransport::default(),
-//             MockTransport::default(),
-//             None,
-//             0,
-//         );
-
-//         let mut topic_qos = TopicQos::default();
-//         topic_qos.topic_data.value = vec![b'a', b'b', b'c'];
-//         participant
-//             .set_default_topic_qos(Some(topic_qos.clone()))
-//             .unwrap();
-
-//         participant
-//             .set_default_topic_qos(None)
-//             .expect("Error setting default subscriber qos");
-
-//         assert_eq!(TopicQos::default(), participant.get_default_topic_qos())
-//     }
-
-//     #[test]
-//     fn create_publisher_factory_default_qos() {
-//         let participant = RtpsDomainParticipant::new(
-//             0,
-//             DomainParticipantQos::default(),
-//             MockTransport::default(),
-//             MockTransport::default(),
-//             None,
-//             0,
-//         );
-
-//         let mut publisher_qos = PublisherQos::default();
-//         publisher_qos.group_data.value = vec![b'a', b'b', b'c'];
-//         participant
-//             .set_default_publisher_qos(Some(publisher_qos.clone()))
-//             .unwrap();
-
-//         let qos = None;
-//         let a_listener = None;
-//         let mask = 0;
-//         let publisher = participant
-//             .create_publisher(qos, a_listener, mask)
-//             .expect("Error creating publisher");
-
-//         assert_eq!(publisher.get_qos().unwrap(), publisher_qos);
-//     }
-
-//     #[test]
-//     fn create_subscriber_factory_default_qos() {
-//         let participant = RtpsDomainParticipant::new(
-//             0,
-//             DomainParticipantQos::default(),
-//             MockTransport::default(),
-//             MockTransport::default(),
-//             None,
-//             0,
-//         );
-
-//         let mut subscriber_qos = SubscriberQos::default();
-//         subscriber_qos.group_data.value = vec![b'a', b'b', b'c'];
-//         participant
-//             .set_default_subscriber_qos(Some(subscriber_qos.clone()))
-//             .unwrap();
-
-//         let qos = None;
-//         let a_listener = None;
-//         let mask = 0;
-//         let subscriber = participant
-//             .create_subscriber(qos, a_listener, mask)
-//             .expect("Error creating publisher");
-
-//         assert_eq!(subscriber.get_qos().unwrap(), subscriber_qos);
-//     }
-
-//     #[test]
-//     fn create_topic_factory_default_qos() {
-//         let participant = RtpsDomainParticipant::new(
-//             0,
-//             DomainParticipantQos::default(),
-//             MockTransport::default(),
-//             MockTransport::default(),
-//             None,
-//             0,
-//         );
-
-//         let mut topic_qos = TopicQos::default();
-//         topic_qos.topic_data.value = vec![b'a', b'b', b'c'];
-//         participant
-//             .set_default_topic_qos(Some(topic_qos.clone()))
-//             .unwrap();
-
-//         let qos = None;
-//         let a_listener = None;
-//         let mask = 0;
-//         let topic = participant
-//             .create_topic::<TestType>("name", qos, a_listener, mask)
-//             .expect("Error creating publisher");
-
-//         assert_eq!(topic.get_qos().unwrap(), topic_qos);
-//     }
-
-//     #[test]
-//     fn get_domain_id() {
-//         let participant = RtpsDomainParticipant::new(
-//             0,
-//             DomainParticipantQos::default(),
-//             MockTransport::default(),
-//             MockTransport::default(),
-//             None,
-//             0,
-//         );
-
-//         assert_eq!(participant.get_domain_id(), 0);
-//     }
-// }
