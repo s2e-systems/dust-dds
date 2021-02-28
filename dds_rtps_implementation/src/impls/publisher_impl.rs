@@ -9,7 +9,10 @@ use rust_dds_api::{
     },
     return_type::{DDSError, DDSResult},
 };
-use rust_rtps::types::GUID;
+use rust_rtps::{
+    structure::{Entity, Group},
+    types::GUID,
+};
 
 use super::{datawriter_impl::StatefulDataWriterImpl, topic_impl::TopicImpl};
 
@@ -81,13 +84,13 @@ impl PublisherImpl {
     }
 }
 
-impl rust_rtps::structure::Entity for PublisherImpl {
+impl Entity for PublisherImpl {
     fn guid(&self) -> GUID {
         todo!()
     }
 }
 
-impl rust_rtps::structure::Group for PublisherImpl {}
+impl Group for PublisherImpl {}
 
 #[cfg(test)]
 mod tests {
