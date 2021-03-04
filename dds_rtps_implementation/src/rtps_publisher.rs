@@ -17,7 +17,7 @@ use rust_dds_api::{
 };
 
 use crate::{
-    impls::datawriter_impl::StatefulDataWriterImpl,
+    impls::statefuldatawriter_impl::StatefulDataWriterImpl,
     rtps_domain_participant::{RtpsDomainParticipant, RtpsPublisher, RtpsTopic},
     utils::node::Node,
 };

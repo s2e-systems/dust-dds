@@ -16,13 +16,13 @@ trait AnyDataReaderListener: Send + Sync {}
 
 impl<T: DDSType> AnyDataReaderListener for RtpsDataReaderListener<T> {}
 
-pub struct StatefulDataReaderImpl {
+pub struct ReaderImpl {
     qos: DataReaderQos,
     mask_listener: MaskListener<Box<dyn AnyDataReaderListener>>,
     topic: Arc<Mutex<TopicImpl>>,
 }
 
-impl StatefulDataReaderImpl {
+impl ReaderImpl {
     pub fn new<T: DDSType>(
         topic: Arc<Mutex<TopicImpl>>,
         qos: DataReaderQos,
@@ -42,13 +42,13 @@ impl StatefulDataReaderImpl {
     }
 }
 
-impl Entity for StatefulDataReaderImpl {
+impl Entity for ReaderImpl {
     fn guid(&self) -> rust_rtps::types::GUID {
         todo!()
     }
 }
 
-impl Endpoint for StatefulDataReaderImpl {
+impl Endpoint for ReaderImpl {
     fn unicast_locator_list(&self) -> &[rust_rtps::types::Locator] {
         todo!()
     }
@@ -66,7 +66,7 @@ impl Endpoint for StatefulDataReaderImpl {
     }
 }
 
-impl Reader for StatefulDataReaderImpl {
+impl Reader for ReaderImpl {
     type HistoryCacheType = HistoryCacheImpl;
 
     fn heartbeat_response_delay(&self) -> rust_rtps::behavior::types::Duration {
@@ -82,27 +82,6 @@ impl Reader for StatefulDataReaderImpl {
     }
 
     fn expects_inline_qos(&self) -> bool {
-        todo!()
-    }
-}
-
-impl StatefulReader for StatefulDataReaderImpl {
-    fn matched_writers(&self) -> &[rust_rtps::behavior::WriterProxy] {
-        todo!()
-    }
-
-    fn matched_writer_add(&mut self, _a_writer_proxy: rust_rtps::behavior::WriterProxy) {
-        todo!()
-    }
-
-    fn matched_writer_remove(&mut self, _writer_proxy_guid: &rust_rtps::types::GUID) {
-        todo!()
-    }
-
-    fn matched_writer_lookup(
-        &self,
-        _a_writer_guid: rust_rtps::types::GUID,
-    ) -> Option<&rust_rtps::behavior::WriterProxy> {
         todo!()
     }
 }

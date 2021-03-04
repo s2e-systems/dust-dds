@@ -1,7 +1,7 @@
 use std::ops::Deref;
 
 use crate::{
-    impls::datareader_impl::StatefulDataReaderImpl,
+    impls::reader_impl::ReaderImpl,
     rtps_domain_participant::{RtpsDomainParticipant, RtpsSubscriber, RtpsTopic},
     utils::node::Node,
 };
@@ -28,7 +28,7 @@ use rust_dds_api::{
 pub struct RtpsDataReader<'a, T: DDSType>(<Self as Deref>::Target);
 
 impl<'a, T: DDSType> Deref for RtpsDataReader<'a, T> {
-    type Target = Node<(&'a RtpsSubscriber<'a>, &'a RtpsTopic<'a, T>), StatefulDataReaderImpl>;
+    type Target = Node<(&'a RtpsSubscriber<'a>, &'a RtpsTopic<'a, T>), ReaderImpl>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -71,20 +71,21 @@ impl<'a> Subscriber<'a> for RtpsSubscriber<'a> {
 
     fn delete_datareader<T: DDSType>(
         &'a self,
-        a_datareader: &<Self as DataReaderGAT<'a, T>>::DataReaderType,
+        _a_datareader: &<Self as DataReaderGAT<'a, T>>::DataReaderType,
     ) -> DDSResult<()> {
-        if std::ptr::eq(a_datareader.parent.0, self) {
-            self.impl_ref
-                .upgrade()
-                .ok_or(DDSError::AlreadyDeleted)?
-                .lock()
-                .unwrap()
-                .delete_datareader(&a_datareader.impl_ref)
-        } else {
-            Err(DDSError::PreconditionNotMet(
-                "Publisher can only be deleted from its parent participant",
-            ))
-        }
+        todo!()
+        // if std::ptr::eq(a_datareader.parent.0, self) {
+        //     self.impl_ref
+        //         .upgrade()
+        //         .ok_or(DDSError::AlreadyDeleted)?
+        //         .lock()
+        //         .unwrap()
+        //         .delete_datareader(&a_datareader.impl_ref)
+        // } else {
+        //     Err(DDSError::PreconditionNotMet(
+        //         "Publisher can only be deleted from its parent participant",
+        //     ))
+        // }
     }
 
     fn lookup_datareader<T: DDSType>(
@@ -153,7 +154,8 @@ impl<'a> Entity for RtpsSubscriber<'a> {
         Ok(self
             .impl_ref
             .upgrade()
-            .ok_or(DDSError::AlreadyDeleted)?.lock()
+            .ok_or(DDSError::AlreadyDeleted)?
+            .lock()
             .unwrap()
             .set_qos(qos))
     }
@@ -162,7 +164,8 @@ impl<'a> Entity for RtpsSubscriber<'a> {
         Ok(self
             .impl_ref
             .upgrade()
-            .ok_or(DDSError::AlreadyDeleted)?.lock()
+            .ok_or(DDSError::AlreadyDeleted)?
+            .lock()
             .unwrap()
             .get_qos()
             .clone())

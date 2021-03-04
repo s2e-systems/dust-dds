@@ -1,8 +1,10 @@
+use std::ops::{Deref, DerefMut};
+
 use crate::{behavior::Writer, types::GUID};
 
 use super::ReaderProxy;
 
-pub trait StatefulWriter : Writer {
+pub trait StatefulWriter<T: Writer>: Deref<Target = T> + DerefMut {
     fn matched_readers(&self) -> &[ReaderProxy];
     fn matched_reader_add(&mut self, a_reader_proxy: ReaderProxy);
     fn matched_reader_remove(&mut self, reader_proxy_guid: &GUID);

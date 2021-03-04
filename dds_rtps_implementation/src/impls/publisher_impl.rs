@@ -14,7 +14,7 @@ use rust_rtps::{
     types::GUID,
 };
 
-use super::{datawriter_impl::StatefulDataWriterImpl, topic_impl::TopicImpl};
+use super::{statefuldatawriter_impl::StatefulDataWriterImpl, topic_impl::TopicImpl};
 
 pub struct PublisherImpl {
     writer_list: Vec<Arc<Mutex<StatefulDataWriterImpl>>>,
@@ -55,13 +55,15 @@ impl PublisherImpl {
         let qos = qos.unwrap_or(self.default_datawriter_qos.clone());
         qos.is_consistent().ok()?;
 
-        let data_writer = Arc::new(Mutex::new(StatefulDataWriterImpl::new(
-            topic, qos, a_listener, mask,
-        )));
+        todo!()
 
-        self.writer_list.push(data_writer.clone());
+        // let data_writer = Arc::new(Mutex::new(StatefulDataWriterImpl::new(
+        //     topic, qos, a_listener, mask,
+        // )));
 
-        Some(Arc::downgrade(&data_writer))
+        // self.writer_list.push(data_writer.clone());
+
+        // Some(Arc::downgrade(&data_writer))
     }
 
     pub fn delete_datawriter(

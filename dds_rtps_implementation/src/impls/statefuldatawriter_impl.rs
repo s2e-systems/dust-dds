@@ -1,12 +1,18 @@
-use std::sync::{Arc, Mutex};
+use std::{ops::{Deref, DerefMut}, sync::{Arc, Mutex}};
 
 use rust_dds_api::{
     dcps_psm::StatusMask, dds_type::DDSType, infrastructure::qos::DataWriterQos,
     publication::data_writer_listener::DataWriterListener,
 };
-use rust_rtps::{behavior::{StatefulWriter, Writer}, structure::{Endpoint, Entity, HistoryCache}};
+use rust_rtps::{
+    behavior::{StatefulWriter, Writer},
+    structure::{Endpoint, Entity, HistoryCache},
+};
 
-use super::{history_cache_impl::HistoryCacheImpl, mask_listener::MaskListener, topic_impl::TopicImpl};
+use super::{
+    history_cache_impl::HistoryCacheImpl, mask_listener::MaskListener, topic_impl::TopicImpl,
+    writer_impl::WriterImpl,
+};
 struct RtpsDataWriterListener<T: DDSType>(Box<dyn DataWriterListener<DataType = T>>);
 trait AnyDataWriterListener: Send + Sync {}
 
@@ -65,29 +71,27 @@ impl<T: DDSType> AnyDataWriterListener for RtpsDataWriterListener<T> {}
 // }
 
 pub struct StatefulDataWriterImpl {
-    qos: DataWriterQos,
-    mask_listener: MaskListener<Box<dyn AnyDataWriterListener>>,
-    topic: Arc<Mutex<TopicImpl>>,
+    writer: WriterImpl,
 }
 
 impl StatefulDataWriterImpl {
-    pub fn new<T: DDSType>(
-        topic: Arc<Mutex<TopicImpl>>,
-        qos: DataWriterQos,
-        listener: Option<Box<dyn DataWriterListener<DataType = T>>>,
-        status_mask: StatusMask,
-    ) -> Self {
-        let listener: Option<Box<dyn AnyDataWriterListener>> = match listener {
-            Some(listener) => Some(Box::new(RtpsDataWriterListener(listener))),
-            None => None,
-        };
-        let mask_listener = MaskListener::new(listener, status_mask);
-        Self {
-            qos,
-            mask_listener,
-            topic,
-        }
-    }
+    // pub fn new<T: DDSType>(
+    //     topic: Arc<Mutex<TopicImpl>>,
+    //     qos: DataWriterQos,
+    //     listener: Option<Box<dyn DataWriterListener<DataType = T>>>,
+    //     status_mask: StatusMask,
+    // ) -> Self {
+    //     let listener: Option<Box<dyn AnyDataWriterListener>> = match listener {
+    //         Some(listener) => Some(Box::new(RtpsDataWriterListener(listener))),
+    //         None => None,
+    //     };
+    //     let mask_listener = MaskListener::new(listener, status_mask);
+    //     Self {
+    //         qos,
+    //         mask_listener,
+    //         topic,
+    //     }
+    // }
 
     // pub fn produce_messages(&mut self) -> Vec<DestinedMessages> {
     //     let writer = &self.writer;
@@ -160,49 +164,21 @@ impl Endpoint for StatefulDataWriterImpl {
     }
 }
 
-impl Writer for StatefulDataWriterImpl {
-    type HistoryCacheType = HistoryCacheImpl;
+impl Deref for StatefulDataWriterImpl {
+    type Target = WriterImpl;
 
-    fn push_mode(&self) -> bool {
-        todo!()
-    }
-
-    fn heartbeat_period(&self) -> rust_rtps::behavior::types::Duration {
-        todo!()
-    }
-
-    fn nack_response_delay(&self) -> rust_rtps::behavior::types::Duration {
-        todo!()
-    }
-
-    fn nack_suppression_duration(&self) -> rust_rtps::behavior::types::Duration {
-        todo!()
-    }
-
-    fn last_change_sequence_number(&self) -> rust_rtps::types::SequenceNumber {
-        todo!()
-    }
-
-    fn writer_cache(&mut self) -> &mut HistoryCacheImpl {
-        todo!()
-    }
-
-    fn data_max_sized_serialized(&self) -> i32 {
-        todo!()
-    }
-
-    fn new_change(
-        &mut self,
-        _kind: rust_rtps::types::ChangeKind,
-        _data: rust_rtps::messages::submessages::submessage_elements::SerializedData,
-        _inline_qos: rust_rtps::messages::submessages::submessage_elements::ParameterList,
-        _handle: rust_rtps::types::InstanceHandle,
-    ) -> <Self::HistoryCacheType as HistoryCache>::CacheChangeType {
-        todo!()
+    fn deref(&self) -> &Self::Target {
+        &self.writer
     }
 }
 
-impl StatefulWriter for StatefulDataWriterImpl {
+impl DerefMut for StatefulDataWriterImpl {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.writer
+    }
+}
+
+impl StatefulWriter<WriterImpl> for StatefulDataWriterImpl {
     fn matched_readers(&self) -> &[rust_rtps::behavior::ReaderProxy] {
         todo!()
     }

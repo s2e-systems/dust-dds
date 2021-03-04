@@ -11,10 +11,10 @@ use rust_dds_api::{
 };
 use rust_rtps::{structure::{Entity, Group}, types::GUID};
 
-use super::{datareader_impl::StatefulDataReaderImpl, topic_impl::TopicImpl};
+use super::{reader_impl::ReaderImpl, topic_impl::TopicImpl};
 
 pub struct SubscriberImpl {
-    reader_list: Vec<Arc<Mutex<StatefulDataReaderImpl>>>,
+    reader_list: Vec<Arc<Mutex<ReaderImpl>>>,
     reader_count: atomic::AtomicU8,
     default_datareader_qos: DataReaderQos,
     qos: SubscriberQos,
@@ -38,7 +38,7 @@ impl SubscriberImpl {
         }
     }
 
-    pub fn reader_list(&self) -> &Vec<Arc<Mutex<StatefulDataReaderImpl>>> {
+    pub fn reader_list(&self) -> &Vec<Arc<Mutex<ReaderImpl>>> {
         &self.reader_list
     }
 
@@ -48,11 +48,11 @@ impl SubscriberImpl {
         qos: Option<DataReaderQos>,
         a_listener: Option<Box<dyn DataReaderListener<DataType = T>>>,
         mask: StatusMask,
-    ) -> Option<Weak<Mutex<StatefulDataReaderImpl>>> {
+    ) -> Option<Weak<Mutex<ReaderImpl>>> {
         let qos = qos.unwrap_or(self.default_datareader_qos.clone());
         qos.is_consistent().ok()?;
 
-        let data_reader = Arc::new(Mutex::new(StatefulDataReaderImpl::new(
+        let data_reader = Arc::new(Mutex::new(ReaderImpl::new(
             topic, qos, a_listener, mask,
         )));
 
@@ -63,7 +63,7 @@ impl SubscriberImpl {
 
     pub fn delete_datareader(
         &mut self,
-        a_datareader: &Weak<Mutex<StatefulDataReaderImpl>>,
+        a_datareader: &Weak<Mutex<ReaderImpl>>,
     ) -> DDSResult<()> {
         let datareader_impl = a_datareader.upgrade().ok_or(DDSError::AlreadyDeleted)?;
         self.reader_list
