@@ -25,8 +25,8 @@ pub trait WriterProxy {
 
     fn new(
         remote_writer_guid: GUID,
-        unicast_locator_list: Vec<Locator>,
-        multicast_locator_list: Vec<Locator>,
+        unicast_locator_list: &[Locator],
+        multicast_locator_list: &[Locator],
         remote_group_entity_id: EntityId,
     ) -> Self;
 

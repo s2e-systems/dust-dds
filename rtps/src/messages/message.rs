@@ -66,7 +66,7 @@ impl RtpsMessage {
         &self.header
     }
 
-    pub fn submessages(&self) -> &Vec<RtpsSubmessage> {
+    pub fn submessages(&self) -> &[RtpsSubmessage] {
         &self.submessages
     }
 

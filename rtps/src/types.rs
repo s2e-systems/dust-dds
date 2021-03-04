@@ -102,7 +102,7 @@ pub mod constants {
 
     pub const GUID_UNKNOWN: GUID = GUID{prefix: GUID_PREFIX_UNKNOWN, entity_id: ENTITYID_UNKNOWN};
 
-    pub const SEQUENCE_NUMBER_UNKNOWN: SequenceNumber = std::i64::MIN;
+    pub const SEQUENCE_NUMBER_UNKNOWN: SequenceNumber = core::i64::MIN;
 }
 
 #[derive(Hash, PartialEq, Eq, Debug, Clone, Copy)]

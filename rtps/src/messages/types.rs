@@ -1,4 +1,4 @@
-use std::convert::{TryFrom, TryInto};
+use core::convert::{TryFrom, TryInto};
 
 use super::submessages::submessage_elements::Parameter;
 
@@ -15,12 +15,12 @@ pub mod constants {
         fraction: 0,
     };
     pub const TIME_INFINITE: Time = Time {
-        seconds: std::u32::MAX,
-        fraction: std::u32::MAX - 1,
+        seconds: core::u32::MAX,
+        fraction: core::u32::MAX - 1,
     };
     pub const TIME_INVALID: Time = Time {
-        seconds: std::u32::MAX,
-        fraction: std::u32::MAX,
+        seconds: core::u32::MAX,
+        fraction: core::u32::MAX,
     };
     pub const PROTOCOL_RTPS: ProtocolId = [b'R', b'T', b'P', b'S'];
 }
