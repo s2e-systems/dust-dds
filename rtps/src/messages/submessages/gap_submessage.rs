@@ -1,5 +1,3 @@
-use std::collections::BTreeSet;
-
 use crate::messages::types::Endianness;
 use super::{SubmessageKind, SubmessageFlag, };
 use super::{Submessage, SubmessageHeader, };
@@ -14,26 +12,28 @@ pub struct Gap {
     reader_id: submessage_elements::EntityId,
     writer_id: submessage_elements::EntityId,
     gap_start: submessage_elements::SequenceNumber,
-    gap_list: submessage_elements::SequenceNumberSet,    
+    gap_list: submessage_elements::SequenceNumberSet,
     // gap_start_gsn: submessage_elements::SequenceNumber,
     // gap_end_gsn: submessage_elements::SequenceNumber,
 }
 
 impl Gap {
     pub fn new(
-        endianness: Endianness,
-        reader_id: types::EntityId,
-        writer_id: types::EntityId,
-        gap_start: types::SequenceNumber,
-        gap_list: BTreeSet<types::SequenceNumber>) -> Self {
+        _endianness: Endianness,
+        _reader_id: types::EntityId,
+        _writer_id: types::EntityId,
+        _gap_start: types::SequenceNumber,
+        _gap_list: &[types::SequenceNumber]) -> Self {
 
-            Gap {
-                endianness_flag: endianness.into(),
-                reader_id,
-                writer_id,
-                gap_start,
-                gap_list: submessage_elements::SequenceNumberSet::from_set(gap_list),
-            }
+
+            todo!()
+            // Gap {
+            //     endianness_flag: endianness.into(),
+            //     reader_id,
+            //     writer_id,
+            //     gap_start,
+            //     gap_list: submessage_elements::SequenceNumberSet::from_set(gap_list),
+            // }
     }
 
     pub fn from_raw_parts(

@@ -94,7 +94,7 @@ mod tests {
             ENTITYID_UNKNOWN,
             ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
             2,
-            [2, 3].iter().cloned().collect(),
+            &[2, 3],
             2,
             true,
         );
@@ -142,7 +142,7 @@ mod tests {
             ENTITYID_UNKNOWN,
             ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER,
             2,
-            [2, 3].iter().cloned().collect(),
+            &[2, 3],
             2,
             true,
         );

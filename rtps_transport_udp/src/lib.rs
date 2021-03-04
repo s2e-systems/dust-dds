@@ -117,7 +117,7 @@ impl Transport for UdpTransport {
                         SocketAddr::V4(socket_addr_v4) => Locator::new_udpv4(socket_addr_v4.port(), socket_addr_v4.ip().octets()),
                         _ => todo!(),
                     };
-            
+
                     Ok(Some((message, src_locator)))
                 } else {
                     Ok(None)
@@ -136,7 +136,7 @@ impl Transport for UdpTransport {
     fn unicast_locator_list(&self) -> &Vec<Locator> {
         &self.unicast_locator_list
     }
-    
+
     fn multicast_locator_list(&self) -> &Vec<Locator> {
         &self.multicast_locator_list
     }
@@ -166,7 +166,6 @@ mod tests {
     use rust_rtps::messages::{RtpsSubmessage, types::Endianness};
     use rust_rtps::messages::submessages::Gap;
     use rust_rtps::types::constants::{ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, PROTOCOL_VERSION_2_4, VENDOR_ID};
-    use std::collections::BTreeSet;
 
     #[test]
     fn read_udp_data() {
@@ -179,7 +178,7 @@ mod tests {
         let transport = UdpTransport::new(unicast_locator, vec![multicast_locator]).unwrap();
 
         let submessages = vec![
-            RtpsSubmessage::Gap(Gap::new(Endianness::LittleEndian, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, 0, BTreeSet::new())),
+            RtpsSubmessage::Gap(Gap::new(Endianness::LittleEndian, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER, ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR, 0, &[])),
         ];
         let message = RtpsMessage::new(PROTOCOL_VERSION_2_4, VENDOR_ID, [1,2,3,4,5,6,7,8,9,10,11,12], submessages);
         let mut bytes = Vec::new();
@@ -232,7 +231,7 @@ mod tests {
                 ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER,
                 ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR,
                 0,
-                BTreeSet::new())),
+                &[])),
         ];
         let message = RtpsMessage::new(PROTOCOL_VERSION_2_4, VENDOR_ID, [1,2,3,4,5,6,7,8,9,10,11,12], submessages);
         let mut expected_bytes = Vec::new();

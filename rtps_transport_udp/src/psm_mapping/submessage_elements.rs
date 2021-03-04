@@ -111,7 +111,7 @@ pub fn serialize_guid_prefix(guid_prefix: &GuidPrefix, writer: &mut impl std::io
 pub fn deserialize_guid_prefix(bytes: &[u8]) -> UdpPsmMappingResult<GuidPrefix> {
     bytes.check_size_equal(12)?;
     Ok(bytes[0..12].try_into()?)
-}    
+}
 
 pub fn serialize_entity_id(entity_id: &EntityId, writer: &mut impl std::io::Write) -> UdpPsmMappingResult<()>{
     writer.write(&entity_id.entity_key())?;
@@ -170,7 +170,7 @@ pub fn deserialize_sequence_number(bytes: &[u8], endianness: Endianness) -> UdpP
 
 pub fn serialize_sequence_number_set(sequence_number_set: &SequenceNumberSet, writer: &mut impl std::io::Write, endianness: Endianness) -> UdpPsmMappingResult<()> {
     let num_bits = if sequence_number_set.set().is_empty() {
-        0 
+        0
     } else {
         (sequence_number_set.set().iter().last().unwrap() - sequence_number_set.base()) as usize + 1
     } as u32;
@@ -197,10 +197,10 @@ pub fn deserialize_sequence_number_set(bytes: &[u8], endianness: Endianness) -> 
     let num_bits = deserialize_ulong(&bytes[8..12], endianness)?;
 
     // Get bitmaps from "long"s that follow the numBits field in the message
-    // Note that the amount of bitmaps that are included in the message are 
-    // determined by the number of bits (32 max per bitmap, and a max of 256 in 
+    // Note that the amount of bitmaps that are included in the message are
+    // determined by the number of bits (32 max per bitmap, and a max of 256 in
     // total which means max 8 bitmap "long"s)
-    let m = ((num_bits as usize) + 31) / 32;        
+    let m = ((num_bits as usize) + 31) / 32;
     let mut bitmaps = Vec::with_capacity(m);
     for i in 0..m {
         let index_of_byte_current_bitmap = 12 + i * 4;
@@ -208,10 +208,10 @@ pub fn deserialize_sequence_number_set(bytes: &[u8], endianness: Endianness) -> 
         bitmaps.push(deserialize_long(&bytes[index_of_byte_current_bitmap..index_of_byte_current_bitmap+4], endianness)?);
     };
     // Interpet the bitmaps and insert the sequence numbers if they are encode in the bitmaps
-    let mut set = BTreeSet::new(); 
+    let mut set = BTreeSet::new();
     for delta_n in 0..num_bits {
         let bitmask = 1 << (31 - delta_n % 32);
-        if  bitmaps[delta_n as usize / 32] & bitmask == bitmask {               
+        if  bitmaps[delta_n as usize / 32] & bitmask == bitmask {
             let seq_num = delta_n as i64 + base;
             set.insert(seq_num);
         }
@@ -222,7 +222,7 @@ pub fn deserialize_sequence_number_set(bytes: &[u8], endianness: Endianness) -> 
 pub fn serialize_fragment_number(fragment_number: &FragmentNumber, writer: &mut impl std::io::Write, endianness: Endianness) -> UdpPsmMappingResult<()> {
     serialize_ulong(&fragment_number, writer, endianness)?;
     Ok(())
-}    
+}
 
 pub fn deserialize_fragment_number(bytes: &[u8], endianness: Endianness) -> UdpPsmMappingResult<FragmentNumber> {
     Ok(deserialize_ulong(bytes, endianness)?)
@@ -231,7 +231,7 @@ pub fn deserialize_fragment_number(bytes: &[u8], endianness: Endianness) -> UdpP
 
 pub fn serialize_fragment_number_set(fragment_number_set: &FragmentNumberSet, writer: &mut impl std::io::Write, endianness: Endianness) -> UdpPsmMappingResult<()> {
     let num_bits = if fragment_number_set.set().is_empty() {
-        0 
+        0
     } else {
         fragment_number_set.set().iter().last().unwrap() - fragment_number_set.base() + 1
     };
@@ -257,10 +257,10 @@ pub fn deserialize_fragment_number_set(bytes: &[u8], endianness: Endianness) -> 
     let num_bits = deserialize_ulong(&bytes[4..8], endianness)? as usize;
 
     // Get bitmaps from "long"s that follow the numBits field in the message
-    // Note that the amount of bitmaps that are included in the message are 
-    // determined by the number of bits (32 max per bitmap, and a max of 256 in 
+    // Note that the amount of bitmaps that are included in the message are
+    // determined by the number of bits (32 max per bitmap, and a max of 256 in
     // total which means max 8 bitmap "long"s)
-    let m = (num_bits + 31) / 32;        
+    let m = (num_bits + 31) / 32;
     let mut bitmaps = Vec::with_capacity(m);
     for i in 0..m {
         let index_of_byte_current_bitmap = 8 + i * 4;
@@ -268,16 +268,16 @@ pub fn deserialize_fragment_number_set(bytes: &[u8], endianness: Endianness) -> 
         bitmaps.push(deserialize_long(&bytes[index_of_byte_current_bitmap..index_of_byte_current_bitmap+4], endianness)?);
     };
     // Interpet the bitmaps and insert the sequence numbers if they are encode in the bitmaps
-    let mut set = BTreeSet::new(); 
+    let mut set = BTreeSet::new();
     for delta_n in 0..num_bits {
         let bitmask = 1 << (31 - delta_n % 32);
-        if  bitmaps[delta_n / 32] & bitmask == bitmask {               
+        if  bitmaps[delta_n / 32] & bitmask == bitmask {
             let frag_num = delta_n as u32 + base;
             set.insert(frag_num);
         }
     }
     Ok(FragmentNumberSet::new(base, set))
-}    
+}
 
 
 pub fn serialize_timestamp(timestamp: &Timestamp, writer: &mut impl std::io::Write, endianness: Endianness) -> UdpPsmMappingResult<()>{
@@ -351,7 +351,7 @@ pub fn serialize_parameter_list(parameter_list: &ParameterList, writer: &mut imp
         serialize_short(&parameter.length(), writer, endianness)?;
         writer.write(parameter.value())?;
     }
-    serialize_short(&PID_SENTINEL, writer, endianness)?; 
+    serialize_short(&PID_SENTINEL, writer, endianness)?;
     writer.write(&[0,0])?;  // LENGTH
     Ok(())
 }
@@ -375,7 +375,7 @@ pub fn deserialize_parameter_list(bytes: &[u8], endianness: Endianness) -> UdpPs
 
         if parameter_id == PID_SENTINEL {
             break;
-        }     
+        }
 
         let bytes_end = parameter_start_index + (length + 4) as usize;
         let value = Vec::from(&bytes[parameter_start_index+4..bytes_end]);
@@ -434,7 +434,7 @@ mod tests {
             _ => assert!(false),
         };
     }
-       
+
     #[test]
     fn entity_id_serialization_deserialization() {
         let mut vec = Vec::new();
@@ -487,13 +487,13 @@ mod tests {
     }
 
     // ///////// SequenceNumber Tests /////////////////////////////////////////
- 
+
     #[test]
     fn sequence_number_serialization_deserialization_big_endian() {
         let mut vec = Vec::new();
         let test_sequence_number = 1987612345679;
 
-        
+
         const TEST_SEQUENCE_NUMBER_BIG_ENDIAN : [u8;8] = [0x00, 0x00, 0x01, 0xCE, 0xC6, 0xED, 0x85, 0x4F];
         serialize_sequence_number(&test_sequence_number, &mut vec, Endianness::BigEndian).unwrap();
         assert_eq!(vec, TEST_SEQUENCE_NUMBER_BIG_ENDIAN);
@@ -505,7 +505,7 @@ mod tests {
         let mut vec = Vec::new();
         let test_sequence_number = 1987612345679;
 
-        
+
         const TEST_SEQUENCE_NUMBER_LITTLE_ENDIAN : [u8;8] = [0xCE, 0x01, 0x00, 0x00, 0x4F, 0x85, 0xED, 0xC6];
         serialize_sequence_number(&test_sequence_number, &mut vec, Endianness::LittleEndian).unwrap();
         assert_eq!(vec, TEST_SEQUENCE_NUMBER_LITTLE_ENDIAN);
@@ -515,7 +515,7 @@ mod tests {
     #[test]
     fn sequence_number_serialization_deserialization_multiple_combinations() {
         let mut vec = Vec::new();
-        
+
         {
             let test_sequence_number_i64_max = std::i64::MAX;
             serialize_sequence_number(&test_sequence_number_i64_max, &mut vec, Endianness::LittleEndian).unwrap();
@@ -563,7 +563,7 @@ mod tests {
 
 
 //     // /////////////////////// SequenceNumberSet Tests ////////////////////////
-    
+
     #[test]
     fn deserialize_sequence_number_set_empty() {
         let expected = SequenceNumberSet::new(3, [].iter().cloned().collect());
@@ -575,7 +575,7 @@ mod tests {
         let result = deserialize_sequence_number_set(&bytes, Endianness::BigEndian).unwrap();
         assert_eq!(expected, result);
     }
-    
+
     #[test]
     fn deserialize_sequence_number_set_one_bitmap_be() {
         let expected = SequenceNumberSet::new(3, [3, 4].iter().cloned().collect());
@@ -583,12 +583,12 @@ mod tests {
             0, 0, 0, 0, // base
             0, 0, 0, 3, // base
             0, 0, 0, 2, // num bits
-            0b_11000000, 0b_00000000, 0b_00000000, 0b_00000000, 
+            0b_11000000, 0b_00000000, 0b_00000000, 0b_00000000,
         ];
         let result = deserialize_sequence_number_set(&bytes, Endianness::BigEndian).unwrap();
         assert_eq!(expected, result);
     }
-    
+
     #[test]
         fn deserialize_sequence_number_set_one_bitmap_le() {
         let expected = SequenceNumberSet::new(3,  [3, 4].iter().cloned().collect());
@@ -596,12 +596,12 @@ mod tests {
             0, 0, 0, 0, // base
             3, 0, 0, 0, // base
             2, 0, 0, 0, // num bits
-            0b_00000000, 0b_00000000, 0b_00000000, 0b_11000000, 
+            0b_00000000, 0b_00000000, 0b_00000000, 0b_11000000,
         ];
         let result = deserialize_sequence_number_set(&bytes, Endianness::LittleEndian).unwrap();
         assert_eq!(expected, result);
     }
-    
+
     #[test]
     fn deserialize_sequence_number_set_multiple_bitmaps() {
         let expected = SequenceNumberSet::new( 1000, [1001, 1003, 1032, 1033].iter().cloned().collect());
@@ -609,13 +609,13 @@ mod tests {
             0, 0, 0, 0, // base
             0, 0, 3, 232, // base
             0, 0, 0, 34, // num bits
-            0b_01010000, 0b_00000000, 0b_00000000, 0b_00000000, 
-            0b_11000000, 0b_00000000, 0b_00000000, 0b_00000000, 
+            0b_01010000, 0b_00000000, 0b_00000000, 0b_00000000,
+            0b_11000000, 0b_00000000, 0b_00000000, 0b_00000000,
         ];
         let result = deserialize_sequence_number_set(&bytes, Endianness::BigEndian).unwrap();
         assert_eq!(expected, result);
     }
-    
+
     #[test]
     fn deserialize_sequence_number_set_max_bitmaps_big_endian() {
         let expected = SequenceNumberSet::new( 1000, [1000, 1255].iter().cloned().collect());
@@ -623,8 +623,8 @@ mod tests {
             0, 0, 0, 0, // base
             0, 0, 0x03, 0xE8, // base
             0, 0, 0x01, 0x00, // num bits
-            0b_10000000, 0b_00000000, 0b_00000000, 0b_00000000, 
-            0b_00000000, 0b_00000000, 0b_00000000, 0b_00000000, 
+            0b_10000000, 0b_00000000, 0b_00000000, 0b_00000000,
+            0b_00000000, 0b_00000000, 0b_00000000, 0b_00000000,
             0b_00000000, 0b_00000000, 0b_00000000, 0b_00000000,
             0b_00000000, 0b_00000000, 0b_00000000, 0b_00000000,
             0b_00000000, 0b_00000000, 0b_00000000, 0b_00000000,
@@ -643,14 +643,14 @@ mod tests {
             0, 0, 0, 0, // base
             0xE8, 0x03, 0, 0, // base
             0x00, 0x01, 0, 0, // num bits
-            0b_00000000, 0b_00000000, 0b_00000000, 0b_10000000, 
-            0b_00000000, 0b_00000000, 0b_00000000, 0b_00000000, 
+            0b_00000000, 0b_00000000, 0b_00000000, 0b_10000000,
             0b_00000000, 0b_00000000, 0b_00000000, 0b_00000000,
             0b_00000000, 0b_00000000, 0b_00000000, 0b_00000000,
             0b_00000000, 0b_00000000, 0b_00000000, 0b_00000000,
             0b_00000000, 0b_00000000, 0b_00000000, 0b_00000000,
             0b_00000000, 0b_00000000, 0b_00000000, 0b_00000000,
-            0b_00000001, 0b_00000000, 0b_00000000, 0b_00000000, 
+            0b_00000000, 0b_00000000, 0b_00000000, 0b_00000000,
+            0b_00000001, 0b_00000000, 0b_00000000, 0b_00000000,
         ];
         let result = deserialize_sequence_number_set(&bytes, Endianness::LittleEndian).unwrap();
         assert_eq!(expected, result);
@@ -660,10 +660,10 @@ mod tests {
     fn deserialize_sequence_number_set_as_of_example_in_standard_be() {
         // Example in standard "1234:/12:00110"
         let bytes = [
-            0x00, 0x00, 0x00, 0x00, 
-            0x00, 0x00, 0x04, 0xD2, 
-            0x00, 0x00, 0x00, 0x0C, 
-            0x30, 0x00, 0x00, 0x00, 
+            0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x04, 0xD2,
+            0x00, 0x00, 0x00, 0x0C,
+            0x30, 0x00, 0x00, 0x00,
         ];
         let sequence_number_set = deserialize_sequence_number_set(&bytes, Endianness::BigEndian).unwrap();
         assert!(!sequence_number_set.set().contains(&1234));
@@ -674,15 +674,15 @@ mod tests {
             assert!(!sequence_number_set.set().contains(&seq_num));
         }
     }
-    
+
     #[test]
     fn deserialize_sequence_number_set_as_of_example_in_standard_le() {
         // Example in standard "1234:/12:00110"
         let bytes = [
-            0x00, 0x00, 0x00, 0x00, 
-            0xD2, 0x04, 0x00, 0x00, 
-            0x0C, 0x00, 0x00, 0x00, 
-            0x00, 0x00, 0x00, 0x30, 
+            0x00, 0x00, 0x00, 0x00,
+            0xD2, 0x04, 0x00, 0x00,
+            0x0C, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x30,
         ];
         let sequence_number_set = deserialize_sequence_number_set(&bytes, Endianness::LittleEndian).unwrap();
         assert!(!sequence_number_set.set().contains(&1234));
@@ -693,7 +693,7 @@ mod tests {
             assert!(!sequence_number_set.set().contains(&seq_num));
         }
     }
-        
+
     #[test]
     fn test_serialize_sequence_number_set() {
         let set = SequenceNumberSet::new(3, [3, 4].iter().cloned().collect());
@@ -703,11 +703,11 @@ mod tests {
             0, 0, 0, 0, // base
             0, 0, 0, 3, // base
             0, 0, 0, 2, // num bits
-            0b_11000000, 0b_00000000, 0b_00000000, 0b_00000000, 
+            0b_11000000, 0b_00000000, 0b_00000000, 0b_00000000,
         ];
         assert_eq!(expected, writer);
-    
-    
+
+
         let set = SequenceNumberSet::new(1, [3, 4].iter().cloned().collect());
         let mut writer = Vec::new();
         serialize_sequence_number_set(&set, &mut writer, Endianness::LittleEndian).unwrap();
@@ -715,21 +715,21 @@ mod tests {
             0, 0, 0, 0, // base
             1, 0, 0, 0, // base
             4, 0, 0, 0, // num bits
-            0b_00000000, 0b_00000000, 0b_00000000, 0b_00110000, 
+            0b_00000000, 0b_00000000, 0b_00000000, 0b_00110000,
         ];
         assert_eq!(expected, writer);
-    
+
         let mut writer = Vec::new();
         serialize_sequence_number_set(&set, &mut writer, Endianness::BigEndian).unwrap();
         let expected = vec![
             0, 0, 0, 0, // base
             0, 0, 0, 1, // base
             0, 0, 0, 4, // num bits
-            0b_00110000, 0b_00000000, 0b_00000000, 0b_00000000,  
+            0b_00110000, 0b_00000000, 0b_00000000, 0b_00000000,
         ];
         assert_eq!(expected, writer);
-    
-    
+
+
         let set = SequenceNumberSet::new(1000, [1001, 1003, 1032, 1033].iter().cloned().collect());
         let mut writer = Vec::new();
         serialize_sequence_number_set(&set, &mut writer, Endianness::BigEndian).unwrap();
@@ -737,14 +737,14 @@ mod tests {
             0, 0, 0, 0, // base
             0, 0, 3, 232, // base
             0, 0, 0, 34, // num bits
-            0b_01010000, 0b_00000000, 0b_00000000, 0b_00000000, 
-            0b_11000000, 0b_00000000, 0b_00000000, 0b_00000000, 
+            0b_01010000, 0b_00000000, 0b_00000000, 0b_00000000,
+            0b_11000000, 0b_00000000, 0b_00000000, 0b_00000000,
         ];
         assert_eq!(expected, writer);
     }
 
     // //////////////////////// FragmentNumber Tests //////////////////////////
-    
+
     #[test]
     fn test_serialize_fragment_number() {
         let fragment_number = 100;
@@ -777,7 +777,7 @@ mod tests {
         let bytes = vec![
             3, 0, 0, 0, // base
             2, 0, 0, 0, // num bits
-            0b_00000000, 0b_00000000, 0b_00000000, 0b_11000000, 
+            0b_00000000, 0b_00000000, 0b_00000000, 0b_11000000,
         ];
         let result = deserialize_fragment_number_set(&bytes, Endianness::LittleEndian).unwrap();
         assert_eq!(expected, result);
@@ -791,7 +791,7 @@ mod tests {
         let expected = vec![
             0, 0, 0, 3, // base
             0, 0, 0, 2, // num bits
-            0b_11000000, 0b_00000000, 0b_00000000, 0b_00000000, 
+            0b_11000000, 0b_00000000, 0b_00000000, 0b_00000000,
         ];
         assert_eq!(expected, writer);
     }
@@ -802,7 +802,7 @@ mod tests {
         let mut vec = Vec::new();
         let test_time = Time::new(1234567, 98765432);
 
-        
+
         const TEST_TIME_BIG_ENDIAN : [u8;8] = [0x00, 0x12, 0xD6, 0x87, 0x05, 0xE3, 0x0A, 0x78];
         serialize_timestamp(&test_time, &mut vec, Endianness::BigEndian).unwrap();
         assert_eq!(vec, TEST_TIME_BIG_ENDIAN);
@@ -813,7 +813,7 @@ mod tests {
     fn test_time_serialization_deserialization_little_endian() {
         let mut vec = Vec::new();
         let test_time = Time::new(1234567, 98765432);
-        
+
         const TEST_TIME_LITTLE_ENDIAN : [u8;8] = [0x87, 0xD6, 0x12, 0x00, 0x78, 0x0A, 0xE3, 0x05];
         serialize_timestamp(&test_time, &mut vec, Endianness::LittleEndian).unwrap();
         assert_eq!(vec, TEST_TIME_LITTLE_ENDIAN);
@@ -832,10 +832,10 @@ mod tests {
     }
 
     // /////////////////////// Count Tests ////////////////////////////////////
-    // todo!  
+    // todo!
 
     // /////////////////////// LocatorList Tests ////////////////////////
-     
+
      #[test]
     fn serialize_locator_simple() {
         let locator = types::Locator::new(100, 200, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
@@ -851,7 +851,7 @@ mod tests {
         serialize_locator(&locator, &mut writer, Endianness::LittleEndian).unwrap();
         assert_eq!(expected, writer);
     }
-    
+
     #[test]
     fn deserialize_locator_simple() {
         let expected = types::Locator::new(100, 200, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
@@ -913,7 +913,7 @@ mod tests {
         assert_eq!(expected, writer);
     }
 
-    
+
     #[test]
     fn test_deserialize_locator_list() {
         let bytes = vec![
@@ -940,7 +940,7 @@ mod tests {
         assert_eq!(expected, result);
     }
 
-    
+
     #[test]
     fn serialize_deserialize_ushort(){
         let mut buf = Vec::new();

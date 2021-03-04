@@ -1,5 +1,3 @@
-use std::collections::BTreeSet;
-
 use crate::{
     behavior::{data_from_cache_change, BEHAVIOR_ENDIANNESS},
     messages::{submessages::Gap, RtpsSubmessage},
@@ -67,7 +65,7 @@ impl BestEffortReaderLocatorBehavior {
                 ENTITYID_UNKNOWN,
                 writer_entity_id,
                 next_unsent_seq_num,
-                BTreeSet::new(),
+                &[],
             );
 
             message_queue.push(RtpsSubmessage::Gap(gap));
@@ -223,7 +221,7 @@ mod tests {
     //         ENTITYID_UNKNOWN,
     //         writer_entity_id,
     //         1,
-    //         BTreeSet::new(),
+    //         &[],
     //     ));
     //     assert_eq!(messages_vec.len(), 1);
     //     assert!(messages_vec.contains(&expected_gap_submessage));
@@ -265,7 +263,7 @@ mod tests {
     //         ENTITYID_UNKNOWN,
     //         writer_entity_id,
     //         2,
-    //         BTreeSet::new(),
+    //         &[],
     //     ));
     //     assert_eq!(messages_vec.len(), 2);
     //     assert!(messages_vec.contains(&expected_data_submessage));

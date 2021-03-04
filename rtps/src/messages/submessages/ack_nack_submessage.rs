@@ -1,5 +1,3 @@
-use std::collections::BTreeSet;
-
 use super::{SubmessageKind, SubmessageFlag, };
 use super::{Submessage, SubmessageHeader, };
 use super::submessage_elements;
@@ -19,22 +17,23 @@ pub struct AckNack {
 
 impl AckNack {
     pub fn new(
-        endianness: Endianness,
-        reader_id: types::EntityId,
-        writer_id: types::EntityId,
-        available_changes_max: types::SequenceNumber,
-        missing_changes: BTreeSet<types::SequenceNumber>,
-        count: messages::types::Count,
-        final_flag: bool) -> Self {
-            
-        AckNack {
-            endianness_flag: endianness.into(),
-            final_flag,
-            reader_id,
-            writer_id,
-            reader_sn_state: submessage_elements::SequenceNumberSet::new(available_changes_max, missing_changes),
-            count,
-        }
+        _endianness: Endianness,
+        _reader_id: types::EntityId,
+        _writer_id: types::EntityId,
+        _available_changes_max: types::SequenceNumber,
+        _missing_changes: &[types::SequenceNumber],
+        _count: messages::types::Count,
+        _final_flag: bool) -> Self {
+
+            todo!()
+        // AckNack {
+        //     endianness_flag: endianness.into(),
+        //     final_flag,
+        //     reader_id,
+        //     writer_id,
+        //     reader_sn_state: submessage_elements::SequenceNumberSet::new(available_changes_max, missing_changes),
+        //     count,
+        // }
     }
 
     pub fn from_raw_parts(
@@ -54,7 +53,7 @@ impl AckNack {
             reader_sn_state,
             count,
         }
-        
+
     }
 
     pub fn endianness_flag(&self) -> SubmessageFlag {
@@ -83,8 +82,8 @@ impl Submessage for AckNack {
         let submessage_id = SubmessageKind::AckNack;
 
         const X : SubmessageFlag = false;
-        let e = self.endianness_flag; 
-        let f = self.final_flag; 
+        let e = self.endianness_flag;
+        let f = self.final_flag;
         let flags = [e, f, X, X, X, X, X, X];
 
         SubmessageHeader::new(submessage_id, flags, octets_to_next_header)

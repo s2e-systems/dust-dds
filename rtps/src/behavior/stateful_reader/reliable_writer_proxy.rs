@@ -1,5 +1,3 @@
-use std::collections::BTreeSet;
-
 use crate::{
     behavior::{cache_change_from_data, BEHAVIOR_ENDIANNESS},
     messages::{
@@ -156,7 +154,7 @@ impl ReliableWriterProxyBehavior {
             reader_entity_id,
             writer_proxy.remote_writer_guid().entity_id(),
             writer_proxy.available_changes_max(),
-            BTreeSet::new(), // writer_proxy.missing_changes().clone(),
+            writer_proxy.missing_changes(),
             acknack_count,
             true,
         );

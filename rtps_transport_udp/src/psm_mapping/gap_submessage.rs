@@ -69,7 +69,7 @@ mod tests {
                 constants::ENTITY_KIND_USER_DEFINED_WRITER_WITH_KEY,
             ),
             1200,
-            [1234, 1235].iter().cloned().collect(),
+            &[1234, 1235],
         );
 
         let mut writer = Vec::new();
@@ -106,7 +106,7 @@ mod tests {
                 constants::ENTITY_KIND_USER_DEFINED_WRITER_WITH_KEY,
             ),
             1200,
-            [1234, 1235].iter().cloned().collect(),
+            &[1234, 1235],
         );
 
         let mut writer = Vec::new();
