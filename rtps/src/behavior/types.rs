@@ -1,9 +1,8 @@
-/// 
+///
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
 /// Table 8.46 - Types definitions for the Behavior Module
-///  
-
-use std::convert::{TryInto, TryFrom, From};
+///
+use std::convert::{From, TryFrom, TryInto};
 
 pub mod constants {
     use super::Duration;
@@ -19,7 +18,6 @@ pub mod constants {
     };
 }
 
-
 #[derive(PartialEq, Eq, PartialOrd, Hash, Debug, Clone, Copy)]
 pub struct Duration {
     seconds: i32,
@@ -27,11 +25,11 @@ pub struct Duration {
 }
 
 impl Duration {
-    pub fn from_millis(millis: u64) -> Self { 
+    pub fn from_millis(millis: u64) -> Self {
         std::time::Duration::from_millis(millis).try_into().unwrap()
     }
 
-    pub fn from_secs(secs: u64) -> Self { 
+    pub fn from_secs(secs: u64) -> Self {
         std::time::Duration::from_secs(secs).try_into().unwrap()
     }
 }
@@ -42,7 +40,7 @@ impl TryFrom<std::time::Duration> for Duration {
     fn try_from(value: std::time::Duration) -> Result<Self, Self::Error> {
         let seconds: i32 = value.as_secs().try_into()?;
         let fraction = ((value.as_secs_f64() - value.as_secs() as f64) * 2_f64.powi(32)) as u32;
-        Ok(Duration {seconds, fraction})
+        Ok(Duration { seconds, fraction })
     }
 }
 
@@ -53,7 +51,6 @@ impl From<Duration> for std::time::Duration {
     }
 }
 
-
 #[derive(Hash, Eq, PartialEq, Debug, Clone)]
 pub enum ChangeForReaderStatusKind {
     Unsent,
@@ -63,9 +60,7 @@ pub enum ChangeForReaderStatusKind {
     Underway,
 }
 
-
-
-#[derive(Hash, Eq, PartialEq, Debug, Clone)]
+#[derive(Eq, PartialEq, Clone)]
 pub enum ChangeFromWriterStatusKind {
     Lost,
     Missing,
@@ -73,19 +68,14 @@ pub enum ChangeFromWriterStatusKind {
     Unknown,
 }
 
-
 // InstanceHandle should already be defined in structre types
 
-
-
 // todo: ParticipantMessageData
-
-
 
 #[cfg(test)]
 mod tests {
     use super::*;
-     
+
     #[test]
     fn duration_construction() {
         let result = Duration::try_from(std::time::Duration::new(2, 1)).unwrap();
@@ -97,12 +87,12 @@ mod tests {
         assert_eq!(result.fraction, 2_u32.pow(31));
 
         let result = Duration::try_from(std::time::Duration::from_secs(2_u64.pow(40)));
-        assert!(result.is_err());  
+        assert!(result.is_err());
     }
 
-    #[test] #[should_panic]
+    #[test]
+    #[should_panic]
     fn duration_from_invalid() {
         Duration::from_millis(2_u64.pow(32) * 1000 + 1);
     }
-
 }

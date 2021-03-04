@@ -8,7 +8,9 @@ use rust_dds_api::{
     publication::data_writer_listener::DataWriterListener,
 };
 use rust_rtps::{
-    behavior::{ReaderProxy, StatefulWriter, Writer},
+    behavior::{
+        stateful_writer::reader_proxy::ChangeForReader, ReaderProxy, StatefulWriter, Writer,
+    },
     structure::{Endpoint, Entity, HistoryCache},
     types::SequenceNumber,
 };
@@ -209,10 +211,28 @@ impl StatefulWriter<WriterImpl> for StatefulDataWriterImpl {
     }
 }
 
+pub struct ChangeForReaderImpl {}
+
+impl ChangeForReader for ChangeForReaderImpl {
+    type CacheChangeRepresentation = SequenceNumber;
+
+    fn change(&self) -> &Self::CacheChangeRepresentation {
+        todo!()
+    }
+
+    fn status(&self) -> rust_rtps::behavior::types::ChangeForReaderStatusKind {
+        todo!()
+    }
+
+    fn is_relevant(&self) -> bool {
+        todo!()
+    }
+}
+
 pub struct ReaderProxyImpl {}
 
 impl ReaderProxy for ReaderProxyImpl {
-    type CacheChangeRepresentation = SequenceNumber;
+    type ChangeForReaderType = ChangeForReaderImpl;
 
     fn remote_reader_guid(&self) -> rust_rtps::types::GUID {
         todo!()
@@ -230,7 +250,9 @@ impl ReaderProxy for ReaderProxyImpl {
         todo!()
     }
 
-    fn changes_for_reader(&self) -> &[Self::CacheChangeRepresentation] {
+    fn changes_for_reader(
+        &self,
+    ) -> &[<Self::ChangeForReaderType as ChangeForReader>::CacheChangeRepresentation] {
         todo!()
     }
 
@@ -256,27 +278,27 @@ impl ReaderProxy for ReaderProxyImpl {
         todo!()
     }
 
-    fn next_requested_change(&mut self) -> Option<&Self::CacheChangeRepresentation> {
+    fn next_requested_change(&mut self) -> Option<&Self::ChangeForReaderType> {
         todo!()
     }
 
-    fn next_unsent_change(&mut self) -> Option<&Self::CacheChangeRepresentation> {
+    fn next_unsent_change(&mut self) -> Option<&Self::ChangeForReaderType> {
         todo!()
     }
 
-    fn unsent_changes(&self) -> &[Self::CacheChangeRepresentation] {
+    fn unsent_changes(&self) -> &[Self::ChangeForReaderType] {
         todo!()
     }
 
-    fn requested_changes(&self) -> &[Self::CacheChangeRepresentation] {
+    fn requested_changes(&self) -> &[Self::ChangeForReaderType] {
         todo!()
     }
 
-    fn requested_changes_set(&mut self, _req_seq_num_set: &[Self::CacheChangeRepresentation]) {
+    fn requested_changes_set(&mut self, _req_seq_num_set: &[SequenceNumber]) {
         todo!()
     }
 
-    fn unacked_changes(&self) -> &[Self::CacheChangeRepresentation] {
+    fn unacked_changes(&self) -> &[Self::ChangeForReaderType] {
         todo!()
     }
 }

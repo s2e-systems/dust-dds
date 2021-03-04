@@ -1,7 +1,7 @@
-use std::{collections::BTreeSet, time::Instant};
+use std::collections::BTreeSet;
 
 use crate::{
-    behavior::{data_from_cache_change, types::Duration, BEHAVIOR_ENDIANNESS},
+    behavior::{data_from_cache_change, BEHAVIOR_ENDIANNESS},
     messages::{
         submessages::{AckNack, Gap, Heartbeat},
         types::Count,
@@ -11,18 +11,17 @@ use crate::{
     types::{EntityId, GuidPrefix, SequenceNumber, GUID},
 };
 
-use super::ReaderProxy;
+use super::{reader_proxy::ChangeForReader, ReaderProxy};
 
 pub struct ReliableReaderProxyBehavior;
 
 impl ReliableReaderProxyBehavior {
-    pub fn produce_messages(
-        reader_proxy: &mut impl ReaderProxy,
+    pub fn produce_messages<T: ChangeForReader<CacheChangeRepresentation = SequenceNumber>>(
+        reader_proxy: &mut impl ReaderProxy<ChangeForReaderType = T>,
         history_cache: &impl HistoryCache,
         writer_entity_id: EntityId,
         last_change_sequence_number: SequenceNumber,
-        heartbeat_period: Duration,
-        nack_response_delay: Duration,
+        heartbeat_count: Count,
     ) -> Vec<RtpsSubmessage> {
         let mut message_queue = Vec::new();
 
@@ -32,7 +31,6 @@ impl ReliableReaderProxyBehavior {
             Self::pushing_state(
                 reader_proxy,
                 history_cache,
-                last_change_sequence_number,
                 writer_entity_id,
                 &mut message_queue,
             );
@@ -42,37 +40,36 @@ impl ReliableReaderProxyBehavior {
                 history_cache,
                 last_change_sequence_number,
                 writer_entity_id,
-                heartbeat_period,
+                heartbeat_count,
                 &mut message_queue,
             );
         }
 
         if !reader_proxy.requested_changes().is_empty() {
-            let duration_since_nack_received: Duration = reader_proxy
-                .behavior
-                .time_nack_received
-                .elapsed()
-                .try_into()
-                .unwrap();
-            if duration_since_nack_received > nack_response_delay {
-                Self::repairing_state(
-                    reader_proxy,
-                    history_cache,
-                    writer_entity_id,
-                    &mut message_queue,
-                );
-            }
+            // let duration_since_nack_received: Duration = reader_proxy
+            //     .behavior
+            //     .time_nack_received
+            //     .elapsed()
+            //     .try_into()
+            //     .unwrap();
+            // if duration_since_nack_received > nack_response_delay {
+            Self::repairing_state(
+                reader_proxy,
+                history_cache,
+                writer_entity_id,
+                &mut message_queue,
+            );
+            // }
         }
 
         message_queue
     }
 
-    pub fn try_process_message(
-        reader_proxy: &mut impl ReaderProxy,
+    pub fn try_process_message<T: ChangeForReader<CacheChangeRepresentation = SequenceNumber>>(
+        reader_proxy: &mut impl ReaderProxy<ChangeForReaderType = T>,
         src_guid_prefix: GuidPrefix,
         submessage: &mut Option<RtpsSubmessage>,
         highest_nack_count_received: &mut Count,
-        time_nack_received: &mut Instant,
     ) {
         if let Some(RtpsSubmessage::AckNack(acknack)) = submessage {
             let reader_guid = GUID::new(src_guid_prefix, acknack.reader_id());
@@ -81,7 +78,7 @@ impl ReliableReaderProxyBehavior {
                     if &acknack.count() > highest_nack_count_received {
                         *highest_nack_count_received = acknack.count();
                         if reader_proxy.requested_changes().is_empty() {
-                            Self::waiting_state(reader_proxy, acknack, time_nack_received);
+                            Self::waiting_state(reader_proxy, acknack);
                         } else {
                             Self::must_repair_state(reader_proxy, acknack);
                         }
@@ -91,14 +88,14 @@ impl ReliableReaderProxyBehavior {
         }
     }
 
-    fn pushing_state(
-        reader_proxy: &mut impl ReaderProxy,
+    fn pushing_state<T: ChangeForReader<CacheChangeRepresentation = SequenceNumber>>(
+        reader_proxy: &mut impl ReaderProxy<ChangeForReaderType = T>,
         history_cache: &impl HistoryCache,
-        last_change_sequence_number: SequenceNumber,
         writer_entity_id: EntityId,
         message_queue: &mut Vec<RtpsSubmessage>,
     ) {
-        while let Some(next_unsent_seq_num) = reader_proxy.next_unsent_change() {
+        while let Some(next_unsent_change) = reader_proxy.next_unsent_change() {
+            let next_unsent_seq_num = next_unsent_change.change().clone();
             Self::transition_t4(
                 reader_proxy,
                 history_cache,
@@ -138,25 +135,26 @@ impl ReliableReaderProxyBehavior {
         history_cache: &impl HistoryCache,
         last_change_sequence_number: SequenceNumber,
         writer_entity_id: EntityId,
-        heartbeat_period: Duration,
+        heartbeat_count: Count,
         message_queue: &mut Vec<RtpsSubmessage>,
     ) {
-        let duration_since_last_sent_data: Duration = reader_proxy
-            .behavior
-            .time_last_sent_data
-            .elapsed()
-            .try_into()
-            .unwrap();
-        if duration_since_last_sent_data > heartbeat_period {
-            Self::transition_t7(
-                reader_proxy,
-                history_cache,
-                last_change_sequence_number,
-                writer_entity_id,
-                message_queue,
-            );
-            // reader_proxy.behavior.time_last_sent_data = Instant::now();
-        }
+        // let duration_since_last_sent_data: Duration = reader_proxy
+        //     .behavior
+        //     .time_last_sent_data
+        //     .elapsed()
+        //     .try_into()
+        //     .unwrap();
+        // if duration_since_last_sent_data > heartbeat_period {
+        Self::transition_t7(
+            reader_proxy,
+            history_cache,
+            last_change_sequence_number,
+            writer_entity_id,
+            heartbeat_count,
+            message_queue,
+        );
+        // reader_proxy.behavior.time_last_sent_data = Instant::now();
+        // }
     }
 
     fn transition_t7(
@@ -164,6 +162,7 @@ impl ReliableReaderProxyBehavior {
         history_cache: &impl HistoryCache,
         last_change_sequence_number: SequenceNumber,
         writer_entity_id: EntityId,
+        heartbeat_count: Count,
         message_queue: &mut Vec<RtpsSubmessage>,
     ) {
         let first_sn = if let Some(seq_num) = history_cache.get_seq_num_min() {
@@ -171,7 +170,7 @@ impl ReliableReaderProxyBehavior {
         } else {
             last_change_sequence_number + 1
         };
-        reader_proxy.behavior.heartbeat_count += 1;
+        // reader_proxy.behavior.heartbeat_count += 1;
 
         let heartbeat = Heartbeat::new(
             BEHAVIOR_ENDIANNESS,
@@ -179,38 +178,35 @@ impl ReliableReaderProxyBehavior {
             writer_entity_id,
             first_sn,
             last_change_sequence_number,
-            reader_proxy.behavior().heartbeat_count,
+            heartbeat_count,
             false,
             false,
         );
         message_queue.push(RtpsSubmessage::Heartbeat(heartbeat));
     }
 
-    fn waiting_state(
-        reader_proxy: &mut impl ReaderProxy,
-        acknack: AckNack,
-        time_nack_received: &mut Instant,
-    ) {
+    fn waiting_state(reader_proxy: &mut impl ReaderProxy, acknack: AckNack) {
         Self::transition_t8(reader_proxy, acknack);
-        *time_nack_received = Instant::now();
     }
 
     fn transition_t8(reader_proxy: &mut impl ReaderProxy, acknack: AckNack) {
         reader_proxy.acked_changes_set(acknack.reader_sn_state().base() - 1);
-        reader_proxy.requested_changes_set(acknack.reader_sn_state().set().clone());
+        // reader_proxy.requested_changes_set(acknack.reader_sn_state());
+        todo!()
     }
 
     fn must_repair_state(reader_proxy: &mut impl ReaderProxy, acknack: AckNack) {
         Self::transition_t8(reader_proxy, acknack);
     }
 
-    fn repairing_state(
-        reader_proxy: &mut impl ReaderProxy,
+    fn repairing_state<T: ChangeForReader<CacheChangeRepresentation = SequenceNumber>>(
+        reader_proxy: &mut impl ReaderProxy<ChangeForReaderType = T>,
         history_cache: &impl HistoryCache,
         writer_entity_id: EntityId,
         message_queue: &mut Vec<RtpsSubmessage>,
     ) {
-        while let Some(next_requested_seq_num) = reader_proxy.next_requested_change() {
+        while let Some(next_requested_change) = reader_proxy.next_requested_change() {
+            let next_requested_seq_num = *next_requested_change.change();
             Self::transition_t12(
                 reader_proxy,
                 history_cache,

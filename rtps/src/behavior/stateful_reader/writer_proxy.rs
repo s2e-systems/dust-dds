@@ -1,29 +1,26 @@
-use crate::types::{EntityId, Locator, SequenceNumber, GUID};
+use crate::{
+    behavior::types::ChangeFromWriterStatusKind,
+    types::{EntityId, Locator, SequenceNumber, GUID},
+};
 
-/// This struct is a non-standard addition to support the
-/// behavior implementation on the StatefulReader
-// struct ChangesFromWriter {
-//     highest_processed_sequence_number: SequenceNumber,
-//     unknown_changes: BTreeSet<SequenceNumber>,
-//     lost_changes: BTreeSet<SequenceNumber>,
-//     missing_changes: BTreeSet<SequenceNumber>,
-//     irrelevant_changes: BTreeSet<SequenceNumber>,
-// }
+pub trait ChangeFromWriter {
+    type CacheChangeRepresentation;
 
-// pub struct WriterProxyBehavior {
-//     pub must_send_ack: bool,
-//     pub time_heartbeat_received: Instant,
-//     pub ackanck_count: Count,
-// }
+    fn change(&self) -> &Self::CacheChangeRepresentation;
+    fn status(&self) -> ChangeFromWriterStatusKind;
+    fn is_relevant(&self) -> bool;
+}
 
 pub trait WriterProxy {
-    type CacheChangeRepresentation;
+    type ChangeFromWriterType: ChangeFromWriter;
 
     fn remote_writer_guid(&self) -> GUID;
     fn unicast_locator_list(&self) -> &[Locator];
     fn multicast_locator_list(&self) -> &[Locator];
     fn data_max_size_serialized(&self) -> i32;
-    fn changes_from_writer(&self) -> &[Self::CacheChangeRepresentation];
+    fn changes_from_writer(
+        &self,
+    ) -> &[<Self::ChangeFromWriterType as ChangeFromWriter>::CacheChangeRepresentation];
     fn remote_group_entity_id(&self) -> EntityId;
 
     fn new(

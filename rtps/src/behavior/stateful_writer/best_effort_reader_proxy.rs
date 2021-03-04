@@ -7,26 +7,21 @@ use crate::{
     types::{EntityId, SequenceNumber},
 };
 
-use super::ReaderProxy;
+use super::{reader_proxy::ChangeForReader, ReaderProxy};
 
 pub struct BestEffortReaderProxyBehavior;
 
 impl BestEffortReaderProxyBehavior {
-    pub fn produce_messages(
-        reader_proxy: &mut impl ReaderProxy,
+    pub fn produce_messages<T: ChangeForReader<CacheChangeRepresentation = SequenceNumber>>(
+        reader_proxy: &mut impl ReaderProxy<ChangeForReaderType = T>,
         history_cache: &impl HistoryCache,
         writer_entity_id: EntityId,
-        last_change_sequence_number: SequenceNumber,
     ) -> Vec<RtpsSubmessage> {
         let mut messages = Vec::new();
-        if !reader_proxy
-            .unsent_changes()
-            .is_empty()
-        {
+        if !reader_proxy.unsent_changes().is_empty() {
             Self::pushing_state(
                 reader_proxy,
                 history_cache,
-                last_change_sequence_number,
                 writer_entity_id,
                 &mut messages,
             );
@@ -34,16 +29,14 @@ impl BestEffortReaderProxyBehavior {
         messages
     }
 
-    fn pushing_state(
-        reader_proxy: &mut impl ReaderProxy,
+    fn pushing_state<T: ChangeForReader<CacheChangeRepresentation = SequenceNumber>>(
+        reader_proxy: &mut impl ReaderProxy<ChangeForReaderType = T>,
         history_cache: &impl HistoryCache,
-        last_change_sequence_number: SequenceNumber,
         writer_entity_id: EntityId,
         message_queue: &mut Vec<RtpsSubmessage>,
     ) {
-        while let Some(next_unsent_seq_num) =
-            reader_proxy.next_unsent_change()
-        {
+        while let Some(next_unsent_change) = reader_proxy.next_unsent_change() {
+            let next_unsent_seq_num = *next_unsent_change.change();
             Self::transition_t4(
                 reader_proxy,
                 history_cache,
@@ -78,19 +71,19 @@ impl BestEffortReaderProxyBehavior {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::types::{
-        constants::{
-            ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER,
-            ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER,
-        },
-        ChangeKind,
-    };
-    use crate::types::{Locator, GUID};
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
+//     use crate::types::{
+//         constants::{
+//             ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER,
+//             ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER,
+//         },
+//         ChangeKind,
+//     };
+//     use crate::types::{Locator, GUID};
 
-    use crate::structure::CacheChange;
+//     use crate::structure::CacheChange;
 
     // #[test]
     // fn produce_empty() {
@@ -263,4 +256,4 @@ mod tests {
     //     assert!(messages_vec.contains(&expected_data_submessage));
     //     assert!(messages_vec.contains(&expected_gap_submessage));
     // }
-}
+// }
