@@ -30,7 +30,7 @@ pub struct SubmessageHeader {
 impl SubmessageHeader {
     pub fn new(submessage_id: SubmessageKind, flags: [SubmessageFlag; 8], submessage_length: u16) -> Self {
         Self {
-            submessage_id, 
+            submessage_id,
             flags,
             submessage_length,
         }
@@ -49,15 +49,15 @@ impl SubmessageHeader {
 }
 
 /// 8.3.7 RTPS Submessages
-/// The RTPS protocol version 2.4 defines several kinds of Submessages. 
+/// The RTPS protocol version 2.4 defines several kinds of Submessages.
 /// They are categorized into two groups: Entity- Submessages and Interpreter-Submessages.
 /// Entity Submessages target an RTPS Entity.
 /// Interpreter Submessages modify the RTPS Receiver state and provide context that helps process subsequent Entity Submessages.
 
 #[derive(Debug, PartialEq)]
-pub enum RtpsSubmessage {
+pub enum RtpsSubmessage<'a> {
     AckNack(AckNack),
-    Data(Data),
+    Data(Data<'a>),
     // DataFrag(DataFrag),
     Gap(Gap),
     Heartbeat(Heartbeat),
@@ -69,10 +69,10 @@ pub enum RtpsSubmessage {
     // NackFrag(NackFrag),
 }
 
-impl RtpsSubmessage {
+impl<'a> RtpsSubmessage<'a> {
     pub fn is_entity_submessage(&self) -> bool {
         match self {
-            RtpsSubmessage::Data(_) | 
+            RtpsSubmessage::Data(_) |
             // RtpsSubmessage::DataFrag(_) |
             RtpsSubmessage::Heartbeat(_) |
             // RtpsSubmessage::HeartbeatFrag(_) |
@@ -88,7 +88,7 @@ impl RtpsSubmessage {
     }
 }
 
-pub trait Submessage 
+pub trait Submessage
 {
     fn submessage_header(&self, octets_to_next_header: u16 /* Transport dependent */) -> SubmessageHeader;
 

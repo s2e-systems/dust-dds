@@ -15,13 +15,17 @@ pub use writer::Writer;
 
 use std::convert::TryInto;
 
-use crate::messages::submessages::Data;
+use crate::messages::submessages::{submessage_elements::SerializedData, Data};
 use crate::messages::types::{KeyHash, StatusInfo, PID_KEY_HASH, PID_STATUS_INFO};
 use crate::types::{ChangeKind, EntityId, GuidPrefix, GUID};
 
 use crate::structure::CacheChange;
 
-fn cache_change_from_data<C: CacheChange>(mut message: Data, guid_prefix: &GuidPrefix) -> C {
+fn cache_change_from_data<'a, T, C>(mut message: Data<'a>, guid_prefix: &GuidPrefix) -> C
+where
+    T: From<SerializedData<'a>>,
+    C: CacheChange<Data = T>,
+{
     let change_kind = change_kind(&message);
     let key_hash = key_hash(&message).unwrap();
 
@@ -39,12 +43,18 @@ fn cache_change_from_data<C: CacheChange>(mut message: Data, guid_prefix: &GuidP
         GUID::new(*guid_prefix, message.writer_id).into(),
         key_hash.0,
         message.writer_sn,
-        message.serialized_payload,
+        message.serialized_payload.into(),
         message.inline_qos,
     )
 }
 
-fn data_from_cache_change(cache_change: &impl CacheChange, reader_id: EntityId) -> Data {
+fn data_from_cache_change<'a, T>(
+    cache_change: &'a impl CacheChange<Data = T>,
+    reader_id: EntityId,
+) -> Data
+where
+    &'a T: Into<SerializedData<'a>> + 'a,
+{
     let writer_guid: GUID = cache_change.writer_guid().try_into().unwrap();
     let writer_id = writer_guid.entity_id();
     let writer_sn = cache_change.sequence_number();
@@ -60,13 +70,13 @@ fn data_from_cache_change(cache_change: &impl CacheChange, reader_id: EntityId) 
         ChangeKind::Alive => {
             inline_qos
                 .parameter
-                .push(KeyHash(cache_change.instance_handle()).into());
+                .push(KeyHash(cache_change.instance_handle().clone()).into());
             Data {
                 endianness_flag: false,
                 reader_id,
                 writer_id,
                 writer_sn,
-                serialized_payload: cache_change.data_value().clone(),
+                serialized_payload: cache_change.data_value().into(),
                 inline_qos,
                 inline_qos_flag: true,
                 data_flag: true,
@@ -81,7 +91,7 @@ fn data_from_cache_change(cache_change: &impl CacheChange, reader_id: EntityId) 
             reader_id,
             writer_id,
             writer_sn,
-            serialized_payload: cache_change.instance_handle().to_vec(),
+            serialized_payload: cache_change.instance_handle(),
             inline_qos,
             inline_qos_flag: true,
             data_flag: false,

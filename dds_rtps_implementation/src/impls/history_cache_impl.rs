@@ -1,8 +1,6 @@
 use rust_rtps::structure::{CacheChange, HistoryCache};
 
-pub struct HistoryCacheImpl {
-
-}
+pub struct HistoryCacheImpl {}
 
 impl HistoryCache for HistoryCacheImpl {
     type CacheChangeType = CacheChangeImpl;
@@ -19,7 +17,10 @@ impl HistoryCache for HistoryCacheImpl {
         todo!()
     }
 
-    fn get_change(&self, seq_num: rust_rtps::types::SequenceNumber) -> Option<&Self::CacheChangeType> {
+    fn get_change(
+        &self,
+        seq_num: rust_rtps::types::SequenceNumber,
+    ) -> Option<&Self::CacheChangeType> {
         todo!()
     }
 
@@ -32,12 +33,19 @@ impl HistoryCache for HistoryCacheImpl {
     }
 }
 
-pub struct CacheChangeImpl {
-
-}
+pub struct CacheChangeImpl {}
 
 impl CacheChange for CacheChangeImpl {
-    fn new(kind: rust_rtps::types::ChangeKind, writer_guid: rust_rtps::types::GUID, instance_handle: rust_rtps::types::InstanceHandle, sequence_number: rust_rtps::types::SequenceNumber, data_value: rust_rtps::messages::submessages::submessage_elements::SerializedData, inline_qos: rust_rtps::messages::submessages::submessage_elements::ParameterList ) -> Self {
+    type Data = Vec<u8>;
+
+    fn new(
+        kind: rust_rtps::types::ChangeKind,
+        writer_guid: rust_rtps::types::GUID,
+        instance_handle: rust_rtps::types::InstanceHandle,
+        sequence_number: rust_rtps::types::SequenceNumber,
+        data_value: Self::Data,
+        inline_qos: rust_rtps::messages::submessages::submessage_elements::ParameterList,
+    ) -> Self {
         todo!()
     }
 
@@ -49,7 +57,7 @@ impl CacheChange for CacheChangeImpl {
         todo!()
     }
 
-    fn instance_handle(&self) -> rust_rtps::types::InstanceHandle {
+    fn instance_handle(&self) -> &rust_rtps::types::InstanceHandle {
         todo!()
     }
 
@@ -57,7 +65,7 @@ impl CacheChange for CacheChangeImpl {
         todo!()
     }
 
-    fn data_value(&self) -> &rust_rtps::messages::submessages::submessage_elements::SerializedData {
+    fn data_value(&self) -> &Self::Data {
         todo!()
     }
 

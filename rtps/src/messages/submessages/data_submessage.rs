@@ -3,8 +3,8 @@ use super::{Submessage, SubmessageHeader, };
 use super::submessage_elements;
 use crate::types;
 
-#[derive(Debug, PartialEq, Clone)]
-pub struct Data {
+#[derive(Debug, PartialEq)]
+pub struct Data<'a> {
     pub endianness_flag: SubmessageFlag,
     pub inline_qos_flag: SubmessageFlag,
     pub data_flag: SubmessageFlag,
@@ -14,10 +14,10 @@ pub struct Data {
     pub writer_id: submessage_elements::EntityId,
     pub writer_sn: submessage_elements::SequenceNumber,
     pub inline_qos: submessage_elements::ParameterList,
-    pub serialized_payload: submessage_elements::SerializedData,
+    pub serialized_payload: submessage_elements::SerializedData<'a>,
 }
 
-impl Submessage for Data {
+impl<'a> Submessage for Data<'a> {
     fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeader {
         let submessage_id = SubmessageKind::Data;
 

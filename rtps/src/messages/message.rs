@@ -40,17 +40,17 @@ impl Header {
     }
 }
 #[derive(Debug, PartialEq)]
-pub struct RtpsMessage {
+pub struct RtpsMessage<'a> {
     header: Header,
-    submessages: Vec<RtpsSubmessage>,
+    submessages: Vec<RtpsSubmessage<'a>>,
 }
 
-impl RtpsMessage {
+impl<'a> RtpsMessage<'a> {
     pub fn new(
         version: ProtocolVersion,
         vendor_id: VendorId,
         guid_prefix: GuidPrefix,
-        submessages: Vec<RtpsSubmessage>,
+        submessages: Vec<RtpsSubmessage<'a>>,
     ) -> Self {
         if submessages.is_empty() {
             panic!("At least one submessage is required");
@@ -70,7 +70,7 @@ impl RtpsMessage {
         &self.submessages
     }
 
-    pub fn take_submessages(self) -> Vec<RtpsSubmessage> {
+    pub fn take_submessages(self) -> Vec<RtpsSubmessage<'a>> {
         self.submessages
     }
 }

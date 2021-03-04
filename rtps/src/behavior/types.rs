@@ -22,7 +22,7 @@ pub struct Duration {
     fraction: u32,
 }
 
-#[derive(Hash, Eq, PartialEq, Debug, Clone)]
+#[derive(Eq, PartialEq, Clone, Copy)]
 pub enum ChangeForReaderStatusKind {
     Unsent,
     Unacknowledged,
@@ -31,7 +31,7 @@ pub enum ChangeForReaderStatusKind {
     Underway,
 }
 
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Eq, PartialEq, Clone, Copy)]
 pub enum ChangeFromWriterStatusKind {
     Lost,
     Missing,

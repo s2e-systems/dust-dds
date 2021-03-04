@@ -18,8 +18,25 @@ pub type SequenceNumber = types::SequenceNumber;
 
 #[derive(PartialEq, Debug)]
 pub struct SequenceNumberSet {
-    pub bitmap_base: SequenceNumber,
-    pub bitmap: [i32; 8],
+    bitmap_base: SequenceNumber,
+    bitmap: [Long; 8],
+}
+
+impl SequenceNumberSet {
+    pub fn new(bitmap_base: SequenceNumber, bitmap: [Long; 8]) -> Self {
+        Self {
+            bitmap_base,
+            bitmap,
+        }
+    }
+
+    pub fn bitmap_base(&self) -> SequenceNumber {
+        self.bitmap_base
+    }
+
+    pub fn bitmap(&self) -> &[Long; 8] {
+        &self.bitmap
+    }
 }
 
 pub type FragmentNumber = messages::types::FragmentNumber;
@@ -27,14 +44,24 @@ pub type FragmentNumber = messages::types::FragmentNumber;
 #[derive(PartialEq, Debug)]
 pub struct FragmentNumberSet {
     pub bitmap_base: FragmentNumber,
-    pub bitmap: [i32; 8],
+    pub bitmap: [Long; 8],
 }
+
+impl FragmentNumberSet {
+    pub fn new(bitmap_base: FragmentNumber, bitmap: [Long; 8]) -> Self {
+        Self {
+            bitmap_base,
+            bitmap,
+        }
+    }
+}
+
 pub type Timestamp = messages::types::Time;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Parameter {
     parameter_id: messages::types::ParameterId,
-    length: i16, // length is rounded up to multple of 4
+    length: i16, // length is rounded up to multiple of 4
     value: Vec<u8>,
 }
 
@@ -74,8 +101,8 @@ impl ParameterList {
 }
 
 pub type Count = messages::types::Count;
-pub type LocatorList = Vec<types::Locator>;
-pub type SerializedData = Vec<u8>;
-pub type SerializedDataFragment = Vec<u8>;
+pub type LocatorList = [types::Locator; 8];
+pub type SerializedData<'a> = &'a [u8];
+pub type SerializedDataFragment<'a> = &'a [u8];
 
 // pub type GroupDigest = TBD

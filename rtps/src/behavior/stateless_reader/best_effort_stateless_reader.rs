@@ -35,10 +35,10 @@ impl BestEffortStatelessReaderBehavior {
         }
     }
 
-    fn transition_t2<R: Reader>(
+    fn transition_t2<'a, R: Reader>(
         reader: &mut impl StatelessReader<R>,
         guid_prefix: GuidPrefix,
-        data: Data,
+        data: Data<'a>,
     ) {
         let cache_change = cache_change_from_data(data, &guid_prefix);
         reader.reader_cache().add_change(cache_change);

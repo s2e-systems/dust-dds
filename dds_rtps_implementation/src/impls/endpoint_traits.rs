@@ -4,15 +4,15 @@ use rust_rtps::{
 };
 
 #[derive(PartialEq, Debug)]
-pub enum DestinedMessages {
+pub enum DestinedMessages<'a> {
     SingleDestination {
         locator: Locator,
-        messages: Vec<RtpsSubmessage>,
+        messages: Vec<RtpsSubmessage<'a>>,
     },
     MultiDestination {
         unicast_locator_list: Vec<Locator>,
         multicast_locator_list: Vec<Locator>,
-        messages: Vec<RtpsSubmessage>,
+        messages: Vec<RtpsSubmessage<'a>>,
     },
 }
 

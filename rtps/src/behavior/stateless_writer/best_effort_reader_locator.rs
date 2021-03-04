@@ -1,10 +1,13 @@
 use crate::{
     behavior::data_from_cache_change,
     messages::{
-        submessages::{submessage_elements::SequenceNumberSet, Gap},
+        submessages::{
+            submessage_elements::{SequenceNumberSet, SerializedData},
+            Gap,
+        },
         RtpsSubmessage,
     },
-    structure::HistoryCache,
+    structure::{CacheChange, HistoryCache},
     types::{constants::ENTITYID_UNKNOWN, EntityId, SequenceNumber},
 };
 
@@ -13,11 +16,15 @@ use super::reader_locator::ReaderLocator;
 pub struct BestEffortReaderLocatorBehavior;
 
 impl BestEffortReaderLocatorBehavior {
-    pub fn produce_messages(
+    pub fn produce_messages<'a, C, D>(
         reader_locator: &mut impl ReaderLocator<CacheChangeRepresentation = SequenceNumber>,
-        history_cache: &impl HistoryCache,
+        history_cache: &'a impl HistoryCache<CacheChangeType = C>,
         writer_entity_id: EntityId,
-    ) -> Vec<RtpsSubmessage> {
+    ) -> Vec<RtpsSubmessage<'a>>
+    where
+        C: CacheChange<Data = D> + 'a,
+        &'a D: Into<SerializedData<'a>> + 'a,
+    {
         let mut message_queue = Vec::new();
         if !reader_locator.unsent_changes().is_empty() {
             Self::pushing_state(
@@ -30,15 +37,17 @@ impl BestEffortReaderLocatorBehavior {
         message_queue
     }
 
-    fn pushing_state(
+    fn pushing_state<'a, C, D>(
         reader_locator: &mut impl ReaderLocator<CacheChangeRepresentation = SequenceNumber>,
-        history_cache: &impl HistoryCache,
+        history_cache: &'a impl HistoryCache<CacheChangeType = C>,
         writer_entity_id: EntityId,
-        message_queue: &mut Vec<RtpsSubmessage>,
-    ) {
+        message_queue: &mut Vec<RtpsSubmessage<'a>>,
+    ) where
+        C: CacheChange<Data = D> + 'a,
+        &'a D: Into<SerializedData<'a>> + 'a,
+    {
         while let Some(next_unsent_seq_num) = reader_locator.next_unsent_change().cloned() {
             Self::transition_t4(
-                reader_locator,
                 history_cache,
                 writer_entity_id,
                 next_unsent_seq_num,
@@ -47,13 +56,15 @@ impl BestEffortReaderLocatorBehavior {
         }
     }
 
-    fn transition_t4(
-        _reader_locator: &mut impl ReaderLocator<CacheChangeRepresentation = SequenceNumber>,
-        history_cache: &impl HistoryCache,
+    fn transition_t4<'a, D, C>(
+        history_cache: &'a impl HistoryCache<CacheChangeType = C>,
         writer_entity_id: EntityId,
         next_unsent_seq_num: SequenceNumber,
-        message_queue: &mut Vec<RtpsSubmessage>,
-    ) {
+        message_queue: &mut Vec<RtpsSubmessage<'a>>,
+    ) where
+        C: CacheChange<Data = D> + 'a,
+        &'a D: Into<SerializedData<'a>> + 'a,
+    {
         if let Some(cache_change) = history_cache.get_change(next_unsent_seq_num) {
             let data = data_from_cache_change(cache_change, ENTITYID_UNKNOWN);
             message_queue.push(RtpsSubmessage::Data(data));
@@ -63,10 +74,7 @@ impl BestEffortReaderLocatorBehavior {
                 reader_id: ENTITYID_UNKNOWN,
                 writer_id: writer_entity_id,
                 gap_start: next_unsent_seq_num,
-                gap_list: SequenceNumberSet {
-                    bitmap_base: next_unsent_seq_num,
-                    bitmap: [0; 8],
-                },
+                gap_list: SequenceNumberSet::new(next_unsent_seq_num, [0; 8]),
             };
 
             message_queue.push(RtpsSubmessage::Gap(gap));

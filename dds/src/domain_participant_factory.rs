@@ -4,7 +4,6 @@ use rust_dds_api::{
     infrastructure::qos::DomainParticipantQos,
 };
 use rust_dds_rtps_implementation::rtps_domain_participant::RtpsDomainParticipant;
-use rust_rtps_transport_udp::UdpTransport;
 
 /// The DomainParticipant object plays several roles:
 /// - It acts as a container for all other Entity objects.
@@ -43,27 +42,29 @@ impl DomainParticipantFactory {
         mask: StatusMask,
         //     enabled: bool,
     ) -> Option<RtpsDomainParticipant> {
-        let interface = "Wi-Fi";
-        let userdata_transport =
-            UdpTransport::default_userdata_transport(domain_id, interface).unwrap();
-        let metatraffic_transport =
-            UdpTransport::default_metatraffic_transport(domain_id, interface).unwrap();
-        let qos = qos.unwrap_or_default();
+        // let interface = "Wi-Fi";
+        // let userdata_transport =
+        //     UdpTransport::default_userdata_transport(domain_id, interface).unwrap();
+        // let metatraffic_transport =
+        //     UdpTransport::default_metatraffic_transport(domain_id, interface).unwrap();
+        // let qos = qos.unwrap_or_default();
 
-        let rtps_participant = RtpsDomainParticipant::new(
-            domain_id,
-            qos.clone(),
-            userdata_transport,
-            metatraffic_transport,
-            a_listener,
-            mask,
-        );
+        // let rtps_participant = RtpsDomainParticipant::new(
+        //     domain_id,
+        //     qos.clone(),
+        //     userdata_transport,
+        //     metatraffic_transport,
+        //     a_listener,
+        //     mask,
+        // );
 
         // if enabled {
         //     new_participant.enable().ok()?;
         // }
 
-        Some(rtps_participant)
+        // Some(rtps_participant)
+
+        todo!()
     }
 
     // pub fn delete_participant(_a_participant: impl DomainParticipant) {}

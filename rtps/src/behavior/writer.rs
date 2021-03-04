@@ -1,6 +1,6 @@
 use crate::{
-    messages::submessages::submessage_elements::{ParameterList, SerializedData},
-    structure::{Endpoint, HistoryCache},
+    messages::submessages::submessage_elements::ParameterList,
+    structure::{CacheChange, Endpoint, HistoryCache},
     types::{ChangeKind, InstanceHandle, SequenceNumber},
 };
 
@@ -19,7 +19,7 @@ pub trait Writer: Endpoint {
     fn new_change(
         &mut self,
         kind: ChangeKind,
-        data: SerializedData,
+        data: <<Self::HistoryCacheType as HistoryCache>::CacheChangeType as CacheChange>::Data,
         inline_qos: ParameterList,
         handle: InstanceHandle,
     ) -> <Self::HistoryCacheType as HistoryCache>::CacheChangeType;

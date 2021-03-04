@@ -1,6 +1,6 @@
 use rust_rtps::{
     behavior::Writer,
-    structure::{Endpoint, Entity, HistoryCache},
+    structure::{CacheChange, Endpoint, Entity, HistoryCache},
 };
 
 use super::history_cache_impl::HistoryCacheImpl;
@@ -65,7 +65,7 @@ impl Writer for WriterImpl {
     fn new_change(
         &mut self,
         _kind: rust_rtps::types::ChangeKind,
-        _data: rust_rtps::messages::submessages::submessage_elements::SerializedData,
+        _data: <<Self::HistoryCacheType as HistoryCache>::CacheChangeType as CacheChange>::Data,
         _inline_qos: rust_rtps::messages::submessages::submessage_elements::ParameterList,
         _handle: rust_rtps::types::InstanceHandle,
     ) -> <Self::HistoryCacheType as HistoryCache>::CacheChangeType {
