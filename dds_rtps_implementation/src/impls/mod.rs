@@ -1,3 +1,5 @@
+pub mod history_cache_impl;
+
 pub mod domain_participant_impl;
 pub mod datareader_impl;
 pub mod datawriter_impl;

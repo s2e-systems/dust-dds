@@ -1,4 +1,4 @@
-use std::ops::Deref;
+use std::ops::{Deref, DerefMut};
 
 use rust_rtps::{
     behavior::{stateless_writer::ReaderLocator, StatelessWriter},
@@ -17,6 +17,12 @@ impl Deref for StatelessWriterImpl {
 
     fn deref(&self) -> &Self::Target {
         &self.writer
+    }
+}
+
+impl DerefMut for StatelessWriterImpl {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.writer
     }
 }
 

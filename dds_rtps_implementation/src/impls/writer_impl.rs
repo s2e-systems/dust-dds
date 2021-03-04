@@ -1,4 +1,9 @@
-use rust_rtps::{behavior::Writer, structure::{Endpoint, Entity}};
+use rust_rtps::{
+    behavior::Writer,
+    structure::{Endpoint, Entity, HistoryCache},
+};
+
+use super::history_cache_impl::HistoryCacheImpl;
 
 pub struct WriterImpl;
 
@@ -27,6 +32,8 @@ impl Endpoint for WriterImpl {
 }
 
 impl Writer for WriterImpl {
+    type HistoryCacheType = HistoryCacheImpl;
+
     fn push_mode(&self) -> bool {
         todo!()
     }
@@ -47,7 +54,7 @@ impl Writer for WriterImpl {
         todo!()
     }
 
-    fn writer_cache(&mut self) -> &mut rust_rtps::structure::HistoryCache {
+    fn writer_cache(&mut self) -> &mut Self::HistoryCacheType {
         todo!()
     }
 
@@ -61,7 +68,7 @@ impl Writer for WriterImpl {
         _data: rust_rtps::messages::submessages::submessage_elements::SerializedData,
         _inline_qos: rust_rtps::messages::submessages::submessage_elements::ParameterList,
         _handle: rust_rtps::types::InstanceHandle,
-    ) -> rust_rtps::structure::CacheChange {
+    ) -> <Self::HistoryCacheType as HistoryCache>::CacheChangeType {
         todo!()
     }
 }

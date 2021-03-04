@@ -4,12 +4,9 @@ use rust_dds_api::{
     dcps_psm::StatusMask, dds_type::DDSType, infrastructure::qos::DataWriterQos,
     publication::data_writer_listener::DataWriterListener,
 };
-use rust_rtps::{
-    behavior::{StatefulWriter, Writer},
-    structure::{Endpoint, Entity},
-};
+use rust_rtps::{behavior::{StatefulWriter, Writer}, structure::{Endpoint, Entity, HistoryCache}};
 
-use super::{mask_listener::MaskListener, topic_impl::TopicImpl};
+use super::{history_cache_impl::HistoryCacheImpl, mask_listener::MaskListener, topic_impl::TopicImpl};
 struct RtpsDataWriterListener<T: DDSType>(Box<dyn DataWriterListener<DataType = T>>);
 trait AnyDataWriterListener: Send + Sync {}
 
@@ -164,6 +161,8 @@ impl Endpoint for StatefulDataWriterImpl {
 }
 
 impl Writer for StatefulDataWriterImpl {
+    type HistoryCacheType = HistoryCacheImpl;
+
     fn push_mode(&self) -> bool {
         todo!()
     }
@@ -184,7 +183,7 @@ impl Writer for StatefulDataWriterImpl {
         todo!()
     }
 
-    fn writer_cache(&mut self) -> &mut rust_rtps::structure::HistoryCache {
+    fn writer_cache(&mut self) -> &mut HistoryCacheImpl {
         todo!()
     }
 
@@ -198,7 +197,7 @@ impl Writer for StatefulDataWriterImpl {
         _data: rust_rtps::messages::submessages::submessage_elements::SerializedData,
         _inline_qos: rust_rtps::messages::submessages::submessage_elements::ParameterList,
         _handle: rust_rtps::types::InstanceHandle,
-    ) -> rust_rtps::structure::CacheChange {
+    ) -> <Self::HistoryCacheType as HistoryCache>::CacheChangeType {
         todo!()
     }
 }

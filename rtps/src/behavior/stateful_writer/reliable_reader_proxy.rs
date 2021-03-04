@@ -16,9 +16,9 @@ use super::ReaderProxy;
 pub struct ReliableReaderProxyBehavior;
 
 impl ReliableReaderProxyBehavior {
-    pub fn produce_messages(
+    pub fn produce_messages<H: HistoryCache>(
         reader_proxy: &mut ReaderProxy,
-        history_cache: &HistoryCache,
+        history_cache: &H,
         writer_entity_id: EntityId,
         last_change_sequence_number: SequenceNumber,
         heartbeat_period: Duration,
@@ -100,9 +100,9 @@ impl ReliableReaderProxyBehavior {
         }
     }
 
-    fn pushing_state(
+    fn pushing_state<H: HistoryCache>(
         reader_proxy: &mut ReaderProxy,
-        history_cache: &HistoryCache,
+        history_cache: &H,
         last_change_sequence_number: SequenceNumber,
         writer_entity_id: EntityId,
         message_queue: &mut Vec<RtpsSubmessage>,
@@ -121,9 +121,9 @@ impl ReliableReaderProxyBehavior {
         reader_proxy.behavior.time_last_sent_data = Instant::now();
     }
 
-    fn transition_t4(
+    fn transition_t4<H: HistoryCache>(
         reader_proxy: &mut ReaderProxy,
-        history_cache: &HistoryCache,
+        history_cache: &H,
         next_unsent_seq_num: SequenceNumber,
         writer_entity_id: EntityId,
         message_queue: &mut Vec<RtpsSubmessage>,
@@ -151,9 +151,9 @@ impl ReliableReaderProxyBehavior {
         }
     }
 
-    fn announcing_state(
+    fn announcing_state<H: HistoryCache>(
         reader_proxy: &mut ReaderProxy,
-        history_cache: &HistoryCache,
+        history_cache: &H,
         last_change_sequence_number: SequenceNumber,
         writer_entity_id: EntityId,
         heartbeat_period: Duration,
@@ -177,9 +177,9 @@ impl ReliableReaderProxyBehavior {
         }
     }
 
-    fn transition_t7(
+    fn transition_t7<H: HistoryCache>(
         reader_proxy: &mut ReaderProxy,
-        history_cache: &HistoryCache,
+        history_cache: &H,
         last_change_sequence_number: SequenceNumber,
         writer_entity_id: EntityId,
         message_queue: &mut Vec<RtpsSubmessage>,
@@ -227,9 +227,9 @@ impl ReliableReaderProxyBehavior {
         Self::transition_t8(reader_proxy, acknack);
     }
 
-    fn repairing_state(
+    fn repairing_state<H: HistoryCache>(
         reader_proxy: &mut ReaderProxy,
-        history_cache: &HistoryCache,
+        history_cache: &H,
         writer_entity_id: EntityId,
         message_queue: &mut Vec<RtpsSubmessage>,
     ) {
@@ -244,9 +244,9 @@ impl ReliableReaderProxyBehavior {
         }
     }
 
-    fn transition_t12(
+    fn transition_t12<H: HistoryCache>(
         reader_proxy: &mut ReaderProxy,
-        history_cache: &HistoryCache,
+        history_cache: &H,
         next_requested_seq_num: SequenceNumber,
         writer_entity_id: EntityId,
         message_queue: &mut Vec<RtpsSubmessage>,
@@ -279,750 +279,750 @@ mod tests {
 
     use crate::structure::CacheChange;
 
-    #[test]
-    fn produce_empty() {
-        let remote_reader_guid = GUID::new([5; 12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER);
-        let unicast_locator_list = vec![Locator::new_udpv4(7400, [127, 0, 0, 1])];
-        let multicast_locator_list = vec![];
-        let expects_inline_qos = false;
-        let is_active = true;
-        let mut reader_proxy = ReaderProxy::new(
-            remote_reader_guid,
-            unicast_locator_list,
-            multicast_locator_list,
-            expects_inline_qos,
-            is_active,
-        );
-
-        let writer_entity_id = ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER;
-        let history_cache = HistoryCache::default();
-
-        // Run without any change being created or added in the cache
-        let heartbeat_period = Duration::from_secs(1);
-        let nack_response_delay = Duration::from_secs(1);
-        let last_change_sequence_number = 0;
-        let messages_vec = ReliableReaderProxyBehavior::produce_messages(
-            &mut reader_proxy,
-            &history_cache,
-            writer_entity_id,
-            last_change_sequence_number,
-            heartbeat_period,
-            nack_response_delay,
-        );
-
-        assert!(messages_vec.is_empty());
-    }
-
-    #[test]
-    fn produce_data_message() {
-        let remote_reader_guid = GUID::new([5; 12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER);
-        let unicast_locator_list = vec![Locator::new_udpv4(7400, [127, 0, 0, 1])];
-        let multicast_locator_list = vec![];
-        let expects_inline_qos = false;
-        let is_active = true;
-        let mut reader_proxy = ReaderProxy::new(
-            remote_reader_guid,
-            unicast_locator_list,
-            multicast_locator_list,
-            expects_inline_qos,
-            is_active,
-        );
-
-        let writer_entity_id = ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER;
-        let mut history_cache = HistoryCache::default();
-
-        // Add one change to the history cache
-        let writer_guid = GUID::new([5; 12], writer_entity_id);
-        let instance_handle = [1; 16];
-        let cache_change1 = CacheChange::new(
-            ChangeKind::Alive,
-            writer_guid.into(),
-            instance_handle,
-            1,
-            Some(vec![1, 2, 3]),
-            None,
-        );
-        history_cache.add_change(cache_change1.clone());
-
-        // Run with the last change sequence number equal to the added cache change
-        let last_change_sequence_number = 1;
-        let heartbeat_period = Duration::from_secs(1);
-        let nack_response_delay = Duration::from_secs(1);
-
-        let messages_vec = ReliableReaderProxyBehavior::produce_messages(
-            &mut reader_proxy,
-            &history_cache,
-            writer_entity_id,
-            last_change_sequence_number,
-            heartbeat_period,
-            nack_response_delay,
-        );
-
-        let expected_data_submessage = RtpsSubmessage::Data(data_from_cache_change(
-            &cache_change1,
-            ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER,
-        ));
-        assert_eq!(messages_vec.len(), 1);
-        assert!(messages_vec.contains(&expected_data_submessage));
-    }
-
-    #[test]
-    fn produce_gap_message() {
-        let remote_reader_guid = GUID::new([5; 12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER);
-        let unicast_locator_list = vec![Locator::new_udpv4(7400, [127, 0, 0, 1])];
-        let multicast_locator_list = vec![];
-        let expects_inline_qos = false;
-        let is_active = true;
-        let mut reader_proxy = ReaderProxy::new(
-            remote_reader_guid,
-            unicast_locator_list,
-            multicast_locator_list,
-            expects_inline_qos,
-            is_active,
-        );
-
-        let writer_entity_id = ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER;
-        let history_cache = HistoryCache::default();
-
-        // Run with the a sequence number of 1 without adding any change to the history cache
-        let last_change_sequence_number = 1;
-        let heartbeat_period = Duration::from_secs(1);
-        let nack_response_delay = Duration::from_secs(1);
-        let messages_vec = ReliableReaderProxyBehavior::produce_messages(
-            &mut reader_proxy,
-            &history_cache,
-            writer_entity_id,
-            last_change_sequence_number,
-            heartbeat_period,
-            nack_response_delay,
-        );
-
-        let expected_gap_submessage = RtpsSubmessage::Gap(Gap::new(
-            BEHAVIOR_ENDIANNESS,
-            ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER,
-            writer_entity_id,
-            1,
-            BTreeSet::new(),
-        ));
-        assert_eq!(messages_vec.len(), 1);
-        assert!(messages_vec.contains(&expected_gap_submessage));
-    }
-
-    #[test]
-    fn produce_data_and_gap_messages() {
-        let remote_reader_guid = GUID::new([5; 12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER);
-        let unicast_locator_list = vec![Locator::new_udpv4(7400, [127, 0, 0, 1])];
-        let multicast_locator_list = vec![];
-        let expects_inline_qos = false;
-        let is_active = true;
-        let mut reader_proxy = ReaderProxy::new(
-            remote_reader_guid,
-            unicast_locator_list,
-            multicast_locator_list,
-            expects_inline_qos,
-            is_active,
-        );
-
-        let writer_entity_id = ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER;
-        let mut history_cache = HistoryCache::default();
-
-        // Add one change to the history cache
-        let writer_guid = GUID::new([5; 12], writer_entity_id);
-        let instance_handle = [1; 16];
-        let cache_change1 = CacheChange::new(
-            ChangeKind::Alive,
-            writer_guid.into(),
-            instance_handle,
-            1,
-            Some(vec![1, 2, 3]),
-            None,
-        );
-        history_cache.add_change(cache_change1.clone());
-
-        // Run with the last change sequence number one above the added cache change
-        let last_change_sequence_number = 2;
-        let heartbeat_period = Duration::from_secs(1);
-        let nack_response_delay = Duration::from_secs(1);
-        let messages_vec = ReliableReaderProxyBehavior::produce_messages(
-            &mut reader_proxy,
-            &history_cache,
-            writer_entity_id,
-            last_change_sequence_number,
-            heartbeat_period,
-            nack_response_delay,
-        );
-
-        let expected_data_submessage = RtpsSubmessage::Data(data_from_cache_change(
-            &cache_change1,
-            ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER,
-        ));
-        let expected_gap_submessage = RtpsSubmessage::Gap(Gap::new(
-            BEHAVIOR_ENDIANNESS,
-            ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER,
-            writer_entity_id,
-            2,
-            BTreeSet::new(),
-        ));
-        assert_eq!(messages_vec.len(), 2);
-        assert!(messages_vec.contains(&expected_data_submessage));
-        assert!(messages_vec.contains(&expected_gap_submessage));
-    }
-
-    #[test]
-    fn try_process_acknack_message_only_acknowledge() {
-        let remote_reader_guid_prefix = [5; 12];
-        let remote_reader_guid_entity_id = ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER;
-        let remote_reader_guid = GUID::new(remote_reader_guid_prefix, remote_reader_guid_entity_id);
-        let unicast_locator_list = vec![Locator::new_udpv4(7400, [127, 0, 0, 1])];
-        let multicast_locator_list = vec![];
-        let expects_inline_qos = false;
-        let is_active = true;
-        let mut reader_proxy = ReaderProxy::new(
-            remote_reader_guid,
-            unicast_locator_list,
-            multicast_locator_list,
-            expects_inline_qos,
-            is_active,
-        );
-
-        let writer_entity_id = ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER;
-
-        let acknack = AckNack::new(
-            Endianness::LittleEndian,
-            remote_reader_guid.entity_id(),
-            writer_entity_id,
-            2,
-            vec![].iter().cloned().collect(),
-            1,
-            true,
-        );
-
-        let mut highest_nack_count_received = 0;
-        let mut time_nack_received = Instant::now();
-
-        ReliableReaderProxyBehavior::try_process_message(
-            &mut reader_proxy,
-            remote_reader_guid_prefix,
-            &mut Some(RtpsSubmessage::AckNack(acknack)),
-            &mut highest_nack_count_received,
-            &mut time_nack_received,
-        );
-
-        assert_eq!(highest_nack_count_received, 1);
-        assert!(reader_proxy.unacked_changes(1).is_empty()); // If 1 is the last change sequence number there are no unacked changes
-        assert!(reader_proxy.unacked_changes(2).contains(&2)); // If 2 is the last change sequence number, then 2 is an unacked change
-    }
-
-    #[test]
-    fn try_process_acknack_message_acknowledge_and_request() {
-        let remote_reader_guid_prefix = [5; 12];
-        let remote_reader_guid_entity_id = ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER;
-        let remote_reader_guid = GUID::new(remote_reader_guid_prefix, remote_reader_guid_entity_id);
-        let unicast_locator_list = vec![Locator::new_udpv4(7400, [127, 0, 0, 1])];
-        let multicast_locator_list = vec![];
-        let expects_inline_qos = false;
-        let is_active = true;
-        let mut reader_proxy = ReaderProxy::new(
-            remote_reader_guid,
-            unicast_locator_list,
-            multicast_locator_list,
-            expects_inline_qos,
-            is_active,
-        );
-
-        let writer_entity_id = ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER;
-
-        let acknack = AckNack::new(
-            Endianness::LittleEndian,
-            remote_reader_guid.entity_id(),
-            writer_entity_id,
-            4,
-            vec![1, 3].iter().cloned().collect(),
-            1,
-            true,
-        );
-
-        let mut highest_nack_count_received = 0;
-        let mut time_nack_received = Instant::now();
-
-        ReliableReaderProxyBehavior::try_process_message(
-            &mut reader_proxy,
-            remote_reader_guid_prefix,
-            &mut Some(RtpsSubmessage::AckNack(acknack)),
-            &mut highest_nack_count_received,
-            &mut time_nack_received,
-        );
-
-        let requested_changes = reader_proxy.requested_changes();
-        assert!(requested_changes.contains(&1));
-        assert!(requested_changes.contains(&3));
-    }
-
-    #[test]
-    fn ignore_try_process_acknack_message_with_same_count_number() {
-        let remote_reader_guid_prefix = [5; 12];
-        let remote_reader_guid_entity_id = ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER;
-        let remote_reader_guid = GUID::new(remote_reader_guid_prefix, remote_reader_guid_entity_id);
-        let unicast_locator_list = vec![Locator::new_udpv4(7400, [127, 0, 0, 1])];
-        let multicast_locator_list = vec![];
-        let expects_inline_qos = false;
-        let is_active = true;
-        let mut reader_proxy = ReaderProxy::new(
-            remote_reader_guid,
-            unicast_locator_list,
-            multicast_locator_list,
-            expects_inline_qos,
-            is_active,
-        );
-
-        let writer_entity_id = ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER;
-
-        let acknack = AckNack::new(
-            Endianness::LittleEndian,
-            remote_reader_guid.entity_id(),
-            writer_entity_id,
-            4,
-            vec![1, 3].iter().cloned().collect(),
-            1,
-            true,
-        );
-
-        let mut highest_nack_count_received = 0;
-        let mut time_nack_received = Instant::now();
-
-        ReliableReaderProxyBehavior::try_process_message(
-            &mut reader_proxy,
-            remote_reader_guid_prefix,
-            &mut Some(RtpsSubmessage::AckNack(acknack)),
-            &mut highest_nack_count_received,
-            &mut time_nack_received,
-        );
-
-        let acknack_same_count = AckNack::new(
-            Endianness::LittleEndian,
-            remote_reader_guid.entity_id(),
-            writer_entity_id,
-            6,
-            vec![1, 2, 3].iter().cloned().collect(),
-            1,
-            true,
-        );
-
-        let mut highest_nack_count_received = 0;
-        let mut time_nack_received = Instant::now();
-
-        ReliableReaderProxyBehavior::try_process_message(
-            &mut reader_proxy,
-            remote_reader_guid_prefix,
-            &mut Some(RtpsSubmessage::AckNack(acknack_same_count)),
-            &mut highest_nack_count_received,
-            &mut time_nack_received,
-        );
-
-        assert_eq!(highest_nack_count_received, 1);
-        let requested_changes = reader_proxy.requested_changes();
-        assert!(requested_changes.contains(&1));
-        assert!(requested_changes.contains(&3));
-    }
-
-    #[test]
-    fn produce_heartbeat_message() {
-        let remote_reader_guid = GUID::new([5; 12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER);
-        let unicast_locator_list = vec![Locator::new_udpv4(7400, [127, 0, 0, 1])];
-        let multicast_locator_list = vec![];
-        let expects_inline_qos = false;
-        let is_active = true;
-        let mut reader_proxy = ReaderProxy::new(
-            remote_reader_guid,
-            unicast_locator_list,
-            multicast_locator_list,
-            expects_inline_qos,
-            is_active,
-        );
-
-        let writer_entity_id = ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER;
-        let mut history_cache = HistoryCache::default();
-
-        // Add one change to the history cache
-        let writer_guid = GUID::new([5; 12], writer_entity_id);
-        let instance_handle = [1; 16];
-        let cache_change1 = CacheChange::new(
-            ChangeKind::Alive,
-            writer_guid.into(),
-            instance_handle,
-            1,
-            Some(vec![1, 2, 3]),
-            None,
-        );
-        history_cache.add_change(cache_change1.clone());
-
-        let writer_guid = GUID::new([5; 12], writer_entity_id);
-        let instance_handle = [1; 16];
-        let cache_change2 = CacheChange::new(
-            ChangeKind::Alive,
-            writer_guid.into(),
-            instance_handle,
-            2,
-            Some(vec![4, 5, 6]),
-            None,
-        );
-        history_cache.add_change(cache_change2.clone());
-
-        let last_change_sequence_number = 2;
-        let heartbeat_period = Duration::from_secs(0);
-        let nack_response_delay = Duration::from_secs(1);
-
-        // The first produce should generate the data/gap messages and no heartbeat so we ignore it
-        ReliableReaderProxyBehavior::produce_messages(
-            &mut reader_proxy,
-            &history_cache,
-            writer_entity_id,
-            last_change_sequence_number,
-            heartbeat_period,
-            nack_response_delay,
-        );
-
-        let messages_vec1 = ReliableReaderProxyBehavior::produce_messages(
-            &mut reader_proxy,
-            &history_cache,
-            writer_entity_id,
-            last_change_sequence_number,
-            heartbeat_period,
-            nack_response_delay,
-        );
-
-        let messages_vec2 = ReliableReaderProxyBehavior::produce_messages(
-            &mut reader_proxy,
-            &history_cache,
-            writer_entity_id,
-            last_change_sequence_number,
-            heartbeat_period,
-            nack_response_delay,
-        );
-
-        let expected_heartbeat_message1 = RtpsSubmessage::Heartbeat(Heartbeat::new(
-            Endianness::LittleEndian,
-            ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER,
-            ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER,
-            1,
-            2,
-            1,
-            false,
-            false,
-        ));
-
-        let expected_heartbeat_message2 = RtpsSubmessage::Heartbeat(Heartbeat::new(
-            Endianness::LittleEndian,
-            ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER,
-            ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER,
-            1,
-            2,
-            2,
-            false,
-            false,
-        ));
-
-        assert_eq!(messages_vec1.len(), 1);
-        assert!(messages_vec1.contains(&expected_heartbeat_message1));
-        assert_eq!(messages_vec2.len(), 1);
-        assert!(messages_vec2.contains(&expected_heartbeat_message2));
-    }
-
-    #[test]
-    fn produce_heartbeat_message_period() {
-        let remote_reader_guid = GUID::new([5; 12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER);
-        let unicast_locator_list = vec![Locator::new_udpv4(7400, [127, 0, 0, 1])];
-        let multicast_locator_list = vec![];
-        let expects_inline_qos = false;
-        let is_active = true;
-        let mut reader_proxy = ReaderProxy::new(
-            remote_reader_guid,
-            unicast_locator_list,
-            multicast_locator_list,
-            expects_inline_qos,
-            is_active,
-        );
-
-        let writer_entity_id = ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER;
-        let mut history_cache = HistoryCache::default();
-
-        // Add one change to the history cache
-        let writer_guid = GUID::new([5; 12], writer_entity_id);
-        let instance_handle = [1; 16];
-        let cache_change1 = CacheChange::new(
-            ChangeKind::Alive,
-            writer_guid.into(),
-            instance_handle,
-            1,
-            Some(vec![1, 2, 3]),
-            None,
-        );
-        history_cache.add_change(cache_change1.clone());
-
-        let writer_guid = GUID::new([5; 12], writer_entity_id);
-        let instance_handle = [1; 16];
-        let cache_change2 = CacheChange::new(
-            ChangeKind::Alive,
-            writer_guid.into(),
-            instance_handle,
-            2,
-            Some(vec![4, 5, 6]),
-            None,
-        );
-        history_cache.add_change(cache_change2.clone());
-
-        let last_change_sequence_number = 2;
-        let heartbeat_period = Duration::from_millis(200);
-        let nack_response_delay = Duration::from_secs(1);
-
-        // The first produce should generate the data/gap messages and no heartbeat so we ignore it
-        ReliableReaderProxyBehavior::produce_messages(
-            &mut reader_proxy,
-            &history_cache,
-            writer_entity_id,
-            last_change_sequence_number,
-            heartbeat_period,
-            nack_response_delay,
-        );
-
-        let messages_vec1 = ReliableReaderProxyBehavior::produce_messages(
-            &mut reader_proxy,
-            &history_cache,
-            writer_entity_id,
-            last_change_sequence_number,
-            heartbeat_period,
-            nack_response_delay,
-        );
-
-        std::thread::sleep(heartbeat_period.into());
-
-        let messages_vec2 = ReliableReaderProxyBehavior::produce_messages(
-            &mut reader_proxy,
-            &history_cache,
-            writer_entity_id,
-            last_change_sequence_number,
-            heartbeat_period,
-            nack_response_delay,
-        );
-
-        let expected_heartbeat_message = RtpsSubmessage::Heartbeat(Heartbeat::new(
-            Endianness::LittleEndian,
-            ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER,
-            ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER,
-            1,
-            2,
-            1,
-            false,
-            false,
-        ));
-
-        assert!(messages_vec1.is_empty());
-        assert_eq!(messages_vec2.len(), 1);
-        assert!(messages_vec2.contains(&expected_heartbeat_message));
-    }
-
-    #[test]
-    fn produce_requested_changes_messages() {
-        let remote_reader_guid_prefix = [5; 12];
-        let remote_reader_guid_entity_id = ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER;
-        let remote_reader_guid = GUID::new(remote_reader_guid_prefix, remote_reader_guid_entity_id);
-        let unicast_locator_list = vec![Locator::new_udpv4(7400, [127, 0, 0, 1])];
-        let multicast_locator_list = vec![];
-        let expects_inline_qos = false;
-        let is_active = true;
-        let mut reader_proxy = ReaderProxy::new(
-            remote_reader_guid,
-            unicast_locator_list,
-            multicast_locator_list,
-            expects_inline_qos,
-            is_active,
-        );
-
-        let writer_entity_id = ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER;
-        let mut history_cache = HistoryCache::default();
-
-        // Add one change to the history cache
-        let writer_guid = GUID::new([5; 12], writer_entity_id);
-        let instance_handle = [1; 16];
-        let cache_change1 = CacheChange::new(
-            ChangeKind::Alive,
-            writer_guid.into(),
-            instance_handle,
-            1,
-            Some(vec![1, 2, 3]),
-            None,
-        );
-        history_cache.add_change(cache_change1.clone());
-
-        let writer_guid = GUID::new([5; 12], writer_entity_id);
-        let instance_handle = [1; 16];
-        let cache_change2 = CacheChange::new(
-            ChangeKind::Alive,
-            writer_guid.into(),
-            instance_handle,
-            2,
-            Some(vec![4, 5, 6]),
-            None,
-        );
-        history_cache.add_change(cache_change2.clone());
-
-        let last_change_sequence_number = 2;
-        let heartbeat_period = Duration::from_secs(1);
-        let nack_response_delay = Duration::from_secs(0);
-
-        let acknack = AckNack::new(
-            Endianness::LittleEndian,
-            remote_reader_guid.entity_id(),
-            writer_entity_id,
-            3,
-            vec![1].iter().cloned().collect(),
-            1,
-            true,
-        );
-
-        ReliableReaderProxyBehavior::produce_messages(
-            &mut reader_proxy,
-            &history_cache,
-            writer_entity_id,
-            last_change_sequence_number,
-            heartbeat_period,
-            nack_response_delay,
-        );
-
-        let mut highest_nack_count_received = 0;
-        let mut time_nack_received = Instant::now();
-
-        ReliableReaderProxyBehavior::try_process_message(
-            &mut reader_proxy,
-            remote_reader_guid_prefix,
-            &mut Some(RtpsSubmessage::AckNack(acknack)),
-            &mut highest_nack_count_received,
-            &mut time_nack_received,
-        );
-
-        let messages_vec = ReliableReaderProxyBehavior::produce_messages(
-            &mut reader_proxy,
-            &history_cache,
-            writer_entity_id,
-            last_change_sequence_number,
-            heartbeat_period,
-            nack_response_delay,
-        );
-
-        let expected_data_submessage = RtpsSubmessage::Data(data_from_cache_change(
-            &cache_change1,
-            ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER,
-        ));
-        assert_eq!(messages_vec.len(), 1);
-        assert!(messages_vec.contains(&expected_data_submessage));
-    }
-
-    #[test]
-    fn produce_requested_changes_with_nack_response_delay() {
-        let remote_reader_guid_prefix = [5; 12];
-        let remote_reader_guid_entity_id = ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER;
-        let remote_reader_guid = GUID::new(remote_reader_guid_prefix, remote_reader_guid_entity_id);
-        let unicast_locator_list = vec![Locator::new_udpv4(7400, [127, 0, 0, 1])];
-        let multicast_locator_list = vec![];
-        let expects_inline_qos = false;
-        let is_active = true;
-        let mut reader_proxy = ReaderProxy::new(
-            remote_reader_guid,
-            unicast_locator_list,
-            multicast_locator_list,
-            expects_inline_qos,
-            is_active,
-        );
-
-        let writer_entity_id = ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER;
-        let mut history_cache = HistoryCache::default();
-
-        // Add one change to the history cache
-        let writer_guid = GUID::new([5; 12], writer_entity_id);
-        let instance_handle = [1; 16];
-        let cache_change1 = CacheChange::new(
-            ChangeKind::Alive,
-            writer_guid.into(),
-            instance_handle,
-            1,
-            Some(vec![1, 2, 3]),
-            None,
-        );
-        history_cache.add_change(cache_change1.clone());
-
-        let writer_guid = GUID::new([5; 12], writer_entity_id);
-        let instance_handle = [1; 16];
-        let cache_change2 = CacheChange::new(
-            ChangeKind::Alive,
-            writer_guid.into(),
-            instance_handle,
-            2,
-            Some(vec![4, 5, 6]),
-            None,
-        );
-        history_cache.add_change(cache_change2.clone());
-
-        let last_change_sequence_number = 2;
-        let heartbeat_period = Duration::from_secs(1);
-        let nack_response_delay = Duration::from_millis(200);
-
-        let acknack = AckNack::new(
-            Endianness::LittleEndian,
-            remote_reader_guid.entity_id(),
-            writer_entity_id,
-            3,
-            vec![1].iter().cloned().collect(),
-            1,
-            true,
-        );
-
-        ReliableReaderProxyBehavior::produce_messages(
-            &mut reader_proxy,
-            &history_cache,
-            writer_entity_id,
-            last_change_sequence_number,
-            heartbeat_period,
-            nack_response_delay,
-        );
-
-        let mut highest_nack_count_received = 0;
-        let mut time_nack_received = Instant::now();
-
-        ReliableReaderProxyBehavior::try_process_message(
-            &mut reader_proxy,
-            remote_reader_guid_prefix,
-            &mut Some(RtpsSubmessage::AckNack(acknack)),
-            &mut highest_nack_count_received,
-            &mut time_nack_received,
-        );
-
-        let messages_vec_expected_empty = ReliableReaderProxyBehavior::produce_messages(
-            &mut reader_proxy,
-            &history_cache,
-            writer_entity_id,
-            last_change_sequence_number,
-            heartbeat_period,
-            nack_response_delay,
-        );
-
-        std::thread::sleep(nack_response_delay.into());
-
-        let messages_vec = ReliableReaderProxyBehavior::produce_messages(
-            &mut reader_proxy,
-            &history_cache,
-            writer_entity_id,
-            last_change_sequence_number,
-            heartbeat_period,
-            nack_response_delay,
-        );
-
-        let expected_data_submessage = RtpsSubmessage::Data(data_from_cache_change(
-            &cache_change1,
-            ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER,
-        ));
-
-        assert!(messages_vec_expected_empty.is_empty());
-        assert_eq!(messages_vec.len(), 1);
-        assert!(messages_vec.contains(&expected_data_submessage));
-    }
+    // #[test]
+    // fn produce_empty() {
+    //     let remote_reader_guid = GUID::new([5; 12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER);
+    //     let unicast_locator_list = vec![Locator::new_udpv4(7400, [127, 0, 0, 1])];
+    //     let multicast_locator_list = vec![];
+    //     let expects_inline_qos = false;
+    //     let is_active = true;
+    //     let mut reader_proxy = ReaderProxy::new(
+    //         remote_reader_guid,
+    //         unicast_locator_list,
+    //         multicast_locator_list,
+    //         expects_inline_qos,
+    //         is_active,
+    //     );
+
+    //     let writer_entity_id = ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER;
+    //     let history_cache = HistoryCache::default();
+
+    //     // Run without any change being created or added in the cache
+    //     let heartbeat_period = Duration::from_secs(1);
+    //     let nack_response_delay = Duration::from_secs(1);
+    //     let last_change_sequence_number = 0;
+    //     let messages_vec = ReliableReaderProxyBehavior::produce_messages(
+    //         &mut reader_proxy,
+    //         &history_cache,
+    //         writer_entity_id,
+    //         last_change_sequence_number,
+    //         heartbeat_period,
+    //         nack_response_delay,
+    //     );
+
+    //     assert!(messages_vec.is_empty());
+    // }
+
+    // #[test]
+    // fn produce_data_message() {
+    //     let remote_reader_guid = GUID::new([5; 12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER);
+    //     let unicast_locator_list = vec![Locator::new_udpv4(7400, [127, 0, 0, 1])];
+    //     let multicast_locator_list = vec![];
+    //     let expects_inline_qos = false;
+    //     let is_active = true;
+    //     let mut reader_proxy = ReaderProxy::new(
+    //         remote_reader_guid,
+    //         unicast_locator_list,
+    //         multicast_locator_list,
+    //         expects_inline_qos,
+    //         is_active,
+    //     );
+
+    //     let writer_entity_id = ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER;
+    //     let mut history_cache = HistoryCache::default();
+
+    //     // Add one change to the history cache
+    //     let writer_guid = GUID::new([5; 12], writer_entity_id);
+    //     let instance_handle = [1; 16];
+    //     let cache_change1 = CacheChange::new(
+    //         ChangeKind::Alive,
+    //         writer_guid.into(),
+    //         instance_handle,
+    //         1,
+    //         Some(vec![1, 2, 3]),
+    //         None,
+    //     );
+    //     history_cache.add_change(cache_change1.clone());
+
+    //     // Run with the last change sequence number equal to the added cache change
+    //     let last_change_sequence_number = 1;
+    //     let heartbeat_period = Duration::from_secs(1);
+    //     let nack_response_delay = Duration::from_secs(1);
+
+    //     let messages_vec = ReliableReaderProxyBehavior::produce_messages(
+    //         &mut reader_proxy,
+    //         &history_cache,
+    //         writer_entity_id,
+    //         last_change_sequence_number,
+    //         heartbeat_period,
+    //         nack_response_delay,
+    //     );
+
+    //     let expected_data_submessage = RtpsSubmessage::Data(data_from_cache_change(
+    //         &cache_change1,
+    //         ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER,
+    //     ));
+    //     assert_eq!(messages_vec.len(), 1);
+    //     assert!(messages_vec.contains(&expected_data_submessage));
+    // }
+
+    // #[test]
+    // fn produce_gap_message() {
+    //     let remote_reader_guid = GUID::new([5; 12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER);
+    //     let unicast_locator_list = vec![Locator::new_udpv4(7400, [127, 0, 0, 1])];
+    //     let multicast_locator_list = vec![];
+    //     let expects_inline_qos = false;
+    //     let is_active = true;
+    //     let mut reader_proxy = ReaderProxy::new(
+    //         remote_reader_guid,
+    //         unicast_locator_list,
+    //         multicast_locator_list,
+    //         expects_inline_qos,
+    //         is_active,
+    //     );
+
+    //     let writer_entity_id = ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER;
+    //     let history_cache = HistoryCache::default();
+
+    //     // Run with the a sequence number of 1 without adding any change to the history cache
+    //     let last_change_sequence_number = 1;
+    //     let heartbeat_period = Duration::from_secs(1);
+    //     let nack_response_delay = Duration::from_secs(1);
+    //     let messages_vec = ReliableReaderProxyBehavior::produce_messages(
+    //         &mut reader_proxy,
+    //         &history_cache,
+    //         writer_entity_id,
+    //         last_change_sequence_number,
+    //         heartbeat_period,
+    //         nack_response_delay,
+    //     );
+
+    //     let expected_gap_submessage = RtpsSubmessage::Gap(Gap::new(
+    //         BEHAVIOR_ENDIANNESS,
+    //         ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER,
+    //         writer_entity_id,
+    //         1,
+    //         BTreeSet::new(),
+    //     ));
+    //     assert_eq!(messages_vec.len(), 1);
+    //     assert!(messages_vec.contains(&expected_gap_submessage));
+    // }
+
+    // #[test]
+    // fn produce_data_and_gap_messages() {
+    //     let remote_reader_guid = GUID::new([5; 12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER);
+    //     let unicast_locator_list = vec![Locator::new_udpv4(7400, [127, 0, 0, 1])];
+    //     let multicast_locator_list = vec![];
+    //     let expects_inline_qos = false;
+    //     let is_active = true;
+    //     let mut reader_proxy = ReaderProxy::new(
+    //         remote_reader_guid,
+    //         unicast_locator_list,
+    //         multicast_locator_list,
+    //         expects_inline_qos,
+    //         is_active,
+    //     );
+
+    //     let writer_entity_id = ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER;
+    //     let mut history_cache = HistoryCache::default();
+
+    //     // Add one change to the history cache
+    //     let writer_guid = GUID::new([5; 12], writer_entity_id);
+    //     let instance_handle = [1; 16];
+    //     let cache_change1 = CacheChange::new(
+    //         ChangeKind::Alive,
+    //         writer_guid.into(),
+    //         instance_handle,
+    //         1,
+    //         Some(vec![1, 2, 3]),
+    //         None,
+    //     );
+    //     history_cache.add_change(cache_change1.clone());
+
+    //     // Run with the last change sequence number one above the added cache change
+    //     let last_change_sequence_number = 2;
+    //     let heartbeat_period = Duration::from_secs(1);
+    //     let nack_response_delay = Duration::from_secs(1);
+    //     let messages_vec = ReliableReaderProxyBehavior::produce_messages(
+    //         &mut reader_proxy,
+    //         &history_cache,
+    //         writer_entity_id,
+    //         last_change_sequence_number,
+    //         heartbeat_period,
+    //         nack_response_delay,
+    //     );
+
+    //     let expected_data_submessage = RtpsSubmessage::Data(data_from_cache_change(
+    //         &cache_change1,
+    //         ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER,
+    //     ));
+    //     let expected_gap_submessage = RtpsSubmessage::Gap(Gap::new(
+    //         BEHAVIOR_ENDIANNESS,
+    //         ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER,
+    //         writer_entity_id,
+    //         2,
+    //         BTreeSet::new(),
+    //     ));
+    //     assert_eq!(messages_vec.len(), 2);
+    //     assert!(messages_vec.contains(&expected_data_submessage));
+    //     assert!(messages_vec.contains(&expected_gap_submessage));
+    // }
+
+    // #[test]
+    // fn try_process_acknack_message_only_acknowledge() {
+    //     let remote_reader_guid_prefix = [5; 12];
+    //     let remote_reader_guid_entity_id = ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER;
+    //     let remote_reader_guid = GUID::new(remote_reader_guid_prefix, remote_reader_guid_entity_id);
+    //     let unicast_locator_list = vec![Locator::new_udpv4(7400, [127, 0, 0, 1])];
+    //     let multicast_locator_list = vec![];
+    //     let expects_inline_qos = false;
+    //     let is_active = true;
+    //     let mut reader_proxy = ReaderProxy::new(
+    //         remote_reader_guid,
+    //         unicast_locator_list,
+    //         multicast_locator_list,
+    //         expects_inline_qos,
+    //         is_active,
+    //     );
+
+    //     let writer_entity_id = ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER;
+
+    //     let acknack = AckNack::new(
+    //         Endianness::LittleEndian,
+    //         remote_reader_guid.entity_id(),
+    //         writer_entity_id,
+    //         2,
+    //         vec![].iter().cloned().collect(),
+    //         1,
+    //         true,
+    //     );
+
+    //     let mut highest_nack_count_received = 0;
+    //     let mut time_nack_received = Instant::now();
+
+    //     ReliableReaderProxyBehavior::try_process_message(
+    //         &mut reader_proxy,
+    //         remote_reader_guid_prefix,
+    //         &mut Some(RtpsSubmessage::AckNack(acknack)),
+    //         &mut highest_nack_count_received,
+    //         &mut time_nack_received,
+    //     );
+
+    //     assert_eq!(highest_nack_count_received, 1);
+    //     assert!(reader_proxy.unacked_changes(1).is_empty()); // If 1 is the last change sequence number there are no unacked changes
+    //     assert!(reader_proxy.unacked_changes(2).contains(&2)); // If 2 is the last change sequence number, then 2 is an unacked change
+    // }
+
+    // #[test]
+    // fn try_process_acknack_message_acknowledge_and_request() {
+    //     let remote_reader_guid_prefix = [5; 12];
+    //     let remote_reader_guid_entity_id = ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER;
+    //     let remote_reader_guid = GUID::new(remote_reader_guid_prefix, remote_reader_guid_entity_id);
+    //     let unicast_locator_list = vec![Locator::new_udpv4(7400, [127, 0, 0, 1])];
+    //     let multicast_locator_list = vec![];
+    //     let expects_inline_qos = false;
+    //     let is_active = true;
+    //     let mut reader_proxy = ReaderProxy::new(
+    //         remote_reader_guid,
+    //         unicast_locator_list,
+    //         multicast_locator_list,
+    //         expects_inline_qos,
+    //         is_active,
+    //     );
+
+    //     let writer_entity_id = ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER;
+
+    //     let acknack = AckNack::new(
+    //         Endianness::LittleEndian,
+    //         remote_reader_guid.entity_id(),
+    //         writer_entity_id,
+    //         4,
+    //         vec![1, 3].iter().cloned().collect(),
+    //         1,
+    //         true,
+    //     );
+
+    //     let mut highest_nack_count_received = 0;
+    //     let mut time_nack_received = Instant::now();
+
+    //     ReliableReaderProxyBehavior::try_process_message(
+    //         &mut reader_proxy,
+    //         remote_reader_guid_prefix,
+    //         &mut Some(RtpsSubmessage::AckNack(acknack)),
+    //         &mut highest_nack_count_received,
+    //         &mut time_nack_received,
+    //     );
+
+    //     let requested_changes = reader_proxy.requested_changes();
+    //     assert!(requested_changes.contains(&1));
+    //     assert!(requested_changes.contains(&3));
+    // }
+
+    // #[test]
+    // fn ignore_try_process_acknack_message_with_same_count_number() {
+    //     let remote_reader_guid_prefix = [5; 12];
+    //     let remote_reader_guid_entity_id = ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER;
+    //     let remote_reader_guid = GUID::new(remote_reader_guid_prefix, remote_reader_guid_entity_id);
+    //     let unicast_locator_list = vec![Locator::new_udpv4(7400, [127, 0, 0, 1])];
+    //     let multicast_locator_list = vec![];
+    //     let expects_inline_qos = false;
+    //     let is_active = true;
+    //     let mut reader_proxy = ReaderProxy::new(
+    //         remote_reader_guid,
+    //         unicast_locator_list,
+    //         multicast_locator_list,
+    //         expects_inline_qos,
+    //         is_active,
+    //     );
+
+    //     let writer_entity_id = ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER;
+
+    //     let acknack = AckNack::new(
+    //         Endianness::LittleEndian,
+    //         remote_reader_guid.entity_id(),
+    //         writer_entity_id,
+    //         4,
+    //         vec![1, 3].iter().cloned().collect(),
+    //         1,
+    //         true,
+    //     );
+
+    //     let mut highest_nack_count_received = 0;
+    //     let mut time_nack_received = Instant::now();
+
+    //     ReliableReaderProxyBehavior::try_process_message(
+    //         &mut reader_proxy,
+    //         remote_reader_guid_prefix,
+    //         &mut Some(RtpsSubmessage::AckNack(acknack)),
+    //         &mut highest_nack_count_received,
+    //         &mut time_nack_received,
+    //     );
+
+    //     let acknack_same_count = AckNack::new(
+    //         Endianness::LittleEndian,
+    //         remote_reader_guid.entity_id(),
+    //         writer_entity_id,
+    //         6,
+    //         vec![1, 2, 3].iter().cloned().collect(),
+    //         1,
+    //         true,
+    //     );
+
+    //     let mut highest_nack_count_received = 0;
+    //     let mut time_nack_received = Instant::now();
+
+    //     ReliableReaderProxyBehavior::try_process_message(
+    //         &mut reader_proxy,
+    //         remote_reader_guid_prefix,
+    //         &mut Some(RtpsSubmessage::AckNack(acknack_same_count)),
+    //         &mut highest_nack_count_received,
+    //         &mut time_nack_received,
+    //     );
+
+    //     assert_eq!(highest_nack_count_received, 1);
+    //     let requested_changes = reader_proxy.requested_changes();
+    //     assert!(requested_changes.contains(&1));
+    //     assert!(requested_changes.contains(&3));
+    // }
+
+    // #[test]
+    // fn produce_heartbeat_message() {
+    //     let remote_reader_guid = GUID::new([5; 12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER);
+    //     let unicast_locator_list = vec![Locator::new_udpv4(7400, [127, 0, 0, 1])];
+    //     let multicast_locator_list = vec![];
+    //     let expects_inline_qos = false;
+    //     let is_active = true;
+    //     let mut reader_proxy = ReaderProxy::new(
+    //         remote_reader_guid,
+    //         unicast_locator_list,
+    //         multicast_locator_list,
+    //         expects_inline_qos,
+    //         is_active,
+    //     );
+
+    //     let writer_entity_id = ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER;
+    //     let mut history_cache = HistoryCache::default();
+
+    //     // Add one change to the history cache
+    //     let writer_guid = GUID::new([5; 12], writer_entity_id);
+    //     let instance_handle = [1; 16];
+    //     let cache_change1 = CacheChange::new(
+    //         ChangeKind::Alive,
+    //         writer_guid.into(),
+    //         instance_handle,
+    //         1,
+    //         Some(vec![1, 2, 3]),
+    //         None,
+    //     );
+    //     history_cache.add_change(cache_change1.clone());
+
+    //     let writer_guid = GUID::new([5; 12], writer_entity_id);
+    //     let instance_handle = [1; 16];
+    //     let cache_change2 = CacheChange::new(
+    //         ChangeKind::Alive,
+    //         writer_guid.into(),
+    //         instance_handle,
+    //         2,
+    //         Some(vec![4, 5, 6]),
+    //         None,
+    //     );
+    //     history_cache.add_change(cache_change2.clone());
+
+    //     let last_change_sequence_number = 2;
+    //     let heartbeat_period = Duration::from_secs(0);
+    //     let nack_response_delay = Duration::from_secs(1);
+
+    //     // The first produce should generate the data/gap messages and no heartbeat so we ignore it
+    //     ReliableReaderProxyBehavior::produce_messages(
+    //         &mut reader_proxy,
+    //         &history_cache,
+    //         writer_entity_id,
+    //         last_change_sequence_number,
+    //         heartbeat_period,
+    //         nack_response_delay,
+    //     );
+
+    //     let messages_vec1 = ReliableReaderProxyBehavior::produce_messages(
+    //         &mut reader_proxy,
+    //         &history_cache,
+    //         writer_entity_id,
+    //         last_change_sequence_number,
+    //         heartbeat_period,
+    //         nack_response_delay,
+    //     );
+
+    //     let messages_vec2 = ReliableReaderProxyBehavior::produce_messages(
+    //         &mut reader_proxy,
+    //         &history_cache,
+    //         writer_entity_id,
+    //         last_change_sequence_number,
+    //         heartbeat_period,
+    //         nack_response_delay,
+    //     );
+
+    //     let expected_heartbeat_message1 = RtpsSubmessage::Heartbeat(Heartbeat::new(
+    //         Endianness::LittleEndian,
+    //         ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER,
+    //         ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER,
+    //         1,
+    //         2,
+    //         1,
+    //         false,
+    //         false,
+    //     ));
+
+    //     let expected_heartbeat_message2 = RtpsSubmessage::Heartbeat(Heartbeat::new(
+    //         Endianness::LittleEndian,
+    //         ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER,
+    //         ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER,
+    //         1,
+    //         2,
+    //         2,
+    //         false,
+    //         false,
+    //     ));
+
+    //     assert_eq!(messages_vec1.len(), 1);
+    //     assert!(messages_vec1.contains(&expected_heartbeat_message1));
+    //     assert_eq!(messages_vec2.len(), 1);
+    //     assert!(messages_vec2.contains(&expected_heartbeat_message2));
+    // }
+
+    // #[test]
+    // fn produce_heartbeat_message_period() {
+    //     let remote_reader_guid = GUID::new([5; 12], ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER);
+    //     let unicast_locator_list = vec![Locator::new_udpv4(7400, [127, 0, 0, 1])];
+    //     let multicast_locator_list = vec![];
+    //     let expects_inline_qos = false;
+    //     let is_active = true;
+    //     let mut reader_proxy = ReaderProxy::new(
+    //         remote_reader_guid,
+    //         unicast_locator_list,
+    //         multicast_locator_list,
+    //         expects_inline_qos,
+    //         is_active,
+    //     );
+
+    //     let writer_entity_id = ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER;
+    //     let mut history_cache = HistoryCache::default();
+
+    //     // Add one change to the history cache
+    //     let writer_guid = GUID::new([5; 12], writer_entity_id);
+    //     let instance_handle = [1; 16];
+    //     let cache_change1 = CacheChange::new(
+    //         ChangeKind::Alive,
+    //         writer_guid.into(),
+    //         instance_handle,
+    //         1,
+    //         Some(vec![1, 2, 3]),
+    //         None,
+    //     );
+    //     history_cache.add_change(cache_change1.clone());
+
+    //     let writer_guid = GUID::new([5; 12], writer_entity_id);
+    //     let instance_handle = [1; 16];
+    //     let cache_change2 = CacheChange::new(
+    //         ChangeKind::Alive,
+    //         writer_guid.into(),
+    //         instance_handle,
+    //         2,
+    //         Some(vec![4, 5, 6]),
+    //         None,
+    //     );
+    //     history_cache.add_change(cache_change2.clone());
+
+    //     let last_change_sequence_number = 2;
+    //     let heartbeat_period = Duration::from_millis(200);
+    //     let nack_response_delay = Duration::from_secs(1);
+
+    //     // The first produce should generate the data/gap messages and no heartbeat so we ignore it
+    //     ReliableReaderProxyBehavior::produce_messages(
+    //         &mut reader_proxy,
+    //         &history_cache,
+    //         writer_entity_id,
+    //         last_change_sequence_number,
+    //         heartbeat_period,
+    //         nack_response_delay,
+    //     );
+
+    //     let messages_vec1 = ReliableReaderProxyBehavior::produce_messages(
+    //         &mut reader_proxy,
+    //         &history_cache,
+    //         writer_entity_id,
+    //         last_change_sequence_number,
+    //         heartbeat_period,
+    //         nack_response_delay,
+    //     );
+
+    //     std::thread::sleep(heartbeat_period.into());
+
+    //     let messages_vec2 = ReliableReaderProxyBehavior::produce_messages(
+    //         &mut reader_proxy,
+    //         &history_cache,
+    //         writer_entity_id,
+    //         last_change_sequence_number,
+    //         heartbeat_period,
+    //         nack_response_delay,
+    //     );
+
+    //     let expected_heartbeat_message = RtpsSubmessage::Heartbeat(Heartbeat::new(
+    //         Endianness::LittleEndian,
+    //         ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER,
+    //         ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER,
+    //         1,
+    //         2,
+    //         1,
+    //         false,
+    //         false,
+    //     ));
+
+    //     assert!(messages_vec1.is_empty());
+    //     assert_eq!(messages_vec2.len(), 1);
+    //     assert!(messages_vec2.contains(&expected_heartbeat_message));
+    // }
+
+    // #[test]
+    // fn produce_requested_changes_messages() {
+    //     let remote_reader_guid_prefix = [5; 12];
+    //     let remote_reader_guid_entity_id = ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER;
+    //     let remote_reader_guid = GUID::new(remote_reader_guid_prefix, remote_reader_guid_entity_id);
+    //     let unicast_locator_list = vec![Locator::new_udpv4(7400, [127, 0, 0, 1])];
+    //     let multicast_locator_list = vec![];
+    //     let expects_inline_qos = false;
+    //     let is_active = true;
+    //     let mut reader_proxy = ReaderProxy::new(
+    //         remote_reader_guid,
+    //         unicast_locator_list,
+    //         multicast_locator_list,
+    //         expects_inline_qos,
+    //         is_active,
+    //     );
+
+    //     let writer_entity_id = ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER;
+    //     let mut history_cache = HistoryCache::default();
+
+    //     // Add one change to the history cache
+    //     let writer_guid = GUID::new([5; 12], writer_entity_id);
+    //     let instance_handle = [1; 16];
+    //     let cache_change1 = CacheChange::new(
+    //         ChangeKind::Alive,
+    //         writer_guid.into(),
+    //         instance_handle,
+    //         1,
+    //         Some(vec![1, 2, 3]),
+    //         None,
+    //     );
+    //     history_cache.add_change(cache_change1.clone());
+
+    //     let writer_guid = GUID::new([5; 12], writer_entity_id);
+    //     let instance_handle = [1; 16];
+    //     let cache_change2 = CacheChange::new(
+    //         ChangeKind::Alive,
+    //         writer_guid.into(),
+    //         instance_handle,
+    //         2,
+    //         Some(vec![4, 5, 6]),
+    //         None,
+    //     );
+    //     history_cache.add_change(cache_change2.clone());
+
+    //     let last_change_sequence_number = 2;
+    //     let heartbeat_period = Duration::from_secs(1);
+    //     let nack_response_delay = Duration::from_secs(0);
+
+    //     let acknack = AckNack::new(
+    //         Endianness::LittleEndian,
+    //         remote_reader_guid.entity_id(),
+    //         writer_entity_id,
+    //         3,
+    //         vec![1].iter().cloned().collect(),
+    //         1,
+    //         true,
+    //     );
+
+    //     ReliableReaderProxyBehavior::produce_messages(
+    //         &mut reader_proxy,
+    //         &history_cache,
+    //         writer_entity_id,
+    //         last_change_sequence_number,
+    //         heartbeat_period,
+    //         nack_response_delay,
+    //     );
+
+    //     let mut highest_nack_count_received = 0;
+    //     let mut time_nack_received = Instant::now();
+
+    //     ReliableReaderProxyBehavior::try_process_message(
+    //         &mut reader_proxy,
+    //         remote_reader_guid_prefix,
+    //         &mut Some(RtpsSubmessage::AckNack(acknack)),
+    //         &mut highest_nack_count_received,
+    //         &mut time_nack_received,
+    //     );
+
+    //     let messages_vec = ReliableReaderProxyBehavior::produce_messages(
+    //         &mut reader_proxy,
+    //         &history_cache,
+    //         writer_entity_id,
+    //         last_change_sequence_number,
+    //         heartbeat_period,
+    //         nack_response_delay,
+    //     );
+
+    //     let expected_data_submessage = RtpsSubmessage::Data(data_from_cache_change(
+    //         &cache_change1,
+    //         ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER,
+    //     ));
+    //     assert_eq!(messages_vec.len(), 1);
+    //     assert!(messages_vec.contains(&expected_data_submessage));
+    // }
+
+    // #[test]
+    // fn produce_requested_changes_with_nack_response_delay() {
+    //     let remote_reader_guid_prefix = [5; 12];
+    //     let remote_reader_guid_entity_id = ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER;
+    //     let remote_reader_guid = GUID::new(remote_reader_guid_prefix, remote_reader_guid_entity_id);
+    //     let unicast_locator_list = vec![Locator::new_udpv4(7400, [127, 0, 0, 1])];
+    //     let multicast_locator_list = vec![];
+    //     let expects_inline_qos = false;
+    //     let is_active = true;
+    //     let mut reader_proxy = ReaderProxy::new(
+    //         remote_reader_guid,
+    //         unicast_locator_list,
+    //         multicast_locator_list,
+    //         expects_inline_qos,
+    //         is_active,
+    //     );
+
+    //     let writer_entity_id = ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER;
+    //     let mut history_cache = HistoryCache::default();
+
+    //     // Add one change to the history cache
+    //     let writer_guid = GUID::new([5; 12], writer_entity_id);
+    //     let instance_handle = [1; 16];
+    //     let cache_change1 = CacheChange::new(
+    //         ChangeKind::Alive,
+    //         writer_guid.into(),
+    //         instance_handle,
+    //         1,
+    //         Some(vec![1, 2, 3]),
+    //         None,
+    //     );
+    //     history_cache.add_change(cache_change1.clone());
+
+    //     let writer_guid = GUID::new([5; 12], writer_entity_id);
+    //     let instance_handle = [1; 16];
+    //     let cache_change2 = CacheChange::new(
+    //         ChangeKind::Alive,
+    //         writer_guid.into(),
+    //         instance_handle,
+    //         2,
+    //         Some(vec![4, 5, 6]),
+    //         None,
+    //     );
+    //     history_cache.add_change(cache_change2.clone());
+
+    //     let last_change_sequence_number = 2;
+    //     let heartbeat_period = Duration::from_secs(1);
+    //     let nack_response_delay = Duration::from_millis(200);
+
+    //     let acknack = AckNack::new(
+    //         Endianness::LittleEndian,
+    //         remote_reader_guid.entity_id(),
+    //         writer_entity_id,
+    //         3,
+    //         vec![1].iter().cloned().collect(),
+    //         1,
+    //         true,
+    //     );
+
+    //     ReliableReaderProxyBehavior::produce_messages(
+    //         &mut reader_proxy,
+    //         &history_cache,
+    //         writer_entity_id,
+    //         last_change_sequence_number,
+    //         heartbeat_period,
+    //         nack_response_delay,
+    //     );
+
+    //     let mut highest_nack_count_received = 0;
+    //     let mut time_nack_received = Instant::now();
+
+    //     ReliableReaderProxyBehavior::try_process_message(
+    //         &mut reader_proxy,
+    //         remote_reader_guid_prefix,
+    //         &mut Some(RtpsSubmessage::AckNack(acknack)),
+    //         &mut highest_nack_count_received,
+    //         &mut time_nack_received,
+    //     );
+
+    //     let messages_vec_expected_empty = ReliableReaderProxyBehavior::produce_messages(
+    //         &mut reader_proxy,
+    //         &history_cache,
+    //         writer_entity_id,
+    //         last_change_sequence_number,
+    //         heartbeat_period,
+    //         nack_response_delay,
+    //     );
+
+    //     std::thread::sleep(nack_response_delay.into());
+
+    //     let messages_vec = ReliableReaderProxyBehavior::produce_messages(
+    //         &mut reader_proxy,
+    //         &history_cache,
+    //         writer_entity_id,
+    //         last_change_sequence_number,
+    //         heartbeat_period,
+    //         nack_response_delay,
+    //     );
+
+    //     let expected_data_submessage = RtpsSubmessage::Data(data_from_cache_change(
+    //         &cache_change1,
+    //         ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_READER,
+    //     ));
+
+    //     assert!(messages_vec_expected_empty.is_empty());
+    //     assert_eq!(messages_vec.len(), 1);
+    //     assert!(messages_vec.contains(&expected_data_submessage));
+    // }
 }
