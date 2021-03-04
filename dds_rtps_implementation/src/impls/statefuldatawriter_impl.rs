@@ -1,12 +1,16 @@
-use std::{ops::{Deref, DerefMut}, sync::{Arc, Mutex}};
+use std::{
+    ops::{Deref, DerefMut},
+    sync::{Arc, Mutex},
+};
 
 use rust_dds_api::{
     dcps_psm::StatusMask, dds_type::DDSType, infrastructure::qos::DataWriterQos,
     publication::data_writer_listener::DataWriterListener,
 };
 use rust_rtps::{
-    behavior::{StatefulWriter, Writer},
+    behavior::{ReaderProxy, StatefulWriter, Writer},
     structure::{Endpoint, Entity, HistoryCache},
+    types::SequenceNumber,
 };
 
 use super::{
@@ -179,11 +183,13 @@ impl DerefMut for StatefulDataWriterImpl {
 }
 
 impl StatefulWriter<WriterImpl> for StatefulDataWriterImpl {
-    fn matched_readers(&self) -> &[rust_rtps::behavior::ReaderProxy] {
+    type ReaderProxyType = ReaderProxyImpl;
+
+    fn matched_readers(&self) -> &[Self::ReaderProxyType] {
         todo!()
     }
 
-    fn matched_reader_add(&mut self, _a_reader_proxy: rust_rtps::behavior::ReaderProxy) {
+    fn matched_reader_add(&mut self, _a_reader_proxy: Self::ReaderProxyType) {
         todo!()
     }
 
@@ -194,11 +200,83 @@ impl StatefulWriter<WriterImpl> for StatefulDataWriterImpl {
     fn matched_reader_lookup(
         &self,
         _a_reader_guid: rust_rtps::types::GUID,
-    ) -> Option<&rust_rtps::behavior::ReaderProxy> {
+    ) -> Option<&Self::ReaderProxyType> {
         todo!()
     }
 
     fn is_acked_by_all(&self) -> bool {
+        todo!()
+    }
+}
+
+pub struct ReaderProxyImpl {}
+
+impl ReaderProxy for ReaderProxyImpl {
+    type CacheChangeRepresentation = SequenceNumber;
+
+    fn remote_reader_guid(&self) -> rust_rtps::types::GUID {
+        todo!()
+    }
+
+    fn remote_group_entity_id(&self) -> rust_rtps::types::EntityId {
+        todo!()
+    }
+
+    fn unicast_locator_list(&self) -> &[rust_rtps::types::Locator] {
+        todo!()
+    }
+
+    fn multicast_locator_list(&self) -> &[rust_rtps::types::Locator] {
+        todo!()
+    }
+
+    fn changes_for_reader(&self) -> &[Self::CacheChangeRepresentation] {
+        todo!()
+    }
+
+    fn expects_inline_qos(&self) -> bool {
+        todo!()
+    }
+
+    fn is_active(&self) -> bool {
+        todo!()
+    }
+
+    fn new(
+        _remote_reader_guid: rust_rtps::types::GUID,
+        _unicast_locator_list: &[rust_rtps::types::Locator],
+        _multicast_locator_list: &[rust_rtps::types::Locator],
+        _expects_inline_qos: bool,
+        _is_active: bool,
+    ) -> Self {
+        todo!()
+    }
+
+    fn acked_changes_set(&mut self, _committed_seq_num: rust_rtps::types::SequenceNumber) {
+        todo!()
+    }
+
+    fn next_requested_change(&mut self) -> Option<&Self::CacheChangeRepresentation> {
+        todo!()
+    }
+
+    fn next_unsent_change(&mut self) -> Option<&Self::CacheChangeRepresentation> {
+        todo!()
+    }
+
+    fn unsent_changes(&self) -> &[Self::CacheChangeRepresentation] {
+        todo!()
+    }
+
+    fn requested_changes(&self) -> &[Self::CacheChangeRepresentation] {
+        todo!()
+    }
+
+    fn requested_changes_set(&mut self, _req_seq_num_set: &[Self::CacheChangeRepresentation]) {
+        todo!()
+    }
+
+    fn unacked_changes(&self) -> &[Self::CacheChangeRepresentation] {
         todo!()
     }
 }

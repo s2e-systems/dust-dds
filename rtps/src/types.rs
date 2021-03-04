@@ -1,7 +1,7 @@
 ///
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
 /// Table 8.2 - Types of the attributes that appear in the RTPS Entities and Classes
-///  
+///
 
 pub mod constants {
     use super::{EntityId, GUID, GuidPrefix, Locator, ProtocolVersion, SequenceNumber, VendorId};

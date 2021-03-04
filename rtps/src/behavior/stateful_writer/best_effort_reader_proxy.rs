@@ -12,15 +12,15 @@ use super::ReaderProxy;
 pub struct BestEffortReaderProxyBehavior;
 
 impl BestEffortReaderProxyBehavior {
-    pub fn produce_messages<H: HistoryCache>(
-        reader_proxy: &mut ReaderProxy,
-        history_cache: &H,
+    pub fn produce_messages(
+        reader_proxy: &mut impl ReaderProxy,
+        history_cache: &impl HistoryCache,
         writer_entity_id: EntityId,
         last_change_sequence_number: SequenceNumber,
     ) -> Vec<RtpsSubmessage> {
         let mut messages = Vec::new();
         if !reader_proxy
-            .unsent_changes(last_change_sequence_number)
+            .unsent_changes()
             .is_empty()
         {
             Self::pushing_state(
@@ -34,15 +34,15 @@ impl BestEffortReaderProxyBehavior {
         messages
     }
 
-    fn pushing_state<H: HistoryCache>(
-        reader_proxy: &mut ReaderProxy,
-        history_cache: &H,
+    fn pushing_state(
+        reader_proxy: &mut impl ReaderProxy,
+        history_cache: &impl HistoryCache,
         last_change_sequence_number: SequenceNumber,
         writer_entity_id: EntityId,
         message_queue: &mut Vec<RtpsSubmessage>,
     ) {
         while let Some(next_unsent_seq_num) =
-            reader_proxy.next_unsent_change(last_change_sequence_number)
+            reader_proxy.next_unsent_change()
         {
             Self::transition_t4(
                 reader_proxy,
@@ -54,31 +54,25 @@ impl BestEffortReaderProxyBehavior {
         }
     }
 
-    fn transition_t4<H: HistoryCache>(
-        reader_proxy: &mut ReaderProxy,
-        history_cache: &H,
+    fn transition_t4(
+        reader_proxy: &mut impl ReaderProxy,
+        history_cache: &impl HistoryCache,
         next_unsent_seq_num: SequenceNumber,
         writer_entity_id: EntityId,
         message_queue: &mut Vec<RtpsSubmessage>,
     ) {
         if let Some(cache_change) = history_cache.get_change(next_unsent_seq_num) {
-            let reader_id = reader_proxy.remote_reader_guid.entity_id();
+            let reader_id = reader_proxy.remote_reader_guid().entity_id();
             let data = data_from_cache_change(cache_change, reader_id);
-            let mut dst_locator = reader_proxy.unicast_locator_list.clone();
-            dst_locator.extend(&reader_proxy.unicast_locator_list);
-            dst_locator.extend(&reader_proxy.multicast_locator_list);
             message_queue.push(RtpsSubmessage::Data(data));
         } else {
             let gap = Gap::new(
                 BEHAVIOR_ENDIANNESS,
-                reader_proxy.remote_reader_guid.entity_id(),
+                reader_proxy.remote_reader_guid().entity_id(),
                 writer_entity_id,
                 next_unsent_seq_num,
                 BTreeSet::new(),
             );
-            let mut dst_locator = reader_proxy.unicast_locator_list.clone();
-            dst_locator.extend(&reader_proxy.unicast_locator_list);
-            dst_locator.extend(&reader_proxy.multicast_locator_list);
             message_queue.push(RtpsSubmessage::Gap(gap));
         }
     }

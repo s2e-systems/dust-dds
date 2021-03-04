@@ -12,37 +12,34 @@ use super::reader_locator::ReaderLocator;
 pub struct BestEffortReaderLocatorBehavior;
 
 impl BestEffortReaderLocatorBehavior {
-    pub fn produce_messages<H: HistoryCache>(
-        reader_locator: &mut ReaderLocator,
-        history_cache: &H,
+    pub fn produce_messages(
+        reader_locator: &mut impl ReaderLocator<CacheChangeRepresentation = SequenceNumber>,
+        history_cache: &impl HistoryCache,
         writer_entity_id: EntityId,
-        last_change_sequence_number: SequenceNumber,
     ) -> Vec<RtpsSubmessage> {
         let mut message_queue = Vec::new();
         if !reader_locator
-            .unsent_changes(last_change_sequence_number)
+            .unsent_changes()
             .is_empty()
         {
             Self::pushing_state(
                 reader_locator,
                 history_cache,
                 writer_entity_id,
-                last_change_sequence_number,
                 &mut message_queue,
             );
         }
         message_queue
     }
 
-    fn pushing_state<H: HistoryCache>(
-        reader_locator: &mut ReaderLocator,
-        history_cache: &H,
+    fn pushing_state(
+        reader_locator: &mut impl ReaderLocator<CacheChangeRepresentation = SequenceNumber>,
+        history_cache: &impl HistoryCache,
         writer_entity_id: EntityId,
-        last_change_sequence_number: SequenceNumber,
         message_queue: &mut Vec<RtpsSubmessage>,
     ) {
         while let Some(next_unsent_seq_num) =
-            reader_locator.next_unsent_change(last_change_sequence_number)
+            reader_locator.next_unsent_change().cloned()
         {
             Self::transition_t4(
                 reader_locator,
@@ -54,9 +51,9 @@ impl BestEffortReaderLocatorBehavior {
         }
     }
 
-    fn transition_t4<H: HistoryCache>(
-        _reader_locator: &mut ReaderLocator,
-        history_cache: &H,
+    fn transition_t4(
+        _reader_locator: &mut impl ReaderLocator<CacheChangeRepresentation = SequenceNumber>,
+        history_cache: &impl HistoryCache,
         writer_entity_id: EntityId,
         next_unsent_seq_num: SequenceNumber,
         message_queue: &mut Vec<RtpsSubmessage>,
@@ -79,11 +76,11 @@ impl BestEffortReaderLocatorBehavior {
 }
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::types::{constants::ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER, ChangeKind};
-    use crate::types::{Locator, GUID};
+    // use super::*;
+    // use crate::types::{constants::ENTITYID_BUILTIN_PARTICIPANT_MESSAGE_WRITER, ChangeKind};
+    // use crate::types::{Locator, GUID};
 
-    use crate::{structure::CacheChange, messages::submessages::submessage_elements::ParameterList};
+    // use crate::{structure::CacheChange, messages::submessages::submessage_elements::ParameterList};
 
     // #[derive(Clone)]
     // struct MockCacheChange;
