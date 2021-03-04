@@ -1,7 +1,7 @@
 use crate::{
-    behavior::{cache_change_from_data, BEHAVIOR_ENDIANNESS},
+    behavior::cache_change_from_data,
     messages::{
-        submessages::{AckNack, Data, Gap, Heartbeat},
+        submessages::{submessage_elements::SequenceNumberSet, AckNack, Data, Gap, Heartbeat},
         types::Count,
         RtpsSubmessage,
     },
@@ -68,9 +68,9 @@ impl ReliableWriterProxyBehavior {
         submessage: &RtpsSubmessage,
     ) -> bool {
         let writer_id = match submessage {
-            RtpsSubmessage::Data(data) => data.writer_id(),
-            RtpsSubmessage::Gap(gap) => gap.writer_id(),
-            RtpsSubmessage::Heartbeat(heartbeat) => heartbeat.writer_id(),
+            RtpsSubmessage::Data(data) => data.writer_id,
+            RtpsSubmessage::Gap(gap) => gap.writer_id,
+            RtpsSubmessage::Heartbeat(heartbeat) => heartbeat.writer_id,
             _ => return false,
         };
 
@@ -88,8 +88,8 @@ impl ReliableWriterProxyBehavior {
         data: Data,
     ) {
         let expected_seq_number = writer_proxy.available_changes_max() + 1;
-        if data.writer_sn() >= expected_seq_number {
-            writer_proxy.received_change_set(data.writer_sn());
+        if data.writer_sn >= expected_seq_number {
+            writer_proxy.received_change_set(data.writer_sn);
             let cache_change =
                 cache_change_from_data(data, &writer_proxy.remote_writer_guid().prefix());
             history_cache.add_change(cache_change);
@@ -97,24 +97,25 @@ impl ReliableWriterProxyBehavior {
     }
 
     fn transition_t9(writer_proxy: &mut impl WriterProxy, gap: Gap) {
-        for seq_num in gap.gap_start()..gap.gap_list().base() - 1 {
+        for seq_num in gap.gap_start..gap.gap_list.bitmap_base - 1 {
             writer_proxy.irrelevant_change_set(seq_num);
         }
 
-        for &seq_num in gap.gap_list().set() {
-            writer_proxy.irrelevant_change_set(seq_num);
-        }
+        todo!()
+        // for &seq_num in gap.gap_list.set() {
+        //     writer_proxy.irrelevant_change_set(seq_num);
+        // }
     }
 
     fn transition_t7(writer_proxy: &mut impl WriterProxy, heartbeat: Heartbeat) {
-        writer_proxy.missing_changes_update(heartbeat.last_sn());
-        writer_proxy.lost_changes_update(heartbeat.first_sn());
+        writer_proxy.missing_changes_update(heartbeat.last_sn);
+        writer_proxy.lost_changes_update(heartbeat.first_sn);
     }
 
     fn waiting_heartbeat_state(writer_proxy: &mut impl WriterProxy, submessage: &RtpsSubmessage) {
         if let RtpsSubmessage::Heartbeat(heartbeat) = submessage {
-            if !heartbeat.is_final()
-                || (heartbeat.is_final() && !writer_proxy.missing_changes().is_empty())
+            if !heartbeat.final_flag
+                || (heartbeat.final_flag && !writer_proxy.missing_changes().is_empty())
             {
                 todo!()
                 // writer_proxy.behavior.time_heartbeat_received = Instant::now();
@@ -149,15 +150,17 @@ impl ReliableWriterProxyBehavior {
         // writer_proxy.behavior.must_send_ack = false;
 
         // writer_proxy.behavior.ackanck_count += 1;
-        let acknack = AckNack::new(
-            BEHAVIOR_ENDIANNESS,
-            reader_entity_id,
-            writer_proxy.remote_writer_guid().entity_id(),
-            writer_proxy.available_changes_max(),
-            writer_proxy.missing_changes(),
-            acknack_count,
-            true,
-        );
+        let acknack = AckNack {
+            endianness_flag: false,
+            reader_id: reader_entity_id,
+            writer_id: writer_proxy.remote_writer_guid().entity_id(),
+            reader_sn_state: SequenceNumberSet {
+                bitmap_base: writer_proxy.available_changes_max(),
+                bitmap: [0; 8],
+            },
+            count: acknack_count,
+            final_flag: true,
+        };
 
         output_queue.push(RtpsSubmessage::AckNack(acknack));
     }

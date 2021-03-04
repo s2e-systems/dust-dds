@@ -1,6 +1,9 @@
 use crate::{
-    behavior::{data_from_cache_change, BEHAVIOR_ENDIANNESS},
-    messages::{submessages::Gap, RtpsSubmessage},
+    behavior::data_from_cache_change,
+    messages::{
+        submessages::{submessage_elements::SequenceNumberSet, Gap},
+        RtpsSubmessage,
+    },
     structure::HistoryCache,
     types::{constants::ENTITYID_UNKNOWN, EntityId, SequenceNumber},
 };
@@ -16,10 +19,7 @@ impl BestEffortReaderLocatorBehavior {
         writer_entity_id: EntityId,
     ) -> Vec<RtpsSubmessage> {
         let mut message_queue = Vec::new();
-        if !reader_locator
-            .unsent_changes()
-            .is_empty()
-        {
+        if !reader_locator.unsent_changes().is_empty() {
             Self::pushing_state(
                 reader_locator,
                 history_cache,
@@ -36,9 +36,7 @@ impl BestEffortReaderLocatorBehavior {
         writer_entity_id: EntityId,
         message_queue: &mut Vec<RtpsSubmessage>,
     ) {
-        while let Some(next_unsent_seq_num) =
-            reader_locator.next_unsent_change().cloned()
-        {
+        while let Some(next_unsent_seq_num) = reader_locator.next_unsent_change().cloned() {
             Self::transition_t4(
                 reader_locator,
                 history_cache,
@@ -60,13 +58,16 @@ impl BestEffortReaderLocatorBehavior {
             let data = data_from_cache_change(cache_change, ENTITYID_UNKNOWN);
             message_queue.push(RtpsSubmessage::Data(data));
         } else {
-            let gap = Gap::new(
-                BEHAVIOR_ENDIANNESS,
-                ENTITYID_UNKNOWN,
-                writer_entity_id,
-                next_unsent_seq_num,
-                &[],
-            );
+            let gap = Gap {
+                endianness_flag: false,
+                reader_id: ENTITYID_UNKNOWN,
+                writer_id: writer_entity_id,
+                gap_start: next_unsent_seq_num,
+                gap_list: SequenceNumberSet {
+                    bitmap_base: next_unsent_seq_num,
+                    bitmap: [0; 8],
+                },
+            };
 
             message_queue.push(RtpsSubmessage::Gap(gap));
         }

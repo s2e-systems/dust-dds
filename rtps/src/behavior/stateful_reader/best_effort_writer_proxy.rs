@@ -47,9 +47,9 @@ impl BestEffortWriterProxyBehavior {
         data: Data,
     ) {
         let expected_seq_number = writer_proxy.available_changes_max() + 1;
-        if data.writer_sn() >= expected_seq_number {
-            writer_proxy.received_change_set(data.writer_sn());
-            writer_proxy.lost_changes_update(data.writer_sn());
+        if data.writer_sn >= expected_seq_number {
+            writer_proxy.received_change_set(data.writer_sn);
+            writer_proxy.lost_changes_update(data.writer_sn);
             let cache_change =
                 cache_change_from_data(data, &writer_proxy.remote_writer_guid().prefix());
             history_cache.add_change(cache_change);
@@ -57,13 +57,15 @@ impl BestEffortWriterProxyBehavior {
     }
 
     fn transition_t4(writer_proxy: &mut impl WriterProxy, gap: Gap) {
-        for seq_num in gap.gap_start()..gap.gap_list().base() - 1 {
+        for seq_num in gap.gap_start..gap.gap_list.bitmap_base - 1 {
             writer_proxy.irrelevant_change_set(seq_num);
         }
 
-        for &seq_num in gap.gap_list().set() {
-            writer_proxy.irrelevant_change_set(seq_num);
-        }
+        todo!()
+
+        // for &seq_num in gap.gap_list.set() {
+        //     writer_proxy.irrelevant_change_set(seq_num);
+        // }
     }
 
     fn is_submessage_destination(
@@ -72,8 +74,8 @@ impl BestEffortWriterProxyBehavior {
         submessage: &RtpsSubmessage,
     ) -> bool {
         let writer_id = match submessage {
-            RtpsSubmessage::Data(data) => data.writer_id(),
-            RtpsSubmessage::Gap(gap) => gap.writer_id(),
+            RtpsSubmessage::Data(data) => data.writer_id,
+            RtpsSubmessage::Gap(gap) => gap.writer_id,
             _ => return false,
         };
 

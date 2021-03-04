@@ -15,37 +15,32 @@ pub use writer::Writer;
 
 use std::convert::TryInto;
 
-use crate::messages::submessages::data_submessage::Payload;
 use crate::messages::submessages::Data;
-use crate::messages::types::Endianness;
 use crate::messages::types::{KeyHash, StatusInfo, PID_KEY_HASH, PID_STATUS_INFO};
 use crate::types::{ChangeKind, EntityId, GuidPrefix, GUID};
 
 use crate::structure::CacheChange;
 
-pub const BEHAVIOR_ENDIANNESS: Endianness = Endianness::LittleEndian;
-
-fn cache_change_from_data<C: CacheChange>(message: Data, guid_prefix: &GuidPrefix) -> C {
-    let writer_id = message.writer_id();
-    let writer_sn = message.writer_sn();
+fn cache_change_from_data<C: CacheChange>(mut message: Data, guid_prefix: &GuidPrefix) -> C {
     let change_kind = change_kind(&message);
     let key_hash = key_hash(&message).unwrap();
-    let (data, mut inline_qos) = message.take_payload_and_qos();
 
-    inline_qos
+    message
+        .inline_qos
         .parameter
         .retain(|x| x.parameter_id() != PID_KEY_HASH);
-    inline_qos
+    message
+        .inline_qos
         .parameter
         .retain(|x| x.parameter_id() != PID_STATUS_INFO);
 
     C::new(
         change_kind,
-        GUID::new(*guid_prefix, writer_id).into(),
+        GUID::new(*guid_prefix, message.writer_id).into(),
         key_hash.0,
-        writer_sn,
-        data,
-        inline_qos,
+        message.writer_sn,
+        message.serialized_payload,
+        message.inline_qos,
     )
 }
 
@@ -54,42 +49,55 @@ fn data_from_cache_change(cache_change: &impl CacheChange, reader_id: EntityId) 
     let writer_id = writer_guid.entity_id();
     let writer_sn = cache_change.sequence_number();
 
-    let mut inline_qos_parameters = cache_change.inline_qos().clone();
+    let mut inline_qos = cache_change.inline_qos().clone();
 
     let change_kind = cache_change.kind();
-    inline_qos_parameters
+    inline_qos
         .parameter
         .push(change_kind_to_status_info(change_kind).into());
 
-    let payload = match change_kind {
+    match change_kind {
         ChangeKind::Alive => {
-            inline_qos_parameters
+            inline_qos
                 .parameter
                 .push(KeyHash(cache_change.instance_handle()).into());
-            Payload::Data(cache_change.data_value().clone())
+            Data {
+                endianness_flag: false,
+                reader_id,
+                writer_id,
+                writer_sn,
+                serialized_payload: cache_change.data_value().clone(),
+                inline_qos,
+                inline_qos_flag: true,
+                data_flag: true,
+                key_flag: false,
+                non_standard_payload_flag: false,
+            }
         }
         ChangeKind::NotAliveDisposed
         | ChangeKind::NotAliveUnregistered
-        | ChangeKind::AliveFiltered => Payload::Key(cache_change.instance_handle().to_vec()),
-    };
-
-    Data::new(
-        BEHAVIOR_ENDIANNESS,
-        reader_id,
-        writer_id,
-        writer_sn,
-        Some(inline_qos_parameters),
-        payload,
-    )
+        | ChangeKind::AliveFiltered => Data {
+            endianness_flag: false,
+            reader_id,
+            writer_id,
+            writer_sn,
+            serialized_payload: cache_change.instance_handle().to_vec(),
+            inline_qos,
+            inline_qos_flag: true,
+            data_flag: false,
+            key_flag: true,
+            non_standard_payload_flag: false,
+        },
+    }
 }
 
 fn change_kind(data_submessage: &Data) -> ChangeKind {
-    if data_submessage.data_flag() && !data_submessage.key_flag() {
+    if data_submessage.data_flag && !data_submessage.key_flag {
         ChangeKind::Alive
-    } else if !data_submessage.data_flag() && data_submessage.key_flag() {
+    } else if !data_submessage.data_flag && data_submessage.key_flag {
         // let endianness = Endianness::from(data_submessage.endianness_flag()).into();
         let status_info = data_submessage
-            .inline_qos()
+            .inline_qos
             .parameter
             .iter()
             .find(|&x| x.parameter_id() == PID_STATUS_INFO)
@@ -103,10 +111,10 @@ fn change_kind(data_submessage: &Data) -> ChangeKind {
 }
 
 fn key_hash(data_submessage: &Data) -> Option<KeyHash> {
-    if data_submessage.data_flag() && !data_submessage.key_flag() {
+    if data_submessage.data_flag && !data_submessage.key_flag {
         Some(
             data_submessage
-                .inline_qos()
+                .inline_qos
                 .parameter
                 .iter()
                 .find(|&x| x.parameter_id() == PID_KEY_HASH)
@@ -115,8 +123,8 @@ fn key_hash(data_submessage: &Data) -> Option<KeyHash> {
                 .try_into()
                 .unwrap(),
         )
-    } else if !data_submessage.data_flag() && data_submessage.key_flag() {
-        let payload = &data_submessage.serialized_payload();
+    } else if !data_submessage.data_flag && data_submessage.key_flag {
+        let payload = &data_submessage.serialized_payload;
         Some(KeyHash(payload[0..16].try_into().ok()?))
     } else {
         None

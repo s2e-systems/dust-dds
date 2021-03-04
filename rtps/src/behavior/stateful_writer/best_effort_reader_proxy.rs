@@ -1,6 +1,9 @@
 use crate::{
-    behavior::{data_from_cache_change, BEHAVIOR_ENDIANNESS},
-    messages::{submessages::Gap, RtpsSubmessage},
+    behavior::data_from_cache_change,
+    messages::{
+        submessages::{submessage_elements::SequenceNumberSet, Gap},
+        RtpsSubmessage,
+    },
     structure::HistoryCache,
     types::{EntityId, SequenceNumber},
 };
@@ -52,13 +55,16 @@ impl BestEffortReaderProxyBehavior {
             let data = data_from_cache_change(cache_change, reader_id);
             message_queue.push(RtpsSubmessage::Data(data));
         } else {
-            let gap = Gap::new(
-                BEHAVIOR_ENDIANNESS,
-                reader_proxy.remote_reader_guid().entity_id(),
-                writer_entity_id,
-                next_unsent_seq_num,
-                &[],
-            );
+            let gap = Gap {
+                endianness_flag: false,
+                reader_id: reader_proxy.remote_reader_guid().entity_id(),
+                writer_id: writer_entity_id,
+                gap_start: next_unsent_seq_num,
+                gap_list: SequenceNumberSet {
+                    bitmap_base: next_unsent_seq_num,
+                    bitmap: [0; 8],
+                },
+            };
             message_queue.push(RtpsSubmessage::Gap(gap));
         }
     }

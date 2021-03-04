@@ -4,12 +4,12 @@ use super::submessage_elements;
 
 #[derive(PartialEq, Debug)]
 pub struct HeartbeatFrag {
-    endianness_flag: SubmessageFlag,
-    reader_id: submessage_elements::EntityId,
-    writer_id: submessage_elements::EntityId,
-    writer_sn: submessage_elements::SequenceNumber,
-    last_fragment_num: submessage_elements::FragmentNumber,
-    count: submessage_elements::Count,
+    pub endianness_flag: SubmessageFlag,
+    pub reader_id: submessage_elements::EntityId,
+    pub writer_id: submessage_elements::EntityId,
+    pub writer_sn: submessage_elements::SequenceNumber,
+    pub last_fragment_num: submessage_elements::FragmentNumber,
+    pub count: submessage_elements::Count,
 }
 
 impl Submessage for HeartbeatFrag {

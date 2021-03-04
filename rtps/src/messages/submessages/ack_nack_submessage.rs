@@ -1,80 +1,15 @@
 use super::{SubmessageKind, SubmessageFlag, };
 use super::{Submessage, SubmessageHeader, };
 use super::submessage_elements;
-use crate::types;
-use crate::messages;
-use crate::messages::types::Endianness;
 
 #[derive(PartialEq, Debug)]
 pub struct AckNack {
-    endianness_flag: SubmessageFlag,
-    final_flag: SubmessageFlag,
-    reader_id: submessage_elements::EntityId,
-    writer_id: submessage_elements::EntityId,
-    reader_sn_state: submessage_elements::SequenceNumberSet,
-    count: submessage_elements::Count,
-}
-
-impl AckNack {
-    pub fn new(
-        _endianness: Endianness,
-        _reader_id: types::EntityId,
-        _writer_id: types::EntityId,
-        _available_changes_max: types::SequenceNumber,
-        _missing_changes: &[types::SequenceNumber],
-        _count: messages::types::Count,
-        _final_flag: bool) -> Self {
-
-            todo!()
-        // AckNack {
-        //     endianness_flag: endianness.into(),
-        //     final_flag,
-        //     reader_id,
-        //     writer_id,
-        //     reader_sn_state: submessage_elements::SequenceNumberSet::new(available_changes_max, missing_changes),
-        //     count,
-        // }
-    }
-
-    pub fn from_raw_parts(
-        endianness_flag: SubmessageFlag,
-        final_flag: SubmessageFlag,
-        reader_id: submessage_elements::EntityId,
-        writer_id: submessage_elements::EntityId,
-        reader_sn_state: submessage_elements::SequenceNumberSet,
-        count: submessage_elements::Count,
-    ) -> Self {
-
-        Self {
-            endianness_flag,
-            final_flag,
-            reader_id,
-            writer_id,
-            reader_sn_state,
-            count,
-        }
-
-    }
-
-    pub fn endianness_flag(&self) -> SubmessageFlag {
-        self.endianness_flag
-    }
-
-    pub fn reader_id(&self) -> submessage_elements::EntityId {
-        self.reader_id
-    }
-
-    pub fn writer_id(&self) -> submessage_elements::EntityId {
-        self.writer_id
-    }
-
-    pub fn reader_sn_state(&self) -> &submessage_elements::SequenceNumberSet {
-        &self.reader_sn_state
-    }
-
-    pub fn count(&self) -> submessage_elements::Count {
-        self.count
-    }
+    pub endianness_flag: SubmessageFlag,
+    pub final_flag: SubmessageFlag,
+    pub reader_id: submessage_elements::EntityId,
+    pub writer_id: submessage_elements::EntityId,
+    pub reader_sn_state: submessage_elements::SequenceNumberSet,
+    pub count: submessage_elements::Count,
 }
 
 impl Submessage for AckNack {
@@ -90,6 +25,7 @@ impl Submessage for AckNack {
     }
 
     fn is_valid(&self) -> bool {
-        self.reader_sn_state.is_valid()
+        todo!()
+        // self.reader_sn_state.is_valid()
     }
 }

@@ -25,8 +25,7 @@ impl BestEffortStatelessReaderBehavior {
     ) {
         if let Some(inner_submessage) = submessage {
             if let RtpsSubmessage::Data(data) = inner_submessage {
-                if reader.guid().entity_id() == data.reader_id()
-                    || data.reader_id() == ENTITYID_UNKNOWN
+                if reader.guid().entity_id() == data.reader_id || data.reader_id == ENTITYID_UNKNOWN
                 {
                     if let RtpsSubmessage::Data(data) = submessage.take().unwrap() {
                         Self::transition_t2(reader, source_guid_prefix, data)

@@ -4,7 +4,7 @@ use super::submessages::submessage_elements::Parameter;
 
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
 /// Table 8.13 - Types used to define RTPS messages
-///  
+///
 
 pub mod constants {
     use super::ProtocolId;
@@ -23,30 +23,6 @@ pub mod constants {
         fraction: std::u32::MAX,
     };
     pub const PROTOCOL_RTPS: ProtocolId = [b'R', b'T', b'P', b'S'];
-}
-
-#[derive(PartialEq, Debug, Clone, Copy)]
-pub enum Endianness {
-    BigEndian = 0,
-    LittleEndian = 1,
-}
-
-impl From<bool> for Endianness {
-    fn from(value: bool) -> Self {
-        match value {
-            true => Endianness::LittleEndian,
-            false => Endianness::BigEndian,
-        }
-    }
-}
-
-impl From<Endianness> for bool {
-    fn from(value: Endianness) -> Self {
-        match value {
-            Endianness::LittleEndian => true,
-            Endianness::BigEndian => false,
-        }
-    }
 }
 
 pub type ProtocolId = [u8; 4];

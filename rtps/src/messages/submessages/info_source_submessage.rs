@@ -4,10 +4,10 @@ use super::submessage_elements;
 
 #[derive(PartialEq, Debug)]
 pub struct InfoSource {
-    endianness_flag: SubmessageFlag,
-    protocol_version: submessage_elements::ProtocolVersion,
-    vendor_id: submessage_elements::VendorId,
-    guid_prefix: submessage_elements::GuidPrefix,
+    pub endianness_flag: SubmessageFlag,
+    pub protocol_version: submessage_elements::ProtocolVersion,
+    pub vendor_id: submessage_elements::VendorId,
+    pub guid_prefix: submessage_elements::GuidPrefix,
 }
 
 

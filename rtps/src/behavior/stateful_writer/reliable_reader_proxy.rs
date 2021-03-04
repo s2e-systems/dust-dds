@@ -1,7 +1,7 @@
 use crate::{
-    behavior::{data_from_cache_change, BEHAVIOR_ENDIANNESS},
+    behavior::data_from_cache_change,
     messages::{
-        submessages::{AckNack, Gap, Heartbeat},
+        submessages::{submessage_elements::SequenceNumberSet, AckNack, Gap, Heartbeat},
         types::Count,
         RtpsSubmessage,
     },
@@ -70,11 +70,11 @@ impl ReliableReaderProxyBehavior {
         highest_nack_count_received: &mut Count,
     ) {
         if let Some(RtpsSubmessage::AckNack(acknack)) = submessage {
-            let reader_guid = GUID::new(src_guid_prefix, acknack.reader_id());
+            let reader_guid = GUID::new(src_guid_prefix, acknack.reader_id);
             if reader_proxy.remote_reader_guid() == reader_guid {
                 if let RtpsSubmessage::AckNack(acknack) = submessage.take().unwrap() {
-                    if &acknack.count() > highest_nack_count_received {
-                        *highest_nack_count_received = acknack.count();
+                    if &acknack.count > highest_nack_count_received {
+                        *highest_nack_count_received = acknack.count;
                         if reader_proxy.requested_changes().is_empty() {
                             Self::waiting_state(reader_proxy, acknack);
                         } else {
@@ -117,13 +117,17 @@ impl ReliableReaderProxyBehavior {
             let data = data_from_cache_change(cache_change, reader_id);
             message_queue.push(RtpsSubmessage::Data(data));
         } else {
-            let gap = Gap::new(
-                BEHAVIOR_ENDIANNESS,
-                reader_proxy.remote_reader_guid().entity_id(),
-                writer_entity_id,
-                next_unsent_seq_num,
-                &[],
-            );
+            let gap = Gap {
+                endianness_flag: false,
+                reader_id: reader_proxy.remote_reader_guid().entity_id(),
+                writer_id: writer_entity_id,
+                gap_start: next_unsent_seq_num,
+                gap_list: SequenceNumberSet {
+                    bitmap_base: next_unsent_seq_num,
+                    bitmap: [0; 8],
+                },
+            };
+
             message_queue.push(RtpsSubmessage::Gap(gap));
         }
     }
@@ -170,16 +174,16 @@ impl ReliableReaderProxyBehavior {
         };
         // reader_proxy.behavior.heartbeat_count += 1;
 
-        let heartbeat = Heartbeat::new(
-            BEHAVIOR_ENDIANNESS,
-            reader_proxy.remote_reader_guid().entity_id(),
-            writer_entity_id,
+        let heartbeat = Heartbeat {
+            endianness_flag: false,
+            final_flag: false,
+            liveliness_flag: false,
+            reader_id: reader_proxy.remote_reader_guid().entity_id(),
+            writer_id: writer_entity_id,
             first_sn,
-            last_change_sequence_number,
-            heartbeat_count,
-            false,
-            false,
-        );
+            last_sn: last_change_sequence_number,
+            count: heartbeat_count,
+        };
         message_queue.push(RtpsSubmessage::Heartbeat(heartbeat));
     }
 
@@ -188,7 +192,7 @@ impl ReliableReaderProxyBehavior {
     }
 
     fn transition_t8(reader_proxy: &mut impl ReaderProxy, acknack: AckNack) {
-        reader_proxy.acked_changes_set(acknack.reader_sn_state().base() - 1);
+        reader_proxy.acked_changes_set(acknack.reader_sn_state.bitmap_base - 1);
         // reader_proxy.requested_changes_set(acknack.reader_sn_state());
         todo!()
     }
@@ -227,13 +231,16 @@ impl ReliableReaderProxyBehavior {
                 data_from_cache_change(cache_change, reader_proxy.remote_reader_guid().entity_id());
             message_queue.push(RtpsSubmessage::Data(data));
         } else {
-            let gap = Gap::new(
-                BEHAVIOR_ENDIANNESS,
-                reader_proxy.remote_reader_guid().entity_id(),
-                writer_entity_id,
-                next_requested_seq_num,
-                &[],
-            );
+            let gap = Gap {
+                endianness_flag: false,
+                reader_id: reader_proxy.remote_reader_guid().entity_id(),
+                writer_id: writer_entity_id,
+                gap_start: next_requested_seq_num,
+                gap_list: SequenceNumberSet {
+                    bitmap_base: next_requested_seq_num,
+                    bitmap: [0; 8],
+                },
+            };
             message_queue.push(RtpsSubmessage::Gap(gap));
         }
     }

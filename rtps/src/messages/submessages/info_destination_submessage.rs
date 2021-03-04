@@ -4,8 +4,8 @@ use super::submessage_elements;
 
 #[derive(PartialEq, Debug)]
 pub struct InfoDestination {
-    endianness_flag: SubmessageFlag,
-    guid_prefix: submessage_elements::GuidPrefix,
+    pub endianness_flag: SubmessageFlag,
+    pub guid_prefix: submessage_elements::GuidPrefix,
 }
 
 impl Submessage for InfoDestination {
@@ -20,6 +20,6 @@ impl Submessage for InfoDestination {
     }
 
     fn is_valid(&self) -> bool {
-        true    
-    }   
+        true
+    }
 }
