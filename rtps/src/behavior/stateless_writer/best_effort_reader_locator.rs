@@ -46,7 +46,7 @@ impl BestEffortReaderLocatorBehavior {
         C: CacheChange<Data = D> + 'a,
         &'a D: Into<SerializedData<'a>> + 'a,
     {
-        while let Some(next_unsent_seq_num) = reader_locator.next_unsent_change().cloned() {
+        while let Some(next_unsent_seq_num) = reader_locator.next_unsent_change() {
             Self::transition_t4(
                 history_cache,
                 writer_entity_id,
