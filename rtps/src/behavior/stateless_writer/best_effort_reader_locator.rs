@@ -17,7 +17,7 @@ pub struct BestEffortReaderLocatorBehavior;
 
 impl BestEffortReaderLocatorBehavior {
     pub fn produce_messages<'a, C, D>(
-        reader_locator: &mut impl RTPSReaderLocator<CacheChangeRepresentation = SequenceNumber>,
+        reader_locator: &mut (impl RTPSReaderLocator<'a, CacheChangeRepresentation = SequenceNumber> + 'a),
         history_cache: &'a impl RTPSHistoryCache<CacheChangeType = C>,
         writer_entity_id: EntityId,
     ) -> Vec<RtpsSubmessage<'a>>
@@ -38,7 +38,7 @@ impl BestEffortReaderLocatorBehavior {
     }
 
     fn pushing_state<'a, C, D>(
-        reader_locator: &mut impl RTPSReaderLocator<CacheChangeRepresentation = SequenceNumber>,
+        reader_locator: &mut (impl RTPSReaderLocator<'a, CacheChangeRepresentation = SequenceNumber> + 'a),
         history_cache: &'a impl RTPSHistoryCache<CacheChangeType = C>,
         writer_entity_id: EntityId,
         message_queue: &mut Vec<RtpsSubmessage<'a>>,

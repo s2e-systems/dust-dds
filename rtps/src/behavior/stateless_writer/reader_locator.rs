@@ -1,12 +1,17 @@
-use crate::types::{Locator, SequenceNumber};
+use crate::{
+    structure::RTPSHistoryCache,
+    types::{Locator, SequenceNumber},
+};
 
-pub trait RTPSReaderLocator {
+pub trait RTPSReaderLocator<'a> {
     type CacheChangeRepresentation;
     type CacheChangeRepresentationList: IntoIterator<Item = Self::CacheChangeRepresentation>;
+    type HistoryCache: RTPSHistoryCache;
 
     fn requested_changes(&self) -> Self::CacheChangeRepresentationList;
     fn unsent_changes(&self) -> Self::CacheChangeRepresentationList;
 
+    fn new(locator: Locator, expects_inline_qos: bool, writer_cache: &'a Self::HistoryCache) -> Self;
     fn locator(&self) -> Locator;
     fn expects_inline_qos(&self) -> bool;
 

@@ -54,6 +54,6 @@ mod tests{
 
     #[test]
     fn matched_reader_add() {
-        let stateful_writer = StatefulWriter::new();
+        // let stateful_writer = StatefulWriter::new();
     }
 }

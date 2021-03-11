@@ -1,25 +1,27 @@
-use std::ops::{Deref, DerefMut};
+use std::{marker::PhantomData, ops::{Deref, DerefMut}};
 
 use rust_rtps::{
     behavior::{stateless_writer::RTPSReaderLocator, RTPSStatelessWriter, RTPSWriter},
     types::Locator,
 };
 
-pub struct StatelessWriter<W: RTPSWriter, R: RTPSReaderLocator> {
+pub struct StatelessWriter<'a, W: RTPSWriter, R: RTPSReaderLocator<'a>> {
     writer: W,
     reader_locators: Vec<R>,
+    phantom: PhantomData<&'a ()>,
 }
 
-impl<W: RTPSWriter, R: RTPSReaderLocator> StatelessWriter<W, R> {
+impl<'a, W: RTPSWriter, R: RTPSReaderLocator<'a>> StatelessWriter<'a, W, R> {
     pub fn new(writer: W) -> Self {
         Self {
             writer,
             reader_locators: Vec::new(),
+            phantom: PhantomData,
         }
     }
 }
 
-impl<W: RTPSWriter, R: RTPSReaderLocator> Deref for StatelessWriter<W, R> {
+impl<'a, W: RTPSWriter, R: RTPSReaderLocator<'a>> Deref for StatelessWriter<'a, W, R> {
     type Target = W;
 
     fn deref(&self) -> &Self::Target {
@@ -27,13 +29,13 @@ impl<W: RTPSWriter, R: RTPSReaderLocator> Deref for StatelessWriter<W, R> {
     }
 }
 
-impl<W: RTPSWriter, R: RTPSReaderLocator> DerefMut for StatelessWriter<W, R> {
+impl<'a, W: RTPSWriter, R: RTPSReaderLocator<'a>> DerefMut for StatelessWriter<'a, W, R> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.writer
     }
 }
 
-impl<W: RTPSWriter, R: RTPSReaderLocator> RTPSStatelessWriter<W> for StatelessWriter<W, R> {
+impl<'a, W: RTPSWriter, R: RTPSReaderLocator<'a>> RTPSStatelessWriter<'a, W> for StatelessWriter<'a, W, R> {
     type ReaderLocatorType = R;
 
     fn reader_locators(&self) -> &[Self::ReaderLocatorType] {
@@ -206,10 +208,10 @@ mod tests {
         locator: Locator,
     }
 
-    impl RTPSReaderLocator for MockReaderLocator {
+    impl<'a> RTPSReaderLocator<'a> for MockReaderLocator {
         type CacheChangeRepresentation = MockReaderLocator;
-
         type CacheChangeRepresentationList = Vec<MockReaderLocator>;
+        type HistoryCache = MockHistoryCache;
 
         fn requested_changes(&self) -> Self::CacheChangeRepresentationList {
             todo!()
@@ -236,6 +238,14 @@ mod tests {
         }
 
         fn requested_changes_set(&mut self, _req_seq_num_set: &[rust_rtps::types::SequenceNumber]) {
+            todo!()
+        }
+
+        fn new(
+            _locator: Locator,
+            _expects_inline_qos: bool,
+            _writer_cache: &'a Self::HistoryCache,
+        ) -> Self {
             todo!()
         }
     }

@@ -12,21 +12,10 @@ pub struct ReaderLocator<'a, T: RTPSHistoryCache> {
     requested_changes: Vec<SequenceNumber>,
 }
 
-impl<'a, T: RTPSHistoryCache> ReaderLocator<'a, T> {
-    fn new(locator: Locator, expects_inline_qos: bool, writer_cache: &'a T) -> Self {
-        Self {
-            locator,
-            expects_inline_qos,
-            writer_cache,
-            next_unsent_change: 0,
-            requested_changes: Vec::new(),
-        }
-    }
-}
-
-impl<'a, T: RTPSHistoryCache> RTPSReaderLocator for ReaderLocator<'a, T> {
+impl<'a, T: RTPSHistoryCache> RTPSReaderLocator<'a> for ReaderLocator<'a, T> {
     type CacheChangeRepresentation = SequenceNumber;
     type CacheChangeRepresentationList = Vec<Self::CacheChangeRepresentation>;
+    type HistoryCache = T;
 
     fn requested_changes(&self) -> Self::CacheChangeRepresentationList {
         self.requested_changes.clone()
@@ -35,6 +24,16 @@ impl<'a, T: RTPSHistoryCache> RTPSReaderLocator for ReaderLocator<'a, T> {
     fn unsent_changes(&self) -> Self::CacheChangeRepresentationList {
         let max_history_cache_seq_num = self.writer_cache.get_seq_num_max().unwrap_or(0);
         (self.next_unsent_change + 1..=max_history_cache_seq_num).collect()
+    }
+
+    fn new(locator: Locator, expects_inline_qos: bool, writer_cache: &'a Self::HistoryCache) -> Self {
+        Self {
+            locator,
+            expects_inline_qos,
+            writer_cache,
+            next_unsent_change: 0,
+            requested_changes: Vec::new(),
+        }
     }
 
     fn locator(&self) -> Locator {
@@ -145,8 +144,6 @@ mod tests {
         fn get_seq_num_max(&self) -> Option<SequenceNumber> {
             self.seq_num_max
         }
-
-
     }
     #[test]
     fn empty_unsent_changes() {
