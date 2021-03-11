@@ -2,7 +2,7 @@ use rust_dds_api::{
     dcps_psm::StatusMask, infrastructure::qos::TopicQos, return_type::DDSResult,
     topic::topic_listener::TopicListener,
 };
-use rust_rtps::structure::Entity;
+use rust_rtps::structure::RTPSEntity;
 
 use super::mask_listener::MaskListener;
 
@@ -57,7 +57,7 @@ impl TopicImpl {
     }
 }
 
-impl Entity for TopicImpl {
+impl RTPSEntity for TopicImpl {
     fn guid(&self) -> rust_rtps::types::GUID {
         todo!()
     }

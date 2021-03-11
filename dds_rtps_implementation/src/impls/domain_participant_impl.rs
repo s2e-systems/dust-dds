@@ -15,7 +15,7 @@ use rust_dds_api::{
     topic::topic_listener::TopicListener,
 };
 use rust_rtps::{
-    structure::{Entity, Participant},
+    structure::{RTPSEntity, RTPSParticipant},
     types::{
         constants::{ENTITYID_PARTICIPANT, PROTOCOL_VERSION_2_4, VENDOR_ID},
         GuidPrefix, Locator, ProtocolVersion, VendorId, GUID,
@@ -373,13 +373,13 @@ impl DomainParticipantImpl {
     }
 }
 
-impl Entity for DomainParticipantImpl {
+impl RTPSEntity for DomainParticipantImpl {
     fn guid(&self) -> GUID {
         GUID::new(self.guid_prefix, ENTITYID_PARTICIPANT)
     }
 }
 
-impl Participant for DomainParticipantImpl {
+impl RTPSParticipant for DomainParticipantImpl {
     fn default_unicast_locator_list(&self) -> &[Locator] {
         todo!()
         // self.user_defined_entities.transport.unicast_locator_list()

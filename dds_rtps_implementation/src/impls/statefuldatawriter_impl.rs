@@ -9,9 +9,9 @@ use rust_dds_api::{
 };
 use rust_rtps::{
     behavior::{
-        stateful_writer::reader_proxy::ChangeForReader, ReaderProxy, StatefulWriter, Writer,
+        stateful_writer::reader_proxy::ChangeForReader, ReaderProxy, StatefulWriter, RTPSWriter,
     },
-    structure::{Endpoint, Entity, RTPSHistoryCache},
+    structure::{RTPSEndpoint, RTPSEntity, RTPSHistoryCache},
     types::SequenceNumber,
 };
 
@@ -146,13 +146,13 @@ impl StatefulDataWriterImpl {
     // }
 }
 
-impl Entity for StatefulDataWriterImpl {
+impl RTPSEntity for StatefulDataWriterImpl {
     fn guid(&self) -> rust_rtps::types::GUID {
         todo!()
     }
 }
 
-impl Endpoint for StatefulDataWriterImpl {
+impl RTPSEndpoint for StatefulDataWriterImpl {
     fn unicast_locator_list(&self) -> &[rust_rtps::types::Locator] {
         todo!()
     }

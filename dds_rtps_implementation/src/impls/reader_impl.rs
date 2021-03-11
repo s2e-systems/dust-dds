@@ -5,8 +5,8 @@ use rust_dds_api::{
     subscription::data_reader_listener::DataReaderListener,
 };
 use rust_rtps::{
-    behavior::{Reader, StatefulReader},
-    structure::{Endpoint, Entity},
+    behavior::RTPSReader,
+    structure::{RTPSEndpoint, RTPSEntity},
 };
 
 use super::{history_cache_impl::HistoryCache, mask_listener::MaskListener, topic_impl::TopicImpl};
@@ -42,13 +42,13 @@ impl ReaderImpl {
     }
 }
 
-impl Entity for ReaderImpl {
+impl RTPSEntity for ReaderImpl {
     fn guid(&self) -> rust_rtps::types::GUID {
         todo!()
     }
 }
 
-impl Endpoint for ReaderImpl {
+impl RTPSEndpoint for ReaderImpl {
     fn unicast_locator_list(&self) -> &[rust_rtps::types::Locator] {
         todo!()
     }
@@ -66,7 +66,7 @@ impl Endpoint for ReaderImpl {
     }
 }
 
-impl Reader for ReaderImpl {
+impl RTPSReader for ReaderImpl {
     type HistoryCacheType = HistoryCache;
 
     fn heartbeat_response_delay(&self) -> rust_rtps::behavior::types::Duration {

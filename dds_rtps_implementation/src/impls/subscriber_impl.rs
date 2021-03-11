@@ -9,7 +9,10 @@ use rust_dds_api::{
         data_reader_listener::DataReaderListener, subscriber_listener::SubscriberListener,
     },
 };
-use rust_rtps::{structure::{Entity, Group}, types::GUID};
+use rust_rtps::{
+    structure::{RTPSEntity, RTPSGroup},
+    types::GUID,
+};
 
 use super::{reader_impl::ReaderImpl, topic_impl::TopicImpl};
 
@@ -52,19 +55,14 @@ impl SubscriberImpl {
         let qos = qos.unwrap_or(self.default_datareader_qos.clone());
         qos.is_consistent().ok()?;
 
-        let data_reader = Arc::new(Mutex::new(ReaderImpl::new(
-            topic, qos, a_listener, mask,
-        )));
+        let data_reader = Arc::new(Mutex::new(ReaderImpl::new(topic, qos, a_listener, mask)));
 
         self.reader_list.push(data_reader.clone());
 
         Some(Arc::downgrade(&data_reader))
     }
 
-    pub fn delete_datareader(
-        &mut self,
-        a_datareader: &Weak<Mutex<ReaderImpl>>,
-    ) -> DDSResult<()> {
+    pub fn delete_datareader(&mut self, a_datareader: &Weak<Mutex<ReaderImpl>>) -> DDSResult<()> {
         let datareader_impl = a_datareader.upgrade().ok_or(DDSError::AlreadyDeleted)?;
         self.reader_list
             .retain(|x| !std::ptr::eq(x.as_ref(), datareader_impl.as_ref()));
@@ -81,10 +79,10 @@ impl SubscriberImpl {
     }
 }
 
-impl Entity for SubscriberImpl {
+impl RTPSEntity for SubscriberImpl {
     fn guid(&self) -> GUID {
         todo!()
     }
 }
 
-impl Group for SubscriberImpl {}
+impl RTPSGroup for SubscriberImpl {}

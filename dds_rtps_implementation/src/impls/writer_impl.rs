@@ -1,19 +1,19 @@
 use rust_rtps::{
-    behavior::Writer,
-    structure::{Endpoint, Entity, RTPSCacheChange, RTPSHistoryCache},
+    behavior::RTPSWriter,
+    structure::{RTPSCacheChange, RTPSEndpoint, RTPSEntity, RTPSHistoryCache},
 };
 
 use super::history_cache_impl::HistoryCache;
 
 pub struct WriterImpl;
 
-impl Entity for WriterImpl {
+impl RTPSEntity for WriterImpl {
     fn guid(&self) -> rust_rtps::types::GUID {
         todo!()
     }
 }
 
-impl Endpoint for WriterImpl {
+impl RTPSEndpoint for WriterImpl {
     fn unicast_locator_list(&self) -> &[rust_rtps::types::Locator] {
         todo!()
     }
@@ -31,7 +31,7 @@ impl Endpoint for WriterImpl {
     }
 }
 
-impl Writer for WriterImpl {
+impl RTPSWriter for WriterImpl {
     type HistoryCacheType = HistoryCache;
 
     fn push_mode(&self) -> bool {
