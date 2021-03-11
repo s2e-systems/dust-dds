@@ -2,7 +2,7 @@ use crate::structure::{RTPSEndpoint, RTPSHistoryCache};
 
 use super::types::Duration;
 
-pub trait Reader: RTPSEndpoint {
+pub trait RTPSReader: RTPSEndpoint {
     type HistoryCacheType: RTPSHistoryCache;
 
     fn heartbeat_response_delay(&self) -> Duration;

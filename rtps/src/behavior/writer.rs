@@ -6,7 +6,7 @@ use crate::{
 
 use super::types::Duration;
 
-pub trait Writer: RTPSEndpoint {
+pub trait RTPSWriter: RTPSEndpoint {
     type HistoryCacheType: RTPSHistoryCache;
 
     fn push_mode(&self) -> bool;

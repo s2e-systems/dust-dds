@@ -1,5 +1,5 @@
 use core::ops::{Deref, DerefMut};
 
-use crate::behavior::Reader;
+use crate::behavior::RTPSReader;
 
-pub trait StatelessReader<T: Reader>: Deref<Target = T> + DerefMut {}
+pub trait StatelessReader<T: RTPSReader>: Deref<Target = T> + DerefMut {}
