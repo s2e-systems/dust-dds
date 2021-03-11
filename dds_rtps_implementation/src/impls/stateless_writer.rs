@@ -1,15 +1,15 @@
 use std::ops::{Deref, DerefMut};
 
-use rust_rtps::types::Locator;
+use rust_rtps::{behavior::RTPSStatelessWriter, types::Locator};
 
 use super::{reader_locator::ReaderLocator, writer_impl::WriterImpl};
 
-pub struct StatelessWriterImpl {
+pub struct StatelessWriter {
     writer: WriterImpl,
     // reader_locators: Vec<ReaderLocator<'a>>,
 }
 
-impl Deref for StatelessWriterImpl {
+impl Deref for StatelessWriter {
     type Target = WriterImpl;
 
     fn deref(&self) -> &Self::Target {
@@ -17,14 +17,14 @@ impl Deref for StatelessWriterImpl {
     }
 }
 
-impl DerefMut for StatelessWriterImpl {
+impl DerefMut for StatelessWriter {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.writer
     }
 }
 
-// impl rust_rtps::behavior::StatelessWriter<WriterImpl> for StatelessWriterImpl {
-//     type ReaderLocatorType = ReaderLocator<'a>;
+// impl RTPSStatelessWriter<WriterImpl> for StatelessWriter {
+//     type ReaderLocatorType = ReaderLocator;
 
 //     fn reader_locators(&self) -> &[Self::ReaderLocatorType] {
 //         &self.reader_locators

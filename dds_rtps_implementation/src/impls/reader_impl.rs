@@ -9,7 +9,7 @@ use rust_rtps::{
     structure::{Endpoint, Entity},
 };
 
-use super::{history_cache_impl::HistoryCacheImpl, mask_listener::MaskListener, topic_impl::TopicImpl};
+use super::{history_cache_impl::HistoryCache, mask_listener::MaskListener, topic_impl::TopicImpl};
 
 struct RtpsDataReaderListener<T: DDSType>(Box<dyn DataReaderListener<DataType = T>>);
 trait AnyDataReaderListener: Send + Sync {}
@@ -67,7 +67,7 @@ impl Endpoint for ReaderImpl {
 }
 
 impl Reader for ReaderImpl {
-    type HistoryCacheType = HistoryCacheImpl;
+    type HistoryCacheType = HistoryCache;
 
     fn heartbeat_response_delay(&self) -> rust_rtps::behavior::types::Duration {
         todo!()
@@ -77,7 +77,7 @@ impl Reader for ReaderImpl {
         todo!()
     }
 
-    fn reader_cache(&mut self) -> &mut HistoryCacheImpl {
+    fn reader_cache(&mut self) -> &mut HistoryCache {
         todo!()
     }
 

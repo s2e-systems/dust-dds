@@ -3,7 +3,7 @@ use crate::{
     types::{ChangeKind, InstanceHandle, SequenceNumber, GUID},
 };
 
-pub trait CacheChange {
+pub trait RTPSCacheChange {
     type Data;
 
     fn new(

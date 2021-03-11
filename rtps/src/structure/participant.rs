@@ -1,8 +1,8 @@
 use crate::types::{Locator, ProtocolVersion, VendorId};
 
-use super::Entity;
+use super::RTPSEntity;
 
-pub trait Participant: Entity {
+pub trait RTPSParticipant: RTPSEntity {
     fn default_unicast_locator_list(&self) -> &[Locator];
     fn default_multicast_locator_list(&self) -> &[Locator];
     fn protocol_version(&self) -> ProtocolVersion;

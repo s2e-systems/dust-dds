@@ -1,9 +1,9 @@
-use rust_rtps::structure::{CacheChange, HistoryCache};
+use rust_rtps::structure::{RTPSCacheChange, RTPSHistoryCache};
 
-pub struct HistoryCacheImpl {}
+pub struct HistoryCache {}
 
-impl HistoryCache for HistoryCacheImpl {
-    type CacheChangeType = CacheChangeImpl;
+impl RTPSHistoryCache for HistoryCache {
+    type CacheChangeType = CacheChange;
 
     fn add_change(&mut self, change: Self::CacheChangeType) {
         todo!()
@@ -29,9 +29,9 @@ impl HistoryCache for HistoryCacheImpl {
     }
 }
 
-pub struct CacheChangeImpl {}
+pub struct CacheChange {}
 
-impl CacheChange for CacheChangeImpl {
+impl RTPSCacheChange for CacheChange {
     type Data = Vec<u8>;
 
     fn new(

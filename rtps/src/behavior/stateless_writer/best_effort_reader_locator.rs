@@ -7,7 +7,7 @@ use crate::{
         },
         RtpsSubmessage,
     },
-    structure::{CacheChange, HistoryCache},
+    structure::{RTPSCacheChange, RTPSHistoryCache},
     types::{constants::ENTITYID_UNKNOWN, EntityId, SequenceNumber},
 };
 
@@ -18,11 +18,11 @@ pub struct BestEffortReaderLocatorBehavior;
 impl BestEffortReaderLocatorBehavior {
     pub fn produce_messages<'a, C, D>(
         reader_locator: &mut impl RTPSReaderLocator<CacheChangeRepresentation = SequenceNumber>,
-        history_cache: &'a impl HistoryCache<CacheChangeType = C>,
+        history_cache: &'a impl RTPSHistoryCache<CacheChangeType = C>,
         writer_entity_id: EntityId,
     ) -> Vec<RtpsSubmessage<'a>>
     where
-        C: CacheChange<Data = D> + 'a,
+        C: RTPSCacheChange<Data = D> + 'a,
         &'a D: Into<SerializedData<'a>> + 'a,
     {
         let mut message_queue = Vec::new();
@@ -39,11 +39,11 @@ impl BestEffortReaderLocatorBehavior {
 
     fn pushing_state<'a, C, D>(
         reader_locator: &mut impl RTPSReaderLocator<CacheChangeRepresentation = SequenceNumber>,
-        history_cache: &'a impl HistoryCache<CacheChangeType = C>,
+        history_cache: &'a impl RTPSHistoryCache<CacheChangeType = C>,
         writer_entity_id: EntityId,
         message_queue: &mut Vec<RtpsSubmessage<'a>>,
     ) where
-        C: CacheChange<Data = D> + 'a,
+        C: RTPSCacheChange<Data = D> + 'a,
         &'a D: Into<SerializedData<'a>> + 'a,
     {
         while let Some(next_unsent_seq_num) = reader_locator.next_unsent_change() {
@@ -57,12 +57,12 @@ impl BestEffortReaderLocatorBehavior {
     }
 
     fn transition_t4<'a, D, C>(
-        history_cache: &'a impl HistoryCache<CacheChangeType = C>,
+        history_cache: &'a impl RTPSHistoryCache<CacheChangeType = C>,
         writer_entity_id: EntityId,
         next_unsent_seq_num: SequenceNumber,
         message_queue: &mut Vec<RtpsSubmessage<'a>>,
     ) where
-        C: CacheChange<Data = D> + 'a,
+        C: RTPSCacheChange<Data = D> + 'a,
         &'a D: Into<SerializedData<'a>> + 'a,
     {
         if let Some(cache_change) = history_cache.get_change(next_unsent_seq_num) {

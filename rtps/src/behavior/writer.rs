@@ -1,13 +1,13 @@
 use crate::{
     messages::submessages::submessage_elements::ParameterList,
-    structure::{CacheChange, Endpoint, HistoryCache},
+    structure::{RTPSEndpoint, RTPSCacheChange, RTPSHistoryCache},
     types::{ChangeKind, InstanceHandle, SequenceNumber},
 };
 
 use super::types::Duration;
 
-pub trait Writer: Endpoint {
-    type HistoryCacheType: HistoryCache;
+pub trait Writer: RTPSEndpoint {
+    type HistoryCacheType: RTPSHistoryCache;
 
     fn push_mode(&self) -> bool;
     fn heartbeat_period(&self) -> Duration;
@@ -19,8 +19,8 @@ pub trait Writer: Endpoint {
     fn new_change(
         &mut self,
         kind: ChangeKind,
-        data: <<Self::HistoryCacheType as HistoryCache>::CacheChangeType as CacheChange>::Data,
+        data: <<Self::HistoryCacheType as RTPSHistoryCache>::CacheChangeType as RTPSCacheChange>::Data,
         inline_qos: ParameterList,
         handle: InstanceHandle,
-    ) -> <Self::HistoryCacheType as HistoryCache>::CacheChangeType;
+    ) -> <Self::HistoryCacheType as RTPSHistoryCache>::CacheChangeType;
 }

@@ -1,8 +1,8 @@
 use crate::types::SequenceNumber;
 
-use super::CacheChange;
-pub trait HistoryCache {
-    type CacheChangeType: CacheChange;
+use super::RTPSCacheChange;
+pub trait RTPSHistoryCache {
+    type CacheChangeType: RTPSCacheChange;
 
     /// This operation inserts the CacheChange a_change into the HistoryCache.
     /// This operation will only fail if there are not enough resources to add the change to the HistoryCache. It is the responsibility

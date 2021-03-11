@@ -1,10 +1,10 @@
 use rust_rtps::{
     behavior::stateless_writer::RTPSReaderLocator,
-    structure::HistoryCache,
+    structure::RTPSHistoryCache,
     types::{Locator, SequenceNumber},
 };
 
-pub struct ReaderLocator<'a, T: HistoryCache> {
+pub struct ReaderLocator<'a, T: RTPSHistoryCache> {
     locator: Locator,
     expects_inline_qos: bool,
     writer_cache: &'a T,
@@ -12,7 +12,7 @@ pub struct ReaderLocator<'a, T: HistoryCache> {
     requested_changes: Vec<SequenceNumber>,
 }
 
-impl<'a, T: HistoryCache> ReaderLocator<'a, T> {
+impl<'a, T: RTPSHistoryCache> ReaderLocator<'a, T> {
     fn new(locator: Locator, expects_inline_qos: bool, writer_cache: &'a T) -> Self {
         Self {
             locator,
@@ -24,7 +24,7 @@ impl<'a, T: HistoryCache> ReaderLocator<'a, T> {
     }
 }
 
-impl<'a, T: HistoryCache> RTPSReaderLocator for ReaderLocator<'a, T> {
+impl<'a, T: RTPSHistoryCache> RTPSReaderLocator for ReaderLocator<'a, T> {
     type CacheChangeRepresentation = SequenceNumber;
     type CacheChangeRepresentationList = Vec<Self::CacheChangeRepresentation>;
 
@@ -68,13 +68,13 @@ impl<'a, T: HistoryCache> RTPSReaderLocator for ReaderLocator<'a, T> {
 
 #[cfg(test)]
 mod tests {
-    use rust_rtps::structure::CacheChange;
+    use rust_rtps::structure::RTPSCacheChange;
 
     use super::*;
 
     struct MockCacheChangeType;
 
-    impl CacheChange for MockCacheChangeType {
+    impl RTPSCacheChange for MockCacheChangeType {
         type Data = u8;
 
         fn new(
@@ -119,7 +119,7 @@ mod tests {
         seq_num_max: Option<SequenceNumber>,
     }
 
-    impl HistoryCache for MockHistoryCache {
+    impl RTPSHistoryCache for MockHistoryCache {
         type CacheChangeType = MockCacheChangeType;
 
         fn add_change(&mut self, _change: Self::CacheChangeType) {

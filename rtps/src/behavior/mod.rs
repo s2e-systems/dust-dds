@@ -10,7 +10,7 @@ pub use reader::Reader;
 pub use stateful_reader::{StatefulReader, WriterProxy};
 pub use stateful_writer::{ReaderProxy, StatefulWriter};
 pub use stateless_reader::StatelessReader;
-pub use stateless_writer::StatelessWriter;
+pub use stateless_writer::RTPSStatelessWriter;
 pub use writer::Writer;
 
 use std::convert::TryInto;
@@ -19,12 +19,12 @@ use crate::messages::submessages::{submessage_elements::SerializedData, Data};
 use crate::messages::types::{KeyHash, StatusInfo, PID_KEY_HASH, PID_STATUS_INFO};
 use crate::types::{ChangeKind, EntityId, GuidPrefix, GUID};
 
-use crate::structure::CacheChange;
+use crate::structure::RTPSCacheChange;
 
 fn cache_change_from_data<'a, T, C>(mut message: Data<'a>, guid_prefix: &GuidPrefix) -> C
 where
     T: From<SerializedData<'a>>,
-    C: CacheChange<Data = T>,
+    C: RTPSCacheChange<Data = T>,
 {
     let change_kind = change_kind(&message);
     let key_hash = key_hash(&message).unwrap();
@@ -49,7 +49,7 @@ where
 }
 
 fn data_from_cache_change<'a, T>(
-    cache_change: &'a impl CacheChange<Data = T>,
+    cache_change: &'a impl RTPSCacheChange<Data = T>,
     reader_id: EntityId,
 ) -> Data
 where

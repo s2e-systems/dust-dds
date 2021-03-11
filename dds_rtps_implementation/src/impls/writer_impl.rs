@@ -1,9 +1,9 @@
 use rust_rtps::{
     behavior::Writer,
-    structure::{CacheChange, Endpoint, Entity, HistoryCache},
+    structure::{Endpoint, Entity, RTPSCacheChange, RTPSHistoryCache},
 };
 
-use super::history_cache_impl::HistoryCacheImpl;
+use super::history_cache_impl::HistoryCache;
 
 pub struct WriterImpl;
 
@@ -32,7 +32,7 @@ impl Endpoint for WriterImpl {
 }
 
 impl Writer for WriterImpl {
-    type HistoryCacheType = HistoryCacheImpl;
+    type HistoryCacheType = HistoryCache;
 
     fn push_mode(&self) -> bool {
         todo!()
@@ -65,10 +65,10 @@ impl Writer for WriterImpl {
     fn new_change(
         &mut self,
         _kind: rust_rtps::types::ChangeKind,
-        _data: <<Self::HistoryCacheType as HistoryCache>::CacheChangeType as CacheChange>::Data,
+        _data: <<Self::HistoryCacheType as RTPSHistoryCache>::CacheChangeType as RTPSCacheChange>::Data,
         _inline_qos: rust_rtps::messages::submessages::submessage_elements::ParameterList,
         _handle: rust_rtps::types::InstanceHandle,
-    ) -> <Self::HistoryCacheType as HistoryCache>::CacheChangeType {
+    ) -> <Self::HistoryCacheType as RTPSHistoryCache>::CacheChangeType {
         todo!()
     }
 }

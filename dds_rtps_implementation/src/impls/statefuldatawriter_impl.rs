@@ -11,12 +11,12 @@ use rust_rtps::{
     behavior::{
         stateful_writer::reader_proxy::ChangeForReader, ReaderProxy, StatefulWriter, Writer,
     },
-    structure::{Endpoint, Entity, HistoryCache},
+    structure::{Endpoint, Entity, RTPSHistoryCache},
     types::SequenceNumber,
 };
 
 use super::{
-    history_cache_impl::HistoryCacheImpl, mask_listener::MaskListener, topic_impl::TopicImpl,
+    history_cache_impl::HistoryCache, mask_listener::MaskListener, topic_impl::TopicImpl,
     writer_impl::WriterImpl,
 };
 struct RtpsDataWriterListener<T: DDSType>(Box<dyn DataWriterListener<DataType = T>>);
