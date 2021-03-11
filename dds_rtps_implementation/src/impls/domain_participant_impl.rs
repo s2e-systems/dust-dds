@@ -1,4 +1,5 @@
 use std::{
+    cell::RefCell,
     sync::{atomic, Arc, Mutex, Once, Weak},
     thread::JoinHandle,
 };
@@ -15,12 +16,13 @@ use rust_dds_api::{
 };
 use rust_rtps::{
     structure::{Entity, Participant},
-    transport::Transport,
     types::{
         constants::{ENTITYID_PARTICIPANT, PROTOCOL_VERSION_2_4, VENDOR_ID},
         GuidPrefix, Locator, ProtocolVersion, VendorId, GUID,
     },
 };
+
+use crate::transport::Transport;
 
 use super::{
     publisher_impl::PublisherImpl, subscriber_impl::SubscriberImpl, topic_impl::TopicImpl,
@@ -30,21 +32,21 @@ struct RtpsParticipantEntities {
     publisher_list: Mutex<Vec<Arc<Mutex<PublisherImpl>>>>,
     subscriber_list: Mutex<Vec<Arc<Mutex<SubscriberImpl>>>>,
     topic_list: Mutex<Vec<Arc<Mutex<TopicImpl>>>>,
-    transport: Box<dyn Transport>,
+    // transport: Box<dyn Transport>,
 }
 
 impl RtpsParticipantEntities {
-    fn new(transport: impl Transport) -> Self {
+    fn new(/*transport: impl Transport*/) -> Self {
         Self {
             publisher_list: Default::default(),
             subscriber_list: Default::default(),
             topic_list: Default::default(),
-            transport: Box::new(transport),
+            // transport: Box::new(transport),
         }
     }
 
     pub fn send_data(&self, _participant_guid_prefix: GuidPrefix) {
-        let _transport = &self.transport;
+        // let _transport = &self.transport;
         let publisher_list = self.publisher_list.lock().unwrap();
         for publisher in publisher_list.iter() {
             for _writer in publisher.lock().unwrap().writer_list() {
@@ -74,7 +76,7 @@ pub struct DomainParticipantImpl {
     user_defined_entities: Arc<RtpsParticipantEntities>,
     enabled: Arc<atomic::AtomicBool>,
     enabled_function: Once,
-    thread_list: Vec<JoinHandle<()>>,
+    thread_list: RefCell<Vec<JoinHandle<()>>>,
     a_listener: Option<Box<dyn DomainParticipantListener>>,
     mask: StatusMask,
 }
@@ -83,15 +85,15 @@ impl DomainParticipantImpl {
     pub fn new(
         domain_id: DomainId,
         qos: DomainParticipantQos,
-        userdata_transport: impl Transport,
-        metatraffic_transport: impl Transport,
+        // userdata_transport: impl Transport,
+        // metatraffic_transport: impl Transport,
         a_listener: Option<Box<dyn DomainParticipantListener>>,
         mask: StatusMask,
     ) -> Self {
         let guid_prefix = [1; 12];
 
-        let builtin_entities = Arc::new(RtpsParticipantEntities::new(metatraffic_transport));
-        let user_defined_entities = Arc::new(RtpsParticipantEntities::new(userdata_transport));
+        let builtin_entities = Arc::new(RtpsParticipantEntities::new(/*metatraffic_transport*/));
+        let user_defined_entities = Arc::new(RtpsParticipantEntities::new(/*userdata_transport*/));
 
         Self {
             domain_id,
@@ -107,7 +109,7 @@ impl DomainParticipantImpl {
             user_defined_entities,
             enabled: Arc::new(atomic::AtomicBool::new(false)),
             enabled_function: Once::new(),
-            thread_list: Vec::new(),
+            thread_list: RefCell::new(Vec::new()),
             a_listener,
             mask,
         }
@@ -295,6 +297,72 @@ impl DomainParticipantImpl {
     pub fn get_default_topic_qos(&self) -> TopicQos {
         self.default_topic_qos.clone()
     }
+
+    pub fn enable(&mut self) -> DDSResult<()> {
+        let enabled = self.enabled.clone();
+        let mut thread_list = self.thread_list.borrow_mut();
+        self.enabled.store(true, atomic::Ordering::Release);
+
+        self.enabled_function.call_once(|| {
+            thread_list.push(std::thread::spawn(move || {
+                while enabled.load(atomic::Ordering::Acquire) {
+                    // builtin_entities.send_data(guid_prefix);
+                    std::thread::sleep(std::time::Duration::from_secs(1));
+                }
+            }));
+        });
+        //     use rust_rtps::structure::Entity;
+        //     let guid_prefix = self.guid().prefix();
+        //     let builtin_publisher = RtpsPublisherInner::new_builtin(
+        //         guid_prefix,
+        //         [0, 0, 0],
+        //         PublisherQos::default(),
+        //         None,
+        //         0,
+        //     );
+
+        //     let spdp_topic_qos = TopicQos::default();
+        //     let spdp_topic = Arc::new(RtpsTopicInner::new(
+        //         guid_prefix,
+        //         ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER.entity_key(),
+        //         "SPDP".to_string(),
+        //         SpdpDiscoveredParticipantData::type_name(),
+        //         rust_rtps::types::TopicKind::WithKey,
+        //         spdp_topic_qos,
+        //         None,
+        //         0,
+        //     ));
+        //     // // let _spdp_topic_ref = self
+        //     // //     .builtin_entities
+        //     // //     .topic_list
+        //     // //     .add(spdp_topic.clone())
+        //     // //     .expect("Error creating SPDP topic");
+
+        //     let spdp_unicast_locator_list = self.builtin_entities.transport.unicast_locator_list().clone();
+        //     let spdp_multicast_locator_list = self.builtin_entities.transport.multicast_locator_list().clone();
+        //     let spdp_resend_period = rust_rtps::behavior::types::Duration::from_secs(30);
+        //     let spdp_reader_locators = vec![ReaderLocator::new(Locator::new_udpv4(7400, [239, 255, 0, 0]))];
+
+        //     let mut spdp_announcer_qos = DataWriterQos::default();
+        //     spdp_announcer_qos.reliability.kind = rust_dds_api::infrastructure::qos_policy::ReliabilityQosPolicyKind::BestEffortReliabilityQos;
+        //     let spdp_announcer = RtpsDataWriterImpl::new::<SpdpDiscoveredParticipantData>(RtpsWriterFlavor::Stateless(SPDPbuiltinParticipantWriter::new(guid_prefix, spdp_unicast_locator_list, spdp_multicast_locator_list, spdp_resend_period, spdp_reader_locators)), &spdp_topic, spdp_announcer_qos, None, 0);
+
+        //     {
+        //         let spdp_announcer_ref = builtin_publisher.writer_list().add(spdp_announcer).expect("Error adding SPDP writer to built_in publisher");
+        //         spdp_announcer_ref.write_w_timestamp::<SpdpDiscoveredParticipantData>(SpdpDiscoveredParticipantData{value:5}, None, Time{sec:10, nanosec:0}).expect("Error announcing participant");
+        //     }
+
+        //     self
+        //         .builtin_entities
+        //         .publisher_list
+        //         .add(Box::new(builtin_publisher))
+        //         .expect("Error creating built-in publisher");
+
+        //
+        //     let enabled = self.enabled.clone();
+        //     let builtin_entities = self.builtin_entities.clone();
+        Ok(())
+    }
 }
 
 impl Entity for DomainParticipantImpl {
@@ -305,13 +373,15 @@ impl Entity for DomainParticipantImpl {
 
 impl Participant for DomainParticipantImpl {
     fn default_unicast_locator_list(&self) -> &[Locator] {
-        self.user_defined_entities.transport.unicast_locator_list()
+        todo!()
+        // self.user_defined_entities.transport.unicast_locator_list()
     }
 
     fn default_multicast_locator_list(&self) -> &[Locator] {
-        self.user_defined_entities
-            .transport
-            .multicast_locator_list()
+        todo!()
+        // self.user_defined_entities
+        //     .transport
+        //     .multicast_locator_list()
     }
 
     fn protocol_version(&self) -> ProtocolVersion {
@@ -320,6 +390,15 @@ impl Participant for DomainParticipantImpl {
 
     fn vendor_id(&self) -> VendorId {
         VENDOR_ID
+    }
+}
+
+impl Drop for DomainParticipantImpl {
+    fn drop(&mut self) {
+        self.enabled.store(false, atomic::Ordering::Release);
+        for thread in self.thread_list.borrow_mut().drain(..) {
+            thread.join().ok();
+        }
     }
 }
 
@@ -359,29 +438,25 @@ mod tests {
         multicast_locator_list: Vec<Locator>,
     }
 
-    impl Transport for MockTransport {
-        fn write(
-            &self,
-            _message: rust_rtps::messages::RtpsMessage,
-            _destination_locator: &rust_rtps::types::Locator,
-        ) {
+    impl<'a> Transport<'a> for MockTransport {
+        fn write(&self, message: rust_rtps::messages::RtpsMessage, destination_locator: &Locator) {
             todo!()
         }
 
         fn read(
             &self,
-        ) -> rust_rtps::transport::TransportResult<
-            Option<(rust_rtps::messages::RtpsMessage, rust_rtps::types::Locator)>,
+        ) -> crate::transport::TransportResult<
+            Option<(rust_rtps::messages::RtpsMessage<'a>, Locator)>,
         > {
             todo!()
         }
 
-        fn unicast_locator_list(&self) -> &Vec<rust_rtps::types::Locator> {
-            &self.unicast_locator_list
+        fn unicast_locator_list(&self) -> &Vec<Locator> {
+            todo!()
         }
 
-        fn multicast_locator_list(&self) -> &Vec<rust_rtps::types::Locator> {
-            &self.multicast_locator_list
+        fn multicast_locator_list(&self) -> &Vec<Locator> {
+            todo!()
         }
     }
 
@@ -390,8 +465,8 @@ mod tests {
         let participant = DomainParticipantImpl::new(
             0,
             DomainParticipantQos::default(),
-            MockTransport::default(),
-            MockTransport::default(),
+            // MockTransport::default(),
+            // MockTransport::default(),
             None,
             0,
         );
@@ -419,8 +494,8 @@ mod tests {
         let participant = DomainParticipantImpl::new(
             0,
             DomainParticipantQos::default(),
-            MockTransport::default(),
-            MockTransport::default(),
+            // MockTransport::default(),
+            // MockTransport::default(),
             None,
             0,
         );
@@ -449,8 +524,8 @@ mod tests {
         let participant = DomainParticipantImpl::new(
             0,
             DomainParticipantQos::default(),
-            MockTransport::default(),
-            MockTransport::default(),
+            // MockTransport::default(),
+            // MockTransport::default(),
             None,
             0,
         );
@@ -477,8 +552,8 @@ mod tests {
         let participant = DomainParticipantImpl::new(
             0,
             DomainParticipantQos::default(),
-            MockTransport::default(),
-            MockTransport::default(),
+            // MockTransport::default(),
+            // MockTransport::default(),
             None,
             0,
         );
@@ -509,8 +584,8 @@ mod tests {
         let participant = DomainParticipantImpl::new(
             0,
             DomainParticipantQos::default(),
-            MockTransport::default(),
-            MockTransport::default(),
+            // MockTransport::default(),
+            // MockTransport::default(),
             None,
             0,
         );
@@ -529,8 +604,8 @@ mod tests {
         let participant = DomainParticipantImpl::new(
             0,
             DomainParticipantQos::default(),
-            MockTransport::default(),
-            MockTransport::default(),
+            // MockTransport::default(),
+            // MockTransport::default(),
             None,
             0,
         );
@@ -553,8 +628,8 @@ mod tests {
         let mut participant = DomainParticipantImpl::new(
             0,
             DomainParticipantQos::default(),
-            MockTransport::default(),
-            MockTransport::default(),
+            // MockTransport::default(),
+            // MockTransport::default(),
             None,
             0,
         );
@@ -573,8 +648,8 @@ mod tests {
         let mut participant = DomainParticipantImpl::new(
             0,
             DomainParticipantQos::default(),
-            MockTransport::default(),
-            MockTransport::default(),
+            // MockTransport::default(),
+            // MockTransport::default(),
             None,
             0,
         );
@@ -593,8 +668,8 @@ mod tests {
         let mut participant = DomainParticipantImpl::new(
             0,
             DomainParticipantQos::default(),
-            MockTransport::default(),
-            MockTransport::default(),
+            // MockTransport::default(),
+            // MockTransport::default(),
             None,
             0,
         );
@@ -613,8 +688,8 @@ mod tests {
         let mut participant = DomainParticipantImpl::new(
             0,
             DomainParticipantQos::default(),
-            MockTransport::default(),
-            MockTransport::default(),
+            // MockTransport::default(),
+            // MockTransport::default(),
             None,
             0,
         );
@@ -640,8 +715,8 @@ mod tests {
         let mut participant = DomainParticipantImpl::new(
             0,
             DomainParticipantQos::default(),
-            MockTransport::default(),
-            MockTransport::default(),
+            // MockTransport::default(),
+            // MockTransport::default(),
             None,
             0,
         );
@@ -667,8 +742,8 @@ mod tests {
         let mut participant = DomainParticipantImpl::new(
             0,
             DomainParticipantQos::default(),
-            MockTransport::default(),
-            MockTransport::default(),
+            // MockTransport::default(),
+            // MockTransport::default(),
             None,
             0,
         );
@@ -684,6 +759,21 @@ mod tests {
             .expect("Error setting default subscriber qos");
 
         assert_eq!(TopicQos::default(), participant.get_default_topic_qos())
+    }
+
+    #[test]
+    fn enable() {
+        let mut participant = DomainParticipantImpl::new(
+            0,
+            DomainParticipantQos::default(),
+            // MockTransport::default(),
+            // MockTransport::default(),
+            None,
+            0,
+        );
+
+        participant.enable().expect("Failed to enable");
+        assert_eq!(participant.thread_list.borrow().len(), 1);
     }
 
     // #[test]

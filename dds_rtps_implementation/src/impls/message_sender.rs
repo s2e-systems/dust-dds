@@ -1,14 +1,16 @@
-use rust_rtps::{messages::RtpsMessage, transport::Transport, types::{GuidPrefix, constants::{PROTOCOL_VERSION_2_4, VENDOR_ID}}};
+use rust_rtps::{messages::RtpsMessage, types::{GuidPrefix, constants::{PROTOCOL_VERSION_2_4, VENDOR_ID}}};
+
+use crate::transport::Transport;
 
 use super::endpoint_traits::DestinedMessages;
 
 pub struct RtpsMessageSender;
 
 impl RtpsMessageSender {
-    pub fn send_cache_change_messages(
+    pub fn send_cache_change_messages<'a>(
         participant_guid_prefix: GuidPrefix,
-        transport: &dyn Transport,
-        destined_messages: Vec<DestinedMessages>,
+        transport: &dyn Transport<'a>,
+        destined_messages: Vec<DestinedMessages<'a>>,
     ) {
         for destined_message in destined_messages {
             match destined_message {

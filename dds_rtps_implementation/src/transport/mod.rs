@@ -1,4 +1,6 @@
-use crate::{messages::RtpsMessage, types::Locator};
+pub mod memory;
+
+use rust_rtps::{messages::RtpsMessage, types::Locator};
 
 #[derive(Debug)]
 pub enum TransportError {
@@ -14,10 +16,10 @@ impl From<std::io::Error> for TransportError {
 }
 
 pub type TransportResult<T> = std::result::Result<T, TransportError>;
-pub trait Transport: Send + Sync + 'static {
-    fn write(&self, message: RtpsMessage, destination_locator: &Locator);
+pub trait Transport<'a>: Send + Sync {
+    fn write(&self, message: RtpsMessage<'a>, destination_locator: &Locator);
 
-    fn read(&self) -> TransportResult<Option<(RtpsMessage, Locator)>>;
+    fn read(&self) -> TransportResult<Option<(RtpsMessage<'a>, Locator)>>;
 
     fn unicast_locator_list(&self) -> &Vec<Locator>;
 
