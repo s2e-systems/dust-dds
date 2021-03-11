@@ -9,7 +9,7 @@ use rust_dds_api::{
 };
 use rust_rtps::{
     behavior::{
-        stateful_writer::reader_proxy::ChangeForReader, ReaderProxy, StatefulWriter, RTPSWriter,
+        stateful_writer::reader_proxy::ChangeForReader, RTPSWriter, ReaderProxy, StatefulWriter,
     },
     structure::{RTPSEndpoint, RTPSEntity, RTPSHistoryCache},
     types::SequenceNumber,
@@ -17,7 +17,7 @@ use rust_rtps::{
 
 use super::{
     history_cache::HistoryCache, mask_listener::MaskListener, topic_impl::TopicImpl,
-    writer_impl::WriterImpl,
+    writer_impl::Writer,
 };
 struct RtpsDataWriterListener<T: DDSType>(Box<dyn DataWriterListener<DataType = T>>);
 trait AnyDataWriterListener: Send + Sync {}
@@ -76,11 +76,11 @@ impl<T: DDSType> AnyDataWriterListener for RtpsDataWriterListener<T> {}
 //     }
 // }
 
-pub struct StatefulDataWriterImpl {
-    writer: WriterImpl,
+pub struct StatefulDataWriterImpl<W: RTPSWriter> {
+    writer: W,
 }
 
-impl StatefulDataWriterImpl {
+impl<W: RTPSWriter> StatefulDataWriterImpl<W> {
     // pub fn new<T: DDSType>(
     //     topic: Arc<Mutex<TopicImpl>>,
     //     qos: DataWriterQos,
@@ -146,13 +146,13 @@ impl StatefulDataWriterImpl {
     // }
 }
 
-impl RTPSEntity for StatefulDataWriterImpl {
+impl<W: RTPSWriter> RTPSEntity for StatefulDataWriterImpl<W> {
     fn guid(&self) -> rust_rtps::types::GUID {
         todo!()
     }
 }
 
-impl RTPSEndpoint for StatefulDataWriterImpl {
+impl<W: RTPSWriter> RTPSEndpoint for StatefulDataWriterImpl<W> {
     fn unicast_locator_list(&self) -> &[rust_rtps::types::Locator] {
         todo!()
     }
@@ -170,15 +170,15 @@ impl RTPSEndpoint for StatefulDataWriterImpl {
     }
 }
 
-impl Deref for StatefulDataWriterImpl {
-    type Target = WriterImpl;
+impl<W: RTPSWriter> Deref for StatefulDataWriterImpl<W> {
+    type Target = W;
 
     fn deref(&self) -> &Self::Target {
         &self.writer
     }
 }
 
-impl DerefMut for StatefulDataWriterImpl {
+impl<W: RTPSWriter> DerefMut for StatefulDataWriterImpl<W> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.writer
     }

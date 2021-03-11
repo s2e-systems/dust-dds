@@ -1,74 +1,261 @@
 use rust_rtps::{
-    behavior::RTPSWriter,
+    behavior::{types::Duration, RTPSWriter},
+    messages::submessages::submessage_elements::ParameterList,
     structure::{RTPSCacheChange, RTPSEndpoint, RTPSEntity, RTPSHistoryCache},
+    types::{
+        ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID,
+    },
 };
 
-use super::history_cache::HistoryCache;
+pub struct Writer<H: RTPSHistoryCache> {
+    guid: GUID,
+    topic_kind: TopicKind,
+    reliablility_level: ReliabilityKind,
+    unicast_locator_list: Vec<Locator>,
+    multicast_locator_list: Vec<Locator>,
+    push_mode: bool,
+    heartbeat_period: Duration,
+    nack_response_delay: Duration,
+    nack_suppression_duration: Duration,
+    last_change_sequence_number: SequenceNumber,
+    data_max_sized_serialized: i32,
+    writer_cache: H,
+}
 
-pub struct WriterImpl;
-
-impl RTPSEntity for WriterImpl {
-    fn guid(&self) -> rust_rtps::types::GUID {
-        todo!()
+impl<H: RTPSHistoryCache> Writer<H> {
+    pub fn new(
+        guid: GUID,
+        topic_kind: TopicKind,
+        reliablility_level: ReliabilityKind,
+        unicast_locator_list: Vec<Locator>,
+        multicast_locator_list: Vec<Locator>,
+        push_mode: bool,
+        heartbeat_period: Duration,
+        nack_response_delay: Duration,
+        nack_suppression_duration: Duration,
+        data_max_sized_serialized: i32,
+        writer_cache: H,
+    ) -> Self {
+        Self {
+            guid,
+            topic_kind,
+            reliablility_level,
+            unicast_locator_list,
+            multicast_locator_list,
+            push_mode,
+            heartbeat_period,
+            nack_response_delay,
+            nack_suppression_duration,
+            last_change_sequence_number: 0,
+            data_max_sized_serialized,
+            writer_cache,
+        }
     }
 }
 
-impl RTPSEndpoint for WriterImpl {
-    fn unicast_locator_list(&self) -> &[rust_rtps::types::Locator] {
-        todo!()
-    }
-
-    fn multicast_locator_list(&self) -> &[rust_rtps::types::Locator] {
-        todo!()
-    }
-
-    fn topic_kind(&self) -> rust_rtps::types::TopicKind {
-        todo!()
-    }
-
-    fn reliability_level(&self) -> rust_rtps::types::ReliabilityKind {
-        todo!()
+impl<H: RTPSHistoryCache> RTPSEntity for Writer<H> {
+    fn guid(&self) -> GUID {
+        self.guid
     }
 }
 
-// impl RTPSWriter for WriterImpl {
-//     type HistoryCacheType = HistoryCache;
+impl<H: RTPSHistoryCache> RTPSEndpoint for Writer<H> {
+    fn unicast_locator_list(&self) -> &[Locator] {
+        &self.unicast_locator_list
+    }
 
-//     fn push_mode(&self) -> bool {
-//         todo!()
-//     }
+    fn multicast_locator_list(&self) -> &[Locator] {
+        &self.multicast_locator_list
+    }
 
-//     fn heartbeat_period(&self) -> rust_rtps::behavior::types::Duration {
-//         todo!()
-//     }
+    fn topic_kind(&self) -> TopicKind {
+        self.topic_kind
+    }
 
-//     fn nack_response_delay(&self) -> rust_rtps::behavior::types::Duration {
-//         todo!()
-//     }
+    fn reliability_level(&self) -> ReliabilityKind {
+        self.reliablility_level
+    }
+}
 
-//     fn nack_suppression_duration(&self) -> rust_rtps::behavior::types::Duration {
-//         todo!()
-//     }
+impl<H: RTPSHistoryCache> RTPSWriter for Writer<H> {
+    type HistoryCacheType = H;
 
-//     fn last_change_sequence_number(&self) -> rust_rtps::types::SequenceNumber {
-//         todo!()
-//     }
+    fn push_mode(&self) -> bool {
+        self.push_mode
+    }
 
-//     fn writer_cache(&mut self) -> &mut Self::HistoryCacheType {
-//         todo!()
-//     }
+    fn heartbeat_period(&self) -> Duration {
+        self.heartbeat_period
+    }
 
-//     fn data_max_sized_serialized(&self) -> i32 {
-//         todo!()
-//     }
+    fn nack_response_delay(&self) -> Duration {
+        self.nack_response_delay
+    }
 
-//     fn new_change(
-//         &mut self,
-//         _kind: rust_rtps::types::ChangeKind,
-//         _data: <<Self::HistoryCacheType as RTPSHistoryCache>::CacheChangeType as RTPSCacheChange>::Data,
-//         _inline_qos: rust_rtps::messages::submessages::submessage_elements::ParameterList,
-//         _handle: rust_rtps::types::InstanceHandle,
-//     ) -> <Self::HistoryCacheType as RTPSHistoryCache>::CacheChangeType {
-//         todo!()
-//     }
-// }
+    fn nack_suppression_duration(&self) -> Duration {
+        self.nack_suppression_duration
+    }
+
+    fn last_change_sequence_number(&self) -> SequenceNumber {
+        self.last_change_sequence_number
+    }
+
+    fn writer_cache(&mut self) -> &mut Self::HistoryCacheType {
+        &mut self.writer_cache
+    }
+
+    fn data_max_sized_serialized(&self) -> i32 {
+        self.data_max_sized_serialized
+    }
+
+    fn new_change(
+        &mut self,
+        kind: ChangeKind,
+        data: <<Self::HistoryCacheType as RTPSHistoryCache>::CacheChangeType as RTPSCacheChange>::Data,
+        inline_qos: ParameterList,
+        handle: InstanceHandle,
+    ) -> <Self::HistoryCacheType as RTPSHistoryCache>::CacheChangeType {
+        self.last_change_sequence_number += 1;
+        <<Self::HistoryCacheType as RTPSHistoryCache>::CacheChangeType as RTPSCacheChange>::new(
+            kind,
+            self.guid,
+            handle,
+            self.last_change_sequence_number,
+            data,
+            inline_qos,
+        )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use rust_rtps::{
+        behavior::types::constants::{DURATION_INFINITE, DURATION_ZERO},
+        types::constants::ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
+    };
+
+    use super::*;
+
+    struct MockCacheChange{
+        kind: ChangeKind,
+        sequence_number: SequenceNumber,
+        instance_handle: InstanceHandle,
+    }
+
+    impl RTPSCacheChange for MockCacheChange {
+        type Data = ();
+
+        fn new(
+            kind: ChangeKind,
+            _writer_guid: GUID,
+            instance_handle: InstanceHandle,
+            sequence_number: SequenceNumber,
+            _data_value: Self::Data,
+            _inline_qos: ParameterList,
+        ) -> Self {
+            Self {
+                kind,
+                sequence_number,
+                instance_handle,
+            }
+        }
+
+        fn kind(&self) -> ChangeKind {
+            self.kind
+        }
+
+        fn writer_guid(&self) -> GUID {
+            todo!()
+        }
+
+        fn instance_handle(&self) -> &InstanceHandle {
+            &self.instance_handle
+        }
+
+        fn sequence_number(&self) -> SequenceNumber {
+            self.sequence_number
+        }
+
+        fn data_value(&self) -> &Self::Data {
+            todo!()
+        }
+
+        fn inline_qos(&self) -> &ParameterList {
+            todo!()
+        }
+    }
+    struct MockHistoryCache;
+
+    impl RTPSHistoryCache for MockHistoryCache {
+        type CacheChangeType = MockCacheChange;
+
+        fn new() -> Self {
+            todo!()
+        }
+
+        fn add_change(&mut self, _change: Self::CacheChangeType) {
+            todo!()
+        }
+
+        fn remove_change(&mut self, _seq_num: SequenceNumber) {
+            todo!()
+        }
+
+        fn get_change(&self, _seq_num: SequenceNumber) -> Option<&Self::CacheChangeType> {
+            todo!()
+        }
+
+        fn get_seq_num_min(&self) -> Option<SequenceNumber> {
+            todo!()
+        }
+
+        fn get_seq_num_max(&self) -> Option<SequenceNumber> {
+            todo!()
+        }
+    }
+
+    #[test]
+    fn new_change() {
+        let guid_prefix = [1; 12];
+        let entity_id = ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER;
+        let guid = GUID::new(guid_prefix, entity_id);
+        let topic_kind = TopicKind::WithKey;
+        let reliablility_level = ReliabilityKind::BestEffort;
+        let unicast_locator_list = vec![];
+        let multicast_locator_list = vec![];
+        let push_mode = true;
+        let heartbeat_period = DURATION_INFINITE;
+        let nack_response_delay = DURATION_ZERO;
+        let nack_suppression_duration = DURATION_ZERO;
+        let data_max_sized_serialized = i32::MAX;
+        let writer_cache = MockHistoryCache;
+        let mut writer = Writer::new(
+            guid,
+            topic_kind,
+            reliablility_level,
+            unicast_locator_list,
+            multicast_locator_list,
+            push_mode,
+            heartbeat_period,
+            nack_response_delay,
+            nack_suppression_duration,
+            data_max_sized_serialized,
+            writer_cache,
+        );
+
+        let kind1 = ChangeKind::Alive;
+        let kind2 = ChangeKind::NotAliveUnregistered;
+        let handle1 = [1; 16];
+        let handle2 = [2; 16];
+        let cc1 = writer.new_change(kind1, (), ParameterList::new(), handle1);
+        let cc2 = writer.new_change(kind2, (), ParameterList::new(), handle2);
+
+        assert_eq!(cc1.sequence_number(), 1);
+        assert_eq!(cc1.kind(), kind1);
+        assert_eq!(cc1.instance_handle(), &handle1);
+
+        assert_eq!(cc2.sequence_number(), 2);
+        assert_eq!(cc2.kind(), kind2);
+        assert_eq!(cc2.instance_handle(), &handle2);
+    }
+}

@@ -122,13 +122,16 @@ mod tests {
         let mut history_cache = HistoryCache::new();
         let min_seq_num = 4;
         let max_seq_num = 6;
-        let cc_min = MockCacheChange { sequence_number: min_seq_num };
-        let cc_max = MockCacheChange { sequence_number: max_seq_num };
+        let cc_min = MockCacheChange {
+            sequence_number: min_seq_num,
+        };
+        let cc_max = MockCacheChange {
+            sequence_number: max_seq_num,
+        };
         history_cache.add_change(cc_min);
         history_cache.add_change(cc_max);
 
-        assert_eq!(history_cache.get_seq_num_max(),Some(max_seq_num));
-        assert_eq!(history_cache.get_seq_num_min(),Some(min_seq_num));
-
+        assert_eq!(history_cache.get_seq_num_max(), Some(max_seq_num));
+        assert_eq!(history_cache.get_seq_num_min(), Some(min_seq_num));
     }
 }

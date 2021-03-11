@@ -14,10 +14,13 @@ use rust_rtps::{
     types::GUID,
 };
 
-use super::{statefuldatawriter_impl::StatefulDataWriterImpl, topic_impl::TopicImpl};
+use super::{
+    cache_change::CacheChange, history_cache::HistoryCache,
+    statefuldatawriter_impl::StatefulDataWriterImpl, topic_impl::TopicImpl, writer_impl::Writer,
+};
 
 pub struct PublisherImpl {
-    writer_list: Vec<Arc<Mutex<StatefulDataWriterImpl>>>,
+    writer_list: Vec<Arc<Mutex<StatefulDataWriterImpl<Writer<HistoryCache<CacheChange>>>>>>,
     writer_count: atomic::AtomicU8,
     default_datawriter_qos: DataWriterQos,
     qos: PublisherQos,
@@ -41,7 +44,7 @@ impl PublisherImpl {
         }
     }
 
-    pub fn writer_list(&self) -> &Vec<Arc<Mutex<StatefulDataWriterImpl>>> {
+    pub fn writer_list(&self) -> &Vec<Arc<Mutex<StatefulDataWriterImpl<Writer<HistoryCache<CacheChange>>>>>> {
         &self.writer_list
     }
 
@@ -51,7 +54,7 @@ impl PublisherImpl {
         qos: Option<DataWriterQos>,
         a_listener: Option<Box<dyn DataWriterListener<DataType = T>>>,
         mask: StatusMask,
-    ) -> Option<Weak<Mutex<StatefulDataWriterImpl>>> {
+    ) -> Option<Weak<Mutex<StatefulDataWriterImpl<Writer<HistoryCache<CacheChange>>>>>> {
         let qos = qos.unwrap_or(self.default_datawriter_qos.clone());
         qos.is_consistent().ok()?;
 
@@ -68,7 +71,7 @@ impl PublisherImpl {
 
     pub fn delete_datawriter(
         &mut self,
-        a_datawriter: &Weak<Mutex<StatefulDataWriterImpl>>,
+        a_datawriter: &Weak<Mutex<StatefulDataWriterImpl<Writer<HistoryCache<CacheChange>>>>>,
     ) -> DDSResult<()> {
         let datawriter_impl = a_datawriter.upgrade().ok_or(DDSError::AlreadyDeleted)?;
         self.writer_list
