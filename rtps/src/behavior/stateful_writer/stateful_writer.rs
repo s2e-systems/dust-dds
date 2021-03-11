@@ -2,10 +2,10 @@ use core::ops::{Deref, DerefMut};
 
 use crate::{behavior::RTPSWriter, types::GUID};
 
-use super::ReaderProxy;
+use super::RTPSReaderProxy;
 
-pub trait StatefulWriter<T: RTPSWriter>: Deref<Target = T> + DerefMut {
-    type ReaderProxyType: ReaderProxy;
+pub trait RTPSStatefulWriter<T: RTPSWriter>: Deref<Target = T> + DerefMut {
+    type ReaderProxyType: RTPSReaderProxy;
     fn matched_readers(&self) -> &[Self::ReaderProxyType];
     fn matched_reader_add(&mut self, a_reader_proxy: Self::ReaderProxyType);
     fn matched_reader_remove(&mut self, reader_proxy_guid: &GUID);

@@ -22,8 +22,6 @@ use rust_rtps::{
     },
 };
 
-use crate::transport::Transport;
-
 use super::{
     publisher_impl::PublisherImpl, subscriber_impl::SubscriberImpl, topic_impl::TopicImpl,
 };
@@ -412,6 +410,8 @@ impl Drop for DomainParticipantImpl {
 mod tests {
     use rust_rtps::types::Locator;
 
+    use crate::transport::Transport;
+
     use super::*;
 
     struct TestType;
@@ -445,7 +445,7 @@ mod tests {
     }
 
     impl<'a> Transport<'a> for MockTransport {
-        fn write(&self, message: rust_rtps::messages::RtpsMessage, destination_locator: &Locator) {
+        fn write(&self, _message: rust_rtps::messages::RtpsMessage, _destination_locator: &Locator) {
             todo!()
         }
 

@@ -44,16 +44,18 @@ impl PublisherImpl {
         }
     }
 
-    pub fn writer_list(&self) -> &Vec<Arc<Mutex<StatefulDataWriterImpl<Writer<HistoryCache<CacheChange>>>>>> {
+    pub fn writer_list(
+        &self,
+    ) -> &Vec<Arc<Mutex<StatefulDataWriterImpl<Writer<HistoryCache<CacheChange>>>>>> {
         &self.writer_list
     }
 
     pub fn create_datawriter<'a, T: DDSType>(
         &'a mut self,
-        topic: Arc<Mutex<TopicImpl>>,
+        _topic: Arc<Mutex<TopicImpl>>,
         qos: Option<DataWriterQos>,
-        a_listener: Option<Box<dyn DataWriterListener<DataType = T>>>,
-        mask: StatusMask,
+        _a_listener: Option<Box<dyn DataWriterListener<DataType = T>>>,
+        _mask: StatusMask,
     ) -> Option<Weak<Mutex<StatefulDataWriterImpl<Writer<HistoryCache<CacheChange>>>>>> {
         let qos = qos.unwrap_or(self.default_datawriter_qos.clone());
         qos.is_consistent().ok()?;

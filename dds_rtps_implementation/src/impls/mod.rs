@@ -11,6 +11,8 @@ pub mod topic_impl;
 pub mod writer_impl;
 pub mod stateless_writer;
 pub mod reader_locator;
+pub mod stateful_writer;
+pub mod reader_proxy;
 
 pub mod endpoint_traits;
 pub mod mask_listener;

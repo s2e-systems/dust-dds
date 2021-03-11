@@ -7,9 +7,9 @@ pub mod types;
 pub mod writer;
 
 pub use reader::RTPSReader;
-pub use stateful_reader::{StatefulReader, WriterProxy};
-pub use stateful_writer::{ReaderProxy, StatefulWriter};
-pub use stateless_reader::StatelessReader;
+pub use stateful_reader::{RTPSStatefulReader, RTPSWriterProxy};
+pub use stateful_writer::{RTPSReaderProxy, RTPSStatefulWriter};
+pub use stateless_reader::RTPSStatelessReader;
 pub use stateless_writer::RTPSStatelessWriter;
 pub use writer::RTPSWriter;
 

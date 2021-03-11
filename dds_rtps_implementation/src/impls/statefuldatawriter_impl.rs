@@ -1,24 +1,12 @@
-use std::{
-    ops::{Deref, DerefMut},
-    sync::{Arc, Mutex},
-};
+use std::ops::{Deref, DerefMut};
 
-use rust_dds_api::{
-    dcps_psm::StatusMask, dds_type::DDSType, infrastructure::qos::DataWriterQos,
-    publication::data_writer_listener::DataWriterListener,
-};
+use rust_dds_api::{dds_type::DDSType, publication::data_writer_listener::DataWriterListener};
 use rust_rtps::{
-    behavior::{
-        stateful_writer::reader_proxy::ChangeForReader, RTPSWriter, ReaderProxy, StatefulWriter,
-    },
-    structure::{RTPSEndpoint, RTPSEntity, RTPSHistoryCache},
+    behavior::{stateful_writer::reader_proxy::RTPSChangeForReader, RTPSReaderProxy, RTPSWriter},
+    structure::{RTPSEndpoint, RTPSEntity},
     types::SequenceNumber,
 };
 
-use super::{
-    history_cache::HistoryCache, mask_listener::MaskListener, topic_impl::TopicImpl,
-    writer_impl::Writer,
-};
 struct RtpsDataWriterListener<T: DDSType>(Box<dyn DataWriterListener<DataType = T>>);
 trait AnyDataWriterListener: Send + Sync {}
 
@@ -213,7 +201,7 @@ impl<W: RTPSWriter> DerefMut for StatefulDataWriterImpl<W> {
 
 pub struct ChangeForReaderImpl {}
 
-impl ChangeForReader for ChangeForReaderImpl {
+impl RTPSChangeForReader for ChangeForReaderImpl {
     type CacheChangeRepresentation = SequenceNumber;
 
     fn change(&self) -> &Self::CacheChangeRepresentation {
@@ -231,7 +219,7 @@ impl ChangeForReader for ChangeForReaderImpl {
 
 pub struct ReaderProxyImpl {}
 
-impl ReaderProxy for ReaderProxyImpl {
+impl RTPSReaderProxy for ReaderProxyImpl {
     type ChangeForReaderType = ChangeForReaderImpl;
 
     fn remote_reader_guid(&self) -> rust_rtps::types::GUID {
@@ -252,7 +240,7 @@ impl ReaderProxy for ReaderProxyImpl {
 
     fn changes_for_reader(
         &self,
-    ) -> &[<Self::ChangeForReaderType as ChangeForReader>::CacheChangeRepresentation] {
+    ) -> &[<Self::ChangeForReaderType as RTPSChangeForReader>::CacheChangeRepresentation] {
         todo!()
     }
 

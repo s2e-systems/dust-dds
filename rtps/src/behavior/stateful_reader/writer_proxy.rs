@@ -3,7 +3,7 @@ use crate::{
     types::{EntityId, Locator, SequenceNumber, GUID},
 };
 
-pub trait ChangeFromWriter {
+pub trait RTPSChangeFromWriter {
     type CacheChangeRepresentation;
 
     fn change(&self) -> &Self::CacheChangeRepresentation;
@@ -11,8 +11,8 @@ pub trait ChangeFromWriter {
     fn is_relevant(&self) -> bool;
 }
 
-pub trait WriterProxy {
-    type ChangeFromWriterType: ChangeFromWriter;
+pub trait RTPSWriterProxy {
+    type ChangeFromWriterType: RTPSChangeFromWriter;
 
     fn remote_writer_guid(&self) -> GUID;
     fn unicast_locator_list(&self) -> &[Locator];
@@ -20,7 +20,7 @@ pub trait WriterProxy {
     fn data_max_size_serialized(&self) -> i32;
     fn changes_from_writer(
         &self,
-    ) -> &[<Self::ChangeFromWriterType as ChangeFromWriter>::CacheChangeRepresentation];
+    ) -> &[<Self::ChangeFromWriterType as RTPSChangeFromWriter>::CacheChangeRepresentation];
     fn remote_group_entity_id(&self) -> EntityId;
 
     fn new(

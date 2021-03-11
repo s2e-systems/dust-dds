@@ -23,7 +23,6 @@ use crate::{
         domain_participant_impl::DomainParticipantImpl, publisher_impl::PublisherImpl,
         subscriber_impl::SubscriberImpl, topic_impl::TopicImpl,
     },
-    transport::Transport,
     utils::node::Node,
 };
 

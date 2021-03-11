@@ -4,12 +4,9 @@ use rust_dds_api::{
     dcps_psm::StatusMask, dds_type::DDSType, infrastructure::qos::DataReaderQos,
     subscription::data_reader_listener::DataReaderListener,
 };
-use rust_rtps::{
-    behavior::RTPSReader,
-    structure::{RTPSEndpoint, RTPSEntity},
-};
+use rust_rtps::structure::{RTPSEndpoint, RTPSEntity};
 
-use super::{history_cache::HistoryCache, mask_listener::MaskListener, topic_impl::TopicImpl};
+use super::{mask_listener::MaskListener, topic_impl::TopicImpl};
 
 struct RtpsDataReaderListener<T: DDSType>(Box<dyn DataReaderListener<DataType = T>>);
 trait AnyDataReaderListener: Send + Sync {}

@@ -3,7 +3,7 @@ use crate::{
     types::{EntityId, Locator, SequenceNumber, GUID},
 };
 
-pub trait ChangeForReader {
+pub trait RTPSChangeForReader {
     type CacheChangeRepresentation;
 
     fn change(&self) -> &Self::CacheChangeRepresentation;
@@ -11,14 +11,14 @@ pub trait ChangeForReader {
     fn is_relevant(&self) -> bool;
 }
 
-pub trait ReaderProxy {
-    type ChangeForReaderType : ChangeForReader;
+pub trait RTPSReaderProxy {
+    type ChangeForReaderType : RTPSChangeForReader;
 
     fn remote_reader_guid(&self) -> GUID;
     fn remote_group_entity_id(&self) -> EntityId;
     fn unicast_locator_list(&self) -> &[Locator];
     fn multicast_locator_list(&self) -> &[Locator];
-    fn changes_for_reader(&self) -> &[<Self::ChangeForReaderType as ChangeForReader>::CacheChangeRepresentation];
+    fn changes_for_reader(&self) -> &[<Self::ChangeForReaderType as RTPSChangeForReader>::CacheChangeRepresentation];
     fn expects_inline_qos(&self) -> bool;
     fn is_active(&self) -> bool;
 
