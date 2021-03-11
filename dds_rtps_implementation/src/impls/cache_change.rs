@@ -1,42 +1,60 @@
-use rust_rtps::structure::RTPSCacheChange;
+use rust_rtps::{
+    messages::submessages::submessage_elements::ParameterList,
+    structure::RTPSCacheChange,
+    types::{ChangeKind, InstanceHandle, SequenceNumber, GUID},
+};
 
-pub struct CacheChange {}
+pub struct CacheChange {
+    kind: ChangeKind,
+    writer_guid: GUID,
+    instance_handle: InstanceHandle,
+    sequence_number: SequenceNumber,
+    data_value: <Self as RTPSCacheChange>::Data,
+    inline_qos: ParameterList,
+}
 
 impl RTPSCacheChange for CacheChange {
     type Data = Vec<u8>;
 
     fn new(
-        kind: rust_rtps::types::ChangeKind,
-        writer_guid: rust_rtps::types::GUID,
-        instance_handle: rust_rtps::types::InstanceHandle,
-        sequence_number: rust_rtps::types::SequenceNumber,
+        kind: ChangeKind,
+        writer_guid: GUID,
+        instance_handle: InstanceHandle,
+        sequence_number: SequenceNumber,
         data_value: Self::Data,
-        inline_qos: rust_rtps::messages::submessages::submessage_elements::ParameterList,
+        inline_qos: ParameterList,
     ) -> Self {
-        todo!()
+        Self {
+            kind,
+            writer_guid,
+            instance_handle,
+            sequence_number,
+            data_value,
+            inline_qos,
+        }
     }
 
-    fn kind(&self) -> rust_rtps::types::ChangeKind {
-        todo!()
+    fn kind(&self) -> ChangeKind {
+        self.kind
     }
 
-    fn writer_guid(&self) -> rust_rtps::types::GUID {
-        todo!()
+    fn writer_guid(&self) -> GUID {
+        self.writer_guid
     }
 
-    fn instance_handle(&self) -> &rust_rtps::types::InstanceHandle {
-        todo!()
+    fn instance_handle(&self) -> &InstanceHandle {
+        &self.instance_handle
     }
 
-    fn sequence_number(&self) -> rust_rtps::types::SequenceNumber {
-        todo!()
+    fn sequence_number(&self) -> SequenceNumber {
+        self.sequence_number
     }
 
     fn data_value(&self) -> &Self::Data {
-        todo!()
+        &self.data_value
     }
 
-    fn inline_qos(&self) -> &rust_rtps::messages::submessages::submessage_elements::ParameterList {
-        todo!()
+    fn inline_qos(&self) -> &ParameterList {
+        &self.inline_qos
     }
 }
