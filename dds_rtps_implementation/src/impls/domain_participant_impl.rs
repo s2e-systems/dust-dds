@@ -368,8 +368,6 @@ impl DomainParticipantImpl {
         //
         //     let enabled = self.enabled.clone();
         //     let builtin_entities = self.builtin_entities.clone();
-
-
     }
 }
 

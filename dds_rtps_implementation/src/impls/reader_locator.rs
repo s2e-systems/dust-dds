@@ -122,6 +122,10 @@ mod tests {
     impl RTPSHistoryCache for MockHistoryCache {
         type CacheChangeType = MockCacheChangeType;
 
+        fn new() -> Self {
+            todo!()
+        }
+
         fn add_change(&mut self, _change: Self::CacheChangeType) {
             todo!()
         }
@@ -141,6 +145,8 @@ mod tests {
         fn get_seq_num_max(&self) -> Option<SequenceNumber> {
             self.seq_num_max
         }
+
+
     }
     #[test]
     fn empty_unsent_changes() {

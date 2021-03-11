@@ -3,7 +3,7 @@ use rust_rtps::{
     structure::{RTPSCacheChange, RTPSEndpoint, RTPSEntity, RTPSHistoryCache},
 };
 
-use super::history_cache_impl::HistoryCache;
+use super::history_cache::HistoryCache;
 
 pub struct WriterImpl;
 
@@ -31,44 +31,44 @@ impl RTPSEndpoint for WriterImpl {
     }
 }
 
-impl RTPSWriter for WriterImpl {
-    type HistoryCacheType = HistoryCache;
+// impl RTPSWriter for WriterImpl {
+//     type HistoryCacheType = HistoryCache;
 
-    fn push_mode(&self) -> bool {
-        todo!()
-    }
+//     fn push_mode(&self) -> bool {
+//         todo!()
+//     }
 
-    fn heartbeat_period(&self) -> rust_rtps::behavior::types::Duration {
-        todo!()
-    }
+//     fn heartbeat_period(&self) -> rust_rtps::behavior::types::Duration {
+//         todo!()
+//     }
 
-    fn nack_response_delay(&self) -> rust_rtps::behavior::types::Duration {
-        todo!()
-    }
+//     fn nack_response_delay(&self) -> rust_rtps::behavior::types::Duration {
+//         todo!()
+//     }
 
-    fn nack_suppression_duration(&self) -> rust_rtps::behavior::types::Duration {
-        todo!()
-    }
+//     fn nack_suppression_duration(&self) -> rust_rtps::behavior::types::Duration {
+//         todo!()
+//     }
 
-    fn last_change_sequence_number(&self) -> rust_rtps::types::SequenceNumber {
-        todo!()
-    }
+//     fn last_change_sequence_number(&self) -> rust_rtps::types::SequenceNumber {
+//         todo!()
+//     }
 
-    fn writer_cache(&mut self) -> &mut Self::HistoryCacheType {
-        todo!()
-    }
+//     fn writer_cache(&mut self) -> &mut Self::HistoryCacheType {
+//         todo!()
+//     }
 
-    fn data_max_sized_serialized(&self) -> i32 {
-        todo!()
-    }
+//     fn data_max_sized_serialized(&self) -> i32 {
+//         todo!()
+//     }
 
-    fn new_change(
-        &mut self,
-        _kind: rust_rtps::types::ChangeKind,
-        _data: <<Self::HistoryCacheType as RTPSHistoryCache>::CacheChangeType as RTPSCacheChange>::Data,
-        _inline_qos: rust_rtps::messages::submessages::submessage_elements::ParameterList,
-        _handle: rust_rtps::types::InstanceHandle,
-    ) -> <Self::HistoryCacheType as RTPSHistoryCache>::CacheChangeType {
-        todo!()
-    }
-}
+//     fn new_change(
+//         &mut self,
+//         _kind: rust_rtps::types::ChangeKind,
+//         _data: <<Self::HistoryCacheType as RTPSHistoryCache>::CacheChangeType as RTPSCacheChange>::Data,
+//         _inline_qos: rust_rtps::messages::submessages::submessage_elements::ParameterList,
+//         _handle: rust_rtps::types::InstanceHandle,
+//     ) -> <Self::HistoryCacheType as RTPSHistoryCache>::CacheChangeType {
+//         todo!()
+//     }
+// }

@@ -16,7 +16,7 @@ use rust_rtps::{
 };
 
 use super::{
-    history_cache_impl::HistoryCache, mask_listener::MaskListener, topic_impl::TopicImpl,
+    history_cache::HistoryCache, mask_listener::MaskListener, topic_impl::TopicImpl,
     writer_impl::WriterImpl,
 };
 struct RtpsDataWriterListener<T: DDSType>(Box<dyn DataWriterListener<DataType = T>>);
@@ -184,32 +184,32 @@ impl DerefMut for StatefulDataWriterImpl {
     }
 }
 
-impl StatefulWriter<WriterImpl> for StatefulDataWriterImpl {
-    type ReaderProxyType = ReaderProxyImpl;
+// impl StatefulWriter<WriterImpl> for StatefulDataWriterImpl {
+//     type ReaderProxyType = ReaderProxyImpl;
 
-    fn matched_readers(&self) -> &[Self::ReaderProxyType] {
-        todo!()
-    }
+//     fn matched_readers(&self) -> &[Self::ReaderProxyType] {
+//         todo!()
+//     }
 
-    fn matched_reader_add(&mut self, _a_reader_proxy: Self::ReaderProxyType) {
-        todo!()
-    }
+//     fn matched_reader_add(&mut self, _a_reader_proxy: Self::ReaderProxyType) {
+//         todo!()
+//     }
 
-    fn matched_reader_remove(&mut self, _reader_proxy_guid: &rust_rtps::types::GUID) {
-        todo!()
-    }
+//     fn matched_reader_remove(&mut self, _reader_proxy_guid: &rust_rtps::types::GUID) {
+//         todo!()
+//     }
 
-    fn matched_reader_lookup(
-        &self,
-        _a_reader_guid: rust_rtps::types::GUID,
-    ) -> Option<&Self::ReaderProxyType> {
-        todo!()
-    }
+//     fn matched_reader_lookup(
+//         &self,
+//         _a_reader_guid: rust_rtps::types::GUID,
+//     ) -> Option<&Self::ReaderProxyType> {
+//         todo!()
+//     }
 
-    fn is_acked_by_all(&self) -> bool {
-        todo!()
-    }
-}
+//     fn is_acked_by_all(&self) -> bool {
+//         todo!()
+//     }
+// }
 
 pub struct ChangeForReaderImpl {}
 

@@ -4,6 +4,9 @@ use super::RTPSCacheChange;
 pub trait RTPSHistoryCache {
     type CacheChangeType: RTPSCacheChange;
 
+    /// This operation creates a new RTPS HistoryCache. The newly-created history cache is initialized with an empty list of changes.
+    fn new() -> Self;
+
     /// This operation inserts the CacheChange a_change into the HistoryCache.
     /// This operation will only fail if there are not enough resources to add the change to the HistoryCache. It is the responsibility
     /// of the DDS service implementation to configure the HistoryCache in a manner consistent with the DDS Entity RESOURCE_LIMITS QoS

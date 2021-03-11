@@ -9,7 +9,7 @@ use rust_rtps::{
     structure::{RTPSEndpoint, RTPSEntity},
 };
 
-use super::{history_cache_impl::HistoryCache, mask_listener::MaskListener, topic_impl::TopicImpl};
+use super::{history_cache::HistoryCache, mask_listener::MaskListener, topic_impl::TopicImpl};
 
 struct RtpsDataReaderListener<T: DDSType>(Box<dyn DataReaderListener<DataType = T>>);
 trait AnyDataReaderListener: Send + Sync {}
@@ -66,22 +66,22 @@ impl RTPSEndpoint for ReaderImpl {
     }
 }
 
-impl RTPSReader for ReaderImpl {
-    type HistoryCacheType = HistoryCache;
+// impl RTPSReader for ReaderImpl {
+//     type HistoryCacheType = HistoryCache;
 
-    fn heartbeat_response_delay(&self) -> rust_rtps::behavior::types::Duration {
-        todo!()
-    }
+//     fn heartbeat_response_delay(&self) -> rust_rtps::behavior::types::Duration {
+//         todo!()
+//     }
 
-    fn heartbeat_supression_duration(&self) -> rust_rtps::behavior::types::Duration {
-        todo!()
-    }
+//     fn heartbeat_supression_duration(&self) -> rust_rtps::behavior::types::Duration {
+//         todo!()
+//     }
 
-    fn reader_cache(&mut self) -> &mut HistoryCache {
-        todo!()
-    }
+//     fn reader_cache(&mut self) -> &mut HistoryCache {
+//         todo!()
+//     }
 
-    fn expects_inline_qos(&self) -> bool {
-        todo!()
-    }
-}
+//     fn expects_inline_qos(&self) -> bool {
+//         todo!()
+//     }
+// }

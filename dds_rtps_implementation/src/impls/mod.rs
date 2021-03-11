@@ -1,5 +1,5 @@
 pub mod cache_change;
-pub mod history_cache_impl;
+pub mod history_cache;
 
 pub mod domain_participant_impl;
 pub mod reader_impl;
