@@ -1,5 +1,3 @@
-use std::collections::BTreeSet;
-
 use rust_rtps::{
     behavior::stateless_writer::RTPSReaderLocator,
     structure::HistoryCache,
@@ -9,7 +7,7 @@ use rust_rtps::{
 pub struct ReaderLocator<'a, T: HistoryCache> {
     locator: Locator,
     writer_cache: &'a T,
-    highest_sequence_number_sent: SequenceNumber,
+    next_unsent_change: SequenceNumber,
 }
 
 impl<'a, T: HistoryCache> ReaderLocator<'a, T> {
@@ -17,7 +15,7 @@ impl<'a, T: HistoryCache> ReaderLocator<'a, T> {
         Self {
             locator,
             writer_cache,
-            highest_sequence_number_sent: 0,
+            next_unsent_change: 1,
         }
     }
 }
@@ -32,23 +30,11 @@ impl<'a, T: HistoryCache> RTPSReaderLocator for ReaderLocator<'a, T> {
 
     fn unsent_changes(&self) -> Self::CacheChangeRepresentationList {
         let max_history_cache_seq_num = self.writer_cache.get_seq_num_max().unwrap_or(0);
-        self.highest_sequence_number_sent;
-        (max_history_cache_seq_num..self.highest_sequence_number_sent).collect()
-
-        // [1 2 3 4 5]
-        // highest_sent = 2
-
-        // return: [3 4 5]
-
-        // [2,3,4]
-
-        // todo!()
-        // This operation returns the list unsent_changes for this ReaderLocator.
-        // This list represents the set of changes in the writer’s HistoryCache that have not been sent yet to this ReaderLocator.
+        (self.next_unsent_change..=max_history_cache_seq_num).collect()
     }
 
     fn locator(&self) -> Locator {
-        todo!()
+        self.locator
     }
 
     fn expects_inline_qos(&self) -> bool {
@@ -71,8 +57,6 @@ impl<'a, T: HistoryCache> RTPSReaderLocator for ReaderLocator<'a, T> {
     fn requested_changes_set(&mut self, req_seq_num_set: &[SequenceNumber]) {
         todo!()
     }
-
-
 }
 
 #[cfg(test)]
@@ -124,7 +108,10 @@ mod tests {
         }
     }
 
-    struct MockHistoryCache;
+    struct MockHistoryCache {
+        seq_num_min: Option<SequenceNumber>,
+        seq_num_max: Option<SequenceNumber>,
+    }
 
     impl HistoryCache for MockHistoryCache {
         type CacheChangeType = MockCacheChangeType;
@@ -142,24 +129,37 @@ mod tests {
         }
 
         fn get_seq_num_min(&self) -> Option<SequenceNumber> {
-            todo!()
+            self.seq_num_min
         }
 
         fn get_seq_num_max(&self) -> Option<SequenceNumber> {
-            todo!()
+            self.seq_num_max
         }
     }
     #[test]
-    fn unsent_changes() {
+    fn empty_unsent_changes() {
         let locator = Locator::new_udpv4(7400, [127, 0, 0, 1]);
-        let history_cache = MockHistoryCache;
+        let history_cache = MockHistoryCache {
+            seq_num_min: Some(0),
+            seq_num_max: Some(0),
+        };
         let reader_locator = ReaderLocator::new(locator, &history_cache);
-        let unsent_changes_empty = reader_locator.unsent_changes();
-        let unsent_changes2 = reader_locator.unsent_changes();
+        let unsent_changes = reader_locator.unsent_changes();
 
-        assert!(unsent_changes_empty.is_empty());
-        assert_eq!(unsent_changes2.len(), 2);
-        assert!(unsent_changes2.contains(&1));
-        assert!(unsent_changes2.contains(&2));
+        assert!(unsent_changes.is_empty());
+    }
+
+    #[test]
+    fn some_unsent_changes() {
+        let locator = Locator::new_udpv4(7400, [127, 0, 0, 1]);
+        let history_cache = MockHistoryCache {
+            seq_num_min: Some(1),
+            seq_num_max: Some(5),
+        };
+        let reader_locator = ReaderLocator::new(locator, &history_cache);
+        let unsent_changes = reader_locator.unsent_changes();
+        let expected_unsent_changes = vec![1, 2, 3, 4, 5];
+
+        assert_eq!(unsent_changes, expected_unsent_changes);
     }
 }
