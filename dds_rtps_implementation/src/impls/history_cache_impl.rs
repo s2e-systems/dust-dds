@@ -5,10 +5,6 @@ pub struct HistoryCacheImpl {}
 impl HistoryCache for HistoryCacheImpl {
     type CacheChangeType = CacheChangeImpl;
 
-    fn new() -> Self {
-        todo!()
-    }
-
     fn add_change(&mut self, change: Self::CacheChangeType) {
         todo!()
     }

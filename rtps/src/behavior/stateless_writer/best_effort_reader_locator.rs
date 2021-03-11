@@ -11,13 +11,13 @@ use crate::{
     types::{constants::ENTITYID_UNKNOWN, EntityId, SequenceNumber},
 };
 
-use super::reader_locator::ReaderLocator;
+use super::reader_locator::RTPSReaderLocator;
 
 pub struct BestEffortReaderLocatorBehavior;
 
 impl BestEffortReaderLocatorBehavior {
     pub fn produce_messages<'a, C, D>(
-        reader_locator: &mut impl ReaderLocator<CacheChangeRepresentation = SequenceNumber>,
+        reader_locator: &mut impl RTPSReaderLocator<CacheChangeRepresentation = SequenceNumber>,
         history_cache: &'a impl HistoryCache<CacheChangeType = C>,
         writer_entity_id: EntityId,
     ) -> Vec<RtpsSubmessage<'a>>
@@ -26,7 +26,7 @@ impl BestEffortReaderLocatorBehavior {
         &'a D: Into<SerializedData<'a>> + 'a,
     {
         let mut message_queue = Vec::new();
-        if !reader_locator.unsent_changes().is_empty() {
+        if reader_locator.unsent_changes().into_iter().next().is_some() {
             Self::pushing_state(
                 reader_locator,
                 history_cache,
@@ -38,7 +38,7 @@ impl BestEffortReaderLocatorBehavior {
     }
 
     fn pushing_state<'a, C, D>(
-        reader_locator: &mut impl ReaderLocator<CacheChangeRepresentation = SequenceNumber>,
+        reader_locator: &mut impl RTPSReaderLocator<CacheChangeRepresentation = SequenceNumber>,
         history_cache: &'a impl HistoryCache<CacheChangeType = C>,
         writer_entity_id: EntityId,
         message_queue: &mut Vec<RtpsSubmessage<'a>>,

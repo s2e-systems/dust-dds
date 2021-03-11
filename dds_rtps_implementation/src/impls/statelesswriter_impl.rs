@@ -1,52 +1,12 @@
 use std::ops::{Deref, DerefMut};
 
-use rust_rtps::{
-    behavior::{stateless_writer::ReaderLocator, StatelessWriter},
-    types::{Locator, SequenceNumber},
-};
+use rust_rtps::types::Locator;
 
-use super::writer_impl::WriterImpl;
+use super::{reader_locator::ReaderLocator, writer_impl::WriterImpl};
 
-pub struct ReaderLocatorImpl;
-
-impl ReaderLocator for ReaderLocatorImpl {
-    type CacheChangeRepresentation = SequenceNumber;
-
-    fn requested_changes(&self) -> &[Self::CacheChangeRepresentation] {
-        todo!()
-    }
-
-    fn unsent_changes(&self) -> &[Self::CacheChangeRepresentation] {
-        todo!()
-    }
-
-    fn locator(&self) -> Locator {
-        todo!()
-    }
-
-    fn expects_inline_qos(&self) -> bool {
-        todo!()
-    }
-
-    fn new(locator: Locator) -> Self {
-        todo!()
-    }
-
-    fn next_requested_change(&mut self) -> Option<&Self::CacheChangeRepresentation> {
-        todo!()
-    }
-
-    fn next_unsent_change(&mut self) -> Option<&Self::CacheChangeRepresentation> {
-        todo!()
-    }
-
-    fn requested_changes_set(&mut self, req_seq_num_set: &[rust_rtps::types::SequenceNumber]) {
-        todo!()
-    }
-}
 pub struct StatelessWriterImpl {
     writer: WriterImpl,
-    reader_locators: Vec<ReaderLocatorImpl>,
+    // reader_locators: Vec<ReaderLocator<'a>>,
 }
 
 impl Deref for StatelessWriterImpl {
@@ -63,22 +23,23 @@ impl DerefMut for StatelessWriterImpl {
     }
 }
 
-impl StatelessWriter<WriterImpl> for StatelessWriterImpl {
-    type ReaderLocatorType = ReaderLocatorImpl;
+// impl rust_rtps::behavior::StatelessWriter<WriterImpl> for StatelessWriterImpl {
+//     type ReaderLocatorType = ReaderLocator<'a>;
 
-    fn reader_locators(&self) -> &[Self::ReaderLocatorType] {
-        &self.reader_locators
-    }
+//     fn reader_locators(&self) -> &[Self::ReaderLocatorType] {
+//         &self.reader_locators
+//     }
 
-    fn reader_locator_add(&mut self, a_locator: Self::ReaderLocatorType) {
-        self.reader_locators.push(a_locator)
-    }
+//     fn reader_locator_add(&mut self, a_locator: Self::ReaderLocatorType) {
+//         self.reader_locators.push(a_locator)
+//     }
 
-    fn reader_locator_remove(&mut self, a_locator: &Locator) {
-        self.reader_locators.retain(|x| &x.locator() != a_locator)
-    }
+//     fn reader_locator_remove(&mut self, a_locator: &Locator) {
+//         todo!()
+//         // self.reader_locators.retain(|x| &x.locator() != a_locator)
+//     }
 
-    fn unsent_changes_reset(&mut self) {
-        todo!()
-    }
-}
+//     fn unsent_changes_reset(&mut self) {
+//         todo!()
+//     }
+// }

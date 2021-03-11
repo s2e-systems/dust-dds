@@ -9,6 +9,7 @@ pub mod topic_impl;
 
 pub mod writer_impl;
 pub mod statelesswriter_impl;
+pub mod reader_locator;
 
 pub mod endpoint_traits;
 pub mod mask_listener;

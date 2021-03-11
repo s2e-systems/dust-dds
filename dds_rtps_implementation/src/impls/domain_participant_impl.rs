@@ -306,11 +306,18 @@ impl DomainParticipantImpl {
         self.enabled_function.call_once(|| {
             thread_list.push(std::thread::spawn(move || {
                 while enabled.load(atomic::Ordering::Acquire) {
-                    // builtin_entities.send_data(guid_prefix);
+                    Self::send();
                     std::thread::sleep(std::time::Duration::from_secs(1));
                 }
             }));
         });
+        Ok(())
+    }
+
+    fn send() {
+        // let spdp_announcer = StatelessWriter::new();
+        // builtin_entities.send_data(guid_prefix);
+
         //     use rust_rtps::structure::Entity;
         //     let guid_prefix = self.guid().prefix();
         //     let builtin_publisher = RtpsPublisherInner::new_builtin(
@@ -361,7 +368,8 @@ impl DomainParticipantImpl {
         //
         //     let enabled = self.enabled.clone();
         //     let builtin_entities = self.builtin_entities.clone();
-        Ok(())
+
+
     }
 }
 
