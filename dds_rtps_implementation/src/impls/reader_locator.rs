@@ -4,33 +4,30 @@ use rust_rtps::{
     types::{Locator, SequenceNumber},
 };
 
-pub struct ReaderLocator<'a, T: RTPSHistoryCache> {
+pub struct ReaderLocator {
     locator: Locator,
     expects_inline_qos: bool,
-    writer_cache: &'a T,
     next_unsent_change: SequenceNumber,
     requested_changes: Vec<SequenceNumber>,
 }
 
-impl<'a, T: RTPSHistoryCache> RTPSReaderLocator<'a> for ReaderLocator<'a, T> {
+impl RTPSReaderLocator for ReaderLocator {
     type CacheChangeRepresentation = SequenceNumber;
     type CacheChangeRepresentationList = Vec<Self::CacheChangeRepresentation>;
-    type HistoryCache = T;
 
     fn requested_changes(&self) -> Self::CacheChangeRepresentationList {
         self.requested_changes.clone()
     }
 
-    fn unsent_changes(&self) -> Self::CacheChangeRepresentationList {
-        let max_history_cache_seq_num = self.writer_cache.get_seq_num_max().unwrap_or(0);
+    fn unsent_changes(&self, writer_cache: &impl RTPSHistoryCache) -> Self::CacheChangeRepresentationList {
+        let max_history_cache_seq_num = writer_cache.get_seq_num_max().unwrap_or(0);
         (self.next_unsent_change + 1..=max_history_cache_seq_num).collect()
     }
 
-    fn new(locator: Locator, expects_inline_qos: bool, writer_cache: &'a Self::HistoryCache) -> Self {
+    fn new(locator: Locator, expects_inline_qos: bool) -> Self {
         Self {
             locator,
             expects_inline_qos,
-            writer_cache,
             next_unsent_change: 0,
             requested_changes: Vec::new(),
         }
@@ -51,14 +48,14 @@ impl<'a, T: RTPSHistoryCache> RTPSReaderLocator<'a> for ReaderLocator<'a, T> {
         Some(next_requested_change)
     }
 
-    fn next_unsent_change(&mut self) -> Option<Self::CacheChangeRepresentation> {
-        self.next_unsent_change = *self.unsent_changes().iter().min()?;
+    fn next_unsent_change(&mut self, writer_cache: &impl RTPSHistoryCache) -> Option<Self::CacheChangeRepresentation> {
+        self.next_unsent_change = *self.unsent_changes(writer_cache).iter().min()?;
         Some(self.next_unsent_change)
     }
 
-    fn requested_changes_set(&mut self, req_seq_num_set: &[SequenceNumber]) {
+    fn requested_changes_set(&mut self, req_seq_num_set: &[SequenceNumber], writer_cache: &impl RTPSHistoryCache) {
         for value in req_seq_num_set {
-            if value <= &self.writer_cache.get_seq_num_max().unwrap_or_default() {
+            if value <= &writer_cache.get_seq_num_max().unwrap_or_default() {
                 self.requested_changes.push(*value);
             }
         }
@@ -151,8 +148,8 @@ mod tests {
         let history_cache = MockHistoryCache {
             seq_num_max: Some(0),
         };
-        let reader_locator = ReaderLocator::new(locator, false, &history_cache);
-        let unsent_changes = reader_locator.unsent_changes();
+        let reader_locator = ReaderLocator::new(locator, false);
+        let unsent_changes = reader_locator.unsent_changes(&history_cache);
 
         assert!(unsent_changes.is_empty());
     }
@@ -163,8 +160,8 @@ mod tests {
         let history_cache = MockHistoryCache {
             seq_num_max: Some(5),
         };
-        let reader_locator = ReaderLocator::new(locator, false, &history_cache);
-        let unsent_changes = reader_locator.unsent_changes();
+        let reader_locator = ReaderLocator::new(locator, false);
+        let unsent_changes = reader_locator.unsent_changes(&history_cache);
         let expected_unsent_changes = vec![1, 2, 3, 4, 5];
 
         assert_eq!(unsent_changes, expected_unsent_changes);
@@ -177,10 +174,10 @@ mod tests {
             seq_num_max: Some(2),
         };
 
-        let mut reader_locator = ReaderLocator::new(locator, false, &history_cache);
-        assert_eq!(reader_locator.next_unsent_change(), Some(1));
-        assert_eq!(reader_locator.next_unsent_change(), Some(2));
-        assert_eq!(reader_locator.next_unsent_change(), None);
+        let mut reader_locator = ReaderLocator::new(locator, false);
+        assert_eq!(reader_locator.next_unsent_change(&history_cache), Some(1));
+        assert_eq!(reader_locator.next_unsent_change(&history_cache), Some(2));
+        assert_eq!(reader_locator.next_unsent_change(&history_cache), None);
     }
 
     #[test]
@@ -190,10 +187,10 @@ mod tests {
             seq_num_max: Some(5),
         };
 
-        let mut reader_locator = ReaderLocator::new(locator, false, &history_cache);
+        let mut reader_locator = ReaderLocator::new(locator, false);
 
         let requested_changes = [1, 3, 5];
-        reader_locator.requested_changes_set(&requested_changes);
+        reader_locator.requested_changes_set(&requested_changes, &history_cache);
         assert_eq!(reader_locator.requested_changes(), requested_changes)
     }
 
@@ -204,11 +201,11 @@ mod tests {
             seq_num_max: Some(2),
         };
 
-        let mut reader_locator = ReaderLocator::new(locator, false, &history_cache);
+        let mut reader_locator = ReaderLocator::new(locator, false);
 
         let requested_changes = [1, 3, 5];
         let expected_requested_changes = [1];
-        reader_locator.requested_changes_set(&requested_changes);
+        reader_locator.requested_changes_set(&requested_changes, &history_cache);
         assert_eq!(
             reader_locator.requested_changes(),
             expected_requested_changes
@@ -222,9 +219,9 @@ mod tests {
             seq_num_max: Some(5),
         };
 
-        let mut reader_locator = ReaderLocator::new(locator, false, &history_cache);
+        let mut reader_locator = ReaderLocator::new(locator, false);
 
-        reader_locator.requested_changes_set(&[1, 3, 5]);
+        reader_locator.requested_changes_set(&[1, 3, 5], &history_cache);
         assert_eq!(reader_locator.next_requested_change(), Some(1));
         assert_eq!(reader_locator.next_requested_change(), Some(3));
         assert_eq!(reader_locator.next_requested_change(), Some(5));
@@ -238,11 +235,11 @@ mod tests {
             seq_num_max: Some(5),
         };
 
-        let mut reader_locator = ReaderLocator::new(locator, false, &history_cache);
+        let mut reader_locator = ReaderLocator::new(locator, false);
 
-        reader_locator.requested_changes_set(&[1, 3, 5]);
+        reader_locator.requested_changes_set(&[1, 3, 5], &history_cache);
         reader_locator.next_requested_change();
-        reader_locator.requested_changes_set(&[2, 3, 4]);
+        reader_locator.requested_changes_set(&[2, 3, 4], &history_cache);
 
         assert_eq!(reader_locator.next_requested_change(), Some(2));
         assert_eq!(reader_locator.next_requested_change(), Some(3));
