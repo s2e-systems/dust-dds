@@ -102,8 +102,8 @@ impl<H: RTPSHistoryCache> RTPSWriter for Writer<H> {
         self.data_max_sized_serialized
     }
 
-    fn writer_cache(&mut self) -> &mut Self::HistoryCacheType {
-        &mut self.writer_cache
+    fn writer_cache(&self) -> &Self::HistoryCacheType {
+        &self.writer_cache
     }
 
     fn new_change(

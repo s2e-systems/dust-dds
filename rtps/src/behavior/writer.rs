@@ -29,7 +29,7 @@ pub trait RTPSWriter: RTPSEndpoint {
     fn nack_suppression_duration(&self) -> Duration;
     fn last_change_sequence_number(&self) -> SequenceNumber;
     fn data_max_sized_serialized(&self) -> i32;
-    fn writer_cache(&mut self) -> &mut Self::HistoryCacheType;
+    fn writer_cache(&self) -> &Self::HistoryCacheType;
     fn new_change(
         &mut self,
         kind: ChangeKind,

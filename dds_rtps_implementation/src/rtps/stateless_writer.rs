@@ -200,7 +200,7 @@ mod tests {
             todo!()
         }
 
-        fn writer_cache(&mut self) -> &mut Self::HistoryCacheType {
+        fn writer_cache(&self) -> &Self::HistoryCacheType {
             todo!()
         }
 

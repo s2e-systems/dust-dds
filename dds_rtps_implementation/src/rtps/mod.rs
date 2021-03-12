@@ -6,3 +6,4 @@ pub mod stateless_writer;
 pub mod reader_locator;
 pub mod stateful_writer;
 pub mod reader_proxy;
+pub mod change_for_reader;
