@@ -14,9 +14,10 @@ use rust_rtps::{
     types::GUID,
 };
 
+use crate::rtps::{cache_change::CacheChange, history_cache::HistoryCache, writer::Writer};
+
 use super::{
-    cache_change::CacheChange, history_cache::HistoryCache,
-    statefuldatawriter_impl::StatefulDataWriterImpl, topic_impl::TopicImpl, writer_impl::Writer,
+    statefuldatawriter_impl::StatefulDataWriterImpl, topic_impl::TopicImpl,
 };
 
 pub struct PublisherImpl {

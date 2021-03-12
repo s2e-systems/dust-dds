@@ -8,5 +8,6 @@ pub mod rtps_datawriter;
 pub mod rtps_topic;
 
 mod impls;
+mod rtps;
 mod utils;
 mod transport;

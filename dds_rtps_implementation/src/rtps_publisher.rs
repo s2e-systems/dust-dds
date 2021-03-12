@@ -17,10 +17,8 @@ use rust_dds_api::{
 };
 
 use crate::{
-    impls::{
-        cache_change::CacheChange, history_cache::HistoryCache,
-        statefuldatawriter_impl::StatefulDataWriterImpl, writer_impl::Writer,
-    },
+    impls::statefuldatawriter_impl::StatefulDataWriterImpl,
+    rtps::{cache_change::CacheChange, history_cache::HistoryCache, writer::Writer},
     rtps_domain_participant::{RtpsDomainParticipant, RtpsPublisher, RtpsTopic},
     utils::node::Node,
 };
