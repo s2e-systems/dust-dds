@@ -5,36 +5,34 @@ use rust_rtps::{
     types::Locator,
 };
 
-pub struct StatelessWriter<W: RTPSWriter, R: RTPSReaderLocator> {
-    writer: W,
+pub struct StatelessWriter<T: RTPSWriter, R: RTPSReaderLocator> {
+    writer: T,
     reader_locators: Vec<R>,
 }
 
-impl<W: RTPSWriter, R: RTPSReaderLocator> StatelessWriter<W, R> {
-    pub fn new(writer: W) -> Self {
-        Self {
-            writer,
-            reader_locators: Vec::new(),
-        }
-    }
-}
-
-impl<W: RTPSWriter, R: RTPSReaderLocator> Deref for StatelessWriter<W, R> {
-    type Target = W;
+impl<T: RTPSWriter, R: RTPSReaderLocator> Deref for StatelessWriter<T, R> {
+    type Target = T;
 
     fn deref(&self) -> &Self::Target {
         &self.writer
     }
 }
 
-impl<W: RTPSWriter, R: RTPSReaderLocator> DerefMut for StatelessWriter<W, R> {
+impl<T: RTPSWriter, R: RTPSReaderLocator> DerefMut for StatelessWriter<T, R> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.writer
     }
 }
 
-impl<W: RTPSWriter, R: RTPSReaderLocator> RTPSStatelessWriter<W> for StatelessWriter<W, R> {
+impl<T: RTPSWriter, R: RTPSReaderLocator> RTPSStatelessWriter<T> for StatelessWriter<T, R> {
     type ReaderLocatorType = R;
+
+    fn new(writer: T) -> Self {
+        Self {
+            writer,
+            reader_locators: Vec::new(),
+        }
+    }
 
     fn reader_locators(&self) -> &[Self::ReaderLocatorType] {
         &self.reader_locators
@@ -161,6 +159,22 @@ mod tests {
 
     impl RTPSWriter for MockWriter {
         type HistoryCacheType = MockHistoryCache;
+
+        fn new(
+            _guid: rust_rtps::types::GUID,
+            _topic_kind: rust_rtps::types::TopicKind,
+            _reliablility_level: rust_rtps::types::ReliabilityKind,
+            _unicast_locator_list: &[Locator],
+            _multicast_locator_list: &[Locator],
+            _push_mode: bool,
+            _heartbeat_period: rust_rtps::behavior::types::Duration,
+            _nack_response_delay: rust_rtps::behavior::types::Duration,
+            _nack_suppression_duration: rust_rtps::behavior::types::Duration,
+            _data_max_sized_serialized: i32,
+            _writer_cache: Self::HistoryCacheType,
+        ) -> Self {
+            todo!()
+        }
 
         fn push_mode(&self) -> bool {
             todo!()

@@ -22,37 +22,6 @@ pub struct Writer<H: RTPSHistoryCache> {
     writer_cache: H,
 }
 
-impl<H: RTPSHistoryCache> Writer<H> {
-    pub fn new(
-        guid: GUID,
-        topic_kind: TopicKind,
-        reliablility_level: ReliabilityKind,
-        unicast_locator_list: Vec<Locator>,
-        multicast_locator_list: Vec<Locator>,
-        push_mode: bool,
-        heartbeat_period: Duration,
-        nack_response_delay: Duration,
-        nack_suppression_duration: Duration,
-        data_max_sized_serialized: i32,
-        writer_cache: H,
-    ) -> Self {
-        Self {
-            guid,
-            topic_kind,
-            reliablility_level,
-            unicast_locator_list,
-            multicast_locator_list,
-            push_mode,
-            heartbeat_period,
-            nack_response_delay,
-            nack_suppression_duration,
-            last_change_sequence_number: 0,
-            data_max_sized_serialized,
-            writer_cache,
-        }
-    }
-}
-
 impl<H: RTPSHistoryCache> RTPSEntity for Writer<H> {
     fn guid(&self) -> GUID {
         self.guid
@@ -80,6 +49,35 @@ impl<H: RTPSHistoryCache> RTPSEndpoint for Writer<H> {
 impl<H: RTPSHistoryCache> RTPSWriter for Writer<H> {
     type HistoryCacheType = H;
 
+    fn new(
+        guid: GUID,
+        topic_kind: TopicKind,
+        reliablility_level: ReliabilityKind,
+        unicast_locator_list: &[Locator],
+        multicast_locator_list: &[Locator],
+        push_mode: bool,
+        heartbeat_period: Duration,
+        nack_response_delay: Duration,
+        nack_suppression_duration: Duration,
+        data_max_sized_serialized: i32,
+        writer_cache: Self::HistoryCacheType,
+    ) -> Self {
+        Self {
+            guid,
+            topic_kind,
+            reliablility_level,
+            unicast_locator_list: unicast_locator_list.to_vec(),
+            multicast_locator_list: multicast_locator_list.to_vec(),
+            push_mode,
+            heartbeat_period,
+            nack_response_delay,
+            nack_suppression_duration,
+            last_change_sequence_number: 0,
+            data_max_sized_serialized,
+            writer_cache,
+        }
+    }
+
     fn push_mode(&self) -> bool {
         self.push_mode
     }
@@ -100,12 +98,12 @@ impl<H: RTPSHistoryCache> RTPSWriter for Writer<H> {
         self.last_change_sequence_number
     }
 
-    fn writer_cache(&mut self) -> &mut Self::HistoryCacheType {
-        &mut self.writer_cache
-    }
-
     fn data_max_sized_serialized(&self) -> i32 {
         self.data_max_sized_serialized
+    }
+
+    fn writer_cache(&mut self) -> &mut Self::HistoryCacheType {
+        &mut self.writer_cache
     }
 
     fn new_change(
@@ -136,7 +134,7 @@ mod tests {
 
     use super::*;
 
-    struct MockCacheChange{
+    struct MockCacheChange {
         kind: ChangeKind,
         sequence_number: SequenceNumber,
         instance_handle: InstanceHandle,
@@ -233,8 +231,8 @@ mod tests {
             guid,
             topic_kind,
             reliablility_level,
-            unicast_locator_list,
-            multicast_locator_list,
+            &unicast_locator_list,
+            &multicast_locator_list,
             push_mode,
             heartbeat_period,
             nack_response_delay,
