@@ -19,7 +19,10 @@ impl RTPSReaderLocator for ReaderLocator {
         self.requested_changes.clone()
     }
 
-    fn unsent_changes(&self, writer_cache: &impl RTPSHistoryCache) -> Self::CacheChangeRepresentationList {
+    fn unsent_changes(
+        &self,
+        writer_cache: &impl RTPSHistoryCache,
+    ) -> Self::CacheChangeRepresentationList {
         let max_history_cache_seq_num = writer_cache.get_seq_num_max().unwrap_or(0);
         (self.next_unsent_change + 1..=max_history_cache_seq_num).collect()
     }
@@ -48,12 +51,19 @@ impl RTPSReaderLocator for ReaderLocator {
         Some(next_requested_change)
     }
 
-    fn next_unsent_change(&mut self, writer_cache: &impl RTPSHistoryCache) -> Option<Self::CacheChangeRepresentation> {
+    fn next_unsent_change(
+        &mut self,
+        writer_cache: &impl RTPSHistoryCache,
+    ) -> Option<Self::CacheChangeRepresentation> {
         self.next_unsent_change = *self.unsent_changes(writer_cache).iter().min()?;
         Some(self.next_unsent_change)
     }
 
-    fn requested_changes_set(&mut self, req_seq_num_set: &[SequenceNumber], writer_cache: &impl RTPSHistoryCache) {
+    fn requested_changes_set(
+        &mut self,
+        req_seq_num_set: &[SequenceNumber],
+        writer_cache: &impl RTPSHistoryCache,
+    ) {
         for value in req_seq_num_set {
             if value <= &writer_cache.get_seq_num_max().unwrap_or_default() {
                 self.requested_changes.push(*value);

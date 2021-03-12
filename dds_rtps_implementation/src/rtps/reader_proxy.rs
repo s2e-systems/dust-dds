@@ -19,6 +19,8 @@ pub struct ReaderProxy<T: RTPSChangeForReader<CacheChangeRepresentation = Sequen
 
     phantom: PhantomData<T>,
     next_unsent_change: SequenceNumber,
+    highest_acked_change: SequenceNumber,
+    requested_changes: Vec<SequenceNumber>,
 }
 
 impl<T: RTPSChangeForReader<CacheChangeRepresentation = SequenceNumber>> RTPSReaderProxy
@@ -72,24 +74,40 @@ impl<T: RTPSChangeForReader<CacheChangeRepresentation = SequenceNumber>> RTPSRea
             is_active,
             phantom: PhantomData,
             next_unsent_change: 0,
+            highest_acked_change: 0,
+            requested_changes: Vec::new(),
         }
     }
 
-    fn acked_changes_set(&mut self, _committed_seq_num: SequenceNumber) {
-        todo!()
+    fn acked_changes_set(&mut self, committed_seq_num: SequenceNumber) {
+        self.highest_acked_change = committed_seq_num;
     }
 
     fn next_requested_change(&mut self) -> Option<Self::ChangeForReaderType> {
-        todo!()
+        let next_requested_change = *self.requested_changes.iter().min()?;
+        self.requested_changes
+            .retain(|x| x != &next_requested_change);
+        Some(T::new(
+            next_requested_change,
+            ChangeForReaderStatusKind::Requested,
+            true,
+        ))
     }
 
     fn next_unsent_change(
         &mut self,
-        _writer: &impl RTPSWriter,
+        writer: &impl RTPSWriter,
     ) -> Option<Self::ChangeForReaderType> {
-        todo!()
-        // self.next_unsent_change = self.unsent_changes(writer).iter().min()?;
-        // Some(self.next_unsent_change)
+        self.next_unsent_change = self
+            .unsent_changes(writer)
+            .iter()
+            .map(|x| x.change())
+            .min()?;
+        Some(T::new(
+            self.next_unsent_change,
+            ChangeForReaderStatusKind::Unsent,
+            true,
+        ))
     }
 
     fn unsent_changes(&self, writer: &impl RTPSWriter) -> Self::ChangeForReaderTypeList {
@@ -99,22 +117,42 @@ impl<T: RTPSChangeForReader<CacheChangeRepresentation = SequenceNumber>> RTPSRea
                 .map(|sn| T::new(sn, ChangeForReaderStatusKind::Unsent, true))
                 .collect()
         } else {
-            // If writer push_mode no change is unsent since they have to be
+            // If writer push_mode is false no change is unsent since they have to be
             // explicitly requested by the receiver using acknack
             Vec::new()
         }
     }
 
     fn requested_changes(&self) -> Self::ChangeForReaderTypeList {
-        todo!()
+        self.requested_changes
+            .iter()
+            .map(|sn| T::new(*sn, ChangeForReaderStatusKind::Requested, true))
+            .collect()
     }
 
-    fn requested_changes_set(&mut self, _req_seq_num_set: &[SequenceNumber]) {
-        todo!()
+    fn requested_changes_set(
+        &mut self,
+        req_seq_num_set: &[SequenceNumber],
+        writer: &impl RTPSWriter,
+    ) {
+        for value in req_seq_num_set {
+            if value <= &writer.writer_cache().get_seq_num_max().unwrap_or_default() {
+                self.requested_changes.push(*value);
+            }
+        }
     }
 
-    fn unacked_changes(&self) -> Self::ChangeForReaderTypeList {
-        todo!()
+    fn unacked_changes(&self, writer: &impl RTPSWriter) -> Self::ChangeForReaderTypeList {
+        if writer.push_mode() == true {
+            // According to the diagram in page 8.4.9.3 this is every change that has been sent
+            // longer ago than writer.nackSuppressionDuration() and not yet acknowledged
+            // TODO: nackSuppressionDuration is for now hard-coded 0
+            (self.highest_acked_change + 1..=self.next_unsent_change)
+                .map(|sn| T::new(sn, ChangeForReaderStatusKind::Unacknowledged, true))
+                .collect()
+        } else {
+            todo!()
+        }
     }
 }
 
@@ -418,5 +456,293 @@ mod tests {
 
         let unsent_changes = reader_proxy.unsent_changes(&writer);
         assert!(unsent_changes.is_empty());
+    }
+
+    #[test]
+    fn next_unsent_change_push_mode_true() {
+        let remote_reader_guid = GUID::new([5; 12], EntityId::new([5, 6, 7], 1));
+        let remote_group_entity_id = EntityId::new([1, 2, 3], 10);
+        let unicast_locator_list = [Locator::new(20, 200, [1; 16])];
+        let multicast_locator_list = [Locator::new(10, 100, [2; 16])];
+        let expects_inline_qos = false;
+        let is_active = true;
+        let mut reader_proxy: ReaderProxy<MockChangeForReader> = ReaderProxy::new(
+            remote_reader_guid,
+            remote_group_entity_id,
+            &unicast_locator_list,
+            &multicast_locator_list,
+            expects_inline_qos,
+            is_active,
+        );
+        let writer = MockWriter {
+            push_mode: true,
+            writer_cache: MockHistoryCache {
+                seq_num_max: Some(3),
+            },
+        };
+
+        let next_unsent_change1 = reader_proxy.next_unsent_change(&writer);
+        let expected_unsent_change1 = Some(MockChangeForReader {
+            change: 1,
+            is_relevant: true,
+            status: ChangeForReaderStatusKind::Unsent,
+        });
+        let next_unsent_change2 = reader_proxy.next_unsent_change(&writer);
+        let expected_unsent_change2 = Some(MockChangeForReader {
+            change: 2,
+            is_relevant: true,
+            status: ChangeForReaderStatusKind::Unsent,
+        });
+        let next_unsent_change3 = reader_proxy.next_unsent_change(&writer);
+        let expected_unsent_change3 = Some(MockChangeForReader {
+            change: 3,
+            is_relevant: true,
+            status: ChangeForReaderStatusKind::Unsent,
+        });
+
+        let next_unsent_change4 = reader_proxy.next_unsent_change(&writer);
+        let expected_unsent_change4 = None;
+
+        assert_eq!(next_unsent_change1, expected_unsent_change1);
+        assert_eq!(next_unsent_change2, expected_unsent_change2);
+        assert_eq!(next_unsent_change3, expected_unsent_change3);
+        assert_eq!(next_unsent_change4, expected_unsent_change4);
+    }
+
+    #[test]
+    fn next_unsent_change_push_mode_false() {
+        let remote_reader_guid = GUID::new([5; 12], EntityId::new([5, 6, 7], 1));
+        let remote_group_entity_id = EntityId::new([1, 2, 3], 10);
+        let unicast_locator_list = [Locator::new(20, 200, [1; 16])];
+        let multicast_locator_list = [Locator::new(10, 100, [2; 16])];
+        let expects_inline_qos = false;
+        let is_active = true;
+        let mut reader_proxy: ReaderProxy<MockChangeForReader> = ReaderProxy::new(
+            remote_reader_guid,
+            remote_group_entity_id,
+            &unicast_locator_list,
+            &multicast_locator_list,
+            expects_inline_qos,
+            is_active,
+        );
+        let writer = MockWriter {
+            push_mode: false,
+            writer_cache: MockHistoryCache {
+                seq_num_max: Some(3),
+            },
+        };
+
+        let next_unsent_change = reader_proxy.next_unsent_change(&writer);
+        let expected_unsent_change = None;
+
+        assert_eq!(next_unsent_change, expected_unsent_change);
+    }
+
+    #[test]
+    fn unacked_changes_push_mode_true() {
+        let remote_reader_guid = GUID::new([5; 12], EntityId::new([5, 6, 7], 1));
+        let remote_group_entity_id = EntityId::new([1, 2, 3], 10);
+        let unicast_locator_list = [Locator::new(20, 200, [1; 16])];
+        let multicast_locator_list = [Locator::new(10, 100, [2; 16])];
+        let expects_inline_qos = false;
+        let is_active = true;
+        let mut reader_proxy: ReaderProxy<MockChangeForReader> = ReaderProxy::new(
+            remote_reader_guid,
+            remote_group_entity_id,
+            &unicast_locator_list,
+            &multicast_locator_list,
+            expects_inline_qos,
+            is_active,
+        );
+        let writer = MockWriter {
+            push_mode: true,
+            writer_cache: MockHistoryCache {
+                seq_num_max: Some(5),
+            },
+        };
+
+        // Changes up to 5 are available
+        // Changes 1 to 4 are sent
+        // Changes up to 2 are acknowledged
+        // Expected unacked changes are 3 and 4
+        reader_proxy.next_unsent_change(&writer);
+        reader_proxy.next_unsent_change(&writer);
+        reader_proxy.next_unsent_change(&writer);
+        reader_proxy.next_unsent_change(&writer);
+        reader_proxy.acked_changes_set(2);
+
+        let unacked_changes = reader_proxy.unacked_changes(&writer);
+        let expected_unacked_changes = vec![
+            MockChangeForReader {
+                change: 3,
+                is_relevant: true,
+                status: ChangeForReaderStatusKind::Unacknowledged,
+            },
+            MockChangeForReader {
+                change: 4,
+                is_relevant: true,
+                status: ChangeForReaderStatusKind::Unacknowledged,
+            },
+        ];
+
+        assert_eq!(unacked_changes, expected_unacked_changes);
+    }
+
+    #[test]
+    fn unacked_changes_push_mode_false() {
+        let remote_reader_guid = GUID::new([5; 12], EntityId::new([5, 6, 7], 1));
+        let remote_group_entity_id = EntityId::new([1, 2, 3], 10);
+        let unicast_locator_list = [Locator::new(20, 200, [1; 16])];
+        let multicast_locator_list = [Locator::new(10, 100, [2; 16])];
+        let expects_inline_qos = false;
+        let is_active = true;
+        let mut reader_proxy: ReaderProxy<MockChangeForReader> = ReaderProxy::new(
+            remote_reader_guid,
+            remote_group_entity_id,
+            &unicast_locator_list,
+            &multicast_locator_list,
+            expects_inline_qos,
+            is_active,
+        );
+        let writer = MockWriter {
+            push_mode: false,
+            writer_cache: MockHistoryCache {
+                seq_num_max: Some(5),
+            },
+        };
+
+        // Changes up to 5 are available
+        // Changes up to 2 are acknowledged
+        // Change 4 is requested
+        // Expected unacked changes are 3 and 5
+        reader_proxy.acked_changes_set(2);
+        reader_proxy.requested_changes_set(&[4], &writer);
+
+        let unacked_changes = reader_proxy.unacked_changes(&writer);
+        let expected_unacked_changes = vec![
+            MockChangeForReader {
+                change: 3,
+                is_relevant: true,
+                status: ChangeForReaderStatusKind::Unacknowledged,
+            },
+            MockChangeForReader {
+                change: 5,
+                is_relevant: true,
+                status: ChangeForReaderStatusKind::Unacknowledged,
+            },
+        ];
+
+        assert_eq!(unacked_changes, expected_unacked_changes);
+    }
+
+    #[test]
+    fn requested_changes() {
+        let remote_reader_guid = GUID::new([5; 12], EntityId::new([5, 6, 7], 1));
+        let remote_group_entity_id = EntityId::new([1, 2, 3], 10);
+        let unicast_locator_list = [Locator::new(20, 200, [1; 16])];
+        let multicast_locator_list = [Locator::new(10, 100, [2; 16])];
+        let expects_inline_qos = false;
+        let is_active = true;
+        let mut reader_proxy: ReaderProxy<MockChangeForReader> = ReaderProxy::new(
+            remote_reader_guid,
+            remote_group_entity_id,
+            &unicast_locator_list,
+            &multicast_locator_list,
+            expects_inline_qos,
+            is_active,
+        );
+        let writer = MockWriter {
+            push_mode: false,
+            writer_cache: MockHistoryCache {
+                seq_num_max: Some(5),
+            },
+        };
+
+        reader_proxy.requested_changes_set(&[2, 3], &writer);
+        reader_proxy.requested_changes_set(&[4], &writer);
+
+        let expected_requested_changes = vec![
+            MockChangeForReader::new(2, ChangeForReaderStatusKind::Requested, true),
+            MockChangeForReader::new(3, ChangeForReaderStatusKind::Requested, true),
+            MockChangeForReader::new(4, ChangeForReaderStatusKind::Requested, true),
+        ];
+        assert_eq!(reader_proxy.requested_changes(), expected_requested_changes);
+    }
+
+    #[test]
+    fn requested_inexistent_changes() {
+        let remote_reader_guid = GUID::new([5; 12], EntityId::new([5, 6, 7], 1));
+        let remote_group_entity_id = EntityId::new([1, 2, 3], 10);
+        let unicast_locator_list = [Locator::new(20, 200, [1; 16])];
+        let multicast_locator_list = [Locator::new(10, 100, [2; 16])];
+        let expects_inline_qos = false;
+        let is_active = true;
+        let mut reader_proxy: ReaderProxy<MockChangeForReader> = ReaderProxy::new(
+            remote_reader_guid,
+            remote_group_entity_id,
+            &unicast_locator_list,
+            &multicast_locator_list,
+            expects_inline_qos,
+            is_active,
+        );
+        let writer = MockWriter {
+            push_mode: false,
+            writer_cache: MockHistoryCache {
+                seq_num_max: Some(5),
+            },
+        };
+
+        reader_proxy.requested_changes_set(&[6, 7, 8], &writer);
+
+        assert!(reader_proxy.requested_changes().is_empty());
+    }
+
+    #[test]
+    fn next_requested_change() {
+        let remote_reader_guid = GUID::new([5; 12], EntityId::new([5, 6, 7], 1));
+        let remote_group_entity_id = EntityId::new([1, 2, 3], 10);
+        let unicast_locator_list = [Locator::new(20, 200, [1; 16])];
+        let multicast_locator_list = [Locator::new(10, 100, [2; 16])];
+        let expects_inline_qos = false;
+        let is_active = true;
+        let mut reader_proxy: ReaderProxy<MockChangeForReader> = ReaderProxy::new(
+            remote_reader_guid,
+            remote_group_entity_id,
+            &unicast_locator_list,
+            &multicast_locator_list,
+            expects_inline_qos,
+            is_active,
+        );
+        let writer = MockWriter {
+            push_mode: false,
+            writer_cache: MockHistoryCache {
+                seq_num_max: Some(5),
+            },
+        };
+
+        reader_proxy.requested_changes_set(&[2, 3], &writer);
+        reader_proxy.requested_changes_set(&[3, 4], &writer);
+
+        let next_requested_change1 = Some(MockChangeForReader::new(
+            2,
+            ChangeForReaderStatusKind::Requested,
+            true,
+        ));
+        let next_requested_change2 = Some(MockChangeForReader::new(
+            3,
+            ChangeForReaderStatusKind::Requested,
+            true,
+        ));
+        let next_requested_change3 = Some(MockChangeForReader::new(
+            4,
+            ChangeForReaderStatusKind::Requested,
+            true,
+        ));
+        let next_requested_change4 = None;
+
+        assert_eq!(reader_proxy.next_requested_change(), next_requested_change1);
+        assert_eq!(reader_proxy.next_requested_change(), next_requested_change2);
+        assert_eq!(reader_proxy.next_requested_change(), next_requested_change3);
+        assert_eq!(reader_proxy.next_requested_change(), next_requested_change4);
     }
 }

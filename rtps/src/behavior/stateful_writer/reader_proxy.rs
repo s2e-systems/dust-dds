@@ -42,6 +42,10 @@ pub trait RTPSReaderProxy {
         -> Option<Self::ChangeForReaderType>;
     fn unsent_changes(&self, writer: &impl RTPSWriter) -> Self::ChangeForReaderTypeList;
     fn requested_changes(&self) -> Self::ChangeForReaderTypeList;
-    fn requested_changes_set(&mut self, req_seq_num_set: &[SequenceNumber]);
-    fn unacked_changes(&self) -> Self::ChangeForReaderTypeList;
+    fn requested_changes_set(
+        &mut self,
+        req_seq_num_set: &[SequenceNumber],
+        writer: &impl RTPSWriter,
+    );
+    fn unacked_changes(&self, writer: &impl RTPSWriter) -> Self::ChangeForReaderTypeList;
 }
