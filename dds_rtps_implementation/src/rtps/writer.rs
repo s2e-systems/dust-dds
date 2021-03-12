@@ -75,7 +75,7 @@ impl<'a, H: RTPSHistoryCache<'a>> RTPSWriter<'a> for Writer<'a, H> {
             heartbeat_period,
             nack_response_delay,
             nack_suppression_duration,
-            last_change_sequence_number: atomic::AtomicI64::new(1),
+            last_change_sequence_number: atomic::AtomicI64::new(0),
             data_max_sized_serialized,
             writer_cache,
             phantom: PhantomData,
@@ -99,7 +99,7 @@ impl<'a, H: RTPSHistoryCache<'a>> RTPSWriter<'a> for Writer<'a, H> {
     }
 
     fn last_change_sequence_number(&self) -> SequenceNumber {
-        self.last_change_sequence_number.load(atomic::Ordering::Release)
+        self.last_change_sequence_number.load(atomic::Ordering::Acquire)
     }
 
     fn data_max_sized_serialized(&self) -> i32 {
@@ -117,12 +117,12 @@ impl<'a, H: RTPSHistoryCache<'a>> RTPSWriter<'a> for Writer<'a, H> {
         inline_qos: ParameterList,
         handle: InstanceHandle,
     ) -> <Self::HistoryCacheType as RTPSHistoryCache<'a>>::CacheChangeType {
-        let sn = self.last_change_sequence_number.fetch_add(1, atomic::Ordering::Release);
+        let sn = self.last_change_sequence_number.fetch_add(1, atomic::Ordering::Acquire);
         <<Self::HistoryCacheType as RTPSHistoryCache>::CacheChangeType as RTPSCacheChange>::new(
             kind,
             self.guid,
             handle,
-            sn,
+            sn + 1,
             data,
             inline_qos,
         )
@@ -250,6 +250,9 @@ mod tests {
         let kind2 = ChangeKind::NotAliveUnregistered;
         let handle1 = [1; 16];
         let handle2 = [2; 16];
+
+        assert_eq!(writer.last_change_sequence_number(), 0);
+
         let cc1 = writer.new_change(kind1, (), ParameterList::new(), handle1);
         let cc2 = writer.new_change(kind2, (), ParameterList::new(), handle2);
 
