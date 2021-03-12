@@ -12,18 +12,21 @@ pub trait RTPSChangeForReader {
 }
 
 pub trait RTPSReaderProxy {
-    type ChangeForReaderType : RTPSChangeForReader;
+    type ChangeForReaderType: RTPSChangeForReader;
 
     fn remote_reader_guid(&self) -> GUID;
     fn remote_group_entity_id(&self) -> EntityId;
     fn unicast_locator_list(&self) -> &[Locator];
     fn multicast_locator_list(&self) -> &[Locator];
-    fn changes_for_reader(&self) -> &[<Self::ChangeForReaderType as RTPSChangeForReader>::CacheChangeRepresentation];
+    fn changes_for_reader(
+        &self,
+    ) -> &[<Self::ChangeForReaderType as RTPSChangeForReader>::CacheChangeRepresentation];
     fn expects_inline_qos(&self) -> bool;
     fn is_active(&self) -> bool;
 
     fn new(
         remote_reader_guid: GUID,
+        remote_group_entity_id: EntityId,
         unicast_locator_list: &[Locator],
         multicast_locator_list: &[Locator],
         expects_inline_qos: bool,

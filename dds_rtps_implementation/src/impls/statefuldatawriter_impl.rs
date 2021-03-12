@@ -254,6 +254,7 @@ impl RTPSReaderProxy for ReaderProxyImpl {
 
     fn new(
         _remote_reader_guid: rust_rtps::types::GUID,
+        _remote_group_entity_id: rust_rtps::types::EntityId,
         _unicast_locator_list: &[rust_rtps::types::Locator],
         _multicast_locator_list: &[rust_rtps::types::Locator],
         _expects_inline_qos: bool,
