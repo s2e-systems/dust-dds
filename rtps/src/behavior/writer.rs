@@ -8,8 +8,8 @@ use crate::{
 
 use super::types::Duration;
 
-pub trait RTPSWriter: RTPSEndpoint {
-    type HistoryCacheType: RTPSHistoryCache;
+pub trait RTPSWriter<'a>: RTPSEndpoint {
+    type HistoryCacheType: RTPSHistoryCache<'a>;
     fn new(
         guid: GUID,
         topic_kind: TopicKind,
@@ -31,10 +31,10 @@ pub trait RTPSWriter: RTPSEndpoint {
     fn data_max_sized_serialized(&self) -> i32;
     fn writer_cache(&self) -> &Self::HistoryCacheType;
     fn new_change(
-        &mut self,
+        &self,
         kind: ChangeKind,
-        data: <<Self::HistoryCacheType as RTPSHistoryCache>::CacheChangeType as RTPSCacheChange>::Data,
+        data: <<Self::HistoryCacheType as RTPSHistoryCache<'a>>::CacheChangeType as RTPSCacheChange>::Data,
         inline_qos: ParameterList,
         handle: InstanceHandle,
-    ) -> <Self::HistoryCacheType as RTPSHistoryCache>::CacheChangeType;
+    ) -> <Self::HistoryCacheType as RTPSHistoryCache<'a>>::CacheChangeType;
 }

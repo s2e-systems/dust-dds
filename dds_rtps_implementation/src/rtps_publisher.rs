@@ -17,8 +17,6 @@ use rust_dds_api::{
 };
 
 use crate::{
-    impls::statefuldatawriter_impl::StatefulDataWriterImpl,
-    rtps::{cache_change::CacheChange, history_cache::HistoryCache, writer::Writer},
     rtps_domain_participant::{RtpsDomainParticipant, RtpsPublisher, RtpsTopic},
     utils::node::Node,
 };
@@ -26,10 +24,7 @@ use crate::{
 pub struct RtpsDataWriter<'a, T: DDSType>(<Self as Deref>::Target);
 
 impl<'a, T: DDSType> Deref for RtpsDataWriter<'a, T> {
-    type Target = Node<
-        (&'a RtpsPublisher<'a>, &'a RtpsTopic<'a, T>),
-        StatefulDataWriterImpl<Writer<HistoryCache<CacheChange>>>,
-    >;
+    type Target = Node<(&'a RtpsPublisher<'a>, &'a RtpsTopic<'a, T>), ()>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -51,41 +46,43 @@ impl<'a> DomainParticipantChild<'a> for RtpsPublisher<'a> {
 impl<'a> Publisher<'a> for RtpsPublisher<'a> {
     fn create_datawriter<T: DDSType>(
         &'a self,
-        a_topic: &'a <Self as TopicGAT<'a, T>>::TopicType,
-        qos: Option<DataWriterQos>,
-        a_listener: Option<Box<dyn DataWriterListener<DataType = T>>>,
-        mask: StatusMask,
+        _a_topic: &'a <Self as TopicGAT<'a, T>>::TopicType,
+        _qos: Option<DataWriterQos>,
+        _a_listener: Option<Box<dyn DataWriterListener<DataType = T>>>,
+        _mask: StatusMask,
     ) -> Option<<Self as DataWriterGAT<'a, T>>::DataWriterType> {
-        let topic = a_topic.impl_ref.upgrade()?;
-        let data_writer_ref = self
-            .impl_ref
-            .upgrade()?
-            .lock()
-            .unwrap()
-            .create_datawriter(topic, qos, a_listener, mask)?;
+        todo!()
+        // let topic = a_topic.impl_ref.upgrade()?;
+        // let data_writer_ref = self
+        //     .impl_ref
+        //     .upgrade()?
+        //     .lock()
+        //     .unwrap()
+        //     .create_datawriter(topic, qos, a_listener, mask)?;
 
-        Some(RtpsDataWriter(Node {
-            parent: (self, a_topic),
-            impl_ref: data_writer_ref,
-        }))
+        // Some(RtpsDataWriter(Node {
+        //     parent: (self, a_topic),
+        //     impl_ref: data_writer_ref,
+        // }))
     }
 
     fn delete_datawriter<T: DDSType>(
         &'a self,
         a_datawriter: &<Self as DataWriterGAT<'a, T>>::DataWriterType,
     ) -> DDSResult<()> {
-        if std::ptr::eq(a_datawriter.parent.0, self) {
-            self.impl_ref
-                .upgrade()
-                .ok_or(DDSError::AlreadyDeleted)?
-                .lock()
-                .unwrap()
-                .delete_datawriter(&a_datawriter.impl_ref)
-        } else {
-            Err(DDSError::PreconditionNotMet(
-                "Publisher can only be deleted from its parent participant",
-            ))
-        }
+        todo!()
+        // if std::ptr::eq(a_datawriter.parent.0, self) {
+        //     self.impl_ref
+        //         .upgrade()
+        //         .ok_or(DDSError::AlreadyDeleted)?
+        //         .lock()
+        //         .unwrap()
+        //         .delete_datawriter(&a_datawriter.impl_ref)
+        // } else {
+        //     Err(DDSError::PreconditionNotMet(
+        //         "Publisher can only be deleted from its parent participant",
+        //     ))
+        // }
     }
 
     fn lookup_datawriter<T: DDSType>(

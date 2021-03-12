@@ -18,7 +18,7 @@ pub trait RTPSChangeForReader {
 pub trait RTPSReaderProxy<'a> {
     type ChangeForReaderType: RTPSChangeForReader;
     type ChangeForReaderTypeList: IntoIterator<Item = Self::ChangeForReaderType>;
-    type Writer: RTPSWriter;
+    type Writer: RTPSWriter<'a>;
 
     fn remote_reader_guid(&self) -> GUID;
     fn remote_group_entity_id(&self) -> EntityId;

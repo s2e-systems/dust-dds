@@ -47,7 +47,7 @@ impl RtpsParticipantEntities {
         // let _transport = &self.transport;
         let publisher_list = self.publisher_list.lock().unwrap();
         for publisher in publisher_list.iter() {
-            for _writer in publisher.lock().unwrap().writer_list() {
+            // for _writer in publisher.lock().unwrap().writer_list() {
                 todo!()
                 // let destined_messages = writer.lock().unwrap().produce_messages();
                 // RtpsMessageSender::send_cache_change_messages(
@@ -55,7 +55,7 @@ impl RtpsParticipantEntities {
                 //     transport.as_ref(),
                 //     destined_messages,
                 // );
-            }
+            // }
         }
     }
 }
@@ -133,19 +133,20 @@ impl DomainParticipantImpl {
     }
 
     pub fn delete_publisher(&self, impl_ref: &Weak<Mutex<PublisherImpl>>) -> DDSResult<()> {
-        let publisher_impl = impl_ref.upgrade().ok_or(DDSError::AlreadyDeleted)?;
-        if publisher_impl.lock().unwrap().writer_list().is_empty() {
-            self.user_defined_entities
-                .publisher_list
-                .lock()
-                .unwrap()
-                .retain(|x| !Arc::ptr_eq(x, &publisher_impl));
-            Ok(())
-        } else {
-            Err(DDSError::PreconditionNotMet(
-                "Publisher still contains data writers",
-            ))
-        }
+        todo!()
+        // let publisher_impl = impl_ref.upgrade().ok_or(DDSError::AlreadyDeleted)?;
+        // if publisher_impl.lock().unwrap().writer_list().is_empty() {
+        //     self.user_defined_entities
+        //         .publisher_list
+        //         .lock()
+        //         .unwrap()
+        //         .retain(|x| !Arc::ptr_eq(x, &publisher_impl));
+        //     Ok(())
+        // } else {
+        //     Err(DDSError::PreconditionNotMet(
+        //         "Publisher still contains data writers",
+        //     ))
+        // }
     }
 
     pub fn create_subscriber(

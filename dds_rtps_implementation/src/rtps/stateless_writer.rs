@@ -5,13 +5,13 @@ use rust_rtps::{
     types::Locator,
 };
 
-pub struct StatelessWriter<'a, T: RTPSWriter, R: RTPSReaderLocator<'a>> {
+pub struct StatelessWriter<'a, T: RTPSWriter<'a>, R: RTPSReaderLocator<'a>> {
     writer: T,
     reader_locators: Vec<R>,
     phantom: PhantomData<&'a ()>,
 }
 
-impl<'a, T: RTPSWriter, R: RTPSReaderLocator<'a>> Deref for StatelessWriter<'a, T, R> {
+impl<'a, T: RTPSWriter<'a>, R: RTPSReaderLocator<'a>> Deref for StatelessWriter<'a, T, R> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
@@ -19,13 +19,13 @@ impl<'a, T: RTPSWriter, R: RTPSReaderLocator<'a>> Deref for StatelessWriter<'a, 
     }
 }
 
-impl<'a, T: RTPSWriter, R: RTPSReaderLocator<'a>> DerefMut for StatelessWriter<'a, T, R> {
+impl<'a, T: RTPSWriter<'a>, R: RTPSReaderLocator<'a>> DerefMut for StatelessWriter<'a, T, R> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.writer
     }
 }
 
-impl<'a, T: RTPSWriter, R: RTPSReaderLocator<'a>> RTPSStatelessWriter<'a, T> for StatelessWriter<'a, T, R> {
+impl<'a, T: RTPSWriter<'a>, R: RTPSReaderLocator<'a>> RTPSStatelessWriter<'a, T> for StatelessWriter<'a, T, R> {
     type ReaderLocatorType = R;
 
     fn new(writer: T) -> Self {
@@ -103,25 +103,26 @@ mod tests {
     }
     struct MockHistoryCache;
 
-    impl RTPSHistoryCache for MockHistoryCache {
+    impl<'a> RTPSHistoryCache<'a> for MockHistoryCache {
         type CacheChangeType = MockCacheChange;
+        type CacheChangeReadType = Box<MockCacheChange>;
 
         fn new() -> Self {
             todo!()
         }
 
-        fn add_change(&mut self, _change: Self::CacheChangeType) {
+        fn add_change(&self, _change: Self::CacheChangeType) {
             todo!()
         }
 
-        fn remove_change(&mut self, _seq_num: rust_rtps::types::SequenceNumber) {
+        fn remove_change(&self, _seq_num: rust_rtps::types::SequenceNumber) {
             todo!()
         }
 
         fn get_change(
             &self,
             _seq_num: rust_rtps::types::SequenceNumber,
-        ) -> Option<&Self::CacheChangeType> {
+        ) -> Option<Self::CacheChangeReadType> {
             todo!()
         }
 
@@ -159,7 +160,7 @@ mod tests {
         }
     }
 
-    impl RTPSWriter for MockWriter {
+    impl<'a> RTPSWriter<'a> for MockWriter {
         type HistoryCacheType = MockHistoryCache;
 
         fn new(
@@ -207,7 +208,7 @@ mod tests {
         }
 
         fn new_change(
-            &mut self,
+            &self,
             _kind: rust_rtps::types::ChangeKind,
             _data: <<Self::HistoryCacheType as RTPSHistoryCache>::CacheChangeType as RTPSCacheChange>::Data,
             _inline_qos: rust_rtps::messages::submessages::submessage_elements::ParameterList,

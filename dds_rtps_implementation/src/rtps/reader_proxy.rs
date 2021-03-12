@@ -12,7 +12,7 @@ use rust_rtps::{
 pub struct ReaderProxy<
     'a,
     T: RTPSChangeForReader<CacheChangeRepresentation = SequenceNumber>,
-    W: RTPSWriter,
+    W: RTPSWriter<'a>,
 > {
     remote_reader_guid: GUID,
     remote_group_entity_id: EntityId,
@@ -28,7 +28,7 @@ pub struct ReaderProxy<
     requested_changes: Vec<SequenceNumber>,
 }
 
-impl<'a, T: RTPSChangeForReader<CacheChangeRepresentation = SequenceNumber>, W: RTPSWriter>
+impl<'a, T: RTPSChangeForReader<CacheChangeRepresentation = SequenceNumber>, W: RTPSWriter<'a>>
     RTPSReaderProxy<'a> for ReaderProxy<'a, T, W>
 {
     type ChangeForReaderType = T;
@@ -165,7 +165,10 @@ impl<'a, T: RTPSChangeForReader<CacheChangeRepresentation = SequenceNumber>, W: 
 
 #[cfg(test)]
 mod tests {
-    use rust_rtps::structure::{RTPSCacheChange, RTPSEndpoint, RTPSEntity};
+    use rust_rtps::{
+        messages::submessages::submessage_elements::ParameterList,
+        structure::{RTPSCacheChange, RTPSEndpoint, RTPSEntity},
+    };
 
     use super::*;
 
@@ -215,22 +218,23 @@ mod tests {
         seq_num_max: Option<SequenceNumber>,
     }
 
-    impl RTPSHistoryCache for MockHistoryCache {
+    impl<'a> RTPSHistoryCache<'a> for MockHistoryCache {
         type CacheChangeType = MockCacheChange;
+        type CacheChangeReadType = Box<MockCacheChange>;
 
         fn new() -> Self {
             todo!()
         }
 
-        fn add_change(&mut self, _change: Self::CacheChangeType) {
+        fn add_change(&self, _change: Self::CacheChangeType) {
             todo!()
         }
 
-        fn remove_change(&mut self, _seq_num: SequenceNumber) {
+        fn remove_change(&self, _seq_num: SequenceNumber) {
             todo!()
         }
 
-        fn get_change(&self, _seq_num: SequenceNumber) -> Option<&Self::CacheChangeType> {
+        fn get_change(&self, _seq_num: SequenceNumber) -> Option<Self::CacheChangeReadType> {
             todo!()
         }
 
@@ -269,7 +273,7 @@ mod tests {
             todo!()
         }
     }
-    impl RTPSWriter for MockWriter {
+    impl<'a> RTPSWriter<'a> for MockWriter {
         type HistoryCacheType = MockHistoryCache;
 
         fn new(
@@ -317,7 +321,7 @@ mod tests {
         }
 
         fn new_change(
-            &mut self,
+            &self,
             _kind: rust_rtps::types::ChangeKind,
             _data: <<Self::HistoryCacheType as RTPSHistoryCache>::CacheChangeType as RTPSCacheChange>::Data,
             _inline_qos: rust_rtps::messages::submessages::submessage_elements::ParameterList,
@@ -629,6 +633,15 @@ mod tests {
             &writer,
         );
 
+        let cc = writer.new_change(
+            rust_rtps::types::ChangeKind::Alive,
+            (),
+            ParameterList::new(),
+            [1; 16],
+        );
+
+        writer.writer_cache().add_change(cc);
+
         // Changes up to 5 are available
         // Changes up to 2 are acknowledged
         // Change 4 is requested
@@ -702,7 +715,7 @@ mod tests {
                 seq_num_max: Some(5),
             },
         };
-        let mut reader_proxy: ReaderProxy<MockChangeForReader,_> = ReaderProxy::new(
+        let mut reader_proxy: ReaderProxy<MockChangeForReader, _> = ReaderProxy::new(
             remote_reader_guid,
             remote_group_entity_id,
             &unicast_locator_list,
@@ -740,7 +753,6 @@ mod tests {
             is_active,
             &writer,
         );
-
 
         reader_proxy.requested_changes_set(&[2, 3]);
         reader_proxy.requested_changes_set(&[3, 4]);

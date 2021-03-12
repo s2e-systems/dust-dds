@@ -122,12 +122,14 @@ impl<'a, T: DDSType> DataWriter<'a, T> for RtpsDataWriter<'a, T> {
 
     /// This operation returns the Topic associated with the DataWriter. This is the same Topic that was used to create the DataWriter.
     fn get_topic(&self) -> &'a dyn Topic {
-        self.parent.1
+        // self.parent.1
+        todo!()
     }
 
     /// This operation returns the Publisher to which the publisher child object belongs.
     fn get_publisher(&self) -> &<Self as PublisherChild<'a>>::PublisherType {
-        self.parent.0
+        // self.parent.0
+        todo!()
     }
 
     fn assert_liveliness(&self) -> DDSResult<()> {

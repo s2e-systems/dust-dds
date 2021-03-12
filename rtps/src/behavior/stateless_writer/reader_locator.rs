@@ -6,7 +6,7 @@ use crate::{
 pub trait RTPSReaderLocator<'a> {
     type CacheChangeRepresentation;
     type CacheChangeRepresentationList: IntoIterator<Item = Self::CacheChangeRepresentation>;
-    type Writer : RTPSWriter;
+    type Writer : RTPSWriter<'a>;
 
     fn requested_changes(&self) -> Self::CacheChangeRepresentationList;
     fn unsent_changes(&self) -> Self::CacheChangeRepresentationList;

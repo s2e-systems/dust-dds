@@ -4,7 +4,7 @@ use rust_rtps::{
     types::{Locator, SequenceNumber},
 };
 
-pub struct ReaderLocator<'a, T: RTPSWriter> {
+pub struct ReaderLocator<'a, T: RTPSWriter<'a>> {
     locator: Locator,
     expects_inline_qos: bool,
     writer: &'a T,
@@ -12,7 +12,7 @@ pub struct ReaderLocator<'a, T: RTPSWriter> {
     requested_changes: Vec<SequenceNumber>,
 }
 
-impl<'a, T: RTPSWriter> RTPSReaderLocator<'a> for ReaderLocator<'a, T> {
+impl<'a, T: RTPSWriter<'a>> RTPSReaderLocator<'a> for ReaderLocator<'a, T> {
     type CacheChangeRepresentation = SequenceNumber;
     type CacheChangeRepresentationList = Vec<Self::CacheChangeRepresentation>;
     type Writer = T;
@@ -81,9 +81,9 @@ mod tests {
 
     use super::*;
 
-    struct MockCacheChangeType;
+    struct MockCacheChange;
 
-    impl RTPSCacheChange for MockCacheChangeType {
+    impl RTPSCacheChange for MockCacheChange {
         type Data = u8;
 
         fn new(
@@ -128,22 +128,23 @@ mod tests {
         seq_num_max: Option<SequenceNumber>,
     }
 
-    impl RTPSHistoryCache for MockHistoryCache {
-        type CacheChangeType = MockCacheChangeType;
+    impl<'a> RTPSHistoryCache<'a> for MockHistoryCache {
+        type CacheChangeType = MockCacheChange;
+        type CacheChangeReadType = Box<MockCacheChange>;
 
         fn new() -> Self {
             todo!()
         }
 
-        fn add_change(&mut self, _change: Self::CacheChangeType) {
+        fn add_change(&self, _change: Self::CacheChangeType) {
             todo!()
         }
 
-        fn remove_change(&mut self, _seq_num: SequenceNumber) {
+        fn remove_change(&self, _seq_num: SequenceNumber) {
             todo!()
         }
 
-        fn get_change(&self, _seq_num: SequenceNumber) -> Option<&Self::CacheChangeType> {
+        fn get_change(&self, _seq_num: SequenceNumber) -> Option<Self::CacheChangeReadType> {
             todo!()
         }
 
@@ -182,7 +183,7 @@ mod tests {
             todo!()
         }
     }
-    impl RTPSWriter for MockWriter {
+    impl<'a> RTPSWriter<'a> for MockWriter {
         type HistoryCacheType = MockHistoryCache;
 
         fn new(
@@ -230,7 +231,7 @@ mod tests {
         }
 
         fn new_change(
-            &mut self,
+            &self,
             _kind: rust_rtps::types::ChangeKind,
             _data: <<Self::HistoryCacheType as RTPSHistoryCache>::CacheChangeType as RTPSCacheChange>::Data,
             _inline_qos: rust_rtps::messages::submessages::submessage_elements::ParameterList,

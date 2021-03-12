@@ -1,41 +1,75 @@
+use std::{
+    ops::Deref,
+    sync::{Mutex, MutexGuard},
+};
+
 use rust_rtps::{
     structure::{RTPSCacheChange, RTPSHistoryCache},
     types::SequenceNumber,
 };
 
 pub struct HistoryCache<T: RTPSCacheChange> {
-    changes: Vec<T>,
+    changes: Mutex<Vec<T>>,
 }
 
-impl<T: RTPSCacheChange> RTPSHistoryCache for HistoryCache<T> {
+pub struct BorrowedCacheChange<'a, T: RTPSCacheChange> {
+    guard: MutexGuard<'a, Vec<T>>,
+    index: usize,
+}
+
+impl<'a, T: RTPSCacheChange> Deref for BorrowedCacheChange<'a, T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.guard[self.index]
+    }
+}
+
+impl<'a, T: RTPSCacheChange + 'a> RTPSHistoryCache<'a> for HistoryCache<T> {
     type CacheChangeType = T;
+    type CacheChangeReadType = BorrowedCacheChange<'a, T>;
 
     fn new() -> Self {
         Self {
-            changes: Vec::new(),
+            changes: Mutex::new(Vec::new()),
         }
     }
 
-    fn add_change(&mut self, change: Self::CacheChangeType) {
-        self.changes.push(change)
+    fn add_change(&self, change: Self::CacheChangeType) {
+        self.changes.lock().unwrap().push(change)
     }
 
-    fn remove_change(&mut self, seq_num: SequenceNumber) {
-        self.changes.retain(|cc| cc.sequence_number() != seq_num)
-    }
-
-    fn get_change(&self, seq_num: SequenceNumber) -> Option<&Self::CacheChangeType> {
+    fn remove_change(&self, seq_num: SequenceNumber) {
         self.changes
+            .lock()
+            .unwrap()
+            .retain(|cc| cc.sequence_number() != seq_num)
+    }
+
+    fn get_change(&'a self, seq_num: SequenceNumber) -> Option<Self::CacheChangeReadType> {
+        let guard = self.changes.lock().unwrap();
+        let index = guard
             .iter()
-            .find(|cc| cc.sequence_number() == seq_num)
+            .position(|cc| cc.sequence_number() == seq_num)?;
+        Some(BorrowedCacheChange { guard, index })
     }
 
     fn get_seq_num_min(&self) -> Option<SequenceNumber> {
-        self.changes.iter().map(|cc| cc.sequence_number()).min()
+        self.changes
+            .lock()
+            .unwrap()
+            .iter()
+            .map(|cc| cc.sequence_number())
+            .min()
     }
 
     fn get_seq_num_max(&self) -> Option<SequenceNumber> {
-        self.changes.iter().map(|cc| cc.sequence_number()).max()
+        self.changes
+            .lock()
+            .unwrap()
+            .iter()
+            .map(|cc| cc.sequence_number())
+            .max()
     }
 }
 
@@ -93,33 +127,33 @@ mod tests {
     }
     #[test]
     fn add_and_get_change() {
-        let mut history_cache = HistoryCache::new();
+        let history_cache = HistoryCache::new();
         let cc1 = MockCacheChange { sequence_number: 1 };
         let cc2 = MockCacheChange { sequence_number: 2 };
         history_cache.add_change(cc1.clone());
         history_cache.add_change(cc2.clone());
 
-        assert_eq!(history_cache.get_change(1), Some(&cc1));
-        assert_eq!(history_cache.get_change(2), Some(&cc2));
-        assert_eq!(history_cache.get_change(3), None);
+        assert_eq!(*history_cache.get_change(1).unwrap(), cc1);
+        assert_eq!(*history_cache.get_change(2).unwrap(), cc2);
+        assert!(history_cache.get_change(3).is_none());
     }
 
     #[test]
     fn remove_change() {
-        let mut history_cache = HistoryCache::new();
+        let history_cache = HistoryCache::new();
         let cc1 = MockCacheChange { sequence_number: 1 };
         let cc2 = MockCacheChange { sequence_number: 2 };
         history_cache.add_change(cc1.clone());
         history_cache.add_change(cc2.clone());
         history_cache.remove_change(1);
 
-        assert_eq!(history_cache.get_change(1), None);
-        assert_eq!(history_cache.get_change(2), Some(&cc2));
+        assert!(history_cache.get_change(1).is_none());
+        assert_eq!(*history_cache.get_change(2).unwrap(), cc2);
     }
 
     #[test]
     fn get_seq_num_min_and_max() {
-        let mut history_cache = HistoryCache::new();
+        let history_cache = HistoryCache::new();
         let min_seq_num = 4;
         let max_seq_num = 6;
         let cc_min = MockCacheChange {

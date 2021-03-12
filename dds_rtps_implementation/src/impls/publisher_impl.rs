@@ -16,12 +16,11 @@ use rust_rtps::{
 
 use crate::rtps::{cache_change::CacheChange, history_cache::HistoryCache, writer::Writer};
 
-use super::{
-    statefuldatawriter_impl::StatefulDataWriterImpl, topic_impl::TopicImpl,
+use super::{topic_impl::TopicImpl,
 };
 
 pub struct PublisherImpl {
-    writer_list: Vec<Arc<Mutex<StatefulDataWriterImpl<Writer<HistoryCache<CacheChange>>>>>>,
+    // writer_list: Vec<Arc<Mutex<StatefulDataWriterImpl<Writer<HistoryCache<CacheChange>>>>>>,
     writer_count: atomic::AtomicU8,
     default_datawriter_qos: DataWriterQos,
     qos: PublisherQos,
@@ -36,7 +35,7 @@ impl PublisherImpl {
         status_mask: StatusMask,
     ) -> Self {
         Self {
-            writer_list: Default::default(),
+            // writer_list: Default::default(),
             writer_count: atomic::AtomicU8::new(0),
             default_datawriter_qos: DataWriterQos::default(),
             qos,
@@ -45,42 +44,44 @@ impl PublisherImpl {
         }
     }
 
-    pub fn writer_list(
-        &self,
-    ) -> &Vec<Arc<Mutex<StatefulDataWriterImpl<Writer<HistoryCache<CacheChange>>>>>> {
-        &self.writer_list
-    }
+    // pub fn writer_list(
+    //     &self,
+    // ) -> &Vec<Arc<Mutex<StatefulDataWriterImpl<Writer<HistoryCache<CacheChange>>>>>> {
+    //     todo!()
+    //     // &self.writer_list
+    // }
 
-    pub fn create_datawriter<'a, T: DDSType>(
-        &'a mut self,
-        _topic: Arc<Mutex<TopicImpl>>,
-        qos: Option<DataWriterQos>,
-        _a_listener: Option<Box<dyn DataWriterListener<DataType = T>>>,
-        _mask: StatusMask,
-    ) -> Option<Weak<Mutex<StatefulDataWriterImpl<Writer<HistoryCache<CacheChange>>>>>> {
-        let qos = qos.unwrap_or(self.default_datawriter_qos.clone());
-        qos.is_consistent().ok()?;
+    // pub fn create_datawriter<'a, T: DDSType>(
+    //     &'a mut self,
+    //     _topic: Arc<Mutex<TopicImpl>>,
+    //     qos: Option<DataWriterQos>,
+    //     _a_listener: Option<Box<dyn DataWriterListener<DataType = T>>>,
+    //     _mask: StatusMask,
+    // ) -> Option<Weak<Mutex<StatefulDataWriterImpl<Writer<HistoryCache<CacheChange>>>>>> {
+    //     let qos = qos.unwrap_or(self.default_datawriter_qos.clone());
+    //     qos.is_consistent().ok()?;
 
-        todo!()
+    //     todo!()
 
-        // let data_writer = Arc::new(Mutex::new(StatefulDataWriterImpl::new(
-        //     topic, qos, a_listener, mask,
-        // )));
+    //     // let data_writer = Arc::new(Mutex::new(StatefulDataWriterImpl::new(
+    //     //     topic, qos, a_listener, mask,
+    //     // )));
 
-        // self.writer_list.push(data_writer.clone());
+    //     // self.writer_list.push(data_writer.clone());
 
-        // Some(Arc::downgrade(&data_writer))
-    }
+    //     // Some(Arc::downgrade(&data_writer))
+    // }
 
-    pub fn delete_datawriter(
-        &mut self,
-        a_datawriter: &Weak<Mutex<StatefulDataWriterImpl<Writer<HistoryCache<CacheChange>>>>>,
-    ) -> DDSResult<()> {
-        let datawriter_impl = a_datawriter.upgrade().ok_or(DDSError::AlreadyDeleted)?;
-        self.writer_list
-            .retain(|x| !std::ptr::eq(x.as_ref(), datawriter_impl.as_ref()));
-        Ok(())
-    }
+    // pub fn delete_datawriter(
+    //     &mut self,
+    //     a_datawriter: &Weak<Mutex<StatefulDataWriterImpl<Writer<HistoryCache<CacheChange>>>>>,
+    // ) -> DDSResult<()> {
+    //     todo!()
+    //     // let datawriter_impl = a_datawriter.upgrade().ok_or(DDSError::AlreadyDeleted)?;
+    //     // self.writer_list
+    //     //     .retain(|x| !std::ptr::eq(x.as_ref(), datawriter_impl.as_ref()));
+    //     // Ok(())
+    // }
 
     pub fn get_qos(&self) -> PublisherQos {
         self.qos.clone()

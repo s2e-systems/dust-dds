@@ -2,13 +2,13 @@ use std::{marker::PhantomData, ops::{Deref, DerefMut}};
 
 use rust_rtps::behavior::{RTPSReaderProxy, RTPSStatefulWriter, RTPSWriter};
 
-pub struct StatefulWriter<'a, W: RTPSWriter, R: RTPSReaderProxy<'a>> {
+pub struct StatefulWriter<'a, W: RTPSWriter<'a>, R: RTPSReaderProxy<'a>> {
     writer: W,
     matched_reades: Vec<R>,
     phantom: PhantomData<&'a ()>,
 }
 
-impl<'a, W: RTPSWriter, R: RTPSReaderProxy<'a>> Deref for StatefulWriter<'a, W, R> {
+impl<'a, W: RTPSWriter<'a>, R: RTPSReaderProxy<'a>> Deref for StatefulWriter<'a, W, R> {
     type Target = W;
 
     fn deref(&self) -> &Self::Target {
@@ -16,13 +16,13 @@ impl<'a, W: RTPSWriter, R: RTPSReaderProxy<'a>> Deref for StatefulWriter<'a, W, 
     }
 }
 
-impl<'a, W: RTPSWriter, R: RTPSReaderProxy<'a>> DerefMut for StatefulWriter<'a, W, R> {
+impl<'a, W: RTPSWriter<'a>, R: RTPSReaderProxy<'a>> DerefMut for StatefulWriter<'a, W, R> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.writer
     }
 }
 
-impl<'a, W: RTPSWriter, R: RTPSReaderProxy<'a>> RTPSStatefulWriter<'a, W> for StatefulWriter<'a, W, R> {
+impl<'a, W: RTPSWriter<'a>, R: RTPSReaderProxy<'a>> RTPSStatefulWriter<'a, W> for StatefulWriter<'a, W, R> {
     type ReaderProxyType = R;
 
     fn matched_readers(&self) -> &[Self::ReaderProxyType] {

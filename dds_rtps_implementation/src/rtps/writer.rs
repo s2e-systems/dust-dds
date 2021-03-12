@@ -1,3 +1,5 @@
+use std::{marker::PhantomData, sync::atomic};
+
 use rust_rtps::{
     behavior::{types::Duration, RTPSWriter},
     messages::submessages::submessage_elements::ParameterList,
@@ -7,7 +9,7 @@ use rust_rtps::{
     },
 };
 
-pub struct Writer<H: RTPSHistoryCache> {
+pub struct Writer<'a, H: RTPSHistoryCache<'a>> {
     guid: GUID,
     topic_kind: TopicKind,
     reliablility_level: ReliabilityKind,
@@ -17,18 +19,19 @@ pub struct Writer<H: RTPSHistoryCache> {
     heartbeat_period: Duration,
     nack_response_delay: Duration,
     nack_suppression_duration: Duration,
-    last_change_sequence_number: SequenceNumber,
+    last_change_sequence_number: atomic::AtomicI64,
     data_max_sized_serialized: i32,
     writer_cache: H,
+    phantom: PhantomData<&'a ()>,
 }
 
-impl<H: RTPSHistoryCache> RTPSEntity for Writer<H> {
+impl<'a, H: RTPSHistoryCache<'a>> RTPSEntity for Writer<'a, H> {
     fn guid(&self) -> GUID {
         self.guid
     }
 }
 
-impl<H: RTPSHistoryCache> RTPSEndpoint for Writer<H> {
+impl<'a, H: RTPSHistoryCache<'a>> RTPSEndpoint for Writer<'a, H> {
     fn unicast_locator_list(&self) -> &[Locator] {
         &self.unicast_locator_list
     }
@@ -46,7 +49,7 @@ impl<H: RTPSHistoryCache> RTPSEndpoint for Writer<H> {
     }
 }
 
-impl<H: RTPSHistoryCache> RTPSWriter for Writer<H> {
+impl<'a, H: RTPSHistoryCache<'a>> RTPSWriter<'a> for Writer<'a, H> {
     type HistoryCacheType = H;
 
     fn new(
@@ -72,9 +75,10 @@ impl<H: RTPSHistoryCache> RTPSWriter for Writer<H> {
             heartbeat_period,
             nack_response_delay,
             nack_suppression_duration,
-            last_change_sequence_number: 0,
+            last_change_sequence_number: atomic::AtomicI64::new(1),
             data_max_sized_serialized,
             writer_cache,
+            phantom: PhantomData,
         }
     }
 
@@ -95,7 +99,7 @@ impl<H: RTPSHistoryCache> RTPSWriter for Writer<H> {
     }
 
     fn last_change_sequence_number(&self) -> SequenceNumber {
-        self.last_change_sequence_number
+        self.last_change_sequence_number.load(atomic::Ordering::Release)
     }
 
     fn data_max_sized_serialized(&self) -> i32 {
@@ -107,18 +111,18 @@ impl<H: RTPSHistoryCache> RTPSWriter for Writer<H> {
     }
 
     fn new_change(
-        &mut self,
+        &self,
         kind: ChangeKind,
-        data: <<Self::HistoryCacheType as RTPSHistoryCache>::CacheChangeType as RTPSCacheChange>::Data,
+        data: <<Self::HistoryCacheType as RTPSHistoryCache<'a>>::CacheChangeType as RTPSCacheChange>::Data,
         inline_qos: ParameterList,
         handle: InstanceHandle,
-    ) -> <Self::HistoryCacheType as RTPSHistoryCache>::CacheChangeType {
-        self.last_change_sequence_number += 1;
+    ) -> <Self::HistoryCacheType as RTPSHistoryCache<'a>>::CacheChangeType {
+        let sn = self.last_change_sequence_number.fetch_add(1, atomic::Ordering::Release);
         <<Self::HistoryCacheType as RTPSHistoryCache>::CacheChangeType as RTPSCacheChange>::new(
             kind,
             self.guid,
             handle,
-            self.last_change_sequence_number,
+            sn,
             data,
             inline_qos,
         )
@@ -184,22 +188,23 @@ mod tests {
     }
     struct MockHistoryCache;
 
-    impl RTPSHistoryCache for MockHistoryCache {
+    impl<'a> RTPSHistoryCache<'a> for MockHistoryCache {
         type CacheChangeType = MockCacheChange;
+        type CacheChangeReadType = Box<MockCacheChange>;
 
         fn new() -> Self {
             todo!()
         }
 
-        fn add_change(&mut self, _change: Self::CacheChangeType) {
+        fn add_change(&self, _change: Self::CacheChangeType) {
             todo!()
         }
 
-        fn remove_change(&mut self, _seq_num: SequenceNumber) {
+        fn remove_change(&self, _seq_num: SequenceNumber) {
             todo!()
         }
 
-        fn get_change(&self, _seq_num: SequenceNumber) -> Option<&Self::CacheChangeType> {
+        fn get_change(&self, _seq_num: SequenceNumber) -> Option<Self::CacheChangeReadType> {
             todo!()
         }
 
@@ -227,7 +232,7 @@ mod tests {
         let nack_suppression_duration = DURATION_ZERO;
         let data_max_sized_serialized = i32::MAX;
         let writer_cache = MockHistoryCache;
-        let mut writer = Writer::new(
+        let writer = Writer::new(
             guid,
             topic_kind,
             reliablility_level,
