@@ -17,7 +17,7 @@ pub struct BestEffortReaderLocatorBehavior;
 
 impl BestEffortReaderLocatorBehavior {
     pub fn produce_messages<'a, C, D>(
-        reader_locator: &mut impl RTPSReaderLocator<CacheChangeRepresentation = SequenceNumber>,
+        reader_locator: &mut impl RTPSReaderLocator<'a, CacheChangeRepresentation = SequenceNumber>,
         history_cache: &'a impl RTPSHistoryCache<CacheChangeType = C>,
         writer_entity_id: EntityId,
     ) -> Vec<RtpsSubmessage<'a>>
@@ -26,7 +26,7 @@ impl BestEffortReaderLocatorBehavior {
         &'a D: Into<SerializedData<'a>> + 'a,
     {
         let mut message_queue = Vec::new();
-        if reader_locator.unsent_changes(history_cache).into_iter().next().is_some() {
+        if reader_locator.unsent_changes().into_iter().next().is_some() {
             Self::pushing_state(
                 reader_locator,
                 history_cache,
@@ -38,7 +38,7 @@ impl BestEffortReaderLocatorBehavior {
     }
 
     fn pushing_state<'a, C, D>(
-        reader_locator: &mut impl RTPSReaderLocator<CacheChangeRepresentation = SequenceNumber>,
+        reader_locator: &mut impl RTPSReaderLocator<'a, CacheChangeRepresentation = SequenceNumber>,
         history_cache: &'a impl RTPSHistoryCache<CacheChangeType = C>,
         writer_entity_id: EntityId,
         message_queue: &mut Vec<RtpsSubmessage<'a>>,
@@ -46,7 +46,7 @@ impl BestEffortReaderLocatorBehavior {
         C: RTPSCacheChange<Data = D> + 'a,
         &'a D: Into<SerializedData<'a>> + 'a,
     {
-        while let Some(next_unsent_seq_num) = reader_locator.next_unsent_change(history_cache) {
+        while let Some(next_unsent_seq_num) = reader_locator.next_unsent_change() {
             Self::transition_t4(
                 history_cache,
                 writer_entity_id,

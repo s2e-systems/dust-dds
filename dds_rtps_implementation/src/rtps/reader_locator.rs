@@ -1,36 +1,36 @@
 use rust_rtps::{
-    behavior::stateless_writer::RTPSReaderLocator,
+    behavior::{stateless_writer::RTPSReaderLocator, RTPSWriter},
     structure::RTPSHistoryCache,
     types::{Locator, SequenceNumber},
 };
 
-pub struct ReaderLocator {
+pub struct ReaderLocator<'a, T: RTPSWriter> {
     locator: Locator,
     expects_inline_qos: bool,
+    writer: &'a T,
     next_unsent_change: SequenceNumber,
     requested_changes: Vec<SequenceNumber>,
 }
 
-impl RTPSReaderLocator for ReaderLocator {
+impl<'a, T: RTPSWriter> RTPSReaderLocator<'a> for ReaderLocator<'a, T> {
     type CacheChangeRepresentation = SequenceNumber;
     type CacheChangeRepresentationList = Vec<Self::CacheChangeRepresentation>;
+    type Writer = T;
 
     fn requested_changes(&self) -> Self::CacheChangeRepresentationList {
         self.requested_changes.clone()
     }
 
-    fn unsent_changes(
-        &self,
-        writer_cache: &impl RTPSHistoryCache,
-    ) -> Self::CacheChangeRepresentationList {
-        let max_history_cache_seq_num = writer_cache.get_seq_num_max().unwrap_or(0);
+    fn unsent_changes(&self) -> Self::CacheChangeRepresentationList {
+        let max_history_cache_seq_num = self.writer.writer_cache().get_seq_num_max().unwrap_or(0);
         (self.next_unsent_change + 1..=max_history_cache_seq_num).collect()
     }
 
-    fn new(locator: Locator, expects_inline_qos: bool) -> Self {
+    fn new(locator: Locator, expects_inline_qos: bool, writer: &'a Self::Writer) -> Self {
         Self {
             locator,
             expects_inline_qos,
+            writer,
             next_unsent_change: 0,
             requested_changes: Vec::new(),
         }
@@ -44,6 +44,10 @@ impl RTPSReaderLocator for ReaderLocator {
         self.expects_inline_qos
     }
 
+    fn writer(&self) -> &Self::Writer {
+        self.writer
+    }
+
     fn next_requested_change(&mut self) -> Option<Self::CacheChangeRepresentation> {
         let next_requested_change = *self.requested_changes.iter().min()?;
         self.requested_changes
@@ -51,21 +55,20 @@ impl RTPSReaderLocator for ReaderLocator {
         Some(next_requested_change)
     }
 
-    fn next_unsent_change(
-        &mut self,
-        writer_cache: &impl RTPSHistoryCache,
-    ) -> Option<Self::CacheChangeRepresentation> {
-        self.next_unsent_change = *self.unsent_changes(writer_cache).iter().min()?;
+    fn next_unsent_change(&mut self) -> Option<Self::CacheChangeRepresentation> {
+        self.next_unsent_change = *self.unsent_changes().iter().min()?;
         Some(self.next_unsent_change)
     }
 
-    fn requested_changes_set(
-        &mut self,
-        req_seq_num_set: &[SequenceNumber],
-        writer_cache: &impl RTPSHistoryCache,
-    ) {
+    fn requested_changes_set(&mut self, req_seq_num_set: &[SequenceNumber]) {
         for value in req_seq_num_set {
-            if value <= &writer_cache.get_seq_num_max().unwrap_or_default() {
+            if value
+                <= &self
+                    .writer
+                    .writer_cache()
+                    .get_seq_num_max()
+                    .unwrap_or_default()
+            {
                 self.requested_changes.push(*value);
             }
         }
@@ -74,7 +77,7 @@ impl RTPSReaderLocator for ReaderLocator {
 
 #[cfg(test)]
 mod tests {
-    use rust_rtps::structure::RTPSCacheChange;
+    use rust_rtps::structure::{RTPSCacheChange, RTPSEndpoint, RTPSEntity};
 
     use super::*;
 
@@ -152,14 +155,100 @@ mod tests {
             self.seq_num_max
         }
     }
+
+    struct MockWriter {
+        writer_cache: MockHistoryCache,
+    }
+
+    impl RTPSEntity for MockWriter {
+        fn guid(&self) -> rust_rtps::types::GUID {
+            todo!()
+        }
+    }
+    impl RTPSEndpoint for MockWriter {
+        fn unicast_locator_list(&self) -> &[Locator] {
+            todo!()
+        }
+
+        fn multicast_locator_list(&self) -> &[Locator] {
+            todo!()
+        }
+
+        fn topic_kind(&self) -> rust_rtps::types::TopicKind {
+            todo!()
+        }
+
+        fn reliability_level(&self) -> rust_rtps::types::ReliabilityKind {
+            todo!()
+        }
+    }
+    impl RTPSWriter for MockWriter {
+        type HistoryCacheType = MockHistoryCache;
+
+        fn new(
+            _guid: rust_rtps::types::GUID,
+            _topic_kind: rust_rtps::types::TopicKind,
+            _reliablility_level: rust_rtps::types::ReliabilityKind,
+            _unicast_locator_list: &[Locator],
+            _multicast_locator_list: &[Locator],
+            _push_mode: bool,
+            _heartbeat_period: rust_rtps::behavior::types::Duration,
+            _nack_response_delay: rust_rtps::behavior::types::Duration,
+            _nack_suppression_duration: rust_rtps::behavior::types::Duration,
+            _data_max_sized_serialized: i32,
+            _writer_cache: Self::HistoryCacheType,
+        ) -> Self {
+            todo!()
+        }
+
+        fn push_mode(&self) -> bool {
+            todo!()
+        }
+
+        fn heartbeat_period(&self) -> rust_rtps::behavior::types::Duration {
+            todo!()
+        }
+
+        fn nack_response_delay(&self) -> rust_rtps::behavior::types::Duration {
+            todo!()
+        }
+
+        fn nack_suppression_duration(&self) -> rust_rtps::behavior::types::Duration {
+            todo!()
+        }
+
+        fn last_change_sequence_number(&self) -> SequenceNumber {
+            todo!()
+        }
+
+        fn data_max_sized_serialized(&self) -> i32 {
+            todo!()
+        }
+
+        fn writer_cache(&self) -> &Self::HistoryCacheType {
+            &self.writer_cache
+        }
+
+        fn new_change(
+            &mut self,
+            _kind: rust_rtps::types::ChangeKind,
+            _data: <<Self::HistoryCacheType as RTPSHistoryCache>::CacheChangeType as RTPSCacheChange>::Data,
+            _inline_qos: rust_rtps::messages::submessages::submessage_elements::ParameterList,
+            _handle: rust_rtps::types::InstanceHandle,
+        ) -> <Self::HistoryCacheType as RTPSHistoryCache>::CacheChangeType {
+            todo!()
+        }
+    }
+
     #[test]
     fn empty_unsent_changes() {
         let locator = Locator::new_udpv4(7400, [127, 0, 0, 1]);
-        let history_cache = MockHistoryCache {
+        let writer_cache = MockHistoryCache {
             seq_num_max: Some(0),
         };
-        let reader_locator = ReaderLocator::new(locator, false);
-        let unsent_changes = reader_locator.unsent_changes(&history_cache);
+        let writer = MockWriter { writer_cache };
+        let reader_locator = ReaderLocator::new(locator, false, &writer);
+        let unsent_changes = reader_locator.unsent_changes();
 
         assert!(unsent_changes.is_empty());
     }
@@ -167,11 +256,12 @@ mod tests {
     #[test]
     fn some_unsent_changes() {
         let locator = Locator::new_udpv4(7400, [127, 0, 0, 1]);
-        let history_cache = MockHistoryCache {
+        let writer_cache = MockHistoryCache {
             seq_num_max: Some(5),
         };
-        let reader_locator = ReaderLocator::new(locator, false);
-        let unsent_changes = reader_locator.unsent_changes(&history_cache);
+        let writer = MockWriter { writer_cache };
+        let reader_locator = ReaderLocator::new(locator, false, &writer);
+        let unsent_changes = reader_locator.unsent_changes();
         let expected_unsent_changes = vec![1, 2, 3, 4, 5];
 
         assert_eq!(unsent_changes, expected_unsent_changes);
@@ -180,42 +270,42 @@ mod tests {
     #[test]
     fn next_unsent_change() {
         let locator = Locator::new_udpv4(7400, [127, 0, 0, 1]);
-        let history_cache = MockHistoryCache {
+        let writer_cache = MockHistoryCache {
             seq_num_max: Some(2),
         };
-
-        let mut reader_locator = ReaderLocator::new(locator, false);
-        assert_eq!(reader_locator.next_unsent_change(&history_cache), Some(1));
-        assert_eq!(reader_locator.next_unsent_change(&history_cache), Some(2));
-        assert_eq!(reader_locator.next_unsent_change(&history_cache), None);
+        let writer = MockWriter { writer_cache };
+        let mut reader_locator = ReaderLocator::new(locator, false, &writer);
+        assert_eq!(reader_locator.next_unsent_change(), Some(1));
+        assert_eq!(reader_locator.next_unsent_change(), Some(2));
+        assert_eq!(reader_locator.next_unsent_change(), None);
     }
 
     #[test]
     fn requested_changes_set_and_get() {
         let locator = Locator::new_udpv4(7400, [127, 0, 0, 1]);
-        let history_cache = MockHistoryCache {
+        let writer_cache = MockHistoryCache {
             seq_num_max: Some(5),
         };
-
-        let mut reader_locator = ReaderLocator::new(locator, false);
-
+        let writer = MockWriter { writer_cache };
+        let mut reader_locator = ReaderLocator::new(locator, false, &writer);
         let requested_changes = [1, 3, 5];
-        reader_locator.requested_changes_set(&requested_changes, &history_cache);
+        reader_locator.requested_changes_set(&requested_changes);
         assert_eq!(reader_locator.requested_changes(), requested_changes)
     }
 
     #[test]
     fn requested_changes_out_of_history_cache_range_set_and_get() {
         let locator = Locator::new_udpv4(7400, [127, 0, 0, 1]);
-        let history_cache = MockHistoryCache {
+        let writer_cache = MockHistoryCache {
             seq_num_max: Some(2),
         };
+        let writer = MockWriter { writer_cache };
 
-        let mut reader_locator = ReaderLocator::new(locator, false);
+        let mut reader_locator = ReaderLocator::new(locator, false, &writer);
 
         let requested_changes = [1, 3, 5];
         let expected_requested_changes = [1];
-        reader_locator.requested_changes_set(&requested_changes, &history_cache);
+        reader_locator.requested_changes_set(&requested_changes);
         assert_eq!(
             reader_locator.requested_changes(),
             expected_requested_changes
@@ -225,13 +315,12 @@ mod tests {
     #[test]
     fn next_requested_change() {
         let locator = Locator::new_udpv4(7400, [127, 0, 0, 1]);
-        let history_cache = MockHistoryCache {
+        let writer_cache = MockHistoryCache {
             seq_num_max: Some(5),
         };
-
-        let mut reader_locator = ReaderLocator::new(locator, false);
-
-        reader_locator.requested_changes_set(&[1, 3, 5], &history_cache);
+        let writer = MockWriter { writer_cache };
+        let mut reader_locator = ReaderLocator::new(locator, false, &writer);
+        reader_locator.requested_changes_set(&[1, 3, 5]);
         assert_eq!(reader_locator.next_requested_change(), Some(1));
         assert_eq!(reader_locator.next_requested_change(), Some(3));
         assert_eq!(reader_locator.next_requested_change(), Some(5));
@@ -241,15 +330,15 @@ mod tests {
     #[test]
     fn next_requested_change_with_multiple_and_repeated_requested_changes() {
         let locator = Locator::new_udpv4(7400, [127, 0, 0, 1]);
-        let history_cache = MockHistoryCache {
+        let writer_cache = MockHistoryCache {
             seq_num_max: Some(5),
         };
+        let writer = MockWriter { writer_cache };
+        let mut reader_locator = ReaderLocator::new(locator, false, &writer);
 
-        let mut reader_locator = ReaderLocator::new(locator, false);
-
-        reader_locator.requested_changes_set(&[1, 3, 5], &history_cache);
+        reader_locator.requested_changes_set(&[1, 3, 5]);
         reader_locator.next_requested_change();
-        reader_locator.requested_changes_set(&[2, 3, 4], &history_cache);
+        reader_locator.requested_changes_set(&[2, 3, 4]);
 
         assert_eq!(reader_locator.next_requested_change(), Some(2));
         assert_eq!(reader_locator.next_requested_change(), Some(3));
