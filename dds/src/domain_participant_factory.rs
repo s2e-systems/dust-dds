@@ -3,7 +3,7 @@ use rust_dds_api::{
     domain::domain_participant_listener::DomainParticipantListener,
     infrastructure::qos::DomainParticipantQos,
 };
-use rust_dds_rtps_implementation::rtps_domain_participant::RtpsDomainParticipant;
+use rust_dds_rtps_implementation::rtps_domain_participant::DomainParticipant;
 
 /// The DomainParticipant object plays several roles:
 /// - It acts as a container for all other Entity objects.
@@ -41,8 +41,7 @@ impl DomainParticipantFactory {
         a_listener: Option<Box<dyn DomainParticipantListener>>,
         mask: StatusMask,
         //     enabled: bool,
-    ) -> Option<RtpsDomainParticipant> {
-
+    ) -> Option<DomainParticipant> {
         // let interface = "Wi-Fi";
         // let userdata_transport = MemoryTransport::new();
         //     UdpTransport::default_userdata_transport(domain_id, interface).unwrap();
@@ -50,7 +49,7 @@ impl DomainParticipantFactory {
         //     UdpTransport::default_metatraffic_transport(domain_id, interface).unwrap();
         let qos = qos.unwrap_or_default();
 
-        let rtps_participant = RtpsDomainParticipant::new(
+        let rtps_participant = DomainParticipant::new(
             domain_id,
             qos.clone(),
             // userdata_transport,

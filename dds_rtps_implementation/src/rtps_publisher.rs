@@ -9,41 +9,40 @@ use rust_dds_api::{
         qos::{DataWriterQos, PublisherQos, TopicQos},
     },
     publication::{
-        data_writer_listener::DataWriterListener,
-        publisher::{DataWriterGAT, Publisher},
+        data_writer_listener::DataWriterListener, publisher::DataWriterGAT,
         publisher_listener::PublisherListener,
     },
     return_type::{DDSError, DDSResult},
 };
 
 use crate::{
-    rtps_domain_participant::{RtpsDomainParticipant, RtpsPublisher, RtpsTopic},
+    rtps_domain_participant::{DomainParticipant, Publisher, Topic},
     utils::node::Node,
 };
 
-pub struct RtpsDataWriter<'a, T: DDSType>(<Self as Deref>::Target);
+pub struct DataWriter<'a, T: DDSType>(<Self as Deref>::Target);
 
-impl<'a, T: DDSType> Deref for RtpsDataWriter<'a, T> {
-    type Target = Node<(&'a RtpsPublisher<'a>, &'a RtpsTopic<'a, T>), ()>;
+impl<'a, T: DDSType> Deref for DataWriter<'a, T> {
+    type Target = Node<(&'a Publisher<'a>, &'a Topic<'a, T>), ()>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl<'a, T: DDSType> TopicGAT<'a, T> for RtpsPublisher<'a> {
-    type TopicType = RtpsTopic<'a, T>;
+impl<'a, T: DDSType> TopicGAT<'a, T> for Publisher<'a> {
+    type TopicType = Topic<'a, T>;
 }
 
-impl<'a, T: DDSType> DataWriterGAT<'a, T> for RtpsPublisher<'a> {
-    type DataWriterType = RtpsDataWriter<'a, T>;
+impl<'a, T: DDSType> DataWriterGAT<'a, T> for Publisher<'a> {
+    type DataWriterType = DataWriter<'a, T>;
 }
 
-impl<'a> DomainParticipantChild<'a> for RtpsPublisher<'a> {
-    type DomainParticipantType = RtpsDomainParticipant;
+impl<'a> DomainParticipantChild<'a> for Publisher<'a> {
+    type DomainParticipantType = DomainParticipant;
 }
 
-impl<'a> Publisher<'a> for RtpsPublisher<'a> {
+impl<'a> rust_dds_api::publication::publisher::Publisher<'a> for Publisher<'a> {
     fn create_datawriter<T: DDSType>(
         &'a self,
         _a_topic: &'a <Self as TopicGAT<'a, T>>::TopicType,
@@ -139,7 +138,7 @@ impl<'a> Publisher<'a> for RtpsPublisher<'a> {
     }
 }
 
-impl<'a> Entity for RtpsPublisher<'a> {
+impl<'a> Entity for Publisher<'a> {
     type Qos = PublisherQos;
     type Listener = Box<dyn PublisherListener + 'a>;
 
@@ -193,114 +192,3 @@ impl<'a> Entity for RtpsPublisher<'a> {
         todo!()
     }
 }
-
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//     use rust_dds_api::{
-//         domain::domain_participant::DomainParticipant, infrastructure::qos::DomainParticipantQos,
-//     };
-//     use rust_rtps::{transport::Transport, types::Locator};
-
-//     #[derive(Default)]
-//     struct MockTransport {
-//         unicast_locator_list: Vec<Locator>,
-//         multicast_locator_list: Vec<Locator>,
-//     }
-
-//     impl Transport for MockTransport {
-//         fn write(
-//             &self,
-//             _message: rust_rtps::messages::RtpsMessage,
-//             _destination_locator: &rust_rtps::types::Locator,
-//         ) {
-//             todo!()
-//         }
-
-//         fn read(
-//             &self,
-//         ) -> rust_rtps::transport::TransportResult<
-//             Option<(rust_rtps::messages::RtpsMessage, rust_rtps::types::Locator)>,
-//         > {
-//             todo!()
-//         }
-
-//         fn unicast_locator_list(&self) -> &Vec<rust_rtps::types::Locator> {
-//             &self.unicast_locator_list
-//         }
-
-//         fn multicast_locator_list(&self) -> &Vec<rust_rtps::types::Locator> {
-//             &self.multicast_locator_list
-//         }
-//     }
-
-//     struct TestType;
-
-//     impl DDSType for TestType {
-//         fn type_name() -> &'static str {
-//             "TestType"
-//         }
-
-//         fn has_key() -> bool {
-//             true
-//         }
-
-//         fn key(&self) -> Vec<u8> {
-//             todo!()
-//         }
-
-//         fn serialize(&self) -> Vec<u8> {
-//             todo!()
-//         }
-
-//         fn deserialize(_data: Vec<u8>) -> Self {
-//             todo!()
-//         }
-//     }
-
-//     #[test]
-//     fn create_datawriter_default_qos() {
-//         let domain_participant = RtpsDomainParticipant::new(
-//             0,
-//             DomainParticipantQos::default(),
-//             MockTransport::default(),
-//             MockTransport::default(),
-//             None,
-//             0,
-//         );
-//         let publisher = domain_participant.create_publisher(None, None, 0).unwrap();
-//         let topic = domain_participant
-//             .create_topic("Test", None, None, 0)
-//             .unwrap();
-
-//         let qos = None;
-//         let a_listener = None;
-//         let mask = 0;
-//         let _datawriter = publisher
-//             .create_datawriter::<TestType>(&topic, qos, a_listener, mask)
-//             .expect("Error creating data writer");
-//     }
-
-//     #[test]
-//     fn set_and_get_qos() {
-//         let domain_participant = RtpsDomainParticipant::new(
-//             0,
-//             DomainParticipantQos::default(),
-//             MockTransport::default(),
-//             MockTransport::default(),
-//             None,
-//             0,
-//         );
-//         let publisher = domain_participant.create_publisher(None, None, 0).unwrap();
-
-//         let mut publisher_qos = PublisherQos::default();
-//         publisher_qos.group_data.value = vec![1, 2, 3, 4];
-//         publisher
-//             .set_qos(Some(publisher_qos.clone()))
-//             .expect("Error setting publisher qos");
-//         assert_eq!(
-//             publisher.get_qos().expect("Error getting publisher qos"),
-//             publisher_qos
-//         );
-//     }
-// }

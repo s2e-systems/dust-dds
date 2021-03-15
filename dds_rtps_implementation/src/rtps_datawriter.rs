@@ -11,27 +11,27 @@ use rust_dds_api::{
         qos::DataWriterQos,
     },
     publication::{
-        data_writer::{AnyDataWriter, DataWriter},
-        data_writer_listener::DataWriterListener,
+        data_writer::AnyDataWriter, data_writer_listener::DataWriterListener,
         publisher::PublisherChild,
     },
     return_type::DDSResult,
-    topic::topic::Topic,
 };
 
-use crate::rtps_domain_participant::{RtpsPublisher, RtpsTopic};
+use crate::rtps_domain_participant::{Publisher, Topic};
 
-use super::rtps_publisher::RtpsDataWriter;
+use super::rtps_publisher::DataWriter;
 
-impl<'a, T: DDSType> PublisherChild<'a> for RtpsDataWriter<'a, T> {
-    type PublisherType = RtpsPublisher<'a>;
+impl<'a, T: DDSType> PublisherChild<'a> for DataWriter<'a, T> {
+    type PublisherType = Publisher<'a>;
 }
 
-impl<'a, T: DDSType> TopicGAT<'a, T> for RtpsDataWriter<'a, T> {
-    type TopicType = RtpsTopic<'a, T>;
+impl<'a, T: DDSType> TopicGAT<'a, T> for DataWriter<'a, T> {
+    type TopicType = Topic<'a, T>;
 }
 
-impl<'a, T: DDSType> DataWriter<'a, T> for RtpsDataWriter<'a, T> {
+impl<'a, T: DDSType> rust_dds_api::publication::data_writer::DataWriter<'a, T>
+    for DataWriter<'a, T>
+{
     fn register_instance(&self, _instance: T) -> DDSResult<Option<InstanceHandle>> {
         todo!()
     }
@@ -121,7 +121,10 @@ impl<'a, T: DDSType> DataWriter<'a, T> for RtpsDataWriter<'a, T> {
     }
 
     /// This operation returns the Topic associated with the DataWriter. This is the same Topic that was used to create the DataWriter.
-    fn get_topic(&self) -> &'a dyn Topic {
+    fn get_topic(&self) -> &<Self as TopicGAT<'a, T>>::TopicType
+    where
+        Self: TopicGAT<'a, T> + Sized,
+    {
         // self.parent.1
         todo!()
     }
@@ -152,7 +155,7 @@ impl<'a, T: DDSType> DataWriter<'a, T> for RtpsDataWriter<'a, T> {
     }
 }
 
-impl<'a, T: DDSType> Entity for RtpsDataWriter<'a, T> {
+impl<'a, T: DDSType> Entity for DataWriter<'a, T> {
     type Qos = DataWriterQos;
 
     type Listener = Box<dyn DataWriterListener<DataType = T> + 'a>;
@@ -194,4 +197,4 @@ impl<'a, T: DDSType> Entity for RtpsDataWriter<'a, T> {
     }
 }
 
-impl<'a, T: DDSType> AnyDataWriter for RtpsDataWriter<'a, T> {}
+impl<'a, T: DDSType> AnyDataWriter for DataWriter<'a, T> {}

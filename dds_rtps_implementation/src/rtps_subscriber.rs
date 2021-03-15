@@ -2,7 +2,7 @@ use std::ops::Deref;
 
 use crate::{
     impls::reader_impl::ReaderImpl,
-    rtps_domain_participant::{RtpsDomainParticipant, RtpsSubscriber, RtpsTopic},
+    rtps_domain_participant::{DomainParticipant, Subscriber, Topic},
     utils::node::Node,
 };
 use rust_dds_api::{
@@ -18,36 +18,34 @@ use rust_dds_api::{
     },
     return_type::{DDSError, DDSResult},
     subscription::{
-        data_reader::AnyDataReader,
-        data_reader_listener::DataReaderListener,
-        subscriber::{DataReaderGAT, Subscriber},
-        subscriber_listener::SubscriberListener,
+        data_reader::AnyDataReader, data_reader_listener::DataReaderListener,
+        subscriber::DataReaderGAT, subscriber_listener::SubscriberListener,
     },
 };
 
-pub struct RtpsDataReader<'a, T: DDSType>(<Self as Deref>::Target);
+pub struct DataReader<'a, T: DDSType>(<Self as Deref>::Target);
 
-impl<'a, T: DDSType> Deref for RtpsDataReader<'a, T> {
-    type Target = Node<(&'a RtpsSubscriber<'a>, &'a RtpsTopic<'a, T>), ReaderImpl>;
+impl<'a, T: DDSType> Deref for DataReader<'a, T> {
+    type Target = Node<(&'a Subscriber<'a>, &'a Topic<'a, T>), ReaderImpl>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl<'a, T: DDSType> TopicGAT<'a, T> for RtpsSubscriber<'a> {
-    type TopicType = RtpsTopic<'a, T>;
+impl<'a, T: DDSType> TopicGAT<'a, T> for Subscriber<'a> {
+    type TopicType = Topic<'a, T>;
 }
 
-impl<'a, T: DDSType> DataReaderGAT<'a, T> for RtpsSubscriber<'a> {
-    type DataReaderType = RtpsDataReader<'a, T>;
+impl<'a, T: DDSType> DataReaderGAT<'a, T> for Subscriber<'a> {
+    type DataReaderType = DataReader<'a, T>;
 }
 
-impl<'a> DomainParticipantChild<'a> for RtpsSubscriber<'a> {
-    type DomainParticipantType = RtpsDomainParticipant;
+impl<'a> DomainParticipantChild<'a> for Subscriber<'a> {
+    type DomainParticipantType = DomainParticipant;
 }
 
-impl<'a> Subscriber<'a> for RtpsSubscriber<'a> {
+impl<'a> rust_dds_api::subscription::subscriber::Subscriber<'a> for Subscriber<'a> {
     fn create_datareader<T: DDSType>(
         &'a self,
         a_topic: &'a <Self as TopicGAT<'a, T>>::TopicType,
@@ -63,7 +61,7 @@ impl<'a> Subscriber<'a> for RtpsSubscriber<'a> {
             .unwrap()
             .create_datareader(topic, qos, a_listener, mask)?;
 
-        Some(RtpsDataReader(Node {
+        Some(DataReader(Node {
             parent: (self, a_topic),
             impl_ref: data_reader_ref,
         }))
@@ -146,7 +144,7 @@ impl<'a> Subscriber<'a> for RtpsSubscriber<'a> {
     }
 }
 
-impl<'a> Entity for RtpsSubscriber<'a> {
+impl<'a> Entity for Subscriber<'a> {
     type Qos = SubscriberQos;
     type Listener = Box<dyn SubscriberListener + 'a>;
 
@@ -199,91 +197,3 @@ impl<'a> Entity for RtpsSubscriber<'a> {
         todo!()
     }
 }
-
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//     use rust_dds_api::{
-//         domain::domain_participant::DomainParticipant, infrastructure::qos::DomainParticipantQos,
-//     };
-//     use rust_rtps::{transport::Transport, types::Locator};
-
-//     #[derive(Default)]
-//     struct MockTransport {
-//         unicast_locator_list: Vec<Locator>,
-//         multicast_locator_list: Vec<Locator>,
-//     }
-
-//     impl Transport for MockTransport {
-//         fn write(
-//             &self,
-//             _message: rust_rtps::messages::RtpsMessage,
-//             _destination_locator: &rust_rtps::types::Locator,
-//         ) {
-//             todo!()
-//         }
-
-//         fn read(
-//             &self,
-//         ) -> rust_rtps::transport::TransportResult<
-//             Option<(rust_rtps::messages::RtpsMessage, rust_rtps::types::Locator)>,
-//         > {
-//             todo!()
-//         }
-
-//         fn unicast_locator_list(&self) -> &Vec<rust_rtps::types::Locator> {
-//             &self.unicast_locator_list
-//         }
-
-//         fn multicast_locator_list(&self) -> &Vec<rust_rtps::types::Locator> {
-//             &self.multicast_locator_list
-//         }
-//     }
-
-//     struct TestType;
-
-//     impl DDSType for TestType {
-//         fn type_name() -> &'static str {
-//             "TestType"
-//         }
-
-//         fn has_key() -> bool {
-//             true
-//         }
-
-//         fn key(&self) -> Vec<u8> {
-//             todo!()
-//         }
-
-//         fn serialize(&self) -> Vec<u8> {
-//             todo!()
-//         }
-
-//         fn deserialize(_data: Vec<u8>) -> Self {
-//             todo!()
-//         }
-//     }
-
-//     #[test]
-//     fn set_and_get_subscriber_qos() {
-//         let domain_participant = RtpsDomainParticipant::new(
-//             0,
-//             DomainParticipantQos::default(),
-//             MockTransport::default(),
-//             MockTransport::default(),
-//             None,
-//             0,
-//         );
-//         let subscriber = domain_participant.create_subscriber(None, None, 0).unwrap();
-
-//         let mut subscriber_qos = SubscriberQos::default();
-//         subscriber_qos.group_data.value = vec![1, 2, 3, 4];
-//         subscriber
-//             .set_qos(Some(subscriber_qos.clone()))
-//             .expect("Error setting publisher qos");
-//         assert_eq!(
-//             subscriber.get_qos().expect("Error getting publisher qos"),
-//             subscriber_qos
-//         );
-//     }
-// }

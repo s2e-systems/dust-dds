@@ -14,17 +14,17 @@ use rust_dds_api::{
     },
     return_type::DDSResult,
     subscription::{
-        data_reader::{AnyDataReader, DataReader},
-        data_reader_listener::DataReaderListener,
-        query_condition::QueryCondition,
-        subscriber::SubscriberChild,
+        data_reader::AnyDataReader, data_reader_listener::DataReaderListener,
+        query_condition::QueryCondition, subscriber::SubscriberChild,
     },
     topic::topic_description::TopicDescription,
 };
 
-use super::rtps_subscriber::RtpsDataReader;
+use super::rtps_subscriber::DataReader;
 
-impl<'a, T: DDSType> DataReader<'a, T> for RtpsDataReader<'a, T> {
+impl<'a, T: DDSType> rust_dds_api::subscription::data_reader::DataReader<'a, T>
+    for DataReader<'a, T>
+{
     fn read(
         &self,
         _data_values: &mut [T],
@@ -267,7 +267,7 @@ impl<'a, T: DDSType> DataReader<'a, T> for RtpsDataReader<'a, T> {
     }
 }
 
-impl<'a, T: DDSType> Entity for RtpsDataReader<'a, T> {
+impl<'a, T: DDSType> Entity for DataReader<'a, T> {
     type Qos = DataReaderQos;
 
     type Listener = Box<dyn DataReaderListener<DataType = T> + 'a>;
@@ -309,4 +309,4 @@ impl<'a, T: DDSType> Entity for RtpsDataReader<'a, T> {
     }
 }
 
-impl<'a, T: DDSType> AnyDataReader for RtpsDataReader<'a, T> {}
+impl<'a, T: DDSType> AnyDataReader for DataReader<'a, T> {}

@@ -5,8 +5,7 @@ use rust_dds_api::{
     dcps_psm::{DomainId, Duration, InstanceHandle, StatusMask, Time},
     dds_type::DDSType,
     domain::{
-        domain_participant::{DomainParticipant, TopicGAT},
-        domain_participant_listener::DomainParticipantListener,
+        domain_participant::TopicGAT, domain_participant_listener::DomainParticipantListener,
     },
     infrastructure::{
         entity::{Entity, StatusCondition},
@@ -26,39 +25,39 @@ use crate::{
     utils::node::Node,
 };
 
-pub struct RtpsPublisher<'a>(<Self as Deref>::Target);
+pub struct Publisher<'a>(<Self as Deref>::Target);
 
-impl<'a> Deref for RtpsPublisher<'a> {
-    type Target = Node<&'a RtpsDomainParticipant, PublisherImpl>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-pub struct RtpsSubscriber<'a>(<Self as Deref>::Target);
-
-impl<'a> Deref for RtpsSubscriber<'a> {
-    type Target = Node<&'a RtpsDomainParticipant, SubscriberImpl>;
+impl<'a> Deref for Publisher<'a> {
+    type Target = Node<&'a DomainParticipant, PublisherImpl>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-pub struct RtpsTopic<'a, T: DDSType>(<Self as Deref>::Target);
+pub struct Subscriber<'a>(<Self as Deref>::Target);
 
-impl<'a, T: DDSType> Deref for RtpsTopic<'a, T> {
-    type Target = Node<(&'a RtpsDomainParticipant, PhantomData<&'a T>), TopicImpl>;
+impl<'a> Deref for Subscriber<'a> {
+    type Target = Node<&'a DomainParticipant, SubscriberImpl>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-pub struct RtpsDomainParticipant(Mutex<DomainParticipantImpl>);
+pub struct Topic<'a, T: DDSType>(<Self as Deref>::Target);
 
-impl RtpsDomainParticipant {
+impl<'a, T: DDSType> Deref for Topic<'a, T> {
+    type Target = Node<(&'a DomainParticipant, PhantomData<&'a T>), TopicImpl>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+pub struct DomainParticipant(Mutex<DomainParticipantImpl>);
+
+impl DomainParticipant {
     pub fn new(
         domain_id: DomainId,
         qos: DomainParticipantQos,
@@ -76,13 +75,13 @@ impl RtpsDomainParticipant {
     }
 }
 
-impl<'a, T: DDSType> TopicGAT<'a, T> for RtpsDomainParticipant {
-    type TopicType = RtpsTopic<'a, T>;
+impl<'a, T: DDSType> TopicGAT<'a, T> for DomainParticipant {
+    type TopicType = Topic<'a, T>;
 }
 
-impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
-    type PublisherType = RtpsPublisher<'a>;
-    type SubscriberType = RtpsSubscriber<'a>;
+impl<'a> rust_dds_api::domain::domain_participant::DomainParticipant<'a> for DomainParticipant {
+    type PublisherType = Publisher<'a>;
+    type SubscriberType = Subscriber<'a>;
 
     fn create_publisher(
         &'a self,
@@ -97,7 +96,7 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
             .create_publisher(qos, a_listener, mask)
             .ok()?;
 
-        Some(RtpsPublisher(Node {
+        Some(Publisher(Node {
             parent: self,
             impl_ref,
         }))
@@ -129,7 +128,7 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
             .create_subscriber(qos, a_listener, mask)
             .ok()?;
 
-        Some(RtpsSubscriber(Node {
+        Some(Subscriber(Node {
             parent: self,
             impl_ref,
         }))
@@ -161,7 +160,7 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
             .unwrap()
             .create_topic::<T>(topic_name, qos, a_listener, mask)
             .ok()?;
-        Some(RtpsTopic(Node {
+        Some(Topic(Node {
             parent: (self, PhantomData),
             impl_ref,
         }))
@@ -300,7 +299,7 @@ impl<'a> DomainParticipant<'a> for RtpsDomainParticipant {
     }
 }
 
-impl Entity for RtpsDomainParticipant {
+impl Entity for DomainParticipant {
     type Qos = DomainParticipantQos;
     type Listener = Box<dyn DomainParticipantListener>;
 

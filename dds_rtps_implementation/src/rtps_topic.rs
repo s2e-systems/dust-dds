@@ -1,4 +1,4 @@
-use crate::rtps_domain_participant::{RtpsDomainParticipant, RtpsTopic};
+use crate::rtps_domain_participant::{DomainParticipant, Topic};
 use rust_dds_api::{
     dcps_psm::{InconsistentTopicStatus, InstanceHandle, StatusMask},
     dds_type::DDSType,
@@ -8,14 +8,14 @@ use rust_dds_api::{
         qos::TopicQos,
     },
     return_type::{DDSError, DDSResult},
-    topic::{topic::Topic, topic_description::TopicDescription, topic_listener::TopicListener},
+    topic::{topic_description::TopicDescription, topic_listener::TopicListener},
 };
 
-impl<'a, T: DDSType> DomainParticipantChild<'a> for RtpsTopic<'a, T> {
-    type DomainParticipantType = RtpsDomainParticipant;
+impl<'a, T: DDSType> DomainParticipantChild<'a> for Topic<'a, T> {
+    type DomainParticipantType = DomainParticipant;
 }
 
-impl<'a, T: DDSType> Topic<'a> for RtpsTopic<'a, T> {
+impl<'a, T: DDSType> rust_dds_api::topic::topic::Topic<'a> for Topic<'a, T> {
     fn get_inconsistent_topic_status(
         &self,
         _status: &mut InconsistentTopicStatus,
@@ -24,7 +24,7 @@ impl<'a, T: DDSType> Topic<'a> for RtpsTopic<'a, T> {
     }
 }
 
-impl<'a, T: DDSType> TopicDescription<'a> for RtpsTopic<'a, T> {
+impl<'a, T: DDSType> TopicDescription<'a> for Topic<'a, T> {
     fn get_participant(&self) -> &<Self as DomainParticipantChild<'a>>::DomainParticipantType {
         self.parent.0
     }
@@ -50,7 +50,7 @@ impl<'a, T: DDSType> TopicDescription<'a> for RtpsTopic<'a, T> {
     }
 }
 
-impl<'a, T: DDSType> Entity for RtpsTopic<'a, T> {
+impl<'a, T: DDSType> Entity for Topic<'a, T> {
     type Qos = TopicQos;
     type Listener = Box<dyn TopicListener>;
 
