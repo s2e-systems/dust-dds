@@ -2,7 +2,7 @@ use std::ops::Deref;
 
 use crate::{
     impls::reader_impl::ReaderImpl,
-    rtps_domain_participant::{DomainParticipant, Subscriber, Topic},
+    domain_participant::{DomainParticipant, Subscriber, Topic},
     utils::node::Node,
 };
 use rust_dds_api::{

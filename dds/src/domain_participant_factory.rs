@@ -3,7 +3,7 @@ use rust_dds_api::{
     domain::domain_participant_listener::DomainParticipantListener,
     infrastructure::qos::DomainParticipantQos,
 };
-use rust_dds_rtps_implementation::rtps_domain_participant::DomainParticipant;
+use rust_dds_rtps_implementation::domain_participant::DomainParticipant;
 
 /// The DomainParticipant object plays several roles:
 /// - It acts as a container for all other Entity objects.

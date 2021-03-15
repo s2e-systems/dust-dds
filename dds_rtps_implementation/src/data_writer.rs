@@ -17,9 +17,9 @@ use rust_dds_api::{
     return_type::DDSResult,
 };
 
-use crate::rtps_domain_participant::{Publisher, Topic};
+use crate::domain_participant::{Publisher, Topic};
 
-use super::rtps_publisher::DataWriter;
+use super::publisher::DataWriter;
 
 impl<'a, T: DDSType> PublisherChild<'a> for DataWriter<'a, T> {
     type PublisherType = Publisher<'a>;

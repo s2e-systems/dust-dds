@@ -1,4 +1,4 @@
-use crate::rtps_domain_participant::{DomainParticipant, Topic};
+use crate::domain_participant::{DomainParticipant, Topic};
 use rust_dds_api::{
     dcps_psm::{InconsistentTopicStatus, InstanceHandle, StatusMask},
     dds_type::DDSType,

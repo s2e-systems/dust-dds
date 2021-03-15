@@ -1,11 +1,11 @@
 #![allow(dead_code)]
 
-pub mod rtps_domain_participant;
-pub mod rtps_publisher;
-pub mod rtps_subscriber;
-pub mod rtps_datareader;
-pub mod rtps_datawriter;
-pub mod rtps_topic;
+pub mod domain_participant;
+pub mod publisher;
+pub mod subscriber;
+pub mod data_reader;
+pub mod data_writer;
+pub mod topic;
 
 mod impls;
 mod rtps;

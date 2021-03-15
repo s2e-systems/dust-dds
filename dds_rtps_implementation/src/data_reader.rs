@@ -20,7 +20,7 @@ use rust_dds_api::{
     topic::topic_description::TopicDescription,
 };
 
-use super::rtps_subscriber::DataReader;
+use super::subscriber::DataReader;
 
 impl<'a, T: DDSType> rust_dds_api::subscription::data_reader::DataReader<'a, T>
     for DataReader<'a, T>

@@ -16,7 +16,7 @@ use rust_dds_api::{
 };
 
 use crate::{
-    rtps_domain_participant::{DomainParticipant, Publisher, Topic},
+    domain_participant::{DomainParticipant, Publisher, Topic},
     utils::node::Node,
 };
 
