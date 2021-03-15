@@ -4,8 +4,8 @@ use crate::{behavior::RTPSWriter, types::Locator};
 
 use super::RTPSReaderLocator;
 
-pub trait RTPSStatelessWriter<'a, T: RTPSWriter<'a>>: Deref<Target = T> {
-    type ReaderLocatorType: RTPSReaderLocator<'a>;
+pub trait RTPSStatelessWriter<'a, T: RTPSWriter<'a> + 'a>: Deref<Target = T> {
+    type ReaderLocatorType: RTPSReaderLocator<'a, Writer=T>;
 
     fn new(writer: T) -> Self;
     fn reader_locators(&self) -> &[Self::ReaderLocatorType];

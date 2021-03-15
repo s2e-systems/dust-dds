@@ -7,12 +7,12 @@ use rust_rtps::{
 
 use super::reader_locator::ReaderLocator;
 
-pub struct StatelessWriter<'a, T: RTPSWriter<'a>> {
+pub struct StatelessWriter<'a, T: RTPSWriter<'a> + 'a> {
     writer: Arc<T>,
     reader_locators: Vec<ReaderLocator<'a, T>>,
 }
 
-impl<'a, T: RTPSWriter<'a>> Deref for StatelessWriter<'a, T> {
+impl<'a, T: RTPSWriter<'a> + 'a> Deref for StatelessWriter<'a, T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
@@ -20,7 +20,7 @@ impl<'a, T: RTPSWriter<'a>> Deref for StatelessWriter<'a, T> {
     }
 }
 
-impl<'a, T: RTPSWriter<'a>> RTPSStatelessWriter<'a, T> for StatelessWriter<'a, T> {
+impl<'a, T: RTPSWriter<'a> + 'a> RTPSStatelessWriter<'a, T> for StatelessWriter<'a, T> {
     type ReaderLocatorType = ReaderLocator<'a, T>;
 
     fn new(writer: T) -> Self {
@@ -44,7 +44,9 @@ impl<'a, T: RTPSWriter<'a>> RTPSStatelessWriter<'a, T> for StatelessWriter<'a, T
     }
 
     fn unsent_changes_reset(&mut self) {
-        todo!()
+        for r in &mut self.reader_locators.iter_mut() {
+            *r = Self::ReaderLocatorType::new(r.locator(), r.expects_inline_qos(), self.writer.clone());
+        };
     }
 }
 
