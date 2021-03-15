@@ -4,7 +4,7 @@ use crate::{behavior::RTPSReader, types::GUID};
 
 use super::RTPSWriterProxy;
 
-pub trait RTPSStatefulReader<'a, T: RTPSReader<'a>>: Deref<Target = T> + DerefMut {
+pub trait RTPSStatefulReader<T: RTPSReader>: Deref<Target = T> + DerefMut {
     type WriterProxyType: RTPSWriterProxy;
     fn matched_writers(&self) -> &[Self::WriterProxyType];
     fn matched_writer_add(&mut self, a_writer_proxy: Self::WriterProxyType);

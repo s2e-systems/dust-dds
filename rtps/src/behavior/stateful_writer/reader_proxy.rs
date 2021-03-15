@@ -15,10 +15,11 @@ pub trait RTPSChangeForReader {
     fn is_relevant(&self) -> bool;
 }
 
-pub trait RTPSReaderProxy<'a> {
+pub trait RTPSReaderProxy {
     type ChangeForReaderType: RTPSChangeForReader;
     type ChangeForReaderTypeList: IntoIterator<Item = Self::ChangeForReaderType>;
-    type Writer: RTPSWriter<'a>;
+    type Writer: RTPSWriter;
+    type WriterReferenceType: core::ops::Deref<Target = Self::Writer>;
 
     fn remote_reader_guid(&self) -> GUID;
     fn remote_group_entity_id(&self) -> EntityId;
@@ -36,18 +37,14 @@ pub trait RTPSReaderProxy<'a> {
         multicast_locator_list: &[Locator],
         expects_inline_qos: bool,
         is_active: bool,
-        writer: &'a Self::Writer,
+        writer: Self::WriterReferenceType,
     ) -> Self;
 
     fn acked_changes_set(&mut self, committed_seq_num: SequenceNumber);
     fn next_requested_change(&mut self) -> Option<Self::ChangeForReaderType>;
-    fn next_unsent_change(&mut self)
-        -> Option<Self::ChangeForReaderType>;
+    fn next_unsent_change(&mut self) -> Option<Self::ChangeForReaderType>;
     fn unsent_changes(&self) -> Self::ChangeForReaderTypeList;
     fn requested_changes(&self) -> Self::ChangeForReaderTypeList;
-    fn requested_changes_set(
-        &mut self,
-        req_seq_num_set: &[SequenceNumber]
-    );
+    fn requested_changes_set(&mut self, req_seq_num_set: &[SequenceNumber]);
     fn unacked_changes(&self) -> Self::ChangeForReaderTypeList;
 }

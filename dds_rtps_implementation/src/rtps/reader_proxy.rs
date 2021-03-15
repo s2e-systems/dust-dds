@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use rust_rtps::{
     behavior::{
         stateful_writer::reader_proxy::RTPSChangeForReader, types::ChangeForReaderStatusKind,
@@ -40,7 +42,7 @@ impl RTPSChangeForReader for ChangeForReader {
     }
 }
 
-pub struct ReaderProxy<'a, W: RTPSWriter<'a>> {
+pub struct ReaderProxy<W: RTPSWriter> {
     remote_reader_guid: GUID,
     remote_group_entity_id: EntityId,
     unicast_locator_list: Vec<Locator>,
@@ -48,13 +50,13 @@ pub struct ReaderProxy<'a, W: RTPSWriter<'a>> {
     expects_inline_qos: bool,
     is_active: bool,
 
-    writer: &'a W,
+    writer: Arc<W>,
     next_unsent_change: SequenceNumber,
     highest_acked_change: SequenceNumber,
     requested_changes: Vec<SequenceNumber>,
 }
 
-impl<'a, W: RTPSWriter<'a>> RTPSReaderProxy<'a> for ReaderProxy<'a, W> {
+impl<W: RTPSWriter> RTPSReaderProxy for ReaderProxy<W> {
     type ChangeForReaderType = ChangeForReader;
     type ChangeForReaderTypeList = Vec<Self::ChangeForReaderType>;
     type Writer = W;
@@ -97,8 +99,12 @@ impl<'a, W: RTPSWriter<'a>> RTPSReaderProxy<'a> for ReaderProxy<'a, W> {
         self.is_active
     }
 
+    // fn writer(&self) -> &Self::Writer {
+    //     self.writer
+    // }
+
     fn writer(&self) -> &Self::Writer {
-        self.writer
+        todo!()
     }
 
     fn new(
@@ -108,7 +114,7 @@ impl<'a, W: RTPSWriter<'a>> RTPSReaderProxy<'a> for ReaderProxy<'a, W> {
         multicast_locator_list: &[Locator],
         expects_inline_qos: bool,
         is_active: bool,
-        writer: &'a Self::Writer,
+        writer: Arc<Self::Writer>,
     ) -> Self {
         Self {
             remote_reader_guid,
@@ -181,6 +187,8 @@ impl<'a, W: RTPSWriter<'a>> RTPSReaderProxy<'a> for ReaderProxy<'a, W> {
             }
         }
     }
+
+    type WriterReferenceType = Arc<W>;
 
     fn unacked_changes(&self) -> Self::ChangeForReaderTypeList {
         let mut unacked_changes: Vec<SequenceNumber> = if self.writer.push_mode() == true {
@@ -320,7 +328,7 @@ mod tests {
             todo!()
         }
     }
-    impl<'a> RTPSWriter<'a> for MockWriter {
+    impl RTPSWriter for MockWriter {
         type HistoryCacheType = MockHistoryCache;
 
         fn new(
@@ -415,7 +423,7 @@ mod tests {
             &multicast_locator_list,
             expects_inline_qos,
             is_active,
-            &writer,
+            Arc::new(writer),
         );
 
         assert_eq!(reader_proxy.remote_reader_guid(), remote_reader_guid);
@@ -451,7 +459,7 @@ mod tests {
             &multicast_locator_list,
             expects_inline_qos,
             is_active,
-            &writer,
+            Arc::new(writer),
         );
 
         let unsent_changes = reader_proxy.unsent_changes();
@@ -495,7 +503,7 @@ mod tests {
             &multicast_locator_list,
             expects_inline_qos,
             is_active,
-            &writer,
+            Arc::new(writer),
         );
 
         let unsent_changes = reader_proxy.unsent_changes();
@@ -521,7 +529,7 @@ mod tests {
             &multicast_locator_list,
             expects_inline_qos,
             is_active,
-            &writer,
+            Arc::new(writer),
         );
 
         let next_unsent_change1 = reader_proxy.next_unsent_change();
@@ -571,7 +579,7 @@ mod tests {
             &multicast_locator_list,
             expects_inline_qos,
             is_active,
-            &writer,
+            Arc::new(writer),
         );
 
         let next_unsent_change = reader_proxy.next_unsent_change();
@@ -599,7 +607,7 @@ mod tests {
             &multicast_locator_list,
             expects_inline_qos,
             is_active,
-            &writer,
+            Arc::new(writer),
         );
 
         // Changes up to 5 are available
@@ -648,7 +656,7 @@ mod tests {
             &multicast_locator_list,
             expects_inline_qos,
             is_active,
-            &writer,
+            Arc::new(writer),
         );
 
         // Changes up to 5 are available
@@ -694,7 +702,7 @@ mod tests {
             &multicast_locator_list,
             expects_inline_qos,
             is_active,
-            &writer,
+            Arc::new(writer),
         );
 
         reader_proxy.requested_changes_set(&[2, 3]);
@@ -727,7 +735,7 @@ mod tests {
             &multicast_locator_list,
             expects_inline_qos,
             is_active,
-            &writer,
+            Arc::new(writer),
         );
 
         reader_proxy.requested_changes_set(&[6, 7, 8]);
@@ -754,7 +762,7 @@ mod tests {
             &multicast_locator_list,
             expects_inline_qos,
             is_active,
-            &writer,
+            Arc::new(writer),
         );
 
         reader_proxy.requested_changes_set(&[2, 3]);
@@ -802,7 +810,7 @@ mod tests {
             &multicast_locator_list,
             expects_inline_qos,
             is_active,
-            &writer,
+            Arc::new(writer),
         );
 
         // Changes up to 6 are available

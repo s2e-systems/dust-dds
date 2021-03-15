@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, sync::Arc};
+use std::sync::Arc;
 
 use rust_rtps::{
     behavior::{stateless_writer::RTPSReaderLocator, RTPSWriter},
@@ -6,16 +6,15 @@ use rust_rtps::{
     types::{Locator, SequenceNumber},
 };
 
-pub struct ReaderLocator<'a, T: RTPSWriter<'a>> {
+pub struct ReaderLocator<T: RTPSWriter> {
     locator: Locator,
     expects_inline_qos: bool,
     writer: Arc<T>,
     next_unsent_change: SequenceNumber,
     requested_changes: Vec<SequenceNumber>,
-    phantom: PhantomData<&'a ()>,
 }
 
-impl<'a, T: RTPSWriter<'a>> RTPSReaderLocator<'a> for ReaderLocator<'a, T> {
+impl<T: RTPSWriter> RTPSReaderLocator for ReaderLocator<T> {
     type CacheChangeRepresentation = SequenceNumber;
     type CacheChangeRepresentationList = Vec<Self::CacheChangeRepresentation>;
     type Writer = T;
@@ -37,7 +36,6 @@ impl<'a, T: RTPSWriter<'a>> RTPSReaderLocator<'a> for ReaderLocator<'a, T> {
             writer,
             next_unsent_change: 0,
             requested_changes: Vec::new(),
-            phantom: PhantomData,
         }
     }
 
@@ -194,7 +192,7 @@ mod tests {
             todo!()
         }
     }
-    impl<'a> RTPSWriter<'a> for MockWriter {
+    impl RTPSWriter for MockWriter {
         type HistoryCacheType = MockHistoryCache;
 
         fn new(

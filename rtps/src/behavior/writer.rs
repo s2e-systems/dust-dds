@@ -8,7 +8,7 @@ use crate::{
 
 use super::types::Duration;
 
-pub trait RTPSWriter<'a>: RTPSEndpoint {
+pub trait RTPSWriter: RTPSEndpoint {
     type HistoryCacheType: RTPSHistoryCache;
     fn new(
         guid: GUID,

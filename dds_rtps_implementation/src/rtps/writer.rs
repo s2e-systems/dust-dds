@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, sync::atomic};
+use std::sync::atomic;
 
 use rust_rtps::{
     behavior::{types::Duration, RTPSWriter},
@@ -9,7 +9,7 @@ use rust_rtps::{
     },
 };
 
-pub struct Writer<'a, H: RTPSHistoryCache> {
+pub struct Writer<H: RTPSHistoryCache> {
     guid: GUID,
     topic_kind: TopicKind,
     reliablility_level: ReliabilityKind,
@@ -22,16 +22,15 @@ pub struct Writer<'a, H: RTPSHistoryCache> {
     last_change_sequence_number: atomic::AtomicI64,
     data_max_sized_serialized: i32,
     writer_cache: H,
-    phantom: PhantomData<&'a ()>,
 }
 
-impl<'a, H: RTPSHistoryCache> RTPSEntity for Writer<'a, H> {
+impl<H: RTPSHistoryCache> RTPSEntity for Writer<H> {
     fn guid(&self) -> GUID {
         self.guid
     }
 }
 
-impl<'a, H: RTPSHistoryCache> RTPSEndpoint for Writer<'a, H> {
+impl<H: RTPSHistoryCache> RTPSEndpoint for Writer<H> {
     fn unicast_locator_list(&self) -> &[Locator] {
         &self.unicast_locator_list
     }
@@ -49,7 +48,7 @@ impl<'a, H: RTPSHistoryCache> RTPSEndpoint for Writer<'a, H> {
     }
 }
 
-impl<'a, H: RTPSHistoryCache> RTPSWriter<'a> for Writer<'a, H> {
+impl<H: RTPSHistoryCache> RTPSWriter for Writer<H> {
     type HistoryCacheType = H;
 
     fn new(
@@ -78,7 +77,6 @@ impl<'a, H: RTPSHistoryCache> RTPSWriter<'a> for Writer<'a, H> {
             last_change_sequence_number: atomic::AtomicI64::new(0),
             data_max_sized_serialized,
             writer_cache,
-            phantom: PhantomData,
         }
     }
 

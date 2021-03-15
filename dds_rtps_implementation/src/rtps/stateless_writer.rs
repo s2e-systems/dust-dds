@@ -1,7 +1,4 @@
-use std::{
-    ops::{Deref},
-    sync::Arc,
-};
+use std::{ops::Deref, sync::Arc};
 
 use rust_rtps::{
     behavior::{stateless_writer::RTPSReaderLocator, RTPSStatelessWriter, RTPSWriter},
@@ -10,12 +7,12 @@ use rust_rtps::{
 
 use super::reader_locator::ReaderLocator;
 
-pub struct StatelessWriter<'a, T: RTPSWriter<'a> + 'a> {
+pub struct StatelessWriter<T: RTPSWriter> {
     writer: Arc<T>,
-    reader_locators: Vec<ReaderLocator<'a, T>>,
+    reader_locators: Vec<ReaderLocator<T>>,
 }
 
-impl<'a, T: RTPSWriter<'a> + 'a> Deref for StatelessWriter<'a, T> {
+impl<T: RTPSWriter> Deref for StatelessWriter<T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
@@ -23,8 +20,8 @@ impl<'a, T: RTPSWriter<'a> + 'a> Deref for StatelessWriter<'a, T> {
     }
 }
 
-impl<'a, T: RTPSWriter<'a> + 'a> RTPSStatelessWriter<'a, T> for StatelessWriter<'a, T> {
-    type ReaderLocatorType = ReaderLocator<'a, T>;
+impl<T: RTPSWriter> RTPSStatelessWriter<T> for StatelessWriter<T> {
+    type ReaderLocatorType = ReaderLocator<T>;
 
     fn new(writer: T) -> Self {
         Self {
@@ -171,7 +168,7 @@ mod tests {
         }
     }
 
-    impl<'a> RTPSWriter<'a> for MockWriter {
+    impl RTPSWriter for MockWriter {
         type HistoryCacheType = MockHistoryCache;
 
         fn new(

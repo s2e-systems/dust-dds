@@ -1,11 +1,11 @@
-use core::ops::{Deref, DerefMut};
+use core::ops::Deref;
 
 use crate::{behavior::RTPSWriter, types::Locator};
 
 use super::RTPSReaderLocator;
 
-pub trait RTPSStatelessWriter<'a, T: RTPSWriter<'a> + 'a>: Deref<Target = T> {
-    type ReaderLocatorType: RTPSReaderLocator<'a, Writer=T>;
+pub trait RTPSStatelessWriter<T: RTPSWriter>: Deref<Target = T> {
+    type ReaderLocatorType: RTPSReaderLocator<Writer = T>;
 
     fn new(writer: T) -> Self;
     fn reader_locators(&self) -> &[Self::ReaderLocatorType];

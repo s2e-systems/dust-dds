@@ -3,11 +3,11 @@ use crate::{
     types::{Locator, SequenceNumber},
 };
 
-pub trait RTPSReaderLocator<'a> {
+pub trait RTPSReaderLocator {
     type CacheChangeRepresentation;
     type CacheChangeRepresentationList: IntoIterator<Item = Self::CacheChangeRepresentation>;
-    type Writer : RTPSWriter<'a>;
-    type WriterReferenceType : core::ops::Deref<Target=Self::Writer>;
+    type Writer: RTPSWriter;
+    type WriterReferenceType: core::ops::Deref<Target = Self::Writer>;
 
     fn requested_changes(&self) -> Self::CacheChangeRepresentationList;
     fn unsent_changes(&self) -> Self::CacheChangeRepresentationList;
