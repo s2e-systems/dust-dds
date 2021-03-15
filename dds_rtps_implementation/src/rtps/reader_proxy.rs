@@ -76,7 +76,8 @@ impl<'a, W: RTPSWriter<'a>> RTPSReaderProxy<'a> for ReaderProxy<'a, W> {
     }
 
     fn changes_for_reader(&self) -> Self::ChangeForReaderTypeList {
-        let mut changes_for_reader: Vec<Self::ChangeForReaderType> = (1..=self.highest_acked_change)
+        let mut changes_for_reader: Vec<Self::ChangeForReaderType> = (1..=self
+            .highest_acked_change)
             .map(|sn| {
                 Self::ChangeForReaderType::new(sn, ChangeForReaderStatusKind::Acknowledged, true)
             })
@@ -204,7 +205,10 @@ impl<'a, W: RTPSWriter<'a>> RTPSReaderProxy<'a> for ReaderProxy<'a, W> {
 
 #[cfg(test)]
 mod tests {
-    use rust_rtps::structure::{RTPSCacheChange, RTPSEndpoint, RTPSEntity, RTPSHistoryCache};
+    use rust_rtps::structure::{
+        history_cache::RTPSHistoryCacheRead, RTPSCacheChange, RTPSEndpoint, RTPSEntity,
+        RTPSHistoryCache,
+    };
 
     use super::*;
 
@@ -254,7 +258,7 @@ mod tests {
         seq_num_max: Option<SequenceNumber>,
     }
 
-    impl<'a> RTPSHistoryCache<'a> for MockHistoryCache {
+    impl RTPSHistoryCache for MockHistoryCache {
         type CacheChangeType = MockCacheChange;
         type CacheChangeReadType = Box<MockCacheChange>;
 
@@ -270,7 +274,13 @@ mod tests {
             todo!()
         }
 
-        fn get_change(&self, _seq_num: SequenceNumber) -> Option<Self::CacheChangeReadType> {
+        fn get_change<'a>(
+            &'a self,
+            seq_num: SequenceNumber,
+        ) -> Option<<Self::CacheChangeReadType as RTPSHistoryCacheRead<'a>>::Item>
+        where
+            Self::CacheChangeReadType: RTPSHistoryCacheRead<'a>,
+        {
             todo!()
         }
 

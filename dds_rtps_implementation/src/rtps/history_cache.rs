@@ -1,10 +1,11 @@
 use std::{
+    marker::PhantomData,
     ops::Deref,
     sync::{Mutex, MutexGuard},
 };
 
 use rust_rtps::{
-    structure::{RTPSCacheChange, RTPSHistoryCache},
+    structure::{history_cache::RTPSHistoryCacheRead, RTPSCacheChange, RTPSHistoryCache},
     types::SequenceNumber,
 };
 
@@ -25,9 +26,16 @@ impl<'a, T: RTPSCacheChange> Deref for BorrowedCacheChange<'a, T> {
     }
 }
 
-impl<'a, T: RTPSCacheChange + 'a> RTPSHistoryCache<'a> for HistoryCache<T> {
+pub struct HistoryCacheGAT<T>(PhantomData<T>);
+
+impl<'a, T: RTPSCacheChange> RTPSHistoryCacheRead<'a> for HistoryCacheGAT<T> {
     type CacheChangeType = T;
-    type CacheChangeReadType = BorrowedCacheChange<'a, T>;
+    type Item = BorrowedCacheChange<'a, T>;
+}
+
+impl<T: RTPSCacheChange> RTPSHistoryCache for HistoryCache<T> {
+    type CacheChangeType = T;
+    type HistoryCacheStorageType = HistoryCacheGAT<T>;
 
     fn new() -> Self {
         Self {
@@ -46,7 +54,10 @@ impl<'a, T: RTPSCacheChange + 'a> RTPSHistoryCache<'a> for HistoryCache<T> {
             .retain(|cc| cc.sequence_number() != seq_num)
     }
 
-    fn get_change(&'a self, seq_num: SequenceNumber) -> Option<Self::CacheChangeReadType> {
+    fn get_change<'a>(
+        &'a self,
+        seq_num: SequenceNumber,
+    ) -> Option<<Self::HistoryCacheStorageType as RTPSHistoryCacheRead<'a>>::Item> {
         let guard = self.changes.lock().unwrap();
         let index = guard
             .iter()

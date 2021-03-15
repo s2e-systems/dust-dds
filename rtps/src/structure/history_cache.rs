@@ -3,9 +3,15 @@ use std::ops::Deref;
 use crate::types::SequenceNumber;
 
 use super::RTPSCacheChange;
-pub trait RTPSHistoryCache<'a> {
+
+pub trait RTPSHistoryCacheRead<'a> {
     type CacheChangeType: RTPSCacheChange;
-    type CacheChangeReadType: Deref<Target = Self::CacheChangeType>;
+    type Item: Deref<Target = Self::CacheChangeType>;
+}
+
+pub trait RTPSHistoryCache {
+    type CacheChangeType: RTPSCacheChange;
+    type HistoryCacheStorageType: for<'a> RTPSHistoryCacheRead<'a, CacheChangeType=Self::CacheChangeType>;
 
     /// This operation creates a new RTPS HistoryCache. The newly-created history cache is initialized with an empty list of changes.
     fn new() -> Self;
@@ -21,7 +27,10 @@ pub trait RTPSHistoryCache<'a> {
     /// entity and on the acknowledgment status of the CacheChange. This is described in 8.4.1.
     fn remove_change(&self, seq_num: SequenceNumber);
 
-    fn get_change(&'a self, seq_num: SequenceNumber) -> Option<Self::CacheChangeReadType>;
+    fn get_change<'a>(
+        &'a self,
+        seq_num: SequenceNumber,
+    ) -> Option<<Self::HistoryCacheStorageType as RTPSHistoryCacheRead<'a>>::Item>;
 
     /// This operation retrieves the smallest value of the CacheChange::sequenceNumber attribute among the CacheChange stored in the HistoryCache.
     fn get_seq_num_min(&self) -> Option<SequenceNumber>;

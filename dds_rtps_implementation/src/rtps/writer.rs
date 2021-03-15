@@ -9,7 +9,7 @@ use rust_rtps::{
     },
 };
 
-pub struct Writer<'a, H: RTPSHistoryCache<'a>> {
+pub struct Writer<'a, H: RTPSHistoryCache> {
     guid: GUID,
     topic_kind: TopicKind,
     reliablility_level: ReliabilityKind,
@@ -25,13 +25,13 @@ pub struct Writer<'a, H: RTPSHistoryCache<'a>> {
     phantom: PhantomData<&'a ()>,
 }
 
-impl<'a, H: RTPSHistoryCache<'a>> RTPSEntity for Writer<'a, H> {
+impl<'a, H: RTPSHistoryCache> RTPSEntity for Writer<'a, H> {
     fn guid(&self) -> GUID {
         self.guid
     }
 }
 
-impl<'a, H: RTPSHistoryCache<'a>> RTPSEndpoint for Writer<'a, H> {
+impl<'a, H: RTPSHistoryCache> RTPSEndpoint for Writer<'a, H> {
     fn unicast_locator_list(&self) -> &[Locator] {
         &self.unicast_locator_list
     }
@@ -49,7 +49,7 @@ impl<'a, H: RTPSHistoryCache<'a>> RTPSEndpoint for Writer<'a, H> {
     }
 }
 
-impl<'a, H: RTPSHistoryCache<'a>> RTPSWriter<'a> for Writer<'a, H> {
+impl<'a, H: RTPSHistoryCache> RTPSWriter<'a> for Writer<'a, H> {
     type HistoryCacheType = H;
 
     fn new(
@@ -99,7 +99,8 @@ impl<'a, H: RTPSHistoryCache<'a>> RTPSWriter<'a> for Writer<'a, H> {
     }
 
     fn last_change_sequence_number(&self) -> SequenceNumber {
-        self.last_change_sequence_number.load(atomic::Ordering::Acquire)
+        self.last_change_sequence_number
+            .load(atomic::Ordering::Acquire)
     }
 
     fn data_max_sized_serialized(&self) -> i32 {
@@ -113,12 +114,14 @@ impl<'a, H: RTPSHistoryCache<'a>> RTPSWriter<'a> for Writer<'a, H> {
     fn new_change(
         &self,
         kind: ChangeKind,
-        data: <<Self::HistoryCacheType as RTPSHistoryCache<'a>>::CacheChangeType as RTPSCacheChange>::Data,
+        data: <<Self::HistoryCacheType as RTPSHistoryCache>::CacheChangeType as RTPSCacheChange>::Data,
         inline_qos: ParameterList,
         handle: InstanceHandle,
-    ) -> <Self::HistoryCacheType as RTPSHistoryCache<'a>>::CacheChangeType {
-        let sn = self.last_change_sequence_number.fetch_add(1, atomic::Ordering::Acquire);
-        <<Self::HistoryCacheType as RTPSHistoryCache>::CacheChangeType as RTPSCacheChange>::new(
+    ) -> <Self::HistoryCacheType as RTPSHistoryCache>::CacheChangeType {
+        let sn = self
+            .last_change_sequence_number
+            .fetch_add(1, atomic::Ordering::Acquire);
+        <<Self::HistoryCacheType as RTPSHistoryCache>::CacheChangeType>::new(
             kind,
             self.guid,
             handle,
@@ -133,6 +136,7 @@ impl<'a, H: RTPSHistoryCache<'a>> RTPSWriter<'a> for Writer<'a, H> {
 mod tests {
     use rust_rtps::{
         behavior::types::constants::{DURATION_INFINITE, DURATION_ZERO},
+        structure::history_cache::RTPSHistoryCacheRead,
         types::constants::ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
     };
 
@@ -188,7 +192,7 @@ mod tests {
     }
     struct MockHistoryCache;
 
-    impl<'a> RTPSHistoryCache<'a> for MockHistoryCache {
+    impl RTPSHistoryCache for MockHistoryCache {
         type CacheChangeType = MockCacheChange;
         type CacheChangeReadType = Box<MockCacheChange>;
 
@@ -204,7 +208,13 @@ mod tests {
             todo!()
         }
 
-        fn get_change(&self, _seq_num: SequenceNumber) -> Option<Self::CacheChangeReadType> {
+        fn get_change<'a>(
+            &'a self,
+            seq_num: SequenceNumber,
+        ) -> Option<<Self::CacheChangeReadType as RTPSHistoryCacheRead<'a>>::Item>
+        where
+            Self::CacheChangeReadType: RTPSHistoryCacheRead<'a>,
+        {
             todo!()
         }
 

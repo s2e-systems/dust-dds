@@ -1,4 +1,8 @@
-use std::{marker::PhantomData, ops::{Deref, DerefMut}, sync::Arc};
+use std::{
+    marker::PhantomData,
+    ops::{Deref, DerefMut},
+    sync::Arc,
+};
 
 use rust_rtps::{
     behavior::{stateless_writer::RTPSReaderLocator, RTPSStatelessWriter, RTPSWriter},
@@ -45,14 +49,21 @@ impl<'a, T: RTPSWriter<'a> + 'a> RTPSStatelessWriter<'a, T> for StatelessWriter<
 
     fn unsent_changes_reset(&mut self) {
         for r in &mut self.reader_locators.iter_mut() {
-            *r = Self::ReaderLocatorType::new(r.locator(), r.expects_inline_qos(), self.writer.clone());
-        };
+            *r = Self::ReaderLocatorType::new(
+                r.locator(),
+                r.expects_inline_qos(),
+                self.writer.clone(),
+            );
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use rust_rtps::structure::{RTPSCacheChange, RTPSEndpoint, RTPSEntity, RTPSHistoryCache};
+    use rust_rtps::structure::{
+        history_cache::RTPSHistoryCacheRead, RTPSCacheChange, RTPSEndpoint, RTPSEntity,
+        RTPSHistoryCache,
+    };
 
     use super::*;
 
@@ -100,7 +111,7 @@ mod tests {
     }
     struct MockHistoryCache;
 
-    impl<'a> RTPSHistoryCache<'a> for MockHistoryCache {
+    impl RTPSHistoryCache for MockHistoryCache {
         type CacheChangeType = MockCacheChange;
         type CacheChangeReadType = Box<MockCacheChange>;
 
@@ -116,18 +127,21 @@ mod tests {
             todo!()
         }
 
-        fn get_change(
-            &self,
-            _seq_num: rust_rtps::types::SequenceNumber,
-        ) -> Option<Self::CacheChangeReadType> {
-            todo!()
-        }
-
         fn get_seq_num_min(&self) -> Option<rust_rtps::types::SequenceNumber> {
             todo!()
         }
 
         fn get_seq_num_max(&self) -> Option<rust_rtps::types::SequenceNumber> {
+            todo!()
+        }
+
+        fn get_change<'a>(
+            &'a self,
+            seq_num: rust_rtps::types::SequenceNumber,
+        ) -> Option<<Self::CacheChangeReadType as RTPSHistoryCacheRead<'a>>::Item>
+        where
+            Self::CacheChangeReadType: RTPSHistoryCacheRead<'a>,
+        {
             todo!()
         }
     }

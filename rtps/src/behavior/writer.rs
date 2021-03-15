@@ -9,7 +9,7 @@ use crate::{
 use super::types::Duration;
 
 pub trait RTPSWriter<'a>: RTPSEndpoint {
-    type HistoryCacheType: RTPSHistoryCache<'a>;
+    type HistoryCacheType: RTPSHistoryCache;
     fn new(
         guid: GUID,
         topic_kind: TopicKind,
@@ -33,8 +33,8 @@ pub trait RTPSWriter<'a>: RTPSEndpoint {
     fn new_change(
         &self,
         kind: ChangeKind,
-        data: <<Self::HistoryCacheType as RTPSHistoryCache<'a>>::CacheChangeType as RTPSCacheChange>::Data,
+        data: <<Self::HistoryCacheType as RTPSHistoryCache>::CacheChangeType as RTPSCacheChange>::Data,
         inline_qos: ParameterList,
         handle: InstanceHandle,
-    ) -> <Self::HistoryCacheType as RTPSHistoryCache<'a>>::CacheChangeType;
+    ) -> <Self::HistoryCacheType as RTPSHistoryCache>::CacheChangeType;
 }

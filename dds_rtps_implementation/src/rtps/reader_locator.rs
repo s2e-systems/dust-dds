@@ -12,7 +12,7 @@ pub struct ReaderLocator<'a, T: RTPSWriter<'a>> {
     writer: Arc<T>,
     next_unsent_change: SequenceNumber,
     requested_changes: Vec<SequenceNumber>,
-    phantom: PhantomData<&'a ()>
+    phantom: PhantomData<&'a ()>,
 }
 
 impl<'a, T: RTPSWriter<'a>> RTPSReaderLocator<'a> for ReaderLocator<'a, T> {
@@ -37,7 +37,7 @@ impl<'a, T: RTPSWriter<'a>> RTPSReaderLocator<'a> for ReaderLocator<'a, T> {
             writer,
             next_unsent_change: 0,
             requested_changes: Vec::new(),
-            phantom: PhantomData
+            phantom: PhantomData,
         }
     }
 
@@ -78,7 +78,9 @@ impl<'a, T: RTPSWriter<'a>> RTPSReaderLocator<'a> for ReaderLocator<'a, T> {
 
 #[cfg(test)]
 mod tests {
-    use rust_rtps::structure::{RTPSCacheChange, RTPSEndpoint, RTPSEntity};
+    use rust_rtps::structure::{
+        history_cache::RTPSHistoryCacheRead, RTPSCacheChange, RTPSEndpoint, RTPSEntity,
+    };
 
     use super::*;
 
@@ -129,7 +131,7 @@ mod tests {
         seq_num_max: Option<SequenceNumber>,
     }
 
-    impl<'a> RTPSHistoryCache<'a> for MockHistoryCache {
+    impl RTPSHistoryCache for MockHistoryCache {
         type CacheChangeType = MockCacheChange;
         type CacheChangeReadType = Box<MockCacheChange>;
 
@@ -145,7 +147,13 @@ mod tests {
             todo!()
         }
 
-        fn get_change(&self, _seq_num: SequenceNumber) -> Option<Self::CacheChangeReadType> {
+        fn get_change<'a>(
+            &'a self,
+            seq_num: SequenceNumber,
+        ) -> Option<<Self::CacheChangeReadType as RTPSHistoryCacheRead<'a>>::Item>
+        where
+            Self::CacheChangeReadType: RTPSHistoryCacheRead<'a>,
+        {
             todo!()
         }
 
@@ -289,7 +297,7 @@ mod tests {
             seq_num_max: Some(5),
         };
         let writer = MockWriter { writer_cache };
-        let mut reader_locator = ReaderLocator::new(locator, false,Arc::new(writer));
+        let mut reader_locator = ReaderLocator::new(locator, false, Arc::new(writer));
         let requested_changes = [1, 3, 5];
         reader_locator.requested_changes_set(&requested_changes);
         assert_eq!(reader_locator.requested_changes(), requested_changes)
