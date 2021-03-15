@@ -1,6 +1,5 @@
 use std::{
-    marker::PhantomData,
-    ops::{Deref, DerefMut},
+    ops::{Deref},
     sync::Arc,
 };
 
@@ -110,10 +109,14 @@ mod tests {
         }
     }
     struct MockHistoryCache;
+    impl<'a> RTPSHistoryCacheRead<'a> for MockHistoryCache {
+        type CacheChangeType = MockCacheChange;
+        type Item = &'a MockCacheChange;
+    }
 
     impl RTPSHistoryCache for MockHistoryCache {
         type CacheChangeType = MockCacheChange;
-        type CacheChangeReadType = Box<MockCacheChange>;
+        type HistoryCacheStorageType = Self;
 
         fn new() -> Self {
             todo!()
@@ -127,21 +130,18 @@ mod tests {
             todo!()
         }
 
+        fn get_change<'a>(
+            &'a self,
+            _seq_num: rust_rtps::types::SequenceNumber,
+        ) -> Option<<Self::HistoryCacheStorageType as RTPSHistoryCacheRead<'a>>::Item> {
+            todo!()
+        }
+
         fn get_seq_num_min(&self) -> Option<rust_rtps::types::SequenceNumber> {
             todo!()
         }
 
         fn get_seq_num_max(&self) -> Option<rust_rtps::types::SequenceNumber> {
-            todo!()
-        }
-
-        fn get_change<'a>(
-            &'a self,
-            seq_num: rust_rtps::types::SequenceNumber,
-        ) -> Option<<Self::CacheChangeReadType as RTPSHistoryCacheRead<'a>>::Item>
-        where
-            Self::CacheChangeReadType: RTPSHistoryCacheRead<'a>,
-        {
             todo!()
         }
     }

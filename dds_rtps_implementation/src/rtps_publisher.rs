@@ -68,7 +68,7 @@ impl<'a> Publisher<'a> for RtpsPublisher<'a> {
 
     fn delete_datawriter<T: DDSType>(
         &'a self,
-        a_datawriter: &<Self as DataWriterGAT<'a, T>>::DataWriterType,
+        _a_datawriter: &<Self as DataWriterGAT<'a, T>>::DataWriterType,
     ) -> DDSResult<()> {
         todo!()
         // if std::ptr::eq(a_datawriter.parent.0, self) {

@@ -46,7 +46,7 @@ impl RtpsParticipantEntities {
     pub fn send_data(&self, _participant_guid_prefix: GuidPrefix) {
         // let _transport = &self.transport;
         let publisher_list = self.publisher_list.lock().unwrap();
-        for publisher in publisher_list.iter() {
+        for _publisher in publisher_list.iter() {
             // for _writer in publisher.lock().unwrap().writer_list() {
                 todo!()
                 // let destined_messages = writer.lock().unwrap().produce_messages();
@@ -132,7 +132,7 @@ impl DomainParticipantImpl {
         Ok(Arc::downgrade(&publisher))
     }
 
-    pub fn delete_publisher(&self, impl_ref: &Weak<Mutex<PublisherImpl>>) -> DDSResult<()> {
+    pub fn delete_publisher(&self, _impl_ref: &Weak<Mutex<PublisherImpl>>) -> DDSResult<()> {
         todo!()
         // let publisher_impl = impl_ref.upgrade().ok_or(DDSError::AlreadyDeleted)?;
         // if publisher_impl.lock().unwrap().writer_list().is_empty() {

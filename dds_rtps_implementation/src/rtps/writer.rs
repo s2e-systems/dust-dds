@@ -191,10 +191,14 @@ mod tests {
         }
     }
     struct MockHistoryCache;
+    impl<'a> RTPSHistoryCacheRead<'a> for MockHistoryCache {
+        type CacheChangeType = MockCacheChange;
+        type Item = &'a MockCacheChange;
+    }
 
     impl RTPSHistoryCache for MockHistoryCache {
         type CacheChangeType = MockCacheChange;
-        type CacheChangeReadType = Box<MockCacheChange>;
+        type HistoryCacheStorageType = Self;
 
         fn new() -> Self {
             todo!()
@@ -210,11 +214,8 @@ mod tests {
 
         fn get_change<'a>(
             &'a self,
-            seq_num: SequenceNumber,
-        ) -> Option<<Self::CacheChangeReadType as RTPSHistoryCacheRead<'a>>::Item>
-        where
-            Self::CacheChangeReadType: RTPSHistoryCacheRead<'a>,
-        {
+            _seq_num: SequenceNumber,
+        ) -> Option<<Self::HistoryCacheStorageType as RTPSHistoryCacheRead<'a>>::Item> {
             todo!()
         }
 
