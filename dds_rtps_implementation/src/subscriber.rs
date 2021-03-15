@@ -1,7 +1,7 @@
 use std::ops::Deref;
 
 use crate::{
-    impls::reader_impl::ReaderImpl,
+    impls::data_reader_impl::DataReaderImpl,
     domain_participant::{DomainParticipant, Subscriber, Topic},
     utils::node::Node,
 };
@@ -26,7 +26,7 @@ use rust_dds_api::{
 pub struct DataReader<'a, T: DDSType>(<Self as Deref>::Target);
 
 impl<'a, T: DDSType> Deref for DataReader<'a, T> {
-    type Target = Node<(&'a Subscriber<'a>, &'a Topic<'a, T>), ReaderImpl>;
+    type Target = Node<(&'a Subscriber<'a>, &'a Topic<'a, T>), DataReaderImpl>;
 
     fn deref(&self) -> &Self::Target {
         &self.0

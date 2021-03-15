@@ -51,18 +51,6 @@ impl<'a> rust_dds_api::publication::publisher::Publisher<'a> for Publisher<'a> {
         _mask: StatusMask,
     ) -> Option<<Self as DataWriterGAT<'a, T>>::DataWriterType> {
         todo!()
-        // let topic = a_topic.impl_ref.upgrade()?;
-        // let data_writer_ref = self
-        //     .impl_ref
-        //     .upgrade()?
-        //     .lock()
-        //     .unwrap()
-        //     .create_datawriter(topic, qos, a_listener, mask)?;
-
-        // Some(RtpsDataWriter(Node {
-        //     parent: (self, a_topic),
-        //     impl_ref: data_writer_ref,
-        // }))
     }
 
     fn delete_datawriter<T: DDSType>(

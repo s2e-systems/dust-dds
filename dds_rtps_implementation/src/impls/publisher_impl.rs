@@ -1,22 +1,13 @@
-use std::sync::{atomic, Arc, Mutex, Weak};
+use std::sync::atomic;
 
 use rust_dds_api::{
     dcps_psm::StatusMask,
-    dds_type::DDSType,
     infrastructure::qos::{DataWriterQos, PublisherQos},
-    publication::{
-        data_writer_listener::DataWriterListener, publisher_listener::PublisherListener,
-    },
-    return_type::{DDSError, DDSResult},
+    publication::publisher_listener::PublisherListener,
 };
 use rust_rtps::{
     structure::{RTPSEntity, RTPSGroup},
     types::GUID,
-};
-
-use crate::rtps::{cache_change::CacheChange, history_cache::HistoryCache, writer::Writer};
-
-use super::{topic_impl::TopicImpl,
 };
 
 pub struct PublisherImpl {

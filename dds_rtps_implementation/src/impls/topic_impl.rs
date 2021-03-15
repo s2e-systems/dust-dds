@@ -4,7 +4,7 @@ use rust_dds_api::{
 };
 use rust_rtps::structure::RTPSEntity;
 
-use super::mask_listener::MaskListener;
+use crate::utils::mask_listener::MaskListener;
 
 pub struct TopicImpl {
     topic_name: String,
@@ -105,13 +105,7 @@ mod tests {
         qos.topic_data.value = vec![1, 2, 3, 4];
         let listener = None;
         let status_mask = 0;
-        let topic = TopicImpl::new(
-            topic_name,
-            "TestType",
-            qos.clone(),
-            listener,
-            status_mask,
-        );
+        let topic = TopicImpl::new(topic_name, "TestType", qos.clone(), listener, status_mask);
 
         assert_eq!(topic.get_qos(), qos);
     }
