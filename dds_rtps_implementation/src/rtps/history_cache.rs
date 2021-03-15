@@ -28,12 +28,12 @@ impl<'a, T: RTPSCacheChange> Deref for BorrowedCacheChange<'a, T> {
 
 pub struct HistoryCacheGAT<T>(PhantomData<T>);
 
-impl<'a, T: RTPSCacheChange> RTPSHistoryCacheRead<'a> for HistoryCacheGAT<T> {
+impl<'a, T: RTPSCacheChange + 'static> RTPSHistoryCacheRead<'a> for HistoryCacheGAT<T> {
     type CacheChangeType = T;
     type Item = BorrowedCacheChange<'a, T>;
 }
 
-impl<T: RTPSCacheChange> RTPSHistoryCache for HistoryCache<T> {
+impl<T: RTPSCacheChange + 'static> RTPSHistoryCache for HistoryCache<T> {
     type CacheChangeType = T;
     type HistoryCacheStorageType = HistoryCacheGAT<T>;
 
