@@ -5,27 +5,25 @@ use rust_dds_api::{
         OfferedIncompatibleQosStatus, PublicationMatchedStatus, StatusMask, Time,
     },
     dds_type::DDSType,
-    domain::domain_participant::TopicGAT,
-    infrastructure::{
-        entity::{Entity, StatusCondition},
-        qos::DataWriterQos,
-    },
-    publication::{
-        data_writer::AnyDataWriter, data_writer_listener::DataWriterListener,
-        publisher::PublisherChild,
-    },
-    return_type::DDSResult,
+    infrastructure::{entity::StatusCondition, qos::DataWriterQos},
+    publication::data_writer_listener::DataWriterListener,
+    return_type::{DDSError, DDSResult},
 };
 
-use crate::domain_participant::{Publisher, Topic};
+use super::{
+    domain_participant::{Publisher, Topic},
+    publisher::DataWriter,
+};
 
-use super::publisher::DataWriter;
-
-impl<'a, T: DDSType> PublisherChild<'a> for DataWriter<'a, T> {
+impl<'a, T: DDSType> rust_dds_api::publication::publisher::PublisherChild<'a>
+    for DataWriter<'a, T>
+{
     type PublisherType = Publisher<'a>;
 }
 
-impl<'a, T: DDSType> TopicGAT<'a, T> for DataWriter<'a, T> {
+impl<'a, T: DDSType> rust_dds_api::domain::domain_participant::TopicGAT<'a, T>
+    for DataWriter<'a, T>
+{
     type TopicType = Topic<'a, T>;
 }
 
@@ -38,10 +36,16 @@ impl<'a, T: DDSType> rust_dds_api::publication::data_writer::DataWriter<'a, T>
 
     fn register_instance_w_timestamp(
         &self,
-        _instance: T,
-        _timestamp: Time,
+        instance: T,
+        timestamp: Time,
     ) -> DDSResult<Option<InstanceHandle>> {
-        todo!()
+        self
+            .impl_ref
+            .upgrade()
+            .ok_or(DDSError::AlreadyDeleted)?
+            .lock()
+            .unwrap()
+            .register_instance_w_timestamp(instance, timestamp)
     }
 
     fn unregister_instance(&self, _instance: T, _handle: Option<InstanceHandle>) -> DDSResult<()> {
@@ -121,16 +125,17 @@ impl<'a, T: DDSType> rust_dds_api::publication::data_writer::DataWriter<'a, T>
     }
 
     /// This operation returns the Topic associated with the DataWriter. This is the same Topic that was used to create the DataWriter.
-    fn get_topic(&self) -> &<Self as TopicGAT<'a, T>>::TopicType
-    where
-        Self: TopicGAT<'a, T> + Sized,
-    {
+    fn get_topic(
+        &self,
+    ) -> &<Self as rust_dds_api::domain::domain_participant::TopicGAT<'a, T>>::TopicType {
         // self.parent.1
         todo!()
     }
 
     /// This operation returns the Publisher to which the publisher child object belongs.
-    fn get_publisher(&self) -> &<Self as PublisherChild<'a>>::PublisherType {
+    fn get_publisher(
+        &self,
+    ) -> &<Self as rust_dds_api::publication::publisher::PublisherChild<'a>>::PublisherType {
         // self.parent.0
         todo!()
     }
@@ -155,7 +160,7 @@ impl<'a, T: DDSType> rust_dds_api::publication::data_writer::DataWriter<'a, T>
     }
 }
 
-impl<'a, T: DDSType> Entity for DataWriter<'a, T> {
+impl<'a, T: DDSType> rust_dds_api::infrastructure::entity::Entity for DataWriter<'a, T> {
     type Qos = DataWriterQos;
 
     type Listener = Box<dyn DataWriterListener<DataType = T> + 'a>;
@@ -197,4 +202,4 @@ impl<'a, T: DDSType> Entity for DataWriter<'a, T> {
     }
 }
 
-impl<'a, T: DDSType> AnyDataWriter for DataWriter<'a, T> {}
+impl<'a, T: DDSType> rust_dds_api::publication::data_writer::AnyDataWriter for DataWriter<'a, T> {}

@@ -47,10 +47,10 @@ impl SubscriberImpl {
 
     pub fn create_datareader<'a, T: DDSType>(
         &'a mut self,
-        topic: Arc<Mutex<TopicImpl>>,
+        _topic: Arc<Mutex<TopicImpl>>,
         qos: Option<DataReaderQos>,
-        a_listener: Option<Box<dyn DataReaderListener<DataType = T>>>,
-        mask: StatusMask,
+        _a_listener: Option<Box<dyn DataReaderListener<DataType = T>>>,
+        _mask: StatusMask,
     ) -> Option<Weak<Mutex<DataReaderImpl>>> {
         let qos = qos.unwrap_or(self.default_datareader_qos.clone());
         qos.is_consistent().ok()?;

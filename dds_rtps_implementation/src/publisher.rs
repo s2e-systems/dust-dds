@@ -3,59 +3,59 @@ use std::ops::Deref;
 use rust_dds_api::{
     dcps_psm::{Duration, InstanceHandle, StatusMask},
     dds_type::DDSType,
-    domain::domain_participant::{DomainParticipantChild, TopicGAT},
     infrastructure::{
-        entity::{Entity, StatusCondition},
+        entity::StatusCondition,
         qos::{DataWriterQos, PublisherQos, TopicQos},
     },
     publication::{
-        data_writer_listener::DataWriterListener, publisher::DataWriterGAT,
-        publisher_listener::PublisherListener,
+        data_writer_listener::DataWriterListener, publisher_listener::PublisherListener,
     },
     return_type::{DDSError, DDSResult},
 };
 
 use crate::{
     domain_participant::{DomainParticipant, Publisher, Topic},
+    impls::data_writer_impl::DataWriterImpl,
     utils::node::Node,
 };
 
 pub struct DataWriter<'a, T: DDSType>(<Self as Deref>::Target);
 
 impl<'a, T: DDSType> Deref for DataWriter<'a, T> {
-    type Target = Node<(&'a Publisher<'a>, &'a Topic<'a, T>), ()>;
+    type Target = Node<(&'a Publisher<'a>, &'a Topic<'a, T>), DataWriterImpl>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl<'a, T: DDSType> TopicGAT<'a, T> for Publisher<'a> {
+impl<'a, T: DDSType> rust_dds_api::domain::domain_participant::TopicGAT<'a, T> for Publisher<'a> {
     type TopicType = Topic<'a, T>;
 }
 
-impl<'a, T: DDSType> DataWriterGAT<'a, T> for Publisher<'a> {
+impl<'a, T: DDSType> rust_dds_api::publication::publisher::DataWriterGAT<'a, T> for Publisher<'a> {
     type DataWriterType = DataWriter<'a, T>;
 }
 
-impl<'a> DomainParticipantChild<'a> for Publisher<'a> {
+impl<'a> rust_dds_api::domain::domain_participant::DomainParticipantChild<'a> for Publisher<'a> {
     type DomainParticipantType = DomainParticipant;
 }
 
 impl<'a> rust_dds_api::publication::publisher::Publisher<'a> for Publisher<'a> {
     fn create_datawriter<T: DDSType>(
         &'a self,
-        _a_topic: &'a <Self as TopicGAT<'a, T>>::TopicType,
+        _a_topic: &'a <Self as rust_dds_api::domain::domain_participant::TopicGAT<'a, T>>::TopicType,
         _qos: Option<DataWriterQos>,
         _a_listener: Option<Box<dyn DataWriterListener<DataType = T>>>,
         _mask: StatusMask,
-    ) -> Option<<Self as DataWriterGAT<'a, T>>::DataWriterType> {
+    ) -> Option<<Self as rust_dds_api::publication::publisher::DataWriterGAT<'a, T>>::DataWriterType>
+    {
         todo!()
     }
 
     fn delete_datawriter<T: DDSType>(
         &'a self,
-        _a_datawriter: &<Self as DataWriterGAT<'a, T>>::DataWriterType,
+        _a_datawriter: &<Self as rust_dds_api::publication::publisher::DataWriterGAT<'a, T>>::DataWriterType,
     ) -> DDSResult<()> {
         todo!()
         // if std::ptr::eq(a_datawriter.parent.0, self) {
@@ -74,8 +74,9 @@ impl<'a> rust_dds_api::publication::publisher::Publisher<'a> for Publisher<'a> {
 
     fn lookup_datawriter<T: DDSType>(
         &self,
-        _topic: &<Self as TopicGAT<'a, T>>::TopicType,
-    ) -> Option<<Self as DataWriterGAT<'a, T>>::DataWriterType> {
+        _topic: &<Self as rust_dds_api::domain::domain_participant::TopicGAT<'a, T>>::TopicType,
+    ) -> Option<<Self as rust_dds_api::publication::publisher::DataWriterGAT<'a, T>>::DataWriterType>
+    {
         todo!()
     }
 
@@ -99,7 +100,7 @@ impl<'a> rust_dds_api::publication::publisher::Publisher<'a> for Publisher<'a> {
         todo!()
     }
 
-    fn get_participant(&self) -> &<Self as DomainParticipantChild<'a>>::DomainParticipantType {
+    fn get_participant(&self) -> &<Self as rust_dds_api::domain::domain_participant::DomainParticipantChild<'a>>::DomainParticipantType{
         self.parent
     }
 
@@ -126,7 +127,7 @@ impl<'a> rust_dds_api::publication::publisher::Publisher<'a> for Publisher<'a> {
     }
 }
 
-impl<'a> Entity for Publisher<'a> {
+impl<'a> rust_dds_api::infrastructure::entity::Entity for Publisher<'a> {
     type Qos = PublisherQos;
     type Listener = Box<dyn PublisherListener + 'a>;
 
