@@ -15,15 +15,12 @@ use rust_dds_api::{
     topic::topic_listener::TopicListener,
 };
 use rust_rtps::{
-    behavior::{stateless_writer::RTPSStatelessWriter, RTPSWriter},
     structure::{RTPSEntity, RTPSParticipant},
     types::{
         constants::{ENTITYID_PARTICIPANT, PROTOCOL_VERSION_2_4, VENDOR_ID},
         GuidPrefix, Locator, ProtocolVersion, VendorId, GUID,
     },
 };
-
-use crate::rtps::{stateless_writer::StatelessWriter, writer::Writer};
 
 use super::{
     publisher_impl::PublisherImpl, subscriber_impl::SubscriberImpl, topic_impl::TopicImpl,
