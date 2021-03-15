@@ -1,7 +1,4 @@
-use std::{
-    marker::PhantomData,
-    ops::{Deref, DerefMut},
-};
+use std::{marker::PhantomData, ops::{Deref, DerefMut}, sync::Arc};
 
 use rust_rtps::{
     behavior::{stateless_writer::RTPSReaderLocator, RTPSStatelessWriter, RTPSWriter},
@@ -11,7 +8,7 @@ use rust_rtps::{
 use super::reader_locator::ReaderLocator;
 
 pub struct StatelessWriter<'a, T: RTPSWriter<'a>> {
-    writer: T,
+    writer: Arc<T>,
     reader_locators: Vec<ReaderLocator<'a, T>>,
 }
 
@@ -23,18 +20,12 @@ impl<'a, T: RTPSWriter<'a>> Deref for StatelessWriter<'a, T> {
     }
 }
 
-impl<'a, T: RTPSWriter<'a>> DerefMut for StatelessWriter<'a, T> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.writer
-    }
-}
-
 impl<'a, T: RTPSWriter<'a>> RTPSStatelessWriter<'a, T> for StatelessWriter<'a, T> {
     type ReaderLocatorType = ReaderLocator<'a, T>;
 
     fn new(writer: T) -> Self {
         Self {
-            writer,
+            writer: Arc::new(writer),
             reader_locators: Vec::new(),
         }
     }
@@ -43,9 +34,8 @@ impl<'a, T: RTPSWriter<'a>> RTPSStatelessWriter<'a, T> for StatelessWriter<'a, T
         &self.reader_locators
     }
 
-    fn reader_locator_add(&'a mut self, a_locator: Locator) {
-        let writer = &self.writer;
-        let reader_locator = Self::ReaderLocatorType::new(a_locator, false, writer);
+    fn reader_locator_add(&mut self, a_locator: Locator) {
+        let reader_locator = Self::ReaderLocatorType::new(a_locator, false, self.writer.clone());
         self.reader_locators.push(reader_locator)
     }
 

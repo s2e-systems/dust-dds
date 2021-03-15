@@ -71,21 +71,21 @@ impl<'a> Subscriber<'a> for RtpsSubscriber<'a> {
 
     fn delete_datareader<T: DDSType>(
         &'a self,
-        _a_datareader: &<Self as DataReaderGAT<'a, T>>::DataReaderType,
+        a_datareader: &<Self as DataReaderGAT<'a, T>>::DataReaderType,
     ) -> DDSResult<()> {
-        todo!()
-        // if std::ptr::eq(a_datareader.parent.0, self) {
-        //     self.impl_ref
-        //         .upgrade()
-        //         .ok_or(DDSError::AlreadyDeleted)?
-        //         .lock()
-        //         .unwrap()
-        //         .delete_datareader(&a_datareader.impl_ref)
-        // } else {
-        //     Err(DDSError::PreconditionNotMet(
-        //         "Publisher can only be deleted from its parent participant",
-        //     ))
-        // }
+        // todo!()
+        if std::ptr::eq(a_datareader.parent.0, self) {
+            self.impl_ref
+                .upgrade()
+                .ok_or(DDSError::AlreadyDeleted)?
+                .lock()
+                .unwrap()
+                .delete_datareader(&a_datareader.impl_ref)
+        } else {
+            Err(DDSError::PreconditionNotMet(
+                "Publisher can only be deleted from its parent participant",
+            ))
+        }
     }
 
     fn lookup_datareader<T: DDSType>(

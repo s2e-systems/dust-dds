@@ -1,3 +1,5 @@
+use std::{marker::PhantomData, sync::Arc};
+
 use rust_rtps::{
     behavior::{stateless_writer::RTPSReaderLocator, RTPSWriter},
     structure::RTPSHistoryCache,
@@ -7,15 +9,17 @@ use rust_rtps::{
 pub struct ReaderLocator<'a, T: RTPSWriter<'a>> {
     locator: Locator,
     expects_inline_qos: bool,
-    writer: &'a T,
+    writer: Arc<T>,
     next_unsent_change: SequenceNumber,
     requested_changes: Vec<SequenceNumber>,
+    phantom: PhantomData<&'a ()>
 }
 
 impl<'a, T: RTPSWriter<'a>> RTPSReaderLocator<'a> for ReaderLocator<'a, T> {
     type CacheChangeRepresentation = SequenceNumber;
     type CacheChangeRepresentationList = Vec<Self::CacheChangeRepresentation>;
     type Writer = T;
+    type WriterReferenceType = Arc<T>;
 
     fn requested_changes(&self) -> Self::CacheChangeRepresentationList {
         self.requested_changes.clone()
@@ -26,13 +30,14 @@ impl<'a, T: RTPSWriter<'a>> RTPSReaderLocator<'a> for ReaderLocator<'a, T> {
         (self.next_unsent_change + 1..=max_history_cache_seq_num).collect()
     }
 
-    fn new(locator: Locator, expects_inline_qos: bool, writer: &'a Self::Writer) -> Self {
+    fn new(locator: Locator, expects_inline_qos: bool, writer: Arc<Self::Writer>) -> Self {
         Self {
             locator,
             expects_inline_qos,
             writer,
             next_unsent_change: 0,
             requested_changes: Vec::new(),
+            phantom: PhantomData
         }
     }
 
@@ -42,10 +47,6 @@ impl<'a, T: RTPSWriter<'a>> RTPSReaderLocator<'a> for ReaderLocator<'a, T> {
 
     fn expects_inline_qos(&self) -> bool {
         self.expects_inline_qos
-    }
-
-    fn writer(&self) -> &Self::Writer {
-        self.writer
     }
 
     fn next_requested_change(&mut self) -> Option<Self::CacheChangeRepresentation> {
@@ -248,7 +249,7 @@ mod tests {
             seq_num_max: Some(0),
         };
         let writer = MockWriter { writer_cache };
-        let reader_locator = ReaderLocator::new(locator, false, &writer);
+        let reader_locator = ReaderLocator::new(locator, false, Arc::new(writer));
         let unsent_changes = reader_locator.unsent_changes();
 
         assert!(unsent_changes.is_empty());
@@ -261,7 +262,7 @@ mod tests {
             seq_num_max: Some(5),
         };
         let writer = MockWriter { writer_cache };
-        let reader_locator = ReaderLocator::new(locator, false, &writer);
+        let reader_locator = ReaderLocator::new(locator, false, Arc::new(writer));
         let unsent_changes = reader_locator.unsent_changes();
         let expected_unsent_changes = vec![1, 2, 3, 4, 5];
 
@@ -275,7 +276,7 @@ mod tests {
             seq_num_max: Some(2),
         };
         let writer = MockWriter { writer_cache };
-        let mut reader_locator = ReaderLocator::new(locator, false, &writer);
+        let mut reader_locator = ReaderLocator::new(locator, false, Arc::new(writer));
         assert_eq!(reader_locator.next_unsent_change(), Some(1));
         assert_eq!(reader_locator.next_unsent_change(), Some(2));
         assert_eq!(reader_locator.next_unsent_change(), None);
@@ -288,7 +289,7 @@ mod tests {
             seq_num_max: Some(5),
         };
         let writer = MockWriter { writer_cache };
-        let mut reader_locator = ReaderLocator::new(locator, false, &writer);
+        let mut reader_locator = ReaderLocator::new(locator, false,Arc::new(writer));
         let requested_changes = [1, 3, 5];
         reader_locator.requested_changes_set(&requested_changes);
         assert_eq!(reader_locator.requested_changes(), requested_changes)
@@ -302,7 +303,7 @@ mod tests {
         };
         let writer = MockWriter { writer_cache };
 
-        let mut reader_locator = ReaderLocator::new(locator, false, &writer);
+        let mut reader_locator = ReaderLocator::new(locator, false, Arc::new(writer));
 
         let requested_changes = [1, 3, 5];
         let expected_requested_changes = [1];
@@ -320,7 +321,7 @@ mod tests {
             seq_num_max: Some(5),
         };
         let writer = MockWriter { writer_cache };
-        let mut reader_locator = ReaderLocator::new(locator, false, &writer);
+        let mut reader_locator = ReaderLocator::new(locator, false, Arc::new(writer));
         reader_locator.requested_changes_set(&[1, 3, 5]);
         assert_eq!(reader_locator.next_requested_change(), Some(1));
         assert_eq!(reader_locator.next_requested_change(), Some(3));
@@ -335,7 +336,7 @@ mod tests {
             seq_num_max: Some(5),
         };
         let writer = MockWriter { writer_cache };
-        let mut reader_locator = ReaderLocator::new(locator, false, &writer);
+        let mut reader_locator = ReaderLocator::new(locator, false, Arc::new(writer));
 
         reader_locator.requested_changes_set(&[1, 3, 5]);
         reader_locator.next_requested_change();
