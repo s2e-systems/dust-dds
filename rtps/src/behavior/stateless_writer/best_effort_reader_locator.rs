@@ -1,14 +1,7 @@
 use crate::{
-    behavior::data_from_cache_change,
-    messages::{
-        submessages::{
-            submessage_elements::{SequenceNumberSet, SerializedData},
-            Gap,
-        },
-        RtpsSubmessage,
-    },
-    structure::{RTPSCacheChange, RTPSHistoryCache},
-    types::{constants::ENTITYID_UNKNOWN, EntityId, SequenceNumber},
+    messages::{submessages::submessage_elements::SerializedData, RtpsSubmessage},
+    structure::RTPSCacheChange,
+    types::{EntityId, SequenceNumber},
 };
 
 use super::reader_locator::RTPSReaderLocator;
@@ -17,9 +10,9 @@ pub struct BestEffortReaderLocatorBehavior;
 
 impl BestEffortReaderLocatorBehavior {
     pub fn produce_messages<'a, C, D>(
-        reader_locator: &mut impl RTPSReaderLocator<CacheChangeRepresentation = SequenceNumber>,
+        _reader_locator: &mut impl RTPSReaderLocator<CacheChangeRepresentation = SequenceNumber>,
         // history_cache: &'a impl RTPSHistoryCache<CacheChangeType = C>,
-        writer_entity_id: EntityId,
+        _writer_entity_id: EntityId,
     ) -> Vec<RtpsSubmessage<'a>>
     where
         C: RTPSCacheChange<Data = D> + 'a,
@@ -38,30 +31,31 @@ impl BestEffortReaderLocatorBehavior {
         // message_queue
     }
 
-    fn pushing_state<'a, C, D>(
+    fn _pushing_state<'a, C, D>(
         reader_locator: &mut impl RTPSReaderLocator<CacheChangeRepresentation = SequenceNumber>,
         // history_cache: &'a impl RTPSHistoryCache<CacheChangeType = C>,
-        writer_entity_id: EntityId,
-        message_queue: &mut Vec<RtpsSubmessage<'a>>,
+        _writer_entity_id: EntityId,
+        _message_queue: &mut Vec<RtpsSubmessage<'a>>,
     ) where
         C: RTPSCacheChange<Data = D> + 'a,
         &'a D: Into<SerializedData<'a>> + 'a,
     {
-        while let Some(next_unsent_seq_num) = reader_locator.next_unsent_change() {
-            Self::transition_t4(
-                // history_cache,
-                writer_entity_id,
-                next_unsent_seq_num,
-                message_queue,
-            );
+        while let Some(_next_unsent_seq_num) = reader_locator.next_unsent_change() {
+            // Self::transition_t4(
+            //     // history_cache,
+            //     writer_entity_id,
+            //     next_unsent_seq_num,
+            //     message_queue,
+            // );
+            todo!()
         }
     }
 
-    fn transition_t4<'a, D>(
+    fn _transition_t4<'a, D>(
         // history_cache: &'a impl RTPSHistoryCache<CacheChangeType = C>,
-        writer_entity_id: EntityId,
-        next_unsent_seq_num: SequenceNumber,
-        message_queue: &mut Vec<RtpsSubmessage<'a>>,
+        _writer_entity_id: EntityId,
+        _next_unsent_seq_num: SequenceNumber,
+        _message_queue: &mut Vec<RtpsSubmessage<'a>>,
     ) where
         &'a D: Into<SerializedData<'a>> + 'a,
     {

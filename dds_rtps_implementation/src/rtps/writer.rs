@@ -62,7 +62,6 @@ impl<H: RTPSHistoryCache> RTPSWriter for Writer<H> {
         nack_response_delay: Duration,
         nack_suppression_duration: Duration,
         data_max_sized_serialized: i32,
-        writer_cache: Self::HistoryCacheType,
     ) -> Self {
         Self {
             guid,
@@ -76,7 +75,7 @@ impl<H: RTPSHistoryCache> RTPSWriter for Writer<H> {
             nack_suppression_duration,
             last_change_sequence_number: atomic::AtomicI64::new(0),
             data_max_sized_serialized,
-            writer_cache,
+            writer_cache: H::new(),
         }
     }
 
@@ -240,8 +239,7 @@ mod tests {
         let nack_response_delay = DURATION_ZERO;
         let nack_suppression_duration = DURATION_ZERO;
         let data_max_sized_serialized = i32::MAX;
-        let writer_cache = MockHistoryCache;
-        let writer = Writer::new(
+        let writer: Writer<MockHistoryCache> = Writer::new(
             guid,
             topic_kind,
             reliablility_level,
@@ -252,7 +250,6 @@ mod tests {
             nack_response_delay,
             nack_suppression_duration,
             data_max_sized_serialized,
-            writer_cache,
         );
 
         let kind1 = ChangeKind::Alive;

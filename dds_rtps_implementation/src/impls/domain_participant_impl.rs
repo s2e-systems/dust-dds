@@ -15,12 +15,15 @@ use rust_dds_api::{
     topic::topic_listener::TopicListener,
 };
 use rust_rtps::{
+    behavior::{stateless_writer::RTPSStatelessWriter, RTPSWriter},
     structure::{RTPSEntity, RTPSParticipant},
     types::{
         constants::{ENTITYID_PARTICIPANT, PROTOCOL_VERSION_2_4, VENDOR_ID},
         GuidPrefix, Locator, ProtocolVersion, VendorId, GUID,
     },
 };
+
+use crate::rtps::{stateless_writer::StatelessWriter, writer::Writer};
 
 use super::{
     publisher_impl::PublisherImpl, subscriber_impl::SubscriberImpl, topic_impl::TopicImpl,
@@ -48,13 +51,13 @@ impl RtpsParticipantEntities {
         let publisher_list = self.publisher_list.lock().unwrap();
         for _publisher in publisher_list.iter() {
             // for _writer in publisher.lock().unwrap().writer_list() {
-                todo!()
-                // let destined_messages = writer.lock().unwrap().produce_messages();
-                // RtpsMessageSender::send_cache_change_messages(
-                //     participant_guid_prefix,
-                //     transport.as_ref(),
-                //     destined_messages,
-                // );
+            todo!()
+            // let destined_messages = writer.lock().unwrap().produce_messages();
+            // RtpsMessageSender::send_cache_change_messages(
+            //     participant_guid_prefix,
+            //     transport.as_ref(),
+            //     destined_messages,
+            // );
             // }
         }
     }
@@ -314,7 +317,8 @@ impl DomainParticipantImpl {
     }
 
     fn send() {
-        // let spdp_announcer = StatelessWriter::new();
+        // let writer = Writer::new();
+        // let spdp_announcer = StatelessWriter::new(writer);
         // builtin_entities.send_data(guid_prefix);
 
         //     use rust_rtps::structure::Entity;
@@ -446,7 +450,11 @@ mod tests {
     }
 
     impl<'a> Transport<'a> for MockTransport {
-        fn write(&self, _message: rust_rtps::messages::RtpsMessage, _destination_locator: &Locator) {
+        fn write(
+            &self,
+            _message: rust_rtps::messages::RtpsMessage,
+            _destination_locator: &Locator,
+        ) {
             todo!()
         }
 

@@ -342,7 +342,6 @@ mod tests {
             _nack_response_delay: rust_rtps::behavior::types::Duration,
             _nack_suppression_duration: rust_rtps::behavior::types::Duration,
             _data_max_sized_serialized: i32,
-            _writer_cache: Self::HistoryCacheType,
         ) -> Self {
             todo!()
         }
