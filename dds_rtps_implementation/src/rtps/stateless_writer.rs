@@ -5,14 +5,17 @@ use rust_rtps::{
     types::Locator,
 };
 
-use super::reader_locator::ReaderLocator;
-
-pub struct StatelessWriter<T: RTPSWriter> {
+pub struct StatelessWriter<
+    T: RTPSWriter,
+    R: RTPSReaderLocator<Writer = T, WriterReferenceType = Arc<T>>,
+> {
     writer: Arc<T>,
-    reader_locators: Vec<ReaderLocator<T>>,
+    reader_locators: Vec<R>,
 }
 
-impl<T: RTPSWriter> Deref for StatelessWriter<T> {
+impl<T: RTPSWriter, R: RTPSReaderLocator<Writer = T, WriterReferenceType = Arc<T>>> Deref
+    for StatelessWriter<T, R>
+{
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
@@ -20,8 +23,10 @@ impl<T: RTPSWriter> Deref for StatelessWriter<T> {
     }
 }
 
-impl<T: RTPSWriter> RTPSStatelessWriter<T> for StatelessWriter<T> {
-    type ReaderLocatorType = ReaderLocator<T>;
+impl<T: RTPSWriter, R: RTPSReaderLocator<Writer = T, WriterReferenceType = Arc<T>>>
+    RTPSStatelessWriter<T> for StatelessWriter<T, R>
+{
+    type ReaderLocatorType = R;
 
     fn new(writer: T) -> Self {
         Self {
@@ -56,14 +61,17 @@ impl<T: RTPSWriter> RTPSStatelessWriter<T> for StatelessWriter<T> {
 
 #[cfg(test)]
 mod tests {
-    use rust_rtps::structure::{
-        history_cache::RTPSHistoryCacheRead, RTPSCacheChange, RTPSEndpoint, RTPSEntity,
-        RTPSHistoryCache,
+    use rust_rtps::{
+        structure::{
+            history_cache::RTPSHistoryCacheRead, RTPSCacheChange, RTPSEndpoint, RTPSEntity,
+            RTPSHistoryCache,
+        },
+        types::SequenceNumber,
     };
 
     use super::*;
 
-    struct MockCacheChange;
+    struct MockCacheChange(SequenceNumber);
 
     impl RTPSCacheChange for MockCacheChange {
         type Data = ();
@@ -105,7 +113,8 @@ mod tests {
             todo!()
         }
     }
-    struct MockHistoryCache;
+    struct MockHistoryCache(Vec<MockCacheChange>);
+
     impl<'a> RTPSHistoryCacheRead<'a> for MockHistoryCache {
         type CacheChangeType = MockCacheChange;
         type Item = &'a MockCacheChange;
@@ -144,6 +153,7 @@ mod tests {
     }
 
     struct MockWriter;
+
     impl RTPSEntity for MockWriter {
         fn guid(&self) -> rust_rtps::types::GUID {
             todo!()
@@ -226,10 +236,64 @@ mod tests {
         }
     }
 
+    struct MockReaderLocator{
+        locator: Locator,
+        value: u8,
+    }
+
+
+    impl RTPSReaderLocator for MockReaderLocator {
+        type CacheChangeRepresentation = u8;
+
+        type CacheChangeRepresentationList = Vec<u8>;
+
+        type Writer = MockWriter;
+
+        type WriterReferenceType = Arc<MockWriter>;
+
+        fn requested_changes(&self) -> Self::CacheChangeRepresentationList {
+            todo!()
+        }
+
+        fn unsent_changes(&self) -> Self::CacheChangeRepresentationList {
+            todo!()
+        }
+
+        fn new(
+            locator: Locator,
+            _expects_inline_qos: bool,
+            _writer: Self::WriterReferenceType,
+        ) -> Self {
+            Self{locator, value: 0}
+        }
+
+        fn locator(&self) -> Locator {
+            self.locator
+        }
+
+        fn expects_inline_qos(&self) -> bool {
+            false
+        }
+
+        fn next_requested_change(&mut self) -> Option<Self::CacheChangeRepresentation> {
+            todo!()
+        }
+
+        fn next_unsent_change(&mut self) -> Option<Self::CacheChangeRepresentation> {
+            self.value += 1;
+            Some(self.value)
+        }
+
+        fn requested_changes_set(&mut self, _req_seq_num_set: &[SequenceNumber]) {
+            todo!()
+        }
+    }
+
     #[test]
     fn reader_locator_add() {
         let writer = MockWriter;
-        let mut stateless_writer = StatelessWriter::new(writer);
+        let mut stateless_writer: StatelessWriter<_, MockReaderLocator> =
+            StatelessWriter::new(writer);
 
         let locator1 = Locator::new(0, 100, [1; 16]);
         let locator2 = Locator::new(0, 200, [2; 16]);
@@ -237,18 +301,14 @@ mod tests {
         stateless_writer.reader_locator_add(locator1);
         stateless_writer.reader_locator_add(locator2);
 
-        // assert!(stateless_writer
-        //     .reader_locators()
-        //     .contains(&reader_locator1));
-        // assert!(stateless_writer
-        //     .reader_locators()
-        //     .contains(&reader_locator2));
+        assert_eq!(stateless_writer.reader_locators.len(), 2);
     }
 
     #[test]
     fn reader_locator_remove() {
-        let writer = MockWriter;
-        let mut stateless_writer = StatelessWriter::new(writer);
+        let writer = MockWriter {};
+        let mut stateless_writer: StatelessWriter<_, MockReaderLocator> =
+            StatelessWriter::new(writer);
 
         let locator1 = Locator::new(0, 100, [1; 16]);
         let locator2 = Locator::new(0, 200, [2; 16]);
@@ -257,18 +317,14 @@ mod tests {
         stateless_writer.reader_locator_add(locator2);
         stateless_writer.reader_locator_remove(&locator2);
 
-        // assert!(stateless_writer
-        //     .reader_locators()
-        //     .contains(&reader_locator1));
-        // assert!(!stateless_writer
-        //     .reader_locators()
-        //     .contains(&reader_locator2));
+        assert_eq!(stateless_writer.reader_locators.len(), 1);
     }
 
     #[test]
     fn unsent_changes_reset() {
         let writer = MockWriter;
-        let mut stateless_writer = StatelessWriter::new(writer);
+        let mut stateless_writer: StatelessWriter<_, MockReaderLocator> =
+            StatelessWriter::new(writer);
 
         let locator1 = Locator::new(0, 100, [1; 16]);
         let locator2 = Locator::new(0, 200, [2; 16]);
@@ -276,6 +332,12 @@ mod tests {
         stateless_writer.reader_locator_add(locator1);
         stateless_writer.reader_locator_add(locator2);
 
+        assert_eq!(stateless_writer.reader_locators[0].next_unsent_change().unwrap(), 1);
+        assert_eq!(stateless_writer.reader_locators[0].next_unsent_change().unwrap(), 2);
+
         stateless_writer.unsent_changes_reset();
+
+        assert_eq!(stateless_writer.reader_locators[0].next_unsent_change().unwrap(), 1);
+        assert_eq!(stateless_writer.reader_locators[0].next_unsent_change().unwrap(), 2);
     }
 }

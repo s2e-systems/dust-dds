@@ -26,7 +26,9 @@ impl<T: RTPSWriter> RTPSReaderLocator for ReaderLocator<T> {
 
     fn unsent_changes(&self) -> Self::CacheChangeRepresentationList {
         let max_history_cache_seq_num = self.writer.writer_cache().get_seq_num_max().unwrap_or(0);
-        (self.next_unsent_change + 1..=max_history_cache_seq_num).collect()
+        (self.next_unsent_change + 1..=max_history_cache_seq_num)
+            .filter(|&x| self.writer.writer_cache().get_change(x).is_some())
+            .collect()
     }
 
     fn new(locator: Locator, expects_inline_qos: bool, writer: Arc<Self::Writer>) -> Self {
