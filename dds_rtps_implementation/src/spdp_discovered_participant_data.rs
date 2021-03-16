@@ -2,9 +2,9 @@ use rust_dds_api::{builtin_topics::ParticipantBuiltinTopicData, dds_type::DDSTyp
 use rust_rtps::{behavior::types::Duration, discovery::spdp_data::ParticipantProxy};
 
 pub struct SPDPdiscoveredParticipantData {
-    dds_participant_data: ParticipantBuiltinTopicData,
-    participant_proxy: ParticipantProxy,
-    lease_duration: Duration,
+    pub dds_participant_data: ParticipantBuiltinTopicData,
+    pub participant_proxy: ParticipantProxy,
+    pub lease_duration: Duration,
 }
 
 impl DDSType for SPDPdiscoveredParticipantData {

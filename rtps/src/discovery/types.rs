@@ -6,6 +6,21 @@ pub type DomainId = u32;
 #[derive(PartialEq, Debug, Eq, Clone, Copy)]
 pub struct BuiltinEndpointSet(u32);
 
+impl Default for BuiltinEndpointSet {
+    fn default() -> Self {
+        Self(
+            Self::BUILTIN_ENDPOINT_PARTICIPANT_ANNOUNCER
+                | Self::BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR
+                | Self::BUILTIN_ENDPOINT_PUBLICATIONS_ANNOUNCER
+                | Self::BUILTIN_ENDPOINT_PUBLICATIONS_DETECTOR
+                | Self::BUILTIN_ENDPOINT_SUBSCRIPTIONS_ANNOUNCER
+                | Self::BUILTIN_ENDPOINT_SUBSCRIPTIONS_DETECTOR
+                | Self::BUILTIN_ENDPOINT_TOPICS_ANNOUNCER
+                | Self::BUILTIN_ENDPOINT_TOPICS_DETECTOR
+        )
+    }
+}
+
 impl BuiltinEndpointSet {
     pub const BUILTIN_ENDPOINT_PARTICIPANT_ANNOUNCER: u32 = 1 << 0;
     pub const BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR: u32 = 1 << 1;
@@ -49,6 +64,12 @@ impl BuiltinEndpointSet {
 }
 
 pub struct BuiltinEndpointQos(u32);
+
+impl Default for BuiltinEndpointQos {
+    fn default() -> Self {
+        Self(0)
+    }
+}
 
 impl BuiltinEndpointQos {
     pub const BEST_EFFORT_PARTICIPANT_MESSAGE_DATA_READER: u32 = 0 << 29;

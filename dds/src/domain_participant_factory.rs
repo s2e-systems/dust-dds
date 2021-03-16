@@ -3,9 +3,11 @@ use rust_dds_api::{
     domain::domain_participant_listener::DomainParticipantListener,
     infrastructure::qos::DomainParticipantQos,
 };
-use rust_dds_rtps_implementation::transport::memory::MemoryTransport;
 use rust_dds_rtps_implementation::{domain_participant::DomainParticipant, DomainParticipantImpl};
-use rust_rtps::types::Locator;
+use rust_dds_rtps_implementation::{
+    transport::memory::MemoryTransport, DomainParticipantImplConfiguration,
+};
+use rust_rtps::{behavior::types::Duration, types::Locator};
 
 /// The DomainParticipant object plays several roles:
 /// - It acts as a container for all other Entity objects.
@@ -42,7 +44,6 @@ impl DomainParticipantFactory {
         qos: Option<DomainParticipantQos>,
         a_listener: Option<Box<dyn DomainParticipantListener>>,
         mask: StatusMask,
-        //     enabled: bool,
     ) -> Option<DomainParticipant> {
         // let interface = "Wi-Fi";
         let unicast_locator = Locator::new(0, 7400, [1; 16]);
@@ -53,16 +54,18 @@ impl DomainParticipantFactory {
             Box::new(MemoryTransport::new(unicast_locator, vec![multicast_locator]).unwrap());
         let qos = qos.unwrap_or_default();
 
-        let spdp_locator_list = [Locator::new_udpv4(7400, [239, 255, 0, 0])];
-        let domain_participant_impl = DomainParticipantImpl::new(
-            domain_id,
-            qos.clone(),
+        let configuration = DomainParticipantImplConfiguration {
             userdata_transport,
             metatraffic_transport,
-            a_listener,
-            mask,
-            &spdp_locator_list,
-        );
+            domain_tag: "".to_string(),
+            lease_duration: Duration {
+                seconds: 30,
+                fraction: 0,
+            },
+            spdp_locator_list: vec![Locator::new_udpv4(7400, [239, 255, 0, 0])],
+        };
+        let domain_participant_impl =
+            DomainParticipantImpl::new(domain_id, qos.clone(), a_listener, mask, configuration);
         let participant = DomainParticipant::new(domain_participant_impl);
 
         // if enabled {

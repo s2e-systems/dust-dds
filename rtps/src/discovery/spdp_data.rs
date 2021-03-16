@@ -1,5 +1,4 @@
 use crate::{
-    behavior::types::Duration,
     messages::types::Count,
     types::{GuidPrefix, Locator, ProtocolVersion, VendorId},
 };
@@ -18,7 +17,6 @@ pub struct ParticipantProxy {
     pub default_unicast_locator_list: Vec<Locator>,
     pub default_multicast_locator_list: Vec<Locator>,
     pub available_builtin_endpoints: BuiltinEndpointSet,
-    pub lease_duration: Duration,
     pub manual_liveliness_count: Count,
     pub builtin_endpoint_qos: BuiltinEndpointQos,
 }

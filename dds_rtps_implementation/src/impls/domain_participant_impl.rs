@@ -5,7 +5,8 @@ use std::{
 };
 
 use rust_dds_api::{
-    dcps_psm::{DomainId, StatusMask},
+    builtin_topics::ParticipantBuiltinTopicData,
+    dcps_psm::{BuiltInTopicKey, DomainId, StatusMask, Time},
     dds_type::DDSType,
     domain::domain_participant_listener::DomainParticipantListener,
     infrastructure::qos::{DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
@@ -15,7 +16,12 @@ use rust_dds_api::{
     topic::topic_listener::TopicListener,
 };
 use rust_rtps::{
-    discovery::spdp_endpoints::SPDPbuiltinParticipantWriter,
+    behavior::types::Duration,
+    discovery::{
+        spdp_data::ParticipantProxy,
+        spdp_endpoints::SPDPbuiltinParticipantWriter,
+        types::{BuiltinEndpointQos, BuiltinEndpointSet},
+    },
     structure::{RTPSEntity, RTPSParticipant},
     types::{
         constants::{ENTITYID_PARTICIPANT, PROTOCOL_VERSION_2_4, VENDOR_ID},
@@ -23,12 +29,22 @@ use rust_rtps::{
     },
 };
 
-use crate::transport::Transport;
+use crate::{
+    spdp_discovered_participant_data::SPDPdiscoveredParticipantData, transport::Transport,
+};
 
 use super::{
     data_writer_impl::DataWriterImpl, publisher_impl::PublisherImpl,
     subscriber_impl::SubscriberImpl, topic_impl::TopicImpl,
 };
+
+pub struct DomainParticipantImplConfiguration {
+    pub userdata_transport: Box<dyn Transport>,
+    pub metatraffic_transport: Box<dyn Transport>,
+    pub domain_tag: String,
+    pub lease_duration: Duration,
+    pub spdp_locator_list: Vec<Locator>,
+}
 
 struct RtpsBuiltinParticipantEntities {
     publisher: PublisherImpl,
@@ -93,36 +109,81 @@ impl DomainParticipantImpl {
     pub fn new(
         domain_id: DomainId,
         qos: DomainParticipantQos,
-        userdata_transport: Box<dyn Transport>,
-        metatraffic_transport: Box<dyn Transport>,
         a_listener: Option<Box<dyn DomainParticipantListener>>,
         mask: StatusMask,
-        spdp_locator_list: &[Locator],
+        configuration: DomainParticipantImplConfiguration,
     ) -> Self {
         let guid_prefix = [1; 12];
 
         let spdp_builtin_participant_writer = SPDPbuiltinParticipantWriter::create(
             guid_prefix,
-            metatraffic_transport.unicast_locator_list(),
-            metatraffic_transport.multicast_locator_list(),
-            spdp_locator_list,
+            configuration.metatraffic_transport.unicast_locator_list(),
+            configuration.metatraffic_transport.multicast_locator_list(),
+            &configuration.spdp_locator_list,
         );
 
         let mut builtin_publisher = PublisherImpl::new(PublisherQos::default(), None, 0);
         let spdp_announcer = Arc::new(Mutex::new(DataWriterImpl::new(
             spdp_builtin_participant_writer,
         )));
+
+        let dds_participant_data = ParticipantBuiltinTopicData {
+            key: BuiltInTopicKey { value: [0i32; 3] },
+            user_data: qos.user_data.clone(),
+        };
+        let participant_proxy = ParticipantProxy {
+            domain_id: domain_id as rust_rtps::discovery::types::DomainId,
+            domain_tag: configuration.domain_tag,
+            protocol_version: PROTOCOL_VERSION_2_4,
+            guid_prefix,
+            vendor_id: VENDOR_ID,
+            expects_inline_qos: false,
+            metatraffic_unicast_locator_list: configuration
+                .metatraffic_transport
+                .unicast_locator_list()
+                .clone(),
+            metatraffic_multicast_locator_list: configuration
+                .metatraffic_transport
+                .multicast_locator_list()
+                .clone(),
+            default_unicast_locator_list: configuration
+                .userdata_transport
+                .unicast_locator_list()
+                .clone(),
+            default_multicast_locator_list: configuration
+                .userdata_transport
+                .multicast_locator_list()
+                .clone(),
+            available_builtin_endpoints: BuiltinEndpointSet::default(),
+            manual_liveliness_count: 0,
+            builtin_endpoint_qos: BuiltinEndpointQos::default(),
+        };
+        let spdp_discovered_participant_data = SPDPdiscoveredParticipantData {
+            dds_participant_data,
+            participant_proxy,
+            lease_duration: configuration.lease_duration,
+        };
+        spdp_announcer
+            .lock()
+            .unwrap()
+            .write_w_timestamp(
+                spdp_discovered_participant_data,
+                None,
+                Time { sec: 0, nanosec: 0 },
+            )
+            .ok();
         builtin_publisher.add_datawriter(spdp_announcer);
 
         let builtin_subscriber = SubscriberImpl::new(SubscriberQos::default(), None, 0);
-        // spdp_announcer.write_w_timestamp(data, handle, timestamp);
         let builtin_entities = Arc::new(RtpsBuiltinParticipantEntities {
             publisher: builtin_publisher,
             subscriber: builtin_subscriber,
-            transport: metatraffic_transport,
+            transport: configuration.metatraffic_transport,
         });
 
-        let user_defined_entities = Arc::new(RtpsParticipantEntities::new(userdata_transport));
+        let user_defined_entities = Arc::new(RtpsParticipantEntities::new(
+            configuration.userdata_transport,
+        ));
 
         Self {
             domain_id,
@@ -506,15 +567,19 @@ mod tests {
 
     #[test]
     fn create_publisher() {
-        let participant = DomainParticipantImpl::new(
-            0,
-            DomainParticipantQos::default(),
-            Box::new(MockTransport::default()),
-            Box::new(MockTransport::default()),
-            None,
-            0,
-            &[],
-        );
+        let configuration = DomainParticipantImplConfiguration {
+            userdata_transport: Box::new(MockTransport::default()),
+            metatraffic_transport: Box::new(MockTransport::default()),
+            domain_tag: "".to_string(),
+            lease_duration: Duration {
+                seconds: 30,
+                fraction: 0,
+            },
+            spdp_locator_list: vec![],
+        };
+
+        let participant =
+            DomainParticipantImpl::new(0, DomainParticipantQos::default(), None, 0, configuration);
 
         let qos = Some(PublisherQos::default());
         let a_listener = None;
@@ -536,15 +601,19 @@ mod tests {
 
     #[test]
     fn create_delete_publisher() {
-        let participant = DomainParticipantImpl::new(
-            0,
-            DomainParticipantQos::default(),
-            Box::new(MockTransport::default()),
-            Box::new(MockTransport::default()),
-            None,
-            0,
-            &[],
-        );
+        let configuration = DomainParticipantImplConfiguration {
+            userdata_transport: Box::new(MockTransport::default()),
+            metatraffic_transport: Box::new(MockTransport::default()),
+            domain_tag: "".to_string(),
+            lease_duration: Duration {
+                seconds: 30,
+                fraction: 0,
+            },
+            spdp_locator_list: vec![],
+        };
+
+        let participant =
+            DomainParticipantImpl::new(0, DomainParticipantQos::default(), None, 0, configuration);
 
         let qos = Some(PublisherQos::default());
         let a_listener = None;
@@ -567,15 +636,19 @@ mod tests {
 
     #[test]
     fn create_subscriber() {
-        let participant = DomainParticipantImpl::new(
-            0,
-            DomainParticipantQos::default(),
-            Box::new(MockTransport::default()),
-            Box::new(MockTransport::default()),
-            None,
-            0,
-            &[],
-        );
+        let configuration = DomainParticipantImplConfiguration {
+            userdata_transport: Box::new(MockTransport::default()),
+            metatraffic_transport: Box::new(MockTransport::default()),
+            domain_tag: "".to_string(),
+            lease_duration: Duration {
+                seconds: 30,
+                fraction: 0,
+            },
+            spdp_locator_list: vec![],
+        };
+
+        let participant =
+            DomainParticipantImpl::new(0, DomainParticipantQos::default(), None, 0, configuration);
 
         let qos = Some(SubscriberQos::default());
         let a_listener = None;
@@ -596,15 +669,19 @@ mod tests {
 
     #[test]
     fn create_delete_subscriber() {
-        let participant = DomainParticipantImpl::new(
-            0,
-            DomainParticipantQos::default(),
-            Box::new(MockTransport::default()),
-            Box::new(MockTransport::default()),
-            None,
-            0,
-            &[],
-        );
+        let configuration = DomainParticipantImplConfiguration {
+            userdata_transport: Box::new(MockTransport::default()),
+            metatraffic_transport: Box::new(MockTransport::default()),
+            domain_tag: "".to_string(),
+            lease_duration: Duration {
+                seconds: 30,
+                fraction: 0,
+            },
+            spdp_locator_list: vec![],
+        };
+
+        let participant =
+            DomainParticipantImpl::new(0, DomainParticipantQos::default(), None, 0, configuration);
 
         let qos = Some(SubscriberQos::default());
         let a_listener = None;
@@ -629,15 +706,19 @@ mod tests {
 
     #[test]
     fn create_topic() {
-        let participant = DomainParticipantImpl::new(
-            0,
-            DomainParticipantQos::default(),
-            Box::new(MockTransport::default()),
-            Box::new(MockTransport::default()),
-            None,
-            0,
-            &[],
-        );
+        let configuration = DomainParticipantImplConfiguration {
+            userdata_transport: Box::new(MockTransport::default()),
+            metatraffic_transport: Box::new(MockTransport::default()),
+            domain_tag: "".to_string(),
+            lease_duration: Duration {
+                seconds: 30,
+                fraction: 0,
+            },
+            spdp_locator_list: vec![],
+        };
+
+        let participant =
+            DomainParticipantImpl::new(0, DomainParticipantQos::default(), None, 0, configuration);
 
         let topic_name = "Test";
         let qos = Some(TopicQos::default());
@@ -650,15 +731,19 @@ mod tests {
 
     #[test]
     fn create_delete_topic() {
-        let participant = DomainParticipantImpl::new(
-            0,
-            DomainParticipantQos::default(),
-            Box::new(MockTransport::default()),
-            Box::new(MockTransport::default()),
-            None,
-            0,
-            &[],
-        );
+        let configuration = DomainParticipantImplConfiguration {
+            userdata_transport: Box::new(MockTransport::default()),
+            metatraffic_transport: Box::new(MockTransport::default()),
+            domain_tag: "".to_string(),
+            lease_duration: Duration {
+                seconds: 30,
+                fraction: 0,
+            },
+            spdp_locator_list: vec![],
+        };
+
+        let participant =
+            DomainParticipantImpl::new(0, DomainParticipantQos::default(), None, 0, configuration);
 
         let topic_name = "Test";
         let qos = Some(TopicQos::default());
@@ -675,15 +760,19 @@ mod tests {
 
     #[test]
     fn set_get_default_publisher_qos() {
-        let mut participant = DomainParticipantImpl::new(
-            0,
-            DomainParticipantQos::default(),
-            Box::new(MockTransport::default()),
-            Box::new(MockTransport::default()),
-            None,
-            0,
-            &[],
-        );
+        let configuration = DomainParticipantImplConfiguration {
+            userdata_transport: Box::new(MockTransport::default()),
+            metatraffic_transport: Box::new(MockTransport::default()),
+            domain_tag: "".to_string(),
+            lease_duration: Duration {
+                seconds: 30,
+                fraction: 0,
+            },
+            spdp_locator_list: vec![],
+        };
+
+        let mut participant =
+            DomainParticipantImpl::new(0, DomainParticipantQos::default(), None, 0, configuration);
 
         let mut publisher_qos = PublisherQos::default();
         publisher_qos.group_data.value = vec![b'a', b'b', b'c'];
@@ -696,15 +785,19 @@ mod tests {
 
     #[test]
     fn set_get_default_subscriber_qos() {
-        let mut participant = DomainParticipantImpl::new(
-            0,
-            DomainParticipantQos::default(),
-            Box::new(MockTransport::default()),
-            Box::new(MockTransport::default()),
-            None,
-            0,
-            &[],
-        );
+        let configuration = DomainParticipantImplConfiguration {
+            userdata_transport: Box::new(MockTransport::default()),
+            metatraffic_transport: Box::new(MockTransport::default()),
+            domain_tag: "".to_string(),
+            lease_duration: Duration {
+                seconds: 30,
+                fraction: 0,
+            },
+            spdp_locator_list: vec![],
+        };
+
+        let mut participant =
+            DomainParticipantImpl::new(0, DomainParticipantQos::default(), None, 0, configuration);
 
         let mut subscriber_qos = SubscriberQos::default();
         subscriber_qos.group_data.value = vec![b'a', b'b', b'c'];
@@ -717,15 +810,19 @@ mod tests {
 
     #[test]
     fn set_get_default_topic_qos() {
-        let mut participant = DomainParticipantImpl::new(
-            0,
-            DomainParticipantQos::default(),
-            Box::new(MockTransport::default()),
-            Box::new(MockTransport::default()),
-            None,
-            0,
-            &[],
-        );
+        let configuration = DomainParticipantImplConfiguration {
+            userdata_transport: Box::new(MockTransport::default()),
+            metatraffic_transport: Box::new(MockTransport::default()),
+            domain_tag: "".to_string(),
+            lease_duration: Duration {
+                seconds: 30,
+                fraction: 0,
+            },
+            spdp_locator_list: vec![],
+        };
+
+        let mut participant =
+            DomainParticipantImpl::new(0, DomainParticipantQos::default(), None, 0, configuration);
 
         let mut topic_qos = TopicQos::default();
         topic_qos.topic_data.value = vec![b'a', b'b', b'c'];
@@ -738,15 +835,19 @@ mod tests {
 
     #[test]
     fn set_default_publisher_qos_to_default_value() {
-        let mut participant = DomainParticipantImpl::new(
-            0,
-            DomainParticipantQos::default(),
-            Box::new(MockTransport::default()),
-            Box::new(MockTransport::default()),
-            None,
-            0,
-            &[],
-        );
+        let configuration = DomainParticipantImplConfiguration {
+            userdata_transport: Box::new(MockTransport::default()),
+            metatraffic_transport: Box::new(MockTransport::default()),
+            domain_tag: "".to_string(),
+            lease_duration: Duration {
+                seconds: 30,
+                fraction: 0,
+            },
+            spdp_locator_list: vec![],
+        };
+
+        let mut participant =
+            DomainParticipantImpl::new(0, DomainParticipantQos::default(), None, 0, configuration);
 
         let mut publisher_qos = PublisherQos::default();
         publisher_qos.group_data.value = vec![b'a', b'b', b'c'];
@@ -766,15 +867,19 @@ mod tests {
 
     #[test]
     fn set_default_subscriber_qos_to_default_value() {
-        let mut participant = DomainParticipantImpl::new(
-            0,
-            DomainParticipantQos::default(),
-            Box::new(MockTransport::default()),
-            Box::new(MockTransport::default()),
-            None,
-            0,
-            &[],
-        );
+        let configuration = DomainParticipantImplConfiguration {
+            userdata_transport: Box::new(MockTransport::default()),
+            metatraffic_transport: Box::new(MockTransport::default()),
+            domain_tag: "".to_string(),
+            lease_duration: Duration {
+                seconds: 30,
+                fraction: 0,
+            },
+            spdp_locator_list: vec![],
+        };
+
+        let mut participant =
+            DomainParticipantImpl::new(0, DomainParticipantQos::default(), None, 0, configuration);
 
         let mut subscriber_qos = SubscriberQos::default();
         subscriber_qos.group_data.value = vec![b'a', b'b', b'c'];
@@ -794,15 +899,19 @@ mod tests {
 
     #[test]
     fn set_default_topic_qos_to_default_value() {
-        let mut participant = DomainParticipantImpl::new(
-            0,
-            DomainParticipantQos::default(),
-            Box::new(MockTransport::default()),
-            Box::new(MockTransport::default()),
-            None,
-            0,
-            &[],
-        );
+        let configuration = DomainParticipantImplConfiguration {
+            userdata_transport: Box::new(MockTransport::default()),
+            metatraffic_transport: Box::new(MockTransport::default()),
+            domain_tag: "".to_string(),
+            lease_duration: Duration {
+                seconds: 30,
+                fraction: 0,
+            },
+            spdp_locator_list: vec![],
+        };
+
+        let mut participant =
+            DomainParticipantImpl::new(0, DomainParticipantQos::default(), None, 0, configuration);
 
         let mut topic_qos = TopicQos::default();
         topic_qos.topic_data.value = vec![b'a', b'b', b'c'];
@@ -819,15 +928,19 @@ mod tests {
 
     #[test]
     fn enable() {
-        let mut participant = DomainParticipantImpl::new(
-            0,
-            DomainParticipantQos::default(),
-            Box::new(MockTransport::default()),
-            Box::new(MockTransport::default()),
-            None,
-            0,
-            &[],
-        );
+        let configuration = DomainParticipantImplConfiguration {
+            userdata_transport: Box::new(MockTransport::default()),
+            metatraffic_transport: Box::new(MockTransport::default()),
+            domain_tag: "".to_string(),
+            lease_duration: Duration {
+                seconds: 30,
+                fraction: 0,
+            },
+            spdp_locator_list: vec![],
+        };
+
+        let mut participant =
+            DomainParticipantImpl::new(0, DomainParticipantQos::default(), None, 0, configuration);
 
         participant.enable().expect("Failed to enable");
         assert_eq!(participant.thread_list.borrow().len(), 1);

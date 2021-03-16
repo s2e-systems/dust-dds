@@ -18,8 +18,8 @@ pub mod constants {
 
 #[derive(PartialEq, Eq, PartialOrd, Debug, Clone, Copy)]
 pub struct Duration {
-    seconds: i32,
-    fraction: u32,
+    pub seconds: i32,
+    pub fraction: u32,
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, Copy)]
