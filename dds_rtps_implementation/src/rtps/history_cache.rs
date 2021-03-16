@@ -1,86 +1,41 @@
-use std::{
-    marker::PhantomData,
-    ops::Deref,
-    sync::{Mutex, MutexGuard},
-};
-
 use rust_rtps::{
-    structure::{history_cache::RTPSHistoryCacheRead, RTPSCacheChange, RTPSHistoryCache},
+    structure::{RTPSCacheChange, RTPSHistoryCache},
     types::SequenceNumber,
 };
 
 pub struct HistoryCache<T: RTPSCacheChange> {
-    changes: Mutex<Vec<T>>,
+    changes: Vec<T>,
 }
 
-pub struct BorrowedCacheChange<'a, T: RTPSCacheChange> {
-    guard: MutexGuard<'a, Vec<T>>,
-    index: usize,
-}
-
-impl<'a, T: RTPSCacheChange> Deref for BorrowedCacheChange<'a, T> {
-    type Target = T;
-
-    fn deref(&self) -> &Self::Target {
-        &self.guard[self.index]
-    }
-}
-
-pub struct HistoryCacheGAT<T>(PhantomData<T>);
-
-impl<'a, T: RTPSCacheChange + 'static> RTPSHistoryCacheRead<'a> for HistoryCacheGAT<T> {
+impl<T: RTPSCacheChange> RTPSHistoryCache for HistoryCache<T> {
     type CacheChangeType = T;
-    type Item = BorrowedCacheChange<'a, T>;
-}
-
-impl<T: RTPSCacheChange + 'static> RTPSHistoryCache for HistoryCache<T> {
-    type CacheChangeType = T;
-    type HistoryCacheStorageType = HistoryCacheGAT<T>;
 
     fn new() -> Self {
         Self {
-            changes: Mutex::new(Vec::new()),
+            changes: Vec::new(),
         }
     }
 
-    fn add_change(&self, change: Self::CacheChangeType) {
-        self.changes.lock().unwrap().push(change)
+    fn add_change(&mut self, change: Self::CacheChangeType) {
+        self.changes.push(change)
     }
 
-    fn remove_change(&self, seq_num: SequenceNumber) {
+    fn remove_change(&mut self, seq_num: SequenceNumber) {
+        self.changes.retain(|cc| cc.sequence_number() != seq_num)
+    }
+
+    fn get_change(&self, seq_num: SequenceNumber) -> Option<&Self::CacheChangeType> {
         self.changes
-            .lock()
-            .unwrap()
-            .retain(|cc| cc.sequence_number() != seq_num)
-    }
-
-    fn get_change<'a>(
-        &'a self,
-        seq_num: SequenceNumber,
-    ) -> Option<<Self::HistoryCacheStorageType as RTPSHistoryCacheRead<'a>>::Item> {
-        let guard = self.changes.lock().unwrap();
-        let index = guard
             .iter()
-            .position(|cc| cc.sequence_number() == seq_num)?;
-        Some(BorrowedCacheChange { guard, index })
+            .find(|cc| cc.sequence_number() == seq_num)
     }
 
     fn get_seq_num_min(&self) -> Option<SequenceNumber> {
-        self.changes
-            .lock()
-            .unwrap()
-            .iter()
-            .map(|cc| cc.sequence_number())
-            .min()
+        self.changes.iter().map(|cc| cc.sequence_number()).min()
     }
 
     fn get_seq_num_max(&self) -> Option<SequenceNumber> {
-        self.changes
-            .lock()
-            .unwrap()
-            .iter()
-            .map(|cc| cc.sequence_number())
-            .max()
+        self.changes.iter().map(|cc| cc.sequence_number()).max()
     }
 }
 
@@ -139,7 +94,7 @@ mod tests {
     }
     #[test]
     fn add_and_get_change() {
-        let history_cache = HistoryCache::new();
+        let mut history_cache = HistoryCache::new();
         let cc1 = MockCacheChange { sequence_number: 1 };
         let cc2 = MockCacheChange { sequence_number: 2 };
         history_cache.add_change(cc1.clone());
@@ -152,7 +107,7 @@ mod tests {
 
     #[test]
     fn remove_change() {
-        let history_cache = HistoryCache::new();
+        let mut history_cache = HistoryCache::new();
         let cc1 = MockCacheChange { sequence_number: 1 };
         let cc2 = MockCacheChange { sequence_number: 2 };
         history_cache.add_change(cc1.clone());
@@ -165,7 +120,7 @@ mod tests {
 
     #[test]
     fn get_seq_num_min_and_max() {
-        let history_cache = HistoryCache::new();
+        let mut history_cache = HistoryCache::new();
         let min_seq_num = 4;
         let max_seq_num = 6;
         let cc_min = MockCacheChange {

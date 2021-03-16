@@ -17,7 +17,7 @@ pub use writer::RTPSWriter;
 
 use crate::{
     messages::{
-        submessages::{submessage_elements::SerializedData, Data},
+        submessages::{self, submessage_elements::SerializedData},
         types::StatusInfo,
     },
     structure::RTPSCacheChange,
@@ -51,13 +51,10 @@ use crate::{
 //     )
 // }
 
-fn _data_from_cache_change<'a, T>(
-    cache_change: &'a impl RTPSCacheChange<Data = T>,
+pub fn data_from_cache_change<'a>(
+    cache_change: &'a impl RTPSCacheChange<Data = impl AsRef<SerializedData> + 'a>,
     reader_id: EntityId,
-) -> Data
-where
-    T: AsRef<SerializedData> +'a,
-{
+) -> submessages::Data<'a> {
     let writer_guid: GUID = cache_change.writer_guid().try_into().unwrap();
     let writer_id = writer_guid.entity_id();
     let writer_sn = cache_change.sequence_number();
@@ -70,7 +67,7 @@ where
         .push(change_kind_to_status_info(change_kind).into());
 
     match change_kind {
-        ChangeKind::Alive => Data {
+        ChangeKind::Alive => submessages::Data {
             endianness_flag: false,
             reader_id,
             writer_id,
@@ -84,7 +81,7 @@ where
         },
         ChangeKind::NotAliveDisposed
         | ChangeKind::NotAliveUnregistered
-        | ChangeKind::AliveFiltered => Data {
+        | ChangeKind::AliveFiltered => submessages::Data {
             endianness_flag: false,
             reader_id,
             writer_id,

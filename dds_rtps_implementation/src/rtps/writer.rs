@@ -4,9 +4,7 @@ use rust_rtps::{
     behavior::{types::Duration, RTPSWriter},
     messages::submessages::submessage_elements::ParameterList,
     structure::{RTPSCacheChange, RTPSEndpoint, RTPSEntity, RTPSHistoryCache},
-    types::{
-        ChangeKind, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID,
-    },
+    types::{ChangeKind, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID},
 };
 
 pub struct Writer<H: RTPSHistoryCache> {
@@ -108,6 +106,10 @@ impl<H: RTPSHistoryCache> RTPSWriter for Writer<H> {
         &self.writer_cache
     }
 
+    fn writer_cache_mut(&mut self) -> &mut Self::HistoryCacheType {
+        &mut self.writer_cache
+    }
+
     fn new_change(
         &self,
         kind: ChangeKind,
@@ -133,7 +135,6 @@ impl<H: RTPSHistoryCache> RTPSWriter for Writer<H> {
 mod tests {
     use rust_rtps::{
         behavior::types::constants::{DURATION_INFINITE, DURATION_ZERO},
-        structure::history_cache::RTPSHistoryCacheRead,
         types::constants::ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_ANNOUNCER,
     };
 
@@ -189,31 +190,23 @@ mod tests {
         }
     }
     struct MockHistoryCache;
-    impl<'a> RTPSHistoryCacheRead<'a> for MockHistoryCache {
-        type CacheChangeType = MockCacheChange;
-        type Item = &'a MockCacheChange;
-    }
 
     impl RTPSHistoryCache for MockHistoryCache {
         type CacheChangeType = MockCacheChange;
-        type HistoryCacheStorageType = Self;
 
         fn new() -> Self {
             todo!()
         }
 
-        fn add_change(&self, _change: Self::CacheChangeType) {
+        fn add_change(&mut self, _change: Self::CacheChangeType) {
             todo!()
         }
 
-        fn remove_change(&self, _seq_num: SequenceNumber) {
+        fn remove_change(&mut self, _seq_num: SequenceNumber) {
             todo!()
         }
 
-        fn get_change<'a>(
-            &'a self,
-            _seq_num: SequenceNumber,
-        ) -> Option<<Self::HistoryCacheStorageType as RTPSHistoryCacheRead<'a>>::Item> {
+        fn get_change(&self, _seq_num: SequenceNumber) -> Option<&Self::CacheChangeType> {
             todo!()
         }
 

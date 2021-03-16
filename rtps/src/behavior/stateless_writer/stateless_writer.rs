@@ -1,10 +1,11 @@
 use core::ops::Deref;
+use std::ops::DerefMut;
 
 use crate::{behavior::RTPSWriter, types::Locator};
 
 use super::RTPSReaderLocator;
 
-pub trait RTPSStatelessWriter<T: RTPSWriter>: Deref<Target = T> {
+pub trait RTPSStatelessWriter<T: RTPSWriter>: Deref<Target = T> + DerefMut {
     type ReaderLocatorType: RTPSReaderLocator;
 
     fn new(writer: T) -> Self;

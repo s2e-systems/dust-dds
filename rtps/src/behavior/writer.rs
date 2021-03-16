@@ -29,6 +29,7 @@ pub trait RTPSWriter: RTPSEndpoint {
     fn last_change_sequence_number(&self) -> SequenceNumber;
     fn data_max_sized_serialized(&self) -> i32;
     fn writer_cache(&self) -> &Self::HistoryCacheType;
+    fn writer_cache_mut(&mut self) -> &mut Self::HistoryCacheType;
 
     fn new_change(
         &self,

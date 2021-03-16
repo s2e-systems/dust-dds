@@ -1,86 +1,84 @@
 use crate::{
-    behavior::RTPSWriter,
-    messages::{submessages::submessage_elements::SerializedData, RtpsSubmessage},
-    structure::{history_cache::RTPSHistoryCacheRead, RTPSCacheChange, RTPSHistoryCache},
-    types::{EntityId, SequenceNumber},
+    behavior::{data_from_cache_change, RTPSWriter},
+    messages::submessages::{
+        self,
+        submessage_elements::{SequenceNumberSet, SerializedData},
+        Gap,
+    },
+    structure::{RTPSCacheChange, RTPSHistoryCache},
+    types::{constants::ENTITYID_UNKNOWN, SequenceNumber},
 };
 
 use super::reader_locator::RTPSReaderLocator;
 
 pub struct BestEffortReaderLocatorBehavior;
 
+pub enum BestEffortReaderLocatorSendSubmessages<'a> {
+    None,
+    Data(submessages::Data<'a>),
+    Gap(submessages::Gap),
+}
+
 impl BestEffortReaderLocatorBehavior {
-    pub fn produce_messages<'a, C, D>(
-        _reader_locator: &mut impl RTPSReaderLocator<CacheChangeRepresentation = SequenceNumber>,
-        _writer_entity_id: EntityId,
-    ) -> Vec<RtpsSubmessage<'a>>
-    where
-        C: RTPSCacheChange<Data = D> + 'a,
-        D: AsRef<SerializedData> + 'a,
-    {
-        todo!()
-        // let mut message_queue = Vec::new();
-        // if reader_locator.unsent_changes().into_iter().next().is_some() {
-        //     Self::pushing_state(
-        //         reader_locator,
-        //         // history_cache,
-        //         writer_entity_id,
-        //         &mut message_queue,
-        //     );
-        // }
-        // message_queue
+    pub fn produce_message<'a>(
+        reader_locator: &'a mut impl RTPSReaderLocator<CacheChangeRepresentation = SequenceNumber>,
+        writer: &'a impl RTPSWriter<
+            HistoryCacheType = impl RTPSHistoryCache<
+                CacheChangeType = impl RTPSCacheChange<Data = impl AsRef<SerializedData> + 'a> + 'a,
+            > + 'a,
+        >,
+    ) -> BestEffortReaderLocatorSendSubmessages<'a> {
+        if reader_locator
+            .unsent_changes(writer)
+            .into_iter()
+            .next()
+            .is_some()
+        {
+            Self::pushing_state(reader_locator, writer)
+        } else {
+            BestEffortReaderLocatorSendSubmessages::None
+        }
     }
 
-    fn _pushing_state<'a, C, D>(
-        _reader_locator: &mut impl RTPSReaderLocator<CacheChangeRepresentation = SequenceNumber>,
-        // history_cache: &'a impl RTPSHistoryCache<CacheChangeType = C>,
-        _writer_entity_id: EntityId,
-        _message_queue: &mut Vec<RtpsSubmessage<'a>>,
-    ) where
-        C: RTPSCacheChange<Data = D> + 'a,
-        D: AsRef<SerializedData> + 'a,
-    {
-        // while let Some(_next_unsent_seq_num) = reader_locator.next_unsent_change() {
-        // Self::transition_t4(
-        //     // history_cache,
-        //     writer_entity_id,
-        //     next_unsent_seq_num,
-        //     message_queue,
-        // );
-        todo!()
-        // }
+    fn pushing_state<'a>(
+        reader_locator: &'a mut impl RTPSReaderLocator<CacheChangeRepresentation = SequenceNumber>,
+        writer: &'a impl RTPSWriter<
+            HistoryCacheType = impl RTPSHistoryCache<
+                CacheChangeType = impl RTPSCacheChange<Data = impl AsRef<SerializedData> + 'a> + 'a,
+            > + 'a,
+        >,
+    ) -> BestEffortReaderLocatorSendSubmessages<'a> {
+        // RL::can_send() is always true when this function is called
+        // so we don't bother making an if here
+        Self::transition_t4(reader_locator, writer)
     }
 
-    fn _transition_t4<'a, D, W, H, HH, C>(
-        _reader_locator: &'a mut impl RTPSReaderLocator<CacheChangeRepresentation = SequenceNumber>,
-        _writer_entity_id: EntityId,
-        _next_unsent_seq_num: SequenceNumber,
-        _message_queue: &mut Vec<RtpsSubmessage<'a>>,
-    ) where
-        C: RTPSCacheChange<Data = D> + 'a,
-        HH: RTPSHistoryCacheRead<'a, CacheChangeType = C> + 'a,
-        H: RTPSHistoryCache<CacheChangeType = C, HistoryCacheStorageType = HH> + 'a,
-        W: RTPSWriter<HistoryCacheType = H> + 'a,
-        D: AsRef<SerializedData> + 'a,
-    {
-        // if let Some(cache_change) = reader_locator
-        //     .writer()
-        //     .writer_cache()
-        //     .get_change(next_unsent_seq_num)
-        // {
-        //     let data = data_from_cache_change(&*cache_change, ENTITYID_UNKNOWN);
-        //     message_queue.push(RtpsSubmessage::Data(data));
-        // } else {
-        //     let gap = Gap {
-        //         endianness_flag: false,
-        //         reader_id: ENTITYID_UNKNOWN,
-        //         writer_id: writer_entity_id,
-        //         gap_start: next_unsent_seq_num,
-        //         gap_list: SequenceNumberSet::new(next_unsent_seq_num, [0; 8]),
-        // };
-
-        //     message_queue.push(RtpsSubmessage::Gap(gap));
-        // }
+    fn transition_t4<'a>(
+        reader_locator: &'a mut impl RTPSReaderLocator<CacheChangeRepresentation = SequenceNumber>,
+        writer: &'a impl RTPSWriter<
+            HistoryCacheType = impl RTPSHistoryCache<
+                CacheChangeType = impl RTPSCacheChange<Data = impl AsRef<SerializedData> + 'a> + 'a,
+            > + 'a,
+        >,
+    ) -> BestEffortReaderLocatorSendSubmessages<'a> {
+        if let Some(next_unsent_seq_num) = reader_locator.next_unsent_change(writer) {
+            if let Some(cache_change) = writer.writer_cache().get_change(next_unsent_seq_num) {
+                BestEffortReaderLocatorSendSubmessages::Data(data_from_cache_change(
+                    &*cache_change,
+                    ENTITYID_UNKNOWN,
+                ))
+            } else {
+                BestEffortReaderLocatorSendSubmessages::Gap(Gap {
+                    endianness_flag: false,
+                    reader_id: ENTITYID_UNKNOWN,
+                    writer_id: writer.guid().entity_id(),
+                    gap_start: next_unsent_seq_num,
+                    gap_list: SequenceNumberSet::new(next_unsent_seq_num, [0; 8]),
+                })
+            }
+        } else {
+            BestEffortReaderLocatorSendSubmessages::None
+        }
     }
 }
 #[cfg(test)]

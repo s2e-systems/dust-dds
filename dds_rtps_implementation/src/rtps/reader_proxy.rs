@@ -213,10 +213,7 @@ impl<W: RTPSWriter> RTPSReaderProxy for ReaderProxy<W> {
 
 #[cfg(test)]
 mod tests {
-    use rust_rtps::structure::{
-        history_cache::RTPSHistoryCacheRead, RTPSCacheChange, RTPSEndpoint, RTPSEntity,
-        RTPSHistoryCache,
-    };
+    use rust_rtps::structure::{RTPSCacheChange, RTPSEndpoint, RTPSEntity, RTPSHistoryCache};
 
     use super::*;
 
@@ -266,31 +263,26 @@ mod tests {
     struct MockHistoryCache {
         seq_num_max: Option<SequenceNumber>,
     }
-    impl<'a> RTPSHistoryCacheRead<'a> for MockHistoryCache {
-        type CacheChangeType = MockCacheChange;
-        type Item = &'a MockCacheChange;
-    }
 
     impl RTPSHistoryCache for MockHistoryCache {
         type CacheChangeType = MockCacheChange;
-        type HistoryCacheStorageType = Self;
 
         fn new() -> Self {
             todo!()
         }
 
-        fn add_change(&self, _change: Self::CacheChangeType) {
+        fn add_change(&mut self, _change: Self::CacheChangeType) {
             todo!()
         }
 
-        fn remove_change(&self, _seq_num: SequenceNumber) {
+        fn remove_change(&mut self, _seq_num: SequenceNumber) {
             todo!()
         }
 
-        fn get_change<'a>(
-            &'a self,
+        fn get_change(
+            &self,
             _seq_num: rust_rtps::types::SequenceNumber,
-        ) -> Option<<Self::HistoryCacheStorageType as RTPSHistoryCacheRead<'a>>::Item> {
+        ) -> Option<&Self::CacheChangeType> {
             todo!()
         }
 
@@ -372,6 +364,10 @@ mod tests {
         }
 
         fn writer_cache(&self) -> &Self::HistoryCacheType {
+            todo!()
+        }
+
+        fn writer_cache_mut(&mut self) -> &mut Self::HistoryCacheType {
             todo!()
         }
 

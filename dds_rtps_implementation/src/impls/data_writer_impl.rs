@@ -31,7 +31,7 @@ impl DataWriterImpl {
     }
 
     pub fn write_w_timestamp<T: DDSType>(
-        &self,
+        &mut self,
         data: T,
         handle: Option<InstanceHandle>,
         _timestamp: Time,
@@ -42,7 +42,7 @@ impl DataWriterImpl {
         let handle = handle.unwrap_or(0);
         let change = self.writer.new_change(kind, data, inline_qos, handle);
 
-        self.writer.writer_cache().add_change(change);
+        self.writer.writer_cache_mut().add_change(change);
 
         Ok(())
     }

@@ -1,4 +1,4 @@
-use std::ops::Deref;
+use std::ops::{Deref, DerefMut};
 
 use rust_rtps::{
     behavior::{stateless_writer::RTPSReaderLocator, RTPSStatelessWriter, RTPSWriter},
@@ -15,6 +15,12 @@ impl<T: RTPSWriter, R: RTPSReaderLocator> Deref for StatelessWriter<T, R> {
 
     fn deref(&self) -> &Self::Target {
         &self.writer
+    }
+}
+
+impl<T: RTPSWriter, R: RTPSReaderLocator> DerefMut for StatelessWriter<T, R> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.writer
     }
 }
 
@@ -51,10 +57,7 @@ impl<T: RTPSWriter, R: RTPSReaderLocator> RTPSStatelessWriter<T> for StatelessWr
 #[cfg(test)]
 mod tests {
     use rust_rtps::{
-        structure::{
-            history_cache::RTPSHistoryCacheRead, RTPSCacheChange, RTPSEndpoint, RTPSEntity,
-            RTPSHistoryCache,
-        },
+        structure::{RTPSCacheChange, RTPSEndpoint, RTPSEntity, RTPSHistoryCache},
         types::SequenceNumber,
     };
 
@@ -105,31 +108,25 @@ mod tests {
     }
     struct MockHistoryCache(Vec<MockCacheChange>);
 
-    impl<'a> RTPSHistoryCacheRead<'a> for MockHistoryCache {
-        type CacheChangeType = MockCacheChange;
-        type Item = &'a MockCacheChange;
-    }
-
     impl RTPSHistoryCache for MockHistoryCache {
         type CacheChangeType = MockCacheChange;
-        type HistoryCacheStorageType = Self;
 
         fn new() -> Self {
             todo!()
         }
 
-        fn add_change(&self, _change: Self::CacheChangeType) {
+        fn add_change(&mut self, _change: Self::CacheChangeType) {
             todo!()
         }
 
-        fn remove_change(&self, _seq_num: rust_rtps::types::SequenceNumber) {
+        fn remove_change(&mut self, _seq_num: rust_rtps::types::SequenceNumber) {
             todo!()
         }
 
-        fn get_change<'a>(
-            &'a self,
+        fn get_change(
+            &self,
             _seq_num: rust_rtps::types::SequenceNumber,
-        ) -> Option<<Self::HistoryCacheStorageType as RTPSHistoryCacheRead<'a>>::Item> {
+        ) -> Option<&Self::CacheChangeType> {
             todo!()
         }
 
@@ -211,6 +208,10 @@ mod tests {
         }
 
         fn writer_cache(&self) -> &Self::HistoryCacheType {
+            todo!()
+        }
+
+        fn writer_cache_mut(&mut self) -> &mut Self::HistoryCacheType {
             todo!()
         }
 

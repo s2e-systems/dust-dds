@@ -1,4 +1,4 @@
-use std::ops::Deref;
+use std::ops::{Deref, DerefMut};
 
 use rust_rtps::behavior::{RTPSReaderProxy, RTPSStatefulWriter, RTPSWriter};
 
@@ -12,6 +12,12 @@ impl<W: RTPSWriter, R: RTPSReaderProxy> Deref for StatefulWriter<W, R> {
 
     fn deref(&self) -> &Self::Target {
         &self.writer
+    }
+}
+
+impl<W: RTPSWriter, R: RTPSReaderProxy> DerefMut for StatefulWriter<W, R> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.writer
     }
 }
 
