@@ -1,6 +1,6 @@
-use super::{SubmessageKind, SubmessageFlag, };
-use super::{Submessage, SubmessageHeader, };
 use super::submessage_elements;
+use super::{Submessage, SubmessageHeader};
+use super::{SubmessageFlag, SubmessageKind};
 use crate::types;
 
 #[derive(Debug, PartialEq)]
@@ -14,7 +14,7 @@ pub struct Data<'a> {
     pub writer_id: submessage_elements::EntityId,
     pub writer_sn: submessage_elements::SequenceNumber,
     pub inline_qos: submessage_elements::ParameterList,
-    pub serialized_payload: submessage_elements::SerializedData<'a>,
+    pub serialized_payload: &'a submessage_elements::SerializedData,
 }
 
 impl<'a> Submessage for Data<'a> {
@@ -27,7 +27,7 @@ impl<'a> Submessage for Data<'a> {
         let d = self.data_flag; //Indicates to the Reader that the dataPayload submessage element contains the serialized value of the data-object.
         let k = self.key_flag; //Indicates to the Reader that the dataPayload submessage element contains the serialized value of the key of the data-object.
         let n = self.non_standard_payload_flag; //Indicates to the Reader that the serializedPayload submessage element is not formatted according to Section 10.
-        // X|X|X|N|K|D|Q|E
+                                                // X|X|X|N|K|D|Q|E
         let flags = [e, q, d, k, n, x, x, x];
 
         SubmessageHeader::new(submessage_id, flags, octets_to_next_header)

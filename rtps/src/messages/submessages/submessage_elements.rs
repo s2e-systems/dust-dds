@@ -102,7 +102,7 @@ impl ParameterList {
 
 pub type Count = messages::types::Count;
 pub type LocatorList = [types::Locator; 8];
-pub type SerializedData<'a> = &'a [u8];
-pub type SerializedDataFragment<'a> = &'a [u8];
+pub type SerializedData = [u8];
+pub type SerializedDataFragment = [u8];
 
 // pub type GroupDigest = TBD

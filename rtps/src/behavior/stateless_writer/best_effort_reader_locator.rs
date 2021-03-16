@@ -1,8 +1,8 @@
 use crate::{
-    behavior::{_data_from_cache_change, RTPSWriter},
+    behavior::RTPSWriter,
     messages::{submessages::submessage_elements::SerializedData, RtpsSubmessage},
     structure::{history_cache::RTPSHistoryCacheRead, RTPSCacheChange, RTPSHistoryCache},
-    types::{constants::ENTITYID_UNKNOWN, EntityId, SequenceNumber},
+    types::{EntityId, SequenceNumber},
 };
 
 use super::reader_locator::RTPSReaderLocator;
@@ -16,7 +16,7 @@ impl BestEffortReaderLocatorBehavior {
     ) -> Vec<RtpsSubmessage<'a>>
     where
         C: RTPSCacheChange<Data = D> + 'a,
-        &'a D: Into<SerializedData<'a>> + 'a,
+        D: AsRef<SerializedData> + 'a,
     {
         todo!()
         // let mut message_queue = Vec::new();
@@ -38,7 +38,7 @@ impl BestEffortReaderLocatorBehavior {
         _message_queue: &mut Vec<RtpsSubmessage<'a>>,
     ) where
         C: RTPSCacheChange<Data = D> + 'a,
-        &'a D: Into<SerializedData<'a>> + 'a,
+        D: AsRef<SerializedData> + 'a,
     {
         while let Some(_next_unsent_seq_num) = reader_locator.next_unsent_change() {
             // Self::transition_t4(
@@ -58,14 +58,13 @@ impl BestEffortReaderLocatorBehavior {
         >,
         _writer_entity_id: EntityId,
         _next_unsent_seq_num: SequenceNumber,
-        message_queue: &mut Vec<RtpsSubmessage<'a>>,
+        _message_queue: &mut Vec<RtpsSubmessage<'a>>,
     ) where
         C: RTPSCacheChange<Data = D> + 'a,
         HH: RTPSHistoryCacheRead<'a, CacheChangeType = C> + 'a,
         H: RTPSHistoryCache<CacheChangeType = C, HistoryCacheStorageType = HH> + 'a,
         W: RTPSWriter<HistoryCacheType = H> + 'a,
-        &'a D: Into<SerializedData<'a>> + 'a,
-        D: 'a,
+        D: AsRef<SerializedData> + 'a,
     {
         // if let Some(cache_change) = reader_locator
         //     .writer()
@@ -75,12 +74,12 @@ impl BestEffortReaderLocatorBehavior {
         //     let data = data_from_cache_change(&*cache_change, ENTITYID_UNKNOWN);
         //     message_queue.push(RtpsSubmessage::Data(data));
         // } else {
-            //     let gap = Gap {
-            //         endianness_flag: false,
-            //         reader_id: ENTITYID_UNKNOWN,
-            //         writer_id: writer_entity_id,
-            //         gap_start: next_unsent_seq_num,
-            //         gap_list: SequenceNumberSet::new(next_unsent_seq_num, [0; 8]),
+        //     let gap = Gap {
+        //         endianness_flag: false,
+        //         reader_id: ENTITYID_UNKNOWN,
+        //         writer_id: writer_entity_id,
+        //         gap_start: next_unsent_seq_num,
+        //         gap_list: SequenceNumberSet::new(next_unsent_seq_num, [0; 8]),
         // };
 
         //     message_queue.push(RtpsSubmessage::Gap(gap));

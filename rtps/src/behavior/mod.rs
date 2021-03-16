@@ -56,7 +56,7 @@ fn _data_from_cache_change<'a, T>(
     reader_id: EntityId,
 ) -> Data
 where
-    &'a T: Into<SerializedData<'a>> + 'a,
+    T: AsRef<SerializedData> +'a,
 {
     let writer_guid: GUID = cache_change.writer_guid().try_into().unwrap();
     let writer_id = writer_guid.entity_id();
@@ -75,7 +75,7 @@ where
             reader_id,
             writer_id,
             writer_sn,
-            serialized_payload: cache_change.data_value().into(),
+            serialized_payload: cache_change.data_value().as_ref(),
             inline_qos,
             inline_qos_flag: true,
             data_flag: true,
@@ -89,7 +89,7 @@ where
             reader_id,
             writer_id,
             writer_sn,
-            serialized_payload: cache_change.data_value().into(),
+            serialized_payload: cache_change.data_value().as_ref(),
             inline_qos,
             inline_qos_flag: true,
             data_flag: false,
@@ -165,7 +165,7 @@ where
 //     }
 // }
 
-fn change_kind_to_status_info(change_kind: ChangeKind) -> StatusInfo {
+pub fn change_kind_to_status_info(change_kind: ChangeKind) -> StatusInfo {
     match change_kind {
         ChangeKind::Alive => StatusInfo([0, 0, 0, 0]),
         ChangeKind::NotAliveDisposed => StatusInfo([0, 0, 0, StatusInfo::DISPOSED_FLAG_MASK]),

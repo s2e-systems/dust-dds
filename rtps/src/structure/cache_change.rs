@@ -1,10 +1,10 @@
 use crate::{
-    messages::submessages::submessage_elements::{ParameterList, SerializedData},
+    messages::submessages::submessage_elements::ParameterList,
     types::{ChangeKind, SequenceNumber, GUID},
 };
 
 pub trait RTPSCacheChange {
-    type Data;//: for<'a> Into<SerializedData<'a>>;
+    type Data;
     type InstanceHandle;
 
     fn new(

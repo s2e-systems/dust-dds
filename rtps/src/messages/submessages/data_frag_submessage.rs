@@ -15,7 +15,7 @@ pub struct DataFrag<'a> {
     pub data_size: submessage_elements::ULong,
     pub fragment_size: submessage_elements::UShort,
     pub inline_qos: submessage_elements::ParameterList,
-    pub serialized_payload: submessage_elements::SerializedDataFragment<'a>,
+    pub serialized_payload: &'a submessage_elements::SerializedDataFragment,
 }
 
 
