@@ -14,13 +14,12 @@ use rust_dds_api::{
     subscription::subscriber_listener::SubscriberListener,
     topic::topic_listener::TopicListener,
 };
-use rust_rtps::{
-    structure::{RTPSEntity, RTPSParticipant},
-    types::{
+use rust_rtps::{behavior::{RTPSStatelessWriter, RTPSWriter, stateless_writer::RTPSReaderLocator}, discovery::spdp_endpoints::SPDPbuiltinParticipantWriter, structure::{RTPSEntity, RTPSParticipant}, types::{
         constants::{ENTITYID_PARTICIPANT, PROTOCOL_VERSION_2_4, VENDOR_ID},
         GuidPrefix, Locator, ProtocolVersion, VendorId, GUID,
-    },
-};
+    }};
+
+use crate::{rtps::{reader_locator::ReaderLocator, stateless_writer::StatelessWriter, writer::Writer}, transport::Transport};
 
 use super::{
     publisher_impl::PublisherImpl, subscriber_impl::SubscriberImpl, topic_impl::TopicImpl,
@@ -30,16 +29,16 @@ struct RtpsParticipantEntities {
     publisher_list: Mutex<Vec<Arc<Mutex<PublisherImpl>>>>,
     subscriber_list: Mutex<Vec<Arc<Mutex<SubscriberImpl>>>>,
     topic_list: Mutex<Vec<Arc<Mutex<TopicImpl>>>>,
-    // transport: Box<dyn Transport>,
+    transport: Box<dyn Transport>,
 }
 
 impl RtpsParticipantEntities {
-    fn new(/*transport: impl Transport*/) -> Self {
+    fn new(transport: Box<dyn Transport>) -> Self {
         Self {
             publisher_list: Default::default(),
             subscriber_list: Default::default(),
             topic_list: Default::default(),
-            // transport: Box::new(transport),
+            transport,
         }
     }
 
@@ -83,15 +82,15 @@ impl DomainParticipantImpl {
     pub fn new(
         domain_id: DomainId,
         qos: DomainParticipantQos,
-        // userdata_transport: impl Transport,
-        // metatraffic_transport: impl Transport,
+        userdata_transport: Box<dyn Transport>,
+        metatraffic_transport: Box<dyn Transport>,
         a_listener: Option<Box<dyn DomainParticipantListener>>,
         mask: StatusMask,
     ) -> Self {
         let guid_prefix = [1; 12];
 
-        let builtin_entities = Arc::new(RtpsParticipantEntities::new(/*metatraffic_transport*/));
-        let user_defined_entities = Arc::new(RtpsParticipantEntities::new(/*userdata_transport*/));
+        let builtin_entities = Arc::new(RtpsParticipantEntities::new(metatraffic_transport));
+        let user_defined_entities = Arc::new(RtpsParticipantEntities::new(userdata_transport));
 
         Self {
             domain_id,
@@ -313,7 +312,18 @@ impl DomainParticipantImpl {
         Ok(())
     }
 
+    fn create_spdp_announcer<T, U>(&self) -> SPDPbuiltinParticipantWriter<T, U> 
+        where T: RTPSStatelessWriter<U>, U: RTPSWriter
+    {
+        let guid_prefix = self.guid().prefix();
+        let spdp_unicast_locator_list = self.builtin_entities.transport.unicast_locator_list();
+        let spdp_multicast_locator_list = self.builtin_entities.transport.multicast_locator_list();
+        let locator = Locator::new_udpv4(7400, [239, 255, 0, 0]);
+        SPDPbuiltinParticipantWriter::new(guid_prefix, &spdp_unicast_locator_list, &spdp_multicast_locator_list, &[locator])
+    }
+
     fn send() {
+        
         // let writer = Writer::new();
         // let spdp_announcer = StatelessWriter::new(writer);
         // builtin_entities.send_data(guid_prefix);
@@ -446,7 +456,7 @@ mod tests {
         multicast_locator_list: Vec<Locator>,
     }
 
-    impl<'a> Transport<'a> for MockTransport {
+    impl Transport for MockTransport {
         fn write(
             &self,
             _message: rust_rtps::messages::RtpsMessage,
@@ -455,8 +465,8 @@ mod tests {
             todo!()
         }
 
-        fn read(
-            &self,
+        fn read<'a>(
+            &'a self,
         ) -> crate::transport::TransportResult<
             Option<(rust_rtps::messages::RtpsMessage<'a>, Locator)>,
         > {
@@ -477,8 +487,8 @@ mod tests {
         let participant = DomainParticipantImpl::new(
             0,
             DomainParticipantQos::default(),
-            // MockTransport::default(),
-            // MockTransport::default(),
+            Box::new(MockTransport::default()),
+            Box::new(MockTransport::default()),
             None,
             0,
         );
@@ -506,8 +516,8 @@ mod tests {
         let participant = DomainParticipantImpl::new(
             0,
             DomainParticipantQos::default(),
-            // MockTransport::default(),
-            // MockTransport::default(),
+            Box::new(MockTransport::default()),
+            Box::new(MockTransport::default()),
             None,
             0,
         );
@@ -536,8 +546,8 @@ mod tests {
         let participant = DomainParticipantImpl::new(
             0,
             DomainParticipantQos::default(),
-            // MockTransport::default(),
-            // MockTransport::default(),
+            Box::new(MockTransport::default()),
+            Box::new(MockTransport::default()),
             None,
             0,
         );
@@ -564,8 +574,8 @@ mod tests {
         let participant = DomainParticipantImpl::new(
             0,
             DomainParticipantQos::default(),
-            // MockTransport::default(),
-            // MockTransport::default(),
+            Box::new(MockTransport::default()),
+            Box::new(MockTransport::default()),
             None,
             0,
         );
@@ -596,8 +606,8 @@ mod tests {
         let participant = DomainParticipantImpl::new(
             0,
             DomainParticipantQos::default(),
-            // MockTransport::default(),
-            // MockTransport::default(),
+            Box::new(MockTransport::default()),
+            Box::new(MockTransport::default()),
             None,
             0,
         );
@@ -616,8 +626,8 @@ mod tests {
         let participant = DomainParticipantImpl::new(
             0,
             DomainParticipantQos::default(),
-            // MockTransport::default(),
-            // MockTransport::default(),
+            Box::new(MockTransport::default()),
+            Box::new(MockTransport::default()),
             None,
             0,
         );
@@ -640,8 +650,8 @@ mod tests {
         let mut participant = DomainParticipantImpl::new(
             0,
             DomainParticipantQos::default(),
-            // MockTransport::default(),
-            // MockTransport::default(),
+            Box::new(MockTransport::default()),
+            Box::new(MockTransport::default()),
             None,
             0,
         );
@@ -660,8 +670,8 @@ mod tests {
         let mut participant = DomainParticipantImpl::new(
             0,
             DomainParticipantQos::default(),
-            // MockTransport::default(),
-            // MockTransport::default(),
+            Box::new(MockTransport::default()),
+            Box::new(MockTransport::default()),
             None,
             0,
         );
@@ -680,8 +690,8 @@ mod tests {
         let mut participant = DomainParticipantImpl::new(
             0,
             DomainParticipantQos::default(),
-            // MockTransport::default(),
-            // MockTransport::default(),
+            Box::new(MockTransport::default()),
+            Box::new(MockTransport::default()),
             None,
             0,
         );
@@ -700,8 +710,8 @@ mod tests {
         let mut participant = DomainParticipantImpl::new(
             0,
             DomainParticipantQos::default(),
-            // MockTransport::default(),
-            // MockTransport::default(),
+            Box::new(MockTransport::default()),
+            Box::new(MockTransport::default()),
             None,
             0,
         );
@@ -727,8 +737,8 @@ mod tests {
         let mut participant = DomainParticipantImpl::new(
             0,
             DomainParticipantQos::default(),
-            // MockTransport::default(),
-            // MockTransport::default(),
+            Box::new(MockTransport::default()),
+            Box::new(MockTransport::default()),
             None,
             0,
         );
@@ -754,8 +764,8 @@ mod tests {
         let mut participant = DomainParticipantImpl::new(
             0,
             DomainParticipantQos::default(),
-            // MockTransport::default(),
-            // MockTransport::default(),
+            Box::new(MockTransport::default()),
+            Box::new(MockTransport::default()),
             None,
             0,
         );
@@ -778,8 +788,8 @@ mod tests {
         let mut participant = DomainParticipantImpl::new(
             0,
             DomainParticipantQos::default(),
-            // MockTransport::default(),
-            // MockTransport::default(),
+            Box::new(MockTransport::default()),
+            Box::new(MockTransport::default()),
             None,
             0,
         );

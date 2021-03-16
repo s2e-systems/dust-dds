@@ -9,7 +9,7 @@ pub struct RtpsMessageSender;
 impl RtpsMessageSender {
     pub fn send_cache_change_messages<'a>(
         participant_guid_prefix: GuidPrefix,
-        transport: &dyn Transport<'a>,
+        transport: &dyn Transport,
         destined_messages: Vec<DestinedMessages<'a>>,
     ) {
         for destined_message in destined_messages {

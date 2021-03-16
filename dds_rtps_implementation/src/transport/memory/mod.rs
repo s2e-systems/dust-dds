@@ -4,60 +4,62 @@ use std::sync::Mutex;
 use super::{Transport, TransportResult};
 use rust_rtps::{messages::RtpsMessage, types::Locator};
 
-pub struct MemoryTransport<'a> {
-    read: Mutex<VecDeque<(RtpsMessage<'a>, Locator)>>,
-    write: Mutex<VecDeque<(RtpsMessage<'a>, Locator)>>,
+pub struct MemoryTransport {
+    // read: Mutex<VecDeque<(RtpsMessage<'a>, Locator)>>,
+    // write: Mutex<VecDeque<(RtpsMessage<'a>, Locator)>>,
     unicast_locator_list: Vec<Locator>,
     multicast_locator_list: Vec<Locator>,
 }
 
-impl<'a> MemoryTransport<'a> {
+impl MemoryTransport {
     pub fn new(
         unicast_locator: Locator,
         multicast_locator_list: Vec<Locator>,
     ) -> TransportResult<Self> {
         Ok(Self {
-            read: Mutex::new(VecDeque::new()),
-            write: Mutex::new(VecDeque::new()),
+            // read: Mutex::new(VecDeque::new()),
+            // write: Mutex::new(VecDeque::new()),
             unicast_locator_list: vec![unicast_locator],
             multicast_locator_list,
         })
     }
 
-    pub fn push_read(&self, message: RtpsMessage<'a>, locator: Locator) {
-        self.read.lock().unwrap().push_back((message, locator));
-    }
+    // pub fn push_read(&self, message: RtpsMessage<'a>, locator: Locator) {
+    //     self.read.lock().unwrap().push_back((message, locator));
+    // }
 
-    pub fn pop_write(&self) -> Option<(RtpsMessage, Locator)> {
-        self.write.lock().unwrap().pop_front()
-    }
+    // pub fn pop_write(&self) -> Option<(RtpsMessage, Locator)> {
+    //     self.write.lock().unwrap().pop_front()
+    // }
 
-    pub fn receive_from(&self, transport: &'a MemoryTransport<'a>) {
-        while let Some((message, dst_locator)) = transport.pop_write() {
-            // If the message destination is the multicast, then its source has to be the same multicast as well
-            // otherwise the source is the
-            if transport.multicast_locator_list().contains(&dst_locator) {
-                self.push_read(message, dst_locator);
-            } else {
-                self.push_read(message, transport.unicast_locator_list()[0]);
-            }
-        }
+    pub fn receive_from(&self, transport: &MemoryTransport) {
+        // while let Some((message, dst_locator)) = transport.pop_write() {
+        //     // If the message destination is the multicast, then its source has to be the same multicast as well
+        //     // otherwise the source is the
+        //     if transport.multicast_locator_list().contains(&dst_locator) {
+        //         // self.push_read(message, dst_locator);
+        //     } else {
+        //         // self.push_read(message, transport.unicast_locator_list()[0]);
+        //     }
+        // }
     }
 }
 
-impl<'a> Transport<'a> for MemoryTransport<'a> {
-    fn read(&self) -> TransportResult<Option<(RtpsMessage<'a>, Locator)>> {
-        match self.read.lock().unwrap().pop_front() {
-            Some((message, locator)) => Ok(Some((message, locator))),
-            None => Ok(None),
-        }
+impl Transport for MemoryTransport {
+    fn read<'a>(&'a self) -> TransportResult<Option<(RtpsMessage<'a>, Locator)>> {
+        // match self.read.lock().unwrap().pop_front() {
+        //     Some((message, locator)) => Ok(Some((message, locator))),
+        //     None => Ok(None),
+        // }
+        todo!()
     }
 
-    fn write(&self, message: RtpsMessage<'a>, destination_locator: &Locator) {
-        self.write
-            .lock()
-            .unwrap()
-            .push_back((message, destination_locator.clone()));
+    fn write<'a>(&'a self, message: RtpsMessage<'a>, destination_locator: &Locator) {
+        // self.write
+        //     .lock()
+        //     .unwrap()
+        //     .push_back((message, destination_locator.clone()));
+        todo!()
     }
 
     fn unicast_locator_list(&self) -> &Vec<Locator> {

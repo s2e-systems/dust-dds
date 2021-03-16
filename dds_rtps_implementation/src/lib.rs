@@ -10,4 +10,4 @@ pub mod topic;
 mod impls;
 mod rtps;
 mod utils;
-mod transport;
+pub mod transport;

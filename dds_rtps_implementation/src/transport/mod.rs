@@ -16,10 +16,10 @@ impl From<std::io::Error> for TransportError {
 }
 
 pub type TransportResult<T> = std::result::Result<T, TransportError>;
-pub trait Transport<'a>: Send + Sync {
-    fn write(&self, message: RtpsMessage<'a>, destination_locator: &Locator);
+pub trait Transport: Send + Sync {
+    fn write<'a>(&'a self, message: RtpsMessage<'a>, destination_locator: &Locator);
 
-    fn read(&self) -> TransportResult<Option<(RtpsMessage<'a>, Locator)>>;
+    fn read<'a>(&'a self) -> TransportResult<Option<(RtpsMessage<'a>, Locator)>>;
 
     fn unicast_locator_list(&self) -> &Vec<Locator>;
 
