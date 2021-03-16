@@ -88,7 +88,7 @@ impl<T: RTPSCacheChange + 'static> RTPSHistoryCache for HistoryCache<T> {
 mod tests {
     use rust_rtps::{
         messages::submessages::submessage_elements::ParameterList,
-        types::{ChangeKind, InstanceHandle, GUID},
+        types::{ChangeKind, GUID},
     };
 
     use super::*;
@@ -100,11 +100,12 @@ mod tests {
 
     impl RTPSCacheChange for MockCacheChange {
         type Data = ();
+        type InstanceHandle = ();
 
         fn new(
             _kind: ChangeKind,
             _writer_guid: GUID,
-            _instance_handle: InstanceHandle,
+            _instance_handle: Self::InstanceHandle,
             _sequence_number: SequenceNumber,
             _data_value: Self::Data,
             _inline_qos: ParameterList,
@@ -120,7 +121,7 @@ mod tests {
             todo!()
         }
 
-        fn instance_handle(&self) -> &InstanceHandle {
+        fn instance_handle(&self) -> &Self::InstanceHandle {
             todo!()
         }
 

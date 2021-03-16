@@ -94,13 +94,6 @@ impl PublisherImpl {
         todo!()
     }
 
-    // pub fn writer_list(
-    //     &self,
-    // ) -> &Vec<Arc<Mutex<StatefulDataWriterImpl<Writer<HistoryCache<CacheChange>>>>>> {
-    //     todo!()
-    //     // &self.writer_list
-    // }
-
     // pub fn create_datawriter<'a, T: DDSType>(
     //     &'a mut self,
     //     _topic: Arc<Mutex<TopicImpl>>,

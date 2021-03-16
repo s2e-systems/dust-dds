@@ -1,7 +1,8 @@
+use rust_dds_api::dcps_psm::InstanceHandle;
 use rust_rtps::{
     messages::submessages::submessage_elements::ParameterList,
     structure::RTPSCacheChange,
-    types::{ChangeKind, InstanceHandle, SequenceNumber, GUID},
+    types::{ChangeKind, SequenceNumber, GUID},
 };
 
 pub struct CacheChange {
@@ -15,11 +16,12 @@ pub struct CacheChange {
 
 impl RTPSCacheChange for CacheChange {
     type Data = Vec<u8>;
+    type InstanceHandle = InstanceHandle;
 
     fn new(
         kind: ChangeKind,
         writer_guid: GUID,
-        instance_handle: InstanceHandle,
+        instance_handle: Self::InstanceHandle,
         sequence_number: SequenceNumber,
         data_value: Self::Data,
         inline_qos: ParameterList,
@@ -42,7 +44,7 @@ impl RTPSCacheChange for CacheChange {
         self.writer_guid
     }
 
-    fn instance_handle(&self) -> &InstanceHandle {
+    fn instance_handle(&self) -> &Self::InstanceHandle {
         &self.instance_handle
     }
 

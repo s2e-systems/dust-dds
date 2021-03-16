@@ -20,15 +20,16 @@ impl<T: RTPSWriter> RTPSReaderLocator for ReaderLocator<T> {
     type Writer = T;
     type WriterReferenceType = Arc<T>;
 
-    fn requested_changes(&self) -> Self::CacheChangeRepresentationList {
-        self.requested_changes.clone()
+    fn locator(&self) -> Locator {
+        self.locator
     }
 
-    fn unsent_changes(&self) -> Self::CacheChangeRepresentationList {
-        let max_history_cache_seq_num = self.writer.writer_cache().get_seq_num_max().unwrap_or(0);
-        (self.next_unsent_change + 1..=max_history_cache_seq_num)
-            .filter(|&x| self.writer.writer_cache().get_change(x).is_some())
-            .collect()
+    fn expects_inline_qos(&self) -> bool {
+        self.expects_inline_qos
+    }
+
+    fn writer(&self) -> &Self::Writer {
+        self.writer.as_ref()
     }
 
     fn new(locator: Locator, expects_inline_qos: bool, writer: Arc<Self::Writer>) -> Self {
@@ -41,12 +42,15 @@ impl<T: RTPSWriter> RTPSReaderLocator for ReaderLocator<T> {
         }
     }
 
-    fn locator(&self) -> Locator {
-        self.locator
+    fn requested_changes(&self) -> Self::CacheChangeRepresentationList {
+        self.requested_changes.clone()
     }
 
-    fn expects_inline_qos(&self) -> bool {
-        self.expects_inline_qos
+    fn unsent_changes(&self) -> Self::CacheChangeRepresentationList {
+        let max_history_cache_seq_num = self.writer.writer_cache().get_seq_num_max().unwrap_or(0);
+        (self.next_unsent_change + 1..=max_history_cache_seq_num)
+            .filter(|&x| self.writer.writer_cache().get_change(x).is_some())
+            .collect()
     }
 
     fn next_requested_change(&mut self) -> Option<Self::CacheChangeRepresentation> {
@@ -88,11 +92,12 @@ mod tests {
 
     impl RTPSCacheChange for MockCacheChange {
         type Data = u8;
+        type InstanceHandle = u8;
 
         fn new(
             _kind: rust_rtps::types::ChangeKind,
             _writer_guid: rust_rtps::types::GUID,
-            _instance_handle: rust_rtps::types::InstanceHandle,
+            _instance_handle: Self::InstanceHandle,
             _sequence_number: SequenceNumber,
             _data_value: Self::Data,
             _inline_qos: rust_rtps::messages::submessages::submessage_elements::ParameterList,
@@ -108,7 +113,7 @@ mod tests {
             todo!()
         }
 
-        fn instance_handle(&self) -> &rust_rtps::types::InstanceHandle {
+        fn instance_handle(&self) -> &Self::InstanceHandle {
             todo!()
         }
 
@@ -245,7 +250,7 @@ mod tests {
             _kind: rust_rtps::types::ChangeKind,
             _data: <<Self::HistoryCacheType as RTPSHistoryCache>::CacheChangeType as RTPSCacheChange>::Data,
             _inline_qos: rust_rtps::messages::submessages::submessage_elements::ParameterList,
-            _handle: rust_rtps::types::InstanceHandle,
+            _handle:  <<Self::HistoryCacheType as RTPSHistoryCache>::CacheChangeType as RTPSCacheChange>::InstanceHandle,
         ) -> <Self::HistoryCacheType as RTPSHistoryCache>::CacheChangeType {
             todo!()
         }

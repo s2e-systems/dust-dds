@@ -2,7 +2,7 @@ use crate::{
     messages::submessages::submessage_elements::ParameterList,
     structure::{RTPSCacheChange, RTPSEndpoint, RTPSHistoryCache},
     types::{
-        ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID,
+        ChangeKind, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID,
     },
 };
 
@@ -35,6 +35,6 @@ pub trait RTPSWriter: RTPSEndpoint {
         kind: ChangeKind,
         data: <<Self::HistoryCacheType as RTPSHistoryCache>::CacheChangeType as RTPSCacheChange>::Data,
         inline_qos: ParameterList,
-        handle: InstanceHandle,
+        handle: <<Self::HistoryCacheType as RTPSHistoryCache>::CacheChangeType as RTPSCacheChange>::InstanceHandle,
     ) -> <Self::HistoryCacheType as RTPSHistoryCache>::CacheChangeType;
 }

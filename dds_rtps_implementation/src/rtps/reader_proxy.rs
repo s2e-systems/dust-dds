@@ -224,11 +224,12 @@ mod tests {
 
     impl RTPSCacheChange for MockCacheChange {
         type Data = ();
+        type InstanceHandle = ();
 
         fn new(
             _kind: rust_rtps::types::ChangeKind,
             _writer_guid: GUID,
-            _instance_handle: rust_rtps::types::InstanceHandle,
+            _instance_handle: Self::InstanceHandle,
             _sequence_number: SequenceNumber,
             _data_value: Self::Data,
             _inline_qos: rust_rtps::messages::submessages::submessage_elements::ParameterList,
@@ -244,7 +245,7 @@ mod tests {
             todo!()
         }
 
-        fn instance_handle(&self) -> &rust_rtps::types::InstanceHandle {
+        fn instance_handle(&self) -> &Self::InstanceHandle {
             todo!()
         }
 
@@ -379,7 +380,7 @@ mod tests {
             _kind: rust_rtps::types::ChangeKind,
             _data: <<Self::HistoryCacheType as RTPSHistoryCache>::CacheChangeType as RTPSCacheChange>::Data,
             _inline_qos: rust_rtps::messages::submessages::submessage_elements::ParameterList,
-            _handle: rust_rtps::types::InstanceHandle,
+            _handle: <<Self::HistoryCacheType as RTPSHistoryCache>::CacheChangeType as RTPSCacheChange>::InstanceHandle,
         ) -> <Self::HistoryCacheType as RTPSHistoryCache>::CacheChangeType {
             todo!()
         }

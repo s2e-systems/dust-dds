@@ -5,7 +5,7 @@ use rust_rtps::{
     messages::submessages::submessage_elements::ParameterList,
     structure::{RTPSCacheChange, RTPSEndpoint, RTPSEntity, RTPSHistoryCache},
     types::{
-        ChangeKind, InstanceHandle, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID,
+        ChangeKind, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID,
     },
 };
 
@@ -113,7 +113,7 @@ impl<H: RTPSHistoryCache> RTPSWriter for Writer<H> {
         kind: ChangeKind,
         data: <<Self::HistoryCacheType as RTPSHistoryCache>::CacheChangeType as RTPSCacheChange>::Data,
         inline_qos: ParameterList,
-        handle: InstanceHandle,
+        handle: <<Self::HistoryCacheType as RTPSHistoryCache>::CacheChangeType as RTPSCacheChange>::InstanceHandle,
     ) -> <Self::HistoryCacheType as RTPSHistoryCache>::CacheChangeType {
         let sn = self
             .last_change_sequence_number
@@ -142,16 +142,17 @@ mod tests {
     struct MockCacheChange {
         kind: ChangeKind,
         sequence_number: SequenceNumber,
-        instance_handle: InstanceHandle,
+        instance_handle: u8,
     }
 
     impl RTPSCacheChange for MockCacheChange {
         type Data = ();
+        type InstanceHandle = u8;
 
         fn new(
             kind: ChangeKind,
             _writer_guid: GUID,
-            instance_handle: InstanceHandle,
+            instance_handle: Self::InstanceHandle,
             sequence_number: SequenceNumber,
             _data_value: Self::Data,
             _inline_qos: ParameterList,
@@ -171,7 +172,7 @@ mod tests {
             todo!()
         }
 
-        fn instance_handle(&self) -> &InstanceHandle {
+        fn instance_handle(&self) -> &Self::InstanceHandle {
             &self.instance_handle
         }
 
@@ -254,8 +255,8 @@ mod tests {
 
         let kind1 = ChangeKind::Alive;
         let kind2 = ChangeKind::NotAliveUnregistered;
-        let handle1 = [1; 16];
-        let handle2 = [2; 16];
+        let handle1 = 1;
+        let handle2 = 2;
 
         assert_eq!(writer.last_change_sequence_number(), 0);
 

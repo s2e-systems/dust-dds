@@ -27,9 +27,7 @@ impl DataWriterImpl {
             ReaderLocator<Writer<HistoryCache<CacheChange>>>,
         >,
     ) -> Self {
-        Self {
-            writer
-        }
+        Self { writer }
     }
 
     pub fn register_instance_w_timestamp<T: DDSType>(
@@ -43,13 +41,13 @@ impl DataWriterImpl {
     pub fn write_w_timestamp<T: DDSType>(
         &self,
         data: T,
-        _handle: Option<InstanceHandle>,
+        handle: Option<InstanceHandle>,
         _timestamp: Time,
     ) -> DDSResult<()> {
         let kind = ChangeKind::Alive;
         let data = data.serialize();
         let inline_qos = ParameterList::new();
-        let handle = [0; 16];
+        let handle = handle.unwrap_or(0);
         let change = self.writer.new_change(kind, data, inline_qos, handle);
 
         self.writer.writer_cache().add_change(change);

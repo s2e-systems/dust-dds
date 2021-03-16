@@ -6,12 +6,23 @@ pub mod stateless_writer;
 pub mod types;
 pub mod writer;
 
+use std::convert::TryInto;
+
 pub use reader::RTPSReader;
 pub use stateful_reader::{RTPSStatefulReader, RTPSWriterProxy};
 pub use stateful_writer::{RTPSReaderProxy, RTPSStatefulWriter};
 pub use stateless_reader::RTPSStatelessReader;
 pub use stateless_writer::RTPSStatelessWriter;
 pub use writer::RTPSWriter;
+
+use crate::{
+    messages::{
+        submessages::{submessage_elements::SerializedData, Data},
+        types::StatusInfo,
+    },
+    structure::RTPSCacheChange,
+    types::{ChangeKind, EntityId, GUID},
+};
 
 // fn _cache_change_from_data<'a, T, C>(mut message: Data<'a>, guid_prefix: &GuidPrefix) -> C
 // where
@@ -40,58 +51,53 @@ pub use writer::RTPSWriter;
 //     )
 // }
 
-// fn _data_from_cache_change<'a, T>(
-//     cache_change: &'a impl RTPSCacheChange<Data = T>,
-//     reader_id: EntityId,
-// ) -> Data
-// where
-//     &'a T: Into<SerializedData<'a>> + 'a,
-// {
-//     let writer_guid: GUID = cache_change.writer_guid().try_into().unwrap();
-//     let writer_id = writer_guid.entity_id();
-//     let writer_sn = cache_change.sequence_number();
+fn _data_from_cache_change<'a, T>(
+    cache_change: &'a impl RTPSCacheChange<Data = T>,
+    reader_id: EntityId,
+) -> Data
+where
+    &'a T: Into<SerializedData<'a>> + 'a,
+{
+    let writer_guid: GUID = cache_change.writer_guid().try_into().unwrap();
+    let writer_id = writer_guid.entity_id();
+    let writer_sn = cache_change.sequence_number();
 
-//     let mut inline_qos = cache_change.inline_qos().clone();
+    let mut inline_qos = cache_change.inline_qos().clone();
 
-//     let change_kind = cache_change.kind();
-//     inline_qos
-//         .parameter
-//         .push(change_kind_to_status_info(change_kind).into());
+    let change_kind = cache_change.kind();
+    inline_qos
+        .parameter
+        .push(change_kind_to_status_info(change_kind).into());
 
-//     match change_kind {
-//         ChangeKind::Alive => {
-//             inline_qos
-//                 .parameter
-//                 .push(KeyHash(cache_change.instance_handle().clone()).into());
-//             Data {
-//                 endianness_flag: false,
-//                 reader_id,
-//                 writer_id,
-//                 writer_sn,
-//                 serialized_payload: cache_change.data_value().into(),
-//                 inline_qos,
-//                 inline_qos_flag: true,
-//                 data_flag: true,
-//                 key_flag: false,
-//                 non_standard_payload_flag: false,
-//             }
-//         }
-//         ChangeKind::NotAliveDisposed
-//         | ChangeKind::NotAliveUnregistered
-//         | ChangeKind::AliveFiltered => Data {
-//             endianness_flag: false,
-//             reader_id,
-//             writer_id,
-//             writer_sn,
-//             serialized_payload: cache_change.instance_handle(),
-//             inline_qos,
-//             inline_qos_flag: true,
-//             data_flag: false,
-//             key_flag: true,
-//             non_standard_payload_flag: false,
-//         },
-//     }
-// }
+    match change_kind {
+        ChangeKind::Alive => Data {
+            endianness_flag: false,
+            reader_id,
+            writer_id,
+            writer_sn,
+            serialized_payload: cache_change.data_value().into(),
+            inline_qos,
+            inline_qos_flag: true,
+            data_flag: true,
+            key_flag: false,
+            non_standard_payload_flag: false,
+        },
+        ChangeKind::NotAliveDisposed
+        | ChangeKind::NotAliveUnregistered
+        | ChangeKind::AliveFiltered => Data {
+            endianness_flag: false,
+            reader_id,
+            writer_id,
+            writer_sn,
+            serialized_payload: cache_change.data_value().into(),
+            inline_qos,
+            inline_qos_flag: true,
+            data_flag: false,
+            key_flag: true,
+            non_standard_payload_flag: false,
+        },
+    }
+}
 
 // fn change_kind(data_submessage: &Data) -> ChangeKind {
 //     if data_submessage.data_flag && !data_submessage.key_flag {
@@ -159,16 +165,16 @@ pub use writer::RTPSWriter;
 //     }
 // }
 
-// fn change_kind_to_status_info(change_kind: ChangeKind) -> StatusInfo {
-//     match change_kind {
-//         ChangeKind::Alive => StatusInfo([0, 0, 0, 0]),
-//         ChangeKind::NotAliveDisposed => StatusInfo([0, 0, 0, StatusInfo::DISPOSED_FLAG_MASK]),
-//         ChangeKind::NotAliveUnregistered => {
-//             StatusInfo([0, 0, 0, StatusInfo::UNREGISTERED_FLAG_MASK])
-//         }
-//         ChangeKind::AliveFiltered => StatusInfo([0, 0, 0, StatusInfo::FILTERED_FLAG_MASK]),
-//     }
-// }
+fn change_kind_to_status_info(change_kind: ChangeKind) -> StatusInfo {
+    match change_kind {
+        ChangeKind::Alive => StatusInfo([0, 0, 0, 0]),
+        ChangeKind::NotAliveDisposed => StatusInfo([0, 0, 0, StatusInfo::DISPOSED_FLAG_MASK]),
+        ChangeKind::NotAliveUnregistered => {
+            StatusInfo([0, 0, 0, StatusInfo::UNREGISTERED_FLAG_MASK])
+        }
+        ChangeKind::AliveFiltered => StatusInfo([0, 0, 0, StatusInfo::FILTERED_FLAG_MASK]),
+    }
+}
 
 // #[cfg(test)]
 // mod tests {
