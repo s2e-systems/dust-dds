@@ -1,21 +1,16 @@
-use std::{ops::Deref, sync::Arc};
+use std::ops::Deref;
 
 use rust_rtps::{
     behavior::{stateless_writer::RTPSReaderLocator, RTPSStatelessWriter, RTPSWriter},
     types::Locator,
 };
 
-pub struct StatelessWriter<
-    T: RTPSWriter,
-    R: RTPSReaderLocator<Writer = T, WriterReferenceType = Arc<T>>,
-> {
-    writer: Arc<T>,
+pub struct StatelessWriter<T: RTPSWriter, R: RTPSReaderLocator> {
+    writer: T,
     reader_locators: Vec<R>,
 }
 
-impl<T: RTPSWriter, R: RTPSReaderLocator<Writer = T, WriterReferenceType = Arc<T>>> Deref
-    for StatelessWriter<T, R>
-{
+impl<T: RTPSWriter, R: RTPSReaderLocator> Deref for StatelessWriter<T, R> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
@@ -23,14 +18,12 @@ impl<T: RTPSWriter, R: RTPSReaderLocator<Writer = T, WriterReferenceType = Arc<T
     }
 }
 
-impl<T: RTPSWriter, R: RTPSReaderLocator<Writer = T, WriterReferenceType = Arc<T>>>
-    RTPSStatelessWriter<T> for StatelessWriter<T, R>
-{
+impl<T: RTPSWriter, R: RTPSReaderLocator> RTPSStatelessWriter<T> for StatelessWriter<T, R> {
     type ReaderLocatorType = R;
 
     fn new(writer: T) -> Self {
         Self {
-            writer: Arc::new(writer),
+            writer,
             reader_locators: Vec::new(),
         }
     }
@@ -40,7 +33,7 @@ impl<T: RTPSWriter, R: RTPSReaderLocator<Writer = T, WriterReferenceType = Arc<T
     }
 
     fn reader_locator_add(&mut self, a_locator: Locator) {
-        let reader_locator = Self::ReaderLocatorType::new(a_locator, false, self.writer.clone());
+        let reader_locator = Self::ReaderLocatorType::new(a_locator, false);
         self.reader_locators.push(reader_locator)
     }
 
@@ -50,11 +43,7 @@ impl<T: RTPSWriter, R: RTPSReaderLocator<Writer = T, WriterReferenceType = Arc<T
 
     fn unsent_changes_reset(&mut self) {
         for r in &mut self.reader_locators.iter_mut() {
-            *r = Self::ReaderLocatorType::new(
-                r.locator(),
-                r.expects_inline_qos(),
-                self.writer.clone(),
-            );
+            *r = Self::ReaderLocatorType::new(r.locator(), r.expects_inline_qos());
         }
     }
 }
@@ -236,36 +225,15 @@ mod tests {
         }
     }
 
-    struct MockReaderLocator{
+    struct MockReaderLocator {
         locator: Locator,
         value: u8,
     }
-
 
     impl RTPSReaderLocator for MockReaderLocator {
         type CacheChangeRepresentation = u8;
 
         type CacheChangeRepresentationList = Vec<u8>;
-
-        type Writer = MockWriter;
-
-        type WriterReferenceType = Arc<MockWriter>;
-
-        fn requested_changes(&self) -> Self::CacheChangeRepresentationList {
-            todo!()
-        }
-
-        fn unsent_changes(&self) -> Self::CacheChangeRepresentationList {
-            todo!()
-        }
-
-        fn new(
-            locator: Locator,
-            _expects_inline_qos: bool,
-            _writer: Self::WriterReferenceType,
-        ) -> Self {
-            Self{locator, value: 0}
-        }
 
         fn locator(&self) -> Locator {
             self.locator
@@ -275,20 +243,41 @@ mod tests {
             false
         }
 
-        fn writer(&self) -> &Self::Writer {
+        fn new(locator: Locator, _expects_inline_qos: bool) -> Self {
+            Self { locator, value: 0 }
+        }
+
+        fn requested_changes(
+            &self,
+            _writer: &impl RTPSWriter,
+        ) -> Self::CacheChangeRepresentationList {
             todo!()
         }
 
-        fn next_requested_change(&mut self) -> Option<Self::CacheChangeRepresentation> {
+        fn unsent_changes(&self, _writer: &impl RTPSWriter) -> Self::CacheChangeRepresentationList {
             todo!()
         }
 
-        fn next_unsent_change(&mut self) -> Option<Self::CacheChangeRepresentation> {
+        fn next_requested_change(
+            &mut self,
+            _writer: &impl RTPSWriter,
+        ) -> Option<Self::CacheChangeRepresentation> {
+            todo!()
+        }
+
+        fn next_unsent_change(
+            &mut self,
+            _writer: &impl RTPSWriter,
+        ) -> Option<Self::CacheChangeRepresentation> {
             self.value += 1;
             Some(self.value)
         }
 
-        fn requested_changes_set(&mut self, _req_seq_num_set: &[SequenceNumber]) {
+        fn requested_changes_set(
+            &mut self,
+            _req_seq_num_set: &[SequenceNumber],
+            _writer: &impl RTPSWriter,
+        ) {
             todo!()
         }
     }
@@ -336,12 +325,32 @@ mod tests {
         stateless_writer.reader_locator_add(locator1);
         stateless_writer.reader_locator_add(locator2);
 
-        assert_eq!(stateless_writer.reader_locators[0].next_unsent_change().unwrap(), 1);
-        assert_eq!(stateless_writer.reader_locators[0].next_unsent_change().unwrap(), 2);
+        assert_eq!(
+            stateless_writer.reader_locators[0]
+                .next_unsent_change(&stateless_writer.writer)
+                .unwrap(),
+            1
+        );
+        assert_eq!(
+            stateless_writer.reader_locators[0]
+                .next_unsent_change(&stateless_writer.writer)
+                .unwrap(),
+            2
+        );
 
         stateless_writer.unsent_changes_reset();
 
-        assert_eq!(stateless_writer.reader_locators[0].next_unsent_change().unwrap(), 1);
-        assert_eq!(stateless_writer.reader_locators[0].next_unsent_change().unwrap(), 2);
+        assert_eq!(
+            stateless_writer.reader_locators[0]
+                .next_unsent_change(&stateless_writer.writer)
+                .unwrap(),
+            1
+        );
+        assert_eq!(
+            stateless_writer.reader_locators[0]
+                .next_unsent_change(&stateless_writer.writer)
+                .unwrap(),
+            2
+        );
     }
 }

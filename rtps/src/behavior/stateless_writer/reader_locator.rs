@@ -6,20 +6,26 @@ use crate::{
 pub trait RTPSReaderLocator {
     type CacheChangeRepresentation;
     type CacheChangeRepresentationList: IntoIterator<Item = Self::CacheChangeRepresentation>;
-    type Writer: RTPSWriter;
-    type WriterReferenceType: core::ops::Deref<Target = Self::Writer>;
 
     // Attributes
     fn locator(&self) -> Locator;
     fn expects_inline_qos(&self) -> bool;
-    // Non-standard attributes
-    fn writer(&self) -> &Self::Writer;
 
     // Operations
-    fn new(locator: Locator, expects_inline_qos: bool, writer: Self::WriterReferenceType) -> Self;
-    fn requested_changes(&self) -> Self::CacheChangeRepresentationList;
-    fn unsent_changes(&self) -> Self::CacheChangeRepresentationList;
-    fn next_requested_change(&mut self) -> Option<Self::CacheChangeRepresentation>;
-    fn next_unsent_change(&mut self) -> Option<Self::CacheChangeRepresentation>;
-    fn requested_changes_set(&mut self, req_seq_num_set: &[SequenceNumber]);
+    fn new(locator: Locator, expects_inline_qos: bool) -> Self;
+    fn requested_changes(&self, writer: &impl RTPSWriter) -> Self::CacheChangeRepresentationList;
+    fn unsent_changes(&self, writer: &impl RTPSWriter) -> Self::CacheChangeRepresentationList;
+    fn next_requested_change(
+        &mut self,
+        writer: &impl RTPSWriter,
+    ) -> Option<Self::CacheChangeRepresentation>;
+    fn next_unsent_change(
+        &mut self,
+        writer: &impl RTPSWriter,
+    ) -> Option<Self::CacheChangeRepresentation>;
+    fn requested_changes_set(
+        &mut self,
+        req_seq_num_set: &[SequenceNumber],
+        writer: &impl RTPSWriter,
+    );
 }

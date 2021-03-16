@@ -32,7 +32,7 @@ impl BestEffortReaderLocatorBehavior {
     }
 
     fn _pushing_state<'a, C, D>(
-        reader_locator: &mut impl RTPSReaderLocator<CacheChangeRepresentation = SequenceNumber>,
+        _reader_locator: &mut impl RTPSReaderLocator<CacheChangeRepresentation = SequenceNumber>,
         // history_cache: &'a impl RTPSHistoryCache<CacheChangeType = C>,
         _writer_entity_id: EntityId,
         _message_queue: &mut Vec<RtpsSubmessage<'a>>,
@@ -40,22 +40,19 @@ impl BestEffortReaderLocatorBehavior {
         C: RTPSCacheChange<Data = D> + 'a,
         D: AsRef<SerializedData> + 'a,
     {
-        while let Some(_next_unsent_seq_num) = reader_locator.next_unsent_change() {
-            // Self::transition_t4(
-            //     // history_cache,
-            //     writer_entity_id,
-            //     next_unsent_seq_num,
-            //     message_queue,
-            // );
-            todo!()
-        }
+        // while let Some(_next_unsent_seq_num) = reader_locator.next_unsent_change() {
+        // Self::transition_t4(
+        //     // history_cache,
+        //     writer_entity_id,
+        //     next_unsent_seq_num,
+        //     message_queue,
+        // );
+        todo!()
+        // }
     }
 
     fn _transition_t4<'a, D, W, H, HH, C>(
-        _reader_locator: &'a mut impl RTPSReaderLocator<
-            CacheChangeRepresentation = SequenceNumber,
-            Writer = W,
-        >,
+        _reader_locator: &'a mut impl RTPSReaderLocator<CacheChangeRepresentation = SequenceNumber>,
         _writer_entity_id: EntityId,
         _next_unsent_seq_num: SequenceNumber,
         _message_queue: &mut Vec<RtpsSubmessage<'a>>,

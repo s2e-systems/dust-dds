@@ -14,19 +14,11 @@ use crate::rtps::{
 };
 
 pub struct DataWriterImpl {
-    writer: StatelessWriter<
-        Writer<HistoryCache<CacheChange>>,
-        ReaderLocator<Writer<HistoryCache<CacheChange>>>,
-    >,
+    writer: StatelessWriter<Writer<HistoryCache<CacheChange>>, ReaderLocator>,
 }
 
 impl DataWriterImpl {
-    pub fn new(
-        writer: StatelessWriter<
-            Writer<HistoryCache<CacheChange>>,
-            ReaderLocator<Writer<HistoryCache<CacheChange>>>,
-        >,
-    ) -> Self {
+    pub fn new(writer: StatelessWriter<Writer<HistoryCache<CacheChange>>, ReaderLocator>) -> Self {
         Self { writer }
     }
 

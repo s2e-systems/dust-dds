@@ -5,7 +5,7 @@ use crate::{behavior::RTPSWriter, types::Locator};
 use super::RTPSReaderLocator;
 
 pub trait RTPSStatelessWriter<T: RTPSWriter>: Deref<Target = T> {
-    type ReaderLocatorType: RTPSReaderLocator<Writer = T>;
+    type ReaderLocatorType: RTPSReaderLocator;
 
     fn new(writer: T) -> Self;
     fn reader_locators(&self) -> &[Self::ReaderLocatorType];
