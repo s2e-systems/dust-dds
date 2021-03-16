@@ -1,6 +1,3 @@
-use std::collections::VecDeque;
-use std::sync::Mutex;
-
 use super::{Transport, TransportResult};
 use rust_rtps::{messages::RtpsMessage, types::Locator};
 
@@ -32,7 +29,7 @@ impl MemoryTransport {
     //     self.write.lock().unwrap().pop_front()
     // }
 
-    pub fn receive_from(&self, transport: &MemoryTransport) {
+    pub fn receive_from(&self, _transport: &MemoryTransport) {
         // while let Some((message, dst_locator)) = transport.pop_write() {
         //     // If the message destination is the multicast, then its source has to be the same multicast as well
         //     // otherwise the source is the
@@ -54,7 +51,7 @@ impl Transport for MemoryTransport {
         todo!()
     }
 
-    fn write<'a>(&'a self, message: RtpsMessage<'a>, destination_locator: &Locator) {
+    fn write<'a>(&'a self, _message: RtpsMessage<'a>, _destination_locator: &Locator) {
         // self.write
         //     .lock()
         //     .unwrap()
@@ -73,54 +70,54 @@ impl Transport for MemoryTransport {
 
 // #[cfg(test)]
 // mod tests {
-    // use rust_rtps::{messages::{RtpsSubmessage, submessages::InfoTs}, types::constants::{PROTOCOL_VERSION_2_4, VENDOR_ID}};
+// use rust_rtps::{messages::{RtpsSubmessage, submessages::InfoTs}, types::constants::{PROTOCOL_VERSION_2_4, VENDOR_ID}};
 
-    // use super::*;
+// use super::*;
 
-    // #[test]
-    // fn receive_from_transport_unicast_and_multicast() {
-    //     let unicast_locator1 = Locator::new_udpv4(7400, [192, 168, 0, 5]);
-    //     let multicast_locator1 = Locator::new_udpv4(7400, [239, 255, 0, 1]);
-    //     let transport1 = MemoryTransport::new(unicast_locator1, vec![multicast_locator1]).unwrap();
+// #[test]
+// fn receive_from_transport_unicast_and_multicast() {
+//     let unicast_locator1 = Locator::new_udpv4(7400, [192, 168, 0, 5]);
+//     let multicast_locator1 = Locator::new_udpv4(7400, [239, 255, 0, 1]);
+//     let transport1 = MemoryTransport::new(unicast_locator1, vec![multicast_locator1]).unwrap();
 
-    //     let unicast_locator2 = Locator::new_udpv4(7400, [192, 168, 0, 25]);
-    //     let multicast_locator2 = Locator::new_udpv4(7400, [239, 255, 0, 1]);
-    //     let transport2 = MemoryTransport::new(unicast_locator2, vec![multicast_locator2]).unwrap();
+//     let unicast_locator2 = Locator::new_udpv4(7400, [192, 168, 0, 25]);
+//     let multicast_locator2 = Locator::new_udpv4(7400, [239, 255, 0, 1]);
+//     let transport2 = MemoryTransport::new(unicast_locator2, vec![multicast_locator2]).unwrap();
 
-    //     // Write to the unicast locator
-    //     let message = RtpsMessage::new(
-    //         PROTOCOL_VERSION_2_4,
-    //         VENDOR_ID,
-    //         [1; 12],
-    //         vec![RtpsSubmessage::InfoTs(InfoTs::new(
-    //             Endianness::LittleEndian,
-    //             None,
-    //         ))],
-    //     );
-    //     transport2.write(message, &unicast_locator1);
+//     // Write to the unicast locator
+//     let message = RtpsMessage::new(
+//         PROTOCOL_VERSION_2_4,
+//         VENDOR_ID,
+//         [1; 12],
+//         vec![RtpsSubmessage::InfoTs(InfoTs::new(
+//             Endianness::LittleEndian,
+//             None,
+//         ))],
+//     );
+//     transport2.write(message, &unicast_locator1);
 
-    //     transport1.receive_from(&transport2);
-    //     let (message_received, src_message) = transport1.read().unwrap().unwrap();
-    //     assert_eq!(src_message, unicast_locator2);
-    //     assert_eq!(message_received.submessages().len(), 1);
-    //     assert!(transport2.pop_write().is_none());
+//     transport1.receive_from(&transport2);
+//     let (message_received, src_message) = transport1.read().unwrap().unwrap();
+//     assert_eq!(src_message, unicast_locator2);
+//     assert_eq!(message_received.submessages().len(), 1);
+//     assert!(transport2.pop_write().is_none());
 
-    //     // Write to the multicast locator
-    //     let message = RtpsMessage::new(
-    //         PROTOCOL_VERSION_2_4,
-    //         VENDOR_ID,
-    //         [1; 12],
-    //         vec![RtpsSubmessage::InfoTs(InfoTs::new(
-    //             Endianness::LittleEndian,
-    //             None,
-    //         ))],
-    //     );
-    //     transport2.write(message, &multicast_locator1);
+//     // Write to the multicast locator
+//     let message = RtpsMessage::new(
+//         PROTOCOL_VERSION_2_4,
+//         VENDOR_ID,
+//         [1; 12],
+//         vec![RtpsSubmessage::InfoTs(InfoTs::new(
+//             Endianness::LittleEndian,
+//             None,
+//         ))],
+//     );
+//     transport2.write(message, &multicast_locator1);
 
-    //     transport1.receive_from(&transport2);
-    //     let (message_received, src_message) = transport1.read().unwrap().unwrap();
-    //     assert_eq!(src_message, multicast_locator2);
-    //     assert_eq!(message_received.submessages().len(), 1);
-    //     assert!(transport2.pop_write().is_none());
-    // }
+//     transport1.receive_from(&transport2);
+//     let (message_received, src_message) = transport1.read().unwrap().unwrap();
+//     assert_eq!(src_message, multicast_locator2);
+//     assert_eq!(message_received.submessages().len(), 1);
+//     assert!(transport2.pop_write().is_none());
+// }
 // }

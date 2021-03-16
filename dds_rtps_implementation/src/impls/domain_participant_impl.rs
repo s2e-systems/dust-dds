@@ -14,16 +14,27 @@ use rust_dds_api::{
     subscription::subscriber_listener::SubscriberListener,
     topic::topic_listener::TopicListener,
 };
-use rust_rtps::{behavior::{RTPSStatelessWriter, RTPSWriter, stateless_writer::RTPSReaderLocator}, discovery::spdp_endpoints::SPDPbuiltinParticipantWriter, structure::{RTPSEntity, RTPSParticipant}, types::{
+use rust_rtps::{
+    discovery::spdp_endpoints::SPDPbuiltinParticipantWriter,
+    structure::{RTPSEntity, RTPSParticipant},
+    types::{
         constants::{ENTITYID_PARTICIPANT, PROTOCOL_VERSION_2_4, VENDOR_ID},
         GuidPrefix, Locator, ProtocolVersion, VendorId, GUID,
-    }};
+    },
+};
 
-use crate::{rtps::{reader_locator::ReaderLocator, stateless_writer::StatelessWriter, writer::Writer}, transport::Transport};
+use crate::transport::Transport;
 
 use super::{
-    publisher_impl::PublisherImpl, subscriber_impl::SubscriberImpl, topic_impl::TopicImpl,
+    data_writer_impl::DataWriterImpl, publisher_impl::PublisherImpl,
+    subscriber_impl::SubscriberImpl, topic_impl::TopicImpl,
 };
+
+struct RtpsBuiltinParticipantEntities {
+    publisher: PublisherImpl,
+    subscriber: SubscriberImpl,
+    transport: Box<dyn Transport>,
+}
 
 struct RtpsParticipantEntities {
     publisher_list: Mutex<Vec<Arc<Mutex<PublisherImpl>>>>,
@@ -69,7 +80,7 @@ pub struct DomainParticipantImpl {
     default_publisher_qos: PublisherQos,
     default_subscriber_qos: SubscriberQos,
     default_topic_qos: TopicQos,
-    builtin_entities: Arc<RtpsParticipantEntities>,
+    builtin_entities: Arc<RtpsBuiltinParticipantEntities>,
     user_defined_entities: Arc<RtpsParticipantEntities>,
     enabled: Arc<atomic::AtomicBool>,
     enabled_function: Once,
@@ -86,10 +97,31 @@ impl DomainParticipantImpl {
         metatraffic_transport: Box<dyn Transport>,
         a_listener: Option<Box<dyn DomainParticipantListener>>,
         mask: StatusMask,
+        spdp_locator_list: &[Locator],
     ) -> Self {
         let guid_prefix = [1; 12];
 
-        let builtin_entities = Arc::new(RtpsParticipantEntities::new(metatraffic_transport));
+        let spdp_builtin_participant_writer = SPDPbuiltinParticipantWriter::create(
+            guid_prefix,
+            metatraffic_transport.unicast_locator_list(),
+            metatraffic_transport.multicast_locator_list(),
+            spdp_locator_list,
+        );
+
+        let mut builtin_publisher = PublisherImpl::new(PublisherQos::default(), None, 0);
+        let spdp_announcer = Arc::new(Mutex::new(DataWriterImpl::new(
+            spdp_builtin_participant_writer,
+        )));
+        builtin_publisher.add_datawriter(spdp_announcer);
+
+        let builtin_subscriber = SubscriberImpl::new(SubscriberQos::default(), None, 0);
+        // spdp_announcer.write_w_timestamp(data, handle, timestamp);
+        let builtin_entities = Arc::new(RtpsBuiltinParticipantEntities {
+            publisher: builtin_publisher,
+            subscriber: builtin_subscriber,
+            transport: metatraffic_transport,
+        });
+
         let user_defined_entities = Arc::new(RtpsParticipantEntities::new(userdata_transport));
 
         Self {
@@ -312,18 +344,8 @@ impl DomainParticipantImpl {
         Ok(())
     }
 
-    fn create_spdp_announcer<T, U>(&self) -> SPDPbuiltinParticipantWriter<T, U> 
-        where T: RTPSStatelessWriter<U>, U: RTPSWriter
-    {
-        let guid_prefix = self.guid().prefix();
-        let spdp_unicast_locator_list = self.builtin_entities.transport.unicast_locator_list();
-        let spdp_multicast_locator_list = self.builtin_entities.transport.multicast_locator_list();
-        let locator = Locator::new_udpv4(7400, [239, 255, 0, 0]);
-        SPDPbuiltinParticipantWriter::new(guid_prefix, &spdp_unicast_locator_list, &spdp_multicast_locator_list, &[locator])
-    }
-
     fn send() {
-        
+
         // let writer = Writer::new();
         // let spdp_announcer = StatelessWriter::new(writer);
         // builtin_entities.send_data(guid_prefix);
@@ -491,6 +513,7 @@ mod tests {
             Box::new(MockTransport::default()),
             None,
             0,
+            &[],
         );
 
         let qos = Some(PublisherQos::default());
@@ -520,6 +543,7 @@ mod tests {
             Box::new(MockTransport::default()),
             None,
             0,
+            &[],
         );
 
         let qos = Some(PublisherQos::default());
@@ -550,6 +574,7 @@ mod tests {
             Box::new(MockTransport::default()),
             None,
             0,
+            &[],
         );
 
         let qos = Some(SubscriberQos::default());
@@ -578,6 +603,7 @@ mod tests {
             Box::new(MockTransport::default()),
             None,
             0,
+            &[],
         );
 
         let qos = Some(SubscriberQos::default());
@@ -610,6 +636,7 @@ mod tests {
             Box::new(MockTransport::default()),
             None,
             0,
+            &[],
         );
 
         let topic_name = "Test";
@@ -630,6 +657,7 @@ mod tests {
             Box::new(MockTransport::default()),
             None,
             0,
+            &[],
         );
 
         let topic_name = "Test";
@@ -654,6 +682,7 @@ mod tests {
             Box::new(MockTransport::default()),
             None,
             0,
+            &[],
         );
 
         let mut publisher_qos = PublisherQos::default();
@@ -674,6 +703,7 @@ mod tests {
             Box::new(MockTransport::default()),
             None,
             0,
+            &[],
         );
 
         let mut subscriber_qos = SubscriberQos::default();
@@ -694,6 +724,7 @@ mod tests {
             Box::new(MockTransport::default()),
             None,
             0,
+            &[],
         );
 
         let mut topic_qos = TopicQos::default();
@@ -714,6 +745,7 @@ mod tests {
             Box::new(MockTransport::default()),
             None,
             0,
+            &[],
         );
 
         let mut publisher_qos = PublisherQos::default();
@@ -741,6 +773,7 @@ mod tests {
             Box::new(MockTransport::default()),
             None,
             0,
+            &[],
         );
 
         let mut subscriber_qos = SubscriberQos::default();
@@ -768,6 +801,7 @@ mod tests {
             Box::new(MockTransport::default()),
             None,
             0,
+            &[],
         );
 
         let mut topic_qos = TopicQos::default();
@@ -792,6 +826,7 @@ mod tests {
             Box::new(MockTransport::default()),
             None,
             0,
+            &[],
         );
 
         participant.enable().expect("Failed to enable");

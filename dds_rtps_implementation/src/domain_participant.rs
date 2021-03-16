@@ -17,10 +17,13 @@ use rust_dds_api::{
     topic::{topic_description::TopicDescription, topic_listener::TopicListener},
 };
 
-use crate::{impls::{
+use crate::{
+    impls::{
         domain_participant_impl::DomainParticipantImpl, publisher_impl::PublisherImpl,
         subscriber_impl::SubscriberImpl, topic_impl::TopicImpl,
-    }, transport::Transport, utils::node::Node};
+    },
+    utils::node::Node,
+};
 
 pub struct Publisher<'a>(<Self as Deref>::Target);
 
@@ -55,20 +58,8 @@ impl<'a, T: DDSType> Deref for Topic<'a, T> {
 pub struct DomainParticipant(Mutex<DomainParticipantImpl>);
 
 impl DomainParticipant {
-    pub fn new(
-        domain_id: DomainId,
-        qos: DomainParticipantQos,
-        userdata_transport: Box<dyn Transport>,
-        metatraffic_transport: Box<dyn Transport>,
-        a_listener: Option<Box<dyn DomainParticipantListener>>,
-        mask: StatusMask,
-    ) -> Self {
-        Self(Mutex::new(DomainParticipantImpl::new(
-            domain_id, qos,
-            userdata_transport,
-            metatraffic_transport,
-            a_listener, mask,
-        )))
+    pub fn new(domain_participant_impl: DomainParticipantImpl) -> Self {
+        Self(Mutex::new(domain_participant_impl))
     }
 }
 

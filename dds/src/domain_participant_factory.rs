@@ -3,8 +3,8 @@ use rust_dds_api::{
     domain::domain_participant_listener::DomainParticipantListener,
     infrastructure::qos::DomainParticipantQos,
 };
-use rust_dds_rtps_implementation::domain_participant::DomainParticipant;
 use rust_dds_rtps_implementation::transport::memory::MemoryTransport;
+use rust_dds_rtps_implementation::{domain_participant::DomainParticipant, DomainParticipantImpl};
 use rust_rtps::types::Locator;
 
 /// The DomainParticipant object plays several roles:
@@ -47,24 +47,29 @@ impl DomainParticipantFactory {
         // let interface = "Wi-Fi";
         let unicast_locator = Locator::new(0, 7400, [1; 16]);
         let multicast_locator = Locator::new(0, 7400, [2; 16]);
-        let userdata_transport = Box::new(MemoryTransport::new(unicast_locator, vec![multicast_locator]).unwrap());            
-        let metatraffic_transport = Box::new(MemoryTransport::new(unicast_locator, vec![multicast_locator]).unwrap());            
+        let userdata_transport =
+            Box::new(MemoryTransport::new(unicast_locator, vec![multicast_locator]).unwrap());
+        let metatraffic_transport =
+            Box::new(MemoryTransport::new(unicast_locator, vec![multicast_locator]).unwrap());
         let qos = qos.unwrap_or_default();
 
-        let rtps_participant = DomainParticipant::new(
+        let spdp_locator_list = [Locator::new_udpv4(7400, [239, 255, 0, 0])];
+        let domain_participant_impl = DomainParticipantImpl::new(
             domain_id,
             qos.clone(),
             userdata_transport,
             metatraffic_transport,
             a_listener,
             mask,
+            &spdp_locator_list,
         );
+        let participant = DomainParticipant::new(domain_participant_impl);
 
         // if enabled {
         //     new_participant.enable().ok()?;
         // }
 
-        Some(rtps_participant)
+        Some(participant)
     }
 
     // pub fn delete_participant(_a_participant: impl DomainParticipant) {}

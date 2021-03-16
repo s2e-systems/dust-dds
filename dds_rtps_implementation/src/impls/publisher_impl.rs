@@ -1,4 +1,4 @@
-use std::sync::atomic;
+use std::sync::{atomic, Arc, Mutex, Weak};
 
 use rust_dds_api::{
     dcps_psm::StatusMask,
@@ -10,13 +10,35 @@ use rust_rtps::{
     types::GUID,
 };
 
+use super::data_writer_impl::DataWriterImpl;
+
 pub struct PublisherImpl {
-    // writer_list: Vec<Arc<Mutex<StatefulDataWriterImpl<Writer<HistoryCache<CacheChange>>>>>>,
+    writer_list: Vec<Arc<Mutex<DataWriterImpl>>>,
     writer_count: atomic::AtomicU8,
     default_datawriter_qos: DataWriterQos,
     qos: PublisherQos,
     listener: Option<Box<dyn PublisherListener>>,
     status_mask: StatusMask,
+}
+
+impl<'a> IntoIterator for &'a PublisherImpl {
+    type Item = &'a Arc<Mutex<DataWriterImpl>>;
+
+    type IntoIter = std::slice::Iter<'a, Arc<Mutex<DataWriterImpl>>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        (&self.writer_list).into_iter()
+    }
+}
+
+impl<'a> IntoIterator for &'a mut PublisherImpl {
+    type Item = &'a mut Arc<Mutex<DataWriterImpl>>;
+
+    type IntoIter = std::slice::IterMut<'a, Arc<Mutex<DataWriterImpl>>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        (&mut self.writer_list).into_iter()
+    }
 }
 
 impl PublisherImpl {
@@ -26,6 +48,7 @@ impl PublisherImpl {
         status_mask: StatusMask,
     ) -> Self {
         Self {
+            writer_list: Vec::new(),
             // writer_list: Default::default(),
             writer_count: atomic::AtomicU8::new(0),
             default_datawriter_qos: DataWriterQos::default(),
@@ -33,6 +56,42 @@ impl PublisherImpl {
             listener,
             status_mask,
         }
+    }
+
+    pub fn add_datawriter(&mut self, writer: Arc<Mutex<DataWriterImpl>>) {
+        self.writer_list.push(writer)
+    }
+
+    pub fn create_datawriter(&self) -> Option<Weak<Mutex<DataWriterImpl>>> {
+        // To be called for user-defined entity creation
+
+        // let entity_id = EntityId::new([0,0,0], ENTITYKIN);
+        // let guid = GUID::new(self.guid().prefix(), entity_id);
+        // let topic_kind = ();
+        // let reliability_level = ();
+        // let unicast_locator_list = ();
+        // let multicast_locator_list = ();
+        // let push_mode = ();
+        // let heartbeat_period = ();
+        // let nack_response_delay = ();
+        // let nack_suppression_duration = ();
+        // let data_max_sized_serialized = ();
+
+        // let writer = Writer::new(
+        //     guid,
+        //     topic_kind,
+        //     reliability_level,
+        //     unicast_locator_list,
+        //     multicast_locator_list,
+        //     push_mode,
+        //     heartbeat_period,
+        //     nack_response_delay,
+        //     nack_suppression_duration,
+        //     data_max_sized_serialized,
+        // );
+        // let stateless_writer = StatelessWriter::new(writer);
+        // let datawriter_impl = DataWriterImpl::new(stateless_writer);
+        todo!()
     }
 
     // pub fn writer_list(

@@ -1,5 +1,3 @@
-use std::{marker::PhantomData, ops::Deref};
-
 use crate::{
     behavior::{
         types::constants::{DURATION_INFINITE, DURATION_ZERO},
@@ -28,39 +26,20 @@ use crate::{
 //     },
 // };
 
-pub struct SPDPbuiltinParticipantWriter<T, U>
-where
-    T: RTPSStatelessWriter<U>,
-    U: RTPSWriter,
-{
-    stateless_writer: T,
-    phantom: PhantomData<U>,
-}
+pub struct SPDPbuiltinParticipantWriter;
 
-impl<T, U> Deref for SPDPbuiltinParticipantWriter<T, U>
-where
-    T: RTPSStatelessWriter<U>,
-    U: RTPSWriter,
-{
-    type Target = T;
-
-    fn deref(&self) -> &Self::Target {
-        &self.stateless_writer
-    }
-}
-
-impl<T, U> SPDPbuiltinParticipantWriter<T, U>
-where
-    T: RTPSStatelessWriter<U>,
-    U: RTPSWriter,
-{
-    pub fn new(
+impl SPDPbuiltinParticipantWriter {
+    pub fn create<T, U>(
         guid_prefix: GuidPrefix,
         unicast_locator_list: &[Locator],
         multicast_locator_list: &[Locator],
         // _resend_period: Duration,
         reader_locator: &[Locator],
-    ) -> Self {
+    ) -> T
+    where
+        T: RTPSStatelessWriter<U>,
+        U: RTPSWriter,
+    {
         let guid = GUID::new(guid_prefix, ENTITYID_SPDP_BUILTIN_PARTICIPANT_ANNOUNCER);
         let topic_kind = TopicKind::WithKey;
         let reliability_level = ReliabilityKind::BestEffort;
@@ -92,10 +71,7 @@ where
             stateless_writer.reader_locator_add(locator);
         }
 
-        Self {
-            stateless_writer,
-            phantom: PhantomData,
-        }
+        stateless_writer
     }
 }
 

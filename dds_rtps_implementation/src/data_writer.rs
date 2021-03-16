@@ -1,14 +1,7 @@
-use rust_dds_api::{
-    builtin_topics::SubscriptionBuiltinTopicData,
-    dcps_psm::{
+use rust_dds_api::{builtin_topics::SubscriptionBuiltinTopicData, dcps_psm::{
         Duration, InstanceHandle, LivelinessLostStatus, OfferedDeadlineMissedStatus,
         OfferedIncompatibleQosStatus, PublicationMatchedStatus, StatusMask, Time,
-    },
-    dds_type::DDSType,
-    infrastructure::{entity::StatusCondition, qos::DataWriterQos},
-    publication::data_writer_listener::DataWriterListener,
-    return_type::{DDSError, DDSResult},
-};
+    }, dds_type::DDSType, domain::domain_participant::DomainParticipant, infrastructure::{entity::StatusCondition, qos::DataWriterQos}, publication::data_writer_listener::DataWriterListener, return_type::{DDSError, DDSResult}};
 
 use super::{
     domain_participant::{Publisher, Topic},
@@ -30,8 +23,9 @@ impl<'a, T: DDSType> rust_dds_api::domain::domain_participant::TopicGAT<'a, T>
 impl<'a, T: DDSType> rust_dds_api::publication::data_writer::DataWriter<'a, T>
     for DataWriter<'a, T>
 {
-    fn register_instance(&self, _instance: T) -> DDSResult<Option<InstanceHandle>> {
-        todo!()
+    fn register_instance(&self, instance: T) -> DDSResult<Option<InstanceHandle>> {
+        let timestamp = self.parent.0.parent.get_current_time()?;
+        self.register_instance_w_timestamp(instance, timestamp)
     }
 
     fn register_instance_w_timestamp(
@@ -75,11 +69,17 @@ impl<'a, T: DDSType> rust_dds_api::publication::data_writer::DataWriter<'a, T>
 
     fn write_w_timestamp(
         &self,
-        _data: T,
-        _handle: Option<InstanceHandle>,
-        _timestamp: Time,
+        data: T,
+        handle: Option<InstanceHandle>,
+        timestamp: Time,
     ) -> DDSResult<()> {
-        todo!()
+        self
+            .impl_ref
+            .upgrade()
+            .ok_or(DDSError::AlreadyDeleted)?
+            .lock()
+            .unwrap()
+            .write_w_timestamp(data, handle, timestamp)
     }
 
     fn dispose(&self, _data: T, _handle: Option<InstanceHandle>) -> DDSResult<()> {

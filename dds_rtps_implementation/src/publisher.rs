@@ -44,13 +44,23 @@ impl<'a> rust_dds_api::domain::domain_participant::DomainParticipantChild<'a> fo
 impl<'a> rust_dds_api::publication::publisher::Publisher<'a> for Publisher<'a> {
     fn create_datawriter<T: DDSType>(
         &'a self,
-        _a_topic: &'a <Self as rust_dds_api::domain::domain_participant::TopicGAT<'a, T>>::TopicType,
+        a_topic: &'a <Self as rust_dds_api::domain::domain_participant::TopicGAT<'a, T>>::TopicType,
         _qos: Option<DataWriterQos>,
         _a_listener: Option<Box<dyn DataWriterListener<DataType = T>>>,
         _mask: StatusMask,
     ) -> Option<<Self as rust_dds_api::publication::publisher::DataWriterGAT<'a, T>>::DataWriterType>
     {
-        todo!()
+        let datawriter_impl = self
+            .impl_ref
+            .upgrade()?
+            .lock()
+            .unwrap()
+            .create_datawriter()?;
+
+        Some(DataWriter(Node {
+            parent: (self, a_topic),
+            impl_ref: datawriter_impl,
+        }))
     }
 
     fn delete_datawriter<T: DDSType>(

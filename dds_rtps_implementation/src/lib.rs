@@ -11,3 +11,5 @@ mod impls;
 mod rtps;
 mod utils;
 pub mod transport;
+
+pub use impls::domain_participant_impl::DomainParticipantImpl;
