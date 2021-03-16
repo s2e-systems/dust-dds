@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use rust_rtps::{
     behavior::{
         stateful_writer::reader_proxy::RTPSChangeForReader, types::ChangeForReaderStatusKind,
@@ -42,7 +40,7 @@ impl RTPSChangeForReader for ChangeForReader {
     }
 }
 
-pub struct ReaderProxy<W: RTPSWriter> {
+pub struct ReaderProxy {
     remote_reader_guid: GUID,
     remote_group_entity_id: EntityId,
     unicast_locator_list: Vec<Locator>,
@@ -50,16 +48,14 @@ pub struct ReaderProxy<W: RTPSWriter> {
     expects_inline_qos: bool,
     is_active: bool,
 
-    writer: Arc<W>,
     next_unsent_change: SequenceNumber,
     highest_acked_change: SequenceNumber,
     requested_changes: Vec<SequenceNumber>,
 }
 
-impl<W: RTPSWriter> RTPSReaderProxy for ReaderProxy<W> {
+impl RTPSReaderProxy for ReaderProxy {
     type ChangeForReaderType = ChangeForReader;
     type ChangeForReaderTypeList = Vec<Self::ChangeForReaderType>;
-    type Writer = W;
 
     fn remote_reader_guid(&self) -> GUID {
         self.remote_reader_guid
@@ -77,16 +73,16 @@ impl<W: RTPSWriter> RTPSReaderProxy for ReaderProxy<W> {
         &self.multicast_locator_list
     }
 
-    fn changes_for_reader(&self) -> Self::ChangeForReaderTypeList {
+    fn changes_for_reader(&self, writer: &impl RTPSWriter) -> Self::ChangeForReaderTypeList {
         let mut changes_for_reader: Vec<Self::ChangeForReaderType> = (1..=self
             .highest_acked_change)
             .map(|sn| {
                 Self::ChangeForReaderType::new(sn, ChangeForReaderStatusKind::Acknowledged, true)
             })
             .collect();
-        changes_for_reader.append(&mut self.unsent_changes());
-        changes_for_reader.append(&mut self.unacked_changes());
-        changes_for_reader.append(&mut self.requested_changes());
+        changes_for_reader.append(&mut self.unsent_changes(writer));
+        changes_for_reader.append(&mut self.unacked_changes(writer));
+        changes_for_reader.append(&mut self.requested_changes(writer));
 
         changes_for_reader
     }
@@ -99,14 +95,6 @@ impl<W: RTPSWriter> RTPSReaderProxy for ReaderProxy<W> {
         self.is_active
     }
 
-    // fn writer(&self) -> &Self::Writer {
-    //     self.writer
-    // }
-
-    fn writer(&self) -> &Self::Writer {
-        todo!()
-    }
-
     fn new(
         remote_reader_guid: GUID,
         remote_group_entity_id: EntityId,
@@ -114,7 +102,6 @@ impl<W: RTPSWriter> RTPSReaderProxy for ReaderProxy<W> {
         multicast_locator_list: &[Locator],
         expects_inline_qos: bool,
         is_active: bool,
-        writer: Arc<Self::Writer>,
     ) -> Self {
         Self {
             remote_reader_guid,
@@ -123,18 +110,20 @@ impl<W: RTPSWriter> RTPSReaderProxy for ReaderProxy<W> {
             multicast_locator_list: multicast_locator_list.to_vec(),
             expects_inline_qos,
             is_active,
-            writer,
             next_unsent_change: 0,
             highest_acked_change: 0,
             requested_changes: Vec::new(),
         }
     }
 
-    fn acked_changes_set(&mut self, committed_seq_num: SequenceNumber) {
+    fn acked_changes_set(&mut self, committed_seq_num: SequenceNumber, _writer: &impl RTPSWriter) {
         self.highest_acked_change = committed_seq_num;
     }
 
-    fn next_requested_change(&mut self) -> Option<Self::ChangeForReaderType> {
+    fn next_requested_change(
+        &mut self,
+        _writer: &impl RTPSWriter,
+    ) -> Option<Self::ChangeForReaderType> {
         let next_requested_change = *self.requested_changes.iter().min()?;
         self.requested_changes
             .retain(|x| x != &next_requested_change);
@@ -145,8 +134,15 @@ impl<W: RTPSWriter> RTPSReaderProxy for ReaderProxy<W> {
         ))
     }
 
-    fn next_unsent_change(&mut self) -> Option<Self::ChangeForReaderType> {
-        self.next_unsent_change = self.unsent_changes().iter().map(|x| x.change()).min()?;
+    fn next_unsent_change(
+        &mut self,
+        writer: &impl RTPSWriter,
+    ) -> Option<Self::ChangeForReaderType> {
+        self.next_unsent_change = self
+            .unsent_changes(writer)
+            .iter()
+            .map(|x| x.change())
+            .min()?;
         Some(Self::ChangeForReaderType::new(
             self.next_unsent_change,
             ChangeForReaderStatusKind::Unsent,
@@ -154,9 +150,9 @@ impl<W: RTPSWriter> RTPSReaderProxy for ReaderProxy<W> {
         ))
     }
 
-    fn unsent_changes(&self) -> Self::ChangeForReaderTypeList {
-        if self.writer.push_mode() == true {
-            let max_history_cache_seq_num = self.writer.last_change_sequence_number();
+    fn unsent_changes(&self, writer: &impl RTPSWriter) -> Self::ChangeForReaderTypeList {
+        if writer.push_mode() == true {
+            let max_history_cache_seq_num = writer.last_change_sequence_number();
             (self.next_unsent_change + 1..=max_history_cache_seq_num)
                 .map(|sn| {
                     Self::ChangeForReaderType::new(sn, ChangeForReaderStatusKind::Unsent, true)
@@ -169,7 +165,7 @@ impl<W: RTPSWriter> RTPSReaderProxy for ReaderProxy<W> {
         }
     }
 
-    fn requested_changes(&self) -> Self::ChangeForReaderTypeList {
+    fn requested_changes(&self, _writer: &impl RTPSWriter) -> Self::ChangeForReaderTypeList {
         self.requested_changes
             .iter()
             .map(|sn| {
@@ -178,9 +174,13 @@ impl<W: RTPSWriter> RTPSReaderProxy for ReaderProxy<W> {
             .collect()
     }
 
-    fn requested_changes_set(&mut self, req_seq_num_set: &[SequenceNumber]) {
+    fn requested_changes_set(
+        &mut self,
+        req_seq_num_set: &[SequenceNumber],
+        writer: &impl RTPSWriter,
+    ) {
         for value in req_seq_num_set {
-            if value <= &self.writer.last_change_sequence_number() {
+            if value <= &writer.last_change_sequence_number() {
                 if !self.requested_changes.contains(value) {
                     self.requested_changes.push(*value);
                 }
@@ -188,16 +188,14 @@ impl<W: RTPSWriter> RTPSReaderProxy for ReaderProxy<W> {
         }
     }
 
-    type WriterReferenceType = Arc<W>;
-
-    fn unacked_changes(&self) -> Self::ChangeForReaderTypeList {
-        let mut unacked_changes: Vec<SequenceNumber> = if self.writer.push_mode() == true {
+    fn unacked_changes(&self, writer: &impl RTPSWriter) -> Self::ChangeForReaderTypeList {
+        let mut unacked_changes: Vec<SequenceNumber> = if writer.push_mode() == true {
             // According to the diagram in page 8.4.9.3 this is every change that has been sent
             // longer ago than writer.nackSuppressionDuration() and not yet acknowledged
             // TODO: nackSuppressionDuration is for now hard-coded 0
             (self.highest_acked_change + 1..=self.next_unsent_change).collect()
         } else {
-            (self.highest_acked_change + 1..=self.writer.last_change_sequence_number()).collect()
+            (self.highest_acked_change + 1..=writer.last_change_sequence_number()).collect()
         };
         for requested_changed in self.requested_changes.iter() {
             unacked_changes.retain(|x| x != requested_changed);
@@ -408,10 +406,6 @@ mod tests {
         let multicast_locator_list = [Locator::new(10, 100, [2; 16])];
         let expects_inline_qos = false;
         let is_active = true;
-        let writer = MockWriter {
-            push_mode: true,
-            last_change_sequence_number: 1,
-        };
         let reader_proxy = ReaderProxy::new(
             remote_reader_guid,
             remote_group_entity_id,
@@ -419,7 +413,6 @@ mod tests {
             &multicast_locator_list,
             expects_inline_qos,
             is_active,
-            Arc::new(writer),
         );
 
         assert_eq!(reader_proxy.remote_reader_guid(), remote_reader_guid);
@@ -455,10 +448,9 @@ mod tests {
             &multicast_locator_list,
             expects_inline_qos,
             is_active,
-            Arc::new(writer),
         );
 
-        let unsent_changes = reader_proxy.unsent_changes();
+        let unsent_changes = reader_proxy.unsent_changes(&writer);
         let expected_unsent_changes = vec![
             ChangeForReader {
                 change: 1,
@@ -499,10 +491,9 @@ mod tests {
             &multicast_locator_list,
             expects_inline_qos,
             is_active,
-            Arc::new(writer),
         );
 
-        let unsent_changes = reader_proxy.unsent_changes();
+        let unsent_changes = reader_proxy.unsent_changes(&writer);
         assert!(unsent_changes.is_empty());
     }
 
@@ -525,29 +516,28 @@ mod tests {
             &multicast_locator_list,
             expects_inline_qos,
             is_active,
-            Arc::new(writer),
         );
 
-        let next_unsent_change1 = reader_proxy.next_unsent_change();
+        let next_unsent_change1 = reader_proxy.next_unsent_change(&writer);
         let expected_unsent_change1 = Some(ChangeForReader {
             change: 1,
             is_relevant: true,
             status: ChangeForReaderStatusKind::Unsent,
         });
-        let next_unsent_change2 = reader_proxy.next_unsent_change();
+        let next_unsent_change2 = reader_proxy.next_unsent_change(&writer);
         let expected_unsent_change2 = Some(ChangeForReader {
             change: 2,
             is_relevant: true,
             status: ChangeForReaderStatusKind::Unsent,
         });
-        let next_unsent_change3 = reader_proxy.next_unsent_change();
+        let next_unsent_change3 = reader_proxy.next_unsent_change(&writer);
         let expected_unsent_change3 = Some(ChangeForReader {
             change: 3,
             is_relevant: true,
             status: ChangeForReaderStatusKind::Unsent,
         });
 
-        let next_unsent_change4 = reader_proxy.next_unsent_change();
+        let next_unsent_change4 = reader_proxy.next_unsent_change(&writer);
         let expected_unsent_change4 = None;
 
         assert_eq!(next_unsent_change1, expected_unsent_change1);
@@ -575,10 +565,9 @@ mod tests {
             &multicast_locator_list,
             expects_inline_qos,
             is_active,
-            Arc::new(writer),
         );
 
-        let next_unsent_change = reader_proxy.next_unsent_change();
+        let next_unsent_change = reader_proxy.next_unsent_change(&writer);
         let expected_unsent_change = None;
 
         assert_eq!(next_unsent_change, expected_unsent_change);
@@ -603,20 +592,19 @@ mod tests {
             &multicast_locator_list,
             expects_inline_qos,
             is_active,
-            Arc::new(writer),
         );
 
         // Changes up to 5 are available
         // Changes 1 to 4 are sent
         // Changes up to 2 are acknowledged
         // Expected unacked changes are 3 and 4
-        reader_proxy.next_unsent_change();
-        reader_proxy.next_unsent_change();
-        reader_proxy.next_unsent_change();
-        reader_proxy.next_unsent_change();
-        reader_proxy.acked_changes_set(2);
+        reader_proxy.next_unsent_change(&writer);
+        reader_proxy.next_unsent_change(&writer);
+        reader_proxy.next_unsent_change(&writer);
+        reader_proxy.next_unsent_change(&writer);
+        reader_proxy.acked_changes_set(2, &writer);
 
-        let unacked_changes = reader_proxy.unacked_changes();
+        let unacked_changes = reader_proxy.unacked_changes(&writer);
         let expected_unacked_changes = vec![
             ChangeForReader {
                 change: 3,
@@ -652,17 +640,16 @@ mod tests {
             &multicast_locator_list,
             expects_inline_qos,
             is_active,
-            Arc::new(writer),
         );
 
         // Changes up to 5 are available
         // Changes up to 2 are acknowledged
         // Change 4 is requested
         // Expected unacked changes are 3 and 5
-        reader_proxy.acked_changes_set(2);
-        reader_proxy.requested_changes_set(&[4]);
+        reader_proxy.acked_changes_set(2, &writer);
+        reader_proxy.requested_changes_set(&[4], &writer);
 
-        let unacked_changes = reader_proxy.unacked_changes();
+        let unacked_changes = reader_proxy.unacked_changes(&writer);
         let expected_unacked_changes = vec![
             ChangeForReader {
                 change: 3,
@@ -698,18 +685,20 @@ mod tests {
             &multicast_locator_list,
             expects_inline_qos,
             is_active,
-            Arc::new(writer),
         );
 
-        reader_proxy.requested_changes_set(&[2, 3]);
-        reader_proxy.requested_changes_set(&[4]);
+        reader_proxy.requested_changes_set(&[2, 3], &writer);
+        reader_proxy.requested_changes_set(&[4], &writer);
 
         let expected_requested_changes = vec![
             ChangeForReader::new(2, ChangeForReaderStatusKind::Requested, true),
             ChangeForReader::new(3, ChangeForReaderStatusKind::Requested, true),
             ChangeForReader::new(4, ChangeForReaderStatusKind::Requested, true),
         ];
-        assert_eq!(reader_proxy.requested_changes(), expected_requested_changes);
+        assert_eq!(
+            reader_proxy.requested_changes(&writer),
+            expected_requested_changes
+        );
     }
 
     #[test]
@@ -731,12 +720,11 @@ mod tests {
             &multicast_locator_list,
             expects_inline_qos,
             is_active,
-            Arc::new(writer),
         );
 
-        reader_proxy.requested_changes_set(&[6, 7, 8]);
+        reader_proxy.requested_changes_set(&[6, 7, 8], &writer);
 
-        assert!(reader_proxy.requested_changes().is_empty());
+        assert!(reader_proxy.requested_changes(&writer).is_empty());
     }
 
     #[test]
@@ -758,11 +746,10 @@ mod tests {
             &multicast_locator_list,
             expects_inline_qos,
             is_active,
-            Arc::new(writer),
         );
 
-        reader_proxy.requested_changes_set(&[2, 3]);
-        reader_proxy.requested_changes_set(&[3, 4]);
+        reader_proxy.requested_changes_set(&[2, 3], &writer);
+        reader_proxy.requested_changes_set(&[3, 4], &writer);
 
         let next_requested_change1 = Some(ChangeForReader::new(
             2,
@@ -781,10 +768,22 @@ mod tests {
         ));
         let next_requested_change4 = None;
 
-        assert_eq!(reader_proxy.next_requested_change(), next_requested_change1);
-        assert_eq!(reader_proxy.next_requested_change(), next_requested_change2);
-        assert_eq!(reader_proxy.next_requested_change(), next_requested_change3);
-        assert_eq!(reader_proxy.next_requested_change(), next_requested_change4);
+        assert_eq!(
+            reader_proxy.next_requested_change(&writer),
+            next_requested_change1
+        );
+        assert_eq!(
+            reader_proxy.next_requested_change(&writer),
+            next_requested_change2
+        );
+        assert_eq!(
+            reader_proxy.next_requested_change(&writer),
+            next_requested_change3
+        );
+        assert_eq!(
+            reader_proxy.next_requested_change(&writer),
+            next_requested_change4
+        );
     }
 
     #[test]
@@ -806,20 +805,19 @@ mod tests {
             &multicast_locator_list,
             expects_inline_qos,
             is_active,
-            Arc::new(writer),
         );
 
         // Changes up to 6 are available
         // Changes up to including 2 are acknowledged
         // Changes 1 to 4 are sent
         // Change 3 is requested
-        reader_proxy.next_unsent_change();
-        reader_proxy.next_unsent_change();
-        reader_proxy.next_unsent_change();
-        reader_proxy.next_unsent_change();
-        reader_proxy.acked_changes_set(2);
-        reader_proxy.requested_changes_set(&[3]);
-        reader_proxy.requested_changes_set(&[3]);
+        reader_proxy.next_unsent_change(&writer);
+        reader_proxy.next_unsent_change(&writer);
+        reader_proxy.next_unsent_change(&writer);
+        reader_proxy.next_unsent_change(&writer);
+        reader_proxy.acked_changes_set(2, &writer);
+        reader_proxy.requested_changes_set(&[3], &writer);
+        reader_proxy.requested_changes_set(&[3], &writer);
 
         let expected_changes_for_reader1 = ChangeForReader {
             change: 1,
@@ -852,7 +850,7 @@ mod tests {
             is_relevant: true,
         };
 
-        let changes_for_reader = reader_proxy.changes_for_reader();
+        let changes_for_reader = reader_proxy.changes_for_reader(&writer);
         assert_eq!(changes_for_reader.len(), 6);
         assert!(changes_for_reader.contains(&expected_changes_for_reader1));
         assert!(changes_for_reader.contains(&expected_changes_for_reader2));
