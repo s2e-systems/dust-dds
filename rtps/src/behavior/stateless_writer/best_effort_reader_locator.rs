@@ -63,7 +63,7 @@ impl BestEffortReaderLocatorBehavior {
         if let Some(next_unsent_seq_num) = reader_locator.next_unsent_change(writer) {
             if let Some(cache_change) = writer.writer_cache().get_change(next_unsent_seq_num) {
                 Some(BestEffortReaderLocatorSendSubmessages::Data(
-                    data_from_cache_change(&*cache_change, ENTITYID_UNKNOWN),
+                    data_from_cache_change(cache_change, ENTITYID_UNKNOWN),
                 ))
             } else {
                 Some(BestEffortReaderLocatorSendSubmessages::Gap(Gap {
