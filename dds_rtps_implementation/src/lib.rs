@@ -11,5 +11,6 @@ mod impls;
 mod rtps;
 mod utils;
 pub mod transport;
+pub mod spdp_discovered_participant_data;
 
 pub use impls::domain_participant_impl::DomainParticipantImpl;
