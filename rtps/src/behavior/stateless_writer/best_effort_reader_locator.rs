@@ -14,20 +14,19 @@ use super::reader_locator::RTPSReaderLocator;
 pub struct BestEffortReaderLocatorBehavior;
 
 pub enum BestEffortReaderLocatorSendSubmessages<'a> {
-    None,
     Data(submessages::Data<'a>),
     Gap(submessages::Gap),
 }
 
 impl BestEffortReaderLocatorBehavior {
-    pub fn produce_message<'a>(
-        reader_locator: &'a mut impl RTPSReaderLocator<CacheChangeRepresentation = SequenceNumber>,
+    pub fn produce_message<'a, 'b>(
+        reader_locator: &'b mut impl RTPSReaderLocator<CacheChangeRepresentation = SequenceNumber>,
         writer: &'a impl RTPSWriter<
             HistoryCacheType = impl RTPSHistoryCache<
                 CacheChangeType = impl RTPSCacheChange<Data = impl AsRef<SerializedData> + 'a> + 'a,
             > + 'a,
         >,
-    ) -> BestEffortReaderLocatorSendSubmessages<'a> {
+    ) -> Option<BestEffortReaderLocatorSendSubmessages<'a>> {
         if reader_locator
             .unsent_changes(writer)
             .into_iter()
@@ -36,48 +35,47 @@ impl BestEffortReaderLocatorBehavior {
         {
             Self::pushing_state(reader_locator, writer)
         } else {
-            BestEffortReaderLocatorSendSubmessages::None
+            None
         }
     }
 
-    fn pushing_state<'a>(
-        reader_locator: &'a mut impl RTPSReaderLocator<CacheChangeRepresentation = SequenceNumber>,
+    fn pushing_state<'a, 'b>(
+        reader_locator: &'b mut impl RTPSReaderLocator<CacheChangeRepresentation = SequenceNumber>,
         writer: &'a impl RTPSWriter<
             HistoryCacheType = impl RTPSHistoryCache<
                 CacheChangeType = impl RTPSCacheChange<Data = impl AsRef<SerializedData> + 'a> + 'a,
             > + 'a,
         >,
-    ) -> BestEffortReaderLocatorSendSubmessages<'a> {
+    ) -> Option<BestEffortReaderLocatorSendSubmessages<'a>> {
         // RL::can_send() is always true when this function is called
         // so we don't bother making an if here
         Self::transition_t4(reader_locator, writer)
     }
 
-    fn transition_t4<'a>(
-        reader_locator: &'a mut impl RTPSReaderLocator<CacheChangeRepresentation = SequenceNumber>,
+    fn transition_t4<'a, 'b>(
+        reader_locator: &'b mut impl RTPSReaderLocator<CacheChangeRepresentation = SequenceNumber>,
         writer: &'a impl RTPSWriter<
             HistoryCacheType = impl RTPSHistoryCache<
                 CacheChangeType = impl RTPSCacheChange<Data = impl AsRef<SerializedData> + 'a> + 'a,
             > + 'a,
         >,
-    ) -> BestEffortReaderLocatorSendSubmessages<'a> {
+    ) -> Option<BestEffortReaderLocatorSendSubmessages<'a>> {
         if let Some(next_unsent_seq_num) = reader_locator.next_unsent_change(writer) {
             if let Some(cache_change) = writer.writer_cache().get_change(next_unsent_seq_num) {
-                BestEffortReaderLocatorSendSubmessages::Data(data_from_cache_change(
-                    &*cache_change,
-                    ENTITYID_UNKNOWN,
+                Some(BestEffortReaderLocatorSendSubmessages::Data(
+                    data_from_cache_change(&*cache_change, ENTITYID_UNKNOWN),
                 ))
             } else {
-                BestEffortReaderLocatorSendSubmessages::Gap(Gap {
+                Some(BestEffortReaderLocatorSendSubmessages::Gap(Gap {
                     endianness_flag: false,
                     reader_id: ENTITYID_UNKNOWN,
                     writer_id: writer.guid().entity_id(),
                     gap_start: next_unsent_seq_num,
                     gap_list: SequenceNumberSet::new(next_unsent_seq_num, [0; 8]),
-                })
+                }))
             }
         } else {
-            BestEffortReaderLocatorSendSubmessages::None
+            None
         }
     }
 }

@@ -57,6 +57,10 @@ impl<T: RTPSWriter, R: RTPSReaderLocator> RTPSStatelessWriter<T> for StatelessWr
 #[cfg(test)]
 mod tests {
     use rust_rtps::{
+        behavior::stateless_writer::{
+            BestEffortReaderLocatorBehavior, BestEffortReaderLocatorSendSubmessages,
+        },
+        messages::RtpsSubmessage,
         structure::{RTPSCacheChange, RTPSEndpoint, RTPSEntity, RTPSHistoryCache},
         types::SequenceNumber,
     };
@@ -66,7 +70,7 @@ mod tests {
     struct MockCacheChange(SequenceNumber);
 
     impl RTPSCacheChange for MockCacheChange {
-        type Data = ();
+        type Data = Vec<u8>;
         type InstanceHandle = ();
 
         fn new(
@@ -228,13 +232,13 @@ mod tests {
 
     struct MockReaderLocator {
         locator: Locator,
-        value: u8,
+        value: SequenceNumber,
     }
 
     impl RTPSReaderLocator for MockReaderLocator {
-        type CacheChangeRepresentation = u8;
+        type CacheChangeRepresentation = SequenceNumber;
 
-        type CacheChangeRepresentationList = Vec<u8>;
+        type CacheChangeRepresentationList = Vec<Self::CacheChangeRepresentation>;
 
         fn locator(&self) -> Locator {
             self.locator
@@ -353,5 +357,36 @@ mod tests {
                 .unwrap(),
             2
         );
+    }
+
+    #[test]
+    fn reader_locator_behavior() {
+        let writer = MockWriter;
+        let mut stateless_writer: StatelessWriter<_, MockReaderLocator> =
+            StatelessWriter::new(writer);
+
+        let locator1 = Locator::new(0, 100, [1; 16]);
+        let locator2 = Locator::new(0, 200, [2; 16]);
+
+        stateless_writer.reader_locator_add(locator1);
+        stateless_writer.reader_locator_add(locator2);
+
+        let mut submessages = Vec::new();
+
+        for reader_locator in &mut stateless_writer.reader_locators {
+            while let Some(message) = BestEffortReaderLocatorBehavior::produce_message(
+                reader_locator,
+                &stateless_writer.writer,
+            ) {
+                match message {
+                    BestEffortReaderLocatorSendSubmessages::Data(data) => {
+                        submessages.push(RtpsSubmessage::Data(data))
+                    }
+                    BestEffortReaderLocatorSendSubmessages::Gap(gap) => {
+                        submessages.push(RtpsSubmessage::Gap(gap))
+                    }
+                }
+            }
+        }
     }
 }
