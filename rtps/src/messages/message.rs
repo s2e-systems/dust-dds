@@ -5,7 +5,7 @@ use super::{
     RtpsSubmessage,
 };
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub struct Header {
     protocol: ProtocolId,
     version: ProtocolVersion,

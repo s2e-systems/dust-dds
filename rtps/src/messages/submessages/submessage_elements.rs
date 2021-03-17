@@ -1,3 +1,7 @@
+use std::io::Stdout;
+
+use serde::{Serialize, ser::SerializeStruct};
+
 ///
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
 /// 8.3.5 RTPS SubmessageElements
@@ -38,6 +42,18 @@ impl SequenceNumberSet {
         &self.bitmap
     }
 }
+
+impl Serialize for SequenceNumberSet {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer {
+            let mut state = serializer.serialize_struct("SequenceNumberSet", 2)?;
+            state.serialize_field("bitmap_base", &self.bitmap_base)?;
+            // state.serialize_field("bitmap", &self.bitmap)?;
+            state.end()
+    }
+}
+
 
 pub type FragmentNumber = messages::types::FragmentNumber;
 
@@ -106,3 +122,4 @@ pub type SerializedData = [u8];
 pub type SerializedDataFragment = [u8];
 
 // pub type GroupDigest = TBD
+

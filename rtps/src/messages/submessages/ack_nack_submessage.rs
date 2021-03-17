@@ -2,6 +2,8 @@ use super::{SubmessageKind, SubmessageFlag, };
 use super::{Submessage, SubmessageHeader, };
 use super::submessage_elements;
 
+use serde::{Serialize, ser::SerializeStruct};
+
 #[derive(PartialEq, Debug)]
 pub struct AckNack {
     pub endianness_flag: SubmessageFlag,
@@ -29,3 +31,16 @@ impl Submessage for AckNack {
         // self.reader_sn_state.is_valid()
     }
 }
+
+impl Serialize for AckNack {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer {
+        let mut state = serializer.serialize_struct("AckNack", 3)?;
+        //state.serialize_field("Header", self.submessage_header(octets_to_next_header));        
+        state.serialize_field("reader_sn_state", &self.reader_sn_state)?;
+        //state.serialize_field("count", &self.count)?;
+        state.end()
+    }
+}
+
