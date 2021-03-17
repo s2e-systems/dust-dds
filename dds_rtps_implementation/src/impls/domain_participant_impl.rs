@@ -15,19 +15,14 @@ use rust_dds_api::{
     subscription::subscriber_listener::SubscriberListener,
     topic::topic_listener::TopicListener,
 };
-use rust_rtps::{
-    behavior::types::Duration,
-    discovery::{
+use rust_rtps::{behavior::{RTPSStatelessWriter, types::Duration}, discovery::{
         spdp_data::ParticipantProxy,
         spdp_endpoints::SPDPbuiltinParticipantWriter,
         types::{BuiltinEndpointQos, BuiltinEndpointSet},
-    },
-    structure::{RTPSEntity, RTPSParticipant},
-    types::{
+    }, structure::{RTPSEntity, RTPSParticipant}, types::{
         constants::{ENTITYID_PARTICIPANT, PROTOCOL_VERSION_2_4, VENDOR_ID},
         GuidPrefix, Locator, ProtocolVersion, VendorId, GUID,
-    },
-};
+    }};
 
 use crate::{spdp_discovered_participant_data::SPDPdiscoveredParticipantData, transport::Transport, utils::message_sender::RtpsMessageSender};
 
@@ -51,9 +46,9 @@ struct RtpsBuiltinParticipantEntities {
 }
 
 impl RtpsBuiltinParticipantEntities {
-    pub fn send_data(&mut self, participant_guid_prefix: GuidPrefix) {
+    pub fn send_data(&self, participant_guid_prefix: GuidPrefix) {
         let transport = &self.transport;
-        let publisher = &mut self.publisher;
+        let publisher = &self.publisher;
         for writer in publisher.into_iter(){
              let mut writer_lock = writer.lock().unwrap();
              let destined_messages = writer_lock.produce_messages();
@@ -62,6 +57,7 @@ impl RtpsBuiltinParticipantEntities {
                 transport.as_ref(),
                 destined_messages,
             );
+            writer_lock.unsent_changes_reset();
         }
     }  
 }
@@ -407,11 +403,15 @@ impl DomainParticipantImpl {
         let enabled = self.enabled.clone();
         let mut thread_list = self.thread_list.borrow_mut();
         self.enabled.store(true, atomic::Ordering::Release);
-
-        self.enabled_function.call_once(|| {
+        let builtin_entities = self.builtin_entities.clone();
+        let participant_guid_prefix = self.guid_prefix;
+        self.enabled_function.call_once( || {            
             thread_list.push(std::thread::spawn(move || {
                 while enabled.load(atomic::Ordering::Acquire) {
                     Self::send();
+
+                    builtin_entities.send_data(participant_guid_prefix);
+
                     std::thread::sleep(std::time::Duration::from_secs(1));
                 }
             }));
@@ -420,7 +420,7 @@ impl DomainParticipantImpl {
     }
 
     fn send() {
-
+ 
         // let writer = Writer::new();
         // let spdp_announcer = StatelessWriter::new(writer);
         // builtin_entities.send_data(guid_prefix);
@@ -554,12 +554,11 @@ mod tests {
     }
 
     impl Transport for MockTransport {
-        fn write(
-            &self,
-            _message: rust_rtps::messages::RtpsMessage,
+        fn write<'a>(
+            &'a self,
+            _message: rust_rtps::messages::RtpsMessage<'a>,
             _destination_locator: &Locator,
         ) {
-            todo!()
         }
 
         fn read<'a>(
@@ -571,11 +570,11 @@ mod tests {
         }
 
         fn unicast_locator_list(&self) -> &Vec<Locator> {
-            todo!()
+            &self.unicast_locator_list
         }
 
         fn multicast_locator_list(&self) -> &Vec<Locator> {
-            todo!()
+            &self.multicast_locator_list
         }
     }
 
@@ -958,6 +957,9 @@ mod tests {
 
         participant.enable().expect("Failed to enable");
         assert_eq!(participant.thread_list.borrow().len(), 1);
+
+        
+
     }
 
     // #[test]
