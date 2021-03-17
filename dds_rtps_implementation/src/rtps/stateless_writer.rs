@@ -1,13 +1,51 @@
 use std::ops::{Deref, DerefMut};
 
-use rust_rtps::{
-    behavior::{stateless_writer::RTPSReaderLocator, RTPSStatelessWriter, RTPSWriter},
-    types::Locator,
-};
+use rust_rtps::{behavior::{RTPSStatelessWriter, RTPSWriter, stateless_writer::{BestEffortReaderLocatorBehavior, BestEffortReaderLocatorSendSubmessages, RTPSReaderLocator}}, messages::RtpsSubmessage, structure::{RTPSCacheChange, RTPSHistoryCache}, types::{Locator, SequenceNumber}};
+
+use crate::utils::endpoint_traits::DestinedMessages;
 
 pub struct StatelessWriter<T: RTPSWriter, R: RTPSReaderLocator> {
     writer: T,
     reader_locators: Vec<R>,
+}
+
+impl<T, R> StatelessWriter<T, R> 
+    where T: RTPSWriter, 
+    <<<T as RTPSWriter>::HistoryCacheType as RTPSHistoryCache>::CacheChangeType as RTPSCacheChange>::Data: AsRef<[u8]>,
+    R: RTPSReaderLocator<CacheChangeRepresentation = SequenceNumber>, {
+    pub fn produce_messages(&mut self) -> Vec<DestinedMessages> {
+        let mut destined_submessages = Vec::new();
+
+        for reader_locator in &mut self.reader_locators {
+
+            let mut submessages = Vec::new();
+            match &self.writer.reliability_level() {
+                rust_rtps::types::ReliabilityKind::BestEffort => {
+                    while let Some(submessage) = BestEffortReaderLocatorBehavior::produce_message(
+                        reader_locator,
+                        &self.writer,
+                    ) {
+                        match submessage {
+                            BestEffortReaderLocatorSendSubmessages::Data(data) => {
+                                submessages.push(RtpsSubmessage::Data(data))
+                            }
+                            BestEffortReaderLocatorSendSubmessages::Gap(gap) => {
+                                submessages.push(RtpsSubmessage::Gap(gap))
+                            }
+                        }     
+                                
+                    };
+                }
+                rust_rtps::types::ReliabilityKind::Reliable => {
+                   todo!()
+                }
+            }
+            
+            destined_submessages.push(DestinedMessages::SingleDestination{locator: reader_locator.locator(), messages: submessages});
+        };
+        destined_submessages
+    }
+
 }
 
 impl<T: RTPSWriter, R: RTPSReaderLocator> Deref for StatelessWriter<T, R> {

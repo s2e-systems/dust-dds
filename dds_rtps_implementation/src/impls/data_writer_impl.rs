@@ -1,3 +1,5 @@
+use std::ops::{Deref, DerefMut};
+
 use rust_dds_api::{
     dcps_psm::{InstanceHandle, Time},
     dds_type::DDSType,
@@ -45,5 +47,19 @@ impl DataWriterImpl {
         self.writer.writer_cache_mut().add_change(change);
 
         Ok(())
+    }
+}
+
+impl Deref for DataWriterImpl {
+    type Target = StatelessWriter<Writer<HistoryCache<CacheChange>>, ReaderLocator>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.writer
+    }
+}
+
+impl DerefMut for DataWriterImpl {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.writer
     }
 }

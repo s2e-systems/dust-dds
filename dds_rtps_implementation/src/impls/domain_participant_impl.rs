@@ -29,9 +29,7 @@ use rust_rtps::{
     },
 };
 
-use crate::{
-    spdp_discovered_participant_data::SPDPdiscoveredParticipantData, transport::Transport,
-};
+use crate::{spdp_discovered_participant_data::SPDPdiscoveredParticipantData, transport::Transport, utils::message_sender::RtpsMessageSender};
 
 use super::{
     data_writer_impl::DataWriterImpl, publisher_impl::PublisherImpl,
@@ -50,6 +48,22 @@ struct RtpsBuiltinParticipantEntities {
     publisher: PublisherImpl,
     subscriber: SubscriberImpl,
     transport: Box<dyn Transport>,
+}
+
+impl RtpsBuiltinParticipantEntities {
+    pub fn send_data(&mut self, participant_guid_prefix: GuidPrefix) {
+        let transport = &self.transport;
+        let publisher = &mut self.publisher;
+        for writer in publisher.into_iter(){
+             let mut writer_lock = writer.lock().unwrap();
+             let destined_messages = writer_lock.produce_messages();
+             RtpsMessageSender::send_cache_change_messages(
+                 participant_guid_prefix,
+                transport.as_ref(),
+                destined_messages,
+            );
+        }
+    }  
 }
 
 struct RtpsParticipantEntities {
