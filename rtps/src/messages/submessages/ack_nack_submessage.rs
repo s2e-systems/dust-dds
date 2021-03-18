@@ -36,7 +36,7 @@ impl Submessage for AckNack {
 }
 
 impl Serialize for AckNack {
-    fn serialize(&self, buf: &mut [u8], protocol_version: ProtocolVersion) -> Result<usize, ()> {
+    fn serialize(&self, buf: &mut [u8], protocol_version: ProtocolVersion) -> Result<usize, std::io::Error> {
         SubmessageKind::AckNack.serialize(&mut [buf[0]], protocol_version)?;
 
 

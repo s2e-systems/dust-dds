@@ -34,7 +34,7 @@ impl Serialize for [SubmessageFlag; 8] {
         &self,
         buf: &mut [u8],
         _protocol_version: crate::types::ProtocolVersion,
-    ) -> Result<usize, ()> {
+    ) -> Result<usize, std::io::Error> {
         let mut flags = 0u8;
         for i in 0..8 {
             if self[i] {
@@ -68,7 +68,7 @@ impl Serialize for SubmessageKind {
         &self,
         buf: &mut [u8],
         _protocol_version: crate::types::ProtocolVersion,
-    ) -> Result<usize, ()> {
+    ) -> Result<usize, std::io::Error> {
         let value = match self {
             SubmessageKind::Pad => 0x01,
             SubmessageKind::AckNack => 0x06,

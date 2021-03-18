@@ -52,22 +52,6 @@ impl SubmessageHeader {
         self.submessage_length
     }
 }
-
-impl Serialize for SubmessageHeader {
-    fn serialize(&self, buf: &mut [u8], protocol_version: ProtocolVersion) -> Result<usize, ()> {
-        let mut size = 0;
-        size += self
-            .submessage_id
-            .serialize(&mut [buf[0]], protocol_version)?;
-        size += self.flags.serialize(&mut [buf[1]], protocol_version)?;
-        size += self
-            .submessage_length
-            .serialize(&mut buf[2..4], protocol_version)?;
-
-        Ok(size)
-    }
-}
-
 /// 8.3.7 RTPS Submessages
 /// The RTPS protocol version 2.4 defines several kinds of Submessages.
 /// They are categorized into two groups: Entity- Submessages and Interpreter-Submessages.
@@ -118,7 +102,7 @@ pub trait Submessage {
 }
 
 pub trait Serialize {
-    fn serialize(&self, buf: &mut [u8], protocol_version: ProtocolVersion) -> Result<usize, ()>;
+    fn serialize(&self, buf: &mut [u8], protocol_version: ProtocolVersion) -> Result<usize, std::io::Error>;
 }
 
 pub trait Deserialize<'a> {
