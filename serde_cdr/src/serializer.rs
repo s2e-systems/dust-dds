@@ -7,8 +7,11 @@ use serde::{
     Serialize, Serializer,
 };
 use std::io::Write;
+
+
 struct RtpsSerializer<W: Write> {
     writer: W,
+    endianness:
 }
 
 impl<'a, W: Write> SerializeSeq for &'a mut RtpsSerializer<W> {
@@ -177,7 +180,7 @@ impl<'a, W: Write> Serializer for &'a mut RtpsSerializer<W> {
     }
 
     fn serialize_u8(self, v: u8) -> Result<Self::Ok, Self::Error> {
-        todo!()
+        Ok(self.writer.write_all(&[v])?)
     }
 
     fn serialize_u16(self, v: u16) -> Result<Self::Ok, Self::Error> {
@@ -318,10 +321,29 @@ impl<'a, W: Write> Serializer for &'a mut RtpsSerializer<W> {
 mod tests {
     use super::*;
 
+    impl Default for RtpsSerializer<Vec<u8>> {
+        fn default() -> Self {
+            Self {
+                writer: Vec::<u8>::new(),
+            }
+        }
+    }
+
     #[test]
     fn serialize_bool() {
-        let mut serializer = RtpsSerializer { writer: Vec::new() };
+        let mut serializer = RtpsSerializer::default();
         serializer.serialize_bool(true).unwrap();
         assert_eq!(serializer.writer, vec![1]);
+
+        let mut serializer = RtpsSerializer::default();
+        serializer.serialize_bool(false).unwrap();
+        assert_eq!(serializer.writer, vec![0]);
+    }
+
+    #[test]
+    fn serialize_u8() {
+        let mut serializer = RtpsSerializer::default();
+        serializer.serialize_u8(4).unwrap();
+        assert_eq!(serializer.writer, vec![4]);
     }
 }
