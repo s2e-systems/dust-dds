@@ -46,7 +46,7 @@ impl Serialize for SequenceNumberSet {
     where
         S: serde::Serializer,
     {
-        let mut state = serializer.serialize_struct("SequenceNumberSet", 2)?;
+        let state = serializer.serialize_struct("SequenceNumberSet", 2)?;
         // state.serialize_field("bitmap_base", &self.bitmap_base)?;
         // state.serialize_field("bitmap", &self.bitmap)?;
         state.end()

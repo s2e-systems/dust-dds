@@ -375,4 +375,35 @@ mod tests {
             std::i64::MIN
         );
     }
+
+    #[test]
+    fn sequence_number_cmp() {
+        assert!(SequenceNumber::from(10) < SequenceNumber::from(11));
+        assert!(SequenceNumber::from(10) > SequenceNumber::from(-11));
+        assert!(SequenceNumber::from(10) == SequenceNumber::from(10));
+    }
+
+    #[test]
+    fn sequence_number_cmp_i64() {
+        assert!(SequenceNumber::from(10) < 11);
+        assert!(SequenceNumber::from(10) > -11);
+        assert!(SequenceNumber::from(10) == 10);
+    }
+
+    #[test]
+    fn sequence_number_add_i64() {
+        assert_eq!(SequenceNumber::from(10) + 1, SequenceNumber::from(11));
+    }
+
+    #[test]
+    fn sequence_number_sub_i64() {
+        assert_eq!(SequenceNumber::from(-10) - 1, SequenceNumber::from(-11));
+    }
+
+    #[test]
+    fn sequence_number_add_assign_i64() {
+        let mut sn = SequenceNumber::from(10);
+        sn += 1;
+        assert_eq!(sn, 11);
+    }
 }
