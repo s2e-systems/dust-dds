@@ -1,4 +1,4 @@
-use std::ops::{Add, AddAssign, Sub};
+use core::ops::{Add, AddAssign, Sub};
 
 ///
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
@@ -194,13 +194,13 @@ impl From<i64> for SequenceNumber {
 }
 
 impl PartialOrd for SequenceNumber {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+    fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
         i64::from(*self).partial_cmp(&i64::from(*other))
     }
 }
 
 impl Ord for SequenceNumber {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+    fn cmp(&self, other: &Self) -> core::cmp::Ordering {
         i64::from(*self).cmp(&i64::from(*other))
     }
 }
@@ -212,7 +212,7 @@ impl PartialEq<i64> for SequenceNumber {
 }
 
 impl PartialOrd<i64> for SequenceNumber {
-    fn partial_cmp(&self, other: &i64) -> Option<std::cmp::Ordering> {
+    fn partial_cmp(&self, other: &i64) -> Option<core::cmp::Ordering> {
         i64::from(*self).partial_cmp(other)
     }
 }
@@ -318,7 +318,7 @@ mod tests {
             SequenceNumber::from(-8i64),
             SequenceNumber {
                 high: -1,
-                low: std::u32::MAX - 7
+                low: core::u32::MAX - 7
             }
         );
         assert_eq!(
@@ -330,17 +330,17 @@ mod tests {
             SequenceNumber { high: -8, low: 0 }
         );
         assert_eq!(
-            SequenceNumber::from(std::i64::MAX),
+            SequenceNumber::from(core::i64::MAX),
             SequenceNumber {
-                high: std::i32::MAX,
-                low: std::u32::MAX
+                high: core::i32::MAX,
+                low: core::u32::MAX
             }
         );
         assert_eq!(
-            SequenceNumber::from(std::i64::MIN),
+            SequenceNumber::from(core::i64::MIN),
             SequenceNumber {
-                high: std::i32::MIN,
-                low: std::u32::MIN
+                high: core::i32::MIN,
+                low: core::u32::MIN
             }
         );
     }
@@ -351,7 +351,7 @@ mod tests {
         assert_eq!(
             i64::from(SequenceNumber {
                 high: -1,
-                low: std::u32::MAX - 7
+                low: core::u32::MAX - 7
             }),
             -8i64
         );
@@ -362,17 +362,17 @@ mod tests {
         assert_eq!(i64::from(SequenceNumber { high: -8, low: 0 }), -34359738368);
         assert_eq!(
             i64::from(SequenceNumber {
-                high: std::i32::MAX,
-                low: std::u32::MAX
+                high: core::i32::MAX,
+                low: core::u32::MAX
             }),
-            std::i64::MAX
+            core::i64::MAX
         );
         assert_eq!(
             i64::from(SequenceNumber {
-                high: std::i32::MIN,
-                low: std::u32::MIN
+                high: core::i32::MIN,
+                low: core::u32::MIN
             }),
-            std::i64::MIN
+            core::i64::MIN
         );
     }
 

@@ -6,7 +6,7 @@ pub mod stateless_writer;
 pub mod types;
 pub mod writer;
 
-use std::convert::TryInto;
+use core::convert::TryInto;
 
 pub use reader::RTPSReader;
 pub use stateful_reader::{RTPSStatefulReader, RTPSWriterProxy};

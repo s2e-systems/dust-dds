@@ -1,5 +1,4 @@
-use core::ops::Deref;
-use std::ops::DerefMut;
+use core::ops::{Deref, DerefMut};
 
 use crate::behavior::RTPSReader;
 
