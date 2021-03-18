@@ -1,7 +1,10 @@
-use serde::{Serialize, Serializer, ser::{SerializeMap, SerializeSeq, SerializeStruct, SerializeStructVariant, SerializeTuple, SerializeTupleStruct, SerializeTupleVariant}};
-
-
-
+use serde::{
+    ser::{
+        SerializeMap, SerializeSeq, SerializeStruct, SerializeStructVariant, SerializeTuple,
+        SerializeTupleStruct, SerializeTupleVariant,
+    },
+    Serialize, Serializer,
+};
 
 struct RtpsSerializer;
 
@@ -11,7 +14,8 @@ impl<'a> SerializeSeq for &'a mut RtpsSerializer {
 
     fn serialize_element<T: ?Sized>(&mut self, value: &T) -> Result<(), Self::Error>
     where
-        T: Serialize {
+        T: Serialize,
+    {
         todo!()
     }
 
@@ -26,7 +30,8 @@ impl<'a> SerializeTuple for &'a mut RtpsSerializer {
 
     fn serialize_element<T: ?Sized>(&mut self, value: &T) -> Result<(), Self::Error>
     where
-        T: Serialize {
+        T: Serialize,
+    {
         todo!()
     }
 
@@ -35,13 +40,14 @@ impl<'a> SerializeTuple for &'a mut RtpsSerializer {
     }
 }
 
-impl<'a> SerializeTupleStruct for  &'a mut RtpsSerializer {
+impl<'a> SerializeTupleStruct for &'a mut RtpsSerializer {
     type Ok = ();
     type Error = serde_json::error::Error;
 
     fn serialize_field<T: ?Sized>(&mut self, value: &T) -> Result<(), Self::Error>
     where
-        T: Serialize {
+        T: Serialize,
+    {
         todo!()
     }
 
@@ -56,7 +62,8 @@ impl<'a> SerializeTupleVariant for &'a mut RtpsSerializer {
 
     fn serialize_field<T: ?Sized>(&mut self, value: &T) -> Result<(), Self::Error>
     where
-        T: Serialize {
+        T: Serialize,
+    {
         todo!()
     }
 
@@ -71,13 +78,15 @@ impl<'a> SerializeMap for &'a mut RtpsSerializer {
 
     fn serialize_key<T: ?Sized>(&mut self, key: &T) -> Result<(), Self::Error>
     where
-        T: Serialize {
+        T: Serialize,
+    {
         todo!()
     }
 
     fn serialize_value<T: ?Sized>(&mut self, value: &T) -> Result<(), Self::Error>
     where
-        T: Serialize {
+        T: Serialize,
+    {
         todo!()
     }
 
@@ -96,7 +105,8 @@ impl<'a> SerializeStruct for &'a mut RtpsSerializer {
         value: &T,
     ) -> Result<(), Self::Error>
     where
-        T: Serialize {
+        T: Serialize,
+    {
         println!("Serializing field: {:?}", key);
         Ok(())
     }
@@ -115,7 +125,8 @@ impl<'a> SerializeStructVariant for &'a mut RtpsSerializer {
         value: &T,
     ) -> Result<(), Self::Error>
     where
-        T: Serialize {
+        T: Serialize,
+    {
         todo!()
     }
 
@@ -123,7 +134,6 @@ impl<'a> SerializeStructVariant for &'a mut RtpsSerializer {
         todo!()
     }
 }
-
 
 impl<'a> Serializer for &'a mut RtpsSerializer {
     type Ok = ();
@@ -137,7 +147,6 @@ impl<'a> Serializer for &'a mut RtpsSerializer {
     type SerializeStruct = Self;
     type SerializeStructVariant = Self;
 
-    
     fn serialize_bool(self, v: bool) -> Result<Self::Ok, Self::Error> {
         todo!()
     }
@@ -201,7 +210,8 @@ impl<'a> Serializer for &'a mut RtpsSerializer {
 
     fn serialize_some<T: ?Sized>(self, value: &T) -> Result<Self::Ok, Self::Error>
     where
-        T: Serialize {
+        T: Serialize,
+    {
         todo!()
     }
 
@@ -228,7 +238,8 @@ impl<'a> Serializer for &'a mut RtpsSerializer {
         value: &T,
     ) -> Result<Self::Ok, Self::Error>
     where
-        T: Serialize {
+        T: Serialize,
+    {
         todo!()
     }
 
@@ -240,7 +251,8 @@ impl<'a> Serializer for &'a mut RtpsSerializer {
         value: &T,
     ) -> Result<Self::Ok, Self::Error>
     where
-        T: Serialize {
+        T: Serialize,
+    {
         todo!()
     }
 
@@ -293,4 +305,3 @@ impl<'a> Serializer for &'a mut RtpsSerializer {
         todo!()
     }
 }
-

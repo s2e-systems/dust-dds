@@ -1,4 +1,5 @@
-use super::{Transport, TransportResult};
+use super::Transport;
+use rust_dds_api::return_type::DDSResult;
 use rust_rtps::{messages::RtpsMessage, types::Locator};
 
 pub struct MemoryTransport {
@@ -9,10 +10,7 @@ pub struct MemoryTransport {
 }
 
 impl MemoryTransport {
-    pub fn new(
-        unicast_locator: Locator,
-        multicast_locator_list: Vec<Locator>,
-    ) -> TransportResult<Self> {
+    pub fn new(unicast_locator: Locator, multicast_locator_list: Vec<Locator>) -> DDSResult<Self> {
         Ok(Self {
             // read: Mutex::new(VecDeque::new()),
             // write: Mutex::new(VecDeque::new()),
@@ -43,7 +41,7 @@ impl MemoryTransport {
 }
 
 impl Transport for MemoryTransport {
-    fn read<'a>(&'a self) -> TransportResult<Option<(RtpsMessage<'a>, Locator)>> {
+    fn read<'a>(&'a self) -> DDSResult<Option<(RtpsMessage<'a>, Locator)>> {
         // match self.read.lock().unwrap().pop_front() {
         //     Some((message, locator)) => Ok(Some((message, locator))),
         //     None => Ok(None),
@@ -59,11 +57,11 @@ impl Transport for MemoryTransport {
         todo!()
     }
 
-    fn unicast_locator_list(&self) -> &Vec<Locator> {
+    fn unicast_locator_list(&self) -> &[Locator] {
         &self.unicast_locator_list
     }
 
-    fn multicast_locator_list(&self) -> &Vec<Locator> {
+    fn multicast_locator_list(&self) -> &[Locator] {
         &self.multicast_locator_list
     }
 }

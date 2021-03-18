@@ -15,16 +15,24 @@ use rust_dds_api::{
     subscription::subscriber_listener::SubscriberListener,
     topic::topic_listener::TopicListener,
 };
-use rust_rtps::{behavior::{RTPSStatelessWriter, types::Duration}, discovery::{
+use rust_rtps::{
+    behavior::{types::Duration, RTPSStatelessWriter},
+    discovery::{
         spdp_data::ParticipantProxy,
         spdp_endpoints::SPDPbuiltinParticipantWriter,
         types::{BuiltinEndpointQos, BuiltinEndpointSet},
-    }, structure::{RTPSEntity, RTPSParticipant}, types::{
+    },
+    structure::{RTPSEntity, RTPSParticipant},
+    types::{
         constants::{ENTITYID_PARTICIPANT, PROTOCOL_VERSION_2_4, VENDOR_ID},
         GuidPrefix, Locator, ProtocolVersion, VendorId, GUID,
-    }};
+    },
+};
 
-use crate::{spdp_discovered_participant_data::SPDPdiscoveredParticipantData, transport::Transport, utils::message_sender::RtpsMessageSender};
+use crate::{
+    spdp_discovered_participant_data::SPDPdiscoveredParticipantData, transport::Transport,
+    utils::message_sender::RtpsMessageSender,
+};
 
 use super::{
     data_writer_impl::DataWriterImpl, publisher_impl::PublisherImpl,
@@ -49,17 +57,17 @@ impl RtpsBuiltinParticipantEntities {
     pub fn send_data(&self, participant_guid_prefix: GuidPrefix) {
         let transport = &self.transport;
         let publisher = &self.publisher;
-        for writer in publisher.into_iter(){
-             let mut writer_lock = writer.lock().unwrap();
-             let destined_messages = writer_lock.produce_messages();
-             RtpsMessageSender::send_cache_change_messages(
-                 participant_guid_prefix,
+        for writer in publisher.into_iter() {
+            let mut writer_lock = writer.lock().unwrap();
+            let destined_messages = writer_lock.produce_messages();
+            RtpsMessageSender::send_cache_change_messages(
+                participant_guid_prefix,
                 transport.as_ref(),
                 destined_messages,
             );
             writer_lock.unsent_changes_reset();
         }
-    }  
+    }
 }
 
 struct RtpsParticipantEntities {
@@ -151,19 +159,19 @@ impl DomainParticipantImpl {
             metatraffic_unicast_locator_list: configuration
                 .metatraffic_transport
                 .unicast_locator_list()
-                .clone(),
+                .into(),
             metatraffic_multicast_locator_list: configuration
                 .metatraffic_transport
                 .multicast_locator_list()
-                .clone(),
+                .into(),
             default_unicast_locator_list: configuration
                 .userdata_transport
                 .unicast_locator_list()
-                .clone(),
+                .into(),
             default_multicast_locator_list: configuration
                 .userdata_transport
                 .multicast_locator_list()
-                .clone(),
+                .into(),
             available_builtin_endpoints: BuiltinEndpointSet::default(),
             manual_liveliness_count: 0,
             builtin_endpoint_qos: BuiltinEndpointQos::default(),
@@ -405,7 +413,7 @@ impl DomainParticipantImpl {
         self.enabled.store(true, atomic::Ordering::Release);
         let builtin_entities = self.builtin_entities.clone();
         let participant_guid_prefix = self.guid_prefix;
-        self.enabled_function.call_once( || {            
+        self.enabled_function.call_once(|| {
             thread_list.push(std::thread::spawn(move || {
                 while enabled.load(atomic::Ordering::Acquire) {
                     Self::send();
@@ -420,7 +428,7 @@ impl DomainParticipantImpl {
     }
 
     fn send() {
- 
+
         // let writer = Writer::new();
         // let spdp_announcer = StatelessWriter::new(writer);
         // builtin_entities.send_data(guid_prefix);
@@ -563,17 +571,15 @@ mod tests {
 
         fn read<'a>(
             &'a self,
-        ) -> crate::transport::TransportResult<
-            Option<(rust_rtps::messages::RtpsMessage<'a>, Locator)>,
-        > {
+        ) -> DDSResult<Option<(rust_rtps::messages::RtpsMessage<'a>, Locator)>> {
             todo!()
         }
 
-        fn unicast_locator_list(&self) -> &Vec<Locator> {
+        fn unicast_locator_list(&self) -> &[Locator] {
             &self.unicast_locator_list
         }
 
-        fn multicast_locator_list(&self) -> &Vec<Locator> {
+        fn multicast_locator_list(&self) -> &[Locator] {
             &self.multicast_locator_list
         }
     }
@@ -957,9 +963,6 @@ mod tests {
 
         participant.enable().expect("Failed to enable");
         assert_eq!(participant.thread_list.borrow().len(), 1);
-
-        
-
     }
 
     // #[test]
