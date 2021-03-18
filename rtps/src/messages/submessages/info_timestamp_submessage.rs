@@ -29,3 +29,12 @@ impl Submessage for InfoTs {
         true
     }
 }
+
+impl serde::Serialize for InfoTs {
+    fn serialize<S>(&self, _serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        todo!()
+    }
+}

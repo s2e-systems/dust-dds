@@ -1,6 +1,6 @@
-use super::{SubmessageKind, SubmessageFlag, };
-use super::{Submessage, SubmessageHeader, };
 use super::submessage_elements;
+use super::{Submessage, SubmessageHeader};
+use super::{SubmessageFlag, SubmessageKind};
 
 #[derive(PartialEq, Debug)]
 pub struct InfoReply {
@@ -14,7 +14,7 @@ impl Submessage for InfoReply {
     fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeader {
         let submessage_id = SubmessageKind::InfoReply;
 
-        const X : SubmessageFlag = false;
+        const X: SubmessageFlag = false;
         let e = self.endianness_flag;
         let m = self.multicast_flag;
         let flags = [e, m, X, X, X, X, X, X];
@@ -24,5 +24,14 @@ impl Submessage for InfoReply {
 
     fn is_valid(&self) -> bool {
         true
+    }
+}
+
+impl serde::Serialize for InfoReply {
+    fn serialize<S>(&self, _serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        todo!()
     }
 }

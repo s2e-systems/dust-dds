@@ -1,6 +1,6 @@
-use super::{SubmessageKind, SubmessageFlag,};
-use super::{Submessage, SubmessageHeader, };
 use super::submessage_elements;
+use super::{Submessage, SubmessageHeader};
+use super::{SubmessageFlag, SubmessageKind};
 
 pub struct DataFrag<'a> {
     pub endianness_flag: SubmessageFlag,
@@ -17,7 +17,6 @@ pub struct DataFrag<'a> {
     pub inline_qos: submessage_elements::ParameterList,
     pub serialized_payload: &'a submessage_elements::SerializedDataFragment,
 }
-
 
 impl<'a> Submessage for DataFrag<'a> {
     fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeader {
@@ -36,10 +35,12 @@ impl<'a> Submessage for DataFrag<'a> {
     fn is_valid(&self) -> bool {
         let serialized_data_size = self.serialized_payload.len();
 
-        if (self.writer_sn < 1 || self.writer_sn == crate::types::constants::SEQUENCE_NUMBER_UNKNOWN) ||
-           (self.fragment_starting_num < 1) ||
-           (self.fragment_size as u32 > self.data_size) ||
-           (serialized_data_size > self.fragments_in_submessage as usize * self.fragment_size as usize)
+        if (self.writer_sn < 1
+            || self.writer_sn == crate::types::constants::SEQUENCE_NUMBER_UNKNOWN)
+            || (self.fragment_starting_num < 1)
+            || (self.fragment_size as u32 > self.data_size)
+            || (serialized_data_size
+                > self.fragments_in_submessage as usize * self.fragment_size as usize)
         {
             // TODO: Check total number of fragments
             // TODO: Check validity of inline_qos
@@ -47,5 +48,14 @@ impl<'a> Submessage for DataFrag<'a> {
         } else {
             false
         }
+    }
+}
+
+impl<'a> serde::Serialize for DataFrag<'a> {
+    fn serialize<S>(&self, _serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        todo!()
     }
 }

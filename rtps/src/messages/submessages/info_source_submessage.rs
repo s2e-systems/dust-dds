@@ -1,6 +1,6 @@
-use super::{SubmessageKind, SubmessageFlag, };
-use super::{Submessage, SubmessageHeader, };
 use super::submessage_elements;
+use super::{Submessage, SubmessageHeader};
+use super::{SubmessageFlag, SubmessageKind};
 
 #[derive(PartialEq, Debug)]
 pub struct InfoSource {
@@ -9,7 +9,6 @@ pub struct InfoSource {
     pub vendor_id: submessage_elements::VendorId,
     pub guid_prefix: submessage_elements::GuidPrefix,
 }
-
 
 impl Submessage for InfoSource {
     fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeader {
@@ -24,5 +23,14 @@ impl Submessage for InfoSource {
 
     fn is_valid(&self) -> bool {
         true
+    }
+}
+
+impl serde::Serialize for InfoSource {
+    fn serialize<S>(&self, _serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        todo!()
     }
 }

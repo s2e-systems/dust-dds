@@ -35,3 +35,12 @@ impl Submessage for Gap {
         // }
     }
 }
+
+impl serde::Serialize for Gap {
+    fn serialize<S>(&self, _serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        todo!()
+    }
+}

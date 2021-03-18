@@ -42,3 +42,12 @@ impl<'a> Submessage for Data<'a> {
         }
     }
 }
+
+impl<'a> serde::Serialize for Data<'a> {
+    fn serialize<S>(&self, _serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        todo!()
+    }
+}

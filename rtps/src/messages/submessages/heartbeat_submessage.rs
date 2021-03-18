@@ -47,3 +47,12 @@ impl Submessage for Heartbeat {
         }
     }
 }
+
+impl serde::Serialize for Heartbeat {
+    fn serialize<S>(&self, _serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        todo!()
+    }
+}

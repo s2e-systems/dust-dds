@@ -56,7 +56,7 @@ impl SubmessageHeader {
 /// Entity Submessages target an RTPS Entity.
 /// Interpreter Submessages modify the RTPS Receiver state and provide context that helps process subsequent Entity Submessages.
 
-pub trait Submessage {
+pub trait Submessage: erased_serde::Serialize {
     fn submessage_header(
         &self,
         octets_to_next_header: u16, /* Transport dependent */

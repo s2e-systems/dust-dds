@@ -1,6 +1,6 @@
-use super::{SubmessageKind, SubmessageFlag, };
-use super::{Submessage, SubmessageHeader, };
 use super::submessage_elements;
+use super::{Submessage, SubmessageHeader};
+use super::{SubmessageFlag, SubmessageKind};
 
 #[derive(PartialEq, Debug)]
 pub struct HeartbeatFrag {
@@ -24,11 +24,19 @@ impl Submessage for HeartbeatFrag {
     }
 
     fn is_valid(&self) -> bool {
-        if self.writer_sn <= 0 ||
-        self.last_fragment_num <= 0 {
+        if self.writer_sn <= 0 || self.last_fragment_num <= 0 {
             false
         } else {
             true
         }
+    }
+}
+
+impl serde::Serialize for HeartbeatFrag {
+    fn serialize<S>(&self, _serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        todo!()
     }
 }

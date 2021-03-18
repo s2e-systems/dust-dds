@@ -33,3 +33,12 @@ impl Submessage for NackFrag {
         // }
     }
 }
+
+impl serde::Serialize for NackFrag {
+    fn serialize<S>(&self, _serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        todo!()
+    }
+}

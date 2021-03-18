@@ -1,6 +1,4 @@
-use crate::types::ProtocolVersion;
-
-use super::submessage_elements::{self};
+use super::submessage_elements;
 use super::{Submessage, SubmessageHeader};
 use super::{SubmessageFlag, SubmessageKind};
 
@@ -29,5 +27,14 @@ impl Submessage for AckNack {
     fn is_valid(&self) -> bool {
         todo!()
         // self.reader_sn_state.is_valid()
+    }
+}
+
+impl serde::Serialize for AckNack {
+    fn serialize<S>(&self, _serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        todo!()
     }
 }
