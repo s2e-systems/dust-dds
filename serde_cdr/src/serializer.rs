@@ -1,3 +1,4 @@
+use crate::error::Error;
 use serde::{
     ser::{
         SerializeMap, SerializeSeq, SerializeStruct, SerializeStructVariant, SerializeTuple,
@@ -5,12 +6,14 @@ use serde::{
     },
     Serialize, Serializer,
 };
+use std::io::Write;
+struct RtpsSerializer<W: Write> {
+    writer: W,
+}
 
-struct RtpsSerializer;
-
-impl<'a> SerializeSeq for &'a mut RtpsSerializer {
+impl<'a, W: Write> SerializeSeq for &'a mut RtpsSerializer<W> {
     type Ok = ();
-    type Error = serde_json::error::Error;
+    type Error = Error;
 
     fn serialize_element<T: ?Sized>(&mut self, value: &T) -> Result<(), Self::Error>
     where
@@ -24,9 +27,9 @@ impl<'a> SerializeSeq for &'a mut RtpsSerializer {
     }
 }
 
-impl<'a> SerializeTuple for &'a mut RtpsSerializer {
+impl<'a, W: Write> SerializeTuple for &'a mut RtpsSerializer<W> {
     type Ok = ();
-    type Error = serde_json::error::Error;
+    type Error = Error;
 
     fn serialize_element<T: ?Sized>(&mut self, value: &T) -> Result<(), Self::Error>
     where
@@ -40,9 +43,9 @@ impl<'a> SerializeTuple for &'a mut RtpsSerializer {
     }
 }
 
-impl<'a> SerializeTupleStruct for &'a mut RtpsSerializer {
+impl<'a, W: Write> SerializeTupleStruct for &'a mut RtpsSerializer<W> {
     type Ok = ();
-    type Error = serde_json::error::Error;
+    type Error = Error;
 
     fn serialize_field<T: ?Sized>(&mut self, value: &T) -> Result<(), Self::Error>
     where
@@ -56,9 +59,9 @@ impl<'a> SerializeTupleStruct for &'a mut RtpsSerializer {
     }
 }
 
-impl<'a> SerializeTupleVariant for &'a mut RtpsSerializer {
+impl<'a, W: Write> SerializeTupleVariant for &'a mut RtpsSerializer<W> {
     type Ok = ();
-    type Error = serde_json::error::Error;
+    type Error = Error;
 
     fn serialize_field<T: ?Sized>(&mut self, value: &T) -> Result<(), Self::Error>
     where
@@ -72,9 +75,9 @@ impl<'a> SerializeTupleVariant for &'a mut RtpsSerializer {
     }
 }
 
-impl<'a> SerializeMap for &'a mut RtpsSerializer {
+impl<'a, W: Write> SerializeMap for &'a mut RtpsSerializer<W> {
     type Ok = ();
-    type Error = serde_json::error::Error;
+    type Error = Error;
 
     fn serialize_key<T: ?Sized>(&mut self, key: &T) -> Result<(), Self::Error>
     where
@@ -95,9 +98,9 @@ impl<'a> SerializeMap for &'a mut RtpsSerializer {
     }
 }
 
-impl<'a> SerializeStruct for &'a mut RtpsSerializer {
+impl<'a, W: Write> SerializeStruct for &'a mut RtpsSerializer<W> {
     type Ok = ();
-    type Error = serde_json::error::Error;
+    type Error = Error;
 
     fn serialize_field<T: ?Sized>(
         &mut self,
@@ -115,9 +118,9 @@ impl<'a> SerializeStruct for &'a mut RtpsSerializer {
         Ok(())
     }
 }
-impl<'a> SerializeStructVariant for &'a mut RtpsSerializer {
+impl<'a, W: Write> SerializeStructVariant for &'a mut RtpsSerializer<W> {
     type Ok = ();
-    type Error = serde_json::error::Error;
+    type Error = Error;
 
     fn serialize_field<T: ?Sized>(
         &mut self,
@@ -135,9 +138,9 @@ impl<'a> SerializeStructVariant for &'a mut RtpsSerializer {
     }
 }
 
-impl<'a> Serializer for &'a mut RtpsSerializer {
+impl<'a, W: Write> Serializer for &'a mut RtpsSerializer<W> {
     type Ok = ();
-    type Error = serde_json::error::Error;
+    type Error = Error;
 
     type SerializeSeq = Self;
     type SerializeTuple = Self;
@@ -148,7 +151,12 @@ impl<'a> Serializer for &'a mut RtpsSerializer {
     type SerializeStructVariant = Self;
 
     fn serialize_bool(self, v: bool) -> Result<Self::Ok, Self::Error> {
-        todo!()
+        let value = match v {
+            true => 1,
+            false => 0,
+        };
+        self.writer.write_all(&[value])?;
+        Ok(())
     }
 
     fn serialize_i8(self, v: i8) -> Result<Self::Ok, Self::Error> {
@@ -303,5 +311,17 @@ impl<'a> Serializer for &'a mut RtpsSerializer {
         len: usize,
     ) -> Result<Self::SerializeStructVariant, Self::Error> {
         todo!()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn serialize_bool() {
+        let mut serializer = RtpsSerializer { writer: Vec::new() };
+        serializer.serialize_bool(true).unwrap();
+        assert_eq!(serializer.writer, vec![1]);
     }
 }
