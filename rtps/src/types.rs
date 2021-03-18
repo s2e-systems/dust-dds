@@ -179,8 +179,8 @@ impl SequenceNumber {
 }
 
 impl From<SequenceNumber> for i64 {
-    fn from(_: SequenceNumber) -> Self {
-        todo!()
+    fn from(value: SequenceNumber) -> Self {
+        ((value.high as i64) << 32) + value.low as i64
     }
 }
 
@@ -188,32 +188,32 @@ impl From<i64> for SequenceNumber {
     fn from(value: i64) -> Self {
         Self {
             high: (value >> 32) as i32,
-            low: (value & 2 ^ 32) as u32,
+            low: value as u32,
         }
     }
 }
 
 impl PartialOrd for SequenceNumber {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        todo!()
+        i64::from(*self).partial_cmp(&i64::from(*other))
     }
 }
 
 impl Ord for SequenceNumber {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        todo!()
+        i64::from(*self).cmp(&i64::from(*other))
     }
 }
 
 impl PartialEq<i64> for SequenceNumber {
     fn eq(&self, other: &i64) -> bool {
-        todo!()
+        i64::from(*self).eq(other)
     }
 }
 
 impl PartialOrd<i64> for SequenceNumber {
     fn partial_cmp(&self, other: &i64) -> Option<std::cmp::Ordering> {
-        todo!()
+        i64::from(*self).partial_cmp(other)
     }
 }
 
@@ -221,13 +221,13 @@ impl Add<i64> for SequenceNumber {
     type Output = SequenceNumber;
 
     fn add(self, rhs: i64) -> Self::Output {
-        todo!()
+        (i64::from(self) + rhs).into()
     }
 }
 
 impl AddAssign<i64> for SequenceNumber {
     fn add_assign(&mut self, rhs: i64) {
-        todo!()
+        *self = (i64::from(*self) + rhs).into();
     }
 }
 
@@ -235,7 +235,7 @@ impl Sub<i64> for SequenceNumber {
     type Output = SequenceNumber;
 
     fn sub(self, rhs: i64) -> Self::Output {
-        todo!()
+        (i64::from(self) - rhs).into()
     }
 }
 
@@ -310,7 +310,69 @@ mod tests {
 
     #[test]
     fn sequence_number_from_i64() {
-        let sn: SequenceNumber = 1234.into();
-        assert_eq!(sn, SequenceNumber { high: 0, low: 1234 });
+        assert_eq!(
+            SequenceNumber::from(8i64),
+            SequenceNumber { high: 0, low: 8 }
+        );
+        assert_eq!(
+            SequenceNumber::from(-8i64),
+            SequenceNumber {
+                high: -1,
+                low: std::u32::MAX - 7
+            }
+        );
+        assert_eq!(
+            SequenceNumber::from(34359738368i64),
+            SequenceNumber { high: 8, low: 0 }
+        );
+        assert_eq!(
+            SequenceNumber::from(-34359738368),
+            SequenceNumber { high: -8, low: 0 }
+        );
+        assert_eq!(
+            SequenceNumber::from(std::i64::MAX),
+            SequenceNumber {
+                high: std::i32::MAX,
+                low: std::u32::MAX
+            }
+        );
+        assert_eq!(
+            SequenceNumber::from(std::i64::MIN),
+            SequenceNumber {
+                high: std::i32::MIN,
+                low: std::u32::MIN
+            }
+        );
+    }
+
+    #[test]
+    fn i64_from_sequence_number() {
+        assert_eq!(i64::from(SequenceNumber { high: 0, low: 8 }), 8i64);
+        assert_eq!(
+            i64::from(SequenceNumber {
+                high: -1,
+                low: std::u32::MAX - 7
+            }),
+            -8i64
+        );
+        assert_eq!(
+            i64::from(SequenceNumber { high: 8, low: 0 }),
+            34359738368i64
+        );
+        assert_eq!(i64::from(SequenceNumber { high: -8, low: 0 }), -34359738368);
+        assert_eq!(
+            i64::from(SequenceNumber {
+                high: std::i32::MAX,
+                low: std::u32::MAX
+            }),
+            std::i64::MAX
+        );
+        assert_eq!(
+            i64::from(SequenceNumber {
+                high: std::i32::MIN,
+                low: std::u32::MIN
+            }),
+            std::i64::MIN
+        );
     }
 }

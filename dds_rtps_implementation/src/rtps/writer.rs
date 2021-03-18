@@ -1,5 +1,3 @@
-use std::sync::atomic;
-
 use rust_rtps::{
     behavior::{types::Duration, RTPSWriter},
     messages::submessages::submessage_elements::ParameterList,
