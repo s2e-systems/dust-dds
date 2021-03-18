@@ -42,7 +42,7 @@ use super::{
 pub struct DomainParticipantImplConfiguration {
     pub userdata_transport: Box<dyn Transport>,
     pub metatraffic_transport: Box<dyn Transport>,
-    pub domain_tag: String,
+    pub domain_tag: &'static str,
     pub lease_duration: Duration,
     pub spdp_locator_list: Vec<Locator>,
 }
@@ -583,7 +583,7 @@ mod tests {
         let configuration = DomainParticipantImplConfiguration {
             userdata_transport: Box::new(MockTransport::default()),
             metatraffic_transport: Box::new(MockTransport::default()),
-            domain_tag: "".to_string(),
+            domain_tag: "",
             lease_duration: Duration {
                 seconds: 30,
                 fraction: 0,
@@ -617,7 +617,7 @@ mod tests {
         let configuration = DomainParticipantImplConfiguration {
             userdata_transport: Box::new(MockTransport::default()),
             metatraffic_transport: Box::new(MockTransport::default()),
-            domain_tag: "".to_string(),
+            domain_tag: "",
             lease_duration: Duration {
                 seconds: 30,
                 fraction: 0,
@@ -652,7 +652,7 @@ mod tests {
         let configuration = DomainParticipantImplConfiguration {
             userdata_transport: Box::new(MockTransport::default()),
             metatraffic_transport: Box::new(MockTransport::default()),
-            domain_tag: "".to_string(),
+            domain_tag: "",
             lease_duration: Duration {
                 seconds: 30,
                 fraction: 0,
@@ -685,7 +685,7 @@ mod tests {
         let configuration = DomainParticipantImplConfiguration {
             userdata_transport: Box::new(MockTransport::default()),
             metatraffic_transport: Box::new(MockTransport::default()),
-            domain_tag: "".to_string(),
+            domain_tag: "",
             lease_duration: Duration {
                 seconds: 30,
                 fraction: 0,
@@ -722,7 +722,7 @@ mod tests {
         let configuration = DomainParticipantImplConfiguration {
             userdata_transport: Box::new(MockTransport::default()),
             metatraffic_transport: Box::new(MockTransport::default()),
-            domain_tag: "".to_string(),
+            domain_tag: "",
             lease_duration: Duration {
                 seconds: 30,
                 fraction: 0,
@@ -747,7 +747,7 @@ mod tests {
         let configuration = DomainParticipantImplConfiguration {
             userdata_transport: Box::new(MockTransport::default()),
             metatraffic_transport: Box::new(MockTransport::default()),
-            domain_tag: "".to_string(),
+            domain_tag: "",
             lease_duration: Duration {
                 seconds: 30,
                 fraction: 0,
@@ -776,7 +776,7 @@ mod tests {
         let configuration = DomainParticipantImplConfiguration {
             userdata_transport: Box::new(MockTransport::default()),
             metatraffic_transport: Box::new(MockTransport::default()),
-            domain_tag: "".to_string(),
+            domain_tag: "",
             lease_duration: Duration {
                 seconds: 30,
                 fraction: 0,
@@ -801,7 +801,7 @@ mod tests {
         let configuration = DomainParticipantImplConfiguration {
             userdata_transport: Box::new(MockTransport::default()),
             metatraffic_transport: Box::new(MockTransport::default()),
-            domain_tag: "".to_string(),
+            domain_tag: "",
             lease_duration: Duration {
                 seconds: 30,
                 fraction: 0,
@@ -826,7 +826,7 @@ mod tests {
         let configuration = DomainParticipantImplConfiguration {
             userdata_transport: Box::new(MockTransport::default()),
             metatraffic_transport: Box::new(MockTransport::default()),
-            domain_tag: "".to_string(),
+            domain_tag: "",
             lease_duration: Duration {
                 seconds: 30,
                 fraction: 0,
@@ -851,7 +851,7 @@ mod tests {
         let configuration = DomainParticipantImplConfiguration {
             userdata_transport: Box::new(MockTransport::default()),
             metatraffic_transport: Box::new(MockTransport::default()),
-            domain_tag: "".to_string(),
+            domain_tag: "",
             lease_duration: Duration {
                 seconds: 30,
                 fraction: 0,
@@ -883,7 +883,7 @@ mod tests {
         let configuration = DomainParticipantImplConfiguration {
             userdata_transport: Box::new(MockTransport::default()),
             metatraffic_transport: Box::new(MockTransport::default()),
-            domain_tag: "".to_string(),
+            domain_tag: "",
             lease_duration: Duration {
                 seconds: 30,
                 fraction: 0,
@@ -915,7 +915,7 @@ mod tests {
         let configuration = DomainParticipantImplConfiguration {
             userdata_transport: Box::new(MockTransport::default()),
             metatraffic_transport: Box::new(MockTransport::default()),
-            domain_tag: "".to_string(),
+            domain_tag: "",
             lease_duration: Duration {
                 seconds: 30,
                 fraction: 0,
@@ -944,7 +944,7 @@ mod tests {
         let configuration = DomainParticipantImplConfiguration {
             userdata_transport: Box::new(MockTransport::default()),
             metatraffic_transport: Box::new(MockTransport::default()),
-            domain_tag: "".to_string(),
+            domain_tag: "",
             lease_duration: Duration {
                 seconds: 30,
                 fraction: 0,

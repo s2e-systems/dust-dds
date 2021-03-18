@@ -57,7 +57,7 @@ impl DomainParticipantFactory {
         let configuration = DomainParticipantImplConfiguration {
             userdata_transport,
             metatraffic_transport,
-            domain_tag: "".to_string(),
+            domain_tag: "",
             lease_duration: Duration {
                 seconds: 30,
                 fraction: 0,
