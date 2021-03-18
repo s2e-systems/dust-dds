@@ -12,8 +12,6 @@ pub mod info_source_submessage;
 pub mod info_timestamp_submessage;
 pub mod nack_frag_submessage;
 
-use crate::types::ProtocolVersion;
-
 use super::types::{SubmessageFlag, SubmessageKind};
 pub use ack_nack_submessage::AckNack;
 pub use data_submessage::Data;
@@ -58,40 +56,6 @@ impl SubmessageHeader {
 /// Entity Submessages target an RTPS Entity.
 /// Interpreter Submessages modify the RTPS Receiver state and provide context that helps process subsequent Entity Submessages.
 
-#[derive(Debug, PartialEq)]
-pub enum RtpsSubmessage<'a> {
-    AckNack(AckNack),
-    Data(Data<'a>),
-    // DataFrag(DataFrag),
-    Gap(Gap),
-    Heartbeat(Heartbeat),
-    // HeartbeatFrag(HeartbeatFrag),
-    // InfoDst(InfoDst),
-    // InfoReply(InfoReply),
-    // InfoSrc(InfoSrc),
-    InfoTs(InfoTs),
-    // NackFrag(NackFrag),
-}
-
-impl<'a> RtpsSubmessage<'a> {
-    pub fn is_entity_submessage(&self) -> bool {
-        match self {
-            RtpsSubmessage::Data(_) |
-            // RtpsSubmessage::DataFrag(_) |
-            RtpsSubmessage::Heartbeat(_) |
-            // RtpsSubmessage::HeartbeatFrag(_) |
-            RtpsSubmessage::Gap(_) |
-            RtpsSubmessage::AckNack(_) //|
-            /*RtpsSubmessage::NackFrag(_)*/ => true,
-            _ => false,
-        }
-    }
-
-    pub fn is_interpreter_submessage(&self) -> bool {
-        !self.is_entity_submessage()
-    }
-}
-
 pub trait Submessage {
     fn submessage_header(
         &self,
@@ -99,14 +63,4 @@ pub trait Submessage {
     ) -> SubmessageHeader;
 
     fn is_valid(&self) -> bool;
-}
-
-pub trait Serialize {
-    fn serialize(&self, buf: &mut [u8], protocol_version: ProtocolVersion) -> Result<usize, std::io::Error>;
-}
-
-pub trait Deserialize<'a> {
-    fn deserialize(buf: &'a [u8], protocol_version: ProtocolVersion) -> Result<Self, ()>
-    where
-        Self: Sized;
 }

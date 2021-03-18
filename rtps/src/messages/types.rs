@@ -1,6 +1,6 @@
 use core::convert::{TryFrom, TryInto};
 
-use super::submessages::{submessage_elements::Parameter, Serialize};
+use super::submessages::submessage_elements::Parameter;
 
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
 /// Table 8.13 - Types used to define RTPS messages
@@ -29,22 +29,22 @@ pub type ProtocolId = [u8; 4];
 
 pub type SubmessageFlag = bool;
 
-impl Serialize for [SubmessageFlag; 8] {
-    fn serialize(
-        &self,
-        buf: &mut [u8],
-        _protocol_version: crate::types::ProtocolVersion,
-    ) -> Result<usize, std::io::Error> {
-        let mut flags = 0u8;
-        for i in 0..8 {
-            if self[i] {
-                flags |= 0b00000001 << i;
-            }
-        }
-        buf[0] = flags;
-        Ok(1)
-    }
-}
+// impl Serialize for [SubmessageFlag; 8] {
+//     fn serialize(
+//         &self,
+//         buf: &mut [u8],
+//         _protocol_version: crate::types::ProtocolVersion,
+//     ) -> Result<usize, std::io::Error> {
+//         let mut flags = 0u8;
+//         for i in 0..8 {
+//             if self[i] {
+//                 flags |= 0b00000001 << i;
+//             }
+//         }
+//         buf[0] = flags;
+//         Ok(1)
+//     }
+// }
 
 #[derive(PartialEq, Copy, Clone, Debug)]
 pub enum SubmessageKind {
@@ -63,33 +63,33 @@ pub enum SubmessageKind {
     DataFrag,
 }
 
-impl Serialize for SubmessageKind {
-    fn serialize(
-        &self,
-        buf: &mut [u8],
-        _protocol_version: crate::types::ProtocolVersion,
-    ) -> Result<usize, std::io::Error> {
-        let value = match self {
-            SubmessageKind::Pad => 0x01,
-            SubmessageKind::AckNack => 0x06,
-            SubmessageKind::Heartbeat => 0x07,
-            SubmessageKind::Gap => 0x08,
-            SubmessageKind::InfoTimestamp => 0x09,
-            SubmessageKind::InfoSource => 0x0c,
-            SubmessageKind::InfoReplyIP4 => 0x0d,
-            SubmessageKind::InfoDestination => 0x0e,
-            SubmessageKind::InfoReply => 0x0f,
-            SubmessageKind::NackFrag => 0x12,
-            SubmessageKind::HeartbeatFrag => 0x13,
-            SubmessageKind::Data => 0x15,
-            SubmessageKind::DataFrag => 0x16,
-        };
+// impl Serialize for SubmessageKind {
+//     fn serialize(
+//         &self,
+//         buf: &mut [u8],
+//         _protocol_version: crate::types::ProtocolVersion,
+//     ) -> Result<usize, std::io::Error> {
+//         let value = match self {
+//             SubmessageKind::Pad => 0x01,
+//             SubmessageKind::AckNack => 0x06,
+//             SubmessageKind::Heartbeat => 0x07,
+//             SubmessageKind::Gap => 0x08,
+//             SubmessageKind::InfoTimestamp => 0x09,
+//             SubmessageKind::InfoSource => 0x0c,
+//             SubmessageKind::InfoReplyIP4 => 0x0d,
+//             SubmessageKind::InfoDestination => 0x0e,
+//             SubmessageKind::InfoReply => 0x0f,
+//             SubmessageKind::NackFrag => 0x12,
+//             SubmessageKind::HeartbeatFrag => 0x13,
+//             SubmessageKind::Data => 0x15,
+//             SubmessageKind::DataFrag => 0x16,
+//         };
 
-        buf[0] = value;
+//         buf[0] = value;
 
-        Ok(1)
-    }
-}
+//         Ok(1)
+//     }
+// }
 
 #[derive(PartialEq, Eq, Hash, Debug, Clone, Copy)]
 pub struct Time {

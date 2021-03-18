@@ -1,9 +1,6 @@
 use crate::types::ProtocolVersion;
 
-use super::{
-    submessage_elements::{self},
-    Serialize,
-};
+use super::submessage_elements::{self};
 use super::{Submessage, SubmessageHeader};
 use super::{SubmessageFlag, SubmessageKind};
 
@@ -32,15 +29,5 @@ impl Submessage for AckNack {
     fn is_valid(&self) -> bool {
         todo!()
         // self.reader_sn_state.is_valid()
-    }
-}
-
-impl Serialize for AckNack {
-    fn serialize(&self, buf: &mut [u8], protocol_version: ProtocolVersion) -> Result<usize, std::io::Error> {
-        SubmessageKind::AckNack.serialize(&mut [buf[0]], protocol_version)?;
-
-
-        self.count.serialize(&mut buf[10..14], protocol_version)
-
     }
 }

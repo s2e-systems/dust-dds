@@ -1,6 +1,16 @@
 use std::ops::{Deref, DerefMut};
 
-use rust_rtps::{behavior::{RTPSStatelessWriter, RTPSWriter, stateless_writer::{BestEffortReaderLocatorBehavior, BestEffortReaderLocatorSendSubmessages, RTPSReaderLocator}}, messages::RtpsSubmessage, structure::{RTPSCacheChange, RTPSHistoryCache}, types::{Locator, SequenceNumber}};
+use rust_rtps::{
+    behavior::{
+        stateless_writer::{
+            BestEffortReaderLocatorBehavior, BestEffortReaderLocatorSendSubmessages,
+            RTPSReaderLocator,
+        },
+        RTPSStatelessWriter, RTPSWriter,
+    },
+    structure::{RTPSCacheChange, RTPSHistoryCache},
+    types::{Locator, SequenceNumber},
+};
 
 use crate::utils::endpoint_traits::DestinedMessages;
 
@@ -14,11 +24,11 @@ impl<T, R> StatelessWriter<T, R>
     <<<T as RTPSWriter>::HistoryCacheType as RTPSHistoryCache>::CacheChangeType as RTPSCacheChange>::Data: AsRef<[u8]>,
     R: RTPSReaderLocator<CacheChangeRepresentation = SequenceNumber>, {
     pub fn produce_messages(&mut self) -> Vec<DestinedMessages> {
-        let mut destined_submessages = Vec::new();
+        let destined_submessages = Vec::new();
 
         for reader_locator in &mut self.reader_locators {
 
-            let mut submessages = Vec::new();
+            // let mut _submessages = Vec::new();
             match &self.writer.reliability_level() {
                 rust_rtps::types::ReliabilityKind::BestEffort => {
                     while let Some(submessage) = BestEffortReaderLocatorBehavior::produce_message(
@@ -26,11 +36,13 @@ impl<T, R> StatelessWriter<T, R>
                         &self.writer,
                     ) {
                         match submessage {
-                            BestEffortReaderLocatorSendSubmessages::Data(data) => {
-                                submessages.push(RtpsSubmessage::Data(data))
+                            BestEffortReaderLocatorSendSubmessages::Data(_data) => {
+                                todo!()
+                                // submessages.push(data)
                             }
-                            BestEffortReaderLocatorSendSubmessages::Gap(gap) => {
-                                submessages.push(RtpsSubmessage::Gap(gap))
+                            BestEffortReaderLocatorSendSubmessages::Gap(_gap) => {
+                                todo!()
+                                // submessages.push(gap)
                             }
                         }
 
@@ -41,7 +53,7 @@ impl<T, R> StatelessWriter<T, R>
                 }
             }
 
-            destined_submessages.push(DestinedMessages::SingleDestination{locator: reader_locator.locator(), messages: submessages});
+            // destined_submessages.push(DestinedMessages::SingleDestination{locator: reader_locator.locator(), messages: submessages});
         };
         destined_submessages
     }
@@ -98,7 +110,6 @@ mod tests {
         behavior::stateless_writer::{
             BestEffortReaderLocatorBehavior, BestEffortReaderLocatorSendSubmessages,
         },
-        messages::RtpsSubmessage,
         structure::{RTPSCacheChange, RTPSEndpoint, RTPSEntity, RTPSHistoryCache},
         types::SequenceNumber,
     };
@@ -287,7 +298,10 @@ mod tests {
         }
 
         fn new(locator: Locator, _expects_inline_qos: bool) -> Self {
-            Self { locator, value: 0.into() }
+            Self {
+                locator,
+                value: 0.into(),
+            }
         }
 
         fn requested_changes(
@@ -409,7 +423,7 @@ mod tests {
         stateless_writer.reader_locator_add(locator1);
         stateless_writer.reader_locator_add(locator2);
 
-        let mut submessages = Vec::new();
+        // let mut submessages = Vec::new();
 
         for reader_locator in &mut stateless_writer.reader_locators {
             while let Some(message) = BestEffortReaderLocatorBehavior::produce_message(
@@ -417,11 +431,11 @@ mod tests {
                 &stateless_writer.writer,
             ) {
                 match message {
-                    BestEffortReaderLocatorSendSubmessages::Data(data) => {
-                        submessages.push(RtpsSubmessage::Data(data))
+                    BestEffortReaderLocatorSendSubmessages::Data(_data) => {
+                        // submessages.push(RtpsSubmessage::Data(data))
                     }
-                    BestEffortReaderLocatorSendSubmessages::Gap(gap) => {
-                        submessages.push(RtpsSubmessage::Gap(gap))
+                    BestEffortReaderLocatorSendSubmessages::Gap(_gap) => {
+                        // submessages.push(RtpsSubmessage::Gap(gap))
                     }
                 }
             }
