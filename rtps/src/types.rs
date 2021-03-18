@@ -1,10 +1,12 @@
+use std::ops::{Add, AddAssign, Sub};
+
 ///
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
 /// Table 8.2 - Types of the attributes that appear in the RTPS Entities and Classes
 ///
 
 pub mod constants {
-    use super::{EntityId, GUID, GuidPrefix, Locator, ProtocolVersion, SequenceNumber, VendorId};
+    use super::{EntityId, GuidPrefix, Locator, ProtocolVersion, SequenceNumber, VendorId, GUID};
 
     pub const VENDOR_ID: VendorId = [99, 99];
 
@@ -20,7 +22,7 @@ pub mod constants {
     pub const LOCATOR_KIND_UDPv6: i32 = 2;
     pub const LOCATOR_PORT_INVALID: u32 = 0;
     pub const LOCATOR_ADDRESS_INVALID: [u8; 16] = [0; 16];
-    pub const LOCATOR_INVALID: Locator = Locator{
+    pub const LOCATOR_INVALID: Locator = Locator {
         kind: LOCATOR_KIND_INVALID,
         port: LOCATOR_PORT_INVALID,
         address: LOCATOR_ADDRESS_INVALID,
@@ -64,11 +66,11 @@ pub mod constants {
     };
 
     pub const ENTITYID_SEDP_BUILTIN_PUBLICATIONS_ANNOUNCER: EntityId = EntityId {
-        entity_key:  [0, 0, 0x03],
+        entity_key: [0, 0, 0x03],
         entity_kind: ENTITY_KIND_BUILT_IN_WRITER_WITH_KEY,
     };
     pub const ENTITYID_SEDP_BUILTIN_PUBLICATIONS_DETECTOR: EntityId = EntityId {
-        entity_key:  [0, 0, 0x03],
+        entity_key: [0, 0, 0x03],
         entity_kind: ENTITY_KIND_BUILT_IN_READER_WITH_KEY,
     };
 
@@ -100,9 +102,15 @@ pub mod constants {
         entity_kind: ENTITY_KIND_BUILT_IN_READER_WITH_KEY,
     };
 
-    pub const GUID_UNKNOWN: GUID = GUID{prefix: GUID_PREFIX_UNKNOWN, entity_id: ENTITYID_UNKNOWN};
+    pub const GUID_UNKNOWN: GUID = GUID {
+        prefix: GUID_PREFIX_UNKNOWN,
+        entity_id: ENTITYID_UNKNOWN,
+    };
 
-    pub const SEQUENCE_NUMBER_UNKNOWN: SequenceNumber = core::i64::MIN;
+    pub const SEQUENCE_NUMBER_UNKNOWN: SequenceNumber = SequenceNumber {
+        high: core::i32::MIN,
+        low: core::u32::MAX,
+    };
 }
 
 #[derive(Hash, PartialEq, Eq, Debug, Clone, Copy)]
@@ -134,10 +142,10 @@ pub struct EntityId {
 }
 
 impl EntityId {
-    pub fn new(entity_key: [u8; 3], entity_kind: u8,) -> Self {
-        Self{
+    pub fn new(entity_key: [u8; 3], entity_kind: u8) -> Self {
+        Self {
             entity_key,
-            entity_kind
+            entity_kind,
         }
     }
 
@@ -148,13 +156,90 @@ impl EntityId {
     pub fn entity_kind(&self) -> u8 {
         self.entity_kind
     }
-
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SequenceNumber {
+    high: i32,
+    low: u32,
+}
 
-pub type SequenceNumber = i64;
+impl SequenceNumber {
+    pub fn new(high: i32, low: u32) -> Self {
+        Self { high, low }
+    }
 
-#[derive(PartialEq, Hash, Eq, Debug, Copy, Clone)]
+    pub fn high(&self) -> i32 {
+        self.high
+    }
+
+    pub fn low(&self) -> u32 {
+        self.low
+    }
+}
+
+impl From<SequenceNumber> for i64 {
+    fn from(_: SequenceNumber) -> Self {
+        todo!()
+    }
+}
+
+impl From<i64> for SequenceNumber {
+    fn from(value: i64) -> Self {
+        Self {
+            high: (value >> 32) as i32,
+            low: (value & 2 ^ 32) as u32,
+        }
+    }
+}
+
+impl PartialOrd for SequenceNumber {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        todo!()
+    }
+}
+
+impl Ord for SequenceNumber {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        todo!()
+    }
+}
+
+impl PartialEq<i64> for SequenceNumber {
+    fn eq(&self, other: &i64) -> bool {
+        todo!()
+    }
+}
+
+impl PartialOrd<i64> for SequenceNumber {
+    fn partial_cmp(&self, other: &i64) -> Option<std::cmp::Ordering> {
+        todo!()
+    }
+}
+
+impl Add<i64> for SequenceNumber {
+    type Output = SequenceNumber;
+
+    fn add(self, rhs: i64) -> Self::Output {
+        todo!()
+    }
+}
+
+impl AddAssign<i64> for SequenceNumber {
+    fn add_assign(&mut self, rhs: i64) {
+        todo!()
+    }
+}
+
+impl Sub<i64> for SequenceNumber {
+    type Output = SequenceNumber;
+
+    fn sub(self, rhs: i64) -> Self::Output {
+        todo!()
+    }
+}
+
+#[derive(PartialEq, Eq, Debug, Copy, Clone)]
 pub struct Locator {
     kind: i32,
     port: u32,
@@ -162,7 +247,13 @@ pub struct Locator {
 }
 
 impl Locator {
-    pub fn new(kind: i32, port: u32, address: [u8; 16]) -> Self { Self { kind, port, address } }
+    pub fn new(kind: i32, port: u32, address: [u8; 16]) -> Self {
+        Self {
+            kind,
+            port,
+            address,
+        }
+    }
 
     pub const fn new_udpv4(port: u16, address: [u8; 4]) -> Locator {
         let address: [u8; 16] = [
@@ -205,10 +296,21 @@ pub enum ReliabilityKind {
     Reliable,
 }
 
-#[derive(PartialEq, Debug, Clone, Copy, Hash, Eq)]
+#[derive(PartialEq, Debug, Clone, Copy, Eq)]
 pub struct ProtocolVersion {
     pub major: u8,
     pub minor: u8,
 }
 
 pub type VendorId = [u8; 2];
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn sequence_number_from_i64() {
+        let sn: SequenceNumber = 1234.into();
+        assert_eq!(sn, SequenceNumber { high: 0, low: 1234 });
+    }
+}

@@ -95,34 +95,42 @@ mod tests {
     #[test]
     fn add_and_get_change() {
         let mut history_cache = HistoryCache::new();
-        let cc1 = MockCacheChange { sequence_number: 1 };
-        let cc2 = MockCacheChange { sequence_number: 2 };
+        let cc1 = MockCacheChange {
+            sequence_number: 1.into(),
+        };
+        let cc2 = MockCacheChange {
+            sequence_number: 2.into(),
+        };
         history_cache.add_change(cc1.clone());
         history_cache.add_change(cc2.clone());
 
-        assert_eq!(*history_cache.get_change(1).unwrap(), cc1);
-        assert_eq!(*history_cache.get_change(2).unwrap(), cc2);
-        assert!(history_cache.get_change(3).is_none());
+        assert_eq!(*history_cache.get_change(1.into()).unwrap(), cc1);
+        assert_eq!(*history_cache.get_change(2.into()).unwrap(), cc2);
+        assert!(history_cache.get_change(3.into()).is_none());
     }
 
     #[test]
     fn remove_change() {
         let mut history_cache = HistoryCache::new();
-        let cc1 = MockCacheChange { sequence_number: 1 };
-        let cc2 = MockCacheChange { sequence_number: 2 };
+        let cc1 = MockCacheChange {
+            sequence_number: 1.into(),
+        };
+        let cc2 = MockCacheChange {
+            sequence_number: 2.into(),
+        };
         history_cache.add_change(cc1.clone());
         history_cache.add_change(cc2.clone());
-        history_cache.remove_change(1);
+        history_cache.remove_change(1.into());
 
-        assert!(history_cache.get_change(1).is_none());
-        assert_eq!(*history_cache.get_change(2).unwrap(), cc2);
+        assert!(history_cache.get_change(1.into()).is_none());
+        assert_eq!(*history_cache.get_change(2.into()).unwrap(), cc2);
     }
 
     #[test]
     fn get_seq_num_min_and_max() {
         let mut history_cache = HistoryCache::new();
-        let min_seq_num = 4;
-        let max_seq_num = 6;
+        let min_seq_num = 4.into();
+        let max_seq_num = 6.into();
         let cc_min = MockCacheChange {
             sequence_number: min_seq_num,
         };

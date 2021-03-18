@@ -9,8 +9,8 @@ pub struct StatelessWriter<T: RTPSWriter, R: RTPSReaderLocator> {
     reader_locators: Vec<R>,
 }
 
-impl<T, R> StatelessWriter<T, R> 
-    where T: RTPSWriter, 
+impl<T, R> StatelessWriter<T, R>
+    where T: RTPSWriter,
     <<<T as RTPSWriter>::HistoryCacheType as RTPSHistoryCache>::CacheChangeType as RTPSCacheChange>::Data: AsRef<[u8]>,
     R: RTPSReaderLocator<CacheChangeRepresentation = SequenceNumber>, {
     pub fn produce_messages(&mut self) -> Vec<DestinedMessages> {
@@ -32,15 +32,15 @@ impl<T, R> StatelessWriter<T, R>
                             BestEffortReaderLocatorSendSubmessages::Gap(gap) => {
                                 submessages.push(RtpsSubmessage::Gap(gap))
                             }
-                        }     
-                                
+                        }
+
                     };
                 }
                 rust_rtps::types::ReliabilityKind::Reliable => {
                    todo!()
                 }
             }
-            
+
             destined_submessages.push(DestinedMessages::SingleDestination{locator: reader_locator.locator(), messages: submessages});
         };
         destined_submessages
@@ -258,7 +258,7 @@ mod tests {
         }
 
         fn new_change(
-            &self,
+            &mut self,
             _kind: rust_rtps::types::ChangeKind,
             _data: <<Self::HistoryCacheType as RTPSHistoryCache>::CacheChangeType as RTPSCacheChange>::Data,
             _inline_qos: rust_rtps::messages::submessages::submessage_elements::ParameterList,
@@ -287,7 +287,7 @@ mod tests {
         }
 
         fn new(locator: Locator, _expects_inline_qos: bool) -> Self {
-            Self { locator, value: 0 }
+            Self { locator, value: 0.into() }
         }
 
         fn requested_changes(

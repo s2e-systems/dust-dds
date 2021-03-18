@@ -27,7 +27,7 @@ impl RTPSReaderLocator for ReaderLocator {
         Self {
             locator,
             expects_inline_qos,
-            next_unsent_change: 0,
+            next_unsent_change: 0.into(),
             requested_changes: Vec::new(),
         }
     }
@@ -37,9 +37,15 @@ impl RTPSReaderLocator for ReaderLocator {
     }
 
     fn unsent_changes(&self, writer: &impl RTPSWriter) -> Self::CacheChangeRepresentationList {
-        let max_history_cache_seq_num = writer.writer_cache().get_seq_num_max().unwrap_or(0);
-        (self.next_unsent_change + 1..=max_history_cache_seq_num)
-            .filter(|&x| writer.writer_cache().get_change(x).is_some())
+        let max_history_cache_seq_num = writer
+            .writer_cache()
+            .get_seq_num_max()
+            .unwrap_or(0.into())
+            .into();
+        let next_unsent_change: i64 = self.next_unsent_change.into();
+        (next_unsent_change + 1..=max_history_cache_seq_num)
+            .filter(|&x| writer.writer_cache().get_change(x.into()).is_some())
+            .map(|x| x.into())
             .collect()
     }
 
@@ -67,7 +73,7 @@ impl RTPSReaderLocator for ReaderLocator {
         writer: &impl RTPSWriter,
     ) {
         for value in req_seq_num_set {
-            if value <= &writer.writer_cache().get_seq_num_max().unwrap_or_default() {
+            if value <= &writer.writer_cache().get_seq_num_max().unwrap_or(0.into()) {
                 self.requested_changes.push(*value);
             }
         }
@@ -236,7 +242,7 @@ mod tests {
         }
 
         fn new_change(
-            &self,
+            &mut self,
             _kind: rust_rtps::types::ChangeKind,
             _data: <<Self::HistoryCacheType as RTPSHistoryCache>::CacheChangeType as RTPSCacheChange>::Data,
             _inline_qos: rust_rtps::messages::submessages::submessage_elements::ParameterList,
@@ -250,7 +256,7 @@ mod tests {
     fn empty_unsent_changes() {
         let locator = Locator::new_udpv4(7400, [127, 0, 0, 1]);
         let writer_cache = MockHistoryCache {
-            seq_num_max: Some(0),
+            seq_num_max: Some(0.into()),
         };
         let writer = MockWriter { writer_cache };
         let reader_locator = ReaderLocator::new(locator, false);
@@ -263,7 +269,7 @@ mod tests {
     fn some_unsent_changes() {
         let locator = Locator::new_udpv4(7400, [127, 0, 0, 1]);
         let writer_cache = MockHistoryCache {
-            seq_num_max: Some(5),
+            seq_num_max: Some(5.into()),
         };
         let writer = MockWriter { writer_cache };
         let reader_locator = ReaderLocator::new(locator, false);
@@ -277,12 +283,12 @@ mod tests {
     fn next_unsent_change() {
         let locator = Locator::new_udpv4(7400, [127, 0, 0, 1]);
         let writer_cache = MockHistoryCache {
-            seq_num_max: Some(2),
+            seq_num_max: Some(2.into()),
         };
         let writer = MockWriter { writer_cache };
         let mut reader_locator = ReaderLocator::new(locator, false);
-        assert_eq!(reader_locator.next_unsent_change(&writer), Some(1));
-        assert_eq!(reader_locator.next_unsent_change(&writer), Some(2));
+        assert_eq!(reader_locator.next_unsent_change(&writer), Some(1.into()));
+        assert_eq!(reader_locator.next_unsent_change(&writer), Some(2.into()));
         assert_eq!(reader_locator.next_unsent_change(&writer), None);
     }
 
@@ -290,11 +296,11 @@ mod tests {
     fn requested_changes_set_and_get() {
         let locator = Locator::new_udpv4(7400, [127, 0, 0, 1]);
         let writer_cache = MockHistoryCache {
-            seq_num_max: Some(5),
+            seq_num_max: Some(5.into()),
         };
         let writer = MockWriter { writer_cache };
         let mut reader_locator = ReaderLocator::new(locator, false);
-        let requested_changes = [1, 3, 5];
+        let requested_changes = [1.into(), 3.into(), 5.into()];
         reader_locator.requested_changes_set(&requested_changes, &writer);
         assert_eq!(reader_locator.requested_changes(&writer), requested_changes)
     }
@@ -303,13 +309,13 @@ mod tests {
     fn requested_changes_out_of_history_cache_range_set_and_get() {
         let locator = Locator::new_udpv4(7400, [127, 0, 0, 1]);
         let writer_cache = MockHistoryCache {
-            seq_num_max: Some(2),
+            seq_num_max: Some(2.into()),
         };
         let writer = MockWriter { writer_cache };
 
         let mut reader_locator = ReaderLocator::new(locator, false);
 
-        let requested_changes = [1, 3, 5];
+        let requested_changes = [1.into(), 3.into(), 5.into()];
         let expected_requested_changes = [1];
         reader_locator.requested_changes_set(&requested_changes, &writer);
         assert_eq!(
@@ -322,14 +328,23 @@ mod tests {
     fn next_requested_change() {
         let locator = Locator::new_udpv4(7400, [127, 0, 0, 1]);
         let writer_cache = MockHistoryCache {
-            seq_num_max: Some(5),
+            seq_num_max: Some(5.into()),
         };
         let writer = MockWriter { writer_cache };
         let mut reader_locator = ReaderLocator::new(locator, false);
-        reader_locator.requested_changes_set(&[1, 3, 5], &writer);
-        assert_eq!(reader_locator.next_requested_change(&writer), Some(1));
-        assert_eq!(reader_locator.next_requested_change(&writer), Some(3));
-        assert_eq!(reader_locator.next_requested_change(&writer), Some(5));
+        reader_locator.requested_changes_set(&[1.into(), 3.into(), 5.into()], &writer);
+        assert_eq!(
+            reader_locator.next_requested_change(&writer),
+            Some(1.into())
+        );
+        assert_eq!(
+            reader_locator.next_requested_change(&writer),
+            Some(3.into())
+        );
+        assert_eq!(
+            reader_locator.next_requested_change(&writer),
+            Some(5.into())
+        );
         assert_eq!(reader_locator.next_requested_change(&writer), None);
     }
 
@@ -337,19 +352,31 @@ mod tests {
     fn next_requested_change_with_multiple_and_repeated_requested_changes() {
         let locator = Locator::new_udpv4(7400, [127, 0, 0, 1]);
         let writer_cache = MockHistoryCache {
-            seq_num_max: Some(5),
+            seq_num_max: Some(5.into()),
         };
         let writer = MockWriter { writer_cache };
         let mut reader_locator = ReaderLocator::new(locator, false);
 
-        reader_locator.requested_changes_set(&[1, 3, 5], &writer);
+        reader_locator.requested_changes_set(&[1.into(), 3.into(), 5.into()], &writer);
         reader_locator.next_requested_change(&writer);
-        reader_locator.requested_changes_set(&[2, 3, 4], &writer);
+        reader_locator.requested_changes_set(&[2.into(), 3.into(), 4.into()], &writer);
 
-        assert_eq!(reader_locator.next_requested_change(&writer), Some(2));
-        assert_eq!(reader_locator.next_requested_change(&writer), Some(3));
-        assert_eq!(reader_locator.next_requested_change(&writer), Some(4));
-        assert_eq!(reader_locator.next_requested_change(&writer), Some(5));
+        assert_eq!(
+            reader_locator.next_requested_change(&writer),
+            Some(2.into())
+        );
+        assert_eq!(
+            reader_locator.next_requested_change(&writer),
+            Some(3.into())
+        );
+        assert_eq!(
+            reader_locator.next_requested_change(&writer),
+            Some(4.into())
+        );
+        assert_eq!(
+            reader_locator.next_requested_change(&writer),
+            Some(5.into())
+        );
         assert_eq!(reader_locator.next_requested_change(&writer), None);
     }
 }

@@ -74,10 +74,14 @@ impl RTPSReaderProxy for ReaderProxy {
     }
 
     fn changes_for_reader(&self, writer: &impl RTPSWriter) -> Self::ChangeForReaderTypeList {
-        let mut changes_for_reader: Vec<Self::ChangeForReaderType> = (1..=self
-            .highest_acked_change)
+        let highest_acked_change = self.highest_acked_change.into();
+        let mut changes_for_reader: Vec<Self::ChangeForReaderType> = (1..=highest_acked_change)
             .map(|sn| {
-                Self::ChangeForReaderType::new(sn, ChangeForReaderStatusKind::Acknowledged, true)
+                Self::ChangeForReaderType::new(
+                    sn.into(),
+                    ChangeForReaderStatusKind::Acknowledged,
+                    true,
+                )
             })
             .collect();
         changes_for_reader.append(&mut self.unsent_changes(writer));
@@ -110,8 +114,8 @@ impl RTPSReaderProxy for ReaderProxy {
             multicast_locator_list: multicast_locator_list.to_vec(),
             expects_inline_qos,
             is_active,
-            next_unsent_change: 0,
-            highest_acked_change: 0,
+            next_unsent_change: 0.into(),
+            highest_acked_change: 0.into(),
             requested_changes: Vec::new(),
         }
     }
@@ -152,10 +156,15 @@ impl RTPSReaderProxy for ReaderProxy {
 
     fn unsent_changes(&self, writer: &impl RTPSWriter) -> Self::ChangeForReaderTypeList {
         if writer.push_mode() == true {
-            let max_history_cache_seq_num = writer.last_change_sequence_number();
-            (self.next_unsent_change + 1..=max_history_cache_seq_num)
+            let next_unsent_change: i64 = self.next_unsent_change.into();
+            let max_history_cache_seq_num: i64 = writer.last_change_sequence_number().into();
+            (next_unsent_change + 1..=max_history_cache_seq_num)
                 .map(|sn| {
-                    Self::ChangeForReaderType::new(sn, ChangeForReaderStatusKind::Unsent, true)
+                    Self::ChangeForReaderType::new(
+                        sn.into(),
+                        ChangeForReaderStatusKind::Unsent,
+                        true,
+                    )
                 })
                 .collect()
         } else {
@@ -189,13 +198,20 @@ impl RTPSReaderProxy for ReaderProxy {
     }
 
     fn unacked_changes(&self, writer: &impl RTPSWriter) -> Self::ChangeForReaderTypeList {
+        let highest_acked_change: i64 = self.highest_acked_change.into();
         let mut unacked_changes: Vec<SequenceNumber> = if writer.push_mode() == true {
             // According to the diagram in page 8.4.9.3 this is every change that has been sent
             // longer ago than writer.nackSuppressionDuration() and not yet acknowledged
             // TODO: nackSuppressionDuration is for now hard-coded 0
-            (self.highest_acked_change + 1..=self.next_unsent_change).collect()
+            let next_unsent_change: i64 = self.next_unsent_change.into();
+            (highest_acked_change + 1..=next_unsent_change)
+                .map(|x| x.into())
+                .collect()
         } else {
-            (self.highest_acked_change + 1..=writer.last_change_sequence_number()).collect()
+            let last_change_sequence_number = writer.last_change_sequence_number().into();
+            (highest_acked_change + 1..=last_change_sequence_number)
+                .map(|x| x.into())
+                .collect()
         };
         for requested_changed in self.requested_changes.iter() {
             unacked_changes.retain(|x| x != requested_changed);
@@ -370,7 +386,7 @@ mod tests {
         }
 
         fn new_change(
-            &self,
+            &mut self,
             _kind: rust_rtps::types::ChangeKind,
             _data: <<Self::HistoryCacheType as RTPSHistoryCache>::CacheChangeType as RTPSCacheChange>::Data,
             _inline_qos: rust_rtps::messages::submessages::submessage_elements::ParameterList,
@@ -439,7 +455,7 @@ mod tests {
         let is_active = true;
         let writer = MockWriter {
             push_mode: true,
-            last_change_sequence_number: 3,
+            last_change_sequence_number: 3.into(),
         };
         let reader_proxy = ReaderProxy::new(
             remote_reader_guid,
@@ -453,17 +469,17 @@ mod tests {
         let unsent_changes = reader_proxy.unsent_changes(&writer);
         let expected_unsent_changes = vec![
             ChangeForReader {
-                change: 1,
+                change: 1.into(),
                 is_relevant: true,
                 status: ChangeForReaderStatusKind::Unsent,
             },
             ChangeForReader {
-                change: 2,
+                change: 2.into(),
                 is_relevant: true,
                 status: ChangeForReaderStatusKind::Unsent,
             },
             ChangeForReader {
-                change: 3,
+                change: 3.into(),
                 is_relevant: true,
                 status: ChangeForReaderStatusKind::Unsent,
             },
@@ -482,7 +498,7 @@ mod tests {
         let is_active = true;
         let writer = MockWriter {
             push_mode: false,
-            last_change_sequence_number: 3,
+            last_change_sequence_number: 3.into(),
         };
         let reader_proxy = ReaderProxy::new(
             remote_reader_guid,
@@ -507,7 +523,7 @@ mod tests {
         let is_active = true;
         let writer = MockWriter {
             push_mode: true,
-            last_change_sequence_number: 3,
+            last_change_sequence_number: 3.into(),
         };
         let mut reader_proxy = ReaderProxy::new(
             remote_reader_guid,
@@ -520,19 +536,19 @@ mod tests {
 
         let next_unsent_change1 = reader_proxy.next_unsent_change(&writer);
         let expected_unsent_change1 = Some(ChangeForReader {
-            change: 1,
+            change: 1.into(),
             is_relevant: true,
             status: ChangeForReaderStatusKind::Unsent,
         });
         let next_unsent_change2 = reader_proxy.next_unsent_change(&writer);
         let expected_unsent_change2 = Some(ChangeForReader {
-            change: 2,
+            change: 2.into(),
             is_relevant: true,
             status: ChangeForReaderStatusKind::Unsent,
         });
         let next_unsent_change3 = reader_proxy.next_unsent_change(&writer);
         let expected_unsent_change3 = Some(ChangeForReader {
-            change: 3,
+            change: 3.into(),
             is_relevant: true,
             status: ChangeForReaderStatusKind::Unsent,
         });
@@ -556,7 +572,7 @@ mod tests {
         let is_active = true;
         let writer = MockWriter {
             push_mode: false,
-            last_change_sequence_number: 3,
+            last_change_sequence_number: 3.into(),
         };
         let mut reader_proxy = ReaderProxy::new(
             remote_reader_guid,
@@ -583,7 +599,7 @@ mod tests {
         let is_active = true;
         let writer = MockWriter {
             push_mode: true,
-            last_change_sequence_number: 5,
+            last_change_sequence_number: 5.into(),
         };
         let mut reader_proxy = ReaderProxy::new(
             remote_reader_guid,
@@ -602,17 +618,17 @@ mod tests {
         reader_proxy.next_unsent_change(&writer);
         reader_proxy.next_unsent_change(&writer);
         reader_proxy.next_unsent_change(&writer);
-        reader_proxy.acked_changes_set(2, &writer);
+        reader_proxy.acked_changes_set(2.into(), &writer);
 
         let unacked_changes = reader_proxy.unacked_changes(&writer);
         let expected_unacked_changes = vec![
             ChangeForReader {
-                change: 3,
+                change: 3.into(),
                 is_relevant: true,
                 status: ChangeForReaderStatusKind::Unacknowledged,
             },
             ChangeForReader {
-                change: 4,
+                change: 4.into(),
                 is_relevant: true,
                 status: ChangeForReaderStatusKind::Unacknowledged,
             },
@@ -631,7 +647,7 @@ mod tests {
         let is_active = true;
         let writer = MockWriter {
             push_mode: false,
-            last_change_sequence_number: 5,
+            last_change_sequence_number: 5.into(),
         };
         let mut reader_proxy = ReaderProxy::new(
             remote_reader_guid,
@@ -646,18 +662,18 @@ mod tests {
         // Changes up to 2 are acknowledged
         // Change 4 is requested
         // Expected unacked changes are 3 and 5
-        reader_proxy.acked_changes_set(2, &writer);
-        reader_proxy.requested_changes_set(&[4], &writer);
+        reader_proxy.acked_changes_set(2.into(), &writer);
+        reader_proxy.requested_changes_set(&[4.into()], &writer);
 
         let unacked_changes = reader_proxy.unacked_changes(&writer);
         let expected_unacked_changes = vec![
             ChangeForReader {
-                change: 3,
+                change: 3.into(),
                 is_relevant: true,
                 status: ChangeForReaderStatusKind::Unacknowledged,
             },
             ChangeForReader {
-                change: 5,
+                change: 5.into(),
                 is_relevant: true,
                 status: ChangeForReaderStatusKind::Unacknowledged,
             },
@@ -676,7 +692,7 @@ mod tests {
         let is_active = true;
         let writer = MockWriter {
             push_mode: false,
-            last_change_sequence_number: 5,
+            last_change_sequence_number: 5.into(),
         };
         let mut reader_proxy = ReaderProxy::new(
             remote_reader_guid,
@@ -687,13 +703,13 @@ mod tests {
             is_active,
         );
 
-        reader_proxy.requested_changes_set(&[2, 3], &writer);
-        reader_proxy.requested_changes_set(&[4], &writer);
+        reader_proxy.requested_changes_set(&[2.into(), 3.into()], &writer);
+        reader_proxy.requested_changes_set(&[4.into()], &writer);
 
         let expected_requested_changes = vec![
-            ChangeForReader::new(2, ChangeForReaderStatusKind::Requested, true),
-            ChangeForReader::new(3, ChangeForReaderStatusKind::Requested, true),
-            ChangeForReader::new(4, ChangeForReaderStatusKind::Requested, true),
+            ChangeForReader::new(2.into(), ChangeForReaderStatusKind::Requested, true),
+            ChangeForReader::new(3.into(), ChangeForReaderStatusKind::Requested, true),
+            ChangeForReader::new(4.into(), ChangeForReaderStatusKind::Requested, true),
         ];
         assert_eq!(
             reader_proxy.requested_changes(&writer),
@@ -711,7 +727,7 @@ mod tests {
         let is_active = true;
         let writer = MockWriter {
             push_mode: false,
-            last_change_sequence_number: 5,
+            last_change_sequence_number: 5.into(),
         };
         let mut reader_proxy = ReaderProxy::new(
             remote_reader_guid,
@@ -722,7 +738,7 @@ mod tests {
             is_active,
         );
 
-        reader_proxy.requested_changes_set(&[6, 7, 8], &writer);
+        reader_proxy.requested_changes_set(&[6.into(), 7.into(), 8.into()], &writer);
 
         assert!(reader_proxy.requested_changes(&writer).is_empty());
     }
@@ -737,7 +753,7 @@ mod tests {
         let is_active = true;
         let writer = MockWriter {
             push_mode: false,
-            last_change_sequence_number: 5,
+            last_change_sequence_number: 5.into(),
         };
         let mut reader_proxy = ReaderProxy::new(
             remote_reader_guid,
@@ -748,21 +764,21 @@ mod tests {
             is_active,
         );
 
-        reader_proxy.requested_changes_set(&[2, 3], &writer);
-        reader_proxy.requested_changes_set(&[3, 4], &writer);
+        reader_proxy.requested_changes_set(&[2.into(), 3.into()], &writer);
+        reader_proxy.requested_changes_set(&[3.into(), 4.into()], &writer);
 
         let next_requested_change1 = Some(ChangeForReader::new(
-            2,
+            2.into(),
             ChangeForReaderStatusKind::Requested,
             true,
         ));
         let next_requested_change2 = Some(ChangeForReader::new(
-            3,
+            3.into(),
             ChangeForReaderStatusKind::Requested,
             true,
         ));
         let next_requested_change3 = Some(ChangeForReader::new(
-            4,
+            4.into(),
             ChangeForReaderStatusKind::Requested,
             true,
         ));
@@ -796,7 +812,7 @@ mod tests {
         let is_active = true;
         let writer = MockWriter {
             push_mode: true,
-            last_change_sequence_number: 6,
+            last_change_sequence_number: 6.into(),
         };
         let mut reader_proxy = ReaderProxy::new(
             remote_reader_guid,
@@ -815,37 +831,37 @@ mod tests {
         reader_proxy.next_unsent_change(&writer);
         reader_proxy.next_unsent_change(&writer);
         reader_proxy.next_unsent_change(&writer);
-        reader_proxy.acked_changes_set(2, &writer);
-        reader_proxy.requested_changes_set(&[3], &writer);
-        reader_proxy.requested_changes_set(&[3], &writer);
+        reader_proxy.acked_changes_set(2.into(), &writer);
+        reader_proxy.requested_changes_set(&[3.into()], &writer);
+        reader_proxy.requested_changes_set(&[3.into()], &writer);
 
         let expected_changes_for_reader1 = ChangeForReader {
-            change: 1,
+            change: 1.into(),
             status: ChangeForReaderStatusKind::Acknowledged,
             is_relevant: true,
         };
         let expected_changes_for_reader2 = ChangeForReader {
-            change: 2,
+            change: 2.into(),
             status: ChangeForReaderStatusKind::Acknowledged,
             is_relevant: true,
         };
         let expected_changes_for_reader3 = ChangeForReader {
-            change: 3,
+            change: 3.into(),
             status: ChangeForReaderStatusKind::Requested,
             is_relevant: true,
         };
         let expected_changes_for_reader4 = ChangeForReader {
-            change: 4,
+            change: 4.into(),
             status: ChangeForReaderStatusKind::Unacknowledged,
             is_relevant: true,
         };
         let expected_changes_for_reader5 = ChangeForReader {
-            change: 5,
+            change: 5.into(),
             status: ChangeForReaderStatusKind::Unsent,
             is_relevant: true,
         };
         let expected_changes_for_reader6 = ChangeForReader {
-            change: 6,
+            change: 6.into(),
             status: ChangeForReaderStatusKind::Unsent,
             is_relevant: true,
         };

@@ -32,7 +32,7 @@ pub trait RTPSWriter: RTPSEndpoint {
     fn writer_cache_mut(&mut self) -> &mut Self::HistoryCacheType;
 
     fn new_change(
-        &self,
+        &mut self,
         kind: ChangeKind,
         data: <<Self::HistoryCacheType as RTPSHistoryCache>::CacheChangeType as RTPSCacheChange>::Data,
         inline_qos: ParameterList,

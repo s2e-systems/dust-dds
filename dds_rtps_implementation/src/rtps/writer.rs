@@ -17,7 +17,7 @@ pub struct Writer<H: RTPSHistoryCache> {
     heartbeat_period: Duration,
     nack_response_delay: Duration,
     nack_suppression_duration: Duration,
-    last_change_sequence_number: atomic::AtomicI64,
+    last_change_sequence_number: SequenceNumber,
     data_max_sized_serialized: i32,
     writer_cache: H,
 }
@@ -71,7 +71,7 @@ impl<H: RTPSHistoryCache> RTPSWriter for Writer<H> {
             heartbeat_period,
             nack_response_delay,
             nack_suppression_duration,
-            last_change_sequence_number: atomic::AtomicI64::new(0),
+            last_change_sequence_number: 0.into(),
             data_max_sized_serialized,
             writer_cache: H::new(),
         }
@@ -95,7 +95,6 @@ impl<H: RTPSHistoryCache> RTPSWriter for Writer<H> {
 
     fn last_change_sequence_number(&self) -> SequenceNumber {
         self.last_change_sequence_number
-            .load(atomic::Ordering::Acquire)
     }
 
     fn data_max_sized_serialized(&self) -> i32 {
@@ -111,20 +110,18 @@ impl<H: RTPSHistoryCache> RTPSWriter for Writer<H> {
     }
 
     fn new_change(
-        &self,
+        &mut self,
         kind: ChangeKind,
         data: <<Self::HistoryCacheType as RTPSHistoryCache>::CacheChangeType as RTPSCacheChange>::Data,
         inline_qos: ParameterList,
         handle: <<Self::HistoryCacheType as RTPSHistoryCache>::CacheChangeType as RTPSCacheChange>::InstanceHandle,
     ) -> <Self::HistoryCacheType as RTPSHistoryCache>::CacheChangeType {
-        let sn = self
-            .last_change_sequence_number
-            .fetch_add(1, atomic::Ordering::Acquire);
+        self.last_change_sequence_number += 1;
         <<Self::HistoryCacheType as RTPSHistoryCache>::CacheChangeType>::new(
             kind,
             self.guid,
             handle,
-            sn + 1,
+            self.last_change_sequence_number,
             data,
             inline_qos,
         )
@@ -233,7 +230,7 @@ mod tests {
         let nack_response_delay = DURATION_ZERO;
         let nack_suppression_duration = DURATION_ZERO;
         let data_max_sized_serialized = i32::MAX;
-        let writer: Writer<MockHistoryCache> = Writer::new(
+        let mut writer: Writer<MockHistoryCache> = Writer::new(
             guid,
             topic_kind,
             reliablility_level,

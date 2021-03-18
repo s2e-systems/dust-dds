@@ -1,5 +1,3 @@
-use std::io::Stdout;
-
 use serde::{ser::SerializeStruct, Serialize};
 
 ///
@@ -49,7 +47,7 @@ impl Serialize for SequenceNumberSet {
         S: serde::Serializer,
     {
         let mut state = serializer.serialize_struct("SequenceNumberSet", 2)?;
-        state.serialize_field("bitmap_base", &self.bitmap_base)?;
+        // state.serialize_field("bitmap_base", &self.bitmap_base)?;
         // state.serialize_field("bitmap", &self.bitmap)?;
         state.end()
     }
