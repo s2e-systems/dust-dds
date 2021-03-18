@@ -5,7 +5,4 @@ authors = ["Joao Rebelo <jrebelo@s2e-systems.com>",
 		   "Stefan Kimmer <skimmer@s2e-systems.com"]
 edition = "2018"
 
-[dependencies]
-serde = "1.0.124"
-
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

@@ -1,8 +1,11 @@
-use super::{SubmessageKind, SubmessageFlag, };
-use super::{Submessage, SubmessageHeader, };
-use super::submessage_elements;
+use crate::types::ProtocolVersion;
 
-use serde::{Serialize, ser::SerializeStruct};
+use super::{
+    submessage_elements::{self},
+    Serialize,
+};
+use super::{Submessage, SubmessageHeader};
+use super::{SubmessageFlag, SubmessageKind};
 
 #[derive(PartialEq, Debug)]
 pub struct AckNack {
@@ -18,7 +21,7 @@ impl Submessage for AckNack {
     fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeader {
         let submessage_id = SubmessageKind::AckNack;
 
-        const X : SubmessageFlag = false;
+        const X: SubmessageFlag = false;
         let e = self.endianness_flag;
         let f = self.final_flag;
         let flags = [e, f, X, X, X, X, X, X];
@@ -33,14 +36,11 @@ impl Submessage for AckNack {
 }
 
 impl Serialize for AckNack {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer {
-        let mut state = serializer.serialize_struct("AckNack", 3)?;
-        //state.serialize_field("Header", self.submessage_header(octets_to_next_header));        
-        state.serialize_field("reader_sn_state", &self.reader_sn_state)?;
-        //state.serialize_field("count", &self.count)?;
-        state.end()
+    fn serialize(&self, buf: &mut [u8], protocol_version: ProtocolVersion) -> Result<usize, ()> {
+        SubmessageKind::AckNack.serialize(&mut [buf[0]], protocol_version)?;
+
+
+        self.count.serialize(&mut buf[10..14], protocol_version)
+
     }
 }
-

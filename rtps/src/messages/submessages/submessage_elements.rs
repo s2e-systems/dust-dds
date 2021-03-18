@@ -1,15 +1,46 @@
-use serde::{ser::SerializeStruct, Serialize};
-
 ///
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
 /// 8.3.5 RTPS SubmessageElements
 ///
 use crate::{messages, types};
 
+use super::Serialize;
+
 pub type Long = i32;
+
+impl Serialize for i32 {
+    fn serialize(
+        &self,
+        buf: &mut [u8],
+        _protocol_version: crate::types::ProtocolVersion,
+    ) -> Result<usize, ()> {
+        let bytes = self.to_le_bytes();
+        buf[0] = bytes[0];
+        buf[1] = bytes[1];
+        buf[2] = bytes[2];
+        buf[3] = bytes[3];
+
+        Ok(4)
+    }
+}
+
 pub type ULong = u32;
 pub type Short = i16;
 pub type UShort = u16;
+
+impl Serialize for u16 {
+    fn serialize(
+        &self,
+        buf: &mut [u8],
+        _protocol_version: crate::types::ProtocolVersion,
+    ) -> Result<usize, ()> {
+        let bytes = self.to_le_bytes();
+        buf[0] = bytes[0];
+        buf[1] = bytes[1];
+
+        Ok(2)
+    }
+}
 
 pub type GuidPrefix = types::GuidPrefix;
 pub type EntityId = types::EntityId;
@@ -38,18 +69,6 @@ impl SequenceNumberSet {
 
     pub fn bitmap(&self) -> &[Long; 8] {
         &self.bitmap
-    }
-}
-
-impl Serialize for SequenceNumberSet {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        let state = serializer.serialize_struct("SequenceNumberSet", 2)?;
-        // state.serialize_field("bitmap_base", &self.bitmap_base)?;
-        // state.serialize_field("bitmap", &self.bitmap)?;
-        state.end()
     }
 }
 

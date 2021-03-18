@@ -12,13 +12,14 @@ pub mod info_source_submessage;
 pub mod info_timestamp_submessage;
 pub mod nack_frag_submessage;
 
-use super::types::{SubmessageKind, SubmessageFlag};
+use crate::types::ProtocolVersion;
+
+use super::types::{SubmessageFlag, SubmessageKind};
 pub use ack_nack_submessage::AckNack;
 pub use data_submessage::Data;
 pub use gap_submessage::Gap;
 pub use heartbeat_submessage::Heartbeat;
 pub use info_timestamp_submessage::InfoTs;
-
 
 #[derive(PartialEq, Debug)]
 pub struct SubmessageHeader {
@@ -28,7 +29,11 @@ pub struct SubmessageHeader {
 }
 
 impl SubmessageHeader {
-    pub fn new(submessage_id: SubmessageKind, flags: [SubmessageFlag; 8], submessage_length: u16) -> Self {
+    pub fn new(
+        submessage_id: SubmessageKind,
+        flags: [SubmessageFlag; 8],
+        submessage_length: u16,
+    ) -> Self {
         Self {
             submessage_id,
             flags,
@@ -45,6 +50,21 @@ impl SubmessageHeader {
     }
     pub fn submessage_length(&self) -> submessage_elements::UShort {
         self.submessage_length
+    }
+}
+
+impl Serialize for SubmessageHeader {
+    fn serialize(&self, buf: &mut [u8], protocol_version: ProtocolVersion) -> Result<usize, ()> {
+        let mut size = 0;
+        size += self
+            .submessage_id
+            .serialize(&mut [buf[0]], protocol_version)?;
+        size += self.flags.serialize(&mut [buf[1]], protocol_version)?;
+        size += self
+            .submessage_length
+            .serialize(&mut buf[2..4], protocol_version)?;
+
+        Ok(size)
     }
 }
 
@@ -88,9 +108,21 @@ impl<'a> RtpsSubmessage<'a> {
     }
 }
 
-pub trait Submessage
-{
-    fn submessage_header(&self, octets_to_next_header: u16 /* Transport dependent */) -> SubmessageHeader;
+pub trait Submessage {
+    fn submessage_header(
+        &self,
+        octets_to_next_header: u16, /* Transport dependent */
+    ) -> SubmessageHeader;
 
     fn is_valid(&self) -> bool;
+}
+
+pub trait Serialize {
+    fn serialize(&self, buf: &mut [u8], protocol_version: ProtocolVersion) -> Result<usize, ()>;
+}
+
+pub trait Deserialize<'a> {
+    fn deserialize(buf: &'a [u8], protocol_version: ProtocolVersion) -> Result<Self, ()>
+    where
+        Self: Sized;
 }

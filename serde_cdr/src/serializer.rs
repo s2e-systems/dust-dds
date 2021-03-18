@@ -11,7 +11,6 @@ use std::io::Write;
 
 struct RtpsSerializer<W: Write> {
     writer: W,
-    endianness:
 }
 
 impl<'a, W: Write> SerializeSeq for &'a mut RtpsSerializer<W> {

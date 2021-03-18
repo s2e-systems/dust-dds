@@ -1,8 +1,8 @@
 use crate::types::{GuidPrefix, ProtocolVersion, VendorId};
 
 use super::{
+    submessages::Submessage,
     types::{constants::PROTOCOL_RTPS, ProtocolId},
-    RtpsSubmessage,
 };
 
 #[derive(PartialEq, Debug, Clone)]
@@ -39,10 +39,10 @@ impl Header {
         self.guid_prefix
     }
 }
-#[derive(Debug, PartialEq)]
+
 pub struct RtpsMessage<'a> {
     header: Header,
-    submessages: Vec<RtpsSubmessage<'a>>,
+    submessages: &'a [&'a dyn Submessage],
 }
 
 impl<'a> RtpsMessage<'a> {
@@ -50,7 +50,7 @@ impl<'a> RtpsMessage<'a> {
         version: ProtocolVersion,
         vendor_id: VendorId,
         guid_prefix: GuidPrefix,
-        submessages: Vec<RtpsSubmessage<'a>>,
+        submessages: &'a [&'a dyn Submessage],
     ) -> Self {
         if submessages.is_empty() {
             panic!("At least one submessage is required");
@@ -66,11 +66,7 @@ impl<'a> RtpsMessage<'a> {
         &self.header
     }
 
-    pub fn submessages(&self) -> &[RtpsSubmessage] {
+    pub fn submessages(&self) -> &[&dyn Submessage] {
         &self.submessages
-    }
-
-    pub fn take_submessages(self) -> Vec<RtpsSubmessage<'a>> {
-        self.submessages
     }
 }
