@@ -569,12 +569,6 @@ mod tests {
         ) {
         }
 
-        fn read<'a>(
-            &'a self,
-        ) -> DDSResult<Option<(rust_rtps::messages::RtpsMessage<'a>, Locator)>> {
-            todo!()
-        }
-
         fn unicast_locator_list(&self) -> &[Locator] {
             &self.unicast_locator_list
         }

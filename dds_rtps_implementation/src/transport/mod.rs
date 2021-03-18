@@ -1,6 +1,5 @@
 pub mod memory;
 
-use rust_dds_api::return_type::DDSResult;
 use rust_rtps::{messages::RtpsMessage, types::Locator};
 
 pub trait Transport: Send + Sync {

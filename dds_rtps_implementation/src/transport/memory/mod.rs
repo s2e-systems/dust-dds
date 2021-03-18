@@ -41,14 +41,6 @@ impl MemoryTransport {
 }
 
 impl Transport for MemoryTransport {
-    fn read<'a>(&'a self) -> DDSResult<Option<(RtpsMessage<'a>, Locator)>> {
-        // match self.read.lock().unwrap().pop_front() {
-        //     Some((message, locator)) => Ok(Some((message, locator))),
-        //     None => Ok(None),
-        // }
-        todo!()
-    }
-
     fn write<'a>(&'a self, _message: RtpsMessage<'a>, _destination_locator: &Locator) {
         // self.write
         //     .lock()
