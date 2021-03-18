@@ -5,5 +5,4 @@ members = [
 	"dds_api",
 	"dds_rtps_implementation",
 	"rtps",
-	"rtps_transport_udp",
 ]
