@@ -10,5 +10,4 @@ edition = "2018"
 [dependencies]
 rust-dds-api = {path = "../dds_api"}
 rust-dds-rtps-implementation = {path = "../dds_rtps_implementation"}
-rust-rtps-transport-udp = {path = "../rtps_transport_udp"}
 rust-rtps = {path = "../rtps"}
