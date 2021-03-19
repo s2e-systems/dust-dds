@@ -3,185 +3,153 @@
 /// 8.3.5 RTPS SubmessageElements
 ///
 use crate::{messages, types};
-use serde::ser::SerializeStruct;
+
+pub trait SubmessageElement {}
 
 pub type Long = i32;
 pub type ULong = u32;
 pub type Short = i16;
 pub type UShort = u16;
 
-pub type GuidPrefix = types::GuidPrefix;
-pub type EntityId = types::EntityId;
-pub type VendorId = types::VendorId;
-pub type ProtocolVersion = types::ProtocolVersion;
-
-pub type SequenceNumber = types::SequenceNumber;
-
-#[derive(PartialEq, Debug)]
-pub struct SequenceNumberSet {
-    bitmap_base: SequenceNumber,
-    num_bits: u32,
-    bitmap: [Long; 8],
+pub trait GuidPrefix: SubmessageElement {
+    fn value(&self) -> types::GuidPrefix;
 }
 
-impl serde::Serialize for SequenceNumberSet {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        let mut state = serializer.serialize_struct("SequenceNumberSet", 3)?;
-        state.serialize_field("bitmap_base", &self.bitmap_base)?;
-        state.serialize_field("num_bits", &self.num_bits)?;
-        let range = ((self.num_bits + 31) / 32) as usize;
-        for i in 0..range {
-            state.serialize_field("bitmap", &self.bitmap[i])?;
-        }
-        state.end()
-    }
+pub trait EntityId: SubmessageElement {
+    fn value(&self) -> types::EntityId;
 }
 
-impl SequenceNumberSet {
-    pub fn new(bitmap_base: SequenceNumber, num_bits: u32, bitmap: [Long; 8]) -> Self {
-        Self {
-            bitmap_base,
-            num_bits,
-            bitmap,
-        }
-    }
-
-    pub fn bitmap_base(&self) -> SequenceNumber {
-        self.bitmap_base
-    }
-
-    pub fn num_bits(&self) -> u32 {
-        self.num_bits
-    }
-
-    pub fn bitmap(&self) -> &[Long; 8] {
-        &self.bitmap
-    }
+pub trait VendorId: SubmessageElement {
+    fn value(&self) -> types::VendorId;
 }
 
-pub type FragmentNumber = messages::types::FragmentNumber;
-
-#[derive(PartialEq, Debug)]
-pub struct FragmentNumberSet {
-    pub bitmap_base: FragmentNumber,
-    pub bitmap: [Long; 8],
+pub trait ProtocolVersion: SubmessageElement {
+    fn value(&self) -> types::ProtocolVersion;
 }
 
-impl FragmentNumberSet {
-    pub fn new(bitmap_base: FragmentNumber, bitmap: [Long; 8]) -> Self {
-        Self {
-            bitmap_base,
-            bitmap,
-        }
-    }
+pub trait SequenceNumber: SubmessageElement {
+    fn value(&self) -> types::SequenceNumber;
 }
 
-pub type Timestamp = messages::types::Time;
+pub trait SequenceNumberSet: SubmessageElement {
+    type SequenceNumberList: IntoIterator<Item = types::SequenceNumber>;
 
-pub trait Parameter : Send + Sync + 'static {
+    fn base(&self) -> types::SequenceNumber;
+
+    fn set(&self) -> Self::SequenceNumberList;
+}
+
+pub trait FragmentNumber: SubmessageElement {
+    fn value(&self) -> messages::types::FragmentNumber;
+}
+
+pub trait FragmentNumberSet: SubmessageElement {
+    type FragmentNumberList: IntoIterator<Item = messages::types::FragmentNumber>;
+
+    fn base(&self) -> messages::types::FragmentNumber;
+
+    fn set(&self) -> Self::FragmentNumberList;
+}
+
+pub trait Timestamp: SubmessageElement {
+    fn value(&self) -> messages::types::Time;
+}
+
+pub trait Parameter {
     fn parameter_id(&self) -> messages::types::ParameterId;
     fn length(&self) -> i16;
     fn value(&self) -> &[u8];
 }
 
-// impl Parameter {
-//     pub fn new(parameter_id: messages::types::ParameterId, value: Vec<u8>) -> Self {
-//         Self {
-//             parameter_id,
-//             length: (value.len() + 3 & !3) as i16,
-//             value,
-//         }
-//     }
-
-//     pub fn parameter_id(&self) -> messages::types::ParameterId {
-//         self.parameter_id
-//     }
-
-//     pub fn length(&self) -> i16 {
-//         self.length
-//     }
-
-//     pub fn value(&self) -> &Vec<u8> {
-//         &self.value
-//     }
-// }
-
-pub trait ParameterList {
-    fn parameter(&self) -> &[Box<dyn Parameter>];
+pub trait ParameterList: SubmessageElement {
+    type Parameter: Parameter;
+    type ParameterList: IntoIterator<Item = Self::Parameter>;
+    fn parameter(&self) -> Self::Parameter;
 }
 
-pub type Count = messages::types::Count;
-pub type LocatorList = [types::Locator; 8];
-pub type SerializedData = [u8];
-pub type SerializedDataFragment = [u8];
+pub trait Count: SubmessageElement {
+    fn value(&self) -> messages::types::Count;
+}
+
+pub trait LocatorList: SubmessageElement {
+    type LocatorList: IntoIterator<Item = types::Locator>;
+    fn value(&self) -> Self::LocatorList;
+}
+
+pub trait SerializedData: SubmessageElement {
+    type SerializedData: IntoIterator<Item = u8>;
+    fn value(&self) -> Self::SerializedData;
+}
+
+pub trait SerializedDataFragment: SubmessageElement {
+    type SerializedData: IntoIterator<Item = u8>;
+    fn value(&self) -> Self::SerializedData;
+}
 
 // pub type GroupDigest = TBD
 
-#[cfg(test)]
-mod tests {
-    use serde_test::{assert_ser_tokens, Token};
+// #[cfg(test)]
+// mod tests {
+//     use serde_test::{assert_ser_tokens, Token};
 
-    use super::*;
+//     use super::*;
 
-    #[test]
-    fn serialize_sequence_number_set() {
-        assert_ser_tokens(
-            &SequenceNumberSet::new(8.into(), 16, [8, 0, 0, 0, 0, 0, 0, 0]),
-            &[
-                Token::Struct {
-                    name: "SequenceNumberSet",
-                    len: 3,
-                },
-                Token::Str("bitmap_base"),
-                Token::Struct {
-                    name: "SequenceNumber",
-                    len: 2,
-                },
-                Token::Str("high"),
-                Token::I32(0),
-                Token::Str("low"),
-                Token::U32(8),
-                Token::StructEnd,
-                Token::Str("num_bits"),
-                Token::U32(16),
-                Token::Str("bitmap"),
-                Token::I32(8),
-                Token::StructEnd,
-            ],
-        );
+//     #[test]
+//     fn serialize_sequence_number_set() {
+//         assert_ser_tokens(
+//             &SequenceNumberSet::new(8.into(), 16, [8, 0, 0, 0, 0, 0, 0, 0]),
+//             &[
+//                 Token::Struct {
+//                     name: "SequenceNumberSet",
+//                     len: 3,
+//                 },
+//                 Token::Str("bitmap_base"),
+//                 Token::Struct {
+//                     name: "SequenceNumber",
+//                     len: 2,
+//                 },
+//                 Token::Str("high"),
+//                 Token::I32(0),
+//                 Token::Str("low"),
+//                 Token::U32(8),
+//                 Token::StructEnd,
+//                 Token::Str("num_bits"),
+//                 Token::U32(16),
+//                 Token::Str("bitmap"),
+//                 Token::I32(8),
+//                 Token::StructEnd,
+//             ],
+//         );
 
-        assert_ser_tokens(
-            &SequenceNumberSet::new(8.into(), 128, [8, 9, 10, 11, 0, 0, 0, 0]),
-            &[
-                Token::Struct {
-                    name: "SequenceNumberSet",
-                    len: 3,
-                },
-                Token::Str("bitmap_base"),
-                Token::Struct {
-                    name: "SequenceNumber",
-                    len: 2,
-                },
-                Token::Str("high"),
-                Token::I32(0),
-                Token::Str("low"),
-                Token::U32(8),
-                Token::StructEnd,
-                Token::Str("num_bits"),
-                Token::U32(128),
-                Token::Str("bitmap"),
-                Token::I32(8),
-                Token::Str("bitmap"),
-                Token::I32(9),
-                Token::Str("bitmap"),
-                Token::I32(10),
-                Token::Str("bitmap"),
-                Token::I32(11),
-                Token::StructEnd,
-            ],
-        )
-    }
-}
+//         assert_ser_tokens(
+//             &SequenceNumberSet::new(8.into(), 128, [8, 9, 10, 11, 0, 0, 0, 0]),
+//             &[
+//                 Token::Struct {
+//                     name: "SequenceNumberSet",
+//                     len: 3,
+//                 },
+//                 Token::Str("bitmap_base"),
+//                 Token::Struct {
+//                     name: "SequenceNumber",
+//                     len: 2,
+//                 },
+//                 Token::Str("high"),
+//                 Token::I32(0),
+//                 Token::Str("low"),
+//                 Token::U32(8),
+//                 Token::StructEnd,
+//                 Token::Str("num_bits"),
+//                 Token::U32(128),
+//                 Token::Str("bitmap"),
+//                 Token::I32(8),
+//                 Token::Str("bitmap"),
+//                 Token::I32(9),
+//                 Token::Str("bitmap"),
+//                 Token::I32(10),
+//                 Token::Str("bitmap"),
+//                 Token::I32(11),
+//                 Token::StructEnd,
+//             ],
+//         )
+//     }
+// }

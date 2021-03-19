@@ -51,127 +51,127 @@ use crate::{
 //     )
 // }
 
-pub fn data_from_cache_change<'a>(
-    cache_change: &'a impl RTPSCacheChange<Data = impl AsRef<SerializedData> + 'a>,
-    reader_id: EntityId,
-) -> submessages::Data<'a> {
-    let writer_guid: GUID = cache_change.writer_guid().try_into().unwrap();
-    let writer_id = writer_guid.entity_id();
-    let writer_sn = cache_change.sequence_number();
+// pub fn data_from_cache_change<'a>(
+//     cache_change: &'a impl RTPSCacheChange<Data = impl AsRef<SerializedData> + 'a>,
+//     reader_id: EntityId,
+// ) -> submessages::Data<'a> {
+//     let writer_guid: GUID = cache_change.writer_guid().try_into().unwrap();
+//     let writer_id = writer_guid.entity_id();
+//     let writer_sn = cache_change.sequence_number();
 
-    let inline_qos = cache_change.inline_qos();
+//     let inline_qos = cache_change.inline_qos();
 
-    let change_kind = cache_change.kind();
-    // inline_qos
-    //     .parameter
-    //     .push(change_kind_to_status_info(change_kind).into());
+//     let change_kind = cache_change.kind();
+//     // inline_qos
+//     //     .parameter
+//     //     .push(change_kind_to_status_info(change_kind).into());
 
-    match change_kind {
-        ChangeKind::Alive => submessages::Data {
-            endianness_flag: false,
-            reader_id,
-            writer_id,
-            writer_sn,
-            serialized_payload: cache_change.data_value().as_ref(),
-            inline_qos,
-            inline_qos_flag: true,
-            data_flag: true,
-            key_flag: false,
-            non_standard_payload_flag: false,
-        },
-        ChangeKind::NotAliveDisposed
-        | ChangeKind::NotAliveUnregistered
-        | ChangeKind::AliveFiltered => submessages::Data {
-            endianness_flag: false,
-            reader_id,
-            writer_id,
-            writer_sn,
-            serialized_payload: cache_change.data_value().as_ref(),
-            inline_qos,
-            inline_qos_flag: true,
-            data_flag: false,
-            key_flag: true,
-            non_standard_payload_flag: false,
-        },
-    }
-}
-
-// fn change_kind(data_submessage: &Data) -> ChangeKind {
-//     if data_submessage.data_flag && !data_submessage.key_flag {
-//         ChangeKind::Alive
-//     } else if !data_submessage.data_flag && data_submessage.key_flag {
-//         // let endianness = Endianness::from(data_submessage.endianness_flag()).into();
-//         let status_info = data_submessage
-//             .inline_qos
-//             .parameter
-//             .iter()
-//             .find(|&x| x.parameter_id() == PID_STATUS_INFO)
-//             .unwrap()
-//             .clone();
-
-//         status_info_to_change_kind(status_info.try_into().unwrap()).unwrap()
-//     } else {
-//         panic!("Invalid change kind combination")
+//     match change_kind {
+//         ChangeKind::Alive => submessages::Data {
+//             endianness_flag: false,
+//             reader_id,
+//             writer_id,
+//             writer_sn,
+//             serialized_payload: cache_change.data_value().as_ref(),
+//             inline_qos,
+//             inline_qos_flag: true,
+//             data_flag: true,
+//             key_flag: false,
+//             non_standard_payload_flag: false,
+//         },
+//         ChangeKind::NotAliveDisposed
+//         | ChangeKind::NotAliveUnregistered
+//         | ChangeKind::AliveFiltered => submessages::Data {
+//             endianness_flag: false,
+//             reader_id,
+//             writer_id,
+//             writer_sn,
+//             serialized_payload: cache_change.data_value().as_ref(),
+//             inline_qos,
+//             inline_qos_flag: true,
+//             data_flag: false,
+//             key_flag: true,
+//             non_standard_payload_flag: false,
+//         },
 //     }
 // }
 
-// fn key_hash(data_submessage: &Data) -> Option<KeyHash> {
-//     if data_submessage.data_flag && !data_submessage.key_flag {
-//         Some(
-//             data_submessage
-//                 .inline_qos
-//                 .parameter
-//                 .iter()
-//                 .find(|&x| x.parameter_id() == PID_KEY_HASH)
-//                 .unwrap()
-//                 .clone()
-//                 .try_into()
-//                 .unwrap(),
-//         )
-//     } else if !data_submessage.data_flag && data_submessage.key_flag {
-//         let payload = &data_submessage.serialized_payload;
-//         Some(KeyHash(payload[0..16].try_into().ok()?))
-//     } else {
-//         None
+// // fn change_kind(data_submessage: &Data) -> ChangeKind {
+// //     if data_submessage.data_flag && !data_submessage.key_flag {
+// //         ChangeKind::Alive
+// //     } else if !data_submessage.data_flag && data_submessage.key_flag {
+// //         // let endianness = Endianness::from(data_submessage.endianness_flag()).into();
+// //         let status_info = data_submessage
+// //             .inline_qos
+// //             .parameter
+// //             .iter()
+// //             .find(|&x| x.parameter_id() == PID_STATUS_INFO)
+// //             .unwrap()
+// //             .clone();
+
+// //         status_info_to_change_kind(status_info.try_into().unwrap()).unwrap()
+// //     } else {
+// //         panic!("Invalid change kind combination")
+// //     }
+// // }
+
+// // fn key_hash(data_submessage: &Data) -> Option<KeyHash> {
+// //     if data_submessage.data_flag && !data_submessage.key_flag {
+// //         Some(
+// //             data_submessage
+// //                 .inline_qos
+// //                 .parameter
+// //                 .iter()
+// //                 .find(|&x| x.parameter_id() == PID_KEY_HASH)
+// //                 .unwrap()
+// //                 .clone()
+// //                 .try_into()
+// //                 .unwrap(),
+// //         )
+// //     } else if !data_submessage.data_flag && data_submessage.key_flag {
+// //         let payload = &data_submessage.serialized_payload;
+// //         Some(KeyHash(payload[0..16].try_into().ok()?))
+// //     } else {
+// //         None
+// //     }
+// // }
+
+// // fn status_info_to_change_kind(status_info: StatusInfo) -> Option<ChangeKind> {
+// //     if status_info.disposed_flag()
+// //         && !status_info.unregistered_flag()
+// //         && !status_info.filtered_flag()
+// //     {
+// //         Some(ChangeKind::NotAliveDisposed)
+// //     } else if !status_info.disposed_flag()
+// //         && status_info.unregistered_flag()
+// //         && !status_info.filtered_flag()
+// //     {
+// //         Some(ChangeKind::NotAliveUnregistered)
+// //     } else if !status_info.disposed_flag()
+// //         && !status_info.unregistered_flag()
+// //         && status_info.filtered_flag()
+// //     {
+// //         Some(ChangeKind::AliveFiltered)
+// //     } else if !status_info.disposed_flag()
+// //         && !status_info.unregistered_flag()
+// //         && !status_info.filtered_flag()
+// //     {
+// //         Some(ChangeKind::Alive)
+// //     } else {
+// //         None
+// //     }
+// // }
+
+// pub fn change_kind_to_status_info(change_kind: ChangeKind) -> StatusInfo {
+//     match change_kind {
+//         ChangeKind::Alive => StatusInfo([0, 0, 0, 0]),
+//         ChangeKind::NotAliveDisposed => StatusInfo([0, 0, 0, StatusInfo::DISPOSED_FLAG_MASK]),
+//         ChangeKind::NotAliveUnregistered => {
+//             StatusInfo([0, 0, 0, StatusInfo::UNREGISTERED_FLAG_MASK])
+//         }
+//         ChangeKind::AliveFiltered => StatusInfo([0, 0, 0, StatusInfo::FILTERED_FLAG_MASK]),
 //     }
 // }
-
-// fn status_info_to_change_kind(status_info: StatusInfo) -> Option<ChangeKind> {
-//     if status_info.disposed_flag()
-//         && !status_info.unregistered_flag()
-//         && !status_info.filtered_flag()
-//     {
-//         Some(ChangeKind::NotAliveDisposed)
-//     } else if !status_info.disposed_flag()
-//         && status_info.unregistered_flag()
-//         && !status_info.filtered_flag()
-//     {
-//         Some(ChangeKind::NotAliveUnregistered)
-//     } else if !status_info.disposed_flag()
-//         && !status_info.unregistered_flag()
-//         && status_info.filtered_flag()
-//     {
-//         Some(ChangeKind::AliveFiltered)
-//     } else if !status_info.disposed_flag()
-//         && !status_info.unregistered_flag()
-//         && !status_info.filtered_flag()
-//     {
-//         Some(ChangeKind::Alive)
-//     } else {
-//         None
-//     }
-// }
-
-pub fn change_kind_to_status_info(change_kind: ChangeKind) -> StatusInfo {
-    match change_kind {
-        ChangeKind::Alive => StatusInfo([0, 0, 0, 0]),
-        ChangeKind::NotAliveDisposed => StatusInfo([0, 0, 0, StatusInfo::DISPOSED_FLAG_MASK]),
-        ChangeKind::NotAliveUnregistered => {
-            StatusInfo([0, 0, 0, StatusInfo::UNREGISTERED_FLAG_MASK])
-        }
-        ChangeKind::AliveFiltered => StatusInfo([0, 0, 0, StatusInfo::FILTERED_FLAG_MASK]),
-    }
-}
 
 // #[cfg(test)]
 // mod tests {

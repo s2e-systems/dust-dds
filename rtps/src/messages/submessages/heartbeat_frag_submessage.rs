@@ -1,42 +1,17 @@
 use super::submessage_elements;
-use super::{Submessage, SubmessageHeader};
-use super::{SubmessageFlag};
+use super::Submessage;
+use super::SubmessageFlag;
 
-use crate::messages::types::constants;
+pub trait HeartbeatFrag: Submessage {
+    type EntityId: submessage_elements::EntityId;
+    type SequenceNumber: submessage_elements::SequenceNumber;
+    type FragmentNumber: submessage_elements::FragmentNumber;
+    type Count: submessage_elements::Count;
 
-#[derive(PartialEq, Debug)]
-pub struct HeartbeatFrag {
-    pub endianness_flag: SubmessageFlag,
-    pub reader_id: submessage_elements::EntityId,
-    pub writer_id: submessage_elements::EntityId,
-    pub writer_sn: submessage_elements::SequenceNumber,
-    pub last_fragment_num: submessage_elements::FragmentNumber,
-    pub count: submessage_elements::Count,
-}
-
-impl Submessage for HeartbeatFrag {
-    fn submessage_header(&self) -> SubmessageHeader {
-        const X: SubmessageFlag = false;
-        let e = self.endianness_flag;
-        let flags = [e, X, X, X, X, X, X, X];
-
-        SubmessageHeader::new(constants::SUBMESSAGE_KIND_HEARTBEAT_FRAG, flags, 0)
-    }
-
-    fn is_valid(&self) -> bool {
-        if self.writer_sn <= 0 || self.last_fragment_num <= 0 {
-            false
-        } else {
-            true
-        }
-    }
-}
-
-impl serde::Serialize for HeartbeatFrag {
-    fn serialize<S>(&self, _serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        todo!()
-    }
+    fn endianness_flag(&self) -> SubmessageFlag;
+    fn reader_id(&self) -> Self::EntityId;
+    fn writer_id(&self) -> Self::EntityId;
+    fn writer_sn(&self) -> Self::SequenceNumber;
+    fn last_fragment_num(&self) -> Self::FragmentNumber;
+    fn count(&self) -> Self::Count;
 }

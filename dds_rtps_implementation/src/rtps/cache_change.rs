@@ -1,6 +1,6 @@
 use rust_dds_api::dcps_psm::InstanceHandle;
 use rust_rtps::{
-    messages::submessages::submessage_elements::{Parameter, ParameterList},
+    messages::submessages::submessage_elements::{Parameter, ParameterList, SubmessageElement},
     structure::RTPSCacheChange,
     types::{ChangeKind, SequenceNumber, GUID},
 };
@@ -16,6 +16,8 @@ impl MyParameterList {
         }
     }
 }
+
+impl SubmessageElement for MyParameterList {}
 
 impl ParameterList for MyParameterList {
     fn parameter(&self) -> &[Box<dyn Parameter>] {
