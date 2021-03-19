@@ -19,7 +19,7 @@ pub struct DataFrag<'a> {
 }
 
 impl<'a> Submessage for DataFrag<'a> {
-    fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeader {
+    fn submessage_header(&self) -> SubmessageHeader {
         let submessage_id = SubmessageKind::DataFrag;
 
         const X: SubmessageFlag = false;
@@ -29,7 +29,7 @@ impl<'a> Submessage for DataFrag<'a> {
         let n = self.non_standard_payload_flag;
         let flags = [e, q, k, n, X, X, X, X];
 
-        SubmessageHeader::new(submessage_id, flags, octets_to_next_header)
+        SubmessageHeader::new(submessage_id, flags, 0)
     }
 
     fn is_valid(&self) -> bool {

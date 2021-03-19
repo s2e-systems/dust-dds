@@ -11,7 +11,7 @@ pub struct InfoReply {
 }
 
 impl Submessage for InfoReply {
-    fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeader {
+    fn submessage_header(&self) -> SubmessageHeader {
         let submessage_id = SubmessageKind::InfoReply;
 
         const X: SubmessageFlag = false;
@@ -19,7 +19,7 @@ impl Submessage for InfoReply {
         let m = self.multicast_flag;
         let flags = [e, m, X, X, X, X, X, X];
 
-        SubmessageHeader::new(submessage_id, flags, octets_to_next_header)
+        SubmessageHeader::new(submessage_id, flags, 0)
     }
 
     fn is_valid(&self) -> bool {

@@ -110,8 +110,7 @@ mod tests {
 
     impl Submessage for MockSubmessage {
         fn submessage_header(
-            &self,
-            _octets_to_next_header: u16, /* Transport dependent */
+            &self
         ) -> crate::messages::submessages::SubmessageHeader {
             todo!()
         }

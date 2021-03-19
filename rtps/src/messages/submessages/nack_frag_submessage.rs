@@ -13,14 +13,14 @@ pub struct NackFrag {
 }
 
 impl Submessage for NackFrag {
-    fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeader {
+    fn submessage_header(&self) -> SubmessageHeader {
         let submessage_id = SubmessageKind::NackFrag;
 
         const X: SubmessageFlag = false;
         let e = self.endianness_flag;
         let flags = [e, X, X, X, X, X, X, X];
 
-        SubmessageHeader::new(submessage_id, flags, octets_to_next_header)
+        SubmessageHeader::new(submessage_id, flags, 0)
     }
 
     fn is_valid(&self) -> bool {

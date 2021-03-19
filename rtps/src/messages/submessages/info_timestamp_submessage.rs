@@ -13,7 +13,7 @@ impl InfoTs {
 }
 
 impl Submessage for InfoTs {
-    fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeader {
+    fn submessage_header(&self) -> SubmessageHeader {
         let submessage_id = SubmessageKind::InfoTimestamp;
 
         let x = false;
@@ -22,7 +22,7 @@ impl Submessage for InfoTs {
                                       // X|X|X|X|X|X|I|E
         let flags = [e, i, x, x, x, x, x, x];
 
-        SubmessageHeader::new(submessage_id, flags, octets_to_next_header)
+        SubmessageHeader::new(submessage_id, flags, 0)
     }
 
     fn is_valid(&self) -> bool {

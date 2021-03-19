@@ -15,7 +15,7 @@ pub struct Gap {
 }
 
 impl Submessage for Gap {
-    fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeader {
+    fn submessage_header(&self) -> SubmessageHeader {
         let submessage_id = SubmessageKind::Gap;
 
         let x = false;
@@ -23,7 +23,7 @@ impl Submessage for Gap {
                                       // X|X|X|X|X|X|X|E
         let flags = [e, x, x, x, x, x, x, x];
 
-        SubmessageHeader::new(submessage_id, flags, octets_to_next_header)
+        SubmessageHeader::new(submessage_id, flags, 0)
     }
 
     fn is_valid(&self) -> bool {

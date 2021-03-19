@@ -1,5 +1,3 @@
-use serde::{ser::SerializeStruct, Serialize};
-
 use super::submessage_elements;
 use super::{Submessage, SubmessageHeader};
 use super::{SubmessageFlag, SubmessageKind};
@@ -15,7 +13,7 @@ pub struct AckNack {
 }
 
 impl Submessage for AckNack {
-    fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeader {
+    fn submessage_header(&self) -> SubmessageHeader {
         let submessage_id = SubmessageKind::AckNack;
 
         const X: SubmessageFlag = false;
@@ -23,7 +21,7 @@ impl Submessage for AckNack {
         let f = self.final_flag;
         let flags = [e, f, X, X, X, X, X, X];
 
-        SubmessageHeader::new(submessage_id, flags, octets_to_next_header)
+        SubmessageHeader::new(submessage_id, flags, 0)
     }
 
     fn is_valid(&self) -> bool {
@@ -33,13 +31,14 @@ impl Submessage for AckNack {
 }
 
 impl serde::Serialize for AckNack {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    fn serialize<S>(&self, _serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
-        let mut state = serializer.serialize_struct("AckNack", 4)?;
-        // state.serialize_field("Header", self.submessage_header(octets_to_next_header));
-        state.end()
+        todo!()
+        // let mut state = serializer.serialize_struct("AckNack", 4)?;
+        // state.serialize_field("header", &self.submessage_header())?;
+        // state.end()
     }
 }
 

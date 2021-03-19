@@ -18,7 +18,7 @@ pub struct Data<'a> {
 }
 
 impl<'a> Submessage for Data<'a> {
-    fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeader {
+    fn submessage_header(&self) -> SubmessageHeader {
         let submessage_id = SubmessageKind::Data;
 
         let x = false;
@@ -30,7 +30,7 @@ impl<'a> Submessage for Data<'a> {
                                                 // X|X|X|N|K|D|Q|E
         let flags = [e, q, d, k, n, x, x, x];
 
-        SubmessageHeader::new(submessage_id, flags, octets_to_next_header)
+        SubmessageHeader::new(submessage_id, flags, 0)
     }
 
     fn is_valid(&self) -> bool {

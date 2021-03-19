@@ -26,7 +26,7 @@ impl Heartbeat {
 }
 
 impl Submessage for Heartbeat {
-    fn submessage_header(&self, octets_to_next_header: u16) -> SubmessageHeader {
+    fn submessage_header(&self) -> SubmessageHeader {
         let submessage_id = SubmessageKind::Heartbeat;
 
         let x = false;
@@ -36,7 +36,7 @@ impl Submessage for Heartbeat {
                                       // X|X|X|X|X|L|F|E
         let flags = [e, f, l, x, x, x, x, x];
 
-        SubmessageHeader::new(submessage_id, flags, octets_to_next_header)
+        SubmessageHeader::new(submessage_id, flags, 0)
     }
 
     fn is_valid(&self) -> bool {
