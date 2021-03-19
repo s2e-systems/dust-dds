@@ -5,14 +5,14 @@ use rust_dds_api::{
     dds_type::DDSType,
     return_type::DDSResult,
 };
-use rust_rtps::{
-    behavior::RTPSWriter, messages::submessages::submessage_elements::ParameterList,
-    structure::RTPSHistoryCache, types::ChangeKind,
-};
+use rust_rtps::{behavior::RTPSWriter, structure::RTPSHistoryCache, types::ChangeKind};
 
 use crate::rtps::{
-    cache_change::CacheChange, history_cache::HistoryCache, reader_locator::ReaderLocator,
-    stateless_writer::StatelessWriter, writer::Writer,
+    cache_change::{CacheChange, MyParameterList},
+    history_cache::HistoryCache,
+    reader_locator::ReaderLocator,
+    stateless_writer::StatelessWriter,
+    writer::Writer,
 };
 
 pub struct DataWriterImpl {
@@ -40,7 +40,7 @@ impl DataWriterImpl {
     ) -> DDSResult<()> {
         let kind = ChangeKind::Alive;
         let data = data.serialize();
-        let inline_qos = ParameterList::new();
+        let inline_qos = MyParameterList::new();
         let handle = handle.unwrap_or(0);
         let change = self.writer.new_change(kind, data, inline_qos, handle);
 

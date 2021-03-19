@@ -6,7 +6,6 @@ use super::{Submessage, SubmessageHeader};
 use crate::messages::types::constants;
 use crate::types;
 
-#[derive(Debug, PartialEq)]
 pub struct Data<'a> {
     pub endianness_flag: SubmessageFlag,
     pub inline_qos_flag: SubmessageFlag,
@@ -16,7 +15,7 @@ pub struct Data<'a> {
     pub reader_id: submessage_elements::EntityId,
     pub writer_id: submessage_elements::EntityId,
     pub writer_sn: submessage_elements::SequenceNumber,
-    pub inline_qos: submessage_elements::ParameterList,
+    pub inline_qos: &'a dyn submessage_elements::ParameterList,
     pub serialized_payload: &'a submessage_elements::SerializedData,
 }
 

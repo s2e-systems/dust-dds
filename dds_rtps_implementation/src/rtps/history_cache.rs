@@ -48,6 +48,16 @@ mod tests {
 
     use super::*;
 
+    struct MockParameterList;
+
+    impl ParameterList for MockParameterList {
+        fn parameter(
+            &self,
+        ) -> &[Box<dyn rust_rtps::messages::submessages::submessage_elements::Parameter>] {
+            todo!()
+        }
+    }
+
     #[derive(Debug, Clone, PartialEq)]
     struct MockCacheChange {
         sequence_number: SequenceNumber,
@@ -56,6 +66,7 @@ mod tests {
     impl RTPSCacheChange for MockCacheChange {
         type Data = ();
         type InstanceHandle = ();
+        type ParameterList = MockParameterList;
 
         fn new(
             _kind: ChangeKind,
@@ -63,7 +74,7 @@ mod tests {
             _instance_handle: Self::InstanceHandle,
             _sequence_number: SequenceNumber,
             _data_value: Self::Data,
-            _inline_qos: ParameterList,
+            _inline_qos: Self::ParameterList,
         ) -> Self {
             todo!()
         }
@@ -88,7 +99,7 @@ mod tests {
             todo!()
         }
 
-        fn inline_qos(&self) -> &ParameterList {
+        fn inline_qos(&self) -> &Self::ParameterList {
             todo!()
         }
     }

@@ -1,9 +1,27 @@
 use rust_dds_api::dcps_psm::InstanceHandle;
 use rust_rtps::{
-    messages::submessages::submessage_elements::ParameterList,
+    messages::submessages::submessage_elements::{Parameter, ParameterList},
     structure::RTPSCacheChange,
     types::{ChangeKind, SequenceNumber, GUID},
 };
+
+pub struct MyParameterList {
+    parameter: Vec<Box<dyn Parameter>>,
+}
+
+impl MyParameterList {
+    pub fn new() -> Self {
+        Self {
+            parameter: Vec::new(),
+        }
+    }
+}
+
+impl ParameterList for MyParameterList {
+    fn parameter(&self) -> &[Box<dyn Parameter>] {
+        &self.parameter
+    }
+}
 
 pub struct CacheChange {
     kind: ChangeKind,
@@ -11,12 +29,13 @@ pub struct CacheChange {
     instance_handle: InstanceHandle,
     sequence_number: SequenceNumber,
     data_value: <Self as RTPSCacheChange>::Data,
-    inline_qos: ParameterList,
+    inline_qos: <Self as RTPSCacheChange>::ParameterList,
 }
 
 impl RTPSCacheChange for CacheChange {
     type Data = Vec<u8>;
     type InstanceHandle = InstanceHandle;
+    type ParameterList = MyParameterList;
 
     fn new(
         kind: ChangeKind,
@@ -24,7 +43,7 @@ impl RTPSCacheChange for CacheChange {
         instance_handle: Self::InstanceHandle,
         sequence_number: SequenceNumber,
         data_value: Self::Data,
-        inline_qos: ParameterList,
+        inline_qos: Self::ParameterList,
     ) -> Self {
         Self {
             kind,
@@ -56,7 +75,7 @@ impl RTPSCacheChange for CacheChange {
         &self.data_value
     }
 
-    fn inline_qos(&self) -> &ParameterList {
+    fn inline_qos(&self) -> &Self::ParameterList {
         &self.inline_qos
     }
 }

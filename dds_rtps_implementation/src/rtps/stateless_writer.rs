@@ -109,17 +109,31 @@ mod tests {
         behavior::stateless_writer::{
             BestEffortReaderLocatorBehavior, BestEffortReaderLocatorSendSubmessages,
         },
+        messages::submessages::submessage_elements::ParameterList,
         structure::{RTPSCacheChange, RTPSEndpoint, RTPSEntity, RTPSHistoryCache},
         types::SequenceNumber,
     };
 
+    use crate::rtps::cache_change::CacheChange;
+
     use super::*;
+
+    struct MockParameterList;
+
+    impl ParameterList for MockParameterList {
+        fn parameter(
+            &self,
+        ) -> &[Box<dyn rust_rtps::messages::submessages::submessage_elements::Parameter>] {
+            todo!()
+        }
+    }
 
     struct MockCacheChange(SequenceNumber);
 
     impl RTPSCacheChange for MockCacheChange {
         type Data = Vec<u8>;
         type InstanceHandle = ();
+        type ParameterList = MockParameterList;
 
         fn new(
             _kind: rust_rtps::types::ChangeKind,
@@ -127,7 +141,7 @@ mod tests {
             _instance_handle: Self::InstanceHandle,
             _sequence_number: rust_rtps::types::SequenceNumber,
             _data_value: Self::Data,
-            _inline_qos: rust_rtps::messages::submessages::submessage_elements::ParameterList,
+            _inline_qos: Self::ParameterList,
         ) -> Self {
             todo!()
         }
@@ -152,9 +166,7 @@ mod tests {
             todo!()
         }
 
-        fn inline_qos(
-            &self,
-        ) -> &rust_rtps::messages::submessages::submessage_elements::ParameterList {
+        fn inline_qos(&self) -> &Self::ParameterList {
             todo!()
         }
     }
@@ -271,7 +283,7 @@ mod tests {
             &mut self,
             _kind: rust_rtps::types::ChangeKind,
             _data: <<Self::HistoryCacheType as RTPSHistoryCache>::CacheChangeType as RTPSCacheChange>::Data,
-            _inline_qos: rust_rtps::messages::submessages::submessage_elements::ParameterList,
+            _inline_qos:  <<Self::HistoryCacheType as RTPSHistoryCache>::CacheChangeType as RTPSCacheChange>::ParameterList,
             _handle: <<Self::HistoryCacheType as RTPSHistoryCache>::CacheChangeType as RTPSCacheChange>::InstanceHandle,
         ) -> <Self::HistoryCacheType as RTPSHistoryCache>::CacheChangeType {
             todo!()

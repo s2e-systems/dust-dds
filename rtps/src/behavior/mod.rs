@@ -59,12 +59,12 @@ pub fn data_from_cache_change<'a>(
     let writer_id = writer_guid.entity_id();
     let writer_sn = cache_change.sequence_number();
 
-    let mut inline_qos = cache_change.inline_qos().clone();
+    let inline_qos = cache_change.inline_qos();
 
     let change_kind = cache_change.kind();
-    inline_qos
-        .parameter
-        .push(change_kind_to_status_info(change_kind).into());
+    // inline_qos
+    //     .parameter
+    //     .push(change_kind_to_status_info(change_kind).into());
 
     match change_kind {
         ChangeKind::Alive => submessages::Data {

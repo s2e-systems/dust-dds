@@ -6,6 +6,7 @@ use crate::{
 pub trait RTPSCacheChange {
     type Data;
     type InstanceHandle;
+    type ParameterList: ParameterList;
 
     fn new(
         kind: ChangeKind,
@@ -13,12 +14,12 @@ pub trait RTPSCacheChange {
         instance_handle: Self::InstanceHandle,
         sequence_number: SequenceNumber,
         data_value: Self::Data,
-        inline_qos: ParameterList,
+        inline_qos: Self::ParameterList,
     ) -> Self;
     fn kind(&self) -> ChangeKind;
     fn writer_guid(&self) -> GUID;
     fn instance_handle(&self) -> &Self::InstanceHandle;
     fn sequence_number(&self) -> SequenceNumber;
     fn data_value(&self) -> &Self::Data;
-    fn inline_qos(&self) -> &ParameterList;
+    fn inline_qos(&self) -> &Self::ParameterList;
 }

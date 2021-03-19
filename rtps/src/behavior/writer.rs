@@ -1,9 +1,6 @@
 use crate::{
-    messages::submessages::submessage_elements::ParameterList,
     structure::{RTPSCacheChange, RTPSEndpoint, RTPSHistoryCache},
-    types::{
-        ChangeKind, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID,
-    },
+    types::{ChangeKind, Locator, ReliabilityKind, SequenceNumber, TopicKind, GUID},
 };
 
 use super::types::Duration;
@@ -35,7 +32,7 @@ pub trait RTPSWriter: RTPSEndpoint {
         &mut self,
         kind: ChangeKind,
         data: <<Self::HistoryCacheType as RTPSHistoryCache>::CacheChangeType as RTPSCacheChange>::Data,
-        inline_qos: ParameterList,
+        inline_qos: <<Self::HistoryCacheType as RTPSHistoryCache>::CacheChangeType as RTPSCacheChange>::ParameterList,
         handle: <<Self::HistoryCacheType as RTPSHistoryCache>::CacheChangeType as RTPSCacheChange>::InstanceHandle,
     ) -> <Self::HistoryCacheType as RTPSHistoryCache>::CacheChangeType;
 }

@@ -1,5 +1,3 @@
-use core::convert::{TryFrom, TryInto};
-
 use super::submessages::submessage_elements::Parameter;
 use serde::Serialize;
 
@@ -76,27 +74,17 @@ pub const PID_STATUS_INFO: ParameterId = 0x0071;
 #[derive(Debug, PartialEq, Clone, Copy, Eq)]
 pub struct KeyHash(pub [u8; 16]);
 
-impl From<KeyHash> for Parameter {
-    fn from(input: KeyHash) -> Self {
-        Parameter::new(PID_KEY_HASH, input.0.into())
+impl Parameter for KeyHash {
+    fn parameter_id(&self) -> ParameterId {
+        todo!()
     }
-}
 
-impl TryFrom<Parameter> for KeyHash {
-    type Error = ();
-    fn try_from(parameter: Parameter) -> Result<Self, Self::Error> {
-        if parameter.parameter_id() == PID_KEY_HASH {
-            Ok(KeyHash(
-                parameter
-                    .value()
-                    .get(0..16)
-                    .ok_or(())?
-                    .try_into()
-                    .map_err(|_| ())?,
-            ))
-        } else {
-            Err(())
-        }
+    fn length(&self) -> i16 {
+        todo!()
+    }
+
+    fn value(&self) -> &[u8] {
+        todo!()
     }
 }
 
@@ -118,29 +106,5 @@ impl StatusInfo {
 
     pub fn filtered_flag(&self) -> bool {
         self.0[3] & StatusInfo::FILTERED_FLAG_MASK == StatusInfo::FILTERED_FLAG_MASK
-    }
-}
-
-impl From<StatusInfo> for Parameter {
-    fn from(input: StatusInfo) -> Self {
-        Parameter::new(PID_STATUS_INFO, input.0.into())
-    }
-}
-
-impl TryFrom<Parameter> for StatusInfo {
-    type Error = ();
-    fn try_from(parameter: Parameter) -> Result<Self, Self::Error> {
-        if parameter.parameter_id() == PID_STATUS_INFO {
-            Ok(StatusInfo(
-                parameter
-                    .value()
-                    .get(0..4)
-                    .ok_or(())?
-                    .try_into()
-                    .map_err(|_| ())?,
-            ))
-        } else {
-            Err(())
-        }
     }
 }
