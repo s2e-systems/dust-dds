@@ -31,7 +31,7 @@ pub trait Locator {
     #[allow(non_upper_case_globals)]
     const LOCATOR_KIND_UDPv6: Self::Kind;
     const LOCATOR_ADDRESS_INVALID: Self::Address;
-    const LOCATOR_PORT_INVALID: Self::Address;
+    const LOCATOR_PORT_INVALID: Self::Port;
 
     fn kind(&self) -> &Self::Kind;
     fn port(&self) -> &Self::Port;
