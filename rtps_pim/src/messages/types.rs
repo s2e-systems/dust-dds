@@ -1,5 +1,4 @@
 use super::submessages::submessage_elements::Parameter;
-use serde::Serialize;
 
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
 /// Table 8.13 - Types used to define RTPS messages
@@ -44,7 +43,7 @@ pub type SubmessageFlag = bool;
 
 pub type SubmessageKind = u8;
 
-#[derive(PartialEq, Eq, Debug, Clone, Copy, Serialize)]
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub struct Time {
     seconds: u32,
     fraction: u32,
