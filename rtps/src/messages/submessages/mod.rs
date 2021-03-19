@@ -81,3 +81,35 @@ pub trait Submessage: erased_serde::Serialize {
 
     fn is_valid(&self) -> bool;
 }
+
+#[cfg(test)]
+mod tests {
+    use serde_test::{assert_ser_tokens, Token};
+
+    use super::*;
+
+    #[test]
+    fn serialize_submessage_header() {
+        let submessage_id = 10;
+        let flags = [true, true, true, false, false, false, false, false];
+        let submessage_length = 16;
+        let submessage_header = SubmessageHeader::new(submessage_id, flags, submessage_length);
+
+        assert_ser_tokens(
+            &submessage_header,
+            &[
+                Token::Struct {
+                    name: "SubmessageHeader",
+                    len: 3,
+                },
+                Token::Str("submessage_id"),
+                Token::U8(submessage_id),
+                Token::Str("flags"),
+                Token::U8(7),
+                Token::Str("submessage_length"),
+                Token::U16(submessage_length),
+                Token::StructEnd,
+            ],
+        )
+    }
+}
