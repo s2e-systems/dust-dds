@@ -1,4 +1,5 @@
 use core::ops::{Add, AddAssign, Sub};
+use serde::Serialize;
 
 ///
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
@@ -296,7 +297,7 @@ pub enum ReliabilityKind {
     Reliable,
 }
 
-#[derive(PartialEq, Debug, Clone, Copy, Eq)]
+#[derive(PartialEq, Debug, Clone, Copy, Eq, Serialize)]
 pub struct ProtocolVersion {
     pub major: u8,
     pub minor: u8,
@@ -306,6 +307,8 @@ pub type VendorId = [u8; 2];
 
 #[cfg(test)]
 mod tests {
+    use serde_test::{Token, assert_ser_tokens};
+
     use super::*;
 
     #[test]
@@ -405,5 +408,18 @@ mod tests {
         let mut sn = SequenceNumber::from(10);
         sn += 1;
         assert_eq!(sn, 11);
+    }
+
+    #[test]
+    fn serialize_protocol_version() {
+        let protocol_version = ProtocolVersion { major:2, minor:4 };
+        assert_ser_tokens(&protocol_version, &[
+            Token::Struct{name: "ProtocolVersion", len:2},
+            Token::Str("major"),
+            Token::U8(2),
+            Token::Str("minor"),
+            Token::U8(4),
+            Token::StructEnd,
+        ])
     }
 }

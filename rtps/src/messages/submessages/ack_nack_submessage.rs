@@ -1,3 +1,5 @@
+use serde::{ser::SerializeStruct, Serialize};
+
 use super::submessage_elements;
 use super::{Submessage, SubmessageHeader};
 use super::{SubmessageFlag, SubmessageKind};
@@ -31,10 +33,47 @@ impl Submessage for AckNack {
 }
 
 impl serde::Serialize for AckNack {
-    fn serialize<S>(&self, _serializer: S) -> Result<S::Ok, S::Error>
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
-        todo!()
+        let mut state = serializer.serialize_struct("AckNack", 4)?;
+        // state.serialize_field("Header", self.submessage_header(octets_to_next_header));
+        state.end()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_test::{assert_ser_tokens, Token};
+
+    use crate::{
+        messages::submessages::submessage_elements::SequenceNumberSet,
+        types::constants::ENTITYID_PARTICIPANT,
+    };
+
+    use super::*;
+
+    #[test]
+    fn serialize() {
+        let acknack = AckNack {
+            endianness_flag: false,
+            final_flag: true,
+            reader_id: ENTITYID_PARTICIPANT,
+            writer_id: ENTITYID_PARTICIPANT,
+            reader_sn_state: SequenceNumberSet::new(10.into(), [10; 8]),
+            count: 10,
+        };
+
+        assert_ser_tokens(
+            &acknack,
+            &[
+                Token::Struct {
+                    name: "AckNack",
+                    len: 4,
+                },
+                Token::StructEnd,
+            ],
+        )
     }
 }

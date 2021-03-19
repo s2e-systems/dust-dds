@@ -1,7 +1,4 @@
-use rust_rtps::{
-    messages::submessages::Submessage,
-    types::{GuidPrefix, Locator},
-};
+use rust_rtps::{messages::submessages::Submessage, types::Locator};
 
 pub enum DestinedMessages<'a> {
     SingleDestination {
