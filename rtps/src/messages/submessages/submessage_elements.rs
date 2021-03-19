@@ -62,9 +62,9 @@ pub trait Parameter {
 }
 
 pub trait ParameterList: SubmessageElement {
-    type Parameter: Parameter;
+    type Parameter: AsRef<dyn Parameter>;
     type ParameterList: IntoIterator<Item = Self::Parameter>;
-    fn parameter(&self) -> Self::Parameter;
+    fn parameter(&self) -> &Self::ParameterList;
 }
 
 pub trait Count: SubmessageElement {

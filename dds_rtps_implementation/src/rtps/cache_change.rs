@@ -20,7 +20,11 @@ impl MyParameterList {
 impl SubmessageElement for MyParameterList {}
 
 impl ParameterList for MyParameterList {
-    fn parameter(&self) -> &[Box<dyn Parameter>] {
+    type Parameter = Box<dyn Parameter>;
+
+    type ParameterList = Vec<Self::Parameter>;
+
+    fn parameter(&self) -> &Self::ParameterList {
         &self.parameter
     }
 }

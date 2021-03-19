@@ -1,6 +1,3 @@
-use core::ops::{Add, AddAssign, Sub};
-use serde::Serialize;
-
 ///
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
 /// Table 8.2 - Types of the attributes that appear in the RTPS Entities and Classes
@@ -108,10 +105,7 @@ pub mod constants {
         entity_id: ENTITYID_UNKNOWN,
     };
 
-    pub const SEQUENCE_NUMBER_UNKNOWN: SequenceNumber = SequenceNumber {
-        high: core::i32::MIN,
-        low: core::u32::MAX,
-    };
+    pub const SEQUENCE_NUMBER_UNKNOWN: SequenceNumber = core::i64::MIN;
 }
 
 #[derive(Hash, PartialEq, Eq, Debug, Clone, Copy)]
@@ -136,7 +130,7 @@ impl GUID {
 
 pub type GuidPrefix = [u8; 12];
 
-#[derive(Hash, Eq, PartialEq, Debug, Clone, Copy, Serialize)]
+#[derive(Hash, Eq, PartialEq, Debug, Clone, Copy)]
 pub struct EntityId {
     entity_key: [u8; 3],
     entity_kind: u8,
@@ -159,86 +153,7 @@ impl EntityId {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
-pub struct SequenceNumber {
-    high: i32,
-    low: u32,
-}
-
-impl SequenceNumber {
-    pub fn new(high: i32, low: u32) -> Self {
-        Self { high, low }
-    }
-
-    pub fn high(&self) -> i32 {
-        self.high
-    }
-
-    pub fn low(&self) -> u32 {
-        self.low
-    }
-}
-
-impl From<SequenceNumber> for i64 {
-    fn from(value: SequenceNumber) -> Self {
-        ((value.high as i64) << 32) + value.low as i64
-    }
-}
-
-impl From<i64> for SequenceNumber {
-    fn from(value: i64) -> Self {
-        Self {
-            high: (value >> 32) as i32,
-            low: value as u32,
-        }
-    }
-}
-
-impl PartialOrd for SequenceNumber {
-    fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
-        i64::from(*self).partial_cmp(&i64::from(*other))
-    }
-}
-
-impl Ord for SequenceNumber {
-    fn cmp(&self, other: &Self) -> core::cmp::Ordering {
-        i64::from(*self).cmp(&i64::from(*other))
-    }
-}
-
-impl PartialEq<i64> for SequenceNumber {
-    fn eq(&self, other: &i64) -> bool {
-        i64::from(*self).eq(other)
-    }
-}
-
-impl PartialOrd<i64> for SequenceNumber {
-    fn partial_cmp(&self, other: &i64) -> Option<core::cmp::Ordering> {
-        i64::from(*self).partial_cmp(other)
-    }
-}
-
-impl Add<i64> for SequenceNumber {
-    type Output = SequenceNumber;
-
-    fn add(self, rhs: i64) -> Self::Output {
-        (i64::from(self) + rhs).into()
-    }
-}
-
-impl AddAssign<i64> for SequenceNumber {
-    fn add_assign(&mut self, rhs: i64) {
-        *self = (i64::from(*self) + rhs).into();
-    }
-}
-
-impl Sub<i64> for SequenceNumber {
-    type Output = SequenceNumber;
-
-    fn sub(self, rhs: i64) -> Self::Output {
-        (i64::from(self) - rhs).into()
-    }
-}
+pub type SequenceNumber = i64;
 
 #[derive(PartialEq, Eq, Debug, Copy, Clone)]
 pub struct Locator {
@@ -297,135 +212,10 @@ pub enum ReliabilityKind {
     Reliable,
 }
 
-#[derive(PartialEq, Debug, Clone, Copy, Eq, Serialize)]
+#[derive(PartialEq, Debug, Clone, Copy, Eq)]
 pub struct ProtocolVersion {
     pub major: u8,
     pub minor: u8,
 }
 
 pub type VendorId = [u8; 2];
-
-#[cfg(test)]
-mod tests {
-    use serde_test::{assert_ser_tokens, Token};
-
-    use super::*;
-
-    #[test]
-    fn sequence_number_from_i64() {
-        assert_eq!(
-            SequenceNumber::from(8i64),
-            SequenceNumber { high: 0, low: 8 }
-        );
-        assert_eq!(
-            SequenceNumber::from(-8i64),
-            SequenceNumber {
-                high: -1,
-                low: core::u32::MAX - 7
-            }
-        );
-        assert_eq!(
-            SequenceNumber::from(34359738368i64),
-            SequenceNumber { high: 8, low: 0 }
-        );
-        assert_eq!(
-            SequenceNumber::from(-34359738368),
-            SequenceNumber { high: -8, low: 0 }
-        );
-        assert_eq!(
-            SequenceNumber::from(core::i64::MAX),
-            SequenceNumber {
-                high: core::i32::MAX,
-                low: core::u32::MAX
-            }
-        );
-        assert_eq!(
-            SequenceNumber::from(core::i64::MIN),
-            SequenceNumber {
-                high: core::i32::MIN,
-                low: core::u32::MIN
-            }
-        );
-    }
-
-    #[test]
-    fn i64_from_sequence_number() {
-        assert_eq!(i64::from(SequenceNumber { high: 0, low: 8 }), 8i64);
-        assert_eq!(
-            i64::from(SequenceNumber {
-                high: -1,
-                low: core::u32::MAX - 7
-            }),
-            -8i64
-        );
-        assert_eq!(
-            i64::from(SequenceNumber { high: 8, low: 0 }),
-            34359738368i64
-        );
-        assert_eq!(i64::from(SequenceNumber { high: -8, low: 0 }), -34359738368);
-        assert_eq!(
-            i64::from(SequenceNumber {
-                high: core::i32::MAX,
-                low: core::u32::MAX
-            }),
-            core::i64::MAX
-        );
-        assert_eq!(
-            i64::from(SequenceNumber {
-                high: core::i32::MIN,
-                low: core::u32::MIN
-            }),
-            core::i64::MIN
-        );
-    }
-
-    #[test]
-    fn sequence_number_cmp() {
-        assert!(SequenceNumber::from(10) < SequenceNumber::from(11));
-        assert!(SequenceNumber::from(10) > SequenceNumber::from(-11));
-        assert!(SequenceNumber::from(10) == SequenceNumber::from(10));
-    }
-
-    #[test]
-    fn sequence_number_cmp_i64() {
-        assert!(SequenceNumber::from(10) < 11);
-        assert!(SequenceNumber::from(10) > -11);
-        assert!(SequenceNumber::from(10) == 10);
-    }
-
-    #[test]
-    fn sequence_number_add_i64() {
-        assert_eq!(SequenceNumber::from(10) + 1, SequenceNumber::from(11));
-    }
-
-    #[test]
-    fn sequence_number_sub_i64() {
-        assert_eq!(SequenceNumber::from(-10) - 1, SequenceNumber::from(-11));
-    }
-
-    #[test]
-    fn sequence_number_add_assign_i64() {
-        let mut sn = SequenceNumber::from(10);
-        sn += 1;
-        assert_eq!(sn, 11);
-    }
-
-    #[test]
-    fn serialize_protocol_version() {
-        let protocol_version = ProtocolVersion { major: 2, minor: 4 };
-        assert_ser_tokens(
-            &protocol_version,
-            &[
-                Token::Struct {
-                    name: "ProtocolVersion",
-                    len: 2,
-                },
-                Token::Str("major"),
-                Token::U8(2),
-                Token::Str("minor"),
-                Token::U8(4),
-                Token::StructEnd,
-            ],
-        )
-    }
-}

@@ -1,46 +1,60 @@
-use std::io::Write;
+use crate::messages::submessages::submessage_elements;
+use serde::Serialize;
 
-use crate::messages::submessages::{Serialize, submessage_elements::{Long, Short, ULong, UShort}};
+#[derive(Serialize)]
+pub struct SequenceNumber {
+    pub high: i32,
+    pub low: u32,
+}
 
-impl Serialize for Long {
-    fn serialize(
-        &self,
-        mut buf: &mut [u8],
-        _protocol_version: crate::types::ProtocolVersion,
-    ) -> Result<usize, std::io::Error> {
-        buf.write(&self.to_le_bytes())
+impl submessage_elements::SubmessageElement for SequenceNumber {}
+impl submessage_elements::SequenceNumber for SequenceNumber {
+    fn value(&self) -> crate::types::SequenceNumber {
+        ((self.high as i64) << 32) + (self.low as i64)
     }
 }
 
-impl Serialize for ULong {
-    fn serialize(
-        &self,
-        mut buf: &mut [u8],
-        _protocol_version: crate::types::ProtocolVersion,
-    ) -> Result<usize, std::io::Error> {
-        buf.write(&self.to_le_bytes())
-    }
-}
+// use crate::messages::submessages::{Serialize, submessage_elements::{Long, Short, ULong, UShort}};
 
-impl Serialize for Short {
-    fn serialize(
-        &self,
-        mut buf: &mut [u8],
-        _protocol_version: crate::types::ProtocolVersion,
-    ) -> Result<usize, std::io::Error> {
-        buf.write(&self.to_le_bytes())
-    }
-}
+// impl Serialize for Long {
+//     fn serialize(
+//         &self,
+//         mut buf: &mut [u8],
+//         _protocol_version: crate::types::ProtocolVersion,
+//     ) -> Result<usize, std::io::Error> {
+//         buf.write(&self.to_le_bytes())
+//     }
+// }
 
-impl Serialize for UShort {
-    fn serialize(
-        &self,
-        mut buf: &mut [u8],
-        _protocol_version: crate::types::ProtocolVersion,
-    ) -> Result<usize, std::io::Error> {
-        buf.write(&self.to_le_bytes())
-    }
-}
+// impl Serialize for ULong {
+//     fn serialize(
+//         &self,
+//         mut buf: &mut [u8],
+//         _protocol_version: crate::types::ProtocolVersion,
+//     ) -> Result<usize, std::io::Error> {
+//         buf.write(&self.to_le_bytes())
+//     }
+// }
+
+// impl Serialize for Short {
+//     fn serialize(
+//         &self,
+//         mut buf: &mut [u8],
+//         _protocol_version: crate::types::ProtocolVersion,
+//     ) -> Result<usize, std::io::Error> {
+//         buf.write(&self.to_le_bytes())
+//     }
+// }
+
+// impl Serialize for UShort {
+//     fn serialize(
+//         &self,
+//         mut buf: &mut [u8],
+//         _protocol_version: crate::types::ProtocolVersion,
+//     ) -> Result<usize, std::io::Error> {
+//         buf.write(&self.to_le_bytes())
+//     }
+// }
 
 // const PID_SENTINEL : ParameterId = 1;
 
