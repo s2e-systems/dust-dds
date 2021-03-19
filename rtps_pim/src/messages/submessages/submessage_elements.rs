@@ -12,67 +12,94 @@ pub type Short = i16;
 pub type UShort = u16;
 
 pub trait GuidPrefix: SubmessageElement {
-    fn value(&self) -> types::GuidPrefix;
+    type GuidPrefix: types::GuidPrefix;
+    fn value(&self) -> &Self::GuidPrefix;
 }
 
 pub trait EntityId: SubmessageElement {
-    fn value(&self) -> types::EntityId;
+    type EntityId: types::EntityId;
+    fn value(&self) -> &Self::EntityId;
 }
 
 pub trait VendorId: SubmessageElement {
-    fn value(&self) -> types::VendorId;
+    type VendorId: types::VendorId;
+    fn value(&self) -> &Self::VendorId;
+
+    const VENDORID_UNKNOWN: Self;
 }
 
 pub trait ProtocolVersion: SubmessageElement {
-    fn value(&self) -> types::ProtocolVersion;
+    type ProtocolVersion: types::ProtocolVersion;
+    fn value(&self) -> &Self::ProtocolVersion;
+
+    const PROTOCOLVERSION_1_0: Self;
+    const PROTOCOLVERSION_1_1: Self;
+    const PROTOCOLVERSION_2_0: Self;
+    const PROTOCOLVERSION_2_1: Self;
+    const PROTOCOLVERSION_2_2: Self;
+    const PROTOCOLVERSION_2_4: Self;
 }
 
 pub trait SequenceNumber: SubmessageElement {
-    fn value(&self) -> types::SequenceNumber;
+    type SequenceNumber: types::SequenceNumber;
+    fn value(&self) -> &Self::SequenceNumber;
+
+    const SEQUENCENUMBER_UNKNOWN: Self;
 }
 
 pub trait SequenceNumberSet: SubmessageElement {
-    type SequenceNumberList: IntoIterator<Item = types::SequenceNumber>;
+    type SequenceNumber: types::SequenceNumber;
+    type SequenceNumberList: IntoIterator<Item = Self::SequenceNumber>;
 
-    fn base(&self) -> types::SequenceNumber;
+    fn base(&self) -> &Self::SequenceNumber;
 
-    fn set(&self) -> Self::SequenceNumberList;
+    fn set(&self) -> &Self::SequenceNumberList;
 }
 
 pub trait FragmentNumber: SubmessageElement {
-    fn value(&self) -> messages::types::FragmentNumber;
+    type FragmentNumber: messages::types::FragmentNumber;
+    fn value(&self) -> Self::FragmentNumber;
 }
 
 pub trait FragmentNumberSet: SubmessageElement {
-    type FragmentNumberList: IntoIterator<Item = messages::types::FragmentNumber>;
+    type FragmentNumber: messages::types::FragmentNumber;
+    type FragmentNumberList: IntoIterator<Item = Self::FragmentNumber>;
 
-    fn base(&self) -> messages::types::FragmentNumber;
+    fn base(&self) -> Self::FragmentNumber;
 
     fn set(&self) -> Self::FragmentNumberList;
 }
 
 pub trait Timestamp: SubmessageElement {
-    fn value(&self) -> messages::types::Time;
+    type Time: messages::types::Time;
+    fn value(&self) -> Self::Time;
+
+    const TIME_ZERO: Self;
+    const TIME_INVALID: Self;
+    const TIME_INFINITE: Self;
 }
 
 pub trait Parameter {
-    fn parameter_id(&self) -> messages::types::ParameterId;
+    type ParameterId: messages::types::ParameterId;
+    fn parameter_id(&self) -> Self::ParameterId;
     fn length(&self) -> i16;
     fn value(&self) -> &[u8];
 }
 
 pub trait ParameterList: SubmessageElement {
-    type Parameter: AsRef<dyn Parameter>;
+    type Parameter: Parameter;
     type ParameterList: IntoIterator<Item = Self::Parameter>;
     fn parameter(&self) -> &Self::ParameterList;
 }
 
 pub trait Count: SubmessageElement {
-    fn value(&self) -> messages::types::Count;
+    type Count: messages::types::Count;
+    fn value(&self) -> Self::Count;
 }
 
 pub trait LocatorList: SubmessageElement {
-    type LocatorList: IntoIterator<Item = types::Locator>;
+    type Locator: types::Locator;
+    type LocatorList: IntoIterator<Item = Self::Locator>;
     fn value(&self) -> Self::LocatorList;
 }
 
@@ -87,69 +114,3 @@ pub trait SerializedDataFragment: SubmessageElement {
 }
 
 // pub type GroupDigest = TBD
-
-// #[cfg(test)]
-// mod tests {
-//     use serde_test::{assert_ser_tokens, Token};
-
-//     use super::*;
-
-//     #[test]
-//     fn serialize_sequence_number_set() {
-//         assert_ser_tokens(
-//             &SequenceNumberSet::new(8.into(), 16, [8, 0, 0, 0, 0, 0, 0, 0]),
-//             &[
-//                 Token::Struct {
-//                     name: "SequenceNumberSet",
-//                     len: 3,
-//                 },
-//                 Token::Str("bitmap_base"),
-//                 Token::Struct {
-//                     name: "SequenceNumber",
-//                     len: 2,
-//                 },
-//                 Token::Str("high"),
-//                 Token::I32(0),
-//                 Token::Str("low"),
-//                 Token::U32(8),
-//                 Token::StructEnd,
-//                 Token::Str("num_bits"),
-//                 Token::U32(16),
-//                 Token::Str("bitmap"),
-//                 Token::I32(8),
-//                 Token::StructEnd,
-//             ],
-//         );
-
-//         assert_ser_tokens(
-//             &SequenceNumberSet::new(8.into(), 128, [8, 9, 10, 11, 0, 0, 0, 0]),
-//             &[
-//                 Token::Struct {
-//                     name: "SequenceNumberSet",
-//                     len: 3,
-//                 },
-//                 Token::Str("bitmap_base"),
-//                 Token::Struct {
-//                     name: "SequenceNumber",
-//                     len: 2,
-//                 },
-//                 Token::Str("high"),
-//                 Token::I32(0),
-//                 Token::Str("low"),
-//                 Token::U32(8),
-//                 Token::StructEnd,
-//                 Token::Str("num_bits"),
-//                 Token::U32(128),
-//                 Token::Str("bitmap"),
-//                 Token::I32(8),
-//                 Token::Str("bitmap"),
-//                 Token::I32(9),
-//                 Token::Str("bitmap"),
-//                 Token::I32(10),
-//                 Token::Str("bitmap"),
-//                 Token::I32(11),
-//                 Token::StructEnd,
-//             ],
-//         )
-//     }
-// }

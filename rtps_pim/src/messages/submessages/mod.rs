@@ -11,6 +11,7 @@ pub mod info_reply_submessage;
 pub mod info_source_submessage;
 pub mod info_timestamp_submessage;
 pub mod nack_frag_submessage;
+pub mod pad;
 
 use super::types::{SubmessageFlag, SubmessageKind};
 pub use ack_nack_submessage::AckNack;
@@ -20,13 +21,11 @@ pub use heartbeat_submessage::Heartbeat;
 pub use info_timestamp_submessage::InfoTimestamp;
 
 pub trait SubmessageHeader {
-    fn submessage_id(&self) -> SubmessageKind;
+    type SubmessageKind: SubmessageKind;
+    fn submessage_id(&self) -> Self::SubmessageKind;
     fn flags(&self) -> [SubmessageFlag; 8];
     fn submessage_length(&self) -> submessage_elements::UShort;
 }
-
-/// 8.3.7 RTPS Submessages
-
 pub trait Submessage {
     type SubmessageHeader: SubmessageHeader;
 

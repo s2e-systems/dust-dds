@@ -2,27 +2,8 @@
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
 /// Table 8.46 - Types definitions for the Behavior Module
 ///
-pub mod constants {
-    use super::Duration;
+pub trait Duration {}
 
-    pub const DURATION_ZERO: Duration = Duration {
-        seconds: 0,
-        fraction: 0,
-    };
-
-    pub const DURATION_INFINITE: Duration = Duration {
-        seconds: 0x7fffffff,
-        fraction: 0xffffffff,
-    };
-}
-
-#[derive(PartialEq, Eq, PartialOrd, Debug, Clone, Copy)]
-pub struct Duration {
-    pub seconds: i32,
-    pub fraction: u32,
-}
-
-#[derive(Debug, Eq, PartialEq, Clone, Copy)]
 pub enum ChangeForReaderStatusKind {
     Unsent,
     Unacknowledged,
@@ -31,7 +12,6 @@ pub enum ChangeForReaderStatusKind {
     Underway,
 }
 
-#[derive(Eq, PartialEq, Clone, Copy)]
 pub enum ChangeFromWriterStatusKind {
     Lost,
     Missing,
@@ -39,6 +19,6 @@ pub enum ChangeFromWriterStatusKind {
     Unknown,
 }
 
-// InstanceHandle should already be defined in structre types
+pub trait InstanceHandle {}
 
-// todo: ParticipantMessageData
+pub trait ParticipantMessageData {}
