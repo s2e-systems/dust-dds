@@ -59,17 +59,15 @@ mod tests {
 
     #[test]
     fn serialize() {
-        let acknack = AckNack {
-            endianness_flag: false,
-            final_flag: true,
-            reader_id: ENTITYID_PARTICIPANT,
-            writer_id: ENTITYID_PARTICIPANT,
-            reader_sn_state: SequenceNumberSet::new(10.into(), 5, [10; 8]),
-            count: 10,
-        };
-
         assert_ser_tokens(
-            &acknack,
+            &AckNack {
+                endianness_flag: false,
+                final_flag: true,
+                reader_id: ENTITYID_PARTICIPANT,
+                writer_id: ENTITYID_PARTICIPANT,
+                reader_sn_state: SequenceNumberSet::new(10.into(), 5, [10; 8]),
+                count: 10,
+            },
             &[
                 Token::Struct {
                     name: "AckNack",

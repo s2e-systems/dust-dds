@@ -8,6 +8,7 @@ use rust_rtps::{
         },
         RTPSStatelessWriter, RTPSWriter,
     },
+    messages::submessages::Submessage,
     structure::{RTPSCacheChange, RTPSHistoryCache},
     types::{Locator, SequenceNumber},
 };
@@ -23,12 +24,12 @@ impl<T, R> StatelessWriter<T, R>
     where T: RTPSWriter,
     <<<T as RTPSWriter>::HistoryCacheType as RTPSHistoryCache>::CacheChangeType as RTPSCacheChange>::Data: AsRef<[u8]>,
     R: RTPSReaderLocator<CacheChangeRepresentation = SequenceNumber>, {
-    pub fn produce_messages(&mut self) -> Vec<DestinedMessages> {
-        let destined_submessages = Vec::new();
+    pub fn produce_messages<'a>(&'a mut self) -> Vec<DestinedMessages> {
+        let mut destined_submessages = Vec::new();
 
         for reader_locator in &mut self.reader_locators {
 
-            // let mut _submessages = Vec::new();
+            let mut submessages: Vec<Box<dyn Submessage + 'a>> = Vec::new();
             match &self.writer.reliability_level() {
                 rust_rtps::types::ReliabilityKind::BestEffort => {
                     while let Some(submessage) = BestEffortReaderLocatorBehavior::produce_message(
@@ -36,13 +37,11 @@ impl<T, R> StatelessWriter<T, R>
                         &self.writer,
                     ) {
                         match submessage {
-                            BestEffortReaderLocatorSendSubmessages::Data(_data) => {
-                                todo!()
-                                // submessages.push(data)
+                            BestEffortReaderLocatorSendSubmessages::Data(data) => {
+                                submessages.push(Box::new(data))
                             }
-                            BestEffortReaderLocatorSendSubmessages::Gap(_gap) => {
-                                todo!()
-                                // submessages.push(gap)
+                            BestEffortReaderLocatorSendSubmessages::Gap(gap) => {
+                                submessages.push(Box::new(gap))
                             }
                         }
 
@@ -53,7 +52,7 @@ impl<T, R> StatelessWriter<T, R>
                 }
             }
 
-            // destined_submessages.push(DestinedMessages::SingleDestination{locator: reader_locator.locator(), messages: submessages});
+            destined_submessages.push(DestinedMessages::SingleDestination{locator: reader_locator.locator(), messages: submessages});
         };
         destined_submessages
     }

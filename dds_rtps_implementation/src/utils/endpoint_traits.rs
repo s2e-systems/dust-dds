@@ -3,12 +3,12 @@ use rust_rtps::{messages::submessages::Submessage, types::Locator};
 pub enum DestinedMessages<'a> {
     SingleDestination {
         locator: Locator,
-        messages: Vec<&'a dyn Submessage>,
+        messages: Vec<Box<dyn Submessage + 'a>>,
     },
     MultiDestination {
         unicast_locator_list: Vec<Locator>,
         multicast_locator_list: Vec<Locator>,
-        messages: Vec<&'a dyn Submessage>,
+        messages: Vec<Box<dyn Submessage + 'a>>,
     },
 }
 

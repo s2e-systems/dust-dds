@@ -1,6 +1,7 @@
 use super::Transport;
 use rust_dds_api::return_type::DDSResult;
 use rust_rtps::{messages::RtpsMessage, types::Locator};
+use serde::Serialize;
 
 pub struct MemoryTransport {
     // read: Mutex<VecDeque<(RtpsMessage<'a>, Locator)>>,
@@ -41,12 +42,14 @@ impl MemoryTransport {
 }
 
 impl Transport for MemoryTransport {
-    fn write<'a>(&'a self, _message: RtpsMessage<'a>, _destination_locator: &Locator) {
+    fn write<'a>(&'a self, message: RtpsMessage<'a>, _destination_locator: &Locator) {
+        let mut serializer = serde_json::Serializer::new(std::io::stdout());
+        message.serialize(&mut serializer).ok();
         // self.write
         //     .lock()
         //     .unwrap()
         //     .push_back((message, destination_locator.clone()));
-        todo!()
+        // todo!()
     }
 
     fn unicast_locator_list(&self) -> &[Locator] {

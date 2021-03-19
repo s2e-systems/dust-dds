@@ -1,4 +1,10 @@
-use rust_rtps::types::GuidPrefix;
+use rust_rtps::{
+    messages::{submessages::Submessage, RtpsMessage},
+    types::{
+        constants::{PROTOCOL_VERSION_2_4, VENDOR_ID},
+        GuidPrefix,
+    },
+};
 
 use crate::transport::Transport;
 
@@ -8,46 +14,49 @@ pub struct RtpsMessageSender;
 
 impl RtpsMessageSender {
     pub fn send_cache_change_messages<'a>(
-        _participant_guid_prefix: GuidPrefix,
-        _transport: &dyn Transport,
-        _destined_messages: Vec<DestinedMessages<'a>>,
+        participant_guid_prefix: GuidPrefix,
+        transport: &dyn Transport,
+        destined_messages: Vec<DestinedMessages<'a>>,
     ) {
-        // for destined_message in destined_messages {
-        //     match destined_message {
-        //         DestinedMessages::SingleDestination { locator, messages } => {
-        //             if messages.len() > 0 {
-        //                 let message = RtpsMessage::new(
-        //                     PROTOCOL_VERSION_2_4,
-        //                     VENDOR_ID,
-        //                     participant_guid_prefix,
-        //                     messages,
-        //                 );
-        //                 transport.write(message, &locator);
-        //             }
-        //         }
-        //         DestinedMessages::MultiDestination {
-        //             unicast_locator_list,
-        //             multicast_locator_list,
-        //             messages,
-        //         } => {
-        //             if messages.len() > 0 {
-        //                 let message = RtpsMessage::new(
-        //                     PROTOCOL_VERSION_2_4,
-        //                     VENDOR_ID,
-        //                     participant_guid_prefix,
-        //                     messages,
-        //                 );
+        for destined_message in destined_messages {
+            match destined_message {
+                DestinedMessages::SingleDestination { locator, messages } => {
+                    if messages.len() > 0 {
+                        let messages_reference: Vec<&dyn Submessage> =
+                            messages.iter().map(|x| x.as_ref()).collect();
+                        let message = RtpsMessage::new(
+                            PROTOCOL_VERSION_2_4,
+                            VENDOR_ID,
+                            participant_guid_prefix,
+                            &messages_reference,
+                        );
+                        transport.write(message, &locator);
+                    }
+                }
+                DestinedMessages::MultiDestination {
+                    unicast_locator_list,
+                    multicast_locator_list,
+                    messages,
+                } => {
+                    if messages.len() > 0 {
+                        let messages_reference: Vec<&dyn Submessage> =
+                            messages.iter().map(|x| x.as_ref()).collect();
+                        let message = RtpsMessage::new(
+                            PROTOCOL_VERSION_2_4,
+                            VENDOR_ID,
+                            participant_guid_prefix,
+                            &messages_reference,
+                        );
 
-        //                 if !unicast_locator_list.is_empty() {
-        //                     transport.write(message, &unicast_locator_list[0]);
-        //                 } else if !multicast_locator_list.is_empty() {
-        //                     transport.write(message, &multicast_locator_list[0]);
-        //                 }
-        //             }
-        //         }
-        //     }
-        // }
-        todo!()
+                        if !unicast_locator_list.is_empty() {
+                            transport.write(message, &unicast_locator_list[0]);
+                        } else if !multicast_locator_list.is_empty() {
+                            transport.write(message, &multicast_locator_list[0]);
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 

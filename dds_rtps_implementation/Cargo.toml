@@ -10,3 +10,6 @@ edition = "2018"
 [dependencies]
 rust-dds-api = {path="../dds_api"}
 rust-rtps = {path="../rtps"}
+
+serde="1.0"
+serde_json = "1.0"

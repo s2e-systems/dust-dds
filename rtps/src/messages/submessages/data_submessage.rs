@@ -1,3 +1,5 @@
+use serde::ser::SerializeStruct;
+
 use super::submessage_elements;
 use super::SubmessageFlag;
 use super::{Submessage, SubmessageHeader};
@@ -43,10 +45,12 @@ impl<'a> Submessage for Data<'a> {
 }
 
 impl<'a> serde::Serialize for Data<'a> {
-    fn serialize<S>(&self, _serializer: S) -> Result<S::Ok, S::Error>
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
-        todo!()
+        let mut state = serializer.serialize_struct("Data", 1)?;
+        state.serialize_field("header", &self.submessage_header())?;
+        state.end()
     }
 }
