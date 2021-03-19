@@ -1,4 +1,6 @@
-pub struct UShort(u16);
+use std::ops::Deref;
+
+pub struct UShort(pub u16);
 
 impl Into<[u8; 2]> for UShort {
     fn into(self) -> [u8; 2] {
@@ -6,7 +8,15 @@ impl Into<[u8; 2]> for UShort {
     }
 }
 
-pub struct Short(i16);
+impl Deref for UShort {
+    type Target = u16;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+pub struct Short(pub i16);
 
 impl Into<[u8; 2]> for Short {
     fn into(self) -> [u8; 2] {
@@ -14,7 +24,15 @@ impl Into<[u8; 2]> for Short {
     }
 }
 
-pub struct ULong(u32);
+impl Deref for Short {
+    type Target = i16;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+pub struct ULong(pub u32);
 
 impl Into<[u8; 4]> for ULong {
     fn into(self) -> [u8; 4] {
@@ -22,11 +40,27 @@ impl Into<[u8; 4]> for ULong {
     }
 }
 
-pub struct Long(i32);
+impl Deref for ULong {
+    type Target = u32;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+pub struct Long(pub i32);
 
 impl Into<[u8; 4]> for Long {
     fn into(self) -> [u8; 4] {
         self.0.to_ne_bytes()
+    }
+}
+
+impl Deref for Long {
+    type Target = i32;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 
@@ -170,20 +204,20 @@ impl Into<[u8; 16]> for GUID {
 }
 
 pub struct SequenceNumber {
-    high: i32,
-    low: u32,
+    high: Long,
+    low: ULong,
 }
 
 impl rust_rtps_pim::types::SequenceNumber for SequenceNumber {
     const SEQUENCE_NUMBER_UNKNOWN: Self = Self {
-        high: core::i32::MIN,
-        low: core::u32::MIN,
+        high: Long(core::i32::MIN),
+        low: ULong(core::u32::MIN),
     };
 }
 
 impl Into<i64> for SequenceNumber {
     fn into(self) -> i64 {
-        ((self.high as i64) << 32) + self.low as i64
+        ((*self.high as i64) << 32) + *self.low as i64
     }
 }
 

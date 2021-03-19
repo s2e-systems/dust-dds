@@ -6,10 +6,18 @@ use crate::{messages, types};
 
 pub trait SubmessageElement {}
 
-pub type Long = i32;
-pub type ULong = u32;
-pub type Short = i16;
-pub type UShort = u16;
+pub trait Long: SubmessageElement {
+    fn value(&self) -> &i32;
+}
+pub trait ULong: SubmessageElement {
+    fn value(&self) -> &u32;
+}
+pub trait Short: SubmessageElement {
+    fn value(&self) -> &i16;
+}
+pub trait UShort: SubmessageElement {
+    fn value(&self) -> &u16;
+}
 
 pub trait GuidPrefix: SubmessageElement {
     type GuidPrefix: types::GuidPrefix;
@@ -37,6 +45,7 @@ pub trait ProtocolVersion: SubmessageElement {
     const PROTOCOLVERSION_2_0: Self;
     const PROTOCOLVERSION_2_1: Self;
     const PROTOCOLVERSION_2_2: Self;
+    const PROTOCOLVERSION_2_3: Self;
     const PROTOCOLVERSION_2_4: Self;
 }
 
@@ -72,7 +81,7 @@ pub trait FragmentNumberSet: SubmessageElement {
 
 pub trait Timestamp: SubmessageElement {
     type Time: messages::types::Time;
-    fn value(&self) -> Self::Time;
+    fn value(&self) -> &Self::Time;
 
     const TIME_ZERO: Self;
     const TIME_INVALID: Self;
