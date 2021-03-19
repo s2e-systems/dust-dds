@@ -71,7 +71,7 @@ impl BestEffortReaderLocatorBehavior {
                     reader_id: ENTITYID_UNKNOWN,
                     writer_id: writer.guid().entity_id(),
                     gap_start: next_unsent_seq_num,
-                    gap_list: SequenceNumberSet::new(next_unsent_seq_num, [0; 8]),
+                    gap_list: SequenceNumberSet::new(next_unsent_seq_num, 0, [0; 8]),
                 }))
             }
         } else {

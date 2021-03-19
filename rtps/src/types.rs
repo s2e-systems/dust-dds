@@ -136,7 +136,7 @@ impl GUID {
 
 pub type GuidPrefix = [u8; 12];
 
-#[derive(Hash, Eq, PartialEq, Debug, Clone, Copy)]
+#[derive(Hash, Eq, PartialEq, Debug, Clone, Copy, Serialize)]
 pub struct EntityId {
     entity_key: [u8; 3],
     entity_kind: u8,
@@ -159,7 +159,7 @@ impl EntityId {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub struct SequenceNumber {
     high: i32,
     low: u32,
@@ -307,7 +307,7 @@ pub type VendorId = [u8; 2];
 
 #[cfg(test)]
 mod tests {
-    use serde_test::{Token, assert_ser_tokens};
+    use serde_test::{assert_ser_tokens, Token};
 
     use super::*;
 
@@ -412,14 +412,20 @@ mod tests {
 
     #[test]
     fn serialize_protocol_version() {
-        let protocol_version = ProtocolVersion { major:2, minor:4 };
-        assert_ser_tokens(&protocol_version, &[
-            Token::Struct{name: "ProtocolVersion", len:2},
-            Token::Str("major"),
-            Token::U8(2),
-            Token::Str("minor"),
-            Token::U8(4),
-            Token::StructEnd,
-        ])
+        let protocol_version = ProtocolVersion { major: 2, minor: 4 };
+        assert_ser_tokens(
+            &protocol_version,
+            &[
+                Token::Struct {
+                    name: "ProtocolVersion",
+                    len: 2,
+                },
+                Token::Str("major"),
+                Token::U8(2),
+                Token::Str("minor"),
+                Token::U8(4),
+                Token::StructEnd,
+            ],
+        )
     }
 }

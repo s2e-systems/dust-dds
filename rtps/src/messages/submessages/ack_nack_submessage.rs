@@ -1,3 +1,5 @@
+use serde::ser::SerializeStruct;
+
 use super::submessage_elements;
 use super::SubmessageFlag;
 use super::{Submessage, SubmessageHeader};
@@ -30,14 +32,17 @@ impl Submessage for AckNack {
 }
 
 impl serde::Serialize for AckNack {
-    fn serialize<S>(&self, _serializer: S) -> Result<S::Ok, S::Error>
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
-        todo!()
-        // let mut state = serializer.serialize_struct("AckNack", 4)?;
-        // state.serialize_field("header", &self.submessage_header())?;
-        // state.end()
+        let mut state = serializer.serialize_struct("AckNack", 4)?;
+        state.serialize_field("header", &self.submessage_header())?;
+        state.serialize_field("reader_id", &self.reader_id)?;
+        state.serialize_field("writer_id", &self.writer_id)?;
+        state.serialize_field("reader_sn_state", &self.reader_sn_state)?;
+        state.serialize_field("count", &self.count)?;
+        state.end()
     }
 }
 
@@ -59,7 +64,7 @@ mod tests {
             final_flag: true,
             reader_id: ENTITYID_PARTICIPANT,
             writer_id: ENTITYID_PARTICIPANT,
-            reader_sn_state: SequenceNumberSet::new(10.into(), [10; 8]),
+            reader_sn_state: SequenceNumberSet::new(10.into(), 5, [10; 8]),
             count: 10,
         };
 
