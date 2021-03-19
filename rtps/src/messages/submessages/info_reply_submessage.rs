@@ -1,6 +1,8 @@
 use super::submessage_elements;
+use super::SubmessageFlag;
 use super::{Submessage, SubmessageHeader};
-use super::{SubmessageFlag, SubmessageKind};
+
+use crate::messages::types::constants;
 
 #[derive(PartialEq, Debug)]
 pub struct InfoReply {
@@ -12,14 +14,12 @@ pub struct InfoReply {
 
 impl Submessage for InfoReply {
     fn submessage_header(&self) -> SubmessageHeader {
-        let submessage_id = SubmessageKind::InfoReply;
-
         const X: SubmessageFlag = false;
         let e = self.endianness_flag;
         let m = self.multicast_flag;
         let flags = [e, m, X, X, X, X, X, X];
 
-        SubmessageHeader::new(submessage_id, flags, 0)
+        SubmessageHeader::new(constants::SUBMESSAGE_KIND_INFO_REPLY, flags, 0)
     }
 
     fn is_valid(&self) -> bool {

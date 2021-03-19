@@ -1,6 +1,7 @@
 use super::submessage_elements;
+use super::SubmessageFlag;
 use super::{Submessage, SubmessageHeader};
-use super::{SubmessageFlag, SubmessageKind};
+use crate::messages::types::constants;
 
 pub struct DataFrag<'a> {
     pub endianness_flag: SubmessageFlag,
@@ -20,8 +21,6 @@ pub struct DataFrag<'a> {
 
 impl<'a> Submessage for DataFrag<'a> {
     fn submessage_header(&self) -> SubmessageHeader {
-        let submessage_id = SubmessageKind::DataFrag;
-
         const X: SubmessageFlag = false;
         let e = self.endianness_flag;
         let q = self.inline_qos_flag;
@@ -29,7 +28,7 @@ impl<'a> Submessage for DataFrag<'a> {
         let n = self.non_standard_payload_flag;
         let flags = [e, q, k, n, X, X, X, X];
 
-        SubmessageHeader::new(submessage_id, flags, 0)
+        SubmessageHeader::new(constants::SUBMESSAGE_KIND_DATA_FRAG, flags, 0)
     }
 
     fn is_valid(&self) -> bool {

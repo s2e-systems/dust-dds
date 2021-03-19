@@ -18,6 +18,7 @@ pub use data_submessage::Data;
 pub use gap_submessage::Gap;
 pub use heartbeat_submessage::Heartbeat;
 pub use info_timestamp_submessage::InfoTs;
+use serde::ser::SerializeStruct;
 
 #[derive(PartialEq, Debug)]
 pub struct SubmessageHeader {
@@ -48,6 +49,25 @@ impl SubmessageHeader {
     }
     pub fn submessage_length(&self) -> submessage_elements::UShort {
         self.submessage_length
+    }
+}
+
+impl serde::Serialize for SubmessageHeader {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let mut state = serializer.serialize_struct("SubmessageHeader", 3)?;
+        state.serialize_field("submessage_id", &self.submessage_id)?;
+        let mut flags = 0u8;
+        for i in 0..8 {
+            if self.flags[i] {
+                flags |= 0b00000001 << i;
+            }
+        }
+        state.serialize_field("flags", &flags)?;
+        state.serialize_field("submessage_length", &self.submessage_length)?;
+        state.end()
     }
 }
 /// 8.3.7 RTPS Submessages

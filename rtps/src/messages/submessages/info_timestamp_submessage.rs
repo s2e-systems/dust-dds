@@ -1,5 +1,7 @@
 use super::submessage_elements;
-use super::{Submessage, SubmessageFlag, SubmessageHeader, SubmessageKind};
+use super::{Submessage, SubmessageFlag, SubmessageHeader};
+
+use crate::messages::types::constants;
 
 #[derive(PartialEq, Debug)]
 pub struct InfoTs {
@@ -14,15 +16,13 @@ impl InfoTs {
 
 impl Submessage for InfoTs {
     fn submessage_header(&self) -> SubmessageHeader {
-        let submessage_id = SubmessageKind::InfoTimestamp;
-
         let x = false;
         let e = self.endianness_flag; // Indicates endianness.
         let i = self.invalidate_flag; // Indicates whether subsequent Submessages should be considered as having a timestamp or not.
                                       // X|X|X|X|X|X|I|E
         let flags = [e, i, x, x, x, x, x, x];
 
-        SubmessageHeader::new(submessage_id, flags, 0)
+        SubmessageHeader::new(constants::SUBMESSAGE_KIND_INFO_TIMESTAMP, flags, 0)
     }
 
     fn is_valid(&self) -> bool {

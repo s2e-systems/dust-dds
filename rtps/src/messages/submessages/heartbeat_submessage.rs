@@ -1,6 +1,8 @@
 use super::submessage_elements;
+use super::SubmessageFlag;
 use super::{Submessage, SubmessageHeader};
-use super::{SubmessageFlag, SubmessageKind};
+
+use crate::messages::types::constants;
 
 #[derive(PartialEq, Debug)]
 pub struct Heartbeat {
@@ -27,8 +29,6 @@ impl Heartbeat {
 
 impl Submessage for Heartbeat {
     fn submessage_header(&self) -> SubmessageHeader {
-        let submessage_id = SubmessageKind::Heartbeat;
-
         let x = false;
         let e = self.endianness_flag; // Indicates endianness.
         let f = self.final_flag; //Indicates to the Reader the presence of a ParameterList containing QoS parameters that should be used to interpret the message.
@@ -36,7 +36,7 @@ impl Submessage for Heartbeat {
                                       // X|X|X|X|X|L|F|E
         let flags = [e, f, l, x, x, x, x, x];
 
-        SubmessageHeader::new(submessage_id, flags, 0)
+        SubmessageHeader::new(constants::SUBMESSAGE_KIND_HEARTBEAT, flags, 0)
     }
 
     fn is_valid(&self) -> bool {

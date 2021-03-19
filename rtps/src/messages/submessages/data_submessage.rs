@@ -1,6 +1,7 @@
 use super::submessage_elements;
+use super::SubmessageFlag;
 use super::{Submessage, SubmessageHeader};
-use super::{SubmessageFlag, SubmessageKind};
+use crate::messages::types::constants;
 use crate::types;
 
 #[derive(Debug, PartialEq)]
@@ -19,8 +20,6 @@ pub struct Data<'a> {
 
 impl<'a> Submessage for Data<'a> {
     fn submessage_header(&self) -> SubmessageHeader {
-        let submessage_id = SubmessageKind::Data;
-
         let x = false;
         let e = self.endianness_flag; // Indicates endianness.
         let q = self.inline_qos_flag; //Indicates to the Reader the presence of a ParameterList containing QoS parameters that should be used to interpret the message.
@@ -30,7 +29,7 @@ impl<'a> Submessage for Data<'a> {
                                                 // X|X|X|N|K|D|Q|E
         let flags = [e, q, d, k, n, x, x, x];
 
-        SubmessageHeader::new(submessage_id, flags, 0)
+        SubmessageHeader::new(constants::SUBMESSAGE_KIND_DATA, flags, 0)
     }
 
     fn is_valid(&self) -> bool {

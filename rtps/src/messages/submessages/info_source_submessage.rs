@@ -1,7 +1,8 @@
 use super::submessage_elements;
+use super::SubmessageFlag;
 use super::{Submessage, SubmessageHeader};
-use super::{SubmessageFlag, SubmessageKind};
 
+use crate::messages::types::constants;
 #[derive(PartialEq, Debug)]
 pub struct InfoSource {
     pub endianness_flag: SubmessageFlag,
@@ -12,13 +13,11 @@ pub struct InfoSource {
 
 impl Submessage for InfoSource {
     fn submessage_header(&self) -> SubmessageHeader {
-        let submessage_id = SubmessageKind::InfoSource;
-
         const X: SubmessageFlag = false;
         let e = self.endianness_flag;
         let flags = [e, X, X, X, X, X, X, X];
 
-        SubmessageHeader::new(submessage_id, flags, 0)
+        SubmessageHeader::new(constants::SUBMESSAGE_KIND_INFO_SOURCE, flags, 0)
     }
 
     fn is_valid(&self) -> bool {

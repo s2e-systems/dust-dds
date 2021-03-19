@@ -1,6 +1,8 @@
 use super::submessage_elements;
+use super::SubmessageFlag;
 use super::{Submessage, SubmessageHeader};
-use super::{SubmessageFlag, SubmessageKind};
+
+use crate::messages::types::constants;
 
 #[derive(PartialEq, Debug)]
 pub struct Gap {
@@ -16,14 +18,12 @@ pub struct Gap {
 
 impl Submessage for Gap {
     fn submessage_header(&self) -> SubmessageHeader {
-        let submessage_id = SubmessageKind::Gap;
-
         let x = false;
         let e = self.endianness_flag; // Indicates endianness.
                                       // X|X|X|X|X|X|X|E
         let flags = [e, x, x, x, x, x, x, x];
 
-        SubmessageHeader::new(submessage_id, flags, 0)
+        SubmessageHeader::new(constants::SUBMESSAGE_KIND_GAP, flags, 0)
     }
 
     fn is_valid(&self) -> bool {

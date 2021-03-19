@@ -23,73 +23,27 @@ pub mod constants {
         fraction: core::u32::MAX,
     };
     pub const PROTOCOL_RTPS: ProtocolId = [b'R', b'T', b'P', b'S'];
+
+    pub const SUBMESSAGE_KIND_PAD: u8 = 0x01;
+    pub const SUBMESSAGE_KIND_ACK_NACK: u8 = 0x06;
+    pub const SUBMESSAGE_KIND_HEARTBEAT: u8 = 0x07;
+    pub const SUBMESSAGE_KIND_GAP: u8 = 0x08;
+    pub const SUBMESSAGE_KIND_INFO_TIMESTAMP: u8 = 0x09;
+    pub const SUBMESSAGE_KIND_INFO_SOURCE: u8 = 0x0c;
+    pub const SUBMESSAGE_KIND_INFO_REPLY_IP4: u8 = 0x0d;
+    pub const SUBMESSAGE_KIND_INFO_DESTINATION: u8 = 0x0e;
+    pub const SUBMESSAGE_KIND_INFO_REPLY: u8 = 0x0f;
+    pub const SUBMESSAGE_KIND_NACK_FRAG: u8 = 0x12;
+    pub const SUBMESSAGE_KIND_HEARTBEAT_FRAG: u8 = 0x13;
+    pub const SUBMESSAGE_KIND_DATA: u8 = 0x15;
+    pub const SUBMESSAGE_KIND_DATA_FRAG: u8 = 0x16;
 }
 
 pub type ProtocolId = [u8; 4];
 
 pub type SubmessageFlag = bool;
 
-// impl Serialize for [SubmessageFlag; 8] {
-//     fn serialize(
-//         &self,
-//         buf: &mut [u8],
-//         _protocol_version: crate::types::ProtocolVersion,
-//     ) -> Result<usize, std::io::Error> {
-//         let mut flags = 0u8;
-//         for i in 0..8 {
-//             if self[i] {
-//                 flags |= 0b00000001 << i;
-//             }
-//         }
-//         buf[0] = flags;
-//         Ok(1)
-//     }
-// }
-
-#[derive(PartialEq, Copy, Clone, Debug)]
-pub enum SubmessageKind {
-    Pad,
-    AckNack,
-    Heartbeat,
-    Gap,
-    InfoTimestamp,
-    InfoSource,
-    InfoReplyIP4,
-    InfoDestination,
-    InfoReply,
-    NackFrag,
-    HeartbeatFrag,
-    Data,
-    DataFrag,
-}
-
-// impl Serialize for SubmessageKind {
-//     fn serialize(
-//         &self,
-//         buf: &mut [u8],
-//         _protocol_version: crate::types::ProtocolVersion,
-//     ) -> Result<usize, std::io::Error> {
-//         let value = match self {
-//             SubmessageKind::Pad => 0x01,
-//             SubmessageKind::AckNack => 0x06,
-//             SubmessageKind::Heartbeat => 0x07,
-//             SubmessageKind::Gap => 0x08,
-//             SubmessageKind::InfoTimestamp => 0x09,
-//             SubmessageKind::InfoSource => 0x0c,
-//             SubmessageKind::InfoReplyIP4 => 0x0d,
-//             SubmessageKind::InfoDestination => 0x0e,
-//             SubmessageKind::InfoReply => 0x0f,
-//             SubmessageKind::NackFrag => 0x12,
-//             SubmessageKind::HeartbeatFrag => 0x13,
-//             SubmessageKind::Data => 0x15,
-//             SubmessageKind::DataFrag => 0x16,
-//         };
-
-//         buf[0] = value;
-
-//         Ok(1)
-//     }
-// }
+pub type SubmessageKind = u8;
 
 #[derive(PartialEq, Eq, Hash, Debug, Clone, Copy)]
 pub struct Time {

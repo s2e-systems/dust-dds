@@ -1,6 +1,8 @@
 use super::submessage_elements;
 use super::{Submessage, SubmessageHeader};
-use super::{SubmessageFlag, SubmessageKind};
+use super::{SubmessageFlag};
+
+use crate::messages::types::constants;
 
 #[derive(PartialEq, Debug)]
 pub struct HeartbeatFrag {
@@ -14,13 +16,11 @@ pub struct HeartbeatFrag {
 
 impl Submessage for HeartbeatFrag {
     fn submessage_header(&self) -> SubmessageHeader {
-        let submessage_id = SubmessageKind::HeartbeatFrag;
-
         const X: SubmessageFlag = false;
         let e = self.endianness_flag;
         let flags = [e, X, X, X, X, X, X, X];
 
-        SubmessageHeader::new(submessage_id, flags, 0)
+        SubmessageHeader::new(constants::SUBMESSAGE_KIND_HEARTBEAT_FRAG, flags, 0)
     }
 
     fn is_valid(&self) -> bool {
