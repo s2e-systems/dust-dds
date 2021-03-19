@@ -17,7 +17,7 @@ pub use ack_nack_submessage::AckNack;
 pub use data_submessage::Data;
 pub use gap_submessage::Gap;
 pub use heartbeat_submessage::Heartbeat;
-pub use info_timestamp_submessage::InfoTs;
+pub use info_timestamp_submessage::InfoTimestamp;
 use serde::ser::SerializeStruct;
 
 #[derive(PartialEq, Debug)]
