@@ -1,29 +1,9 @@
-use crate::types::{Long, ULong};
-
-pub struct Time {
-    seconds: Long,
-    fraction: ULong,
+pub struct ProtocolId(pub [u8; 4]);
+impl rust_rtps_pim::messages::types::ProtocolId for ProtocolId {
+    const PROTOCOL_RTPS: Self = Self([b'R', b'T', b'P', b'S']);
 }
 
-impl rust_rtps_pim::messages::types::Time for Time {
-    const TIME_ZERO: Self = Self {
-        seconds: Long(0),
-        fraction: ULong(0),
-    };
-
-    const TIME_INVALID: Self = Self {
-        seconds: Long(std::i32::MIN),
-        fraction: ULong(0xffffffff),
-    };
-
-    const TIME_INFINITE: Self = Self {
-        seconds: Long(std::i32::MIN),
-        fraction: ULong(0xfffffffe),
-    };
-}
-
-pub struct SubmessageKind(u8);
-
+pub struct SubmessageKind(pub u8);
 impl rust_rtps_pim::messages::types::SubmessageKind for SubmessageKind {
     const DATA: Self = Self(0x15);
     const GAP: Self = Self(0x08);
@@ -38,3 +18,36 @@ impl rust_rtps_pim::messages::types::SubmessageKind for SubmessageKind {
     const NACK_FRAG: Self = Self(0x12);
     const HEARTBEAT_FRAG: Self = Self(0x13);
 }
+
+pub struct Time {
+    pub seconds: i32,
+    pub fraction: u32,
+}
+impl rust_rtps_pim::messages::types::Time for Time {
+    const TIME_ZERO: Self = Self {
+        seconds: 0,
+        fraction: 0,
+    };
+
+    const TIME_INVALID: Self = Self {
+        seconds: std::i32::MIN,
+        fraction: std::u32::MAX,
+    };
+
+    const TIME_INFINITE: Self = Self {
+        seconds: std::i32::MIN,
+        fraction: 0xfffffffe,
+    };
+}
+
+pub struct Count(pub i32);
+impl rust_rtps_pim::messages::types::Count for Count {}
+
+pub struct ParameterId(pub i16);
+impl rust_rtps_pim::messages::types::ParameterId for ParameterId {}
+
+pub struct FragmentNumber(pub u32);
+impl rust_rtps_pim::messages::types::FragmentNumber for FragmentNumber {}
+
+pub struct GroupDigest(pub [u8; 4]);
+impl rust_rtps_pim::messages::types::GroupDigest for GroupDigest {}

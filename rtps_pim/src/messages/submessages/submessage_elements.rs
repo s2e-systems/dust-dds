@@ -6,19 +6,6 @@ use crate::{messages, types};
 
 pub trait SubmessageElement {}
 
-pub trait Long: SubmessageElement {
-    fn value(&self) -> &i32;
-}
-pub trait ULong: SubmessageElement {
-    fn value(&self) -> &u32;
-}
-pub trait Short: SubmessageElement {
-    fn value(&self) -> &i16;
-}
-pub trait UShort: SubmessageElement {
-    fn value(&self) -> &u16;
-}
-
 pub trait GuidPrefix: SubmessageElement {
     type GuidPrefix: types::GuidPrefix;
     fn value(&self) -> &Self::GuidPrefix;
@@ -58,11 +45,9 @@ pub trait SequenceNumber: SubmessageElement {
 
 pub trait SequenceNumberSet: SubmessageElement {
     type SequenceNumber: types::SequenceNumber;
-    type SequenceNumberList: IntoIterator<Item = Self::SequenceNumber>;
 
     fn base(&self) -> &Self::SequenceNumber;
-
-    fn set(&self) -> &Self::SequenceNumberList;
+    fn set(&self) -> &[Self::SequenceNumber];
 }
 
 pub trait FragmentNumber: SubmessageElement {
@@ -72,11 +57,9 @@ pub trait FragmentNumber: SubmessageElement {
 
 pub trait FragmentNumberSet: SubmessageElement {
     type FragmentNumber: messages::types::FragmentNumber;
-    type FragmentNumberList: IntoIterator<Item = Self::FragmentNumber>;
 
-    fn base(&self) -> Self::FragmentNumber;
-
-    fn set(&self) -> Self::FragmentNumberList;
+    fn base(&self) -> &Self::FragmentNumber;
+    fn set(&self) -> &[Self::FragmentNumber];
 }
 
 pub trait Timestamp: SubmessageElement {
@@ -90,36 +73,32 @@ pub trait Timestamp: SubmessageElement {
 
 pub trait Parameter {
     type ParameterId: messages::types::ParameterId;
-    fn parameter_id(&self) -> Self::ParameterId;
+    fn parameter_id(&self) -> &Self::ParameterId;
     fn length(&self) -> i16;
     fn value(&self) -> &[u8];
 }
 
 pub trait ParameterList: SubmessageElement {
     type Parameter: Parameter;
-    type ParameterList: IntoIterator<Item = Self::Parameter>;
-    fn parameter(&self) -> &Self::ParameterList;
+    fn parameter(&self) -> &[Self::Parameter];
 }
 
 pub trait Count: SubmessageElement {
     type Count: messages::types::Count;
-    fn value(&self) -> Self::Count;
+    fn value(&self) -> &Self::Count;
 }
 
 pub trait LocatorList: SubmessageElement {
     type Locator: types::Locator;
-    type LocatorList: IntoIterator<Item = Self::Locator>;
-    fn value(&self) -> Self::LocatorList;
+    fn value(&self) -> &[Self::Locator];
 }
 
 pub trait SerializedData: SubmessageElement {
-    type SerializedData: IntoIterator<Item = u8>;
-    fn value(&self) -> Self::SerializedData;
+    fn value(&self) -> &[u8];
 }
 
 pub trait SerializedDataFragment: SubmessageElement {
-    type SerializedData: IntoIterator<Item = u8>;
-    fn value(&self) -> Self::SerializedData;
+    fn value(&self) -> &[u8];
 }
 
 // pub type GroupDigest = TBD

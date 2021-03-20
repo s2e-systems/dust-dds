@@ -1,18 +1,12 @@
-use crate::types;
+use crate::{messages, types};
 use rust_rtps_pim::messages::submessages::submessage_elements;
 
-pub type Short = types::Short;
-impl submessage_elements::SubmessageElement for Short {}
-impl submessage_elements::Short for Short {
-    fn value(&self) -> &i16 {
-        self
-    }
-}
+pub type GuidPrefix = types::GuidPrefix;
+impl submessage_elements::SubmessageElement for GuidPrefix {}
+impl submessage_elements::GuidPrefix for GuidPrefix {
+    type GuidPrefix = Self;
 
-pub type UShort = types::UShort;
-impl submessage_elements::SubmessageElement for UShort {}
-impl submessage_elements::UShort for UShort {
-    fn value(&self) -> &u16 {
+    fn value(&self) -> &Self::GuidPrefix {
         self
     }
 }
@@ -23,16 +17,6 @@ impl submessage_elements::EntityId for EntityId {
     type EntityId = Self;
 
     fn value(&self) -> &Self::EntityId {
-        self
-    }
-}
-
-pub type GuidPrefix = types::GuidPrefix;
-impl submessage_elements::SubmessageElement for GuidPrefix {}
-impl submessage_elements::GuidPrefix for GuidPrefix {
-    type GuidPrefix = Self;
-
-    fn value(&self) -> &Self::GuidPrefix {
         self
     }
 }
@@ -94,20 +78,46 @@ impl submessage_elements::SequenceNumber for SequenceNumber {
 }
 
 pub struct SequenceNumberSet {
-    bitmap_base: types::SequenceNumber,
-    bitmap: [types::Long; 8],
+    pub base: <Self as submessage_elements::SequenceNumberSet>::SequenceNumber,
+    pub set: Vec<<Self as submessage_elements::SequenceNumberSet>::SequenceNumber>,
 }
 impl submessage_elements::SubmessageElement for SequenceNumberSet {}
 impl submessage_elements::SequenceNumberSet for SequenceNumberSet {
     type SequenceNumber = types::SequenceNumber;
-    type SequenceNumberList = Vec<Self::SequenceNumber>;
 
     fn base(&self) -> &Self::SequenceNumber {
-        &self.bitmap_base
+        &self.base
     }
 
-    fn set(&self) -> &Self::SequenceNumberList {
+    fn set(&self) -> &[Self::SequenceNumber] {
+        &self.set
+    }
+}
+
+pub type FragmentNumber = messages::types::FragmentNumber;
+impl submessage_elements::SubmessageElement for FragmentNumber {}
+impl submessage_elements::FragmentNumber for FragmentNumber {
+    type FragmentNumber = Self;
+
+    fn value(&self) -> Self::FragmentNumber {
         todo!()
+    }
+}
+
+pub struct FragmentNumberSet {
+    pub base: <Self as submessage_elements::FragmentNumberSet>::FragmentNumber,
+    pub set: Vec<<Self as submessage_elements::FragmentNumberSet>::FragmentNumber>,
+}
+impl submessage_elements::SubmessageElement for FragmentNumberSet {}
+impl submessage_elements::FragmentNumberSet for FragmentNumberSet {
+    type FragmentNumber = messages::types::FragmentNumber;
+
+    fn base(&self) -> &Self::FragmentNumber {
+        &self.base
+    }
+
+    fn set(&self) -> &[Self::FragmentNumber] {
+        &self.set
     }
 }
 
@@ -121,8 +131,75 @@ impl submessage_elements::Timestamp for Timestamp {
     }
 
     const TIME_ZERO: Self = <Self as rust_rtps_pim::messages::types::Time>::TIME_ZERO;
-
     const TIME_INVALID: Self = <Self as rust_rtps_pim::messages::types::Time>::TIME_INVALID;
-
     const TIME_INFINITE: Self = <Self as rust_rtps_pim::messages::types::Time>::TIME_INFINITE;
+}
+
+pub struct Parameter {
+    parameter_id: messages::types::ParameterId,
+    length: i16,
+    value: Vec<u8>,
+}
+impl submessage_elements::Parameter for Parameter {
+    type ParameterId = messages::types::ParameterId;
+
+    fn parameter_id(&self) -> &Self::ParameterId {
+        &self.parameter_id
+    }
+
+    fn length(&self) -> i16 {
+        self.length
+    }
+
+    fn value(&self) -> &[u8] {
+        &self.value
+    }
+}
+
+pub struct ParameterList {
+    pub parameter: Vec<<Self as submessage_elements::ParameterList>::Parameter>,
+}
+impl submessage_elements::SubmessageElement for ParameterList {}
+impl submessage_elements::ParameterList for ParameterList {
+    type Parameter = Parameter;
+
+    fn parameter(&self) -> &[Self::Parameter] {
+        &self.parameter
+    }
+}
+
+pub type Count = messages::types::Count;
+impl submessage_elements::SubmessageElement for Count {}
+impl submessage_elements::Count for Count {
+    type Count = Self;
+
+    fn value(&self) -> &Self::Count {
+        self
+    }
+}
+
+pub struct LocatorList(pub Vec<<Self as submessage_elements::LocatorList>::Locator>);
+impl submessage_elements::SubmessageElement for LocatorList {}
+impl submessage_elements::LocatorList for LocatorList {
+    type Locator = types::Locator;
+
+    fn value(&self) -> &[Self::Locator] {
+        &self.0
+    }
+}
+
+pub struct SerializedData<'a>(pub &'a [u8]);
+impl<'a> submessage_elements::SubmessageElement for SerializedData<'a> {}
+impl<'a> submessage_elements::SerializedData for SerializedData<'a> {
+    fn value(&self) -> &[u8] {
+        &self.0
+    }
+}
+
+pub struct SerializedDataFragment<'a>(pub &'a [u8]);
+impl<'a> submessage_elements::SubmessageElement for SerializedDataFragment<'a> {}
+impl<'a> submessage_elements::SerializedDataFragment for SerializedDataFragment<'a> {
+    fn value(&self) -> &[u8] {
+        &self.0
+    }
 }

@@ -13,8 +13,6 @@ pub mod info_timestamp_submessage;
 pub mod nack_frag_submessage;
 pub mod pad;
 
-use self::submessage_elements::UShort;
-
 use super::types::{SubmessageFlag, SubmessageKind};
 pub use ack_nack_submessage::AckNack;
 pub use data_submessage::Data;
@@ -24,10 +22,9 @@ pub use info_timestamp_submessage::InfoTimestamp;
 
 pub trait SubmessageHeader {
     type SubmessageKind: SubmessageKind;
-    type UShort: UShort;
     fn submessage_id(&self) -> &Self::SubmessageKind;
     fn flags(&self) -> &[SubmessageFlag; 8];
-    fn submessage_length(&self) -> &Self::UShort;
+    fn submessage_length(&self) -> &u16;
 }
 pub trait Submessage {
     type SubmessageHeader: SubmessageHeader;

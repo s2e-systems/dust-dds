@@ -1,12 +1,15 @@
 use crate::messages::submessage_elements;
-use rust_rtps_pim::messages::{submessages::Submessage, types::SubmessageFlag};
+use rust_rtps_pim::messages::{
+    submessages::{info_timestamp_submessage, Submessage},
+    types::SubmessageFlag,
+};
 
 use super::SubmessageHeader;
 
 pub struct InfoTimestamp {
     endianness_flag: SubmessageFlag,
     invalidate_flag: SubmessageFlag,
-    timestamp: <Self as rust_rtps_pim::messages::submessages::info_timestamp_submessage::InfoTimestamp>::Timestamp,
+    timestamp: <Self as info_timestamp_submessage::InfoTimestamp>::Timestamp,
 }
 
 impl Submessage for InfoTimestamp {

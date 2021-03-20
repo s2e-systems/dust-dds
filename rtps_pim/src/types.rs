@@ -19,8 +19,8 @@ pub trait SequenceNumber: Into<i64> {
 }
 
 pub trait Locator {
-    type Kind: Into<[u8; 4]>;
-    type Port: Into<[u8; 4]>;
+    type Kind; //: Into<[u8; 4]>
+    type Port; //: Into<[u8; 4]>
     type Address: Into<[u8; 16]>;
 
     const LOCATOR_INVALID: Self;

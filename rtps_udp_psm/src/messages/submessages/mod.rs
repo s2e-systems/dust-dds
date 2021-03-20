@@ -1,7 +1,5 @@
 use rust_rtps_pim::messages::types::SubmessageFlag;
 
-use crate::types::UShort;
-
 use super::types::SubmessageKind;
 
 pub mod info_timestamp;
@@ -9,12 +7,11 @@ pub mod info_timestamp;
 pub struct SubmessageHeader {
     submessage_id: <Self as rust_rtps_pim::messages::submessages::SubmessageHeader>::SubmessageKind,
     flags: [SubmessageFlag; 8],
-    submessage_length: UShort,
+    submessage_length: u16,
 }
 
 impl rust_rtps_pim::messages::submessages::SubmessageHeader for SubmessageHeader {
     type SubmessageKind = SubmessageKind;
-    type UShort = UShort;
 
     fn submessage_id(&self) -> &Self::SubmessageKind {
         &self.submessage_id
@@ -24,7 +21,7 @@ impl rust_rtps_pim::messages::submessages::SubmessageHeader for SubmessageHeader
         &self.flags
     }
 
-    fn submessage_length(&self) -> &Self::UShort {
+    fn submessage_length(&self) -> &u16 {
         &self.submessage_length
     }
 }

@@ -1,69 +1,3 @@
-use std::ops::Deref;
-
-pub struct UShort(pub u16);
-
-impl Into<[u8; 2]> for UShort {
-    fn into(self) -> [u8; 2] {
-        self.0.to_ne_bytes()
-    }
-}
-
-impl Deref for UShort {
-    type Target = u16;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-pub struct Short(pub i16);
-
-impl Into<[u8; 2]> for Short {
-    fn into(self) -> [u8; 2] {
-        self.0.to_ne_bytes()
-    }
-}
-
-impl Deref for Short {
-    type Target = i16;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-pub struct ULong(pub u32);
-
-impl Into<[u8; 4]> for ULong {
-    fn into(self) -> [u8; 4] {
-        self.0.to_ne_bytes()
-    }
-}
-
-impl Deref for ULong {
-    type Target = u32;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-pub struct Long(pub i32);
-
-impl Into<[u8; 4]> for Long {
-    fn into(self) -> [u8; 4] {
-        self.0.to_ne_bytes()
-    }
-}
-
-impl Deref for Long {
-    type Target = i32;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
 pub struct GuidPrefix(pub [u8; 12]);
 
 impl rust_rtps_pim::types::GuidPrefix for GuidPrefix {
@@ -77,8 +11,8 @@ impl Into<[u8; 12]> for GuidPrefix {
 }
 
 pub struct EntityId {
-    entity_key: [u8; 3],
-    entity_kind: u8,
+    pub entity_key: [u8; 3],
+    pub entity_kind: u8,
 }
 
 impl EntityId {
@@ -169,8 +103,8 @@ impl Into<[u8; 4]> for EntityId {
 }
 
 pub struct GUID {
-    guid_prefix: GuidPrefix,
-    entity_id: EntityId,
+    pub guid_prefix: GuidPrefix,
+    pub entity_id: EntityId,
 }
 
 impl rust_rtps_pim::types::GUID for GUID {
@@ -204,34 +138,31 @@ impl Into<[u8; 16]> for GUID {
 }
 
 pub struct SequenceNumber {
-    high: Long,
-    low: ULong,
+    pub high: i32,
+    pub low: u32,
 }
 
 impl rust_rtps_pim::types::SequenceNumber for SequenceNumber {
     const SEQUENCE_NUMBER_UNKNOWN: Self = Self {
-        high: Long(core::i32::MIN),
-        low: ULong(core::u32::MIN),
+        high: core::i32::MIN,
+        low: core::u32::MAX,
     };
 }
 
 impl Into<i64> for SequenceNumber {
     fn into(self) -> i64 {
-        ((*self.high as i64) << 32) + *self.low as i64
+        ((self.high as i64) << 32) + self.low as i64
     }
 }
 
 pub struct Locator {
-    kind: Long,
-    port: ULong,
-    address: [u8; 16],
+    pub kind: <Self as rust_rtps_pim::types::Locator>::Kind,
+    pub port: <Self as rust_rtps_pim::types::Locator>::Port,
+    pub address: <Self as rust_rtps_pim::types::Locator>::Address,
 }
-
 impl rust_rtps_pim::types::Locator for Locator {
-    type Kind = Long;
-
-    type Port = ULong;
-
+    type Kind = i32;
+    type Port = u32;
     type Address = [u8; 16];
 
     const LOCATOR_INVALID: Self = Self {
@@ -240,17 +171,14 @@ impl rust_rtps_pim::types::Locator for Locator {
         address: Self::LOCATOR_ADDRESS_INVALID,
     };
 
-    const LOCATOR_KIND_INVALID: Self::Kind = Long(-1);
-
-    const LOCATOR_KIND_RESERVED: Self::Kind = Long(0);
+    const LOCATOR_KIND_INVALID: Self::Kind = -1;
+    const LOCATOR_KIND_RESERVED: Self::Kind = 0;
     #[allow(non_upper_case_globals)]
-    const LOCATOR_KIND_UDPv4: Self::Kind = Long(1);
+    const LOCATOR_KIND_UDPv4: Self::Kind = 1;
     #[allow(non_upper_case_globals)]
-    const LOCATOR_KIND_UDPv6: Self::Kind = Long(2);
-
+    const LOCATOR_KIND_UDPv6: Self::Kind = 2;
     const LOCATOR_ADDRESS_INVALID: Self::Address = [0; 16];
-
-    const LOCATOR_PORT_INVALID: Self::Port = ULong(0);
+    const LOCATOR_PORT_INVALID: Self::Port = 0;
 
     fn kind(&self) -> &Self::Kind {
         &self.kind
@@ -266,29 +194,22 @@ impl rust_rtps_pim::types::Locator for Locator {
 }
 
 pub struct ProtocolVersion {
-    major: u8,
-    minor: u8,
+    pub major: u8,
+    pub minor: u8,
 }
 
 impl rust_rtps_pim::types::ProtocolVersion for ProtocolVersion {
     const PROTOCOL_VERSION: Self = Self::PROTOCOL_VERSION_2_4;
-
     const PROTOCOL_VERSION_1_0: Self = Self { major: 1, minor: 0 };
-
     const PROTOCOL_VERSION_1_1: Self = Self { major: 1, minor: 1 };
-
     const PROTOCOL_VERSION_2_0: Self = Self { major: 2, minor: 0 };
-
     const PROTOCOL_VERSION_2_1: Self = Self { major: 2, minor: 1 };
-
     const PROTOCOL_VERSION_2_2: Self = Self { major: 2, minor: 2 };
-
     const PROTOCOL_VERSION_2_3: Self = Self { major: 2, minor: 3 };
-
     const PROTOCOL_VERSION_2_4: Self = Self { major: 2, minor: 4 };
 }
 
-pub struct VendorId([u8; 2]);
+pub struct VendorId(pub [u8; 2]);
 
 impl rust_rtps_pim::types::VendorId for VendorId {
     const VENDOR_ID_UNKNOWN: Self = Self([0; 2]);
