@@ -135,35 +135,17 @@ impl submessage_elements::Timestamp for Timestamp {
     const TIME_INFINITE: Self = <Self as rust_rtps_pim::messages::types::Time>::TIME_INFINITE;
 }
 
-pub struct Parameter {
-    parameter_id: messages::types::ParameterId,
-    length: i16,
-    value: Vec<u8>,
-}
-impl submessage_elements::Parameter for Parameter {
-    type ParameterId = messages::types::ParameterId;
-
-    fn parameter_id(&self) -> &Self::ParameterId {
-        &self.parameter_id
-    }
-
-    fn length(&self) -> i16 {
-        self.length
-    }
-
-    fn value(&self) -> &[u8] {
-        &self.value
-    }
-}
-
 pub struct ParameterList {
-    pub parameter: Vec<<Self as submessage_elements::ParameterList>::Parameter>,
+    pub parameter: <Self as submessage_elements::ParameterList>::ParameterList,
 }
 impl submessage_elements::SubmessageElement for ParameterList {}
 impl submessage_elements::ParameterList for ParameterList {
-    type Parameter = Parameter;
+    type Parameter =
+        dyn submessage_elements::Parameter<ParameterId = crate::messages::types::ParameterId>;
+    type Item = Box<Self::Parameter>;
+    type ParameterList = Vec<Self::Item>;
 
-    fn parameter(&self) -> &[Self::Parameter] {
+    fn parameter(&self) -> &Self::ParameterList {
         &self.parameter
     }
 }

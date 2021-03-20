@@ -79,8 +79,11 @@ pub trait Parameter {
 }
 
 pub trait ParameterList: SubmessageElement {
-    type Parameter: Parameter;
-    fn parameter(&self) -> &[Self::Parameter];
+    type Parameter: Parameter + ?Sized;
+    type Item: core::ops::Deref<Target = Self::Parameter>;
+    type ParameterList: IntoIterator<Item = Self::Item>;
+
+    fn parameter(&self) -> &Self::ParameterList;
 }
 
 pub trait Count: SubmessageElement {

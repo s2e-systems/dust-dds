@@ -16,9 +16,9 @@ pub trait DataFrag {
     fn writer_id(&self) -> &Self::EntityId;
     fn writer_sn(&self) -> &Self::SequenceNumber;
     fn fragment_starting_num(&self) -> &Self::FragmentNumber;
-    fn fragments_in_submessage(&self) -> &u16;
-    fn data_size(&self) -> &u32;
-    fn fragment_size(&self) -> &u16;
+    fn fragments_in_submessage(&self) -> u16;
+    fn data_size(&self) -> u32;
+    fn fragment_size(&self) -> u16;
     fn inline_qos(&self) -> &Self::ParameterList;
     fn serialized_payload(&self) -> &Self::SerializedDataFragment;
 }

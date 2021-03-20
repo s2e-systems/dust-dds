@@ -7,14 +7,6 @@ pub trait AckNack: Submessage {
     type SequenceNumberSet: submessage_elements::SequenceNumberSet;
     type Count: submessage_elements::Count;
 
-    fn new(
-        endianness_flag: SubmessageFlag,
-        final_flag: SubmessageFlag,
-        reader_id: Self::EntityId,
-        writer_id: Self::EntityId,
-        reader_sn_state: Self::SequenceNumberSet,
-        count: Self::Count,
-    ) -> Self;
     fn endianness_flag(&self) -> SubmessageFlag;
     fn final_flag(&self) -> SubmessageFlag;
     fn reader_id(&self) -> &Self::EntityId;

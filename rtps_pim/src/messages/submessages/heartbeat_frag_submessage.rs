@@ -9,9 +9,9 @@ pub trait HeartbeatFrag: Submessage {
     type Count: submessage_elements::Count;
 
     fn endianness_flag(&self) -> SubmessageFlag;
-    fn reader_id(&self) -> Self::EntityId;
-    fn writer_id(&self) -> Self::EntityId;
-    fn writer_sn(&self) -> Self::SequenceNumber;
-    fn last_fragment_num(&self) -> Self::FragmentNumber;
-    fn count(&self) -> Self::Count;
+    fn reader_id(&self) -> &Self::EntityId;
+    fn writer_id(&self) -> &Self::EntityId;
+    fn writer_sn(&self) -> &Self::SequenceNumber;
+    fn last_fragment_num(&self) -> &Self::FragmentNumber;
+    fn count(&self) -> &Self::Count;
 }
