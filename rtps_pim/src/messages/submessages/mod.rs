@@ -22,8 +22,10 @@ pub use info_timestamp_submessage::InfoTimestamp;
 
 pub trait SubmessageHeader {
     type SubmessageKind: SubmessageKind;
+    type SubmessageFlag : SubmessageFlag;
+
     fn submessage_id(&self) -> &Self::SubmessageKind;
-    fn flags(&self) -> &[SubmessageFlag; 8];
+    fn flags(&self) -> &[Self::SubmessageFlag; 8];
     fn submessage_length(&self) -> &u16;
 }
 pub trait Submessage {

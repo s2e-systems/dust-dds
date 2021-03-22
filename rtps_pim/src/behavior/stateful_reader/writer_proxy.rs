@@ -1,6 +1,7 @@
 use crate::{
     behavior::{types::ChangeFromWriterStatusKind, RTPSReader},
-    structure::{entity::RTPSGUID, RTPSCacheChange, RTPSEndpoint, RTPSEntity, RTPSHistoryCache},
+    structure::{RTPSCacheChange, RTPSEndpoint, RTPSEntity, RTPSHistoryCache},
+    types::GUID,
 };
 
 pub trait RTPSChangeFromWriter {
@@ -22,13 +23,13 @@ pub trait RTPSWriterProxy {
     fn changes_from_writer(
         &self,
     ) -> &[<Self::ChangeFromWriterType as RTPSChangeFromWriter>::CacheChangeRepresentation];
-    fn remote_group_entity_id(&self) -> <<Self::Reader as RTPSEntity>::GUID as RTPSGUID>::EntityId;
+    fn remote_group_entity_id(&self) -> <<Self::Reader as RTPSEntity>::GUID as GUID>::EntityId;
 
     fn new(
         remote_writer_guid: <Self::Reader as RTPSEntity>::GUID,
         unicast_locator_list: &[<Self::Reader as RTPSEndpoint>::Locator],
         multicast_locator_list: &[<Self::Reader as RTPSEndpoint>::Locator],
-        remote_group_entity_id: <<Self::Reader as RTPSEntity>::GUID as RTPSGUID>::EntityId,
+        remote_group_entity_id: <<Self::Reader as RTPSEntity>::GUID as GUID>::EntityId,
     ) -> Self;
 
     /// This operation returns the maximum SequenceNumber_t among the changes_from_writer changes in the RTPS WriterProxy

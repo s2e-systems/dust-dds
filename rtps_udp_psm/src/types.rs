@@ -112,6 +112,17 @@ impl rust_rtps_pim::types::GUID for GUID {
         guid_prefix: <GuidPrefix as rust_rtps_pim::types::GuidPrefix>::GUIDPREFIX_UNKNOWN,
         entity_id: <EntityId as rust_rtps_pim::types::EntityId>::ENTITYID_UNKNOWN,
     };
+
+    type GuidPrefix = GuidPrefix;
+    type EntityId = EntityId;
+
+    fn prefix(&self) -> &Self::GuidPrefix {
+        &self.guid_prefix
+    }
+
+    fn entity_id(&self) -> &Self::EntityId {
+        &self.entity_id
+    }
 }
 
 impl Into<[u8; 16]> for GUID {

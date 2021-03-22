@@ -1,14 +1,6 @@
-use crate::types::{EntityId, GuidPrefix, GUID};
-
-pub trait RTPSGUID: GUID {
-    type GuidPrefix: GuidPrefix;
-    type EntityId: EntityId;
-
-    fn prefix(&self) -> &Self::GuidPrefix;
-    fn entity_id(&self) -> &Self::EntityId;
-}
+use crate::types::GUID;
 
 pub trait RTPSEntity {
-    type GUID: RTPSGUID;
+    type GUID: GUID;
     fn guid(&self) -> &Self::GUID;
 }

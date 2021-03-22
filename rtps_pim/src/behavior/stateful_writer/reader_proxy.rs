@@ -1,6 +1,7 @@
 use crate::{
     behavior::{types::ChangeForReaderStatusKind, RTPSWriter},
-    structure::{entity::RTPSGUID, RTPSCacheChange, RTPSEndpoint, RTPSEntity, RTPSHistoryCache},
+    structure::{RTPSCacheChange, RTPSEndpoint, RTPSEntity, RTPSHistoryCache},
+    types::GUID,
 };
 
 pub trait RTPSChangeForReader {
@@ -22,7 +23,7 @@ pub trait RTPSReaderProxy {
 
     // Attributes
     fn remote_reader_guid(&self) -> <Self::Writer as RTPSEntity>::GUID;
-    fn remote_group_entity_id(&self) -> <<Self::Writer as RTPSEntity>::GUID as RTPSGUID>::EntityId;
+    fn remote_group_entity_id(&self) -> <<Self::Writer as RTPSEntity>::GUID as GUID>::EntityId;
     fn unicast_locator_list(&self) -> &[<Self::Writer as RTPSEndpoint>::Locator];
     fn multicast_locator_list(&self) -> &[<Self::Writer as RTPSEndpoint>::Locator];
     fn expects_inline_qos(&self) -> bool;
@@ -31,7 +32,7 @@ pub trait RTPSReaderProxy {
     // Operations
     fn new(
         remote_reader_guid: <Self::Writer as RTPSEntity>::GUID,
-        remote_group_entity_id: <<Self::Writer as RTPSEntity>::GUID as RTPSGUID>::EntityId,
+        remote_group_entity_id: <<Self::Writer as RTPSEntity>::GUID as GUID>::EntityId,
         unicast_locator_list: &[<Self::Writer as RTPSEndpoint>::Locator],
         multicast_locator_list: &[<Self::Writer as RTPSEndpoint>::Locator],
         expects_inline_qos: bool,

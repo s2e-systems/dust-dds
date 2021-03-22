@@ -52,7 +52,7 @@ pub trait SequenceNumberSet: SubmessageElement {
 
 pub trait FragmentNumber: SubmessageElement {
     type FragmentNumber: messages::types::FragmentNumber;
-    fn value(&self) -> Self::FragmentNumber;
+    fn value(&self) -> &Self::FragmentNumber;
 }
 
 pub trait FragmentNumberSet: SubmessageElement {
@@ -104,4 +104,7 @@ pub trait SerializedDataFragment: SubmessageElement {
     fn value(&self) -> &[u8];
 }
 
-// pub type GroupDigest = TBD
+pub trait GroupDigest: SubmessageElement {
+    type GroupDigest: GroupDigest;
+    fn value(&self) -> &Self::GroupDigest;
+}
