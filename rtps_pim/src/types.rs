@@ -4,14 +4,6 @@
 ///
 pub trait GUID: Into<[u8; 16]> {
     const GUID_UNKNOWN: Self;
-
-    // The following detailed field are defined in section
-    // 8.2.4.1 Identifying RTPS entities: The GUID
-    type GuidPrefix: GuidPrefix;
-    type EntityId: EntityId;
-
-    fn prefix(&self) -> &Self::GuidPrefix;
-    fn entity_id(&self) -> &Self::EntityId;
 }
 
 pub trait GuidPrefix: Into<[u8; 12]> {
@@ -40,10 +32,6 @@ pub trait Locator {
     const LOCATOR_KIND_UDPv6: Self::Kind;
     const LOCATOR_ADDRESS_INVALID: Self::Address;
     const LOCATOR_PORT_INVALID: Self::Port;
-
-    fn kind(&self) -> &Self::Kind;
-    fn port(&self) -> &Self::Port;
-    fn address(&self) -> &Self::Address;
 }
 
 pub enum TopicKind {

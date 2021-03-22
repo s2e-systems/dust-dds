@@ -3,6 +3,16 @@ impl rust_rtps_pim::messages::types::ProtocolId for ProtocolId {
     const PROTOCOL_RTPS: Self = Self([b'R', b'T', b'P', b'S']);
 }
 
+pub struct SubmessageFlag(pub bool);
+
+impl rust_rtps_pim::messages::types::SubmessageFlag for SubmessageFlag {}
+
+impl Into<bool> for SubmessageFlag {
+    fn into(self) -> bool {
+        self.0
+    }
+}
+
 pub struct SubmessageKind(pub u8);
 impl rust_rtps_pim::messages::types::SubmessageKind for SubmessageKind {
     const DATA: Self = Self(0x15);

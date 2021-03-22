@@ -1,3 +1,4 @@
+use serde::Serialize;
 pub struct GuidPrefix(pub [u8; 12]);
 
 impl rust_rtps_pim::types::GuidPrefix for GuidPrefix {
@@ -112,17 +113,6 @@ impl rust_rtps_pim::types::GUID for GUID {
         guid_prefix: <GuidPrefix as rust_rtps_pim::types::GuidPrefix>::GUIDPREFIX_UNKNOWN,
         entity_id: <EntityId as rust_rtps_pim::types::EntityId>::ENTITYID_UNKNOWN,
     };
-
-    type GuidPrefix = GuidPrefix;
-    type EntityId = EntityId;
-
-    fn prefix(&self) -> &Self::GuidPrefix {
-        &self.guid_prefix
-    }
-
-    fn entity_id(&self) -> &Self::EntityId {
-        &self.entity_id
-    }
 }
 
 impl Into<[u8; 16]> for GUID {
@@ -148,6 +138,7 @@ impl Into<[u8; 16]> for GUID {
     }
 }
 
+#[derive(Serialize)]
 pub struct SequenceNumber {
     pub high: i32,
     pub low: u32,
@@ -191,17 +182,6 @@ impl rust_rtps_pim::types::Locator for Locator {
     const LOCATOR_ADDRESS_INVALID: Self::Address = [0; 16];
     const LOCATOR_PORT_INVALID: Self::Port = 0;
 
-    fn kind(&self) -> &Self::Kind {
-        &self.kind
-    }
-
-    fn port(&self) -> &Self::Port {
-        &self.port
-    }
-
-    fn address(&self) -> &Self::Address {
-        &self.address
-    }
 }
 
 pub struct ProtocolVersion {
