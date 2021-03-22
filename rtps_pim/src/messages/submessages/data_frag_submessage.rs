@@ -6,6 +6,9 @@ pub trait DataFrag : Submessage {
     type FragmentNumber: submessage_elements::FragmentNumber;
     type ParameterList: submessage_elements::ParameterList;
     type SerializedDataFragment: submessage_elements::SerializedDataFragment;
+    type UShort: submessage_elements::UShort;
+    type ULong: submessage_elements::ULong;
+
 
     fn endianness_flag(
         &self,
@@ -23,9 +26,9 @@ pub trait DataFrag : Submessage {
     fn writer_id(&self) -> &Self::EntityId;
     fn writer_sn(&self) -> &Self::SequenceNumber;
     fn fragment_starting_num(&self) -> &Self::FragmentNumber;
-    fn fragments_in_submessage(&self) -> u16;
-    fn data_size(&self) -> u32;
-    fn fragment_size(&self) -> u16;
+    fn fragments_in_submessage(&self) -> &Self::UShort;
+    fn data_size(&self) -> &Self::ULong;
+    fn fragment_size(&self) -> &Self::UShort;
     fn inline_qos(&self) -> &Self::ParameterList;
     fn serialized_payload(&self) -> &Self::SerializedDataFragment;
 }

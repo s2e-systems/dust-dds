@@ -6,6 +6,22 @@ use crate::{messages, types};
 
 pub trait SubmessageElement {}
 
+pub trait UShort: SubmessageElement {
+    fn value(&self) -> u16;
+}
+
+pub trait Short: SubmessageElement {
+    fn value(&self) -> i16;
+}
+
+pub trait ULong: SubmessageElement {
+    fn value(&self) -> u32;
+}
+
+pub trait Long: SubmessageElement {
+    fn value(&self) -> i32;
+}
+
 pub trait GuidPrefix: SubmessageElement {
     type GuidPrefix: types::GuidPrefix;
     fn value(&self) -> &Self::GuidPrefix;
