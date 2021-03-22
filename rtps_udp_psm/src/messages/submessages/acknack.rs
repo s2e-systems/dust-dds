@@ -1,54 +1,51 @@
-use rust_rtps_pim::messages::submessages::Submessage;
+use crate::messages::{submessage_elements, types::SubmessageFlag};
 use serde::ser::SerializeStruct;
 
-use crate::{
-    messages::types::{Count, SubmessageFlag, SubmessageKind},
-    types::{EntityId, SequenceNumber},
-};
+use super::SubmessageHeader;
 
-// use super::SubmessageHeader;
-// use crate::messages::submessage_elements;
-// use rust_rtps_pim::messages::{submessages::Submessage, types::SubmessageFlag};
-
-struct AckNack();
+struct AckNack {
+    submessage_header: SubmessageHeader,
+    reader_id: submessage_elements::EntityId,
+    writer_id: submessage_elements::EntityId,
+    reader_sn_state: submessage_elements::SequenceNumberSet,
+    count: submessage_elements::Count,
+}
 
 impl rust_rtps_pim::messages::submessages::ack_nack_submessage::AckNack for AckNack {
-    type EntityId;
-    type SequenceNumberSet;
-    type Count;
+    type EntityId = submessage_elements::EntityId;
+    type SequenceNumberSet = submessage_elements::SequenceNumberSet;
+    type Count = submessage_elements::Count;
 
-    fn endianness_flag(
-        &self,
-    ) -> rust_rtps_pim::messages::submessages::SubmessageHeader::SubmessageFlag {
-        todo!()
+    fn endianness_flag(&self) -> SubmessageFlag {
+        rust_rtps_pim::messages::submessages::SubmessageHeader::flags(&self.submessage_header)[0]
     }
 
-    fn final_flag(&self) -> rust_rtps_pim::messages::submessages::SubmessageHeader::SubmessageFlag {
-        todo!()
+    fn final_flag(&self) -> SubmessageFlag {
+        rust_rtps_pim::messages::submessages::SubmessageHeader::flags(&self.submessage_header)[1]
     }
 
     fn reader_id(&self) -> &Self::EntityId {
-        todo!()
+        &self.reader_id
     }
 
     fn writer_id(&self) -> &Self::EntityId {
-        todo!()
+        &self.writer_id
     }
 
     fn reader_sn_state(&self) -> &Self::SequenceNumberSet {
-        todo!()
+        &self.reader_sn_state
     }
 
     fn count(&self) -> &Self::Count {
-        todo!()
+        &self.count
     }
 }
 
-impl Submessage for AckNack {
-    type SubmessageHeader;
+impl rust_rtps_pim::messages::submessages::Submessage for AckNack {
+    type SubmessageHeader = SubmessageHeader;
 
     fn submessage_header(&self) -> Self::SubmessageHeader {
-        todo!()
+        self.submessage_header
     }
 }
 

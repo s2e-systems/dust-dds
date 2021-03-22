@@ -61,9 +61,10 @@ pub trait SequenceNumber: SubmessageElement {
 
 pub trait SequenceNumberSet: SubmessageElement {
     type SequenceNumber: types::SequenceNumber;
+    type SequenceNumberList: IntoIterator<Item = Self::SequenceNumber>;
 
     fn base(&self) -> Self::SequenceNumber;
-    fn set(&self) -> &[Self::SequenceNumber];
+    fn set(&self) -> Self::SequenceNumberList;
 }
 
 pub trait FragmentNumber: SubmessageElement {

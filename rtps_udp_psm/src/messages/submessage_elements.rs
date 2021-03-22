@@ -79,18 +79,23 @@ impl submessage_elements::SequenceNumber for SequenceNumber {
 
 pub struct SequenceNumberSet {
     pub base: <Self as submessage_elements::SequenceNumberSet>::SequenceNumber,
-    pub set: Vec<<Self as submessage_elements::SequenceNumberSet>::SequenceNumber>,
+    pub set: Vec<i32>,
 }
 impl submessage_elements::SubmessageElement for SequenceNumberSet {}
 impl submessage_elements::SequenceNumberSet for SequenceNumberSet {
     type SequenceNumber = types::SequenceNumber;
+    type SequenceNumberList = Vec<Self::SequenceNumber>;
 
     fn base(&self) -> Self::SequenceNumber {
         self.base
     }
 
-    fn set(&self) -> &[Self::SequenceNumber] {
-        &self.set
+    fn set(&self) -> Self::SequenceNumberList {
+        let base: i64 = self.base.into();
+        (&self.set)
+            .into_iter()
+            .map(|&x| (base + x as i64).into())
+            .collect()
     }
 }
 
