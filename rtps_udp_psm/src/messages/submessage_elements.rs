@@ -6,8 +6,8 @@ impl submessage_elements::SubmessageElement for GuidPrefix {}
 impl submessage_elements::GuidPrefix for GuidPrefix {
     type GuidPrefix = Self;
 
-    fn value(&self) -> &Self::GuidPrefix {
-        self
+    fn value(&self) -> Self::GuidPrefix {
+        *self
     }
 }
 
@@ -16,8 +16,8 @@ impl submessage_elements::SubmessageElement for EntityId {}
 impl submessage_elements::EntityId for EntityId {
     type EntityId = Self;
 
-    fn value(&self) -> &Self::EntityId {
-        self
+    fn value(&self) -> Self::EntityId {
+        *self
     }
 }
 
@@ -26,8 +26,8 @@ impl submessage_elements::SubmessageElement for VendorId {}
 impl submessage_elements::VendorId for VendorId {
     type VendorId = Self;
 
-    fn value(&self) -> &Self::VendorId {
-        self
+    fn value(&self) -> Self::VendorId {
+        *self
     }
 
     const VENDORID_UNKNOWN: Self = <Self as rust_rtps_pim::types::VendorId>::VENDOR_ID_UNKNOWN;
@@ -38,8 +38,8 @@ impl submessage_elements::SubmessageElement for ProtocolVersion {}
 impl submessage_elements::ProtocolVersion for ProtocolVersion {
     type ProtocolVersion = Self;
 
-    fn value(&self) -> &Self::ProtocolVersion {
-        self
+    fn value(&self) -> Self::ProtocolVersion {
+        *self
     }
 
     const PROTOCOLVERSION_1_0: Self =
@@ -69,8 +69,8 @@ impl submessage_elements::SubmessageElement for SequenceNumber {}
 impl submessage_elements::SequenceNumber for SequenceNumber {
     type SequenceNumber = Self;
 
-    fn value(&self) -> &Self::SequenceNumber {
-        self
+    fn value(&self) -> Self::SequenceNumber {
+        *self
     }
 
     const SEQUENCENUMBER_UNKNOWN: Self =
@@ -85,8 +85,8 @@ impl submessage_elements::SubmessageElement for SequenceNumberSet {}
 impl submessage_elements::SequenceNumberSet for SequenceNumberSet {
     type SequenceNumber = types::SequenceNumber;
 
-    fn base(&self) -> &Self::SequenceNumber {
-        &self.base
+    fn base(&self) -> Self::SequenceNumber {
+        self.base
     }
 
     fn set(&self) -> &[Self::SequenceNumber] {
@@ -99,8 +99,8 @@ impl submessage_elements::SubmessageElement for FragmentNumber {}
 impl submessage_elements::FragmentNumber for FragmentNumber {
     type FragmentNumber = Self;
 
-    fn value(&self) -> &Self::FragmentNumber {
-        self
+    fn value(&self) -> Self::FragmentNumber {
+        *self
     }
 }
 
@@ -112,8 +112,8 @@ impl submessage_elements::SubmessageElement for FragmentNumberSet {}
 impl submessage_elements::FragmentNumberSet for FragmentNumberSet {
     type FragmentNumber = messages::types::FragmentNumber;
 
-    fn base(&self) -> &Self::FragmentNumber {
-        &self.base
+    fn base(&self) -> Self::FragmentNumber {
+        self.base
     }
 
     fn set(&self) -> &[Self::FragmentNumber] {
@@ -126,8 +126,8 @@ impl submessage_elements::SubmessageElement for Timestamp {}
 impl submessage_elements::Timestamp for Timestamp {
     type Time = Self;
 
-    fn value(&self) -> &Self::Time {
-        self
+    fn value(&self) -> Self::Time {
+        *self
     }
 
     const TIME_ZERO: Self = <Self as rust_rtps_pim::messages::types::Time>::TIME_ZERO;
@@ -155,8 +155,8 @@ impl submessage_elements::SubmessageElement for Count {}
 impl submessage_elements::Count for Count {
     type Count = Self;
 
-    fn value(&self) -> &Self::Count {
-        self
+    fn value(&self) -> Self::Count {
+        *self
     }
 }
 

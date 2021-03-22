@@ -24,24 +24,24 @@ pub trait Long: SubmessageElement {
 
 pub trait GuidPrefix: SubmessageElement {
     type GuidPrefix: types::GuidPrefix;
-    fn value(&self) -> &Self::GuidPrefix;
+    fn value(&self) -> Self::GuidPrefix;
 }
 
 pub trait EntityId: SubmessageElement {
     type EntityId: types::EntityId;
-    fn value(&self) -> &Self::EntityId;
+    fn value(&self) -> Self::EntityId;
 }
 
 pub trait VendorId: SubmessageElement {
     type VendorId: types::VendorId;
-    fn value(&self) -> &Self::VendorId;
+    fn value(&self) -> Self::VendorId;
 
     const VENDORID_UNKNOWN: Self;
 }
 
 pub trait ProtocolVersion: SubmessageElement {
     type ProtocolVersion: types::ProtocolVersion;
-    fn value(&self) -> &Self::ProtocolVersion;
+    fn value(&self) -> Self::ProtocolVersion;
 
     const PROTOCOLVERSION_1_0: Self;
     const PROTOCOLVERSION_1_1: Self;
@@ -54,7 +54,7 @@ pub trait ProtocolVersion: SubmessageElement {
 
 pub trait SequenceNumber: SubmessageElement {
     type SequenceNumber: types::SequenceNumber;
-    fn value(&self) -> &Self::SequenceNumber;
+    fn value(&self) -> Self::SequenceNumber;
 
     const SEQUENCENUMBER_UNKNOWN: Self;
 }
@@ -62,25 +62,25 @@ pub trait SequenceNumber: SubmessageElement {
 pub trait SequenceNumberSet: SubmessageElement {
     type SequenceNumber: types::SequenceNumber;
 
-    fn base(&self) -> &Self::SequenceNumber;
+    fn base(&self) -> Self::SequenceNumber;
     fn set(&self) -> &[Self::SequenceNumber];
 }
 
 pub trait FragmentNumber: SubmessageElement {
     type FragmentNumber: messages::types::FragmentNumber;
-    fn value(&self) -> &Self::FragmentNumber;
+    fn value(&self) -> Self::FragmentNumber;
 }
 
 pub trait FragmentNumberSet: SubmessageElement {
     type FragmentNumber: messages::types::FragmentNumber;
 
-    fn base(&self) -> &Self::FragmentNumber;
+    fn base(&self) -> Self::FragmentNumber;
     fn set(&self) -> &[Self::FragmentNumber];
 }
 
 pub trait Timestamp: SubmessageElement {
     type Time: messages::types::Time;
-    fn value(&self) -> &Self::Time;
+    fn value(&self) -> Self::Time;
 
     const TIME_ZERO: Self;
     const TIME_INVALID: Self;
@@ -89,7 +89,7 @@ pub trait Timestamp: SubmessageElement {
 
 pub trait Parameter {
     type ParameterId: messages::types::ParameterId;
-    fn parameter_id(&self) -> &Self::ParameterId;
+    fn parameter_id(&self) -> Self::ParameterId;
     fn length(&self) -> i16;
     fn value(&self) -> &[u8];
 }
@@ -104,7 +104,7 @@ pub trait ParameterList: SubmessageElement {
 
 pub trait Count: SubmessageElement {
     type Count: messages::types::Count;
-    fn value(&self) -> &Self::Count;
+    fn value(&self) -> Self::Count;
 }
 
 pub trait LocatorList: SubmessageElement {
@@ -121,6 +121,6 @@ pub trait SerializedDataFragment: SubmessageElement {
 }
 
 pub trait GroupDigest: SubmessageElement {
-    type GroupDigest: GroupDigest;
-    fn value(&self) -> &Self::GroupDigest;
+    type GroupDigest: messages::types::GroupDigest;
+    fn value(&self) -> Self::GroupDigest;
 }
