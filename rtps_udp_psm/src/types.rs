@@ -1,3 +1,5 @@
+use serde::Serialize;
+
 #[derive(Clone, Copy)]
 pub struct GuidPrefix(pub [u8; 12]);
 
@@ -17,7 +19,7 @@ impl From<[u8; 12]> for GuidPrefix {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Serialize)]
 pub struct EntityId {
     pub entity_key: [u8; 3],
     pub entity_kind: u8,

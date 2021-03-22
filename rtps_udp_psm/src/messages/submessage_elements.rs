@@ -91,11 +91,21 @@ impl submessage_elements::SequenceNumberSet for SequenceNumberSet {
     }
 
     fn set(&self) -> Self::SequenceNumberList {
-        let base: i64 = self.base.into();
-        (&self.set)
-            .into_iter()
-            .map(|&x| (base + x as i64).into())
-            .collect()
+        // let base: i64 = self.base.into();
+        // (&self.set)
+        //     .into_iter()
+        //     .map(|&x| (base + x as i64).into())
+        //     .collect()
+        todo!()
+    }
+}
+
+impl serde::Serialize for SequenceNumberSet {
+    fn serialize<S>(&self, _serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        todo!()
     }
 }
 

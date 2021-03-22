@@ -1,5 +1,5 @@
 use super::types::{SubmessageFlag, SubmessageKind};
-// use rust_rtps_pim::messages::types::SubmessageFlag;
+use serde::Serialize;
 
 pub mod acknack;
 // pub mod data;
@@ -14,9 +14,9 @@ pub mod acknack;
 // pub mod nack_frag;
 // pub mod pad;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Serialize)]
 pub struct SubmessageHeader {
-    submessage_id: <Self as rust_rtps_pim::messages::submessages::SubmessageHeader>::SubmessageKind,
+    submessage_id: SubmessageKind,
     flags: u8,
     submessage_length: u16,
 }

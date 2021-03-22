@@ -1,3 +1,5 @@
+use serde::Serialize;
+
 #[derive(Clone, Copy)]
 pub struct ProtocolId(pub [u8; 4]);
 impl rust_rtps_pim::messages::types::ProtocolId for ProtocolId {
@@ -21,7 +23,7 @@ impl From<bool> for SubmessageFlag {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Serialize)]
 pub struct SubmessageKind(pub u8);
 impl rust_rtps_pim::messages::types::SubmessageKind for SubmessageKind {
     const DATA: Self = Self(0x15);
@@ -60,7 +62,7 @@ impl rust_rtps_pim::messages::types::Time for Time {
     };
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Serialize)]
 pub struct Count(pub i32);
 impl rust_rtps_pim::messages::types::Count for Count {}
 
