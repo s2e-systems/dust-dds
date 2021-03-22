@@ -1,3 +1,4 @@
+#[derive(Clone, Copy)]
 pub struct ProtocolId(pub [u8; 4]);
 impl rust_rtps_pim::messages::types::ProtocolId for ProtocolId {
     const PROTOCOL_RTPS: Self = Self([b'R', b'T', b'P', b'S']);
@@ -20,6 +21,7 @@ impl From<bool> for SubmessageFlag {
     }
 }
 
+#[derive(Clone, Copy)]
 pub struct SubmessageKind(pub u8);
 impl rust_rtps_pim::messages::types::SubmessageKind for SubmessageKind {
     const DATA: Self = Self(0x15);
@@ -36,6 +38,7 @@ impl rust_rtps_pim::messages::types::SubmessageKind for SubmessageKind {
     const HEARTBEAT_FRAG: Self = Self(0x13);
 }
 
+#[derive(Clone, Copy)]
 pub struct Time {
     pub seconds: i32,
     pub fraction: u32,
@@ -57,14 +60,18 @@ impl rust_rtps_pim::messages::types::Time for Time {
     };
 }
 
+#[derive(Clone, Copy)]
 pub struct Count(pub i32);
 impl rust_rtps_pim::messages::types::Count for Count {}
 
+#[derive(Clone, Copy)]
 pub struct ParameterId(pub i16);
 impl rust_rtps_pim::messages::types::ParameterId for ParameterId {}
 
+#[derive(Clone, Copy)]
 pub struct FragmentNumber(pub u32);
 impl rust_rtps_pim::messages::types::FragmentNumber for FragmentNumber {}
 
+#[derive(Clone, Copy)]
 pub struct GroupDigest(pub [u8; 4]);
 impl rust_rtps_pim::messages::types::GroupDigest for GroupDigest {}

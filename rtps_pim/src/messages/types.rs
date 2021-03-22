@@ -2,13 +2,13 @@
 /// Table 8.13 - Types used to define RTPS messages
 ///
 
-pub trait ProtocolId {
+pub trait ProtocolId : Copy {
     const PROTOCOL_RTPS: Self;
 }
 
 pub trait SubmessageFlag: Into<bool> + From<bool> + Copy {}
 
-pub trait SubmessageKind {
+pub trait SubmessageKind : Copy {
     const DATA: Self;
     const GAP: Self;
     const HEARTBEAT: Self;
@@ -23,15 +23,15 @@ pub trait SubmessageKind {
     const HEARTBEAT_FRAG: Self;
 }
 
-pub trait Time {
+pub trait Time : Copy {
     const TIME_ZERO: Self;
     const TIME_INVALID: Self;
     const TIME_INFINITE: Self;
 }
-pub trait Count {}
+pub trait Count : Copy {}
 
-pub trait ParameterId {}
+pub trait ParameterId : Copy {}
 
-pub trait FragmentNumber {}
+pub trait FragmentNumber : Copy {}
 
-pub trait GroupDigest {}
+pub trait GroupDigest : Copy{}
