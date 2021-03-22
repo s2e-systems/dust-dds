@@ -1,13 +1,16 @@
-use crate::{messages, types};
+use super::{
+    submessages::submessage_elements::{GuidPrefix, ProtocolVersion, VendorId},
+    types::ProtocolId,
+};
 
-pub struct Header<
-    ProtocolId: messages::types::ProtocolId,
-    ProtocolVersion: types::ProtocolVersion,
-    VendorId: types::VendorId,
-    GuidPrefix: types::GuidPrefix,
-> {
-    pub protocol_id: ProtocolId,
-    pub protocol_version: ProtocolVersion,
-    pub vendor_id: VendorId,
-    pub guid_prefix: GuidPrefix,
+pub trait Header {
+    type ProtocolId: ProtocolId;
+    type ProtocolVersion: ProtocolVersion;
+    type VendorId: VendorId;
+    type GuidPrefix: GuidPrefix;
+
+    fn protocol(&self) -> &Self::ProtocolId;
+    fn version(&self) -> &Self::ProtocolVersion;
+    fn vendor_id(&self) -> &Self::VendorId;
+    fn guid_prefix(&self) -> &Self::GuidPrefix;
 }

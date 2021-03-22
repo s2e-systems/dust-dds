@@ -6,7 +6,7 @@ pub trait ProtocolId {
     const PROTOCOL_RTPS: Self;
 }
 
-pub trait SubmessageFlag: Into<bool> {}
+pub trait SubmessageFlag: Into<bool> + From<bool> + Copy {}
 
 pub trait SubmessageKind {
     const DATA: Self;

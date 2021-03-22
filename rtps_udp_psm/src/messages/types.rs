@@ -3,6 +3,7 @@ impl rust_rtps_pim::messages::types::ProtocolId for ProtocolId {
     const PROTOCOL_RTPS: Self = Self([b'R', b'T', b'P', b'S']);
 }
 
+#[derive(Clone, Copy)]
 pub struct SubmessageFlag(pub bool);
 
 impl rust_rtps_pim::messages::types::SubmessageFlag for SubmessageFlag {}
@@ -10,6 +11,12 @@ impl rust_rtps_pim::messages::types::SubmessageFlag for SubmessageFlag {}
 impl Into<bool> for SubmessageFlag {
     fn into(self) -> bool {
         self.0
+    }
+}
+
+impl From<bool> for SubmessageFlag {
+    fn from(value: bool) -> Self {
+        Self(value)
     }
 }
 

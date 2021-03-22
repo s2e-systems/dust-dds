@@ -1,4 +1,4 @@
-use serde::Serialize;
+#[derive(Clone, Copy)]
 pub struct GuidPrefix(pub [u8; 12]);
 
 impl rust_rtps_pim::types::GuidPrefix for GuidPrefix {
@@ -11,6 +11,13 @@ impl Into<[u8; 12]> for GuidPrefix {
     }
 }
 
+impl From<[u8; 12]> for GuidPrefix {
+    fn from(value: [u8; 12]) -> Self {
+        Self(value)
+    }
+}
+
+#[derive(Clone, Copy)]
 pub struct EntityId {
     pub entity_key: [u8; 3],
     pub entity_kind: u8,
@@ -103,6 +110,16 @@ impl Into<[u8; 4]> for EntityId {
     }
 }
 
+impl From<[u8; 4]> for EntityId {
+    fn from(value: [u8; 4]) -> Self {
+        Self {
+            entity_key: [value[0], value[1], value[2]],
+            entity_kind: value[3],
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
 pub struct GUID {
     pub guid_prefix: GuidPrefix,
     pub entity_id: EntityId,
@@ -138,7 +155,20 @@ impl Into<[u8; 16]> for GUID {
     }
 }
 
-#[derive(Serialize)]
+impl From<[u8; 16]> for GUID {
+    fn from(value: [u8; 16]) -> Self {
+        Self {
+            guid_prefix: [
+                value[0], value[1], value[2], value[3], value[4], value[5], value[6], value[7],
+                value[8], value[9], value[10], value[11],
+            ]
+            .into(),
+            entity_id: [value[12], value[13], value[14], value[15]].into(),
+        }
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct SequenceNumber {
     pub high: i32,
     pub low: u32,
@@ -154,6 +184,15 @@ impl rust_rtps_pim::types::SequenceNumber for SequenceNumber {
 impl Into<i64> for SequenceNumber {
     fn into(self) -> i64 {
         ((self.high as i64) << 32) + self.low as i64
+    }
+}
+
+impl From<i64> for SequenceNumber {
+    fn from(value: i64) -> Self {
+        Self {
+            high: (value >> 32) as i32,
+            low: value as u32,
+        }
     }
 }
 
@@ -181,9 +220,9 @@ impl rust_rtps_pim::types::Locator for Locator {
     const LOCATOR_KIND_UDPv6: Self::Kind = 2;
     const LOCATOR_ADDRESS_INVALID: Self::Address = [0; 16];
     const LOCATOR_PORT_INVALID: Self::Port = 0;
-
 }
 
+#[derive(Clone, Copy)]
 pub struct ProtocolVersion {
     pub major: u8,
     pub minor: u8,
@@ -200,6 +239,7 @@ impl rust_rtps_pim::types::ProtocolVersion for ProtocolVersion {
     const PROTOCOLVERSION_2_4: Self = Self { major: 2, minor: 4 };
 }
 
+#[derive(Clone, Copy)]
 pub struct VendorId(pub [u8; 2]);
 
 impl rust_rtps_pim::types::VendorId for VendorId {

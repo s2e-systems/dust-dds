@@ -1,20 +1,20 @@
-use super::SubmessageHeader;
-use crate::messages;
-use crate::messages::submessages::submessage_elements;
+use super::{submessage_elements, Submessage, SubmessageHeader};
 
-pub struct AckNack<
-    SubmessageKind: messages::types::SubmessageKind,
-    SubmessageFlag: messages::types::SubmessageFlag,
-    EntityId: crate::types::EntityId,
-    SequenceNumber: crate::types::SequenceNumber,
-    SequenceNumberList: IntoIterator<Item = SequenceNumber>,
-    Count: messages::types::Count,
-> {
-    pub submessage_header: SubmessageHeader<SubmessageKind, SubmessageFlag>,
-    pub reader_id: submessage_elements::EntityId<EntityId>,
-    pub writer_id: submessage_elements::EntityId<EntityId>,
-    pub reader_sn_state: submessage_elements::SequenceNumberSet<SequenceNumber, SequenceNumberList>,
-    pub count: submessage_elements::Count<Count>,
+pub trait AckNack: Submessage {
+    type EntityId: submessage_elements::EntityId;
+    type SequenceNumberSet: submessage_elements::SequenceNumberSet;
+    type Count: submessage_elements::Count;
+
+    fn endianness_flag(
+        &self,
+    ) -> <<Self as Submessage>::SubmessageHeader as SubmessageHeader>::SubmessageFlag;
+    fn final_flag(
+        &self,
+    ) -> <<Self as Submessage>::SubmessageHeader as SubmessageHeader>::SubmessageFlag;
+    fn reader_id(&self) -> &Self::EntityId;
+    fn writer_id(&self) -> &Self::EntityId;
+    fn reader_sn_state(&self) -> &Self::SequenceNumberSet;
+    fn count(&self) -> &Self::Count;
 }
 
 // impl Submessage for AckNack {

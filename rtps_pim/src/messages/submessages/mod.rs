@@ -13,21 +13,23 @@ pub mod ack_nack_submessage;
 // pub mod nack_frag_submessage;
 // pub mod pad;
 
-use crate::messages::types;
+use super::types::{SubmessageFlag, SubmessageKind};
 // pub use ack_nack_submessage::AckNack;
 // pub use data_submessage::Data;
 // pub use gap_submessage::Gap;
 // pub use heartbeat_submessage::Heartbeat;
 // pub use info_timestamp_submessage::InfoTimestamp;
 
-pub struct SubmessageHeader<
-    SubmessageKind: types::SubmessageKind,
-    SubmessageFlag: types::SubmessageFlag,
-> {
-    pub submessage_id: SubmessageKind,
-    pub flags: [SubmessageFlag; 8],
-    pub submessage_length: u16,
+pub trait SubmessageHeader {
+    type SubmessageKind: SubmessageKind;
+    type SubmessageFlag : SubmessageFlag;
+
+    fn submessage_id(&self) -> &Self::SubmessageKind;
+    fn flags(&self) -> &[Self::SubmessageFlag; 8];
+    fn submessage_length(&self) -> &u16;
 }
 pub trait Submessage {
-    fn is_valid(&self) -> bool;
+    type SubmessageHeader: SubmessageHeader;
+
+    fn submessage_header(&self) -> Self::SubmessageHeader;
 }

@@ -2,19 +2,19 @@
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
 /// Table 8.2 - Types of the attributes that appear in the RTPS Entities and Classes
 ///
-pub trait GUID: Into<[u8; 16]> {
+pub trait GUID: Into<[u8; 16]> + From<[u8; 16]> + Copy {
     const GUID_UNKNOWN: Self;
 }
 
-pub trait GuidPrefix: Into<[u8; 12]> {
+pub trait GuidPrefix: Into<[u8; 12]> + From<[u8; 12]> + Copy {
     const GUIDPREFIX_UNKNOWN: Self;
 }
 
-pub trait EntityId: Into<[u8; 4]> {
+pub trait EntityId: Into<[u8; 4]> + From<[u8; 4]> + Copy {
     const ENTITYID_UNKNOWN: Self;
 }
 
-pub trait SequenceNumber: Into<i64> {
+pub trait SequenceNumber: Into<i64> + From<i64> + Copy + Ord {
     const SEQUENCE_NUMBER_UNKNOWN: Self;
 }
 
@@ -34,11 +34,13 @@ pub trait Locator {
     const LOCATOR_PORT_INVALID: Self::Port;
 }
 
+#[derive(Clone, Copy)]
 pub enum TopicKind {
     NoKey,
     WithKey,
 }
 
+#[derive(Clone, Copy)]
 pub enum ChangeKind {
     Alive,
     AliveFiltered,
@@ -47,14 +49,15 @@ pub enum ChangeKind {
     NotAliveUnregistered,
 }
 
+#[derive(Clone, Copy)]
 pub enum ReliabilityKind {
     BestEffort,
     Reliable,
 }
 
-pub trait InstanceHandle {}
+pub trait InstanceHandle: Copy {}
 
-pub trait ProtocolVersion {
+pub trait ProtocolVersion: Copy {
     const PROTOCOLVERSION: Self;
     const PROTOCOLVERSION_1_0: Self;
     const PROTOCOLVERSION_1_1: Self;
@@ -65,6 +68,6 @@ pub trait ProtocolVersion {
     const PROTOCOLVERSION_2_4: Self;
 }
 
-pub trait VendorId {
+pub trait VendorId: Copy {
     const VENDOR_ID_UNKNOWN: Self;
 }

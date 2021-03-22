@@ -4,145 +4,123 @@
 ///
 use crate::{messages, types};
 
-pub struct UShort {
-    pub value: u16,
+pub trait SubmessageElement {}
+
+pub trait UShort: SubmessageElement {
+    fn value(&self) -> u16;
 }
 
-pub struct Short {
-    pub value: i16,
+pub trait Short: SubmessageElement {
+    fn value(&self) -> i16;
 }
 
-pub struct ULong {
-    pub value: u32,
+pub trait ULong: SubmessageElement {
+    fn value(&self) -> u32;
 }
 
-pub struct Long {
-    pub value: i32,
+pub trait Long: SubmessageElement {
+    fn value(&self) -> i32;
 }
 
-pub struct GuidPrefix<GuidPrefix: types::GuidPrefix> {
-    pub value: GuidPrefix,
+pub trait GuidPrefix: SubmessageElement {
+    type GuidPrefix: types::GuidPrefix;
+    fn value(&self) -> &Self::GuidPrefix;
 }
 
-pub struct EntityId<EntityId: types::EntityId> {
-    pub value: EntityId,
+pub trait EntityId: SubmessageElement {
+    type EntityId: types::EntityId;
+    fn value(&self) -> &Self::EntityId;
 }
 
-pub struct VendorId<VendorId: types::VendorId> {
-    pub value: VendorId,
+pub trait VendorId: SubmessageElement {
+    type VendorId: types::VendorId;
+    fn value(&self) -> &Self::VendorId;
+
+    const VENDORID_UNKNOWN: Self;
 }
 
-impl<T: types::VendorId> VendorId<T> {
-    pub const VENDORID_UNKNOWN: Self = Self {
-        value: T::VENDOR_ID_UNKNOWN,
-    };
+pub trait ProtocolVersion: SubmessageElement {
+    type ProtocolVersion: types::ProtocolVersion;
+    fn value(&self) -> &Self::ProtocolVersion;
+
+    const PROTOCOLVERSION_1_0: Self;
+    const PROTOCOLVERSION_1_1: Self;
+    const PROTOCOLVERSION_2_0: Self;
+    const PROTOCOLVERSION_2_1: Self;
+    const PROTOCOLVERSION_2_2: Self;
+    const PROTOCOLVERSION_2_3: Self;
+    const PROTOCOLVERSION_2_4: Self;
 }
 
-pub struct ProtocolVersion<ProtocolVersion: types::ProtocolVersion> {
-    pub value: ProtocolVersion,
+pub trait SequenceNumber: SubmessageElement {
+    type SequenceNumber: types::SequenceNumber;
+    fn value(&self) -> &Self::SequenceNumber;
+
+    const SEQUENCENUMBER_UNKNOWN: Self;
 }
 
-impl<T: types::ProtocolVersion> ProtocolVersion<T> {
-    pub const PROTOCOLVERSION_1_0: Self = Self {
-        value: T::PROTOCOLVERSION_1_0,
-    };
-    pub const PROTOCOLVERSION_1_1: Self = Self {
-        value: T::PROTOCOLVERSION_1_1,
-    };
-    pub const PROTOCOLVERSION_2_0: Self = Self {
-        value: T::PROTOCOLVERSION_2_0,
-    };
-    pub const PROTOCOLVERSION_2_1: Self = Self {
-        value: T::PROTOCOLVERSION_2_1,
-    };
-    pub const PROTOCOLVERSION_2_2: Self = Self {
-        value: T::PROTOCOLVERSION_2_2,
-    };
-    pub const PROTOCOLVERSION_2_3: Self = Self {
-        value: T::PROTOCOLVERSION_2_3,
-    };
-    pub const PROTOCOLVERSION_2_4: Self = Self {
-        value: T::PROTOCOLVERSION_2_4,
-    };
+pub trait SequenceNumberSet: SubmessageElement {
+    type SequenceNumber: types::SequenceNumber;
+
+    fn base(&self) -> &Self::SequenceNumber;
+    fn set(&self) -> &[Self::SequenceNumber];
 }
 
-pub struct SequenceNumber<SequenceNumber: types::SequenceNumber> {
-    pub value: SequenceNumber,
+pub trait FragmentNumber: SubmessageElement {
+    type FragmentNumber: messages::types::FragmentNumber;
+    fn value(&self) -> &Self::FragmentNumber;
 }
 
-impl<T: types::SequenceNumber> SequenceNumber<T> {
-    pub const SEQUENCENUMBER_UNKNOWN: Self = Self {
-        value: T::SEQUENCE_NUMBER_UNKNOWN,
-    };
-}
-pub struct SequenceNumberSet<
-    SequenceNumber: types::SequenceNumber,
-    SequenceNumberList: IntoIterator<Item = SequenceNumber>,
-> {
-    pub base: SequenceNumber,
-    pub set: SequenceNumberList,
+pub trait FragmentNumberSet: SubmessageElement {
+    type FragmentNumber: messages::types::FragmentNumber;
+
+    fn base(&self) -> &Self::FragmentNumber;
+    fn set(&self) -> &[Self::FragmentNumber];
 }
 
-pub struct FragmentNumber<FragmentNumber: messages::types::FragmentNumber> {
-    pub value: FragmentNumber,
+pub trait Timestamp: SubmessageElement {
+    type Time: messages::types::Time;
+    fn value(&self) -> &Self::Time;
+
+    const TIME_ZERO: Self;
+    const TIME_INVALID: Self;
+    const TIME_INFINITE: Self;
 }
 
-pub struct FragmentNumberSet<
-    FragmentNumber: messages::types::FragmentNumber,
-    FragmentNumberList: IntoIterator<Item = FragmentNumber>,
-> {
-    pub base: FragmentNumber,
-    pub set: FragmentNumberList,
+pub trait Parameter {
+    type ParameterId: messages::types::ParameterId;
+    fn parameter_id(&self) -> &Self::ParameterId;
+    fn length(&self) -> i16;
+    fn value(&self) -> &[u8];
 }
 
-pub struct Timestamp<Time: messages::types::Time> {
-    pub value: Time,
+pub trait ParameterList: SubmessageElement {
+    type Parameter: Parameter + ?Sized;
+    type Item: core::ops::Deref<Target = Self::Parameter>;
+    type ParameterList: IntoIterator<Item = Self::Item>;
+
+    fn parameter(&self) -> &Self::ParameterList;
 }
 
-impl<T: messages::types::Time> Timestamp<T> {
-    pub const TIME_ZERO: Self = Self {
-        value: T::TIME_ZERO,
-    };
-    pub const TIME_INVALID: Self = Self {
-        value: T::TIME_INVALID,
-    };
-    pub const TIME_INFINITE: Self = Self {
-        value: T::TIME_INFINITE,
-    };
-}
-pub struct Parameter<
-    ParameterId: messages::types::ParameterId,
-    OctetList: IntoIterator<Item = [u8]>,
-> {
-    pub parameter_id: ParameterId,
-    pub length: i16,
-    pub value: OctetList,
+pub trait Count: SubmessageElement {
+    type Count: messages::types::Count;
+    fn value(&self) -> &Self::Count;
 }
 
-pub struct ParameterList<
-    ParameterId: messages::types::ParameterId,
-    OctetList: IntoIterator<Item = [u8]>,
-    ParameterList: IntoIterator<Item = Parameter<ParameterId, OctetList>>,
-> {
-    pub parameter: ParameterList,
+pub trait LocatorList: SubmessageElement {
+    type Locator: types::Locator;
+    fn value(&self) -> &[Self::Locator];
 }
 
-pub struct Count<Count: messages::types::Count> {
-    pub value: Count,
+pub trait SerializedData: SubmessageElement {
+    fn value(&self) -> &[u8];
 }
 
-pub struct LocatorList<Locator: types::Locator, LocatorList: IntoIterator<Item = Locator>> {
-    pub value: LocatorList,
+pub trait SerializedDataFragment: SubmessageElement {
+    fn value(&self) -> &[u8];
 }
 
-pub struct SerializedData<OctetList: IntoIterator<Item = [u8]>> {
-    pub value: OctetList,
-}
-
-pub struct SerializedDataFragment<OctetList: IntoIterator<Item = [u8]>> {
-    pub value: OctetList,
-}
-
-pub struct GroupDigest<GroupDigest: messages::types::GroupDigest> {
-    pub value :GroupDigest,
+pub trait GroupDigest: SubmessageElement {
+    type GroupDigest: GroupDigest;
+    fn value(&self) -> &Self::GroupDigest;
 }
