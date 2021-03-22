@@ -7,7 +7,7 @@ pub trait GUID: Into<[u8; 16]> {
 }
 
 pub trait GuidPrefix: Into<[u8; 12]> {
-    const GUID_PREFIX_UNKNOWN: Self;
+    const GUIDPREFIX_UNKNOWN: Self;
 }
 
 pub trait EntityId: Into<[u8; 4]> {
@@ -59,14 +59,14 @@ pub enum ReliabilityKind {
 pub trait InstanceHandle {}
 
 pub trait ProtocolVersion {
-    const PROTOCOL_VERSION: Self;
-    const PROTOCOL_VERSION_1_0: Self;
-    const PROTOCOL_VERSION_1_1: Self;
-    const PROTOCOL_VERSION_2_0: Self;
-    const PROTOCOL_VERSION_2_1: Self;
-    const PROTOCOL_VERSION_2_2: Self;
-    const PROTOCOL_VERSION_2_3: Self;
-    const PROTOCOL_VERSION_2_4: Self;
+    const PROTOCOLVERSION: Self;
+    const PROTOCOLVERSION_1_0: Self;
+    const PROTOCOLVERSION_1_1: Self;
+    const PROTOCOLVERSION_2_0: Self;
+    const PROTOCOLVERSION_2_1: Self;
+    const PROTOCOLVERSION_2_2: Self;
+    const PROTOCOLVERSION_2_3: Self;
+    const PROTOCOLVERSION_2_4: Self;
 }
 
 pub trait VendorId {

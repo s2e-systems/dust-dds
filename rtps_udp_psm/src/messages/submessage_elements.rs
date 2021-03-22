@@ -43,25 +43,25 @@ impl submessage_elements::ProtocolVersion for ProtocolVersion {
     }
 
     const PROTOCOLVERSION_1_0: Self =
-        <Self as rust_rtps_pim::types::ProtocolVersion>::PROTOCOL_VERSION_1_0;
+        <Self as rust_rtps_pim::types::ProtocolVersion>::PROTOCOLVERSION_1_0;
 
     const PROTOCOLVERSION_1_1: Self =
-        <Self as rust_rtps_pim::types::ProtocolVersion>::PROTOCOL_VERSION_1_1;
+        <Self as rust_rtps_pim::types::ProtocolVersion>::PROTOCOLVERSION_1_1;
 
     const PROTOCOLVERSION_2_0: Self =
-        <Self as rust_rtps_pim::types::ProtocolVersion>::PROTOCOL_VERSION_2_0;
+        <Self as rust_rtps_pim::types::ProtocolVersion>::PROTOCOLVERSION_2_0;
 
     const PROTOCOLVERSION_2_1: Self =
-        <Self as rust_rtps_pim::types::ProtocolVersion>::PROTOCOL_VERSION_2_1;
+        <Self as rust_rtps_pim::types::ProtocolVersion>::PROTOCOLVERSION_2_1;
 
     const PROTOCOLVERSION_2_2: Self =
-        <Self as rust_rtps_pim::types::ProtocolVersion>::PROTOCOL_VERSION_2_2;
+        <Self as rust_rtps_pim::types::ProtocolVersion>::PROTOCOLVERSION_2_2;
 
     const PROTOCOLVERSION_2_3: Self =
-        <Self as rust_rtps_pim::types::ProtocolVersion>::PROTOCOL_VERSION_2_3;
+        <Self as rust_rtps_pim::types::ProtocolVersion>::PROTOCOLVERSION_2_3;
 
     const PROTOCOLVERSION_2_4: Self =
-        <Self as rust_rtps_pim::types::ProtocolVersion>::PROTOCOL_VERSION_2_4;
+        <Self as rust_rtps_pim::types::ProtocolVersion>::PROTOCOLVERSION_2_4;
 }
 
 pub type SequenceNumber = types::SequenceNumber;

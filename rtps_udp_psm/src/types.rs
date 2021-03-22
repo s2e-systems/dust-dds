@@ -1,7 +1,7 @@
 pub struct GuidPrefix(pub [u8; 12]);
 
 impl rust_rtps_pim::types::GuidPrefix for GuidPrefix {
-    const GUID_PREFIX_UNKNOWN: Self = Self([0; 12]);
+    const GUIDPREFIX_UNKNOWN: Self = Self([0; 12]);
 }
 
 impl Into<[u8; 12]> for GuidPrefix {
@@ -109,7 +109,7 @@ pub struct GUID {
 
 impl rust_rtps_pim::types::GUID for GUID {
     const GUID_UNKNOWN: Self = Self {
-        guid_prefix: <GuidPrefix as rust_rtps_pim::types::GuidPrefix>::GUID_PREFIX_UNKNOWN,
+        guid_prefix: <GuidPrefix as rust_rtps_pim::types::GuidPrefix>::GUIDPREFIX_UNKNOWN,
         entity_id: <EntityId as rust_rtps_pim::types::EntityId>::ENTITYID_UNKNOWN,
     };
 }
@@ -199,14 +199,14 @@ pub struct ProtocolVersion {
 }
 
 impl rust_rtps_pim::types::ProtocolVersion for ProtocolVersion {
-    const PROTOCOL_VERSION: Self = Self::PROTOCOL_VERSION_2_4;
-    const PROTOCOL_VERSION_1_0: Self = Self { major: 1, minor: 0 };
-    const PROTOCOL_VERSION_1_1: Self = Self { major: 1, minor: 1 };
-    const PROTOCOL_VERSION_2_0: Self = Self { major: 2, minor: 0 };
-    const PROTOCOL_VERSION_2_1: Self = Self { major: 2, minor: 1 };
-    const PROTOCOL_VERSION_2_2: Self = Self { major: 2, minor: 2 };
-    const PROTOCOL_VERSION_2_3: Self = Self { major: 2, minor: 3 };
-    const PROTOCOL_VERSION_2_4: Self = Self { major: 2, minor: 4 };
+    const PROTOCOLVERSION: Self = Self::PROTOCOLVERSION_2_4;
+    const PROTOCOLVERSION_1_0: Self = Self { major: 1, minor: 0 };
+    const PROTOCOLVERSION_1_1: Self = Self { major: 1, minor: 1 };
+    const PROTOCOLVERSION_2_0: Self = Self { major: 2, minor: 0 };
+    const PROTOCOLVERSION_2_1: Self = Self { major: 2, minor: 1 };
+    const PROTOCOLVERSION_2_2: Self = Self { major: 2, minor: 2 };
+    const PROTOCOLVERSION_2_3: Self = Self { major: 2, minor: 3 };
+    const PROTOCOLVERSION_2_4: Self = Self { major: 2, minor: 4 };
 }
 
 pub struct VendorId(pub [u8; 2]);
