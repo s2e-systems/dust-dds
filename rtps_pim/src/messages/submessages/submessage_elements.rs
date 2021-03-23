@@ -124,7 +124,7 @@ pub trait LocatorList: SubmessageElement {
 pub trait SerializedData<'a>: SubmessageElement {
     type SerializedData: AsRef<[u8]>;
 
-    fn new(value: Self::SerializedData)-> Self;
+    fn new(value: Self::SerializedData) -> Self;
     fn value(&self) -> Self::SerializedData;
 }
 

@@ -5,6 +5,17 @@ pub trait Heartbeat: Submessage {
     type SequenceNumber: submessage_elements::SequenceNumber;
     type Count: submessage_elements::Count;
 
+    fn new(
+        endianness_flag: <<Self as Submessage>::SubmessageHeader as SubmessageHeader>::SubmessageFlag,
+        final_flag: <<Self as Submessage>::SubmessageHeader as SubmessageHeader>::SubmessageFlag,
+        liveliness_flag: <<Self as Submessage>::SubmessageHeader as SubmessageHeader>::SubmessageFlag,
+        reader_id: Self::EntityId,
+        writer_id: Self::EntityId,
+        first_sn: Self::SequenceNumber,
+        last_sn: Self::SequenceNumber,
+        count: Self::Count,
+    ) -> Self;
+
     fn endianness_flag(
         &self,
     ) -> <<Self as Submessage>::SubmessageHeader as SubmessageHeader>::SubmessageFlag;

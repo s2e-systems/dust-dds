@@ -6,6 +6,15 @@ pub trait HeartbeatFrag: Submessage {
     type FragmentNumber: submessage_elements::FragmentNumber;
     type Count: submessage_elements::Count;
 
+    fn new(
+        endianness_flag: <<Self as Submessage>::SubmessageHeader as SubmessageHeader>::SubmessageFlag,
+        reader_id: Self::EntityId,
+        writer_id: Self::EntityId,
+        writer_sn: Self::SequenceNumber,
+        last_fragment_num: Self::FragmentNumber,
+        count: Self::Count,
+    ) -> Self;
+
     fn endianness_flag(
         &self,
     ) -> <<Self as Submessage>::SubmessageHeader as SubmessageHeader>::SubmessageFlag;

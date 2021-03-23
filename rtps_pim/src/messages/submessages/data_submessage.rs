@@ -15,7 +15,7 @@ pub trait Data<'a>: Submessage {
         reader_id: Self::EntityId,
         writer_id: Self::EntityId,
         writer_sn: Self::SequenceNumber,
-        inline_qos: &Self::ParameterList,
+        inline_qos: Self::ParameterList,
         serialized_payload: Self::SerializedData,
     ) -> Self;
 

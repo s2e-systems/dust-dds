@@ -1,6 +1,6 @@
 use super::{submessage_elements, Submessage, SubmessageHeader};
 
-pub trait DataFrag : Submessage {
+pub trait DataFrag: Submessage {
     type EntityId: submessage_elements::EntityId;
     type SequenceNumber: submessage_elements::SubmessageElement;
     type FragmentNumber: submessage_elements::FragmentNumber;
@@ -9,6 +9,21 @@ pub trait DataFrag : Submessage {
     type UShort: submessage_elements::UShort;
     type ULong: submessage_elements::ULong;
 
+    fn new(
+        endianness_flag: <<Self as Submessage>::SubmessageHeader as SubmessageHeader>::SubmessageFlag,
+        inline_qos_flag: <<Self as Submessage>::SubmessageHeader as SubmessageHeader>::SubmessageFlag,
+        non_standard_payload_flag: <<Self as Submessage>::SubmessageHeader as SubmessageHeader>::SubmessageFlag,
+        key_flag: <<Self as Submessage>::SubmessageHeader as SubmessageHeader>::SubmessageFlag,
+        reader_id: Self::EntityId,
+        writer_id: Self::EntityId,
+        writer_sn: Self::SequenceNumber,
+        fragment_starting_num: Self::FragmentNumber,
+        fragments_in_submessage: Self::UShort,
+        data_size: Self::ULong,
+        fragment_size: Self::UShort,
+        inline_qos: Self::ParameterList,
+        serialized_payload: Self::SerializedDataFragment,
+    ) -> Self;
 
     fn endianness_flag(
         &self,

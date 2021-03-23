@@ -5,6 +5,14 @@ pub trait Gap: Submessage {
     type SequenceNumber: submessage_elements::SequenceNumber;
     type SequenceNumberSet: submessage_elements::SequenceNumberSet;
 
+    fn new(
+        endianness_flag: <<Self as Submessage>::SubmessageHeader as SubmessageHeader>::SubmessageFlag,
+        reader_id: Self::EntityId,
+        writer_id: Self::EntityId,
+        gap_start: Self::SequenceNumber,
+        gap_list: Self::SequenceNumberSet,
+    ) -> Self;
+
     fn endianness_flag(
         &self,
     ) -> <<Self as Submessage>::SubmessageHeader as SubmessageHeader>::SubmessageFlag;
