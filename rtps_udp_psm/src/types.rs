@@ -128,10 +128,22 @@ pub struct GUID {
 }
 
 impl rust_rtps_pim::types::GUID for GUID {
+    type GuidPrefix = GuidPrefix ;
+    type EntityId = EntityId;
+
+    fn guid_prefix(&self) -> Self::GuidPrefix {
+        self.guid_prefix
+    }
+
+    fn entity_id(&self) -> Self::EntityId {
+        self.entity_id
+    }
     const GUID_UNKNOWN: Self = Self {
         guid_prefix: <GuidPrefix as rust_rtps_pim::types::GuidPrefix>::GUIDPREFIX_UNKNOWN,
         entity_id: <EntityId as rust_rtps_pim::types::EntityId>::ENTITYID_UNKNOWN,
     };
+
+
 }
 
 impl Into<[u8; 16]> for GUID {

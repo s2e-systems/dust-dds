@@ -20,16 +20,16 @@ pub trait RTPSWriter: RTPSEndpoint {
         nack_suppression_duration: Self::Duration,
         data_max_sized_serialized: i32,
     ) -> Self;
-    fn push_mode(&self) -> bool;
-    fn heartbeat_period(&self) -> &Self::Duration;
-    fn nack_response_delay(&self) -> &Self::Duration;
-    fn nack_suppression_duration(&self) -> &Self::Duration;
-    fn last_change_sequence_number(
-        &self,
-    ) -> <<Self::HistoryCache as RTPSHistoryCache>::CacheChange as RTPSCacheChange>::SequenceNumber;
-    fn data_max_sized_serialized(&self) -> i32;
-    fn writer_cache(&self) -> &Self::HistoryCache;
-    fn writer_cache_mut(&mut self) -> &mut Self::HistoryCache;
+    // fn push_mode(&self) -> bool;
+    // fn heartbeat_period(&self) -> Self::Duration;
+    // fn nack_response_delay(&self) -> Self::Duration;
+    // fn nack_suppression_duration(&self) -> Self::Duration;
+    // fn last_change_sequence_number(
+    //     &self,
+    // ) -> <<Self::HistoryCache as RTPSHistoryCache>::CacheChange as RTPSCacheChange>::SequenceNumber;
+    // fn data_max_sized_serialized(&self) -> i32;
+    // fn writer_cache(&self) -> &Self::HistoryCache;
+    // fn writer_cache_mut(&mut self) -> &mut Self::HistoryCache;
 
     fn new_change(
         &mut self,

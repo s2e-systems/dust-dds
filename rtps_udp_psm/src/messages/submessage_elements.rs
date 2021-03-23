@@ -16,6 +16,9 @@ impl submessage_elements::SubmessageElement for EntityId {}
 impl submessage_elements::EntityId for EntityId {
     type EntityId = Self;
 
+    fn new(value: Self::EntityId) -> Self {
+        value
+    }
     fn value(&self) -> Self::EntityId {
         *self
     }
@@ -68,6 +71,10 @@ pub type SequenceNumber = types::SequenceNumber;
 impl submessage_elements::SubmessageElement for SequenceNumber {}
 impl submessage_elements::SequenceNumber for SequenceNumber {
     type SequenceNumber = Self;
+
+    fn new(value: Self::SequenceNumber) -> Self {
+        value
+    }
 
     fn value(&self) -> Self::SequenceNumber {
         *self
@@ -187,8 +194,13 @@ impl submessage_elements::LocatorList for LocatorList {
 
 pub struct SerializedData<'a>(pub &'a [u8]);
 impl<'a> submessage_elements::SubmessageElement for SerializedData<'a> {}
-impl<'a> submessage_elements::SerializedData for SerializedData<'a> {
-    fn value(&self) -> &[u8] {
+impl<'a> submessage_elements::SerializedData<'a> for SerializedData<'a> {
+    type SerializedData = &'a [u8];
+    fn new(value: Self::SerializedData) -> Self {
+        Self(value)
+    }
+
+    fn value(&self) -> Self::SerializedData {
         &self.0
     }
 }

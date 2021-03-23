@@ -29,6 +29,7 @@ pub trait GuidPrefix: SubmessageElement {
 
 pub trait EntityId: SubmessageElement {
     type EntityId: types::EntityId;
+    fn new(value: Self::EntityId) -> Self;
     fn value(&self) -> Self::EntityId;
 }
 
@@ -54,6 +55,7 @@ pub trait ProtocolVersion: SubmessageElement {
 
 pub trait SequenceNumber: SubmessageElement {
     type SequenceNumber: types::SequenceNumber;
+    fn new(value: Self::SequenceNumber) -> Self;
     fn value(&self) -> Self::SequenceNumber;
 
     const SEQUENCENUMBER_UNKNOWN: Self;
@@ -91,8 +93,14 @@ pub trait Timestamp: SubmessageElement {
 pub trait Parameter {
     type ParameterId: messages::types::ParameterId;
     fn parameter_id(&self) -> Self::ParameterId;
-    fn length(&self) -> i16;
     fn value(&self) -> &[u8];
+}
+
+impl<T: messages::types::ParameterId> dyn Parameter<ParameterId = T> {
+    pub fn length(&self) -> i16 {
+        // self.value().len() as i16
+        todo!()
+    }
 }
 
 pub trait ParameterList: SubmessageElement {
@@ -113,8 +121,11 @@ pub trait LocatorList: SubmessageElement {
     fn value(&self) -> &[Self::Locator];
 }
 
-pub trait SerializedData: SubmessageElement {
-    fn value(&self) -> &[u8];
+pub trait SerializedData<'a>: SubmessageElement {
+    type SerializedData: AsRef<[u8]>;
+
+    fn new(value: Self::SerializedData)-> Self;
+    fn value(&self) -> Self::SerializedData;
 }
 
 pub trait SerializedDataFragment: SubmessageElement {

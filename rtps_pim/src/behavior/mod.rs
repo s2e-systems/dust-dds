@@ -1,17 +1,23 @@
 pub mod reader;
-pub mod stateful_reader;
-pub mod stateful_writer;
-pub mod stateless_reader;
+// pub mod stateful_reader;
+// pub mod stateful_writer;
+// pub mod stateless_reader;
 pub mod stateless_writer;
 pub mod types;
 pub mod writer;
 
 pub use reader::RTPSReader;
-pub use stateful_reader::{RTPSStatefulReader, RTPSWriterProxy};
-pub use stateful_writer::{RTPSReaderProxy, RTPSStatefulWriter};
-pub use stateless_reader::RTPSStatelessReader;
-pub use stateless_writer::RTPSStatelessWriter;
+// pub use stateful_reader::{RTPSStatefulReader, RTPSWriterProxy};
+// pub use stateful_writer::{RTPSReaderProxy, RTPSStatefulWriter};
+// pub use stateless_reader::RTPSStatelessReader;
+// pub use stateless_writer::RTPSStatelessWriter;
 pub use writer::RTPSWriter;
+
+use crate::{
+    messages::submessages::{self, submessage_elements},
+    structure::RTPSCacheChange,
+    types::{ChangeKind, GUID},
+};
 
 // use crate::{
 //     messages::{
@@ -49,50 +55,66 @@ pub use writer::RTPSWriter;
 //     )
 // }
 
-// pub fn data_from_cache_change<'a>(
-//     cache_change: &'a impl RTPSCacheChange<Data = impl AsRef<SerializedData> + 'a>,
-//     reader_id: EntityId,
-// ) -> submessages::Data<'a> {
-//     let writer_guid: GUID = cache_change.writer_guid().try_into().unwrap();
-//     let writer_id = writer_guid.entity_id();
-//     let writer_sn = cache_change.sequence_number();
+pub fn data_from_cache_change<'a, Data: submessages::data_submessage::Data<'a>>(
+    _cache_change: &'a impl RTPSCacheChange<
+        SequenceNumber = <<Data as submessages::data_submessage::Data<'a>>::SequenceNumber as submessage_elements::SequenceNumber>::SequenceNumber,
+        EntityId = <<Data as submessages::data_submessage::Data<'a>>::EntityId as submessage_elements::EntityId>::EntityId,
+        ParameterList = <Data as submessages::data_submessage::Data<'a>>::ParameterList,
+        Data = <<Data as submessages::data_submessage::Data<'a>>::SerializedData as submessage_elements::SerializedData<'a>>::SerializedData
+    >,
+    _reader_id: <<Data as submessages::data_submessage::Data<'a>>::EntityId as submessage_elements::EntityId>::EntityId,
+) -> Data {
+    todo!()
+    // let endianness_flag = true.into();
+    // let non_standard_payload_flag = false.into();
+    // let reader_id = submessage_elements::EntityId::new(reader_id);
+    // let writer_id = submessage_elements::EntityId::new(cache_change.writer_guid().entity_id());
+    // let writer_sn = submessage_elements::SequenceNumber::new(cache_change.sequence_number());
 
-//     let inline_qos = cache_change.inline_qos();
+    // let inline_qos = cache_change.inline_qos();
+    // let serialized_payload = submessage_elements::SerializedData::new(cache_change.data_value());
 
-//     let change_kind = cache_change.kind();
-//     // inline_qos
-//     //     .parameter
-//     //     .push(change_kind_to_status_info(change_kind).into());
+    // let change_kind = cache_change.kind();
 
-//     match change_kind {
-//         ChangeKind::Alive => submessages::Data {
-//             endianness_flag: false,
-//             reader_id,
-//             writer_id,
-//             writer_sn,
-//             serialized_payload: cache_change.data_value().as_ref(),
-//             inline_qos,
-//             inline_qos_flag: true,
-//             data_flag: true,
-//             key_flag: false,
-//             non_standard_payload_flag: false,
-//         },
-//         ChangeKind::NotAliveDisposed
-//         | ChangeKind::NotAliveUnregistered
-//         | ChangeKind::AliveFiltered => submessages::Data {
-//             endianness_flag: false,
-//             reader_id,
-//             writer_id,
-//             writer_sn,
-//             serialized_payload: cache_change.data_value().as_ref(),
-//             inline_qos,
-//             inline_qos_flag: true,
-//             data_flag: false,
-//             key_flag: true,
-//             non_standard_payload_flag: false,
-//         },
-//     }
-// }
+    // match change_kind {
+    //     crate::types::ChangeKind::Alive => {
+    //         let data_flag = true.into();
+    //         let key_flag = false.into();
+    //         let inline_qos_flag = true.into();
+    //         Data::new(
+    //             endianness_flag,
+    //             inline_qos_flag,
+    //             data_flag,
+    //             key_flag,
+    //             non_standard_payload_flag,
+    //             reader_id,
+    //             writer_id,
+    //             writer_sn,
+    //             inline_qos,
+    //             serialized_payload,
+    //         )
+    //     }
+    //     ChangeKind::NotAliveDisposed
+    //     | ChangeKind::NotAliveUnregistered
+    //     | ChangeKind::AliveFiltered => {
+    //         let data_flag = false.into();
+    //         let key_flag = true.into();
+    //         let inline_qos_flag = true.into();
+    //         Data::new(
+    //             endianness_flag,
+    //             inline_qos_flag,
+    //             data_flag,
+    //             key_flag,
+    //             non_standard_payload_flag,
+    //             reader_id,
+    //             writer_id,
+    //             writer_sn,
+    //             inline_qos,
+    //             serialized_payload,
+    //         )
+    //     }
+    // }
+}
 
 // // fn change_kind(data_submessage: &Data) -> ChangeKind {
 // //     if data_submessage.data_flag && !data_submessage.key_flag {

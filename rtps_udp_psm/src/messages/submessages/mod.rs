@@ -2,7 +2,7 @@ use super::types::{SubmessageFlag, SubmessageKind};
 use serde::Serialize;
 
 pub mod acknack;
-// pub mod data;
+pub mod data;
 // pub mod data_frag;
 // pub mod gap;
 // pub mod heartbeat;

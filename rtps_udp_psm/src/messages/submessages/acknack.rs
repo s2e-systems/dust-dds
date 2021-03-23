@@ -1,15 +1,13 @@
 use crate::messages::{submessage_elements, types::SubmessageFlag};
-use serde::Serialize;
-
 use super::SubmessageHeader;
 
-#[derive(Serialize)]
 struct AckNack {
-    submessage_header: SubmessageHeader,
-    reader_id: submessage_elements::EntityId,
-    writer_id: submessage_elements::EntityId,
-    reader_sn_state: submessage_elements::SequenceNumberSet,
-    count: submessage_elements::Count,
+    pub endianness_flag: SubmessageFlag,
+    pub final_flag: SubmessageFlag,
+    pub reader_id: submessage_elements::EntityId,
+    pub writer_id: submessage_elements::EntityId,
+    pub reader_sn_state: submessage_elements::SequenceNumberSet,
+    pub count: submessage_elements::Count,
 }
 
 impl rust_rtps_pim::messages::submessages::ack_nack_submessage::AckNack for AckNack {
@@ -18,11 +16,11 @@ impl rust_rtps_pim::messages::submessages::ack_nack_submessage::AckNack for AckN
     type Count = submessage_elements::Count;
 
     fn endianness_flag(&self) -> SubmessageFlag {
-        rust_rtps_pim::messages::submessages::SubmessageHeader::flags(&self.submessage_header)[0]
+        self.endianness_flag
     }
 
     fn final_flag(&self) -> SubmessageFlag {
-        rust_rtps_pim::messages::submessages::SubmessageHeader::flags(&self.submessage_header)[1]
+        self.final_flag
     }
 
     fn reader_id(&self) -> &Self::EntityId {
@@ -46,6 +44,6 @@ impl rust_rtps_pim::messages::submessages::Submessage for AckNack {
     type SubmessageHeader = SubmessageHeader;
 
     fn submessage_header(&self) -> Self::SubmessageHeader {
-        self.submessage_header
+        todo!()
     }
 }

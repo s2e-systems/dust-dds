@@ -1,6 +1,6 @@
 use super::SubmessageHeader;
-use crate::messages::submessage_elements;
-use rust_rtps_pim::messages::{submessages::Submessage, types::SubmessageFlag};
+use crate::messages::{submessage_elements, types::SubmessageFlag};
+
 pub struct Data<'a> {
     endianness_flag: SubmessageFlag,
     inline_qos_flag: SubmessageFlag,
@@ -8,29 +8,25 @@ pub struct Data<'a> {
     key_flag: SubmessageFlag,
     non_standard_payload_flag: SubmessageFlag,
 
-    reader_id: <Self as rust_rtps_pim::messages::submessages::data_submessage::Data>::EntityId,
-    writer_id: <Self as rust_rtps_pim::messages::submessages::data_submessage::Data>::EntityId,
+    reader_id: <Self as rust_rtps_pim::messages::submessages::data_submessage::Data<'a>>::EntityId,
+    writer_id: <Self as rust_rtps_pim::messages::submessages::data_submessage::Data<'a>>::EntityId,
     writer_sn:
-        <Self as rust_rtps_pim::messages::submessages::data_submessage::Data>::SequenceNumber,
+        <Self as rust_rtps_pim::messages::submessages::data_submessage::Data<'a>>::SequenceNumber,
     inline_qos:
-        &'a <Self as rust_rtps_pim::messages::submessages::data_submessage::Data>::ParameterList,
+        &'a <Self as rust_rtps_pim::messages::submessages::data_submessage::Data<'a>>::ParameterList,
     serialized_payload:
-        <Self as rust_rtps_pim::messages::submessages::data_submessage::Data>::SerializedData,
+        <Self as rust_rtps_pim::messages::submessages::data_submessage::Data<'a>>::SerializedData,
 }
 
-impl<'a> Submessage for Data<'a> {
+impl<'a> rust_rtps_pim::messages::submessages::Submessage for Data<'a> {
     type SubmessageHeader = SubmessageHeader;
 
     fn submessage_header(&self) -> Self::SubmessageHeader {
         todo!()
     }
-
-    fn is_valid(&self) -> bool {
-        todo!()
-    }
 }
 
-impl<'a> rust_rtps_pim::messages::submessages::data_submessage::Data for Data<'a> {
+impl<'a> rust_rtps_pim::messages::submessages::data_submessage::Data<'a> for Data<'a> {
     type EntityId = submessage_elements::EntityId;
     type SequenceNumber = submessage_elements::SequenceNumber;
     type ParameterList = submessage_elements::ParameterList;
@@ -74,5 +70,20 @@ impl<'a> rust_rtps_pim::messages::submessages::data_submessage::Data for Data<'a
 
     fn serialized_payload(&self) -> &Self::SerializedData {
         &self.serialized_payload
+    }
+
+    fn new(
+        _endianness_flag: SubmessageFlag,
+        _inline_qos_flag: SubmessageFlag,
+        _data_flag: SubmessageFlag,
+        _key_flag: SubmessageFlag,
+        _non_standard_payload_flag: SubmessageFlag,
+        _reader_id: Self::EntityId,
+        _writer_id: Self::EntityId,
+        _writer_sn: Self::SequenceNumber,
+        _inline_qos: &Self::ParameterList,
+        _serialized_payload: Self::SerializedData,
+    ) -> Self {
+        todo!()
     }
 }
