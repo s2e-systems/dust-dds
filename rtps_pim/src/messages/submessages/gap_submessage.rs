@@ -2,7 +2,7 @@ use super::{submessage_elements, Submessage, SubmessageHeader};
 
 pub trait Gap: Submessage {
     type EntityId: submessage_elements::EntityId;
-    type SequenceNumber: submessage_elements::SequenceNumber;
+    type SequenceNumber;
     type SequenceNumberSet: submessage_elements::SequenceNumberSet;
 
     fn new(

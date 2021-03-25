@@ -2,7 +2,7 @@ use super::{submessage_elements, Submessage, SubmessageHeader};
 
 pub trait Heartbeat: Submessage {
     type EntityId: submessage_elements::EntityId;
-    type SequenceNumber: submessage_elements::SequenceNumber;
+    type SequenceNumber;
     type Count: submessage_elements::Count;
 
     fn new(

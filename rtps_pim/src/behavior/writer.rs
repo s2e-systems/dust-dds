@@ -8,18 +8,18 @@ use super::types::Duration;
 pub trait RTPSWriter: RTPSEndpoint {
     type HistoryCache: RTPSHistoryCache;
     type Duration: Duration;
-    fn new(
-        guid: <Self as RTPSEntity>::GUID,
-        topic_kind: TopicKind,
-        reliability_level: ReliabilityKind,
-        unicast_locator_list: &[<Self as RTPSEndpoint>::Locator],
-        multicast_locator_list: &[<Self as RTPSEndpoint>::Locator],
-        push_mode: bool,
-        heartbeat_period: Self::Duration,
-        nack_response_delay: Self::Duration,
-        nack_suppression_duration: Self::Duration,
-        data_max_sized_serialized: i32,
-    ) -> Self;
+    // fn new(
+    //     guid: <Self as RTPSEntity>::GUID,
+    //     topic_kind: TopicKind,
+    //     reliability_level: ReliabilityKind,
+    //     unicast_locator_list: &[<Self as RTPSEndpoint>::Locator],
+    //     multicast_locator_list: &[<Self as RTPSEndpoint>::Locator],
+    //     push_mode: bool,
+    //     heartbeat_period: Self::Duration,
+    //     nack_response_delay: Self::Duration,
+    //     nack_suppression_duration: Self::Duration,
+    //     data_max_sized_serialized: i32,
+    // ) -> Self;
     // fn push_mode(&self) -> bool;
     // fn heartbeat_period(&self) -> Self::Duration;
     // fn nack_response_delay(&self) -> Self::Duration;
@@ -34,8 +34,17 @@ pub trait RTPSWriter: RTPSEndpoint {
     fn new_change(
         &mut self,
         kind: ChangeKind,
-        data: <<Self::HistoryCache as RTPSHistoryCache>::CacheChange as RTPSCacheChange>::Data,
-        inline_qos: <<Self::HistoryCache as RTPSHistoryCache>::CacheChange as RTPSCacheChange>::ParameterList,
-        handle: <<Self::HistoryCache as RTPSHistoryCache>::CacheChange as RTPSCacheChange>::InstanceHandle,
-    ) -> <Self::HistoryCache as RTPSHistoryCache>::CacheChange;
+        data: <Self::HistoryCache as RTPSHistoryCache>::Data,
+        inline_qos: <Self::HistoryCache as RTPSHistoryCache>::ParameterList,
+        handle: <Self::HistoryCache as RTPSHistoryCache>::InstanceHandle,
+    ) -> RTPSCacheChange<
+        <Self::HistoryCache as RTPSHistoryCache>::GuidPrefix,
+        <Self::HistoryCache as RTPSHistoryCache>::EntityId,
+        <Self::HistoryCache as RTPSHistoryCache>::InstanceHandle,
+        <Self::HistoryCache as RTPSHistoryCache>::SequenceNumber,
+        <Self::HistoryCache as RTPSHistoryCache>::Data,
+        <Self::HistoryCache as RTPSHistoryCache>::ParameterId,
+        <Self::HistoryCache as RTPSHistoryCache>::ParameterValue,
+        <Self::HistoryCache as RTPSHistoryCache>::ParameterList,
+    >;
 }

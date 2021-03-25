@@ -2,7 +2,7 @@ use super::{submessage_elements, Submessage, SubmessageHeader};
 
 pub trait NackFrag: Submessage {
     type EntityId: submessage_elements::EntityId;
-    type SequenceNumber: submessage_elements::SequenceNumber;
+    type SequenceNumber;
     type FragmentNumberSet: submessage_elements::FragmentNumberSet;
     type Count: submessage_elements::Count;
 

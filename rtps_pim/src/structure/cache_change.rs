@@ -1,29 +1,25 @@
 use crate::{
-    messages::submessages::submessage_elements::ParameterList,
-    types::{ChangeKind, EntityId, GuidPrefix, InstanceHandle, SequenceNumber, GUID},
+    messages::{
+        self,
+        submessages::submessage_elements::{self, Parameter},
+    },
+    types,
 };
 
-pub trait RTPSCacheChange {
-    type InstanceHandle: InstanceHandle;
-    type SequenceNumber: SequenceNumber;
-    type GuidPrefix: GuidPrefix;
-    type EntityId: EntityId;
-    type GUID: GUID<GuidPrefix = Self::GuidPrefix, EntityId = Self::EntityId>;
-    type Data;
-    type ParameterList: ParameterList;
-
-    fn new(
-        kind: ChangeKind,
-        writer_guid: Self::GUID,
-        instance_handle: Self::InstanceHandle,
-        sequence_number: Self::SequenceNumber,
-        data_value: Self::Data,
-        inline_qos: Self::ParameterList,
-    ) -> Self;
-    fn kind(&self) -> ChangeKind;
-    fn writer_guid(&self) -> Self::GUID;
-    fn instance_handle(&self) -> Self::InstanceHandle;
-    fn sequence_number(&self) -> Self::SequenceNumber;
-    fn data_value(&self) -> &Self::Data;
-    fn inline_qos(&self) -> &Self::ParameterList;
+pub struct RTPSCacheChange<
+    GuidPrefix: types::GuidPrefix,
+    EntityId: types::EntityId,
+    InstanceHandle: types::InstanceHandle,
+    SequenceNumber: types::SequenceNumber,
+    Data,
+    ParameterId: messages::types::ParameterId,
+    ParameterValue: AsRef<[u8]>,
+    ParameterList: IntoIterator<Item = Parameter<ParameterId, ParameterValue>>,
+> {
+    pub kind: types::ChangeKind,
+    pub writer_guid: types::GUID<GuidPrefix, EntityId>,
+    pub instance_handle: InstanceHandle,
+    pub sequence_number: SequenceNumber,
+    pub data_value: Data,
+    pub inline_qos: submessage_elements::ParameterList<ParameterId, ParameterValue, ParameterList>,
 }

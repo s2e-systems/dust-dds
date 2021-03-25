@@ -14,7 +14,10 @@ pub use reader::RTPSReader;
 pub use writer::RTPSWriter;
 
 use crate::{
-    messages::submessages::{self, submessage_elements},
+    messages::{
+        self,
+        submessages::{self, submessage_elements},
+    },
     structure::RTPSCacheChange,
     types::{ChangeKind, GUID},
 };
@@ -54,32 +57,65 @@ use crate::{
 //         message.inline_qos,
 //     )
 // }
+// type EntityId: types::EntityId;
+// type SequenceNumber: types::SequenceNumber;
+// type ParameterId: messages::types::ParameterId;
+// type ParameterValue: AsRef<[u8]>;
+// type ParameterList: IntoIterator<
+//     Item = submessage_elements::Parameter<Self::ParameterId, Self::ParameterValue>,
+// >;
+// type SerializedData: AsRef<[u8]>;
 
-pub fn data_submessage_from_cache_change<'a, DataSubmessage, T, P, S>(
-    cache_change: &'a impl RTPSCacheChange<
-        SequenceNumber = <<DataSubmessage as submessages::data_submessage::Data>::SequenceNumber as submessage_elements::SequenceNumber>::SequenceNumber,
-        EntityId = <<DataSubmessage as submessages::data_submessage::Data>::EntityId as submessage_elements::EntityId>::EntityId,
-        ParameterList = P,
-        Data = T,
+pub fn data_submessage_from_cache_change<
+    'a,
+    DataSubmessage,
+    GuidPrefix: crate::types::GuidPrefix,
+    InstanceHandle: crate::types::InstanceHandle,
+    Data: AsRef<[u8]>,
+    ParameterId: messages::types::ParameterId,
+    ParameterValue: AsRef<[u8]>,
+    ParameterList: IntoIterator<Item = submessage_elements::Parameter<ParameterId, ParameterValue>>,
+>(
+    cache_change: &'a RTPSCacheChange<
+        GuidPrefix,
+        DataSubmessage::EntityId,
+        InstanceHandle,
+        DataSubmessage::SequenceNumber,
+        Data,
+        ParameterId,
+        ParameterValue,
+        ParameterList,
     >,
-    reader_id: <<DataSubmessage as submessages::data_submessage::Data>::EntityId as submessage_elements::EntityId>::EntityId,
+    reader_id: DataSubmessage::EntityId,
 ) -> DataSubmessage
 where
-    DataSubmessage: submessages::data_submessage::Data<ParameterList = &'a P, SerializedData = S>,
-    T: 'a + AsRef<[u8]>,
-    P: 'a,
-    S: submessage_elements::SerializedData<SerializedData = &'a T>,
+    DataSubmessage: submessages::data_submessage::Data<
+        SerializedData = &'a [u8],
+        ParameterId = ParameterId,
+        ParameterValue = ParameterValue,
+        ParameterList = &'a ParameterList,
+    >,
+    &'a ParameterList:
+        IntoIterator<Item = submessage_elements::Parameter<ParameterId, ParameterValue>>,
 {
     let endianness_flag = true.into();
     let non_standard_payload_flag = false.into();
-    let reader_id = submessage_elements::EntityId::new(reader_id);
-    let writer_id = submessage_elements::EntityId::new(cache_change.writer_guid().entity_id());
-    let writer_sn = submessage_elements::SequenceNumber::new(cache_change.sequence_number());
+    let reader_id = submessage_elements::EntityId { value: reader_id };
+    let writer_id = submessage_elements::EntityId {
+        value: cache_change.writer_guid.entity_id,
+    };
+    let writer_sn = submessage_elements::SequenceNumber {
+        value: cache_change.sequence_number,
+    };
 
-    let inline_qos = cache_change.inline_qos();
-    let serialized_payload = submessage_elements::SerializedData::new(cache_change.data_value());
+    let inline_qos = submessage_elements::ParameterList {
+        parameter: &cache_change.inline_qos.parameter,
+    };
+    let serialized_payload = submessage_elements::SerializedData {
+        value: cache_change.data_value.as_ref(),
+    };
 
-    match cache_change.kind() {
+    match cache_change.kind {
         crate::types::ChangeKind::Alive => {
             let data_flag = true.into();
             let key_flag = false.into();
@@ -198,190 +234,194 @@ where
 
 #[cfg(test)]
 mod tests {
+    use messages::submessages::submessage_elements::ParameterList;
+
+    use crate::messages::submessages::Submessage;
+
     use super::*;
 
-    #[derive(Clone, Copy)]
-    struct InstanceHandle;
-    impl crate::types::InstanceHandle for InstanceHandle {}
+    //     #[derive(Clone, Copy)]
+    //     struct InstanceHandle;
+    //     impl crate::types::InstanceHandle for InstanceHandle {}
 
-    #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-    struct SequenceNumber(i64);
-    impl crate::types::SequenceNumber for SequenceNumber {
-        const SEQUENCE_NUMBER_UNKNOWN: Self = Self(0);
-    }
+    //     #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+    //     struct SequenceNumber(i64);
+    //     impl crate::types::SequenceNumber for SequenceNumber {
+    //         const SEQUENCE_NUMBER_UNKNOWN: Self = Self(0);
+    //     }
 
-    impl From<i64> for SequenceNumber {
-        fn from(_: i64) -> Self {
-            todo!()
-        }
-    }
-    impl Into<i64> for SequenceNumber {
-        fn into(self) -> i64 {
-            todo!()
-        }
-    }
+    //     impl From<i64> for SequenceNumber {
+    //         fn from(_: i64) -> Self {
+    //             todo!()
+    //         }
+    //     }
+    //     impl Into<i64> for SequenceNumber {
+    //         fn into(self) -> i64 {
+    //             todo!()
+    //         }
+    //     }
 
-    #[derive(Clone, Copy)]
-    struct GuidPrefix([u8; 12]);
-    impl crate::types::GuidPrefix for GuidPrefix {
-        const GUIDPREFIX_UNKNOWN: Self = Self([0; 12]);
-    }
+    //     #[derive(Clone, Copy)]
+    //     struct GuidPrefix([u8; 12]);
+    //     impl crate::types::GuidPrefix for GuidPrefix {
+    //         const GUIDPREFIX_UNKNOWN: Self = Self([0; 12]);
+    //     }
 
-    impl From<[u8; 12]> for GuidPrefix {
-        fn from(_: [u8; 12]) -> Self {
-            todo!()
-        }
-    }
+    //     impl From<[u8; 12]> for GuidPrefix {
+    //         fn from(_: [u8; 12]) -> Self {
+    //             todo!()
+    //         }
+    //     }
 
-    impl Into<[u8; 12]> for GuidPrefix {
-        fn into(self) -> [u8; 12] {
-            todo!()
-        }
-    }
+    //     impl Into<[u8; 12]> for GuidPrefix {
+    //         fn into(self) -> [u8; 12] {
+    //             todo!()
+    //         }
+    //     }
 
-    #[derive(Clone, Copy)]
-    struct EntityId([u8; 4]);
-    impl crate::types::EntityId for EntityId {
-        const ENTITYID_UNKNOWN: Self = Self([0; 4]);
-    }
+    //     #[derive(Clone, Copy)]
+    //     struct EntityId([u8; 4]);
+    //     impl crate::types::EntityId for EntityId {
+    //         const ENTITYID_UNKNOWN: Self = Self([0; 4]);
+    //     }
 
-    impl From<[u8; 4]> for EntityId {
-        fn from(_: [u8; 4]) -> Self {
-            todo!()
-        }
-    }
+    //     impl From<[u8; 4]> for EntityId {
+    //         fn from(_: [u8; 4]) -> Self {
+    //             todo!()
+    //         }
+    //     }
 
-    impl Into<[u8; 4]> for EntityId {
-        fn into(self) -> [u8; 4] {
-            todo!()
-        }
-    }
+    //     impl Into<[u8; 4]> for EntityId {
+    //         fn into(self) -> [u8; 4] {
+    //             todo!()
+    //         }
+    //     }
 
-    #[derive(Clone, Copy)]
-    struct GUID {
-        prefix: GuidPrefix,
-        entity_id: EntityId,
-    }
+    //     #[derive(Clone, Copy)]
+    //     struct GUID {
+    //         prefix: GuidPrefix,
+    //         entity_id: EntityId,
+    //     }
 
-    impl crate::types::GUID for GUID {
-        type GuidPrefix = GuidPrefix;
-        type EntityId = EntityId;
+    //     impl crate::types::GUID for GUID {
+    //         type GuidPrefix = GuidPrefix;
+    //         type EntityId = EntityId;
 
-        fn guid_prefix(&self) -> Self::GuidPrefix {
-            self.prefix
-        }
+    //         fn guid_prefix(&self) -> Self::GuidPrefix {
+    //             self.prefix
+    //         }
 
-        fn entity_id(&self) -> Self::EntityId {
-            self.entity_id
-        }
+    //         fn entity_id(&self) -> Self::EntityId {
+    //             self.entity_id
+    //         }
 
-        const GUID_UNKNOWN: Self = Self {
-            prefix: GuidPrefix([0; 12]),
-            entity_id: EntityId([0; 4]),
-        };
-    }
+    //         const GUID_UNKNOWN: Self = Self {
+    //             prefix: GuidPrefix([0; 12]),
+    //             entity_id: EntityId([0; 4]),
+    //         };
+    //     }
 
-    impl From<[u8; 16]> for GUID {
-        fn from(_: [u8; 16]) -> Self {
-            todo!()
-        }
-    }
+    //     impl From<[u8; 16]> for GUID {
+    //         fn from(_: [u8; 16]) -> Self {
+    //             todo!()
+    //         }
+    //     }
 
-    impl Into<[u8; 16]> for GUID {
-        fn into(self) -> [u8; 16] {
-            todo!()
-        }
-    }
+    //     impl Into<[u8; 16]> for GUID {
+    //         fn into(self) -> [u8; 16] {
+    //             todo!()
+    //         }
+    //     }
 
-    #[derive(Clone, Copy)]
-    struct ParameterId(u16);
+    //     #[derive(Clone, Copy)]
+    //     struct ParameterId(u16);
 
-    impl crate::messages::types::ParameterId for ParameterId {}
-    struct Parameter;
+    //     impl crate::messages::types::ParameterId for ParameterId {}
+    //     struct Parameter;
 
-    impl submessage_elements::Parameter for Parameter {
-        type ParameterId = ParameterId;
+    //     impl submessage_elements::Parameter for Parameter {
+    //         type ParameterId = ParameterId;
 
-        fn parameter_id(&self) -> Self::ParameterId {
-            todo!()
-        }
+    //         fn parameter_id(&self) -> Self::ParameterId {
+    //             todo!()
+    //         }
 
-        fn value(&self) -> &[u8] {
-            todo!()
-        }
-    }
-    #[derive(Clone, Copy)]
-    struct ParameterList;
+    //         fn value(&self) -> &[u8] {
+    //             todo!()
+    //         }
+    //     }
+    //     #[derive(Clone, Copy)]
+    //     struct ParameterList;
 
-    impl submessage_elements::SubmessageElement for ParameterList {}
-    impl submessage_elements::ParameterList for ParameterList {
-        type Parameter = Parameter;
+    //     impl submessage_elements::SubmessageElement for ParameterList {}
+    //     impl submessage_elements::ParameterList for ParameterList {
+    //         type Parameter = Parameter;
 
-        fn parameter(&self) -> &[Self::Parameter] {
-            todo!()
-        }
-    }
+    //         fn parameter(&self) -> &[Self::Parameter] {
+    //             todo!()
+    //         }
+    //     }
 
-    struct MockCacheChange {
-        kind: ChangeKind,
-        writer_guid: GUID,
-        instance_handle: InstanceHandle,
-        sequence_number: SequenceNumber,
-        data_value: [u8; 4],
-        inline_qos: ParameterList,
-    }
+    //     struct MockCacheChange {
+    //         kind: ChangeKind,
+    //         writer_guid: GUID,
+    //         instance_handle: InstanceHandle,
+    //         sequence_number: SequenceNumber,
+    //         data_value: [u8; 4],
+    //         inline_qos: ParameterList,
+    //     }
 
-    impl RTPSCacheChange for MockCacheChange {
-        type InstanceHandle = InstanceHandle;
-        type SequenceNumber = SequenceNumber;
-        type GuidPrefix = GuidPrefix;
-        type EntityId = EntityId;
-        type GUID = GUID;
-        type Data = [u8; 4];
-        type ParameterList = ParameterList;
+    //     impl RTPSCacheChange for MockCacheChange {
+    //         type InstanceHandle = InstanceHandle;
+    //         type SequenceNumber = SequenceNumber;
+    //         type GuidPrefix = GuidPrefix;
+    //         type EntityId = EntityId;
+    //         type GUID = GUID;
+    //         type Data = [u8; 4];
+    //         type ParameterList = ParameterList;
 
-        fn new(
-            kind: ChangeKind,
-            writer_guid: Self::GUID,
-            instance_handle: Self::InstanceHandle,
-            sequence_number: Self::SequenceNumber,
-            data_value: Self::Data,
-            inline_qos: Self::ParameterList,
-        ) -> Self {
-            Self {
-                kind,
-                writer_guid,
-                instance_handle,
-                sequence_number,
-                data_value,
-                inline_qos,
-            }
-        }
+    //         fn new(
+    //             kind: ChangeKind,
+    //             writer_guid: Self::GUID,
+    //             instance_handle: Self::InstanceHandle,
+    //             sequence_number: Self::SequenceNumber,
+    //             data_value: Self::Data,
+    //             inline_qos: Self::ParameterList,
+    //         ) -> Self {
+    //             Self {
+    //                 kind,
+    //                 writer_guid,
+    //                 instance_handle,
+    //                 sequence_number,
+    //                 data_value,
+    //                 inline_qos,
+    //             }
+    //         }
 
-        fn kind(&self) -> ChangeKind {
-            self.kind
-        }
+    //         fn kind(&self) -> ChangeKind {
+    //             self.kind
+    //         }
 
-        fn writer_guid(&self) -> Self::GUID {
-            self.writer_guid
-        }
+    //         fn writer_guid(&self) -> Self::GUID {
+    //             self.writer_guid
+    //         }
 
-        fn instance_handle(&self) -> Self::InstanceHandle {
-            self.instance_handle
-        }
+    //         fn instance_handle(&self) -> Self::InstanceHandle {
+    //             self.instance_handle
+    //         }
 
-        fn sequence_number(&self) -> Self::SequenceNumber {
-            self.sequence_number
-        }
+    //         fn sequence_number(&self) -> Self::SequenceNumber {
+    //             self.sequence_number
+    //         }
 
-        fn data_value(&self) -> &Self::Data {
-            &self.data_value
-        }
+    //         fn data_value(&self) -> &Self::Data {
+    //             &self.data_value
+    //         }
 
-        fn inline_qos(&self) -> &Self::ParameterList {
-            &self.inline_qos
-        }
-    }
+    //         fn inline_qos(&self) -> &Self::ParameterList {
+    //             &self.inline_qos
+    //         }
+    //     }
 
     #[derive(Clone, Copy)]
     struct MockSubmessageKind(u8);
@@ -417,24 +457,105 @@ mod tests {
         }
     }
 
-    struct MockSubmessageHeader;
+    //     struct MockSubmessageHeader;
 
-    impl crate::messages::submessages::SubmessageHeader for MockSubmessageHeader {
-        type SubmessageKind = MockSubmessageKind;
-        type SubmessageFlag = MockSubmessageFlag;
+    //     impl crate::messages::submessages::SubmessageHeader for MockSubmessageHeader {
+    //         type SubmessageKind = MockSubmessageKind;
+    //         type SubmessageFlag = MockSubmessageFlag;
 
-        fn submessage_id(&self) -> Self::SubmessageKind {
-            todo!()
-        }
+    //         fn submessage_id(&self) -> Self::SubmessageKind {
+    //             todo!()
+    //         }
 
-        fn flags(&self) -> [Self::SubmessageFlag; 8] {
-            todo!()
-        }
+    //         fn flags(&self) -> [Self::SubmessageFlag; 8] {
+    //             todo!()
+    //         }
 
-        fn submessage_length(&self) -> u16 {
-            todo!()
-        }
+    //         fn submessage_length(&self) -> u16 {
+    //             todo!()
+    //         }
+    //     }
+
+    //     impl<'a> crate::messages::submessages::Submessage for MockDataSubmessage<'a> {
+    //         type SubmessageHeader = MockSubmessageHeader;
+
+    //         fn submessage_header(&self) -> Self::SubmessageHeader {
+    //             todo!()
+    //         }
+    //     }
+
+    //     impl submessage_elements::SubmessageElement for EntityId {}
+
+    //     impl submessage_elements::EntityId for EntityId {
+    //         type EntityId = Self;
+
+    //         fn new(value: Self::EntityId) -> Self {
+    //             value
+    //         }
+
+    //         fn value(&self) -> Self::EntityId {
+    //             *self
+    //         }
+    //     }
+
+    //     impl submessage_elements::SubmessageElement for SequenceNumber {}
+
+    //     impl submessage_elements::SequenceNumber for SequenceNumber {
+    //         type SequenceNumber = Self;
+
+    //         fn new(value: Self::SequenceNumber) -> Self {
+    //             value
+    //         }
+
+    //         fn value(&self) -> Self::SequenceNumber {
+    //             *self
+    //         }
+
+    //         const SEQUENCENUMBER_UNKNOWN: Self = Self(0);
+    //     }
+
+    //     struct SerializedData<'a>(&'a [u8; 4]);
+
+    //     impl<'a> submessage_elements::SubmessageElement for SerializedData<'a> {}
+
+    //     impl<'a> submessage_elements::SerializedData for SerializedData<'a> {
+    //         type SerializedData = &'a [u8; 4];
+    //         fn new(value: Self::SerializedData) -> Self {
+    //             Self(value)
+    //         }
+
+    //         fn value(&self) -> &[u8] {
+    //             todo!()
+    //         }
+    //     }
+
+    //     impl<'a> submessage_elements::SubmessageElement for &'a ParameterList {}
+
+    //     impl<'a> submessage_elements::ParameterList for &'a ParameterList {
+    //         type Parameter = <ParameterList as submessage_elements::ParameterList>::Parameter;
+
+    //         fn parameter(&self) -> &[Self::Parameter] {
+    //             todo!()
+    //         }
+    //     }
+
+    impl crate::types::EntityId for [u8; 4] {
+        const ENTITYID_UNKNOWN: Self = [0; 4];
     }
+
+    impl crate::types::SequenceNumber for i64 {
+        const SEQUENCE_NUMBER_UNKNOWN: Self = 0;
+    }
+
+    impl crate::messages::types::ParameterId for u16 {}
+
+    impl crate::types::GuidPrefix for [u8; 12] {
+        const GUIDPREFIX_UNKNOWN: Self = [0; 12];
+    }
+
+    impl crate::types::InstanceHandle for i32 {}
+
+    impl crate::messages::types::ParameterId for i16 {}
 
     struct MockDataSubmessage<'a> {
         endianness_flag: MockSubmessageFlag,
@@ -442,81 +563,36 @@ mod tests {
         data_flag: MockSubmessageFlag,
         key_flag: MockSubmessageFlag,
         non_standard_payload_flag: MockSubmessageFlag,
-        reader_id: EntityId,
-        writer_id: EntityId,
-        writer_sn: SequenceNumber,
-        inline_qos: &'a ParameterList,
-        serialized_payload: SerializedData<'a>,
+        reader_id: submessage_elements::EntityId<[u8; 4]>,
+        writer_id: submessage_elements::EntityId<[u8; 4]>,
+        writer_sn: submessage_elements::SequenceNumber<i64>,
+        inline_qos: submessage_elements::ParameterList<
+            u16,
+            Vec<u8>,
+            &'a Vec<submessage_elements::Parameter<u16, Vec<u8>>>,
+        >,
+        serialized_payload: submessage_elements::SerializedData<&'a [u8; 4]>,
     }
 
-    impl<'a> crate::messages::submessages::Submessage for MockDataSubmessage<'a> {
-        type SubmessageHeader = MockSubmessageHeader;
+    impl<'a> Submessage for MockDataSubmessage<'a> {
+        type SubmessageKind = MockSubmessageKind;
+        type SubmessageFlag = MockSubmessageFlag;
 
-        fn submessage_header(&self) -> Self::SubmessageHeader {
-            todo!()
-        }
-    }
-
-    impl submessage_elements::SubmessageElement for EntityId {}
-
-    impl submessage_elements::EntityId for EntityId {
-        type EntityId = Self;
-
-        fn new(value: Self::EntityId) -> Self {
-            value
-        }
-
-        fn value(&self) -> Self::EntityId {
-            *self
-        }
-    }
-
-    impl submessage_elements::SubmessageElement for SequenceNumber {}
-
-    impl submessage_elements::SequenceNumber for SequenceNumber {
-        type SequenceNumber = Self;
-
-        fn new(value: Self::SequenceNumber) -> Self {
-            value
-        }
-
-        fn value(&self) -> Self::SequenceNumber {
-            *self
-        }
-
-        const SEQUENCENUMBER_UNKNOWN: Self = Self(0);
-    }
-
-    struct SerializedData<'a>(&'a [u8; 4]);
-
-    impl<'a> submessage_elements::SubmessageElement for SerializedData<'a> {}
-
-    impl<'a> submessage_elements::SerializedData for SerializedData<'a> {
-        type SerializedData = &'a [u8; 4];
-        fn new(value: Self::SerializedData) -> Self {
-            Self(value)
-        }
-
-        fn value(&self) -> &[u8] {
-            todo!()
-        }
-    }
-
-    impl<'a> submessage_elements::SubmessageElement for &'a ParameterList {}
-
-    impl<'a> submessage_elements::ParameterList for &'a ParameterList {
-        type Parameter = <ParameterList as submessage_elements::ParameterList>::Parameter;
-
-        fn parameter(&self) -> &[Self::Parameter] {
+        fn submessage_header(
+            &self,
+        ) -> submessages::SubmessageHeader<Self::SubmessageKind, Self::SubmessageFlag> {
             todo!()
         }
     }
 
     impl<'a> crate::messages::submessages::data_submessage::Data for MockDataSubmessage<'a> {
-        type EntityId = EntityId;
-        type SequenceNumber = SequenceNumber;
-        type ParameterList = &'a ParameterList;
-        type SerializedData = SerializedData<'a>;
+        type EntityId = [u8; 4];
+        type SequenceNumber = i64;
+        type ParameterId = u16;
+        type ParameterValue = [u8; 4];
+        type ParameterList =
+            Vec<submessage_elements::Parameter<Self::ParameterId, Self::ParameterValue>>;
+        type SerializedData = [u8; 4];
 
         fn new(
             endianness_flag: MockSubmessageFlag,
@@ -524,24 +600,17 @@ mod tests {
             data_flag: MockSubmessageFlag,
             key_flag: MockSubmessageFlag,
             non_standard_payload_flag: MockSubmessageFlag,
-            reader_id: Self::EntityId,
-            writer_id: Self::EntityId,
-            writer_sn: Self::SequenceNumber,
-            inline_qos: Self::ParameterList,
-            serialized_payload: Self::SerializedData,
+            reader_id: submessage_elements::EntityId<Self::EntityId>,
+            writer_id: submessage_elements::EntityId<Self::EntityId>,
+            writer_sn: submessage_elements::SequenceNumber<Self::SequenceNumber>,
+            inline_qos: submessage_elements::ParameterList<
+                Self::ParameterId,
+                Self::ParameterValue,
+                Self::ParameterList,
+            >,
+            serialized_payload: submessage_elements::SerializedData<Self::SerializedData>,
         ) -> Self {
-            Self {
-                endianness_flag,
-                inline_qos_flag,
-                data_flag,
-                key_flag,
-                non_standard_payload_flag,
-                reader_id,
-                writer_id,
-                writer_sn,
-                inline_qos,
-                serialized_payload,
-            }
+            todo!()
         }
 
         fn endianness_flag(&self) -> MockSubmessageFlag {
@@ -564,23 +633,29 @@ mod tests {
             todo!()
         }
 
-        fn reader_id(&self) -> &Self::EntityId {
+        fn reader_id(&self) -> &submessage_elements::EntityId<Self::EntityId> {
             todo!()
         }
 
-        fn writer_id(&self) -> &Self::EntityId {
+        fn writer_id(&self) -> &submessage_elements::EntityId<Self::EntityId> {
             todo!()
         }
 
-        fn writer_sn(&self) -> &Self::SequenceNumber {
+        fn writer_sn(&self) -> &submessage_elements::SequenceNumber<Self::SequenceNumber> {
             todo!()
         }
 
-        fn inline_qos(&self) -> &Self::ParameterList {
+        fn inline_qos(
+            &self,
+        ) -> &submessage_elements::ParameterList<
+            Self::ParameterId,
+            Self::ParameterValue,
+            Self::ParameterList,
+        > {
             todo!()
         }
 
-        fn serialized_payload(&self) -> &Self::SerializedData {
+        fn serialized_payload(&self) -> &submessage_elements::SerializedData<Self::SerializedData> {
             todo!()
         }
     }
@@ -588,25 +663,29 @@ mod tests {
     #[test]
     fn create_data_submessage_from_cache_change() {
         let change_kind = ChangeKind::Alive;
-        let writer_id = EntityId([1, 2, 4, 5]);
+        let writer_id = [1, 2, 4, 5];
         let writer_guid = GUID {
-            prefix: GuidPrefix([1; 12]),
+            guid_prefix: [1; 12],
             entity_id: writer_id,
         };
-        let instance_handle = InstanceHandle;
-        let sequence_number = SequenceNumber(2);
-        let data_value = [1, 2, 3, 4];
-        let inline_qos = ParameterList;
-        let cache_change = MockCacheChange::new(
-            change_kind,
+        let instance_handle = 0;
+        let sequence_number = 2;
+        let data_value = vec![1, 2, 3, 4];
+        let inline_qos: submessage_elements::ParameterList<
+            i16,
+            Vec<u8>,
+            Vec<submessage_elements::Parameter<i16, Vec<u8>>>,
+        > = submessage_elements::ParameterList { parameter: vec![] };
+        let cache_change = RTPSCacheChange {
+            kind: change_kind,
             writer_guid,
             instance_handle,
             sequence_number,
             data_value,
             inline_qos,
-        );
+        };
 
-        let reader_id = EntityId([5; 4]);
+        let reader_id = [5; 4];
 
         let data_submessage: MockDataSubmessage =
             data_submessage_from_cache_change(&cache_change, reader_id);
@@ -622,28 +701,28 @@ mod tests {
         assert_eq!(data_submessage.serialized_payload.0, &data_value);
     }
 
-    //     #[test]
-    //     fn status_info_change_kind_conversions() {
-    //         assert_eq!(
-    //             status_info_to_change_kind(change_kind_to_status_info(ChangeKind::Alive)).unwrap(),
-    //             ChangeKind::Alive
-    //         );
-    //         assert_eq!(
-    //             status_info_to_change_kind(change_kind_to_status_info(ChangeKind::AliveFiltered))
-    //                 .unwrap(),
-    //             ChangeKind::AliveFiltered
-    //         );
-    //         assert_eq!(
-    //             status_info_to_change_kind(change_kind_to_status_info(
-    //                 ChangeKind::NotAliveUnregistered
-    //             ))
-    //             .unwrap(),
-    //             ChangeKind::NotAliveUnregistered
-    //         );
-    //         assert_eq!(
-    //             status_info_to_change_kind(change_kind_to_status_info(ChangeKind::NotAliveDisposed))
-    //                 .unwrap(),
-    //             ChangeKind::NotAliveDisposed
-    //         );
-    //     }
+    //     //     #[test]
+    //     //     fn status_info_change_kind_conversions() {
+    //     //         assert_eq!(
+    //     //             status_info_to_change_kind(change_kind_to_status_info(ChangeKind::Alive)).unwrap(),
+    //     //             ChangeKind::Alive
+    //     //         );
+    //     //         assert_eq!(
+    //     //             status_info_to_change_kind(change_kind_to_status_info(ChangeKind::AliveFiltered))
+    //     //                 .unwrap(),
+    //     //             ChangeKind::AliveFiltered
+    //     //         );
+    //     //         assert_eq!(
+    //     //             status_info_to_change_kind(change_kind_to_status_info(
+    //     //                 ChangeKind::NotAliveUnregistered
+    //     //             ))
+    //     //             .unwrap(),
+    //     //             ChangeKind::NotAliveUnregistered
+    //     //         );
+    //     //         assert_eq!(
+    //     //             status_info_to_change_kind(change_kind_to_status_info(ChangeKind::NotAliveDisposed))
+    //     //                 .unwrap(),
+    //     //             ChangeKind::NotAliveDisposed
+    //     //         );
+    //     //     }
 }

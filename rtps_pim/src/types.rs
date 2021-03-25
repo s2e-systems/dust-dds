@@ -2,13 +2,26 @@
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
 /// Table 8.2 - Types of the attributes that appear in the RTPS Entities and Classes
 ///
-pub trait GUID: Into<[u8; 16]> + From<[u8; 16]> + Copy {
-    type GuidPrefix : GuidPrefix;
-    type EntityId : EntityId;
+// pub trait GUID: Into<[u8; 16]> + From<[u8; 16]> + Copy {
+//     type GuidPrefix : GuidPrefix;
+//     type EntityId : EntityId;
 
-    fn guid_prefix(&self) -> Self::GuidPrefix;
-    fn entity_id(&self) -> Self::EntityId;
-    const GUID_UNKNOWN: Self;
+//     fn guid_prefix(&self) -> Self::GuidPrefix;
+//     fn entity_id(&self) -> Self::EntityId;
+//     const GUID_UNKNOWN: Self;
+// }
+
+#[derive(Clone, Copy)]
+pub struct GUID<GuidPrefixType: GuidPrefix, EntityIdType: EntityId> {
+    pub guid_prefix: GuidPrefixType,
+    pub entity_id: EntityIdType,
+}
+
+impl<GuidPrefixType: GuidPrefix, EntityIdType: EntityId> GUID<GuidPrefixType, EntityIdType> {
+    pub const GUID_UNKNOWN: Self = Self {
+        guid_prefix: <GuidPrefixType as GuidPrefix>::GUIDPREFIX_UNKNOWN,
+        entity_id: <EntityIdType as EntityId>::ENTITYID_UNKNOWN,
+    };
 }
 
 pub trait GuidPrefix: Into<[u8; 12]> + From<[u8; 12]> + Copy {

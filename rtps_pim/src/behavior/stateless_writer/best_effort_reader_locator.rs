@@ -1,6 +1,15 @@
-use crate::{behavior::RTPSWriter, structure::RTPSHistoryCache};
+use crate::{
+    behavior::{data_submessage_from_cache_change, RTPSWriter},
+    structure::{RTPSCacheChange, RTPSHistoryCache},
+    messages::submessages
+};
 
 use super::reader_locator::RTPSReaderLocator;
+
+enum BestEffortReaderLocatorSendSubmessages<DataSubmessage, GapSubmessage> {
+    Data(DataSubmessage),
+    Gap(GapSubmessage),
+}
 pub struct BestEffortReaderLocatorBehavior;
 
 impl BestEffortReaderLocatorBehavior {
@@ -37,30 +46,32 @@ impl BestEffortReaderLocatorBehavior {
     //     Self::transition_t4(reader_locator, writer)
     // }
 
-    fn transition_t4<ReaderLocator, HistoryCache>(
+    fn transition_t4<ReaderLocator, DataSubmessage, GapSubmessage>(
         reader_locator: &mut ReaderLocator,
         // writer_cache: &HistoryCache, //     HistoryCacheType = impl RTPSHistoryCache<
-                                     //         CacheChangeType = impl RTPSCacheChange<Data = impl AsRef<SerializedData> + 'a> + 'a,
-                                     //     > + 'a,
-    ) -> Option<()>
+        //         CacheChangeType = impl RTPSCacheChange<Data = impl AsRef<SerializedData> + 'a> + 'a,
+        //     > + 'a,
+    ) -> Option<BestEffortReaderLocatorSendSubmessages<DataSubmessage, GapSubmessage>>
     where
-        ReaderLocator: RTPSReaderLocator
+        ReaderLocator: RTPSReaderLocator,
+        DataSubmessage: submessages::data_submessage::Data,
+        GapSubmessage: submessages::gap_submessage::Gap,
     {
         if let Some(next_unsent_cache_change) = reader_locator.next_unsent_change() {
-                todo!()
-            //     Some(BestEffortReaderLocatorSendSubmessages::Data(
-            //         data_from_cache_change(cache_change, ENTITYID_UNKNOWN),
-            //     ))
+            let data =  data_submessage_from_cache_change(next_unsent_cache_change,
+            <<<<ReaderLocator::Writer as RTPSWriter>::HistoryCache as RTPSHistoryCache>::CacheChange as RTPSCacheChange>::EntityId as crate::types::EntityId>::ENTITYID_UNKNOWN);
+            Some(BestEffortReaderLocatorSendSubmessages::Data(data))
         } else {
-                todo!()
-                //     Some(BestEffortReaderLocatorSendSubmessages::Gap(Gap {
-                //         endianness_flag: false,
-                //         reader_id: ENTITYID_UNKNOWN,
-                //         writer_id: writer.guid().entity_id(),
-                //         gap_start: next_unsent_seq_num,
-                //         gap_list: SequenceNumberSet::new(next_unsent_seq_num, 0, [0; 8]),
-                //     }))
-            }
+            todo!()
+            // Some(BestEffortReaderLocatorSendSubmessages::Gap)
+            //     Some(BestEffortReaderLocatorSendSubmessages::Gap(Gap {
+            //         endianness_flag: false,
+            //         reader_id: ENTITYID_UNKNOWN,
+            //         writer_id: writer.guid().entity_id(),
+            //         gap_start: next_unsent_seq_num,
+            //         gap_list: SequenceNumberSet::new(next_unsent_seq_num, 0, [0; 8]),
+            //     }))
+        }
     }
 }
 #[cfg(test)]
