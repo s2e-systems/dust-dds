@@ -1,23 +1,22 @@
-use super::{submessage_elements, Submessage, SubmessageHeader};
+use super::{submessage_elements, Submessage};
+use crate::{messages, types};
 
 pub trait HeartbeatFrag: Submessage {
-    type EntityId: submessage_elements::EntityId;
-    type SequenceNumber;
-    type FragmentNumber: submessage_elements::FragmentNumber;
-    type Count: submessage_elements::Count;
+    type EntityId: types::EntityId;
+    type SequenceNumber: types::SequenceNumber;
+    type FragmentNumber: messages::types::FragmentNumber;
+    type Count: messages::types::Count;
 
     fn new(
-        endianness_flag: <<Self as Submessage>::SubmessageHeader as SubmessageHeader>::SubmessageFlag,
-        reader_id: Self::EntityId,
-        writer_id: Self::EntityId,
-        writer_sn: Self::SequenceNumber,
-        last_fragment_num: Self::FragmentNumber,
-        count: Self::Count,
+        endianness_flag: <Self as Submessage>::SubmessageFlag,
+        reader_id: submessage_elements::EntityId<Self::EntityId>,
+        writer_id: submessage_elements::EntityId<Self::EntityId>,
+        writer_sn: submessage_elements::SequenceNumber<Self::SequenceNumber>,
+        last_fragment_num: submessage_elements::FragmentNumber<Self::FragmentNumber>,
+        count: submessage_elements::Count<Self::Count>,
     ) -> Self;
 
-    fn endianness_flag(
-        &self,
-    ) -> <<Self as Submessage>::SubmessageHeader as SubmessageHeader>::SubmessageFlag;
+    fn endianness_flag(&self) -> <Self as Submessage>::SubmessageFlag;
     fn reader_id(&self) -> &Self::EntityId;
     fn writer_id(&self) -> &Self::EntityId;
     fn writer_sn(&self) -> &Self::SequenceNumber;

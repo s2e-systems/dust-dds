@@ -1,30 +1,25 @@
-use super::{submessage_elements, Submessage, SubmessageHeader};
+use super::{submessage_elements, Submessage};
+use crate::{messages, types};
 
 pub trait Heartbeat: Submessage {
-    type EntityId: submessage_elements::EntityId;
-    type SequenceNumber;
-    type Count: submessage_elements::Count;
+    type EntityId: types::EntityId;
+    type SequenceNumber: types::SequenceNumber;
+    type Count: messages::types::Count;
 
     fn new(
-        endianness_flag: <<Self as Submessage>::SubmessageHeader as SubmessageHeader>::SubmessageFlag,
-        final_flag: <<Self as Submessage>::SubmessageHeader as SubmessageHeader>::SubmessageFlag,
-        liveliness_flag: <<Self as Submessage>::SubmessageHeader as SubmessageHeader>::SubmessageFlag,
-        reader_id: Self::EntityId,
-        writer_id: Self::EntityId,
-        first_sn: Self::SequenceNumber,
-        last_sn: Self::SequenceNumber,
-        count: Self::Count,
+        endianness_flag: <Self as Submessage>::SubmessageFlag,
+        final_flag: <Self as Submessage>::SubmessageFlag,
+        liveliness_flag: <Self as Submessage>::SubmessageFlag,
+        reader_id: submessage_elements::EntityId<Self::EntityId>,
+        writer_id: submessage_elements::EntityId<Self::EntityId>,
+        first_sn: submessage_elements::SequenceNumber<Self::SequenceNumber>,
+        last_sn: submessage_elements::SequenceNumber<Self::SequenceNumber>,
+        count: submessage_elements::Count<Self::Count>,
     ) -> Self;
 
-    fn endianness_flag(
-        &self,
-    ) -> <<Self as Submessage>::SubmessageHeader as SubmessageHeader>::SubmessageFlag;
-    fn final_flag(
-        &self,
-    ) -> <<Self as Submessage>::SubmessageHeader as SubmessageHeader>::SubmessageFlag;
-    fn liveliness_flag(
-        &self,
-    ) -> <<Self as Submessage>::SubmessageHeader as SubmessageHeader>::SubmessageFlag;
+    fn endianness_flag(&self) -> <Self as Submessage>::SubmessageFlag;
+    fn final_flag(&self) -> <Self as Submessage>::SubmessageFlag;
+    fn liveliness_flag(&self) -> <Self as Submessage>::SubmessageFlag;
     // group_info_flag: SubmessageFlag,
     fn reader_id(&self) -> &Self::EntityId;
     fn writer_id(&self) -> &Self::EntityId;

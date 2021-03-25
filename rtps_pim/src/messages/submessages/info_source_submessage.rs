@@ -1,21 +1,20 @@
-use super::{submessage_elements, Submessage, SubmessageHeader};
+use super::{submessage_elements, Submessage};
+use crate::types;
 
 pub trait InfoSource: Submessage {
-    type ProtocolVersion: submessage_elements::ProtocolVersion;
-    type VendorId: submessage_elements::VendorId;
-    type GuidPrefix: submessage_elements::GuidPrefix;
+    type ProtocolVersion: types::ProtocolVersion;
+    type VendorId: types::VendorId;
+    type GuidPrefix: types::GuidPrefix;
 
     fn new(
-        endianness_flag: <<Self as Submessage>::SubmessageHeader as SubmessageHeader>::SubmessageFlag,
-        protocol_version: Self::ProtocolVersion,
-        vendor_id: Self::VendorId,
-        guid_prefix: Self::GuidPrefix,
+        endianness_flag: <Self as Submessage>::SubmessageFlag,
+        protocol_version: submessage_elements::ProtocolVersion<Self::ProtocolVersion>,
+        vendor_id: submessage_elements::VendorId<Self::VendorId>,
+        guid_prefix: submessage_elements::GuidPrefix<Self::GuidPrefix>,
     ) -> Self;
 
-    fn endianness_flag(
-        &self,
-    ) -> <<Self as Submessage>::SubmessageHeader as SubmessageHeader>::SubmessageFlag;
-    fn protocol_version(&self) -> &Self::ProtocolVersion;
-    fn vendor_id(&self) -> &Self::VendorId;
-    fn guid_prefix(&self) -> &Self::GuidPrefix;
+    fn endianness_flag(&self) -> <Self as Submessage>::SubmessageFlag;
+    fn protocol_version(&self) -> &submessage_elements::ProtocolVersion<Self::ProtocolVersion>;
+    fn vendor_id(&self) -> &submessage_elements::VendorId<Self::VendorId>;
+    fn guid_prefix(&self) -> &submessage_elements::GuidPrefix<Self::GuidPrefix>;
 }

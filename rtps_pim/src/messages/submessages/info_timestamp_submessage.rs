@@ -1,19 +1,16 @@
-use super::{submessage_elements, Submessage, SubmessageHeader};
+use super::{submessage_elements, Submessage};
+use crate::{messages};
 
 pub trait InfoTimestamp: Submessage {
-    type Timestamp: submessage_elements::Timestamp;
+    type Time: messages::types::Time;
 
     fn new(
-        endianness_flag: <<Self as Submessage>::SubmessageHeader as SubmessageHeader>::SubmessageFlag,
-        invalidate_flag: <<Self as Submessage>::SubmessageHeader as SubmessageHeader>::SubmessageFlag,
-        timestamp: Self::Timestamp,
+        endianness_flag: <Self as Submessage>::SubmessageFlag,
+        invalidate_flag: <Self as Submessage>::SubmessageFlag,
+        timestamp: submessage_elements::Timestamp<Self::Time>,
     ) -> Self;
 
-    fn endianness_flag(
-        &self,
-    ) -> <<Self as Submessage>::SubmessageHeader as SubmessageHeader>::SubmessageFlag;
-    fn invalidate_flag(
-        &self,
-    ) -> <<Self as Submessage>::SubmessageHeader as SubmessageHeader>::SubmessageFlag;
-    fn timestamp(&self) -> &Self::Timestamp;
+    fn endianness_flag(&self) -> <Self as Submessage>::SubmessageFlag;
+    fn invalidate_flag(&self) -> <Self as Submessage>::SubmessageFlag;
+    fn timestamp(&self) -> &submessage_elements::Timestamp<Self::Time>;
 }

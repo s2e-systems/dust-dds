@@ -109,7 +109,7 @@ pub struct Count<Count: messages::types::Count> {
 
 pub struct LocatorList<
     Locator: types::Locator,
-    LocatorList: core::iter::IntoIterator<Item = Locator>,
+    LocatorList: IntoIterator<Item = Locator>,
 > {
     pub value: LocatorList,
 }
