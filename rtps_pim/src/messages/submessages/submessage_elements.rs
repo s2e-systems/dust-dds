@@ -73,7 +73,7 @@ pub struct Parameter<ParameterId: messages::types::ParameterId, Value: AsRef<[u8
 pub struct ParameterList<
     ParameterId: messages::types::ParameterId,
     Value: AsRef<[u8]>,
-    ParameterList: AsRef<[Parameter<ParameterId, Value>]>,
+    ParameterList: IntoIterator<Item = Parameter<ParameterId, Value>>,
 > {
     pub parameter: ParameterList,
 }

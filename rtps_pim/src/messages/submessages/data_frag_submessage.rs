@@ -22,7 +22,7 @@ pub trait DataFrag: Submessage {
         fragments_in_submessage: submessage_elements::UShort,
         data_size: submessage_elements::ULong,
         fragment_size:submessage_elements::UShort,
-        inline_qos: submessage_elements::ParameterList<Self::ParameterId, Self::ParameterValue, Self::ParameterList>,
+        // inline_qos: submessage_elements::ParameterList<Self::ParameterId, Self::ParameterValue, Self::ParameterList>,
         serialized_payload: submessage_elements::SerializedDataFragment<Self::SerializedDataFragment>,
     ) -> Self;
 
@@ -45,6 +45,6 @@ pub trait DataFrag: Submessage {
     fn fragments_in_submessage(&self) -> &submessage_elements::UShort;
     fn data_size(&self) -> &submessage_elements::ULong;
     fn fragment_size(&self) -> &submessage_elements::UShort;
-    fn inline_qos(&self) -> &submessage_elements::ParameterList<Self::ParameterId, Self::ParameterValue, Self::ParameterList>;
+    // fn inline_qos(&self) -> &submessage_elements::ParameterList<Self::ParameterId, Self::ParameterValue, Self::ParameterList>;
     fn serialized_payload(&self) -> &Self::SerializedDataFragment;
 }

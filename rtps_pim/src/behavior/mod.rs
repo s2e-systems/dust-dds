@@ -72,9 +72,9 @@ pub fn data_submessage_from_cache_change<
     GuidPrefix: crate::types::GuidPrefix,
     InstanceHandle: crate::types::InstanceHandle,
     Data: AsRef<[u8]>,
-    ParameterId: messages::types::ParameterId,
-    ParameterValue: AsRef<[u8]>,
-    ParameterList: IntoIterator<Item = submessage_elements::Parameter<ParameterId, ParameterValue>>,
+    // ParameterId: messages::types::ParameterId,
+    // ParameterValue: AsRef<[u8]>,
+    // ParameterList: IntoIterator<Item = submessage_elements::Parameter<ParameterId, ParameterValue>>,
 >(
     cache_change: &'a RTPSCacheChange<
         GuidPrefix,
@@ -82,21 +82,21 @@ pub fn data_submessage_from_cache_change<
         InstanceHandle,
         DataSubmessage::SequenceNumber,
         Data,
-        ParameterId,
-        ParameterValue,
-        ParameterList,
+        // ParameterId,
+        // ParameterValue,
+        // ParameterList,
     >,
     reader_id: DataSubmessage::EntityId,
 ) -> DataSubmessage
 where
     DataSubmessage: submessages::data_submessage::Data<
         SerializedData = &'a [u8],
-        ParameterId = ParameterId,
-        ParameterValue = ParameterValue,
-        ParameterList = &'a ParameterList,
+        // ParameterId = ParameterId,
+        // ParameterValue = ParameterValue,
+        // ParameterList = &'a ParameterList,
     >,
-    &'a ParameterList:
-        IntoIterator<Item = submessage_elements::Parameter<ParameterId, ParameterValue>>,
+    // &'a ParameterList:
+        // IntoIterator<Item = submessage_elements::Parameter<ParameterId, ParameterValue>>,
 {
     let endianness_flag = true.into();
     let non_standard_payload_flag = false.into();
@@ -108,9 +108,9 @@ where
         value: cache_change.sequence_number,
     };
 
-    let inline_qos = submessage_elements::ParameterList {
-        parameter: &cache_change.inline_qos.parameter,
-    };
+    // let inline_qos = submessage_elements::ParameterList {
+    //     parameter: &cache_change.inline_qos.parameter,
+    // };
     let serialized_payload = submessage_elements::SerializedData {
         value: cache_change.data_value.as_ref(),
     };
@@ -129,7 +129,7 @@ where
                 reader_id,
                 writer_id,
                 writer_sn,
-                inline_qos,
+                // inline_qos,
                 serialized_payload,
             )
         }
@@ -148,7 +148,7 @@ where
                 reader_id,
                 writer_id,
                 writer_sn,
-                inline_qos,
+                // inline_qos,
                 serialized_payload,
             )
         }
@@ -566,12 +566,12 @@ mod tests {
         reader_id: submessage_elements::EntityId<[u8; 4]>,
         writer_id: submessage_elements::EntityId<[u8; 4]>,
         writer_sn: submessage_elements::SequenceNumber<i64>,
-        inline_qos: submessage_elements::ParameterList<
-            u16,
-            Vec<u8>,
-            &'a Vec<submessage_elements::Parameter<u16, Vec<u8>>>,
-        >,
-        serialized_payload: submessage_elements::SerializedData<&'a [u8; 4]>,
+        // inline_qos: submessage_elements::ParameterList<
+        //     u16,
+        //     Vec<u8>,
+        //     &'a Vec<submessage_elements::Parameter<u16, Vec<u8>>>,
+        // >,
+        serialized_payload: submessage_elements::SerializedData<&'a [u8]>,
     }
 
     impl<'a> Submessage for MockDataSubmessage<'a> {
@@ -592,7 +592,7 @@ mod tests {
         type ParameterValue = [u8; 4];
         type ParameterList =
             Vec<submessage_elements::Parameter<Self::ParameterId, Self::ParameterValue>>;
-        type SerializedData = [u8; 4];
+        type SerializedData = &'a [u8];
 
         fn new(
             endianness_flag: MockSubmessageFlag,
@@ -603,14 +603,25 @@ mod tests {
             reader_id: submessage_elements::EntityId<Self::EntityId>,
             writer_id: submessage_elements::EntityId<Self::EntityId>,
             writer_sn: submessage_elements::SequenceNumber<Self::SequenceNumber>,
-            inline_qos: submessage_elements::ParameterList<
-                Self::ParameterId,
-                Self::ParameterValue,
-                Self::ParameterList,
-            >,
+            // inline_qos: submessage_elements::ParameterList<
+            //     Self::ParameterId,
+            //     Self::ParameterValue,
+            //     Self::ParameterList,
+            // >,
             serialized_payload: submessage_elements::SerializedData<Self::SerializedData>,
         ) -> Self {
-            todo!()
+            Self {
+                endianness_flag,
+                inline_qos_flag,
+                data_flag,
+                key_flag,
+                non_standard_payload_flag,
+                reader_id,
+                writer_id,
+                writer_sn,
+                serialized_payload,
+
+            }
         }
 
         fn endianness_flag(&self) -> MockSubmessageFlag {
@@ -645,15 +656,15 @@ mod tests {
             todo!()
         }
 
-        fn inline_qos(
-            &self,
-        ) -> &submessage_elements::ParameterList<
-            Self::ParameterId,
-            Self::ParameterValue,
-            Self::ParameterList,
-        > {
-            todo!()
-        }
+        // fn inline_qos(
+        //     &self,
+        // ) -> &submessage_elements::ParameterList<
+        //     Self::ParameterId,
+        //     Self::ParameterValue,
+        //     Self::ParameterList,
+        // > {
+        //     todo!()
+        // }
 
         fn serialized_payload(&self) -> &submessage_elements::SerializedData<Self::SerializedData> {
             todo!()
@@ -681,8 +692,8 @@ mod tests {
             writer_guid,
             instance_handle,
             sequence_number,
-            data_value,
-            inline_qos,
+            data_value: data_value.clone(),
+            // inline_qos,
         };
 
         let reader_id = [5; 4];
@@ -695,10 +706,10 @@ mod tests {
         assert_eq!(data_submessage.data_flag.0, true);
         assert_eq!(data_submessage.key_flag.0, false);
         assert_eq!(data_submessage.non_standard_payload_flag.0, false);
-        assert_eq!(data_submessage.reader_id.0, reader_id.0);
-        assert_eq!(data_submessage.writer_id.0, writer_id.0);
-        assert_eq!(data_submessage.writer_sn.0, sequence_number.0);
-        assert_eq!(data_submessage.serialized_payload.0, &data_value);
+        assert_eq!(data_submessage.reader_id.value, reader_id);
+        assert_eq!(data_submessage.writer_id.value, writer_id);
+        assert_eq!(data_submessage.writer_sn.value, sequence_number);
+        assert_eq!(data_submessage.serialized_payload.value, &data_value);
     }
 
     //     //     #[test]

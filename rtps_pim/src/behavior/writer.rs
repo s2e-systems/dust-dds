@@ -35,7 +35,7 @@ pub trait RTPSWriter: RTPSEndpoint {
         &mut self,
         kind: ChangeKind,
         data: <Self::HistoryCache as RTPSHistoryCache>::Data,
-        inline_qos: <Self::HistoryCache as RTPSHistoryCache>::ParameterList,
+        // inline_qos: <Self::HistoryCache as RTPSHistoryCache>::ParameterList,
         handle: <Self::HistoryCache as RTPSHistoryCache>::InstanceHandle,
     ) -> RTPSCacheChange<
         <Self::HistoryCache as RTPSHistoryCache>::GuidPrefix,
@@ -43,8 +43,8 @@ pub trait RTPSWriter: RTPSEndpoint {
         <Self::HistoryCache as RTPSHistoryCache>::InstanceHandle,
         <Self::HistoryCache as RTPSHistoryCache>::SequenceNumber,
         <Self::HistoryCache as RTPSHistoryCache>::Data,
-        <Self::HistoryCache as RTPSHistoryCache>::ParameterId,
-        <Self::HistoryCache as RTPSHistoryCache>::ParameterValue,
-        <Self::HistoryCache as RTPSHistoryCache>::ParameterList,
+        // <Self::HistoryCache as RTPSHistoryCache>::ParameterId,
+        // <Self::HistoryCache as RTPSHistoryCache>::ParameterValue,
+        // <Self::HistoryCache as RTPSHistoryCache>::ParameterList,
     >;
 }
