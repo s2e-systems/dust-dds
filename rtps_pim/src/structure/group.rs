@@ -3,7 +3,7 @@ use crate::types::{EntityId, GuidPrefix};
 use super::RTPSEntity;
 
 pub struct RTPSGroup<GuidPrefixType: GuidPrefix, EntityIdType: EntityId> {
-    entity: RTPSEntity<GuidPrefixType, EntityIdType>,
+    pub entity: RTPSEntity<GuidPrefixType, EntityIdType>,
 }
 
 impl<GuidPrefixType: GuidPrefix, EntityIdType: EntityId> core::ops::Deref

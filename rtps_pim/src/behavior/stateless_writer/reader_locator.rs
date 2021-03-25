@@ -147,7 +147,7 @@ impl<
                         value: <EntityIdType as EntityId>::ENTITYID_UNKNOWN,
                     },
                     submessage_elements::EntityId {
-                        value: the_writer.endpoint.entity.guid.entity_id,
+                        value: the_writer.endpoint.guid.entity_id,
                     },
                     submessage_elements::SequenceNumber {
                         value: next_unsent_sequence_number,
