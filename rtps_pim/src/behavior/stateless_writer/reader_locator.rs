@@ -1,3 +1,5 @@
+use submessages::submessage_elements;
+
 use crate::{
     behavior::{data_submessage_from_cache_change, types::Duration, RTPSWriter},
     messages::{
@@ -102,7 +104,15 @@ impl<
         DataSubmessage: submessages::data_submessage::Data<
             EntityId = EntityIdType,
             SequenceNumber = SequenceNumberType,
+            ParameterId = ParameterIdType,
+            ParameterValue = ParameterValueType,
+            ParameterList = ParameterListType,
             SerializedData = &'a [u8],
+        >,
+        GapSubmessage: submessages::gap_submessage::Gap<
+            EntityId = EntityIdType,
+            SequenceNumber = SequenceNumberType,
+            SequenceNumberList = SequenceNumberListType,
         >,
     >(
         &mut self,
@@ -131,6 +141,22 @@ impl<
                     <EntityIdType as EntityId>::ENTITYID_UNKNOWN,
                 ))
             } else {
+                let gap = GapSubmessage::new(
+                    true.into(),
+                    submessage_elements::EntityId {
+                        value: <EntityIdType as EntityId>::ENTITYID_UNKNOWN,
+                    },
+                    submessage_elements::EntityId {
+                        value: the_writer.endpoint.entity.guid.entity_id,
+                    },
+                    submessage_elements::SequenceNumber {
+                        value: next_unsent_sequence_number,
+                    },
+                    submessage_elements::SequenceNumberSet {
+                        base: next_unsent_sequence_number,
+                        set: self.requested_changes(),
+                    },
+                );
                 todo!()
             }
         } else {

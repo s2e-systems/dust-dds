@@ -7,7 +7,8 @@ pub trait DataFrag: Submessage {
     type FragmentNumber: messages::types::FragmentNumber;
     type ParameterId: messages::types::ParameterId;
     type ParameterValue: AsRef<[u8]> + Clone;
-    type ParameterList: IntoIterator<Item = submessage_elements::Parameter<Self::ParameterId, Self::ParameterValue>>;
+    type ParameterList: IntoIterator<Item = submessage_elements::Parameter<Self::ParameterId, Self::ParameterValue>>
+        + Clone;
     type SerializedDataFragment: AsRef<[u8]>;
 
     fn new(
@@ -21,23 +22,21 @@ pub trait DataFrag: Submessage {
         fragment_starting_num: submessage_elements::FragmentNumber<Self::FragmentNumber>,
         fragments_in_submessage: submessage_elements::UShort,
         data_size: submessage_elements::ULong,
-        fragment_size:submessage_elements::UShort,
-        // inline_qos: submessage_elements::ParameterList<Self::ParameterId, Self::ParameterValue, Self::ParameterList>,
-        serialized_payload: submessage_elements::SerializedDataFragment<Self::SerializedDataFragment>,
+        fragment_size: submessage_elements::UShort,
+        inline_qos: submessage_elements::ParameterList<
+            Self::ParameterId,
+            Self::ParameterValue,
+            Self::ParameterList,
+        >,
+        serialized_payload: submessage_elements::SerializedDataFragment<
+            Self::SerializedDataFragment,
+        >,
     ) -> Self;
 
-    fn endianness_flag(
-        &self,
-    ) -> <Self as Submessage>::SubmessageFlag;
-    fn inline_qos_flag(
-        &self,
-    ) -> <Self as Submessage>::SubmessageFlag;
-    fn non_standard_payload_flag(
-        &self,
-    ) -> <Self as Submessage>::SubmessageFlag;
-    fn key_flag(
-        &self,
-    ) -> <Self as Submessage>::SubmessageFlag;
+    fn endianness_flag(&self) -> <Self as Submessage>::SubmessageFlag;
+    fn inline_qos_flag(&self) -> <Self as Submessage>::SubmessageFlag;
+    fn non_standard_payload_flag(&self) -> <Self as Submessage>::SubmessageFlag;
+    fn key_flag(&self) -> <Self as Submessage>::SubmessageFlag;
     fn reader_id(&self) -> &submessage_elements::EntityId<Self::EntityId>;
     fn writer_id(&self) -> &submessage_elements::EntityId<Self::EntityId>;
     fn writer_sn(&self) -> &submessage_elements::SequenceNumber<Self::SequenceNumber>;
@@ -45,6 +44,12 @@ pub trait DataFrag: Submessage {
     fn fragments_in_submessage(&self) -> &submessage_elements::UShort;
     fn data_size(&self) -> &submessage_elements::ULong;
     fn fragment_size(&self) -> &submessage_elements::UShort;
-    // fn inline_qos(&self) -> &submessage_elements::ParameterList<Self::ParameterId, Self::ParameterValue, Self::ParameterList>;
+    fn inline_qos(
+        &self,
+    ) -> &submessage_elements::ParameterList<
+        Self::ParameterId,
+        Self::ParameterValue,
+        Self::ParameterList,
+    >;
     fn serialized_payload(&self) -> &Self::SerializedDataFragment;
 }

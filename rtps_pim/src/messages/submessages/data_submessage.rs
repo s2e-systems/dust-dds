@@ -8,7 +8,7 @@ pub trait Data: Submessage {
     type ParameterValue: AsRef<[u8]> + Clone;
     type ParameterList: IntoIterator<
         Item = submessage_elements::Parameter<Self::ParameterId, Self::ParameterValue>,
-    >;
+    > + Clone;
     type SerializedData: AsRef<[u8]>;
 
     fn new(
@@ -20,7 +20,7 @@ pub trait Data: Submessage {
         reader_id:submessage_elements::EntityId<Self::EntityId>,
         writer_id: submessage_elements::EntityId<Self::EntityId>,
         writer_sn: submessage_elements::SequenceNumber<Self::SequenceNumber>,
-        // inline_qos: submessage_elements::ParameterList<Self::ParameterId, Self::ParameterValue, Self::ParameterList>,
+        inline_qos: submessage_elements::ParameterList<Self::ParameterId, Self::ParameterValue, Self::ParameterList>,
         serialized_payload: submessage_elements::SerializedData<Self::SerializedData>,
     ) -> Self;
 
@@ -32,6 +32,6 @@ pub trait Data: Submessage {
     fn reader_id(&self) -> &submessage_elements::EntityId<Self::EntityId>;
     fn writer_id(&self) -> &submessage_elements::EntityId<Self::EntityId>;
     fn writer_sn(&self) -> &submessage_elements::SequenceNumber<Self::SequenceNumber>;
-    // fn inline_qos(&self) -> &submessage_elements::ParameterList<Self::ParameterId, Self::ParameterValue, Self::ParameterList>;
+    fn inline_qos(&self) -> &submessage_elements::ParameterList<Self::ParameterId, Self::ParameterValue, Self::ParameterList>;
     fn serialized_payload(&self) -> &submessage_elements::SerializedData<Self::SerializedData>;
 }
