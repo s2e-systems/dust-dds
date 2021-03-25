@@ -6,7 +6,7 @@ pub trait DataFrag: Submessage {
     type SequenceNumber: types::SequenceNumber;
     type FragmentNumber: messages::types::FragmentNumber;
     type ParameterId: messages::types::ParameterId;
-    type ParameterValue: AsRef<[u8]>;
+    type ParameterValue: AsRef<[u8]> + Clone;
     type ParameterList: IntoIterator<Item = submessage_elements::Parameter<Self::ParameterId, Self::ParameterValue>>;
     type SerializedDataFragment: AsRef<[u8]>;
 

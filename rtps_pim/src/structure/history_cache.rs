@@ -11,9 +11,10 @@ pub trait RTPSHistoryCache {
     type InstanceHandle: types::InstanceHandle;
     type SequenceNumber: types::SequenceNumber;
     type Data;
-    // type ParameterId: messages::types::ParameterId;
-    // type ParameterValue: AsRef<[u8]>;
-    // type ParameterList: IntoIterator<Item = Parameter<Self::ParameterId, Self::ParameterValue>>;
+    type ParameterId: messages::types::ParameterId;
+    type ParameterValue: AsRef<[u8]> + Clone;
+    type ParameterList: IntoIterator<Item = Parameter<Self::ParameterId, Self::ParameterValue>>
+        + Clone;
 
     /// This operation creates a new RTPS HistoryCache. The newly-created history cache is initialized with an empty list of changes.
     fn new() -> Self;
@@ -30,9 +31,9 @@ pub trait RTPSHistoryCache {
             Self::InstanceHandle,
             Self::SequenceNumber,
             Self::Data,
-            // Self::ParameterId,
-            // Self::ParameterValue,
-            // Self::ParameterList,
+            Self::ParameterId,
+            Self::ParameterValue,
+            Self::ParameterList,
         >,
     );
 
@@ -51,9 +52,9 @@ pub trait RTPSHistoryCache {
             Self::InstanceHandle,
             Self::SequenceNumber,
             Self::Data,
-            // Self::ParameterId,
-            // Self::ParameterValue,
-            // Self::ParameterList,
+            Self::ParameterId,
+            Self::ParameterValue,
+            Self::ParameterList,
         >,
     >;
 

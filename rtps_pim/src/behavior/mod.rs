@@ -72,9 +72,9 @@ pub fn data_submessage_from_cache_change<
     GuidPrefix: crate::types::GuidPrefix,
     InstanceHandle: crate::types::InstanceHandle,
     Data: AsRef<[u8]>,
-    // ParameterId: messages::types::ParameterId,
-    // ParameterValue: AsRef<[u8]>,
-    // ParameterList: IntoIterator<Item = submessage_elements::Parameter<ParameterId, ParameterValue>>,
+    ParameterId: messages::types::ParameterId,
+    ParameterValue: AsRef<[u8]> + Clone,
+    ParameterList: IntoIterator<Item = submessage_elements::Parameter<ParameterId, ParameterValue>> + Clone,
 >(
     cache_change: &'a RTPSCacheChange<
         GuidPrefix,
@@ -82,9 +82,9 @@ pub fn data_submessage_from_cache_change<
         InstanceHandle,
         DataSubmessage::SequenceNumber,
         Data,
-        // ParameterId,
-        // ParameterValue,
-        // ParameterList,
+        ParameterId,
+        ParameterValue,
+        ParameterList,
     >,
     reader_id: DataSubmessage::EntityId,
 ) -> DataSubmessage
@@ -96,7 +96,7 @@ where
         // ParameterList = &'a ParameterList,
     >,
     // &'a ParameterList:
-        // IntoIterator<Item = submessage_elements::Parameter<ParameterId, ParameterValue>>,
+    // IntoIterator<Item = submessage_elements::Parameter<ParameterId, ParameterValue>>,
 {
     let endianness_flag = true.into();
     let non_standard_payload_flag = false.into();
@@ -108,9 +108,7 @@ where
         value: cache_change.sequence_number,
     };
 
-    // let inline_qos = submessage_elements::ParameterList {
-    //     parameter: &cache_change.inline_qos.parameter,
-    // };
+    let inline_qos = cache_change.inline_qos.clone();
     let serialized_payload = submessage_elements::SerializedData {
         value: cache_change.data_value.as_ref(),
     };
@@ -620,7 +618,6 @@ mod tests {
                 writer_id,
                 writer_sn,
                 serialized_payload,
-
             }
         }
 
@@ -693,7 +690,7 @@ mod tests {
             instance_handle,
             sequence_number,
             data_value: data_value.clone(),
-            // inline_qos,
+            inline_qos,
         };
 
         let reader_id = [5; 4];

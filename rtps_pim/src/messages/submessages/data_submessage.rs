@@ -5,7 +5,7 @@ pub trait Data: Submessage {
     type EntityId: types::EntityId;
     type SequenceNumber: types::SequenceNumber;
     type ParameterId: messages::types::ParameterId;
-    type ParameterValue: AsRef<[u8]>;
+    type ParameterValue: AsRef<[u8]> + Clone;
     type ParameterList: IntoIterator<
         Item = submessage_elements::Parameter<Self::ParameterId, Self::ParameterValue>,
     >;

@@ -12,14 +12,14 @@ pub struct RTPSCacheChange<
     InstanceHandle: types::InstanceHandle,
     SequenceNumber: types::SequenceNumber,
     Data,
-    // ParameterId: messages::types::ParameterId,
-    // ParameterValue: AsRef<[u8]>,
-    // ParameterList: IntoIterator<Item = Parameter<ParameterId, ParameterValue>>,
+    ParameterId: messages::types::ParameterId,
+    ParameterValue: AsRef<[u8]> + Clone,
+    ParameterList: IntoIterator<Item = Parameter<ParameterId, ParameterValue>> + Clone,
 > {
     pub kind: types::ChangeKind,
     pub writer_guid: types::GUID<GuidPrefix, EntityId>,
     pub instance_handle: InstanceHandle,
     pub sequence_number: SequenceNumber,
     pub data_value: Data,
-    // pub inline_qos: submessage_elements::ParameterList<ParameterId, ParameterValue, ParameterList>,
+    pub inline_qos: submessage_elements::ParameterList<ParameterId, ParameterValue, ParameterList>,
 }

@@ -1,5 +1,5 @@
-use crate::types::GUID;
+use crate::types::{EntityId, GuidPrefix, GUID};
 
-pub trait RTPSEntity {
-    // type GUID: GUID;
+pub struct RTPSEntity<GuidPrefixType: GuidPrefix, EntityIdType: EntityId> {
+    pub guid: GUID<GuidPrefixType, EntityIdType>,
 }

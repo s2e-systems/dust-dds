@@ -64,18 +64,43 @@ pub struct Timestamp<Time: messages::types::Time> {
     pub value: Time,
 }
 
-pub struct Parameter<ParameterId: messages::types::ParameterId, Value: AsRef<[u8]>> {
+pub struct Parameter<ParameterId: messages::types::ParameterId, Value: AsRef<[u8]> + Clone> {
     pub parameter_id: ParameterId,
     pub length: i16,
     pub value: Value,
 }
 
+impl<ParameterId: messages::types::ParameterId, Value: AsRef<[u8]> + Clone> Clone
+    for Parameter<ParameterId, Value>
+{
+    fn clone(&self) -> Self {
+        Self {
+            parameter_id: self.parameter_id.clone(),
+            length: self.length,
+            value: self.value.clone(),
+        }
+    }
+}
+
 pub struct ParameterList<
     ParameterId: messages::types::ParameterId,
-    Value: AsRef<[u8]>,
-    ParameterList: IntoIterator<Item = Parameter<ParameterId, Value>>,
+    Value: AsRef<[u8]> + Clone,
+    ParameterList: IntoIterator<Item = Parameter<ParameterId, Value>> + Clone,
 > {
     pub parameter: ParameterList,
+}
+
+impl<
+        ParameterId: messages::types::ParameterId,
+        Value: AsRef<[u8]> + Clone,
+        List: IntoIterator<Item = Parameter<ParameterId, Value>> + Clone,
+    > Clone for ParameterList<ParameterId, Value, List>
+{
+    fn clone(&self) -> Self {
+        Self {
+            parameter: self.parameter.clone(),
+        }
+    }
 }
 
 pub struct Count<Count: messages::types::Count> {
