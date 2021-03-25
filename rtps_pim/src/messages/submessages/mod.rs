@@ -20,7 +20,7 @@ use super::types::{SubmessageFlag, SubmessageKind};
 // pub use heartbeat_submessage::Heartbeat;
 // pub use info_timestamp_submessage::InfoTimestamp;
 
-pub trait SubmessageHeader : Copy {
+pub trait SubmessageHeader {
     type SubmessageKind: SubmessageKind;
     type SubmessageFlag : SubmessageFlag;
 

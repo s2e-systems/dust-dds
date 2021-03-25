@@ -1,10 +1,10 @@
 use super::{submessage_elements, Submessage, SubmessageHeader};
 
-pub trait Data<'a>: Submessage {
+pub trait Data: Submessage {
     type EntityId: submessage_elements::EntityId;
     type SequenceNumber: submessage_elements::SequenceNumber;
     type ParameterList: submessage_elements::ParameterList;
-    type SerializedData: submessage_elements::SerializedData<'a>;
+    type SerializedData: submessage_elements::SerializedData;
 
     fn new(
         endianness_flag: <<Self as Submessage>::SubmessageHeader as SubmessageHeader>::SubmessageFlag,

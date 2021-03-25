@@ -116,11 +116,8 @@ impl<T: messages::types::ParameterId> dyn Parameter<ParameterId = T> {
 }
 
 pub trait ParameterList: SubmessageElement {
-    type Parameter: Parameter + ?Sized;
-    type Item: core::ops::Deref<Target = Self::Parameter>;
-    type ParameterList: IntoIterator<Item = Self::Item>;
-
-    fn parameter(&self) -> Self::ParameterList;
+    type Parameter: Parameter;
+    fn parameter(&self) -> &[Self::Parameter];
 }
 
 pub trait Count: SubmessageElement {
@@ -137,17 +134,15 @@ pub trait LocatorList: SubmessageElement {
     fn value(&self) -> Self::LocatorList;
 }
 
-pub trait SerializedData<'a>: SubmessageElement {
-    type SerializedData: AsRef<[u8]>;
-
+pub trait SerializedData: SubmessageElement {
+    type SerializedData : AsRef<[u8]>;
     fn new(value: Self::SerializedData) -> Self;
-    fn value(&self) -> Self::SerializedData;
+    fn value(&self) -> &[u8];
 }
 
 pub trait SerializedDataFragment: SubmessageElement {
-    type SerializedDataFragment: AsRef<[u8]>;
-    fn new(value: Self::SerializedDataFragment) -> Self;
-    fn value(&self) -> Self::SerializedDataFragment;
+    fn new(value: impl AsRef<[u8]>) -> Self;
+    fn value(&self) -> &[u8];
 }
 
 pub trait GroupDigest: SubmessageElement {
