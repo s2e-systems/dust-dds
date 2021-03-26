@@ -9,10 +9,6 @@ use rust_dds_api::{
         data_reader_listener::DataReaderListener, subscriber_listener::SubscriberListener,
     },
 };
-use rust_rtps::{
-    structure::{RTPSEntity, RTPSGroup},
-    types::GUID,
-};
 
 use super::{data_reader_impl::DataReaderImpl, topic_impl::TopicImpl};
 
@@ -84,11 +80,3 @@ impl SubscriberImpl {
         self.qos = qos;
     }
 }
-
-impl RTPSEntity for SubscriberImpl {
-    fn guid(&self) -> GUID {
-        todo!()
-    }
-}
-
-impl RTPSGroup for SubscriberImpl {}

@@ -5,10 +5,7 @@ use rust_dds_api::{
     infrastructure::qos::{DataWriterQos, PublisherQos},
     publication::publisher_listener::PublisherListener,
 };
-use rust_rtps::{
-    structure::{RTPSEntity, RTPSGroup},
-    types::GUID,
-};
+
 
 use super::data_writer_impl::DataWriterImpl;
 
@@ -135,14 +132,6 @@ impl PublisherImpl {
         self.qos = qos;
     }
 }
-
-impl RTPSEntity for PublisherImpl {
-    fn guid(&self) -> GUID {
-        todo!()
-    }
-}
-
-impl RTPSGroup for PublisherImpl {}
 
 #[cfg(test)]
 mod tests {
