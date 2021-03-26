@@ -1,12 +1,11 @@
 // #![no_std]
 
-// pub mod behavior;
+pub mod behavior;
 pub mod messages;
 pub mod structure;
 // pub mod discovery;
 
-pub trait RtpsPim: structure::Types + messages::Types {
-
+pub trait RtpsPim: structure::Types + messages::Types + behavior::Types {
     // Special additions to represent lists and the parameter type
     type SequenceNumberSet: IntoIterator<Item = Self::SequenceNumber>;
     type LocatorList: IntoIterator<Item = Self::Locator>;

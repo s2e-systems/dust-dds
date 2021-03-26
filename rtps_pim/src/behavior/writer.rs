@@ -1,107 +1,33 @@
 use crate::{
-    messages::{
-        submessages::submessage_elements::{Parameter, ParameterList},
-        types::ParameterId,
-    },
     structure::{RTPSCacheChange, RTPSEndpoint, RTPSEntity, RTPSHistoryCache},
-    types::{
-        ChangeKind, EntityId, GuidPrefix, InstanceHandle, Locator, ReliabilityKind, SequenceNumber,
-        TopicKind, GUID,
-    },
+    RtpsPim,
 };
 
-use super::types::Duration;
-
-pub struct RTPSWriter<
-    GuidPrefixType: GuidPrefix,
-    EntityIdType: EntityId,
-    LocatorType: Locator,
-    LocatorListType: IntoIterator<Item = LocatorType>,
-    DurationType: Duration,
-    SequenceNumberType: SequenceNumber,
-    InstanceHandleType: InstanceHandle,
-    DataType,
-    ParameterIdType: ParameterId,
-    ParameterValueType: AsRef<[u8]> + Clone,
-    ParameterListType: IntoIterator<Item = Parameter<ParameterIdType, ParameterValueType>> + Clone,
-    HistoryCacheType: RTPSHistoryCache<
-        GuidPrefix = GuidPrefixType,
-        EntityId = EntityIdType,
-        InstanceHandle = InstanceHandleType,
-        SequenceNumber = SequenceNumberType,
-        Data = DataType,
-        ParameterId = ParameterIdType,
-        ParameterValue = ParameterValueType,
-        ParameterList = ParameterListType,
-    >,
-> {
-    pub endpoint: RTPSEndpoint<GuidPrefixType, EntityIdType, LocatorType, LocatorListType>,
+pub struct RTPSWriter<PSM: RtpsPim, HistoryCache: RTPSHistoryCache> {
+    pub endpoint: RTPSEndpoint<PSM>,
     pub push_mode: bool,
-    pub heartbeat_period: DurationType,
-    pub nack_response_delay: DurationType,
-    pub nack_suppression_duration: DurationType,
-    pub last_change_sequence_number: SequenceNumberType,
+    pub heartbeat_period: PSM::Duration,
+    pub nack_response_delay: PSM::Duration,
+    pub nack_suppression_duration: PSM::Duration,
+    pub last_change_sequence_number: PSM::SequenceNumber,
     pub data_max_size_serialized: i32,
-    pub writer_cache: HistoryCacheType,
+    pub writer_cache: HistoryCache,
 }
 
-impl<
-        GuidPrefixType: GuidPrefix,
-        EntityIdType: EntityId,
-        LocatorType: Locator,
-        LocatorListType: IntoIterator<Item = LocatorType>,
-        DurationType: Duration,
-        SequenceNumberType: SequenceNumber,
-        InstanceHandleType: InstanceHandle,
-        DataType,
-        ParameterIdType: ParameterId,
-        ParameterValueType: AsRef<[u8]> + Clone,
-        ParameterListType: IntoIterator<Item = Parameter<ParameterIdType, ParameterValueType>> + Clone,
-        HistoryCacheType: RTPSHistoryCache<
-            GuidPrefix = GuidPrefixType,
-            EntityId = EntityIdType,
-            InstanceHandle = InstanceHandleType,
-            SequenceNumber = SequenceNumberType,
-            Data = DataType,
-            ParameterId = ParameterIdType,
-            ParameterValue = ParameterValueType,
-            ParameterList = ParameterListType,
-        >,
-    >
-    RTPSWriter<
-        GuidPrefixType,
-        EntityIdType,
-        LocatorType,
-        LocatorListType,
-        DurationType,
-        SequenceNumberType,
-        InstanceHandleType,
-        DataType,
-        ParameterIdType,
-        ParameterValueType,
-        ParameterListType,
-        HistoryCacheType,
-    >
-{
+impl<PSM: RtpsPim, HistoryCache: RTPSHistoryCache> RTPSWriter<PSM, HistoryCache> {
     pub fn new(
-        guid_prefix: GuidPrefixType,
-        entity_id: EntityIdType,
-        topic_kind: TopicKind,
-        reliability_level: ReliabilityKind,
-        unicast_locator_list: LocatorListType,
-        multicast_locator_list: LocatorListType,
+        guid: PSM::Guid,
+        topic_kind: PSM::TopicKind,
+        reliability_level: PSM::ReliabilityKind,
+        unicast_locator_list: PSM::LocatorList,
+        multicast_locator_list: PSM::LocatorList,
         push_mode: bool,
-        heartbeat_period: DurationType,
-        nack_response_delay: DurationType,
-        nack_suppression_duration: DurationType,
+        heartbeat_period: PSM::Duration,
+        nack_response_delay: PSM::Duration,
+        nack_suppression_duration: PSM::Duration,
         data_max_size_serialized: i32,
     ) -> Self {
-        let entity = RTPSEntity {
-            guid: GUID {
-                guid_prefix,
-                entity_id,
-            },
-        };
+        let entity = RTPSEntity { guid };
         let endpoint = RTPSEndpoint {
             entity,
             topic_kind,
@@ -118,26 +44,17 @@ impl<
             nack_suppression_duration,
             last_change_sequence_number: 0.into(),
             data_max_size_serialized,
-            writer_cache: HistoryCacheType::new(),
+            writer_cache: HistoryCache::new(),
         }
     }
 
     pub fn new_change(
         &mut self,
-        kind: ChangeKind,
-        data: DataType,
-        inline_qos: ParameterList<ParameterIdType, ParameterValueType, ParameterListType>,
-        handle: InstanceHandleType,
-    ) -> RTPSCacheChange<
-        GuidPrefixType,
-        EntityIdType,
-        InstanceHandleType,
-        SequenceNumberType,
-        DataType,
-        ParameterIdType,
-        ParameterValueType,
-        ParameterListType,
-    > {
+        kind: PSM::ChangeKind,
+        data: HistoryCache::Data,
+        inline_qos: PSM::ParameterList,
+        handle: PSM::InstanceHandle,
+    ) -> RTPSCacheChange<PSM, HistoryCache::Data> {
         self.last_change_sequence_number = (self.last_change_sequence_number.into() + 1).into();
 
         RTPSCacheChange {
@@ -150,5 +67,3 @@ impl<
         }
     }
 }
-
-// }
