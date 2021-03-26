@@ -51,5 +51,7 @@ pub trait DataFrag: Submessage {
         Self::ParameterValue,
         Self::ParameterList,
     >;
-    fn serialized_payload(&self) -> &Self::SerializedDataFragment;
+    fn serialized_payload(
+        &self,
+    ) -> &submessage_elements::SerializedDataFragment<Self::SerializedDataFragment>;
 }

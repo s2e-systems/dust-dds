@@ -1,28 +1,34 @@
-use super::SubmessageHeader;
-use crate::messages::submessage_elements;
-use rust_rtps_pim::messages::{submessages::Submessage, types::SubmessageFlag};
+use rust_rtps_pim::messages::submessages::{submessage_elements, SubmessageHeader};
+
+use crate::{
+    messages::types::{SubmessageFlag, SubmessageKind},
+    types::Locator,
+};
 
 pub struct InfoReply {
     endianness_flag: SubmessageFlag,
     multicast_flag: SubmessageFlag,
-    unicast_locator_list: <Self as rust_rtps_pim::messages::submessages::info_reply_submessage::InfoReply>::LocatorList,
-    multicast_locator_list: <Self as rust_rtps_pim::messages::submessages::info_reply_submessage::InfoReply>::LocatorList,
-}
-
-impl Submessage for InfoReply {
-    type SubmessageHeader = SubmessageHeader;
-
-    fn submessage_header(&self) -> Self::SubmessageHeader {
-        todo!()
-    }
-
-    fn is_valid(&self) -> bool {
-        todo!()
-    }
+    unicast_locator_list: submessage_elements::LocatorList<Locator, Vec<Locator>>,
+    multicast_locator_list: submessage_elements::LocatorList<Locator, Vec<Locator>>,
 }
 
 impl rust_rtps_pim::messages::submessages::info_reply_submessage::InfoReply for InfoReply {
-    type LocatorList = submessage_elements::LocatorList;
+    type Locator = Locator;
+    type LocatorList = Vec<Locator>;
+
+    fn new(
+        endianness_flag: SubmessageFlag,
+        multicast_flag: SubmessageFlag,
+        unicast_locator_list: submessage_elements::LocatorList<Self::Locator, Self::LocatorList>,
+        multicast_locator_list: submessage_elements::LocatorList<Self::Locator, Self::LocatorList>,
+    ) -> Self {
+        Self {
+            endianness_flag,
+            multicast_flag,
+            unicast_locator_list,
+            multicast_locator_list,
+        }
+    }
 
     fn endianness_flag(&self) -> SubmessageFlag {
         self.endianness_flag
@@ -32,11 +38,24 @@ impl rust_rtps_pim::messages::submessages::info_reply_submessage::InfoReply for 
         self.multicast_flag
     }
 
-    fn unicast_locator_list(&self) -> &Self::LocatorList {
+    fn unicast_locator_list(
+        &self,
+    ) -> &submessage_elements::LocatorList<Self::Locator, Self::LocatorList> {
         &self.unicast_locator_list
     }
 
-    fn multicast_locator_list(&self) -> &Self::LocatorList {
+    fn multicast_locator_list(
+        &self,
+    ) -> &submessage_elements::LocatorList<Self::Locator, Self::LocatorList> {
         &self.multicast_locator_list
+    }
+}
+
+impl rust_rtps_pim::messages::submessages::Submessage for InfoReply {
+    type SubmessageKind = SubmessageKind;
+    type SubmessageFlag = SubmessageFlag;
+
+    fn submessage_header(&self) -> SubmessageHeader<Self::SubmessageKind, Self::SubmessageFlag> {
+        todo!()
     }
 }

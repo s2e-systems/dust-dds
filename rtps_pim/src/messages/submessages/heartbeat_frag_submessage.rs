@@ -17,9 +17,9 @@ pub trait HeartbeatFrag: Submessage {
     ) -> Self;
 
     fn endianness_flag(&self) -> <Self as Submessage>::SubmessageFlag;
-    fn reader_id(&self) -> &Self::EntityId;
-    fn writer_id(&self) -> &Self::EntityId;
-    fn writer_sn(&self) -> &Self::SequenceNumber;
-    fn last_fragment_num(&self) -> &Self::FragmentNumber;
-    fn count(&self) -> &Self::Count;
+    fn reader_id(&self) -> &submessage_elements::EntityId<Self::EntityId>;
+    fn writer_id(&self) -> &submessage_elements::EntityId<Self::EntityId>;
+    fn writer_sn(&self) -> &submessage_elements::SequenceNumber<Self::SequenceNumber>;
+    fn last_fragment_num(&self) -> &submessage_elements::FragmentNumber<Self::FragmentNumber>;
+    fn count(&self) -> &submessage_elements::Count<Self::Count>;
 }

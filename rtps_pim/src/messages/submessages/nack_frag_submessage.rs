@@ -21,9 +21,11 @@ pub trait NackFrag: Submessage {
     ) -> Self;
 
     fn endianness_flag(&self) -> <Self as Submessage>::SubmessageFlag;
-    fn reader_id(&self) -> &Self::EntityId;
-    fn writer_id(&self) -> &Self::EntityId;
-    fn writer_sn(&self) -> &Self::SequenceNumber;
-    fn fragment_number_state(&self) -> &Self::FragmentNumberSet;
-    fn count(&self) -> &Self::Count;
+    fn reader_id(&self) -> &submessage_elements::EntityId<Self::EntityId>;
+    fn writer_id(&self) -> &submessage_elements::EntityId<Self::EntityId>;
+    fn writer_sn(&self) -> &submessage_elements::SequenceNumber<Self::SequenceNumber>;
+    fn fragment_number_state(
+        &self,
+    ) -> &submessage_elements::FragmentNumberSet<Self::FragmentNumber, Self::FragmentNumberSet>;
+    fn count(&self) -> &submessage_elements::Count<Self::Count>;
 }
