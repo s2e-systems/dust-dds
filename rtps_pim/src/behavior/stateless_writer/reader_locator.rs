@@ -35,6 +35,8 @@ pub trait RTPSReaderLocator {
     >;
     type SequenceNumberListType: IntoIterator<Item = Self::SequenceNumberType>;
 
+    fn new(locator: Self::LocatorType, expects_inline_qos: bool) -> Self where Self: Sized;
+
     fn requested_changes(&self) -> Self::SequenceNumberListType;
     fn unsent_changes(&self) -> Self::SequenceNumberListType;
     fn next_requested_change(&mut self) -> Option<Self::SequenceNumberType>;
