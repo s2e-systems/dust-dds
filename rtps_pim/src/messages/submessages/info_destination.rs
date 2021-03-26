@@ -1,14 +1,11 @@
-use super::{submessage_elements, Submessage};
-use crate::types;
+use crate::messages::{self, submessage_elements, Submessage};
 
 pub trait InfoDestination: Submessage {
-    type GuidPrefix: types::GuidPrefix;
-
     fn new(
-        endianness_flag: <Self as Submessage>::SubmessageFlag,
-        guid_prefix: submessage_elements::GuidPrefix<Self::GuidPrefix>,
+        endianness_flag: <Self::PSM as messages::Types>::SubmessageFlag,
+        guid_prefix: submessage_elements::GuidPrefix<Self::PSM>,
     ) -> Self;
 
-    fn endianness_flag(&self) -> <Self as Submessage>::SubmessageFlag;
-    fn guid_prefix(&self) -> &submessage_elements::GuidPrefix<Self::GuidPrefix>;
+    fn endianness_flag(&self) -> <Self::PSM as messages::Types>::SubmessageFlag;
+    fn guid_prefix(&self) -> &submessage_elements::GuidPrefix<Self::PSM>;
 }

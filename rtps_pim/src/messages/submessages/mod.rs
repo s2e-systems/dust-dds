@@ -1,15 +1,15 @@
 pub mod ack_nack;
-// pub mod data_frag_submessage;
-// pub mod data_submessage;
-// pub mod gap_submessage;
-// pub mod heartbeat_frag_submessage;
-// pub mod heartbeat_submessage;
-// pub mod info_destination_submessage;
-// pub mod info_reply_submessage;
-// pub mod info_source_submessage;
-// pub mod info_timestamp_submessage;
-// pub mod nack_frag_submessage;
-// pub mod pad;
+pub mod data_frag;
+pub mod data;
+pub mod gap;
+pub mod heartbeat_frag;
+pub mod heartbeat;
+pub mod info_destination;
+pub mod info_reply;
+pub mod info_source;
+pub mod info_timestamp;
+pub mod nack_frag;
+pub mod pad;
 
 // pub use ack_nack_submessage::AckNack;
 // pub use data_submessage::Data;
