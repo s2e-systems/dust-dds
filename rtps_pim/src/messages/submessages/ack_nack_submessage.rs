@@ -11,7 +11,7 @@ pub trait AckNack: Submessage {
         endianness_flag: <Self as Submessage>::SubmessageFlag,
         final_flag: <Self as Submessage>::SubmessageFlag,
         reader_id: submessage_elements::EntityId<Self::EntityId>,
-        writer: submessage_elements::EntityId<Self::EntityId>,
+        writer_id: submessage_elements::EntityId<Self::EntityId>,
         reader_sn_state: submessage_elements::SequenceNumberSet<Self::SequenceNumber, Self::SequenceNumberList>,
         count: submessage_elements::Count<Self::Count>,
     ) -> Self;

@@ -1,50 +1,71 @@
-use super::SubmessageHeader;
-use crate::messages::submessage_elements;
-use rust_rtps_pim::messages::{submessages::Submessage, types::SubmessageFlag};
+use rust_rtps_pim::messages::submessages::{submessage_elements, SubmessageHeader};
+
+use crate::{
+    messages::types::{SubmessageFlag, SubmessageKind},
+    types::{EntityId, SequenceNumber},
+};
 
 pub struct Gap {
     endianness_flag: SubmessageFlag,
-    reader_id: <Self as rust_rtps_pim::messages::submessages::gap_submessage::Gap>::EntityId,
-    writer_id: <Self as rust_rtps_pim::messages::submessages::gap_submessage::Gap>::EntityId,
-    gap_start: <Self as rust_rtps_pim::messages::submessages::gap_submessage::Gap>::SequenceNumber,
-    gap_list:
-        <Self as rust_rtps_pim::messages::submessages::gap_submessage::Gap>::SequenceNumberSet,
-}
-
-impl Submessage for Gap {
-    type SubmessageHeader = SubmessageHeader;
-
-    fn submessage_header(&self) -> Self::SubmessageHeader {
-        todo!()
-    }
-
-    fn is_valid(&self) -> bool {
-        todo!()
-    }
+    reader_id: submessage_elements::EntityId<EntityId>,
+    writer_id: submessage_elements::EntityId<EntityId>,
+    gap_start: submessage_elements::SequenceNumber<SequenceNumber>,
+    gap_list: submessage_elements::SequenceNumberSet<SequenceNumber, Vec<SequenceNumber>>,
 }
 
 impl rust_rtps_pim::messages::submessages::gap_submessage::Gap for Gap {
-    type EntityId = submessage_elements::EntityId;
-    type SequenceNumber = submessage_elements::SequenceNumber;
-    type SequenceNumberSet = submessage_elements::SequenceNumberSet;
+    type EntityId = EntityId;
+    type SequenceNumber = SequenceNumber;
+    type SequenceNumberList = Vec<SequenceNumber>;
+
+    fn new(
+        endianness_flag: SubmessageFlag,
+        reader_id: submessage_elements::EntityId<Self::EntityId>,
+        writer_id: submessage_elements::EntityId<Self::EntityId>,
+        gap_start: submessage_elements::SequenceNumber<Self::SequenceNumber>,
+        gap_list: submessage_elements::SequenceNumberSet<
+            Self::SequenceNumber,
+            Self::SequenceNumberList,
+        >,
+    ) -> Self {
+        Self {
+            endianness_flag,
+            reader_id,
+            writer_id,
+            gap_start,
+            gap_list,
+        }
+    }
 
     fn endianness_flag(&self) -> SubmessageFlag {
         self.endianness_flag
     }
 
-    fn reader_id(&self) -> &Self::EntityId {
+    fn reader_id(&self) -> &submessage_elements::EntityId<Self::EntityId> {
         &self.reader_id
     }
 
-    fn writer_id(&self) -> &Self::EntityId {
+    fn writer_id(&self) -> &submessage_elements::EntityId<Self::EntityId> {
         &self.writer_id
     }
 
-    fn gap_start(&self) -> &Self::SequenceNumber {
+    fn gap_start(&self) -> &submessage_elements::SequenceNumber<Self::SequenceNumber> {
         &self.gap_start
     }
 
-    fn gap_list(&self) -> &Self::SequenceNumberSet {
+    fn gap_list(
+        &self,
+    ) -> &submessage_elements::SequenceNumberSet<Self::SequenceNumber, Self::SequenceNumberList>
+    {
         &self.gap_list
+    }
+}
+
+impl rust_rtps_pim::messages::submessages::Submessage for Gap {
+    type SubmessageKind = SubmessageKind;
+    type SubmessageFlag = SubmessageFlag;
+
+    fn submessage_header(&self) -> SubmessageHeader<Self::SubmessageKind, Self::SubmessageFlag> {
+        todo!()
     }
 }

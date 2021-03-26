@@ -99,6 +99,44 @@ impl<
         SequenceNumberListType = SequenceNumberListType,
     >
 {
+    // fn pushing_state<
+    //     'a,
+    //     DataSubmessage: submessages::data_submessage::Data<
+    //         EntityId = EntityIdType,
+    //         SequenceNumber = SequenceNumberType,
+    //         ParameterId = ParameterIdType,
+    //         ParameterValue = ParameterValueType,
+    //         ParameterList = ParameterListType,
+    //         SerializedData = &'a [u8],
+    //     >,
+    //     GapSubmessage: submessages::gap_submessage::Gap<
+    //         EntityId = EntityIdType,
+    //         SequenceNumber = SequenceNumberType,
+    //         SequenceNumberList = SequenceNumberListType,
+    //     >,
+    // >(
+    //     &mut self,
+    //     the_writer: &'a RTPSWriter<
+    //         GuidPrefixType,
+    //         EntityIdType,
+    //         LocatorType,
+    //         LocatorListType,
+    //         DurationType,
+    //         SequenceNumberType,
+    //         InstanceHandleType,
+    //         DataType,
+    //         ParameterIdType,
+    //         ParameterValueType,
+    //         ParameterListType,
+    //         HistoryCacheType,
+    //     >,
+    // ) -> Option<DataSubmessage> {
+    //     //     // RL::can_send() is always true when this function is called
+    // //     // so we don't bother making an if here
+    // //     Self::transition_t4(reader_locator, writer)
+    //     self.transition_t4(the_writer)
+    // }
+
     fn transition_t4<
         'a,
         DataSubmessage: submessages::data_submessage::Data<

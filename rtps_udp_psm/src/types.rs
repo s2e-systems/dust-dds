@@ -1,5 +1,3 @@
-use serde::Serialize;
-
 #[derive(Clone, Copy)]
 pub struct GuidPrefix(pub [u8; 12]);
 
@@ -19,7 +17,7 @@ impl From<[u8; 12]> for GuidPrefix {
     }
 }
 
-#[derive(Clone, Copy, Serialize)]
+#[derive(Clone, Copy)]
 pub struct EntityId {
     pub entity_key: [u8; 3],
     pub entity_kind: u8,
@@ -117,67 +115,6 @@ impl From<[u8; 4]> for EntityId {
         Self {
             entity_key: [value[0], value[1], value[2]],
             entity_kind: value[3],
-        }
-    }
-}
-
-#[derive(Clone, Copy)]
-pub struct GUID {
-    pub guid_prefix: GuidPrefix,
-    pub entity_id: EntityId,
-}
-
-impl rust_rtps_pim::types::GUID for GUID {
-    type GuidPrefix = GuidPrefix ;
-    type EntityId = EntityId;
-
-    fn guid_prefix(&self) -> Self::GuidPrefix {
-        self.guid_prefix
-    }
-
-    fn entity_id(&self) -> Self::EntityId {
-        self.entity_id
-    }
-    const GUID_UNKNOWN: Self = Self {
-        guid_prefix: <GuidPrefix as rust_rtps_pim::types::GuidPrefix>::GUIDPREFIX_UNKNOWN,
-        entity_id: <EntityId as rust_rtps_pim::types::EntityId>::ENTITYID_UNKNOWN,
-    };
-
-
-}
-
-impl Into<[u8; 16]> for GUID {
-    fn into(self) -> [u8; 16] {
-        [
-            self.guid_prefix.0[0],
-            self.guid_prefix.0[1],
-            self.guid_prefix.0[2],
-            self.guid_prefix.0[3],
-            self.guid_prefix.0[4],
-            self.guid_prefix.0[5],
-            self.guid_prefix.0[6],
-            self.guid_prefix.0[7],
-            self.guid_prefix.0[8],
-            self.guid_prefix.0[9],
-            self.guid_prefix.0[10],
-            self.guid_prefix.0[11],
-            self.entity_id.entity_key[0],
-            self.entity_id.entity_key[1],
-            self.entity_id.entity_key[2],
-            self.entity_id.entity_kind,
-        ]
-    }
-}
-
-impl From<[u8; 16]> for GUID {
-    fn from(value: [u8; 16]) -> Self {
-        Self {
-            guid_prefix: [
-                value[0], value[1], value[2], value[3], value[4], value[5], value[6], value[7],
-                value[8], value[9], value[10], value[11],
-            ]
-            .into(),
-            entity_id: [value[12], value[13], value[14], value[15]].into(),
         }
     }
 }

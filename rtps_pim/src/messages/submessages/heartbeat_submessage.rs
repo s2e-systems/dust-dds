@@ -21,11 +21,11 @@ pub trait Heartbeat: Submessage {
     fn final_flag(&self) -> <Self as Submessage>::SubmessageFlag;
     fn liveliness_flag(&self) -> <Self as Submessage>::SubmessageFlag;
     // group_info_flag: SubmessageFlag,
-    fn reader_id(&self) -> &Self::EntityId;
-    fn writer_id(&self) -> &Self::EntityId;
-    fn first_sn(&self) -> &Self::SequenceNumber;
-    fn last_sn(&self) -> &Self::SequenceNumber;
-    fn count(&self) -> &Self::Count;
+    fn reader_id(&self) -> &submessage_elements::EntityId<Self::EntityId>;
+    fn writer_id(&self) -> &submessage_elements::EntityId<Self::EntityId>;
+    fn first_sn(&self) -> &submessage_elements::SequenceNumber<Self::SequenceNumber>;
+    fn last_sn(&self) -> &submessage_elements::SequenceNumber<Self::SequenceNumber>;
+    fn count(&self) -> &submessage_elements::Count<Self::Count>;
     // current_gsn: submessage_elements::SequenceNumber,
     // first_gsn: submessage_elements::SequenceNumber,
     // last_gsn: submessage_elements::SequenceNumber,
