@@ -1,15 +1,13 @@
-use crate::types::{EntityId, GuidPrefix};
+use crate::RtpsPim;
 
 use super::RTPSEntity;
 
-pub struct RTPSGroup<GuidPrefixType: GuidPrefix, EntityIdType: EntityId> {
-    pub entity: RTPSEntity<GuidPrefixType, EntityIdType>,
+pub struct RTPSGroup<PSM: RtpsPim> {
+    pub entity: RTPSEntity<PSM>,
 }
 
-impl<GuidPrefixType: GuidPrefix, EntityIdType: EntityId> core::ops::Deref
-    for RTPSGroup<GuidPrefixType, EntityIdType>
-{
-    type Target = RTPSEntity<GuidPrefixType, EntityIdType>;
+impl<PSM: RtpsPim> core::ops::Deref for RTPSGroup<PSM> {
+    type Target = RTPSEntity<PSM>;
 
     fn deref(&self) -> &Self::Target {
         &self.entity

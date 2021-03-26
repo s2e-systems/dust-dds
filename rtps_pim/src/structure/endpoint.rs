@@ -1,27 +1,17 @@
-use crate::types::{EntityId, GuidPrefix, Locator, ReliabilityKind, TopicKind};
+use crate::RtpsPim;
 
 use super::RTPSEntity;
 
-pub struct RTPSEndpoint<
-    GuidPrefixType: GuidPrefix,
-    EntityIdType: EntityId,
-    LocatorType: Locator,
-    LocatorList: IntoIterator<Item = LocatorType>,
-> {
-    pub entity: RTPSEntity<GuidPrefixType, EntityIdType>,
-    pub topic_kind: TopicKind,
-    pub reliability_level: ReliabilityKind,
-    pub unicast_locator_list: LocatorList,
-    pub multicast_locator_list: LocatorList,
+pub struct RTPSEndpoint<PSM: RtpsPim> {
+    pub entity: RTPSEntity<PSM>,
+    pub topic_kind: PSM::TopicKind,
+    pub reliability_level: PSM::ReliabilityKind,
+    pub unicast_locator_list: PSM::LocatorList,
+    pub multicast_locator_list: PSM::LocatorList,
 }
 
-impl<
-GuidPrefixType: GuidPrefix,
-EntityIdType: EntityId,
-LocatorType: Locator,
-LocatorList: IntoIterator<Item = LocatorType>,
-> core::ops::Deref for RTPSEndpoint<GuidPrefixType, EntityIdType, LocatorType, LocatorList> {
-    type Target = RTPSEntity<GuidPrefixType, EntityIdType>;
+impl<PSM: RtpsPim> core::ops::Deref for RTPSEndpoint<PSM> {
+    type Target = RTPSEntity<PSM>;
 
     fn deref(&self) -> &Self::Target {
         &self.entity

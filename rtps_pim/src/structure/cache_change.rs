@@ -1,10 +1,10 @@
 use crate::RtpsPim;
 
-pub struct RTPSCacheChange<PIM: RtpsPim, Data> {
-    pub kind: PIM::ChangeKind,
-    pub writer_guid: PIM::Guid,
-    pub instance_handle: PIM::InstanceHandle,
-    pub sequence_number: PIM::SequenceNumber,
+pub struct RTPSCacheChange<PSM: RtpsPim, Data> {
+    pub kind: PSM::ChangeKind,
+    pub writer_guid: PSM::Guid,
+    pub instance_handle: PSM::InstanceHandle,
+    pub sequence_number: PSM::SequenceNumber,
     pub data_value: Data,
-    pub inline_qos: PIM::ParameterList,
+    pub inline_qos: PSM::ParameterList,
 }

@@ -1,40 +1,17 @@
-use crate::types::{EntityId, GuidPrefix, Locator, ProtocolVersion, VendorId};
+use crate::RtpsPim;
 
 use super::RTPSEntity;
 
-pub struct RTPSParticipant<
-    GuidPrefixType: GuidPrefix,
-    EntityIdType: EntityId,
-    ProtocolVersionType: ProtocolVersion,
-    VendorIdType: VendorId,
-    LocatorType: Locator,
-    LocatorListType: IntoIterator<Item = LocatorType>,
-> {
-    pub entity: RTPSEntity<GuidPrefixType, EntityIdType>,
-    pub protocol_version: ProtocolVersionType,
-    pub vendor_id: VendorIdType,
-    pub default_unicast_locator_list: LocatorListType,
-    pub default_multicast_locator_list: LocatorListType,
+pub struct RTPSParticipant<PSM: RtpsPim> {
+    pub entity: RTPSEntity<PSM>,
+    pub protocol_version: PSM::ProtocolVersion,
+    pub vendor_id: PSM::VendorId,
+    pub default_unicast_locator_list: PSM::LocatorList,
+    pub default_multicast_locator_list: PSM::LocatorList,
 }
 
-impl<
-        GuidPrefixType: GuidPrefix,
-        EntityIdType: EntityId,
-        ProtocolVersionType: ProtocolVersion,
-        VendorIdType: VendorId,
-        LocatorType: Locator,
-        LocatorListType: IntoIterator<Item = LocatorType>,
-    > core::ops::Deref
-    for RTPSParticipant<
-        GuidPrefixType,
-        EntityIdType,
-        ProtocolVersionType,
-        VendorIdType,
-        LocatorType,
-        LocatorListType,
-    >
-{
-    type Target = RTPSEntity<GuidPrefixType, EntityIdType>;
+impl<PSM: RtpsPim> core::ops::Deref for RTPSParticipant<PSM> {
+    type Target = RTPSEntity<PSM>;
 
     fn deref(&self) -> &Self::Target {
         &self.entity
