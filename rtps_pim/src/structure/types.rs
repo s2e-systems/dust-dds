@@ -15,19 +15,9 @@ pub trait Types {
     type SequenceNumber: Into<i64> + From<i64> + Copy + Ord;
     const SEQUENCE_NUMBER_UNKNOWN: Self::SequenceNumber;
 
-    type LocatorKind;
-    type LocatorPort;
-    type LocatorAddress: Into<[u8; 16]>;
-    type Locator;
+    type Locator : Locator;
+
     const LOCATOR_INVALID: Self::Locator;
-    const LOCATOR_KIND_INVALID: Self::LocatorKind;
-    const LOCATOR_KIND_RESERVED: Self::LocatorKind;
-    #[allow(non_upper_case_globals)]
-    const LOCATOR_KIND_UDPv4: Self::LocatorKind;
-    #[allow(non_upper_case_globals)]
-    const LOCATOR_KIND_UDPv6: Self::LocatorKind;
-    const LOCATOR_ADDRESS_INVALID: Self::LocatorAddress;
-    const LOCATOR_PORT_INVALID: Self::LocatorPort;
 
     type TopicKind: Copy;
     const NO_KEY: Self::TopicKind;
@@ -57,4 +47,19 @@ pub trait Types {
 
     type VendorId: Copy;
     const VENDOR_ID_UNKNOWN: Self::VendorId;
+}
+
+pub trait Locator {
+    type Kind;
+    type Port;
+    type Address: Into<[u8; 16]>;
+
+    const LOCATOR_KIND_INVALID: Self::Kind;
+    const LOCATOR_KIND_RESERVED: Self::Kind;
+    #[allow(non_upper_case_globals)]
+    const LOCATOR_KIND_UDPv4: Self::Kind;
+    #[allow(non_upper_case_globals)]
+    const LOCATOR_KIND_UDPv6: Self::Kind;
+    const LOCATOR_ADDRESS_INVALID: Self::Address;
+    const LOCATOR_PORT_INVALID: Self::Port;
 }
