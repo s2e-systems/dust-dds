@@ -2,7 +2,7 @@ use rust_rtps_pim::RtpsPsm;
 use types::{ChangeForReaderStatusKind, ChangeFromWriterStatusKind, ChangeKind, Count, Duration, EntityId, FragmentNumber, GroupDigest, Guid, GuidPrefix, InstanceHandle, Locator, Parameter, ParameterId, ProtocolId, ProtocolVersion, ReliabilityKind, SequenceNumber, SubmessageFlag, Time, TopicKind, VendorId};
 
 pub mod types;
-// pub mod messages;
+pub mod submessages;
 
 pub struct RtpsUdpPsm;
 
