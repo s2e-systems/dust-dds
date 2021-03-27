@@ -1,106 +1,25 @@
-use submessages::submessage_elements;
-
 use crate::{
-    behavior::{data_submessage_from_cache_change, types::Duration, RTPSWriter},
-    messages::{
-        submessages::{self, submessage_elements::Parameter},
-        types::ParameterId,
-    },
-    structure::RTPSHistoryCache,
-    types::{EntityId, GuidPrefix, InstanceHandle, Locator, SequenceNumber},
+    behavior::RTPSWriter,
+    structure::{self, RTPSHistoryCache},
+    RtpsPsm,
 };
 
 pub trait RTPSReaderLocator {
-    type GuidPrefixType: GuidPrefix;
-    type EntityIdType: EntityId;
-    type LocatorType: Locator;
-    type LocatorListType: IntoIterator<Item = Self::LocatorType>;
-    type DurationType: Duration;
-    type SequenceNumberType: SequenceNumber;
-    type InstanceHandleType: InstanceHandle;
-    type DataType: AsRef<[u8]>;
-    type ParameterIdType: ParameterId;
-    type ParameterValueType: AsRef<[u8]> + Clone;
-    type ParameterListType: IntoIterator<Item = Parameter<Self::ParameterIdType, Self::ParameterValueType>>
-        + Clone;
-    type HistoryCacheType: RTPSHistoryCache<
-        GuidPrefix = Self::GuidPrefixType,
-        EntityId = Self::EntityIdType,
-        InstanceHandle = Self::InstanceHandleType,
-        SequenceNumber = Self::SequenceNumberType,
-        Data = Self::DataType,
-        ParameterId = Self::ParameterIdType,
-        ParameterValue = Self::ParameterValueType,
-        ParameterList = Self::ParameterListType,
-    >;
-    type SequenceNumberListType: IntoIterator<Item = Self::SequenceNumberType>;
+    type PSM: RtpsPsm;
+    type HistoryCache: RTPSHistoryCache;
 
-    fn new(locator: Self::LocatorType, expects_inline_qos: bool) -> Self where Self: Sized;
-
-    fn requested_changes(&self) -> Self::SequenceNumberListType;
-    fn unsent_changes(&self) -> Self::SequenceNumberListType;
-    fn next_requested_change(&mut self) -> Option<Self::SequenceNumberType>;
-    fn next_unsent_change(&mut self) -> Option<Self::SequenceNumberType>;
+    fn requested_changes(&self) -> <Self::PSM as RtpsPsm>::SequenceNumberSet;
+    fn unsent_changes(&self) -> <Self::PSM as RtpsPsm>::SequenceNumberSet;
+    fn next_requested_change(&mut self) -> Option<<Self::PSM as structure::Types>::SequenceNumber>;
+    fn next_unsent_change(&mut self) -> Option<<Self::PSM as structure::Types>::SequenceNumber>;
     fn requested_changes_set(
         &mut self,
-        req_seq_num_set: &[Self::SequenceNumberType],
-        writer: &RTPSWriter<
-            Self::GuidPrefixType,
-            Self::EntityIdType,
-            Self::LocatorType,
-            Self::LocatorListType,
-            Self::DurationType,
-            Self::SequenceNumberType,
-            Self::InstanceHandleType,
-            Self::DataType,
-            Self::ParameterIdType,
-            Self::ParameterValueType,
-            Self::ParameterListType,
-            Self::HistoryCacheType,
-        >,
+        req_seq_num_set: &[<Self::PSM as structure::Types>::SequenceNumber],
+        writer: &RTPSWriter<Self::PSM, Self::HistoryCache>,
     );
 }
 
-impl<
-        GuidPrefixType: GuidPrefix,
-        EntityIdType: EntityId,
-        LocatorType: Locator,
-        LocatorListType: IntoIterator<Item = LocatorType>,
-        DurationType: Duration,
-        SequenceNumberType: SequenceNumber,
-        InstanceHandleType: InstanceHandle,
-        DataType: AsRef<[u8]>,
-        ParameterIdType: ParameterId,
-        ParameterValueType: AsRef<[u8]> + Clone,
-        ParameterListType: IntoIterator<Item = Parameter<ParameterIdType, ParameterValueType>> + Clone,
-        HistoryCacheType: RTPSHistoryCache<
-            GuidPrefix = GuidPrefixType,
-            EntityId = EntityIdType,
-            InstanceHandle = InstanceHandleType,
-            SequenceNumber = SequenceNumberType,
-            Data = DataType,
-            ParameterId = ParameterIdType,
-            ParameterValue = ParameterValueType,
-            ParameterList = ParameterListType,
-        >,
-        SequenceNumberListType: IntoIterator<Item = SequenceNumberType>,
-    >
-    dyn RTPSReaderLocator<
-        GuidPrefixType = GuidPrefixType,
-        EntityIdType = EntityIdType,
-        LocatorType = LocatorType,
-        LocatorListType = LocatorListType,
-        DurationType = DurationType,
-        SequenceNumberType = SequenceNumberType,
-        InstanceHandleType = InstanceHandleType,
-        DataType = DataType,
-        ParameterIdType = ParameterIdType,
-        ParameterValueType = ParameterValueType,
-        ParameterListType = ParameterListType,
-        HistoryCacheType = HistoryCacheType,
-        SequenceNumberListType = SequenceNumberListType,
-    >
-{
+// impl dyn RTPSReaderLocator {
     // fn pushing_state<
     //     'a,
     //     DataSubmessage: submessages::data_submessage::Data<
@@ -139,68 +58,68 @@ impl<
     //     self.transition_t4(the_writer)
     // }
 
-    fn transition_t4<
-        'a,
-        DataSubmessage: submessages::data_submessage::Data<
-            EntityId = EntityIdType,
-            SequenceNumber = SequenceNumberType,
-            ParameterId = ParameterIdType,
-            ParameterValue = ParameterValueType,
-            ParameterList = ParameterListType,
-            SerializedData = &'a [u8],
-        >,
-        GapSubmessage: submessages::gap_submessage::Gap<
-            EntityId = EntityIdType,
-            SequenceNumber = SequenceNumberType,
-            SequenceNumberList = SequenceNumberListType,
-        >,
-    >(
-        &mut self,
-        the_writer: &'a RTPSWriter<
-            GuidPrefixType,
-            EntityIdType,
-            LocatorType,
-            LocatorListType,
-            DurationType,
-            SequenceNumberType,
-            InstanceHandleType,
-            DataType,
-            ParameterIdType,
-            ParameterValueType,
-            ParameterListType,
-            HistoryCacheType,
-        >,
-    ) -> Option<DataSubmessage> {
-        if let Some(next_unsent_sequence_number) = self.next_unsent_change() {
-            if let Some(next_unsent_cache_change) = the_writer
-                .writer_cache
-                .get_change(&next_unsent_sequence_number)
-            {
-                Some(data_submessage_from_cache_change(
-                    next_unsent_cache_change,
-                    <EntityIdType as EntityId>::ENTITYID_UNKNOWN,
-                ))
-            } else {
-                let gap = GapSubmessage::new(
-                    true.into(),
-                    submessage_elements::EntityId {
-                        value: <EntityIdType as EntityId>::ENTITYID_UNKNOWN,
-                    },
-                    submessage_elements::EntityId {
-                        value: the_writer.endpoint.guid.entity_id,
-                    },
-                    submessage_elements::SequenceNumber {
-                        value: next_unsent_sequence_number,
-                    },
-                    submessage_elements::SequenceNumberSet {
-                        base: next_unsent_sequence_number,
-                        set: self.requested_changes(),
-                    },
-                );
-                todo!()
-            }
-        } else {
-            None
-        }
-    }
-}
+    // fn transition_t4<
+    //     'a,
+    //     DataSubmessage: submessages::data_submessage::Data<
+    //         EntityId = EntityIdType,
+    //         SequenceNumber = SequenceNumberType,
+    //         ParameterId = ParameterIdType,
+    //         ParameterValue = ParameterValueType,
+    //         ParameterList = ParameterListType,
+    //         SerializedData = &'a [u8],
+    //     >,
+    //     GapSubmessage: submessages::gap_submessage::Gap<
+    //         EntityId = EntityIdType,
+    //         SequenceNumber = SequenceNumberType,
+    //         SequenceNumberList = SequenceNumberListType,
+    //     >,
+    // >(
+    //     &mut self,
+    //     the_writer: &'a RTPSWriter<
+    //         GuidPrefixType,
+    //         EntityIdType,
+    //         LocatorType,
+    //         LocatorListType,
+    //         DurationType,
+    //         SequenceNumberType,
+    //         InstanceHandleType,
+    //         DataType,
+    //         ParameterIdType,
+    //         ParameterValueType,
+    //         ParameterListType,
+    //         HistoryCacheType,
+    //     >,
+    // ) -> Option<DataSubmessage> {
+    //     if let Some(next_unsent_sequence_number) = self.next_unsent_change() {
+    //         if let Some(next_unsent_cache_change) = the_writer
+    //             .writer_cache
+    //             .get_change(&next_unsent_sequence_number)
+    //         {
+    //             Some(data_submessage_from_cache_change(
+    //                 next_unsent_cache_change,
+    //                 <EntityIdType as EntityId>::ENTITYID_UNKNOWN,
+    //             ))
+    //         } else {
+    //             let gap = GapSubmessage::new(
+    //                 true.into(),
+    //                 submessage_elements::EntityId {
+    //                     value: <EntityIdType as EntityId>::ENTITYID_UNKNOWN,
+    //                 },
+    //                 submessage_elements::EntityId {
+    //                     value: the_writer.endpoint.guid.entity_id,
+    //                 },
+    //                 submessage_elements::SequenceNumber {
+    //                     value: next_unsent_sequence_number,
+    //                 },
+    //                 submessage_elements::SequenceNumberSet {
+    //                     base: next_unsent_sequence_number,
+    //                     set: self.requested_changes(),
+    //                 },
+    //             );
+    //             todo!()
+    //         }
+    //     } else {
+    //         None
+    //     }
+    // }
+// }

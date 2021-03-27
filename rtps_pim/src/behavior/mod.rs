@@ -1,18 +1,20 @@
-pub mod reader;
+mod reader;
 // pub mod stateful_reader;
-// pub  parameter_id: (), length: (), value: ()mod stateful_writer;
+// pub mod stateful_writer;
 // pub mod stateless_reader;
-// pub mod stateless_writer;
+pub mod stateless_writer;
 mod types;
-pub mod writer;
+mod writer;
+
+pub use types::Types;
 
 pub use reader::RTPSReader;
-pub use types::Types;
+pub use writer::RTPSWriter;
+
 // pub use stateful_reader::{RTPSStatefulReader, RTPSWriterProxy};
 // pub use stateful_writer::{RTPSReaderProxy, RTPSStatefulWriter};
 // pub use stateless_reader::RTPSStatelessReader;
 // pub use stateless_writer::RTPSStatelessWriter;
-pub use writer::RTPSWriter;
 
 // use crate::{
 //     messages::{
