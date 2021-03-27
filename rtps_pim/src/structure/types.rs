@@ -12,10 +12,10 @@ pub trait Types {
     type EntityId: Into<[u8; 4]> + From<[u8; 4]> + Copy;
     const ENTITYID_UNKNOWN: Self::EntityId;
 
-    type SequenceNumber: Into<i64> + From<i64> + Copy + Ord;
+    type SequenceNumber: Into<i64> + From<i64> + Copy;
     const SEQUENCE_NUMBER_UNKNOWN: Self::SequenceNumber;
 
-    type Locator : Locator;
+    type Locator: Locator;
 
     const LOCATOR_INVALID: Self::Locator;
 
@@ -52,7 +52,7 @@ pub trait Types {
 pub trait Locator {
     type Kind;
     type Port;
-    type Address: Into<[u8; 16]>;
+    type Address: Into<[u8; 16]> + From<[u8; 16]>;
 
     const LOCATOR_KIND_INVALID: Self::Kind;
     const LOCATOR_KIND_RESERVED: Self::Kind;

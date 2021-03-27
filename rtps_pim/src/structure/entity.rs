@@ -1,5 +1,5 @@
-use crate::RtpsPim;
+use crate::RtpsPsm;
 
-pub struct RTPSEntity<PSM: RtpsPim> {
+pub struct RTPSEntity<PSM: RtpsPsm> {
     pub guid: PSM::Guid,
 }

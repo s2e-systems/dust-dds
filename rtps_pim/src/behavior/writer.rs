@@ -1,9 +1,9 @@
 use crate::{
     structure::{RTPSCacheChange, RTPSEndpoint, RTPSEntity, RTPSHistoryCache},
-    RtpsPim,
+    RtpsPsm,
 };
 
-pub struct RTPSWriter<PSM: RtpsPim, HistoryCache: RTPSHistoryCache> {
+pub struct RTPSWriter<PSM: RtpsPsm, HistoryCache: RTPSHistoryCache> {
     pub endpoint: RTPSEndpoint<PSM>,
     pub push_mode: bool,
     pub heartbeat_period: PSM::Duration,
@@ -14,7 +14,7 @@ pub struct RTPSWriter<PSM: RtpsPim, HistoryCache: RTPSHistoryCache> {
     pub writer_cache: HistoryCache,
 }
 
-impl<PSM: RtpsPim, HistoryCache: RTPSHistoryCache> RTPSWriter<PSM, HistoryCache> {
+impl<PSM: RtpsPsm, HistoryCache: RTPSHistoryCache> RTPSWriter<PSM, HistoryCache> {
     pub fn new(
         guid: PSM::Guid,
         topic_kind: PSM::TopicKind,
@@ -42,7 +42,7 @@ impl<PSM: RtpsPim, HistoryCache: RTPSHistoryCache> RTPSWriter<PSM, HistoryCache>
             heartbeat_period,
             nack_response_delay,
             nack_suppression_duration,
-            last_change_sequence_number: 0.into(),
+            last_change_sequence_number: 0i64.into(),
             data_max_size_serialized,
             writer_cache: HistoryCache::new(),
         }

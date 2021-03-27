@@ -2,7 +2,7 @@
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
 /// 8.3.5 RTPS SubmessageElements
 ///
-use crate::{messages, RtpsPim};
+use crate::{messages, RtpsPsm};
 
 pub struct UShort {
     pub value: u16,
@@ -20,41 +20,41 @@ pub struct Long {
     pub value: i32,
 }
 
-pub struct GuidPrefix<PSM: RtpsPim> {
+pub struct GuidPrefix<PSM: RtpsPsm> {
     pub value: PSM::GuidPrefix,
 }
 
-pub struct EntityId<PSM: RtpsPim> {
+pub struct EntityId<PSM: RtpsPsm> {
     pub value: PSM::EntityId,
 }
 
-pub struct VendorId<PSM: RtpsPim> {
+pub struct VendorId<PSM: RtpsPsm> {
     pub value: PSM::VendorId,
 }
 
-pub struct ProtocolVersion<PSM: RtpsPim> {
+pub struct ProtocolVersion<PSM: RtpsPsm> {
     pub value: PSM::ProtocolVersion,
 }
 
-pub struct SequenceNumber<PSM: RtpsPim> {
+pub struct SequenceNumber<PSM: RtpsPsm> {
     pub value: PSM::SequenceNumber,
 }
 
-pub struct SequenceNumberSet<PSM: RtpsPim> {
+pub struct SequenceNumberSet<PSM: RtpsPsm> {
     pub base: PSM::SequenceNumber,
     pub set: PSM::SequenceNumberSet,
 }
 
-pub struct FragmentNumber<PSM: RtpsPim> {
+pub struct FragmentNumber<PSM: RtpsPsm> {
     pub value: PSM::FragmentNumber,
 }
 
-pub struct FragmentNumberSet<PSM: RtpsPim> {
+pub struct FragmentNumberSet<PSM: RtpsPsm> {
     pub base: PSM::FragmentNumber,
     pub set: PSM::FragmentNumberSet,
 }
 
-pub struct Timestamp<PSM: RtpsPim> {
+pub struct Timestamp<PSM: RtpsPsm> {
     pub value: PSM::Time,
 }
 
@@ -65,15 +65,15 @@ pub trait Parameter {
     fn value(&self) -> &[u8];
 }
 
-pub struct ParameterList<PSM: RtpsPim> {
+pub struct ParameterList<PSM: RtpsPsm> {
     pub parameter: PSM::ParameterList,
 }
 
-pub struct Count<PSM: RtpsPim> {
+pub struct Count<PSM: RtpsPsm> {
     pub value: <PSM as messages::Types>::Count,
 }
 
-pub struct LocatorList<PSM: RtpsPim> {
+pub struct LocatorList<PSM: RtpsPsm> {
     pub value: PSM::LocatorList,
 }
 
@@ -85,6 +85,6 @@ pub struct SerializedDataFragment<SerializedDataFragment: AsRef<[u8]>> {
     pub value: SerializedDataFragment,
 }
 
-pub struct GroupDigest<PSM: RtpsPim> {
+pub struct GroupDigest<PSM: RtpsPsm> {
     pub value: <PSM as messages::Types>::GroupDigest,
 }

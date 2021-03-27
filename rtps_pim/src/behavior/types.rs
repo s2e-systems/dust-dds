@@ -21,5 +21,5 @@ pub trait Types {
     // type InstanceHandle;
     // This type has the same name as in structure Types so it is left out for now
 
-    type ParticipantMessageData;
+    type ParticipantMessageData: Copy;
 }

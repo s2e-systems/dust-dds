@@ -1,6 +1,6 @@
-use crate::RtpsPim;
+use crate::RtpsPsm;
 
-pub struct RTPSCacheChange<PSM: RtpsPim, Data> {
+pub struct RTPSCacheChange<PSM: RtpsPsm, Data> {
     pub kind: PSM::ChangeKind,
     pub writer_guid: PSM::Guid,
     pub instance_handle: PSM::InstanceHandle,
