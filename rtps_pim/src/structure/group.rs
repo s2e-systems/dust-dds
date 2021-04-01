@@ -1,12 +1,12 @@
-use crate::RtpsPsm;
+use crate::RtpsPim;
 
 use super::RTPSEntity;
 
-pub struct RTPSGroup<PSM: RtpsPsm> {
+pub struct RTPSGroup<PSM: RtpsPim> {
     pub entity: RTPSEntity<PSM>,
 }
 
-impl<PSM: RtpsPsm> core::ops::Deref for RTPSGroup<PSM> {
+impl<PSM: RtpsPim> core::ops::Deref for RTPSGroup<PSM> {
     type Target = RTPSEntity<PSM>;
 
     fn deref(&self) -> &Self::Target {

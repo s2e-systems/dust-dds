@@ -2,19 +2,19 @@ use crate::{
     behavior,
     messages::{self, submessage_elements::Parameter},
     structure::{self, types::Locator},
-    RtpsPsm,
+    RtpsPim,
 };
 use std::vec::Vec;
 
 pub struct MockPsm;
 
-impl RtpsPsm for MockPsm {
+impl RtpsPim for MockPsm {
     type Data = Vec<u8>;
-    type SequenceNumberSet = Vec<<Self as structure::Types>::SequenceNumber>;
-    type LocatorList = Vec<<Self as structure::Types>::Locator>;
-    type FragmentNumberSet = Vec<<Self as messages::Types>::FragmentNumber>;
+    type SequenceNumberVector = Vec<<Self as structure::Types>::SequenceNumber>;
+    type LocatorVector = Vec<<Self as structure::Types>::Locator>;
+    type FragmentNumberVector = Vec<<Self as messages::Types>::FragmentNumber>;
     type Parameter = MockParameter;
-    type ParameterList = Vec<Self::Parameter>;
+    type ParameterVector = Vec<Self::Parameter>;
 }
 
 impl structure::Types for MockPsm {

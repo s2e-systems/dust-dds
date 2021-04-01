@@ -1,4 +1,4 @@
-use rust_rtps_pim::RtpsPsm;
+use rust_rtps_pim::RtpsPim;
 use types::{
     ChangeForReaderStatusKind, ChangeFromWriterStatusKind, ChangeKind, Count, Duration, EntityId,
     FragmentNumber, GroupDigest, Guid, GuidPrefix, InstanceHandle, Locator, Parameter, ParameterId,
@@ -11,13 +11,13 @@ pub mod types;
 
 pub struct RtpsUdpPsm;
 
-impl RtpsPsm for RtpsUdpPsm {
+impl RtpsPim for RtpsUdpPsm {
     type Data = Vec<u8>;
-    type SequenceNumberSet = SequenceNumberSet;
-    type LocatorList = Vec<Locator>;
-    type FragmentNumberSet = Vec<FragmentNumber>;
+    type SequenceNumberVector = SequenceNumberSet;
+    type LocatorVector = Vec<Locator>;
+    type FragmentNumberVector = Vec<FragmentNumber>;
     type Parameter = Parameter;
-    type ParameterList = Vec<Parameter>;
+    type ParameterVector = Vec<Parameter>;
 }
 
 impl rust_rtps_pim::structure::Types for RtpsUdpPsm {

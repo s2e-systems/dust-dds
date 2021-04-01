@@ -7,18 +7,18 @@ pub mod structure;
 
 use core::iter::FromIterator;
 
-pub trait RtpsPsm: structure::Types + messages::Types + behavior::Types {
-    // Move which is only used in the RTPS CacheChange into the PSM
+pub trait RtpsPim: structure::Types + messages::Types + behavior::Types {
+    // Data type which is used in the RTPS CacheChange
     type Data;
 
     // Special custom additions to represent lists and the parameter type
-    type SequenceNumberSet: IntoIterator<Item = Self::SequenceNumber>
+    type SequenceNumberVector: IntoIterator<Item = Self::SequenceNumber>
         + FromIterator<Self::SequenceNumber>
         + Clone;
-    type LocatorList: IntoIterator<Item = Self::Locator>;
-    type FragmentNumberSet: IntoIterator<Item = Self::FragmentNumber>;
+    type LocatorVector: IntoIterator<Item = Self::Locator>;
+    type FragmentNumberVector: IntoIterator<Item = Self::FragmentNumber>;
     type Parameter: messages::submessage_elements::Parameter<PSM = Self>;
-    type ParameterList: IntoIterator<Item = Self::Parameter>;
+    type ParameterVector: IntoIterator<Item = Self::Parameter>;
 }
 
 #[cfg(test)]

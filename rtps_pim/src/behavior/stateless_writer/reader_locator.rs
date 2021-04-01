@@ -1,12 +1,12 @@
-use crate::{behavior::RTPSWriter, structure::RTPSHistoryCache, RtpsPsm};
+use crate::{behavior::RTPSWriter, structure::RTPSHistoryCache, RtpsPim};
 
-pub struct RTPSReaderLocator<PSM: RtpsPsm> {
+pub struct RTPSReaderLocator<PSM: RtpsPim> {
     locator: PSM::Locator,
     expects_inline_qos: bool,
-    requested_changes: PSM::SequenceNumberSet,
+    requested_changes: PSM::SequenceNumberVector,
 }
 
-impl<PSM: RtpsPsm> RTPSReaderLocator<PSM> {
+impl<PSM: RtpsPim> RTPSReaderLocator<PSM> {
     pub fn new(locator: PSM::Locator, expects_inline_qos: bool) -> Self {
         Self {
             locator,
@@ -31,14 +31,14 @@ impl<PSM: RtpsPsm> RTPSReaderLocator<PSM> {
         todo!()
     }
 
-    pub fn requested_changes(&self) -> PSM::SequenceNumberSet {
+    pub fn requested_changes(&self) -> PSM::SequenceNumberVector {
         self.requested_changes.clone()
     }
 
     pub fn requested_changes_set(
         //<HistoryCache: RTPSHistoryCache<PSM = PSM>>
         &mut self,
-        req_seq_num_set: PSM::SequenceNumberSet,
+        req_seq_num_set: PSM::SequenceNumberVector,
         // writer: &RTPSWriter<PSM, HistoryCache>,
     ) {
         self.requested_changes = self
@@ -51,7 +51,7 @@ impl<PSM: RtpsPsm> RTPSReaderLocator<PSM> {
             .collect();
     }
 
-    pub fn unsent_changes(&self) -> PSM::SequenceNumberSet {
+    pub fn unsent_changes(&self) -> PSM::SequenceNumberVector {
         todo!()
     }
 }

@@ -1,9 +1,9 @@
 use crate::{
     structure::{RTPSEndpoint, RTPSEntity, RTPSHistoryCache},
-    RtpsPsm,
+    RtpsPim,
 };
 
-pub struct RTPSReader<PSM: RtpsPsm, HistoryCache: RTPSHistoryCache<PSM = PSM>> {
+pub struct RTPSReader<PSM: RtpsPim, HistoryCache: RTPSHistoryCache<PSM = PSM>> {
     pub endpoint: RTPSEndpoint<PSM>,
     pub expects_inline_qos: bool,
     pub heartbeat_response_delay: PSM::Duration,
@@ -11,18 +11,18 @@ pub struct RTPSReader<PSM: RtpsPsm, HistoryCache: RTPSHistoryCache<PSM = PSM>> {
     pub reader_cache: HistoryCache,
 }
 
-impl<PSM: RtpsPsm, HistoryCache: RTPSHistoryCache<PSM = PSM>> RTPSReader<PSM, HistoryCache> {
+impl<PSM: RtpsPim, HistoryCache: RTPSHistoryCache<PSM = PSM>> RTPSReader<PSM, HistoryCache> {
     pub fn new(
         guid: PSM::Guid,
         topic_kind: PSM::TopicKind,
         reliability_level: PSM::ReliabilityKind,
-        unicast_locator_list: PSM::LocatorList,
-        multicast_locator_list: PSM::LocatorList,
+        unicast_locator_list: PSM::LocatorVector,
+        multicast_locator_list: PSM::LocatorVector,
         expects_inline_qos: bool,
         heartbeat_response_delay: PSM::Duration,
         heartbeat_supression_duration: PSM::Duration,
     ) -> Self {
-        let entity = RTPSEntity { guid };
+        let entity = RTPSEntity::new(guid);
         let endpoint = RTPSEndpoint {
             entity,
             topic_kind,

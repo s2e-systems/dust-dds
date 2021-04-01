@@ -1,9 +1,9 @@
 use crate::{
     structure::{RTPSCacheChange, RTPSEndpoint, RTPSEntity, RTPSHistoryCache},
-    RtpsPsm,
+    RtpsPim,
 };
 
-pub struct RTPSWriter<PSM: RtpsPsm, HistoryCache: RTPSHistoryCache> {
+pub struct RTPSWriter<PSM: RtpsPim, HistoryCache: RTPSHistoryCache> {
     pub endpoint: RTPSEndpoint<PSM>,
     pub push_mode: bool,
     pub heartbeat_period: PSM::Duration,
@@ -14,20 +14,20 @@ pub struct RTPSWriter<PSM: RtpsPsm, HistoryCache: RTPSHistoryCache> {
     pub writer_cache: HistoryCache,
 }
 
-impl<PSM: RtpsPsm, HistoryCache: RTPSHistoryCache> RTPSWriter<PSM, HistoryCache> {
+impl<PSM: RtpsPim, HistoryCache: RTPSHistoryCache> RTPSWriter<PSM, HistoryCache> {
     pub fn new(
         guid: PSM::Guid,
         topic_kind: PSM::TopicKind,
         reliability_level: PSM::ReliabilityKind,
-        unicast_locator_list: PSM::LocatorList,
-        multicast_locator_list: PSM::LocatorList,
+        unicast_locator_list: PSM::LocatorVector,
+        multicast_locator_list: PSM::LocatorVector,
         push_mode: bool,
         heartbeat_period: PSM::Duration,
         nack_response_delay: PSM::Duration,
         nack_suppression_duration: PSM::Duration,
         data_max_size_serialized: i32,
     ) -> Self {
-        let entity = RTPSEntity { guid };
+        let entity = RTPSEntity::new(guid);
         let endpoint = RTPSEndpoint {
             entity,
             topic_kind,
@@ -52,14 +52,14 @@ impl<PSM: RtpsPsm, HistoryCache: RTPSHistoryCache> RTPSWriter<PSM, HistoryCache>
         &mut self,
         kind: PSM::ChangeKind,
         data: PSM::Data,
-        inline_qos: PSM::ParameterList,
+        inline_qos: PSM::ParameterVector,
         handle: PSM::InstanceHandle,
     ) -> RTPSCacheChange<PSM> {
         self.last_change_sequence_number = (self.last_change_sequence_number.into() + 1).into();
 
         RTPSCacheChange {
             kind,
-            writer_guid: self.endpoint.guid,
+            writer_guid: *self.endpoint.guid(),
             instance_handle: handle,
             sequence_number: self.last_change_sequence_number,
             data_value: data,
