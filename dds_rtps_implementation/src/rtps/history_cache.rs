@@ -1,125 +1,125 @@
-use rust_rtps_pim::{
-    messages,
-    structure::{RTPSCacheChange, RTPSHistoryCache},
-    types,
-};
+// use rust_rtps_pim::{
+//     messages,
+//     structure::{RTPSCacheChange, RTPSHistoryCache},
+//     types,
+// };
 
-pub struct HistoryCache<
-    GuidPrefix: types::GuidPrefix,
-    EntityId: types::EntityId,
-    InstanceHandle: types::InstanceHandle,
-    SequenceNumber: types::SequenceNumber,
-    Data,
-    ParameterId: messages::types::ParameterId,
-    ParameterValue: AsRef<[u8]> + Clone,
-    ParameterList: IntoIterator<
-            Item = messages::submessages::submessage_elements::Parameter<
-                ParameterId,
-                ParameterValue,
-            >,
-        > + Clone,
-> {
-    changes: Vec<
-        RTPSCacheChange<
-            GuidPrefix,
-            EntityId,
-            InstanceHandle,
-            SequenceNumber,
-            Data,
-            ParameterId,
-            ParameterValue,
-            ParameterList,
-        >,
-    >,
-}
+// pub struct HistoryCache<
+//     GuidPrefix: types::GuidPrefix,
+//     EntityId: types::EntityId,
+//     InstanceHandle: types::InstanceHandle,
+//     SequenceNumber: types::SequenceNumber,
+//     Data,
+//     ParameterId: messages::types::ParameterId,
+//     ParameterValue: AsRef<[u8]> + Clone,
+//     ParameterList: IntoIterator<
+//             Item = messages::submessages::submessage_elements::Parameter<
+//                 ParameterId,
+//                 ParameterValue,
+//             >,
+//         > + Clone,
+// > {
+//     changes: Vec<
+//         RTPSCacheChange<
+//             GuidPrefix,
+//             EntityId,
+//             InstanceHandle,
+//             SequenceNumber,
+//             Data,
+//             ParameterId,
+//             ParameterValue,
+//             ParameterList,
+//         >,
+//     >,
+// }
 
-impl<
-        GuidPrefix: types::GuidPrefix,
-        EntityId: types::EntityId,
-        InstanceHandle: types::InstanceHandle,
-        SequenceNumber: types::SequenceNumber,
-        Data,
-        ParameterId: messages::types::ParameterId,
-        ParameterValue: AsRef<[u8]> + Clone,
-        ParameterList: IntoIterator<
-                Item = messages::submessages::submessage_elements::Parameter<
-                    ParameterId,
-                    ParameterValue,
-                >,
-            > + Clone,
-    > RTPSHistoryCache
-    for HistoryCache<
-        GuidPrefix,
-        EntityId,
-        InstanceHandle,
-        SequenceNumber,
-        Data,
-        ParameterId,
-        ParameterValue,
-        ParameterList,
-    >
-{
-    type GuidPrefix = GuidPrefix;
-    type EntityId = EntityId;
-    type InstanceHandle = InstanceHandle;
-    type SequenceNumber = SequenceNumber;
-    type Data = Data;
-    type ParameterId = ParameterId;
-    type ParameterValue = ParameterValue;
-    type ParameterList = ParameterList;
+// impl<
+//         GuidPrefix: types::GuidPrefix,
+//         EntityId: types::EntityId,
+//         InstanceHandle: types::InstanceHandle,
+//         SequenceNumber: types::SequenceNumber,
+//         Data,
+//         ParameterId: messages::types::ParameterId,
+//         ParameterValue: AsRef<[u8]> + Clone,
+//         ParameterList: IntoIterator<
+//                 Item = messages::submessages::submessage_elements::Parameter<
+//                     ParameterId,
+//                     ParameterValue,
+//                 >,
+//             > + Clone,
+//     > RTPSHistoryCache
+//     for HistoryCache<
+//         GuidPrefix,
+//         EntityId,
+//         InstanceHandle,
+//         SequenceNumber,
+//         Data,
+//         ParameterId,
+//         ParameterValue,
+//         ParameterList,
+//     >
+// {
+//     type GuidPrefix = GuidPrefix;
+//     type EntityId = EntityId;
+//     type InstanceHandle = InstanceHandle;
+//     type SequenceNumber = SequenceNumber;
+//     type Data = Data;
+//     type ParameterId = ParameterId;
+//     type ParameterValue = ParameterValue;
+//     type ParameterList = ParameterList;
 
-    fn new() -> Self {
-        Self {
-            changes: Vec::new(),
-        }
-    }
+//     fn new() -> Self {
+//         Self {
+//             changes: Vec::new(),
+//         }
+//     }
 
-    fn add_change(
-        &mut self,
-        change: RTPSCacheChange<
-            Self::GuidPrefix,
-            Self::EntityId,
-            Self::InstanceHandle,
-            Self::SequenceNumber,
-            Self::Data,
-            Self::ParameterId,
-            Self::ParameterValue,
-            Self::ParameterList,
-        >,
-    ) {
-        self.changes.push(change)
-    }
+//     fn add_change(
+//         &mut self,
+//         change: RTPSCacheChange<
+//             Self::GuidPrefix,
+//             Self::EntityId,
+//             Self::InstanceHandle,
+//             Self::SequenceNumber,
+//             Self::Data,
+//             Self::ParameterId,
+//             Self::ParameterValue,
+//             Self::ParameterList,
+//         >,
+//     ) {
+//         self.changes.push(change)
+//     }
 
-    fn remove_change(&mut self, seq_num: &Self::SequenceNumber) {
-        self.changes.retain(|x| &x.sequence_number != seq_num)
-    }
+//     fn remove_change(&mut self, seq_num: &Self::SequenceNumber) {
+//         self.changes.retain(|x| &x.sequence_number != seq_num)
+//     }
 
-    fn get_change(
-        &self,
-        seq_num: &Self::SequenceNumber,
-    ) -> Option<
-        &RTPSCacheChange<
-            Self::GuidPrefix,
-            Self::EntityId,
-            Self::InstanceHandle,
-            Self::SequenceNumber,
-            Self::Data,
-            Self::ParameterId,
-            Self::ParameterValue,
-            Self::ParameterList,
-        >,
-    > {
-        self.changes.iter().find(|x| &x.sequence_number == seq_num)
-    }
+//     fn get_change(
+//         &self,
+//         seq_num: &Self::SequenceNumber,
+//     ) -> Option<
+//         &RTPSCacheChange<
+//             Self::GuidPrefix,
+//             Self::EntityId,
+//             Self::InstanceHandle,
+//             Self::SequenceNumber,
+//             Self::Data,
+//             Self::ParameterId,
+//             Self::ParameterValue,
+//             Self::ParameterList,
+//         >,
+//     > {
+//         self.changes.iter().find(|x| &x.sequence_number == seq_num)
+//     }
 
-    fn get_seq_num_min(&self) -> Option<&Self::SequenceNumber> {
-        self.changes.iter().map(|x| &x.sequence_number).min()
-    }
+//     fn get_seq_num_min(&self) -> Option<&Self::SequenceNumber> {
+//         self.changes.iter().map(|x| &x.sequence_number).min()
+//     }
 
-    fn get_seq_num_max(&self) -> Option<&Self::SequenceNumber> {
-        self.changes.iter().map(|x| &x.sequence_number).max()
-    }
-}
+//     fn get_seq_num_max(&self) -> Option<&Self::SequenceNumber> {
+//         self.changes.iter().map(|x| &x.sequence_number).max()
+//     }
+// }
 
 // impl<T: RTPSCacheChange> RTPSHistoryCache for HistoryCache<T> {
 //     type CacheChangeType = T;

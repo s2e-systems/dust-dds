@@ -59,8 +59,8 @@ pub struct Timestamp<PSM: RtpsPsm> {
 }
 
 pub trait Parameter {
-    type ParameterId;
-    fn parameter_id(&self) -> Self::ParameterId;
+    type PSM: RtpsPsm;
+    fn parameter_id(&self) -> <Self::PSM as messages::Types>::ParameterId;
     fn length(&self) -> i16;
     fn value(&self) -> &[u8];
 }

@@ -1,3 +1,7 @@
+use std::iter::FromIterator;
+
+use crate::RtpsUdpPsm;
+
 // impl EntityId {
 //     pub const ENTITY_KIND_USER_DEFINED_UNKNOWN: u8 = 0x00;
 //     pub const ENTITY_KIND_USER_DEFINED_WRITER_WITH_KEY: u8 = 0x02;
@@ -82,17 +86,22 @@ pub struct EntityId {
     pub entity_kind: u8,
 }
 
-impl Into<[u8;4]> for EntityId {
-    fn into(self) -> [u8;4] {
-        [self.entity_key[0], self.entity_key[1], self.entity_key[2], self.entity_kind]
+impl Into<[u8; 4]> for EntityId {
+    fn into(self) -> [u8; 4] {
+        [
+            self.entity_key[0],
+            self.entity_key[1],
+            self.entity_key[2],
+            self.entity_kind,
+        ]
     }
 }
 
-impl From<[u8;4]> for EntityId {
-    fn from(value: [u8;4]) -> Self {
+impl From<[u8; 4]> for EntityId {
+    fn from(value: [u8; 4]) -> Self {
         Self {
             entity_key: [value[0], value[1], value[2]],
-            entity_kind: value[3]
+            entity_kind: value[3],
         }
     }
 }
@@ -103,19 +112,19 @@ pub struct Guid {
     pub entity_id: EntityId,
 }
 
-impl Into<[u8;16]> for Guid {
-    fn into(self) -> [u8;16] {
+impl Into<[u8; 16]> for Guid {
+    fn into(self) -> [u8; 16] {
         todo!()
     }
 }
 
-impl From<[u8;16]> for Guid {
-    fn from(_: [u8;16]) -> Self {
+impl From<[u8; 16]> for Guid {
+    fn from(_: [u8; 16]) -> Self {
         todo!()
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub struct SequenceNumber {
     pub high: i32,
     pub low: u32,
@@ -133,6 +142,71 @@ impl From<i64> for SequenceNumber {
             high: (value >> 32) as i32,
             low: value as u32,
         }
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct SequenceNumberSet {
+    base: SequenceNumber,
+    bitmap: [i32; 8],
+}
+
+impl IntoIterator for SequenceNumberSet {
+    type Item = SequenceNumber;
+    type IntoIter = SequenceNumberSetIterator;
+
+    fn into_iter(self) -> Self::IntoIter {
+        SequenceNumberSetIterator {
+            set: self,
+            index: 0,
+        }
+    }
+}
+
+impl FromIterator<SequenceNumber> for SequenceNumberSet {
+    fn from_iter<T: IntoIterator<Item = SequenceNumber>>(iter: T) -> Self {
+        let mut iterator = iter.into_iter();
+        let base = iterator.next().unwrap_or(0.into());
+        // The base is always present
+        let mut bitmap = [1, 0, 0, 0, 0, 0, 0, 0];
+        while let Some(value) = iterator.next() {
+            let offset = Into::<i64>::into(value) - Into::<i64>::into(base);
+            let array_index = offset / 32;
+            let bit_position = offset - array_index * 32;
+            bitmap[array_index as usize] |= 1 << bit_position;
+        }
+        Self { base, bitmap }
+    }
+}
+
+pub struct SequenceNumberSetIterator {
+    set: SequenceNumberSet,
+    index: u32,
+}
+
+impl Iterator for SequenceNumberSetIterator {
+    type Item = SequenceNumber;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        for index in self.index..256 {
+            // First determine which of the 32 bit parts of the array needs to be used
+            let array_index = (index / 32) as usize;
+            // Then get the bit position we are looking at inside the array
+            let bit_position = index - array_index as u32 * 32;
+            // If that bit is 1 then return it as a sequence number value
+            if self.set.bitmap[array_index] & (1 << bit_position) == 1 << bit_position {
+                let next_seq_num = Some(
+                    (Into::<i64>::into(self.set.base)
+                        + array_index as i64 * 32
+                        + bit_position as i64)
+                        .into(),
+                );
+                self.index = index + 1;
+                return next_seq_num;
+            }
+        }
+        self.index = 256;
+        None
     }
 }
 
@@ -180,9 +254,9 @@ pub enum ChangeKind {
     NotAliveUnregistered,
 }
 
-pub type VendorId = [u8;2];
+pub type VendorId = [u8; 2];
 
-pub type ProtocolId = [u8;4];
+pub type ProtocolId = [u8; 4];
 pub type SubmessageFlag = bool;
 
 #[derive(Clone, Copy)]
@@ -194,7 +268,7 @@ pub struct Time {
 pub type Count = i32;
 pub type ParameterId = i16;
 pub type FragmentNumber = u32;
-pub type GroupDigest = [u8;4];
+pub type GroupDigest = [u8; 4];
 
 #[derive(Clone, Copy)]
 pub struct Duration {
@@ -226,9 +300,9 @@ pub struct Parameter {
 }
 
 impl rust_rtps_pim::messages::submessage_elements::Parameter for Parameter {
-    type ParameterId = ParameterId;
+    type PSM = RtpsUdpPsm;
 
-    fn parameter_id(&self) -> Self::ParameterId {
+    fn parameter_id(&self) ->  <Self::PSM as rust_rtps_pim::messages::Types>::ParameterId {
         self.parameter_id
     }
 
@@ -238,5 +312,60 @@ impl rust_rtps_pim::messages::submessage_elements::Parameter for Parameter {
 
     fn value(&self) -> &[u8] {
         &self.value
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn sequence_number_set_iterator() {
+        let mut sequence_number_iterator = SequenceNumberSetIterator {
+            set: SequenceNumberSet {
+                base: 1234.into(),
+                bitmap: [3, 1, 0, 0, 0, 0, 0, 1],
+            },
+            index: 0,
+        };
+
+        assert_eq!(sequence_number_iterator.next().unwrap(), 1234.into());
+        assert_eq!(sequence_number_iterator.next().unwrap(), 1235.into());
+        assert_eq!(sequence_number_iterator.next().unwrap(), 1266.into());
+        assert_eq!(sequence_number_iterator.next().unwrap(), 1458.into());
+        assert_eq!(sequence_number_iterator.next(), None);
+        assert_eq!(sequence_number_iterator.next(), None);
+    }
+
+    #[test]
+    fn sequence_number_set_from_iterator() {
+        let sequence_numbers: [SequenceNumber; 3] = [2.into(), 4.into(), 66.into()];
+        let sequence_number_set: SequenceNumberSet = sequence_numbers.iter().copied().collect();
+        assert_eq!(sequence_number_set.base, 2.into());
+        assert_eq!(sequence_number_set.bitmap[0], 5);
+        assert_eq!(sequence_number_set.bitmap[1], 0);
+        assert_eq!(sequence_number_set.bitmap[2], 1);
+    }
+
+    #[test]
+    #[should_panic]
+    fn sequence_number_set_from_iterator_unordered_input() {
+        let sequence_numbers: [SequenceNumber; 3] = [66.into(), 2.into(), 4.into()];
+        let sequence_number_set: SequenceNumberSet = sequence_numbers.iter().copied().collect();
+        assert_eq!(sequence_number_set.base, 2.into());
+        assert_eq!(sequence_number_set.bitmap[0], 5);
+        assert_eq!(sequence_number_set.bitmap[1], 0);
+        assert_eq!(sequence_number_set.bitmap[2], 1);
+    }
+
+    #[test]
+    #[should_panic]
+    fn sequence_number_set_from_iterator_above_capacity() {
+        let sequence_numbers: [SequenceNumber; 3] = [2.into(), 4.into(), 500.into()];
+        let sequence_number_set: SequenceNumberSet = sequence_numbers.iter().copied().collect();
+        assert_eq!(sequence_number_set.base, 2.into());
+        assert_eq!(sequence_number_set.bitmap[0], 5);
+        assert_eq!(sequence_number_set.bitmap[1], 0);
+        assert_eq!(sequence_number_set.bitmap[2], 1);
     }
 }

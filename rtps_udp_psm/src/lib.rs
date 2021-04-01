@@ -1,13 +1,18 @@
 use rust_rtps_pim::RtpsPsm;
-use types::{ChangeForReaderStatusKind, ChangeFromWriterStatusKind, ChangeKind, Count, Duration, EntityId, FragmentNumber, GroupDigest, Guid, GuidPrefix, InstanceHandle, Locator, Parameter, ParameterId, ProtocolId, ProtocolVersion, ReliabilityKind, SequenceNumber, SubmessageFlag, Time, TopicKind, VendorId};
+use types::{
+    ChangeForReaderStatusKind, ChangeFromWriterStatusKind, ChangeKind, Count, Duration, EntityId,
+    FragmentNumber, GroupDigest, Guid, GuidPrefix, InstanceHandle, Locator, Parameter, ParameterId,
+    ProtocolId, ProtocolVersion, ReliabilityKind, SequenceNumber, SequenceNumberSet,
+    SubmessageFlag, Time, TopicKind, VendorId,
+};
 
-pub mod types;
 pub mod submessages;
+pub mod types;
 
 pub struct RtpsUdpPsm;
 
 impl RtpsPsm for RtpsUdpPsm {
-    type SequenceNumberSet = Vec<SequenceNumber>;
+    type SequenceNumberSet = SequenceNumberSet;
     type LocatorList = Vec<Locator>;
     type FragmentNumberSet = Vec<FragmentNumber>;
     type Parameter = Parameter;
