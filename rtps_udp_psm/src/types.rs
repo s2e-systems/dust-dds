@@ -302,7 +302,7 @@ pub struct Parameter {
 impl rust_rtps_pim::messages::submessage_elements::Parameter for Parameter {
     type PSM = RtpsUdpPsm;
 
-    fn parameter_id(&self) ->  <Self::PSM as rust_rtps_pim::messages::Types>::ParameterId {
+    fn parameter_id(&self) -> <Self::PSM as rust_rtps_pim::messages::Types>::ParameterId {
         self.parameter_id
     }
 

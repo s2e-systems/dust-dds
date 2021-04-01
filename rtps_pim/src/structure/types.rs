@@ -1,3 +1,5 @@
+use core::iter::FromIterator;
+
 use crate::messages;
 
 ///
@@ -14,7 +16,7 @@ pub trait Types {
     type EntityId: Into<[u8; 4]> + From<[u8; 4]> + Copy;
     const ENTITYID_UNKNOWN: Self::EntityId;
 
-    type SequenceNumber: Into<i64> + From<i64> + Copy;
+    type SequenceNumber: Into<i64> + From<i64> + Ord + Copy;
     const SEQUENCE_NUMBER_UNKNOWN: Self::SequenceNumber;
 
     type Locator: Locator;
@@ -55,8 +57,7 @@ pub trait Types {
 
     // Additions to represent lists which are used but not explicitly defined in the standard
     type SequenceNumberVector: IntoIterator<Item = Self::SequenceNumber>
-        + core::iter::FromIterator<Self::SequenceNumber>
-        + Clone;
+        + FromIterator<Self::SequenceNumber> + Clone;
     type LocatorVector: IntoIterator<Item = Self::Locator>;
 
     type Parameter: messages::submessage_elements::Parameter<PSM = Self>;

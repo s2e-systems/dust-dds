@@ -25,8 +25,8 @@ pub trait RTPSHistoryCache {
     ) -> Option<&RTPSCacheChange<Self::PSM>>;
 
     /// This operation retrieves the smallest value of the CacheChange::sequenceNumber attribute among the CacheChange stored in the HistoryCache.
-    fn get_seq_num_min(&self) -> Option<&<Self::PSM as structure::Types>::SequenceNumber>;
+    fn get_seq_num_min(&self) -> Option<<Self::PSM as structure::Types>::SequenceNumber>;
 
     /// This operation retrieves the largest value of the CacheChange::sequenceNumber attribute among the CacheChange stored in the HistoryCache.
-    fn get_seq_num_max(&self) -> Option<&<Self::PSM as structure::Types>::SequenceNumber>;
+    fn get_seq_num_max(&self) -> Option<<Self::PSM as structure::Types>::SequenceNumber>;
 }

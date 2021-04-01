@@ -6,14 +6,19 @@ use crate::{
 pub struct RTPSReaderLocator<PSM: structure::Types> {
     locator: PSM::Locator,
     expects_inline_qos: bool,
+    last_sent_sequence_number: PSM::SequenceNumber,
     requested_changes: PSM::SequenceNumberVector,
 }
 
-impl<PSM: structure::Types + behavior::Types> RTPSReaderLocator<PSM> {
+impl<PSM> RTPSReaderLocator<PSM>
+where
+    PSM: structure::Types + behavior::Types,
+{
     pub fn new(locator: PSM::Locator, expects_inline_qos: bool) -> Self {
         Self {
             locator,
             expects_inline_qos,
+            last_sent_sequence_number: 0.into(),
             requested_changes: core::iter::empty().collect(),
         }
     }
@@ -27,19 +32,26 @@ impl<PSM: structure::Types + behavior::Types> RTPSReaderLocator<PSM> {
     }
 
     pub fn next_requested_change(&mut self) -> Option<PSM::SequenceNumber> {
-        todo!()
+        let next_requested_change = self.requested_changes().clone().into_iter().min()?;
+        self.requested_changes = self
+            .requested_changes()
+            .clone()
+            .into_iter()
+            .filter(|x| x != &next_requested_change)
+            .collect();
+        Some(next_requested_change)
     }
 
     pub fn next_unsent_change(&mut self) -> Option<PSM::SequenceNumber> {
         todo!()
     }
 
-    pub fn requested_changes(&self) -> PSM::SequenceNumberVector {
-        self.requested_changes.clone()
+    pub fn requested_changes(&self) -> &PSM::SequenceNumberVector {
+        &self.requested_changes
     }
 
-    pub fn requested_changes_set<HistoryCache: RTPSHistoryCache<PSM = PSM>>(
-        &mut self,
+    pub fn requested_changes_set<'a, HistoryCache: RTPSHistoryCache<PSM = PSM>>(
+        &'a mut self,
         req_seq_num_set: PSM::SequenceNumberVector,
         writer: &RTPSWriter<PSM, HistoryCache>,
     ) {
@@ -55,8 +67,20 @@ impl<PSM: structure::Types + behavior::Types> RTPSReaderLocator<PSM> {
             .collect();
     }
 
-    pub fn unsent_changes(&self) -> PSM::SequenceNumberVector {
-        todo!()
+    pub fn unsent_changes<HistoryCache: RTPSHistoryCache<PSM = PSM>>(
+        &self,
+        writer: &RTPSWriter<PSM, HistoryCache>,
+    ) -> PSM::SequenceNumberVector {
+        let history_cache_max_seq_num: i64 = writer
+            .writer_cache
+            .get_seq_num_max()
+            .unwrap_or(0.into())
+            .into();
+
+        (self.last_sent_sequence_number.into() + 1..=history_cache_max_seq_num)
+            .map(|x| PSM::SequenceNumber::from(x))
+            .filter(|seq_num| writer.writer_cache.get_change(seq_num).is_some())
+            .collect()
     }
 }
 
@@ -184,7 +208,10 @@ impl<PSM: structure::Types + behavior::Types> RTPSReaderLocator<PSM> {
 mod tests {
     use structure::Types;
 
-    use crate::{messages::{self, submessage_elements::Parameter}, structure::RTPSCacheChange};
+    use crate::{
+        messages::{self, submessage_elements::Parameter},
+        structure::RTPSCacheChange,
+    };
 
     use super::*;
     use std::vec::Vec;
@@ -335,7 +362,7 @@ mod tests {
         }
     }
 
-    struct MockHistoryCache{
+    struct MockHistoryCache {
         changes: Vec<RTPSCacheChange<<Self as RTPSHistoryCache>::PSM>>,
     }
 
@@ -348,8 +375,8 @@ mod tests {
             }
         }
 
-        fn add_change(&mut self, _change: structure::RTPSCacheChange<Self::PSM>) {
-            todo!()
+        fn add_change(&mut self, change: structure::RTPSCacheChange<Self::PSM>) {
+            self.changes.push(change)
         }
 
         fn remove_change(&mut self, _seq_num: &<Self::PSM as structure::Types>::SequenceNumber) {
@@ -363,12 +390,12 @@ mod tests {
             self.changes.iter().find(|x| &x.sequence_number == seq_num)
         }
 
-        fn get_seq_num_min(&self) -> Option<&<Self::PSM as structure::Types>::SequenceNumber> {
-            todo!()
+        fn get_seq_num_min(&self) -> Option<<Self::PSM as structure::Types>::SequenceNumber> {
+            self.changes.iter().map(|x| x.sequence_number).min()
         }
 
-        fn get_seq_num_max(&self) -> Option<&<Self::PSM as structure::Types>::SequenceNumber> {
-            todo!()
+        fn get_seq_num_max(&self) -> Option<<Self::PSM as structure::Types>::SequenceNumber> {
+            self.changes.iter().map(|x| x.sequence_number).max()
         }
     }
 
@@ -387,7 +414,7 @@ mod tests {
         let nack_response_delay = 0;
         let nack_suppression_duration = 0;
         let data_max_size_serialized = 65535;
-        let writer: RTPSWriter<MockPsm, MockHistoryCache> = RTPSWriter::new(
+        let mut writer: RTPSWriter<MockPsm, MockHistoryCache> = RTPSWriter::new(
             guid,
             topic_kind,
             reliability_level,
@@ -400,9 +427,281 @@ mod tests {
             data_max_size_serialized,
         );
 
-        let req_seq_num_set = vec![1, 3, 5];
-        reader_locator.requested_changes_set(req_seq_num_set.clone(), &writer);
+        writer.writer_cache.add_change(RTPSCacheChange {
+            kind: MockPsm::ALIVE,
+            writer_guid: [1; 16],
+            instance_handle: 1,
+            sequence_number: 1,
+            data_value: vec![],
+            inline_qos: vec![],
+        });
 
-        assert_eq!(reader_locator.requested_changes, req_seq_num_set)
+        writer.writer_cache.add_change(RTPSCacheChange {
+            kind: MockPsm::ALIVE,
+            writer_guid: [1; 16],
+            instance_handle: 1,
+            sequence_number: 2,
+            data_value: vec![],
+            inline_qos: vec![],
+        });
+
+        writer.writer_cache.add_change(RTPSCacheChange {
+            kind: MockPsm::ALIVE,
+            writer_guid: [1; 16],
+            instance_handle: 1,
+            sequence_number: 3,
+            data_value: vec![],
+            inline_qos: vec![],
+        });
+
+        let req_seq_num_set = vec![1, 2, 3];
+        reader_locator.requested_changes_set(req_seq_num_set, &writer);
+
+        let expected_requested_changes = vec![1, 2, 3];
+        assert_eq!(reader_locator.requested_changes, expected_requested_changes)
+    }
+
+    #[test]
+    fn requested_changes_set_changes_not_in_history_cache() {
+        let mut reader_locator: RTPSReaderLocator<MockPsm> =
+            RTPSReaderLocator::new(MockLocator, false);
+
+        let guid = [1; 16];
+        let topic_kind = MockPsm::WITH_KEY;
+        let reliability_level = MockPsm::BEST_EFFORT;
+        let unicast_locator_list = Vec::new();
+        let multicast_locator_list = Vec::new();
+        let push_mode = true;
+        let heartbeat_period = 0;
+        let nack_response_delay = 0;
+        let nack_suppression_duration = 0;
+        let data_max_size_serialized = 65535;
+        let mut writer: RTPSWriter<MockPsm, MockHistoryCache> = RTPSWriter::new(
+            guid,
+            topic_kind,
+            reliability_level,
+            unicast_locator_list,
+            multicast_locator_list,
+            push_mode,
+            heartbeat_period,
+            nack_response_delay,
+            nack_suppression_duration,
+            data_max_size_serialized,
+        );
+
+        writer.writer_cache.add_change(RTPSCacheChange {
+            kind: MockPsm::ALIVE,
+            writer_guid: [1; 16],
+            instance_handle: 1,
+            sequence_number: 1,
+            data_value: vec![],
+            inline_qos: vec![],
+        });
+
+        writer.writer_cache.add_change(RTPSCacheChange {
+            kind: MockPsm::ALIVE,
+            writer_guid: [1; 16],
+            instance_handle: 1,
+            sequence_number: 3,
+            data_value: vec![],
+            inline_qos: vec![],
+        });
+
+        writer.writer_cache.add_change(RTPSCacheChange {
+            kind: MockPsm::ALIVE,
+            writer_guid: [1; 16],
+            instance_handle: 1,
+            sequence_number: 5,
+            data_value: vec![],
+            inline_qos: vec![],
+        });
+
+        let req_seq_num_set = vec![1, 2, 3, 4, 5];
+        reader_locator.requested_changes_set(req_seq_num_set, &writer);
+
+        let expected_requested_changes = vec![1, 3, 5];
+        assert_eq!(reader_locator.requested_changes, expected_requested_changes);
+    }
+
+    #[test]
+    fn next_requested_change() {
+        let mut reader_locator: RTPSReaderLocator<MockPsm> =
+            RTPSReaderLocator::new(MockLocator, false);
+
+        let guid = [1; 16];
+        let topic_kind = MockPsm::WITH_KEY;
+        let reliability_level = MockPsm::BEST_EFFORT;
+        let unicast_locator_list = Vec::new();
+        let multicast_locator_list = Vec::new();
+        let push_mode = true;
+        let heartbeat_period = 0;
+        let nack_response_delay = 0;
+        let nack_suppression_duration = 0;
+        let data_max_size_serialized = 65535;
+        let mut writer: RTPSWriter<MockPsm, MockHistoryCache> = RTPSWriter::new(
+            guid,
+            topic_kind,
+            reliability_level,
+            unicast_locator_list,
+            multicast_locator_list,
+            push_mode,
+            heartbeat_period,
+            nack_response_delay,
+            nack_suppression_duration,
+            data_max_size_serialized,
+        );
+
+        writer.writer_cache.add_change(RTPSCacheChange {
+            kind: MockPsm::ALIVE,
+            writer_guid: [1; 16],
+            instance_handle: 1,
+            sequence_number: 1,
+            data_value: vec![],
+            inline_qos: vec![],
+        });
+
+        writer.writer_cache.add_change(RTPSCacheChange {
+            kind: MockPsm::ALIVE,
+            writer_guid: [1; 16],
+            instance_handle: 1,
+            sequence_number: 2,
+            data_value: vec![],
+            inline_qos: vec![],
+        });
+
+        writer.writer_cache.add_change(RTPSCacheChange {
+            kind: MockPsm::ALIVE,
+            writer_guid: [1; 16],
+            instance_handle: 1,
+            sequence_number: 3,
+            data_value: vec![],
+            inline_qos: vec![],
+        });
+
+        let req_seq_num_set = vec![1, 2, 3];
+        reader_locator.requested_changes_set(req_seq_num_set, &writer);
+
+        assert_eq!(reader_locator.next_requested_change(), Some(1));
+        assert_eq!(reader_locator.next_requested_change(), Some(2));
+        assert_eq!(reader_locator.next_requested_change(), Some(3));
+        assert_eq!(reader_locator.next_requested_change(), None);
+    }
+
+    #[test]
+    fn unsent_changes() {
+        let reader_locator: RTPSReaderLocator<MockPsm> = RTPSReaderLocator::new(MockLocator, false);
+
+        let guid = [1; 16];
+        let topic_kind = MockPsm::WITH_KEY;
+        let reliability_level = MockPsm::BEST_EFFORT;
+        let unicast_locator_list = Vec::new();
+        let multicast_locator_list = Vec::new();
+        let push_mode = true;
+        let heartbeat_period = 0;
+        let nack_response_delay = 0;
+        let nack_suppression_duration = 0;
+        let data_max_size_serialized = 65535;
+        let mut writer: RTPSWriter<MockPsm, MockHistoryCache> = RTPSWriter::new(
+            guid,
+            topic_kind,
+            reliability_level,
+            unicast_locator_list,
+            multicast_locator_list,
+            push_mode,
+            heartbeat_period,
+            nack_response_delay,
+            nack_suppression_duration,
+            data_max_size_serialized,
+        );
+
+        writer.writer_cache.add_change(RTPSCacheChange {
+            kind: MockPsm::ALIVE,
+            writer_guid: [1; 16],
+            instance_handle: 1,
+            sequence_number: 1,
+            data_value: vec![],
+            inline_qos: vec![],
+        });
+
+        writer.writer_cache.add_change(RTPSCacheChange {
+            kind: MockPsm::ALIVE,
+            writer_guid: [1; 16],
+            instance_handle: 1,
+            sequence_number: 2,
+            data_value: vec![],
+            inline_qos: vec![],
+        });
+
+        writer.writer_cache.add_change(RTPSCacheChange {
+            kind: MockPsm::ALIVE,
+            writer_guid: [1; 16],
+            instance_handle: 1,
+            sequence_number: 3,
+            data_value: vec![],
+            inline_qos: vec![],
+        });
+
+        let unsent_changes = reader_locator.unsent_changes(&writer);
+        let expected_unsent_changes = vec![1, 2, 3];
+        assert_eq!(unsent_changes, expected_unsent_changes);
+    }
+
+    #[test]
+    fn unsent_changes_with_non_consecutive_changes() {
+        let reader_locator: RTPSReaderLocator<MockPsm> = RTPSReaderLocator::new(MockLocator, false);
+
+        let guid = [1; 16];
+        let topic_kind = MockPsm::WITH_KEY;
+        let reliability_level = MockPsm::BEST_EFFORT;
+        let unicast_locator_list = Vec::new();
+        let multicast_locator_list = Vec::new();
+        let push_mode = true;
+        let heartbeat_period = 0;
+        let nack_response_delay = 0;
+        let nack_suppression_duration = 0;
+        let data_max_size_serialized = 65535;
+        let mut writer: RTPSWriter<MockPsm, MockHistoryCache> = RTPSWriter::new(
+            guid,
+            topic_kind,
+            reliability_level,
+            unicast_locator_list,
+            multicast_locator_list,
+            push_mode,
+            heartbeat_period,
+            nack_response_delay,
+            nack_suppression_duration,
+            data_max_size_serialized,
+        );
+
+        writer.writer_cache.add_change(RTPSCacheChange {
+            kind: MockPsm::ALIVE,
+            writer_guid: [1; 16],
+            instance_handle: 1,
+            sequence_number: 1,
+            data_value: vec![],
+            inline_qos: vec![],
+        });
+
+        writer.writer_cache.add_change(RTPSCacheChange {
+            kind: MockPsm::ALIVE,
+            writer_guid: [1; 16],
+            instance_handle: 1,
+            sequence_number: 3,
+            data_value: vec![],
+            inline_qos: vec![],
+        });
+
+        writer.writer_cache.add_change(RTPSCacheChange {
+            kind: MockPsm::ALIVE,
+            writer_guid: [1; 16],
+            instance_handle: 1,
+            sequence_number: 5,
+            data_value: vec![],
+            inline_qos: vec![],
+        });
+
+        let unsent_changes = reader_locator.unsent_changes(&writer);
+        let expected_unsent_changes = vec![1, 3, 5];
+        assert_eq!(unsent_changes, expected_unsent_changes);
     }
 }
