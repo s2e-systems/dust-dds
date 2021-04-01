@@ -51,10 +51,10 @@ impl<PSM: RtpsPsm, HistoryCache: RTPSHistoryCache> RTPSWriter<PSM, HistoryCache>
     pub fn new_change(
         &mut self,
         kind: PSM::ChangeKind,
-        data: HistoryCache::Data,
+        data: PSM::Data,
         inline_qos: PSM::ParameterList,
         handle: PSM::InstanceHandle,
-    ) -> RTPSCacheChange<PSM, HistoryCache::Data> {
+    ) -> RTPSCacheChange<PSM> {
         self.last_change_sequence_number = (self.last_change_sequence_number.into() + 1).into();
 
         RTPSCacheChange {

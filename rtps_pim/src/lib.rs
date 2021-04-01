@@ -8,6 +8,9 @@ pub mod structure;
 use core::iter::FromIterator;
 
 pub trait RtpsPsm: structure::Types + messages::Types + behavior::Types {
+    // Move which is only used in the RTPS CacheChange into the PSM
+    type Data;
+
     // Special custom additions to represent lists and the parameter type
     type SequenceNumberSet: IntoIterator<Item = Self::SequenceNumber>
         + FromIterator<Self::SequenceNumber>

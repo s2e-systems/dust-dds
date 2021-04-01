@@ -9,14 +9,11 @@ use std::vec::Vec;
 pub struct MockPsm;
 
 impl RtpsPsm for MockPsm {
+    type Data = Vec<u8>;
     type SequenceNumberSet = Vec<<Self as structure::Types>::SequenceNumber>;
-
     type LocatorList = Vec<<Self as structure::Types>::Locator>;
-
     type FragmentNumberSet = Vec<<Self as messages::Types>::FragmentNumber>;
-
     type Parameter = MockParameter;
-
     type ParameterList = Vec<Self::Parameter>;
 }
 

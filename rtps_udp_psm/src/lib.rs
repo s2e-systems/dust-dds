@@ -12,6 +12,7 @@ pub mod types;
 pub struct RtpsUdpPsm;
 
 impl RtpsPsm for RtpsUdpPsm {
+    type Data = Vec<u8>;
     type SequenceNumberSet = SequenceNumberSet;
     type LocatorList = Vec<Locator>;
     type FragmentNumberSet = Vec<FragmentNumber>;
