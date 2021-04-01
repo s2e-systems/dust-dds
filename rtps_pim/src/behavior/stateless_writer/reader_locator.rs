@@ -42,8 +42,14 @@ where
         Some(next_requested_change)
     }
 
-    pub fn next_unsent_change(&mut self) -> Option<PSM::SequenceNumber> {
-        todo!()
+    pub fn next_unsent_change<HistoryCache: RTPSHistoryCache<PSM = PSM>>(
+        &mut self,
+        writer: &RTPSWriter<PSM, HistoryCache>,
+    ) -> Option<PSM::SequenceNumber> {
+        let unsent_changes = self.unsent_changes(writer);
+        let next_unsent_change = unsent_changes.into_iter().min()?;
+        self.last_sent_sequence_number = next_unsent_change;
+        Some(next_unsent_change)
     }
 
     pub fn requested_changes(&self) -> &PSM::SequenceNumberVector {
@@ -83,126 +89,6 @@ where
             .collect()
     }
 }
-
-// pub trait RTPSReaderLocator {
-//     type PSM: RtpsPsm;
-//     type HistoryCache: RTPSHistoryCache;
-
-//     fn requested_changes(&self) -> <Self::PSM as RtpsPsm>::SequenceNumberSet;
-//     fn unsent_changes(&self) -> <Self::PSM as RtpsPsm>::SequenceNumberSet;
-//     fn next_requested_change(&mut self) -> Option<<Self::PSM as structure::Types>::SequenceNumber>;
-//     fn next_unsent_change(&mut self) -> Option<<Self::PSM as structure::Types>::SequenceNumber>;
-//     fn requested_changes_set(
-//         &mut self,
-//         req_seq_num_set: &[<Self::PSM as structure::Types>::SequenceNumber],
-//         writer: &RTPSWriter<Self::PSM, Self::HistoryCache>,
-//     );
-// }
-
-// impl dyn RTPSReaderLocator {
-// fn pushing_state<
-//     'a,
-//     DataSubmessage: submessages::data_submessage::Data<
-//         EntityId = EntityIdType,
-//         SequenceNumber = SequenceNumberType,
-//         ParameterId = ParameterIdType,
-//         ParameterValue = ParameterValueType,
-//         ParameterList = ParameterListType,
-//         SerializedData = &'a [u8],
-//     >,
-//     GapSubmessage: submessages::gap_submessage::Gap<
-//         EntityId = EntityIdType,
-//         SequenceNumber = SequenceNumberType,
-//         SequenceNumberList = SequenceNumberListType,
-//     >,
-// >(
-//     &mut self,
-//     the_writer: &'a RTPSWriter<
-//         GuidPrefixType,
-//         EntityIdType,
-//         LocatorType,
-//         LocatorListType,
-//         DurationType,
-//         SequenceNumberType,
-//         InstanceHandleType,
-//         DataType,
-//         ParameterIdType,
-//         ParameterValueType,
-//         ParameterListType,
-//         HistoryCacheType,
-//     >,
-// ) -> Option<DataSubmessage> {
-//     //     // RL::can_send() is always true when this function is called
-// //     // so we don't bother making an if here
-// //     Self::transition_t4(reader_locator, writer)
-//     self.transition_t4(the_writer)
-// }
-
-// fn transition_t4<
-//     'a,
-//     DataSubmessage: submessages::data_submessage::Data<
-//         EntityId = EntityIdType,
-//         SequenceNumber = SequenceNumberType,
-//         ParameterId = ParameterIdType,
-//         ParameterValue = ParameterValueType,
-//         ParameterList = ParameterListType,
-//         SerializedData = &'a [u8],
-//     >,
-//     GapSubmessage: submessages::gap_submessage::Gap<
-//         EntityId = EntityIdType,
-//         SequenceNumber = SequenceNumberType,
-//         SequenceNumberList = SequenceNumberListType,
-//     >,
-// >(
-//     &mut self,
-//     the_writer: &'a RTPSWriter<
-//         GuidPrefixType,
-//         EntityIdType,
-//         LocatorType,
-//         LocatorListType,
-//         DurationType,
-//         SequenceNumberType,
-//         InstanceHandleType,
-//         DataType,
-//         ParameterIdType,
-//         ParameterValueType,
-//         ParameterListType,
-//         HistoryCacheType,
-//     >,
-// ) -> Option<DataSubmessage> {
-//     if let Some(next_unsent_sequence_number) = self.next_unsent_change() {
-//         if let Some(next_unsent_cache_change) = the_writer
-//             .writer_cache
-//             .get_change(&next_unsent_sequence_number)
-//         {
-//             Some(data_submessage_from_cache_change(
-//                 next_unsent_cache_change,
-//                 <EntityIdType as EntityId>::ENTITYID_UNKNOWN,
-//             ))
-//         } else {
-//             let gap = GapSubmessage::new(
-//                 true.into(),
-//                 submessage_elements::EntityId {
-//                     value: <EntityIdType as EntityId>::ENTITYID_UNKNOWN,
-//                 },
-//                 submessage_elements::EntityId {
-//                     value: the_writer.endpoint.guid.entity_id,
-//                 },
-//                 submessage_elements::SequenceNumber {
-//                     value: next_unsent_sequence_number,
-//                 },
-//                 submessage_elements::SequenceNumberSet {
-//                     base: next_unsent_sequence_number,
-//                     set: self.requested_changes(),
-//                 },
-//             );
-//             todo!()
-//         }
-//     } else {
-//         None
-//     }
-// }
-// }
 
 #[cfg(test)]
 mod tests {
@@ -704,4 +590,185 @@ mod tests {
         let expected_unsent_changes = vec![1, 3, 5];
         assert_eq!(unsent_changes, expected_unsent_changes);
     }
+
+    #[test]
+    fn next_unsent_change() {
+        let mut reader_locator: RTPSReaderLocator<MockPsm> = RTPSReaderLocator::new(MockLocator, false);
+
+        let guid = [1; 16];
+        let topic_kind = MockPsm::WITH_KEY;
+        let reliability_level = MockPsm::BEST_EFFORT;
+        let unicast_locator_list = Vec::new();
+        let multicast_locator_list = Vec::new();
+        let push_mode = true;
+        let heartbeat_period = 0;
+        let nack_response_delay = 0;
+        let nack_suppression_duration = 0;
+        let data_max_size_serialized = 65535;
+        let mut writer: RTPSWriter<MockPsm, MockHistoryCache> = RTPSWriter::new(
+            guid,
+            topic_kind,
+            reliability_level,
+            unicast_locator_list,
+            multicast_locator_list,
+            push_mode,
+            heartbeat_period,
+            nack_response_delay,
+            nack_suppression_duration,
+            data_max_size_serialized,
+        );
+
+        writer.writer_cache.add_change(RTPSCacheChange {
+            kind: MockPsm::ALIVE,
+            writer_guid: [1; 16],
+            instance_handle: 1,
+            sequence_number: 1,
+            data_value: vec![],
+            inline_qos: vec![],
+        });
+
+        writer.writer_cache.add_change(RTPSCacheChange {
+            kind: MockPsm::ALIVE,
+            writer_guid: [1; 16],
+            instance_handle: 1,
+            sequence_number: 3,
+            data_value: vec![],
+            inline_qos: vec![],
+        });
+
+        writer.writer_cache.add_change(RTPSCacheChange {
+            kind: MockPsm::ALIVE,
+            writer_guid: [1; 16],
+            instance_handle: 1,
+            sequence_number: 5,
+            data_value: vec![],
+            inline_qos: vec![],
+        });
+
+        assert_eq!(reader_locator.next_unsent_change(&writer), Some(1));
+        assert_eq!(reader_locator.next_unsent_change(&writer), Some(3));
+        assert_eq!(reader_locator.next_unsent_change(&writer), Some(5));
+        assert_eq!(reader_locator.next_unsent_change(&writer), None);
+    }
 }
+
+
+// pub trait RTPSReaderLocator {
+//     type PSM: RtpsPsm;
+//     type HistoryCache: RTPSHistoryCache;
+
+//     fn requested_changes(&self) -> <Self::PSM as RtpsPsm>::SequenceNumberSet;
+//     fn unsent_changes(&self) -> <Self::PSM as RtpsPsm>::SequenceNumberSet;
+//     fn next_requested_change(&mut self) -> Option<<Self::PSM as structure::Types>::SequenceNumber>;
+//     fn next_unsent_change(&mut self) -> Option<<Self::PSM as structure::Types>::SequenceNumber>;
+//     fn requested_changes_set(
+//         &mut self,
+//         req_seq_num_set: &[<Self::PSM as structure::Types>::SequenceNumber],
+//         writer: &RTPSWriter<Self::PSM, Self::HistoryCache>,
+//     );
+// }
+
+// impl dyn RTPSReaderLocator {
+// fn pushing_state<
+//     'a,
+//     DataSubmessage: submessages::data_submessage::Data<
+//         EntityId = EntityIdType,
+//         SequenceNumber = SequenceNumberType,
+//         ParameterId = ParameterIdType,
+//         ParameterValue = ParameterValueType,
+//         ParameterList = ParameterListType,
+//         SerializedData = &'a [u8],
+//     >,
+//     GapSubmessage: submessages::gap_submessage::Gap<
+//         EntityId = EntityIdType,
+//         SequenceNumber = SequenceNumberType,
+//         SequenceNumberList = SequenceNumberListType,
+//     >,
+// >(
+//     &mut self,
+//     the_writer: &'a RTPSWriter<
+//         GuidPrefixType,
+//         EntityIdType,
+//         LocatorType,
+//         LocatorListType,
+//         DurationType,
+//         SequenceNumberType,
+//         InstanceHandleType,
+//         DataType,
+//         ParameterIdType,
+//         ParameterValueType,
+//         ParameterListType,
+//         HistoryCacheType,
+//     >,
+// ) -> Option<DataSubmessage> {
+//     //     // RL::can_send() is always true when this function is called
+// //     // so we don't bother making an if here
+// //     Self::transition_t4(reader_locator, writer)
+//     self.transition_t4(the_writer)
+// }
+
+// fn transition_t4<
+//     'a,
+//     DataSubmessage: submessages::data_submessage::Data<
+//         EntityId = EntityIdType,
+//         SequenceNumber = SequenceNumberType,
+//         ParameterId = ParameterIdType,
+//         ParameterValue = ParameterValueType,
+//         ParameterList = ParameterListType,
+//         SerializedData = &'a [u8],
+//     >,
+//     GapSubmessage: submessages::gap_submessage::Gap<
+//         EntityId = EntityIdType,
+//         SequenceNumber = SequenceNumberType,
+//         SequenceNumberList = SequenceNumberListType,
+//     >,
+// >(
+//     &mut self,
+//     the_writer: &'a RTPSWriter<
+//         GuidPrefixType,
+//         EntityIdType,
+//         LocatorType,
+//         LocatorListType,
+//         DurationType,
+//         SequenceNumberType,
+//         InstanceHandleType,
+//         DataType,
+//         ParameterIdType,
+//         ParameterValueType,
+//         ParameterListType,
+//         HistoryCacheType,
+//     >,
+// ) -> Option<DataSubmessage> {
+//     if let Some(next_unsent_sequence_number) = self.next_unsent_change() {
+//         if let Some(next_unsent_cache_change) = the_writer
+//             .writer_cache
+//             .get_change(&next_unsent_sequence_number)
+//         {
+//             Some(data_submessage_from_cache_change(
+//                 next_unsent_cache_change,
+//                 <EntityIdType as EntityId>::ENTITYID_UNKNOWN,
+//             ))
+//         } else {
+//             let gap = GapSubmessage::new(
+//                 true.into(),
+//                 submessage_elements::EntityId {
+//                     value: <EntityIdType as EntityId>::ENTITYID_UNKNOWN,
+//                 },
+//                 submessage_elements::EntityId {
+//                     value: the_writer.endpoint.guid.entity_id,
+//                 },
+//                 submessage_elements::SequenceNumber {
+//                     value: next_unsent_sequence_number,
+//                 },
+//                 submessage_elements::SequenceNumberSet {
+//                     base: next_unsent_sequence_number,
+//                     set: self.requested_changes(),
+//                 },
+//             );
+//             todo!()
+//         }
+//     } else {
+//         None
+//     }
+// }
+// }
