@@ -1,17 +1,48 @@
-use core::ops::{Deref, DerefMut};
+use core::{
+    iter::FromIterator,
+    ops::{Index, IndexMut},
+};
 
+use super::RTPSReaderLocator;
 use crate::{
-    behavior::{self,RTPSWriter},
+    behavior::{self, RTPSWriter},
     structure::{self, RTPSHistoryCache},
 };
 
-pub trait RTPSStatelessWriter:
-    Deref<Target = RTPSWriter<Self::PSM, Self::HistoryCache>> + DerefMut
-{
-    type PSM: structure::Types + behavior::Types;
-    type HistoryCache: RTPSHistoryCache;
+pub struct RTPSStatelessWriter<
+    PSM: structure::Types + behavior::Types,
+    HistoryCache: RTPSHistoryCache<PSM = PSM>,
+    ReaderLocatorList: IntoIterator<Item = RTPSReaderLocator<PSM>>
+        + Extend<RTPSReaderLocator<PSM>>
+        + Index<usize, Output = RTPSReaderLocator<PSM>>
+        + IndexMut<usize>,
+> {
+    writer: RTPSWriter<PSM, HistoryCache>,
+    reader_locators: ReaderLocatorList,
+}
 
-    fn reader_locator_add(&mut self, a_locator: <Self::PSM as structure::Types>::Locator);
-    fn reader_locator_remove(&mut self, a_locator: <Self::PSM as structure::Types>::Locator);
-    fn unsent_changes_reset(&mut self);
+impl<
+        PSM: structure::Types + behavior::Types,
+        HistoryCache: RTPSHistoryCache<PSM = PSM>,
+        ReaderLocatorList: IntoIterator<Item = RTPSReaderLocator<PSM>>
+            + Extend<RTPSReaderLocator<PSM>>
+            + Index<usize, Output = RTPSReaderLocator<PSM>>
+            + IndexMut<usize>,
+    > RTPSStatelessWriter<PSM, HistoryCache, ReaderLocatorList>
+{
+    pub fn reader_locator_add(&mut self, a_locator: <PSM as structure::Types>::Locator) {
+        self.reader_locators
+            .extend(Some(RTPSReaderLocator::new(a_locator, false)));
+    }
+
+    pub fn reader_locator_remove(&mut self, _a_locator: <PSM as structure::Types>::Locator) {
+
+    }
+
+    pub fn unsent_changes_reset(&mut self) {}
+
+    pub fn behavior(&mut self, _a_locator: <PSM as structure::Types>::Locator) {
+        // let reader_locator = &mut self.reader_locators[0];
+        if let Some(_change) = self.reader_locators[0].next_unsent_change(&self.writer) {}
+    }
 }
