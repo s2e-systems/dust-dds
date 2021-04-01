@@ -31,4 +31,7 @@ pub trait Types {
     type ParameterId: Copy;
     type FragmentNumber: Copy;
     type GroupDigest: Copy;
+
+    // Additions to represent lists which are used but not explicitly defined in the standard
+    type FragmentNumberVector: IntoIterator<Item = Self::FragmentNumber>;
 }

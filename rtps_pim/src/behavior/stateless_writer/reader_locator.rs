@@ -1,12 +1,15 @@
-use crate::{behavior::RTPSWriter, structure::RTPSHistoryCache, RtpsPim};
+use crate::{
+    behavior::RTPSWriter,
+    structure::{self, RTPSHistoryCache},
+};
 
-pub struct RTPSReaderLocator<PSM: RtpsPim> {
+pub struct RTPSReaderLocator<PSM: structure::Types> {
     locator: PSM::Locator,
     expects_inline_qos: bool,
     requested_changes: PSM::SequenceNumberVector,
 }
 
-impl<PSM: RtpsPim> RTPSReaderLocator<PSM> {
+impl<PSM: structure::Types> RTPSReaderLocator<PSM> {
     pub fn new(locator: PSM::Locator, expects_inline_qos: bool) -> Self {
         Self {
             locator,
@@ -35,8 +38,7 @@ impl<PSM: RtpsPim> RTPSReaderLocator<PSM> {
         self.requested_changes.clone()
     }
 
-    pub fn requested_changes_set(
-        //<HistoryCache: RTPSHistoryCache<PSM = PSM>>
+    pub fn requested_changes_set/*<HistoryCache: RTPSHistoryCache<PSM = PSM>>*/(
         &mut self,
         req_seq_num_set: PSM::SequenceNumberVector,
         // writer: &RTPSWriter<PSM, HistoryCache>,

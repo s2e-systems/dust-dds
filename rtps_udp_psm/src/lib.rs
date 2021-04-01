@@ -1,4 +1,3 @@
-use rust_rtps_pim::RtpsPim;
 use types::{
     ChangeForReaderStatusKind, ChangeFromWriterStatusKind, ChangeKind, Count, Duration, EntityId,
     FragmentNumber, GroupDigest, Guid, GuidPrefix, InstanceHandle, Locator, Parameter, ParameterId,
@@ -10,15 +9,6 @@ pub mod submessages;
 pub mod types;
 
 pub struct RtpsUdpPsm;
-
-impl RtpsPim for RtpsUdpPsm {
-    type Data = Vec<u8>;
-    type SequenceNumberVector = SequenceNumberSet;
-    type LocatorVector = Vec<Locator>;
-    type FragmentNumberVector = Vec<FragmentNumber>;
-    type Parameter = Parameter;
-    type ParameterVector = Vec<Parameter>;
-}
 
 impl rust_rtps_pim::structure::Types for RtpsUdpPsm {
     type Guid = Guid;
@@ -77,6 +67,13 @@ impl rust_rtps_pim::structure::Types for RtpsUdpPsm {
 
     type VendorId = VendorId;
     const VENDOR_ID_UNKNOWN: Self::VendorId = [0; 2];
+
+    type Data = Vec<u8>;
+    type LocatorVector = Vec<Locator>;
+    type SequenceNumberVector = SequenceNumberSet;
+    type Parameter = Parameter;
+    type ParameterVector = Vec<Parameter>;
+
 }
 
 impl rust_rtps_pim::messages::Types for RtpsUdpPsm {
@@ -121,6 +118,8 @@ impl rust_rtps_pim::messages::Types for RtpsUdpPsm {
     type FragmentNumber = FragmentNumber;
 
     type GroupDigest = GroupDigest;
+
+    type FragmentNumberVector = Vec<FragmentNumber>;
 }
 
 impl rust_rtps_pim::behavior::Types for RtpsUdpPsm {

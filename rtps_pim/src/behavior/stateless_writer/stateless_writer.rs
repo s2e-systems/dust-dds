@@ -1,15 +1,14 @@
 use core::ops::{Deref, DerefMut};
 
 use crate::{
-    behavior::RTPSWriter,
+    behavior::{self,RTPSWriter},
     structure::{self, RTPSHistoryCache},
-    RtpsPim,
 };
 
 pub trait RTPSStatelessWriter:
     Deref<Target = RTPSWriter<Self::PSM, Self::HistoryCache>> + DerefMut
 {
-    type PSM: RtpsPim;
+    type PSM: structure::Types + behavior::Types;
     type HistoryCache: RTPSHistoryCache;
 
     fn reader_locator_add(&mut self, a_locator: <Self::PSM as structure::Types>::Locator);

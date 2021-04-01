@@ -1,3 +1,5 @@
+use crate::messages;
+
 ///
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
 /// Table 8.2 - Types of the attributes that appear in the RTPS Entities and Classes
@@ -47,6 +49,18 @@ pub trait Types {
 
     type VendorId: Copy;
     const VENDOR_ID_UNKNOWN: Self::VendorId;
+
+    // Data type which is used in the RTPS CacheChange and not explicitly defined in the standard
+    type Data;
+
+    // Additions to represent lists which are used but not explicitly defined in the standard
+    type SequenceNumberVector: IntoIterator<Item = Self::SequenceNumber>
+        + core::iter::FromIterator<Self::SequenceNumber>
+        + Clone;
+    type LocatorVector: IntoIterator<Item = Self::Locator>;
+
+    type Parameter: messages::submessage_elements::Parameter<PSM = Self>;
+    type ParameterVector: IntoIterator<Item = Self::Parameter>;
 }
 
 pub trait Locator {

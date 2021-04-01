@@ -1,9 +1,9 @@
-use crate::{structure, RtpsPim};
+use crate::{structure};
 
 use super::RTPSCacheChange;
 
 pub trait RTPSHistoryCache {
-    type PSM: RtpsPim;
+    type PSM: structure::Types;
 
     /// This operation creates a new RTPS HistoryCache. The newly-created history cache is initialized with an empty list of changes.
     fn new() -> Self;

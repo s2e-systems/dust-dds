@@ -1,9 +1,12 @@
 use crate::{
-    structure::{RTPSEndpoint, RTPSEntity, RTPSHistoryCache},
-    RtpsPim,
+    behavior,
+    structure::{self, RTPSEndpoint, RTPSEntity, RTPSHistoryCache},
 };
 
-pub struct RTPSReader<PSM: RtpsPim, HistoryCache: RTPSHistoryCache<PSM = PSM>> {
+pub struct RTPSReader<
+    PSM: structure::Types + behavior::Types,
+    HistoryCache: RTPSHistoryCache<PSM = PSM>,
+> {
     pub endpoint: RTPSEndpoint<PSM>,
     pub expects_inline_qos: bool,
     pub heartbeat_response_delay: PSM::Duration,
@@ -11,7 +14,9 @@ pub struct RTPSReader<PSM: RtpsPim, HistoryCache: RTPSHistoryCache<PSM = PSM>> {
     pub reader_cache: HistoryCache,
 }
 
-impl<PSM: RtpsPim, HistoryCache: RTPSHistoryCache<PSM = PSM>> RTPSReader<PSM, HistoryCache> {
+impl<PSM: structure::Types + behavior::Types, HistoryCache: RTPSHistoryCache<PSM = PSM>>
+    RTPSReader<PSM, HistoryCache>
+{
     pub fn new(
         guid: PSM::Guid,
         topic_kind: PSM::TopicKind,

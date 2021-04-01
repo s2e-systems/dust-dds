@@ -1,8 +1,8 @@
-use crate::RtpsPim;
+use crate::structure;
 
 use super::RTPSEntity;
 
-pub struct RTPSParticipant<PSM: RtpsPim> {
+pub struct RTPSParticipant<PSM: structure::Types> {
     pub entity: RTPSEntity<PSM>,
     pub protocol_version: PSM::ProtocolVersion,
     pub vendor_id: PSM::VendorId,
@@ -10,7 +10,7 @@ pub struct RTPSParticipant<PSM: RtpsPim> {
     pub default_multicast_locator_list: PSM::LocatorVector,
 }
 
-impl<PSM: RtpsPim> core::ops::Deref for RTPSParticipant<PSM> {
+impl<PSM: structure::Types> core::ops::Deref for RTPSParticipant<PSM> {
     type Target = RTPSEntity<PSM>;
 
     fn deref(&self) -> &Self::Target {
