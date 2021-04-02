@@ -10,6 +10,13 @@ pub struct RTPSReaderLocator<PSM: structure::Types> {
     requested_changes: PSM::SequenceNumberVector,
 }
 
+impl<PSM: structure::Types> core::cmp::PartialEq for RTPSReaderLocator<PSM> 
+    where PSM::Locator: core::cmp::PartialEq {
+    fn eq(&self, other: &Self) -> bool {
+        self.locator == other.locator
+    }
+}
+
 impl<PSM> RTPSReaderLocator<PSM>
 where
     PSM: structure::Types + behavior::Types,

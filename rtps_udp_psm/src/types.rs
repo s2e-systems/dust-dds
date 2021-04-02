@@ -210,11 +210,13 @@ impl Iterator for SequenceNumberSetIterator {
     }
 }
 
+#[derive(PartialEq)]
 pub struct Locator {
     pub kind: <Self as rust_rtps_pim::structure::types::Locator>::Kind,
     pub port: <Self as rust_rtps_pim::structure::types::Locator>::Port,
     pub address: <Self as rust_rtps_pim::structure::types::Locator>::Address,
 }
+
 impl rust_rtps_pim::structure::types::Locator for Locator {
     type Kind = i32;
     type Port = u32;
