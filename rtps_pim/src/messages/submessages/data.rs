@@ -12,10 +12,10 @@ pub trait Data: Submessage {
         data_flag: <Self::PSM as messages::Types>::SubmessageFlag,
         key_flag: <Self::PSM as messages::Types>::SubmessageFlag,
         non_standard_payload_flag: <Self::PSM as messages::Types>::SubmessageFlag,
-        reader_id: <Self::PSM as structure::Types>::EntityId,
-        writer_id: <Self::PSM as structure::Types>::EntityId,
+        reader_id: <<Self::PSM as structure::Types>::Guid as structure::types::Guid>::EntityId,
+        writer_id: <<Self::PSM as structure::Types>::Guid as structure::types::Guid>::EntityId,
         writer_sn: <Self::PSM as structure::Types>::SequenceNumber,
-        inline_qos:<Self::PSM as structure::Types>::ParameterVector,
+        inline_qos: <Self::PSM as structure::Types>::ParameterVector,
         serialized_payload: Self::SerializedData,
     ) -> Self;
 

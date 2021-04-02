@@ -10,7 +10,7 @@ pub struct Header<PSM: messages::Types + structure::Types> {
     pub protocol: PSM::ProtocolId,
     pub version: PSM::ProtocolVersion,
     pub vendor_id: PSM::VendorId,
-    pub guid_prefix: PSM::GuidPrefix,
+    pub guid_prefix: <PSM::Guid as structure::types::Guid>::GuidPrefix,
 }
 
 pub struct SubmessageHeader<PSM: messages::Types + structure::Types> {

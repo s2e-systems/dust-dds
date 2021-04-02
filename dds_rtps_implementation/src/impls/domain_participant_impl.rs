@@ -5,13 +5,12 @@ use std::{
 };
 
 use rust_dds_api::{
-    builtin_topics::ParticipantBuiltinTopicData,
-    dcps_psm::{BuiltInTopicKey, DomainId, StatusMask, Time},
+    dcps_psm::{DomainId, StatusMask},
     dds_type::DDSType,
     domain::domain_participant_listener::DomainParticipantListener,
     infrastructure::qos::{DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
     publication::publisher_listener::PublisherListener,
-    return_type::{DDSError, DDSResult},
+    return_type::DDSResult,
     subscription::subscriber_listener::SubscriberListener,
     topic::topic_listener::TopicListener,
 };
@@ -35,8 +34,7 @@ use rust_dds_api::{
 // };
 
 use super::{
-    data_writer_impl::DataWriterImpl, publisher_impl::PublisherImpl,
-    subscriber_impl::SubscriberImpl, topic_impl::TopicImpl,
+    publisher_impl::PublisherImpl, subscriber_impl::SubscriberImpl, topic_impl::TopicImpl,
 };
 
 // pub struct DomainParticipantImplConfiguration {
@@ -131,7 +129,7 @@ impl DomainParticipantImpl {
         mask: StatusMask,
         // configuration: DomainParticipantImplConfiguration,
     ) -> Self {
-        let guid_prefix = [1; 12];
+        let _guid_prefix = [1; 12];
 
         // let spdp_builtin_participant_writer = SPDPbuiltinParticipantWriter::create(
         //     guid_prefix,
@@ -231,7 +229,7 @@ impl DomainParticipantImpl {
     ) -> DDSResult<Weak<Mutex<PublisherImpl>>> {
         // let guid_prefix = self.participant.entity.guid.prefix();
         let qos = qos.unwrap_or(self.get_default_publisher_qos());
-        let publisher = Arc::new(Mutex::new(PublisherImpl::new(qos, a_listener, mask)));
+        let _publisher = Arc::new(Mutex::new(PublisherImpl::new(qos, a_listener, mask)));
 
         // self.user_defined_entities
         //     .publisher_list
@@ -288,7 +286,7 @@ impl DomainParticipantImpl {
         // let guid = GUID::new(guid_prefix, entity_id);
         // let group = rust_rtps::structure::Group::new(guid);
         let qos = qos.unwrap_or(self.get_default_subscriber_qos().clone());
-        let subscriber = Arc::new(Mutex::new(SubscriberImpl::new(qos, a_listener, mask)));
+        let _subscriber = Arc::new(Mutex::new(SubscriberImpl::new(qos, a_listener, mask)));
 
         // self.user_defined_entities
         //     .subscriber_list
@@ -300,7 +298,7 @@ impl DomainParticipantImpl {
         todo!()
     }
 
-    pub fn delete_subscriber(&self, impl_ref: &Weak<Mutex<SubscriberImpl>>) -> DDSResult<()> {
+    pub fn delete_subscriber(&self, _impl_ref: &Weak<Mutex<SubscriberImpl>>) -> DDSResult<()> {
         // let subscriber_impl = impl_ref.upgrade().ok_or(DDSError::AlreadyDeleted)?;
         // if subscriber_impl.lock().unwrap().reader_list().is_empty() {
         //     self.user_defined_entities
@@ -319,10 +317,10 @@ impl DomainParticipantImpl {
 
     pub fn create_topic<T: DDSType>(
         &self,
-        topic_name: &str,
-        qos: Option<TopicQos>,
-        a_listener: Option<Box<dyn TopicListener>>,
-        mask: StatusMask,
+        _topic_name: &str,
+        _qos: Option<TopicQos>,
+        _a_listener: Option<Box<dyn TopicListener>>,
+        _mask: StatusMask,
     ) -> DDSResult<Weak<Mutex<TopicImpl>>> {
         // let guid_prefix = self.participant.entity.guid.prefix();
         // let entity_key = [
@@ -354,7 +352,7 @@ impl DomainParticipantImpl {
         todo!()
     }
 
-    pub fn delete_topic(&self, impl_ref: &Weak<Mutex<TopicImpl>>) -> DDSResult<()> {
+    pub fn delete_topic(&self, _impl_ref: &Weak<Mutex<TopicImpl>>) -> DDSResult<()> {
         // impl_ref.upgrade().ok_or(DDSError::AlreadyDeleted)?; // Just to check if already deleted
         // if Weak::strong_count(impl_ref) == 1 {
         //     self.user_defined_entities

@@ -21,8 +21,8 @@ impl DataWriterImpl {
 
     pub fn write_w_timestamp<T: DDSType>(
         &mut self,
-        data: T,
-        handle: Option<InstanceHandle>,
+        _data: T,
+        _handle: Option<InstanceHandle>,
         _timestamp: Time,
     ) -> DDSResult<()> {
         // let kind = ChangeKind::Alive;

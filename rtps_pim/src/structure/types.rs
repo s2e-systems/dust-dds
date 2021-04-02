@@ -7,14 +7,8 @@ use crate::messages;
 /// Table 8.2 - Types of the attributes that appear in the RTPS Entities and Classes
 ///
 pub trait Types {
-    type Guid: Into<[u8; 16]> + From<[u8; 16]> + Copy;
+    type Guid: Guid + Into<[u8;16]> + From<[u8;16]> + Copy;
     const GUID_UNKNOWN: Self::Guid;
-
-    type GuidPrefix: Into<[u8; 12]> + From<[u8; 12]> + Copy;
-    const GUIDPREFIX_UNKNOWN: Self::GuidPrefix;
-
-    type EntityId: Into<[u8; 4]> + From<[u8; 4]> + Copy;
-    const ENTITYID_UNKNOWN: Self::EntityId;
 
     type SequenceNumber: Into<i64> + From<i64> + Ord + Copy;
     const SEQUENCE_NUMBER_UNKNOWN: Self::SequenceNumber;
@@ -33,7 +27,7 @@ pub trait Types {
     const NOT_ALIVE_DISPOSED: Self::ChangeKind;
     const NOT_ALIVE_UNREGISTERED: Self::ChangeKind;
 
-    type ReliabilityKind: Copy;
+    type ReliabilityKind: Copy + PartialEq;
     const BEST_EFFORT: Self::ReliabilityKind;
     const RELIABLE: Self::ReliabilityKind;
 
@@ -57,11 +51,24 @@ pub trait Types {
 
     // Additions to represent lists which are used but not explicitly defined in the standard
     type SequenceNumberVector: IntoIterator<Item = Self::SequenceNumber>
-        + FromIterator<Self::SequenceNumber> + Clone;
+        + FromIterator<Self::SequenceNumber>
+        + Clone;
     type LocatorVector: IntoIterator<Item = Self::Locator>;
 
     type Parameter: messages::submessage_elements::Parameter<PSM = Self>;
     type ParameterVector: IntoIterator<Item = Self::Parameter>;
+}
+
+/// Define the GUID as described in 8.2.4.1 Identifying RTPS entities: The GUID
+pub trait Guid {
+    type GuidPrefix: Into<[u8; 12]> + From<[u8; 12]> + Copy;
+    const GUIDPREFIX_UNKNOWN: Self::GuidPrefix;
+
+    type EntityId: Into<[u8; 4]> + From<[u8; 4]> + Copy;
+    const ENTITYID_UNKNOWN: Self::EntityId;
+
+    fn prefix(&self) -> Self::GuidPrefix;
+    fn entity_id(&self) -> Self::EntityId;
 }
 
 pub trait Locator {
