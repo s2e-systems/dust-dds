@@ -20,19 +20,20 @@ impl Submessage for Gap {
 
 impl rust_rtps_pim::messages::submessages::Gap for Gap {
     fn new(
-        endianness_flag: <Self::PSM as rust_rtps_pim::messages::Types>::SubmessageFlag,
-        reader_id: rust_rtps_pim::messages::submessage_elements::EntityId<Self::PSM>,
-        writer_id: rust_rtps_pim::messages::submessage_elements::EntityId<Self::PSM>,
-        gap_start: rust_rtps_pim::messages::submessage_elements::SequenceNumber<Self::PSM>,
-        gap_list: rust_rtps_pim::messages::submessage_elements::SequenceNumberSet<Self::PSM>,
+        _endianness_flag: <Self::PSM as rust_rtps_pim::messages::Types>::SubmessageFlag,
+        _reader_id: <Self::PSM as rust_rtps_pim::structure::Types>::EntityId,
+        _writer_id: <Self::PSM as rust_rtps_pim::structure::Types>::EntityId,
+        _gap_start: <Self::PSM as rust_rtps_pim::structure::Types>::SequenceNumber,
+        _gap_list: <Self::PSM as rust_rtps_pim::structure::Types>::SequenceNumberVector,
     ) -> Self {
-        Self {
-            endianness_flag,
-            reader_id,
-            writer_id,
-            gap_start,
-            gap_list,
-        }
+        todo!()
+        // Self {
+        //     endianness_flag,
+        //     reader_id,
+        //     writer_id,
+        //     gap_start,
+        //     gap_list,
+        // }
     }
 
     fn endianness_flag(&self) -> <Self::PSM as rust_rtps_pim::messages::Types>::SubmessageFlag {

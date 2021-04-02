@@ -30,31 +30,30 @@ impl<'a> rust_rtps_pim::messages::submessages::Data for Data<'a> {
     type SerializedData = &'a [u8];
 
     fn new(
-        endianness_flag: <Self::PSM as rust_rtps_pim::messages::Types>::SubmessageFlag,
-        inline_qos_flag: <Self::PSM as rust_rtps_pim::messages::Types>::SubmessageFlag,
-        data_flag: <Self::PSM as rust_rtps_pim::messages::Types>::SubmessageFlag,
-        key_flag: <Self::PSM as rust_rtps_pim::messages::Types>::SubmessageFlag,
-        non_standard_payload_flag: <Self::PSM as rust_rtps_pim::messages::Types>::SubmessageFlag,
-        reader_id: rust_rtps_pim::messages::submessage_elements::EntityId<Self::PSM>,
-        writer_id: rust_rtps_pim::messages::submessage_elements::EntityId<Self::PSM>,
-        writer_sn: rust_rtps_pim::messages::submessage_elements::SequenceNumber<Self::PSM>,
-        inline_qos: rust_rtps_pim::messages::submessage_elements::ParameterList<Self::PSM>,
-        serialized_payload: rust_rtps_pim::messages::submessage_elements::SerializedData<
-            Self::SerializedData,
-        >,
+        _endianness_flag: <Self::PSM as rust_rtps_pim::messages::Types>::SubmessageFlag,
+        _inline_qos_flag: <Self::PSM as rust_rtps_pim::messages::Types>::SubmessageFlag,
+        _data_flag: <Self::PSM as rust_rtps_pim::messages::Types>::SubmessageFlag,
+        _key_flag: <Self::PSM as rust_rtps_pim::messages::Types>::SubmessageFlag,
+        _non_standard_payload_flag: <Self::PSM as rust_rtps_pim::messages::Types>::SubmessageFlag,
+        _reader_id: <Self::PSM as rust_rtps_pim::structure::Types>::EntityId,
+        _writer_id: <Self::PSM as rust_rtps_pim::structure::Types>::EntityId,
+        _writer_sn: <Self::PSM as rust_rtps_pim::structure::Types>::SequenceNumber,
+        _inline_qos: <Self::PSM as rust_rtps_pim::structure::Types>::ParameterVector,
+        _serialized_payload: Self::SerializedData,
     ) -> Self {
-        Self {
-            endianness_flag,
-            inline_qos_flag,
-            data_flag,
-            key_flag,
-            non_standard_payload_flag,
-            reader_id,
-            writer_id,
-            writer_sn,
-            inline_qos,
-            serialized_payload,
-        }
+        todo!()
+        // Self {
+        //     endianness_flag,
+        //     inline_qos_flag,
+        //     data_flag,
+        //     key_flag,
+        //     non_standard_payload_flag,
+        //     reader_id,
+        //     writer_id,
+        //     writer_sn,
+        //     inline_qos,
+        //     serialized_payload,
+        // }
     }
 
     fn endianness_flag(&self) -> <Self::PSM as rust_rtps_pim::messages::Types>::SubmessageFlag {
