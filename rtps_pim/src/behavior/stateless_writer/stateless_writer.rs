@@ -1,4 +1,4 @@
-use core::{iter::FromIterator, ops::{Index, IndexMut}, ptr::read};
+use core::iter::FromIterator;
 
 use super::RTPSReaderLocator;
 use crate::{
@@ -6,25 +6,29 @@ use crate::{
     structure::{self, RTPSHistoryCache},
 };
 
-pub struct RTPSStatelessWriter<PSM: structure::Types + behavior::Types, HistoryCache: RTPSHistoryCache<PSM = PSM>, ReaderLocatorList> {
+pub struct RTPSStatelessWriter<
+    PSM: structure::Types + behavior::Types,
+    HistoryCache: RTPSHistoryCache<PSM = PSM>,
+    ReaderLocatorList,
+> {
     writer: RTPSWriter<PSM, HistoryCache>,
     reader_locators: ReaderLocatorList,
 }
 
-impl<
-        PSM: structure::Types + behavior::Types,
-        HistoryCache: RTPSHistoryCache<PSM = PSM>,
-        ReaderLocatorList: IntoIterator<Item = RTPSReaderLocator<PSM>>
-            + Extend<RTPSReaderLocator<PSM>>
-            + FromIterator<RTPSReaderLocator<PSM>>
-            + Clone,
-    > RTPSStatelessWriter<PSM, HistoryCache, ReaderLocatorList>
-    where PSM::Locator: PartialEq
+impl<PSM, HistoryCache, ReaderLocatorList> RTPSStatelessWriter<PSM, HistoryCache, ReaderLocatorList>
+where
+    PSM: structure::Types + behavior::Types,
+    HistoryCache: RTPSHistoryCache<PSM = PSM>,
+    PSM::Locator: PartialEq + Clone,
+    ReaderLocatorList: IntoIterator<Item = RTPSReaderLocator<PSM>>
+        + Extend<RTPSReaderLocator<PSM>>
+        + FromIterator<RTPSReaderLocator<PSM>>,
+    for<'a> &'a ReaderLocatorList: IntoIterator<Item = &'a RTPSReaderLocator<PSM>>,
 {
     pub fn new(writer: RTPSWriter<PSM, HistoryCache>) -> Self {
         Self {
             writer,
-            reader_locators: core::iter::empty().collect()
+            reader_locators: core::iter::empty().collect(),
         }
     }
 
@@ -35,11 +39,10 @@ impl<
 
     pub fn reader_locator_remove(&mut self, a_locator: <PSM as structure::Types>::Locator) {
         let reader_locator = &RTPSReaderLocator::new(a_locator, false);
-        self.reader_locators = self
-            .reader_locators
-            .clone()
+        self.reader_locators = (&self.reader_locators)
             .into_iter()
-            .filter(|x| x != reader_locator)
+            .filter(|&x| x != reader_locator)
+            .map(|x| x.clone())
             .collect();
     }
 
@@ -51,15 +54,14 @@ impl<
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use structure::Types;
     use crate::{
         messages::{self, submessage_elements::Parameter},
         structure::RTPSCacheChange,
     };
+    use structure::Types;
 
     use std::vec::Vec;
     pub struct MockParameter;
@@ -79,9 +81,9 @@ mod tests {
             todo!()
         }
     }
-    #[derive(PartialEq)]
+    #[derive(PartialEq, Clone, Debug)]
     pub struct MockLocator {
-        id: i32
+        id: i32,
     }
 
     impl structure::types::Locator for MockLocator {
@@ -115,7 +117,7 @@ mod tests {
 
         type Locator = MockLocator;
 
-        const LOCATOR_INVALID: Self::Locator = MockLocator{id: -1};
+        const LOCATOR_INVALID: Self::Locator = MockLocator { id: -1 };
 
         type TopicKind = u8;
         const NO_KEY: Self::TopicKind = 0;
@@ -248,8 +250,7 @@ mod tests {
     }
 
     #[test]
-    fn reader_locator_remove() {
-
+    fn reader_locator_add() {
         let guid = [1; 16];
         let topic_kind = MockPsm::WITH_KEY;
         let reliability_level = MockPsm::BEST_EFFORT;
@@ -260,7 +261,7 @@ mod tests {
         let nack_response_delay = 0;
         let nack_suppression_duration = 0;
         let data_max_size_serialized = 65535;
-        let mut writer: RTPSWriter<MockPsm, MockHistoryCache> = RTPSWriter::new(
+        let writer: RTPSWriter<MockPsm, MockHistoryCache> = RTPSWriter::new(
             guid,
             topic_kind,
             reliability_level,
@@ -272,7 +273,21 @@ mod tests {
             nack_suppression_duration,
             data_max_size_serialized,
         );
-        // let stateless_writer: RTPSStatelessWriter<_,_,Vec<RTPSReaderLocator<MockPsm>>> = RTPSStatelessWriter::new(writer);
-        // let a_locator = MockLocator{id: 1};
+        let mut stateless_writer: RTPSStatelessWriter<_, _, Vec<RTPSReaderLocator<MockPsm>>> =
+            RTPSStatelessWriter::new(writer);
+        let a_locator1 = MockLocator { id: 1 };
+        let a_locator2 = MockLocator { id: 2 };
+
+        stateless_writer.reader_locator_add(a_locator1);
+        stateless_writer.reader_locator_add(a_locator2);
+
+        assert_eq!(
+            stateless_writer.reader_locators[0].locator(),
+            &MockLocator { id: 1 }
+        );
+        assert_eq!(
+            stateless_writer.reader_locators[1].locator(),
+            &MockLocator { id: 2 }
+        );
     }
 }

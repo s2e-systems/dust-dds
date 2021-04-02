@@ -10,8 +10,25 @@ pub struct RTPSReaderLocator<PSM: structure::Types> {
     requested_changes: PSM::SequenceNumberVector,
 }
 
-impl<PSM: structure::Types> core::cmp::PartialEq for RTPSReaderLocator<PSM> 
-    where PSM::Locator: core::cmp::PartialEq {
+impl<PSM> Clone for RTPSReaderLocator<PSM>
+where
+    PSM: structure::Types,
+    PSM::Locator: Clone,
+{
+    fn clone(&self) -> Self {
+        Self {
+            locator: self.locator.clone(),
+            expects_inline_qos: self.expects_inline_qos,
+            last_sent_sequence_number: self.last_sent_sequence_number,
+            requested_changes: self.requested_changes.clone(),
+        }
+    }
+}
+
+impl<PSM: structure::Types> core::cmp::PartialEq for RTPSReaderLocator<PSM>
+where
+    PSM::Locator: core::cmp::PartialEq,
+{
     fn eq(&self, other: &Self) -> bool {
         self.locator == other.locator
     }
@@ -600,7 +617,8 @@ mod tests {
 
     #[test]
     fn next_unsent_change() {
-        let mut reader_locator: RTPSReaderLocator<MockPsm> = RTPSReaderLocator::new(MockLocator, false);
+        let mut reader_locator: RTPSReaderLocator<MockPsm> =
+            RTPSReaderLocator::new(MockLocator, false);
 
         let guid = [1; 16];
         let topic_kind = MockPsm::WITH_KEY;
@@ -658,7 +676,6 @@ mod tests {
         assert_eq!(reader_locator.next_unsent_change(&writer), None);
     }
 }
-
 
 // pub trait RTPSReaderLocator {
 //     type PSM: RtpsPsm;
