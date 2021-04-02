@@ -8,7 +8,6 @@ pub mod data_writer;
 pub mod topic;
 
 mod impls;
-mod rtps;
 mod utils;
 // pub mod transport;
 // pub mod spdp_discovered_participant_data;
