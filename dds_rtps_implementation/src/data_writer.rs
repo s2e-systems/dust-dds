@@ -1,7 +1,15 @@
-use rust_dds_api::{builtin_topics::SubscriptionBuiltinTopicData, dcps_psm::{
+use rust_dds_api::{
+    builtin_topics::SubscriptionBuiltinTopicData,
+    dcps_psm::{
         Duration, InstanceHandle, LivelinessLostStatus, OfferedDeadlineMissedStatus,
         OfferedIncompatibleQosStatus, PublicationMatchedStatus, StatusMask, Time,
-    }, dds_type::DDSType, domain::domain_participant::DomainParticipant, infrastructure::{entity::StatusCondition, qos::DataWriterQos}, publication::data_writer_listener::DataWriterListener, return_type::{DDSError, DDSResult}};
+    },
+    dds_type::DDSType,
+    domain::domain_participant::DomainParticipant,
+    infrastructure::{entity::StatusCondition, qos::DataWriterQos},
+    publication::data_writer_listener::DataWriterListener,
+    return_type::{DDSError, DDSResult},
+};
 
 use super::{
     domain_participant::{Publisher, Topic},
@@ -30,16 +38,17 @@ impl<'a, T: DDSType> rust_dds_api::publication::data_writer::DataWriter<'a, T>
 
     fn register_instance_w_timestamp(
         &self,
-        instance: T,
-        timestamp: Time,
+        _instance: T,
+        _timestamp: Time,
     ) -> DDSResult<Option<InstanceHandle>> {
-        self
-            .impl_ref
-            .upgrade()
-            .ok_or(DDSError::AlreadyDeleted)?
-            .lock()
-            .unwrap()
-            .register_instance_w_timestamp(instance, timestamp)
+        todo!()
+        // self
+        //     .impl_ref
+        //     .upgrade()
+        //     .ok_or(DDSError::AlreadyDeleted)?
+        //     .lock()
+        //     .unwrap()
+        //     .register_instance_w_timestamp(instance, timestamp)
     }
 
     fn unregister_instance(&self, _instance: T, _handle: Option<InstanceHandle>) -> DDSResult<()> {
@@ -69,17 +78,11 @@ impl<'a, T: DDSType> rust_dds_api::publication::data_writer::DataWriter<'a, T>
 
     fn write_w_timestamp(
         &self,
-        data: T,
-        handle: Option<InstanceHandle>,
-        timestamp: Time,
+        _data: T,
+        _handle: Option<InstanceHandle>,
+        _timestamp: Time,
     ) -> DDSResult<()> {
-        self
-            .impl_ref
-            .upgrade()
-            .ok_or(DDSError::AlreadyDeleted)?
-            .lock()
-            .unwrap()
-            .write_w_timestamp(data, handle, timestamp)
+        self.impl_ref.upgrade().ok_or(DDSError::AlreadyDeleted)?.lock().unwrap().write_w_timestamp()
     }
 
     fn dispose(&self, _data: T, _handle: Option<InstanceHandle>) -> DDSResult<()> {
