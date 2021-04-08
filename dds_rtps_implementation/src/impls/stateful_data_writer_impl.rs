@@ -4,9 +4,9 @@ use rust_dds_api::{
     return_type::DDSResult,
 };
 
-pub struct DataWriterImpl {}
+pub struct StatefulDataWriterImpl {}
 
-impl DataWriterImpl {
+impl StatefulDataWriterImpl {
     pub fn new() -> Self {
         Self {}
     }

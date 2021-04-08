@@ -15,14 +15,14 @@ use rust_dds_api::{
 
 use crate::{
     domain_participant::{DomainParticipant, Publisher, Topic},
-    impls::data_writer_impl::DataWriterImpl,
+    impls::stateful_data_writer_impl::StatefulDataWriterImpl,
     utils::node::Node,
 };
 
 pub struct DataWriter<'a, T: DDSType>(<Self as Deref>::Target);
 
 impl<'a, T: DDSType> Deref for DataWriter<'a, T> {
-    type Target = Node<(&'a Publisher<'a>, &'a Topic<'a, T>), DataWriterImpl>;
+    type Target = Node<(&'a Publisher<'a>, &'a Topic<'a, T>), StatefulDataWriterImpl>;
 
     fn deref(&self) -> &Self::Target {
         &self.0

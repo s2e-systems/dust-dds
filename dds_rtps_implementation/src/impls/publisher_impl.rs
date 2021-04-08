@@ -6,36 +6,19 @@ use rust_dds_api::{
     publication::publisher_listener::PublisherListener,
 };
 
-
-use super::data_writer_impl::DataWriterImpl;
+use super::{
+    stateful_data_writer_impl::StatefulDataWriterImpl,
+    stateless_data_writer_impl::StatelessDataWriterImpl,
+};
 
 pub struct PublisherImpl {
-    writer_list: Vec<Arc<Mutex<DataWriterImpl>>>,
+    stateful_writer_list: Vec<Arc<Mutex<StatefulDataWriterImpl>>>,
+    stateless_writer_list: Vec<Arc<Mutex<StatelessDataWriterImpl>>>,
     writer_count: atomic::AtomicU8,
     default_datawriter_qos: DataWriterQos,
     qos: PublisherQos,
     listener: Option<Box<dyn PublisherListener>>,
     status_mask: StatusMask,
-}
-
-impl<'a> IntoIterator for &'a PublisherImpl {
-    type Item = &'a Arc<Mutex<DataWriterImpl>>;
-
-    type IntoIter = std::slice::Iter<'a, Arc<Mutex<DataWriterImpl>>>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        (&self.writer_list).into_iter()
-    }
-}
-
-impl<'a> IntoIterator for &'a mut PublisherImpl {
-    type Item = &'a mut Arc<Mutex<DataWriterImpl>>;
-
-    type IntoIter = std::slice::IterMut<'a, Arc<Mutex<DataWriterImpl>>>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        (&mut self.writer_list).into_iter()
-    }
 }
 
 impl PublisherImpl {
@@ -45,7 +28,8 @@ impl PublisherImpl {
         status_mask: StatusMask,
     ) -> Self {
         Self {
-            writer_list: Vec::new(),
+            stateful_writer_list: Vec::new(),
+            stateless_writer_list: Vec::new(),
             // writer_list: Default::default(),
             writer_count: atomic::AtomicU8::new(0),
             default_datawriter_qos: DataWriterQos::default(),
@@ -55,11 +39,7 @@ impl PublisherImpl {
         }
     }
 
-    pub fn add_datawriter(&mut self, writer: Arc<Mutex<DataWriterImpl>>) {
-        self.writer_list.push(writer)
-    }
-
-    pub fn create_datawriter(&self) -> Option<Weak<Mutex<DataWriterImpl>>> {
+    pub fn create_datawriter(&self) -> Option<Weak<Mutex<StatefulDataWriterImpl>>> {
         // To be called for user-defined entity creation
 
         // let entity_id = EntityId::new([0,0,0], ENTITYKIN);
