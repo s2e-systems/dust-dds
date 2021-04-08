@@ -160,7 +160,6 @@ impl<'a, PSM, HistoryCache> RTPSStatelessWriterBehavior<'a, PSM, HistoryCache> f
 where
     PSM: structure::Types + behavior::Types + 'a,
     HistoryCache: RTPSHistoryCache<PSM = PSM> + 'a,
-    PSM::Locator: PartialEq + Clone,
 {
     fn produce_messages<Data, Gap, SendDataTo, SendGapTo>(
         &'a mut self,

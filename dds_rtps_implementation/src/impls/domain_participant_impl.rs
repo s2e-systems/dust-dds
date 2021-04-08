@@ -14,6 +14,7 @@ use rust_dds_api::{
     subscription::subscriber_listener::SubscriberListener,
     topic::topic_listener::TopicListener,
 };
+use rust_rtps_udp_psm::types::GuidPrefix;
 // use rust_rtps::{
 //     behavior::{types::Duration, RTPSStatelessWriter},
 //     discovery::{
@@ -104,7 +105,7 @@ use super::{
 
 pub struct DomainParticipantImpl {
     domain_id: DomainId,
-    // guid_prefix: GuidPrefix,
+    guid_prefix: GuidPrefix,
     qos: DomainParticipantQos,
     publisher_count: usize,
     subscriber_count: usize,
@@ -112,7 +113,7 @@ pub struct DomainParticipantImpl {
     default_publisher_qos: PublisherQos,
     default_subscriber_qos: SubscriberQos,
     default_topic_qos: TopicQos,
-    builin_publisher: Arc<Mutex<PublisherImpl>>,
+    builtin_publisher: Arc<Mutex<PublisherImpl>>,
     builtin_subscriber: Arc<Mutex<SubscriberImpl>>,
     // builtin_entities: Arc<RtpsBuiltinParticipantEntities>,
     // user_defined_entities: Arc<RtpsParticipantEntities>,
@@ -133,7 +134,7 @@ impl DomainParticipantImpl {
         builtin_publisher: PublisherImpl,
         // configuration: DomainParticipantImplConfiguration,
     ) -> Self {
-        let _guid_prefix = [1; 12];
+        let guid_prefix = [1; 12];
 
         // let spdp_builtin_participant_writer = SPDPbuiltinParticipantWriter::create(
         //     guid_prefix,
@@ -207,7 +208,7 @@ impl DomainParticipantImpl {
 
         Self {
             domain_id,
-            // guid_prefix,
+            guid_prefix,
             qos,
             publisher_count: 0,
             subscriber_count: 0,
@@ -215,7 +216,7 @@ impl DomainParticipantImpl {
             default_publisher_qos: PublisherQos::default(),
             default_subscriber_qos: SubscriberQos::default(),
             default_topic_qos: TopicQos::default(),
-            builin_publisher: Arc::new(Mutex::new(builtin_publisher)),
+            builtin_publisher: Arc::new(Mutex::new(builtin_publisher)),
             builtin_subscriber: Arc::new(Mutex::new(builtin_subscriber)),
             enabled: Arc::new(atomic::AtomicBool::new(false)),
             enabled_function: Once::new(),
@@ -415,22 +416,21 @@ impl DomainParticipantImpl {
     }
 
     pub fn enable(&mut self) -> DDSResult<()> {
-        // let enabled = self.enabled.clone();
-        // let mut thread_list = self.thread_list.borrow_mut();
-        // self.enabled.store(true, atomic::Ordering::Release);
+        let enabled = self.enabled.clone();
+        let mut thread_list = self.thread_list.borrow_mut();
+        self.enabled.store(true, atomic::Ordering::Release);
+        let builtin_publisher = self.builtin_publisher.clone();
         // let builtin_entities = self.builtin_entities.clone();
-        // let participant_guid_prefix = self.guid_prefix;
-        // self.enabled_function.call_once(|| {
-        //     thread_list.push(std::thread::spawn(move || {
-        //         while enabled.load(atomic::Ordering::Acquire) {
-        //             Self::send();
+        let participant_guid_prefix = self.guid_prefix;
+        self.enabled_function.call_once(|| {
+            thread_list.push(std::thread::spawn(move || {
+                while enabled.load(atomic::Ordering::Acquire) {
+                    builtin_publisher.lock().unwrap();
 
-        //             builtin_entities.send_data(participant_guid_prefix);
-
-        //             std::thread::sleep(std::time::Duration::from_secs(1));
-        //         }
-        //     }));
-        // });
+                    std::thread::sleep(std::time::Duration::from_secs(1));
+                }
+            }));
+        });
         Ok(())
     }
 
@@ -617,7 +617,7 @@ mod tests {
 
         participant.enable().unwrap();
 
-        std::thread::sleep(std::time::Duration::from_secs(5));
+        std::thread::sleep(std::time::Duration::from_secs(1));
     }
 
     // #[test]

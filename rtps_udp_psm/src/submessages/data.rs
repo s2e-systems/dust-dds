@@ -15,7 +15,7 @@ pub struct Data<'a> {
         rust_rtps_pim::messages::submessage_elements::SequenceNumber<<Self as Submessage>::PSM>,
     inline_qos:
         rust_rtps_pim::messages::submessage_elements::ParameterList<<Self as Submessage>::PSM>,
-    serialized_payload: rust_rtps_pim::messages::submessage_elements::SerializedData<&'a [u8]>,
+    serialized_payload: rust_rtps_pim::messages::submessage_elements::SerializedData<&'a Vec<u8>>,
 }
 
 impl<'a> Submessage for Data<'a> {
@@ -27,7 +27,7 @@ impl<'a> Submessage for Data<'a> {
 }
 
 impl<'a> rust_rtps_pim::messages::submessages::Data for Data<'a> {
-    type SerializedData = &'a [u8];
+    type SerializedData = &'a Vec<u8>;
 
     fn new(
         _endianness_flag: <Self::PSM as rust_rtps_pim::messages::Types>::SubmessageFlag,

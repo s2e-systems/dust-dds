@@ -313,7 +313,7 @@ pub enum ChangeFromWriterStatusKind {
     Received,
     Unknown,
 }
-
+#[derive(Clone)]
 pub struct Parameter {
     pub parameter_id: ParameterId,
     pub length: i16,
