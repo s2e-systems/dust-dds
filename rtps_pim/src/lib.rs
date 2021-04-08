@@ -6,8 +6,6 @@ pub mod structure;
 // pub mod discovery;
 
 #[cfg(test)]
-pub mod test;
-#[cfg(test)]
 #[macro_use]
 extern crate std;
 #[cfg(test)]
