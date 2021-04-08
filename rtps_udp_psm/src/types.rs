@@ -106,43 +106,6 @@ impl From<[u8; 4]> for EntityId {
     }
 }
 
-#[derive(Clone, Copy)]
-pub struct Guid {
-    pub prefix: GuidPrefix,
-    pub entity_id: EntityId,
-}
-
-impl Into<[u8; 16]> for Guid {
-    fn into(self) -> [u8; 16] {
-        todo!()
-    }
-}
-
-impl From<[u8; 16]> for Guid {
-    fn from(_: [u8; 16]) -> Self {
-        todo!()
-    }
-}
-
-impl rust_rtps_pim::structure::types::Guid for Guid {
-    type GuidPrefix = GuidPrefix;
-    const GUIDPREFIX_UNKNOWN: Self::GuidPrefix = [0; 12];
-
-    type EntityId = EntityId;
-    const ENTITYID_UNKNOWN: Self::EntityId = EntityId {
-        entity_key: [0; 3],
-        entity_kind: 0,
-    };
-
-    fn prefix(&self) -> Self::GuidPrefix {
-        self.prefix
-    }
-
-    fn entity_id(&self) -> Self::EntityId {
-        self.entity_id
-    }
-}
-
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub struct SequenceNumber {
     pub high: i32,

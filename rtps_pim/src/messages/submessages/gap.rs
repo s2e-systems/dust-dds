@@ -1,12 +1,15 @@
-use crate::{messages::{self, submessage_elements, Submessage}, structure};
+use crate::{
+    messages::{self, submessage_elements, Submessage},
+    structure,
+};
 
 pub trait Gap: Submessage {
     fn new(
         endianness_flag: <Self::PSM as messages::Types>::SubmessageFlag,
-        reader_id: <<Self::PSM as structure::Types>::Guid as structure::types::Guid>::EntityId,
-        writer_id: <<Self::PSM as structure::Types>::Guid as structure::types::Guid>::EntityId,
+        reader_id: <Self::PSM as structure::Types>::EntityId,
+        writer_id: <Self::PSM as structure::Types>::EntityId,
         gap_start: <Self::PSM as structure::Types>::SequenceNumber,
-        gap_list:  <Self::PSM as structure::Types>::SequenceNumberVector,
+        gap_list: <Self::PSM as structure::Types>::SequenceNumberVector,
     ) -> Self;
 
     fn endianness_flag(&self) -> <Self::PSM as messages::Types>::SubmessageFlag;

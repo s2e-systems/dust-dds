@@ -1,8 +1,8 @@
 use types::{
-    ChangeForReaderStatusKind, ChangeFromWriterStatusKind, ChangeKind, Count, Duration,
-    FragmentNumber, GroupDigest, Guid, InstanceHandle, Locator, Parameter, ParameterId, ProtocolId,
-    ProtocolVersion, ReliabilityKind, SequenceNumber, SequenceNumberSet, SubmessageFlag, Time,
-    TopicKind, VendorId,
+    ChangeForReaderStatusKind, ChangeFromWriterStatusKind, ChangeKind, Count, Duration, EntityId,
+    FragmentNumber, GroupDigest, GuidPrefix, InstanceHandle, Locator, Parameter, ParameterId,
+    ProtocolId, ProtocolVersion, ReliabilityKind, SequenceNumber, SequenceNumberSet,
+    SubmessageFlag, Time, TopicKind, VendorId,
 };
 
 pub mod submessages;
@@ -11,10 +11,13 @@ pub mod types;
 pub struct RtpsUdpPsm;
 
 impl rust_rtps_pim::structure::Types for RtpsUdpPsm {
-    type Guid = Guid;
-    const GUID_UNKNOWN: Self::Guid = Guid {
-        prefix: <Guid as rust_rtps_pim::structure::types::Guid>::GUIDPREFIX_UNKNOWN,
-        entity_id: <Guid as rust_rtps_pim::structure::types::Guid>::ENTITYID_UNKNOWN,
+    type GuidPrefix = GuidPrefix;
+    const GUIDPREFIX_UNKNOWN: Self::GuidPrefix = [0; 12];
+
+    type EntityId = EntityId;
+    const ENTITYID_UNKNOWN: Self::EntityId = EntityId {
+        entity_key: [0; 3],
+        entity_kind: 0,
     };
 
     type SequenceNumber = SequenceNumber;

@@ -7,8 +7,11 @@ use crate::messages;
 /// Table 8.2 - Types of the attributes that appear in the RTPS Entities and Classes
 ///
 pub trait Types {
-    type Guid: Guid + Into<[u8;16]> + From<[u8;16]> + Copy;
-    const GUID_UNKNOWN: Self::Guid;
+    type GuidPrefix: Into<[u8; 12]> + From<[u8; 12]> + Copy;
+    const GUIDPREFIX_UNKNOWN: Self::GuidPrefix;
+
+    type EntityId: Into<[u8; 4]> + From<[u8; 4]> + Copy;
+    const ENTITYID_UNKNOWN: Self::EntityId;
 
     type SequenceNumber: Into<i64> + From<i64> + Ord + Copy;
     const SEQUENCE_NUMBER_UNKNOWN: Self::SequenceNumber;
@@ -60,15 +63,38 @@ pub trait Types {
 }
 
 /// Define the GUID as described in 8.2.4.1 Identifying RTPS entities: The GUID
-pub trait Guid {
-    type GuidPrefix: Into<[u8; 12]> + From<[u8; 12]> + Copy;
-    const GUIDPREFIX_UNKNOWN: Self::GuidPrefix;
+pub struct GUID<PSM: Types> {
+    prefix: PSM::GuidPrefix,
+    entity_id: PSM::EntityId,
+}
 
-    type EntityId: Into<[u8; 4]> + From<[u8; 4]> + Copy;
-    const ENTITYID_UNKNOWN: Self::EntityId;
+impl<PSM: Types> Clone for GUID<PSM> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
 
-    fn prefix(&self) -> Self::GuidPrefix;
-    fn entity_id(&self) -> Self::EntityId;
+impl<PSM: Types> Copy for GUID<PSM> {}
+
+impl<PSM: Types> GUID<PSM> {
+    pub const GUID_UNKNOWN: Self = Self {
+        prefix: PSM::GUIDPREFIX_UNKNOWN,
+        entity_id: PSM::ENTITYID_UNKNOWN,
+    };
+
+    pub fn new(prefix: PSM::GuidPrefix, entity_id: PSM::EntityId) -> Self {
+        Self { prefix, entity_id }
+    }
+
+    /// Get a reference to the g u i d's prefix.
+    pub fn prefix(&self) -> &PSM::GuidPrefix {
+        &self.prefix
+    }
+
+    /// Get a reference to the g u i d's entity id.
+    pub fn entity_id(&self) -> &PSM::EntityId {
+        &self.entity_id
+    }
 }
 
 pub trait Locator {

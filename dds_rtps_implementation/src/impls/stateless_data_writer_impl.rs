@@ -4,6 +4,9 @@ use rust_dds_api::{
     infrastructure::{qos::DataWriterQos, qos_policy::ReliabilityQosPolicyKind},
     return_type::DDSResult,
 };
+use rust_rtps_pim::behavior::stateless_writer::RTPSStatelessWriterBehavior;
+use rust_rtps_pim::messages::submessages::Data;
+use rust_rtps_pim::messages::submessages::Gap;
 use rust_rtps_pim::{
     behavior::{
         stateless_writer::{RTPSReaderLocator, RTPSStatelessWriter},
@@ -11,12 +14,13 @@ use rust_rtps_pim::{
     },
     structure,
 };
-use rust_rtps_pim::behavior::stateless_writer::{RTPSStatelessWriterBehavior};
-use rust_rtps_udp_psm::{RtpsUdpPsm, submessages, types::{Duration, EntityId, Guid, Locator, TopicKind}};
-use rust_rtps_pim::messages::submessages::Data;
-use rust_rtps_pim::messages::submessages::Gap;
 use rust_rtps_udp_psm::types::ChangeKind;
-use structure::RTPSHistoryCache;
+use rust_rtps_udp_psm::{
+    submessages,
+    types::{Duration, EntityId, Locator, TopicKind},
+    RtpsUdpPsm,
+};
+use structure::{types::GUID, RTPSHistoryCache};
 
 use super::history_cache_impl::HistoryCacheImpl;
 
@@ -27,13 +31,13 @@ pub struct StatelessDataWriterImpl {
 
 impl StatelessDataWriterImpl {
     pub fn new(qos: DataWriterQos) -> Self {
-        let guid = Guid {
-            prefix: [1; 12],
-            entity_id: EntityId {
+        let guid = GUID::new(
+            [1; 12],
+            EntityId {
                 entity_key: [1; 3],
                 entity_kind: 1,
             },
-        };
+        );
         let topic_kind = TopicKind::WithKey;
 
         let reliability_level = match qos.reliability.kind {
@@ -137,7 +141,12 @@ impl RTPSStatelessWriter<RtpsUdpPsm, HistoryCacheImpl> for StatelessDataWriterIm
         &mut self.reader_locators
     }
 
-    fn reader_locators_and_writer(&mut self) -> (&mut [RTPSReaderLocator<RtpsUdpPsm>], &RTPSWriter<RtpsUdpPsm, HistoryCacheImpl>) {
+    fn reader_locators_and_writer(
+        &mut self,
+    ) -> (
+        &mut [RTPSReaderLocator<RtpsUdpPsm>],
+        &RTPSWriter<RtpsUdpPsm, HistoryCacheImpl>,
+    ) {
         (&mut self.reader_locators, &self.writer)
     }
 }

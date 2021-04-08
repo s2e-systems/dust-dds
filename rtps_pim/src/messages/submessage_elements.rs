@@ -21,11 +21,11 @@ pub struct Long {
 }
 
 pub struct GuidPrefix<PSM: structure::Types> {
-    pub value: <<PSM as structure::Types>::Guid as structure::types::Guid>::GuidPrefix,
+    pub value: PSM::GuidPrefix,
 }
 
 pub struct EntityId<PSM: structure::Types> {
-    pub value: <<PSM as structure::Types>::Guid as structure::types::Guid>::EntityId,
+    pub value: PSM::EntityId,
 }
 
 pub struct VendorId<PSM: structure::Types> {

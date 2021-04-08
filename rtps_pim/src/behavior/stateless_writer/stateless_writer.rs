@@ -195,8 +195,8 @@ where
                         let data_flag = true.into();
                         let key_flag = false.into();
                         let non_standard_payload_flag = false.into();
-                        let reader_id = <PSM::Guid as structure::types::Guid>::ENTITYID_UNKNOWN;
-                        let writer_id = <PSM::Guid as structure::types::Guid>::ENTITYID_UNKNOWN;
+                        let reader_id = PSM::ENTITYID_UNKNOWN;
+                        let writer_id = PSM::ENTITYID_UNKNOWN;
                         let writer_sn = change.sequence_number;
                         let inline_qos = change.inline_qos.clone();
                         let serialized_payload = &change.data_value;
@@ -216,8 +216,8 @@ where
                     } else {
                         // Send Gap submessage
                         let endianness_flag = true.into();
-                        let reader_id = <PSM::Guid as structure::types::Guid>::ENTITYID_UNKNOWN;
-                        let writer_id = <PSM::Guid as structure::types::Guid>::ENTITYID_UNKNOWN;
+                        let reader_id = PSM::ENTITYID_UNKNOWN;
+                        let writer_id = PSM::ENTITYID_UNKNOWN;
                         let gap_start = seq_num;
                         let gap_list = core::iter::empty().collect();
                         let gap =
@@ -241,49 +241,10 @@ mod tests {
             submessage_elements::Parameter,
             submessages::{Data, Gap},
         },
-        structure::{types::Guid, RTPSCacheChange},
+        structure::{types::GUID, RTPSCacheChange},
     };
-    use structure::Types;
-
-    use core::convert::TryInto;
     use std::vec::Vec;
-
-    #[derive(Clone, Copy)]
-    pub struct MockGuid {
-        prefix: [u8; 12],
-        entity_id: [u8; 4],
-    }
-
-    impl Guid for MockGuid {
-        type GuidPrefix = [u8; 12];
-        const GUIDPREFIX_UNKNOWN: Self::GuidPrefix = [0; 12];
-
-        type EntityId = [u8; 4];
-        const ENTITYID_UNKNOWN: Self::EntityId = [0; 4];
-
-        fn prefix(&self) -> Self::GuidPrefix {
-            self.prefix
-        }
-
-        fn entity_id(&self) -> Self::EntityId {
-            self.entity_id
-        }
-    }
-
-    impl From<[u8; 16]> for MockGuid {
-        fn from(value: [u8; 16]) -> Self {
-            Self {
-                prefix: value[0..12].try_into().unwrap(),
-                entity_id: value[12..16].try_into().unwrap(),
-            }
-        }
-    }
-
-    impl Into<[u8; 16]> for MockGuid {
-        fn into(self) -> [u8; 16] {
-            todo!()
-        }
-    }
+    use structure::Types;
 
     #[derive(Clone)]
     pub struct MockParameter;
@@ -326,11 +287,11 @@ mod tests {
     pub struct MockPsm;
 
     impl structure::Types for MockPsm {
-        type Guid = MockGuid;
-        const GUID_UNKNOWN: Self::Guid = MockGuid {
-            prefix: <MockGuid as structure::types::Guid>::GUIDPREFIX_UNKNOWN,
-            entity_id: <MockGuid as structure::types::Guid>::ENTITYID_UNKNOWN,
-        };
+        type GuidPrefix = [u8; 12];
+        const GUIDPREFIX_UNKNOWN: Self::GuidPrefix = [0; 12];
+
+        type EntityId = [u8; 4];
+        const ENTITYID_UNKNOWN: Self::EntityId = [0; 4];
 
         type SequenceNumber = i64;
         const SEQUENCE_NUMBER_UNKNOWN: Self::SequenceNumber = i64::MIN;
@@ -437,7 +398,6 @@ mod tests {
     }
 
     impl RTPSHistoryCache<MockPsm> for MockHistoryCache {
-
         fn new() -> Self {
             MockHistoryCache {
                 changes: Vec::new(),
@@ -469,7 +429,7 @@ mod tests {
     }
 
     fn create_rtps_writer() -> RTPSWriter<MockPsm, MockHistoryCache> {
-        let guid = [1; 16].into();
+        let guid = GUID::new([1; 12], [1; 4]);
         let topic_kind = MockPsm::WITH_KEY;
         let reliability_level = MockPsm::BEST_EFFORT;
         let unicast_locator_list = Vec::new();
@@ -514,8 +474,8 @@ mod tests {
             _data_flag: <Self::PSM as messages::Types>::SubmessageFlag,
             _key_flag: <Self::PSM as messages::Types>::SubmessageFlag,
             _non_standard_payload_flag: <Self::PSM as messages::Types>::SubmessageFlag,
-            _reader_id: <<Self::PSM as structure::Types>::Guid as structure::types::Guid>::EntityId,
-            _writer_id: <<Self::PSM as structure::Types>::Guid as structure::types::Guid>::EntityId,
+            _reader_id: <Self::PSM as structure::Types>::EntityId,
+            _writer_id: <Self::PSM as structure::Types>::EntityId,
             _writer_sn: <Self::PSM as structure::Types>::SequenceNumber,
             _inline_qos: <Self::PSM as structure::Types>::ParameterVector,
             serialized_payload: Self::SerializedData,
@@ -579,8 +539,8 @@ mod tests {
     impl Gap for MockGapSubmessage {
         fn new(
             _endianness_flag: <Self::PSM as messages::Types>::SubmessageFlag,
-            _reader_id: <<Self::PSM as structure::Types>::Guid as structure::types::Guid>::EntityId,
-            _writer_id: <<Self::PSM as structure::Types>::Guid as structure::types::Guid>::EntityId,
+            _reader_id: <Self::PSM as structure::Types>::EntityId,
+            _writer_id: <Self::PSM as structure::Types>::EntityId,
             _gap_start: <Self::PSM as structure::Types>::SequenceNumber,
             _gap_list: <Self::PSM as structure::Types>::SequenceNumberVector,
         ) -> Self {
@@ -645,7 +605,7 @@ mod tests {
         let mut reader_locator: RTPSReaderLocator<MockPsm> =
             RTPSReaderLocator::new(MockLocator { id: 0 }, false);
 
-        let guid = [1; 16].into();
+        let guid = GUID::new([1; 12], [1; 4]);
         let topic_kind = MockPsm::WITH_KEY;
         let reliability_level = MockPsm::BEST_EFFORT;
         let unicast_locator_list = Vec::new();
@@ -670,7 +630,7 @@ mod tests {
 
         writer.writer_cache.add_change(RTPSCacheChange {
             kind: MockPsm::ALIVE,
-            writer_guid: [1; 16].into(),
+            writer_guid: GUID::new([1; 12], [1; 4]),
             instance_handle: 1,
             sequence_number: 1,
             data_value: vec![],
@@ -679,7 +639,7 @@ mod tests {
 
         writer.writer_cache.add_change(RTPSCacheChange {
             kind: MockPsm::ALIVE,
-            writer_guid: [1; 16].into(),
+            writer_guid: GUID::new([1; 12], [1; 4]),
             instance_handle: 1,
             sequence_number: 2,
             data_value: vec![],
@@ -688,7 +648,7 @@ mod tests {
 
         writer.writer_cache.add_change(RTPSCacheChange {
             kind: MockPsm::ALIVE,
-            writer_guid: [1; 16].into(),
+            writer_guid: GUID::new([1; 12], [1; 4]),
             instance_handle: 1,
             sequence_number: 3,
             data_value: vec![],
@@ -707,7 +667,7 @@ mod tests {
         let mut reader_locator: RTPSReaderLocator<MockPsm> =
             RTPSReaderLocator::new(MockLocator { id: 0 }, false);
 
-        let guid = [1; 16].into();
+        let guid = GUID::new([1; 12], [1; 4]);
         let topic_kind = MockPsm::WITH_KEY;
         let reliability_level = MockPsm::BEST_EFFORT;
         let unicast_locator_list = Vec::new();
@@ -732,7 +692,7 @@ mod tests {
 
         writer.writer_cache.add_change(RTPSCacheChange {
             kind: MockPsm::ALIVE,
-            writer_guid: [1; 16].into(),
+            writer_guid: GUID::new([1; 12], [1; 4]),
             instance_handle: 1,
             sequence_number: 1,
             data_value: vec![],
@@ -741,7 +701,7 @@ mod tests {
 
         writer.writer_cache.add_change(RTPSCacheChange {
             kind: MockPsm::ALIVE,
-            writer_guid: [1; 16].into(),
+            writer_guid: GUID::new([1; 12], [1; 4]),
             instance_handle: 1,
             sequence_number: 3,
             data_value: vec![],
@@ -750,7 +710,7 @@ mod tests {
 
         writer.writer_cache.add_change(RTPSCacheChange {
             kind: MockPsm::ALIVE,
-            writer_guid: [1; 16].into(),
+            writer_guid: GUID::new([1; 12], [1; 4]),
             instance_handle: 1,
             sequence_number: 5,
             data_value: vec![],
@@ -769,7 +729,7 @@ mod tests {
         let mut reader_locator: RTPSReaderLocator<MockPsm> =
             RTPSReaderLocator::new(MockLocator { id: 0 }, false);
 
-        let guid = [1; 16].into();
+        let guid = GUID::new([1; 12], [1; 4]);
         let topic_kind = MockPsm::WITH_KEY;
         let reliability_level = MockPsm::BEST_EFFORT;
         let unicast_locator_list = Vec::new();
@@ -794,7 +754,7 @@ mod tests {
 
         writer.writer_cache.add_change(RTPSCacheChange {
             kind: MockPsm::ALIVE,
-            writer_guid: [1; 16].into(),
+            writer_guid: GUID::new([1; 12], [1; 4]),
             instance_handle: 1,
             sequence_number: 1,
             data_value: vec![],
@@ -803,7 +763,7 @@ mod tests {
 
         writer.writer_cache.add_change(RTPSCacheChange {
             kind: MockPsm::ALIVE,
-            writer_guid: [1; 16].into(),
+            writer_guid: GUID::new([1; 12], [1; 4]),
             instance_handle: 1,
             sequence_number: 2,
             data_value: vec![],
@@ -812,7 +772,7 @@ mod tests {
 
         writer.writer_cache.add_change(RTPSCacheChange {
             kind: MockPsm::ALIVE,
-            writer_guid: [1; 16].into(),
+            writer_guid: GUID::new([1; 12], [1; 4]),
             instance_handle: 1,
             sequence_number: 3,
             data_value: vec![],
@@ -833,7 +793,7 @@ mod tests {
         let reader_locator: RTPSReaderLocator<MockPsm> =
             RTPSReaderLocator::new(MockLocator { id: 0 }, false);
 
-        let guid = [1; 16].into();
+        let guid = GUID::new([1; 12], [1; 4]);
         let topic_kind = MockPsm::WITH_KEY;
         let reliability_level = MockPsm::BEST_EFFORT;
         let unicast_locator_list = Vec::new();
@@ -858,7 +818,7 @@ mod tests {
 
         writer.writer_cache.add_change(RTPSCacheChange {
             kind: MockPsm::ALIVE,
-            writer_guid: [1; 16].into(),
+            writer_guid: GUID::new([1; 12], [1; 4]),
             instance_handle: 1,
             sequence_number: 1,
             data_value: vec![],
@@ -867,7 +827,7 @@ mod tests {
 
         writer.writer_cache.add_change(RTPSCacheChange {
             kind: MockPsm::ALIVE,
-            writer_guid: [1; 16].into(),
+            writer_guid: GUID::new([1; 12], [1; 4]),
             instance_handle: 1,
             sequence_number: 2,
             data_value: vec![],
@@ -876,7 +836,7 @@ mod tests {
 
         writer.writer_cache.add_change(RTPSCacheChange {
             kind: MockPsm::ALIVE,
-            writer_guid: [1; 16].into(),
+            writer_guid: GUID::new([1; 12], [1; 4]),
             instance_handle: 1,
             sequence_number: 3,
             data_value: vec![],
@@ -893,7 +853,7 @@ mod tests {
         let reader_locator: RTPSReaderLocator<MockPsm> =
             RTPSReaderLocator::new(MockLocator { id: 0 }, false);
 
-        let guid = [1; 16].into();
+        let guid = GUID::new([1; 12], [1; 4]);
         let topic_kind = MockPsm::WITH_KEY;
         let reliability_level = MockPsm::BEST_EFFORT;
         let unicast_locator_list = Vec::new();
@@ -918,7 +878,7 @@ mod tests {
 
         writer.writer_cache.add_change(RTPSCacheChange {
             kind: MockPsm::ALIVE,
-            writer_guid: [1; 16].into(),
+            writer_guid: GUID::new([1; 12], [1; 4]),
             instance_handle: 1,
             sequence_number: 1,
             data_value: vec![],
@@ -927,7 +887,7 @@ mod tests {
 
         writer.writer_cache.add_change(RTPSCacheChange {
             kind: MockPsm::ALIVE,
-            writer_guid: [1; 16].into(),
+            writer_guid: GUID::new([1; 12], [1; 4]),
             instance_handle: 1,
             sequence_number: 3,
             data_value: vec![],
@@ -936,7 +896,7 @@ mod tests {
 
         writer.writer_cache.add_change(RTPSCacheChange {
             kind: MockPsm::ALIVE,
-            writer_guid: [1; 16].into(),
+            writer_guid: GUID::new([1; 12], [1; 4]),
             instance_handle: 1,
             sequence_number: 5,
             data_value: vec![],
@@ -953,7 +913,7 @@ mod tests {
         let mut reader_locator: RTPSReaderLocator<MockPsm> =
             RTPSReaderLocator::new(MockLocator { id: 0 }, false);
 
-        let guid = [1; 16].into();
+        let guid = GUID::new([1; 12], [1; 4]);
         let topic_kind = MockPsm::WITH_KEY;
         let reliability_level = MockPsm::BEST_EFFORT;
         let unicast_locator_list = Vec::new();
@@ -978,7 +938,7 @@ mod tests {
 
         writer.writer_cache.add_change(RTPSCacheChange {
             kind: MockPsm::ALIVE,
-            writer_guid: [1; 16].into(),
+            writer_guid: GUID::new([1; 12], [1; 4]),
             instance_handle: 1,
             sequence_number: 1,
             data_value: vec![],
@@ -987,7 +947,7 @@ mod tests {
 
         writer.writer_cache.add_change(RTPSCacheChange {
             kind: MockPsm::ALIVE,
-            writer_guid: [1; 16].into(),
+            writer_guid: GUID::new([1; 12], [1; 4]),
             instance_handle: 1,
             sequence_number: 3,
             data_value: vec![],
@@ -996,7 +956,7 @@ mod tests {
 
         writer.writer_cache.add_change(RTPSCacheChange {
             kind: MockPsm::ALIVE,
-            writer_guid: [1; 16].into(),
+            writer_guid: GUID::new([1; 12], [1; 4]),
             instance_handle: 1,
             sequence_number: 5,
             data_value: vec![],
