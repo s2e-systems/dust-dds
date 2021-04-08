@@ -5,7 +5,7 @@ use crate::{
 
 pub struct RTPSReader<
     PSM: structure::Types + behavior::Types,
-    HistoryCache: RTPSHistoryCache<PSM = PSM>,
+    HistoryCache: RTPSHistoryCache<PSM>,
 > {
     pub endpoint: RTPSEndpoint<PSM>,
     pub expects_inline_qos: bool,
@@ -14,7 +14,7 @@ pub struct RTPSReader<
     pub reader_cache: HistoryCache,
 }
 
-impl<PSM: structure::Types + behavior::Types, HistoryCache: RTPSHistoryCache<PSM = PSM>>
+impl<PSM: structure::Types + behavior::Types, HistoryCache: RTPSHistoryCache<PSM>>
     RTPSReader<PSM, HistoryCache>
 {
     pub fn new(

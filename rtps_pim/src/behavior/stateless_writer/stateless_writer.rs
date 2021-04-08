@@ -70,7 +70,7 @@ where
         Some(next_requested_change)
     }
 
-    pub fn next_unsent_change<HistoryCache: RTPSHistoryCache<PSM = PSM>>(
+    pub fn next_unsent_change<HistoryCache: RTPSHistoryCache<PSM>>(
         &mut self,
         writer: &RTPSWriter<PSM, HistoryCache>,
     ) -> Option<PSM::SequenceNumber> {
@@ -84,7 +84,7 @@ where
         &self.requested_changes
     }
 
-    pub fn requested_changes_set<'a, HistoryCache: RTPSHistoryCache<PSM = PSM>>(
+    pub fn requested_changes_set<'a, HistoryCache: RTPSHistoryCache<PSM>>(
         &'a mut self,
         req_seq_num_set: PSM::SequenceNumberVector,
         writer: &RTPSWriter<PSM, HistoryCache>,
@@ -101,7 +101,7 @@ where
             .collect();
     }
 
-    pub fn unsent_changes<HistoryCache: RTPSHistoryCache<PSM = PSM>>(
+    pub fn unsent_changes<HistoryCache: RTPSHistoryCache<PSM>>(
         &self,
         writer: &RTPSWriter<PSM, HistoryCache>,
     ) -> PSM::SequenceNumberVector {
@@ -120,7 +120,7 @@ where
 
 pub trait RTPSStatelessWriter<
     PSM: structure::Types + behavior::Types,
-    HistoryCache: RTPSHistoryCache<PSM = PSM>,
+    HistoryCache: RTPSHistoryCache<PSM>,
 >: Deref<Target = RTPSWriter<PSM, HistoryCache>> + DerefMut
 {
     fn reader_locator_add(&mut self, a_locator: <PSM as structure::Types>::Locator);
@@ -146,7 +146,7 @@ pub trait RTPSStatelessWriter<
 pub trait RTPSStatelessWriterBehavior<'a, PSM, HistoryCache>
 where
     PSM: structure::Types + behavior::Types + 'a,
-    HistoryCache: RTPSHistoryCache<PSM = PSM>,
+    HistoryCache: RTPSHistoryCache<PSM>,
 {
     fn produce_messages<Data, Gap, SendDataTo, SendGapTo>(
         &'a mut self,
@@ -167,7 +167,7 @@ impl<'a, PSM, HistoryCache> RTPSStatelessWriterBehavior<'a, PSM, HistoryCache>
     for RTPSReaderLocator<PSM>
 where
     PSM: structure::Types + behavior::Types + 'a,
-    HistoryCache: RTPSHistoryCache<PSM = PSM> + 'a,
+    HistoryCache: RTPSHistoryCache<PSM> + 'a,
 {
     fn produce_messages<Data, Gap, SendDataTo, SendGapTo>(
         &'a mut self,
@@ -433,11 +433,10 @@ mod tests {
     }
 
     struct MockHistoryCache {
-        changes: Vec<RTPSCacheChange<<Self as RTPSHistoryCache>::PSM>>,
+        changes: Vec<RTPSCacheChange<MockPsm>>,
     }
 
-    impl RTPSHistoryCache for MockHistoryCache {
-        type PSM = MockPsm;
+    impl RTPSHistoryCache<MockPsm> for MockHistoryCache {
 
         fn new() -> Self {
             MockHistoryCache {
@@ -445,26 +444,26 @@ mod tests {
             }
         }
 
-        fn add_change(&mut self, change: structure::RTPSCacheChange<Self::PSM>) {
+        fn add_change(&mut self, change: structure::RTPSCacheChange<MockPsm>) {
             self.changes.push(change)
         }
 
-        fn remove_change(&mut self, _seq_num: &<Self::PSM as structure::Types>::SequenceNumber) {
+        fn remove_change(&mut self, _seq_num: &<MockPsm as structure::Types>::SequenceNumber) {
             todo!()
         }
 
         fn get_change(
             &self,
-            seq_num: &<Self::PSM as structure::Types>::SequenceNumber,
-        ) -> Option<&structure::RTPSCacheChange<Self::PSM>> {
+            seq_num: &<MockPsm as structure::Types>::SequenceNumber,
+        ) -> Option<&structure::RTPSCacheChange<MockPsm>> {
             self.changes.iter().find(|x| &x.sequence_number == seq_num)
         }
 
-        fn get_seq_num_min(&self) -> Option<<Self::PSM as structure::Types>::SequenceNumber> {
+        fn get_seq_num_min(&self) -> Option<<MockPsm as structure::Types>::SequenceNumber> {
             self.changes.iter().map(|x| x.sequence_number).min()
         }
 
-        fn get_seq_num_max(&self) -> Option<<Self::PSM as structure::Types>::SequenceNumber> {
+        fn get_seq_num_max(&self) -> Option<<MockPsm as structure::Types>::SequenceNumber> {
             self.changes.iter().map(|x| x.sequence_number).max()
         }
     }

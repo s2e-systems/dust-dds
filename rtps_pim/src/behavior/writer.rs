@@ -3,7 +3,7 @@ use crate::{
     structure::{self, RTPSCacheChange, RTPSEndpoint, RTPSEntity, RTPSHistoryCache},
 };
 
-pub struct RTPSWriter<PSM: structure::Types + behavior::Types, HistoryCache: RTPSHistoryCache> {
+pub struct RTPSWriter<PSM: structure::Types + behavior::Types, HistoryCache: RTPSHistoryCache<PSM>> {
     pub endpoint: RTPSEndpoint<PSM>,
     pub push_mode: bool,
     pub heartbeat_period: PSM::Duration,
@@ -14,7 +14,7 @@ pub struct RTPSWriter<PSM: structure::Types + behavior::Types, HistoryCache: RTP
     pub writer_cache: HistoryCache,
 }
 
-impl<PSM: structure::Types + behavior::Types, HistoryCache: RTPSHistoryCache>
+impl<PSM: structure::Types + behavior::Types, HistoryCache: RTPSHistoryCache<PSM>>
     RTPSWriter<PSM, HistoryCache>
 {
     pub fn new(
