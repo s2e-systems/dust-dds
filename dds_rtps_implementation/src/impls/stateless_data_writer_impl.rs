@@ -1,10 +1,23 @@
 use std::ops::{Deref, DerefMut};
 
-use rust_rtps_pim::behavior::{
-    stateless_writer::{RTPSReaderLocator, RTPSStatelessWriter},
-    RTPSWriter,
+use rust_dds_api::{
+    infrastructure::{qos::DataWriterQos, qos_policy::ReliabilityQosPolicyKind},
+    return_type::DDSResult,
 };
-use rust_rtps_udp_psm::RtpsUdpPsm;
+use rust_rtps_pim::{
+    behavior::{
+        stateless_writer::{RTPSReaderLocator, RTPSStatelessWriter},
+        RTPSWriter,
+    },
+    structure,
+};
+use rust_rtps_udp_psm::{
+    types::{Duration, EntityId, Guid, TopicKind},
+    RtpsUdpPsm,
+};
+
+use rust_rtps_udp_psm::types::ChangeKind;
+use structure::RTPSHistoryCache;
 
 use super::history_cache_impl::HistoryCacheImpl;
 
@@ -14,11 +27,67 @@ pub struct StatelessDataWriterImpl {
 }
 
 impl StatelessDataWriterImpl {
-    pub fn new(writer: RTPSWriter<RtpsUdpPsm, HistoryCacheImpl>) -> Self {
+    pub fn new(qos: DataWriterQos) -> Self {
+        let guid = Guid {
+            prefix: [1; 12],
+            entity_id: EntityId {
+                entity_key: [1; 3],
+                entity_kind: 1,
+            },
+        };
+        let topic_kind = TopicKind::WithKey;
+
+        let reliability_level = match qos.reliability.kind {
+            ReliabilityQosPolicyKind::BestEffortReliabilityQos => {
+                <RtpsUdpPsm as structure::Types>::BEST_EFFORT
+            }
+            ReliabilityQosPolicyKind::ReliableReliabilityQos => {
+                <RtpsUdpPsm as structure::Types>::RELIABLE
+            }
+        };
+        let unicast_locator_list = vec![];
+        let multicast_locator_list = vec![];
+        let push_mode = true;
+        let heartbeat_period = Duration {
+            seconds: 1,
+            fraction: 0,
+        };
+        let nack_response_delay = Duration {
+            seconds: 0,
+            fraction: 0,
+        };
+        let nack_suppression_duration = Duration {
+            seconds: 0,
+            fraction: 0,
+        };
+        let data_max_size_serialized = i32::MAX;
+
+        let writer = RTPSWriter::new(
+            guid,
+            topic_kind,
+            reliability_level,
+            unicast_locator_list,
+            multicast_locator_list,
+            push_mode,
+            heartbeat_period,
+            nack_response_delay,
+            nack_suppression_duration,
+            data_max_size_serialized,
+        );
         Self {
             writer,
             reader_locators: Vec::new(),
         }
+    }
+
+    pub fn write_w_timestamp(&mut self) -> DDSResult<()> {
+        let kind = ChangeKind::Alive;
+        let data = vec![0, 1, 2];
+        let inline_qos = vec![];
+        let handle = 1;
+        let change = self.new_change(kind, data, inline_qos, handle);
+        self.writer_cache.add_change(change);
+        Ok(())
     }
 }
 

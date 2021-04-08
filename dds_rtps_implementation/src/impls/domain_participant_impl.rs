@@ -112,6 +112,8 @@ pub struct DomainParticipantImpl {
     default_publisher_qos: PublisherQos,
     default_subscriber_qos: SubscriberQos,
     default_topic_qos: TopicQos,
+    builin_publisher: Arc<Mutex<PublisherImpl>>,
+    builtin_subscriber: Arc<Mutex<SubscriberImpl>>,
     // builtin_entities: Arc<RtpsBuiltinParticipantEntities>,
     // user_defined_entities: Arc<RtpsParticipantEntities>,
     enabled: Arc<atomic::AtomicBool>,
@@ -127,6 +129,8 @@ impl DomainParticipantImpl {
         qos: DomainParticipantQos,
         a_listener: Option<Box<dyn DomainParticipantListener>>,
         mask: StatusMask,
+        builtin_subscriber: SubscriberImpl,
+        builtin_publisher: PublisherImpl,
         // configuration: DomainParticipantImplConfiguration,
     ) -> Self {
         let _guid_prefix = [1; 12];
@@ -211,8 +215,8 @@ impl DomainParticipantImpl {
             default_publisher_qos: PublisherQos::default(),
             default_subscriber_qos: SubscriberQos::default(),
             default_topic_qos: TopicQos::default(),
-            // builtin_entities,
-            // user_defined_entities,
+            builin_publisher: Arc::new(Mutex::new(builtin_publisher)),
+            builtin_subscriber: Arc::new(Mutex::new(builtin_subscriber)),
             enabled: Arc::new(atomic::AtomicBool::new(false)),
             enabled_function: Once::new(),
             thread_list: RefCell::new(Vec::new()),
@@ -526,520 +530,567 @@ impl Drop for DomainParticipantImpl {
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use rust_rtps::types::Locator;
-
-//     use crate::transport::Transport;
-
-//     use super::*;
-
-//     struct TestType;
-
-//     impl DDSType for TestType {
-//         fn type_name() -> &'static str {
-//             "TestType"
-//         }
-
-//         fn has_key() -> bool {
-//             todo!()
-//         }
-
-//         fn key(&self) -> Vec<u8> {
-//             todo!()
-//         }
-
-//         fn serialize(&self) -> Vec<u8> {
-//             todo!()
-//         }
-
-//         fn deserialize(_data: Vec<u8>) -> Self {
-//             todo!()
-//         }
-//     }
-
-//     #[derive(Default)]
-//     struct MockTransport {
-//         unicast_locator_list: Vec<Locator>,
-//         multicast_locator_list: Vec<Locator>,
-//     }
-
-//     impl Transport for MockTransport {
-//         fn write<'a>(
-//             &'a self,
-//             _message: rust_rtps::messages::RtpsMessage<'a>,
-//             _destination_locator: &Locator,
-//         ) {
-//         }
-
-//         fn unicast_locator_list(&self) -> &[Locator] {
-//             &self.unicast_locator_list
-//         }
-
-//         fn multicast_locator_list(&self) -> &[Locator] {
-//             &self.multicast_locator_list
-//         }
-//     }
-
-//     #[test]
-//     fn create_publisher() {
-//         let configuration = DomainParticipantImplConfiguration {
-//             userdata_transport: Box::new(MockTransport::default()),
-//             metatraffic_transport: Box::new(MockTransport::default()),
-//             domain_tag: "",
-//             lease_duration: Duration {
-//                 seconds: 30,
-//                 fraction: 0,
-//             },
-//             spdp_locator_list: vec![],
-//         };
-
-//         let participant =
-//             DomainParticipantImpl::new(0, DomainParticipantQos::default(), None, 0, configuration);
-
-//         let qos = Some(PublisherQos::default());
-//         let a_listener = None;
-//         let mask = 0;
-//         participant
-//             .create_publisher(qos, a_listener, mask)
-//             .expect("Error creating publisher");
-
-//         assert_eq!(
-//             participant
-//                 .user_defined_entities
-//                 .publisher_list
-//                 .lock()
-//                 .unwrap()
-//                 .len(),
-//             1
-//         );
-//     }
-
-//     #[test]
-//     fn create_delete_publisher() {
-//         let configuration = DomainParticipantImplConfiguration {
-//             userdata_transport: Box::new(MockTransport::default()),
-//             metatraffic_transport: Box::new(MockTransport::default()),
-//             domain_tag: "",
-//             lease_duration: Duration {
-//                 seconds: 30,
-//                 fraction: 0,
-//             },
-//             spdp_locator_list: vec![],
-//         };
-
-//         let participant =
-//             DomainParticipantImpl::new(0, DomainParticipantQos::default(), None, 0, configuration);
-
-//         let qos = Some(PublisherQos::default());
-//         let a_listener = None;
-//         let mask = 0;
-//         let a_publisher = participant.create_publisher(qos, a_listener, mask).unwrap();
-
-//         participant
-//             .delete_publisher(&a_publisher)
-//             .expect("Error deleting publisher");
-//         assert_eq!(
-//             participant
-//                 .user_defined_entities
-//                 .publisher_list
-//                 .lock()
-//                 .unwrap()
-//                 .len(),
-//             0
-//         );
-//     }
-
-//     #[test]
-//     fn create_subscriber() {
-//         let configuration = DomainParticipantImplConfiguration {
-//             userdata_transport: Box::new(MockTransport::default()),
-//             metatraffic_transport: Box::new(MockTransport::default()),
-//             domain_tag: "",
-//             lease_duration: Duration {
-//                 seconds: 30,
-//                 fraction: 0,
-//             },
-//             spdp_locator_list: vec![],
-//         };
-
-//         let participant =
-//             DomainParticipantImpl::new(0, DomainParticipantQos::default(), None, 0, configuration);
-
-//         let qos = Some(SubscriberQos::default());
-//         let a_listener = None;
-//         let mask = 0;
-//         participant
-//             .create_subscriber(qos, a_listener, mask)
-//             .expect("Error creating subscriber");
-//         assert_eq!(
-//             participant
-//                 .user_defined_entities
-//                 .subscriber_list
-//                 .lock()
-//                 .unwrap()
-//                 .len(),
-//             1
-//         );
-//     }
-
-//     #[test]
-//     fn create_delete_subscriber() {
-//         let configuration = DomainParticipantImplConfiguration {
-//             userdata_transport: Box::new(MockTransport::default()),
-//             metatraffic_transport: Box::new(MockTransport::default()),
-//             domain_tag: "",
-//             lease_duration: Duration {
-//                 seconds: 30,
-//                 fraction: 0,
-//             },
-//             spdp_locator_list: vec![],
-//         };
-
-//         let participant =
-//             DomainParticipantImpl::new(0, DomainParticipantQos::default(), None, 0, configuration);
-
-//         let qos = Some(SubscriberQos::default());
-//         let a_listener = None;
-//         let mask = 0;
-//         let a_subscriber = participant
-//             .create_subscriber(qos, a_listener, mask)
-//             .unwrap();
-
-//         participant
-//             .delete_subscriber(&a_subscriber)
-//             .expect("Error deleting subscriber");
-//         assert_eq!(
-//             participant
-//                 .user_defined_entities
-//                 .subscriber_list
-//                 .lock()
-//                 .unwrap()
-//                 .len(),
-//             0
-//         );
-//     }
-
-//     #[test]
-//     fn create_topic() {
-//         let configuration = DomainParticipantImplConfiguration {
-//             userdata_transport: Box::new(MockTransport::default()),
-//             metatraffic_transport: Box::new(MockTransport::default()),
-//             domain_tag: "",
-//             lease_duration: Duration {
-//                 seconds: 30,
-//                 fraction: 0,
-//             },
-//             spdp_locator_list: vec![],
-//         };
-
-//         let participant =
-//             DomainParticipantImpl::new(0, DomainParticipantQos::default(), None, 0, configuration);
-
-//         let topic_name = "Test";
-//         let qos = Some(TopicQos::default());
-//         let a_listener = None;
-//         let mask = 0;
-//         participant
-//             .create_topic::<TestType>(topic_name, qos, a_listener, mask)
-//             .expect("Error creating topic");
-//     }
-
-//     #[test]
-//     fn create_delete_topic() {
-//         let configuration = DomainParticipantImplConfiguration {
-//             userdata_transport: Box::new(MockTransport::default()),
-//             metatraffic_transport: Box::new(MockTransport::default()),
-//             domain_tag: "",
-//             lease_duration: Duration {
-//                 seconds: 30,
-//                 fraction: 0,
-//             },
-//             spdp_locator_list: vec![],
-//         };
-
-//         let participant =
-//             DomainParticipantImpl::new(0, DomainParticipantQos::default(), None, 0, configuration);
-
-//         let topic_name = "Test";
-//         let qos = Some(TopicQos::default());
-//         let a_listener = None;
-//         let mask = 0;
-//         let a_topic = participant
-//             .create_topic::<TestType>(topic_name, qos, a_listener, mask)
-//             .unwrap();
-
-//         participant
-//             .delete_topic(&a_topic)
-//             .expect("Error deleting topic")
-//     }
-
-//     #[test]
-//     fn set_get_default_publisher_qos() {
-//         let configuration = DomainParticipantImplConfiguration {
-//             userdata_transport: Box::new(MockTransport::default()),
-//             metatraffic_transport: Box::new(MockTransport::default()),
-//             domain_tag: "",
-//             lease_duration: Duration {
-//                 seconds: 30,
-//                 fraction: 0,
-//             },
-//             spdp_locator_list: vec![],
-//         };
-
-//         let mut participant =
-//             DomainParticipantImpl::new(0, DomainParticipantQos::default(), None, 0, configuration);
-
-//         let mut publisher_qos = PublisherQos::default();
-//         publisher_qos.group_data.value = vec![b'a', b'b', b'c'];
-//         participant
-//             .set_default_publisher_qos(Some(publisher_qos.clone()))
-//             .expect("Error setting default publisher qos");
-
-//         assert_eq!(publisher_qos, participant.get_default_publisher_qos())
-//     }
-
-//     #[test]
-//     fn set_get_default_subscriber_qos() {
-//         let configuration = DomainParticipantImplConfiguration {
-//             userdata_transport: Box::new(MockTransport::default()),
-//             metatraffic_transport: Box::new(MockTransport::default()),
-//             domain_tag: "",
-//             lease_duration: Duration {
-//                 seconds: 30,
-//                 fraction: 0,
-//             },
-//             spdp_locator_list: vec![],
-//         };
-
-//         let mut participant =
-//             DomainParticipantImpl::new(0, DomainParticipantQos::default(), None, 0, configuration);
-
-//         let mut subscriber_qos = SubscriberQos::default();
-//         subscriber_qos.group_data.value = vec![b'a', b'b', b'c'];
-//         participant
-//             .set_default_subscriber_qos(Some(subscriber_qos.clone()))
-//             .expect("Error setting default subscriber qos");
-
-//         assert_eq!(subscriber_qos, participant.get_default_subscriber_qos())
-//     }
-
-//     #[test]
-//     fn set_get_default_topic_qos() {
-//         let configuration = DomainParticipantImplConfiguration {
-//             userdata_transport: Box::new(MockTransport::default()),
-//             metatraffic_transport: Box::new(MockTransport::default()),
-//             domain_tag: "",
-//             lease_duration: Duration {
-//                 seconds: 30,
-//                 fraction: 0,
-//             },
-//             spdp_locator_list: vec![],
-//         };
-
-//         let mut participant =
-//             DomainParticipantImpl::new(0, DomainParticipantQos::default(), None, 0, configuration);
-
-//         let mut topic_qos = TopicQos::default();
-//         topic_qos.topic_data.value = vec![b'a', b'b', b'c'];
-//         participant
-//             .set_default_topic_qos(Some(topic_qos.clone()))
-//             .expect("Error setting default subscriber qos");
-
-//         assert_eq!(topic_qos, participant.get_default_topic_qos())
-//     }
-
-//     #[test]
-//     fn set_default_publisher_qos_to_default_value() {
-//         let configuration = DomainParticipantImplConfiguration {
-//             userdata_transport: Box::new(MockTransport::default()),
-//             metatraffic_transport: Box::new(MockTransport::default()),
-//             domain_tag: "",
-//             lease_duration: Duration {
-//                 seconds: 30,
-//                 fraction: 0,
-//             },
-//             spdp_locator_list: vec![],
-//         };
-
-//         let mut participant =
-//             DomainParticipantImpl::new(0, DomainParticipantQos::default(), None, 0, configuration);
-
-//         let mut publisher_qos = PublisherQos::default();
-//         publisher_qos.group_data.value = vec![b'a', b'b', b'c'];
-//         participant
-//             .set_default_publisher_qos(Some(publisher_qos.clone()))
-//             .unwrap();
-
-//         participant
-//             .set_default_publisher_qos(None)
-//             .expect("Error setting default publisher qos");
-
-//         assert_eq!(
-//             PublisherQos::default(),
-//             participant.get_default_publisher_qos()
-//         )
-//     }
-
-//     #[test]
-//     fn set_default_subscriber_qos_to_default_value() {
-//         let configuration = DomainParticipantImplConfiguration {
-//             userdata_transport: Box::new(MockTransport::default()),
-//             metatraffic_transport: Box::new(MockTransport::default()),
-//             domain_tag: "",
-//             lease_duration: Duration {
-//                 seconds: 30,
-//                 fraction: 0,
-//             },
-//             spdp_locator_list: vec![],
-//         };
-
-//         let mut participant =
-//             DomainParticipantImpl::new(0, DomainParticipantQos::default(), None, 0, configuration);
-
-//         let mut subscriber_qos = SubscriberQos::default();
-//         subscriber_qos.group_data.value = vec![b'a', b'b', b'c'];
-//         participant
-//             .set_default_subscriber_qos(Some(subscriber_qos.clone()))
-//             .unwrap();
-
-//         participant
-//             .set_default_subscriber_qos(None)
-//             .expect("Error setting default subscriber qos");
-
-//         assert_eq!(
-//             SubscriberQos::default(),
-//             participant.get_default_subscriber_qos()
-//         )
-//     }
-
-//     #[test]
-//     fn set_default_topic_qos_to_default_value() {
-//         let configuration = DomainParticipantImplConfiguration {
-//             userdata_transport: Box::new(MockTransport::default()),
-//             metatraffic_transport: Box::new(MockTransport::default()),
-//             domain_tag: "",
-//             lease_duration: Duration {
-//                 seconds: 30,
-//                 fraction: 0,
-//             },
-//             spdp_locator_list: vec![],
-//         };
-
-//         let mut participant =
-//             DomainParticipantImpl::new(0, DomainParticipantQos::default(), None, 0, configuration);
-
-//         let mut topic_qos = TopicQos::default();
-//         topic_qos.topic_data.value = vec![b'a', b'b', b'c'];
-//         participant
-//             .set_default_topic_qos(Some(topic_qos.clone()))
-//             .unwrap();
-
-//         participant
-//             .set_default_topic_qos(None)
-//             .expect("Error setting default subscriber qos");
-
-//         assert_eq!(TopicQos::default(), participant.get_default_topic_qos())
-//     }
-
-//     #[test]
-//     fn enable() {
-//         let configuration = DomainParticipantImplConfiguration {
-//             userdata_transport: Box::new(MockTransport::default()),
-//             metatraffic_transport: Box::new(MockTransport::default()),
-//             domain_tag: "",
-//             lease_duration: Duration {
-//                 seconds: 30,
-//                 fraction: 0,
-//             },
-//             spdp_locator_list: vec![],
-//         };
-
-//         let mut participant =
-//             DomainParticipantImpl::new(0, DomainParticipantQos::default(), None, 0, configuration);
-
-//         participant.enable().expect("Failed to enable");
-//         assert_eq!(participant.thread_list.borrow().len(), 1);
-//     }
-
-//     // #[test]
-//     // fn create_publisher_factory_default_qos() {
-//     //     let participant = DomainParticipantImpl::new(
-//     //         0,
-//     //         DomainParticipantQos::default(),
-//     //         MockTransport::default(),
-//     //         MockTransport::default(),
-//     //         None,
-//     //         0,
-//     //     );
-
-//     //     let mut publisher_qos = PublisherQos::default();
-//     //     publisher_qos.group_data.value = vec![b'a', b'b', b'c'];
-//     //     participant
-//     //         .set_default_publisher_qos(Some(publisher_qos.clone()))
-//     //         .unwrap();
-
-//     //     let qos = None;
-//     //     let a_listener = None;
-//     //     let mask = 0;
-//     //     let publisher = participant
-//     //         .create_publisher(qos, a_listener, mask)
-//     //         .expect("Error creating publisher");
-
-//     //     assert_eq!(publisher.get_qos().unwrap(), publisher_qos);
-//     // }
-
-//     // #[test]
-//     // fn create_subscriber_factory_default_qos() {
-//     //     let participant = DomainParticipantImpl::new(
-//     //         0,
-//     //         DomainParticipantQos::default(),
-//     //         MockTransport::default(),
-//     //         MockTransport::default(),
-//     //         None,
-//     //         0,
-//     //     );
-
-//     //     let mut subscriber_qos = SubscriberQos::default();
-//     //     subscriber_qos.group_data.value = vec![b'a', b'b', b'c'];
-//     //     participant
-//     //         .set_default_subscriber_qos(Some(subscriber_qos.clone()))
-//     //         .unwrap();
-
-//     //     let qos = None;
-//     //     let a_listener = None;
-//     //     let mask = 0;
-//     //     let subscriber = participant
-//     //         .create_subscriber(qos, a_listener, mask)
-//     //         .expect("Error creating publisher");
-
-//     //     assert_eq!(subscriber.get_qos().unwrap(), subscriber_qos);
-//     // }
-
-//     // #[test]
-//     // fn create_topic_factory_default_qos() {
-//     //     let participant = DomainParticipantImpl::new(
-//     //         0,
-//     //         DomainParticipantQos::default(),
-//     //         MockTransport::default(),
-//     //         MockTransport::default(),
-//     //         None,
-//     //         0,
-//     //     );
-
-//     //     let mut topic_qos = TopicQos::default();
-//     //     topic_qos.topic_data.value = vec![b'a', b'b', b'c'];
-//     //     participant
-//     //         .set_default_topic_qos(Some(topic_qos.clone()))
-//     //         .unwrap();
-
-//     //     let qos = None;
-//     //     let a_listener = None;
-//     //     let mask = 0;
-//     //     let topic = participant
-//     //         .create_topic::<TestType>("name", qos, a_listener, mask)
-//     //         .expect("Error creating publisher");
-
-//     //     assert_eq!(topic.get_qos().unwrap(), topic_qos);
-//     // }
-// }
+#[cfg(test)]
+mod tests {
+    //     use rust_rtps::types::Locator;
+
+    //     use crate::transport::Transport;
+
+    use rust_dds_api::infrastructure::qos::DataWriterQos;
+    use rust_rtps_pim::{behavior::stateless_writer::RTPSStatelessWriter, structure};
+    use rust_rtps_udp_psm::{types::Locator, RtpsUdpPsm};
+
+    use crate::impls::stateless_data_writer_impl::StatelessDataWriterImpl;
+
+    use super::*;
+
+    //     struct TestType;
+
+    //     impl DDSType for TestType {
+    //         fn type_name() -> &'static str {
+    //             "TestType"
+    //         }
+
+    //         fn has_key() -> bool {
+    //             todo!()
+    //         }
+
+    //         fn key(&self) -> Vec<u8> {
+    //             todo!()
+    //         }
+
+    //         fn serialize(&self) -> Vec<u8> {
+    //             todo!()
+    //         }
+
+    //         fn deserialize(_data: Vec<u8>) -> Self {
+    //             todo!()
+    //         }
+    //     }
+
+    //     #[derive(Default)]
+    //     struct MockTransport {
+    //         unicast_locator_list: Vec<Locator>,
+    //         multicast_locator_list: Vec<Locator>,
+    //     }
+
+    //     impl Transport for MockTransport {
+    //         fn write<'a>(
+    //             &'a self,
+    //             _message: rust_rtps::messages::RtpsMessage<'a>,
+    //             _destination_locator: &Locator,
+    //         ) {
+    //         }
+
+    //         fn unicast_locator_list(&self) -> &[Locator] {
+    //             &self.unicast_locator_list
+    //         }
+
+    //         fn multicast_locator_list(&self) -> &[Locator] {
+    //             &self.multicast_locator_list
+    //         }
+    //     }
+
+    #[test]
+    fn demo_participant_test() {
+        let builtin_subscriber = SubscriberImpl::new(SubscriberQos::default(), None, 0);
+        let mut builtin_publisher = PublisherImpl::new(PublisherQos::default(), None, 0);
+
+        let mut stateless_data_writer = StatelessDataWriterImpl::new(DataWriterQos::default());
+        stateless_data_writer.reader_locator_add(Locator {
+            kind: <<RtpsUdpPsm as structure::Types>::Locator as structure::types::Locator>::LOCATOR_KIND_UDPv4,
+            port: 7400,
+            address: [0,0,0,0,0,0,0,0,0,0,0,0,239,255,0,1],
+        });
+        stateless_data_writer.write_w_timestamp().unwrap();
+
+        builtin_publisher.stateless_writer_add(stateless_data_writer);
+
+        let mut participant = DomainParticipantImpl::new(
+            0,
+            DomainParticipantQos::default(),
+            None,
+            0,
+            builtin_subscriber,
+            builtin_publisher,
+        );
+
+        participant.enable().unwrap();
+
+        std::thread::sleep(std::time::Duration::from_secs(5));
+    }
+
+    // #[test]
+    // fn create_publisher() {
+    //         let configuration = DomainParticipantImplConfiguration {
+    //             userdata_transport: Box::new(MockTransport::default()),
+    //             metatraffic_transport: Box::new(MockTransport::default()),
+    //             domain_tag: "",
+    //             lease_duration: Duration {
+    //                 seconds: 30,
+    //                 fraction: 0,
+    //             },
+    //             spdp_locator_list: vec![],
+    //         };
+    //configuration
+    // let builtin_subscriber = SubscriberImpl::new(SubscriberQos::default(), None, 0);
+    // let mut builtin_publisher = PublisherImpl::new(PublisherQos::default(), None, 0);
+
+    // let stateless_data_writer = StatelessDataWriterImpl::new(DataWriterQos::default());
+    // builtin_publisher.stateless_writer_add(stateless_data_writer);
+
+    // let participant = DomainParticipantImpl::new(
+    //     0,
+    //     DomainParticipantQos::default(),
+    //     None,
+    //     0,
+    //     builtin_subscriber,
+    //     builtin_publisher,
+    // );
+
+    //         let qos = Some(PublisherQos::default());
+    //         let a_listener = None;
+    //         let mask = 0;
+    //         participant
+    //             .create_publisher(qos, a_listener, mask)
+    //             .expect("Error creating publisher");
+
+    //         assert_eq!(
+    //             participant
+    //                 .user_defined_entities
+    //                 .publisher_list
+    //                 .lock()
+    //                 .unwrap()
+    //                 .len(),
+    //             1
+    //         );
+    // }
+
+    //     #[test]
+    //     fn create_delete_publisher() {
+    //         let configuration = DomainParticipantImplConfiguration {
+    //             userdata_transport: Box::new(MockTransport::default()),
+    //             metatraffic_transport: Box::new(MockTransport::default()),
+    //             domain_tag: "",
+    //             lease_duration: Duration {
+    //                 seconds: 30,
+    //                 fraction: 0,
+    //             },
+    //             spdp_locator_list: vec![],
+    //         };
+
+    //         let participant =
+    //             DomainParticipantImpl::new(0, DomainParticipantQos::default(), None, 0, configuration);
+
+    //         let qos = Some(PublisherQos::default());
+    //         let a_listener = None;
+    //         let mask = 0;
+    //         let a_publisher = participant.create_publisher(qos, a_listener, mask).unwrap();
+
+    //         participant
+    //             .delete_publisher(&a_publisher)
+    //             .expect("Error deleting publisher");
+    //         assert_eq!(
+    //             participant
+    //                 .user_defined_entities
+    //                 .publisher_list
+    //                 .lock()
+    //                 .unwrap()
+    //                 .len(),
+    //             0
+    //         );
+    //     }
+
+    //     #[test]
+    //     fn create_subscriber() {
+    //         let configuration = DomainParticipantImplConfiguration {
+    //             userdata_transport: Box::new(MockTransport::default()),
+    //             metatraffic_transport: Box::new(MockTransport::default()),
+    //             domain_tag: "",
+    //             lease_duration: Duration {
+    //                 seconds: 30,
+    //                 fraction: 0,
+    //             },
+    //             spdp_locator_list: vec![],
+    //         };
+
+    //         let participant =
+    //             DomainParticipantImpl::new(0, DomainParticipantQos::default(), None, 0, configuration);
+
+    //         let qos = Some(SubscriberQos::default());
+    //         let a_listener = None;
+    //         let mask = 0;
+    //         participant
+    //             .create_subscriber(qos, a_listener, mask)
+    //             .expect("Error creating subscriber");
+    //         assert_eq!(
+    //             participant
+    //                 .user_defined_entities
+    //                 .subscriber_list
+    //                 .lock()
+    //                 .unwrap()
+    //                 .len(),
+    //             1
+    //         );
+    //     }
+
+    //     #[test]
+    //     fn create_delete_subscriber() {
+    //         let configuration = DomainParticipantImplConfiguration {
+    //             userdata_transport: Box::new(MockTransport::default()),
+    //             metatraffic_transport: Box::new(MockTransport::default()),
+    //             domain_tag: "",
+    //             lease_duration: Duration {
+    //                 seconds: 30,
+    //                 fraction: 0,
+    //             },
+    //             spdp_locator_list: vec![],
+    //         };
+
+    //         let participant =
+    //             DomainParticipantImpl::new(0, DomainParticipantQos::default(), None, 0, configuration);
+
+    //         let qos = Some(SubscriberQos::default());
+    //         let a_listener = None;
+    //         let mask = 0;
+    //         let a_subscriber = participant
+    //             .create_subscriber(qos, a_listener, mask)
+    //             .unwrap();
+
+    //         participant
+    //             .delete_subscriber(&a_subscriber)
+    //             .expect("Error deleting subscriber");
+    //         assert_eq!(
+    //             participant
+    //                 .user_defined_entities
+    //                 .subscriber_list
+    //                 .lock()
+    //                 .unwrap()
+    //                 .len(),
+    //             0
+    //         );
+    //     }
+
+    //     #[test]
+    //     fn create_topic() {
+    //         let configuration = DomainParticipantImplConfiguration {
+    //             userdata_transport: Box::new(MockTransport::default()),
+    //             metatraffic_transport: Box::new(MockTransport::default()),
+    //             domain_tag: "",
+    //             lease_duration: Duration {
+    //                 seconds: 30,
+    //                 fraction: 0,
+    //             },
+    //             spdp_locator_list: vec![],
+    //         };
+
+    //         let participant =
+    //             DomainParticipantImpl::new(0, DomainParticipantQos::default(), None, 0, configuration);
+
+    //         let topic_name = "Test";
+    //         let qos = Some(TopicQos::default());
+    //         let a_listener = None;
+    //         let mask = 0;
+    //         participant
+    //             .create_topic::<TestType>(topic_name, qos, a_listener, mask)
+    //             .expect("Error creating topic");
+    //     }
+
+    //     #[test]
+    //     fn create_delete_topic() {
+    //         let configuration = DomainParticipantImplConfiguration {
+    //             userdata_transport: Box::new(MockTransport::default()),
+    //             metatraffic_transport: Box::new(MockTransport::default()),
+    //             domain_tag: "",
+    //             lease_duration: Duration {
+    //                 seconds: 30,
+    //                 fraction: 0,
+    //             },
+    //             spdp_locator_list: vec![],
+    //         };
+
+    //         let participant =
+    //             DomainParticipantImpl::new(0, DomainParticipantQos::default(), None, 0, configuration);
+
+    //         let topic_name = "Test";
+    //         let qos = Some(TopicQos::default());
+    //         let a_listener = None;
+    //         let mask = 0;
+    //         let a_topic = participant
+    //             .create_topic::<TestType>(topic_name, qos, a_listener, mask)
+    //             .unwrap();
+
+    //         participant
+    //             .delete_topic(&a_topic)
+    //             .expect("Error deleting topic")
+    //     }
+
+    //     #[test]
+    //     fn set_get_default_publisher_qos() {
+    //         let configuration = DomainParticipantImplConfiguration {
+    //             userdata_transport: Box::new(MockTransport::default()),
+    //             metatraffic_transport: Box::new(MockTransport::default()),
+    //             domain_tag: "",
+    //             lease_duration: Duration {
+    //                 seconds: 30,
+    //                 fraction: 0,
+    //             },
+    //             spdp_locator_list: vec![],
+    //         };
+
+    //         let mut participant =
+    //             DomainParticipantImpl::new(0, DomainParticipantQos::default(), None, 0, configuration);
+
+    //         let mut publisher_qos = PublisherQos::default();
+    //         publisher_qos.group_data.value = vec![b'a', b'b', b'c'];
+    //         participant
+    //             .set_default_publisher_qos(Some(publisher_qos.clone()))
+    //             .expect("Error setting default publisher qos");
+
+    //         assert_eq!(publisher_qos, participant.get_default_publisher_qos())
+    //     }
+
+    //     #[test]
+    //     fn set_get_default_subscriber_qos() {
+    //         let configuration = DomainParticipantImplConfiguration {
+    //             userdata_transport: Box::new(MockTransport::default()),
+    //             metatraffic_transport: Box::new(MockTransport::default()),
+    //             domain_tag: "",
+    //             lease_duration: Duration {
+    //                 seconds: 30,
+    //                 fraction: 0,
+    //             },
+    //             spdp_locator_list: vec![],
+    //         };
+
+    //         let mut participant =
+    //             DomainParticipantImpl::new(0, DomainParticipantQos::default(), None, 0, configuration);
+
+    //         let mut subscriber_qos = SubscriberQos::default();
+    //         subscriber_qos.group_data.value = vec![b'a', b'b', b'c'];
+    //         participant
+    //             .set_default_subscriber_qos(Some(subscriber_qos.clone()))
+    //             .expect("Error setting default subscriber qos");
+
+    //         assert_eq!(subscriber_qos, participant.get_default_subscriber_qos())
+    //     }
+
+    //     #[test]
+    //     fn set_get_default_topic_qos() {
+    //         let configuration = DomainParticipantImplConfiguration {
+    //             userdata_transport: Box::new(MockTransport::default()),
+    //             metatraffic_transport: Box::new(MockTransport::default()),
+    //             domain_tag: "",
+    //             lease_duration: Duration {
+    //                 seconds: 30,
+    //                 fraction: 0,
+    //             },
+    //             spdp_locator_list: vec![],
+    //         };
+
+    //         let mut participant =
+    //             DomainParticipantImpl::new(0, DomainParticipantQos::default(), None, 0, configuration);
+
+    //         let mut topic_qos = TopicQos::default();
+    //         topic_qos.topic_data.value = vec![b'a', b'b', b'c'];
+    //         participant
+    //             .set_default_topic_qos(Some(topic_qos.clone()))
+    //             .expect("Error setting default subscriber qos");
+
+    //         assert_eq!(topic_qos, participant.get_default_topic_qos())
+    //     }
+
+    //     #[test]
+    //     fn set_default_publisher_qos_to_default_value() {
+    //         let configuration = DomainParticipantImplConfiguration {
+    //             userdata_transport: Box::new(MockTransport::default()),
+    //             metatraffic_transport: Box::new(MockTransport::default()),
+    //             domain_tag: "",
+    //             lease_duration: Duration {
+    //                 seconds: 30,
+    //                 fraction: 0,
+    //             },
+    //             spdp_locator_list: vec![],
+    //         };
+
+    //         let mut participant =
+    //             DomainParticipantImpl::new(0, DomainParticipantQos::default(), None, 0, configuration);
+
+    //         let mut publisher_qos = PublisherQos::default();
+    //         publisher_qos.group_data.value = vec![b'a', b'b', b'c'];
+    //         participant
+    //             .set_default_publisher_qos(Some(publisher_qos.clone()))
+    //             .unwrap();
+
+    //         participant
+    //             .set_default_publisher_qos(None)
+    //             .expect("Error setting default publisher qos");
+
+    //         assert_eq!(
+    //             PublisherQos::default(),
+    //             participant.get_default_publisher_qos()
+    //         )
+    //     }
+
+    //     #[test]
+    //     fn set_default_subscriber_qos_to_default_value() {
+    //         let configuration = DomainParticipantImplConfiguration {
+    //             userdata_transport: Box::new(MockTransport::default()),
+    //             metatraffic_transport: Box::new(MockTransport::default()),
+    //             domain_tag: "",
+    //             lease_duration: Duration {
+    //                 seconds: 30,
+    //                 fraction: 0,
+    //             },
+    //             spdp_locator_list: vec![],
+    //         };
+
+    //         let mut participant =
+    //             DomainParticipantImpl::new(0, DomainParticipantQos::default(), None, 0, configuration);
+
+    //         let mut subscriber_qos = SubscriberQos::default();
+    //         subscriber_qos.group_data.value = vec![b'a', b'b', b'c'];
+    //         participant
+    //             .set_default_subscriber_qos(Some(subscriber_qos.clone()))
+    //             .unwrap();
+
+    //         participant
+    //             .set_default_subscriber_qos(None)
+    //             .expect("Error setting default subscriber qos");
+
+    //         assert_eq!(
+    //             SubscriberQos::default(),
+    //             participant.get_default_subscriber_qos()
+    //         )
+    //     }
+
+    //     #[test]
+    //     fn set_default_topic_qos_to_default_value() {
+    //         let configuration = DomainParticipantImplConfiguration {
+    //             userdata_transport: Box::new(MockTransport::default()),
+    //             metatraffic_transport: Box::new(MockTransport::default()),
+    //             domain_tag: "",
+    //             lease_duration: Duration {
+    //                 seconds: 30,
+    //                 fraction: 0,
+    //             },
+    //             spdp_locator_list: vec![],
+    //         };
+
+    //         let mut participant =
+    //             DomainParticipantImpl::new(0, DomainParticipantQos::default(), None, 0, configuration);
+
+    //         let mut topic_qos = TopicQos::default();
+    //         topic_qos.topic_data.value = vec![b'a', b'b', b'c'];
+    //         participant
+    //             .set_default_topic_qos(Some(topic_qos.clone()))
+    //             .unwrap();
+
+    //         participant
+    //             .set_default_topic_qos(None)
+    //             .expect("Error setting default subscriber qos");
+
+    //         assert_eq!(TopicQos::default(), participant.get_default_topic_qos())
+    //     }
+
+    //     #[test]
+    //     fn enable() {
+    //         let configuration = DomainParticipantImplConfiguration {
+    //             userdata_transport: Box::new(MockTransport::default()),
+    //             metatraffic_transport: Box::new(MockTransport::default()),
+    //             domain_tag: "",
+    //             lease_duration: Duration {
+    //                 seconds: 30,
+    //                 fraction: 0,
+    //             },
+    //             spdp_locator_list: vec![],
+    //         };
+
+    //         let mut participant =
+    //             DomainParticipantImpl::new(0, DomainParticipantQos::default(), None, 0, configuration);
+
+    //         participant.enable().expect("Failed to enable");
+    //         assert_eq!(participant.thread_list.borrow().len(), 1);
+    //     }
+
+    //     // #[test]
+    //     // fn create_publisher_factory_default_qos() {
+    //     //     let participant = DomainParticipantImpl::new(
+    //     //         0,
+    //     //         DomainParticipantQos::default(),
+    //     //         MockTransport::default(),
+    //     //         MockTransport::default(),
+    //     //         None,
+    //     //         0,
+    //     //     );
+
+    //     //     let mut publisher_qos = PublisherQos::default();
+    //     //     publisher_qos.group_data.value = vec![b'a', b'b', b'c'];
+    //     //     participant
+    //     //         .set_default_publisher_qos(Some(publisher_qos.clone()))
+    //     //         .unwrap();
+
+    //     //     let qos = None;
+    //     //     let a_listener = None;
+    //     //     let mask = 0;
+    //     //     let publisher = participant
+    //     //         .create_publisher(qos, a_listener, mask)
+    //     //         .expect("Error creating publisher");
+
+    //     //     assert_eq!(publisher.get_qos().unwrap(), publisher_qos);
+    //     // }
+
+    //     // #[test]
+    //     // fn create_subscriber_factory_default_qos() {
+    //     //     let participant = DomainParticipantImpl::new(
+    //     //         0,
+    //     //         DomainParticipantQos::default(),
+    //     //         MockTransport::default(),
+    //     //         MockTransport::default(),
+    //     //         None,
+    //     //         0,
+    //     //     );
+
+    //     //     let mut subscriber_qos = SubscriberQos::default();
+    //     //     subscriber_qos.group_data.value = vec![b'a', b'b', b'c'];
+    //     //     participant
+    //     //         .set_default_subscriber_qos(Some(subscriber_qos.clone()))
+    //     //         .unwrap();
+
+    //     //     let qos = None;
+    //     //     let a_listener = None;
+    //     //     let mask = 0;
+    //     //     let subscriber = participant
+    //     //         .create_subscriber(qos, a_listener, mask)
+    //     //         .expect("Error creating publisher");
+
+    //     //     assert_eq!(subscriber.get_qos().unwrap(), subscriber_qos);
+    //     // }
+
+    //     // #[test]
+    //     // fn create_topic_factory_default_qos() {
+    //     //     let participant = DomainParticipantImpl::new(
+    //     //         0,
+    //     //         DomainParticipantQos::default(),
+    //     //         MockTransport::default(),
+    //     //         MockTransport::default(),
+    //     //         None,
+    //     //         0,
+    //     //     );
+
+    //     //     let mut topic_qos = TopicQos::default();
+    //     //     topic_qos.topic_data.value = vec![b'a', b'b', b'c'];
+    //     //     participant
+    //     //         .set_default_topic_qos(Some(topic_qos.clone()))
+    //     //         .unwrap();
+
+    //     //     let qos = None;
+    //     //     let a_listener = None;
+    //     //     let mask = 0;
+    //     //     let topic = participant
+    //     //         .create_topic::<TestType>("name", qos, a_listener, mask)
+    //     //         .expect("Error creating publisher");
+
+    //     //     assert_eq!(topic.get_qos().unwrap(), topic_qos);
+    //     // }
+}

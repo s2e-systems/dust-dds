@@ -39,6 +39,10 @@ impl PublisherImpl {
         }
     }
 
+    pub fn stateless_writer_add(&mut self, stateless_writer: StatelessDataWriterImpl) {
+        self.stateless_writer_list.push(Arc::new(Mutex::new(stateless_writer)))
+    }
+
     pub fn create_datawriter(&self) -> Option<Weak<Mutex<StatefulDataWriterImpl>>> {
         // To be called for user-defined entity creation
 
