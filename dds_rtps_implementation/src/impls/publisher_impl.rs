@@ -5,9 +5,7 @@ use rust_dds_api::{
     infrastructure::qos::{DataWriterQos, PublisherQos},
     publication::publisher_listener::PublisherListener,
 };
-use rust_rtps_pim::behavior::stateless_writer::{RTPSStatelessWriter, RTPSStatelessWriterBehavior};
-use rust_rtps_udp_psm::submessages::{Data, Gap};
-
+use rust_rtps_udp_psm::{submessages, types::Locator};
 use super::{
     stateful_data_writer_impl::StatefulDataWriterImpl,
     stateless_data_writer_impl::StatelessDataWriterImpl,
@@ -41,10 +39,13 @@ impl PublisherImpl {
         }
     }
 
-    pub fn produce_messages(&self) -> () {
+    pub fn produce_messages(&self,
+        mut send_data_to: impl FnMut(&Locator, submessages::Data),
+        mut send_gap_to: impl FnMut(&Locator, submessages::Gap),) -> () {
         for stateless_writer in &self.stateless_writer_list {
             let mut stateless_writer_lock = stateless_writer.lock().unwrap();         
-            stateless_writer_lock.produce_messages(&mut |_,_|{}, &mut |_,_|{});
+            stateless_writer_lock.produce_messages(&mut send_data_to, &mut send_gap_to);
+
         }
     }
 

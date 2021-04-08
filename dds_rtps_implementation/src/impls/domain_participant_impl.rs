@@ -425,8 +425,17 @@ impl DomainParticipantImpl {
         self.enabled_function.call_once(|| {
             thread_list.push(std::thread::spawn(move || {
                 while enabled.load(atomic::Ordering::Acquire) {
-                    builtin_publisher.lock().unwrap().produce_messages();
-
+                    // let mut data = Vec::new();
+                    // let mut gap = Vec::new();
+                    builtin_publisher.lock().unwrap().produce_messages(
+                         |locator, message| println!("{:}", message),
+                         |locator, message| {},
+                     );
+                    // RtpsMessageSender::send_cache_change_messages(
+                        //             //     participant_guid_prefix,
+                        //             //     transport.as_ref(),
+                        //             //     destined_messages,
+                        //             // );
                     std::thread::sleep(std::time::Duration::from_secs(1));
                 }
             }));
@@ -536,7 +545,7 @@ mod tests {
 
     //     use crate::transport::Transport;
 
-    use rust_dds_api::infrastructure::qos::DataWriterQos;
+    use rust_dds_api::infrastructure::{qos::DataWriterQos, qos_policy::ReliabilityQosPolicyKind};
     use rust_rtps_pim::{behavior::stateless_writer::RTPSStatelessWriter, structure};
     use rust_rtps_udp_psm::{types::Locator, RtpsUdpPsm};
 
@@ -596,7 +605,9 @@ mod tests {
         let builtin_subscriber = SubscriberImpl::new(SubscriberQos::default(), None, 0);
         let mut builtin_publisher = PublisherImpl::new(PublisherQos::default(), None, 0);
 
-        let mut stateless_data_writer = StatelessDataWriterImpl::new(DataWriterQos::default());
+        let mut qos = DataWriterQos::default();
+        qos.reliability.kind = ReliabilityQosPolicyKind::BestEffortReliabilityQos;
+        let mut stateless_data_writer = StatelessDataWriterImpl::new(qos);
         stateless_data_writer.reader_locator_add(Locator {
             kind: <<RtpsUdpPsm as structure::Types>::Locator as structure::types::Locator>::LOCATOR_KIND_UDPv4,
             port: 7400,
@@ -615,9 +626,8 @@ mod tests {
             builtin_publisher,
         );
 
-        participant.enable().unwrap();
-
-        std::thread::sleep(std::time::Duration::from_secs(1));
+        //participant.enable().unwrap();
+        //std::thread::sleep(std::time::Duration::from_secs(1));
     }
 
     // #[test]

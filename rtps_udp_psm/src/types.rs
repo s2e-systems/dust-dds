@@ -143,11 +143,22 @@ impl rust_rtps_pim::structure::types::Guid for Guid {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct SequenceNumber {
     pub high: i32,
     pub low: u32,
 }
+impl PartialOrd for SequenceNumber {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Into::<i64>::into(*self).partial_cmp(&(*other).into())
+    }
+}
+impl Ord for SequenceNumber {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        Into::<i64>::into(*self).cmp(&(*other).into())
+    }
+}
+
 
 impl Into<i64> for SequenceNumber {
     fn into(self) -> i64 {

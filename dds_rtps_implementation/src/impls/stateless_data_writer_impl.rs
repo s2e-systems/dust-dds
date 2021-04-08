@@ -11,10 +11,7 @@ use rust_rtps_pim::{
     },
     structure,
 };
-use rust_rtps_pim::behavior::stateless_writer::{RTPSStatelessWriterBehavior};
 use rust_rtps_udp_psm::{RtpsUdpPsm, submessages, types::{Duration, EntityId, Guid, Locator, TopicKind}};
-use rust_rtps_pim::messages::submessages::Data;
-use rust_rtps_pim::messages::submessages::Gap;
 use rust_rtps_udp_psm::types::ChangeKind;
 use structure::RTPSHistoryCache;
 
