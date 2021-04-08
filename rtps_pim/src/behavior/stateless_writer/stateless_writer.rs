@@ -1,4 +1,4 @@
-use core::iter::FromIterator;
+use core::ops::{Deref, DerefMut};
 
 use crate::{
     behavior::{self, RTPSWriter},
@@ -118,54 +118,53 @@ where
     }
 }
 
-pub struct RTPSStatelessWriter<
+pub trait RTPSStatelessWriter<
     PSM: structure::Types + behavior::Types,
     HistoryCache: RTPSHistoryCache<PSM = PSM>,
-    ReaderLocatorList,
-> {
-    writer: RTPSWriter<PSM, HistoryCache>,
-    reader_locators: ReaderLocatorList,
-}
-
-impl<PSM, HistoryCache, ReaderLocatorList> RTPSStatelessWriter<PSM, HistoryCache, ReaderLocatorList>
-where
-    PSM: structure::Types + behavior::Types,
-    HistoryCache: RTPSHistoryCache<PSM = PSM>,
-    PSM::Locator: PartialEq + Clone,
-    ReaderLocatorList: IntoIterator<Item = RTPSReaderLocator<PSM>>
-        + Extend<RTPSReaderLocator<PSM>>
-        + FromIterator<RTPSReaderLocator<PSM>>,
-    for<'a> &'a ReaderLocatorList: IntoIterator<Item = &'a RTPSReaderLocator<PSM>>,
-    for<'a> &'a mut ReaderLocatorList: IntoIterator<Item = &'a mut RTPSReaderLocator<PSM>>,
+>: Deref<Target = RTPSWriter<PSM, HistoryCache>> + DerefMut
 {
-    pub fn new(writer: RTPSWriter<PSM, HistoryCache>) -> Self {
-        Self {
-            writer,
-            reader_locators: core::iter::empty().collect(),
-        }
-    }
+    fn reader_locator_add(&mut self, a_locator: <PSM as structure::Types>::Locator);
 
-    pub fn reader_locator_add(&mut self, a_locator: <PSM as structure::Types>::Locator) {
-        self.reader_locators
-            .extend(Some(RTPSReaderLocator::new(a_locator, false)));
-    }
+    fn reader_locator_remove(&mut self, a_locator: &<PSM as structure::Types>::Locator);
 
-    pub fn reader_locator_remove(&mut self, a_locator: &<PSM as structure::Types>::Locator) {
-        self.reader_locators = (&self.reader_locators)
-            .into_iter()
-            .filter(|&x| x.locator() != a_locator)
-            .map(|x| x.clone())
-            .collect();
-    }
+    fn reader_locators(&mut self) -> &mut [RTPSReaderLocator<PSM>];
 
-    pub fn unsent_changes_reset(&mut self) {
-        for reader_locator in &mut self.reader_locators {
+    fn unsent_changes_reset(&mut self) {
+        for reader_locator in self.reader_locators() {
             reader_locator.last_sent_sequence_number = 0.into();
         }
     }
+}
 
-    pub fn produce_messages<'a, Data, Gap, SendDataTo, SendGapTo>(
+pub trait RTPSStatelessWriterBehavior<'a, PSM, HistoryCache>
+where
+    PSM: structure::Types + behavior::Types + 'a,
+    HistoryCache: RTPSHistoryCache<PSM = PSM>,
+{
+    fn produce_messages<Data, Gap, SendDataTo, SendGapTo>(
         &'a mut self,
+        writer: &'a RTPSWriter<PSM, HistoryCache>,
+        send_data_to: SendDataTo,
+        send_gap_to: SendGapTo,
+    ) where
+        PSM: messages::Types,
+        PSM::ParameterVector: Clone,
+        Data: messages::submessages::Data<SerializedData = &'a <PSM as structure::types::Types>::Data>
+            + Submessage<PSM = PSM>,
+        Gap: messages::submessages::Gap + Submessage<PSM = PSM>,
+        SendDataTo: FnMut(&PSM::Locator, Data),
+        SendGapTo: FnMut(&PSM::Locator, Gap);
+}
+
+impl<'a, PSM, HistoryCache> RTPSStatelessWriterBehavior<'a, PSM, HistoryCache> for [RTPSReaderLocator<PSM>]
+where
+    PSM: structure::Types + behavior::Types + 'a,
+    HistoryCache: RTPSHistoryCache<PSM = PSM> + 'a,
+    PSM::Locator: PartialEq + Clone,
+{
+    fn produce_messages<Data, Gap, SendDataTo, SendGapTo>(
+        &'a mut self,
+        writer: &'a RTPSWriter<PSM, HistoryCache>,
         mut send_data_to: SendDataTo,
         mut send_gap_to: SendGapTo,
     ) where
@@ -177,18 +176,18 @@ where
         SendDataTo: FnMut(&PSM::Locator, Data),
         SendGapTo: FnMut(&PSM::Locator, Gap),
     {
-        if self.writer.endpoint.reliability_level == PSM::BEST_EFFORT {
-            for reader_locator in &mut self.reader_locators {
+        if writer.endpoint.reliability_level == PSM::BEST_EFFORT {
+            for reader_locator in self {
                 while reader_locator
-                    .unsent_changes(&self.writer)
+                    .unsent_changes(writer)
                     .into_iter()
                     .next()
                     .is_some()
                 {
                     // Pushing state
-                    if let Some(seq_num) = reader_locator.next_unsent_change(&self.writer) {
+                    if let Some(seq_num) = reader_locator.next_unsent_change(writer) {
                         // Transition T4
-                        if let Some(change) = self.writer.writer_cache.get_change(&seq_num) {
+                        if let Some(change) = writer.writer_cache.get_change(&seq_num) {
                             // Send Data submessage
                             let endianness_flag = true.into();
                             let inline_qos_flag = false.into();
@@ -615,87 +614,37 @@ mod tests {
         }
     }
 
-    #[test]
-    fn stateless_writer_reader_locator_add() {
-        let mut stateless_writer: RTPSStatelessWriter<
-            MockPsm,
-            MockHistoryCache,
-            Vec<RTPSReaderLocator<MockPsm>>,
-        > = RTPSStatelessWriter::new(create_rtps_writer());
-        let a_locator1 = MockLocator { id: 1 };
-        let a_locator2 = MockLocator { id: 2 };
+    // #[test]
+    // fn stateless_writer_unsent_changes_reset() {
+    //     let writer = create_rtps_writer();
+    //     let reader_locator_1 = RTPSReaderLocator {
+    //         locator: MockLocator { id: 1 },
+    //         expects_inline_qos: false,
+    //         last_sent_sequence_number: 1.into(),
+    //         requested_changes: vec![],
+    //     };
+    //     let reader_locator_2 = RTPSReaderLocator {
+    //         locator: MockLocator { id: 2 },
+    //         expects_inline_qos: false,
+    //         last_sent_sequence_number: 9.into(),
+    //         requested_changes: vec![],
+    //     };
 
-        stateless_writer.reader_locator_add(a_locator1);
-        stateless_writer.reader_locator_add(a_locator2);
+    //     let mut stateless_writer: RTPSStatelessWriter<
+    //         MockPsm,
+    //         MockHistoryCache,
+    //         Vec<RTPSReaderLocator<MockPsm>>,
+    //     > = RTPSStatelessWriter {
+    //         writer,
+    //         reader_locators: vec![reader_locator_1, reader_locator_2],
+    //     };
 
-        assert_eq!(
-            stateless_writer.reader_locators[0].locator(),
-            &MockLocator { id: 1 }
-        );
-        assert_eq!(
-            stateless_writer.reader_locators[1].locator(),
-            &MockLocator { id: 2 }
-        );
-    }
+    //     stateless_writer.unsent_changes_reset();
 
-    #[test]
-    fn stateless_writer_reader_locator_remove() {
-        let writer = create_rtps_writer();
-        let reader_locator_1 = RTPSReaderLocator::new(MockLocator { id: 1 }, false);
-        let reader_locator_2 = RTPSReaderLocator::new(MockLocator { id: 2 }, false);
-
-        let mut stateless_writer: RTPSStatelessWriter<
-            MockPsm,
-            MockHistoryCache,
-            Vec<RTPSReaderLocator<MockPsm>>,
-        > = RTPSStatelessWriter {
-            writer,
-            reader_locators: vec![
-                reader_locator_1.clone(),
-                reader_locator_2.clone(),
-                reader_locator_1.clone(),
-            ],
-        };
-
-        stateless_writer.reader_locator_remove(&MockLocator { id: 1 });
-
-        assert_eq!(
-            stateless_writer.reader_locators,
-            vec![reader_locator_2.clone()]
-        );
-    }
-
-    #[test]
-    fn stateless_writer_unsent_changes_reset() {
-        let writer = create_rtps_writer();
-        let reader_locator_1 = RTPSReaderLocator {
-            locator: MockLocator { id: 1 },
-            expects_inline_qos: false,
-            last_sent_sequence_number: 1.into(),
-            requested_changes: vec![],
-        };
-        let reader_locator_2 = RTPSReaderLocator {
-            locator: MockLocator { id: 2 },
-            expects_inline_qos: false,
-            last_sent_sequence_number: 9.into(),
-            requested_changes: vec![],
-        };
-
-        let mut stateless_writer: RTPSStatelessWriter<
-            MockPsm,
-            MockHistoryCache,
-            Vec<RTPSReaderLocator<MockPsm>>,
-        > = RTPSStatelessWriter {
-            writer,
-            reader_locators: vec![reader_locator_1, reader_locator_2],
-        };
-
-        stateless_writer.unsent_changes_reset();
-
-        for reader_locator in stateless_writer.reader_locators {
-            assert_eq!(reader_locator.last_sent_sequence_number, 0.into());
-        }
-    }
+    //     for reader_locator in stateless_writer.reader_locators {
+    //         assert_eq!(reader_locator.last_sent_sequence_number, 0.into());
+    //     }
+    // }
 
     #[test]
     fn reader_locator_requested_changes_set() {
@@ -1068,47 +1017,34 @@ mod tests {
 
     #[test]
     fn stateless_writer_produce_messages() {
-        let writer = create_rtps_writer();
+        let mut writer = create_rtps_writer();
         let reader_locator_1 = RTPSReaderLocator::new(MockLocator { id: 1 }, false);
         let reader_locator_2 = RTPSReaderLocator::new(MockLocator { id: 2 }, false);
+        let mut reader_locator_list = [reader_locator_1, reader_locator_2];
 
-        let mut stateless_writer: RTPSStatelessWriter<
-            MockPsm,
-            MockHistoryCache,
-            Vec<RTPSReaderLocator<MockPsm>>,
-        > = RTPSStatelessWriter {
-            writer,
-            reader_locators: vec![reader_locator_1, reader_locator_2],
-        };
+        writer.writer_cache.add_change(RTPSCacheChange {
+            kind: MockPsm::ALIVE,
+            writer_guid: [1; 16].into(),
+            instance_handle: 1,
+            sequence_number: 1,
+            data_value: vec![],
+            inline_qos: vec![],
+        });
 
-        stateless_writer
-            .writer
-            .writer_cache
-            .add_change(RTPSCacheChange {
-                kind: MockPsm::ALIVE,
-                writer_guid: [1; 16].into(),
-                instance_handle: 1,
-                sequence_number: 1,
-                data_value: vec![],
-                inline_qos: vec![],
-            });
-
-        stateless_writer
-            .writer
-            .writer_cache
-            .add_change(RTPSCacheChange {
-                kind: MockPsm::ALIVE,
-                writer_guid: [1; 16].into(),
-                instance_handle: 1,
-                sequence_number: 3,
-                data_value: vec![],
-                inline_qos: vec![],
-            });
+        writer.writer_cache.add_change(RTPSCacheChange {
+            kind: MockPsm::ALIVE,
+            writer_guid: [1; 16].into(),
+            instance_handle: 1,
+            sequence_number: 3,
+            data_value: vec![],
+            inline_qos: vec![],
+        });
 
         {
             let mut data = Vec::new();
             let mut gap = Vec::new();
-            stateless_writer.produce_messages::<MockDataSubmessage, MockGapSubmessage, _, _>(
+            reader_locator_list.produce_messages::<MockDataSubmessage, MockGapSubmessage, _, _>(
+                &writer,
                 |locator, message| data.push((locator.clone(), message)),
                 |locator, message| gap.push((locator.clone(), message)),
             );
@@ -1118,7 +1054,8 @@ mod tests {
         {
             let mut data = Vec::new();
             let mut gap = Vec::new();
-            stateless_writer.produce_messages::<MockDataSubmessage, MockGapSubmessage, _, _>(
+            reader_locator_list.produce_messages::<MockDataSubmessage, MockGapSubmessage, _, _>(
+                &writer,
                 |locator, message| data.push((locator.clone(), message)),
                 |locator, message| gap.push((locator.clone(), message)),
             );
@@ -1127,7 +1064,8 @@ mod tests {
         {
             let mut data = Vec::new();
             let mut gap = Vec::new();
-            stateless_writer.produce_messages::<MockDataSubmessage, MockGapSubmessage, _, _>(
+            reader_locator_list.produce_messages::<MockDataSubmessage, MockGapSubmessage, _, _>(
+                &writer,
                 |locator, message| data.push((locator.clone(), message)),
                 |locator, message| gap.push((locator.clone(), message)),
             );
