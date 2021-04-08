@@ -44,3 +44,33 @@ impl RTPSHistoryCache for HistoryCacheImpl {
         self.changes.iter().map(|x| x.sequence_number).max()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn get_seq_num_max() {
+        let mut hc = HistoryCacheImpl::new();
+        assert_eq!(hc.get_seq_num_max(), None);
+
+        hc.add_change(RTPSCacheChange {
+            kind: <RtpsUdpPsm as rust_rtps_pim::structure::Types>::ALIVE,
+            writer_guid: [1; 16].into(),
+            instance_handle: 1,
+            sequence_number: 5.into(),
+            data_value: vec![],
+            inline_qos: vec![],
+        });
+        assert_eq!(hc.get_seq_num_max().unwrap(), 5.into());
+
+        hc.add_change(RTPSCacheChange {
+            kind: <RtpsUdpPsm as rust_rtps_pim::structure::Types>::ALIVE,
+            writer_guid: [1; 16].into(),
+            instance_handle: 1,
+            sequence_number: 3.into(),
+            data_value: vec![],
+            inline_qos: vec![],
+        });
+        assert_eq!(hc.get_seq_num_max().unwrap(), 5.into());
+    }
+}
