@@ -425,7 +425,7 @@ impl DomainParticipantImpl {
         self.enabled_function.call_once(|| {
             thread_list.push(std::thread::spawn(move || {
                 while enabled.load(atomic::Ordering::Acquire) {
-                    builtin_publisher.lock().unwrap();
+                    builtin_publisher.lock().unwrap().produce_messages();
 
                     std::thread::sleep(std::time::Duration::from_secs(1));
                 }

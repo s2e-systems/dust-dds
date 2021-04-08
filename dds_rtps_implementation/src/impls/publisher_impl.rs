@@ -43,8 +43,8 @@ impl PublisherImpl {
 
     pub fn produce_messages(&self) -> () {
         for stateless_writer in &self.stateless_writer_list {
-            let mut stateless_writer_lock = stateless_writer.lock().unwrap();                        
-            stateless_writer_lock.produce_messages( |_,_|{}, |_,_|{});
+            let mut stateless_writer_lock = stateless_writer.lock().unwrap();         
+            stateless_writer_lock.produce_messages(&mut |_,_|{}, &mut |_,_|{});
         }
     }
 
