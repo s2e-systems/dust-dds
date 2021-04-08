@@ -16,9 +16,18 @@ pub trait Types {
     type SequenceNumber: Into<i64> + From<i64> + Ord + Copy;
     const SEQUENCE_NUMBER_UNKNOWN: Self::SequenceNumber;
 
-    type Locator: Locator;
+    type LocatorKind: PartialEq + Copy;
+    type LocatorPort: PartialEq + Copy;
+    type LocatorAddress: Into<[u8; 16]> + From<[u8; 16]> + PartialEq + Copy;
 
-    const LOCATOR_INVALID: Self::Locator;
+    const LOCATOR_KIND_INVALID: Self::LocatorKind;
+    const LOCATOR_KIND_RESERVED: Self::LocatorKind;
+    #[allow(non_upper_case_globals)]
+    const LOCATOR_KIND_UDPv4: Self::LocatorKind;
+    #[allow(non_upper_case_globals)]
+    const LOCATOR_KIND_UDPv6: Self::LocatorKind;
+    const LOCATOR_ADDRESS_INVALID: Self::LocatorAddress;
+    const LOCATOR_PORT_INVALID: Self::LocatorPort;
 
     type TopicKind: Copy;
     const NO_KEY: Self::TopicKind;
@@ -56,6 +65,9 @@ pub trait Types {
     type SequenceNumberVector: IntoIterator<Item = Self::SequenceNumber>
         + FromIterator<Self::SequenceNumber>
         + Clone;
+
+    // Temporary solution to be able to create an independent locator vector
+    type Locator;
     type LocatorVector: IntoIterator<Item = Self::Locator>;
 
     type Parameter: messages::submessage_elements::Parameter<PSM = Self>;
@@ -86,28 +98,67 @@ impl<PSM: Types> GUID<PSM> {
         Self { prefix, entity_id }
     }
 
-    /// Get a reference to the g u i d's prefix.
     pub fn prefix(&self) -> &PSM::GuidPrefix {
         &self.prefix
     }
 
-    /// Get a reference to the g u i d's entity id.
     pub fn entity_id(&self) -> &PSM::EntityId {
         &self.entity_id
     }
 }
 
-pub trait Locator {
-    type Kind;
-    type Port;
-    type Address: Into<[u8; 16]> + From<[u8; 16]>;
-
-    const LOCATOR_KIND_INVALID: Self::Kind;
-    const LOCATOR_KIND_RESERVED: Self::Kind;
-    #[allow(non_upper_case_globals)]
-    const LOCATOR_KIND_UDPv4: Self::Kind;
-    #[allow(non_upper_case_globals)]
-    const LOCATOR_KIND_UDPv6: Self::Kind;
-    const LOCATOR_ADDRESS_INVALID: Self::Address;
-    const LOCATOR_PORT_INVALID: Self::Port;
+pub struct Locator<PSM: Types> {
+    kind: PSM::LocatorKind,
+    port: PSM::LocatorPort,
+    address: PSM::LocatorAddress,
 }
+
+impl<PSM: Types> Clone for Locator<PSM> {
+    fn clone(&self) -> Self {
+        Self {
+            kind: self.kind,
+            port: self.port,
+            address: self.address,
+        }
+    }
+}
+
+impl<PSM: Types> PartialEq for Locator<PSM> {
+    fn eq(&self, other: &Self) -> bool {
+        self.kind == other.kind && self.port == other.port && self.address == other.address
+    }
+}
+
+impl<PSM: Types> Locator<PSM> {
+    pub const LOCATOR_INVALID: Self = Self {
+        kind: PSM::LOCATOR_KIND_INVALID,
+        port: PSM::LOCATOR_PORT_INVALID,
+        address: PSM::LOCATOR_ADDRESS_INVALID,
+    };
+
+    pub fn new(
+        kind: PSM::LocatorKind,
+        port: PSM::LocatorPort,
+        address: PSM::LocatorAddress,
+    ) -> Self {
+        Self {
+            kind,
+            port,
+            address,
+        }
+    }
+
+    pub fn kind(&self) -> &PSM::LocatorKind {
+        &self.kind
+    }
+
+    pub fn port(&self) -> &PSM::LocatorPort {
+        &self.port
+    }
+
+    pub fn address(&self) -> &PSM::LocatorAddress {
+        &self.address
+    }
+}
+
+// ::Locator

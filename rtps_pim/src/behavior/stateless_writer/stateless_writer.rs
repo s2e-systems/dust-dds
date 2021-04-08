@@ -3,12 +3,11 @@ use core::ops::{Deref, DerefMut};
 use crate::{
     behavior::{self, RTPSWriter},
     messages::{self, Submessage},
-    structure::{self, RTPSHistoryCache},
+    structure::{self, types::Locator, RTPSHistoryCache},
 };
 
-#[derive(Debug)]
 pub struct RTPSReaderLocator<PSM: structure::Types> {
-    locator: PSM::Locator,
+    locator: Locator<PSM>,
     expects_inline_qos: bool,
     last_sent_sequence_number: PSM::SequenceNumber,
     requested_changes: PSM::SequenceNumberVector,
@@ -17,7 +16,6 @@ pub struct RTPSReaderLocator<PSM: structure::Types> {
 impl<PSM> Clone for RTPSReaderLocator<PSM>
 where
     PSM: structure::Types,
-    PSM::Locator: Clone,
 {
     fn clone(&self) -> Self {
         Self {
@@ -29,10 +27,7 @@ where
     }
 }
 
-impl<PSM: structure::Types> core::cmp::PartialEq for RTPSReaderLocator<PSM>
-where
-    PSM::Locator: core::cmp::PartialEq,
-{
+impl<PSM: structure::Types> core::cmp::PartialEq for RTPSReaderLocator<PSM> {
     fn eq(&self, other: &Self) -> bool {
         self.locator == other.locator
     }
@@ -42,7 +37,7 @@ impl<PSM> RTPSReaderLocator<PSM>
 where
     PSM: structure::Types + behavior::Types,
 {
-    pub fn new(locator: PSM::Locator, expects_inline_qos: bool) -> Self {
+    pub fn new(locator: Locator<PSM>, expects_inline_qos: bool) -> Self {
         Self {
             locator,
             expects_inline_qos,
@@ -51,7 +46,7 @@ where
         }
     }
 
-    pub fn locator(&self) -> &PSM::Locator {
+    pub fn locator(&self) -> &Locator<PSM> {
         &self.locator
     }
 
@@ -123,9 +118,9 @@ pub trait RTPSStatelessWriter<
     HistoryCache: RTPSHistoryCache<PSM>,
 >: Deref<Target = RTPSWriter<PSM, HistoryCache>> + DerefMut
 {
-    fn reader_locator_add(&mut self, a_locator: <PSM as structure::Types>::Locator);
+    fn reader_locator_add(&mut self, a_locator: Locator<PSM>);
 
-    fn reader_locator_remove(&mut self, a_locator: &<PSM as structure::Types>::Locator);
+    fn reader_locator_remove(&mut self, a_locator: &Locator<PSM>);
 
     fn reader_locators(&mut self) -> &mut [RTPSReaderLocator<PSM>];
 
@@ -159,8 +154,8 @@ where
         Data: messages::submessages::Data<SerializedData = &'a <PSM as structure::types::Types>::Data>
             + Submessage<PSM = PSM>,
         Gap: messages::submessages::Gap + Submessage<PSM = PSM>,
-        SendDataTo: FnMut(&PSM::Locator, Data),
-        SendGapTo: FnMut(&PSM::Locator, Gap);
+        SendDataTo: FnMut(&Locator<PSM>, Data),
+        SendGapTo: FnMut(&Locator<PSM>, Gap);
 }
 
 impl<'a, PSM, HistoryCache> RTPSStatelessWriterBehavior<'a, PSM, HistoryCache>
@@ -180,8 +175,8 @@ where
         Data: messages::submessages::Data<SerializedData = &'a <PSM as structure::types::Types>::Data>
             + Submessage<PSM = PSM>,
         Gap: messages::submessages::Gap + Submessage<PSM = PSM>,
-        SendDataTo: FnMut(&PSM::Locator, Data),
-        SendGapTo: FnMut(&PSM::Locator, Gap),
+        SendDataTo: FnMut(&Locator<PSM>, Data),
+        SendGapTo: FnMut(&Locator<PSM>, Gap),
     {
         if writer.endpoint.reliability_level == PSM::BEST_EFFORT {
             while self.unsent_changes(writer).into_iter().next().is_some() {
@@ -264,25 +259,7 @@ mod tests {
             todo!()
         }
     }
-    #[derive(PartialEq, Clone, Debug)]
-    pub struct MockLocator {
-        id: i32,
-    }
 
-    impl structure::types::Locator for MockLocator {
-        type Kind = i32;
-        type Port = u32;
-        type Address = [u8; 16];
-
-        const LOCATOR_KIND_INVALID: Self::Kind = -1;
-        const LOCATOR_KIND_RESERVED: Self::Kind = 0;
-        #[allow(non_upper_case_globals)]
-        const LOCATOR_KIND_UDPv4: Self::Kind = 1;
-        #[allow(non_upper_case_globals)]
-        const LOCATOR_KIND_UDPv6: Self::Kind = 2;
-        const LOCATOR_ADDRESS_INVALID: Self::Address = [0; 16];
-        const LOCATOR_PORT_INVALID: Self::Port = 0;
-    }
     #[derive(Debug)]
     pub struct MockPsm;
 
@@ -296,9 +273,18 @@ mod tests {
         type SequenceNumber = i64;
         const SEQUENCE_NUMBER_UNKNOWN: Self::SequenceNumber = i64::MIN;
 
-        type Locator = MockLocator;
+        type LocatorKind = i32;
+        type LocatorPort = u32;
+        type LocatorAddress = [u8; 16];
 
-        const LOCATOR_INVALID: Self::Locator = MockLocator { id: -1 };
+        const LOCATOR_KIND_INVALID: Self::LocatorKind = -1;
+        const LOCATOR_KIND_RESERVED: Self::LocatorKind = 0;
+        #[allow(non_upper_case_globals)]
+        const LOCATOR_KIND_UDPv4: Self::LocatorKind = 1;
+        #[allow(non_upper_case_globals)]
+        const LOCATOR_KIND_UDPv6: Self::LocatorKind = 2;
+        const LOCATOR_ADDRESS_INVALID: Self::LocatorAddress = [0; 16];
+        const LOCATOR_PORT_INVALID: Self::LocatorPort = 0;
 
         type TopicKind = u8;
         const NO_KEY: Self::TopicKind = 0;
@@ -332,6 +318,7 @@ mod tests {
         const VENDOR_ID_UNKNOWN: Self::VendorId = -1;
 
         type Data = Vec<u8>;
+        type Locator = crate::structure::types::Locator<MockPsm>;
         type LocatorVector = Vec<<Self as structure::Types>::Locator>;
 
         type SequenceNumberVector = Vec<<Self as structure::Types>::SequenceNumber>;
@@ -428,7 +415,7 @@ mod tests {
         }
     }
 
-    fn create_rtps_writer() -> RTPSWriter<MockPsm, MockHistoryCache> {
+    fn _create_rtps_writer() -> RTPSWriter<MockPsm, MockHistoryCache> {
         let guid = GUID::new([1; 12], [1; 4]);
         let topic_kind = MockPsm::WITH_KEY;
         let reliability_level = MockPsm::BEST_EFFORT;
@@ -603,7 +590,7 @@ mod tests {
     #[test]
     fn reader_locator_requested_changes_set() {
         let mut reader_locator: RTPSReaderLocator<MockPsm> =
-            RTPSReaderLocator::new(MockLocator { id: 0 }, false);
+            RTPSReaderLocator::new(Locator::new(0, 0, [0; 16]), false);
 
         let guid = GUID::new([1; 12], [1; 4]);
         let topic_kind = MockPsm::WITH_KEY;
@@ -665,7 +652,7 @@ mod tests {
     #[test]
     fn reader_locator_requested_changes_set_changes_not_in_history_cache() {
         let mut reader_locator: RTPSReaderLocator<MockPsm> =
-            RTPSReaderLocator::new(MockLocator { id: 0 }, false);
+            RTPSReaderLocator::new(Locator::new(0, 0, [0; 16]), false);
 
         let guid = GUID::new([1; 12], [1; 4]);
         let topic_kind = MockPsm::WITH_KEY;
@@ -727,7 +714,7 @@ mod tests {
     #[test]
     fn reader_locator_next_requested_change() {
         let mut reader_locator: RTPSReaderLocator<MockPsm> =
-            RTPSReaderLocator::new(MockLocator { id: 0 }, false);
+            RTPSReaderLocator::new(Locator::new(0, 0, [0; 16]), false);
 
         let guid = GUID::new([1; 12], [1; 4]);
         let topic_kind = MockPsm::WITH_KEY;
@@ -791,7 +778,7 @@ mod tests {
     #[test]
     fn reader_locator_unsent_changes() {
         let reader_locator: RTPSReaderLocator<MockPsm> =
-            RTPSReaderLocator::new(MockLocator { id: 0 }, false);
+            RTPSReaderLocator::new(Locator::new(0, 0, [0; 16]), false);
 
         let guid = GUID::new([1; 12], [1; 4]);
         let topic_kind = MockPsm::WITH_KEY;
@@ -851,7 +838,7 @@ mod tests {
     #[test]
     fn reader_locator_unsent_changes_with_non_consecutive_changes() {
         let reader_locator: RTPSReaderLocator<MockPsm> =
-            RTPSReaderLocator::new(MockLocator { id: 0 }, false);
+            RTPSReaderLocator::new(Locator::new(0, 0, [0; 16]), false);
 
         let guid = GUID::new([1; 12], [1; 4]);
         let topic_kind = MockPsm::WITH_KEY;
@@ -911,7 +898,7 @@ mod tests {
     #[test]
     fn reader_locator_next_unsent_change() {
         let mut reader_locator: RTPSReaderLocator<MockPsm> =
-            RTPSReaderLocator::new(MockLocator { id: 0 }, false);
+            RTPSReaderLocator::new(Locator::new(0, 0, [0; 16]), false);
 
         let guid = GUID::new([1; 12], [1; 4]);
         let topic_kind = MockPsm::WITH_KEY;

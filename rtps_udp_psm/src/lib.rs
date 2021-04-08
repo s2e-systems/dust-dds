@@ -1,6 +1,6 @@
 use types::{
     ChangeForReaderStatusKind, ChangeFromWriterStatusKind, ChangeKind, Count, Duration, EntityId,
-    FragmentNumber, GroupDigest, GuidPrefix, InstanceHandle, Locator, Parameter, ParameterId,
+    FragmentNumber, GroupDigest, GuidPrefix, InstanceHandle, Parameter, ParameterId,
     ProtocolId, ProtocolVersion, ReliabilityKind, SequenceNumber, SequenceNumberSet,
     SubmessageFlag, Time, TopicKind, VendorId,
 };
@@ -26,12 +26,18 @@ impl rust_rtps_pim::structure::Types for RtpsUdpPsm {
         low: core::u32::MAX,
     };
 
-    type Locator = Locator;
-    const LOCATOR_INVALID: Self::Locator = Locator {
-        kind: <Locator as rust_rtps_pim::structure::types::Locator>::LOCATOR_KIND_INVALID,
-        port: <Locator as rust_rtps_pim::structure::types::Locator>::LOCATOR_PORT_INVALID,
-        address: <Locator as rust_rtps_pim::structure::types::Locator>::LOCATOR_ADDRESS_INVALID,
-    };
+    type LocatorKind = i32;
+    type LocatorPort = u32;
+    type LocatorAddress = [u8; 16];
+
+    const LOCATOR_KIND_INVALID: Self::LocatorKind = -1;
+    const LOCATOR_KIND_RESERVED: Self::LocatorKind = 0;
+    #[allow(non_upper_case_globals)]
+    const LOCATOR_KIND_UDPv4: Self::LocatorKind = 1;
+    #[allow(non_upper_case_globals)]
+    const LOCATOR_KIND_UDPv6: Self::LocatorKind = 2;
+    const LOCATOR_ADDRESS_INVALID: Self::LocatorAddress = [0; 16];
+    const LOCATOR_PORT_INVALID: Self::LocatorPort = 0;
 
     type TopicKind = TopicKind;
     const NO_KEY: Self::TopicKind = TopicKind::NoKey;
@@ -63,7 +69,8 @@ impl rust_rtps_pim::structure::Types for RtpsUdpPsm {
     const VENDOR_ID_UNKNOWN: Self::VendorId = [0; 2];
 
     type Data = Vec<u8>;
-    type LocatorVector = Vec<Locator>;
+    type Locator = rust_rtps_pim::structure::types::Locator<RtpsUdpPsm>;
+    type LocatorVector = Vec<Self::Locator>;
     type SequenceNumberVector = SequenceNumberSet;
     type Parameter = Parameter;
     type ParameterVector = Vec<Parameter>;

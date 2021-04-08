@@ -421,7 +421,7 @@ impl DomainParticipantImpl {
         self.enabled.store(true, atomic::Ordering::Release);
         let builtin_publisher = self.builtin_publisher.clone();
         // let builtin_entities = self.builtin_entities.clone();
-        let participant_guid_prefix = self.guid_prefix;
+        let _participant_guid_prefix = self.guid_prefix;
         self.enabled_function.call_once(|| {
             thread_list.push(std::thread::spawn(move || {
                 while enabled.load(atomic::Ordering::Acquire) {
@@ -537,8 +537,10 @@ mod tests {
     //     use crate::transport::Transport;
 
     use rust_dds_api::infrastructure::qos::DataWriterQos;
-    use rust_rtps_pim::{behavior::stateless_writer::RTPSStatelessWriter, structure};
-    use rust_rtps_udp_psm::{types::Locator, RtpsUdpPsm};
+    use rust_rtps_pim::{
+        behavior::stateless_writer::RTPSStatelessWriter, structure::types::Locator,
+    };
+    use rust_rtps_udp_psm::RtpsUdpPsm;
 
     use crate::impls::stateless_data_writer_impl::StatelessDataWriterImpl;
 
@@ -597,11 +599,11 @@ mod tests {
         let mut builtin_publisher = PublisherImpl::new(PublisherQos::default(), None, 0);
 
         let mut stateless_data_writer = StatelessDataWriterImpl::new(DataWriterQos::default());
-        stateless_data_writer.reader_locator_add(Locator {
-            kind: <<RtpsUdpPsm as structure::Types>::Locator as structure::types::Locator>::LOCATOR_KIND_UDPv4,
-            port: 7400,
-            address: [0,0,0,0,0,0,0,0,0,0,0,0,239,255,0,1],
-        });
+        stateless_data_writer.reader_locator_add(Locator::new(
+            <RtpsUdpPsm as rust_rtps_pim::structure::Types>::LOCATOR_KIND_UDPv4,
+            7400,
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 239, 255, 0, 1],
+        ));
         stateless_data_writer.write_w_timestamp().unwrap();
 
         builtin_publisher.stateless_writer_add(stateless_data_writer);

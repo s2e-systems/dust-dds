@@ -192,28 +192,6 @@ impl Iterator for SequenceNumberSetIterator {
     }
 }
 
-#[derive(PartialEq)]
-pub struct Locator {
-    pub kind: <Self as rust_rtps_pim::structure::types::Locator>::Kind,
-    pub port: <Self as rust_rtps_pim::structure::types::Locator>::Port,
-    pub address: <Self as rust_rtps_pim::structure::types::Locator>::Address,
-}
-
-impl rust_rtps_pim::structure::types::Locator for Locator {
-    type Kind = i32;
-    type Port = u32;
-    type Address = [u8; 16];
-
-    const LOCATOR_KIND_INVALID: Self::Kind = -1;
-    const LOCATOR_KIND_RESERVED: Self::Kind = 0;
-    #[allow(non_upper_case_globals)]
-    const LOCATOR_KIND_UDPv4: Self::Kind = 1;
-    #[allow(non_upper_case_globals)]
-    const LOCATOR_KIND_UDPv6: Self::Kind = 2;
-    const LOCATOR_ADDRESS_INVALID: Self::Address = [0; 16];
-    const LOCATOR_PORT_INVALID: Self::Port = 0;
-}
-
 pub type ReliabilityKind = i32;
 
 pub type InstanceHandle = i32;

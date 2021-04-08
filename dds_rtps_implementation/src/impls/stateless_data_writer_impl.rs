@@ -4,9 +4,9 @@ use rust_dds_api::{
     infrastructure::{qos::DataWriterQos, qos_policy::ReliabilityQosPolicyKind},
     return_type::DDSResult,
 };
-use rust_rtps_pim::behavior::stateless_writer::RTPSStatelessWriterBehavior;
-use rust_rtps_pim::messages::submessages::Data;
-use rust_rtps_pim::messages::submessages::Gap;
+use rust_rtps_pim::{
+    behavior::stateless_writer::RTPSStatelessWriterBehavior, structure::types::Locator,
+};
 use rust_rtps_pim::{
     behavior::{
         stateless_writer::{RTPSReaderLocator, RTPSStatelessWriter},
@@ -17,7 +17,7 @@ use rust_rtps_pim::{
 use rust_rtps_udp_psm::types::ChangeKind;
 use rust_rtps_udp_psm::{
     submessages,
-    types::{Duration, EntityId, Locator, TopicKind},
+    types::{Duration, EntityId, TopicKind},
     RtpsUdpPsm,
 };
 use structure::{types::GUID, RTPSHistoryCache};
@@ -95,8 +95,8 @@ impl StatelessDataWriterImpl {
 
     pub fn produce_messages(
         &mut self,
-        send_data_to: &mut impl FnMut(&Locator, submessages::Data),
-        send_gap_to: &mut impl FnMut(&Locator, submessages::Gap),
+        send_data_to: &mut impl FnMut(&Locator<RtpsUdpPsm>, submessages::Data),
+        send_gap_to: &mut impl FnMut(&Locator<RtpsUdpPsm>, submessages::Gap),
     ) {
         for reader_locator in &mut self.reader_locators {
             reader_locator.produce_messages(&self.writer, send_data_to, send_gap_to);
