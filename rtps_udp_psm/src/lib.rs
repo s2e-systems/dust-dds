@@ -1,7 +1,7 @@
 use types::{
-    ChangeForReaderStatusKind, ChangeFromWriterStatusKind, ChangeKind, Count, Duration, EntityId,
+    ChangeForReaderStatusKind, ChangeFromWriterStatusKind, Count, Duration, EntityId,
     FragmentNumber, GroupDigest, GuidPrefix, InstanceHandle, Parameter, ParameterId,
-    ProtocolId, ProtocolVersion, ReliabilityKind, SequenceNumber, SequenceNumberSet,
+    ProtocolId, ProtocolVersion, SequenceNumber, SequenceNumberSet,
     SubmessageFlag, Time, VendorId,
 };
 
@@ -38,16 +38,6 @@ impl rust_rtps_pim::structure::Types for RtpsUdpPsm {
     const LOCATOR_KIND_UDPv6: Self::LocatorKind = 2;
     const LOCATOR_ADDRESS_INVALID: Self::LocatorAddress = [0; 16];
     const LOCATOR_PORT_INVALID: Self::LocatorPort = 0;
-
-    type ChangeKind = ChangeKind;
-    const ALIVE: Self::ChangeKind = ChangeKind::Alive;
-    const ALIVE_FILTERED: Self::ChangeKind = ChangeKind::AliveFiltered;
-    const NOT_ALIVE_DISPOSED: Self::ChangeKind = ChangeKind::NotAliveDisposed;
-    const NOT_ALIVE_UNREGISTERED: Self::ChangeKind = ChangeKind::NotAliveUnregistered;
-
-    type ReliabilityKind = ReliabilityKind;
-    const BEST_EFFORT: Self::ReliabilityKind = 1;
-    const RELIABLE: Self::ReliabilityKind = 2;
 
     type InstanceHandle = InstanceHandle;
 

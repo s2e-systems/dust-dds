@@ -4,6 +4,7 @@ use rust_dds_api::{
     infrastructure::{qos::DataWriterQos, qos_policy::ReliabilityQosPolicyKind},
     return_type::DDSResult,
 };
+use rust_rtps_pim::structure::types::ChangeKind;
 use rust_rtps_pim::structure::types::Locator;
 use rust_rtps_pim::{
     behavior::{
@@ -12,14 +13,13 @@ use rust_rtps_pim::{
     },
     structure,
 };
-use rust_rtps_udp_psm::types::ChangeKind;
 use rust_rtps_udp_psm::{
     submessages,
     types::{Duration, EntityId},
     RtpsUdpPsm,
 };
 use structure::{
-    types::{TopicKind, GUID},
+    types::{ReliabilityKind, TopicKind, GUID},
     RTPSHistoryCache,
 };
 
@@ -42,12 +42,8 @@ impl StatelessDataWriterImpl {
         let topic_kind = TopicKind::WithKey;
 
         let reliability_level = match qos.reliability.kind {
-            ReliabilityQosPolicyKind::BestEffortReliabilityQos => {
-                <RtpsUdpPsm as structure::Types>::BEST_EFFORT
-            }
-            ReliabilityQosPolicyKind::ReliableReliabilityQos => {
-                <RtpsUdpPsm as structure::Types>::RELIABLE
-            }
+            ReliabilityQosPolicyKind::BestEffortReliabilityQos => ReliabilityKind::BestEffort,
+            ReliabilityQosPolicyKind::ReliableReliabilityQos => ReliabilityKind::Reliable,
         };
         let unicast_locator_list = vec![];
         let multicast_locator_list = vec![];

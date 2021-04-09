@@ -1,9 +1,9 @@
 use crate::structure;
 
-use super::types::GUID;
+use super::types::{ChangeKind, GUID};
 
 pub struct RTPSCacheChange<PSM: structure::Types> {
-    pub kind: PSM::ChangeKind,
+    pub kind: ChangeKind,
     pub writer_guid: GUID<PSM>,
     pub instance_handle: PSM::InstanceHandle,
     pub sequence_number: PSM::SequenceNumber,

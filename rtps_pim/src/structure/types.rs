@@ -29,16 +29,6 @@ pub trait Types {
     const LOCATOR_ADDRESS_INVALID: Self::LocatorAddress;
     const LOCATOR_PORT_INVALID: Self::LocatorPort;
 
-    type ChangeKind: Copy;
-    const ALIVE: Self::ChangeKind;
-    const ALIVE_FILTERED: Self::ChangeKind;
-    const NOT_ALIVE_DISPOSED: Self::ChangeKind;
-    const NOT_ALIVE_UNREGISTERED: Self::ChangeKind;
-
-    type ReliabilityKind: Copy + PartialEq;
-    const BEST_EFFORT: Self::ReliabilityKind;
-    const RELIABLE: Self::ReliabilityKind;
-
     type InstanceHandle: Copy;
 
     type ProtocolVersion: Copy;
@@ -161,4 +151,18 @@ impl<PSM: Types> Locator<PSM> {
 pub enum TopicKind {
     NoKey,
     WithKey,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum ChangeKind {
+    Alive,
+    AliveFiltered,
+    NotAliveDisposed,
+    NotAliveUnregistered,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum ReliabilityKind {
+    BestEffort,
+    Reliable,
 }

@@ -3,7 +3,7 @@ use std::ops::{Deref, DerefMut};
 use rust_dds_api::return_type::DDSResult;
 use rust_rtps_pim::behavior::RTPSWriter;
 use rust_rtps_pim::structure::RTPSHistoryCache;
-use rust_rtps_udp_psm::types::ChangeKind;
+use rust_rtps_pim::structure::types::ChangeKind;
 use rust_rtps_udp_psm::RtpsUdpPsm;
 
 use super::history_cache_impl::HistoryCacheImpl;

@@ -202,22 +202,12 @@ impl Iterator for SequenceNumberSetIterator {
     }
 }
 
-pub type ReliabilityKind = i32;
-
 pub type InstanceHandle = i32;
 
 #[derive(Clone, Copy)]
 pub struct ProtocolVersion {
     pub major: u8,
     pub minor: u8,
-}
-
-#[derive(Clone, Copy)]
-pub enum ChangeKind {
-    Alive,
-    AliveFiltered,
-    NotAliveDisposed,
-    NotAliveUnregistered,
 }
 
 pub type VendorId = [u8; 2];

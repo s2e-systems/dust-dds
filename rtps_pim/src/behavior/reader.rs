@@ -2,7 +2,7 @@ use crate::{
     behavior,
     structure::{
         self,
-        types::{TopicKind, GUID},
+        types::{ReliabilityKind, TopicKind, GUID},
         RTPSEndpoint, RTPSEntity, RTPSHistoryCache,
     },
 };
@@ -22,7 +22,7 @@ impl<PSM: structure::Types + behavior::Types, HistoryCache: RTPSHistoryCache<PSM
     pub fn new(
         guid: GUID<PSM>,
         topic_kind: TopicKind,
-        reliability_level: PSM::ReliabilityKind,
+        reliability_level: ReliabilityKind,
         unicast_locator_list: PSM::LocatorVector,
         multicast_locator_list: PSM::LocatorVector,
         expects_inline_qos: bool,

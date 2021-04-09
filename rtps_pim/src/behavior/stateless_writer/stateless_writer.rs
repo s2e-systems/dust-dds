@@ -3,7 +3,11 @@ use core::ops::{Deref, DerefMut};
 use crate::{
     behavior::{self, RTPSWriter},
     messages::{self, Submessage},
-    structure::{self, types::Locator, RTPSHistoryCache},
+    structure::{
+        self,
+        types::{Locator, ReliabilityKind},
+        RTPSHistoryCache,
+    },
 };
 
 pub struct RTPSReaderLocator<PSM: structure::Types> {
@@ -138,7 +142,6 @@ pub trait RTPSStatelessWriter<
     );
 }
 
-
 impl<'a, PSM> RTPSReaderLocator<PSM>
 where
     PSM: structure::Types + behavior::Types + 'a,
@@ -158,7 +161,7 @@ where
         SendDataTo: FnMut(&Locator<PSM>, Data),
         SendGapTo: FnMut(&Locator<PSM>, Gap),
     {
-        if writer.endpoint.reliability_level == PSM::BEST_EFFORT {
+        if writer.endpoint.reliability_level == ReliabilityKind::BestEffort {
             while self.unsent_changes(writer).into_iter().next().is_some() {
                 // Pushing state
                 if let Some(seq_num) = self.next_unsent_change(writer) {
@@ -219,7 +222,7 @@ mod tests {
         structure::{types::GUID, RTPSCacheChange},
     };
     use std::vec::Vec;
-    use structure::{Types, types::TopicKind};
+    use structure::types::{ChangeKind, TopicKind};
 
     #[derive(Clone)]
     pub struct MockParameter;
@@ -265,17 +268,6 @@ mod tests {
         const LOCATOR_KIND_UDPv6: Self::LocatorKind = 2;
         const LOCATOR_ADDRESS_INVALID: Self::LocatorAddress = [0; 16];
         const LOCATOR_PORT_INVALID: Self::LocatorPort = 0;
-
-        type ChangeKind = u8;
-
-        const ALIVE: Self::ChangeKind = 0;
-        const ALIVE_FILTERED: Self::ChangeKind = 1;
-        const NOT_ALIVE_DISPOSED: Self::ChangeKind = 2;
-        const NOT_ALIVE_UNREGISTERED: Self::ChangeKind = 3;
-
-        type ReliabilityKind = u8;
-        const BEST_EFFORT: Self::ReliabilityKind = 0;
-        const RELIABLE: Self::ReliabilityKind = 1;
 
         type InstanceHandle = u32;
 
@@ -394,7 +386,7 @@ mod tests {
     fn _create_rtps_writer() -> RTPSWriter<MockPsm, MockHistoryCache> {
         let guid = GUID::new([1; 12], [1; 4]);
         let topic_kind = TopicKind::WithKey;
-        let reliability_level = MockPsm::BEST_EFFORT;
+        let reliability_level = ReliabilityKind::BestEffort;
         let unicast_locator_list = Vec::new();
         let multicast_locator_list = Vec::new();
         let push_mode = true;
@@ -565,12 +557,11 @@ mod tests {
 
     #[test]
     fn reader_locator_requested_changes_set() {
-        let mut reader_locator =
-            RTPSReaderLocator::new(Locator::new(0, 0, [0; 16]), false);
+        let mut reader_locator = RTPSReaderLocator::new(Locator::new(0, 0, [0; 16]), false);
 
         let guid = GUID::new([1; 12], [1; 4]);
         let topic_kind = TopicKind::WithKey;
-        let reliability_level = MockPsm::BEST_EFFORT;
+        let reliability_level = ReliabilityKind::BestEffort;
         let unicast_locator_list = Vec::new();
         let multicast_locator_list = Vec::new();
         let push_mode = true;
@@ -592,7 +583,7 @@ mod tests {
         );
 
         writer.writer_cache.add_change(RTPSCacheChange {
-            kind: MockPsm::ALIVE,
+            kind: ChangeKind::Alive,
             writer_guid: GUID::new([1; 12], [1; 4]),
             instance_handle: 1,
             sequence_number: 1,
@@ -601,7 +592,7 @@ mod tests {
         });
 
         writer.writer_cache.add_change(RTPSCacheChange {
-            kind: MockPsm::ALIVE,
+            kind: ChangeKind::Alive,
             writer_guid: GUID::new([1; 12], [1; 4]),
             instance_handle: 1,
             sequence_number: 2,
@@ -610,7 +601,7 @@ mod tests {
         });
 
         writer.writer_cache.add_change(RTPSCacheChange {
-            kind: MockPsm::ALIVE,
+            kind: ChangeKind::Alive,
             writer_guid: GUID::new([1; 12], [1; 4]),
             instance_handle: 1,
             sequence_number: 3,
@@ -627,12 +618,11 @@ mod tests {
 
     #[test]
     fn reader_locator_requested_changes_set_changes_not_in_history_cache() {
-        let mut reader_locator  =
-            RTPSReaderLocator::new(Locator::new(0, 0, [0; 16]), false);
+        let mut reader_locator = RTPSReaderLocator::new(Locator::new(0, 0, [0; 16]), false);
 
         let guid = GUID::new([1; 12], [1; 4]);
         let topic_kind = TopicKind::WithKey;
-        let reliability_level = MockPsm::BEST_EFFORT;
+        let reliability_level = ReliabilityKind::BestEffort;
         let unicast_locator_list = Vec::new();
         let multicast_locator_list = Vec::new();
         let push_mode = true;
@@ -654,7 +644,7 @@ mod tests {
         );
 
         writer.writer_cache.add_change(RTPSCacheChange {
-            kind: MockPsm::ALIVE,
+            kind: ChangeKind::Alive,
             writer_guid: GUID::new([1; 12], [1; 4]),
             instance_handle: 1,
             sequence_number: 1,
@@ -663,7 +653,7 @@ mod tests {
         });
 
         writer.writer_cache.add_change(RTPSCacheChange {
-            kind: MockPsm::ALIVE,
+            kind: ChangeKind::Alive,
             writer_guid: GUID::new([1; 12], [1; 4]),
             instance_handle: 1,
             sequence_number: 3,
@@ -672,7 +662,7 @@ mod tests {
         });
 
         writer.writer_cache.add_change(RTPSCacheChange {
-            kind: MockPsm::ALIVE,
+            kind: ChangeKind::Alive,
             writer_guid: GUID::new([1; 12], [1; 4]),
             instance_handle: 1,
             sequence_number: 5,
@@ -689,12 +679,11 @@ mod tests {
 
     #[test]
     fn reader_locator_next_requested_change() {
-        let mut reader_locator =
-            RTPSReaderLocator::new(Locator::new(0, 0, [0; 16]), false);
+        let mut reader_locator = RTPSReaderLocator::new(Locator::new(0, 0, [0; 16]), false);
 
         let guid = GUID::new([1; 12], [1; 4]);
         let topic_kind = TopicKind::WithKey;
-        let reliability_level = MockPsm::BEST_EFFORT;
+        let reliability_level = ReliabilityKind::BestEffort;
         let unicast_locator_list = Vec::new();
         let multicast_locator_list = Vec::new();
         let push_mode = true;
@@ -716,7 +705,7 @@ mod tests {
         );
 
         writer.writer_cache.add_change(RTPSCacheChange {
-            kind: MockPsm::ALIVE,
+            kind: ChangeKind::Alive,
             writer_guid: GUID::new([1; 12], [1; 4]),
             instance_handle: 1,
             sequence_number: 1,
@@ -725,7 +714,7 @@ mod tests {
         });
 
         writer.writer_cache.add_change(RTPSCacheChange {
-            kind: MockPsm::ALIVE,
+            kind: ChangeKind::Alive,
             writer_guid: GUID::new([1; 12], [1; 4]),
             instance_handle: 1,
             sequence_number: 2,
@@ -734,7 +723,7 @@ mod tests {
         });
 
         writer.writer_cache.add_change(RTPSCacheChange {
-            kind: MockPsm::ALIVE,
+            kind: ChangeKind::Alive,
             writer_guid: GUID::new([1; 12], [1; 4]),
             instance_handle: 1,
             sequence_number: 3,
@@ -758,7 +747,7 @@ mod tests {
 
         let guid = GUID::new([1; 12], [1; 4]);
         let topic_kind = TopicKind::WithKey;
-        let reliability_level = MockPsm::BEST_EFFORT;
+        let reliability_level = ReliabilityKind::BestEffort;
         let unicast_locator_list = Vec::new();
         let multicast_locator_list = Vec::new();
         let push_mode = true;
@@ -780,7 +769,7 @@ mod tests {
         );
 
         writer.writer_cache.add_change(RTPSCacheChange {
-            kind: MockPsm::ALIVE,
+            kind: ChangeKind::Alive,
             writer_guid: GUID::new([1; 12], [1; 4]),
             instance_handle: 1,
             sequence_number: 1,
@@ -789,7 +778,7 @@ mod tests {
         });
 
         writer.writer_cache.add_change(RTPSCacheChange {
-            kind: MockPsm::ALIVE,
+            kind: ChangeKind::Alive,
             writer_guid: GUID::new([1; 12], [1; 4]),
             instance_handle: 1,
             sequence_number: 2,
@@ -798,7 +787,7 @@ mod tests {
         });
 
         writer.writer_cache.add_change(RTPSCacheChange {
-            kind: MockPsm::ALIVE,
+            kind: ChangeKind::Alive,
             writer_guid: GUID::new([1; 12], [1; 4]),
             instance_handle: 1,
             sequence_number: 3,
@@ -813,12 +802,11 @@ mod tests {
 
     #[test]
     fn reader_locator_unsent_changes_with_non_consecutive_changes() {
-        let reader_locator: RTPSReaderLocator<MockPsm> =
-            RTPSReaderLocator::new(Locator::new(0, 0, [0; 16]), false);
+        let reader_locator = RTPSReaderLocator::new(Locator::new(0, 0, [0; 16]), false);
 
         let guid = GUID::new([1; 12], [1; 4]);
         let topic_kind = TopicKind::WithKey;
-        let reliability_level = MockPsm::BEST_EFFORT;
+        let reliability_level = ReliabilityKind::BestEffort;
         let unicast_locator_list = Vec::new();
         let multicast_locator_list = Vec::new();
         let push_mode = true;
@@ -840,7 +828,7 @@ mod tests {
         );
 
         writer.writer_cache.add_change(RTPSCacheChange {
-            kind: MockPsm::ALIVE,
+            kind: ChangeKind::Alive,
             writer_guid: GUID::new([1; 12], [1; 4]),
             instance_handle: 1,
             sequence_number: 1,
@@ -849,7 +837,7 @@ mod tests {
         });
 
         writer.writer_cache.add_change(RTPSCacheChange {
-            kind: MockPsm::ALIVE,
+            kind: ChangeKind::Alive,
             writer_guid: GUID::new([1; 12], [1; 4]),
             instance_handle: 1,
             sequence_number: 3,
@@ -858,7 +846,7 @@ mod tests {
         });
 
         writer.writer_cache.add_change(RTPSCacheChange {
-            kind: MockPsm::ALIVE,
+            kind: ChangeKind::Alive,
             writer_guid: GUID::new([1; 12], [1; 4]),
             instance_handle: 1,
             sequence_number: 5,
@@ -873,12 +861,11 @@ mod tests {
 
     #[test]
     fn reader_locator_next_unsent_change() {
-        let mut reader_locator =
-            RTPSReaderLocator::new(Locator::new(0, 0, [0; 16]), false);
+        let mut reader_locator = RTPSReaderLocator::new(Locator::new(0, 0, [0; 16]), false);
 
         let guid = GUID::new([1; 12], [1; 4]);
         let topic_kind = TopicKind::WithKey;
-        let reliability_level = MockPsm::BEST_EFFORT;
+        let reliability_level = ReliabilityKind::BestEffort;
         let unicast_locator_list = Vec::new();
         let multicast_locator_list = Vec::new();
         let push_mode = true;
@@ -900,7 +887,7 @@ mod tests {
         );
 
         writer.writer_cache.add_change(RTPSCacheChange {
-            kind: MockPsm::ALIVE,
+            kind: ChangeKind::Alive,
             writer_guid: GUID::new([1; 12], [1; 4]),
             instance_handle: 1,
             sequence_number: 1,
@@ -909,7 +896,7 @@ mod tests {
         });
 
         writer.writer_cache.add_change(RTPSCacheChange {
-            kind: MockPsm::ALIVE,
+            kind: ChangeKind::Alive,
             writer_guid: GUID::new([1; 12], [1; 4]),
             instance_handle: 1,
             sequence_number: 3,
@@ -918,7 +905,7 @@ mod tests {
         });
 
         writer.writer_cache.add_change(RTPSCacheChange {
-            kind: MockPsm::ALIVE,
+            kind: ChangeKind::Alive,
             writer_guid: GUID::new([1; 12], [1; 4]),
             instance_handle: 1,
             sequence_number: 5,
@@ -940,7 +927,7 @@ mod tests {
     //     let mut reader_locator_list = [reader_locator_1, reader_locator_2];
 
     //     writer.writer_cache.add_change(RTPSCacheChange {
-    //         kind: MockPsm::ALIVE,
+    //         kind:  ChangeKind::Alive,
     //         writer_guid: [1; 16].into(),
     //         instance_handle: 1,
     //         sequence_number: 1,
@@ -949,7 +936,7 @@ mod tests {
     //     });
 
     //     writer.writer_cache.add_change(RTPSCacheChange {
-    //         kind: MockPsm::ALIVE,
+    //         kind:  ChangeKind::Alive,
     //         writer_guid: [1; 16].into(),
     //         instance_handle: 1,
     //         sequence_number: 3,

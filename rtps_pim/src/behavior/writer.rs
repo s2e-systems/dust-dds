@@ -2,7 +2,7 @@ use crate::{
     behavior,
     structure::{
         self,
-        types::{TopicKind, GUID},
+        types::{ChangeKind, ReliabilityKind, TopicKind, GUID},
         RTPSCacheChange, RTPSEndpoint, RTPSEntity, RTPSHistoryCache,
     },
 };
@@ -25,7 +25,7 @@ impl<PSM: structure::Types + behavior::Types, HistoryCache: RTPSHistoryCache<PSM
     pub fn new(
         guid: GUID<PSM>,
         topic_kind: TopicKind,
-        reliability_level: PSM::ReliabilityKind,
+        reliability_level: ReliabilityKind,
         unicast_locator_list: PSM::LocatorVector,
         multicast_locator_list: PSM::LocatorVector,
         push_mode: bool,
@@ -57,7 +57,7 @@ impl<PSM: structure::Types + behavior::Types, HistoryCache: RTPSHistoryCache<PSM
 
     pub fn new_change(
         &mut self,
-        kind: PSM::ChangeKind,
+        kind: ChangeKind,
         data: PSM::Data,
         inline_qos: PSM::ParameterVector,
         handle: PSM::InstanceHandle,
