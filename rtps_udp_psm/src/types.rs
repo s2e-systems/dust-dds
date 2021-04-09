@@ -1,4 +1,4 @@
-use std::{convert::TryInto, iter::FromIterator};
+use std::iter::FromIterator;
 
 use crate::RtpsUdpPsm;
 
@@ -122,7 +122,6 @@ impl Ord for SequenceNumber {
     }
 }
 
-
 impl Into<i64> for SequenceNumber {
     fn into(self) -> i64 {
         ((self.high as i64) << 32) + self.low as i64
@@ -211,12 +210,6 @@ pub type InstanceHandle = i32;
 pub struct ProtocolVersion {
     pub major: u8,
     pub minor: u8,
-}
-
-#[derive(Clone, Copy)]
-pub enum TopicKind {
-    NoKey,
-    WithKey,
 }
 
 #[derive(Clone, Copy)]

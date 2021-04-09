@@ -2,7 +2,7 @@ use types::{
     ChangeForReaderStatusKind, ChangeFromWriterStatusKind, ChangeKind, Count, Duration, EntityId,
     FragmentNumber, GroupDigest, GuidPrefix, InstanceHandle, Parameter, ParameterId,
     ProtocolId, ProtocolVersion, ReliabilityKind, SequenceNumber, SequenceNumberSet,
-    SubmessageFlag, Time, TopicKind, VendorId,
+    SubmessageFlag, Time, VendorId,
 };
 
 pub mod submessages;
@@ -38,10 +38,6 @@ impl rust_rtps_pim::structure::Types for RtpsUdpPsm {
     const LOCATOR_KIND_UDPv6: Self::LocatorKind = 2;
     const LOCATOR_ADDRESS_INVALID: Self::LocatorAddress = [0; 16];
     const LOCATOR_PORT_INVALID: Self::LocatorPort = 0;
-
-    type TopicKind = TopicKind;
-    const NO_KEY: Self::TopicKind = TopicKind::NoKey;
-    const WITH_KEY: Self::TopicKind = TopicKind::WithKey;
 
     type ChangeKind = ChangeKind;
     const ALIVE: Self::ChangeKind = ChangeKind::Alive;

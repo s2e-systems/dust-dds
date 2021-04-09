@@ -29,10 +29,6 @@ pub trait Types {
     const LOCATOR_ADDRESS_INVALID: Self::LocatorAddress;
     const LOCATOR_PORT_INVALID: Self::LocatorPort;
 
-    type TopicKind: Copy;
-    const NO_KEY: Self::TopicKind;
-    const WITH_KEY: Self::TopicKind;
-
     type ChangeKind: Copy;
     const ALIVE: Self::ChangeKind;
     const ALIVE_FILTERED: Self::ChangeKind;
@@ -161,4 +157,8 @@ impl<PSM: Types> Locator<PSM> {
     }
 }
 
-// ::Locator
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum TopicKind {
+    NoKey,
+    WithKey,
+}

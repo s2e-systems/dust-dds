@@ -219,7 +219,7 @@ mod tests {
         structure::{types::GUID, RTPSCacheChange},
     };
     use std::vec::Vec;
-    use structure::Types;
+    use structure::{Types, types::TopicKind};
 
     #[derive(Clone)]
     pub struct MockParameter;
@@ -265,10 +265,6 @@ mod tests {
         const LOCATOR_KIND_UDPv6: Self::LocatorKind = 2;
         const LOCATOR_ADDRESS_INVALID: Self::LocatorAddress = [0; 16];
         const LOCATOR_PORT_INVALID: Self::LocatorPort = 0;
-
-        type TopicKind = u8;
-        const NO_KEY: Self::TopicKind = 0;
-        const WITH_KEY: Self::TopicKind = 1;
 
         type ChangeKind = u8;
 
@@ -397,7 +393,7 @@ mod tests {
 
     fn _create_rtps_writer() -> RTPSWriter<MockPsm, MockHistoryCache> {
         let guid = GUID::new([1; 12], [1; 4]);
-        let topic_kind = MockPsm::WITH_KEY;
+        let topic_kind = TopicKind::WithKey;
         let reliability_level = MockPsm::BEST_EFFORT;
         let unicast_locator_list = Vec::new();
         let multicast_locator_list = Vec::new();
@@ -569,11 +565,11 @@ mod tests {
 
     #[test]
     fn reader_locator_requested_changes_set() {
-        let mut reader_locator: RTPSReaderLocator<MockPsm> =
+        let mut reader_locator =
             RTPSReaderLocator::new(Locator::new(0, 0, [0; 16]), false);
 
         let guid = GUID::new([1; 12], [1; 4]);
-        let topic_kind = MockPsm::WITH_KEY;
+        let topic_kind = TopicKind::WithKey;
         let reliability_level = MockPsm::BEST_EFFORT;
         let unicast_locator_list = Vec::new();
         let multicast_locator_list = Vec::new();
@@ -631,11 +627,11 @@ mod tests {
 
     #[test]
     fn reader_locator_requested_changes_set_changes_not_in_history_cache() {
-        let mut reader_locator: RTPSReaderLocator<MockPsm> =
+        let mut reader_locator  =
             RTPSReaderLocator::new(Locator::new(0, 0, [0; 16]), false);
 
         let guid = GUID::new([1; 12], [1; 4]);
-        let topic_kind = MockPsm::WITH_KEY;
+        let topic_kind = TopicKind::WithKey;
         let reliability_level = MockPsm::BEST_EFFORT;
         let unicast_locator_list = Vec::new();
         let multicast_locator_list = Vec::new();
@@ -693,11 +689,11 @@ mod tests {
 
     #[test]
     fn reader_locator_next_requested_change() {
-        let mut reader_locator: RTPSReaderLocator<MockPsm> =
+        let mut reader_locator =
             RTPSReaderLocator::new(Locator::new(0, 0, [0; 16]), false);
 
         let guid = GUID::new([1; 12], [1; 4]);
-        let topic_kind = MockPsm::WITH_KEY;
+        let topic_kind = TopicKind::WithKey;
         let reliability_level = MockPsm::BEST_EFFORT;
         let unicast_locator_list = Vec::new();
         let multicast_locator_list = Vec::new();
@@ -761,7 +757,7 @@ mod tests {
             RTPSReaderLocator::new(Locator::new(0, 0, [0; 16]), false);
 
         let guid = GUID::new([1; 12], [1; 4]);
-        let topic_kind = MockPsm::WITH_KEY;
+        let topic_kind = TopicKind::WithKey;
         let reliability_level = MockPsm::BEST_EFFORT;
         let unicast_locator_list = Vec::new();
         let multicast_locator_list = Vec::new();
@@ -821,7 +817,7 @@ mod tests {
             RTPSReaderLocator::new(Locator::new(0, 0, [0; 16]), false);
 
         let guid = GUID::new([1; 12], [1; 4]);
-        let topic_kind = MockPsm::WITH_KEY;
+        let topic_kind = TopicKind::WithKey;
         let reliability_level = MockPsm::BEST_EFFORT;
         let unicast_locator_list = Vec::new();
         let multicast_locator_list = Vec::new();
@@ -877,11 +873,11 @@ mod tests {
 
     #[test]
     fn reader_locator_next_unsent_change() {
-        let mut reader_locator: RTPSReaderLocator<MockPsm> =
+        let mut reader_locator =
             RTPSReaderLocator::new(Locator::new(0, 0, [0; 16]), false);
 
         let guid = GUID::new([1; 12], [1; 4]);
-        let topic_kind = MockPsm::WITH_KEY;
+        let topic_kind = TopicKind::WithKey;
         let reliability_level = MockPsm::BEST_EFFORT;
         let unicast_locator_list = Vec::new();
         let multicast_locator_list = Vec::new();

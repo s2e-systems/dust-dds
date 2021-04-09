@@ -1,10 +1,10 @@
 use crate::structure;
 
-use super::RTPSEntity;
+use super::{types::TopicKind, RTPSEntity};
 
 pub struct RTPSEndpoint<PSM: structure::Types> {
     pub entity: RTPSEntity<PSM>,
-    pub topic_kind: PSM::TopicKind,
+    pub topic_kind: TopicKind,
     pub reliability_level: PSM::ReliabilityKind,
     pub unicast_locator_list: PSM::LocatorVector,
     pub multicast_locator_list: PSM::LocatorVector,

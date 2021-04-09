@@ -545,7 +545,7 @@ mod tests {
 
     //     use crate::transport::Transport;
 
-    use rust_dds_api::infrastructure::qos::DataWriterQos;
+    use rust_dds_api::infrastructure::{qos::DataWriterQos, qos_policy::ReliabilityQosPolicyKind};
     use rust_rtps_pim::{
         behavior::stateless_writer::RTPSStatelessWriter, structure::types::Locator,
     };
@@ -607,7 +607,9 @@ mod tests {
         let builtin_subscriber = SubscriberImpl::new(SubscriberQos::default(), None, 0);
         let mut builtin_publisher = PublisherImpl::new(PublisherQos::default(), None, 0);
 
-        let mut stateless_data_writer = StatelessDataWriterImpl::new(DataWriterQos::default());
+        let mut qos = DataWriterQos::default();
+        qos.reliability.kind = ReliabilityQosPolicyKind::BestEffortReliabilityQos;
+        let mut stateless_data_writer = StatelessDataWriterImpl::new(qos);
         stateless_data_writer.reader_locator_add(Locator::new(
             <RtpsUdpPsm as rust_rtps_pim::structure::Types>::LOCATOR_KIND_UDPv4,
             7400,
@@ -626,8 +628,8 @@ mod tests {
             builtin_publisher,
         );
 
-        //participant.enable().unwrap();
-        //std::thread::sleep(std::time::Duration::from_secs(1));
+        // participant.enable().unwrap();
+        // std::thread::sleep(std::time::Duration::from_secs(1));
     }
 
     // #[test]

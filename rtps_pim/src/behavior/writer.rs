@@ -1,6 +1,10 @@
 use crate::{
     behavior,
-    structure::{self, types::GUID, RTPSCacheChange, RTPSEndpoint, RTPSEntity, RTPSHistoryCache},
+    structure::{
+        self,
+        types::{TopicKind, GUID},
+        RTPSCacheChange, RTPSEndpoint, RTPSEntity, RTPSHistoryCache,
+    },
 };
 
 pub struct RTPSWriter<PSM: structure::Types + behavior::Types, HistoryCache: RTPSHistoryCache<PSM>>
@@ -20,7 +24,7 @@ impl<PSM: structure::Types + behavior::Types, HistoryCache: RTPSHistoryCache<PSM
 {
     pub fn new(
         guid: GUID<PSM>,
-        topic_kind: PSM::TopicKind,
+        topic_kind: TopicKind,
         reliability_level: PSM::ReliabilityKind,
         unicast_locator_list: PSM::LocatorVector,
         multicast_locator_list: PSM::LocatorVector,

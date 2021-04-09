@@ -15,10 +15,13 @@ use rust_rtps_pim::{
 use rust_rtps_udp_psm::types::ChangeKind;
 use rust_rtps_udp_psm::{
     submessages,
-    types::{Duration, EntityId, TopicKind},
+    types::{Duration, EntityId},
     RtpsUdpPsm,
 };
-use structure::{types::GUID, RTPSHistoryCache};
+use structure::{
+    types::{TopicKind, GUID},
+    RTPSHistoryCache,
+};
 
 use super::history_cache_impl::HistoryCacheImpl;
 
