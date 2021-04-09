@@ -332,19 +332,6 @@ mod tests {
     impl behavior::Types for MockPsm {
         type Duration = i64;
 
-        type ChangeForReaderStatusKind = u8;
-        const UNSENT: Self::ChangeForReaderStatusKind = 0;
-        const UNACKNOWLEDGED: Self::ChangeForReaderStatusKind = 1;
-        const REQUESTED: Self::ChangeForReaderStatusKind = 2;
-        const ACKNOWLEDGED: Self::ChangeForReaderStatusKind = 3;
-        const UNDERWAY: Self::ChangeForReaderStatusKind = 4;
-
-        type ChangeFromWriterStatusKind = u8;
-        const LOST: Self::ChangeFromWriterStatusKind = 0;
-        const MISSING: Self::ChangeFromWriterStatusKind = 1;
-        const RECEIVED: Self::ChangeFromWriterStatusKind = 2;
-        const UNKNOWN: Self::ChangeFromWriterStatusKind = 3;
-
         type ParticipantMessageData = u8;
     }
 

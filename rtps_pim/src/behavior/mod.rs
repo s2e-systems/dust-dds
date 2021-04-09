@@ -3,7 +3,7 @@ mod reader;
 // pub mod stateful_writer;
 // pub mod stateless_reader;
 pub mod stateless_writer;
-mod types;
+pub mod types;
 mod writer;
 
 pub use types::Types;

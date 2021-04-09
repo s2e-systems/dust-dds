@@ -1,5 +1,5 @@
 use types::{
-    ChangeForReaderStatusKind, ChangeFromWriterStatusKind, Count, Duration, EntityId,
+    Count, Duration, EntityId,
     FragmentNumber, GroupDigest, GuidPrefix, InstanceHandle, Parameter, ParameterId,
     ProtocolId, ProtocolVersion, SequenceNumber, SequenceNumberSet,
     SubmessageFlag, Time, VendorId,
@@ -110,20 +110,6 @@ impl rust_rtps_pim::messages::Types for RtpsUdpPsm {
 
 impl rust_rtps_pim::behavior::Types for RtpsUdpPsm {
     type Duration = Duration;
-
-    type ChangeForReaderStatusKind = ChangeForReaderStatusKind;
-    const UNSENT: Self::ChangeForReaderStatusKind = ChangeForReaderStatusKind::Unsent;
-    const UNACKNOWLEDGED: Self::ChangeForReaderStatusKind =
-        ChangeForReaderStatusKind::Unacknowledged;
-    const REQUESTED: Self::ChangeForReaderStatusKind = ChangeForReaderStatusKind::Requested;
-    const ACKNOWLEDGED: Self::ChangeForReaderStatusKind = ChangeForReaderStatusKind::Acknowledged;
-    const UNDERWAY: Self::ChangeForReaderStatusKind = ChangeForReaderStatusKind::Underway;
-
-    type ChangeFromWriterStatusKind = ChangeFromWriterStatusKind;
-    const LOST: Self::ChangeFromWriterStatusKind = ChangeFromWriterStatusKind::Lost;
-    const MISSING: Self::ChangeFromWriterStatusKind = ChangeFromWriterStatusKind::Missing;
-    const RECEIVED: Self::ChangeFromWriterStatusKind = ChangeFromWriterStatusKind::Received;
-    const UNKNOWN: Self::ChangeFromWriterStatusKind = ChangeFromWriterStatusKind::Unknown;
 
     type ParticipantMessageData = ();
 }

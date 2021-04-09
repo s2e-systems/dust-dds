@@ -232,22 +232,6 @@ pub struct Duration {
     pub fraction: u32,
 }
 
-#[derive(Clone, Copy)]
-pub enum ChangeForReaderStatusKind {
-    Unsent,
-    Unacknowledged,
-    Requested,
-    Acknowledged,
-    Underway,
-}
-
-#[derive(Clone, Copy)]
-pub enum ChangeFromWriterStatusKind {
-    Lost,
-    Missing,
-    Received,
-    Unknown,
-}
 #[derive(Clone)]
 pub struct Parameter {
     pub parameter_id: ParameterId,

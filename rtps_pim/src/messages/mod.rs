@@ -1,6 +1,6 @@
 pub mod submessage_elements;
 pub mod submessages;
-mod types;
+pub mod types;
 
 use crate::{messages, structure};
 
