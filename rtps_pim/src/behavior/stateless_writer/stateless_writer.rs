@@ -138,33 +138,12 @@ pub trait RTPSStatelessWriter<
     );
 }
 
-pub trait RTPSStatelessWriterBehavior<'a, PSM, HistoryCache>
-where
-    PSM: structure::Types + behavior::Types + 'a,
-    HistoryCache: RTPSHistoryCache<PSM>,
-{
-    fn produce_messages<Data, Gap, SendDataTo, SendGapTo>(
-        &'a mut self,
-        writer: &'a RTPSWriter<PSM, HistoryCache>,
-        send_data_to: &'a mut SendDataTo,
-        send_gap_to: &'a mut SendGapTo,
-    ) where
-        PSM: messages::Types,
-        PSM::ParameterVector: Clone,
-        Data: messages::submessages::Data<SerializedData = &'a <PSM as structure::types::Types>::Data>
-            + Submessage<PSM = PSM>,
-        Gap: messages::submessages::Gap + Submessage<PSM = PSM>,
-        SendDataTo: FnMut(&Locator<PSM>, Data),
-        SendGapTo: FnMut(&Locator<PSM>, Gap);
-}
 
-impl<'a, PSM, HistoryCache> RTPSStatelessWriterBehavior<'a, PSM, HistoryCache>
-    for RTPSReaderLocator<PSM>
+impl<'a, PSM> RTPSReaderLocator<PSM>
 where
     PSM: structure::Types + behavior::Types + 'a,
-    HistoryCache: RTPSHistoryCache<PSM> + 'a,
 {
-    fn produce_messages<Data, Gap, SendDataTo, SendGapTo>(
+    pub fn produce_messages<Data, Gap, HistoryCache, SendDataTo, SendGapTo>(
         &'a mut self,
         writer: &'a RTPSWriter<PSM, HistoryCache>,
         send_data_to: &'a mut SendDataTo,
@@ -175,6 +154,7 @@ where
         Data: messages::submessages::Data<SerializedData = &'a <PSM as structure::types::Types>::Data>
             + Submessage<PSM = PSM>,
         Gap: messages::submessages::Gap + Submessage<PSM = PSM>,
+        HistoryCache: RTPSHistoryCache<PSM> + 'a,
         SendDataTo: FnMut(&Locator<PSM>, Data),
         SendGapTo: FnMut(&Locator<PSM>, Gap),
     {

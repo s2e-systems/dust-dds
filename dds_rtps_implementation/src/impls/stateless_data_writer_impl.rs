@@ -4,9 +4,7 @@ use rust_dds_api::{
     infrastructure::{qos::DataWriterQos, qos_policy::ReliabilityQosPolicyKind},
     return_type::DDSResult,
 };
-use rust_rtps_pim::{
-    behavior::stateless_writer::RTPSStatelessWriterBehavior, structure::types::Locator,
-};
+use rust_rtps_pim::structure::types::Locator;
 use rust_rtps_pim::{
     behavior::{
         stateless_writer::{RTPSReaderLocator, RTPSStatelessWriter},

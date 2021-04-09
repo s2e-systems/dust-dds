@@ -425,8 +425,17 @@ impl DomainParticipantImpl {
         self.enabled_function.call_once(|| {
             thread_list.push(std::thread::spawn(move || {
                 while enabled.load(atomic::Ordering::Acquire) {
-                    builtin_publisher.lock().unwrap().produce_messages();
-
+                    // let mut data = Vec::new();
+                    // let mut gap = Vec::new();
+                    builtin_publisher.lock().unwrap().produce_messages(
+                        |locator, message| println!("{:}", message),
+                        |locator, message| {},
+                    );
+                    // RtpsMessageSender::send_cache_change_messages(
+                    //             //     participant_guid_prefix,
+                    //             //     transport.as_ref(),
+                    //             //     destined_messages,
+                    //             // );
                     std::thread::sleep(std::time::Duration::from_secs(1));
                 }
             }));
@@ -617,9 +626,8 @@ mod tests {
             builtin_publisher,
         );
 
-        participant.enable().unwrap();
-
-        std::thread::sleep(std::time::Duration::from_secs(1));
+        //participant.enable().unwrap();
+        //std::thread::sleep(std::time::Duration::from_secs(1));
     }
 
     // #[test]

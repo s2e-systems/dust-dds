@@ -1,15 +1,16 @@
 use std::sync::{atomic, Arc, Mutex, Weak};
 
+use super::{
+    stateful_data_writer_impl::StatefulDataWriterImpl,
+    stateless_data_writer_impl::StatelessDataWriterImpl,
+};
 use rust_dds_api::{
     dcps_psm::StatusMask,
     infrastructure::qos::{DataWriterQos, PublisherQos},
     publication::publisher_listener::PublisherListener,
 };
-
-use super::{
-    stateful_data_writer_impl::StatefulDataWriterImpl,
-    stateless_data_writer_impl::StatelessDataWriterImpl,
-};
+use rust_rtps_pim::structure::types::Locator;
+use rust_rtps_udp_psm::{submessages, RtpsUdpPsm};
 
 pub struct PublisherImpl {
     stateful_writer_list: Vec<Arc<Mutex<StatefulDataWriterImpl>>>,
@@ -39,10 +40,14 @@ impl PublisherImpl {
         }
     }
 
-    pub fn produce_messages(&self) -> () {
+    pub fn produce_messages(
+        &self,
+        mut send_data_to: impl FnMut(&Locator<RtpsUdpPsm>, submessages::Data),
+        mut send_gap_to: impl FnMut(&Locator<RtpsUdpPsm>, submessages::Gap),
+    ) -> () {
         for stateless_writer in &self.stateless_writer_list {
             let mut stateless_writer_lock = stateless_writer.lock().unwrap();
-            stateless_writer_lock.produce_messages(&mut |_, _| {}, &mut |_, _| {});
+            stateless_writer_lock.produce_messages(&mut send_data_to, &mut send_gap_to);
         }
     }
 
