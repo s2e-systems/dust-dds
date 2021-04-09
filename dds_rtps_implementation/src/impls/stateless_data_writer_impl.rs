@@ -92,12 +92,11 @@ impl StatelessDataWriterImpl {
 
     pub fn produce_messages(
         &mut self,
-        send_data_to: impl FnMut(&Locator<RtpsUdpPsm>, submessages::Data),
-        send_gap_to: impl FnMut(&Locator<RtpsUdpPsm>, submessages::Gap),
+        send_data_to: &mut impl FnMut(&Locator<RtpsUdpPsm>, submessages::Data),
+        send_gap_to: &mut impl FnMut(&Locator<RtpsUdpPsm>, submessages::Gap),
     ) {
         for reader_locator in &mut self.reader_locators {
             reader_locator.produce_messages(&self.writer, send_data_to, send_gap_to);
-            todo!();
         }
     }
 }

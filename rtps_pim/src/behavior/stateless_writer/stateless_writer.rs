@@ -149,8 +149,8 @@ where
     pub fn produce_messages<Data, Gap, HistoryCache, SendDataTo, SendGapTo>(
         &'a mut self,
         writer: &'a RTPSWriter<PSM, HistoryCache>,
-        mut send_data_to: SendDataTo,
-        mut send_gap_to: SendGapTo,
+        send_data_to: &mut SendDataTo,
+        send_gap_to: &mut SendGapTo,
     ) where
         PSM: messages::Types,
         PSM::ParameterVector: Clone,
@@ -936,8 +936,8 @@ mod tests {
             reader_locator_1
                 .produce_messages::<MockDataSubmessage, MockGapSubmessage, MockHistoryCache, _, _>(
                     &writer,
-                    |locator, message| data.push((locator.clone(), message)),
-                    |locator, message| gap.push((locator.clone(), message)),
+                    &mut |locator, message| data.push((locator.clone(), message)),
+                    &mut |locator, message| gap.push((locator.clone(), message)),
                 );
             println!("Data: {:?}", data[0].1);
         }
@@ -948,8 +948,8 @@ mod tests {
             reader_locator_2
                 .produce_messages::<MockDataSubmessage, MockGapSubmessage, MockHistoryCache, _, _>(
                     &writer,
-                    |locator, message| data.push((locator.clone(), message)),
-                    |locator, message| gap.push((locator.clone(), message)),
+                    &mut |locator, message| data.push((locator.clone(), message)),
+                    &mut |locator, message| gap.push((locator.clone(), message)),
                 );
         }
 
@@ -959,8 +959,8 @@ mod tests {
             reader_locator_1
                 .produce_messages::<MockDataSubmessage, MockGapSubmessage, MockHistoryCache, _, _>(
                     &writer,
-                    |locator, message| data.push((locator.clone(), message)),
-                    |locator, message| gap.push((locator.clone(), message)),
+                    &mut |locator, message| data.push((locator.clone(), message)),
+                    &mut |locator, message| gap.push((locator.clone(), message)),
                 );
         }
     }
