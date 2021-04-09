@@ -628,8 +628,8 @@ mod tests {
             builtin_publisher,
         );
 
-        // participant.enable().unwrap();
-        // std::thread::sleep(std::time::Duration::from_secs(1));
+        participant.enable().unwrap();
+        std::thread::sleep(std::time::Duration::from_secs(1));
     }
 
     // #[test]

@@ -158,16 +158,19 @@ impl IntoIterator for SequenceNumberSet {
 impl FromIterator<SequenceNumber> for SequenceNumberSet {
     fn from_iter<T: IntoIterator<Item = SequenceNumber>>(iter: T) -> Self {
         let mut iterator = iter.into_iter();
-        let base = iterator.next().unwrap_or(0.into());
-        // The base is always present
-        let mut bitmap = [1, 0, 0, 0, 0, 0, 0, 0];
-        while let Some(value) = iterator.next() {
-            let offset = Into::<i64>::into(value) - Into::<i64>::into(base);
-            let array_index = offset / 32;
-            let bit_position = offset - array_index * 32;
-            bitmap[array_index as usize] |= 1 << bit_position;
+        if let Some(base) = iterator.next() {
+            // The base is always present
+            let mut bitmap = [1, 0, 0, 0, 0, 0, 0, 0];
+            while let Some(value) = iterator.next() {
+                let offset = Into::<i64>::into(value) - Into::<i64>::into(base);
+                let array_index = offset / 32;
+                let bit_position = offset - array_index * 32;
+                bitmap[array_index as usize] |= 1 << bit_position;
+            }
+            Self { base, bitmap }
+        } else {
+            Self { base: 0.into(), bitmap: [0;8] }
         }
-        Self { base, bitmap }
     }
 }
 
@@ -285,6 +288,15 @@ mod tests {
         assert_eq!(sequence_number_set.bitmap[0], 5);
         assert_eq!(sequence_number_set.bitmap[1], 0);
         assert_eq!(sequence_number_set.bitmap[2], 1);
+    }
+
+    #[test]
+    fn sequence_number_set_from_empty_iterator() {
+        let sequence_number_set: SequenceNumberSet = core::iter::empty().collect();
+        assert_eq!(sequence_number_set.base, 0.into());
+        assert_eq!(sequence_number_set.bitmap[0], 0);
+        assert_eq!(sequence_number_set.bitmap[1], 0);
+        assert_eq!(sequence_number_set.bitmap[2], 0);
     }
 
     #[test]

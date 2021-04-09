@@ -149,8 +149,8 @@ where
     pub fn produce_messages<Data, Gap, HistoryCache, SendDataTo, SendGapTo>(
         &'a mut self,
         writer: &'a RTPSWriter<PSM, HistoryCache>,
-        send_data_to: &'a mut SendDataTo,
-        send_gap_to: &'a mut SendGapTo,
+        mut send_data_to: SendDataTo,
+        mut send_gap_to: SendGapTo,
     ) where
         PSM: messages::Types,
         PSM::ParameterVector: Clone,
@@ -370,7 +370,7 @@ mod tests {
         }
     }
 
-    fn _create_rtps_writer() -> RTPSWriter<MockPsm, MockHistoryCache> {
+    fn create_rtps_writer() -> RTPSWriter<MockPsm, MockHistoryCache> {
         let guid = GUID::new([1; 12], [1; 4]);
         let topic_kind = TopicKind::WithKey;
         let reliability_level = ReliabilityKind::BestEffort;
@@ -906,60 +906,62 @@ mod tests {
         assert_eq!(reader_locator.next_unsent_change(&writer), None);
     }
 
-    //#[test]
-    // fn stateless_writer_produce_messages() {
-    //     let mut writer = create_rtps_writer();
-    //     let reader_locator_1 = RTPSReaderLocator::new(MockLocator { id: 1 }, false);
-    //     let reader_locator_2 = RTPSReaderLocator::new(MockLocator { id: 2 }, false);
-    //     let mut reader_locator_list = [reader_locator_1, reader_locator_2];
+    #[test]
+    fn stateless_writer_produce_messages() {
+        let mut writer = create_rtps_writer();
+        let mut reader_locator_1 = RTPSReaderLocator::new(Locator::new(1, 0, [0; 16]), false);
+        let mut reader_locator_2 = RTPSReaderLocator::new(Locator::new(2, 0, [0; 16]), false);
 
-    //     writer.writer_cache.add_change(RTPSCacheChange {
-    //         kind:  ChangeKind::Alive,
-    //         writer_guid: [1; 16].into(),
-    //         instance_handle: 1,
-    //         sequence_number: 1,
-    //         data_value: vec![],
-    //         inline_qos: vec![],
-    //     });
+        writer.writer_cache.add_change(RTPSCacheChange {
+            kind: ChangeKind::Alive,
+            writer_guid: GUID::new([1; 12], [1; 4]),
+            instance_handle: 1,
+            sequence_number: 1,
+            data_value: vec![],
+            inline_qos: vec![],
+        });
 
-    //     writer.writer_cache.add_change(RTPSCacheChange {
-    //         kind:  ChangeKind::Alive,
-    //         writer_guid: [1; 16].into(),
-    //         instance_handle: 1,
-    //         sequence_number: 3,
-    //         data_value: vec![],
-    //         inline_qos: vec![],
-    //     });
+        writer.writer_cache.add_change(RTPSCacheChange {
+            kind: ChangeKind::Alive,
+            writer_guid: GUID::new([1; 12], [1; 4]),
+            instance_handle: 1,
+            sequence_number: 3,
+            data_value: vec![],
+            inline_qos: vec![],
+        });
 
-    //     {
-    //         let mut data = Vec::new();
-    //         let mut gap = Vec::new();
-    //         reader_locator_list.produce_messages::<MockDataSubmessage, MockGapSubmessage, _, _>(
-    //             &writer,
-    //             |locator, message| data.push((locator.clone(), message)),
-    //             |locator, message| gap.push((locator.clone(), message)),
-    //         );
-    //         println!("Data: {:?}", data);
-    //     }
+        {
+            let mut data: Vec<(Locator<MockPsm>, MockDataSubmessage)> = Vec::new();
+            let mut gap: Vec<(Locator<MockPsm>, MockGapSubmessage)> = Vec::new();
+            reader_locator_1
+                .produce_messages::<MockDataSubmessage, MockGapSubmessage, MockHistoryCache, _, _>(
+                    &writer,
+                    |locator, message| data.push((locator.clone(), message)),
+                    |locator, message| gap.push((locator.clone(), message)),
+                );
+            println!("Data: {:?}", data[0].1);
+        }
 
-    //     {
-    //         let mut data = Vec::new();
-    //         let mut gap = Vec::new();
-    //         reader_locator_list.produce_messages::<MockDataSubmessage, MockGapSubmessage, _, _>(
-    //             &writer,
-    //             |locator, message| data.push((locator.clone(), message)),
-    //             |locator, message| gap.push((locator.clone(), message)),
-    //         );
-    //     }
+        {
+            let mut data = Vec::new();
+            let mut gap = Vec::new();
+            reader_locator_2
+                .produce_messages::<MockDataSubmessage, MockGapSubmessage, MockHistoryCache, _, _>(
+                    &writer,
+                    |locator, message| data.push((locator.clone(), message)),
+                    |locator, message| gap.push((locator.clone(), message)),
+                );
+        }
 
-    //     {
-    //         let mut data = Vec::new();
-    //         let mut gap = Vec::new();
-    //         reader_locator_list.produce_messages::<MockDataSubmessage, MockGapSubmessage, _, _>(
-    //             &writer,
-    //             |locator, message| data.push((locator.clone(), message)),
-    //             |locator, message| gap.push((locator.clone(), message)),
-    //         );
-    //     }
-    // }
+        {
+            let mut data = Vec::new();
+            let mut gap = Vec::new();
+            reader_locator_1
+                .produce_messages::<MockDataSubmessage, MockGapSubmessage, MockHistoryCache, _, _>(
+                    &writer,
+                    |locator, message| data.push((locator.clone(), message)),
+                    |locator, message| gap.push((locator.clone(), message)),
+                );
+        }
+    }
 }
