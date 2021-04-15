@@ -425,11 +425,11 @@ impl DomainParticipantImpl {
         self.enabled_function.call_once(|| {
             thread_list.push(std::thread::spawn(move || {
                 while enabled.load(atomic::Ordering::Acquire) {
-                    let mut data = Vec::new();
+                    // let mut data = Vec::new();
                     // let mut gap = Vec::new();
                     builtin_publisher.lock().unwrap().produce_messages(
-                        &mut |locator, message| data.push(message),
-                        &mut |locator, message| {},
+                        &mut |_locator, _message| {},
+                        &mut |_locator, _message| {},
                     );
                     // RtpsMessageSender::send_cache_change_messages(
                     //             //     participant_guid_prefix,
