@@ -28,11 +28,16 @@ use super::{
 pub struct PublisherImpl<'a> {
     parent: &'a DomainParticipantImpl,
     impl_ref: Weak<Mutex<RTPSGroupImpl>>,
+    default_datawriter_qos: Mutex<DataWriterQos>,
 }
 
 impl<'a> PublisherImpl<'a> {
     pub fn new(parent: &'a DomainParticipantImpl, impl_ref: Weak<Mutex<RTPSGroupImpl>>) -> Self {
-        Self { parent, impl_ref }
+        Self {
+            parent,
+            impl_ref,
+            default_datawriter_qos: Mutex::new(DataWriterQos::default()),
+        }
     }
 }
 
@@ -131,14 +136,15 @@ impl<'a> rust_dds_api::publication::publisher::Publisher<'a> for PublisherImpl<'
         todo!()
     }
 
-    fn set_default_datawriter_qos(&self, _qos: Option<DataWriterQos>) -> DDSResult<()> {
-        // self.publisher_ref.set_default_datawriter_qos(qos)
-        todo!()
+    fn set_default_datawriter_qos(&self, qos: Option<DataWriterQos>) -> DDSResult<()> {
+        let datawriter_qos = qos.unwrap_or_default();
+        datawriter_qos.is_consistent()?;
+        *self.default_datawriter_qos.lock().unwrap() = datawriter_qos;
+        Ok(())
     }
 
-    fn get_default_datawriter_qos(&self) -> DDSResult<DataWriterQos> {
-        // self.publisher_ref.get_default_datawriter_qos()
-        todo!()
+    fn get_default_datawriter_qos(&self) -> DataWriterQos {
+        self.default_datawriter_qos.lock().unwrap().clone()
     }
 
     fn copy_from_topic_qos(
@@ -211,6 +217,7 @@ impl<'a> rust_dds_api::infrastructure::entity::Entity for PublisherImpl<'a> {
 mod tests {
     use rust_dds_api::{
         domain::domain_participant::DomainParticipant, publication::publisher::Publisher,
+        return_type::DDSError,
     };
 
     use crate::rtps_impl::rtps_participant_impl::RTPSParticipantImpl;
@@ -252,5 +259,54 @@ mod tests {
         let data_writer = publisher.create_datawriter(&a_topic, None, None, 0);
 
         assert!(data_writer.is_some());
+    }
+
+    #[test]
+    fn set_default_datawriter_qos_some_value() {
+        let domain_participant = DomainParticipantImpl::new(RTPSParticipantImpl::new());
+        let publisher = domain_participant.create_publisher(None, None, 0).unwrap();
+        let mut qos = DataWriterQos::default();
+        qos.user_data.value = vec![1, 2, 3, 4];
+        publisher
+            .set_default_datawriter_qos(Some(qos.clone()))
+            .unwrap();
+        assert!(*publisher.default_datawriter_qos.lock().unwrap() == qos);
+    }
+
+    #[test]
+    fn set_default_datawriter_qos_inconsistent() {
+        let domain_participant = DomainParticipantImpl::new(RTPSParticipantImpl::new());
+        let publisher = domain_participant.create_publisher(None, None, 0).unwrap();
+        let mut qos = DataWriterQos::default();
+        qos.resource_limits.max_samples_per_instance = 2;
+        qos.resource_limits.max_samples = 1;
+        let set_default_topic_qos_result = publisher.set_default_datawriter_qos(Some(qos.clone()));
+        assert!(set_default_topic_qos_result == Err(DDSError::InconsistentPolicy));
+    }
+
+    #[test]
+    fn set_default_datawriter_qos_none() {
+        let domain_participant = DomainParticipantImpl::new(RTPSParticipantImpl::new());
+        let publisher = domain_participant.create_publisher(None, None, 0).unwrap();
+        let mut qos = DataWriterQos::default();
+        qos.user_data.value = vec![1, 2, 3, 4];
+        publisher
+            .set_default_datawriter_qos(Some(qos.clone()))
+            .unwrap();
+
+        publisher.set_default_datawriter_qos(None).unwrap();
+        assert!(*publisher.default_datawriter_qos.lock().unwrap() == DataWriterQos::default());
+    }
+
+    #[test]
+    fn get_default_datawriter_qos() {
+        let domain_participant = DomainParticipantImpl::new(RTPSParticipantImpl::new());
+        let publisher = domain_participant.create_publisher(None, None, 0).unwrap();
+        let mut qos = DataWriterQos::default();
+        qos.user_data.value = vec![1, 2, 3, 4];
+        publisher
+            .set_default_datawriter_qos(Some(qos.clone()))
+            .unwrap();
+        assert!(publisher.get_default_datawriter_qos() == qos);
     }
 }
