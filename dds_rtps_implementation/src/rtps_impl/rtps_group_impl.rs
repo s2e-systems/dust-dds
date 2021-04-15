@@ -1,8 +1,9 @@
-use std::sync::{Arc, Mutex, Weak};
+use std::sync::{Arc, Mutex};
 
-use rust_dds_api::infrastructure::qos::{DataWriterQos, PublisherQos};
-
-use super::{rtps_stateful_writer_impl::RTPSStatefulWriterImpl, rtps_stateless_writer_impl::RTPSStatelessWriterImpl};
+use super::{
+    rtps_stateful_writer_impl::RTPSStatefulWriterImpl,
+    rtps_stateless_writer_impl::RTPSStatelessWriterImpl,
+};
 
 pub struct RTPSGroupImpl {
     pub stateful_writer_list: Vec<Arc<Mutex<RTPSStatefulWriterImpl>>>,
@@ -16,19 +17,17 @@ pub struct RTPSGroupImpl {
 
 impl RTPSGroupImpl {
     pub fn new() -> Self {
-            todo!()
-    //         Self {
-    //             stateful_writer_list: Vec::new(),
-    //             stateless_writer_list: Vec::new(),
-    //             // writer_list: Default::default(),
-    //             writer_count: atomic::AtomicU8::new(0),
-    //             default_datawriter_qos: DataWriterQos::default(),
-    //             qos,
-    //             listener,
-    //             status_mask,
-    //         }
+        Self {
+            stateful_writer_list: Vec::new(),
+            stateless_writer_list: Vec::new(),
+            //             // writer_list: Default::default(),
+            //             writer_count: atomic::AtomicU8::new(0),
+            //             default_datawriter_qos: DataWriterQos::default(),
+            //             qos,
+            //             listener,
+            //             status_mask,
+        }
     }
-
 
     //     pub fn produce_messages(
     //         &self,

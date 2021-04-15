@@ -15,7 +15,10 @@ use rust_dds_api::{
 use rust_rtps_pim::behavior::RTPSWriter;
 use rust_rtps_udp_psm::RtpsUdpPsm;
 
-use crate::rtps_impl::{rtps_group_impl::RTPSGroupImpl, rtps_history_cache_impl::RTPSHistoryCacheImpl, rtps_stateful_writer_impl::RTPSStatefulWriterImpl, rtps_stateless_writer_impl::RTPSStatelessWriterImpl};
+use crate::rtps_impl::{
+    rtps_group_impl::RTPSGroupImpl, rtps_history_cache_impl::RTPSHistoryCacheImpl,
+    rtps_stateful_writer_impl::RTPSStatefulWriterImpl,
+};
 
 use super::{
     data_writer_impl::DataWriterImpl, domain_participant_impl::DomainParticipantImpl,
@@ -30,13 +33,6 @@ pub struct PublisherImpl<'a> {
 impl<'a> PublisherImpl<'a> {
     pub fn new(parent: &'a DomainParticipantImpl, impl_ref: Weak<Mutex<RTPSGroupImpl>>) -> Self {
         Self { parent, impl_ref }
-    }
-
-    pub fn create_stateless_datawriter(&mut self, qos: DataWriterQos) -> Option<Weak<Mutex<RTPSStatelessWriterImpl>>> {
-        todo!()
-        // let stateless_writer = Arc::new(Mutex::new(RTPSStatelessWriterImpl::new(qos)));
-        // self.stateless_writer_list.push(stateless_writer.clone());
-        // Some(Arc::downgrade(&stateless_writer))
     }
 }
 
@@ -67,10 +63,16 @@ impl<'a> rust_dds_api::publication::publisher::Publisher<'a> for PublisherImpl<'
         _mask: StatusMask,
     ) -> Option<<Self as rust_dds_api::publication::publisher::DataWriterGAT<'a, T>>::DataWriterType>
     {
-        let rtps_writer = Arc::new(Mutex::new(RTPSStatefulWriterImpl{}));
-        let rtps_writer_dyn: Arc<Mutex<dyn RTPSWriter<RtpsUdpPsm, RTPSHistoryCacheImpl>>> = rtps_writer.clone();
+        let rtps_writer = Arc::new(Mutex::new(RTPSStatefulWriterImpl {}));
+        let rtps_writer_dyn: Arc<Mutex<dyn RTPSWriter<RtpsUdpPsm, RTPSHistoryCacheImpl>>> =
+            rtps_writer.clone();
         let data_writer = DataWriterImpl::new(self, Arc::downgrade(&rtps_writer_dyn));
-        self.impl_ref.upgrade()?.lock().unwrap().stateful_writer_list.push(rtps_writer);
+        self.impl_ref
+            .upgrade()?
+            .lock()
+            .unwrap()
+            .stateful_writer_list
+            .push(rtps_writer);
         Some(data_writer)
     }
 
