@@ -1,138 +1,124 @@
-// use std::sync::{atomic, Arc, Mutex, Weak};
+use std::sync::{Arc, Mutex, Weak};
 
-// use super::{
-//     stateful_data_writer_impl::StatefulDataWriterImpl,
-//     stateless_data_writer_impl::StatelessDataWriterImpl,
-// };
-// use rust_dds_api::{
-//     dcps_psm::StatusMask,
-//     infrastructure::qos::{DataWriterQos, PublisherQos},
-//     publication::publisher_listener::PublisherListener,
-// };
-// use rust_rtps_pim::structure::types::Locator;
-// use rust_rtps_udp_psm::{submessages, RtpsUdpPsm};
+use rust_dds_api::infrastructure::qos::{DataWriterQos, PublisherQos};
 
-pub struct PublisherRTPSGroupImpl{
+use super::stateless_writer_impl::RTPSStatelessWriterImpl;
 
+pub struct RTPSGroupImpl {
+    //     stateful_writer_list: Vec<Arc<Mutex<StatefulDataWriterImpl>>>,
+    stateless_writer_list: Vec<Arc<Mutex<RTPSStatelessWriterImpl>>>,
+    //     writer_count: atomic::AtomicU8,
+    //     default_datawriter_qos: DataWriterQos,
+    //     qos: PublisherQos,
+    //     listener: Option<Box<dyn PublisherListener>>,
+    //     status_mask: StatusMask,
 }
 
-// pub struct PublisherImpl {
-//     stateful_writer_list: Vec<Arc<Mutex<StatefulDataWriterImpl>>>,
-//     stateless_writer_list: Vec<Arc<Mutex<StatelessDataWriterImpl>>>,
-//     writer_count: atomic::AtomicU8,
-//     default_datawriter_qos: DataWriterQos,
-//     qos: PublisherQos,
-//     listener: Option<Box<dyn PublisherListener>>,
-//     status_mask: StatusMask,
-// }
+impl RTPSGroupImpl {
+    pub fn new() -> Self {
+            todo!()
+    //         Self {
+    //             stateful_writer_list: Vec::new(),
+    //             stateless_writer_list: Vec::new(),
+    //             // writer_list: Default::default(),
+    //             writer_count: atomic::AtomicU8::new(0),
+    //             default_datawriter_qos: DataWriterQos::default(),
+    //             qos,
+    //             listener,
+    //             status_mask,
+    //         }
+    }
 
-// impl PublisherImpl {
-//     pub fn new(
-//         qos: PublisherQos,
-//         listener: Option<Box<dyn PublisherListener>>,
-//         status_mask: StatusMask,
-//     ) -> Self {
-//         Self {
-//             stateful_writer_list: Vec::new(),
-//             stateless_writer_list: Vec::new(),
-//             // writer_list: Default::default(),
-//             writer_count: atomic::AtomicU8::new(0),
-//             default_datawriter_qos: DataWriterQos::default(),
-//             qos,
-//             listener,
-//             status_mask,
-//         }
-//     }
 
-//     pub fn produce_messages(
-//         &self,
-//         send_data_to: &mut impl FnMut(&Locator<RtpsUdpPsm>, submessages::Data),
-//         send_gap_to: &mut impl FnMut(&Locator<RtpsUdpPsm>, submessages::Gap),
-//     ) -> () {
-//         for stateless_writer in &self.stateless_writer_list {
-//             let mut stateless_writer_lock = stateless_writer.lock().unwrap();
-//             stateless_writer_lock.produce_messages(send_data_to, send_gap_to);
-//         }
-//     }
+    //     pub fn produce_messages(
+    //         &self,
+    //         send_data_to: &mut impl FnMut(&Locator<RtpsUdpPsm>, submessages::Data),
+    //         send_gap_to: &mut impl FnMut(&Locator<RtpsUdpPsm>, submessages::Gap),
+    //     ) -> () {
+    //         for stateless_writer in &self.stateless_writer_list {
+    //             let mut stateless_writer_lock = stateless_writer.lock().unwrap();
+    //             stateless_writer_lock.produce_messages(send_data_to, send_gap_to);
+    //         }
+    //     }
 
-//     pub fn stateless_writer_add(&mut self, stateless_writer: StatelessDataWriterImpl) {
-//         self.stateless_writer_list
-//             .push(Arc::new(Mutex::new(stateless_writer)))
-//     }
+    //     pub fn stateless_writer_add(&mut self, stateless_writer: StatelessDataWriterImpl) {
+    //         self.stateless_writer_list
+    //             .push(Arc::new(Mutex::new(stateless_writer)))
+    //     }
 
-//     pub fn create_datawriter(&self) -> Option<Weak<Mutex<StatefulDataWriterImpl>>> {
-//         // To be called for user-defined entity creation
+    //     pub fn create_datawriter(&self) -> Option<Weak<Mutex<StatefulDataWriterImpl>>> {
+    //         // To be called for user-defined entity creation
 
-//         // let entity_id = EntityId::new([0,0,0], ENTITYKIN);
-//         // let guid = GUID::new(self.guid().prefix(), entity_id);
-//         // let topic_kind = ();
-//         // let reliability_level = ();
-//         // let unicast_locator_list = ();
-//         // let multicast_locator_list = ();
-//         // let push_mode = ();
-//         // let heartbeat_period = ();
-//         // let nack_response_delay = ();
-//         // let nack_suppression_duration = ();
-//         // let data_max_sized_serialized = ();
+    //         // let entity_id = EntityId::new([0,0,0], ENTITYKIN);
+    //         // let guid = GUID::new(self.guid().prefix(), entity_id);
+    //         // let topic_kind = ();
+    //         // let reliability_level = ();
+    //         // let unicast_locator_list = ();
+    //         // let multicast_locator_list = ();
+    //         // let push_mode = ();
+    //         // let heartbeat_period = ();
+    //         // let nack_response_delay = ();
+    //         // let nack_suppression_duration = ();
+    //         // let data_max_sized_serialized = ();
 
-//         // let writer = Writer::new(
-//         //     guid,
-//         //     topic_kind,
-//         //     reliability_level,
-//         //     unicast_locator_list,
-//         //     multicast_locator_list,
-//         //     push_mode,
-//         //     heartbeat_period,
-//         //     nack_response_delay,
-//         //     nack_suppression_duration,
-//         //     data_max_sized_serialized,
-//         // );
-//         // let stateless_writer = StatelessWriter::new(writer);
-//         // let datawriter_impl = DataWriterImpl::new(stateless_writer);
-//         todo!()
-//     }
+    //         // let writer = Writer::new(
+    //         //     guid,
+    //         //     topic_kind,
+    //         //     reliability_level,
+    //         //     unicast_locator_list,
+    //         //     multicast_locator_list,
+    //         //     push_mode,
+    //         //     heartbeat_period,
+    //         //     nack_response_delay,
+    //         //     nack_suppression_duration,
+    //         //     data_max_sized_serialized,
+    //         // );
+    //         // let stateless_writer = StatelessWriter::new(writer);
+    //         // let datawriter_impl = DataWriterImpl::new(stateless_writer);
+    //         todo!()
+    //     }
 
-//     // pub fn create_datawriter<'a, T: DDSType>(
-//     //     &'a mut self,
-//     //     _topic: Arc<Mutex<TopicImpl>>,
-//     //     qos: Option<DataWriterQos>,
-//     //     _a_listener: Option<Box<dyn DataWriterListener<DataType = T>>>,
-//     //     _mask: StatusMask,
-//     // ) -> Option<Weak<Mutex<StatefulDataWriterImpl<Writer<HistoryCache<CacheChange>>>>>> {
-//     //     let qos = qos.unwrap_or(self.default_datawriter_qos.clone());
-//     //     qos.is_consistent().ok()?;
+    //     // pub fn create_datawriter<'a, T: DDSType>(
+    //     //     &'a mut self,
+    //     //     _topic: Arc<Mutex<TopicImpl>>,
+    //     //     qos: Option<DataWriterQos>,
+    //     //     _a_listener: Option<Box<dyn DataWriterListener<DataType = T>>>,
+    //     //     _mask: StatusMask,
+    //     // ) -> Option<Weak<Mutex<StatefulDataWriterImpl<Writer<HistoryCache<CacheChange>>>>>> {
+    //     //     let qos = qos.unwrap_or(self.default_datawriter_qos.clone());
+    //     //     qos.is_consistent().ok()?;
 
-//     //     todo!()
+    //     //     todo!()
 
-//     //     // let data_writer = Arc::new(Mutex::new(StatefulDataWriterImpl::new(
-//     //     //     topic, qos, a_listener, mask,
-//     //     // )));
+    //     //     // let data_writer = Arc::new(Mutex::new(StatefulDataWriterImpl::new(
+    //     //     //     topic, qos, a_listener, mask,
+    //     //     // )));
 
-//     //     // self.writer_list.push(data_writer.clone());
+    //     //     // self.writer_list.push(data_writer.clone());
 
-//     //     // Some(Arc::downgrade(&data_writer))
-//     // }
+    //     //     // Some(Arc::downgrade(&data_writer))
+    //     // }
 
-//     // pub fn delete_datawriter(
-//     //     &mut self,
-//     //     a_datawriter: &Weak<Mutex<StatefulDataWriterImpl<Writer<HistoryCache<CacheChange>>>>>,
-//     // ) -> DDSResult<()> {
-//     //     todo!()
-//     //     // let datawriter_impl = a_datawriter.upgrade().ok_or(DDSError::AlreadyDeleted)?;
-//     //     // self.writer_list
-//     //     //     .retain(|x| !std::ptr::eq(x.as_ref(), datawriter_impl.as_ref()));
-//     //     // Ok(())
-//     // }
+    //     // pub fn delete_datawriter(
+    //     //     &mut self,
+    //     //     a_datawriter: &Weak<Mutex<StatefulDataWriterImpl<Writer<HistoryCache<CacheChange>>>>>,
+    //     // ) -> DDSResult<()> {
+    //     //     todo!()
+    //     //     // let datawriter_impl = a_datawriter.upgrade().ok_or(DDSError::AlreadyDeleted)?;
+    //     //     // self.writer_list
+    //     //     //     .retain(|x| !std::ptr::eq(x.as_ref(), datawriter_impl.as_ref()));
+    //     //     // Ok(())
+    //     // }
 
-//     pub fn get_qos(&self) -> PublisherQos {
-//         self.qos.clone()
-//     }
+    //     pub fn get_qos(&self) -> PublisherQos {
+    //         self.qos.clone()
+    //     }
 
-//     pub fn set_qos(&mut self, qos: Option<PublisherQos>) {
-//         let qos = qos.unwrap_or_default();
-//         self.qos = qos;
-//     }
-// }
+    //     pub fn set_qos(&mut self, qos: Option<PublisherQos>) {
+    //         let qos = qos.unwrap_or_default();
+    //         self.qos = qos;
+    //     }
+}
 
 // #[cfg(test)]
 // mod tests {

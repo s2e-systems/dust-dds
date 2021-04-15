@@ -1,3 +1,4 @@
+use rust_dds_api::infrastructure::qos::DataWriterQos;
 use rust_rtps_pim::behavior::stateless_writer::RTPSReaderLocator;
 use rust_rtps_udp_psm::RtpsUdpPsm;
 
@@ -5,54 +6,54 @@ pub struct RTPSStatelessWriterImpl {
     pub reader_locators: Vec<RTPSReaderLocator<RtpsUdpPsm>>,
 }
 
-// impl StatelessDataWriterImpl {
-//     pub fn new(_qos: DataWriterQos) -> Self {
-//         // let guid = GUID::new(
-//         //     [1; 12],
-//         //     EntityId {
-//         //         entity_key: [1; 3],
-//         //         entity_kind: 1,
-//         //     },
-//         // );
-//         // let topic_kind = TopicKind::WithKey;
+impl RTPSStatelessWriterImpl {
+    pub fn new(_qos: DataWriterQos) -> Self {
+        // let guid = GUID::new(
+        //     [1; 12],
+        //     EntityId {
+        //         entity_key: [1; 3],
+        //         entity_kind: 1,
+        //     },
+        // );
+        // let topic_kind = TopicKind::WithKey;
 
-//         // let reliability_level = match qos.reliability.kind {
-//         //     ReliabilityQosPolicyKind::BestEffortReliabilityQos => ReliabilityKind::BestEffort,
-//         //     ReliabilityQosPolicyKind::ReliableReliabilityQos => ReliabilityKind::Reliable,
-//         // };
-//         // let unicast_locator_list = vec![];
-//         // let multicast_locator_list = vec![];
-//         // let push_mode = true;
-//         // let heartbeat_period = Duration {
-//         //     seconds: 1,
-//         //     fraction: 0,
-//         // };
-//         // let nack_response_delay = Duration {
-//         //     seconds: 0,
-//         //     fraction: 0,
-//         // };
-//         // let nack_suppression_duration = Duration {
-//         //     seconds: 0,
-//         //     fraction: 0,
-//         // };
-//         // let data_max_size_serialized = i32::MAX;
+        // let reliability_level = match qos.reliability.kind {
+        //     ReliabilityQosPolicyKind::BestEffortReliabilityQos => ReliabilityKind::BestEffort,
+        //     ReliabilityQosPolicyKind::ReliableReliabilityQos => ReliabilityKind::Reliable,
+        // };
+        // let unicast_locator_list = vec![];
+        // let multicast_locator_list = vec![];
+        // let push_mode = true;
+        // let heartbeat_period = Duration {
+        //     seconds: 1,
+        //     fraction: 0,
+        // };
+        // let nack_response_delay = Duration {
+        //     seconds: 0,
+        //     fraction: 0,
+        // };
+        // let nack_suppression_duration = Duration {
+        //     seconds: 0,
+        //     fraction: 0,
+        // };
+        // let data_max_size_serialized = i32::MAX;
 
-//         // let writer = RTPSWriter::new(
-//         //     guid,
-//         //     topic_kind,
-//         //     reliability_level,
-//         //     unicast_locator_list,
-//         //     multicast_locator_list,
-//         //     push_mode,
-//         //     heartbeat_period,
-//         //     nack_response_delay,
-//         //     nack_suppression_duration,
-//         //     data_max_size_serialized,
-//         // );
-//         Self {
-//             reader_locators: Vec::new(),
-//         }
-//     }
+        // let writer = RTPSWriter::new(
+        //     guid,
+        //     topic_kind,
+        //     reliability_level,
+        //     unicast_locator_list,
+        //     multicast_locator_list,
+        //     push_mode,
+        //     heartbeat_period,
+        //     nack_response_delay,
+        //     nack_suppression_duration,
+        //     data_max_size_serialized,
+        // );
+        Self {
+            reader_locators: Vec::new(),
+        }
+    }
 
 //     pub fn write_w_timestamp(&mut self) -> DDSResult<()> {
 //         let kind = ChangeKind::Alive;
@@ -74,7 +75,7 @@ pub struct RTPSStatelessWriterImpl {
 //         //     reader_locator.produce_messages(&self, send_data_to, send_gap_to);
 //         // }
 //     }
-// }
+}
 
 // impl RTPSEntity<RtpsUdpPsm> for StatelessDataWriterImpl {
 //     fn guid(&self) -> GUID<RtpsUdpPsm> {

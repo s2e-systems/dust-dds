@@ -1,4 +1,4 @@
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use rust_dds_api::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
@@ -18,7 +18,7 @@ use rust_dds_api::{
 };
 use rust_rtps_udp_psm::RtpsUdpPsm;
 
-use crate::rtps_impl::participant_impl::RTPSParticipantImpl;
+use crate::rtps_impl::{group_impl::RTPSGroupImpl, participant_impl::RTPSParticipantImpl};
 
 use super::{
     publisher_impl::PublisherImpl, subscriber_impl::SubscriberImpl, topic_impl::TopicImpl,
@@ -57,8 +57,8 @@ impl<'a> rust_dds_api::domain::domain_participant::DomainParticipant<'a> for Dom
         _mask: StatusMask,
     ) -> Option<Self::PublisherType> {
         let _publisher_qos = qos.unwrap_or(self.get_default_publisher_qos());
-
-        let publisher = PublisherImpl::new(self);
+        let group = Arc::new(Mutex::new(RTPSGroupImpl::new()));
+        let publisher = PublisherImpl::new(self, Arc::downgrade(&group));
 
         Some(publisher)
     }

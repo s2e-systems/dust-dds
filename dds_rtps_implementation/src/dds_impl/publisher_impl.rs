@@ -1,3 +1,5 @@
+use std::sync::{Mutex, Weak};
+
 use rust_dds_api::{
     dcps_psm::{Duration, InstanceHandle, StatusMask},
     dds_type::DDSType,
@@ -11,6 +13,8 @@ use rust_dds_api::{
     return_type::DDSResult,
 };
 
+use crate::rtps_impl::{group_impl::RTPSGroupImpl, stateless_writer_impl::RTPSStatelessWriterImpl};
+
 use super::{
     data_writer_impl::DataWriterImpl, domain_participant_impl::DomainParticipantImpl,
     topic_impl::TopicImpl,
@@ -18,11 +22,19 @@ use super::{
 
 pub struct PublisherImpl<'a> {
     parent: &'a DomainParticipantImpl,
+    impl_ref: Weak<Mutex<RTPSGroupImpl>>
 }
 
 impl<'a> PublisherImpl<'a> {
-    pub fn new(parent: &'a DomainParticipantImpl) -> Self {
-        Self { parent }
+    pub fn new(parent: &'a DomainParticipantImpl, impl_ref: Weak<Mutex<RTPSGroupImpl>>) -> Self {
+        Self { parent, impl_ref }
+    }
+
+    pub fn create_stateless_datawriter(&mut self, qos: DataWriterQos) -> Option<Weak<Mutex<RTPSStatelessWriterImpl>>> {
+        todo!()
+        // let stateless_writer = Arc::new(Mutex::new(RTPSStatelessWriterImpl::new(qos)));
+        // self.stateless_writer_list.push(stateless_writer.clone());
+        // Some(Arc::downgrade(&stateless_writer))
     }
 }
 
