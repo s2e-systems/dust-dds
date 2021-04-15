@@ -9,7 +9,7 @@ use rust_dds_api::{
     dds_type::DDSType,
     infrastructure::{entity::StatusCondition, qos::DataWriterQos},
     publication::data_writer_listener::DataWriterListener,
-    return_type::DDSResult,
+    return_type::{DDSResult, DDSError},
 };
 use rust_rtps_pim::behavior::RTPSWriter;
 use rust_rtps_udp_psm::RtpsUdpPsm;
@@ -50,7 +50,7 @@ impl<'a, T: DDSType> rust_dds_api::publication::data_writer::DataWriter<'a, T>
     for DataWriterImpl<'a, T>
 {
     fn register_instance(&self, _instance: T) -> DDSResult<Option<InstanceHandle>> {
-        todo!()
+        todo!()        
         // let timestamp = self.parent.0.parent.get_current_time()?;
         // self.register_instance_w_timestamp(instance, timestamp)
     }
@@ -60,14 +60,10 @@ impl<'a, T: DDSType> rust_dds_api::publication::data_writer::DataWriter<'a, T>
         _instance: T,
         _timestamp: Time,
     ) -> DDSResult<Option<InstanceHandle>> {
+        let writer = self.rtps_writer.upgrade().ok_or(DDSError::AlreadyDeleted)?;
+        let writer_guard = writer.lock().unwrap();
+        let _c = writer_guard.writer_cache();
         todo!()
-        // self
-        //     .impl_ref
-        //     .upgrade()
-        //     .ok_or(DDSError::AlreadyDeleted)?
-        //     .lock()
-        //     .unwrap()
-        //     .register_instance_w_timestamp(instance, timestamp)
     }
 
     fn unregister_instance(&self, _instance: T, _handle: Option<InstanceHandle>) -> DDSResult<()> {
