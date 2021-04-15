@@ -18,7 +18,7 @@ use rust_dds_api::{
 };
 use rust_rtps_udp_psm::RtpsUdpPsm;
 
-use crate::rtps_impl::{group_impl::RTPSGroupImpl, participant_impl::RTPSParticipantImpl};
+use crate::rtps_impl::{rtps_group_impl::RTPSGroupImpl, rtps_participant_impl::RTPSParticipantImpl};
 
 use super::{
     publisher_impl::PublisherImpl, subscriber_impl::SubscriberImpl, topic_impl::TopicImpl,

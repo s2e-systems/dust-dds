@@ -13,7 +13,7 @@ use rust_dds_api::{
     return_type::DDSResult,
 };
 
-use crate::rtps_impl::{group_impl::RTPSGroupImpl, stateless_writer_impl::RTPSStatelessWriterImpl};
+use crate::rtps_impl::{rtps_group_impl::RTPSGroupImpl, rtps_stateless_writer_impl::RTPSStatelessWriterImpl};
 
 use super::{
     data_writer_impl::DataWriterImpl, domain_participant_impl::DomainParticipantImpl,
@@ -217,7 +217,7 @@ mod tests {
         domain::domain_participant::DomainParticipant, publication::publisher::Publisher,
     };
 
-    use crate::rtps_impl::participant_impl::RTPSParticipantImpl;
+    use crate::rtps_impl::rtps_participant_impl::RTPSParticipantImpl;
 
     use super::*;
 
