@@ -1,3 +1,5 @@
+use std::marker::PhantomData;
+
 use rust_dds_api::{
     builtin_topics::SubscriptionBuiltinTopicData,
     dcps_psm::{
@@ -14,7 +16,16 @@ use super::{publisher_impl::PublisherImpl, topic_impl::TopicImpl};
 
 pub struct DataWriterImpl<'a, T: DDSType> {
     parent: &'a PublisherImpl<'a>,
-    phantom: &'a T,
+    phantom: PhantomData<&'a T>,
+}
+
+impl<'a, T: DDSType> DataWriterImpl<'a, T> {
+    pub fn new(parent: &'a PublisherImpl<'a>) -> Self {
+        Self {
+            parent,
+            phantom: PhantomData,
+        }
+    }
 }
 
 impl<'a, T: DDSType> rust_dds_api::publication::publisher::PublisherChild<'a>

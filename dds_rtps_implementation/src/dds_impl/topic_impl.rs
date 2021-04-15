@@ -1,3 +1,5 @@
+use std::marker::PhantomData;
+
 use rust_dds_api::{
     dcps_psm::{InconsistentTopicStatus, InstanceHandle, StatusMask},
     dds_type::DDSType,
@@ -14,7 +16,16 @@ use super::domain_participant_impl::DomainParticipantImpl;
 
 pub struct TopicImpl<'a, T: DDSType> {
     parent: &'a DomainParticipantImpl,
-    phantom: &'a T,
+    phantom: PhantomData<&'a T>,
+}
+
+impl<'a, T: DDSType> TopicImpl<'a, T> {
+    pub(crate) fn new(parent: &'a DomainParticipantImpl) -> Self {
+        Self {
+            parent,
+            phantom: PhantomData,
+        }
+    }
 }
 
 impl<'a, T: DDSType> DomainParticipantChild<'a> for TopicImpl<'a, T> {

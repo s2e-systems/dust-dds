@@ -53,7 +53,8 @@ impl<'a> rust_dds_api::publication::publisher::Publisher<'a> for PublisherImpl<'
         _mask: StatusMask,
     ) -> Option<<Self as rust_dds_api::publication::publisher::DataWriterGAT<'a, T>>::DataWriterType>
     {
-        todo!()
+        let data_writer = DataWriterImpl::new(self);
+        Some(data_writer)
         // let datawriter_impl = self
         //     .impl_ref
         //     .upgrade()?
@@ -227,7 +228,7 @@ mod tests {
             todo!()
         }
 
-        fn deserialize(data: Vec<u8>) -> Self {
+        fn deserialize(_data: Vec<u8>) -> Self {
             todo!()
         }
     }
