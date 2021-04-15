@@ -1,5 +1,3 @@
-use std::ops::Deref;
-
 use rust_dds_api::{
     dcps_psm::{Duration, InstanceHandle, StatusMask},
     dds_type::DDSType,
@@ -10,57 +8,57 @@ use rust_dds_api::{
     publication::{
         data_writer_listener::DataWriterListener, publisher_listener::PublisherListener,
     },
-    return_type::{DDSError, DDSResult},
+    return_type::DDSResult,
 };
 
-use crate::{
-    dds_impl::domain_participant::{DomainParticipant, Publisher, Topic},
-    rtps_impl::stateful_data_writer_impl::StatefulDataWriterImpl,
-    utils::node::Node,
+use super::{
+    data_writer_impl::DataWriterImpl, domain_participant_impl::DomainParticipantImpl,
+    topic_impl::TopicImpl,
 };
 
-pub struct DataWriter<'a, T: DDSType>(<Self as Deref>::Target);
-
-impl<'a, T: DDSType> Deref for DataWriter<'a, T> {
-    type Target = Node<(&'a Publisher<'a>, &'a Topic<'a, T>), StatefulDataWriterImpl>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
+pub struct PublisherImpl<'a> {
+    parent: &'a DomainParticipantImpl,
 }
 
-impl<'a, T: DDSType> rust_dds_api::domain::domain_participant::TopicGAT<'a, T> for Publisher<'a> {
-    type TopicType = Topic<'a, T>;
+impl<'a, T: DDSType> rust_dds_api::domain::domain_participant::TopicGAT<'a, T>
+    for PublisherImpl<'a>
+{
+    type TopicType = TopicImpl<'a, T>;
 }
 
-impl<'a, T: DDSType> rust_dds_api::publication::publisher::DataWriterGAT<'a, T> for Publisher<'a> {
-    type DataWriterType = DataWriter<'a, T>;
+impl<'a, T: DDSType> rust_dds_api::publication::publisher::DataWriterGAT<'a, T>
+    for PublisherImpl<'a>
+{
+    type DataWriterType = DataWriterImpl<'a, T>;
 }
 
-impl<'a> rust_dds_api::domain::domain_participant::DomainParticipantChild<'a> for Publisher<'a> {
-    type DomainParticipantType = DomainParticipant;
+impl<'a> rust_dds_api::domain::domain_participant::DomainParticipantChild<'a>
+    for PublisherImpl<'a>
+{
+    type DomainParticipantType = DomainParticipantImpl;
 }
 
-impl<'a> rust_dds_api::publication::publisher::Publisher<'a> for Publisher<'a> {
+impl<'a> rust_dds_api::publication::publisher::Publisher<'a> for PublisherImpl<'a> {
     fn create_datawriter<T: DDSType>(
         &'a self,
-        a_topic: &'a <Self as rust_dds_api::domain::domain_participant::TopicGAT<'a, T>>::TopicType,
+        _a_topic: &'a <Self as rust_dds_api::domain::domain_participant::TopicGAT<'a, T>>::TopicType,
         _qos: Option<DataWriterQos>,
         _a_listener: Option<Box<dyn DataWriterListener<DataType = T>>>,
         _mask: StatusMask,
     ) -> Option<<Self as rust_dds_api::publication::publisher::DataWriterGAT<'a, T>>::DataWriterType>
     {
-        let datawriter_impl = self
-            .impl_ref
-            .upgrade()?
-            .lock()
-            .unwrap()
-            .create_datawriter()?;
+        todo!()
+        // let datawriter_impl = self
+        //     .impl_ref
+        //     .upgrade()?
+        //     .lock()
+        //     .unwrap()
+        //     .create_datawriter()?;
 
-        Some(DataWriter(Node {
-            parent: (self, a_topic),
-            impl_ref: datawriter_impl,
-        }))
+        // Some(DataWriter(Node {
+        //     parent: (self, a_topic),
+        //     impl_ref: datawriter_impl,
+        // }))
     }
 
     fn delete_datawriter<T: DDSType>(
@@ -137,29 +135,31 @@ impl<'a> rust_dds_api::publication::publisher::Publisher<'a> for Publisher<'a> {
     }
 }
 
-impl<'a> rust_dds_api::infrastructure::entity::Entity for Publisher<'a> {
+impl<'a> rust_dds_api::infrastructure::entity::Entity for PublisherImpl<'a> {
     type Qos = PublisherQos;
     type Listener = Box<dyn PublisherListener + 'a>;
 
-    fn set_qos(&self, qos: Option<Self::Qos>) -> DDSResult<()> {
-        Ok(self
-            .impl_ref
-            .upgrade()
-            .ok_or(DDSError::AlreadyDeleted)?
-            .lock()
-            .unwrap()
-            .set_qos(qos))
+    fn set_qos(&self, _qos: Option<Self::Qos>) -> DDSResult<()> {
+        todo!()
+        // Ok(self
+        //     .impl_ref
+        //     .upgrade()
+        //     .ok_or(DDSError::AlreadyDeleted)?
+        //     .lock()
+        //     .unwrap()
+        //     .set_qos(qos))
     }
 
     fn get_qos(&self) -> DDSResult<Self::Qos> {
-        Ok(self
-            .impl_ref
-            .upgrade()
-            .ok_or(DDSError::AlreadyDeleted)?
-            .lock()
-            .unwrap()
-            .get_qos()
-            .clone())
+        todo!()
+        // Ok(self
+        //     .impl_ref
+        //     .upgrade()
+        //     .ok_or(DDSError::AlreadyDeleted)?
+        //     .lock()
+        //     .unwrap()
+        //     .get_qos()
+        //     .clone())
     }
 
     fn set_listener(

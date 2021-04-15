@@ -20,10 +20,16 @@ use rust_dds_api::{
     topic::topic_description::TopicDescription,
 };
 
-use super::subscriber::DataReader;
+use super::subscriber_impl::SubscriberImpl;
+
+
+pub struct DataReaderImpl<'a, T: DDSType> {
+    parent: &'a SubscriberImpl<'a>,
+    phantom: &'a T,
+}
 
 impl<'a, T: DDSType> rust_dds_api::subscription::data_reader::DataReader<'a, T>
-    for DataReader<'a, T>
+    for DataReaderImpl<'a, T>
 {
     fn read(
         &self,
@@ -267,7 +273,7 @@ impl<'a, T: DDSType> rust_dds_api::subscription::data_reader::DataReader<'a, T>
     }
 }
 
-impl<'a, T: DDSType> Entity for DataReader<'a, T> {
+impl<'a, T: DDSType> Entity for DataReaderImpl<'a, T> {
     type Qos = DataReaderQos;
 
     type Listener = Box<dyn DataReaderListener<DataType = T> + 'a>;
@@ -309,4 +315,4 @@ impl<'a, T: DDSType> Entity for DataReader<'a, T> {
     }
 }
 
-impl<'a, T: DDSType> AnyDataReader for DataReader<'a, T> {}
+impl<'a, T: DDSType> AnyDataReader for DataReaderImpl<'a, T> {}

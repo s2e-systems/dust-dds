@@ -5,35 +5,37 @@ use rust_dds_api::{
         OfferedIncompatibleQosStatus, PublicationMatchedStatus, StatusMask, Time,
     },
     dds_type::DDSType,
-    domain::domain_participant::DomainParticipant,
     infrastructure::{entity::StatusCondition, qos::DataWriterQos},
     publication::data_writer_listener::DataWriterListener,
-    return_type::{DDSError, DDSResult},
+    return_type::DDSResult,
 };
 
-use super::{
-    domain_participant::{Publisher, Topic},
-    publisher::DataWriter,
-};
+use super::{publisher_impl::PublisherImpl, topic_impl::TopicImpl};
+
+pub struct DataWriterImpl<'a, T: DDSType> {
+    parent: &'a PublisherImpl<'a>,
+    phantom: &'a T,
+}
 
 impl<'a, T: DDSType> rust_dds_api::publication::publisher::PublisherChild<'a>
-    for DataWriter<'a, T>
+    for DataWriterImpl<'a, T>
 {
-    type PublisherType = Publisher<'a>;
+    type PublisherType = PublisherImpl<'a>;
 }
 
 impl<'a, T: DDSType> rust_dds_api::domain::domain_participant::TopicGAT<'a, T>
-    for DataWriter<'a, T>
+    for DataWriterImpl<'a, T>
 {
-    type TopicType = Topic<'a, T>;
+    type TopicType = TopicImpl<'a, T>;
 }
 
 impl<'a, T: DDSType> rust_dds_api::publication::data_writer::DataWriter<'a, T>
-    for DataWriter<'a, T>
+    for DataWriterImpl<'a, T>
 {
-    fn register_instance(&self, instance: T) -> DDSResult<Option<InstanceHandle>> {
-        let timestamp = self.parent.0.parent.get_current_time()?;
-        self.register_instance_w_timestamp(instance, timestamp)
+    fn register_instance(&self, _instance: T) -> DDSResult<Option<InstanceHandle>> {
+        todo!()
+        // let timestamp = self.parent.0.parent.get_current_time()?;
+        // self.register_instance_w_timestamp(instance, timestamp)
     }
 
     fn register_instance_w_timestamp(
@@ -82,7 +84,13 @@ impl<'a, T: DDSType> rust_dds_api::publication::data_writer::DataWriter<'a, T>
         _handle: Option<InstanceHandle>,
         _timestamp: Time,
     ) -> DDSResult<()> {
-        self.impl_ref.upgrade().ok_or(DDSError::AlreadyDeleted)?.lock().unwrap().write_w_timestamp()
+        todo!()
+        // self.impl_ref
+        //     .upgrade()
+        //     .ok_or(DDSError::AlreadyDeleted)?
+        //     .lock()
+        //     .unwrap()
+        //     .write_w_timestamp()
     }
 
     fn dispose(&self, _data: T, _handle: Option<InstanceHandle>) -> DDSResult<()> {
@@ -163,7 +171,7 @@ impl<'a, T: DDSType> rust_dds_api::publication::data_writer::DataWriter<'a, T>
     }
 }
 
-impl<'a, T: DDSType> rust_dds_api::infrastructure::entity::Entity for DataWriter<'a, T> {
+impl<'a, T: DDSType> rust_dds_api::infrastructure::entity::Entity for DataWriterImpl<'a, T> {
     type Qos = DataWriterQos;
 
     type Listener = Box<dyn DataWriterListener<DataType = T> + 'a>;
@@ -205,4 +213,7 @@ impl<'a, T: DDSType> rust_dds_api::infrastructure::entity::Entity for DataWriter
     }
 }
 
-impl<'a, T: DDSType> rust_dds_api::publication::data_writer::AnyDataWriter for DataWriter<'a, T> {}
+impl<'a, T: DDSType> rust_dds_api::publication::data_writer::AnyDataWriter
+    for DataWriterImpl<'a, T>
+{
+}
