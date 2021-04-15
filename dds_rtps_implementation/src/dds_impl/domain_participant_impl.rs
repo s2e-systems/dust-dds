@@ -311,3 +311,18 @@ impl Entity for DomainParticipantImpl {
         todo!()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use rust_dds_api::domain::domain_participant::DomainParticipant;
+
+    use super::*;
+
+    #[test]
+    fn create_publisher() {
+        let domain_participant_impl = DomainParticipantImpl::new(RTPSParticipantImpl::new());
+        let publisher = domain_participant_impl.create_publisher(None, None, 0);
+
+        assert!(publisher.is_some())
+    }
+}

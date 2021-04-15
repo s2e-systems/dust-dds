@@ -44,6 +44,15 @@ pub struct RTPSParticipantImpl<PSM: rust_rtps_pim::structure::Types> {
     multicast_locator_list: Vec<rust_rtps_pim::structure::types::Locator<PSM>>,
 }
 
+impl<PSM: rust_rtps_pim::structure::Types> RTPSParticipantImpl<PSM> {
+    pub fn new() -> Self {
+        Self {
+            unicast_locator_list: Vec::new(),
+            multicast_locator_list: Vec::new(),
+        }
+    }
+}
+
 impl<PSM: rust_rtps_pim::structure::Types> rust_rtps_pim::structure::RTPSParticipant<PSM>
     for RTPSParticipantImpl<PSM>
 {
