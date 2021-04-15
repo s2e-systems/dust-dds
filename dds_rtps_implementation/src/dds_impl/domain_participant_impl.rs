@@ -59,7 +59,7 @@ impl<'a> rust_dds_api::domain::domain_participant::DomainParticipant<'a> for Dom
         let _publisher_qos = qos.unwrap_or(self.get_default_publisher_qos());
         let group = Arc::new(Mutex::new(RTPSGroupImpl::new()));
         let publisher = PublisherImpl::new(self, Arc::downgrade(&group));
-
+        self.rtps_participant_impl.lock().unwrap().rtps_groups.push(group);
         Some(publisher)
     }
 
@@ -395,5 +395,6 @@ mod tests {
         let publisher = domain_participant_impl.create_publisher(None, None, 0);
 
         assert!(publisher.is_some())
+        
     }
 }

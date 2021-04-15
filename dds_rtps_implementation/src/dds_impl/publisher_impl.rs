@@ -1,4 +1,4 @@
-use std::sync::{Mutex, Weak};
+use std::sync::{Arc, Mutex, Weak};
 
 use rust_dds_api::{
     dcps_psm::{Duration, InstanceHandle, StatusMask},
@@ -12,8 +12,10 @@ use rust_dds_api::{
     },
     return_type::DDSResult,
 };
+use rust_rtps_pim::behavior::RTPSWriter;
+use rust_rtps_udp_psm::RtpsUdpPsm;
 
-use crate::rtps_impl::{rtps_group_impl::RTPSGroupImpl, rtps_stateless_writer_impl::RTPSStatelessWriterImpl};
+use crate::rtps_impl::{rtps_group_impl::RTPSGroupImpl, rtps_history_cache_impl::RTPSHistoryCacheImpl, rtps_stateful_writer_impl::RTPSStatefulWriterImpl, rtps_stateless_writer_impl::RTPSStatelessWriterImpl};
 
 use super::{
     data_writer_impl::DataWriterImpl, domain_participant_impl::DomainParticipantImpl,
@@ -22,7 +24,7 @@ use super::{
 
 pub struct PublisherImpl<'a> {
     parent: &'a DomainParticipantImpl,
-    impl_ref: Weak<Mutex<RTPSGroupImpl>>
+    impl_ref: Weak<Mutex<RTPSGroupImpl>>,
 }
 
 impl<'a> PublisherImpl<'a> {
@@ -65,19 +67,11 @@ impl<'a> rust_dds_api::publication::publisher::Publisher<'a> for PublisherImpl<'
         _mask: StatusMask,
     ) -> Option<<Self as rust_dds_api::publication::publisher::DataWriterGAT<'a, T>>::DataWriterType>
     {
-        let data_writer = DataWriterImpl::new(self);
+        let rtps_writer = Arc::new(Mutex::new(RTPSStatefulWriterImpl{}));
+        let rtps_writer_dyn: Arc<Mutex<dyn RTPSWriter<RtpsUdpPsm, RTPSHistoryCacheImpl>>> = rtps_writer.clone();
+        let data_writer = DataWriterImpl::new(self, Arc::downgrade(&rtps_writer_dyn));
+        self.impl_ref.upgrade()?.lock().unwrap().stateful_writer_list.push(rtps_writer);
         Some(data_writer)
-        // let datawriter_impl = self
-        //     .impl_ref
-        //     .upgrade()?
-        //     .lock()
-        //     .unwrap()
-        //     .create_datawriter()?;
-
-        // Some(DataWriter(Node {
-        //     parent: (self, a_topic),
-        //     impl_ref: datawriter_impl,
-        // }))
     }
 
     fn delete_datawriter<T: DDSType>(

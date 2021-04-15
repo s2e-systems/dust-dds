@@ -1,4 +1,4 @@
-use std::marker::PhantomData;
+use std::{marker::PhantomData, sync::{Arc, Mutex, Weak}};
 
 use rust_dds_api::{
     builtin_topics::SubscriptionBuiltinTopicData,
@@ -11,18 +11,24 @@ use rust_dds_api::{
     publication::data_writer_listener::DataWriterListener,
     return_type::DDSResult,
 };
+use rust_rtps_pim::behavior::RTPSWriter;
+use rust_rtps_udp_psm::RtpsUdpPsm;
+
+use crate::rtps_impl::rtps_history_cache_impl::RTPSHistoryCacheImpl;
 
 use super::{publisher_impl::PublisherImpl, topic_impl::TopicImpl};
 
 pub struct DataWriterImpl<'a, T: DDSType> {
     parent: &'a PublisherImpl<'a>,
+    rtps_writer: Weak<Mutex<dyn RTPSWriter<RtpsUdpPsm, RTPSHistoryCacheImpl> + 'a>>,
     phantom: PhantomData<&'a T>,
 }
 
 impl<'a, T: DDSType> DataWriterImpl<'a, T> {
-    pub fn new(parent: &'a PublisherImpl<'a>) -> Self {
+    pub fn new(parent: &'a PublisherImpl<'a>, rtps_writer: Weak<Mutex<dyn RTPSWriter<RtpsUdpPsm, RTPSHistoryCacheImpl> + 'a>>) -> Self {
         Self {
             parent,
+            rtps_writer,
             phantom: PhantomData,
         }
     }

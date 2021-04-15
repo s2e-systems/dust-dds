@@ -2,11 +2,11 @@ use std::sync::{Arc, Mutex, Weak};
 
 use rust_dds_api::infrastructure::qos::{DataWriterQos, PublisherQos};
 
-use super::rtps_stateless_writer_impl::RTPSStatelessWriterImpl;
+use super::{rtps_stateful_writer_impl::RTPSStatefulWriterImpl, rtps_stateless_writer_impl::RTPSStatelessWriterImpl};
 
 pub struct RTPSGroupImpl {
-    //     stateful_writer_list: Vec<Arc<Mutex<StatefulDataWriterImpl>>>,
-    stateless_writer_list: Vec<Arc<Mutex<RTPSStatelessWriterImpl>>>,
+    pub stateful_writer_list: Vec<Arc<Mutex<RTPSStatefulWriterImpl>>>,
+    pub stateless_writer_list: Vec<Arc<Mutex<RTPSStatelessWriterImpl>>>,
     //     writer_count: atomic::AtomicU8,
     //     default_datawriter_qos: DataWriterQos,
     //     qos: PublisherQos,

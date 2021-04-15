@@ -1,3 +1,7 @@
+use std::sync::{Arc, Mutex};
+
+use super::rtps_group_impl::RTPSGroupImpl;
+
 // use std::{
 //     cell::RefCell,
 //     sync::{atomic, Arc, Mutex, Once, Weak},
@@ -42,6 +46,7 @@
 pub struct RTPSParticipantImpl<PSM: rust_rtps_pim::structure::Types> {
     unicast_locator_list: Vec<rust_rtps_pim::structure::types::Locator<PSM>>,
     multicast_locator_list: Vec<rust_rtps_pim::structure::types::Locator<PSM>>,
+    pub rtps_groups: Vec<Arc<Mutex<RTPSGroupImpl>>>,
 }
 
 impl<PSM: rust_rtps_pim::structure::Types> RTPSParticipantImpl<PSM> {
@@ -49,6 +54,7 @@ impl<PSM: rust_rtps_pim::structure::Types> RTPSParticipantImpl<PSM> {
         Self {
             unicast_locator_list: Vec::new(),
             multicast_locator_list: Vec::new(),
+            rtps_groups: Vec::new(),
         }
     }
 }
