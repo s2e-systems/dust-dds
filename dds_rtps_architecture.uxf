@@ -1,11 +1,11 @@
 <diagram program="umletino" version="14.4.0-SNAPSHOT"><zoom_level>10</zoom_level><help_text>Space for diagram notes</help_text><element><id>UMLActor</id><coordinates><x>563</x><y>10</y><w>60</w><h>110</h></coordinates><panel_attributes>End-user</panel_attributes><additional_attributes></additional_attributes></element><element><id>UMLClass</id><coordinates><x>780</x><y>219</y><w>160</w><h>90</h></coordinates><panel_attributes>&lt;&lt;interface&gt;&gt;
 /Data Writer/
 --
-+write_w_timestamp()</panel_attributes><additional_attributes></additional_attributes></element><element><id>Relation</id><coordinates><x>610</x><y>39</y><w>250</w><h>200</h></coordinates><panel_attributes></panel_attributes><additional_attributes>10;10;230;180</additional_attributes></element><element><id>UMLClass</id><coordinates><x>723</x><y>409</y><w>210</w><h>70</h></coordinates><panel_attributes>__StatefulDataWriterImpl__
---</panel_attributes><additional_attributes></additional_attributes></element><element><id>Relation</id><coordinates><x>818</x><y>299</y><w>90</w><h>130</h></coordinates><panel_attributes>lt=&lt;&lt;.
-implements</panel_attributes><additional_attributes>10;10;10;110</additional_attributes></element><element><id>UMLClass</id><coordinates><x>718</x><y>529</y><w>220</w><h>140</h></coordinates><panel_attributes>RTPSStatefulWriterImpl
++write_w_timestamp()</panel_attributes><additional_attributes></additional_attributes></element><element><id>Relation</id><coordinates><x>610</x><y>39</y><w>250</w><h>200</h></coordinates><panel_attributes></panel_attributes><additional_attributes>10;10;230;180</additional_attributes></element><element><id>UMLClass</id><coordinates><x>723</x><y>429</y><w>210</w><h>70</h></coordinates><panel_attributes>__StatefulDataWriterImpl__
+--</panel_attributes><additional_attributes></additional_attributes></element><element><id>Relation</id><coordinates><x>818</x><y>299</y><w>90</w><h>150</h></coordinates><panel_attributes>lt=&lt;&lt;.
+implements</panel_attributes><additional_attributes>10;10;10;130</additional_attributes></element><element><id>UMLClass</id><coordinates><x>718</x><y>529</y><w>220</w><h>140</h></coordinates><panel_attributes>RTPSStatefulWriterImpl
 --
-</panel_attributes><additional_attributes></additional_attributes></element><element><id>Relation</id><coordinates><x>808</x><y>469</y><w>30</w><h>80</h></coordinates><panel_attributes>lt=&lt;&lt;&lt;&lt;-</panel_attributes><additional_attributes>10;10;10;60</additional_attributes></element><element><id>UMLClass</id><coordinates><x>1039</x><y>1209</y><w>220</w><h>60</h></coordinates><panel_attributes>&lt;&lt;interface&gt;&gt;
+</panel_attributes><additional_attributes></additional_attributes></element><element><id>Relation</id><coordinates><x>808</x><y>489</y><w>30</w><h>60</h></coordinates><panel_attributes>lt=&lt;&lt;&lt;&lt;-</panel_attributes><additional_attributes>10;10;10;40</additional_attributes></element><element><id>UMLClass</id><coordinates><x>1039</x><y>1209</y><w>220</w><h>60</h></coordinates><panel_attributes>&lt;&lt;interface&gt;&gt;
 RTPSWriter
 --
 new_change()</panel_attributes><additional_attributes></additional_attributes></element><element><id>UMLClass</id><coordinates><x>1213</x><y>880</y><w>250</w><h>60</h></coordinates><panel_attributes>RTPSReaderLocator
@@ -24,7 +24,7 @@ RTPSStatefulWriter
 +reader_proxy_remove()
 +is_acked_by_all()</panel_attributes><additional_attributes></additional_attributes></element><element><id>Relation</id><coordinates><x>1209</x><y>639</y><w>150</w><h>260</h></coordinates><panel_attributes>lt=&lt;&lt;&lt;&lt;&lt;-
 m2=0..*</panel_attributes><additional_attributes>10;10;120;240</additional_attributes></element><element><id>Relation</id><coordinates><x>929</x><y>649</y><w>70</w><h>240</h></coordinates><panel_attributes>lt=&lt;&lt;&lt;&lt;&lt;-
-m2=0..*</panel_attributes><additional_attributes>10;10;40;220</additional_attributes></element><element><id>Relation</id><coordinates><x>1023</x><y>1070</y><w>160</w><h>160</h></coordinates><panel_attributes>lt=&lt;&lt;-</panel_attributes><additional_attributes>140;140;10;10</additional_attributes></element><element><id>UMLActor</id><coordinates><x>376</x><y>410</y><w>120</w><h>120</h></coordinates><panel_attributes>Message Sender
+m2=0..*</panel_attributes><additional_attributes>10;10;40;220</additional_attributes></element><element><id>Relation</id><coordinates><x>1023</x><y>1070</y><w>160</w><h>160</h></coordinates><panel_attributes>lt=&lt;&lt;-</panel_attributes><additional_attributes>140;140;10;10</additional_attributes></element><element><id>UMLActor</id><coordinates><x>336</x><y>30</y><w>120</w><h>120</h></coordinates><panel_attributes>Message Sender
 </panel_attributes><additional_attributes></additional_attributes></element><element><id>UMLActor</id><coordinates><x>206</x><y>0</y><w>80</w><h>110</h></coordinates><panel_attributes>Discovery</panel_attributes><additional_attributes></additional_attributes></element><element><id>UMLClass</id><coordinates><x>993</x><y>409</y><w>210</w><h>70</h></coordinates><panel_attributes>__StatelessDataWriterImpl__
 --</panel_attributes><additional_attributes></additional_attributes></element><element><id>Relation</id><coordinates><x>888</x><y>299</y><w>230</w><h>130</h></coordinates><panel_attributes>lt=&lt;&lt;.
 implements</panel_attributes><additional_attributes>10;10;210;110</additional_attributes></element><element><id>UMLClass</id><coordinates><x>998</x><y>529</y><w>220</w><h>140</h></coordinates><panel_attributes>RTPSStatelessWriterImpl
@@ -72,4 +72,7 @@ layer=-1</panel_attributes><additional_attributes></additional_attributes></elem
 --
 bg=#ffffdc
 layer=-1</panel_attributes><additional_attributes></additional_attributes></element><element><id>Relation</id><coordinates><x>611</x><y>564</y><w>410</w><h>40</h></coordinates><panel_attributes>lt=&lt;&lt;&lt;&lt;&lt;-
-m2=0..*</panel_attributes><additional_attributes>10;10;390;10</additional_attributes></element></diagram>
+m2=0..*</panel_attributes><additional_attributes>10;10;390;10</additional_attributes></element><element><id>Relation</id><coordinates><x>290</x><y>430</y><w>130</w><h>40</h></coordinates><panel_attributes>creates
+lt=&lt;.</panel_attributes><additional_attributes>110;20;10;20</additional_attributes></element><element><id>Relation</id><coordinates><x>602</x><y>446</y><w>140</w><h>40</h></coordinates><panel_attributes>creates
+lt=&lt;.</panel_attributes><additional_attributes>120;20;10;20</additional_attributes></element><element><id>Relation</id><coordinates><x>605</x><y>406</y><w>410</w><h>40</h></coordinates><panel_attributes>creates
+lt=&lt;.</panel_attributes><additional_attributes>390;20;10;20</additional_attributes></element></diagram>
