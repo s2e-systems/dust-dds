@@ -18,7 +18,9 @@ use rust_dds_api::{
 };
 use rust_rtps_udp_psm::RtpsUdpPsm;
 
-use crate::rtps_impl::{rtps_group_impl::RTPSGroupImpl, rtps_participant_impl::RTPSParticipantImpl};
+use crate::rtps_impl::{
+    rtps_group_impl::RTPSGroupImpl, rtps_participant_impl::RTPSParticipantImpl,
+};
 
 use super::{
     publisher_impl::PublisherImpl, subscriber_impl::SubscriberImpl, topic_impl::TopicImpl,
@@ -59,7 +61,11 @@ impl<'a> rust_dds_api::domain::domain_participant::DomainParticipant<'a> for Dom
         let _publisher_qos = qos.unwrap_or(self.get_default_publisher_qos());
         let group = Arc::new(Mutex::new(RTPSGroupImpl::new()));
         let publisher = PublisherImpl::new(self, Arc::downgrade(&group));
-        self.rtps_participant_impl.lock().unwrap().rtps_groups.push(group);
+        self.rtps_participant_impl
+            .lock()
+            .unwrap()
+            .rtps_groups
+            .push(group);
         Some(publisher)
     }
 
@@ -205,24 +211,24 @@ impl<'a> rust_dds_api::domain::domain_participant::DomainParticipant<'a> for Dom
         self.default_publisher_qos.lock().unwrap().clone()
     }
 
-    fn set_default_subscriber_qos(&self, _qos: Option<SubscriberQos>) -> DDSResult<()> {
-        // self.0.lock().unwrap().set_default_subscriber_qos(qos)
-        todo!()
+    fn set_default_subscriber_qos(&self, qos: Option<SubscriberQos>) -> DDSResult<()> {
+        *self.default_subscriber_qos.lock().unwrap() = qos.unwrap_or_default();
+        Ok(())
     }
 
     fn get_default_subscriber_qos(&self) -> SubscriberQos {
-        // self.0.lock().unwrap().get_default_subscriber_qos()
-        todo!()
+        self.default_subscriber_qos.lock().unwrap().clone()
     }
 
-    fn set_default_topic_qos(&self, _qos: Option<TopicQos>) -> DDSResult<()> {
-        // self.0.lock().unwrap().set_default_topic_qos(qos)
-        todo!()
+    fn set_default_topic_qos(&self, qos: Option<TopicQos>) -> DDSResult<()> {
+        let topic_qos = qos.unwrap_or_default();
+        topic_qos.is_consistent()?;
+        *self.default_topic_qos.lock().unwrap() = topic_qos;
+        Ok(())
     }
 
     fn get_default_topic_qos(&self) -> TopicQos {
-        // self.0.lock().unwrap().get_default_topic_qos()
-        todo!()
+        self.default_topic_qos.lock().unwrap().clone()
     }
 
     fn get_discovered_participants(
@@ -308,6 +314,7 @@ impl Entity for DomainParticipantImpl {
 #[cfg(test)]
 mod tests {
     use rust_dds_api::domain::domain_participant::DomainParticipant;
+    use rust_dds_api::return_type::DDSError;
 
     use super::*;
 
@@ -332,12 +339,6 @@ mod tests {
         fn deserialize(_data: Vec<u8>) -> Self {
             todo!()
         }
-    }
-    #[test]
-    fn create_topic() {
-        let domain_participant_impl = DomainParticipantImpl::new(RTPSParticipantImpl::new());
-        let topic = domain_participant_impl.create_topic::<MockDDSType>("topic_name", None, None, 0);
-        assert!(topic.is_some());
     }
 
     #[test]
@@ -390,11 +391,127 @@ mod tests {
     }
 
     #[test]
+    fn set_default_subscriber_qos_some_value() {
+        let domain_participant_impl = DomainParticipantImpl::new(RTPSParticipantImpl::new());
+        let mut qos = SubscriberQos::default();
+        qos.group_data.value = vec![1, 2, 3, 4];
+        domain_participant_impl
+            .set_default_subscriber_qos(Some(qos.clone()))
+            .unwrap();
+        assert!(
+            *domain_participant_impl
+                .default_subscriber_qos
+                .lock()
+                .unwrap()
+                == qos
+        );
+    }
+
+    #[test]
+    fn set_default_subscriber_qos_none() {
+        let domain_participant_impl = DomainParticipantImpl::new(RTPSParticipantImpl::new());
+        let mut qos = SubscriberQos::default();
+        qos.group_data.value = vec![1, 2, 3, 4];
+        domain_participant_impl
+            .set_default_subscriber_qos(Some(qos.clone()))
+            .unwrap();
+
+        domain_participant_impl
+            .set_default_subscriber_qos(None)
+            .unwrap();
+        assert!(
+            *domain_participant_impl
+                .default_subscriber_qos
+                .lock()
+                .unwrap()
+                == SubscriberQos::default()
+        );
+    }
+
+    #[test]
+    fn get_default_subscriber_qos() {
+        let domain_participant_impl = DomainParticipantImpl::new(RTPSParticipantImpl::new());
+        let mut qos = SubscriberQos::default();
+        qos.group_data.value = vec![1, 2, 3, 4];
+        domain_participant_impl
+            .set_default_subscriber_qos(Some(qos.clone()))
+            .unwrap();
+        assert!(domain_participant_impl.get_default_subscriber_qos() == qos);
+    }
+
+    #[test]
+    fn set_default_topic_qos_some_value() {
+        let domain_participant_impl = DomainParticipantImpl::new(RTPSParticipantImpl::new());
+        let mut qos = TopicQos::default();
+        qos.topic_data.value = vec![1, 2, 3, 4];
+        domain_participant_impl
+            .set_default_topic_qos(Some(qos.clone()))
+            .unwrap();
+        assert!(
+            *domain_participant_impl
+                .default_topic_qos
+                .lock()
+                .unwrap()
+                == qos
+        );
+    }
+
+    #[test]
+    fn set_default_topic_qos_inconsistent() {
+        let domain_participant_impl = DomainParticipantImpl::new(RTPSParticipantImpl::new());
+        let mut qos = TopicQos::default();
+        qos.resource_limits.max_samples_per_instance = 2;
+        qos.resource_limits.max_samples = 1;
+        let set_default_topic_qos_result = domain_participant_impl
+            .set_default_topic_qos(Some(qos.clone()));
+        assert!(set_default_topic_qos_result == Err(DDSError::InconsistentPolicy));
+    }
+
+    #[test]
+    fn set_default_topic_qos_none() {
+        let domain_participant_impl = DomainParticipantImpl::new(RTPSParticipantImpl::new());
+        let mut qos = TopicQos::default();
+        qos.topic_data.value = vec![1, 2, 3, 4];
+        domain_participant_impl
+            .set_default_topic_qos(Some(qos.clone()))
+            .unwrap();
+
+        domain_participant_impl
+            .set_default_topic_qos(None)
+            .unwrap();
+        assert!(
+            *domain_participant_impl
+                .default_topic_qos
+                .lock()
+                .unwrap()
+                == TopicQos::default()
+        );
+    }
+
+    #[test]
+    fn get_default_topic_qos() {
+        let domain_participant_impl = DomainParticipantImpl::new(RTPSParticipantImpl::new());
+        let mut qos = TopicQos::default();
+        qos.topic_data.value = vec![1, 2, 3, 4];
+        domain_participant_impl
+            .set_default_topic_qos(Some(qos.clone()))
+            .unwrap();
+        assert!(domain_participant_impl.get_default_topic_qos() == qos);
+    }
+
+    #[test]
     fn create_publisher() {
         let domain_participant_impl = DomainParticipantImpl::new(RTPSParticipantImpl::new());
         let publisher = domain_participant_impl.create_publisher(None, None, 0);
 
         assert!(publisher.is_some())
-        
+    }
+
+    #[test]
+    fn create_topic() {
+        let domain_participant_impl = DomainParticipantImpl::new(RTPSParticipantImpl::new());
+        let topic =
+            domain_participant_impl.create_topic::<MockDDSType>("topic_name", None, None, 0);
+        assert!(topic.is_some());
     }
 }
