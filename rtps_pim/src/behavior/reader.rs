@@ -1,49 +1,14 @@
 use crate::{
     behavior,
-    structure::{
-        self,
-        types::{ReliabilityKind, TopicKind, GUID},
-        RTPSEndpoint, RTPSEntity, RTPSHistoryCache,
-    },
+    structure::{self, RTPSEndpoint, RTPSHistoryCache},
 };
 
-pub struct RTPSReader<PSM: structure::Types + behavior::Types, HistoryCache: RTPSHistoryCache<PSM>>
+pub trait RTPSReader<PSM: structure::Types + behavior::Types, HistoryCache: RTPSHistoryCache<PSM>>:
+    RTPSEndpoint<PSM>
 {
-    pub endpoint: RTPSEndpoint<PSM>,
-    pub expects_inline_qos: bool,
-    pub heartbeat_response_delay: PSM::Duration,
-    pub heartbeat_supression_duration: PSM::Duration,
-    pub reader_cache: HistoryCache,
-}
-
-impl<PSM: structure::Types + behavior::Types, HistoryCache: RTPSHistoryCache<PSM>>
-    RTPSReader<PSM, HistoryCache>
-{
-    pub fn new(
-        guid: GUID<PSM>,
-        topic_kind: TopicKind,
-        reliability_level: ReliabilityKind,
-        unicast_locator_list: PSM::LocatorVector,
-        multicast_locator_list: PSM::LocatorVector,
-        expects_inline_qos: bool,
-        heartbeat_response_delay: PSM::Duration,
-        heartbeat_supression_duration: PSM::Duration,
-    ) -> Self {
-        let entity = RTPSEntity::new(guid);
-        let endpoint = RTPSEndpoint {
-            entity,
-            topic_kind,
-            reliability_level,
-            unicast_locator_list,
-            multicast_locator_list,
-        };
-
-        Self {
-            endpoint,
-            expects_inline_qos,
-            heartbeat_response_delay,
-            heartbeat_supression_duration,
-            reader_cache: HistoryCache::new(),
-        }
-    }
+    fn expects_inline_qos(&self) -> bool;
+    fn heartbeat_response_delay(&self) -> PSM::Duration;
+    fn heartbeat_supression_duration(&self) -> PSM::Duration;
+    fn reader_cache(&self) -> &HistoryCache;
+    fn reader_cache_mut(&mut self) -> &mut HistoryCache;
 }

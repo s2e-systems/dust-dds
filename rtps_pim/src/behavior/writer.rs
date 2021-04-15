@@ -1,76 +1,25 @@
 use crate::{
     behavior,
-    structure::{
-        self,
-        types::{ChangeKind, ReliabilityKind, TopicKind, GUID},
-        RTPSCacheChange, RTPSEndpoint, RTPSEntity, RTPSHistoryCache,
-    },
+    structure::{self, types::ChangeKind, RTPSCacheChange, RTPSEndpoint, RTPSHistoryCache},
 };
 
-pub struct RTPSWriter<PSM: structure::Types + behavior::Types, HistoryCache: RTPSHistoryCache<PSM>>
+pub trait RTPSWriter<PSM: structure::Types + behavior::Types, HistoryCache: RTPSHistoryCache<PSM>>:
+    RTPSEndpoint<PSM>
 {
-    pub endpoint: RTPSEndpoint<PSM>,
-    pub push_mode: bool,
-    pub heartbeat_period: PSM::Duration,
-    pub nack_response_delay: PSM::Duration,
-    pub nack_suppression_duration: PSM::Duration,
-    pub last_change_sequence_number: PSM::SequenceNumber,
-    pub data_max_size_serialized: i32,
-    pub writer_cache: HistoryCache,
-}
+    fn push_mode(&self) -> bool;
+    fn heartbeat_period(&self) -> PSM::Duration;
+    fn nack_response_delay(&self) -> PSM::Duration;
+    fn nack_suppression_duration(&self) -> PSM::Duration;
+    fn last_change_sequence_number(&self) -> PSM::SequenceNumber;
+    fn data_max_size_serialized(&self) -> i32;
+    fn writer_cache(&self) -> &HistoryCache;
+    fn writer_cache_mut(&mut self) -> &mut HistoryCache;
 
-impl<PSM: structure::Types + behavior::Types, HistoryCache: RTPSHistoryCache<PSM>>
-    RTPSWriter<PSM, HistoryCache>
-{
-    pub fn new(
-        guid: GUID<PSM>,
-        topic_kind: TopicKind,
-        reliability_level: ReliabilityKind,
-        unicast_locator_list: PSM::LocatorVector,
-        multicast_locator_list: PSM::LocatorVector,
-        push_mode: bool,
-        heartbeat_period: PSM::Duration,
-        nack_response_delay: PSM::Duration,
-        nack_suppression_duration: PSM::Duration,
-        data_max_size_serialized: i32,
-    ) -> Self {
-        let entity = RTPSEntity::new(guid);
-        let endpoint = RTPSEndpoint {
-            entity,
-            topic_kind,
-            reliability_level,
-            unicast_locator_list,
-            multicast_locator_list,
-        };
-
-        Self {
-            endpoint,
-            push_mode,
-            heartbeat_period,
-            nack_response_delay,
-            nack_suppression_duration,
-            last_change_sequence_number: 0i64.into(),
-            data_max_size_serialized,
-            writer_cache: HistoryCache::new(),
-        }
-    }
-
-    pub fn new_change(
+    fn new_change(
         &mut self,
         kind: ChangeKind,
         data: PSM::Data,
         inline_qos: PSM::ParameterVector,
         handle: PSM::InstanceHandle,
-    ) -> RTPSCacheChange<PSM> {
-        self.last_change_sequence_number = (self.last_change_sequence_number.into() + 1).into();
-
-        RTPSCacheChange {
-            kind,
-            writer_guid: self.endpoint.guid,
-            instance_handle: handle,
-            sequence_number: self.last_change_sequence_number,
-            data_value: data,
-            inline_qos,
-        }
-    }
+    ) -> RTPSCacheChange<PSM>;
 }

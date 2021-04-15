@@ -5,18 +5,9 @@ use super::{
     RTPSEntity,
 };
 
-pub struct RTPSEndpoint<PSM: structure::Types> {
-    pub entity: RTPSEntity<PSM>,
-    pub topic_kind: TopicKind,
-    pub reliability_level: ReliabilityKind,
-    pub unicast_locator_list: PSM::LocatorVector,
-    pub multicast_locator_list: PSM::LocatorVector,
-}
-
-impl<PSM: structure::Types> core::ops::Deref for RTPSEndpoint<PSM> {
-    type Target = RTPSEntity<PSM>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.entity
-    }
+pub trait RTPSEndpoint<PSM: structure::Types> : RTPSEntity<PSM> {
+    fn topic_kind(&self) -> TopicKind;
+    fn reliability_level(&self) -> ReliabilityKind;
+    fn unicast_locator_list(&self) -> &[PSM::Locator];
+    fn multicast_locator_list(&self) -> &[PSM::Locator];
 }
