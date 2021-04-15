@@ -962,6 +962,7 @@ mod tests {
                     &mut |locator, message| data.push((locator.clone(), message)),
                     &mut |locator, message| gap.push((locator.clone(), message)),
                 );
+
         }
     }
 }

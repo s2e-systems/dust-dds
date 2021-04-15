@@ -42,12 +42,12 @@ impl PublisherImpl {
 
     pub fn produce_messages(
         &self,
-        mut send_data_to: impl FnMut(&Locator<RtpsUdpPsm>, submessages::Data),
-        mut send_gap_to: impl FnMut(&Locator<RtpsUdpPsm>, submessages::Gap),
+        send_data_to: &mut impl FnMut(&Locator<RtpsUdpPsm>, submessages::Data),
+        send_gap_to: &mut impl FnMut(&Locator<RtpsUdpPsm>, submessages::Gap),
     ) -> () {
         for stateless_writer in &self.stateless_writer_list {
             let mut stateless_writer_lock = stateless_writer.lock().unwrap();
-            stateless_writer_lock.produce_messages(&mut send_data_to, &mut send_gap_to);
+            stateless_writer_lock.produce_messages(send_data_to, send_gap_to);
         }
     }
 
