@@ -20,6 +20,12 @@ pub struct PublisherImpl<'a> {
     parent: &'a DomainParticipantImpl,
 }
 
+impl<'a> PublisherImpl<'a> {
+    pub fn new(parent: &'a DomainParticipantImpl) -> Self {
+        Self { parent }
+    }
+}
+
 impl<'a, T: DDSType> rust_dds_api::domain::domain_participant::TopicGAT<'a, T>
     for PublisherImpl<'a>
 {
@@ -189,5 +195,53 @@ impl<'a> rust_dds_api::infrastructure::entity::Entity for PublisherImpl<'a> {
     fn get_instance_handle(&self) -> DDSResult<InstanceHandle> {
         // self.publisher_ref.get_instance_handle()
         todo!()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use rust_dds_api::{
+        domain::domain_participant::DomainParticipant, publication::publisher::Publisher,
+    };
+
+    use crate::rtps_impl::participant_impl::RTPSParticipantImpl;
+
+    use super::*;
+
+    struct MockData;
+
+    impl DDSType for MockData {
+        fn type_name() -> &'static str {
+            todo!()
+        }
+
+        fn has_key() -> bool {
+            todo!()
+        }
+
+        fn key(&self) -> Vec<u8> {
+            todo!()
+        }
+
+        fn serialize(&self) -> Vec<u8> {
+            todo!()
+        }
+
+        fn deserialize(data: Vec<u8>) -> Self {
+            todo!()
+        }
+    }
+
+    #[test]
+    fn create_datawriter() {
+        let domain_participant = DomainParticipantImpl::new(RTPSParticipantImpl::new());
+        let publisher = domain_participant.create_publisher(None, None, 0).unwrap();
+        let a_topic = domain_participant
+            .create_topic::<MockData>("Test", None, None, 0)
+            .unwrap();
+
+        let data_writer = publisher.create_datawriter(&a_topic, None, None, 0);
+
+        assert!(data_writer.is_some());
     }
 }

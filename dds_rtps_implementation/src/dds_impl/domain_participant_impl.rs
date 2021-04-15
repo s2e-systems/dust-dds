@@ -24,11 +24,17 @@ use super::{
     publisher_impl::PublisherImpl, subscriber_impl::SubscriberImpl, topic_impl::TopicImpl,
 };
 
-pub struct DomainParticipantImpl(Mutex<RTPSParticipantImpl<RtpsUdpPsm>>);
+pub struct DomainParticipantImpl {
+    rtps_participant_impl: Mutex<RTPSParticipantImpl<RtpsUdpPsm>>,
+    default_publisher_qos: Mutex<PublisherQos>,
+}
 
 impl DomainParticipantImpl {
     pub fn new(domain_participant_impl: RTPSParticipantImpl<RtpsUdpPsm>) -> Self {
-        Self(Mutex::new(domain_participant_impl))
+        Self {
+            rtps_participant_impl: Mutex::new(domain_participant_impl),
+            default_publisher_qos: Mutex::new(PublisherQos::default()),
+        }
     }
 }
 
@@ -42,22 +48,15 @@ impl<'a> rust_dds_api::domain::domain_participant::DomainParticipant<'a> for Dom
 
     fn create_publisher(
         &'a self,
-        _qos: Option<PublisherQos>,
+        qos: Option<PublisherQos>,
         _a_listener: Option<Box<dyn PublisherListener>>,
         _mask: StatusMask,
     ) -> Option<Self::PublisherType> {
-        // let impl_ref = self
-        //     .0
-        //     .lock()
-        //     .unwrap()
-        //     .create_publisher(qos, a_listener, mask)
-        //     .ok()?;
+        let _publisher_qos = qos.unwrap_or(self.get_default_publisher_qos());
 
-        // Some(Publisher(Node {
-        //     parent: self,
-        //     impl_ref,
-        // }))
-        todo!()
+        let publisher = PublisherImpl::new(self);
+
+        Some(publisher)
     }
 
     fn delete_publisher(&self, _a_publisher: &Self::PublisherType) -> DDSResult<()> {
@@ -202,14 +201,13 @@ impl<'a> rust_dds_api::domain::domain_participant::DomainParticipant<'a> for Dom
         todo!()
     }
 
-    fn set_default_publisher_qos(&self, _qos: Option<PublisherQos>) -> DDSResult<()> {
-        // self.0.lock().unwrap().set_default_publisher_qos(qos)
-        todo!()
+    fn set_default_publisher_qos(&self, qos: Option<PublisherQos>) -> DDSResult<()> {
+        *self.default_publisher_qos.lock().unwrap() = qos.unwrap_or_default();
+        Ok(())
     }
 
     fn get_default_publisher_qos(&self) -> PublisherQos {
-        // self.0.lock().unwrap().get_default_publisher_qos()
-        todo!()
+        self.default_publisher_qos.lock().unwrap().clone()
     }
 
     fn set_default_subscriber_qos(&self, _qos: Option<SubscriberQos>) -> DDSResult<()> {
@@ -317,6 +315,35 @@ mod tests {
     use rust_dds_api::domain::domain_participant::DomainParticipant;
 
     use super::*;
+
+    #[test]
+    fn set_default_publisher_qos_some_value() {
+        let domain_participant_impl = DomainParticipantImpl::new(RTPSParticipantImpl::new());
+        let mut qos = PublisherQos::default();
+        qos.group_data.value = vec![1,2,3,4];
+        domain_participant_impl.set_default_publisher_qos(Some(qos.clone())).unwrap();
+        assert!(*domain_participant_impl.default_publisher_qos.lock().unwrap() == qos);
+    }
+
+    #[test]
+    fn set_default_publisher_qos_none() {
+        let domain_participant_impl = DomainParticipantImpl::new(RTPSParticipantImpl::new());
+        let mut qos = PublisherQos::default();
+        qos.group_data.value = vec![1,2,3,4];
+        domain_participant_impl.set_default_publisher_qos(Some(qos.clone())).unwrap();
+
+        domain_participant_impl.set_default_publisher_qos(None).unwrap();
+        assert!(*domain_participant_impl.default_publisher_qos.lock().unwrap() == PublisherQos::default());
+    }
+
+    #[test]
+    fn get_default_publisher_qos() {
+        let domain_participant_impl = DomainParticipantImpl::new(RTPSParticipantImpl::new());
+        let mut qos = PublisherQos::default();
+        qos.group_data.value = vec![1,2,3,4];
+        domain_participant_impl.set_default_publisher_qos(Some(qos.clone())).unwrap();
+        assert!(domain_participant_impl.get_default_publisher_qos() == qos);
+    }
 
     #[test]
     fn create_publisher() {

@@ -1,11 +1,11 @@
 use rust_rtps_pim::structure::{RTPSCacheChange, RTPSHistoryCache};
 use rust_rtps_udp_psm::RtpsUdpPsm;
 
-pub struct HistoryCacheImpl {
+pub struct RTPSHistoryCacheImpl {
     changes: Vec<RTPSCacheChange<RtpsUdpPsm>>,
 }
 
-impl RTPSHistoryCache<RtpsUdpPsm> for HistoryCacheImpl {
+impl RTPSHistoryCache<RtpsUdpPsm> for RTPSHistoryCacheImpl {
     fn new() -> Self {
         Self {
             changes: Vec::new(),
@@ -51,7 +51,7 @@ mod tests {
 
     #[test]
     fn get_seq_num_max() {
-        let mut hc = HistoryCacheImpl::new();
+        let mut hc = RTPSHistoryCacheImpl::new();
         assert_eq!(hc.get_seq_num_max(), None);
         let guid = GUID::new(
             [1; 12],
@@ -84,7 +84,7 @@ mod tests {
 
     #[test]
     fn get_seq_num_min() {
-        let mut hc = HistoryCacheImpl::new();
+        let mut hc = RTPSHistoryCacheImpl::new();
         assert_eq!(hc.get_seq_num_min(), None);
         let guid = GUID::new(
             [1; 12],
