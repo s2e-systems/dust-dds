@@ -1,4 +1,7 @@
-use std::{marker::PhantomData, sync::{Arc, Mutex, Weak}};
+use std::{
+    marker::PhantomData,
+    sync::{Mutex, Weak},
+};
 
 use rust_dds_api::{
     builtin_topics::SubscriptionBuiltinTopicData,
@@ -9,7 +12,7 @@ use rust_dds_api::{
     dds_type::DDSType,
     infrastructure::{entity::StatusCondition, qos::DataWriterQos},
     publication::data_writer_listener::DataWriterListener,
-    return_type::{DDSResult, DDSError},
+    return_type::{DDSError, DDSResult},
 };
 use rust_rtps_pim::behavior::RTPSWriter;
 use rust_rtps_udp_psm::RtpsUdpPsm;
@@ -25,7 +28,10 @@ pub struct DataWriterImpl<'a, T: DDSType> {
 }
 
 impl<'a, T: DDSType> DataWriterImpl<'a, T> {
-    pub fn new(parent: &'a PublisherImpl<'a>, rtps_writer: Weak<Mutex<dyn RTPSWriter<RtpsUdpPsm, RTPSHistoryCacheImpl> + 'a>>) -> Self {
+    pub fn new(
+        parent: &'a PublisherImpl<'a>,
+        rtps_writer: Weak<Mutex<dyn RTPSWriter<RtpsUdpPsm, RTPSHistoryCacheImpl> + 'a>>,
+    ) -> Self {
         Self {
             parent,
             rtps_writer,
@@ -50,7 +56,7 @@ impl<'a, T: DDSType> rust_dds_api::publication::data_writer::DataWriter<'a, T>
     for DataWriterImpl<'a, T>
 {
     fn register_instance(&self, _instance: T) -> DDSResult<Option<InstanceHandle>> {
-        todo!()        
+        todo!()
         // let timestamp = self.parent.0.parent.get_current_time()?;
         // self.register_instance_w_timestamp(instance, timestamp)
     }

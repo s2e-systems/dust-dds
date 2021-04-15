@@ -64,10 +64,10 @@ impl RTPSWriter<RtpsUdpPsm, RTPSHistoryCacheImpl> for RTPSStatefulWriterImpl {
 
     fn new_change(
         &mut self,
-        kind: ChangeKind,
-        data: <RtpsUdpPsm as rust_rtps_pim::structure::Types>::Data,
-        inline_qos: <RtpsUdpPsm as rust_rtps_pim::structure::Types>::ParameterVector,
-        handle:<RtpsUdpPsm as rust_rtps_pim::structure::Types>::InstanceHandle,
+        _kind: ChangeKind,
+        _data: <RtpsUdpPsm as rust_rtps_pim::structure::Types>::Data,
+        _inline_qos: <RtpsUdpPsm as rust_rtps_pim::structure::Types>::ParameterVector,
+        _handle:<RtpsUdpPsm as rust_rtps_pim::structure::Types>::InstanceHandle,
     ) -> rust_rtps_pim::structure::RTPSCacheChange<RtpsUdpPsm> {
         todo!()
     }
