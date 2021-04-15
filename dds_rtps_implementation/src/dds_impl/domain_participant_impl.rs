@@ -27,6 +27,8 @@ use super::{
 pub struct DomainParticipantImpl {
     rtps_participant_impl: Mutex<RTPSParticipantImpl<RtpsUdpPsm>>,
     default_publisher_qos: Mutex<PublisherQos>,
+    default_subscriber_qos: Mutex<SubscriberQos>,
+    default_topic_qos: Mutex<TopicQos>,
 }
 
 impl DomainParticipantImpl {
@@ -34,6 +36,8 @@ impl DomainParticipantImpl {
         Self {
             rtps_participant_impl: Mutex::new(domain_participant_impl),
             default_publisher_qos: Mutex::new(PublisherQos::default()),
+            default_subscriber_qos: Mutex::new(SubscriberQos::default()),
+            default_topic_qos: Mutex::new(TopicQos::default()),
         }
     }
 }
