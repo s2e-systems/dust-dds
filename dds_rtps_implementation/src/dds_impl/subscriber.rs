@@ -1,7 +1,7 @@
 use std::ops::Deref;
 
 use crate::{
-    impls::data_reader_impl::DataReaderImpl,
+    rtps_impl::data_reader_impl::DataReaderImpl,
     domain_participant::{DomainParticipant, Subscriber, Topic},
     utils::node::Node,
 };

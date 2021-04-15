@@ -551,7 +551,7 @@ mod tests {
     };
     use rust_rtps_udp_psm::RtpsUdpPsm;
 
-    use crate::impls::stateless_data_writer_impl::StatelessDataWriterImpl;
+    use crate::rtps_impl::stateless_data_writer_impl::StatelessDataWriterImpl;
 
     use super::*;
 

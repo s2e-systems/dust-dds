@@ -18,7 +18,7 @@ use rust_dds_api::{
 };
 
 use crate::{
-    impls::{
+    rtps_impl::{
         domain_participant_impl::DomainParticipantImpl, publisher_impl::PublisherImpl,
         subscriber_impl::SubscriberImpl, topic_impl::TopicImpl,
     },
