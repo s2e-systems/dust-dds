@@ -7,7 +7,7 @@ use super::rtps_writer_group_impl::RTPSWriterGroupImpl;
 pub struct RTPSParticipantImpl<PSM: rust_rtps_pim::structure::Types> {
     unicast_locator_list: Vec<rust_rtps_pim::structure::types::Locator<PSM>>,
     multicast_locator_list: Vec<rust_rtps_pim::structure::types::Locator<PSM>>,
-    pub rtps_groups: Vec<Arc<Mutex<RTPSWriterGroupImpl<PSM>>>>,
+    pub rtps_writer_groups: Vec<Arc<Mutex<RTPSWriterGroupImpl<PSM>>>>,
     guid: GUID<PSM>,
 }
 
@@ -17,7 +17,7 @@ impl<PSM: rust_rtps_pim::structure::Types> RTPSParticipantImpl<PSM> {
         Self {
             unicast_locator_list: Vec::new(),
             multicast_locator_list: Vec::new(),
-            rtps_groups: Vec::new(),
+            rtps_writer_groups: Vec::new(),
             guid,
         }
     }

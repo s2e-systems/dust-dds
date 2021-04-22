@@ -35,6 +35,7 @@ pub struct DomainParticipantImpl {
     default_publisher_qos: Mutex<PublisherQos>,
     default_subscriber_qos: Mutex<SubscriberQos>,
     default_topic_qos: Mutex<TopicQos>,
+    publisher_counter: Mutex<u8>,
 }
 
 impl DomainParticipantImpl {
@@ -44,6 +45,7 @@ impl DomainParticipantImpl {
             default_publisher_qos: Mutex::new(PublisherQos::default()),
             default_subscriber_qos: Mutex::new(SubscriberQos::default()),
             default_topic_qos: Mutex::new(TopicQos::default()),
+            publisher_counter: Mutex::new(0),
         }
     }
 }
@@ -64,14 +66,16 @@ impl<'a> rust_dds_api::domain::domain_participant::DomainParticipant<'a> for Dom
     ) -> Option<Self::PublisherType> {
         let _publisher_qos = qos.unwrap_or(self.get_default_publisher_qos());
         let guid_prefix = self.rtps_participant_impl.lock().unwrap().guid().prefix().clone();
-        let entity_id = [0,0,0,ENTITYKIND_USER_DEFINED_WRITER_GROUP].into();
+        let mut publisher_counter_lock = self.publisher_counter.lock().unwrap();
+        *publisher_counter_lock += 1;
+        let entity_id = [*publisher_counter_lock, 0, 0, ENTITYKIND_USER_DEFINED_WRITER_GROUP].into();
         let guid = GUID::new(guid_prefix, entity_id);
         let group = Arc::new(Mutex::new(RTPSWriterGroupImpl::new(guid)));
         let publisher = PublisherImpl::new(self, Arc::downgrade(&group));
         self.rtps_participant_impl
             .lock()
             .unwrap()
-            .rtps_groups
+            .rtps_writer_groups
             .push(group);
         Some(publisher)
     }
