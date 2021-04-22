@@ -30,10 +30,16 @@ use super::{
     topic_impl::TopicImpl,
 };
 
+const ENTITYKIND_USER_DEFINED_WRITER_WITH_KEY: u8 = 0x02;
+const ENTITYKIND_USER_DEFINED_WRITER_NO_KEY: u8 = 0x03;
+const ENTITYKIND_BUILTIN_WRITER_WITH_KEY: u8 = 0xc2;
+const ENTITYKIND_BUILTIN_WRITER_NO_KEY: u8 = 0xc3;
+
 pub struct PublisherImpl<'a> {
     parent: &'a DomainParticipantImpl,
     impl_ref: Weak<Mutex<RTPSWriterGroupImpl<RtpsUdpPsm>>>,
     default_datawriter_qos: Mutex<DataWriterQos>,
+    datawriter_counter: Mutex<u8>,
 }
 
 impl<'a> PublisherImpl<'a> {
@@ -45,6 +51,7 @@ impl<'a> PublisherImpl<'a> {
             parent,
             impl_ref,
             default_datawriter_qos: Mutex::new(DataWriterQos::default()),
+            datawriter_counter: Mutex::new(0),
         }
     }
 }
@@ -76,9 +83,25 @@ impl<'a> rust_dds_api::publication::publisher::Publisher<'a> for PublisherImpl<'
         _mask: StatusMask,
     ) -> Option<<Self as rust_dds_api::publication::publisher::DataWriterGAT<'a, T>>::DataWriterType>
     {
+        let rtps_writer_group = self.impl_ref.upgrade()?;
+        let mut rtps_writer_group_lock = rtps_writer_group.lock().unwrap();
+        let mut datawriter_counter_lock = self.datawriter_counter.lock().unwrap();
+        *datawriter_counter_lock += 1;
+
         let use_stateless_writer = true;
 
-        let guid = GUID::new([0; 12], [0; 4].into());
+        let prefix = rtps_writer_group_lock.guid().prefix().clone();
+        let parent_entityid: [u8; 4] = rtps_writer_group_lock.guid().entity_id().clone().into();
+
+        let entity_id = [
+            parent_entityid[0],
+            *datawriter_counter_lock,
+            0,
+            ENTITYKIND_USER_DEFINED_WRITER_WITH_KEY,
+        ]
+        .into();
+        let guid = GUID::new(prefix, entity_id);
+
         let datawriter_qos = qos.unwrap_or_default();
         let rtps_writer_dyn: Arc<Mutex<dyn RTPSWriter<RtpsUdpPsm, RTPSHistoryCacheImpl>>> =
             if use_stateless_writer {
@@ -86,19 +109,13 @@ impl<'a> rust_dds_api::publication::publisher::Publisher<'a> for PublisherImpl<'
                     datawriter_qos,
                     guid,
                 )));
-                self.impl_ref
-                    .upgrade()?
-                    .lock()
-                    .unwrap()
+                rtps_writer_group_lock
                     .stateless_writer_list
                     .push(rtps_writer.clone());
                 rtps_writer
             } else {
                 let rtps_writer = Arc::new(Mutex::new(RTPSStatefulWriterImpl {}));
-                self.impl_ref
-                    .upgrade()?
-                    .lock()
-                    .unwrap()
+                rtps_writer_group_lock
                     .stateful_writer_list
                     .push(rtps_writer.clone());
                 rtps_writer

@@ -123,6 +123,14 @@ impl<PSM: rust_rtps_pim::structure::Types> RTPSWriterGroupImpl<PSM> {
     //     }
 }
 
+impl<PSM: rust_rtps_pim::structure::Types> rust_rtps_pim::structure::RTPSEntity<PSM>
+    for RTPSWriterGroupImpl<PSM>
+{
+    fn guid(&self) -> GUID<PSM> {
+        self.guid
+    }
+}
+
 // #[cfg(test)]
 // mod tests {
 //     // use super::*;
