@@ -243,6 +243,7 @@ mod tests {
 
         type EntityId = [u8; 4];
         const ENTITYID_UNKNOWN: Self::EntityId = [0; 4];
+        const ENTITYID_PARTICIPANT: Self::EntityId = [0,0,0,1];
 
         type SequenceNumber = i64;
         const SEQUENCE_NUMBER_UNKNOWN: Self::SequenceNumber = i64::MIN;
@@ -284,6 +285,8 @@ mod tests {
 
         type Parameter = MockParameter;
         type ParameterVector = Vec<Self::Parameter>;
+
+
     }
 
     impl messages::Types for MockPsm {

@@ -1,10 +1,20 @@
 use rust_dds_api::infrastructure::qos::DataWriterQos;
-use rust_rtps_pim::{behavior::{RTPSWriter, stateless_writer::{RTPSReaderLocator, RTPSStatelessWriter}}, structure::{RTPSEndpoint, RTPSEntity, types::{ChangeKind, GUID, ReliabilityKind, TopicKind}}};
-use rust_rtps_udp_psm::RtpsUdpPsm;
+use rust_rtps_pim::{
+    behavior::{
+        stateless_writer::{RTPSReaderLocator, RTPSStatelessWriter},
+        RTPSWriter,
+    },
+    structure::{
+        types::{ChangeKind, ReliabilityKind, TopicKind, GUID},
+        RTPSEndpoint, RTPSEntity,
+    },
+};
+use rust_rtps_udp_psm::{types::EntityId, RtpsUdpPsm};
 
 use super::rtps_history_cache_impl::RTPSHistoryCacheImpl;
 
 pub struct RTPSStatelessWriterImpl {
+    guid: GUID<RtpsUdpPsm>,
     pub reader_locators: Vec<RTPSReaderLocator<RtpsUdpPsm>>,
 }
 
@@ -52,36 +62,44 @@ impl RTPSStatelessWriterImpl {
         //     nack_suppression_duration,
         //     data_max_size_serialized,
         // );
+        let prefix = [0;12];
+        let entity_id = EntityId {
+            entity_key: [0; 3],
+            entity_kind: 0,
+        };
+        let guid = GUID::new(prefix, entity_id);
+
         Self {
+            guid,
             reader_locators: Vec::new(),
         }
     }
 
-//     pub fn write_w_timestamp(&mut self) -> DDSResult<()> {
-//         let kind = ChangeKind::Alive;
-//         let data = vec![0, 1, 2];
-//         let inline_qos = vec![];
-//         let handle = 1;
-//         let change = self.new_change(kind, data, inline_qos, handle);
-//         self.writer_cache_mut().add_change(change);
-//         Ok(())
-//     }
+    //     pub fn write_w_timestamp(&mut self) -> DDSResult<()> {
+    //         let kind = ChangeKind::Alive;
+    //         let data = vec![0, 1, 2];
+    //         let inline_qos = vec![];
+    //         let handle = 1;
+    //         let change = self.new_change(kind, data, inline_qos, handle);
+    //         self.writer_cache_mut().add_change(change);
+    //         Ok(())
+    //     }
 
-//     pub fn produce_messages(
-//         &mut self,
-//         _send_data_to: &mut impl FnMut(&Locator<RtpsUdpPsm>, submessages::Data),
-//         _send_gap_to: &mut impl FnMut(&Locator<RtpsUdpPsm>, submessages::Gap),
-//     ) {
-//         todo!()
-//         // for reader_locator in &mut self.reader_locators {
-//         //     reader_locator.produce_messages(&self, send_data_to, send_gap_to);
-//         // }
-//     }
+    //     pub fn produce_messages(
+    //         &mut self,
+    //         _send_data_to: &mut impl FnMut(&Locator<RtpsUdpPsm>, submessages::Data),
+    //         _send_gap_to: &mut impl FnMut(&Locator<RtpsUdpPsm>, submessages::Gap),
+    //     ) {
+    //         todo!()
+    //         // for reader_locator in &mut self.reader_locators {
+    //         //     reader_locator.produce_messages(&self, send_data_to, send_gap_to);
+    //         // }
+    //     }
 }
 
 impl RTPSEntity<RtpsUdpPsm> for RTPSStatelessWriterImpl {
     fn guid(&self) -> GUID<RtpsUdpPsm> {
-        todo!()
+        self.guid
     }
 }
 

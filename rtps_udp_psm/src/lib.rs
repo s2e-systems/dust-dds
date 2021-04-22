@@ -1,8 +1,7 @@
 use types::{
-    Count, Duration, EntityId,
-    FragmentNumber, GroupDigest, GuidPrefix, InstanceHandle, Parameter, ParameterId,
-    ProtocolId, ProtocolVersion, SequenceNumber, SequenceNumberSet,
-    SubmessageFlag, Time, VendorId,
+    Count, Duration, EntityId, FragmentNumber, GroupDigest, GuidPrefix, InstanceHandle, Parameter,
+    ParameterId, ProtocolId, ProtocolVersion, SequenceNumber, SequenceNumberSet, SubmessageFlag,
+    Time, VendorId,
 };
 
 pub mod submessages;
@@ -18,6 +17,11 @@ impl rust_rtps_pim::structure::Types for RtpsUdpPsm {
     const ENTITYID_UNKNOWN: Self::EntityId = EntityId {
         entity_key: [0; 3],
         entity_kind: 0,
+    };
+
+    const ENTITYID_PARTICIPANT: Self::EntityId = EntityId {
+        entity_key: [0, 0, 0x01],
+        entity_kind: 0xc1,
     };
 
     type SequenceNumber = SequenceNumber;

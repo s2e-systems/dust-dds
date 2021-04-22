@@ -1,5 +1,7 @@
 use std::sync::{Arc, Mutex};
 
+use rust_rtps_pim::structure::types::GUID;
+
 use super::rtps_group_impl::RTPSGroupImpl;
 
 // use std::{
@@ -42,19 +44,21 @@ use super::rtps_group_impl::RTPSGroupImpl;
 //     publisher_impl::PublisherImpl, subscriber_impl::SubscriberImpl, topic_impl::TopicImpl,
 // };
 
-
 pub struct RTPSParticipantImpl<PSM: rust_rtps_pim::structure::Types> {
     unicast_locator_list: Vec<rust_rtps_pim::structure::types::Locator<PSM>>,
     multicast_locator_list: Vec<rust_rtps_pim::structure::types::Locator<PSM>>,
     pub rtps_groups: Vec<Arc<Mutex<RTPSGroupImpl>>>,
+    guid: GUID<PSM>,
 }
 
 impl<PSM: rust_rtps_pim::structure::Types> RTPSParticipantImpl<PSM> {
-    pub fn new() -> Self {
+    pub fn new(prefix: PSM::GuidPrefix) -> Self {
+        let guid = GUID::new(prefix, PSM::ENTITYID_PARTICIPANT);
         Self {
             unicast_locator_list: Vec::new(),
             multicast_locator_list: Vec::new(),
             rtps_groups: Vec::new(),
+            guid,
         }
     }
 }
@@ -83,10 +87,9 @@ impl<PSM: rust_rtps_pim::structure::Types> rust_rtps_pim::structure::RTPSEntity<
     for RTPSParticipantImpl<PSM>
 {
     fn guid(&self) -> rust_rtps_pim::structure::types::GUID<PSM> {
-        todo!()
+        self.guid
     }
 }
-
 
 // // pub struct DomainParticipantImplConfiguration {
 // //     pub userdata_transport: Box<dyn Transport>,
@@ -152,7 +155,6 @@ impl<PSM: rust_rtps_pim::structure::Types> rust_rtps_pim::structure::RTPSEntity<
 // //         }
 // //     }
 // // }
-
 
 // pub struct DomainParticipantImpl {
 //     domain_id: DomainId,

@@ -80,7 +80,7 @@ use crate::RtpsUdpPsm;
 
 pub type GuidPrefix = [u8; 12];
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub struct EntityId {
     pub entity_key: [u8; 3],
     pub entity_kind: u8,

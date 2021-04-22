@@ -10,14 +10,15 @@ use rust_dds_api::{
     publication::{
         data_writer_listener::DataWriterListener, publisher_listener::PublisherListener,
     },
-    return_type::DDSResult,
+    return_type::{DDSError, DDSResult},
 };
-use rust_rtps_pim::behavior::RTPSWriter;
+use rust_rtps_pim::{behavior::RTPSWriter, structure::RTPSEntity};
 use rust_rtps_udp_psm::RtpsUdpPsm;
 
 use crate::rtps_impl::{
     rtps_group_impl::RTPSGroupImpl, rtps_history_cache_impl::RTPSHistoryCacheImpl,
     rtps_stateful_writer_impl::RTPSStatefulWriterImpl,
+    rtps_stateless_writer_impl::RTPSStatelessWriterImpl,
 };
 
 use super::{
@@ -63,41 +64,68 @@ impl<'a> rust_dds_api::publication::publisher::Publisher<'a> for PublisherImpl<'
     fn create_datawriter<T: DDSType>(
         &'a self,
         _a_topic: &'a <Self as rust_dds_api::domain::domain_participant::TopicGAT<'a, T>>::TopicType,
-        _qos: Option<DataWriterQos>,
+        qos: Option<DataWriterQos>,
         _a_listener: Option<Box<dyn DataWriterListener<DataType = T>>>,
         _mask: StatusMask,
     ) -> Option<<Self as rust_dds_api::publication::publisher::DataWriterGAT<'a, T>>::DataWriterType>
     {
-        let rtps_writer = Arc::new(Mutex::new(RTPSStatefulWriterImpl {}));
+        let use_stateless_writer = true;
+
+        let datawriter_qos = qos.unwrap_or_default();
         let rtps_writer_dyn: Arc<Mutex<dyn RTPSWriter<RtpsUdpPsm, RTPSHistoryCacheImpl>>> =
-            rtps_writer.clone();
+            if use_stateless_writer {
+                let rtps_writer =
+                    Arc::new(Mutex::new(RTPSStatelessWriterImpl::new(datawriter_qos)));
+                self.impl_ref
+                    .upgrade()?
+                    .lock()
+                    .unwrap()
+                    .stateless_writer_list
+                    .push(rtps_writer.clone());
+                rtps_writer
+            } else {
+                let rtps_writer = Arc::new(Mutex::new(RTPSStatefulWriterImpl {}));
+                self.impl_ref
+                    .upgrade()?
+                    .lock()
+                    .unwrap()
+                    .stateful_writer_list
+                    .push(rtps_writer.clone());
+                rtps_writer
+            };
+
         let data_writer = DataWriterImpl::new(self, Arc::downgrade(&rtps_writer_dyn));
-        self.impl_ref
-            .upgrade()?
-            .lock()
-            .unwrap()
-            .stateful_writer_list
-            .push(rtps_writer);
         Some(data_writer)
     }
 
     fn delete_datawriter<T: DDSType>(
         &'a self,
-        _a_datawriter: &<Self as rust_dds_api::publication::publisher::DataWriterGAT<'a, T>>::DataWriterType,
+        a_datawriter: &<Self as rust_dds_api::publication::publisher::DataWriterGAT<'a, T>>::DataWriterType,
     ) -> DDSResult<()> {
-        todo!()
-        // if std::ptr::eq(a_datawriter.parent.0, self) {
-        //     self.impl_ref
-        //         .upgrade()
-        //         .ok_or(DDSError::AlreadyDeleted)?
-        //         .lock()
-        //         .unwrap()
-        //         .delete_datawriter(&a_datawriter.impl_ref)
-        // } else {
-        //     Err(DDSError::PreconditionNotMet(
-        //         "Publisher can only be deleted from its parent participant",
-        //     ))
-        // }
+        if std::ptr::eq(a_datawriter.parent, self) {
+            let rtps_group = self.impl_ref.upgrade().ok_or(DDSError::AlreadyDeleted)?;
+            let rtps_writer = a_datawriter
+                .rtps_writer
+                .upgrade()
+                .ok_or(DDSError::AlreadyDeleted)?;
+            let mut rtps_group_lock = rtps_group.lock().unwrap();
+            let rtps_writer_guid = rtps_writer.lock().unwrap().guid();
+            if let Some(stateless_writer_index) = rtps_group_lock
+                .stateless_writer_list
+                .iter()
+                .map(|x| x.lock().unwrap())
+                .position(|x| x.guid() == rtps_writer_guid)
+            {
+                rtps_group_lock
+                    .stateless_writer_list
+                    .remove(stateless_writer_index);
+            }
+            Ok(())
+        } else {
+            Err(DDSError::PreconditionNotMet(
+                "Publisher can only be deleted from its parent participant",
+            ))
+        }
     }
 
     fn lookup_datawriter<T: DDSType>(
@@ -250,7 +278,7 @@ mod tests {
 
     #[test]
     fn create_datawriter() {
-        let domain_participant = DomainParticipantImpl::new(RTPSParticipantImpl::new());
+        let domain_participant = DomainParticipantImpl::new(RTPSParticipantImpl::new([1;12]));
         let publisher = domain_participant.create_publisher(None, None, 0).unwrap();
         let a_topic = domain_participant
             .create_topic::<MockData>("Test", None, None, 0)
@@ -262,8 +290,24 @@ mod tests {
     }
 
     #[test]
+    fn create_delete_datawriter() {
+        let domain_participant = DomainParticipantImpl::new(RTPSParticipantImpl::new([1;12]));
+        let publisher = domain_participant.create_publisher(None, None, 0).unwrap();
+        let a_topic = domain_participant
+            .create_topic::<MockData>("Test", None, None, 0)
+            .unwrap();
+
+        let a_datawriter = publisher
+            .create_datawriter(&a_topic, None, None, 0)
+            .unwrap();
+
+        let result = publisher.delete_datawriter(&a_datawriter);
+        assert!(result.is_ok());
+    }
+
+    #[test]
     fn set_default_datawriter_qos_some_value() {
-        let domain_participant = DomainParticipantImpl::new(RTPSParticipantImpl::new());
+        let domain_participant = DomainParticipantImpl::new(RTPSParticipantImpl::new([1;12]));
         let publisher = domain_participant.create_publisher(None, None, 0).unwrap();
         let mut qos = DataWriterQos::default();
         qos.user_data.value = vec![1, 2, 3, 4];
@@ -275,7 +319,7 @@ mod tests {
 
     #[test]
     fn set_default_datawriter_qos_inconsistent() {
-        let domain_participant = DomainParticipantImpl::new(RTPSParticipantImpl::new());
+        let domain_participant = DomainParticipantImpl::new(RTPSParticipantImpl::new([1;12]));
         let publisher = domain_participant.create_publisher(None, None, 0).unwrap();
         let mut qos = DataWriterQos::default();
         qos.resource_limits.max_samples_per_instance = 2;
@@ -286,7 +330,7 @@ mod tests {
 
     #[test]
     fn set_default_datawriter_qos_none() {
-        let domain_participant = DomainParticipantImpl::new(RTPSParticipantImpl::new());
+        let domain_participant = DomainParticipantImpl::new(RTPSParticipantImpl::new([1;12]));
         let publisher = domain_participant.create_publisher(None, None, 0).unwrap();
         let mut qos = DataWriterQos::default();
         qos.user_data.value = vec![1, 2, 3, 4];
@@ -300,7 +344,7 @@ mod tests {
 
     #[test]
     fn get_default_datawriter_qos() {
-        let domain_participant = DomainParticipantImpl::new(RTPSParticipantImpl::new());
+        let domain_participant = DomainParticipantImpl::new(RTPSParticipantImpl::new([1;12]));
         let publisher = domain_participant.create_publisher(None, None, 0).unwrap();
         let mut qos = DataWriterQos::default();
         qos.user_data.value = vec![1, 2, 3, 4];

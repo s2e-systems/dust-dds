@@ -7,11 +7,12 @@ use crate::messages;
 /// Table 8.2 - Types of the attributes that appear in the RTPS Entities and Classes
 ///
 pub trait Types {
-    type GuidPrefix: Into<[u8; 12]> + From<[u8; 12]> + Copy;
+    type GuidPrefix: Into<[u8; 12]> + From<[u8; 12]> + Copy + PartialEq;
     const GUIDPREFIX_UNKNOWN: Self::GuidPrefix;
 
-    type EntityId: Into<[u8; 4]> + From<[u8; 4]> + Copy;
+    type EntityId: Into<[u8; 4]> + From<[u8; 4]> + Copy + PartialEq;
     const ENTITYID_UNKNOWN: Self::EntityId;
+    const ENTITYID_PARTICIPANT: Self::EntityId;
 
     type SequenceNumber: Into<i64> + From<i64> + Ord + Copy;
     const SEQUENCE_NUMBER_UNKNOWN: Self::SequenceNumber;
@@ -73,6 +74,12 @@ impl<PSM: Types> Clone for GUID<PSM> {
 }
 
 impl<PSM: Types> Copy for GUID<PSM> {}
+
+impl<PSM: Types> PartialEq for GUID<PSM> {
+    fn eq(&self, other: &Self) -> bool {
+        self.prefix == other.prefix && self.entity_id == other.entity_id
+    }
+}
 
 impl<PSM: Types> GUID<PSM> {
     pub const GUID_UNKNOWN: Self = Self {

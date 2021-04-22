@@ -22,8 +22,8 @@ use crate::rtps_impl::rtps_history_cache_impl::RTPSHistoryCacheImpl;
 use super::{publisher_impl::PublisherImpl, topic_impl::TopicImpl};
 
 pub struct DataWriterImpl<'a, T: DDSType> {
-    parent: &'a PublisherImpl<'a>,
-    rtps_writer: Weak<Mutex<dyn RTPSWriter<RtpsUdpPsm, RTPSHistoryCacheImpl> + 'a>>,
+    pub(crate) parent: &'a PublisherImpl<'a>,
+    pub(crate) rtps_writer: Weak<Mutex<dyn RTPSWriter<RtpsUdpPsm, RTPSHistoryCacheImpl> + 'a>>,
     phantom: PhantomData<&'a T>,
 }
 
