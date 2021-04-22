@@ -87,16 +87,16 @@ impl<PSM: rust_rtps_pim::structure::Types> RTPSStatelessWriterImpl<PSM> {
     //     }
 }
 
-impl<PSM: rust_rtps_pim::structure::Types> RTPSEntity<PSM> for RTPSStatelessWriterImpl<PSM> {
+impl<PSM: rust_rtps_pim::structure::Types> RTPSEntity<PSM>
+    for RTPSStatelessWriterImpl<PSM>
+{
     fn guid(&self) -> GUID<PSM> {
         self.guid
     }
 }
 
-impl<
-        PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types,
-        HistoryCache: RTPSHistoryCache<PSM>,
-    > RTPSWriter<PSM, HistoryCache> for RTPSStatelessWriterImpl<PSM>
+impl<PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types> RTPSWriter<PSM>
+    for RTPSStatelessWriterImpl<PSM>
 {
     fn push_mode(&self) -> bool {
         todo!()
@@ -124,11 +124,11 @@ impl<
         todo!()
     }
 
-    fn writer_cache(&self) -> &HistoryCache {
+    fn writer_cache(&self) -> &dyn RTPSHistoryCache<PSM> {
         todo!()
     }
 
-    fn writer_cache_mut(&mut self) -> &mut HistoryCache {
+    fn writer_cache_mut(&mut self) -> &mut dyn RTPSHistoryCache<PSM> {
         todo!()
     }
 
@@ -143,7 +143,9 @@ impl<
     }
 }
 
-impl<PSM: rust_rtps_pim::structure::Types> RTPSEndpoint<PSM> for RTPSStatelessWriterImpl<PSM> {
+impl<PSM: rust_rtps_pim::structure::Types> RTPSEndpoint<PSM>
+    for RTPSStatelessWriterImpl<PSM>
+{
     fn topic_kind(&self) -> TopicKind {
         todo!()
     }
@@ -162,9 +164,8 @@ impl<PSM: rust_rtps_pim::structure::Types> RTPSEndpoint<PSM> for RTPSStatelessWr
 }
 
 impl<
-        PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types,
-        HistoryCache: RTPSHistoryCache<PSM>,
-    > RTPSStatelessWriter<PSM, HistoryCache> for RTPSStatelessWriterImpl<PSM>
+        PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types
+    > RTPSStatelessWriter<PSM> for RTPSStatelessWriterImpl<PSM>
 {
     fn reader_locator_add(&mut self, a_locator: Locator<PSM>) {
         let expects_inline_qos = false;

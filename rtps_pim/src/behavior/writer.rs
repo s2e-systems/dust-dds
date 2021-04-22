@@ -3,7 +3,7 @@ use crate::{
     structure::{self, types::ChangeKind, RTPSCacheChange, RTPSEndpoint, RTPSHistoryCache},
 };
 
-pub trait RTPSWriter<PSM: structure::Types + behavior::Types, HistoryCache: RTPSHistoryCache<PSM>>:
+pub trait RTPSWriter<PSM: structure::Types + behavior::Types>:
     RTPSEndpoint<PSM>
 {
     fn push_mode(&self) -> bool;
@@ -12,8 +12,8 @@ pub trait RTPSWriter<PSM: structure::Types + behavior::Types, HistoryCache: RTPS
     fn nack_suppression_duration(&self) -> PSM::Duration;
     fn last_change_sequence_number(&self) -> PSM::SequenceNumber;
     fn data_max_size_serialized(&self) -> i32;
-    fn writer_cache(&self) -> &HistoryCache;
-    fn writer_cache_mut(&mut self) -> &mut HistoryCache;
+    fn writer_cache(&self) -> &dyn RTPSHistoryCache<PSM>;
+    fn writer_cache_mut(&mut self) -> &mut dyn RTPSHistoryCache<PSM>;
 
     fn new_change(
         &mut self,

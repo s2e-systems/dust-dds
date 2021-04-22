@@ -67,9 +67,9 @@ where
         Some(next_requested_change)
     }
 
-    pub fn next_unsent_change<HistoryCache: RTPSHistoryCache<PSM>>(
+    pub fn next_unsent_change(
         &mut self,
-        writer: &impl RTPSWriter<PSM, HistoryCache>,
+        writer: &impl RTPSWriter<PSM>,
     ) -> Option<PSM::SequenceNumber> {
         let unsent_changes = self.unsent_changes(writer);
         let next_unsent_change = unsent_changes.into_iter().min()?;
@@ -81,10 +81,10 @@ where
         &self.requested_changes
     }
 
-    pub fn requested_changes_set<'a, HistoryCache: RTPSHistoryCache<PSM>>(
+    pub fn requested_changes_set<'a>(
         &'a mut self,
         req_seq_num_set: PSM::SequenceNumberVector,
-        writer: &impl RTPSWriter<PSM, HistoryCache>,
+        writer: &impl RTPSWriter<PSM>,
     ) {
         self.requested_changes = self
             .requested_changes
@@ -98,9 +98,9 @@ where
             .collect();
     }
 
-    pub fn unsent_changes<HistoryCache: RTPSHistoryCache<PSM>>(
+    pub fn unsent_changes(
         &self,
-        writer: &impl RTPSWriter<PSM, HistoryCache>,
+        writer: &impl RTPSWriter<PSM>,
     ) -> PSM::SequenceNumberVector {
         let history_cache_max_seq_num: i64 = writer
             .writer_cache()
@@ -116,9 +116,8 @@ where
 }
 
 pub trait RTPSStatelessWriter<
-    PSM: structure::Types + behavior::Types,
-    HistoryCache: RTPSHistoryCache<PSM>,
->: RTPSWriter<PSM, HistoryCache>
+    PSM: structure::Types + behavior::Types
+>: RTPSWriter<PSM>
 {
     fn reader_locator_add(&mut self, a_locator: Locator<PSM>);
 
@@ -139,7 +138,7 @@ where
 {
     pub fn produce_messages<Data, Gap, HistoryCache, SendDataTo, SendGapTo>(
         &'a mut self,
-        writer: &'a impl RTPSWriter<PSM, HistoryCache>,
+        writer: &'a impl RTPSWriter<PSM>,
         send_data_to: &mut SendDataTo,
         send_gap_to: &mut SendGapTo,
     ) where
@@ -400,7 +399,7 @@ mod tests {
         }
     }
 
-    impl RTPSWriter<MockPsm, MockHistoryCache> for MockWriter {
+    impl RTPSWriter<MockPsm> for MockWriter {
         fn push_mode(&self) -> bool {
             todo!()
         }
@@ -425,11 +424,11 @@ mod tests {
             todo!()
         }
 
-        fn writer_cache(&self) -> &MockHistoryCache {
+        fn writer_cache(&self) -> &dyn RTPSHistoryCache<MockPsm> {
             &self.history_cache
         }
 
-        fn writer_cache_mut(&mut self) -> &mut MockHistoryCache {
+        fn writer_cache_mut(&mut self) -> &mut dyn RTPSHistoryCache<MockPsm> {
             &mut self.history_cache
         }
 

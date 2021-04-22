@@ -1,7 +1,11 @@
-use rust_rtps_pim::{behavior::RTPSWriter, structure::{RTPSEndpoint, RTPSEntity, types::{ChangeKind, GUID, Locator, ReliabilityKind, TopicKind}}};
-use rust_rtps_udp_psm::{RtpsUdpPsm};
-
-use super::rtps_history_cache_impl::RTPSHistoryCacheImpl;
+use rust_rtps_pim::{
+    behavior::RTPSWriter,
+    structure::{
+        types::{ChangeKind, Locator, ReliabilityKind, TopicKind, GUID},
+        RTPSEndpoint, RTPSEntity, RTPSHistoryCache,
+    },
+};
+use rust_rtps_udp_psm::RtpsUdpPsm;
 
 pub struct RTPSStatefulWriterImpl {}
 
@@ -29,7 +33,7 @@ impl RTPSEndpoint<RtpsUdpPsm> for RTPSStatefulWriterImpl {
     }
 }
 
-impl RTPSWriter<RtpsUdpPsm, RTPSHistoryCacheImpl> for RTPSStatefulWriterImpl {
+impl RTPSWriter<RtpsUdpPsm> for RTPSStatefulWriterImpl {
     fn push_mode(&self) -> bool {
         todo!()
     }
@@ -42,11 +46,15 @@ impl RTPSWriter<RtpsUdpPsm, RTPSHistoryCacheImpl> for RTPSStatefulWriterImpl {
         todo!()
     }
 
-    fn nack_suppression_duration(&self) -> <RtpsUdpPsm as rust_rtps_pim::behavior::Types>::Duration {
+    fn nack_suppression_duration(
+        &self,
+    ) -> <RtpsUdpPsm as rust_rtps_pim::behavior::Types>::Duration {
         todo!()
     }
 
-    fn last_change_sequence_number(&self) -> <RtpsUdpPsm as rust_rtps_pim::structure::Types>::SequenceNumber {
+    fn last_change_sequence_number(
+        &self,
+    ) -> <RtpsUdpPsm as rust_rtps_pim::structure::Types>::SequenceNumber {
         todo!()
     }
 
@@ -54,11 +62,11 @@ impl RTPSWriter<RtpsUdpPsm, RTPSHistoryCacheImpl> for RTPSStatefulWriterImpl {
         todo!()
     }
 
-    fn writer_cache(&self) -> &RTPSHistoryCacheImpl {
+    fn writer_cache(&self) -> &dyn RTPSHistoryCache<RtpsUdpPsm> {
         todo!()
     }
 
-    fn writer_cache_mut(&mut self) -> &mut RTPSHistoryCacheImpl {
+    fn writer_cache_mut(&mut self) -> &mut dyn RTPSHistoryCache<RtpsUdpPsm> {
         todo!()
     }
 
@@ -67,7 +75,7 @@ impl RTPSWriter<RtpsUdpPsm, RTPSHistoryCacheImpl> for RTPSStatefulWriterImpl {
         _kind: ChangeKind,
         _data: <RtpsUdpPsm as rust_rtps_pim::structure::Types>::Data,
         _inline_qos: <RtpsUdpPsm as rust_rtps_pim::structure::Types>::ParameterVector,
-        _handle:<RtpsUdpPsm as rust_rtps_pim::structure::Types>::InstanceHandle,
+        _handle: <RtpsUdpPsm as rust_rtps_pim::structure::Types>::InstanceHandle,
     ) -> rust_rtps_pim::structure::RTPSCacheChange<RtpsUdpPsm> {
         todo!()
     }
