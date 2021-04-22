@@ -7,7 +7,7 @@ use super::{
     rtps_stateless_writer_impl::RTPSStatelessWriterImpl,
 };
 
-pub struct RTPSGroupImpl<PSM: rust_rtps_pim::structure::Types> {
+pub struct RTPSWriterGroupImpl<PSM: rust_rtps_pim::structure::Types> {
     pub stateful_writer_list: Vec<Arc<Mutex<RTPSStatefulWriterImpl>>>,
     pub stateless_writer_list: Vec<Arc<Mutex<RTPSStatelessWriterImpl>>>,
     guid: GUID<PSM>,
@@ -18,7 +18,7 @@ pub struct RTPSGroupImpl<PSM: rust_rtps_pim::structure::Types> {
     //     status_mask: StatusMask,
 }
 
-impl<PSM: rust_rtps_pim::structure::Types> RTPSGroupImpl<PSM> {
+impl<PSM: rust_rtps_pim::structure::Types> RTPSWriterGroupImpl<PSM> {
     pub fn new(guid: GUID<PSM>) -> Self {
         Self {
             stateful_writer_list: Vec::new(),

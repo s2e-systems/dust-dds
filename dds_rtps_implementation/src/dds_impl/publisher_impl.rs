@@ -16,7 +16,7 @@ use rust_rtps_pim::{behavior::RTPSWriter, structure::RTPSEntity};
 use rust_rtps_udp_psm::RtpsUdpPsm;
 
 use crate::rtps_impl::{
-    rtps_group_impl::RTPSGroupImpl, rtps_history_cache_impl::RTPSHistoryCacheImpl,
+    rtps_writer_group_impl::RTPSWriterGroupImpl, rtps_history_cache_impl::RTPSHistoryCacheImpl,
     rtps_stateful_writer_impl::RTPSStatefulWriterImpl,
     rtps_stateless_writer_impl::RTPSStatelessWriterImpl,
 };
@@ -28,14 +28,14 @@ use super::{
 
 pub struct PublisherImpl<'a> {
     parent: &'a DomainParticipantImpl,
-    impl_ref: Weak<Mutex<RTPSGroupImpl<RtpsUdpPsm>>>,
+    impl_ref: Weak<Mutex<RTPSWriterGroupImpl<RtpsUdpPsm>>>,
     default_datawriter_qos: Mutex<DataWriterQos>,
 }
 
 impl<'a> PublisherImpl<'a> {
     pub fn new(
         parent: &'a DomainParticipantImpl,
-        impl_ref: Weak<Mutex<RTPSGroupImpl<RtpsUdpPsm>>>,
+        impl_ref: Weak<Mutex<RTPSWriterGroupImpl<RtpsUdpPsm>>>,
     ) -> Self {
         Self {
             parent,

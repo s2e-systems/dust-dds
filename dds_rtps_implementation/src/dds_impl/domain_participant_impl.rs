@@ -20,7 +20,7 @@ use rust_rtps_pim::structure::{types::GUID, RTPSEntity};
 use rust_rtps_udp_psm::RtpsUdpPsm;
 
 use crate::rtps_impl::{
-    rtps_group_impl::RTPSGroupImpl, rtps_participant_impl::RTPSParticipantImpl,
+    rtps_writer_group_impl::RTPSWriterGroupImpl, rtps_participant_impl::RTPSParticipantImpl,
 };
 
 use super::{
@@ -66,7 +66,7 @@ impl<'a> rust_dds_api::domain::domain_participant::DomainParticipant<'a> for Dom
         let guid_prefix = self.rtps_participant_impl.lock().unwrap().guid().prefix().clone();
         let entity_id = [0,0,0,ENTITYKIND_USER_DEFINED_WRITER_GROUP].into();
         let guid = GUID::new(guid_prefix, entity_id);
-        let group = Arc::new(Mutex::new(RTPSGroupImpl::new(guid)));
+        let group = Arc::new(Mutex::new(RTPSWriterGroupImpl::new(guid)));
         let publisher = PublisherImpl::new(self, Arc::downgrade(&group));
         self.rtps_participant_impl
             .lock()
