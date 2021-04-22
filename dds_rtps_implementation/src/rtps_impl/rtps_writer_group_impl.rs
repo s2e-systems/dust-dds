@@ -9,7 +9,7 @@ use super::{
 
 pub struct RTPSWriterGroupImpl<PSM: rust_rtps_pim::structure::Types> {
     pub stateful_writer_list: Vec<Arc<Mutex<RTPSStatefulWriterImpl>>>,
-    pub stateless_writer_list: Vec<Arc<Mutex<RTPSStatelessWriterImpl>>>,
+    pub stateless_writer_list: Vec<Arc<Mutex<RTPSStatelessWriterImpl<PSM>>>>,
     guid: GUID<PSM>,
     //     writer_count: atomic::AtomicU8,
     //     default_datawriter_qos: DataWriterQos,

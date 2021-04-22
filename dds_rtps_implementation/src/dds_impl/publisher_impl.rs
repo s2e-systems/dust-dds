@@ -12,13 +12,17 @@ use rust_dds_api::{
     },
     return_type::{DDSError, DDSResult},
 };
-use rust_rtps_pim::{behavior::RTPSWriter, structure::RTPSEntity};
+use rust_rtps_pim::{
+    behavior::RTPSWriter,
+    structure::{types::GUID, RTPSEntity},
+};
 use rust_rtps_udp_psm::RtpsUdpPsm;
 
 use crate::rtps_impl::{
-    rtps_writer_group_impl::RTPSWriterGroupImpl, rtps_history_cache_impl::RTPSHistoryCacheImpl,
+    rtps_history_cache_impl::RTPSHistoryCacheImpl,
     rtps_stateful_writer_impl::RTPSStatefulWriterImpl,
     rtps_stateless_writer_impl::RTPSStatelessWriterImpl,
+    rtps_writer_group_impl::RTPSWriterGroupImpl,
 };
 
 use super::{
@@ -74,11 +78,14 @@ impl<'a> rust_dds_api::publication::publisher::Publisher<'a> for PublisherImpl<'
     {
         let use_stateless_writer = true;
 
+        let guid = GUID::new([0; 12], [0; 4].into());
         let datawriter_qos = qos.unwrap_or_default();
         let rtps_writer_dyn: Arc<Mutex<dyn RTPSWriter<RtpsUdpPsm, RTPSHistoryCacheImpl>>> =
             if use_stateless_writer {
-                let rtps_writer =
-                    Arc::new(Mutex::new(RTPSStatelessWriterImpl::new(datawriter_qos)));
+                let rtps_writer = Arc::new(Mutex::new(RTPSStatelessWriterImpl::new(
+                    datawriter_qos,
+                    guid,
+                )));
                 self.impl_ref
                     .upgrade()?
                     .lock()

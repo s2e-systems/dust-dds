@@ -5,21 +5,18 @@ use rust_rtps_pim::{
         RTPSWriter,
     },
     structure::{
-        types::{ChangeKind, ReliabilityKind, TopicKind, GUID},
-        RTPSEndpoint, RTPSEntity,
+        types::{ChangeKind, Locator, ReliabilityKind, TopicKind, GUID},
+        RTPSEndpoint, RTPSEntity, RTPSHistoryCache,
     },
 };
-use rust_rtps_udp_psm::{types::EntityId, RtpsUdpPsm};
 
-use super::rtps_history_cache_impl::RTPSHistoryCacheImpl;
-
-pub struct RTPSStatelessWriterImpl {
-    guid: GUID<RtpsUdpPsm>,
-    pub reader_locators: Vec<RTPSReaderLocator<RtpsUdpPsm>>,
+pub struct RTPSStatelessWriterImpl<PSM: rust_rtps_pim::structure::Types> {
+    guid: GUID<PSM>,
+    pub reader_locators: Vec<RTPSReaderLocator<PSM>>,
 }
 
-impl RTPSStatelessWriterImpl {
-    pub fn new(_qos: DataWriterQos) -> Self {
+impl<PSM: rust_rtps_pim::structure::Types> RTPSStatelessWriterImpl<PSM> {
+    pub fn new(_qos: DataWriterQos, guid: GUID<PSM>) -> Self {
         // let guid = GUID::new(
         //     [1; 12],
         //     EntityId {
@@ -62,13 +59,6 @@ impl RTPSStatelessWriterImpl {
         //     nack_suppression_duration,
         //     data_max_size_serialized,
         // );
-        let prefix = [0;12];
-        let entity_id = EntityId {
-            entity_key: [0; 3],
-            entity_kind: 0,
-        };
-        let guid = GUID::new(prefix, entity_id);
-
         Self {
             guid,
             reader_locators: Vec::new(),
@@ -97,34 +87,36 @@ impl RTPSStatelessWriterImpl {
     //     }
 }
 
-impl RTPSEntity<RtpsUdpPsm> for RTPSStatelessWriterImpl {
-    fn guid(&self) -> GUID<RtpsUdpPsm> {
+impl<PSM: rust_rtps_pim::structure::Types> RTPSEntity<PSM> for RTPSStatelessWriterImpl<PSM> {
+    fn guid(&self) -> GUID<PSM> {
         self.guid
     }
 }
 
-impl RTPSWriter<RtpsUdpPsm, RTPSHistoryCacheImpl> for RTPSStatelessWriterImpl {
+impl<
+        PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types,
+        HistoryCache: RTPSHistoryCache<PSM>,
+    > RTPSWriter<PSM, HistoryCache> for RTPSStatelessWriterImpl<PSM>
+{
     fn push_mode(&self) -> bool {
         todo!()
     }
 
-    fn heartbeat_period(&self) -> <RtpsUdpPsm as rust_rtps_pim::behavior::Types>::Duration {
+    fn heartbeat_period(&self) -> <PSM as rust_rtps_pim::behavior::Types>::Duration {
         todo!()
     }
 
-    fn nack_response_delay(&self) -> <RtpsUdpPsm as rust_rtps_pim::behavior::Types>::Duration {
+    fn nack_response_delay(&self) -> <PSM as rust_rtps_pim::behavior::Types>::Duration {
         todo!()
     }
 
-    fn nack_suppression_duration(
-        &self,
-    ) -> <RtpsUdpPsm as rust_rtps_pim::behavior::Types>::Duration {
+    fn nack_suppression_duration(&self) -> <PSM as rust_rtps_pim::behavior::Types>::Duration {
         todo!()
     }
 
     fn last_change_sequence_number(
         &self,
-    ) -> <RtpsUdpPsm as rust_rtps_pim::structure::Types>::SequenceNumber {
+    ) -> <PSM as rust_rtps_pim::structure::Types>::SequenceNumber {
         todo!()
     }
 
@@ -132,26 +124,26 @@ impl RTPSWriter<RtpsUdpPsm, RTPSHistoryCacheImpl> for RTPSStatelessWriterImpl {
         todo!()
     }
 
-    fn writer_cache(&self) -> &RTPSHistoryCacheImpl {
+    fn writer_cache(&self) -> &HistoryCache {
         todo!()
     }
 
-    fn writer_cache_mut(&mut self) -> &mut RTPSHistoryCacheImpl {
+    fn writer_cache_mut(&mut self) -> &mut HistoryCache {
         todo!()
     }
 
     fn new_change(
         &mut self,
         _kind: ChangeKind,
-        _data: <RtpsUdpPsm as rust_rtps_pim::structure::Types>::Data,
-        _inline_qos: <RtpsUdpPsm as rust_rtps_pim::structure::Types>::ParameterVector,
-        _handle: <RtpsUdpPsm as rust_rtps_pim::structure::Types>::InstanceHandle,
-    ) -> rust_rtps_pim::structure::RTPSCacheChange<RtpsUdpPsm> {
+        _data: <PSM as rust_rtps_pim::structure::Types>::Data,
+        _inline_qos: <PSM as rust_rtps_pim::structure::Types>::ParameterVector,
+        _handle: <PSM as rust_rtps_pim::structure::Types>::InstanceHandle,
+    ) -> rust_rtps_pim::structure::RTPSCacheChange<PSM> {
         todo!()
     }
 }
 
-impl RTPSEndpoint<RtpsUdpPsm> for RTPSStatelessWriterImpl {
+impl<PSM: rust_rtps_pim::structure::Types> RTPSEndpoint<PSM> for RTPSStatelessWriterImpl<PSM> {
     fn topic_kind(&self) -> TopicKind {
         todo!()
     }
@@ -160,37 +152,33 @@ impl RTPSEndpoint<RtpsUdpPsm> for RTPSStatelessWriterImpl {
         todo!()
     }
 
-    fn unicast_locator_list(&self) -> &[<RtpsUdpPsm as rust_rtps_pim::structure::Types>::Locator] {
+    fn unicast_locator_list(&self) -> &[<PSM as rust_rtps_pim::structure::Types>::Locator] {
         todo!()
     }
 
-    fn multicast_locator_list(
-        &self,
-    ) -> &[<RtpsUdpPsm as rust_rtps_pim::structure::Types>::Locator] {
+    fn multicast_locator_list(&self) -> &[<PSM as rust_rtps_pim::structure::Types>::Locator] {
         todo!()
     }
 }
 
-impl RTPSStatelessWriter<RtpsUdpPsm, RTPSHistoryCacheImpl> for RTPSStatelessWriterImpl {
-    fn reader_locator_add(
-        &mut self,
-        a_locator: <RtpsUdpPsm as rust_rtps_pim::structure::Types>::Locator,
-    ) {
+impl<
+        PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types,
+        HistoryCache: RTPSHistoryCache<PSM>,
+    > RTPSStatelessWriter<PSM, HistoryCache> for RTPSStatelessWriterImpl<PSM>
+{
+    fn reader_locator_add(&mut self, a_locator: Locator<PSM>) {
         let expects_inline_qos = false;
         self.reader_locators
             .push(RTPSReaderLocator::new(a_locator, expects_inline_qos));
     }
 
-    fn reader_locator_remove(
-        &mut self,
-        a_locator: &<RtpsUdpPsm as rust_rtps_pim::structure::Types>::Locator,
-    ) {
+    fn reader_locator_remove(&mut self, a_locator: &Locator<PSM>) {
         self.reader_locators.retain(|x| x.locator() != a_locator)
     }
 
     fn reader_locators(
         &mut self,
-    ) -> &mut [rust_rtps_pim::behavior::stateless_writer::RTPSReaderLocator<RtpsUdpPsm>] {
+    ) -> &mut [rust_rtps_pim::behavior::stateless_writer::RTPSReaderLocator<PSM>] {
         &mut self.reader_locators
     }
 }
