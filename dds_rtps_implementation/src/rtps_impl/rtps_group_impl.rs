@@ -1,13 +1,16 @@
 use std::sync::{Arc, Mutex};
 
+use rust_rtps_pim::structure::types::GUID;
+
 use super::{
     rtps_stateful_writer_impl::RTPSStatefulWriterImpl,
     rtps_stateless_writer_impl::RTPSStatelessWriterImpl,
 };
 
-pub struct RTPSGroupImpl {
+pub struct RTPSGroupImpl<PSM: rust_rtps_pim::structure::Types> {
     pub stateful_writer_list: Vec<Arc<Mutex<RTPSStatefulWriterImpl>>>,
     pub stateless_writer_list: Vec<Arc<Mutex<RTPSStatelessWriterImpl>>>,
+    guid: GUID<PSM>,
     //     writer_count: atomic::AtomicU8,
     //     default_datawriter_qos: DataWriterQos,
     //     qos: PublisherQos,
@@ -15,11 +18,12 @@ pub struct RTPSGroupImpl {
     //     status_mask: StatusMask,
 }
 
-impl RTPSGroupImpl {
-    pub fn new() -> Self {
+impl<PSM: rust_rtps_pim::structure::Types> RTPSGroupImpl<PSM> {
+    pub fn new(guid: GUID<PSM>) -> Self {
         Self {
             stateful_writer_list: Vec::new(),
             stateless_writer_list: Vec::new(),
+            guid,
             //             // writer_list: Default::default(),
             //             writer_count: atomic::AtomicU8::new(0),
             //             default_datawriter_qos: DataWriterQos::default(),

@@ -28,12 +28,15 @@ use super::{
 
 pub struct PublisherImpl<'a> {
     parent: &'a DomainParticipantImpl,
-    impl_ref: Weak<Mutex<RTPSGroupImpl>>,
+    impl_ref: Weak<Mutex<RTPSGroupImpl<RtpsUdpPsm>>>,
     default_datawriter_qos: Mutex<DataWriterQos>,
 }
 
 impl<'a> PublisherImpl<'a> {
-    pub fn new(parent: &'a DomainParticipantImpl, impl_ref: Weak<Mutex<RTPSGroupImpl>>) -> Self {
+    pub fn new(
+        parent: &'a DomainParticipantImpl,
+        impl_ref: Weak<Mutex<RTPSGroupImpl<RtpsUdpPsm>>>,
+    ) -> Self {
         Self {
             parent,
             impl_ref,
@@ -278,7 +281,7 @@ mod tests {
 
     #[test]
     fn create_datawriter() {
-        let domain_participant = DomainParticipantImpl::new(RTPSParticipantImpl::new([1;12]));
+        let domain_participant = DomainParticipantImpl::new(RTPSParticipantImpl::new([1; 12]));
         let publisher = domain_participant.create_publisher(None, None, 0).unwrap();
         let a_topic = domain_participant
             .create_topic::<MockData>("Test", None, None, 0)
@@ -291,7 +294,7 @@ mod tests {
 
     #[test]
     fn create_delete_datawriter() {
-        let domain_participant = DomainParticipantImpl::new(RTPSParticipantImpl::new([1;12]));
+        let domain_participant = DomainParticipantImpl::new(RTPSParticipantImpl::new([1; 12]));
         let publisher = domain_participant.create_publisher(None, None, 0).unwrap();
         let a_topic = domain_participant
             .create_topic::<MockData>("Test", None, None, 0)
@@ -307,7 +310,7 @@ mod tests {
 
     #[test]
     fn set_default_datawriter_qos_some_value() {
-        let domain_participant = DomainParticipantImpl::new(RTPSParticipantImpl::new([1;12]));
+        let domain_participant = DomainParticipantImpl::new(RTPSParticipantImpl::new([1; 12]));
         let publisher = domain_participant.create_publisher(None, None, 0).unwrap();
         let mut qos = DataWriterQos::default();
         qos.user_data.value = vec![1, 2, 3, 4];
@@ -319,7 +322,7 @@ mod tests {
 
     #[test]
     fn set_default_datawriter_qos_inconsistent() {
-        let domain_participant = DomainParticipantImpl::new(RTPSParticipantImpl::new([1;12]));
+        let domain_participant = DomainParticipantImpl::new(RTPSParticipantImpl::new([1; 12]));
         let publisher = domain_participant.create_publisher(None, None, 0).unwrap();
         let mut qos = DataWriterQos::default();
         qos.resource_limits.max_samples_per_instance = 2;
@@ -330,7 +333,7 @@ mod tests {
 
     #[test]
     fn set_default_datawriter_qos_none() {
-        let domain_participant = DomainParticipantImpl::new(RTPSParticipantImpl::new([1;12]));
+        let domain_participant = DomainParticipantImpl::new(RTPSParticipantImpl::new([1; 12]));
         let publisher = domain_participant.create_publisher(None, None, 0).unwrap();
         let mut qos = DataWriterQos::default();
         qos.user_data.value = vec![1, 2, 3, 4];
@@ -344,7 +347,7 @@ mod tests {
 
     #[test]
     fn get_default_datawriter_qos() {
-        let domain_participant = DomainParticipantImpl::new(RTPSParticipantImpl::new([1;12]));
+        let domain_participant = DomainParticipantImpl::new(RTPSParticipantImpl::new([1; 12]));
         let publisher = domain_participant.create_publisher(None, None, 0).unwrap();
         let mut qos = DataWriterQos::default();
         qos.user_data.value = vec![1, 2, 3, 4];

@@ -16,6 +16,7 @@ use rust_dds_api::{
     subscription::subscriber_listener::SubscriberListener,
     topic::{topic_description::TopicDescription, topic_listener::TopicListener},
 };
+use rust_rtps_pim::structure::{types::GUID, RTPSEntity};
 use rust_rtps_udp_psm::RtpsUdpPsm;
 
 use crate::rtps_impl::{
@@ -25,6 +26,9 @@ use crate::rtps_impl::{
 use super::{
     publisher_impl::PublisherImpl, subscriber_impl::SubscriberImpl, topic_impl::TopicImpl,
 };
+
+const ENTITYKIND_USER_DEFINED_WRITER_GROUP: u8 = 0x08;
+const ENTITYKIND_USER_DEFINED_READER_GROUP: u8 = 0x09;
 
 pub struct DomainParticipantImpl {
     rtps_participant_impl: Mutex<RTPSParticipantImpl<RtpsUdpPsm>>,
@@ -59,7 +63,10 @@ impl<'a> rust_dds_api::domain::domain_participant::DomainParticipant<'a> for Dom
         _mask: StatusMask,
     ) -> Option<Self::PublisherType> {
         let _publisher_qos = qos.unwrap_or(self.get_default_publisher_qos());
-        let group = Arc::new(Mutex::new(RTPSGroupImpl::new()));
+        let guid_prefix = self.rtps_participant_impl.lock().unwrap().guid().prefix().clone();
+        let entity_id = [0,0,0,ENTITYKIND_USER_DEFINED_WRITER_GROUP].into();
+        let guid = GUID::new(guid_prefix, entity_id);
+        let group = Arc::new(Mutex::new(RTPSGroupImpl::new(guid)));
         let publisher = PublisherImpl::new(self, Arc::downgrade(&group));
         self.rtps_participant_impl
             .lock()
@@ -343,7 +350,7 @@ mod tests {
 
     #[test]
     fn set_default_publisher_qos_some_value() {
-        let domain_participant_impl = DomainParticipantImpl::new(RTPSParticipantImpl::new([1;12]));
+        let domain_participant_impl = DomainParticipantImpl::new(RTPSParticipantImpl::new([1; 12]));
         let mut qos = PublisherQos::default();
         qos.group_data.value = vec![1, 2, 3, 4];
         domain_participant_impl
@@ -360,7 +367,7 @@ mod tests {
 
     #[test]
     fn set_default_publisher_qos_none() {
-        let domain_participant_impl = DomainParticipantImpl::new(RTPSParticipantImpl::new([1;12]));
+        let domain_participant_impl = DomainParticipantImpl::new(RTPSParticipantImpl::new([1; 12]));
         let mut qos = PublisherQos::default();
         qos.group_data.value = vec![1, 2, 3, 4];
         domain_participant_impl
@@ -381,7 +388,7 @@ mod tests {
 
     #[test]
     fn get_default_publisher_qos() {
-        let domain_participant_impl = DomainParticipantImpl::new(RTPSParticipantImpl::new([1;12]));
+        let domain_participant_impl = DomainParticipantImpl::new(RTPSParticipantImpl::new([1; 12]));
         let mut qos = PublisherQos::default();
         qos.group_data.value = vec![1, 2, 3, 4];
         domain_participant_impl
@@ -392,7 +399,7 @@ mod tests {
 
     #[test]
     fn set_default_subscriber_qos_some_value() {
-        let domain_participant_impl = DomainParticipantImpl::new(RTPSParticipantImpl::new([1;12]));
+        let domain_participant_impl = DomainParticipantImpl::new(RTPSParticipantImpl::new([1; 12]));
         let mut qos = SubscriberQos::default();
         qos.group_data.value = vec![1, 2, 3, 4];
         domain_participant_impl
@@ -409,7 +416,7 @@ mod tests {
 
     #[test]
     fn set_default_subscriber_qos_none() {
-        let domain_participant_impl = DomainParticipantImpl::new(RTPSParticipantImpl::new([1;12]));
+        let domain_participant_impl = DomainParticipantImpl::new(RTPSParticipantImpl::new([1; 12]));
         let mut qos = SubscriberQos::default();
         qos.group_data.value = vec![1, 2, 3, 4];
         domain_participant_impl
@@ -430,7 +437,7 @@ mod tests {
 
     #[test]
     fn get_default_subscriber_qos() {
-        let domain_participant_impl = DomainParticipantImpl::new(RTPSParticipantImpl::new([1;12]));
+        let domain_participant_impl = DomainParticipantImpl::new(RTPSParticipantImpl::new([1; 12]));
         let mut qos = SubscriberQos::default();
         qos.group_data.value = vec![1, 2, 3, 4];
         domain_participant_impl
@@ -441,56 +448,42 @@ mod tests {
 
     #[test]
     fn set_default_topic_qos_some_value() {
-        let domain_participant_impl = DomainParticipantImpl::new(RTPSParticipantImpl::new([1;12]));
+        let domain_participant_impl = DomainParticipantImpl::new(RTPSParticipantImpl::new([1; 12]));
         let mut qos = TopicQos::default();
         qos.topic_data.value = vec![1, 2, 3, 4];
         domain_participant_impl
             .set_default_topic_qos(Some(qos.clone()))
             .unwrap();
-        assert!(
-            *domain_participant_impl
-                .default_topic_qos
-                .lock()
-                .unwrap()
-                == qos
-        );
+        assert!(*domain_participant_impl.default_topic_qos.lock().unwrap() == qos);
     }
 
     #[test]
     fn set_default_topic_qos_inconsistent() {
-        let domain_participant_impl = DomainParticipantImpl::new(RTPSParticipantImpl::new([1;12]));
+        let domain_participant_impl = DomainParticipantImpl::new(RTPSParticipantImpl::new([1; 12]));
         let mut qos = TopicQos::default();
         qos.resource_limits.max_samples_per_instance = 2;
         qos.resource_limits.max_samples = 1;
-        let set_default_topic_qos_result = domain_participant_impl
-            .set_default_topic_qos(Some(qos.clone()));
+        let set_default_topic_qos_result =
+            domain_participant_impl.set_default_topic_qos(Some(qos.clone()));
         assert!(set_default_topic_qos_result == Err(DDSError::InconsistentPolicy));
     }
 
     #[test]
     fn set_default_topic_qos_none() {
-        let domain_participant_impl = DomainParticipantImpl::new(RTPSParticipantImpl::new([1;12]));
+        let domain_participant_impl = DomainParticipantImpl::new(RTPSParticipantImpl::new([1; 12]));
         let mut qos = TopicQos::default();
         qos.topic_data.value = vec![1, 2, 3, 4];
         domain_participant_impl
             .set_default_topic_qos(Some(qos.clone()))
             .unwrap();
 
-        domain_participant_impl
-            .set_default_topic_qos(None)
-            .unwrap();
-        assert!(
-            *domain_participant_impl
-                .default_topic_qos
-                .lock()
-                .unwrap()
-                == TopicQos::default()
-        );
+        domain_participant_impl.set_default_topic_qos(None).unwrap();
+        assert!(*domain_participant_impl.default_topic_qos.lock().unwrap() == TopicQos::default());
     }
 
     #[test]
     fn get_default_topic_qos() {
-        let domain_participant_impl = DomainParticipantImpl::new(RTPSParticipantImpl::new([1;12]));
+        let domain_participant_impl = DomainParticipantImpl::new(RTPSParticipantImpl::new([1; 12]));
         let mut qos = TopicQos::default();
         qos.topic_data.value = vec![1, 2, 3, 4];
         domain_participant_impl
@@ -501,7 +494,7 @@ mod tests {
 
     #[test]
     fn create_publisher() {
-        let domain_participant_impl = DomainParticipantImpl::new(RTPSParticipantImpl::new([1;12]));
+        let domain_participant_impl = DomainParticipantImpl::new(RTPSParticipantImpl::new([1; 12]));
         let publisher = domain_participant_impl.create_publisher(None, None, 0);
 
         assert!(publisher.is_some())
@@ -509,7 +502,7 @@ mod tests {
 
     #[test]
     fn create_topic() {
-        let domain_participant_impl = DomainParticipantImpl::new(RTPSParticipantImpl::new([1;12]));
+        let domain_participant_impl = DomainParticipantImpl::new(RTPSParticipantImpl::new([1; 12]));
         let topic =
             domain_participant_impl.create_topic::<MockDDSType>("topic_name", None, None, 0);
         assert!(topic.is_some());
