@@ -1,11 +1,7 @@
 use crate::{
     behavior::{self, RTPSWriter},
     messages::{self, Submessage},
-    structure::{
-        self,
-        types::{Locator, ReliabilityKind},
-        RTPSHistoryCache,
-    },
+    structure::{self, types::Locator, RTPSHistoryCache},
 };
 
 pub struct RTPSReaderLocator<PSM: structure::Types> {
@@ -69,9 +65,9 @@ where
 
     pub fn next_unsent_change(
         &mut self,
-        writer: &impl RTPSWriter<PSM>,
+        writer_cache: &dyn RTPSHistoryCache<PSM>,
     ) -> Option<PSM::SequenceNumber> {
-        let unsent_changes = self.unsent_changes(writer);
+        let unsent_changes = self.unsent_changes(writer_cache);
         let next_unsent_change = unsent_changes.into_iter().min()?;
         self.last_sent_sequence_number = next_unsent_change;
         Some(next_unsent_change)
@@ -84,7 +80,7 @@ where
     pub fn requested_changes_set<'a>(
         &'a mut self,
         req_seq_num_set: PSM::SequenceNumberVector,
-        writer: &impl RTPSWriter<PSM>,
+        writer_cache: &dyn RTPSHistoryCache<PSM>,
     ) {
         self.requested_changes = self
             .requested_changes
@@ -93,32 +89,26 @@ where
             .chain(
                 req_seq_num_set
                     .into_iter()
-                    .filter(|seq_num| writer.writer_cache().get_change(seq_num).is_some()),
+                    .filter(|seq_num| writer_cache.get_change(seq_num).is_some()),
             )
             .collect();
     }
 
     pub fn unsent_changes(
         &self,
-        writer: &impl RTPSWriter<PSM>,
+        writer_cache: &dyn RTPSHistoryCache<PSM>,
     ) -> PSM::SequenceNumberVector {
-        let history_cache_max_seq_num: i64 = writer
-            .writer_cache()
-            .get_seq_num_max()
-            .unwrap_or(0.into())
-            .into();
+        let history_cache_max_seq_num: i64 =
+            writer_cache.get_seq_num_max().unwrap_or(0.into()).into();
 
         (self.last_sent_sequence_number.into() + 1..=history_cache_max_seq_num)
             .map(|x| PSM::SequenceNumber::from(x))
-            .filter(|seq_num| writer.writer_cache().get_change(seq_num).is_some())
+            .filter(|seq_num| writer_cache.get_change(seq_num).is_some())
             .collect()
     }
 }
 
-pub trait RTPSStatelessWriter<
-    PSM: structure::Types + behavior::Types
->: RTPSWriter<PSM>
-{
+pub trait RTPSStatelessWriter<PSM: structure::Types + behavior::Types>: RTPSWriter<PSM> {
     fn reader_locator_add(&mut self, a_locator: Locator<PSM>);
 
     fn reader_locator_remove(&mut self, a_locator: &Locator<PSM>);
@@ -136,9 +126,9 @@ impl<'a, PSM> RTPSReaderLocator<PSM>
 where
     PSM: structure::Types + behavior::Types + 'a,
 {
-    pub fn produce_messages<Data, Gap, HistoryCache, SendDataTo, SendGapTo>(
+    pub fn produce_messages<Data, Gap, SendDataTo, SendGapTo>(
         &'a mut self,
-        writer: &'a impl RTPSWriter<PSM>,
+        writer_cache: &'a dyn RTPSHistoryCache<PSM>,
         send_data_to: &mut SendDataTo,
         send_gap_to: &mut SendGapTo,
     ) where
@@ -147,55 +137,54 @@ where
         Data: messages::submessages::Data<SerializedData = &'a <PSM as structure::types::Types>::Data>
             + Submessage<PSM = PSM>,
         Gap: messages::submessages::Gap + Submessage<PSM = PSM>,
-        HistoryCache: RTPSHistoryCache<PSM> + 'a,
         SendDataTo: FnMut(&Locator<PSM>, Data),
         SendGapTo: FnMut(&Locator<PSM>, Gap),
     {
-        if writer.reliability_level() == ReliabilityKind::BestEffort {
-            while self.unsent_changes(writer).into_iter().next().is_some() {
-                // Pushing state
-                if let Some(seq_num) = self.next_unsent_change(writer) {
-                    // Transition T4
-                    if let Some(change) = writer.writer_cache().get_change(&seq_num) {
-                        // Send Data submessage
-                        let endianness_flag = true.into();
-                        let inline_qos_flag = false.into();
-                        let data_flag = true.into();
-                        let key_flag = false.into();
-                        let non_standard_payload_flag = false.into();
-                        let reader_id = PSM::ENTITYID_UNKNOWN;
-                        let writer_id = PSM::ENTITYID_UNKNOWN;
-                        let writer_sn = change.sequence_number;
-                        let inline_qos = change.inline_qos.clone();
-                        let serialized_payload = &change.data_value;
-                        let data = Data::new(
-                            endianness_flag,
-                            inline_qos_flag,
-                            data_flag,
-                            key_flag,
-                            non_standard_payload_flag,
-                            reader_id,
-                            writer_id,
-                            writer_sn,
-                            inline_qos,
-                            serialized_payload,
-                        );
-                        send_data_to(self.locator(), data)
-                    } else {
-                        // Send Gap submessage
-                        let endianness_flag = true.into();
-                        let reader_id = PSM::ENTITYID_UNKNOWN;
-                        let writer_id = PSM::ENTITYID_UNKNOWN;
-                        let gap_start = seq_num;
-                        let gap_list = core::iter::empty().collect();
-                        let gap =
-                            Gap::new(endianness_flag, reader_id, writer_id, gap_start, gap_list);
-                        send_gap_to(self.locator(), gap)
-                    }
+        while self
+            .unsent_changes(writer_cache)
+            .into_iter()
+            .next()
+            .is_some()
+        {
+            // Pushing state
+            if let Some(seq_num) = self.next_unsent_change(writer_cache) {
+                // Transition T4
+                if let Some(change) = writer_cache.get_change(&seq_num) {
+                    // Send Data submessage
+                    let endianness_flag = true.into();
+                    let inline_qos_flag = false.into();
+                    let data_flag = true.into();
+                    let key_flag = false.into();
+                    let non_standard_payload_flag = false.into();
+                    let reader_id = PSM::ENTITYID_UNKNOWN;
+                    let writer_id = PSM::ENTITYID_UNKNOWN;
+                    let writer_sn = change.sequence_number;
+                    let inline_qos = change.inline_qos.clone();
+                    let serialized_payload = &change.data_value;
+                    let data = Data::new(
+                        endianness_flag,
+                        inline_qos_flag,
+                        data_flag,
+                        key_flag,
+                        non_standard_payload_flag,
+                        reader_id,
+                        writer_id,
+                        writer_sn,
+                        inline_qos,
+                        serialized_payload,
+                    );
+                    send_data_to(self.locator(), data)
+                } else {
+                    // Send Gap submessage
+                    let endianness_flag = true.into();
+                    let reader_id = PSM::ENTITYID_UNKNOWN;
+                    let writer_id = PSM::ENTITYID_UNKNOWN;
+                    let gap_start = seq_num;
+                    let gap_list = core::iter::empty().collect();
+                    let gap = Gap::new(endianness_flag, reader_id, writer_id, gap_start, gap_list);
+                    send_gap_to(self.locator(), gap)
                 }
             }
-        } else {
-            unimplemented!()
         }
     }
 }
@@ -209,7 +198,10 @@ mod tests {
             submessage_elements::Parameter,
             submessages::{Data, Gap},
         },
-        structure::{types::GUID, RTPSCacheChange, RTPSEndpoint, RTPSEntity},
+        structure::{
+            types::{ReliabilityKind, GUID},
+            RTPSCacheChange, RTPSEndpoint, RTPSEntity, RTPSHistoryCache,
+        },
     };
     use std::vec::Vec;
     use structure::types::{ChangeKind, TopicKind};
@@ -242,7 +234,7 @@ mod tests {
 
         type EntityId = [u8; 4];
         const ENTITYID_UNKNOWN: Self::EntityId = [0; 4];
-        const ENTITYID_PARTICIPANT: Self::EntityId = [0,0,0,1];
+        const ENTITYID_PARTICIPANT: Self::EntityId = [0, 0, 0, 1];
 
         type SequenceNumber = i64;
         const SEQUENCE_NUMBER_UNKNOWN: Self::SequenceNumber = i64::MIN;
@@ -284,8 +276,6 @@ mod tests {
 
         type Parameter = MockParameter;
         type ParameterVector = Vec<Self::Parameter>;
-
-
     }
 
     impl messages::Types for MockPsm {
@@ -649,7 +639,7 @@ mod tests {
         });
 
         let req_seq_num_set = vec![1, 2, 3];
-        reader_locator.requested_changes_set(req_seq_num_set, &writer);
+        reader_locator.requested_changes_set(req_seq_num_set, writer.writer_cache());
 
         let expected_requested_changes = vec![1, 2, 3];
         assert_eq!(reader_locator.requested_changes, expected_requested_changes)
@@ -689,7 +679,7 @@ mod tests {
         });
 
         let req_seq_num_set = vec![1, 2, 3, 4, 5];
-        reader_locator.requested_changes_set(req_seq_num_set, &writer);
+        reader_locator.requested_changes_set(req_seq_num_set, writer.writer_cache());
 
         let expected_requested_changes = vec![1, 3, 5];
         assert_eq!(reader_locator.requested_changes, expected_requested_changes);
@@ -729,7 +719,7 @@ mod tests {
         });
 
         let req_seq_num_set = vec![1, 2, 3];
-        reader_locator.requested_changes_set(req_seq_num_set, &writer);
+        reader_locator.requested_changes_set(req_seq_num_set, writer.writer_cache());
 
         assert_eq!(reader_locator.next_requested_change(), Some(1));
         assert_eq!(reader_locator.next_requested_change(), Some(2));
@@ -771,7 +761,7 @@ mod tests {
             inline_qos: vec![],
         });
 
-        let unsent_changes = reader_locator.unsent_changes(&writer);
+        let unsent_changes = reader_locator.unsent_changes(writer.writer_cache());
         let expected_unsent_changes = vec![1, 2, 3];
         assert_eq!(unsent_changes, expected_unsent_changes);
     }
@@ -809,7 +799,7 @@ mod tests {
             inline_qos: vec![],
         });
 
-        let unsent_changes = reader_locator.unsent_changes(&writer);
+        let unsent_changes = reader_locator.unsent_changes(writer.writer_cache());
         let expected_unsent_changes = vec![1, 3, 5];
         assert_eq!(unsent_changes, expected_unsent_changes);
     }
@@ -847,10 +837,22 @@ mod tests {
             inline_qos: vec![],
         });
 
-        assert_eq!(reader_locator.next_unsent_change(&writer), Some(1));
-        assert_eq!(reader_locator.next_unsent_change(&writer), Some(3));
-        assert_eq!(reader_locator.next_unsent_change(&writer), Some(5));
-        assert_eq!(reader_locator.next_unsent_change(&writer), None);
+        assert_eq!(
+            reader_locator.next_unsent_change(writer.writer_cache()),
+            Some(1)
+        );
+        assert_eq!(
+            reader_locator.next_unsent_change(writer.writer_cache()),
+            Some(3)
+        );
+        assert_eq!(
+            reader_locator.next_unsent_change(writer.writer_cache()),
+            Some(5)
+        );
+        assert_eq!(
+            reader_locator.next_unsent_change(writer.writer_cache()),
+            None
+        );
     }
 
     // #[test]

@@ -18,7 +18,7 @@ pub struct RTPSWriterImpl<PSM: rust_rtps_pim::structure::Types> {
     pub reader_locators: Vec<RTPSReaderLocator<PSM>>,
     pub reader_proxies: Vec<RTPSReaderProxy<PSM>>,
     last_change_sequence_number: PSM::SequenceNumber,
-    writer_cache: RTPSHistoryCacheImpl<PSM>,
+    pub writer_cache: RTPSHistoryCacheImpl<PSM>,
 }
 
 impl<PSM: rust_rtps_pim::structure::Types> RTPSWriterImpl<PSM> {
@@ -146,7 +146,7 @@ impl<PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types> RTPS
         inline_qos: <PSM as rust_rtps_pim::structure::Types>::ParameterVector,
         handle: <PSM as rust_rtps_pim::structure::Types>::InstanceHandle,
     ) -> rust_rtps_pim::structure::RTPSCacheChange<PSM> {
-        self.last_change_sequence_number =  (self.last_change_sequence_number.into() + 1i64).into();
+        self.last_change_sequence_number = (self.last_change_sequence_number.into() + 1i64).into();
         RTPSCacheChange {
             kind,
             writer_guid: self.guid,
@@ -220,5 +220,38 @@ impl<PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types> RTPS
 
     fn is_acked_by_all(&self) -> bool {
         todo!()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use rust_rtps_udp_psm::submessages::{Data, Gap};
+    use rust_rtps_udp_psm::{types::EntityId, RtpsUdpPsm};
+
+    use super::*;
+
+    #[test]
+    fn send_data() {
+        let mut rtps_writer_impl: RTPSWriterImpl<RtpsUdpPsm> = RTPSWriterImpl::new(
+            DataWriterQos::default(),
+            GUID::new(
+                [1; 12],
+                EntityId {
+                    entity_key: [1; 3],
+                    entity_kind: 1,
+                },
+            ),
+        );
+
+        let cc = rtps_writer_impl.new_change(ChangeKind::Alive, vec![0, 1, 2, 3], vec![], 0);
+        rtps_writer_impl.writer_cache_mut().add_change(cc);
+        rtps_writer_impl.reader_locator_add(Locator::new(1,2,[0;16]));
+        for reader_locator in &mut rtps_writer_impl.reader_locators {
+            reader_locator.produce_messages::<Data, Gap, _, _>(
+                &rtps_writer_impl.writer_cache,
+                &mut |_, y| println!("{}", y),
+                &mut |_, _| (),
+            )
+        }
     }
 }
