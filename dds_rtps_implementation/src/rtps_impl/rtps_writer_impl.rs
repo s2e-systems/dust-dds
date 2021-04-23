@@ -1,18 +1,13 @@
 use rust_dds_api::infrastructure::qos::DataWriterQos;
-use rust_rtps_pim::{
-    behavior::{
-        stateless_writer::{RTPSReaderLocator, RTPSStatelessWriter},
-        RTPSWriter,
-    },
-    structure::{
+use rust_rtps_pim::{behavior::{RTPSWriter, stateful_writer::{RTPSReaderProxy, RTPSStatefulWriter}, stateless_writer::{RTPSReaderLocator, RTPSStatelessWriter}}, structure::{
         types::{ChangeKind, Locator, ReliabilityKind, TopicKind, GUID},
         RTPSEndpoint, RTPSEntity, RTPSHistoryCache,
-    },
-};
+    }};
 
 pub struct RTPSWriterImpl<PSM: rust_rtps_pim::structure::Types> {
     guid: GUID<PSM>,
     pub reader_locators: Vec<RTPSReaderLocator<PSM>>,
+    pub reader_proxies: Vec<RTPSReaderProxy<PSM>>,
 }
 
 impl<PSM: rust_rtps_pim::structure::Types> RTPSWriterImpl<PSM> {
@@ -62,6 +57,7 @@ impl<PSM: rust_rtps_pim::structure::Types> RTPSWriterImpl<PSM> {
         Self {
             guid,
             reader_locators: Vec::new(),
+            reader_proxies: Vec::new(),
         }
     }
 
@@ -87,9 +83,7 @@ impl<PSM: rust_rtps_pim::structure::Types> RTPSWriterImpl<PSM> {
     //     }
 }
 
-impl<PSM: rust_rtps_pim::structure::Types> RTPSEntity<PSM>
-    for RTPSWriterImpl<PSM>
-{
+impl<PSM: rust_rtps_pim::structure::Types> RTPSEntity<PSM> for RTPSWriterImpl<PSM> {
     fn guid(&self) -> GUID<PSM> {
         self.guid
     }
@@ -143,9 +137,7 @@ impl<PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types> RTPS
     }
 }
 
-impl<PSM: rust_rtps_pim::structure::Types> RTPSEndpoint<PSM>
-    for RTPSWriterImpl<PSM>
-{
+impl<PSM: rust_rtps_pim::structure::Types> RTPSEndpoint<PSM> for RTPSWriterImpl<PSM> {
     fn topic_kind(&self) -> TopicKind {
         todo!()
     }
@@ -163,9 +155,8 @@ impl<PSM: rust_rtps_pim::structure::Types> RTPSEndpoint<PSM>
     }
 }
 
-impl<
-        PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types
-    > RTPSStatelessWriter<PSM> for RTPSWriterImpl<PSM>
+impl<PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types> RTPSStatelessWriter<PSM>
+    for RTPSWriterImpl<PSM>
 {
     fn reader_locator_add(&mut self, a_locator: Locator<PSM>) {
         let expects_inline_qos = false;
@@ -181,5 +172,32 @@ impl<
         &mut self,
     ) -> &mut [rust_rtps_pim::behavior::stateless_writer::RTPSReaderLocator<PSM>] {
         &mut self.reader_locators
+    }
+}
+
+impl<PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types> RTPSStatefulWriter<PSM>
+    for RTPSWriterImpl<PSM>
+{
+    fn matched_readers(&self) -> &[rust_rtps_pim::behavior::stateful_writer::RTPSReaderProxy<PSM>] {
+        todo!()
+    }
+
+    fn matched_reader_add(&mut self, _guid: GUID<PSM>) {
+        todo!()
+    }
+
+    fn matched_reader_remove(&mut self, _reader_proxy_guid: &GUID<PSM>) {
+        todo!()
+    }
+
+    fn matched_reader_lookup(
+        &self,
+        _a_reader_guid: GUID<PSM>,
+    ) -> Option<&rust_rtps_pim::behavior::stateful_writer::RTPSReaderProxy<PSM>> {
+        todo!()
+    }
+
+    fn is_acked_by_all(&self) -> bool {
+        todo!()
     }
 }
