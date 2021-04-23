@@ -1,15 +1,16 @@
 use rust_dds_api::{
     dcps_psm::{DomainId, StatusMask},
-    domain::{
-        domain_participant::DomainParticipant,
-        domain_participant_listener::DomainParticipantListener,
-    },
+    domain::domain_participant_listener::DomainParticipantListener,
     infrastructure::qos::DomainParticipantQos,
 };
 use rust_dds_rtps_implementation::{
     dds_impl::domain_participant_impl::DomainParticipantImpl,
-    rtps_impl::rtps_participant_impl::RTPSParticipantImpl,
+    rtps_impl::{
+        rtps_participant_impl::RTPSParticipantImpl, rtps_writer_group_impl::RTPSWriterGroupImpl,
+    },
 };
+use rust_rtps_pim::structure::types::GUID;
+use rust_rtps_udp_psm::RtpsUdpPsm;
 
 /// The DomainParticipant object plays several roles:
 /// - It acts as a container for all other Entity objects.
@@ -46,7 +47,7 @@ impl DomainParticipantFactory {
         _qos: Option<DomainParticipantQos>,
         _a_listener: Option<Box<dyn DomainParticipantListener>>,
         _mask: StatusMask,
-    ) -> Option<DomainParticipantImpl> {
+    ) -> Option<DomainParticipantImpl<RtpsUdpPsm>> {
         // let interface = "Wi-Fi";
         // let unicast_locator = Locator::new(0, 7400, [1; 16]);
         // let multicast_locator = Locator::new(0, 7400, [2; 16]);
@@ -66,7 +67,11 @@ impl DomainParticipantFactory {
         //     },
         //     spdp_locator_list: vec![Locator::new_udpv4(7400, [239, 255, 0, 0])],
         // };
-        let guid_prefix = [1;12];
+        let guid_prefix = [1; 12];
+
+        let _builtin_writer_group: RTPSWriterGroupImpl<RtpsUdpPsm> =
+            RTPSWriterGroupImpl::new(GUID::new(guid_prefix, [0, 0, 0, 0xc8].into()));
+
         let rtps_participant_impl = RTPSParticipantImpl::new(guid_prefix);
         let participant = DomainParticipantImpl::new(rtps_participant_impl);
 

@@ -1,7 +1,6 @@
 use rust_dds::{
     domain::domain_participant::DomainParticipant,
-    domain_participant_factory::DomainParticipantFactory, infrastructure::entity::Entity,
-    publication::publisher::Publisher, subscription::subscriber::Subscriber, DDSError, DDSType,
+    domain_participant_factory::DomainParticipantFactory,
 };
 
 // struct TestType;

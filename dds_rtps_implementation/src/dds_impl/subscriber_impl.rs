@@ -16,25 +16,36 @@ use rust_dds_api::{
     },
 };
 
-use super::{data_reader_impl::DataReaderImpl, domain_participant_impl::DomainParticipantImpl, topic_impl::TopicImpl};
+use super::{
+    data_reader_impl::DataReaderImpl, domain_participant_impl::DomainParticipantImpl,
+    topic_impl::TopicImpl,
+};
 
-pub struct SubscriberImpl<'a> {
-    parent: &'a DomainParticipantImpl,
+pub struct SubscriberImpl<'a, PSM: rust_rtps_pim::structure::Types> {
+    parent: &'a DomainParticipantImpl<PSM>,
 }
 
-impl<'a, T: DDSType> TopicGAT<'a, T> for SubscriberImpl<'a> {
-    type TopicType = TopicImpl<'a, T>;
+impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types, T: DDSType>
+    TopicGAT<'a, T> for SubscriberImpl<'a, PSM>
+{
+    type TopicType = TopicImpl<'a, PSM, T>;
 }
 
-impl<'a, T: DDSType> DataReaderGAT<'a, T> for SubscriberImpl<'a> {
-    type DataReaderType = DataReaderImpl<'a, T>;
+impl<'a, PSM: rust_rtps_pim::structure::Types, T: DDSType> DataReaderGAT<'a, T>
+    for SubscriberImpl<'a, PSM>
+{
+    type DataReaderType = DataReaderImpl<'a, PSM, T>;
 }
 
-impl<'a> DomainParticipantChild<'a> for SubscriberImpl<'a> {
-    type DomainParticipantType = DomainParticipantImpl;
+impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types>
+    DomainParticipantChild<'a> for SubscriberImpl<'a, PSM>
+{
+    type DomainParticipantType = DomainParticipantImpl<PSM>;
 }
 
-impl<'a> rust_dds_api::subscription::subscriber::Subscriber<'a> for SubscriberImpl<'a> {
+impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types>
+    rust_dds_api::subscription::subscriber::Subscriber<'a> for SubscriberImpl<'a, PSM>
+{
     fn create_datareader<T: DDSType>(
         &'a self,
         _a_topic: &'a <Self as TopicGAT<'a, T>>::TopicType,
@@ -134,7 +145,7 @@ impl<'a> rust_dds_api::subscription::subscriber::Subscriber<'a> for SubscriberIm
     }
 }
 
-impl<'a> Entity for SubscriberImpl<'a> {
+impl<'a, PSM: rust_rtps_pim::structure::Types> Entity for SubscriberImpl<'a, PSM> {
     type Qos = SubscriberQos;
     type Listener = Box<dyn SubscriberListener + 'a>;
 

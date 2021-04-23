@@ -22,14 +22,13 @@ use rust_dds_api::{
 
 use super::subscriber_impl::SubscriberImpl;
 
-
-pub struct DataReaderImpl<'a, T: DDSType> {
-    parent: &'a SubscriberImpl<'a>,
+pub struct DataReaderImpl<'a, PSM: rust_rtps_pim::structure::Types, T: DDSType> {
+    parent: &'a SubscriberImpl<'a, PSM>,
     phantom: &'a T,
 }
 
-impl<'a, T: DDSType> rust_dds_api::subscription::data_reader::DataReader<'a, T>
-    for DataReaderImpl<'a, T>
+impl<'a, PSM: rust_rtps_pim::structure::Types, T: DDSType>
+    rust_dds_api::subscription::data_reader::DataReader<'a, T> for DataReaderImpl<'a, PSM, T>
 {
     fn read(
         &self,
@@ -273,7 +272,7 @@ impl<'a, T: DDSType> rust_dds_api::subscription::data_reader::DataReader<'a, T>
     }
 }
 
-impl<'a, T: DDSType> Entity for DataReaderImpl<'a, T> {
+impl<'a, PSM: rust_rtps_pim::structure::Types, T: DDSType> Entity for DataReaderImpl<'a, PSM, T> {
     type Qos = DataReaderQos;
 
     type Listener = Box<dyn DataReaderListener<DataType = T> + 'a>;
@@ -315,4 +314,7 @@ impl<'a, T: DDSType> Entity for DataReaderImpl<'a, T> {
     }
 }
 
-impl<'a, T: DDSType> AnyDataReader for DataReaderImpl<'a, T> {}
+impl<'a, PSM: rust_rtps_pim::structure::Types, T: DDSType> AnyDataReader
+    for DataReaderImpl<'a, PSM, T>
+{
+}

@@ -9,5 +9,7 @@ edition = "2018"
 
 [dependencies]
 rust-dds-api = {path="../dds_api"}
-rust-rtps-udp-psm = {path="../rtps_udp_psm"}
 rust-rtps-pim = {path="../rtps_pim"}
+
+[dev-dependencies]
+rust-rtps-udp-psm = {path="../rtps_udp_psm"}

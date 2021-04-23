@@ -12,17 +12,10 @@ use rust_dds_api::{
     },
     return_type::{DDSError, DDSResult},
 };
-use rust_rtps_pim::{
-    behavior::stateless_writer::RTPSStatelessWriter,
-    structure::{
-        types::{Locator, GUID},
-        RTPSEntity,
-    },
-};
-use rust_rtps_udp_psm::RtpsUdpPsm;
+use rust_rtps_pim::structure::{types::GUID, RTPSEntity};
 
 use crate::rtps_impl::{
-    rtps_writer_impl::RTPSWriterImpl, rtps_writer_group_impl::RTPSWriterGroupImpl,
+    rtps_writer_group_impl::RTPSWriterGroupImpl, rtps_writer_impl::RTPSWriterImpl,
 };
 
 use super::{
@@ -35,17 +28,17 @@ const ENTITYKIND_USER_DEFINED_WRITER_NO_KEY: u8 = 0x03;
 const ENTITYKIND_BUILTIN_WRITER_WITH_KEY: u8 = 0xc2;
 const ENTITYKIND_BUILTIN_WRITER_NO_KEY: u8 = 0xc3;
 
-pub struct PublisherImpl<'a> {
-    parent: &'a DomainParticipantImpl,
-    impl_ref: Weak<Mutex<RTPSWriterGroupImpl<RtpsUdpPsm>>>,
+pub struct PublisherImpl<'a, PSM: rust_rtps_pim::structure::Types> {
+    parent: &'a DomainParticipantImpl<PSM>,
+    impl_ref: Weak<Mutex<RTPSWriterGroupImpl<PSM>>>,
     default_datawriter_qos: Mutex<DataWriterQos>,
     datawriter_counter: Mutex<u8>,
 }
 
-impl<'a> PublisherImpl<'a> {
+impl<'a, PSM: rust_rtps_pim::structure::Types> PublisherImpl<'a, PSM> {
     pub fn new(
-        parent: &'a DomainParticipantImpl,
-        impl_ref: Weak<Mutex<RTPSWriterGroupImpl<RtpsUdpPsm>>>,
+        parent: &'a DomainParticipantImpl<PSM>,
+        impl_ref: Weak<Mutex<RTPSWriterGroupImpl<PSM>>>,
     ) -> Self {
         Self {
             parent,
@@ -56,25 +49,28 @@ impl<'a> PublisherImpl<'a> {
     }
 }
 
-impl<'a, T: DDSType> rust_dds_api::domain::domain_participant::TopicGAT<'a, T>
-    for PublisherImpl<'a>
+impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types, T: DDSType>
+    rust_dds_api::domain::domain_participant::TopicGAT<'a, T> for PublisherImpl<'a, PSM>
 {
-    type TopicType = TopicImpl<'a, T>;
+    type TopicType = TopicImpl<'a, PSM, T>;
 }
 
-impl<'a, T: DDSType> rust_dds_api::publication::publisher::DataWriterGAT<'a, T>
-    for PublisherImpl<'a>
+impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types, T: DDSType>
+    rust_dds_api::publication::publisher::DataWriterGAT<'a, T> for PublisherImpl<'a, PSM>
 {
-    type DataWriterType = DataWriterImpl<'a, T>;
+    type DataWriterType = DataWriterImpl<'a, PSM, T>;
 }
 
-impl<'a> rust_dds_api::domain::domain_participant::DomainParticipantChild<'a>
-    for PublisherImpl<'a>
+impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types>
+    rust_dds_api::domain::domain_participant::DomainParticipantChild<'a>
+    for PublisherImpl<'a, PSM>
 {
-    type DomainParticipantType = DomainParticipantImpl;
+    type DomainParticipantType = DomainParticipantImpl<PSM>;
 }
 
-impl<'a> rust_dds_api::publication::publisher::Publisher<'a> for PublisherImpl<'a> {
+impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types>
+    rust_dds_api::publication::publisher::Publisher<'a> for PublisherImpl<'a, PSM>
+{
     fn create_datawriter<T: DDSType>(
         &'a self,
         _a_topic: &'a <Self as rust_dds_api::domain::domain_participant::TopicGAT<'a, T>>::TopicType,
@@ -102,12 +98,7 @@ impl<'a> rust_dds_api::publication::publisher::Publisher<'a> for PublisherImpl<'
 
         let datawriter_qos = qos.unwrap_or_default();
 
-        let mut writer = RTPSWriterImpl::new(datawriter_qos, guid);
-        writer.reader_locator_add(Locator::new(
-            <RtpsUdpPsm as rust_rtps_pim::structure::Types>::LOCATOR_KIND_UDPv4,
-            7400,
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 127, 0, 0, 1],
-        ));
+        let writer = RTPSWriterImpl::new(datawriter_qos, guid);
         let rtps_writer = Arc::new(Mutex::new(writer));
         rtps_writer_group_lock.writer_list.push(rtps_writer.clone());
 
@@ -133,9 +124,7 @@ impl<'a> rust_dds_api::publication::publisher::Publisher<'a> for PublisherImpl<'
                 .map(|x| x.lock().unwrap())
                 .position(|x| x.guid() == rtps_writer_guid)
             {
-                rtps_group_lock
-                    .writer_list
-                    .remove(stateless_writer_index);
+                rtps_group_lock.writer_list.remove(stateless_writer_index);
             }
             Ok(())
         } else {
@@ -201,7 +190,9 @@ impl<'a> rust_dds_api::publication::publisher::Publisher<'a> for PublisherImpl<'
     }
 }
 
-impl<'a> rust_dds_api::infrastructure::entity::Entity for PublisherImpl<'a> {
+impl<'a, PSM: rust_rtps_pim::structure::Types> rust_dds_api::infrastructure::entity::Entity
+    for PublisherImpl<'a, PSM>
+{
     type Qos = PublisherQos;
     type Listener = Box<dyn PublisherListener + 'a>;
 
@@ -266,6 +257,7 @@ mod tests {
     };
 
     use crate::rtps_impl::rtps_participant_impl::RTPSParticipantImpl;
+    use rust_rtps_udp_psm::RtpsUdpPsm;
 
     use super::*;
 
@@ -295,7 +287,8 @@ mod tests {
 
     #[test]
     fn create_datawriter() {
-        let domain_participant = DomainParticipantImpl::new(RTPSParticipantImpl::new([1; 12]));
+        let domain_participant: DomainParticipantImpl<RtpsUdpPsm> =
+            DomainParticipantImpl::new(RTPSParticipantImpl::new([1; 12]));
         let publisher = domain_participant.create_publisher(None, None, 0).unwrap();
         let a_topic = domain_participant
             .create_topic::<MockData>("Test", None, None, 0)
@@ -308,7 +301,8 @@ mod tests {
 
     #[test]
     fn create_delete_datawriter() {
-        let domain_participant = DomainParticipantImpl::new(RTPSParticipantImpl::new([1; 12]));
+        let domain_participant: DomainParticipantImpl<RtpsUdpPsm> =
+            DomainParticipantImpl::new(RTPSParticipantImpl::new([1; 12]));
         let publisher = domain_participant.create_publisher(None, None, 0).unwrap();
         let a_topic = domain_participant
             .create_topic::<MockData>("Test", None, None, 0)
@@ -324,7 +318,8 @@ mod tests {
 
     #[test]
     fn set_default_datawriter_qos_some_value() {
-        let domain_participant = DomainParticipantImpl::new(RTPSParticipantImpl::new([1; 12]));
+        let domain_participant: DomainParticipantImpl<RtpsUdpPsm> =
+            DomainParticipantImpl::new(RTPSParticipantImpl::new([1; 12]));
         let publisher = domain_participant.create_publisher(None, None, 0).unwrap();
         let mut qos = DataWriterQos::default();
         qos.user_data.value = vec![1, 2, 3, 4];
@@ -336,7 +331,8 @@ mod tests {
 
     #[test]
     fn set_default_datawriter_qos_inconsistent() {
-        let domain_participant = DomainParticipantImpl::new(RTPSParticipantImpl::new([1; 12]));
+        let domain_participant: DomainParticipantImpl<RtpsUdpPsm> =
+            DomainParticipantImpl::new(RTPSParticipantImpl::new([1; 12]));
         let publisher = domain_participant.create_publisher(None, None, 0).unwrap();
         let mut qos = DataWriterQos::default();
         qos.resource_limits.max_samples_per_instance = 2;
@@ -347,7 +343,8 @@ mod tests {
 
     #[test]
     fn set_default_datawriter_qos_none() {
-        let domain_participant = DomainParticipantImpl::new(RTPSParticipantImpl::new([1; 12]));
+        let domain_participant: DomainParticipantImpl<RtpsUdpPsm> =
+            DomainParticipantImpl::new(RTPSParticipantImpl::new([1; 12]));
         let publisher = domain_participant.create_publisher(None, None, 0).unwrap();
         let mut qos = DataWriterQos::default();
         qos.user_data.value = vec![1, 2, 3, 4];
@@ -361,7 +358,8 @@ mod tests {
 
     #[test]
     fn get_default_datawriter_qos() {
-        let domain_participant = DomainParticipantImpl::new(RTPSParticipantImpl::new([1; 12]));
+        let domain_participant: DomainParticipantImpl<RtpsUdpPsm> =
+            DomainParticipantImpl::new(RTPSParticipantImpl::new([1; 12]));
         let publisher = domain_participant.create_publisher(None, None, 0).unwrap();
         let mut qos = DataWriterQos::default();
         qos.user_data.value = vec![1, 2, 3, 4];

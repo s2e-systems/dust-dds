@@ -2,9 +2,7 @@ use std::sync::{Arc, Mutex};
 
 use rust_rtps_pim::structure::types::GUID;
 
-use super::{
-    rtps_writer_impl::RTPSWriterImpl,
-};
+use super::rtps_writer_impl::RTPSWriterImpl;
 
 pub struct RTPSWriterGroupImpl<PSM: rust_rtps_pim::structure::Types> {
     pub writer_list: Vec<Arc<Mutex<RTPSWriterImpl<PSM>>>>,
