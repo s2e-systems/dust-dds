@@ -13,7 +13,7 @@ use rust_dds_api::{
     return_type::{DDSError, DDSResult},
 };
 use rust_rtps_pim::{
-    behavior::{RTPSWriter, stateless_writer::RTPSStatelessWriter},
+    behavior::stateless_writer::RTPSStatelessWriter,
     structure::{
         types::{Locator, GUID},
         RTPSEntity,
@@ -22,9 +22,7 @@ use rust_rtps_pim::{
 use rust_rtps_udp_psm::RtpsUdpPsm;
 
 use crate::rtps_impl::{
-    rtps_stateful_writer_impl::RTPSStatefulWriterImpl,
-    rtps_stateless_writer_impl::RTPSStatelessWriterImpl,
-    rtps_writer_group_impl::RTPSWriterGroupImpl,
+    rtps_writer_impl::RTPSWriterImpl, rtps_writer_group_impl::RTPSWriterGroupImpl,
 };
 
 use super::{
@@ -90,8 +88,6 @@ impl<'a> rust_dds_api::publication::publisher::Publisher<'a> for PublisherImpl<'
         let mut datawriter_counter_lock = self.datawriter_counter.lock().unwrap();
         *datawriter_counter_lock += 1;
 
-        let use_stateless_writer = true;
-
         let prefix = rtps_writer_group_lock.guid().prefix().clone();
         let parent_entityid: [u8; 4] = rtps_writer_group_lock.guid().entity_id().clone().into();
 
@@ -105,28 +101,17 @@ impl<'a> rust_dds_api::publication::publisher::Publisher<'a> for PublisherImpl<'
         let guid = GUID::new(prefix, entity_id);
 
         let datawriter_qos = qos.unwrap_or_default();
-        let rtps_writer_dyn: Arc<Mutex<dyn RTPSWriter<RtpsUdpPsm>>> =
-            if use_stateless_writer {
-                let mut stateless_writer = RTPSStatelessWriterImpl::new(datawriter_qos, guid);
-                stateless_writer.reader_locator_add(Locator::new(
-                    <RtpsUdpPsm as rust_rtps_pim::structure::Types>::LOCATOR_KIND_UDPv4,
-                    7400,
-                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 127, 0, 0, 1],
-                ));
-                let rtps_writer = Arc::new(Mutex::new(stateless_writer));
-                rtps_writer_group_lock
-                    .stateless_writer_list
-                    .push(rtps_writer.clone());
-                rtps_writer
-            } else {
-                let rtps_writer = Arc::new(Mutex::new(RTPSStatefulWriterImpl {}));
-                rtps_writer_group_lock
-                    .stateful_writer_list
-                    .push(rtps_writer.clone());
-                rtps_writer
-            };
 
-        let data_writer = DataWriterImpl::new(self, Arc::downgrade(&rtps_writer_dyn));
+        let mut writer = RTPSWriterImpl::new(datawriter_qos, guid);
+        writer.reader_locator_add(Locator::new(
+            <RtpsUdpPsm as rust_rtps_pim::structure::Types>::LOCATOR_KIND_UDPv4,
+            7400,
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 127, 0, 0, 1],
+        ));
+        let rtps_writer = Arc::new(Mutex::new(writer));
+        rtps_writer_group_lock.writer_list.push(rtps_writer.clone());
+
+        let data_writer = DataWriterImpl::new(self, Arc::downgrade(&rtps_writer));
         Some(data_writer)
     }
 
@@ -143,13 +128,13 @@ impl<'a> rust_dds_api::publication::publisher::Publisher<'a> for PublisherImpl<'
             let mut rtps_group_lock = rtps_group.lock().unwrap();
             let rtps_writer_guid = rtps_writer.lock().unwrap().guid();
             if let Some(stateless_writer_index) = rtps_group_lock
-                .stateless_writer_list
+                .writer_list
                 .iter()
                 .map(|x| x.lock().unwrap())
                 .position(|x| x.guid() == rtps_writer_guid)
             {
                 rtps_group_lock
-                    .stateless_writer_list
+                    .writer_list
                     .remove(stateless_writer_index);
             }
             Ok(())

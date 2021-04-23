@@ -17,18 +17,20 @@ use rust_dds_api::{
 use rust_rtps_pim::behavior::RTPSWriter;
 use rust_rtps_udp_psm::RtpsUdpPsm;
 
+use crate::rtps_impl::rtps_writer_impl::RTPSWriterImpl;
+
 use super::{publisher_impl::PublisherImpl, topic_impl::TopicImpl};
 
 pub struct DataWriterImpl<'a, T: DDSType> {
     pub(crate) parent: &'a PublisherImpl<'a>,
-    pub(crate) rtps_writer: Weak<Mutex<dyn RTPSWriter<RtpsUdpPsm> + 'a>>,
+    pub(crate) rtps_writer: Weak<Mutex<RTPSWriterImpl<RtpsUdpPsm>>>,
     phantom: PhantomData<&'a T>,
 }
 
 impl<'a, T: DDSType> DataWriterImpl<'a, T> {
     pub fn new(
         parent: &'a PublisherImpl<'a>,
-        rtps_writer: Weak<Mutex<dyn RTPSWriter<RtpsUdpPsm> + 'a>>,
+        rtps_writer: Weak<Mutex<RTPSWriterImpl<RtpsUdpPsm>>>,
     ) -> Self {
         Self {
             parent,

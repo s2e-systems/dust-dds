@@ -10,12 +10,12 @@ use rust_rtps_pim::{
     },
 };
 
-pub struct RTPSStatelessWriterImpl<PSM: rust_rtps_pim::structure::Types> {
+pub struct RTPSWriterImpl<PSM: rust_rtps_pim::structure::Types> {
     guid: GUID<PSM>,
     pub reader_locators: Vec<RTPSReaderLocator<PSM>>,
 }
 
-impl<PSM: rust_rtps_pim::structure::Types> RTPSStatelessWriterImpl<PSM> {
+impl<PSM: rust_rtps_pim::structure::Types> RTPSWriterImpl<PSM> {
     pub fn new(_qos: DataWriterQos, guid: GUID<PSM>) -> Self {
         // let guid = GUID::new(
         //     [1; 12],
@@ -88,7 +88,7 @@ impl<PSM: rust_rtps_pim::structure::Types> RTPSStatelessWriterImpl<PSM> {
 }
 
 impl<PSM: rust_rtps_pim::structure::Types> RTPSEntity<PSM>
-    for RTPSStatelessWriterImpl<PSM>
+    for RTPSWriterImpl<PSM>
 {
     fn guid(&self) -> GUID<PSM> {
         self.guid
@@ -96,7 +96,7 @@ impl<PSM: rust_rtps_pim::structure::Types> RTPSEntity<PSM>
 }
 
 impl<PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types> RTPSWriter<PSM>
-    for RTPSStatelessWriterImpl<PSM>
+    for RTPSWriterImpl<PSM>
 {
     fn push_mode(&self) -> bool {
         todo!()
@@ -144,7 +144,7 @@ impl<PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types> RTPS
 }
 
 impl<PSM: rust_rtps_pim::structure::Types> RTPSEndpoint<PSM>
-    for RTPSStatelessWriterImpl<PSM>
+    for RTPSWriterImpl<PSM>
 {
     fn topic_kind(&self) -> TopicKind {
         todo!()
@@ -165,7 +165,7 @@ impl<PSM: rust_rtps_pim::structure::Types> RTPSEndpoint<PSM>
 
 impl<
         PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types
-    > RTPSStatelessWriter<PSM> for RTPSStatelessWriterImpl<PSM>
+    > RTPSStatelessWriter<PSM> for RTPSWriterImpl<PSM>
 {
     fn reader_locator_add(&mut self, a_locator: Locator<PSM>) {
         let expects_inline_qos = false;
