@@ -1,14 +1,16 @@
-use core::ops::{Deref, DerefMut};
+use crate::{
+    behavior::{self, RTPSWriter},
+    structure::{self, types::GUID},
+};
 
-use crate::behavior::RTPSWriter;
+pub struct RTPSReaderProxy {
 
-use super::RTPSReaderProxy;
+}
 
-pub trait RTPSStatefulWriter<T: RTPSWriter>: Deref<Target = T> + DerefMut {
-    type ReaderProxyType: RTPSReaderProxy<Writer = T>;
-    fn matched_readers(&self) -> &[Self::ReaderProxyType];
-    fn matched_reader_add(&mut self, guid: T::GUID);
-    fn matched_reader_remove(&mut self, reader_proxy_guid: &T::GUID);
-    fn matched_reader_lookup(&self, a_reader_guid: T::GUID) -> Option<&Self::ReaderProxyType>;
+pub trait RTPSStatefulWriter<PSM: structure::Types + behavior::Types>: RTPSWriter<PSM> {
+    fn matched_readers(&self) -> &[RTPSReaderProxy];
+    fn matched_reader_add(&mut self, guid: GUID<PSM>);
+    fn matched_reader_remove(&mut self, reader_proxy_guid: &GUID<PSM>);
+    fn matched_reader_lookup(&self, a_reader_guid: GUID<PSM>) -> Option<&RTPSReaderProxy>;
     fn is_acked_by_all(&self) -> bool;
 }
