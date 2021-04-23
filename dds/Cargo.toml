@@ -8,6 +8,7 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-rust-dds-api = {path = "../dds_api"}
-rust-dds-rtps-implementation = {path = "../dds_rtps_implementation"}
-rust-rtps = {path = "../rtps"}
+rust-dds-api = {path="../dds_api"}
+rust-dds-rtps-implementation = {path="../dds_rtps_implementation"}
+rust-rtps-pim = {path="../rtps_pim"}
+rust-rtps-udp-psm = {path="../rtps_udp_psm"}

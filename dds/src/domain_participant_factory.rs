@@ -1,13 +1,15 @@
 use rust_dds_api::{
     dcps_psm::{DomainId, StatusMask},
-    domain::domain_participant_listener::DomainParticipantListener,
+    domain::{
+        domain_participant::DomainParticipant,
+        domain_participant_listener::DomainParticipantListener,
+    },
     infrastructure::qos::DomainParticipantQos,
 };
-use rust_dds_rtps_implementation::{domain_participant::DomainParticipant, DomainParticipantImpl};
 use rust_dds_rtps_implementation::{
-    transport::memory::MemoryTransport, DomainParticipantImplConfiguration,
+    dds_impl::domain_participant_impl::DomainParticipantImpl,
+    rtps_impl::rtps_participant_impl::RTPSParticipantImpl,
 };
-use rust_rtps::{behavior::types::Duration, types::Locator};
 
 /// The DomainParticipant object plays several roles:
 /// - It acts as a container for all other Entity objects.
@@ -40,37 +42,41 @@ impl DomainParticipantFactory {
     /// QoS to create the DomainParticipant.
     /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
     pub fn create_participant(
-        domain_id: DomainId,
-        qos: Option<DomainParticipantQos>,
-        a_listener: Option<Box<dyn DomainParticipantListener>>,
-        mask: StatusMask,
-    ) -> Option<DomainParticipant> {
+        _domain_id: DomainId,
+        _qos: Option<DomainParticipantQos>,
+        _a_listener: Option<Box<dyn DomainParticipantListener>>,
+        _mask: StatusMask,
+    ) -> Option<DomainParticipantImpl> {
         // let interface = "Wi-Fi";
-        let unicast_locator = Locator::new(0, 7400, [1; 16]);
-        let multicast_locator = Locator::new(0, 7400, [2; 16]);
-        let userdata_transport =
-            Box::new(MemoryTransport::new(unicast_locator, vec![multicast_locator]).unwrap());
-        let metatraffic_transport =
-            Box::new(MemoryTransport::new(unicast_locator, vec![multicast_locator]).unwrap());
-        let qos = qos.unwrap_or_default();
+        // let unicast_locator = Locator::new(0, 7400, [1; 16]);
+        // let multicast_locator = Locator::new(0, 7400, [2; 16]);
+        // let userdata_transport =
+        //     Box::new(MemoryTransport::new(unicast_locator, vec![multicast_locator]).unwrap());
+        // let metatraffic_transport =
+        //     Box::new(MemoryTransport::new(unicast_locator, vec![multicast_locator]).unwrap());
+        // let qos = qos.unwrap_or_default();
 
-        let configuration = DomainParticipantImplConfiguration {
-            userdata_transport,
-            metatraffic_transport,
-            domain_tag: "",
-            lease_duration: Duration {
-                seconds: 30,
-                fraction: 0,
-            },
-            spdp_locator_list: vec![Locator::new_udpv4(7400, [239, 255, 0, 0])],
-        };
-        let domain_participant_impl =
-            DomainParticipantImpl::new(domain_id, qos.clone(), a_listener, mask, configuration);
-        let participant = DomainParticipant::new(domain_participant_impl);
+        // let configuration = DomainParticipantImplConfiguration {
+        //     userdata_transport,
+        //     metatraffic_transport,
+        //     domain_tag: "",
+        //     lease_duration: Duration {
+        //         seconds: 30,
+        //         fraction: 0,
+        //     },
+        //     spdp_locator_list: vec![Locator::new_udpv4(7400, [239, 255, 0, 0])],
+        // };
+        let guid_prefix = [1;12];
+        let rtps_participant_impl = RTPSParticipantImpl::new(guid_prefix);
+        let participant = DomainParticipantImpl::new(rtps_participant_impl);
 
-        // if enabled {
-        //     new_participant.enable().ok()?;
-        // }
+        // let domain_participant_impl =
+        //     DomainParticipantImpl::new(domain_id, qos.clone(), a_listener, mask, configuration);
+        // let participant = DomainParticipant::new(domain_participant_impl);
+
+        // // if enabled {
+        // //     new_participant.enable().ok()?;
+        // // }
 
         Some(participant)
     }
