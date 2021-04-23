@@ -1,13 +1,24 @@
 use rust_dds_api::infrastructure::qos::DataWriterQos;
-use rust_rtps_pim::{behavior::{RTPSWriter, stateful_writer::{RTPSReaderProxy, RTPSStatefulWriter}, stateless_writer::{RTPSReaderLocator, RTPSStatelessWriter}}, structure::{
+use rust_rtps_pim::{
+    behavior::{
+        stateful_writer::{RTPSReaderProxy, RTPSStatefulWriter},
+        stateless_writer::{RTPSReaderLocator, RTPSStatelessWriter},
+        RTPSWriter,
+    },
+    structure::{
         types::{ChangeKind, Locator, ReliabilityKind, TopicKind, GUID},
-        RTPSEndpoint, RTPSEntity, RTPSHistoryCache,
-    }};
+        RTPSCacheChange, RTPSEndpoint, RTPSEntity, RTPSHistoryCache,
+    },
+};
+
+use super::rtps_history_cache_impl::RTPSHistoryCacheImpl;
 
 pub struct RTPSWriterImpl<PSM: rust_rtps_pim::structure::Types> {
     guid: GUID<PSM>,
     pub reader_locators: Vec<RTPSReaderLocator<PSM>>,
     pub reader_proxies: Vec<RTPSReaderProxy<PSM>>,
+    last_change_sequence_number: PSM::SequenceNumber,
+    writer_cache: RTPSHistoryCacheImpl<PSM>,
 }
 
 impl<PSM: rust_rtps_pim::structure::Types> RTPSWriterImpl<PSM> {
@@ -58,6 +69,8 @@ impl<PSM: rust_rtps_pim::structure::Types> RTPSWriterImpl<PSM> {
             guid,
             reader_locators: Vec::new(),
             reader_proxies: Vec::new(),
+            last_change_sequence_number: 0.into(),
+            writer_cache: RTPSHistoryCacheImpl::new(),
         }
     }
 
@@ -119,21 +132,29 @@ impl<PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types> RTPS
     }
 
     fn writer_cache(&self) -> &dyn RTPSHistoryCache<PSM> {
-        todo!()
+        &self.writer_cache
     }
 
     fn writer_cache_mut(&mut self) -> &mut dyn RTPSHistoryCache<PSM> {
-        todo!()
+        &mut self.writer_cache
     }
 
     fn new_change(
         &mut self,
-        _kind: ChangeKind,
-        _data: <PSM as rust_rtps_pim::structure::Types>::Data,
-        _inline_qos: <PSM as rust_rtps_pim::structure::Types>::ParameterVector,
-        _handle: <PSM as rust_rtps_pim::structure::Types>::InstanceHandle,
+        kind: ChangeKind,
+        data: <PSM as rust_rtps_pim::structure::Types>::Data,
+        inline_qos: <PSM as rust_rtps_pim::structure::Types>::ParameterVector,
+        handle: <PSM as rust_rtps_pim::structure::Types>::InstanceHandle,
     ) -> rust_rtps_pim::structure::RTPSCacheChange<PSM> {
-        todo!()
+        self.last_change_sequence_number =  (self.last_change_sequence_number.into() + 1i64).into();
+        RTPSCacheChange {
+            kind,
+            writer_guid: self.guid,
+            instance_handle: handle,
+            sequence_number: self.last_change_sequence_number,
+            data_value: data,
+            inline_qos,
+        }
     }
 }
 

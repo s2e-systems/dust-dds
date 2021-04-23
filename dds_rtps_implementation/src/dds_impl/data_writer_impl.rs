@@ -14,7 +14,7 @@ use rust_dds_api::{
     publication::data_writer_listener::DataWriterListener,
     return_type::{DDSError, DDSResult},
 };
-use rust_rtps_pim::behavior::RTPSWriter;
+use rust_rtps_pim::{behavior::RTPSWriter, structure::types::ChangeKind};
 use rust_rtps_udp_psm::RtpsUdpPsm;
 
 use crate::rtps_impl::rtps_writer_impl::RTPSWriterImpl;
@@ -103,13 +103,11 @@ impl<'a, T: DDSType> rust_dds_api::publication::data_writer::DataWriter<'a, T>
         _handle: Option<InstanceHandle>,
         _timestamp: Time,
     ) -> DDSResult<()> {
-        todo!()
-        // self.impl_ref
-        //     .upgrade()
-        //     .ok_or(DDSError::AlreadyDeleted)?
-        //     .lock()
-        //     .unwrap()
-        //     .write_w_timestamp()
+        let writer = self.rtps_writer.upgrade().ok_or(DDSError::AlreadyDeleted)?;
+        let mut writer_guard = writer.lock().unwrap();
+        let cc = writer_guard.new_change(ChangeKind::Alive, vec![0, 1, 2, 3], vec![], 0);
+        writer_guard.writer_cache_mut().add_change(cc);
+        Ok(())
     }
 
     fn dispose(&self, _data: T, _handle: Option<InstanceHandle>) -> DDSResult<()> {
@@ -235,4 +233,53 @@ impl<'a, T: DDSType> rust_dds_api::infrastructure::entity::Entity for DataWriter
 impl<'a, T: DDSType> rust_dds_api::publication::data_writer::AnyDataWriter
     for DataWriterImpl<'a, T>
 {
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        dds_impl::domain_participant_impl::DomainParticipantImpl,
+        rtps_impl::rtps_participant_impl::RTPSParticipantImpl,
+    };
+    use rust_dds_api::{domain::domain_participant::DomainParticipant, publication::{data_writer::DataWriter, publisher::Publisher}};
+
+    struct MockData;
+
+    impl DDSType for MockData {
+        fn type_name() -> &'static str {
+            todo!()
+        }
+
+        fn has_key() -> bool {
+            todo!()
+        }
+
+        fn key(&self) -> Vec<u8> {
+            todo!()
+        }
+
+        fn serialize(&self) -> Vec<u8> {
+            todo!()
+        }
+
+        fn deserialize(_data: Vec<u8>) -> Self {
+            todo!()
+        }
+    }
+
+    #[test]
+    fn write_w_timestamp() {
+        let domain_participant = DomainParticipantImpl::new(RTPSParticipantImpl::new([1; 12]));
+        let publisher = domain_participant.create_publisher(None, None, 0).unwrap();
+        let a_topic = domain_participant
+            .create_topic::<MockData>("Test", None, None, 0)
+            .unwrap();
+
+        let data_writer = publisher.create_datawriter(&a_topic, None, None, 0).unwrap();
+
+        data_writer.write_w_timestamp(MockData, None, Time{ sec: 0, nanosec: 0}).unwrap();
+
+        assert!(data_writer.rtps_writer.upgrade().unwrap().lock().unwrap().writer_cache().get_change(&(1i64.into())).is_some());
+    }
 }
