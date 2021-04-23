@@ -8,16 +8,23 @@ pub struct RTPSParticipantImpl<PSM: rust_rtps_pim::structure::Types> {
     unicast_locator_list: Vec<rust_rtps_pim::structure::types::Locator<PSM>>,
     multicast_locator_list: Vec<rust_rtps_pim::structure::types::Locator<PSM>>,
     pub rtps_writer_groups: Vec<Arc<Mutex<RTPSWriterGroupImpl<PSM>>>>,
+    pub builtin_writer_group: Arc<Mutex<RTPSWriterGroupImpl<PSM>>>,
     guid: GUID<PSM>,
 }
 
 impl<PSM: rust_rtps_pim::structure::Types> RTPSParticipantImpl<PSM> {
     pub fn new(prefix: PSM::GuidPrefix) -> Self {
         let guid = GUID::new(prefix, PSM::ENTITYID_PARTICIPANT);
+        let builtin_writer_group = Arc::new(Mutex::new(RTPSWriterGroupImpl::new(GUID::new(
+            prefix,
+            [0, 0, 0, 0xc8].into(),
+        ))));
+
         Self {
             unicast_locator_list: Vec::new(),
             multicast_locator_list: Vec::new(),
             rtps_writer_groups: Vec::new(),
+            builtin_writer_group,
             guid,
         }
     }
@@ -171,7 +178,10 @@ mod tests {
         let guid = rtps_participant.guid();
 
         assert_eq!(guid.prefix(), &prefix);
-        assert_eq!(guid.entity_id(), &<MockPsm as rust_rtps_pim::structure::Types>::ENTITYID_PARTICIPANT);
+        assert_eq!(
+            guid.entity_id(),
+            &<MockPsm as rust_rtps_pim::structure::Types>::ENTITYID_PARTICIPANT
+        );
     }
 
     // #[test]

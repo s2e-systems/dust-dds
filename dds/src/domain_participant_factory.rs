@@ -5,11 +5,9 @@ use rust_dds_api::{
 };
 use rust_dds_rtps_implementation::{
     dds_impl::domain_participant_impl::DomainParticipantImpl,
-    rtps_impl::{
-        rtps_participant_impl::RTPSParticipantImpl, rtps_writer_group_impl::RTPSWriterGroupImpl,
-    },
+    rtps_impl::rtps_participant_impl::RTPSParticipantImpl,
 };
-use rust_rtps_pim::structure::types::GUID;
+
 use rust_rtps_udp_psm::RtpsUdpPsm;
 
 /// The DomainParticipant object plays several roles:
@@ -47,7 +45,11 @@ impl DomainParticipantFactory {
         _qos: Option<DomainParticipantQos>,
         _a_listener: Option<Box<dyn DomainParticipantListener>>,
         _mask: StatusMask,
-    ) -> Option<DomainParticipantImpl<RtpsUdpPsm>> {
+    ) -> Option<
+        DomainParticipantImpl<
+            impl rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types,
+        >,
+    > {
         // let interface = "Wi-Fi";
         // let unicast_locator = Locator::new(0, 7400, [1; 16]);
         // let multicast_locator = Locator::new(0, 7400, [2; 16]);
@@ -69,11 +71,9 @@ impl DomainParticipantFactory {
         // };
         let guid_prefix = [1; 12];
 
-        let _builtin_writer_group: RTPSWriterGroupImpl<RtpsUdpPsm> =
-            RTPSWriterGroupImpl::new(GUID::new(guid_prefix, [0, 0, 0, 0xc8].into()));
-
         let rtps_participant_impl = RTPSParticipantImpl::new(guid_prefix);
-        let participant = DomainParticipantImpl::new(rtps_participant_impl);
+        let participant: DomainParticipantImpl<RtpsUdpPsm> =
+            DomainParticipantImpl::new(rtps_participant_impl);
 
         // let domain_participant_impl =
         //     DomainParticipantImpl::new(domain_id, qos.clone(), a_listener, mask, configuration);

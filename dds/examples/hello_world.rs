@@ -1,47 +1,47 @@
-use rust_dds::{DDSType, domain_participant_factory::DomainParticipantFactory, types::DURATION_ZERO};
-use rust_dds_api::{
-    domain::domain_participant::DomainParticipant,
-    infrastructure::{
-        qos::DataWriterQos,
-        qos_policy::{ReliabilityQosPolicy, ReliabilityQosPolicyKind},
-    },
-    publication::publisher::Publisher,
-};
-struct HelloWorldType {
-    id: u8,
-    _msg: String,
-}
+// use rust_dds::{DDSType, domain_participant_factory::DomainParticipantFactory, types::DURATION_ZERO};
+// use rust_dds_api::{
+//     domain::domain_participant::DomainParticipant,
+//     infrastructure::{
+//         qos::DataWriterQos,
+//         qos_policy::{ReliabilityQosPolicy, ReliabilityQosPolicyKind},
+//     },
+//     publication::publisher::Publisher,
+// };
+// struct HelloWorldType {
+//     id: u8,
+//     _msg: String,
+// }
 
-impl DDSType for HelloWorldType {
-    fn type_name() -> &'static str {
-        "HelloWorldType"
-    }
+// impl DDSType for HelloWorldType {
+//     fn type_name() -> &'static str {
+//         "HelloWorldType"
+//     }
 
-    fn has_key() -> bool {
-        true
-    }
+//     fn has_key() -> bool {
+//         true
+//     }
 
-    fn key(&self) -> Vec<u8> {
-        vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, self.id]
-    }
+//     fn key(&self) -> Vec<u8> {
+//         vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, self.id]
+//     }
 
-    fn serialize(&self) -> Vec<u8> {
-        vec![self.id]
-    }
+//     fn serialize(&self) -> Vec<u8> {
+//         vec![self.id]
+//     }
 
-    fn deserialize(_data: Vec<u8>) -> Self {
-        todo!()
-    }
-}
+//     fn deserialize(_data: Vec<u8>) -> Self {
+//         todo!()
+//     }
+// }
 
 fn main() {
-    use rust_dds_api::infrastructure::entity::Entity;
+    // use rust_dds_api::infrastructure::entity::Entity;
     // use rust_dds_types::Time;
 
-    let participant = DomainParticipantFactory::create_participant(0, None, None, 0)
-        .expect("Error creating participant");
+    // let participant = DomainParticipantFactory::create_participant(0, None, None, 0)
+        // .expect("Error creating participant");
 
-    participant.enable().expect("Error enabling participant");
+    // participant.enable().expect("Error enabling participant");
 
     // let publisher = participant
     //     .create_publisher(None, None, 0)
