@@ -147,9 +147,9 @@ pub trait Subscriber<'a>:
     fn notify_datareaders(&self) -> DDSResult<()>;
 
     /// This operation returns the DomainParticipant to which the Subscriber belongs.
-    fn get_participant(&self) -> &<Self as DomainParticipantChild<'a>>::DomainParticipantType
+    fn get_participant(&self) -> &<Self as DomainParticipantChild>::DomainParticipantType
     where
-        Self: DomainParticipantChild<'a> + Sized;
+        Self: DomainParticipantChild + Sized;
 
     /// This operation allows access to the SAMPLE_LOST communication status. Communication statuses are described in 2.2.4.1
     fn get_sample_lost_status(&self, status: &mut SampleLostStatus) -> DDSResult<()>;

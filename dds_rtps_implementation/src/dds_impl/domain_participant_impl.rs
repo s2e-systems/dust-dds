@@ -187,7 +187,7 @@ impl<
 }
 
 impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types + 'a>
-    rust_dds_api::domain::domain_participant::DomainParticipant<'a> for DomainParticipantImpl<PSM>
+    rust_dds_api::domain::domain_participant::DomainParticipant for DomainParticipantImpl<PSM>
 {
     fn ignore_participant(&self, _handle: InstanceHandle) -> DDSResult<()> {
         todo!()

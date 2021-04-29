@@ -13,8 +13,8 @@ use crate::{
 
 use super::domain_participant_listener::DomainParticipantListener;
 
-pub trait DomainParticipantChild<'a> {
-    type DomainParticipantType: DomainParticipant<'a>;
+pub trait DomainParticipantChild {
+    type DomainParticipantType: DomainParticipant;
 }
 
 pub trait PublisherFactory {
@@ -142,7 +142,7 @@ pub trait TopicFactory<'a, T> {
     fn lookup_topicdescription(&self, _name: &str) -> Option<Box<dyn TopicDescription<T>>>;
 }
 
-pub trait DomainParticipant<'a>:
+pub trait DomainParticipant:
     Entity<Qos = DomainParticipantQos, Listener = Box<dyn DomainParticipantListener>>
 {
     /// This operation allows an application to instruct the Service to locally ignore a remote domain participant. From that point

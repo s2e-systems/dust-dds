@@ -99,8 +99,7 @@ impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types, 
 // }
 
 impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types>
-    rust_dds_api::domain::domain_participant::DomainParticipantChild<'a>
-    for PublisherImpl<'a, PSM>
+    rust_dds_api::domain::domain_participant::DomainParticipantChild for PublisherImpl<'a, PSM>
 {
     type DomainParticipantType = DomainParticipantImpl<PSM>;
 }
@@ -128,7 +127,7 @@ impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types>
         todo!()
     }
 
-    fn get_participant(&self) -> &<Self as rust_dds_api::domain::domain_participant::DomainParticipantChild<'a>>::DomainParticipantType{
+    fn get_participant(&self) -> &<Self as rust_dds_api::domain::domain_participant::DomainParticipantChild>::DomainParticipantType{
         self.parent
     }
 

@@ -14,9 +14,9 @@ pub trait TopicDescription<'a, T>:
     Entity<Qos = TopicQos, Listener = Box<dyn TopicListener<DataType = T>>>
 {
     /// This operation returns the DomainParticipant to which the TopicDescription belongs
-    fn get_participant(&self) -> &<Self as DomainParticipantChild<'a>>::DomainParticipantType
+    fn get_participant(&self) -> &<Self as DomainParticipantChild>::DomainParticipantType
     where
-        Self: DomainParticipantChild<'a> + Sized;
+        Self: DomainParticipantChild + Sized;
 
     /// The type_name used to create the TopicDescription
     fn get_type_name(&self) -> DDSResult<&'static str>;

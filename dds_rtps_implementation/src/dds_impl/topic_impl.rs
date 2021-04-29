@@ -28,7 +28,7 @@ impl<'a, PSM: rust_rtps_pim::structure::Types, T> TopicImpl<'a, PSM, T> {
 }
 
 impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types, T>
-    DomainParticipantChild<'a> for TopicImpl<'a, PSM, T>
+    DomainParticipantChild for TopicImpl<'a, PSM, T>
 {
     type DomainParticipantType = DomainParticipantImpl<PSM>;
 }
@@ -47,7 +47,7 @@ impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types, 
 impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types, T>
     TopicDescription<'a, T> for TopicImpl<'a, PSM, T>
 {
-    fn get_participant(&self) -> &<Self as DomainParticipantChild<'a>>::DomainParticipantType {
+    fn get_participant(&self) -> &<Self as DomainParticipantChild>::DomainParticipantType {
         self.parent
     }
 
