@@ -6,25 +6,3 @@ pub struct SPDPdiscoveredParticipantData {
     pub participant_proxy: ParticipantProxy,
     pub lease_duration: Duration,
 }
-
-impl DDSType for SPDPdiscoveredParticipantData {
-    fn type_name() -> &'static str {
-        todo!()
-    }
-
-    fn has_key() -> bool {
-        todo!()
-    }
-
-    fn key(&self) -> Vec<u8> {
-        todo!()
-    }
-
-    fn serialize(&self) -> Vec<u8> {
-        vec![1,2,3,4]
-    }
-
-    fn deserialize(_data: Vec<u8>) -> Self {
-        todo!()
-    }
-}

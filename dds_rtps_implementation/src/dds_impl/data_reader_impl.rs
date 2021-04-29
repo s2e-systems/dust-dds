@@ -5,7 +5,6 @@ use rust_dds_api::{
         RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus, SampleStateKind,
         StatusMask, SubscriptionMatchedStatus, ViewStateKind,
     },
-    dds_type::DDSType,
     infrastructure::{
         entity::{Entity, StatusCondition},
         qos::DataReaderQos,
@@ -22,12 +21,12 @@ use rust_dds_api::{
 
 use super::subscriber_impl::SubscriberImpl;
 
-pub struct DataReaderImpl<'a, PSM: rust_rtps_pim::structure::Types, T: DDSType> {
+pub struct DataReaderImpl<'a, PSM: rust_rtps_pim::structure::Types, T> {
     parent: &'a SubscriberImpl<'a, PSM>,
     phantom: &'a T,
 }
 
-impl<'a, PSM: rust_rtps_pim::structure::Types, T: DDSType>
+impl<'a, PSM: rust_rtps_pim::structure::Types, T>
     rust_dds_api::subscription::data_reader::DataReader<'a, T> for DataReaderImpl<'a, PSM, T>
 {
     fn read(
@@ -272,7 +271,7 @@ impl<'a, PSM: rust_rtps_pim::structure::Types, T: DDSType>
     }
 }
 
-impl<'a, PSM: rust_rtps_pim::structure::Types, T: DDSType> Entity for DataReaderImpl<'a, PSM, T> {
+impl<'a, PSM: rust_rtps_pim::structure::Types, T> Entity for DataReaderImpl<'a, PSM, T> {
     type Qos = DataReaderQos;
 
     type Listener = Box<dyn DataReaderListener<DataType = T> + 'a>;
@@ -314,7 +313,4 @@ impl<'a, PSM: rust_rtps_pim::structure::Types, T: DDSType> Entity for DataReader
     }
 }
 
-impl<'a, PSM: rust_rtps_pim::structure::Types, T: DDSType> AnyDataReader
-    for DataReaderImpl<'a, PSM, T>
-{
-}
+impl<'a, PSM: rust_rtps_pim::structure::Types, T> AnyDataReader for DataReaderImpl<'a, PSM, T> {}

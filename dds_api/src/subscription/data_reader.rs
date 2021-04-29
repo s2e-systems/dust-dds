@@ -1,9 +1,16 @@
-use crate::{builtin_topics::PublicationBuiltinTopicData, dcps_psm::{InstanceHandle, InstanceStateKind, LivelinessChangedStatus, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus, SampleStateKind, SubscriptionMatchedStatus, ViewStateKind}, dds_type::DDSType, infrastructure::{
-        entity::Entity,
-        qos::DataReaderQos,
-        read_condition::ReadCondition,
-        sample_info::SampleInfo,
-    }, return_type::DDSResult, topic::topic_description::TopicDescription};
+use crate::{
+    builtin_topics::PublicationBuiltinTopicData,
+    dcps_psm::{
+        InstanceHandle, InstanceStateKind, LivelinessChangedStatus, RequestedDeadlineMissedStatus,
+        RequestedIncompatibleQosStatus, SampleLostStatus, SampleRejectedStatus, SampleStateKind,
+        SubscriptionMatchedStatus, ViewStateKind,
+    },
+    infrastructure::{
+        entity::Entity, qos::DataReaderQos, read_condition::ReadCondition, sample_info::SampleInfo,
+    },
+    return_type::DDSResult,
+    topic::topic_description::TopicDescription,
+};
 
 use super::{
     data_reader_listener::DataReaderListener, query_condition::QueryCondition,
@@ -21,8 +28,8 @@ use super::{
 /// get_statuscondition may return the error NOT_ENABLED.
 /// All sample-accessing operations, namely all variants of read, take may return the error PRECONDITION_NOT_MET. The
 /// circumstances that result on this are described in 2.2.2.5.2.8.
-pub trait DataReader<'a, T: DDSType>:
-    Entity<Qos = DataReaderQos, Listener = Box<dyn DataReaderListener<DataType=T>  + 'a>>
+pub trait DataReader<'a, T>:
+    Entity<Qos = DataReaderQos, Listener = Box<dyn DataReaderListener<DataType = T> + 'a>>
 {
     /// This operation accesses a collection of Data values from the DataReader. The size of the returned collection will be limited to
     /// the specified max_samples. The properties of the data_values collection and the setting of the PRESENTATION QoS policy

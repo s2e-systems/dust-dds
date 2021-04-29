@@ -1,6 +1,5 @@
 use crate::{
     dcps_psm::{Duration, StatusMask},
-    dds_type::DDSType,
     domain::domain_participant::{DomainParticipantChild, TopicGAT},
     infrastructure::{
         entity::Entity,
@@ -15,7 +14,7 @@ use super::{
     publisher_listener::PublisherListener,
 };
 
-pub trait DataWriterGAT<'a, T: DDSType> {
+pub trait DataWriterGAT<'a, T> {
     type DataWriterType: DataWriter<'a, T> + AnyDataWriter;
 }
 
@@ -51,7 +50,7 @@ pub trait Publisher<'a>: Entity<Qos = PublisherQos, Listener = Box<dyn Publisher
     /// corresponding policy on the default QoS. The resulting QoS is then applied to the creation of the DataWriter.
     /// The Topic passed to this operation must have been created from the same DomainParticipant that was used to create this
     /// Publisher. If the Topic was created from a different DomainParticipant, the operation will fail and return a nil result.
-    fn create_datawriter<T: DDSType>(
+    fn create_datawriter<T>(
         &'a self,
         a_topic: &'a <Self as TopicGAT<'a, T>>::TopicType,
         qos: Option<DataWriterQos>,
@@ -69,7 +68,7 @@ pub trait Publisher<'a>: Entity<Qos = PublisherQos, Listener = Box<dyn Publisher
     /// WRITER_DATA_LIFECYCLE QosPolicy, the deletion of the DataWriter may also dispose all instances. Refer to 2.2.3.21 for
     /// details.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
-    fn delete_datawriter<T: DDSType>(
+    fn delete_datawriter<T>(
         &'a self,
         a_datawriter: &<Self as DataWriterGAT<'a, T>>::DataWriterType,
     ) -> DDSResult<()>
@@ -80,7 +79,7 @@ pub trait Publisher<'a>: Entity<Qos = PublisherQos, Listener = Box<dyn Publisher
     /// topic_name. If no such DataWriter exists, the operation will return ’nil.’
     /// If multiple DataWriter attached to the Publisher satisfy this condition, then the operation will return one of them. It is not
     /// specified which one.
-    fn lookup_datawriter<T: DDSType>(
+    fn lookup_datawriter<T>(
         &self,
         topic: &<Self as TopicGAT<'a, T>>::TopicType,
     ) -> Option<<Self as DataWriterGAT<'a, T>>::DataWriterType>

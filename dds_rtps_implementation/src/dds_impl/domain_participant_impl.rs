@@ -3,7 +3,6 @@ use std::sync::{Arc, Mutex};
 use rust_dds_api::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
     dcps_psm::{DomainId, Duration, InstanceHandle, StatusMask, Time},
-    dds_type::DDSType,
     domain::{
         domain_participant::TopicGAT, domain_participant_listener::DomainParticipantListener,
     },
@@ -49,11 +48,8 @@ impl<PSM: rust_rtps_pim::structure::Types> DomainParticipantImpl<PSM> {
     }
 }
 
-impl<
-        'a,
-        T: DDSType,
-        PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types + 'a,
-    > TopicGAT<'a, T> for DomainParticipantImpl<PSM>
+impl<'a, T: 'static, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types + 'a>
+    TopicGAT<'a, T> for DomainParticipantImpl<PSM>
 {
     type TopicType = TopicImpl<'a, PSM, T>;
 }
@@ -146,7 +142,7 @@ impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types +
         todo!()
     }
 
-    fn create_topic<T: DDSType>(
+    fn create_topic<T>(
         &'a self,
         _topic_name: &str,
         _qos: Option<TopicQos>,
@@ -157,10 +153,7 @@ impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types +
         Some(topic)
     }
 
-    fn delete_topic<T: DDSType>(
-        &'a self,
-        _a_topic: &<Self as TopicGAT<'a, T>>::TopicType,
-    ) -> DDSResult<()> {
+    fn delete_topic<T>(&'a self, _a_topic: &<Self as TopicGAT<'a, T>>::TopicType) -> DDSResult<()> {
         // if std::ptr::eq(a_topic.parent.0, self) {
         //     self.0.lock().unwrap().delete_topic(&a_topic.impl_ref)
         // } else {
@@ -171,7 +164,7 @@ impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types +
         todo!()
     }
 
-    fn find_topic<T: DDSType>(
+    fn find_topic<T>(
         &self,
         _topic_name: &str,
         _timeout: Duration,
@@ -179,10 +172,7 @@ impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types +
         todo!()
     }
 
-    fn lookup_topicdescription<T: DDSType>(
-        &self,
-        _name: &str,
-    ) -> Option<Box<dyn TopicDescription>> {
+    fn lookup_topicdescription<T>(&self, _name: &str) -> Option<Box<dyn TopicDescription>> {
         todo!()
     }
 
@@ -349,27 +339,27 @@ mod tests {
     use super::*;
 
     struct MockDDSType;
-    impl DDSType for MockDDSType {
-        fn type_name() -> &'static str {
-            todo!()
-        }
+    // impl DDSType for MockDDSType {
+    //     fn type_name() -> &'static str {
+    //         todo!()
+    //     }
 
-        fn has_key() -> bool {
-            todo!()
-        }
+    //     fn has_key() -> bool {
+    //         todo!()
+    //     }
 
-        fn key(&self) -> Vec<u8> {
-            todo!()
-        }
+    //     fn key(&self) -> Vec<u8> {
+    //         todo!()
+    //     }
 
-        fn serialize(&self) -> Vec<u8> {
-            todo!()
-        }
+    //     fn serialize(&self) -> Vec<u8> {
+    //         todo!()
+    //     }
 
-        fn deserialize(_data: Vec<u8>) -> Self {
-            todo!()
-        }
-    }
+    //     fn deserialize(_data: Vec<u8>) -> Self {
+    //         todo!()
+    //     }
+    // }
 
     #[test]
     fn set_default_publisher_qos_some_value() {

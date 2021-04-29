@@ -3,14 +3,13 @@ use crate::{
         LivelinessChangedStatus, RequestedDeadlineMissedStatus, RequestedIncompatibleQosStatus,
         SampleLostStatus, SampleRejectedStatus, SubscriptionMatchedStatus,
     },
-    dds_type::DDSType,
     infrastructure::listener::Listener,
 };
 
 use super::data_reader::DataReader;
 
 pub trait DataReaderListener: Listener {
-    type DataType: DDSType;
+    type DataType;
     fn on_data_available(&self, the_reader: &dyn DataReader<Self::DataType>);
     fn on_sample_rejected(
         &self,

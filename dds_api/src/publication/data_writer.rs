@@ -4,7 +4,6 @@ use crate::{
         Duration, InstanceHandle, LivelinessLostStatus, OfferedDeadlineMissedStatus,
         OfferedIncompatibleQosStatus, PublicationMatchedStatus, Time,
     },
-    dds_type::DDSType,
     domain::domain_participant::TopicGAT,
     infrastructure::{entity::Entity, qos::DataWriterQos},
     return_type::DDSResult,
@@ -12,7 +11,7 @@ use crate::{
 
 use super::{data_writer_listener::DataWriterListener, publisher::PublisherChild};
 
-pub trait DataWriter<'a, T: DDSType>:
+pub trait DataWriter<'a, T>:
     Entity<Qos = DataWriterQos, Listener = Box<dyn DataWriterListener<DataType = T> + 'a>>
 {
     /// This operation informs the Service that the application will be modifying a particular instance. It gives an opportunity to the

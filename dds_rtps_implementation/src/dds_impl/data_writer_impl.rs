@@ -9,24 +9,23 @@ use rust_dds_api::{
         Duration, InstanceHandle, LivelinessLostStatus, OfferedDeadlineMissedStatus,
         OfferedIncompatibleQosStatus, PublicationMatchedStatus, StatusMask, Time,
     },
-    dds_type::DDSType,
     infrastructure::{entity::StatusCondition, qos::DataWriterQos},
     publication::data_writer_listener::DataWriterListener,
     return_type::{DDSError, DDSResult},
 };
-use rust_rtps_pim::{behavior::RTPSWriter};
+use rust_rtps_pim::behavior::RTPSWriter;
 
 use crate::rtps_impl::rtps_writer_impl::RTPSWriterImpl;
 
 use super::{publisher_impl::PublisherImpl, topic_impl::TopicImpl};
 
-pub struct DataWriterImpl<'a, PSM: rust_rtps_pim::structure::Types, T: DDSType> {
+pub struct DataWriterImpl<'a, PSM: rust_rtps_pim::structure::Types, T> {
     pub(crate) parent: &'a PublisherImpl<'a, PSM>,
     pub(crate) rtps_writer: Weak<Mutex<RTPSWriterImpl<PSM>>>,
     phantom: PhantomData<&'a T>,
 }
 
-impl<'a, PSM: rust_rtps_pim::structure::Types, T: DDSType> DataWriterImpl<'a, PSM, T> {
+impl<'a, PSM: rust_rtps_pim::structure::Types, T> DataWriterImpl<'a, PSM, T> {
     pub fn new(
         parent: &'a PublisherImpl<'a, PSM>,
         rtps_writer: Weak<Mutex<RTPSWriterImpl<PSM>>>,
@@ -39,19 +38,19 @@ impl<'a, PSM: rust_rtps_pim::structure::Types, T: DDSType> DataWriterImpl<'a, PS
     }
 }
 
-impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types, T: DDSType>
+impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types, T>
     rust_dds_api::publication::publisher::PublisherChild<'a> for DataWriterImpl<'a, PSM, T>
 {
     type PublisherType = PublisherImpl<'a, PSM>;
 }
 
-impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types, T: DDSType>
+impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types, T>
     rust_dds_api::domain::domain_participant::TopicGAT<'a, T> for DataWriterImpl<'a, PSM, T>
 {
     type TopicType = TopicImpl<'a, PSM, T>;
 }
 
-impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types, T: DDSType>
+impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types, T>
     rust_dds_api::publication::data_writer::DataWriter<'a, T> for DataWriterImpl<'a, PSM, T>
 {
     fn register_instance(&self, _instance: T) -> DDSResult<Option<InstanceHandle>> {
@@ -187,7 +186,7 @@ impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types, 
     }
 }
 
-impl<'a, PSM: rust_rtps_pim::structure::Types, T: DDSType>
+impl<'a, PSM: rust_rtps_pim::structure::Types, T>
     rust_dds_api::infrastructure::entity::Entity for DataWriterImpl<'a, PSM, T>
 {
     type Qos = DataWriterQos;
@@ -231,7 +230,7 @@ impl<'a, PSM: rust_rtps_pim::structure::Types, T: DDSType>
     }
 }
 
-impl<'a, PSM: rust_rtps_pim::structure::Types, T: DDSType>
+impl<'a, PSM: rust_rtps_pim::structure::Types, T>
     rust_dds_api::publication::data_writer::AnyDataWriter for DataWriterImpl<'a, PSM, T>
 {
 }
@@ -251,27 +250,27 @@ mod tests {
 
     struct MockData;
 
-    impl DDSType for MockData {
-        fn type_name() -> &'static str {
-            todo!()
-        }
+    // impl DDSType for MockData {
+    //     fn type_name() -> &'static str {
+    //         todo!()
+    //     }
 
-        fn has_key() -> bool {
-            todo!()
-        }
+    //     fn has_key() -> bool {
+    //         todo!()
+    //     }
 
-        fn key(&self) -> Vec<u8> {
-            todo!()
-        }
+    //     fn key(&self) -> Vec<u8> {
+    //         todo!()
+    //     }
 
-        fn serialize(&self) -> Vec<u8> {
-            todo!()
-        }
+    //     fn serialize(&self) -> Vec<u8> {
+    //         todo!()
+    //     }
 
-        fn deserialize(_data: Vec<u8>) -> Self {
-            todo!()
-        }
-    }
+    //     fn deserialize(_data: Vec<u8>) -> Self {
+    //         todo!()
+    //     }
+    // }
 
     #[test]
     fn write_w_timestamp() {

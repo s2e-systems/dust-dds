@@ -2,7 +2,6 @@ use std::sync::{Arc, Mutex, Weak};
 
 use rust_dds_api::{
     dcps_psm::{Duration, InstanceHandle, StatusMask},
-    dds_type::DDSType,
     infrastructure::{
         entity::StatusCondition,
         qos::{DataWriterQos, PublisherQos, TopicQos},
@@ -49,13 +48,13 @@ impl<'a, PSM: rust_rtps_pim::structure::Types> PublisherImpl<'a, PSM> {
     }
 }
 
-impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types, T: DDSType>
+impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types, T: 'static>
     rust_dds_api::domain::domain_participant::TopicGAT<'a, T> for PublisherImpl<'a, PSM>
 {
     type TopicType = TopicImpl<'a, PSM, T>;
 }
 
-impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types, T: DDSType>
+impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types, T: 'static>
     rust_dds_api::publication::publisher::DataWriterGAT<'a, T> for PublisherImpl<'a, PSM>
 {
     type DataWriterType = DataWriterImpl<'a, PSM, T>;
@@ -71,7 +70,7 @@ impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types>
 impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types>
     rust_dds_api::publication::publisher::Publisher<'a> for PublisherImpl<'a, PSM>
 {
-    fn create_datawriter<T: DDSType>(
+    fn create_datawriter<T: 'static>(
         &'a self,
         _a_topic: &'a <Self as rust_dds_api::domain::domain_participant::TopicGAT<'a, T>>::TopicType,
         qos: Option<DataWriterQos>,
@@ -106,7 +105,7 @@ impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types>
         Some(data_writer)
     }
 
-    fn delete_datawriter<T: DDSType>(
+    fn delete_datawriter<T: 'static>(
         &'a self,
         a_datawriter: &<Self as rust_dds_api::publication::publisher::DataWriterGAT<'a, T>>::DataWriterType,
     ) -> DDSResult<()> {
@@ -134,7 +133,7 @@ impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types>
         }
     }
 
-    fn lookup_datawriter<T: DDSType>(
+    fn lookup_datawriter<T: 'static>(
         &self,
         _topic: &<Self as rust_dds_api::domain::domain_participant::TopicGAT<'a, T>>::TopicType,
     ) -> Option<<Self as rust_dds_api::publication::publisher::DataWriterGAT<'a, T>>::DataWriterType>
@@ -263,27 +262,27 @@ mod tests {
 
     struct MockData;
 
-    impl DDSType for MockData {
-        fn type_name() -> &'static str {
-            todo!()
-        }
+    // impl DDSType for MockData {
+    //     fn type_name() -> &'static str {
+    //         todo!()
+    //     }
 
-        fn has_key() -> bool {
-            todo!()
-        }
+    //     fn has_key() -> bool {
+    //         todo!()
+    //     }
 
-        fn key(&self) -> Vec<u8> {
-            todo!()
-        }
+    //     fn key(&self) -> Vec<u8> {
+    //         todo!()
+    //     }
 
-        fn serialize(&self) -> Vec<u8> {
-            todo!()
-        }
+    //     fn serialize(&self) -> Vec<u8> {
+    //         todo!()
+    //     }
 
-        fn deserialize(_data: Vec<u8>) -> Self {
-            todo!()
-        }
-    }
+    //     fn deserialize(_data: Vec<u8>) -> Self {
+    //         todo!()
+    //     }
+    // }
 
     #[test]
     fn create_datawriter() {

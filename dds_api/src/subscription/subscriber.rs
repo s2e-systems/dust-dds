@@ -1,6 +1,5 @@
 use crate::{
     dcps_psm::{InstanceStateKind, SampleLostStatus, SampleStateKind, StatusMask, ViewStateKind},
-    dds_type::DDSType,
     domain::domain_participant::{DomainParticipantChild, TopicGAT},
     infrastructure::{
         entity::Entity,
@@ -15,7 +14,7 @@ use super::{
     subscriber_listener::SubscriberListener,
 };
 
-pub trait DataReaderGAT<'a, T: DDSType> {
+pub trait DataReaderGAT<'a, T> {
     type DataReaderType: DataReader<'a, T> + AnyDataReader;
 }
 
@@ -61,11 +60,11 @@ pub trait Subscriber<'a>:
     /// The TopicDescription passed to this operation must have been created from the same DomainParticipant that was used to
     /// create this Subscriber. If the TopicDescription was created from a different DomainParticipant, the operation will fail and
     /// return a nil result.
-    fn create_datareader<T: DDSType>(
+    fn create_datareader<T>(
         &'a self,
         a_topic: &'a <Self as TopicGAT<'a, T>>::TopicType,
         qos: Option<DataReaderQos>,
-        a_listener: Option<Box<dyn DataReaderListener<DataType=T>>>,
+        a_listener: Option<Box<dyn DataReaderListener<DataType = T>>>,
         mask: StatusMask,
     ) -> Option<<Self as DataReaderGAT<'a, T>>::DataReaderType>
     where
@@ -83,7 +82,7 @@ pub trait Subscriber<'a>:
     /// delete_datareader is called on a different Subscriber, the operation will have no effect and it will return
     /// PRECONDITION_NOT_MET.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
-    fn delete_datareader<T: DDSType>(
+    fn delete_datareader<T>(
         &'a self,
         a_datareader: &<Self as DataReaderGAT<'a, T>>::DataReaderType,
     ) -> DDSResult<()>
@@ -95,7 +94,7 @@ pub trait Subscriber<'a>:
     /// If multiple DataReaders attached to the Subscriber satisfy this condition, then the operation will return one of them. It is not
     /// specified which one.
     /// The use of this operation on the built-in Subscriber allows access to the built-in DataReader entities for the built-in topics
-    fn lookup_datareader<T: DDSType>(
+    fn lookup_datareader<T>(
         &self,
         topic: &<Self as TopicGAT<'a, T>>::TopicType,
     ) -> Option<<Self as DataReaderGAT<'a, T>>::DataReaderType>

@@ -3,7 +3,6 @@ use rust_dds_api::{
         InstanceHandle, InstanceStateKind, SampleLostStatus, SampleStateKind, StatusMask,
         ViewStateKind,
     },
-    dds_type::DDSType,
     domain::domain_participant::{DomainParticipantChild, TopicGAT},
     infrastructure::{
         entity::{Entity, StatusCondition},
@@ -25,13 +24,13 @@ pub struct SubscriberImpl<'a, PSM: rust_rtps_pim::structure::Types> {
     parent: &'a DomainParticipantImpl<PSM>,
 }
 
-impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types, T: DDSType>
+impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types, T: 'static>
     TopicGAT<'a, T> for SubscriberImpl<'a, PSM>
 {
     type TopicType = TopicImpl<'a, PSM, T>;
 }
 
-impl<'a, PSM: rust_rtps_pim::structure::Types, T: DDSType> DataReaderGAT<'a, T>
+impl<'a, PSM: rust_rtps_pim::structure::Types, T: 'static> DataReaderGAT<'a, T>
     for SubscriberImpl<'a, PSM>
 {
     type DataReaderType = DataReaderImpl<'a, PSM, T>;
@@ -46,7 +45,7 @@ impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types>
 impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types>
     rust_dds_api::subscription::subscriber::Subscriber<'a> for SubscriberImpl<'a, PSM>
 {
-    fn create_datareader<T: DDSType>(
+    fn create_datareader<T: 'static>(
         &'a self,
         _a_topic: &'a <Self as TopicGAT<'a, T>>::TopicType,
         _qos: Option<DataReaderQos>,
@@ -68,7 +67,7 @@ impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types>
         // }))
     }
 
-    fn delete_datareader<T: DDSType>(
+    fn delete_datareader<T: 'static>(
         &'a self,
         _a_datareader: &<Self as DataReaderGAT<'a, T>>::DataReaderType,
     ) -> DDSResult<()> {
@@ -87,7 +86,7 @@ impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types>
         // }
     }
 
-    fn lookup_datareader<T: DDSType>(
+    fn lookup_datareader<T: 'static>(
         &self,
         _topic: &<Self as TopicGAT<'a, T>>::TopicType,
     ) -> Option<<Self as DataReaderGAT<'a, T>>::DataReaderType> {

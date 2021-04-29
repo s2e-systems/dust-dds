@@ -1,7 +1,6 @@
 use crate::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
     dcps_psm::{DomainId, Duration, InstanceHandle, StatusMask, Time},
-    dds_type::DDSType,
     infrastructure::{
         entity::Entity,
         qos::{DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
@@ -25,7 +24,7 @@ pub trait DomainParticipantChild<'a> {
 // where it is used. See for example create_topic below.
 // Inspired by this thread: https://users.rust-lang.org/t/workaround-for-generic-associated-types/25920/14
 // The trait is placed here because the DomainParticipant is the factory of this type.
-pub trait TopicGAT<'a, T: DDSType> {
+pub trait TopicGAT<'a, T> {
     type TopicType: Topic<'a>;
 }
 
@@ -97,7 +96,7 @@ pub trait DomainParticipant<'a>:
     /// registered with the Service. This is done using the register_type operation on a derived class of the TypeSupport interface as
     /// described in 2.2.2.3.6, TypeSupport Interface.
     /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
-    fn create_topic<T: DDSType>(
+    fn create_topic<T>(
         &'a self,
         topic_name: &str,
         qos: Option<TopicQos>,
@@ -114,7 +113,7 @@ pub trait DomainParticipant<'a>:
     /// The delete_topic operation must be called on the same DomainParticipant object used to create the Topic. If delete_topic is
     /// called on a different DomainParticipant, the operation will have no effect and it will return PRECONDITION_NOT_MET.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
-    fn delete_topic<T: DDSType>(
+    fn delete_topic<T>(
         &'a self,
         a_topic: &<Self as TopicGAT<'a, T>>::TopicType,
     ) -> DDSResult<()>
@@ -132,7 +131,7 @@ pub trait DomainParticipant<'a>:
     /// of times using delete_topic.
     /// Regardless of whether the middleware chooses to propagate topics, the delete_topic operation deletes only the local proxy.
     /// If the operation times-out, a ‘nil’ value (as specified by the platform) is returned.
-    fn find_topic<T: DDSType>(
+    fn find_topic<T>(
         &self,
         topic_name: &str,
         timeout: Duration,
@@ -151,7 +150,7 @@ pub trait DomainParticipant<'a>:
     /// deletion. It is still possible to delete the TopicDescription returned by lookup_topicdescription, provided it has no readers or
     /// writers, but then it is really deleted and subsequent lookups will fail.
     /// If the operation fails to locate a TopicDescription, a ‘nil’ value (as specified by the platform) is returned.
-    fn lookup_topicdescription<T: DDSType>(&self, _name: &str) -> Option<Box<dyn TopicDescription>>
+    fn lookup_topicdescription<T>(&self, _name: &str) -> Option<Box<dyn TopicDescription>>
     where
         Self: Sized;
 
