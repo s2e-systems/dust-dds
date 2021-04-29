@@ -9,7 +9,6 @@ use crate::{
         entity::Entity, qos::DataReaderQos, read_condition::ReadCondition, sample_info::SampleInfo,
     },
     return_type::DDSResult,
-    topic::topic_description::TopicDescription,
 };
 
 use super::{
@@ -456,7 +455,7 @@ pub trait DataReader<'a, T>:
 
     /// This operation returns the TopicDescription associated with the DataReader. This is the same TopicDescription that was used
     /// to create the DataReader.
-    fn get_topicdescription(&self) -> &dyn TopicDescription;
+    // fn get_topicdescription(&self) -> &dyn TopicDescription;
 
     /// This operation returns the Subscriber to which the DataReader belongs.
     fn get_subscriber(&self) -> <Self as SubscriberChild<'a>>::SubscriberType

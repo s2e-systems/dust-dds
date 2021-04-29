@@ -1,11 +1,12 @@
 use crate::{
     dcps_psm::{InstanceStateKind, SampleLostStatus, SampleStateKind, StatusMask, ViewStateKind},
-    domain::domain_participant::{DomainParticipantChild, TopicGAT},
+    domain::domain_participant::DomainParticipantChild,
     infrastructure::{
         entity::Entity,
         qos::{DataReaderQos, SubscriberQos, TopicQos},
     },
     return_type::DDSResult,
+    topic::topic::Topic,
 };
 
 use super::{
@@ -14,25 +15,10 @@ use super::{
     subscriber_listener::SubscriberListener,
 };
 
-pub trait DataReaderGAT<'a, T> {
-    type DataReaderType: DataReader<'a, T> + AnyDataReader;
-}
+pub trait DataReaderFactory<T> {
+    type TopicType: for<'t> Topic<'t, T>;
+    type DataReaderType: for<'dr> DataReader<'dr, T> + AnyDataReader;
 
-pub trait SubscriberChild<'a> {
-    type SubscriberType: Subscriber<'a>;
-}
-
-/// A Subscriber is the object responsible for the actual reception of the data resulting from its subscriptions
-///
-/// A Subscriber acts on the behalf of one or several DataReader objects that are related to it. When it receives data (from the
-/// other parts of the system), it builds the list of concerned DataReader objects, and then indicates to the application that data is
-/// available, through its listener or by enabling related conditions. The application can access the list of concerned DataReader
-/// objects through the operation get_datareaders and then access the data available though operations on the DataReader.
-/// All operations except for the base-class operations set_qos, get_qos, set_listener, get_listener, enable, get_statuscondition,
-/// and create_datareader may return the value NOT_ENABLED.
-pub trait Subscriber<'a>:
-    Entity<Qos = SubscriberQos, Listener = Box<dyn SubscriberListener + 'a>>
-{
     /// This operation creates a DataReader. The returned DataReader will be attached and belong to the Subscriber.
     ///
     /// The DataReader returned by the create_datareader operation will in fact be a derived class, specific to the data-type
@@ -60,15 +46,13 @@ pub trait Subscriber<'a>:
     /// The TopicDescription passed to this operation must have been created from the same DomainParticipant that was used to
     /// create this Subscriber. If the TopicDescription was created from a different DomainParticipant, the operation will fail and
     /// return a nil result.
-    fn create_datareader<T>(
+    fn create_datareader<'a>(
         &'a self,
-        a_topic: &'a <Self as TopicGAT<'a, T>>::TopicType,
+        a_topic: &'a Self::TopicType,
         qos: Option<DataReaderQos>,
         a_listener: Option<Box<dyn DataReaderListener<DataType = T>>>,
         mask: StatusMask,
-    ) -> Option<<Self as DataReaderGAT<'a, T>>::DataReaderType>
-    where
-        Self: DataReaderGAT<'a, T> + TopicGAT<'a, T> + Sized;
+    ) -> Option<Self::DataReaderType>;
 
     /// This operation deletes a DataReader that belongs to the Subscriber. If the DataReader does not belong to the Subscriber, the
     /// operation returns the error PRECONDITION_NOT_MET.
@@ -82,25 +66,31 @@ pub trait Subscriber<'a>:
     /// delete_datareader is called on a different Subscriber, the operation will have no effect and it will return
     /// PRECONDITION_NOT_MET.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
-    fn delete_datareader<T>(
-        &'a self,
-        a_datareader: &<Self as DataReaderGAT<'a, T>>::DataReaderType,
-    ) -> DDSResult<()>
-    where
-        Self: DataReaderGAT<'a, T> + Sized;
+    fn delete_datareader(&self, a_datareader: &Self::DataReaderType) -> DDSResult<()>;
 
     /// This operation retrieves a previously-created DataReader belonging to the Subscriber that is attached to a Topic with a
     /// matching topic_name. If no such DataReader exists, the operation will return ’nil.’
     /// If multiple DataReaders attached to the Subscriber satisfy this condition, then the operation will return one of them. It is not
     /// specified which one.
     /// The use of this operation on the built-in Subscriber allows access to the built-in DataReader entities for the built-in topics
-    fn lookup_datareader<T>(
-        &self,
-        topic: &<Self as TopicGAT<'a, T>>::TopicType,
-    ) -> Option<<Self as DataReaderGAT<'a, T>>::DataReaderType>
-    where
-        Self: DataReaderGAT<'a, T> + TopicGAT<'a, T> + Sized;
+    fn lookup_datareader<'a>(&'a self, topic: &'a Self::TopicType) -> Option<Self::DataReaderType>;
+}
 
+pub trait SubscriberChild<'a> {
+    type SubscriberType: Subscriber<'a>;
+}
+
+/// A Subscriber is the object responsible for the actual reception of the data resulting from its subscriptions
+///
+/// A Subscriber acts on the behalf of one or several DataReader objects that are related to it. When it receives data (from the
+/// other parts of the system), it builds the list of concerned DataReader objects, and then indicates to the application that data is
+/// available, through its listener or by enabling related conditions. The application can access the list of concerned DataReader
+/// objects through the operation get_datareaders and then access the data available though operations on the DataReader.
+/// All operations except for the base-class operations set_qos, get_qos, set_listener, get_listener, enable, get_statuscondition,
+/// and create_datareader may return the value NOT_ENABLED.
+pub trait Subscriber<'a>:
+    Entity<Qos = SubscriberQos, Listener = Box<dyn SubscriberListener + 'a>>
+{
     /// This operation indicates that the application is about to access the data samples in any of the DataReader objects attached to
     /// the Subscriber.
     /// The application is required to use this operation only if PRESENTATION QosPolicy of the Subscriber to which the

@@ -16,7 +16,6 @@ use rust_dds_api::{
         data_reader::AnyDataReader, data_reader_listener::DataReaderListener,
         query_condition::QueryCondition, subscriber::SubscriberChild,
     },
-    topic::topic_description::TopicDescription,
 };
 
 use super::subscriber_impl::SubscriberImpl;
@@ -239,9 +238,9 @@ impl<'a, PSM: rust_rtps_pim::structure::Types, T>
         todo!()
     }
 
-    fn get_topicdescription(&self) -> &dyn TopicDescription {
-        todo!()
-    }
+    // fn get_topicdescription(&self) -> &dyn TopicDescription {
+    //     todo!()
+    // }
 
     fn get_subscriber(&self) -> <Self as SubscriberChild<'a>>::SubscriberType
     where

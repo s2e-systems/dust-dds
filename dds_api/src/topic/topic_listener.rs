@@ -5,5 +5,6 @@ use crate::{
 use super::topic::Topic;
 
 pub trait TopicListener: Listener {
-    fn on_inconsistent_topic(&self, the_topic: &dyn Topic, status: InconsistentTopicStatus);
+    type DataType;
+    fn on_inconsistent_topic(&self, the_topic: &dyn Topic<Self::DataType>, status: InconsistentTopicStatus);
 }

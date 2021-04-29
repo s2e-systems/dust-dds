@@ -24,8 +24,61 @@ pub trait DomainParticipantChild<'a> {
 // where it is used. See for example create_topic below.
 // Inspired by this thread: https://users.rust-lang.org/t/workaround-for-generic-associated-types/25920/14
 // The trait is placed here because the DomainParticipant is the factory of this type.
-pub trait TopicGAT<'a, T> {
-    type TopicType: Topic<'a>;
+pub trait TopicFactory<'a, T> {
+    type TopicType: Topic<'a, T>;
+
+    /// This operation creates a Topic with the desired QoS policies and attaches to it the specified TopicListener.
+    /// If the specified QoS policies are not consistent, the operation will fail and no Topic will be created.
+    /// The special value TOPIC_QOS_DEFAULT can be used to indicate that the Topic should be created with the default Topic QoS
+    /// set in the factory. The use of this value is equivalent to the application obtaining the default Topic QoS by means of the
+    /// operation get_default_topic_qos (2.2.2.2.1.21) and using the resulting QoS to create the Topic.
+    /// The created Topic belongs to the DomainParticipant that is its factory.
+    /// The Topic is bound to a type described by the type_name argument. Prior to creating a Topic the type must have been
+    /// registered with the Service. This is done using the register_type operation on a derived class of the TypeSupport interface as
+    /// described in 2.2.2.3.6, TypeSupport Interface.
+    /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
+    fn create_topic(
+        &'a self,
+        topic_name: &str,
+        qos: Option<TopicQos>,
+        a_listener: Option<Box<dyn TopicListener<DataType = T>>>,
+        mask: StatusMask,
+    ) -> Option<Self::TopicType>;
+
+    /// This operation deletes a Topic.
+    /// The deletion of a Topic is not allowed if there are any existing DataReader, DataWriter, ContentFilteredTopic, or MultiTopic
+    /// objects that are using the Topic. If the delete_topic operation is called on a Topic with any of these existing objects attached to
+    /// it, it will return PRECONDITION_NOT_MET.
+    /// The delete_topic operation must be called on the same DomainParticipant object used to create the Topic. If delete_topic is
+    /// called on a different DomainParticipant, the operation will have no effect and it will return PRECONDITION_NOT_MET.
+    /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
+    fn delete_topic(&'a self, a_topic: &Self::TopicType) -> DDSResult<()>;
+
+    /// The operation find_topic gives access to an existing (or ready to exist) enabled Topic, based on its name. The operation takes
+    /// as arguments the name of the Topic and a timeout.
+    /// If a Topic of the same name already exists, it gives access to it, otherwise it waits (blocks the caller) until another mechanism
+    /// creates it (or the specified timeout occurs). This other mechanism can be another thread, a configuration tool, or some other
+    /// middleware service. Note that the Topic is a local object that acts as a ‘proxy’ to designate the global concept of topic.
+    /// Middleware implementations could choose to propagate topics and make remotely created topics locally available.
+    /// A Topic obtained by means of find_topic, must also be deleted by means of delete_topic so that the local resources can be
+    /// released. If a Topic is obtained multiple times by means of find_topic or create_topic, it must also be deleted that same number
+    /// of times using delete_topic.
+    /// Regardless of whether the middleware chooses to propagate topics, the delete_topic operation deletes only the local proxy.
+    /// If the operation times-out, a ‘nil’ value (as specified by the platform) is returned.
+    fn find_topic(&self, topic_name: &str, timeout: Duration) -> Option<Self::TopicType>;
+
+    /// The operation lookup_topicdescription gives access to an existing locally-created TopicDescription, based on its name. The
+    /// operation takes as argument the name of the TopicDescription.
+    /// If a TopicDescription of the same name already exists, it gives access to it, otherwise it returns a ‘nil’ value. The operation
+    /// never blocks.
+    /// The operation lookup_topicdescription may be used to locate any locally-created Topic, ContentFilteredTopic, and
+    /// MultiTopic object.
+    /// Unlike find_topic, the operation lookup_topicdescription searches only among the locally created topics. Therefore, it should
+    /// never create a new TopicDescription. The TopicDescription returned by lookup_topicdescription does not require any extra
+    /// deletion. It is still possible to delete the TopicDescription returned by lookup_topicdescription, provided it has no readers or
+    /// writers, but then it is really deleted and subsequent lookups will fail.
+    /// If the operation fails to locate a TopicDescription, a ‘nil’ value (as specified by the platform) is returned.
+    fn lookup_topicdescription(&self, _name: &str) -> Option<Box<dyn TopicDescription<T>>>;
 }
 
 pub trait DomainParticipant<'a>:
@@ -85,74 +138,6 @@ pub trait DomainParticipant<'a>:
     /// PRECONDITION_NOT_MET.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
     fn delete_subscriber(&self, a_subscriber: &Self::SubscriberType) -> DDSResult<()>;
-
-    /// This operation creates a Topic with the desired QoS policies and attaches to it the specified TopicListener.
-    /// If the specified QoS policies are not consistent, the operation will fail and no Topic will be created.
-    /// The special value TOPIC_QOS_DEFAULT can be used to indicate that the Topic should be created with the default Topic QoS
-    /// set in the factory. The use of this value is equivalent to the application obtaining the default Topic QoS by means of the
-    /// operation get_default_topic_qos (2.2.2.2.1.21) and using the resulting QoS to create the Topic.
-    /// The created Topic belongs to the DomainParticipant that is its factory.
-    /// The Topic is bound to a type described by the type_name argument. Prior to creating a Topic the type must have been
-    /// registered with the Service. This is done using the register_type operation on a derived class of the TypeSupport interface as
-    /// described in 2.2.2.3.6, TypeSupport Interface.
-    /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
-    fn create_topic<T>(
-        &'a self,
-        topic_name: &str,
-        qos: Option<TopicQos>,
-        a_listener: Option<Box<dyn TopicListener>>,
-        mask: StatusMask,
-    ) -> Option<<Self as TopicGAT<'a, T>>::TopicType>
-    where
-        Self: TopicGAT<'a, T>;
-
-    /// This operation deletes a Topic.
-    /// The deletion of a Topic is not allowed if there are any existing DataReader, DataWriter, ContentFilteredTopic, or MultiTopic
-    /// objects that are using the Topic. If the delete_topic operation is called on a Topic with any of these existing objects attached to
-    /// it, it will return PRECONDITION_NOT_MET.
-    /// The delete_topic operation must be called on the same DomainParticipant object used to create the Topic. If delete_topic is
-    /// called on a different DomainParticipant, the operation will have no effect and it will return PRECONDITION_NOT_MET.
-    /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
-    fn delete_topic<T>(
-        &'a self,
-        a_topic: &<Self as TopicGAT<'a, T>>::TopicType,
-    ) -> DDSResult<()>
-    where
-        Self: TopicGAT<'a, T>;
-
-    /// The operation find_topic gives access to an existing (or ready to exist) enabled Topic, based on its name. The operation takes
-    /// as arguments the name of the Topic and a timeout.
-    /// If a Topic of the same name already exists, it gives access to it, otherwise it waits (blocks the caller) until another mechanism
-    /// creates it (or the specified timeout occurs). This other mechanism can be another thread, a configuration tool, or some other
-    /// middleware service. Note that the Topic is a local object that acts as a ‘proxy’ to designate the global concept of topic.
-    /// Middleware implementations could choose to propagate topics and make remotely created topics locally available.
-    /// A Topic obtained by means of find_topic, must also be deleted by means of delete_topic so that the local resources can be
-    /// released. If a Topic is obtained multiple times by means of find_topic or create_topic, it must also be deleted that same number
-    /// of times using delete_topic.
-    /// Regardless of whether the middleware chooses to propagate topics, the delete_topic operation deletes only the local proxy.
-    /// If the operation times-out, a ‘nil’ value (as specified by the platform) is returned.
-    fn find_topic<T>(
-        &self,
-        topic_name: &str,
-        timeout: Duration,
-    ) -> Option<<Self as TopicGAT<'a, T>>::TopicType>
-    where
-        Self: TopicGAT<'a, T>;
-
-    /// The operation lookup_topicdescription gives access to an existing locally-created TopicDescription, based on its name. The
-    /// operation takes as argument the name of the TopicDescription.
-    /// If a TopicDescription of the same name already exists, it gives access to it, otherwise it returns a ‘nil’ value. The operation
-    /// never blocks.
-    /// The operation lookup_topicdescription may be used to locate any locally-created Topic, ContentFilteredTopic, and
-    /// MultiTopic object.
-    /// Unlike find_topic, the operation lookup_topicdescription searches only among the locally created topics. Therefore, it should
-    /// never create a new TopicDescription. The TopicDescription returned by lookup_topicdescription does not require any extra
-    /// deletion. It is still possible to delete the TopicDescription returned by lookup_topicdescription, provided it has no readers or
-    /// writers, but then it is really deleted and subsequent lookups will fail.
-    /// If the operation fails to locate a TopicDescription, a ‘nil’ value (as specified by the platform) is returned.
-    fn lookup_topicdescription<T>(&self, _name: &str) -> Option<Box<dyn TopicDescription>>
-    where
-        Self: Sized;
 
     /// This operation allows access to the built-in Subscriber. Each DomainParticipant contains several built-in Topic objects as
     /// well as corresponding DataReader objects to access them. All these DataReader objects belong to a single built-in Subscriber.

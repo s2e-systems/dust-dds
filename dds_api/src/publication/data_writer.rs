@@ -4,7 +4,6 @@ use crate::{
         Duration, InstanceHandle, LivelinessLostStatus, OfferedDeadlineMissedStatus,
         OfferedIncompatibleQosStatus, PublicationMatchedStatus, Time,
     },
-    domain::domain_participant::TopicGAT,
     infrastructure::{entity::Entity, qos::DataWriterQos},
     return_type::DDSResult,
 };
@@ -14,6 +13,7 @@ use super::{data_writer_listener::DataWriterListener, publisher::PublisherChild}
 pub trait DataWriter<'a, T>:
     Entity<Qos = DataWriterQos, Listener = Box<dyn DataWriterListener<DataType = T> + 'a>>
 {
+    // type TopicType: Topic<'a, T>;
     /// This operation informs the Service that the application will be modifying a particular instance. It gives an opportunity to the
     /// Service to pre-configure itself to improve performance.
     /// It takes as a parameter an instance (to get the key value) and returns a handle that can be used in successive write or dispose
@@ -229,9 +229,7 @@ pub trait DataWriter<'a, T>:
     ) -> DDSResult<()>;
 
     /// This operation returns the Topic associated with the DataWriter. This is the same Topic that was used to create the DataWriter.
-    fn get_topic(&self) -> &<Self as TopicGAT<'a, T>>::TopicType
-    where
-        Self: TopicGAT<'a, T> + Sized;
+    // fn get_topic(&self) -> &Self::TopicType;
 
     /// This operation returns the Publisher to which the publisher child object belongs.
     fn get_publisher(&self) -> &<Self as PublisherChild<'a>>::PublisherType

@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex, Weak};
+use std::sync::{Mutex, Weak};
 
 use rust_dds_api::{
     dcps_psm::{Duration, InstanceHandle, StatusMask},
@@ -9,13 +9,10 @@ use rust_dds_api::{
     publication::{
         data_writer_listener::DataWriterListener, publisher_listener::PublisherListener,
     },
-    return_type::{DDSError, DDSResult},
+    return_type::DDSResult,
 };
-use rust_rtps_pim::structure::{types::GUID, RTPSEntity};
 
-use crate::rtps_impl::{
-    rtps_writer_group_impl::RTPSWriterGroupImpl, rtps_writer_impl::RTPSWriterImpl,
-};
+use crate::rtps_impl::rtps_writer_group_impl::RTPSWriterGroupImpl;
 
 use super::{
     data_writer_impl::DataWriterImpl, domain_participant_impl::DomainParticipantImpl,
@@ -49,16 +46,62 @@ impl<'a, PSM: rust_rtps_pim::structure::Types> PublisherImpl<'a, PSM> {
 }
 
 impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types, T: 'static>
-    rust_dds_api::domain::domain_participant::TopicGAT<'a, T> for PublisherImpl<'a, PSM>
+    rust_dds_api::domain::domain_participant::TopicFactory<'a, T> for PublisherImpl<'a, PSM>
 {
     type TopicType = TopicImpl<'a, PSM, T>;
+
+    fn create_topic(
+        &'a self,
+        topic_name: &str,
+        qos: Option<TopicQos>,
+        a_listener: Option<
+            Box<dyn rust_dds_api::topic::topic_listener::TopicListener<DataType = T>>,
+        >,
+        mask: StatusMask,
+    ) -> Option<Self::TopicType> {
+        todo!()
+    }
+
+    fn delete_topic(&'a self, a_topic: &Self::TopicType) -> DDSResult<()> {
+        todo!()
+    }
+
+    fn find_topic(&self, topic_name: &str, timeout: Duration) -> Option<Self::TopicType> {
+        todo!()
+    }
+
+    fn lookup_topicdescription(
+        &self,
+        _name: &str,
+    ) -> Option<Box<dyn rust_dds_api::topic::topic_description::TopicDescription<T>>> {
+        todo!()
+    }
 }
 
-impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types, T: 'static>
-    rust_dds_api::publication::publisher::DataWriterGAT<'a, T> for PublisherImpl<'a, PSM>
-{
-    type DataWriterType = DataWriterImpl<'a, PSM, T>;
-}
+// impl<'b, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types, T: 'static>
+//     rust_dds_api::publication::publisher::DataWriterFactory<T> for PublisherImpl<'b, PSM>
+// {
+//     type TopicType = TopicImpl<'b, PSM, T>;
+//     type DataWriterType = DataWriterImpl<'b, PSM, T>;
+
+//     fn create_datawriter<'a>(
+//         &'a self,
+//         a_topic: &'a Self::TopicType,
+//         qos: Option<DataWriterQos>,
+//         a_listener: Option<Box<dyn DataWriterListener<DataType = T>>>,
+//         mask: StatusMask,
+//     ) -> Option<Self::DataWriterType> {
+//         todo!()
+//     }
+
+//     fn delete_datawriter(&self, a_datawriter: &Self::DataWriterType) -> DDSResult<()> {
+//         todo!()
+//     }
+
+//     fn lookup_datawriter<'a>(&'a self, topic: &Self::TopicType) -> Option<Self::DataWriterType> {
+//         todo!()
+//     }
+// }
 
 impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types>
     rust_dds_api::domain::domain_participant::DomainParticipantChild<'a>
@@ -70,77 +113,6 @@ impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types>
 impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types>
     rust_dds_api::publication::publisher::Publisher<'a> for PublisherImpl<'a, PSM>
 {
-    fn create_datawriter<T: 'static>(
-        &'a self,
-        _a_topic: &'a <Self as rust_dds_api::domain::domain_participant::TopicGAT<'a, T>>::TopicType,
-        qos: Option<DataWriterQos>,
-        _a_listener: Option<Box<dyn DataWriterListener<DataType = T>>>,
-        _mask: StatusMask,
-    ) -> Option<<Self as rust_dds_api::publication::publisher::DataWriterGAT<'a, T>>::DataWriterType>
-    {
-        let rtps_writer_group = self.impl_ref.upgrade()?;
-        let mut rtps_writer_group_lock = rtps_writer_group.lock().unwrap();
-        let mut datawriter_counter_lock = self.datawriter_counter.lock().unwrap();
-        *datawriter_counter_lock += 1;
-
-        let prefix = rtps_writer_group_lock.guid().prefix().clone();
-        let parent_entityid: [u8; 4] = rtps_writer_group_lock.guid().entity_id().clone().into();
-
-        let entity_id = [
-            parent_entityid[0],
-            *datawriter_counter_lock,
-            0,
-            ENTITYKIND_USER_DEFINED_WRITER_WITH_KEY,
-        ]
-        .into();
-        let guid = GUID::new(prefix, entity_id);
-
-        let datawriter_qos = qos.unwrap_or_default();
-
-        let writer = RTPSWriterImpl::new(datawriter_qos, guid);
-        let rtps_writer = Arc::new(Mutex::new(writer));
-        rtps_writer_group_lock.writer_list.push(rtps_writer.clone());
-
-        let data_writer = DataWriterImpl::new(self, Arc::downgrade(&rtps_writer));
-        Some(data_writer)
-    }
-
-    fn delete_datawriter<T: 'static>(
-        &'a self,
-        a_datawriter: &<Self as rust_dds_api::publication::publisher::DataWriterGAT<'a, T>>::DataWriterType,
-    ) -> DDSResult<()> {
-        if std::ptr::eq(a_datawriter.parent, self) {
-            let rtps_group = self.impl_ref.upgrade().ok_or(DDSError::AlreadyDeleted)?;
-            let rtps_writer = a_datawriter
-                .rtps_writer
-                .upgrade()
-                .ok_or(DDSError::AlreadyDeleted)?;
-            let mut rtps_group_lock = rtps_group.lock().unwrap();
-            let rtps_writer_guid = rtps_writer.lock().unwrap().guid();
-            if let Some(stateless_writer_index) = rtps_group_lock
-                .writer_list
-                .iter()
-                .map(|x| x.lock().unwrap())
-                .position(|x| x.guid() == rtps_writer_guid)
-            {
-                rtps_group_lock.writer_list.remove(stateless_writer_index);
-            }
-            Ok(())
-        } else {
-            Err(DDSError::PreconditionNotMet(
-                "Publisher can only be deleted from its parent participant",
-            ))
-        }
-    }
-
-    fn lookup_datawriter<T: 'static>(
-        &self,
-        _topic: &<Self as rust_dds_api::domain::domain_participant::TopicGAT<'a, T>>::TopicType,
-    ) -> Option<<Self as rust_dds_api::publication::publisher::DataWriterGAT<'a, T>>::DataWriterType>
-    {
-        todo!()
-    }
-
     fn suspend_publications(&self) -> DDSResult<()> {
         todo!()
     }
@@ -286,33 +258,35 @@ mod tests {
 
     #[test]
     fn create_datawriter() {
-        let domain_participant: DomainParticipantImpl<RtpsUdpPsm> =
-            DomainParticipantImpl::new(RTPSParticipantImpl::new([1; 12]));
-        let publisher = domain_participant.create_publisher(None, None, 0).unwrap();
-        let a_topic = domain_participant
-            .create_topic::<MockData>("Test", None, None, 0)
-            .unwrap();
+        todo!()
+        // let domain_participant: DomainParticipantImpl<RtpsUdpPsm> =
+        //     DomainParticipantImpl::new(RTPSParticipantImpl::new([1; 12]));
+        // let publisher = domain_participant.create_publisher(None, None, 0).unwrap();
+        // let a_topic = domain_participant
+        //     .create_topic::<MockData>("Test", None, None, 0)
+        //     .unwrap();
 
-        let data_writer = publisher.create_datawriter(&a_topic, None, None, 0);
+        // let data_writer = publisher.create_datawriter(&a_topic, None, None, 0);
 
-        assert!(data_writer.is_some());
+        // assert!(data_writer.is_some());
     }
 
     #[test]
     fn create_delete_datawriter() {
-        let domain_participant: DomainParticipantImpl<RtpsUdpPsm> =
-            DomainParticipantImpl::new(RTPSParticipantImpl::new([1; 12]));
-        let publisher = domain_participant.create_publisher(None, None, 0).unwrap();
-        let a_topic = domain_participant
-            .create_topic::<MockData>("Test", None, None, 0)
-            .unwrap();
+        todo!()
+        // let domain_participant: DomainParticipantImpl<RtpsUdpPsm> =
+        //     DomainParticipantImpl::new(RTPSParticipantImpl::new([1; 12]));
+        // let publisher = domain_participant.create_publisher(None, None, 0).unwrap();
+        // let a_topic = domain_participant
+        //     .create_topic::<MockData>("Test", None, None, 0)
+        //     .unwrap();
 
-        let a_datawriter = publisher
-            .create_datawriter(&a_topic, None, None, 0)
-            .unwrap();
+        // let a_datawriter = publisher
+        //     .create_datawriter(&a_topic, None, None, 0)
+        //     .unwrap();
 
-        let result = publisher.delete_datawriter(&a_datawriter);
-        assert!(result.is_ok());
+        // let result = publisher.delete_datawriter(&a_datawriter);
+        // assert!(result.is_ok());
     }
 
     #[test]

@@ -3,7 +3,7 @@ use rust_dds_api::{
         InstanceHandle, InstanceStateKind, SampleLostStatus, SampleStateKind, StatusMask,
         ViewStateKind,
     },
-    domain::domain_participant::{DomainParticipantChild, TopicGAT},
+    domain::domain_participant::{DomainParticipantChild, TopicFactory},
     infrastructure::{
         entity::{Entity, StatusCondition},
         qos::{DataReaderQos, SubscriberQos, TopicQos},
@@ -11,7 +11,7 @@ use rust_dds_api::{
     return_type::DDSResult,
     subscription::{
         data_reader::AnyDataReader, data_reader_listener::DataReaderListener,
-        subscriber::DataReaderGAT, subscriber_listener::SubscriberListener,
+        subscriber::DataReaderFactory, subscriber_listener::SubscriberListener,
     },
 };
 
@@ -25,16 +25,66 @@ pub struct SubscriberImpl<'a, PSM: rust_rtps_pim::structure::Types> {
 }
 
 impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types, T: 'static>
-    TopicGAT<'a, T> for SubscriberImpl<'a, PSM>
+    TopicFactory<'a, T> for SubscriberImpl<'a, PSM>
 {
     type TopicType = TopicImpl<'a, PSM, T>;
+
+    fn create_topic(
+        &'a self,
+        topic_name: &str,
+        qos: Option<TopicQos>,
+        a_listener: Option<
+            Box<dyn rust_dds_api::topic::topic_listener::TopicListener<DataType = T>>,
+        >,
+        mask: StatusMask,
+    ) -> Option<Self::TopicType> {
+        todo!()
+    }
+
+    fn delete_topic(&'a self, a_topic: &Self::TopicType) -> DDSResult<()> {
+        todo!()
+    }
+
+    fn find_topic(
+        &self,
+        topic_name: &str,
+        timeout: rust_dds_api::dcps_psm::Duration,
+    ) -> Option<Self::TopicType> {
+        todo!()
+    }
+
+    fn lookup_topicdescription(
+        &self,
+        _name: &str,
+    ) -> Option<Box<dyn rust_dds_api::topic::topic_description::TopicDescription<T>>> {
+        todo!()
+    }
 }
 
-impl<'a, PSM: rust_rtps_pim::structure::Types, T: 'static> DataReaderGAT<'a, T>
-    for SubscriberImpl<'a, PSM>
-{
-    type DataReaderType = DataReaderImpl<'a, PSM, T>;
-}
+// impl<'b, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types, T: 'static>
+//     DataReaderFactory<T> for SubscriberImpl<'b, PSM>
+// {
+//     type TopicType = TopicImpl<'b, PSM, T>;
+//     type DataReaderType = DataReaderImpl<'b, PSM, T>;
+
+//     fn create_datareader<'a>(
+//         &'a self,
+//         a_topic: &'a Self::TopicType,
+//         qos: Option<DataReaderQos>,
+//         a_listener: Option<Box<dyn DataReaderListener<DataType = T>>>,
+//         mask: StatusMask,
+//     ) -> Option<Self::DataReaderType> {
+//         todo!()
+//     }
+
+//     fn delete_datareader(&self, a_datareader: &Self::DataReaderType) -> DDSResult<()> {
+//         todo!()
+//     }
+
+//     fn lookup_datareader<'a>(&'a self, topic: &'a Self::TopicType) -> Option<Self::DataReaderType> {
+//         todo!()
+//     }
+// }
 
 impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types>
     DomainParticipantChild<'a> for SubscriberImpl<'a, PSM>
@@ -45,54 +95,6 @@ impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types>
 impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types>
     rust_dds_api::subscription::subscriber::Subscriber<'a> for SubscriberImpl<'a, PSM>
 {
-    fn create_datareader<T: 'static>(
-        &'a self,
-        _a_topic: &'a <Self as TopicGAT<'a, T>>::TopicType,
-        _qos: Option<DataReaderQos>,
-        _a_listener: Option<Box<dyn DataReaderListener<DataType = T>>>,
-        _mask: StatusMask,
-    ) -> Option<<Self as DataReaderGAT<'a, T>>::DataReaderType> {
-        todo!()
-        // let topic = a_topic.impl_ref.upgrade()?;
-        // let data_reader_ref = self
-        //     .impl_ref
-        //     .upgrade()?
-        //     .lock()
-        //     .unwrap()
-        //     .create_datareader(topic, qos, a_listener, mask)?;
-
-        // Some(DataReader(Node {
-        //     parent: (self, a_topic),
-        //     impl_ref: data_reader_ref,
-        // }))
-    }
-
-    fn delete_datareader<T: 'static>(
-        &'a self,
-        _a_datareader: &<Self as DataReaderGAT<'a, T>>::DataReaderType,
-    ) -> DDSResult<()> {
-        todo!()
-        // if std::ptr::eq(a_datareader.parent.0, self) {
-        //     self.impl_ref
-        //         .upgrade()
-        //         .ok_or(DDSError::AlreadyDeleted)?
-        //         .lock()
-        //         .unwrap()
-        //         .delete_datareader(&a_datareader.impl_ref)
-        // } else {
-        //     Err(DDSError::PreconditionNotMet(
-        //         "Publisher can only be deleted from its parent participant",
-        //     ))
-        // }
-    }
-
-    fn lookup_datareader<T: 'static>(
-        &self,
-        _topic: &<Self as TopicGAT<'a, T>>::TopicType,
-    ) -> Option<<Self as DataReaderGAT<'a, T>>::DataReaderType> {
-        todo!()
-    }
-
     fn begin_access(&self) -> DDSResult<()> {
         todo!()
     }

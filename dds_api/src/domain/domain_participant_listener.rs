@@ -8,7 +8,7 @@ use crate::{
     infrastructure::listener::Listener,
     publication::data_writer::AnyDataWriter,
     subscription::{data_reader::AnyDataReader, subscriber::Subscriber},
-    topic::topic_description::TopicDescription,
+    topic::topic_description::AnyTopicDescription,
 };
 
 /// The purpose of the DomainParticipantListener is to be the listener of last resort that is notified of all status changes not
@@ -18,7 +18,7 @@ use crate::{
 pub trait DomainParticipantListener: Listener {
     fn on_inconsistent_topic(
         &self,
-        the_topic: &dyn TopicDescription,
+        the_topic: &dyn AnyTopicDescription,
         status: InconsistentTopicStatus,
     );
     fn on_data_on_readers(&self, the_subscriber: &dyn Subscriber);

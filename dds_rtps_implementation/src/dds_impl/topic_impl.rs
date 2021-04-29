@@ -34,7 +34,7 @@ impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types, 
 }
 
 impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types, T>
-    rust_dds_api::topic::topic::Topic<'a> for TopicImpl<'a, PSM, T>
+    rust_dds_api::topic::topic::Topic<'a, T> for TopicImpl<'a, PSM, T>
 {
     fn get_inconsistent_topic_status(
         &self,
@@ -45,7 +45,7 @@ impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types, 
 }
 
 impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types, T>
-    TopicDescription<'a> for TopicImpl<'a, PSM, T>
+    TopicDescription<'a, T> for TopicImpl<'a, PSM, T>
 {
     fn get_participant(&self) -> &<Self as DomainParticipantChild<'a>>::DomainParticipantType {
         self.parent
@@ -76,7 +76,7 @@ impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types, 
 
 impl<'a, PSM: rust_rtps_pim::structure::Types, T> Entity for TopicImpl<'a, PSM, T> {
     type Qos = TopicQos;
-    type Listener = Box<dyn TopicListener>;
+    type Listener = Box<dyn TopicListener<DataType = T>>;
 
     fn set_qos(&self, _qos: Option<Self::Qos>) -> DDSResult<()> {
         // self.impl_ref
