@@ -6,18 +6,13 @@ use rust_dds_api::{
         entity::StatusCondition,
         qos::{DataWriterQos, PublisherQos, TopicQos},
     },
-    publication::{
-        data_writer_listener::DataWriterListener, publisher_listener::PublisherListener,
-    },
+    publication::publisher_listener::PublisherListener,
     return_type::DDSResult,
 };
 
 use crate::rtps_impl::rtps_writer_group_impl::RTPSWriterGroupImpl;
 
-use super::{
-    data_writer_impl::DataWriterImpl, domain_participant_impl::DomainParticipantImpl,
-    topic_impl::TopicImpl,
-};
+use super::{domain_participant_impl::DomainParticipantImpl, topic_impl::TopicImpl};
 
 const ENTITYKIND_USER_DEFINED_WRITER_WITH_KEY: u8 = 0x02;
 const ENTITYKIND_USER_DEFINED_WRITER_NO_KEY: u8 = 0x03;
@@ -52,21 +47,21 @@ impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types, 
 
     fn create_topic(
         &'a self,
-        topic_name: &str,
-        qos: Option<TopicQos>,
-        a_listener: Option<
+        _topic_name: &str,
+        _qos: Option<TopicQos>,
+        _a_listener: Option<
             Box<dyn rust_dds_api::topic::topic_listener::TopicListener<DataType = T>>,
         >,
-        mask: StatusMask,
+        _mask: StatusMask,
     ) -> Option<Self::TopicType> {
         todo!()
     }
 
-    fn delete_topic(&'a self, a_topic: &Self::TopicType) -> DDSResult<()> {
+    fn delete_topic(&'a self, _a_topic: &Self::TopicType) -> DDSResult<()> {
         todo!()
     }
 
-    fn find_topic(&self, topic_name: &str, timeout: Duration) -> Option<Self::TopicType> {
+    fn find_topic(&self, _topic_name: &str, _timeout: Duration) -> Option<Self::TopicType> {
         todo!()
     }
 
@@ -222,15 +217,15 @@ impl<'a, PSM: rust_rtps_pim::structure::Types> rust_dds_api::infrastructure::ent
 
 #[cfg(test)]
 mod tests {
-    use rust_dds_api::{
-        domain::domain_participant::DomainParticipant, publication::publisher::Publisher,
-        return_type::DDSError,
-    };
+    // use rust_dds_api::{
+    //     domain::domain_participant::DomainParticipant, publication::publisher::Publisher,
+    //     return_type::DDSError,
+    // };
 
-    use crate::rtps_impl::rtps_participant_impl::RTPSParticipantImpl;
-    use rust_rtps_udp_psm::RtpsUdpPsm;
+    // use crate::rtps_impl::rtps_participant_impl::RTPSParticipantImpl;
+    // use rust_rtps_udp_psm::RtpsUdpPsm;
 
-    use super::*;
+    // use super::*;
 
     struct MockData;
 
@@ -291,54 +286,58 @@ mod tests {
 
     #[test]
     fn set_default_datawriter_qos_some_value() {
-        let domain_participant: DomainParticipantImpl<RtpsUdpPsm> =
-            DomainParticipantImpl::new(RTPSParticipantImpl::new([1; 12]));
-        let publisher = domain_participant.create_publisher(None, None, 0).unwrap();
-        let mut qos = DataWriterQos::default();
-        qos.user_data.value = vec![1, 2, 3, 4];
-        publisher
-            .set_default_datawriter_qos(Some(qos.clone()))
-            .unwrap();
-        assert!(*publisher.default_datawriter_qos.lock().unwrap() == qos);
+        todo!()
+        // let domain_participant: DomainParticipantImpl<RtpsUdpPsm> =
+        //     DomainParticipantImpl::new(RTPSParticipantImpl::new([1; 12]));
+        // let publisher = domain_participant.create_publisher(None, None, 0).unwrap();
+        // let mut qos = DataWriterQos::default();
+        // qos.user_data.value = vec![1, 2, 3, 4];
+        // publisher
+        //     .set_default_datawriter_qos(Some(qos.clone()))
+        //     .unwrap();
+        // assert!(*publisher.default_datawriter_qos.lock().unwrap() == qos);
     }
 
     #[test]
     fn set_default_datawriter_qos_inconsistent() {
-        let domain_participant: DomainParticipantImpl<RtpsUdpPsm> =
-            DomainParticipantImpl::new(RTPSParticipantImpl::new([1; 12]));
-        let publisher = domain_participant.create_publisher(None, None, 0).unwrap();
-        let mut qos = DataWriterQos::default();
-        qos.resource_limits.max_samples_per_instance = 2;
-        qos.resource_limits.max_samples = 1;
-        let set_default_topic_qos_result = publisher.set_default_datawriter_qos(Some(qos.clone()));
-        assert!(set_default_topic_qos_result == Err(DDSError::InconsistentPolicy));
+        todo!()
+        // let domain_participant: DomainParticipantImpl<RtpsUdpPsm> =
+        //     DomainParticipantImpl::new(RTPSParticipantImpl::new([1; 12]));
+        // let publisher = domain_participant.create_publisher(None, None, 0).unwrap();
+        // let mut qos = DataWriterQos::default();
+        // qos.resource_limits.max_samples_per_instance = 2;
+        // qos.resource_limits.max_samples = 1;
+        // let set_default_topic_qos_result = publisher.set_default_datawriter_qos(Some(qos.clone()));
+        // assert!(set_default_topic_qos_result == Err(DDSError::InconsistentPolicy));
     }
 
     #[test]
     fn set_default_datawriter_qos_none() {
-        let domain_participant: DomainParticipantImpl<RtpsUdpPsm> =
-            DomainParticipantImpl::new(RTPSParticipantImpl::new([1; 12]));
-        let publisher = domain_participant.create_publisher(None, None, 0).unwrap();
-        let mut qos = DataWriterQos::default();
-        qos.user_data.value = vec![1, 2, 3, 4];
-        publisher
-            .set_default_datawriter_qos(Some(qos.clone()))
-            .unwrap();
+        todo!()
+        // let domain_participant: DomainParticipantImpl<RtpsUdpPsm> =
+        //     DomainParticipantImpl::new(RTPSParticipantImpl::new([1; 12]));
+        // let publisher = domain_participant.create_publisher(None, None, 0).unwrap();
+        // let mut qos = DataWriterQos::default();
+        // qos.user_data.value = vec![1, 2, 3, 4];
+        // publisher
+        //     .set_default_datawriter_qos(Some(qos.clone()))
+        //     .unwrap();
 
-        publisher.set_default_datawriter_qos(None).unwrap();
-        assert!(*publisher.default_datawriter_qos.lock().unwrap() == DataWriterQos::default());
+        // publisher.set_default_datawriter_qos(None).unwrap();
+        // assert!(*publisher.default_datawriter_qos.lock().unwrap() == DataWriterQos::default());
     }
 
     #[test]
     fn get_default_datawriter_qos() {
-        let domain_participant: DomainParticipantImpl<RtpsUdpPsm> =
-            DomainParticipantImpl::new(RTPSParticipantImpl::new([1; 12]));
-        let publisher = domain_participant.create_publisher(None, None, 0).unwrap();
-        let mut qos = DataWriterQos::default();
-        qos.user_data.value = vec![1, 2, 3, 4];
-        publisher
-            .set_default_datawriter_qos(Some(qos.clone()))
-            .unwrap();
-        assert!(publisher.get_default_datawriter_qos() == qos);
+        todo!()
+        // let domain_participant: DomainParticipantImpl<RtpsUdpPsm> =
+        //     DomainParticipantImpl::new(RTPSParticipantImpl::new([1; 12]));
+        // let publisher = domain_participant.create_publisher(None, None, 0).unwrap();
+        // let mut qos = DataWriterQos::default();
+        // qos.user_data.value = vec![1, 2, 3, 4];
+        // publisher
+        //     .set_default_datawriter_qos(Some(qos.clone()))
+        //     .unwrap();
+        // assert!(publisher.get_default_datawriter_qos() == qos);
     }
 }

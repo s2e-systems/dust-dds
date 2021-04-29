@@ -17,6 +17,67 @@ pub trait DomainParticipantChild<'a> {
     type DomainParticipantType: DomainParticipant<'a>;
 }
 
+pub trait PublisherFactory {
+    type PublisherType: for<'a> Publisher<'a>;
+
+    /// This operation creates a Publisher with the desired QoS policies and attaches to it the specified PublisherListener.
+    /// If the specified QoS policies are not consistent, the operation will fail and no Publisher will be created.
+    /// The special value PUBLISHER_QOS_DEFAULT can be used to indicate that the Publisher should be created with the default
+    /// Publisher QoS set in the factory. The use of this value is equivalent to the application obtaining the default Publisher QoS by
+    /// means of the operation get_default_publisher_qos (2.2.2.2.1.21) and using the resulting QoS to create the Publisher.
+    /// The created Publisher belongs to the DomainParticipant that is its factory
+    /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
+    fn create_publisher<'a>(
+        &'a self,
+        qos: Option<PublisherQos>,
+        a_listener: Option<Box<dyn PublisherListener>>,
+        mask: StatusMask,
+    ) -> Option<Self::PublisherType>;
+
+    /// This operation deletes an existing Publisher.
+    /// A Publisher cannot be deleted if it has any attached DataWriter objects. If delete_publisher is called on a Publisher with
+    /// existing DataWriter object, it will return PRECONDITION_NOT_MET.
+    /// The delete_publisher operation must be called on the same DomainParticipant object used to create the Publisher. If
+    /// delete_publisher is called on a different DomainParticipant, the operation will have no effect and it will return
+    /// PRECONDITION_NOT_MET.
+    /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
+    fn delete_publisher(&self, a_publisher: &Self::PublisherType) -> DDSResult<()>;
+}
+
+pub trait SubscriberFactory {
+    type SubscriberType: for<'a> Subscriber<'a>;
+
+    /// This operation creates a Subscriber with the desired QoS policies and attaches to it the specified SubscriberListener.
+    /// If the specified QoS policies are not consistent, the operation will fail and no Subscriber will be created.
+    /// The special value SUBSCRIBER_QOS_DEFAULT can be used to indicate that the Subscriber should be created with the
+    /// default Subscriber QoS set in the factory. The use of this value is equivalent to the application obtaining the default
+    /// Subscriber QoS by means of the operation get_default_subscriber_qos (2.2.2.2.1.21) and using the resulting QoS to create the
+    /// Subscriber.
+    /// The created Subscriber belongs to the DomainParticipant that is its factory.
+    /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
+    fn create_subscriber<'a>(
+        &'a self,
+        qos: Option<SubscriberQos>,
+        a_listener: Option<Box<dyn SubscriberListener>>,
+        mask: StatusMask,
+    ) -> Option<Self::SubscriberType>;
+
+    /// This operation deletes an existing Subscriber.
+    /// A Subscriber cannot be deleted if it has any attached DataReader objects. If the delete_subscriber operation is called on a
+    /// Subscriber with existing DataReader objects, it will return PRECONDITION_NOT_MET.
+    /// The delete_subscriber operation must be called on the same DomainParticipant object used to create the Subscriber. If
+    /// delete_subscriber is called on a different DomainParticipant, the operation will have no effect and it will return
+    /// PRECONDITION_NOT_MET.
+    /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
+    fn delete_subscriber(&self, a_subscriber: &Self::SubscriberType) -> DDSResult<()>;
+
+    /// This operation allows access to the built-in Subscriber. Each DomainParticipant contains several built-in Topic objects as
+    /// well as corresponding DataReader objects to access them. All these DataReader objects belong to a single built-in Subscriber.
+    /// The built-in Topics are used to communicate information about other DomainParticipant, Topic, DataReader, and DataWriter
+    /// objects. These built-in objects are described in 2.2.5, Built-in Topics.
+    fn get_builtin_subscriber(&self) -> Self::SubscriberType;
+}
+
 // This is a workaround for the missing Generic Associated Type (GAT)
 // This trait needs to be used for every function that needs to interact
 // with the internals of the topic type inside the implementations of the API.
@@ -84,67 +145,6 @@ pub trait TopicFactory<'a, T> {
 pub trait DomainParticipant<'a>:
     Entity<Qos = DomainParticipantQos, Listener = Box<dyn DomainParticipantListener>>
 {
-    type SubscriberType: Subscriber<'a>;
-    type PublisherType: Publisher<'a>;
-
-    // This concept can not yet be expressed in Rust because of the absence of Generic Associated Types
-    // https://github.com/rust-lang/rust/issues/44265
-    // As such the restriction of Topic type is done outside using an additional separate trait
-    // type TopicType<T: DDSType>: Topic<'a,T>;
-
-    /// This operation creates a Publisher with the desired QoS policies and attaches to it the specified PublisherListener.
-    /// If the specified QoS policies are not consistent, the operation will fail and no Publisher will be created.
-    /// The special value PUBLISHER_QOS_DEFAULT can be used to indicate that the Publisher should be created with the default
-    /// Publisher QoS set in the factory. The use of this value is equivalent to the application obtaining the default Publisher QoS by
-    /// means of the operation get_default_publisher_qos (2.2.2.2.1.21) and using the resulting QoS to create the Publisher.
-    /// The created Publisher belongs to the DomainParticipant that is its factory
-    /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
-    fn create_publisher(
-        &'a self,
-        qos: Option<PublisherQos>,
-        a_listener: Option<Box<dyn PublisherListener>>,
-        mask: StatusMask,
-    ) -> Option<Self::PublisherType>;
-
-    /// This operation deletes an existing Publisher.
-    /// A Publisher cannot be deleted if it has any attached DataWriter objects. If delete_publisher is called on a Publisher with
-    /// existing DataWriter object, it will return PRECONDITION_NOT_MET.
-    /// The delete_publisher operation must be called on the same DomainParticipant object used to create the Publisher. If
-    /// delete_publisher is called on a different DomainParticipant, the operation will have no effect and it will return
-    /// PRECONDITION_NOT_MET.
-    /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
-    fn delete_publisher(&self, a_publisher: &Self::PublisherType) -> DDSResult<()>;
-
-    /// This operation creates a Subscriber with the desired QoS policies and attaches to it the specified SubscriberListener.
-    /// If the specified QoS policies are not consistent, the operation will fail and no Subscriber will be created.
-    /// The special value SUBSCRIBER_QOS_DEFAULT can be used to indicate that the Subscriber should be created with the
-    /// default Subscriber QoS set in the factory. The use of this value is equivalent to the application obtaining the default
-    /// Subscriber QoS by means of the operation get_default_subscriber_qos (2.2.2.2.1.21) and using the resulting QoS to create the
-    /// Subscriber.
-    /// The created Subscriber belongs to the DomainParticipant that is its factory.
-    /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
-    fn create_subscriber(
-        &'a self,
-        qos: Option<SubscriberQos>,
-        a_listener: Option<Box<dyn SubscriberListener>>,
-        mask: StatusMask,
-    ) -> Option<Self::SubscriberType>;
-
-    /// This operation deletes an existing Subscriber.
-    /// A Subscriber cannot be deleted if it has any attached DataReader objects. If the delete_subscriber operation is called on a
-    /// Subscriber with existing DataReader objects, it will return PRECONDITION_NOT_MET.
-    /// The delete_subscriber operation must be called on the same DomainParticipant object used to create the Subscriber. If
-    /// delete_subscriber is called on a different DomainParticipant, the operation will have no effect and it will return
-    /// PRECONDITION_NOT_MET.
-    /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
-    fn delete_subscriber(&self, a_subscriber: &Self::SubscriberType) -> DDSResult<()>;
-
-    /// This operation allows access to the built-in Subscriber. Each DomainParticipant contains several built-in Topic objects as
-    /// well as corresponding DataReader objects to access them. All these DataReader objects belong to a single built-in Subscriber.
-    /// The built-in Topics are used to communicate information about other DomainParticipant, Topic, DataReader, and DataWriter
-    /// objects. These built-in objects are described in 2.2.5, Built-in Topics.
-    fn get_builtin_subscriber(&self) -> Self::SubscriberType;
-
     /// This operation allows an application to instruct the Service to locally ignore a remote domain participant. From that point
     /// onwards the Service will locally behave as if the remote participant did not exist. This means it will ignore any Topic,
     /// publication, or subscription that originates on that domain participant.

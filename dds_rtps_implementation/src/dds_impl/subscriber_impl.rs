@@ -9,16 +9,10 @@ use rust_dds_api::{
         qos::{DataReaderQos, SubscriberQos, TopicQos},
     },
     return_type::DDSResult,
-    subscription::{
-        data_reader::AnyDataReader, data_reader_listener::DataReaderListener,
-        subscriber::DataReaderFactory, subscriber_listener::SubscriberListener,
-    },
+    subscription::{data_reader::AnyDataReader, subscriber_listener::SubscriberListener},
 };
 
-use super::{
-    data_reader_impl::DataReaderImpl, domain_participant_impl::DomainParticipantImpl,
-    topic_impl::TopicImpl,
-};
+use super::{domain_participant_impl::DomainParticipantImpl, topic_impl::TopicImpl};
 
 pub struct SubscriberImpl<'a, PSM: rust_rtps_pim::structure::Types> {
     parent: &'a DomainParticipantImpl<PSM>,
@@ -31,24 +25,24 @@ impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types, 
 
     fn create_topic(
         &'a self,
-        topic_name: &str,
-        qos: Option<TopicQos>,
-        a_listener: Option<
+        _topic_name: &str,
+        _qos: Option<TopicQos>,
+        _a_listener: Option<
             Box<dyn rust_dds_api::topic::topic_listener::TopicListener<DataType = T>>,
         >,
-        mask: StatusMask,
+        _mask: StatusMask,
     ) -> Option<Self::TopicType> {
         todo!()
     }
 
-    fn delete_topic(&'a self, a_topic: &Self::TopicType) -> DDSResult<()> {
+    fn delete_topic(&'a self, _a_topic: &Self::TopicType) -> DDSResult<()> {
         todo!()
     }
 
     fn find_topic(
         &self,
-        topic_name: &str,
-        timeout: rust_dds_api::dcps_psm::Duration,
+        _topic_name: &str,
+        _timeout: rust_dds_api::dcps_psm::Duration,
     ) -> Option<Self::TopicType> {
         todo!()
     }

@@ -51,8 +51,9 @@ use rust_dds::{
 
 #[test]
 fn create_delete_publisher() {
-    let participant = DomainParticipantFactory::create_participant(0, None, None, 0).unwrap();
-    let _publisher = participant.create_publisher(None, None, 0).unwrap();
+    todo!()
+    // let participant = DomainParticipantFactory::create_participant(0, None, None, 0).unwrap();
+    // let _publisher = participant.create_publisher(None, None, 0).unwrap();
 
     // assert_eq!(participant.delete_publisher(&publisher), Ok(()));
     // assert_eq!(publisher.get_qos(), Err(DDSError::AlreadyDeleted));

@@ -51,21 +51,21 @@ impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types, 
 
     fn create_topic(
         &'a self,
-        topic_name: &str,
-        qos: Option<rust_dds_api::infrastructure::qos::TopicQos>,
-        a_listener: Option<
+        _topic_name: &str,
+        _qos: Option<rust_dds_api::infrastructure::qos::TopicQos>,
+        _a_listener: Option<
             Box<dyn rust_dds_api::topic::topic_listener::TopicListener<DataType = T>>,
         >,
-        mask: StatusMask,
+        _mask: StatusMask,
     ) -> Option<Self::TopicType> {
         todo!()
     }
 
-    fn delete_topic(&'a self, a_topic: &Self::TopicType) -> DDSResult<()> {
+    fn delete_topic(&'a self, _a_topic: &Self::TopicType) -> DDSResult<()> {
         todo!()
     }
 
-    fn find_topic(&self, topic_name: &str, timeout: Duration) -> Option<Self::TopicType> {
+    fn find_topic(&self, _topic_name: &str, _timeout: Duration) -> Option<Self::TopicType> {
         todo!()
     }
 
