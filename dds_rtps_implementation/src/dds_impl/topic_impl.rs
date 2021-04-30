@@ -14,12 +14,12 @@ use rust_dds_api::{
 use super::domain_participant_impl::DomainParticipantImpl;
 
 pub struct TopicImpl<'a, PSM: rust_rtps_pim::PIM, T> {
-    parent: &'a DomainParticipantImpl<PSM>,
+    parent: &'a DomainParticipantImpl<'a, PSM>,
     phantom: PhantomData<&'a T>,
 }
 
 impl<'a, PSM: rust_rtps_pim::PIM, T> TopicImpl<'a, PSM, T> {
-    pub(crate) fn new(parent: &'a DomainParticipantImpl<PSM>) -> Self {
+    pub(crate) fn new(parent: &'a DomainParticipantImpl<'a, PSM>) -> Self {
         Self {
             parent,
             phantom: PhantomData,
@@ -27,8 +27,8 @@ impl<'a, PSM: rust_rtps_pim::PIM, T> TopicImpl<'a, PSM, T> {
     }
 }
 
-impl<'a, PSM: rust_rtps_pim::PIM, T> DomainParticipantChild for TopicImpl<'a, PSM, T> {
-    type DomainParticipantType = DomainParticipantImpl<PSM>;
+impl<'a, PSM: rust_rtps_pim::PIM, T> DomainParticipantChild<'a> for TopicImpl<'a, PSM, T> {
+    type DomainParticipantType = DomainParticipantImpl<'a, PSM>;
 }
 
 impl<'a, PSM: rust_rtps_pim::PIM, T> rust_dds_api::topic::topic::Topic<'a, T>
@@ -43,7 +43,7 @@ impl<'a, PSM: rust_rtps_pim::PIM, T> rust_dds_api::topic::topic::Topic<'a, T>
 }
 
 impl<'a, PSM: rust_rtps_pim::PIM, T> TopicDescription<'a, T> for TopicImpl<'a, PSM, T> {
-    fn get_participant(&self) -> &<Self as DomainParticipantChild>::DomainParticipantType {
+    fn get_participant(&'a self) -> &<Self as DomainParticipantChild>::DomainParticipantType {
         self.parent
     }
 
@@ -58,7 +58,7 @@ impl<'a, PSM: rust_rtps_pim::PIM, T> TopicDescription<'a, T> for TopicImpl<'a, P
         todo!()
     }
 
-    fn get_name(&self) -> DDSResult<String> {
+    fn get_name(&self) -> DDSResult<&'a str> {
         // Ok(self
         //     .impl_ref
         //     .upgrade()
@@ -71,8 +71,8 @@ impl<'a, PSM: rust_rtps_pim::PIM, T> TopicDescription<'a, T> for TopicImpl<'a, P
 }
 
 impl<'a, PSM: rust_rtps_pim::PIM, T> Entity for TopicImpl<'a, PSM, T> {
-    type Qos = TopicQos;
-    type Listener = Box<dyn TopicListener<DataType = T>>;
+    type Qos = TopicQos<'a>;
+    type Listener = &'a (dyn TopicListener<DataType = T> + 'a);
 
     fn set_qos(&self, _qos: Option<Self::Qos>) -> DDSResult<()> {
         // self.impl_ref

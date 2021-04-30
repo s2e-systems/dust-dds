@@ -192,8 +192,8 @@ impl<'a, PSM: rust_rtps_pim::PIM, T> rust_dds_api::subscription::data_reader::Da
         _sample_states: &[SampleStateKind],
         _view_states: &[ViewStateKind],
         _instance_states: &[InstanceStateKind],
-        _query_expression: String,
-        _query_parameters: &[String],
+        _query_expression: &'static str,
+        _query_parameters: &[&'static str],
     ) -> QueryCondition {
         todo!()
     }
@@ -271,9 +271,8 @@ impl<'a, PSM: rust_rtps_pim::PIM, T> rust_dds_api::subscription::data_reader::Da
 }
 
 impl<'a, PSM: rust_rtps_pim::PIM, T> Entity for DataReaderImpl<'a, PSM, T> {
-    type Qos = DataReaderQos;
-
-    type Listener = Box<dyn DataReaderListener<DataType = T> + 'a>;
+    type Qos = DataReaderQos<'a>;
+    type Listener = &'a (dyn DataReaderListener<DataType = T> + 'a);
 
     fn set_qos(&self, _qos: Option<Self::Qos>) -> DDSResult<()> {
         todo!()

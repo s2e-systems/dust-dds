@@ -1,3 +1,5 @@
+#![no_std]
+
 pub mod builtin_topics;
 pub mod dcps_psm;
 pub mod domain;

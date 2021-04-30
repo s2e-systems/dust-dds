@@ -17,7 +17,7 @@ use rust_rtps_pim::behavior::RTPSWriter;
 
 use crate::rtps_impl::rtps_writer_impl::RTPSWriterImpl;
 
-use super::{publisher_impl::PublisherImpl, topic_impl::TopicImpl};
+use super::publisher_impl::PublisherImpl;
 
 pub struct DataWriterImpl<'a, PSM: rust_rtps_pim::PIM, T> {
     pub(crate) parent: &'a PublisherImpl<'a, PSM>,
@@ -42,39 +42,6 @@ impl<'a, PSM: rust_rtps_pim::PIM, T> rust_dds_api::publication::publisher::Publi
     for DataWriterImpl<'a, PSM, T>
 {
     type PublisherType = PublisherImpl<'a, PSM>;
-}
-
-impl<'a, PSM: rust_rtps_pim::PIM, T> rust_dds_api::domain::domain_participant::TopicFactory<'a, T>
-    for DataWriterImpl<'a, PSM, T>
-{
-    type TopicType = TopicImpl<'a, PSM, T>;
-
-    fn create_topic(
-        &'a self,
-        _topic_name: &str,
-        _qos: Option<rust_dds_api::infrastructure::qos::TopicQos>,
-        _a_listener: Option<
-            Box<dyn rust_dds_api::topic::topic_listener::TopicListener<DataType = T>>,
-        >,
-        _mask: StatusMask,
-    ) -> Option<Self::TopicType> {
-        todo!()
-    }
-
-    fn delete_topic(&'a self, _a_topic: &Self::TopicType) -> DDSResult<()> {
-        todo!()
-    }
-
-    fn find_topic(&self, _topic_name: &str, _timeout: Duration) -> Option<Self::TopicType> {
-        todo!()
-    }
-
-    fn lookup_topicdescription(
-        &self,
-        _name: &str,
-    ) -> Option<Box<dyn rust_dds_api::topic::topic_description::TopicDescription<T>>> {
-        todo!()
-    }
 }
 
 impl<'a, PSM: rust_rtps_pim::PIM, T> rust_dds_api::publication::data_writer::DataWriter<'a, T>
@@ -216,9 +183,8 @@ impl<'a, PSM: rust_rtps_pim::PIM, T> rust_dds_api::publication::data_writer::Dat
 impl<'a, PSM: rust_rtps_pim::PIM, T> rust_dds_api::infrastructure::entity::Entity
     for DataWriterImpl<'a, PSM, T>
 {
-    type Qos = DataWriterQos;
-
-    type Listener = Box<dyn DataWriterListener<DataType = T> + 'a>;
+    type Qos = DataWriterQos<'a>;
+    type Listener = &'a (dyn DataWriterListener<DataType = T> + 'a);
 
     fn set_qos(&self, _qos: Option<Self::Qos>) -> DDSResult<()> {
         todo!()

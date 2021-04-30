@@ -27,8 +27,8 @@ use super::{
 /// get_statuscondition may return the error NOT_ENABLED.
 /// All sample-accessing operations, namely all variants of read, take may return the error PRECONDITION_NOT_MET. The
 /// circumstances that result on this are described in 2.2.2.5.2.8.
-pub trait DataReader<'a, T>:
-    Entity<Qos = DataReaderQos, Listener = Box<dyn DataReaderListener<DataType = T> + 'a>>
+pub trait DataReader<'a, T: 'a>:
+    Entity<Qos = DataReaderQos<'a>, Listener = &'a (dyn DataReaderListener<DataType = T> + 'a)>
 {
     /// This operation accesses a collection of Data values from the DataReader. The size of the returned collection will be limited to
     /// the specified max_samples. The properties of the data_values collection and the setting of the PRESENTATION QoS policy
@@ -411,8 +411,8 @@ pub trait DataReader<'a, T>:
         sample_states: &[SampleStateKind],
         view_states: &[ViewStateKind],
         instance_states: &[InstanceStateKind],
-        query_expression: String,
-        query_parameters: &[String],
+        query_expression: &'static str,
+        query_parameters: &[&'static str],
     ) -> QueryCondition;
 
     /// This operation deletes a ReadCondition attached to the DataReader. Since QueryCondition specializes ReadCondition it can

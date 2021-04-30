@@ -16,11 +16,8 @@ use rust_dds_api::{
     subscription::subscriber_listener::SubscriberListener,
     topic::{topic_description::TopicDescription, topic_listener::TopicListener},
 };
-use rust_rtps_pim::structure::{types::GUID, RTPSEntity};
 
-use crate::rtps_impl::{
-    rtps_participant_impl::RTPSParticipantImpl, rtps_writer_group_impl::RTPSWriterGroupImpl,
-};
+use crate::rtps_impl::rtps_participant_impl::RTPSParticipantImpl;
 
 use super::{
     publisher_impl::PublisherImpl, subscriber_impl::SubscriberImpl, topic_impl::TopicImpl,
@@ -29,15 +26,15 @@ use super::{
 const ENTITYKIND_USER_DEFINED_WRITER_GROUP: u8 = 0x08;
 const ENTITYKIND_USER_DEFINED_READER_GROUP: u8 = 0x09;
 
-pub struct DomainParticipantImpl<PSM: rust_rtps_pim::PIM> {
+pub struct DomainParticipantImpl<'a, PSM: rust_rtps_pim::PIM> {
     rtps_participant_impl: Mutex<RTPSParticipantImpl<PSM>>,
-    default_publisher_qos: Mutex<PublisherQos>,
-    default_subscriber_qos: Mutex<SubscriberQos>,
-    default_topic_qos: Mutex<TopicQos>,
+    default_publisher_qos: Mutex<PublisherQos<'a>>,
+    default_subscriber_qos: Mutex<SubscriberQos<'a>>,
+    default_topic_qos: Mutex<TopicQos<'a>>,
     publisher_counter: Mutex<u8>,
 }
 
-impl<PSM: rust_rtps_pim::PIM> DomainParticipantImpl<PSM> {
+impl<'a, PSM: rust_rtps_pim::PIM> DomainParticipantImpl<'a, PSM> {
     pub fn new(domain_participant_impl: RTPSParticipantImpl<PSM>) -> Self {
         Self {
             rtps_participant_impl: Mutex::new(domain_participant_impl),
@@ -49,13 +46,15 @@ impl<PSM: rust_rtps_pim::PIM> DomainParticipantImpl<PSM> {
     }
 }
 
-impl<'a, PSM: rust_rtps_pim::PIM + 'a> PublisherFactory<'a> for DomainParticipantImpl<PSM> {
+impl<'a, 'b: 'a, PSM: rust_rtps_pim::PIM + 'a> PublisherFactory<'a>
+    for DomainParticipantImpl<'b, PSM>
+{
     type PublisherType = PublisherImpl<'a, PSM>;
 
     fn create_publisher(
         &'a self,
         _qos: Option<PublisherQos>,
-        _a_listener: Option<Box<dyn PublisherListener>>,
+        _a_listener: Option<&'a (dyn PublisherListener + 'a)>,
         _mask: StatusMask,
     ) -> Option<Self::PublisherType> {
         todo!()
@@ -102,13 +101,15 @@ impl<'a, PSM: rust_rtps_pim::PIM + 'a> PublisherFactory<'a> for DomainParticipan
     }
 }
 
-impl<'a, PSM: rust_rtps_pim::PIM + 'a> SubscriberFactory<'a> for DomainParticipantImpl<PSM> {
+impl<'a, 'b: 'a, PSM: rust_rtps_pim::PIM + 'a> SubscriberFactory<'a>
+    for DomainParticipantImpl<'b, PSM>
+{
     type SubscriberType = SubscriberImpl<'a, PSM>;
 
     fn create_subscriber(
         &'a self,
         _qos: Option<SubscriberQos>,
-        _a_listener: Option<Box<dyn SubscriberListener>>,
+        _a_listener: Option<&'a (dyn SubscriberListener + 'a)>,
         _mask: StatusMask,
     ) -> Option<Self::SubscriberType> {
         todo!()
@@ -156,8 +157,8 @@ impl<'a, PSM: rust_rtps_pim::PIM + 'a> SubscriberFactory<'a> for DomainParticipa
     }
 }
 
-impl<'a, PSM: rust_rtps_pim::PIM + 'a, T: 'a> TopicFactory<'a, T>
-    for DomainParticipantImpl<PSM>
+impl<'a, 'b: 'a, PSM: rust_rtps_pim::PIM + 'a, T: 'a> TopicFactory<'a, T>
+    for DomainParticipantImpl<'b, PSM>
 {
     type TopicType = TopicImpl<'a, PSM, T>;
 
@@ -165,7 +166,7 @@ impl<'a, PSM: rust_rtps_pim::PIM + 'a, T: 'a> TopicFactory<'a, T>
         &'a self,
         _topic_name: &str,
         _qos: Option<TopicQos>,
-        _a_listener: Option<Box<dyn TopicListener<DataType = T>>>,
+        _a_listener: Option<&'a (dyn TopicListener<DataType = T> + 'a)>,
         _mask: StatusMask,
     ) -> Option<Self::TopicType> {
         todo!()
@@ -179,13 +180,14 @@ impl<'a, PSM: rust_rtps_pim::PIM + 'a, T: 'a> TopicFactory<'a, T>
         todo!()
     }
 
-    fn lookup_topicdescription(&self, _name: &str) -> Option<Box<dyn TopicDescription<T>>> {
+    fn lookup_topicdescription(&self, _name: &str) -> Option<&'a (dyn TopicDescription<T> + 'a)> {
         todo!()
     }
 }
 
-impl<'a, PSM: rust_rtps_pim::PIM + 'a> rust_dds_api::domain::domain_participant::DomainParticipant
-    for DomainParticipantImpl<PSM>
+impl<'a, PSM: rust_rtps_pim::PIM + 'a>
+    rust_dds_api::domain::domain_participant::DomainParticipant<'a>
+    for DomainParticipantImpl<'a, PSM>
 {
     fn ignore_participant(&self, _handle: InstanceHandle) -> DDSResult<()> {
         todo!()
@@ -216,32 +218,32 @@ impl<'a, PSM: rust_rtps_pim::PIM + 'a> rust_dds_api::domain::domain_participant:
         todo!()
     }
 
-    fn set_default_publisher_qos(&self, qos: Option<PublisherQos>) -> DDSResult<()> {
+    fn set_default_publisher_qos(&self, qos: Option<PublisherQos<'a>>) -> DDSResult<()> {
         *self.default_publisher_qos.lock().unwrap() = qos.unwrap_or_default();
         Ok(())
     }
 
-    fn get_default_publisher_qos(&self) -> PublisherQos {
+    fn get_default_publisher_qos(&self) -> PublisherQos<'a> {
         self.default_publisher_qos.lock().unwrap().clone()
     }
 
-    fn set_default_subscriber_qos(&self, qos: Option<SubscriberQos>) -> DDSResult<()> {
+    fn set_default_subscriber_qos(&self, qos: Option<SubscriberQos<'a>>) -> DDSResult<()> {
         *self.default_subscriber_qos.lock().unwrap() = qos.unwrap_or_default();
         Ok(())
     }
 
-    fn get_default_subscriber_qos(&self) -> SubscriberQos {
+    fn get_default_subscriber_qos(&self) -> SubscriberQos<'a> {
         self.default_subscriber_qos.lock().unwrap().clone()
     }
 
-    fn set_default_topic_qos(&self, qos: Option<TopicQos>) -> DDSResult<()> {
+    fn set_default_topic_qos(&self, qos: Option<TopicQos<'a>>) -> DDSResult<()> {
         let topic_qos = qos.unwrap_or_default();
         topic_qos.is_consistent()?;
         *self.default_topic_qos.lock().unwrap() = topic_qos;
         Ok(())
     }
 
-    fn get_default_topic_qos(&self) -> TopicQos {
+    fn get_default_topic_qos(&self) -> TopicQos<'a> {
         self.default_topic_qos.lock().unwrap().clone()
     }
 
@@ -281,9 +283,9 @@ impl<'a, PSM: rust_rtps_pim::PIM + 'a> rust_dds_api::domain::domain_participant:
     }
 }
 
-impl<PSM: rust_rtps_pim::PIM> Entity for DomainParticipantImpl<PSM> {
-    type Qos = DomainParticipantQos;
-    type Listener = Box<dyn DomainParticipantListener>;
+impl<'a, PSM: rust_rtps_pim::PIM> Entity for DomainParticipantImpl<'a, PSM> {
+    type Qos = DomainParticipantQos<'a>;
+    type Listener = &'a (dyn DomainParticipantListener + 'a);
 
     fn set_qos(&self, _qos: Option<Self::Qos>) -> DDSResult<()> {
         // self.0.lock().unwrap().set_qos(qos)
@@ -340,7 +342,7 @@ mod tests {
         let domain_participant_impl: DomainParticipantImpl<RtpsUdpPsm> =
             DomainParticipantImpl::new(RTPSParticipantImpl::new([1; 12]));
         let mut qos = PublisherQos::default();
-        qos.group_data.value = vec![1, 2, 3, 4];
+        qos.group_data.value = &[1, 2, 3, 4];
         domain_participant_impl
             .set_default_publisher_qos(Some(qos.clone()))
             .unwrap();
@@ -358,7 +360,7 @@ mod tests {
         let domain_participant_impl: DomainParticipantImpl<RtpsUdpPsm> =
             DomainParticipantImpl::new(RTPSParticipantImpl::new([1; 12]));
         let mut qos = PublisherQos::default();
-        qos.group_data.value = vec![1, 2, 3, 4];
+        qos.group_data.value = &[1, 2, 3, 4];
         domain_participant_impl
             .set_default_publisher_qos(Some(qos.clone()))
             .unwrap();
@@ -380,7 +382,7 @@ mod tests {
         let domain_participant_impl: DomainParticipantImpl<RtpsUdpPsm> =
             DomainParticipantImpl::new(RTPSParticipantImpl::new([1; 12]));
         let mut qos = PublisherQos::default();
-        qos.group_data.value = vec![1, 2, 3, 4];
+        qos.group_data.value = &[1, 2, 3, 4];
         domain_participant_impl
             .set_default_publisher_qos(Some(qos.clone()))
             .unwrap();
@@ -392,7 +394,7 @@ mod tests {
         let domain_participant_impl: DomainParticipantImpl<RtpsUdpPsm> =
             DomainParticipantImpl::new(RTPSParticipantImpl::new([1; 12]));
         let mut qos = SubscriberQos::default();
-        qos.group_data.value = vec![1, 2, 3, 4];
+        qos.group_data.value = &[1, 2, 3, 4];
         domain_participant_impl
             .set_default_subscriber_qos(Some(qos.clone()))
             .unwrap();
@@ -410,7 +412,7 @@ mod tests {
         let domain_participant_impl: DomainParticipantImpl<RtpsUdpPsm> =
             DomainParticipantImpl::new(RTPSParticipantImpl::new([1; 12]));
         let mut qos = SubscriberQos::default();
-        qos.group_data.value = vec![1, 2, 3, 4];
+        qos.group_data.value = &[1, 2, 3, 4];
         domain_participant_impl
             .set_default_subscriber_qos(Some(qos.clone()))
             .unwrap();
@@ -432,7 +434,7 @@ mod tests {
         let domain_participant_impl: DomainParticipantImpl<RtpsUdpPsm> =
             DomainParticipantImpl::new(RTPSParticipantImpl::new([1; 12]));
         let mut qos = SubscriberQos::default();
-        qos.group_data.value = vec![1, 2, 3, 4];
+        qos.group_data.value = &[1, 2, 3, 4];
         domain_participant_impl
             .set_default_subscriber_qos(Some(qos.clone()))
             .unwrap();
@@ -444,7 +446,7 @@ mod tests {
         let domain_participant_impl: DomainParticipantImpl<RtpsUdpPsm> =
             DomainParticipantImpl::new(RTPSParticipantImpl::new([1; 12]));
         let mut qos = TopicQos::default();
-        qos.topic_data.value = vec![1, 2, 3, 4];
+        qos.topic_data.value = &[1, 2, 3, 4];
         domain_participant_impl
             .set_default_topic_qos(Some(qos.clone()))
             .unwrap();
@@ -468,7 +470,7 @@ mod tests {
         let domain_participant_impl: DomainParticipantImpl<RtpsUdpPsm> =
             DomainParticipantImpl::new(RTPSParticipantImpl::new([1; 12]));
         let mut qos = TopicQos::default();
-        qos.topic_data.value = vec![1, 2, 3, 4];
+        qos.topic_data.value = &[1, 2, 3, 4];
         domain_participant_impl
             .set_default_topic_qos(Some(qos.clone()))
             .unwrap();
@@ -482,7 +484,7 @@ mod tests {
         let domain_participant_impl: DomainParticipantImpl<RtpsUdpPsm> =
             DomainParticipantImpl::new(RTPSParticipantImpl::new([1; 12]));
         let mut qos = TopicQos::default();
-        qos.topic_data.value = vec![1, 2, 3, 4];
+        qos.topic_data.value = &[1, 2, 3, 4];
         domain_participant_impl
             .set_default_topic_qos(Some(qos.clone()))
             .unwrap();

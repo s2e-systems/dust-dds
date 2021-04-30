@@ -13,8 +13,8 @@ use crate::{
 
 use super::domain_participant_listener::DomainParticipantListener;
 
-pub trait DomainParticipantChild {
-    type DomainParticipantType: DomainParticipant;
+pub trait DomainParticipantChild<'a> {
+    type DomainParticipantType: DomainParticipant<'a>;
 }
 
 pub trait PublisherFactory<'a> {
@@ -30,7 +30,7 @@ pub trait PublisherFactory<'a> {
     fn create_publisher(
         &'a self,
         qos: Option<PublisherQos>,
-        a_listener: Option<Box<dyn PublisherListener>>,
+        a_listener: Option<&'a (dyn PublisherListener + 'a)>,
         mask: StatusMask,
     ) -> Option<Self::PublisherType>;
 
@@ -58,7 +58,7 @@ pub trait SubscriberFactory<'a> {
     fn create_subscriber(
         &'a self,
         qos: Option<SubscriberQos>,
-        a_listener: Option<Box<dyn SubscriberListener>>,
+        a_listener: Option<&'a (dyn SubscriberListener + 'a)>,
         mask: StatusMask,
     ) -> Option<Self::SubscriberType>;
 
@@ -85,7 +85,7 @@ pub trait SubscriberFactory<'a> {
 // where it is used. See for example create_topic below.
 // Inspired by this thread: https://users.rust-lang.org/t/workaround-for-generic-associated-types/25920/14
 // The trait is placed here because the DomainParticipant is the factory of this type.
-pub trait TopicFactory<'a, T> {
+pub trait TopicFactory<'a, T: 'a> {
     type TopicType: Topic<'a, T>;
 
     /// This operation creates a Topic with the desired QoS policies and attaches to it the specified TopicListener.
@@ -102,7 +102,7 @@ pub trait TopicFactory<'a, T> {
         &'a self,
         topic_name: &str,
         qos: Option<TopicQos>,
-        a_listener: Option<Box<dyn TopicListener<DataType = T>>>,
+        a_listener: Option<&'a (dyn TopicListener<DataType = T> + 'a)>,
         mask: StatusMask,
     ) -> Option<Self::TopicType>;
 
@@ -139,11 +139,11 @@ pub trait TopicFactory<'a, T> {
     /// deletion. It is still possible to delete the TopicDescription returned by lookup_topicdescription, provided it has no readers or
     /// writers, but then it is really deleted and subsequent lookups will fail.
     /// If the operation fails to locate a TopicDescription, a ‘nil’ value (as specified by the platform) is returned.
-    fn lookup_topicdescription(&self, _name: &str) -> Option<Box<dyn TopicDescription<T>>>;
+    fn lookup_topicdescription(&self, _name: &str) -> Option<&'a(dyn TopicDescription<T> + 'a)>;
 }
 
-pub trait DomainParticipant:
-    Entity<Qos = DomainParticipantQos, Listener = Box<dyn DomainParticipantListener>>
+pub trait DomainParticipant<'a>:
+    Entity<Qos = DomainParticipantQos<'a>, Listener = &'a (dyn DomainParticipantListener + 'a)>
 {
     /// This operation allows an application to instruct the Service to locally ignore a remote domain participant. From that point
     /// onwards the Service will locally behave as if the remote participant did not exist. This means it will ignore any Topic,
@@ -223,14 +223,14 @@ pub trait DomainParticipant:
     /// The special value PUBLISHER_QOS_DEFAULT may be passed to this operation to indicate that the default QoS should be
     /// reset back to the initial values the factory would use, that is the values that would be used if the set_default_publisher_qos
     /// operation had never been called.
-    fn set_default_publisher_qos(&self, qos: Option<PublisherQos>) -> DDSResult<()>;
+    fn set_default_publisher_qos(&self, qos: Option<PublisherQos<'a>>) -> DDSResult<()>;
 
     /// This operation retrieves the default value of the Publisher QoS, that is, the QoS policies which will be used for newly created
     /// Publisher entities in the case where the QoS policies are defaulted in the create_publisher operation.
     /// The values retrieved get_default_publisher_qos will match the set of values specified on the last successful call to
     /// set_default_publisher_qos, or else, if the call was never made, the default values listed in the QoS table in 2.2.3, Supported
     /// QoS.
-    fn get_default_publisher_qos(&self) -> PublisherQos;
+    fn get_default_publisher_qos(&self) -> PublisherQos<'a>;
 
     /// This operation sets a default value of the Subscriber QoS policies that will be used for newly created Subscriber entities in the
     /// case where the QoS policies are defaulted in the create_subscriber operation.
@@ -239,14 +239,14 @@ pub trait DomainParticipant:
     /// The special value SUBSCRIBER_QOS_DEFAULT may be passed to this operation to indicate that the default QoS should be
     /// reset back to the initial values the factory would use, that is the values that would be used if the set_default_subscriber_qos
     /// operation had never been called.
-    fn set_default_subscriber_qos(&self, qos: Option<SubscriberQos>) -> DDSResult<()>;
+    fn set_default_subscriber_qos(&self, qos: Option<SubscriberQos<'a>>) -> DDSResult<()>;
 
     /// This operation retrieves the default value of the Subscriber QoS, that is, the QoS policies which will be used for newly created
     /// Subscriber entities in the case where the QoS policies are defaulted in the create_subscriber operation.
     /// The values retrieved get_default_subscriber_qos will match the set of values specified on the last successful call to
     /// set_default_subscriber_qos, or else, if the call was never made, the default values listed in the QoS table in 2.2.3, Supported
     /// QoS.
-    fn get_default_subscriber_qos(&self) -> SubscriberQos;
+    fn get_default_subscriber_qos(&self) -> SubscriberQos<'a>;
 
     /// This operation sets a default value of the Topic QoS policies which will be used for newly created Topic entities in the case
     /// where the QoS policies are defaulted in the create_topic operation.
@@ -255,13 +255,13 @@ pub trait DomainParticipant:
     /// The special value TOPIC_QOS_DEFAULT may be passed to this operation to indicate that the default QoS should be reset
     /// back to the initial values the factory would use, that is the values that would be used if the set_default_topic_qos operation
     /// had never been called.
-    fn set_default_topic_qos(&self, qos: Option<TopicQos>) -> DDSResult<()>;
+    fn set_default_topic_qos(&self, qos: Option<TopicQos<'a>>) -> DDSResult<()>;
 
     /// This operation retrieves the default value of the Topic QoS, that is, the QoS policies that will be used for newly created Topic
     /// entities in the case where the QoS policies are defaulted in the create_topic operation.
     /// The values retrieved get_default_topic_qos will match the set of values specified on the last successful call to
     /// set_default_topic_qos, or else, if the call was never made, the default values listed in the QoS table in 2.2.3, Supported QoS.
-    fn get_default_topic_qos(&self) -> TopicQos;
+    fn get_default_topic_qos(&self) -> TopicQos<'a>;
 
     /// This operation retrieves the list of DomainParticipants that have been discovered in the domain and that the application has not
     /// indicated should be “ignored” by means of the DomainParticipant ignore_participant operation.

@@ -6,15 +6,15 @@ use crate::{dcps_psm::BuiltInTopicKey, infrastructure::qos_policy::{
     TopicDataQosPolicy, TransportPriorityQosPolicy, UserDataQosPolicy,
 }};
 
-pub struct ParticipantBuiltinTopicData {
+pub struct ParticipantBuiltinTopicData<'a> {
     pub key: BuiltInTopicKey,
-    pub user_data: UserDataQosPolicy,
+    pub user_data: UserDataQosPolicy<'a>,
 }
 
-pub struct TopicBuiltinTopicData {
+pub struct TopicBuiltinTopicData<'a> {
     pub key: BuiltInTopicKey,
-    pub name: String,
-    pub type_name: String,
+    pub name: &'a str,
+    pub type_name: &'a str,
     pub durability: DurabilityQosPolicy,
     pub durability_service: DurabilityServiceQosPolicy,
     pub deadline: DeadlineQosPolicy,
@@ -27,13 +27,13 @@ pub struct TopicBuiltinTopicData {
     pub history: HistoryQosPolicy,
     pub resource_limits: ResourceLimitsQosPolicy,
     pub ownership: OwnershipQosPolicy,
-    pub topic_data: TopicDataQosPolicy,
+    pub topic_data: TopicDataQosPolicy<'a>,
 }
-pub struct PublicationBuiltinTopicData {
+pub struct PublicationBuiltinTopicData<'a> {
     pub key: BuiltInTopicKey,
     pub participant_key: BuiltInTopicKey,
-    pub topic_name: String,
-    pub type_name: String,
+    pub topic_name: &'a str,
+    pub type_name: &'a str,
 
     pub durability: DurabilityQosPolicy,
     pub durability_service: DurabilityServiceQosPolicy,
@@ -42,21 +42,21 @@ pub struct PublicationBuiltinTopicData {
     pub liveliness: LivelinessQosPolicy,
     pub reliability: ReliabilityQosPolicy,
     pub lifespan: LifespanQosPolicy,
-    pub user_data: UserDataQosPolicy,
+    pub user_data: UserDataQosPolicy<'a>,
     pub ownership: OwnershipQosPolicy,
     pub ownership_strength: OwnershipStrengthQosPolicy,
     pub destination_order: DestinationOrderQosPolicy,
 
     pub presentation: PresentationQosPolicy,
     pub partition: PartitionQosPolicy,
-    pub topic_data: TopicDataQosPolicy,
-    pub group_data: GroupDataQosPolicy,
+    pub topic_data: TopicDataQosPolicy<'a>,
+    pub group_data: GroupDataQosPolicy<'a>,
 }
-pub struct SubscriptionBuiltinTopicData {
+pub struct SubscriptionBuiltinTopicData<'a> {
     pub key: BuiltInTopicKey,
     pub participant_key: BuiltInTopicKey,
-    pub topic_name: String,
-    pub type_name: String,
+    pub topic_name: &'a str,
+    pub type_name: &'a str,
 
     pub durability: DurabilityQosPolicy,
     pub deadline: DeadlineQosPolicy,
@@ -65,11 +65,11 @@ pub struct SubscriptionBuiltinTopicData {
     pub reliability: ReliabilityQosPolicy,
     pub ownership: OwnershipQosPolicy,
     pub destination_order: DestinationOrderQosPolicy,
-    pub user_data: UserDataQosPolicy,
+    pub user_data: UserDataQosPolicy<'a>,
     pub time_based_filter: TimeBasedFilterQosPolicy,
 
     pub presentation: PresentationQosPolicy,
     pub partition: PartitionQosPolicy,
-    pub topic_data: TopicDataQosPolicy,
-    pub group_data: GroupDataQosPolicy,
+    pub topic_data: TopicDataQosPolicy<'a>,
+    pub group_data: GroupDataQosPolicy<'a>,
 }

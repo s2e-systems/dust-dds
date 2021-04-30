@@ -11,21 +11,21 @@ use super::qos_policy::{
 };
 
 #[derive(Debug, Default, PartialEq, Clone)]
-pub struct DomainParticipantQos {
-    pub user_data: UserDataQosPolicy,
+pub struct DomainParticipantQos<'a> {
+    pub user_data: UserDataQosPolicy<'a>,
     pub entity_factory: EntityFactoryQosPolicy,
 }
 
 #[derive(Debug, Default, PartialEq, Clone)]
-pub struct PublisherQos {
+pub struct PublisherQos<'a> {
     pub presentation: PresentationQosPolicy,
     pub partition: PartitionQosPolicy,
-    pub group_data: GroupDataQosPolicy,
+    pub group_data: GroupDataQosPolicy<'a>,
     pub entity_factory: EntityFactoryQosPolicy,
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct DataWriterQos {
+pub struct DataWriterQos<'a> {
     pub durability: DurabilityQosPolicy,
     pub durability_service: DurabilityServiceQosPolicy,
     pub deadline: DeadlineQosPolicy,
@@ -37,13 +37,13 @@ pub struct DataWriterQos {
     pub resource_limits: ResourceLimitsQosPolicy,
     pub transport_priority: TransportPriorityQosPolicy,
     pub lifespan: LifespanQosPolicy,
-    pub user_data: UserDataQosPolicy,
+    pub user_data: UserDataQosPolicy<'a>,
     pub ownership: OwnershipQosPolicy,
     pub ownership_strength: OwnershipStrengthQosPolicy,
     pub writer_data_lifecycle: WriterDataLifecycleQosPolicy,
 }
 
-impl Default for DataWriterQos {
+impl<'a> Default for DataWriterQos<'a> {
     fn default() -> Self {
         Self {
             reliability: ReliabilityQosPolicy {
@@ -71,7 +71,7 @@ impl Default for DataWriterQos {
     }
 }
 
-impl DataWriterQos {
+impl<'a> DataWriterQos<'a> {
     pub fn is_consistent(&self) -> DDSResult<()> {
         // The setting of RESOURCE_LIMITS max_samples must be consistent with the max_samples_per_instance. For these two
         // values to be consistent they must verify that “max_samples >= max_samples_per_instance.”
@@ -100,15 +100,15 @@ impl DataWriterQos {
 }
 
 #[derive(Default, Debug, PartialEq, Clone)]
-pub struct SubscriberQos {
+pub struct SubscriberQos<'a> {
     pub presentation: PresentationQosPolicy,
     pub partition: PartitionQosPolicy,
-    pub group_data: GroupDataQosPolicy,
+    pub group_data: GroupDataQosPolicy<'a>,
     pub entity_factory: EntityFactoryQosPolicy,
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct DataReaderQos {
+pub struct DataReaderQos<'a> {
     pub durability: DurabilityQosPolicy,
     pub deadline: DeadlineQosPolicy,
     pub latency_budget: LatencyBudgetQosPolicy,
@@ -117,13 +117,13 @@ pub struct DataReaderQos {
     pub destination_order: DestinationOrderQosPolicy,
     pub history: HistoryQosPolicy,
     pub resource_limits: ResourceLimitsQosPolicy,
-    pub user_data: UserDataQosPolicy,
+    pub user_data: UserDataQosPolicy<'a>,
     pub ownership: OwnershipQosPolicy,
     pub time_based_filter: TimeBasedFilterQosPolicy,
     pub reader_data_lifecycle: ReaderDataLifecycleQosPolicy,
 }
 
-impl Default for DataReaderQos {
+impl<'a> Default for DataReaderQos<'a> {
     fn default() -> Self {
         Self {
             reliability: ReliabilityQosPolicy {
@@ -148,7 +148,7 @@ impl Default for DataReaderQos {
     }
 }
 
-impl DataReaderQos {
+impl<'a> DataReaderQos<'a> {
     pub fn is_consistent(&self) -> DDSResult<()> {
         // The setting of RESOURCE_LIMITS max_samples must be consistent with the max_samples_per_instance. For these two
         // values to be consistent they must verify that “max_samples >= max_samples_per_instance.”
@@ -183,8 +183,8 @@ impl DataReaderQos {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct TopicQos {
-    pub topic_data: TopicDataQosPolicy,
+pub struct TopicQos<'a> {
+    pub topic_data: TopicDataQosPolicy<'a>,
     pub durability: DurabilityQosPolicy,
     pub durability_service: DurabilityServiceQosPolicy,
     pub deadline: DeadlineQosPolicy,
@@ -199,7 +199,7 @@ pub struct TopicQos {
     pub ownership: OwnershipQosPolicy,
 }
 
-impl Default for TopicQos {
+impl<'a> Default for TopicQos<'a> {
     fn default() -> Self {
         Self {
             reliability: ReliabilityQosPolicy {
@@ -225,7 +225,7 @@ impl Default for TopicQos {
     }
 }
 
-impl TopicQos {
+impl<'a> TopicQos<'a> {
     pub fn is_consistent(&self) -> DDSResult<()> {
         // The setting of RESOURCE_LIMITS max_samples must be consistent with the max_samples_per_instance. For these two
         // values to be consistent they must verify that “max_samples >= max_samples_per_instance.”

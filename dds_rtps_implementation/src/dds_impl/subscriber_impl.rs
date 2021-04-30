@@ -15,7 +15,7 @@ use rust_dds_api::{
 use super::{domain_participant_impl::DomainParticipantImpl, topic_impl::TopicImpl};
 
 pub struct SubscriberImpl<'a, PSM: rust_rtps_pim::PIM> {
-    parent: &'a DomainParticipantImpl<PSM>,
+    parent: &'a DomainParticipantImpl<'a, PSM>,
 }
 
 impl<'a, PSM: rust_rtps_pim::PIM, T: 'static> TopicFactory<'a, T> for SubscriberImpl<'a, PSM> {
@@ -26,7 +26,7 @@ impl<'a, PSM: rust_rtps_pim::PIM, T: 'static> TopicFactory<'a, T> for Subscriber
         _topic_name: &str,
         _qos: Option<TopicQos>,
         _a_listener: Option<
-            Box<dyn rust_dds_api::topic::topic_listener::TopicListener<DataType = T>>,
+            &'a (dyn rust_dds_api::topic::topic_listener::TopicListener<DataType = T> + 'a),
         >,
         _mask: StatusMask,
     ) -> Option<Self::TopicType> {
@@ -48,7 +48,7 @@ impl<'a, PSM: rust_rtps_pim::PIM, T: 'static> TopicFactory<'a, T> for Subscriber
     fn lookup_topicdescription(
         &self,
         _name: &str,
-    ) -> Option<Box<dyn rust_dds_api::topic::topic_description::TopicDescription<T>>> {
+    ) -> Option<&'a (dyn rust_dds_api::topic::topic_description::TopicDescription<T> + 'a)> {
         todo!()
     }
 }
@@ -78,8 +78,8 @@ impl<'a, PSM: rust_rtps_pim::PIM, T: 'static> TopicFactory<'a, T> for Subscriber
 //     }
 // }
 
-impl<'a, PSM: rust_rtps_pim::PIM> DomainParticipantChild for SubscriberImpl<'a, PSM> {
-    type DomainParticipantType = DomainParticipantImpl<PSM>;
+impl<'a, PSM: rust_rtps_pim::PIM> DomainParticipantChild<'a> for SubscriberImpl<'a, PSM> {
+    type DomainParticipantType = DomainParticipantImpl<'a, PSM>;
 }
 
 impl<'a, PSM: rust_rtps_pim::PIM> rust_dds_api::subscription::subscriber::Subscriber<'a>
@@ -97,7 +97,7 @@ impl<'a, PSM: rust_rtps_pim::PIM> rust_dds_api::subscription::subscriber::Subscr
         todo!()
     }
 
-    fn get_participant(&self) -> &<Self as DomainParticipantChild>::DomainParticipantType {
+    fn get_participant(&'a self) -> &<Self as DomainParticipantChild>::DomainParticipantType {
         self.parent
     }
 
@@ -109,17 +109,17 @@ impl<'a, PSM: rust_rtps_pim::PIM> rust_dds_api::subscription::subscriber::Subscr
         todo!()
     }
 
-    fn set_default_datareader_qos(&self, _qos: Option<DataReaderQos>) -> DDSResult<()> {
+    fn set_default_datareader_qos(&self, _qos: Option<DataReaderQos<'a>>) -> DDSResult<()> {
         todo!()
     }
 
-    fn get_default_datareader_qos(&self) -> DDSResult<DataReaderQos> {
+    fn get_default_datareader_qos(&self) -> DDSResult<DataReaderQos<'a>> {
         todo!()
     }
 
     fn copy_from_topic_qos(
         &self,
-        _a_datareader_qos: &mut DataReaderQos,
+        _a_datareader_qos: &mut DataReaderQos<'a>,
         _a_topic_qos: &TopicQos,
     ) -> DDSResult<()> {
         todo!()
@@ -137,8 +137,8 @@ impl<'a, PSM: rust_rtps_pim::PIM> rust_dds_api::subscription::subscriber::Subscr
 }
 
 impl<'a, PSM: rust_rtps_pim::PIM> Entity for SubscriberImpl<'a, PSM> {
-    type Qos = SubscriberQos;
-    type Listener = Box<dyn SubscriberListener + 'a>;
+    type Qos = SubscriberQos<'a>;
+    type Listener = &'a (dyn SubscriberListener + 'a);
 
     fn set_qos(&self, _qos: Option<Self::Qos>) -> DDSResult<()> {
         todo!()

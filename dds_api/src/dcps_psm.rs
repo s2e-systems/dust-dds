@@ -10,10 +10,10 @@ pub struct BuiltInTopicKey {
     pub value: [BuiltInTopicKeyTypeNative; 3],
 }
 
-pub type InstanceHandleSeq = Vec<InstanceHandle>;
+pub type InstanceHandleSeq<'a> = &'a [InstanceHandle];
 pub type ReturnCode = i32;
 pub type QosPolicyId = i32;
-pub type StringSeq = Vec<String>;
+pub type StringSeq<'a> = &'a [&'a str];
 
 #[derive(PartialOrd, PartialEq, Debug, Clone)]
 pub struct Duration {
@@ -184,9 +184,9 @@ pub struct QosPolicyCount {
     pub count: i32,
 }
 
-pub type QosPolicyCountSeq = Vec<QosPolicyCount>;
+pub type QosPolicyCountSeq<'a> = &'a [QosPolicyCount];
 
-pub struct OfferedIncompatibleQosStatus {
+pub struct OfferedIncompatibleQosStatus<'a> {
     /// Total cumulative number of times the concerned DataWriter
     /// discovered a DataReader for the same Topic with a requested QoS that
     /// is incompatible with that offered by the DataWriter.
@@ -201,10 +201,10 @@ pub struct OfferedIncompatibleQosStatus {
     /// concerned DataWriter discovered a DataReader for the same Topic
     /// with a requested QoS that is incompatible with that offered by the
     /// DataWriter.
-    pub policies: Vec<QosPolicyCount>,
+    pub policies: &'a [QosPolicyCount],
 }
 
-pub struct RequestedIncompatibleQosStatus {
+pub struct RequestedIncompatibleQosStatus<'a> {
     /// Total cumulative number of times the concerned DataReader
     /// discovered a DataWriter for the same Topic with an offered QoS that
     /// was incompatible with that requested by the DataReader.
@@ -219,7 +219,7 @@ pub struct RequestedIncompatibleQosStatus {
     /// concerned DataReader discovered a DataWriter for the same Topic
     /// with an offered QoS that is incompatible with that requested by the
     /// DataReader.
-    pub policies: Vec<QosPolicyCount>,
+    pub policies: &'a [QosPolicyCount],
 }
 
 pub struct PublicationMatchedStatus {

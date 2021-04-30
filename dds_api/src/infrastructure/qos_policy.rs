@@ -1,4 +1,4 @@
-use std::cmp::Ordering;
+use core::cmp::Ordering;
 
 use crate::dcps_psm::{DURATION_INFINITE, DURATION_ZERO, Duration, LENGTH_UNLIMITED};
 
@@ -79,19 +79,19 @@ pub const DURABILITYSERVICE_QOS_POLICY_ID: QosPolicyId = 22;
 /// and ignore_topic these QoS can assist an application to define and enforce its own security policies. The use of this QoS is not
 /// limited to security, rather it offers a simple, yet flexible extensibility mechanism.
 #[derive(Debug, PartialEq, Clone)]
-pub struct UserDataQosPolicy {
-    pub value: Vec<u8>,
+pub struct UserDataQosPolicy<'a> {
+    pub value: &'a [u8],
 }
 
-impl QosPolicy for UserDataQosPolicy {
+impl<'a> QosPolicy for UserDataQosPolicy<'a> {
     fn name(&self) -> &str {
         USERDATA_QOS_POLICY_NAME
     }
 }
 
-impl Default for UserDataQosPolicy {
+impl<'a> Default for UserDataQosPolicy<'a> {
     fn default() -> Self {
-        Self { value: vec![] }
+        Self { value: &[] }
     }
 }
 
@@ -100,19 +100,19 @@ impl Default for UserDataQosPolicy {
 /// combination with the listeners on the DataReader and DataWriter as well as by means of operations such as ignore_topic,
 /// these QoS can assist an application to extend the provided QoS.
 #[derive(Debug, PartialEq, Clone)]
-pub struct TopicDataQosPolicy {
-    pub value: Vec<u8>,
+pub struct TopicDataQosPolicy<'a> {
+    pub value: &'a [u8],
 }
 
-impl QosPolicy for TopicDataQosPolicy {
+impl<'a> QosPolicy for TopicDataQosPolicy<'a> {
     fn name(&self) -> &str {
         TOPICDATA_QOS_POLICY_NAME
     }
 }
 
-impl Default for TopicDataQosPolicy {
+impl<'a> Default for TopicDataQosPolicy<'a> {
     fn default() -> Self {
-        Self { value: vec![] }
+        Self { value: &[] }
     }
 }
 
@@ -123,19 +123,19 @@ impl Default for TopicDataQosPolicy {
 /// matching policies similar to those of the PARTITION QoS except the decision can be made based on an application-defined
 /// policy.
 #[derive(Debug, PartialEq, Clone)]
-pub struct GroupDataQosPolicy {
-    pub value: Vec<u8>,
+pub struct GroupDataQosPolicy<'a> {
+    pub value: &'a [u8],
 }
 
-impl QosPolicy for GroupDataQosPolicy {
+impl<'a> QosPolicy for GroupDataQosPolicy<'a> {
     fn name(&self) -> &str {
         GROUPDATA_QOS_POLICY_NAME
     }
 }
 
-impl Default for GroupDataQosPolicy {
+impl<'a> Default for GroupDataQosPolicy<'a> {
     fn default() -> Self {
-        Self { value: vec![] }
+        Self { value: &[] }
     }
 }
 
@@ -666,7 +666,7 @@ impl Default for TimeBasedFilterQosPolicy {
 /// the other hand, the same data-instance can be made available (published) or requested (subscribed) on one or more partitions.
 #[derive(Debug, PartialEq, Clone)]
 pub struct PartitionQosPolicy {
-    pub name: String,
+    pub name: &'static str,
 }
 
 impl QosPolicy for PartitionQosPolicy {
@@ -678,7 +678,7 @@ impl QosPolicy for PartitionQosPolicy {
 impl Default for PartitionQosPolicy {
     fn default() -> Self {
         Self {
-            name: String::new(),
+            name: "",
         }
     }
 }

@@ -49,8 +49,8 @@ pub trait DataReaderFactory<T> {
     fn create_datareader<'a>(
         &'a self,
         a_topic: &'a Self::TopicType,
-        qos: Option<DataReaderQos>,
-        a_listener: Option<Box<dyn DataReaderListener<DataType = T>>>,
+        qos: Option<DataReaderQos<'a>>,
+        a_listener: Option<&'a (dyn DataReaderListener<DataType = T> + 'a)>,
         mask: StatusMask,
     ) -> Option<Self::DataReaderType>;
 
@@ -89,7 +89,7 @@ pub trait SubscriberChild<'a> {
 /// All operations except for the base-class operations set_qos, get_qos, set_listener, get_listener, enable, get_statuscondition,
 /// and create_datareader may return the value NOT_ENABLED.
 pub trait Subscriber<'a>:
-    Entity<Qos = SubscriberQos, Listener = Box<dyn SubscriberListener + 'a>>
+    Entity<Qos = SubscriberQos<'a>, Listener = &'a (dyn SubscriberListener + 'a)>
 {
     /// This operation indicates that the application is about to access the data samples in any of the DataReader objects attached to
     /// the Subscriber.
@@ -147,9 +147,9 @@ pub trait Subscriber<'a>:
     fn notify_datareaders(&self) -> DDSResult<()>;
 
     /// This operation returns the DomainParticipant to which the Subscriber belongs.
-    fn get_participant(&self) -> &<Self as DomainParticipantChild>::DomainParticipantType
+    fn get_participant(&'a self) -> &<Self as DomainParticipantChild<'a>>::DomainParticipantType
     where
-        Self: DomainParticipantChild + Sized;
+        Self: DomainParticipantChild<'a> + Sized;
 
     /// This operation allows access to the SAMPLE_LOST communication status. Communication statuses are described in 2.2.4.1
     fn get_sample_lost_status(&self, status: &mut SampleLostStatus) -> DDSResult<()>;
@@ -172,14 +172,14 @@ pub trait Subscriber<'a>:
     /// The special value DATAREADER_QOS_DEFAULT may be passed to this operation to indicate that the default QoS should
     /// be reset back to the initial values the factory would use, that is the values that would be used if the
     /// set_default_datareader_qos operation had never been called.
-    fn set_default_datareader_qos(&self, qos: Option<DataReaderQos>) -> DDSResult<()>;
+    fn set_default_datareader_qos(&self, qos: Option<DataReaderQos<'a>>) -> DDSResult<()>;
 
     /// This operation retrieves the default value of the DataReader QoS, that is, the QoS policies which will be used for newly
     /// created DataReader entities in the case where the QoS policies are defaulted in the create_datareader operation.
     /// The values retrieved get_default_datareader_qos will match the set of values specified on the last successful call to
     /// get_default_datareader_qos, or else, if the call was never made, the default values listed in the QoS table in 2.2.3,
     /// Supported QoS.
-    fn get_default_datareader_qos(&self) -> DDSResult<DataReaderQos>;
+    fn get_default_datareader_qos(&self) -> DDSResult<DataReaderQos<'a>>;
 
     /// This operation copies the policies in the a_topic_qos to the corresponding policies in the a_datareader_qos (replacing values
     /// in the a_datareader_qos, if present).
@@ -190,7 +190,7 @@ pub trait Subscriber<'a>:
     /// may not be the final one, as the application can still modify some policies prior to applying the policies to the DataReader.
     fn copy_from_topic_qos(
         &self,
-        a_datareader_qos: &mut DataReaderQos,
+        a_datareader_qos: &mut DataReaderQos<'a>,
         a_topic_qos: &TopicQos,
     ) -> DDSResult<()>;
 }
