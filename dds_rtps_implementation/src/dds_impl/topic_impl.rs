@@ -13,12 +13,12 @@ use rust_dds_api::{
 
 use super::domain_participant_impl::DomainParticipantImpl;
 
-pub struct TopicImpl<'a, PSM: rust_rtps_pim::structure::Types, T> {
+pub struct TopicImpl<'a, PSM: rust_rtps_pim::PIM, T> {
     parent: &'a DomainParticipantImpl<PSM>,
     phantom: PhantomData<&'a T>,
 }
 
-impl<'a, PSM: rust_rtps_pim::structure::Types, T> TopicImpl<'a, PSM, T> {
+impl<'a, PSM: rust_rtps_pim::PIM, T> TopicImpl<'a, PSM, T> {
     pub(crate) fn new(parent: &'a DomainParticipantImpl<PSM>) -> Self {
         Self {
             parent,
@@ -27,14 +27,12 @@ impl<'a, PSM: rust_rtps_pim::structure::Types, T> TopicImpl<'a, PSM, T> {
     }
 }
 
-impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types, T>
-    DomainParticipantChild for TopicImpl<'a, PSM, T>
-{
+impl<'a, PSM: rust_rtps_pim::PIM, T> DomainParticipantChild for TopicImpl<'a, PSM, T> {
     type DomainParticipantType = DomainParticipantImpl<PSM>;
 }
 
-impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types, T>
-    rust_dds_api::topic::topic::Topic<'a, T> for TopicImpl<'a, PSM, T>
+impl<'a, PSM: rust_rtps_pim::PIM, T> rust_dds_api::topic::topic::Topic<'a, T>
+    for TopicImpl<'a, PSM, T>
 {
     fn get_inconsistent_topic_status(
         &self,
@@ -44,9 +42,7 @@ impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types, 
     }
 }
 
-impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types, T>
-    TopicDescription<'a, T> for TopicImpl<'a, PSM, T>
-{
+impl<'a, PSM: rust_rtps_pim::PIM, T> TopicDescription<'a, T> for TopicImpl<'a, PSM, T> {
     fn get_participant(&self) -> &<Self as DomainParticipantChild>::DomainParticipantType {
         self.parent
     }
@@ -74,7 +70,7 @@ impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types, 
     }
 }
 
-impl<'a, PSM: rust_rtps_pim::structure::Types, T> Entity for TopicImpl<'a, PSM, T> {
+impl<'a, PSM: rust_rtps_pim::PIM, T> Entity for TopicImpl<'a, PSM, T> {
     type Qos = TopicQos;
     type Listener = Box<dyn TopicListener<DataType = T>>;
 

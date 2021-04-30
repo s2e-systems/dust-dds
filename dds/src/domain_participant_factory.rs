@@ -45,11 +45,7 @@ impl DomainParticipantFactory {
         _qos: Option<DomainParticipantQos>,
         _a_listener: Option<Box<dyn DomainParticipantListener>>,
         _mask: StatusMask,
-    ) -> Option<
-        DomainParticipantImpl<
-            impl rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types,
-        >,
-    > {
+    ) -> Option<DomainParticipantImpl<impl rust_rtps_pim::PIM>> {
         // let interface = "Wi-Fi";
         // let unicast_locator = Locator::new(0, 7400, [1; 16]);
         // let multicast_locator = Locator::new(0, 7400, [2; 16]);

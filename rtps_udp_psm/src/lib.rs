@@ -9,6 +9,8 @@ pub mod types;
 
 pub struct RtpsUdpPsm;
 
+impl rust_rtps_pim::PIM for RtpsUdpPsm {}
+
 impl rust_rtps_pim::structure::Types for RtpsUdpPsm {
     type GuidPrefix = GuidPrefix;
     const GUIDPREFIX_UNKNOWN: Self::GuidPrefix = [0; 12];

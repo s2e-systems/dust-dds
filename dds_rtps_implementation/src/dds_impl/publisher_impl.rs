@@ -19,14 +19,14 @@ const ENTITYKIND_USER_DEFINED_WRITER_NO_KEY: u8 = 0x03;
 const ENTITYKIND_BUILTIN_WRITER_WITH_KEY: u8 = 0xc2;
 const ENTITYKIND_BUILTIN_WRITER_NO_KEY: u8 = 0xc3;
 
-pub struct PublisherImpl<'a, PSM: rust_rtps_pim::structure::Types> {
+pub struct PublisherImpl<'a, PSM: rust_rtps_pim::PIM> {
     parent: &'a DomainParticipantImpl<PSM>,
     impl_ref: Weak<Mutex<RTPSWriterGroupImpl<PSM>>>,
     default_datawriter_qos: Mutex<DataWriterQos>,
     datawriter_counter: Mutex<u8>,
 }
 
-impl<'a, PSM: rust_rtps_pim::structure::Types> PublisherImpl<'a, PSM> {
+impl<'a, PSM: rust_rtps_pim::PIM> PublisherImpl<'a, PSM> {
     pub fn new(
         parent: &'a DomainParticipantImpl<PSM>,
         impl_ref: Weak<Mutex<RTPSWriterGroupImpl<PSM>>>,
@@ -40,7 +40,7 @@ impl<'a, PSM: rust_rtps_pim::structure::Types> PublisherImpl<'a, PSM> {
     }
 }
 
-impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types, T: 'static>
+impl<'a, PSM: rust_rtps_pim::PIM, T: 'static>
     rust_dds_api::domain::domain_participant::TopicFactory<'a, T> for PublisherImpl<'a, PSM>
 {
     type TopicType = TopicImpl<'a, PSM, T>;
@@ -98,13 +98,13 @@ impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types, 
 //     }
 // }
 
-impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types>
+impl<'a, PSM: rust_rtps_pim::PIM>
     rust_dds_api::domain::domain_participant::DomainParticipantChild for PublisherImpl<'a, PSM>
 {
     type DomainParticipantType = DomainParticipantImpl<PSM>;
 }
 
-impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types>
+impl<'a, PSM: rust_rtps_pim::PIM>
     rust_dds_api::publication::publisher::Publisher<'a> for PublisherImpl<'a, PSM>
 {
     fn suspend_publications(&self) -> DDSResult<()> {
@@ -155,7 +155,7 @@ impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types>
     }
 }
 
-impl<'a, PSM: rust_rtps_pim::structure::Types> rust_dds_api::infrastructure::entity::Entity
+impl<'a, PSM: rust_rtps_pim::PIM> rust_dds_api::infrastructure::entity::Entity
     for PublisherImpl<'a, PSM>
 {
     type Qos = PublisherQos;

@@ -19,13 +19,13 @@ use crate::rtps_impl::rtps_writer_impl::RTPSWriterImpl;
 
 use super::{publisher_impl::PublisherImpl, topic_impl::TopicImpl};
 
-pub struct DataWriterImpl<'a, PSM: rust_rtps_pim::structure::Types, T> {
+pub struct DataWriterImpl<'a, PSM: rust_rtps_pim::PIM, T> {
     pub(crate) parent: &'a PublisherImpl<'a, PSM>,
     pub(crate) rtps_writer: Weak<Mutex<RTPSWriterImpl<PSM>>>,
     phantom: PhantomData<&'a T>,
 }
 
-impl<'a, PSM: rust_rtps_pim::structure::Types, T> DataWriterImpl<'a, PSM, T> {
+impl<'a, PSM: rust_rtps_pim::PIM, T> DataWriterImpl<'a, PSM, T> {
     pub fn new(
         parent: &'a PublisherImpl<'a, PSM>,
         rtps_writer: Weak<Mutex<RTPSWriterImpl<PSM>>>,
@@ -38,14 +38,14 @@ impl<'a, PSM: rust_rtps_pim::structure::Types, T> DataWriterImpl<'a, PSM, T> {
     }
 }
 
-impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types, T>
-    rust_dds_api::publication::publisher::PublisherChild<'a> for DataWriterImpl<'a, PSM, T>
+impl<'a, PSM: rust_rtps_pim::PIM, T> rust_dds_api::publication::publisher::PublisherChild<'a>
+    for DataWriterImpl<'a, PSM, T>
 {
     type PublisherType = PublisherImpl<'a, PSM>;
 }
 
-impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types, T>
-    rust_dds_api::domain::domain_participant::TopicFactory<'a, T> for DataWriterImpl<'a, PSM, T>
+impl<'a, PSM: rust_rtps_pim::PIM, T> rust_dds_api::domain::domain_participant::TopicFactory<'a, T>
+    for DataWriterImpl<'a, PSM, T>
 {
     type TopicType = TopicImpl<'a, PSM, T>;
 
@@ -77,8 +77,8 @@ impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types, 
     }
 }
 
-impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types, T>
-    rust_dds_api::publication::data_writer::DataWriter<'a, T> for DataWriterImpl<'a, PSM, T>
+impl<'a, PSM: rust_rtps_pim::PIM, T> rust_dds_api::publication::data_writer::DataWriter<'a, T>
+    for DataWriterImpl<'a, PSM, T>
 {
     fn register_instance(&self, _instance: T) -> DDSResult<Option<InstanceHandle>> {
         todo!()
@@ -213,7 +213,7 @@ impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types, 
     }
 }
 
-impl<'a, PSM: rust_rtps_pim::structure::Types, T> rust_dds_api::infrastructure::entity::Entity
+impl<'a, PSM: rust_rtps_pim::PIM, T> rust_dds_api::infrastructure::entity::Entity
     for DataWriterImpl<'a, PSM, T>
 {
     type Qos = DataWriterQos;
@@ -257,8 +257,8 @@ impl<'a, PSM: rust_rtps_pim::structure::Types, T> rust_dds_api::infrastructure::
     }
 }
 
-impl<'a, PSM: rust_rtps_pim::structure::Types, T>
-    rust_dds_api::publication::data_writer::AnyDataWriter for DataWriterImpl<'a, PSM, T>
+impl<'a, PSM: rust_rtps_pim::PIM, T> rust_dds_api::publication::data_writer::AnyDataWriter
+    for DataWriterImpl<'a, PSM, T>
 {
 }
 

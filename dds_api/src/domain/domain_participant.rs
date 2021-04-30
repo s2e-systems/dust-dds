@@ -17,8 +17,8 @@ pub trait DomainParticipantChild {
     type DomainParticipantType: DomainParticipant;
 }
 
-pub trait PublisherFactory {
-    type PublisherType: for<'a> Publisher<'a>;
+pub trait PublisherFactory<'a> {
+    type PublisherType: Publisher<'a>;
 
     /// This operation creates a Publisher with the desired QoS policies and attaches to it the specified PublisherListener.
     /// If the specified QoS policies are not consistent, the operation will fail and no Publisher will be created.
@@ -27,7 +27,7 @@ pub trait PublisherFactory {
     /// means of the operation get_default_publisher_qos (2.2.2.2.1.21) and using the resulting QoS to create the Publisher.
     /// The created Publisher belongs to the DomainParticipant that is its factory
     /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
-    fn create_publisher<'a>(
+    fn create_publisher(
         &'a self,
         qos: Option<PublisherQos>,
         a_listener: Option<Box<dyn PublisherListener>>,
@@ -44,8 +44,8 @@ pub trait PublisherFactory {
     fn delete_publisher(&self, a_publisher: &Self::PublisherType) -> DDSResult<()>;
 }
 
-pub trait SubscriberFactory {
-    type SubscriberType: for<'a> Subscriber<'a>;
+pub trait SubscriberFactory<'a> {
+    type SubscriberType: Subscriber<'a>;
 
     /// This operation creates a Subscriber with the desired QoS policies and attaches to it the specified SubscriberListener.
     /// If the specified QoS policies are not consistent, the operation will fail and no Subscriber will be created.
@@ -55,7 +55,7 @@ pub trait SubscriberFactory {
     /// Subscriber.
     /// The created Subscriber belongs to the DomainParticipant that is its factory.
     /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
-    fn create_subscriber<'a>(
+    fn create_subscriber(
         &'a self,
         qos: Option<SubscriberQos>,
         a_listener: Option<Box<dyn SubscriberListener>>,
@@ -75,7 +75,7 @@ pub trait SubscriberFactory {
     /// well as corresponding DataReader objects to access them. All these DataReader objects belong to a single built-in Subscriber.
     /// The built-in Topics are used to communicate information about other DomainParticipant, Topic, DataReader, and DataWriter
     /// objects. These built-in objects are described in 2.2.5, Built-in Topics.
-    fn get_builtin_subscriber(&self) -> Self::SubscriberType;
+    fn get_builtin_subscriber(&'a self) -> Self::SubscriberType;
 }
 
 // This is a workaround for the missing Generic Associated Type (GAT)

@@ -14,13 +14,11 @@ use rust_dds_api::{
 
 use super::{domain_participant_impl::DomainParticipantImpl, topic_impl::TopicImpl};
 
-pub struct SubscriberImpl<'a, PSM: rust_rtps_pim::structure::Types> {
+pub struct SubscriberImpl<'a, PSM: rust_rtps_pim::PIM> {
     parent: &'a DomainParticipantImpl<PSM>,
 }
 
-impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types, T: 'static>
-    TopicFactory<'a, T> for SubscriberImpl<'a, PSM>
-{
+impl<'a, PSM: rust_rtps_pim::PIM, T: 'static> TopicFactory<'a, T> for SubscriberImpl<'a, PSM> {
     type TopicType = TopicImpl<'a, PSM, T>;
 
     fn create_topic(
@@ -80,14 +78,12 @@ impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types, 
 //     }
 // }
 
-impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types>
-    DomainParticipantChild for SubscriberImpl<'a, PSM>
-{
+impl<'a, PSM: rust_rtps_pim::PIM> DomainParticipantChild for SubscriberImpl<'a, PSM> {
     type DomainParticipantType = DomainParticipantImpl<PSM>;
 }
 
-impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types>
-    rust_dds_api::subscription::subscriber::Subscriber<'a> for SubscriberImpl<'a, PSM>
+impl<'a, PSM: rust_rtps_pim::PIM> rust_dds_api::subscription::subscriber::Subscriber<'a>
+    for SubscriberImpl<'a, PSM>
 {
     fn begin_access(&self) -> DDSResult<()> {
         todo!()
@@ -140,7 +136,7 @@ impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types>
     }
 }
 
-impl<'a, PSM: rust_rtps_pim::structure::Types> Entity for SubscriberImpl<'a, PSM> {
+impl<'a, PSM: rust_rtps_pim::PIM> Entity for SubscriberImpl<'a, PSM> {
     type Qos = SubscriberQos;
     type Listener = Box<dyn SubscriberListener + 'a>;
 

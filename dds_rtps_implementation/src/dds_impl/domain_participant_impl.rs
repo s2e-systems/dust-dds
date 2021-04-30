@@ -29,7 +29,7 @@ use super::{
 const ENTITYKIND_USER_DEFINED_WRITER_GROUP: u8 = 0x08;
 const ENTITYKIND_USER_DEFINED_READER_GROUP: u8 = 0x09;
 
-pub struct DomainParticipantImpl<PSM: rust_rtps_pim::structure::Types> {
+pub struct DomainParticipantImpl<PSM: rust_rtps_pim::PIM> {
     rtps_participant_impl: Mutex<RTPSParticipantImpl<PSM>>,
     default_publisher_qos: Mutex<PublisherQos>,
     default_subscriber_qos: Mutex<SubscriberQos>,
@@ -37,7 +37,7 @@ pub struct DomainParticipantImpl<PSM: rust_rtps_pim::structure::Types> {
     publisher_counter: Mutex<u8>,
 }
 
-impl<PSM: rust_rtps_pim::structure::Types> DomainParticipantImpl<PSM> {
+impl<PSM: rust_rtps_pim::PIM> DomainParticipantImpl<PSM> {
     pub fn new(domain_participant_impl: RTPSParticipantImpl<PSM>) -> Self {
         Self {
             rtps_participant_impl: Mutex::new(domain_participant_impl),
@@ -155,11 +155,8 @@ impl<PSM: rust_rtps_pim::structure::Types> DomainParticipantImpl<PSM> {
 //     }
 // }
 
-impl<
-        'a,
-        T: 'static,
-        PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types + 'a,
-    > TopicFactory<'a, T> for DomainParticipantImpl<PSM>
+impl<'a, T: 'static, PSM: rust_rtps_pim::PIM + 'a> TopicFactory<'a, T>
+    for DomainParticipantImpl<PSM>
 {
     type TopicType = TopicImpl<'a, PSM, T>;
 
@@ -186,8 +183,8 @@ impl<
     }
 }
 
-impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types + 'a>
-    rust_dds_api::domain::domain_participant::DomainParticipant for DomainParticipantImpl<PSM>
+impl<'a, PSM: rust_rtps_pim::PIM + 'a> rust_dds_api::domain::domain_participant::DomainParticipant
+    for DomainParticipantImpl<PSM>
 {
     fn ignore_participant(&self, _handle: InstanceHandle) -> DDSResult<()> {
         todo!()
@@ -283,7 +280,7 @@ impl<'a, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types +
     }
 }
 
-impl<PSM: rust_rtps_pim::structure::Types> Entity for DomainParticipantImpl<PSM> {
+impl<PSM: rust_rtps_pim::PIM> Entity for DomainParticipantImpl<PSM> {
     type Qos = DomainParticipantQos;
     type Listener = Box<dyn DomainParticipantListener>;
 
