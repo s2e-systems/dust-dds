@@ -49,113 +49,114 @@ impl<PSM: rust_rtps_pim::PIM> DomainParticipantImpl<PSM> {
     }
 }
 
-// impl<PSM: rust_rtps_pim::structure::Types> PublisherFactory for DomainParticipantImpl<PSM> {
-//     type PublisherType = PublisherImpl<'a, PSM>;
+impl<'a, PSM: rust_rtps_pim::PIM + 'a> PublisherFactory<'a> for DomainParticipantImpl<PSM> {
+    type PublisherType = PublisherImpl<'a, PSM>;
 
-//     fn create_publisher<'a>(
-//         &'a self,
-//         qos: Option<PublisherQos>,
-//         _a_listener: Option<Box<dyn PublisherListener>>,
-//         _mask: StatusMask,
-//     ) -> Option<Self::PublisherType> {
-//         let _publisher_qos = qos.unwrap_or(self.get_default_publisher_qos());
-//         let guid_prefix = self
-//             .rtps_participant_impl
-//             .lock()
-//             .unwrap()
-//             .guid()
-//             .prefix()
-//             .clone();
-//         let mut publisher_counter_lock = self.publisher_counter.lock().unwrap();
-//         *publisher_counter_lock += 1;
-//         let entity_id = [
-//             *publisher_counter_lock,
-//             0,
-//             0,
-//             ENTITYKIND_USER_DEFINED_WRITER_GROUP,
-//         ]
-//         .into();
-//         let guid = GUID::new(guid_prefix, entity_id);
-//         let group = Arc::new(Mutex::new(RTPSWriterGroupImpl::new(guid)));
-//         let publisher = PublisherImpl::new(self, Arc::downgrade(&group));
-//         self.rtps_participant_impl
-//             .lock()
-//             .unwrap()
-//             .rtps_writer_groups
-//             .push(group);
-//         Some(publisher)
-//     }
+    fn create_publisher(
+        &'a self,
+        _qos: Option<PublisherQos>,
+        _a_listener: Option<Box<dyn PublisherListener>>,
+        _mask: StatusMask,
+    ) -> Option<Self::PublisherType> {
+        todo!()
+        //         let _publisher_qos = qos.unwrap_or(self.get_default_publisher_qos());
+        //         let guid_prefix = self
+        //             .rtps_participant_impl
+        //             .lock()
+        //             .unwrap()
+        //             .guid()
+        //             .prefix()
+        //             .clone();
+        //         let mut publisher_counter_lock = self.publisher_counter.lock().unwrap();
+        //         *publisher_counter_lock += 1;
+        //         let entity_id = [
+        //             *publisher_counter_lock,
+        //             0,
+        //             0,
+        //             ENTITYKIND_USER_DEFINED_WRITER_GROUP,
+        //         ]
+        //         .into();
+        //         let guid = GUID::new(guid_prefix, entity_id);
+        //         let group = Arc::new(Mutex::new(RTPSWriterGroupImpl::new(guid)));
+        //         let publisher = PublisherImpl::new(self, Arc::downgrade(&group));
+        //         self.rtps_participant_impl
+        //             .lock()
+        //             .unwrap()
+        //             .rtps_writer_groups
+        //             .push(group);
+        //         Some(publisher)
+    }
 
-//     fn delete_publisher(&self, _a_publisher: &Self::PublisherType) -> DDSResult<()> {
-//         // if std::ptr::eq(a_publisher.0.parent, self) {
-//         //     self.0
-//         //         .lock()
-//         //         .unwrap()
-//         //         .delete_publisher(&a_publisher.impl_ref)
-//         // } else {
-//         //     Err(DDSError::PreconditionNotMet(
-//         //         "Publisher can only be deleted from its parent participant",
-//         //     ))
-//         // }
-//         todo!()
-//     }
-// }
+    fn delete_publisher(&self, _a_publisher: &Self::PublisherType) -> DDSResult<()> {
+        todo!()
+        //         // if std::ptr::eq(a_publisher.0.parent, self) {
+        //         //     self.0
+        //         //         .lock()
+        //         //         .unwrap()
+        //         //         .delete_publisher(&a_publisher.impl_ref)
+        //         // } else {
+        //         //     Err(DDSError::PreconditionNotMet(
+        //         //         "Publisher can only be deleted from its parent participant",
+        //         //     ))
+        //         // }
+    }
+}
 
-// impl<PSM: rust_rtps_pim::structure::Types> SubscriberFactory for DomainParticipantImpl<PSM> {
-//     type SubscriberType = SubscriberImpl<'a, PSM>;
+impl<'a, PSM: rust_rtps_pim::PIM + 'a> SubscriberFactory<'a> for DomainParticipantImpl<PSM> {
+    type SubscriberType = SubscriberImpl<'a, PSM>;
 
-//     fn create_subscriber<'a>(
-//         &'a self,
-//         _qos: Option<SubscriberQos>,
-//         _a_listener: Option<Box<dyn SubscriberListener>>,
-//         _mask: StatusMask,
-//     ) -> Option<Self::SubscriberType> {
-//         // let impl_ref = self
-//         //     .0
-//         //     .lock()
-//         //     .unwrap()
-//         //     .create_subscriber(qos, a_listener, mask)
-//         //     .ok()?;
+    fn create_subscriber(
+        &'a self,
+        _qos: Option<SubscriberQos>,
+        _a_listener: Option<Box<dyn SubscriberListener>>,
+        _mask: StatusMask,
+    ) -> Option<Self::SubscriberType> {
+        todo!()
+        //         // let impl_ref = self
+        //         //     .0
+        //         //     .lock()
+        //         //     .unwrap()
+        //         //     .create_subscriber(qos, a_listener, mask)
+        //         //     .ok()?;
 
-//         // Some(Subscriber(Node {
-//         //     parent: self,
-//         //     impl_ref,
-//         // }))
-//         todo!()
-//     }
+        //         // Some(Subscriber(Node {
+        //         //     parent: self,
+        //         //     impl_ref,
+        //         // }))
+    }
 
-//     fn delete_subscriber(&self, _a_subscriber: &Self::SubscriberType) -> DDSResult<()> {
-//         // if std::ptr::eq(a_subscriber.parent, self) {
-//         //     self.0
-//         //         .lock()
-//         //         .unwrap()
-//         //         .delete_subscriber(&a_subscriber.impl_ref)
-//         // } else {
-//         //     Err(DDSError::PreconditionNotMet(
-//         //         "Subscriber can only be deleted from its parent participant",
-//         //     ))
-//         // }
-//         todo!()
-//     }
+    fn delete_subscriber(&self, _a_subscriber: &Self::SubscriberType) -> DDSResult<()> {
+        todo!()
+        //         // if std::ptr::eq(a_subscriber.parent, self) {
+        //         //     self.0
+        //         //         .lock()
+        //         //         .unwrap()
+        //         //         .delete_subscriber(&a_subscriber.impl_ref)
+        //         // } else {
+        //         //     Err(DDSError::PreconditionNotMet(
+        //         //         "Subscriber can only be deleted from its parent participant",
+        //         //     ))
+        //         // }
+    }
 
-//     fn get_builtin_subscriber(&self) -> Self::SubscriberType {
-//         todo!()
-//         //     self.builtin_entities
-//         //         .subscriber_list()
-//         //         .into_iter()
-//         //         .find(|x| {
-//         //             if let Some(subscriber) = x.get().ok() {
-//         //                 subscriber.group.entity.guid.entity_id().entity_kind()
-//         //                     == ENTITY_KIND_BUILT_IN_READER_GROUP
-//         //             } else {
-//         //                 false
-//         //             }
-//         //         })
-//         // }
-//     }
-// }
+    fn get_builtin_subscriber(&'a self) -> Self::SubscriberType {
+        todo!()
+        //         //     self.builtin_entities
+        //         //         .subscriber_list()
+        //         //         .into_iter()
+        //         //         .find(|x| {
+        //         //             if let Some(subscriber) = x.get().ok() {
+        //         //                 subscriber.group.entity.guid.entity_id().entity_kind()
+        //         //                     == ENTITY_KIND_BUILT_IN_READER_GROUP
+        //         //             } else {
+        //         //                 false
+        //         //             }
+        //         //         })
+        //         // }
+    }
+}
 
-impl<'a, T: 'static, PSM: rust_rtps_pim::PIM + 'a> TopicFactory<'a, T>
+impl<'a, PSM: rust_rtps_pim::PIM + 'a, T: 'a> TopicFactory<'a, T>
     for DomainParticipantImpl<PSM>
 {
     type TopicType = TopicImpl<'a, PSM, T>;
@@ -333,27 +334,6 @@ mod tests {
     use super::*;
 
     struct MockDDSType;
-    // impl DDSType for MockDDSType {
-    //     fn type_name() -> &'static str {
-    //         todo!()
-    //     }
-
-    //     fn has_key() -> bool {
-    //         todo!()
-    //     }
-
-    //     fn key(&self) -> Vec<u8> {
-    //         todo!()
-    //     }
-
-    //     fn serialize(&self) -> Vec<u8> {
-    //         todo!()
-    //     }
-
-    //     fn deserialize(_data: Vec<u8>) -> Self {
-    //         todo!()
-    //     }
-    // }
 
     #[test]
     fn set_default_publisher_qos_some_value() {
@@ -511,12 +491,11 @@ mod tests {
 
     #[test]
     fn create_publisher() {
-        todo!()
-        // let domain_participant_impl: DomainParticipantImpl<RtpsUdpPsm> =
-        //     DomainParticipantImpl::new(RTPSParticipantImpl::new([1; 12]));
-        // let publisher = domain_participant_impl.create_publisher(None, None, 0);
+        let domain_participant_impl: DomainParticipantImpl<RtpsUdpPsm> =
+            DomainParticipantImpl::new(RTPSParticipantImpl::new([1; 12]));
+        let publisher = domain_participant_impl.create_publisher(None, None, 0);
 
-        // assert!(publisher.is_some())
+        assert!(publisher.is_some())
     }
 
     #[test]
