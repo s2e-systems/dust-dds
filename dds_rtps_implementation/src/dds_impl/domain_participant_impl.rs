@@ -1,7 +1,4 @@
-use std::{
-    marker::PhantomData,
-    sync::{Arc, Mutex},
-};
+use std::sync::{Arc, Mutex};
 
 use rust_dds_api::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
@@ -139,16 +136,16 @@ impl<'a, 'b: 'a, PSM: rust_rtps_pim::PIM + 'a, T: 'a> TopicFactory<'a, T>
     }
 }
 
-impl<'long: 'short, 'short, PSM: rust_rtps_pim::PIM> PublisherFactory<'long, 'short>
-    for DomainParticipantImpl<'long, PSM>
+impl<'a, 'b: 'a, PSM: rust_rtps_pim::PIM> PublisherFactory<'a, 'b>
+    for DomainParticipantImpl<'b, PSM>
 {
-    type PublisherType = PublisherImpl<'short, 'long, PSM>;
+    type PublisherType = PublisherImpl<'a, 'b, PSM>;
     fn create_publisher(
-        &'short self,
-        qos: Option<PublisherQos<'short>>,
-        a_listener: Option<&'short (dyn PublisherListener + 'short)>,
-        mask: StatusMask,
-    ) -> Option<PublisherImpl<'short, 'long, PSM>> {
+        &'a self,
+        qos: Option<PublisherQos<'a>>,
+        _a_listener: Option<&'a (dyn PublisherListener + 'a)>,
+        _mask: StatusMask,
+    ) -> Option<Self::PublisherType> {
         let _publisher_qos = qos.unwrap_or(self.get_default_publisher_qos());
         let guid_prefix = self
             .rtps_participant_impl
@@ -178,18 +175,17 @@ impl<'long: 'short, 'short, PSM: rust_rtps_pim::PIM> PublisherFactory<'long, 'sh
     }
 
     fn delete_publisher(&self, a_publisher: &Self::PublisherType) -> DDSResult<()> {
-        todo!()
-        // if std::ptr::eq(a_publisher.get_participant(), self) {
-        //     Ok(())
+        if std::ptr::eq(a_publisher.get_participant(), self) {
+            Ok(())
         //     // self.0
         //     //     .lock()
         //     //     .unwrap()
         //     //     .delete_publisher(&a_publisher.impl_ref)
-        // } else {
-        //     Err(DDSError::PreconditionNotMet(
-        //         "Publisher can only be deleted from its parent participant",
-        //     ))
-        // }
+        } else {
+            Err(DDSError::PreconditionNotMet(
+                "Publisher can only be deleted from its parent participant",
+            ))
+        }
     }
 }
 

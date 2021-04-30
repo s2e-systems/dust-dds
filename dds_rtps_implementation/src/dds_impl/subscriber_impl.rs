@@ -78,11 +78,12 @@ impl<'a, PSM: rust_rtps_pim::PIM, T: 'static> TopicFactory<'a, T> for Subscriber
 //     }
 // }
 
-impl<'a, PSM: rust_rtps_pim::PIM> DomainParticipantChild<'a> for SubscriberImpl<'a, PSM> {
-    type DomainParticipantType = DomainParticipantImpl<'a, PSM>;
+impl<'a, 'b:'a, PSM: rust_rtps_pim::PIM> DomainParticipantChild<'a, 'b> for SubscriberImpl<'a, PSM> {
+    type DomainParticipantType = DomainParticipantImpl<'b, PSM>;
 
     fn get_participant(&self) -> &Self::DomainParticipantType {
-        self.parent
+        todo!()
+        // self.parent
     }
 }
 

@@ -13,8 +13,8 @@ use crate::{
 
 use super::domain_participant_listener::DomainParticipantListener;
 
-pub trait DomainParticipantChild<'a> {
-    type DomainParticipantType: DomainParticipant<'a>;
+pub trait DomainParticipantChild<'a, 'b:'a> {
+    type DomainParticipantType: DomainParticipant<'b>;
 
     /// This operation returns the DomainParticipant to which the Publisher belongs.
     fn get_participant(&self) -> &Self::DomainParticipantType;
@@ -110,8 +110,8 @@ pub trait TopicFactory<'a, T: 'a> {
     fn lookup_topicdescription(&self, _name: &str) -> Option<&'a (dyn TopicDescription<T> + 'a)>;
 }
 
-pub trait PublisherFactory<'long: 'short, 'short>: DomainParticipant<'long> {
-    type PublisherType: Publisher<'short>;
+pub trait PublisherFactory<'a, 'b:'a>: DomainParticipant<'b> {
+    type PublisherType: Publisher<'a>;
 
     /// This operation creates a Publisher with the desired QoS policies and attaches to it the specified PublisherListener.
     /// If the specified QoS policies are not consistent, the operation will fail and no Publisher will be created.
@@ -121,9 +121,9 @@ pub trait PublisherFactory<'long: 'short, 'short>: DomainParticipant<'long> {
     /// The created Publisher belongs to the DomainParticipant that is its factory
     /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
     fn create_publisher(
-        &'short self,
-        qos: Option<PublisherQos<'short>>,
-        a_listener: Option<&'short (dyn PublisherListener + 'short)>,
+        &'a self,
+        qos: Option<PublisherQos<'a>>,
+        a_listener: Option<&'a (dyn PublisherListener + 'a)>,
         mask: StatusMask,
     ) -> Option<Self::PublisherType>;
 

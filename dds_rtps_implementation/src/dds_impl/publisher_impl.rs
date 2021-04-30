@@ -66,14 +66,13 @@ impl<'a, 'b: 'a, PSM: rust_rtps_pim::PIM> PublisherImpl<'a, 'b, PSM> {
 // }
 
 impl<'a, 'b: 'a, PSM: rust_rtps_pim::PIM + 'a>
-    rust_dds_api::domain::domain_participant::DomainParticipantChild<'a>
+    rust_dds_api::domain::domain_participant::DomainParticipantChild<'a, 'b>
     for PublisherImpl<'a, 'b, PSM>
 {
-    type DomainParticipantType = DomainParticipantImpl<'a, PSM>;
+    type DomainParticipantType = DomainParticipantImpl<'b, PSM>;
 
     fn get_participant(&self) -> &Self::DomainParticipantType {
-        todo!()
-        // self.parent
+        self.parent
     }
 }
 
@@ -124,7 +123,7 @@ impl<'a, 'b: 'a, PSM: rust_rtps_pim::PIM> rust_dds_api::publication::publisher::
     }
 }
 
-impl<'a, 'b:'a, PSM: rust_rtps_pim::PIM> rust_dds_api::infrastructure::entity::Entity
+impl<'a, 'b: 'a, PSM: rust_rtps_pim::PIM> rust_dds_api::infrastructure::entity::Entity
     for PublisherImpl<'a, 'b, PSM>
 {
     type Qos = PublisherQos<'a>;

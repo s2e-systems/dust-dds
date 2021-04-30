@@ -27,11 +27,12 @@ impl<'a, PSM: rust_rtps_pim::PIM, T> TopicImpl<'a, PSM, T> {
     }
 }
 
-impl<'a, PSM: rust_rtps_pim::PIM, T> DomainParticipantChild<'a> for TopicImpl<'a, PSM, T> {
-    type DomainParticipantType = DomainParticipantImpl<'a, PSM>;
+impl<'a, 'b:'a, PSM: rust_rtps_pim::PIM, T> DomainParticipantChild<'a, 'b> for TopicImpl<'a, PSM, T> {
+    type DomainParticipantType = DomainParticipantImpl<'b, PSM>;
 
     fn get_participant(&self) -> &Self::DomainParticipantType {
-        self.parent
+        todo!()
+        // self.parent
     }
 }
 

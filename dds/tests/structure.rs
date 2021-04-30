@@ -1,6 +1,8 @@
 use rust_dds::{
-    domain::domain_participant::DomainParticipant,
+    domain::domain_participant::{DomainParticipant, PublisherFactory},
     domain_participant_factory::DomainParticipantFactory,
+    infrastructure::entity::Entity,
+    DDSError,
 };
 
 // struct TestType;
@@ -51,11 +53,10 @@ use rust_dds::{
 
 #[test]
 fn create_delete_publisher() {
-    todo!()
-    // let participant = DomainParticipantFactory::create_participant(0, None, None, 0).unwrap();
-    // let _publisher = participant.create_publisher(None, None, 0).unwrap();
+    let participant = DomainParticipantFactory::create_participant(0, None, None, 0).unwrap();
+    let publisher = participant.create_publisher(None, None, 0).unwrap();
 
-    // assert_eq!(participant.delete_publisher(&publisher), Ok(()));
+    assert_eq!(participant.delete_publisher(&publisher), Ok(()));
     // assert_eq!(publisher.get_qos(), Err(DDSError::AlreadyDeleted));
     // assert_eq!(
     //     participant.delete_publisher(&publisher),
