@@ -12,7 +12,7 @@ use rust_dds_api::{
 
 use crate::rtps_impl::rtps_writer_group_impl::RTPSWriterGroupImpl;
 
-use super::{domain_participant_impl::DomainParticipantImpl, topic_impl::TopicImpl};
+use super::domain_participant_impl::DomainParticipantImpl;
 
 const ENTITYKIND_USER_DEFINED_WRITER_WITH_KEY: u8 = 0x02;
 const ENTITYKIND_USER_DEFINED_WRITER_NO_KEY: u8 = 0x03;
@@ -37,39 +37,6 @@ impl<'a, PSM: rust_rtps_pim::PIM> PublisherImpl<'a, PSM> {
             default_datawriter_qos: Mutex::new(DataWriterQos::default()),
             datawriter_counter: Mutex::new(0),
         }
-    }
-}
-
-impl<'a, PSM: rust_rtps_pim::PIM, T: 'static>
-    rust_dds_api::domain::domain_participant::TopicFactory<'a, T> for PublisherImpl<'a, PSM>
-{
-    type TopicType = TopicImpl<'a, PSM, T>;
-
-    fn create_topic(
-        &'a self,
-        _topic_name: &str,
-        _qos: Option<TopicQos>,
-        _a_listener: Option<
-            &'a (dyn rust_dds_api::topic::topic_listener::TopicListener<DataType = T> + 'a),
-        >,
-        _mask: StatusMask,
-    ) -> Option<Self::TopicType> {
-        todo!()
-    }
-
-    fn delete_topic(&'a self, _a_topic: &Self::TopicType) -> DDSResult<()> {
-        todo!()
-    }
-
-    fn find_topic(&self, _topic_name: &str, _timeout: Duration) -> Option<Self::TopicType> {
-        todo!()
-    }
-
-    fn lookup_topicdescription(
-        &self,
-        _name: &str,
-    ) -> Option<&'a (dyn rust_dds_api::topic::topic_description::TopicDescription<T> + 'a)> {
-        todo!()
     }
 }
 
@@ -98,11 +65,15 @@ impl<'a, PSM: rust_rtps_pim::PIM, T: 'static>
 //     }
 // }
 
-impl<'a, PSM: rust_rtps_pim::PIM>
+impl<'a, PSM: rust_rtps_pim::PIM + 'a>
     rust_dds_api::domain::domain_participant::DomainParticipantChild<'a>
     for PublisherImpl<'a, PSM>
 {
     type DomainParticipantType = DomainParticipantImpl<'a, PSM>;
+
+    fn get_participant(&self) -> &Self::DomainParticipantType {
+        self.parent
+    }
 }
 
 impl<'a, PSM: rust_rtps_pim::PIM> rust_dds_api::publication::publisher::Publisher<'a>
@@ -126,10 +97,6 @@ impl<'a, PSM: rust_rtps_pim::PIM> rust_dds_api::publication::publisher::Publishe
 
     fn wait_for_acknowledgments(&self, _max_wait: Duration) -> DDSResult<()> {
         todo!()
-    }
-
-    fn get_participant(&'a self) -> &<Self as rust_dds_api::domain::domain_participant::DomainParticipantChild>::DomainParticipantType{
-        self.parent
     }
 
     fn delete_contained_entities(&self) -> DDSResult<()> {

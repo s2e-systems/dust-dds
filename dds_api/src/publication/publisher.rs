@@ -1,6 +1,5 @@
 use crate::{
     dcps_psm::{Duration, StatusMask},
-    domain::domain_participant::DomainParticipantChild,
     infrastructure::{
         entity::Entity,
         qos::{DataWriterQos, PublisherQos, TopicQos},
@@ -124,11 +123,6 @@ pub trait Publisher<'a>:
     /// first. A return value of OK indicates that all the samples written have been acknowledged by all reliable matched data readers;
     /// a return value of TIMEOUT indicates that max_wait elapsed before all the data was acknowledged.
     fn wait_for_acknowledgments(&self, max_wait: Duration) -> DDSResult<()>;
-
-    /// This operation returns the DomainParticipant to which the Publisher belongs.
-    fn get_participant(&'a self) -> &<Self as DomainParticipantChild<'a>>::DomainParticipantType
-    where
-        Self: DomainParticipantChild<'a> + Sized;
 
     /// This operation deletes all the entities that were created by means of the “create” operations on the Publisher. That is, it deletes
     /// all contained DataWriter objects.

@@ -1,6 +1,5 @@
 use crate::{
     dcps_psm::{InstanceStateKind, SampleLostStatus, SampleStateKind, StatusMask, ViewStateKind},
-    domain::domain_participant::DomainParticipantChild,
     infrastructure::{
         entity::Entity,
         qos::{DataReaderQos, SubscriberQos, TopicQos},
@@ -145,11 +144,6 @@ pub trait Subscriber<'a>:
     /// This operation is typically invoked from the on_data_on_readers operation in the SubscriberListener. That way the
     /// SubscriberListener can delegate to the DataReaderListener objects the handling of the data.
     fn notify_datareaders(&self) -> DDSResult<()>;
-
-    /// This operation returns the DomainParticipant to which the Subscriber belongs.
-    fn get_participant(&'a self) -> &<Self as DomainParticipantChild<'a>>::DomainParticipantType
-    where
-        Self: DomainParticipantChild<'a> + Sized;
 
     /// This operation allows access to the SAMPLE_LOST communication status. Communication statuses are described in 2.2.4.1
     fn get_sample_lost_status(&self, status: &mut SampleLostStatus) -> DDSResult<()>;

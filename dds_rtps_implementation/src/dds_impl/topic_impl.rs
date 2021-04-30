@@ -29,6 +29,10 @@ impl<'a, PSM: rust_rtps_pim::PIM, T> TopicImpl<'a, PSM, T> {
 
 impl<'a, PSM: rust_rtps_pim::PIM, T> DomainParticipantChild<'a> for TopicImpl<'a, PSM, T> {
     type DomainParticipantType = DomainParticipantImpl<'a, PSM>;
+
+    fn get_participant(&self) -> &Self::DomainParticipantType {
+        self.parent
+    }
 }
 
 impl<'a, PSM: rust_rtps_pim::PIM, T> rust_dds_api::topic::topic::Topic<'a, T>
@@ -43,10 +47,6 @@ impl<'a, PSM: rust_rtps_pim::PIM, T> rust_dds_api::topic::topic::Topic<'a, T>
 }
 
 impl<'a, PSM: rust_rtps_pim::PIM, T> TopicDescription<'a, T> for TopicImpl<'a, PSM, T> {
-    fn get_participant(&'a self) -> &<Self as DomainParticipantChild>::DomainParticipantType {
-        self.parent
-    }
-
     fn get_type_name(&self) -> DDSResult<&'static str> {
         // Ok(self
         //     .impl_ref

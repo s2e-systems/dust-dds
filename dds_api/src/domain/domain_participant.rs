@@ -15,6 +15,9 @@ use super::domain_participant_listener::DomainParticipantListener;
 
 pub trait DomainParticipantChild<'a> {
     type DomainParticipantType: DomainParticipant<'a>;
+
+    /// This operation returns the DomainParticipant to which the Publisher belongs.
+    fn get_participant(&self) -> &Self::DomainParticipantType;
 }
 
 pub trait PublisherFactory<'a> {
@@ -29,7 +32,7 @@ pub trait PublisherFactory<'a> {
     /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
     fn create_publisher(
         &'a self,
-        qos: Option<PublisherQos>,
+        qos: Option<PublisherQos<'a>>,
         a_listener: Option<&'a (dyn PublisherListener + 'a)>,
         mask: StatusMask,
     ) -> Option<Self::PublisherType>;
@@ -57,7 +60,7 @@ pub trait SubscriberFactory<'a> {
     /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
     fn create_subscriber(
         &'a self,
-        qos: Option<SubscriberQos>,
+        qos: Option<SubscriberQos<'a>>,
         a_listener: Option<&'a (dyn SubscriberListener + 'a)>,
         mask: StatusMask,
     ) -> Option<Self::SubscriberType>;
@@ -77,14 +80,6 @@ pub trait SubscriberFactory<'a> {
     /// objects. These built-in objects are described in 2.2.5, Built-in Topics.
     fn get_builtin_subscriber(&'a self) -> Self::SubscriberType;
 }
-
-// This is a workaround for the missing Generic Associated Type (GAT)
-// This trait needs to be used for every function that needs to interact
-// with the internals of the topic type inside the implementations of the API.
-// The trait is not directly bound to the other API traits but rather to the function
-// where it is used. See for example create_topic below.
-// Inspired by this thread: https://users.rust-lang.org/t/workaround-for-generic-associated-types/25920/14
-// The trait is placed here because the DomainParticipant is the factory of this type.
 pub trait TopicFactory<'a, T: 'a> {
     type TopicType: Topic<'a, T>;
 
@@ -101,7 +96,7 @@ pub trait TopicFactory<'a, T: 'a> {
     fn create_topic(
         &'a self,
         topic_name: &str,
-        qos: Option<TopicQos>,
+        qos: Option<TopicQos<'a>>,
         a_listener: Option<&'a (dyn TopicListener<DataType = T> + 'a)>,
         mask: StatusMask,
     ) -> Option<Self::TopicType>;

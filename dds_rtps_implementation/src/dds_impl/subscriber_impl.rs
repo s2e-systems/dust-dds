@@ -80,6 +80,10 @@ impl<'a, PSM: rust_rtps_pim::PIM, T: 'static> TopicFactory<'a, T> for Subscriber
 
 impl<'a, PSM: rust_rtps_pim::PIM> DomainParticipantChild<'a> for SubscriberImpl<'a, PSM> {
     type DomainParticipantType = DomainParticipantImpl<'a, PSM>;
+
+    fn get_participant(&self) -> &Self::DomainParticipantType {
+        self.parent
+    }
 }
 
 impl<'a, PSM: rust_rtps_pim::PIM> rust_dds_api::subscription::subscriber::Subscriber<'a>
@@ -95,10 +99,6 @@ impl<'a, PSM: rust_rtps_pim::PIM> rust_dds_api::subscription::subscriber::Subscr
 
     fn notify_datareaders(&self) -> DDSResult<()> {
         todo!()
-    }
-
-    fn get_participant(&'a self) -> &<Self as DomainParticipantChild>::DomainParticipantType {
-        self.parent
     }
 
     fn get_sample_lost_status(&self, _status: &mut SampleLostStatus) -> DDSResult<()> {

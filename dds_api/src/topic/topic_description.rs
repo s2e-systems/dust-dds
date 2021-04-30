@@ -1,5 +1,4 @@
 use crate::{
-    domain::domain_participant::DomainParticipantChild,
     infrastructure::{entity::Entity, qos::TopicQos},
     return_type::DDSResult,
 };
@@ -13,11 +12,6 @@ use super::topic_listener::TopicListener;
 pub trait TopicDescription<'a, T: 'a>:
     Entity<Qos = TopicQos<'a>, Listener = &'a (dyn TopicListener<DataType = T> + 'a)>
 {
-    /// This operation returns the DomainParticipant to which the TopicDescription belongs
-    fn get_participant(&'a self) -> &<Self as DomainParticipantChild<'a>>::DomainParticipantType
-    where
-        Self: DomainParticipantChild<'a> + Sized;
-
     /// The type_name used to create the TopicDescription
     fn get_type_name(&self) -> DDSResult<&'static str>;
 
