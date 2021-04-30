@@ -19,15 +19,15 @@ use crate::rtps_impl::rtps_writer_impl::RTPSWriterImpl;
 
 use super::publisher_impl::PublisherImpl;
 
-pub struct DataWriterImpl<'a, PSM: rust_rtps_pim::PIM, T> {
-    pub(crate) parent: &'a PublisherImpl<'a, PSM>,
+pub struct DataWriterImpl<'a,'b:'a,'c:'b, PSM: rust_rtps_pim::PIM, T> {
+    pub(crate) parent: &'a PublisherImpl<'b,'c, PSM>,
     pub(crate) rtps_writer: Weak<Mutex<RTPSWriterImpl<PSM>>>,
     phantom: PhantomData<&'a T>,
 }
 
-impl<'a, PSM: rust_rtps_pim::PIM, T> DataWriterImpl<'a, PSM, T> {
+impl<'a,'b:'a,'c:'b, PSM: rust_rtps_pim::PIM, T> DataWriterImpl<'a, 'b, 'c, PSM, T> {
     pub fn new(
-        parent: &'a PublisherImpl<'a, PSM>,
+        parent: &'a PublisherImpl<'b, 'c, PSM>,
         rtps_writer: Weak<Mutex<RTPSWriterImpl<PSM>>>,
     ) -> Self {
         Self {
@@ -38,14 +38,14 @@ impl<'a, PSM: rust_rtps_pim::PIM, T> DataWriterImpl<'a, PSM, T> {
     }
 }
 
-impl<'a, PSM: rust_rtps_pim::PIM, T> rust_dds_api::publication::publisher::PublisherChild<'a>
-    for DataWriterImpl<'a, PSM, T>
-{
-    type PublisherType = PublisherImpl<'a, PSM>;
-}
+// impl<'a,'b:'a,'c:'b, PSM: rust_rtps_pim::PIM, T> rust_dds_api::publication::publisher::PublisherChild<'a>
+//     for DataWriterImpl<'a,'b,'c, PSM, T>
+// {
+//     type PublisherType = PublisherImpl<'b,'c, PSM>;
+// }
 
-impl<'a, PSM: rust_rtps_pim::PIM, T> rust_dds_api::publication::data_writer::DataWriter<'a, T>
-    for DataWriterImpl<'a, PSM, T>
+impl<'a,'b:'a,'c:'b, PSM: rust_rtps_pim::PIM, T> rust_dds_api::publication::data_writer::DataWriter<'a, T>
+    for DataWriterImpl<'a, 'b,'c, PSM, T>
 {
     fn register_instance(&self, _instance: T) -> DDSResult<Option<InstanceHandle>> {
         todo!()
@@ -153,12 +153,12 @@ impl<'a, PSM: rust_rtps_pim::PIM, T> rust_dds_api::publication::data_writer::Dat
     // }
 
     /// This operation returns the Publisher to which the publisher child object belongs.
-    fn get_publisher(
-        &self,
-    ) -> &<Self as rust_dds_api::publication::publisher::PublisherChild<'a>>::PublisherType {
-        // self.parent.0
-        todo!()
-    }
+    // fn get_publisher(
+    //     &self,
+    // ) -> &<Self as rust_dds_api::publication::publisher::PublisherChild<'a>>::PublisherType {
+    //     // self.parent.0
+    //     todo!()
+    // }
 
     fn assert_liveliness(&self) -> DDSResult<()> {
         todo!()
@@ -180,8 +180,8 @@ impl<'a, PSM: rust_rtps_pim::PIM, T> rust_dds_api::publication::data_writer::Dat
     }
 }
 
-impl<'a, PSM: rust_rtps_pim::PIM, T> rust_dds_api::infrastructure::entity::Entity
-    for DataWriterImpl<'a, PSM, T>
+impl<'a,'b:'a,'c:'b, PSM: rust_rtps_pim::PIM, T> rust_dds_api::infrastructure::entity::Entity
+    for DataWriterImpl<'a,'b,'c, PSM, T>
 {
     type Qos = DataWriterQos<'a>;
     type Listener = &'a (dyn DataWriterListener<DataType = T> + 'a);
@@ -223,8 +223,8 @@ impl<'a, PSM: rust_rtps_pim::PIM, T> rust_dds_api::infrastructure::entity::Entit
     }
 }
 
-impl<'a, PSM: rust_rtps_pim::PIM, T> rust_dds_api::publication::data_writer::AnyDataWriter
-    for DataWriterImpl<'a, PSM, T>
+impl<'a,'b:'a,'c:'b, PSM: rust_rtps_pim::PIM, T> rust_dds_api::publication::data_writer::AnyDataWriter
+    for DataWriterImpl<'a,'b,'c, PSM, T>
 {
 }
 

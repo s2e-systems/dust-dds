@@ -19,16 +19,16 @@ const ENTITYKIND_USER_DEFINED_WRITER_NO_KEY: u8 = 0x03;
 const ENTITYKIND_BUILTIN_WRITER_WITH_KEY: u8 = 0xc2;
 const ENTITYKIND_BUILTIN_WRITER_NO_KEY: u8 = 0xc3;
 
-pub struct PublisherImpl<'a, PSM: rust_rtps_pim::PIM> {
-    parent: &'a DomainParticipantImpl<'a, PSM>,
+pub struct PublisherImpl<'a, 'b: 'a, PSM: rust_rtps_pim::PIM> {
+    parent: &'a DomainParticipantImpl<'b, PSM>,
     impl_ref: Weak<Mutex<RTPSWriterGroupImpl<PSM>>>,
     default_datawriter_qos: Mutex<DataWriterQos<'a>>,
     datawriter_counter: Mutex<u8>,
 }
 
-impl<'a, PSM: rust_rtps_pim::PIM> PublisherImpl<'a, PSM> {
+impl<'a, 'b: 'a, PSM: rust_rtps_pim::PIM> PublisherImpl<'a, 'b, PSM> {
     pub fn new(
-        parent: &'a DomainParticipantImpl<'a, PSM>,
+        parent: &'a DomainParticipantImpl<'b, PSM>,
         impl_ref: Weak<Mutex<RTPSWriterGroupImpl<PSM>>>,
     ) -> Self {
         Self {
@@ -65,19 +65,20 @@ impl<'a, PSM: rust_rtps_pim::PIM> PublisherImpl<'a, PSM> {
 //     }
 // }
 
-impl<'a, PSM: rust_rtps_pim::PIM + 'a>
+impl<'a, 'b: 'a, PSM: rust_rtps_pim::PIM + 'a>
     rust_dds_api::domain::domain_participant::DomainParticipantChild<'a>
-    for PublisherImpl<'a, PSM>
+    for PublisherImpl<'a, 'b, PSM>
 {
     type DomainParticipantType = DomainParticipantImpl<'a, PSM>;
 
     fn get_participant(&self) -> &Self::DomainParticipantType {
-        self.parent
+        todo!()
+        // self.parent
     }
 }
 
-impl<'a, PSM: rust_rtps_pim::PIM> rust_dds_api::publication::publisher::Publisher<'a>
-    for PublisherImpl<'a, PSM>
+impl<'a, 'b: 'a, PSM: rust_rtps_pim::PIM> rust_dds_api::publication::publisher::Publisher<'a>
+    for PublisherImpl<'a, 'b, PSM>
 {
     fn suspend_publications(&self) -> DDSResult<()> {
         todo!()
@@ -123,8 +124,8 @@ impl<'a, PSM: rust_rtps_pim::PIM> rust_dds_api::publication::publisher::Publishe
     }
 }
 
-impl<'a, PSM: rust_rtps_pim::PIM> rust_dds_api::infrastructure::entity::Entity
-    for PublisherImpl<'a, PSM>
+impl<'a, 'b:'a, PSM: rust_rtps_pim::PIM> rust_dds_api::infrastructure::entity::Entity
+    for PublisherImpl<'a, 'b, PSM>
 {
     type Qos = PublisherQos<'a>;
     type Listener = &'a (dyn PublisherListener + 'a);

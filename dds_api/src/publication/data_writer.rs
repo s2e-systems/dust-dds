@@ -232,9 +232,9 @@ pub trait DataWriter<'a, T: 'a>:
     // fn get_topic(&self) -> &Self::TopicType;
 
     /// This operation returns the Publisher to which the publisher child object belongs.
-    fn get_publisher(&self) -> &<Self as PublisherChild<'a>>::PublisherType
-    where
-        Self: PublisherChild<'a> + Sized;
+    // fn get_publisher(&self) -> &<Self as PublisherChild<'a>>::PublisherType
+    // where
+    //     Self: PublisherChild<'a> + Sized;
 
     /// This operation manually asserts the liveliness of the DataWriter. This is used in combination with the LIVELINESS QoS
     /// policy (see 2.2.3, Supported QoS) to indicate to the Service that the entity remains active.

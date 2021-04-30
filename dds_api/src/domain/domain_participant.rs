@@ -20,33 +20,6 @@ pub trait DomainParticipantChild<'a> {
     fn get_participant(&self) -> &Self::DomainParticipantType;
 }
 
-pub trait PublisherFactory<'a> {
-    type PublisherType: Publisher<'a>;
-
-    /// This operation creates a Publisher with the desired QoS policies and attaches to it the specified PublisherListener.
-    /// If the specified QoS policies are not consistent, the operation will fail and no Publisher will be created.
-    /// The special value PUBLISHER_QOS_DEFAULT can be used to indicate that the Publisher should be created with the default
-    /// Publisher QoS set in the factory. The use of this value is equivalent to the application obtaining the default Publisher QoS by
-    /// means of the operation get_default_publisher_qos (2.2.2.2.1.21) and using the resulting QoS to create the Publisher.
-    /// The created Publisher belongs to the DomainParticipant that is its factory
-    /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
-    fn create_publisher(
-        &'a self,
-        qos: Option<PublisherQos<'a>>,
-        a_listener: Option<&'a (dyn PublisherListener + 'a)>,
-        mask: StatusMask,
-    ) -> Option<Self::PublisherType>;
-
-    /// This operation deletes an existing Publisher.
-    /// A Publisher cannot be deleted if it has any attached DataWriter objects. If delete_publisher is called on a Publisher with
-    /// existing DataWriter object, it will return PRECONDITION_NOT_MET.
-    /// The delete_publisher operation must be called on the same DomainParticipant object used to create the Publisher. If
-    /// delete_publisher is called on a different DomainParticipant, the operation will have no effect and it will return
-    /// PRECONDITION_NOT_MET.
-    /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
-    fn delete_publisher(&self, a_publisher: &Self::PublisherType) -> DDSResult<()>;
-}
-
 pub trait SubscriberFactory<'a> {
     type SubscriberType: Subscriber<'a>;
 
@@ -134,7 +107,34 @@ pub trait TopicFactory<'a, T: 'a> {
     /// deletion. It is still possible to delete the TopicDescription returned by lookup_topicdescription, provided it has no readers or
     /// writers, but then it is really deleted and subsequent lookups will fail.
     /// If the operation fails to locate a TopicDescription, a ‘nil’ value (as specified by the platform) is returned.
-    fn lookup_topicdescription(&self, _name: &str) -> Option<&'a(dyn TopicDescription<T> + 'a)>;
+    fn lookup_topicdescription(&self, _name: &str) -> Option<&'a (dyn TopicDescription<T> + 'a)>;
+}
+
+pub trait PublisherFactory<'long: 'short, 'short>: DomainParticipant<'long> {
+    type PublisherType: Publisher<'short>;
+
+    /// This operation creates a Publisher with the desired QoS policies and attaches to it the specified PublisherListener.
+    /// If the specified QoS policies are not consistent, the operation will fail and no Publisher will be created.
+    /// The special value PUBLISHER_QOS_DEFAULT can be used to indicate that the Publisher should be created with the default
+    /// Publisher QoS set in the factory. The use of this value is equivalent to the application obtaining the default Publisher QoS by
+    /// means of the operation get_default_publisher_qos (2.2.2.2.1.21) and using the resulting QoS to create the Publisher.
+    /// The created Publisher belongs to the DomainParticipant that is its factory
+    /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
+    fn create_publisher(
+        &'short self,
+        qos: Option<PublisherQos<'short>>,
+        a_listener: Option<&'short (dyn PublisherListener + 'short)>,
+        mask: StatusMask,
+    ) -> Option<Self::PublisherType>;
+
+    /// This operation deletes an existing Publisher.
+    /// A Publisher cannot be deleted if it has any attached DataWriter objects. If delete_publisher is called on a Publisher with
+    /// existing DataWriter object, it will return PRECONDITION_NOT_MET.
+    /// The delete_publisher operation must be called on the same DomainParticipant object used to create the Publisher. If
+    /// delete_publisher is called on a different DomainParticipant, the operation will have no effect and it will return
+    /// PRECONDITION_NOT_MET.
+    /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
+    fn delete_publisher(&self, a_publisher: &Self::PublisherType) -> DDSResult<()>;
 }
 
 pub trait DomainParticipant<'a>:

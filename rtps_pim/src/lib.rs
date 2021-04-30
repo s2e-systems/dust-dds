@@ -5,7 +5,7 @@ pub mod messages;
 pub mod structure;
 // pub mod discovery;
 
-pub trait PIM: structure::Types + behavior::Types + messages::Types {}
+pub trait PIM: structure::Types + behavior::Types + messages::Types + 'static {}
 
 #[cfg(test)]
 #[macro_use]
