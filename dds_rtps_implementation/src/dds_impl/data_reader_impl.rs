@@ -20,13 +20,23 @@ use rust_dds_api::{
 
 use super::subscriber_impl::SubscriberImpl;
 
-pub struct DataReaderImpl<'a, PSM: rust_rtps_pim::PIM, T> {
-    parent: &'a SubscriberImpl<'a, PSM>,
+pub struct DataReaderImpl<'a, 'b: 'a, PSM: rust_rtps_pim::PIM, T> {
+    parent: &'a SubscriberImpl<'b, PSM>,
     phantom: &'a T,
 }
 
-impl<'a, PSM: rust_rtps_pim::PIM, T> rust_dds_api::subscription::data_reader::DataReader<'a, T>
-    for DataReaderImpl<'a, PSM, T>
+impl<'a, 'b: 'a, PSM: rust_rtps_pim::PIM, T> SubscriberChild<'a, 'b>
+    for DataReaderImpl<'a, 'b, PSM, T>
+{
+    type SubscriberType = SubscriberImpl<'b, PSM>;
+
+    fn get_subscriber(&self) -> &Self::SubscriberType {
+        self.parent
+    }
+}
+
+impl<'a, 'b: 'a, PSM: rust_rtps_pim::PIM, T>
+    rust_dds_api::subscription::data_reader::DataReader<'a, T> for DataReaderImpl<'a, 'b, PSM, T>
 {
     fn read(
         &self,
@@ -242,13 +252,6 @@ impl<'a, PSM: rust_rtps_pim::PIM, T> rust_dds_api::subscription::data_reader::Da
     //     todo!()
     // }
 
-    fn get_subscriber(&self) -> <Self as SubscriberChild<'a>>::SubscriberType
-    where
-        Self: SubscriberChild<'a> + Sized,
-    {
-        todo!()
-    }
-
     fn delete_contained_entities(&self) -> DDSResult<()> {
         todo!()
     }
@@ -270,7 +273,7 @@ impl<'a, PSM: rust_rtps_pim::PIM, T> rust_dds_api::subscription::data_reader::Da
     }
 }
 
-impl<'a, PSM: rust_rtps_pim::PIM, T> Entity for DataReaderImpl<'a, PSM, T> {
+impl<'a, 'b: 'a, PSM: rust_rtps_pim::PIM, T> Entity for DataReaderImpl<'a, 'b, PSM, T> {
     type Qos = DataReaderQos<'a>;
     type Listener = &'a (dyn DataReaderListener<DataType = T> + 'a);
 
@@ -311,4 +314,4 @@ impl<'a, PSM: rust_rtps_pim::PIM, T> Entity for DataReaderImpl<'a, PSM, T> {
     }
 }
 
-impl<'a, PSM: rust_rtps_pim::PIM, T> AnyDataReader for DataReaderImpl<'a, PSM, T> {}
+impl<'a, 'b: 'a, PSM: rust_rtps_pim::PIM, T> AnyDataReader for DataReaderImpl<'a, 'b, PSM, T> {}

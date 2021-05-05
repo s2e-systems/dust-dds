@@ -3,7 +3,7 @@ use rust_dds_api::{
         InstanceHandle, InstanceStateKind, SampleLostStatus, SampleStateKind, StatusMask,
         ViewStateKind,
     },
-    domain::domain_participant::{DomainParticipantChild, TopicFactory},
+    domain::domain_participant::DomainParticipantChild,
     infrastructure::{
         entity::{Entity, StatusCondition},
         qos::{DataReaderQos, SubscriberQos, TopicQos},
@@ -12,45 +12,10 @@ use rust_dds_api::{
     subscription::{data_reader::AnyDataReader, subscriber_listener::SubscriberListener},
 };
 
-use super::{domain_participant_impl::DomainParticipantImpl, topic_impl::TopicImpl};
+use super::domain_participant_impl::DomainParticipantImpl;
 
 pub struct SubscriberImpl<'a, PSM: rust_rtps_pim::PIM> {
     parent: &'a DomainParticipantImpl<'a, PSM>,
-}
-
-impl<'a, PSM: rust_rtps_pim::PIM, T: 'static> TopicFactory<'a, T> for SubscriberImpl<'a, PSM> {
-    type TopicType = TopicImpl<'a, PSM, T>;
-
-    fn create_topic(
-        &'a self,
-        _topic_name: &str,
-        _qos: Option<TopicQos>,
-        _a_listener: Option<
-            &'a (dyn rust_dds_api::topic::topic_listener::TopicListener<DataType = T> + 'a),
-        >,
-        _mask: StatusMask,
-    ) -> Option<Self::TopicType> {
-        todo!()
-    }
-
-    fn delete_topic(&'a self, _a_topic: &Self::TopicType) -> DDSResult<()> {
-        todo!()
-    }
-
-    fn find_topic(
-        &self,
-        _topic_name: &str,
-        _timeout: rust_dds_api::dcps_psm::Duration,
-    ) -> Option<Self::TopicType> {
-        todo!()
-    }
-
-    fn lookup_topicdescription(
-        &self,
-        _name: &str,
-    ) -> Option<&'a (dyn rust_dds_api::topic::topic_description::TopicDescription<T> + 'a)> {
-        todo!()
-    }
 }
 
 // impl<'b, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types, T: 'static>
@@ -78,7 +43,9 @@ impl<'a, PSM: rust_rtps_pim::PIM, T: 'static> TopicFactory<'a, T> for Subscriber
 //     }
 // }
 
-impl<'a, 'b:'a, PSM: rust_rtps_pim::PIM> DomainParticipantChild<'a, 'b> for SubscriberImpl<'a, PSM> {
+impl<'a, 'b: 'a, PSM: rust_rtps_pim::PIM> DomainParticipantChild<'a, 'b>
+    for SubscriberImpl<'a, PSM>
+{
     type DomainParticipantType = DomainParticipantImpl<'b, PSM>;
 
     fn get_participant(&self) -> &Self::DomainParticipantType {

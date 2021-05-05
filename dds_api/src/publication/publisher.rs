@@ -14,9 +14,9 @@ use super::{
     publisher_listener::PublisherListener,
 };
 
-pub trait DataWriterFactory<T> {
-    type TopicType: for<'t> Topic<'t, T>;
-    type DataWriterType: for<'dw> DataWriter<'dw, T> + AnyDataWriter;
+pub trait DataWriterFactory<'a, 'b: 'a, 'c: 'a, T: 'b + 'c>: Publisher<'b> {
+    type TopicType: Topic<'c, T>;
+    type DataWriterType: DataWriter<'a, T> + AnyDataWriter;
 
     /// This operation creates a DataWriter. The returned DataWriter will be attached and belongs to the Publisher.
     /// The DataWriter returned by the create_datawriter operation will in fact be a derived class, specific to the data-type associated
@@ -39,7 +39,7 @@ pub trait DataWriterFactory<T> {
     /// corresponding policy on the default QoS. The resulting QoS is then applied to the creation of the DataWriter.
     /// The Topic passed to this operation must have been created from the same DomainParticipant that was used to create this
     /// Publisher. If the Topic was created from a different DomainParticipant, the operation will fail and return a nil result.
-    fn create_datawriter<'a>(
+    fn create_datawriter(
         &'a self,
         a_topic: &'a Self::TopicType,
         qos: Option<DataWriterQos<'a>>,
@@ -61,11 +61,14 @@ pub trait DataWriterFactory<T> {
     /// topic_name. If no such DataWriter exists, the operation will return ’nil.’
     /// If multiple DataWriter attached to the Publisher satisfy this condition, then the operation will return one of them. It is not
     /// specified which one.
-    fn lookup_datawriter<'a>(&'a self, topic: &Self::TopicType) -> Option<Self::DataWriterType>;
+    fn lookup_datawriter(&'a self, topic: &'a Self::TopicType) -> Option<Self::DataWriterType>;
 }
 
-pub trait PublisherChild<'a> {
-    type PublisherType: Publisher<'a>;
+pub trait PublisherChild<'a, 'b: 'a> {
+    type PublisherType: Publisher<'b>;
+
+    /// This operation returns the Publisher to which the publisher child object belongs.
+    fn get_publisher(&self) -> &Self::PublisherType;
 }
 
 /// The Publisher acts on the behalf of one or several DataWriter objects that belong to it. When it is informed of a change to the

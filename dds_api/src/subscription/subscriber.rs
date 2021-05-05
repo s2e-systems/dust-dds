@@ -14,9 +14,9 @@ use super::{
     subscriber_listener::SubscriberListener,
 };
 
-pub trait DataReaderFactory<T> {
-    type TopicType: for<'t> Topic<'t, T>;
-    type DataReaderType: for<'dr> DataReader<'dr, T> + AnyDataReader;
+pub trait DataReaderFactory<'a, 'b: 'a, 'c: 'a, T: 'b + 'c> : Subscriber<'b> {
+    type TopicType: Topic<'c, T>;
+    type DataReaderType: DataReader<'a, T> + AnyDataReader;
 
     /// This operation creates a DataReader. The returned DataReader will be attached and belong to the Subscriber.
     ///
@@ -45,7 +45,7 @@ pub trait DataReaderFactory<T> {
     /// The TopicDescription passed to this operation must have been created from the same DomainParticipant that was used to
     /// create this Subscriber. If the TopicDescription was created from a different DomainParticipant, the operation will fail and
     /// return a nil result.
-    fn create_datareader<'a>(
+    fn create_datareader(
         &'a self,
         a_topic: &'a Self::TopicType,
         qos: Option<DataReaderQos<'a>>,
@@ -72,11 +72,14 @@ pub trait DataReaderFactory<T> {
     /// If multiple DataReaders attached to the Subscriber satisfy this condition, then the operation will return one of them. It is not
     /// specified which one.
     /// The use of this operation on the built-in Subscriber allows access to the built-in DataReader entities for the built-in topics
-    fn lookup_datareader<'a>(&'a self, topic: &'a Self::TopicType) -> Option<Self::DataReaderType>;
+    fn lookup_datareader(&'a self, topic: &'a Self::TopicType) -> Option<Self::DataReaderType>;
 }
 
-pub trait SubscriberChild<'a> {
-    type SubscriberType: Subscriber<'a>;
+pub trait SubscriberChild<'a, 'b: 'a> {
+    type SubscriberType: Subscriber<'b>;
+
+    /// This operation returns the Subscriber to which the DataReader belongs.
+    fn get_subscriber(&self) -> &Self::SubscriberType;
 }
 
 /// A Subscriber is the object responsible for the actual reception of the data resulting from its subscriptions

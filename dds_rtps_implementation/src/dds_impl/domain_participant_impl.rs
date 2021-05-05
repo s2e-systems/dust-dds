@@ -52,10 +52,11 @@ impl<'a, PSM: rust_rtps_pim::PIM> DomainParticipantImpl<'a, PSM> {
     }
 }
 
-impl<'a, 'b: 'a, PSM: rust_rtps_pim::PIM + 'a> SubscriberFactory<'a>
+impl<'a, 'b: 'a, PSM: rust_rtps_pim::PIM + 'a> SubscriberFactory<'a, 'b>
     for DomainParticipantImpl<'b, PSM>
 {
     type SubscriberType = SubscriberImpl<'a, PSM>;
+    type BuiltinSubscriberType = SubscriberImpl<'a, PSM>;
 
     fn create_subscriber(
         &'a self,
@@ -108,7 +109,7 @@ impl<'a, 'b: 'a, PSM: rust_rtps_pim::PIM + 'a> SubscriberFactory<'a>
     }
 }
 
-impl<'a, 'b: 'a, PSM: rust_rtps_pim::PIM + 'a, T: 'a> TopicFactory<'a, T>
+impl<'a, 'b: 'a, PSM: rust_rtps_pim::PIM + 'a, T: 'a> TopicFactory<'a, 'b, T>
     for DomainParticipantImpl<'b, PSM>
 {
     type TopicType = TopicImpl<'a, PSM, T>;

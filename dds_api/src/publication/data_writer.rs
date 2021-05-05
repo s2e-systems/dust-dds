@@ -1,19 +1,20 @@
-use crate::{
-    builtin_topics::SubscriptionBuiltinTopicData,
-    dcps_psm::{
+use crate::{builtin_topics::SubscriptionBuiltinTopicData, dcps_psm::{
         Duration, InstanceHandle, LivelinessLostStatus, OfferedDeadlineMissedStatus,
         OfferedIncompatibleQosStatus, PublicationMatchedStatus, Time,
-    },
-    infrastructure::{entity::Entity, qos::DataWriterQos},
-    return_type::DDSResult,
-};
+    }, infrastructure::{entity::Entity, qos::DataWriterQos}, return_type::DDSResult, topic::topic::Topic};
 
-use super::{data_writer_listener::DataWriterListener, publisher::PublisherChild};
+use super::data_writer_listener::DataWriterListener;
+
+pub trait DataWriterTopic<'a, 'b:'a, T: 'a+'b> {
+    type TopicType: Topic<'b, T>;
+
+    /// This operation returns the Topic associated with the DataWriter. This is the same Topic that was used to create the DataWriter.
+    fn get_topic(&self) -> &Self::TopicType;
+}
 
 pub trait DataWriter<'a, T: 'a>:
     Entity<Qos = DataWriterQos<'a>, Listener = &'a (dyn DataWriterListener<DataType = T> + 'a)>
 {
-    // type TopicType: Topic<'a, T>;
     /// This operation informs the Service that the application will be modifying a particular instance. It gives an opportunity to the
     /// Service to pre-configure itself to improve performance.
     /// It takes as a parameter an instance (to get the key value) and returns a handle that can be used in successive write or dispose
@@ -227,14 +228,6 @@ pub trait DataWriter<'a, T: 'a>:
         &self,
         status: &mut PublicationMatchedStatus,
     ) -> DDSResult<()>;
-
-    /// This operation returns the Topic associated with the DataWriter. This is the same Topic that was used to create the DataWriter.
-    // fn get_topic(&self) -> &Self::TopicType;
-
-    /// This operation returns the Publisher to which the publisher child object belongs.
-    // fn get_publisher(&self) -> &<Self as PublisherChild<'a>>::PublisherType
-    // where
-    //     Self: PublisherChild<'a> + Sized;
 
     /// This operation manually asserts the liveliness of the DataWriter. This is used in combination with the LIVELINESS QoS
     /// policy (see 2.2.3, Supported QoS) to indicate to the Service that the entity remains active.

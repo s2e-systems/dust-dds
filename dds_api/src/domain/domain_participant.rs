@@ -13,15 +13,16 @@ use crate::{
 
 use super::domain_participant_listener::DomainParticipantListener;
 
-pub trait DomainParticipantChild<'a, 'b:'a> {
+pub trait DomainParticipantChild<'a, 'b: 'a> {
     type DomainParticipantType: DomainParticipant<'b>;
 
     /// This operation returns the DomainParticipant to which the Publisher belongs.
     fn get_participant(&self) -> &Self::DomainParticipantType;
 }
 
-pub trait SubscriberFactory<'a> {
+pub trait SubscriberFactory<'a, 'b: 'a>: DomainParticipant<'b> {
     type SubscriberType: Subscriber<'a>;
+    type BuiltinSubscriberType: Subscriber<'a>;
 
     /// This operation creates a Subscriber with the desired QoS policies and attaches to it the specified SubscriberListener.
     /// If the specified QoS policies are not consistent, the operation will fail and no Subscriber will be created.
@@ -51,9 +52,9 @@ pub trait SubscriberFactory<'a> {
     /// well as corresponding DataReader objects to access them. All these DataReader objects belong to a single built-in Subscriber.
     /// The built-in Topics are used to communicate information about other DomainParticipant, Topic, DataReader, and DataWriter
     /// objects. These built-in objects are described in 2.2.5, Built-in Topics.
-    fn get_builtin_subscriber(&'a self) -> Self::SubscriberType;
+    fn get_builtin_subscriber(&'a self) -> Self::BuiltinSubscriberType;
 }
-pub trait TopicFactory<'a, T: 'a> {
+pub trait TopicFactory<'a, 'b: 'a, T: 'a>: DomainParticipant<'b> {
     type TopicType: Topic<'a, T>;
 
     /// This operation creates a Topic with the desired QoS policies and attaches to it the specified TopicListener.
@@ -110,7 +111,7 @@ pub trait TopicFactory<'a, T: 'a> {
     fn lookup_topicdescription(&self, _name: &str) -> Option<&'a (dyn TopicDescription<T> + 'a)>;
 }
 
-pub trait PublisherFactory<'a, 'b:'a>: DomainParticipant<'b> {
+pub trait PublisherFactory<'a, 'b: 'a>: DomainParticipant<'b> {
     type PublisherType: Publisher<'a>;
 
     /// This operation creates a Publisher with the desired QoS policies and attaches to it the specified PublisherListener.
