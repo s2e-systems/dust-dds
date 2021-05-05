@@ -1,5 +1,6 @@
 use crate::{
     dcps_psm::{InstanceStateKind, SampleLostStatus, SampleStateKind, StatusMask, ViewStateKind},
+    domain::domain_participant::DomainParticipant,
     infrastructure::{
         entity::Entity,
         qos::{DataReaderQos, SubscriberQos, TopicQos},
@@ -14,7 +15,14 @@ use super::{
     subscriber_listener::SubscriberListener,
 };
 
-pub trait DataReaderFactory<'a, 'b: 'a, 'c: 'a, T: 'b + 'c> : Subscriber<'b> {
+pub trait SubscriberParent<'a, 'b: 'a> {
+    type DomainParticipantType: DomainParticipant<'b>;
+
+    /// This operation returns the DomainParticipant to which the Subscriber belongs.
+    fn get_participant(&self) -> &Self::DomainParticipantType;
+}
+
+pub trait DataReaderFactory<'a, 'b: 'a, 'c: 'a, T: 'b + 'c>: Subscriber<'b> {
     type TopicType: Topic<'c, T>;
     type DataReaderType: DataReader<'a, T> + AnyDataReader;
 
@@ -75,12 +83,6 @@ pub trait DataReaderFactory<'a, 'b: 'a, 'c: 'a, T: 'b + 'c> : Subscriber<'b> {
     fn lookup_datareader(&'a self, topic: &'a Self::TopicType) -> Option<Self::DataReaderType>;
 }
 
-pub trait SubscriberChild<'a, 'b: 'a> {
-    type SubscriberType: Subscriber<'b>;
-
-    /// This operation returns the Subscriber to which the DataReader belongs.
-    fn get_subscriber(&self) -> &Self::SubscriberType;
-}
 
 /// A Subscriber is the object responsible for the actual reception of the data resulting from its subscriptions
 ///

@@ -13,8 +13,9 @@ use rust_dds_api::{
     },
     return_type::DDSResult,
     subscription::{
-        data_reader::AnyDataReader, data_reader_listener::DataReaderListener,
-        query_condition::QueryCondition, subscriber::SubscriberChild,
+        data_reader::{AnyDataReader, DataReaderParent},
+        data_reader_listener::DataReaderListener,
+        query_condition::QueryCondition,
     },
 };
 
@@ -25,7 +26,7 @@ pub struct DataReaderImpl<'a, 'b: 'a, PSM: rust_rtps_pim::PIM, T> {
     phantom: &'a T,
 }
 
-impl<'a, 'b: 'a, PSM: rust_rtps_pim::PIM, T> SubscriberChild<'a, 'b>
+impl<'a, 'b: 'a, PSM: rust_rtps_pim::PIM, T> DataReaderParent<'a, 'b>
     for DataReaderImpl<'a, 'b, PSM, T>
 {
     type SubscriberType = SubscriberImpl<'b, PSM>;

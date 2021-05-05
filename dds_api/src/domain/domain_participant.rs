@@ -13,13 +13,6 @@ use crate::{
 
 use super::domain_participant_listener::DomainParticipantListener;
 
-pub trait DomainParticipantChild<'a, 'b: 'a> {
-    type DomainParticipantType: DomainParticipant<'b>;
-
-    /// This operation returns the DomainParticipant to which the Publisher belongs.
-    fn get_participant(&self) -> &Self::DomainParticipantType;
-}
-
 pub trait SubscriberFactory<'a, 'b: 'a>: DomainParticipant<'b> {
     type SubscriberType: Subscriber<'a>;
     type BuiltinSubscriberType: Subscriber<'a>;

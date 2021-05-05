@@ -3,13 +3,15 @@ use rust_dds_api::{
         InstanceHandle, InstanceStateKind, SampleLostStatus, SampleStateKind, StatusMask,
         ViewStateKind,
     },
-    domain::domain_participant::DomainParticipantChild,
     infrastructure::{
         entity::{Entity, StatusCondition},
         qos::{DataReaderQos, SubscriberQos, TopicQos},
     },
     return_type::DDSResult,
-    subscription::{data_reader::AnyDataReader, subscriber_listener::SubscriberListener},
+    subscription::{
+        data_reader::AnyDataReader, subscriber::SubscriberParent,
+        subscriber_listener::SubscriberListener,
+    },
 };
 
 use super::domain_participant_impl::DomainParticipantImpl;
@@ -43,9 +45,7 @@ pub struct SubscriberImpl<'a, PSM: rust_rtps_pim::PIM> {
 //     }
 // }
 
-impl<'a, 'b: 'a, PSM: rust_rtps_pim::PIM> DomainParticipantChild<'a, 'b>
-    for SubscriberImpl<'a, PSM>
-{
+impl<'a, 'b: 'a, PSM: rust_rtps_pim::PIM> SubscriberParent<'a, 'b> for SubscriberImpl<'a, PSM> {
     type DomainParticipantType = DomainParticipantImpl<'b, PSM>;
 
     fn get_participant(&self) -> &Self::DomainParticipantType {

@@ -1,5 +1,6 @@
 use crate::{
     dcps_psm::{Duration, StatusMask},
+    domain::domain_participant::DomainParticipant,
     infrastructure::{
         entity::Entity,
         qos::{DataWriterQos, PublisherQos, TopicQos},
@@ -13,6 +14,13 @@ use super::{
     data_writer_listener::DataWriterListener,
     publisher_listener::PublisherListener,
 };
+
+pub trait PublisherParent<'a, 'b: 'a> {
+    type DomainParticipantType: DomainParticipant<'b>;
+
+    /// This operation returns the DomainParticipant to which the Publisher belongs.
+    fn get_participant(&self) -> &Self::DomainParticipantType;
+}
 
 pub trait DataWriterFactory<'a, 'b: 'a, 'c: 'a, T: 'b + 'c>: Publisher<'b> {
     type TopicType: Topic<'c, T>;
@@ -62,13 +70,6 @@ pub trait DataWriterFactory<'a, 'b: 'a, 'c: 'a, T: 'b + 'c>: Publisher<'b> {
     /// If multiple DataWriter attached to the Publisher satisfy this condition, then the operation will return one of them. It is not
     /// specified which one.
     fn lookup_datawriter(&'a self, topic: &'a Self::TopicType) -> Option<Self::DataWriterType>;
-}
-
-pub trait PublisherChild<'a, 'b: 'a> {
-    type PublisherType: Publisher<'b>;
-
-    /// This operation returns the Publisher to which the publisher child object belongs.
-    fn get_publisher(&self) -> &Self::PublisherType;
 }
 
 /// The Publisher acts on the behalf of one or several DataWriter objects that belong to it. When it is informed of a change to the

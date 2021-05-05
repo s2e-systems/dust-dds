@@ -1,9 +1,17 @@
 use crate::{
+    domain::domain_participant::DomainParticipant,
     infrastructure::{entity::Entity, qos::TopicQos},
     return_type::DDSResult,
 };
 
 use super::topic_listener::TopicListener;
+
+pub trait TopicDescriptionParent<'a, 'b: 'a> {
+    type DomainParticipantType: DomainParticipant<'b>;
+
+    /// This operation returns the DomainParticipant to which the Topic Description belongs.
+    fn get_participant(&self) -> &Self::DomainParticipantType;
+}
 
 /// TopicDescription represents the fact that both publications and subscriptions are tied to a single data-type. Its attribute
 /// type_name defines a unique resulting type for the publication or the subscription and therefore creates an implicit association

@@ -2,13 +2,15 @@ use std::marker::PhantomData;
 
 use rust_dds_api::{
     dcps_psm::{InconsistentTopicStatus, InstanceHandle, StatusMask},
-    domain::domain_participant::DomainParticipantChild,
     infrastructure::{
         entity::{Entity, StatusCondition},
         qos::TopicQos,
     },
     return_type::DDSResult,
-    topic::{topic_description::TopicDescription, topic_listener::TopicListener},
+    topic::{
+        topic_description::{TopicDescription, TopicDescriptionParent},
+        topic_listener::TopicListener,
+    },
 };
 
 use super::domain_participant_impl::DomainParticipantImpl;
@@ -27,7 +29,9 @@ impl<'a, PSM: rust_rtps_pim::PIM, T> TopicImpl<'a, PSM, T> {
     }
 }
 
-impl<'a, 'b:'a, PSM: rust_rtps_pim::PIM, T> DomainParticipantChild<'a, 'b> for TopicImpl<'a, PSM, T> {
+impl<'a, 'b: 'a, PSM: rust_rtps_pim::PIM, T> TopicDescriptionParent<'a, 'b>
+    for TopicImpl<'a, PSM, T>
+{
     type DomainParticipantType = DomainParticipantImpl<'b, PSM>;
 
     fn get_participant(&self) -> &Self::DomainParticipantType {

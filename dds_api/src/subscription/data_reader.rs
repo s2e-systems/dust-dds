@@ -12,12 +12,19 @@ use crate::{
     topic::topic_description::TopicDescription,
 };
 
-use super::{data_reader_listener::DataReaderListener, query_condition::QueryCondition};
+use super::{data_reader_listener::DataReaderListener, query_condition::QueryCondition, subscriber::Subscriber};
 
 pub trait DataReaderTopic<'a, 'b: 'a, T: 'a + 'b> {
     /// This operation returns the TopicDescription associated with the DataReader. This is the same TopicDescription that was used
     /// to create the DataReader.
     fn get_topicdescription(&self) -> &dyn TopicDescription<'b, T>;
+}
+
+pub trait DataReaderParent<'a, 'b: 'a> {
+    type SubscriberType: Subscriber<'b>;
+
+    /// This operation returns the Subscriber to which the DataReader belongs.
+    fn get_subscriber(&self) -> &Self::SubscriberType;
 }
 
 /// A DataReader allows the application (1) to declare the data it wishes to receive (i.e., make a subscription) and (2) to access the

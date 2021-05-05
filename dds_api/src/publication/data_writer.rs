@@ -1,17 +1,29 @@
-use crate::{builtin_topics::SubscriptionBuiltinTopicData, dcps_psm::{
+use crate::{
+    builtin_topics::SubscriptionBuiltinTopicData,
+    dcps_psm::{
         Duration, InstanceHandle, LivelinessLostStatus, OfferedDeadlineMissedStatus,
         OfferedIncompatibleQosStatus, PublicationMatchedStatus, Time,
-    }, infrastructure::{entity::Entity, qos::DataWriterQos}, return_type::DDSResult, topic::topic::Topic};
+    },
+    infrastructure::{entity::Entity, qos::DataWriterQos},
+    return_type::DDSResult,
+    topic::topic::Topic,
+};
 
-use super::data_writer_listener::DataWriterListener;
+use super::{data_writer_listener::DataWriterListener, publisher::Publisher};
 
-pub trait DataWriterTopic<'a, 'b:'a, T: 'a+'b> {
+pub trait DataWriterTopic<'a, 'b: 'a, T: 'a + 'b> {
     type TopicType: Topic<'b, T>;
 
     /// This operation returns the Topic associated with the DataWriter. This is the same Topic that was used to create the DataWriter.
     fn get_topic(&self) -> &Self::TopicType;
 }
 
+pub trait DataWriterParent<'a, 'b: 'a> {
+    type PublisherType: Publisher<'b>;
+
+    /// This operation returns the Publisher to which the data writer object belongs.
+    fn get_publisher(&self) -> &Self::PublisherType;
+}
 pub trait DataWriter<'a, T: 'a>:
     Entity<Qos = DataWriterQos<'a>, Listener = &'a (dyn DataWriterListener<DataType = T> + 'a)>
 {

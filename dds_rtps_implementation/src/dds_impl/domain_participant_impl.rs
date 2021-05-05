@@ -5,8 +5,7 @@ use rust_dds_api::{
     dcps_psm::{DomainId, Duration, InstanceHandle, StatusMask, Time},
     domain::{
         domain_participant::{
-            DomainParticipant, DomainParticipantChild, PublisherFactory, SubscriberFactory,
-            TopicFactory,
+            DomainParticipant, PublisherFactory, SubscriberFactory, TopicFactory,
         },
         domain_participant_listener::DomainParticipantListener,
     },
@@ -14,7 +13,7 @@ use rust_dds_api::{
         entity::{Entity, StatusCondition},
         qos::{DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
     },
-    publication::publisher_listener::PublisherListener,
+    publication::{publisher::PublisherParent, publisher_listener::PublisherListener},
     return_type::{DDSError, DDSResult},
     subscription::subscriber_listener::SubscriberListener,
     topic::{topic_description::TopicDescription, topic_listener::TopicListener},
