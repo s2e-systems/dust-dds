@@ -15,32 +15,23 @@ use super::{
     subscriber_listener::SubscriberListener,
 };
 
-pub trait DataReaderFactory<
-    'datareader,
-    'subscriber: 'datareader,
-    'topic: 'datareader,
-    'participant: 'subscriber + 'topic,
-    T: 'topic,
->: Subscriber<'subscriber, 'participant>
+pub trait DataReaderFactory<'dr, 's: 'dr, 't: 'dr, 'dp: 's + 't, T: 't>:
+    Subscriber<'s, 'dp>
 {
-    type TopicType: Topic<'topic, 'participant, T>;
-    type DataReaderType: DataReader<'datareader, 'subscriber, 'topic, 'participant, T>
-        + AnyDataReader;
+    type TopicType: Topic<'t, 'dp, T>;
+    type DataReaderType: DataReader<'dr, 's, 't, 'dp, T> + AnyDataReader;
 
     fn create_datareader(
-        &'datareader self,
-        a_topic: &'datareader Self::TopicType,
-        qos: Option<DataReaderQos<'datareader>>,
-        a_listener: Option<&'datareader (dyn DataReaderListener<DataType = T> + 'datareader)>,
+        &'dr self,
+        a_topic: &'dr Self::TopicType,
+        qos: Option<DataReaderQos<'dr>>,
+        a_listener: Option<&'dr (dyn DataReaderListener<DataType = T> + 'dr)>,
         mask: StatusMask,
     ) -> Option<Self::DataReaderType>;
 
     fn delete_datareader(&self, a_datareader: &Self::DataReaderType) -> DDSResult<()>;
 
-    fn lookup_datareader(
-        &'datareader self,
-        topic: &'datareader Self::TopicType,
-    ) -> Option<Self::DataReaderType>;
+    fn lookup_datareader(&'dr self, topic: &'dr Self::TopicType) -> Option<Self::DataReaderType>;
 }
 
 /// A Subscriber is the object responsible for the actual reception of the data resulting from its subscriptions
@@ -51,11 +42,8 @@ pub trait DataReaderFactory<
 /// objects through the operation get_datareaders and then access the data available though operations on the DataReader.
 /// All operations except for the base-class operations set_qos, get_qos, set_listener, get_listener, enable, get_statuscondition,
 /// and create_datareader may return the value NOT_ENABLED.
-pub trait Subscriber<'subscriber, 'participant: 'subscriber>:
-    Entity<
-    Qos = SubscriberQos<'subscriber>,
-    Listener = &'subscriber (dyn SubscriberListener + 'subscriber),
->
+pub trait Subscriber<'s, 'dp: 's>:
+    Entity<Qos = SubscriberQos<'s>, Listener = &'s (dyn SubscriberListener + 's)>
 {
     /// This operation creates a DataReader. The returned DataReader will be attached and belong to the Subscriber.
     ///
@@ -84,17 +72,19 @@ pub trait Subscriber<'subscriber, 'participant: 'subscriber>:
     /// The TopicDescription passed to this operation must have been created from the same DomainParticipant that was used to
     /// create this Subscriber. If the TopicDescription was created from a different DomainParticipant, the operation will fail and
     /// return a nil result.
-    fn create_datareader<'datareader, 'topic, T>(
-        &'datareader self,
-        a_topic: &'datareader Self::TopicType,
-        qos: Option<DataReaderQos<'datareader>>,
-        a_listener: Option<&'datareader (dyn DataReaderListener<DataType = T> + 'datareader)>,
+    fn create_datareader<'dr, 't, T>(
+        &'dr self,
+        a_topic: &'dr Self::TopicType,
+        qos: Option<DataReaderQos<'dr>>,
+        a_listener: Option<&'dr (dyn DataReaderListener<DataType = T> + 'dr)>,
         mask: StatusMask,
     ) -> Option<Self::DataReaderType>
     where
-        Self: DataReaderFactory<'datareader, 'subscriber, 'topic, 'participant, T> + Sized,
+        Self: DataReaderFactory<'dr, 's, 't, 'dp, T> + Sized,
     {
-        <Self as DataReaderFactory<'datareader, 'subscriber, 'topic, 'participant, T>>::create_datareader(self, a_topic, qos, a_listener, mask)
+        <Self as DataReaderFactory<'dr, 's, 't, 'dp, T>>::create_datareader(
+            self, a_topic, qos, a_listener, mask,
+        )
     }
 
     /// This operation deletes a DataReader that belongs to the Subscriber. If the DataReader does not belong to the Subscriber, the
@@ -109,14 +99,11 @@ pub trait Subscriber<'subscriber, 'participant: 'subscriber>:
     /// delete_datareader is called on a different Subscriber, the operation will have no effect and it will return
     /// PRECONDITION_NOT_MET.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
-    fn delete_datareader<'datareader, 'topic, T>(
-        &self,
-        a_datareader: &Self::DataReaderType,
-    ) -> DDSResult<()>
+    fn delete_datareader<'dr, 't, T>(&self, a_datareader: &Self::DataReaderType) -> DDSResult<()>
     where
-        Self: DataReaderFactory<'datareader, 'subscriber, 'topic, 'participant, T> + Sized,
+        Self: DataReaderFactory<'dr, 's, 't, 'dp, T> + Sized,
     {
-        <Self as DataReaderFactory<'datareader, 'subscriber, 'topic, 'participant, T>>::delete_datareader(self, a_datareader)
+        <Self as DataReaderFactory<'dr, 's, 't, 'dp, T>>::delete_datareader(self, a_datareader)
     }
 
     /// This operation retrieves a previously-created DataReader belonging to the Subscriber that is attached to a Topic with a
@@ -124,14 +111,14 @@ pub trait Subscriber<'subscriber, 'participant: 'subscriber>:
     /// If multiple DataReaders attached to the Subscriber satisfy this condition, then the operation will return one of them. It is not
     /// specified which one.
     /// The use of this operation on the built-in Subscriber allows access to the built-in DataReader entities for the built-in topics
-    fn lookup_datareader<'datareader, 'topic, T>(
-        &'datareader self,
-        topic: &'datareader Self::TopicType,
+    fn lookup_datareader<'dr, 't, T>(
+        &'dr self,
+        topic: &'dr Self::TopicType,
     ) -> Option<Self::DataReaderType>
     where
-        Self: DataReaderFactory<'datareader, 'subscriber, 'topic, 'participant, T> + Sized,
+        Self: DataReaderFactory<'dr, 's, 't, 'dp, T> + Sized,
     {
-        <Self as DataReaderFactory<'datareader, 'subscriber, 'topic, 'participant, T>>::lookup_datareader(self, topic)
+        <Self as DataReaderFactory<'dr, 's, 't, 'dp, T>>::lookup_datareader(self, topic)
     }
 
     /// This operation indicates that the application is about to access the data samples in any of the DataReader objects attached to
@@ -190,7 +177,7 @@ pub trait Subscriber<'subscriber, 'participant: 'subscriber>:
     fn notify_datareaders(&self) -> DDSResult<()>;
 
     /// This operation returns the DomainParticipant to which the Subscriber belongs.
-    fn get_participant(&self) -> &dyn DomainParticipant<'participant>;
+    fn get_participant(&self) -> &dyn DomainParticipant<'dp>;
 
     /// This operation allows access to the SAMPLE_LOST communication status. Communication statuses are described in 2.2.4.1
     fn get_sample_lost_status(&self, status: &mut SampleLostStatus) -> DDSResult<()>;
@@ -213,14 +200,14 @@ pub trait Subscriber<'subscriber, 'participant: 'subscriber>:
     /// The special value DATAREADER_QOS_DEFAULT may be passed to this operation to indicate that the default QoS should
     /// be reset back to the initial values the factory would use, that is the values that would be used if the
     /// set_default_datareader_qos operation had never been called.
-    fn set_default_datareader_qos(&self, qos: Option<DataReaderQos<'subscriber>>) -> DDSResult<()>;
+    fn set_default_datareader_qos(&self, qos: Option<DataReaderQos<'s>>) -> DDSResult<()>;
 
     /// This operation retrieves the default value of the DataReader QoS, that is, the QoS policies which will be used for newly
     /// created DataReader entities in the case where the QoS policies are defaulted in the create_datareader operation.
     /// The values retrieved get_default_datareader_qos will match the set of values specified on the last successful call to
     /// get_default_datareader_qos, or else, if the call was never made, the default values listed in the QoS table in 2.2.3,
     /// Supported QoS.
-    fn get_default_datareader_qos(&self) -> DDSResult<DataReaderQos<'subscriber>>;
+    fn get_default_datareader_qos(&self) -> DDSResult<DataReaderQos<'s>>;
 
     /// This operation copies the policies in the a_topic_qos to the corresponding policies in the a_datareader_qos (replacing values
     /// in the a_datareader_qos, if present).
@@ -231,7 +218,7 @@ pub trait Subscriber<'subscriber, 'participant: 'subscriber>:
     /// may not be the final one, as the application can still modify some policies prior to applying the policies to the DataReader.
     fn copy_from_topic_qos(
         &self,
-        a_datareader_qos: &mut DataReaderQos<'subscriber>,
+        a_datareader_qos: &mut DataReaderQos<'s>,
         a_topic_qos: &TopicQos,
     ) -> DDSResult<()>;
 }

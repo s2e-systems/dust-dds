@@ -1,4 +1,4 @@
-use std::fmt::{Display};
+use std::fmt::Display;
 
 use rust_rtps_pim::messages::Submessage;
 
@@ -21,7 +21,11 @@ pub struct Data<'a> {
 
 impl<'a> Display for Data<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Data (endianness_flag: {}, inline_qos_flag: {})", self.endianness_flag, self.inline_qos_flag)
+        write!(
+            f,
+            "Data (endianness_flag: {}, inline_qos_flag: {})",
+            self.endianness_flag, self.inline_qos_flag
+        )
     }
 }
 
@@ -54,11 +58,17 @@ impl<'a> rust_rtps_pim::messages::submessages::Data for Data<'a> {
             data_flag,
             key_flag,
             non_standard_payload_flag,
-            reader_id: rust_rtps_pim::messages::submessage_elements::EntityId{value: reader_id},
-            writer_id: rust_rtps_pim::messages::submessage_elements::EntityId{value: writer_id},
-            writer_sn: rust_rtps_pim::messages::submessage_elements::SequenceNumber{value: writer_sn},
-            inline_qos: rust_rtps_pim::messages::submessage_elements::ParameterList{parameter: inline_qos},
-            serialized_payload: rust_rtps_pim::messages::submessage_elements::SerializedData{value: serialized_payload},
+            reader_id: rust_rtps_pim::messages::submessage_elements::EntityId { value: reader_id },
+            writer_id: rust_rtps_pim::messages::submessage_elements::EntityId { value: writer_id },
+            writer_sn: rust_rtps_pim::messages::submessage_elements::SequenceNumber {
+                value: writer_sn,
+            },
+            inline_qos: rust_rtps_pim::messages::submessage_elements::ParameterList {
+                parameter: inline_qos,
+            },
+            serialized_payload: rust_rtps_pim::messages::submessage_elements::SerializedData {
+                value: serialized_payload,
+            },
         }
     }
 

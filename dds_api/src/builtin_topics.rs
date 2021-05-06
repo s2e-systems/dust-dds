@@ -1,10 +1,14 @@
-use crate::{dcps_psm::BuiltInTopicKey, infrastructure::qos_policy::{
-    DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, DurabilityServiceQosPolicy,
-    GroupDataQosPolicy, HistoryQosPolicy, LatencyBudgetQosPolicy, LifespanQosPolicy,
-    LivelinessQosPolicy, OwnershipQosPolicy, OwnershipStrengthQosPolicy, PartitionQosPolicy,
-    PresentationQosPolicy, ReliabilityQosPolicy, ResourceLimitsQosPolicy, TimeBasedFilterQosPolicy,
-    TopicDataQosPolicy, TransportPriorityQosPolicy, UserDataQosPolicy,
-}};
+use crate::{
+    dcps_psm::BuiltInTopicKey,
+    infrastructure::qos_policy::{
+        DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy,
+        DurabilityServiceQosPolicy, GroupDataQosPolicy, HistoryQosPolicy, LatencyBudgetQosPolicy,
+        LifespanQosPolicy, LivelinessQosPolicy, OwnershipQosPolicy, OwnershipStrengthQosPolicy,
+        PartitionQosPolicy, PresentationQosPolicy, ReliabilityQosPolicy, ResourceLimitsQosPolicy,
+        TimeBasedFilterQosPolicy, TopicDataQosPolicy, TransportPriorityQosPolicy,
+        UserDataQosPolicy,
+    },
+};
 
 pub struct ParticipantBuiltinTopicData<'a> {
     pub key: BuiltInTopicKey,

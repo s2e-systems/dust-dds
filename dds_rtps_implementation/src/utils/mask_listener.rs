@@ -9,7 +9,7 @@ impl<T> MaskListener<T> {
     pub fn new(listener: Option<T>, status_mask: StatusMask) -> Self {
         Self {
             listener,
-            status_mask
+            status_mask,
         }
     }
 
@@ -18,7 +18,7 @@ impl<T> MaskListener<T> {
         self.listener = listener;
     }
 
-    pub fn take(&mut self) -> Option<T>{
+    pub fn take(&mut self) -> Option<T> {
         self.status_mask = 0;
         self.listener.take()
     }

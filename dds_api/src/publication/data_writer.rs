@@ -11,17 +11,8 @@ use crate::{
 
 use super::{data_writer_listener::DataWriterListener, publisher::Publisher};
 
-pub trait DataWriter<
-    'datawriter,
-    'publisher: 'datawriter,
-    'topic: 'datawriter,
-    'participant: 'publisher,
-    T: 'topic,
->:
-    Entity<
-    Qos = DataWriterQos<'datawriter>,
-    Listener = &'datawriter (dyn DataWriterListener<DataType = T> + 'datawriter),
->
+pub trait DataWriter<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p, T: 't>:
+    Entity<Qos = DataWriterQos<'dw>, Listener = &'dw (dyn DataWriterListener<DataType = T> + 'dw)>
 {
     /// This operation informs the Service that the application will be modifying a particular instance. It gives an opportunity to the
     /// Service to pre-configure itself to improve performance.

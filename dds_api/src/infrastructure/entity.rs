@@ -1,4 +1,7 @@
-use crate::{dcps_psm::{InstanceHandle, StatusMask}, return_type::DDSResult};
+use crate::{
+    dcps_psm::{InstanceHandle, StatusMask},
+    return_type::DDSResult,
+};
 
 pub struct StatusCondition;
 

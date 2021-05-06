@@ -81,9 +81,11 @@ impl<PSM: rust_rtps_pim::structure::Types> RTPSWriterImpl<PSM> {
     ) where
         PSM: rust_rtps_pim::behavior::Types + rust_rtps_pim::messages::Types,
         PSM::ParameterVector: Clone,
-        Data: rust_rtps_pim::messages::submessages::Data<SerializedData = &'a <PSM as rust_rtps_pim::structure::types::Types>::Data>
+        Data: rust_rtps_pim::messages::submessages::Data<
+                SerializedData = &'a <PSM as rust_rtps_pim::structure::types::Types>::Data,
+            > + rust_rtps_pim::messages::Submessage<PSM = PSM>,
+        Gap: rust_rtps_pim::messages::submessages::Gap
             + rust_rtps_pim::messages::Submessage<PSM = PSM>,
-        Gap: rust_rtps_pim::messages::submessages::Gap + rust_rtps_pim::messages::Submessage<PSM = PSM>,
         SendDataTo: FnMut(&Locator<PSM>, Data),
         SendGapTo: FnMut(&Locator<PSM>, Gap),
     {
@@ -269,12 +271,21 @@ mod tests {
         rtps_writer_impl.writer_cache_mut().add_change(cc);
         rtps_writer_impl.reader_locator_add(Locator::new(1, 2, [0; 16]));
         println!("First");
-        rtps_writer_impl.produce_messages::<Data, Gap, _, _>(&mut |x, y| println!("Locator: {:?}, Data: {}",x.address(), y), &mut |_, _| ());
+        rtps_writer_impl.produce_messages::<Data, Gap, _, _>(
+            &mut |x, y| println!("Locator: {:?}, Data: {}", x.address(), y),
+            &mut |_, _| (),
+        );
         println!("Second");
         rtps_writer_impl.reader_locator_add(Locator::new(1, 3, [1; 16]));
-        rtps_writer_impl.produce_messages::<Data, Gap, _, _>(&mut |x, y| println!("Locator: {:?}, Data: {}",x.address(), y), &mut |_, _| ());
+        rtps_writer_impl.produce_messages::<Data, Gap, _, _>(
+            &mut |x, y| println!("Locator: {:?}, Data: {}", x.address(), y),
+            &mut |_, _| (),
+        );
         println!("After reset");
         rtps_writer_impl.unsent_changes_reset();
-        rtps_writer_impl.produce_messages::<Data, Gap, _, _>(&mut |x, y| println!("Locator: {:?}, Data: {}",x.address(), y), &mut |_, _| ());
+        rtps_writer_impl.produce_messages::<Data, Gap, _, _>(
+            &mut |x, y| println!("Locator: {:?}, Data: {}", x.address(), y),
+            &mut |_, _| (),
+        );
     }
 }

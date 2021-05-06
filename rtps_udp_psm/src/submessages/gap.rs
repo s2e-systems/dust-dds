@@ -23,17 +23,22 @@ impl Submessage for Gap {
 impl rust_rtps_pim::messages::submessages::Gap for Gap {
     fn new(
         endianness_flag: <Self::PSM as rust_rtps_pim::messages::Types>::SubmessageFlag,
-        reader_id:  <Self::PSM as rust_rtps_pim::structure::Types>::EntityId,
-        writer_id:  <Self::PSM as rust_rtps_pim::structure::Types>::EntityId,
+        reader_id: <Self::PSM as rust_rtps_pim::structure::Types>::EntityId,
+        writer_id: <Self::PSM as rust_rtps_pim::structure::Types>::EntityId,
         gap_start: <Self::PSM as rust_rtps_pim::structure::Types>::SequenceNumber,
         gap_list: <Self::PSM as rust_rtps_pim::structure::Types>::SequenceNumberVector,
     ) -> Self {
         Self {
             endianness_flag,
-            reader_id: rust_rtps_pim::messages::submessage_elements::EntityId{value: reader_id},
-            writer_id: rust_rtps_pim::messages::submessage_elements::EntityId{value: writer_id},
-            gap_start: rust_rtps_pim::messages::submessage_elements::SequenceNumber{value: gap_start},
-            gap_list: rust_rtps_pim::messages::submessage_elements::SequenceNumberSet{base: gap_start, set: gap_list},
+            reader_id: rust_rtps_pim::messages::submessage_elements::EntityId { value: reader_id },
+            writer_id: rust_rtps_pim::messages::submessage_elements::EntityId { value: writer_id },
+            gap_start: rust_rtps_pim::messages::submessage_elements::SequenceNumber {
+                value: gap_start,
+            },
+            gap_list: rust_rtps_pim::messages::submessage_elements::SequenceNumberSet {
+                base: gap_start,
+                set: gap_list,
+            },
         }
     }
 

@@ -29,15 +29,11 @@ impl<PSM: rust_rtps_pim::structure::Types> RTPSHistoryCache<PSM> for RTPSHistory
         self.changes.iter().find(|x| &x.sequence_number == seq_num)
     }
 
-    fn get_seq_num_min(
-        &self,
-    ) -> Option<<PSM as rust_rtps_pim::structure::Types>::SequenceNumber> {
+    fn get_seq_num_min(&self) -> Option<<PSM as rust_rtps_pim::structure::Types>::SequenceNumber> {
         self.changes.iter().map(|x| x.sequence_number).min()
     }
 
-    fn get_seq_num_max(
-        &self,
-    ) -> Option<<PSM as rust_rtps_pim::structure::Types>::SequenceNumber> {
+    fn get_seq_num_max(&self) -> Option<<PSM as rust_rtps_pim::structure::Types>::SequenceNumber> {
         self.changes.iter().map(|x| x.sequence_number).max()
     }
 }

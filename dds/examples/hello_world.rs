@@ -39,7 +39,7 @@ fn main() {
     // use rust_dds_types::Time;
 
     // let participant = DomainParticipantFactory::create_participant(0, None, None, 0)
-        // .expect("Error creating participant");
+    // .expect("Error creating participant");
 
     // participant.enable().expect("Error enabling participant");
 

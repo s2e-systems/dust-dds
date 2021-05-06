@@ -55,7 +55,6 @@ impl<PSM: structure::Types> RTPSReaderProxy<PSM> {
         self.is_active
     }
 
-
     // fn acked_changes_set(
     //     &mut self,
     //     committed_seq_num: <<<Self::Writer as RTPSWriter>::HistoryCache as RTPSHistoryCache>::CacheChange as RTPSCacheChange>::SequenceNumber,

@@ -169,7 +169,10 @@ impl FromIterator<SequenceNumber> for SequenceNumberSet {
             }
             Self { base, bitmap }
         } else {
-            Self { base: 0.into(), bitmap: [0;8] }
+            Self {
+                base: 0.into(),
+                bitmap: [0; 8],
+            }
         }
     }
 }

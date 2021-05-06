@@ -1,6 +1,6 @@
 use core::cmp::Ordering;
 
-use crate::dcps_psm::{DURATION_INFINITE, DURATION_ZERO, Duration, LENGTH_UNLIMITED};
+use crate::dcps_psm::{Duration, DURATION_INFINITE, DURATION_ZERO, LENGTH_UNLIMITED};
 
 pub type QosPolicyId = i32;
 
@@ -677,9 +677,7 @@ impl QosPolicy for PartitionQosPolicy {
 
 impl Default for PartitionQosPolicy {
     fn default() -> Self {
-        Self {
-            name: "",
-        }
+        Self { name: "" }
     }
 }
 

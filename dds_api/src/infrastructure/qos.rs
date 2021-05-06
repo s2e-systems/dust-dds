@@ -1,4 +1,7 @@
-use crate::{dcps_psm::{Duration, LENGTH_UNLIMITED}, return_type::{DDSError, DDSResult}};
+use crate::{
+    dcps_psm::{Duration, LENGTH_UNLIMITED},
+    return_type::{DDSError, DDSResult},
+};
 
 use super::qos_policy::{
     DeadlineQosPolicy, DestinationOrderQosPolicy, DurabilityQosPolicy, DurabilityServiceQosPolicy,

@@ -16,31 +16,18 @@ use crate::rtps_impl::rtps_writer_impl::RTPSWriterImpl;
 
 use super::{publisher_impl::PublisherImpl, topic_impl::TopicImpl};
 
-pub struct DataWriterImpl<
-    'datawriter,
-    'publisher: 'datawriter,
-    'topic: 'datawriter,
-    'participant: 'publisher,
-    T: 'topic,
-    PSM: rust_rtps_pim::PIM,
-> {
-    pub(crate) parent: &'datawriter PublisherImpl<'publisher, 'participant, PSM>,
-    pub(crate) topic: &'datawriter TopicImpl<'topic, 'participant, T, PSM>,
+pub struct DataWriterImpl<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p, T: 't, PSM: rust_rtps_pim::PIM> {
+    pub(crate) parent: &'dw PublisherImpl<'p, 'dp, PSM>,
+    pub(crate) topic: &'dw TopicImpl<'t, 'dp, T, PSM>,
     pub(crate) rtps_writer: Weak<Mutex<RTPSWriterImpl<PSM>>>,
 }
 
-impl<
-        'datawriter,
-        'publisher: 'datawriter,
-        'topic: 'datawriter,
-        'participant: 'publisher,
-        T: 'topic,
-        PSM: rust_rtps_pim::PIM,
-    > DataWriterImpl<'datawriter, 'publisher, 'topic, 'participant, T, PSM>
+impl<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p, T: 't, PSM: rust_rtps_pim::PIM>
+    DataWriterImpl<'dw, 'p, 't, 'dp, T, PSM>
 {
     pub fn new(
-        parent: &'datawriter PublisherImpl<'publisher, 'participant, PSM>,
-        topic: &'datawriter TopicImpl<'topic, 'participant, T, PSM>,
+        parent: &'dw PublisherImpl<'p, 'dp, PSM>,
+        topic: &'dw TopicImpl<'t, 'dp, T, PSM>,
         rtps_writer: Weak<Mutex<RTPSWriterImpl<PSM>>>,
     ) -> Self {
         Self {
@@ -51,21 +38,9 @@ impl<
     }
 }
 
-impl<
-        'datawriter,
-        'publisher: 'datawriter,
-        'topic: 'datawriter,
-        'participant: 'publisher,
-        T: 'topic,
-        PSM: rust_rtps_pim::PIM,
-    >
-    rust_dds_api::publication::data_writer::DataWriter<
-        'datawriter,
-        'publisher,
-        'topic,
-        'participant,
-        T,
-    > for DataWriterImpl<'datawriter, 'publisher, 'topic, 'participant, T, PSM>
+impl<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p, T: 't, PSM: rust_rtps_pim::PIM>
+    rust_dds_api::publication::data_writer::DataWriter<'dw, 'p, 't, 'dp, T>
+    for DataWriterImpl<'dw, 'p, 't, 'dp, T, PSM>
 {
     fn register_instance(&self, _instance: T) -> DDSResult<Option<InstanceHandle>> {
         todo!()
@@ -190,22 +165,13 @@ impl<
     ) -> DDSResult<()> {
         todo!()
     }
-
-
 }
 
-impl<
-        'datawriter,
-        'publisher: 'datawriter,
-        'topic: 'datawriter,
-        'participant: 'publisher,
-        T: 'topic,
-        PSM: rust_rtps_pim::PIM,
-    > rust_dds_api::infrastructure::entity::Entity
-    for DataWriterImpl<'datawriter, 'publisher, 'topic, 'participant, T, PSM>
+impl<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p, T: 't, PSM: rust_rtps_pim::PIM>
+    rust_dds_api::infrastructure::entity::Entity for DataWriterImpl<'dw, 'p, 't, 'dp, T, PSM>
 {
-    type Qos = DataWriterQos<'datawriter>;
-    type Listener = &'datawriter (dyn DataWriterListener<DataType = T> + 'datawriter);
+    type Qos = DataWriterQos<'dw>;
+    type Listener = &'dw (dyn DataWriterListener<DataType = T> + 'dw);
 
     fn set_qos(&self, _qos: Option<Self::Qos>) -> DDSResult<()> {
         todo!()
@@ -244,15 +210,9 @@ impl<
     }
 }
 
-impl<
-        'datawriter,
-        'publisher: 'datawriter,
-        'topic: 'datawriter,
-        'participant: 'publisher,
-        T: 'topic,
-        PSM: rust_rtps_pim::PIM,
-    > rust_dds_api::publication::data_writer::AnyDataWriter
-    for DataWriterImpl<'datawriter, 'publisher, 'topic, 'participant, T, PSM>
+impl<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p, T: 't, PSM: rust_rtps_pim::PIM>
+    rust_dds_api::publication::data_writer::AnyDataWriter
+    for DataWriterImpl<'dw, 'p, 't, 'dp, T, PSM>
 {
 }
 
