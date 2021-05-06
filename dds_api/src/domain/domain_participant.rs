@@ -17,14 +17,6 @@ pub trait SubscriberFactory<'a, 'b: 'a>: DomainParticipant<'b> {
     type SubscriberType: Subscriber<'a>;
     type BuiltinSubscriberType: Subscriber<'a>;
 
-    /// This operation creates a Subscriber with the desired QoS policies and attaches to it the specified SubscriberListener.
-    /// If the specified QoS policies are not consistent, the operation will fail and no Subscriber will be created.
-    /// The special value SUBSCRIBER_QOS_DEFAULT can be used to indicate that the Subscriber should be created with the
-    /// default Subscriber QoS set in the factory. The use of this value is equivalent to the application obtaining the default
-    /// Subscriber QoS by means of the operation get_default_subscriber_qos (2.2.2.2.1.21) and using the resulting QoS to create the
-    /// Subscriber.
-    /// The created Subscriber belongs to the DomainParticipant that is its factory.
-    /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
     fn create_subscriber(
         &'a self,
         qos: Option<SubscriberQos<'a>>,
@@ -32,13 +24,6 @@ pub trait SubscriberFactory<'a, 'b: 'a>: DomainParticipant<'b> {
         mask: StatusMask,
     ) -> Option<Self::SubscriberType>;
 
-    /// This operation deletes an existing Subscriber.
-    /// A Subscriber cannot be deleted if it has any attached DataReader objects. If the delete_subscriber operation is called on a
-    /// Subscriber with existing DataReader objects, it will return PRECONDITION_NOT_MET.
-    /// The delete_subscriber operation must be called on the same DomainParticipant object used to create the Subscriber. If
-    /// delete_subscriber is called on a different DomainParticipant, the operation will have no effect and it will return
-    /// PRECONDITION_NOT_MET.
-    /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
     fn delete_subscriber(&self, a_subscriber: &Self::SubscriberType) -> DDSResult<()>;
 
     /// This operation allows access to the built-in Subscriber. Each DomainParticipant contains several built-in Topic objects as
@@ -107,6 +92,19 @@ pub trait TopicFactory<'a, 'b: 'a, T: 'a>: DomainParticipant<'b> {
 pub trait PublisherFactory<'a, 'b: 'a>: DomainParticipant<'b> {
     type PublisherType: Publisher<'a>;
 
+    fn create_publisher(
+        &'a self,
+        qos: Option<PublisherQos<'a>>,
+        a_listener: Option<&'a (dyn PublisherListener + 'a)>,
+        mask: StatusMask,
+    ) -> Option<Self::PublisherType>;
+
+    fn delete_publisher(&self, a_publisher: &Self::PublisherType) -> DDSResult<()>;
+}
+
+pub trait DomainParticipant<'a>:
+    Entity<Qos = DomainParticipantQos<'a>, Listener = &'a (dyn DomainParticipantListener + 'a)>
+{
     /// This operation creates a Publisher with the desired QoS policies and attaches to it the specified PublisherListener.
     /// If the specified QoS policies are not consistent, the operation will fail and no Publisher will be created.
     /// The special value PUBLISHER_QOS_DEFAULT can be used to indicate that the Publisher should be created with the default
@@ -114,12 +112,17 @@ pub trait PublisherFactory<'a, 'b: 'a>: DomainParticipant<'b> {
     /// means of the operation get_default_publisher_qos (2.2.2.2.1.21) and using the resulting QoS to create the Publisher.
     /// The created Publisher belongs to the DomainParticipant that is its factory
     /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
-    fn create_publisher(
-        &'a self,
-        qos: Option<PublisherQos<'a>>,
-        a_listener: Option<&'a (dyn PublisherListener + 'a)>,
+    fn create_publisher<'b>(
+        &'b self,
+        qos: Option<PublisherQos<'b>>,
+        a_listener: Option<&'b (dyn PublisherListener + 'b)>,
         mask: StatusMask,
-    ) -> Option<Self::PublisherType>;
+    ) -> Option<<Self as PublisherFactory<'b, 'a>>::PublisherType>
+    where
+        Self: PublisherFactory<'b, 'a>,
+    {
+        <Self as PublisherFactory<'b, 'a>>::create_publisher(self, qos, a_listener, mask)
+    }
 
     /// This operation deletes an existing Publisher.
     /// A Publisher cannot be deleted if it has any attached DataWriter objects. If delete_publisher is called on a Publisher with
@@ -128,12 +131,76 @@ pub trait PublisherFactory<'a, 'b: 'a>: DomainParticipant<'b> {
     /// delete_publisher is called on a different DomainParticipant, the operation will have no effect and it will return
     /// PRECONDITION_NOT_MET.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
-    fn delete_publisher(&self, a_publisher: &Self::PublisherType) -> DDSResult<()>;
-}
+    fn delete_publisher<'b>(
+        &self,
+        a_publisher: &<Self as PublisherFactory<'b, 'a>>::PublisherType,
+    ) -> DDSResult<()>
+    where
+        Self: PublisherFactory<'b, 'a>,
+    {
+        <Self as PublisherFactory<'b, 'a>>::delete_publisher(self, a_publisher)
+    }
 
-pub trait DomainParticipant<'a>:
-    Entity<Qos = DomainParticipantQos<'a>, Listener = &'a (dyn DomainParticipantListener + 'a)>
-{
+    /// This operation creates a Subscriber with the desired QoS policies and attaches to it the specified SubscriberListener.
+    /// If the specified QoS policies are not consistent, the operation will fail and no Subscriber will be created.
+    /// The special value SUBSCRIBER_QOS_DEFAULT can be used to indicate that the Subscriber should be created with the
+    /// default Subscriber QoS set in the factory. The use of this value is equivalent to the application obtaining the default
+    /// Subscriber QoS by means of the operation get_default_subscriber_qos (2.2.2.2.1.21) and using the resulting QoS to create the
+    /// Subscriber.
+    /// The created Subscriber belongs to the DomainParticipant that is its factory.
+    /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
+    fn create_subscriber<'b>(
+        &'b self,
+        qos: Option<SubscriberQos<'b>>,
+        a_listener: Option<&'b (dyn SubscriberListener + 'b)>,
+        mask: StatusMask,
+    ) -> Option<<Self as SubscriberFactory<'b, 'a>>::SubscriberType>
+    where
+        Self: SubscriberFactory<'b, 'a>,
+    {
+        <Self as SubscriberFactory<'b, 'a>>::create_subscriber(self, qos, a_listener, mask)
+    }
+
+    /// This operation deletes an existing Subscriber.
+    /// A Subscriber cannot be deleted if it has any attached DataReader objects. If the delete_subscriber operation is called on a
+    /// Subscriber with existing DataReader objects, it will return PRECONDITION_NOT_MET.
+    /// The delete_subscriber operation must be called on the same DomainParticipant object used to create the Subscriber. If
+    /// delete_subscriber is called on a different DomainParticipant, the operation will have no effect and it will return
+    /// PRECONDITION_NOT_MET.
+    /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
+    fn delete_subscriber<'b>(
+        &self,
+        a_subscriber: &<Self as SubscriberFactory<'b, 'a>>::SubscriberType,
+    ) -> DDSResult<()>
+    where
+        Self: SubscriberFactory<'b, 'a>,
+    {
+        <Self as SubscriberFactory<'b, 'a>>::delete_subscriber(self, a_subscriber)
+    }
+
+    /// This operation creates a Topic with the desired QoS policies and attaches to it the specified TopicListener.
+    /// If the specified QoS policies are not consistent, the operation will fail and no Topic will be created.
+    /// The special value TOPIC_QOS_DEFAULT can be used to indicate that the Topic should be created with the default Topic QoS
+    /// set in the factory. The use of this value is equivalent to the application obtaining the default Topic QoS by means of the
+    /// operation get_default_topic_qos (2.2.2.2.1.21) and using the resulting QoS to create the Topic.
+    /// The created Topic belongs to the DomainParticipant that is its factory.
+    /// The Topic is bound to a type described by the type_name argument. Prior to creating a Topic the type must have been
+    /// registered with the Service. This is done using the register_type operation on a derived class of the TypeSupport interface as
+    /// described in 2.2.2.3.6, TypeSupport Interface.
+    /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
+    fn create_topic<'b, T>(
+        &'b self,
+        topic_name: &str,
+        qos: Option<TopicQos<'b>>,
+        a_listener: Option<&'b (dyn TopicListener<DataType = T> + 'b)>,
+        mask: StatusMask,
+    ) -> Option<<Self as TopicFactory<'b, 'a, T>>::TopicType>
+    where
+        Self: TopicFactory<'b, 'a, T>,
+    {
+        <Self as TopicFactory<'b, 'a, T>>::create_topic(self, topic_name, qos, a_listener, mask)
+    }
+
     /// This operation allows an application to instruct the Service to locally ignore a remote domain participant. From that point
     /// onwards the Service will locally behave as if the remote participant did not exist. This means it will ignore any Topic,
     /// publication, or subscription that originates on that domain participant.

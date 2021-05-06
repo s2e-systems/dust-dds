@@ -4,9 +4,7 @@ use rust_dds_api::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
     dcps_psm::{DomainId, Duration, InstanceHandle, StatusMask, Time},
     domain::{
-        domain_participant::{
-            DomainParticipant, PublisherFactory, SubscriberFactory, TopicFactory,
-        },
+        domain_participant::DomainParticipant,
         domain_participant_listener::DomainParticipantListener,
     },
     infrastructure::{
@@ -51,7 +49,8 @@ impl<'a, PSM: rust_rtps_pim::PIM> DomainParticipantImpl<'a, PSM> {
     }
 }
 
-impl<'a, 'b: 'a, PSM: rust_rtps_pim::PIM + 'a> SubscriberFactory<'a, 'b>
+impl<'a, 'b: 'a, PSM: rust_rtps_pim::PIM + 'a>
+    rust_dds_api::domain::domain_participant::SubscriberFactory<'a, 'b>
     for DomainParticipantImpl<'b, PSM>
 {
     type SubscriberType = SubscriberImpl<'a, PSM>;
@@ -108,7 +107,8 @@ impl<'a, 'b: 'a, PSM: rust_rtps_pim::PIM + 'a> SubscriberFactory<'a, 'b>
     }
 }
 
-impl<'a, 'b: 'a, PSM: rust_rtps_pim::PIM + 'a, T: 'a> TopicFactory<'a, 'b, T>
+impl<'a, 'b: 'a, PSM: rust_rtps_pim::PIM + 'a, T: 'a>
+    rust_dds_api::domain::domain_participant::TopicFactory<'a, 'b, T>
     for DomainParticipantImpl<'b, PSM>
 {
     type TopicType = TopicImpl<'a, PSM, T>;
@@ -136,7 +136,8 @@ impl<'a, 'b: 'a, PSM: rust_rtps_pim::PIM + 'a, T: 'a> TopicFactory<'a, 'b, T>
     }
 }
 
-impl<'a, 'b: 'a, PSM: rust_rtps_pim::PIM> PublisherFactory<'a, 'b>
+impl<'a, 'b: 'a, PSM: rust_rtps_pim::PIM>
+    rust_dds_api::domain::domain_participant::PublisherFactory<'a, 'b>
     for DomainParticipantImpl<'b, PSM>
 {
     type PublisherType = PublisherImpl<'a, 'b, PSM>;
@@ -505,10 +506,10 @@ mod tests {
 
     #[test]
     fn create_topic() {
-        // let domain_participant_impl: DomainParticipantImpl<RtpsUdpPsm> =
-        //     DomainParticipantImpl::new(RTPSParticipantImpl::new([1; 12]));
-        // let topic =
-        //     domain_participant_impl.create_topic::<MockDDSType>("topic_name", None, None, 0);
-        // assert!(topic.is_some());
+        let domain_participant_impl: DomainParticipantImpl<RtpsUdpPsm> =
+            DomainParticipantImpl::new(RTPSParticipantImpl::new([1; 12]));
+        let topic =
+            domain_participant_impl.create_topic::<MockDDSType>("topic_name", None, None, 0);
+        assert!(topic.is_some());
     }
 }
