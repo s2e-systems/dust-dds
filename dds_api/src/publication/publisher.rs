@@ -52,8 +52,6 @@ pub trait DataWriterFactory<
 pub trait Publisher<'publisher, 'participant: 'publisher>:
     Entity<Qos = PublisherQos<'publisher>, Listener = &'publisher (dyn PublisherListener + 'publisher)>
 {
-    type DomainParticipantType: DomainParticipant<'participant>;
-
     /// This operation creates a DataWriter. The returned DataWriter will be attached and belongs to the Publisher.
     /// The DataWriter returned by the create_datawriter operation will in fact be a derived class, specific to the data-type associated
     /// with the Topic. As described in 2.2.2.3.7, for each application-defined type “Foo” there is an implied, auto-generated class
@@ -83,7 +81,7 @@ pub trait Publisher<'publisher, 'participant: 'publisher>:
         mask: StatusMask,
     ) -> Option<Self::DataWriterType>
     where
-        Self: DataWriterFactory<'datawriter, 'publisher, 'topic, 'participant, T>,
+        Self: DataWriterFactory<'datawriter, 'publisher, 'topic, 'participant, T> + Sized,
     {
         <Self as DataWriterFactory<'datawriter, 'publisher, 'topic, 'participant, T>>::create_datawriter(
             self, a_topic, qos, a_listener, mask,
@@ -103,7 +101,7 @@ pub trait Publisher<'publisher, 'participant: 'publisher>:
         a_datawriter: &Self::DataWriterType,
     ) -> DDSResult<()>
     where
-        Self: DataWriterFactory<'datawriter, 'publisher, 'topic, 'participant, T>,
+        Self: DataWriterFactory<'datawriter, 'publisher, 'topic, 'participant, T> + Sized,
     {
         <Self as DataWriterFactory<'datawriter, 'publisher, 'topic,'participant, T>>::delete_datawriter(
             self,
@@ -120,7 +118,7 @@ pub trait Publisher<'publisher, 'participant: 'publisher>:
         topic: &'datawriter Self::TopicType,
     ) -> Option<Self::DataWriterType>
     where
-        Self: DataWriterFactory<'datawriter, 'publisher, 'topic, 'participant, T>,
+        Self: DataWriterFactory<'datawriter, 'publisher, 'topic, 'participant, T> + Sized,
     {
         <Self as DataWriterFactory<'datawriter, 'publisher, 'topic,'participant, T>>::lookup_datawriter(
             self, topic,
@@ -175,7 +173,7 @@ pub trait Publisher<'publisher, 'participant: 'publisher>:
     fn wait_for_acknowledgments(&self, max_wait: Duration) -> DDSResult<()>;
 
     /// This operation returns the DomainParticipant to which the Publisher belongs.
-    fn get_participant(&self) -> &Self::DomainParticipantType;
+    fn get_participant(&self) -> &dyn DomainParticipant;
 
     /// This operation deletes all the entities that were created by means of the “create” operations on the Publisher. That is, it deletes
     /// all contained DataWriter objects.

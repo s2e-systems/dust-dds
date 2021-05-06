@@ -43,10 +43,6 @@ pub trait DataReaderFactory<
     ) -> Option<Self::DataReaderType>;
 }
 
-pub trait SubscriberAssociatedTypes<'participant> {
-    type DomainParticipantType: DomainParticipant<'participant>;
-}
-
 /// A Subscriber is the object responsible for the actual reception of the data resulting from its subscriptions
 ///
 /// A Subscriber acts on the behalf of one or several DataReader objects that are related to it. When it receives data (from the
@@ -194,9 +190,7 @@ pub trait Subscriber<'subscriber, 'participant: 'subscriber>:
     fn notify_datareaders(&self) -> DDSResult<()>;
 
     /// This operation returns the DomainParticipant to which the Subscriber belongs.
-    fn get_participant(&self) -> &Self::DomainParticipantType
-    where
-        Self: SubscriberAssociatedTypes<'participant> + Sized;
+    fn get_participant(&self) -> &dyn DomainParticipant;
 
     /// This operation allows access to the SAMPLE_LOST communication status. Communication statuses are described in 2.2.4.1
     fn get_sample_lost_status(&self, status: &mut SampleLostStatus) -> DDSResult<()>;

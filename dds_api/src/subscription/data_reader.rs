@@ -17,10 +17,6 @@ use super::{
     subscriber::Subscriber,
 };
 
-pub trait DataReaderAssociatedTypes<'subscriber, 'participant: 'subscriber> {
-    type SubscriberType: Subscriber<'subscriber, 'participant>;
-}
-
 /// A DataReader allows the application (1) to declare the data it wishes to receive (i.e., make a subscription) and (2) to access the
 /// data received by the attached Subscriber.
 ///
@@ -469,12 +465,10 @@ pub trait DataReader<
 
     /// This operation returns the TopicDescription associated with the DataReader. This is the same TopicDescription that was used
     /// to create the DataReader.
-    fn get_topicdescription(&self) -> &dyn TopicDescription<'topic, 'participant,T>;
+    fn get_topicdescription(&self) -> &dyn TopicDescription<'topic, 'participant, T>;
 
     /// This operation returns the Subscriber to which the DataReader belongs.
-    fn get_subscriber(&self) -> &Self::SubscriberType
-    where
-        Self: DataReaderAssociatedTypes<'subscriber, 'participant> + Sized;
+    fn get_subscriber(&self) -> &dyn Subscriber;
 
     /// This operation deletes all the entities that were created by means of the “create” operations on the DataReader. That is, it
     /// deletes all contained ReadCondition and QueryCondition objects.

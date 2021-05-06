@@ -91,7 +91,7 @@ pub trait DomainParticipant<'participant>:
         mask: StatusMask,
     ) -> Option<Self::PublisherType>
     where
-        Self: PublisherFactory<'publisher, 'participant>,
+        Self: PublisherFactory<'publisher, 'participant> + Sized,
     {
         <Self as PublisherFactory<'publisher, 'participant>>::create_publisher(
             self, qos, a_listener, mask,
@@ -107,7 +107,7 @@ pub trait DomainParticipant<'participant>:
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
     fn delete_publisher<'publisher>(&self, a_publisher: &Self::PublisherType) -> DDSResult<()>
     where
-        Self: PublisherFactory<'publisher, 'participant>,
+        Self: PublisherFactory<'publisher, 'participant> + Sized,
     {
         <Self as PublisherFactory<'publisher, 'participant>>::delete_publisher(self, a_publisher)
     }
@@ -127,7 +127,7 @@ pub trait DomainParticipant<'participant>:
         mask: StatusMask,
     ) -> Option<Self::SubscriberType>
     where
-        Self: SubscriberFactory<'subscriber, 'participant>,
+        Self: SubscriberFactory<'subscriber, 'participant> + Sized,
     {
         <Self as SubscriberFactory<'subscriber, 'participant>>::create_subscriber(
             self, qos, a_listener, mask,
@@ -143,7 +143,7 @@ pub trait DomainParticipant<'participant>:
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
     fn delete_subscriber<'subscriber>(&self, a_subscriber: &Self::SubscriberType) -> DDSResult<()>
     where
-        Self: SubscriberFactory<'subscriber, 'participant>,
+        Self: SubscriberFactory<'subscriber, 'participant> + Sized,
     {
         <Self as SubscriberFactory<'subscriber, 'participant>>::delete_subscriber(
             self,
@@ -169,7 +169,7 @@ pub trait DomainParticipant<'participant>:
         mask: StatusMask,
     ) -> Option<Self::TopicType>
     where
-        Self: TopicFactory<'topic, 'participant, T>,
+        Self: TopicFactory<'topic, 'participant, T> + Sized,
     {
         <Self as TopicFactory<'topic, 'participant, T>>::create_topic(
             self, topic_name, qos, a_listener, mask,
@@ -185,7 +185,7 @@ pub trait DomainParticipant<'participant>:
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
     fn delete_topic<'topic, T>(&self, a_topic: &Self::TopicType) -> DDSResult<()>
     where
-        Self: TopicFactory<'topic, 'participant, T>,
+        Self: TopicFactory<'topic, 'participant, T> + Sized,
     {
         <Self as TopicFactory<'topic, 'participant, T>>::delete_topic(self, a_topic)
     }
@@ -207,7 +207,7 @@ pub trait DomainParticipant<'participant>:
         timeout: Duration,
     ) -> Option<Self::TopicType>
     where
-        Self: TopicFactory<'topic, 'participant, T>,
+        Self: TopicFactory<'topic, 'participant, T> + Sized,
     {
         <Self as TopicFactory<'topic, 'participant, T>>::find_topic(self, topic_name, timeout)
     }
@@ -226,7 +226,9 @@ pub trait DomainParticipant<'participant>:
     fn lookup_topicdescription<'topic, T>(
         &'topic self,
         _name: &'topic str,
-    ) -> Option<&'topic (dyn TopicDescription<T> + 'topic)>;
+    ) -> Option<&'topic (dyn TopicDescription<T> + 'topic)>
+    where
+        Self: Sized;
 
     /// This operation allows access to the built-in Subscriber. Each DomainParticipant contains several built-in Topic objects as
     /// well as corresponding DataReader objects to access them. All these DataReader objects belong to a single built-in Subscriber.
@@ -234,7 +236,7 @@ pub trait DomainParticipant<'participant>:
     /// objects. These built-in objects are described in 2.2.5, Built-in Topics.
     fn get_builtin_subscriber<'subscriber>(&'subscriber self) -> Self::SubscriberType
     where
-        Self: SubscriberFactory<'subscriber, 'participant>,
+        Self: SubscriberFactory<'subscriber, 'participant> + Sized,
     {
         <Self as SubscriberFactory<'subscriber, 'participant>>::get_builtin_subscriber(self)
     }

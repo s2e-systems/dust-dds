@@ -11,20 +11,6 @@ use crate::{
 
 use super::{data_writer_listener::DataWriterListener, publisher::Publisher};
 
-// Associated types are kept on a separate trait to the DataWriter trait to allow using
-// the dyn DataWriter on the listener without having to define the associated types.
-// This is allowed since get_publisher() and get_topic() operations are disallowed in the listener
-pub trait DataWriterAssociatedTypes<
-    'publisher,
-    'topic,
-    'participant: 'publisher + 'topic,
-    T: 'topic,
->
-{
-    type PublisherType: Publisher<'publisher, 'participant>;
-    type TopicType: Topic<'topic, 'participant, T>;
-}
-
 pub trait DataWriter<
     'datawriter,
     'publisher: 'datawriter,
@@ -252,14 +238,10 @@ pub trait DataWriter<
     ) -> DDSResult<()>;
 
     /// This operation returns the Topic associated with the DataWriter. This is the same Topic that was used to create the DataWriter.
-    fn get_topic(&self) -> &Self::TopicType
-    where
-        Self: DataWriterAssociatedTypes<'publisher, 'topic, 'participant, T> + Sized;
+    fn get_topic(&self) -> &dyn Topic<T>;
 
     /// This operation returns the Publisher to which the data writer object belongs.
-    fn get_publisher(&self) -> &Self::PublisherType
-    where
-        Self: DataWriterAssociatedTypes<'publisher, 'topic, 'participant, T> + Sized;
+    fn get_publisher(&self) -> &dyn Publisher;
 
     /// This operation manually asserts the liveliness of the DataWriter. This is used in combination with the LIVELINESS QoS
     /// policy (see 2.2.3, Supported QoS) to indicate to the Service that the entity remains active.
