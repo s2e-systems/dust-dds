@@ -16,7 +16,7 @@ use super::domain_participant_listener::DomainParticipantListener;
 pub trait SubscriberFactory<'subscriber, 'participant: 'subscriber>:
     DomainParticipant<'participant>
 {
-    type SubscriberType: Subscriber<'subscriber>;
+    type SubscriberType: Subscriber<'subscriber, 'participant>;
 
     fn create_subscriber(
         &'subscriber self,
@@ -32,7 +32,7 @@ pub trait SubscriberFactory<'subscriber, 'participant: 'subscriber>:
 pub trait TopicFactory<'topic, 'participant: 'topic, T: 'topic>:
     DomainParticipant<'participant>
 {
-    type TopicType: Topic<'topic, T>;
+    type TopicType: Topic<'topic, 'participant, T>;
 
     fn create_topic(
         &'topic self,

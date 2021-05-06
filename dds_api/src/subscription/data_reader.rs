@@ -12,19 +12,13 @@ use crate::{
     topic::topic_description::TopicDescription,
 };
 
-use super::{data_reader_listener::DataReaderListener, query_condition::QueryCondition, subscriber::Subscriber};
+use super::{
+    data_reader_listener::DataReaderListener, query_condition::QueryCondition,
+    subscriber::Subscriber,
+};
 
-pub trait DataReaderTopic<'a, 'b: 'a, T: 'a + 'b> {
-    /// This operation returns the TopicDescription associated with the DataReader. This is the same TopicDescription that was used
-    /// to create the DataReader.
-    fn get_topicdescription(&self) -> &dyn TopicDescription<'b, T>;
-}
-
-pub trait DataReaderParent<'a, 'b: 'a> {
-    type SubscriberType: Subscriber<'b>;
-
-    /// This operation returns the Subscriber to which the DataReader belongs.
-    fn get_subscriber(&self) -> &Self::SubscriberType;
+pub trait DataReaderAssociatedTypes<'subscriber, 'participant: 'subscriber> {
+    type SubscriberType: Subscriber<'subscriber, 'participant>;
 }
 
 /// A DataReader allows the application (1) to declare the data it wishes to receive (i.e., make a subscription) and (2) to access the
@@ -38,8 +32,17 @@ pub trait DataReaderParent<'a, 'b: 'a> {
 /// get_statuscondition may return the error NOT_ENABLED.
 /// All sample-accessing operations, namely all variants of read, take may return the error PRECONDITION_NOT_MET. The
 /// circumstances that result on this are described in 2.2.2.5.2.8.
-pub trait DataReader<'a, T: 'a>:
-    Entity<Qos = DataReaderQos<'a>, Listener = &'a (dyn DataReaderListener<DataType = T> + 'a)>
+pub trait DataReader<
+    'datareader,
+    'subscriber: 'datareader,
+    'topic: 'datareader,
+    'participant: 'subscriber,
+    T: 'datareader,
+>:
+    Entity<
+    Qos = DataReaderQos<'datareader>,
+    Listener = &'datareader (dyn DataReaderListener<DataType = T> + 'datareader),
+>
 {
     /// This operation accesses a collection of Data values from the DataReader. The size of the returned collection will be limited to
     /// the specified max_samples. The properties of the data_values collection and the setting of the PRESENTATION QoS policy
@@ -463,6 +466,15 @@ pub trait DataReader<'a, T: 'a>:
         &self,
         status: &mut SubscriptionMatchedStatus,
     ) -> DDSResult<()>;
+
+    /// This operation returns the TopicDescription associated with the DataReader. This is the same TopicDescription that was used
+    /// to create the DataReader.
+    fn get_topicdescription(&self) -> &dyn TopicDescription<'topic, 'participant,T>;
+
+    /// This operation returns the Subscriber to which the DataReader belongs.
+    fn get_subscriber(&self) -> &Self::SubscriberType
+    where
+        Self: DataReaderAssociatedTypes<'subscriber, 'participant> + Sized;
 
     /// This operation deletes all the entities that were created by means of the “create” operations on the DataReader. That is, it
     /// deletes all contained ReadCondition and QueryCondition objects.

@@ -14,9 +14,15 @@ use super::{data_writer_listener::DataWriterListener, publisher::Publisher};
 // Associated types are kept on a separate trait to the DataWriter trait to allow using
 // the dyn DataWriter on the listener without having to define the associated types.
 // This is allowed since get_publisher() and get_topic() operations are disallowed in the listener
-pub trait DataWriterAssociatedTypes<'publisher, 'topic, 'participant: 'publisher, T: 'topic> {
+pub trait DataWriterAssociatedTypes<
+    'publisher,
+    'topic,
+    'participant: 'publisher + 'topic,
+    T: 'topic,
+>
+{
     type PublisherType: Publisher<'publisher, 'participant>;
-    type TopicType: Topic<'topic, T>;
+    type TopicType: Topic<'topic, 'participant, T>;
 }
 
 pub trait DataWriter<

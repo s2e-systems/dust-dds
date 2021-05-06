@@ -19,11 +19,11 @@ pub trait DataWriterFactory<
     'datawriter,
     'publisher: 'datawriter,
     'topic: 'datawriter,
-    'participant: 'publisher,
+    'participant: 'publisher + 'topic,
     T: 'topic,
 >: Publisher<'publisher, 'participant>
 {
-    type TopicType: Topic<'topic, T>;
+    type TopicType: Topic<'topic, 'participant, T>;
     type DataWriterType: DataWriter<'datawriter, 'publisher, 'topic, 'participant, T>
         + AnyDataWriter;
 
