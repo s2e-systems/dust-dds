@@ -13,14 +13,14 @@ use crate::{
 
 use super::domain_participant_listener::DomainParticipantListener;
 
-pub trait SubscriberFactory<'a, 'b: 'a>: DomainParticipant<'b> {
-    type SubscriberType: Subscriber<'a>;
-    type BuiltinSubscriberType: Subscriber<'a>;
+pub trait SubscriberFactory<'subscriber, 'participant: 'subscriber>: DomainParticipant<'participant> {
+    type SubscriberType: Subscriber<'subscriber>;
+    type BuiltinSubscriberType: Subscriber<'subscriber>;
 
     fn create_subscriber(
-        &'a self,
-        qos: Option<SubscriberQos<'a>>,
-        a_listener: Option<&'a (dyn SubscriberListener + 'a)>,
+        &'subscriber self,
+        qos: Option<SubscriberQos<'subscriber>>,
+        a_listener: Option<&'subscriber (dyn SubscriberListener + 'subscriber)>,
         mask: StatusMask,
     ) -> Option<Self::SubscriberType>;
 
@@ -30,10 +30,10 @@ pub trait SubscriberFactory<'a, 'b: 'a>: DomainParticipant<'b> {
     /// well as corresponding DataReader objects to access them. All these DataReader objects belong to a single built-in Subscriber.
     /// The built-in Topics are used to communicate information about other DomainParticipant, Topic, DataReader, and DataWriter
     /// objects. These built-in objects are described in 2.2.5, Built-in Topics.
-    fn get_builtin_subscriber(&'a self) -> Self::BuiltinSubscriberType;
+    fn get_builtin_subscriber(&'subscriber self) -> Self::BuiltinSubscriberType;
 }
-pub trait TopicFactory<'a, 'b: 'a, T: 'a>: DomainParticipant<'b> {
-    type TopicType: Topic<'a, T>;
+pub trait TopicFactory<'topic, 'participant: 'topic, T: 'topic>: DomainParticipant<'participant> {
+    type TopicType: Topic<'topic, T>;
 
     /// This operation creates a Topic with the desired QoS policies and attaches to it the specified TopicListener.
     /// If the specified QoS policies are not consistent, the operation will fail and no Topic will be created.
@@ -46,10 +46,10 @@ pub trait TopicFactory<'a, 'b: 'a, T: 'a>: DomainParticipant<'b> {
     /// described in 2.2.2.3.6, TypeSupport Interface.
     /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
     fn create_topic(
-        &'a self,
+        &'topic self,
         topic_name: &str,
-        qos: Option<TopicQos<'a>>,
-        a_listener: Option<&'a (dyn TopicListener<DataType = T> + 'a)>,
+        qos: Option<TopicQos<'topic>>,
+        a_listener: Option<&'topic (dyn TopicListener<DataType = T> + 'topic)>,
         mask: StatusMask,
     ) -> Option<Self::TopicType>;
 
@@ -60,7 +60,7 @@ pub trait TopicFactory<'a, 'b: 'a, T: 'a>: DomainParticipant<'b> {
     /// The delete_topic operation must be called on the same DomainParticipant object used to create the Topic. If delete_topic is
     /// called on a different DomainParticipant, the operation will have no effect and it will return PRECONDITION_NOT_MET.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
-    fn delete_topic(&'a self, a_topic: &Self::TopicType) -> DDSResult<()>;
+    fn delete_topic(&self, a_topic: &Self::TopicType) -> DDSResult<()>;
 
     /// The operation find_topic gives access to an existing (or ready to exist) enabled Topic, based on its name. The operation takes
     /// as arguments the name of the Topic and a timeout.
@@ -73,7 +73,7 @@ pub trait TopicFactory<'a, 'b: 'a, T: 'a>: DomainParticipant<'b> {
     /// of times using delete_topic.
     /// Regardless of whether the middleware chooses to propagate topics, the delete_topic operation deletes only the local proxy.
     /// If the operation times-out, a ‘nil’ value (as specified by the platform) is returned.
-    fn find_topic(&self, topic_name: &str, timeout: Duration) -> Option<Self::TopicType>;
+    fn find_topic(&'topic self, topic_name: &'topic str, timeout: Duration) -> Option<Self::TopicType>;
 
     /// The operation lookup_topicdescription gives access to an existing locally-created TopicDescription, based on its name. The
     /// operation takes as argument the name of the TopicDescription.
@@ -86,24 +86,29 @@ pub trait TopicFactory<'a, 'b: 'a, T: 'a>: DomainParticipant<'b> {
     /// deletion. It is still possible to delete the TopicDescription returned by lookup_topicdescription, provided it has no readers or
     /// writers, but then it is really deleted and subsequent lookups will fail.
     /// If the operation fails to locate a TopicDescription, a ‘nil’ value (as specified by the platform) is returned.
-    fn lookup_topicdescription(&self, _name: &str) -> Option<&'a (dyn TopicDescription<T> + 'a)>;
+    fn lookup_topicdescription(&'topic self, _name: &'topic str) -> Option<&'topic (dyn TopicDescription<T> + 'topic)>;
 }
 
-pub trait PublisherFactory<'a, 'b: 'a>: DomainParticipant<'b> {
-    type PublisherType: Publisher<'a>;
+pub trait PublisherFactory<'publisher, 'participant: 'publisher>:
+    DomainParticipant<'participant>
+{
+    type PublisherType: Publisher<'publisher>;
 
     fn create_publisher(
-        &'a self,
-        qos: Option<PublisherQos<'a>>,
-        a_listener: Option<&'a (dyn PublisherListener + 'a)>,
+        &'publisher self,
+        qos: Option<PublisherQos<'publisher>>,
+        a_listener: Option<&'publisher (dyn PublisherListener + 'publisher)>,
         mask: StatusMask,
     ) -> Option<Self::PublisherType>;
 
     fn delete_publisher(&self, a_publisher: &Self::PublisherType) -> DDSResult<()>;
 }
 
-pub trait DomainParticipant<'a>:
-    Entity<Qos = DomainParticipantQos<'a>, Listener = &'a (dyn DomainParticipantListener + 'a)>
+pub trait DomainParticipant<'participant>:
+    Entity<
+    Qos = DomainParticipantQos<'participant>,
+    Listener = &'participant (dyn DomainParticipantListener + 'participant),
+>
 {
     /// This operation creates a Publisher with the desired QoS policies and attaches to it the specified PublisherListener.
     /// If the specified QoS policies are not consistent, the operation will fail and no Publisher will be created.
@@ -112,16 +117,18 @@ pub trait DomainParticipant<'a>:
     /// means of the operation get_default_publisher_qos (2.2.2.2.1.21) and using the resulting QoS to create the Publisher.
     /// The created Publisher belongs to the DomainParticipant that is its factory
     /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
-    fn create_publisher<'b>(
-        &'b self,
-        qos: Option<PublisherQos<'b>>,
-        a_listener: Option<&'b (dyn PublisherListener + 'b)>,
+    fn create_publisher<'publisher>(
+        &'publisher self,
+        qos: Option<PublisherQos<'publisher>>,
+        a_listener: Option<&'publisher (dyn PublisherListener + 'publisher)>,
         mask: StatusMask,
-    ) -> Option<<Self as PublisherFactory<'b, 'a>>::PublisherType>
+    ) -> Option<<Self as PublisherFactory<'publisher, 'participant>>::PublisherType>
     where
-        Self: PublisherFactory<'b, 'a>,
+        Self: PublisherFactory<'publisher, 'participant>,
     {
-        <Self as PublisherFactory<'b, 'a>>::create_publisher(self, qos, a_listener, mask)
+        <Self as PublisherFactory<'publisher, 'participant>>::create_publisher(
+            self, qos, a_listener, mask,
+        )
     }
 
     /// This operation deletes an existing Publisher.
@@ -131,14 +138,14 @@ pub trait DomainParticipant<'a>:
     /// delete_publisher is called on a different DomainParticipant, the operation will have no effect and it will return
     /// PRECONDITION_NOT_MET.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
-    fn delete_publisher<'b>(
+    fn delete_publisher<'publisher>(
         &self,
-        a_publisher: &<Self as PublisherFactory<'b, 'a>>::PublisherType,
+        a_publisher: &<Self as PublisherFactory<'publisher, 'participant>>::PublisherType,
     ) -> DDSResult<()>
     where
-        Self: PublisherFactory<'b, 'a>,
+        Self: PublisherFactory<'publisher, 'participant>,
     {
-        <Self as PublisherFactory<'b, 'a>>::delete_publisher(self, a_publisher)
+        <Self as PublisherFactory<'publisher, 'participant>>::delete_publisher(self, a_publisher)
     }
 
     /// This operation creates a Subscriber with the desired QoS policies and attaches to it the specified SubscriberListener.
@@ -149,16 +156,18 @@ pub trait DomainParticipant<'a>:
     /// Subscriber.
     /// The created Subscriber belongs to the DomainParticipant that is its factory.
     /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
-    fn create_subscriber<'b>(
-        &'b self,
-        qos: Option<SubscriberQos<'b>>,
-        a_listener: Option<&'b (dyn SubscriberListener + 'b)>,
+    fn create_subscriber<'subscriber>(
+        &'subscriber self,
+        qos: Option<SubscriberQos<'subscriber>>,
+        a_listener: Option<&'subscriber (dyn SubscriberListener + 'subscriber)>,
         mask: StatusMask,
-    ) -> Option<<Self as SubscriberFactory<'b, 'a>>::SubscriberType>
+    ) -> Option<<Self as SubscriberFactory<'subscriber, 'participant>>::SubscriberType>
     where
-        Self: SubscriberFactory<'b, 'a>,
+        Self: SubscriberFactory<'subscriber, 'participant>,
     {
-        <Self as SubscriberFactory<'b, 'a>>::create_subscriber(self, qos, a_listener, mask)
+        <Self as SubscriberFactory<'subscriber, 'participant>>::create_subscriber(
+            self, qos, a_listener, mask,
+        )
     }
 
     /// This operation deletes an existing Subscriber.
@@ -170,12 +179,12 @@ pub trait DomainParticipant<'a>:
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
     fn delete_subscriber<'b>(
         &self,
-        a_subscriber: &<Self as SubscriberFactory<'b, 'a>>::SubscriberType,
+        a_subscriber: &<Self as SubscriberFactory<'b, 'participant>>::SubscriberType,
     ) -> DDSResult<()>
     where
-        Self: SubscriberFactory<'b, 'a>,
+        Self: SubscriberFactory<'b, 'participant>,
     {
-        <Self as SubscriberFactory<'b, 'a>>::delete_subscriber(self, a_subscriber)
+        <Self as SubscriberFactory<'b, 'participant>>::delete_subscriber(self, a_subscriber)
     }
 
     /// This operation creates a Topic with the desired QoS policies and attaches to it the specified TopicListener.
@@ -194,11 +203,13 @@ pub trait DomainParticipant<'a>:
         qos: Option<TopicQos<'b>>,
         a_listener: Option<&'b (dyn TopicListener<DataType = T> + 'b)>,
         mask: StatusMask,
-    ) -> Option<<Self as TopicFactory<'b, 'a, T>>::TopicType>
+    ) -> Option<<Self as TopicFactory<'b, 'participant, T>>::TopicType>
     where
-        Self: TopicFactory<'b, 'a, T>,
+        Self: TopicFactory<'b, 'participant, T>,
     {
-        <Self as TopicFactory<'b, 'a, T>>::create_topic(self, topic_name, qos, a_listener, mask)
+        <Self as TopicFactory<'b, 'participant, T>>::create_topic(
+            self, topic_name, qos, a_listener, mask,
+        )
     }
 
     /// This operation allows an application to instruct the Service to locally ignore a remote domain participant. From that point
@@ -279,14 +290,14 @@ pub trait DomainParticipant<'a>:
     /// The special value PUBLISHER_QOS_DEFAULT may be passed to this operation to indicate that the default QoS should be
     /// reset back to the initial values the factory would use, that is the values that would be used if the set_default_publisher_qos
     /// operation had never been called.
-    fn set_default_publisher_qos(&self, qos: Option<PublisherQos<'a>>) -> DDSResult<()>;
+    fn set_default_publisher_qos(&self, qos: Option<PublisherQos<'participant>>) -> DDSResult<()>;
 
     /// This operation retrieves the default value of the Publisher QoS, that is, the QoS policies which will be used for newly created
     /// Publisher entities in the case where the QoS policies are defaulted in the create_publisher operation.
     /// The values retrieved get_default_publisher_qos will match the set of values specified on the last successful call to
     /// set_default_publisher_qos, or else, if the call was never made, the default values listed in the QoS table in 2.2.3, Supported
     /// QoS.
-    fn get_default_publisher_qos(&self) -> PublisherQos<'a>;
+    fn get_default_publisher_qos(&self) -> PublisherQos<'participant>;
 
     /// This operation sets a default value of the Subscriber QoS policies that will be used for newly created Subscriber entities in the
     /// case where the QoS policies are defaulted in the create_subscriber operation.
@@ -295,14 +306,15 @@ pub trait DomainParticipant<'a>:
     /// The special value SUBSCRIBER_QOS_DEFAULT may be passed to this operation to indicate that the default QoS should be
     /// reset back to the initial values the factory would use, that is the values that would be used if the set_default_subscriber_qos
     /// operation had never been called.
-    fn set_default_subscriber_qos(&self, qos: Option<SubscriberQos<'a>>) -> DDSResult<()>;
+    fn set_default_subscriber_qos(&self, qos: Option<SubscriberQos<'participant>>)
+        -> DDSResult<()>;
 
     /// This operation retrieves the default value of the Subscriber QoS, that is, the QoS policies which will be used for newly created
     /// Subscriber entities in the case where the QoS policies are defaulted in the create_subscriber operation.
     /// The values retrieved get_default_subscriber_qos will match the set of values specified on the last successful call to
     /// set_default_subscriber_qos, or else, if the call was never made, the default values listed in the QoS table in 2.2.3, Supported
     /// QoS.
-    fn get_default_subscriber_qos(&self) -> SubscriberQos<'a>;
+    fn get_default_subscriber_qos(&self) -> SubscriberQos<'participant>;
 
     /// This operation sets a default value of the Topic QoS policies which will be used for newly created Topic entities in the case
     /// where the QoS policies are defaulted in the create_topic operation.
@@ -311,13 +323,13 @@ pub trait DomainParticipant<'a>:
     /// The special value TOPIC_QOS_DEFAULT may be passed to this operation to indicate that the default QoS should be reset
     /// back to the initial values the factory would use, that is the values that would be used if the set_default_topic_qos operation
     /// had never been called.
-    fn set_default_topic_qos(&self, qos: Option<TopicQos<'a>>) -> DDSResult<()>;
+    fn set_default_topic_qos(&self, qos: Option<TopicQos<'participant>>) -> DDSResult<()>;
 
     /// This operation retrieves the default value of the Topic QoS, that is, the QoS policies that will be used for newly created Topic
     /// entities in the case where the QoS policies are defaulted in the create_topic operation.
     /// The values retrieved get_default_topic_qos will match the set of values specified on the last successful call to
     /// set_default_topic_qos, or else, if the call was never made, the default values listed in the QoS table in 2.2.3, Supported QoS.
-    fn get_default_topic_qos(&self) -> TopicQos<'a>;
+    fn get_default_topic_qos(&self) -> TopicQos<'participant>;
 
     /// This operation retrieves the list of DomainParticipants that have been discovered in the domain and that the application has not
     /// indicated should be “ignored” by means of the DomainParticipant ignore_participant operation.

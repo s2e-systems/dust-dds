@@ -123,7 +123,7 @@ impl<'a, 'b: 'a, PSM: rust_rtps_pim::PIM + 'a, T: 'a>
         todo!()
     }
 
-    fn delete_topic(&'a self, _a_topic: &Self::TopicType) -> DDSResult<()> {
+    fn delete_topic(&self, _a_topic: &Self::TopicType) -> DDSResult<()> {
         todo!()
     }
 
