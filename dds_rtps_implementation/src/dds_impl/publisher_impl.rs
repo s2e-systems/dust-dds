@@ -29,8 +29,9 @@ pub struct PublisherImpl<'p, 'dp: 'p, PSM: rust_rtps_pim::PIM> {
     datawriter_counter: Mutex<u8>,
 }
 
+
 impl<'p, 'dp: 'p, PSM: rust_rtps_pim::PIM> PublisherImpl<'p, 'dp, PSM> {
-    pub fn new(
+    pub(crate) fn new(
         parent: &'p DomainParticipantImpl<'dp, PSM>,
         impl_ref: Weak<Mutex<RTPSWriterGroupImpl<PSM>>>,
     ) -> Self {

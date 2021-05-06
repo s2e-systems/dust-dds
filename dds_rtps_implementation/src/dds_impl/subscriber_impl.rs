@@ -8,39 +8,55 @@ use rust_dds_api::{
         qos::{DataReaderQos, SubscriberQos, TopicQos},
     },
     return_type::DDSResult,
-    subscription::{data_reader::AnyDataReader, subscriber_listener::SubscriberListener},
+    subscription::{
+        data_reader::AnyDataReader, data_reader_listener::DataReaderListener,
+        subscriber_listener::SubscriberListener,
+    },
 };
 
-use super::domain_participant_impl::DomainParticipantImpl;
+use super::{
+    data_reader_impl::DataReaderImpl, domain_participant_impl::DomainParticipantImpl,
+    topic_impl::TopicImpl,
+};
 
 pub struct SubscriberImpl<'s, 'dp: 's, PSM: rust_rtps_pim::PIM> {
     parent: &'s DomainParticipantImpl<'dp, PSM>,
 }
 
-// impl<'b, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types, T: 'static>
-//     rust_dds_api::subscription::subscriber::DataReaderFactory<T> for SubscriberImpl<'b, PSM>
-// {
-//     type TopicType = TopicImpl<'b, PSM, T>;
-//     type DataReaderType = DataReaderImpl<'b, PSM, T>;
+impl<'s, 'dp: 's, PSM: rust_rtps_pim::PIM> SubscriberImpl<'s,'dp,PSM> {
+    pub(crate) fn new() {
 
-//     fn create_datareader<'a>(
-//         &'a self,
-//         a_topic: &'a Self::TopicType,
-//         qos: Option<DataReaderQos>,
-//         a_listener: Option<Box<dyn DataReaderListener<DataType = T>>>,
-//         mask: StatusMask,
-//     ) -> Option<Self::DataReaderType> {
-//         todo!()
-//     }
+    }
+}
 
-//     fn delete_datareader(&self, a_datareader: &Self::DataReaderType) -> DDSResult<()> {
-//         todo!()
-//     }
+impl<'dr, 's: 'dr, 't: 'dr, 'dp: 's + 't, T: 't, PSM: rust_rtps_pim::PIM>
+    rust_dds_api::subscription::subscriber::DataReaderFactory<'dr, 's, 't, 'dp, T>
+    for SubscriberImpl<'s, 'dp, PSM>
+{
+    type TopicType = TopicImpl<'t, 'dp, T, PSM>;
+    type DataReaderType = DataReaderImpl<'dr, 's, 't, 'dp, T, PSM>;
 
-//     fn lookup_datareader<'a>(&'a self, topic: &'a Self::TopicType) -> Option<Self::DataReaderType> {
-//         todo!()
-//     }
-// }
+    fn create_datareader(
+        &'dr self,
+        _a_topic: &'dr Self::TopicType,
+        _qos: Option<DataReaderQos<'dr>>,
+        _a_listener: Option<&'dr (dyn DataReaderListener<DataType = T> + 'dr)>,
+        _mask: StatusMask,
+    ) -> Option<Self::DataReaderType> {
+        todo!()
+    }
+
+    fn delete_datareader(&self, _a_datareader: &Self::DataReaderType) -> DDSResult<()> {
+        todo!()
+    }
+
+    fn lookup_datareader<'a>(
+        &'a self,
+        _topic: &'a Self::TopicType,
+    ) -> Option<Self::DataReaderType> {
+        todo!()
+    }
+}
 
 impl<'s, 'dp: 's, PSM: rust_rtps_pim::PIM>
     rust_dds_api::subscription::subscriber::Subscriber<'s, 'dp> for SubscriberImpl<'s, 'dp, PSM>
