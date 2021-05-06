@@ -41,11 +41,6 @@ pub trait TopicFactory<'t, 'dp: 't, T: 't>: DomainParticipant<'dp> {
     fn delete_topic(&self, a_topic: &Self::TopicType) -> DDSResult<()>;
 
     fn find_topic(&'t self, topic_name: &'t str, timeout: Duration) -> Option<Self::TopicType>;
-
-    fn lookup_topicdescription(
-        &'t self,
-        _name: &'t str,
-    ) -> Option<&'t (dyn TopicDescription<T> + 't)>;
 }
 
 pub trait PublisherFactory<'p, 'dp: 'p>: DomainParticipant<'dp> {

@@ -1,7 +1,8 @@
 use std::sync::{Arc, Mutex};
 
 use rust_dds_api::{
-    dcps_psm::StatusMask, infrastructure::qos::PublisherQos,
+    dcps_psm::StatusMask,
+    infrastructure::qos::{PublisherQos, SubscriberQos, TopicQos},
     publication::publisher_listener::PublisherListener,
 };
 use rust_rtps_pim::structure::{types::GUID, RTPSEntity};
@@ -18,6 +19,9 @@ pub struct RTPSParticipantImpl<'a, PSM: rust_rtps_pim::structure::Types> {
     builtin_writer_group: Arc<Mutex<RTPSWriterGroupImpl<'a, PSM>>>,
     guid: GUID<PSM>,
     publisher_counter: u8,
+    default_publisher_qos: PublisherQos<'a>,
+    default_subscriber_qos: SubscriberQos<'a>,
+    default_topic_qos: TopicQos<'a>,
 }
 
 impl<'a, PSM: rust_rtps_pim::structure::Types> RTPSParticipantImpl<'a, PSM> {
@@ -37,6 +41,9 @@ impl<'a, PSM: rust_rtps_pim::structure::Types> RTPSParticipantImpl<'a, PSM> {
             builtin_writer_group,
             guid,
             publisher_counter: 0,
+            default_publisher_qos: PublisherQos::default(),
+            default_subscriber_qos: SubscriberQos::default(),
+            default_topic_qos: TopicQos::default(),
         }
     }
 

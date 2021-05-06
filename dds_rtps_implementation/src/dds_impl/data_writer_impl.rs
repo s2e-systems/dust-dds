@@ -1,15 +1,9 @@
 use std::sync::{Mutex, Weak};
 
-use rust_dds_api::{
-    builtin_topics::SubscriptionBuiltinTopicData,
-    dcps_psm::{
+use rust_dds_api::{builtin_topics::SubscriptionBuiltinTopicData, dcps_psm::{
         Duration, InstanceHandle, LivelinessLostStatus, OfferedDeadlineMissedStatus,
         OfferedIncompatibleQosStatus, PublicationMatchedStatus, StatusMask, Time,
-    },
-    infrastructure::{entity::StatusCondition, qos::DataWriterQos},
-    publication::data_writer_listener::DataWriterListener,
-    return_type::{DDSError, DDSResult},
-};
+    }, infrastructure::{entity::StatusCondition, qos::DataWriterQos}, publication::{data_writer_listener::DataWriterListener, publisher::DataWriterFactory}, return_type::{DDSError, DDSResult}};
 use rust_rtps_pim::behavior::RTPSWriter;
 
 use crate::rtps_impl::rtps_writer_impl::RTPSWriterImpl;
@@ -17,24 +11,37 @@ use crate::rtps_impl::rtps_writer_impl::RTPSWriterImpl;
 use super::{publisher_impl::PublisherImpl, topic_impl::TopicImpl};
 
 pub struct DataWriterImpl<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p, T: 't, PSM: rust_rtps_pim::PIM> {
-    pub(crate) parent: &'dw PublisherImpl<'p, 'dp, PSM>,
-    pub(crate) topic: &'dw TopicImpl<'t, 'dp, T, PSM>,
-    pub(crate) rtps_writer: Weak<Mutex<RTPSWriterImpl<PSM>>>,
+    parent: &'dw PublisherImpl<'p, 'dp, PSM>,
+    topic: &'dw TopicImpl<'t, 'dp, T, PSM>,
+    pub(crate) rtps_writer_impl: Weak<Mutex<RTPSWriterImpl<PSM>>>,
 }
 
-impl<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p, T: 't, PSM: rust_rtps_pim::PIM>
-    DataWriterImpl<'dw, 'p, 't, 'dp, T, PSM>
+impl<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p + 't, T: 't, PSM: rust_rtps_pim::PIM>
+    DataWriterFactory<'dw, 'p, 't, 'dp, T> for PublisherImpl<'p, 'dp, PSM>
 {
-    pub fn new(
-        parent: &'dw PublisherImpl<'p, 'dp, PSM>,
-        topic: &'dw TopicImpl<'t, 'dp, T, PSM>,
-        rtps_writer: Weak<Mutex<RTPSWriterImpl<PSM>>>,
-    ) -> Self {
-        Self {
-            parent,
-            rtps_writer,
-            topic,
-        }
+    type TopicType = TopicImpl<'t, 'dp, T, PSM>;
+    type DataWriterType = DataWriterImpl<'dw, 'p, 't, 'dp, T, PSM>;
+
+    fn create_datawriter(
+        &'dw self,
+        _a_topic: &'dw Self::TopicType,
+        _qos: Option<DataWriterQos<'dw>>,
+        _a_listener: Option<
+            &'dw (dyn rust_dds_api::publication::data_writer_listener::DataWriterListener<
+                DataType = T,
+            > + 'dw),
+        >,
+        _mask: StatusMask,
+    ) -> Option<Self::DataWriterType> {
+        todo!()
+    }
+
+    fn delete_datawriter(&self, _a_datawriter: &Self::DataWriterType) -> DDSResult<()> {
+        todo!()
+    }
+
+    fn lookup_datawriter(&'dw self, _topic: &'dw Self::TopicType) -> Option<Self::DataWriterType> {
+        todo!()
     }
 }
 
@@ -53,7 +60,10 @@ impl<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p, T: 't, PSM: rust_rtps_pim::PIM>
         _instance: T,
         _timestamp: Time,
     ) -> DDSResult<Option<InstanceHandle>> {
-        let writer = self.rtps_writer.upgrade().ok_or(DDSError::AlreadyDeleted)?;
+        let writer = self
+            .rtps_writer_impl
+            .upgrade()
+            .ok_or(DDSError::AlreadyDeleted)?;
         let writer_guard = writer.lock().unwrap();
         let _c = writer_guard.writer_cache();
         todo!()

@@ -7,19 +7,13 @@ use rust_dds_api::{
         entity::StatusCondition,
         qos::{DataWriterQos, PublisherQos, TopicQos},
     },
-    publication::{
-        publisher::{DataWriterFactory, Publisher},
-        publisher_listener::PublisherListener,
-    },
+    publication::{publisher::Publisher, publisher_listener::PublisherListener},
     return_type::{DDSError, DDSResult},
 };
 
 use crate::rtps_impl::rtps_writer_group_impl::RTPSWriterGroupImpl;
 
-use super::{
-    data_writer_impl::DataWriterImpl, domain_participant_impl::DomainParticipantImpl,
-    topic_impl::TopicImpl,
-};
+use super::domain_participant_impl::DomainParticipantImpl;
 
 const ENTITYKIND_USER_DEFINED_WRITER_WITH_KEY: u8 = 0x02;
 const ENTITYKIND_USER_DEFINED_WRITER_NO_KEY: u8 = 0x03;
@@ -27,8 +21,8 @@ const ENTITYKIND_BUILTIN_WRITER_WITH_KEY: u8 = 0xc2;
 const ENTITYKIND_BUILTIN_WRITER_NO_KEY: u8 = 0xc3;
 
 pub struct PublisherImpl<'p, 'dp: 'p, PSM: rust_rtps_pim::PIM> {
-    parent: &'p DomainParticipantImpl<'dp, PSM>,
-    impl_ref: Weak<Mutex<RTPSWriterGroupImpl<'dp, PSM>>>,
+    participant: &'p DomainParticipantImpl<'dp, PSM>,
+    pub(crate) rtps_writer_group_impl: Weak<Mutex<RTPSWriterGroupImpl<'dp, PSM>>>,
 }
 
 impl<'p, 'dp: 'p, PSM: rust_rtps_pim::PIM>
@@ -49,8 +43,8 @@ impl<'p, 'dp: 'p, PSM: rust_rtps_pim::PIM>
             .unwrap()
             .create_writer_group(publisher_qos, a_listener, mask);
         let publisher = PublisherImpl {
-            parent: self,
-            impl_ref: Arc::downgrade(&group),
+            participant: self,
+            rtps_writer_group_impl: Arc::downgrade(&group),
         };
         Some(publisher)
     }
@@ -67,35 +61,6 @@ impl<'p, 'dp: 'p, PSM: rust_rtps_pim::PIM>
                 "Publisher can only be deleted from its parent participant",
             ))
         }
-    }
-}
-
-impl<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p + 't, T: 't, PSM: rust_rtps_pim::PIM>
-    DataWriterFactory<'dw, 'p, 't, 'dp, T> for PublisherImpl<'p, 'dp, PSM>
-{
-    type TopicType = TopicImpl<'t, 'dp, T, PSM>;
-    type DataWriterType = DataWriterImpl<'dw, 'p, 't, 'dp, T, PSM>;
-
-    fn create_datawriter(
-        &'dw self,
-        _a_topic: &'dw Self::TopicType,
-        _qos: Option<DataWriterQos<'dw>>,
-        _a_listener: Option<
-            &'dw (dyn rust_dds_api::publication::data_writer_listener::DataWriterListener<
-                DataType = T,
-            > + 'dw),
-        >,
-        _mask: StatusMask,
-    ) -> Option<Self::DataWriterType> {
-        todo!()
-    }
-
-    fn delete_datawriter(&self, _a_datawriter: &Self::DataWriterType) -> DDSResult<()> {
-        todo!()
-    }
-
-    fn lookup_datawriter(&'dw self, _topic: &'dw Self::TopicType) -> Option<Self::DataWriterType> {
-        todo!()
     }
 }
 
@@ -125,7 +90,7 @@ impl<'p, 'dp: 'p, PSM: rust_rtps_pim::PIM> rust_dds_api::publication::publisher:
     fn get_participant(
         &self,
     ) -> &dyn rust_dds_api::domain::domain_participant::DomainParticipant<'dp> {
-        self.parent
+        self.participant
     }
 
     fn delete_contained_entities(&self) -> DDSResult<()> {

@@ -20,14 +20,67 @@ use super::{
 };
 
 pub struct SubscriberImpl<'s, 'dp: 's, PSM: rust_rtps_pim::PIM> {
-    parent: &'s DomainParticipantImpl<'dp, PSM>,
+    participant: &'s DomainParticipantImpl<'dp, PSM>,
+    // pub(crate) rtps_reader_group_impl: Weak<Mutex<>>
 }
 
-impl<'s, 'dp: 's, PSM: rust_rtps_pim::PIM> SubscriberImpl<'s,'dp,PSM> {
-    pub(crate) fn new() {
+impl<'s, 'dp: 's, PSM: rust_rtps_pim::PIM>
+    rust_dds_api::domain::domain_participant::SubscriberFactory<'s, 'dp>
+    for DomainParticipantImpl<'dp, PSM>
+{
+    type SubscriberType = SubscriberImpl<'s, 'dp, PSM>;
 
+    fn create_subscriber(
+        &'s self,
+        _qos: Option<SubscriberQos>,
+        _a_listener: Option<&'s (dyn SubscriberListener + 's)>,
+        _mask: StatusMask,
+    ) -> Option<Self::SubscriberType> {
+        todo!()
+        //         // let impl_ref = self
+        //         //     .0
+        //         //     .lock()
+        //         //     .unwrap()
+        //         //     .create_subscriber(qos, a_listener, mask)
+        //         //     .ok()?;
+
+        //         // Some(Subscriber(Node {
+        //         //     parent: self,
+        //         //     impl_ref,
+        //         // }))
+    }
+
+    fn delete_subscriber(&self, _a_subscriber: &Self::SubscriberType) -> DDSResult<()> {
+        todo!()
+        //         // if std::ptr::eq(a_subscriber.parent, self) {
+        //         //     self.0
+        //         //         .lock()
+        //         //         .unwrap()
+        //         //         .delete_subscriber(&a_subscriber.impl_ref)
+        //         // } else {
+        //         //     Err(DDSError::PreconditionNotMet(
+        //         //         "Subscriber can only be deleted from its parent participant",
+        //         //     ))
+        //         // }
+    }
+
+    fn get_builtin_subscriber(&'s self) -> Self::SubscriberType {
+        todo!()
+        //         //     self.builtin_entities
+        //         //         .subscriber_list()
+        //         //         .into_iter()
+        //         //         .find(|x| {
+        //         //             if let Some(subscriber) = x.get().ok() {
+        //         //                 subscriber.group.entity.guid.entity_id().entity_kind()
+        //         //                     == ENTITY_KIND_BUILT_IN_READER_GROUP
+        //         //             } else {
+        //         //                 false
+        //         //             }
+        //         //         })
+        //         // }
     }
 }
+
 
 impl<'dr, 's: 'dr, 't: 'dr, 'dp: 's + 't, T: 't, PSM: rust_rtps_pim::PIM>
     rust_dds_api::subscription::subscriber::DataReaderFactory<'dr, 's, 't, 'dp, T>
@@ -110,7 +163,7 @@ impl<'s, 'dp: 's, PSM: rust_rtps_pim::PIM>
     fn get_participant(
         &self,
     ) -> &dyn rust_dds_api::domain::domain_participant::DomainParticipant<'dp> {
-        self.parent
+        self.participant
     }
 }
 

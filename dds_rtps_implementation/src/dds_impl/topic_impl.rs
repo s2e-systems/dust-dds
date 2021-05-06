@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use rust_dds_api::{
-    dcps_psm::{InconsistentTopicStatus, InstanceHandle, StatusMask},
+    dcps_psm::{Duration, InconsistentTopicStatus, InstanceHandle, StatusMask},
     infrastructure::{
         entity::{Entity, StatusCondition},
         qos::TopicQos,
@@ -13,16 +13,32 @@ use rust_dds_api::{
 use super::domain_participant_impl::DomainParticipantImpl;
 
 pub struct TopicImpl<'t, 'dp: 't, T: 't, PSM: rust_rtps_pim::PIM> {
-    parent: &'t DomainParticipantImpl<'dp, PSM>,
+    participant: &'t DomainParticipantImpl<'dp, PSM>,
     phantom: PhantomData<&'t T>,
 }
 
-impl<'t, 'dp: 't, T: 't, PSM: rust_rtps_pim::PIM> TopicImpl<'t, 'dp, T, PSM> {
-    pub(crate) fn new(parent: &'t DomainParticipantImpl<'dp, PSM>) -> Self {
-        Self {
-            parent,
-            phantom: PhantomData,
-        }
+impl<'t, 'dp: 't, T: 't, PSM: rust_rtps_pim::PIM>
+    rust_dds_api::domain::domain_participant::TopicFactory<'t, 'dp, T>
+    for DomainParticipantImpl<'dp, PSM>
+{
+    type TopicType = TopicImpl<'t, 'dp, T, PSM>;
+
+    fn create_topic(
+        &'t self,
+        _topic_name: &str,
+        _qos: Option<TopicQos>,
+        _a_listener: Option<&'t (dyn TopicListener<DataType = T> + 't)>,
+        _mask: StatusMask,
+    ) -> Option<Self::TopicType> {
+        todo!()
+    }
+
+    fn delete_topic(&self, _a_topic: &Self::TopicType) -> DDSResult<()> {
+        todo!()
+    }
+
+    fn find_topic(&self, _topic_name: &str, _timeout: Duration) -> Option<Self::TopicType> {
+        todo!()
     }
 }
 
@@ -43,7 +59,7 @@ impl<'t, 'dp: 't, T: 't, PSM: rust_rtps_pim::PIM> TopicDescription<'t, 'dp, T>
     fn get_participant(
         &self,
     ) -> &dyn rust_dds_api::domain::domain_participant::DomainParticipant<'dp> {
-        self.parent
+        self.participant
     }
 
     fn get_type_name(&self) -> DDSResult<&'static str> {
