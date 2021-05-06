@@ -11,21 +11,25 @@ use crate::{
 
 use super::{data_writer_listener::DataWriterListener, publisher::Publisher};
 
-pub trait DataWriterTopic<'a, 'b: 'a, T: 'a + 'b> {
-    type TopicType: Topic<'b, T>;
-
-    /// This operation returns the Topic associated with the DataWriter. This is the same Topic that was used to create the DataWriter.
-    fn get_topic(&self) -> &Self::TopicType;
+// Associated types are kept on a separate trait to the DataWriter trait to allow using
+// the dyn DataWriter on the listener without having to define the associated types.
+// This is allowed since get_publisher() and get_topic() operations are disallowed in the listener
+pub trait DataWriterAssociatedTypes<'publisher, 'topic, 'participant: 'publisher, T: 'topic> {
+    type PublisherType: Publisher<'publisher, 'participant>;
+    type TopicType: Topic<'topic, T>;
 }
 
-pub trait DataWriterParent<'a, 'b: 'a> {
-    type PublisherType: Publisher<'b>;
-
-    /// This operation returns the Publisher to which the data writer object belongs.
-    fn get_publisher(&self) -> &Self::PublisherType;
-}
-pub trait DataWriter<'a, T: 'a>:
-    Entity<Qos = DataWriterQos<'a>, Listener = &'a (dyn DataWriterListener<DataType = T> + 'a)>
+pub trait DataWriter<
+    'datawriter,
+    'publisher: 'datawriter,
+    'topic: 'datawriter,
+    'participant: 'publisher,
+    T: 'topic,
+>:
+    Entity<
+    Qos = DataWriterQos<'datawriter>,
+    Listener = &'datawriter (dyn DataWriterListener<DataType = T> + 'datawriter),
+>
 {
     /// This operation informs the Service that the application will be modifying a particular instance. It gives an opportunity to the
     /// Service to pre-configure itself to improve performance.
@@ -240,6 +244,16 @@ pub trait DataWriter<'a, T: 'a>:
         &self,
         status: &mut PublicationMatchedStatus,
     ) -> DDSResult<()>;
+
+    /// This operation returns the Topic associated with the DataWriter. This is the same Topic that was used to create the DataWriter.
+    fn get_topic(&self) -> &Self::TopicType
+    where
+        Self: DataWriterAssociatedTypes<'publisher, 'topic, 'participant, T> + Sized;
+
+    /// This operation returns the Publisher to which the data writer object belongs.
+    fn get_publisher(&self) -> &Self::PublisherType
+    where
+        Self: DataWriterAssociatedTypes<'publisher, 'topic, 'participant, T> + Sized;
 
     /// This operation manually asserts the liveliness of the DataWriter. This is used in combination with the LIVELINESS QoS
     /// policy (see 2.2.3, Supported QoS) to indicate to the Service that the entity remains active.

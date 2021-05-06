@@ -11,8 +11,8 @@ use rust_dds_api::{
         entity::{Entity, StatusCondition},
         qos::{DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
     },
-    publication::{publisher::PublisherParent, publisher_listener::PublisherListener},
-    return_type::{DDSError, DDSResult},
+    publication::publisher_listener::PublisherListener,
+    return_type::DDSResult,
     subscription::subscriber_listener::SubscriberListener,
     topic::{topic_description::TopicDescription, topic_listener::TopicListener},
 };
@@ -174,18 +174,18 @@ impl<'a, 'b: 'a, PSM: rust_rtps_pim::PIM>
         Some(publisher)
     }
 
-    fn delete_publisher(&self, a_publisher: &Self::PublisherType) -> DDSResult<()> {
-        if std::ptr::eq(a_publisher.get_participant(), self) {
-            Ok(())
+    fn delete_publisher(&self, _a_publisher: &Self::PublisherType) -> DDSResult<()> {
+        // if std::ptr::eq(a_publisher.get_participant(), self) {
+        Ok(())
         //     // self.0
         //     //     .lock()
         //     //     .unwrap()
         //     //     .delete_publisher(&a_publisher.impl_ref)
-        } else {
-            Err(DDSError::PreconditionNotMet(
-                "Publisher can only be deleted from its parent participant",
-            ))
-        }
+        // } else {
+        // Err(DDSError::PreconditionNotMet(
+        // "Publisher can only be deleted from its parent participant",
+        // ))
+        // }
     }
 }
 

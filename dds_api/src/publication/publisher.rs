@@ -15,16 +15,44 @@ use super::{
     publisher_listener::PublisherListener,
 };
 
-pub trait PublisherParent<'a, 'b: 'a> {
-    type DomainParticipantType: DomainParticipant<'b>;
+pub trait DataWriterFactory<
+    'datawriter,
+    'publisher: 'datawriter,
+    'topic: 'datawriter,
+    'participant: 'publisher,
+    T: 'topic,
+>: Publisher<'publisher, 'participant>
+{
+    type TopicType: Topic<'topic, T>;
+    type DataWriterType: DataWriter<'datawriter, 'publisher, 'topic, 'participant, T>
+        + AnyDataWriter;
 
-    /// This operation returns the DomainParticipant to which the Publisher belongs.
-    fn get_participant(&self) -> &Self::DomainParticipantType;
+    fn create_datawriter(
+        &'datawriter self,
+        a_topic: &'datawriter Self::TopicType,
+        qos: Option<DataWriterQos<'datawriter>>,
+        a_listener: Option<&'datawriter (dyn DataWriterListener<DataType = T> + 'datawriter)>,
+        mask: StatusMask,
+    ) -> Option<Self::DataWriterType>;
+
+    fn delete_datawriter(&self, a_datawriter: &Self::DataWriterType) -> DDSResult<()>;
+
+    fn lookup_datawriter(
+        &'datawriter self,
+        topic: &'datawriter Self::TopicType,
+    ) -> Option<Self::DataWriterType>;
 }
 
-pub trait DataWriterFactory<'a, 'b: 'a, 'c: 'a, T: 'b + 'c>: Publisher<'b> {
-    type TopicType: Topic<'c, T>;
-    type DataWriterType: DataWriter<'a, T> + AnyDataWriter;
+/// The Publisher acts on the behalf of one or several DataWriter objects that belong to it. When it is informed of a change to the
+/// data associated with one of its DataWriter objects, it decides when it is appropriate to actually send the data-update message.
+/// In making this decision, it considers any extra information that goes with the data (timestamp, writer, etc.) as well as the QoS
+/// of the Publisher and the DataWriter.
+/// All operations except for the base-class operations set_qos, get_qos, set_listener, get_listener, enable, get_statuscondition,
+/// create_datawriter, and delete_datawriter may return the value NOT_ENABLED.
+pub trait Publisher<'publisher, 'participant: 'publisher>:
+    Entity<Qos = PublisherQos<'publisher>, Listener = &'publisher (dyn PublisherListener + 'publisher)>
+{
+    type DomainParticipantType: DomainParticipant<'participant>;
 
     /// This operation creates a DataWriter. The returned DataWriter will be attached and belongs to the Publisher.
     /// The DataWriter returned by the create_datawriter operation will in fact be a derived class, specific to the data-type associated
@@ -47,13 +75,20 @@ pub trait DataWriterFactory<'a, 'b: 'a, 'c: 'a, T: 'b + 'c>: Publisher<'b> {
     /// corresponding policy on the default QoS. The resulting QoS is then applied to the creation of the DataWriter.
     /// The Topic passed to this operation must have been created from the same DomainParticipant that was used to create this
     /// Publisher. If the Topic was created from a different DomainParticipant, the operation will fail and return a nil result.
-    fn create_datawriter(
-        &'a self,
-        a_topic: &'a Self::TopicType,
-        qos: Option<DataWriterQos<'a>>,
-        a_listener: Option<&'a (dyn DataWriterListener<DataType = T> + 'a)>,
+    fn create_datawriter<'datawriter, 'topic, T>(
+        &'datawriter self,
+        a_topic: &'datawriter Self::TopicType,
+        qos: Option<DataWriterQos<'datawriter>>,
+        a_listener: Option<&'datawriter (dyn DataWriterListener<DataType = T> + 'datawriter)>,
         mask: StatusMask,
-    ) -> Option<Self::DataWriterType>;
+    ) -> Option<Self::DataWriterType>
+    where
+        Self: DataWriterFactory<'datawriter, 'publisher, 'topic, 'participant, T>,
+    {
+        <Self as DataWriterFactory<'datawriter, 'publisher, 'topic, 'participant, T>>::create_datawriter(
+            self, a_topic, qos, a_listener, mask,
+        )
+    }
 
     /// This operation deletes a DataWriter that belongs to the Publisher.
     /// The delete_datawriter operation must be called on the same Publisher object used to create the DataWriter. If
@@ -63,24 +98,35 @@ pub trait DataWriterFactory<'a, 'b: 'a, 'c: 'a, T: 'b + 'c>: Publisher<'b> {
     /// WRITER_DATA_LIFECYCLE QosPolicy, the deletion of the DataWriter may also dispose all instances. Refer to 2.2.3.21 for
     /// details.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
-    fn delete_datawriter(&self, a_datawriter: &Self::DataWriterType) -> DDSResult<()>;
+    fn delete_datawriter<'datawriter, 'topic, T>(
+        &self,
+        a_datawriter: &Self::DataWriterType,
+    ) -> DDSResult<()>
+    where
+        Self: DataWriterFactory<'datawriter, 'publisher, 'topic, 'participant, T>,
+    {
+        <Self as DataWriterFactory<'datawriter, 'publisher, 'topic,'participant, T>>::delete_datawriter(
+            self,
+            a_datawriter,
+        )
+    }
 
     /// This operation retrieves a previously created DataWriter belonging to the Publisher that is attached to a Topic with a matching
     /// topic_name. If no such DataWriter exists, the operation will return ’nil.’
     /// If multiple DataWriter attached to the Publisher satisfy this condition, then the operation will return one of them. It is not
     /// specified which one.
-    fn lookup_datawriter(&'a self, topic: &'a Self::TopicType) -> Option<Self::DataWriterType>;
-}
+    fn lookup_datawriter<'datawriter, 'topic, T>(
+        &'datawriter self,
+        topic: &'datawriter Self::TopicType,
+    ) -> Option<Self::DataWriterType>
+    where
+        Self: DataWriterFactory<'datawriter, 'publisher, 'topic, 'participant, T>,
+    {
+        <Self as DataWriterFactory<'datawriter, 'publisher, 'topic,'participant, T>>::lookup_datawriter(
+            self, topic,
+        )
+    }
 
-/// The Publisher acts on the behalf of one or several DataWriter objects that belong to it. When it is informed of a change to the
-/// data associated with one of its DataWriter objects, it decides when it is appropriate to actually send the data-update message.
-/// In making this decision, it considers any extra information that goes with the data (timestamp, writer, etc.) as well as the QoS
-/// of the Publisher and the DataWriter.
-/// All operations except for the base-class operations set_qos, get_qos, set_listener, get_listener, enable, get_statuscondition,
-/// create_datawriter, and delete_datawriter may return the value NOT_ENABLED.
-pub trait Publisher<'a>:
-    Entity<Qos = PublisherQos<'a>, Listener = &'a (dyn PublisherListener + 'a)>
-{
     /// This operation indicates to the Service that the application is about to make multiple modifications using DataWriter objects
     /// belonging to the Publisher.
     /// It is a hint to the Service so it can optimize its performance by e.g., holding the dissemination of the modifications and then
@@ -128,6 +174,9 @@ pub trait Publisher<'a>:
     /// a return value of TIMEOUT indicates that max_wait elapsed before all the data was acknowledged.
     fn wait_for_acknowledgments(&self, max_wait: Duration) -> DDSResult<()>;
 
+    /// This operation returns the DomainParticipant to which the Publisher belongs.
+    fn get_participant(&self) -> &Self::DomainParticipantType;
+
     /// This operation deletes all the entities that were created by means of the “create” operations on the Publisher. That is, it deletes
     /// all contained DataWriter objects.
     /// The operation will return PRECONDITION_NOT_MET if the any of the contained entities is in a state where it cannot be
@@ -143,14 +192,14 @@ pub trait Publisher<'a>:
     /// The special value DATAWRITER_QOS_DEFAULT may be passed to this operation to indicate that the default QoS should be
     /// reset back to the initial values the factory would use, that is the values that would be used if the set_default_datawriter_qos
     /// operation had never been called.
-    fn set_default_datawriter_qos(&self, qos: Option<DataWriterQos<'a>>) -> DDSResult<()>;
+    fn set_default_datawriter_qos(&self, qos: Option<DataWriterQos<'publisher>>) -> DDSResult<()>;
 
     /// This operation retrieves the dformalefault value of the DataWriter QoS, that is, the QoS policies which will be used for newly created
     /// DataWriter entities in the case where the QoS policies are defaulted in the create_datawriter operation.
     /// The values retrieved by get_default_datawriter_qos will match the set of values specified on the last successful call to
     /// set_default_datawriter_qos, or else, if the call was never made, the default values listed in the QoS table in 2.2.3, Supported
     /// QoS.
-    fn get_default_datawriter_qos(&self) -> DataWriterQos<'a>;
+    fn get_default_datawriter_qos(&self) -> DataWriterQos<'publisher>;
 
     /// This operation copies the policies in the a_topic_qos to the corresponding policies in the a_datawriter_qos (replacing values
     /// in the a_datawriter_qos, if present).
@@ -161,7 +210,7 @@ pub trait Publisher<'a>:
     /// may not be the final one, as the application can still modify some policies prior to applying the policies to the DataWriter.
     fn copy_from_topic_qos(
         &self,
-        _a_datawriter_qos: &mut DataWriterQos<'a>,
+        _a_datawriter_qos: &mut DataWriterQos<'publisher>,
         _a_topic_qos: &TopicQos,
     ) -> DDSResult<()>;
 }

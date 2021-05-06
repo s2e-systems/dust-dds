@@ -6,7 +6,7 @@ use rust_dds_api::{
         entity::StatusCondition,
         qos::{DataWriterQos, PublisherQos, TopicQos},
     },
-    publication::{publisher::PublisherParent, publisher_listener::PublisherListener},
+    publication::publisher_listener::PublisherListener,
     return_type::DDSResult,
 };
 
@@ -65,7 +65,7 @@ impl<'a, 'b: 'a, PSM: rust_rtps_pim::PIM> PublisherImpl<'a, 'b, PSM> {
 //     }
 // }
 
-impl<'a, 'b: 'a, PSM: rust_rtps_pim::PIM + 'a> PublisherParent<'a, 'b>
+impl<'a, 'b: 'a, PSM: rust_rtps_pim::PIM> rust_dds_api::publication::publisher::Publisher<'a, 'b>
     for PublisherImpl<'a, 'b, PSM>
 {
     type DomainParticipantType = DomainParticipantImpl<'b, PSM>;
@@ -73,11 +73,7 @@ impl<'a, 'b: 'a, PSM: rust_rtps_pim::PIM + 'a> PublisherParent<'a, 'b>
     fn get_participant(&self) -> &Self::DomainParticipantType {
         self.parent
     }
-}
 
-impl<'a, 'b: 'a, PSM: rust_rtps_pim::PIM> rust_dds_api::publication::publisher::Publisher<'a>
-    for PublisherImpl<'a, 'b, PSM>
-{
     fn suspend_publications(&self) -> DDSResult<()> {
         todo!()
     }

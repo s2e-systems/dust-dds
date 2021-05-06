@@ -10,7 +10,7 @@ use super::data_writer::DataWriter;
 
 pub trait DataWriterListener: Listener {
     type DataType;
-    fn on_liveliness_lost(&self, the_writer: &dyn DataWriter<Self::DataType>, status: LivelinessLostStatus);
+    fn on_liveliness_lost(&self, the_writer: &dyn DataWriter<Self::DataType>, status: LivelinessLostStatus) ;
     fn on_offered_deadline_missed(
         &self,
         the_writer: &dyn DataWriter<Self::DataType>,

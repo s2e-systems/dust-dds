@@ -59,7 +59,7 @@ pub trait TopicFactory<'topic, 'participant: 'topic, T: 'topic>:
 pub trait PublisherFactory<'publisher, 'participant: 'publisher>:
     DomainParticipant<'participant>
 {
-    type PublisherType: Publisher<'publisher>;
+    type PublisherType: Publisher<'publisher, 'participant>;
 
     fn create_publisher(
         &'publisher self,
@@ -89,7 +89,7 @@ pub trait DomainParticipant<'participant>:
         qos: Option<PublisherQos<'publisher>>,
         a_listener: Option<&'publisher (dyn PublisherListener + 'publisher)>,
         mask: StatusMask,
-    ) -> Option<<Self as PublisherFactory<'publisher, 'participant>>::PublisherType>
+    ) -> Option<Self::PublisherType>
     where
         Self: PublisherFactory<'publisher, 'participant>,
     {
@@ -105,10 +105,7 @@ pub trait DomainParticipant<'participant>:
     /// delete_publisher is called on a different DomainParticipant, the operation will have no effect and it will return
     /// PRECONDITION_NOT_MET.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
-    fn delete_publisher<'publisher>(
-        &self,
-        a_publisher: &<Self as PublisherFactory<'publisher, 'participant>>::PublisherType,
-    ) -> DDSResult<()>
+    fn delete_publisher<'publisher>(&self, a_publisher: &Self::PublisherType) -> DDSResult<()>
     where
         Self: PublisherFactory<'publisher, 'participant>,
     {
@@ -128,7 +125,7 @@ pub trait DomainParticipant<'participant>:
         qos: Option<SubscriberQos<'subscriber>>,
         a_listener: Option<&'subscriber (dyn SubscriberListener + 'subscriber)>,
         mask: StatusMask,
-    ) -> Option<<Self as SubscriberFactory<'subscriber, 'participant>>::SubscriberType>
+    ) -> Option<Self::SubscriberType>
     where
         Self: SubscriberFactory<'subscriber, 'participant>,
     {
@@ -144,10 +141,7 @@ pub trait DomainParticipant<'participant>:
     /// delete_subscriber is called on a different DomainParticipant, the operation will have no effect and it will return
     /// PRECONDITION_NOT_MET.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
-    fn delete_subscriber<'subscriber>(
-        &self,
-        a_subscriber: &<Self as SubscriberFactory<'subscriber, 'participant>>::SubscriberType,
-    ) -> DDSResult<()>
+    fn delete_subscriber<'subscriber>(&self, a_subscriber: &Self::SubscriberType) -> DDSResult<()>
     where
         Self: SubscriberFactory<'subscriber, 'participant>,
     {
@@ -173,7 +167,7 @@ pub trait DomainParticipant<'participant>:
         qos: Option<TopicQos<'topic>>,
         a_listener: Option<&'topic (dyn TopicListener<DataType = T> + 'topic)>,
         mask: StatusMask,
-    ) -> Option<<Self as TopicFactory<'topic, 'participant, T>>::TopicType>
+    ) -> Option<Self::TopicType>
     where
         Self: TopicFactory<'topic, 'participant, T>,
     {
@@ -189,10 +183,7 @@ pub trait DomainParticipant<'participant>:
     /// The delete_topic operation must be called on the same DomainParticipant object used to create the Topic. If delete_topic is
     /// called on a different DomainParticipant, the operation will have no effect and it will return PRECONDITION_NOT_MET.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
-    fn delete_topic<'topic, T>(
-        &self,
-        a_topic: &<Self as TopicFactory<'topic, 'participant, T>>::TopicType,
-    ) -> DDSResult<()>
+    fn delete_topic<'topic, T>(&self, a_topic: &Self::TopicType) -> DDSResult<()>
     where
         Self: TopicFactory<'topic, 'participant, T>,
     {
@@ -214,7 +205,7 @@ pub trait DomainParticipant<'participant>:
         &'topic self,
         topic_name: &'topic str,
         timeout: Duration,
-    ) -> Option<<Self as TopicFactory<'topic, 'participant, T>>::TopicType>
+    ) -> Option<Self::TopicType>
     where
         Self: TopicFactory<'topic, 'participant, T>,
     {
