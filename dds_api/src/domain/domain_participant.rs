@@ -53,8 +53,8 @@ pub trait PublisherFactory<'p, 'dp: 'p>: DomainParticipant<'dp> {
 
     fn create_publisher(
         &'p self,
-        qos: Option<PublisherQos<'p>>,
-        a_listener: Option<&'p (dyn PublisherListener + 'p)>,
+        qos: Option<PublisherQos<'dp>>,
+        a_listener: Option<&'dp (dyn PublisherListener + 'dp)>,
         mask: StatusMask,
     ) -> Option<Self::PublisherType>;
 
@@ -73,8 +73,8 @@ pub trait DomainParticipant<'dp>:
     /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
     fn create_publisher<'p>(
         &'p self,
-        qos: Option<PublisherQos<'p>>,
-        a_listener: Option<&'p (dyn PublisherListener + 'p)>,
+        qos: Option<PublisherQos<'dp>>,
+        a_listener: Option<&'dp (dyn PublisherListener + 'dp)>,
         mask: StatusMask,
     ) -> Option<Self::PublisherType>
     where

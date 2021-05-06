@@ -18,14 +18,14 @@ use crate::rtps_impl::rtps_participant_impl::RTPSParticipantImpl;
 use super::{subscriber_impl::SubscriberImpl, topic_impl::TopicImpl};
 
 pub struct DomainParticipantImpl<'dp, PSM: rust_rtps_pim::PIM> {
-    pub(crate) rtps_participant_impl: Mutex<RTPSParticipantImpl<PSM>>,
+    pub(crate) rtps_participant_impl: Mutex<RTPSParticipantImpl<'dp, PSM>>,
     default_publisher_qos: Mutex<PublisherQos<'dp>>,
     default_subscriber_qos: Mutex<SubscriberQos<'dp>>,
     default_topic_qos: Mutex<TopicQos<'dp>>,
 }
 
 impl<'dp, PSM: rust_rtps_pim::PIM> DomainParticipantImpl<'dp, PSM> {
-    pub fn new(domain_participant_impl: RTPSParticipantImpl<PSM>) -> Self {
+    pub fn new(domain_participant_impl: RTPSParticipantImpl<'dp, PSM>) -> Self {
         Self {
             rtps_participant_impl: Mutex::new(domain_participant_impl),
             default_publisher_qos: Mutex::new(PublisherQos::default()),

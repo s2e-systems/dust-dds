@@ -28,9 +28,7 @@ const ENTITYKIND_BUILTIN_WRITER_NO_KEY: u8 = 0xc3;
 
 pub struct PublisherImpl<'p, 'dp: 'p, PSM: rust_rtps_pim::PIM> {
     parent: &'p DomainParticipantImpl<'dp, PSM>,
-    impl_ref: Weak<Mutex<RTPSWriterGroupImpl<PSM>>>,
-    default_datawriter_qos: Mutex<DataWriterQos<'p>>,
-    datawriter_counter: Mutex<u8>,
+    impl_ref: Weak<Mutex<RTPSWriterGroupImpl<'dp, PSM>>>,
 }
 
 impl<'p, 'dp: 'p, PSM: rust_rtps_pim::PIM>
@@ -40,21 +38,19 @@ impl<'p, 'dp: 'p, PSM: rust_rtps_pim::PIM>
     type PublisherType = PublisherImpl<'p, 'dp, PSM>;
     fn create_publisher(
         &'p self,
-        qos: Option<PublisherQos<'p>>,
-        _a_listener: Option<&'p (dyn PublisherListener + 'p)>,
-        _mask: StatusMask,
+        qos: Option<PublisherQos<'dp>>,
+        a_listener: Option<&'dp (dyn PublisherListener + 'dp)>,
+        mask: StatusMask,
     ) -> Option<Self::PublisherType> {
-        let _publisher_qos = qos.unwrap_or(self.get_default_publisher_qos());
+        let publisher_qos = qos.unwrap_or(self.get_default_publisher_qos());
         let group = self
             .rtps_participant_impl
             .lock()
             .unwrap()
-            .create_writer_group();
+            .create_writer_group(publisher_qos, a_listener, mask);
         let publisher = PublisherImpl {
             parent: self,
             impl_ref: Arc::downgrade(&group),
-            default_datawriter_qos: Mutex::new(DataWriterQos::default()),
-            datawriter_counter: Mutex::new(0),
         };
         Some(publisher)
     }
@@ -139,12 +135,13 @@ impl<'p, 'dp: 'p, PSM: rust_rtps_pim::PIM> rust_dds_api::publication::publisher:
     fn set_default_datawriter_qos(&self, qos: Option<DataWriterQos<'p>>) -> DDSResult<()> {
         let datawriter_qos = qos.unwrap_or_default();
         datawriter_qos.is_consistent()?;
-        *self.default_datawriter_qos.lock().unwrap() = datawriter_qos;
+        // *self.default_datawriter_qos.lock().unwrap() = datawriter_qos;
         Ok(())
     }
 
     fn get_default_datawriter_qos(&self) -> DataWriterQos<'p> {
-        self.default_datawriter_qos.lock().unwrap().clone()
+        // self.default_datawriter_qos.lock().unwrap().clone()
+        todo!()
     }
 
     fn copy_from_topic_qos(

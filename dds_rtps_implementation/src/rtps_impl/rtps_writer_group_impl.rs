@@ -1,30 +1,39 @@
 use std::sync::{Arc, Mutex};
 
+use rust_dds_api::{
+    dcps_psm::StatusMask,
+    infrastructure::qos::{DataWriterQos, PublisherQos},
+    publication::publisher_listener::PublisherListener,
+};
 use rust_rtps_pim::structure::types::GUID;
 
 use super::rtps_writer_impl::RTPSWriterImpl;
 
-pub struct RTPSWriterGroupImpl<PSM: rust_rtps_pim::structure::Types> {
-    pub writer_list: Vec<Arc<Mutex<RTPSWriterImpl<PSM>>>>,
+pub struct RTPSWriterGroupImpl<'a, PSM: rust_rtps_pim::structure::Types> {
     guid: GUID<PSM>,
-    //     writer_count: atomic::AtomicU8,
-    //     default_datawriter_qos: DataWriterQos,
-    //     qos: PublisherQos,
-    //     listener: Option<Box<dyn PublisherListener>>,
-    //     status_mask: StatusMask,
+    qos: PublisherQos<'a>,
+    listener: Option<&'a (dyn PublisherListener + 'a)>,
+    status_mask: StatusMask,
+    writer_list: Vec<Arc<Mutex<RTPSWriterImpl<PSM>>>>,
+    default_datawriter_qos: DataWriterQos<'a>,
+    datawriter_counter: u8,
 }
 
-impl<PSM: rust_rtps_pim::structure::Types> RTPSWriterGroupImpl<PSM> {
-    pub fn new(guid: GUID<PSM>) -> Self {
+impl<'a, PSM: rust_rtps_pim::structure::Types> RTPSWriterGroupImpl<'a, PSM> {
+    pub fn new(
+        guid: GUID<PSM>,
+        qos: PublisherQos<'a>,
+        listener: Option<&'a (dyn PublisherListener + 'a)>,
+        status_mask: StatusMask,
+    ) -> Self {
         Self {
-            writer_list: Vec::new(),
             guid,
-            //             // writer_list: Default::default(),
-            //             writer_count: atomic::AtomicU8::new(0),
-            //             default_datawriter_qos: DataWriterQos::default(),
-            //             qos,
-            //             listener,
-            //             status_mask,
+            qos,
+            listener,
+            status_mask,
+            writer_list: Vec::new(),
+            default_datawriter_qos: DataWriterQos::default(),
+            datawriter_counter: 0,
         }
     }
 
@@ -118,8 +127,8 @@ impl<PSM: rust_rtps_pim::structure::Types> RTPSWriterGroupImpl<PSM> {
     //     }
 }
 
-impl<PSM: rust_rtps_pim::structure::Types> rust_rtps_pim::structure::RTPSEntity<PSM>
-    for RTPSWriterGroupImpl<PSM>
+impl<'a, PSM: rust_rtps_pim::structure::Types> rust_rtps_pim::structure::RTPSEntity<PSM>
+    for RTPSWriterGroupImpl<'a, PSM>
 {
     fn guid(&self) -> GUID<PSM> {
         self.guid
