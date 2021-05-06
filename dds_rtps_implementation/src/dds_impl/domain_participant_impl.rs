@@ -29,15 +29,15 @@ use super::{
 const ENTITYKIND_USER_DEFINED_WRITER_GROUP: u8 = 0x08;
 const ENTITYKIND_USER_DEFINED_READER_GROUP: u8 = 0x09;
 
-pub struct DomainParticipantImpl<'a, PSM: rust_rtps_pim::PIM> {
+pub struct DomainParticipantImpl<'participant, PSM: rust_rtps_pim::PIM> {
     rtps_participant_impl: Mutex<RTPSParticipantImpl<PSM>>,
-    default_publisher_qos: Mutex<PublisherQos<'a>>,
-    default_subscriber_qos: Mutex<SubscriberQos<'a>>,
-    default_topic_qos: Mutex<TopicQos<'a>>,
+    default_publisher_qos: Mutex<PublisherQos<'participant>>,
+    default_subscriber_qos: Mutex<SubscriberQos<'participant>>,
+    default_topic_qos: Mutex<TopicQos<'participant>>,
     publisher_counter: Mutex<u8>,
 }
 
-impl<'a, PSM: rust_rtps_pim::PIM> DomainParticipantImpl<'a, PSM> {
+impl<'participant, PSM: rust_rtps_pim::PIM> DomainParticipantImpl<'participant, PSM> {
     pub fn new(domain_participant_impl: RTPSParticipantImpl<PSM>) -> Self {
         Self {
             rtps_participant_impl: Mutex::new(domain_participant_impl),
@@ -49,16 +49,16 @@ impl<'a, PSM: rust_rtps_pim::PIM> DomainParticipantImpl<'a, PSM> {
     }
 }
 
-impl<'a, 'b: 'a, PSM: rust_rtps_pim::PIM + 'a>
-    rust_dds_api::domain::domain_participant::SubscriberFactory<'a, 'b>
-    for DomainParticipantImpl<'b, PSM>
+impl<'subscriber, 'participant: 'subscriber, PSM: rust_rtps_pim::PIM>
+    rust_dds_api::domain::domain_participant::SubscriberFactory<'subscriber, 'participant>
+    for DomainParticipantImpl<'participant, PSM>
 {
-    type SubscriberType = SubscriberImpl<'a, PSM>;
+    type SubscriberType = SubscriberImpl<'subscriber, 'participant, PSM>;
 
     fn create_subscriber(
-        &'a self,
+        &'subscriber self,
         _qos: Option<SubscriberQos>,
-        _a_listener: Option<&'a (dyn SubscriberListener + 'a)>,
+        _a_listener: Option<&'subscriber (dyn SubscriberListener + 'subscriber)>,
         _mask: StatusMask,
     ) -> Option<Self::SubscriberType> {
         todo!()
@@ -89,7 +89,7 @@ impl<'a, 'b: 'a, PSM: rust_rtps_pim::PIM + 'a>
         //         // }
     }
 
-    fn get_builtin_subscriber(&'a self) -> Self::SubscriberType {
+    fn get_builtin_subscriber(&'subscriber self) -> Self::SubscriberType {
         todo!()
         //         //     self.builtin_entities
         //         //         .subscriber_list()
@@ -106,17 +106,17 @@ impl<'a, 'b: 'a, PSM: rust_rtps_pim::PIM + 'a>
     }
 }
 
-impl<'a, 'b: 'a, PSM: rust_rtps_pim::PIM + 'a, T: 'a>
-    rust_dds_api::domain::domain_participant::TopicFactory<'a, 'b, T>
-    for DomainParticipantImpl<'b, PSM>
+impl<'topic, 'participant: 'topic, T: 'topic, PSM: rust_rtps_pim::PIM>
+    rust_dds_api::domain::domain_participant::TopicFactory<'topic, 'participant, T>
+    for DomainParticipantImpl<'participant, PSM>
 {
-    type TopicType = TopicImpl<'a, PSM, T>;
+    type TopicType = TopicImpl<'topic, 'participant, T, PSM>;
 
     fn create_topic(
-        &'a self,
+        &'topic self,
         _topic_name: &str,
         _qos: Option<TopicQos>,
-        _a_listener: Option<&'a (dyn TopicListener<DataType = T> + 'a)>,
+        _a_listener: Option<&'topic (dyn TopicListener<DataType = T> + 'topic)>,
         _mask: StatusMask,
     ) -> Option<Self::TopicType> {
         todo!()
@@ -130,20 +130,23 @@ impl<'a, 'b: 'a, PSM: rust_rtps_pim::PIM + 'a, T: 'a>
         todo!()
     }
 
-    fn lookup_topicdescription(&self, _name: &str) -> Option<&'a (dyn TopicDescription<T> + 'a)> {
+    fn lookup_topicdescription(
+        &self,
+        _name: &str,
+    ) -> Option<&'topic (dyn TopicDescription<T> + 'topic)> {
         todo!()
     }
 }
 
-impl<'a, 'b: 'a, PSM: rust_rtps_pim::PIM>
-    rust_dds_api::domain::domain_participant::PublisherFactory<'a, 'b>
-    for DomainParticipantImpl<'b, PSM>
+impl<'publisher, 'participant: 'publisher, PSM: rust_rtps_pim::PIM>
+    rust_dds_api::domain::domain_participant::PublisherFactory<'publisher, 'participant>
+    for DomainParticipantImpl<'participant, PSM>
 {
-    type PublisherType = PublisherImpl<'a, 'b, PSM>;
+    type PublisherType = PublisherImpl<'publisher, 'participant, PSM>;
     fn create_publisher(
-        &'a self,
-        qos: Option<PublisherQos<'a>>,
-        _a_listener: Option<&'a (dyn PublisherListener + 'a)>,
+        &'publisher self,
+        qos: Option<PublisherQos<'publisher>>,
+        _a_listener: Option<&'publisher (dyn PublisherListener + 'publisher)>,
         _mask: StatusMask,
     ) -> Option<Self::PublisherType> {
         let _publisher_qos = qos.unwrap_or(self.get_default_publisher_qos());
@@ -189,8 +192,9 @@ impl<'a, 'b: 'a, PSM: rust_rtps_pim::PIM>
     }
 }
 
-impl<'a, PSM: rust_rtps_pim::PIM> rust_dds_api::domain::domain_participant::DomainParticipant<'a>
-    for DomainParticipantImpl<'a, PSM>
+impl<'participant, PSM: rust_rtps_pim::PIM>
+    rust_dds_api::domain::domain_participant::DomainParticipant<'participant>
+    for DomainParticipantImpl<'participant, PSM>
 {
     fn lookup_topicdescription<'topic, T>(
         &'topic self,
@@ -228,32 +232,35 @@ impl<'a, PSM: rust_rtps_pim::PIM> rust_dds_api::domain::domain_participant::Doma
         todo!()
     }
 
-    fn set_default_publisher_qos(&self, qos: Option<PublisherQos<'a>>) -> DDSResult<()> {
+    fn set_default_publisher_qos(&self, qos: Option<PublisherQos<'participant>>) -> DDSResult<()> {
         *self.default_publisher_qos.lock().unwrap() = qos.unwrap_or_default();
         Ok(())
     }
 
-    fn get_default_publisher_qos(&self) -> PublisherQos<'a> {
+    fn get_default_publisher_qos(&self) -> PublisherQos<'participant> {
         self.default_publisher_qos.lock().unwrap().clone()
     }
 
-    fn set_default_subscriber_qos(&self, qos: Option<SubscriberQos<'a>>) -> DDSResult<()> {
+    fn set_default_subscriber_qos(
+        &self,
+        qos: Option<SubscriberQos<'participant>>,
+    ) -> DDSResult<()> {
         *self.default_subscriber_qos.lock().unwrap() = qos.unwrap_or_default();
         Ok(())
     }
 
-    fn get_default_subscriber_qos(&self) -> SubscriberQos<'a> {
+    fn get_default_subscriber_qos(&self) -> SubscriberQos<'participant> {
         self.default_subscriber_qos.lock().unwrap().clone()
     }
 
-    fn set_default_topic_qos(&self, qos: Option<TopicQos<'a>>) -> DDSResult<()> {
+    fn set_default_topic_qos(&self, qos: Option<TopicQos<'participant>>) -> DDSResult<()> {
         let topic_qos = qos.unwrap_or_default();
         topic_qos.is_consistent()?;
         *self.default_topic_qos.lock().unwrap() = topic_qos;
         Ok(())
     }
 
-    fn get_default_topic_qos(&self) -> TopicQos<'a> {
+    fn get_default_topic_qos(&self) -> TopicQos<'participant> {
         self.default_topic_qos.lock().unwrap().clone()
     }
 
@@ -293,9 +300,9 @@ impl<'a, PSM: rust_rtps_pim::PIM> rust_dds_api::domain::domain_participant::Doma
     }
 }
 
-impl<'a, PSM: rust_rtps_pim::PIM> Entity for DomainParticipantImpl<'a, PSM> {
-    type Qos = DomainParticipantQos<'a>;
-    type Listener = &'a (dyn DomainParticipantListener + 'a);
+impl<'participant, PSM: rust_rtps_pim::PIM> Entity for DomainParticipantImpl<'participant, PSM> {
+    type Qos = DomainParticipantQos<'participant>;
+    type Listener = &'participant (dyn DomainParticipantListener + 'participant);
 
     fn set_qos(&self, _qos: Option<Self::Qos>) -> DDSResult<()> {
         // self.0.lock().unwrap().set_qos(qos)

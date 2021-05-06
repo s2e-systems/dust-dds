@@ -1,7 +1,4 @@
-use std::{
-    marker::PhantomData,
-    sync::{Mutex, Weak},
-};
+use std::sync::{Mutex, Weak};
 
 use rust_dds_api::{
     builtin_topics::SubscriptionBuiltinTopicData,
@@ -17,216 +14,247 @@ use rust_rtps_pim::behavior::RTPSWriter;
 
 use crate::rtps_impl::rtps_writer_impl::RTPSWriterImpl;
 
-use super::publisher_impl::PublisherImpl;
+use super::{publisher_impl::PublisherImpl, topic_impl::TopicImpl};
 
-pub struct DataWriterImpl<'a, 'b: 'a, 'c: 'b, PSM: rust_rtps_pim::PIM, T> {
-    pub(crate) parent: &'a PublisherImpl<'b, 'c, PSM>,
+pub struct DataWriterImpl<
+    'datawriter,
+    'publisher: 'datawriter,
+    'topic: 'datawriter,
+    'participant: 'publisher,
+    T: 'topic,
+    PSM: rust_rtps_pim::PIM,
+> {
+    pub(crate) parent: &'datawriter PublisherImpl<'publisher, 'participant, PSM>,
+    pub(crate) topic: &'datawriter TopicImpl<'topic, 'participant, T, PSM>,
     pub(crate) rtps_writer: Weak<Mutex<RTPSWriterImpl<PSM>>>,
-    phantom: PhantomData<&'a T>,
 }
 
-impl<'a, 'b: 'a, 'c: 'b, PSM: rust_rtps_pim::PIM, T> DataWriterImpl<'a, 'b, 'c, PSM, T> {
+impl<
+        'datawriter,
+        'publisher: 'datawriter,
+        'topic: 'datawriter,
+        'participant: 'publisher,
+        T: 'topic,
+        PSM: rust_rtps_pim::PIM,
+    > DataWriterImpl<'datawriter, 'publisher, 'topic, 'participant, T, PSM>
+{
     pub fn new(
-        parent: &'a PublisherImpl<'b, 'c, PSM>,
+        parent: &'datawriter PublisherImpl<'publisher, 'participant, PSM>,
+        topic: &'datawriter TopicImpl<'topic, 'participant, T, PSM>,
         rtps_writer: Weak<Mutex<RTPSWriterImpl<PSM>>>,
     ) -> Self {
         Self {
             parent,
             rtps_writer,
-            phantom: PhantomData,
+            topic,
         }
     }
 }
 
-// impl<'a,'b:'a,'c:'b, PSM: rust_rtps_pim::PIM, T> rust_dds_api::publication::publisher::PublisherChild<'a>
-//     for DataWriterImpl<'a,'b,'c, PSM, T>
-// {
-//     type PublisherType = PublisherImpl<'b,'c, PSM>;
-// }
+impl<
+        'datawriter,
+        'publisher: 'datawriter,
+        'topic: 'datawriter,
+        'participant: 'publisher,
+        T: 'topic,
+        PSM: rust_rtps_pim::PIM,
+    >
+    rust_dds_api::publication::data_writer::DataWriter<
+        'datawriter,
+        'publisher,
+        'topic,
+        'participant,
+        T,
+    > for DataWriterImpl<'datawriter, 'publisher, 'topic, 'participant, T, PSM>
+{
+    fn register_instance(&self, _instance: T) -> DDSResult<Option<InstanceHandle>> {
+        todo!()
+        // let timestamp = self.parent.0.parent.get_current_time()?;
+        // self.register_instance_w_timestamp(instance, timestamp)
+    }
 
-// impl<'a,'b:'a,'c:'b, PSM: rust_rtps_pim::PIM, T> rust_dds_api::publication::data_writer::DataWriter<'a, T>
-//     for DataWriterImpl<'a, 'b,'c, PSM, T>
-// {
-//     fn register_instance(&self, _instance: T) -> DDSResult<Option<InstanceHandle>> {
-//         todo!()
-//         // let timestamp = self.parent.0.parent.get_current_time()?;
-//         // self.register_instance_w_timestamp(instance, timestamp)
-//     }
+    fn register_instance_w_timestamp(
+        &self,
+        _instance: T,
+        _timestamp: Time,
+    ) -> DDSResult<Option<InstanceHandle>> {
+        let writer = self.rtps_writer.upgrade().ok_or(DDSError::AlreadyDeleted)?;
+        let writer_guard = writer.lock().unwrap();
+        let _c = writer_guard.writer_cache();
+        todo!()
+    }
 
-//     fn register_instance_w_timestamp(
-//         &self,
-//         _instance: T,
-//         _timestamp: Time,
-//     ) -> DDSResult<Option<InstanceHandle>> {
-//         let writer = self.rtps_writer.upgrade().ok_or(DDSError::AlreadyDeleted)?;
-//         let writer_guard = writer.lock().unwrap();
-//         let _c = writer_guard.writer_cache();
-//         todo!()
-//     }
+    fn unregister_instance(&self, _instance: T, _handle: Option<InstanceHandle>) -> DDSResult<()> {
+        todo!()
+    }
 
-//     fn unregister_instance(&self, _instance: T, _handle: Option<InstanceHandle>) -> DDSResult<()> {
-//         todo!()
-//     }
+    fn unregister_instance_w_timestamp(
+        &self,
+        _instance: T,
+        _handle: Option<InstanceHandle>,
+        _timestamp: Time,
+    ) -> DDSResult<()> {
+        todo!()
+    }
 
-//     fn unregister_instance_w_timestamp(
-//         &self,
-//         _instance: T,
-//         _handle: Option<InstanceHandle>,
-//         _timestamp: Time,
-//     ) -> DDSResult<()> {
-//         todo!()
-//     }
+    fn get_key_value(&self, _key_holder: &mut T, _handle: InstanceHandle) -> DDSResult<()> {
+        todo!()
+    }
 
-//     fn get_key_value(&self, _key_holder: &mut T, _handle: InstanceHandle) -> DDSResult<()> {
-//         todo!()
-//     }
+    fn lookup_instance(&self, _instance: &T) -> DDSResult<Option<InstanceHandle>> {
+        todo!()
+    }
 
-//     fn lookup_instance(&self, _instance: &T) -> DDSResult<Option<InstanceHandle>> {
-//         todo!()
-//     }
+    fn write(&self, _data: T, _handle: Option<InstanceHandle>) -> DDSResult<()> {
+        todo!()
+    }
 
-//     fn write(&self, _data: T, _handle: Option<InstanceHandle>) -> DDSResult<()> {
-//         todo!()
-//     }
+    fn write_w_timestamp(
+        &self,
+        _data: T,
+        _handle: Option<InstanceHandle>,
+        _timestamp: Time,
+    ) -> DDSResult<()> {
+        // let writer = self.rtps_writer.upgrade().ok_or(DDSError::AlreadyDeleted)?;
+        // let mut writer_guard = writer.lock().unwrap();
+        // let cc = writer_guard.new_change(ChangeKind::Alive, vec![0, 1, 2, 3], vec![], 0);
+        // writer_guard.writer_cache_mut().add_change(cc);
+        Ok(())
+    }
 
-//     fn write_w_timestamp(
-//         &self,
-//         _data: T,
-//         _handle: Option<InstanceHandle>,
-//         _timestamp: Time,
-//     ) -> DDSResult<()> {
-//         // let writer = self.rtps_writer.upgrade().ok_or(DDSError::AlreadyDeleted)?;
-//         // let mut writer_guard = writer.lock().unwrap();
-//         // let cc = writer_guard.new_change(ChangeKind::Alive, vec![0, 1, 2, 3], vec![], 0);
-//         // writer_guard.writer_cache_mut().add_change(cc);
-//         Ok(())
-//     }
+    fn dispose(&self, _data: T, _handle: Option<InstanceHandle>) -> DDSResult<()> {
+        todo!()
+    }
 
-//     fn dispose(&self, _data: T, _handle: Option<InstanceHandle>) -> DDSResult<()> {
-//         todo!()
-//     }
+    fn dispose_w_timestamp(
+        &self,
+        _data: T,
+        _handle: Option<InstanceHandle>,
+        _timestamp: Time,
+    ) -> DDSResult<()> {
+        todo!()
+    }
 
-//     fn dispose_w_timestamp(
-//         &self,
-//         _data: T,
-//         _handle: Option<InstanceHandle>,
-//         _timestamp: Time,
-//     ) -> DDSResult<()> {
-//         todo!()
-//     }
+    fn wait_for_acknowledgments(&self, _max_wait: Duration) -> DDSResult<()> {
+        todo!()
+    }
 
-//     fn wait_for_acknowledgments(&self, _max_wait: Duration) -> DDSResult<()> {
-//         todo!()
-//     }
+    fn get_liveliness_lost_status(&self, _status: &mut LivelinessLostStatus) -> DDSResult<()> {
+        todo!()
+    }
 
-//     fn get_liveliness_lost_status(&self, _status: &mut LivelinessLostStatus) -> DDSResult<()> {
-//         todo!()
-//     }
+    fn get_offered_deadline_missed_status(
+        &self,
+        _status: &mut OfferedDeadlineMissedStatus,
+    ) -> DDSResult<()> {
+        todo!()
+    }
 
-//     fn get_offered_deadline_missed_status(
-//         &self,
-//         _status: &mut OfferedDeadlineMissedStatus,
-//     ) -> DDSResult<()> {
-//         todo!()
-//     }
+    fn get_offered_incompatible_qos_status(
+        &self,
+        _status: &mut OfferedIncompatibleQosStatus,
+    ) -> DDSResult<()> {
+        todo!()
+    }
 
-//     fn get_offered_incompatible_qos_status(
-//         &self,
-//         _status: &mut OfferedIncompatibleQosStatus,
-//     ) -> DDSResult<()> {
-//         todo!()
-//     }
+    fn get_publication_matched_status(
+        &self,
+        _status: &mut PublicationMatchedStatus,
+    ) -> DDSResult<()> {
+        todo!()
+    }
 
-//     fn get_publication_matched_status(
-//         &self,
-//         _status: &mut PublicationMatchedStatus,
-//     ) -> DDSResult<()> {
-//         todo!()
-//     }
+    fn assert_liveliness(&self) -> DDSResult<()> {
+        todo!()
+    }
 
-//     /// This operation returns the Topic associated with the DataWriter. This is the same Topic that was used to create the DataWriter.
-//     // fn get_topic(
-//     //     &self,
-//     // ) -> &<Self as rust_dds_api::domain::domain_participant::TopicGAT<'a, T>>::TopicType {
-//     //     // self.parent.1
-//     //     todo!()
-//     // }
+    fn get_matched_subscription_data(
+        &self,
+        _subscription_data: SubscriptionBuiltinTopicData,
+        _subscription_handle: InstanceHandle,
+    ) -> DDSResult<()> {
+        todo!()
+    }
 
-//     /// This operation returns the Publisher to which the publisher child object belongs.
-//     // fn get_publisher(
-//     //     &self,
-//     // ) -> &<Self as rust_dds_api::publication::publisher::PublisherChild<'a>>::PublisherType {
-//     //     // self.parent.0
-//     //     todo!()
-//     // }
+    fn get_topic(&self) -> &dyn rust_dds_api::topic::topic::Topic<T> {
+        todo!()
+    }
 
-//     fn assert_liveliness(&self) -> DDSResult<()> {
-//         todo!()
-//     }
+    fn get_publisher(&self) -> &dyn rust_dds_api::publication::publisher::Publisher {
+        todo!()
+    }
 
-//     fn get_matched_subscription_data(
-//         &self,
-//         _subscription_data: SubscriptionBuiltinTopicData,
-//         _subscription_handle: InstanceHandle,
-//     ) -> DDSResult<()> {
-//         todo!()
-//     }
+    fn get_matched_subscriptions(
+        &self,
+        _subscription_handles: &mut [InstanceHandle],
+    ) -> DDSResult<()> {
+        todo!()
+    }
 
-//     fn get_matched_subscriptions(
-//         &self,
-//         _subscription_handles: &mut [InstanceHandle],
-//     ) -> DDSResult<()> {
-//         todo!()
-//     }
-// }
 
-// impl<'a,'b:'a,'c:'b, PSM: rust_rtps_pim::PIM, T> rust_dds_api::infrastructure::entity::Entity
-//     for DataWriterImpl<'a,'b,'c, PSM, T>
-// {
-//     type Qos = DataWriterQos<'a>;
-//     type Listener = &'a (dyn DataWriterListener<DataType = T> + 'a);
+}
 
-//     fn set_qos(&self, _qos: Option<Self::Qos>) -> DDSResult<()> {
-//         todo!()
-//     }
+impl<
+        'datawriter,
+        'publisher: 'datawriter,
+        'topic: 'datawriter,
+        'participant: 'publisher,
+        T: 'topic,
+        PSM: rust_rtps_pim::PIM,
+    > rust_dds_api::infrastructure::entity::Entity
+    for DataWriterImpl<'datawriter, 'publisher, 'topic, 'participant, T, PSM>
+{
+    type Qos = DataWriterQos<'datawriter>;
+    type Listener = &'datawriter (dyn DataWriterListener<DataType = T> + 'datawriter);
 
-//     fn get_qos(&self) -> DDSResult<Self::Qos> {
-//         todo!()
-//     }
+    fn set_qos(&self, _qos: Option<Self::Qos>) -> DDSResult<()> {
+        todo!()
+    }
 
-//     fn set_listener(
-//         &self,
-//         _a_listener: Option<Self::Listener>,
-//         _mask: StatusMask,
-//     ) -> DDSResult<()> {
-//         todo!()
-//     }
+    fn get_qos(&self) -> DDSResult<Self::Qos> {
+        todo!()
+    }
 
-//     fn get_listener(&self) -> DDSResult<Option<Self::Listener>> {
-//         todo!()
-//     }
+    fn set_listener(
+        &self,
+        _a_listener: Option<Self::Listener>,
+        _mask: StatusMask,
+    ) -> DDSResult<()> {
+        todo!()
+    }
 
-//     fn get_statuscondition(&self) -> StatusCondition {
-//         todo!()
-//     }
+    fn get_listener(&self) -> DDSResult<Option<Self::Listener>> {
+        todo!()
+    }
 
-//     fn get_status_changes(&self) -> StatusMask {
-//         todo!()
-//     }
+    fn get_statuscondition(&self) -> StatusCondition {
+        todo!()
+    }
 
-//     fn enable(&self) -> DDSResult<()> {
-//         todo!()
-//     }
+    fn get_status_changes(&self) -> StatusMask {
+        todo!()
+    }
 
-//     fn get_instance_handle(&self) -> DDSResult<InstanceHandle> {
-//         todo!()
-//     }
-// }
+    fn enable(&self) -> DDSResult<()> {
+        todo!()
+    }
 
-// impl<'a,'b:'a,'c:'b, PSM: rust_rtps_pim::PIM, T> rust_dds_api::publication::data_writer::AnyDataWriter
-//     for DataWriterImpl<'a,'b,'c, PSM, T>
-// {
-// }
+    fn get_instance_handle(&self) -> DDSResult<InstanceHandle> {
+        todo!()
+    }
+}
+
+impl<
+        'datawriter,
+        'publisher: 'datawriter,
+        'topic: 'datawriter,
+        'participant: 'publisher,
+        T: 'topic,
+        PSM: rust_rtps_pim::PIM,
+    > rust_dds_api::publication::data_writer::AnyDataWriter
+    for DataWriterImpl<'datawriter, 'publisher, 'topic, 'participant, T, PSM>
+{
+}
 
 #[cfg(test)]
 mod tests {

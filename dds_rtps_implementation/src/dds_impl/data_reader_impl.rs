@@ -13,31 +13,40 @@ use rust_dds_api::{
     },
     return_type::DDSResult,
     subscription::{
-        data_reader::{AnyDataReader, DataReaderParent},
-        data_reader_listener::DataReaderListener,
+        data_reader::AnyDataReader, data_reader_listener::DataReaderListener,
         query_condition::QueryCondition,
     },
 };
 
-use super::subscriber_impl::SubscriberImpl;
+use super::{subscriber_impl::SubscriberImpl, topic_impl::TopicImpl};
 
-pub struct DataReaderImpl<'a, 'b: 'a, PSM: rust_rtps_pim::PIM, T> {
-    parent: &'a SubscriberImpl<'b, PSM>,
-    phantom: &'a T,
+pub struct DataReaderImpl<
+    'datareader,
+    'subscriber: 'datareader,
+    'topic: 'datareader,
+    'participant: 'subscriber,
+    T: 'datareader,
+    PSM: rust_rtps_pim::PIM,
+> {
+    parent: &'datareader SubscriberImpl<'subscriber, 'participant, PSM>,
+    topic: &'datareader TopicImpl<'topic, 'participant, T, PSM>,
 }
 
-impl<'a, 'b: 'a, PSM: rust_rtps_pim::PIM, T> DataReaderParent<'a, 'b>
-    for DataReaderImpl<'a, 'b, PSM, T>
-{
-    type SubscriberType = SubscriberImpl<'b, PSM>;
-
-    fn get_subscriber(&self) -> &Self::SubscriberType {
-        self.parent
-    }
-}
-
-impl<'a, 'b: 'a, PSM: rust_rtps_pim::PIM, T>
-    rust_dds_api::subscription::data_reader::DataReader<'a, T> for DataReaderImpl<'a, 'b, PSM, T>
+impl<
+        'datareader,
+        'subscriber: 'datareader,
+        'topic: 'datareader,
+        'participant: 'subscriber,
+        T: 'datareader,
+        PSM: rust_rtps_pim::PIM,
+    >
+    rust_dds_api::subscription::data_reader::DataReader<
+        'datareader,
+        'subscriber,
+        'topic,
+        'participant,
+        T,
+    > for DataReaderImpl<'datareader, 'subscriber, 'topic, 'participant, T, PSM>
 {
     fn read(
         &self,
@@ -272,11 +281,27 @@ impl<'a, 'b: 'a, PSM: rust_rtps_pim::PIM, T>
     fn get_match_publication(&self, _publication_handles: &mut [InstanceHandle]) -> DDSResult<()> {
         todo!()
     }
+
+    fn get_topicdescription(&self) -> &dyn rust_dds_api::topic::topic_description::TopicDescription<'topic, 'participant, T> {
+        todo!()
+    }
+
+    fn get_subscriber(&self) -> &dyn rust_dds_api::subscription::subscriber::Subscriber {
+        todo!()
+    }
 }
 
-impl<'a, 'b: 'a, PSM: rust_rtps_pim::PIM, T> Entity for DataReaderImpl<'a, 'b, PSM, T> {
-    type Qos = DataReaderQos<'a>;
-    type Listener = &'a (dyn DataReaderListener<DataType = T> + 'a);
+impl<
+        'datareader,
+        'subscriber: 'datareader,
+        'topic: 'datareader,
+        'participant: 'subscriber,
+        T: 'datareader,
+        PSM: rust_rtps_pim::PIM,
+    > Entity for DataReaderImpl<'datareader, 'subscriber, 'topic, 'participant, T, PSM>
+{
+    type Qos = DataReaderQos<'datareader>;
+    type Listener = &'datareader (dyn DataReaderListener<DataType = T> + 'datareader);
 
     fn set_qos(&self, _qos: Option<Self::Qos>) -> DDSResult<()> {
         todo!()
@@ -315,4 +340,13 @@ impl<'a, 'b: 'a, PSM: rust_rtps_pim::PIM, T> Entity for DataReaderImpl<'a, 'b, P
     }
 }
 
-impl<'a, 'b: 'a, PSM: rust_rtps_pim::PIM, T> AnyDataReader for DataReaderImpl<'a, 'b, PSM, T> {}
+impl<
+        'datareader,
+        'subscriber: 'datareader,
+        'topic: 'datareader,
+        'participant: 'subscriber,
+        T: 'datareader,
+        PSM: rust_rtps_pim::PIM,
+    > AnyDataReader for DataReaderImpl<'datareader, 'subscriber, 'topic, 'participant, T, PSM>
+{
+}

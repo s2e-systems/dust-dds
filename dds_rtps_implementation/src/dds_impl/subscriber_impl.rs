@@ -8,16 +8,13 @@ use rust_dds_api::{
         qos::{DataReaderQos, SubscriberQos, TopicQos},
     },
     return_type::DDSResult,
-    subscription::{
-        data_reader::AnyDataReader, subscriber::SubscriberParent,
-        subscriber_listener::SubscriberListener,
-    },
+    subscription::{data_reader::AnyDataReader, subscriber_listener::SubscriberListener},
 };
 
 use super::domain_participant_impl::DomainParticipantImpl;
 
-pub struct SubscriberImpl<'a, PSM: rust_rtps_pim::PIM> {
-    parent: &'a DomainParticipantImpl<'a, PSM>,
+pub struct SubscriberImpl<'subscriber, 'participant: 'subscriber, PSM: rust_rtps_pim::PIM> {
+    parent: &'subscriber DomainParticipantImpl<'participant, PSM>,
 }
 
 // impl<'b, PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types, T: 'static>
@@ -45,17 +42,9 @@ pub struct SubscriberImpl<'a, PSM: rust_rtps_pim::PIM> {
 //     }
 // }
 
-impl<'a, 'b: 'a, PSM: rust_rtps_pim::PIM> SubscriberParent<'a, 'b> for SubscriberImpl<'a, PSM> {
-    type DomainParticipantType = DomainParticipantImpl<'b, PSM>;
-
-    fn get_participant(&self) -> &Self::DomainParticipantType {
-        todo!()
-        // self.parent
-    }
-}
-
-impl<'a, PSM: rust_rtps_pim::PIM> rust_dds_api::subscription::subscriber::Subscriber<'a>
-    for SubscriberImpl<'a, PSM>
+impl<'subscriber, 'participant: 'subscriber, PSM: rust_rtps_pim::PIM>
+    rust_dds_api::subscription::subscriber::Subscriber<'subscriber, 'participant>
+    for SubscriberImpl<'subscriber, 'participant, PSM>
 {
     fn begin_access(&self) -> DDSResult<()> {
         todo!()
@@ -77,17 +66,20 @@ impl<'a, PSM: rust_rtps_pim::PIM> rust_dds_api::subscription::subscriber::Subscr
         todo!()
     }
 
-    fn set_default_datareader_qos(&self, _qos: Option<DataReaderQos<'a>>) -> DDSResult<()> {
+    fn set_default_datareader_qos(
+        &self,
+        _qos: Option<DataReaderQos<'subscriber>>,
+    ) -> DDSResult<()> {
         todo!()
     }
 
-    fn get_default_datareader_qos(&self) -> DDSResult<DataReaderQos<'a>> {
+    fn get_default_datareader_qos(&self) -> DDSResult<DataReaderQos<'subscriber>> {
         todo!()
     }
 
     fn copy_from_topic_qos(
         &self,
-        _a_datareader_qos: &mut DataReaderQos<'a>,
+        _a_datareader_qos: &mut DataReaderQos<'subscriber>,
         _a_topic_qos: &TopicQos,
     ) -> DDSResult<()> {
         todo!()
@@ -102,11 +94,19 @@ impl<'a, PSM: rust_rtps_pim::PIM> rust_dds_api::subscription::subscriber::Subscr
     ) -> DDSResult<()> {
         todo!()
     }
+
+    fn get_participant(&self) -> &dyn rust_dds_api::domain::domain_participant::DomainParticipant<'participant> {
+        self.parent
+    }
+
+
 }
 
-impl<'a, PSM: rust_rtps_pim::PIM> Entity for SubscriberImpl<'a, PSM> {
-    type Qos = SubscriberQos<'a>;
-    type Listener = &'a (dyn SubscriberListener + 'a);
+impl<'subscriber, 'participant: 'subscriber, PSM: rust_rtps_pim::PIM> Entity
+    for SubscriberImpl<'subscriber, 'participant, PSM>
+{
+    type Qos = SubscriberQos<'subscriber>;
+    type Listener = &'subscriber (dyn SubscriberListener + 'subscriber);
 
     fn set_qos(&self, _qos: Option<Self::Qos>) -> DDSResult<()> {
         todo!()

@@ -7,21 +7,20 @@ use rust_dds_api::{
         qos::TopicQos,
     },
     return_type::DDSResult,
-    topic::{
-        topic_description::{TopicDescription, TopicDescriptionParent},
-        topic_listener::TopicListener,
-    },
+    topic::{topic_description::TopicDescription, topic_listener::TopicListener},
 };
 
 use super::domain_participant_impl::DomainParticipantImpl;
 
-pub struct TopicImpl<'a, PSM: rust_rtps_pim::PIM, T> {
-    parent: &'a DomainParticipantImpl<'a, PSM>,
-    phantom: PhantomData<&'a T>,
+pub struct TopicImpl<'topic, 'participant: 'topic, T: 'topic, PSM: rust_rtps_pim::PIM> {
+    parent: &'topic DomainParticipantImpl<'participant, PSM>,
+    phantom: PhantomData<&'topic T>,
 }
 
-impl<'a, PSM: rust_rtps_pim::PIM, T> TopicImpl<'a, PSM, T> {
-    pub(crate) fn new(parent: &'a DomainParticipantImpl<'a, PSM>) -> Self {
+impl<'topic, 'participant: 'topic, T: 'topic, PSM: rust_rtps_pim::PIM>
+    TopicImpl<'topic, 'participant, T, PSM>
+{
+    pub(crate) fn new(parent: &'topic DomainParticipantImpl<'participant, PSM>) -> Self {
         Self {
             parent,
             phantom: PhantomData,
@@ -29,19 +28,9 @@ impl<'a, PSM: rust_rtps_pim::PIM, T> TopicImpl<'a, PSM, T> {
     }
 }
 
-impl<'a, 'b: 'a, PSM: rust_rtps_pim::PIM, T> TopicDescriptionParent<'a, 'b>
-    for TopicImpl<'a, PSM, T>
-{
-    type DomainParticipantType = DomainParticipantImpl<'b, PSM>;
-
-    fn get_participant(&self) -> &Self::DomainParticipantType {
-        todo!()
-        // self.parent
-    }
-}
-
-impl<'a, PSM: rust_rtps_pim::PIM, T> rust_dds_api::topic::topic::Topic<'a, T>
-    for TopicImpl<'a, PSM, T>
+impl<'topic, 'participant: 'topic, T: 'topic, PSM: rust_rtps_pim::PIM>
+    rust_dds_api::topic::topic::Topic<'topic, 'participant, T>
+    for TopicImpl<'topic, 'participant, T, PSM>
 {
     fn get_inconsistent_topic_status(
         &self,
@@ -51,7 +40,13 @@ impl<'a, PSM: rust_rtps_pim::PIM, T> rust_dds_api::topic::topic::Topic<'a, T>
     }
 }
 
-impl<'a, PSM: rust_rtps_pim::PIM, T> TopicDescription<'a, T> for TopicImpl<'a, PSM, T> {
+impl<'topic, 'participant: 'topic, T: 'topic, PSM: rust_rtps_pim::PIM>
+    TopicDescription<'topic, 'participant, T> for TopicImpl<'topic, 'participant, T, PSM>
+{
+    fn get_participant(&self) -> &dyn rust_dds_api::domain::domain_participant::DomainParticipant<'participant> {
+        self.parent
+    }
+
     fn get_type_name(&self) -> DDSResult<&'static str> {
         // Ok(self
         //     .impl_ref
@@ -63,7 +58,7 @@ impl<'a, PSM: rust_rtps_pim::PIM, T> TopicDescription<'a, T> for TopicImpl<'a, P
         todo!()
     }
 
-    fn get_name(&self) -> DDSResult<&'a str> {
+    fn get_name(&self) -> DDSResult<&'topic str> {
         // Ok(self
         //     .impl_ref
         //     .upgrade()
@@ -75,9 +70,11 @@ impl<'a, PSM: rust_rtps_pim::PIM, T> TopicDescription<'a, T> for TopicImpl<'a, P
     }
 }
 
-impl<'a, PSM: rust_rtps_pim::PIM, T> Entity for TopicImpl<'a, PSM, T> {
-    type Qos = TopicQos<'a>;
-    type Listener = &'a (dyn TopicListener<DataType = T> + 'a);
+impl<'topic, 'participant: 'topic, T: 'topic, PSM: rust_rtps_pim::PIM> Entity
+    for TopicImpl<'topic, 'participant, T, PSM>
+{
+    type Qos = TopicQos<'topic>;
+    type Listener = &'topic (dyn TopicListener<DataType = T> + 'topic);
 
     fn set_qos(&self, _qos: Option<Self::Qos>) -> DDSResult<()> {
         // self.impl_ref
