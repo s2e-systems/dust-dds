@@ -54,7 +54,6 @@ impl<'a, 'b: 'a, PSM: rust_rtps_pim::PIM + 'a>
     for DomainParticipantImpl<'b, PSM>
 {
     type SubscriberType = SubscriberImpl<'a, PSM>;
-    type BuiltinSubscriberType = SubscriberImpl<'a, PSM>;
 
     fn create_subscriber(
         &'a self,
@@ -193,6 +192,13 @@ impl<'a, 'b: 'a, PSM: rust_rtps_pim::PIM>
 impl<'a, PSM: rust_rtps_pim::PIM> rust_dds_api::domain::domain_participant::DomainParticipant<'a>
     for DomainParticipantImpl<'a, PSM>
 {
+    fn lookup_topicdescription<'topic, T>(
+        &'topic self,
+        _name: &'topic str,
+    ) -> Option<&'topic (dyn TopicDescription<T> + 'topic)> {
+        todo!()
+    }
+
     fn ignore_participant(&self, _handle: InstanceHandle) -> DDSResult<()> {
         todo!()
     }
