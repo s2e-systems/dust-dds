@@ -4,12 +4,17 @@ use rust_rtps_pim::structure::{types::GUID, RTPSEntity};
 
 use super::rtps_writer_group_impl::RTPSWriterGroupImpl;
 
+
+const ENTITYKIND_USER_DEFINED_WRITER_GROUP: u8 = 0x08;
+const ENTITYKIND_USER_DEFINED_READER_GROUP: u8 = 0x09;
+
 pub struct RTPSParticipantImpl<PSM: rust_rtps_pim::structure::Types> {
     unicast_locator_list: Vec<rust_rtps_pim::structure::types::Locator<PSM>>,
     multicast_locator_list: Vec<rust_rtps_pim::structure::types::Locator<PSM>>,
-    pub rtps_writer_groups: Vec<Arc<Mutex<RTPSWriterGroupImpl<PSM>>>>,
-    pub builtin_writer_group: Arc<Mutex<RTPSWriterGroupImpl<PSM>>>,
+    rtps_writer_groups: Vec<Arc<Mutex<RTPSWriterGroupImpl<PSM>>>>,
+    builtin_writer_group: Arc<Mutex<RTPSWriterGroupImpl<PSM>>>,
     guid: GUID<PSM>,
+    publisher_counter: u8,
 }
 
 impl<PSM: rust_rtps_pim::structure::Types> RTPSParticipantImpl<PSM> {
@@ -26,7 +31,25 @@ impl<PSM: rust_rtps_pim::structure::Types> RTPSParticipantImpl<PSM> {
             rtps_writer_groups: Vec::new(),
             builtin_writer_group,
             guid,
+            publisher_counter: 0,
         }
+    }
+
+    pub fn create_writer_group(&mut self) -> Arc<Mutex<RTPSWriterGroupImpl<PSM>>> {
+        let guid_prefix = self.guid.prefix().clone();
+
+        self.publisher_counter += 1;
+        let entity_id = [
+            self.publisher_counter,
+            0,
+            0,
+            ENTITYKIND_USER_DEFINED_WRITER_GROUP,
+        ]
+        .into();
+        let guid = GUID::new(guid_prefix, entity_id);
+        let group = Arc::new(Mutex::new(RTPSWriterGroupImpl::new(guid)));
+        self.rtps_writer_groups.push(group.clone());
+        group
     }
 }
 

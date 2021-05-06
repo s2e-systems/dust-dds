@@ -1,40 +1,27 @@
-use std::sync::{Arc, Mutex};
+use std::sync::Mutex;
 
 use rust_dds_api::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
     dcps_psm::{DomainId, Duration, InstanceHandle, StatusMask, Time},
-    domain::{
-        domain_participant::DomainParticipant,
-        domain_participant_listener::DomainParticipantListener,
-    },
+    domain::domain_participant_listener::DomainParticipantListener,
     infrastructure::{
         entity::{Entity, StatusCondition},
         qos::{DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
     },
-    publication::{publisher::Publisher, publisher_listener::PublisherListener},
-    return_type::{DDSError, DDSResult},
+    return_type::DDSResult,
     subscription::subscriber_listener::SubscriberListener,
     topic::{topic_description::TopicDescription, topic_listener::TopicListener},
 };
-use rust_rtps_pim::structure::{types::GUID, RTPSEntity};
 
-use crate::rtps_impl::{
-    rtps_participant_impl::RTPSParticipantImpl, rtps_writer_group_impl::RTPSWriterGroupImpl,
-};
+use crate::rtps_impl::rtps_participant_impl::RTPSParticipantImpl;
 
-use super::{
-    publisher_impl::PublisherImpl, subscriber_impl::SubscriberImpl, topic_impl::TopicImpl,
-};
-
-const ENTITYKIND_USER_DEFINED_WRITER_GROUP: u8 = 0x08;
-const ENTITYKIND_USER_DEFINED_READER_GROUP: u8 = 0x09;
+use super::{subscriber_impl::SubscriberImpl, topic_impl::TopicImpl};
 
 pub struct DomainParticipantImpl<'dp, PSM: rust_rtps_pim::PIM> {
-    rtps_participant_impl: Mutex<RTPSParticipantImpl<PSM>>,
+    pub(crate) rtps_participant_impl: Mutex<RTPSParticipantImpl<PSM>>,
     default_publisher_qos: Mutex<PublisherQos<'dp>>,
     default_subscriber_qos: Mutex<SubscriberQos<'dp>>,
     default_topic_qos: Mutex<TopicQos<'dp>>,
-    publisher_counter: Mutex<u8>,
 }
 
 impl<'dp, PSM: rust_rtps_pim::PIM> DomainParticipantImpl<'dp, PSM> {
@@ -44,7 +31,6 @@ impl<'dp, PSM: rust_rtps_pim::PIM> DomainParticipantImpl<'dp, PSM> {
             default_publisher_qos: Mutex::new(PublisherQos::default()),
             default_subscriber_qos: Mutex::new(SubscriberQos::default()),
             default_topic_qos: Mutex::new(TopicQos::default()),
-            publisher_counter: Mutex::new(0),
         }
     }
 }
@@ -132,60 +118,6 @@ impl<'t, 'dp: 't, T: 't, PSM: rust_rtps_pim::PIM>
 
     fn lookup_topicdescription(&self, _name: &str) -> Option<&'t (dyn TopicDescription<T> + 't)> {
         todo!()
-    }
-}
-
-impl<'p, 'dp: 'p, PSM: rust_rtps_pim::PIM>
-    rust_dds_api::domain::domain_participant::PublisherFactory<'p, 'dp>
-    for DomainParticipantImpl<'dp, PSM>
-{
-    type PublisherType = PublisherImpl<'p, 'dp, PSM>;
-    fn create_publisher(
-        &'p self,
-        qos: Option<PublisherQos<'p>>,
-        _a_listener: Option<&'p (dyn PublisherListener + 'p)>,
-        _mask: StatusMask,
-    ) -> Option<Self::PublisherType> {
-        let _publisher_qos = qos.unwrap_or(self.get_default_publisher_qos());
-        let guid_prefix = self
-            .rtps_participant_impl
-            .lock()
-            .unwrap()
-            .guid()
-            .prefix()
-            .clone();
-        let mut publisher_counter_lock = self.publisher_counter.lock().unwrap();
-        *publisher_counter_lock += 1;
-        let entity_id = [
-            *publisher_counter_lock,
-            0,
-            0,
-            ENTITYKIND_USER_DEFINED_WRITER_GROUP,
-        ]
-        .into();
-        let guid = GUID::new(guid_prefix, entity_id);
-        let group = Arc::new(Mutex::new(RTPSWriterGroupImpl::new(guid)));
-        let publisher = PublisherImpl::new(&self, Arc::downgrade(&group));
-        self.rtps_participant_impl
-            .lock()
-            .unwrap()
-            .rtps_writer_groups
-            .push(group);
-        Some(publisher)
-    }
-
-    fn delete_publisher(&self, a_publisher: &Self::PublisherType) -> DDSResult<()> {
-        if std::ptr::eq(a_publisher.get_participant(), self) {
-            Ok(())
-        //     // self.0
-        //     //     .lock()
-        //     //     .unwrap()
-        //     //     .delete_publisher(&a_publisher.impl_ref)
-        } else {
-            Err(DDSError::PreconditionNotMet(
-                "Publisher can only be deleted from its parent participant",
-            ))
-        }
     }
 }
 
