@@ -46,7 +46,7 @@ impl<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p, T: 't, PSM: rust_rtps_pim::PIM>
     }
 }
 
-impl<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p, T: 't, PSM: rust_rtps_pim::PIM>
+impl<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p, T: 'dp, PSM: rust_rtps_pim::PIM>
     rust_dds_api::publication::data_writer::DataWriter<'dw, 'p, 't, 'dp, T>
     for DataWriterImpl<'dw, 'p, 't, 'dp, T, PSM>
 {
@@ -162,10 +162,6 @@ impl<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p, T: 't, PSM: rust_rtps_pim::PIM>
         todo!()
     }
 
-    fn get_topic(&self) -> &dyn rust_dds_api::topic::topic::Topic<T> {
-        todo!()
-    }
-
     fn get_matched_subscriptions(
         &self,
         _subscription_handles: &mut [InstanceHandle],
@@ -174,11 +170,11 @@ impl<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p, T: 't, PSM: rust_rtps_pim::PIM>
     }
 }
 
-impl<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p, T: 't, PSM: rust_rtps_pim::PIM>
+impl<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p, T: 'dp, PSM: rust_rtps_pim::PIM>
     rust_dds_api::infrastructure::entity::Entity for DataWriterImpl<'dw, 'p, 't, 'dp, T, PSM>
 {
-    type Qos = DataWriterQos<'dw>;
-    type Listener = &'dw (dyn DataWriterListener<DataType = T> + 'dw);
+    type Qos = DataWriterQos<'dp>;
+    type Listener = &'dp (dyn DataWriterListener<DataType = T> + 'dp);
 
     fn set_qos(&self, _qos: Option<Self::Qos>) -> DDSResult<()> {
         todo!()

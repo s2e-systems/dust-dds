@@ -27,7 +27,7 @@ pub trait SubscriberFactory<'s, 'dp: 's>: DomainParticipant<'dp> {
 
     fn get_builtin_subscriber(&'s self) -> Self::SubscriberType;
 }
-pub trait TopicFactory<'t, 'dp: 't, T: 't>: DomainParticipant<'dp> {
+pub trait TopicFactory<'t, 'dp: 't, T: 'dp>: DomainParticipant<'dp> {
     type TopicType: Topic<'t, 'dp, T>;
 
     fn create_topic(
@@ -102,8 +102,8 @@ pub trait DomainParticipant<'dp>:
     /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
     fn create_subscriber<'s>(
         &'s self,
-        qos: Option<SubscriberQos<'s>>,
-        a_listener: Option<&'s (dyn SubscriberListener + 's)>,
+        qos: Option<SubscriberQos<'dp>>,
+        a_listener: Option<&'dp (dyn SubscriberListener + 'dp)>,
         mask: StatusMask,
     ) -> Option<Self::SubscriberType>
     where
@@ -136,11 +136,11 @@ pub trait DomainParticipant<'dp>:
     /// registered with the Service. This is done using the register_type operation on a derived class of the TypeSupport interface as
     /// described in 2.2.2.3.6, TypeSupport Interface.
     /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
-    fn create_topic<'t, T>(
+    fn create_topic<'t, T: 'dp>(
         &'t self,
         topic_name: &str,
-        qos: Option<TopicQos<'t>>,
-        a_listener: Option<&'t (dyn TopicListener<DataType = T> + 't)>,
+        qos: Option<TopicQos<'dp>>,
+        a_listener: Option<&'dp (dyn TopicListener<DataType = T> + 'dp)>,
         mask: StatusMask,
     ) -> Option<Self::TopicType>
     where
@@ -156,7 +156,7 @@ pub trait DomainParticipant<'dp>:
     /// The delete_topic operation must be called on the same DomainParticipant object used to create the Topic. If delete_topic is
     /// called on a different DomainParticipant, the operation will have no effect and it will return PRECONDITION_NOT_MET.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
-    fn delete_topic<'t, T>(&self, a_topic: &Self::TopicType) -> DDSResult<()>
+    fn delete_topic<'t, T: 'dp>(&self, a_topic: &Self::TopicType) -> DDSResult<()>
     where
         Self: TopicFactory<'t, 'dp, T> + Sized,
     {
@@ -174,7 +174,7 @@ pub trait DomainParticipant<'dp>:
     /// of times using delete_topic.
     /// Regardless of whether the middleware chooses to propagate topics, the delete_topic operation deletes only the local proxy.
     /// If the operation times-out, a ‘nil’ value (as specified by the platform) is returned.
-    fn find_topic<'t, T>(
+    fn find_topic<'t, T: 'dp>(
         &'t self,
         topic_name: &'t str,
         timeout: Duration,

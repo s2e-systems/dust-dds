@@ -14,12 +14,17 @@ use super::{data_writer_listener::DataWriterListener, publisher::Publisher};
 pub trait DataWriterParent<'p, 'dp: 'p> {
     type PublisherType: Publisher<'p, 'dp>;
 
-    /// This operation returns the Publisher to which the data writer object belongs.
     fn get_publisher(&self) -> &Self::PublisherType;
 }
 
-pub trait DataWriter<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p, T: 't>:
-    Entity<Qos = DataWriterQos<'dw>, Listener = &'dw (dyn DataWriterListener<DataType = T> + 'dw)>
+pub trait DataWriterTopic<'t, 'dp: 't, T: 'dp> {
+    type TopicType: Topic<'t, 'dp, T>;
+
+    fn get_topic(&self) -> &Self::TopicType;
+}
+
+pub trait DataWriter<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p, T: 'dp>:
+    Entity<Qos = DataWriterQos<'dp>, Listener = &'dp (dyn DataWriterListener<DataType = T> + 'dp)>
 {
     /// This operation informs the Service that the application will be modifying a particular instance. It gives an opportunity to the
     /// Service to pre-configure itself to improve performance.
@@ -236,8 +241,14 @@ pub trait DataWriter<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p, T: 't>:
     ) -> DDSResult<()>;
 
     /// This operation returns the Topic associated with the DataWriter. This is the same Topic that was used to create the DataWriter.
-    fn get_topic(&self) -> &dyn Topic<T>;
+    fn get_topic(&'dw self) -> &'dw Self::TopicType
+    where
+        Self: DataWriterTopic<'t, 'dp, T> + Sized,
+    {
+        <Self as DataWriterTopic<T>>::get_topic(self)
+    }
 
+    /// This operation returns the Publisher to which the data writer object belongs.
     fn get_publisher(&'dw self) -> &'dw Self::PublisherType
     where
         Self: DataWriterParent<'p, 'dp> + Sized,

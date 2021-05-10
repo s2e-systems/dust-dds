@@ -15,7 +15,7 @@ use super::{
     publisher_listener::PublisherListener,
 };
 
-pub trait DataWriterFactory<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p + 't, T: 't>:
+pub trait DataWriterFactory<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p + 't, T: 'dp>:
     Publisher<'p, 'dp>
 {
     type TopicType: Topic<'t, 'dp, T>;
@@ -24,8 +24,8 @@ pub trait DataWriterFactory<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p + 't, T: 't>:
     fn create_datawriter(
         &'dw self,
         a_topic: &'dw Self::TopicType,
-        qos: Option<DataWriterQos<'dw>>,
-        a_listener: Option<&'dw (dyn DataWriterListener<DataType = T> + 'dw)>,
+        qos: Option<DataWriterQos<'dp>>,
+        a_listener: Option<&'dp (dyn DataWriterListener<DataType = T> + 'dp)>,
         mask: StatusMask,
     ) -> Option<Self::DataWriterType>;
 
@@ -73,8 +73,8 @@ pub trait Publisher<'p, 'dp: 'p>:
     fn create_datawriter<'dw, 't, T>(
         &'dw self,
         a_topic: &'dw Self::TopicType,
-        qos: Option<DataWriterQos<'dw>>,
-        a_listener: Option<&'dw (dyn DataWriterListener<DataType = T> + 'dw)>,
+        qos: Option<DataWriterQos<'dp>>,
+        a_listener: Option<&'dp (dyn DataWriterListener<DataType = T> + 'dp)>,
         mask: StatusMask,
     ) -> Option<Self::DataWriterType>
     where
@@ -162,7 +162,7 @@ pub trait Publisher<'p, 'dp: 'p>:
     fn wait_for_acknowledgments(&self, max_wait: Duration) -> DDSResult<()>;
 
     /// This operation returns the DomainParticipant to which the Publisher belongs.
-    fn get_participant(&'p self) -> &Self::DomainParticipantType
+    fn get_participant(&'p self) -> &'p Self::DomainParticipantType
     where
         Self: PublisherParent<'dp> + Sized,
     {
@@ -202,7 +202,7 @@ pub trait Publisher<'p, 'dp: 'p>:
     /// may not be the final one, as the application can still modify some policies prior to applying the policies to the DataWriter.
     fn copy_from_topic_qos(
         &self,
-        _a_datawriter_qos: &mut DataWriterQos<'p>,
-        _a_topic_qos: &TopicQos,
+        _a_datawriter_qos: &mut DataWriterQos<'dp>,
+        _a_topic_qos: &TopicQos<'dp>,
     ) -> DDSResult<()>;
 }

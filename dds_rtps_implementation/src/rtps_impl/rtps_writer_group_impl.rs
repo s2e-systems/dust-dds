@@ -181,18 +181,18 @@ impl<'p, 'dp: 'p, PSM: rust_rtps_pim::PIM> rust_dds_api::publication::publisher:
 
     fn copy_from_topic_qos(
         &self,
-        _a_datawriter_qos: &mut DataWriterQos<'p>,
+        _a_datawriter_qos: &mut DataWriterQos<'dp>,
         _a_topic_qos: &rust_dds_api::infrastructure::qos::TopicQos,
     ) -> DDSResult<()> {
         todo!()
     }
 }
 
-impl<'dp, PSM: rust_rtps_pim::PIM> rust_dds_api::infrastructure::entity::Entity
-    for RTPSWriterGroupImpl<'dp, PSM>
+impl<'a, PSM: rust_rtps_pim::PIM> rust_dds_api::infrastructure::entity::Entity
+    for RTPSWriterGroupImpl<'a, PSM>
 {
-    type Qos = PublisherQos<'dp>;
-    type Listener = &'dp (dyn PublisherListener + 'dp);
+    type Qos = PublisherQos<'a>;
+    type Listener = &'a (dyn PublisherListener + 'a);
 
     fn set_qos(&self, qos: Option<Self::Qos>) -> DDSResult<()> {
         todo!()
@@ -227,7 +227,7 @@ impl<'dp, PSM: rust_rtps_pim::PIM> rust_dds_api::infrastructure::entity::Entity
     }
 }
 
-impl<'a, PSM: rust_rtps_pim::PIM> rust_rtps_pim::structure::RTPSEntity<PSM>
+impl<'a, 'b:'a, PSM: rust_rtps_pim::PIM> rust_rtps_pim::structure::RTPSEntity<PSM>
     for RTPSWriterGroupImpl<'a, PSM>
 {
     fn guid(&self) -> GUID<PSM> {

@@ -15,7 +15,7 @@ use super::{
     subscriber_listener::SubscriberListener,
 };
 
-pub trait DataReaderFactory<'dr, 's: 'dr, 't: 'dr, 'dp: 's + 't, T: 't>:
+pub trait DataReaderFactory<'dr, 's: 'dr, 't: 'dr, 'dp: 's + 't, T: 'dp>:
     Subscriber<'s, 'dp>
 {
     type TopicType: Topic<'t, 'dp, T>;
@@ -24,8 +24,8 @@ pub trait DataReaderFactory<'dr, 's: 'dr, 't: 'dr, 'dp: 's + 't, T: 't>:
     fn create_datareader(
         &'dr self,
         a_topic: &'dr Self::TopicType,
-        qos: Option<DataReaderQos<'dr>>,
-        a_listener: Option<&'dr (dyn DataReaderListener<DataType = T> + 'dr)>,
+        qos: Option<DataReaderQos<'dp>>,
+        a_listener: Option<&'dp (dyn DataReaderListener<DataType = T> + 'dp)>,
         mask: StatusMask,
     ) -> Option<Self::DataReaderType>;
 
@@ -43,7 +43,7 @@ pub trait DataReaderFactory<'dr, 's: 'dr, 't: 'dr, 'dp: 's + 't, T: 't>:
 /// All operations except for the base-class operations set_qos, get_qos, set_listener, get_listener, enable, get_statuscondition,
 /// and create_datareader may return the value NOT_ENABLED.
 pub trait Subscriber<'s, 'dp: 's>:
-    Entity<Qos = SubscriberQos<'s>, Listener = &'s (dyn SubscriberListener + 's)>
+    Entity<Qos = SubscriberQos<'dp>, Listener = &'dp (dyn SubscriberListener + 'dp)>
 {
     /// This operation creates a DataReader. The returned DataReader will be attached and belong to the Subscriber.
     ///
@@ -75,8 +75,8 @@ pub trait Subscriber<'s, 'dp: 's>:
     fn create_datareader<'dr, 't, T>(
         &'dr self,
         a_topic: &'dr Self::TopicType,
-        qos: Option<DataReaderQos<'dr>>,
-        a_listener: Option<&'dr (dyn DataReaderListener<DataType = T> + 'dr)>,
+        qos: Option<DataReaderQos<'dp>>,
+        a_listener: Option<&'dp (dyn DataReaderListener<DataType = T> + 'dp)>,
         mask: StatusMask,
     ) -> Option<Self::DataReaderType>
     where
@@ -200,14 +200,14 @@ pub trait Subscriber<'s, 'dp: 's>:
     /// The special value DATAREADER_QOS_DEFAULT may be passed to this operation to indicate that the default QoS should
     /// be reset back to the initial values the factory would use, that is the values that would be used if the
     /// set_default_datareader_qos operation had never been called.
-    fn set_default_datareader_qos(&self, qos: Option<DataReaderQos<'s>>) -> DDSResult<()>;
+    fn set_default_datareader_qos(&self, qos: Option<DataReaderQos<'dp>>) -> DDSResult<()>;
 
     /// This operation retrieves the default value of the DataReader QoS, that is, the QoS policies which will be used for newly
     /// created DataReader entities in the case where the QoS policies are defaulted in the create_datareader operation.
     /// The values retrieved get_default_datareader_qos will match the set of values specified on the last successful call to
     /// get_default_datareader_qos, or else, if the call was never made, the default values listed in the QoS table in 2.2.3,
     /// Supported QoS.
-    fn get_default_datareader_qos(&self) -> DDSResult<DataReaderQos<'s>>;
+    fn get_default_datareader_qos(&self) -> DDSResult<DataReaderQos<'dp>>;
 
     /// This operation copies the policies in the a_topic_qos to the corresponding policies in the a_datareader_qos (replacing values
     /// in the a_datareader_qos, if present).
@@ -218,7 +218,7 @@ pub trait Subscriber<'s, 'dp: 's>:
     /// may not be the final one, as the application can still modify some policies prior to applying the policies to the DataReader.
     fn copy_from_topic_qos(
         &self,
-        a_datareader_qos: &mut DataReaderQos<'s>,
+        a_datareader_qos: &mut DataReaderQos<'dp>,
         a_topic_qos: &TopicQos,
     ) -> DDSResult<()>;
 }

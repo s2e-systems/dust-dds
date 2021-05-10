@@ -1,9 +1,9 @@
 use rust_dds_api::{
-    dcps_psm::InstanceHandle,
+    dcps_psm::{InstanceHandle},
     infrastructure::qos::{SubscriberQos, TopicQos},
     return_type::DDSResult,
 };
-use rust_rtps_pim::structure::RTPSEntity;
+use rust_rtps_pim::structure::{RTPSEntity};
 
 use crate::utils::shared_object::RtpsShared;
 

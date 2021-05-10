@@ -51,7 +51,7 @@ impl<'p, 'dp: 'p, PSM: rust_rtps_pim::PIM> PublisherParent<'dp> for PublisherImp
     }
 }
 
-impl<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p + 't, T: 't, PSM: rust_rtps_pim::PIM>
+impl<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p + 't, T: 'dp, PSM: rust_rtps_pim::PIM>
     DataWriterFactory<'dw, 'p, 't, 'dp, T> for PublisherImpl<'p, 'dp, PSM>
 {
     type TopicType = TopicImpl<'t, 'dp, T, PSM>;
@@ -132,7 +132,7 @@ impl<'p, 'dp: 'p, PSM: rust_rtps_pim::PIM> rust_dds_api::publication::publisher:
 
     fn copy_from_topic_qos(
         &self,
-        _a_datawriter_qos: &mut DataWriterQos<'p>,
+        _a_datawriter_qos: &mut DataWriterQos<'dp>,
         _a_topic_qos: &TopicQos,
     ) -> DDSResult<()> {
         todo!()

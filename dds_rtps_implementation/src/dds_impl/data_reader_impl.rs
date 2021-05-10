@@ -25,7 +25,7 @@ pub struct DataReaderImpl<'dr, 's: 'dr, 't: 'dr, 'dp: 's, T: 'dr, PSM: rust_rtps
     topic: &'dr TopicImpl<'t, 'dp, T, PSM>,
 }
 
-impl<'dr, 's: 'dr, 't: 'dr, 'dp: 's, T: 'dr, PSM: rust_rtps_pim::PIM>
+impl<'dr, 's: 'dr, 't: 'dr, 'dp: 's, T: 'dp, PSM: rust_rtps_pim::PIM>
     rust_dds_api::subscription::data_reader::DataReader<'dr, 's, 't, 'dp, T>
     for DataReaderImpl<'dr, 's, 't, 'dp, T, PSM>
 {
@@ -274,11 +274,11 @@ impl<'dr, 's: 'dr, 't: 'dr, 'dp: 's, T: 'dr, PSM: rust_rtps_pim::PIM>
     }
 }
 
-impl<'dr, 's: 'dr, 't: 'dr, 'dp: 's, T: 'dr, PSM: rust_rtps_pim::PIM> Entity
+impl<'dr, 's: 'dr, 't: 'dr, 'dp: 's, T: 'dp, PSM: rust_rtps_pim::PIM> Entity
     for DataReaderImpl<'dr, 's, 't, 'dp, T, PSM>
 {
-    type Qos = DataReaderQos<'dr>;
-    type Listener = &'dr (dyn DataReaderListener<DataType = T> + 'dr);
+    type Qos = DataReaderQos<'dp>;
+    type Listener = &'dp (dyn DataReaderListener<DataType = T> + 'dp);
 
     fn set_qos(&self, _qos: Option<Self::Qos>) -> DDSResult<()> {
         todo!()

@@ -81,8 +81,7 @@ impl<'s, 'dp: 's, PSM: rust_rtps_pim::PIM>
     }
 }
 
-
-impl<'dr, 's: 'dr, 't: 'dr, 'dp: 's + 't, T: 't, PSM: rust_rtps_pim::PIM>
+impl<'dr, 's: 'dr, 't: 'dr, 'dp: 's + 't, T: 'dp, PSM: rust_rtps_pim::PIM>
     rust_dds_api::subscription::subscriber::DataReaderFactory<'dr, 's, 't, 'dp, T>
     for SubscriberImpl<'s, 'dp, PSM>
 {
@@ -138,13 +137,13 @@ impl<'s, 'dp: 's, PSM: rust_rtps_pim::PIM>
         todo!()
     }
 
-    fn get_default_datareader_qos(&self) -> DDSResult<DataReaderQos<'s>> {
+    fn get_default_datareader_qos(&self) -> DDSResult<DataReaderQos<'dp>> {
         todo!()
     }
 
     fn copy_from_topic_qos(
         &self,
-        _a_datareader_qos: &mut DataReaderQos<'s>,
+        _a_datareader_qos: &mut DataReaderQos<'dp>,
         _a_topic_qos: &TopicQos,
     ) -> DDSResult<()> {
         todo!()
@@ -168,8 +167,8 @@ impl<'s, 'dp: 's, PSM: rust_rtps_pim::PIM>
 }
 
 impl<'s, 'dp: 's, PSM: rust_rtps_pim::PIM> Entity for SubscriberImpl<'s, 'dp, PSM> {
-    type Qos = SubscriberQos<'s>;
-    type Listener = &'s (dyn SubscriberListener + 's);
+    type Qos = SubscriberQos<'dp>;
+    type Listener = &'dp (dyn SubscriberListener + 'dp);
 
     fn set_qos(&self, _qos: Option<Self::Qos>) -> DDSResult<()> {
         todo!()

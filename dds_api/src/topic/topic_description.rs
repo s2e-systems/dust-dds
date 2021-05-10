@@ -10,8 +10,8 @@ use super::topic_listener::TopicListener;
 /// type_name defines a unique resulting type for the publication or the subscription and therefore creates an implicit association
 /// with a TypeSupport. TopicDescription has also a name that allows it to be retrieved locally.
 /// This class is an abstract class. It is the base class for Topic, ContentFilteredTopic, and MultiTopic.
-pub trait TopicDescription<'t, 'dp: 't, T: 't>:
-    Entity<Qos = TopicQos<'t>, Listener = &'t (dyn TopicListener<DataType = T> + 't)>
+pub trait TopicDescription<'t, 'dp: 't, T: 'dp>:
+    Entity<Qos = TopicQos<'dp>, Listener = &'dp (dyn TopicListener<DataType = T> + 'dp)>
 {
     /// This operation returns the DomainParticipant to which the Topic Description belongs.
     fn get_participant(&self) -> &dyn DomainParticipant<'dp>;
