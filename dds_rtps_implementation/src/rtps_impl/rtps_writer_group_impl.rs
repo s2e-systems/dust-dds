@@ -1,25 +1,28 @@
 use std::sync::{Arc, Mutex};
 
 use rust_dds_api::{
-    dcps_psm::StatusMask,
+    dcps_psm::{InstanceHandle, StatusMask},
     infrastructure::qos::{DataWriterQos, PublisherQos},
     publication::publisher_listener::PublisherListener,
+    return_type::DDSResult,
 };
 use rust_rtps_pim::structure::types::GUID;
 
+use crate::dds_impl::writer_factory::WriterFactory;
+
 use super::rtps_writer_impl::RTPSWriterImpl;
 
-pub struct RTPSWriterGroupImpl<'a, PSM: rust_rtps_pim::structure::Types> {
+pub struct RTPSWriterGroupImpl<'a, PSM: rust_rtps_pim::PIM> {
     guid: GUID<PSM>,
     qos: PublisherQos<'a>,
     listener: Option<&'a (dyn PublisherListener + 'a)>,
     status_mask: StatusMask,
     writer_list: Vec<Arc<Mutex<RTPSWriterImpl<PSM>>>>,
-    default_datawriter_qos: DataWriterQos<'a>,
-    datawriter_counter: u8,
+    writer_factory: WriterFactory<'a, PSM>,
+    default_datawriter_qos: Mutex<DataWriterQos<'a>>,
 }
 
-impl<'a, PSM: rust_rtps_pim::structure::Types> RTPSWriterGroupImpl<'a, PSM> {
+impl<'a, PSM: rust_rtps_pim::PIM> RTPSWriterGroupImpl<'a, PSM> {
     pub fn new(
         guid: GUID<PSM>,
         qos: PublisherQos<'a>,
@@ -32,10 +35,18 @@ impl<'a, PSM: rust_rtps_pim::structure::Types> RTPSWriterGroupImpl<'a, PSM> {
             listener,
             status_mask,
             writer_list: Vec::new(),
-            default_datawriter_qos: DataWriterQos::default(),
-            datawriter_counter: 0,
+            writer_factory: WriterFactory::new(*guid.prefix()),
+            default_datawriter_qos: Mutex::new(DataWriterQos::default()),
         }
     }
+
+    pub fn delete_datawriter(&self, handle: &InstanceHandle) -> DDSResult<()> {
+        Ok(())
+    }
+
+    // pub fn create_datawriter(&self) -> RtpsWeak<RTPSWriterImpl<PSM>>{
+    //     todo!()
+    // }
 
     //     pub fn produce_messages(
     //         &self,
@@ -127,7 +138,96 @@ impl<'a, PSM: rust_rtps_pim::structure::Types> RTPSWriterGroupImpl<'a, PSM> {
     //     }
 }
 
-impl<'a, PSM: rust_rtps_pim::structure::Types> rust_rtps_pim::structure::RTPSEntity<PSM>
+impl<'p, 'dp: 'p, PSM: rust_rtps_pim::PIM> rust_dds_api::publication::publisher::Publisher<'p, 'dp>
+    for RTPSWriterGroupImpl<'dp, PSM>
+{
+    fn suspend_publications(&self) -> DDSResult<()> {
+        todo!()
+    }
+
+    fn resume_publications(&self) -> DDSResult<()> {
+        todo!()
+    }
+
+    fn begin_coherent_changes(&self) -> DDSResult<()> {
+        todo!()
+    }
+
+    fn end_coherent_changes(&self) -> DDSResult<()> {
+        todo!()
+    }
+
+    fn wait_for_acknowledgments(
+        &self,
+        max_wait: rust_dds_api::dcps_psm::Duration,
+    ) -> DDSResult<()> {
+        todo!()
+    }
+
+    fn delete_contained_entities(&self) -> DDSResult<()> {
+        todo!()
+    }
+
+    fn set_default_datawriter_qos(&self, qos: Option<DataWriterQos<'dp>>) -> DDSResult<()> {
+        let datawriter_qos = qos.unwrap_or_default();
+        datawriter_qos.is_consistent()?;
+        *self.default_datawriter_qos.lock().unwrap() = datawriter_qos;
+        Ok(())
+    }
+
+    fn get_default_datawriter_qos(&self) -> DataWriterQos<'dp> {
+        todo!()
+    }
+
+    fn copy_from_topic_qos(
+        &self,
+        _a_datawriter_qos: &mut DataWriterQos<'p>,
+        _a_topic_qos: &rust_dds_api::infrastructure::qos::TopicQos,
+    ) -> DDSResult<()> {
+        todo!()
+    }
+}
+
+impl<'dp, PSM: rust_rtps_pim::PIM> rust_dds_api::infrastructure::entity::Entity
+    for RTPSWriterGroupImpl<'dp, PSM>
+{
+    type Qos = PublisherQos<'dp>;
+    type Listener = &'dp (dyn PublisherListener + 'dp);
+
+    fn set_qos(&self, qos: Option<Self::Qos>) -> DDSResult<()> {
+        todo!()
+    }
+
+    fn get_qos(&self) -> DDSResult<Self::Qos> {
+        todo!()
+    }
+
+    fn set_listener(&self, a_listener: Option<Self::Listener>, mask: StatusMask) -> DDSResult<()> {
+        todo!()
+    }
+
+    fn get_listener(&self) -> DDSResult<Option<Self::Listener>> {
+        todo!()
+    }
+
+    fn get_statuscondition(&self) -> rust_dds_api::infrastructure::entity::StatusCondition {
+        todo!()
+    }
+
+    fn get_status_changes(&self) -> StatusMask {
+        todo!()
+    }
+
+    fn enable(&self) -> DDSResult<()> {
+        todo!()
+    }
+
+    fn get_instance_handle(&self) -> DDSResult<rust_dds_api::dcps_psm::InstanceHandle> {
+        todo!()
+    }
+}
+
+impl<'a, PSM: rust_rtps_pim::PIM> rust_rtps_pim::structure::RTPSEntity<PSM>
     for RTPSWriterGroupImpl<'a, PSM>
 {
     fn guid(&self) -> GUID<PSM> {

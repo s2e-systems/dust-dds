@@ -1,10 +1,12 @@
-use std::sync::{Arc, Mutex, Weak};
+use std::{ops::Deref, sync::{Arc, Weak}};
 
-pub struct RtpsShared<T>(Arc<Mutex<T>>);
+use rust_dds_api::return_type::{DDSError, DDSResult};
+
+pub struct RtpsShared<T>(Arc<T>);
 
 impl<T> RtpsShared<T> {
     pub fn new(value: T) -> Self {
-        Self(Arc::new(Mutex::new(value)))
+        Self(Arc::new(value))
     }
 
     pub fn downgrade(&self) -> RtpsWeak<T> {
@@ -18,4 +20,20 @@ impl<T> Clone for RtpsShared<T> {
     }
 }
 
-pub struct RtpsWeak<T>(Weak<Mutex<T>>);
+impl<T> Deref for RtpsShared<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+pub struct RtpsWeak<T>(Weak<T>);
+
+impl<T> RtpsWeak<T> {
+    pub fn upgrade(&self) -> DDSResult<RtpsShared<T>> {
+        Ok(RtpsShared(
+            self.0.upgrade().ok_or(DDSError::AlreadyDeleted)?,
+        ))
+    }
+}

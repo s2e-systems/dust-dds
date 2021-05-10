@@ -11,6 +11,13 @@ use crate::{
 
 use super::{data_writer_listener::DataWriterListener, publisher::Publisher};
 
+pub trait DataWriterParent<'p, 'dp: 'p> {
+    type PublisherType: Publisher<'p, 'dp>;
+
+    /// This operation returns the Publisher to which the data writer object belongs.
+    fn get_publisher(&self) -> &Self::PublisherType;
+}
+
 pub trait DataWriter<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p, T: 't>:
     Entity<Qos = DataWriterQos<'dw>, Listener = &'dw (dyn DataWriterListener<DataType = T> + 'dw)>
 {
@@ -231,8 +238,12 @@ pub trait DataWriter<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p, T: 't>:
     /// This operation returns the Topic associated with the DataWriter. This is the same Topic that was used to create the DataWriter.
     fn get_topic(&self) -> &dyn Topic<T>;
 
-    /// This operation returns the Publisher to which the data writer object belongs.
-    fn get_publisher(&self) -> &dyn Publisher;
+    fn get_publisher(&'dw self) -> &'dw Self::PublisherType
+    where
+        Self: DataWriterParent<'p, 'dp> + Sized,
+    {
+        <Self as DataWriterParent>::get_publisher(self)
+    }
 
     /// This operation manually asserts the liveliness of the DataWriter. This is used in combination with the LIVELINESS QoS
     /// policy (see 2.2.3, Supported QoS) to indicate to the Service that the entity remains active.

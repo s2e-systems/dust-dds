@@ -6,3 +6,4 @@ pub mod subscriber_impl;
 pub mod topic_impl;
 
 pub mod writer_group_factory;
+pub mod writer_factory;

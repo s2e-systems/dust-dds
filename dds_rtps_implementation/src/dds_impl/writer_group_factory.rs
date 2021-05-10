@@ -7,24 +7,22 @@ use crate::rtps_impl::rtps_writer_group_impl::RTPSWriterGroupImpl;
 
 const ENTITYKIND_USER_DEFINED_WRITER_GROUP: u8 = 0x08;
 
-pub struct WriterGroupFactory<'a, PSM: rust_rtps_pim::PIM> {
+pub struct WriterGroupFactory<PSM: rust_rtps_pim::PIM> {
     guid_prefix: PSM::GuidPrefix,
     publisher_counter: u8,
-    default_publisher_qos: PublisherQos<'a>,
 }
 
-impl<'a, PSM: rust_rtps_pim::PIM> WriterGroupFactory<'a, PSM> {
+impl<PSM: rust_rtps_pim::PIM> WriterGroupFactory<PSM> {
     pub fn new(guid_prefix: PSM::GuidPrefix) -> Self {
         Self {
             guid_prefix,
             publisher_counter: 0,
-            default_publisher_qos: PublisherQos::default(),
         }
     }
 
-    pub fn create_writer_group(
+    pub fn create_writer_group<'a>(
         &mut self,
-        _qos: Option<PublisherQos<'a>>,
+        _qos: PublisherQos<'a>,
         _a_listener: Option<&'a (dyn PublisherListener + 'a)>,
         _mask: StatusMask,
     ) -> DDSResult<RTPSWriterGroupImpl<'a, PSM>> {
@@ -48,13 +46,5 @@ impl<'a, PSM: rust_rtps_pim::PIM> WriterGroupFactory<'a, PSM> {
         // )));
         // self.rtps_writer_groups.push(group.clone());
         // group
-    }
-
-    pub fn set_default_publisher_qos(&mut self, _default_publisher_qos: PublisherQos<'a>) {
-        todo!()
-    }
-
-    pub fn get_default_publisher_qos(&self) -> PublisherQos<'a> {
-        todo!()
     }
 }

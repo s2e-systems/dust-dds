@@ -20,7 +20,7 @@ use crate::{
 use super::{publisher_impl::PublisherImpl, writer_group_factory::WriterGroupFactory};
 
 pub struct DomainParticipantImpl<'dp, PSM: rust_rtps_pim::PIM> {
-    writer_group_factory: Mutex<WriterGroupFactory<'dp, PSM>>,
+    writer_group_factory: Mutex<WriterGroupFactory<PSM>>,
     rtps_participant_impl: Mutex<RTPSParticipantImpl<'dp, PSM>>,
 }
 
@@ -44,6 +44,7 @@ impl<'p, 'dp: 'p, PSM: rust_rtps_pim::PIM>
         a_listener: Option<&'dp (dyn PublisherListener + 'dp)>,
         mask: StatusMask,
     ) -> Option<Self::PublisherType> {
+        let qos = qos.unwrap_or_default();
         let writer_group = self
             .writer_group_factory
             .lock()

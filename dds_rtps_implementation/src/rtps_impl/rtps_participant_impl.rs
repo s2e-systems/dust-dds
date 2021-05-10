@@ -1,12 +1,9 @@
-use std::sync::{Arc, Mutex};
-
 use rust_dds_api::{
-    dcps_psm::{InstanceHandle, StatusMask},
-    infrastructure::qos::{PublisherQos, SubscriberQos, TopicQos},
-    publication::publisher_listener::PublisherListener,
+    dcps_psm::InstanceHandle,
+    infrastructure::qos::{SubscriberQos, TopicQos},
     return_type::DDSResult,
 };
-use rust_rtps_pim::structure::{types::GUID, RTPSEntity};
+use rust_rtps_pim::structure::RTPSEntity;
 
 use crate::utils::shared_object::RtpsShared;
 
