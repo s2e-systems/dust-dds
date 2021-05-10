@@ -4,3 +4,5 @@ pub mod domain_participant_impl;
 pub mod publisher_impl;
 pub mod subscriber_impl;
 pub mod topic_impl;
+
+pub mod writer_group_factory;

@@ -8,20 +8,67 @@ use rust_dds_api::{
         entity::{Entity, StatusCondition},
         qos::{DomainParticipantQos, PublisherQos, SubscriberQos, TopicQos},
     },
-    return_type::DDSResult,
+    publication::{publisher::Publisher, publisher_listener::PublisherListener},
+    return_type::{DDSError, DDSResult},
     topic::topic_description::TopicDescription,
 };
 
-use crate::rtps_impl::rtps_participant_impl::RTPSParticipantImpl;
+use crate::{
+    rtps_impl::rtps_participant_impl::RTPSParticipantImpl, utils::shared_object::RtpsShared,
+};
+
+use super::{publisher_impl::PublisherImpl, writer_group_factory::WriterGroupFactory};
 
 pub struct DomainParticipantImpl<'dp, PSM: rust_rtps_pim::PIM> {
-    pub(crate) rtps_participant_impl: Mutex<RTPSParticipantImpl<'dp, PSM>>,
+    writer_group_factory: Mutex<WriterGroupFactory<'dp, PSM>>,
+    rtps_participant_impl: Mutex<RTPSParticipantImpl<'dp, PSM>>,
 }
 
 impl<'dp, PSM: rust_rtps_pim::PIM> DomainParticipantImpl<'dp, PSM> {
-    pub fn new(domain_participant_impl: RTPSParticipantImpl<'dp, PSM>) -> Self {
+    pub fn new(guid_prefix: PSM::GuidPrefix) -> Self {
         Self {
-            rtps_participant_impl: Mutex::new(domain_participant_impl),
+            writer_group_factory: Mutex::new(WriterGroupFactory::new(guid_prefix)),
+            rtps_participant_impl: Mutex::new(RTPSParticipantImpl::new()),
+        }
+    }
+}
+
+impl<'p, 'dp: 'p, PSM: rust_rtps_pim::PIM>
+    rust_dds_api::domain::domain_participant::PublisherFactory<'p, 'dp>
+    for DomainParticipantImpl<'dp, PSM>
+{
+    type PublisherType = PublisherImpl<'p, 'dp, PSM>;
+    fn create_publisher(
+        &'p self,
+        qos: Option<PublisherQos<'dp>>,
+        a_listener: Option<&'dp (dyn PublisherListener + 'dp)>,
+        mask: StatusMask,
+    ) -> Option<Self::PublisherType> {
+        let writer_group = self
+            .writer_group_factory
+            .lock()
+            .unwrap()
+            .create_writer_group(qos, a_listener, mask)
+            .ok()?;
+        let writer_group_shared = RtpsShared::new(writer_group);
+        let writer_group_weak = writer_group_shared.downgrade();
+        self.rtps_participant_impl
+            .lock()
+            .unwrap()
+            .add_writer_group(writer_group_shared);
+        Some(PublisherImpl::new(self, writer_group_weak))
+    }
+
+    fn delete_publisher(&self, a_publisher: &Self::PublisherType) -> DDSResult<()> {
+        if std::ptr::eq(a_publisher.get_participant(), self) {
+            self.rtps_participant_impl
+                .lock()
+                .unwrap()
+                .delete_writer_group(&a_publisher.get_instance_handle()?)
+        } else {
+            Err(DDSError::PreconditionNotMet(
+                "Publisher can only be deleted from its parent participant",
+            ))
         }
     }
 }
@@ -344,7 +391,7 @@ mod tests {
     #[test]
     fn create_publisher() {
         let domain_participant_impl: DomainParticipantImpl<RtpsUdpPsm> =
-            DomainParticipantImpl::new(RTPSParticipantImpl::new([1; 12]));
+            DomainParticipantImpl::new([1; 12]);
         let publisher = domain_participant_impl.create_publisher(None, None, 0);
 
         assert!(publisher.is_some())
@@ -353,7 +400,7 @@ mod tests {
     #[test]
     fn create_topic() {
         let domain_participant_impl: DomainParticipantImpl<RtpsUdpPsm> =
-            DomainParticipantImpl::new(RTPSParticipantImpl::new([1; 12]));
+            DomainParticipantImpl::new([1; 12]);
         let topic =
             domain_participant_impl.create_topic::<MockDDSType>("topic_name", None, None, 0);
         assert!(topic.is_some());

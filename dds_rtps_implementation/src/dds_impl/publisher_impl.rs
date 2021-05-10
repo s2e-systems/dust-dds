@@ -1,17 +1,16 @@
-use std::sync::{Arc, Mutex, Weak};
-
 use rust_dds_api::{
     dcps_psm::{Duration, InstanceHandle, StatusMask},
-    domain::domain_participant::DomainParticipant,
     infrastructure::{
         entity::StatusCondition,
         qos::{DataWriterQos, PublisherQos, TopicQos},
     },
-    publication::{publisher::Publisher, publisher_listener::PublisherListener},
-    return_type::{DDSError, DDSResult},
+    publication::publisher_listener::PublisherListener,
+    return_type::DDSResult,
 };
 
-use crate::rtps_impl::rtps_writer_group_impl::RTPSWriterGroupImpl;
+use crate::{
+    rtps_impl::rtps_writer_group_impl::RTPSWriterGroupImpl, utils::shared_object::RtpsWeak,
+};
 
 use super::domain_participant_impl::DomainParticipantImpl;
 
@@ -22,44 +21,17 @@ const ENTITYKIND_BUILTIN_WRITER_NO_KEY: u8 = 0xc3;
 
 pub struct PublisherImpl<'p, 'dp: 'p, PSM: rust_rtps_pim::PIM> {
     participant: &'p DomainParticipantImpl<'dp, PSM>,
-    pub(crate) rtps_writer_group_impl: Weak<Mutex<RTPSWriterGroupImpl<'dp, PSM>>>,
+    rtps_writer_group_impl: RtpsWeak<RTPSWriterGroupImpl<'dp, PSM>>,
 }
 
-impl<'p, 'dp: 'p, PSM: rust_rtps_pim::PIM>
-    rust_dds_api::domain::domain_participant::PublisherFactory<'p, 'dp>
-    for DomainParticipantImpl<'dp, PSM>
-{
-    type PublisherType = PublisherImpl<'p, 'dp, PSM>;
-    fn create_publisher(
-        &'p self,
-        qos: Option<PublisherQos<'dp>>,
-        a_listener: Option<&'dp (dyn PublisherListener + 'dp)>,
-        mask: StatusMask,
-    ) -> Option<Self::PublisherType> {
-        let publisher_qos = qos.unwrap_or(self.get_default_publisher_qos());
-        let group = self
-            .rtps_participant_impl
-            .lock()
-            .unwrap()
-            .create_writer_group(publisher_qos, a_listener, mask);
-        let publisher = PublisherImpl {
-            participant: self,
-            rtps_writer_group_impl: Arc::downgrade(&group),
-        };
-        Some(publisher)
-    }
-
-    fn delete_publisher(&self, a_publisher: &Self::PublisherType) -> DDSResult<()> {
-        if std::ptr::eq(a_publisher.get_participant(), self) {
-            Ok(())
-        //     // self.0
-        //     //     .lock()
-        //     //     .unwrap()
-        //     //     .delete_publisher(&a_publisher.impl_ref)
-        } else {
-            Err(DDSError::PreconditionNotMet(
-                "Publisher can only be deleted from its parent participant",
-            ))
+impl<'p, 'dp: 'p, PSM: rust_rtps_pim::PIM> PublisherImpl<'p, 'dp, PSM> {
+    pub fn new(
+        participant: &'p DomainParticipantImpl<'dp, PSM>,
+        rtps_writer_group_impl: RtpsWeak<RTPSWriterGroupImpl<'dp, PSM>>,
+    ) -> Self {
+        Self {
+            participant,
+            rtps_writer_group_impl,
         }
     }
 }

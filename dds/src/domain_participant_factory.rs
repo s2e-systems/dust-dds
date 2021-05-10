@@ -3,10 +3,7 @@ use rust_dds_api::{
     domain::domain_participant_listener::DomainParticipantListener,
     infrastructure::qos::DomainParticipantQos,
 };
-use rust_dds_rtps_implementation::{
-    dds_impl::domain_participant_impl::DomainParticipantImpl,
-    rtps_impl::rtps_participant_impl::RTPSParticipantImpl,
-};
+use rust_dds_rtps_implementation::dds_impl::domain_participant_impl::DomainParticipantImpl;
 
 use rust_rtps_udp_psm::RtpsUdpPsm;
 
@@ -67,9 +64,8 @@ impl DomainParticipantFactory {
         // };
         let guid_prefix = [1; 12];
 
-        let rtps_participant_impl = RTPSParticipantImpl::new(guid_prefix);
         let participant: DomainParticipantImpl<RtpsUdpPsm> =
-            DomainParticipantImpl::new(rtps_participant_impl);
+            DomainParticipantImpl::new(guid_prefix);
 
         // let domain_participant_impl =
         //     DomainParticipantImpl::new(domain_id, qos.clone(), a_listener, mask, configuration);

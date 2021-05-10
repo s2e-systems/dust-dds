@@ -1,81 +1,59 @@
 use std::sync::{Arc, Mutex};
 
 use rust_dds_api::{
-    dcps_psm::StatusMask,
+    dcps_psm::{InstanceHandle, StatusMask},
     infrastructure::qos::{PublisherQos, SubscriberQos, TopicQos},
     publication::publisher_listener::PublisherListener,
+    return_type::DDSResult,
 };
 use rust_rtps_pim::structure::{types::GUID, RTPSEntity};
+
+use crate::utils::shared_object::RtpsShared;
 
 use super::rtps_writer_group_impl::RTPSWriterGroupImpl;
 
 const ENTITYKIND_USER_DEFINED_WRITER_GROUP: u8 = 0x08;
 const ENTITYKIND_USER_DEFINED_READER_GROUP: u8 = 0x09;
 
-pub struct RTPSParticipantImpl<'a, PSM: rust_rtps_pim::structure::Types> {
+pub struct RTPSParticipantImpl<'a, PSM: rust_rtps_pim::PIM> {
     unicast_locator_list: Vec<rust_rtps_pim::structure::types::Locator<PSM>>,
     multicast_locator_list: Vec<rust_rtps_pim::structure::types::Locator<PSM>>,
-    rtps_writer_groups: Vec<Arc<Mutex<RTPSWriterGroupImpl<'a, PSM>>>>,
-    builtin_writer_group: Arc<Mutex<RTPSWriterGroupImpl<'a, PSM>>>,
-    guid: GUID<PSM>,
-    publisher_counter: u8,
-    default_publisher_qos: PublisherQos<'a>,
+    rtps_writer_groups: Vec<RtpsShared<RTPSWriterGroupImpl<'a, PSM>>>,
+    // builtin_writer_group: Arc<Mutex<RTPSWriterGroupImpl<'a, PSM>>>,
     default_subscriber_qos: SubscriberQos<'a>,
     default_topic_qos: TopicQos<'a>,
 }
 
-impl<'a, PSM: rust_rtps_pim::structure::Types> RTPSParticipantImpl<'a, PSM> {
-    pub fn new(prefix: PSM::GuidPrefix) -> Self {
-        let guid = GUID::new(prefix, PSM::ENTITYID_PARTICIPANT);
-        let builtin_writer_group = Arc::new(Mutex::new(RTPSWriterGroupImpl::new(
-            GUID::new(prefix, [0, 0, 0, 0xc8].into()),
-            PublisherQos::default(),
-            None,
-            0,
-        )));
+impl<'a, PSM: rust_rtps_pim::PIM> RTPSParticipantImpl<'a, PSM> {
+    pub fn new() -> Self {
+        // let guid = GUID::new(prefix, PSM::ENTITYID_PARTICIPANT);
+        // let builtin_writer_group = Arc::new(Mutex::new(RTPSWriterGroupImpl::new(
+        //     GUID::new(prefix, [0, 0, 0, 0xc8].into()),
+        //     PublisherQos::default(),
+        //     None,
+        //     0,
+        // )));
 
         Self {
             unicast_locator_list: Vec::new(),
             multicast_locator_list: Vec::new(),
             rtps_writer_groups: Vec::new(),
-            builtin_writer_group,
-            guid,
-            publisher_counter: 0,
-            default_publisher_qos: PublisherQos::default(),
+            // builtin_writer_group,
             default_subscriber_qos: SubscriberQos::default(),
             default_topic_qos: TopicQos::default(),
         }
     }
 
-    pub fn create_writer_group(
-        &mut self,
-        qos: PublisherQos<'a>,
-        listener: Option<&'a (dyn PublisherListener + 'a)>,
-        status_mask: StatusMask,
-    ) -> Arc<Mutex<RTPSWriterGroupImpl<'a, PSM>>> {
-        let guid_prefix = self.guid.prefix().clone();
+    pub fn add_writer_group(&mut self, _writer_group: RtpsShared<RTPSWriterGroupImpl<'a, PSM>>) {
+        todo!()
+    }
 
-        self.publisher_counter += 1;
-        let entity_id = [
-            self.publisher_counter,
-            0,
-            0,
-            ENTITYKIND_USER_DEFINED_WRITER_GROUP,
-        ]
-        .into();
-        let guid = GUID::new(guid_prefix, entity_id);
-        let group = Arc::new(Mutex::new(RTPSWriterGroupImpl::new(
-            guid,
-            qos,
-            listener,
-            status_mask,
-        )));
-        self.rtps_writer_groups.push(group.clone());
-        group
+    pub fn delete_writer_group(&mut self, _writer_group: &InstanceHandle) -> DDSResult<()> {
+        todo!()
     }
 }
 
-impl<'a, PSM: rust_rtps_pim::structure::Types> rust_rtps_pim::structure::RTPSParticipant<PSM>
+impl<'a, PSM: rust_rtps_pim::PIM> rust_rtps_pim::structure::RTPSParticipant<PSM>
     for RTPSParticipantImpl<'a, PSM>
 {
     fn protocol_version(&self) -> PSM::ProtocolVersion {
@@ -95,9 +73,10 @@ impl<'a, PSM: rust_rtps_pim::structure::Types> rust_rtps_pim::structure::RTPSPar
     }
 }
 
-impl<'a, PSM: rust_rtps_pim::structure::Types> RTPSEntity<PSM> for RTPSParticipantImpl<'a, PSM> {
+impl<'a, PSM: rust_rtps_pim::PIM> RTPSEntity<PSM> for RTPSParticipantImpl<'a, PSM> {
     fn guid(&self) -> rust_rtps_pim::structure::types::GUID<PSM> {
-        self.guid
+        // self.guid
+        todo!()
     }
 }
 
@@ -218,15 +197,16 @@ mod tests {
 
     #[test]
     fn participant_guid() {
-        let prefix = [1; 12];
-        let rtps_participant: RTPSParticipantImpl<MockPsm> = RTPSParticipantImpl::new([1; 12]);
-        let guid = rtps_participant.guid();
+        todo!()
+        // let prefix = [1; 12];
+        // let rtps_participant: RTPSParticipantImpl<MockPsm> = RTPSParticipantImpl::new([1; 12]);
+        // let guid = rtps_participant.guid();
 
-        assert_eq!(guid.prefix(), &prefix);
-        assert_eq!(
-            guid.entity_id(),
-            &<MockPsm as rust_rtps_pim::structure::Types>::ENTITYID_PARTICIPANT
-        );
+        // assert_eq!(guid.prefix(), &prefix);
+        // assert_eq!(
+        //     guid.entity_id(),
+        //     &<MockPsm as rust_rtps_pim::structure::Types>::ENTITYID_PARTICIPANT
+        // );
     }
 
     // #[test]
