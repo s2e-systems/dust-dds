@@ -21,7 +21,7 @@ use rust_dds_api::{
 use super::{subscriber_impl::SubscriberImpl, topic_impl::TopicImpl};
 
 pub struct DataReaderImpl<'dr, 's: 'dr, 't: 'dr, 'dp: 's, T: 'dr, PSM: rust_rtps_pim::PIM> {
-    parent: &'dr SubscriberImpl<'s, 'dp, PSM>,
+    subscriber: &'dr SubscriberImpl<'s, 'dp, PSM>,
     topic: &'dr TopicImpl<'t, 'dp, T, PSM>,
 }
 

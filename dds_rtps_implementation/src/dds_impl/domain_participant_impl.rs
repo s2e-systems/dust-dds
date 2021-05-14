@@ -65,7 +65,8 @@ impl<'p, 'dp: 'p, PSM: rust_rtps_pim::PIM>
             self.rtps_participant_impl
                 .lock()
                 .unwrap()
-                .delete_writer_group(&a_publisher.get_instance_handle()?)
+                .delete_writer_group(a_publisher.get_instance_handle()?);
+            Ok(())
         } else {
             Err(DDSError::PreconditionNotMet(
                 "Publisher can only be deleted from its parent participant",

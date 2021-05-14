@@ -14,6 +14,10 @@ use rust_dds_api::{
     },
 };
 
+use crate::{
+    rtps_impl::rtps_reader_group_impl::RTPSReaderGroupImpl, utils::shared_object::RtpsWeak,
+};
+
 use super::{
     data_reader_impl::DataReaderImpl, domain_participant_impl::DomainParticipantImpl,
     topic_impl::TopicImpl,
@@ -21,7 +25,7 @@ use super::{
 
 pub struct SubscriberImpl<'s, 'dp: 's, PSM: rust_rtps_pim::PIM> {
     participant: &'s DomainParticipantImpl<'dp, PSM>,
-    // pub(crate) rtps_reader_group_impl: Weak<Mutex<>>
+    rtps_reader_group_impl: RtpsWeak<RTPSReaderGroupImpl<'dp, PSM>>,
 }
 
 impl<'s, 'dp: 's, PSM: rust_rtps_pim::PIM>

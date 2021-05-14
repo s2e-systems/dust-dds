@@ -14,7 +14,7 @@ use crate::{rtps_impl::rtps_writer_impl::RTPSWriterImpl, utils::shared_object::R
 use super::{publisher_impl::PublisherImpl, topic_impl::TopicImpl};
 
 pub struct DataWriterImpl<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p, T: 't, PSM: rust_rtps_pim::PIM> {
-    parent: &'dw PublisherImpl<'p, 'dp, PSM>,
+    publisher: &'dw PublisherImpl<'p, 'dp, PSM>,
     topic: &'dw TopicImpl<'t, 'dp, T, PSM>,
     rtps_writer_impl: RtpsWeak<RTPSWriterImpl<PSM>>,
 }
@@ -23,12 +23,12 @@ impl<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p, T: 't, PSM: rust_rtps_pim::PIM>
     DataWriterImpl<'dw, 'p, 't, 'dp, T, PSM>
 {
     pub fn new(
-        parent: &'dw PublisherImpl<'p, 'dp, PSM>,
+        publisher: &'dw PublisherImpl<'p, 'dp, PSM>,
         topic: &'dw TopicImpl<'t, 'dp, T, PSM>,
         rtps_writer_impl: RtpsWeak<RTPSWriterImpl<PSM>>,
     ) -> Self {
         Self {
-            parent,
+            publisher,
             topic,
             rtps_writer_impl,
         }
@@ -42,7 +42,7 @@ impl<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p, T: 't, PSM: rust_rtps_pim::PIM>
     type PublisherType = PublisherImpl<'p, 'dp, PSM>;
 
     fn get_publisher(&self) -> &Self::PublisherType {
-        self.parent
+        self.publisher
     }
 }
 

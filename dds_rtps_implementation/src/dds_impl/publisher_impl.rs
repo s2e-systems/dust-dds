@@ -193,8 +193,7 @@ impl<'p, 'dp: 'p, PSM: rust_rtps_pim::PIM> rust_dds_api::infrastructure::entity:
     }
 
     fn get_instance_handle(&self) -> DDSResult<InstanceHandle> {
-        // self.publisher_ref.get_instance_handle()
-        todo!()
+        self.rtps_writer_group_impl.upgrade()?.get_instance_handle()
     }
 }
 

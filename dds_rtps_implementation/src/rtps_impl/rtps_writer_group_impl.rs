@@ -194,7 +194,7 @@ impl<'a, PSM: rust_rtps_pim::PIM> rust_dds_api::infrastructure::entity::Entity
     type Qos = PublisherQos<'a>;
     type Listener = &'a (dyn PublisherListener + 'a);
 
-    fn set_qos(&self, qos: Option<Self::Qos>) -> DDSResult<()> {
+    fn set_qos(&self, _qos: Option<Self::Qos>) -> DDSResult<()> {
         todo!()
     }
 
@@ -202,7 +202,7 @@ impl<'a, PSM: rust_rtps_pim::PIM> rust_dds_api::infrastructure::entity::Entity
         todo!()
     }
 
-    fn set_listener(&self, a_listener: Option<Self::Listener>, mask: StatusMask) -> DDSResult<()> {
+    fn set_listener(&self, _a_listener: Option<Self::Listener>, _mask: StatusMask) -> DDSResult<()> {
         todo!()
     }
 
@@ -222,12 +222,12 @@ impl<'a, PSM: rust_rtps_pim::PIM> rust_dds_api::infrastructure::entity::Entity
         todo!()
     }
 
-    fn get_instance_handle(&self) -> DDSResult<rust_dds_api::dcps_psm::InstanceHandle> {
-        todo!()
+    fn get_instance_handle(&self) -> DDSResult<InstanceHandle> {
+        Ok(crate::utils::instance_handle_from_guid(&self.guid))
     }
 }
 
-impl<'a, 'b:'a, PSM: rust_rtps_pim::PIM> rust_rtps_pim::structure::RTPSEntity<PSM>
+impl<'a, 'b: 'a, PSM: rust_rtps_pim::PIM> rust_rtps_pim::structure::RTPSEntity<PSM>
     for RTPSWriterGroupImpl<'a, PSM>
 {
     fn guid(&self) -> GUID<PSM> {

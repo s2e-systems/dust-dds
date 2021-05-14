@@ -1,9 +1,12 @@
 use rust_dds_api::{
-    dcps_psm::{InstanceHandle},
-    infrastructure::qos::{SubscriberQos, TopicQos},
+    dcps_psm::{InstanceHandle, HANDLE_NIL_NATIVE},
+    infrastructure::{
+        entity::Entity,
+        qos::{SubscriberQos, TopicQos},
+    },
     return_type::DDSResult,
 };
-use rust_rtps_pim::structure::{RTPSEntity};
+use rust_rtps_pim::structure::RTPSEntity;
 
 use crate::utils::shared_object::RtpsShared;
 
@@ -41,12 +44,13 @@ impl<'a, PSM: rust_rtps_pim::PIM> RTPSParticipantImpl<'a, PSM> {
         }
     }
 
-    pub fn add_writer_group(&mut self, _writer_group: RtpsShared<RTPSWriterGroupImpl<'a, PSM>>) {
-        todo!()
+    pub fn add_writer_group(&mut self, writer_group: RtpsShared<RTPSWriterGroupImpl<'a, PSM>>) {
+        self.rtps_writer_groups.push(writer_group)
     }
 
-    pub fn delete_writer_group(&mut self, _writer_group: &InstanceHandle) -> DDSResult<()> {
-        todo!()
+    pub fn delete_writer_group(&mut self, writer_group: InstanceHandle) {
+        self.rtps_writer_groups
+            .retain(|x| x.get_instance_handle().unwrap_or(HANDLE_NIL_NATIVE) != writer_group);
     }
 }
 
