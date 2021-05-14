@@ -45,7 +45,7 @@ impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType<PSM> + 't, PSM: rust_rtps_pim::PIM>
 }
 
 impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType<PSM> + 'static, PSM: rust_rtps_pim::PIM>
-    rust_dds_api::publication::data_writer::DataWriterParent<'p>
+    rust_dds_api::publication::data_writer::DataWriterParent
     for DataWriterImpl<'dw, 'p, 't, T, PSM>
 {
     type PublisherType = PublisherImpl<'p, PSM>;
@@ -56,7 +56,7 @@ impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType<PSM> + 'static, PSM: rust_rtps_pim::PIM>
 }
 
 impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType<PSM> + 'static, PSM: rust_rtps_pim::PIM>
-    rust_dds_api::publication::data_writer::DataWriter<'dw, 'p, 't, T>
+    rust_dds_api::publication::data_writer::DataWriter<T>
     for DataWriterImpl<'dw, 'p, 't, T, PSM>
 {
     fn register_instance(&self, _instance: T) -> DDSResult<Option<InstanceHandle>> {

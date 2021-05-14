@@ -28,7 +28,7 @@ pub trait SubscriberFactory<'s>: DomainParticipant {
     fn get_builtin_subscriber(&'s self) -> Self::SubscriberType;
 }
 pub trait TopicFactory<'t, T: 'static>: DomainParticipant {
-    type TopicType: Topic<'t, T>;
+    type TopicType: Topic<T>;
 
     fn create_topic(
         &'t self,
@@ -44,7 +44,7 @@ pub trait TopicFactory<'t, T: 'static>: DomainParticipant {
 }
 
 pub trait PublisherFactory<'p>: DomainParticipant {
-    type PublisherType: Publisher<'p>;
+    type PublisherType: Publisher;
 
     fn create_publisher(
         &'p self,

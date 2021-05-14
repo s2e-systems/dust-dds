@@ -179,7 +179,7 @@ impl<PSM: rust_rtps_pim::PIM> rust_dds_api::domain::domain_participant::DomainPa
     }
 }
 
-impl<'dp, PSM: rust_rtps_pim::PIM> Entity for DomainParticipantImpl<PSM> {
+impl<PSM: rust_rtps_pim::PIM> Entity for DomainParticipantImpl<PSM> {
     type Qos = DomainParticipantQos;
     type Listener = &'static dyn DomainParticipantListener;
 

@@ -18,7 +18,7 @@ use super::{
 pub trait DataReaderFactory<'dr, 's: 'dr, 't: 'dr, T: 'static>:
     Subscriber<'s>
 {
-    type TopicType: Topic<'t, T>;
+    type TopicType: Topic<T>;
     type DataReaderType: DataReader<'dr, 's, 't, T> + AnyDataReader;
 
     fn create_datareader(

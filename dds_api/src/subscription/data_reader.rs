@@ -456,7 +456,7 @@ pub trait DataReader<'dr, 's: 'dr, 't: 'dr, T: 'static>:
 
     /// This operation returns the TopicDescription associated with the DataReader. This is the same TopicDescription that was used
     /// to create the DataReader.
-    fn get_topicdescription(&self) -> &dyn TopicDescription<'t, T>;
+    fn get_topicdescription(&self) -> &dyn TopicDescription<T>;
 
     /// This operation returns the Subscriber to which the DataReader belongs.
     fn get_subscriber(&self) -> &dyn Subscriber;

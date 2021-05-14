@@ -265,7 +265,7 @@ impl<'dr, 's: 'dr, 't: 'dr, T: 'static, PSM: rust_rtps_pim::PIM>
 
     fn get_topicdescription(
         &self,
-    ) -> &dyn rust_dds_api::topic::topic_description::TopicDescription<'t, T> {
+    ) -> &dyn rust_dds_api::topic::topic_description::TopicDescription<T> {
         todo!()
     }
 
@@ -317,7 +317,7 @@ impl<'dr, 's: 'dr, 't: 'dr, T: 'static, PSM: rust_rtps_pim::PIM> Entity
     }
 }
 
-impl<'dr, 's: 'dr, 't: 'dr, 'dp: 's, T: 'dr, PSM: rust_rtps_pim::PIM> AnyDataReader
+impl<'dr, 's: 'dr, 't: 'dr, T: 'dr, PSM: rust_rtps_pim::PIM> AnyDataReader
     for DataReaderImpl<'dr, 's, 't, T, PSM>
 {
 }

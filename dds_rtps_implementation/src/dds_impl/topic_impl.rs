@@ -42,7 +42,7 @@ impl<'t, T: 'static, PSM: rust_rtps_pim::PIM>
     }
 }
 
-impl<'t, T: 'static, PSM: rust_rtps_pim::PIM> rust_dds_api::topic::topic::Topic<'t, T>
+impl<'t, T: 'static, PSM: rust_rtps_pim::PIM> rust_dds_api::topic::topic::Topic<T>
     for TopicImpl<'t, T, PSM>
 {
     fn get_inconsistent_topic_status(
@@ -53,7 +53,7 @@ impl<'t, T: 'static, PSM: rust_rtps_pim::PIM> rust_dds_api::topic::topic::Topic<
     }
 }
 
-impl<'t, T: 'static, PSM: rust_rtps_pim::PIM> TopicDescription<'t,T>
+impl<'t, T: 'static, PSM: rust_rtps_pim::PIM> TopicDescription<T>
     for TopicImpl<'t, T, PSM>
 {
     fn get_participant(

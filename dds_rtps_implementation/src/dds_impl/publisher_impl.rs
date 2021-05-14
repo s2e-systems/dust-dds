@@ -39,7 +39,7 @@ pub struct PublisherImpl<'p, PSM: rust_rtps_pim::PIM> {
     rtps_writer_group_impl: RtpsWeak<RTPSWriterGroupImpl<PSM>>,
 }
 
-impl<'p, 'dp: 'p, PSM: rust_rtps_pim::PIM> PublisherImpl<'p, PSM> {
+impl<'p, PSM: rust_rtps_pim::PIM> PublisherImpl<'p, PSM> {
     pub fn new(
         participant: &'p DomainParticipantImpl<PSM>,
         rtps_writer_group_impl: &RtpsShared<RTPSWriterGroupImpl<PSM>>,
@@ -63,7 +63,7 @@ impl<'p, PSM: rust_rtps_pim::PIM> PublisherParent for PublisherImpl<'p, PSM> {
 }
 
 impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType<PSM> + 'static, PSM: rust_rtps_pim::PIM>
-    DataWriterFactory<'dw, 'p, 't, T> for PublisherImpl<'p, PSM>
+    DataWriterFactory<'dw, 't, T> for PublisherImpl<'p, PSM>
 {
     type TopicType = TopicImpl<'t, T, PSM>;
     type DataWriterType = DataWriterImpl<'dw, 'p, 't, T, PSM>;
@@ -110,7 +110,7 @@ impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType<PSM> + 'static, PSM: rust_rtps_pim::PIM>
     }
 }
 
-impl<'p, PSM: rust_rtps_pim::PIM> rust_dds_api::publication::publisher::Publisher<'p>
+impl<'p, PSM: rust_rtps_pim::PIM> rust_dds_api::publication::publisher::Publisher
     for PublisherImpl<'p, PSM>
 {
     fn suspend_publications(&self) -> DDSResult<()> {

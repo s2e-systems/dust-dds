@@ -15,11 +15,9 @@ use super::{
     publisher_listener::PublisherListener,
 };
 
-pub trait DataWriterFactory<'dw, 'p: 'dw, 't: 'dw, T: 'static>:
-    Publisher<'p>
-{
-    type TopicType: Topic<'t, T>;
-    type DataWriterType: DataWriter<'dw, 'p, 't, T> + AnyDataWriter;
+pub trait DataWriterFactory<'dw, 't: 'dw, T: 'static>: Publisher {
+    type TopicType: Topic<T>;
+    type DataWriterType: DataWriter<T> + AnyDataWriter;
 
     fn create_datawriter(
         &'dw self,
@@ -46,9 +44,7 @@ pub trait PublisherParent {
 /// of the Publisher and the DataWriter.
 /// All operations except for the base-class operations set_qos, get_qos, set_listener, get_listener, enable, get_statuscondition,
 /// create_datawriter, and delete_datawriter may return the value NOT_ENABLED.
-pub trait Publisher<'p>:
-    Entity<Qos = PublisherQos, Listener = &'static dyn PublisherListener>
-{
+pub trait Publisher: Entity<Qos = PublisherQos, Listener = &'static dyn PublisherListener> {
     /// This operation creates a DataWriter. The returned DataWriter will be attached and belongs to the Publisher.
     /// The DataWriter returned by the create_datawriter operation will in fact be a derived class, specific to the data-type associated
     /// with the Topic. As described in 2.2.2.3.7, for each application-defined type “Foo” there is an implied, auto-generated class
@@ -78,9 +74,9 @@ pub trait Publisher<'p>:
         mask: StatusMask,
     ) -> Option<Self::DataWriterType>
     where
-        Self: DataWriterFactory<'dw, 'p, 't, T> + Sized,
+        Self: DataWriterFactory<'dw, 't, T> + Sized,
     {
-        <Self as DataWriterFactory<'dw, 'p, 't, T>>::create_datawriter(
+        <Self as DataWriterFactory<'dw, 't, T>>::create_datawriter(
             self, a_topic, qos, a_listener, mask,
         )
     }
@@ -98,9 +94,9 @@ pub trait Publisher<'p>:
         a_datawriter: &'dw Self::DataWriterType,
     ) -> DDSResult<()>
     where
-        Self: DataWriterFactory<'dw, 'p, 't, T> + Sized,
+        Self: DataWriterFactory<'dw, 't, T> + Sized,
     {
-        <Self as DataWriterFactory<'dw, 'p, 't, T>>::delete_datawriter(self, a_datawriter)
+        <Self as DataWriterFactory<'dw, 't, T>>::delete_datawriter(self, a_datawriter)
     }
 
     /// This operation retrieves a previously created DataWriter belonging to the Publisher that is attached to a Topic with a matching
@@ -112,9 +108,9 @@ pub trait Publisher<'p>:
         topic: &'dw Self::TopicType,
     ) -> Option<Self::DataWriterType>
     where
-        Self: DataWriterFactory<'dw, 'p, 't, T> + Sized,
+        Self: DataWriterFactory<'dw, 't, T> + Sized,
     {
-        <Self as DataWriterFactory<'dw, 'p, 't, T>>::lookup_datawriter(self, topic)
+        <Self as DataWriterFactory<'dw, 't, T>>::lookup_datawriter(self, topic)
     }
 
     /// This operation indicates to the Service that the application is about to make multiple modifications using DataWriter objects
@@ -165,7 +161,7 @@ pub trait Publisher<'p>:
     fn wait_for_acknowledgments(&self, max_wait: Duration) -> DDSResult<()>;
 
     /// This operation returns the DomainParticipant to which the Publisher belongs.
-    fn get_participant(&'p self) -> &'p Self::DomainParticipantType
+    fn get_participant(&self) -> &Self::DomainParticipantType
     where
         Self: PublisherParent + Sized,
     {
