@@ -2,31 +2,23 @@ use rust_dds_api::{
     dcps_psm::InstanceHandle,
     return_type::{DDSError, DDSResult},
 };
-use rust_rtps_pim::structure::RTPSEntity;
+use rust_rtps_pim::structure::{types::GUID, RTPSEntity};
 
 use crate::utils::shared_object::RtpsShared;
 
 use super::rtps_writer_group_impl::RTPSWriterGroupImpl;
 
-const ENTITYKIND_USER_DEFINED_WRITER_GROUP: u8 = 0x08;
-const ENTITYKIND_USER_DEFINED_READER_GROUP: u8 = 0x09;
-
 pub struct RTPSParticipantImpl<PSM: rust_rtps_pim::PIM> {
-    // transport:
+    guid: GUID<PSM>,
     rtps_writer_groups: Vec<RtpsShared<RTPSWriterGroupImpl<PSM>>>,
 }
 
 impl<PSM: rust_rtps_pim::PIM> RTPSParticipantImpl<PSM> {
-    pub fn new() -> Self {
-        // let guid = GUID::new(prefix, PSM::ENTITYID_PARTICIPANT);
-        // let builtin_writer_group = Arc::new(Mutex::new(RTPSWriterGroupImpl::new(
-        //     GUID::new(prefix, [0, 0, 0, 0xc8].into()),
-        //     PublisherQos::default(),
-        //     None,
-        //     0,
-        // )));
+    pub fn new(guid_prefix: PSM::GuidPrefix) -> Self {
+        let guid = GUID::new(guid_prefix, PSM::ENTITYID_PARTICIPANT);
 
         Self {
+            guid,
             rtps_writer_groups: Vec::new(),
         }
     }
@@ -91,7 +83,7 @@ mod tests {
 
     #[test]
     fn add_writer_group() {
-        let mut participant: RTPSParticipantImpl<RtpsUdpPsm> = RTPSParticipantImpl::new();
+        let mut participant: RTPSParticipantImpl<RtpsUdpPsm> = RTPSParticipantImpl::new([1;12]);
         let guid = GUID::new([1; 12], [0, 0, 0, 1].into());
         let shared_writer_group = RtpsShared::new(RTPSWriterGroupImpl::new(
             guid,
@@ -106,7 +98,7 @@ mod tests {
 
     #[test]
     fn delete_writer_group() {
-        let mut participant: RTPSParticipantImpl<RtpsUdpPsm> = RTPSParticipantImpl::new();
+        let mut participant: RTPSParticipantImpl<RtpsUdpPsm> = RTPSParticipantImpl::new([1;12]);
         let guid = GUID::new([1; 12], [0, 0, 0, 1].into());
         let shared_writer_group = RtpsShared::new(RTPSWriterGroupImpl::new(
             guid,
@@ -115,10 +107,11 @@ mod tests {
             0,
         ));
         participant.add_writer_group(shared_writer_group.clone());
+        let instance_handle = crate::utils::instance_handle_from_guid(
+            &shared_writer_group.lock().guid(),
+        );
         participant
-            .delete_writer_group(crate::utils::instance_handle_from_guid(
-                &shared_writer_group.lock().guid(),
-            ))
+            .delete_writer_group(instance_handle)
             .unwrap();
 
         assert_eq!(participant.rtps_writer_groups.len(), 0)
@@ -126,7 +119,7 @@ mod tests {
 
     #[test]
     fn delete_not_present_writer_group() {
-        let mut participant: RTPSParticipantImpl<RtpsUdpPsm> = RTPSParticipantImpl::new();
+        let mut participant: RTPSParticipantImpl<RtpsUdpPsm> = RTPSParticipantImpl::new([1;12]);
         let expected = Err(DDSError::PreconditionNotMet("RTPS writer group not found"));
         let result = participant.delete_writer_group(1);
 

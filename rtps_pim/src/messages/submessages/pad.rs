@@ -1,3 +1,1 @@
-use crate::messages::Submessage;
-
-pub trait Pad: Submessage {}
+pub struct Pad {}

@@ -1,7 +1,7 @@
 use crate::{
     behavior::RTPSWriter,
-    messages::{self, Submessage},
-    structure::{self, types::Locator, RTPSHistoryCache},
+    messages::submessages::{Data, Gap},
+    structure::{types::Locator, RTPSHistoryCache},
     PIM,
 };
 
@@ -117,21 +117,15 @@ pub trait RTPSStatelessWriter<PSM: PIM>: RTPSWriter<PSM> {
     }
 }
 
-impl<'a, PSM> RTPSReaderLocator<PSM>
-where
-    PSM: PIM + 'a,
-{
-    pub fn produce_messages<Data, Gap, SendDataTo, SendGapTo>(
+impl<'a, PSM: PIM> RTPSReaderLocator<PSM> {
+    pub fn produce_messages<SendDataTo, SendGapTo>(
         &'a mut self,
         writer_cache: &'a dyn RTPSHistoryCache<PSM>,
         send_data_to: &mut SendDataTo,
         send_gap_to: &mut SendGapTo,
     ) where
-        Data: messages::submessages::Data<SerializedData = &'a <PSM as structure::types::Types>::Data>
-            + Submessage<PSM = PSM>,
-        Gap: messages::submessages::Gap + Submessage<PSM = PSM>,
-        SendDataTo: FnMut(&Locator<PSM>, Data),
-        SendGapTo: FnMut(&Locator<PSM>, Gap),
+        SendDataTo: FnMut(&Locator<PSM>, Data<PSM, &'a PSM::Data>),
+        SendGapTo: FnMut(&Locator<PSM>, Gap<PSM>),
     {
         while self
             .unsent_changes(writer_cache)
@@ -187,18 +181,14 @@ mod tests {
     use super::*;
     use crate::{
         behavior,
-        messages::{
-            self,
-            submessage_elements::Parameter,
-            submessages::{Data, Gap},
-        },
+        messages::{self, submessage_elements::Parameter},
         structure::{
-            types::{ReliabilityKind, GUID},
+            self,
+            types::{ChangeKind, ReliabilityKind, TopicKind, GUID},
             RTPSCacheChange, RTPSEndpoint, RTPSEntity, RTPSHistoryCache,
         },
     };
     use std::vec::Vec;
-    use structure::types::{ChangeKind, TopicKind};
 
     #[derive(Clone)]
     pub struct MockParameter;
@@ -312,7 +302,7 @@ mod tests {
         type ParticipantMessageData = u8;
     }
 
-    impl PIM for MockPsm{}
+    impl PIM for MockPsm {}
 
     struct MockHistoryCache {
         changes: Vec<RTPSCacheChange<MockPsm>>,
@@ -453,121 +443,6 @@ mod tests {
     //         data_max_size_serialized,
     //     )
     // }
-
-    #[derive(Debug)]
-    struct MockDataSubmessage<'a> {
-        serialized_payload: &'a Vec<u8>,
-    }
-    impl<'a> Submessage for MockDataSubmessage<'a> {
-        type PSM = MockPsm;
-
-        fn submessage_header(&self) -> messages::SubmessageHeader<Self::PSM> {
-            todo!()
-        }
-    }
-
-    impl<'a> Data for MockDataSubmessage<'a> {
-        type SerializedData = &'a Vec<u8>;
-
-        fn new(
-            _endianness_flag: <Self::PSM as messages::Types>::SubmessageFlag,
-            _inline_qos_flag: <Self::PSM as messages::Types>::SubmessageFlag,
-            _data_flag: <Self::PSM as messages::Types>::SubmessageFlag,
-            _key_flag: <Self::PSM as messages::Types>::SubmessageFlag,
-            _non_standard_payload_flag: <Self::PSM as messages::Types>::SubmessageFlag,
-            _reader_id: <Self::PSM as structure::Types>::EntityId,
-            _writer_id: <Self::PSM as structure::Types>::EntityId,
-            _writer_sn: <Self::PSM as structure::Types>::SequenceNumber,
-            // _inline_qos: <Self::PSM as structure::Types>::ParameterVector,
-            serialized_payload: Self::SerializedData,
-        ) -> Self {
-            Self { serialized_payload }
-        }
-
-        fn endianness_flag(&self) -> <Self::PSM as messages::Types>::SubmessageFlag {
-            todo!()
-        }
-
-        fn inline_qos_flag(&self) -> <Self::PSM as messages::Types>::SubmessageFlag {
-            todo!()
-        }
-
-        fn data_flag(&self) -> <Self::PSM as messages::Types>::SubmessageFlag {
-            todo!()
-        }
-
-        fn key_flag(&self) -> <Self::PSM as messages::Types>::SubmessageFlag {
-            todo!()
-        }
-
-        fn non_standard_payload_flag(&self) -> <Self::PSM as messages::Types>::SubmessageFlag {
-            todo!()
-        }
-
-        fn reader_id(&self) -> &messages::submessage_elements::EntityId<Self::PSM> {
-            todo!()
-        }
-
-        fn writer_id(&self) -> &messages::submessage_elements::EntityId<Self::PSM> {
-            todo!()
-        }
-
-        fn writer_sn(&self) -> &messages::submessage_elements::SequenceNumber<Self::PSM> {
-            todo!()
-        }
-
-        fn inline_qos(&self) -> &messages::submessage_elements::ParameterList<Self::PSM> {
-            todo!()
-        }
-
-        fn serialized_payload(
-            &self,
-        ) -> &messages::submessage_elements::SerializedData<Self::SerializedData> {
-            todo!()
-        }
-    }
-
-    struct MockGapSubmessage;
-
-    impl Submessage for MockGapSubmessage {
-        type PSM = MockPsm;
-
-        fn submessage_header(&self) -> messages::SubmessageHeader<Self::PSM> {
-            todo!()
-        }
-    }
-
-    impl Gap for MockGapSubmessage {
-        fn new(
-            _endianness_flag: <Self::PSM as messages::Types>::SubmessageFlag,
-            _reader_id: <Self::PSM as structure::Types>::EntityId,
-            _writer_id: <Self::PSM as structure::Types>::EntityId,
-            _gap_start: <Self::PSM as structure::Types>::SequenceNumber,
-            _gap_list: <Self::PSM as structure::Types>::SequenceNumberVector,
-        ) -> Self {
-            todo!()
-        }
-
-        fn endianness_flag(&self) -> <Self::PSM as messages::Types>::SubmessageFlag {
-            todo!()
-        }
-
-        fn reader_id(&self) -> &messages::submessage_elements::EntityId<Self::PSM> {
-            todo!()
-        }
-
-        fn writer_id(&self) -> &messages::submessage_elements::EntityId<Self::PSM> {
-            todo!()
-        }
-
-        fn gap_start(&self) -> &messages::submessage_elements::SequenceNumber<Self::PSM> {
-            todo!()
-        }
-
-        fn gap_list(&self) -> &messages::submessage_elements::SequenceNumberSet<Self::PSM> {
-            todo!()
-        }
-    }
 
     // #[test]
     // fn stateless_writer_unsent_changes_reset() {

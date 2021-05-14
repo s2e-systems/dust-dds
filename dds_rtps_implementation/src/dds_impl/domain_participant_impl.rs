@@ -12,6 +12,7 @@ use rust_dds_api::{
     return_type::{DDSError, DDSResult},
     topic::topic_description::TopicDescription,
 };
+use rust_rtps_pim::structure::RTPSEntity;
 
 use crate::{
     rtps_impl::rtps_participant_impl::RTPSParticipantImpl, utils::shared_object::RtpsShared,
@@ -21,7 +22,6 @@ use super::{publisher_impl::PublisherImpl, writer_group_factory::WriterGroupFact
 
 pub struct DomainParticipantImpl<PSM: rust_rtps_pim::PIM> {
     writer_group_factory: Mutex<WriterGroupFactory<PSM>>,
-    default_publisher_qos: Mutex<PublisherQos>,
     rtps_participant_impl: RtpsShared<RTPSParticipantImpl<PSM>>,
 }
 
@@ -29,14 +29,12 @@ impl<PSM: rust_rtps_pim::PIM> DomainParticipantImpl<PSM> {
     pub fn new(guid_prefix: PSM::GuidPrefix) -> Self {
         Self {
             writer_group_factory: Mutex::new(WriterGroupFactory::new(guid_prefix)),
-            default_publisher_qos: Mutex::new(PublisherQos::default()),
-            rtps_participant_impl: RtpsShared::new(RTPSParticipantImpl::new()),
+            rtps_participant_impl: RtpsShared::new(RTPSParticipantImpl::new(guid_prefix)),
         }
     }
 }
 
-impl<'p, PSM: rust_rtps_pim::PIM>
-    rust_dds_api::domain::domain_participant::PublisherFactory<'p>
+impl<'p, PSM: rust_rtps_pim::PIM> rust_dds_api::domain::domain_participant::PublisherFactory<'p>
     for DomainParticipantImpl<PSM>
 {
     type PublisherType = PublisherImpl<'p, PSM>;
@@ -46,7 +44,6 @@ impl<'p, PSM: rust_rtps_pim::PIM>
         a_listener: Option<&'static dyn PublisherListener>,
         mask: StatusMask,
     ) -> Option<Self::PublisherType> {
-        let qos = qos.unwrap_or(self.default_publisher_qos.lock().unwrap().clone());
         let writer_group = self
             .writer_group_factory
             .lock()
@@ -113,12 +110,15 @@ impl<PSM: rust_rtps_pim::PIM> rust_dds_api::domain::domain_participant::DomainPa
     }
 
     fn set_default_publisher_qos(&self, qos: Option<PublisherQos>) -> DDSResult<()> {
-        *self.default_publisher_qos.lock().unwrap() = qos.unwrap_or_default();
+        self.writer_group_factory
+            .lock()
+            .unwrap()
+            .set_default_qos(qos);
         Ok(())
     }
 
     fn get_default_publisher_qos(&self) -> PublisherQos {
-        self.default_publisher_qos.lock().unwrap().clone()
+        self.writer_group_factory.lock().unwrap().get_default_qos()
     }
 
     fn set_default_subscriber_qos(&self, _qos: Option<SubscriberQos>) -> DDSResult<()> {
@@ -215,7 +215,7 @@ impl<PSM: rust_rtps_pim::PIM> Entity for DomainParticipantImpl<PSM> {
 
     fn enable(&self) -> DDSResult<()> {
         let rtps_participant = self.rtps_participant_impl.clone();
-        std::thread::spawn(move|| {
+        std::thread::spawn(move || {
             loop {
                 if let Some(_rtps_participant) = rtps_participant.try_lock() {
                     // rtps_participant.send_data();
@@ -229,7 +229,9 @@ impl<PSM: rust_rtps_pim::PIM> Entity for DomainParticipantImpl<PSM> {
     }
 
     fn get_instance_handle(&self) -> DDSResult<InstanceHandle> {
-        todo!()
+        Ok(crate::utils::instance_handle_from_guid(
+            &self.rtps_participant_impl.lock().guid(),
+        ))
     }
 }
 

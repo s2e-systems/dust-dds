@@ -1,15 +1,8 @@
-use crate::messages::{self, submessage_elements, Submessage};
+use crate::{messages::submessage_elements, PIM};
 
-pub trait InfoReply: Submessage {
-    fn new(
-        endianness_flag: <Self::PSM as messages::Types>::SubmessageFlag,
-        multicast_flag: <Self::PSM as messages::Types>::SubmessageFlag,
-        unicast_locator_list: submessage_elements::LocatorList<Self::PSM>,
-        multicast_locator_list: submessage_elements::LocatorList<Self::PSM>,
-    ) -> Self;
-
-    fn endianness_flag(&self) -> <Self::PSM as messages::Types>::SubmessageFlag;
-    fn multicast_flag(&self) -> <Self::PSM as messages::Types>::SubmessageFlag;
-    fn unicast_locator_list(&self) -> &submessage_elements::LocatorList<Self::PSM>;
-    fn multicast_locator_list(&self) -> &submessage_elements::LocatorList<Self::PSM>;
+pub struct InfoReply<PSM: PIM> {
+    pub endianness_flag: PSM::SubmessageFlag,
+    pub multicast_flag: PSM::SubmessageFlag,
+    pub unicast_locator_list: submessage_elements::LocatorList<PSM>,
+    pub multicast_locator_list: submessage_elements::LocatorList<PSM>,
 }

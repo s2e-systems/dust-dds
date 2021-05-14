@@ -1,8 +1,4 @@
-use crate::{
-    behavior::{self, RTPSWriter},
-    structure::{self, types::GUID},
-    PIM,
-};
+use crate::{behavior::RTPSWriter, structure::types::GUID, PIM};
 
 pub struct RTPSReaderProxy<PSM: PIM> {
     remote_reader_guid: GUID<PSM>,

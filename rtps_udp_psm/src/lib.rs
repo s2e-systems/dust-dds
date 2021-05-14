@@ -4,7 +4,6 @@ use types::{
     Time, VendorId,
 };
 
-pub mod submessages;
 pub mod types;
 
 pub struct RtpsUdpPsm;

@@ -5,6 +5,7 @@ use rust_rtps_pim::{
         stateless_writer::{RTPSReaderLocator, RTPSStatelessWriter},
         RTPSWriter,
     },
+    messages::submessages::{Data, Gap},
     structure::{
         types::{ChangeKind, Locator, ReliabilityKind, TopicKind, GUID},
         RTPSCacheChange, RTPSEndpoint, RTPSEntity, RTPSHistoryCache,
@@ -74,25 +75,19 @@ impl<PSM: rust_rtps_pim::PIM> RTPSWriterImpl<PSM> {
         }
     }
 
-    pub fn produce_messages<'a, Data, Gap, SendDataTo, SendGapTo>(
+    pub fn produce_messages<'a, SendDataTo, SendGapTo>(
         &'a mut self,
         send_data_to: &mut SendDataTo,
         send_gap_to: &mut SendGapTo,
     ) where
-        Data: rust_rtps_pim::messages::submessages::Data<
-                SerializedData = &'a <PSM as rust_rtps_pim::structure::types::Types>::Data,
-            > + rust_rtps_pim::messages::Submessage<PSM = PSM>,
-        Gap: rust_rtps_pim::messages::submessages::Gap
-            + rust_rtps_pim::messages::Submessage<PSM = PSM>,
-        SendDataTo: FnMut(&Locator<PSM>, Data),
-        SendGapTo: FnMut(&Locator<PSM>, Gap),
+        SendDataTo: FnMut(
+            &Locator<PSM>,
+            Data<PSM, &'a <PSM as rust_rtps_pim::structure::types::Types>::Data>,
+        ),
+        SendGapTo: FnMut(&Locator<PSM>, Gap<PSM>),
     {
         for reader_locator in &mut self.reader_locators {
-            reader_locator.produce_messages::<Data, Gap, _, _>(
-                &self.writer_cache,
-                send_data_to,
-                send_gap_to,
-            )
+            reader_locator.produce_messages::<_, _>(&self.writer_cache, send_data_to, send_gap_to)
         }
     }
 
@@ -241,7 +236,6 @@ impl<PSM: rust_rtps_pim::PIM> RTPSStatefulWriter<PSM> for RTPSWriterImpl<PSM> {
 
 #[cfg(test)]
 mod tests {
-    use rust_rtps_udp_psm::submessages::{Data, Gap};
     use rust_rtps_udp_psm::{types::EntityId, RtpsUdpPsm};
 
     use super::*;
@@ -263,20 +257,20 @@ mod tests {
         rtps_writer_impl.writer_cache_mut().add_change(cc);
         rtps_writer_impl.reader_locator_add(Locator::new(1, 2, [0; 16]));
         println!("First");
-        rtps_writer_impl.produce_messages::<Data, Gap, _, _>(
-            &mut |x, y| println!("Locator: {:?}, Data: {}", x.address(), y),
+        rtps_writer_impl.produce_messages::<_, _>(
+            &mut |x, y| println!("Locator: {:?}, Data: {}", x.address(), y.endianness_flag),
             &mut |_, _| (),
         );
         println!("Second");
         rtps_writer_impl.reader_locator_add(Locator::new(1, 3, [1; 16]));
-        rtps_writer_impl.produce_messages::<Data, Gap, _, _>(
-            &mut |x, y| println!("Locator: {:?}, Data: {}", x.address(), y),
+        rtps_writer_impl.produce_messages::<_, _>(
+            &mut |x, y| println!("Locator: {:?}, Data: {}", x.address(), y.endianness_flag),
             &mut |_, _| (),
         );
         println!("After reset");
         rtps_writer_impl.unsent_changes_reset();
-        rtps_writer_impl.produce_messages::<Data, Gap, _, _>(
-            &mut |x, y| println!("Locator: {:?}, Data: {}", x.address(), y),
+        rtps_writer_impl.produce_messages::<_, _>(
+            &mut |x, y| println!("Locator: {:?}, Data: {}", x.address(), y.endianness_flag),
             &mut |_, _| (),
         );
     }

@@ -11,6 +11,7 @@ const ENTITYKIND_USER_DEFINED_WRITER_GROUP: u8 = 0x08;
 pub struct WriterGroupFactory<PSM: rust_rtps_pim::PIM> {
     guid_prefix: PSM::GuidPrefix,
     publisher_counter: u8,
+    default_publisher_qos: PublisherQos,
 }
 
 impl<PSM: rust_rtps_pim::PIM> WriterGroupFactory<PSM> {
@@ -18,15 +19,17 @@ impl<PSM: rust_rtps_pim::PIM> WriterGroupFactory<PSM> {
         Self {
             guid_prefix,
             publisher_counter: 0,
+            default_publisher_qos: PublisherQos::default(),
         }
     }
 
     pub fn create_writer_group(
         &mut self,
-        qos: PublisherQos,
+        qos: Option<PublisherQos>,
         a_listener: Option<&'static dyn PublisherListener>,
         mask: StatusMask,
     ) -> DDSResult<RTPSWriterGroupImpl<PSM>> {
+        let qos = qos.unwrap_or(self.default_publisher_qos.clone());
         let guid_prefix = self.guid_prefix.clone();
 
         self.publisher_counter += 1;
@@ -39,6 +42,15 @@ impl<PSM: rust_rtps_pim::PIM> WriterGroupFactory<PSM> {
         .into();
         let guid = GUID::new(guid_prefix, entity_id);
         Ok(RTPSWriterGroupImpl::new(guid, qos, a_listener, mask))
+    }
+
+    pub fn set_default_qos(&mut self, qos: Option<PublisherQos>) {
+        let qos = qos.unwrap_or_default();
+        self.default_publisher_qos = qos;
+    }
+
+    pub fn get_default_qos(&self) -> PublisherQos {
+        self.default_publisher_qos.clone()
     }
 }
 
@@ -56,7 +68,7 @@ mod tests {
             WriterGroupFactory::new(guid_prefix);
 
         writer_group_factory
-            .create_writer_group(PublisherQos::default(), None, 0)
+            .create_writer_group(None, None, 0)
             .unwrap();
         assert_eq!(writer_group_factory.publisher_counter, 1);
     }
@@ -68,10 +80,10 @@ mod tests {
             WriterGroupFactory::new(guid_prefix);
 
         let writer_group1 = writer_group_factory
-            .create_writer_group(PublisherQos::default(), None, 0)
+            .create_writer_group(None, None, 0)
             .unwrap();
         let writer_group2 = writer_group_factory
-            .create_writer_group(PublisherQos::default(), None, 0)
+            .create_writer_group(None, None, 0)
             .unwrap();
 
         assert!(writer_group1.guid() != writer_group2.guid());
