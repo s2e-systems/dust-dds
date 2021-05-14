@@ -4,7 +4,6 @@ use rust_dds_api::{
         entity::Entity,
         qos::{SubscriberQos, TopicQos},
     },
-    return_type::DDSResult,
 };
 use rust_rtps_pim::structure::RTPSEntity;
 
@@ -83,7 +82,9 @@ impl<'a, PSM: rust_rtps_pim::PIM> RTPSEntity<PSM> for RTPSParticipantImpl<'a, PS
 
 #[cfg(test)]
 mod tests {
-    use rust_rtps_pim::messages::submessage_elements::Parameter;
+    use rust_dds_api::infrastructure::qos::PublisherQos;
+    use rust_rtps_pim::{messages::submessage_elements::Parameter, structure::types::GUID};
+    use rust_rtps_udp_psm::RtpsUdpPsm;
 
     use super::*;
 
@@ -194,6 +195,37 @@ mod tests {
         fn value(&self) -> &[u8] {
             todo!()
         }
+    }
+
+    #[test]
+    fn add_writer_group() {
+        let mut participant: RTPSParticipantImpl<RtpsUdpPsm> = RTPSParticipantImpl::new();
+        let guid = GUID::new([1; 12], [0, 0, 0, 1].into());
+        let shared_writer_group = RtpsShared::new(RTPSWriterGroupImpl::new(
+            guid,
+            PublisherQos::default(),
+            None,
+            0,
+        ));
+        participant.add_writer_group(shared_writer_group);
+
+        assert_eq!(participant.rtps_writer_groups.len(), 1)
+    }
+
+    #[test]
+    fn delete_writer_group() {
+        let mut participant: RTPSParticipantImpl<RtpsUdpPsm> = RTPSParticipantImpl::new();
+        let guid = GUID::new([1; 12], [0, 0, 0, 1].into());
+        let shared_writer_group = RtpsShared::new(RTPSWriterGroupImpl::new(
+            guid,
+            PublisherQos::default(),
+            None,
+            0,
+        ));
+        participant.add_writer_group(shared_writer_group.clone());
+        participant.delete_writer_group(shared_writer_group.get_instance_handle().unwrap());
+
+        assert_eq!(participant.rtps_writer_groups.len(), 0)
     }
 
     #[test]
