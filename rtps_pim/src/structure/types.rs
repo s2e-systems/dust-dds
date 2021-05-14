@@ -1,25 +1,25 @@
 use core::iter::FromIterator;
 
-use crate::messages;
+use crate::{messages, PIM};
 
 ///
 /// This files shall only contain the types as listed in the DDSI-RTPS Version 2.3
 /// Table 8.2 - Types of the attributes that appear in the RTPS Entities and Classes
 ///
 pub trait Types {
-    type GuidPrefix: Into<[u8; 12]> + From<[u8; 12]> + Copy + PartialEq;
+    type GuidPrefix: Into<[u8; 12]> + From<[u8; 12]> + Copy + PartialEq + Send + Sync;
     const GUIDPREFIX_UNKNOWN: Self::GuidPrefix;
 
-    type EntityId: Into<[u8; 4]> + From<[u8; 4]> + Copy + PartialEq;
+    type EntityId: Into<[u8; 4]> + From<[u8; 4]> + Copy + PartialEq + Send + Sync;
     const ENTITYID_UNKNOWN: Self::EntityId;
     const ENTITYID_PARTICIPANT: Self::EntityId;
 
-    type SequenceNumber: Into<i64> + From<i64> + Ord + Copy;
+    type SequenceNumber: Into<i64> + From<i64> + Ord + Copy + Send + Sync;
     const SEQUENCE_NUMBER_UNKNOWN: Self::SequenceNumber;
 
-    type LocatorKind: PartialEq + Copy;
-    type LocatorPort: PartialEq + Copy;
-    type LocatorAddress: Into<[u8; 16]> + From<[u8; 16]> + PartialEq + Copy;
+    type LocatorKind: PartialEq + Copy + Send + Sync;
+    type LocatorPort: PartialEq + Copy + Send + Sync;
+    type LocatorAddress: Into<[u8; 16]> + From<[u8; 16]> + PartialEq + Copy + Send + Sync;
 
     const LOCATOR_KIND_INVALID: Self::LocatorKind;
     const LOCATOR_KIND_RESERVED: Self::LocatorKind;
@@ -30,9 +30,9 @@ pub trait Types {
     const LOCATOR_ADDRESS_INVALID: Self::LocatorAddress;
     const LOCATOR_PORT_INVALID: Self::LocatorPort;
 
-    type InstanceHandle: Copy;
+    type InstanceHandle: Copy + Send + Sync;
 
-    type ProtocolVersion: Copy;
+    type ProtocolVersion: Copy + Send + Sync;
     const PROTOCOLVERSION: Self::ProtocolVersion;
     const PROTOCOLVERSION_1_0: Self::ProtocolVersion;
     const PROTOCOLVERSION_1_1: Self::ProtocolVersion;
@@ -42,46 +42,48 @@ pub trait Types {
     const PROTOCOLVERSION_2_3: Self::ProtocolVersion;
     const PROTOCOLVERSION_2_4: Self::ProtocolVersion;
 
-    type VendorId: Copy;
+    type VendorId: Copy + Send + Sync;
     const VENDOR_ID_UNKNOWN: Self::VendorId;
 
     // Data type which is used in the RTPS CacheChange and not explicitly defined in the standard
-    type Data;
+    type Data: Send + Sync;
 
     // Additions to represent lists which are used but not explicitly defined in the standard
     type SequenceNumberVector: IntoIterator<Item = Self::SequenceNumber>
         + FromIterator<Self::SequenceNumber>
-        + Clone;
+        + Clone
+        + Send
+        + Sync;
 
     // Temporary solution to be able to create an independent locator vector
-    type Locator;
-    type LocatorVector: IntoIterator<Item = Self::Locator>;
+    type Locator: Send + Sync;
+    type LocatorVector: IntoIterator<Item = Self::Locator> + Send + Sync;
 
-    type Parameter: messages::submessage_elements::Parameter<PSM = Self>;
-    type ParameterVector: IntoIterator<Item = Self::Parameter>;
+    type Parameter: messages::submessage_elements::Parameter<PSM = Self> + Send + Sync;
+    type ParameterVector: IntoIterator<Item = Self::Parameter> + Send + Sync;
 }
 
 /// Define the GUID as described in 8.2.4.1 Identifying RTPS entities: The GUID
-pub struct GUID<PSM: Types> {
+pub struct GUID<PSM: PIM> {
     prefix: PSM::GuidPrefix,
     entity_id: PSM::EntityId,
 }
 
-impl<PSM: Types> Clone for GUID<PSM> {
+impl<PSM: PIM> Clone for GUID<PSM> {
     fn clone(&self) -> Self {
         *self
     }
 }
 
-impl<PSM: Types> Copy for GUID<PSM> {}
+impl<PSM: PIM> Copy for GUID<PSM> {}
 
-impl<PSM: Types> PartialEq for GUID<PSM> {
+impl<PSM: PIM> PartialEq for GUID<PSM> {
     fn eq(&self, other: &Self) -> bool {
         self.prefix == other.prefix && self.entity_id == other.entity_id
     }
 }
 
-impl<PSM: Types> GUID<PSM> {
+impl<PSM: PIM> GUID<PSM> {
     pub const GUID_UNKNOWN: Self = Self {
         prefix: PSM::GUIDPREFIX_UNKNOWN,
         entity_id: PSM::ENTITYID_UNKNOWN,

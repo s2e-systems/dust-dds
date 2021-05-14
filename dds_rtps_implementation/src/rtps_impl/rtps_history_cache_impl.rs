@@ -1,10 +1,10 @@
 use rust_rtps_pim::structure::{RTPSCacheChange, RTPSHistoryCache};
 
-pub struct RTPSHistoryCacheImpl<PSM: rust_rtps_pim::structure::Types> {
+pub struct RTPSHistoryCacheImpl<PSM: rust_rtps_pim::PIM> {
     changes: Vec<RTPSCacheChange<PSM>>,
 }
 
-impl<PSM: rust_rtps_pim::structure::Types> RTPSHistoryCache<PSM> for RTPSHistoryCacheImpl<PSM> {
+impl<PSM: rust_rtps_pim::PIM> RTPSHistoryCache<PSM> for RTPSHistoryCacheImpl<PSM> {
     fn new() -> Self {
         Self {
             changes: Vec::new(),

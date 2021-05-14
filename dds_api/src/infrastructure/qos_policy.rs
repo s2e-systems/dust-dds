@@ -79,17 +79,17 @@ pub const DURABILITYSERVICE_QOS_POLICY_ID: QosPolicyId = 22;
 /// and ignore_topic these QoS can assist an application to define and enforce its own security policies. The use of this QoS is not
 /// limited to security, rather it offers a simple, yet flexible extensibility mechanism.
 #[derive(Debug, PartialEq, Clone)]
-pub struct UserDataQosPolicy<'a> {
-    pub value: &'a [u8],
+pub struct UserDataQosPolicy {
+    pub value: &'static [u8],
 }
 
-impl<'a> QosPolicy for UserDataQosPolicy<'a> {
+impl QosPolicy for UserDataQosPolicy {
     fn name(&self) -> &str {
         USERDATA_QOS_POLICY_NAME
     }
 }
 
-impl<'a> Default for UserDataQosPolicy<'a> {
+impl Default for UserDataQosPolicy {
     fn default() -> Self {
         Self { value: &[] }
     }
@@ -100,17 +100,17 @@ impl<'a> Default for UserDataQosPolicy<'a> {
 /// combination with the listeners on the DataReader and DataWriter as well as by means of operations such as ignore_topic,
 /// these QoS can assist an application to extend the provided QoS.
 #[derive(Debug, PartialEq, Clone)]
-pub struct TopicDataQosPolicy<'a> {
-    pub value: &'a [u8],
+pub struct TopicDataQosPolicy {
+    pub value: &'static [u8],
 }
 
-impl<'a> QosPolicy for TopicDataQosPolicy<'a> {
+impl QosPolicy for TopicDataQosPolicy {
     fn name(&self) -> &str {
         TOPICDATA_QOS_POLICY_NAME
     }
 }
 
-impl<'a> Default for TopicDataQosPolicy<'a> {
+impl Default for TopicDataQosPolicy {
     fn default() -> Self {
         Self { value: &[] }
     }
@@ -123,17 +123,17 @@ impl<'a> Default for TopicDataQosPolicy<'a> {
 /// matching policies similar to those of the PARTITION QoS except the decision can be made based on an application-defined
 /// policy.
 #[derive(Debug, PartialEq, Clone)]
-pub struct GroupDataQosPolicy<'a> {
-    pub value: &'a [u8],
+pub struct GroupDataQosPolicy {
+    pub value: &'static [u8],
 }
 
-impl<'a> QosPolicy for GroupDataQosPolicy<'a> {
+impl QosPolicy for GroupDataQosPolicy {
     fn name(&self) -> &str {
         GROUPDATA_QOS_POLICY_NAME
     }
 }
 
-impl<'a> Default for GroupDataQosPolicy<'a> {
+impl Default for GroupDataQosPolicy {
     fn default() -> Self {
         Self { value: &[] }
     }

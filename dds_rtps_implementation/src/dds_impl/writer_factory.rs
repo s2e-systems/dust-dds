@@ -17,7 +17,7 @@ impl<PSM: rust_rtps_pim::PIM> WriterFactory<PSM> {
 
     pub fn create_datawriter<'a, T>(
         &mut self,
-        _qos: DataWriterQos<'a>,
+        _qos: DataWriterQos,
         _a_listener: Option<&'a (dyn DataWriterListener<DataType = T> + 'a)>,
         _mask: StatusMask,
     ) -> RTPSWriterImpl<PSM> {

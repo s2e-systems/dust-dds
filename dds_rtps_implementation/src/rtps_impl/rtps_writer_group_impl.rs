@@ -11,19 +11,19 @@ use rust_rtps_pim::structure::RTPSEntity;
 
 use super::rtps_writer_impl::RTPSWriterImpl;
 
-pub struct RTPSWriterGroupImpl<'a, PSM: rust_rtps_pim::PIM> {
+pub struct RTPSWriterGroupImpl<PSM: rust_rtps_pim::PIM> {
     guid: GUID<PSM>,
-    qos: PublisherQos<'a>,
-    listener: Option<&'a (dyn PublisherListener + 'a)>,
+    qos: PublisherQos,
+    listener: Option<&'static dyn PublisherListener>,
     status_mask: StatusMask,
     writer_list: Vec<RtpsShared<RTPSWriterImpl<PSM>>>,
 }
 
-impl<'a, PSM: rust_rtps_pim::PIM> RTPSWriterGroupImpl<'a, PSM> {
+impl<PSM: rust_rtps_pim::PIM> RTPSWriterGroupImpl<PSM> {
     pub fn new(
         guid: GUID<PSM>,
-        qos: PublisherQos<'a>,
-        listener: Option<&'a (dyn PublisherListener + 'a)>,
+        qos: PublisherQos,
+        listener: Option<&'static dyn PublisherListener>,
         status_mask: StatusMask,
     ) -> Self {
         Self {
@@ -51,16 +51,17 @@ impl<'a, PSM: rust_rtps_pim::PIM> RTPSWriterGroupImpl<'a, PSM> {
 
     pub fn send_data(&self) {
         for writer in &self.writer_list {
-            if let Some(_writer) = writer.try_lock() {
-                // writer.produce_messages(|x,y|{}, |x,y|{});
-                todo!()
+            if let Some(writer) = writer.try_lock() {
+                // let submessages;
+                // writer.produce_messages(&mut |x,y|{}, &mut |x,y|{});
+                // transport.write(submessages)
             }
         }
     }
 }
 
-impl<'a, 'b: 'a, PSM: rust_rtps_pim::PIM> rust_rtps_pim::structure::RTPSEntity<PSM>
-    for RTPSWriterGroupImpl<'a, PSM>
+impl<PSM: rust_rtps_pim::PIM> rust_rtps_pim::structure::RTPSEntity<PSM>
+    for RTPSWriterGroupImpl<PSM>
 {
     fn guid(&self) -> GUID<PSM> {
         self.guid

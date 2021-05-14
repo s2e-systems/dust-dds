@@ -1,8 +1,8 @@
-use crate::structure;
+use crate::PIM;
 
 use super::RTPSCacheChange;
 
-pub trait RTPSHistoryCache<PSM: structure::Types> {
+pub trait RTPSHistoryCache<PSM: PIM> {
     /// This operation creates a new RTPS HistoryCache. The newly-created history cache is initialized with an empty list of changes.
     fn new() -> Self
     where
@@ -17,16 +17,16 @@ pub trait RTPSHistoryCache<PSM: structure::Types> {
     /// This operation indicates that a previously-added CacheChange has become irrelevant and the details regarding the CacheChange need
     /// not be maintained in the HistoryCache. The determination of irrelevance is made based on the QoS associated with the related DDS
     /// entity and on the acknowledgment status of the CacheChange. This is described in 8.4.1.
-    fn remove_change(&mut self, seq_num: &<PSM as structure::Types>::SequenceNumber);
+    fn remove_change(&mut self, seq_num: &PSM::SequenceNumber);
 
     fn get_change(
         &self,
-        seq_num: &<PSM as structure::Types>::SequenceNumber,
+        seq_num: &PSM::SequenceNumber,
     ) -> Option<&RTPSCacheChange<PSM>>;
 
     /// This operation retrieves the smallest value of the CacheChange::sequenceNumber attribute among the CacheChange stored in the HistoryCache.
-    fn get_seq_num_min(&self) -> Option<<PSM as structure::Types>::SequenceNumber>;
+    fn get_seq_num_min(&self) -> Option<PSM::SequenceNumber>;
 
     /// This operation retrieves the largest value of the CacheChange::sequenceNumber attribute among the CacheChange stored in the HistoryCache.
-    fn get_seq_num_max(&self) -> Option<<PSM as structure::Types>::SequenceNumber>;
+    fn get_seq_num_max(&self) -> Option<PSM::SequenceNumber>;
 }

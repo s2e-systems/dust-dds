@@ -1,20 +1,18 @@
 use crate::{
-    behavior::{self, RTPSWriter},
+    behavior::RTPSWriter,
     messages::{self, Submessage},
     structure::{self, types::Locator, RTPSHistoryCache},
+    PIM,
 };
 
-pub struct RTPSReaderLocator<PSM: structure::Types> {
+pub struct RTPSReaderLocator<PSM: PIM> {
     locator: Locator<PSM>,
     expects_inline_qos: bool,
     last_sent_sequence_number: PSM::SequenceNumber,
     requested_changes: PSM::SequenceNumberVector,
 }
 
-impl<PSM> Clone for RTPSReaderLocator<PSM>
-where
-    PSM: structure::Types,
-{
+impl<PSM: PIM> Clone for RTPSReaderLocator<PSM> {
     fn clone(&self) -> Self {
         Self {
             locator: self.locator.clone(),
@@ -25,16 +23,13 @@ where
     }
 }
 
-impl<PSM: structure::Types> core::cmp::PartialEq for RTPSReaderLocator<PSM> {
+impl<PSM: PIM> core::cmp::PartialEq for RTPSReaderLocator<PSM> {
     fn eq(&self, other: &Self) -> bool {
         self.locator == other.locator
     }
 }
 
-impl<PSM> RTPSReaderLocator<PSM>
-where
-    PSM: structure::Types + behavior::Types,
-{
+impl<PSM: PIM> RTPSReaderLocator<PSM> {
     pub fn new(locator: Locator<PSM>, expects_inline_qos: bool) -> Self {
         Self {
             locator,
@@ -108,7 +103,7 @@ where
     }
 }
 
-pub trait RTPSStatelessWriter<PSM: structure::Types + behavior::Types>: RTPSWriter<PSM> {
+pub trait RTPSStatelessWriter<PSM: PIM>: RTPSWriter<PSM> {
     fn reader_locator_add(&mut self, a_locator: Locator<PSM>);
 
     fn reader_locator_remove(&mut self, a_locator: &Locator<PSM>);
@@ -124,7 +119,7 @@ pub trait RTPSStatelessWriter<PSM: structure::Types + behavior::Types>: RTPSWrit
 
 impl<'a, PSM> RTPSReaderLocator<PSM>
 where
-    PSM: structure::Types + behavior::Types + 'a,
+    PSM: PIM + 'a,
 {
     pub fn produce_messages<Data, Gap, SendDataTo, SendGapTo>(
         &'a mut self,
@@ -132,8 +127,6 @@ where
         send_data_to: &mut SendDataTo,
         send_gap_to: &mut SendGapTo,
     ) where
-        PSM: messages::Types,
-        PSM::ParameterVector: Clone,
         Data: messages::submessages::Data<SerializedData = &'a <PSM as structure::types::Types>::Data>
             + Submessage<PSM = PSM>,
         Gap: messages::submessages::Gap + Submessage<PSM = PSM>,
@@ -193,6 +186,7 @@ where
 mod tests {
     use super::*;
     use crate::{
+        behavior,
         messages::{
             self,
             submessage_elements::Parameter,
@@ -317,6 +311,8 @@ mod tests {
 
         type ParticipantMessageData = u8;
     }
+
+    impl PIM for MockPsm{}
 
     struct MockHistoryCache {
         changes: Vec<RTPSCacheChange<MockPsm>>,

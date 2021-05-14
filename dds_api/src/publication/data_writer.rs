@@ -17,14 +17,14 @@ pub trait DataWriterParent<'p, 'dp: 'p> {
     fn get_publisher(&self) -> &Self::PublisherType;
 }
 
-pub trait DataWriterTopic<'t, 'dp: 't, T: 'dp> {
+pub trait DataWriterTopic<'t, 'dp: 't, T: 'static> {
     type TopicType: Topic<'t, 'dp, T>;
 
     fn get_topic(&self) -> &Self::TopicType;
 }
 
-pub trait DataWriter<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p, T: 'dp>:
-    Entity<Qos = DataWriterQos<'dp>, Listener = &'dp (dyn DataWriterListener<DataType = T> + 'dp)>
+pub trait DataWriter<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p, T: 'static>:
+    Entity<Qos = DataWriterQos, Listener = &'static dyn DataWriterListener<DataType = T>>
 {
     /// This operation informs the Service that the application will be modifying a particular instance. It gives an opportunity to the
     /// Service to pre-configure itself to improve performance.

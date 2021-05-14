@@ -32,17 +32,17 @@ const ENTITYKIND_USER_DEFINED_WRITER_NO_KEY: u8 = 0x03;
 const ENTITYKIND_BUILTIN_WRITER_WITH_KEY: u8 = 0xc2;
 const ENTITYKIND_BUILTIN_WRITER_NO_KEY: u8 = 0xc3;
 
-pub struct PublisherImpl<'p, 'dp: 'p, PSM: rust_rtps_pim::PIM> {
-    participant: &'p DomainParticipantImpl<'dp, PSM>,
+pub struct PublisherImpl<'p, PSM: rust_rtps_pim::PIM> {
+    participant: &'p DomainParticipantImpl<PSM>,
     writer_factory: Mutex<WriterFactory<PSM>>,
-    default_datawriter_qos: Mutex<DataWriterQos<'dp>>,
-    rtps_writer_group_impl: RtpsWeak<RTPSWriterGroupImpl<'dp, PSM>>,
+    default_datawriter_qos: Mutex<DataWriterQos>,
+    rtps_writer_group_impl: RtpsWeak<RTPSWriterGroupImpl<PSM>>,
 }
 
-impl<'p, 'dp: 'p, PSM: rust_rtps_pim::PIM> PublisherImpl<'p, 'dp, PSM> {
+impl<'p, 'dp: 'p, PSM: rust_rtps_pim::PIM> PublisherImpl<'p, PSM> {
     pub fn new(
-        participant: &'p DomainParticipantImpl<'dp, PSM>,
-        rtps_writer_group_impl: &RtpsShared<RTPSWriterGroupImpl<'dp, PSM>>,
+        participant: &'p DomainParticipantImpl<PSM>,
+        rtps_writer_group_impl: &RtpsShared<RTPSWriterGroupImpl<PSM>>,
     ) -> Self {
         let writer_factory = WriterFactory::new(*rtps_writer_group_impl.lock().guid().prefix());
         Self {
@@ -54,24 +54,24 @@ impl<'p, 'dp: 'p, PSM: rust_rtps_pim::PIM> PublisherImpl<'p, 'dp, PSM> {
     }
 }
 
-impl<'p, 'dp: 'p, PSM: rust_rtps_pim::PIM> PublisherParent<'dp> for PublisherImpl<'p, 'dp, PSM> {
-    type DomainParticipantType = DomainParticipantImpl<'dp, PSM>;
+impl<'p, 'dp: 'p, PSM: rust_rtps_pim::PIM> PublisherParent<'dp> for PublisherImpl<'p, PSM> {
+    type DomainParticipantType = DomainParticipantImpl<PSM>;
 
     fn get_participant(&self) -> &Self::DomainParticipantType {
         &self.participant
     }
 }
 
-impl<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p + 't, T: DDSType<PSM> + 'dp, PSM: rust_rtps_pim::PIM>
-    DataWriterFactory<'dw, 'p, 't, 'dp, T> for PublisherImpl<'p, 'dp, PSM>
+impl<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p + 't, T: DDSType<PSM> + 'static, PSM: rust_rtps_pim::PIM>
+    DataWriterFactory<'dw, 'p, 't, 'dp, T> for PublisherImpl<'p, PSM>
 {
-    type TopicType = TopicImpl<'t, 'dp, T, PSM>;
-    type DataWriterType = DataWriterImpl<'dw, 'p, 't, 'dp, T, PSM>;
+    type TopicType = TopicImpl<'t, T, PSM>;
+    type DataWriterType = DataWriterImpl<'dw, 'p, 't, T, PSM>;
 
     fn create_datawriter(
         &'dw self,
         a_topic: &'dw Self::TopicType,
-        qos: Option<DataWriterQos<'dp>>,
+        qos: Option<DataWriterQos>,
         a_listener: Option<&'dp (dyn DataWriterListener<DataType = T> + 'dp)>,
         mask: StatusMask,
     ) -> Option<Self::DataWriterType> {
@@ -111,7 +111,7 @@ impl<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p + 't, T: DDSType<PSM> + 'dp, PSM: rust_rtps_
 }
 
 impl<'p, 'dp: 'p, PSM: rust_rtps_pim::PIM> rust_dds_api::publication::publisher::Publisher<'p, 'dp>
-    for PublisherImpl<'p, 'dp, PSM>
+    for PublisherImpl<'p, PSM>
 {
     fn suspend_publications(&self) -> DDSResult<()> {
         // self.rtps_writer_group_impl
@@ -141,32 +141,32 @@ impl<'p, 'dp: 'p, PSM: rust_rtps_pim::PIM> rust_dds_api::publication::publisher:
         todo!()
     }
 
-    fn set_default_datawriter_qos(&self, _qos: Option<DataWriterQos<'dp>>) -> DDSResult<()> {
+    fn set_default_datawriter_qos(&self, _qos: Option<DataWriterQos>) -> DDSResult<()> {
         // self.rtps_writer_group_impl
         //     .upgrade()?
         //     .set_default_datawriter_qos(qos)
         todo!()
     }
 
-    fn get_default_datawriter_qos(&self) -> DataWriterQos<'dp> {
+    fn get_default_datawriter_qos(&self) -> DataWriterQos {
         // self.default_datawriter_qos.lock().unwrap().clone()
         todo!()
     }
 
     fn copy_from_topic_qos(
         &self,
-        _a_datawriter_qos: &mut DataWriterQos<'dp>,
+        _a_datawriter_qos: &mut DataWriterQos,
         _a_topic_qos: &TopicQos,
     ) -> DDSResult<()> {
         todo!()
     }
 }
 
-impl<'p, 'dp: 'p, PSM: rust_rtps_pim::PIM> rust_dds_api::infrastructure::entity::Entity
-    for PublisherImpl<'p, 'dp, PSM>
+impl<'p, PSM: rust_rtps_pim::PIM> rust_dds_api::infrastructure::entity::Entity
+    for PublisherImpl<'p, PSM>
 {
-    type Qos = PublisherQos<'dp>;
-    type Listener = &'dp (dyn PublisherListener + 'dp);
+    type Qos = PublisherQos;
+    type Listener = &'static dyn PublisherListener;
 
     fn set_qos(&self, _qos: Option<Self::Qos>) -> DDSResult<()> {
         todo!()

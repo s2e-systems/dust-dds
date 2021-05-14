@@ -21,12 +21,12 @@ impl<PSM: rust_rtps_pim::PIM> WriterGroupFactory<PSM> {
         }
     }
 
-    pub fn create_writer_group<'a>(
+    pub fn create_writer_group(
         &mut self,
-        qos: PublisherQos<'a>,
-        a_listener: Option<&'a (dyn PublisherListener + 'a)>,
+        qos: PublisherQos,
+        a_listener: Option<&'static dyn PublisherListener>,
         mask: StatusMask,
-    ) -> DDSResult<RTPSWriterGroupImpl<'a, PSM>> {
+    ) -> DDSResult<RTPSWriterGroupImpl<PSM>> {
         let guid_prefix = self.guid_prefix.clone();
 
         self.publisher_counter += 1;

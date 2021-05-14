@@ -20,21 +20,20 @@ pub struct DataWriterImpl<
     'dw,
     'p: 'dw,
     't: 'dw,
-    'dp: 'p,
-    T: DDSType<PSM> + 'dp,
+    T: DDSType<PSM> + 'static,
     PSM: rust_rtps_pim::PIM,
 > {
-    publisher: &'dw PublisherImpl<'p, 'dp, PSM>,
-    topic: &'dw TopicImpl<'t, 'dp, T, PSM>,
+    publisher: &'dw PublisherImpl<'p, PSM>,
+    topic: &'dw TopicImpl<'t, T, PSM>,
     rtps_writer_impl: RtpsWeak<RTPSWriterImpl<PSM>>,
 }
 
 impl<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p, T: DDSType<PSM> + 't, PSM: rust_rtps_pim::PIM>
-    DataWriterImpl<'dw, 'p, 't, 'dp, T, PSM>
+    DataWriterImpl<'dw, 'p, 't, T, PSM>
 {
     pub fn new(
-        publisher: &'dw PublisherImpl<'p, 'dp, PSM>,
-        topic: &'dw TopicImpl<'t, 'dp, T, PSM>,
+        publisher: &'dw PublisherImpl<'p, PSM>,
+        topic: &'dw TopicImpl<'t, T, PSM>,
         rtps_writer_impl: RtpsWeak<RTPSWriterImpl<PSM>>,
     ) -> Self {
         Self {
@@ -45,20 +44,20 @@ impl<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p, T: DDSType<PSM> + 't, PSM: rust_rtps_pim::P
     }
 }
 
-impl<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p, T: DDSType<PSM> + 'dp, PSM: rust_rtps_pim::PIM>
+impl<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p, T: DDSType<PSM> + 'static, PSM: rust_rtps_pim::PIM>
     rust_dds_api::publication::data_writer::DataWriterParent<'p, 'dp>
-    for DataWriterImpl<'dw, 'p, 't, 'dp, T, PSM>
+    for DataWriterImpl<'dw, 'p, 't, T, PSM>
 {
-    type PublisherType = PublisherImpl<'p, 'dp, PSM>;
+    type PublisherType = PublisherImpl<'p, PSM>;
 
     fn get_publisher(&self) -> &Self::PublisherType {
         self.publisher
     }
 }
 
-impl<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p, T: DDSType<PSM> + 'dp, PSM: rust_rtps_pim::PIM>
+impl<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p, T: DDSType<PSM> + 'static, PSM: rust_rtps_pim::PIM>
     rust_dds_api::publication::data_writer::DataWriter<'dw, 'p, 't, 'dp, T>
-    for DataWriterImpl<'dw, 'p, 't, 'dp, T, PSM>
+    for DataWriterImpl<'dw, 'p, 't, T, PSM>
 {
     fn register_instance(&self, _instance: T) -> DDSResult<Option<InstanceHandle>> {
         todo!()
@@ -180,11 +179,11 @@ impl<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p, T: DDSType<PSM> + 'dp, PSM: rust_rtps_pim::
     }
 }
 
-impl<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p, T: DDSType<PSM> + 'dp, PSM: rust_rtps_pim::PIM>
-    rust_dds_api::infrastructure::entity::Entity for DataWriterImpl<'dw, 'p, 't, 'dp, T, PSM>
+impl<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p, T: DDSType<PSM> + 'static, PSM: rust_rtps_pim::PIM>
+    rust_dds_api::infrastructure::entity::Entity for DataWriterImpl<'dw, 'p, 't, T, PSM>
 {
-    type Qos = DataWriterQos<'dp>;
-    type Listener = &'dp (dyn DataWriterListener<DataType = T> + 'dp);
+    type Qos = DataWriterQos;
+    type Listener = &'static dyn DataWriterListener<DataType = T>;
 
     fn set_qos(&self, _qos: Option<Self::Qos>) -> DDSResult<()> {
         todo!()
@@ -225,7 +224,7 @@ impl<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p, T: DDSType<PSM> + 'dp, PSM: rust_rtps_pim::
 
 impl<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p, T: DDSType<PSM> + 't, PSM: rust_rtps_pim::PIM>
     rust_dds_api::publication::data_writer::AnyDataWriter
-    for DataWriterImpl<'dw, 'p, 't, 'dp, T, PSM>
+    for DataWriterImpl<'dw, 'p, 't, T, PSM>
 {
 }
 

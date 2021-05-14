@@ -1,5 +1,5 @@
-use crate::structure;
+use crate::{PIM};
 
 use super::RTPSEntity;
 
-pub trait RTPSGroup<PSM: structure::Types>: RTPSEntity<PSM> {}
+pub trait RTPSGroup<PSM: PIM>: RTPSEntity<PSM> {}

@@ -11,12 +11,12 @@ use super::rtps_writer_group_impl::RTPSWriterGroupImpl;
 const ENTITYKIND_USER_DEFINED_WRITER_GROUP: u8 = 0x08;
 const ENTITYKIND_USER_DEFINED_READER_GROUP: u8 = 0x09;
 
-pub struct RTPSParticipantImpl<'a, PSM: rust_rtps_pim::PIM> {
+pub struct RTPSParticipantImpl<PSM: rust_rtps_pim::PIM> {
     // transport:
-    rtps_writer_groups: Vec<RtpsShared<RTPSWriterGroupImpl<'a, PSM>>>,
+    rtps_writer_groups: Vec<RtpsShared<RTPSWriterGroupImpl<PSM>>>,
 }
 
-impl<'a, PSM: rust_rtps_pim::PIM> RTPSParticipantImpl<'a, PSM> {
+impl<PSM: rust_rtps_pim::PIM> RTPSParticipantImpl<PSM> {
     pub fn new() -> Self {
         // let guid = GUID::new(prefix, PSM::ENTITYID_PARTICIPANT);
         // let builtin_writer_group = Arc::new(Mutex::new(RTPSWriterGroupImpl::new(
@@ -31,7 +31,7 @@ impl<'a, PSM: rust_rtps_pim::PIM> RTPSParticipantImpl<'a, PSM> {
         }
     }
 
-    pub fn add_writer_group(&mut self, writer_group: RtpsShared<RTPSWriterGroupImpl<'a, PSM>>) {
+    pub fn add_writer_group(&mut self, writer_group: RtpsShared<RTPSWriterGroupImpl<PSM>>) {
         self.rtps_writer_groups.push(writer_group)
     }
 
@@ -54,8 +54,8 @@ impl<'a, PSM: rust_rtps_pim::PIM> RTPSParticipantImpl<'a, PSM> {
     }
 }
 
-impl<'a, PSM: rust_rtps_pim::PIM> rust_rtps_pim::structure::RTPSParticipant<PSM>
-    for RTPSParticipantImpl<'a, PSM>
+impl<PSM: rust_rtps_pim::PIM> rust_rtps_pim::structure::RTPSParticipant<PSM>
+    for RTPSParticipantImpl<PSM>
 {
     fn protocol_version(&self) -> PSM::ProtocolVersion {
         todo!()
@@ -74,7 +74,7 @@ impl<'a, PSM: rust_rtps_pim::PIM> rust_rtps_pim::structure::RTPSParticipant<PSM>
     }
 }
 
-impl<'a, PSM: rust_rtps_pim::PIM> RTPSEntity<PSM> for RTPSParticipantImpl<'a, PSM> {
+impl<PSM: rust_rtps_pim::PIM> RTPSEntity<PSM> for RTPSParticipantImpl<PSM> {
     fn guid(&self) -> rust_rtps_pim::structure::types::GUID<PSM> {
         // self.guid
         todo!()

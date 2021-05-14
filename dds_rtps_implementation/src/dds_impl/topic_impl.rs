@@ -12,16 +12,16 @@ use rust_dds_api::{
 
 use super::domain_participant_impl::DomainParticipantImpl;
 
-pub struct TopicImpl<'t, 'dp: 't, T: 't, PSM: rust_rtps_pim::PIM> {
-    participant: &'t DomainParticipantImpl<'dp, PSM>,
+pub struct TopicImpl<'t, T: 'static, PSM: rust_rtps_pim::PIM> {
+    participant: &'t DomainParticipantImpl<PSM>,
     phantom: PhantomData<&'t T>,
 }
 
-impl<'t, 'dp: 't, T: 'dp, PSM: rust_rtps_pim::PIM>
+impl<'t, 'dp: 't, T: 'static, PSM: rust_rtps_pim::PIM>
     rust_dds_api::domain::domain_participant::TopicFactory<'t, 'dp, T>
-    for DomainParticipantImpl<'dp, PSM>
+    for DomainParticipantImpl<PSM>
 {
-    type TopicType = TopicImpl<'t, 'dp, T, PSM>;
+    type TopicType = TopicImpl<'t, T, PSM>;
 
     fn create_topic(
         &'t self,
@@ -42,8 +42,8 @@ impl<'t, 'dp: 't, T: 'dp, PSM: rust_rtps_pim::PIM>
     }
 }
 
-impl<'t, 'dp: 't, T: 'dp, PSM: rust_rtps_pim::PIM> rust_dds_api::topic::topic::Topic<'t, 'dp, T>
-    for TopicImpl<'t, 'dp, T, PSM>
+impl<'t, 'dp: 't, T: 'static, PSM: rust_rtps_pim::PIM> rust_dds_api::topic::topic::Topic<'t, 'dp, T>
+    for TopicImpl<'t, T, PSM>
 {
     fn get_inconsistent_topic_status(
         &self,
@@ -53,8 +53,8 @@ impl<'t, 'dp: 't, T: 'dp, PSM: rust_rtps_pim::PIM> rust_dds_api::topic::topic::T
     }
 }
 
-impl<'t, 'dp: 't, T: 'dp, PSM: rust_rtps_pim::PIM> TopicDescription<'t, 'dp, T>
-    for TopicImpl<'t, 'dp, T, PSM>
+impl<'t, 'dp: 't, T: 'static, PSM: rust_rtps_pim::PIM> TopicDescription<'t, 'dp, T>
+    for TopicImpl<'t, T, PSM>
 {
     fn get_participant(
         &self,
@@ -85,9 +85,9 @@ impl<'t, 'dp: 't, T: 'dp, PSM: rust_rtps_pim::PIM> TopicDescription<'t, 'dp, T>
     }
 }
 
-impl<'t, 'dp: 't, T: 'dp, PSM: rust_rtps_pim::PIM> Entity for TopicImpl<'t, 'dp, T, PSM> {
-    type Qos = TopicQos<'dp>;
-    type Listener = &'dp (dyn TopicListener<DataType = T> + 'dp);
+impl<'t, 'dp: 't, T: 'static, PSM: rust_rtps_pim::PIM> Entity for TopicImpl<'t, T, PSM> {
+    type Qos = TopicQos;
+    type Listener = &'static dyn TopicListener<DataType = T>;
 
     fn set_qos(&self, _qos: Option<Self::Qos>) -> DDSResult<()> {
         // self.impl_ref

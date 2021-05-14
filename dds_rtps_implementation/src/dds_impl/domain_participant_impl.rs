@@ -19,13 +19,13 @@ use crate::{
 
 use super::{publisher_impl::PublisherImpl, writer_group_factory::WriterGroupFactory};
 
-pub struct DomainParticipantImpl<'dp, PSM: rust_rtps_pim::PIM> {
+pub struct DomainParticipantImpl<PSM: rust_rtps_pim::PIM> {
     writer_group_factory: Mutex<WriterGroupFactory<PSM>>,
-    default_publisher_qos: Mutex<PublisherQos<'dp>>,
-    rtps_participant_impl: RtpsShared<RTPSParticipantImpl<'dp, PSM>>,
+    default_publisher_qos: Mutex<PublisherQos>,
+    rtps_participant_impl: RtpsShared<RTPSParticipantImpl<PSM>>,
 }
 
-impl<'dp, PSM: rust_rtps_pim::PIM> DomainParticipantImpl<'dp, PSM> {
+impl<PSM: rust_rtps_pim::PIM> DomainParticipantImpl<PSM> {
     pub fn new(guid_prefix: PSM::GuidPrefix) -> Self {
         Self {
             writer_group_factory: Mutex::new(WriterGroupFactory::new(guid_prefix)),
@@ -37,13 +37,13 @@ impl<'dp, PSM: rust_rtps_pim::PIM> DomainParticipantImpl<'dp, PSM> {
 
 impl<'p, 'dp: 'p, PSM: rust_rtps_pim::PIM>
     rust_dds_api::domain::domain_participant::PublisherFactory<'p, 'dp>
-    for DomainParticipantImpl<'dp, PSM>
+    for DomainParticipantImpl<PSM>
 {
-    type PublisherType = PublisherImpl<'p, 'dp, PSM>;
+    type PublisherType = PublisherImpl<'p, PSM>;
     fn create_publisher(
         &'p self,
-        qos: Option<PublisherQos<'dp>>,
-        a_listener: Option<&'dp (dyn PublisherListener + 'dp)>,
+        qos: Option<PublisherQos>,
+        a_listener: Option<&'static dyn PublisherListener>,
         mask: StatusMask,
     ) -> Option<Self::PublisherType> {
         let qos = qos.unwrap_or(self.default_publisher_qos.lock().unwrap().clone());
@@ -74,7 +74,7 @@ impl<'p, 'dp: 'p, PSM: rust_rtps_pim::PIM>
 }
 
 impl<'dp, PSM: rust_rtps_pim::PIM> rust_dds_api::domain::domain_participant::DomainParticipant<'dp>
-    for DomainParticipantImpl<'dp, PSM>
+    for DomainParticipantImpl<PSM>
 {
     fn lookup_topicdescription<'t, T>(
         &'t self,
@@ -112,33 +112,33 @@ impl<'dp, PSM: rust_rtps_pim::PIM> rust_dds_api::domain::domain_participant::Dom
         todo!()
     }
 
-    fn set_default_publisher_qos(&self, qos: Option<PublisherQos<'dp>>) -> DDSResult<()> {
+    fn set_default_publisher_qos(&self, qos: Option<PublisherQos>) -> DDSResult<()> {
         *self.default_publisher_qos.lock().unwrap() = qos.unwrap_or_default();
         Ok(())
     }
 
-    fn get_default_publisher_qos(&self) -> PublisherQos<'dp> {
+    fn get_default_publisher_qos(&self) -> PublisherQos {
         self.default_publisher_qos.lock().unwrap().clone()
     }
 
-    fn set_default_subscriber_qos(&self, _qos: Option<SubscriberQos<'dp>>) -> DDSResult<()> {
+    fn set_default_subscriber_qos(&self, _qos: Option<SubscriberQos>) -> DDSResult<()> {
         // *self.default_subscriber_qos.lock().unwrap() = qos.unwrap_or_default();
         Ok(())
     }
 
-    fn get_default_subscriber_qos(&self) -> SubscriberQos<'dp> {
+    fn get_default_subscriber_qos(&self) -> SubscriberQos {
         // self.default_subscriber_qos.lock().unwrap().clone()
         todo!()
     }
 
-    fn set_default_topic_qos(&self, qos: Option<TopicQos<'dp>>) -> DDSResult<()> {
+    fn set_default_topic_qos(&self, qos: Option<TopicQos>) -> DDSResult<()> {
         let topic_qos = qos.unwrap_or_default();
         topic_qos.is_consistent()?;
         // *self.default_topic_qos.lock().unwrap() = topic_qos;
         Ok(())
     }
 
-    fn get_default_topic_qos(&self) -> TopicQos<'dp> {
+    fn get_default_topic_qos(&self) -> TopicQos {
         // self.default_topic_qos.lock().unwrap().clone()
         todo!()
     }
@@ -179,9 +179,9 @@ impl<'dp, PSM: rust_rtps_pim::PIM> rust_dds_api::domain::domain_participant::Dom
     }
 }
 
-impl<'dp, PSM: rust_rtps_pim::PIM> Entity for DomainParticipantImpl<'dp, PSM> {
-    type Qos = DomainParticipantQos<'dp>;
-    type Listener = &'dp (dyn DomainParticipantListener + 'dp);
+impl<'dp, PSM: rust_rtps_pim::PIM> Entity for DomainParticipantImpl<PSM> {
+    type Qos = DomainParticipantQos;
+    type Listener = &'static dyn DomainParticipantListener;
 
     fn set_qos(&self, _qos: Option<Self::Qos>) -> DDSResult<()> {
         // self.0.lock().unwrap().set_qos(qos)
@@ -214,8 +214,18 @@ impl<'dp, PSM: rust_rtps_pim::PIM> Entity for DomainParticipantImpl<'dp, PSM> {
     }
 
     fn enable(&self) -> DDSResult<()> {
+        let rtps_participant = self.rtps_participant_impl.clone();
+        std::thread::spawn(move|| {
+            loop {
+                if let Some(rtps_participant) = rtps_participant.try_lock() {
+                    // rtps_participant.send_data();
+                    // rtps_participant.receive_data();
+                    // rtps_participant.run_callbacks();
+                }
+            }
+        });
+        Ok(())
         // self.0.lock().unwrap().enable()
-        todo!()
     }
 
     fn get_instance_handle(&self) -> DDSResult<InstanceHandle> {

@@ -10,9 +10,9 @@ use crate::{
     },
 };
 
-pub struct ParticipantBuiltinTopicData<'a> {
+pub struct ParticipantBuiltinTopicData {
     pub key: BuiltInTopicKey,
-    pub user_data: UserDataQosPolicy<'a>,
+    pub user_data: UserDataQosPolicy,
 }
 
 pub struct TopicBuiltinTopicData<'a> {
@@ -31,7 +31,7 @@ pub struct TopicBuiltinTopicData<'a> {
     pub history: HistoryQosPolicy,
     pub resource_limits: ResourceLimitsQosPolicy,
     pub ownership: OwnershipQosPolicy,
-    pub topic_data: TopicDataQosPolicy<'a>,
+    pub topic_data: TopicDataQosPolicy,
 }
 pub struct PublicationBuiltinTopicData<'a> {
     pub key: BuiltInTopicKey,
@@ -46,15 +46,15 @@ pub struct PublicationBuiltinTopicData<'a> {
     pub liveliness: LivelinessQosPolicy,
     pub reliability: ReliabilityQosPolicy,
     pub lifespan: LifespanQosPolicy,
-    pub user_data: UserDataQosPolicy<'a>,
+    pub user_data: UserDataQosPolicy,
     pub ownership: OwnershipQosPolicy,
     pub ownership_strength: OwnershipStrengthQosPolicy,
     pub destination_order: DestinationOrderQosPolicy,
 
     pub presentation: PresentationQosPolicy,
     pub partition: PartitionQosPolicy,
-    pub topic_data: TopicDataQosPolicy<'a>,
-    pub group_data: GroupDataQosPolicy<'a>,
+    pub topic_data: TopicDataQosPolicy,
+    pub group_data: GroupDataQosPolicy,
 }
 pub struct SubscriptionBuiltinTopicData<'a> {
     pub key: BuiltInTopicKey,
@@ -69,11 +69,11 @@ pub struct SubscriptionBuiltinTopicData<'a> {
     pub reliability: ReliabilityQosPolicy,
     pub ownership: OwnershipQosPolicy,
     pub destination_order: DestinationOrderQosPolicy,
-    pub user_data: UserDataQosPolicy<'a>,
+    pub user_data: UserDataQosPolicy,
     pub time_based_filter: TimeBasedFilterQosPolicy,
 
     pub presentation: PresentationQosPolicy,
     pub partition: PartitionQosPolicy,
-    pub topic_data: TopicDataQosPolicy<'a>,
-    pub group_data: GroupDataQosPolicy<'a>,
+    pub topic_data: TopicDataQosPolicy,
+    pub group_data: GroupDataQosPolicy,
 }

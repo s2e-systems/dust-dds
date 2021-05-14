@@ -1,9 +1,9 @@
 use crate::{
-    behavior,
-    structure::{self, types::ChangeKind, RTPSCacheChange, RTPSEndpoint, RTPSHistoryCache},
+    structure::{types::ChangeKind, RTPSCacheChange, RTPSEndpoint, RTPSHistoryCache},
+    PIM,
 };
 
-pub trait RTPSWriter<PSM: structure::Types + behavior::Types>: RTPSEndpoint<PSM> {
+pub trait RTPSWriter<PSM: PIM>: RTPSEndpoint<PSM> {
     fn push_mode(&self) -> bool;
     fn heartbeat_period(&self) -> PSM::Duration;
     fn nack_response_delay(&self) -> PSM::Duration;

@@ -1,8 +1,8 @@
-use crate::structure;
+use crate::PIM;
 
 use super::RTPSEntity;
 
-pub trait RTPSParticipant<PSM: structure::Types>: RTPSEntity<PSM> {
+pub trait RTPSParticipant<PSM: PIM>: RTPSEntity<PSM> {
     fn protocol_version(&self) -> PSM::ProtocolVersion;
     fn vendor_id(&self) -> PSM::VendorId;
     fn default_unicast_locator_list(&self) -> &[PSM::Locator];
