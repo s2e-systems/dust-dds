@@ -118,15 +118,12 @@ pub trait RTPSStatelessWriter<PSM: PIM>: RTPSWriter<PSM> {
 }
 
 impl<'a, PSM: PIM> RTPSReaderLocator<PSM> {
-    pub fn produce_messages<SendDataTo, SendGapTo>(
+    pub fn produce_messages(
         &'a mut self,
         writer_cache: &'a dyn RTPSHistoryCache<PSM>,
-        send_data_to: &mut SendDataTo,
-        send_gap_to: &mut SendGapTo,
-    ) where
-        SendDataTo: FnMut(&Locator<PSM>, Data<PSM, &'a PSM::Data>),
-        SendGapTo: FnMut(&Locator<PSM>, Gap<PSM>),
-    {
+        send_data_to: &mut impl FnMut(&Locator<PSM>, Data<PSM, &'a PSM::Data>),
+        send_gap_to: &mut impl FnMut(&Locator<PSM>, Gap<PSM>),
+    ) {
         while self
             .unsent_changes(writer_cache)
             .into_iter()
