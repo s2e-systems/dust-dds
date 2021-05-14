@@ -41,3 +41,39 @@ impl<PSM: rust_rtps_pim::PIM> WriterGroupFactory<PSM> {
         Ok(RTPSWriterGroupImpl::new(guid, qos, a_listener, mask))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use rust_rtps_pim::structure::RTPSEntity;
+    use rust_rtps_udp_psm::RtpsUdpPsm;
+
+    use super::*;
+
+    #[test]
+    fn basic_create_writer_group() {
+        let guid_prefix = [1; 12];
+        let mut writer_group_factory: WriterGroupFactory<RtpsUdpPsm> =
+            WriterGroupFactory::new(guid_prefix);
+
+        writer_group_factory
+            .create_writer_group(PublisherQos::default(), None, 0)
+            .unwrap();
+        assert_eq!(writer_group_factory.publisher_counter, 1);
+    }
+
+    #[test]
+    fn create_multiple_writer_groups() {
+        let guid_prefix = [1; 12];
+        let mut writer_group_factory: WriterGroupFactory<RtpsUdpPsm> =
+            WriterGroupFactory::new(guid_prefix);
+
+        let writer_group1 = writer_group_factory
+            .create_writer_group(PublisherQos::default(), None, 0)
+            .unwrap();
+        let writer_group2 = writer_group_factory
+            .create_writer_group(PublisherQos::default(), None, 0)
+            .unwrap();
+
+        assert!(writer_group1.guid() != writer_group2.guid());
+    }
+}

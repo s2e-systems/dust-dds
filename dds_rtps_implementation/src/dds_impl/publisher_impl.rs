@@ -1,24 +1,29 @@
+use std::sync::Mutex;
+
 use rust_dds_api::{
     dcps_psm::{Duration, InstanceHandle, StatusMask},
     infrastructure::{
-        entity::{Entity, StatusCondition},
+        entity::StatusCondition,
         qos::{DataWriterQos, PublisherQos, TopicQos},
     },
     publication::{
         data_writer::DataWriter,
+        data_writer_listener::DataWriterListener,
         publisher::{DataWriterFactory, PublisherParent},
         publisher_listener::PublisherListener,
     },
     return_type::{DDSError, DDSResult},
 };
+use rust_rtps_pim::structure::RTPSEntity;
 
 use crate::{
-    rtps_impl::rtps_writer_group_impl::RTPSWriterGroupImpl, utils::shared_object::RtpsWeak,
+    rtps_impl::rtps_writer_group_impl::RTPSWriterGroupImpl,
+    utils::shared_object::{RtpsShared, RtpsWeak},
 };
 
 use super::{
     data_writer_impl::DataWriterImpl, domain_participant_impl::DomainParticipantImpl,
-    topic_impl::TopicImpl,
+    topic_impl::TopicImpl, writer_factory::WriterFactory,
 };
 
 const ENTITYKIND_USER_DEFINED_WRITER_WITH_KEY: u8 = 0x02;
@@ -28,17 +33,22 @@ const ENTITYKIND_BUILTIN_WRITER_NO_KEY: u8 = 0xc3;
 
 pub struct PublisherImpl<'p, 'dp: 'p, PSM: rust_rtps_pim::PIM> {
     participant: &'p DomainParticipantImpl<'dp, PSM>,
+    writer_factory: Mutex<WriterFactory<PSM>>,
+    default_datawriter_qos: Mutex<DataWriterQos<'dp>>,
     rtps_writer_group_impl: RtpsWeak<RTPSWriterGroupImpl<'dp, PSM>>,
 }
 
 impl<'p, 'dp: 'p, PSM: rust_rtps_pim::PIM> PublisherImpl<'p, 'dp, PSM> {
     pub fn new(
         participant: &'p DomainParticipantImpl<'dp, PSM>,
-        rtps_writer_group_impl: RtpsWeak<RTPSWriterGroupImpl<'dp, PSM>>,
+        rtps_writer_group_impl: &RtpsShared<RTPSWriterGroupImpl<'dp, PSM>>,
     ) -> Self {
+        let writer_factory = WriterFactory::new(*rtps_writer_group_impl.lock().guid().prefix());
         Self {
             participant,
-            rtps_writer_group_impl,
+            default_datawriter_qos: Mutex::new(DataWriterQos::default()),
+            writer_factory: Mutex::new(writer_factory),
+            rtps_writer_group_impl: rtps_writer_group_impl.downgrade(),
         }
     }
 }
@@ -59,25 +69,34 @@ impl<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p + 't, T: 'dp, PSM: rust_rtps_pim::PIM>
 
     fn create_datawriter(
         &'dw self,
-        _a_topic: &'dw Self::TopicType,
-        _qos: Option<DataWriterQos<'dw>>,
-        _a_listener: Option<
-            &'dw (dyn rust_dds_api::publication::data_writer_listener::DataWriterListener<
-                DataType = T,
-            > + 'dw),
-        >,
-        _mask: StatusMask,
+        a_topic: &'dw Self::TopicType,
+        qos: Option<DataWriterQos<'dp>>,
+        a_listener: Option<&'dp (dyn DataWriterListener<DataType = T> + 'dp)>,
+        mask: StatusMask,
     ) -> Option<Self::DataWriterType> {
-        // let rtps_writer_impl = self.rtps_writer_group_impl.upgrade().ok()?.
-        // Some(DataWriterImpl::new(self,a_topic,rtps_writer_impl))
-        todo!()
+        let qos = qos.unwrap_or(self.default_datawriter_qos.lock().unwrap().clone());
+        let rtps_writer = self
+            .writer_factory
+            .lock()
+            .unwrap()
+            .create_datawriter(qos, a_listener, mask);
+        let rtps_writer_shared = RtpsShared::new(rtps_writer);
+        let rtps_writer_weak = rtps_writer_shared.downgrade();
+        self.rtps_writer_group_impl
+            .upgrade()
+            .ok()?
+            .lock()
+            .add_writer(rtps_writer_shared);
+
+        Some(DataWriterImpl::new(self, a_topic, rtps_writer_weak))
     }
 
     fn delete_datawriter(&self, a_datawriter: &Self::DataWriterType) -> DDSResult<()> {
         if std::ptr::eq(a_datawriter.get_publisher(), self) {
-            self.rtps_writer_group_impl
-                .upgrade()?
-                .delete_datawriter(&a_datawriter.get_instance_handle()?)
+            todo!()
+            // self.rtps_writer_group_impl
+            // .upgrade()?
+            // .delete_datawriter(a_datawriter.get_instance_handle()?)
         } else {
             Err(DDSError::PreconditionNotMet(
                 "Data writer can only be deleted from its parent publisher",
@@ -94,13 +113,15 @@ impl<'p, 'dp: 'p, PSM: rust_rtps_pim::PIM> rust_dds_api::publication::publisher:
     for PublisherImpl<'p, 'dp, PSM>
 {
     fn suspend_publications(&self) -> DDSResult<()> {
-        self.rtps_writer_group_impl
-            .upgrade()?
-            .suspend_publications()
+        // self.rtps_writer_group_impl
+        //     .upgrade()?
+        //     .suspend_publications()
+        todo!()
     }
 
     fn resume_publications(&self) -> DDSResult<()> {
-        self.rtps_writer_group_impl.upgrade()?.resume_publications()
+        // self.rtps_writer_group_impl.upgrade()?.resume_publications()
+        todo!()
     }
 
     fn begin_coherent_changes(&self) -> DDSResult<()> {
@@ -119,10 +140,11 @@ impl<'p, 'dp: 'p, PSM: rust_rtps_pim::PIM> rust_dds_api::publication::publisher:
         todo!()
     }
 
-    fn set_default_datawriter_qos(&self, qos: Option<DataWriterQos<'dp>>) -> DDSResult<()> {
-        self.rtps_writer_group_impl
-            .upgrade()?
-            .set_default_datawriter_qos(qos)
+    fn set_default_datawriter_qos(&self, _qos: Option<DataWriterQos<'dp>>) -> DDSResult<()> {
+        // self.rtps_writer_group_impl
+        //     .upgrade()?
+        //     .set_default_datawriter_qos(qos)
+        todo!()
     }
 
     fn get_default_datawriter_qos(&self) -> DataWriterQos<'dp> {
@@ -193,7 +215,9 @@ impl<'p, 'dp: 'p, PSM: rust_rtps_pim::PIM> rust_dds_api::infrastructure::entity:
     }
 
     fn get_instance_handle(&self) -> DDSResult<InstanceHandle> {
-        self.rtps_writer_group_impl.upgrade()?.get_instance_handle()
+        Ok(crate::utils::instance_handle_from_guid(
+            &self.rtps_writer_group_impl.upgrade()?.lock().guid(),
+        ))
     }
 }
 

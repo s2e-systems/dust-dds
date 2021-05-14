@@ -1,25 +1,26 @@
-use rust_dds_api::infrastructure::qos::DataWriterQos;
+use rust_dds_api::{dcps_psm::StatusMask, infrastructure::qos::DataWriterQos, publication::data_writer_listener::DataWriterListener};
 
-pub struct WriterFactory<'a, PSM: rust_rtps_pim::PIM> {
+use crate::rtps_impl::rtps_writer_impl::RTPSWriterImpl;
+
+pub struct WriterFactory<PSM: rust_rtps_pim::PIM> {
     guid_prefix: PSM::GuidPrefix,
     datawriter_counter: u8,
-    default_datawriter_qos: DataWriterQos<'a>,
 }
 
-impl<'a, PSM: rust_rtps_pim::PIM> WriterFactory<'a, PSM> {
+impl<PSM: rust_rtps_pim::PIM> WriterFactory<PSM> {
     pub fn new(guid_prefix: PSM::GuidPrefix) -> Self {
         Self {
             guid_prefix,
             datawriter_counter: 0,
-            default_datawriter_qos: DataWriterQos::default(),
         }
     }
 
-    pub fn create_datawriter(&mut self) {
-
-    }
-
-    pub fn set_default_datawriter_qos(&mut self, _default_datawriter_qos: DataWriterQos<'a>) {
-
+    pub fn create_datawriter<'a, T>(
+        &mut self,
+        _qos: DataWriterQos<'a>,
+        _a_listener: Option<&'a (dyn DataWriterListener<DataType = T> + 'a)>,
+        _mask: StatusMask,
+    ) -> RTPSWriterImpl<PSM> {
+        todo!()
     }
 }

@@ -21,6 +21,7 @@ use super::{publisher_impl::PublisherImpl, writer_group_factory::WriterGroupFact
 
 pub struct DomainParticipantImpl<'dp, PSM: rust_rtps_pim::PIM> {
     writer_group_factory: Mutex<WriterGroupFactory<PSM>>,
+    default_publisher_qos: Mutex<PublisherQos<'dp>>,
     rtps_participant_impl: Mutex<RTPSParticipantImpl<'dp, PSM>>,
 }
 
@@ -28,6 +29,7 @@ impl<'dp, PSM: rust_rtps_pim::PIM> DomainParticipantImpl<'dp, PSM> {
     pub fn new(guid_prefix: PSM::GuidPrefix) -> Self {
         Self {
             writer_group_factory: Mutex::new(WriterGroupFactory::new(guid_prefix)),
+            default_publisher_qos: Mutex::new(PublisherQos::default()),
             rtps_participant_impl: Mutex::new(RTPSParticipantImpl::new()),
         }
     }
@@ -44,7 +46,7 @@ impl<'p, 'dp: 'p, PSM: rust_rtps_pim::PIM>
         a_listener: Option<&'dp (dyn PublisherListener + 'dp)>,
         mask: StatusMask,
     ) -> Option<Self::PublisherType> {
-        let qos = qos.unwrap_or_default();
+        let qos = qos.unwrap_or(self.default_publisher_qos.lock().unwrap().clone());
         let writer_group = self
             .writer_group_factory
             .lock()
@@ -52,12 +54,11 @@ impl<'p, 'dp: 'p, PSM: rust_rtps_pim::PIM>
             .create_writer_group(qos, a_listener, mask)
             .ok()?;
         let writer_group_shared = RtpsShared::new(writer_group);
-        let writer_group_weak = writer_group_shared.downgrade();
         self.rtps_participant_impl
             .lock()
             .unwrap()
-            .add_writer_group(writer_group_shared);
-        Some(PublisherImpl::new(self, writer_group_weak))
+            .add_writer_group(writer_group_shared.clone());
+        Some(PublisherImpl::new(self, &writer_group_shared))
     }
 
     fn delete_publisher(&self, a_publisher: &Self::PublisherType) -> DDSResult<()> {
@@ -113,14 +114,13 @@ impl<'dp, PSM: rust_rtps_pim::PIM> rust_dds_api::domain::domain_participant::Dom
         todo!()
     }
 
-    fn set_default_publisher_qos(&self, _qos: Option<PublisherQos<'dp>>) -> DDSResult<()> {
-        // *self.default_publisher_qos.lock().unwrap() = qos.unwrap_or_default();
+    fn set_default_publisher_qos(&self, qos: Option<PublisherQos<'dp>>) -> DDSResult<()> {
+        *self.default_publisher_qos.lock().unwrap() = qos.unwrap_or_default();
         Ok(())
     }
 
     fn get_default_publisher_qos(&self) -> PublisherQos<'dp> {
-        // self.default_publisher_qos.lock().unwrap().clone()
-        todo!()
+        self.default_publisher_qos.lock().unwrap().clone()
     }
 
     fn set_default_subscriber_qos(&self, _qos: Option<SubscriberQos<'dp>>) -> DDSResult<()> {

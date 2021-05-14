@@ -1,9 +1,6 @@
 use rust_dds_api::{
     dcps_psm::InstanceHandle,
-    infrastructure::{
-        entity::Entity,
-        qos::{SubscriberQos, TopicQos},
-    },
+    infrastructure::entity::Entity,
     return_type::{DDSError, DDSResult},
 };
 use rust_rtps_pim::structure::RTPSEntity;
@@ -16,12 +13,8 @@ const ENTITYKIND_USER_DEFINED_WRITER_GROUP: u8 = 0x08;
 const ENTITYKIND_USER_DEFINED_READER_GROUP: u8 = 0x09;
 
 pub struct RTPSParticipantImpl<'a, PSM: rust_rtps_pim::PIM> {
-    unicast_locator_list: Vec<rust_rtps_pim::structure::types::Locator<PSM>>,
-    multicast_locator_list: Vec<rust_rtps_pim::structure::types::Locator<PSM>>,
+    // transport:
     rtps_writer_groups: Vec<RtpsShared<RTPSWriterGroupImpl<'a, PSM>>>,
-    // builtin_writer_group: Arc<Mutex<RTPSWriterGroupImpl<'a, PSM>>>,
-    default_subscriber_qos: SubscriberQos<'a>,
-    default_topic_qos: TopicQos<'a>,
 }
 
 impl<'a, PSM: rust_rtps_pim::PIM> RTPSParticipantImpl<'a, PSM> {
@@ -35,12 +28,7 @@ impl<'a, PSM: rust_rtps_pim::PIM> RTPSParticipantImpl<'a, PSM> {
         // )));
 
         Self {
-            unicast_locator_list: Vec::new(),
-            multicast_locator_list: Vec::new(),
             rtps_writer_groups: Vec::new(),
-            // builtin_writer_group,
-            default_subscriber_qos: SubscriberQos::default(),
-            default_topic_qos: TopicQos::default(),
         }
     }
 
@@ -52,8 +40,7 @@ impl<'a, PSM: rust_rtps_pim::PIM> RTPSParticipantImpl<'a, PSM> {
         let index = self
             .rtps_writer_groups
             .iter()
-            .filter_map(|x| x.get_instance_handle().ok())
-            .position(|x| x == writer_group)
+            .position(|x| crate::utils::instance_handle_from_guid(&x.lock().guid()) == writer_group)
             .ok_or(DDSError::PreconditionNotMet("RTPS writer group not found"))?;
         self.rtps_writer_groups.swap_remove(index);
         Ok(())
@@ -122,7 +109,9 @@ mod tests {
         ));
         participant.add_writer_group(shared_writer_group.clone());
         participant
-            .delete_writer_group(shared_writer_group.get_instance_handle().unwrap())
+            .delete_writer_group(crate::utils::instance_handle_from_guid(
+                &shared_writer_group.lock().guid(),
+            ))
             .unwrap();
 
         assert_eq!(participant.rtps_writer_groups.len(), 0)
@@ -137,19 +126,19 @@ mod tests {
         assert_eq!(result, expected);
     }
 
-    #[test]
-    fn participant_guid() {
-        todo!()
-        // let prefix = [1; 12];
-        // let rtps_participant: RTPSParticipantImpl<MockPsm> = RTPSParticipantImpl::new([1; 12]);
-        // let guid = rtps_participant.guid();
+    // #[test]
+    // fn participant_guid() {
+    // todo!()
+    // let prefix = [1; 12];
+    // let rtps_participant: RTPSParticipantImpl<MockPsm> = RTPSParticipantImpl::new([1; 12]);
+    // let guid = rtps_participant.guid();
 
-        // assert_eq!(guid.prefix(), &prefix);
-        // assert_eq!(
-        //     guid.entity_id(),
-        //     &<MockPsm as rust_rtps_pim::structure::Types>::ENTITYID_PARTICIPANT
-        // );
-    }
+    // assert_eq!(guid.prefix(), &prefix);
+    // assert_eq!(
+    //     guid.entity_id(),
+    //     &<MockPsm as rust_rtps_pim::structure::Types>::ENTITYID_PARTICIPANT
+    // );
+    // }
 
     // #[test]
     //     fn demo_participant_test() {
