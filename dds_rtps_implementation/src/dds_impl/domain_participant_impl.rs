@@ -22,7 +22,7 @@ use super::{publisher_impl::PublisherImpl, writer_group_factory::WriterGroupFact
 pub struct DomainParticipantImpl<'dp, PSM: rust_rtps_pim::PIM> {
     writer_group_factory: Mutex<WriterGroupFactory<PSM>>,
     default_publisher_qos: Mutex<PublisherQos<'dp>>,
-    rtps_participant_impl: Mutex<RTPSParticipantImpl<'dp, PSM>>,
+    rtps_participant_impl: RtpsShared<RTPSParticipantImpl<'dp, PSM>>,
 }
 
 impl<'dp, PSM: rust_rtps_pim::PIM> DomainParticipantImpl<'dp, PSM> {
@@ -30,7 +30,7 @@ impl<'dp, PSM: rust_rtps_pim::PIM> DomainParticipantImpl<'dp, PSM> {
         Self {
             writer_group_factory: Mutex::new(WriterGroupFactory::new(guid_prefix)),
             default_publisher_qos: Mutex::new(PublisherQos::default()),
-            rtps_participant_impl: Mutex::new(RTPSParticipantImpl::new()),
+            rtps_participant_impl: RtpsShared::new(RTPSParticipantImpl::new()),
         }
     }
 }
@@ -56,7 +56,6 @@ impl<'p, 'dp: 'p, PSM: rust_rtps_pim::PIM>
         let writer_group_shared = RtpsShared::new(writer_group);
         self.rtps_participant_impl
             .lock()
-            .unwrap()
             .add_writer_group(writer_group_shared.clone());
         Some(PublisherImpl::new(self, &writer_group_shared))
     }
@@ -65,7 +64,6 @@ impl<'p, 'dp: 'p, PSM: rust_rtps_pim::PIM>
         if std::ptr::eq(a_publisher.get_participant(), self) {
             self.rtps_participant_impl
                 .lock()
-                .unwrap()
                 .delete_writer_group(a_publisher.get_instance_handle()?)
         } else {
             Err(DDSError::PreconditionNotMet(

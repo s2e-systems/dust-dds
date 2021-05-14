@@ -17,7 +17,7 @@ pub trait RTPSWriter<PSM: structure::Types + behavior::Types>: RTPSEndpoint<PSM>
         &mut self,
         kind: ChangeKind,
         data: PSM::Data,
-        inline_qos: PSM::ParameterVector,
+        inline_qos: &[PSM::Parameter],
         handle: PSM::InstanceHandle,
     ) -> RTPSCacheChange<PSM>;
 }

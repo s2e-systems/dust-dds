@@ -17,6 +17,7 @@ use rust_dds_api::{
 use rust_rtps_pim::structure::RTPSEntity;
 
 use crate::{
+    dds_type::DDSType,
     rtps_impl::rtps_writer_group_impl::RTPSWriterGroupImpl,
     utils::shared_object::{RtpsShared, RtpsWeak},
 };
@@ -61,7 +62,7 @@ impl<'p, 'dp: 'p, PSM: rust_rtps_pim::PIM> PublisherParent<'dp> for PublisherImp
     }
 }
 
-impl<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p + 't, T: 'dp, PSM: rust_rtps_pim::PIM>
+impl<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p + 't, T: DDSType<PSM> + 'dp, PSM: rust_rtps_pim::PIM>
     DataWriterFactory<'dw, 'p, 't, 'dp, T> for PublisherImpl<'p, 'dp, PSM>
 {
     type TopicType = TopicImpl<'t, 'dp, T, PSM>;

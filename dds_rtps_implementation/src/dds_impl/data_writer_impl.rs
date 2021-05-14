@@ -8,18 +8,28 @@ use rust_dds_api::{
     publication::data_writer_listener::DataWriterListener,
     return_type::DDSResult,
 };
+use rust_rtps_pim::{behavior::RTPSWriter, structure::types::ChangeKind};
 
-use crate::{rtps_impl::rtps_writer_impl::RTPSWriterImpl, utils::shared_object::RtpsWeak};
+use crate::{
+    dds_type::DDSType, rtps_impl::rtps_writer_impl::RTPSWriterImpl, utils::shared_object::RtpsWeak,
+};
 
 use super::{publisher_impl::PublisherImpl, topic_impl::TopicImpl};
 
-pub struct DataWriterImpl<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p, T: 't, PSM: rust_rtps_pim::PIM> {
+pub struct DataWriterImpl<
+    'dw,
+    'p: 'dw,
+    't: 'dw,
+    'dp: 'p,
+    T: DDSType<PSM> + 'dp,
+    PSM: rust_rtps_pim::PIM,
+> {
     publisher: &'dw PublisherImpl<'p, 'dp, PSM>,
     topic: &'dw TopicImpl<'t, 'dp, T, PSM>,
     rtps_writer_impl: RtpsWeak<RTPSWriterImpl<PSM>>,
 }
 
-impl<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p, T: 't, PSM: rust_rtps_pim::PIM>
+impl<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p, T: DDSType<PSM> + 't, PSM: rust_rtps_pim::PIM>
     DataWriterImpl<'dw, 'p, 't, 'dp, T, PSM>
 {
     pub fn new(
@@ -35,7 +45,7 @@ impl<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p, T: 't, PSM: rust_rtps_pim::PIM>
     }
 }
 
-impl<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p, T: 't, PSM: rust_rtps_pim::PIM>
+impl<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p, T: DDSType<PSM> + 'dp, PSM: rust_rtps_pim::PIM>
     rust_dds_api::publication::data_writer::DataWriterParent<'p, 'dp>
     for DataWriterImpl<'dw, 'p, 't, 'dp, T, PSM>
 {
@@ -46,7 +56,7 @@ impl<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p, T: 't, PSM: rust_rtps_pim::PIM>
     }
 }
 
-impl<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p, T: 'dp, PSM: rust_rtps_pim::PIM>
+impl<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p, T: DDSType<PSM> + 'dp, PSM: rust_rtps_pim::PIM>
     rust_dds_api::publication::data_writer::DataWriter<'dw, 'p, 't, 'dp, T>
     for DataWriterImpl<'dw, 'p, 't, 'dp, T, PSM>
 {
@@ -97,14 +107,14 @@ impl<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p, T: 'dp, PSM: rust_rtps_pim::PIM>
 
     fn write_w_timestamp(
         &self,
-        _data: T,
+        data: T,
         _handle: Option<InstanceHandle>,
         _timestamp: Time,
     ) -> DDSResult<()> {
-        // let writer = self.rtps_writer.upgrade().ok_or(DDSError::AlreadyDeleted)?;
-        // let mut writer_guard = writer.lock().unwrap();
-        // let cc = writer_guard.new_change(ChangeKind::Alive, vec![0, 1, 2, 3], vec![], 0);
-        // writer_guard.writer_cache_mut().add_change(cc);
+        let writer = self.rtps_writer_impl.upgrade()?;
+        let mut writer_lock = writer.lock();
+        let change = writer_lock.new_change(ChangeKind::Alive, data.serialize(), &[], data.key());
+        writer_lock.writer_cache_mut().add_change(change);
         Ok(())
     }
 
@@ -170,7 +180,7 @@ impl<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p, T: 'dp, PSM: rust_rtps_pim::PIM>
     }
 }
 
-impl<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p, T: 'dp, PSM: rust_rtps_pim::PIM>
+impl<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p, T: DDSType<PSM> + 'dp, PSM: rust_rtps_pim::PIM>
     rust_dds_api::infrastructure::entity::Entity for DataWriterImpl<'dw, 'p, 't, 'dp, T, PSM>
 {
     type Qos = DataWriterQos<'dp>;
@@ -213,7 +223,7 @@ impl<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p, T: 'dp, PSM: rust_rtps_pim::PIM>
     }
 }
 
-impl<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p, T: 't, PSM: rust_rtps_pim::PIM>
+impl<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p, T: DDSType<PSM> + 't, PSM: rust_rtps_pim::PIM>
     rust_dds_api::publication::data_writer::AnyDataWriter
     for DataWriterImpl<'dw, 'p, 't, 'dp, T, PSM>
 {

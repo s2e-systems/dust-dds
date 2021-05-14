@@ -63,7 +63,7 @@ mod tests {
             instance_handle: 1,
             sequence_number: 5.into(),
             data_value: vec![],
-            inline_qos: vec![],
+            // inline_qos: vec![],
         });
         assert_eq!(hc.get_seq_num_max().unwrap(), 5.into());
 
@@ -73,7 +73,7 @@ mod tests {
             instance_handle: 1,
             sequence_number: 3.into(),
             data_value: vec![],
-            inline_qos: vec![],
+            // inline_qos: vec![],
         });
         assert_eq!(hc.get_seq_num_max().unwrap(), 5.into());
     }
@@ -96,7 +96,7 @@ mod tests {
             instance_handle: 1,
             sequence_number: 5.into(),
             data_value: vec![],
-            inline_qos: vec![],
+            // inline_qos: vec![],
         });
         assert_eq!(hc.get_seq_num_max().unwrap(), 5.into());
 
@@ -106,7 +106,7 @@ mod tests {
             instance_handle: 1,
             sequence_number: 3.into(),
             data_value: vec![],
-            inline_qos: vec![],
+            // inline_qos: vec![],
         });
         assert_eq!(hc.get_seq_num_min().unwrap(), 3.into());
     }

@@ -159,7 +159,7 @@ where
                     let reader_id = PSM::ENTITYID_UNKNOWN;
                     let writer_id = PSM::ENTITYID_UNKNOWN;
                     let writer_sn = change.sequence_number;
-                    let inline_qos = change.inline_qos.clone();
+                    // let inline_qos = change.inline_qos.clone();
                     let serialized_payload = &change.data_value;
                     let data = Data::new(
                         endianness_flag,
@@ -170,7 +170,7 @@ where
                         reader_id,
                         writer_id,
                         writer_sn,
-                        inline_qos,
+                        // inline_qos,
                         serialized_payload,
                     );
                     send_data_to(self.locator(), data)
@@ -426,7 +426,7 @@ mod tests {
             &mut self,
             _kind: ChangeKind,
             _data: <MockPsm as structure::Types>::Data,
-            _inline_qos: <MockPsm as structure::Types>::ParameterVector,
+            _inline_qos: &[<MockPsm as structure::Types>::Parameter],
             _handle: <MockPsm as structure::Types>::InstanceHandle,
         ) -> RTPSCacheChange<MockPsm> {
             todo!()
@@ -482,7 +482,7 @@ mod tests {
             _reader_id: <Self::PSM as structure::Types>::EntityId,
             _writer_id: <Self::PSM as structure::Types>::EntityId,
             _writer_sn: <Self::PSM as structure::Types>::SequenceNumber,
-            _inline_qos: <Self::PSM as structure::Types>::ParameterVector,
+            // _inline_qos: <Self::PSM as structure::Types>::ParameterVector,
             serialized_payload: Self::SerializedData,
         ) -> Self {
             Self { serialized_payload }
@@ -617,7 +617,7 @@ mod tests {
             instance_handle: 1,
             sequence_number: 1,
             data_value: vec![],
-            inline_qos: vec![],
+            // inline_qos: vec![],
         });
 
         writer.writer_cache_mut().add_change(RTPSCacheChange {
@@ -626,7 +626,7 @@ mod tests {
             instance_handle: 1,
             sequence_number: 2,
             data_value: vec![],
-            inline_qos: vec![],
+            // inline_qos: vec![],
         });
 
         writer.writer_cache_mut().add_change(RTPSCacheChange {
@@ -635,7 +635,7 @@ mod tests {
             instance_handle: 1,
             sequence_number: 3,
             data_value: vec![],
-            inline_qos: vec![],
+            // inline_qos: vec![],
         });
 
         let req_seq_num_set = vec![1, 2, 3];
@@ -657,7 +657,7 @@ mod tests {
             instance_handle: 1,
             sequence_number: 1,
             data_value: vec![],
-            inline_qos: vec![],
+            // inline_qos: vec![],
         });
 
         writer.writer_cache_mut().add_change(RTPSCacheChange {
@@ -666,7 +666,7 @@ mod tests {
             instance_handle: 1,
             sequence_number: 3,
             data_value: vec![],
-            inline_qos: vec![],
+            // inline_qos: vec![],
         });
 
         writer.writer_cache_mut().add_change(RTPSCacheChange {
@@ -675,7 +675,7 @@ mod tests {
             instance_handle: 1,
             sequence_number: 5,
             data_value: vec![],
-            inline_qos: vec![],
+            // inline_qos: vec![],
         });
 
         let req_seq_num_set = vec![1, 2, 3, 4, 5];
@@ -697,7 +697,7 @@ mod tests {
             instance_handle: 1,
             sequence_number: 1,
             data_value: vec![],
-            inline_qos: vec![],
+            // inline_qos: vec![],
         });
 
         writer.writer_cache_mut().add_change(RTPSCacheChange {
@@ -706,7 +706,7 @@ mod tests {
             instance_handle: 1,
             sequence_number: 2,
             data_value: vec![],
-            inline_qos: vec![],
+            // inline_qos: vec![],
         });
 
         writer.writer_cache_mut().add_change(RTPSCacheChange {
@@ -715,7 +715,7 @@ mod tests {
             instance_handle: 1,
             sequence_number: 3,
             data_value: vec![],
-            inline_qos: vec![],
+            // inline_qos: vec![],
         });
 
         let req_seq_num_set = vec![1, 2, 3];
@@ -740,7 +740,7 @@ mod tests {
             instance_handle: 1,
             sequence_number: 1,
             data_value: vec![],
-            inline_qos: vec![],
+            // inline_qos: vec![],
         });
 
         writer.writer_cache_mut().add_change(RTPSCacheChange {
@@ -749,7 +749,7 @@ mod tests {
             instance_handle: 1,
             sequence_number: 2,
             data_value: vec![],
-            inline_qos: vec![],
+            // inline_qos: vec![],
         });
 
         writer.writer_cache_mut().add_change(RTPSCacheChange {
@@ -758,7 +758,7 @@ mod tests {
             instance_handle: 1,
             sequence_number: 3,
             data_value: vec![],
-            inline_qos: vec![],
+            // inline_qos: vec![],
         });
 
         let unsent_changes = reader_locator.unsent_changes(writer.writer_cache());
@@ -778,7 +778,7 @@ mod tests {
             instance_handle: 1,
             sequence_number: 1,
             data_value: vec![],
-            inline_qos: vec![],
+            // inline_qos: vec![],
         });
 
         writer.writer_cache_mut().add_change(RTPSCacheChange {
@@ -787,7 +787,7 @@ mod tests {
             instance_handle: 1,
             sequence_number: 3,
             data_value: vec![],
-            inline_qos: vec![],
+            // inline_qos: vec![],
         });
 
         writer.writer_cache_mut().add_change(RTPSCacheChange {
@@ -796,7 +796,7 @@ mod tests {
             instance_handle: 1,
             sequence_number: 5,
             data_value: vec![],
-            inline_qos: vec![],
+            // inline_qos: vec![],
         });
 
         let unsent_changes = reader_locator.unsent_changes(writer.writer_cache());
@@ -816,7 +816,7 @@ mod tests {
             instance_handle: 1,
             sequence_number: 1,
             data_value: vec![],
-            inline_qos: vec![],
+            // inline_qos: vec![],
         });
 
         writer.writer_cache_mut().add_change(RTPSCacheChange {
@@ -825,7 +825,7 @@ mod tests {
             instance_handle: 1,
             sequence_number: 3,
             data_value: vec![],
-            inline_qos: vec![],
+            // inline_qos: vec![],
         });
 
         writer.writer_cache_mut().add_change(RTPSCacheChange {
@@ -834,7 +834,7 @@ mod tests {
             instance_handle: 1,
             sequence_number: 5,
             data_value: vec![],
-            inline_qos: vec![],
+            // inline_qos: vec![],
         });
 
         assert_eq!(

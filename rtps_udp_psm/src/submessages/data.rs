@@ -14,8 +14,8 @@ pub struct Data<'a> {
     writer_id: rust_rtps_pim::messages::submessage_elements::EntityId<<Self as Submessage>::PSM>,
     writer_sn:
         rust_rtps_pim::messages::submessage_elements::SequenceNumber<<Self as Submessage>::PSM>,
-    inline_qos:
-        rust_rtps_pim::messages::submessage_elements::ParameterList<<Self as Submessage>::PSM>,
+    // inline_qos:
+    //     rust_rtps_pim::messages::submessage_elements::ParameterList<<Self as Submessage>::PSM>,
     serialized_payload: rust_rtps_pim::messages::submessage_elements::SerializedData<&'a Vec<u8>>,
 }
 
@@ -49,7 +49,7 @@ impl<'a> rust_rtps_pim::messages::submessages::Data for Data<'a> {
         reader_id: <Self::PSM as rust_rtps_pim::structure::Types>::EntityId,
         writer_id: <Self::PSM as rust_rtps_pim::structure::Types>::EntityId,
         writer_sn: <Self::PSM as rust_rtps_pim::structure::Types>::SequenceNumber,
-        inline_qos: <Self::PSM as rust_rtps_pim::structure::Types>::ParameterVector,
+        // inline_qos: <Self::PSM as rust_rtps_pim::structure::Types>::ParameterVector,
         serialized_payload: Self::SerializedData,
     ) -> Self {
         Self {
@@ -63,9 +63,9 @@ impl<'a> rust_rtps_pim::messages::submessages::Data for Data<'a> {
             writer_sn: rust_rtps_pim::messages::submessage_elements::SequenceNumber {
                 value: writer_sn,
             },
-            inline_qos: rust_rtps_pim::messages::submessage_elements::ParameterList {
-                parameter: inline_qos,
-            },
+            // inline_qos: rust_rtps_pim::messages::submessage_elements::ParameterList {
+            //     parameter: inline_qos,
+            // },
             serialized_payload: rust_rtps_pim::messages::submessage_elements::SerializedData {
                 value: serialized_payload,
             },
@@ -111,7 +111,8 @@ impl<'a> rust_rtps_pim::messages::submessages::Data for Data<'a> {
     fn inline_qos(
         &self,
     ) -> &rust_rtps_pim::messages::submessage_elements::ParameterList<Self::PSM> {
-        &self.inline_qos
+        // &self.inline_qos
+        todo!()
     }
 
     fn serialized_payload(

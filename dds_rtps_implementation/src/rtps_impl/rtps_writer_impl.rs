@@ -15,10 +15,10 @@ use super::rtps_history_cache_impl::RTPSHistoryCacheImpl;
 
 pub struct RTPSWriterImpl<PSM: rust_rtps_pim::structure::Types> {
     guid: GUID<PSM>,
-    pub reader_locators: Vec<RTPSReaderLocator<PSM>>,
-    pub reader_proxies: Vec<RTPSReaderProxy<PSM>>,
+    reader_locators: Vec<RTPSReaderLocator<PSM>>,
+    reader_proxies: Vec<RTPSReaderProxy<PSM>>,
     last_change_sequence_number: PSM::SequenceNumber,
-    pub writer_cache: RTPSHistoryCacheImpl<PSM>,
+    writer_cache: RTPSHistoryCacheImpl<PSM>,
 }
 
 impl<PSM: rust_rtps_pim::structure::Types> RTPSWriterImpl<PSM> {
@@ -167,7 +167,7 @@ impl<PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types> RTPS
         &mut self,
         kind: ChangeKind,
         data: <PSM as rust_rtps_pim::structure::Types>::Data,
-        inline_qos: <PSM as rust_rtps_pim::structure::Types>::ParameterVector,
+        inline_qos: &[<PSM as rust_rtps_pim::structure::Types>::Parameter],
         handle: <PSM as rust_rtps_pim::structure::Types>::InstanceHandle,
     ) -> rust_rtps_pim::structure::RTPSCacheChange<PSM> {
         self.last_change_sequence_number = (self.last_change_sequence_number.into() + 1i64).into();
@@ -177,7 +177,7 @@ impl<PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types> RTPS
             instance_handle: handle,
             sequence_number: self.last_change_sequence_number,
             data_value: data,
-            inline_qos,
+            // inline_qos,
         }
     }
 }
@@ -267,7 +267,7 @@ mod tests {
             ),
         );
 
-        let cc = rtps_writer_impl.new_change(ChangeKind::Alive, vec![0, 1, 2, 3], vec![], 0);
+        let cc = rtps_writer_impl.new_change(ChangeKind::Alive, vec![0, 1, 2, 3], &[], 0);
         rtps_writer_impl.writer_cache_mut().add_change(cc);
         rtps_writer_impl.reader_locator_add(Locator::new(1, 2, [0; 16]));
         println!("First");

@@ -15,7 +15,7 @@ pub trait Data: Submessage {
         reader_id: <Self::PSM as structure::Types>::EntityId,
         writer_id: <Self::PSM as structure::Types>::EntityId,
         writer_sn: <Self::PSM as structure::Types>::SequenceNumber,
-        inline_qos: <Self::PSM as structure::Types>::ParameterVector,
+        // inline_qos: <Self::PSM as structure::Types>::ParameterVector,
         serialized_payload: Self::SerializedData,
     ) -> Self;
 
