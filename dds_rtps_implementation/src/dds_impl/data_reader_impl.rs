@@ -25,8 +25,8 @@ pub struct DataReaderImpl<'dr, 's: 'dr, 't: 'dr, T: 'static, PSM: rust_rtps_pim:
     topic: &'dr TopicImpl<'t, T, PSM>,
 }
 
-impl<'dr, 's: 'dr, 't: 'dr, 'dp: 's, T: 'static, PSM: rust_rtps_pim::PIM>
-    rust_dds_api::subscription::data_reader::DataReader<'dr, 's, 't, 'dp, T>
+impl<'dr, 's: 'dr, 't: 'dr, T: 'static, PSM: rust_rtps_pim::PIM>
+    rust_dds_api::subscription::data_reader::DataReader<'dr, 's, 't, T>
     for DataReaderImpl<'dr, 's, 't, T, PSM>
 {
     fn read(
@@ -265,7 +265,7 @@ impl<'dr, 's: 'dr, 't: 'dr, 'dp: 's, T: 'static, PSM: rust_rtps_pim::PIM>
 
     fn get_topicdescription(
         &self,
-    ) -> &dyn rust_dds_api::topic::topic_description::TopicDescription<'t, 'dp, T> {
+    ) -> &dyn rust_dds_api::topic::topic_description::TopicDescription<'t, T> {
         todo!()
     }
 
@@ -274,7 +274,7 @@ impl<'dr, 's: 'dr, 't: 'dr, 'dp: 's, T: 'static, PSM: rust_rtps_pim::PIM>
     }
 }
 
-impl<'dr, 's: 'dr, 't: 'dr, 'dp: 's, T: 'static, PSM: rust_rtps_pim::PIM> Entity
+impl<'dr, 's: 'dr, 't: 'dr, T: 'static, PSM: rust_rtps_pim::PIM> Entity
     for DataReaderImpl<'dr, 's, 't, T, PSM>
 {
     type Qos = DataReaderQos;

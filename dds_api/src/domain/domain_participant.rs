@@ -13,8 +13,8 @@ use crate::{
 
 use super::domain_participant_listener::DomainParticipantListener;
 
-pub trait SubscriberFactory<'s, 'dp: 's>: DomainParticipant<'dp> {
-    type SubscriberType: Subscriber<'s, 'dp>;
+pub trait SubscriberFactory<'s>: DomainParticipant {
+    type SubscriberType: Subscriber<'s>;
 
     fn create_subscriber(
         &'s self,
@@ -27,8 +27,8 @@ pub trait SubscriberFactory<'s, 'dp: 's>: DomainParticipant<'dp> {
 
     fn get_builtin_subscriber(&'s self) -> Self::SubscriberType;
 }
-pub trait TopicFactory<'t, 'dp: 't, T: 'static>: DomainParticipant<'dp> {
-    type TopicType: Topic<'t, 'dp, T>;
+pub trait TopicFactory<'t, T: 'static>: DomainParticipant {
+    type TopicType: Topic<'t, T>;
 
     fn create_topic(
         &'t self,
@@ -43,8 +43,8 @@ pub trait TopicFactory<'t, 'dp: 't, T: 'static>: DomainParticipant<'dp> {
     fn find_topic(&'t self, topic_name: &'t str, timeout: Duration) -> Option<Self::TopicType>;
 }
 
-pub trait PublisherFactory<'p, 'dp: 'p>: DomainParticipant<'dp> {
-    type PublisherType: Publisher<'p, 'dp>;
+pub trait PublisherFactory<'p>: DomainParticipant {
+    type PublisherType: Publisher<'p>;
 
     fn create_publisher(
         &'p self,
@@ -56,7 +56,7 @@ pub trait PublisherFactory<'p, 'dp: 'p>: DomainParticipant<'dp> {
     fn delete_publisher(&self, a_publisher: &Self::PublisherType) -> DDSResult<()>;
 }
 
-pub trait DomainParticipant<'dp>:
+pub trait DomainParticipant:
     Entity<Qos = DomainParticipantQos, Listener = &'static dyn DomainParticipantListener>
 {
     /// This operation creates a Publisher with the desired QoS policies and attaches to it the specified PublisherListener.
@@ -73,9 +73,9 @@ pub trait DomainParticipant<'dp>:
         mask: StatusMask,
     ) -> Option<Self::PublisherType>
     where
-        Self: PublisherFactory<'p, 'dp> + Sized,
+        Self: PublisherFactory<'p> + Sized,
     {
-        <Self as PublisherFactory<'p, 'dp>>::create_publisher(self, qos, a_listener, mask)
+        <Self as PublisherFactory<'p>>::create_publisher(self, qos, a_listener, mask)
     }
 
     /// This operation deletes an existing Publisher.
@@ -87,9 +87,9 @@ pub trait DomainParticipant<'dp>:
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
     fn delete_publisher<'p>(&self, a_publisher: &Self::PublisherType) -> DDSResult<()>
     where
-        Self: PublisherFactory<'p, 'dp> + Sized,
+        Self: PublisherFactory<'p> + Sized,
     {
-        <Self as PublisherFactory<'p, 'dp>>::delete_publisher(self, a_publisher)
+        <Self as PublisherFactory<'p>>::delete_publisher(self, a_publisher)
     }
 
     /// This operation creates a Subscriber with the desired QoS policies and attaches to it the specified SubscriberListener.
@@ -107,9 +107,9 @@ pub trait DomainParticipant<'dp>:
         mask: StatusMask,
     ) -> Option<Self::SubscriberType>
     where
-        Self: SubscriberFactory<'s, 'dp> + Sized,
+        Self: SubscriberFactory<'s> + Sized,
     {
-        <Self as SubscriberFactory<'s, 'dp>>::create_subscriber(self, qos, a_listener, mask)
+        <Self as SubscriberFactory<'s>>::create_subscriber(self, qos, a_listener, mask)
     }
 
     /// This operation deletes an existing Subscriber.
@@ -121,9 +121,9 @@ pub trait DomainParticipant<'dp>:
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
     fn delete_subscriber<'s>(&self, a_subscriber: &Self::SubscriberType) -> DDSResult<()>
     where
-        Self: SubscriberFactory<'s, 'dp> + Sized,
+        Self: SubscriberFactory<'s> + Sized,
     {
-        <Self as SubscriberFactory<'s, 'dp>>::delete_subscriber(self, a_subscriber)
+        <Self as SubscriberFactory<'s>>::delete_subscriber(self, a_subscriber)
     }
 
     /// This operation creates a Topic with the desired QoS policies and attaches to it the specified TopicListener.
@@ -136,7 +136,7 @@ pub trait DomainParticipant<'dp>:
     /// registered with the Service. This is done using the register_type operation on a derived class of the TypeSupport interface as
     /// described in 2.2.2.3.6, TypeSupport Interface.
     /// In case of failure, the operation will return a ‘nil’ value (as specified by the platform).
-    fn create_topic<'t, T: 'dp>(
+    fn create_topic<'t, T: 'static>(
         &'t self,
         topic_name: &str,
         qos: Option<TopicQos>,
@@ -144,9 +144,9 @@ pub trait DomainParticipant<'dp>:
         mask: StatusMask,
     ) -> Option<Self::TopicType>
     where
-        Self: TopicFactory<'t, 'dp, T> + Sized,
+        Self: TopicFactory<'t, T> + Sized,
     {
-        <Self as TopicFactory<'t, 'dp, T>>::create_topic(self, topic_name, qos, a_listener, mask)
+        <Self as TopicFactory<'t, T>>::create_topic(self, topic_name, qos, a_listener, mask)
     }
 
     /// This operation deletes a Topic.
@@ -156,11 +156,11 @@ pub trait DomainParticipant<'dp>:
     /// The delete_topic operation must be called on the same DomainParticipant object used to create the Topic. If delete_topic is
     /// called on a different DomainParticipant, the operation will have no effect and it will return PRECONDITION_NOT_MET.
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
-    fn delete_topic<'t, T: 'dp>(&self, a_topic: &Self::TopicType) -> DDSResult<()>
+    fn delete_topic<'t, T: 'static>(&self, a_topic: &Self::TopicType) -> DDSResult<()>
     where
-        Self: TopicFactory<'t, 'dp, T> + Sized,
+        Self: TopicFactory<'t, T> + Sized,
     {
-        <Self as TopicFactory<'t, 'dp, T>>::delete_topic(self, a_topic)
+        <Self as TopicFactory<'t, T>>::delete_topic(self, a_topic)
     }
 
     /// The operation find_topic gives access to an existing (or ready to exist) enabled Topic, based on its name. The operation takes
@@ -174,15 +174,15 @@ pub trait DomainParticipant<'dp>:
     /// of times using delete_topic.
     /// Regardless of whether the middleware chooses to propagate topics, the delete_topic operation deletes only the local proxy.
     /// If the operation times-out, a ‘nil’ value (as specified by the platform) is returned.
-    fn find_topic<'t, T: 'dp>(
+    fn find_topic<'t, T: 'static>(
         &'t self,
         topic_name: &'t str,
         timeout: Duration,
     ) -> Option<Self::TopicType>
     where
-        Self: TopicFactory<'t, 'dp, T> + Sized,
+        Self: TopicFactory<'t, T> + Sized,
     {
-        <Self as TopicFactory<'t, 'dp, T>>::find_topic(self, topic_name, timeout)
+        <Self as TopicFactory<'t, T>>::find_topic(self, topic_name, timeout)
     }
 
     /// The operation lookup_topicdescription gives access to an existing locally-created TopicDescription, based on its name. The
@@ -209,9 +209,9 @@ pub trait DomainParticipant<'dp>:
     /// objects. These built-in objects are described in 2.2.5, Built-in Topics.
     fn get_builtin_subscriber<'s>(&'s self) -> Self::SubscriberType
     where
-        Self: SubscriberFactory<'s, 'dp> + Sized,
+        Self: SubscriberFactory<'s> + Sized,
     {
-        <Self as SubscriberFactory<'s, 'dp>>::get_builtin_subscriber(self)
+        <Self as SubscriberFactory<'s>>::get_builtin_subscriber(self)
     }
 
     /// This operation allows an application to instruct the Service to locally ignore a remote domain participant. From that point

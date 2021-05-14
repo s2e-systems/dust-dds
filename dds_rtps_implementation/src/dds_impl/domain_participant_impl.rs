@@ -35,8 +35,8 @@ impl<PSM: rust_rtps_pim::PIM> DomainParticipantImpl<PSM> {
     }
 }
 
-impl<'p, 'dp: 'p, PSM: rust_rtps_pim::PIM>
-    rust_dds_api::domain::domain_participant::PublisherFactory<'p, 'dp>
+impl<'p, PSM: rust_rtps_pim::PIM>
+    rust_dds_api::domain::domain_participant::PublisherFactory<'p>
     for DomainParticipantImpl<PSM>
 {
     type PublisherType = PublisherImpl<'p, PSM>;
@@ -73,7 +73,7 @@ impl<'p, 'dp: 'p, PSM: rust_rtps_pim::PIM>
     }
 }
 
-impl<'dp, PSM: rust_rtps_pim::PIM> rust_dds_api::domain::domain_participant::DomainParticipant<'dp>
+impl<PSM: rust_rtps_pim::PIM> rust_dds_api::domain::domain_participant::DomainParticipant
     for DomainParticipantImpl<PSM>
 {
     fn lookup_topicdescription<'t, T>(

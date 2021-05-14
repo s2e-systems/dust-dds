@@ -54,7 +54,7 @@ impl<'p, 'dp: 'p, PSM: rust_rtps_pim::PIM> PublisherImpl<'p, PSM> {
     }
 }
 
-impl<'p, 'dp: 'p, PSM: rust_rtps_pim::PIM> PublisherParent<'dp> for PublisherImpl<'p, PSM> {
+impl<'p, PSM: rust_rtps_pim::PIM> PublisherParent for PublisherImpl<'p, PSM> {
     type DomainParticipantType = DomainParticipantImpl<PSM>;
 
     fn get_participant(&self) -> &Self::DomainParticipantType {
@@ -62,8 +62,8 @@ impl<'p, 'dp: 'p, PSM: rust_rtps_pim::PIM> PublisherParent<'dp> for PublisherImp
     }
 }
 
-impl<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p + 't, T: DDSType<PSM> + 'static, PSM: rust_rtps_pim::PIM>
-    DataWriterFactory<'dw, 'p, 't, 'dp, T> for PublisherImpl<'p, PSM>
+impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType<PSM> + 'static, PSM: rust_rtps_pim::PIM>
+    DataWriterFactory<'dw, 'p, 't, T> for PublisherImpl<'p, PSM>
 {
     type TopicType = TopicImpl<'t, T, PSM>;
     type DataWriterType = DataWriterImpl<'dw, 'p, 't, T, PSM>;
@@ -72,7 +72,7 @@ impl<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p + 't, T: DDSType<PSM> + 'static, PSM: rust_r
         &'dw self,
         a_topic: &'dw Self::TopicType,
         qos: Option<DataWriterQos>,
-        a_listener: Option<&'dp (dyn DataWriterListener<DataType = T> + 'dp)>,
+        a_listener: Option<&'static dyn DataWriterListener<DataType = T>>,
         mask: StatusMask,
     ) -> Option<Self::DataWriterType> {
         let qos = qos.unwrap_or(self.default_datawriter_qos.lock().unwrap().clone());
@@ -110,7 +110,7 @@ impl<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p + 't, T: DDSType<PSM> + 'static, PSM: rust_r
     }
 }
 
-impl<'p, 'dp: 'p, PSM: rust_rtps_pim::PIM> rust_dds_api::publication::publisher::Publisher<'p, 'dp>
+impl<'p, PSM: rust_rtps_pim::PIM> rust_dds_api::publication::publisher::Publisher<'p>
     for PublisherImpl<'p, PSM>
 {
     fn suspend_publications(&self) -> DDSResult<()> {

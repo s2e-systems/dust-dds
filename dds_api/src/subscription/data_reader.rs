@@ -28,7 +28,7 @@ use super::{
 /// get_statuscondition may return the error NOT_ENABLED.
 /// All sample-accessing operations, namely all variants of read, take may return the error PRECONDITION_NOT_MET. The
 /// circumstances that result on this are described in 2.2.2.5.2.8.
-pub trait DataReader<'dr, 's: 'dr, 't: 'dr, 'dp: 's, T: 'static>:
+pub trait DataReader<'dr, 's: 'dr, 't: 'dr, T: 'static>:
     Entity<Qos = DataReaderQos, Listener = &'static dyn DataReaderListener<DataType = T>>
 {
     /// This operation accesses a collection of Data values from the DataReader. The size of the returned collection will be limited to
@@ -456,7 +456,7 @@ pub trait DataReader<'dr, 's: 'dr, 't: 'dr, 'dp: 's, T: 'static>:
 
     /// This operation returns the TopicDescription associated with the DataReader. This is the same TopicDescription that was used
     /// to create the DataReader.
-    fn get_topicdescription(&self) -> &dyn TopicDescription<'t, 'dp, T>;
+    fn get_topicdescription(&self) -> &dyn TopicDescription<'t, T>;
 
     /// This operation returns the Subscriber to which the DataReader belongs.
     fn get_subscriber(&self) -> &dyn Subscriber;

@@ -28,7 +28,7 @@ pub struct DataWriterImpl<
     rtps_writer_impl: RtpsWeak<RTPSWriterImpl<PSM>>,
 }
 
-impl<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p, T: DDSType<PSM> + 't, PSM: rust_rtps_pim::PIM>
+impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType<PSM> + 't, PSM: rust_rtps_pim::PIM>
     DataWriterImpl<'dw, 'p, 't, T, PSM>
 {
     pub fn new(
@@ -44,8 +44,8 @@ impl<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p, T: DDSType<PSM> + 't, PSM: rust_rtps_pim::P
     }
 }
 
-impl<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p, T: DDSType<PSM> + 'static, PSM: rust_rtps_pim::PIM>
-    rust_dds_api::publication::data_writer::DataWriterParent<'p, 'dp>
+impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType<PSM> + 'static, PSM: rust_rtps_pim::PIM>
+    rust_dds_api::publication::data_writer::DataWriterParent<'p>
     for DataWriterImpl<'dw, 'p, 't, T, PSM>
 {
     type PublisherType = PublisherImpl<'p, PSM>;
@@ -55,8 +55,8 @@ impl<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p, T: DDSType<PSM> + 'static, PSM: rust_rtps_p
     }
 }
 
-impl<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p, T: DDSType<PSM> + 'static, PSM: rust_rtps_pim::PIM>
-    rust_dds_api::publication::data_writer::DataWriter<'dw, 'p, 't, 'dp, T>
+impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType<PSM> + 'static, PSM: rust_rtps_pim::PIM>
+    rust_dds_api::publication::data_writer::DataWriter<'dw, 'p, 't, T>
     for DataWriterImpl<'dw, 'p, 't, T, PSM>
 {
     fn register_instance(&self, _instance: T) -> DDSResult<Option<InstanceHandle>> {
@@ -179,7 +179,7 @@ impl<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p, T: DDSType<PSM> + 'static, PSM: rust_rtps_p
     }
 }
 
-impl<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p, T: DDSType<PSM> + 'static, PSM: rust_rtps_pim::PIM>
+impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType<PSM> + 'static, PSM: rust_rtps_pim::PIM>
     rust_dds_api::infrastructure::entity::Entity for DataWriterImpl<'dw, 'p, 't, T, PSM>
 {
     type Qos = DataWriterQos;
@@ -222,7 +222,7 @@ impl<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p, T: DDSType<PSM> + 'static, PSM: rust_rtps_p
     }
 }
 
-impl<'dw, 'p: 'dw, 't: 'dw, 'dp: 'p, T: DDSType<PSM> + 't, PSM: rust_rtps_pim::PIM>
+impl<'dw, 'p: 'dw, 't: 'dw, T: DDSType<PSM> + 't, PSM: rust_rtps_pim::PIM>
     rust_dds_api::publication::data_writer::AnyDataWriter
     for DataWriterImpl<'dw, 'p, 't, T, PSM>
 {
