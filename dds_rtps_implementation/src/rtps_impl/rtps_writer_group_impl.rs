@@ -1,6 +1,6 @@
 use rust_dds_api::{
     dcps_psm::{InstanceHandle, StatusMask},
-    infrastructure::qos::{DataWriterQos, PublisherQos},
+    infrastructure::qos::PublisherQos,
     publication::publisher_listener::PublisherListener,
     return_type::{DDSError, DDSResult},
 };
@@ -47,6 +47,15 @@ impl<'a, PSM: rust_rtps_pim::PIM> RTPSWriterGroupImpl<'a, PSM> {
             .ok_or(DDSError::PreconditionNotMet("RTPS writer not found"))?;
         self.writer_list.swap_remove(index);
         Ok(())
+    }
+
+    pub fn send_data(&self) {
+        for writer in &self.writer_list {
+            if let Some(_writer) = writer.try_lock() {
+                // writer.produce_messages(|x,y|{}, |x,y|{});
+                todo!()
+            }
+        }
     }
 }
 

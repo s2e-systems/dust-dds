@@ -1,6 +1,5 @@
 use rust_dds_api::{
     dcps_psm::InstanceHandle,
-    infrastructure::entity::Entity,
     return_type::{DDSError, DDSResult},
 };
 use rust_rtps_pim::structure::RTPSEntity;
@@ -44,6 +43,14 @@ impl<'a, PSM: rust_rtps_pim::PIM> RTPSParticipantImpl<'a, PSM> {
             .ok_or(DDSError::PreconditionNotMet("RTPS writer group not found"))?;
         self.rtps_writer_groups.swap_remove(index);
         Ok(())
+    }
+
+    pub fn send_data(&self) {
+        for writer_group in &self.rtps_writer_groups {
+            if let Some(writer_group) = writer_group.try_lock() {
+                writer_group.send_data()
+            }
+        }
     }
 }
 

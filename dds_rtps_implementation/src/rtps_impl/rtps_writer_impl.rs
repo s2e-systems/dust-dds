@@ -167,7 +167,7 @@ impl<PSM: rust_rtps_pim::structure::Types + rust_rtps_pim::behavior::Types> RTPS
         &mut self,
         kind: ChangeKind,
         data: <PSM as rust_rtps_pim::structure::Types>::Data,
-        inline_qos: &[<PSM as rust_rtps_pim::structure::Types>::Parameter],
+        _inline_qos: &[<PSM as rust_rtps_pim::structure::Types>::Parameter],
         handle: <PSM as rust_rtps_pim::structure::Types>::InstanceHandle,
     ) -> rust_rtps_pim::structure::RTPSCacheChange<PSM> {
         self.last_change_sequence_number = (self.last_change_sequence_number.into() + 1i64).into();
