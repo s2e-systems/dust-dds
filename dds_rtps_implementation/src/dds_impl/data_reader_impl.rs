@@ -26,8 +26,7 @@ pub struct DataReaderImpl<'dr, 's: 'dr, 't: 'dr, T: 'static, PSM: rust_rtps_pim:
 }
 
 impl<'dr, 's: 'dr, 't: 'dr, T: 'static, PSM: rust_rtps_pim::PIM>
-    rust_dds_api::subscription::data_reader::DataReader<'dr, 's, 't, T>
-    for DataReaderImpl<'dr, 's, 't, T, PSM>
+    rust_dds_api::subscription::data_reader::DataReader<T> for DataReaderImpl<'dr, 's, 't, T, PSM>
 {
     fn read(
         &self,

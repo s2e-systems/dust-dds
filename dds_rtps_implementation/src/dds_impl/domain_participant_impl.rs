@@ -217,7 +217,7 @@ impl<PSM: rust_rtps_pim::PIM> Entity for DomainParticipantImpl<PSM> {
         let rtps_participant = self.rtps_participant_impl.clone();
         std::thread::spawn(move|| {
             loop {
-                if let Some(rtps_participant) = rtps_participant.try_lock() {
+                if let Some(_rtps_participant) = rtps_participant.try_lock() {
                     // rtps_participant.send_data();
                     // rtps_participant.receive_data();
                     // rtps_participant.run_callbacks();

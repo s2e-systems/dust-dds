@@ -51,7 +51,7 @@ impl<PSM: rust_rtps_pim::PIM> RTPSWriterGroupImpl<PSM> {
 
     pub fn send_data(&self) {
         for writer in &self.writer_list {
-            if let Some(writer) = writer.try_lock() {
+            if let Some(_writer) = writer.try_lock() {
                 // let submessages;
                 // writer.produce_messages(&mut |x,y|{}, &mut |x,y|{});
                 // transport.write(submessages)

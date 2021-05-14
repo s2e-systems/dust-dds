@@ -15,11 +15,9 @@ use super::{
     subscriber_listener::SubscriberListener,
 };
 
-pub trait DataReaderFactory<'dr, 's: 'dr, 't: 'dr, T: 'static>:
-    Subscriber<'s>
-{
+pub trait DataReaderFactory<'dr, 't: 'dr, T: 'static>: Subscriber {
     type TopicType: Topic<T>;
-    type DataReaderType: DataReader<'dr, 's, 't, T> + AnyDataReader;
+    type DataReaderType: DataReader<T> + AnyDataReader;
 
     fn create_datareader(
         &'dr self,
@@ -42,7 +40,7 @@ pub trait DataReaderFactory<'dr, 's: 'dr, 't: 'dr, T: 'static>:
 /// objects through the operation get_datareaders and then access the data available though operations on the DataReader.
 /// All operations except for the base-class operations set_qos, get_qos, set_listener, get_listener, enable, get_statuscondition,
 /// and create_datareader may return the value NOT_ENABLED.
-pub trait Subscriber<'s>:
+pub trait Subscriber:
     Entity<Qos = SubscriberQos, Listener = &'static dyn SubscriberListener>
 {
     /// This operation creates a DataReader. The returned DataReader will be attached and belong to the Subscriber.
@@ -80,9 +78,9 @@ pub trait Subscriber<'s>:
         mask: StatusMask,
     ) -> Option<Self::DataReaderType>
     where
-        Self: DataReaderFactory<'dr, 's, 't, T> + Sized,
+        Self: DataReaderFactory<'dr, 't, T> + Sized,
     {
-        <Self as DataReaderFactory<'dr, 's, 't, T>>::create_datareader(
+        <Self as DataReaderFactory<'dr, 't, T>>::create_datareader(
             self, a_topic, qos, a_listener, mask,
         )
     }
@@ -101,9 +99,9 @@ pub trait Subscriber<'s>:
     /// Possible error codes returned in addition to the standard ones: PRECONDITION_NOT_MET.
     fn delete_datareader<'dr, 't, T>(&self, a_datareader: &Self::DataReaderType) -> DDSResult<()>
     where
-        Self: DataReaderFactory<'dr, 's, 't, T> + Sized,
+        Self: DataReaderFactory<'dr, 't, T> + Sized,
     {
-        <Self as DataReaderFactory<'dr, 's, 't, T>>::delete_datareader(self, a_datareader)
+        <Self as DataReaderFactory<'dr, 't, T>>::delete_datareader(self, a_datareader)
     }
 
     /// This operation retrieves a previously-created DataReader belonging to the Subscriber that is attached to a Topic with a
@@ -116,9 +114,9 @@ pub trait Subscriber<'s>:
         topic: &'dr Self::TopicType,
     ) -> Option<Self::DataReaderType>
     where
-        Self: DataReaderFactory<'dr, 's, 't, T> + Sized,
+        Self: DataReaderFactory<'dr, 't, T> + Sized,
     {
-        <Self as DataReaderFactory<'dr, 's, 't, T>>::lookup_datareader(self, topic)
+        <Self as DataReaderFactory<'dr, 't, T>>::lookup_datareader(self, topic)
     }
 
     /// This operation indicates that the application is about to access the data samples in any of the DataReader objects attached to

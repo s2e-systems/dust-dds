@@ -14,7 +14,7 @@ use crate::{
 use super::domain_participant_listener::DomainParticipantListener;
 
 pub trait SubscriberFactory<'s>: DomainParticipant {
-    type SubscriberType: Subscriber<'s>;
+    type SubscriberType: Subscriber;
 
     fn create_subscriber(
         &'s self,

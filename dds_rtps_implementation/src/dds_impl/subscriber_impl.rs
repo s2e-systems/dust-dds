@@ -29,8 +29,7 @@ pub struct SubscriberImpl<'s, PSM: rust_rtps_pim::PIM> {
     rtps_reader_group_impl: RtpsWeak<RTPSReaderGroupImpl<PSM>>,
 }
 
-impl<'s, PSM: rust_rtps_pim::PIM>
-    rust_dds_api::domain::domain_participant::SubscriberFactory<'s>
+impl<'s, PSM: rust_rtps_pim::PIM> rust_dds_api::domain::domain_participant::SubscriberFactory<'s>
     for DomainParticipantImpl<PSM>
 {
     type SubscriberType = SubscriberImpl<'s, PSM>;
@@ -87,7 +86,7 @@ impl<'s, PSM: rust_rtps_pim::PIM>
 }
 
 impl<'dr, 's: 'dr, 't: 'dr, T: 'static, PSM: rust_rtps_pim::PIM>
-    rust_dds_api::subscription::subscriber::DataReaderFactory<'dr, 's, 't, T>
+    rust_dds_api::subscription::subscriber::DataReaderFactory<'dr, 't, T>
     for SubscriberImpl<'s, PSM>
 {
     type TopicType = TopicImpl<'t, T, PSM>;
@@ -115,8 +114,8 @@ impl<'dr, 's: 'dr, 't: 'dr, T: 'static, PSM: rust_rtps_pim::PIM>
     }
 }
 
-impl<'s, PSM: rust_rtps_pim::PIM>
-    rust_dds_api::subscription::subscriber::Subscriber<'s> for SubscriberImpl<'s, PSM>
+impl<'s, PSM: rust_rtps_pim::PIM> rust_dds_api::subscription::subscriber::Subscriber
+    for SubscriberImpl<'s, PSM>
 {
     fn begin_access(&self) -> DDSResult<()> {
         todo!()
