@@ -29,62 +29,6 @@ pub struct SubscriberImpl<'s, PSM: rust_rtps_pim::PIM> {
     rtps_reader_group_impl: RtpsWeak<RTPSReaderGroupImpl<PSM>>,
 }
 
-impl<'s, PSM: rust_rtps_pim::PIM> rust_dds_api::domain::domain_participant::SubscriberFactory<'s>
-    for DomainParticipantImpl<PSM>
-{
-    type SubscriberType = SubscriberImpl<'s, PSM>;
-
-    fn create_subscriber(
-        &'s self,
-        _qos: Option<SubscriberQos>,
-        _a_listener: Option<&'static dyn SubscriberListener>,
-        _mask: StatusMask,
-    ) -> Option<Self::SubscriberType> {
-        todo!()
-        //         // let impl_ref = self
-        //         //     .0
-        //         //     .lock()
-        //         //     .unwrap()
-        //         //     .create_subscriber(qos, a_listener, mask)
-        //         //     .ok()?;
-
-        //         // Some(Subscriber(Node {
-        //         //     parent: self,
-        //         //     impl_ref,
-        //         // }))
-    }
-
-    fn delete_subscriber(&self, _a_subscriber: &Self::SubscriberType) -> DDSResult<()> {
-        todo!()
-        //         // if std::ptr::eq(a_subscriber.parent, self) {
-        //         //     self.0
-        //         //         .lock()
-        //         //         .unwrap()
-        //         //         .delete_subscriber(&a_subscriber.impl_ref)
-        //         // } else {
-        //         //     Err(DDSError::PreconditionNotMet(
-        //         //         "Subscriber can only be deleted from its parent participant",
-        //         //     ))
-        //         // }
-    }
-
-    fn get_builtin_subscriber(&'s self) -> Self::SubscriberType {
-        todo!()
-        //         //     self.builtin_entities
-        //         //         .subscriber_list()
-        //         //         .into_iter()
-        //         //         .find(|x| {
-        //         //             if let Some(subscriber) = x.get().ok() {
-        //         //                 subscriber.group.entity.guid.entity_id().entity_kind()
-        //         //                     == ENTITY_KIND_BUILT_IN_READER_GROUP
-        //         //             } else {
-        //         //                 false
-        //         //             }
-        //         //         })
-        //         // }
-    }
-}
-
 impl<'dr, 's: 'dr, 't: 'dr, T: 'static, PSM: rust_rtps_pim::PIM>
     rust_dds_api::subscription::subscriber::DataReaderFactory<'dr, 't, T>
     for SubscriberImpl<'s, PSM>

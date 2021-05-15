@@ -68,8 +68,7 @@ impl<PSM: rust_rtps_pim::PIM> rust_rtps_pim::structure::RTPSParticipant<PSM>
 
 impl<PSM: rust_rtps_pim::PIM> RTPSEntity<PSM> for RTPSParticipantImpl<PSM> {
     fn guid(&self) -> rust_rtps_pim::structure::types::GUID<PSM> {
-        // self.guid
-        todo!()
+        self.guid
     }
 }
 
@@ -124,6 +123,12 @@ mod tests {
         let result = participant.delete_writer_group(1);
 
         assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn send_data() {
+        let participant: RTPSParticipantImpl<RtpsUdpPsm> = RTPSParticipantImpl::new([1;12]);
+        participant.send_data();
     }
 
     // #[test]

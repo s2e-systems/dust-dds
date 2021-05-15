@@ -2,7 +2,7 @@ use std::sync::Mutex;
 
 use rust_dds_api::{
     builtin_topics::{ParticipantBuiltinTopicData, TopicBuiltinTopicData},
-    dcps_psm::{DomainId, InstanceHandle, StatusMask, Time},
+    dcps_psm::{DomainId, Duration, InstanceHandle, StatusMask, Time},
     domain::domain_participant_listener::DomainParticipantListener,
     infrastructure::{
         entity::{Entity, StatusCondition},
@@ -10,7 +10,8 @@ use rust_dds_api::{
     },
     publication::{publisher::Publisher, publisher_listener::PublisherListener},
     return_type::{DDSError, DDSResult},
-    topic::topic_description::TopicDescription,
+    subscription::subscriber_listener::SubscriberListener,
+    topic::{topic_description::TopicDescription, topic_listener::TopicListener},
 };
 use rust_rtps_pim::structure::RTPSEntity;
 
@@ -18,7 +19,10 @@ use crate::{
     rtps_impl::rtps_participant_impl::RTPSParticipantImpl, utils::shared_object::RtpsShared,
 };
 
-use super::{publisher_impl::PublisherImpl, writer_group_factory::WriterGroupFactory};
+use super::{
+    publisher_impl::PublisherImpl, subscriber_impl::SubscriberImpl, topic_impl::TopicImpl,
+    writer_group_factory::WriterGroupFactory,
+};
 
 pub struct DomainParticipantImpl<PSM: rust_rtps_pim::PIM> {
     writer_group_factory: Mutex<WriterGroupFactory<PSM>>,
@@ -67,6 +71,86 @@ impl<'p, PSM: rust_rtps_pim::PIM> rust_dds_api::domain::domain_participant::Publ
                 "Publisher can only be deleted from its parent participant",
             ))
         }
+    }
+}
+
+impl<'s, PSM: rust_rtps_pim::PIM> rust_dds_api::domain::domain_participant::SubscriberFactory<'s>
+    for DomainParticipantImpl<PSM>
+{
+    type SubscriberType = SubscriberImpl<'s, PSM>;
+
+    fn create_subscriber(
+        &'s self,
+        _qos: Option<SubscriberQos>,
+        _a_listener: Option<&'static dyn SubscriberListener>,
+        _mask: StatusMask,
+    ) -> Option<Self::SubscriberType> {
+        todo!()
+        //         // let impl_ref = self
+        //         //     .0
+        //         //     .lock()
+        //         //     .unwrap()
+        //         //     .create_subscriber(qos, a_listener, mask)
+        //         //     .ok()?;
+
+        //         // Some(Subscriber(Node {
+        //         //     parent: self,
+        //         //     impl_ref,
+        //         // }))
+    }
+
+    fn delete_subscriber(&self, _a_subscriber: &Self::SubscriberType) -> DDSResult<()> {
+        todo!()
+        //         // if std::ptr::eq(a_subscriber.parent, self) {
+        //         //     self.0
+        //         //         .lock()
+        //         //         .unwrap()
+        //         //         .delete_subscriber(&a_subscriber.impl_ref)
+        //         // } else {
+        //         //     Err(DDSError::PreconditionNotMet(
+        //         //         "Subscriber can only be deleted from its parent participant",
+        //         //     ))
+        //         // }
+    }
+
+    fn get_builtin_subscriber(&'s self) -> Self::SubscriberType {
+        todo!()
+        //         //     self.builtin_entities
+        //         //         .subscriber_list()
+        //         //         .into_iter()
+        //         //         .find(|x| {
+        //         //             if let Some(subscriber) = x.get().ok() {
+        //         //                 subscriber.group.entity.guid.entity_id().entity_kind()
+        //         //                     == ENTITY_KIND_BUILT_IN_READER_GROUP
+        //         //             } else {
+        //         //                 false
+        //         //             }
+        //         //         })
+        //         // }
+    }
+}
+
+impl<'t, T: 'static, PSM: rust_rtps_pim::PIM>
+    rust_dds_api::domain::domain_participant::TopicFactory<'t, T> for DomainParticipantImpl<PSM>
+{
+    type TopicType = TopicImpl<'t, T, PSM>;
+
+    fn create_topic(
+        &'t self,
+        _topic_name: &str,
+        _qos: Option<TopicQos>,
+        _a_listener: Option<&'static dyn TopicListener<DataType = T>>,
+        _mask: StatusMask,
+    ) -> Option<Self::TopicType> {
+        todo!()
+    }
+
+    fn delete_topic(&self, _a_topic: &Self::TopicType) -> DDSResult<()> {
+        todo!()
+    }
+
+    fn find_topic(&self, _topic_name: &str, _timeout: Duration) -> Option<Self::TopicType> {
+        todo!()
     }
 }
 
@@ -238,64 +322,39 @@ impl<PSM: rust_rtps_pim::PIM> Entity for DomainParticipantImpl<PSM> {
 #[cfg(test)]
 mod tests {
     use rust_dds_api::domain::domain_participant::DomainParticipant;
-    // use rust_dds_api::return_type::DDSError;
     use rust_rtps_udp_psm::RtpsUdpPsm;
 
     use super::*;
 
     struct MockDDSType;
 
-    // #[test]
-    // fn set_default_publisher_qos_some_value() {
-    //     let domain_participant_impl: DomainParticipantImpl<RtpsUdpPsm> =
-    //         DomainParticipantImpl::new(RTPSParticipantImpl::new([1; 12]));
-    //     let mut qos = PublisherQos::default();
-    //     qos.group_data.value = &[1, 2, 3, 4];
-    //     domain_participant_impl
-    //         .set_default_publisher_qos(Some(qos.clone()))
-    //         .unwrap();
-    //     assert!(
-    //         *domain_participant_impl
-    //             .default_publisher_qos
-    //             .lock()
-    //             .unwrap()
-    //             == qos
-    //     );
-    // }
+    #[test]
+    fn set_default_publisher_qos_some_value() {
+        let domain_participant_impl: DomainParticipantImpl<RtpsUdpPsm> =
+            DomainParticipantImpl::new([1; 12]);
+        let mut qos = PublisherQos::default();
+        qos.group_data.value = &[1, 2, 3, 4];
+        domain_participant_impl
+            .set_default_publisher_qos(Some(qos.clone()))
+            .unwrap();
+        assert!(domain_participant_impl.get_default_publisher_qos() == qos);
+    }
 
-    // #[test]
-    // fn set_default_publisher_qos_none() {
-    //     let domain_participant_impl: DomainParticipantImpl<RtpsUdpPsm> =
-    //         DomainParticipantImpl::new(RTPSParticipantImpl::new([1; 12]));
-    //     let mut qos = PublisherQos::default();
-    //     qos.group_data.value = &[1, 2, 3, 4];
-    //     domain_participant_impl
-    //         .set_default_publisher_qos(Some(qos.clone()))
-    //         .unwrap();
+    #[test]
+    fn set_default_publisher_qos_none() {
+        let domain_participant_impl: DomainParticipantImpl<RtpsUdpPsm> =
+            DomainParticipantImpl::new([1; 12]);
+        let mut qos = PublisherQos::default();
+        qos.group_data.value = &[1, 2, 3, 4];
+        domain_participant_impl
+            .set_default_publisher_qos(Some(qos.clone()))
+            .unwrap();
 
-    //     domain_participant_impl
-    //         .set_default_publisher_qos(None)
-    //         .unwrap();
-    //     assert!(
-    //         *domain_participant_impl
-    //             .default_publisher_qos
-    //             .lock()
-    //             .unwrap()
-    //             == PublisherQos::default()
-    //     );
-    // }
-
-    // #[test]
-    // fn get_default_publisher_qos() {
-    //     let domain_participant_impl: DomainParticipantImpl<RtpsUdpPsm> =
-    //         DomainParticipantImpl::new(RTPSParticipantImpl::new([1; 12]));
-    //     let mut qos = PublisherQos::default();
-    //     qos.group_data.value = &[1, 2, 3, 4];
-    //     domain_participant_impl
-    //         .set_default_publisher_qos(Some(qos.clone()))
-    //         .unwrap();
-    //     assert!(domain_participant_impl.get_default_publisher_qos() == qos);
-    // }
+        domain_participant_impl
+            .set_default_publisher_qos(None)
+            .unwrap();
+        assert!(domain_participant_impl.get_default_publisher_qos() == PublisherQos::default());
+    }
 
     // #[test]
     // fn set_default_subscriber_qos_some_value() {
