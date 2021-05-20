@@ -1,10 +1,10 @@
 use crate::{messages::submessage_elements, PIM};
 
-pub struct HeartbeatFrag<PSM: PIM> {
-    pub endianness_flag: PSM::SubmessageFlag,
-    pub reader_id: submessage_elements::EntityId<PSM>,
-    pub writer_id: submessage_elements::EntityId<PSM>,
-    pub writer_sn: submessage_elements::SequenceNumber<PSM>,
-    pub last_fragment_num: submessage_elements::FragmentNumber<PSM>,
-    pub count: submessage_elements::Count<PSM>,
+pub trait HeartbeatFrag<PSM: PIM> {
+    fn endianness_flag(&self) -> PSM::SubmessageFlag;
+    fn reader_id(&self) -> submessage_elements::EntityId<PSM>;
+    fn writer_id(&self) -> submessage_elements::EntityId<PSM>;
+    fn writer_sn(&self) -> submessage_elements::SequenceNumber<PSM>;
+    fn last_fragment_num(&self) -> submessage_elements::FragmentNumber<PSM>;
+    fn count(&self) -> submessage_elements::Count<PSM>;
 }

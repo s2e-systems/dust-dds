@@ -1,13 +1,13 @@
 use crate::{messages::submessage_elements, PIM};
-pub struct Heartbeat<PSM: PIM> {
-    pub endianness_flag: PSM::SubmessageFlag,
-    pub final_flag: PSM::SubmessageFlag,
-    pub liveliness_flag: PSM::SubmessageFlag,
-    pub reader_id: submessage_elements::EntityId<PSM>,
-    pub writer_id: submessage_elements::EntityId<PSM>,
-    pub first_sn: submessage_elements::SequenceNumber<PSM>,
-    pub last_sn: submessage_elements::SequenceNumber<PSM>,
-    pub count: submessage_elements::Count<PSM>,
+pub trait Heartbeat<PSM: PIM> {
+    fn endianness_flag(&self) -> PSM::SubmessageFlag;
+    fn final_flag(&self) -> PSM::SubmessageFlag;
+    fn liveliness_flag(&self) -> PSM::SubmessageFlag;
+    fn reader_id(&self) -> submessage_elements::EntityId<PSM>;
+    fn writer_id(&self) -> submessage_elements::EntityId<PSM>;
+    fn first_sn(&self) -> submessage_elements::SequenceNumber<PSM>;
+    fn last_sn(&self) -> submessage_elements::SequenceNumber<PSM>;
+    fn count(&self) -> submessage_elements::Count<PSM>;
     // current_gsn: submessage_elements::SequenceNumber,
     // first_gsn: submessage_elements::SequenceNumber,
     // last_gsn: submessage_elements::SequenceNumber,

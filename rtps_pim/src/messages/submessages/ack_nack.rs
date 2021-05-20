@@ -1,10 +1,10 @@
 use crate::{messages::submessage_elements, PIM};
 
-pub struct AckNack<PSM: PIM> {
-    pub endianness_flag: PSM::SubmessageFlag,
-    pub final_flag: PSM::SubmessageFlag,
-    pub reader_id: submessage_elements::EntityId<PSM>,
-    pub writer_id: submessage_elements::EntityId<PSM>,
-    pub reader_sn_state: submessage_elements::SequenceNumberSet<PSM>,
-    pub count: submessage_elements::Count<PSM>,
+pub trait AckNack<PSM: PIM> {
+    fn endianness_flag(&self) -> PSM::SubmessageFlag;
+    fn final_flag(&self) -> PSM::SubmessageFlag;
+    fn reader_id(&self) -> submessage_elements::EntityId<PSM>;
+    fn writer_id(&self) -> submessage_elements::EntityId<PSM>;
+    fn reader_sn_state(&self) -> submessage_elements::SequenceNumberSet<PSM>;
+    fn count(&self) -> submessage_elements::Count<PSM>;
 }

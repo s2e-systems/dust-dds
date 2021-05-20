@@ -23,6 +23,10 @@ impl<PSM: rust_rtps_pim::PIM> RTPSParticipantImpl<PSM> {
         }
     }
 
+    pub fn writer_groups(&self) -> &[RtpsShared<RTPSWriterGroupImpl<PSM>>] {
+        &self.rtps_writer_groups
+    }
+
     pub fn add_writer_group(&mut self, writer_group: RtpsShared<RTPSWriterGroupImpl<PSM>>) {
         self.rtps_writer_groups.push(writer_group)
     }
@@ -35,14 +39,6 @@ impl<PSM: rust_rtps_pim::PIM> RTPSParticipantImpl<PSM> {
             .ok_or(DDSError::PreconditionNotMet("RTPS writer group not found"))?;
         self.rtps_writer_groups.swap_remove(index);
         Ok(())
-    }
-
-    pub fn send_data(&self) {
-        for writer_group in &self.rtps_writer_groups {
-            if let Some(writer_group) = writer_group.try_lock() {
-                writer_group.send_data()
-            }
-        }
     }
 }
 
@@ -123,12 +119,6 @@ mod tests {
         let result = participant.delete_writer_group(1);
 
         assert_eq!(result, expected);
-    }
-
-    #[test]
-    fn send_data() {
-        let participant: RTPSParticipantImpl<RtpsUdpPsm> = RTPSParticipantImpl::new([1;12]);
-        participant.send_data();
     }
 
     // #[test]

@@ -1,1 +1,1 @@
-pub struct Pad {}
+pub trait Pad {}

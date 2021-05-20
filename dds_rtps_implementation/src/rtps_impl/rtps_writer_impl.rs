@@ -81,20 +81,6 @@ impl<PSM: rust_rtps_pim::PIM> RTPSWriterImpl<PSM> {
         (&mut self.reader_locators, &self.writer_cache)
     }
 
-    pub fn produce_messages<
-        'a,
-        DataSubmessage: Data<PSM, &'a PSM::Data>,
-        GapSubmessage: Gap<PSM>,
-    >(
-        &'a mut self,
-        send_data_to: &mut impl FnMut(&Locator<PSM>, DataSubmessage),
-        send_gap_to: &mut impl FnMut(&Locator<PSM>, GapSubmessage),
-    ) {
-        for reader_locator in &mut self.reader_locators {
-            reader_locator.produce_messages(&self.writer_cache, send_data_to, send_gap_to)
-        }
-    }
-
     //     pub fn write_w_timestamp(&mut self) -> DDSResult<()> {
     //         let kind = ChangeKind::Alive;
     //         let data = vec![0, 1, 2];

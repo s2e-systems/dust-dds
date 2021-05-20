@@ -1,17 +1,17 @@
 use crate::{messages::submessage_elements, PIM};
 
-pub struct DataFrag<PSM: PIM, SerializedDataFragment: AsRef<[u8]>> {
-    pub endianness_flag: PSM::SubmessageFlag,
-    pub inline_qos_flag: PSM::SubmessageFlag,
-    pub non_standard_payload_flag: PSM::SubmessageFlag,
-    pub key_flag: PSM::SubmessageFlag,
-    pub reader_id: submessage_elements::EntityId<PSM>,
-    pub writer_id: submessage_elements::EntityId<PSM>,
-    pub writer_sn: submessage_elements::SequenceNumber<PSM>,
-    pub fragment_starting_num: submessage_elements::FragmentNumber<PSM>,
-    pub fragments_in_submessage: submessage_elements::UShort,
-    pub data_size: submessage_elements::ULong,
-    pub fragment_size: submessage_elements::UShort,
-    pub inline_qos: submessage_elements::ParameterList<PSM>,
-    pub serialized_payload: SerializedDataFragment,
+pub trait DataFrag<PSM: PIM, SerializedDataFragment: AsRef<[u8]>> {
+    fn endianness_flag(&self) -> PSM::SubmessageFlag;
+    fn inline_qos_flag(&self) -> PSM::SubmessageFlag;
+    fn non_standard_payload_flag(&self) -> PSM::SubmessageFlag;
+    fn key_flag(&self) -> PSM::SubmessageFlag;
+    fn reader_id(&self) -> submessage_elements::EntityId<PSM>;
+    fn writer_id(&self) -> submessage_elements::EntityId<PSM>;
+    fn writer_sn(&self) -> submessage_elements::SequenceNumber<PSM>;
+    fn fragment_starting_num(&self) -> submessage_elements::FragmentNumber<PSM>;
+    fn fragments_in_submessage(&self) -> submessage_elements::UShort;
+    fn data_size(&self) -> submessage_elements::ULong;
+    fn fragment_size(&self) -> submessage_elements::UShort;
+    fn inline_qos(&self) -> submessage_elements::ParameterList<PSM>;
+    fn serialized_payload(&self) -> SerializedDataFragment;
 }

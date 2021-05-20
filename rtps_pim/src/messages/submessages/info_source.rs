@@ -1,7 +1,7 @@
 use crate::{messages::submessage_elements, PIM};
-pub struct InfoSource<PSM: PIM> {
-    pub endianness_flag: PSM::SubmessageFlag,
-    pub protocol_version: submessage_elements::ProtocolVersion<PSM>,
-    pub vendor_id: submessage_elements::VendorId<PSM>,
-    pub guid_prefix: submessage_elements::GuidPrefix<PSM>,
+pub trait InfoSource<PSM: PIM> {
+    fn endianness_flag(&self) -> PSM::SubmessageFlag;
+    fn protocol_version(&self) -> submessage_elements::ProtocolVersion<PSM>;
+    fn vendor_id(&self) -> submessage_elements::VendorId<PSM>;
+    fn guid_prefix(&self) -> submessage_elements::GuidPrefix<PSM>;
 }
