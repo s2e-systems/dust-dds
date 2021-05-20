@@ -1,4 +1,7 @@
-use crate::{PIM, messages::{Submessage, submessage_elements}};
+use crate::{
+    messages::{submessage_elements, Submessage},
+    PIM,
+};
 
 pub trait Gap<PSM: PIM>: Submessage<PSM> {
     fn new(
