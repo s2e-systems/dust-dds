@@ -18,3 +18,7 @@ pub struct SubmessageHeader<PSM: PIM> {
     pub flags: [PSM::SubmessageFlag; 8],
     pub submessage_length: u16,
 }
+
+pub trait Submessage<PSM: PIM> {
+    fn submessage_header(&self) -> SubmessageHeader<PSM>;
+}

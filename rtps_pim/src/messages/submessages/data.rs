@@ -1,20 +1,10 @@
-use crate::{messages::submessage_elements, PIM};
+use crate::{
+    messages::{submessage_elements, Submessage},
+    PIM,
+};
 
-pub struct Data<PSM: PIM, SerializedData> {
-    pub endianness_flag: PSM::SubmessageFlag,
-    pub inline_qos_flag: PSM::SubmessageFlag,
-    pub data_flag: PSM::SubmessageFlag,
-    pub key_flag: PSM::SubmessageFlag,
-    pub non_standard_payload_flag: PSM::SubmessageFlag,
-    pub reader_id: submessage_elements::EntityId<PSM>,
-    pub writer_id: submessage_elements::EntityId<PSM>,
-    pub writer_sn: submessage_elements::SequenceNumber<PSM>,
-    // pub inline_qos: <Self::PSM as structure::Types>::ParameterVector,
-    pub serialized_payload: SerializedData,
-}
-
-impl<PSM: PIM, SerializedData> Data<PSM, SerializedData> {
-    pub fn new(
+pub trait Data<PSM: PIM, SerializedData>: Submessage<PSM> {
+    fn new(
         endianness_flag: PSM::SubmessageFlag,
         inline_qos_flag: PSM::SubmessageFlag,
         data_flag: PSM::SubmessageFlag,
@@ -24,17 +14,15 @@ impl<PSM: PIM, SerializedData> Data<PSM, SerializedData> {
         writer_id: PSM::EntityId,
         writer_sn: PSM::SequenceNumber,
         serialized_payload: SerializedData,
-    ) -> Self {
-        Self {
-            endianness_flag,
-            inline_qos_flag,
-            data_flag,
-            key_flag,
-            non_standard_payload_flag,
-            reader_id: submessage_elements::EntityId { value: reader_id },
-            writer_id: submessage_elements::EntityId { value: writer_id },
-            writer_sn: submessage_elements::SequenceNumber { value: writer_sn },
-            serialized_payload,
-        }
-    }
+    ) -> Self;
+    fn endianness_flag(&self) -> PSM::SubmessageFlag;
+    fn inline_qos_flag(&self) -> PSM::SubmessageFlag;
+    fn data_flag(&self) -> PSM::SubmessageFlag;
+    fn key_flag(&self) -> PSM::SubmessageFlag;
+    fn non_standard_payload_flag(&self) -> PSM::SubmessageFlag;
+    fn reader_id(&self) -> submessage_elements::EntityId<PSM>;
+    fn writer_id(&self) -> submessage_elements::EntityId<PSM>;
+    fn writer_sn(&self) -> submessage_elements::SequenceNumber<PSM>;
+    // pub inline_qos: <Self::PSM as structure::Types>::ParameterVector,
+    fn serialized_payload(&self) -> SerializedData;
 }

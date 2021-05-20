@@ -52,8 +52,14 @@ impl<PSM: rust_rtps_pim::PIM> RTPSWriterGroupImpl<PSM> {
     pub fn send_data(&self) {
         for writer in &self.writer_list {
             if let Some(mut writer) = writer.try_lock() {
+                let (reader_locators, writer_cache) = writer.locators_and_writer_cache();
+                // let writer_cache = writer.writer_cache;
+                // let (ref mut reader_locators, writer_cache) = (&writer.reader_locators, &writer.writer_cache);
                 // let submessages;
-                writer.produce_messages(&mut |_, _| {}, &mut |_, _| {});
+                // for reader_locator in &mut writer_ref.reader_locators{
+                    // reader_locator.produce_messages(&writer_cache, &mut |_,_|{}, &mut |_,_|{});
+                // }
+                // writer.produce_messages(&mut |_, _| {}, &mut |_, _| {});
                 // transport.write(submessages)
             }
         }
