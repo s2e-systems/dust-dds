@@ -19,10 +19,3 @@ pub trait PIM: structure::Types + behavior::Types + messages::Types + Sized + 's
     type NackFragSubmessage: messages::submessages::NackFrag<Self>;
     type PadSubmessage: messages::submessages::Pad<Self>;
 }
-
-#[cfg(test)]
-#[macro_use]
-extern crate std;
-#[cfg(test)]
-#[macro_use]
-extern crate alloc;

@@ -4,6 +4,3 @@ version = "0.1.0"
 authors = ["Joao Rebelo <jrebelo@s2e-systems.com>",
 		   "Stefan Kimmer <skimmer@s2e-systems.com"]
 edition = "2018"
-
-[dev-dependencies]
-# rust-rtps-udp-psm = {path="../rtps_udp_psm"}
