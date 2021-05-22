@@ -5,7 +5,6 @@ use rust_rtps_pim::{
         stateless_writer::{RTPSReaderLocator, RTPSStatelessWriter},
         RTPSWriter,
     },
-    messages::submessages::{Data, Gap},
     structure::{
         types::{ChangeKind, Locator, ReliabilityKind, TopicKind, GUID},
         RTPSCacheChange, RTPSEndpoint, RTPSEntity, RTPSHistoryCache,
