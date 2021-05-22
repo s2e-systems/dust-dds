@@ -4,14 +4,24 @@ use types::{
     Time, VendorId,
 };
 
-pub mod types;
 pub mod submessages;
+pub mod types;
 
 pub struct RtpsUdpPsm;
 
 impl rust_rtps_pim::PIM for RtpsUdpPsm {
+    type AckNackSubmessage;
     type DataSubmesage = submessages::data::Data;
+    type DataFrag;
     type GapSubmessage = submessages::gap::Gap;
+    type HeartbeatSubmessage;
+    type HeartbeatFragSubmessage;
+    type InfoDestinationSubmessage;
+    type InfoReplySubmessage;
+    type InfoSourceSubmessage;
+    type InfoTimestampSubmessage;
+    type NackFragSubmessage;
+    type PadSubmessage;
 }
 
 impl rust_rtps_pim::structure::Types for RtpsUdpPsm {
